@@ -110,6 +110,66 @@ for (const p of passages.values()) {
 	}
 }
 
+// ── 词汇表纪律警告（#29，不阻断；豁免：段落内 /% vocab: exempt W1|W2|W3 理由 %/ 留痕）──
+// 目标：内容限定既定词汇 → 配测负担 O(内容)→O(机制)。三类越界：
+//   W1 link/button 体内裸 set/run/script（点击态代码只有手写路线能测——O(内容) 负担源头）
+//   W2 era 写越界出塔层（set/赋值/erashift 调用；读不禁——结局状态栏展示属合法读）
+//   W3 旗标生命周期（set 从不 use / use 从不 set）
+const vocabWarn = [];
+const vocabExempts = [];
+const TOWER_FILE = '50-tower.twee';
+const COMMENT_RX = /\/%[\s\S]*?%\//g;
+const isInfraBody = (p) => p.tags.some((t) => ['script', 'widget', 'stylesheet'].includes(t)) || ['StoryInit', 'StoryData', 'StoryTitle'].includes(p.name);
+const exemptOf = (p) => {
+	const m = p.body.match(/vocab:\s*exempt\s+((?:W\d+[\s,|]*)+)(.*?)%/);
+	return m ? { kinds: m[1].match(/W\d+/g), reason: m[2].replace('/', '').trim() } : null;
+};
+for (const p of passages.values()) {
+	if (isInfraBody(p)) continue;
+	const body = p.body.replace(COMMENT_RX, '');
+	const ex = exemptOf(p);
+	const warn = (kind, msg) => {
+		if (ex?.kinds.includes(kind)) { const line = `${p.file}:${p.line} 段落「${p.name}」豁免 ${kind}：${ex.reason}`; if (!vocabExempts.includes(line)) vocabExempts.push(line); }
+		else vocabWarn.push(`${p.file}:${p.line} [${kind}] 段落「${p.name}」${msg}`);
+	};
+	// W1：点击态裸状态变更（词汇允许：Engine.restart 导航 / Chargen.* 模块 API）
+	for (const m of body.matchAll(/<<(link|button|linkappend|linkprepend|linkreplace)\b[^>]*>>([\s\S]*?)<<\/\1>>/g)) { // 开标签>>：[^>]*后须吃两个>，否则捕获体残留>使^锚失效
+		const stripped = m[2].replace(/^\s*<<run\s+(?:Engine\.restart\s*\(\s*\)|Chargen\.\w+\s*\([^)]*\))\s*>>\s*$/gm, '');
+		const hits = [...new Set([...stripped.matchAll(/<<(set|run|script)\b/g)].map((x) => x[1]))];
+		if (hits.length) warn('W1', `link 体内裸 ${hits.join('/')}（点击态代码 → 提升为词汇宏或豁免）：${m[0].replace(/\s+/g, ' ').slice(0, 50)}`);
+	}
+	// W2：era 写越界（只禁写）
+	if (p.file !== TOWER_FILE) {
+		if (/<<\s*set\s+\$era\b/.test(body) || /variables\.era\s*=[^=]/.test(body)) warn('W2', 'era 写入越界出塔层（状态空间翻倍源头）');
+		if (/<<\s*erashift\s*>>/.test(body)) warn('W2', 'erashift 调用越界出塔层');
+	}
+}
+// W3：旗标生命周期（全 src 含 JS 引用；pc 对象不计——成员级变更合法）
+{
+	const all = [...passages.values()].map((p) => ({ p, text: p.body.replace(COMMENT_RX, '') }));
+	const names = new Set();
+	for (const { text } of all) for (const m of text.matchAll(/\$([A-Za-z_]\w*)\b/g)) names.add(m[1]);
+	for (const name of [...names].filter((n) => n !== 'pc' && n !== 'args')) { // args=widget 形参伪变量
+		const setterRx = new RegExp(`<<\\s*set\\s+\\$${name}\\b|variables\\.${name}\\s*=[^=]|<<run[^>]*\\$${name}\\s*=[^=]`, 'g');
+		const useRx = new RegExp(`\\$${name}\\b|[^.\\w]${name}\\b`, 'g');
+		let setters = 0, uses = 0;
+		const setterHosts = [];
+		for (const { p, text } of all) {
+			const n = (text.match(setterRx) ?? []).length;
+			setters += n;
+			if (n) setterHosts.push(p);
+			uses += (text.replace(setterRx, '').match(useRx) ?? []).length;
+		}
+		// W3 豁免：setter 所在段落带 exempt W3 → 留痕放行（旗标级问题，豁免锚在写点）
+		const exHost = setterHosts.find((p) => exemptOf(p)?.kinds.includes('W3'));
+		if (exHost) { const ex = exemptOf(exHost); vocabExempts.push(`${exHost.file}:${exHost.line} 段落「${exHost.name}」豁免 W3：旗标 $${name} —— ${ex.reason}`); continue; }
+		if (setters > 0 && uses === 0) vocabWarn.push(`[W3] 旗标 $${name} 只写不读（死旗标）`);
+		if (setters === 0 && uses > 0) vocabWarn.push(`[W3] 旗标 $${name} 只读不写（幽灵引用）`);
+	}
+}
+if (vocabExempts.length) { console.log(`\nℹ 词汇豁免留痕 ${vocabExempts.length}：`); vocabExempts.forEach((x) => console.log('  ' + x)); }
+if (vocabWarn.length) { console.log(`\n⚠ 词汇纪律警告 ${vocabWarn.length}：`); vocabWarn.forEach((x) => console.log('  ' + x)); }
+
 // ── 可达性（信息性）──────────────────────────────────────
 // 过近似：widget 段落内的 goto 目标与 script 段落里的 Engine.play/show 字面量
 // 作为"随处可达"种子；从 StoryData.start BFS

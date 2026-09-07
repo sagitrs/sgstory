@@ -106,6 +106,18 @@ w.SugarCube.Engine.start();
 
 `<<textbox "$pc.name">>`（点路径）在部分版本上行为存疑（未验证）。本项目用平铺 `$player_name` 接输入、车卡完成时拷入 `$pc.name`。若要用成员路径，先在目标 SugarCube 版本上验证。
 
+## 坑 11 · 宏参数裸词不当表达式：`<<goto passage()>>` 直接炸（线上实锤）〔S1〕
+
+**现场**：玩家点击「翻转护身符」，弹错误框：`Error: <<goto>>: passage "passage()" does not exist`。erashift 宏想重渲染当前段落，写了 `<<goto passage()>>`。
+
+**根因**：SugarCube 宏参数解析规则——裸词（无引号/反引号）不当作 TwineScript 表达式求值，直接作为**字面字符串**传入。`passage()` 不是变量也不是字面量，于是 goto 拿到字符串 `"passage()"` 当段落名去找，必然不存在。与坑 3（wikitext 裸全局名不插值）同宗：wikitext/宏参数层**永不隐式求值函数调用**。
+
+**解法**：需要表达式求值时一律反引号包裹：``<<goto `passage()`>>``。同理 `<<set $x to f()>>`（set 的 to 后是表达式区没问题）、`<<print `${fn()}`>>` 等——凡是宏参数位，函数调用必须反引号。
+
+**测试覆盖模式**：
+- 集成：scenarios.mjs newGame 的 VirtualConsole 收集 `jsdomError` 中 `Uncaught` 前缀的异常，clickLabel 每次点击后断言无新增（本项目首例「点击后脚本异常」守卫，覆盖全部路线）
+- 此前测试绿的假象：widget 里 `<<set $era>>` 先于 `<<goto>>` 执行，变量状态断言通过，异常被无监听的 VirtualConsole 吞掉——**状态断言 ≠ 无异常**，两者都要断
+
 ## 工具链纪律（非引擎坑，但同样排雷）
 
 - **管道吞退出码**：`npm test | tail` 的退出码是 `tail` 的——曾让坏 package.json 一路绿灯合入 main。用 `set -o pipefail` 或先落日志再看。

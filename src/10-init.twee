@@ -17,10 +17,10 @@
    塔的回声守卫（#23）：tower.echo 为真时战败不死——hp 回 1、败计数+1、送回「塔的回声」。 %/
 <<widget "damage">>
 	<<set $pc.hp to Math.max(0, $pc.hp - $args[0])>>
-	<<if $pc.gear.includes("药膏") and not $pc.salve_used and $pc.hp gt 0>>
-		<<set $pc.salve_used to true>>
+	<<if $pc.salves gt 0 and $pc.hp gt 0>>
+		<<set $pc.salves to $pc.salves - 1>>
 		<<set $pc.hp to Math.min($pc.max_hp, $pc.hp + 4)>>
-		<span class="damage-flash">''你受到了 $args[0] 点伤害！''（药膏自动生效，回复 4 点生命）</span>
+		<span class="damage-flash">''你受到了 $args[0] 点伤害！''（药膏自动生效，回复 4 点生命<if $pc.salves gt 0>，剩 $pc.salves 副</if>）</span>
 	<<else>>
 		<span class="damage-flash">''你受到了 $args[0] 点伤害！''</span>
 	<</if>>
@@ -52,11 +52,15 @@
 	<<run State.variables[$args[0]] = true>>
 <</widget>>
 
-/% 经济事件词汇（#28）：金额出走 Game.Economy.events；动态事件（战利品）传第二参 %/
+/% 经济事件词汇（#28/#25）：金额/烙印折扣出走 Game.Economy；动态事件传第二参；
+   gives 自动入账（如药膏 salves+1）——所有 sink 的状态副作用都在表里 %/
 <<widget "econ">>
 	<<set _ev to Game.Economy.events[$args[0]]>>
-	<<set _d to (typeof $args[1] is "number") ? $args[1] : _ev.delta>>
+	<<set _d to (typeof $args[1] is "number") ? $args[1] : Game.Economy.priceOf($args[0], $pc)>>
 	<<set $pc.gold to $pc.gold + _d>>
+	<<if _ev.gives>>
+		<<run Object.entries(_ev.gives).forEach(([k, v]) => (State.variables.pc[k] = (State.variables.pc[k] ?? 0) + v))>>
+	<</if>>
 <</widget>>
 
 /% 洞穴察觉检定：精灵黑暗视觉 / 警觉专长给优势；DC 查位点表（#28） %/

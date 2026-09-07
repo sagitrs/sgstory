@@ -177,7 +177,7 @@ import { readdirSync } from 'node:fs';
 const DEFAULT_KEYS = Object.keys(w.Pc.defaults());
 const fixtureDir = 'test/fixtures/saves';
 const fixtures = readdirSync(fixtureDir).filter((f) => f.endsWith('.json')).sort();
-ok(fixtures.length >= 4, `存档 fixture 至少 4 版历史形状（现有 ${fixtures.length}）`);
+ok(fixtures.length >= 5, `存档 fixture 至少 5 版历史形状（现有 ${fixtures.length}）`);
 for (const file of fixtures) {
 	const fx = JSON.parse(readFileSync(`${fixtureDir}/${file}`, 'utf8'));
 	const m = w.Pc.migrate(JSON.parse(JSON.stringify(fx.pc))); // 原样克隆入参
@@ -194,6 +194,8 @@ for (const file of fixtures) {
 	for (const k of ['skills', 'feats', 'gear', 'picked', 'tokens']) ok(Array.isArray(m[k]), `[${label}] 修型：${k} 为数组`);
 	const again = w.Pc.migrate(JSON.parse(JSON.stringify(m)));
 	ok(JSON.stringify(again) === JSON.stringify(m), `[${label}] 幂等：二次迁移深度相等`);
+	if (fx.expectSalves !== undefined) ok(m.salves === fx.expectSalves, `[${label}] 映射：salves=${fx.expectSalves}（salve_used→库存）`);
+	ok(!('salve_used' in m), `[${label}] 映射：salve_used 键已消费删除`);
 	if (fx.expectJunkKept) ok('futureVersionField' in m, `[${label}] 余键：未知字段不删（向前兼容）`);
 }
 
@@ -240,6 +242,17 @@ for (const file of fixtures) {
 	const lc = w.SugarCube.State.variables.last_check;
 	ok(lc?.dc === 9 && /con|体质/i.test(lc?.label ?? ''), `sitecheck 豁免分流走 save（dc=${lc?.dc}，label=${lc?.label}）`);
 	w.eval('Game.Checks.sites["雾影·抵抗"].dc = 15');
+	// ⑤ #25 sink 契约：gives 入账 + 烙印折扣表驱动
+	w.SugarCube.State.variables.pc = w.Pc.defaults();
+	w.SugarCube.State.variables.pc.gold = 30;
+	w.SugarCube.State.variables.pc.salves = 0;
+	new w.SugarCube.Wikifier(null, '<<econ "salve_buy">>');
+	let _pc = w.SugarCube.State.variables.pc;
+	ok(_pc.gold === 22 && _pc.salves === 1, `salve_buy：-8 金且 gives 入账 salves 0→1（实际 ${_pc.gold}/${_pc.salves}）`);
+	w.SugarCube.State.variables.pc.flags.lore = true;
+	ok(w.Game.Economy.priceOf('witch_hint_diary', w.SugarCube.State.variables.pc) === -5, 'priceOf：学识烙印半价 8→5');
+	w.SugarCube.State.variables.pc.flags.lore = false;
+	ok(w.Game.Economy.priceOf('witch_hint_diary', w.SugarCube.State.variables.pc) === -8, 'priceOf：无烙印原价 8');
 	// ⑤ setflag 词汇
 	w.SugarCube.State.variables.goblin_spared = false;
 	new w.SugarCube.Wikifier(null, '<<setflag "goblin_spared">>');

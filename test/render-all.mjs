@@ -69,7 +69,7 @@ for (const p of content) {
 		const errs = w.document.querySelectorAll('#passages .error').length;
 		const out = (w.document.querySelector('#passages')?.textContent ?? '').trim();
 		if (uncaught.length > before) problems.push(`uncaught: ${uncaught[before].slice(0, 120)}`);
-		if (errs > 0) problems.push(`${errs} 个 .error 渲染元素`);
+		if (errs > 0) { const t = [...w.document.querySelectorAll('#passages .error')].map((e) => e.textContent.slice(0, 80)).join(' | '); problems.push(`${errs} 个 .error：${t}`); }
 		if (!out) problems.push('输出为空');
 		if (problems.length) {
 			fails++;

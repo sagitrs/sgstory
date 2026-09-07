@@ -222,6 +222,7 @@ scenario('路线F：全信物登塔 → 真结局「解放」', async () => {
 	// 过去：温室+天文台
 	await clickLabel('翻转护身符：坠入『过去』（剩 3 次）');
 	await clickLabel('三层 · 温室');
+	await clickLabel('试着说明来意（它看起来并不好说话）');
 	if (!pcOf(w).tokens.includes('月光花')) throw new Error('温室应得月光花');
 	await clickLabel('返回楼梯间');
 	await clickLabel('四层 · 天文台');
@@ -304,6 +305,56 @@ scenario('路线I：战士零信物硬接化身 → 结局「焚塔」', async (
 	if (passageOf(w) !== '结局 焚塔') throw new Error(`结局不对：${passageOf(w)}`);
 });
 
+
+// ── 路线 K：满配 spender（#25 经济 sink 全踩）→ 贿赂园丁+乌鸦 → 半途结算 ──
+scenario('路线K：全消费（传闻+情报×2+药膏+贿赂+乌鸦） → 终局 6 金', async () => {
+	const { w, clickLabel } = await newGame(0.99, [
+		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '火把与绳索', '坚韧', '勇气',
+	]);
+	const pc = () => pcOf(w); // 坑2：跨导航禁止持有 $pc 引用
+	// 酒馆：买传闻（5 金——原免费送，#25 第一个 sink）
+	await clickLabel('花 5 金币听老猎人讲实话（他说第三块板子是脆的）');
+	if (pc().gold !== 20) throw new Error(`买传闻后应 20，实际 ${pc().gold}`);
+	if (!w.SugarCube.State.variables.heard_rumor) throw new Error('传闻旗标应置位');
+	await clickLabel('回到大厅');
+	await clickLabel('推门出发，走进暮色');
+	await clickLabel('打着火把，走进山脚的洞穴');
+	await clickLabel('收好护身符，穿过后洞的裂缝'); // 宝箱 +25 → 45
+	if (pc().gold !== 45) throw new Error(`宝箱后应 45（25-5+25），实际 ${pc().gold}`);
+	await clickLabel('听她说完');
+	// 女巫摊子：情报 ×2（8 金/条，铁卫无烙印无折扣）+ 药膏（8 金，库存 +1）
+	await clickLabel('看看她的乌木匣（情报与药膏，收现金）');
+	if (passageOf(w) !== '女巫 摊子') throw new Error(`应停在女巫 摊子，实际 ${passageOf(w)}`);
+	await clickLabel('花 8 金币：书房烤炉后的暗格藏着什么');
+	await clickLabel('花 8 金币：星图的残页在哪里对得齐');
+	await clickLabel('花 8 金币买一副药膏（当前 0 副，受伤自动回 4）');
+	if (pc().gold !== 21) throw new Error(`三购后应 21（45-8-8-8），实际 ${pc().gold}`);
+	if (pc().salves !== 1) throw new Error(`药膏库存应 1，实际 ${pc().salves}`);
+	if (!(w.SugarCube.State.variables.hint_diary && w.SugarCube.State.variables.hint_star)) throw new Error('两条情报旗标应置位');
+	await clickLabel('回到炉边');
+	// 入塔（past）：贿赂园丁拿月光花（10 金确定替代 DC13）
+	await clickLabel('登上守林人之塔（第二章）');
+	await clickLabel('进入塔内');
+	await clickLabel('翻转护身符：坠入『过去』（剩 3 次）');
+	await clickLabel('三层 · 温室');
+	await clickLabel('塞给它 10 金币——哥布林都爱钱，它应该也是');
+	if (passageOf(w) !== '温室 贿赂') throw new Error(`应停在温室 贿赂，实际 ${passageOf(w)}`);
+	if (!pc().tokens.includes('月光花')) throw new Error('贿赂应得月光花');
+	if (pc().gold !== 11) throw new Error(`贿赂后应 11（21-10），实际 ${pc().gold}`);
+	await clickLabel('返回楼梯间');
+	// 乌鸦向导（5 金）：只读高亮——已取的月光花不再列出
+	await clickLabel('给檐上的乌鸦 5 金币（它在这塔里活了一百年）');
+	if (passageOf(w) !== '乌鸦指路') throw new Error(`应停在乌鸦指路，实际 ${passageOf(w)}`);
+	const crowText = w.document.querySelector('#passages').textContent;
+	if (!crowText.includes('铜哨') || crowText.includes('月光花')) throw new Error('乌鸦应列未取的铜哨、不列已取的月光花');
+	if (pc().gold !== 6) throw new Error(`乌鸦后应 6（11-5），实际 ${pc().gold}`);
+	await clickLabel('回到楼梯');
+	await clickLabel('下塔离开');
+	if (passageOf(w) !== '结局 半途') throw new Error(`结局不对：${passageOf(w)}`);
+	// 终局账本（#25 验收）：满配 spender 落在设计区间 5~25
+	if (pc().gold !== 6) throw new Error(`终局金币应 6，实际 ${pc().gold}`);
+	if (pc().tokens.length !== 1) throw new Error(`只取月光花应 1 信物，实际 ${pc().tokens.length}`);
+});
 
 // ── 路线 H：旧存档形状模拟（第二章上线前的档）→ 迁移 → 入塔不崩 ──
 scenario('路线H：旧档缺字段 → Pc.migrate 兜底 → 入塔正常', async () => {

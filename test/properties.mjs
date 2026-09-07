@@ -77,7 +77,7 @@ const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }
 	for (let i = 0; i < 60; i++) {
 		const n = 1 + Math.floor(rng() * 20);
 		const withSalve = rng() < 0.5;
-		w.eval(`(function(){const v=SugarCube.State.variables;v.pc=SugarCube.State.variables.pc;v.pc.hp=14;v.pc.max_hp=14;v.pc.gear=${JSON.stringify(withSalve ? ['药膏'] : [])};v.pc.salve_used=false;})()`);
+		w.eval(`(function(){const v=SugarCube.State.variables;v.pc=SugarCube.State.variables.pc;v.pc.hp=14;v.pc.max_hp=14;v.pc.salves=${withSalve ? 1 : 0};})()`);
 		w.SugarCube.Engine.play('酒馆'); await sleep(30);
 		new w.SugarCube.Wikifier(host, `<<damage ${n}>>`);
 		await sleep(60); // 死亡 goto 异步（引擎队列）
@@ -85,16 +85,32 @@ const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }
 		steps++;
 		if (!(pc.hp >= 0 && pc.hp <= pc.max_hp)) boundBad++;
 		if (pc.hp <= 0 && w.SugarCube.State.passage !== '结局 死亡') deathBad++;
-		// 药膏：未用时受伤自动 +4（上限裁剪）；用过后不再触发
-		if (withSalve && pc.hp > 0 && !pc.salve_used) salveBad++; // 存活时受伤应消耗药膏（致死伤害 hp 不 gt 0，分支不触发属正确行为）
+		// 药膏库存（#25）：受伤自动消耗一副 +4（上限裁剪）；消耗后 salves 减 1
+		if (withSalve && pc.hp > 0 && pc.salves !== 0) salveBad++; // 存活受伤必须已消耗（致死伤害 hp 不 gt 0，分支不触发属正确行为）
 	}
 	ok(boundBad === 0, `伤害界限 ${steps} 步随机序列：hp∈[0,max_hp] 恒成立`);
 	ok(deathBad === 0, `归零死亡：hp<=0 时必跳转「结局 死亡」`);
 	ok(salveBad === 0, `药膏自动生效：携带未用时受伤即消耗（+4 上限裁剪）`);
 
+	// C1b. 药膏库存制（#25）：两副药膏挨两刀，每刀各自 +4（上限裁剪）——回购有意义
+	w.eval('(function(){const p=SugarCube.State.variables.pc;p.hp=14;p.max_hp=14;p.salves=2;})()');
+	w.SugarCube.Engine.play('酒馆'); await sleep(30);
+	new w.SugarCube.Wikifier(host, '<<damage 5>>');
+	await sleep(50);
+	const s1 = w.SugarCube.State.variables.pc;
+	ok(s1.hp === 13 && s1.salves === 1, `第一刀：5 伤自动回 4（13/14），库存 2→1（实际 ${s1.hp}/${s1.salves}）`);
+	new w.SugarCube.Wikifier(host, '<<damage 5>>');
+	await sleep(50);
+	const s2 = w.SugarCube.State.variables.pc;
+	ok(s2.hp === 12 && s2.salves === 0, `第二刀：再回 4（12/14），库存 1→0（实际 ${s2.hp}/${s2.salves}）`);
+	new w.SugarCube.Wikifier(host, '<<damage 3>>');
+	await sleep(50);
+	const s3 = w.SugarCube.State.variables.pc;
+	ok(s3.hp === 9 && s3.salves === 0, `库存空：不再回血（9/14）（实际 ${s3.hp}/${s3.salves}）`);
+
 	// C2. 塔的回声守卫（#23）：echo=true 战败不死——hp=1、败计数+1、送「塔的回声」
 	w.eval('SugarCube.State.variables.pc.tower = { echo: true, defeats: 1 }');
-	w.eval('(function(){const p=SugarCube.State.variables.pc;p.hp=2;p.max_hp=14;p.gear=[];p.salve_used=false;})()');
+	w.eval('(function(){const p=SugarCube.State.variables.pc;p.hp=2;p.max_hp=14;p.gear=[];p.salves=0;})()');
 	w.SugarCube.Engine.play('酒馆'); await sleep(30);
 	new w.SugarCube.Wikifier(host, '<<damage 5>>');
 	await sleep(80);
@@ -103,7 +119,7 @@ const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }
 	ok(w.SugarCube.State.passage === '塔的回声', 'echo 守卫：送「塔的回声」而非结局死亡');
 	// echo=false（塔外）仍走结局死亡——一章行为不变
 	w.eval('SugarCube.State.variables.pc.tower = {}');
-	w.eval('(function(){const p=SugarCube.State.variables.pc;p.hp=2;p.salve_used=false;})()');
+	w.eval('(function(){const p=SugarCube.State.variables.pc;p.hp=2;p.salves=0;})()');
 	w.SugarCube.Engine.play('酒馆'); await sleep(30);
 	new w.SugarCube.Wikifier(host, '<<damage 5>>');
 	await sleep(80);

@@ -16,6 +16,20 @@ window.Game = (() => {
 			study_errand: { delta: 6, chapter: 2, note: '书房·过去 指出错抄，学徒跑腿钱' },
 			flower_pick:  { delta: 5, chapter: 2, note: '温室·采月光花附赠' },
 			star_iron:    { delta: 4, chapter: 2, note: '天文台·星铁碎片' },
+			// ── 消费点（#25 经济 sink：钱买信息与准备，不买结果）──
+			rumor_buy:       { delta: -5, chapter: 1, note: '酒馆·买传闻（吊桥脆板→断桥 adv）' },
+			witch_hint_diary: { delta: -8, featDiscount: { flag: 'lore', to: -5 }, chapter: 1, note: '女巫·书房暗格情报（=hint_diary；学识烙印 5 金）' },
+			witch_hint_star:  { delta: -8, featDiscount: { flag: 'lore', to: -5 }, chapter: 1, note: '女巫·星图残页情报（=hint_star；学识烙印 5 金）' },
+			salve_buy:       { delta: -8, gives: { salves: 1 }, chapter: 1, note: '女巫·药膏补给（库存 +1，可回购）' },
+			gardener_bribe:  { delta: -10, chapter: 2, note: '温室·贿赂园丁（月光花确定获取，替代 DC13 赌）' },
+			crow_guide:      { delta: -5, chapter: 2, note: '楼梯间·乌鸦向导（高亮未取信物/秘密）' },
+		},
+		// 实付价：烙印折扣在这里算（表驱动，twee 不重复定价）
+		priceOf(key, pc) {
+			const ev = this.events[key];
+			if (!ev) throw new Error(`未知经济事件: ${key}`);
+			if (ev.featDiscount && pc?.flags?.[ev.featDiscount.flag]) return ev.featDiscount.to;
+			return ev.delta;
 		},
 	};
 	const Checks = {

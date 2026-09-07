@@ -40,7 +40,7 @@
 [[推门出发，走进暮色|森林边缘]]
 
 :: 买火把
-<<set $pc.gold to $pc.gold - 10>>
+<<econ "torch_buy">>
 <<set $pc.has_torch to true>>
 <<set $pc.gear.push("火把")>>
 
@@ -94,7 +94,7 @@
 	<<set $has_amulet to true>>
 	<<set _loot to 25>>
 	<<if $pc.flags.lore>><<set _loot to _loot + 10>>（学识烙印：你知道夹层里还藏着金币）<</if>>
-	<<set $pc.gold to $pc.gold + _loot>>
+	<<econ "loot" _loot>>
 
 	箱底还压着 _loot 枚金币，沉甸甸的很实在。
 
@@ -125,10 +125,9 @@
 [[回去酒馆攒钱买火把|酒馆]]
 
 :: 战斗
-/% vocab: exempt W1 待#28：哥布林处置是经济事件，随收支表化收编为词汇动作 %/
 骨棒带着风声砸下——
 
-<<attackroll>>
+<<attackroll "哥布林·战斗">>
 
 <<if $last_check.success>>
 	你侧身一闪，剑背横扫——哥布林哀嚎一声，抱头逃进了黑暗。
@@ -146,16 +145,16 @@
 它退到洞口，回头警惕地盯着你，前爪还护着肋下的旧伤。
 
 <<link "捡起护身符，目送它逃走">>
-	<<set $goblin_spared to true>>
+	<<setflag "goblin_spared">>
 	<<goto "女巫小屋">>
 <</link>>
 <<link "捡起护身符，追上去斩草除根（+3 金币）">>
-	<<set $pc.gold to $pc.gold + 3>>
+	<<econ "goblin_kill">>
 	<<goto "女巫小屋">>
 <</link>>
 
 :: 贿赂哥布林
-<<set $pc.gold to $pc.gold - 5>>
+<<econ "bribe">>
 <<set $goblin_spared to true>>
 
 金币在火光里划出一道弧线。哥布林愣了愣，一把接住，警惕地盯着你……然后咧开嘴，露出参差不齐的黄牙。
@@ -213,7 +212,7 @@
 
 影子退回雾中，只留下一枚金币——像是施舍，又像是不屑。
 
-<<set $pc.gold to $pc.gold + 1>>
+<<econ "shadow_alms">>
 
 你捡起金币，手还在抖。
 
@@ -252,7 +251,7 @@
 <</if>>
 
 :: 女巫 治疗
-<<set $pc.gold to $pc.gold - 10>>
+<<econ "witch_heal">>
 <<set $pc.hp to $pc.max_hp>>
 <<set $witch_healed to true>>
 

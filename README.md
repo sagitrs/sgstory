@@ -11,17 +11,20 @@
 npm install
 npm run build   # 编译 → dist/index.html（单文件，浏览器直接打开即玩）
 npm run serve   # 本地预览：http://localhost:8000
-npm test        # 构建后全链（~40s）：L0 静态门 → 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(并行) → 覆盖门
+npm test        # 构建后全链（~45s）：L0 静态门（含表一致性）→ 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(并行) → 覆盖门
 npm run soak    # 游走器加量长测（20+20 局，~2min）：发布前 / 状态机重改动时跑（#27 起移出默认链）
+npm run audit   # 表驱动审计（#28）：检定成功率矩阵 / 经济时间线 / 化身战数值——伞 #21/#22 查此报告
+npm run watch   # 修改 src/ 自动重新编译
+```
 
 ### 纪律：词汇表与断言（#29）
 
-- **内容只许用既定词汇**：机制动作走词汇宏（check/save/damage/erashift/setintent…）、状态读取用 `$pc.*` 展示；L0 对三类越界告警（不阻断）：
+- **内容只许用既定词汇**：机制动作走词汇宏（sitecheck/attackroll/econ/setflag/damage/erashift/setintent…）、状态读取用 `$pc.*` 展示；L0 对三类越界告警（不阻断）：
   - `W1` link/button 体内裸 `set/run/script`（点击态代码只有手写路线能测——O(内容) 负担源头；允许表：`Engine.restart` 导航 / `Chargen.*` 模块 API）
   - `W2` era **写**越界出塔层（读不禁）；`W3` 旗标只写不读/只读不写
-  - 豁免：段落内 `/% vocab: exempt W1 待#28：理由 %/`，豁免会留痕打印——豁免清单即 #28 表化收编工单
+  - 豁免：段落内 `/% vocab: exempt W1 理由 %/`，豁免会留痕打印——豁免清单即收编工单
+- **数值单一源（#28）**：DC/定价/信物效果住 `src/15-game-tables.twee`（window.Game 三表），正文只传位点/事件键；L0 硬拦：引用键不存在 / 表孤儿项 / 正文硬编码 `$pc.gold` 或数字 DC 残留。改数值改表 + `npm run audit`，不动叙事文本。
 - **路线断言降脆**（scenarios 约定）：只断终局账本（结局段、hp/gold/旗标终值）与关键里程碑；不断中间每步 hp/gold——中间值随叙事改动高频变脆。文案断言只锚稳定令牌（如「月光」），不锚整句。
-npm run watch   # 修改 src/ 自动重新编译
 ```
 
 ## 目录结构
@@ -29,13 +32,15 @@ npm run watch   # 修改 src/ 自动重新编译
 ```
 src/
   00-meta.twee    故事元数据：标题、IFID、起始段落
-  10-init.twee    StoryInit（全局变量初始化）+ Widgets（自定义组件）
+  10-init.twee    StoryInit（全局变量初始化）+ Widgets（词汇宏：sitecheck/econ/setflag/…）
+  15-game-tables.twee ★ window.Game 三表（位点/经济/信物）——机制数值单一源（#28）
   20-story.twee   ★ 剧情正文（你主要写的地方）
   80-script.twee  StoryScript：自定义 JS 宏（血条 <<hpbar>> 等）
   90-style.twee   StoryStyleSheet：全局样式（暗色主题）
 vendor/
   format.js       SugarCube 2.37.3 官方 story format（升级时替换此文件）
-test/integrity.mjs  L0 静态完整性门：悬空引用/goto 裸词/未定义宏（构建期归零，坑11 类）
+test/integrity.mjs  L0 静态完整性门：悬空引用/goto 裸词/未定义宏 + 词汇纪律 W1-W3 + 表一致性硬门（#28/#29）
+scripts/audit.mjs   表驱动审计报表（检定成功率/经济时间线/化身战数值），伞 #21/#22 数据源
 test/render-all.mjs L1 全段落渲染冒烟：逐段落 play × $era 双变体，无异常/无 .error/非空
 test/walker.mjs    L2 对抗席游走器：种子化随机游走（一章+塔）+ 状态不变量 + 检定位点双支清扫（npm run soak 加量）
 test/coverage.mjs  L3 覆盖率 ratchet：基线不回退 + 新增段落必须配测（gate#9 等效）——基线更新：npm run update-coverage-baseline

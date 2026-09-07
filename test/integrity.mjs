@@ -170,6 +170,38 @@ for (const p of passages.values()) {
 if (vocabExempts.length) { console.log(`\nℹ 词汇豁免留痕 ${vocabExempts.length}：`); vocabExempts.forEach((x) => console.log('  ' + x)); }
 if (vocabWarn.length) { console.log(`\n⚠ 词汇纪律警告 ${vocabWarn.length}：`); vocabWarn.forEach((x) => console.log('  ' + x)); }
 
+// ── 数据表一致性（#28，硬门）────────────────────────────
+// window.Game 三表（Economy/Checks/Tokens）vm 直载；正文只许经词汇宏引用。
+// 三拦：①引用键不存在（typo 即 build 断）②表孤儿项（表陈旧告警）③正文硬编码残留
+import vm from 'node:vm';
+const gamePassage = [...passages.values()].find((p) => /window\.Game\s*=/.test(p.body));
+const Game = (() => {
+	const ctx = { window: {} };
+	vm.runInNewContext(gamePassage.body, ctx);
+	return ctx.window.Game;
+})();
+if (!Game?.Checks?.sites || !Game?.Economy?.events) errors.push('Game 表加载失败（window.Game/Economy/Checks 缺失）');
+else {
+	const refKeys = { site: new Set(), econ: new Set() };
+	for (const p of passages.values()) {
+		const body = p.body.replace(COMMENT_RX, '');
+		for (const m of body.matchAll(/<<(?:sitecheck|attackroll)\s+"([^"]+)"/g)) refKeys.site.add(m[1]);
+		for (const m of body.matchAll(/<<econ\s+"([^"]+)"/g)) refKeys.econ.add(m[1]);
+	}
+	for (const [k, tbl, kind] of [['site', Game.Checks.sites, '位点'], ['econ', Game.Economy.events, '事件']]) {
+		for (const key of refKeys[k]) if (!(key in tbl)) errors.push(`[表引用] ${kind}键「${key}」不在 Game 表中（typo 或漏迁移）`);
+		for (const key of Object.keys(tbl)) if (!refKeys[k].has(key)) warnings.push(`[表孤儿] ${kind}「${key}」未被任何词汇引用（表陈旧？）`);
+	}
+	// 残留：非 infra 段落不得再硬编码经济/DC（wrapper 宏内允许——那里是词汇实现层）
+	for (const p of passages.values()) {
+		if (isInfraBody(p)) continue;
+		const body = p.body.replace(COMMENT_RX, '');
+		if (/<<\s*set\s+\$pc\.gold\b/.test(body)) errors.push(`[残留] ${p.file}:${p.line} 段落「${p.name}」直改 $pc.gold——经济必须走 <<econ 事件>>`);
+		for (const m of body.matchAll(/<<(check|save)\s+"[^"]+"\s+\d+/g)) errors.push(`[残留] ${p.file}:${p.line} 段落「${p.name}」硬编码 DC（${m[0]}）——检定必须走 <<sitecheck 位点>>`);
+	}
+	console.log(`表：位点 ${Object.keys(Game.Checks.sites).length} · 经济事件 ${Object.keys(Game.Economy.events).length} · 信物 ${Object.keys(Game.Tokens.effects).length}（引用 位点 ${refKeys.site.size} / 事件 ${refKeys.econ.size}）`);
+}
+
 // ── 可达性（信息性）──────────────────────────────────────
 // 过近似：widget 段落内的 goto 目标与 script 段落里的 Engine.play/show 字面量
 // 作为"随处可达"种子；从 StoryData.start BFS

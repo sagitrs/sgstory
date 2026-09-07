@@ -36,34 +36,58 @@
 	<</if>>
 <</widget>>
 
-/% 洞穴察觉检定：精灵黑暗视觉 / 警觉专长给优势 %/
+/% 检定位点词汇（#28）：DC/技能出走 Game.Checks.sites，正文/包装宏只传位点键。
+   site.abil → 豁免（<<save>>），否则技能检定；[adv] 可选 %/
+<<widget "sitecheck">>
+	<<set _site to Game.Checks.sites[$args[0]]>>
+	<<if _site.abil>>
+		<<save _site.abil _site.dc $args[1]>>
+	<<else>>
+		<<check _site.skill _site.dc $args[1]>>
+	<</if>>
+<</widget>>
+
+/% 旗标词汇（#28）：点击态故事旗标统一入口（W1 纪律） %/
+<<widget "setflag">>
+	<<run State.variables[$args[0]] = true>>
+<</widget>>
+
+/% 经济事件词汇（#28）：金额出走 Game.Economy.events；动态事件（战利品）传第二参 %/
+<<widget "econ">>
+	<<set _ev to Game.Economy.events[$args[0]]>>
+	<<set _d to (typeof $args[1] is "number") ? $args[1] : _ev.delta>>
+	<<set $pc.gold to $pc.gold + _d>>
+<</widget>>
+
+/% 洞穴察觉检定：精灵黑暗视觉 / 警觉专长给优势；DC 查位点表（#28） %/
 <<widget "perceptionroll">>
 	<<if $pc.speciesKey is "elf" or $pc.feats.includes("警觉")>>
-		<<check "察觉" 10 "adv">>
+		<<sitecheck "开局·察觉" "adv">>
 	<<else>>
-		<<check "察觉" 10>>
+		<<sitecheck "开局·察觉">>
 	<</if>>
 <</widget>>
 
-/% 战斗检定：长剑 +2；可选参数 "adv" 给优势（二章化身战用） %/
+/% 战斗检定：位点键第一参（#28）；长剑 +2 是装备规则留在宏内；可选 "adv" %/
 <<widget "attackroll">>
-	<<if $args[0] is "adv" and $pc.gear.includes("长剑")>>
-		<<check "运动" 12 "adv" 2>>
-	<<elseif $args[0] is "adv">>
-		<<check "运动" 12 "adv">>
+	<<set _site to Game.Checks.sites[$args[0]]>>
+	<<if $args[1] is "adv" and $pc.gear.includes("长剑")>>
+		<<check _site.skill _site.dc "adv" 2>>
+	<<elseif $args[1] is "adv">>
+		<<check _site.skill _site.dc "adv">>
 	<<elseif $pc.gear.includes("长剑")>>
-		<<check "运动" 12 0 2>>
+		<<check _site.skill _site.dc 0 2>>
 	<<else>>
-		<<check "运动" 12>>
+		<<check _site.skill _site.dc>>
 	<</if>>
 <</widget>>
 
-/% 吊桥体操检定：绳索或听过传闻给优势 %/
+/% 吊桥体操检定：绳索或听过传闻给优势；DC 查位点表（#28） %/
 <<widget "bridgeroll">>
 	<<if $pc.has_rope or $heard_rumor>>
-		<<check "体操" 12 "adv">>
+		<<sitecheck "断桥" "adv">>
 	<<else>>
-		<<check "体操" 12>>
+		<<sitecheck "断桥">>
 	<</if>>
 <</widget>>
 
@@ -86,9 +110,9 @@
 	<</if>>
 <</widget>>
 
-/% 鲁莽挑战：体质豁免 DC15；矮人/勇气减伤 %/
+/% 鲁莽挑战：体质豁免 DC15 查位点表（#28）；矮人/勇气减伤 %/
 <<widget "defyeroll">>
-	<<save "con" 15>>
+	<<sitecheck "雾影·抵抗">>
 	<<if $last_check.success>>
 		<<set _dmg to 3>>
 	<<else>>

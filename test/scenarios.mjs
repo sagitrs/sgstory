@@ -27,11 +27,22 @@ async function newGame(randomStub, picks) {
 			window.Math.random = () => randomStub;
 		},
 	});
-	await sleep(1200);
 	const w = dom.window;
+	// 就绪轮询替代固定等待（#27 CI 教训）：9 路线并行在 2 核 runner 上，
+	// 脚本加载的固定 1.2s 不成立 → "starting passage not selected"。
+	// 轮询消灭时序假设：SugarCube 就绪（Wikifier 可用）→ StoryInit → 起始段渲染完成。
+	const pollUntil = async (cond, timeoutMs, what) => {
+		const t0 = Date.now();
+		while (!cond()) {
+			if (Date.now() - t0 > timeoutMs) throw new Error(`等待超时：${what}`);
+			await sleep(50);
+		}
+	};
+	await pollUntil(() => typeof w.SugarCube?.Wikifier === 'function' && w.document.querySelector('#passages'), 30000, 'SugarCube 加载');
 	new w.SugarCube.Wikifier(null, w.document.querySelector('tw-passagedata[name="StoryInit"]').textContent);
 	w.SugarCube.Engine.start();
-	await sleep(400);
+	await pollUntil(() => w.document.querySelector('#passages .passage[data-passage="开场"]'), 15000, '起始段渲染');
+	await sleep(150);
 
 	const clickLabel = async (label) => {
 		const a = [...w.document.querySelectorAll('#passages a.link-internal')]

@@ -104,6 +104,12 @@ body {
 	font-size: 0.9em;
 	letter-spacing: 0.2em;
 }
+.title-card .engine-credit {
+	margin-top: 2.2em;
+	font-size: 0.72em;
+	color: #5f5a6d;
+	letter-spacing: 0.05em;
+}
 
 /* 结局画面 */
 .ending-card {

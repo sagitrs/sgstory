@@ -24,6 +24,7 @@
 	</div>
 	<div class="mode-expert">
 		<<link "逐轮细调（专家模式 · 8 轮三选一）">>
+			/% vocab: exempt W1 车卡域模式旗标，与 Chargen.* 同域（待#28 随模块表化收编） %/
 			<<set $pc.mode to "expert">>
 			<<goto "车卡">>
 		<</link>>

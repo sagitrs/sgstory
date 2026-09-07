@@ -68,6 +68,12 @@
 <</widget>>
 
 /% 第二章：时代切换（护身符充能 -1，重渲染当前段落）%/
+
+/% 战斗意图词汇（#29）：点击态状态变更必须走词汇宏——裸 set 在 link 体内是
+   O(内容) 测试负担源头（L0 纪律告警 W1 拦截对象） %/
+<<widget "setintent">>
+	<<set $pc.tower.intent to $args[0]>>
+<</widget>>
 <<widget "erashift">>
 	<<if $pc.amulet_charges gt 0>>
 		<<link `($era is "present" ? "翻转护身符：坠入『过去』（剩 $pc.amulet_charges 次）" : "翻转护身符：回到『现在』（剩 $pc.amulet_charges 次）")`>>

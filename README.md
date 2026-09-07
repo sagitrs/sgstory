@@ -13,6 +13,14 @@ npm run build   # 编译 → dist/index.html（单文件，浏览器直接打开
 npm run serve   # 本地预览：http://localhost:8000
 npm test        # 构建后全链（~40s）：L0 静态门 → 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(并行) → 覆盖门
 npm run soak    # 游走器加量长测（20+20 局，~2min）：发布前 / 状态机重改动时跑（#27 起移出默认链）
+
+### 纪律：词汇表与断言（#29）
+
+- **内容只许用既定词汇**：机制动作走词汇宏（check/save/damage/erashift/setintent…）、状态读取用 `$pc.*` 展示；L0 对三类越界告警（不阻断）：
+  - `W1` link/button 体内裸 `set/run/script`（点击态代码只有手写路线能测——O(内容) 负担源头；允许表：`Engine.restart` 导航 / `Chargen.*` 模块 API）
+  - `W2` era **写**越界出塔层（读不禁）；`W3` 旗标只写不读/只读不写
+  - 豁免：段落内 `/% vocab: exempt W1 待#28：理由 %/`，豁免会留痕打印——豁免清单即 #28 表化收编工单
+- **路线断言降脆**（scenarios 约定）：只断终局账本（结局段、hp/gold/旗标终值）与关键里程碑；不断中间每步 hp/gold——中间值随叙事改动高频变脆。文案断言只锚稳定令牌（如「月光」），不锚整句。
 npm run watch   # 修改 src/ 自动重新编译
 ```
 

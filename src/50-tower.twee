@@ -306,8 +306,8 @@
 	[[吹响铜哨，唤她回家|结局 解放]]
 <</if>>
 /% 二章高潮战（#23）：非免战结局必经雾之化身——信物 = 减伤+各自优势，战败不死（塔的回声） %/
-<<link "握住法杖，成为新的守林人">><<set $pc.tower.intent to "keeper">><<goto "雾之化身战">><</link>>
-<<link "折断法杖，让塔与雾一同终结">><<set $pc.tower.intent to "burn">><<goto "雾之化身战">><</link>>
+<<link "握住法杖，成为新的守林人">><<setintent "keeper">><<goto "雾之化身战">><</link>>
+<<link "折断法杖，让塔与雾一同终结">><<setintent "burn">><<goto "雾之化身战">><</link>>
 
 <<if _missing gt 0>>
 	（残影的视线始终没有离开窗外。还差 ''_missing'' 件信物——塔的低层，或许仍有遗漏。而雾，正在你与法杖之间凝聚。）

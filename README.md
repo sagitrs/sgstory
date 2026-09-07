@@ -94,6 +94,7 @@ Twine 2（桌面版）可以**导入编译产物继续可视化编辑**：
 - extwee（编译器）：https://github.com/videlais/extwee
 - Twine 官网/下载：https://twinery.org
 - VS Code 语法高亮：扩展商店搜 **twee3-language-tools**
+- 踩坑实录与引擎评估：[TROUBLESHOOTING.md](TROUBLESHOOTING.md)
 
 ## 许可
 

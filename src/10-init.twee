@@ -1,21 +1,72 @@
 :: StoryInit
-/% 全局变量初始化（新游戏 / 读档无存档时执行一次） %/
+/% 全局状态初始化 %/
 <<set $player_name to "">>
-<<set $max_hp to 100>>
-<<set $hp to 100>>
-<<set $gold to 20>>
-<<set $has_torch to false>>
+<<set $pc to {
+	name: "", round: 0, picked: [],
+	abilities: null, skills: [], feats: [], gear: [], flags: {},
+	gold: 0, hp: 0, max_hp: 0,
+	has_torch: false, has_rope: false, salve_used: false,
+	speciesKey: "", speciesLabel: "", classLabel: "", bgLabel: ""
+}>>
+/% 剧情旗标（与车卡无关的世界状态） %/
 <<set $has_amulet to false>>
 <<set $heard_rumor to false>>
 <<set $goblin_spared to false>>
 <<set $witch_healed to false>>
 
 :: Widgets [widget]
-/% 自定义 Widget：受伤 + 死亡判定。用法：<<damage 20>> %/
+/% 受伤 + 死亡判定 + 药膏自动生效。用法：<<damage N>> %/
 <<widget "damage">>
-	<<set $hp to Math.max(0, $hp - $args[0])>>
-	<span class="damage-flash">''你受到了 $args[0] 点伤害！''</span>
-	<<if $hp lte 0>>
+	<<set $pc.hp to Math.max(0, $pc.hp - $args[0])>>
+	<<if $pc.gear.includes("药膏") and not $pc.salve_used and $pc.hp gt 0>>
+		<<set $pc.salve_used to true>>
+		<<set $pc.hp to Math.min($pc.max_hp, $pc.hp + 4)>>
+		<span class="damage-flash">''你受到了 $args[0] 点伤害！''（药膏自动生效，回复 4 点生命）</span>
+	<<else>>
+		<span class="damage-flash">''你受到了 $args[0] 点伤害！''</span>
+	<</if>>
+	<<if $pc.hp lte 0>>
 		<<goto "结局 死亡">>
 	<</if>>
+<</widget>>
+
+/% 洞穴察觉检定：精灵黑暗视觉 / 警觉专长给优势 %/
+<<widget "perceptionroll">>
+	<<if $pc.speciesKey is "elf" or $pc.feats.includes("警觉")>>
+		<<check "察觉" 10 "adv">>
+	<<else>>
+		<<check "察觉" 10>>
+	<</if>>
+<</widget>>
+
+/% 战斗检定：长剑 +2 %/
+<<widget "attackroll">>
+	<<if $pc.gear.includes("长剑")>>
+		<<check "运动" 12 0 2>>
+	<<else>>
+		<<check "运动" 12>>
+	<</if>>
+<</widget>>
+
+/% 吊桥体操检定：绳索或听过传闻给优势 %/
+<<widget "bridgeroll">>
+	<<if $pc.has_rope or $heard_rumor>>
+		<<check "体操" 12 "adv">>
+	<<else>>
+		<<check "体操" 12>>
+	<</if>>
+<</widget>>
+
+/% 鲁莽挑战：体质豁免 DC15；矮人/勇气减伤 %/
+<<widget "defyeroll">>
+	<<save "con" 15>>
+	<<if $last_check.success>>
+		<<set _dmg to 3>>
+	<<else>>
+		<<set _dmg to 6>>
+	<</if>>
+	<<if $pc.speciesKey is "dwarf">><<set _dmg to _dmg - 2>><</if>>
+	<<if $pc.flags.courage>><<set _dmg to _dmg - 1>><</if>>
+	<<set _dmg to Math.max(1, _dmg)>>
+	<<damage _dmg>>
 <</widget>>

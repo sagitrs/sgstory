@@ -1,0 +1,129 @@
+// 规则层单元测试：mod/skillMod/check/	save/修饰栈/车卡数据完整性
+import { readFileSync } from 'node:fs';
+import { JSDOM, VirtualConsole } from 'jsdom';
+
+const html = readFileSync('dist/index.html', 'utf8');
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+let failures = 0;
+const eq = (actual, expected, msg) => {
+	const ok = actual === expected;
+	console.log(`${ok ? '✓' : '✗'} ${msg}${ok ? '' : `（期望 ${expected}，实际 ${actual}）`}`);
+	if (!ok) failures++;
+};
+const ok = (cond, msg) => {
+	console.log(`${cond ? '✓' : '✗'} ${msg}`);
+	if (!cond) failures++;
+};
+
+const dom = new JSDOM(html, {
+	runScripts: 'dangerously',
+	pretendToBeVisual: true,
+	url: 'http://localhost/',
+	virtualConsole: new VirtualConsole(),
+	beforeParse(window) {
+		window.Math.random = () => 0.5; // d20 恒为 11
+	},
+});
+await sleep(1200);
+const w = dom.window;
+const init = w.document.querySelector('tw-passagedata[name="StoryInit"]');
+new w.SugarCube.Wikifier(null, init.textContent);
+w.SugarCube.Engine.start();
+await sleep(500);
+
+const R = w.Rules;
+
+// ── 调整值 ──
+eq(R.mod(10), 0, 'mod(10) = 0');
+eq(R.mod(14), 2, 'mod(14) = +2');
+eq(R.mod(8), -1, 'mod(8) = -1');
+eq(R.mod(16), 3, 'mod(16) = +3');
+eq(R.fmod(17), '+3', 'fmod(17) 带符号');
+eq(R.fmod(8), '-1', 'fmod(8) 负号');
+eq(R.fmod(10), '+0', 'fmod(10) 零');
+
+// ── 技能加值 ──
+const pc = {
+	abilities: { str: 8, dex: 14, con: 12, int: 10, wis: 15, cha: 13 },
+	skills: ['察觉'],
+	flags: {},
+};
+eq(R.skillMod(pc, '察觉'), 4, '熟练察觉：感(15)+2熟练 = +4');
+eq(R.skillMod(pc, '运动'), -1, '未熟练运动：力(8) = -1');
+eq(R.skillMod({ ...pc, skills: [...pc.skills, '运动'] }, '运动'), 1, '熟练运动：-1+2 = +1');
+eq(R.skillMod(pc, '游说'), 1, '未熟练游说：魅(13) = +1');
+
+// ── d20 检定（随机数恒定 0.5 → d20=11）──
+const mid = R.check(pc, '游说', 11);
+eq(mid.roll, 11, '常规骰 d20=11');
+ok(mid.success, '11+1=12 ≥ DC11 → 成功');
+const miss = R.check(pc, '游说', 13);
+ok(!miss.success, '11+1=12 < DC13 → 失败');
+
+// 优势/劣势：双骰仍为 11/11
+eq(R.d20(1), 11, '优势取高');
+eq(R.d20(-1), 11, '劣势取低');
+
+// 机运烙印 +1
+const lucky = R.check({ ...pc, flags: { luck: true } }, '游说', 13);
+ok(lucky.success && lucky.mod === 2, '机运烙印：+1 加值（12+1=13 ≥ 13）');
+
+// ── 修饰栈（Another-RPG-Engine Stat 模式）──
+const stat = R.makeStat(10);
+eq(stat.value, 10, '修饰栈基值');
+stat.add('装备', 2);
+stat.add('诅咒', -1);
+eq(stat.value, 11, '叠加修饰 10+2-1');
+stat.remove('装备');
+eq(stat.value, 9, '移除装备修饰 10-1');
+
+// ── 自然 20 / 自然 1（SRD 5.2）──
+// 重新加载一个 nat20 环境
+const dom20 = new JSDOM(html, {
+	runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/',
+	virtualConsole: new VirtualConsole(),
+	beforeParse(window) { window.Math.random = () => 0.999; },
+});
+await sleep(1200);
+new dom20.window.SugarCube.Wikifier(null, dom20.window.document.querySelector('tw-passagedata[name="StoryInit"]').textContent);
+dom20.window.SugarCube.Engine.start();
+await sleep(400);
+const nat20 = dom20.window.Rules.check(pc, '运动', 30); // 20-1=19 < 30，仍应成功
+ok(nat20.roll === 20 && nat20.success, '自然 20 → 无视 DC 必然成功');
+const nat20save = dom20.window.Rules.save(pc, 'str', 25);
+ok(nat20save.success, '豁免同样适用自然 20 规则');
+
+const dom1 = new JSDOM(html, {
+	runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/',
+	virtualConsole: new VirtualConsole(),
+	beforeParse(window) { window.Math.random = () => 0.0001; },
+});
+await sleep(1200);
+new dom1.window.SugarCube.Wikifier(null, dom1.window.document.querySelector('tw-passagedata[name="StoryInit"]').textContent);
+dom1.window.SugarCube.Engine.start();
+await sleep(400);
+const nat1 = dom1.window.Rules.check(pc, '察觉', 1); // 1+4=5 ≥ 1，仍应失败
+ok(nat1.roll === 1 && !nat1.success, '自然 1 → 无视加值必然失败');
+
+// ── 车卡数据完整性：8 轮 × 每轮 3 选项，apply 均可执行 ──
+const rounds = w.ChargenRounds;
+eq(rounds.length, 8, '车卡共 8 轮');
+ok(rounds.every((r) => r.options.length === 3), '每轮恰好 3 个选项');
+ok(rounds.every((r) => r.options.every((o) => typeof o.apply === 'function')), '所有选项都有 apply 函数');
+
+// 逐轮选第一个选项，走完整车卡
+const pc2 = w.SugarCube.State.variables;
+pc2.pc = { name: '', round: 0, picked: [], abilities: null, skills: [], feats: [], gear: [], flags: {}, gold: 0, has_torch: false, has_rope: false, salve_used: false };
+rounds.forEach((r, i) => w.Chargen.pick(i, 0));
+eq(pc2.pc.round, 8, '车卡完成 8 轮');
+eq(pc2.pc.abilities.str, 15, '勇武数组：力量 15');
+eq(pc2.pc.abilities.int, 12, '学者背景：智力 10+2=12');
+eq(pc2.pc.max_hp, 12, '战士 10+体(14→+2) = 12（首轮选警觉无HP加成）');
+eq(pc2.pc.hp, 12, '满血出场');
+eq(pc2.pc.gold, 20, '学者 10 + 人类 10 = 20 金币');
+ok(pc2.pc.skills.includes('运动') && pc2.pc.skills.includes('察觉'), '技能包生效');
+ok(pc2.pc.has_torch && pc2.pc.has_rope, '火把与绳索行囊生效');
+ok(pc2.pc.flags.courage, '命运烙印生效');
+
+console.log(failures ? `\n${failures} 项失败` : '\n规则层测试全部通过');
+process.exit(failures ? 1 : 0);

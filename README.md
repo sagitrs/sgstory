@@ -47,21 +47,27 @@ $hp                   变量（$ 开头，可直接写在正文里插值）
 /% 注释 %/             注释不会输出
 ```
 
-## 本模板内置的演示机制
+## 内置的数值系统（D&D SRD 5.2 检定制）
+
+- **六属性 + 调整值**：力量/敏捷/体质/智力/感知/魅力，mod = (score-10)/2 向下取整
+- **18 技能**：技能→属性映射，熟练 = 调整值 + 熟练加值(+2)
+- **d20 检定**：`<<check "察觉" 10 "adv">>` / 豁免 `<<save "con" 15>>`，
+  支持优势/劣势（双骰取高/低）与自然 20/1 必成/必败（2024 版规则）
+- **8 轮三选一车卡**：标准数组 → 背景(+2/+1) → 物种 → 职业(生命骰) →
+  技艺 → 行囊 → 起源专长 → 命运烙印，3⁸ = 6561 种组合
+
+## 内置的演示机制
 
 | 机制 | 位置 | 说明 |
 |---|---|---|
-| 全局状态 | `StoryInit` | $hp/$gold/道具旗标 |
-| 输入角色名 | `开场` | `<<textbox>>` |
-| 商店/资源 | `酒馆 → 买火把` | 金币扣减 + 条件链接 |
-| 情报影响剧情 | `听传闻 → 吊桥` | 听过提示可免坠落伤害 |
-| 随机骰子 | `洞穴/战斗/吊桥` | `random(1, 6)` + 分支 |
-| 战斗/受伤 | `战斗/鲁莽挑战` | `<<damage N>>` Widget |
+| 车卡流程 | `车卡/角色卡` | 8 轮三选一，数据驱动 |
+| 检定驱动剧情 | `洞穴/吊桥/战斗` | 察觉/体操/运动检定代替裸随机 |
+| 资源经济 | `酒馆/宝箱` | 金币、火把、装备效果 |
+| 情报=优势 | `听传闻→吊桥` | 听过提示给检定优势 |
 | 道德分支 | `贿赂哥布林` | 不杀哥布林 → 独立结局 |
 | 多结局 | `结局 *` × 4 | 胜利/和平/空手/死亡 |
-| 实时状态栏 | `StoryCaption` | 名字/血条/金币/背包 |
-| 自定义宏 | `StoryScript` | JS 写的 `<<hpbar>>` |
-| 存档元数据 | `StoryScript` | `Save.onSave` 写入名字/血量/金币 |
+| 实时状态栏 | `StoryCaption` | 名字/职业/血条/金币/背包 |
+| 存档元数据 | `StoryScript` | 存档名带职业与生命 |
 
 存档/读档/回退/重开都在**左侧边栏菜单**（SugarCube 内置，自动持久化到浏览器 localStorage）。
 
@@ -96,6 +102,16 @@ Twine 2（桌面版）可以**导入编译产物继续可视化编辑**：
 | 代码（构建脚本、自定义宏、样式） | MIT | [LICENSE](LICENSE) |
 | 剧情文本与游戏内容（叙事、角色、结局） | CC BY 4.0 | [LICENSE-CONTENT.md](LICENSE-CONTENT.md) |
 | SugarCube 2（引擎，vendor 并嵌入产物） | BSD-2-Clause（© Thomas Michael Edwards） | [NOTICE](NOTICE) |
+| D&D SRD 5.2（规则数值来源） | CC BY 4.0（© Wizards of the Coast） | [NOTICE](NOTICE) |
 | extwee / jsdom（仅开发期） | MIT | [NOTICE](NOTICE) |
+
+## 鸣谢
+
+本项目实现时参考了以下开源项目（未直接包含其代码）：
+
+- [Another-RPG-Engine](https://github.com/AnotherRPGEnthusiast/Another-RPG-Engine)（MIT）— SugarCube 原生 RPG 引擎，数值修饰栈模式
+- [foundryvtt/dnd5e](https://github.com/foundryvtt/dnd5e)（MIT）— 5e 规则的权威 JS 实现，检定公式组织
+- [rpg-dice-roller](https://github.com/dice-roller/rpg-dice-roller)（MIT）— 骰子表达式解析思路
+- [5e-bits/5e-srd-api](https://github.com/5e-bits/5e-srd-api)（MIT）— SRD 数据组织
 
 发布流程：push 到 main → CI 跑测试 → 构建并自动发布到 GitHub Pages。

@@ -135,3 +135,121 @@ body {
 	padding-right: 0.5em;
 	text-align: right;
 }
+
+/* ── 车卡流程 ── */
+.chargen-card {
+	border: 1px solid #4a4358;
+	border-radius: 10px;
+	padding: 1.2em 1.5em;
+	background: rgba(20, 18, 28, 0.7);
+}
+.chargen-progress {
+	color: #8b8497;
+	font-size: 0.8em;
+	letter-spacing: 0.2em;
+}
+.chargen-card h3 {
+	letter-spacing: 0.2em;
+	margin: 0.3em 0;
+}
+.chargen-intro {
+	color: #c8c0b0;
+}
+.choices {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+	gap: 0.8em;
+	margin-top: 1em;
+}
+.choice-card {
+	border: 1px solid #3c3648;
+	border-radius: 8px;
+	padding: 0.9em 1em;
+	background: rgba(44, 40, 54, 0.5);
+	display: flex;
+	flex-direction: column;
+	gap: 0.4em;
+	transition: border-color 0.2s, transform 0.2s;
+}
+.choice-card:hover {
+	border-color: #9db4d4;
+	transform: translateY(-2px);
+}
+.choice-name {
+	font-size: 1.1em;
+	letter-spacing: 0.15em;
+	color: #d3e2f5;
+}
+.choice-desc {
+	color: #a89f92;
+	font-size: 0.9em;
+	flex: 1;
+}
+.choice-effect {
+	color: #7fb285;
+	font-size: 0.82em;
+}
+.choice-card a.link-internal {
+	text-align: center;
+	display: block;
+	border: 1px solid #4a4358;
+	border-radius: 6px;
+	padding: 0.3em 0;
+}
+
+/* ── 检定结果框 ── */
+.check-result {
+	border-left: 3px solid;
+	border-radius: 4px;
+	padding: 0.5em 0.9em;
+	margin: 0.8em 0;
+	font-size: 0.95em;
+	background: rgba(44, 40, 54, 0.5);
+}
+.check-result.check-success {
+	border-color: #5dbb63;
+}
+.check-result.check-fail {
+	border-color: #d1495b;
+}
+.check-dice {
+	color: #9db4d4;
+	font-family: monospace;
+}
+
+/* ── 角色卡总览 ── */
+.charsheet {
+	border: 1px solid #4a4358;
+	border-radius: 10px;
+	padding: 1.2em 1.6em;
+	background: rgba(20, 18, 28, 0.7);
+}
+.charsheet h2 {
+	text-align: center;
+	letter-spacing: 0.15em;
+	margin-top: 0;
+}
+.charsheet-line {
+	text-align: center;
+	color: #8b8497;
+}
+.ability-table {
+	margin: 1em auto;
+	border-spacing: 0.6em 0.3em;
+	text-align: center;
+}
+.ability-table th {
+	color: #8b8497;
+	font-weight: normal;
+	font-size: 0.85em;
+}
+.charsheet-rows {
+	display: flex;
+	flex-direction: column;
+	gap: 0.3em;
+}
+.charsheet-rows .label {
+	color: #8b8497;
+	display: inline-block;
+	min-width: 5.5em;
+}

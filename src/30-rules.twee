@@ -1,0 +1,132 @@
+:: 规则系统 [script]
+// ── D&D SRD 5.2 检定制数值层 ─────────────────────────────
+// 设计模式参考（未直接复制代码）：
+//   Another-RPG-Engine (MIT) 的 Stat 修饰栈 / foundryvtt-dnd5e (MIT) 的公式组织
+// 规则数值来源：D&D System Reference Document 5.2（CC BY 4.0, © Wizards of the Coast）
+
+window.Rules = {
+	ABILITIES: { str: '力量', dex: '敏捷', con: '体质', int: '智力', wis: '感知', cha: '魅力' },
+
+	// 18 技能 → 属性映射（SRD 5.2）
+	SKILLS: {
+		运动: 'str', 体操: 'dex', 巧手: 'dex', 隐匿: 'dex',
+		奥秘: 'int', 历史: 'int', 调查: 'int', 自然: 'int', 宗教: 'int',
+		驯兽: 'wis', 洞悉: 'wis', 医药: 'wis', 察觉: 'wis', 生存: 'wis',
+		欺瞒: 'cha', 恐吓: 'cha', 表演: 'cha', 游说: 'cha',
+	},
+
+	mod(score) {
+		return Math.floor(((score ?? 10) - 10) / 2);
+	},
+
+	// 带符号显示：+2 / -1 / +0
+	fmod(score) {
+		const m = this.mod(score);
+		return m >= 0 ? `+${m}` : `${m}`;
+	},
+
+	abilityMod(pc, ab) {
+		return this.mod(pc.abilities?.[ab]);
+	},
+
+	prof(pc) {
+		return 2; // 1-4 级熟练加值（SRD 5.2 熟练曲线）
+	},
+
+	skillMod(pc, skill) {
+		const ab = this.SKILLS[skill];
+		if (!ab) throw new Error(`未知技能: ${skill}`);
+		let m = this.abilityMod(pc, ab);
+		if (pc.skills.includes(skill)) m += this.prof(pc);
+		return m;
+	},
+
+	// adv: 1 优势（取高）/-1 劣势（取低）/0 常规
+	d20(adv) {
+		if (!adv) return random(1, 20);
+		const a = random(1, 20), b = random(1, 20);
+		return adv > 0 ? Math.max(a, b) : Math.min(a, b);
+	},
+
+	// d20 检定（SRD 5.2：自然20必然成功、自然1必然失败）
+	check(pc, skill, dc, { adv = 0, bonus = 0 } = {}) {
+		const mod = this.skillMod(pc, skill) + bonus + (pc.flags?.luck ? 1 : 0);
+		const roll = this.d20(adv);
+		const total = roll + mod;
+		const success = roll === 20 ? true : roll === 1 ? false : total >= dc;
+		return { label: `${skill}检定`, skill, dc, roll, mod, total, success };
+	},
+
+	// 属性豁免（无技能加成，熟练职业特性暂不展开）
+	save(pc, ability, dc, { adv = 0, bonus = 0 } = {}) {
+		const mod = this.abilityMod(pc, ability) + bonus + (pc.flags?.luck ? 1 : 0);
+		const roll = this.d20(adv);
+		const total = roll + mod;
+		const success = roll === 20 ? true : roll === 1 ? false : total >= dc;
+		return { label: `${this.ABILITIES[ability]}豁免`, ability, dc, roll, mod, total, success };
+	},
+
+	// 修饰栈（模式取自 Another-RPG-Engine Stat 类）：base + 命名来源 + 缓存
+	makeStat(base) {
+		return {
+			_base: base, _mods: {}, _cache: undefined,
+			add(id, v) { this._mods[id] = v; this._cache = undefined; },
+			remove(id) { delete this._mods[id]; this._cache = undefined; },
+			get value() {
+				if (this._cache === undefined) {
+					this._cache = Object.values(this._mods).reduce((a, b) => a + b, this._base);
+				}
+				return this._cache;
+			},
+		};
+	},
+};
+
+window.pcNow = () => State.variables.pc;
+
+// ── 宏：<<check 技名 DC [adv|dis] [加值]>> / <<save 属性缩写 DC [adv|dis]>> ──
+// 结果写入 $last_check，并渲染结果框
+function renderCheck(res) {
+	State.variables.last_check = res;
+	const cls = res.success ? 'check-success' : 'check-fail';
+	const icon = res.success ? '✔' : '✘';
+	const modStr = res.mod >= 0 ? `+${res.mod}` : `${res.mod}`;
+	return `<div class="check-result ${cls}">🎯 ${res.label} DC${res.dc}：` +
+		`<span class="check-dice">d20(${res.roll})</span> ${modStr} = <b>${res.total}</b> ${icon} ${res.success ? '成功' : '失败'}</div>`;
+}
+
+Macro.add('check', {
+	handler() {
+		const skill = this.args[0];
+		const dc = this.args[1];
+		const adv = this.args[2] === 'adv' ? 1 : this.args[2] === 'dis' ? -1 : 0;
+		const bonus = Number(this.args[3]) || 0;
+		$(this.output).append(renderCheck(Rules.check(pcNow(), skill, dc, { adv, bonus })));
+	},
+});
+
+Macro.add('save', {
+	handler() {
+		const ability = this.args[0];
+		const dc = this.args[1];
+		const adv = this.args[2] === 'adv' ? 1 : this.args[2] === 'dis' ? -1 : 0;
+		const bonus = Number(this.args[3]) || 0;
+		$(this.output).append(renderCheck(Rules.save(pcNow(), ability, dc, { adv, bonus })));
+	},
+});
+
+// ── 血条宏（读取 $pc）─────────────────────────────────────
+Macro.add('hpbar', {
+	skipArgs: true,
+	handler() {
+		const pc = pcNow();
+		const hp = Math.max(0, pc.hp ?? 0);
+		const max = pc.max_hp ?? 1;
+		const pct = Math.round((hp / max) * 100);
+		const color = pct > 50 ? '#5dbb63' : pct > 25 ? '#e0a458' : '#d1495b';
+		jQuery(this.output).append(
+			`<div class="hpbar"><div class="hpbar-fill" style="width:${pct}%;background:${color}"></div>` +
+			`<span class="hpbar-text">❤ ${hp} / ${max}</span></div>`
+		);
+	},
+});

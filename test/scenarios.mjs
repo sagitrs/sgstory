@@ -1,6 +1,5 @@
-// 分支场景测试：用固定随机数走完三条完整路线，验证各结局可达
-// 原理：SugarCube 的 random() 底层用 Math.random，
-// 在 jsdom 的 beforeParse 阶段替换它 → 骰子结果完全可控、测试可复现。
+// 分支场景测试：5 条完整路线（车卡 8 轮 + 检定驱动剧情）
+// Math.random 劫持：0.99 → d20 恒 20（自然 20 必成）；0.01 → 恒 1（自然 1 必败）
 import { readFileSync } from 'node:fs';
 import { JSDOM, VirtualConsole } from 'jsdom';
 
@@ -8,40 +7,47 @@ const html = readFileSync('dist/index.html', 'utf8');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let failures = 0;
 
-// 加载一局新游戏；diceValue 0~0.99 会被映射成 1~6 的固定骰子
-async function newGame(randomStub) {
+async function newGame(randomStub, picks) {
 	const dom = new JSDOM(html, {
 		runScripts: 'dangerously',
 		pretendToBeVisual: true,
 		url: 'http://localhost/',
 		virtualConsole: new VirtualConsole(),
 		beforeParse(window) {
-			window.Math.random = () => randomStub; // 劫持骰子
+			window.Math.random = () => randomStub;
 		},
 	});
 	await sleep(1200);
 	const w = dom.window;
-	// jsdom 补齐启动链（真实浏览器自动完成）：StoryInit + 引擎启动
-	const init = w.document.querySelector('tw-passagedata[name="StoryInit"]');
-	new w.SugarCube.Wikifier(null, init.textContent);
+	new w.SugarCube.Wikifier(null, w.document.querySelector('tw-passagedata[name="StoryInit"]').textContent);
 	w.SugarCube.Engine.start();
-	await sleep(500);
-	return w;
-}
+	await sleep(400);
 
-// 按链接文字依次点击
-async function clickThrough(w, labels) {
-	for (const label of labels) {
-		const link = [...w.document.querySelectorAll('#passages a.link-internal')]
-			.find((a) => a.textContent === label);
-		if (!link) throw new Error(`找不到链接「${label}」，当前段落：${w.SugarCube.State.passage}`);
-		link.click();
-		await sleep(350);
+	const clickLabel = async (label) => {
+		const a = [...w.document.querySelectorAll('#passages a.link-internal')]
+			.find((x) => x.textContent === label);
+		if (!a) throw new Error(`找不到链接「${label}」@ ${w.SugarCube.State.passage}`);
+		a.click();
+		await sleep(320);
+	};
+
+	await clickLabel('踏上旅途');
+	// 车卡 8 轮：按选项名点对应卡片的"选择此项"
+	for (const name of picks) {
+		const card = [...w.document.querySelectorAll('.choice-card')]
+			.find((c) => c.querySelector('.choice-name').textContent === name);
+		if (!card) throw new Error(`车卡选项不存在「${name}」@ 第 ${w.SugarCube.State.variables.pc.round + 1} 轮`);
+		card.querySelector('a.link-internal').click();
+		await sleep(280);
 	}
+	if (w.SugarCube.State.passage !== '角色卡') throw new Error(`车卡未完成 @ ${w.SugarCube.State.passage}`);
+	await clickLabel('出发，前往歪脖子鸭酒馆');
+	return { w, clickLabel };
 }
 
 const passageOf = (w) => w.SugarCube.State.passage;
-const varsOf = (w) => w.SugarCube.State.variables;
+const pcOf = (w) => w.SugarCube.State.variables.pc;
+const amuletOf = (w) => w.SugarCube.State.variables.has_amulet;
 
 async function scenario(name, fn) {
 	try {
@@ -53,65 +59,98 @@ async function scenario(name, fn) {
 	}
 }
 
-// ── 场景 1：骰子全 6（0.99）→ 买火把 → 洞穴开出宝箱 → 护身符结局 ──
-await scenario('路线A：火把+宝箱 → 结局「月光倾城」', async () => {
-	const w = await newGame(0.99);
-	await clickThrough(w, [
-		'踏上旅途',
-		'买一支火把（10 金币）',
-		'回到大厅',
-		'推门出发，走进暮色',
-		'打着火把，走进山脚的洞穴',
-		'收好护身符，穿过后洞的裂缝',
-		'听她说完',
+// ── 路线 A：全自然 20 → 察觉直接发现宝箱 → 护身符结局 ──
+await scenario('路线A：火把+全检定成功 → 结局「月光倾城」', async () => {
+	const { w, clickLabel } = await newGame(0.99, [
+		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '火把与绳索', '坚韧', '勇气',
 	]);
+	const pc = () => pcOf(w);
+	if (pc().max_hp !== 14) throw new Error(`HP 应为 14（战士 10+2 + 坚韧 2），实际 ${pc().max_hp}`);
+	if (pc().gold !== 25) throw new Error(`起始金币应为 25（佣兵15+人类10），实际 ${pc().gold}`);
+	await clickLabel('推门出发，走进暮色');
+	await clickLabel('打着火把，走进山脚的洞穴');
+	if (!w.SugarCube.State.variables.last_check.success) throw new Error('察觉检定应成功');
+	await clickLabel('收好护身符，穿过后洞的裂缝');
+	await clickLabel('听她说完');
 	if (passageOf(w) !== '结局 月光倾城') throw new Error(`结局不对：${passageOf(w)}`);
-	if (!varsOf(w).has_amulet) throw new Error('应持有护身符');
-	if (varsOf(w).gold !== 35) throw new Error(`金币应为 20-10+25=35，实际 ${varsOf(w).gold}`);
+	if (!amuletOf(w)) throw new Error('应持有护身符');
+	if (pc().gold !== 50) throw new Error(`金币应为 25+25=50，实际 ${pc().gold}`);
+	if (pc().hp !== 14) throw new Error(`全程无伤应满血，实际 ${pc().hp}`);
 });
 
-// ── 场景 2：骰子全 1（0.01）→ 不买火把 → 摸黑撞伤+吊桥坠落 → 空手结局 ──
+// ── 路线 B：全自然 1 → 摸黑+断桥 → 空手结局（矮人减伤验证）──
 await scenario('路线B：摸黑+断桥 → 结局「空手而归」', async () => {
-	const w = await newGame(0.01);
-	await clickThrough(w, [
-		'踏上旅途',
-		'推门出发，走进暮色',
-		'摸黑走进山脚的洞穴（很危险）',
-		'改走吊桥',
-		'走向小屋',
-		'转身离开森林',
+	const { w, clickLabel } = await newGame(0.01, [
+		'博学型', '学者', '矮人', '巫师', '秘闻技艺', '长剑', '警觉', '机运',
 	]);
+	const pc = () => pcOf(w);
+	if (pc().max_hp !== 7) throw new Error(`巫师 HP 应为 7（6+体12→+1），实际 ${pc().max_hp}`);
+	await clickLabel('推门出发，走进暮色');
+	await clickLabel('摸黑走进山脚的洞穴（很危险）');
+	if (pc().hp !== 5) throw new Error(`摸黑受伤后应 5（7-2），实际 ${pc().hp}`);
+	await clickLabel('改走吊桥');
+	if (pc().hp !== 1) throw new Error(`断桥受伤后应 1（5-4），实际 ${pc().hp}`);
+	await clickLabel('走向小屋');
+	// 金币 10 ≥ 10 → 治疗链接应存在，但选择离开
+	const heal = [...w.document.querySelectorAll('#passages a.link-internal')]
+		.some((a) => a.textContent.includes('请她治疗'));
+	if (!heal) throw new Error('金币足够时治疗链接应存在');
+	await clickLabel('转身离开森林');
 	if (passageOf(w) !== '结局 空手而归') throw new Error(`结局不对：${passageOf(w)}`);
-	if (varsOf(w).hp !== 55) throw new Error(`血量应为 100-15-30=55，实际 ${varsOf(w).hp}`);
 });
 
-// ── 场景 3：骰子全 1 → 持火把遇哥布林 → 贿赂结友 → 和平结局 ──
+// ── 路线 C：察觉失败遇哥布林 → 贿赂结友 → 和平结局 ──
 await scenario('路线C：贿赂哥布林 → 结局「平凡之光」', async () => {
-	const w = await newGame(0.01);
-	await clickThrough(w, [
-		'踏上旅途',
-		'买一支火把（10 金币）',
-		'回到大厅',
-		'推门出发，走进暮色',
-		'打着火把，走进山脚的洞穴',
-		'慢慢后退，扔过去 5 枚金币',
-		'钻过石缝',
-		'接过汤碗',
+	const { w, clickLabel } = await newGame(0.01, [
+		'勇武型', '佣兵', '人类', '游荡者', '市井技艺', '火把与绳索', '坚韧', '勇气',
 	]);
+	const pc = () => pcOf(w);
+	if (pc().gold !== 30) throw new Error(`起始金币应为 30（佣兵15+人类10+游荡者5），实际 ${pc().gold}`);
+	await clickLabel('推门出发，走进暮色');
+	await clickLabel('打着火把，走进山脚的洞穴');
+	await clickLabel('慢慢后退，扔过去 5 枚金币');
+	if (pc().gold !== 25) throw new Error(`贿赂后金币应 25，实际 ${pc().gold}`);
+	if (!w.SugarCube.State.variables.goblin_spared) throw new Error('goblin_spared 应为 true');
+	await clickLabel('钻过石缝');
+	await clickLabel('接过汤碗');
 	if (passageOf(w) !== '结局 平凡之光') throw new Error(`结局不对：${passageOf(w)}`);
-	if (!varsOf(w).goblin_spared) throw new Error('goblin_spared 应为 true');
-	if (varsOf(w).gold !== 5) throw new Error(`金币应为 20-10-5=5，实际 ${varsOf(w).gold}`);
 });
 
-// ── 场景 4：连吃两次 60 伤害 → 死亡结局 & <<damage>> Widget 的死亡跳转 ──
-await scenario('路线D：两次挑衅影子 → 结局「死亡」', async () => {
-	const w = await newGame(0.01);
-	await clickThrough(w, ['踏上旅途', '推门出发，走进暮色', '对着雾气大吼，宣示存在']);
-	if (varsOf(w).hp !== 40) throw new Error(`第一次受伤后血量应为 40，实际 ${varsOf(w).hp}`);
-	// 回到森林边缘再挑衅一次：40-60 → 0，应触发死亡跳转
-	await clickThrough(w, ['明智起见，还是选条正经路', '对着雾气大吼，宣示存在']);
+// ── 路线 D：两次挑衅影子全豁免失败 → 死亡结局 ──
+await scenario('路线D：两次鲁莽挑战 → 结局「死亡」', async () => {
+	const { w, clickLabel } = await newGame(0.01, [
+		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '火把与绳索', '警觉', '机运',
+	]);
+	const pc = () => pcOf(w);
+	if (pc().max_hp !== 12) throw new Error(`战士 HP 应为 12（无坚韧），实际 ${pc().max_hp}`);
+	await clickLabel('推门出发，走进暮色');
+	await clickLabel('对着雾气大吼，宣示存在');
+	if (pc().hp !== 6) throw new Error(`第一次豁免失败后应 6（12-6），实际 ${pc().hp}`);
+	await clickLabel('明智起见，还是选条正经路');
+	await clickLabel('对着雾气大吼，宣示存在');
 	if (passageOf(w) !== '结局 死亡') throw new Error(`应死亡，当前：${passageOf(w)}`);
-	if (varsOf(w).hp !== 0) throw new Error(`血量应归零，实际 ${varsOf(w).hp}`);
+	if (pc().hp !== 0) throw new Error(`血量应归零，实际 ${pc().hp}`);
+});
+
+// ── 路线 E：酒馆买火把 → 战斗豁免失败受伤 → 仍获护身符 ──
+await scenario('路线E：买火把+战斗受创 → 结局「月光倾城」', async () => {
+	const { w, clickLabel } = await newGame(0.01, [
+		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '长剑', '坚韧', '勇气',
+	]);
+	const pc = () => pcOf(w);
+	if (pc().gold !== 25) throw new Error(`起始金币应为 25，实际 ${pc().gold}`);
+	await clickLabel('买一支火把（10 金币）');
+	if (pc().gold !== 15 || !pc().has_torch) throw new Error('买火把后金币/火把状态错误');
+	await clickLabel('回到大厅');
+	await clickLabel('推门出发，走进暮色');
+	await clickLabel('打着火把，走进山脚的洞穴');
+	await clickLabel('拔剑！');
+	if (pc().hp !== 10) throw new Error(`战斗受伤后应 10（14-4），实际 ${pc().hp}`);
+	if (!amuletOf(w)) throw new Error('战斗获胜应获得护身符');
+	await clickLabel('捡起护身符，顺着风声穿过后洞');
+	await clickLabel('听她说完');
+	if (passageOf(w) !== '结局 月光倾城') throw new Error(`结局不对：${passageOf(w)}`);
+	if (pc().gold !== 15) throw new Error(`金币应保持 15，实际 ${pc().gold}`);
 });
 
 console.log(failures ? `\n${failures} 个场景失败` : '\n全部场景通过');

@@ -5,7 +5,7 @@
 
 ## 快速开始
 
-**▶ 在线试玩：https://sagitrs.github.io/sgstory-pages/**（源码仓更新后由 `npm run publish` 发布）
+**▶ 在线试玩：https://sagitrs.github.io/sgstory/**（push 到 main → 测试通过 → 自动发布）
 
 ```bash
 npm install
@@ -98,5 +98,4 @@ Twine 2（桌面版）可以**导入编译产物继续可视化编辑**：
 | SugarCube 2（引擎，vendor 并嵌入产物） | BSD-2-Clause（© Thomas Michael Edwards） | [NOTICE](NOTICE) |
 | extwee / jsdom（仅开发期） | MIT | [NOTICE](NOTICE) |
 
-发布流程：`npm run publish` 将构建产物连同许可文件推送到公开仓
-`sagitrs/sgstory-pages` 的 `gh-pages` 分支，由 GitHub Pages 对外服务。
+发布流程：push 到 main → CI 跑测试 → 构建并自动发布到 GitHub Pages。

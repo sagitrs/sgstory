@@ -118,6 +118,20 @@ w.SugarCube.Engine.start();
 - 集成：scenarios.mjs newGame 的 VirtualConsole 收集 `jsdomError` 中 `Uncaught` 前缀的异常，clickLabel 每次点击后断言无新增（本项目首例「点击后脚本异常」守卫，覆盖全部路线）
 - 此前测试绿的假象：widget 里 `<<set $era>>` 先于 `<<goto>>` 执行，变量状态断言通过，异常被无监听的 VirtualConsole 吞掉——**状态断言 ≠ 无异常**，两者都要断
 
+## 坑 12 · `State.variables` 是 getter-only：整体赋值静默 no-op〔S1 · 测试基建〕
+
+**现场**：游走器双支清扫 lo 档全部丢观测；render-all 的"每次渲染前状态重置"从未生效（全绿纯属侥幸——era 变体靠属性赋值生效，而整体 reset 是空操作，状态一路累积）。
+
+**根因**：`Object.getOwnPropertyDescriptor(SugarCube.State, 'variables')` 无 `writable`——是访问器属性。`State.variables = newObj` 在非严格模式下静默丢弃，不报错。坑10 注中"整体替换 $pc 要页面域内构造"只说对了 realm 问题，没说赋值方式本身。
+
+**解法**：还原状态必须逐键删除后 Object.assign 到活对象上：
+```js
+`(function(){const v=SugarCube.State.variables;for(const k of Object.keys(v))delete v[k];Object.assign(v,${snapshot});})()`
+```
+单字段赋值（`v.pc = {...}` / `v.era = 'past'`）可写，不受影响。
+
+**验证方式**：篡改标记（`marker=123`）→ 整体赋值 → 读回 marker 仍为 123 → 实锤 no-op。
+
 ## 工具链纪律（非引擎坑，但同样排雷）
 
 - **管道吞退出码**：`npm test | tail` 的退出码是 `tail` 的——曾让坏 package.json 一路绿灯合入 main。用 `set -o pipefail` 或先落日志再看。

@@ -5,6 +5,8 @@
 
 ## 快速开始
 
+**▶ 在线试玩：https://sagitrs.github.io/sgstory-pages/**（源码仓更新后由 `npm run publish` 发布）
+
 ```bash
 npm install
 npm run build   # 编译 → dist/index.html（单文件，浏览器直接打开即玩）
@@ -86,3 +88,15 @@ Twine 2（桌面版）可以**导入编译产物继续可视化编辑**：
 - extwee（编译器）：https://github.com/videlais/extwee
 - Twine 官网/下载：https://twinery.org
 - VS Code 语法高亮：扩展商店搜 **twee3-language-tools**
+
+## 许可
+
+| 部分 | 许可证 | 文件 |
+|---|---|---|
+| 代码（构建脚本、自定义宏、样式） | MIT | [LICENSE](LICENSE) |
+| 剧情文本与游戏内容（叙事、角色、结局） | CC BY 4.0 | [LICENSE-CONTENT.md](LICENSE-CONTENT.md) |
+| SugarCube 2（引擎，vendor 并嵌入产物） | BSD-2-Clause（© Thomas Michael Edwards） | [NOTICE](NOTICE) |
+| extwee / jsdom（仅开发期） | MIT | [NOTICE](NOTICE) |
+
+发布流程：`npm run publish` 将构建产物连同许可文件推送到公开仓
+`sagitrs/sgstory-pages` 的 `gh-pages` 分支，由 GitHub Pages 对外服务。

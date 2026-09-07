@@ -66,7 +66,7 @@ if (wantAll || arg('economy')) {
 			for (const [key, ev] of byChapter[ch]) {
 				const d = ev.delta ?? 0;
 				if (ev.delta !== null) { g += d; min = Math.min(min, g); }
-				console.log(`    ${key.padEnd(13, ' ')} ${d >= 0 ? '+' : ''}${String(d).padStart(3)}  ${g >= 10 ? '' : ' ⚠低于10金'} ${ev.note}${ev.delta === null ? '（动态：不计入）' : ''}`);
+				console.log(`    ${key.padEnd(17, ' ')} ${d >= 0 ? '+' : ''}${String(d).padStart(3)}  ${ev.note}${ev.delta === null ? '（动态：不计入）' : ''}`);
 			}
 		}
 		console.log(`  全事件顺走（互斥事件同计=理论上界）：${g} 金（序走最低 ${min}）`);

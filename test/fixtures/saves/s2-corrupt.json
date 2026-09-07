@@ -1,16 +1,37 @@
 {
-	"description": "S2 型损档（数组/对象字段被存成标量、tower 为 null、混入未来版本未知字段——修型+不删余键）",
-	"keep": { "name": "倒霉蛋", "gold": 7 },
-	"expectTokens": [],
-	"expectJunkKept": true,
-	"pc": {
-		"name": "倒霉蛋", "round": "8", "picked": null,
-		"abilities": "强的", "skills": "运动", "feats": 42, "gear": null, "flags": "无",
-		"gold": 7, "hp": 14, "max_hp": 14,
-		"has_torch": true, "has_rope": false, "salve_used": false,
-		"ch2": false, "amulet_charges": 3, "tokens": "铜哨",
-		"tower": null,
-		"speciesKey": "", "speciesLabel": "", "classLabel": "", "bgLabel": "",
-		"futureVersionField": { "unknown": true }
-	}
+  "description": "S2 型损档（数组/对象字段被存成标量、tower 为 null、混入未来版本未知字段——修型+不删余键）",
+  "keep": {
+    "name": "倒霉蛋",
+    "gold": 7
+  },
+  "expectTokens": [],
+  "expectJunkKept": true,
+  "pc": {
+    "name": "倒霉蛋",
+    "round": "8",
+    "picked": null,
+    "abilities": "强的",
+    "skills": "运动",
+    "feats": 42,
+    "gear": null,
+    "flags": "无",
+    "gold": 7,
+    "hp": 14,
+    "max_hp": 14,
+    "has_torch": true,
+    "has_rope": false,
+    "salve_used": false,
+    "ch2": false,
+    "amulet_charges": 3,
+    "tokens": "铜哨",
+    "tower": null,
+    "speciesKey": "",
+    "speciesLabel": "",
+    "classLabel": "",
+    "bgLabel": "",
+    "futureVersionField": {
+      "unknown": true
+    }
+  },
+  "expectSalves": 0
 }

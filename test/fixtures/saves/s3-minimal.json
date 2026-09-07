@@ -1,6 +1,12 @@
 {
-	"description": "S3 极简档（几乎全空——手改存档/极端场景，全部字段由 defaults 兜底）",
-	"keep": { "name": "无名" },
-	"expectTokens": [],
-	"pc": { "name": "无名", "gold": 0 }
+  "description": "S3 极简档（几乎全空——手改存档/极端场景，全部字段由 defaults 兜底）",
+  "keep": {
+    "name": "无名"
+  },
+  "expectTokens": [],
+  "pc": {
+    "name": "无名",
+    "gold": 0
+  },
+  "expectSalves": 0
 }

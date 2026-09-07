@@ -20,8 +20,36 @@
 <<set $pc.hp to $pc.max_hp>>
 <<hpbar>>
 
+<<link "看看她的乌木匣（情报与药膏，收现金）">><<goto "女巫 摊子">><</link>>
 [[登上守林人之塔（第二章）|塔门]]
 [[功成身退|结局 月光倾城]]
+
+:: 女巫 摊子
+/% #25 M2/M3 消费点：情报=hint 同构（买先知拿 adv，不跳检定不改 DC）；
+   药膏库存制回购。学识烙印半价——priceOf 表驱动，标签与实扣同源 %/
+女巫从袖中摸出一只乌木匣，掀开盖：几卷发黄的纸条，两副油纸包的药膏。
+
+"塔里的路数，我看得到；你能不能走到，看你自己的腿。"她敲了敲匣子，"''只卖消息和药，不卖命。''"
+
+''你现有 $pc.gold 金币。''
+
+<<if not $hint_diary>>
+	<<link `"花 " + (-Game.Economy.priceOf("witch_hint_diary", $pc)) + " 金币：书房烤炉后的暗格藏着什么"`>><<econ "witch_hint_diary">><<setflag "hint_diary">><<goto `passage()`>><</link>>
+<<else>>
+	（书房暗格的情报你已到手——纸上画着烤炉后的暗格，和一本日记的轮廓。）
+<</if>>
+<<if not $hint_star>>
+	<<link `"花 " + (-Game.Economy.priceOf("witch_hint_star", $pc)) + " 金币：星图的残页在哪里对得齐"`>><<econ "witch_hint_star">><<setflag "hint_star">><<goto `passage()`>><</link>>
+<<else>>
+	（星图的情报你已到手——她只说了一句："去问天文台上的她。"）
+<</if>>
+<<if $pc.gold gte 8>>
+	<<link `"花 8 金币买一副药膏（当前 " + $pc.salves + " 副，受伤自动回 4）"`>><<econ "salve_buy">><<goto `passage()`>><</link>>
+<<else>>
+	（药膏 8 金一副——你的钱不够。）
+<</if>>
+
+[[回到炉边|女巫的委托]]
 
 :: 塔门
 <<run Pc.migrate($pc)>>
@@ -51,9 +79,35 @@
 		<li><<link `"四层 · 天文台" + ($pc.tokens.includes("星图残页") ? "（✓ 星图残页）" : "")`>><<goto "天文台">><</link>></li>
 		<li><<link "顶楼 · 守林人残影">><<goto "顶楼">><</link>></li>
 	</ul>
+	/% #25 M9 乌鸦向导：QoL 消费——只读状态高亮未取之物，不改判定 %/
+	<<if $pc.gold gte 5>>
+		<<link "给檐上的乌鸦 5 金币（它在这塔里活了一百年）">><<econ "crow_guide">><<goto "乌鸦指路">><</link>>
+	<</if>>
 	<<erashift>>
 	[[下塔离开|结局 半途]]
 </div>
+
+:: 乌鸦指路
+/% #25 M9：只读高亮——乌鸦不改变任何检定，只告诉你哪里还没拿干净 %/
+乌鸦歪头收下硬币，用哑得像生锈铰链的嗓音，报出它看了一百年的账：
+
+<<set _miss to []>>
+<<if not $pc.tokens.includes("铜哨")>><<run _miss.push("一层门厅：她挂在门边的''铜哨''还没人取。")>><</if>>
+<<if not $pc.tokens.includes("日记")>><<run _miss.push("二层书房：''烤炉后有暗格''，里面有本日记。")>><</if>>
+<<if not $pc.tokens.includes("月光花")>><<run _miss.push("三层温室：架子深处还开着一朵''月光花''。")>><</if>>
+<<if not $pc.tokens.includes("星图残页")>><<run _miss.push("四层天文台：''星图的残页''只有她对得齐。")>><</if>>
+<<if not $hint_diary>><<run _miss.push("（旧时代）一层宴会的老妇人，知道暗格在哪。")>><</if>>
+<<if not $hint_star>><<run _miss.push("（旧时代）二层抄书的学徒，认得星象历。")>><</if>>
+
+<<if _miss.length gt 0>>
+	<<for _i to 0; _i lt _miss.length; _i++>>
+		· _miss[_i]
+	<</for>>
+<<else>>
+	"该拿的，你都拿完了。"它啄了啄翅膀，"省下这五个子儿吧。"
+<</if>>
+
+[[回到楼梯|楼梯间]]
 
 :: 塔内氛围
 /% 被各层 <<include>> 复用 %/
@@ -188,20 +242,14 @@
 			<<run $pc.tokens.push("月光花")>>
 			<<econ "flower_pick">>
 		<<else>>
-			<<if not $pc.tower.green_past>>
-				<<set $pc.tower.green_past to true>>
-				园丁警惕地举起修枝剪："人类。要么说清楚来意，要么从藤架上摔下去。"
-				<<sitecheck "温室·讨教">>
-				<<if $last_check.success>>
-					你的话让它放下了剪子。它沉默片刻，摘下一朵''月光花''："守林人常来浇水。拿去吧——她要是知道花能帮上忙，会高兴的。"
-
-					''获得信物【月光花】。''
-					<<run $pc.tokens.push("月光花")>>
-				<<else>>
-					话没说完，藤蔓突然缠上你的脚踝，把你掀了个跟头。
-					<<damage 2>>
-					园丁背过身去继续修剪，再不看你一眼。
-				<</if>>
+		<<if not $pc.tower.green_past>>
+			<<set $pc.tower.green_past to true>>
+			园丁警惕地举起修枝剪："人类。要么说清楚来意，要么从藤架上摔下去。"
+			/% #25 M1* 限定贿赂：10 金确定替代 DC13 赌（哥布林爱钱人设）——两条路并存，真选择 %/
+			<<if $pc.gold gte 10>>
+				<<link "塞给它 10 金币——哥布林都爱钱，它应该也是">><<econ "gardener_bribe">><<goto "温室 贿赂">><</link>>
+			<</if>>
+			<<link "试着说明来意（它看起来并不好说话）">><<goto "温室 游说">><</link>>
 			<<else>>
 				（园丁背对着你。这一次，它不肯再听你说话。）
 			<</if>>
@@ -235,6 +283,37 @@
 <</if>>
 
 <<erashift>>
+[[返回楼梯间|楼梯间]]
+
+:: 温室 贿赂
+/% #25 M1*：贿赂线——付 10 金确定拿月光花（无检定）；与 DC13 赌共存 %/
+<<set $pc.tower.green_past to true>>
+金币落进它围裙口袋的瞬间，修枝剪垂了下去。园丁掂了掂分量，哼了一声：
+
+"会办事。"
+
+它从藤架上摘下一朵盛开的''月光花''，郑重地放进你手心。
+
+''获得信物【月光花】。''
+<<run $pc.tokens.push("月光花")>>
+
+[[返回楼梯间|楼梯间]]
+
+:: 温室 游说
+/% 检定线：DC13 游说（温室·讨教）——与 10 金贿赂互为真选择（#25） %/
+<<set $pc.tower.green_past to true>>
+<<sitecheck "温室·讨教">>
+<<if $last_check.success>>
+	你的话让它放下了剪子。它沉默片刻，摘下一朵''月光花''："守林人常来浇水。拿去吧——她要是知道花能帮上忙，会高兴的。"
+
+	''获得信物【月光花】。''
+	<<run $pc.tokens.push("月光花")>>
+<<else>>
+	话没说完，藤蔓突然缠上你的脚踝，把你掀了个跟头。
+	<<damage 2>>
+	园丁背过身去继续修剪，再不看你一眼。
+<</if>>
+
 [[返回楼梯间|楼梯间]]
 
 :: 天文台

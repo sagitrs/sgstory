@@ -72,7 +72,7 @@ assert(p.textContent.includes('歪脖子鸭'), '进入酒馆');
 assert(p.textContent.includes('无名旅人'), '角色名插值');
 assert(p.textContent.includes('15 枚金币'), '金币插值');
 assert(!links().some((a) => a.textContent.includes('买一支火把')), '已带火把 → 购买链接隐藏');
-assert(links().some((a) => a.textContent === '听角落里的老猎人吹牛'), '传闻链接存在');
+assert(links().some((a) => a.textContent.includes('金币听老猎人讲实话')), '付费传闻链接存在（#25 收 5 金）');
 
 await click('推门出发，走进暮色');
 

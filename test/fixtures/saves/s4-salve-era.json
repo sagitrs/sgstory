@@ -1,0 +1,49 @@
+{
+  "pc": {
+    "name": "药膏旅人",
+    "round": 8,
+    "picked": [
+      "x"
+    ],
+    "mode": "expert",
+    "abilities": {
+      "str": 10,
+      "dex": 10,
+      "con": 12,
+      "int": 13,
+      "wis": 10,
+      "cha": 10
+    },
+    "skills": [
+      "医药"
+    ],
+    "feats": [],
+    "gear": [
+      "火把",
+      "药膏"
+    ],
+    "flags": {
+      "lore": true
+    },
+    "gold": 9,
+    "hp": 5,
+    "max_hp": 8,
+    "has_torch": true,
+    "has_rope": false,
+    "salve_used": false,
+    "ch2": false,
+    "amulet_charges": 0,
+    "tokens": [],
+    "tower": {},
+    "speciesKey": "human",
+    "speciesLabel": "人类",
+    "classLabel": "巫师",
+    "bgLabel": "学者"
+  },
+  "keep": {
+    "name": "药膏旅人",
+    "gold": 9,
+    "hp": 5
+  },
+  "expectSalves": 1
+}

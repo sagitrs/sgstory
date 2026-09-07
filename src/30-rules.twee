@@ -93,7 +93,7 @@ window.Pc = {
 			name: '', round: 0, picked: [], mode: '',
 			abilities: null, skills: [], feats: [], gear: [], flags: {},
 			gold: 0, hp: 0, max_hp: 0,
-			has_torch: false, has_rope: false, salve_used: false,
+			has_torch: false, has_rope: false, salves: 0, // #25 库存制（原 salve_used 布尔，女巫可回购）
 			ch2: false, amulet_charges: 0, tokens: [], tower: {},
 			speciesKey: '', speciesLabel: '', classLabel: '', bgLabel: '',
 		};
@@ -101,6 +101,11 @@ window.Pc = {
 	// 幂等归一化：补缺失字段/修正类型错误，保留已有值
 	migrate(pc) {
 		if (!pc || typeof pc !== 'object') return this.defaults();
+		// #25 存档映射：salve_used 布尔 → salves 库存（未用过且身上有药膏=还剩一副）
+		if (pc.salves === undefined && 'salve_used' in pc) {
+			pc.salves = pc.salve_used ? 0 : (Array.isArray(pc.gear) && pc.gear.includes('药膏') ? 1 : 0);
+			delete pc.salve_used;
+		}
 		const d = this.defaults();
 		for (const k of Object.keys(d)) {
 			if (pc[k] === undefined) pc[k] = d[k];

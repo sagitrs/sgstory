@@ -73,6 +73,8 @@ await scenario('路线A：火把+全检定成功 → 结局「月光倾城」', 
 	if (!w.SugarCube.State.variables.last_check.success) throw new Error('察觉检定应成功');
 	await clickLabel('收好护身符，穿过后洞的裂缝');
 	await clickLabel('听她说完');
+	if (passageOf(w) !== '女巫的委托') throw new Error(`应停在女巫的委托，实际 ${passageOf(w)}`);
+	await clickLabel('功成身退');
 	if (passageOf(w) !== '结局 月光倾城') throw new Error(`结局不对：${passageOf(w)}`);
 	if (!amuletOf(w)) throw new Error('应持有护身符');
 	if (pc().gold !== 50) throw new Error(`金币应为 25+25=50，实际 ${pc().gold}`);
@@ -134,7 +136,7 @@ await scenario('路线D：两次鲁莽挑战 → 结局「死亡」', async () =
 });
 
 // ── 路线 E：酒馆买火把 → 战斗豁免失败受伤 → 仍获护身符 ──
-await scenario('路线E：买火把+战斗受创 → 结局「月光倾城」', async () => {
+await scenario('路线E：放走哥布林 → 塔·温室彩蛋 → 结局「新守林人」', async () => {
 	const { w, clickLabel } = await newGame(0.01, [
 		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '长剑', '坚韧', '勇气',
 	]);
@@ -148,10 +150,85 @@ await scenario('路线E：买火把+战斗受创 → 结局「月光倾城」', 
 	await clickLabel('拔剑！');
 	if (pc().hp !== 10) throw new Error(`战斗受伤后应 10（14-4），实际 ${pc().hp}`);
 	if (!amuletOf(w)) throw new Error('战斗获胜应获得护身符');
-	await clickLabel('捡起护身符，顺着风声穿过后洞');
+	await clickLabel('捡起护身符，目送它逃走');
+	if (!w.SugarCube.State.variables.goblin_spared) throw new Error('放走哥布林应置 goblin_spared');
 	await clickLabel('听她说完');
-	if (passageOf(w) !== '结局 月光倾城') throw new Error(`结局不对：${passageOf(w)}`);
-	if (pc().gold !== 15) throw new Error(`金币应保持 15，实际 ${pc().gold}`);
+	if (passageOf(w) !== '女巫的委托') throw new Error(`应停在女巫的委托，实际 ${passageOf(w)}`);
+	if (pc().hp !== 14) throw new Error(`女巫委托应回满血 14，实际 ${pc().hp}`);
+	await clickLabel('登上守林人之塔（第二章）');
+	await clickLabel('进入塔内');
+	// 坠入过去 → 温室：哥布林园丁认出"放走族崽"的恩人（跨章旗标彩蛋）
+	await clickLabel('翻转护身符：坠入『过去』（剩 3 次）');
+	if (w.SugarCube.State.variables.era !== 'past') throw new Error('时代未切换到过去');
+	await clickLabel('三层 · 温室');
+	if (!pc().tokens.includes('月光花')) throw new Error('温室彩蛋应赠月光花');
+	if (pc().gold !== 20) throw new Error(`园丁赠金后应 20（15+5），实际 ${pc().gold}`);
+	await clickLabel('返回楼梯间');
+	await clickLabel('顶楼 · 守林人残影');
+	if ([...w.document.querySelectorAll('#passages a.link-internal')].some((a) => a.textContent.includes('唤她回家'))) throw new Error('仅 1 件信物不应出现解放选项');
+	await clickLabel('握住法杖，成为新的守林人');
+	if (passageOf(w) !== '结局 新守林人') throw new Error(`结局不对：${passageOf(w)}`);
+});
+
+
+// ── 路线 F：全自然 20 → 四层四信物 → 顶楼解放（真结局）──
+await scenario('路线F：全信物登塔 → 真结局「解放」', async () => {
+	const { w, clickLabel } = await newGame(0.99, [
+		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '火把与绳索', '坚韧', '勇气',
+	]);
+	await clickLabel('推门出发，走进暮色');
+	await clickLabel('打着火把，走进山脚的洞穴');
+	await clickLabel('收好护身符，穿过后洞的裂缝');
+	await clickLabel('听她说完');
+	await clickLabel('登上守林人之塔（第二章）');
+	await clickLabel('进入塔内');
+	// 现在：门厅+书房
+	await clickLabel('一层 · 门厅');
+	if (!pcOf(w).tokens.includes('铜哨')) throw new Error('门厅应得铜哨');
+	await clickLabel('返回楼梯间');
+	await clickLabel('二层 · 书房');
+	if (!pcOf(w).tokens.includes('日记')) throw new Error('书房应得日记');
+	await clickLabel('返回楼梯间');
+	// 过去：温室+天文台
+	await clickLabel('翻转护身符：坠入『过去』（剩 3 次）');
+	await clickLabel('三层 · 温室');
+	if (!pcOf(w).tokens.includes('月光花')) throw new Error('温室应得月光花');
+	await clickLabel('返回楼梯间');
+	await clickLabel('四层 · 天文台');
+	if (!pcOf(w).tokens.includes('星图残页')) throw new Error('天文台应得星图残页');
+	await clickLabel('返回楼梯间');
+	await clickLabel('顶楼 · 守林人残影');
+	if (pcOf(w).tokens.length !== 4) throw new Error(`应集齐 4 信物，实际 ${pcOf(w).tokens.length}`);
+	if (pcOf(w).amulet_charges !== 2) throw new Error(`充能应用去 1 剩 2，实际 ${pcOf(w).amulet_charges}`);
+	await clickLabel('吹响铜哨，唤她回家');
+	if (passageOf(w) !== '结局 解放') throw new Error(`结局不对：${passageOf(w)}`);
+});
+
+// ── 路线 G：全自然 1 → 零信物直上顶楼 → 焚塔 ──
+await scenario('路线G：低层尽弃 → 结局「焚塔」', async () => {
+	const { w, clickLabel } = await newGame(0.01, [
+		'博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运',
+	]);
+	const pc = () => pcOf(w); // 坑2：跨导航禁止持有 $pc 引用，一律即时读取
+	if (pc().max_hp !== 7) throw new Error(`巫师 HP 应 7，实际 ${pc().max_hp}`);
+	if (pc().gold !== 20) throw new Error(`起始金币应 20（学者10+人类10），实际 ${pc().gold}`);
+	await clickLabel('买一支火把（10 金币）');
+	await clickLabel('回到大厅');
+	await clickLabel('推门出发，走进暮色');
+	await clickLabel('打着火把，走进山脚的洞穴');
+	await clickLabel('拔剑！');
+	if (pc().hp !== 3) throw new Error(`战斗受创后应 3（7-4），实际 ${pc().hp}`);
+	await clickLabel('捡起护身符，追上去斩草除根（+3 金币）');
+	if (pc().gold !== 13) throw new Error(`追杀后金币应 13（10+3），实际 ${pc().gold}`);
+	await clickLabel('听她说完');
+	if (pc().hp !== 7) throw new Error(`女巫委托应回满 7，实际 ${pc().hp}`);
+	await clickLabel('登上守林人之塔（第二章）');
+	await clickLabel('进入塔内');
+	await clickLabel('顶楼 · 守林人残影');
+	if (pc().tokens.length !== 0) throw new Error(`零探索应 0 信物，实际 ${pc().tokens.length}`);
+	if ([...w.document.querySelectorAll('#passages a.link-internal')].some((a) => a.textContent.includes('唤她回家'))) throw new Error('零信物不应出现解放选项');
+	await clickLabel('折断法杖，让塔与雾一同终结');
+	if (passageOf(w) !== '结局 焚塔') throw new Error(`结局不对：${passageOf(w)}`);
 });
 
 console.log(failures ? `\n${failures} 个场景失败` : '\n全部场景通过');

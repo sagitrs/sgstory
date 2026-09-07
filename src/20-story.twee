@@ -142,7 +142,16 @@
 ''你获得了【月光护身符】！''
 <<set $has_amulet to true>>
 
-[[捡起护身符，顺着风声穿过后洞|女巫小屋]]
+它退到洞口，回头警惕地盯着你，前爪还护着肋下的旧伤。
+
+<<link "捡起护身符，目送它逃走">>
+	<<set $goblin_spared to true>>
+	<<goto "女巫小屋">>
+<</link>>
+<<link "捡起护身符，追上去斩草除根（+3 金币）">>
+	<<set $pc.gold to $pc.gold + 3>>
+	<<goto "女巫小屋">>
+<</link>>
 
 :: 贿赂哥布林
 <<set $pc.gold to $pc.gold - 5>>
@@ -225,7 +234,7 @@
 
 	她接过护身符，投入坩埚。锅内腾起一片银色火焰——窗外，迷雾如潮水般退去，露出月光下绵延的整片森林。
 
-	[[听她说完|结局 月光倾城]]
+	[[听她说完|女巫的委托]]
 <<elseif $goblin_spared>>
 	女巫挑起眉，打量你片刻："哥布林肯为你引路？那小东西从不带人来——说明你不坏。"
 
@@ -330,4 +339,8 @@ $pc.speciesLabel $pc.classLabel
 <<if $pc.has_rope>>• 绳索<</if>>
 <<if $pc.gear.includes("长剑")>>• 长剑<</if>>
 <<if $pc.gear.includes("药膏") and not $pc.salve_used>>• 药膏<</if>>
+<<if $pc.ch2>>
+⌛ <<if $era is "past">>过去<<else>>现在<</if>> · 充能 $pc.amulet_charges/3
+信物 $pc.tokens.length/4
+<</if>>
 <</if>>

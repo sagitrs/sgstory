@@ -6,6 +6,8 @@ import { JSDOM, VirtualConsole } from 'jsdom';
 const html = readFileSync('dist/index.html', 'utf8');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let failures = 0;
+// 交互覆盖采集（L3 消费）：点击前后段落都算交互到达
+const visited = new Set();
 
 async function newGame(randomStub, picks) {
 	// uncaught 异常收集：SugarCube 交互宏抛错（如 goto 目标不存在）只走 jsdomError，
@@ -35,9 +37,11 @@ async function newGame(randomStub, picks) {
 		const a = [...w.document.querySelectorAll('#passages a.link-internal')]
 			.find((x) => x.textContent === label);
 		if (!a) throw new Error(`找不到链接「${label}」@ ${w.SugarCube.State.passage}`);
+		visited.add(`${w.SugarCube.State.passage}|${w.SugarCube.State.variables?.era ?? '-'}`);
 		const before = uncaught.length;
 		a.click();
 		await sleep(320);
+		visited.add(`${w.SugarCube.State.passage}|${w.SugarCube.State.variables?.era ?? '-'}`);
 		if (uncaught.length > before) {
 			throw new Error(`点击「${label}」后脚本异常：${uncaught[before].slice(0, 160)}`);
 		}
@@ -279,6 +283,11 @@ await scenario('路线H：旧档缺字段 → Pc.migrate 兜底 → 入塔正常
 	if (passageOf(w) !== '结局 新守林人') throw new Error(`结局不对：${passageOf(w)}`);
 	if (pcOf(w).name !== '旧档旅人') throw new Error('迁移不应覆盖已有字段');
 });
+
+// 覆盖落盘（L3 消费）
+import { writeFileSync, mkdirSync } from 'node:fs';
+mkdirSync('build', { recursive: true });
+writeFileSync('build/coverage-scenarios.json', JSON.stringify({ cells: [...visited] }, null, 1));
 
 console.log(failures ? `\n${failures} 个场景失败` : '\n全部场景通过');
 process.exit(failures ? 1 : 0);

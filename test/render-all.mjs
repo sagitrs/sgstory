@@ -77,6 +77,11 @@ for (const p of content) {
 		}
 	}
 }
+// 覆盖落盘（L3 消费）
+import { writeFileSync, mkdirSync } from 'node:fs';
+mkdirSync('build', { recursive: true });
+writeFileSync('build/coverage-render.json', JSON.stringify({ cells: [...new Set(covered)] }, null, 1));
+
 console.log(`\n渲染 ${renders} 次（${content.length} 内容段落 × era 变体）· 覆盖 ${new Set(covered).size} 格 · 自动跳转 ${forwards.length} 次${forwards.length ? '（' + [...new Set(forwards)].join('，') + '）' : ''}`);
 if (fails) { console.error(`✗ ${fails} 处渲染失败`); process.exit(1); }
 console.log('✔ 全段落渲染冒烟通过');

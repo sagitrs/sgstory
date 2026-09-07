@@ -29,6 +29,7 @@ vendor/
 test/integrity.mjs  L0 静态完整性门：悬空引用/goto 裸词/未定义宏（构建期归零，坑11 类）
 test/render-all.mjs L1 全段落渲染冒烟：逐段落 play × $era 双变体，无异常/无 .error/非空
 test/walker.mjs    L2 对抗席游走器：种子化随机游走（一章+塔）+ 状态不变量 + 检定位点双支清扫（npm run soak 加量）
+test/coverage.mjs  L3 覆盖率 ratchet：基线不回退 + 新增段落必须配测（gate#9 等效）——基线更新：npm run update-coverage-baseline
 test/smoke.mjs    无头冒烟测试（章节主线路径）
 test/scenarios.mjs 分支场景测试（8 条路线 + uncaught 异常守卫）
 test/rules.mjs    规则屢单测

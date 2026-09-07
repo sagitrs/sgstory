@@ -31,11 +31,13 @@ await step('快速成型'); // 第一张预设（铁卫）——随机中性，�
 await step('出发，前往歪脖子鸭酒馆');
 if (typeof w.SugarCube.State.variables.pc?.abilities?.str !== 'number') throw new Error('车卡后状态不完整（abilities 缺失）——L1 快照不可用');
 
-// 快照：完整角色 + 世界默认旗标；每次 play 前整备还原（跨 realm 用页面域 JSON 构造——坑10 注）
+// 快照：完整角色 + 世界默认旗标；每次 play 前整备还原。
+// ⚠ State.variables 是 getter-only（descriptor 无 writable）：整体赋值是静默 no-op（坑12，
+// 曾让本文件的"状态重置"失效——era 变体碰巧靠属性赋值生效才全绿）。
+// 必须逐键 delete + Object.assign 到活对象上。
 const snapshot = JSON.stringify(w.SugarCube.State.variables);
 const restore = (era) => {
-	w.eval(`SugarCube.State.variables = ${snapshot}`);
-	if (era) w.eval(`SugarCube.State.variables.era = ${JSON.stringify(era)}`);
+	w.eval(`(function(){const v=SugarCube.State.variables;for(const k of Object.keys(v))delete v[k];Object.assign(v,${snapshot});${era ? `v.era=${JSON.stringify(era)};` : ''}})()`);
 };
 
 // 内容段落全集（跳过基础设施：script/widget/stylesheet 段与 Story 元数据）

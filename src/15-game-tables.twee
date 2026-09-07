@@ -76,5 +76,41 @@ window.Game = (() => {
 			return site === '化身·终击' && t.length >= this.finalStrikeCountAdv;
 		},
 	};
-	return { Economy, Checks, Tokens };
+	const Truth = {
+		// D1 真相可达性（#35）：核心命题 × 传达位点。判据：每命题 ≥2 独立通路（单点=错过即失真相）；
+		// anchor 锚句机检——位点段落源文必须含锚串，改文案断链即 audit --check 红
+		claims: [
+			{ id: 'keeper_identity', claim: '守林人三百年前守着森林与路，塔与法杖是她的', sites: [
+				{ p: '女巫的委托', anchor: '守林人' },
+				{ p: '书房', anchor: '我以为守着路' },
+				{ p: '塔的回声', anchor: '三百年前的守林人' },
+			] },
+			{ id: 'mist_origin', claim: '雾因她放任与自责而起', sites: [
+				{ p: '书房', anchor: '是我放任雾涨起来的', via: '日记最后一页（需暗格链）' },
+				{ p: '顶楼', anchor: '都是我', via: 'present 残影自语（速通必达）' },
+			] },
+			{ id: 'avatar_nature', claim: '化身=三百年悔恨凝聚；残影=她本人残念', sites: [
+				{ p: '女巫的委托', anchor: '悔恨' },
+				{ p: '雾之化身战', anchor: '三百年的悔恨' },
+			] },
+			{ id: 'tokens_bond', claim: '四信物各系她的一段过往', sites: [
+				{ p: '门厅', anchor: '她最怕丢的东西' },
+				{ p: '书房', anchor: '青梧' },
+				{ p: '温室 游说', anchor: '守林人常来浇水' },
+				{ p: '天文台', anchor: '等我回来' },
+			] },
+			{ id: 'her_name', claim: '她的名字：青梧（念出名是战斗机制）', sites: [
+				{ p: '女巫的委托', anchor: '青梧' },
+				{ p: '书房', anchor: '青梧' },
+				{ p: '雾之化身战', anchor: '青梧' },
+				{ p: '结局 解放', anchor: '青梧' },
+			] },
+			{ id: 'ending_logic', claim: '集齐信物唤她回家；或接替/终结；宴会在等她', sites: [
+				{ p: '女巫的委托', anchor: '带回家' },
+				{ p: '顶楼', anchor: '唤她回家' },
+				{ p: '天文台', anchor: '法杖放在顶楼瞭望位' },
+			] },
+		],
+	};
+	return { Economy, Checks, Tokens, Truth };
 })();

@@ -14,7 +14,7 @@ const EXEMPT = 'test/coverage-exempt.json';
 // ── 聚合三路落盘 ─────────────────────────────────────────
 const load = (f) => { try { return new Set(JSON.parse(readFileSync(f, 'utf8')).cells ?? []); } catch { return new Set(); } };
 const renderCells = load('build/coverage-render.json');      // L1 渲染覆盖
-const interactCells = new Set([...load('build/coverage-scenarios.json'), ...load('build/coverage-walker.json')]); // 交互覆盖
+const interactCells = new Set([...load('build/coverage-scenarios.json')]); // 交互覆盖口径 = scenarios（#27：walker 降级 soak，其落盘仅供 soak 审计参考，不入门禁）
 if (!renderCells.size || !interactCells.size) {
 	console.error('✗ 覆盖落盘缺失（build/coverage-*.json）——请先完整跑 npm test 前序步骤');
 	process.exit(1);

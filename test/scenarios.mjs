@@ -66,18 +66,13 @@ const passageOf = (w) => w.SugarCube.State.passage;
 const pcOf = (w) => w.SugarCube.State.variables.pc;
 const amuletOf = (w) => w.SugarCube.State.variables.has_amulet;
 
-async function scenario(name, fn) {
-	try {
-		await fn();
-		console.log(`✓ ${name}`);
-	} catch (e) {
-		failures++;
-		console.error(`✗ ${name}\n    ${e.message}`);
-	}
-}
+// 路线收集器：并行执行（每路线独立 JSDOM，天然隔离无串扰——#27 提速方案，
+// 替代"单启动+状态还原"：无还原即无还原不净风险，隔离语义与逐路线启动完全一致）
+const pending = [];
+function scenario(name, fn) { pending.push({ name, fn }); }
 
 // ── 路线 A：全自然 20 → 察觉直接发现宝箱 → 护身符结局 ──
-await scenario('路线A：火把+全检定成功 → 结局「月光倾城」', async () => {
+scenario('路线A：火把+全检定成功 → 结局「月光倾城」', async () => {
 	const { w, clickLabel } = await newGame(0.99, [
 		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '火把与绳索', '坚韧', '勇气',
 	]);
@@ -98,7 +93,7 @@ await scenario('路线A：火把+全检定成功 → 结局「月光倾城」', 
 });
 
 // ── 路线 B：全自然 1 → 摸黑+断桥 → 空手结局（矮人减伤验证）──
-await scenario('路线B：摸黑+断桥 → 结局「空手而归」', async () => {
+scenario('路线B：摸黑+断桥 → 结局「空手而归」', async () => {
 	const { w, clickLabel } = await newGame(0.01, [
 		'博学型', '学者', '矮人', '巫师', '秘闻技艺', '长剑', '警觉', '机运',
 	]);
@@ -119,7 +114,7 @@ await scenario('路线B：摸黑+断桥 → 结局「空手而归」', async () 
 });
 
 // ── 路线 C：察觉失败遇哥布林 → 贿赂结友 → 和平结局 ──
-await scenario('路线C：贿赂哥布林 → 结局「平凡之光」', async () => {
+scenario('路线C：贿赂哥布林 → 结局「平凡之光」', async () => {
 	const { w, clickLabel } = await newGame(0.01, [
 		'勇武型', '佣兵', '人类', '游荡者', '市井技艺', '火把与绳索', '坚韧', '勇气',
 	]);
@@ -136,7 +131,7 @@ await scenario('路线C：贿赂哥布林 → 结局「平凡之光」', async (
 });
 
 // ── 路线 D：两次挑衅影子全豁免失败 → 死亡结局 ──
-await scenario('路线D：两次鲁莽挑战 → 结局「死亡」', async () => {
+scenario('路线D：两次鲁莽挑战 → 结局「死亡」', async () => {
 	const { w, clickLabel } = await newGame(0.01, [
 		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '火把与绳索', '警觉', '机运',
 	]);
@@ -152,7 +147,7 @@ await scenario('路线D：两次鲁莽挑战 → 结局「死亡」', async () =
 });
 
 // ── 路线 E：酒馆买火把 → 战斗豁免失败受伤 → 仍获护身符 ──
-await scenario('路线E：放走哥布林 → 塔·温室彩蛋 → 结局「新守林人」', async () => {
+scenario('路线E：放走哥布林 → 塔·温室彩蛋 → 结局「新守林人」', async () => {
 	const { w, clickLabel } = await newGame(0.01, [
 		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '长剑', '坚韧', '勇气',
 	]);
@@ -196,7 +191,7 @@ await scenario('路线E：放走哥布林 → 塔·温室彩蛋 → 结局「新
 
 
 // ── 路线 F：全自然 20 → 四层四信物 → 顶楼解放（真结局）──
-await scenario('路线F：全信物登塔 → 真结局「解放」', async () => {
+scenario('路线F：全信物登塔 → 真结局「解放」', async () => {
 	const { w, clickLabel } = await newGame(0.99, [
 		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '火把与绳索', '坚韧', '勇气',
 	]);
@@ -229,7 +224,7 @@ await scenario('路线F：全信物登塔 → 真结局「解放」', async () =
 });
 
 // ── 路线 G：全自然 1 → 零信物脆法 → 化身战败 → 塔的回声不死（#23 echo 守卫）──
-await scenario('路线G：脆法零信物 → 化身战败 → 塔的回声（不死+递增）', async () => {
+scenario('路线G：脆法零信物 → 化身战败 → 塔的回声（不死+递增）', async () => {
 	const { w, clickLabel } = await newGame(0.01, [
 		'博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运',
 	]);
@@ -271,7 +266,7 @@ await scenario('路线G：脆法零信物 → 化身战败 → 塔的回声（�
 });
 
 // ── 路线 I：硬汉零信物 → 化身战全承 → 焚塔（战斗 build 的高潮兑现，#23）──
-await scenario('路线I：战士零信物硬接化身 → 结局「焚塔」', async () => {
+scenario('路线I：战士零信物硬接化身 → 结局「焚塔」', async () => {
 	const { w, clickLabel } = await newGame(0.01, [
 		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '长剑', '坚韧', '勇气',
 	]);
@@ -300,7 +295,7 @@ await scenario('路线I：战士零信物硬接化身 → 结局「焚塔」', a
 
 
 // ── 路线 H：旧存档形状模拟（第二章上线前的档）→ 迁移 → 入塔不崩 ──
-await scenario('路线H：旧档缺字段 → Pc.migrate 兜底 → 入塔正常', async () => {
+scenario('路线H：旧档缺字段 → Pc.migrate 兜底 → 入塔正常', async () => {
 	const { w, clickLabel } = await newGame(0.99, [
 		'勇武型', '佣兵', '矮人', '战士', '荒野技艺', '火把与绳索', '坚韧', '勇气',
 	]);
@@ -333,10 +328,18 @@ await scenario('路线H：旧档缺字段 → Pc.migrate 兜底 → 入塔正常
 	if (pcOf(w).name !== '旧档旅人') throw new Error('迁移不应覆盖已有字段');
 });
 
-// 覆盖落盘（L3 消费）
+// 覆盖落盘（L3 消费）——在全部路线完成后（#27 并行化后落盘点随执行点后移）
 import { writeFileSync, mkdirSync } from 'node:fs';
+
+const results = await Promise.all(pending.map(async ({ name, fn }) => {
+	try { await fn(); return { name, ok: true }; }
+	catch (e) { return { name, ok: false, msg: e.message }; }
+}));
 mkdirSync('build', { recursive: true });
 writeFileSync('build/coverage-scenarios.json', JSON.stringify({ cells: [...visited] }, null, 1));
-
+for (const r of results) {
+	if (r.ok) console.log(`✓ ${r.name}`);
+	else { failures++; console.error(`✗ ${r.name}\n    ${r.msg}`); }
+}
 console.log(failures ? `\n${failures} 个场景失败` : '\n全部场景通过');
 process.exit(failures ? 1 : 0);

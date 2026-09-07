@@ -184,6 +184,13 @@ await scenario('路线E：放走哥布林 → 塔·温室彩蛋 → 结局「新
 	await clickLabel('顶楼 · 守林人残影');
 	if ([...w.document.querySelectorAll('#passages a.link-internal')].some((a) => a.textContent.includes('唤她回家'))) throw new Error('仅 1 件信物不应出现解放选项');
 	await clickLabel('握住法杖，成为新的守林人');
+	// 化身战（#23）：月光花在怀 → 终击优势；伤害 max(1,3−T)+max(1,4−T)+max(1,1−T) = 2+3+1
+	if (passageOf(w) !== '雾之化身战') throw new Error(`新守林人必经化身战，实际 ${passageOf(w)}`);
+	await clickLabel('迎击');
+	await clickLabel('她将你拽入回忆');
+	await clickLabel('倾尽全力，最后一击');
+	if (pc().hp !== 8) throw new Error(`化身战 1 信物应剩 8（14-2-3-1），实际 ${pc().hp}`);
+	await clickLabel('握起法杖');
 	if (passageOf(w) !== '结局 新守林人') throw new Error(`结局不对：${passageOf(w)}`);
 });
 
@@ -221,8 +228,8 @@ await scenario('路线F：全信物登塔 → 真结局「解放」', async () =
 	if (passageOf(w) !== '结局 解放') throw new Error(`结局不对：${passageOf(w)}`);
 });
 
-// ── 路线 G：全自然 1 → 零信物直上顶楼 → 焚塔 ──
-await scenario('路线G：低层尽弃 → 结局「焚塔」', async () => {
+// ── 路线 G：全自然 1 → 零信物脆法 → 化身战败 → 塔的回声不死（#23 echo 守卫）──
+await scenario('路线G：脆法零信物 → 化身战败 → 塔的回声（不死+递增）', async () => {
 	const { w, clickLabel } = await newGame(0.01, [
 		'博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运',
 	]);
@@ -243,8 +250,51 @@ await scenario('路线G：低层尽弃 → 结局「焚塔」', async () => {
 	await clickLabel('进入塔内');
 	await clickLabel('顶楼 · 守林人残影');
 	if (pc().tokens.length !== 0) throw new Error(`零探索应 0 信物，实际 ${pc().tokens.length}`);
-	if ([...w.document.querySelectorAll('#passages a.link-internal')].some((a) => a.textContent.includes('唤她回家'))) throw new Error('零信物不应出现解放选项');
 	await clickLabel('折断法杖，让塔与雾一同终结');
+	if (passageOf(w) !== '雾之化身战') throw new Error(`焚塔必经化身战，实际 ${passageOf(w)}`);
+	await clickLabel('迎击');
+	if (pc().hp !== 4) throw new Error(`R1 零信物受 3 伤应 4，实际 ${pc().hp}`);
+	await clickLabel('她将你拽入回忆');
+	// 7hp: 3+4=7 → 归零 → echo 守卫：hp=1、败计数+1、送塔的回声
+	if (passageOf(w) !== '塔的回声') throw new Error(`战败应送塔的回声，实际 ${passageOf(w)}`);
+	if (pc().hp !== 1) throw new Error(`echo 守卫应 hp=1，实际 ${pc().hp}`);
+	if ((pc().tower.defeats ?? 0) !== 1) throw new Error(`败计数应 1，实际 ${pc().tower.defeats}`);
+	await clickLabel('缓过气来');
+	if (passageOf(w) !== '楼梯间') throw new Error(`应回楼梯间，实际 ${passageOf(w)}`);
+	// 再战：rage +1 → R1 伤害 4 → hp1 归零再败，败计数 2
+	await clickLabel('顶楼 · 守林人残影');
+	await clickLabel('折断法杖，让塔与雾一同终结');
+	if (!w.document.querySelector('#passages').textContent.includes('悲鸣比上次更烈（伤害 +1）')) throw new Error('战败后重进战场应显示递增提示');
+	await clickLabel('迎击');
+	if (passageOf(w) !== '塔的回声') throw new Error(`rage+1 应再败（hp1-4），实际 ${passageOf(w)}`);
+	if ((pc().tower.defeats ?? 0) !== 2) throw new Error(`败计数应 2，实际 ${pc().tower.defeats}`);
+});
+
+// ── 路线 I：硬汉零信物 → 化身战全承 → 焚塔（战斗 build 的高潮兑现，#23）──
+await scenario('路线I：战士零信物硬接化身 → 结局「焚塔」', async () => {
+	const { w, clickLabel } = await newGame(0.01, [
+		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '长剑', '坚韧', '勇气',
+	]);
+	const pc = () => pcOf(w);
+	if (pc().gold !== 25) throw new Error(`起始金币应 25，实际 ${pc().gold}`);
+	await clickLabel('买一支火把（10 金币）');
+	await clickLabel('回到大厅');
+	await clickLabel('推门出发，走进暮色');
+	await clickLabel('打着火把，走进山脚的洞穴');
+	await clickLabel('拔剑！');
+	await clickLabel('捡起护身符，追上去斩草除根（+3 金币）');
+	await clickLabel('听她说完');
+	if (pc().hp !== pc().max_hp) throw new Error('委托后应满血');
+	await clickLabel('登上守林人之塔（第二章）');
+	await clickLabel('进入塔内');
+	await clickLabel('顶楼 · 守林人残影');
+	await clickLabel('折断法杖，让塔与雾一同终结');
+	await clickLabel('迎击');
+	await clickLabel('她将你拽入回忆');
+	await clickLabel('倾尽全力，最后一击');
+	// 14 − (3+4+1) = 6：零信物硬接全部伤害仍活
+	if (pc().hp !== 6) throw new Error(`硬接 3+4+1 后应 6，实际 ${pc().hp}`);
+	await clickLabel('折断法杖');
 	if (passageOf(w) !== '结局 焚塔') throw new Error(`结局不对：${passageOf(w)}`);
 });
 
@@ -273,6 +323,12 @@ await scenario('路线H：旧档缺字段 → Pc.migrate 兜底 → 入塔正常
 	await clickLabel('返回楼梯间');
 	await clickLabel('顶楼 · 守林人残影');
 	await clickLabel('握住法杖，成为新的守林人');
+	// 全自然 20：三段全闪避/扛住/命中，零伤通关
+	await clickLabel('迎击');
+	await clickLabel('她将你拽入回忆');
+	await clickLabel('倾尽全力，最后一击');
+	if (pcOf(w).hp !== 14) throw new Error(`化身战零伤应仍 14，实际 ${pcOf(w).hp}`);
+	await clickLabel('握起法杖');
 	if (passageOf(w) !== '结局 新守林人') throw new Error(`结局不对：${passageOf(w)}`);
 	if (pcOf(w).name !== '旧档旅人') throw new Error('迁移不应覆盖已有字段');
 });

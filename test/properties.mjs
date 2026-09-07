@@ -91,6 +91,23 @@ const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }
 	ok(boundBad === 0, `伤害界限 ${steps} 步随机序列：hp∈[0,max_hp] 恒成立`);
 	ok(deathBad === 0, `归零死亡：hp<=0 时必跳转「结局 死亡」`);
 	ok(salveBad === 0, `药膏自动生效：携带未用时受伤即消耗（+4 上限裁剪）`);
+
+	// C2. 塔的回声守卫（#23）：echo=true 战败不死——hp=1、败计数+1、送「塔的回声」
+	w.eval('SugarCube.State.variables.pc.tower = { echo: true, defeats: 1 }');
+	w.eval('(function(){const p=SugarCube.State.variables.pc;p.hp=2;p.max_hp=14;p.gear=[];p.salve_used=false;})()');
+	w.SugarCube.Engine.play('酒馆'); await sleep(30);
+	new w.SugarCube.Wikifier(host, '<<damage 5>>');
+	await sleep(80);
+	const p = w.SugarCube.State.variables.pc;
+	ok(p.hp === 1 && p.tower.defeats === 2 && p.tower.echo === false, 'echo 守卫：hp=1 / 败计数+1 / echo 复位');
+	ok(w.SugarCube.State.passage === '塔的回声', 'echo 守卫：送「塔的回声」而非结局死亡');
+	// echo=false（塔外）仍走结局死亡——一章行为不变
+	w.eval('SugarCube.State.variables.pc.tower = {}');
+	w.eval('(function(){const p=SugarCube.State.variables.pc;p.hp=2;p.salve_used=false;})()');
+	w.SugarCube.Engine.play('酒馆'); await sleep(30);
+	new w.SugarCube.Wikifier(host, '<<damage 5>>');
+	await sleep(80);
+	ok(w.SugarCube.State.passage === '结局 死亡', 'echo 关闭时仍走「结局 死亡」（一章行为不变）');
 }
 
 // ── D. 车卡不变量：专家模式 8 轮随机选（种子化）──

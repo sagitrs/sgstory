@@ -72,7 +72,7 @@
 		<<if not $pc.tower.hall_past>>
 			<<set $pc.tower.hall_past to true>>
 			一位老妇人举杯向你致意："又一个来赴宴的？三百年了，我们只在等一个人。"
-			<<check "游说" 12>>
+			<<sitecheck "门厅·游说">>
 			<<if $last_check.success>>
 				你说明了来意。老妇人叹了口气："她最怕丢的东西，都藏在''书房烤炉后的暗格''里。去吧，孩子。"
 				<<set $hint_diary to true>>
@@ -92,7 +92,7 @@
 	<<if not $pc.tokens.includes("铜哨")>>
 		<<if not $pc.tower.hall_present>>
 			<<set $pc.tower.hall_present to true>>
-			<<check "调查" 10>>
+			<<sitecheck "门厅·翻检">>
 			<<if $last_check.success>>
 				你注意到碎石间一点异样的铜绿——''守林人的铜哨''。她用它召集宴会，吹一声，林子里所有等她的人都会抬头。
 
@@ -120,14 +120,14 @@
 	<<if not $hint_star>>
 		<<if not $pc.tower.study_past>>
 			<<set $pc.tower.study_past to true>>
-			<<check "历史" 10>>
+			<<sitecheck "书房·追问">>
 			<<if $last_check.success>>
 				你认出他抄的是''星象历''，随口指出一处抄错的岁差。学徒眼睛一亮，把兜里的跑腿钱全塞给你：''金币 +6''。
-				<<set $pc.gold to $pc.gold + 6>>
+				<<econ "study_errand">>
 			<<else>>
 				学徒的字迹潦草，你看不出个所以然。他哼了一声：“不懂别看。”
 			<</if>>
-			<<check "游说" 12>>
+			<<sitecheck "书房·再谈">>
 			<<if $last_check.success>>
 				"你人不错。"学徒压低声音，"师父的''星图有个残页''，只有她自己在天文台上对得齐。看星星的事，去问她。"
 				<<set $hint_star to true>>
@@ -148,9 +148,9 @@
 			<<set $pc.tower.study_present to true>>
 			<<if $hint_diary>>
 				（宴会幽灵的话浮现：//"烤炉后的暗格。"//）
-				<<check "调查" 12 "adv">>
+				<<sitecheck "书房·检视" "adv">>
 			<<else>>
-				<<check "调查" 12>>
+				<<sitecheck "书房·检视">>
 			<</if>>
 			<<if $last_check.success>>
 				烤炉后的墙砖松了一块。暗格里躺着一本皮面''日记''，封皮上是守林人的名字。
@@ -186,12 +186,12 @@
 
 			''获得信物【月光花】。金币 +5。''
 			<<run $pc.tokens.push("月光花")>>
-			<<set $pc.gold to $pc.gold + 5>>
+			<<econ "flower_pick">>
 		<<else>>
 			<<if not $pc.tower.green_past>>
 				<<set $pc.tower.green_past to true>>
 				园丁警惕地举起修枝剪："人类。要么说清楚来意，要么从藤架上摔下去。"
-				<<check "游说" 13>>
+				<<sitecheck "温室·讨教">>
 				<<if $last_check.success>>
 					你的话让它放下了剪子。它沉默片刻，摘下一朵''月光花''："守林人常来浇水。拿去吧——她要是知道花能帮上忙，会高兴的。"
 
@@ -216,7 +216,7 @@
 		<<if not $pc.tower.green_present>>
 			<<set $pc.tower.green_present to true>>
 			你屏住呼吸，把手探进藤墙——汁液立刻灼上皮肤！
-			<<save "con" 12>>
+			<<sitecheck "温室·抵抗">>
 			<<if $last_check.success>>
 				你忍着灼痛探到深处，摘下那点银光——一朵''干枯的月光花''。花已枯了三百年，花瓣却仍像月光一样亮。
 
@@ -247,9 +247,9 @@
 			<<set $pc.tower.obs_past to true>>
 			<<if $hint_star>>
 				（学徒的低语浮现：//“只有她自己在对星图。”//）
-				<<check "奥秘" 12 "adv">>
+				<<sitecheck "天文台·典籍" "adv">>
 			<<else>>
-				<<check "奥秘" 12>>
+				<<sitecheck "天文台·典籍">>
 			<</if>>
 			<<if $last_check.success>>
 				你顺着注记读懂了星图的规律——其中一角是活动的。轻轻一旋，''星图残页''从夹层滑落，落进你手里。
@@ -272,12 +272,12 @@
 	黄铜望远镜从中间断成两截，镜片碎了一地。
 	<<if not $pc.tower.obs_present>>
 		<<set $pc.tower.obs_present to true>>
-		<<check "调查" 12>>
+		<<sitecheck "天文台·推演">>
 		<<if $last_check.success>>
 			你在镜片残堆里挑出几块''星铁碎片''——守林人说过，残影怕的不是光，是''完整的星空''。碎片虽小，能换钱。
 
 			''金币 +4。''
-			<<set $pc.gold to $pc.gold + 4>>
+			<<econ "star_iron">>
 		<<else>>
 			碎镜片割破了你的指尖。除了一手血珠，什么也没拼出来。
 		<</if>>
@@ -344,11 +344,11 @@
 <<set _T to $pc.tokens.length>>
 <<set _rage to Math.min(2, $pc.tower.defeats ?? 0)>>
 雾之鞭破空而来——
-<<attackroll `$pc.tokens.includes("铜哨") ? "adv" : ""`>>
+<<attackroll "化身·鞭击" `Game.Tokens.advAt("化身·鞭击", $pc.tokens) ? "adv" : ""`>>
 <<if $last_check.success>>
 	你贴地翻滚，雾鞭擦着后颈掠过。就势欺近身侧反手一击——化身的轮廓淡了一分。
 <<else>>
-	<<set _dmg to Math.max(1, 3 - _T - ($pc.tokens.includes("日记") ? 1 : 0) + _rage)>>
+	<<set _dmg to Game.Tokens.battleDamage(1, $pc.tokens, $pc.tower.defeats)>>
 	鞭梢卷住你的手腕，冷意直透骨髓。
 	<<damage _dmg>>
 	你挣开时，指尖已在发麻。
@@ -365,14 +365,12 @@
 
 <<if $pc.tokens.includes("星图残页")>>
 	怀中的星图残页自行展开，完整星空倾泻而下。
-	<<save "con" 12 "adv">>
-<<else>>
-	<<save "con" 12>>
 <</if>>
+<<sitecheck "化身·悲鸣" `Game.Tokens.advAt("化身·悲鸣", $pc.tokens) ? "adv" : ""`>>
 <<if $last_check.success>>
 	星辉如潮，你咬牙站定。
 <<else>>
-	<<set _dmg to Math.max(1, 4 - _T - ($pc.tokens.includes("日记") ? 1 : 0) + _rage)>>
+	<<set _dmg to Game.Tokens.battleDamage(2, $pc.tokens, $pc.tower.defeats)>>
 	悲鸣贯穿耳膜——
 	<<damage _dmg>>
 <</if>>
@@ -383,11 +381,11 @@
 /% 终结轮：月光花在手或信物≥2 → 攻击优势（共鸣/迟疑）。落空也有代价但不致死循环：总伤预算封顶 %/
 <<set _T to $pc.tokens.length>>
 <<set _rage to Math.min(2, $pc.tower.defeats ?? 0)>>
-<<attackroll `($pc.tokens.includes("月光花") or _T >= 2) ? "adv" : ""`>>
+<<attackroll "化身·终击" `Game.Tokens.advAt("化身·终击", $pc.tokens) ? "adv" : ""`>>
 <<if $last_check.success>>
 	信物在你怀中一同发烫。你循着那点银辉递出最后一击——
 <<else>>
-	<<set _dmg to Math.max(1, 1 - _T + _rage)>>
+	<<set _dmg to Game.Tokens.battleDamage(3, $pc.tokens, $pc.tower.defeats)>>
 	她的悲鸣擦过你的肩。
 	<<damage _dmg>>
 	你以伤换机，终于触到法杖。

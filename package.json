@@ -9,6 +9,7 @@
     "test": "node build.mjs && node test/integrity.mjs && node test/rules.mjs && node test/properties.mjs && node test/render-all.mjs && node test/smoke.mjs && node test/scenarios.mjs && node test/coverage.mjs",
     "serve": "python3 -m http.server 8000 --directory dist",
     "watch": "node --watch --watch-path=src build.mjs",
+    "audit": "node scripts/audit.mjs",
     "soak": "node build.mjs && node test/walker.mjs 20 20",
     "update-coverage-baseline": "node test/coverage.mjs --update-baseline"
   },

@@ -1,0 +1,66 @@
+:: Game Tables [script]
+// #28 声明式数据表——机制数值单一源（治本：逻辑 sink 出 twee，测试成本 O(机制)）。
+// 正文只经词汇宏引用：<<sitecheck 位点 [adv]>> / <<attackroll 位点 [adv]>>
+// / <<econ 事件 [动态金额]>>；DC/定价/信物效果改这里，不动叙事文本。
+// 审计：node scripts/audit.mjs（伞 #21/#22 查表，替代 jsdom 探查）。
+// 范围纪律：本表只承载既有数值；调价/新 sink 属 #25。
+window.Game = (() => {
+	const Economy = {
+		events: {
+			torch_buy:   { delta: -10, chapter: 1, note: '酒馆·买火把' },
+			loot:        { delta: null, chapter: 1, note: '战斗后搜刮（动态传入：1d6/幸运 2d6kh）' },
+			goblin_kill: { delta: 3, chapter: 1, note: '战斗·斩草除根' },
+			bribe:       { delta: -5, chapter: 1, note: '贿赂哥布林·买路' },
+			shadow_alms: { delta: 1, chapter: 1, note: '雾影·施舍' },
+			witch_heal:  { delta: -10, chapter: 1, note: '女巫小屋·治疗' },
+			study_errand: { delta: 6, chapter: 2, note: '书房·过去 指出错抄，学徒跑腿钱' },
+			flower_pick:  { delta: 5, chapter: 2, note: '温室·采月光花附赠' },
+			star_iron:    { delta: 4, chapter: 2, note: '天文台·星铁碎片' },
+		},
+	};
+	const Checks = {
+		sites: {
+			'开局·察觉':   { skill: '察觉', dc: 10 },
+			'哥布林·战斗': { skill: '运动', dc: 12 },
+			'断桥':        { skill: '体操', dc: 12 },
+			'雾影·抵抗':   { abil: 'con', dc: 15 },
+			'门厅·游说':   { skill: '游说', dc: 12 },
+			'门厅·翻检':   { skill: '调查', dc: 10 },
+			'书房·追问':   { skill: '历史', dc: 10 },
+			'书房·再谈':   { skill: '游说', dc: 12 },
+			'书房·检视':   { skill: '调查', dc: 12 },
+			'温室·讨教':   { skill: '游说', dc: 13 },
+			'温室·抵抗':   { abil: 'con', dc: 12 },
+			'天文台·典籍': { skill: '奥秘', dc: 12 },
+			'天文台·推演': { skill: '调查', dc: 12 },
+			'化身·鞭击':   { skill: '运动', dc: 12 },
+			'化身·悲鸣':   { abil: 'con', dc: 12 },
+			'化身·终击':   { skill: '运动', dc: 12 },
+		},
+	};
+	const Tokens = {
+		perTokenDamageReduce: 1, // 共鸣护体：每件信物受击 −1
+		rageCap: 2,              // 每败一次化身伤害 +1，封顶
+		finalStrikeCountAdv: 2,  // 终击：信物 ≥N 件 → 攻击优势（共鸣/迟疑）
+		roundBase: { 1: 3, 2: 4, 3: 1 }, // 化身战三回合基础伤害（鞭击/悲鸣/终击落空）
+		effects: {
+			'铜哨':     { advSite: '化身·鞭击', note: '她分心——闪避优势' },
+			'星图残页': { advSite: '化身·悲鸣', note: '完整星空护体——豁免优势' },
+			'月光花':   { advSite: '化身·终击', note: '银辉引路——攻击优势' },
+			'日记':     { flatDamageReduce: 1, note: '念出她的名字——整场再 −1' },
+		},
+		battleDamage(round, tokens, defeats) {
+			const t = tokens ?? [];
+			const rage = Math.min(this.rageCap, defeats ?? 0);
+			// 日记减伤只作用于前两回合（原式知此：终击落空伤害本就时最低，不再叠）
+			const diary = t.includes('日记') && round < 3 ? (this.effects['日记'].flatDamageReduce ?? 0) : 0;
+			return Math.max(1, this.roundBase[round] - t.length * this.perTokenDamageReduce - diary + rage);
+		},
+		advAt(site, tokens) {
+			const t = tokens ?? [];
+			if (t.some((x) => this.effects[x]?.advSite === site)) return true;
+			return site === '化身·终击' && t.length >= this.finalStrikeCountAdv;
+		},
+	};
+	return { Economy, Checks, Tokens };
+})();

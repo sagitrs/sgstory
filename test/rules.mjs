@@ -197,5 +197,54 @@ for (const file of fixtures) {
 	if (fx.expectJunkKept) ok('futureVersionField' in m, `[${label}] 余键：未知字段不删（向前兼容）`);
 }
 
+
+// ── #28 表契约：表→行为耦合（页面域改表值，jsdom 断言行为跟随——防表/实现漂移）──
+{
+	ok(!!w.Game?.Checks?.sites, 'Game 表已加载（sites 在）');
+	ok(!!w.Game?.Economy?.events, 'Game 表已加载（events 在）');
+	// ① 位点 DC：改表 → attackroll 用新 DC
+	w.eval('Game.Checks.sites["哥布林·战斗"].dc = 20');
+	w.SugarCube.State.variables.pc = w.Pc.defaults();
+	new w.SugarCube.Wikifier(null, '<<attackroll "哥布林·战斗">>');
+	ok(w.SugarCube.State.variables.last_check.dc === 20, `位点 DC 表驱动：attackroll 用表值 20（实际 ${w.SugarCube.State.variables.last_check?.dc}）`);
+	w.eval('Game.Checks.sites["哥布林·战斗"].dc = 12');
+	// ② 经济事件：改表 → econ 用新金额
+	w.eval('Game.Economy.events.shadow_alms.delta = 7');
+	w.SugarCube.State.variables.pc.gold = 10;
+	new w.SugarCube.Wikifier(null, '<<econ "shadow_alms">>');
+	ok(w.SugarCube.State.variables.pc.gold === 17, `经济事件表驱动：econ 用表值 +7（实际 ${w.SugarCube.State.variables.pc.gold}）`);
+	w.eval('Game.Economy.events.shadow_alms.delta = 1');
+	// 动态事件：显式金额覆盖（loot）
+	w.SugarCube.State.variables.pc.gold = 0;
+	new w.SugarCube.Wikifier(null, '<<econ "loot" 4>>');
+	ok(w.SugarCube.State.variables.pc.gold === 4, '动态事件：<<econ "loot" 4>> 覆盖表 null');
+	// ③ 化身战数值：改基础伤害 → battleDamage 跟随；日记只作用前两回合（原式语义）
+	w.eval('Game.Tokens.roundBase[1] = 6');
+	ok(w.Game.Tokens.battleDamage(1, [], 0) === 6, `化身战基础伤害表驱动（实际 ${w.Game.Tokens.battleDamage(1, [], 0)}）`);
+	w.eval('Game.Tokens.roundBase[1] = 3');
+	const T = w.Game.Tokens;
+	eq(T.battleDamage(1, [], 0), 3, 'battleDamage：无信物 R1=3');
+	eq(T.battleDamage(1, ['日记'], 0), 1, 'battleDamage：仅日记 R1 = max(1,3-1-1)=1');
+	eq(T.battleDamage(2, ['铜哨', '日记'], 0), 1, 'battleDamage：2信物含日记 R2 = max(1,4-2-1)=1');
+	eq(T.battleDamage(3, ['日记'], 0), 1, 'battleDamage：终击不减日记 = max(1,1-1)=1（与原式一致）');
+	eq(T.battleDamage(1, [], 5), 5, 'battleDamage：败次封顶 +2 = 3+2=5');
+	eq(T.battleDamage(2, ['铜哨', '星图残页', '月光花', '日记'], 2), 1, 'battleDamage：4信物满配 R2 下限 1');
+	ok(T.advAt('化身·鞭击', ['铜哨']) && !T.advAt('化身·悲鸣', ['铜哨']), 'advAt：铜哨只给鞭击优势');
+	ok(T.advAt('化身·悲鸣', ['星图残页']), 'advAt：星图残页给悲鸣豁免优势');
+	ok(T.advAt('化身·终击', ['月光花']), 'advAt：月光花给终击优势');
+	ok(T.advAt('化身·终击', ['铜哨', '星图残页']), 'advAt：信物≥2 给终击优势（共鸣）');
+	ok(!T.advAt('化身·终击', ['铜哨']), 'advAt：1 件不给终击优势');
+	// ④ sitecheck 分流：abil 位点走 <<save>>
+	w.eval('Game.Checks.sites["雾影·抵抗"].dc = 9');
+	new w.SugarCube.Wikifier(null, '<<sitecheck "雾影·抵抗">>');
+	const lc = w.SugarCube.State.variables.last_check;
+	ok(lc?.dc === 9 && /con|体质/i.test(lc?.label ?? ''), `sitecheck 豁免分流走 save（dc=${lc?.dc}，label=${lc?.label}）`);
+	w.eval('Game.Checks.sites["雾影·抵抗"].dc = 15');
+	// ⑤ setflag 词汇
+	w.SugarCube.State.variables.goblin_spared = false;
+	new w.SugarCube.Wikifier(null, '<<setflag "goblin_spared">>');
+	ok(w.SugarCube.State.variables.goblin_spared === true, 'setflag 词汇：旗标置真');
+}
+
 console.log(failures ? `\n${failures} 项失败` : '\n规则层测试全部通过');
 process.exit(failures ? 1 : 0);

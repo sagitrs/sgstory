@@ -26,6 +26,39 @@ const presets = ChargenPresets.map((p) => {
 const arg = (k) => process.argv.includes(`--${k}`);
 const wantAll = !process.argv.some((a) => a.startsWith('--'));
 
+// ── ⓪ D1 真相可达性（#35）：命题 × 通路，锚点机检 ──
+const passageSrc = new Map(); // name -> 去注释源文
+for (const f of ['src/00-meta.twee', 'src/10-init.twee', 'src/20-story.twee', 'src/30-rules.twee', 'src/31-chargen-data.twee', 'src/40-chargen.twee', 'src/50-tower.twee']) {
+	const text = readFileSync(f, 'utf8');
+	const parts = text.split(/^::\s*/m);
+	for (const part of parts.slice(1)) {
+		const nl = part.indexOf('\n');
+		const name = part.slice(0, nl).replace(/\[[^\]]*\]\s*$/, '').trim();
+		passageSrc.set(name, part.slice(nl + 1).replace(/\/%[\s\S]*?%\//g, ''));
+	}
+}
+if (wantAll || arg('truth')) {
+	console.log('\n══ ⓪ 真相可达性（D1/#35）——每命题须 ≥2 通路，锚句须在位 ══');
+	let bad = 0;
+	for (const c of Game.Truth.claims) {
+		const rows = [];
+		for (const site of c.sites) {
+			const src = passageSrc.get(site.p);
+			if (src === undefined) { rows.push(`✗位点段落「${site.p}」不存在`); bad++; continue; }
+			if (!src.includes(site.anchor)) { rows.push(`✗「${site.p}」锚句丢失：「${site.anchor}」`); bad++; continue; }
+			rows.push(`✓${site.p}${site.via ? `（${site.via}）` : ''}`);
+		}
+		const single = c.sites.length < 2;
+		if (single) bad++;
+		console.log(`  ${single ? '⚠单点' : '    '} ${c.id}：${c.claim}`);
+		rows.forEach((r) => console.log(`      ${r}`));
+	}
+	if (process.argv.includes('--check')) {
+		if (bad) { console.error(`\n✗ D1 真相门：${bad} 项失锚/单点`); process.exit(1); }
+		console.log('\n✔ D1 真相门通过（全命题 ≥2 通路且锚句在位）');
+	}
+}
+
 // ── ① 检定成功率矩阵（伞 #22：难度审计）──
 // 成功率解析计算：d20 枚举（优势=双骰取高）；自然20必成/自然1必败（SRD 5.2）
 function successRate(pc, site, adv) {

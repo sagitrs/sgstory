@@ -231,5 +231,41 @@ await scenario('路线G：低层尽弃 → 结局「焚塔」', async () => {
 	if (passageOf(w) !== '结局 焚塔') throw new Error(`结局不对：${passageOf(w)}`);
 });
 
+
+// ── 路线 H：旧存档形状模拟（第二章上线前的档）→ 迁移 → 入塔不崩 ──
+await scenario('路线H：旧档缺字段 → Pc.migrate 兜底 → 入塔正常', async () => {
+	const { w, clickLabel } = await newGame(0.99, [
+		'勇武型', '佣兵', '矮人', '战士', '荒野技艺', '火把与绳索', '坚韧', '勇气',
+	]);
+	await clickLabel('推门出发，走进暮色');
+	await clickLabel('打着火把，走进山脚的洞穴');
+	await clickLabel('收好护身符，穿过后洞的裂缝');
+	await clickLabel('听她说完');
+	// 模拟读旧档：整体替换为第二章之前的 $pc 形状（无 tokens/tower/ch2/amulet_charges 等）。
+	// 注意（坑10测试注）：必须用 w.eval 在页面域内构造——SugarCube 建历史快照时用
+	// instanceof 判型，Node 侧构造的对象数组是跨 realm 的，会触发
+	// "attempted to clone unsupported type: Array"（真实浏览器读档无此问题）
+	const oldShape = {
+		name: '旧档旅人', round: 8,
+		abilities: { str: 17, con: 15, dex: 13, wis: 12, int: 12, cha: 8 },
+		skills: ['运动', '恐吓', '生存', '察觉'], feats: ['坚韧'], gear: ['火把', '绳索'],
+		flags: { courage: true }, gold: 40, hp: 14, max_hp: 14,
+		has_torch: true, has_rope: true, salve_used: false,
+		speciesKey: 'dwarf', speciesLabel: '矮人', classLabel: '战士', bgLabel: '佣兵',
+	};
+	w.eval(`SugarCube.State.variables.pc = ${JSON.stringify(oldShape)};`);
+	await clickLabel('登上守林人之塔（第二章）');
+	await clickLabel('进入塔内'); // 塔门：Pc.migrate 归一化
+	const pc = pcOf(w);
+	if (!Array.isArray(pc.tokens) || pc.tokens.length !== 0) throw new Error(`tokens 应补齐为空数组，实际 ${typeof pc.tokens}`);
+	if (pc.amulet_charges !== 3) throw new Error(`充能应为 3，实际 ${pc.amulet_charges}`);
+	await clickLabel('一层 · 门厅');
+	await clickLabel('返回楼梯间');
+	await clickLabel('顶楼 · 守林人残影');
+	await clickLabel('握住法杖，成为新的守林人');
+	if (passageOf(w) !== '结局 新守林人') throw new Error(`结局不对：${passageOf(w)}`);
+	if (pcOf(w).name !== '旧档旅人') throw new Error('迁移不应覆盖已有字段');
+});
+
 console.log(failures ? `\n${failures} 个场景失败` : '\n全部场景通过');
 process.exit(failures ? 1 : 0);

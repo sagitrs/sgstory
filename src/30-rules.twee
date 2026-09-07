@@ -84,6 +84,33 @@ window.Rules = {
 
 window.pcNow = () => State.variables.pc;
 
+// ── 角色状态形状：单一默认源 + 旧存档迁移 ──────────────
+// 坑10：SugarCube 读档会整体还原旧版本 $pc，新增字段缺失时
+// 任何 .length/.includes 直接抛错。新增字段必须过这里。
+window.Pc = {
+	defaults() {
+		return {
+			name: '', round: 0, picked: [], mode: '',
+			abilities: null, skills: [], feats: [], gear: [], flags: {},
+			gold: 0, hp: 0, max_hp: 0,
+			has_torch: false, has_rope: false, salve_used: false,
+			ch2: false, amulet_charges: 0, tokens: [], tower: {},
+			speciesKey: '', speciesLabel: '', classLabel: '', bgLabel: '',
+		};
+	},
+	// 幂等归一化：补缺失字段/修正类型错误，保留已有值
+	migrate(pc) {
+		if (!pc || typeof pc !== 'object') return this.defaults();
+		const d = this.defaults();
+		for (const k of Object.keys(d)) {
+			if (pc[k] === undefined) pc[k] = d[k];
+			else if (Array.isArray(d[k])) { if (!Array.isArray(pc[k])) pc[k] = d[k]; }
+			else if (d[k] && typeof d[k] === 'object') { if (!pc[k] || typeof pc[k] !== 'object') pc[k] = d[k]; }
+		}
+		return pc;
+	},
+};
+
 // ── 宏：<<check 技名 DC [adv|dis] [加值]>> / <<save 属性缩写 DC [adv|dis]>> ──
 // 结果写入 $last_check，并渲染结果框
 function renderCheck(res) {

@@ -1,14 +1,7 @@
 :: StoryInit
-/% 全局状态初始化 %/
+/% 全局状态初始化（默认形状单一源见 Pc.defaults）%/
 <<set $player_name to "">>
-<<set $pc to {
-	name: "", round: 0, picked: [], mode: "",
-	abilities: null, skills: [], feats: [], gear: [], flags: {},
-	gold: 0, hp: 0, max_hp: 0,
-	has_torch: false, has_rope: false, salve_used: false,
-	ch2: false, amulet_charges: 0, tokens: [], tower: {},
-	speciesKey: "", speciesLabel: "", classLabel: "", bgLabel: ""
-}>>
+<<set $pc to Pc.defaults()>>
 /% 剧情旗标（与车卡无关的世界状态） %/
 <<set $has_amulet to false>>
 <<set $heard_rumor to false>>

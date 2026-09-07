@@ -24,6 +24,7 @@
 [[功成身退|结局 月光倾城]]
 
 :: 塔门
+<<run Pc.migrate($pc)>>
 <<set $pc.ch2 to true>>
 <<set $pc.amulet_charges to 3>>
 <<set $era to "present">>

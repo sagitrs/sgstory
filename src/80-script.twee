@@ -17,3 +17,7 @@ Save.onLoad.add((save) => {
 	// 读档后可拿到 save.metadata 做展示或迁移逻辑（示范钩子用法）
 	console.log('存档已载入', save.metadata);
 });
+
+// 安全网：每个段落开始前归一化 $pc 形状（旧档缺字段/类型错误都会被补齐，
+// 幂等且代价可忽略——坑10 的纵深防御）
+jQuery(document).on(':passagestart', () => Pc.migrate(State.variables.pc));

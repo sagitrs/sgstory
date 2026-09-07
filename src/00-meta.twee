@@ -1,0 +1,11 @@
+:: StoryTitle
+迷雾森林
+
+:: StoryData
+{
+	"ifid": "B7A089AC-4EBC-4D17-9050-78C8075B1F30",
+	"format": "SugarCube",
+	"format-version": "2.37.3",
+	"start": "开场",
+	"zoom": 1
+}

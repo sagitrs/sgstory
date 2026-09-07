@@ -1,0 +1,21 @@
+:: StoryInit
+/% 全局变量初始化（新游戏 / 读档无存档时执行一次） %/
+<<set $player_name to "">>
+<<set $max_hp to 100>>
+<<set $hp to 100>>
+<<set $gold to 20>>
+<<set $has_torch to false>>
+<<set $has_amulet to false>>
+<<set $heard_rumor to false>>
+<<set $goblin_spared to false>>
+<<set $witch_healed to false>>
+
+:: Widgets [widget]
+/% 自定义 Widget：受伤 + 死亡判定。用法：<<damage 20>> %/
+<<widget "damage">>
+	<<set $hp to Math.max(0, $hp - $args[0])>>
+	<span class="damage-flash">''你受到了 $args[0] 点伤害！''</span>
+	<<if $hp lte 0>>
+		<<goto "结局 死亡">>
+	<</if>>
+<</widget>>

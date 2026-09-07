@@ -1,0 +1,36 @@
+:: StoryScript [script]
+// ── 自定义宏：血条 <<hpbar>> ─────────────────────────────
+// 根据当前生命值渲染一条变色血条（绿 > 黄 > 红）
+Macro.add('hpbar', {
+	skipArgs: true,
+	handler() {
+		const v = State.variables;
+		const hp = Math.max(0, v.hp ?? 0);
+		const max = v.max_hp ?? 100;
+		const pct = Math.round((hp / max) * 100);
+		const color = pct > 50 ? '#5dbb63' : pct > 25 ? '#e0a458' : '#d1495b';
+		jQuery(this.output).append(
+			`<div class="hpbar">` +
+				`<div class="hpbar-fill" style="width:${pct}%;background:${color}"></div>` +
+				`<span class="hpbar-text">❤ ${hp} / ${max}</span>` +
+			`</div>`
+		);
+	}
+});
+
+// ── 配置示例 ───────────────────────────────────────────────
+Config.history.maxStates = 40; // 可回退的步数（默认 20）
+
+// 存档里写入自定义元数据（新游戏名/血量/金币），
+// 玩家在存档菜单里可以区分不同存档
+Save.onSave.add((save) => {
+	save.metadata = {
+		name: State.variables.player_name || '无名旅人',
+		hp: State.variables.hp,
+		gold: State.variables.gold,
+	};
+});
+Save.onLoad.add((save) => {
+	// 读档后可拿到 save.metadata 做展示或迁移逻辑（示范钩子用法）
+	console.log('存档已载入', save.metadata);
+});

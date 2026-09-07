@@ -1,0 +1,17 @@
+{
+  "name": "twine-sugarcube-starter",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Twine + SugarCube 文字冒险游戏脚手架（Twee 源码 → 单文件 HTML）",
+  "scripts": {
+    "build": "node build.mjs",
+    "test": "node test/smoke.mjs",
+    "serve": "python3 -m http.server 8000 --directory dist",
+    "watch": "node --watch --watch-path=src build.mjs"
+  },
+  "devDependencies": {
+    "extwee": "^2.3.7",
+    "jsdom": "^30.0.1"
+  }
+}

@@ -1,0 +1,131 @@
+:: StoryStyleSheet [stylesheet]
+/* ── 迷雾森林 · 暗色主题 ─────────────────────────────── */
+body {
+	background-color: #14121c;
+	background-image:
+		radial-gradient(ellipse at 50% -10%, #2a2440 0%, transparent 55%),
+		radial-gradient(ellipse at 50% 110%, #1d2a2e 0%, transparent 50%);
+	color: #e8e2d4;
+	font-family: 'Noto Serif SC', 'Songti SC', 'SimSun', Georgia, serif;
+}
+
+#passages {
+	max-width: 620px;
+	margin: 2em auto;
+	padding: 0 1em;
+}
+
+.passage {
+	font-size: 1.12em;
+	line-height: 2;
+	text-align: left;
+	letter-spacing: 0.02em;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+	animation: fadein 0.6s ease;
+}
+
+@keyframes fadein {
+	from { opacity: 0; transform: translateY(6px); }
+	to   { opacity: 1; transform: none; }
+}
+
+/* 链接 */
+.passage a.link-internal {
+	color: #9db4d4;
+	border-bottom: 1px dotted rgba(157, 180, 212, 0.5);
+	text-decoration: none;
+}
+.passage a.link-internal:hover {
+	color: #d3e2f5;
+	background: rgba(157, 180, 212, 0.12);
+}
+.passage a.link-internal:active {
+	color: #ffd479;
+}
+
+/* 侧边栏 */
+#story {
+	border-right: none;
+}
+#menu li a {
+	color: #8b8497;
+}
+#menu li a:hover {
+	color: #d3e2f5;
+}
+
+/* 血条 */
+.hpbar {
+	position: relative;
+	height: 22px;
+	background: #2c2836;
+	border: 1px solid #4a4358;
+	border-radius: 11px;
+	overflow: hidden;
+	margin: 0.8em auto;
+	max-width: 320px;
+}
+.hpbar-fill {
+	height: 100%;
+	transition: width 0.4s ease;
+	border-radius: 11px 0 0 11px;
+}
+.hpbar-text {
+	position: absolute;
+	inset: 0;
+	text-align: center;
+	font-size: 0.78em;
+	line-height: 22px;
+	color: #fff;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
+}
+
+/* 受伤提示 */
+.damage-flash {
+	display: block;
+	color: #d1495b;
+	margin: 0.4em 0;
+}
+
+/* 标题画面 */
+.title-card {
+	text-align: center;
+	margin: 2.5em 0;
+}
+.title-card h1 {
+	font-size: 2.4em;
+	letter-spacing: 0.35em;
+	margin: 0 0 0.3em;
+	color: #d3e2f5;
+	text-shadow: 0 0 24px rgba(157, 180, 212, 0.45);
+}
+.title-card .subtitle {
+	color: #8b8497;
+	font-size: 0.9em;
+	letter-spacing: 0.2em;
+}
+
+/* 结局画面 */
+.ending-card {
+	border: 1px solid #4a4358;
+	border-radius: 10px;
+	padding: 1.2em 1.6em;
+	margin: 1.5em 0;
+	background: rgba(20, 18, 28, 0.7);
+	box-shadow: 0 0 32px rgba(0, 0, 0, 0.5) inset;
+}
+.ending-card h2 {
+	text-align: center;
+	letter-spacing: 0.15em;
+	margin-top: 0;
+}
+.ending-card table {
+	margin: 0 auto;
+	border-spacing: 1em 0.3em;
+	font-size: 0.95em;
+}
+.ending-card td:first-child {
+	color: #8b8497;
+	padding-right: 0.5em;
+	text-align: right;
+}

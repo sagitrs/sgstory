@@ -85,6 +85,8 @@ await click('打着火把，走进山脚的洞穴');
 assert(w.SugarCube.State.passage === '洞穴', '进入洞穴');
 const checkBox = w.document.querySelector('#passages .check-result');
 assert(!!checkBox, '检定结果框渲染');
+const styleStory = w.document.querySelector('#style-story')?.textContent ?? '';
+assert(styleStory.includes('LXGW WenKai') && styleStory.includes('@font-face'), '霞鹜文楷子集已内嵌（@font-face）');
 const lc = w.SugarCube.State.variables.last_check;
 assert(lc && lc.roll === 11 && lc.label === '察觉检定', '<<check>> 宏产出 $last_check');
 

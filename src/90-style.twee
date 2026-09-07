@@ -1,12 +1,14 @@
 :: StoryStyleSheet [stylesheet]
 /* ── 迷雾森林 · 暗色主题 ─────────────────────────────── */
 body {
-	background-color: #14121c;
+	background-color: #191722;
 	background-image:
-		radial-gradient(ellipse at 50% -10%, #2a2440 0%, transparent 55%),
-		radial-gradient(ellipse at 50% 110%, #1d2a2e 0%, transparent 50%);
-	color: #e8e2d4;
-	font-family: 'Noto Serif SC', 'Songti SC', 'SimSun', Georgia, serif;
+		radial-gradient(ellipse at 50% -10%, #2c2742 0%, transparent 55%),
+		radial-gradient(ellipse at 50% 110%, #20282b 0%, transparent 50%);
+	color: #e6dfd2;
+	font-family: 'LXGW WenKai', 'LXGW WenKai Screen', 'Kaiti SC', 'STKaiti', 'KaiTi', 'Noto Serif SC', serif;
+	-webkit-font-smoothing: antialiased;
+	text-rendering: optimizeLegibility;
 }
 
 #passages {
@@ -16,11 +18,11 @@ body {
 }
 
 .passage {
-	font-size: 1.12em;
-	line-height: 2;
+	font-size: 1.15em;
+	line-height: 2.1;
 	text-align: left;
-	letter-spacing: 0.02em;
-	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
+	letter-spacing: 0.04em;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.45);
 	animation: fadein 0.6s ease;
 }
 
@@ -31,16 +33,16 @@ body {
 
 /* 链接 */
 .passage a.link-internal {
-	color: #9db4d4;
-	border-bottom: 1px dotted rgba(157, 180, 212, 0.5);
+	color: #a9c0da;
+	border-bottom: 1px dotted rgba(169, 192, 218, 0.45);
 	text-decoration: none;
 }
 .passage a.link-internal:hover {
-	color: #d3e2f5;
-	background: rgba(157, 180, 212, 0.12);
+	color: #dde8f4;
+	background: rgba(169, 192, 218, 0.10);
 }
 .passage a.link-internal:active {
-	color: #ffd479;
+	color: #eccf96;
 }
 
 /* 侧边栏 */
@@ -83,7 +85,7 @@ body {
 /* 受伤提示 */
 .damage-flash {
 	display: block;
-	color: #d1495b;
+	color: #da8a95;
 	margin: 0.4em 0;
 }
 
@@ -220,10 +222,10 @@ body {
 	background: rgba(44, 40, 54, 0.5);
 }
 .check-result.check-success {
-	border-color: #5dbb63;
+	border-color: #74b57c;
 }
 .check-result.check-fail {
-	border-color: #d1495b;
+	border-color: #d3707f;
 }
 .check-dice {
 	color: #9db4d4;

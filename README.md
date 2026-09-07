@@ -102,6 +102,7 @@ Twine 2（桌面版）可以**导入编译产物继续可视化编辑**：
 | 代码（构建脚本、自定义宏、样式） | MIT | [LICENSE](LICENSE) |
 | 剧情文本与游戏内容（叙事、角色、结局） | CC BY 4.0 | [LICENSE-CONTENT.md](LICENSE-CONTENT.md) |
 | SugarCube 2（引擎，vendor 并嵌入产物） | BSD-2-Clause（© Thomas Michael Edwards） | [NOTICE](NOTICE) |
+| 霞鹜文楷 LXGW WenKai（正文字体，子集内嵌） | SIL OFL 1.1（© lxgw） | [NOTICE](NOTICE) |
 | D&D SRD 5.2（规则数值来源） | CC BY 4.0（© Wizards of the Coast） | [NOTICE](NOTICE) |
 | extwee / jsdom（仅开发期） | MIT | [NOTICE](NOTICE) |
 

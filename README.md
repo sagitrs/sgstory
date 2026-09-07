@@ -11,7 +11,7 @@
 npm install
 npm run build   # 编译 → dist/index.html（单文件，浏览器直接打开即玩）
 npm run serve   # 本地预览：http://localhost:8000
-npm test        # jsdom 无头冒烟测试（启动/跳转/变量/条件链接）
+npm test        # 构建后全链：L0 静态门 → 规则单测 → L1 全段落渲染 → 冒烟 → 场景
 npm run watch   # 修改 src/ 自动重新编译
 ```
 
@@ -26,7 +26,11 @@ src/
   90-style.twee   StoryStyleSheet：全局样式（暗色主题）
 vendor/
   format.js       SugarCube 2.37.3 官方 story format（升级时替换此文件）
-test/smoke.mjs    无头冒烟测试
+test/integrity.mjs  L0 静态完整性门：悬空引用/goto 裸词/未定义宏（构建期归零，坑11 类）
+test/render-all.mjs L1 全段落渲染冒烟：逐段落 play × $era 双变体，无异常/无 .error/非空
+test/smoke.mjs    无头冒烟测试（章节主线路径）
+test/scenarios.mjs 分支场景测试（8 条路线 + uncaught 异常守卫）
+test/rules.mjs    规则屢单测
 build.mjs         合并 src/*.twee → extwee 编译
 dist/index.html   编译产物（单文件游戏）
 ```

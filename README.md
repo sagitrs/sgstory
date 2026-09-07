@@ -11,7 +11,8 @@
 npm install
 npm run build   # 编译 → dist/index.html（单文件，浏览器直接打开即玩）
 npm run serve   # 本地预览：http://localhost:8000
-npm test        # 构建后全链：L0 静态门 → 规则单测 → L1 全段落渲染 → 冒烟 → 场景
+npm test        # 构建后全链（~40s）：L0 静态门 → 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(并行) → 覆盖门
+npm run soak    # 游走器加量长测（20+20 局，~2min）：发布前 / 状态机重改动时跑（#27 起移出默认链）
 npm run watch   # 修改 src/ 自动重新编译
 ```
 

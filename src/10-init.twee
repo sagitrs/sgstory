@@ -6,6 +6,7 @@
 	abilities: null, skills: [], feats: [], gear: [], flags: {},
 	gold: 0, hp: 0, max_hp: 0,
 	has_torch: false, has_rope: false, salve_used: false,
+	ch2: false, amulet_charges: 0, tokens: [], tower: {},
 	speciesKey: "", speciesLabel: "", classLabel: "", bgLabel: ""
 }>>
 /% 剧情旗标（与车卡无关的世界状态） %/
@@ -13,6 +14,10 @@
 <<set $heard_rumor to false>>
 <<set $goblin_spared to false>>
 <<set $witch_healed to false>>
+/% 第二章：塔 %/
+<<set $era to "present">>
+<<set $hint_diary to false>>
+<<set $hint_star to false>>
 
 :: Widgets [widget]
 /% 受伤 + 死亡判定 + 药膏自动生效。用法：<<damage N>> %/
@@ -54,6 +59,19 @@
 		<<check "体操" 12 "adv">>
 	<<else>>
 		<<check "体操" 12>>
+	<</if>>
+<</widget>>
+
+/% 第二章：时代切换（护身符充能 -1，重渲染当前段落）%/
+<<widget "erashift">>
+	<<if $pc.amulet_charges gt 0>>
+		<<link `($era is "present" ? "翻转护身符：坠入『过去』（剩 $pc.amulet_charges 次）" : "翻转护身符：回到『现在』（剩 $pc.amulet_charges 次）")`>>
+			<<set $pc.amulet_charges to $pc.amulet_charges - 1>>
+			<<set $era to ($era is "present" ? "past" : "present")>>
+			<<goto passage()>>
+		<</link>>
+	<<else>>
+		<span class="era-drained">护身符的银辉已经黯淡，无法再切换时代。</span>
 	<</if>>
 <</widget>>
 

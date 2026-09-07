@@ -115,5 +115,6 @@ Twine 2（桌面版）可以**导入编译产物继续可视化编辑**：
 - [foundryvtt/dnd5e](https://github.com/foundryvtt/dnd5e)（MIT）— 5e 规则的权威 JS 实现，检定公式组织
 - [rpg-dice-roller](https://github.com/dice-roller/rpg-dice-roller)（MIT）— 骰子表达式解析思路
 - [5e-bits/5e-srd-api](https://github.com/5e-bits/5e-srd-api)（MIT）— SRD 数据组织
+- [Ascend Nousta's Tower](https://jaclynlewis.itch.io/ascend-noustas-tower)（CC BY-SA 4.0, © Jaclyn Lewis）— 第二章「守林人之塔」的单页地城结构灵感（未复制内容）
 
 发布流程：push 到 main → CI 跑测试 → 构建并自动发布到 GitHub Pages。

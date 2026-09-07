@@ -130,6 +130,7 @@ window.Chargen = {
 		const round = ChargenRounds[roundIdx];
 		const opt = round.options[optIdx];
 		opt.apply(pc);
+		pc.skills = [...new Set(pc.skills)]; // 背景与职业可能给同一技能，去重
 		pc.picked.push(`${round.title}：${opt.name}`);
 		pc.round += 1;
 		if (pc.round >= ChargenRounds.length) {
@@ -137,4 +138,32 @@ window.Chargen = {
 			pc.hp = pc.max_hp;
 		}
 	},
+
+	// 快速模式：一键应用整套预设（8 轮选项索引）
+	applyPreset(idx) {
+		const picks = ChargenPresets[idx].picks;
+		for (let r = 0; r < ChargenRounds.length; r++) this.pick(r, picks[r]);
+	},
 };
+
+// 三套预设（索引依次对应各轮选项：数组/背景/物种/职业/技艺/行囊/专长/烙印）
+window.ChargenPresets = [
+	{
+		name: '铁卫',
+		desc: '矮人佣兵出身的战士。话不多，剑很稳，桥塌了也砸不死。',
+		summary: '力17 体15｜HP 14｜火把与绳索｜坚韧 · 勇气',
+		picks: [0, 1, 2, 0, 0, 0, 1, 0],
+	},
+	{
+		name: '影手',
+		desc: '精灵游荡者，修行者出身。眼观六路，擅长把危机掐灭在发生之前。',
+		summary: '敏15 魅13｜HP 10｜长剑(+2)｜警觉 · 机运(+1)',
+		picks: [1, 2, 1, 1, 1, 1, 0, 1],
+	},
+	{
+		name: '秘典',
+		desc: '人类学者出身的巫师。体质是硬伤，但你知道所有值钱的尔西藏在哪。',
+		summary: '智17 感15｜HP 7｜药膏(自动回4)｜巧手 · 学识',
+		picks: [2, 0, 0, 2, 2, 2, 2, 2],
+	},
+];

@@ -143,6 +143,19 @@ body {
 	padding: 1.2em 1.5em;
 	background: rgba(20, 18, 28, 0.7);
 }
+.mode-expert {
+	margin-top: 1.2em;
+	text-align: center;
+	padding: 0.7em;
+	border-top: 1px dashed #4a4358;
+}
+.mode-expert a.link-internal {
+	color: #8b8497;
+	font-size: 0.88em;
+}
+.mode-expert a.link-internal:hover {
+	color: #d3e2f5;
+}
 .chargen-progress {
 	color: #8b8497;
 	font-size: 0.8em;

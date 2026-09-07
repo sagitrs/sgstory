@@ -43,26 +43,26 @@ let p = w.document.querySelector('#passages .passage');
 assert(p?.textContent.includes('迷雾森林'), '开场段落渲染');
 await click('踏上旅途');
 
-// ── 车卡 8 轮（每轮选第一个选项）──
+// ── 车卡：快速模式（预设）──
 assert(w.SugarCube.State.passage === '车卡', '进入车卡流程');
-assert(w.document.querySelectorAll('.choice-card').length === 3, '每轮三个选项卡');
-assert(w.document.querySelectorAll('.choice-name')[0].textContent === '勇武型', '选项卡渲染选项名');
-for (let i = 0; i < 8; i++) {
-	const pick = links().find((a) => a.textContent === '选择此项');
-	pick.click();
-	await sleep(300);
-}
+const cards = [...w.document.querySelectorAll('.choice-card')];
+assert(cards.length === 3, '三套预设选项卡');
+assert(cards.map((c) => c.querySelector('.choice-name').textContent).join(',') === '铁卫,影手,秘典', '预设名称渲染');
+assert(links().some((a) => a.textContent.includes('逐轮细调')), '专家模式入口存在');
+await click('快速成型'); // 第一张卡：铁卫
 
 // ── 角色卡 ──
-assert(w.SugarCube.State.passage === '角色卡', '8 轮后到达角色卡');
+assert(w.SugarCube.State.passage === '角色卡', '快速预设后直达角色卡');
 const sheet = w.document.querySelector('#passages .passage').textContent;
-assert(sheet.includes('力量') && sheet.includes('15'), '角色卡显示属性表');
+assert(sheet.includes('力量') && sheet.includes('17'), '角色卡显示属性表');
 assert(sheet.includes('战士'), '角色卡显示职业');
 assert(sheet.includes('无名旅人'), '角色卡显示默认名');
-const pc = w.SugarCube.State.variables.pc;
-assert(pc.abilities.str === 15 && pc.abilities.int === 12, '车卡数值生效（力15 智12）');
-assert(pc.max_hp === 12 && pc.hp === 12, '生命值计算正确（12/12）');
-assert(pc.gold === 20, '起始金币 20');
+const pc = () => w.SugarCube.State.variables.pc;
+assert(pc().abilities.str === 17 && pc().abilities.con === 15, '预设数值生效（力17 体15）');
+assert(pc().max_hp === 14 && pc().hp === 14, '生命值计算正确（10+2 + 坚固2 = 14/14）');
+assert(pc().gold === 15, '起始金币 15（佣兵）');
+assert(pc().skills.filter((s) => s === '运动').length === 1, '背景与职业重复技能已去重');
+assert(pc().has_torch && pc().has_rope, '预设行囊生效');
 
 await click('出发，前往歪脖子鸭酒馆');
 
@@ -70,7 +70,7 @@ await click('出发，前往歪脖子鸭酒馆');
 p = w.document.querySelector('#passages .passage');
 assert(p.textContent.includes('歪脖子鸭'), '进入酒馆');
 assert(p.textContent.includes('无名旅人'), '角色名插值');
-assert(p.textContent.includes('20 枚金币'), '金币插值');
+assert(p.textContent.includes('15 枚金币'), '金币插值');
 assert(!links().some((a) => a.textContent.includes('买一支火把')), '已带火把 → 购买链接隐藏');
 assert(links().some((a) => a.textContent === '听角落里的老猎人吹牛'), '传闻链接存在');
 

@@ -2,7 +2,7 @@
 /% 全局状态初始化 %/
 <<set $player_name to "">>
 <<set $pc to {
-	name: "", round: 0, picked: [],
+	name: "", round: 0, picked: [], mode: "",
 	abilities: null, skills: [], feats: [], gear: [], flags: {},
 	gold: 0, hp: 0, max_hp: 0,
 	has_torch: false, has_rope: false, salve_used: false,

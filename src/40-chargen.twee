@@ -1,10 +1,40 @@
 /% ═══════════════ 车卡流程：8 轮三选一 ═══════════════ %/
 
 :: 车卡
+<<if $pc.mode is "">>
+/% ── 模式选择：快速预设 / 专家 8 轮 ── %/
+<div class="chargen-card">
+	<div class="chargen-progress">车卡 · 选择塑造方式</div>
+	<h3>快速模式</h3>
+	<p class="chargen-intro">三套预设一键成型；或逐轮细调，自由调配每一项。</p>
+	<div class="choices">
+	<<for _i to 0; _i lt ChargenPresets.length; _i++>>
+		<<capture _i>>
+		<div class="choice-card">
+			<div class="choice-name"><<print ChargenPresets[_i].name>></div>
+			<div class="choice-desc"><<print ChargenPresets[_i].desc>></div>
+			<div class="choice-effect"><<print ChargenPresets[_i].summary>></div>
+			<<link "快速成型">>
+				<<run Chargen.applyPreset(_i)>>
+				<<goto "角色卡">>
+			<</link>>
+		</div>
+		<</capture>>
+	<</for>>
+	</div>
+	<div class="mode-expert">
+		<<link "逐轮细调（专家模式 · 8 轮三选一）">>
+			<<set $pc.mode to "expert">>
+			<<goto "车卡">>
+		<</link>>
+	</div>
+</div>
+<<else>>
+/% ── 专家模式：逐轮三选一 ── %/
 <<set _round to ChargenRounds[$pc.round]>>
 <<set _n to $pc.round + 1>>
 <div class="chargen-card">
-	<div class="chargen-progress">车卡进度：_n / 8</div>
+	<div class="chargen-progress">专家模式 · _n / 8</div>
 	<h3>_round.title</h3>
 	<p class="chargen-intro">_round.intro</p>
 	<div class="choices">
@@ -23,6 +53,7 @@
 	<</for>>
 	</div>
 </div>
+<</if>>
 
 :: 角色卡
 <div class="charsheet">

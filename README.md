@@ -32,7 +32,7 @@ test/walker.mjs    L2 对抗席游走器：种子化随机游走（一章+塔）
 test/coverage.mjs  L3 覆盖率 ratchet：基线不回退 + 新增段落必须配测（gate#9 等效）——基线更新：npm run update-coverage-baseline
 test/smoke.mjs    无头冒烟测试（章节主线路径）
 test/scenarios.mjs 分支场景测试（8 条路线 + uncaught 异常守卫）
-test/rules.mjs    规则屢单测
+test/rules.mjs    规则层单测 + 存档兼容矩阵（test/fixtures/saves/ 每版历史形状一档；改 Pc.defaults 必须同 PR 加 fixture）
 build.mjs         合并 src/*.twee → extwee 编译
 dist/index.html   编译产物（单文件游戏）
 ```

@@ -154,7 +154,7 @@ eq(pc2.pc.max_hp, 7, '秘典：HP 7（6+1）');
 ok(pc2.pc.flags.lore && pc2.pc.gear.includes('药膏'), '秘典：学识烙印与药膏');
 ok(pc2.pc.skills.filter((s) => s === '历史').length === 1, '秘典：学者/巫师重复历史技能已去重');
 
-// ── Pc 形状迁移（坑10：旧存档缺新增字段）──
+// ── Pc 形状迁移：基础行为 + 存档兼容矩阵（#15，fixture 驱动）──
 const oldPc = { name: '旧档', round: 8, gold: 40, hp: 14, max_hp: 14, skills: ['运动'], gear: ['火把'], abilities: { str: 15 }, flags: { courage: true } };
 const m1 = w.Pc.migrate(oldPc);
 eq(m1.tokens.length, 0, '旧档缺 tokens → 补空数组');
@@ -169,6 +169,33 @@ ok(w.Pc.migrate(undefined).name === '', 'undefined → 整体默认');
 w.Pc.migrate(m1);
 eq(m1.gold, 40, '迁移幂等（重复跑不破坏）');
 eq(Object.keys(w.Pc.defaults()).length, 23, '默认形状字段数守恒（23，防误删）');
+
+// ── L4 存档兼容矩阵：每版历史形状一个 fixture，统一断言四条律 ──
+//   补齐（defaults 全键在）/ 保值（keep 表）/ 修型（数组对象型复原 + tokens 期望）/
+//   幂等（二次迁移深度相等）——新增结构演进 = 新增 fixture + 全矩阵进 npm test（工具链纪律）
+import { readdirSync } from 'node:fs';
+const DEFAULT_KEYS = Object.keys(w.Pc.defaults());
+const fixtureDir = 'test/fixtures/saves';
+const fixtures = readdirSync(fixtureDir).filter((f) => f.endsWith('.json')).sort();
+ok(fixtures.length >= 4, `存档 fixture 至少 4 版历史形状（现有 ${fixtures.length}）`);
+for (const file of fixtures) {
+	const fx = JSON.parse(readFileSync(`${fixtureDir}/${file}`, 'utf8'));
+	const m = w.Pc.migrate(JSON.parse(JSON.stringify(fx.pc))); // 原样克隆入参
+	const label = `${file.split('.')[0]}`;
+	const missingKeys = DEFAULT_KEYS.filter((k) => !(k in m));
+	ok(missingKeys.length === 0, `[${label}] 补齐：defaults 全键在（缺 ${missingKeys.join(',') || '无'}）`);
+	for (const [k, want] of Object.entries(fx.keep ?? {})) {
+		ok(JSON.stringify(m[k]) === JSON.stringify(want), `[${label}] 保值：${k}=${JSON.stringify(want)} 不被覆盖`);
+	}
+	if (fx.expectTokens !== undefined) {
+		ok(Array.isArray(m.tokens) && JSON.stringify(m.tokens) === JSON.stringify(fx.expectTokens), `[${label}] 修型：tokens → ${JSON.stringify(fx.expectTokens)}`);
+	}
+	ok(m.abilities === null || typeof m.abilities === 'object', `[${label}] 修型：abilities 型合法`);
+	for (const k of ['skills', 'feats', 'gear', 'picked', 'tokens']) ok(Array.isArray(m[k]), `[${label}] 修型：${k} 为数组`);
+	const again = w.Pc.migrate(JSON.parse(JSON.stringify(m)));
+	ok(JSON.stringify(again) === JSON.stringify(m), `[${label}] 幂等：二次迁移深度相等`);
+	if (fx.expectJunkKept) ok('futureVersionField' in m, `[${label}] 余键：未知字段不删（向前兼容）`);
+}
 
 console.log(failures ? `\n${failures} 项失败` : '\n规则层测试全部通过');
 process.exit(failures ? 1 : 0);

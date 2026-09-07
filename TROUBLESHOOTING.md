@@ -137,6 +137,7 @@ w.SugarCube.Engine.start();
 - **管道吞退出码**：`npm test | tail` 的退出码是 `tail` 的——曾让坏 package.json 一路绿灯合入 main。用 `set -o pipefail` 或先落日志再看。
 - **JSON 改动即校验**：`python3 -c "json.load(open('package.json'))"` 一行保平安。
 - **测试链完整性**：新增测试文件记得挂进 `npm test`（rules.mjs 曾漏挂两周才被"断言数对不上"暴露）。
+- **结构演进必配 fixture（#15）**：改 `Pc.defaults()` 的 PR 必须同 PR 在 `test/fixtures/saves/` 落一版新历史形状并跑全矩阵（npm test 含）。矩阵四律：补齐/保值/修型/幂等——矩阵首轮就抓到过 null 默认（abilities）修型永不触发的真漏洞。
 
 ---
 

@@ -1,0 +1,15 @@
+{
+	"description": "S1 二章早期档（#9~#10 之间：ch2 有值、charges 用过 1 次、tokens 收了 2 件、tower 只有部分旗标）",
+	"keep": { "name": "守林候补", "gold": 20, "amulet_charges": 1, "ch2": true },
+	"expectTokens": ["铜哨", "日记"],
+	"pc": {
+		"name": "守林候补", "round": 8, "picked": [], "mode": "expert",
+		"abilities": { "str": 15, "con": 14, "dex": 12, "wis": 13, "int": 10, "cha": 12 },
+		"skills": ["运动", "生存", "察觉"], "feats": ["勇气"], "gear": ["长剑"],
+		"flags": {}, "gold": 20, "hp": 14, "max_hp": 14,
+		"has_torch": false, "has_rope": false, "salve_used": false,
+		"ch2": true, "amulet_charges": 1, "tokens": ["铜哨", "日记"],
+		"tower": { "hall_past": true },
+		"speciesKey": "human", "speciesLabel": "人类", "classLabel": "战士", "bgLabel": "佣兵"
+	}
+}

@@ -105,6 +105,7 @@ window.Pc = {
 		for (const k of Object.keys(d)) {
 			if (pc[k] === undefined) pc[k] = d[k];
 			else if (Array.isArray(d[k])) { if (!Array.isArray(pc[k])) pc[k] = d[k]; }
+			else if (d[k] === null) { if (pc[k] !== null && typeof pc[k] !== 'object') pc[k] = d[k]; } // null 默认（abilities）也需修型——L4 矩阵实测漏洞
 			else if (d[k] && typeof d[k] === 'object') { if (!pc[k] || typeof pc[k] !== 'object') pc[k] = d[k]; }
 		}
 		return pc;

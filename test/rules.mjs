@@ -154,5 +154,21 @@ eq(pc2.pc.max_hp, 7, '秘典：HP 7（6+1）');
 ok(pc2.pc.flags.lore && pc2.pc.gear.includes('药膏'), '秘典：学识烙印与药膏');
 ok(pc2.pc.skills.filter((s) => s === '历史').length === 1, '秘典：学者/巫师重复历史技能已去重');
 
+// ── Pc 形状迁移（坑10：旧存档缺新增字段）──
+const oldPc = { name: '旧档', round: 8, gold: 40, hp: 14, max_hp: 14, skills: ['运动'], gear: ['火把'], abilities: { str: 15 }, flags: { courage: true } };
+const m1 = w.Pc.migrate(oldPc);
+eq(m1.tokens.length, 0, '旧档缺 tokens → 补空数组');
+ok(m1.tower && typeof m1.tower === 'object', '旧档缺 tower → 补对象');
+eq(m1.gold, 40, '已有字段保留不动');
+eq(m1.ch2, false, '缺 ch2 → 补默认 false');
+ok(m1.flags.courage === true, '嵌套已有值保留');
+const m2 = w.Pc.migrate({ tokens: '损坏', tower: null, mode: undefined });
+ok(Array.isArray(m2.tokens) && m2.tokens.length === 0, '类型损坏修正（tokens 非数组）');
+ok(m2.tower && typeof m2.tower === 'object', '类型损坏修正（tower 为 null）');
+ok(w.Pc.migrate(undefined).name === '', 'undefined → 整体默认');
+w.Pc.migrate(m1);
+eq(m1.gold, 40, '迁移幂等（重复跑不破坏）');
+eq(Object.keys(w.Pc.defaults()).length, 23, '默认形状字段数守恒（23，防误删）');
+
 console.log(failures ? `\n${failures} 项失败` : '\n规则层测试全部通过');
 process.exit(failures ? 1 : 0);

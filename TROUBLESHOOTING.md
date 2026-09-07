@@ -83,6 +83,25 @@ w.SugarCube.Engine.start();
 
 **解法**：动态链接一律用容器链接：`<<link \`表达式\`>><<goto "目标">><</link>>`（`<<link>>` 的参数支持反引号表达式）。
 
+## 坑 10 · 状态结构演进 vs 旧存档（线上实锤）〔S1〕
+
+**现场**：玩家读旧档进入新章节，`$pc.tokens.length` 抛 `Cannot read properties of undefined`——新章节新增的字段在旧存档里不存在。
+
+**根因**：SugarCube 读档**整体还原**存档时的变量结构。上线迭代新增任何 `$pc` 字段，旧档一律缺失；消费点（`.length`/`.includes`/遍历）随即崩。测试全绿也拦不住——**所有测试都从新 StoryInit 起步，"旧存档形状"是独立的输入类**。
+
+**解法（三层）**：
+1. 默认形状单一源：`Pc.defaults()`（StoryInit 与迁移共用，字段数有断言守恒 18）
+2. 入口归一化：章节入口 `<<run Pc.migrate($pc)>>`（幂等，补缺/修型/不覆盖）
+3. 全局安全网：`:passagestart` 钩子每段归一化
+
+**测试覆盖模式**：
+- 单测：旧形状输入 → 字段补齐/保留/修型/幂等（`test/rules.mjs`）
+- 集成：**读档模拟**——整体替换 `$pc` 为旧形状后走完整章节（`test/scenarios.mjs` 路线H）
+  - ⚠️ 替换必须用 `w.eval(\`SugarCube.State.variables.pc = ${JSON.stringify(旧档)}\`)` 在**页面域内**构造：
+    SugarCube 建历史快照用 `instanceof Array` 判型，Node 侧构造的数组跨 realm，
+    会误抛 "attempted to clone unsupported type: Array"（真实浏览器读档不受影响——坑10测试注）
+- 纪律：**新增状态字段 → 必须同 PR 更新 Pc.defaults + 跑路线H**
+
 ## 坑 8 · `<<textbox>>` 与成员变量路径 〔S3 · 预防性规避〕
 
 `<<textbox "$pc.name">>`（点路径）在部分版本上行为存疑（未验证）。本项目用平铺 `$player_name` 接输入、车卡完成时拷入 `$pc.name`。若要用成员路径，先在目标 SugarCube 版本上验证。

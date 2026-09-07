@@ -8,11 +8,19 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let failures = 0;
 
 async function newGame(randomStub, picks) {
+	// uncaught 异常收集：SugarCube 交互宏抛错（如 goto 目标不存在）只走 jsdomError，
+	// 无监听则被吞——测试绿但线上报错（坑11教训）。"Not implemented"（alert 等）不计。
+	const uncaught = [];
+	const vc = new VirtualConsole();
+	vc.on('jsdomError', (e) => {
+		const msg = String(e?.message ?? e);
+		if (msg.startsWith('Uncaught')) uncaught.push(msg);
+	});
 	const dom = new JSDOM(html, {
 		runScripts: 'dangerously',
 		pretendToBeVisual: true,
 		url: 'http://localhost/',
-		virtualConsole: new VirtualConsole(),
+		virtualConsole: vc,
 		beforeParse(window) {
 			window.Math.random = () => randomStub;
 		},
@@ -27,8 +35,12 @@ async function newGame(randomStub, picks) {
 		const a = [...w.document.querySelectorAll('#passages a.link-internal')]
 			.find((x) => x.textContent === label);
 		if (!a) throw new Error(`找不到链接「${label}」@ ${w.SugarCube.State.passage}`);
+		const before = uncaught.length;
 		a.click();
 		await sleep(320);
+		if (uncaught.length > before) {
+			throw new Error(`点击「${label}」后脚本异常：${uncaught[before].slice(0, 160)}`);
+		}
 	};
 
 	await clickLabel('踏上旅途');
@@ -160,6 +172,7 @@ await scenario('路线E：放走哥布林 → 塔·温室彩蛋 → 结局「新
 	// 坠入过去 → 温室：哥布林园丁认出"放走族崽"的恩人（跨章旗标彩蛋）
 	await clickLabel('翻转护身符：坠入『过去』（剩 3 次）');
 	if (w.SugarCube.State.variables.era !== 'past') throw new Error('时代未切换到过去');
+	if (passageOf(w) !== '楼梯间') throw new Error(`翻转后应重渲染当前段落（楼梯间），实际 ${passageOf(w)}`);
 	await clickLabel('三层 · 温室');
 	if (!pc().tokens.includes('月光花')) throw new Error('温室彩蛋应赠月光花');
 	if (pc().gold !== 20) throw new Error(`园丁赠金后应 20（15+5），实际 ${pc().gold}`);

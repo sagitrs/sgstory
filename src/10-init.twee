@@ -61,7 +61,7 @@
 		<<link `($era is "present" ? "翻转护身符：坠入『过去』（剩 $pc.amulet_charges 次）" : "翻转护身符：回到『现在』（剩 $pc.amulet_charges 次）")`>>
 			<<set $pc.amulet_charges to $pc.amulet_charges - 1>>
 			<<set $era to ($era is "present" ? "past" : "present")>>
-			<<goto passage()>>
+			<<goto `passage()`>>
 		<</link>>
 	<<else>>
 		<span class="era-drained">护身符的银辉已经黯淡，无法再切换时代。</span>

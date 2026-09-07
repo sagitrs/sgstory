@@ -51,6 +51,14 @@ Attribution 4.0 International 发布：
   licensed under Creative Commons Attribution 4.0 International
   (https://creativecommons.org/licenses/by/4.0/)
 
+嵌入产物
+--------
+- 霞鹜文楷 LXGW WenKai — SIL Open Font License 1.1, © 2020-2021 lxgw
+  （基于 Fontworks 的 Klee One 派生）
+  源文件位于 vendor/fonts/*.ttf（24MB×2），构建时子集化并 base64 内嵌
+  进 dist/index.html（仅含游戏用到的字符）。许可证全文见 vendor/fonts/OFL.txt
+  主页：https://lxgw.github.io/"
+
 设计参考（未直接包含其代码，特此鸣谢）
 ------------------------------------
 - Another-RPG-Engine — MIT License, © AnotherRPGEnthusiast

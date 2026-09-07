@@ -125,5 +125,34 @@ ok(pc2.pc.skills.includes('运动') && pc2.pc.skills.includes('察觉'), '技能
 ok(pc2.pc.has_torch && pc2.pc.has_rope, '火把与绳索行囊生效');
 ok(pc2.pc.flags.courage, '命运烙印生效');
 
+// ── 快速模式预设：索引有效、applyPreset 数值与摘要一致 ──
+const presets = w.ChargenPresets;
+eq(presets.length, 3, '三套快速预设');
+ok(presets.every((p) => p.picks.length === rounds.length), '每套预设覆盖全部 8 轮');
+ok(presets.every((p) => p.picks.every((i, r) => i >= 0 && i < rounds[r].options.length)), '预设索引均有效');
+
+// 铁卫：力17 体15 / HP 14 / 火把与绳索
+pc2.pc = { name: '', round: 0, picked: [], mode: '', abilities: null, skills: [], feats: [], gear: [], flags: {}, gold: 0, has_torch: false, has_rope: false, salve_used: false };
+w.Chargen.applyPreset(0);
+eq(pc2.pc.abilities.str, 17, '铁卫：力 17');
+eq(pc2.pc.max_hp, 14, '铁卫：HP 14');
+eq(pc2.pc.gold, 15, '铁卫：佣兵金币 15');
+ok(pc2.pc.has_torch && pc2.pc.has_rope, '铁卫：火把与绳索');
+
+// 影手：精灵游荡者 HP 10 / 金币 12+5=17
+pc2.pc = { name: '', round: 0, picked: [], mode: '', abilities: null, skills: [], feats: [], gear: [], flags: {}, gold: 0, has_torch: false, has_rope: false, salve_used: false };
+w.Chargen.applyPreset(1);
+eq(pc2.pc.max_hp, 10, '影手：HP 10');
+eq(pc2.pc.gold, 17, '影手：金币 17（修行者12+游荡者5）');
+ok(pc2.pc.flags.luck && pc2.pc.speciesKey === 'elf', '影手：机运烙印与精灵');
+
+// 秘典：巫师 HP 7 / 学识烙印
+pc2.pc = { name: '', round: 0, picked: [], mode: '', abilities: null, skills: [], feats: [], gear: [], flags: {}, gold: 0, has_torch: false, has_rope: false, salve_used: false };
+w.Chargen.applyPreset(2);
+eq(pc2.pc.abilities.int, 17, '秘典：智 17');
+eq(pc2.pc.max_hp, 7, '秘典：HP 7（6+1）');
+ok(pc2.pc.flags.lore && pc2.pc.gear.includes('药膏'), '秘典：学识烙印与药膏');
+ok(pc2.pc.skills.filter((s) => s === '历史').length === 1, '秘典：学者/巫师重复历史技能已去重');
+
 console.log(failures ? `\n${failures} 项失败` : '\n规则层测试全部通过');
 process.exit(failures ? 1 : 0);

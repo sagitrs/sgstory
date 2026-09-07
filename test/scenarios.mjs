@@ -32,7 +32,8 @@ async function newGame(randomStub, picks) {
 	};
 
 	await clickLabel('踏上旅途');
-	// 车卡 8 轮：按选项名点对应卡片的"选择此项"
+	await clickLabel('逐轮细调（专家模式 · 8 轮三选一）');
+	// 专家模式：按选项名点对应卡片的"选择此项"
 	for (const name of picks) {
 		const card = [...w.document.querySelectorAll('.choice-card')]
 			.find((c) => c.querySelector('.choice-name').textContent === name);

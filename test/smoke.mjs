@@ -1,13 +1,11 @@
-// 无头冒烟测试（jsdom）
-// 说明：jsdom 不会触发 SugarCube 依赖的完整启动链，所以手动调用 Engine.start()。
-// 覆盖：引擎启动、开场渲染、链接跳转、变量赋值与插值、Widget/宏解析无错误。
+// 无头冒烟测试（jsdom）：启动 → 车卡 8 轮 → 酒馆 → 森林（检定 UI）
 import { readFileSync } from 'node:fs';
 import { JSDOM, VirtualConsole } from 'jsdom';
 
 const vc = new VirtualConsole();
 const pageErrors = [];
 vc.on('error', (...a) => pageErrors.push(String(a[0]).slice(0, 200)));
-vc.on('jsdomError', () => {}); // 忽略 jsdom 未实现的 API（scroll 等）
+vc.on('jsdomError', () => {});
 
 const html = readFileSync('dist/index.html', 'utf8');
 const dom = new JSDOM(html, {
@@ -15,15 +13,16 @@ const dom = new JSDOM(html, {
 	pretendToBeVisual: true,
 	url: 'http://localhost/',
 	virtualConsole: vc,
+	beforeParse(window) {
+		window.Math.random = () => 0.5; // d20 恒 11：无自然 20/1 干扰
+	},
 });
 const w = dom.window;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 await sleep(1200);
-// jsdom 不会触发 SugarCube 完整启动链，这里手动补齐：先执行 StoryInit，再启动引擎。
-// （真实浏览器无需此步骤，会自动走完整流程）
-const storyInit = w.document.querySelector('tw-passagedata[name="StoryInit"]');
-new w.SugarCube.Wikifier(null, storyInit.textContent);
+// jsdom 补齐启动链：StoryInit + 引擎启动（真实浏览器自动完成）
+new w.SugarCube.Wikifier(null, w.document.querySelector('tw-passagedata[name="StoryInit"]').textContent);
 w.SugarCube.Engine.start();
 await sleep(600);
 
@@ -31,36 +30,63 @@ const assert = (cond, msg) => {
 	console.log(`${cond ? '✓' : '✗'} ${msg}`);
 	if (!cond) process.exitCode = 1;
 };
+const links = () => [...w.document.querySelectorAll('#passages a.link-internal')];
+const click = async (label) => {
+	const a = links().find((x) => x.textContent === label);
+	if (!a) throw new Error(`找不到链接「${label}」@ ${w.SugarCube.State.passage}`);
+	a.click();
+	await sleep(400);
+};
 
-const start = w.document.querySelector('#passages .passage');
-assert(!!start, '开场段落渲染');
-assert(start?.textContent.includes('迷雾森林'), '标题画面文字正确');
+// ── 开场 ──
+let p = w.document.querySelector('#passages .passage');
+assert(p?.textContent.includes('迷雾森林'), '开场段落渲染');
+await click('踏上旅途');
 
-const links = [...w.document.querySelectorAll('#passages a.link-internal')];
-assert(links.some((a) => a.textContent === '踏上旅途'), '开场链接存在');
-
-// 点击"踏上旅途" → 酒馆（$player_name 默认为 无名旅人）
-links.find((a) => a.textContent === '踏上旅途').click();
-await sleep(600);
-
-const tavern = w.document.querySelector('#passages .passage');
-assert(tavern?.textContent.includes('歪脖子鸭'), '跳转到酒馆');
-assert(tavern?.textContent.includes('无名旅人'), '玩家名变量插值正确');
-assert(tavern?.textContent.includes('20 枚金币'), '金币变量插值正确');
-assert(w.SugarCube.State.variables.player_name === '无名旅人', 'StoryInit/变量赋值正确');
-
-const buyLink = [...w.document.querySelectorAll('#passages a.link-internal')]
-	.find((a) => a.textContent.includes('买一支火把'));
-assert(!!buyLink, '条件链接（金币足够时显示买火把）');
-
-if (buyLink) {
-	buyLink.click();
-	await sleep(500);
-	const after = w.document.querySelector('#passages .passage');
-	assert(after?.textContent.includes('十个金币'), '买火把事件触发');
-	assert(w.SugarCube.State.variables.has_torch === true, '$has_torch 更新');
-	assert(w.SugarCube.State.variables.gold === 10, '$gold 扣减正确');
+// ── 车卡 8 轮（每轮选第一个选项）──
+assert(w.SugarCube.State.passage === '车卡', '进入车卡流程');
+assert(w.document.querySelectorAll('.choice-card').length === 3, '每轮三个选项卡');
+assert(w.document.querySelectorAll('.choice-name')[0].textContent === '勇武型', '选项卡渲染选项名');
+for (let i = 0; i < 8; i++) {
+	const pick = links().find((a) => a.textContent === '选择此项');
+	pick.click();
+	await sleep(300);
 }
+
+// ── 角色卡 ──
+assert(w.SugarCube.State.passage === '角色卡', '8 轮后到达角色卡');
+const sheet = w.document.querySelector('#passages .passage').textContent;
+assert(sheet.includes('力量') && sheet.includes('15'), '角色卡显示属性表');
+assert(sheet.includes('战士'), '角色卡显示职业');
+assert(sheet.includes('无名旅人'), '角色卡显示默认名');
+const pc = w.SugarCube.State.variables.pc;
+assert(pc.abilities.str === 15 && pc.abilities.int === 12, '车卡数值生效（力15 智12）');
+assert(pc.max_hp === 12 && pc.hp === 12, '生命值计算正确（12/12）');
+assert(pc.gold === 20, '起始金币 20');
+
+await click('出发，前往歪脖子鸭酒馆');
+
+// ── 酒馆 ──
+p = w.document.querySelector('#passages .passage');
+assert(p.textContent.includes('歪脖子鸭'), '进入酒馆');
+assert(p.textContent.includes('无名旅人'), '角色名插值');
+assert(p.textContent.includes('20 枚金币'), '金币插值');
+assert(!links().some((a) => a.textContent.includes('买一支火把')), '已带火把 → 购买链接隐藏');
+assert(links().some((a) => a.textContent === '听角落里的老猎人吹牛'), '传闻链接存在');
+
+await click('推门出发，走进暮色');
+
+// ── 森林边缘：血条宏 + 检定入口 ──
+assert(w.SugarCube.State.passage === '森林边缘', '到达森林边缘');
+assert(!!w.document.querySelector('#passages .hpbar'), '血条宏（$pc 版）渲染');
+await click('打着火把，走进山脚的洞穴');
+
+// ── 洞穴：检定结果框 ──
+assert(w.SugarCube.State.passage === '洞穴', '进入洞穴');
+const checkBox = w.document.querySelector('#passages .check-result');
+assert(!!checkBox, '检定结果框渲染');
+const lc = w.SugarCube.State.variables.last_check;
+assert(lc && lc.roll === 11 && lc.label === '察觉检定', '<<check>> 宏产出 $last_check');
 
 assert(pageErrors.length === 0, `页面无运行时错误${pageErrors.length ? '：' + pageErrors.join(' | ') : ''}`);
 console.log(process.exitCode ? '\n冒烟测试失败' : '\n冒烟测试全部通过');

@@ -39,3 +39,29 @@ dist/index.html。依据 BSD-2-Clause 许可证使用：
   https://github.com/videlais/extwee
 - jsdom（无头测试环境）— MIT License, © jsdom contributors
   https://github.com/jsdom/jsdom
+
+规则内容来源
+------------
+本游戏的数值规则（六属性、调整值、技能表、标准数组、熟练加值、
+d20 检定的优势/劣势与自然 20/1 规则）取材自 Dungeons & Dragons
+System Reference Document 5.2，威世智以 Creative Commons
+Attribution 4.0 International 发布：
+
+  © Wizards of the Coast LLC, System Reference Document 5.2,
+  licensed under Creative Commons Attribution 4.0 International
+  (https://creativecommons.org/licenses/by/4.0/)
+
+设计参考（未直接包含其代码，特此鸣谢）
+------------------------------------
+- Another-RPG-Engine — MIT License, © AnotherRPGEnthusiast
+  SugarCube 原生 RPG 引擎；其 Stat 修饰栈模式启发了本项目的数值层组织
+  https://github.com/AnotherRPGEnthusiast/Another-RPG-Engine
+- foundryvtt/dnd5e — MIT License, © Foundry Gaming / Andrew Clayton
+  5e 规则的权威 JS 实现；检定与加值管线的设计参考
+  https://github.com/foundryvtt/dnd5e
+- rpg-dice-roller — MIT License, © GreenImp / dice-roller contributors
+  骰子表达式库；本项目自写轻量骰子函数时参考了其解析思路
+  https://github.com/dice-roller/rpg-dice-roller
+- 5e-bits/5e-srd-api — MIT License
+  SRD 数据库与 API；数据组织方式的参考
+  https://github.com/5e-bits/5e-srd-api

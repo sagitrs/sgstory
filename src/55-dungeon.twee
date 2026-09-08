@@ -34,6 +34,12 @@
 :: 塔底·封印大厅 [C3 战斗态]
 /% payload: 张力|选择 %/
 /% C3 龙战（#51）：战斗在本段内渲染——共鸣锚即战术动作（past 石柱受击−1 / present 废墟输出+1） %/
+<<if $pc.shadow_alms and not $pc.tower.shadow_return>>
+	<<set $pc.tower.shadow_return to true>>
+	/% #79 D2：雾影双重事实——一章怪影 vs 龙梦宾客，同一动作隔三章 %/
+	大厅的雾''掠过一道影子''——它在你脚边停了停，留下一枚金币，退回雾里。''和三章之前，一模一样的动作。''
+	（你忽然明白：''这两个影子，是同一场梦的两端。''它在梦里布菜、散财、给过路的旅人一枚金币——梦里的旧习惯，一次给了一章的你，一次给了三章的你。）
+<</if>>
 <<if $pc.tower.dragon_r gt 0>>
 	<<set _r to $pc.tower.dragon_r>>
 	<<set _slot to ((_r - 1) % 4) + 1>>

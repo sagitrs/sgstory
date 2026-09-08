@@ -200,6 +200,7 @@ window.Game = (() => {
 		],
 		// exempt：机制本体非叙事回声（era=时代机制、intent=结局路由、hall_past 同时在 cause）
 		exempt: {
+			'tower:hint_weakness': '战斗数值位（弱加成/减半/送归窗口三用）——玩家侧反馈=伤害数字与窗口出现，非叙事文本',
 			era: '时代机制本体', 'tower:intent': '结局路由机制（顶楼 intent→三结局）',
 			// C3 龙战机制态（#51）：战斗循环/一次性副动作/先手——机制本体非叙事回声，
 			// 玩家侧可感知性由 Systems 门（发现性）与 HUD/文本反馈承担

@@ -732,7 +732,7 @@ scenario('路线R：四信物吹哨解放 → 塔身龙吟 → 追向塔底 → 
 
 // ── 路线 T：送星归位（#75）——全认知 → HP≤6 送归窗口 → 星落·送归版 ──
 scenario('路线T：花+名+图认知齐备 → 送归窗口 → 结局 星落（送归版）', async () => {
-	const { w } = await newGame(0.01, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']); // 0.01：斩击必败（−1）→ HP 6−1=5 ≤6 送归窗口稳定开
+	const { w, clickLabel } = await newGame(0.01, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']); // 0.01：斩击必败（−1）→ HP 6−1=5 ≤6 送归窗口稳定开
 	await w.SugarCube.Engine.play('塔底·龙战·回合');
 	const t = w.SugarCube.State.variables.pc;
 	t.tower.dragon_hp = 6; t.tower.hint_weakness = true; t.tower.flower_used_dragon = true; t.tower.name_struck = true;
@@ -741,12 +741,11 @@ scenario('路线T：花+名+图认知齐备 → 送归窗口 → 结局 星落�
 	await new Promise(r => setTimeout(r, 300));
 	const html = w.document.querySelector('#passages').innerHTML;
 	if (!html.includes('送它回家')) throw new Error('HP≤6+认知齐备应出现送归选项');
-	await [...w.document.querySelectorAll('#passages a')].find(a => a.textContent.includes('送它回家')).click();
+	await clickLabel('在它换息的间隙举起星图残页——\'\'送它回家\'\'');
 	await new Promise(r => setTimeout(r, 300));
 	if (w.SugarCube.State.passage !== '塔底·送归') throw new Error(`应入送归段，实际 ${w.SugarCube.State.passage}`);
 	if (!w.SugarCube.State.variables.pc.tower.homecoming) throw new Error('homecoming flag 应置位');
-	const sf = [...w.document.querySelectorAll('#passages a')].find(a => a.textContent.includes('走出塔底'));
-	sf.click();
+	await clickLabel('走出塔底');
 	await new Promise(r => setTimeout(r, 300));
 	if (w.SugarCube.State.passage !== '结局 星落') throw new Error(`应入结局 星落，实际 ${w.SugarCube.State.passage}`);
 	if (!w.document.querySelector('#passages').textContent.includes('我送的东西，到家了')) throw new Error('送归版台词应现');
@@ -754,17 +753,16 @@ scenario('路线T：花+名+图认知齐备 → 送归窗口 → 结局 星落�
 
 // ── 路线 U：不知情强杀（#75）——零认知 → 屠龙不知情文本 → 坠星之死 ──
 scenario('路线U：无星图/日记/手稿 → 屠龙不知情分支 → 结局 坠星之死（留白）', async () => {
-	const { w } = await newGame(0.01, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']); // 0.01：斩击必败（−1）→ HP 6−1=5 ≤6 送归窗口稳定开
+	const { w, clickLabel } = await newGame(0.01, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']); // 0.01：斩击必败（−1）→ HP 6−1=5 ≤6 送归窗口稳定开
 	const t = w.SugarCube.State.variables.pc;
 	t.tower.dragon_hp = 0; // 直设终局态（战斗逻辑已被 O/P 线覆盖）
 	await w.SugarCube.Engine.play('塔底·龙战·回合');
 	await new Promise(r => setTimeout(r, 300));
-	const fin = [...w.document.querySelectorAll('#passages a')].find(a => a.textContent.includes('最后一击'));
-	fin.click();
+	await clickLabel('最后一击落下——');
 	await new Promise(r => setTimeout(r, 300));
 	if (w.SugarCube.State.passage !== '塔底·屠龙') throw new Error(`应入屠龙段，实际 ${w.SugarCube.State.passage}`);
 	if (!w.document.querySelector('#passages').textContent.includes('你只知道：它是威胁这片森林三百年的怪物')) throw new Error('不知情屠龙文本应现');
-	await [...w.document.querySelectorAll('#passages a')].find(a => a.textContent.includes('走出塔底')).click();
+	await clickLabel('走出塔底');
 	await new Promise(r => setTimeout(r, 400));
 	if (w.SugarCube.State.passage !== '结局 坠星之死') throw new Error(`不知情杀应重定向坠星之死，实际 ${w.SugarCube.State.passage}`);
 	if (!w.document.querySelector('#passages').textContent.includes('你不知道自己杀了什么')) throw new Error('留白文本应现');

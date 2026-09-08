@@ -146,6 +146,25 @@ if (wantAll || arg('choices')) {
 	}
 }
 
+// ── ⓪d D3 系统可玩性（#37）：机制发现性门 + 组合矩阵出具 ──
+if (wantAll || arg('systems')) {
+	console.log('\n══ ⓪d 系统可玩性（D3/#37）——规则不可知则不可实验：发现性锢点机检 ══');
+	let bad = 0;
+	const chargenText = ctx.ChargenRounds.flatMap((r) => r.options.flatMap((o) => [o.name, o.desc, o.effect])).join('\n');
+	for (const m of Game.Systems.mechanics) {
+		const src = m.p === '[chargen]' ? chargenText : passageSrc.get(m.p);
+		if (src === undefined) { console.log(`  ✗ ${m.id}：源「${m.p}」不存在`); bad++; continue; }
+		if (!src.includes(m.anchor)) { console.log(`  ✗ ${m.id}：${m.p} 锚句丢失「${m.anchor}」——规则对玩家不可见`); bad++; continue; }
+		console.log(`  ✓ ${m.id}：${m.rule}`);
+	}
+	console.log('  ── 机制×机制组合（实现证据出具）──');
+	for (const c of Game.Systems.combos) console.log(`  · ${c.a} × ${c.b} ← ${c.evidence}`);
+	if (process.argv.includes('--check')) {
+		if (bad) { console.error(`\n✗ D3 系统门：${bad} 项规则不可发现`); process.exit(1); }
+		console.log('\n✔ D3 系统门通过（核心机制全部有玩家侧说明）');
+	}
+}
+
 // ── ① 检定成功率矩阵（伞 #22：难度审计）──
 // 成功率解析计算：d20 枚举（优势=双骰取高）；自然20必成/自然1必败（SRD 5.2）
 function successRate(pc, site, adv) {

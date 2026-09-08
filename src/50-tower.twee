@@ -36,12 +36,12 @@
 <<if not $hint_diary>>
 	<<link `"花 " + (-Game.Economy.priceOf("witch_hint_diary", $pc)) + " 金币：书房烤炉后的暗格藏着什么"`>><<econ "witch_hint_diary">><<setflag "hint_diary">><<goto `passage()`>><</link>>
 <<else>>
-	（书房暗格的情报你已到手——纸上画着烤炉后的暗格，和一本日记的轮廓。）
+	（书房暗格的情报你已到手——纸上画着烤炉后的暗格，和一本日记的轮廓。届时翻检''更有方向——优势''。）
 <</if>>
 <<if not $hint_star>>
 	<<link `"花 " + (-Game.Economy.priceOf("witch_hint_star", $pc)) + " 金币：星图的残页在哪里对得齐"`>><<econ "witch_hint_star">><<setflag "hint_star">><<goto `passage()`>><</link>>
 <<else>>
-	（星图的情报你已到手——她只说了一句："去问天文台上的她。"）
+	（星图的情报你已到手——她只说了一句："去问天文台上的她。"届时看星''更准——优势''。）
 <</if>>
 <<if $pc.gold gte 8>>
 	<<link `"花 8 金币买一副药膏（当前 " + $pc.salves + " 副，受伤自动回 4）"`>><<econ "salve_buy">><<goto `passage()`>><</link>>
@@ -206,7 +206,7 @@
 		<<if not $pc.tower.study_present>>
 			<<set $pc.tower.study_present to true>>
 			<<if $hint_diary>>
-				（宴会幽灵的话浮现：//"烤炉后的暗格。"//）
+				（宴会幽灵的话浮现：//"烤炉后的暗格。"//目标既明，翻检''更有方向——优势''。）
 				<<sitecheck "书房·检视" "adv">>
 			<<else>>
 				<<sitecheck "书房·检视">>
@@ -330,7 +330,7 @@
 		<<if not $pc.tower.obs_past>>
 			<<set $pc.tower.obs_past to true>>
 			<<if $hint_star>>
-				（学徒的低语浮现：//“只有她自己在对星图。”//）
+				（学徒的低语浮现：//“只有她自己在对星图。”//门道既明，看星''更准——优势''。）
 				<<sitecheck "天文台·典籍" "adv">>
 			<<else>>
 				<<sitecheck "天文台·典籍">>
@@ -415,6 +415,9 @@
 <<if _T gt 0>>
 	怀中''_T 件信物''一同发烫——共鸣护体（每次受击伤害 −_T）。
 <</if>>
+<<if $pc.tokens.includes("铜哨") or $pc.tokens.includes("星图残页") or $pc.tokens.includes("月光花")>>
+	信物不止护体：''铜哨''会在鞭击时让她分神，''星图残页''会在悲鸣时护住你的心神，''月光花''——若你带着——会照亮最后一击。
+<</if>>
 <<if $pc.tokens.includes("日记")>>
 	你翻开日记，念出那个名字——''青梧''。化身的动作出现一瞬的迟滞（整场伤害再 −1）。
 <</if>>
@@ -428,6 +431,8 @@
 /% 第一回合：雾之鞭（现在时）。铜哨在怀 → 闪避优势（她分心） %/
 <<set _T to $pc.tokens.length>>
 <<set _rage to Math.min(2, $pc.tower.defeats ?? 0)>>
+<<if $pc.tokens.includes("铜哨")>>怀中铜哨轻颤——哨音未响，她已分神（''这一击你有优势''）。
+<</if>>
 雾之鞭破空而来——
 <<attackroll "化身·鞭击" `Game.Tokens.advAt("化身·鞭击", $pc.tokens) ? "adv" : ""`>>
 <<if $last_check.success>>
@@ -449,7 +454,7 @@
 世界猛地翻转——你坠入''她的过去''。星袍加身的化身悬在半空，三百年的悲鸣在这一刻倾泻。
 
 <<if $pc.tokens.includes("星图残页")>>
-	怀中的星图残页自行展开，完整星空倾泻而下。
+	怀中的星图残页自行展开，完整星空倾泻而下——星辉护住你的心神（''豁免优势''）。
 <</if>>
 <<sitecheck "化身·悲鸣" `Game.Tokens.advAt("化身·悲鸣", $pc.tokens) ? "adv" : ""`>>
 <<if $last_check.success>>
@@ -466,6 +471,8 @@
 /% 终结轮：月光花在手或信物≥2 → 攻击优势（共鸣/迟疑）。落空也有代价但不致死循环：总伤预算封顶 %/
 <<set _T to $pc.tokens.length>>
 <<set _rage to Math.min(2, $pc.tower.defeats ?? 0)>>
+<<if Game.Tokens.advAt("化身·终击", $pc.tokens)>>信物在怀中一同发烫——共鸣或迟疑，此刻都成了你的助力（''最后一击有优势''）。
+<</if>>
 <<attackroll "化身·终击" `Game.Tokens.advAt("化身·终击", $pc.tokens) ? "adv" : ""`>>
 <<if $last_check.success>>
 	信物在你怀中一同发烫。你循着那点银辉递出最后一击——

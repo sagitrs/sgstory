@@ -6,7 +6,7 @@
 	"description": "Twine + SugarCube 文字冒险游戏脚手架（Twee 源码 → 单文件 HTML）",
 	"scripts": {
 		"build": "node build.mjs",
-		"test": "node build.mjs && node test/integrity.mjs && node scripts/audit.mjs --truth --check && node scripts/audit.mjs --echoes --check && node scripts/audit.mjs --choices --check && node test/rules.mjs && node test/properties.mjs && node test/render-all.mjs && node test/smoke.mjs && node test/scenarios.mjs && node test/coverage.mjs",
+		"test": "node build.mjs && node test/integrity.mjs && node scripts/audit.mjs --truth --check && node scripts/audit.mjs --echoes --check && node scripts/audit.mjs --choices --check && node scripts/audit.mjs --systems --check && node test/rules.mjs && node test/properties.mjs && node test/render-all.mjs && node test/smoke.mjs && node test/scenarios.mjs && node test/coverage.mjs",
 		"serve": "python3 -m http.server 8000 --directory dist",
 		"watch": "node --watch --watch-path=src build.mjs",
 		"audit": "node scripts/audit.mjs",

@@ -180,5 +180,35 @@ window.Game = (() => {
 			'巧手': '专长=金+5（effect 诚实标注）',
 		},
 	};
-	return { Economy, Checks, Tokens, Truth, Echoes, Choices };
+	const Systems = {
+		// D3 系统可玩性（#37）：机制发现性门——每条核心规则的"玩家侧说明"锢点机检。
+		// 判据（Spire 三标准之二：整座塔是可实验物）：规则不可知则不可实验。
+		mechanics: [
+			{ id: 'era', rule: '护身符翻转时代，共 3 充能', p: '女巫的委托', anchor: '充能只够' },
+			{ id: 'era-hub', rule: '枢纽页显示时代/充能/信物计数', p: '楼梯间', anchor: '护身符充能' },
+			{ id: 'resonance', rule: '每件信物受击 -1', p: '雾之化身战', anchor: '共鸣护体' },
+			{ id: 'token-timing', rule: '三信物各自的优势时机（入场预告）', p: '雾之化身战', anchor: '会在鞭击时让她分神' },
+			{ id: 'whistle-adv', rule: '铜哨→鞭击优势（触发点即时提示）', p: '化身·一击', anchor: '这一击你有优势' },
+			{ id: 'star-adv', rule: '星图→悲鸣豁免优势', p: '化身·终幕', anchor: '豁免优势' },
+			{ id: 'final-adv', rule: '月光花或信物≥2→终击优势', p: '化身·终击', anchor: '最后一击有优势' },
+			{ id: 'diary-reduce', rule: '日记：整场伤害再 -1', p: '雾之化身战', anchor: '整场伤害再 −1' },
+			{ id: 'rage', rule: '每败一次伤害+1 封顶+2', p: '雾之化身战', anchor: '悲鸣比上次更烈' },
+			{ id: 'echo-guard', rule: '战败不死，塔护住你', p: '塔的回声', anchor: '不让你死在这里' },
+			{ id: 'salve', rule: '药膏受伤自动消耗回 4', p: '[chargen]', anchor: '自动消耗一副' },
+			{ id: 'sword', rule: '长剑战斗检定+2', p: '[chargen]', anchor: '战斗检定 +2' },
+			{ id: 'luck', rule: '机运：检定与豁免+1', p: '[chargen]', anchor: '所有检定与豁免 +1' },
+			{ id: 'lore', rule: '学识：战利品+10、情报半价', p: '[chargen]', anchor: '情报半价' },
+			{ id: 'hint-adv', rule: '线索→对应检定优势（买前知、用时见）', p: '书房', anchor: '更有方向——优势' },
+		],
+		// 组合矩阵：机制×机制交互的实现证据（出具报告，人工审计补充）
+		combos: [
+			{ a: 'resonance', b: 'diary-reduce', evidence: 'audit --tokens 伤害矩阵 + properties battleDamage 断言' },
+			{ a: 'rage', b: 'resonance', evidence: 'properties battleDamage defeats 分支（败次封顶）' },
+			{ a: 'salve', b: 'echo-guard', evidence: '塔的回声：怀中信物黯了一分但都在；药膏库存保留' },
+			{ a: 'era', b: 'token-timing', evidence: 'past 取信物→present/战斗生效（Echoes 表）' },
+			{ a: 'luck', b: 'sword', evidence: 'Rules.check：adv 骰+bonus+luck 线性叠加（rules 单测）' },
+			{ a: 'hint-adv', b: 'lore', evidence: '情报半价（价格表）+ 优势（检定层）双兑现独立' },
+		],
+	};
+	return { Economy, Checks, Tokens, Truth, Echoes, Choices, Systems };
 })();

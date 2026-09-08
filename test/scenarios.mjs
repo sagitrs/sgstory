@@ -641,6 +641,49 @@ scenario('路线P：星图对接（零信物）→ 共振开门 → 空巢对决
 	if (passageOf(w) !== '结局 星落') throw new Error('应达占位结局');
 });
 
+// ── 路线 Q：自检修复·对决线（清账 #34 域）——不偷袭，堂堂正正开战 ──
+scenario('路线Q：对决线——past 巢室见龙不袭 → 大厅静候醒转 → 等待段开战', async () => {
+	const { w, clickLabel } = await newGame(0.99, [
+		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '火把与绳索', '坚韧', '勇气',
+	]);
+	const pc = () => pcOf(w);
+	const txt = () => w.document.querySelector('#passages').textContent;
+	await clickLabel('推门出发，走进暮色');
+	await clickLabel('打着火把，走进山脚的洞穴');
+	await clickLabel('收好护身符，穿过后洞的裂缝');
+	await clickLabel('听她说完');
+	await clickLabel('登上守林人之塔（第二章）');
+	await clickLabel('进入塔内');
+	await clickLabel('顶楼 · 守林人残影');
+	await clickLabel('折断法杖，让塔与雾一同终结');
+	await clickLabel('迎击');
+	await clickLabel('她将你拽入回忆');
+	await clickLabel('倾尽全力，最后一击');
+	await clickLabel('俯身探看裂口，下到塔底（第三章）');
+	// 零信物快线：js 直配弱点情报（模拟已读懂星纹的玩家），走共振开门
+	w.SugarCube.State.variables.hint_weakness = true;
+	await clickLabel('触动共鸣锚：坠入『过去』');
+	await clickLabel('去封印大厅');
+	await clickLabel('去龙穴前厅');
+	await clickLabel('以星图残页的共振强行开门');
+	if (!pc().tower.saw_dragon) throw new Error('巢室应置 saw_dragon');
+	// 对决线主分支：不偷袭，退出去
+	await clickLabel('退出去，到大厅等它醒');
+	await clickLabel('静立原地，等它醒转');
+	if (!txt().includes('堂堂正正的对手')) throw new Error('等待段应现对决文本');
+	await clickLabel('拔刃，迎战');
+	await clickLabel('迎战');
+	if (pc().tower.dragon_r !== 1 || pc().tower.dragon_hp !== w.Game.Dragon.hp) throw new Error('对决线应以满血 R1 开战（无偷袭先手）');
+	// 快速终局：压龙血一击
+	pc().tower.dragon_hp = 1;
+	await clickLabel('迎击——趁它换息的间隙逼近');
+	await clickLabel('最后一击落下——');
+	if (passageOf(w) !== '塔底·屠龙') throw new Error(`对决线应可屠龙，实际 ${passageOf(w)}`);
+	await clickLabel('走出塔底');
+	if (passageOf(w) !== '结局 星落') throw new Error('对决线应达真结局');
+	if (!txt().includes('堂堂对决')) throw new Error('结算卡应记对决路线');
+});
+
 // ── 路线 H：旧存档形状模拟（第二章上线前的档）→ 迁移 → 入塔不崩 ──
 scenario('路线H：旧档缺字段 → Pc.migrate 兜底 → 入塔正常', async () => {
 	const { w, clickLabel } = await newGame(0.99, [

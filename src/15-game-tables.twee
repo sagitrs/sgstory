@@ -50,7 +50,7 @@ window.Game = (() => {
 			'温室·抵抗':   { abil: 'con', dc: 12 },
 			'天文台·典籍': { skill: '奥秘', dc: 12 },
 			'宝藏厅·识货': { skill: '历史', dc: 12 },
-			'龙战·斩击': { skill: '运动', dc: 10 },
+			'龙战·斩击': { skill: '运动', dc: 8 },
 			'天文台·推演': { skill: '调查', dc: 12 },
 			'化身·鞭击':   { skill: '运动', dc: 12 },
 			'化身·悲鸣':   { abil: 'con', dc: 12 },
@@ -155,6 +155,7 @@ window.Game = (() => {
 			{ id: '囚徒问询已尽', cause: { towerFlag: 'asked_seer' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '想知道的都告诉了你' }] },
 			{ id: '问过青梧', cause: { towerFlag: 'asked_wu' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '问青梧的事' }] },
 			{ id: '问过龙', cause: { towerFlag: 'asked_dragon' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '问龙的事' }] },
+			{ id: '见过沉睡之龙', cause: { towerFlag: 'saw_dragon' }, kind: 'state-gate', echo: [{ p: '塔底·封印大厅', anchor: '等它醒转' }] },
 			{ id: '问过出路', cause: { towerFlag: 'asked_way' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '问出路' }] },
 			{ id: '信已取出', cause: { towerFlag: 'read_letter' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '信已在你怀里' }] },
 			{ id: '水闸→河床见底', cause: { towerFlag: 'sluice' }, kind: 'past→present', echo: [{ p: '塔底·暗河码头', anchor: '河床尽头的机房水门敞开' }] },
@@ -230,6 +231,11 @@ window.Game = (() => {
 		// D3 系统可玩性（#37）：机制发现性门——每条核心规则的"玩家侧说明"锢点机检。
 		// 判据（Spire 三标准之二：整座塔是可实验物）：规则不可知则不可实验。
 		mechanics: [
+			{ id: 'anchor', rule: '三章共鸣锚：锚内免费切换时代（不耗充能）', p: '塔底·塌井厅', anchor: '嗡鸣共鸣' },
+			{ id: 'terrain', rule: '龙战地形=时代：过去石柱掩体受击−1 / 现在废墟攀爬输出+1', p: '塔底·封印大厅', anchor: '石柱是你的掩体' },
+			{ id: 'dread', rule: '龙威：第3轮起伤害+1，每败+1，铜哨可清零', p: '塔底·龙战·败', anchor: '龙威会因你的败绩而更重' },
+			{ id: 'subaction', rule: '信物副动作（哨/花/名）不耗轮，各一次性', p: '塔底·封印大厅', anchor: '唤宴会宾客的残念' },
+			{ id: 'retry', rule: '龙战败：回声接住——战斗重开资产保留', p: '塔底·龙战·败', anchor: '你带来的每一样东西都还在' },
 			{ id: 'era', rule: '护身符翻转时代，共 3 充能', p: '女巫的委托', anchor: '充能只够' },
 			{ id: 'era-hub', rule: '枢纽页显示时代/充能/信物计数', p: '楼梯间', anchor: '护身符充能' },
 			{ id: 'resonance', rule: '每件信物受击 -1', p: '雾之化身战', anchor: '共鸣护体' },
@@ -270,7 +276,7 @@ window.Game = (() => {
 		sneakHit: 6,          // past 巢室偷袭先手
 		hitBase: 3,           // 玩家每轮输出基数
 		script: { 1: 2, 2: 4, 3: 2, 4: 4 },  // 龙行动脚本（爪/焰/爪/焰），R5 起循环
-		dreadCap: 2, dreadFromRound: 3,      // 龙威：第3轮起 +1，每败 +1，哨响 −1，地板 0
+		dreadCap: 2, dreadFromRound: 3,      // 龙威：第3轮起 +1 封顶2，哨响 −1（自检修正：不随败绩递增——回声守卫 retry 不加压）
 		armorReduce: 1,       // 熔炉龙鳞护臂：受击全程 −1
 		terrain: { past: { taken: -1, dealt: 0 }, present: { taken: 0, dealt: 1 } },
 		effects: {
@@ -281,14 +287,15 @@ window.Game = (() => {
 		},
 		playerDamage(pc, era) {
 			const w = (pc.tower.scroll_lower ? 1 : 0) + (pc.tower.name_struck ? 2 : 0) + (pc.tower.hint_weakness ? 1 : 0);
-			return this.hitBase + w + (this.terrain[era]?.dealt ?? 0);
+			const hint = pc.tower.hint_weakness && !pc.tokens.includes('星图残页') ? 1 : 0; // 星纹共振线的补偿位
+			return this.hitBase + w + hint + (this.terrain[era]?.dealt ?? 0);
 		},
 		dragonDamage(pc, r, era) {
 			const slot = ((r - 1) % 4) + 1;
 			const breath = slot === 2 || slot === 4;
 			let d = this.script[slot];
 			if (breath && pc.tokens.includes('星图残页')) d = Math.ceil(d / 2);
-			const dread = Math.max(0, Math.min(this.dreadCap, (pc.tower.dragon_defeats ?? 0)) + (r >= this.dreadFromRound ? 1 : 0) - (pc.tower.whistle_blown ? 1 : 0));
+			const dread = Math.max(0, (r >= this.dreadFromRound ? 1 : 0) - (pc.tower.whistle_blown ? 1 : 0));
 			d += dread;
 			if (pc.tower.scale_armor) d -= this.armorReduce;
 			d += this.terrain[era]?.taken ?? 0;

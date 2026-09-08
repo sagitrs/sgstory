@@ -182,6 +182,13 @@ window.Game = (() => {
 			{ id: '见过沉睡之龙', cause: { towerFlag: 'saw_dragon' }, kind: 'state-gate', echo: [{ p: '塔底·封印大厅', anchor: '等它醒转' }] },
 			{ id: '问过出路', cause: { towerFlag: 'asked_way' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '问出路' }] },
 { id: '星已归位', cause: { towerFlag: 'homecoming' }, kind: 'text-variant', echo: [{ p: '结局 星落', anchor: '我送的东西，到家了' }] },
+			{ id: '星徽在手', cause: { token: '星徽' }, kind: 'state-gate', echo: [
+				{ p: '结局 归乡', anchor: '塔底的路，它认得' },
+				{ p: '塔底·星图对接', anchor: '一一相认' },
+			] },
+			{ id: '星屑在手', cause: { token: '星屑' }, kind: 'state-gate', echo: [
+				{ p: '化身·终击', anchor: '有一片落进你的手心' },
+			] },
 			{ id: '请柬在手', cause: { flag: 'invite' }, kind: 'state-gate', echo: [
 				{ p: '门厅', anchor: '当年有一把椅子，一直空着' },
 				{ p: '门厅', anchor: '长桌下首有一把椅子空着' },

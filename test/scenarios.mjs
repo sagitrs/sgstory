@@ -83,7 +83,7 @@ const pending = [];
 function scenario(name, fn) { pending.push({ name, fn }); }
 
 // ── 路线 A：全自然 20 → 察觉直接发现宝箱 → 护身符结局 ──
-scenario('路线A：火把+全检定成功 → 结局「月光倾城」', async () => {
+scenario('路线A：火把+全检定成功 → 结局「银月之赐」', async () => {
 	const { w, clickLabel } = await newGame(0.99, [
 		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '火把与绳索', '坚韧', '勇气',
 	]);
@@ -97,7 +97,7 @@ scenario('路线A：火把+全检定成功 → 结局「月光倾城」', async 
 	await clickLabel('听她说完');
 	if (passageOf(w) !== '女巫的委托') throw new Error(`应停在女巫的委托，实际 ${passageOf(w)}`);
 	await clickLabel('功成身退');
-	if (passageOf(w) !== '结局 月光倾城') throw new Error(`结局不对：${passageOf(w)}`);
+	if (passageOf(w) !== '结局 银月之赐') throw new Error(`结局不对：${passageOf(w)}`);
 	if (!amuletOf(w)) throw new Error('应持有护身符');
 	if (pc().gold !== 50) throw new Error(`金币应为 25+25=50，实际 ${pc().gold}`);
 	if (pc().hp !== 14) throw new Error(`全程无伤应满血，实际 ${pc().hp}`);
@@ -125,7 +125,7 @@ scenario('路线B：摸黑+断桥 → 结局「空手而归」', async () => {
 });
 
 // ── 路线 C：察觉失败遇哥布林 → 贿赂结友 → 和平结局 ──
-scenario('路线C：贿赂哥布林 → 结局「平凡之光」', async () => {
+scenario('路线C：贿赂哥布林 → 结局「平凡之路」', async () => {
 	const { w, clickLabel } = await newGame(0.01, [
 		'勇武型', '佣兵', '人类', '游荡者', '市井技艺', '火把与绳索', '坚韧', '勇气',
 	]);
@@ -139,7 +139,7 @@ scenario('路线C：贿赂哥布林 → 结局「平凡之光」', async () => {
 	if (!w.SugarCube.State.variables.goblin_spared) throw new Error('goblin_spared 应为 true');
 	await clickLabel('钻过石缝');
 	await clickLabel('接过汤碗');
-	if (passageOf(w) !== '结局 平凡之光') throw new Error(`结局不对：${passageOf(w)}`);
+	if (passageOf(w) !== '结局 平凡之路') throw new Error(`结局不对：${passageOf(w)}`);
 });
 
 // ── 路线 D：两次挑衅影子全豁免失败 → 死亡结局 ──
@@ -198,7 +198,7 @@ scenario('路线E：放走哥布林 → 塔·温室彩蛋 → 结局「新守林
 	await clickLabel('倾尽全力，最后一击');
 	if (pc().hp !== 8) throw new Error(`化身战 1 信物应剩 8（14-2-3-1），实际 ${pc().hp}`);
 	await clickLabel('握起法杖');
-	if (passageOf(w) !== '结局 新守林人') throw new Error(`结局不对：${passageOf(w)}`);
+	if (passageOf(w) !== '结局 新任守林人') throw new Error(`结局不对：${passageOf(w)}`);
 });
 
 
@@ -233,7 +233,7 @@ scenario('路线F：全信物登塔 → 真结局「解放」', async () => {
 	if (pcOf(w).tokens.length !== 4) throw new Error(`应集齐 4 信物，实际 ${pcOf(w).tokens.length}`);
 	if (pcOf(w).amulet_charges !== 2) throw new Error(`充能应用去 1 剩 2，实际 ${pcOf(w).amulet_charges}`);
 	await clickLabel('吹响铜哨，唤她回家');
-	if (passageOf(w) !== '结局 解放') throw new Error(`结局不对：${passageOf(w)}`);
+	if (passageOf(w) !== '结局 归乡') throw new Error(`结局不对：${passageOf(w)}`);
 });
 
 // ── 路线 G：全自然 1 → 零信物脆法 → 化身战败 → 塔的回声不死（#23 echo 守卫）──
@@ -303,7 +303,7 @@ scenario('路线I：战士零信物硬接化身 → 结局「焚塔」', async (
 	// 14 − (3+4+1) = 6：零信物硬接全部伤害仍活
 	if (pc().hp !== 6) throw new Error(`硬接 3+4+1 后应 6，实际 ${pc().hp}`);
 	await clickLabel('折断法杖');
-	if (passageOf(w) !== '结局 焚塔') throw new Error(`结局不对：${passageOf(w)}`);
+	if (passageOf(w) !== '结局 焚塔者') throw new Error(`结局不对：${passageOf(w)}`);
 });
 
 
@@ -412,7 +412,7 @@ scenario('路线M：战胜化身 → 塌井入塔底 → 锚切+水闸机关 →
 	// 观测廊双态（past 残卷=真相层）
 	await clickLabel('去观测廊');
 	await clickLabel('触动共鸣锚：坠入『过去』');
-	if (!w.document.querySelector('#passages').textContent.includes('雾生于龙梦')) throw new Error('past 观测廊应见《坠星志》残卷');
+	if (!w.document.querySelector('#passages').textContent.includes('雾生于龙梦')) throw new Error('past 观测廊应见《论坠星》残卷');
 	await clickLabel('回封印大厅');
 	// 前厅封印门 + 环路闭合
 	await clickLabel('去龙穴前厅');
@@ -456,8 +456,8 @@ scenario('路线N：星图线 → 化身战后下塔底 → 囚徒三臂+信+星
 	await clickLabel('去封印大厅');
 	if (!txt().includes('梦渗成雾')) throw new Error('past 封印大厅应闻守卫吟诵（dragon_mist 通路2）');
 	await clickLabel('去囚室');
-	await clickLabel('问青梧的事（她为何守在这里）');
-	if (!txt().includes('守的从来不是悔恨——是封印')) throw new Error('囚徒·青梧应给 keeper_seal 证词');
+	await clickLabel('问罗温的事（她为何守在这里）');
+	if (!txt().includes('守的从来不是悔恨——是封印')) throw new Error('囚徒·罗温应给 keeper_seal 证词');
 	await clickLabel('回到囚室');
 	await clickLabel('问龙的事（它到底是什么）');
 	if (!txt().includes('雾是从龙的梦里渗出来的')) throw new Error('囚徒·龙应给 dragon_mist 证词');
@@ -471,7 +471,7 @@ scenario('路线N：星图线 → 化身战后下塔底 → 囚徒三臂+信+星
 	await clickLabel('触动共鸣锚：回到『现在』');
 	await clickLabel('去囚室');
 	await clickLabel('抽出那封信');
-	if (!txt().includes('等它睡沉了，我再回来') || !txt().includes('菜要一直温着')) throw new Error('信应同时供 keeper_seal 与 feast_meaning 通路');
+	if (!txt().includes('等它睡沉了，我再回来') || !txt().includes('炖肉要一直在炉上温着')) throw new Error('信应同时供 keeper_seal 与 feast_meaning 通路');
 	await clickLabel('回到囚室');
 	// 星图对接 → hint_weakness → 前厅回声
 	await clickLabel('回封印大厅');
@@ -549,12 +549,12 @@ scenario('路线O：四信物 → 化身战 → 塔底经济（识货+10/锻造�
 	if (!pc().tower.looted_hoard || gold0() !== gBefore - 8 + 10) throw new Error('识货应 +10 金');
 	await clickLabel('回到宝藏厅');
 	await clickLabel('回封印大厅');
-	// past 前厅：四锁槽开门 → 巢室拾坠星志 → 偷袭
+	// past 前厅：四锁槽开门 → 巢室拾论坠星 → 偷袭
 	await clickLabel('触动共鸣锚：坠入『过去』');
 	await clickLabel('去龙穴前厅');
 	await clickLabel('把哨、册、花、图逐一嵌入锁槽——开门');
 	await clickLabel('拾起那半卷手稿');
-	if (!pc().tower.scroll_lower) throw new Error('坠星志下半卷应置 scroll_lower');
+	if (!pc().tower.scroll_lower) throw new Error('论坠星下半卷应置 scroll_lower');
 	if (!txt().includes('坠星之芒可透其逆鳞')) throw new Error('下半卷应含弱点句');
 	await clickLabel('回到巢穴');
 	await clickLabel('趁它沉眠，先下手');
@@ -564,7 +564,7 @@ scenario('路线O：四信物 → 化身战 → 塔底经济（识货+10/锻造�
 	// 战斗：三副动作（哨/花/名）→ 地形切 present → 迎击至屠龙
 	await clickLabel('吹响铜哨——唤宴会宾客的残念');
 	if (!pc().tower.whistle_blown) throw new Error('铜哨应置 whistle_blown');
-	if (!txt().includes('温了三百年的菜')) throw new Error('铜哨应现宾客助战');
+	if (!txt().includes('温了三百年的炖肉')) throw new Error('铜哨应现宾客助战');
 	await clickLabel('回到战斗');
 	await clickLabel('翻开日记，念出她的名字');
 	if (!pc().tower.name_struck) throw new Error('念名应置 name_struck');
@@ -585,7 +585,7 @@ scenario('路线O：四信物 → 化身战 → 塔底经济（识货+10/锻造�
 	if (!txt().includes('三百年长梦，到此为止')) throw new Error('屠龙段应现收束文本');
 	await clickLabel('走出塔底');
 	if (passageOf(w) !== '结局 星落') throw new Error(`应达真结局，实际 ${passageOf(w)}`);
-	if (!txt().includes('星落林')) throw new Error('结局应现改名呼应');
+	if (!txt().includes('坠星林')) throw new Error('结局应现改名呼应');
 	if (!txt().includes('宾客助战（铜哨长鸣）')) throw new Error('结算卡应记宾客助战');
 	if (!txt().includes('先手偷袭')) throw new Error('结算卡应记偷袭路线');
 	if (!txt().includes('四件俱全')) throw new Error('结算卡应记四信物');
@@ -684,7 +684,7 @@ scenario('路线Q：对决线——past 巢室见龙不袭 → 大厅静候醒�
 	if (!txt().includes('堂堂对决')) throw new Error('结算卡应记对决路线');
 });
 
-// ── 路线 R：解放线→三章衔接（连续性修复：守印人离开=封印松动）──
+// ── 路线 R：归乡线→三章衔接（连续性修复：守印人离开=封印松动）──
 scenario('路线R：四信物吹哨解放 → 塔身龙吟 → 追向塔底 → 三入口 re-gate', async () => {
 	const { w, clickLabel } = await newGame(0.99, [
 		'博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运',
@@ -712,9 +712,9 @@ scenario('路线R：四信物吹哨解放 → 塔身龙吟 → 追向塔底 → 
 	await clickLabel('返回楼梯间');
 	await clickLabel('顶楼 · 守林人残影');
 	await clickLabel('吹响铜哨，唤她回家');
-	if (passageOf(w) !== '结局 解放') throw new Error(`应入解放结局，实际 ${passageOf(w)}`);
+	if (passageOf(w) !== '结局 归乡') throw new Error(`应入归乡结局，实际 ${passageOf(w)}`);
 	if (!pc().tower.freed) throw new Error('解放应置 tower.freed');
-	if (!txt().includes('谁看着它')) throw new Error('解放结局应现封印松动钩子');
+	if (!txt().includes('谁看着它')) throw new Error('归乡结局应现封印松动钩子');
 	if (!txt().includes('薄了')) throw new Error('雾文案应为薄了非散尽（龙梦连续性）');
 	// 三章入口：追向塔底
 	await clickLabel('追向塔底（第三章）');
@@ -757,7 +757,7 @@ scenario('路线S：一章死亡结局 → codexmark 记档 → 设定集 2 开 
 	await w.SugarCube.Engine.play('设定集');
 	await new Promise(r => setTimeout(r, 250));
 	if (txt().includes('🔒 一 · 坠星之世') || txt().includes('🔒 二 · 守林人')) throw new Error('any 类应开 §1/§2（不应带锁）');
-	if (!txt().includes('🔒 三 · 星官与星轨')) throw new Error('§3 应锁定并显示标题');
+	if (!txt().includes('🔒 三 · 占星师与星轨')) throw new Error('§3 应锁定并显示标题');
 	if (!txt().includes('走到守林人之塔的任一结局后解锁')) throw new Error('锁定提示应现（tower 类）');
 	if (!txt().includes('通关真结局『星落』后解锁')) throw new Error('锁定提示应现（starfall 类）');
 	// 点入已解锁节：全文可读
@@ -772,7 +772,7 @@ scenario('路线S：一章死亡结局 → codexmark 记档 → 设定集 2 开 
 	if ([...w.document.querySelectorAll('.codex-locked')].length) throw new Error('星落后应全开（无锁元素）');
 	if (!txt().includes('九 · 星落')) throw new Error('§9 应解锁');
 	// 全节交互覆盖（L3）：逐节点入
-	for (const t of ['二 · 守林人', '三 · 星官与星轨', '四 · 封印之日', '五 · 三百年', '六 · 女巫与旅人', '七 · 塔底', '八 · 龙与梦', '九 · 星落']) {
+	for (const t of ['二 · 守林人', '三 · 占星师与星轨', '四 · 封印之日', '五 · 三百年', '六 · 女巫与旅人', '七 · 塔底', '八 · 龙与梦', '九 · 星落']) {
 		await w.SugarCube.Engine.play('设定集');
 		await new Promise(r => setTimeout(r, 150));
 		await clickLabel(t);
@@ -809,7 +809,7 @@ scenario('路线H：旧档缺字段 → Pc.migrate 兜底 → 入塔正常', asy
 	await clickLabel('倾尽全力，最后一击');
 	if (pcOf(w).hp !== 14) throw new Error(`化身战零伤应仍 14，实际 ${pcOf(w).hp}`);
 	await clickLabel('握起法杖');
-	if (passageOf(w) !== '结局 新守林人') throw new Error(`结局不对：${passageOf(w)}`);
+	if (passageOf(w) !== '结局 新任守林人') throw new Error(`结局不对：${passageOf(w)}`);
 	if (pcOf(w).name !== '旧档旅人') throw new Error('迁移不应覆盖已有字段');
 });
 

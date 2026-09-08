@@ -59,6 +59,46 @@ if (wantAll || arg('truth')) {
 	}
 }
 
+// ── ⓪b D4 世界活性（#38）：回声锚检 + set-never-echoed 覆盖门 ──
+if (wantAll || arg('echoes')) {
+	console.log('\n══ ⓪b 世界活性回声（D4/#38）——行为×回声，锚句须在位 ══');
+	let bad = 0;
+	const kinds = {};
+	for (const e of Game.Echoes.list) {
+		kinds[e.kind] = (kinds[e.kind] ?? 0) + 1;
+		for (const site of e.echo) {
+			const src = passageSrc.get(site.p);
+			if (src === undefined) { console.log(`  ✗ ${e.id}：位点段落「${site.p}」不存在`); bad++; continue; }
+			if (!src.includes(site.anchor)) { console.log(`  ✗ ${e.id}：「${site.p}」锚句丢失「${site.anchor}」`); bad++; continue; }
+			console.log(`  ✓ ${e.id}（${e.kind}）→ ${site.p}`);
+		}
+	}
+	for (const r of Game.Echoes.revisit) {
+		const src = passageSrc.get(r.p);
+		if (src === undefined || !src.includes(r.anchor)) { console.log(`  ✗ revisit ${r.flag}：「${r.p}」锚句丢失「${r.anchor}」`); bad++; continue; }
+	}
+	console.log(`  （revisit 留痕 ${Game.Echoes.revisit.length} 处全锚定；分类：${Object.entries(kinds).map(([k, v]) => `${k}×${v}`).join(' ')}）`);
+	// 覆盖门：twee 中被写的旗标 ⊆ cause ∪ revisit ∪ exempt
+	const written = new Set();
+	for (const src of passageSrc.values()) {
+		for (const m of src.matchAll(/<<set\s+\$pc\.tower\.(\w+)\s*to/g)) written.add(`tower:${m[1]}`);
+		for (const m of src.matchAll(/<<set\s+\$(\w+)\s*to/g)) written.add(m[1]);
+		for (const m of src.matchAll(/<<setflag\s+"(\w+)"/g)) written.add(m[1]);
+	}
+	const covered = new Set([
+		...Game.Echoes.list.flatMap((e) => [e.cause.token ? `token:${e.cause.token}` : null, e.cause.towerFlag ? `tower:${e.cause.towerFlag}` : null, e.cause.flag ?? null, e.cause.gear ? `gear:${e.cause.gear}` : null].filter(Boolean)),
+		...Game.Echoes.revisit.map((r) => `tower:${r.flag}`),
+		...Object.keys(Game.Echoes.exempt),
+		'pc', 'player_name', 'last_check', 'era',
+	]);
+	const orphans = [...written].filter((w) => !covered.has(w) && !w.startsWith('gear:') && !w.startsWith('token:'));
+	if (orphans.length) { console.log(`  ⚠ set-never-echoed：${orphans.join('、')}（被写但无回声/留痕/豁免）`); bad += orphans.length; }
+	if (process.argv.includes('--check')) {
+		if (bad) { console.error(`\n✗ D4 回声门：${bad} 项失锚/未覆盖`); process.exit(1); }
+		console.log('\n✔ D4 回声门通过（全回声锚句在位、无 set-never-echoed）');
+	}
+}
+
 // ── ① 检定成功率矩阵（伞 #22：难度审计）──
 // 成功率解析计算：d20 枚举（优势=双骰取高）；自然20必成/自然1必败（SRD 5.2）
 function successRate(pc, site, adv) {

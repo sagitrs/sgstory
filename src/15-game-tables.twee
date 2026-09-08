@@ -112,5 +112,39 @@ window.Game = (() => {
 			] },
 		],
 	};
-	return { Economy, Checks, Tokens, Truth };
+	const Echoes = {
+		// D4 世界活性（#38）：行为×回声。kind：past→present（过去行为现在留痕）/ present→past /
+		// ch1→ch2（一章行为二章回响）/ state-gate（取物互斥变体）/ mechanic / text-variant / service
+		list: [
+			{ id: '星图缺角', cause: { token: '星图残页' }, kind: 'past→present', echo: [{ p: '天文台', anchor: '少了一角' }] },
+			{ id: '宴会余温', cause: { towerFlag: 'hall_past' }, kind: 'past→present', echo: [{ p: '门厅', anchor: '余温' }] },
+			{ id: '日记等三百年', cause: { token: '日记' }, kind: 'present→past', echo: [{ p: '书房', anchor: '等上三百年' }] },
+			{ id: '枯花两态', cause: { token: '月光花' }, kind: 'state-gate', echo: [{ p: '温室', anchor: '枯藤' }] },
+			{ id: '铜哨位空', cause: { token: '铜哨' }, kind: 'state-gate', echo: [{ p: '门厅', anchor: '静静躺着' }] },
+			{ id: '放生→温室彩蛋', cause: { flag: 'goblin_spared' }, kind: 'ch1→ch2', echo: [{ p: '温室', anchor: '你放走了我们家的小子' }] },
+			{ id: '火把照塔', cause: { gear: '火把' }, kind: 'ch1→ch2', echo: [{ p: '门厅', anchor: '火把的光' }] },
+			{ id: '传闻→断桥优势', cause: { flag: 'heard_rumor' }, kind: 'mechanic', echo: [{ p: 'Widgets', anchor: 'has_rope' }] },
+			{ id: '绳索→断桥优势', cause: { gear: '绳索' }, kind: 'mechanic', echo: [{ p: 'Widgets', anchor: 'has_rope' }] },
+			{ id: '护身符→女巫开门', cause: { flag: 'has_amulet' }, kind: 'mechanic', echo: [{ p: '女巫小屋', anchor: '护身符' }] },
+			{ id: '化身认得你', cause: { towerFlag: 'defeats' }, kind: 'mechanic', echo: [{ p: '雾之化身战', anchor: '认出了你' }] },
+			{ id: '塔护住你', cause: { towerFlag: 'echo' }, kind: 'mechanic', echo: [{ p: '塔的回声', anchor: '不让你死在这里' }] },
+			{ id: '乌鸦记账', cause: { event: 'crow_guide' }, kind: 'service', echo: [{ p: '乌鸦指路', anchor: '一百年的账' }] },
+			{ id: '治疗→平凡之光', cause: { flag: 'witch_healed' }, kind: 'text-variant', echo: [{ p: '结局 空手而归', anchor: '身上旧伤全消' }] },
+			{ id: '暗格情报→检定优势', cause: { flag: 'hint_diary' }, kind: 'mechanic', echo: [{ p: '书房', anchor: '宴会幽灵的话浮现' }] },
+			{ id: '星图情报→检定优势', cause: { flag: 'hint_star' }, kind: 'mechanic', echo: [{ p: '天文台', anchor: '学徒的低语浮现' }] },
+		],
+		// revisit：重访状态句——旗标本身即留痕（“你已搜过”）
+		revisit: [
+			{ flag: 'study_past', p: '书房', anchor: '已搜过' },
+			{ flag: 'green_past', p: '温室', anchor: '不肯再听' },
+			{ flag: 'obs_past', p: '天文台', anchor: '看不懂的银线' },
+			{ flag: 'hall_present', p: '门厅', anchor: '翻找过这里' },
+			{ flag: 'study_present', p: '书房', anchor: '已搜过' },
+			{ flag: 'green_present', p: '温室', anchor: '化为飞灰' },
+			{ flag: 'obs_present', p: '天文台', anchor: 'obs_present' },
+		],
+		// exempt：机制本体非叙事回声（era=时代机制、intent=结局路由、hall_past 同时在 cause）
+		exempt: { era: '时代机制本体', 'tower:intent': '结局路由机制（顶楼 intent→三结局）' },
+	};
+	return { Economy, Checks, Tokens, Truth, Echoes };
 })();

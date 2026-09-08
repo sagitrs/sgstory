@@ -13,7 +13,8 @@ npm run build   # 编译 → dist/index.html（单文件，浏览器直接打开
 npm run serve   # 本地预览：http://localhost:8000
 npm test        # 构建后全链（~45s）：L0 静态门（含表一致性）→ 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(并行) → 覆盖门
 npm run soak    # 游走器加量长测（20+20 局，~2min）：发布前 / 状态机重改动时跑（#27 起移出默认链）
-npm run audit   # 表驱动审计（#28）：检定成功率矩阵 / 经济时间线 / 化身战数值——伞 #21/#22 查此报告
+npm run audit   # 表驱动审计（#28/#34）：--truth/--choices/--systems/--echoes/--text 五维质量门 + 数值三件套
+                 # （--check 模式已进 npm test：真相通路/选择臂数/机制发现性/世界回声/文本载荷）
 npm run watch   # 修改 src/ 自动重新编译
 ```
 
@@ -48,6 +49,9 @@ test/smoke.mjs    无头冒烟测试（章节主线路径）
 test/scenarios.mjs 分支场景测试（8 条路线 + uncaught 异常守卫）
 test/rules.mjs    规则层单测 + 存档兼容矩阵（test/fixtures/saves/ 每版历史形状一档；改 Pc.defaults 必须同 PR 加 fixture）
 test/properties.mjs L5 数值属性：判定边界全枚举/优势支配律/伤害界限/车卡预算守恒
+scripts/audit.mjs   质量五维门（主伞 #34，Sky-Blind Spire / Old City 设计论据）：真相可达性/选择意义感/
+                    系统可玩性/世界活性/语言经济——改叙事文本断锚即红
+docs/design-review.md D6 可用性走查存档（呈现层改动时复审）
 build.mjs         合并 src/*.twee → extwee 编译
 dist/index.html   编译产物（单文件游戏）
 ```

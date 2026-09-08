@@ -95,7 +95,7 @@ window.Game = (() => {
 				{ p: '顶楼', anchor: '都是我', via: 'present 残影自语（速通必达）' },
 			] },
 			{ id: 'mist_layers', claim: '雾有两层：执念雾（她渗出，解放即散）与龙梦雾（龙渗出，屠龙才退）——正典 docs/lore-canon.md §1', sites: [
-			{ p: '结局 解放', anchor: '她自己的那一层雾', via: '解放后执念雾散、龙梦雾存' },
+			{ p: '结局 归乡', anchor: '她自己的那一层雾', via: '解放后执念雾散、龙梦雾存' },
 			{ p: '结局 星落', anchor: '退回森林的根里去', via: '屠龙后龙梦雾退' },
 			{ p: '塔底·囚徒·龙', anchor: '雾是从龙的梦里渗出来的', via: '囚徒证词（龙梦层）' },
 		] },
@@ -104,19 +104,19 @@ window.Game = (() => {
 			{ p: '女巫的委托', anchor: '执念锁在塔顶', via: '女巫圈外认知（部分真相）' },
 		] },
 			{ id: 'dragon_mist', claim: '雾生于龙的梦，锁其身者星轨（C2 三章真相层）', sites: [
-			{ p: '塔底·观测廊', anchor: '雾生于龙梦', via: 'past《坠星志》残卷' },
+			{ p: '塔底·观测廊', anchor: '雾生于龙梦', via: 'past《论坠星》残卷' },
 			{ p: '塔底·封印大厅', anchor: '梦渗成雾', via: 'past 守卫吟诵词' },
 			{ p: '塔底·囚徒·龙', anchor: '雾是从龙的梦里渗出来的', via: 'past 囚徒证词' },
 		] },
-			{ id: 'keeper_seal', claim: '青梧三百年守的是封印而非悔恨（与二章自责两读并存）', sites: [
+			{ id: 'keeper_seal', claim: '罗温三百年守的是封印而非悔恨（与二章自责两读并存）', sites: [
 			{ p: '塔底·囚室', anchor: '她封住了龙', via: 'past 囚徒第一面' },
-			{ p: '塔底·囚徒·青梧', anchor: '守的从来不是悔恨——是封印', via: 'past 囚徒答"问青梧"' },
+			{ p: '塔底·囚徒·罗温', anchor: '守的从来不是悔恨——是封印', via: 'past 囚徒答"问罗温"' },
 			{ p: '顶楼', anchor: '守的从来不是悔恨', via: 'present 残影自语（avatar_down 后）' },
 			{ p: '塔底·囚室·信', anchor: '等它睡沉了，我再回来', via: 'present 未送出的信' },
 		] },
 			{ id: 'feast_meaning', claim: '宴会等的是打完龙回来吃饭的她（宾客走不出封印圈）', sites: [
 			{ p: '门厅', anchor: '打完就回来吃饭', via: 'past 老妇人（avatar_down 后重访）' },
-			{ p: '塔底·囚室·信', anchor: '菜要一直温着', via: 'present 青梧致星官的信' },
+			{ p: '塔底·囚室·信', anchor: '菜要一直温着', via: 'present 罗温致占星师的信' },
 			{ p: '塔底·囚室', anchor: '门外的雾，推不开', via: 'past 囚徒（封印圈伏笔）' },
 		] },
 			{ id: 'avatar_nature', claim: '化身=三百年悔恨凝聚；残影=她本人残念', sites: [
@@ -125,15 +125,15 @@ window.Game = (() => {
 			] },
 			{ id: 'tokens_bond', claim: '四信物各系她的一段过往', sites: [
 				{ p: '门厅', anchor: '她最怕丢的东西' },
-				{ p: '书房', anchor: '青梧' },
+				{ p: '书房', anchor: '罗温' },
 				{ p: '温室 游说', anchor: '守林人常来浇水' },
 				{ p: '天文台', anchor: '等我回来' },
 			] },
-			{ id: 'her_name', claim: '她的名字：青梧（念出名是战斗机制）', sites: [
-				{ p: '女巫的委托', anchor: '青梧' },
-				{ p: '书房', anchor: '青梧' },
-				{ p: '雾之化身战', anchor: '青梧' },
-				{ p: '结局 解放', anchor: '青梧' },
+			{ id: 'her_name', claim: '她的名字：罗温（念出名是战斗机制）', sites: [
+				{ p: '女巫的委托', anchor: '罗温' },
+				{ p: '书房', anchor: '罗温' },
+				{ p: '雾之化身战', anchor: '罗温' },
+				{ p: '结局 归乡', anchor: '罗温' },
 			] },
 			{ id: 'ending_logic', claim: '集齐信物唤她回家；或接替/终结；宴会在等她', sites: [
 				{ p: '女巫的委托', anchor: '带回家' },
@@ -160,16 +160,16 @@ window.Game = (() => {
 			{ id: '塔护住你', cause: { towerFlag: 'echo' }, kind: 'mechanic', echo: [{ p: '塔的回声', anchor: '不让你死在这里' }] },
 			{ id: '乌鸦记账', cause: { event: 'crow_guide' }, kind: 'service', echo: [{ p: '乌鸦指路', anchor: '一百年的账' }] },
 			{ id: '化身倒下→塔底三入口开', cause: { towerFlag: 'avatar_down' }, kind: 'mechanic', echo: [{ p: '化身·终击', anchor: '猛地震裂' }, { p: '塔门', anchor: '暗河河道下去' }, { p: '门厅', anchor: '密门' }] },
-			{ id: '解放→封印松动三章开', cause: { towerFlag: 'freed' }, kind: 'mechanic', echo: [{ p: '结局 解放', anchor: '谁看着它' }, { p: '塔门', anchor: '暗河河道下去' }, { p: '门厅', anchor: '密门' }] },
+			{ id: '解放→封印松动三章开', cause: { towerFlag: 'freed' }, kind: 'mechanic', echo: [{ p: '结局 归乡', anchor: '谁看着它' }, { p: '塔门', anchor: '暗河河道下去' }, { p: '门厅', anchor: '密门' }] },
 			{ id: '星图对接→前厅星纹可读', cause: { flag: 'hint_weakness' }, kind: 'mechanic', echo: [{ p: '塔底·龙穴前厅', anchor: '排成了坠星的轨迹' }] },
 			{ id: '囚徒问询已尽', cause: { towerFlag: 'asked_seer' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '想知道的都告诉了你' }] },
-			{ id: '问过青梧', cause: { towerFlag: 'asked_wu' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '问青梧的事' }] },
+			{ id: '问过罗温', cause: { towerFlag: 'asked_wu' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '问罗温的事' }] },
 			{ id: '问过龙', cause: { towerFlag: 'asked_dragon' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '问龙的事' }] },
 			{ id: '见过沉睡之龙', cause: { towerFlag: 'saw_dragon' }, kind: 'state-gate', echo: [{ p: '塔底·封印大厅', anchor: '等它醒转' }] },
 			{ id: '问过出路', cause: { towerFlag: 'asked_way' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '问出路' }] },
 			{ id: '信已取出', cause: { towerFlag: 'read_letter' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '信已在你怀里' }] },
 			{ id: '水闸→河床见底', cause: { towerFlag: 'sluice' }, kind: 'past→present', echo: [{ p: '塔底·暗河码头', anchor: '河床尽头的机房水门敞开' }] },
-			{ id: '治疗→平凡之光', cause: { flag: 'witch_healed' }, kind: 'text-variant', echo: [{ p: '结局 空手而归', anchor: '身上旧伤全消' }] },
+			{ id: '治疗→平凡之路', cause: { flag: 'witch_healed' }, kind: 'text-variant', echo: [{ p: '结局 空手而归', anchor: '身上旧伤全消' }] },
 			{ id: '暗格情报→检定优势', cause: { flag: 'hint_diary' }, kind: 'mechanic', echo: [{ p: '书房', anchor: '宴会幽灵的话浮现' }] },
 			{ id: '星图情报→检定优势', cause: { flag: 'hint_star' }, kind: 'mechanic', echo: [{ p: '天文台', anchor: '学徒的低语浮现' }] },
 		],
@@ -193,7 +193,7 @@ window.Game = (() => {
 			'tower:dragon_init': '龙战初始化哨兵',
 			'tower:dragon_defeats': '龙威递增计数（败段文本反馈）',
 			'tower:sneak_done': '偷袭先手一次性门（巢室链接消隐即反馈）',
-			'tower:scroll_lower': '坠星志下半卷（拾取即情报，前厅/斩击伤害反馈）',
+			'tower:scroll_lower': '论坠星下半卷（拾取即情报，前厅/斩击伤害反馈）',
 			'tower:whistle_blown': '铜哨一次性（宾客助战文本即反馈）',
 			'tower:flower_used_dragon': '月光花一次性（回复文本即反馈）',
 			'tower:name_struck': '念名一次性（震慑文本即反馈）',
@@ -209,7 +209,7 @@ window.Game = (() => {
 		// kind 'chargen' 的 arms 由 ChargenRounds 机检（动态渲染无静态出边）
 		sites: [
 			{ id: '巢室·先手', p: '塔底·龙穴', arms: 2, landing: 'mechanic', note: '偷袭（先手6伤+龙战R1起）vs 对决（退出去大厅等它醒）——道德风味不罚分（C3/#51）' },
-			{ id: '囚室·问询', p: '塔底·囚室', kind: 'hub', arms: 3, landing: 'content', note: '问青梧/问龙/问出路——真相互补三臂（C2/#50），互补型而非互斥型' },
+			{ id: '囚室·问询', p: '塔底·囚室', kind: 'hub', arms: 3, landing: 'content', note: '问罗温/问龙/问出路——真相互补三臂（C2/#50），互补型而非互斥型' },
 			{ id: '车卡·属性', p: '车卡', kind: 'chargen', round: 0, arms: 3, landing: 'mechanic', note: '力/敏/智三系→检定与 build 分工' },
 			{ id: '车卡·背景', p: '车卡', kind: 'chargen', round: 1, arms: 3, landing: 'mechanic', note: '金 10/15/12 + 技能组' },
 			{ id: '车卡·物种', p: '车卡', kind: 'chargen', round: 2, arms: 3, landing: 'mechanic', note: '金+10 / 察觉 adv / 减伤-2' },
@@ -223,7 +223,7 @@ window.Game = (() => {
 			{ id: '洞穴·哥布林处置', p: '洞穴 黑暗', arms: 2, landing: 'mechanic', note: '贿赂买路（恐吓 3 金） vs 拔剑（胜+金/败伤）' },
 			{ id: '战斗·尸身处置', p: '战斗', arms: 2, landing: 'mechanic', note: '放生（温室彩蛋+治疗线） vs 斩草（+3 金）' },
 			{ id: '森林·赌不赌影子', p: '森林边缘', arms: 3, landing: 'mechanic', note: '进洞 / 吊桥 / 鲁莽挑战（+1 金 vs con15 赌）——路径枢纽即选择' },
-			{ id: '委托·收手或登塔', p: '女巫的委托', arms: 2, landing: 'ending', note: '月光倾城（一章结局） vs 整个二章+4 结局' },
+			{ id: '委托·收手或登塔', p: '女巫的委托', arms: 2, landing: 'ending', note: '银月之赐（一章结局） vs 整个二章+4 结局' },
 			{ id: '摊子·三买', p: '女巫 摊子', arms: 4, landing: 'mechanic', note: '情报×2（烙印半价）/药膏（医药批发价 5）/不买' },
 			{ id: '温室·钱或嘴', p: '温室', arms: 2, landing: 'mechanic', note: '10 金确定 vs DC13 赌（#25 双明牌）' },
 			{ id: '楼梯·乌鸦', p: '楼梯间', arms: 2, landing: 'mechanic', note: '5 金买剩余清单（QoL）' },
@@ -280,7 +280,7 @@ window.Game = (() => {
 	};
 	// C3 龙战（#51）：雾之龙——lair 战数值单源。地形=era（战斗在大厅段内渲染，
 	// 共鸣锚即战术动作：past 石柱掩体受击−1 / present 废墟攀爬输出+1）。
-	// 弱点加成双源：hint_weakness（星图对接）+ scroll_lower（巢室坠星志下半卷）。
+	// 弱点加成双源：hint_weakness（星图对接）+ scroll_lower（巢室论坠星下半卷）。
 	const Dragon = {
 		hp: 22,               // 龙 HP
 		sneakHit: 6,          // past 巢室偷袭先手
@@ -293,7 +293,7 @@ window.Game = (() => {
 			'铜哨':   { kind: 'dread-clear', note: '宾客残念围龙——龙威清零（一次性）' },
 			'星图残页': { kind: 'breath-half', note: '预判吐息——龙焰伤害减半（被动）' },
 			'月光花':  { kind: 'heal', value: 2, note: '银辉解毒——回复 2（一次性）' },
-			'日记':   { kind: 'name-strike', value: 2, note: '念出青梧之名震慑——输出 +2（一次性）' },
+			'日记':   { kind: 'name-strike', value: 2, note: '念出罗温之名震慑——输出 +2（一次性）' },
 		},
 		playerDamage(pc, era) {
 			const w = (pc.tower.scroll_lower ? 1 : 0) + (pc.tower.name_struck ? 2 : 0) + (pc.tower.hint_weakness ? 1 : 0);
@@ -318,14 +318,14 @@ window.Game = (() => {
 		// 解锁类别 → 覆盖节
 		order: ['any', 'tower', 'starfall'],
 		endings: {
-			'结局 月光倾城': 'any', '结局 平凡之光': 'any', '结局 空手而归': 'any', '结局 死亡': 'any',
-			'结局 半途': 'tower', '结局 新守林人': 'tower', '结局 焚塔': 'tower', '结局 解放': 'tower',
+			'结局 银月之赐': 'any', '结局 平凡之路': 'any', '结局 空手而归': 'any', '结局 死亡': 'any',
+			'结局 半途': 'tower', '结局 新任守林人': 'tower', '结局 焚塔者': 'tower', '结局 归乡': 'tower',
 			'结局 星落': 'starfall',
 		},
 		sections: [
 			{ id: 'falling-star', title: '一 · 坠星之世', requires: 'any', hint: '见证任何一个结局后解锁' },
 			{ id: 'warden', title: '二 · 守林人', requires: 'any', hint: '见证任何一个结局后解锁' },
-			{ id: 'stargazer', title: '三 · 星官与星轨', requires: 'tower', hint: '走到守林人之塔的任一结局后解锁' },
+			{ id: 'stargazer', title: '三 · 占星师与星轨', requires: 'tower', hint: '走到守林人之塔的任一结局后解锁' },
 			{ id: 'sealing', title: '四 · 封印之日', requires: 'tower', hint: '走到守林人之塔的任一结局后解锁' },
 			{ id: 'three-hundred', title: '五 · 三百年', requires: 'tower', hint: '走到守林人之塔的任一结局后解锁' },
 			{ id: 'witch', title: '六 · 女巫与旅人', requires: 'tower', hint: '走到守林人之塔的任一结局后解锁' },

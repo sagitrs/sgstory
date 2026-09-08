@@ -730,6 +730,45 @@ scenario('路线R：四信物吹哨解放 → 塔身龙吟 → 追向塔底 → 
 	if (!txt().includes('沿塔基的暗河河道下去')) throw new Error('freed 后塔门暗河入口应开');
 });
 
+// ── 路线 V：双重事实拼图线（#79）——请柬/雾影/铜哨/第一页四拼图全踩 ──
+scenario('路线V：一章拾请柬+雾影施舍 → 门厅席位（past/present）+乌鸦证词+书房第一页+大厅雾影回响+铜哨抬头', async () => {
+	const { w, clickLabel } = await newGame(0.01, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']);
+	// 0.01：一章雾影战斗线必遇施舍（雾影抵抗失败）
+	const txt = () => w.document.querySelector('#passages').textContent;
+	// ── 女巫小屋：拾请柬 ──
+	await w.SugarCube.Engine.play('女巫小屋');
+	await clickLabel('收起那张请柬');
+	if (!w.SugarCube.State.variables.pc.invite) throw new Error('请柬 flag 应置位');
+	if (!txt().includes('送星宴')) throw new Error('请柬应现『送星宴』（一章超前伏笔）');
+	// ── 门厅 past：空椅（初见）+ 席卡（对话后重访） ──
+	w.SugarCube.State.variables.era = 'past';
+	await w.SugarCube.Engine.play('门厅');
+	if (!txt().includes('从开席那一刻起，它就没等来它的客人')) throw new Error('past 空椅应现');
+	w.SugarCube.State.variables.pc.tower.hall_past = true; // 初见对话已发生
+	await w.SugarCube.Engine.play('门厅');
+	if (!txt().includes('当年有一把椅子，一直空着')) throw new Error('past 门厅持请柬应现席卡');
+	// ── 门厅 present：碎石完好椅+铜哨抬头 ──
+	w.SugarCube.State.variables.pc.tokens.push('铜哨');
+	w.SugarCube.State.variables.era = 'present';
+	await w.SugarCube.Engine.play('门厅');
+	if (!txt().includes('一把完好的椅子')) throw new Error('present 完好椅应现');
+	await clickLabel('对着碎石堆，吹响铜哨——只吹一声');
+	if (!txt().includes('这场宴会从未散场')) throw new Error('哨声回响应现');
+	// ── 乌鸦证词：传承拼图 ──
+	await w.SugarCube.Engine.play('楼梯间');
+	await clickLabel('问乌鸦这三百年（不花金币——它只是想有人问）'); // 真实链接（覆盖入账）
+	if (!txt().includes('没有一个人进过这座塔')) throw new Error('百年证词应现');
+	if (!txt().includes('她回来吃饭了吗')) throw new Error('持请柬追问应现传承证词');
+	// ── 书房 present：第一页 ──
+	w.SugarCube.State.variables.pc.tokens = w.SugarCube.State.variables.pc.tokens.filter(t => t !== '日记');
+	await w.SugarCube.Engine.play('书房');
+	if (!txt().includes('她出发的地方')) throw new Error('第一页双重事实应现');
+	// ── 封印大厅：雾影回响 ──
+	w.SugarCube.State.variables.pc.shadow_alms = true;
+	await w.SugarCube.Engine.play('塔底·封印大厅');
+	if (!txt().includes('同一场梦的两端')) throw new Error('雾影三章回响应现');
+});
+
 // ── 路线 T：送星归位（#75）——全认知 → HP≤6 送归窗口 → 星落·送归版 ──
 scenario('路线T：花+名+图认知齐备 → 送归窗口 → 结局 星落（送归版）', async () => {
 	const { w, clickLabel } = await newGame(0.01, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']); // 0.01：斩击必败（−1）→ HP 6−1=5 ≤6 送归窗口稳定开

@@ -182,6 +182,8 @@ window.Game = (() => {
 			{ id: '见过沉睡之龙', cause: { towerFlag: 'saw_dragon' }, kind: 'state-gate', echo: [{ p: '塔底·封印大厅', anchor: '等它醒转' }] },
 			{ id: '问过出路', cause: { towerFlag: 'asked_way' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '问出路' }] },
 { id: '星已归位', cause: { towerFlag: 'homecoming' }, kind: 'text-variant', echo: [{ p: '结局 星落', anchor: '我送的东西，到家了' }] },
+			{ id: '启门韵已得', cause: { towerFlag: 'seal_chant' }, kind: 'text-variant', echo: [{ p: '塔底·龙穴前厅', anchor: '正读为锁，随律而读为启' }] },
+
 			{ id: '星徽在手', cause: { token: '星徽' }, kind: 'state-gate', echo: [
 				{ p: '结局 归乡', anchor: '塔底的路，它认得' },
 				{ p: '塔底·星图对接', anchor: '一一相认' },
@@ -219,6 +221,10 @@ window.Game = (() => {
 			era: '时代机制本体', 'tower:intent': '结局路由机制（顶楼 intent→三结局）',
 			// C3 龙战机制态（#51）：战斗循环/一次性副动作/先手——机制本体非叙事回声，
 			// 玩家侧可感知性由 Systems 门（发现性）与 HUD/文本反馈承担
+			'tower:chant_try': '跟读一次性触发器（同段自旋）',
+
+			'tower:chant_fails': '跟读败次计数（DC 递降=反馈本身）',
+
 			'tower:dragon_hp': '龙战 HP 计量（HUD 血条实时反馈）',
 			'tower:dragon_r': '龙战轮次计数（脚本轮转）',
 			'tower:dragon_init': '龙战初始化哨兵',

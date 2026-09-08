@@ -104,40 +104,40 @@ window.Game = (() => {
 			{ p: '女巫的委托', anchor: '憾恨锁在塔顶', via: '女巫圈外认知（部分真相）' },
 		] },
 			{ id: 'star_origin', claim: '龙=迷路的星：300 年前知情者要做的不是讨伐而是送它回星座（送星宴真义）', sites: [
-			{ p: '塔底·囚徒·龙', anchor: '送它回家', via: 'past 占星师亲口（送归本意）' },
-			{ p: '门厅', anchor: '送一位迷路的客人回家', via: 'past 老妇人转述罗温（送行双关）' },
-			{ p: '书房', anchor: '迷了路的星', via: 'past 罗温日记（封印前夜已知）' },
+			{ p: '塔底·囚徒·龙', anchor: '送它回家', via: 'past 观星者亲口（送归本意）' },
+			{ p: '门厅', anchor: '送一位迷路的客人回家', via: 'past 老妇人转述守林人（送行双关）' },
+			{ p: '书房', anchor: '迷了路的星', via: 'past 守林人日记（封印前夜已知）' },
 		] },
-			{ id: 'failure_cause', claim: '送星失败之因=时间本身：龙坠落耗尽星之力，雾=积蓄的外溢（雾越浓离家越近）；300 年前魔法发不动无人知真相，300 年后力量将齐记忆已失——力量与记忆永远差三百年', sites: [
-			{ p: '塔底·囚室·信', anchor: '它的力气还没攒够', via: 'present 罗温信（真相无人知）' },
-			{ p: '塔底·囚徒·龙', anchor: '雾，就是它攒的力气在往外溢', via: 'past 占星师（雾真相）' },
-			{ p: '塔底·囚徒·龙', anchor: '永远差着三百年', via: 'past 占星师（两代死线）' },
-			{ p: '塔底·论坠星·下', anchor: '雾，就是它攒的力气', via: '手记（星之力）' },
+			{ id: 'failure_cause', claim: '送星失败之因=无人知晓（v6.7 两碎片）：雾=魔力具象（过去知）×雾越来越浓（现在知）——引信=时间魔法悖论（质询场景，K3 实装）', sites: [
+			{ p: '塔底·囚室·信', anchor: '谁也不知道为什么', via: 'present 守林人致观星者的信（真相无人知）' },
+			{ p: '塔底·囚徒·龙', anchor: '雾，是它魔力的具象', via: 'past 观星者（碎片一：量出的一件事）' },
+			{ p: '塔底·囚徒·龙', anchor: '像永远差着一步', via: 'past 观星者（未解之谜——谜底留质询）' },
+			{ p: '塔底·论坠星·下', anchor: '涨向哪里，没人知道', via: '手记（未解之谜）' },
 		] },
-			{ id: 'the_forgetting', claim: '漫长岁月磨掉龙的记忆（忘却=对抗漫长等待的办法）；女巫一族同样在传承中忘了护身符的用途——两代失忆对称', sites: [
+			{ id: 'the_forgetting', claim: '漫长岁月磨掉龙的记忆（忘却=对抗漫长等待的办法）；女巫一族造了门却不知雾的意义（一线索律：知其门，不知其路）——两代之隔对称', sites: [
 			{ p: '塔底·星名碎片', anchor: '忘却，是它对抗漫长等待的办法', via: '碎纸自述（记忆之钥）' },
-			{ p: '女巫小屋', anchor: '没人记得造它是为了什么了', via: '女巫失忆（对称）' },
-			{ p: '塔底·论坠星·下', anchor: '力气攒够之日，就是它忘却之时', via: '手记（两代死线）' },
+			{ p: '女巫小屋', anchor: '门造好了，等一位能回到那一夜的人', via: '女巫造门等火（一线索律）' },
+			{ p: '塔底·论坠星·下', anchor: '等得起答案的，怕是已忘了自己是谁', via: '手记（两代错位）' },
 		] },
 			{ id: 'homecoming_path', claim: '真结局三步：回过去与龙定约（刻得比记忆更深）→说服当年的人校准施法之钥→战斗中唤醒名字履约送归（与守林人一起送它回家）', sites: [
 			{ p: '塔底·论坠星·下', anchor: '回到过去，与它定约', via: '手记（三步）' },
 			{ p: '塔底·论坠星·下', anchor: '唤醒它的名字', via: '手记（履约）' },
-			{ p: '塔底·囚徒·龙', anchor: '穿在两段岁月之间', via: '占星师（穿行条件）' },
+			{ p: '塔底·囚徒·龙', anchor: '走在两段岁月之间', via: '观星者（穿行条件）' },
 		] },
 			{ id: 'dragon_mist', claim: '雾生于龙的梦，锁其身者星轨（C2 三章真相层）', sites: [
 			{ p: '塔底·观测廊', anchor: '雾生于龙梦', via: 'past《论坠星》残卷' },
 			{ p: '塔底·封印大厅', anchor: '梦渗成雾', via: 'past 守卫吟诵词' },
 			{ p: '塔底·囚徒·龙', anchor: '雾是从龙的梦里渗出来的', via: 'past 囚徒证词' },
 		] },
-			{ id: 'keeper_seal', claim: '罗温三百年守的是封印而非悔恨（与二章自责两读并存）', sites: [
+			{ id: 'keeper_seal', claim: '守林人三百年守的是封印而非悔恨（与二章自责两读并存）', sites: [
 			{ p: '塔底·囚室', anchor: '她封住了龙', via: 'past 囚徒第一面' },
-			{ p: '塔底·囚徒·罗温', anchor: '守的从来不是悔恨——是封印', via: 'past 囚徒答"问罗温"' },
+			{ p: '塔底·囚徒·守林人', anchor: '守的从来不是悔恨——是封印', via: 'past 囚徒答"问守林人"' },
 			{ p: '顶楼', anchor: '守的从来不是悔恨', via: 'present 残影自语（avatar_down 后）' },
-			{ p: '塔底·囚室·信', anchor: '我守在它梦里', via: 'present 未送出的信' },
+			{ p: '塔底·囚室·信', anchor: '总得有人守在门边', via: 'present 未送出的信' },
 		] },
 			{ id: 'feast_meaning', claim: '宴会等的是打完龙回来吃饭的她（宾客走不出封印圈）', sites: [
 			{ p: '门厅', anchor: '打完就回来吃饭', via: 'past 老妇人（avatar_down 后重访）' },
-			{ p: '塔底·囚室·信', anchor: '炖肉要一直在炉上温着', via: 'present 罗温致占星师的信' },
+			{ p: '塔底·囚室·信', anchor: '炖肉要一直在炉上温着', via: 'present 守林人致观星者的信' },
 			{ p: '塔底·囚室', anchor: '门外的雾，推不开', via: 'past 囚徒（封印圈伏笔）' },
 		] },
 			{ id: 'avatar_nature', claim: '化身=三百年悔恨凝聚；残影=她本人残念', sites: [
@@ -146,15 +146,15 @@ window.Game = (() => {
 			] },
 			{ id: 'tokens_bond', claim: '四信物各系她的一段过往', sites: [
 				{ p: '门厅', anchor: '她最怕丢的东西' },
-				{ p: '书房', anchor: '罗温' },
+				{ p: '书房', anchor: '封皮上烫着两个小字' },
 				{ p: '温室 游说', anchor: '守林人常来浇水' },
 				{ p: '天文台', anchor: '等我回来' },
 			] },
-			{ id: 'her_name', claim: '她的名字：罗温（念出名是战斗机制）', sites: [
-				{ p: '女巫的委托', anchor: '罗温' },
-				{ p: '书房', anchor: '罗温' },
-				{ p: '雾之化身战', anchor: '罗温' },
-				{ p: '结局 归乡', anchor: '罗温' },
+			{ id: 'her_name', claim: '她的名字（设定书内住名；正文不示名——念出名是战斗机制）', sites: [
+				{ p: '女巫的委托', anchor: '守林人的憾恨锁在塔顶' },
+				{ p: '书房', anchor: '封皮上烫着两个小字' },
+				{ p: '雾之化身战', anchor: '念出那两个小字' },
+				{ p: '结局 归乡', anchor: '傻孩子——宴会一直没散' },
 			] },
 			{ id: 'ending_logic', claim: '集齐信物唤她回家；或接替/终结；宴会在等她', sites: [
 				{ p: '女巫的委托', anchor: '带回家' },
@@ -184,7 +184,7 @@ window.Game = (() => {
 			{ id: '解放→封印松动三章开', cause: { towerFlag: 'freed' }, kind: 'mechanic', echo: [{ p: '结局 归乡', anchor: '谁看着它' }, { p: '塔门', anchor: '暗河河道下去' }, { p: '门厅', anchor: '密门' }] },
 			{ id: '星图对接→前厅星纹可读', cause: { flag: 'hint_weakness' }, kind: 'mechanic', echo: [{ p: '塔底·龙穴前厅', anchor: '排成了坠星的轨迹' }] },
 			{ id: '囚徒问询已尽', cause: { towerFlag: 'asked_seer' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '想知道的都告诉了你' }] },
-			{ id: '问过罗温', cause: { towerFlag: 'asked_wu' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '问罗温的事' }] },
+			{ id: '问过守林人', cause: { towerFlag: 'asked_wu' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '问守林人的事' }] },
 			{ id: '问过龙', cause: { towerFlag: 'asked_dragon' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '问龙的事' }] },
 			{ id: '见过沉睡之龙', cause: { towerFlag: 'saw_dragon' }, kind: 'state-gate', echo: [{ p: '塔底·封印大厅', anchor: '等它醒转' }] },
 			{ id: '问过出路', cause: { towerFlag: 'asked_way' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '问出路' }] },
@@ -266,7 +266,7 @@ window.Game = (() => {
 		// kind 'chargen' 的 arms 由 ChargenRounds 机检（动态渲染无静态出边）
 		sites: [
 			{ id: '巢室·先手', p: '塔底·龙穴', arms: 2, landing: 'mechanic', note: '偷袭（先手6伤+龙战R1起）vs 对决（退出去大厅等它醒）——道德风味不罚分（C3/#51）' },
-			{ id: '囚室·问询', p: '塔底·囚室', kind: 'hub', arms: 3, landing: 'content', note: '问罗温/问龙/问出路——真相互补三臂（C2/#50），互补型而非互斥型' },
+			{ id: '囚室·问询', p: '塔底·囚室', kind: 'hub', arms: 3, landing: 'content', note: '问守林人/问龙/问出路——真相互补三臂（C2/#50），互补型而非互斥型' },
 			{ id: '车卡·属性', p: '车卡', kind: 'chargen', round: 0, arms: 3, landing: 'mechanic', note: '力/敏/智三系→检定与 build 分工' },
 			{ id: '车卡·背景', p: '车卡', kind: 'chargen', round: 1, arms: 3, landing: 'mechanic', note: '金 10/15/12 + 技能组' },
 			{ id: '车卡·物种', p: '车卡', kind: 'chargen', round: 2, arms: 3, landing: 'mechanic', note: '金+10 / 察觉 adv / 减伤-2' },
@@ -299,7 +299,7 @@ window.Game = (() => {
 		// 判据（Spire 三标准之二：整座塔是可实验物）：规则不可知则不可实验。
 		mechanics: [
 			{ id: 'voluntary-void', rule: '降级线 a：拿不到完整关键道具→说实话（真相信息任一）请它趁还记得自己选结局——自愿放空星之力沉入虚空（避免 300 年后狂乱被讨伐）；降级 b=吹哨+强杀（宾客协力已实装）；降级 c=握杖接岗（协力守望已实装）', p: '塔底·自愿的长眠', anchor: '自己说再见' },
-			{ id: 'three-steps', rule: '真结局三步：①过去·定约（持信/碎片/日记对沉眠龙许诺——刻得比记忆更深）②过去·说服校准（老妇人祝祷铜哨=召集、占星师补星差=坐标）③现在·战斗唤醒（完整星名+NPC 参战硬条件）', p: '塔底·定约', anchor: '比记忆更深' },
+			{ id: 'three-steps', rule: '真结局三步：①过去·定约（持信/碎片/日记对沉眠龙许诺——刻得比记忆更深）②过去·说服校准（老妇人祝祷铜哨=召集、观星者补星差=坐标）③现在·战斗唤醒（完整星名+NPC 参战硬条件）', p: '塔底·定约', anchor: '比记忆更深' },
 			{ id: 'npc-required', rule: '龙不可单人战胜：无 NPC 参战（未吹哨）时它永远差一口气——一个人的锋刃，杀不死一份三百年的等待', p: '塔底·龙战·回合', anchor: '一个人的锋刃' },
 			{ id: 'seal-gate', rule: '封印之门三线：四信物（捷径，二章增益）/ 启门韵（门前静听跟读习得——每败 DC−1 至 5，三章内自洽零卡关）/ 星纹共振（知识线）；三章能否通关只依赖三章内资源', p: '塔底·龙穴前厅', anchor: '跟上守卫的吟诵' },
 			{ id: 'homecoming', rule: '送星归位：花安眠+名唤忆+图示路 → 龙力竭（HP≤6）出现"送它回家"；不知弱点者伤害减半（理解=温柔=更易）', p: '塔底·龙战·回合', anchor: '送它回家' },
@@ -356,7 +356,7 @@ window.Game = (() => {
 			'铜哨':   { kind: 'dread-clear', note: '宾客残念围龙——龙威清零（一次性）' },
 			'星图残页': { kind: 'breath-half', note: '预判吐息——龙焰伤害减半（被动）' },
 			'月光花':  { kind: 'heal', value: 2, note: '银辉解毒——回复 2（一次性）' },
-			'日记':   { kind: 'name-strike', value: 2, note: '念出罗温之名震慑——输出 +2（一次性）' },
+			'日记':   { kind: 'name-strike', value: 2, note: '念出守林人之名震慑——输出 +2（一次性，名不示人）' },
 		},
 		playerDamage(pc, era) {
 			const w = (pc.tower.scroll_lower ? 1 : 0) + (pc.tower.name_struck ? 2 : 0) + (pc.tower.hint_weakness ? 1 : 0);
@@ -392,7 +392,7 @@ window.Game = (() => {
 		sections: [
 			{ id: 'falling-star', title: '一 · 坠星之世', requires: 'any', hint: '见证任何一个结局后解锁' },
 			{ id: 'warden', title: '二 · 守林人', requires: 'any', hint: '见证任何一个结局后解锁' },
-			{ id: 'stargazer', title: '三 · 占星师与星轨', requires: 'tower', hint: '走到守林人之塔的任一结局后解锁' },
+			{ id: 'stargazer', title: '三 · 观星者与星轨', requires: 'tower', hint: '走到守林人之塔的任一结局后解锁' },
 			{ id: 'sealing', title: '四 · 封印之日', requires: 'tower', hint: '走到守林人之塔的任一结局后解锁' },
 			{ id: 'three-hundred', title: '五 · 三百年', requires: 'tower', hint: '走到守林人之塔的任一结局后解锁' },
 			{ id: 'witch', title: '六 · 女巫与旅人', requires: 'tower', hint: '走到守林人之塔的任一结局后解锁' },

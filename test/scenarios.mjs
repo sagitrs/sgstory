@@ -456,8 +456,8 @@ scenario('路线N：星图线 → 化身战后下塔底 → 囚徒三臂+信+星
 	await clickLabel('去封印大厅');
 	if (!txt().includes('梦渗成雾')) throw new Error('past 封印大厅应闻守卫吟诵（dragon_mist 通路2）');
 	await clickLabel('去囚室');
-	await clickLabel('问罗温的事（她为何守在这里）');
-	if (!txt().includes('守的从来不是悔恨——是封印')) throw new Error('囚徒·罗温应给 keeper_seal 证词');
+	await clickLabel('问守林人的事（她为何守在这里）');
+	if (!txt().includes('守的从来不是悔恨——是封印')) throw new Error('囚徒·守林人应给 keeper_seal 证词');
 	await clickLabel('回到囚室');
 	await clickLabel('问龙的事（它到底是什么）');
 	if (!txt().includes('雾是从龙的梦里渗出来的')) throw new Error('囚徒·龙应给 dragon_mist 证词');
@@ -471,7 +471,7 @@ scenario('路线N：星图线 → 化身战后下塔底 → 囚徒三臂+信+星
 	await clickLabel('触动共鸣锚：回到『现在』');
 	await clickLabel('去囚室');
 	await clickLabel('抽出那封信');
-	if (!txt().includes('我守在它梦里') || !txt().includes('炖肉要一直在炉上温着')) throw new Error('信应同时供 keeper_seal 与 feast_meaning 通路');
+	if (!txt().includes('总得有人守在门边') || !txt().includes('炖肉要一直在炉上温着')) throw new Error('信应同时供 keeper_seal 与 feast_meaning 通路');
 	await clickLabel('回到囚室');
 	// 星图对接 → hint_weakness → 前厅回声
 	await clickLabel('回封印大厅');
@@ -789,7 +789,7 @@ scenario('路线T：花+名+图认知齐备 → 送归窗口 → 结局 星落�
 		await c2('告诉老妇人三百年后的事，请她为铜哨祝祷');
 		if (!w2.SugarCube.State.variables.pc.tower.crow_blessed) throw new Error('哨校准 flag 应置位'); // 跳段克隆——断言实时读
 		await w2.SugarCube.Engine.play('塔底·囚室');
-		await c2('把星图残页递给占星师——告诉他三百年后的星象');
+		await c2('把星图残页递给观星者——告诉他三百年后的星象');
 		if (!w2.SugarCube.State.variables.pc.tower.map_blessed) throw new Error('图校准 flag 应置位');
 	}
 	await w.SugarCube.Engine.play('塔底·龙战·回合');
@@ -906,12 +906,12 @@ scenario('路线S：一章死亡结局 → codexmark 记档 → 设定集 2 开 
 	await w.SugarCube.Engine.play('设定集');
 	await new Promise(r => setTimeout(r, 250));
 	if (txt().includes('🔒 一 · 坠星之世') || txt().includes('🔒 二 · 守林人')) throw new Error('any 类应开 §1/§2（不应带锁）');
-	if (!txt().includes('🔒 三 · 占星师与星轨')) throw new Error('§3 应锁定并显示标题');
+	if (!txt().includes('🔒 三 · 观星者与星轨')) throw new Error('§3 应锁定并显示标题');
 	if (!txt().includes('走到守林人之塔的任一结局后解锁')) throw new Error('锁定提示应现（tower 类）');
 	if (!txt().includes('通关真结局『星落』后解锁')) throw new Error('锁定提示应现（starfall 类）');
 	// 点入已解锁节：全文可读
 	await clickLabel('一 · 坠星之世');
-	if (!txt().includes('它没有燃尽')) throw new Error('§1 全文应可读');
+	if (!txt().includes('带来两样东西')) throw new Error('§1 全文应可读');
 	// 类别递进归一：星落 ⊃ tower ⊃ any（单元验证）
 	w.Game.Codex.markFromPassage('结局 星落');
 	const cats2 = w.SugarCube.State.metadata.get('codex-cats');
@@ -921,7 +921,7 @@ scenario('路线S：一章死亡结局 → codexmark 记档 → 设定集 2 开 
 	if ([...w.document.querySelectorAll('.codex-locked')].length) throw new Error('星落后应全开（无锁元素）');
 	if (!txt().includes('九 · 星落')) throw new Error('§9 应解锁');
 	// 全节交互覆盖（L3）：逐节点入
-	for (const t of ['二 · 守林人', '三 · 占星师与星轨', '四 · 封印之日', '五 · 三百年', '六 · 女巫与旅人', '七 · 塔底', '八 · 龙与梦', '九 · 星落']) {
+	for (const t of ['二 · 守林人', '三 · 观星者与星轨', '四 · 封印之日', '五 · 三百年', '六 · 女巫与旅人', '七 · 塔底', '八 · 龙与梦', '九 · 星落']) {
 		await w.SugarCube.Engine.play('设定集');
 		await new Promise(r => setTimeout(r, 150));
 		await clickLabel(t);

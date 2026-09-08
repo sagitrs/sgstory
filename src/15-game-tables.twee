@@ -23,6 +23,8 @@ window.Game = (() => {
 			salve_buy:       { delta: -8, gives: { salves: 1 }, skillDiscount: { skill: '医药', to: -5 }, chapter: 1, note: '女巫·药膏补给（库存 +1；懂行者批发价 5）' },
 			gardener_bribe:  { delta: -10, chapter: 2, note: '温室·贿赂园丁（月光花确定获取，替代 DC13 赌）' },
 			crow_guide:      { delta: -5, chapter: 2, note: '楼梯间·乌鸦向导（高亮未取信物/秘密）' },
+			loot_dragon:   { delta: 10, chapter: 3, note: '宝藏厅·识货（lore 终极兑现：断臂金像）' },
+			forged_scale:  { delta: -8, chapter: 3, note: '熔炉·打造龙鳞护臂（受击全程 −1）' },
 		},
 		// 实付价：烙印折扣在这里算（表驱动，twee 不重复定价）
 		priceOf(key, pc) {
@@ -47,6 +49,8 @@ window.Game = (() => {
 			'温室·讨教':   { skill: '游说', dc: 13 },
 			'温室·抵抗':   { abil: 'con', dc: 12 },
 			'天文台·典籍': { skill: '奥秘', dc: 12 },
+			'宝藏厅·识货': { skill: '历史', dc: 12 },
+			'龙战·斩击': { skill: '运动', dc: 10 },
 			'天文台·推演': { skill: '调查', dc: 12 },
 			'化身·鞭击':   { skill: '运动', dc: 12 },
 			'化身·悲鸣':   { abil: 'con', dc: 12 },
@@ -169,7 +173,23 @@ window.Game = (() => {
 			{ flag: 'obs_present', p: '天文台', anchor: 'obs_present' },
 		],
 		// exempt：机制本体非叙事回声（era=时代机制、intent=结局路由、hall_past 同时在 cause）
-		exempt: { era: '时代机制本体', 'tower:intent': '结局路由机制（顶楼 intent→三结局）' },
+		exempt: {
+			era: '时代机制本体', 'tower:intent': '结局路由机制（顶楼 intent→三结局）',
+			// C3 龙战机制态（#51）：战斗循环/一次性副动作/先手——机制本体非叙事回声，
+			// 玩家侧可感知性由 Systems 门（发现性）与 HUD/文本反馈承担
+			'tower:dragon_hp': '龙战 HP 计量（HUD 血条实时反馈）',
+			'tower:dragon_r': '龙战轮次计数（脚本轮转）',
+			'tower:dragon_init': '龙战初始化哨兵',
+			'tower:dragon_defeats': '龙威递增计数（败段文本反馈）',
+			'tower:sneak_done': '偷袭先手一次性门（巢室链接消隐即反馈）',
+			'tower:scroll_lower': '坠星志下半卷（拾取即情报，前厅/斩击伤害反馈）',
+			'tower:whistle_blown': '铜哨一次性（宾客助战文本即反馈）',
+			'tower:flower_used_dragon': '月光花一次性（回复文本即反馈）',
+			'tower:name_struck': '念名一次性（震慑文本即反馈）',
+			'tower:dragon_down': '屠龙完成（占位结局文本即反馈，C4 重构结算卡）',
+			'tower:looted_hoard': '宝藏厅识货一次性（进账文本即反馈）',
+			'tower:scale_armor': '龙鳞护臂获得（熔炉锻成文本即反馈）',
+		},
 	};
 	const Choices = {
 		// D2 选择意义感（#36）：选择点全景。判据（Spire 三标准之三）：非任意（有真差异）、
@@ -241,5 +261,38 @@ window.Game = (() => {
 		unlimited: true,
 		anchors: ['塔底·塌井厅', '塔底·暗河码头', '塔底·封印大厅', '塔底·水淹机房', '塔底·熔炉', '塔底·观测廊'],
 	};
-	return { Economy, Checks, Tokens, Truth, Echoes, Choices, Systems, Shifts };
+	// C3 龙战（#51）：雾之龙——lair 战数值单源。地形=era（战斗在大厅段内渲染，
+	// 共鸣锚即战术动作：past 石柱掩体受击−1 / present 废墟攀爬输出+1）。
+	// 弱点加成双源：hint_weakness（星图对接）+ scroll_lower（巢室坠星志下半卷）。
+	const Dragon = {
+		hp: 22,               // 龙 HP
+		sneakHit: 6,          // past 巢室偷袭先手
+		hitBase: 3,           // 玩家每轮输出基数
+		script: { 1: 2, 2: 4, 3: 2, 4: 4 },  // 龙行动脚本（爪/焰/爪/焰），R5 起循环
+		dreadCap: 2, dreadFromRound: 3,      // 龙威：第3轮起 +1，每败 +1，哨响 −1，地板 0
+		armorReduce: 1,       // 熔炉龙鳞护臂：受击全程 −1
+		terrain: { past: { taken: -1, dealt: 0 }, present: { taken: 0, dealt: 1 } },
+		effects: {
+			'铜哨':   { kind: 'dread-clear', note: '宾客残念围龙——龙威清零（一次性）' },
+			'星图残页': { kind: 'breath-half', note: '预判吐息——龙焰伤害减半（被动）' },
+			'月光花':  { kind: 'heal', value: 2, note: '银辉解毒——回复 2（一次性）' },
+			'日记':   { kind: 'name-strike', value: 2, note: '念出青梧之名震慑——输出 +2（一次性）' },
+		},
+		playerDamage(pc, era) {
+			const w = (pc.tower.scroll_lower ? 1 : 0) + (pc.tower.name_struck ? 2 : 0) + (pc.tower.hint_weakness ? 1 : 0);
+			return this.hitBase + w + (this.terrain[era]?.dealt ?? 0);
+		},
+		dragonDamage(pc, r, era) {
+			const slot = ((r - 1) % 4) + 1;
+			const breath = slot === 2 || slot === 4;
+			let d = this.script[slot];
+			if (breath && pc.tokens.includes('星图残页')) d = Math.ceil(d / 2);
+			const dread = Math.max(0, Math.min(this.dreadCap, (pc.tower.dragon_defeats ?? 0)) + (r >= this.dreadFromRound ? 1 : 0) - (pc.tower.whistle_blown ? 1 : 0));
+			d += dread;
+			if (pc.tower.scale_armor) d -= this.armorReduce;
+			d += this.terrain[era]?.taken ?? 0;
+			return Math.max(1, d);
+		},
+	};
+	return { Economy, Checks, Tokens, Truth, Echoes, Choices, Systems, Shifts, Dragon };
 })();

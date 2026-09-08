@@ -495,6 +495,148 @@ scenario('路线N：星图线 → 化身战后下塔底 → 囚徒三臂+信+星
 	if (!txt().includes('守的从来不是悔恨')) throw new Error('顶楼 present 应现两读句');
 });
 
+// ── 路线 O：C3 龙战验收·满配线（#51）——四信物+识货+锻造+偷袭+三副动作+屠龙 ──
+scenario('路线O：四信物 → 化身战 → 塔底经济（识货+10/锻造−8）→ 前厅四锁 → 偷袭 → 副动作三连 → 屠龙', async () => {
+	const { w, clickLabel } = await newGame(0.99, [
+		'博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运',
+	]);
+	const pc = () => pcOf(w);
+	const txt = () => w.document.querySelector('#passages').textContent;
+	const gold0 = () => pc().gold;
+	await clickLabel('买一支火把（10 金币）');
+	await clickLabel('回到大厅');
+	await clickLabel('推门出发，走进暮色');
+	await clickLabel('打着火把，走进山脚的洞穴');
+	await clickLabel('收好护身符，穿过后洞的裂缝');
+	await clickLabel('听她说完');
+	await clickLabel('登上守林人之塔（第二章）');
+	await clickLabel('进入塔内');
+	// 四信物（F 线序列）：present 门厅铜哨+书房日记 → past 温室花+天文台星图
+	await clickLabel('一层 · 门厅');
+	if (!pc().tokens.includes('铜哨')) throw new Error('门厅应得铜哨');
+	await clickLabel('返回楼梯间');
+	await clickLabel('二层 · 书房');
+	if (!pc().tokens.includes('日记')) throw new Error('书房应得日记');
+	await clickLabel('返回楼梯间');
+	await clickLabel('翻转护身符：坠入『过去』（剩 3 次）');
+	await clickLabel('三层 · 温室');
+	await clickLabel('试着说明来意（它看起来并不好说话）');
+	if (!pc().tokens.includes('月光花')) throw new Error('温室应得月光花');
+	await clickLabel('返回楼梯间');
+	await clickLabel('四层 · 天文台');
+	if (pc().tokens.length !== 4) throw new Error(`应集齐 4 信物，实际 ${pc().tokens.length}`);
+	await clickLabel('返回楼梯间');
+	await clickLabel('顶楼 · 守林人残影');
+	await clickLabel('折断法杖，让塔与雾一同终结');
+	await clickLabel('迎击');
+	await clickLabel('她将你拽入回忆');
+	await clickLabel('倾尽全力，最后一击');
+	await clickLabel('俯身探看裂口，下到塔底（第三章）');
+	// past 熔炉：8 金锻造龙鳞护臂（学者 20−10 火把=10 金 ≥8 ✓）
+	await clickLabel('触动共鸣锚：坠入『过去』');
+	await clickLabel('去封印大厅');
+	await clickLabel('去熔炉');
+	const gBefore = gold0();
+	await clickLabel('花 8 金：用残料把那截龙鳞护臂锻完');
+	if (!pc().tower.scale_armor) throw new Error('锻造应置 scale_armor');
+	if (gold0() !== gBefore - 8) throw new Error(`锻造应 −8 金，实际 ${gold0() - gBefore}`);
+	await clickLabel('回到熔炉');
+	await clickLabel('回封印大厅');
+	// present 宝藏厅识货（历史 ✓ 0.99）
+	await clickLabel('触动共鸣锚：回到『现在』');
+	await clickLabel('去宝藏厅');
+	await clickLabel('拂去金像臂上的灰，细看铭文');
+	if (!pc().tower.looted_hoard || gold0() !== gBefore - 8 + 10) throw new Error('识货应 +10 金');
+	await clickLabel('回到宝藏厅');
+	await clickLabel('回封印大厅');
+	// past 前厅：四锁槽开门 → 巢室拾坠星志 → 偷袭
+	await clickLabel('触动共鸣锚：坠入『过去』');
+	await clickLabel('去龙穴前厅');
+	await clickLabel('把哨、册、花、图逐一嵌入锁槽——开门');
+	await clickLabel('拾起那半卷手稿');
+	if (!pc().tower.scroll_lower) throw new Error('坠星志下半卷应置 scroll_lower');
+	if (!txt().includes('坠星之芒可透其逆鳞')) throw new Error('下半卷应含弱点句');
+	await clickLabel('回到巢穴');
+	await clickLabel('趁它沉眠，先下手');
+	if (pc().tower.dragon_hp !== w.Game.Dragon.hp - w.Game.Dragon.sneakHit) throw new Error(`偷袭后龙 HP 应 ${w.Game.Dragon.hp - 6}，实际 ${pc().tower.dragon_hp}`);
+	await clickLabel('追向封印大厅');
+	await clickLabel('迎战');
+	// 战斗：三副动作（哨/花/名）→ 地形切 present → 迎击至屠龙
+	await clickLabel('吹响铜哨——唤宴会宾客的残念');
+	if (!pc().tower.whistle_blown) throw new Error('铜哨应置 whistle_blown');
+	if (!txt().includes('温了三百年的菜')) throw new Error('铜哨应现宾客助战');
+	await clickLabel('回到战斗');
+	await clickLabel('翻开日记，念出她的名字');
+	if (!pc().tower.name_struck) throw new Error('念名应置 name_struck');
+	await clickLabel('回到战斗');
+	await clickLabel('吞下月光花——银辉解毒');
+	if (!pc().tower.flower_used_dragon) throw new Error('月光花应置 flower_used_dragon');
+	await clickLabel('回到战斗');
+	await clickLabel('触动共鸣锚：回到『现在』'); // 地形：废墟输出+1（战斗中锚切=战术动作）
+	// 16 HP；输出 3+1scroll+2name+1present=7/轮（0.99 全命中）→ 3 轮
+	await clickLabel('迎击——趁它换息的间隙逼近');
+	await clickLabel('稳住身形，继续');
+	await clickLabel('迎击——趁它换息的间隙逼近');
+	await clickLabel('稳住身形，继续');
+	await clickLabel('迎击——趁它换息的间隙逼近'); // 16−7−7=2 → 本轮 −7 后 ≤0：最后一击分支
+	await clickLabel('最后一击落下——');
+	if (passageOf(w) !== '塔底·屠龙') throw new Error(`3 轮 7 伤应屠龙（16HP），实际在 ${passageOf(w)}`);
+	if (!pc().tower.dragon_down) throw new Error('屠龙应置 dragon_down');
+	if (!txt().includes('三百年长梦，到此为止')) throw new Error('屠龙段应现收束文本');
+	await clickLabel('走出塔底');
+	if (passageOf(w) !== '结局 屠龙·占位') throw new Error(`应达占位结局，实际 ${passageOf(w)}`);
+});
+
+// ── 路线 P：C3 龙战验收·零信物线（#51）——星纹共振开门 + 败-龙威递增-再战 ──
+scenario('路线P：星图对接（零信物）→ 共振开门 → 空巢对决 → 战败回声 → 龙威递增再战', async () => {
+	const { w, clickLabel } = await newGame(0.99, [
+		'博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运',
+	]);
+	const pc = () => pcOf(w);
+	const txt = () => w.document.querySelector('#passages').textContent;
+	await clickLabel('买一支火把（10 金币）');
+	await clickLabel('回到大厅');
+	await clickLabel('推门出发，走进暮色');
+	await clickLabel('打着火把，走进山脚的洞穴');
+	await clickLabel('收好护身符，穿过后洞的裂缝');
+	await clickLabel('听她说完');
+	await clickLabel('登上守林人之塔（第二章）');
+	await clickLabel('进入塔内');
+	// 0.01 但星图对接走 N 线前置：天文台 past 0.01 会失败 → 改走女巫情报？0.01 全败。
+	// 零信物+零情报的开门第三态：差的东西提示——js 侧直配 hint_weakness 模拟"已读懂星纹"的玩家
+	w.SugarCube.State.variables.hint_weakness = true;
+	await clickLabel('顶楼 · 守林人残影');
+	await clickLabel('折断法杖，让塔与雾一同终结');
+	await clickLabel('迎击');
+	await clickLabel('她将你拽入回忆');
+	await clickLabel('倾尽全力，最后一击'); // 0.01 终击也命中（终击无检定，见化身战）
+	await clickLabel('俯身探看裂口，下到塔底（第三章）');
+	await clickLabel('触动共鸣锚：坠入『过去』');
+	await clickLabel('去封印大厅');
+	await clickLabel('去龙穴前厅');
+	// 星纹共振开门（hint_weakness 替代线）
+	await clickLabel('以星图残页的共振强行开门');
+	await clickLabel('趁它沉眠，先下手');
+	await clickLabel('追向封印大厅');
+	await clickLabel('迎战');
+	pcOf(w).hp = 1; // 压血构造战败（战斗已开，首回合前）（每轮 −1）→ 龙爪/焰磨死 7HP 巫师 → 败
+	await clickLabel('迎击——趁它换息的间隙逼近');
+	await clickLabel('视野沉入雾中——');
+	if (passageOf(w) !== '塔底·龙战·败') throw new Error(`0.01 脆法应战败，实际 ${passageOf(w)}`);
+	if ((pc().tower.dragon_defeats ?? 0) !== 1) throw new Error('败段应计 dragon_defeats=1');
+	if (!txt().includes('塔的回声接住了你')) throw new Error('败段应现回声守卫文本');
+	// 回声守卫：不重置（信物/护臂保留），重开战斗
+	await clickLabel('回到大厅，再战');
+	if (pc().tower.dragon_r !== 1 || pc().tower.dragon_hp !== w.Game.Dragon.hp) throw new Error('回声应重置战斗不重置资产');
+	// js 侧把龙打到残血验证龙威递增伤害（defeats=1 → dragonDamage +1）
+	pc().tower.dragon_hp = 1;
+	await clickLabel('迎击——趁它换息的间隙逼近');
+	await clickLabel('最后一击落下——');
+	if (passageOf(w) !== '塔底·屠龙') throw new Error(`残血 1HP 一击应屠龙，实际 ${passageOf(w)}`);
+	await clickLabel('走出塔底');
+	if (passageOf(w) !== '结局 屠龙·占位') throw new Error('应达占位结局');
+});
+
 // ── 路线 H：旧存档形状模拟（第二章上线前的档）→ 迁移 → 入塔不崩 ──
 scenario('路线H：旧档缺字段 → Pc.migrate 兜底 → 入塔正常', async () => {
 	const { w, clickLabel } = await newGame(0.99, [

@@ -186,7 +186,7 @@ window.Game = (() => {
 			'tower:whistle_blown': '铜哨一次性（宾客助战文本即反馈）',
 			'tower:flower_used_dragon': '月光花一次性（回复文本即反馈）',
 			'tower:name_struck': '念名一次性（震慑文本即反馈）',
-			'tower:dragon_down': '屠龙完成（占位结局文本即反馈，C4 重构结算卡）',
+			'tower:dragon_down': '屠龙完成（结局 星落 收束文本即反馈）',
 			'tower:looted_hoard': '宝藏厅识货一次性（进账文本即反馈）',
 			'tower:scale_armor': '龙鳞护臂获得（熔炉锻成文本即反馈）',
 		},
@@ -197,6 +197,7 @@ window.Game = (() => {
 		// mechanic（机制/资源）/ ending（结局分叉）/ content（内容量）/ text（文本变体）
 		// kind 'chargen' 的 arms 由 ChargenRounds 机检（动态渲染无静态出边）
 		sites: [
+			{ id: '巢室·先手', p: '塔底·龙穴', arms: 2, landing: 'mechanic', note: '偷袭（先手6伤+龙战R1起）vs 对决（退出去大厅等它醒）——道德风味不罚分（C3/#51）' },
 			{ id: '囚室·问询', p: '塔底·囚室', kind: 'hub', arms: 3, landing: 'content', note: '问青梧/问龙/问出路——真相互补三臂（C2/#50），互补型而非互斥型' },
 			{ id: '车卡·属性', p: '车卡', kind: 'chargen', round: 0, arms: 3, landing: 'mechanic', note: '力/敏/智三系→检定与 build 分工' },
 			{ id: '车卡·背景', p: '车卡', kind: 'chargen', round: 1, arms: 3, landing: 'mechanic', note: '金 10/15/12 + 技能组' },

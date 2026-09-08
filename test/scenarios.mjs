@@ -584,7 +584,11 @@ scenario('路线O：四信物 → 化身战 → 塔底经济（识货+10/锻造�
 	if (!pc().tower.dragon_down) throw new Error('屠龙应置 dragon_down');
 	if (!txt().includes('三百年长梦，到此为止')) throw new Error('屠龙段应现收束文本');
 	await clickLabel('走出塔底');
-	if (passageOf(w) !== '结局 屠龙·占位') throw new Error(`应达占位结局，实际 ${passageOf(w)}`);
+	if (passageOf(w) !== '结局 星落') throw new Error(`应达真结局，实际 ${passageOf(w)}`);
+	if (!txt().includes('星落林')) throw new Error('结局应现改名呼应');
+	if (!txt().includes('宾客助战（铜哨长鸣）')) throw new Error('结算卡应记宾客助战');
+	if (!txt().includes('先手偷袭')) throw new Error('结算卡应记偷袭路线');
+	if (!txt().includes('四件俱全')) throw new Error('结算卡应记四信物');
 });
 
 // ── 路线 P：C3 龙战验收·零信物线（#51）——星纹共振开门 + 败-龙威递增-再战 ──
@@ -634,7 +638,7 @@ scenario('路线P：星图对接（零信物）→ 共振开门 → 空巢对决
 	await clickLabel('最后一击落下——');
 	if (passageOf(w) !== '塔底·屠龙') throw new Error(`残血 1HP 一击应屠龙，实际 ${passageOf(w)}`);
 	await clickLabel('走出塔底');
-	if (passageOf(w) !== '结局 屠龙·占位') throw new Error('应达占位结局');
+	if (passageOf(w) !== '结局 星落') throw new Error('应达占位结局');
 });
 
 // ── 路线 H：旧存档形状模拟（第二章上线前的档）→ 迁移 → 入塔不崩 ──

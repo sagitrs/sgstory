@@ -10,7 +10,7 @@ window.Game = (() => {
 			torch_buy:   { delta: -10, chapter: 1, note: '酒馆·买火把' },
 			loot:        { delta: null, chapter: 1, note: '战斗后搜刮（动态传入：1d6/幸运 2d6kh）' },
 			goblin_kill: { delta: 3, chapter: 1, note: '战斗·斩草除根' },
-			bribe:       { delta: -5, chapter: 1, note: '贿赂哥布林·买路' },
+			bribe:       { delta: -5, skillDiscount: { skill: '恐吓', to: -3 }, chapter: 1, note: '贿赂哥布林·买路（懂吓唬的 3 金搞定）' },
 			shadow_alms: { delta: 1, chapter: 1, note: '雾影·施舍' },
 			witch_heal:  { delta: -10, chapter: 1, note: '女巫小屋·治疗' },
 			study_errand: { delta: 6, chapter: 2, note: '书房·过去 指出错抄，学徒跑腿钱' },
@@ -20,7 +20,7 @@ window.Game = (() => {
 			rumor_buy:       { delta: -5, chapter: 1, note: '酒馆·买传闻（吊桥脆板→断桥 adv）' },
 			witch_hint_diary: { delta: -8, featDiscount: { flag: 'lore', to: -5 }, chapter: 1, note: '女巫·书房暗格情报（=hint_diary；学识烙印 5 金）' },
 			witch_hint_star:  { delta: -8, featDiscount: { flag: 'lore', to: -5 }, chapter: 1, note: '女巫·星图残页情报（=hint_star；学识烙印 5 金）' },
-			salve_buy:       { delta: -8, gives: { salves: 1 }, chapter: 1, note: '女巫·药膏补给（库存 +1，可回购）' },
+			salve_buy:       { delta: -8, gives: { salves: 1 }, skillDiscount: { skill: '医药', to: -5 }, chapter: 1, note: '女巫·药膏补给（库存 +1；懂行者批发价 5）' },
 			gardener_bribe:  { delta: -10, chapter: 2, note: '温室·贿赂园丁（月光花确定获取，替代 DC13 赌）' },
 			crow_guide:      { delta: -5, chapter: 2, note: '楼梯间·乌鸦向导（高亮未取信物/秘密）' },
 		},
@@ -29,6 +29,7 @@ window.Game = (() => {
 			const ev = this.events[key];
 			if (!ev) throw new Error(`未知经济事件: ${key}`);
 			if (ev.featDiscount && pc?.flags?.[ev.featDiscount.flag]) return ev.featDiscount.to;
+			if (ev.skillDiscount && pc?.skills?.includes(ev.skillDiscount.skill)) return ev.skillDiscount.to;
 			return ev.delta;
 		},
 	};
@@ -146,5 +147,38 @@ window.Game = (() => {
 		// exempt：机制本体非叙事回声（era=时代机制、intent=结局路由、hall_past 同时在 cause）
 		exempt: { era: '时代机制本体', 'tower:intent': '结局路由机制（顶楼 intent→三结局）' },
 	};
-	return { Economy, Checks, Tokens, Truth, Echoes };
+	const Choices = {
+		// D2 选择意义感（#36）：选择点全景。判据（Spire 三标准之三）：非任意（有真差异）、
+		// 非二元（有过程差异）、后果可见（landing 差异可感知）。landing 枚举：
+		// mechanic（机制/资源）/ ending（结局分叉）/ content（内容量）/ text（文本变体）
+		// kind 'chargen' 的 arms 由 ChargenRounds 机检（动态渲染无静态出边）
+		sites: [
+			{ id: '车卡·属性', p: '车卡', kind: 'chargen', round: 0, arms: 3, landing: 'mechanic', note: '力/敏/智三系→检定与 build 分工' },
+			{ id: '车卡·背景', p: '车卡', kind: 'chargen', round: 1, arms: 3, landing: 'mechanic', note: '金 10/15/12 + 技能组' },
+			{ id: '车卡·物种', p: '车卡', kind: 'chargen', round: 2, arms: 3, landing: 'mechanic', note: '金+10 / 察觉 adv / 减伤-2' },
+			{ id: '车卡·职业', p: '车卡', kind: 'chargen', round: 3, arms: 3, landing: 'mechanic', note: 'HP 档位 + 技能 + 金' },
+			{ id: '车卡·技艺', p: '车卡', kind: 'chargen', round: 4, arms: 3, landing: 'mechanic', note: '技能组——部分为风味位见 exemptSkills' },
+			{ id: '车卡·行囊', p: '车卡', kind: 'chargen', round: 5, arms: 3, landing: 'mechanic', note: '火把绳索 / 长剑+2 / 药膏' },
+			{ id: '车卡·专长', p: '车卡', kind: 'chargen', round: 6, arms: 3, landing: 'mechanic', note: '察觉 adv / HP+2 / 金+5' },
+			{ id: '车卡·烙印', p: '车卡', kind: 'chargen', round: 7, arms: 3, landing: 'mechanic', note: '减伤 / 检定+1 / 战利品+10+情报半价' },
+			{ id: '酒馆·火把', p: '酒馆', arms: 2, landing: 'mechanic', note: '10 金买光明 vs 摸黑风险' },
+			{ id: '酒馆·传闻', p: '酒馆', arms: 2, landing: 'mechanic', note: '5 金买断桥 adv（#25 sink）' },
+			{ id: '洞穴·哥布林处置', p: '洞穴 黑暗', arms: 2, landing: 'mechanic', note: '贿赂买路（恐吓 3 金） vs 拔剑（胜+金/败伤）' },
+			{ id: '战斗·尸身处置', p: '战斗', arms: 2, landing: 'mechanic', note: '放生（温室彩蛋+治疗线） vs 斩草（+3 金）' },
+			{ id: '森林·赌不赌影子', p: '森林边缘', arms: 3, landing: 'mechanic', note: '进洞 / 吊桥 / 鲁莽挑战（+1 金 vs con15 赌）——路径枢纽即选择' },
+			{ id: '委托·收手或登塔', p: '女巫的委托', arms: 2, landing: 'ending', note: '月光倾城（一章结局） vs 整个二章+4 结局' },
+			{ id: '摊子·三买', p: '女巫 摊子', arms: 4, landing: 'mechanic', note: '情报×2（烙印半价）/药膏（医药批发价 5）/不买' },
+			{ id: '温室·钱或嘴', p: '温室', arms: 2, landing: 'mechanic', note: '10 金确定 vs DC13 赌（#25 双明牌）' },
+			{ id: '楼梯·乌鸦', p: '楼梯间', arms: 2, landing: 'mechanic', note: '5 金买剩余清单（QoL）' },
+			{ id: '楼梯·去留', p: '楼梯间', arms: 2, landing: 'ending', note: '下塔=结局 半途 vs 继续探索' },
+			{ id: '顶楼·三途', p: '顶楼', arms: 3, landing: 'ending', note: '吹哨唤归（需 4 信物）/接棒 keeper/折杖 burn' },
+		],
+		// 风味位豁免：无检定消费但保留 SRD 风味（D2 判据下显式留痕，非幻觉承诺）
+		exemptSkills: {
+			'生存': '风味位（荒野人设）', '自然': '风味位（秘闻人设）',
+			'欺瞒': '风味位（市井人设）', '隐匿': '风味位（游荡者人设）',
+			'巧手': '专长=金+5（effect 诚实标注）',
+		},
+	};
+	return { Economy, Checks, Tokens, Truth, Echoes, Choices };
 })();

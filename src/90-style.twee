@@ -268,3 +268,14 @@ body {
 	display: inline-block;
 	min-width: 5.5em;
 }
+
+/* ── D6 窄屏适配（≤480px，#40）：卡片/表格/血条/检定框不溢出 ── */
+@media (max-width: 480px) {
+	.ending-card { padding: 0.8em 0.9em; margin: 1em 0; }
+	.ending-card table { font-size: 0.85em; border-spacing: 0.6em 0.2em; }
+	.check-result { font-size: 0.85em; padding: 0.4em 0.6em; }
+	.hpbar-text { font-size: 0.8em; }
+	.choice-card { padding: 0.6em 0.7em; }
+	.tower-hub ul { padding-inline-start: 1.2em; }
+	.tower-hub li { margin: 0.3em 0; }
+}

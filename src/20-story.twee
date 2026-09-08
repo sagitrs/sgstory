@@ -348,6 +348,9 @@
 	<p>$pc.name（$pc.speciesLabel $pc.classLabel）从此成为迷雾的一部分。</p>
 </div>
 
+/% D6 预期管理：restart 是全重置（含角色名）——文案明说，不做惩罚性惊奇 %/
+（旅程将从车卡重新开始——雾记住了你，但名字与路，都由你重写。）
+
 <<link "再来一次">><<run Engine.restart()>><</link>>
 
 :: StoryCaption

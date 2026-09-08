@@ -133,8 +133,9 @@ scenario('路线C：贿赂哥布林 → 结局「平凡之光」', async () => {
 	if (pc().gold !== 30) throw new Error(`起始金币应为 30（佣兵15+人类10+游荡者5），实际 ${pc().gold}`);
 	await clickLabel('推门出发，走进暮色');
 	await clickLabel('打着火把，走进山脚的洞穴');
-	await clickLabel('慢慢后退，扔过去 5 枚金币');
-	if (pc().gold !== 25) throw new Error(`贿赂后金币应 25，实际 ${pc().gold}`);
+	// #36 恐吓折扣：佣兵熟练恐吓 → 贿赂 5→3（标签同源动态价）
+	await clickLabel('慢慢后退，扔过去 3 枚金币');
+	if (pc().gold !== 27) throw new Error(`恐吓折扣贿赂后应 27（30-3），实际 ${pc().gold}`);
 	if (!w.SugarCube.State.variables.goblin_spared) throw new Error('goblin_spared 应为 true');
 	await clickLabel('钻过石缝');
 	await clickLabel('接过汤碗');

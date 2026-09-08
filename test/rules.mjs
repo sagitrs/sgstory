@@ -253,6 +253,13 @@ for (const file of fixtures) {
 	ok(w.Game.Economy.priceOf('witch_hint_diary', w.SugarCube.State.variables.pc) === -5, 'priceOf：学识烙印半价 8→5');
 	w.SugarCube.State.variables.pc.flags.lore = false;
 	ok(w.Game.Economy.priceOf('witch_hint_diary', w.SugarCube.State.variables.pc) === -8, 'priceOf：无烙印原价 8');
+	// #36 技能折扣：医药→药膏批发价、恐吓→贿赂吓阻价
+	w.SugarCube.State.variables.pc.skills = ['医药'];
+	ok(w.Game.Economy.priceOf('salve_buy', w.SugarCube.State.variables.pc) === -5, 'priceOf：医药熟练药膏 8→5');
+	w.SugarCube.State.variables.pc.skills = ['恐吓'];
+	ok(w.Game.Economy.priceOf('bribe', w.SugarCube.State.variables.pc) === -3, 'priceOf：恐吓熟练贿赂 5→3');
+	w.SugarCube.State.variables.pc.skills = [];
+	ok(w.Game.Economy.priceOf('bribe', w.SugarCube.State.variables.pc) === -5, 'priceOf：无恐吓原价 5');
 	// ⑤ setflag 词汇
 	w.SugarCube.State.variables.goblin_spared = false;
 	new w.SugarCube.Wikifier(null, '<<setflag "goblin_spared">>');

@@ -856,6 +856,26 @@ scenario('路线W：零信物零 hint → 前厅静听吟诵 → 跟读（可能
 	if (!txt().includes('逐一嵌入锁槽')) throw new Error('四信物捷径线应并存');
 });
 
+// ── 路线 X：降级结局 a（#87 K3）——说实话 → 自愿的长眠 ──
+scenario('路线X：持真相信息 → 龙穴说实话选项 → 自愿的长眠 → codex tower 类', async () => {
+	const { w, clickLabel } = await newGame(0.5, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']);
+	const pc = () => w.SugarCube.State.variables.pc;
+	w.SugarCube.State.variables.era = 'past';
+	pc().tower.scroll_lower = true; // 真相信息（不硬卡二章道具）
+	await w.SugarCube.Engine.play('塔底·龙穴');
+	await clickLabel('从它身下抽出那半页碎纸');
+	await clickLabel('回到巢穴');
+	await clickLabel('告诉它真相：漫长的岁月会磨掉它的记忆——趁还记得，自己选一个结局');
+	if (w.SugarCube.State.passage !== '塔底·自愿的长眠') throw new Error(`应入自愿长眠段，实际 ${w.SugarCube.State.passage}`);
+	const txt = w.document.querySelector('#passages').textContent;
+	if (!txt.includes('趁还记得，自己说再见')) throw new Error('它自己的选择文本应现');
+	await clickLabel('故事在这里结束');
+	if (w.SugarCube.State.passage !== '结局 自愿的长眠') throw new Error(`应入结局，实际 ${w.SugarCube.State.passage}`);
+	if (!w.document.querySelector('#passages').textContent.includes('它记得自己是谁')) throw new Error('结局卡应现');
+	const cats = w.SugarCube.State.metadata.get('codex-cats');
+	if (!cats || !cats.includes('tower')) throw new Error(`自愿长眠应记 tower 类，实际 ${JSON.stringify(cats)}`);
+});
+
 // ── 路线 S：设定集解锁（伞 #64 子票 2）——死亡线端到端 + 类别递进归一 ──
 scenario('路线S：一章死亡结局 → codexmark 记档 → 设定集 2 开 7 锁；星落类别归一全开', async () => {
 	const { w, clickLabel } = await newGame(0.01, [

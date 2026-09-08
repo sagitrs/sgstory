@@ -148,6 +148,21 @@ Macro.add('save', {
 	},
 });
 
+// ── 龙血条宏（C3 自检修复：读 $pc.tower.dragon_hp，紫条 ☠ 前缀）────────────
+Macro.add('dragonbar', {
+	skipArgs: true,
+	handler() {
+		const pc = pcNow();
+		const hp = Math.max(0, pc.tower?.dragon_hp ?? 0);
+		const max = window.Game?.Dragon?.hp ?? 1;
+		const pct = Math.round((hp / max) * 100);
+		jQuery(this.output).append(
+			`<div class="hpbar"><div class="hpbar-fill" style="width:${pct}%;background:#7a4a8f"></div>` +
+			`<span class="hpbar-text">☠ 龙 ${hp} / ${max}</span></div>`
+		);
+	},
+});
+
 // ── 血条宏（读取 $pc）─────────────────────────────────────
 Macro.add('hpbar', {
 	skipArgs: true,

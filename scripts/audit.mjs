@@ -218,6 +218,32 @@ function successRate(pc, site, adv) {
 	}
 	return win / total;
 }
+// ── ⓪f 龙战整场推演（自检 #22 补账：单点命中率之外的整场胜率）──
+if (wantAll || arg('dragon')) {
+	console.log('\n══ ⓪f 龙战整场推演（Game.Dragon 数值单源 → 期望轮数/受击/存活）══');
+	const D = Game.Dragon;
+	const presets = { '铁卫': 12, '影手': 9, '秘典': 7 }; // max_hp 代表值（车卡终值四舍五入）
+	const hit = (mod, dc) => Math.max(0.05, Math.min(0.95, (21 - (dc - mod)) / 20));
+	const loadouts = {
+		'满配':  { sneak: true, weak: 3, hitMod: 2, subAll: true },   // 偷袭+scroll+name+地形（0.99 实证=路线 O）
+		'情报线': { sneak: false, weak: 3, hitMod: 2, subAll: false },  // hint(+2 补偿位)+地形
+		'裸装':  { sneak: false, weak: 1, hitMod: 0, subAll: false },   // 仅地形
+	};
+	for (const [pn, hp] of Object.entries(presets)) {
+		for (const [ln, L] of Object.entries(loadouts)) {
+			let r = 1, dhp = D.hp - (L.sneak ? D.sneakHit : 0), taken = 0, flower = L.subAll ? 2 : 0;
+			for (; r <= 12; r++) {
+				dhp -= Math.max(1, D.hitBase + L.weak + 1) * hit(L.hitMod, 8); // present 地形 +1（自检后 DC8）
+				if (dhp <= 0) break;
+				taken += Math.max(1, D.dragonDamage({ tokens: L.subAll ? ['星图残页'] : [], tower: { dragon_defeats: 0, whistle_blown: L.subAll ? 1 : 0 } }, r, 'present'));
+			}
+			const survived = taken - flower < hp;
+			console.log(`  ${pn}·${ln}: 期望 ${r} 轮 · 受击 ${taken} − 回复 ${flower} = ${taken - flower} vs HP${hp} → ${survived ? '✓ 存活' : '✗ 险'}`);
+		}
+	}
+	console.log('（保守上界：present 地形持续、无护甲、线性期望。情报线存活路径=past 石柱+龙鳞护甲（−2/轮 → 受击≈4）：收集即战力。裸装为设计性不可赢——回声守卫兜底劝退。实走见路线 O/P/Q）');
+}
+
 if (wantAll || arg('checks')) {
 	console.log('\n══ ① 检定成功率矩阵（位点 × 预设，含优势位）══');
 	console.log('格式：位点（技能/豁免 DC）→ 铁卫 / 影手 / 秘典  ·★=有优势条件位');

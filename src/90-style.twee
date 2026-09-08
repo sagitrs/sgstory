@@ -279,3 +279,16 @@ body {
 	.tower-hub ul { padding-inline-start: 1.2em; }
 	.tower-hub li { margin: 0.3em 0; }
 }
+
+/* ── 设定集（伞 #64 子票 2）：hub 卡片与锁定态视觉弱化 ── */
+.codex-hub {
+	border: 1px solid #4a4358;
+	border-radius: 10px;
+	padding: 1em 1.4em;
+	margin: 1em 0;
+	background: rgba(20, 18, 28, 0.7);
+}
+.codex-hub h2 { text-align: center; letter-spacing: 0.15em; }
+.codex-note { color: #8b8497; font-size: 0.9em; text-align: center; }
+.codex-locked { color: #5a5468; display: block; margin: 0.25em 0; font-size: 0.95em; }
+.codex-hub .macro-link { display: block; margin: 0.25em 0; }

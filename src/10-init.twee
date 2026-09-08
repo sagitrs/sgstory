@@ -116,6 +116,11 @@
 
 /% C1 三章词汇（#49）：共鸣锚切换——锚内免费无限（位置门控），锚外不可切。
    与 erashift（二章充能门控）并存：塔内枢纽用充能，塔底用锚 %/
+<<widget "codexmark">>
+	/% 伞 #64 子票 2：结局到达即记（State.metadata 跨周目；类别由当前段落名映射） %/
+	<<run Game.Codex.markFromPassage(passage())>>
+<</widget>>
+
 <<widget "anchorshift">>
 	<<if Game.Shifts.anchors.includes(passage())>>
 		<<link `($era is "present" ? "触动共鸣锚：坠入『过去』" : "触动共鸣锚：回到『现在』")`>>

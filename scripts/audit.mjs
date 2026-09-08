@@ -30,7 +30,7 @@ const wantAll = !process.argv.some((a) => a.startsWith('--'));
 const passageSrc = new Map(); // name -> 去注释源文（锚点检查用）
 const passageRaw = new Map(); // name -> 原文（payload 注释检查用）
 const passageTags = new Map(); // name -> tags[]
-for (const f of ['src/00-meta.twee', 'src/10-init.twee', 'src/20-story.twee', 'src/30-rules.twee', 'src/31-chargen-data.twee', 'src/40-chargen.twee', 'src/50-tower.twee', 'src/55-dungeon.twee']) {
+for (const f of ['src/00-meta.twee', 'src/10-init.twee', 'src/20-story.twee', 'src/30-rules.twee', 'src/31-chargen-data.twee', 'src/40-chargen.twee', 'src/50-tower.twee', 'src/55-dungeon.twee', 'src/60-codex.twee']) {
 	const text = readFileSync(f, 'utf8');
 	const parts = text.split(/^::\s*/m);
 	for (const part of parts.slice(1)) {

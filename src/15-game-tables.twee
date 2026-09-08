@@ -312,5 +312,37 @@ window.Game = (() => {
 			return Math.max(1, d);
 		},
 	};
-	return { Economy, Checks, Tokens, Truth, Echoes, Choices, Systems, Shifts, Dragon };
+	// 伞 #64 子票 2：设定集——跨周目奖励。解锁类别（递进归一化：starfall ⊃ tower ⊃ any）。
+	// 持久层 State.metadata（restart 不失）；markFromPassage 由结局段顶层 <<codexmark>> 调用。
+	const Codex = {
+		// 解锁类别 → 覆盖节
+		order: ['any', 'tower', 'starfall'],
+		endings: {
+			'结局 月光倾城': 'any', '结局 平凡之光': 'any', '结局 空手而归': 'any', '结局 死亡': 'any',
+			'结局 半途': 'tower', '结局 新守林人': 'tower', '结局 焚塔': 'tower', '结局 解放': 'tower',
+			'结局 星落': 'starfall',
+		},
+		sections: [
+			{ id: 'falling-star', title: '一 · 坠星之世', requires: 'any', hint: '见证任何一个结局后解锁' },
+			{ id: 'warden', title: '二 · 守林人', requires: 'any', hint: '见证任何一个结局后解锁' },
+			{ id: 'stargazer', title: '三 · 星官与星轨', requires: 'tower', hint: '走到守林人之塔的任一结局后解锁' },
+			{ id: 'sealing', title: '四 · 封印之日', requires: 'tower', hint: '走到守林人之塔的任一结局后解锁' },
+			{ id: 'three-hundred', title: '五 · 三百年', requires: 'tower', hint: '走到守林人之塔的任一结局后解锁' },
+			{ id: 'witch', title: '六 · 女巫与旅人', requires: 'tower', hint: '走到守林人之塔的任一结局后解锁' },
+			{ id: 'underkeep', title: '七 · 塔底', requires: 'starfall', hint: "通关真结局『星落』后解锁" },
+			{ id: 'dragon-dream', title: '八 · 龙与梦', requires: 'starfall', hint: "通关真结局『星落』后解锁" },
+			{ id: 'starfall', title: '九 · 星落', requires: 'starfall', hint: "通关真结局『星落』后解锁" },
+		],
+		markFromPassage(name) {
+			const cat = this.endings[name];
+			if (!cat) return;
+			const cats = State.metadata.get('codex-cats') ?? [];
+			const upto = this.order.slice(0, this.order.indexOf(cat) + 1); // 递进归一：starfall 含 tower/any
+			const merged = [...new Set([...cats, ...upto])];
+			if (merged.length !== cats.length) State.metadata.set('codex-cats', merged);
+		},
+		seenCats() { return State.metadata.get('codex-cats') ?? []; },
+		unlocked(sec, cats) { return (cats ?? this.seenCats()).includes(sec.requires); },
+	};
+	return { Economy, Checks, Tokens, Truth, Echoes, Choices, Systems, Shifts, Dragon, Codex };
 })();

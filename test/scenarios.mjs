@@ -471,7 +471,7 @@ scenario('路线N：星图线 → 化身战后下塔底 → 囚徒三臂+信+星
 	await clickLabel('触动共鸣锚：回到『现在』');
 	await clickLabel('去囚室');
 	await clickLabel('抽出那封信');
-	if (!txt().includes('等它睡沉了，我再回来') || !txt().includes('菜要一直温着')) throw new Error('信应同时供 keeper_seal 与 feast_meaning 通路');
+	if (!txt().includes('等它睡沉了，我再回来') || !txt().includes('炖肉要一直在炉上温着')) throw new Error('信应同时供 keeper_seal 与 feast_meaning 通路');
 	await clickLabel('回到囚室');
 	// 星图对接 → hint_weakness → 前厅回声
 	await clickLabel('回封印大厅');
@@ -564,7 +564,7 @@ scenario('路线O：四信物 → 化身战 → 塔底经济（识货+10/锻造�
 	// 战斗：三副动作（哨/花/名）→ 地形切 present → 迎击至屠龙
 	await clickLabel('吹响铜哨——唤宴会宾客的残念');
 	if (!pc().tower.whistle_blown) throw new Error('铜哨应置 whistle_blown');
-	if (!txt().includes('温了三百年的菜')) throw new Error('铜哨应现宾客助战');
+	if (!txt().includes('温了三百年的炖肉')) throw new Error('铜哨应现宾客助战');
 	await clickLabel('回到战斗');
 	await clickLabel('翻开日记，念出她的名字');
 	if (!pc().tower.name_struck) throw new Error('念名应置 name_struck');

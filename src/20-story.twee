@@ -296,7 +296,7 @@
 		<tr><td>冒险者</td><td>$pc.name（$pc.speciesLabel $pc.classLabel）</td></tr>
 		<tr><td>生命</td><td>$pc.hp / $pc.max_hp</td></tr>
 		<tr><td>金币</td><td>$pc.gold</td></tr>
-		<tr><td>成就</td><td>解开了森林三百年的执念</td></tr>
+		<tr><td>成就</td><td>解开了森林三百年的憾恨</td></tr>
 	</table>
 </div>
 

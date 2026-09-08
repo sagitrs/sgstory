@@ -94,14 +94,14 @@ window.Game = (() => {
 				{ p: '书房', anchor: '是我放任雾涨起来的', via: '日记最后一页（需暗格链）' },
 				{ p: '顶楼', anchor: '都是我', via: 'present 残影自语（速通必达）' },
 			] },
-			{ id: 'mist_layers', claim: '雾有两层：执念雾（她渗出，解放即散）与龙梦雾（龙渗出，屠龙才退）——正典 docs/lore-canon.md §1', sites: [
-			{ p: '结局 归乡', anchor: '她自己的那一层雾', via: '解放后执念雾散、龙梦雾存' },
-			{ p: '结局 星落', anchor: '退回森林的根里去', via: '屠龙后龙梦雾退' },
+			{ id: 'mist_layers', claim: '雾有两层：悔雾（她渗出，解放即散）与梦雾（龙渗出，屠龙才退）——正典 docs/lore-canon.md §1', sites: [
+			{ p: '结局 归乡', anchor: '她自己的那一层雾', via: '解放后悔雾散、梦雾存' },
+			{ p: '结局 星落', anchor: '从林间撤走了', via: '屠龙后梦雾退' },
 			{ p: '塔底·囚徒·龙', anchor: '雾是从龙的梦里渗出来的', via: '囚徒证词（龙梦层）' },
 		] },
 			{ id: 'avatar_trial', claim: '化身=她悔念的无设计外化（无人筛检，只是挡了三百年）——正典 §2', sites: [
 			{ p: '化身·终击', anchor: '没有谁设计它', via: '胜利文本点破非设计性' },
-			{ p: '女巫的委托', anchor: '执念锁在塔顶', via: '女巫圈外认知（部分真相）' },
+			{ p: '女巫的委托', anchor: '憾恨锁在塔顶', via: '女巫圈外认知（部分真相）' },
 		] },
 			{ id: 'dragon_mist', claim: '雾生于龙的梦，锁其身者星轨（C2 三章真相层）', sites: [
 			{ p: '塔底·观测廊', anchor: '雾生于龙梦', via: 'past《论坠星》残卷' },
@@ -116,7 +116,7 @@ window.Game = (() => {
 		] },
 			{ id: 'feast_meaning', claim: '宴会等的是打完龙回来吃饭的她（宾客走不出封印圈）', sites: [
 			{ p: '门厅', anchor: '打完就回来吃饭', via: 'past 老妇人（avatar_down 后重访）' },
-			{ p: '塔底·囚室·信', anchor: '菜要一直温着', via: 'present 罗温致占星师的信' },
+			{ p: '塔底·囚室·信', anchor: '炖肉要一直在炉上温着', via: 'present 罗温致占星师的信' },
 			{ p: '塔底·囚室', anchor: '门外的雾，推不开', via: 'past 囚徒（封印圈伏笔）' },
 		] },
 			{ id: 'avatar_nature', claim: '化身=三百年悔恨凝聚；残影=她本人残念', sites: [

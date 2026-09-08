@@ -7,6 +7,7 @@
 // 用法：node test/integrity.mjs [srcDir=src]
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import vm from 'node:vm';
 
 const SRC = process.argv[2] ?? 'src';
 
@@ -117,7 +118,8 @@ for (const p of passages.values()) {
 //   W3 旗标生命周期（set 从不 use / use 从不 set）
 const vocabWarn = [];
 const vocabExempts = [];
-const TOWER_FILE = '50-tower.twee';
+// A6：era 写白名单=塔域（二章塔 + 三章塔底——W2 门契约：塔底内容段落写 era 合法）
+const TOWER_FILES = new Set(['50-tower.twee', '55-dungeon.twee']);
 const COMMENT_RX = /\/%[\s\S]*?%\//g;
 const isInfraBody = (p) => p.tags.some((t) => ['script', 'widget', 'stylesheet'].includes(t)) || ['StoryInit', 'StoryData', 'StoryTitle'].includes(p.name);
 const exemptOf = (p) => {
@@ -139,7 +141,7 @@ for (const p of passages.values()) {
 		if (hits.length) warn('W1', `link 体内裸 ${hits.join('/')}（点击态代码 → 提升为词汇宏或豁免）：${m[0].replace(/\s+/g, ' ').slice(0, 50)}`);
 	}
 	// W2：era 写越界（只禁写）
-	if (p.file !== TOWER_FILE) {
+	if (!TOWER_FILES.has(p.file)) {
 		if (/<<\s*set\s+\$era\b/.test(body) || /variables\.era\s*=[^=]/.test(body)) warn('W2', 'era 写入越界出塔层（状态空间翻倍源头）');
 		if (/<<\s*erashift\s*>>/.test(body)) warn('W2', 'erashift 调用越界出塔层');
 	}
@@ -173,7 +175,6 @@ if (vocabWarn.length) { console.log(`\n⚠ 词汇纪律警告 ${vocabWarn.length
 // ── 数据表一致性（#28，硬门）────────────────────────────
 // window.Game 三表（Economy/Checks/Tokens）vm 直载；正文只许经词汇宏引用。
 // 三拦：①引用键不存在（typo 即 build 断）②表孤儿项（表陈旧告警）③正文硬编码残留
-import vm from 'node:vm';
 const gamePassage = [...passages.values()].find((p) => /window\.Game\s*=/.test(p.body));
 const Game = (() => {
 	const ctx = { window: {} };

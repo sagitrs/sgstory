@@ -3,25 +3,10 @@
 //   · 渲染确实发生（State.passage 变化——防 no-op 假绿，Engine.show 曾无声失败）
 //   · 无 uncaught 异常 · 无 .error 渲染元素 · 输出非空
 // 渲染期自动跳转（检定失败→死亡等）记为 forward 信息不算失败，但错误/空输出仍算。
-import { readFileSync } from 'node:fs';
-import { JSDOM, VirtualConsole } from 'jsdom';
+import { boot } from './boot.mjs';
 
-const html = readFileSync('dist/index.html', 'utf8');
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-const uncaught = [];
-const vc = new VirtualConsole();
-vc.on('jsdomError', (e) => { const m = String(e?.message ?? e); if (m.startsWith('Uncaught')) uncaught.push(m); });
-
-const dom = new JSDOM(html, {
-	runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/', virtualConsole: vc,
-	beforeParse(window) { window.Math.random = () => 0.5; }, // d20 恒 11：中性、无自然 20/1
-});
-await sleep(1200);
-const w = dom.window;
-new w.SugarCube.Wikifier(null, w.document.querySelector('tw-passagedata[name="StoryInit"]').textContent);
-w.SugarCube.Engine.start();
-await sleep(400);
+// 白盒 A9：共享 boot（d20 恒 11：中性、无自然 20/1；uncaught 监听内置）
+const { w, uncaught, sleep } = await boot({ random: 0.5 });
 
 // ── 构造"车卡后"角色状态（裸 StoryInit 状态检定必败→连锁死亡 goto，不具代表性）──
 const byLabel = (t) => [...w.document.querySelectorAll('#passages a.link-internal')].find((x) => x.textContent === t);

@@ -1,9 +1,6 @@
 // 规则层单元测试：mod/skillMod/check/	save/修饰栈/车卡数据完整性
 import { readFileSync } from 'node:fs';
-import { JSDOM, VirtualConsole } from 'jsdom';
-
-const html = readFileSync('dist/index.html', 'utf8');
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+import { boot } from './boot.mjs';
 let failures = 0;
 const eq = (actual, expected, msg) => {
 	const ok = actual === expected;
@@ -15,21 +12,8 @@ const ok = (cond, msg) => {
 	if (!cond) failures++;
 };
 
-const dom = new JSDOM(html, {
-	runScripts: 'dangerously',
-	pretendToBeVisual: true,
-	url: 'http://localhost/',
-	virtualConsole: new VirtualConsole(),
-	beforeParse(window) {
-		window.Math.random = () => 0.5; // d20 恒为 11
-	},
-});
-await sleep(1200);
-const w = dom.window;
-const init = w.document.querySelector('tw-passagedata[name="StoryInit"]');
-new w.SugarCube.Wikifier(null, init.textContent);
-w.SugarCube.Engine.start();
-await sleep(500);
+// 白盒 A9/A10：共享 boot ×3 实例（pollUntil + uncaught；random 参数化替代三份手写 JSDOM）
+const { w } = await boot({ random: 0.5 }); // d20 恒为 11
 
 const R = w.Rules;
 
@@ -78,31 +62,15 @@ stat.remove('装备');
 eq(stat.value, 9, '移除装备修饰 10-1');
 
 // ── 自然 20 / 自然 1（SRD 5.2）──
-// 重新加载一个 nat20 环境
-const dom20 = new JSDOM(html, {
-	runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/',
-	virtualConsole: new VirtualConsole(),
-	beforeParse(window) { window.Math.random = () => 0.999; },
-});
-await sleep(1200);
-new dom20.window.SugarCube.Wikifier(null, dom20.window.document.querySelector('tw-passagedata[name="StoryInit"]').textContent);
-dom20.window.SugarCube.Engine.start();
-await sleep(400);
-const nat20 = dom20.window.Rules.check(pc, '运动', 30); // 20-1=19 < 30，仍应成功
+// nat20/nat1：boot 参数化 random（A10——不再为骰子 stub 起两份手写 JSDOM）
+const dom20 = await boot({ random: 0.999 });
+const nat20 = dom20.w.Rules.check(pc, '运动', 30); // 20-1=19 < 30，仍应成功
 ok(nat20.roll === 20 && nat20.success, '自然 20 → 无视 DC 必然成功');
-const nat20save = dom20.window.Rules.save(pc, 'str', 25);
+const nat20save = dom20.w.Rules.save(pc, 'str', 25);
 ok(nat20save.success, '豁免同样适用自然 20 规则');
 
-const dom1 = new JSDOM(html, {
-	runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/',
-	virtualConsole: new VirtualConsole(),
-	beforeParse(window) { window.Math.random = () => 0.0001; },
-});
-await sleep(1200);
-new dom1.window.SugarCube.Wikifier(null, dom1.window.document.querySelector('tw-passagedata[name="StoryInit"]').textContent);
-dom1.window.SugarCube.Engine.start();
-await sleep(400);
-const nat1 = dom1.window.Rules.check(pc, '察觉', 1); // 1+4=5 ≥ 1，仍应失败
+const dom1 = await boot({ random: 0.0001 });
+const nat1 = dom1.w.Rules.check(pc, '察觉', 1); // 1+4=5 ≥ 1，仍应失败
 ok(nat1.roll === 1 && !nat1.success, '自然 1 → 无视加值必然失败');
 
 // ── 车卡数据完整性：8 轮 × 每轮 3 选项，apply 均可执行 ──

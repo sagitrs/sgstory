@@ -1,23 +1,11 @@
 // L5 数值属性测试（#16）：判定决策边界 · 优势/劣势支配性 · 伤害界限 · 车卡不变量
 // 属性式断言 = 全枚举/随机输入 + 守恒律，与例测（rules.mjs）互补——专抓 off-by-one 与手抖赋值
-import { readFileSync } from 'node:fs';
-import { JSDOM, VirtualConsole } from 'jsdom';
-
-const html = readFileSync('dist/index.html', 'utf8');
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+import { boot } from './boot.mjs';
 let failures = 0;
 const ok = (cond, msg) => { console.log(`${cond ? '✓' : '✗'} ${msg}`); if (!cond) failures++; };
 
-const dom = new JSDOM(html, {
-	runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/',
-	virtualConsole: new VirtualConsole(),
-	beforeParse(window) { window.Math.random = () => 0.5; },
-});
-await sleep(1200);
-const w = dom.window;
-new w.SugarCube.Wikifier(null, w.document.querySelector('tw-passagedata[name="StoryInit"]').textContent);
-w.SugarCube.Engine.start();
-await sleep(400);
+// 白盒 A9：共享 boot（pollUntil 就绪轮询 + uncaught 监听——#27/坑11 修复辐射）
+const { w, uncaught: _uncaught, sleep } = await boot({ random: 0.5 });
 
 // 可编程骰队列：Math.random → die = floor(r*20)+1，映射 die→r=(d-0.5)/20
 const queueDice2 = (dice) => {

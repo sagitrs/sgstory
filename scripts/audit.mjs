@@ -93,7 +93,7 @@ if (wantAll || arg('echoes')) {
 		...Game.Echoes.list.flatMap((e) => [e.cause.token ? `token:${e.cause.token}` : null, e.cause.towerFlag ? `tower:${e.cause.towerFlag}` : null, e.cause.flag ?? null, e.cause.gear ? `gear:${e.cause.gear}` : null].filter(Boolean)),
 		...Game.Echoes.revisit.map((r) => `tower:${r.flag}`),
 		...Object.keys(Game.Echoes.exempt),
-		'pc', 'player_name', 'last_check', 'era',
+		'pc', 'player_name', 'last_check', 'era', // A5：引擎底座变量（非叙事旗标）——语义即豁免
 	]);
 	const orphans = [...written].filter((w) => !covered.has(w) && !w.startsWith('gear:') && !w.startsWith('token:'));
 	if (orphans.length) { console.log(`  ⚠ set-never-echoed：${orphans.join('、')}（被写但无回声/留痕/豁免）`); bad += orphans.length; }

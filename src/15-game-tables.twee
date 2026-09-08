@@ -109,13 +109,13 @@ window.Game = (() => {
 			{ p: '书房', anchor: '迷了路的星', via: 'past 罗温日记（封印前夜已知）' },
 		] },
 			{ id: 'the_forgetting', claim: '龙在 300 年封印沉眠中忘记了自己是星星——梦雾=乡愁（回不去的家渗出来的）', sites: [
-			{ p: '塔底·囚徒·龙', anchor: '忘了自己是一颗星', via: 'past 占星师（仪式失败之因）' },
-			{ p: '塔底·论坠星·下', anchor: '星忘其为星，久矣。', via: '手记（唤醒条件）' },
-			{ p: '塔底·囚室·信', anchor: '等它想起来的那一天', via: 'present 罗温致占星师的信（她守在梦里陪它想起）' },
+			{ p: '塔底·囚徒·龙', anchor: '它亲手撕碎了自己的星名页', via: 'past 占星师（撕名夜）' },
+			{ p: '塔底·论坠星·下', anchor: '它惊醒撕名', via: '手记（撕名夜重述）' },
+			{ p: '塔底·囚室·信', anchor: '一片一片捡回它名字的后半', via: 'present 罗温信（三百年备钥）' },
 		] },
 			{ id: 'homecoming_path', claim: '送归法：花安其眠、名唤其忆、图示其路——三者俱备可送其归位，不必伤其性命', sites: [
-			{ p: '塔底·囚徒·龙', anchor: '花安其眠，名唤其忆，图示其路', via: 'past 占星师（口诀）' },
-			{ p: '塔底·论坠星·下', anchor: '花安其眠，名唤其忆，图示其路', via: '手记（杀非归途）' },
+			{ p: '塔底·囚徒·龙', anchor: '把名字拼回来，把梦养浅，把路画完', via: 'past 占星师（三备钥）' },
+			{ p: '塔底·论坠星·下', anchor: '须集三钥', via: '手记（三钥清单）' },
 		] },
 			{ id: 'dragon_mist', claim: '雾生于龙的梦，锁其身者星轨（C2 三章真相层）', sites: [
 			{ p: '塔底·观测廊', anchor: '雾生于龙梦', via: 'past《论坠星》残卷' },
@@ -183,6 +183,12 @@ window.Game = (() => {
 			{ id: '问过出路', cause: { towerFlag: 'asked_way' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '问出路' }] },
 { id: '星已归位', cause: { towerFlag: 'homecoming' }, kind: 'text-variant', echo: [{ p: '结局 星落', anchor: '我送的东西，到家了' }] },
 			{ id: '启门韵已得', cause: { towerFlag: 'seal_chant' }, kind: 'text-variant', echo: [{ p: '塔底·龙穴前厅', anchor: '正读为锁，随律而读为启' }] },
+
+			{ id: '星名碎片在手', cause: { towerFlag: 'name_shard' }, kind: 'state-gate', echo: [
+			{ p: '塔底·星名碎片', anchor: '它名字的前半' },
+		] },
+
+			{ id: '星名已唤', cause: { towerFlag: 'star_named' }, kind: 'text-variant', echo: [{ p: '塔底·龙战·名', anchor: '那不是痛。那是' }] },
 
 			{ id: '星徽在手', cause: { token: '星徽' }, kind: 'state-gate', echo: [
 				{ p: '结局 归乡', anchor: '塔底的路，它认得' },

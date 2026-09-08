@@ -772,9 +772,19 @@ scenario('路线V：一章拾请柬+雾影施舍 → 门厅席位（past/present
 // ── 路线 T：送星归位（#75）——全认知 → HP≤6 送归窗口 → 星落·送归版 ──
 scenario('路线T：花+名+图认知齐备 → 送归窗口 → 结局 星落（送归版）', async () => {
 	const { w, clickLabel } = await newGame(0.01, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']); // 0.01：斩击必败（−1）→ HP 6−1=5 ≤6 送归窗口稳定开
+	// 星名碎片真实路径（#85：覆盖入账）：龙穴 → 抽出碎纸
+	{
+		const { w: w2, clickLabel: c2 } = await newGame(0.5, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']);
+		w2.SugarCube.State.variables.era = 'past'; // 碎片在 past 沉眠巢
+		await w2.SugarCube.Engine.play('塔底·龙穴');
+		await c2('从它身下抽出那半页碎纸');
+		if (!w2.SugarCube.State.variables.pc.tower.name_shard) throw new Error('碎片 flag 应置位');
+		if (!w2.document.querySelector('#passages').textContent.includes('它名字的前半')) throw new Error('碎片段文本应现');
+	}
 	await w.SugarCube.Engine.play('塔底·龙战·回合');
 	const t = w.SugarCube.State.variables.pc;
-	t.tower.dragon_hp = 6; t.tower.hint_weakness = true; t.tower.flower_used_dragon = true; t.tower.name_struck = true;
+	t.tower.dragon_hp = 6; t.tower.hint_weakness = true; t.tower.flower_used_dragon = true;
+	t.tower.name_shard = true; t.tower.star_named = true; // #85 三钥：路（图）+眠（花）+名（碎片+日记两半合一→star_named）
 	for (const k of ['铜哨', '日记', '月光花', '星图残页']) if (!t.tokens.includes(k)) t.tokens.push(k); // cross-realm Array 禁直赋值（坑册）
 	await w.SugarCube.Engine.play('塔底·龙战·回合');
 	await new Promise(r => setTimeout(r, 300));

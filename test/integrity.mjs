@@ -67,6 +67,10 @@ for (const p of passages.values()) {
 		push(p, target, 'link');
 		if (!passages.has(target)) E(p, `悬空链接 ${raw.slice(0, 50)} → 段落「${target}」不存在`);
 	}
+	// 1b) 未闭合 wiki 链接（#80 线上实锤：[[..|..] 单括号尾静默降级纯文本→玩家卡死）
+	for (const m of body.matchAll(/\[\[[^\]\n]*\](?!\])/g)) {
+		E(p, `未闭合 wiki 链接（会渲染成纯文本）: ${m[0].slice(0, 50)}`);
+	}
 	// 2) goto：引号=字面量（查存在）；裸词=错误；反引号/$var=动态（跳过）
 	for (const m of body.matchAll(/<<goto\s+([^>]*?)>>/g)) {
 		const arg = m[1].trim();

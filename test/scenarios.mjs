@@ -684,6 +684,49 @@ scenario('路线Q：对决线——past 巢室见龙不袭 → 大厅静候醒�
 	if (!txt().includes('堂堂对决')) throw new Error('结算卡应记对决路线');
 });
 
+// ── 路线 R：解放线→三章衔接（连续性修复：守印人离开=封印松动）──
+scenario('路线R：四信物吹哨解放 → 塔身龙吟 → 追向塔底 → 三入口 re-gate', async () => {
+	const { w, clickLabel } = await newGame(0.99, [
+		'博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运',
+	]);
+	const pc = () => pcOf(w);
+	const txt = () => w.document.querySelector('#passages').textContent;
+	await clickLabel('买一支火把（10 金币）');
+	await clickLabel('回到大厅');
+	await clickLabel('推门出发，走进暮色');
+	await clickLabel('打着火把，走进山脚的洞穴');
+	await clickLabel('收好护身符，穿过后洞的裂缝');
+	await clickLabel('听她说完');
+	await clickLabel('登上守林人之塔（第二章）');
+	await clickLabel('进入塔内');
+	await clickLabel('一层 · 门厅');
+	await clickLabel('返回楼梯间');
+	await clickLabel('二层 · 书房');
+	await clickLabel('返回楼梯间');
+	await clickLabel('翻转护身符：坠入『过去』（剩 3 次）');
+	await clickLabel('三层 · 温室');
+	await clickLabel('试着说明来意（它看起来并不好说话）');
+	await clickLabel('返回楼梯间');
+	await clickLabel('四层 · 天文台');
+	if (pc().tokens.length !== 4) throw new Error(`应集齐 4 信物，实际 ${pc().tokens.length}`);
+	await clickLabel('返回楼梯间');
+	await clickLabel('顶楼 · 守林人残影');
+	await clickLabel('吹响铜哨，唤她回家');
+	if (passageOf(w) !== '结局 解放') throw new Error(`应入解放结局，实际 ${passageOf(w)}`);
+	if (!pc().tower.freed) throw new Error('解放应置 tower.freed');
+	if (!txt().includes('谁看着它')) throw new Error('解放结局应现封印松动钩子');
+	if (!txt().includes('薄了')) throw new Error('雾文案应为薄了非散尽（龙梦连续性）');
+	// 三章入口：追向塔底
+	await clickLabel('追向塔底（第三章）');
+	if (passageOf(w) !== '塔底·塌井厅') throw new Error(`应落塌井厅，实际 ${passageOf(w)}`);
+	// re-gate：塔门暗河入口也开
+	await clickLabel('去封印大厅');
+	await clickLabel('触动共鸣锚：回到『现在』'); // F 线取信物后 era=past
+	await clickLabel('去暗河码头');
+	await clickLabel('沿河床回到塔门');
+	if (!txt().includes('沿塔基的暗河河道下去')) throw new Error('freed 后塔门暗河入口应开');
+});
+
 // ── 路线 H：旧存档形状模拟（第二章上线前的档）→ 迁移 → 入塔不崩 ──
 scenario('路线H：旧档缺字段 → Pc.migrate 兜底 → 入塔正常', async () => {
 	const { w, clickLabel } = await newGame(0.99, [

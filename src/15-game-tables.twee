@@ -151,6 +151,7 @@ window.Game = (() => {
 			{ id: '塔护住你', cause: { towerFlag: 'echo' }, kind: 'mechanic', echo: [{ p: '塔的回声', anchor: '不让你死在这里' }] },
 			{ id: '乌鸦记账', cause: { event: 'crow_guide' }, kind: 'service', echo: [{ p: '乌鸦指路', anchor: '一百年的账' }] },
 			{ id: '化身倒下→塔底三入口开', cause: { towerFlag: 'avatar_down' }, kind: 'mechanic', echo: [{ p: '化身·终击', anchor: '猛地震裂' }, { p: '塔门', anchor: '暗河河道下去' }, { p: '门厅', anchor: '密门' }] },
+			{ id: '解放→封印松动三章开', cause: { towerFlag: 'freed' }, kind: 'mechanic', echo: [{ p: '结局 解放', anchor: '谁看着它' }, { p: '塔门', anchor: '暗河河道下去' }, { p: '门厅', anchor: '密门' }] },
 			{ id: '星图对接→前厅星纹可读', cause: { flag: 'hint_weakness' }, kind: 'mechanic', echo: [{ p: '塔底·龙穴前厅', anchor: '排成了坠星的轨迹' }] },
 			{ id: '囚徒问询已尽', cause: { towerFlag: 'asked_seer' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '想知道的都告诉了你' }] },
 			{ id: '问过青梧', cause: { towerFlag: 'asked_wu' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '问青梧的事' }] },

@@ -471,7 +471,7 @@ scenario('路线N：星图线 → 化身战后下塔底 → 囚徒三臂+信+星
 	await clickLabel('触动共鸣锚：回到『现在』');
 	await clickLabel('去囚室');
 	await clickLabel('抽出那封信');
-	if (!txt().includes('等它睡沉了，我再回来') || !txt().includes('炖肉要一直在炉上温着')) throw new Error('信应同时供 keeper_seal 与 feast_meaning 通路');
+	if (!txt().includes('我守在它梦里') || !txt().includes('炖肉要一直在炉上温着')) throw new Error('信应同时供 keeper_seal 与 feast_meaning 通路');
 	await clickLabel('回到囚室');
 	// 星图对接 → hint_weakness → 前厅回声
 	await clickLabel('回封印大厅');

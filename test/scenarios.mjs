@@ -813,6 +813,27 @@ scenario('路线U：无星图/日记/手稿 → 屠龙不知情分支 → 结局
 	if (w.Game.Dragon.playerDamage(t2, 'present') !== Math.max(1, Math.ceil((w.Game.Dragon.hitBase + 1) / 2))) throw new Error('不知情伤害应减半');
 });
 
+// ── 路线 W：启门韵线（#83）——零信物零星纹，门前跟读（败→DC 递降→成）永不卡关 ──
+scenario('路线W：零信物零 hint → 前厅静听吟诵 → 跟读（可能多轮）→ 启门之语开门 → 龙穴', async () => {
+	const { w, clickLabel } = await newGame(0.5, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']);
+	const t = () => w.SugarCube.State.variables.pc;
+	const txt = () => w.document.querySelector('#passages').textContent;
+	await w.SugarCube.Engine.play('塔底·龙穴前厅');
+	if (!txt().includes('跟上守卫的吟诵')) throw new Error('零资源应现吟诵线提示');
+	// 跟读循环：最多 6 轮（DC 10→5 递降，0.5 命中率递增）
+	for (let i = 0; i < 6 && !t().tower.seal_chant; i++) {
+		await clickLabel('静下心，跟着吟诵的节律轻声跟读——试着跟上它的韵');
+	}
+	if (!t().tower.seal_chant) throw new Error(`跟读 6 轮应必然习得（DC 递降），fails=${t().tower.chant_fails}`);
+	if (!txt().includes('嵌进了吟诵的缝隙')) throw new Error('成功文本应现');
+	await clickLabel('随着节律念出启门之语——开门');
+	if (w.SugarCube.State.passage !== '塔底·龙穴') throw new Error(`启门韵应开门，实际 ${w.SugarCube.State.passage}`);
+	// 四信物线并存检查：集合齐时两条链接都在（捷径+韵）
+	t().tokens.push('铜哨', '日记', '月光花', '星图残页');
+	await w.SugarCube.Engine.play('塔底·龙穴前厅');
+	if (!txt().includes('逐一嵌入锁槽')) throw new Error('四信物捷径线应并存');
+});
+
 // ── 路线 S：设定集解锁（伞 #64 子票 2）——死亡线端到端 + 类别递进归一 ──
 scenario('路线S：一章死亡结局 → codexmark 记档 → 设定集 2 开 7 锁；星落类别归一全开', async () => {
 	const { w, clickLabel } = await newGame(0.01, [

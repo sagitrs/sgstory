@@ -196,6 +196,21 @@
 
 :: 塔底·龙穴前厅
 /% payload: 张力|信息 %/
+<<if not $pc.tower.seal_chant and $pc.tower.chant_try>>
+	<<set $pc.tower.chant_try to false>>
+	<<set $pc.tower.chant_fails to ($pc.tower.chant_fails ?? 0) + 1>>
+	<<set _chant_dc to 10 - ($pc.tower.chant_fails ?? 0)>>
+	/% 每败一轮 DC−1（最低 5）——听得越多越跟得上：零卡关 %/
+	<<set _chant_dc to Math.max(_chant_dc, 5)>>
+	<<set _adv to ($pc.tower.chant_fails ?? 0) gt 0>>
+	<<check "察觉" _chant_dc _adv>>/% #83 动态 DC：前厅·跟读 %/
+	<<if $last_check.success>>
+		<<set $pc.tower.seal_chant to true>>
+		第七遍，还是第八遍——你的声音''嵌进了吟诵的缝隙''。守卫的调子微微一顿，''绕着你的声音转了半圈''，又继续下去。你懂了：这不只是锁律——''这是门的呼吸。跟上它，就是开它。''
+	<<else>>
+		你跟丢在第三句。守卫的吟诵没有停——它们念给门听，''不念给你''。（但你听得更清了：下一次，会跟得更远。）
+	<</if>>
+<</if>>
 /% C1 骨架（C3 lair 入口：封印门四锁槽=信物钥匙）；C2 past 星纹=弱点第二通路 %/
 鼾声在这里近得像是从你胸腔里发出来的。
 
@@ -214,15 +229,28 @@
 
 /% C3 开门双线（#51）：四信物正门 / 弱点情报星纹共振（零信物替代线） %/
 <<set _relics to ["铜哨","日记","月光花","星图残页"].filter(r => not $pc.tokens.includes(r))>>
+/% #83 开门三线：四信物（捷径）/ 启门韵（地城内习得——零卡关）/ 星纹共振（知识线）
+   设计律：三章能否通关只依赖三章内资源；二章道具=难度/剧情/结局增益 %/
 <<if _relics.length is 0>>/% #81-2：四信物=集合检查（星徽/星屑不占槽） %/
 	[[把哨、册、花、图逐一嵌入锁槽——开门|塔底·龙穴]]
 <</if>>
-<<if $hint_weakness and _relics.length gt 0>>
+<<if not $pc.tower.seal_chant>>
+	<<if not $pc.tower.chant_fails>>/% 初听 %/
+		守卫的吟诵贴着门面流淌：//"''锁其身者星轨，梦渗成雾者长眠。''"//——你忽然听出，这句念了三百年的律文，''节律是活的''：像潮汐，像呼吸，像一扇门在等它的节拍。
+	<</if>>
+	<<link "静下心，跟着吟诵的节律轻声跟读——试着跟上它的韵">><<set $pc.tower.chant_try to true>><<goto `passage()`>><</link>>
+	/% 可无限重试：每败一次，下一轮听得更清（优势递进）——永不卡关 %/
+<</if>>
+<<if $pc.tower.seal_chant>>
+	（律文的韵已在你胸口安顿下来——''锁与启，本是同一句词，正读为锁，随律而读为启''。）
+	[[随着节律念出启门之语——开门|塔底·龙穴]]
+<</if>>
+<<if $hint_weakness and _relics.length gt 0 and not $pc.tower.seal_chant>>
 	星纹的走向你已读得懂——''残页贴上星纹，锁槽会自己找到共振''。
 	[[以星图残页的共振强行开门|塔底·龙穴]]
 <</if>>
-<<if _relics.length gt 0 and not $hint_weakness>>
-	（差的东西，塔里都有：''哨在门厅的碎石间，册在书房的暗格，花在过去的三层，图在四层的穹顶''。或者——''读懂星纹的人，不需要钥匙''。）
+<<if _relics.length gt 0 and not $hint_weakness and not $pc.tower.seal_chant>>
+	（这扇门有三条路：''跟上守卫的吟诵''——就在门前；''读懂星纹''——残页可循；或集齐''她的四件信物''——最堂皇的捷径。）
 <</if>>
 
 [[退回封印大厅|塔底·封印大厅]]

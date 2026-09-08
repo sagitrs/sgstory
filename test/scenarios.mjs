@@ -636,7 +636,7 @@ scenario('路线P：星图对接（零信物）→ 共振开门 → 空巢对决
 	await clickLabel('回到大厅，再战');
 	if (pc().tower.dragon_r !== 1 || pc().tower.dragon_hp !== w.Game.Dragon.hp) throw new Error('回声应重置战斗不重置资产');
 	// js 侧把龙打到残血验证龙威递增伤害（defeats=1 → dragonDamage +1）
-	pc().tower.dragon_hp = 1;
+	pc().tower.dragon_hp = 1; pc().tower.whistle_blown = true; // #87 K2：NPC 参战硬条件（直设）
 	await clickLabel('迎击——趁它换息的间隙逼近');
 	await clickLabel('最后一击落下——');
 	if (passageOf(w) !== '塔底·屠龙') throw new Error(`残血 1HP 一击应屠龙，实际 ${passageOf(w)}`);
@@ -678,7 +678,7 @@ scenario('路线Q：对决线——past 巢室见龙不袭 → 大厅静候醒�
 	await clickLabel('迎战');
 	if (pc().tower.dragon_r !== 1 || pc().tower.dragon_hp !== w.Game.Dragon.hp) throw new Error('对决线应以满血 R1 开战（无偷袭先手）');
 	// 快速终局：压龙血一击
-	pc().tower.dragon_hp = 1;
+	pc().tower.dragon_hp = 1; pc().tower.whistle_blown = true; // #87 K2：NPC 参战硬条件（直设）
 	await clickLabel('迎击——趁它换息的间隙逼近');
 	await clickLabel('最后一击落下——');
 	if (passageOf(w) !== '塔底·屠龙') throw new Error(`对决线应可屠龙，实际 ${passageOf(w)}`);
@@ -779,12 +779,24 @@ scenario('路线T：花+名+图认知齐备 → 送归窗口 → 结局 星落�
 		await w2.SugarCube.Engine.play('塔底·龙穴');
 		await c2('从它身下抽出那半页碎纸');
 		if (!w2.SugarCube.State.variables.pc.tower.name_shard) throw new Error('碎片 flag 应置位');
-		if (!w2.document.querySelector('#passages').textContent.includes('它名字的前半')) throw new Error('碎片段文本应现');
+		// #87 K2 三步真实路径（覆盖入账）：定约 → 祝祷·哨（门厅 past）→ 祝祷·图（囚室 past）
+		await c2('回到巢穴');
+		await c2('俯身对它低语：三百年后，有人来接你回家');
+		if (!w2.SugarCube.State.variables.pc.tower.promise_made) throw new Error('定约 flag 应置位');
+		const t2 = w2.SugarCube.State.variables.pc;
+		t2.scroll_lower = true; t2.tokens.push('铜哨', '星图残页'); t2.tower.hall_past = true;
+		await w2.SugarCube.Engine.play('门厅');
+		await c2('告诉老妇人三百年后的事，请她为铜哨祝祷');
+		if (!w2.SugarCube.State.variables.pc.tower.crow_blessed) throw new Error('哨校准 flag 应置位'); // 跳段克隆——断言实时读
+		await w2.SugarCube.Engine.play('塔底·囚室');
+		await c2('把星图残页递给占星师——告诉他三百年后的星象');
+		if (!w2.SugarCube.State.variables.pc.tower.map_blessed) throw new Error('图校准 flag 应置位');
 	}
 	await w.SugarCube.Engine.play('塔底·龙战·回合');
 	const t = w.SugarCube.State.variables.pc;
 	t.tower.dragon_hp = 6; t.tower.hint_weakness = true; t.tower.flower_used_dragon = true;
-	t.tower.name_shard = true; t.tower.star_named = true; // #85 三钥：路（图）+眠（花）+名（碎片+日记两半合一→star_named）
+	t.tower.name_shard = true; t.tower.star_named = true;
+	t.tower.whistle_blown = true; t.tower.map_blessed = true; t.tower.promise_made = true; // #87 K2 三步：唤忆+NPC 参战+坐标校准+定约
 	for (const k of ['铜哨', '日记', '月光花', '星图残页']) if (!t.tokens.includes(k)) t.tokens.push(k); // cross-realm Array 禁直赋值（坑册）
 	await w.SugarCube.Engine.play('塔底·龙战·回合');
 	await new Promise(r => setTimeout(r, 300));
@@ -804,7 +816,7 @@ scenario('路线T：花+名+图认知齐备 → 送归窗口 → 结局 星落�
 scenario('路线U：无星图/日记/手稿 → 屠龙不知情分支 → 结局 坠星之死（留白）', async () => {
 	const { w, clickLabel } = await newGame(0.01, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']); // 0.01：斩击必败（−1）→ HP 6−1=5 ≤6 送归窗口稳定开
 	const t = w.SugarCube.State.variables.pc;
-	t.tower.dragon_hp = 0; // 直设终局态（战斗逻辑已被 O/P 线覆盖）
+	t.tower.dragon_hp = 0; t.tower.whistle_blown = true; // #87 K2：不知情强杀也借了宾客之力（直设哨）（战斗逻辑已被 O/P 线覆盖）
 	await w.SugarCube.Engine.play('塔底·龙战·回合');
 	await new Promise(r => setTimeout(r, 300));
 	await clickLabel('最后一击落下——');

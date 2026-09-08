@@ -181,6 +181,7 @@ window.Game = (() => {
 			{ id: '问过龙', cause: { towerFlag: 'asked_dragon' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '问龙的事' }] },
 			{ id: '见过沉睡之龙', cause: { towerFlag: 'saw_dragon' }, kind: 'state-gate', echo: [{ p: '塔底·封印大厅', anchor: '等它醒转' }] },
 			{ id: '问过出路', cause: { towerFlag: 'asked_way' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '问出路' }] },
+{ id: '星已归位', cause: { towerFlag: 'homecoming' }, kind: 'text-variant', echo: [{ p: '结局 星落', anchor: '我送的东西，到家了' }] },
 			{ id: '信已取出', cause: { towerFlag: 'read_letter' }, kind: 'state-gate', echo: [{ p: '塔底·囚室', anchor: '信已在你怀里' }] },
 			{ id: '水闸→河床见底', cause: { towerFlag: 'sluice' }, kind: 'past→present', echo: [{ p: '塔底·暗河码头', anchor: '河床尽头的机房水门敞开' }] },
 			{ id: '治疗→平凡之路', cause: { flag: 'witch_healed' }, kind: 'text-variant', echo: [{ p: '结局 空手而归', anchor: '身上旧伤全消' }] },
@@ -199,6 +200,7 @@ window.Game = (() => {
 		],
 		// exempt：机制本体非叙事回声（era=时代机制、intent=结局路由、hall_past 同时在 cause）
 		exempt: {
+			'tower:hint_weakness': '战斗数值位（弱加成/减半/送归窗口三用）——玩家侧反馈=伤害数字与窗口出现，非叙事文本',
 			era: '时代机制本体', 'tower:intent': '结局路由机制（顶楼 intent→三结局）',
 			// C3 龙战机制态（#51）：战斗循环/一次性副动作/先手——机制本体非叙事回声，
 			// 玩家侧可感知性由 Systems 门（发现性）与 HUD/文本反馈承担
@@ -255,6 +257,8 @@ window.Game = (() => {
 		// D3 系统可玩性（#37）：机制发现性门——每条核心规则的"玩家侧说明"锢点机检。
 		// 判据（Spire 三标准之二：整座塔是可实验物）：规则不可知则不可实验。
 		mechanics: [
+			{ id: 'homecoming', rule: '送星归位：花安眠+名唤忆+图示路 → 龙力竭（HP≤6）出现"送它回家"；不知弱点者伤害减半（理解=温柔=更易）', p: '塔底·龙战·回合', anchor: '送它回家' },
+			{ id: 'knowing-split', rule: '知情分流：持星图/日记/手稿任一 → 星落（送归或知情杀变体）；全缺 → 坠星之死（不知情强杀·留白）', p: '结局 坠星之死', anchor: '你不知道自己杀了什么' },
 			{ id: 'anchor', rule: '三章共鸣锚：锚内免费切换时代（不耗充能）', p: '塔底·塌井厅', anchor: '嗡鸣共鸣' },
 			{ id: 'terrain', rule: '龙战地形=时代：过去石柱掩体受击−1 / 现在废墟攀爬输出+1', p: '塔底·封印大厅', anchor: '石柱是你的掩体' },
 			{ id: 'dread', rule: '龙威：第3轮起伤害+1，每败+1，铜哨可清零', p: '塔底·龙战·败', anchor: '龙威会因你的败绩而更重' },
@@ -312,7 +316,9 @@ window.Game = (() => {
 		playerDamage(pc, era) {
 			const w = (pc.tower.scroll_lower ? 1 : 0) + (pc.tower.name_struck ? 2 : 0) + (pc.tower.hint_weakness ? 1 : 0);
 			const hint = pc.tower.hint_weakness && !pc.tokens.includes('星图残页') ? 1 : 0; // 星纹共振线的补偿位
-			return this.hitBase + w + hint + (this.terrain[era]?.dealt ?? 0);
+			let d = this.hitBase + w + hint + (this.terrain[era]?.dealt ?? 0);
+			if (!pc.tower.hint_weakness) d = Math.max(1, Math.ceil(d / 2)); // #75 不知情线：不知逆鳞所在，硬砍鳞甲伤害减半（难度倒挂：理解=温柔=更易）
+			return d;
 		},
 		dragonDamage(pc, r, era) {
 			const slot = ((r - 1) % 4) + 1;
@@ -335,6 +341,7 @@ window.Game = (() => {
 			'结局 银月之赐': 'any', '结局 平凡之路': 'any', '结局 空手而归': 'any', '结局 死亡': 'any',
 			'结局 半途': 'tower', '结局 新任守林人': 'tower', '结局 焚塔者': 'tower', '结局 归乡': 'tower',
 			'结局 星落': 'starfall',
+			'结局 坠星之死': 'starfall', // #75 后坐力设计：不知情强杀也解锁全设定集——读到真相的那一刻才明白自己杀了什么
 		},
 		sections: [
 			{ id: 'falling-star', title: '一 · 坠星之世', requires: 'any', hint: '见证任何一个结局后解锁' },

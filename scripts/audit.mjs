@@ -197,7 +197,20 @@ if (wantAll || arg('text')) {
 	console.log(`  主题词密度：${words.map((w) => `${w}×${narrative.split(w).length - 1}`).join(' ')}（总字 ${narrative.length}）`);
 	// 套路句式门：白名单外命中即红（改写后划掉）
 	const CLICHE = ['如潮水', '毛骨悚然', '倒吸一口', '心中一紧', '你感到一阵', '不由得'];
-	const hits = CLICHE.filter((c) => narrative.includes(c));
+	// ── D5.6 风格门（#72 西式统一）：违和词黑名单——命名回潮/佛教词/中式餐具与体例
+	for (const f of ['src/20-story.twee', 'src/50-tower.twee', 'src/55-dungeon.twee', 'src/60-codex.twee']) {
+		const raw = readFileSync(f, 'utf8');
+		for (const w of ['青梧', '星官', '星落林', '坠星志', '月光倾城', '平凡之光', '执念', '动筷', '汤盅', '温了又温', '一坛', '爬回了天上', '森林的根里']) {
+			const i2 = raw.indexOf(w);
+			if (i2 >= 0) {
+				const line = raw.slice(0, i2).split('\n').length;
+				console.log(`  ✗ 风格违和词「${w}」@ ${f.split('/').pop()}:${line}（#72 黑名单——替换表 docs/westward-unification.md）`);
+				bad++;
+			}
+		}
+	}
+	console.log('  风格门：黑名单 13 词扫描完成');
+		const hits = CLICHE.filter((c) => narrative.includes(c));
 	if (hits.length) { console.log(`  ✗ 套路句式命中：${hits.join('、')}`); bad += hits.length; }
 	else console.log('  套路句式门：零命中');
 	if (process.argv.includes('--check')) {

@@ -569,8 +569,9 @@ scenario('路线O：四信物 → 化身战 → 塔底经济（识货+10/锻造�
 	await clickLabel('翻开日记，念出她的名字');
 	if (!pc().tower.name_struck) throw new Error('念名应置 name_struck');
 	await clickLabel('回到战斗');
-	await clickLabel('吞下月光花——银辉解毒');
-	if (!pc().tower.flower_used_dragon) throw new Error('月光花应置 flower_used_dragon');
+	await clickLabel('取出月光花——用它，还是留给它？');
+	await clickLabel('按进掌心，吞下花——银辉解毒（+2 伤势。但它再也无法入梦）');
+	if (!pc().tower.flower_eaten) throw new Error('吞花应置 flower_eaten（#91 陷阱路径）');
 	await clickLabel('回到战斗');
 	await clickLabel('触动共鸣锚：回到『现在』'); // 地形：废墟输出+1（战斗中锚切=战术动作）
 	// 16 HP；输出 3+2name+1present=6/轮（0.99 全命中；未拾下半卷无 scroll 加成；四锁线不进对接段无 tower.hint）→ 4 轮
@@ -762,7 +763,7 @@ scenario('路线V：一章拾请柬+雾影施舍 → 门厅席位（past/present
 	// ── 书房 present：第一页 ──
 	w.SugarCube.State.variables.pc.tokens = w.SugarCube.State.variables.pc.tokens.filter(t => t !== '日记');
 	await w.SugarCube.Engine.play('书房');
-	if (!txt().includes('她出发的地方')) throw new Error('第一页双重事实应现');
+	if (!txt().includes('不做封印的人，做等希望的人')) throw new Error('第一页/祖先信双重事实应现');
 	// ── 封印大厅：雾影回响 ──
 	w.SugarCube.State.variables.pc.shadow_alms = true;
 	await w.SugarCube.Engine.play('塔底·封印大厅');
@@ -779,12 +780,13 @@ scenario('路线T：花+名+图认知齐备 → 送归窗口 → 结局 星落�
 		await w2.SugarCube.Engine.play('塔底·龙穴');
 		await c2('从它身下抽出那半页碎纸');
 		if (!w2.SugarCube.State.variables.pc.tower.name_shard) throw new Error('碎片 flag 应置位');
-		// #87 K2 三步真实路径（覆盖入账）：定约 → 祝祷·哨（门厅 past）→ 祝祷·图（囚室 past）
+		// #87 K2+#91 K4 三步真实路径（覆盖入账）：花入梦定约 → 祝祷·哨（门厅 past）→ 祝祷·图（囚室 past）
+		const now2 = () => w2.SugarCube.State.variables.pc; // 跳段克隆——实时引用
+		now2().tokens.push('月光花'); // 渲染前入包（链接条件在导航时求值）
 		await c2('回到巢穴');
-		await c2('俯身对它低语：三百年后，有人来接你回家');
-		if (!w2.SugarCube.State.variables.pc.tower.promise_made) throw new Error('定约 flag 应置位');
-		const t2 = w2.SugarCube.State.variables.pc;
-		t2.scroll_lower = true; t2.tokens.push('铜哨', '星图残页'); t2.tower.hall_past = true;
+		await c2('把花举到它的鼻息前，以银辉入梦，在梦里许下约定');
+		if (!now2().tower.promise_made) throw new Error('定约 flag 应置位');
+		now2().scroll_lower = true; now2().tokens.push('铜哨', '星图残页'); now2().tower.hall_past = true;
 		await w2.SugarCube.Engine.play('门厅');
 		await c2('告诉老妇人三百年后的事，请她为铜哨祝祷');
 		if (!w2.SugarCube.State.variables.pc.tower.crow_blessed) throw new Error('哨校准 flag 应置位'); // 跳段克隆——断言实时读
@@ -861,11 +863,12 @@ scenario('路线X：持真相信息 → 龙穴说实话选项 → 自愿的长�
 	const { w, clickLabel } = await newGame(0.5, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']);
 	const pc = () => w.SugarCube.State.variables.pc;
 	w.SugarCube.State.variables.era = 'past';
-	pc().tower.scroll_lower = true; // 真相信息（不硬卡二章道具）
+	pc().tower.scroll_lower = true; // 真相信息（三章内自洽）
+	pc().tokens.push('月光花'); // #91 K4：说实话需以花入梦（道具中介）
 	await w.SugarCube.Engine.play('塔底·龙穴');
 	await clickLabel('从它身下抽出那半页碎纸');
 	await clickLabel('回到巢穴');
-	await clickLabel('告诉它真相：漫长的岁月会磨掉它的记忆——趁还记得，自己选一个结局');
+	await clickLabel('以花入梦，告诉它真相：岁月会磨掉记忆——趁还记得，自己选一个结局');
 	if (w.SugarCube.State.passage !== '塔底·自愿的长眠') throw new Error(`应入自愿长眠段，实际 ${w.SugarCube.State.passage}`);
 	const txt = w.document.querySelector('#passages').textContent;
 	if (!txt.includes('趁还记得，自己说再见')) throw new Error('它自己的选择文本应现');
@@ -874,6 +877,43 @@ scenario('路线X：持真相信息 → 龙穴说实话选项 → 自愿的长�
 	if (!w.document.querySelector('#passages').textContent.includes('它记得自己是谁')) throw new Error('结局卡应现');
 	const cats = w.SugarCube.State.metadata.get('codex-cats');
 	if (!cats || !cats.includes('tower')) throw new Error(`自愿长眠应记 tower 类，实际 ${JSON.stringify(cats)}`);
+});
+
+// ── 路线 Y：花的抉择（#91 K4）——献龙安眠+坐标缺 → 再度沉睡结局（先人之愿）──
+scenario('路线Y：战斗献龙安眠 → 无坐标 → 结局 再度沉睡', async () => {
+	const { w, clickLabel } = await newGame(0.5, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']);
+	const pc = () => w.SugarCube.State.variables.pc;
+	w.SugarCube.State.variables.era = 'present';
+	pc().tokens.push('月光花');
+	pc().tower.dragon_r = 1; pc().tower.dragon_hp = w.Game.Dragon.hp; // 战斗态直入（初始化哨兵已由路线 O/P/Q 真实路径覆盖；Game=jsdom realm 全局）
+	await w.SugarCube.Engine.play('塔底·封印大厅');
+	await clickLabel('取出月光花——用它，还是留给它？'); // 花之排择 hub
+	if (w.SugarCube.State.passage !== '塔底·龙战·花') throw new Error(`应入花之排择段，实际 ${w.SugarCube.State.passage}`);
+	await clickLabel('举到它的鼻息前——让银辉漫进它的梦（安眠：龙威迟一轮）');
+	if (w.SugarCube.State.passage !== '塔底·龙战·花·献龙') throw new Error(`应入献龙段，实际 ${w.SugarCube.State.passage}`);
+	if (!pc().tower.flower_used_dragon) throw new Error('献龙应置 flower_used_dragon');
+	await clickLabel('回到战斗');
+	// 一次性：献龙后战斗中花链接消隐（花已缠于龙梦）
+	if ([...w.document.querySelectorAll('#passages a.link-internal')].some(a => a.textContent.includes('取出月光花'))) {
+		throw new Error('献龙后花链接应消隐');
+	}
+	pc().tower.dragon_hp = 6; // 力竭窗口；map_blessed 未置=坐标未校准
+	await w.SugarCube.Engine.play('塔底·龙战·回合');
+	await new Promise(r => setTimeout(r, 300));
+	const html = w.document.querySelector('#passages').innerHTML;
+	if (html.includes('送它回家')) throw new Error('三步不齐（无名/无哨/无图）不应出现送归选项');
+	if (!html.includes('等下一个带着坐标来的人')) throw new Error('无坐标+花安眠应出现再度沉睡选项');
+	await clickLabel('让它带着花的梦再度沉睡——\'\'等下一个带着坐标来的人\'\'');
+	if (w.SugarCube.State.passage !== '塔底·再度沉睡') throw new Error(`应入再度沉睡段，实际 ${w.SugarCube.State.passage}`);
+	if (!pc().tower.sleep_again) throw new Error('再度沉睡应置 sleep_again');
+	await clickLabel('走出塔底');
+	await new Promise(r => setTimeout(r, 300));
+	if (w.SugarCube.State.passage !== '结局 再度沉睡') throw new Error(`应入结局，实际 ${w.SugarCube.State.passage}`);
+	const txt = w.document.querySelector('#passages').textContent;
+	if (!txt.includes('安眠的静')) throw new Error('结局开场句应现');
+	if (!txt.includes('等下一个带着坐标来的人')) throw new Error('成就句应现');
+	const cats = w.SugarCube.State.metadata.get('codex-cats');
+	if (!cats || !cats.includes('tower')) throw new Error(`再度沉眠应记 tower 类，实际 ${JSON.stringify(cats)}`);
 });
 
 // ── 路线 S：设定集解锁（伞 #64 子票 2）——死亡线端到端 + 类别递进归一 ──

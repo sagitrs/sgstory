@@ -27,13 +27,17 @@ const arg = (k) => process.argv.includes(`--${k}`);
 const wantAll = !process.argv.some((a) => a.startsWith('--'));
 
 // ── ⓪ D1 真相可达性（#35）：命题 × 通路，锚点机检 ──
-const passageSrc = new Map(); // name -> 去注释源文
+const passageSrc = new Map(); // name -> 去注释源文（锚点检查用）
+const passageRaw = new Map(); // name -> 原文（payload 注释检查用）
+const passageTags = new Map(); // name -> tags[]
 for (const f of ['src/00-meta.twee', 'src/10-init.twee', 'src/20-story.twee', 'src/30-rules.twee', 'src/31-chargen-data.twee', 'src/40-chargen.twee', 'src/50-tower.twee']) {
 	const text = readFileSync(f, 'utf8');
 	const parts = text.split(/^::\s*/m);
 	for (const part of parts.slice(1)) {
 		const nl = part.indexOf('\n');
 		const name = part.slice(0, nl).replace(/\[[^\]]*\]\s*$/, '').trim();
+		passageTags.set(name, (part.slice(0, nl).match(/\[([^\]]*)\]/)?.[1] ?? '').trim().split(/\s+/).filter(Boolean));
+		passageRaw.set(name, part.slice(nl + 1));
 		passageSrc.set(name, part.slice(nl + 1).replace(/\/%[\s\S]*?%\//g, ''));
 	}
 }
@@ -162,6 +166,36 @@ if (wantAll || arg('systems')) {
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ D3 系统门：${bad} 项规则不可发现`); process.exit(1); }
 		console.log('\n✔ D3 系统门通过（核心机制全部有玩家侧说明）');
+	}
+}
+
+// ── ⓪e D5 语言经济（#39）：载荷标注门 + 词频报告 + 套路句式门 ──
+if (wantAll || arg('text')) {
+	console.log('\n══ ⓪e 语言经济（D5/#39）——每段有载荷，无陈词滥调 ══');
+	let bad = 0;
+	// 载荷门：内容段落须有 payload 标注（信息/张力/选择 ≥1）
+	const payloads = new Map();
+	for (const [name, src] of passageRaw) {
+		if (name === 'StoryInit' || name.startsWith('Story')) continue;
+		if (passageTags.get(name)?.some((t) => ['script', 'widget', 'stylesheet'].includes(t))) continue;
+		const m = src.match(/payload:\s*(信息|张力|选择)(?:[|｜](?:信息|张力|选择))*/);
+		if (!m) { console.log(`  ✗ 段落「${name}」缺 payload 标注`); bad++; }
+		else payloads.set(name, m[0].split(':')[1]);
+	}
+	console.log(`  载荷标注：${payloads.size}（信息 ${[...payloads.values()].filter((v) => v.includes('信息')).length} · 张力 ${[...payloads.values()].filter((v) => v.includes('张力')).length} · 选择 ${[...payloads.values()].filter((v) => v.includes('选择')).length}）`);
+	// 词频报告（主题词健康度）
+	let narrative = '';
+	for (const src of passageSrc.values()) narrative += src.replace(/\/%[\s\S]*?%\//g, '').replace(/<<[^>]*>>/g, '').replace(/\[\[[^\]]*\]\]/g, '').replace(/[\s''/]/g, '');
+	const words = ['雾','星','塔','月光','森林','守林人','信物','三百'];
+	console.log(`  主题词密度：${words.map((w) => `${w}×${narrative.split(w).length - 1}`).join(' ')}（总字 ${narrative.length}）`);
+	// 套路句式门：白名单外命中即红（改写后划掉）
+	const CLICHE = ['如潮水', '毛骨悚然', '倒吸一口', '心中一紧', '你感到一阵', '不由得'];
+	const hits = CLICHE.filter((c) => narrative.includes(c));
+	if (hits.length) { console.log(`  ✗ 套路句式命中：${hits.join('、')}`); bad += hits.length; }
+	else console.log('  套路句式门：零命中');
+	if (process.argv.includes('--check')) {
+		if (bad) { console.error(`\n✗ D5 文本门：${bad} 项`); process.exit(1); }
+		console.log('\n✔ D5 文本门通过');
 	}
 }
 

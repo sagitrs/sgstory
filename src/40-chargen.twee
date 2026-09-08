@@ -1,6 +1,7 @@
 /% ═══════════════ 车卡流程：8 轮三选一 ═══════════════ %/
 
 :: 车卡
+/% payload: 选择 %/
 <<if $pc.mode is "">>
 /% ── 模式选择：快速预设 / 专家 8 轮 ── %/
 <div class="chargen-card">
@@ -57,6 +58,7 @@
 <</if>>
 
 :: 角色卡
+/% payload: 信息|选择 %/
 <div class="charsheet">
 	<h2>✦ $pc.name 的冒险卡 ✦</h2>
 	<p class="charsheet-line">$pc.speciesLabel · $pc.classLabel · $pc.bgLabel 出身</p>

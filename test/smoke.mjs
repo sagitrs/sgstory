@@ -1,30 +1,10 @@
 // 无头冒烟测试（jsdom）：启动 → 车卡 8 轮 → 酒馆 → 森林（检定 UI）
-import { readFileSync } from 'node:fs';
-import { JSDOM, VirtualConsole } from 'jsdom';
+import { boot } from './boot.mjs';
 
-const vc = new VirtualConsole();
 const pageErrors = [];
-vc.on('error', (...a) => pageErrors.push(String(a[0]).slice(0, 200)));
-vc.on('jsdomError', () => {});
-
-const html = readFileSync('dist/index.html', 'utf8');
-const dom = new JSDOM(html, {
-	runScripts: 'dangerously',
-	pretendToBeVisual: true,
-	url: 'http://localhost/',
-	virtualConsole: vc,
-	beforeParse(window) {
-		window.Math.random = () => 0.5; // d20 恒 11：无自然 20/1 干扰
-	},
-});
-const w = dom.window;
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-
-await sleep(1200);
-// jsdom 补齐启动链：StoryInit + 引擎启动（真实浏览器自动完成）
-new w.SugarCube.Wikifier(null, w.document.querySelector('tw-passagedata[name="StoryInit"]').textContent);
-w.SugarCube.Engine.start();
-await sleep(600);
+// 白盒 A9：共享 boot（d20 恒 11：无自然 20/1 干扰）
+const { w, sleep } = await boot({ random: 0.5 });
+w.addEventListener('error', (...a) => pageErrors.push(String(a[0]).slice(0, 200)));
 
 const assert = (cond, msg) => {
 	console.log(`${cond ? '✓' : '✗'} ${msg}`);

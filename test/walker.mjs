@@ -41,11 +41,15 @@ async function boot(stubMode, seed) {
 			};
 		},
 	});
-	await sleep(900);
+	// 白盒 A9：pollUntil 就绪轮询替代固定 sleep（#27 修复辐射；闭包式 random 保留私有工厂）
+	const t0 = Date.now();
+	while (!(typeof dom.window.SugarCube?.Wikifier === 'function' && dom.window.document.querySelector('#passages'))) {
+		if (Date.now() - t0 > 30000) throw new Error('等待超时：SugarCube 加载');
+		await sleep(50);
+	}
 	const w = dom.window;
 	new w.SugarCube.Wikifier(null, w.document.querySelector('tw-passagedata[name="StoryInit"]').textContent);
 	w.SugarCube.Engine.start();
-	await sleep(300);
 	return { dom, w, rng, uncaught };
 }
 

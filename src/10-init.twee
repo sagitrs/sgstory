@@ -114,6 +114,19 @@
 	<</if>>
 <</widget>>
 
+/% C1 三章词汇（#49）：共鸣锚切换——锚内免费无限（位置门控），锚外不可切。
+   与 erashift（二章充能门控）并存：塔内枢纽用充能，塔底用锚 %/
+<<widget "anchorshift">>
+	<<if Game.Shifts.anchors.includes(passage())>>
+		<<link `($era is "present" ? "触动共鸣锚：坠入『过去』" : "触动共鸣锚：回到『现在』")`>>
+			<<set $era to ($era is "present" ? "past" : "present")>>
+			<<goto `passage()`>>
+		<</link>>
+	<<else>>
+		<span class="era-drained">此处的雾气不稳，护身符找不到共鸣的锚点。</span>
+	<</if>>
+<</widget>>
+
 /% 鲁莽挑战：体质豁免 DC15 查位点表（#28）；矮人/勇气减伤 %/
 <<widget "defyeroll">>
 	<<sitecheck "雾影·抵抗">>

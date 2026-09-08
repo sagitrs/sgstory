@@ -30,7 +30,7 @@ const wantAll = !process.argv.some((a) => a.startsWith('--'));
 const passageSrc = new Map(); // name -> 去注释源文（锚点检查用）
 const passageRaw = new Map(); // name -> 原文（payload 注释检查用）
 const passageTags = new Map(); // name -> tags[]
-for (const f of ['src/00-meta.twee', 'src/10-init.twee', 'src/20-story.twee', 'src/30-rules.twee', 'src/31-chargen-data.twee', 'src/40-chargen.twee', 'src/50-tower.twee']) {
+for (const f of ['src/00-meta.twee', 'src/10-init.twee', 'src/20-story.twee', 'src/30-rules.twee', 'src/31-chargen-data.twee', 'src/40-chargen.twee', 'src/50-tower.twee', 'src/55-dungeon.twee']) {
 	const text = readFileSync(f, 'utf8');
 	const parts = text.split(/^::\s*/m);
 	for (const part of parts.slice(1)) {
@@ -161,6 +161,13 @@ if (wantAll || arg('systems')) {
 		if (!src.includes(m.anchor)) { console.log(`  ✗ ${m.id}：${m.p} 锚句丢失「${m.anchor}」——规则对玩家不可见`); bad++; continue; }
 		console.log(`  ✓ ${m.id}：${m.rule}`);
 	}
+	// C1 共鸣锚（#49）：锚段落存在且挂了 <<anchorshift>>
+	for (const a of Game.Shifts.anchors) {
+		const src = passageSrc.get(a);
+		if (src === undefined) { console.log(`  ✗ 共鸣锚段落「${a}」不存在`); bad++; continue; }
+		if (!passageRaw.get(a).includes('<<anchorshift>>')) { console.log(`  ✗ 共鸣锚「${a}」未挂 <<anchorshift>>`); bad++; continue; }
+	}
+	console.log(`  共鸣锚：${Game.Shifts.anchors.length} 处全锚定（${Game.Shifts.unlimited ? '免费无限·位置门控' : ''}）`);
 	console.log('  ── 机制×机制组合（实现证据出具）──');
 	for (const c of Game.Systems.combos) console.log(`  · ${c.a} × ${c.b} ← ${c.evidence}`);
 	if (process.argv.includes('--check')) {

@@ -357,6 +357,73 @@ scenario('路线K：全消费（传闻+情报×2+药膏+贿赂+乌鸦） → 终
 	if (pc().tokens.length !== 1) throw new Error(`只取月光花应 1 信物，实际 ${pc().tokens.length}`);
 });
 
+// ── 路线 M：三章结构验收（C1 #49）——锚切换免费、水闸跨时代机关、环路闭合 ──
+scenario('路线M：战胜化身 → 塌井入塔底 → 锚切+水闸机关 → 前厅封印门 → 环路回顶', async () => {
+	const { w, clickLabel } = await newGame(0.99, [
+		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '火把与绳索', '坚韧', '勇气',
+	]);
+	const pc = () => pcOf(w); // 坑2：跨导航禁止持有 $pc 引用
+	const era = () => w.SugarCube.State.variables.era;
+	await clickLabel('推门出发，走进暮色');
+	await clickLabel('打着火把，走进山脚的洞穴');
+	await clickLabel('收好护身符，穿过后洞的裂缝');
+	await clickLabel('听她说完');
+	await clickLabel('登上守林人之塔（第二章）');
+	await clickLabel('进入塔内');
+	await clickLabel('顶楼 · 守林人残影');
+	await clickLabel('折断法杖，让塔与雾一同终结');
+	// 化身战三连（0.99 全过，无信物无伤）
+	await clickLabel('迎击');
+	await clickLabel('她将你拽入回忆');
+	await clickLabel('倾尽全力，最后一击');
+	if (!pc().tower.avatar_down) throw new Error('战胜化身应置 avatar_down');
+	// C1 入口一：战后裂口
+	await clickLabel('俯身探看裂口，下到塔底（第三章）');
+	if (passageOf(w) !== '塔底·塌井厅') throw new Error(`应落塌井厅，实际 ${passageOf(w)}`);
+	// 共鸣锚：免费切换（不耗充能——与二章 erashift 的判别断言）
+	const chargesBefore = pc().amulet_charges;
+	await clickLabel('触动共鸣锚：坠入『过去』');
+	if (era() !== 'past' || passageOf(w) !== '塔底·塌井厅') throw new Error(`锚切后应留在原段 past，实际 ${passageOf(w)}/${era()}`);
+	if (pc().amulet_charges !== chargesBefore) throw new Error('共鸣锚不得耗充能');
+	await clickLabel('去封印大厅');
+	if (!w.document.querySelector('#passages').textContent.includes('四道锁槽')) throw new Error('past 封印大厅应见四锁槽');
+	// 水闸机关：past 开闸
+	await clickLabel('去水淹机房');
+	await clickLabel('转动水闸，让暗河流往它该去的地方');
+	if (!pc().tower.sluice) throw new Error('水闸应置 tower.sluice');
+	await clickLabel('回到机房');
+	await clickLabel('触动共鸣锚：回到『现在』');
+	if (era() !== 'present') throw new Error('机房锚应可切回 present');
+	await clickLabel('回封印大厅');
+	if (!w.document.querySelector('#passages').textContent.includes('沟壑状抓痕')) throw new Error('present 封印大厅应见龙迹');
+	// 跨时代后果：河床见底新通路（C2↔ENG 环路）
+	await clickLabel('去暗河码头');
+	await clickLabel('顺河床深入机房');
+	if (passageOf(w) !== '塔底·水淹机房') throw new Error(`河床新通路应达机房，实际 ${passageOf(w)}`);
+	await clickLabel('回封印大厅');
+	// C1 全 locale 配测（L3）：宝藏厅/熔炉/囚室顺访
+	await clickLabel('去宝藏厅');
+	await clickLabel('回封印大厅');
+	await clickLabel('去熔炉');
+	await clickLabel('回封印大厅');
+	await clickLabel('去囚室');
+	if (!w.document.querySelector('#passages').textContent.includes('指骨仍抵在地面星轨图')) throw new Error('present 囚室应见星轨图骸骨（past 伏笔由 render-all 双态覆盖）');
+	await clickLabel('回封印大厅');
+	// 观测廊双态（past 残卷=真相层）
+	await clickLabel('去观测廊');
+	await clickLabel('触动共鸣锚：坠入『过去』');
+	if (!w.document.querySelector('#passages').textContent.includes('雾生于龙梦')) throw new Error('past 观测廊应见《坠星志》残卷');
+	await clickLabel('回封印大厅');
+	// 前厅封印门 + 环路闭合
+	await clickLabel('去龙穴前厅');
+	if (!w.document.querySelector('#passages').textContent.includes('等四件东西')) throw new Error('前厅应见四锁槽封印门');
+	await clickLabel('退回封印大厅');
+	await clickLabel('去塌井厅');
+	await clickLabel('触动共鸣锚：回到『现在』');
+	await clickLabel('攀回顶楼');
+	if (passageOf(w) !== '顶楼') throw new Error(`环路应回顶楼，实际 ${passageOf(w)}`);
+});
+
 // ── 路线 H：旧存档形状模拟（第二章上线前的档）→ 迁移 → 入塔不崩 ──
 scenario('路线H：旧档缺字段 → Pc.migrate 兜底 → 入塔正常', async () => {
 	const { w, clickLabel } = await newGame(0.99, [

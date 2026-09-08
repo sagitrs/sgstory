@@ -130,6 +130,8 @@ window.Game = (() => {
 			{ id: '化身认得你', cause: { towerFlag: 'defeats' }, kind: 'mechanic', echo: [{ p: '雾之化身战', anchor: '认出了你' }] },
 			{ id: '塔护住你', cause: { towerFlag: 'echo' }, kind: 'mechanic', echo: [{ p: '塔的回声', anchor: '不让你死在这里' }] },
 			{ id: '乌鸦记账', cause: { event: 'crow_guide' }, kind: 'service', echo: [{ p: '乌鸦指路', anchor: '一百年的账' }] },
+			{ id: '化身倒下→塔底三入口开', cause: { towerFlag: 'avatar_down' }, kind: 'mechanic', echo: [{ p: '化身·终击', anchor: '猛地震裂' }, { p: '塔门', anchor: '暗河河道下去' }, { p: '门厅', anchor: '密门' }] },
+			{ id: '水闸→河床见底', cause: { towerFlag: 'sluice' }, kind: 'past→present', echo: [{ p: '塔底·暗河码头', anchor: '河床尽头的机房水门敞开' }] },
 			{ id: '治疗→平凡之光', cause: { flag: 'witch_healed' }, kind: 'text-variant', echo: [{ p: '结局 空手而归', anchor: '身上旧伤全消' }] },
 			{ id: '暗格情报→检定优势', cause: { flag: 'hint_diary' }, kind: 'mechanic', echo: [{ p: '书房', anchor: '宴会幽灵的话浮现' }] },
 			{ id: '星图情报→检定优势', cause: { flag: 'hint_star' }, kind: 'mechanic', echo: [{ p: '天文台', anchor: '学徒的低语浮现' }] },
@@ -210,5 +212,11 @@ window.Game = (() => {
 			{ a: 'hint-adv', b: 'lore', evidence: '情报半价（价格表）+ 优势（检定层）双兑现独立' },
 		],
 	};
-	return { Economy, Checks, Tokens, Truth, Echoes, Choices, Systems };
+	const Shifts = {
+		// C1 三章主玩法（#49）：共鸣锚——位置门控替代二章的充能门控（教学→主玩法）。
+		// 锚内切换免费无限；锚外不可切。新增锚点须同步 audit 门（Shifts.anchors 全部存在且挂锚）。
+		unlimited: true,
+		anchors: ['塔底·塌井厅', '塔底·暗河码头', '塔底·封印大厅', '塔底·水淹机房', '塔底·熔炉', '塔底·观测廊'],
+	};
+	return { Economy, Checks, Tokens, Truth, Echoes, Choices, Systems, Shifts };
 })();

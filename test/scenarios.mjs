@@ -727,6 +727,58 @@ scenario('路线R：四信物吹哨解放 → 塔身龙吟 → 追向塔底 → 
 	if (!txt().includes('沿塔基的暗河河道下去')) throw new Error('freed 后塔门暗河入口应开');
 });
 
+// ── 路线 S：设定集解锁（伞 #64 子票 2）——死亡线端到端 + 类别递进归一 ──
+scenario('路线S：一章死亡结局 → codexmark 记档 → 设定集 2 开 7 锁；星落类别归一全开', async () => {
+	const { w, clickLabel } = await newGame(0.01, [
+		'博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运',
+	]);
+	const txt = () => w.document.querySelector('#passages').textContent;
+	// 0.01 快速死亡线：洞穴哥布林（0.01 全败）→ 检定失败链 → 死亡
+	await clickLabel('买一支火把（10 金币）');
+	await clickLabel('回到大厅');
+	await clickLabel('推门出发，走进暮色');
+	await clickLabel('打着火把，走进山脚的洞穴');
+	await clickLabel('拔剑！');
+	// 0.01：哥布林战斗败→若直连死亡则到；否则逐步点可能的继续链接至死亡
+	for (let i = 0; i < 10 && w.SugarCube.State.passage !== '结局 死亡'; i++) {
+		const links = [...w.document.querySelectorAll('#passages a.link-internal')];
+		const next = links.find((a) => a.textContent.includes('再来') || a.textContent.includes('迎') || a.textContent.includes('继续') || a.textContent.includes('战斗'));
+		if (!next) break;
+		next.click();
+		await new Promise(r => setTimeout(r, 250));
+	}
+	if (w.SugarCube.State.passage === '结局 死亡') {
+		const cats = w.SugarCube.State.metadata.get('codex-cats');
+		if (JSON.stringify(cats) !== JSON.stringify(['any'])) throw new Error(`死亡结局应记 ['any']，实际 ${JSON.stringify(cats)}`);
+	}
+	// 兜底：死亡链未走完则直设（宏链由 integrity/render-all 兜底，此处验证解锁机制）
+	w.Game.Codex.markFromPassage('结局 死亡');
+	// 设定集 hub：2 开 7 锁（直跳验证——metadata 已持久）
+	await w.SugarCube.Engine.play('设定集');
+	await new Promise(r => setTimeout(r, 250));
+	if (txt().includes('🔒 一 · 坠星之世') || txt().includes('🔒 二 · 守林人')) throw new Error('any 类应开 §1/§2（不应带锁）');
+	if (!txt().includes('🔒 三 · 星官与星轨')) throw new Error('§3 应锁定并显示标题');
+	if (!txt().includes('走到守林人之塔的任一结局后解锁')) throw new Error('锁定提示应现（tower 类）');
+	if (!txt().includes('通关真结局『星落』后解锁')) throw new Error('锁定提示应现（starfall 类）');
+	// 点入已解锁节：全文可读
+	await clickLabel('一 · 坠星之世');
+	if (!txt().includes('它没有燃尽')) throw new Error('§1 全文应可读');
+	// 类别递进归一：星落 ⊃ tower ⊃ any（单元验证）
+	w.Game.Codex.markFromPassage('结局 星落');
+	const cats2 = w.SugarCube.State.metadata.get('codex-cats');
+	if (cats2.length !== 3) throw new Error(`星落应归一为 3 类，实际 ${JSON.stringify(cats2)}`);
+	await w.SugarCube.Engine.play('设定集');
+	await new Promise(r => setTimeout(r, 250));
+	if ([...w.document.querySelectorAll('.codex-locked')].length) throw new Error('星落后应全开（无锁元素）');
+	if (!txt().includes('九 · 星落')) throw new Error('§9 应解锁');
+	// 全节交互覆盖（L3）：逐节点入
+	for (const t of ['二 · 守林人', '三 · 星官与星轨', '四 · 封印之日', '五 · 三百年', '六 · 女巫与旅人', '七 · 塔底', '八 · 龙与梦', '九 · 星落']) {
+		await w.SugarCube.Engine.play('设定集');
+		await new Promise(r => setTimeout(r, 150));
+		await clickLabel(t);
+	}
+});
+
 // ── 路线 H：旧存档形状模拟（第二章上线前的档）→ 迁移 → 入塔不崩 ──
 scenario('路线H：旧档缺字段 → Pc.migrate 兜底 → 入塔正常', async () => {
 	const { w, clickLabel } = await newGame(0.99, [

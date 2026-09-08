@@ -50,11 +50,18 @@ async function boot(stubMode, seed) {
 	const w = dom.window;
 	new w.SugarCube.Wikifier(null, w.document.querySelector('tw-passagedata[name="StoryInit"]').textContent);
 	w.SugarCube.Engine.start();
+	// 就绪轮询延伸：起始段渲染完成才返回（scenarios 同款；抢跑会与首轮 enginePlay 竞态——
+	// 环境加速时 #passages 容器向未建好，撞 hasChildNodes null）
+	const t1 = Date.now();
+	while (!w.document.querySelector('#passages .passage[data-passage="开场"]')) {
+		if (Date.now() - t1 > 15000) throw new Error('等待超时：起始段渲染');
+		await sleep(50);
+	}
 	return { dom, w, rng, uncaught };
 }
 
 // ── 不变量（车卡完成后才适用）─────────────────────────────
-const TOKEN_UNIVERSE = ['铜哨', '日记', '月光花', '星图残页'];
+const TOKEN_UNIVERSE = ['铜哨', '日记', '月光花', '星图残页', '星徽', '星屑']; // #80 拼图道具后闭集为六件（星徽/星屑：双重事实拼图链）
 function invariantViolations(w) {
 	const v = w.SugarCube.State.variables, pc = v.pc;
 	if (!pc || !pc.abilities) return []; // 车卡未完成
@@ -139,6 +146,10 @@ async function dualBranchSweep() {
 	const sites = [...w.document.querySelectorAll('tw-passagedata')]
 		.map((el) => ({ name: el.getAttribute('name'), src: el.textContent }))
 		.filter((p) => SITE_RX.test(p.src) && !['Widgets', '规则系统'].includes(p.name));
+	// #83 起门控检定（自旋型）：直跳不触发——注入前置旗标才能扫到成败双支
+	const GATED_PRECONDITIONS = {
+		'塔底·龙穴前厅': 'v.pc.tower.chant_try=true', // 跟读检定：链接置 chant_try 后同段自旋
+	};
 
 	const lastCheckOf = () => JSON.stringify(w.SugarCube.State.variables.last_check ?? null);
 	for (const site of sites) {
@@ -147,6 +158,7 @@ async function dualBranchSweep() {
 			w.eval(`Math.random = () => ${stub === 'hi' ? 0.99 : 0.01}`);
 			for (const era of site.src.includes('$era') ? ['present', 'past'] : [null]) {
 				w.eval(restoreExpr(era));
+				if (GATED_PRECONDITIONS[site.name]) w.eval(`(function(){const v=SugarCube.State.variables;${GATED_PRECONDITIONS[site.name]}})()`);
 				const before = lastCheckOf();
 				w.SugarCube.Engine.play(site.name);
 				await sleep(90);

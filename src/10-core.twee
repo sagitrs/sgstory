@@ -149,6 +149,7 @@ Macro.add('dragonbar', {
 	<<set _site to Game.Checks.sites[$args[0]]>>
 	<<set _adv to $args[1]>>
 	<<if not _adv and Game.Items.advAt($args[0], $pc.inv)>><<set _adv to "adv">><</if>>
+	<<if not _adv and Game.Checks.knowledge[$args[0]] and $pc.world[Game.Checks.knowledge[$args[0]]]>><<set _adv to "adv">><</if>>
 	<<if _site.abil>>
 		<<save _site.abil _site.dc _adv>>
 	<<else>>

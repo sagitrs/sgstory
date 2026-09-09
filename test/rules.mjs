@@ -179,6 +179,18 @@ for (const file of fixtures) {
 	new w.SugarCube.Wikifier(null, '<<sitecheck "雾之魔物·挥击">>');
 	ok(v.last_check.roll === 3, `sitecheck 无道具：单骰（实际 ${v.last_check.roll}）`);
 	w.eval('Math.random = () => 0.5');
+	// ④c 情报位点优势（M6d）：老猎人的话（world.rumor）→ 洞穴战斗自动双骰取高
+	ok(w.Game.Checks.knowledge?.['洞穴·战斗'] === 'rumor', 'knowledge 表：洞穴·战斗 ← world.rumor');
+	const dq3 = [0.12, 0.82];
+	v.pc = w.Pc.defaults(); v.pc.world.rumor = true;
+	w.eval(`(function(){const q=${JSON.stringify(dq3)};Math.random=()=>q.length?q.shift():0.5;})()`);
+	new w.SugarCube.Wikifier(null, '<<sitecheck "洞穴·战斗">>');
+	ok(v.last_check.roll === 17, `情报优势：rumor → 双骰取高（实际 ${v.last_check.roll}）`);
+	v.pc.world.rumor = false;
+	w.eval(`(function(){const q=${JSON.stringify(dq3)};Math.random=()=>q.length?q.shift():0.5;})()`);
+	new w.SugarCube.Wikifier(null, '<<sitecheck "洞穴·战斗">>');
+	ok(v.last_check.roll === 3, `无情报：单骰（实际 ${v.last_check.roll}）`);
+	w.eval('Math.random = () => 0.5');
 	// ⑤ sitecheck 分流：abil 位点走 <<save>>
 	w.eval('Game.Checks.sites["龙·吐息"].dc = 9');
 	new w.SugarCube.Wikifier(null, '<<sitecheck "龙·吐息">>');

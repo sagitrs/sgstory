@@ -13,7 +13,7 @@ npm run build   # 编译 → dist/index.html（单文件，浏览器直接打开
 npm run serve   # 本地预览：http://localhost:8000
 npm test        # 构建后全链（~2min）：L0 静态门（含表一致性）→ 六道质量门（真相/canon/回声/选择/系统/文本）→ 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(20 路线并行) → 覆盖门
 npm run soak    # 游走器加量长测（20+20 局，~1.5min）：CI 独立 job（M1c 接回）；发布前 / 状态机重改动时也可本地跑
-npm run audit   # 表驱动审计（#28/#34）：--truth/--canon/--choices/--systems/--echoes/--text 六道质量门 + 数值三件套
+npm run audit   # 表驱动审计（#28/#34）：--truth/--canon/--choices/--systems/--echoes/--text 六道质量门 + --dragon 彩蛋率门 + 数值三件套
                  # （--check 模式已进 npm test：真相通路/设定回流/选择臂数/机制发现性/世界回声/文本载荷）
 npm run watch   # 修改 src/ 自动重新编译
 ```
@@ -51,7 +51,7 @@ test/walker.mjs    L2 对抗席游走器：种子化随机游走（一章+塔）
 test/coverage.mjs  L3 覆盖率 ratchet（五门）：基线不回退 / 新段落必配测 / 无交互盲区 / 时代双态 / 交互≥渲染
                    ——基线更新：npm run update-coverage-baseline
 test/smoke.mjs    无头冒烟测试（快速车卡 → 酒馆 → 森林 → 洞穴 + 侧栏/存档/物品栏）
-test/scenarios.mjs 分支场景测试（19 条路线：金路径 + 全部结局 + 设定集 + 龙巢边）
+test/scenarios.mjs 分支场景测试（20 条路线：金路径 + 全部结局 + 设定集 + 龙巢边 + 时代分叉）
 test/rules.mjs    规则层单测 + 表契约（10 组）+ 存档兼容矩阵（test/fixtures/saves/ 每版历史形状一档；改 Pc.defaults 必须同 PR 加 fixture）
 test/properties.mjs L5 数值属性：判定边界全枚举/优势支配律/伤害界限/战斗伤害单调律/车卡形状律
 scripts/audit.mjs   质量六门（主伞 #34）：真相可达性/**canon 门**（设定书 §10 黑名单回流 + §9 双读断言扫描）/选择意义感/
@@ -110,7 +110,7 @@ $hp                   变量（$ 开头，可直接写在正文里插值）
 | 星力隐藏计数 | `$pc.star` | 玩家不可见，无数字/进度条；唯一反馈＝雾淡（v16 §3.5） |
 | 物品栏 | `StoryCaption` + `<<give>>` | 每件各有用途，**不集齐开锁**（v16 §5.0） |
 | 常驻存档 | `StoryCaption` + `StoryScript` | 侧栏固定块：快速存档/快速读档/存档菜单；快捷键 `S`/`L` |
-| 多结局 | `结局 *` × 10 | 真（送星归位）/ 降级（再度沉睡·自愿的长眠）/ 非真（击杀·虚空·劣化封印·星落·讨伐·坠星之死·死亡）/ 章节（平凡之路·银月之赐·半途·新任守林人·焚塔者） |
+| 多结局 | `结局 *` × 10 | 真（送星归位）/ 降级（再度沉睡·自愿的长眠）/ 非真（击杀·虚空·劣化封印·**星落·坠星之死（彩蛋：天然 20 + 劣势 ≈0.25%）**·讨伐·死亡）/ 章节（平凡之路·银月之赐·半途·新任守林人·焚塔者） |
 
 存档/读档既有**侧栏常驻入口**（快速存档/快速读档/存档菜单，快捷键 `S`/`L`），也有**左侧边栏菜单**里的完整存档界面（SugarCube 内置，自动持久化到浏览器 localStorage）。
 

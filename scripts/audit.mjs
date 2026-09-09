@@ -266,6 +266,22 @@ if (wantAll || arg('dragon')) {
 		}
 	}
 	console.log('（v16 §3.8：龙＝标准 D&D 高挑战等级——单挑必败，基本仅允许机制胜利。本表只作劝退证据。）');
+	// 彩蛋击杀率（M5b 拍板）：需「天然 20」；若位点带劣势 → 1/400。>1% 即红。
+	let dragonBad = 0;
+	const kill = Game.Checks.sites['龙·终击'];
+	if (!kill || kill.nat !== 20) {
+		dragonBad++;
+		console.log('  ✗ 未定义「龙·终击」彩蛋位点（nat: 20）');
+	} else {
+		const pNat = 1 / 20;
+		const pKill = kill.dis ? pNat * pNat : pNat;
+		const ok = pKill <= 0.01;
+		if (!ok) dragonBad++;
+		console.log(`  单挑彩蛋击杀率 ≈ ${(pKill * 100).toFixed(2)}%（天然 ${kill.nat}${kill.dis ? ' + 劣势' : ''}）→ ${ok ? '✓ 几乎不可达（≤1%）' : '✗ 过高（>1%）'}`);
+	}
+	const breakers = Object.entries(Game.Items.effects).filter(([, e]) => e.advSite === '龙·终击').map(([k]) => k);
+	if (breakers.length) { dragonBad++; console.log(`  ✗ 破坏平衡的道具仍在给彩蛋位点优势：${breakers.join('、')}`); }
+	if (process.argv.includes('--check') && dragonBad) { console.error('\n✗ ⓪f 龙战门：彩蛋击杀率或平衡项不合规'); process.exit(1); }
 }
 
 if (wantAll || arg('checks')) {

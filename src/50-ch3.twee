@@ -359,7 +359,8 @@
 
 :: 龙·再冲
 /% payload: 张力 %/
-<<sitecheck "龙·斩击">>
+''你只有一次机会。''它太大了，你的刀在鳞上滑开——除非你正好劈进那道缝。
+<<sitecheck "龙·终击">>
 <<if $last_check.success>>
 	<<if $pc.inv["观星者的书"] or $pc.ev.failure_cause>>
 		[[你杀了它——却已经知道它是什么|结局 星落]]

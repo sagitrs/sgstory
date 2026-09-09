@@ -165,9 +165,9 @@ for (const file of fixtures) {
 	ok(I.advAt('雾之魔物·挥击', { 坏哨: true }), 'advAt：坏哨给雾之魔物挥击优势');
 	ok(!I.advAt('雾之魔物·心防', { 坏哨: true }), 'advAt：坏哨不给心防优势');
 	ok(I.advAt('龙·吐息', { 观星者的书: true }), 'advAt：观星者的书给吐息优势');
-	ok(I.advAt('龙·斩击', { 月光花: true }), 'advAt：月光花给斩击优势');
-	ok(I.advAt('龙·斩击', { a: 1, b: 2 }), 'advAt：持 2 件给终击优势（共鸣）');
-	ok(!I.advAt('龙·斩击', { a: 1 }), 'advAt：1 件不给终击优势');
+	ok(!I.advAt('龙·斩击', { 月光花: true }), 'advAt：月光花不再给攻击优势（M5b：改为纯喂花道具）');
+	ok(!I.advAt('龙·斩击', { a: 1, b: 2 }), 'advAt：件数共鸣已移除（M5b）');
+	ok(!I.advAt('龙·终击', { 月光花: true, 日记: true, 龙鳞护臂: true }), 'advAt：彩蛋位点不吃任何道具优势');
 	// ④b 道具位点优势自动接线：坏哨 → <<sitecheck>> 自动双骰取高
 	const diceQueue = [0.12, 0.82]; // d20 → 3, 17
 	w.eval(`(function(){const q=${JSON.stringify(diceQueue)};Math.random=()=>q.length?q.shift():0.5;})()`);
@@ -193,6 +193,20 @@ for (const file of fixtures) {
 	w.eval(`(function(){const q=${JSON.stringify(dq3)};Math.random=()=>q.length?q.shift():0.5;})()`);
 	new w.SugarCube.Wikifier(null, '<<sitecheck "洞穴·战斗">>');
 	ok(v.last_check.roll === 3, `无情报：单骰（实际 ${v.last_check.roll}）`);
+	w.eval('Math.random = () => 0.5');
+	// ④d 彩蛋击杀（M5b）：<<sitecheck "龙·终击">> 需天然 20 + 劣势 → 1/400 ≈ 0.25%
+	const ks = w.Game.Checks.sites['龙·终击'];
+	ok(ks?.nat === 20 && ks?.dis === true, '龙·终击：需天然 20 且带劣势（≈0.25%）');
+	v.pc = w.Pc.defaults();
+	const atRoll = (r) => {
+		w.eval(`Math.random = () => ${(r - 0.5) / 20}`);
+		return w.Rules.check(v.pc, '运动', 20, { nat: 20, bonus: 100 });
+	};
+	ok(atRoll(20).success === true, 'nat 机制：天然 20 必成（加值/DC 不参与）');
+	ok(atRoll(19).success === false, 'nat 机制：天然 19 即使 +100 也失败');
+	w.eval('Math.random = () => 0.99');
+	new w.SugarCube.Wikifier(null, '<<sitecheck "龙·终击">>');
+	ok(v.last_check.roll === 20 && v.last_check.success === true && v.last_check.nat === 20, '彩蛋位点：桩 20 → 成功且标记 nat');
 	w.eval('Math.random = () => 0.5');
 	// ⑤ sitecheck 分流：abil 位点走 <<save>>
 	w.eval('Game.Checks.sites["龙·吐息"].dc = 9');

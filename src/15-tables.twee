@@ -23,6 +23,8 @@ window.Game = (() => {
 			'老巫女·辨认': { skill: '洞悉', dc: 12 },
 			'龙·吐息':     { abil: 'con', dc: 14 },
 			'龙·斩击':     { skill: '运动', dc: 10 },
+			// 彩蛋击杀（M5b）：需天然 20 且劣势 → 1/400 ≈ 0.25%，几乎不可达
+			'龙·终击':     { skill: '运动', dc: 20, nat: 20, dis: true },
 		},
 		// ── 情报优势（M6d）：付费/交涉得来的知识 → 位点自动双骰取高 ──
 		// key = 位点，value = $pc.world 上的旗标名
@@ -78,12 +80,10 @@ window.Game = (() => {
 		effects: {
 			坏哨:       { advSite: '雾之魔物·挥击', note: '它认得那个形状——挥击劣势转优势' },
 			观星者的书: { advSite: '龙·吐息', note: '书里记着逆鳞可透——预判吐息' },
-			月光花:     { advSite: '龙·斩击', note: '银辉引路——攻击优势' },
 			日记:       { flatDamageReduce: 1, note: '念出那两个小字——整场再 −1' },
 			龙鳞护臂:   { flatDamageReduce: 1, note: '受击 −1' },
 		},
 		perItemDamageReduce: 1,
-		finalStrikeCountAdv: 2,
 		// 受击方=玩家：伤害 = 基础 − 减伤件数 + 败次（封顶）
 		battleDamage(round, inv, defeats) {
 			const held = Object.keys(inv ?? {}).filter((k) => this.effects[k]?.flatDamageReduce);
@@ -94,8 +94,7 @@ window.Game = (() => {
 		},
 		advAt(site, inv) {
 			const keys = Object.keys(inv ?? {});
-			if (keys.some((k) => this.effects[k]?.advSite === site)) return true;
-			return site === '龙·斩击' && keys.length >= this.finalStrikeCountAdv;
+			return keys.some((k) => this.effects[k]?.advSite === site);
 		},
 	};
 

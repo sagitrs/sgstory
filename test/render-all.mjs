@@ -36,12 +36,17 @@ const content = all.filter((p) => !isInfra(p) && p.name);
 
 let fails = 0, renders = 0;
 const covered = [], forwards = [];
+// 注意：连续两个段落都自动跳转到同一目标时，「上一次渲染后的 State.passage」会与本次相同
+//（如 龙·战 → 结局 死亡，紧接着 龙·再冲 → 结局 死亡）——用「上一次显式 play 的段落」判定，
+//避免把合法 forward 误判成 no-op。真正的 no-op（play 静默失败）仍由「输出为空」兜住。
+let lastPlayed = w.SugarCube.State.passage;
 for (const p of content) {
 	// 引用 $era 的段落渲染双时代变体（覆盖 (段落|时代) 状态格——对抗席盲区实测点）
 	const variants = p.src.includes('$era') ? [null, 'past'] : [null];
 	for (const era of variants) {
 		const before = uncaught.length;
-		const prevPassage = w.SugarCube.State.passage;
+		const prevPassage = lastPlayed;
+		lastPlayed = p.name;
 		restore(era);
 		w.SugarCube.Engine.play(p.name);
 		await sleep(80);

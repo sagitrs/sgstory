@@ -138,18 +138,25 @@ const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }
 	ok(monoBad === 0, `战斗伤害单调律 ${cases} 例：败次增加不降低伤害`);
 }
 
-// ── F. 位点优势单调律：多带一件减伤件不降低优势；advAt 只认表内位点 ──
+// ── F. 位点优势单调律（M5b 重定）：空手无优势；加件不撤销优势；彩蛋位点永不吃优势 ──
 {
 	const I = w.Game.Items;
-	const sites = ['雾之魔物·挥击', '雾之魔物·心防', '龙·吐息', '龙·斩击'];
-	let bad = 0;
-	const allInv = { 坏哨: true, 观星者的书: true, 月光花: true, 日记: true, 龙鳞护臂: true };
+	const sites = ['雾之魔物·挥击', '雾之魔物·心防', '龙·吐息', '龙·斩击', '龙·终击'];
+	const items = ['坏哨', '观星者的书', '月光花', '日记', '龙鳞护臂'];
+	const invOf = (keys) => Object.fromEntries(keys.map((k) => [k, true]));
+	let bad = 0, checked = 0;
 	for (const s of sites) {
-		if (!I.advAt(s, allInv) && I.advAt(s, allInv)) bad++;
-		if (I.advAt(s, {}) !== (s === '龙·斩击' ? false : false)) bad++;
+		if (I.advAt(s, {})) bad++; // 空手一律无优势
+		for (let m = 0; m < (1 << items.length); m++) {
+			const base = items.filter((_, i) => m & (1 << i));
+			if (!I.advAt(s, invOf(base))) continue;
+			checked++;
+			for (const extra of items) if (!I.advAt(s, invOf([...base, extra]))) bad++;
+		}
 	}
-	ok(bad === 0, `advAt 空手全为假、满配至少一项为真（${sites.join('/')}）`);
-	ok(I.advAt('龙·斩击', allInv) === true, '满配：龙·斩击得优势（件数共鸣）');
+	ok(bad === 0, `advAt 单调律：空手无优势 · 加件不撤销（已检查 ${checked} 个真值点）`);
+	ok(I.advAt('雾之魔物·挥击', invOf(items)) === true && I.advAt('龙·吐息', invOf(items)) === true, '满配：坏哨 / 观星者的书各给对应位点优势');
+	ok(I.advAt('龙·斩击', invOf(items)) === false && I.advAt('龙·终击', invOf(items)) === false, 'M5b：攻击与彩蛋位点不吃任何道具优势');
 }
 
 console.log(failures ? `\n${failures} 项属性失败` : '\n属性测试全部通过');

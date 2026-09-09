@@ -11,10 +11,10 @@
 npm install
 npm run build   # 编译 → dist/index.html（单文件，浏览器直接打开即玩）
 npm run serve   # 本地预览：http://localhost:8000
-npm test        # 构建后全链（~2min）：L0 静态门（含表一致性）→ 五维质量门 → 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(19 路线并行) → 覆盖门
+npm test        # 构建后全链（~2min）：L0 静态门（含表一致性）→ 六道质量门（真相/canon/回声/选择/系统/文本）→ 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(19 路线并行) → 覆盖门
 npm run soak    # 游走器加量长测（20+20 局，~2min）：发布前 / 状态机重改动时跑（#27 起移出默认链）
-npm run audit   # 表驱动审计（#28/#34）：--truth/--choices/--systems/--echoes/--text 五维质量门 + 数值三件套
-                 # （--check 模式已进 npm test：真相通路/选择臂数/机制发现性/世界回声/文本载荷）
+npm run audit   # 表驱动审计（#28/#34）：--truth/--canon/--choices/--systems/--echoes/--text 六道质量门 + 数值三件套
+                 # （--check 模式已进 npm test：真相通路/设定回流/选择臂数/机制发现性/世界回声/文本载荷）
 npm run watch   # 修改 src/ 自动重新编译
 ```
 
@@ -53,8 +53,9 @@ test/smoke.mjs    无头冒烟测试（快速车卡 → 酒馆 → 森林 → �
 test/scenarios.mjs 分支场景测试（19 条路线：金路径 + 全部结局 + 设定集 + 龙巢边）
 test/rules.mjs    规则层单测 + 表契约（10 组）+ 存档兼容矩阵（test/fixtures/saves/ 每版历史形状一档；改 Pc.defaults 必须同 PR 加 fixture）
 test/properties.mjs L5 数值属性：判定边界全枚举/优势支配律/伤害界限/战斗伤害单调律/车卡形状律
-scripts/audit.mjs   质量五门（主伞 #34）：真相可达性/选择意义感/系统可玩性/世界活性/语言经济
-                    + 数值三件套（检定成功率矩阵 / 经济时间线 / 龙战推演与道具伤害矩阵）——改叙事文本断锚即红
+scripts/audit.mjs   质量六门（主伞 #34）：真相可达性/**canon 门**（设定书 §10 黑名单回流检测）/选择意义感/
+                    系统可玩性/世界活性/语言经济 + 数值三件套（检定成功率矩阵 / 经济时间线 /
+                    龙战推演与道具伤害矩阵）——改叙事文本断锚即红，设定裁剪后正文回流亦红
 docs/
   lore-canon.md     ★ 设定书（唯一权威正史「送它回家」；正文与它冲突＝P1 缺陷）
   game-outline.md   ★ 游戏大纲（依据设定书扩展的机制/内容蓝本；不具设定权威）

@@ -50,11 +50,18 @@ async function boot(stubMode, seed) {
 	const w = dom.window;
 	new w.SugarCube.Wikifier(null, w.document.querySelector('tw-passagedata[name="StoryInit"]').textContent);
 	w.SugarCube.Engine.start();
+	// 起始段渲染完成（对齐 scenarios.mjs）：Engine.start 是异步的，缺此轮询会与首次点击竞态
+	// ——501e81c 删掉 sleep(300) 后未补此轮询，游走器即崩（#114）
+	const t1 = Date.now();
+	while (!w.document.querySelector('#passages .passage[data-passage="开场"]')) {
+		if (Date.now() - t1 > 15000) throw new Error('等待超时：起始段渲染');
+		await sleep(50);
+	}
 	return { dom, w, rng, uncaught };
 }
 
 // ── 不变量（车卡完成后才适用）─────────────────────────────
-const TOKEN_UNIVERSE = ['铜哨', '日记', '月光花', '星图残页'];
+const TOKEN_UNIVERSE = ['铜哨', '日记', '月光花', '星图残页', '星徽', '星屑']; // 四信物 + 星徽/星屑（不占锁槽，src/50-tower.twee:70）
 function invariantViolations(w) {
 	const v = w.SugarCube.State.variables, pc = v.pc;
 	if (!pc || !pc.abilities) return []; // 车卡未完成
@@ -141,12 +148,18 @@ async function dualBranchSweep() {
 		.filter((p) => SITE_RX.test(p.src) && !['Widgets', '规则系统'].includes(p.name));
 
 	const lastCheckOf = () => JSON.stringify(w.SugarCube.State.variables.last_check ?? null);
+	// 位点前置：检定被状态门控的位点，必须先满足门控，否则双支永远观测不到（#114）
+	const SITE_PRELUDE = {
+		// 前厅·跟读：<<check>> 门控在 $pc.tower.chant_try（先“静下心跟读”才会触发检定）
+		'塔底·龙穴前厅': 'SugarCube.State.variables.pc.tower.chant_try = true',
+	};
 	for (const site of sites) {
 		for (const stub of ['hi', 'lo']) {
 			// 重置 Math.random 档位（页面域内劫持）
 			w.eval(`Math.random = () => ${stub === 'hi' ? 0.99 : 0.01}`);
 			for (const era of site.src.includes('$era') ? ['present', 'past'] : [null]) {
 				w.eval(restoreExpr(era));
+				if (SITE_PRELUDE[site.name]) w.eval(SITE_PRELUDE[site.name]);
 				const before = lastCheckOf();
 				w.SugarCube.Engine.play(site.name);
 				await sleep(90);

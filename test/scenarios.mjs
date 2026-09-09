@@ -456,7 +456,7 @@ scenario('路线N：星图线 → 化身战后下塔底 → 囚徒三臂+信+星
 	await clickLabel('去封印大厅');
 	if (!txt().includes('梦渗成雾')) throw new Error('past 封印大厅应闻守卫吟诵（dragon_mist 通路2）');
 	await clickLabel('去囚室');
-	await clickLabel('问守林人的事（她为何守在这里）');
+	await clickLabel('问守林人的事（他为何守在这里）');
 	if (!txt().includes('守的从来不是悔恨——是封印')) throw new Error('囚徒·守林人应给 keeper_seal 证词');
 	await clickLabel('回到囚室');
 	await clickLabel('问龙的事（它到底是什么）');

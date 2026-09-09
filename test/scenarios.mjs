@@ -93,8 +93,12 @@ async function routeTrue() {
 	await c('你守的到底是什么');           // 守林人·守
 	await c('回到守林人');
 	await c('收下钥匙');                   // 门厅
+	await c('出塔，回到塔外');             // 塔门（过去）——守林人已警告
+	await c('塔基墙根那片花');             // 塔外花田 → 免判定拿花
+	await c('回塔门');                     // 塔门
+	await c('推门进去');                   // 门厅
 	await c('先上二楼看看');               // 书房 → 日记
-	await c('上三楼');                     // 温室 → 月光花
+	await c('上三楼');                     // 温室（纯氛围）
 	await c('上三楼拐角看看');             // 工坊
 	await c('把它打完');                   // 龙鳞护臂
 	await c('上四楼');                     // 天文台
@@ -134,25 +138,38 @@ async function routeTrue() {
 	await c('看着它走完');                 // 结局 送星归位
 	if (passageOf(w) !== '结局 送星归位') throw new Error(`金路径未达真结局（停在 ${passageOf(w)}）`);
 	if (pcOf(w).world.flower_warned !== true) throw new Error('守林人未给出花田警告（flower_warned）');
-	if (pcOf(w).inv['月光花'] !== true) throw new Error('金路径未拿到月光花');
+	if (pcOf(w).world.flower_fed !== true) throw new Error('金路径未拿到并喂下月光花（flower_fed 未置位）');
 	return { w, c, pc: pcOf(w) };
 }
 
-// ── 路线 21：花田昏睡（v16 补正 #5）——不进守林人、无警告 → 体质豁免失败 → 昏睡 → 憋气重试 ──
-async function routeFlowerNap() {
+// ── 路线 21：花田死亡（v16 补正 #6）——没见守林人、无情报 → 贸然采花 → 体质豁免失败 → 死亡 ──
+async function routeFlowerDeath() {
 	const { w, click: c } = await newGame(0.99, 0);
 	await toWitch(c);
 	await toTower(c);
-	await c('继续往塔那边走');     // 塔门（现在）
-	await c('推门进去');           // 门厅——绕开守林人，所以没有警告
-	await c('先上二楼看看');       // 书房
+	await c('继续往塔那边走');           // 塔门（现在）——绕开守林人，所以没有情报
 	w.eval('Math.random = () => 0.01'); // 花田体质豁免必败
-	await c('上三楼');             // 温室 → 昏睡
-	if (pcOf(w).world.flower_warned !== true) throw new Error('昏睡未记录 flower_warned（学不到花的性质）');
-	if (pcOf(w).inv['月光花']) throw new Error('昏睡却拿到了花');
-	w.eval('Math.random = () => 0.99'); // 憋气（优势）+ 必成
-	await c('再凑近一次');
-	if (pcOf(w).inv['月光花'] !== true) throw new Error('憋气重试后仍未拿到月光花');
+	await c('塔基墙根那片花');           // 塔外花田 → 贸然采摘
+	if (passageOf(w) !== '结局 死亡') throw new Error(`花田未致死（停在 ${passageOf(w)}）`);
+	if (pcOf(w).world.flower_sleep !== true) throw new Error('死亡结局未走花田变体（flower_sleep 未置位）');
+	if (pcOf(w).inv['月光花']) throw new Error('昏迷却拿到了花');
+	return { w };
+}
+
+// ── 路线 22：花田·哥布林情报（v16 补正 #6）——放生 → 哥布林警告 → 免判定拿花 ──
+async function routeFlowerGoblin() {
+	const { w, click: c } = await newGame(0.5, 0); // d20 恒 11：若情报路径误走判定，DC16 必败
+	await c('推门出发，走进暮色');
+	await c('打着火把，走进山脚的洞穴');
+	await c('买条路过去');               // goblin_spared
+	if (pcOf(w).world.goblin_spared !== true) throw new Error('买路未置 goblin_spared');
+	await c('去那间亮着灯的小屋');       // 森林边缘 → 女巫小屋
+	await c('谢过她，往林子深处走');     // → 林间小径
+	await c('继续往塔那边走');           // → 塔门（现在）
+	await c('塔基墙根那片花');           // → 花田：哥布林警告 → 免判定
+	if (pcOf(w).inv['月光花'] !== true) throw new Error('有情报仍未拿到月光花（情报路径误走判定？）');
+	if (pcOf(w).world.flower_sleep) throw new Error('有情报却睡过去了');
+	if (pcOf(w).world.flower_warned !== true) throw new Error('哥布林未记录情报');
 	return { w };
 }
 
@@ -507,7 +524,8 @@ const routes = [
 	['老妇人', routeOldWoman],
 	['自愿的长眠', routeSleepVoluntary],
 	['时代分叉', routeEraBranches],
-	['花田昏睡', routeFlowerNap],
+	['花田死亡', routeFlowerDeath],
+	['花田·哥布林情报', routeFlowerGoblin],
 ];
 
 const results = await Promise.all(routes.map(async ([name, fn]) => {

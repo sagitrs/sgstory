@@ -182,7 +182,6 @@ for (const file of fixtures) {
 	// ④c 情报位点优势（M6d）：老猎人的话（world.rumor）→ 洞穴战斗自动双骰取高
 	ok(w.Game.Checks.knowledge?.['洞穴·战斗'] === 'rumor', 'knowledge 表：洞穴·战斗 ← world.rumor');
 	ok(w.Game.Checks.knowledge?.['书房·检视'] === 'witch_hint', 'knowledge 表：书房·检视 ← world.witch_hint');
-	ok(w.Game.Checks.knowledge?.['温室·花田'] === 'flower_warned', 'knowledge 表：温室·花田 ← world.flower_warned');
 	// knowledge 的 key 必须是已登记位点（表一致性）
 	ok(Object.keys(w.Game.Checks.knowledge).every((k) => k in w.Game.Checks.sites), 'knowledge 的位点均存在于 Checks.sites');
 	const dq3 = [0.12, 0.82];
@@ -195,18 +194,12 @@ for (const file of fixtures) {
 	new w.SugarCube.Wikifier(null, '<<sitecheck "洞穴·战斗">>');
 	ok(v.last_check.roll === 3, `无情报：单骰（实际 ${v.last_check.roll}）`);
 	w.eval('Math.random = () => 0.5');
-	// ④c-2 花田昏睡（v16 补正 #5）：体质豁免 DC12；守林人警告 → 憋气优势
-	const fsite = w.Game.Checks.sites['温室·花田'];
-	ok(fsite?.abil === 'con' && fsite?.dc === 12, '温室·花田：体质豁免 DC12');
-	const dq5 = [0.12, 0.82];
-	v.pc = w.Pc.defaults(); v.pc.world.flower_warned = true;
-	w.eval(`(function(){const q=${JSON.stringify(dq5)};Math.random=()=>q.length?q.shift():0.5;})()`);
-	new w.SugarCube.Wikifier(null, '<<sitecheck "温室·花田">>');
-	ok(v.last_check.roll === 17, `警告→憋气优势：双骰取高（实际 ${v.last_check.roll}）`);
-	v.pc.world.flower_warned = false;
-	w.eval(`(function(){const q=${JSON.stringify(dq5)};Math.random=()=>q.length?q.shift():0.5;})()`);
-	new w.SugarCube.Wikifier(null, '<<sitecheck "温室·花田">>');
-	ok(v.last_check.roll === 3, `未受警告：单骰（实际 ${v.last_check.roll}）`);
+	// ④c-2 塔基花田（v16 补正 #6）：贸然采花＝较高体质豁免，失败＝死亡结局；有情报＝免判定
+	const fsite = w.Game.Checks.sites['塔外花田'];
+	ok(fsite?.abil === 'con', '塔外花田：体质豁免（不是技能检定）');
+	ok(fsite?.dc >= 15, `塔外花田：DC 较高（≥15；实际 ${fsite?.dc}）`);
+	ok(w.Game.Checks.knowledge?.['塔外花田'] === undefined, '塔外花田：不入情报表——有情报是「免判定」，不是「优势」');
+	ok(!w.Game.Items.advAt('塔外花田', { 坏哨: true, 观星者的书: true, 月光花: true }), '塔外花田：任何道具都不给优势');
 	w.eval('Math.random = () => 0.5');
 	// ④d 彩蛋击杀（M5b）：<<sitecheck "龙·终击">> 需天然 20 + 劣势 → 1/400 ≈ 0.25%
 	const ks = w.Game.Checks.sites['龙·终击'];

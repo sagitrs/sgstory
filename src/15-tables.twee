@@ -17,9 +17,8 @@ window.Game = (() => {
 			'书房·追问':   { skill: '历史', dc: 10 },
 			'书房·检视':   { skill: '调查', dc: 12 },
 			'工坊·识货':   { skill: '历史', dc: 12 },
-			'温室·讨教':   { skill: '游说', dc: 13 },
-			// 花田昏睡（v16 补正 #5）：凑近银白花要过体质豁免，失败昏睡
-			'温室·花田':   { abil: 'con', dc: 12 },
+			// 塔基花田（v16 补正 #6）：贸然采花＝较高体质豁免；失败＝死亡结局（有情报免判定）
+			'塔外花田':     { abil: 'con', dc: 16 },
 			'天文台·典籍': { skill: '奥秘', dc: 12 },
 			'观星者·说服': { skill: '历史', dc: 13 },
 			'老巫女·辨认': { skill: '洞悉', dc: 12 },
@@ -33,7 +32,6 @@ window.Game = (() => {
 		knowledge: {
 			'洞穴·战斗': 'rumor',      // 老猎人：''第三块板子是脆的''
 			'书房·检视': 'witch_hint', // 女巫：塔里的门道（暗格位置）
-			'温室·花田': 'flower_warned', // 守林人：''那味道闻久了会睡。要摘，先把气含住''
 		},
 	};
 
@@ -47,7 +45,6 @@ window.Game = (() => {
 			goblin_bribe: { delta: -5, skillDiscount: { skill: '恐吓', to: -3 }, chapter: 1, note: '洞穴·买路' },
 			goblin_kill:  { delta: 3, chapter: 1, note: '洞穴·搜刮' },
 			study_errand: { delta: 6, chapter: 2, note: '书房·指出错抄的跑腿钱' },
-			flower_pick:  { delta: 5, chapter: 2, note: '温室·附赠' },
 			lens_sell:    { delta: 4, chapter: 2, note: '天文台·卖碎镜片（永失一份证物）' },
 			forged_scale: { delta: -8, chapter: 2, note: '工坊·打造龙鳞护臂' },
 			dragon_hoard: { delta: 10, chapter: 3, note: '巢边·识货' },
@@ -68,7 +65,7 @@ window.Game = (() => {
 			日记:         { from: '塔·书房', note: '记着雾＝它漏出来的力气；说服守林人' },
 			坏哨:         { from: '塔·门厅', note: '守林人家挂在门边那支；龙认得形状——带着就有用' },
 			好哨:         { from: '过去·老巫女', note: '吹响＝让龙冷静下来' },
-			月光花:       { from: '塔·温室', note: '献龙＝睡得稳（不提前醒、不烧路费）' },
+			月光花:       { from: '塔外·一楼墙根', note: '献龙＝睡得稳（不提前醒、不烧路费）；贸然摘＝拿命试' },
 			守林人的杖:   { from: '守林人', note: '发动术式的媒介' },
 			守林人的钥匙: { from: '守林人', note: '通往地下宴会厅那道门' },
 			观星者的书:   { from: '塔·观测廊 / 龙穴', note: '证物（风化无法伪造）+ 现象与线索' },
@@ -162,7 +159,7 @@ window.Game = (() => {
 	const Echoes = {
 		list: [
 			{ id: '传闻→洞穴', cause: { flag: 'rumor' }, kind: 'ch1→ch1', echo: [{ p: '洞穴', anchor: '老猎人的话' }] },
-			{ id: '放生→温室', cause: { flag: 'goblin_spared' }, kind: 'ch1→ch2', echo: [{ p: '温室', anchor: '你放走了我们家的' }] },
+			{ id: '放生→花田', cause: { flag: 'goblin_spared' }, kind: 'ch1→ch2', echo: [{ p: '塔外花田', anchor: '你放走了我们家的' }] },
 			{ id: '女巫门道→书房', cause: { flag: 'witch_hint' }, kind: 'ch1→ch2', echo: [{ p: '书房', anchor: '女巫说的暗格' }] },
 			{ id: '雾中交手→守林人', cause: { flag: 'mist_fought' }, kind: 'ch2→ch2', echo: [{ p: '守林人', anchor: '路上那团雾' }] },
 			{ id: '问过观星者', cause: { flag: 'seer_asked' }, kind: 'ch3→ch3', echo: [{ p: '交付', anchor: '观星者算过的那一轨' }] },

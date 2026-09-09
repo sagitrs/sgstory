@@ -70,6 +70,17 @@ assert(styleStory.includes('LXGW WenKai') && styleStory.includes('@font-face'), 
 const lc = w.SugarCube.State.variables.last_check;
 assert(lc && lc.roll === 11 && lc.label === '察觉检定', '<<check>> 宏产出 $last_check');
 
+// ── 侧栏：常驻存档入口 + 物品栏（v16 §5.0）──
+// jsdom 不派发 :uiupdate（UI 栏在真实浏览器里才刷新），故直接渲染该段做单元检查。
+const capFrag = w.document.createDocumentFragment();
+new w.SugarCube.Wikifier(capFrag, w.document.querySelector('tw-passagedata[name="StoryCaption"]').textContent);
+const capText = capFrag.textContent;
+assert(capText.includes('快速存档') && capText.includes('快速读档'), '侧栏常驻存档入口渲染');
+assert(capText.includes('物品栏'), '侧栏物品栏渲染');
+assert(capText.includes('火把'), '物品栏列出已带道具（火把）');
+assert(!capText.includes('信物'), '侧栏不再出现「信物」口径');
+assert(typeof w.sgQuickSave === 'function' && typeof w.sgQuickLoad === 'function', '常驻存档全局函数已挂载');
+
 assert(pageErrors.length === 0, `页面无运行时错误${pageErrors.length ? '：' + pageErrors.join(' | ') : ''}`);
 console.log(process.exitCode ? '\n冒烟测试失败' : '\n冒烟测试全部通过');
 process.exit(process.exitCode ?? 0);

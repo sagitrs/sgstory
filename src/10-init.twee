@@ -145,3 +145,26 @@
 	<<set _dmg to Math.max(1, _dmg)>>
 	<<damage _dmg>>
 <</widget>>
+
+/% 物品栏（v16 §5.0）：侧栏列出身上带着的东西——**不凑数、不集齐开锁** %/
+<<widget "inventory">>
+	<<set _inv to []>>
+	<<set _gear to ($pc.gear ?? [])>>
+	<<if $has_amulet or $pc.ch2>><<run _inv.push("时光护符")>><</if>>
+	<<if $pc.tokens.includes("铜哨")>><<run _inv.push("铜哨")>><</if>>
+	<<if $pc.tokens.includes("日记")>><<run _inv.push("女巫的日记")>><</if>>
+	<<if $pc.tokens.includes("月光花")>><<run _inv.push("月光花")>><</if>>
+	<<if $pc.tokens.includes("星图残页")>><<run _inv.push("星图残页")>><</if>>
+	<<if $pc.tower.name_shard>><<run _inv.push("星名页")>><</if>>
+	<<if $pc.tower.scale_armor>><<run _inv.push("龙鳞护臂")>><</if>>
+	<<if $pc.invite>><<run _inv.push("请柬")>><</if>>
+	<<if _gear.includes("火把")>><<run _inv.push("火把")>><</if>>
+	<<if _gear.includes("绳索")>><<run _inv.push("绳索")>><</if>>
+	<<if _gear.includes("长剑")>><<run _inv.push("长剑")>><</if>>
+	<<if $pc.salves gt 0>><<run _inv.push("药膏 ×" + $pc.salves)>><</if>>
+	<<if _inv.length>>
+		<<for _i to 0; _i lt _inv.length; _i++>><span class="inv-item">_inv[_i]</span><</for>>
+	<<else>>
+		（空）
+	<</if>>
+<</widget>>

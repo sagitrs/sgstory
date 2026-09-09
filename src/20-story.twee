@@ -377,19 +377,23 @@
 <<link "再来一次">><<run Engine.restart()>><</link>>
 
 :: StoryCaption
-/% 侧边栏：实时角色卡 %/
+/% 侧边栏：常驻存档入口（v16 §5.0）+ 实时角色卡 + 物品栏 %/
+<div class="save-bar">
+	<a class="save-btn" onclick="sgQuickSave()">💾 快速存档</a>
+	<a class="save-btn" onclick="sgQuickLoad()">📂 快速读档</a>
+	<a class="save-btn" onclick="sgSaveMenu()">🗂 存档 / 读档</a>
+</div>
 <<if $pc.classLabel>>
 ''$pc.name''
 $pc.speciesLabel $pc.classLabel
 <<hpbar>>
 金币：$pc.gold
-<<if $pc.has_torch>>• 火把<</if>>
-<<if $pc.has_rope>>• 绳索<</if>>
-<<if $pc.gear.includes("长剑")>>• 长剑<</if>>
-<<if $pc.gear.includes("药膏") and not $pc.salve_used>>• 药膏<</if>>
+<div class="inv-block">
+''物品栏''
+<div class="inv-list"><<inventory>></div>
+</div>
 <<if $pc.ch2>>
-⌛ <<if $era is "past">>过去<<else>>现在<</if>> · 充能 $pc.amulet_charges/3
-信物 $pc.tokens.length/4
+⌛ <<if $era is "past">>过去<<else>>现在<</if>> · 星力 $pc.amulet_charges/3
 <</if>>
 [[📖 设定集|设定集]]
 <</if>>

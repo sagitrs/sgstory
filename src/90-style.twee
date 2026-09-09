@@ -292,3 +292,33 @@ body {
 .codex-note { color: #8b8497; font-size: 0.9em; text-align: center; }
 .codex-locked { color: #5a5468; display: block; margin: 0.25em 0; font-size: 0.95em; }
 .codex-hub .macro-link { display: block; margin: 0.25em 0; }
+
+/* ── 常驻存档栏 + 物品栏（v16 §5.0）────────────────────── */
+.save-bar {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 6px;
+	margin: 0 0 0.8em;
+}
+.save-bar .save-btn {
+	display: inline-block;
+	padding: 3px 8px;
+	font-size: 0.82em;
+	line-height: 1.6;
+	cursor: pointer;
+	border: 1px solid rgba(169, 192, 218, 0.35);
+	border-radius: 6px;
+	color: #a9c0da;
+	background: rgba(169, 192, 218, 0.08);
+	user-select: none;
+}
+.save-bar .save-btn:hover { background: rgba(169, 192, 218, 0.2); }
+.inv-block { margin-top: 0.6em; }
+.inv-list {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 3px 8px;
+	font-size: 0.88em;
+	line-height: 1.7;
+}
+.inv-item { color: #cfd8c8; }

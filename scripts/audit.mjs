@@ -204,7 +204,7 @@ if (wantAll || arg('text')) {
 			const i2 = raw.indexOf(w);
 			if (i2 >= 0) {
 				const line = raw.slice(0, i2).split('\n').length;
-				console.log(`  ✗ 风格违和词「${w}」@ ${f.split('/').pop()}:${line}（#72 黑名单——替换表 docs/westward-unification.md）`);
+				console.log(`  ✗ 风格违和词「${w}」@ ${f.split('/').pop()}:${line}（#72 黑名单——替换表 docs/archive/westward-unification.md）`);
 				bad++;
 			}
 		}

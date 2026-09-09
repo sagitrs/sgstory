@@ -1,3 +1,5 @@
+> ⚠️ **已被取代（2026-09）**：设定部分已被 `docs/lore-canon.md`（v14 正史「送它回家」）整体重写取代，**不再具权威**。保留仅供追溯设计过程。
+
 # 西式统一方案（westward unification）
 
 > Admin 决断（2026-09-08）：dragon 从根本上是西式的（hoard/soft spot/slay——Fafnir/Smaug 一脉），中式命名与伏笔系统与之冲突。**向西式统一。**

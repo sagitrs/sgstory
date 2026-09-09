@@ -1,5 +1,6 @@
 {
 	"render": [
+		"书房|past",
 		"书房|present",
 		"交付|past",
 		"交付|present",
@@ -19,6 +20,7 @@
 		"守林人·送|present",
 		"宴会·过去|past",
 		"宴会·过去|present",
+		"工坊|past",
 		"工坊|present",
 		"开场|present",
 		"归位|present",
@@ -26,6 +28,7 @@
 		"林间小径|present",
 		"森林边缘|present",
 		"洞穴|present",
+		"温室|past",
 		"温室|present",
 		"结局 再度沉睡|present",
 		"结局 劣化封印|present",

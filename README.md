@@ -51,7 +51,11 @@ test/rules.mjs    规则层单测 + 存档兼容矩阵（test/fixtures/saves/ �
 test/properties.mjs L5 数值属性：判定边界全枚举/优势支配律/伤害界限/车卡预算守恒
 scripts/audit.mjs   质量五维门（主伞 #34，Sky-Blind Spire / Old City 设计论据）：真相可达性/选择意义感/
                     系统可玩性/世界活性/语言经济——改叙事文本断锚即红
-docs/design-review.md D6 可用性走查存档（呈现层改动时复审）
+docs/
+  lore-canon.md     ★ 设定书（唯一权威正史「送它回家」；正文与它冲突＝P1 缺陷）
+  archive/          已作废稿（禁止回流；对照表见 docs/archive/README.md）
+  design-review.md  D6 可用性走查存档（呈现层改动时复审）
+  quality-selfaudit-ch123.md  1–3 章八维自检存档（流程记录，非设定稿）
 build.mjs         合并 src/*.twee → extwee 编译
 dist/index.html   编译产物（单文件游戏）
 ```

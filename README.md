@@ -12,7 +12,7 @@ npm install
 npm run build   # 编译 → dist/index.html（单文件，浏览器直接打开即玩）
 npm run serve   # 本地预览：http://localhost:8000
 npm test        # 构建后全链（~2min）：L0 静态门（含表一致性）→ 六道质量门（真相/canon/回声/选择/系统/文本）→ 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(19 路线并行) → 覆盖门
-npm run soak    # 游走器加量长测（20+20 局，~2min）：发布前 / 状态机重改动时跑（#27 起移出默认链）
+npm run soak    # 游走器加量长测（20+20 局，~1.5min）：CI 独立 job（M1c 接回）；发布前 / 状态机重改动时也可本地跑
 npm run audit   # 表驱动审计（#28/#34）：--truth/--canon/--choices/--systems/--echoes/--text 六道质量门 + 数值三件套
                  # （--check 模式已进 npm test：真相通路/设定回流/选择臂数/机制发现性/世界回声/文本载荷）
 npm run watch   # 修改 src/ 自动重新编译
@@ -48,7 +48,8 @@ vendor/
 test/integrity.mjs  L0 静态完整性门：悬空引用/goto 裸词/未定义宏 + 词汇纪律 W1-W3 + 表一致性硬门（#28/#29）
 test/render-all.mjs L1 全段落渲染冒烟：逐段落 play × $era 双变体，无异常/无 .error/非空
 test/walker.mjs    L2 对抗席游走器：种子化随机游走（一章+塔）+ 状态不变量 + 位点双支清扫（npm run soak 加量）
-test/coverage.mjs  L3 覆盖率 ratchet：基线不回退 + 新增段落必须配测（gate#9 等效）——基线更新：npm run update-coverage-baseline
+test/coverage.mjs  L3 覆盖率 ratchet（五门）：基线不回退 / 新段落必配测 / 无交互盲区 / 时代双态 / 交互≥渲染
+                   ——基线更新：npm run update-coverage-baseline
 test/smoke.mjs    无头冒烟测试（快速车卡 → 酒馆 → 森林 → 洞穴 + 侧栏/存档/物品栏）
 test/scenarios.mjs 分支场景测试（19 条路线：金路径 + 全部结局 + 设定集 + 龙巢边）
 test/rules.mjs    规则层单测 + 表契约（10 组）+ 存档兼容矩阵（test/fixtures/saves/ 每版历史形状一档；改 Pc.defaults 必须同 PR 加 fixture）

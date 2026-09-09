@@ -23,9 +23,9 @@
 
 <<flip>>
 
-<<if $era is "past">>
-	[[在宴上找人说话|宴会·过去]]
-<<else>>
+[[在宴上找人说话|宴会·过去]]
+
+<<if $era is "present">>
 	[[绕着它走一圈|龙·巢边]]
 	<<if $pc.keeper.state is "ally" and $pc.inv["好哨"]>>
 		[[叫醒它——现在可以了|唤醒]]

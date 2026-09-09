@@ -70,6 +70,7 @@
 	"interact": [
 		"书房|past",
 		"书房|present",
+		"交付|past",
 		"交付|present",
 		"半途的林子|present",
 		"告知与告别|past",
@@ -87,6 +88,7 @@
 		"守林人·守|past",
 		"守林人·送|past",
 		"宴会·过去|past",
+		"宴会·过去|present",
 		"工坊|past",
 		"工坊|present",
 		"开场|present",

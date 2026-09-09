@@ -54,6 +54,7 @@ scripts/audit.mjs   质量五维门（主伞 #34，Sky-Blind Spire / Old City �
 docs/
   lore-canon.md     ★ 设定书（唯一权威正史「送它回家」；正文与它冲突＝P1 缺陷）
   game-outline.md   ★ 游戏大纲（依据设定书扩展的机制/内容蓝本；不具设定权威）
+  impl-map.md       实施图（M1 骨架落地：段落图/状态模型/测试策略）
   archive/          已作废稿（禁止回流；对照表见 docs/archive/README.md）
   design-review.md  D6 可用性走查存档（呈现层改动时复审）
   quality-selfaudit-ch123.md  1–3 章八维自检存档（流程记录，非设定稿）

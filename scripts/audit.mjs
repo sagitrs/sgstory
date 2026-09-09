@@ -1,18 +1,29 @@
 // #28 表驱动审计：node scripts/audit.mjs —— 查 window.Game 三表产出伞 #21/#22 报表，
 // 替代一次性 jsdom 探查脚本。改表即改报告，秒级重算（无需启动场景）。
 // 用法：node scripts/audit.mjs [--checks] [--economy] [--tokens]（缺省全输出）
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import vm from 'node:vm';
 
-// ── vm 直载三份 [script]（Rules → Chargen → Game，同 window）──
-const ctx = { window: {}, console, Macro: { add() {} }, State: { variables: {} }, $: () => ({ append() {} }) };
-for (const f of ['src/30-rules.twee', 'src/31-chargen-data.twee', 'src/15-game-tables.twee']) {
+// ── 源文件发现（M1a-1）：不再硬编码路径——改文件名/拆文件不再牵动工具 ──
+const SRC_FILES = readdirSync('src').filter((f) => f.endsWith('.twee')).sort().map((f) => `src/${f}`);
+
+// ── vm 直载全部 [script] 段（按文件名序；浏览器专属全局用 stub 兑底）──
+const ctx = {
+	window: {}, console,
+	Macro: { add() {} }, State: { variables: {} }, $: () => ({ append() {} }),
+	Config: { history: {} },
+	Save: { onSave: { add() {} }, onLoad: { add() {} }, slots: {} },
+	jQuery: () => ({ on() {}, ariaClick() {}, off() {} }),
+	UI: { alert() {}, saves() {} }, Engine: {}, Story: { has: () => false },
+	setTimeout, clearTimeout, document: {},
+};
+for (const f of SRC_FILES) {
 	const text = readFileSync(f, 'utf8');
 	const scripts = [...text.matchAll(/::\s*[^\n[\]]+\[script\]([\s\S]*?)(?=\n::|$)/g)].map((m) => m[1]);
 	for (const body of scripts) vm.runInNewContext(body, ctx, { filename: f });
-	// 浏览器侧 window.X 是全局——vm 侧需手动提升
-	for (const k of Object.keys(ctx.window)) if (!(k in ctx)) ctx[k] = ctx.window[k];
 }
+// 浏览器侧 window.X 是全局——vm 侧需手动提升
+for (const k of Object.keys(ctx.window)) if (!(k in ctx)) ctx[k] = ctx.window[k];
 const { Rules, Pc, Chargen, ChargenPresets, Game } = ctx.window;
 
 // ── 预设角色（车卡全链 apply，与运行时同构）──
@@ -30,7 +41,7 @@ const wantAll = !process.argv.some((a) => a.startsWith('--'));
 const passageSrc = new Map(); // name -> 去注释源文（锚点检查用）
 const passageRaw = new Map(); // name -> 原文（payload 注释检查用）
 const passageTags = new Map(); // name -> tags[]
-for (const f of ['src/00-meta.twee', 'src/10-init.twee', 'src/20-story.twee', 'src/30-rules.twee', 'src/31-chargen-data.twee', 'src/40-chargen.twee', 'src/50-tower.twee', 'src/55-dungeon.twee', 'src/60-codex.twee']) {
+for (const f of SRC_FILES) {
 	const text = readFileSync(f, 'utf8');
 	const parts = text.split(/^::\s*/m);
 	for (const part of parts.slice(1)) {
@@ -198,7 +209,7 @@ if (wantAll || arg('text')) {
 	// 套路句式门：白名单外命中即红（改写后划掉）
 	const CLICHE = ['如潮水', '毛骨悚然', '倒吸一口', '心中一紧', '你感到一阵', '不由得'];
 	// ── D5.6 风格门（#72 西式统一）：违和词黑名单——命名回潮/佛教词/中式餐具与体例
-	for (const f of ['src/20-story.twee', 'src/50-tower.twee', 'src/55-dungeon.twee', 'src/60-codex.twee']) {
+	for (const f of SRC_FILES) {
 		const raw = readFileSync(f, 'utf8');
 		for (const w of ['青梧', '星官', '星落林', '坠星志', '月光倾城', '平凡之光', '执念', '动筷', '汤盅', '温了又温', '一坛', '爬回了天上', '森林的根里']) {
 			const i2 = raw.indexOf(w);

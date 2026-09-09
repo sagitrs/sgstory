@@ -181,6 +181,9 @@ for (const file of fixtures) {
 	w.eval('Math.random = () => 0.5');
 	// ④c 情报位点优势（M6d）：老猎人的话（world.rumor）→ 洞穴战斗自动双骰取高
 	ok(w.Game.Checks.knowledge?.['洞穴·战斗'] === 'rumor', 'knowledge 表：洞穴·战斗 ← world.rumor');
+	ok(w.Game.Checks.knowledge?.['书房·检视'] === 'witch_hint', 'knowledge 表：书房·检视 ← world.witch_hint');
+	// knowledge 的 key 必须是已登记位点（表一致性）
+	ok(Object.keys(w.Game.Checks.knowledge).every((k) => k in w.Game.Checks.sites), 'knowledge 的位点均存在于 Checks.sites');
 	const dq3 = [0.12, 0.82];
 	v.pc = w.Pc.defaults(); v.pc.world.rumor = true;
 	w.eval(`(function(){const q=${JSON.stringify(dq3)};Math.random=()=>q.length?q.shift():0.5;})()`);

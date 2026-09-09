@@ -346,7 +346,7 @@
 <<sitecheck "龙·吐息">>
 <<if $last_check.success>>你认出逆鳞那一处能透——它张口时你侧了身。<</if>>
 <<dragonbar>>
-<<if $pc.inv["月光花"]>><<sitecheck "龙·斩击" "adv">><<else>><<sitecheck "龙·斩击">><</if>>
+<<sitecheck "龙·斩击">>
 <<if $last_check.success>>你确实擦到了它的皮。<</if>>
 它甚至没有站起来。一记尾扫，把你连人带刀掀到墙上。
 

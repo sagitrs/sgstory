@@ -1,0 +1,143 @@
+:: Chargen Data [script]
+// ── 车卡：3 轮三选一（职业 / 背景 / 种族）───────────────────
+// 种族只改数值，不带叙事线（大纲 OQ2）。
+// 纪律：注入技能必须落在位点技能或经济消费里（幽灵技能门，audit --choices）。
+window.ChargenRounds = [
+	{
+		title: '职业', intro: '你靠什么活下来。',
+		options: [
+			{ name: '铁卫', desc: '扛得住、打得动。话不多，剑很稳。', effect: '力16 体15｜运动·恐吓｜长剑｜HP 高',
+				apply(pc) { pc.abilities = { str: 16, dex: 12, con: 15, int: 10, wis: 12, cha: 10 }; pc.skills.push('运动', '恐吓'); pc.gear.push('长剑'); pc.classHp = 12; pc.classKey = 'guard'; pc.classLabel = '铁卫'; } },
+			{ name: '影手', desc: '眼观六路，擅长把危机掐灭在发生之前。', effect: '敏16 感13｜察觉·游说｜短刃｜HP 中',
+				apply(pc) { pc.abilities = { str: 12, dex: 16, con: 12, int: 12, wis: 13, cha: 12 }; pc.skills.push('察觉', '游说'); pc.gear.push('短刃'); pc.classHp = 10; pc.classKey = 'shadow'; pc.classLabel = '影手'; } },
+			{ name: '秘典', desc: '体质是硬伤，但你知道旧书里值钱的那几行在哪。', effect: '智16 感15｜奥秘·历史｜药膏｜HP 低',
+				apply(pc) { pc.abilities = { str: 8, dex: 12, con: 10, int: 16, wis: 15, cha: 11 }; pc.skills.push('奥秘', '历史'); pc.gear.push('药膏'); pc.classHp = 8; pc.classKey = 'sage'; pc.classLabel = '秘典'; } },
+		],
+	},
+	{
+		title: '背景', intro: '你从哪儿来。',
+		options: [
+			{ name: '佣兵', desc: '在别人的战争里学会了活着。', effect: '运动｜金币 +10',
+				apply(pc) { pc.skills.push('运动'); pc.gold += 10; pc.bgKey = 'merc'; pc.bgLabel = '佣兵'; } },
+			{ name: '修行者', desc: '走过很多林子，习惯先听再动。', effect: '察觉｜金币 +6',
+				apply(pc) { pc.skills.push('察觉'); pc.gold += 6; pc.bgKey = 'wanderer'; pc.bgLabel = '修行者'; } },
+			{ name: '抄书人', desc: '你知道宝物藏在哪一页，也认得卖消息的人。', effect: '调查｜金币 +8｜学识烙印（情报半价）',
+				apply(pc) { pc.skills.push('调查'); pc.gold += 8; pc.flags.lore = true; pc.bgKey = 'scribe'; pc.bgLabel = '抄书人'; } },
+		],
+	},
+	{
+		title: '种族', intro: '你生来带着什么。（只影响数值）',
+		options: [
+			{ name: '人类', desc: '哪一行的活都干得来。', effect: '力 +1 敏 +1',
+				apply(pc) { pc.abilities.str += 1; pc.abilities.dex += 1; pc.speciesKey = 'human'; pc.speciesLabel = '人类'; } },
+			{ name: '精灵', desc: '眼睛比常人亮一点，心也比常人静一点。', effect: '敏 +2 感 +1',
+				apply(pc) { pc.abilities.dex += 2; pc.abilities.wis += 1; pc.speciesKey = 'elf'; pc.speciesLabel = '精灵'; } },
+			{ name: '矮人', desc: '石头一样结实，也石头一样固执。', effect: '体 +2 力 +1',
+				apply(pc) { pc.abilities.con += 2; pc.abilities.str += 1; pc.speciesKey = 'dwarf'; pc.speciesLabel = '矮人'; } },
+		],
+	},
+];
+
+window.Chargen = {
+	pick(roundIdx, optIdx) {
+		const pc = State.variables.pc;
+		ChargenRounds[roundIdx].options[optIdx].apply(pc);
+		pc.skills = [...new Set(pc.skills)];
+		pc.picked.push(`${ChargenRounds[roundIdx].title}：${ChargenRounds[roundIdx].options[optIdx].name}`);
+		pc.round += 1;
+		if (pc.round >= ChargenRounds.length) this.finalize(pc);
+	},
+	finalize(pc) {
+		pc.name = State.variables.player_name || '无名旅人';
+		pc.max_hp = (pc.classHp ?? 8) + Rules.mod(pc.abilities.con) * 2;
+		pc.hp = pc.max_hp;
+	},
+	applyPreset(idx) {
+		const picks = ChargenPresets[idx].picks;
+		for (let r = 0; r < ChargenRounds.length; r++) this.pick(r, picks[r]);
+	},
+};
+
+window.ChargenPresets = [
+	{ name: '铁卫', desc: '矮人佣兵出身的战士。话不多，剑很稳。', summary: '力17 体17｜HP 高｜长剑·运动', picks: [0, 0, 2] },
+	{ name: '影手', desc: '精灵游荡者，修行者出身。先听，再动。', summary: '敏18 感14｜HP 中｜短刃·察觉', picks: [1, 1, 1] },
+	{ name: '秘典', desc: '人类学者。体质是硬伤，但书读得多。', summary: '智16 感15｜HP 低｜药膏·奥秘', picks: [2, 2, 0] },
+];
+
+:: 车卡
+/% vocab: exempt W1 车卡模块 API（Chargen.applyPreset）与模式标记——点击态无叙事状态 %/
+/% payload: 选择 %/
+<<if $pc.mode is "">>
+<div class="chargen-card">
+	<div class="chargen-progress">车卡 · 选择塑造方式</div>
+	<h3>快速模式</h3>
+	<p class="chargen-intro">三套预设一键成型；或逐轮细调（职业 / 背景 / 种族，共 3 轮）。</p>
+	<div class="choices">
+	<<for _i to 0; _i lt ChargenPresets.length; _i++>>
+		<<capture _i>>
+		<div class="choice-card">
+			<div class="choice-name"><<print ChargenPresets[_i].name>></div>
+			<div class="choice-desc"><<print ChargenPresets[_i].desc>></div>
+			<div class="choice-effect"><<print ChargenPresets[_i].summary>></div>
+			<<link "快速成型">><<run Chargen.applyPreset(_i)>><<goto "角色卡">><</link>>
+		</div>
+		<</capture>>
+	<</for>>
+	</div>
+	<div class="mode-expert">
+		<<link "逐轮细调（3 轮三选一）">><<set $pc.mode to "expert">><<goto "车卡">><</link>>
+	</div>
+</div>
+<<else>>
+<<set _round to ChargenRounds[$pc.round]>>
+<<set _n to $pc.round + 1>>
+<div class="chargen-card">
+	<div class="chargen-progress">逐轮细调 · _n / 3</div>
+	<h3>_round.title</h3>
+	<p class="chargen-intro">_round.intro</p>
+	<div class="choices">
+	<<for _i to 0; _i lt _round.options.length; _i++>>
+		<<capture _i>>
+		<div class="choice-card">
+			<div class="choice-name">_round.options[_i].name</div>
+			<div class="choice-desc">_round.options[_i].desc</div>
+			<div class="choice-effect">_round.options[_i].effect</div>
+			<<link "选择此项">>
+				<<run Chargen.pick($pc.round, _i)>>
+				<<if $pc.round gte 3>><<goto "角色卡">><<else>><<goto "车卡">><</if>>
+			<</link>>
+		</div>
+		<</capture>>
+	<</for>>
+	</div>
+</div>
+<</if>>
+
+:: 角色卡
+/% payload: 信息|选择 %/
+<div class="charsheet">
+	<h2>✦ $pc.name 的冒险卡 ✦</h2>
+	<p class="charsheet-line">$pc.speciesLabel · $pc.classLabel · $pc.bgLabel 出身</p>
+	<<hpbar>>
+	<table class="ability-table">
+		<tr><th>力量</th><th>敏捷</th><th>体质</th><th>智力</th><th>感知</th><th>魅力</th></tr>
+		<tr>
+			<td>$pc.abilities.str<br>//<<print Rules.fmod($pc.abilities.str)>>//</td>
+			<td>$pc.abilities.dex<br>//<<print Rules.fmod($pc.abilities.dex)>>//</td>
+			<td>$pc.abilities.con<br>//<<print Rules.fmod($pc.abilities.con)>>//</td>
+			<td>$pc.abilities.int<br>//<<print Rules.fmod($pc.abilities.int)>>//</td>
+			<td>$pc.abilities.wis<br>//<<print Rules.fmod($pc.abilities.wis)>>//</td>
+			<td>$pc.abilities.cha<br>//<<print Rules.fmod($pc.abilities.cha)>>//</td>
+		</tr>
+	</table>
+	<div class="charsheet-rows">
+		<div><span class="label">生命</span>$pc.hp / $pc.max_hp</div>
+		<div><span class="label">金币</span>$pc.gold</div>
+		<div><span class="label">熟练技能</span><<print $pc.skills.join('、')>></div>
+		<div><span class="label">行囊</span><<print $pc.gear.length ? $pc.gear.join('、') : '空空如也'>></div>
+	</div>
+</div>
+
+车卡已成。雾在林子那头，酒馆的门还亮着。
+
+[[出发，前往歪脖子鸭酒馆|酒馆]]

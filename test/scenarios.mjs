@@ -1,17 +1,15 @@
-// 分支场景测试：5 条完整路线（车卡 8 轮 + 检定驱动剧情）
-// Math.random 劫持：0.99 → d20 恒 20（自然 20 必成）；0.01 → 恒 1（自然 1 必败）
-import { readFileSync } from 'node:fs';
+// 分支场景测试（M1a-2 换骨后）：金路径 + 分支矩阵（每条结局一条路线）
+// Math.random 劫持：0.99 → d20 恒 20（自然 20 必成）；0.01 → 恒 1（自然 1 必败）；0.5 → 恒 11
+// 交互覆盖落盘 build/coverage-scenarios.json（coverage.mjs 门禁用）
+import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { JSDOM, VirtualConsole } from 'jsdom';
 
 const html = readFileSync('dist/index.html', 'utf8');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let failures = 0;
-// 交互覆盖采集（L3 消费）：点击前后段落都算交互到达
 const visited = new Set();
 
-async function newGame(randomStub, picks) {
-	// uncaught 异常收集：SugarCube 交互宏抛错（如 goto 目标不存在）只走 jsdomError，
-	// 无监听则被吞——测试绿但线上报错（坑11教训）。"Not implemented"（alert 等）不计。
+async function newGame(randomStub, preset = 0) {
 	const uncaught = [];
 	const vc = new VirtualConsole();
 	vc.on('jsdomError', (e) => {
@@ -19,18 +17,10 @@ async function newGame(randomStub, picks) {
 		if (msg.startsWith('Uncaught')) uncaught.push(msg);
 	});
 	const dom = new JSDOM(html, {
-		runScripts: 'dangerously',
-		pretendToBeVisual: true,
-		url: 'http://localhost/',
-		virtualConsole: vc,
-		beforeParse(window) {
-			window.Math.random = () => randomStub;
-		},
+		runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/', virtualConsole: vc,
+		beforeParse(window) { window.Math.random = () => randomStub; },
 	});
 	const w = dom.window;
-	// 就绪轮询替代固定等待（#27 CI 教训）：9 路线并行在 2 核 runner 上，
-	// 脚本加载的固定 1.2s 不成立 → "starting passage not selected"。
-	// 轮询消灭时序假设：SugarCube 就绪（Wikifier 可用）→ StoryInit → 起始段渲染完成。
 	const pollUntil = async (cond, timeoutMs, what) => {
 		const t0 = Date.now();
 		while (!cond()) {
@@ -42,938 +32,442 @@ async function newGame(randomStub, picks) {
 	new w.SugarCube.Wikifier(null, w.document.querySelector('tw-passagedata[name="StoryInit"]').textContent);
 	w.SugarCube.Engine.start();
 	await pollUntil(() => w.document.querySelector('#passages .passage[data-passage="开场"]'), 15000, '起始段渲染');
-	await sleep(150);
+	await sleep(120);
 
-	const clickLabel = async (label) => {
+	const mark = () => visited.add(`${w.SugarCube.State.passage}|${w.SugarCube.State.variables?.era ?? '-'}`);
+	const click = async (label) => {
 		const a = [...w.document.querySelectorAll('#passages a.link-internal')]
-			.find((x) => x.textContent === label);
-		if (!a) throw new Error(`找不到链接「${label}」@ ${w.SugarCube.State.passage}`);
-		visited.add(`${w.SugarCube.State.passage}|${w.SugarCube.State.variables?.era ?? '-'}`);
+			.find((x) => x.textContent === label || x.textContent.includes(label));
+		if (!a) throw new Error(`找不到链接「${label}」@ ${w.SugarCube.State.passage}（可选：${[...w.document.querySelectorAll('#passages a.link-internal')].map((x) => x.textContent).join(' / ')}）`);
+		mark();
 		const before = uncaught.length;
 		a.click();
-		await sleep(320);
-		visited.add(`${w.SugarCube.State.passage}|${w.SugarCube.State.variables?.era ?? '-'}`);
-		if (uncaught.length > before) {
-			throw new Error(`点击「${label}」后脚本异常：${uncaught[before].slice(0, 160)}`);
-		}
+		await sleep(300);
+		mark();
+		if (uncaught.length > before) throw new Error(`点击「${label}」后脚本异常：${uncaught[before].slice(0, 160)}`);
 	};
-
-	await clickLabel('踏上旅途');
-	await clickLabel('逐轮细调（专家模式 · 8 轮三选一）');
-	// 专家模式：按选项名点对应卡片的"选择此项"
-	for (const name of picks) {
-		const card = [...w.document.querySelectorAll('.choice-card')]
-			.find((c) => c.querySelector('.choice-name').textContent === name);
-		if (!card) throw new Error(`车卡选项不存在「${name}」@ 第 ${w.SugarCube.State.variables.pc.round + 1} 轮`);
-		card.querySelector('a.link-internal').click();
-		await sleep(280);
+	// 车卡 + 出发
+	await click('踏上旅途');
+	await click('快速成型');
+	if (preset) {
+		// 选第 N 套预设（车卡页有多张卡片）
+		const cards = [...w.document.querySelectorAll('.choice-card')];
+		cards[preset].querySelector('a.link-internal').click();
+		await sleep(300);
 	}
-	if (w.SugarCube.State.passage !== '角色卡') throw new Error(`车卡未完成 @ ${w.SugarCube.State.passage}`);
-	await clickLabel('出发，前往歪脖子鸭酒馆');
-	return { w, clickLabel };
+	await click('出发，前往歪脖子鸭酒馆');
+	return { w, click, uncaught };
 }
 
 const passageOf = (w) => w.SugarCube.State.passage;
 const pcOf = (w) => w.SugarCube.State.variables.pc;
-const amuletOf = (w) => w.SugarCube.State.variables.has_amulet;
 
-// 路线收集器：并行执行（每路线独立 JSDOM，天然隔离无串扰——#27 提速方案，
-// 替代"单启动+状态还原"：无还原即无还原不净风险，隔离语义与逐路线启动完全一致）
-const pending = [];
-function scenario(name, fn) { pending.push({ name, fn }); }
-
-// ── 路线 A：全自然 20 → 察觉直接发现宝箱 → 护身符结局 ──
-scenario('路线A：火把+全检定成功 → 结局「银月之赐」', async () => {
-	const { w, clickLabel } = await newGame(0.99, [
-		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '火把与绳索', '坚韧', '勇气',
-	]);
-	const pc = () => pcOf(w);
-	if (pc().max_hp !== 14) throw new Error(`HP 应为 14（战士 10+2 + 坚韧 2），实际 ${pc().max_hp}`);
-	if (pc().gold !== 25) throw new Error(`起始金币应为 25（佣兵15+人类10），实际 ${pc().gold}`);
-	await clickLabel('推门出发，走进暮色');
-	await clickLabel('打着火把，走进山脚的洞穴');
-	if (!w.SugarCube.State.variables.last_check.success) throw new Error('察觉检定应成功');
-	await clickLabel('收好护身符，穿过后洞的裂缝');
-	await clickLabel('听她说完');
-	if (passageOf(w) !== '女巫的委托') throw new Error(`应停在女巫的委托，实际 ${passageOf(w)}`);
-	await clickLabel('功成身退');
-	if (passageOf(w) !== '结局 银月之赐') throw new Error(`结局不对：${passageOf(w)}`);
-	if (!amuletOf(w)) throw new Error('应持有护身符');
-	if (pc().gold !== 50) throw new Error(`金币应为 25+25=50，实际 ${pc().gold}`);
-	if (pc().hp !== 14) throw new Error(`全程无伤应满血，实际 ${pc().hp}`);
-});
-
-// ── 路线 B：全自然 1 → 摸黑+断桥 → 空手结局（矮人减伤验证）──
-scenario('路线B：摸黑+断桥 → 结局「空手而归」', async () => {
-	const { w, clickLabel } = await newGame(0.01, [
-		'博学型', '学者', '矮人', '巫师', '秘闻技艺', '长剑', '警觉', '机运',
-	]);
-	const pc = () => pcOf(w);
-	if (pc().max_hp !== 7) throw new Error(`巫师 HP 应为 7（6+体12→+1），实际 ${pc().max_hp}`);
-	await clickLabel('推门出发，走进暮色');
-	await clickLabel('摸黑走进山脚的洞穴（很危险）');
-	if (pc().hp !== 5) throw new Error(`摸黑受伤后应 5（7-2），实际 ${pc().hp}`);
-	await clickLabel('改走吊桥');
-	if (pc().hp !== 1) throw new Error(`断桥受伤后应 1（5-4），实际 ${pc().hp}`);
-	await clickLabel('走向小屋');
-	// 金币 10 ≥ 10 → 治疗链接应存在，但选择离开
-	const heal = [...w.document.querySelectorAll('#passages a.link-internal')]
-		.some((a) => a.textContent.includes('请她治疗'));
-	if (!heal) throw new Error('金币足够时治疗链接应存在');
-	await clickLabel('转身离开森林');
-	if (passageOf(w) !== '结局 空手而归') throw new Error(`结局不对：${passageOf(w)}`);
-});
-
-// ── 路线 C：察觉失败遇哥布林 → 贿赂结友 → 和平结局 ──
-scenario('路线C：贿赂哥布林 → 结局「平凡之路」', async () => {
-	const { w, clickLabel } = await newGame(0.01, [
-		'勇武型', '佣兵', '人类', '游荡者', '市井技艺', '火把与绳索', '坚韧', '勇气',
-	]);
-	const pc = () => pcOf(w);
-	if (pc().gold !== 30) throw new Error(`起始金币应为 30（佣兵15+人类10+游荡者5），实际 ${pc().gold}`);
-	await clickLabel('推门出发，走进暮色');
-	await clickLabel('打着火把，走进山脚的洞穴');
-	// #36 恐吓折扣：佣兵熟练恐吓 → 贿赂 5→3（标签同源动态价）
-	await clickLabel('慢慢后退，扔过去 3 枚金币');
-	if (pc().gold !== 27) throw new Error(`恐吓折扣贿赂后应 27（30-3），实际 ${pc().gold}`);
-	if (!w.SugarCube.State.variables.goblin_spared) throw new Error('goblin_spared 应为 true');
-	await clickLabel('钻过石缝');
-	await clickLabel('接过汤碗');
-	if (passageOf(w) !== '结局 平凡之路') throw new Error(`结局不对：${passageOf(w)}`);
-});
-
-// ── 路线 D：两次挑衅影子全豁免失败 → 死亡结局 ──
-scenario('路线D：两次鲁莽挑战 → 结局「死亡」', async () => {
-	const { w, clickLabel } = await newGame(0.01, [
-		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '火把与绳索', '警觉', '机运',
-	]);
-	const pc = () => pcOf(w);
-	if (pc().max_hp !== 12) throw new Error(`战士 HP 应为 12（无坚韧），实际 ${pc().max_hp}`);
-	await clickLabel('推门出发，走进暮色');
-	await clickLabel('对着雾气大吼，宣示存在');
-	if (pc().hp !== 6) throw new Error(`第一次豁免失败后应 6（12-6），实际 ${pc().hp}`);
-	await clickLabel('明智起见，还是选条正经路');
-	await clickLabel('对着雾气大吼，宣示存在');
-	if (passageOf(w) !== '结局 死亡') throw new Error(`应死亡，当前：${passageOf(w)}`);
-	if (pc().hp !== 0) throw new Error(`血量应归零，实际 ${pc().hp}`);
-});
-
-// ── 路线 E：酒馆买火把 → 战斗豁免失败受伤 → 仍获护身符 ──
-scenario('路线E：放走哥布林 → 塔·温室彩蛋 → 结局「新守林人」', async () => {
-	const { w, clickLabel } = await newGame(0.01, [
-		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '长剑', '坚韧', '勇气',
-	]);
-	const pc = () => pcOf(w);
-	if (pc().gold !== 25) throw new Error(`起始金币应为 25，实际 ${pc().gold}`);
-	await clickLabel('买一支火把（10 金币）');
-	if (pc().gold !== 15 || !pc().has_torch) throw new Error('买火把后金币/火把状态错误');
-	await clickLabel('回到大厅');
-	await clickLabel('推门出发，走进暮色');
-	await clickLabel('打着火把，走进山脚的洞穴');
-	await clickLabel('拔剑！');
-	if (pc().hp !== 10) throw new Error(`战斗受伤后应 10（14-4），实际 ${pc().hp}`);
-	if (!amuletOf(w)) throw new Error('战斗获胜应获得护身符');
-	await clickLabel('捡起护身符，目送它逃走');
-	if (!w.SugarCube.State.variables.goblin_spared) throw new Error('放走哥布林应置 goblin_spared');
-	await clickLabel('听她说完');
-	if (passageOf(w) !== '女巫的委托') throw new Error(`应停在女巫的委托，实际 ${passageOf(w)}`);
-	if (pc().hp !== 14) throw new Error(`女巫委托应回满血 14，实际 ${pc().hp}`);
-	await clickLabel('登上守林人之塔（第二章）');
-	await clickLabel('进入塔内');
-	// 坠入过去 → 温室：哥布林园丁认出"放走族崽"的恩人（跨章旗标彩蛋）
-	await clickLabel('翻转护身符：坠入『过去』（剩 3 次）');
-	if (w.SugarCube.State.variables.era !== 'past') throw new Error('时代未切换到过去');
-	if (passageOf(w) !== '楼梯间') throw new Error(`翻转后应重渲染当前段落（楼梯间），实际 ${passageOf(w)}`);
-	await clickLabel('三层 · 温室');
-	if (!pc().tokens.includes('月光花')) throw new Error('温室彩蛋应赠月光花');
-	if (pc().gold !== 20) throw new Error(`园丁赠金后应 20（15+5），实际 ${pc().gold}`);
-	await clickLabel('返回楼梯间');
-	await clickLabel('顶楼 · 守林人残影');
-	if ([...w.document.querySelectorAll('#passages a.link-internal')].some((a) => a.textContent.includes('唤她回家'))) throw new Error('仅 1 件信物不应出现解放选项');
-	await clickLabel('握住法杖，成为新的守林人');
-	// 化身战（#23）：月光花在怀 → 终击优势；伤害 max(1,3−T)+max(1,4−T)+max(1,1−T) = 2+3+1
-	if (passageOf(w) !== '雾之化身战') throw new Error(`新守林人必经化身战，实际 ${passageOf(w)}`);
-	await clickLabel('迎击');
-	await clickLabel('她将你拽入回忆');
-	await clickLabel('倾尽全力，最后一击');
-	if (pc().hp !== 8) throw new Error(`化身战 1 信物应剩 8（14-2-3-1），实际 ${pc().hp}`);
-	await clickLabel('握起法杖');
-	if (passageOf(w) !== '结局 新任守林人') throw new Error(`结局不对：${passageOf(w)}`);
-});
-
-
-// ── 路线 F：全自然 20 → 四层四信物 → 顶楼解放（真结局）──
-scenario('路线F：全信物登塔 → 真结局「解放」', async () => {
-	const { w, clickLabel } = await newGame(0.99, [
-		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '火把与绳索', '坚韧', '勇气',
-	]);
-	await clickLabel('推门出发，走进暮色');
-	await clickLabel('打着火把，走进山脚的洞穴');
-	await clickLabel('收好护身符，穿过后洞的裂缝');
-	await clickLabel('听她说完');
-	await clickLabel('登上守林人之塔（第二章）');
-	await clickLabel('进入塔内');
-	// 现在：门厅+书房
-	await clickLabel('一层 · 门厅');
-	if (!pcOf(w).tokens.includes('铜哨')) throw new Error('门厅应得铜哨');
-	await clickLabel('返回楼梯间');
-	await clickLabel('二层 · 书房');
-	if (!pcOf(w).tokens.includes('日记')) throw new Error('书房应得日记');
-	await clickLabel('返回楼梯间');
-	// 过去：温室+天文台
-	await clickLabel('翻转护身符：坠入『过去』（剩 3 次）');
-	await clickLabel('三层 · 温室');
-	await clickLabel('试着说明来意（它看起来并不好说话）');
-	if (!pcOf(w).tokens.includes('月光花')) throw new Error('温室应得月光花');
-	await clickLabel('返回楼梯间');
-	await clickLabel('四层 · 天文台');
-	if (!pcOf(w).tokens.includes('星图残页')) throw new Error('天文台应得星图残页');
-	await clickLabel('返回楼梯间');
-	await clickLabel('顶楼 · 守林人残影');
-	if (pcOf(w).tokens.length !== 4) throw new Error(`应集齐 4 信物，实际 ${pcOf(w).tokens.length}`);
-	if (pcOf(w).amulet_charges !== 2) throw new Error(`充能应用去 1 剩 2，实际 ${pcOf(w).amulet_charges}`);
-	await clickLabel('吹响铜哨，唤她回家');
-	if (passageOf(w) !== '结局 归乡') throw new Error(`结局不对：${passageOf(w)}`);
-});
-
-// ── 路线 G：全自然 1 → 零信物脆法 → 化身战败 → 塔的回声不死（#23 echo 守卫）──
-scenario('路线G：脆法零信物 → 化身战败 → 塔的回声（不死+递增）', async () => {
-	const { w, clickLabel } = await newGame(0.01, [
-		'博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运',
-	]);
-	const pc = () => pcOf(w); // 坑2：跨导航禁止持有 $pc 引用，一律即时读取
-	if (pc().max_hp !== 7) throw new Error(`巫师 HP 应 7，实际 ${pc().max_hp}`);
-	if (pc().gold !== 20) throw new Error(`起始金币应 20（学者10+人类10），实际 ${pc().gold}`);
-	await clickLabel('买一支火把（10 金币）');
-	await clickLabel('回到大厅');
-	await clickLabel('推门出发，走进暮色');
-	await clickLabel('打着火把，走进山脚的洞穴');
-	await clickLabel('拔剑！');
-	if (pc().hp !== 3) throw new Error(`战斗受创后应 3（7-4），实际 ${pc().hp}`);
-	await clickLabel('捡起护身符，追上去斩草除根（+3 金币）');
-	if (pc().gold !== 13) throw new Error(`追杀后金币应 13（10+3），实际 ${pc().gold}`);
-	await clickLabel('听她说完');
-	if (pc().hp !== 7) throw new Error(`女巫委托应回满 7，实际 ${pc().hp}`);
-	await clickLabel('登上守林人之塔（第二章）');
-	await clickLabel('进入塔内');
-	await clickLabel('顶楼 · 守林人残影');
-	if (pc().tokens.length !== 0) throw new Error(`零探索应 0 信物，实际 ${pc().tokens.length}`);
-	await clickLabel('折断法杖，让塔与雾一同终结');
-	if (passageOf(w) !== '雾之化身战') throw new Error(`焚塔必经化身战，实际 ${passageOf(w)}`);
-	await clickLabel('迎击');
-	if (pc().hp !== 4) throw new Error(`R1 零信物受 3 伤应 4，实际 ${pc().hp}`);
-	await clickLabel('她将你拽入回忆');
-	// 7hp: 3+4=7 → 归零 → echo 守卫：hp=1、败计数+1、送塔的回声
-	if (passageOf(w) !== '塔的回声') throw new Error(`战败应送塔的回声，实际 ${passageOf(w)}`);
-	if (pc().hp !== 1) throw new Error(`echo 守卫应 hp=1，实际 ${pc().hp}`);
-	if ((pc().tower.defeats ?? 0) !== 1) throw new Error(`败计数应 1，实际 ${pc().tower.defeats}`);
-	await clickLabel('缓过气来');
-	if (passageOf(w) !== '楼梯间') throw new Error(`应回楼梯间，实际 ${passageOf(w)}`);
-	// 再战：rage +1 → R1 伤害 4 → hp1 归零再败，败计数 2
-	await clickLabel('顶楼 · 守林人残影');
-	await clickLabel('折断法杖，让塔与雾一同终结');
-	if (!w.document.querySelector('#passages').textContent.includes('悲鸣比上次更烈（伤害 +1）')) throw new Error('战败后重进战场应显示递增提示');
-	await clickLabel('迎击');
-	if (passageOf(w) !== '塔的回声') throw new Error(`rage+1 应再败（hp1-4），实际 ${passageOf(w)}`);
-	if ((pc().tower.defeats ?? 0) !== 2) throw new Error(`败计数应 2，实际 ${pc().tower.defeats}`);
-});
-
-// ── 路线 I：硬汉零信物 → 化身战全承 → 焚塔（战斗 build 的高潮兑现，#23）──
-scenario('路线I：战士零信物硬接化身 → 结局「焚塔」', async () => {
-	const { w, clickLabel } = await newGame(0.01, [
-		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '长剑', '坚韧', '勇气',
-	]);
-	const pc = () => pcOf(w);
-	if (pc().gold !== 25) throw new Error(`起始金币应 25，实际 ${pc().gold}`);
-	await clickLabel('买一支火把（10 金币）');
-	await clickLabel('回到大厅');
-	await clickLabel('推门出发，走进暮色');
-	await clickLabel('打着火把，走进山脚的洞穴');
-	await clickLabel('拔剑！');
-	await clickLabel('捡起护身符，追上去斩草除根（+3 金币）');
-	await clickLabel('听她说完');
-	if (pc().hp !== pc().max_hp) throw new Error('委托后应满血');
-	await clickLabel('登上守林人之塔（第二章）');
-	await clickLabel('进入塔内');
-	await clickLabel('顶楼 · 守林人残影');
-	await clickLabel('折断法杖，让塔与雾一同终结');
-	await clickLabel('迎击');
-	await clickLabel('她将你拽入回忆');
-	await clickLabel('倾尽全力，最后一击');
-	// 14 − (3+4+1) = 6：零信物硬接全部伤害仍活
-	if (pc().hp !== 6) throw new Error(`硬接 3+4+1 后应 6，实际 ${pc().hp}`);
-	await clickLabel('折断法杖');
-	if (passageOf(w) !== '结局 焚塔者') throw new Error(`结局不对：${passageOf(w)}`);
-});
-
-
-// ── 路线 K：满配 spender（#25 经济 sink 全踩）→ 贿赂园丁+乌鸦 → 半途结算 ──
-scenario('路线K：全消费（传闻+情报×2+药膏+贿赂+乌鸦） → 终局 6 金', async () => {
-	const { w, clickLabel } = await newGame(0.99, [
-		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '火把与绳索', '坚韧', '勇气',
-	]);
-	const pc = () => pcOf(w); // 坑2：跨导航禁止持有 $pc 引用
-	// 酒馆：买传闻（5 金——原免费送，#25 第一个 sink）
-	await clickLabel('花 5 金币听老猎人讲实话（他说第三块板子是脆的）');
-	if (pc().gold !== 20) throw new Error(`买传闻后应 20，实际 ${pc().gold}`);
-	if (!w.SugarCube.State.variables.heard_rumor) throw new Error('传闻旗标应置位');
-	await clickLabel('回到大厅');
-	await clickLabel('推门出发，走进暮色');
-	await clickLabel('打着火把，走进山脚的洞穴');
-	await clickLabel('收好护身符，穿过后洞的裂缝'); // 宝箱 +25 → 45
-	if (pc().gold !== 45) throw new Error(`宝箱后应 45（25-5+25），实际 ${pc().gold}`);
-	await clickLabel('听她说完');
-	// 女巫摊子：情报 ×2（8 金/条，铁卫无烙印无折扣）+ 药膏（8 金，库存 +1）
-	await clickLabel('看看她的乌木匣（情报与药膏，收现金）');
-	if (passageOf(w) !== '女巫 摊子') throw new Error(`应停在女巫 摊子，实际 ${passageOf(w)}`);
-	await clickLabel('花 8 金币：书房烤炉后的暗格藏着什么');
-	await clickLabel('花 8 金币：星图的残页在哪里对得齐');
-	await clickLabel('花 8 金币买一副药膏（当前 0 副，受伤自动回 4）');
-	if (pc().gold !== 21) throw new Error(`三购后应 21（45-8-8-8），实际 ${pc().gold}`);
-	if (pc().salves !== 1) throw new Error(`药膏库存应 1，实际 ${pc().salves}`);
-	if (!(w.SugarCube.State.variables.hint_diary && w.SugarCube.State.variables.hint_star)) throw new Error('两条情报旗标应置位');
-	await clickLabel('回到炉边');
-	// 入塔（past）：贿赂园丁拿月光花（10 金确定替代 DC13）
-	await clickLabel('登上守林人之塔（第二章）');
-	await clickLabel('进入塔内');
-	await clickLabel('翻转护身符：坠入『过去』（剩 3 次）');
-	await clickLabel('三层 · 温室');
-	await clickLabel('塞给它 10 金币——哥布林都爱钱，它应该也是');
-	if (passageOf(w) !== '温室 贿赂') throw new Error(`应停在温室 贿赂，实际 ${passageOf(w)}`);
-	if (!pc().tokens.includes('月光花')) throw new Error('贿赂应得月光花');
-	if (pc().gold !== 11) throw new Error(`贿赂后应 11（21-10），实际 ${pc().gold}`);
-	await clickLabel('返回楼梯间');
-	// 乌鸦向导（5 金）：只读高亮——已取的月光花不再列出
-	await clickLabel('给檐上的乌鸦 5 金币（它在这塔里活了一百年）');
-	if (passageOf(w) !== '乌鸦指路') throw new Error(`应停在乌鸦指路，实际 ${passageOf(w)}`);
-	const crowText = w.document.querySelector('#passages').textContent;
-	if (!crowText.includes('铜哨') || crowText.includes('月光花')) throw new Error('乌鸦应列未取的铜哨、不列已取的月光花');
-	if (pc().gold !== 6) throw new Error(`乌鸦后应 6（11-5），实际 ${pc().gold}`);
-	await clickLabel('回到楼梯');
-	await clickLabel('下塔离开');
-	if (passageOf(w) !== '结局 半途') throw new Error(`结局不对：${passageOf(w)}`);
-	// 终局账本（#25 验收）：满配 spender 落在设计区间 5~25
-	if (pc().gold !== 6) throw new Error(`终局金币应 6，实际 ${pc().gold}`);
-	if (pc().tokens.length !== 1) throw new Error(`只取月光花应 1 信物，实际 ${pc().tokens.length}`);
-});
-
-// ── 路线 M：三章结构验收（C1 #49）——锚切换免费、水闸跨时代机关、环路闭合 ──
-scenario('路线M：战胜化身 → 塌井入塔底 → 锚切+水闸机关 → 前厅封印门 → 环路回顶', async () => {
-	const { w, clickLabel } = await newGame(0.99, [
-		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '火把与绳索', '坚韧', '勇气',
-	]);
-	const pc = () => pcOf(w); // 坑2：跨导航禁止持有 $pc 引用
-	const era = () => w.SugarCube.State.variables.era;
-	await clickLabel('推门出发，走进暮色');
-	await clickLabel('打着火把，走进山脚的洞穴');
-	await clickLabel('收好护身符，穿过后洞的裂缝');
-	await clickLabel('听她说完');
-	await clickLabel('登上守林人之塔（第二章）');
-	await clickLabel('进入塔内');
-	await clickLabel('顶楼 · 守林人残影');
-	await clickLabel('折断法杖，让塔与雾一同终结');
-	// 化身战三连（0.99 全过，无信物无伤）
-	await clickLabel('迎击');
-	await clickLabel('她将你拽入回忆');
-	await clickLabel('倾尽全力，最后一击');
-	if (!pc().tower.avatar_down) throw new Error('战胜化身应置 avatar_down');
-	// C1 入口一：战后裂口
-	await clickLabel('俯身探看裂口，下到塔底（第三章）');
-	if (passageOf(w) !== '塔底·塌井厅') throw new Error(`应落塌井厅，实际 ${passageOf(w)}`);
-	// 共鸣锚：免费切换（不耗充能——与二章 erashift 的判别断言）
-	const chargesBefore = pc().amulet_charges;
-	await clickLabel('触动共鸣锚：坠入『过去』');
-	if (era() !== 'past' || passageOf(w) !== '塔底·塌井厅') throw new Error(`锚切后应留在原段 past，实际 ${passageOf(w)}/${era()}`);
-	if (pc().amulet_charges !== chargesBefore) throw new Error('共鸣锚不得耗充能');
-	await clickLabel('去封印大厅');
-	if (!w.document.querySelector('#passages').textContent.includes('四道锁槽')) throw new Error('past 封印大厅应见四锁槽');
-	// 水闸机关：past 开闸
-	await clickLabel('去水淹机房');
-	await clickLabel('转动水闸，让暗河流往它该去的地方');
-	if (!pc().tower.sluice) throw new Error('水闸应置 tower.sluice');
-	await clickLabel('回到机房');
-	await clickLabel('触动共鸣锚：回到『现在』');
-	if (era() !== 'present') throw new Error('机房锚应可切回 present');
-	await clickLabel('回封印大厅');
-	if (!w.document.querySelector('#passages').textContent.includes('沟壑状抓痕')) throw new Error('present 封印大厅应见龙迹');
-	// 跨时代后果：河床见底新通路（C2↔ENG 环路）
-	await clickLabel('去暗河码头');
-	await clickLabel('顺河床深入机房');
-	if (passageOf(w) !== '塔底·水淹机房') throw new Error(`河床新通路应达机房，实际 ${passageOf(w)}`);
-	await clickLabel('回封印大厅');
-	// C1 全 locale 配测（L3）：宝藏厅/熔炉/囚室顺访
-	await clickLabel('去宝藏厅');
-	await clickLabel('回封印大厅');
-	await clickLabel('去熔炉');
-	await clickLabel('回封印大厅');
-	await clickLabel('去囚室');
-	if (!w.document.querySelector('#passages').textContent.includes('指骨仍抵在地面星轨图')) throw new Error('present 囚室应见星轨图骸骨（past 伏笔由 render-all 双态覆盖）');
-	await clickLabel('回封印大厅');
-	// 观测廊双态（past 残卷=真相层）
-	await clickLabel('去观测廊');
-	await clickLabel('触动共鸣锚：坠入『过去』');
-	if (!w.document.querySelector('#passages').textContent.includes('雾生于龙梦')) throw new Error('past 观测廊应见《论坠星》残卷');
-	await clickLabel('回封印大厅');
-	// 前厅封印门 + 环路闭合
-	await clickLabel('去龙穴前厅');
-	if (!w.document.querySelector('#passages').textContent.includes('等四件东西')) throw new Error('前厅应见四锁槽封印门');
-	await clickLabel('退回封印大厅');
-	await clickLabel('去塌井厅');
-	await clickLabel('触动共鸣锚：回到『现在』');
-	await clickLabel('攀回顶楼');
-	if (passageOf(w) !== '顶楼') throw new Error(`环路应回顶楼，实际 ${passageOf(w)}`);
-});
-
-// ── 路线 N：C2 真相层验收（#50）——三命题五段全踩 + 星图弱点链 + 宴会第二义 ──
-scenario('路线N：星图线 → 化身战后下塔底 → 囚徒三臂+信+星图对接 → 宴会第二义 → 顶楼两读', async () => {
-	const { w, clickLabel } = await newGame(0.99, [
-		'博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运',
-	]);
-	const pc = () => pcOf(w);
-	const txt = () => w.document.querySelector('#passages').textContent;
-	await clickLabel('买一支火把（10 金币）');
-	await clickLabel('回到大厅');
-	await clickLabel('推门出发，走进暮色');
-	await clickLabel('打着火把，走进山脚的洞穴');
-	await clickLabel('收好护身符，穿过后洞的裂缝');
-	await clickLabel('听她说完');
-	await clickLabel('登上守林人之塔（第二章）');
-	await clickLabel('进入塔内');
-	// 星图残页：past 天文台（奥秘 0.99 必过）——塔内充能翻转（与三章共鸣锚判别）
-	await clickLabel('翻转护身符：坠入『过去』（剩 3 次）');
-	await clickLabel('四层 · 天文台');
-	if (!pc().tokens.includes('星图残页')) throw new Error('奥秘 0.99 线应取得星图残页');
-	await clickLabel('返回楼梯间');
-	await clickLabel('翻转护身符：回到『现在』（剩 2 次）');
-	await clickLabel('顶楼 · 守林人残影');
-	await clickLabel('折断法杖，让塔与雾一同终结');
-	await clickLabel('迎击');
-	await clickLabel('她将你拽入回忆');
-	await clickLabel('倾尽全力，最后一击');
-	await clickLabel('俯身探看裂口，下到塔底（第三章）');
-	// past 囚徒三臂（互补型）
-	await clickLabel('触动共鸣锚：坠入『过去』');
-	await clickLabel('去封印大厅');
-	if (!txt().includes('梦渗成雾')) throw new Error('past 封印大厅应闻守卫吟诵（dragon_mist 通路2）');
-	await clickLabel('去囚室');
-	await clickLabel('问守林人的事（他为何守在这里）');
-	if (!txt().includes('守的从来不是悔恨——是封印')) throw new Error('囚徒·守林人应给 keeper_seal 证词');
-	await clickLabel('回到囚室');
-	await clickLabel('问龙的事（它到底是什么）');
-	if (!txt().includes('雾是从龙的梦里渗出来的')) throw new Error('囚徒·龙应给 dragon_mist 证词');
-	await clickLabel('回到囚室');
-	await clickLabel('问出路（封印圈怎么破）');
-	if (!txt().includes('得有人站在门里')) throw new Error('囚徒·出路应给封印圈机制');
-	await clickLabel('回到囚室');
-	if (!txt().includes('想知道的都告诉了你')) throw new Error('asked_seer 回声句应现');
-	// present 信（keeper_seal+feast_meaning 通路）
-	await clickLabel('回封印大厅');
-	await clickLabel('触动共鸣锚：回到『现在』');
-	await clickLabel('去囚室');
-	await clickLabel('抽出那封信');
-	if (!txt().includes('总得有人守在门边') || !txt().includes('炖肉要一直在炉上温着')) throw new Error('信应同时供 keeper_seal 与 feast_meaning 通路');
-	await clickLabel('回到囚室');
-	// 星图对接 → hint_weakness → 前厅回声
-	await clickLabel('回封印大厅');
-	await clickLabel('去观测廊');
-	await clickLabel('细读那行小字');
-	if (!w.SugarCube.State.variables.hint_weakness) throw new Error('星图对接应置 hint_weakness');
-	await clickLabel('回到观测廊');
-	await clickLabel('回封印大厅');
-	await clickLabel('去龙穴前厅');
-	if (!txt().includes('排成了坠星的轨迹')) throw new Error('前厅应现 hint_weakness 回声（星纹可读）');
-	// 宴会第二义（门厅 past，avatar_down 后老妇人）
-	await clickLabel('退回封印大厅');
-	await clickLabel('沿河床回到塔门|去暗河码头'.split('|')[1]); // 防歧义：走暗河
-	await clickLabel('触动共鸣锚：坠入『过去』');
-	await clickLabel('去封印大厅');
-	await w.SugarCube.Engine.play('门厅'); await sleep(200);
-	if (!txt().includes('打完就回来吃饭') || !txt().includes('走不出去')) throw new Error('门厅 past 老妇人应现宴会第二义+封印圈伏笔');
-	// 顶楼两读并存（尾声）：avatar_down 后残影补"守的不是悔恨"
-	w.SugarCube.State.variables.era = 'present';
-	await w.SugarCube.Engine.play('顶楼'); await sleep(200);
-	if (!txt().includes('守的从来不是悔恨')) throw new Error('顶楼 present 应现两读句');
-});
-
-// ── 路线 O：C3 龙战验收·满配线（#51）——四信物+识货+锻造+偷袭+三副动作+屠龙 ──
-scenario('路线O：四信物 → 化身战 → 塔底经济（识货+10/锻造−8）→ 前厅四锁 → 偷袭 → 副动作三连 → 屠龙', async () => {
-	const { w, clickLabel } = await newGame(0.99, [
-		'博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运',
-	]);
-	const pc = () => pcOf(w);
-	const txt = () => w.document.querySelector('#passages').textContent;
-	const gold0 = () => pc().gold;
-	await clickLabel('买一支火把（10 金币）');
-	await clickLabel('回到大厅');
-	await clickLabel('推门出发，走进暮色');
-	await clickLabel('打着火把，走进山脚的洞穴');
-	await clickLabel('收好护身符，穿过后洞的裂缝');
-	await clickLabel('听她说完');
-	await clickLabel('登上守林人之塔（第二章）');
-	await clickLabel('进入塔内');
-	// 四信物（F 线序列）：present 门厅铜哨+书房日记 → past 温室花+天文台星图
-	await clickLabel('一层 · 门厅');
-	if (!pc().tokens.includes('铜哨')) throw new Error('门厅应得铜哨');
-	await clickLabel('返回楼梯间');
-	await clickLabel('二层 · 书房');
-	if (!pc().tokens.includes('日记')) throw new Error('书房应得日记');
-	await clickLabel('返回楼梯间');
-	await clickLabel('翻转护身符：坠入『过去』（剩 3 次）');
-	await clickLabel('三层 · 温室');
-	await clickLabel('试着说明来意（它看起来并不好说话）');
-	if (!pc().tokens.includes('月光花')) throw new Error('温室应得月光花');
-	await clickLabel('返回楼梯间');
-	await clickLabel('四层 · 天文台');
-	if (pc().tokens.length !== 4) throw new Error(`应集齐 4 信物，实际 ${pc().tokens.length}`);
-	await clickLabel('返回楼梯间');
-	await clickLabel('顶楼 · 守林人残影');
-	await clickLabel('折断法杖，让塔与雾一同终结');
-	await clickLabel('迎击');
-	await clickLabel('她将你拽入回忆');
-	await clickLabel('倾尽全力，最后一击');
-	await clickLabel('俯身探看裂口，下到塔底（第三章）');
-	// past 熔炉：8 金锻造龙鳞护臂（学者 20−10 火把=10 金 ≥8 ✓）
-	await clickLabel('触动共鸣锚：坠入『过去』');
-	await clickLabel('去封印大厅');
-	await clickLabel('去熔炉');
-	const gBefore = gold0();
-	await clickLabel('花 8 金：用残料把那截龙鳞护臂锻完');
-	if (!pc().tower.scale_armor) throw new Error('锻造应置 scale_armor');
-	if (gold0() !== gBefore - 8) throw new Error(`锻造应 −8 金，实际 ${gold0() - gBefore}`);
-	await clickLabel('回到熔炉');
-	await clickLabel('回封印大厅');
-	// present 宝藏厅识货（历史 ✓ 0.99）
-	await clickLabel('触动共鸣锚：回到『现在』');
-	await clickLabel('去宝藏厅');
-	await clickLabel('拂去金像臂上的灰，细看铭文');
-	if (!pc().tower.looted_hoard || gold0() !== gBefore - 8 + 10) throw new Error('识货应 +10 金');
-	await clickLabel('回到宝藏厅');
-	await clickLabel('回封印大厅');
-	// past 前厅：四锁槽开门 → 巢室拾论坠星 → 偷袭
-	await clickLabel('触动共鸣锚：坠入『过去』');
-	await clickLabel('去龙穴前厅');
-	await clickLabel('把哨、册、花、图逐一嵌入锁槽——开门');
-	await clickLabel('拾起那半卷手稿');
-	if (!pc().tower.scroll_lower) throw new Error('论坠星下半卷应置 scroll_lower');
-	if (!txt().includes('坠星之芒可透其逆鳞')) throw new Error('下半卷应含弱点句');
-	await clickLabel('回到巢穴');
-	await clickLabel('趁它沉眠，先下手');
-	if (pc().tower.dragon_hp !== w.Game.Dragon.hp - w.Game.Dragon.sneakHit) throw new Error(`偷袭后龙 HP 应 ${w.Game.Dragon.hp - 6}，实际 ${pc().tower.dragon_hp}`);
-	await clickLabel('追向封印大厅');
-	await clickLabel('迎战');
-	// 战斗：三副动作（哨/花/名）→ 地形切 present → 迎击至屠龙
-	await clickLabel('吹响铜哨——唤宴会宾客的残念');
-	if (!pc().tower.whistle_blown) throw new Error('铜哨应置 whistle_blown');
-	if (!txt().includes('温了三百年的炖肉')) throw new Error('铜哨应现宾客助战');
-	await clickLabel('回到战斗');
-	await clickLabel('翻开日记，念出她的名字');
-	if (!pc().tower.name_struck) throw new Error('念名应置 name_struck');
-	await clickLabel('回到战斗');
-	await clickLabel('吞下月光花——银辉解毒');
-	if (!pc().tower.flower_used_dragon) throw new Error('月光花应置 flower_used_dragon');
-	await clickLabel('回到战斗');
-	await clickLabel('触动共鸣锚：回到『现在』'); // 地形：废墟输出+1（战斗中锚切=战术动作）
-	// 16 HP；输出 3+2name+1present=6/轮（0.99 全命中；未拾下半卷无 scroll 加成；四锁线不进对接段无 tower.hint）→ 4 轮
-	// 注：认知不全（无 scroll/hint）→ 送归窗口不满足 → else 继续战；16−6−6−6=−2 第 4 轮 ≤0
-	await clickLabel('迎击——趁它换息的间隙逼近');
-	await clickLabel('稳住身形，继续');
-	await clickLabel('迎击——趁它换息的间隙逼近');
-	await clickLabel('稳住身形，继续');
-	await clickLabel('迎击——趁它换息的间隙逼近');
-	await clickLabel('稳住身形，继续');
-	await clickLabel('迎击——趁它换息的间隙逼近'); // 第 4 轮 −6 后 ≤0：最后一击分支
-	await clickLabel('最后一击落下——');
-	if (passageOf(w) !== '塔底·屠龙') throw new Error(`3 轮 7 伤应屠龙（16HP），实际在 ${passageOf(w)}`);
-	if (!pc().tower.dragon_down) throw new Error('屠龙应置 dragon_down');
-	if (!txt().includes('三百年长梦，到此为止')) throw new Error('屠龙段应现收束文本');
-	await clickLabel('走出塔底');
-	if (passageOf(w) !== '结局 星落') throw new Error(`应达真结局，实际 ${passageOf(w)}`);
-	if (!txt().includes('坠星林')) throw new Error('结局应现改名呼应');
-	if (!txt().includes('宾客助战（铜哨长鸣）')) throw new Error('结算卡应记宾客助战');
-	if (!txt().includes('先手偷袭')) throw new Error('结算卡应记偷袭路线');
-	if (!txt().includes('四件俱全')) throw new Error('结算卡应记四信物');
-});
-
-// ── 路线 P：C3 龙战验收·零信物线（#51）——星纹共振开门 + 败-龙威递增-再战 ──
-scenario('路线P：星图对接（零信物）→ 共振开门 → 空巢对决 → 战败回声 → 龙威递增再战', async () => {
-	const { w, clickLabel } = await newGame(0.99, [
-		'博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运',
-	]);
-	const pc = () => pcOf(w);
-	const txt = () => w.document.querySelector('#passages').textContent;
-	await clickLabel('买一支火把（10 金币）');
-	await clickLabel('回到大厅');
-	await clickLabel('推门出发，走进暮色');
-	await clickLabel('打着火把，走进山脚的洞穴');
-	await clickLabel('收好护身符，穿过后洞的裂缝');
-	await clickLabel('听她说完');
-	await clickLabel('登上守林人之塔（第二章）');
-	await clickLabel('进入塔内');
-	// 0.01 但星图对接走 N 线前置：天文台 past 0.01 会失败 → 改走女巫情报？0.01 全败。
-	// 零信物+零情报的开门第三态：差的东西提示——js 侧直配 hint_weakness 模拟"已读懂星纹"的玩家
-	w.SugarCube.State.variables.hint_weakness = true; pc().tower.hint_weakness = true; // #75 双轨（顶层+塔层）;
-	await clickLabel('顶楼 · 守林人残影');
-	await clickLabel('折断法杖，让塔与雾一同终结');
-	await clickLabel('迎击');
-	await clickLabel('她将你拽入回忆');
-	await clickLabel('倾尽全力，最后一击'); // 0.01 终击也命中（终击无检定，见化身战）
-	await clickLabel('俯身探看裂口，下到塔底（第三章）');
-	await clickLabel('触动共鸣锚：坠入『过去』');
-	await clickLabel('去封印大厅');
-	await clickLabel('去龙穴前厅');
-	// 星纹共振开门（hint_weakness 替代线）
-	await clickLabel('以星图残页的共振强行开门');
-	await clickLabel('趁它沉眠，先下手');
-	await clickLabel('追向封印大厅');
-	await clickLabel('迎战');
-	pcOf(w).hp = 1; // 压血构造战败（战斗已开，首回合前）（每轮 −1）→ 龙爪/焰磨死 7HP 巫师 → 败
-	await clickLabel('迎击——趁它换息的间隙逼近');
-	await clickLabel('视野沉入雾中——');
-	if (passageOf(w) !== '塔底·龙战·败') throw new Error(`0.01 脆法应战败，实际 ${passageOf(w)}`);
-	if ((pc().tower.dragon_defeats ?? 0) !== 1) throw new Error('败段应计 dragon_defeats=1');
-	if (!txt().includes('塔的回声接住了你')) throw new Error('败段应现回声守卫文本');
-	// 回声守卫：不重置（信物/护臂保留），重开战斗
-	await clickLabel('回到大厅，再战');
-	if (pc().tower.dragon_r !== 1 || pc().tower.dragon_hp !== w.Game.Dragon.hp) throw new Error('回声应重置战斗不重置资产');
-	// js 侧把龙打到残血验证龙威递增伤害（defeats=1 → dragonDamage +1）
-	pc().tower.dragon_hp = 1; pc().tower.whistle_blown = true; // #87 K2：NPC 参战硬条件（直设）
-	await clickLabel('迎击——趁它换息的间隙逼近');
-	await clickLabel('最后一击落下——');
-	if (passageOf(w) !== '塔底·屠龙') throw new Error(`残血 1HP 一击应屠龙，实际 ${passageOf(w)}`);
-	await clickLabel('走出塔底');
-	if (passageOf(w) !== '结局 星落') throw new Error('应达占位结局');
-});
-
-// ── 路线 Q：自检修复·对决线（清账 #34 域）——不偷袭，堂堂正正开战 ──
-scenario('路线Q：对决线——past 巢室见龙不袭 → 大厅静候醒转 → 等待段开战', async () => {
-	const { w, clickLabel } = await newGame(0.99, [
-		'勇武型', '佣兵', '人类', '战士', '荒野技艺', '火把与绳索', '坚韧', '勇气',
-	]);
-	const pc = () => pcOf(w);
-	const txt = () => w.document.querySelector('#passages').textContent;
-	await clickLabel('推门出发，走进暮色');
-	await clickLabel('打着火把，走进山脚的洞穴');
-	await clickLabel('收好护身符，穿过后洞的裂缝');
-	await clickLabel('听她说完');
-	await clickLabel('登上守林人之塔（第二章）');
-	await clickLabel('进入塔内');
-	await clickLabel('顶楼 · 守林人残影');
-	await clickLabel('折断法杖，让塔与雾一同终结');
-	await clickLabel('迎击');
-	await clickLabel('她将你拽入回忆');
-	await clickLabel('倾尽全力，最后一击');
-	await clickLabel('俯身探看裂口，下到塔底（第三章）');
-	// 零信物快线：js 直配弱点情报（模拟已读懂星纹的玩家），走共振开门
-	w.SugarCube.State.variables.hint_weakness = true; pc().tower.hint_weakness = true; // #75 双轨（顶层+塔层）;
-	await clickLabel('触动共鸣锚：坠入『过去』');
-	await clickLabel('去封印大厅');
-	await clickLabel('去龙穴前厅');
-	await clickLabel('以星图残页的共振强行开门');
-	if (!pc().tower.saw_dragon) throw new Error('巢室应置 saw_dragon');
-	// 对决线主分支：不偷袭，退出去
-	await clickLabel('退出去，到大厅等它醒');
-	await clickLabel('静立原地，等它醒转');
-	if (!txt().includes('堂堂正正的对手')) throw new Error('等待段应现对决文本');
-	await clickLabel('拔刃，迎战');
-	await clickLabel('迎战');
-	if (pc().tower.dragon_r !== 1 || pc().tower.dragon_hp !== w.Game.Dragon.hp) throw new Error('对决线应以满血 R1 开战（无偷袭先手）');
-	// 快速终局：压龙血一击
-	pc().tower.dragon_hp = 1; pc().tower.whistle_blown = true; // #87 K2：NPC 参战硬条件（直设）
-	await clickLabel('迎击——趁它换息的间隙逼近');
-	await clickLabel('最后一击落下——');
-	if (passageOf(w) !== '塔底·屠龙') throw new Error(`对决线应可屠龙，实际 ${passageOf(w)}`);
-	await clickLabel('走出塔底');
-	if (passageOf(w) !== '结局 星落') throw new Error('对决线应达真结局');
-	if (!txt().includes('堂堂对决')) throw new Error('结算卡应记对决路线');
-});
-
-// ── 路线 R：归乡线→三章衔接（连续性修复：守印人离开=封印松动）──
-scenario('路线R：四信物吹哨解放 → 塔身龙吟 → 追向塔底 → 三入口 re-gate', async () => {
-	const { w, clickLabel } = await newGame(0.99, [
-		'博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运',
-	]);
-	const pc = () => pcOf(w);
-	const txt = () => w.document.querySelector('#passages').textContent;
-	await clickLabel('买一支火把（10 金币）');
-	await clickLabel('回到大厅');
-	await clickLabel('推门出发，走进暮色');
-	await clickLabel('打着火把，走进山脚的洞穴');
-	await clickLabel('收好护身符，穿过后洞的裂缝');
-	await clickLabel('听她说完');
-	await clickLabel('登上守林人之塔（第二章）');
-	await clickLabel('进入塔内');
-	await clickLabel('一层 · 门厅');
-	await clickLabel('返回楼梯间');
-	await clickLabel('二层 · 书房');
-	await clickLabel('返回楼梯间');
-	await clickLabel('翻转护身符：坠入『过去』（剩 3 次）');
-	await clickLabel('三层 · 温室');
-	await clickLabel('试着说明来意（它看起来并不好说话）');
-	await clickLabel('返回楼梯间');
-	await clickLabel('四层 · 天文台');
-	if (pc().tokens.length !== 4) throw new Error(`应集齐 4 信物，实际 ${pc().tokens.length}`);
-	await clickLabel('返回楼梯间');
-	await clickLabel('顶楼 · 守林人残影');
-	await clickLabel('吹响铜哨，唤她回家');
-	if (passageOf(w) !== '结局 归乡') throw new Error(`应入归乡结局，实际 ${passageOf(w)}`);
-	if (!pc().tower.freed) throw new Error('解放应置 tower.freed');
-	if (!txt().includes('谁看着它')) throw new Error('归乡结局应现封印松动钩子');
-	if (!txt().includes('薄了')) throw new Error('雾文案应为薄了非散尽（龙梦连续性）');
-	// 三章入口：追向塔底
-	await clickLabel('追向塔底（第三章）');
-	if (passageOf(w) !== '塔底·塌井厅') throw new Error(`应落塌井厅，实际 ${passageOf(w)}`);
-	// re-gate：塔门暗河入口也开
-	await clickLabel('去封印大厅');
-	await clickLabel('触动共鸣锚：回到『现在』'); // F 线取信物后 era=past
-	await clickLabel('去暗河码头');
-	await clickLabel('沿河床回到塔门');
-	if (!txt().includes('沿塔基的暗河河道下去')) throw new Error('freed 后塔门暗河入口应开');
-});
-
-// ── 路线 V：双重事实拼图线（#79）——请柬/雾影/铜哨/第一页四拼图全踩 ──
-scenario('路线V：一章拾请柬+雾影施舍 → 门厅席位（past/present）+乌鸦证词+书房第一页+大厅雾影回响+铜哨抬头', async () => {
-	const { w, clickLabel } = await newGame(0.01, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']);
-	// 0.01：一章雾影战斗线必遇施舍（雾影抵抗失败）
-	const txt = () => w.document.querySelector('#passages').textContent;
-	// ── 女巫小屋：拾请柬 ──
-	await w.SugarCube.Engine.play('女巫小屋');
-	await clickLabel('收起那张请柬');
-	if (!w.SugarCube.State.variables.pc.invite) throw new Error('请柬 flag 应置位');
-	if (!txt().includes('送星宴')) throw new Error('请柬应现『送星宴』（一章超前伏笔）');
-	// ── 门厅 past：空椅（初见）+ 席卡（对话后重访） ──
-	w.SugarCube.State.variables.era = 'past';
-	await w.SugarCube.Engine.play('门厅');
-	if (!txt().includes('从开席那一刻起，它就没等来它的客人')) throw new Error('past 空椅应现');
-	w.SugarCube.State.variables.pc.tower.hall_past = true; // 初见对话已发生
-	await w.SugarCube.Engine.play('门厅');
-	if (!txt().includes('当年有一把椅子，一直空着')) throw new Error('past 门厅持请柬应现席卡');
-	// ── 门厅 present：碎石完好椅+铜哨抬头 ──
-	w.SugarCube.State.variables.pc.tokens.push('铜哨');
-	w.SugarCube.State.variables.era = 'present';
-	await w.SugarCube.Engine.play('门厅');
-	if (!txt().includes('一把完好的椅子')) throw new Error('present 完好椅应现');
-	await clickLabel('对着碎石堆，吹响铜哨——只吹一声');
-	if (!txt().includes('这场宴会从未散场')) throw new Error('哨声回响应现');
-	// ── 乌鸦证词：传承拼图 ──
-	await w.SugarCube.Engine.play('楼梯间');
-	await clickLabel('问乌鸦这三百年（不花金币——它只是想有人问）'); // 真实链接（覆盖入账）
-	if (!txt().includes('没有一个人进过这座塔')) throw new Error('百年证词应现');
-	if (!txt().includes('她回来吃饭了吗')) throw new Error('持请柬追问应现传承证词');
-	// ── 书房 present：第一页 ──
-	w.SugarCube.State.variables.pc.tokens = w.SugarCube.State.variables.pc.tokens.filter(t => t !== '日记');
-	await w.SugarCube.Engine.play('书房');
-	if (!txt().includes('她出发的地方')) throw new Error('第一页双重事实应现');
-	// ── 封印大厅：雾影回响 ──
-	w.SugarCube.State.variables.pc.shadow_alms = true;
-	await w.SugarCube.Engine.play('塔底·封印大厅');
-	if (!txt().includes('同一场梦的两端')) throw new Error('雾影三章回响应现');
-});
-
-// ── 路线 T：送星归位（#75）——全认知 → HP≤6 送归窗口 → 星落·送归版 ──
-scenario('路线T：花+名+图认知齐备 → 送归窗口 → 结局 星落（送归版）', async () => {
-	const { w, clickLabel } = await newGame(0.01, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']); // 0.01：斩击必败（−1）→ HP 6−1=5 ≤6 送归窗口稳定开
-	// 星名碎片真实路径（#85：覆盖入账）：龙穴 → 抽出碎纸
-	{
-		const { w: w2, clickLabel: c2 } = await newGame(0.5, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']);
-		w2.SugarCube.State.variables.era = 'past'; // 碎片在 past 沉眠巢
-		await w2.SugarCube.Engine.play('塔底·龙穴');
-		await c2('从它身下抽出那半页碎纸');
-		if (!w2.SugarCube.State.variables.pc.tower.name_shard) throw new Error('碎片 flag 应置位');
-		// #87 K2 三步真实路径（覆盖入账）：定约 → 祝祷·哨（门厅 past）→ 祝祷·图（囚室 past）
-		await c2('回到巢穴');
-		await c2('俯身对它低语：三百年后，有人来接你回家');
-		if (!w2.SugarCube.State.variables.pc.tower.promise_made) throw new Error('定约 flag 应置位');
-		const t2 = w2.SugarCube.State.variables.pc;
-		t2.scroll_lower = true; t2.tokens.push('铜哨', '星图残页'); t2.tower.hall_past = true;
-		await w2.SugarCube.Engine.play('门厅');
-		await c2('告诉老妇人三百年后的事，请她为铜哨祝祷');
-		if (!w2.SugarCube.State.variables.pc.tower.crow_blessed) throw new Error('哨校准 flag 应置位'); // 跳段克隆——断言实时读
-		await w2.SugarCube.Engine.play('塔底·囚室');
-		await c2('把星图残页递给观星者——告诉他三百年后的星象');
-		if (!w2.SugarCube.State.variables.pc.tower.map_blessed) throw new Error('图校准 flag 应置位');
-	}
-	await w.SugarCube.Engine.play('塔底·龙战·回合');
-	const t = w.SugarCube.State.variables.pc;
-	t.tower.dragon_hp = 6; t.tower.hint_weakness = true; t.tower.flower_used_dragon = true;
-	t.tower.name_shard = true; t.tower.star_named = true;
-	t.tower.whistle_blown = true; t.tower.map_blessed = true; t.tower.promise_made = true; // #87 K2 三步：唤忆+NPC 参战+坐标校准+定约
-	for (const k of ['铜哨', '日记', '月光花', '星图残页']) if (!t.tokens.includes(k)) t.tokens.push(k); // cross-realm Array 禁直赋值（坑册）
-	await w.SugarCube.Engine.play('塔底·龙战·回合');
-	await new Promise(r => setTimeout(r, 300));
-	const html = w.document.querySelector('#passages').innerHTML;
-	if (!html.includes('送它回家')) throw new Error('HP≤6+认知齐备应出现送归选项');
-	await clickLabel('在它换息的间隙举起星图残页——\'\'送它回家\'\'');
-	await new Promise(r => setTimeout(r, 300));
-	if (w.SugarCube.State.passage !== '塔底·送归') throw new Error(`应入送归段，实际 ${w.SugarCube.State.passage}`);
-	if (!w.SugarCube.State.variables.pc.tower.homecoming) throw new Error('homecoming flag 应置位');
-	await clickLabel('走出塔底');
-	await new Promise(r => setTimeout(r, 300));
-	if (w.SugarCube.State.passage !== '结局 星落') throw new Error(`应入结局 星落，实际 ${w.SugarCube.State.passage}`);
-	if (!w.document.querySelector('#passages').textContent.includes('我送的东西，到家了')) throw new Error('送归版台词应现');
-});
-
-// ── 路线 U：不知情强杀（#75）——零认知 → 屠龙不知情文本 → 坠星之死 ──
-scenario('路线U：无星图/日记/手稿 → 屠龙不知情分支 → 结局 坠星之死（留白）', async () => {
-	const { w, clickLabel } = await newGame(0.01, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']); // 0.01：斩击必败（−1）→ HP 6−1=5 ≤6 送归窗口稳定开
-	const t = w.SugarCube.State.variables.pc;
-	t.tower.dragon_hp = 0; t.tower.whistle_blown = true; // #87 K2：不知情强杀也借了宾客之力（直设哨）（战斗逻辑已被 O/P 线覆盖）
-	await w.SugarCube.Engine.play('塔底·龙战·回合');
-	await new Promise(r => setTimeout(r, 300));
-	await clickLabel('最后一击落下——');
-	await new Promise(r => setTimeout(r, 300));
-	if (w.SugarCube.State.passage !== '塔底·屠龙') throw new Error(`应入屠龙段，实际 ${w.SugarCube.State.passage}`);
-	if (!w.document.querySelector('#passages').textContent.includes('你只知道：它是威胁这片森林三百年的怪物')) throw new Error('不知情屠龙文本应现');
-	await clickLabel('走出塔底');
-	await new Promise(r => setTimeout(r, 400));
-	if (w.SugarCube.State.passage !== '结局 坠星之死') throw new Error(`不知情杀应重定向坠星之死，实际 ${w.SugarCube.State.passage}`);
-	if (!w.document.querySelector('#passages').textContent.includes('你不知道自己杀了什么')) throw new Error('留白文本应现');
-	// 后坐力：坠星之死解锁 starfall 类设定集（读到真相才明白自己杀了什么）
-	if (JSON.stringify(w.SugarCube.State.metadata.get('codex-cats')) !== JSON.stringify(['any', 'tower', 'starfall'])) throw new Error('坠星之死应记 starfall 类（后坐力）');
-	// 伤害减半单元：无 hint_weakness → ceil(d/2)
-	const t2 = w.SugarCube.State.variables.pc;
-	t2.tower.hint_weakness = false; t2.tower.scroll_lower = false; t2.tower.name_struck = false;
-	if (w.Game.Dragon.playerDamage(t2, 'present') !== Math.max(1, Math.ceil((w.Game.Dragon.hitBase + 1) / 2))) throw new Error('不知情伤害应减半');
-});
-
-// ── 路线 W：启门韵线（#83）——零信物零星纹，门前跟读（败→DC 递降→成）永不卡关 ──
-scenario('路线W：零信物零 hint → 前厅静听吟诵 → 跟读（可能多轮）→ 启门之语开门 → 龙穴', async () => {
-	const { w, clickLabel } = await newGame(0.5, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']);
-	const t = () => w.SugarCube.State.variables.pc;
-	const txt = () => w.document.querySelector('#passages').textContent;
-	await w.SugarCube.Engine.play('塔底·龙穴前厅');
-	if (!txt().includes('跟上守卫的吟诵')) throw new Error('零资源应现吟诵线提示');
-	// 跟读循环：最多 6 轮（DC 10→5 递降，0.5 命中率递增）
-	for (let i = 0; i < 6 && !t().tower.seal_chant; i++) {
-		await clickLabel('静下心，跟着吟诵的节律轻声跟读——试着跟上它的韵');
-	}
-	if (!t().tower.seal_chant) throw new Error(`跟读 6 轮应必然习得（DC 递降），fails=${t().tower.chant_fails}`);
-	if (!txt().includes('嵌进了吟诵的缝隙')) throw new Error('成功文本应现');
-	await clickLabel('随着节律念出启门之语——开门');
-	if (w.SugarCube.State.passage !== '塔底·龙穴') throw new Error(`启门韵应开门，实际 ${w.SugarCube.State.passage}`);
-	// 四信物线并存检查：集合齐时两条链接都在（捷径+韵）
-	t().tokens.push('铜哨', '日记', '月光花', '星图残页');
-	await w.SugarCube.Engine.play('塔底·龙穴前厅');
-	if (!txt().includes('逐一嵌入锁槽')) throw new Error('四信物捷径线应并存');
-});
-
-// ── 路线 X：降级结局 a（#87 K3）——说实话 → 自愿的长眠 ──
-scenario('路线X：持真相信息 → 龙穴说实话选项 → 自愿的长眠 → codex tower 类', async () => {
-	const { w, clickLabel } = await newGame(0.5, ['博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运']);
-	const pc = () => w.SugarCube.State.variables.pc;
-	w.SugarCube.State.variables.era = 'past';
-	pc().tower.scroll_lower = true; // 真相信息（不硬卡二章道具）
-	await w.SugarCube.Engine.play('塔底·龙穴');
-	await clickLabel('从它身下抽出那半页碎纸');
-	await clickLabel('回到巢穴');
-	await clickLabel('告诉它真相：漫长的岁月会磨掉它的记忆——趁还记得，自己选一个结局');
-	if (w.SugarCube.State.passage !== '塔底·自愿的长眠') throw new Error(`应入自愿长眠段，实际 ${w.SugarCube.State.passage}`);
-	const txt = w.document.querySelector('#passages').textContent;
-	if (!txt.includes('趁还记得，自己说再见')) throw new Error('它自己的选择文本应现');
-	await clickLabel('故事在这里结束');
-	if (w.SugarCube.State.passage !== '结局 自愿的长眠') throw new Error(`应入结局，实际 ${w.SugarCube.State.passage}`);
-	if (!w.document.querySelector('#passages').textContent.includes('它记得自己是谁')) throw new Error('结局卡应现');
-	const cats = w.SugarCube.State.metadata.get('codex-cats');
-	if (!cats || !cats.includes('tower')) throw new Error(`自愿长眠应记 tower 类，实际 ${JSON.stringify(cats)}`);
-});
-
-// ── 路线 S：设定集解锁（伞 #64 子票 2）——死亡线端到端 + 类别递进归一 ──
-scenario('路线S：一章死亡结局 → codexmark 记档 → 设定集 2 开 7 锁；星落类别归一全开', async () => {
-	const { w, clickLabel } = await newGame(0.01, [
-		'博学型', '学者', '人类', '巫师', '秘闻技艺', '长剑', '警觉', '机运',
-	]);
-	const txt = () => w.document.querySelector('#passages').textContent;
-	// 0.01 快速死亡线：洞穴哥布林（0.01 全败）→ 检定失败链 → 死亡
-	await clickLabel('买一支火把（10 金币）');
-	await clickLabel('回到大厅');
-	await clickLabel('推门出发，走进暮色');
-	await clickLabel('打着火把，走进山脚的洞穴');
-	await clickLabel('拔剑！');
-	// 0.01：哥布林战斗败→若直连死亡则到；否则逐步点可能的继续链接至死亡
-	for (let i = 0; i < 10 && w.SugarCube.State.passage !== '结局 死亡'; i++) {
-		const links = [...w.document.querySelectorAll('#passages a.link-internal')];
-		const next = links.find((a) => a.textContent.includes('再来') || a.textContent.includes('迎') || a.textContent.includes('继续') || a.textContent.includes('战斗'));
-		if (!next) break;
-		next.click();
-		await new Promise(r => setTimeout(r, 250));
-	}
-	if (w.SugarCube.State.passage === '结局 死亡') {
-		const cats = w.SugarCube.State.metadata.get('codex-cats');
-		if (JSON.stringify(cats) !== JSON.stringify(['any'])) throw new Error(`死亡结局应记 ['any']，实际 ${JSON.stringify(cats)}`);
-	}
-	// 兜底：死亡链未走完则直设（宏链由 integrity/render-all 兜底，此处验证解锁机制）
-	w.Game.Codex.markFromPassage('结局 死亡');
-	// 设定集 hub：2 开 7 锁（直跳验证——metadata 已持久）
-	await w.SugarCube.Engine.play('设定集');
-	await new Promise(r => setTimeout(r, 250));
-	if (txt().includes('🔒 一 · 坠星之世') || txt().includes('🔒 二 · 守林人')) throw new Error('any 类应开 §1/§2（不应带锁）');
-	if (!txt().includes('🔒 三 · 观星者与星轨')) throw new Error('§3 应锁定并显示标题');
-	if (!txt().includes('走到守林人之塔的任一结局后解锁')) throw new Error('锁定提示应现（tower 类）');
-	if (!txt().includes('通关真结局『星落』后解锁')) throw new Error('锁定提示应现（starfall 类）');
-	// 点入已解锁节：全文可读
-	await clickLabel('一 · 坠星之世');
-	if (!txt().includes('带来两样东西')) throw new Error('§1 全文应可读');
-	// 类别递进归一：星落 ⊃ tower ⊃ any（单元验证）
-	w.Game.Codex.markFromPassage('结局 星落');
-	const cats2 = w.SugarCube.State.metadata.get('codex-cats');
-	if (cats2.length !== 3) throw new Error(`星落应归一为 3 类，实际 ${JSON.stringify(cats2)}`);
-	await w.SugarCube.Engine.play('设定集');
-	await new Promise(r => setTimeout(r, 250));
-	if ([...w.document.querySelectorAll('.codex-locked')].length) throw new Error('星落后应全开（无锁元素）');
-	if (!txt().includes('九 · 星落')) throw new Error('§9 应解锁');
-	// 全节交互覆盖（L3）：逐节点入
-	for (const t of ['二 · 守林人', '三 · 观星者与星轨', '四 · 封印之日', '五 · 三百年', '六 · 女巫与旅人', '七 · 塔底', '八 · 龙与梦', '九 · 星落']) {
-		await w.SugarCube.Engine.play('设定集');
-		await new Promise(r => setTimeout(r, 150));
-		await clickLabel(t);
-	}
-});
-
-// ── 路线 H：旧存档形状模拟（第二章上线前的档）→ 迁移 → 入塔不崩 ──
-scenario('路线H：旧档缺字段 → Pc.migrate 兜底 → 入塔正常', async () => {
-	const { w, clickLabel } = await newGame(0.99, [
-		'勇武型', '佣兵', '矮人', '战士', '荒野技艺', '火把与绳索', '坚韧', '勇气',
-	]);
-	await clickLabel('推门出发，走进暮色');
-	await clickLabel('打着火把，走进山脚的洞穴');
-	await clickLabel('收好护身符，穿过后洞的裂缝');
-	await clickLabel('听她说完');
-	// 模拟读旧档：整体替换为第二章之前的 $pc 形状（fixture 单一源：s0-chapter1，与 L4 矩阵共用）。
-	// 注意（坑10测试注）：必须用 w.eval 在页面域内构造——SugarCube 建历史快照时用
-	// instanceof 判型，Node 侧构造的对象数组是跨 realm 的，会触发
-	// "attempted to clone unsupported type: Array"（真实浏览器读档无此问题）
-	const oldShape = JSON.parse(readFileSync('test/fixtures/saves/s0-chapter1.json', 'utf8')).pc;
-	w.eval(`SugarCube.State.variables.pc = ${JSON.stringify(oldShape)};`);
-	await clickLabel('登上守林人之塔（第二章）');
-	await clickLabel('进入塔内'); // 塔门：Pc.migrate 归一化
-	const pc = pcOf(w);
-	if (!Array.isArray(pc.tokens) || pc.tokens.length !== 0) throw new Error(`tokens 应补齐为空数组，实际 ${typeof pc.tokens}`);
-	if (pc.amulet_charges !== 3) throw new Error(`充能应为 3，实际 ${pc.amulet_charges}`);
-	await clickLabel('一层 · 门厅');
-	await clickLabel('返回楼梯间');
-	await clickLabel('顶楼 · 守林人残影');
-	await clickLabel('握住法杖，成为新的守林人');
-	// 全自然 20：三段全闪避/扛住/命中，零伤通关
-	await clickLabel('迎击');
-	await clickLabel('她将你拽入回忆');
-	await clickLabel('倾尽全力，最后一击');
-	if (pcOf(w).hp !== 14) throw new Error(`化身战零伤应仍 14，实际 ${pcOf(w).hp}`);
-	await clickLabel('握起法杖');
-	if (passageOf(w) !== '结局 新任守林人') throw new Error(`结局不对：${passageOf(w)}`);
-	if (pcOf(w).name !== '旧档旅人') throw new Error('迁移不应覆盖已有字段');
-});
-
-// 覆盖落盘（L3 消费）——在全部路线完成后（#27 并行化后落盘点随执行点后移）
-import { writeFileSync, mkdirSync } from 'node:fs';
-
-const results = await Promise.all(pending.map(async ({ name, fn }) => {
-	try { await fn(); return { name, ok: true }; }
-	catch (e) { return { name, ok: false, msg: e.message }; }
-}));
-mkdirSync('build', { recursive: true });
-writeFileSync('build/coverage-scenarios.json', JSON.stringify({ cells: [...visited] }, null, 1));
-for (const r of results) {
-	if (r.ok) console.log(`✓ ${r.name}`);
-	else { failures++; console.error(`✗ ${r.name}\n    ${r.msg}`); }
+// ── 公共前段：酒馆 → 女巫小屋 → 林间小径 ──
+async function toWitch(c) {
+	await c('问一句女巫小屋怎么走');
 }
-console.log(failures ? `\n${failures} 个场景失败` : '\n全部场景通过');
-process.exit(failures ? 1 : 0);
+async function toTower(c) {
+	await c('往林子深处走');
+}
+// 拿钥匙：雾之魔物 → 守林人 → 门厅
+async function getKey(c) {
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	await c('收下钥匙');
+}
+
+// ── 路线 1：金路径 → 送星归位 ─────────────────────────────
+async function routeTrue() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await toWitch(c);                     // 女巫小屋：护符 + 请柬
+	await c('问塔里的门道');               // witch_hint
+	await toTower(c);                     // 林间小径
+	await c('坠入');                      // 翻到过去
+	await c('继续往塔那边走');             // 塔门（过去）
+	await c('雾里有个影子挡着路');         // 雾之魔物
+	await c('举起武器');                   // 雾之魔物·战（d20=20 全成）
+	await c('爬起来，往塔那边去');         // 守林人
+	await c('为什么不自己去送');           // 守林人·送
+	await c('回到守林人');
+	await c('你守的到底是什么');           // 守林人·守
+	await c('回到守林人');
+	await c('收下钥匙');                   // 门厅
+	await c('先上二楼看看');               // 书房 → 日记
+	await c('上三楼');                     // 温室 → 月光花
+	await c('上三楼拐角看看');             // 工坊
+	await c('把它打完');                   // 龙鳞护臂
+	await c('上四楼');                     // 天文台
+	await c('在书架上找到一册');           // 观星者的书
+	await c('上顶楼');                     // 顶楼
+	await c('下楼，打开地下那道门');       // 地下宴会厅（过去）
+	await c('在宴上找人说话');             // 宴会·过去
+	await c('问那位一直在算星的人');       // 观星者
+	await c('它从哪颗星来');
+	await c('回到观星者');
+	await c('那一夜会怎么样');
+	await c('回到观星者');
+	await c('求他把完整星图给你');         // 观星者·图（有书 → 直接给）
+	await c('回到观星者');
+	await c('回到宴上');
+	await c('找那位从不离手一支哨子的老人'); // 老巫女
+	await c('为什么老是往回跑');           // 老巫女·跑
+	await c('回到老巫女');
+	await c('把她那支哨换过来');           // 老巫女·换 → 好哨
+	await c('回到老巫女');
+	await c('把三百年后的办法告诉她');     // 告知与告别 → 卷轴
+	await c('回到宴上');
+	await c('去把花喂给它');               // 喂花
+	await c('回到宴上');
+	await c('回到地下宴会厅');             // 地下宴会厅（过去）
+	await c('翻转护身符：回到');           // 翻回现在
+	await c('安静地退出去');               // 门厅
+	await c('先上二楼看看');
+	await c('上三楼');
+	await c('上三楼拐角看看');
+	await c('上四楼');
+	await c('上顶楼');
+	await c('把卷轴和星图交给他');         // 交付（现在）
+	await c('下楼');                       // 地下宴会厅（现在）
+	await c('叫醒它');                     // 唤醒
+	await c('让守林人动手');               // 归位
+	await c('看着它走完');                 // 结局 送星归位
+	if (passageOf(w) !== '结局 送星归位') throw new Error(`金路径未达真结局（停在 ${passageOf(w)}）`);
+	return { w, c, pc: pcOf(w) };
+}
+
+// ── 路线 2：平凡之路 ──
+async function routeQuit() {
+	const { w, click: c } = await newGame(0.5, 0);
+	await c('就此回头');
+	if (passageOf(w) !== '结局 平凡之路') throw new Error(`未达平凡之路（${passageOf(w)}）`);
+	return { w };
+}
+
+// ── 路线 3：银月之赐 ──
+async function routeMoon() {
+	const { w, click: c } = await newGame(0.5, 0);
+	await toWitch(c);
+	await toTower(c);
+	await c('就此收手');
+	if (passageOf(w) !== '结局 银月之赐') throw new Error(`未达银月之赐（${passageOf(w)}）`);
+	return { w };
+}
+
+// ── 路线 4：半途 ──
+async function routeHalf() {
+	const { w, click: c } = await newGame(0.5, 0);
+	await toWitch(c);
+	await toTower(c);
+	await c('继续往塔那边走');
+	await c('绕到塔后');
+	await c('算了，回头');
+	if (passageOf(w) !== '结局 半途') throw new Error(`未达半途（${passageOf(w)}）`);
+	return { w };
+}
+
+// ── 路线 5：新任守林人 / 焚塔者 / 讨伐（三条短支）──
+async function routeTop() {
+	const { w, click: c } = await newGame(0.5, 0);
+	await toWitch(c);
+	await toTower(c);
+	await c('继续往塔那边走');
+	await c('推门进去');
+	await c('先上二楼看看');
+	await c('上三楼');
+	await c('上三楼拐角看看');
+	await c('上四楼');
+	await c('从碎掉的望远镜里挑');         // 碎镜片（现在年代）
+	await c('上顶楼');
+	await c('接他的班');
+	if (passageOf(w) !== '结局 新任守林人') throw new Error(`未达新任守林人（${passageOf(w)}）`);
+	return { w };
+}
+async function routeBurn() {
+	const { w, click: c } = await newGame(0.5, 0);
+	await toWitch(c);
+	await toTower(c);
+	await c('继续往塔那边走');
+	await c('推门进去');
+	await c('先上二楼看看');
+	await c('上三楼');
+	await c('上三楼拐角看看');
+	await c('上四楼');
+	await c('上顶楼');
+	await c('折断法杖');
+	if (passageOf(w) !== '结局 焚塔者') throw new Error(`未达焚塔者（${passageOf(w)}）`);
+	return { w };
+}
+async function routeKeeperFight() {
+	const { w, click: c } = await newGame(0.5, 0);
+	await toWitch(c);
+	await toTower(c);
+	await c('继续往塔那边走');
+	await c('推门进去');
+	await c('先上二楼看看');
+	await c('上三楼');
+	await c('上三楼拐角看看');
+	await c('上四楼');
+	await c('上顶楼');
+	await c('抢他的杖');
+	if (passageOf(w) !== '结局 讨伐') throw new Error(`未达讨伐（${passageOf(w)}）`);
+	return { w };
+}
+
+// ── 路线 6：守林人击杀 / 送入虚空 ──
+async function routeKill() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await toWitch(c);
+	await toTower(c);
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	await c('逼他动手');
+	if (passageOf(w) !== '结局 守林人击杀') throw new Error(`未达守林人击杀（${passageOf(w)}）`);
+	return { w };
+}
+async function routeVoid() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await toWitch(c);
+	await toTower(c);
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	await c('那就用他家的封印术');
+	if (passageOf(w) !== '结局 送入虚空') throw new Error(`未达送入虚空（${passageOf(w)}）`);
+	return { w };
+}
+
+// ── 路线 7：劣化封印（书房日记 → 页边术式）──
+async function routeSeal() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await toWitch(c);
+	await toTower(c);
+	await c('继续往塔那边走');
+	await c('推门进去');
+	await c('先上二楼看看');
+	await c('照她抄在页边的封印术');
+	if (passageOf(w) !== '结局 劣化封印') throw new Error(`未达劣化封印（${passageOf(w)}）`);
+	return { w };
+}
+
+// ── 路线 8：龙·战 三支（星落 / 坠星之死 / 死亡）──
+async function routeDragonBattle(withBook) {
+	const { w, click: c } = await newGame(0.99, 0);
+	await toWitch(c);
+	await toTower(c);
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	await c('收下钥匙');
+	if (withBook) {
+		await c('先上二楼看看');
+		await c('上三楼');
+		await c('上三楼拐角看看');
+		await c('上四楼');
+		await c('在书架上找到一册');
+		await c('上顶楼');
+		await c('下楼，打开地下那道门');
+	} else {
+		await c('用钥匙打开铁门');
+	}
+	await c('攻击它');
+	await c('爬起来，再冲一次');
+	await c('你杀了它');
+	if (passageOf(w) !== (withBook ? '结局 星落' : '结局 坠星之死')) throw new Error(`未达 ${withBook ? '星落' : '坠星之死'}（${passageOf(w)}）`);
+	return { w };
+}
+async function routeDragonDeath() {
+	const { w, click: c } = await newGame(0.01, 0); // d20=1 必败
+	await toWitch(c);
+	await toTower(c);
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	await c('收下钥匙');
+	await c('用钥匙打开铁门');
+	await c('攻击它');
+	await c('爬起来，再冲一次'); // d20=1 → 龙·再冲 必败 → 死亡
+	if (passageOf(w) !== '结局 死亡') throw new Error(`未达死亡（${passageOf(w)}）`);
+	return { w };
+}
+
+// ── 路线 9：唤醒两支（自愿的长眠 / 再度沉睡）──
+async function routeSleepForever() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await toWitch(c);
+	await toTower(c);
+	await c('坠入');
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	await c('收下钥匙');
+	await c('先上二楼看看');
+	await c('上三楼');
+	await c('上三楼拐角看看');
+	await c('上四楼');
+	await c('上顶楼');
+	await c('下楼，打开地下那道门');
+	await c('在宴上找人说话');
+	await c('找那位从不离手一支哨子的老人');
+	await c('为什么老是往回跑');
+	await c('回到老巫女');
+	await c('回到宴上');
+	await c('回到地下宴会厅');
+	await c('翻转护身符：回到');
+	await c('安静地退出去');
+	await c('先上二楼看看');
+	await c('上三楼');
+	await c('上三楼拐角看看');
+	await c('上四楼');
+	await c('上顶楼');
+	await c('下楼');
+	await c('叫醒它');
+	if (passageOf(w) !== '唤醒') throw new Error(`未到唤醒（${passageOf(w)}）`);
+	// 无星图 → 无换哨 → 无哨 → 退出去 = 再度沉睡
+	await c('退出去');
+	if (passageOf(w) !== '结局 再度沉睡') throw new Error(`未达再度沉睡（${passageOf(w)}）`);
+	return { w };
+}
+
+// ── 路线 10：洞穴动武（自然 20 成 / 自然 1 败）──
+async function routeCave() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await c('推门出发，走进暮色');
+	await c('打着火把，走进山脚的洞穴');
+	await c('拔家伙');
+	if (pcOf(w).world.goblin_spared) throw new Error('动武分支不应置 goblin_spared');
+	if (passageOf(w) !== '森林边缘') throw new Error(`动武后应回森林边缘（实际 ${passageOf(w)}）`);
+	return { w };
+}
+
+// ── 路线 12：设定集四页（任意结局 → 打开设定集）──
+async function routeCodex() {
+	const { w, click: c } = await newGame(0.5, 0);
+	await c('就此回头');
+	await c('打开设定集');
+	await c('世界三律');
+	await c('回设定集');
+	await c('三家');
+	await c('回设定集');
+	await c('道具');
+	await c('回设定集');
+	await c('结局');
+	if (passageOf(w) !== '设定集·结局') throw new Error(`未达设定集·结局（${passageOf(w)}）`);
+	return { w };
+}
+
+// ── 路线 13：龙·巢边（现在年代，翻检龙身下的收藏）──
+async function routeLair() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await toWitch(c);
+	await toTower(c);
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	await c('收下钥匙');
+	await c('用钥匙打开铁门');
+	await c('绕着它走一圈');
+	await c('从它身下抽出那半页碎纸');
+	await c('识货，捡几件值钱的');
+	if (!pcOf(w).inv['星名页']) throw new Error('龙·巢边未取得星名页');
+	if (pcOf(w).gold < 10) throw new Error(`识货未入账（gold=${pcOf(w).gold}）`);
+	await c('退开');
+	return { w };
+}
+
+// ── 路线 14：老妇人（过去宴上的搭话）──
+async function routeOldWoman() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await toWitch(c);
+	await toTower(c);
+	await c('坠入');
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	await c('收下钥匙');
+	await c('用钥匙打开铁门');
+	await c('在宴上找人说话');
+	await c('找刚才拦住你的老妇人');
+	await c('回到宴上');
+	return { w };
+}
+
+// ── 路线 15：自愿的长眠（有哨无卷轴）──
+async function routeSleepVoluntary() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await toWitch(c);
+	await toTower(c);
+	await c('坠入');
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	await c('收下钥匙');
+	await c('用钥匙打开铁门');
+	await c('在宴上找人说话');
+	await c('问那位一直在算星的人');
+	await c('求他把完整星图给你');   // 无书 → 说服检定（d20=20 必成）
+	await c('回到观星者');
+	await c('回到宴上');
+	await c('找那位从不离手一支哨子的老人');
+	await c('为什么老是往回跑');
+	await c('回到老巫女');
+	await c('把她那支哨换过来');
+	await c('回到老巫女');
+	await c('回到宴上');
+	await c('回到地下宴会厅');
+	await c('翻转护身符：回到');
+	await c('叫醒它');
+	await c('看着它再睡下去');
+	if (passageOf(w) !== '结局 自愿的长眠') throw new Error(`未达自愿的长眠（${passageOf(w)}）`);
+	return { w };
+}
+
+const routes = [
+	['金路径 送星归位', routeTrue],
+	['平凡之路', routeQuit],
+	['银月之赐', routeMoon],
+	['半途', routeHalf],
+	['新任守林人', routeTop],
+	['焚塔者', routeBurn],
+	['讨伐', routeKeeperFight],
+	['守林人击杀', routeKill],
+	['送入虚空', routeVoid],
+	['劣化封印', routeSeal],
+	['星落', () => routeDragonBattle(true)],
+	['坠星之死', () => routeDragonBattle(false)],
+	['死亡', routeDragonDeath],
+	['再度沉睡', routeSleepForever],
+	['洞穴动武', routeCave],
+	['设定集四页', routeCodex],
+	['龙·巢边', routeLair],
+	['老妇人', routeOldWoman],
+	['自愿的长眠', routeSleepVoluntary],
+];
+
+const results = await Promise.all(routes.map(async ([name, fn]) => {
+	try {
+		await fn();
+		console.log(`✓ ${name}`);
+		return null;
+	} catch (e) {
+		console.error(`✗ ${name}：${e.message}`);
+		return name;
+	}
+}));
+failures = results.filter(Boolean).length;
+
+mkdirSync('build', { recursive: true });
+writeFileSync('build/coverage-scenarios.json', JSON.stringify({ cells: [...visited].sort() }, null, 1));
+console.log(`\n路线 ${routes.length} 条 · 交互覆盖 ${visited.size} 格`);
+if (failures) { console.error(`✗ ${failures} 条路线失败`); process.exit(1); }
+console.log('✔ 分支场景测试通过');
+process.exit(0);

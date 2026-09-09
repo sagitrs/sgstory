@@ -1,0 +1,224 @@
+:: Game Tables [script]
+// ── 声明式数据表（v16）——机制数值单一源 ──────────────────────
+// 正文只经词汇宏引用：<<sitecheck 位点 [adv]>> / <<econ 事件>> / <<give "道具">>。
+// 审计：node scripts/audit.mjs（五门）。
+// 权威关系：本表只承载机制；与 docs/lore-canon.md 冲突以设定书为准（P1）。
+window.Game = (() => {
+	// ── 位点表（技能检定 / 豁免）──────────────────────────
+	const Checks = {
+		sites: {
+			'酒馆·打听':   { skill: '游说', dc: 10 },
+			'森林·察觉':   { skill: '察觉', dc: 10 },
+			'洞穴·战斗':   { skill: '运动', dc: 12 },
+			'雾之魔物·挥击': { skill: '运动', dc: 12 },
+			'雾之魔物·心防': { abil: 'con', dc: 13 },
+			'守林人·交涉': { skill: '游说', dc: 12 },
+			'门厅·翻检':   { skill: '调查', dc: 10 },
+			'书房·追问':   { skill: '历史', dc: 10 },
+			'书房·检视':   { skill: '调查', dc: 12 },
+			'工坊·识货':   { skill: '历史', dc: 12 },
+			'温室·讨教':   { skill: '游说', dc: 13 },
+			'天文台·典籍': { skill: '奥秘', dc: 12 },
+			'观星者·说服': { skill: '历史', dc: 13 },
+			'老巫女·辨认': { skill: '洞悉', dc: 12 },
+			'龙·吐息':     { abil: 'con', dc: 14 },
+			'龙·斩击':     { skill: '运动', dc: 10 },
+		},
+	};
+
+	// ── 经济（钱买信息与准备，不买结果）─────────────────────
+	const Economy = {
+		events: {
+			torch_buy:    { delta: -10, chapter: 1, note: '酒馆·买火把' },
+			rumor_buy:    { delta: -5, chapter: 1, note: '酒馆·买传闻' },
+			salve_buy:    { delta: -8, gives: { salves: 1 }, skillDiscount: { skill: '医药', to: -5 }, chapter: 1, note: '女巫·药膏（库存 +1）' },
+			witch_hint:   { delta: -8, featDiscount: { flag: 'lore', to: -5 }, chapter: 1, note: '女巫·塔里的门道（学识烙印半价）' },
+			goblin_bribe: { delta: -5, skillDiscount: { skill: '恐吓', to: -3 }, chapter: 1, note: '洞穴·买路' },
+			goblin_kill:  { delta: 3, chapter: 1, note: '洞穴·搜刮' },
+			study_errand: { delta: 6, chapter: 2, note: '书房·指出错抄的跑腿钱' },
+			flower_pick:  { delta: 5, chapter: 2, note: '温室·附赠' },
+			lens_sell:    { delta: 4, chapter: 2, note: '天文台·卖碎镜片（永失一份证物）' },
+			forged_scale: { delta: -8, chapter: 2, note: '工坊·打造龙鳞护臂' },
+			dragon_hoard: { delta: 10, chapter: 3, note: '巢边·识货' },
+		},
+		priceOf(key, pc) {
+			const ev = this.events[key];
+			if (!ev) throw new Error(`未知经济事件: ${key}`);
+			if (ev.featDiscount && pc?.flags?.[ev.featDiscount.flag]) return ev.featDiscount.to;
+			if (ev.skillDiscount && pc?.skills?.includes(ev.skillDiscount.skill)) return ev.skillDiscount.to;
+			return ev.delta;
+		},
+	};
+
+	// ── 道具（v16 §5.0：各有用途，不集齐开锁）────────────────
+	const Items = {
+		defs: {
+			时光护符:     { from: '女巫（一章）', note: '翻转时代；原地生效（位置决定年代）' },
+			日记:         { from: '塔·书房', note: '记着雾＝它漏出来的力气；说服守林人' },
+			坏哨:         { from: '塔·门厅', note: '守林人家挂在门边那支；龙认得形状——带着就有用' },
+			好哨:         { from: '过去·老巫女', note: '吹响＝让龙冷静下来' },
+			月光花:       { from: '塔·温室', note: '献龙＝睡得稳（不提前醒、不烧路费）' },
+			守林人的杖:   { from: '守林人', note: '发动术式的媒介' },
+			守林人的钥匙: { from: '守林人', note: '通往地下宴会厅那道门' },
+			观星者的书:   { from: '塔·观测廊 / 龙穴', note: '证物（风化无法伪造）+ 现象与线索' },
+			完整星图:     { from: '过去·天文台', note: '带回现在就是坐标' },
+			请柬:         { from: '女巫小屋', note: '那场宴唯一的凭据' },
+			龙鳞护臂:     { from: '塔·工坊', note: '受击 −1' },
+			星名页:       { from: '地下宴会厅', note: '龙名字的前半"维"' },
+			传送术卷轴:   { from: '过去·老巫女', note: '完整术式（她交出的那一卷）' },
+			碎镜片:       { from: '塔·天文台', note: '证物 / 换钱（换掉就永失一份证物）' },
+		},
+		// 战斗侧效果（位点优势 / 减伤）
+		effects: {
+			坏哨:       { advSite: '雾之魔物·挥击', note: '它认得那个形状——挥击劣势转优势' },
+			观星者的书: { advSite: '龙·吐息', note: '书里记着逆鳞可透——预判吐息' },
+			月光花:     { advSite: '龙·斩击', note: '银辉引路——攻击优势' },
+			日记:       { flatDamageReduce: 1, note: '念出那两个小字——整场再 −1' },
+			龙鳞护臂:   { flatDamageReduce: 1, note: '受击 −1' },
+		},
+		perItemDamageReduce: 1,
+		finalStrikeCountAdv: 2,
+		// 受击方=玩家：伤害 = 基础 − 减伤件数 + 败次（封顶）
+		battleDamage(round, inv, defeats) {
+			const held = Object.keys(inv ?? {}).filter((k) => this.effects[k]?.flatDamageReduce);
+			const flat = held.reduce((a, k) => a + this.effects[k].flatDamageReduce, 0);
+			const rage = Math.min(2, defeats ?? 0);
+			const base = round >= 3 ? 5 : 3 + round;
+			return Math.max(1, base - flat + rage);
+		},
+		advAt(site, inv) {
+			const keys = Object.keys(inv ?? {});
+			if (keys.some((k) => this.effects[k]?.advSite === site)) return true;
+			return site === '龙·斩击' && keys.length >= this.finalStrikeCountAdv;
+		},
+	};
+
+	// ── 真相可达性（D1）：命题 × 通路，锚句机检 ──────────────
+	const Truth = {
+		claims: [
+			{ id: 'mist_is_fare', claim: '雾＝它睡着时漏出的星力（回家的路费）：不是灾祸，也不是谁的悔恨——雾越浓，离家越近', sites: [
+				{ p: '观星者·星', anchor: '雾是它漏出来的力气', via: '过去·观星者' },
+				{ p: '书房', anchor: '雾就是它漏出来的力气', via: '现在·初代巫女的日记' },
+				{ p: '地下宴会厅', anchor: '雾在涨，那是它的路费', via: '现在·旅人自语' },
+			] },
+			{ id: 'dragon_is_star', claim: '龙不是恶龙，是一颗迷路的星——三百年前要做的不是讨伐，是送它回家', sites: [
+				{ p: '观星者·星', anchor: '它不是恶龙，是一颗迷路的星', via: '过去·观星者' },
+				{ p: '宴会·过去', anchor: '送一位迷路的客人回家', via: '过去·宴上老妇' },
+				{ p: '守林人', anchor: '它有名字，有家', via: '现在·守林人' },
+			] },
+			{ id: 'failure_cause', claim: '那一夜发不动＝送行烧的是它自己的力气，而它攒得还不够（当时无人知道，也没人算过耗量）', sites: [
+				{ p: '老巫女·跑', anchor: '烧的是它自己的力气', via: '过去·老巫女' },
+				{ p: '书房', anchor: '缺的从来不是咒', via: '现在·日记' },
+				{ p: '交付', anchor: '那一夜攒得还不够', via: '现在·守林人' },
+			] },
+			{ id: 'observation_lock', claim: '能改的不是"历史"，是没被观测过的那部分（它睡得怎么样）', sites: [
+				{ p: '老巫女·跑', anchor: '改不了的不是历史', via: '过去·老巫女（她的错误结论）' },
+				{ p: '书房', anchor: '没人看过它睡得怎么样', via: '现在·日记' },
+			] },
+			{ id: 'keeper_is_alive', claim: '塔顶那位就是守林人本人——活人，持钥匙，终局唯一能发动送行术的人', sites: [
+				{ p: '守林人', anchor: '我就是守林人', via: '现在·守林人' },
+				{ p: '顶楼', anchor: '守的从来不是悔恨', via: '现在·顶楼自语' },
+			] },
+			{ id: 'mist_is_guard', claim: '雾中的形＝雾聚成的守卫，在森林里陪着守林人；它攻击旅人只是把生人误认成屠龙者', sites: [
+				{ p: '雾之魔物', anchor: '在森林里陪着守林人', via: '现在·雾之魔物' },
+				{ p: '守林人', anchor: '它只是把生人当成了敌人', via: '现在·守林人' },
+			] },
+			{ id: 'coordinate_source', claim: '坐标＝三百年前的完整星图（带回现在即可；星位三百年变化可忽略）', sites: [
+				{ p: '观星者·图', anchor: '带回现在，它就是坐标', via: '过去·观星者' },
+				{ p: '交付', anchor: '三百年前的星图', via: '现在·交付' },
+			] },
+			{ id: 'info_gate', claim: '没有星图就说服不了她停手——真结局线根本不成立', sites: [
+				{ p: '老巫女·换', anchor: '你若拿不出图，我劝不动自己', via: '过去·老巫女' },
+				{ p: '告知与告别', anchor: '没有那张图，她不会停手', via: '过去·告知与告别' },
+			] },
+			{ id: 'no_seal', claim: '龙不是被封住的，只是睡着了；三百年后的地下只有它', sites: [
+				{ p: '地下宴会厅', anchor: '没有封印，也没有锁', via: '现在·地下' },
+				{ p: '守林人', anchor: '它不是被封住的，只是睡着了', via: '现在·守林人' },
+			] },
+			{ id: 'fare_is_hidden', claim: '那笔账没人算过；玩家也看不见数字——唯一反馈是雾淡了一些', sites: [
+				{ p: '天文台', anchor: '这笔账没人算过', via: '现在·天文台' },
+				{ p: '结局 送星归位', anchor: '他不知道省下的是哪一笔', via: '真结局收束' },
+			] },
+			{ id: 'homecoming_path', claim: '真结局＝坐标 + 卷轴 + 好哨 + 花 + 守林人同行 → 一起发动传送术', sites: [
+				{ p: '告知与告别', anchor: '坐标、卷轴、哨、花', via: '过去·她交出的东西' },
+				{ p: '交付', anchor: '我们一起送它回家', via: '现在·守林人同意同行' },
+			] },
+			{ id: 'farewell_letter', claim: '守林人家那位承杖先人写给观星者的信：它有名字，有家——它不是恶龙（观星者到死没拆）', sites: [
+				{ p: '观星者', anchor: '火漆完好', via: '过去·观星者案头' },
+				{ p: '守林人', anchor: '替我告诉它', via: '现在·守林人转述' },
+			] },
+		],
+	};
+
+	// ── 世界活性回声（D4）：行为 × 回声，锚句机检 ─────────────
+	const Echoes = {
+		list: [
+			{ id: '传闻→洞穴', cause: { flag: 'rumor' }, kind: 'ch1→ch1', echo: [{ p: '洞穴', anchor: '老猎人的话' }] },
+			{ id: '放生→温室', cause: { flag: 'goblin_spared' }, kind: 'ch1→ch2', echo: [{ p: '温室', anchor: '你放走了我们家的' }] },
+			{ id: '女巫门道→书房', cause: { flag: 'witch_hint' }, kind: 'ch1→ch2', echo: [{ p: '书房', anchor: '女巫说的暗格' }] },
+			{ id: '雾中交手→守林人', cause: { flag: 'mist_fought' }, kind: 'ch2→ch2', echo: [{ p: '守林人', anchor: '路上那团雾' }] },
+			{ id: '问过观星者', cause: { flag: 'seer_asked' }, kind: 'ch3→ch3', echo: [{ p: '交付', anchor: '观星者算过的那一轨' }] },
+			{ id: '她不再往回跑', cause: { flag: 'old_witch_told' }, kind: 'past→present', echo: [{ p: '告知与告别', anchor: '她不再往回跑' }] },
+			{ id: '喂过花', cause: { flag: 'flower_fed' }, kind: 'past→present', echo: [{ p: '龙·巢边', anchor: '它睡得沉' }] },
+			{ id: '吹响好哨', cause: { flag: 'whistle_blown' }, kind: 'past→present', echo: [{ p: '归位', anchor: '哨声' }] },
+			{ id: '交付卷轴', cause: { flag: 'scroll_delivered' }, kind: 'ch3→ch3', echo: [{ p: '归位', anchor: '守林人握紧了卷轴' }] },
+			{ id: '星图在手', cause: { token: '完整星图' }, kind: 'past→present', echo: [{ p: '交付', anchor: '星图摊开' }] },
+		],
+		revisit: [
+			{ flag: 'present_done', p: '门厅', anchor: '翻找过这里' },
+			{ flag: 'past_done', p: '书房', anchor: '已搜过' },
+		],
+		exempt: {
+			era: '时代机制本体', pc: '角色对象', player_name: '车卡名',
+			'keeper:state': '守林人关系态（对话文本即反馈）', 'keeper:key': '钥匙取得（物品栏即反馈）',
+			'dragon:awake': '战斗触发态（战斗本身即反馈）',
+		},
+	};
+
+	// ── 选择意义感（D2）：选择位点 × 臂数 ────────────────────
+	const Choices = {
+		sites: [
+			{ id: '酒馆·去处', p: '酒馆', arms: 3, kind: 'route', landing: 'route' },
+			{ id: '洞穴·处置', p: '洞穴', arms: 3, kind: 'moral', landing: 'route' },
+			{ id: '守林人·交涉', p: '守林人', arms: 3, kind: 'social', landing: 'route' },
+			{ id: '顶楼·抉择', p: '顶楼', arms: 3, kind: 'pivot', landing: 'route' },
+			{ id: '宴会·过去', p: '宴会·过去', arms: 4, kind: 'route', landing: 'route' },
+			{ id: '终局·打法', p: '地下宴会厅', arms: 4, kind: 'ending', landing: 'ending' },
+		],
+		exemptSkills: {},
+	};
+
+	// ── 系统可玩性（D3）：机制发现性 ─────────────────────────
+	const Systems = {
+		mechanics: [
+			{ id: 'check', rule: 'd20 + 属性/技能修正 ≥ DC；自然 20 必成、自然 1 必败', p: '洞穴', anchor: '检定' },
+			{ id: 'flip', rule: '翻转在原地生效（位置决定年代）；每次翻转耗星力，从过去回来时雾淡一些', p: '林间小径', anchor: '三百年前' },
+			{ id: 'inventory', rule: '拾到即入物品栏；每件各有用途，不集齐开锁', p: '门厅', anchor: '物品栏' },
+			{ id: 'keeper_trust', rule: '守林人按带去的证物分层给帮助（空手 / 日记 / 观星者的书）', p: '守林人', anchor: '按你带来的东西' },
+			{ id: 'threshold', rule: '雾攒过阈值之后，攻击龙才触发战斗；之前动手它只会被惊醒一半', p: '地下宴会厅', anchor: '还不是时候' },
+		],
+		combos: [
+			{ a: 'check', b: 'keeper_trust', evidence: '交涉位点吃游说，带日记/书额外降 DC（正文显式给出）' },
+			{ a: 'flip', b: 'inventory', evidence: '过去取图 → 回现在交付；道具跨时代携带' },
+		],
+	};
+
+	// ── 翻转锚点（挂了 <<flip>> 的段落）─────────────────────
+	const Shifts = {
+		anchors: ['林间小径', '塔门', '门厅', '书房', '温室', '天文台', '地下宴会厅', '宴会·过去'],
+		unlimited: true,
+	};
+
+	// ── 龙（强度参照标准 D&D 高挑战等级：单挑必败，基本只允许机制胜利）──
+	const Dragon = {
+		hp: 60,
+		hitBase: 6,
+		sneakHit: 12,
+		rage: 0,
+		dragonDamage(inv, round, defeats) {
+			return Items.battleDamage(round, inv, defeats);
+		},
+	};
+
+	return { Checks, Economy, Items, Truth, Echoes, Choices, Systems, Shifts, Dragon };
+})();

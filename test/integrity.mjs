@@ -122,8 +122,8 @@ for (const p of passages.values()) {
 //   W3 旗标生命周期（set 从不 use / use 从不 set）
 const vocabWarn = [];
 const vocabExempts = [];
-// A6：era 写白名单=塔域（二章塔 + 三章塔底——W2 门契约：塔底内容段落写 era 合法）
-const TOWER_FILES = new Set(['50-tower.twee', '55-dungeon.twee']);
+// A6→M1：era 写白名单=挂了 <<flip>> 的段落所在文件（v16 补正 #2：翻转不受地点限制）
+const ERA_FILES = new Set([...passages.values()].filter((p) => p.body.includes('<<flip>>')).map((p) => p.file));
 const COMMENT_RX = /\/%[\s\S]*?%\//g;
 const isInfraBody = (p) => p.tags.some((t) => ['script', 'widget', 'stylesheet'].includes(t)) || ['StoryInit', 'StoryData', 'StoryTitle'].includes(p.name);
 const exemptOf = (p) => {
@@ -145,9 +145,9 @@ for (const p of passages.values()) {
 		if (hits.length) warn('W1', `link 体内裸 ${hits.join('/')}（点击态代码 → 提升为词汇宏或豁免）：${m[0].replace(/\s+/g, ' ').slice(0, 50)}`);
 	}
 	// W2：era 写越界（只禁写）
-	if (!TOWER_FILES.has(p.file)) {
-		if (/<<\s*set\s+\$era\b/.test(body) || /variables\.era\s*=[^=]/.test(body)) warn('W2', 'era 写入越界出塔层（状态空间翻倍源头）');
-		if (/<<\s*erashift\s*>>/.test(body)) warn('W2', 'erashift 调用越界出塔层');
+	if (!ERA_FILES.has(p.file)) {
+		if (/<<\s*set\s+\$era\b/.test(body) || /variables\.era\s*=[^=]/.test(body)) warn('W2', 'era 写入越界出翻转域（状态空间翻倍源头）');
+		if (/<<\s*flip\s*>>/.test(body)) warn('W2', 'flip 调用越界出翻转域');
 	}
 }
 // W3：旗标生命周期（全 src 含 JS 引用；pc 对象不计——成员级变更合法）
@@ -204,7 +204,7 @@ else {
 		if (/<<\s*set\s+\$pc\.gold\b/.test(body)) errors.push(`[残留] ${p.file}:${p.line} 段落「${p.name}」直改 $pc.gold——经济必须走 <<econ 事件>>`);
 		for (const m of body.matchAll(/<<(check|save)\s+"[^"]+"\s+\d+/g)) errors.push(`[残留] ${p.file}:${p.line} 段落「${p.name}」硬编码 DC（${m[0]}）——检定必须走 <<sitecheck 位点>>`);
 	}
-	console.log(`表：位点 ${Object.keys(Game.Checks.sites).length} · 经济事件 ${Object.keys(Game.Economy.events).length} · 信物 ${Object.keys(Game.Tokens.effects).length}（引用 位点 ${refKeys.site.size} / 事件 ${refKeys.econ.size}）`);
+	console.log(`表：位点 ${Object.keys(Game.Checks.sites).length} · 经济事件 ${Object.keys(Game.Economy.events).length} · 道具 ${Object.keys(Game.Items.effects).length}（引用 位点 ${refKeys.site.size} / 事件 ${refKeys.econ.size}）`);
 }
 
 // ── 可达性（信息性）──────────────────────────────────────

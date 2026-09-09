@@ -322,3 +322,9 @@ body {
 	line-height: 1.7;
 }
 .inv-item { color: #cfd8c8; }
+
+/* ── M1 骨架补充 ─────────────────────────────────────── */
+.flip-note { color: #a9c0da; font-size: 0.95em; }
+.econ-note { color: #b8a97e; font-size: 0.9em; }
+.gain { color: #9fd0a0; }
+.era-drained { color: #8b8497; font-style: italic; }

@@ -432,7 +432,26 @@ if (wantAll || arg('canon')) {
 	for (const { name, text } of ship) {
 		if (/^守林人/.test(name) && text.includes('她')) { hit++; bad++; console.log(`  ✗ 段落「${name}」出现「她」（§10：守林人为女性 —— 改为男性）`); }
 	}
+	// ④ §9 双读纪律（M6a）：正文不得点破的断言（只扫正文，不扫数据表脚本）
+	const DUALREAD = [
+		{ t: '长生', why: '§9 #2/#3：只有龙长寿；正文不出现「长生」断言' },
+		{ t: '同一个人', why: '§9 #2：形似线永不出现「同一个人」的肯定句' },
+		{ t: '初代巫女', why: '§9 #5：身份只住设定书，正文永不点破' },
+		{ t: '初代', why: '§9 #5：正文不称「初代」' },
+		{ t: '穿越', why: '§9 #5：正文不出现「穿越」' },
+		{ t: '晚年', why: '§9 #5：不点破老巫女＝晚年回到那一夜' },
+	];
+	let dualHit = 0;
+	for (const [name, src] of passageSrc) {
+		const tags = passageTags.get(name) ?? [];
+		if (tags.includes('script') || tags.includes('stylesheet')) continue; // 只扫正文
+		const text = src.replace(/\/%[\s\S]*?%\//g, ''); // 剥 /% %/ 注释
+		for (const d of DUALREAD) {
+			if (text.includes(d.t)) { dualHit++; bad++; console.log(`  ✗ 段落「${name}」出现「${d.t}」（${d.why}）`); }
+		}
+	}
 	console.log(`  §10 行 ${rows.length} · 认领 ${CANON_ROWS.length} 条 · 禁词 ${termCount} 个 · 命中 ${hit}`);
+	console.log(`  §9 双读：禁断言 ${DUALREAD.length} 条 · 命中 ${dualHit}（正文不点破：长生/同一个人/初代/穿越/晚年）`);
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ canon 门：${bad} 项回流/未认领`); process.exit(1); }
 		console.log('\n✔ canon 门通过（§10 全行认领，禁词零回流）');

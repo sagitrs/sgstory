@@ -67,7 +67,9 @@
 <<else>>
 	（老猎人的牛皮里混着真话——''第三块板子是脆的''。）
 
-	他把酒碗往你那边推了推："洞里那块石板，第三块是脆的。真要动手，先踩它。"说完就低头喝酒，不再看你。
+	他把酒碗往你那边推了推："洞里那块石板，第三块是脆的。真要动手，先踩它。"
+
+	说完就低头喝酒，不再看你。（''这条情报会在洞穴里帮你。''）
 <</if>>
 <<if not $pc.gear.includes("火把")>>
 	<<link `"花 " + (-Game.Economy.priceOf("torch_buy", $pc)) + " 金币：买一支火把"`>>
@@ -150,6 +152,7 @@
 		<<econ "goblin_bribe">><<setflag "goblin_spared">><<goto "森林边缘">>
 	<</link>>
 	<<link "拔家伙——''检定''过不过得看你的手">>
+		<<if $pc.world.rumor>>（你落脚的时候，避开了第三块石板——''老猎人的话''。）<</if>>
 		<<sitecheck "洞穴·战斗">>
 		<<if $last_check.success>>
 			<<econ "goblin_kill">>你把它打跑了，捡起散落的石头。<<goto "森林边缘">>

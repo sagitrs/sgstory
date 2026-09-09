@@ -133,7 +133,27 @@ async function routeTrue() {
 	await c('让守林人动手');               // 归位
 	await c('看着它走完');                 // 结局 送星归位
 	if (passageOf(w) !== '结局 送星归位') throw new Error(`金路径未达真结局（停在 ${passageOf(w)}）`);
+	if (pcOf(w).world.flower_warned !== true) throw new Error('守林人未给出花田警告（flower_warned）');
+	if (pcOf(w).inv['月光花'] !== true) throw new Error('金路径未拿到月光花');
 	return { w, c, pc: pcOf(w) };
+}
+
+// ── 路线 21：花田昏睡（v16 补正 #5）——不进守林人、无警告 → 体质豁免失败 → 昏睡 → 憋气重试 ──
+async function routeFlowerNap() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await toWitch(c);
+	await toTower(c);
+	await c('继续往塔那边走');     // 塔门（现在）
+	await c('推门进去');           // 门厅——绕开守林人，所以没有警告
+	await c('先上二楼看看');       // 书房
+	w.eval('Math.random = () => 0.01'); // 花田体质豁免必败
+	await c('上三楼');             // 温室 → 昏睡
+	if (pcOf(w).world.flower_warned !== true) throw new Error('昏睡未记录 flower_warned（学不到花的性质）');
+	if (pcOf(w).inv['月光花']) throw new Error('昏睡却拿到了花');
+	w.eval('Math.random = () => 0.99'); // 憋气（优势）+ 必成
+	await c('再凑近一次');
+	if (pcOf(w).inv['月光花'] !== true) throw new Error('憋气重试后仍未拿到月光花');
+	return { w };
 }
 
 // ── 路线 2：平凡之路 ──
@@ -487,6 +507,7 @@ const routes = [
 	['老妇人', routeOldWoman],
 	['自愿的长眠', routeSleepVoluntary],
 	['时代分叉', routeEraBranches],
+	['花田昏睡', routeFlowerNap],
 ];
 
 const results = await Promise.all(routes.map(async ([name, fn]) => {

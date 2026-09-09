@@ -330,15 +330,15 @@ if (wantAll || arg('economy')) {
 if (wantAll || arg('items') || arg('tokens')) {
 	console.log('\n══ ③ 道具效果 · 龙战伤害矩阵（受击方=玩家，败次 0/2）══');
 	const I = Game.Items;
-	console.log(`减伤件：每件 −${I.perItemDamageReduce}；败次 +1 封顶 +2；终击件数≥${I.finalStrikeCountAdv} 优势`);
+	console.log(`减伤件：每件 −${I.perItemDamageReduce}；败次 +1 封顶 +2（M5b：件数共鸣与月光花优势已移除）`);
 	for (const [name, e] of Object.entries(I.effects)) console.log(`  ${name.padEnd(8, '　')} ${e.advSite ? `优势@${e.advSite}` : `减伤−${e.flatDamageReduce}`} —— ${e.note}`);
 	const sets = [
 		{},
 		{ 日记: true },
 		{ 坏哨: true },
 		{ 日记: true, 龙鳞护臂: true },
-		{ 日记: true, 龙鳞护臂: true, 月光花: true },
-		{ 日记: true, 龙鳞护臂: true, 月光花: true, 观星者的书: true, 坏哨: true },
+		{ 日记: true, 龙鳞护臂: true, 观星者的书: true },
+		{ 日记: true, 龙鳞护臂: true, 观星者的书: true, 坏哨: true },
 	];
 	console.log('  道具组合 → R1/R2/R3 伤害（败次=0 | 败次=2）');
 	for (const set of sets) {
@@ -409,6 +409,8 @@ const CANON_ROWS = [
 	{ src: '二章三信物', terms: ['三信物'], why: '上塔无需道具门' },
 	{ src: '坐标差之毫厘', terms: ['坐标差之毫厘', '坐标偏差'], why: '不存在坐标偏差降级' },
 	{ src: '月光花自用＝解毒', terms: ['解毒', '自用'], why: '月光花只有献龙一用，无战斗功能（§5.4）' },
+	{ src: '月光花长在塔内温室', terms: ['塔·温室'], why: '花长在塔基外侧墙根（§5.4）' },
+	{ src: '贸然采花＝昏睡后可重试', terms: ['再凑近', '昏睡后可重试'], why: '贸然采花失败＝死亡结局（§5.4）' },
 ];
 if (wantAll || arg('canon')) {
 	console.log('\n══ ⓪g canon 门（设定书 §10 已裁剪设定）——禁止回流 ══');

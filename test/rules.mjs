@@ -168,6 +168,17 @@ for (const file of fixtures) {
 	ok(I.advAt('龙·斩击', { 月光花: true }), 'advAt：月光花给斩击优势');
 	ok(I.advAt('龙·斩击', { a: 1, b: 2 }), 'advAt：持 2 件给终击优势（共鸣）');
 	ok(!I.advAt('龙·斩击', { a: 1 }), 'advAt：1 件不给终击优势');
+	// ④b 道具位点优势自动接线：坏哨 → <<sitecheck>> 自动双骰取高
+	const diceQueue = [0.12, 0.82]; // d20 → 3, 17
+	w.eval(`(function(){const q=${JSON.stringify(diceQueue)};Math.random=()=>q.length?q.shift():0.5;})()`);
+	v.pc = w.Pc.defaults(); v.pc.inv['坏哨'] = true;
+	new w.SugarCube.Wikifier(null, '<<sitecheck "雾之魔物·挥击">>');
+	ok(v.last_check.roll === 17, `sitecheck 自动优势：坏哨 → 双骰取高（实际 ${v.last_check.roll}）`);
+	v.pc.inv = {};
+	w.eval(`(function(){const q=${JSON.stringify(diceQueue)};Math.random=()=>q.length?q.shift():0.5;})()`);
+	new w.SugarCube.Wikifier(null, '<<sitecheck "雾之魔物·挥击">>');
+	ok(v.last_check.roll === 3, `sitecheck 无道具：单骰（实际 ${v.last_check.roll}）`);
+	w.eval('Math.random = () => 0.5');
 	// ⑤ sitecheck 分流：abil 位点走 <<save>>
 	w.eval('Game.Checks.sites["龙·吐息"].dc = 9');
 	new w.SugarCube.Wikifier(null, '<<sitecheck "龙·吐息">>');

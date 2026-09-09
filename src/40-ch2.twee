@@ -52,7 +52,7 @@
 
 :: 雾之魔物·战
 /% payload: 张力 %/
-<<if $pc.inv["坏哨"]>><<sitecheck "雾之魔物·挥击" "adv">><<else>><<sitecheck "雾之魔物·挥击">><</if>>
+<<sitecheck "雾之魔物·挥击">>
 <<if $last_check.success>>
 	你擦着它的边缘过去。它散了，又在三步外聚起来——没有追。
 <<else>>

@@ -143,13 +143,16 @@ Macro.add('dragonbar', {
 	<<if $pc.hp lte 0>><<goto "结局 死亡">><</if>>
 <</widget>>
 
-/% 检定位点词汇：DC/技能出走 Game.Checks.sites；正文只传位点键。site.abil → 豁免，否则技能检定 %/
+/% 检定位点词汇：DC/技能出走 Game.Checks.sites；正文只传位点键。site.abil → 豁免，否则技能检定。
+   携带道具的位点优势由 Game.Items.advAt 自动附加（无哨/书/花即无优势）。 %/
 <<widget "sitecheck">>
 	<<set _site to Game.Checks.sites[$args[0]]>>
+	<<set _adv to $args[1]>>
+	<<if not _adv and Game.Items.advAt($args[0], $pc.inv)>><<set _adv to "adv">><</if>>
 	<<if _site.abil>>
-		<<save _site.abil _site.dc $args[1]>>
+		<<save _site.abil _site.dc _adv>>
 	<<else>>
-		<<check _site.skill _site.dc $args[1]>>
+		<<check _site.skill _site.dc _adv>>
 	<</if>>
 <</widget>>
 

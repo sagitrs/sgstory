@@ -355,7 +355,11 @@ async function routeCodex() {
 	await c('回设定集');
 	await c('三家');
 	await c('回设定集');
+	await c('塔');
+	await c('回设定集');
 	await c('道具');
+	await c('回设定集');
+	await c('术语');
 	await c('回设定集');
 	await c('结局');
 	if (passageOf(w) !== '设定集·结局') throw new Error(`未达设定集·结局（${passageOf(w)}）`);

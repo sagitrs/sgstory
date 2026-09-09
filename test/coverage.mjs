@@ -1,6 +1,9 @@
-// L3 覆盖率 ratchet（#14）：聚合 L1/L2 覆盖落盘，双门禁 + 盲区报告
+// L3 覆盖率 ratchet（#14 / M1c 收紧）：聚合 L1/L2 覆盖落盘，五门禁 + 盲区报告
 //   门1（不回退）：基线格 ⊆ 实际格，缩水即 fail（防覆盖回归；有意缩水请先更新基线并说明）
 //   门2（新内容必配测）：diff 新增段落必须被交互覆盖（scenarios/walker 踩到）或显式豁免（附理由）
+//   门3（无交互盲区）：每个内容段落必须有可点击到达路径
+//   门4（时代双态）：按 $era 分叉的段落，present/past 两态都要被交互踩到
+//   门5（交互≥渲染）：交互格数不得少于渲染格数
 // 用法：node test/coverage.mjs [--update-baseline]
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
@@ -80,12 +83,40 @@ if (uncoveredNew.length) {
 }
 for (const n of Object.keys(exempt)) if (!passages.has(n)) console.log(`⚠ 豁免清单中段落「${n}」已不存在，可移除`);
 
-// ── 盲区报告（信息性：下轮补测工单来源）─────────────────
+// ── 盲区报告 + 门3/4/5（M1c 收紧）────────────────────────
 const interactBlind = contentNames.filter((n) => ![...interactCells].some((c) => c.startsWith(`${n}|`)));
 const renderBlind = contentNames.filter((n) => ![...renderCells].some((c) => c.startsWith(`${n}|`)));
 console.log(`内容段落 ${contentNames.length} · 渲染覆盖 ${contentNames.length - renderBlind.length} · 交互覆盖 ${contentNames.length - interactBlind.length}（格：渲染 ${renderCells.size} / 交互 ${interactCells.size}）`);
 if (interactBlind.length) console.log(`交互盲区段落：${interactBlind.join('，')}`);
 if (renderBlind.length) console.log(`渲染盲区段落：${renderBlind.join('，')}`);
+
+// 门3：交互盲区必须为空（内容段落一律有可点击到达路径——不再只是信息性报告）
+let gate3 = 0;
+if (interactBlind.length) {
+	console.error(`✗ 门3 交互盲区 ${interactBlind.length} 段：${interactBlind.join('，')}（补 scenarios 路线或 walker 注入）`);
+	gate3++;
+}
+// 门4：按 $era 分叉的段落，交互必须覆盖 present/past 两态（渲染已双跑；交互不许只踩一边）
+const eraPassages = contentNames.filter((n) => (passages.get(n)?.body ?? '').includes('$era'));
+const eraMissing = [];
+for (const n of eraPassages) {
+	for (const era of ['present', 'past']) {
+		if (!interactCells.has(`${n}|${era}`)) eraMissing.push(`${n}|${era}`);
+	}
+}
+let gate4 = 0;
+if (eraMissing.length) {
+	console.error(`✗ 门4 时代分叉交互缺态 ${eraMissing.length} 格：${eraMissing.join('，')}`);
+	gate4++;
+} else {
+	console.log(`时代分叉段落 ${eraPassages.length} 段 · present/past 双态交互覆盖齐`);
+}
+// 门5：交互覆盖格数不得少于渲染覆盖格数（交互是更强的口径）
+let gate5 = 0;
+if (interactCells.size < renderCells.size) {
+	console.error(`✗ 门5 交互格 ${interactCells.size} < 渲染格 ${renderCells.size}（交互口径必须 ≥ 渲染）`);
+	gate5++;
+}
 
 // ── 基线更新/判定 ───────────────────────────────────────
 if (UPDATE) {
@@ -93,8 +124,9 @@ if (UPDATE) {
 	console.log(`✔ 基线已更新：渲染 ${renderCells.size} 格 / 交互 ${interactCells.size} 格（${BASELINE}，请人工审后提交）`);
 	process.exit(0);
 }
-if (gate1 + gate2 > 0) {
+const gates = gate1 + gate2 + gate3 + gate4 + gate5;
+if (gates > 0) {
 	if (!existsSync(BASELINE)) console.error('ℹ 首次生成基线：node test/coverage.mjs --update-baseline');
 	process.exit(1);
 }
-console.log('✔ 覆盖率 ratchet 通过（基线无缩水 · 新增段落全部配测）');
+console.log('✔ 覆盖率 ratchet 通过（门1 无缩水 · 门2 新段落配测 · 门3 无交互盲区 · 门4 时代双态 · 门5 交互≥渲染）');

@@ -431,6 +431,37 @@ async function routeSleepVoluntary() {
 	return { w };
 }
 
+// ── 路线 16：时代分叉（宴会·过去|现在 / 交付|过去）──
+async function routeEraBranches() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await toWitch(c);
+	await toTower(c);
+	await c('坠入');
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	await c('收下钥匙');
+	await c('用钥匙打开铁门');
+	await c('在宴上找人说话');       // 宴会·过去（过去）
+	await c('回到地下宴会厅');
+	await c('翻转护身符：回到');     // 地下宴会厅（现在）
+	await c('在宴上找人说话');       // 宴会·过去（现在）← 覆盖
+	await c('翻转护身符：坠入');     // 宴会·过去（过去）
+	await c('回到地下宴会厅');
+	await c('翻转护身符：回到');     // 地下宴会厅（现在）
+	await c('安静地退出去');
+	await c('翻转护身符：坠入');     // 门厅（过去）
+	await c('先上二楼看看');
+	await c('上三楼');
+	await c('上三楼拐角看看');
+	await c('上四楼');
+	await c('上顶楼');               // 顶楼（过去）
+	await c('把卷轴和星图交给他');   // 交付（过去）← 覆盖
+	if (passageOf(w) !== '交付') throw new Error(`未达交付（${passageOf(w)}）`);
+	return { w };
+}
+
 const routes = [
 	['金路径 送星归位', routeTrue],
 	['平凡之路', routeQuit],
@@ -451,6 +482,7 @@ const routes = [
 	['龙·巢边', routeLair],
 	['老妇人', routeOldWoman],
 	['自愿的长眠', routeSleepVoluntary],
+	['时代分叉', routeEraBranches],
 ];
 
 const results = await Promise.all(routes.map(async ([name, fn]) => {

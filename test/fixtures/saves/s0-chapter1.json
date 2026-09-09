@@ -1,49 +1,11 @@
 {
-  "description": "S0 一章末旧档（#9 二章上线前形状：无 ch2/amulet_charges/tokens/tower）——对应坑10线上实锤",
-  "keep": {
-    "name": "旧档旅人",
-    "gold": 40,
-    "hp": 14,
-    "has_torch": true,
-    "speciesKey": "dwarf"
-  },
+  "description": "S0 v13 旧档（重开发前形状：无 inv/star/keeper/ev/dragon/world）——旧档必须可读",
+  "keep": { "name": "旧档旅人", "gold": 40, "hp": 14, "speciesKey": "dwarf" },
   "pc": {
-    "name": "旧档旅人",
-    "round": 8,
-    "abilities": {
-      "str": 17,
-      "con": 15,
-      "dex": 13,
-      "wis": 12,
-      "int": 12,
-      "cha": 8
-    },
-    "skills": [
-      "运动",
-      "恐吓",
-      "生存",
-      "察觉"
-    ],
-    "feats": [
-      "坚韧"
-    ],
-    "gear": [
-      "火把",
-      "绳索"
-    ],
-    "flags": {
-      "courage": true
-    },
-    "gold": 40,
-    "hp": 14,
-    "max_hp": 14,
-    "has_torch": true,
-    "has_rope": true,
-    "salve_used": false,
-    "speciesKey": "dwarf",
-    "speciesLabel": "矮人",
-    "classLabel": "战士",
-    "bgLabel": "佣兵"
+    "name": "旧档旅人", "round": 8, "abilities": { "str": 17, "con": 15, "dex": 13, "wis": 12, "int": 12, "cha": 8 },
+    "skills": ["运动", "恐吓"], "feats": ["坚韧"], "gear": ["火把", "绳索"], "flags": { "courage": true },
+    "gold": 40, "hp": 14, "max_hp": 14, "has_torch": true, "has_rope": true, "salve_used": false,
+    "speciesKey": "dwarf", "speciesLabel": "矮人", "classLabel": "铁卫", "bgLabel": "佣兵"
   },
   "expectSalves": 0
 }

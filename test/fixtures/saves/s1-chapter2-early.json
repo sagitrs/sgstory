@@ -1,19 +1,15 @@
 {
-  "description": "S1 二章早期档（#9~#10 之间：ch2 有值、charges 用过 1 次、tokens 收了 2 件、tower 只有部分旗标）",
+  "description": "S1 二章早期档（新字段部分在位：inv 两件、star.spent 1、keeper 见过）",
   "keep": {
     "name": "守林候补",
-    "gold": 20,
-    "amulet_charges": 1,
-    "ch2": true
+    "gold": 20
   },
-  "expectTokens": [
-    "铜哨",
-    "日记"
-  ],
   "pc": {
     "name": "守林候补",
-    "round": 8,
-    "picked": [],
+    "round": 3,
+    "picked": [
+      "职业：铁卫"
+    ],
     "mode": "expert",
     "abilities": {
       "str": 15,
@@ -25,12 +21,9 @@
     },
     "skills": [
       "运动",
-      "生存",
       "察觉"
     ],
-    "feats": [
-      "勇气"
-    ],
+    "feats": [],
     "gear": [
       "长剑"
     ],
@@ -38,22 +31,29 @@
     "gold": 20,
     "hp": 14,
     "max_hp": 14,
-    "has_torch": false,
-    "has_rope": false,
-    "salve_used": false,
-    "ch2": true,
-    "amulet_charges": 1,
-    "tokens": [
-      "铜哨",
-      "日记"
-    ],
-    "tower": {
-      "hall_past": true
-    },
+    "salves": 1,
+    "classKey": "guard",
+    "classLabel": "铁卫",
+    "bgKey": "merc",
+    "bgLabel": "佣兵",
     "speciesKey": "human",
     "speciesLabel": "人类",
-    "classLabel": "战士",
-    "bgLabel": "佣兵"
+    "inv": {
+      "坏哨": true,
+      "日记": true
+    },
+    "star": {
+      "spent": 1
+    },
+    "keeper": {
+      "met": true,
+      "trust": 1,
+      "state": "post",
+      "key": false
+    },
+    "ev": {
+      "mist_guard": true
+    }
   },
-  "expectSalves": 0
+  "expectSalves": 1
 }

@@ -1,0 +1,224 @@
+:: Rules [script]
+// ── 规则内核（d20 / SRD 5.2 风格）——数值层单一源 ─────────────
+// 设计模式参考（未复制代码）：Another-RPG-Engine (MIT) 修饰栈 / foundryvtt-dnd5e (MIT) 公式组织
+// 规则数值来源：D&D SRD 5.2（CC BY 4.0, © Wizards of the Coast）
+window.Rules = {
+	ABILITIES: { str: '力量', dex: '敏捷', con: '体质', int: '智力', wis: '感知', cha: '魅力' },
+	SKILLS: {
+		运动: 'str', 体操: 'dex', 巧手: 'dex', 隐匿: 'dex',
+		奥秘: 'int', 历史: 'int', 调查: 'int', 自然: 'int', 宗教: 'int',
+		驯兽: 'wis', 洞悉: 'wis', 医药: 'wis', 察觉: 'wis', 生存: 'wis',
+		欺瞒: 'cha', 恐吓: 'cha', 表演: 'cha', 游说: 'cha',
+	},
+	mod(score) { return Math.floor(((score ?? 10) - 10) / 2); },
+	fmod(score) { const m = this.mod(score); return m >= 0 ? `+${m}` : `${m}`; },
+	abilityMod(pc, ab) { return this.mod(pc.abilities?.[ab]); },
+	prof() { return 2; }, // 1–4 级熟练加值（SRD 5.2 曲线）
+	skillMod(pc, skill) {
+		const ab = this.SKILLS[skill];
+		if (!ab) throw new Error(`未知技能: ${skill}`);
+		let m = this.abilityMod(pc, ab);
+		if ((pc.skills ?? []).includes(skill)) m += this.prof();
+		return m;
+	},
+	d20(adv) {
+		if (!adv) return random(1, 20);
+		const a = random(1, 20), b = random(1, 20);
+		return adv > 0 ? Math.max(a, b) : Math.min(a, b);
+	},
+	check(pc, skill, dc, { adv = 0, bonus = 0 } = {}) {
+		const mod = this.skillMod(pc, skill) + bonus + (pc.flags?.luck ? 1 : 0);
+		const roll = this.d20(adv), total = roll + mod;
+		return { label: `${skill}检定`, skill, dc, roll, mod, total, success: roll === 20 ? true : roll === 1 ? false : total >= dc };
+	},
+	save(pc, ability, dc, { adv = 0, bonus = 0 } = {}) {
+		const mod = this.abilityMod(pc, ability) + bonus + (pc.flags?.luck ? 1 : 0);
+		const roll = this.d20(adv), total = roll + mod;
+		return { label: `${this.ABILITIES[ability]}豁免`, ability, dc, roll, mod, total, success: roll === 20 ? true : roll === 1 ? false : total >= dc };
+	},
+};
+
+window.pcNow = () => State.variables.pc;
+
+// ── 角色状态形状：单一默认源 + 旧档迁移（新增字段必须过这里，否则读档即崩）──
+window.Pc = {
+	defaults() {
+		return {
+			// 车卡
+			name: '', round: 0, picked: [], mode: '',
+			classKey: '', classLabel: '', bgKey: '', bgLabel: '', speciesKey: '', speciesLabel: '',
+			abilities: null, skills: [], feats: [], gear: [], flags: {},
+			hp: 0, max_hp: 0, gold: 0, salves: 0,
+			// 世界
+			inv: {},              // 物品栏：{ 名: true }
+			star: { charge: 12, spent: 0 },   // 星力隐藏计数（玩家不可见）
+			keeper: { met: false, trust: 0, state: 'post', key: false },
+			ev: {},               // 证据链
+			dragon: { hp: 0, defeats: 0, awake: false },
+			world: {},            // 世界旗标
+		};
+	},
+	has(name) { return !!State.variables.pc?.inv?.[name]; },
+	migrate(pc) {
+		if (!pc || typeof pc !== 'object') return this.defaults();
+		const d = this.defaults();
+		for (const k of Object.keys(d)) {
+			if (pc[k] === undefined) pc[k] = d[k];
+			else if (Array.isArray(d[k])) { if (!Array.isArray(pc[k])) pc[k] = d[k]; }
+			else if (d[k] === null) { if (pc[k] !== null && typeof pc[k] !== 'object') pc[k] = d[k]; }
+			else if (typeof d[k] === 'object') {
+				if (!pc[k] || typeof pc[k] !== 'object' || Array.isArray(pc[k])) pc[k] = d[k];
+				else for (const j of Object.keys(d[k])) if (pc[k][j] === undefined) pc[k][j] = d[k][j];
+			}
+		}
+		return pc;
+	},
+};
+
+// ── 宏：<<check 技名 DC [adv|dis] [加值]>> / <<save 属性 DC [adv|dis] [加值]>> ──
+function renderCheck(res) {
+	State.variables.last_check = res;
+	const cls = res.success ? 'check-success' : 'check-fail';
+	const modStr = res.mod >= 0 ? `+${res.mod}` : `${res.mod}`;
+	return `<div class="check-result ${cls}">🎯 ${res.label} DC${res.dc}：` +
+		`<span class="check-dice">d20(${res.roll})</span> ${modStr} = <b>${res.total}</b> ${res.success ? '✔ 成功' : '✘ 失败'}</div>`;
+}
+Macro.add('check', {
+	handler() {
+		const adv = this.args[2] === 'adv' ? 1 : this.args[2] === 'dis' ? -1 : 0;
+		$(this.output).append(renderCheck(Rules.check(pcNow(), this.args[0], this.args[1], { adv, bonus: Number(this.args[3]) || 0 })));
+	},
+});
+Macro.add('save', {
+	handler() {
+		const adv = this.args[2] === 'adv' ? 1 : this.args[2] === 'dis' ? -1 : 0;
+		$(this.output).append(renderCheck(Rules.save(pcNow(), this.args[0], this.args[1], { adv, bonus: Number(this.args[3]) || 0 })));
+	},
+});
+
+// ── 血条宏 ──────────────────────────────────────────────
+Macro.add('hpbar', {
+	skipArgs: true,
+	handler() {
+		const pc = pcNow();
+		const hp = Math.max(0, pc.hp ?? 0), max = pc.max_hp ?? 1;
+		const pct = Math.round((hp / max) * 100);
+		const color = pct > 50 ? '#5dbb63' : pct > 25 ? '#e0a458' : '#d1495b';
+		jQuery(this.output).append(
+			`<div class="hpbar"><div class="hpbar-fill" style="width:${pct}%;background:${color}"></div>` +
+			`<span class="hpbar-text">❤ ${hp} / ${max}</span></div>`
+		);
+	},
+});
+Macro.add('dragonbar', {
+	skipArgs: true,
+	handler() {
+		const pc = pcNow();
+		const hp = Math.max(0, pc.dragon?.hp ?? 0), max = window.Game?.Dragon?.hp ?? 1;
+		const pct = Math.round((hp / max) * 100);
+		jQuery(this.output).append(
+			`<div class="hpbar"><div class="hpbar-fill" style="width:${pct}%;background:#7a4a8f"></div>` +
+			`<span class="hpbar-text">☠ 龙 ${hp} / ${max}</span></div>`
+		);
+	},
+});
+
+:: StoryInit
+/% 全局状态初始化（默认形状单一源见 Pc.defaults） %/
+<<set $player_name to "">>
+<<set $pc to Pc.defaults()>>
+<<set $era to "present">>
+
+:: Widgets [widget]
+/% 受伤 + 药膏自动生效 + 死亡判定。用法：<<damage N>>。 %/
+<<widget "damage">>
+	<<set $pc.hp to Math.max(0, $pc.hp - $args[0])>>
+	<<if $pc.salves gt 0 and $pc.hp gt 0>>
+		<<set $pc.salves to $pc.salves - 1>>
+		<<set $pc.hp to Math.min($pc.max_hp, $pc.hp + 4)>>
+		<span class="damage-flash">''你受到了 $args[0] 点伤害！''（药膏自动生效，回复 4 点）</span>
+	<<else>>
+		<span class="damage-flash">''你受到了 $args[0] 点伤害！''</span>
+	<</if>>
+	<<if $pc.hp lte 0>><<goto "结局 死亡">><</if>>
+<</widget>>
+
+/% 检定位点词汇：DC/技能出走 Game.Checks.sites；正文只传位点键。site.abil → 豁免，否则技能检定 %/
+<<widget "sitecheck">>
+	<<set _site to Game.Checks.sites[$args[0]]>>
+	<<if _site.abil>>
+		<<save _site.abil _site.dc $args[1]>>
+	<<else>>
+		<<check _site.skill _site.dc $args[1]>>
+	<</if>>
+<</widget>>
+
+/% 经济事件词汇：金额出走 Game.Economy；gives 自动入账 %/
+<<widget "econ">>
+	<<set _ev to Game.Economy.events[$args[0]]>>
+	<<set _d to Game.Economy.priceOf($args[0], $pc)>>
+	<<set $pc.gold to $pc.gold + _d>>
+	<<if _ev.gives>><<run Object.entries(_ev.gives).forEach(([k, v]) => (State.variables.pc[k] = (State.variables.pc[k] ?? 0) + v))>><</if>>
+	<span class="econ-note">（<<if _d lt 0>>金币 _d<<elseif _d gt 0>>金币 +_d<<else>>——<</if>>）</span>
+<</widget>>
+
+/% 拾取道具（物品栏）：<<give "日记">> %/
+<<widget "give">>
+	<<run $pc.inv[$args[0]] = true>>
+	<span class="gain">''获得【$args[0]】。''</span>
+<</widget>>
+
+/% 世界旗标：<<setflag "goblin_spared">> %/
+<<widget "setflag">>
+	<<run $pc.world[$args[0]] = true>>
+<</widget>>
+
+/% 翻转时代（v16 §3.3）：原地生效、位置决定年代；耗隐藏星力；从过去回来时雾淡一些 %/
+<<widget "flip">>
+	<<if $pc.world.fog_thin>>
+		<span class="flip-note">你回到现在。身边的雾，''淡了一些''。</span>
+		<<set $pc.world.fog_thin to false>>
+	<</if>>
+	<<if not $pc.inv["时光护符"]>>
+		<span class="era-drained">你身上没有能校进另一段时间的东西。</span>
+	<<else>>
+		<<link `($era is "present" ? "翻转护身符：坠入『过去』" : "翻转护身符：回到『现在』")`>>
+			<<set $pc.star.spent to $pc.star.spent + 1>>
+			<<set $era to ($era is "present" ? "past" : "present")>>
+			<<if $era is "present">><<set $pc.world.fog_thin to true>><</if>>
+			<<goto `passage()`>>
+		<</link>>
+	<</if>>
+<</widget>>
+
+/% 物品栏（v16 §5.0）：侧栏列出身上带着的东西——不凑数、不集齐开锁 %/
+<<widget "inventory">>
+	<<set _inv to Object.keys($pc.inv ?? {})>>
+	<<if _inv.length>>
+		<<for _i to 0; _i lt _inv.length; _i++>><span class="inv-item">_inv[_i]</span><</for>>
+	<<else>>
+		（空）
+	<</if>>
+<</widget>>
+
+:: StoryCaption
+/% 侧边栏：常驻存档入口（v16 §5.0）+ 实时角色卡 + 物品栏 %/
+<div class="save-bar">
+	<a class="save-btn" onclick="sgQuickSave()">💾 快速存档</a>
+	<a class="save-btn" onclick="sgQuickLoad()">📂 快速读档</a>
+	<a class="save-btn" onclick="sgSaveMenu()">🗂 存档 / 读档</a>
+</div>
+<<if $pc.classLabel>>
+''$pc.name''
+$pc.speciesLabel $pc.classLabel
+<<hpbar>>
+金币：$pc.gold
+<div class="inv-block">
+''物品栏''
+<div class="inv-list"><<inventory>></div>
+</div>
+<<if $pc.inv["时光护符"]>>
+⌛ <<if $era is "past">>过去<<else>>现在<</if>>
+<</if>>
+[[📖 设定集|设定集]]
+<</if>>

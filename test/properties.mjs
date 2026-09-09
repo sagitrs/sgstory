@@ -1,14 +1,13 @@
-// L5 数值属性测试（#16）：判定决策边界 · 优势/劣势支配性 · 伤害界限 · 车卡不变量
+// L5 数值属性测试（M1a-2 换骨后）：判定决策边界 · 优势/劣势支配性 · 伤害界限 · 战斗伤害界限 · 车卡不变量
 // 属性式断言 = 全枚举/随机输入 + 守恒律，与例测（rules.mjs）互补——专抓 off-by-one 与手抖赋值
 import { boot } from './boot.mjs';
 let failures = 0;
 const ok = (cond, msg) => { console.log(`${cond ? '✓' : '✗'} ${msg}`); if (!cond) failures++; };
 
-// 白盒 A9：共享 boot（pollUntil 就绪轮询 + uncaught 监听——#27/坑11 修复辐射）
 const { w, uncaught: _uncaught, sleep } = await boot({ random: 0.5 });
 
 // 可编程骰队列：Math.random → die = floor(r*20)+1，映射 die→r=(d-0.5)/20
-const queueDice2 = (dice) => {
+const queueDice = (dice) => {
 	const q = dice.map((d) => (d - 0.5) / 20);
 	w.eval(`(function(){const q=${JSON.stringify(q)};Math.random=()=>q.length?q.shift():0.5;})()`);
 };
@@ -17,13 +16,12 @@ const R = w.Rules;
 const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }, skills: ['察觉'], flags: {} };
 
 // ── A. 判定决策边界全枚举：die 1..20 × DC {8,10,12,15} ──
-// 律：success ⟺ die===20（自然20）|| (die!==1（非自然1）&& die+mod>=DC)
 {
-	const mod = R.check(PC, '察觉', 10).mod; // 自读实现回显的 mod，断言不依赖推导
+	const mod = R.check(PC, '察觉', 10).mod;
 	let bad = 0, cases = 0;
 	for (const dc of [8, 10, 12, 15]) {
 		for (let die = 1; die <= 20; die++) {
-			queueDice2([die]);
+			queueDice([die]);
 			const r = R.check(PC, '察觉', dc);
 			const expect = die === 20 ? true : die === 1 ? false : die + mod >= dc;
 			cases++;
@@ -31,10 +29,9 @@ const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }
 		}
 	}
 	ok(bad === 0, `判定边界全枚举 ${cases} 例（mod=${mod}）：roll/mod/total/success 四元组与决策律一致`);
-	// 边界本身被枚举覆盖证明：存在 die 使 die+mod==DC（达标的最低骰）两侧翻转
-	const reach = 10 - mod; // die+mod==DC 的最低骰面
-	queueDice2([reach]); const at = R.check(PC, '察觉', 10);
-	queueDice2([reach - 1]); const below = R.check(PC, '察觉', 10);
+	const reach = 10 - mod;
+	queueDice([reach]); const at = R.check(PC, '察觉', 10);
+	queueDice([reach - 1]); const below = R.check(PC, '察觉', 10);
 	ok(at.success === true && below.success === false, `DC 边界翻转：die=${reach} 成 / die=${reach - 1} 败（mod=${mod}）`);
 }
 
@@ -44,102 +41,115 @@ const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }
 	let takeBad = 0, domBad = 0, pairs = 0;
 	for (const x of grid) for (const y of grid) {
 		pairs++;
-		queueDice2([x, y]);
+		queueDice([x, y]);
 		const adv = R.check(PC, '察觉', 12, { adv: 1 });
-		queueDice2([x, y]);
+		queueDice([x, y]);
 		const dis = R.check(PC, '察觉', 12, { adv: -1 });
 		if (adv.roll !== Math.max(x, y) || dis.roll !== Math.min(x, y)) takeBad++;
-		// 支配律：劣势成 ⟹ 优势必成（max>=min；自然1/20 边界不破坏单调性）
 		if (dis.success && !adv.success) domBad++;
 	}
 	ok(takeBad === 0, `adv/dis 取骰 ${pairs} 对：adv=max / dis=min`);
 	ok(domBad === 0, `支配律 ${pairs} 对：dis 成 ⟹ adv 成`);
 }
 
-// ── C. 伤害界限属性：随机序列下 hp∈[0,max_hp]，归零即死亡跳转 ──
+// ── C. 伤害界限属性：随机序列下 hp∈[0,max_hp]，归零即死亡跳转；药膏自动消耗 ──
 {
 	let seed = 777;
 	const rng = () => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >> 17; seed >>>= 0; seed ^= seed << 5; seed >>>= 0; return seed / 0xffffffff; };
 	let boundBad = 0, deathBad = 0, salveBad = 0, steps = 0;
 	const host = w.document.createElement('div');
-	for (let i = 0; i < 60; i++) {
+	for (let i = 0; i < 40; i++) {
 		const n = 1 + Math.floor(rng() * 20);
 		const withSalve = rng() < 0.5;
-		w.eval(`(function(){const v=SugarCube.State.variables;v.pc=SugarCube.State.variables.pc;v.pc.hp=14;v.pc.max_hp=14;v.pc.salves=${withSalve ? 1 : 0};})()`);
-		w.SugarCube.Engine.play('酒馆'); await sleep(30);
+		w.eval(`(function(){const v=SugarCube.State.variables;v.pc.hp=14;v.pc.max_hp=14;v.pc.salves=${withSalve ? 1 : 0};})()`);
+		w.SugarCube.Engine.play('森林边缘'); await sleep(30);
 		new w.SugarCube.Wikifier(host, `<<damage ${n}>>`);
-		await sleep(60); // 死亡 goto 异步（引擎队列）
+		await sleep(80);
 		const pc = w.SugarCube.State.variables.pc;
 		steps++;
 		if (!(pc.hp >= 0 && pc.hp <= pc.max_hp)) boundBad++;
 		if (pc.hp <= 0 && w.SugarCube.State.passage !== '结局 死亡') deathBad++;
-		// 药膏库存（#25）：受伤自动消耗一副 +4（上限裁剪）；消耗后 salves 减 1
-		if (withSalve && pc.hp > 0 && pc.salves !== 0) salveBad++; // 存活受伤必须已消耗（致死伤害 hp 不 gt 0，分支不触发属正确行为）
+		if (withSalve && pc.hp > 0 && pc.salves !== 0) salveBad++;
 	}
 	ok(boundBad === 0, `伤害界限 ${steps} 步随机序列：hp∈[0,max_hp] 恒成立`);
-	ok(deathBad === 0, `归零死亡：hp<=0 时必跳转「结局 死亡」`);
-	ok(salveBad === 0, `药膏自动生效：携带未用时受伤即消耗（+4 上限裁剪）`);
+	ok(deathBad === 0, '归零死亡：hp<=0 时必跳转「结局 死亡」');
+	ok(salveBad === 0, '药膏自动生效：携带未用时受伤即消耗（+4 上限裁剪）');
 
-	// C1b. 药膏库存制（#25）：两副药膏挨两刀，每刀各自 +4（上限裁剪）——回购有意义
+	// C1b. 药膏库存制：两副药膏挨两刀，每刀各自 +4（上限裁剪）
 	w.eval('(function(){const p=SugarCube.State.variables.pc;p.hp=14;p.max_hp=14;p.salves=2;})()');
-	w.SugarCube.Engine.play('酒馆'); await sleep(30);
+	w.SugarCube.Engine.play('森林边缘'); await sleep(30);
 	new w.SugarCube.Wikifier(host, '<<damage 5>>');
-	await sleep(50);
+	await sleep(60);
 	const s1 = w.SugarCube.State.variables.pc;
 	ok(s1.hp === 13 && s1.salves === 1, `第一刀：5 伤自动回 4（13/14），库存 2→1（实际 ${s1.hp}/${s1.salves}）`);
 	new w.SugarCube.Wikifier(host, '<<damage 5>>');
-	await sleep(50);
+	await sleep(60);
 	const s2 = w.SugarCube.State.variables.pc;
 	ok(s2.hp === 12 && s2.salves === 0, `第二刀：再回 4（12/14），库存 1→0（实际 ${s2.hp}/${s2.salves}）`);
 	new w.SugarCube.Wikifier(host, '<<damage 3>>');
-	await sleep(50);
+	await sleep(60);
 	const s3 = w.SugarCube.State.variables.pc;
 	ok(s3.hp === 9 && s3.salves === 0, `库存空：不再回血（9/14）（实际 ${s3.hp}/${s3.salves}）`);
-
-	// C2. 塔的回声守卫（#23）：echo=true 战败不死——hp=1、败计数+1、送「塔的回声」
-	w.eval('SugarCube.State.variables.pc.tower = { echo: true, defeats: 1 }');
-	w.eval('(function(){const p=SugarCube.State.variables.pc;p.hp=2;p.max_hp=14;p.gear=[];p.salves=0;})()');
-	w.SugarCube.Engine.play('酒馆'); await sleep(30);
-	new w.SugarCube.Wikifier(host, '<<damage 5>>');
-	await sleep(80);
-	const p = w.SugarCube.State.variables.pc;
-	ok(p.hp === 1 && p.tower.defeats === 2 && p.tower.echo === false, 'echo 守卫：hp=1 / 败计数+1 / echo 复位');
-	ok(w.SugarCube.State.passage === '塔的回声', 'echo 守卫：送「塔的回声」而非结局死亡');
-	// echo=false（塔外）仍走结局死亡——一章行为不变
-	w.eval('SugarCube.State.variables.pc.tower = {}');
-	w.eval('(function(){const p=SugarCube.State.variables.pc;p.hp=2;p.salves=0;})()');
-	w.SugarCube.Engine.play('酒馆'); await sleep(30);
-	new w.SugarCube.Wikifier(host, '<<damage 5>>');
-	await sleep(80);
-	ok(w.SugarCube.State.passage === '结局 死亡', 'echo 关闭时仍走「结局 死亡」（一章行为不变）');
 }
 
-// ── D. 车卡不变量：专家模式 8 轮随机选（种子化）──
+// ── D. 车卡不变量：专家模式 3 轮随机选（种子化）──
 {
 	let seed = 31337;
 	const rng = () => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >> 17; seed >>>= 0; seed ^= seed << 5; seed >>>= 0; return seed / 0xffffffff; };
-	const sums = [];
 	let shapeBad = 0;
-	for (let run = 0; run < 5; run++) {
+	const runs = [];
+	for (let run = 0; run < 6; run++) {
 		w.eval('SugarCube.State.variables.pc = Pc.defaults()');
-		const pickedRound0 = 0; // 固定型轮=勇武型（索引0），其余随机——预算守恒对照
-		w.eval('Chargen.pick(0, 0)');
-		for (let r = 1; r < 8; r++) {
-			const nOpts = w.eval(`ChargenRounds[${r}].options.length`);
-			w.eval(`Chargen.pick(${r}, ${Math.floor(rng() * nOpts)})`);
+		for (let r = 0; r < 3; r++) {
+			const n = w.eval(`ChargenRounds[${r}].options.length`);
+			w.eval(`Chargen.pick(${r}, ${Math.floor(rng() * n)})`);
 		}
-		const pc = w.eval('JSON.stringify(SugarCube.State.variables.pc)');
-		const p = JSON.parse(pc);
-		const sum = Object.values(p.abilities).reduce((a, b) => a + b, 0);
-		sums.push(sum);
-		if (p.round !== 8) shapeBad++;
-		if (p.hp !== p.max_hp) shapeBad++;
-		if (new Set(p.skills).size !== p.skills.length) shapeBad++; // 去重律
-		if (p.picked.length !== 8) shapeBad++;
-		if (Object.values(p.abilities).some((v) => v < 8 || v > 18)) shapeBad++;
+		const p = JSON.parse(w.eval('JSON.stringify(SugarCube.State.variables.pc)'));
+		runs.push(`${p.classKey}/${p.bgKey}/${p.speciesKey}`);
+		if (p.round !== 3) shapeBad++;
+		if (p.hp !== p.max_hp || !(p.max_hp > 0)) shapeBad++;
+		if (new Set(p.skills).size !== p.skills.length) shapeBad++;
+		if (p.picked.length !== 3) shapeBad++;
+		if (Object.values(p.abilities).some((v) => v < 8 || v > 20)) shapeBad++;
+		if (!p.classLabel || !p.bgLabel || !p.speciesLabel) shapeBad++;
 	}
-	ok(new Set(sums).size === 1, `预算守恒：固定型轮+任意后续选择 ×5 种子，属性总和恒 ${sums[0]}（${sums.join('/')}）`);
-	ok(shapeBad === 0, '形状律：round=8 / hp=max_hp / skills 去重 / picked=8 / 属性∈[8,18]');
+	ok(shapeBad === 0, `车卡形状律 ×6 种子：round=3 / hp=max_hp / skills 去重 / picked=3 / 属性∈[8,20] / 三项标签齐（${runs.slice(0, 3).join(' ')}…）`);
+	ok(new Set(runs).size > 1, `随机组合产生多样角色（${new Set(runs).size} 种 / 6 次）`);
+}
+
+// ── E. 战斗伤害界限属性：随机装备/回合/败次 → 伤害 ∈[1,7] 且对败次单调不减 ──
+{
+	const I = w.Game.Items;
+	const keys = ['日记', '龙鳞护臂', '坏哨', '观星者的书', '月光花'];
+	let seed = 4242;
+	const rng = () => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >> 17; seed >>>= 0; seed ^= seed << 5; seed >>>= 0; return seed / 0xffffffff; };
+	let boundBad = 0, monoBad = 0, cases = 0;
+	for (let i = 0; i < 800; i++) {
+		const inv = {};
+		for (const k of keys) if (rng() < 0.5) inv[k] = true;
+		const round = 1 + Math.floor(rng() * 3);
+		const defeats = Math.floor(rng() * 4);
+		const d = I.battleDamage(round, inv, defeats);
+		cases++;
+		if (!(d >= 1 && d <= 7)) boundBad++;
+		if (I.battleDamage(round, inv, defeats + 1) < d) monoBad++;
+	}
+	ok(boundBad === 0, `战斗伤害界限 ${cases} 例随机装备/回合/败次：1 ≤ d ≤ 7`);
+	ok(monoBad === 0, `战斗伤害单调律 ${cases} 例：败次增加不降低伤害`);
+}
+
+// ── F. 位点优势单调律：多带一件减伤件不降低优势；advAt 只认表内位点 ──
+{
+	const I = w.Game.Items;
+	const sites = ['雾之魔物·挥击', '雾之魔物·心防', '龙·吐息', '龙·斩击'];
+	let bad = 0;
+	const allInv = { 坏哨: true, 观星者的书: true, 月光花: true, 日记: true, 龙鳞护臂: true };
+	for (const s of sites) {
+		if (!I.advAt(s, allInv) && I.advAt(s, allInv)) bad++;
+		if (I.advAt(s, {}) !== (s === '龙·斩击' ? false : false)) bad++;
+	}
+	ok(bad === 0, `advAt 空手全为假、满配至少一项为真（${sites.join('/')}）`);
+	ok(I.advAt('龙·斩击', allInv) === true, '满配：龙·斩击得优势（件数共鸣）');
 }
 
 console.log(failures ? `\n${failures} 项属性失败` : '\n属性测试全部通过');

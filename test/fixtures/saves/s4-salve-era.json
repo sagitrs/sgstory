@@ -1,9 +1,15 @@
 {
+  "description": "S4 药膏与时代档（salves 2 / 已翻转一次 / 时光护符在手）",
+  "keep": {
+    "name": "药膏旅人",
+    "gold": 9,
+    "hp": 5
+  },
   "pc": {
     "name": "药膏旅人",
-    "round": 8,
+    "round": 3,
     "picked": [
-      "x"
+      "职业：秘典"
     ],
     "mode": "expert",
     "abilities": {
@@ -15,11 +21,10 @@
       "cha": 10
     },
     "skills": [
-      "医药"
+      "奥秘"
     ],
     "feats": [],
     "gear": [
-      "火把",
       "药膏"
     ],
     "flags": {
@@ -28,22 +33,21 @@
     "gold": 9,
     "hp": 5,
     "max_hp": 8,
-    "has_torch": true,
-    "has_rope": false,
-    "salve_used": false,
-    "ch2": false,
-    "amulet_charges": 0,
-    "tokens": [],
-    "tower": {},
+    "salves": 2,
+    "classKey": "sage",
+    "classLabel": "秘典",
+    "bgKey": "scribe",
+    "bgLabel": "抄书人",
     "speciesKey": "human",
     "speciesLabel": "人类",
-    "classLabel": "巫师",
-    "bgLabel": "学者"
+    "inv": {
+      "时光护符": true,
+      "请柬": true
+    },
+    "star": {
+      "charge": 12,
+      "spent": 1
+    }
   },
-  "keep": {
-    "name": "药膏旅人",
-    "gold": 9,
-    "hp": 5
-  },
-  "expectSalves": 1
+  "expectSalves": 2
 }

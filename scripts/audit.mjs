@@ -1,6 +1,6 @@
 // #28 表驱动审计：node scripts/audit.mjs —— 查 window.Game 三表产出伞 #21/#22 报表，
 // 替代一次性 jsdom 探查脚本。改表即改报告，秒级重算（无需启动场景）。
-// 用法：node scripts/audit.mjs [--checks] [--economy] [--tokens]（缺省全输出）
+// 用法：node scripts/audit.mjs [--checks] [--economy] [--items] [--dragon]（缺省全输出）
 import { readFileSync, readdirSync } from 'node:fs';
 import vm from 'node:vm';
 
@@ -102,7 +102,7 @@ if (wantAll || arg('echoes')) {
 	}
 	const covered = new Set([
 		...Game.Echoes.list.flatMap((e) => [e.cause.token ? `token:${e.cause.token}` : null, e.cause.towerFlag ? `tower:${e.cause.towerFlag}` : null, e.cause.flag ?? null, e.cause.gear ? `gear:${e.cause.gear}` : null].filter(Boolean)),
-		...Game.Echoes.revisit.map((r) => `tower:${r.flag}`),
+		...Game.Echoes.revisit.flatMap((r) => [r.flag, `tower:${r.flag}`]),
 		...Object.keys(Game.Echoes.exempt),
 		'pc', 'player_name', 'last_check', 'era', // A5：引擎底座变量（非叙事旗标）——语义即豁免
 	]);
@@ -172,11 +172,11 @@ if (wantAll || arg('systems')) {
 		if (!src.includes(m.anchor)) { console.log(`  ✗ ${m.id}：${m.p} 锚句丢失「${m.anchor}」——规则对玩家不可见`); bad++; continue; }
 		console.log(`  ✓ ${m.id}：${m.rule}`);
 	}
-	// C1 共鸣锚（#49）：锚段落存在且挂了 <<anchorshift>>
+	// C1 共鸣锚（#49）：锚段落存在且挂了 <<flip>>
 	for (const a of Game.Shifts.anchors) {
 		const src = passageSrc.get(a);
 		if (src === undefined) { console.log(`  ✗ 共鸣锚段落「${a}」不存在`); bad++; continue; }
-		if (!passageRaw.get(a).includes('<<anchorshift>>')) { console.log(`  ✗ 共鸣锚「${a}」未挂 <<anchorshift>>`); bad++; continue; }
+		if (!passageRaw.get(a).includes('<<flip>>')) { console.log(`  ✗ 共鸣锚「${a}」未挂 <<flip>>`); bad++; continue; }
 	}
 	console.log(`  共鸣锚：${Game.Shifts.anchors.length} 处全锚定（${Game.Shifts.unlimited ? '免费无限·位置门控' : ''}）`);
 	console.log('  ── 机制×机制组合（实现证据出具）──');
@@ -246,26 +246,26 @@ function successRate(pc, site, adv) {
 if (wantAll || arg('dragon')) {
 	console.log('\n══ ⓪f 龙战整场推演（Game.Dragon 数值单源 → 期望轮数/受击/存活）══');
 	const D = Game.Dragon;
-	const presets = { '铁卫': 12, '影手': 9, '秘典': 7 }; // max_hp 代表值（车卡终值四舍五入）
 	const hit = (mod, dc) => Math.max(0.05, Math.min(0.95, (21 - (dc - mod)) / 20));
 	const loadouts = {
-		'满配':  { sneak: true, weak: 3, hitMod: 2, subAll: true },   // 偷袭+scroll+name+地形（0.99 实证=路线 O）
-		'情报线': { sneak: false, weak: 3, hitMod: 2, subAll: false },  // hint(+2 补偿位)+地形
-		'裸装':  { sneak: false, weak: 1, hitMod: 0, subAll: false },   // 仅地形
+		'满配':  { sneak: true, weak: 3, hitMod: 2, inv: { 日记: true, 龙鳞护臂: true } },
+		'情报线': { sneak: false, weak: 3, hitMod: 2, inv: { 龙鳞护臂: true } },
+		'裸装':  { sneak: false, weak: 1, hitMod: 0, inv: {} },
 	};
-	for (const [pn, hp] of Object.entries(presets)) {
+	for (const p of presets) {
+		const hp = p.pc.max_hp;
 		for (const [ln, L] of Object.entries(loadouts)) {
-			let r = 1, dhp = D.hp - (L.sneak ? D.sneakHit : 0), taken = 0, flower = L.subAll ? 2 : 0;
+			let r = 1, dhp = D.hp - (L.sneak ? D.sneakHit : 0), taken = 0;
 			for (; r <= 12; r++) {
-				dhp -= Math.max(1, D.hitBase + L.weak + 1) * hit(L.hitMod, 8); // present 地形 +1（自检后 DC8）
+				dhp -= Math.max(1, D.hitBase + L.weak) * hit(L.hitMod, 10);
 				if (dhp <= 0) break;
-				taken += Math.max(1, D.dragonDamage({ tokens: L.subAll ? ['星图残页'] : [], tower: { dragon_defeats: 0, whistle_blown: L.subAll ? 1 : 0 } }, r, 'present'));
+				taken += D.dragonDamage(L.inv, r, 0);
 			}
-			const survived = taken - flower < hp;
-			console.log(`  ${pn}·${ln}: 期望 ${r} 轮 · 受击 ${taken} − 回复 ${flower} = ${taken - flower} vs HP${hp} → ${survived ? '✓ 存活' : '✗ 险'}`);
+			const survived = taken < hp;
+			console.log(`  ${p.name}·${ln}: 期望 ${r} 轮 · 受击 ${taken} vs HP${hp} → ${survived ? '✓ 存活' : '✗ 单挑必败'}`);
 		}
 	}
-	console.log('（保守上界：present 地形持续、无护甲、线性期望。情报线存活路径=past 石柱+龙鳞护甲（−2/轮 → 受击≈4）：收集即战力。裸装为设计性不可赢——回声守卫兜底劝退。实走见路线 O/P/Q）');
+	console.log('（v16 §3.8：龙＝标准 D&D 高挑战等级——单挑必败，基本仅允许机制胜利。本表只作劝退证据。）');
 }
 
 if (wantAll || arg('checks')) {
@@ -303,17 +303,24 @@ if (wantAll || arg('economy')) {
 	}
 }
 
-// ── ③ 信物效果与化身战数值（伞 #22：高潮战审计）──
-if (wantAll || arg('tokens')) {
-	console.log('\n══ ③ 信物效果 · 化身战伤害矩阵（受击方=玩家，败次 rage 0/2）══');
-	const T = Game.Tokens;
-	console.log(`共鸣：每件 −${T.perTokenDamageReduce} 伤；日记前两回合另 −1；败次 +1 封顶 +${T.rageCap}；终击信物≥${T.finalStrikeCountAdv} 优势`);
-	for (const [name, e] of Object.entries(T.effects)) console.log(`  ${name.padEnd(6, '　')} ${e.advSite ? `优势@${e.advSite}` : `减伤−${e.flatDamageReduce}`} —— ${e.note}`);
-	const sets = [[], ['日记'], ['铜哨'], ['星图残页', '日记'], ['铜哨', '星图残页', '月光花'], ['铜哨', '星图残页', '月光花', '日记']];
-	console.log('  信物组合 → R1/R2/R3 伤害（rage=0 | rage=2）');
+// ── ③ 道具效果 · 龙战伤害矩阵（伞 #22：高潮战审计）──
+if (wantAll || arg('items') || arg('tokens')) {
+	console.log('\n══ ③ 道具效果 · 龙战伤害矩阵（受击方=玩家，败次 0/2）══');
+	const I = Game.Items;
+	console.log(`减伤件：每件 −${I.perItemDamageReduce}；败次 +1 封顶 +2；终击件数≥${I.finalStrikeCountAdv} 优势`);
+	for (const [name, e] of Object.entries(I.effects)) console.log(`  ${name.padEnd(8, '　')} ${e.advSite ? `优势@${e.advSite}` : `减伤−${e.flatDamageReduce}`} —— ${e.note}`);
+	const sets = [
+		{},
+		{ 日记: true },
+		{ 坏哨: true },
+		{ 日记: true, 龙鳞护臂: true },
+		{ 日记: true, 龙鳞护臂: true, 月光花: true },
+		{ 日记: true, 龙鳞护臂: true, 月光花: true, 观星者的书: true, 坏哨: true },
+	];
+	console.log('  道具组合 → R1/R2/R3 伤害（败次=0 | 败次=2）');
 	for (const set of sets) {
-		const f = (r) => `${T.battleDamage(r, set, 0)}/${T.battleDamage(r, set, 2)}`;
-		console.log(`    [${set.join('、') || '空手'}] → ${f(1)} ${f(2)} ${f(3)}`);
+		const f = (r) => `${I.battleDamage(r, set, 0)}/${I.battleDamage(r, set, 2)}`;
+		console.log(`    [${Object.keys(set).join('、') || '空手'}] → ${f(1)} ${f(2)} ${f(3)}`);
 	}
 }
 console.log('\n（数据源：src/15-game-tables.twee —— 改表即改此报告；伞 #21/#22 审计请跑本脚本）');

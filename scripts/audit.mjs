@@ -281,6 +281,13 @@ if (wantAll || arg('dragon')) {
 	}
 	const breakers = Object.entries(Game.Items.effects).filter(([, e]) => e.advSite === '龙·终击').map(([k]) => k);
 	if (breakers.length) { dragonBad++; console.log(`  ✗ 破坏平衡的道具仍在给彩蛋位点优势：${breakers.join('、')}`); }
+	// 正文不得对「劣势位点」硬写优势（防绕过 effects 表）
+	const disSites = Object.entries(Game.Checks.sites).filter(([, s]) => s.dis).map(([k]) => k);
+	const hardcoded = [];
+	for (const [name, src] of passageSrc) {
+		for (const s of disSites) if (src.includes(`<<sitecheck "${s}" "adv">>`)) hardcoded.push(`${name}→${s}`);
+	}
+	if (hardcoded.length) { dragonBad++; console.log(`  ✗ 正文对劣势位点硬写优势：${hardcoded.join('，')}`); }
 	if (process.argv.includes('--check') && dragonBad) { console.error('\n✗ ⓪f 龙战门：彩蛋击杀率或平衡项不合规'); process.exit(1); }
 }
 

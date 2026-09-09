@@ -1,6 +1,6 @@
 // #28 表驱动审计：node scripts/audit.mjs —— 查 window.Game 三表产出伞 #21/#22 报表，
 // 替代一次性 jsdom 探查脚本。改表即改报告，秒级重算（无需启动场景）。
-// 用法：node scripts/audit.mjs [--checks] [--economy] [--items] [--dragon]（缺省全输出）
+// 用法：node scripts/audit.mjs [--canon] [--checks] [--economy] [--items] [--dragon]（缺省全输出）
 import { readFileSync, readdirSync } from 'node:fs';
 import vm from 'node:vm';
 
@@ -323,4 +323,120 @@ if (wantAll || arg('items') || arg('tokens')) {
 		console.log(`    [${Object.keys(set).join('、') || '空手'}] → ${f(1)} ${f(2)} ${f(3)}`);
 	}
 }
+// ── ⓪g canon 门（M1b）：设定书 §10「已裁剪设定」→ src 回流检测 ──
+// 权威链：docs/lore-canon.md §10 是唯一黑名单来源。本门做两件事：
+//   ① 行覆盖：§10 每一行必须被下表认领（新增行不认领即红——防设定裁剪后正文悄悄回流）
+//   ② 词扫描：认领行的禁词不得出现在 shipped 文本（正文 + 数据表字符串；JS/CSS 注释与 /% %/ 不计）
+// 维护：设定书 §10 新增/修改行 → 同步下表（`src` 为行内可辨识子串）
+const CANON_ROWS = [
+	{ src: '封印双闩', terms: ['封印双闩', '星闩', '人闩', '以命为闩', '压梦'], why: '塔是送行工程' },
+	{ src: '封印大厅', terms: ['封印大厅', '结界', '四锁槽', '锁槽', '封印崩坏'], why: '与「送它回家」母题冲突' },
+	{ src: '宾客亡灵', terms: ['塌门亡灵', '宾客封印圈', '铜哨召'], also: [{ t: '亡灵', negate: true }], why: '无亡灵系；否定句（没有亡灵）允许' },
+	{ src: '那顿饭没人撤', terms: ['没人撤', '落灰的碗筷', '没散的席面', '席面'], why: '宴是过去的事' },
+	{ src: '有人在等它回去吃饭', terms: ['等它回去吃饭', '等它入席', '哨响即归'], why: '没有人还在等它吃饭' },
+	{ src: '守龙人', terms: ['守龙人'], why: '守林人＝村子的守卫' },
+	{ src: '悔念外化', terms: ['悔念外化'], why: '中boss＝雾之魔物' },
+	{ src: '守林人＝塔顶亡灵', terms: ['塔顶亡灵'], why: '守林人是活人' },
+	{ src: '守林人只留形', terms: ['只留形', '留形'], why: '送行术家传，终局由守林人施展' },
+	{ src: '吹哨需守林人到场', terms: ['需守林人到场', '吹哨需'], why: '吹哨只需龙冷静' },
+	{ src: '真结局＝历史被改', terms: ['历史被改', '在雾里散开'], why: '改为终止徒劳传送、省下最后一笔路费' },
+	{ src: '藏杖闭环', terms: ['藏杖闭环'], why: '新增传送术卷轴' },
+	{ src: '龙可以被打赢', skip: '数值门：audit --dragon（单挑必败）', why: 'v16 §3.8 五种打法' },
+	{ src: '封印术＝古已有之', terms: ['古已有之'], why: '封印术＝守林人家家传' },
+	{ src: '冒险者能学会传送术', terms: ['学会传送术'], why: '玩家最多学出劣化版封印术' },
+	{ src: '每代少一句', terms: ['每代少一句', '磨损成无处'], why: '从失败推出的误判' },
+	{ src: '盼有人改变未来', terms: ['改变未来'], why: '改为盼有人给它一个了结' },
+	{ src: '囚室', terms: ['囚室', '囚徒', '星轨图'], why: '观星者＝死在工作台前的普通人' },
+	{ src: '四信物', terms: ['四信物', '信物', '铜哨'], also: [{ t: '集齐开锁', negate: true }], why: '改为物品栏（§5.0）；否定句（不集齐开锁）允许' },
+	{ src: '焐蛋人', terms: ['焐蛋'], why: '蛋由童年的她捡回孵化' },
+	{ src: '初代子女', terms: ['初代长子', '初代女儿'], why: '如何分的不叙' },
+	{ src: '女巫长生', terms: ['女巫长生'], why: '只有龙不老；「形似」误导允许（开场传闻）' },
+	{ src: '充能三次', terms: ['充能', 'amulet_charges'], why: '改隐藏计数（§3.5）' },
+	{ src: '魔力 / 星力混用', terms: ['魔力'], why: '术语统一为「星力」' },
+	{ src: '占星师', terms: ['占星师'], why: '术语统一为「观星者」' },
+	{ src: '卖星铁', terms: ['卖星铁'], why: '改碎镜片三用；星铁之杖是合法器物' },
+	{ src: '乡愁雾', terms: ['乡愁雾', '悔雾', '梦雾', '双层雾'], why: '单层雾＝龙漏出的星力' },
+	{ src: '共鸣锚免费无限切换', terms: ['共鸣锚'], why: '与隐藏星力冲突' },
+	{ src: '龙威递增', terms: ['龙威', 'lair', '双态地形'], why: '归为游戏机制稿，不入设定书' },
+	{ src: '星落＝送归成功', terms: ['星落＝送归', '送归成功'], why: '星落＝讨伐；送归＝真结局' },
+	{ src: '罗温守孩子', terms: ['罗温', '以命续封'], why: '罗温是活着的现任守林人' },
+	{ src: '龙名后半', terms: ['龙名后半'], why: '正文只出现「维」' },
+	{ src: '「门」概念', terms: ['造门', '把门交给旅人', '门后等', '圈内圈外'], why: '龙沉睡无需门、也无法封印' },
+	{ src: '送星宴的宴席描写', terms: ['炖肉', '布菜', '举杯', '入席'], why: '宴的功能是遇到所有人并目睹送星仪式' },
+	{ src: '守林人有资质学传送术', terms: ['有资质', '资质'], why: '改为「练的是什么」' },
+	{ src: '旅人劝她终止传送', terms: ['终止传送', '与龙告别'], why: '改为把办法告诉她' },
+	{ src: '守林人为女性', targeted: '守林人', why: '改为男性（男系一脉）' },
+	{ src: '星力不显示任何数字', skip: 'UI 门：正文无星力数字/进度条（smoke + 人工）', why: '隐藏计数（§3.5）' },
+	{ src: '人们把它搬到塔底供奉', terms: ['搬到塔底', '供奉'], why: '它就睡在塔的地下' },
+	{ src: '从当年在场的那位手里换走完整哨', terms: ['换走完整哨', '晚年穿越'], why: '换的是她自己带来的那支' },
+	{ src: '「信物」概念', terms: ['信物'], why: '改为物品栏' },
+	{ src: '星图残页', terms: ['星图残页'], why: '证物改用观星者的书' },
+	{ src: '封印门', terms: ['封印门', '四道锁槽', '星鬥', '人鬥', '启门韵', '星纹共振'], why: '只留一道通往地下宴会厅的门' },
+	{ src: '塔顶留形＝老守林人', terms: ['塔顶留形'], why: '塔顶就是守林人本人' },
+	{ src: '雾中的形＝龙的无意识', terms: ['龙的无意识', '初代巫女形'], why: '雾聚成的守卫，陪着守林人' },
+	{ src: '与龙战必败（无论人数）', skip: '数值门：audit --dragon（单挑必败 / 说服击杀可赢）', why: 'v16 §3.8 五种打法' },
+	{ src: '龙睡在塔的地下（进地下不必然看见）', skip: '内容门：进到地下一眼就看见（M2 文案）', why: '§4.5' },
+	{ src: '翻转＝任意地点进任意时代', skip: '机制门：原地生效（integrity W2 + <<flip>> 原地重渲染）', why: '§3.3' },
+	{ src: '钥匙要靠考验', terms: ['要靠考验', '利益交换'], why: '正常交涉即可（§5.12）' },
+	{ src: '三百年后的地下是多房间地城', terms: ['多房间'], why: '只有一条巨龙' },
+	{ src: '道具与存档都在侧栏', skip: 'UI 门：smoke 断言存档栏与物品栏分置（§5.0）', why: '道具在侧栏，存档常驻界面' },
+	{ src: '无雾的房间翻不动', terms: ['翻不动'], why: '翻转不受雾限制（v16 补正 #2）' },
+	{ src: '杖光＝唯一提示', terms: ['杖光'], why: '杖在真结局前只有微光；唯一提示＝雾淡' },
+	{ src: '修镜', terms: ['修镜', '实拍今日星图', '标记坐标'], why: '坐标＝三百年前完整星图' },
+	{ src: '二章三信物', terms: ['三信物'], why: '上塔无需道具门' },
+	{ src: '坐标差之毫厘', terms: ['坐标差之毫厘', '坐标偏差'], why: '不存在坐标偏差降级' },
+];
+if (wantAll || arg('canon')) {
+	console.log('\n══ ⓪g canon 门（设定书 §10 已裁剪设定）——禁止回流 ══');
+	let bad = 0;
+	const lore = readFileSync('docs/lore-canon.md', 'utf8');
+	const s10 = lore.match(/^## 10\.[\s\S]*?(?=^## 11\.)/m)?.[0] ?? '';
+	const rows = s10.split('\n').filter((l) => l.trim().startsWith('|'))
+		.map((l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim()))
+		.filter((c) => c[0] && c[0] !== '旧设定' && !/^[\s:\-]+$/.test(c[0]));
+	// ① 行覆盖
+	const uncovered = rows.filter((r) => !CANON_ROWS.some((e) => r[0].includes(e.src)));
+	if (uncovered.length) {
+		bad += uncovered.length;
+		for (const r of uncovered) console.log(`  ✗ §10 行未被 canon 门认领：${r[0].slice(0, 60)}`);
+	}
+	// ② 词扫描（shipped 文本：正文 + 数据表字符串；JS 行注释 / CSS 块注释 / /% %/ 不计）
+	const ship = [];
+	for (const [name, src] of passageSrc) {
+		const tags = passageTags.get(name) ?? [];
+		let text = src;
+		if (tags.includes('script') || tags.includes('stylesheet')) {
+			text = text.replace(/^\s*\/\/.*$/gm, '').replace(/\/\*[\s\S]*?\*\//g, '');
+		}
+		ship.push({ name, text });
+	}
+	let termCount = 0, hit = 0;
+	const check = (term, negate, why, entry) => {
+		termCount++;
+		for (const { name, text } of ship) {
+			for (const m of text.matchAll(new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g'))) {
+				if (negate) {
+					const before = text.slice(Math.max(0, m.index - 2), m.index);
+					if (/[没有无非不]/.test(before)) continue;
+				}
+				hit++; bad++;
+				console.log(`  ✗ 回流「${term}」@ 段落「${name}」（§10：${entry.src} —— ${why}）`);
+			}
+		}
+	};
+	for (const e of CANON_ROWS) {
+		for (const term of e.terms ?? []) check(term, false, e.why, e);
+		for (const a of e.also ?? []) check(a.t, a.negate, e.why, e);
+	}
+	// ③ 定向：守林人段落不得出现女性代词
+	for (const { name, text } of ship) {
+		if (/^守林人/.test(name) && text.includes('她')) { hit++; bad++; console.log(`  ✗ 段落「${name}」出现「她」（§10：守林人为女性 —— 改为男性）`); }
+	}
+	console.log(`  §10 行 ${rows.length} · 认领 ${CANON_ROWS.length} 条 · 禁词 ${termCount} 个 · 命中 ${hit}`);
+	if (process.argv.includes('--check')) {
+		if (bad) { console.error(`\n✗ canon 门：${bad} 项回流/未认领`); process.exit(1); }
+		console.log('\n✔ canon 门通过（§10 全行认领，禁词零回流）');
+	}
+}
+
 console.log('\n（数据源：src/15-game-tables.twee —— 改表即改此报告；伞 #21/#22 审计请跑本脚本）');

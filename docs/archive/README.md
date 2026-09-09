@@ -1,0 +1,17 @@
+# docs/archive —— 已作废稿（禁止回流）
+
+> 本目录下的**设定部分**已被 `docs/lore-canon.md`（v14 正史「送它回家」）整体重写取代。
+> 保留仅供追溯设计过程。**任何新设定一律以 `docs/lore-canon.md` 为准**；
+> 本目录内容若与 v14 冲突，以 v14 为准，且**不得据本目录改回正文**。
+
+| 文件 | 原用途 | 作废原因 |
+|---|---|---|
+| `lore-canon-v13.md` | 旧版设定书（v13） | 被 v14 整体重写取代；版本史存档 |
+| `homecoming-redesign.md` | 「送星归位」温馨基调稿（自称正典 v3） | 封印真相 / 乡愁雾 / 四信物 / 宾客助战 等设定被 v14 裁掉 |
+| `chapter3-design.md` | 塔底双时代地下城设计稿 | 封印大厅 / 四锁槽 / lair 三区 / 龙威递增 等与 v14 冲突 |
+| `chapter3-map.md` | 双时代环路地图稿 | 共鸣锚免费无限切换与 v14 软限 X 冲突 |
+| `redesign-core-assets.md` | 核心资产重构稿 | 护身符＝占星师造 / 人闩 / 囚室 / 宾客幽灵 等旧正典 |
+| `westward-unification.md` | 西式统一方案 | 四信物 / 占星师 / 囚室 等命名与设定未对齐 v14 |
+
+**现行权威**：`docs/lore-canon.md`（v14）。
+**未归档**：`design-review.md`、`quality-selfaudit-ch123.md`（流程记录，非设定稿，无冲突）。

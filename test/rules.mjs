@@ -115,7 +115,7 @@ ok(!Array.isArray(m2.inv) && typeof m2.inv === 'object', '类型损坏修正（i
 ok(w.Pc.migrate(undefined).name === '', 'undefined → 整体默认');
 w.Pc.migrate(m1);
 eq(m1.gold, 40, '迁移幂等（重复跑不破坏）');
-eq(Object.keys(w.Pc.defaults()).length, 25, '默认形状字段数守恒（25，防误删）');
+eq(Object.keys(w.Pc.defaults()).length, 26, '默认形状字段数守恒（26，防误删）');
 
 // ── L4 存档兼容矩阵：每版历史形状一个 fixture，统一断言四条律 ──
 const DEFAULT_KEYS = Object.keys(w.Pc.defaults());
@@ -133,7 +133,7 @@ for (const file of fixtures) {
 	}
 	ok(m.abilities === null || typeof m.abilities === 'object', `[${label}] 修型：abilities 型合法`);
 	for (const k of ['skills', 'feats', 'gear', 'picked']) ok(Array.isArray(m[k]), `[${label}] 修型：${k} 为数组`);
-	for (const k of ['inv', 'star', 'keeper', 'ev', 'dragon', 'world', 'flags']) ok(m[k] && typeof m[k] === 'object' && !Array.isArray(m[k]), `[${label}] 修型：${k} 为对象`);
+	for (const k of ['inv', 'star', 'keeper', 'ev', 'dragon', 'world', 'flags', 'soc']) ok(m[k] && typeof m[k] === 'object' && !Array.isArray(m[k]), `[${label}] 修型：${k} 为对象`);
 	const again = w.Pc.migrate(JSON.parse(JSON.stringify(m)));
 	ok(JSON.stringify(again) === JSON.stringify(m), `[${label}] 幂等：二次迁移深度相等`);
 	if (fx.expectSalves !== undefined) ok(m.salves === fx.expectSalves, `[${label}] 保值：salves=${fx.expectSalves}`);
@@ -429,5 +429,85 @@ for (const file of fixtures) {
 		ok(kinds.size >= 2, `${pool}：池内至少两项不同判定（实际 ${[...kinds].join('/')}）`);
 	}
 }
+// ── B2 交涉：意愿三档 · 手段换属性/换代价 · 筹码免检 · 落账与 DC 阶梯 ──
+{
+	const S = w.Game.Social;
+	const sites = w.Game.Checks.sites;
+	// ① 态度阶梯就是 DMG 社交交互表压成的一根轴
+	eq(S.attAdj, { friendly: -5, neutral: 0, hostile: 5 }, '态度修正 −5/0/+5（DMG 社交交互表）');
+	// ② 每件诉求都发得出来：手段有属性标注、筹码真能开
+	for (const a of S.asks) {
+		for (const site of a.sites ?? []) {
+			const sk = sites[site]?.skill;
+			ok(!!sk && !!S.approaches[sk], `诉求「${a.id}」的开口方式「${site}」（${sk}）在手段表里`);
+		}
+		for (const lv of a.levers ?? []) {
+			ok(['auto', 'adv'].includes(lv.gives), `筹码「${lv.name}」gives=${lv.gives}`);
+			if (lv.econ) ok(!!w.Game.Economy.events[lv.econ], `筹码「${lv.name}」的经济事件存在（${lv.econ}）`);
+		}
+	}
+	// ③ DC ＝ 位点基础 + 态度 + 5×同一手试过几次
+	const pc = w.Pc.defaults();
+	const a0 = S.ask('老板娘·进塔');
+	const base = sites['酒馆·打听'].dc;
+	ok(S.dcOf(a0, '酒馆·打听', pc) === base, `冷淡：DC ＝ 基础 ${base}`);
+	S.shift(pc, '老板娘', 1);
+	ok(S.dcOf(a0, '酒馆·打听', pc) === base - 5, '友好：DC −5');
+	pc.soc.att['老板娘'] = -1;
+	ok(S.dcOf(a0, '酒馆·打听', pc) === base + 5, '敌意：DC +5');
+	pc.soc.att['老板娘'] = 0;
+	// ④ 重试代价只给「话说死了」的手，且只压这一手
+	pc.soc.tries['老板娘·进塔|酒馆·打听'] = 2;
+	ok(S.dcOf(a0, '酒馆·打听', pc) === base + 10, '同一手试过两次：DC +10');
+	ok(S.dcOf(a0, '老板娘·吓', pc) === sites['老板娘·吓'].dc, '重试代价不牵连别的手段（各手段各算）');
+	ok(S.settle(a0, pc, '酒馆·打听', 'bad').some((n) => n.includes('更难')), '游说失败 → 明说"再开口更难"');
+	ok(pc.soc.tries['老板娘·进塔|酒馆·打听'] === 3, '游说失败 → 这一手计一次');
+	const att0 = pc.soc.att['老板娘'] ?? 0;
+	S.settle(a0, pc, '老板娘·吓', 'bad');
+	ok(pc.soc.att['老板娘'] === att0 - 1, '恐吓失败 → 态度降一级（代价与游说不同）');
+	ok(!pc.soc.tries['老板娘·进塔|老板娘·吓'], '恐吓的代价是态度，不是重试代价');
+	const att1 = pc.soc.att['老板娘'];
+	S.settle(a0, pc, '老板娘·接话', 'bad');
+	ok(pc.soc.att['老板娘'] === att1, '表演失败 → 态度不动（代价最低，只是没接上话）');
+	// ⑤ 意愿三档：愿意＝不掷骰直接给；不肯＝掷骰也没用
+	const emptyPc = () => { const p2 = w.Pc.defaults(); p2.inv = {}; p2.ev = {}; p2.world = {}; p2.keeper = { met: false, trust: 0, state: 'post', key: false }; return p2; };
+	const swap = S.ask('女巫·换哨');
+	const p3 = emptyPc();
+	eq(S.verdict(swap, p3), 'unwilling', '换哨：图与杖都没凑齐 → 不肯（不是"难"，是"没得谈"）');
+	p3.inv['完整星图'] = true; p3.world.family_favor = true;
+	eq(S.verdict(swap, p3), 'willing', '换哨：图与杖齐了 → 愿意（不掷骰）');
+	const ask0 = S.ask('老巫女·开口');
+	eq(S.verdict(ask0, p3), 'unwilling', '老巫女：始终不肯——演示"掷骰无用"这一步');
+	ok(!!ask0.why && ask0.no, '始终不肯的诉求写清了为什么 + 回绝过场');
+	// ⑥ 筹码：给出去的与摆出来的都真的落到状态上（且免检不经骰子）
+	const p4 = emptyPc();
+	p4.gold = 99; p4.inv['时光护符'] = true; p4.world.family_favor = true; p4.keeper = { met: true, trust: 0, state: 'post', key: false };
+	const art = S.ask('守林人·术');
+	ok(S.verdict(art, p4) !== 'willing', '空手（只有护符）还没到"他本来就要说"');
+	ok(S.levers(art, p4).some((lv) => lv.id === 'talisman'), '护符在手 → 亮护符这一枚筹码可用');
+	const p5 = emptyPc();
+	ok(!S.levers(S.ask('哥布林·路'), p5).some((lv) => lv.id === 'stones'), '没读过它之前，"把石头捡回去"这枚筹码不可见');
+	p5.soc.read['哥布林'] = true;
+	ok(S.levers(S.ask('哥布林·路'), p5).some((lv) => lv.id === 'stones'), '读过它之后 → 筹码出现（洞察换筹码）');
+	// ⑦ 落账：成功＝apply 真的给东西；失败＝什么也不给
+	const p6 = emptyPc();
+	S.ask('观星者·图').apply(p6);
+	ok(p6.ev.seer_gave === true, '观星者成功 → seer_gave 落账');
+	const p7 = emptyPc();
+	S.ask('守林人·花').apply(p7);
+	ok(p7.world.flower_warned === true && p7.ev.keeper_told === true, '守林人花事成功 → 警告 + 记账');
+	const p8 = emptyPc();
+	p8.inv['坏哨'] = true;
+	S.ask('女巫·换哨').apply(p8);
+	ok(p8.inv['好哨'] === true && !p8.inv['坏哨'], '换哨成功 → 好哨入手、坏哨交出');
+	// ⑧ 掷骰用的技能必须与位点一致（面板写什么、骰子就掷什么）
+	const res = S.roll(pc, '酒馆·打听', 5, '');
+	ok(res.skill === '游说' && res.label === '游说检定（魅力）', `roll 走位点技能（${res.label}）`);
+	ok(res.site === '酒馆·打听', 'roll 记下位点（<<lastcheckFor>> 靠它复显）');
+	// ⑨ 位点若声明的是属性豁免（abil），开口方式也照样走得通（不硬塞技能）
+	const saveRes = S.roll(pc, '塔外花田', 12, '');
+	ok(saveRes.label.includes('豁免') && saveRes.ability === 'con', `abil 位点走豁免（${saveRes.label}）`);
+}
+
 console.log(failures ? `\n${failures} 项失败` : '\n规则层测试全部通过');
 process.exit(failures ? 1 : 0);

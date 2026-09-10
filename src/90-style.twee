@@ -337,3 +337,17 @@ body {
 .econ-note { color: #b8a97e; font-size: 0.9em; }
 .gain { color: #9fd0a0; }
 .era-drained { color: #8b8497; font-style: italic; }
+
+/* ── 交涉面板（B2）：诉求 ＋ 一列表开口方式／筹码 ───────────────────────── */
+.soc-ask {
+	margin: 0.8em 0;
+	padding: 0.6em 0.9em;
+	border-left: 3px solid #7c6a4f;
+	background: rgba(124, 106, 79, 0.08);
+}
+.soc-ask > .soc-opts { display: block; margin-top: 0.35em; }
+.soc-ask .soc-opts a { display: inline-block; margin-right: 0.6em; }
+.soc-meta { color: #8a7f6a; font-size: 0.86em; white-space: nowrap; }
+.soc-said { display: block; margin-top: 0.3em; }
+.soc-cost { display: block; color: #9a6b4f; font-size: 0.9em; }
+.soc-no, .soc-done { color: #8a7f6a; font-style: italic; }

@@ -78,6 +78,7 @@ window.Pc = {
 			star: { charge: 12, spent: 0 },   // 星力隐藏计数（玩家不可见）
 			keeper: { met: false, trust: 0, state: 'post', key: false },
 			ev: {},               // 证据链
+			soc: { att: {}, tries: {}, read: {} },   // 交涉台账（B2）：态度偏移 / 同一手试过几次 / 读没读过这人
 			dragon: { hp: 0, defeats: 0, awake: false, round: 0, venom: false },
 			world: {},            // 世界旗标
 		};
@@ -163,9 +164,11 @@ Macro.add('lastcheck', {
 	},
 });
 // 只在"刚掷过这些位点之一"时复显（hub 用：防止拿别处的旧骰面骗人）
+// 也接受**一个数组**参数（<<lastcheckFor _a.sites>>）——SugarCube 的宏参数不支持 JS 展开（...），
+// 交涉面板的位点表在运行期才知道，只能整表传进来再由这里摊平。
 Macro.add('lastcheckFor', {
 	handler() {
-		const sites = this.args.map(String);
+		const sites = this.args.flat(Infinity).map(String);
 		const r = State.variables.pc?.ev?.last_roll;
 		if (r && sites.includes(r.site)) $(this.output).append(renderCheck(r));
 	},
@@ -386,6 +389,95 @@ Macro.add('dragonbar', {
 			<span class="fight-meta">（<<print Game.Combat.siteInfo(_f.offer[2])>>）</span>
 		<</if>>
 	</div>
+<</widget>>
+
+/% ── 交涉（B2 · D&D 2024 Influence action + DMG 社交交互）────────────────────
+   三档意愿：willing（他本来就想给——不掷骰）· hesitant（掷骰）· unwilling（越线——掷骰也没用）
+   态度：友好 −5 / 冷淡 0 / 敌意 +5（DMG 社交交互表压成一根轴）
+   筹码：把对方想要的东西摆出来 → 免检（auto）或优势（adv）——有不靠嘴的路
+   代价：游说/历史失败 → 这一问 DC 递增（2024「不许原地重掷」）· 欺瞒被识破 → 态度骤降 · 恐吓 → 得手也记仇
+   架构与战斗动作池一致：点选项只写 $pc.ev.soc，重渲染后在段落顶部结算（骰面留在帧里）。
+
+   ⚠ 选项必须是**我们自己发的 <a data-...>**，不能写成 <<link>>：<<link>> 的内容在**点击时**才
+   解析，那时 <<for>> 的临时变量早被同段落的下一个面板覆盖了（"点花的面板、算成求术的面板"）。
+   值与它一起走进 DOM，点谁是谁。 %/
+
+<<widget "socresolve">>
+	<<set _a to Game.Social.ask($args[0])>>
+	<<if _a and $pc.ev.soc and $pc.ev.soc.id is _a.id>>
+		<<set _S to Game.Social>>
+		<<set _how to $pc.ev.soc.how>>
+		<<if not $pc.ev.soc_last>><<set $pc.ev.soc_last to {}>><</if>>
+		<<if _how is "will">>
+			<<run _a.apply($pc)>>
+			<<set $pc.ev.soc_last[_a.id] to { kind: "will", text: _a.will }>>
+		<<elseif _how.startsWith("lever:")>>
+			<<set _lv to _S.levers(_a, $pc).find((l) => l.id is _how.slice(6))>>
+			<<if _lv>>
+				<<if _lv.econ>><<econ _lv.econ>><</if>>
+				<<run _S.shift($pc, _a.npc, 1)>>
+				<<run _a.apply($pc)>>
+				<<set $pc.ev.soc_last[_a.id] to { kind: "auto", text: _a.auto, notes: ["拿出了筹码：" + _lv.name] }>>
+			<</if>>
+		<<elseif _how.startsWith("site:")>>
+			<<set _site to _how.slice(5)>>
+			<<set _dc to _S.dcOf(_a, _site, $pc)>>
+			<<set _lv to _S.levers(_a, $pc).find((l) => l.gives is "adv" and not l.econ)>>
+			<<set _res to _S.roll($pc, _site, _dc, _lv?.note ?? "")>>
+			<<set $pc.ev.last_roll to _res>>
+			<<if _res.success>>
+				<<run _a.apply($pc)>>
+				<<set _notes to _S.settle(_a, $pc, _site, _res.roll is 20 ? "crit" : "ok")>>
+				<<set $pc.ev.soc_last[_a.id] to { kind: "ok", text: _a.ok, notes: _notes }>>
+			<<else>>
+				<<set _notes to _S.settle(_a, $pc, _site, "bad")>>
+				<<set $pc.ev.soc_last[_a.id] to { kind: "bad", text: _a.bad, notes: _notes }>>
+			<</if>>
+		<</if>>
+		<<set $pc.ev.soc to null>>
+	<</if>>
+<</widget>>
+
+<<widget "socpanel">>
+	<<set _a to Game.Social.ask($args[0])>>
+	<<set _S to Game.Social>>
+	<<if _a>>
+		<div class="soc-ask">
+			''<<print _a.q>>''
+			<<if $pc.ev.soc_last and $pc.ev.soc_last[_a.id]>>
+				<<set _L to $pc.ev.soc_last[_a.id]>>
+				<<lastcheckFor _a.sites>>
+				<span class="soc-said"><<print _L.text>></span>
+				<<for _n to 0; _n lt (_L.notes ?? []).length; _n++>><span class="soc-cost">（<<print _L.notes[_n]>>）</span><</for>>
+			<</if>>
+			<<if _a.done($pc)>>
+				<span class="soc-done">（这一件已经有结果了。）</span>
+			<<else>>
+				<<set _v to _S.verdict(_a, $pc)>>
+				<<if _v is "unwilling">>
+					<span class="soc-no"><<print _a.why ?? "（这件事没得谈。）">></span>
+				<<else>>
+					<<set _att to _S.attitude(_a, $pc)>>
+					<div class="soc-opts">
+					<<if _v is "willing">>
+						<<print `<a class="soc-opt" role="link" tabindex="0" data-ask="${_a.id}" data-how="will">开口：${_a.q}（${_a.tag}）</a>`>>
+						<span class="soc-meta">（他本来就要说——不必掷骰）</span>
+					<</if>>
+					<<for _i to 0; _i lt _S.levers(_a, $pc).length; _i++>>
+						<<set _lv to _S.levers(_a, $pc)[_i]>>
+						<<print `<a class="soc-opt" role="link" tabindex="0" data-ask="${_a.id}" data-how="lever:${_lv.id}">拿出筹码：${_lv.name}（${_a.tag}）</a>`>>
+						<span class="soc-meta">（<<if _lv.econ>>花 <<print -Game.Economy.priceOf(_lv.econ, $pc)>> 金币 ｜ <</if>><<if _lv.gives is "auto">>不用开口<</if>><<if _lv.gives is "adv">>开口时占优势<</if>>，无需掷骰）</span>
+					<</for>>
+					<<for _i to 0; _i lt _S.open(_a, $pc).length; _i++>>
+						<<set _o to _S.open(_a, $pc)[_i]>>
+						<<print `<a class="soc-opt" role="link" tabindex="0" data-ask="${_a.id}" data-how="site:${_o.site}">${_o.ap.verb}：${_o.skill}（${_a.tag}）</a>`>>
+						<span class="soc-meta">（<<print _S.ATT[_att]>> → DC<<print _o.dc>><<if _o.ap.onFail?.retry>> ｜ 失败：这一手更难<</if>><<if _o.ap.onFail?.att>> ｜ 失败：<<print _a.npc>>记住（态度降一级）<</if>><<if not _o.ap.onFail?.retry and not _o.ap.onFail?.att>> ｜ 失败：只是没接上话<</if>><<if _o.ap.onOk?.att>> ｜ 成了也记仇<</if>>）</span>
+					<</for>>
+					</div>
+				<</if>>
+			<</if>>
+		</div>
+	<</if>>
 <</widget>>
 
 /% 物品栏（v16 §5.0）：侧栏列出身上带着的东西——不凑数、不集齐开锁 %/

@@ -115,20 +115,9 @@
 <</if>>
 </div>
 
-<<if not $pc.ev.tav_tips and not $pc.ev.tav_brushoff>>
-	<<link "问老板娘：进塔该注意什么">>
-		<<sitecheck "酒馆·打听">><<snapshot>>
-		<<if $last_check.success>><<set $pc.ev.tav_tips to true>><<set $pc.ev.tav_fog to true>><<else>><<set $pc.ev.tav_brushoff to true>><</if>>
-		<<goto "酒馆">>
-	<</link>>
-<</if>>
-<<if $pc.ev.tav_brushoff and not $pc.ev.tav_tips>>
-	<<link `"花 " + (-Game.Economy.priceOf("drink_round", $pc)) + " 金币：请一轮酒"`>>
-		<<econ "drink_round">><<set $pc.ev.tav_tips to true>><<set $pc.ev.tav_brushoff to false>><<goto "酒馆">>
-	<</link>>
-<</if>>
+<<socresolve "老板娘·进塔">>
+<<socpanel "老板娘·进塔">>
 <<if $pc.ev.tav_tips>>
-	<<lastcheck>>
 	<p>老板娘把杯子放下，看了你一眼：''"你要真想进去，就记住两件事：一是别在雾里睡觉，二是听见有人叫你名字，别应。"''</p>
 	<<if $pc.ev.tav_fog>>
 		<p>（她多说了两句：''雾是从塔那边来的''——说这话的时候她没看你，眼睛盯着炉子。炉子里的火噼啪响了一声。）</p>
@@ -231,10 +220,12 @@
 	''老猎人的话''在耳边响：这种小东西，你不动它，它不动你。
 <</if>>
 
-<<if not $pc.world.goblin_spared>>
-	<<link `"掏出 " + (-Game.Economy.priceOf("goblin_bribe", $pc)) + " 金币，买条路过去"`>>
-		<<econ "goblin_bribe">><<setflag "goblin_spared">><<goto "森林边缘">>
-	<</link>>
+<<socresolve "哥布林·路">>
+<<socpanel "哥布林·路">>
+<<if $pc.world.goblin_spared>>
+	它把石头一块块码回怀里，往旁边挪了挪，让出半条路。
+	[[从它旁边过去|森林边缘]]
+<<else>>
 	<<link "拔家伙——''检定''过不过得看你的手">>
 		<<if $pc.world.rumor>>（你落脚的时候，避开了第三块石板——''老猎人的话''。）<</if>>
 		<<sitecheck "洞穴·战斗">><<snapshot>>
@@ -245,7 +236,8 @@
 		<</if>>
 	<</link>>
 	<<link "什么都不做，绕开它">><<goto "森林边缘">><</link>>
-<</if>>
+<</<</if>>
+
 [[退回森林边缘|森林边缘]]
 
 :: 女巫小屋

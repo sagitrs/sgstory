@@ -9,7 +9,7 @@ const assert = (cond, msg) => {
 	console.log(`${cond ? '✓' : '✗'} ${msg}`);
 	if (!cond) process.exitCode = 1;
 };
-const links = () => [...w.document.querySelectorAll('#passages a.link-internal')];
+const links = () => [...w.document.querySelectorAll('#passages a.link-internal, #passages a.soc-opt')];
 const click = async (label) => {
 	const a = links().find((x) => x.textContent === label || x.textContent.includes(label));
 	if (!a) throw new Error(`找不到链接「${label}」@ ${w.SugarCube.State.passage}`);
@@ -52,7 +52,12 @@ assert(p.textContent.includes('歪脖子鸭'), '进入酒馆');
 assert(p.textContent.includes('10 枚金币'), '金币插值');
 // M9：打听是动作——检定不再自动发生，先问，才掷骰
 assert(!w.document.querySelector('#passages .check-result'), 'M9：进酒馆不再自动掷打听检定');
-assert(links().some((a) => a.textContent.includes('问老板娘：进塔该注意什么')), '打听入口是玩家的动作（问老板娘）');
+// B2：打听入口升级为「交涉面板」——同一句诉求列出多种开口方式（换手段＝换属性判定）
+assert(links().some((a) => a.textContent.includes('把话说圆：游说')), 'B2：交涉面板渲染（游说开口）');
+assert(links().some((a) => a.textContent.includes('先看他手里攥着什么：洞悉')), 'B2：同诉求的第二条路走别的属性（洞悉）');
+assert(links().some((a) => a.textContent.includes('亮一亮手里的家伙：恐吓')), 'B2：第三条路（恐吓，代价不同）');
+assert(links().some((a) => a.textContent.includes('拿出筹码：请她喝一轮')), 'B2：筹码（把对方想要的摆出来＝不必掷骰）');
+assert(p.textContent.includes('冷淡 → DC12'), 'B2：面板标出态度与 DC');
 assert(links().length >= 12, `酒馆打听 hub 臂数 ≥12（实际 ${links().length}）`);
 await click('靠窗那桌——他们在讲塔上那盏灯');   // 问一桌
 assert(w.SugarCube.State.variables.pc.ev.tav_light === true, '问过的那桌记账（tav_light）');
@@ -80,9 +85,11 @@ assert(styleStory.includes('LXGW WenKai') && styleStory.includes('@font-face'), 
 await click('打着火把，走进山脚的洞穴');
 assert(w.SugarCube.State.passage === '洞穴', '进入洞穴');
 assert(links().length >= 3, `洞穴选择肢 ≥3（实际 ${links().length}）`);
-await click('买条路过去');
-assert(w.SugarCube.State.variables.pc.world.goblin_spared === true, '买路 → 世界旗标 goblin_spared');
+await click('拿出筹码：把几枚金币放在石头上');
+assert(w.SugarCube.State.variables.pc.world.goblin_spared === true, 'B2：买路筹码 → 世界旗标 goblin_spared（免检，不经掷骰）');
 assert(pc().gold === 7, `买路扣 3 金（恐吓熟练折扣，10→7；实际 ${pc().gold}）`);
+assert(w.document.querySelector('#passages').textContent.includes('让出半条路'), 'B2：筹码到账后才放行（结果文案在面板下方）');
+await click('从它旁边过去');
 assert(w.SugarCube.State.passage === '森林边缘', '买路后回到森林边缘');
 
 // ── 侧栏：常驻存档入口 + 物品栏（v16 §5.0）──

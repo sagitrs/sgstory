@@ -208,51 +208,34 @@
 
 <<give "守林人的钥匙">>
 
+<<socresolve "守林人·花">>
+<<socresolve "守林人·术">>
+
 <<if not $pc.world.flower_warned>>
 	<<if _t > 0>>
 		"还有，"他叫住你，"塔基墙根那片银白的花——味道闻久了会睡。要摘，先把气含住。我小时候在那儿睡过一下午，醒来天都黑了。"
 		<<set $pc.world.flower_warned to true>>
 	<<else>>
-		<<link "问他：塔基墙根那片银白的花是什么">>
-			<<sitecheck "守林人·交涉">><<snapshot>>
-			<<if $last_check.success>>
-				<<set $pc.world.flower_warned to true>><<set $pc.ev.keeper_told to true>>
-			<<else>>
-				<<set $pc.ev.keeper_refused to true>>
-			<</if>>
-			<<goto "守林人">>
-		<</link>>
-		<<link "先看清他靴边那一圈白">>
-			<<sitecheck "守林人·指花">><<snapshot>>
-			<<if $last_check.success>>
-				他靴边沾着一圈银白的花粉——''他每天都要从那片花边上走一趟''。
-				你把这事说破，他沉默了一下："……那花会睡人。要摘，先把气含住。我小时候在那儿睡过一下午。"
-				<<set $pc.world.flower_warned to true>><<set $pc.ev.keeper_told to true>>
-			<<else>>
-				他斗篷上都是雾水，什么也看不出来。<<set $pc.ev.keeper_refused to true>>
-			<</if>>
-			<<goto "守林人">>
-		<</link>>
-		<<link "先不问花的事">><</link>>
+		<<socpanel "守林人·花">>
 	<</if>>
 <</if>>
 <<if $pc.world.flower_warned and $pc.ev.keeper_told>>
-	<<lastcheck>>
-	"塔基墙根那片银白的花——味道闻久了会睡。要摘，先把气含住。"
-<</if>>
-<<if $pc.ev.keeper_refused and not $pc.world.flower_warned>>
-	<<lastcheck>>
-	"那片花？"他看了你一眼，把灯芯剪短了一截，"''你别去碰它''。"他不再说别的。（''他不认你这一句——你要是想让他说清楚，得让他看出你是干什么来的。''）
+	<<lastcheckFor "守林人·交涉" "守林人·指花">>
+	''"塔基墙根那片银白的花——味道闻久了会睡。要摘，先把气含住。"''
 <</if>>
 
 <<link "问他：为什么不自己去送">><<goto "守林人·送">><</link>>
 <<link "问他：你守的到底是什么">><<goto "守林人·守">><</link>>
 <<link "说一句：它不会变成恶龙">><<goto "守林人·信">><</link>>
+<<socpanel "守林人·术">>
+<<if $pc.keeper.state is "seal">>
+	[[那就让他念——用他家的封印术|守林人·封印]]
+<</if>>
 [[收下钥匙，去看那道门|门厅]]
 [[逼他动手：你自己去杀|结局 守林人击杀]]
-[[那就用他家的封印术|守林人·封印]]
 
 :: 守林人·信
+
 /% payload: 信息 %/
 "它不会变成恶龙。"你说。
 
@@ -277,8 +260,6 @@
 他抬起眼看你：''"你把它按下去。我念。"''
 
 "不用把它打死——打死不算送它回家。"他补了一句，''"只要把它按到''不肯再抬头''的那个份上。剩下的，交给我的字。"''
-
-<<set $pc.keeper.state to "seal">>
 
 [[明白了。下去|门厅]]
 

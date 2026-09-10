@@ -1,6 +1,6 @@
 // #28 表驱动审计：node scripts/audit.mjs —— 查 window.Game 三表产出伞 #21/#22 报表，
 // 替代一次性 jsdom 探查脚本。改表即改报告，秒级重算（无需启动场景）。
-// 用法：node scripts/audit.mjs [--canon] [--checks] [--economy] [--items] [--dragon] [--combat]（缺省全输出）
+// 用法：node scripts/audit.mjs [--canon] [--checks] [--economy] [--items] [--dragon] [--combat] [--social]（缺省全输出）
 import { readFileSync, readdirSync } from 'node:fs';
 import vm from 'node:vm';
 
@@ -123,6 +123,16 @@ if (wantAll || arg('choices')) {
 		const src = passageSrc.get(name) ?? '';
 		return (src.match(/<<link\b/g) ?? []).length + (src.match(/\[\[/g) ?? []).length;
 	};
+	// 交涉面板（B2）也发臂：<<socpanel "诉求">> 的每条开口方式与筹码都是可点的一项
+	const socArms = (name) => {
+		let n = 0;
+		for (const m of (passageSrc.get(name) ?? '').matchAll(/<<socpanel\s+"([^"]+)"/g)) {
+			const a = Game.Social?.ask?.(m[1]);
+			if (!a) continue;
+			n += (a.sites ?? []).length + (a.levers ?? []).length + (a.willing ? 1 : 0);
+		}
+		return n;
+	};
 	let nonEnding = 0;
 	for (const c of Game.Choices.sites) {
 		let okArm = true;
@@ -134,7 +144,7 @@ if (wantAll || arg('choices')) {
 			const src = passageSrc.get(c.p);
 			if (src === undefined) { console.log(`  ✗ ${c.id}：段落「${c.p}」不存在`); bad++; okArm = false; }
 			else {
-				const e = outEdges(c.p);
+				const e = outEdges(c.p) + socArms(c.p);
 				okArm = e >= c.arms;
 				if (!okArm) { console.log(`  ✗ ${c.id}：「${c.p}」可点臂 ${e} < 表臂 ${c.arms}（臂数虚标？）`); bad++; }
 			}
@@ -174,14 +184,28 @@ if (wantAll || arg('sel').length || arg('nosl')) {
 		const ab = d.abil ?? Rules.SKILLS[d.skill];
 		byYield.get(d.yields).push({ site, ab, dc: d.dc });
 	}
+	// 交涉诉求（B2）：同一句诉求换手段＝换属性；另有一条"免检筹码"（不给骰子机会）
+	for (const a of Game.Social?.asks ?? []) {
+		if (!a.yield) continue;
+		if (!byYield.has(a.yield)) { console.log(`  ✗ 诉求「${a.id}」的 yield=「${a.yield}」不在 keyYields 里`); bad++; continue; }
+		const list = byYield.get(a.yield);
+		for (const site of a.sites ?? []) {
+			const d = sites[site];
+			if (!d) { console.log(`  ✗ 诉求「${a.id}」的开口方式「${site}」不是位点`); bad++; continue; }
+			list.push({ site, ab: d.abil ?? Rules.SKILLS[d.skill], dc: d.dc });
+		}
+		if ((a.levers ?? []).some((l) => l.gives === 'auto') || a.willing) list.free = true;
+	}
 	for (const [key, paths] of byYield) {
 		const abilities = [...new Set(paths.map((p2) => p2.ab))];
-		const mark = paths.length >= 2 && abilities.length >= 2 ? '✓' : '✗';
-		if (mark === '✗') {
+		// 交涉诉求：掷骰路子属性不同，**或者**有一条免检筹码（把对方想要的摆出来＝不必掷骰）
+		// —— 这就是 D&D 2024「give them what they want → no check」落成的反 S/L 保障
+		const ok = paths.free || (paths.length >= 2 && abilities.length >= 2);
+		if (!ok) {
 			bad++;
-			console.log(`  ✗ 「${key}」通路 ${paths.length} 条 · 判定属性 ${abilities.length} 种——至少要两条路、且属性不同（免得非酋只能读档）`);
+			console.log(`  ✗ 「${key}」通路 ${paths.length} 条 · 判定属性 ${abilities.length} 种 · 免检 ${paths.free ? '有' : '无'}——既要多路不同属性，也要有一条不靠骰子的路`);
 		}
-		console.log(`  ${mark} ${key}：${paths.map((p2) => `${p2.site}（${p2.ab} DC${p2.dc}）`).join(' · ')}`);
+		console.log(`  ${ok ? '✓' : '✗'} ${key}：${paths.map((p2) => `${p2.site}（${p2.ab} DC${p2.dc}）`).join(' · ')}${paths.free ? ' · 免检筹码' : ''}`);
 	}
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ 反 S/L 门：${bad} 项`); process.exit(1); }
@@ -233,17 +257,34 @@ if (wantAll || arg('sel').length || arg('gear')) {
 		dragon_hoard: { kind: 'income', reason: '巢边识货——纯收入那一侧' },
 	};
 	const rows = SRC_FILES.flatMap((f) => readFileSync(f, 'utf8').split('\n').map((line) => [f, line]));
+	// 交涉筹码（B2）：levers[].econ 也是经济事件的使用点——落点不靠"同一行里有 setflag"，
+	// 而是**真调一次 apply() 看旗标有没有落地**（比行匹配更硬）
+	const leverUses = [];
+	for (const a of Game.Social?.asks ?? []) for (const lv of a.levers ?? []) if (lv.econ) leverUses.push({ ask: a, lever: lv });
+	const socialSettles = (flagTail, item) => {
+		for (const u of leverUses) {
+			const stub = ctx.Pc.defaults();
+			stub.inv = {}; stub.ev = {}; stub.world = {}; stub.keeper = { met: false, trust: 0, state: 'post', key: false };
+			try {
+				for (const lv2 of u.ask.levers ?? []) if (typeof lv2.need !== 'function' || lv2.need(stub)) u.ask.apply(stub);
+			} catch { /* 条件不满足就算了 */ }
+			if (flagTail && (stub.ev?.[flagTail] === true || stub.world?.[flagTail] === true)) return true;
+			if (item && stub.inv?.[item]) return true;
+		}
+		return false;
+	};
 	for (const [key, ev] of Object.entries(Game.Economy.events)) {
 		const c = CLAIM[key];
 		const uses = rows.filter(([, line]) => line.includes(`econ "${key}"`));
+		const leverOk = leverUses.some((u) => u.lever.econ === key);
 		if (!c) { console.log(`  ✗ 经济事件「${key}」没声明落点——要么给出东西，要么在 CLAIM 里写理由`); bad++; continue; }
-		if (uses.length === 0) { console.log(`  ✗ 经济事件「${key}」没有任何使用点（表里挂着、正文没花）；或去掉。）`); bad++; continue; }
+		if (uses.length === 0 && !leverOk) { console.log(`  ✗ 经济事件「${key}」没有任何使用点（表里挂着、正文没花）；或去掉。）`); bad++; continue; }
 		const text = uses.map(([f, line]) => line).join('\n');
 		const fail = (why) => { console.log(`  ✗ 经济事件「${key}」${why}`); bad++; };
 		if (c.kind === 'gives' && !ev.gives) fail('表里没写 gives');
 		const flagTail = (c.flag ?? '').replace(/^ev\./, '');
-		if (c.kind === 'flag' && !(text.includes(`setflag "${c.flag}"`) || text.includes(`${flagTail} to true`))) fail(`正文没落旗标 ${c.flag}`);
-		if (c.kind === 'item' && !text.includes(`give "${c.item}"`)) fail(`正文没给道具 ${c.item}`);
+		if (c.kind === 'flag' && !(text.includes(`setflag "${c.flag}"`) || text.includes(`${flagTail} to true`)) && !socialSettles(flagTail, null)) fail(`正文没落旗标 ${c.flag}（正文与交涉筹码都没落到）`);
+		if (c.kind === 'item' && !text.includes(`give "${c.item}"`) && !socialSettles(null, c.item)) fail(`正文没给道具 ${c.item}`);
 		if (c.kind === 'income' && !(ev.delta > 0)) fail('写成纯收入却是扣钱');
 	}
 	if (process.argv.includes('--check')) {
@@ -297,6 +338,12 @@ if (wantAll || arg('interact')) {
 		if (!sites[s]) { console.log(`  ✗ 战斗动作池引用了不存在的位点「${s}」`); bad++; continue; }
 		usedSites.add(s);
 	}
+	// ②c 交涉诉求（B2）：由 <<socpanel "诉求">> 发牌，位点写在诉求的 sites 里——也算「玩家发起」
+	const socSites = new Set();
+	for (const a of Game.Social?.asks ?? []) for (const s of a.sites ?? []) {
+		if (!sites[s]) { console.log(`  ✗ 交涉诉求「${a.id}」引用了不存在的位点「${s}」`); bad++; continue; }
+		socSites.add(s); usedSites.add(s);
+	}
 	// ③ 位点无孤儿（表里有、正文没人用）
 	for (const s of Object.keys(sites)) if (!usedSites.has(s)) { console.log(`  ✗ 位点「${s}」在表里但正文没人用`); bad++; }
 	// ④ 选择密度（报告项）：内容段落的 字/臂
@@ -311,11 +358,80 @@ if (wantAll || arg('interact')) {
 		if (arms) dens.push({ name, chars, arms, r: chars / arms });
 	}
 	dens.sort((x, y) => y.r - x.r);
-	console.log(`  检定：${autoTop + inLink + poolSites.size} 处（玩家发起 ${inLink} · 进场即动手 ${autoTop} · 战斗动作池 ${poolSites.size}）`);
+	console.log(`  检定：${autoTop + inLink + poolSites.size + socSites.size} 处（玩家发起 ${inLink + socSites.size}（交涉 ${socSites.size}）· 进场即动手 ${autoTop} · 战斗动作池 ${poolSites.size}）`);
 	console.log(`  最"薄"的五个段落（字/臂）：${dens.slice(0, 5).map((d) => `${d.name} ${d.r.toFixed(0)}`).join(' · ')}`);
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ 互动门：${bad} 项`); process.exit(1); }
 		console.log('\n✔ 互动门通过（信息类检定全部由玩家动作发起）');
+	}
+}
+
+// ── ⓪l 交涉门（B2 · D&D 2024 Influence）：意愿三档 · 手段换属性 · 代价因手段而异 ──
+if (wantAll || arg('social')) {
+	console.log('\n══ ⓪l 交涉门（B2）——同一句诉求换手段、态度定 DC、代价因手段而异 ══');
+	let bad = 0;
+	const S = Game.Social;
+	if (!S?.asks?.length) { console.log('  ✗ 交涉表不存在'); bad++; }
+	const apKeys = Object.keys(S?.approaches ?? {});
+	const failKinds = new Set();
+	// DC 阶梯：态度修正必须就是 DMG 社交交互表压成的那根轴（友好 −5 / 冷淡 0 / 敌意 +5）
+	const bogus = Object.entries(S?.attAdj ?? {}).filter(([, v]) => ![0, 5, -5].includes(v));
+	if (bogus.length || Object.keys(S?.attAdj ?? {}).length !== 3) {
+		console.log(`  ✗ 态度修正不是 DMG 表里的 −5/0/+5 三档：${JSON.stringify(S?.attAdj)}`); bad++;
+	} else console.log('  态度阶梯：友好 −5 · 冷淡 0 · 敌意 +5（DMG 社交交互表）');
+	for (const a of S?.asks ?? []) {
+		const opts = [];
+		for (const site of a.sites ?? []) {
+			const d = Game.Checks.sites[site];
+			if (!d) { console.log(`  ✗ 诉求「${a.id}」的开口方式「${site}」不是位点`); bad++; continue; }
+			if (d.abil && !S.approaches[d.abil]) { console.log(`  ✗ 位点「${site}」用 ${d.abil} 豁免，但手段表里没有 ${d.abil} 这一手`); bad++; continue; }
+			const sk = d.abil ? d.abil : d.skill;
+			if (!S.approaches[sk]) { console.log(`  ✗ 位点「${site}」的技能「${sk}」不在手段表里——面板发不出来`); bad++; continue; }
+			opts.push(`${sk} DC${d.dc}`);
+		}
+		// 筹码：道具/行囊/情报必须真的存在
+		for (const lv of a.levers ?? []) {
+			if (lv.need) {
+				const probe = ctx.Pc.defaults();
+				probe.inv = { 日记: true, 观星者的书: true, 时光护符: true, 完整星图: true };
+				probe.world = { family_favor: true };
+				let okReq = false;
+				try { okReq = !!lv.need(probe); } catch { okReq = false; }
+				if (!okReq) { console.log(`  ✗ 诉求「${a.id}」的筹码「${lv.name}」条件在任何情况下都不成立`); bad++; }
+			}
+			if (lv.needRead && !(a.sites ?? []).some((s) => S.approaches[Game.Checks.sites[s]?.skill ?? Game.Checks.sites[s]?.abil]?.read)) {
+				console.log(`  ✗ 诉求「${a.id}」的筹码「${lv.name}」要"读过这人"，但这个诉求没有读人的手`); bad++;
+			}
+			if (lv.econ && !Game.Economy.events[lv.econ]) { console.log(`  ✗ 诉求「${a.id}」的筹码「${lv.name}」用了不存在的经济事件「${lv.econ}」`); bad++; }
+			if (!['auto', 'adv'].includes(lv.gives)) { console.log(`  ✗ 诉求「${a.id}」的筹码「${lv.name}」gives=${lv.gives}（只能 auto＝免检 或 adv＝优势）`); bad++; }
+		}
+		// 三档意愿：至少要有回绝（否则"掷骰无用"这一步没被演示过）
+		if (a.unwilling && !a.why) { console.log(`  ✗ 诉求「${a.id}」有 unwilling 分支却没写 why——玩家看不到"为什么掷骰没用"`); bad++; }
+		if (a.willing && !a.will) { console.log(`  ✗ 诉求「${a.id}」有 willing 分支却没写 will——免检的过场文案缺了`); bad++; }
+		if ((a.sites ?? []).length) {
+			if (!a.ok || !a.bad) { console.log(`  ✗ 诉求「${a.id}」有掷骰的路子，却没写成/败两档文案`); bad++; }
+			if (!a.done) { console.log(`  ✗ 诉求「${a.id}」没写 done——面板会一直发同一手`); bad++; }
+			if (!a.apply) { console.log(`  ✗ 诉求「${a.id}」没写 apply——成功之后拿不到任何东西`); bad++; }
+			if ((a.levers ?? []).some((l) => l.gives === 'auto') && !a.auto) { console.log(`  ✗ 诉求「${a.id}」有免检筹码却没写 auto 过场文案`); bad++; }
+			const fails = new Set((a.sites ?? []).map((s) => {
+				const d = Game.Checks.sites[s];
+				const ap = S.approaches[d.abil ? d.abil : d.skill] ?? {};
+				return ap.onFail?.retry ? '重试代价' : (ap.onFail?.att ? '态度代价' : '无代价');
+			}));
+			for (const f of fails) failKinds.add(f);
+		}
+		console.log(`  ${a.sites?.length || a.levers?.length ? '✓' : '·'} ${a.id}（${a.sites?.length ?? 0} 种开口 · ${a.levers?.length ?? 0} 件筹码${a.willing ? ' · 有愿意' : ''}${a.unwilling ? ' · 有回绝' : ''}）${opts.length ? '：' + opts.join(' / ') : ''}`);
+	}
+	// 代价要因手段而异（2024：不同手段的失败代价不同）
+	for (const k of ['重试代价', '态度代价', '无代价']) if (!failKinds.has(k)) { console.log(`  ✗ 没有任何一手是「${k}」——手段之间没有代价差异`); bad++; }
+	console.log(`  代价差异：${[...failKinds].join(' · ')}（游说/历史＝越问越难 · 欺瞒/恐吓＝态度下降 · 表演/洞悉/察觉＝只丢这一句）`);
+	// 至少一条常驻面板的「unwilling」示范（让玩家看见"掷骰无用"这一步存在）
+	const stubborn = (S.asks ?? []).filter((a) => a.unwilling && !(a.willing));
+	if (!stubborn.length) console.log('  ⚠ 没有任何"始终不肯"的诉求——意愿三档里的 unwilling 只是理论');
+	else console.log(`  回绝示范：${stubborn.map((a) => a.id).join('、')}`);
+	if (process.argv.includes('--check')) {
+		if (bad) { console.error(`\n✗ ⓪l 交涉门：${bad} 项`); process.exit(1); }
+		console.log('\n✔ ⓪l 交涉门通过（手段换属性、态度定 DC、代价因手段而异、筹码真的存在）');
 	}
 }
 

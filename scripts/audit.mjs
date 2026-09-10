@@ -1,6 +1,6 @@
 // #28 表驱动审计：node scripts/audit.mjs —— 查 window.Game 三表产出伞 #21/#22 报表，
 // 替代一次性 jsdom 探查脚本。改表即改报告，秒级重算（无需启动场景）。
-// 用法：node scripts/audit.mjs [--canon] [--checks] [--economy] [--items] [--dragon]（缺省全输出）
+// 用法：node scripts/audit.mjs [--canon] [--checks] [--economy] [--items] [--dragon] [--combat]（缺省全输出）
 import { readFileSync, readdirSync } from 'node:fs';
 import vm from 'node:vm';
 
@@ -259,6 +259,9 @@ if (wantAll || arg('interact')) {
 	const stripLinks = (src) => src.replace(/<<link\b[\s\S]*?<\/link>>/g, '（link）');
 	const sites = Game.Checks.sites;
 	const usedSites = new Set();
+	// 战斗动作池（B1）：池里的位点由玩家从面板上选——等同「玩家发起」；
+	// 对手位点由 <<fightresolve "位点">> 驱动——等同「进场即动手」（须标 auto）。
+	const poolSites = new Set(Object.values(Game.Combat?.actions ?? {}).map((a) => a.site));
 	let autoTop = 0, inLink = 0;
 	for (const [name, srcRaw] of passageSrc) {
 		const tags0 = passageTags.get(name) ?? [];
@@ -268,6 +271,13 @@ if (wantAll || arg('interact')) {
 		for (const m of src.matchAll(/<<sitecheck\s+"([^"]+)"/g)) {
 			usedSites.add(m[1]);
 			if (!sites[m[1]]) { console.log(`  ✗ 段落「${name}」引用了不存在的位点「${m[1]}」`); bad++; }
+		}
+		// 战斗结算：<<fightresolve "对手位点" …>> 每一轮都掷——必须存在且标 auto
+		for (const m of outer.matchAll(/<<fightresolve\s+"([^"]+)"/g)) {
+			usedSites.add(m[1]);
+			autoTop++;
+			if (!sites[m[1]]) { console.log(`  ✗ 段落「${name}」的战斗对手位点「${m[1]}」不存在`); bad++; continue; }
+			if (!sites[m[1]].auto) { console.log(`  ✗ 段落「${name}」的战斗对手位点「${m[1]}」未标 auto 理由`); bad++; }
 		}
 		// ① 顶层（非 link 内）的检定＝自动检定：只有"进场即动手"的战斗位点可以
 		for (const m of outer.matchAll(/<<sitecheck\s+"([^"]+)"/g)) {
@@ -281,6 +291,11 @@ if (wantAll || arg('interact')) {
 			console.log(`  ✗ 段落「${name}」顶层读 $last_check 却没有本轮检定——判定结果必须落旗标后再渲染`); bad++;
 		}
 		inLink += (src.match(/<<sitecheck/g) ?? []).length - (outer.match(/<<sitecheck/g) ?? []).length;
+	}
+	// ②b 战斗动作池：池里的位点必须在表里（孤儿门的另一半）
+	for (const s of poolSites) {
+		if (!sites[s]) { console.log(`  ✗ 战斗动作池引用了不存在的位点「${s}」`); bad++; continue; }
+		usedSites.add(s);
 	}
 	// ③ 位点无孤儿（表里有、正文没人用）
 	for (const s of Object.keys(sites)) if (!usedSites.has(s)) { console.log(`  ✗ 位点「${s}」在表里但正文没人用`); bad++; }
@@ -296,11 +311,74 @@ if (wantAll || arg('interact')) {
 		if (arms) dens.push({ name, chars, arms, r: chars / arms });
 	}
 	dens.sort((x, y) => y.r - x.r);
-	console.log(`  检定：${autoTop + inLink} 处（玩家发起 ${inLink} · 进场即动手 ${autoTop}）`);
+	console.log(`  检定：${autoTop + inLink + poolSites.size} 处（玩家发起 ${inLink} · 进场即动手 ${autoTop} · 战斗动作池 ${poolSites.size}）`);
 	console.log(`  最"薄"的五个段落（字/臂）：${dens.slice(0, 5).map((d) => `${d.name} ${d.r.toFixed(0)}`).join(' · ')}`);
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ 互动门：${bad} 项`); process.exit(1); }
 		console.log('\n✔ 互动门通过（信息类检定全部由玩家动作发起）');
+	}
+}
+
+// ── ⓪k 战斗动作池门（B1）：每轮 3 选 1，每个动作三档结果 —— 不许空手、不许无后果 ──
+if (wantAll || arg('combat')) {
+	console.log('\n══ ⓪k 战斗动作池门（B1）——随机 3 选 1，每手都有属性、成/败/大成功都有后果 ══');
+	let bad = 0;
+	const C = Game.Combat;
+	const MECH = ['dmg', 'adv', 'guard', 'skipFoe', 'venom', 'flag', 'flee'];
+	const nakedPc = { inv: {}, gear: [], dragon: {} };
+	for (const [pool, ids] of Object.entries(C.pools)) {
+		// ① 池子够大：3 选 1 才有意义（去重后）
+		const uniq = [...new Set(ids)];
+		if (uniq.length < 3) { console.log(`  ✗ 池「${pool}」只有 ${uniq.length} 个动作——凑不出 3 选 1`); bad++; }
+		// ② 不同选择＝不同判定：池内至少 2 项属性/技能
+		const skills = new Set(uniq.map((id) => {
+			const s = Game.Checks.sites[C.actions[id]?.site];
+			return s ? (s.skill ?? `save:${s.abil}`) : '缺失';
+		}));
+		if (skills.size < 2) { console.log(`  ✗ 池「${pool}」所有动作都走同一项判定（${[...skills].join('/')}）——选择没有分化`); bad++; }
+		let canHurt = 0, canGuard = 0;
+		for (const id of uniq) {
+			const a = C.actions[id];
+			if (!a) { console.log(`  ✗ 池「${pool}」列了未登记的动作「${id}」`); bad++; continue; }
+			if (!Game.Checks.sites[a.site]) { console.log(`  ✗ 动作「${id}」的位点「${a.site}」不在 Checks.sites`); bad++; }
+			if (!a.label) { console.log(`  ✗ 动作「${id}」缺 label（面板上没字）`); bad++; }
+			for (const k of ['ok', 'crit', 'bad']) {
+				const eff = a[k];
+				if (!eff || !eff.text) { console.log(`  ✗ 动作「${id}」缺 ${k} 档文案——玩家会撞上"没有后果"`); bad++; }
+			}
+			// 失败不许给好处（假代价门在战斗里的对应条目）
+			const bad_ = a.bad ?? {};
+			if (MECH.some((m) => bad_[m])) { console.log(`  ✗ 动作「${id}」的失败档给了收益（${MECH.filter((m) => bad_[m]).join('/')}）——失败就得疼`); bad++; }
+			if (MECH.some((m) => a.ok?.[m] || a.crit?.[m])) canHurt++;
+			if (a.ok?.guard || a.ok?.skipFoe || a.crit?.guard || a.crit?.skipFoe) canGuard++;
+			if (a.need?.startsWith('inv:') && !Game.Items.defs[a.need.slice(4)]) {
+				console.log(`  ✗ 动作「${id}」要求道具「${a.need.slice(4)}」，但道具表里没有——这手永远抽不到`);
+				bad++;
+			}
+		}
+		// ③ 反 S/L：池里必须同时有"能推进"和"能保命"的手（不会出现全是废牌的死局）
+		if (!canHurt) { console.log(`  ✗ 池「${pool}」没有任何能推进战斗的动作——玩家只能挨打`); bad++; }
+		if (!canGuard) { console.log(`  ✗ 池「${pool}」没有任何减伤/免伤的动作——只能硬换血`); bad++; }
+		// ④ 空手不会死人：裸装（无道具）也能抽出 3 张牌
+		const naked = C.offer(pool, 1, nakedPc, null);
+		if (naked.length < 3) { console.log(`  ✗ 池「${pool}」裸装只抽到 ${naked.length} 张牌——手牌不足 3 选 1`); bad++; }
+		if (ids.some((id) => !C.actions[id])) { /* 上面已报 */ } else { /* 去重后统计 */ }
+		const dup = ids.length - uniq.length;
+		if (dup) { console.log(`  ✗ 池「${pool}」有重复动作 ${dup} 个`); bad++; }
+		console.log(`  ✓ ${pool}：${uniq.length} 手 → 每轮 3 选 1 · 判定 ${[...skills].join('/')} · 可推进 ${canHurt} · 可保命 ${canGuard}`);
+	}
+	// ⑤ 定档：天然 20＝大成功，其余按成败——三档都必须真的落到动作表里
+	const probe = Object.keys(C.actions)[0];
+	if (probe) {
+		const critOk = C.pick(probe, { roll: 20, success: true }).kind === 'crit';
+		const okKind = C.pick(probe, { roll: 11, success: true }).kind === 'ok';
+		const badKind = C.pick(probe, { roll: 1, success: false }).kind === 'bad';
+		if (!(critOk && okKind && badKind)) { console.log(`  ✗ 定档不对（20→${!critOk} / 成→${!okKind} / 败→${!badKind}）`); bad++; }
+		else console.log('  ✓ 定档：骰面 20 → 大成功 · 成功 → 成功档 · 失败 → 失败档');
+	}
+	if (process.argv.includes('--check')) {
+		if (bad) { console.error(`\n✗ ⓪k 战斗动作池门：${bad} 项`); process.exit(1); }
+		console.log('\n✔ ⓪k 战斗动作池门通过（每手三档齐备、失败不给收益、裸装也抽得满 3 张）');
 	}
 }
 
@@ -442,21 +520,40 @@ if (wantAll || arg('dragon')) {
 		'花毒+护臂':      { inv: { 龙鳞护臂: true }, venom: true, adv: true },
 		'花毒+护臂+日记': { inv: { 龙鳞护臂: true, 日记: true }, venom: true, adv: true },
 	};
+	// 动作池 → 单轮期望（玩家手上有什么，决定这一轮的平均输出与平均减伤）
+	const CombatRound = (pc, L) => {
+		const A = Game.Combat.actions;
+		const ids = Game.Combat.pools['封印'].filter((id) => {
+			const need = A[id]?.need;
+			return !need || (need.startsWith('inv:') && L.inv[need.slice(4)]);
+		});
+		let dmg = 0, guard = 0;
+		for (const id of ids) {
+			const site = Game.Checks.sites[A[id].site];
+			const pHit = successRate(pc, site, L.adv);
+			const okD = A[id].ok?.dmg ?? 0, crD = A[id].crit?.dmg ?? 0;
+			// 大成功 ≈ 1/20（骰面 20），其余成功档
+			dmg += (1 / 20) * crD + (pHit - 1 / 20) * okD;
+			guard += (A[id].ok?.guard ?? 0) * pHit + (A[id].ok?.skipFoe ? 6 : 0) * pHit;
+		}
+		// 3 选 1：每轮手上只有 3 张，取池内均值
+		return { dmg: dmg / Math.max(1, ids.length), guard: guard / Math.max(1, ids.length) };
+	};
 	const sealRows = [];
 	for (const p of presets) {
 		for (const [ln, L] of Object.entries(sealLoadouts)) {
-			const pHit = successRate(p.pc, sealSite, L.adv);          // 坏哨（默认带）＝优势
 			const pSave = successRate(p.pc, saveSite, !!(L.inv['观星者的书'] || L.adv && false));
 			const need = D.hp - D.sealAt;
-			const perHit = Math.max(1, (D.bladeOf ? D.bladeOf(p.pc) : D.bladeDamage));   // A1：行囊里有剑就多一分
+			// B1：伤害/减伤不再来自单一「斩击」，而是这一轮手上真抽得到的牌（按 3 选 1 的均匀抽样取均值）
+			const rot = CombatRound(p.pc, L);
 			let dhp = D.hp, taken = 0, r = 0;
-			for (; r < 30 && dhp > D.sealAt; r++) {
-				dhp -= perHit * pHit;                                  // 期望伤害
-				taken += Game.Items.battleDamage(r + 1, L.inv, 0, L.venom) * (1 - pSave);
+			for (; r < 40 && dhp > D.sealAt; r++) {
+				dhp -= rot.dmg;
+				taken += Math.max(1, Game.Items.battleDamage(r + 1, L.inv, 0, L.venom) - rot.guard) * (1 - pSave);
 			}
 			const alive = taken <= p.pc.max_hp;
 			sealRows.push({ preset: p.name, loadout: ln, rounds: r, taken: Math.round(taken * 10) / 10, hp: p.pc.max_hp, alive });
-			console.log(`  ${p.name}·${ln}: 期望 ${r} 轮 · 受击 ${taken.toFixed(1)} vs HP${p.pc.max_hp} → ${alive ? '✓ 活着按住它' : '✗ 先倒下'}`);
+			console.log(`  ${p.name}·${ln}: 期望 ${r} 轮（每轮 ≈${rot.dmg.toFixed(1)} 伤 / −${rot.guard.toFixed(1)} 受击） · 受击 ${taken.toFixed(1)} vs HP${p.pc.max_hp} → ${alive ? '✓ 活着按住它' : '✗ 先倒下'}`);
 		}
 	}
 	const nakedAlive = sealRows.filter((x) => x.loadout === '裸装' && x.alive).length;

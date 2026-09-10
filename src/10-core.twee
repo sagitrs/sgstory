@@ -126,7 +126,7 @@ function renderCheck(res) {
 	const parts = (res.parts ?? []).filter((p) => p.v).map((p) => `${p.v >= 0 ? '+' : ''}${p.v} ${p.k}`).join(' ');
 	const head = `<div class="check-result ${cls}">🎯 <span class="check-label">${res.label}</span>` +
 		(res.site ? ` <span class="check-site">〔${res.site}〕</span>` : '') + ` · ${dcStr}：` +
-		`<span class="check-dice">d20(${res.roll})</span>${detail && parts ? ` ${parts}` : ` ${modStr}`} = <b>${res.total}</b> ${res.success ? '✔ 成功' : '✘ 失败'}</div>`;
+		`<span class="check-dice">d20(${res.roll})</span>${detail && parts ? ` ${parts}` : ` ${modStr}`} = <b>${res.total}</b> ${res.roll === 20 ? '★ 大成功' : res.roll === 1 ? '✘ 大失败' : res.success ? '✔ 成功' : '✘ 失败'}</div>`;
 	if (!detail) return head;
 	const notes = [];
 	if (res.adv > 0) notes.push(`优势：${res.advWhy || '有利条件'}（${(res.rolls ?? []).join(' / ')} 取高）`);
@@ -294,6 +294,98 @@ Macro.add('dragonbar', {
 			<<goto `passage()`>>
 		<</link>>
 	<</if>>
+<</widget>>
+
+/% ── 战斗动作池（B1）：每轮随机 3 选 1；每个动作是一次属性化检定，成/败/大成功各有后果 ──
+   回合状态挂在 $pc.ev.fight：{ pool, round, offer, act, adv, guard, skipFoe, flee, last, done }。
+   点动作只写 $pc.ev.fight.act ＋重渲染（<<goto `passage()`>>）——结算在段落渲染顶部跑完，骰面不会丢。
+   <<fightbegin>> 只在"新一场"重置：同池子且没打完＝这就是重渲染，不能清台账。 %/
+<<widget "fightbegin">>
+	<<if !$pc.ev.fight or $pc.ev.fight.pool isnot $args[0] or $pc.ev.fight.done>>
+		<<set $pc.ev.fight to { pool: $args[0], round: 1, offer: [], act: null, adv: 0, guard: 0, skipFoe: false, flee: false, last: null, done: false }>>
+	<</if>>
+<</widget>>
+
+/% 结算玩家选的那一手 ＋ 对手这一轮的动作 %/
+<<widget "fightresolve">>
+	<<set _f to $pc.ev.fight>>
+	<<if _f.act>>
+		<<set _a to Game.Combat.actions[_f.act]>>
+		<<if _f.adv>>
+			<<sitecheck _a.site "adv" "上一手的准备">>
+		<<else>>
+			<<sitecheck _a.site>>
+		<</if>>
+		<<set _r to Game.Combat.pick(_f.act, $last_check)>>
+		<<set _f.last to { act: _f.act, kind: _r.kind, text: _r.eff.text, dmg: _r.eff.dmg ?? 0, hurt: _r.eff.hurt ?? 0, adv: _r.eff.adv ?? 0, guard: _r.eff.guard ?? 0 }>>
+		<div class="fight-log">
+			''你：<<print _a.label>>''　<<if _r.kind is "crit">><span class="fight-crit">''大成功''</span><</if>>
+			<<print _r.eff.text>>
+			<div class="fight-meta"><<if _r.eff.dmg>>打掉 <<print _r.eff.dmg>> 点　<</if>><<if _r.eff.adv>>下一击有优势　<</if>><<if _r.eff.guard>>这一轮少挨 <<print _r.eff.guard>>　<</if>><<if _r.eff.hurt>>自己挨了 <<print _r.eff.hurt>>　<</if>><<if _r.eff.skipFoe>>它这一轮没能出手　<</if>><<if _r.kind is "bad">>''没能得手''<</if>></div>
+		</div>
+		<<run Game.Combat.applyEffect($pc, _r.eff, _f)>>
+		<<if _r.eff.hurt>><<damage _r.eff.hurt>><</if>>
+		<<set _f.act to null>>
+		<<if $pc.hp gt 0>>
+			<<if _f.skipFoe>>
+				<div class="fight-log">''它：''这一轮它没有出手。</div>
+			<<else>>
+				<<sitecheck $args[0]>>
+				<<if $args[1]>>
+					<<set _raw to Game.Dragon.dragonDamage($pc.inv, _f.round, ($pc.dragon.defeats ?? 0) + 1, $pc.dragon.venom)>>
+					<<set _dmg to Math.max(1, _raw - (_f.guard ?? 0))>>
+					<<if $last_check.success>>
+						<div class="fight-log">''它：''你贴着地滚开了——雾扑在你刚才站的地方，把那块石板舔掉一层。</div>
+					<<else>>
+						<<set $pc.dragon.defeats to ($pc.dragon.defeats ?? 0) + 1>>
+						<div class="fight-log">''它：''它回手了——这一下你没能全躲开。</div>
+						<<damage _dmg>>
+					<</if>>
+				<<else>>
+					<<if $last_check.success>>
+						<div class="fight-log">''它：''它扑了个空，散在你刚才站的地方——没有追。</div>
+					<<else>>
+						<div class="fight-log">''它：''它把你掀翻在地，又停住了。像在等你先动手。</div>
+						<<damage 5>>
+					<</if>>
+				<</if>>
+			<</if>>
+		<</if>>
+		<<set _f.round to (_f.round ?? 1) + 1>>
+		<<set _f.offer to []>>
+		<<set _f.guard to 0>>
+		<<set _f.adv to 0>>
+		<<set _f.skipFoe to false>>
+	<</if>>
+<</widget>>
+
+/% 这一轮的三张牌：每张都写明"走哪一项属性、DC 多少" %/
+<<widget "fightpanel">>
+	<<set _f to $pc.ev.fight>>
+	<<if _f.offer.length is 0>>
+		<<set _f.offer to Game.Combat.offer(_f.pool, _f.round, $pc, _f.last?.act)>>
+	<</if>>
+	<div class="fight-acts">
+		''这一轮你能做的：''
+		<<if _f.offer.length gt 0>>
+			<<link `Game.Combat.actions[_f.offer[0]].label`>>
+				<<set $pc.ev.fight.act to $pc.ev.fight.offer[0]>><<goto `passage()`>>
+			<</link>>
+			<span class="fight-meta">（<<print Game.Combat.siteInfo(_f.offer[0])>>）</span>
+		<</if>>
+		<<if _f.offer.length gt 1>>
+			<<link `Game.Combat.actions[_f.offer[1]].label`>>
+				<<set $pc.ev.fight.act to $pc.ev.fight.offer[1]>><<goto `passage()`>>
+			<</link>>
+			<span class="fight-meta">（<<print Game.Combat.siteInfo(_f.offer[1])>>）</span>
+		<</if>>
+		<<if _f.offer.length gt 2>>
+			<<link `Game.Combat.actions[_f.offer[2]].label`>>
+				<<set $pc.ev.fight.act to $pc.ev.fight.offer[2]>><<goto `passage()`>>
+			<</link>>
+			<span class="fight-meta">（<<print Game.Combat.siteInfo(_f.offer[2])>>）</span>
+		<</if>>
+	</div>
 <</widget>>
 
 /% 物品栏（v16 §5.0）：侧栏列出身上带着的东西——不凑数、不集齐开锁 %/

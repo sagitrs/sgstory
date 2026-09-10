@@ -1,6 +1,6 @@
 # sgstory 实施图（impl-map）——M1 骨架落地规范
 
-> **状态**：v2.2（**M1 骨架 + M2–M4 文案 + M5 终局 + M6a–f 打磨 + M5c–M5g 口径 + M7 v17 全案（去神秘化 / 传说层 / 好感合一 / 封印战）已完成**）
+> **状态**：v2.4（**M1 骨架 + M2–M4 文案 + M5 终局 + M6a–f 打磨 + M5c–M5g 口径 + M7 v17 全案（去神秘化 / 传说层 / 好感合一 / 封印战）+ M8 图鉴 + M9 互动化 + M10 判定可见 + M11 A 组 + M12 B1 战斗动作池** 已完成）
 > **定位**：`docs/game-outline.md`（玩法大纲）的**工程落地版**——把大纲翻译成**段落图 / 文件结构 / 状态模型 / 测试策略**。
 > **权威关系**：实现细节稿。**与设定书冲突以设定书为准**；与大纲冲突以大纲为准。
 
@@ -11,7 +11,7 @@
 | 切片 | 内容 | 验收 | 状态 |
 |---|---|---|---|
 | **M1a-1** | 实施图 + `audit.mjs` 去硬编码（文件发现式） | `npm test` 绿 | ✅ #127 |
-| **M1a-2** | **原子换骨**：新 `src/**`（11 文件 / 68 内容段）+ 新状态模型 + 命题集 v1 锚句在位 + 测试套重写 | `npm test` 绿 · `npm run soak` 0 违法 | ✅ 本 PR |
+| **M1a-2** | **原子换骨**：新 `src/**`（11 文件 / 68 内容段 → 现 67 段；`封印·涂毒`/`封印·冲` 在 M12 并入动作池后退休）+ 新状态模型 + 命题集 v1 锚句在位 + 测试套重写 | `npm test` 绿 · `npm run soak` 0 违法 | ✅ 本 PR |
 | **M1b** | canon 门（`audit --canon` 读设定书 §10 黑名单回流检测 + 行覆盖） | 六门绿 | ✅ #129 |
 | **M1c** | 覆盖率 ratchet 收紧（5 门）+ 场景矩阵扩展（20 路线）+ `npm run soak` 接回 CI | 覆盖率门 + CI soak job | ✅ 本 PR |
 | **M2** | 序章 + 一章文案（雾影·龙梦回放 / 酒馆四传说 / 女巫半知交底 / 翻转教学） | 六门 + 20 路线 | ✅ 本 PR |
@@ -33,13 +33,14 @@
 | **M7a** | **设定书 v17**（去神秘化 + §3.9 传说层 + 主角动机）· 设定集页 `三家` → `守塔的人家` · 酒馆传闻重写（长者 / 跑生意的 / 游客）· 女巫小屋"我儿子在塔边" | 六门 | ✅ #149 |
 | **M7b** | **补正 #1 一族的姿态**：守林人删"其实那不是封印"台词；新段落 `守林人·信`；`no_seal` 命题迁通路；§4.0 + §9 纪律 #8 | 六门 + 场景路线 | ✅ #150 |
 | **M7c** | **补正 #2 好感线合一**：`witch_favor` → **`family_favor`**；删 `keeper.trust_dragon`；二章单程 | 六门 | ✅ #151 |
-| **M7d** | **补正 #3 封印战**：`Game.Dragon.sealAt` / `bladeDamage` + `Items.poisonReduce` + `advSites`；新段落 `守林人·封印` / `封印·并肩` / `封印·涂毒` / `封印·冲`；`audit --dragon` 封印战推演 + 三门 | 六门 + `--dragon` + 场景路线 | ✅ #152 |
+| **M7d** | **补正 #3 封印战**：`Game.Dragon.sealAt` / `bladeDamage` + `Items.poisonReduce` + `advSites`；新段落 `守林人·封印` / `封印·并肩` / ~~`封印·涂毒`~~ / ~~`封印·冲`~~（**后两者 B1/M12 并入动作池**）；`audit --dragon` 封印战推演 + 三门 | 六门 + `--dragon` + 场景路线 | ✅ #152 |
 | **M7e** | **一致性审计**：设定书内部 14 处冲突 + 设定书↔正文 2 处 + 文档残留引用 | canon 门 + 全绿 | ✅ #153 |
 | **M7f** | **PR-B 文档对齐**（大纲 v1.4 / 实施图 v2.0） | 文档一致 | ✅ #154 |
 | **M7g** | **PR-C 传说层**（§3.9 补两条 + 传说覆盖门） | canon 门 + 场景路线 | ✅ #155 |
 | **M9** | **互动化改造**：信息类检定一律玩家发起（`sites[].auto` 标注战斗位点）· 酒馆 9 桌打听 + 请一轮酒 · 女巫小屋 7 问 · `<<snapshot>>`/`<<lastcheck>>` 骰面复显 · `Choices.sites` 臂数更新 · **互动门** | 七门 + 2 条新路线 | ✅ 本 PR |
 | **M11** | **A 组·假代价清零**：`Game.Gear` 行囊表（伤害 / 优势，不进 `Items.defs`）· 秘典药膏 → `salves` · `Game.Star.budget = 4` 软限（超限 → 真结局降级「再度沉睡」+ `$pc.ev.star_short` 变体）· `seer_refused` 删 / `old_witch` 接进 `归位` · 侧栏药膏与行囊 · **行囊门 + 经济门（--gear）** | 九门 + 28 路线 + 规则单测 | ✅ 本 PR |
 | **M10** | **判定可见 + 反 S/L**：`Rules.check/save` 返回 `label`（属性标注）/ `parts`（加值拆项）/ `rolls`（双骰）/ `advWhy`；渲染成一行完整算式 + `↳` 优势行；`SgUI` 开关（设定集页脚）；`Checks.keyYields` + `sites[].yields` + **反 S/L 门**；`<<lastcheckFor>>` 防旧骰面串页；8 个关键产出补第二路（含 3 处"失败仍到手"） | 八门 + 27 路线 + 规则单测 | ✅ 本 PR |
+| **M12（B1）** | **战斗动作池**：`Game.Combat`（`pools` 雾影 6 / 封印 10 / 龙 6 · `actions` 每手 `site`+`label`+`ok/crit/bad` · `eligible/offer/pick/applyEffect/siteInfo`）· 宏 `<<fightbegin>>`/`<<fightresolve>>`/`<<fightpanel>>`（回合状态 `$pc.ev.fight`）· 段落 `封印·并肩`/`龙·战` 改挂池子、`封印·涂毒`+`封印·冲` **退役** · `封印·读术式`（奥秘）给秘典留路 · **战斗动作池门（`--combat`）** · `audit --dragon` 封印战推演改为**按池内真牌取期望** | 十门 + 28 路线 + 规则单测 | ✅ 本 PR |
 | **M8** | **道具图鉴**：`Game.Codex`（10 页 / 32 线索）· `SgCodex` 跨周目持久化（`localStorage['sgstory.codex.v1']`）· `<<ending "key" final\|chapter>>` 登记宏 · `设定集·图鉴` 页 · 存档位 8 → 16（`Config.saves.maxSlotSaves`） | 六门 + 场景路线 + 图鉴门 | ✅ 本 PR |
 | **M7h** | **删三件闲物**（请柬 / 星名页 / 碎镜片）+ 守林人的杖移出清单 + **道具消费门 / 假代价门** | canon 门 + 全绿 | ✅ 本 PR |
 
@@ -58,7 +59,7 @@ src/
   20-chargen.twee     Chargen Data[script]（3 轮）+ 车卡 / 角色卡
   30-ch1.twee         序章 + 一章（时间）：开场 · 酒馆 · 森林边缘 · 洞穴 · 女巫小屋 · 林间小径
   40-ch2.twee         二章（手段）：塔门 · 雾之魔物 · 守林人（·送 / ·守 / **·封印** / **·信**）· 门厅 · 书房 · 温室 · 工坊 · 天文台 · 顶楼
-  50-ch3.twee         三章（坐标）：地下宴会厅 · 宴会·过去 · 观星者 · 当时的女巫 · 寻杖 · 老巫女 · 喂花 · 交付 · 唤醒 · **封印·并肩/涂毒/冲** · 归位
+  50-ch3.twee         三章（坐标）：地下宴会厅 · 宴会·过去 · 观星者 · 当时的女巫 · 寻杖 · 老巫女 · 喂花 · 交付 · 唤醒 · **封印·并肩（B1 动作池）** · 龙·战 / 龙·再冲 · 归位
   60-endings.twee     结局（10 个出口）
   70-codex.twee       设定集（hub + 三律 / 守塔的人家 / 塔 / 道具 / 术语 / 结局 / **图鉴**）
   80-script.twee      StoryScript（存档钩子 / S·L 快捷键）
@@ -73,6 +74,9 @@ src/
 |---|---|---|
 | `<<sitecheck 位点 [adv\|dis] [加值] [nat]>>` | 技能检定 / 豁免（`abil` 位点自动走 `<<save>>`；`dis` 位点级劣势；`nat` 天然大成功） | `Game.Checks.sites` |
 | `<<dragonbar>>` | 龙血条（`$pc.dragon.hp` / `Game.Dragon.hp`） | `Game.Dragon` |
+| `<<fightbegin "池">>` | **B1** 开一场战斗：初始化 `$pc.ev.fight`（**同池子且没打完就不重置**——点牌重渲染会再跑一遍本宏） | `Game.Combat.pools` |
+| `<<fightresolve "对手位点" [龙战]>>` | **B1** 结算上一手：掷玩家那一手（`adv` 由上一手的准备给）→ 落效果 → 对手这一轮出手（`true`＝走 `Game.Dragon.dragonDamage`） | `Game.Combat` |
+| `<<fightpanel "对手位点" [龙战]>>` | **B1** 这一轮的 3 张牌（每张旁边写明属性与 DC）；点牌只写 `$pc.ev.fight.act` 再 `<<goto>>` | `Game.Combat.offer/siteInfo` |
 | `<<snapshot>>` | 把 `$last_check` 存进 `$pc.ev.last_roll`（玩家发起的检定在 link 里掷完就存） | — |
 | `<<lastcheck>>` | 复显上一条快照的骰面（不掷骰）——`<<goto>>` 重渲染后骰面不丢 | `$pc.ev.last_roll` |
 | `<<lastcheckFor "位点" …>>` | 只当 `$pc.ev.last_roll.site` 属于给定位点时才复显（**防旧骰面串到别的段落**） | `$pc.ev.last_roll` |
@@ -96,7 +100,8 @@ src/
 | 守林人 | `keeper.met` `keeper.trust` `keeper.state`(**post/ally/seal**) `keeper.key` | 钥匙＝二章正常交涉即得（**空手也给**，v17 §5.12）；`seal`＝并肩封印线（**先打到 `sealAt` 以下**，v17 补正 #3） |
 | 物品 | `inv`（对象：`{ 时光护符: true, … }`） | 拾到即入；**不集齐开锁**（v16 §5.0） |
 | 证据 | `ev.*`（`mist_guard` `observation_lock` `keeper_why` `failure_cause` `star_ledger` `threshold` `coord` `letter_seen` …） | 真相链标记 |
-| 龙 | `dragon.hp` `dragon.defeats` `dragon.awake` **`dragon.round` `dragon.venom`** | 阈值触发战斗（`ev.threshold`）；封印战：轮次与**花毒液**（龙的攻击 −2） |
+| 龙 | `dragon.hp` `dragon.defeats` `dragon.awake` `dragon.venom` | 阈值触发战斗（`ev.threshold`）；封印战：**花毒液**（龙的攻击 −2）；**轮次改由 `$pc.ev.fight.round` 管**（B1 动作池，`dragon.round` 已退役） |
+| 战斗（B1） | **不在 `$pc`**：`$pc.ev.fight` = `{ pool, round, offer, act, adv, guard, skipFoe, flee, last, done }` | 每轮随机 3 选 1 的回合状态；点牌只写 `act` 再重渲染，判定在段落渲染顶部结算 |
 | 图鉴（跨周目） | **不在 `$pc`**：`localStorage['sgstory.codex.v1']` = `{ clues, endings, finals }` | 线索由 `Codex.satisfied(pc)` 每段落并进账本；**不用 `settings`**（`Setting.save()` 只落盘注册过的 Setting） |
 | 世界 | `world.*`（`rumor` `goblin_spared` `witch_hint` `flower_fed` `whistle_blown` `seer_asked` `old_witch_told` `mist_fought` `scroll_delivered` `fog_thin` **`family_favor`** …） | 旗标（`Game.Echoes` 覆盖门管）；**`family_favor`＝全篇唯一人情线**（还杖，v17 补正 #2） |
 
@@ -104,7 +109,7 @@ src/
 
 ---
 
-## 3. 段落图（v17 现状，68 内容段）
+## 3. 段落图（v17 现状 + M8–M12，67 内容段）
 
 ### 基础设施
 `StoryTitle` `StoryData` `StoryInit` `Widgets` `StoryCaption` `StoryScript` `StoryStyleSheet`
@@ -124,7 +129,7 @@ src/
 
 ### 三章 · 坐标
 `地下宴会厅`（现在：只有龙；`龙·巢边` 识货 / 攻击 / **`叫醒它`**）→ 翻转 → `宴会·过去`（hub）
-`唤醒`（**初始化龙血量/轮次/败次**）→（`keeper.state=seal`）**`封印·并肩`**（→ **`封印·涂毒`** 花汁抹刃 / **`封印·冲`** 回合）→ `hp ≤ sealAt` → **`结局 送入虚空`**
+`唤醒`（**初始化龙血量/败次**）→（`keeper.state=seal`）**`封印·并肩`**（**B1 动作池 `封印` 10 手**：每轮随机 3 选 1 → 涂毒 / 吹哨 / 读术式 / 硬扛…）→ `hp ≤ sealAt` → **`结局 送入虚空`**
 `设定集·图鉴`（跨周目账本：线索齐 → 永久解锁；终局 → 空页给指向）
 `宴会·过去` → `观星者`（`观星者·星` / `观星者·夜` / `观星者·图` → **完整星图**）/ `当时的女巫`（`寻杖` → **好感**；`当时的女巫·换` → **好哨**，前提：已取图 + 好感）/ `老巫女`（**只露面**：藏杖凶手（玩家不知道）+ 真结局光点）/ `喂花` / `老妇人`
 回到现在 → `交付`（顶楼：卷轴 + 星图 → 守林人同行）→ `唤醒` → `归位` → `结局 送星归位`
@@ -166,7 +171,7 @@ src/
 | 文件 | 定位 | 现状 |
 |---|---|---|
 | `test/boot.mjs` | jsdom 启动 + 就绪轮询 + uncaught 监听 | 保留 |
-| `test/render-all.mjs` | 全段落渲染（含 `$era` 双变体） | 保留（**78 格 / 68 内容段**） |
+| `test/render-all.mjs` | 全段落渲染（含 `$era` 双变体） | 保留（**78 格 / 67 内容段**） |
 | `test/walker.mjs` | 随机游走 + 不变量 + **位点双支清扫** | 重写（`inv` 闭集 / `star.spent` / `keeper.state`（**含 `seal`**）/ `dragon.hp`） |
 | `test/integrity.mjs` | 段落图结构/死链/孤儿/宏拼写/词汇纪律 | 重写（`ERA_FILES` 由 `<<flip>>` 动态发现） |
 | `test/rules.mjs` | d20 内核 + 车卡 3 轮 + `Pc.migrate` 矩阵 + 表契约（10 组） | 重写 |
@@ -182,7 +187,7 @@ src/
 
 **反 S/L 门（M10）**：`Game.Checks.keyYields` 每个关键产出的**通路 ≥2 条且判定属性 ≥2 种**；`Checks.sites[].yields` 必须指向真产出。当前 **9 个产出 · 22 条通路**（其中 3 条"失败仍到手"）。`--nosl --check` 已接入 `npm test`。
 
-**互动门（M9）**：① 段落**顶层**的 `<<sitecheck>>` 必须是 `sites[x].auto` 有理由的**战斗**位点（信息类检定只能由玩家动作发起）② 顶层读 `$last_check` ⇒ 同段落顶层必须有本轮检定（判定结果必须先落旗标）③ 位点无孤儿。当前 **检定 20 处（玩家发起 12 · 进场即动手 8）**。
+**互动门（M9）**：① 段落**顶层**的 `<<sitecheck>>` 必须是 `sites[x].auto` 有理由的**战斗**位点（信息类检定只能由玩家动作发起）② 顶层读 `$last_check` ⇒ 同段落顶层必须有本轮检定（判定结果必须先落旗标）③ 位点无孤儿。战斗轮次的检定由 `Game.Combat.actions[*].site` 提供（`<<fightresolve>>` 每轮掷一次对手位点）——这些位点算**玩家发起**（牌是玩家挑的）。当前 **检定 51 处（玩家发起 26 · 进场即动手 4 · 战斗动作池 21）**。
 
 **图鉴门（v17 M8）**：① 双向覆盖（`Items.defs` ↔ `Codex.items`）② 每页 ≥2 线索 + 非空提示（≤40 字、不得含 §9 双读禁断言）③ **线索不白送**（新档下必须全假）④ **线索可挣**（全收集态必须全真）⑤ **每个 `结局*` 段落必须 `<<ending "…" final|chapter>>`**。当前 **10 页 · 32 线索 · 命中 0**。
 
@@ -190,7 +195,7 @@ src/
 
 **§9 双读断言（M6a）**：只扫正文（不扫 `[script]`/`[stylesheet]`），禁 6 条断言——`长生` · `同一个人` · `初代巫女` · `初代` · `穿越` · `晚年`。命中即红并指出段落。当前命中 0；注入测试已验证（`设定集·三律` 注入「长生 / 同一个人」→ 门红并报段落）。
 
-**当前规模**：`npm test` 全绿（**26 条路线** · 内容段 69 · 渲染 80 · 交互 84 · 正文 ≈1.33 万字）；`npm run soak`（游走 20+20 局 + **18 位点**双支）0 违法，**已接回 CI 独立 job**（`deploy` 依赖 `[test, soak]`）。
+**当前规模**：`npm test` 全绿（**28 条路线** · 内容段 67 · 渲染 78 · 交互 82 · 正文 ≈1.34 万字）；`npm run soak`（游走 20+20 局 + **51 位点**双支）0 违法，**已接回 CI 独立 job**（`deploy` 依赖 `[test, soak]`）。
 
 **覆盖率 5 门（M1c）**：① 基线不回退 · ② 新段落必配测 · ③ **无交互盲区**（内容段落必须有可点击到达路径）· ④ **时代双态**（按 `$era` 分叉的 **10 段**必须 present/past 都被交互踩到）· ⑤ **交互格 ≥ 渲染格**。
 
@@ -214,5 +219,5 @@ src/
 | 2 | 各楼层「过去 / 现在」正文分叉（当前仅塔门 / 天文台 / 地下宴会厅 / 交付 / 宴会·过去 分叉） | M2–M5 |
 | 3 | 雾之魔物 / 守林人 的完整战斗数值（当前为机制性劝退：单挑必败） | M2 |
 | 4 | `Game.Items.effects` 中 `龙鳞护臂` 的打造前置（工坊）已有；`守林人的杖` 终局归属待 M3 | M3 |
-| 5 | ~~文本量目标（1.2–1.5 万字 / 60–80 段）~~ ✅ 现 **≈1.33 万字 / 68 段** | — |
+| 5 | ~~文本量目标（1.2–1.5 万字 / 60–80 段）~~ ✅ 现 **≈1.34 万字 / 67 段** | — |
 | 6 | ~~`npm run soak` 接回 CI~~ ✅ M1c 已完成（独立 job，`deploy` 依赖 `[test, soak]`） | — |

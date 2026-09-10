@@ -132,19 +132,22 @@
 
 :: 雾之魔物·战
 /% payload: 张力 %/
-<<sitecheck "雾之魔物·挥击">><<snapshot>>
-<<if $last_check.success>>
-	你擦着它的边缘过去。它散了，又在三步外聚起来——没有追。
-<<else>>
-	<<damage 5>>它把你掀翻在地，又停住了。像在等你先动手。
+<<fightbegin "雾影">>
+<<fightresolve "雾之魔物·挥击" false>>
+<<if $pc.hp gt 0>>
+	<<if $pc.ev.fight.round gt 2>>
+		<<set $pc.ev.fight.done to true>>
+		<<if $pc.ev.mist_guard>>
+			''它退开半步，让出一条路。''你知道它守的是谁——它也知道你知道了。
+			[[往塔那边去|守林人]]
+		<<else>>
+			它散了，又在三步外聚起来。你从它旁边过去，它没有追。
+			[[往塔那边去|守林人]]
+		<</if>>
+	<<else>>
+		<<fightpanel "雾之魔物·挥击" false>>
+	<</if>>
 <</if>>
-<<sitecheck "雾之魔物·心防">><<snapshot>>
-<<if $last_check.success>>
-	你忽然明白：它不是在守路，它是在守一个人。
-	<<set $pc.ev.mist_guard to true>>
-<</if>>
-
-[[爬起来，往塔那边去|守林人]]
 
 :: 雾之魔物·退
 /% payload: 信息 %/

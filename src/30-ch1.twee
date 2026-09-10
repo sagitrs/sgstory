@@ -58,6 +58,7 @@
 	<</if>>
 <</if>>
 
+<div class="fresh-heard" hidden></div>
 <<nobr>>
 <div class="tavern-actions">
 <details class="act-group" name="tavern-acts" open>
@@ -311,8 +312,12 @@
 <</if>>
 <<if $pc.ev.wq_seen>>
 ''（她搅着炉子上的药。你想问什么，就问。）''
+<</if>>
 
+<div class="fresh-heard" hidden></div>
 <<nobr>>
+<div class="tavern-actions">
+<<if $pc.ev.wq_seen>>
 <details class="act-group" name="witch-acts" open>
 	<summary>向她打听<span class="act-n"></span></summary>
 	<div class="tavern-tables">
@@ -339,11 +344,7 @@
 <</if>>
 </div>
 </details>
-<</nobr>>
 <</if>>
-
-<<nobr>>
-<div class="tavern-actions">
 <details class="act-group" name="witch-acts" open>
 	<summary>柜台：问门道与药膏<span class="act-n"></span></summary>
 	<<if not $pc.world.witch_hint>>

@@ -762,6 +762,7 @@ const CANON_ROWS = [
 	{ src: '悔念外化', terms: ['悔念外化'], why: '中boss＝雾之魔物' },
 	{ src: '守林人＝塔顶亡灵', terms: ['塔顶亡灵'], why: '守林人是活人' },
 	{ src: '守林人住在塔边（塔里）', terms: ['住在塔边', '守在塔边', '睡在塔里'], why: '他跟他母亲住在一起（女巫家）；塔里只有岗位' },
+	{ src: '日记记着“雾就是它漏出来的力气”', terms: ['雾就是它漏出来的力气', '那是它的路费', '这笔账没人算过', '省下的是哪一笔'], why: '星账无人感知、不可测量（v17 补正 #7）——谜底只在设定集·术语（终局后）' },
 	{ src: '守林人只留形', terms: ['只留形', '留形'], why: '送行术家传，终局由守林人施展' },
 	{ src: '吹哨需守林人到场', terms: ['需守林人到场', '吹哨需'], why: '吹哨只需龙冷静' },
 	{ src: '真结局＝历史被改', terms: ['历史被改', '在雾里散开'], why: '改为终止徒劳传送、省下最后一笔路费' },
@@ -882,6 +883,11 @@ if (wantAll || arg('canon')) {
 		{ t: '初代', why: '§9 #5：正文不称「初代」' },
 		{ t: '穿越', why: '§9 #5：正文不出现「穿越」' },
 		{ t: '晚年', why: '§9 #5：不点破老巫女＝晚年回到那一夜' },
+		// v17 补正 #7（#168 待确认②拍板）：星账正文无人感知、不可测量——"雾＝星力"谁也不许点破，谜底只在设定集·术语（终局后）
+		{ t: '漏出来的力气', allow: ['设定集·术语'], why: 'v17 补正 #7：谜底只在设定集（SgCodex.seenFinal() 门内）' },
+		{ t: '路费', why: 'v17 补正 #7：正文的雾不许被记成一笔账' },
+		{ t: '这笔账', why: 'v17 补正 #7：星账无人感知、不可测量' },
+		{ t: '攒得还不够', why: 'v17 补正 #7：没人算过它的积蓄' },
 	];
 	let dualHit = 0;
 	for (const [name, src] of passageSrc) {
@@ -889,6 +895,7 @@ if (wantAll || arg('canon')) {
 		if (tags.includes('script') || tags.includes('stylesheet')) continue; // 只扫正文
 		const text = src.replace(/\/%[\s\S]*?%\//g, ''); // 剥 /% %/ 注释
 		for (const d of DUALREAD) {
+			if ((d.allow ?? []).includes(name)) continue; // 白名单：谜底只许在设定集·术语
 			if (text.includes(d.t)) { dualHit++; bad++; console.log(`  ✗ 段落「${name}」出现「${d.t}」（${d.why}）`); }
 		}
 	}
@@ -989,6 +996,15 @@ if (wantAll || arg('canon')) {
 	console.log(`  §3.9 传说：表 ${legendRows.length} 行 · 认领 ${LEGENDS.length} 条 · 投放锚 ${LEGENDS.reduce((n, e) => n + e.anchors.length, 0)} 个 · 命中 ${legHit}（每行须有 ② 的真/误或 ① 的登记）`);
 	console.log(`  §10 行 ${rows.length} · 认领 ${CANON_ROWS.length} 条 · 禁词 ${termCount} 个 · 命中 ${hit}`);
 	console.log(`  §9 双读：禁断言 ${DUALREAD.length} 条 · 命中 ${dualHit}（正文不点破：长生/同一个人/初代/穿越/晚年）`);
+	// 谜底门（v17 补正 #7）：雾＝星力只许在设定集·术语揭开，且必须落在 SgCodex.seenFinal()（走到过终局）门内
+	{
+		const src = passageSrc.get('设定集·术语') ?? '';
+		const gi = src.indexOf('<<if SgCodex.seenFinal()>>');
+		const ai = src.indexOf('漏出来的力气');
+		const gated = gi >= 0 && ai > gi && !src.slice(gi, ai).includes('<</if>>');
+		if (!gated) { bad++; console.log('  ✗ 谜底门：设定集·术语 的「雾＝星力」必须在 <<if SgCodex.seenFinal()>> 门内（v17 补正 #7——谜底只在终局后的设定集）'); }
+		else console.log('  谜底门：设定集·术语 的揭示落在终局门内 ✓');
+	}
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ canon 门：${bad} 项回流/未认领`); process.exit(1); }
 		console.log('\n✔ canon 门通过（§10 全行认领，禁词零回流）');

@@ -1,0 +1,33 @@
+{
+  "base": "4d447db0c35c00be55100a2c8014626e19499ec8",
+  "checks": [
+    {
+      "file": "src/30-ch1.twee",
+      "ruleActions": 65,
+      "ruleActionsAndConditionalAncestorsEqual": true,
+      "linkTargetsEqual": true,
+      "passageNamesEqual": true
+    },
+    {
+      "file": "src/40-ch2.twee",
+      "ruleActions": 119,
+      "ruleActionsAndConditionalAncestorsEqual": true,
+      "linkTargetsEqual": true,
+      "passageNamesEqual": true
+    },
+    {
+      "file": "src/50-ch3.twee",
+      "ruleActions": 59,
+      "ruleActionsAndConditionalAncestorsEqual": true,
+      "linkTargetsEqual": true,
+      "passageNamesEqual": true
+    },
+    {
+      "file": "src/70-codex.twee",
+      "ruleActions": 0,
+      "ruleActionsAndConditionalAncestorsEqual": true,
+      "linkTargetsEqual": true,
+      "passageNamesEqual": true
+    }
+  ]
+}

@@ -1,0 +1,1008 @@
+{
+  "upstream": "d95c83a0c48d34a0c8553b75349b11fcfc5e9dfc",
+  "scope": "66 content passages; counts use the upstream craft-audit stripping rules; every passage has non-increasing raw occurrence counts.",
+  "before": {
+    "dash": 155,
+    "like": 59,
+    "paren": 93,
+    "chars": 18563
+  },
+  "after": {
+    "dash": 125,
+    "like": 53,
+    "paren": 90,
+    "chars": 18601
+  },
+  "rows": [
+    {
+      "name": "车卡",
+      "before": {
+        "dash": 0,
+        "like": 0,
+        "paren": 1,
+        "chars": 275
+      },
+      "after": {
+        "dash": 0,
+        "like": 0,
+        "paren": 0,
+        "chars": 277
+      }
+    },
+    {
+      "name": "角色卡",
+      "before": {
+        "dash": 0,
+        "like": 0,
+        "paren": 0,
+        "chars": 376
+      },
+      "after": {
+        "dash": 0,
+        "like": 0,
+        "paren": 0,
+        "chars": 374
+      }
+    },
+    {
+      "name": "开场",
+      "before": {
+        "dash": 3,
+        "like": 1,
+        "paren": 0,
+        "chars": 456
+      },
+      "after": {
+        "dash": 3,
+        "like": 1,
+        "paren": 0,
+        "chars": 450
+      }
+    },
+    {
+      "name": "酒馆",
+      "before": {
+        "dash": 14,
+        "like": 3,
+        "paren": 3,
+        "chars": 1200
+      },
+      "after": {
+        "dash": 14,
+        "like": 3,
+        "paren": 3,
+        "chars": 1205
+      }
+    },
+    {
+      "name": "结局 平凡之路",
+      "before": {
+        "dash": 0,
+        "like": 1,
+        "paren": 1,
+        "chars": 140
+      },
+      "after": {
+        "dash": 0,
+        "like": 1,
+        "paren": 1,
+        "chars": 140
+      }
+    },
+    {
+      "name": "森林边缘",
+      "before": {
+        "dash": 4,
+        "like": 4,
+        "paren": 1,
+        "chars": 349
+      },
+      "after": {
+        "dash": 4,
+        "like": 4,
+        "paren": 1,
+        "chars": 345
+      }
+    },
+    {
+      "name": "洞穴",
+      "before": {
+        "dash": 3,
+        "like": 1,
+        "paren": 1,
+        "chars": 422
+      },
+      "after": {
+        "dash": 3,
+        "like": 1,
+        "paren": 1,
+        "chars": 422
+      }
+    },
+    {
+      "name": "女巫小屋",
+      "before": {
+        "dash": 15,
+        "like": 3,
+        "paren": 5,
+        "chars": 979
+      },
+      "after": {
+        "dash": 13,
+        "like": 3,
+        "paren": 5,
+        "chars": 996
+      }
+    },
+    {
+      "name": "林间小径",
+      "before": {
+        "dash": 4,
+        "like": 0,
+        "paren": 0,
+        "chars": 264
+      },
+      "after": {
+        "dash": 2,
+        "like": 0,
+        "paren": 0,
+        "chars": 273
+      }
+    },
+    {
+      "name": "结局 银月之赐",
+      "before": {
+        "dash": 0,
+        "like": 0,
+        "paren": 1,
+        "chars": 159
+      },
+      "after": {
+        "dash": 0,
+        "like": 0,
+        "paren": 1,
+        "chars": 164
+      }
+    },
+    {
+      "name": "塔门",
+      "before": {
+        "dash": 4,
+        "like": 1,
+        "paren": 3,
+        "chars": 415
+      },
+      "after": {
+        "dash": 4,
+        "like": 1,
+        "paren": 3,
+        "chars": 384
+      }
+    },
+    {
+      "name": "塔外花田",
+      "before": {
+        "dash": 5,
+        "like": 2,
+        "paren": 3,
+        "chars": 528
+      },
+      "after": {
+        "dash": 4,
+        "like": 2,
+        "paren": 3,
+        "chars": 527
+      }
+    },
+    {
+      "name": "半途的林子",
+      "before": {
+        "dash": 1,
+        "like": 1,
+        "paren": 1,
+        "chars": 125
+      },
+      "after": {
+        "dash": 1,
+        "like": 1,
+        "paren": 1,
+        "chars": 125
+      }
+    },
+    {
+      "name": "雾之魔物",
+      "before": {
+        "dash": 4,
+        "like": 3,
+        "paren": 0,
+        "chars": 236
+      },
+      "after": {
+        "dash": 3,
+        "like": 3,
+        "paren": 0,
+        "chars": 236
+      }
+    },
+    {
+      "name": "雾之魔物·战",
+      "before": {
+        "dash": 1,
+        "like": 0,
+        "paren": 0,
+        "chars": 100
+      },
+      "after": {
+        "dash": 1,
+        "like": 0,
+        "paren": 0,
+        "chars": 100
+      }
+    },
+    {
+      "name": "雾之魔物·退",
+      "before": {
+        "dash": 1,
+        "like": 1,
+        "paren": 0,
+        "chars": 95
+      },
+      "after": {
+        "dash": 1,
+        "like": 1,
+        "paren": 0,
+        "chars": 95
+      }
+    },
+    {
+      "name": "守林人",
+      "before": {
+        "dash": 8,
+        "like": 1,
+        "paren": 2,
+        "chars": 774
+      },
+      "after": {
+        "dash": 7,
+        "like": 1,
+        "paren": 2,
+        "chars": 785
+      }
+    },
+    {
+      "name": "守林人·信",
+      "before": {
+        "dash": 1,
+        "like": 0,
+        "paren": 0,
+        "chars": 126
+      },
+      "after": {
+        "dash": 1,
+        "like": 0,
+        "paren": 0,
+        "chars": 126
+      }
+    },
+    {
+      "name": "守林人·封印",
+      "before": {
+        "dash": 2,
+        "like": 0,
+        "paren": 0,
+        "chars": 186
+      },
+      "after": {
+        "dash": 2,
+        "like": 0,
+        "paren": 0,
+        "chars": 186
+      }
+    },
+    {
+      "name": "守林人·送",
+      "before": {
+        "dash": 2,
+        "like": 1,
+        "paren": 1,
+        "chars": 174
+      },
+      "after": {
+        "dash": 1,
+        "like": 1,
+        "paren": 1,
+        "chars": 152
+      }
+    },
+    {
+      "name": "守林人·守",
+      "before": {
+        "dash": 3,
+        "like": 1,
+        "paren": 0,
+        "chars": 249
+      },
+      "after": {
+        "dash": 3,
+        "like": 1,
+        "paren": 0,
+        "chars": 246
+      }
+    },
+    {
+      "name": "门厅",
+      "before": {
+        "dash": 3,
+        "like": 2,
+        "paren": 3,
+        "chars": 585
+      },
+      "after": {
+        "dash": 1,
+        "like": 2,
+        "paren": 3,
+        "chars": 598
+      }
+    },
+    {
+      "name": "书房",
+      "before": {
+        "dash": 12,
+        "like": 1,
+        "paren": 12,
+        "chars": 1185
+      },
+      "after": {
+        "dash": 11,
+        "like": 1,
+        "paren": 12,
+        "chars": 1200
+      }
+    },
+    {
+      "name": "工坊",
+      "before": {
+        "dash": 4,
+        "like": 0,
+        "paren": 4,
+        "chars": 519
+      },
+      "after": {
+        "dash": 3,
+        "like": 0,
+        "paren": 4,
+        "chars": 506
+      }
+    },
+    {
+      "name": "天文台",
+      "before": {
+        "dash": 5,
+        "like": 1,
+        "paren": 4,
+        "chars": 571
+      },
+      "after": {
+        "dash": 4,
+        "like": 1,
+        "paren": 4,
+        "chars": 540
+      }
+    },
+    {
+      "name": "顶楼",
+      "before": {
+        "dash": 0,
+        "like": 2,
+        "paren": 0,
+        "chars": 135
+      },
+      "after": {
+        "dash": 0,
+        "like": 2,
+        "paren": 0,
+        "chars": 135
+      }
+    },
+    {
+      "name": "结局 新任守林人",
+      "before": {
+        "dash": 0,
+        "like": 1,
+        "paren": 1,
+        "chars": 143
+      },
+      "after": {
+        "dash": 0,
+        "like": 1,
+        "paren": 1,
+        "chars": 143
+      }
+    },
+    {
+      "name": "结局 焚塔者",
+      "before": {
+        "dash": 0,
+        "like": 1,
+        "paren": 1,
+        "chars": 136
+      },
+      "after": {
+        "dash": 0,
+        "like": 1,
+        "paren": 1,
+        "chars": 140
+      }
+    },
+    {
+      "name": "结局 半途",
+      "before": {
+        "dash": 0,
+        "like": 0,
+        "paren": 1,
+        "chars": 122
+      },
+      "after": {
+        "dash": 0,
+        "like": 0,
+        "paren": 1,
+        "chars": 122
+      }
+    },
+    {
+      "name": "地下宴会厅",
+      "before": {
+        "dash": 4,
+        "like": 3,
+        "paren": 1,
+        "chars": 314
+      },
+      "after": {
+        "dash": 2,
+        "like": 1,
+        "paren": 1,
+        "chars": 274
+      }
+    },
+    {
+      "name": "龙·巢边",
+      "before": {
+        "dash": 0,
+        "like": 0,
+        "paren": 1,
+        "chars": 95
+      },
+      "after": {
+        "dash": 0,
+        "like": 0,
+        "paren": 1,
+        "chars": 104
+      }
+    },
+    {
+      "name": "宴会·过去",
+      "before": {
+        "dash": 2,
+        "like": 2,
+        "paren": 1,
+        "chars": 371
+      },
+      "after": {
+        "dash": 0,
+        "like": 0,
+        "paren": 1,
+        "chars": 364
+      }
+    },
+    {
+      "name": "老妇人",
+      "before": {
+        "dash": 0,
+        "like": 0,
+        "paren": 0,
+        "chars": 55
+      },
+      "after": {
+        "dash": 0,
+        "like": 0,
+        "paren": 0,
+        "chars": 68
+      }
+    },
+    {
+      "name": "观星者",
+      "before": {
+        "dash": 1,
+        "like": 1,
+        "paren": 1,
+        "chars": 217
+      },
+      "after": {
+        "dash": 0,
+        "like": 0,
+        "paren": 1,
+        "chars": 208
+      }
+    },
+    {
+      "name": "观星者·星",
+      "before": {
+        "dash": 0,
+        "like": 0,
+        "paren": 0,
+        "chars": 98
+      },
+      "after": {
+        "dash": 0,
+        "like": 0,
+        "paren": 0,
+        "chars": 102
+      }
+    },
+    {
+      "name": "观星者·夜",
+      "before": {
+        "dash": 1,
+        "like": 0,
+        "paren": 0,
+        "chars": 96
+      },
+      "after": {
+        "dash": 1,
+        "like": 0,
+        "paren": 0,
+        "chars": 115
+      }
+    },
+    {
+      "name": "观星者·图",
+      "before": {
+        "dash": 0,
+        "like": 1,
+        "paren": 2,
+        "chars": 237
+      },
+      "after": {
+        "dash": 0,
+        "like": 1,
+        "paren": 2,
+        "chars": 232
+      }
+    },
+    {
+      "name": "当时的女巫",
+      "before": {
+        "dash": 4,
+        "like": 1,
+        "paren": 4,
+        "chars": 340
+      },
+      "after": {
+        "dash": 2,
+        "like": 1,
+        "paren": 4,
+        "chars": 319
+      }
+    },
+    {
+      "name": "寻杖",
+      "before": {
+        "dash": 4,
+        "like": 0,
+        "paren": 5,
+        "chars": 515
+      },
+      "after": {
+        "dash": 1,
+        "like": 0,
+        "paren": 5,
+        "chars": 539
+      }
+    },
+    {
+      "name": "老巫女",
+      "before": {
+        "dash": 2,
+        "like": 0,
+        "paren": 2,
+        "chars": 116
+      },
+      "after": {
+        "dash": 1,
+        "like": 0,
+        "paren": 2,
+        "chars": 114
+      }
+    },
+    {
+      "name": "当时的女巫·换",
+      "before": {
+        "dash": 1,
+        "like": 2,
+        "paren": 0,
+        "chars": 136
+      },
+      "after": {
+        "dash": 1,
+        "like": 2,
+        "paren": 0,
+        "chars": 147
+      }
+    },
+    {
+      "name": "喂花",
+      "before": {
+        "dash": 2,
+        "like": 1,
+        "paren": 1,
+        "chars": 204
+      },
+      "after": {
+        "dash": 1,
+        "like": 1,
+        "paren": 1,
+        "chars": 196
+      }
+    },
+    {
+      "name": "交付",
+      "before": {
+        "dash": 2,
+        "like": 0,
+        "paren": 1,
+        "chars": 269
+      },
+      "after": {
+        "dash": 1,
+        "like": 0,
+        "paren": 1,
+        "chars": 290
+      }
+    },
+    {
+      "name": "唤醒",
+      "before": {
+        "dash": 4,
+        "like": 1,
+        "paren": 1,
+        "chars": 415
+      },
+      "after": {
+        "dash": 4,
+        "like": 1,
+        "paren": 1,
+        "chars": 409
+      }
+    },
+    {
+      "name": "归位",
+      "before": {
+        "dash": 3,
+        "like": 5,
+        "paren": 2,
+        "chars": 331
+      },
+      "after": {
+        "dash": 3,
+        "like": 5,
+        "paren": 2,
+        "chars": 332
+      }
+    },
+    {
+      "name": "封印·并肩",
+      "before": {
+        "dash": 1,
+        "like": 0,
+        "paren": 0,
+        "chars": 134
+      },
+      "after": {
+        "dash": 1,
+        "like": 0,
+        "paren": 0,
+        "chars": 133
+      }
+    },
+    {
+      "name": "龙·战",
+      "before": {
+        "dash": 1,
+        "like": 0,
+        "paren": 0,
+        "chars": 121
+      },
+      "after": {
+        "dash": 1,
+        "like": 0,
+        "paren": 0,
+        "chars": 133
+      }
+    },
+    {
+      "name": "龙·再冲",
+      "before": {
+        "dash": 1,
+        "like": 0,
+        "paren": 0,
+        "chars": 54
+      },
+      "after": {
+        "dash": 1,
+        "like": 0,
+        "paren": 0,
+        "chars": 54
+      }
+    },
+    {
+      "name": "结局 送星归位",
+      "before": {
+        "dash": 2,
+        "like": 1,
+        "paren": 2,
+        "chars": 422
+      },
+      "after": {
+        "dash": 2,
+        "like": 1,
+        "paren": 2,
+        "chars": 415
+      }
+    },
+    {
+      "name": "结局 再度沉睡",
+      "before": {
+        "dash": 2,
+        "like": 3,
+        "paren": 2,
+        "chars": 340
+      },
+      "after": {
+        "dash": 1,
+        "like": 2,
+        "paren": 2,
+        "chars": 337
+      }
+    },
+    {
+      "name": "结局 自愿的长眠",
+      "before": {
+        "dash": 1,
+        "like": 1,
+        "paren": 1,
+        "chars": 177
+      },
+      "after": {
+        "dash": 1,
+        "like": 1,
+        "paren": 1,
+        "chars": 174
+      }
+    },
+    {
+      "name": "结局 守林人击杀",
+      "before": {
+        "dash": 1,
+        "like": 0,
+        "paren": 1,
+        "chars": 200
+      },
+      "after": {
+        "dash": 1,
+        "like": 0,
+        "paren": 1,
+        "chars": 207
+      }
+    },
+    {
+      "name": "结局 送入虚空",
+      "before": {
+        "dash": 3,
+        "like": 1,
+        "paren": 1,
+        "chars": 263
+      },
+      "after": {
+        "dash": 3,
+        "like": 1,
+        "paren": 1,
+        "chars": 268
+      }
+    },
+    {
+      "name": "结局 劣化封印",
+      "before": {
+        "dash": 1,
+        "like": 1,
+        "paren": 1,
+        "chars": 167
+      },
+      "after": {
+        "dash": 1,
+        "like": 1,
+        "paren": 1,
+        "chars": 161
+      }
+    },
+    {
+      "name": "结局 星落",
+      "before": {
+        "dash": 1,
+        "like": 1,
+        "paren": 1,
+        "chars": 227
+      },
+      "after": {
+        "dash": 1,
+        "like": 1,
+        "paren": 1,
+        "chars": 227
+      }
+    },
+    {
+      "name": "结局 讨伐",
+      "before": {
+        "dash": 1,
+        "like": 0,
+        "paren": 1,
+        "chars": 161
+      },
+      "after": {
+        "dash": 1,
+        "like": 0,
+        "paren": 1,
+        "chars": 163
+      }
+    },
+    {
+      "name": "结局 坠星之死",
+      "before": {
+        "dash": 1,
+        "like": 1,
+        "paren": 1,
+        "chars": 189
+      },
+      "after": {
+        "dash": 1,
+        "like": 1,
+        "paren": 1,
+        "chars": 192
+      }
+    },
+    {
+      "name": "结局 死亡",
+      "before": {
+        "dash": 2,
+        "like": 1,
+        "paren": 2,
+        "chars": 236
+      },
+      "after": {
+        "dash": 2,
+        "like": 1,
+        "paren": 2,
+        "chars": 236
+      }
+    },
+    {
+      "name": "设定集",
+      "before": {
+        "dash": 0,
+        "like": 0,
+        "paren": 0,
+        "chars": 48
+      },
+      "after": {
+        "dash": 0,
+        "like": 0,
+        "paren": 0,
+        "chars": 67
+      }
+    },
+    {
+      "name": "设定集·三律",
+      "before": {
+        "dash": 1,
+        "like": 0,
+        "paren": 0,
+        "chars": 124
+      },
+      "after": {
+        "dash": 1,
+        "like": 0,
+        "paren": 0,
+        "chars": 136
+      }
+    },
+    {
+      "name": "设定集·守塔的人家",
+      "before": {
+        "dash": 3,
+        "like": 0,
+        "paren": 3,
+        "chars": 209
+      },
+      "after": {
+        "dash": 0,
+        "like": 0,
+        "paren": 2,
+        "chars": 222
+      }
+    },
+    {
+      "name": "设定集·道具",
+      "before": {
+        "dash": 2,
+        "like": 0,
+        "paren": 0,
+        "chars": 152
+      },
+      "after": {
+        "dash": 2,
+        "like": 0,
+        "paren": 0,
+        "chars": 152
+      }
+    },
+    {
+      "name": "设定集·结局",
+      "before": {
+        "dash": 1,
+        "like": 0,
+        "paren": 1,
+        "chars": 157
+      },
+      "after": {
+        "dash": 1,
+        "like": 0,
+        "paren": 0,
+        "chars": 170
+      }
+    },
+    {
+      "name": "设定集·图鉴",
+      "before": {
+        "dash": 0,
+        "like": 0,
+        "paren": 0,
+        "chars": 8
+      },
+      "after": {
+        "dash": 0,
+        "like": 0,
+        "paren": 0,
+        "chars": 8
+      }
+    },
+    {
+      "name": "设定集·塔",
+      "before": {
+        "dash": 1,
+        "like": 0,
+        "paren": 5,
+        "chars": 214
+      },
+      "after": {
+        "dash": 1,
+        "like": 0,
+        "paren": 5,
+        "chars": 214
+      }
+    },
+    {
+      "name": "设定集·术语",
+      "before": {
+        "dash": 0,
+        "like": 0,
+        "paren": 0,
+        "chars": 127
+      },
+      "after": {
+        "dash": 0,
+        "like": 0,
+        "paren": 0,
+        "chars": 127
+      }
+    }
+  ]
+}

@@ -459,7 +459,7 @@ window.Game = (() => {
 				bad:  { text: "你盯得太久，那团白已经贴到你脸上了。", hurt: 3 } },
 			'雾影·亮哨': { site: '雾影·亮哨', label: '把怀里那支哨子举起来', need: 'inv:坏哨',
 				ok:   { text: "你举起哨子。那团白停住了——''它认得这个形状''。它退开半步，让出一条路。", skipFoe: true },
-				crit: { text: "你举起哨子，风从哨口过了一下，响了一声。它整团往下沉了半尺，像行了个礼。", skipFoe: true, flag: 'mist_guard' },
+				crit: { text: "你举起哨子，让它看清锈蚀的轮廓。它整团往下沉了半尺，像行了个礼。", skipFoe: true, flag: 'mist_guard' },
 				bad:  { text: "雾扑过来，把哨子和你一起按了一下。", hurt: 3 } },
 			'雾影·让开': { site: '雾影·让开', label: '侧身让开半步，等它先动',
 				ok:   { text: "你让开，它扑了个空，散在你刚才站的地方。", guard: 5 },

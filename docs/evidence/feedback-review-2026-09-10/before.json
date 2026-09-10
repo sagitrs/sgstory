@@ -1,0 +1,461 @@
+{
+  "errors": [],
+  "records": [
+    {
+      "width": 1440,
+      "id": "tavern-last",
+      "before": {
+        "scrollY": 639,
+        "text": "墙上那幅旧画",
+        "rect": {
+          "x": 550,
+          "y": 402.609375,
+          "width": 114.765625,
+          "height": 39.640625,
+          "top": 402.609375,
+          "right": 664.765625,
+          "bottom": 442.25,
+          "left": 550
+        },
+        "passage": "酒馆"
+      },
+      "after": {
+        "scrollY": 0,
+        "viewport": 844,
+        "passage": "酒馆",
+        "rect": {
+          "x": 550,
+          "y": 828.15625,
+          "width": 620,
+          "height": 77.28125,
+          "top": 828.15625,
+          "right": 1170,
+          "bottom": 905.4375,
+          "left": 550
+        },
+        "text": "——墙上的旧画，颜色掉得只剩轮廓：一场宴，长桌、灯、很多人。画角有一行小字，看不清了。",
+        "activeElement": "BODY",
+        "html": "<p>——墙上的旧画，颜色掉得只剩轮廓：一场宴，长桌、灯、很多人。画角有一行小字，看不清了。</p>",
+        "renderErrors": []
+      }
+    },
+    {
+      "width": 1440,
+      "id": "tavern-first",
+      "before": {
+        "scrollY": 0,
+        "text": "靠窗那桌——他们在讲塔上那盏灯",
+        "rect": {
+          "x": 550,
+          "y": 356.484375,
+          "width": 286.90625,
+          "height": 39.640625,
+          "top": 356.484375,
+          "right": 836.90625,
+          "bottom": 396.125,
+          "left": 550
+        },
+        "passage": "酒馆"
+      },
+      "after": {
+        "scrollY": 0,
+        "viewport": 844,
+        "passage": "酒馆",
+        "rect": {
+          "x": 550,
+          "y": 781.15625,
+          "width": 620,
+          "height": 77.28125,
+          "top": 781.15625,
+          "right": 1170,
+          "bottom": 858.4375,
+          "left": 550
+        },
+        "text": "——靠窗那桌：\"我爷爷的爷爷见过塔上亮着灯。三百年了，那灯没灭过。\"",
+        "activeElement": "BODY",
+        "html": "<p>——靠窗那桌：<strong>\"我爷爷的爷爷见过塔上亮着灯。三百年了，那灯没灭过。\"</strong></p>",
+        "renderErrors": []
+      }
+    },
+    {
+      "width": 1440,
+      "id": "tavern-social",
+      "before": {
+        "scrollY": 875,
+        "text": "拿出筹码：请她喝一轮（问路）",
+        "rect": {
+          "x": 569.546875,
+          "y": 402.90625,
+          "width": 267.78125,
+          "height": 38.640625,
+          "top": 402.90625,
+          "right": 837.328125,
+          "bottom": 441.546875,
+          "left": 569.546875
+        },
+        "passage": "酒馆"
+      },
+      "after": {
+        "scrollY": 0,
+        "viewport": 844,
+        "passage": "酒馆",
+        "rect": {
+          "x": 569.546875,
+          "y": 1504.234375,
+          "width": 583.90625,
+          "height": 77.28125,
+          "top": 1504.234375,
+          "right": 1153.453125,
+          "bottom": 1581.515625,
+          "left": 569.546875
+        },
+        "text": "你把酒钱推过去。她愣了一下，然后真的坐下了：\"……你倒是会做人。坐下吧。\"",
+        "activeElement": "BODY",
+        "html": "<span class=\"soc-said\">你把酒钱推过去。她愣了一下，然后真的坐下了：\"……你倒是会做人。坐下吧。\"</span>",
+        "renderErrors": []
+      }
+    },
+    {
+      "width": 1440,
+      "id": "witch-last",
+      "before": {
+        "scrollY": 932,
+        "text": "问：我一个人上去，够吗",
+        "rect": {
+          "x": 550,
+          "y": 402.015625,
+          "width": 210.40625,
+          "height": 39.640625,
+          "top": 402.015625,
+          "right": 760.40625,
+          "bottom": 441.65625,
+          "left": 550
+        },
+        "passage": "女巫小屋"
+      },
+      "after": {
+        "scrollY": 0,
+        "viewport": 844,
+        "passage": "女巫小屋",
+        "rect": {
+          "x": 550,
+          "y": 649.515625,
+          "width": 620,
+          "height": 38.640625,
+          "top": 649.515625,
+          "right": 1170,
+          "bottom": 688.15625,
+          "left": 550
+        },
+        "text": "——\"你要是走到了那一步，\"她说，\"别急着动手。先看清楚它是什么。\"",
+        "activeElement": "BODY",
+        "html": "<p>——\"你要是走到了那一步，\"她说，\"<strong>别急着动手。先看清楚它是什么。</strong>\"</p>",
+        "renderErrors": []
+      }
+    },
+    {
+      "width": 1440,
+      "id": "witch-first",
+      "before": {
+        "scrollY": 0,
+        "text": "问：你们家与那座塔有什么渊源",
+        "rect": {
+          "x": 550,
+          "y": 356.484375,
+          "width": 267.78125,
+          "height": 39.640625,
+          "top": 356.484375,
+          "right": 817.78125,
+          "bottom": 396.125,
+          "left": 550
+        },
+        "passage": "女巫小屋"
+      },
+      "after": {
+        "scrollY": 0,
+        "viewport": 844,
+        "passage": "女巫小屋",
+        "rect": {
+          "x": 550,
+          "y": 602.515625,
+          "width": 620,
+          "height": 77.28125,
+          "top": 602.515625,
+          "right": 1170,
+          "bottom": 679.796875,
+          "left": 550
+        },
+        "text": "——\"酒馆有幅旧画，不少人拿我跟画上的女人比。\"她摇摇头，\"别拿那幅画比。\"又说，\"我妈像她，我姥姥也像她。行头是一代一代传下来的。\"",
+        "activeElement": "BODY",
+        "html": "<p>——\"酒馆有幅旧画，不少人拿我跟画上的女人比。\"她摇摇头，<strong>\"别拿那幅画比。\"</strong>又说，<strong>\"我妈像她，我姥姥也像她。行头是一代一代传下来的。\"</strong></p>",
+        "renderErrors": []
+      }
+    },
+    {
+      "width": 1440,
+      "id": "witch-middle",
+      "before": {
+        "scrollY": 0,
+        "text": "问：雾到底是什么",
+        "rect": {
+          "x": 550,
+          "y": 403.484375,
+          "width": 153.015625,
+          "height": 39.640625,
+          "top": 403.484375,
+          "right": 703.015625,
+          "bottom": 443.125,
+          "left": 550
+        },
+        "passage": "女巫小屋"
+      },
+      "after": {
+        "scrollY": 0,
+        "viewport": 844,
+        "passage": "女巫小屋",
+        "rect": {
+          "x": 550,
+          "y": 746.859375,
+          "width": 620,
+          "height": 77.28125,
+          "top": 746.859375,
+          "right": 1170,
+          "bottom": 824.140625,
+          "left": 550
+        },
+        "text": "——\"雾是灾祸。我祖母这么说，她的祖母也这么说。塔底下那位不肯走，雾就一年比一年厚。\"",
+        "activeElement": "BODY",
+        "html": "<p>——\"雾是灾祸。我祖母这么说，她的祖母也这么说。<strong>塔底下那位不肯走</strong>，雾就一年比一年厚。\"</p>",
+        "renderErrors": []
+      }
+    },
+    {
+      "width": 390,
+      "id": "tavern-last",
+      "before": {
+        "scrollY": 910,
+        "text": "墙上那幅旧画",
+        "rect": {
+          "x": 64,
+          "y": 402.09375,
+          "width": 114.765625,
+          "height": 39.640625,
+          "top": 402.09375,
+          "right": 178.765625,
+          "bottom": 441.734375,
+          "left": 64
+        },
+        "passage": "酒馆"
+      },
+      "after": {
+        "scrollY": 0,
+        "viewport": 844,
+        "passage": "酒馆",
+        "rect": {
+          "x": 64,
+          "y": 982.71875,
+          "width": 294,
+          "height": 115.921875,
+          "top": 982.71875,
+          "right": 358,
+          "bottom": 1098.640625,
+          "left": 64
+        },
+        "text": "——墙上的旧画，颜色掉得只剩轮廓：一场宴，长桌、灯、很多人。画角有一行小字，看不清了。",
+        "activeElement": "BODY",
+        "html": "<p>——墙上的旧画，颜色掉得只剩轮廓：一场宴，长桌、灯、很多人。画角有一行小字，看不清了。</p>",
+        "renderErrors": []
+      }
+    },
+    {
+      "width": 390,
+      "id": "tavern-first",
+      "before": {
+        "scrollY": 0,
+        "text": "靠窗那桌——他们在讲塔上那盏灯",
+        "rect": {
+          "x": 64,
+          "y": 472.40625,
+          "width": 286.90625,
+          "height": 39.640625,
+          "top": 472.40625,
+          "right": 350.90625,
+          "bottom": 512.046875,
+          "left": 64
+        },
+        "passage": "酒馆"
+      },
+      "after": {
+        "scrollY": 0,
+        "viewport": 844,
+        "passage": "酒馆",
+        "rect": {
+          "x": 64,
+          "y": 935.71875,
+          "width": 294,
+          "height": 115.921875,
+          "top": 935.71875,
+          "right": 358,
+          "bottom": 1051.640625,
+          "left": 64
+        },
+        "text": "——靠窗那桌：\"我爷爷的爷爷见过塔上亮着灯。三百年了，那灯没灭过。\"",
+        "activeElement": "BODY",
+        "html": "<p>——靠窗那桌：<strong>\"我爷爷的爷爷见过塔上亮着灯。三百年了，那灯没灭过。\"</strong></p>",
+        "renderErrors": []
+      }
+    },
+    {
+      "width": 390,
+      "id": "tavern-social",
+      "before": {
+        "scrollY": 1242,
+        "text": "拿出筹码：请她喝一轮（问路）",
+        "rect": {
+          "x": 83.546875,
+          "y": 383.671875,
+          "width": 257.90625,
+          "height": 77.28125,
+          "top": 383.671875,
+          "right": 341.453125,
+          "bottom": 460.953125,
+          "left": 83.546875
+        },
+        "passage": "酒馆"
+      },
+      "after": {
+        "scrollY": 0,
+        "viewport": 844,
+        "passage": "酒馆",
+        "rect": {
+          "x": 83.546875,
+          "y": 1852,
+          "width": 257.90625,
+          "height": 115.921875,
+          "top": 1852,
+          "right": 341.453125,
+          "bottom": 1967.921875,
+          "left": 83.546875
+        },
+        "text": "你把酒钱推过去。她愣了一下，然后真的坐下了：\"……你倒是会做人。坐下吧。\"",
+        "activeElement": "BODY",
+        "html": "<span class=\"soc-said\">你把酒钱推过去。她愣了一下，然后真的坐下了：\"……你倒是会做人。坐下吧。\"</span>",
+        "renderErrors": []
+      }
+    },
+    {
+      "width": 390,
+      "id": "witch-last",
+      "before": {
+        "scrollY": 1280,
+        "text": "问：我一个人上去，够吗",
+        "rect": {
+          "x": 64,
+          "y": 401.78125,
+          "width": 210.40625,
+          "height": 39.640625,
+          "top": 401.78125,
+          "right": 274.40625,
+          "bottom": 441.421875,
+          "left": 64
+        },
+        "passage": "女巫小屋"
+      },
+      "after": {
+        "scrollY": 0,
+        "viewport": 844,
+        "passage": "女巫小屋",
+        "rect": {
+          "x": 64,
+          "y": 726.796875,
+          "width": 294,
+          "height": 115.921875,
+          "top": 726.796875,
+          "right": 358,
+          "bottom": 842.71875,
+          "left": 64
+        },
+        "text": "——\"你要是走到了那一步，\"她说，\"别急着动手。先看清楚它是什么。\"",
+        "activeElement": "BODY",
+        "html": "<p>——\"你要是走到了那一步，\"她说，\"<strong>别急着动手。先看清楚它是什么。</strong>\"</p>",
+        "renderErrors": []
+      }
+    },
+    {
+      "width": 390,
+      "id": "witch-first",
+      "before": {
+        "scrollY": 0,
+        "text": "问：你们家与那座塔有什么渊源",
+        "rect": {
+          "x": 64,
+          "y": 433.765625,
+          "width": 267.78125,
+          "height": 39.640625,
+          "top": 433.765625,
+          "right": 331.78125,
+          "bottom": 473.40625,
+          "left": 64
+        },
+        "passage": "女巫小屋"
+      },
+      "after": {
+        "scrollY": 0,
+        "viewport": 844,
+        "passage": "女巫小屋",
+        "rect": {
+          "x": 64,
+          "y": 679.796875,
+          "width": 294,
+          "height": 193.203125,
+          "top": 679.796875,
+          "right": 358,
+          "bottom": 873,
+          "left": 64
+        },
+        "text": "——\"酒馆有幅旧画，不少人拿我跟画上的女人比。\"她摇摇头，\"别拿那幅画比。\"又说，\"我妈像她，我姥姥也像她。行头是一代一代传下来的。\"",
+        "activeElement": "BODY",
+        "html": "<p>——\"酒馆有幅旧画，不少人拿我跟画上的女人比。\"她摇摇头，<strong>\"别拿那幅画比。\"</strong>又说，<strong>\"我妈像她，我姥姥也像她。行头是一代一代传下来的。\"</strong></p>",
+        "renderErrors": []
+      }
+    },
+    {
+      "width": 390,
+      "id": "witch-middle",
+      "before": {
+        "scrollY": 0,
+        "text": "问：雾到底是什么",
+        "rect": {
+          "x": 64,
+          "y": 480.765625,
+          "width": 153.015625,
+          "height": 39.640625,
+          "top": 480.765625,
+          "right": 217.015625,
+          "bottom": 520.40625,
+          "left": 64
+        },
+        "passage": "女巫小屋"
+      },
+      "after": {
+        "scrollY": 0,
+        "viewport": 844,
+        "passage": "女巫小屋",
+        "rect": {
+          "x": 64,
+          "y": 978.703125,
+          "width": 294,
+          "height": 115.921875,
+          "top": 978.703125,
+          "right": 358,
+          "bottom": 1094.625,
+          "left": 64
+        },
+        "text": "——\"雾是灾祸。我祖母这么说，她的祖母也这么说。塔底下那位不肯走，雾就一年比一年厚。\"",
+        "activeElement": "BODY",
+        "html": "<p>——\"雾是灾祸。我祖母这么说，她的祖母也这么说。<strong>塔底下那位不肯走</strong>，雾就一年比一年厚。\"</p>",
+        "renderErrors": []
+      }
+    }
+  ]
+}

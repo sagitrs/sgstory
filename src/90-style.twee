@@ -172,7 +172,7 @@ body {
 }
 .choices {
 	display: grid;
-	grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+	grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
 	gap: 0.8em;
 	margin-top: 1em;
 }
@@ -249,6 +249,8 @@ body {
 	color: #8b8497;
 }
 .ability-table {
+	width: 100%;
+	table-layout: fixed;
 	margin: 1em auto;
 	border-spacing: 0.6em 0.3em;
 	text-align: center;
@@ -271,6 +273,10 @@ body {
 
 /* ── D6 窄屏适配（≤480px，#40）：卡片/表格/血条/检定框不溢出 ── */
 @media (max-width: 480px) {
+	#passages { padding: 0 0.5em; }
+	.chargen-card, .charsheet, .passage .codex-hub { padding: 0.8em; }
+	.charsheet h2 { font-size: 1.1em; letter-spacing: 0.05em; }
+	.ability-table { font-size: 0.85em; }
 	.ending-card { padding: 0.8em 0.9em; margin: 1em 0; }
 	.ending-card table { font-size: 0.85em; border-spacing: 0.6em 0.2em; }
 	.check-result { font-size: 0.85em; padding: 0.4em 0.6em; }
@@ -311,6 +317,7 @@ body {
 }
 .save-bar .save-btn {
 	display: inline-block;
+	font-family: inherit;
 	padding: 3px 8px;
 	font-size: 0.82em;
 	line-height: 1.6;
@@ -322,6 +329,7 @@ body {
 	user-select: none;
 }
 .save-bar .save-btn:hover { background: rgba(169, 192, 218, 0.2); }
+.save-bar .save-btn:focus-visible { outline: 2px solid #a9c0da; outline-offset: 2px; }
 .inv-block { margin-top: 0.6em; }
 .inv-list {
 	display: flex;
@@ -346,11 +354,19 @@ body {
 	background: rgba(124, 106, 79, 0.08);
 }
 .soc-ask > .soc-opts { display: block; margin-top: 0.35em; }
-.soc-ask .soc-opts a { display: inline-block; margin-right: 0.6em; }
-.soc-meta { color: #8a7f6a; font-size: 0.86em; white-space: nowrap; }
+.soc-ask .soc-opts a { display: block; width: fit-content; max-width: 100%; margin-top: 0.6em; }
+.soc-meta { display: block; color: #8a7f6a; font-size: 0.86em; overflow-wrap: anywhere; }
 .soc-said { display: block; margin-top: 0.3em; }
 .soc-cost { display: block; color: #9a6b4f; font-size: 0.9em; }
 .soc-no, .soc-done { color: #8a7f6a; font-style: italic; }
+.tavern-tables a { display: block; width: fit-content; max-width: 100%; margin: 0.4em 0; }
+.action-feedback:focus-visible { outline: 1px solid #a9c0da; outline-offset: 0.3em; }
+
+@media (prefers-reduced-motion: reduce) {
+	.passage { animation: none; transition: none; }
+	.choice-card, .hpbar-fill { transition: none; }
+	.choice-card:hover { transform: none; }
+}
 /* ── 结局页收尾卡（C1）── */
 .ending-foot {
 	margin: 2em 0 1em;

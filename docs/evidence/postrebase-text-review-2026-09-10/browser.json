@@ -1,0 +1,1610 @@
+{
+  "headStart": "4d447db0c35c00be55100a2c8014626e19499ec8",
+  "distSha256": "2409307138add0ceeccd241a998056eee579dbb982cdf403dacaf22dc44fc969",
+  "viewports": [
+    1440,
+    390
+  ],
+  "height": 844,
+  "steps": [
+    {
+      "width": 1440,
+      "label": "踏上旅途",
+      "passage": "车卡",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "快速成型（第一套）",
+      "passage": "角色卡",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "出发，前往歪脖子鸭酒馆",
+      "passage": "酒馆",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "问一句女巫小屋怎么走",
+      "passage": "女巫小屋",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "谢过她，往林子深处走",
+      "passage": "林间小径",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "翻转护身符：坠入『过去』",
+      "passage": "林间小径",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "继续往塔那边走",
+      "passage": "塔门",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "塔基墙根那片花",
+      "passage": "塔外花田",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "回塔门",
+      "passage": "塔门",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "翻转护身符：回到『现在』",
+      "passage": "塔门",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "塔基墙根那片花",
+      "passage": "塔外花田",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "退到上风头，连土一起端起来",
+      "passage": "塔外花田",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "回塔门",
+      "passage": "塔门",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "雾里有个影子挡着路",
+      "passage": "雾之魔物",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "慢慢放下手，退开一步",
+      "passage": "雾之魔物·退",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "顺着那条窄路走过去",
+      "passage": "守林人",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "收下钥匙，去看那道门",
+      "passage": "门厅",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "出塔，回到塔外",
+      "passage": "塔门",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "翻转护身符：坠入『过去』",
+      "passage": "塔门",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "推门进去",
+      "passage": "门厅",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "用钥匙打开铁门",
+      "passage": "地下宴会厅",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "在宴上找人说话",
+      "passage": "宴会·过去",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "去把花喂给它",
+      "passage": "喂花",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "回到宴上",
+      "passage": "宴会·过去",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "回到地下宴会厅",
+      "passage": "地下宴会厅",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "翻转护身符：回到『现在』",
+      "passage": "地下宴会厅",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "安静地退出去",
+      "passage": "门厅",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "先上二楼看看",
+      "passage": "书房",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "干脆把炉膛挪开——用力",
+      "passage": "书房",
+      "era": "present",
+      "scrollY": 370
+    },
+    {
+      "width": 1440,
+      "label": "把暗格里的东西取出来",
+      "passage": "书房",
+      "era": "present",
+      "scrollY": 610
+    },
+    {
+      "width": 1440,
+      "label": "把日记往下读",
+      "passage": "书房",
+      "era": "present",
+      "scrollY": 610
+    },
+    {
+      "width": 1440,
+      "label": "到拐角的小工坊看看",
+      "passage": "工坊",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "上三楼",
+      "passage": "天文台",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "上顶楼",
+      "passage": "顶楼",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "下楼，打开地下那道门",
+      "passage": "地下宴会厅",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 1440,
+      "label": "翻转护身符：坠入『过去』",
+      "passage": "地下宴会厅",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "踏上旅途",
+      "passage": "车卡",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "快速成型（第一套）",
+      "passage": "角色卡",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "出发，前往歪脖子鸭酒馆",
+      "passage": "酒馆",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "问一句女巫小屋怎么走",
+      "passage": "女巫小屋",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "谢过她，往林子深处走",
+      "passage": "林间小径",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "翻转护身符：坠入『过去』",
+      "passage": "林间小径",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "继续往塔那边走",
+      "passage": "塔门",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "塔基墙根那片花",
+      "passage": "塔外花田",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "回塔门",
+      "passage": "塔门",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "翻转护身符：回到『现在』",
+      "passage": "塔门",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "塔基墙根那片花",
+      "passage": "塔外花田",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "退到上风头，连土一起端起来",
+      "passage": "塔外花田",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "回塔门",
+      "passage": "塔门",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "雾里有个影子挡着路",
+      "passage": "雾之魔物",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "慢慢放下手，退开一步",
+      "passage": "雾之魔物·退",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "顺着那条窄路走过去",
+      "passage": "守林人",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "收下钥匙，去看那道门",
+      "passage": "门厅",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "出塔，回到塔外",
+      "passage": "塔门",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "翻转护身符：坠入『过去』",
+      "passage": "塔门",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "推门进去",
+      "passage": "门厅",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "用钥匙打开铁门",
+      "passage": "地下宴会厅",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "在宴上找人说话",
+      "passage": "宴会·过去",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "去把花喂给它",
+      "passage": "喂花",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "回到宴上",
+      "passage": "宴会·过去",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "回到地下宴会厅",
+      "passage": "地下宴会厅",
+      "era": "past",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "翻转护身符：回到『现在』",
+      "passage": "地下宴会厅",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "安静地退出去",
+      "passage": "门厅",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "先上二楼看看",
+      "passage": "书房",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "干脆把炉膛挪开——用力",
+      "passage": "书房",
+      "era": "present",
+      "scrollY": 523
+    },
+    {
+      "width": 390,
+      "label": "把暗格里的东西取出来",
+      "passage": "书房",
+      "era": "present",
+      "scrollY": 782
+    },
+    {
+      "width": 390,
+      "label": "把日记往下读",
+      "passage": "书房",
+      "era": "present",
+      "scrollY": 782
+    },
+    {
+      "width": 390,
+      "label": "到拐角的小工坊看看",
+      "passage": "工坊",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "上三楼",
+      "passage": "天文台",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "上顶楼",
+      "passage": "顶楼",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "下楼，打开地下那道门",
+      "passage": "地下宴会厅",
+      "era": "present",
+      "scrollY": 0
+    },
+    {
+      "width": 390,
+      "label": "翻转护身符：坠入『过去』",
+      "passage": "地下宴会厅",
+      "era": "past",
+      "scrollY": 0
+    }
+  ],
+  "scenes": [
+    {
+      "width": 1440,
+      "stage": "trail-present",
+      "passage": "林间小径",
+      "era": "present",
+      "text": "雾更浓了。走了没多远，你就分不清自己是从哪边来的。 你捏紧护身符。银辉顺着指缝漏出来，照见脚边一丛枯掉的月光花——花瓣是干的，茎还立着。 要不要试试看，把护身符翻过来？ 翻转护身符：坠入『过去』 继续往塔那边走就此收手，回去归还护符",
+      "links": [
+        "翻转护身符：坠入『过去』",
+        "继续往塔那边走",
+        "就此收手，回去归还护符"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 1440,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": false,
+        "met": false,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 1440,
+      "stage": "trail-past",
+      "passage": "林间小径",
+      "era": "past",
+      "text": "三百年前的林间。 同一棵树，树后的山路却看得分明。远处的塔完好地立着，塔上的灯亮着；路上有新踩的脚印，一串一串，往塔那边去。远处有人在唱歌，唱得很慢，一句一句拖着。 路边的草丛里留着车轮压过的印子，泥还是湿的。三百年前的这一夜，也刚下过雨。 路边还没有那丛银白的花。那是以后才有的事。 翻转护身符：回到『现在』 继续往塔那边走就此收手，回去归还护符",
+      "links": [
+        "翻转护身符：回到『现在』",
+        "继续往塔那边走",
+        "就此收手，回去归还护符"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 1440,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": false,
+        "met": false,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 1440,
+      "stage": "gate-past-unknown",
+      "passage": "塔门",
+      "era": "past",
+      "text": "塔比林子里的树还高。你走近塔门，抬头看了看门枢，再往门里望。门里透出一点火光——有人住在里面。门里的光照不到门外。你在门槛前停住，还看不清里面有谁。 三百年前的塔外，石墙还是新砌的。门里人声不断，灯火照着地上散落的金币。有人喊了一声什么，是招呼人的调子。 你抬手想打个招呼，没人停步。有人从你身边走过，向门里应了一声。 宴已经开了。你没法证明自己是谁——这扇门，你现在进不去。 翻转护身符：回到『现在』 （守林人不在，你进不去。）雾里有个影子挡着路绕到塔后，看看有没有别的路塔基墙根那片花",
+      "links": [
+        "翻转护身符：回到『现在』",
+        "雾里有个影子挡着路",
+        "绕到塔后，看看有没有别的路",
+        "塔基墙根那片花"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 1440,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": false,
+        "met": false,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 1440,
+      "stage": "flowers-past",
+      "passage": "塔外花田",
+      "era": "past",
+      "text": "三百年前这片花还没长出来，墙根只有湿土和新砌的石头。回塔门",
+      "links": [
+        "回塔门"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 1440,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": false,
+        "met": false,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 1440,
+      "stage": "gate-present-unknown",
+      "passage": "塔门",
+      "era": "present",
+      "text": "塔比林子里的树还高。你走近塔门，抬头看了看门枢，再往门里望。门里透出一点火光——有人住在里面。门里的光照不到门外。你在门槛前停住，还看不清里面有谁。 石头是黑的，缝里长满青苔，往上数不清有几层——只有最上面那一层，亮着一扇窗。风把雾吹到塔身上，雾就顺着石缝往上爬，像在找一道缝钻进去。 你回到现在。身边的雾，淡了一些。 翻转护身符：坠入『过去』 （如果你就在这门外翻过去，你会站在三百年前的塔外——那时送星宴已经开席，你没法证明自己是谁，进不去。） 推门进去雾里有个影子挡着路绕到塔后，看看有没有别的路塔基墙根那片花",
+      "links": [
+        "翻转护身符：坠入『过去』",
+        "推门进去",
+        "雾里有个影子挡着路",
+        "绕到塔后，看看有没有别的路",
+        "塔基墙根那片花"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 1440,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": false,
+        "met": false,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 1440,
+      "stage": "flowers-present",
+      "passage": "塔外花田",
+      "era": "present",
+      "text": "塔基外侧的墙根下，生着一小片银白的花。别处的草都黄了，这里却开得最旺——花瓣都朝上张着，像整夜都在接星光。 花不密，就一小片，贴着石头长。你蹲下来才看清：花瓣上凝着水，水是凉的。 顺着墙往下坡走远些，也有，只是都枯了，只剩下干着的白。 伸手去摘最靠里的那一朵 退到上风头，连土一起端起来 先别动它，退回塔门 回塔门",
+      "links": [
+        "伸手去摘最靠里的那一朵",
+        "退到上风头，连土一起端起来",
+        "先别动它，退回塔门",
+        "回塔门"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 1440,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": false,
+        "met": false,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 1440,
+      "stage": "gate-present-known",
+      "passage": "塔门",
+      "era": "present",
+      "text": "塔比林子里的树还高。你走近塔门，抬头看了看门枢，再往门里望。门里透出一点火光——有人住在里面。门里的光照不到门外。你在门槛前停住，还看不清里面有谁。 石头是黑的，缝里长满青苔，往上数不清有几层——只有最上面那一层，亮着一扇窗。风把雾吹到塔身上，雾就顺着石缝往上爬，像在找一道缝钻进去。 翻转护身符：坠入『过去』 守林人已经认了你。就在门外翻过去，也能从三百年前的大门进入。 推门进去雾里有个影子挡着路绕到塔后，看看有没有别的路塔基墙根那片花",
+      "links": [
+        "翻转护身符：坠入『过去』",
+        "推门进去",
+        "雾里有个影子挡着路",
+        "绕到塔后，看看有没有别的路",
+        "塔基墙根那片花"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 1440,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": true,
+        "fed": false,
+        "met": true,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 1440,
+      "stage": "gate-past-known",
+      "passage": "塔门",
+      "era": "past",
+      "text": "塔比林子里的树还高。你走近塔门，抬头看了看门枢，再往门里望。门里透出一点火光——有人住在里面。门里的光照不到门外。你在门槛前停住，还看不清里面有谁。 三百年前的塔外，石墙还是新砌的。门里人声不断，灯火照着地上散落的金币。有人喊了一声什么，是招呼人的调子。 你抬手想打个招呼，没人停步。有人从你身边走过，向门里应了一声。 （守林人说过：从大门走。他既已认了你，这扇门对你就是开的。） 翻转护身符：回到『现在』 推门进去雾里有个影子挡着路绕到塔后，看看有没有别的路塔基墙根那片花",
+      "links": [
+        "翻转护身符：回到『现在』",
+        "推门进去",
+        "雾里有个影子挡着路",
+        "绕到塔后，看看有没有别的路",
+        "塔基墙根那片花"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 1440,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": true,
+        "fed": false,
+        "met": true,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 1440,
+      "stage": "cellar-past-awake",
+      "passage": "地下宴会厅",
+      "era": "past",
+      "text": "铁门后是一间宽阔的厅堂。长桌沿厅堂两侧排开，中央留着一片宽阔的地方。墙边有挂灯的钉子，石柱一直延伸到高处。你的脚步声沿着地砖传出去。 三百年前的厅堂里，长桌边挤满了送行的人。 那条龙卧在厅的另一头，听见脚步便转过头来。灯光沿着它颈上的鳞片，一直亮到眼角。 翻转护身符：回到『现在』 在宴上找人说话",
+      "links": [
+        "翻转护身符：回到『现在』",
+        "在宴上找人说话"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 1440,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": true,
+        "fed": false,
+        "met": true,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 1440,
+      "stage": "cellar-past-fed",
+      "passage": "地下宴会厅",
+      "era": "past",
+      "text": "铁门后是一间宽阔的厅堂。长桌沿厅堂两侧排开，中央留着一片宽阔的地方。墙边有挂灯的钉子，石柱一直延伸到高处。你的脚步声沿着地砖传出去。 三百年前的厅堂里，长桌边挤满了送行的人。 那条龙蜷着睡下了，呼吸平稳。你喂过的花已不在它鼻端，只留下一点淡淡的香气。 翻转护身符：回到『现在』 在宴上找人说话",
+      "links": [
+        "翻转护身符：回到『现在』",
+        "在宴上找人说话"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 1440,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": true,
+        "met": true,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 1440,
+      "stage": "cellar-present-unread",
+      "passage": "地下宴会厅",
+      "era": "present",
+      "text": "铁门后是一间宽阔的厅堂。长桌沿厅堂两侧排开，中央留着一片宽阔的地方。墙边有挂灯的钉子，石柱一直延伸到高处。你的脚步声沿着地砖传出去。 厅的正中睡着一条龙。 鳞甲随它的呼吸起伏，像一座缓缓隆起的山。你一眼就看见了它——没有封印，也没有锁。 雾从它身上慢慢渗出来，漫过地砖，流向塔外。 （身边的雾，比你进来时淡了一些。） 你回到现在。身边的雾，淡了一些。 翻转护身符：坠入『过去』 在宴上找人说话 绕着它走一圈 叫醒它 攻击它 安静地退出去",
+      "links": [
+        "翻转护身符：坠入『过去』",
+        "在宴上找人说话",
+        "绕着它走一圈",
+        "叫醒它",
+        "攻击它",
+        "安静地退出去"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 1440,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": true,
+        "met": true,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 1440,
+      "stage": "study-unread",
+      "passage": "书房",
+      "era": "present",
+      "text": "二楼堆满了书。烤炉后头的墙上有一道细缝——你不确定那是不是暗格。架上的书大半是星象历，抄本摞着抄本，页边写满了小字。有一本摊在桌上，停在中间一页，像是有人刚读到一半就走了。 伸手去摸烤炉后头的暗格 先敲一敲炉膛后头的墙 把架上的抄本按年份排一遍 干脆把炉膛挪开——用力 翻转护身符：坠入『过去』 （架上那册星象历也抄错了几处。可这一层楼里没有别人——你就算指出来，也没人听。）到拐角的小工坊看看",
+      "links": [
+        "伸手去摸烤炉后头的暗格",
+        "先敲一敲炉膛后头的墙",
+        "把架上的抄本按年份排一遍",
+        "干脆把炉膛挪开——用力",
+        "翻转护身符：坠入『过去』",
+        "到拐角的小工坊看看"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 1440,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": true,
+        "met": true,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 1440,
+      "stage": "study-found",
+      "passage": "书房",
+      "era": "present",
+      "text": "二楼堆满了书。烤炉后头的墙上有一道细缝——你不确定那是不是暗格。架上的书大半是星象历，抄本摞着抄本，页边写满了小字。有一本摊在桌上，停在中间一页，像是有人刚读到一半就走了。 🎯 运动检定（力量） 〔书房·强拆〕 · DC13：d20(20) +3 力量 +2 熟练 = 25 ★ 大成功 把暗格里的东西取出来 翻转护身符：坠入『过去』 （架上那册星象历也抄错了几处。可这一层楼里没有别人——你就算指出来，也没人听。）到拐角的小工坊看看",
+      "links": [
+        "把暗格里的东西取出来",
+        "翻转护身符：坠入『过去』",
+        "到拐角的小工坊看看"
+      ],
+      "scrollY": 370,
+      "scrollWidth": 1440,
+      "focus": "🎯 运动检定（力量） 〔书房·强拆〕 · DC13：d20(20) +3 力量 +2 熟练 = 25 ★ 大成功",
+      "focusedClass": "check-result check-success action-feedback",
+      "errors": [],
+      "broken": [],
+      "check": [
+        {
+          "text": "🎯 运动检定（力量） 〔书房·强拆〕 · DC13：d20(20) +3 力量 +2 熟练 = 25 ★ 大成功",
+          "top": 31.734375
+        }
+      ],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": true,
+        "met": true,
+        "failureCause": false
+      }
+    },
+    {
+      "width": 1440,
+      "stage": "diary-taken",
+      "passage": "书房",
+      "era": "present",
+      "text": "二楼堆满了书。烤炉后头的墙上有一道细缝——你不确定那是不是暗格。架上的书大半是星象历，抄本摞着抄本，页边写满了小字。有一本摊在桌上，停在中间一页，像是有人刚读到一半就走了。 🎯 运动检定（力量） 〔书房·强拆〕 · DC13：d20(20) +3 力量 +2 熟练 = 25 ★ 大成功 （这里你已搜过。） 你翻开从暗格里取出的硬皮日记。最后一页，有行字被描过两遍：\"雾就是它漏出来的力气——缺的从来不是咒。\" 封底里还夹着一卷纸，纸角磨得发毛——后半本是她算清了的完整术式。你把这卷纸与日记一并收好。 把日记往下读 翻转护身符：坠入『过去』 （架上那册星象历也抄错了几处。可这一层楼里没有别人——你就算指出来，也没人听。）到拐角的小工坊看看",
+      "links": [
+        "把日记往下读",
+        "翻转护身符：坠入『过去』",
+        "到拐角的小工坊看看"
+      ],
+      "scrollY": 610,
+      "scrollWidth": 1440,
+      "focus": "你翻开从暗格里取出的硬皮日记。最后一页，有行字被描过两遍：\"雾就是它漏出来的力气——缺的从来不是咒。\"",
+      "focusedClass": "action-feedback",
+      "errors": [],
+      "broken": [],
+      "check": [
+        {
+          "text": "🎯 运动检定（力量） 〔书房·强拆〕 · DC13：d20(20) +3 力量 +2 熟练 = 25 ★ 大成功",
+          "top": -208.265625
+        }
+      ],
+      "diary": [
+        {
+          "text": "你翻开从暗格里取出的硬皮日记。最后一页，有行字被描过两遍：\"雾就是它漏出来的力气——缺的从来不是咒。\"",
+          "top": 31.890625,
+          "bottom": 109.171875,
+          "focused": true
+        },
+        {
+          "text": "封底里还夹着一卷纸，纸角磨得发毛——后半本是她算清了的完整术式。你把这卷纸与日记一并收好。",
+          "top": 127.5625,
+          "bottom": 204.84375,
+          "focused": false
+        }
+      ],
+      "state": {
+        "diary": true,
+        "scroll": true,
+        "flower": false,
+        "fed": true,
+        "met": true,
+        "failureCause": true
+      }
+    },
+    {
+      "width": 1440,
+      "stage": "diary-persists",
+      "passage": "书房",
+      "era": "present",
+      "text": "二楼堆满了书。烤炉后头的墙上有一道细缝——你不确定那是不是暗格。架上的书大半是星象历，抄本摞着抄本，页边写满了小字。有一本摊在桌上，停在中间一页，像是有人刚读到一半就走了。 🎯 运动检定（力量） 〔书房·强拆〕 · DC13：d20(20) +3 力量 +2 熟练 = 25 ★ 大成功 （这里你已搜过。） 你翻开从暗格里取出的硬皮日记。最后一页，有行字被描过两遍：\"雾就是它漏出来的力气——缺的从来不是咒。\" 封底里还夹着一卷纸，纸角磨得发毛——后半本是她算清了的完整术式。你把这卷纸与日记一并收好。 你继续往下读：她写过一句更小的话——\"没人看过它睡得怎么样。\" （封底那卷纸你读不通。旁边另有一段抄来的术式，标着守林人家的出处——她记下的正是他家那卷封印术。） 照着守林人家那卷封印术念一遍 翻转护身符：坠入『过去』 （架上那册星象历也抄错了几处。可这一层楼里没有别人——你就算指出来，也没人听。）到拐角的小工坊看看",
+      "links": [
+        "照着守林人家那卷封印术念一遍",
+        "翻转护身符：坠入『过去』",
+        "到拐角的小工坊看看"
+      ],
+      "scrollY": 610,
+      "scrollWidth": 1440,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [
+        {
+          "text": "🎯 运动检定（力量） 〔书房·强拆〕 · DC13：d20(20) +3 力量 +2 熟练 = 25 ★ 大成功",
+          "top": -208.265625
+        }
+      ],
+      "diary": [
+        {
+          "text": "你翻开从暗格里取出的硬皮日记。最后一页，有行字被描过两遍：\"雾就是它漏出来的力气——缺的从来不是咒。\"",
+          "top": 31.890625,
+          "bottom": 109.171875,
+          "focused": false
+        },
+        {
+          "text": "封底里还夹着一卷纸，纸角磨得发毛——后半本是她算清了的完整术式。你把这卷纸与日记一并收好。",
+          "top": 127.5625,
+          "bottom": 204.84375,
+          "focused": false
+        }
+      ],
+      "state": {
+        "diary": true,
+        "scroll": true,
+        "flower": false,
+        "fed": true,
+        "met": true,
+        "failureCause": true
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 1440,
+      "stage": "cellar-present-read",
+      "passage": "地下宴会厅",
+      "era": "present",
+      "text": "铁门后是一间宽阔的厅堂。长桌沿厅堂两侧排开，中央留着一片宽阔的地方。墙边有挂灯的钉子，石柱一直延伸到高处。你的脚步声沿着地砖传出去。 厅的正中睡着一条龙。 鳞甲随它的呼吸起伏，像一座缓缓隆起的山。你一眼就看见了它——没有封印，也没有锁。 雾从它身上慢慢渗出来，漫过地砖，流向塔外。 你想起日记里的记载：雾在涨，那是它的路费。 翻转护身符：坠入『过去』 在宴上找人说话 绕着它走一圈 叫醒它 攻击它 安静地退出去",
+      "links": [
+        "翻转护身符：坠入『过去』",
+        "在宴上找人说话",
+        "绕着它走一圈",
+        "叫醒它",
+        "攻击它",
+        "安静地退出去"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 1440,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": true,
+        "scroll": true,
+        "flower": false,
+        "fed": true,
+        "met": true,
+        "failureCause": true
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 1440,
+      "stage": "cellar-past-after-reading",
+      "passage": "地下宴会厅",
+      "era": "past",
+      "text": "铁门后是一间宽阔的厅堂。长桌沿厅堂两侧排开，中央留着一片宽阔的地方。墙边有挂灯的钉子，石柱一直延伸到高处。你的脚步声沿着地砖传出去。 三百年前的厅堂里，长桌边挤满了送行的人。 那条龙蜷着睡下了，呼吸平稳。你喂过的花已不在它鼻端，只留下一点淡淡的香气。 翻转护身符：回到『现在』 在宴上找人说话",
+      "links": [
+        "翻转护身符：回到『现在』",
+        "在宴上找人说话"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 1440,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": true,
+        "scroll": true,
+        "flower": false,
+        "fed": true,
+        "met": true,
+        "failureCause": true
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 390,
+      "stage": "trail-present",
+      "passage": "林间小径",
+      "era": "present",
+      "text": "雾更浓了。走了没多远，你就分不清自己是从哪边来的。 你捏紧护身符。银辉顺着指缝漏出来，照见脚边一丛枯掉的月光花——花瓣是干的，茎还立着。 要不要试试看，把护身符翻过来？ 翻转护身符：坠入『过去』 继续往塔那边走就此收手，回去归还护符",
+      "links": [
+        "翻转护身符：坠入『过去』",
+        "继续往塔那边走",
+        "就此收手，回去归还护符"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 390,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": false,
+        "met": false,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 390,
+      "stage": "trail-past",
+      "passage": "林间小径",
+      "era": "past",
+      "text": "三百年前的林间。 同一棵树，树后的山路却看得分明。远处的塔完好地立着，塔上的灯亮着；路上有新踩的脚印，一串一串，往塔那边去。远处有人在唱歌，唱得很慢，一句一句拖着。 路边的草丛里留着车轮压过的印子，泥还是湿的。三百年前的这一夜，也刚下过雨。 路边还没有那丛银白的花。那是以后才有的事。 翻转护身符：回到『现在』 继续往塔那边走就此收手，回去归还护符",
+      "links": [
+        "翻转护身符：回到『现在』",
+        "继续往塔那边走",
+        "就此收手，回去归还护符"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 390,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": false,
+        "met": false,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 390,
+      "stage": "gate-past-unknown",
+      "passage": "塔门",
+      "era": "past",
+      "text": "塔比林子里的树还高。你走近塔门，抬头看了看门枢，再往门里望。门里透出一点火光——有人住在里面。门里的光照不到门外。你在门槛前停住，还看不清里面有谁。 三百年前的塔外，石墙还是新砌的。门里人声不断，灯火照着地上散落的金币。有人喊了一声什么，是招呼人的调子。 你抬手想打个招呼，没人停步。有人从你身边走过，向门里应了一声。 宴已经开了。你没法证明自己是谁——这扇门，你现在进不去。 翻转护身符：回到『现在』 （守林人不在，你进不去。）雾里有个影子挡着路绕到塔后，看看有没有别的路塔基墙根那片花",
+      "links": [
+        "翻转护身符：回到『现在』",
+        "雾里有个影子挡着路",
+        "绕到塔后，看看有没有别的路",
+        "塔基墙根那片花"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 390,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": false,
+        "met": false,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 390,
+      "stage": "flowers-past",
+      "passage": "塔外花田",
+      "era": "past",
+      "text": "三百年前这片花还没长出来，墙根只有湿土和新砌的石头。回塔门",
+      "links": [
+        "回塔门"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 390,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": false,
+        "met": false,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 390,
+      "stage": "gate-present-unknown",
+      "passage": "塔门",
+      "era": "present",
+      "text": "塔比林子里的树还高。你走近塔门，抬头看了看门枢，再往门里望。门里透出一点火光——有人住在里面。门里的光照不到门外。你在门槛前停住，还看不清里面有谁。 石头是黑的，缝里长满青苔，往上数不清有几层——只有最上面那一层，亮着一扇窗。风把雾吹到塔身上，雾就顺着石缝往上爬，像在找一道缝钻进去。 你回到现在。身边的雾，淡了一些。 翻转护身符：坠入『过去』 （如果你就在这门外翻过去，你会站在三百年前的塔外——那时送星宴已经开席，你没法证明自己是谁，进不去。） 推门进去雾里有个影子挡着路绕到塔后，看看有没有别的路塔基墙根那片花",
+      "links": [
+        "翻转护身符：坠入『过去』",
+        "推门进去",
+        "雾里有个影子挡着路",
+        "绕到塔后，看看有没有别的路",
+        "塔基墙根那片花"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 390,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": false,
+        "met": false,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 390,
+      "stage": "flowers-present",
+      "passage": "塔外花田",
+      "era": "present",
+      "text": "塔基外侧的墙根下，生着一小片银白的花。别处的草都黄了，这里却开得最旺——花瓣都朝上张着，像整夜都在接星光。 花不密，就一小片，贴着石头长。你蹲下来才看清：花瓣上凝着水，水是凉的。 顺着墙往下坡走远些，也有，只是都枯了，只剩下干着的白。 伸手去摘最靠里的那一朵 退到上风头，连土一起端起来 先别动它，退回塔门 回塔门",
+      "links": [
+        "伸手去摘最靠里的那一朵",
+        "退到上风头，连土一起端起来",
+        "先别动它，退回塔门",
+        "回塔门"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 390,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": false,
+        "met": false,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 390,
+      "stage": "gate-present-known",
+      "passage": "塔门",
+      "era": "present",
+      "text": "塔比林子里的树还高。你走近塔门，抬头看了看门枢，再往门里望。门里透出一点火光——有人住在里面。门里的光照不到门外。你在门槛前停住，还看不清里面有谁。 石头是黑的，缝里长满青苔，往上数不清有几层——只有最上面那一层，亮着一扇窗。风把雾吹到塔身上，雾就顺着石缝往上爬，像在找一道缝钻进去。 翻转护身符：坠入『过去』 守林人已经认了你。就在门外翻过去，也能从三百年前的大门进入。 推门进去雾里有个影子挡着路绕到塔后，看看有没有别的路塔基墙根那片花",
+      "links": [
+        "翻转护身符：坠入『过去』",
+        "推门进去",
+        "雾里有个影子挡着路",
+        "绕到塔后，看看有没有别的路",
+        "塔基墙根那片花"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 390,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": true,
+        "fed": false,
+        "met": true,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 390,
+      "stage": "gate-past-known",
+      "passage": "塔门",
+      "era": "past",
+      "text": "塔比林子里的树还高。你走近塔门，抬头看了看门枢，再往门里望。门里透出一点火光——有人住在里面。门里的光照不到门外。你在门槛前停住，还看不清里面有谁。 三百年前的塔外，石墙还是新砌的。门里人声不断，灯火照着地上散落的金币。有人喊了一声什么，是招呼人的调子。 你抬手想打个招呼，没人停步。有人从你身边走过，向门里应了一声。 （守林人说过：从大门走。他既已认了你，这扇门对你就是开的。） 翻转护身符：回到『现在』 推门进去雾里有个影子挡着路绕到塔后，看看有没有别的路塔基墙根那片花",
+      "links": [
+        "翻转护身符：回到『现在』",
+        "推门进去",
+        "雾里有个影子挡着路",
+        "绕到塔后，看看有没有别的路",
+        "塔基墙根那片花"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 390,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": true,
+        "fed": false,
+        "met": true,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 390,
+      "stage": "cellar-past-awake",
+      "passage": "地下宴会厅",
+      "era": "past",
+      "text": "铁门后是一间宽阔的厅堂。长桌沿厅堂两侧排开，中央留着一片宽阔的地方。墙边有挂灯的钉子，石柱一直延伸到高处。你的脚步声沿着地砖传出去。 三百年前的厅堂里，长桌边挤满了送行的人。 那条龙卧在厅的另一头，听见脚步便转过头来。灯光沿着它颈上的鳞片，一直亮到眼角。 翻转护身符：回到『现在』 在宴上找人说话",
+      "links": [
+        "翻转护身符：回到『现在』",
+        "在宴上找人说话"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 390,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": true,
+        "fed": false,
+        "met": true,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 390,
+      "stage": "cellar-past-fed",
+      "passage": "地下宴会厅",
+      "era": "past",
+      "text": "铁门后是一间宽阔的厅堂。长桌沿厅堂两侧排开，中央留着一片宽阔的地方。墙边有挂灯的钉子，石柱一直延伸到高处。你的脚步声沿着地砖传出去。 三百年前的厅堂里，长桌边挤满了送行的人。 那条龙蜷着睡下了，呼吸平稳。你喂过的花已不在它鼻端，只留下一点淡淡的香气。 翻转护身符：回到『现在』 在宴上找人说话",
+      "links": [
+        "翻转护身符：回到『现在』",
+        "在宴上找人说话"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 390,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": true,
+        "met": true,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 390,
+      "stage": "cellar-present-unread",
+      "passage": "地下宴会厅",
+      "era": "present",
+      "text": "铁门后是一间宽阔的厅堂。长桌沿厅堂两侧排开，中央留着一片宽阔的地方。墙边有挂灯的钉子，石柱一直延伸到高处。你的脚步声沿着地砖传出去。 厅的正中睡着一条龙。 鳞甲随它的呼吸起伏，像一座缓缓隆起的山。你一眼就看见了它——没有封印，也没有锁。 雾从它身上慢慢渗出来，漫过地砖，流向塔外。 （身边的雾，比你进来时淡了一些。） 你回到现在。身边的雾，淡了一些。 翻转护身符：坠入『过去』 在宴上找人说话 绕着它走一圈 叫醒它 攻击它 安静地退出去",
+      "links": [
+        "翻转护身符：坠入『过去』",
+        "在宴上找人说话",
+        "绕着它走一圈",
+        "叫醒它",
+        "攻击它",
+        "安静地退出去"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 390,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": true,
+        "met": true,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 390,
+      "stage": "study-unread",
+      "passage": "书房",
+      "era": "present",
+      "text": "二楼堆满了书。烤炉后头的墙上有一道细缝——你不确定那是不是暗格。架上的书大半是星象历，抄本摞着抄本，页边写满了小字。有一本摊在桌上，停在中间一页，像是有人刚读到一半就走了。 伸手去摸烤炉后头的暗格 先敲一敲炉膛后头的墙 把架上的抄本按年份排一遍 干脆把炉膛挪开——用力 翻转护身符：坠入『过去』 （架上那册星象历也抄错了几处。可这一层楼里没有别人——你就算指出来，也没人听。）到拐角的小工坊看看",
+      "links": [
+        "伸手去摸烤炉后头的暗格",
+        "先敲一敲炉膛后头的墙",
+        "把架上的抄本按年份排一遍",
+        "干脆把炉膛挪开——用力",
+        "翻转护身符：坠入『过去』",
+        "到拐角的小工坊看看"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 390,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": true,
+        "met": true,
+        "failureCause": false
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 390,
+      "stage": "study-found",
+      "passage": "书房",
+      "era": "present",
+      "text": "二楼堆满了书。烤炉后头的墙上有一道细缝——你不确定那是不是暗格。架上的书大半是星象历，抄本摞着抄本，页边写满了小字。有一本摊在桌上，停在中间一页，像是有人刚读到一半就走了。 🎯 运动检定（力量） 〔书房·强拆〕 · DC13：d20(3) +3 力量 +2 熟练 = 8 ✘ 失败 把暗格里的东西取出来 翻转护身符：坠入『过去』 （架上那册星象历也抄错了几处。可这一层楼里没有别人——你就算指出来，也没人听。）到拐角的小工坊看看",
+      "links": [
+        "把暗格里的东西取出来",
+        "翻转护身符：坠入『过去』",
+        "到拐角的小工坊看看"
+      ],
+      "scrollY": 523,
+      "scrollWidth": 390,
+      "focus": "🎯 运动检定（力量） 〔书房·强拆〕 · DC13：d20(3) +3 力量 +2 熟练 = 8 ✘ 失败",
+      "focusedClass": "check-result check-fail action-feedback",
+      "errors": [],
+      "broken": [],
+      "check": [
+        {
+          "text": "🎯 运动检定（力量） 〔书房·强拆〕 · DC13：d20(3) +3 力量 +2 熟练 = 8 ✘ 失败",
+          "top": 31.828125
+        }
+      ],
+      "diary": [],
+      "state": {
+        "diary": false,
+        "scroll": false,
+        "flower": false,
+        "fed": true,
+        "met": true,
+        "failureCause": false
+      }
+    },
+    {
+      "width": 390,
+      "stage": "diary-taken",
+      "passage": "书房",
+      "era": "present",
+      "text": "二楼堆满了书。烤炉后头的墙上有一道细缝——你不确定那是不是暗格。架上的书大半是星象历，抄本摞着抄本，页边写满了小字。有一本摊在桌上，停在中间一页，像是有人刚读到一半就走了。 🎯 运动检定（力量） 〔书房·强拆〕 · DC13：d20(3) +3 力量 +2 熟练 = 8 ✘ 失败 （这里你已搜过。） 你翻开从暗格里取出的硬皮日记。最后一页，有行字被描过两遍：\"雾就是它漏出来的力气——缺的从来不是咒。\" 封底里还夹着一卷纸，纸角磨得发毛——后半本是她算清了的完整术式。你把这卷纸与日记一并收好。 把日记往下读 翻转护身符：坠入『过去』 （架上那册星象历也抄错了几处。可这一层楼里没有别人——你就算指出来，也没人听。）到拐角的小工坊看看",
+      "links": [
+        "把日记往下读",
+        "翻转护身符：坠入『过去』",
+        "到拐角的小工坊看看"
+      ],
+      "scrollY": 782,
+      "scrollWidth": 390,
+      "focus": "你翻开从暗格里取出的硬皮日记。最后一页，有行字被描过两遍：\"雾就是它漏出来的力气——缺的从来不是咒。\"",
+      "focusedClass": "action-feedback",
+      "errors": [],
+      "broken": [],
+      "check": [
+        {
+          "text": "🎯 运动检定（力量） 〔书房·强拆〕 · DC13：d20(3) +3 力量 +2 熟练 = 8 ✘ 失败",
+          "top": -227.171875
+        }
+      ],
+      "diary": [
+        {
+          "text": "你翻开从暗格里取出的硬皮日记。最后一页，有行字被描过两遍：\"雾就是它漏出来的力气——缺的从来不是咒。\"",
+          "top": 31.671875,
+          "bottom": 186.234375,
+          "focused": true
+        },
+        {
+          "text": "封底里还夹着一卷纸，纸角磨得发毛——后半本是她算清了的完整术式。你把这卷纸与日记一并收好。",
+          "top": 204.625,
+          "bottom": 320.546875,
+          "focused": false
+        }
+      ],
+      "state": {
+        "diary": true,
+        "scroll": true,
+        "flower": false,
+        "fed": true,
+        "met": true,
+        "failureCause": true
+      }
+    },
+    {
+      "width": 390,
+      "stage": "diary-persists",
+      "passage": "书房",
+      "era": "present",
+      "text": "二楼堆满了书。烤炉后头的墙上有一道细缝——你不确定那是不是暗格。架上的书大半是星象历，抄本摞着抄本，页边写满了小字。有一本摊在桌上，停在中间一页，像是有人刚读到一半就走了。 🎯 运动检定（力量） 〔书房·强拆〕 · DC13：d20(3) +3 力量 +2 熟练 = 8 ✘ 失败 （这里你已搜过。） 你翻开从暗格里取出的硬皮日记。最后一页，有行字被描过两遍：\"雾就是它漏出来的力气——缺的从来不是咒。\" 封底里还夹着一卷纸，纸角磨得发毛——后半本是她算清了的完整术式。你把这卷纸与日记一并收好。 你继续往下读：她写过一句更小的话——\"没人看过它睡得怎么样。\" （封底那卷纸你读不通。旁边另有一段抄来的术式，标着守林人家的出处——她记下的正是他家那卷封印术。） 照着守林人家那卷封印术念一遍 翻转护身符：坠入『过去』 （架上那册星象历也抄错了几处。可这一层楼里没有别人——你就算指出来，也没人听。）到拐角的小工坊看看",
+      "links": [
+        "照着守林人家那卷封印术念一遍",
+        "翻转护身符：坠入『过去』",
+        "到拐角的小工坊看看"
+      ],
+      "scrollY": 782,
+      "scrollWidth": 390,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [
+        {
+          "text": "🎯 运动检定（力量） 〔书房·强拆〕 · DC13：d20(3) +3 力量 +2 熟练 = 8 ✘ 失败",
+          "top": -227.171875
+        }
+      ],
+      "diary": [
+        {
+          "text": "你翻开从暗格里取出的硬皮日记。最后一页，有行字被描过两遍：\"雾就是它漏出来的力气——缺的从来不是咒。\"",
+          "top": 31.671875,
+          "bottom": 186.234375,
+          "focused": false
+        },
+        {
+          "text": "封底里还夹着一卷纸，纸角磨得发毛——后半本是她算清了的完整术式。你把这卷纸与日记一并收好。",
+          "top": 204.625,
+          "bottom": 320.546875,
+          "focused": false
+        }
+      ],
+      "state": {
+        "diary": true,
+        "scroll": true,
+        "flower": false,
+        "fed": true,
+        "met": true,
+        "failureCause": true
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 390,
+      "stage": "cellar-present-read",
+      "passage": "地下宴会厅",
+      "era": "present",
+      "text": "铁门后是一间宽阔的厅堂。长桌沿厅堂两侧排开，中央留着一片宽阔的地方。墙边有挂灯的钉子，石柱一直延伸到高处。你的脚步声沿着地砖传出去。 厅的正中睡着一条龙。 鳞甲随它的呼吸起伏，像一座缓缓隆起的山。你一眼就看见了它——没有封印，也没有锁。 雾从它身上慢慢渗出来，漫过地砖，流向塔外。 你想起日记里的记载：雾在涨，那是它的路费。 翻转护身符：坠入『过去』 在宴上找人说话 绕着它走一圈 叫醒它 攻击它 安静地退出去",
+      "links": [
+        "翻转护身符：坠入『过去』",
+        "在宴上找人说话",
+        "绕着它走一圈",
+        "叫醒它",
+        "攻击它",
+        "安静地退出去"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 390,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": true,
+        "scroll": true,
+        "flower": false,
+        "fed": true,
+        "met": true,
+        "failureCause": true
+      },
+      "focusDocumentTextOmitted": true
+    },
+    {
+      "width": 390,
+      "stage": "cellar-past-after-reading",
+      "passage": "地下宴会厅",
+      "era": "past",
+      "text": "铁门后是一间宽阔的厅堂。长桌沿厅堂两侧排开，中央留着一片宽阔的地方。墙边有挂灯的钉子，石柱一直延伸到高处。你的脚步声沿着地砖传出去。 三百年前的厅堂里，长桌边挤满了送行的人。 那条龙蜷着睡下了，呼吸平稳。你喂过的花已不在它鼻端，只留下一点淡淡的香气。 翻转护身符：回到『现在』 在宴上找人说话",
+      "links": [
+        "翻转护身符：回到『现在』",
+        "在宴上找人说话"
+      ],
+      "scrollY": 0,
+      "scrollWidth": 390,
+      "focus": null,
+      "focusedClass": "",
+      "errors": [],
+      "broken": [],
+      "check": [],
+      "diary": [],
+      "state": {
+        "diary": true,
+        "scroll": true,
+        "flower": false,
+        "fed": true,
+        "met": true,
+        "failureCause": true
+      },
+      "focusDocumentTextOmitted": true
+    }
+  ],
+  "errors": [],
+  "failures": [],
+  "headEnd": "4d447db0c35c00be55100a2c8014626e19499ec8",
+  "distSha256End": "2409307138add0ceeccd241a998056eee579dbb982cdf403dacaf22dc44fc969",
+  "evidenceNote": "Compact copy: omitted 30 repeated document-body focus text dumps containing bundled styles, font data and story source. Specific element focus, scene text, steps, state and failure records are retained."
+}

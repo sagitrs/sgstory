@@ -230,7 +230,7 @@ Macro.add('dragonbar', {
 	<<if $pc.salves gt 0 and $pc.hp gt 0>>
 		<<set $pc.salves to $pc.salves - 1>>
 		<<set $pc.hp to Math.min($pc.max_hp, $pc.hp + 4)>>
-		<span class="damage-flash">''你受到了 $args[0] 点伤害！''（药膏自动生效，回复 4 点）</span>
+		<span class="damage-flash">''你受到了 $args[0] 点伤害！''（消耗一副药膏，恢复最多 4 点生命，不超过上限）</span>
 	<<else>>
 		<span class="damage-flash">''你受到了 $args[0] 点伤害！''</span>
 	<</if>>
@@ -406,7 +406,7 @@ Macro.add('dragonbar', {
    解析，那时 <<for>> 的临时变量早被同段落的下一个面板覆盖了（"点花的面板、算成求术的面板"）。
    值与它一起走进 DOM，点谁是谁。 %/
 
-<<widget "socresolve">>
+<<widget "socresolve">><<nobr>>
 	<<set _a to Game.Social.ask($args[0])>>
 	<<if _a and $pc.ev.soc and $pc.ev.soc.id is _a.id>>
 		<<set _S to Game.Social>>
@@ -440,9 +440,9 @@ Macro.add('dragonbar', {
 		<</if>>
 		<<set $pc.ev.soc to null>>
 	<</if>>
-<</widget>>
+<</nobr>><</widget>>
 
-<<widget "socpanel">>
+<<widget "socpanel">><<nobr>>
 	<<set _a to Game.Social.ask($args[0])>>
 	<<set _S to Game.Social>>
 	<<if _a>>
@@ -470,7 +470,7 @@ Macro.add('dragonbar', {
 					<<for _i to 0; _i lt _S.levers(_a, $pc).length; _i++>>
 						<<set _lv to _S.levers(_a, $pc)[_i]>>
 						<<print `<a class="soc-opt" role="link" tabindex="0" data-ask="${_a.id}" data-how="lever:${_lv.id}">拿出筹码：${_lv.name}（${_a.tag}）</a>`>>
-						<span class="soc-meta">（<<if _lv.econ>>花 <<print -Game.Economy.priceOf(_lv.econ, $pc)>> 金币 ｜ <</if>><<if _lv.gives is "auto">>不用开口<</if>><<if _lv.gives is "adv">>开口时占优势<</if>>，无需掷骰）</span>
+						<span class="soc-meta">（<<if _lv.econ>>花 <<print -Game.Economy.priceOf(_lv.econ, $pc)>> 金币 ｜ <</if>><<if _lv.gives is "auto">>直接答应，无需掷骰<</if>><<if _lv.gives is "adv">>后续交涉检定有优势<</if>>）</span>
 					<</for>>
 					<<for _i to 0; _i lt _S.open(_a, $pc).length; _i++>>
 						<<set _o to _S.open(_a, $pc)[_i]>>
@@ -482,31 +482,33 @@ Macro.add('dragonbar', {
 			<</if>>
 		</div>
 	<</if>>
-<</widget>>
+<</nobr>><</widget>>
 
 /% 物品栏（v16 §5.0）：侧栏列出身上带着的东西——不凑数、不集齐开锁 %/
-<<widget "inventory">>
+<<widget "inventory">><<nobr>>
 	<<set _inv to Object.keys($pc.inv ?? {})>>
 	<<if _inv.length>>
 		<<for _i to 0; _i lt _inv.length; _i++>><span class="inv-item">_inv[_i]</span><</for>>
 	<<else>>
 		（空）
 	<</if>>
-<</widget>>
+<</nobr>><</widget>>
 
 :: StoryCaption
 /% 侧边栏：常驻存档入口（v16 §5.0）+ 实时角色卡 + 物品栏 %/
+<<nobr>>
 <div class="save-bar">
-	<a class="save-btn" onclick="sgQuickSave()">💾 快速存档</a>
-	<a class="save-btn" onclick="sgQuickLoad()">📂 快速读档</a>
-	<a class="save-btn" onclick="sgSaveMenu()">🗂 存档 / 读档</a>
+	<button type="button" class="save-btn" onclick="sgQuickSave()">💾 快速存档</button>
+	<button type="button" class="save-btn" onclick="sgQuickLoad()">📂 快速读档</button>
+	<button type="button" class="save-btn" onclick="sgSaveMenu()">🗂 存档 / 读档</button>
 </div>
+<</nobr>>
 <<if $pc.classLabel>>
 ''$pc.name''
 $pc.speciesLabel $pc.classLabel
 <<hpbar>>
 金币：$pc.gold
-药膏：$pc.salves 副（受伤时自动用，回 4 点）
+药膏：$pc.salves 副（受伤且存活时自动用，最多恢复 4 点生命）
 <<if $pc.gear.length>>行囊：<<print $pc.gear.join('、')>><</if>>
 <div class="inv-block">
 ''物品栏''

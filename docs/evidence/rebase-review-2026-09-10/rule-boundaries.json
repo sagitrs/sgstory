@@ -1,0 +1,41 @@
+{
+  "upstream": "d95c83a0c48d34a0c8553b75349b11fcfc5e9dfc",
+  "checks": [
+    {
+      "file": "src/20-chargen.twee",
+      "passageNamesEqual": true,
+      "ruleMacrosEqual": true,
+      "linkTargetsEqual": true
+    },
+    {
+      "file": "src/30-ch1.twee",
+      "passageNamesEqual": true,
+      "ruleMacrosEqual": true,
+      "linkTargetsEqual": true
+    },
+    {
+      "file": "src/40-ch2.twee",
+      "passageNamesEqual": true,
+      "ruleMacrosEqual": true,
+      "linkTargetsEqual": true
+    },
+    {
+      "file": "src/50-ch3.twee",
+      "passageNamesEqual": true,
+      "ruleMacrosEqual": true,
+      "linkTargetsEqual": true
+    },
+    {
+      "file": "src/60-endings.twee",
+      "passageNamesEqual": true,
+      "ruleMacrosEqual": true,
+      "linkTargetsEqual": true
+    },
+    {
+      "file": "src/70-codex.twee",
+      "passageNamesEqual": true,
+      "ruleMacrosEqual": true,
+      "linkTargetsEqual": true
+    }
+  ]
+}

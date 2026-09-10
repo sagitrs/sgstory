@@ -1,0 +1,2049 @@
+{
+  "commitStart": "31d73090491beff58bc01a680d7e81416d8b64d9",
+  "distSha256": "43f3ae446b7ae9e297cabcfb841d732e37f56db1ff740246bfdfa02376618d9d",
+  "engine": "Chromium",
+  "viewportHeight": 844,
+  "errors": [],
+  "failures": [],
+  "layouts": [
+    {
+      "width": 1440,
+      "stage": "mode",
+      "passage": "车卡",
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "height": 803.859375,
+      "choiceRects": [
+        {
+          "x": 578.59375,
+          "y": 375.625,
+          "width": 177.78125,
+          "height": 319.046875,
+          "top": 375.625,
+          "right": 756.375,
+          "bottom": 694.671875,
+          "left": 578.59375
+        },
+        {
+          "x": 771.09375,
+          "y": 375.625,
+          "width": 177.796875,
+          "height": 319.046875,
+          "top": 375.625,
+          "right": 948.890625,
+          "bottom": 694.671875,
+          "left": 771.09375
+        },
+        {
+          "x": 963.609375,
+          "y": 375.625,
+          "width": 177.796875,
+          "height": 319.046875,
+          "top": 375.625,
+          "right": 1141.40625,
+          "bottom": 694.671875,
+          "left": 963.609375
+        }
+      ],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 1440,
+      "stage": "round-0",
+      "passage": "车卡",
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "height": 824.59375,
+      "choiceRects": [
+        {
+          "x": 578.59375,
+          "y": 414.265625,
+          "width": 177.78125,
+          "height": 388.609375,
+          "top": 414.265625,
+          "right": 756.375,
+          "bottom": 802.875,
+          "left": 578.59375
+        },
+        {
+          "x": 771.09375,
+          "y": 414.265625,
+          "width": 177.796875,
+          "height": 388.609375,
+          "top": 414.265625,
+          "right": 948.890625,
+          "bottom": 802.875,
+          "left": 771.09375
+        },
+        {
+          "x": 963.609375,
+          "y": 414.265625,
+          "width": 177.796875,
+          "height": 388.609375,
+          "top": 414.265625,
+          "right": 1141.40625,
+          "bottom": 802.875,
+          "left": 963.609375
+        }
+      ],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 1440,
+      "stage": "round-1",
+      "passage": "车卡",
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "height": 789.8125,
+      "choiceRects": [
+        {
+          "x": 578.59375,
+          "y": 414.265625,
+          "width": 177.78125,
+          "height": 353.828125,
+          "top": 414.265625,
+          "right": 756.375,
+          "bottom": 768.09375,
+          "left": 578.59375
+        },
+        {
+          "x": 771.09375,
+          "y": 414.265625,
+          "width": 177.796875,
+          "height": 353.828125,
+          "top": 414.265625,
+          "right": 948.890625,
+          "bottom": 768.09375,
+          "left": 771.09375
+        },
+        {
+          "x": 963.609375,
+          "y": 414.265625,
+          "width": 177.796875,
+          "height": 353.828125,
+          "top": 414.265625,
+          "right": 1141.40625,
+          "bottom": 768.09375,
+          "left": 963.609375
+        }
+      ],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 1440,
+      "stage": "round-2",
+      "passage": "车卡",
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "height": 758.125,
+      "choiceRects": [
+        {
+          "x": 578.59375,
+          "y": 414.265625,
+          "width": 177.78125,
+          "height": 322.140625,
+          "top": 414.265625,
+          "right": 756.375,
+          "bottom": 736.40625,
+          "left": 578.59375
+        },
+        {
+          "x": 771.09375,
+          "y": 414.265625,
+          "width": 177.796875,
+          "height": 322.140625,
+          "top": 414.265625,
+          "right": 948.890625,
+          "bottom": 736.40625,
+          "left": 771.09375
+        },
+        {
+          "x": 963.609375,
+          "y": 414.265625,
+          "width": 177.796875,
+          "height": 322.140625,
+          "top": 414.265625,
+          "right": 1141.40625,
+          "bottom": 736.40625,
+          "left": 963.609375
+        }
+      ],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 1440,
+      "stage": "charsheet",
+      "passage": "角色卡",
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "height": 1007.25,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": {
+        "height": 57.9375,
+        "lineHeight": "57.96px"
+      }
+    },
+    {
+      "width": 1440,
+      "stage": "tavern",
+      "passage": "酒馆",
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "height": 2287.453125,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 1440,
+      "stage": "cave",
+      "passage": "洞穴",
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "height": 1586.609375,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 1440,
+      "stage": "keeper",
+      "passage": "守林人",
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "height": 3349.546875,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 1440,
+      "stage": "stargazer",
+      "passage": "观星者",
+      "scrollWidth": 1440,
+      "clientWidth": 1440,
+      "height": 1459.4375,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 1153.453125,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 768,
+      "stage": "mode",
+      "passage": "车卡",
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "height": 803.859375,
+      "choiceRects": [
+        {
+          "x": 118.59375,
+          "y": 375.625,
+          "width": 177.78125,
+          "height": 319.046875,
+          "top": 375.625,
+          "right": 296.375,
+          "bottom": 694.671875,
+          "left": 118.59375
+        },
+        {
+          "x": 311.09375,
+          "y": 375.625,
+          "width": 177.796875,
+          "height": 319.046875,
+          "top": 375.625,
+          "right": 488.890625,
+          "bottom": 694.671875,
+          "left": 311.09375
+        },
+        {
+          "x": 503.609375,
+          "y": 375.625,
+          "width": 177.796875,
+          "height": 319.046875,
+          "top": 375.625,
+          "right": 681.40625,
+          "bottom": 694.671875,
+          "left": 503.609375
+        }
+      ],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 768,
+      "stage": "round-0",
+      "passage": "车卡",
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "height": 824.59375,
+      "choiceRects": [
+        {
+          "x": 118.59375,
+          "y": 414.265625,
+          "width": 177.78125,
+          "height": 388.609375,
+          "top": 414.265625,
+          "right": 296.375,
+          "bottom": 802.875,
+          "left": 118.59375
+        },
+        {
+          "x": 311.09375,
+          "y": 414.265625,
+          "width": 177.796875,
+          "height": 388.609375,
+          "top": 414.265625,
+          "right": 488.890625,
+          "bottom": 802.875,
+          "left": 311.09375
+        },
+        {
+          "x": 503.609375,
+          "y": 414.265625,
+          "width": 177.796875,
+          "height": 388.609375,
+          "top": 414.265625,
+          "right": 681.40625,
+          "bottom": 802.875,
+          "left": 503.609375
+        }
+      ],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 768,
+      "stage": "round-1",
+      "passage": "车卡",
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "height": 789.8125,
+      "choiceRects": [
+        {
+          "x": 118.59375,
+          "y": 414.265625,
+          "width": 177.78125,
+          "height": 353.828125,
+          "top": 414.265625,
+          "right": 296.375,
+          "bottom": 768.09375,
+          "left": 118.59375
+        },
+        {
+          "x": 311.09375,
+          "y": 414.265625,
+          "width": 177.796875,
+          "height": 353.828125,
+          "top": 414.265625,
+          "right": 488.890625,
+          "bottom": 768.09375,
+          "left": 311.09375
+        },
+        {
+          "x": 503.609375,
+          "y": 414.265625,
+          "width": 177.796875,
+          "height": 353.828125,
+          "top": 414.265625,
+          "right": 681.40625,
+          "bottom": 768.09375,
+          "left": 503.609375
+        }
+      ],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 768,
+      "stage": "round-2",
+      "passage": "车卡",
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "height": 758.125,
+      "choiceRects": [
+        {
+          "x": 118.59375,
+          "y": 414.265625,
+          "width": 177.78125,
+          "height": 322.140625,
+          "top": 414.265625,
+          "right": 296.375,
+          "bottom": 736.40625,
+          "left": 118.59375
+        },
+        {
+          "x": 311.09375,
+          "y": 414.265625,
+          "width": 177.796875,
+          "height": 322.140625,
+          "top": 414.265625,
+          "right": 488.890625,
+          "bottom": 736.40625,
+          "left": 311.09375
+        },
+        {
+          "x": 503.609375,
+          "y": 414.265625,
+          "width": 177.796875,
+          "height": 322.140625,
+          "top": 414.265625,
+          "right": 681.40625,
+          "bottom": 736.40625,
+          "left": 503.609375
+        }
+      ],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 768,
+      "stage": "charsheet",
+      "passage": "角色卡",
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "height": 1007.25,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": {
+        "height": 57.9375,
+        "lineHeight": "57.96px"
+      }
+    },
+    {
+      "width": 768,
+      "stage": "tavern",
+      "passage": "酒馆",
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "height": 2287.453125,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 768,
+      "stage": "cave",
+      "passage": "洞穴",
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "height": 1586.609375,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 768,
+      "stage": "keeper",
+      "passage": "守林人",
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "height": 3349.546875,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 768,
+      "stage": "stargazer",
+      "passage": "观星者",
+      "scrollWidth": 768,
+      "clientWidth": 768,
+      "height": 1459.4375,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 693.453125,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 390,
+      "stage": "mode",
+      "passage": "车卡",
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "height": 1262.8125,
+      "choiceRects": [
+        {
+          "x": 79.71875,
+          "y": 406.90625,
+          "width": 262.5625,
+          "height": 241.546875,
+          "top": 406.90625,
+          "right": 342.28125,
+          "bottom": 648.453125,
+          "left": 79.71875
+        },
+        {
+          "x": 79.71875,
+          "y": 663.171875,
+          "width": 262.5625,
+          "height": 241.546875,
+          "top": 663.171875,
+          "right": 342.28125,
+          "bottom": 904.71875,
+          "left": 79.71875
+        },
+        {
+          "x": 79.71875,
+          "y": 919.4375,
+          "width": 262.5625,
+          "height": 241.546875,
+          "top": 919.4375,
+          "right": 342.28125,
+          "bottom": 1160.984375,
+          "left": 79.71875
+        }
+      ],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 390,
+      "stage": "round-0",
+      "passage": "车卡",
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "height": 1374.75,
+      "choiceRects": [
+        {
+          "x": 79.71875,
+          "y": 406.90625,
+          "width": 262.5625,
+          "height": 308.015625,
+          "top": 406.90625,
+          "right": 342.28125,
+          "bottom": 714.921875,
+          "left": 79.71875
+        },
+        {
+          "x": 79.71875,
+          "y": 729.640625,
+          "width": 262.5625,
+          "height": 308.015625,
+          "top": 729.640625,
+          "right": 342.28125,
+          "bottom": 1037.65625,
+          "left": 79.71875
+        },
+        {
+          "x": 79.71875,
+          "y": 1052.375,
+          "width": 262.5625,
+          "height": 308.015625,
+          "top": 1052.375,
+          "right": 342.28125,
+          "bottom": 1360.390625,
+          "left": 79.71875
+        }
+      ],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 390,
+      "stage": "round-1",
+      "passage": "车卡",
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "height": 1276.59375,
+      "choiceRects": [
+        {
+          "x": 79.71875,
+          "y": 406.90625,
+          "width": 262.5625,
+          "height": 241.546875,
+          "top": 406.90625,
+          "right": 342.28125,
+          "bottom": 648.453125,
+          "left": 79.71875
+        },
+        {
+          "x": 79.71875,
+          "y": 663.171875,
+          "width": 262.5625,
+          "height": 276.328125,
+          "top": 663.171875,
+          "right": 342.28125,
+          "bottom": 939.5,
+          "left": 79.71875
+        },
+        {
+          "x": 79.71875,
+          "y": 954.21875,
+          "width": 262.5625,
+          "height": 308.015625,
+          "top": 954.21875,
+          "right": 342.28125,
+          "bottom": 1262.234375,
+          "left": 79.71875
+        }
+      ],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 390,
+      "stage": "round-2",
+      "passage": "车卡",
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "height": 1210.125,
+      "choiceRects": [
+        {
+          "x": 79.71875,
+          "y": 406.90625,
+          "width": 262.5625,
+          "height": 241.546875,
+          "top": 406.90625,
+          "right": 342.28125,
+          "bottom": 648.453125,
+          "left": 79.71875
+        },
+        {
+          "x": 79.71875,
+          "y": 663.171875,
+          "width": 262.5625,
+          "height": 276.328125,
+          "top": 663.171875,
+          "right": 342.28125,
+          "bottom": 939.5,
+          "left": 79.71875
+        },
+        {
+          "x": 79.71875,
+          "y": 954.21875,
+          "width": 262.5625,
+          "height": 241.546875,
+          "top": 954.21875,
+          "right": 342.28125,
+          "bottom": 1195.765625,
+          "left": 79.71875
+        }
+      ],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 390,
+      "stage": "charsheet",
+      "passage": "角色卡",
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "height": 1011.203125,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": {
+        "height": 42.484375,
+        "lineHeight": "42.504px"
+      }
+    },
+    {
+      "width": 390,
+      "stage": "tavern",
+      "passage": "酒馆",
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "height": 2911.90625,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 390,
+      "stage": "cave",
+      "passage": "洞穴",
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "height": 2288.34375,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 390,
+      "stage": "keeper",
+      "passage": "守林人",
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "height": 4283.125,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 390,
+      "stage": "stargazer",
+      "passage": "观星者",
+      "scrollWidth": 390,
+      "clientWidth": 390,
+      "height": 1790.984375,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 341.453125,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 360,
+      "stage": "mode",
+      "passage": "车卡",
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "height": 1357.875,
+      "choiceRects": [
+        {
+          "x": 79.71875,
+          "y": 406.90625,
+          "width": 232.5625,
+          "height": 273.234375,
+          "top": 406.90625,
+          "right": 312.28125,
+          "bottom": 680.140625,
+          "left": 79.71875
+        },
+        {
+          "x": 79.71875,
+          "y": 694.859375,
+          "width": 232.5625,
+          "height": 273.234375,
+          "top": 694.859375,
+          "right": 312.28125,
+          "bottom": 968.09375,
+          "left": 79.71875
+        },
+        {
+          "x": 79.71875,
+          "y": 982.8125,
+          "width": 232.5625,
+          "height": 273.234375,
+          "top": 982.8125,
+          "right": 312.28125,
+          "bottom": 1256.046875,
+          "left": 79.71875
+        }
+      ],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 360,
+      "stage": "round-0",
+      "passage": "车卡",
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "height": 1374.75,
+      "choiceRects": [
+        {
+          "x": 79.71875,
+          "y": 406.90625,
+          "width": 232.5625,
+          "height": 308.015625,
+          "top": 406.90625,
+          "right": 312.28125,
+          "bottom": 714.921875,
+          "left": 79.71875
+        },
+        {
+          "x": 79.71875,
+          "y": 729.640625,
+          "width": 232.5625,
+          "height": 308.015625,
+          "top": 729.640625,
+          "right": 312.28125,
+          "bottom": 1037.65625,
+          "left": 79.71875
+        },
+        {
+          "x": 79.71875,
+          "y": 1052.375,
+          "width": 232.5625,
+          "height": 308.015625,
+          "top": 1052.375,
+          "right": 312.28125,
+          "bottom": 1360.390625,
+          "left": 79.71875
+        }
+      ],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 360,
+      "stage": "round-1",
+      "passage": "车卡",
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "height": 1311.375,
+      "choiceRects": [
+        {
+          "x": 79.71875,
+          "y": 406.90625,
+          "width": 232.5625,
+          "height": 276.328125,
+          "top": 406.90625,
+          "right": 312.28125,
+          "bottom": 683.234375,
+          "left": 79.71875
+        },
+        {
+          "x": 79.71875,
+          "y": 697.953125,
+          "width": 232.5625,
+          "height": 276.328125,
+          "top": 697.953125,
+          "right": 312.28125,
+          "bottom": 974.28125,
+          "left": 79.71875
+        },
+        {
+          "x": 79.71875,
+          "y": 989,
+          "width": 232.5625,
+          "height": 308.015625,
+          "top": 989,
+          "right": 312.28125,
+          "bottom": 1297.015625,
+          "left": 79.71875
+        }
+      ],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 360,
+      "stage": "round-2",
+      "passage": "车卡",
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "height": 1279.6875,
+      "choiceRects": [
+        {
+          "x": 79.71875,
+          "y": 406.90625,
+          "width": 232.5625,
+          "height": 276.328125,
+          "top": 406.90625,
+          "right": 312.28125,
+          "bottom": 683.234375,
+          "left": 79.71875
+        },
+        {
+          "x": 79.71875,
+          "y": 697.953125,
+          "width": 232.5625,
+          "height": 276.328125,
+          "top": 697.953125,
+          "right": 312.28125,
+          "bottom": 974.28125,
+          "left": 79.71875
+        },
+        {
+          "x": 79.71875,
+          "y": 989,
+          "width": 232.5625,
+          "height": 276.328125,
+          "top": 989,
+          "right": 312.28125,
+          "bottom": 1265.328125,
+          "left": 79.71875
+        }
+      ],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 360,
+      "stage": "charsheet",
+      "passage": "角色卡",
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "height": 1049.84375,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [],
+      "errors": [],
+      "broken": [],
+      "title": {
+        "height": 42.484375,
+        "lineHeight": "42.504px"
+      }
+    },
+    {
+      "width": 360,
+      "stage": "tavern",
+      "passage": "酒馆",
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "height": 3182.390625,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 360,
+      "stage": "cave",
+      "passage": "洞穴",
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "height": 2365.625,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 360,
+      "stage": "keeper",
+      "passage": "守林人",
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "height": 4476.328125,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "broken": [],
+      "title": null
+    },
+    {
+      "width": 360,
+      "stage": "stargazer",
+      "passage": "观星者",
+      "scrollWidth": 360,
+      "clientWidth": 360,
+      "height": 1829.625,
+      "choiceRects": [],
+      "choiceBr": 0,
+      "socMeta": [
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        },
+        {
+          "right": 311.453125,
+          "whiteSpace": "normal"
+        }
+      ],
+      "errors": [],
+      "broken": [],
+      "title": null
+    }
+  ],
+  "feedback": [
+    {
+      "width": 1440,
+      "text": "——有人接嘴：\"那女巫还住在塔上呢。不老的女人。我爷爷见过她，我爹见过她，前年我上山，也见过她。\"",
+      "before": 498,
+      "scrollY": 796,
+      "top": 32.15625,
+      "bottom": 109.4375,
+      "focused": true
+    },
+    {
+      "width": 1440,
+      "text": "——靠窗那桌：\"我爷爷的爷爷见过塔上亮着灯。三百年了，那灯没灭过。\"",
+      "before": 0,
+      "scrollY": 749,
+      "top": 32.15625,
+      "bottom": 109.4375,
+      "focused": true
+    },
+    {
+      "width": 768,
+      "text": "——有人接嘴：\"那女巫还住在塔上呢。不老的女人。我爷爷见过她，我爹见过她，前年我上山，也见过她。\"",
+      "before": 498,
+      "scrollY": 796,
+      "top": 32.15625,
+      "bottom": 109.4375,
+      "focused": true
+    },
+    {
+      "width": 768,
+      "text": "——靠窗那桌：\"我爷爷的爷爷见过塔上亮着灯。三百年了，那灯没灭过。\"",
+      "before": 0,
+      "scrollY": 749,
+      "top": 32.15625,
+      "bottom": 109.4375,
+      "focused": true
+    },
+    {
+      "width": 390,
+      "text": "——有人接嘴：\"那女巫还住在塔上呢。不老的女人。我爷爷见过她，我爹见过她，前年我上山，也见过她。\"",
+      "before": 769,
+      "scrollY": 951,
+      "top": 31.71875,
+      "bottom": 186.28125,
+      "focused": true
+    },
+    {
+      "width": 390,
+      "text": "——靠窗那桌：\"我爷爷的爷爷见过塔上亮着灯。三百年了，那灯没灭过。\"",
+      "before": 70,
+      "scrollY": 904,
+      "top": 31.71875,
+      "bottom": 147.640625,
+      "focused": true
+    },
+    {
+      "width": 360,
+      "text": "——有人接嘴：\"那女巫还住在塔上呢。不老的女人。我爷爷见过她，我爹见过她，前年我上山，也见过她。\"",
+      "before": 943,
+      "scrollY": 1105,
+      "top": 32.28125,
+      "bottom": 186.84375,
+      "focused": true
+    },
+    {
+      "width": 360,
+      "text": "——靠窗那桌：\"我爷爷的爷爷见过塔上亮着灯。三百年了，那灯没灭过。\"",
+      "before": 128,
+      "scrollY": 1020,
+      "top": 31.640625,
+      "bottom": 147.5625,
+      "focused": true
+    }
+  ],
+  "navigation": [
+    {
+      "width": 1440,
+      "text": "出发，前往歪脖子鸭酒馆",
+      "passage": "酒馆",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 1440,
+      "text": "推门出发，走进暮色",
+      "passage": "森林边缘",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 1440,
+      "text": "推门出发，走进暮色",
+      "passage": "森林边缘",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 1440,
+      "text": "走进山脚的洞穴",
+      "passage": "洞穴",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 1440,
+      "text": "退回森林边缘",
+      "passage": "森林边缘",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 1440,
+      "text": "去那间亮着灯的小屋",
+      "passage": "女巫小屋",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 1440,
+      "text": "谢过她，往林子深处走",
+      "passage": "林间小径",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 1440,
+      "text": "继续往塔那边走",
+      "passage": "塔门",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 1440,
+      "text": "雾里有个影子挡着路",
+      "passage": "雾之魔物",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 1440,
+      "text": "慢慢放下手，退开一步",
+      "passage": "雾之魔物·退",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 1440,
+      "text": "顺着那条窄路走过去",
+      "passage": "守林人",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 1440,
+      "text": "收下钥匙，去看那道门",
+      "passage": "门厅",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 1440,
+      "text": "用钥匙打开铁门",
+      "passage": "地下宴会厅",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 1440,
+      "text": "翻转护身符：坠入『过去』",
+      "passage": "地下宴会厅",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "past"
+    },
+    {
+      "width": 1440,
+      "text": "在宴上找人说话",
+      "passage": "宴会·过去",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "past"
+    },
+    {
+      "width": 1440,
+      "text": "问那位一直在算星的人",
+      "passage": "观星者",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "past"
+    },
+    {
+      "width": 768,
+      "text": "出发，前往歪脖子鸭酒馆",
+      "passage": "酒馆",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 768,
+      "text": "推门出发，走进暮色",
+      "passage": "森林边缘",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 768,
+      "text": "推门出发，走进暮色",
+      "passage": "森林边缘",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 768,
+      "text": "走进山脚的洞穴",
+      "passage": "洞穴",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 768,
+      "text": "退回森林边缘",
+      "passage": "森林边缘",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 768,
+      "text": "去那间亮着灯的小屋",
+      "passage": "女巫小屋",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 768,
+      "text": "谢过她，往林子深处走",
+      "passage": "林间小径",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 768,
+      "text": "继续往塔那边走",
+      "passage": "塔门",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 768,
+      "text": "雾里有个影子挡着路",
+      "passage": "雾之魔物",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 768,
+      "text": "慢慢放下手，退开一步",
+      "passage": "雾之魔物·退",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 768,
+      "text": "顺着那条窄路走过去",
+      "passage": "守林人",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 768,
+      "text": "收下钥匙，去看那道门",
+      "passage": "门厅",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 768,
+      "text": "用钥匙打开铁门",
+      "passage": "地下宴会厅",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 768,
+      "text": "翻转护身符：坠入『过去』",
+      "passage": "地下宴会厅",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "past"
+    },
+    {
+      "width": 768,
+      "text": "在宴上找人说话",
+      "passage": "宴会·过去",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "past"
+    },
+    {
+      "width": 768,
+      "text": "问那位一直在算星的人",
+      "passage": "观星者",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "past"
+    },
+    {
+      "width": 390,
+      "text": "出发，前往歪脖子鸭酒馆",
+      "passage": "酒馆",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 390,
+      "text": "推门出发，走进暮色",
+      "passage": "森林边缘",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 390,
+      "text": "推门出发，走进暮色",
+      "passage": "森林边缘",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 390,
+      "text": "走进山脚的洞穴",
+      "passage": "洞穴",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 390,
+      "text": "退回森林边缘",
+      "passage": "森林边缘",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 390,
+      "text": "去那间亮着灯的小屋",
+      "passage": "女巫小屋",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 390,
+      "text": "谢过她，往林子深处走",
+      "passage": "林间小径",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 390,
+      "text": "继续往塔那边走",
+      "passage": "塔门",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 390,
+      "text": "雾里有个影子挡着路",
+      "passage": "雾之魔物",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 390,
+      "text": "慢慢放下手，退开一步",
+      "passage": "雾之魔物·退",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 390,
+      "text": "顺着那条窄路走过去",
+      "passage": "守林人",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 390,
+      "text": "收下钥匙，去看那道门",
+      "passage": "门厅",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 390,
+      "text": "用钥匙打开铁门",
+      "passage": "地下宴会厅",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 390,
+      "text": "翻转护身符：坠入『过去』",
+      "passage": "地下宴会厅",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "past"
+    },
+    {
+      "width": 390,
+      "text": "在宴上找人说话",
+      "passage": "宴会·过去",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "past"
+    },
+    {
+      "width": 390,
+      "text": "问那位一直在算星的人",
+      "passage": "观星者",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "past"
+    },
+    {
+      "width": 360,
+      "text": "出发，前往歪脖子鸭酒馆",
+      "passage": "酒馆",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 360,
+      "text": "推门出发，走进暮色",
+      "passage": "森林边缘",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 360,
+      "text": "推门出发，走进暮色",
+      "passage": "森林边缘",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 360,
+      "text": "走进山脚的洞穴",
+      "passage": "洞穴",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 360,
+      "text": "退回森林边缘",
+      "passage": "森林边缘",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 360,
+      "text": "去那间亮着灯的小屋",
+      "passage": "女巫小屋",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 360,
+      "text": "谢过她，往林子深处走",
+      "passage": "林间小径",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 360,
+      "text": "继续往塔那边走",
+      "passage": "塔门",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 360,
+      "text": "雾里有个影子挡着路",
+      "passage": "雾之魔物",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 360,
+      "text": "慢慢放下手，退开一步",
+      "passage": "雾之魔物·退",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 360,
+      "text": "顺着那条窄路走过去",
+      "passage": "守林人",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 360,
+      "text": "收下钥匙，去看那道门",
+      "passage": "门厅",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 360,
+      "text": "用钥匙打开铁门",
+      "passage": "地下宴会厅",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "present"
+    },
+    {
+      "width": 360,
+      "text": "翻转护身符：坠入『过去』",
+      "passage": "地下宴会厅",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "past"
+    },
+    {
+      "width": 360,
+      "text": "在宴上找人说话",
+      "passage": "宴会·过去",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "past"
+    },
+    {
+      "width": 360,
+      "text": "问那位一直在算星的人",
+      "passage": "观星者",
+      "scrollY": 0,
+      "feedback": 0,
+      "era": "past"
+    }
+  ],
+  "saves": [
+    {
+      "width": 1440,
+      "key": "Enter",
+      "had": false,
+      "has": true
+    },
+    {
+      "width": 1440,
+      "stage": "load",
+      "passage": "酒馆",
+      "scrollY": 0,
+      "feedback": 0
+    },
+    {
+      "width": 768,
+      "key": "Enter",
+      "had": false,
+      "has": true
+    },
+    {
+      "width": 768,
+      "stage": "load",
+      "passage": "酒馆",
+      "scrollY": 0,
+      "feedback": 0
+    },
+    {
+      "width": 390,
+      "key": " ",
+      "had": false,
+      "has": true
+    },
+    {
+      "width": 390,
+      "stage": "load",
+      "passage": "酒馆",
+      "scrollY": 0,
+      "feedback": 0
+    },
+    {
+      "width": 360,
+      "key": " ",
+      "had": false,
+      "has": true
+    },
+    {
+      "width": 360,
+      "stage": "load",
+      "passage": "酒馆",
+      "scrollY": 0,
+      "feedback": 0
+    }
+  ],
+  "social": [
+    {
+      "width": 1440,
+      "attempt": 0,
+      "key": "Enter",
+      "stage": "check",
+      "focus": "check-result check-success action-feedback",
+      "top": 32.046875,
+      "text": "\"你要真想进去，\"她把杯子放下，\"就记住两件事：一是别在雾里睡觉，二是听见有人叫你名字，别应。\""
+    },
+    {
+      "width": 1440,
+      "attempt": 1,
+      "key": " ",
+      "stage": "check",
+      "focus": "check-result check-fail action-feedback",
+      "top": 32.046875,
+      "text": "她把抹布在台面上又擦了一遍，没接你的话。（她听过了，不想再说。）"
+    },
+    {
+      "width": 1440,
+      "attempt": 1,
+      "stage": "failure-then-pay",
+      "top": 31.734375,
+      "text": "你把酒钱推过去。她愣了一下，然后真的坐下了：\"……你倒是会做人。坐下吧。\"",
+      "focused": true
+    },
+    {
+      "width": 390,
+      "attempt": 0,
+      "key": "Enter",
+      "stage": "check",
+      "focus": "check-result check-fail action-feedback",
+      "top": 31.5,
+      "text": "她把抹布在台面上又擦了一遍，没接你的话。（她听过了，不想再说。）"
+    },
+    {
+      "width": 390,
+      "attempt": 0,
+      "stage": "failure-then-pay",
+      "top": 31.875,
+      "text": "你把酒钱推过去。她愣了一下，然后真的坐下了：\"……你倒是会做人。坐下吧。\"",
+      "focused": true
+    }
+  ],
+  "scope": "Actual UI route: start → detailed character creation → tavern → cave → witch → keeper → cellar → past feast → stargazer. Extra natural-roll social failure → paid reply.",
+  "priorAttempt": "/tmp/sgstory-rebase-browser-attempt1.json",
+  "commitEnd": "31d73090491beff58bc01a680d7e81416d8b64d9",
+  "distSha256End": "43f3ae446b7ae9e297cabcfb841d732e37f56db1ff740246bfdfa02376618d9d"
+}

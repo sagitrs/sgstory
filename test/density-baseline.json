@@ -2,16 +2,16 @@
 	"note": "#168 机检⑦ 措辞密度 ratchet：破折号/像/括号 每千字次数。只许降不许升——改写后确实要变密，请 --update-density 重签并在 PR 里写明理由。",
 	"rows": {
 		"书房": {
-			"dash": 10.1,
+			"dash": 9.2,
 			"like": 0.8,
-			"paren": 10.1,
-			"chars": 1185
+			"paren": 10,
+			"chars": 1200
 		},
 		"交付": {
-			"dash": 7.4,
+			"dash": 3.4,
 			"like": 0,
-			"paren": 3.7,
-			"chars": 269
+			"paren": 3.4,
+			"chars": 290
 		},
 		"半途的林子": {
 			"dash": 8,
@@ -20,52 +20,52 @@
 			"chars": 125
 		},
 		"唤醒": {
-			"dash": 9.6,
+			"dash": 9.8,
 			"like": 2.4,
 			"paren": 2.4,
-			"chars": 415
+			"chars": 409
 		},
 		"喂花": {
-			"dash": 9.8,
-			"like": 4.9,
-			"paren": 4.9,
-			"chars": 204
+			"dash": 5.1,
+			"like": 5.1,
+			"paren": 5.1,
+			"chars": 196
 		},
 		"地下宴会厅": {
-			"dash": 12.7,
-			"like": 9.6,
-			"paren": 3.2,
-			"chars": 314
+			"dash": 7.3,
+			"like": 3.6,
+			"paren": 3.6,
+			"chars": 274
 		},
 		"塔外花田": {
-			"dash": 9.5,
+			"dash": 7.6,
 			"like": 3.8,
 			"paren": 5.7,
-			"chars": 528
+			"chars": 527
 		},
 		"塔门": {
-			"dash": 9.6,
-			"like": 2.4,
-			"paren": 7.2,
-			"chars": 415
+			"dash": 10.4,
+			"like": 2.6,
+			"paren": 7.8,
+			"chars": 384
 		},
 		"天文台": {
-			"dash": 8.8,
-			"like": 1.8,
-			"paren": 7,
-			"chars": 571
+			"dash": 7.4,
+			"like": 1.9,
+			"paren": 7.4,
+			"chars": 540
 		},
 		"女巫小屋": {
-			"dash": 15.3,
-			"like": 3.1,
-			"paren": 5.1,
-			"chars": 979
+			"dash": 13.1,
+			"like": 3,
+			"paren": 5,
+			"chars": 996
 		},
 		"守林人": {
-			"dash": 10.3,
+			"dash": 8.9,
 			"like": 1.3,
-			"paren": 2.6,
-			"chars": 774
+			"paren": 2.5,
+			"chars": 785
 		},
 		"守林人·信": {
 			"dash": 7.9,
@@ -74,10 +74,10 @@
 			"chars": 126
 		},
 		"守林人·守": {
-			"dash": 12,
-			"like": 4,
+			"dash": 12.2,
+			"like": 4.1,
 			"paren": 0,
-			"chars": 249
+			"chars": 246
 		},
 		"守林人·封印": {
 			"dash": 10.8,
@@ -86,70 +86,70 @@
 			"chars": 186
 		},
 		"守林人·送": {
-			"dash": 11.5,
-			"like": 5.7,
-			"paren": 5.7,
-			"chars": 174
+			"dash": 6.6,
+			"like": 6.6,
+			"paren": 6.6,
+			"chars": 152
 		},
 		"宴会·过去": {
-			"dash": 5.4,
-			"like": 5.4,
+			"dash": 0,
+			"like": 0,
 			"paren": 2.7,
-			"chars": 371
+			"chars": 364
 		},
 		"寻杖": {
-			"dash": 7.8,
+			"dash": 1.9,
 			"like": 0,
-			"paren": 9.7,
-			"chars": 515
+			"paren": 9.3,
+			"chars": 539
 		},
 		"封印·并肩": {
 			"dash": 7.5,
 			"like": 0,
 			"paren": 0,
-			"chars": 134
+			"chars": 133
 		},
 		"工坊": {
-			"dash": 7.7,
+			"dash": 5.9,
 			"like": 0,
-			"paren": 7.7,
-			"chars": 519
+			"paren": 7.9,
+			"chars": 506
 		},
 		"开场": {
-			"dash": 6.6,
+			"dash": 6.7,
 			"like": 2.2,
 			"paren": 0,
-			"chars": 456
+			"chars": 450
 		},
 		"归位": {
-			"dash": 9.1,
+			"dash": 9,
 			"like": 15.1,
 			"paren": 6,
-			"chars": 331
+			"chars": 332
 		},
 		"当时的女巫": {
-			"dash": 11.8,
-			"like": 2.9,
-			"paren": 11.8,
-			"chars": 340
+			"dash": 6.3,
+			"like": 3.1,
+			"paren": 12.5,
+			"chars": 319
 		},
 		"当时的女巫·换": {
-			"dash": 7.4,
-			"like": 14.7,
+			"dash": 6.8,
+			"like": 13.6,
 			"paren": 0,
-			"chars": 136
+			"chars": 147
 		},
 		"林间小径": {
-			"dash": 15.2,
+			"dash": 7.3,
 			"like": 0,
 			"paren": 0,
-			"chars": 264
+			"chars": 273
 		},
 		"森林边缘": {
-			"dash": 11.5,
-			"like": 11.5,
+			"dash": 11.6,
+			"like": 11.6,
 			"paren": 2.9,
-			"chars": 349
+			"chars": 345
 		},
 		"洞穴": {
 			"dash": 7.1,
@@ -158,16 +158,16 @@
 			"chars": 422
 		},
 		"结局 再度沉睡": {
-			"dash": 5.9,
-			"like": 8.8,
+			"dash": 3,
+			"like": 5.9,
 			"paren": 5.9,
-			"chars": 340
+			"chars": 337
 		},
 		"结局 劣化封印": {
-			"dash": 6,
-			"like": 6,
-			"paren": 6,
-			"chars": 167
+			"dash": 6.2,
+			"like": 6.2,
+			"paren": 6.2,
+			"chars": 161
 		},
 		"结局 半途": {
 			"dash": 0,
@@ -176,16 +176,16 @@
 			"chars": 122
 		},
 		"结局 坠星之死": {
-			"dash": 5.3,
-			"like": 5.3,
-			"paren": 5.3,
-			"chars": 189
+			"dash": 5.2,
+			"like": 5.2,
+			"paren": 5.2,
+			"chars": 192
 		},
 		"结局 守林人击杀": {
-			"dash": 5,
+			"dash": 4.8,
 			"like": 0,
-			"paren": 5,
-			"chars": 200
+			"paren": 4.8,
+			"chars": 207
 		},
 		"结局 平凡之路": {
 			"dash": 0,
@@ -213,93 +213,93 @@
 		},
 		"结局 焚塔者": {
 			"dash": 0,
-			"like": 7.4,
-			"paren": 7.4,
-			"chars": 136
+			"like": 7.1,
+			"paren": 7.1,
+			"chars": 140
 		},
 		"结局 自愿的长眠": {
-			"dash": 5.6,
-			"like": 5.6,
-			"paren": 5.6,
-			"chars": 177
+			"dash": 5.7,
+			"like": 5.7,
+			"paren": 5.7,
+			"chars": 174
 		},
 		"结局 讨伐": {
-			"dash": 6.2,
+			"dash": 6.1,
 			"like": 0,
-			"paren": 6.2,
-			"chars": 161
+			"paren": 6.1,
+			"chars": 163
 		},
 		"结局 送入虚空": {
-			"dash": 11.4,
-			"like": 3.8,
-			"paren": 3.8,
-			"chars": 263
+			"dash": 11.2,
+			"like": 3.7,
+			"paren": 3.7,
+			"chars": 268
 		},
 		"结局 送星归位": {
-			"dash": 4.7,
+			"dash": 4.8,
 			"like": 2.4,
-			"paren": 4.7,
-			"chars": 422
+			"paren": 4.8,
+			"chars": 415
 		},
 		"结局 银月之赐": {
 			"dash": 0,
 			"like": 0,
-			"paren": 6.3,
-			"chars": 159
+			"paren": 6.1,
+			"chars": 164
 		},
 		"老妇人": {
 			"dash": 0,
 			"like": 0,
 			"paren": 0,
-			"chars": 55
+			"chars": 68
 		},
 		"老巫女": {
-			"dash": 17.2,
+			"dash": 8.8,
 			"like": 0,
-			"paren": 17.2,
-			"chars": 116
+			"paren": 17.5,
+			"chars": 114
 		},
 		"观星者": {
-			"dash": 4.6,
-			"like": 4.6,
-			"paren": 4.6,
-			"chars": 217
+			"dash": 0,
+			"like": 0,
+			"paren": 4.8,
+			"chars": 208
 		},
 		"观星者·图": {
 			"dash": 0,
-			"like": 4.2,
-			"paren": 8.4,
-			"chars": 237
+			"like": 4.3,
+			"paren": 8.6,
+			"chars": 232
 		},
 		"观星者·夜": {
-			"dash": 10.4,
+			"dash": 8.7,
 			"like": 0,
 			"paren": 0,
-			"chars": 96
+			"chars": 115
 		},
 		"观星者·星": {
 			"dash": 0,
 			"like": 0,
 			"paren": 0,
-			"chars": 98
+			"chars": 102
 		},
 		"角色卡": {
 			"dash": 0,
 			"like": 0,
 			"paren": 0,
-			"chars": 376
+			"chars": 374
 		},
 		"设定集": {
 			"dash": 0,
 			"like": 0,
 			"paren": 0,
-			"chars": 48
+			"chars": 67
 		},
 		"设定集·三律": {
-			"dash": 8.1,
+			"dash": 7.4,
 			"like": 0,
 			"paren": 0,
-			"chars": 124
+			"chars": 136
 		},
 		"设定集·图鉴": {
 			"dash": 0,
@@ -314,10 +314,10 @@
 			"chars": 214
 		},
 		"设定集·守塔的人家": {
-			"dash": 14.4,
+			"dash": 0,
 			"like": 0,
-			"paren": 14.4,
-			"chars": 209
+			"paren": 9,
+			"chars": 222
 		},
 		"设定集·术语": {
 			"dash": 0,
@@ -326,10 +326,10 @@
 			"chars": 127
 		},
 		"设定集·结局": {
-			"dash": 6.4,
+			"dash": 5.9,
 			"like": 0,
-			"paren": 6.4,
-			"chars": 157
+			"paren": 0,
+			"chars": 170
 		},
 		"设定集·道具": {
 			"dash": 13.2,
@@ -340,23 +340,23 @@
 		"车卡": {
 			"dash": 0,
 			"like": 0,
-			"paren": 3.6,
-			"chars": 275
+			"paren": 0,
+			"chars": 277
 		},
 		"酒馆": {
-			"dash": 11.7,
+			"dash": 11.6,
 			"like": 2.5,
 			"paren": 2.5,
-			"chars": 1200
+			"chars": 1205
 		},
 		"门厅": {
-			"dash": 5.1,
-			"like": 3.4,
-			"paren": 5.1,
-			"chars": 585
+			"dash": 1.7,
+			"like": 3.3,
+			"paren": 5,
+			"chars": 598
 		},
 		"雾之魔物": {
-			"dash": 16.9,
+			"dash": 12.7,
 			"like": 12.7,
 			"paren": 0,
 			"chars": 236
@@ -388,14 +388,14 @@
 		"龙·巢边": {
 			"dash": 0,
 			"like": 0,
-			"paren": 10.5,
-			"chars": 95
+			"paren": 9.6,
+			"chars": 104
 		},
 		"龙·战": {
-			"dash": 8.3,
+			"dash": 7.5,
 			"like": 0,
 			"paren": 0,
-			"chars": 121
+			"chars": 133
 		}
 	}
 }

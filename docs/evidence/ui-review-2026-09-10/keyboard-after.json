@@ -1,0 +1,104 @@
+{
+  "errors": [],
+  "dialogs": [],
+  "motion": {
+    "reduced": true,
+    "animation": "0s ease 0s 1 normal none running none"
+  },
+  "keyboard": [
+    {
+      "control": "menu",
+      "key": "Enter",
+      "focused": "<div id=\"ui-dialog\" tabindex=\"0\" role=\"dialog\" aria-labelledby=\"ui-dialog-title\" aria-modal=\"true\" class=\"open\" style=\"inset: 10px 183px;\"><div id=\"ui-dialog-titlebar\"><h1 id=\"ui-dialog-title\">Saves</h1><button id=\"ui-dialog-close\" class=\"ui-close\" tabindex=\"0\" aria-label=\"Close\"></button></div><div id=\"ui-dialog-body\" class=\"saves\"><h2>In Browser</h2><table id=\"saves-list\"><tbody><tr><td></td><td><button id=\"saves-save-0\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 1\" title=\"Save Slot 1\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;1</div></td><td><button id=\"saves-delete-0\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-1\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 2\" title=\"Save Slot 2\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;2</div></td><td><button id=\"saves-delete-1\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-2\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 3\" title=\"Save Slot 3\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;3</div></td><td><button id=\"saves-delete-2\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-3\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 4\" title=\"Save Slot 4\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;4</div></td><td><button id=\"saves-delete-3\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-4\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 5\" title=\"Save Slot 5\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;5</div></td><td><button id=\"saves-delete-4\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-5\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 6\" title=\"Save Slot 6\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;6</div></td><td><button id=\"saves-delete-5\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-6\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 7\" title=\"Save Slot 7\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;7</div></td><td><button id=\"saves-delete-6\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-7\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 8\" title=\"Save Slot 8\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;8</div></td><td><button id=\"saves-delete-7\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-8\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 9\" title=\"Save Slot 9\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;9</div></td><td><button id=\"saves-delete-8\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-9\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 10\" title=\"Save Slot 10\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;10</div></td><td><button id=\"saves-delete-9\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-10\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 11\" title=\"Save Slot 11\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;11</div></td><td><button id=\"saves-delete-10\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-11\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 12\" title=\"Save Slot 12\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;12</div></td><td><button id=\"saves-delete-11\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-12\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 13\" title=\"Save Slot 13\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;13</div></td><td><button id=\"saves-delete-12\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-13\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 14\" title=\"Save Slot 14\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;14</div></td><td><button id=\"saves-delete-13\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-14\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 15\" title=\"Save Slot 15\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;15</div></td><td><button id=\"saves-delete-14\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-15\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 16\" title=\"Save Slot 16\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;16</div></td><td><button id=\"saves-delete-15\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr></tbody></table><ul class=\"buttons slots\"><li><button id=\"saves-export\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Export browser saves to bundle\" title=\"Export browser saves to bundle\">Export…</button></li><li><button id=\"saves-import\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Import browser saves from bundle\" title=\"Import browser saves from bundle\">Import…</button></li><li><button id=\"saves-clear\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\">Clear</button></li></ul><input id=\"saves-import-handler\" type=\"file\" tabindex=\"-1\" aria-hidden=\"true\" style=\"display: block; visibility: hidden; position: fixed; left: -16128px; top: -16128px; width: 1px; height: 1px;\"><h2>On Disk</h2><ul class=\"buttons\"><li><button id=\"saves-disk-save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save to disk\" title=\"Save to disk\">Save…</button></li><li><button id=\"saves-disk-load\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Load from disk\" title=\"Load from disk\">Load…</button></li></ul><input id=\"saves-disk-load-handler\" type=\"file\" tabindex=\"-1\" aria-hidden=\"true\" style=\"display: block; visibility: hidden; position: fixed; left: -16128px; top: -16128px; width: 1px; height: 1px;\"></div></div>",
+      "open": true
+    },
+    {
+      "control": "menu",
+      "key": " ",
+      "focused": "<div id=\"ui-dialog\" tabindex=\"0\" role=\"dialog\" aria-labelledby=\"ui-dialog-title\" aria-modal=\"true\" class=\"open\" style=\"inset: 10px 183px;\"><div id=\"ui-dialog-titlebar\"><h1 id=\"ui-dialog-title\">Saves</h1><button id=\"ui-dialog-close\" class=\"ui-close\" tabindex=\"0\" aria-label=\"Close\"></button></div><div id=\"ui-dialog-body\" class=\"saves\"><h2>In Browser</h2><table id=\"saves-list\"><tbody><tr><td></td><td><button id=\"saves-save-0\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 1\" title=\"Save Slot 1\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;1</div></td><td><button id=\"saves-delete-0\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-1\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 2\" title=\"Save Slot 2\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;2</div></td><td><button id=\"saves-delete-1\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-2\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 3\" title=\"Save Slot 3\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;3</div></td><td><button id=\"saves-delete-2\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-3\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 4\" title=\"Save Slot 4\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;4</div></td><td><button id=\"saves-delete-3\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-4\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 5\" title=\"Save Slot 5\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;5</div></td><td><button id=\"saves-delete-4\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-5\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 6\" title=\"Save Slot 6\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;6</div></td><td><button id=\"saves-delete-5\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-6\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 7\" title=\"Save Slot 7\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;7</div></td><td><button id=\"saves-delete-6\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-7\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 8\" title=\"Save Slot 8\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;8</div></td><td><button id=\"saves-delete-7\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-8\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 9\" title=\"Save Slot 9\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;9</div></td><td><button id=\"saves-delete-8\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-9\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 10\" title=\"Save Slot 10\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;10</div></td><td><button id=\"saves-delete-9\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-10\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 11\" title=\"Save Slot 11\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;11</div></td><td><button id=\"saves-delete-10\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-11\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 12\" title=\"Save Slot 12\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;12</div></td><td><button id=\"saves-delete-11\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-12\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 13\" title=\"Save Slot 13\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;13</div></td><td><button id=\"saves-delete-12\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-13\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 14\" title=\"Save Slot 14\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;14</div></td><td><button id=\"saves-delete-13\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-14\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 15\" title=\"Save Slot 15\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;15</div></td><td><button id=\"saves-delete-14\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr><tr><td></td><td><button id=\"saves-save-15\" class=\"save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save Slot 16\" title=\"Save Slot 16\"></button></td><td class=\"empty\"><div>&nbsp;</div><div class=\"details datestamp\">Slot&nbsp;16</div></td><td><button id=\"saves-delete-15\" class=\"delete\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\"></button></td></tr></tbody></table><ul class=\"buttons slots\"><li><button id=\"saves-export\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Export browser saves to bundle\" title=\"Export browser saves to bundle\">Export…</button></li><li><button id=\"saves-import\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Import browser saves from bundle\" title=\"Import browser saves from bundle\">Import…</button></li><li><button id=\"saves-clear\" disabled=\"\" aria-disabled=\"true\" data-last-tabindex=\"\" tabindex=\"-1\">Clear</button></li></ul><input id=\"saves-import-handler\" type=\"file\" tabindex=\"-1\" aria-hidden=\"true\" style=\"display: block; visibility: hidden; position: fixed; left: -16128px; top: -16128px; width: 1px; height: 1px;\"><h2>On Disk</h2><ul class=\"buttons\"><li><button id=\"saves-disk-save\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Save to disk\" title=\"Save to disk\">Save…</button></li><li><button id=\"saves-disk-load\" type=\"button\" role=\"button\" tabindex=\"0\" aria-label=\"Load from disk\" title=\"Load from disk\">Load…</button></li></ul><input id=\"saves-disk-load-handler\" type=\"file\" tabindex=\"-1\" aria-hidden=\"true\" style=\"display: block; visibility: hidden; position: fixed; left: -16128px; top: -16128px; width: 1px; height: 1px;\"></div></div>",
+      "open": true
+    },
+    {
+      "control": "save",
+      "key": "Enter",
+      "has": true
+    },
+    {
+      "control": "save",
+      "key": " ",
+      "has": true
+    }
+  ],
+  "tab": [
+    {
+      "text": "",
+      "id": "ui-bar-toggle",
+      "tag": "BUTTON"
+    },
+    {
+      "text": "💾 快速存档",
+      "id": "",
+      "tag": "BUTTON"
+    },
+    {
+      "text": "📂 快速读档",
+      "id": "",
+      "tag": "BUTTON"
+    },
+    {
+      "text": "🗂 存档 / 读档",
+      "id": "",
+      "tag": "BUTTON"
+    },
+    {
+      "text": "Saves",
+      "id": "",
+      "tag": "A"
+    },
+    {
+      "text": "Restart",
+      "id": "",
+      "tag": "A"
+    },
+    {
+      "text": "踏上旅途",
+      "id": "",
+      "tag": "A"
+    },
+    {
+      "text": "Loading…\n\t\n\t\n\t/* ── 迷雾森林 · 暗色主题 ─────────────────────────────── */\nbod",
+      "id": "",
+      "tag": "BODY"
+    },
+    {
+      "text": "",
+      "id": "ui-bar-toggle",
+      "tag": "BUTTON"
+    },
+    {
+      "text": "💾 快速存档",
+      "id": "",
+      "tag": "BUTTON"
+    },
+    {
+      "text": "📂 快速读档",
+      "id": "",
+      "tag": "BUTTON"
+    },
+    {
+      "text": "🗂 存档 / 读档",
+      "id": "",
+      "tag": "BUTTON"
+    }
+  ],
+  "load": [
+    {
+      "key": "Enter",
+      "passage": "酒馆"
+    },
+    {
+      "key": " ",
+      "passage": "酒馆"
+    }
+  ]
+}

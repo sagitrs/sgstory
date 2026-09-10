@@ -258,7 +258,7 @@ for (const [name, terms] of Object.entries(PRELUDE_BANS)) {
 // 短语必须落在 `<<if $pc.ev.<flag>>>` 里，否则红。新增此类回指就往表里加一行。
 const CALLBACKS = [
 	{ passage: '洞穴', phrase: '你想起老板娘那句话', flag: 'tav_tips', said: '别在雾里睡觉', saidIn: '酒馆' },
-	{ passage: '女巫小屋', phrase: '你在酒馆那幅旧画上见过', flag: 'tav_painting', said: '旧画', saidIn: '酒馆' },
+	{ passage: '女巫小屋', phrase: '她的身形与衣着，依稀像酒馆旧画上', flag: 'tav_painting', said: '旧画', saidIn: '酒馆' },
 	// #168 P1-11：NPC 的口头承诺也得真在某处说过——`scope` 默认 `pc.ev`，守林人这条挂的是 `$pc.keeper.met`
 	{ passage: '塔门', phrase: '守林人说过', flag: 'met', scope: 'pc.keeper', said: '从大门走', saidIn: '守林人' },
 	{ passage: '半途的林子', phrase: '守林人说过', flag: 'met', scope: 'pc.keeper', said: '从大门走', saidIn: '守林人' },

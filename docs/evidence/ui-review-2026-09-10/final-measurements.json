@@ -1,0 +1,37 @@
+{
+  "errors": [],
+  "title": {
+    "text": "✦ 无名旅人 的冒险卡 ✦",
+    "font": "20.24px",
+    "lineHeight": "42.504px",
+    "height": 42.484375,
+    "width": 232.5625,
+    "scroll": 360
+  },
+  "tavern": {
+    "height": 2287.453125,
+    "heard": {
+      "x": 550,
+      "y": 1165.890625,
+      "width": 620,
+      "height": 0,
+      "top": 1165.890625,
+      "right": 1170,
+      "bottom": 1165.890625,
+      "left": 550
+    },
+    "social": {
+      "x": 550,
+      "y": 1296.53125,
+      "width": 620,
+      "height": 475.234375,
+      "top": 1296.53125,
+      "right": 1170,
+      "bottom": 1771.765625,
+      "left": 550
+    },
+    "emptyWidget": "",
+    "errors": [],
+    "broken": []
+  }
+}

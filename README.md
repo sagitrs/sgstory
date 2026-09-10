@@ -11,7 +11,7 @@
 npm install
 npm run build   # 编译 → dist/index.html（单文件，浏览器直接打开即玩）
 npm run serve   # 本地预览：http://localhost:8000
-npm test        # 构建后全链（~2min）：L0 静态门（含表一致性）→ 十一道质量门（真相/canon/回声/选择/互动/**反 S/L**/**行囊+经济**/**战斗动作池**/**交涉**/系统/文本）→ 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(30 路线并行) → 覆盖门
+npm test        # 构建后全链（~2min）：L0 静态门（含表一致性）→ 十一道质量门（真相/canon/回声/选择/互动/**反 S/L**/**行囊+经济**/**战斗动作池**/**交涉**/系统/文本）→ 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(31 路线并行) → 覆盖门
 npm run soak    # 游走器加量长测（20+20 局，~1.5min）：CI 独立 job（M1c 接回）；发布前 / 状态机重改动时也可本地跑
 npm run audit   # 表驱动审计（#28/#34）：每个门都能单独跑，加载打印数值报告
                  #   十一门 —— --truth --canon --echoes --choices --interact --nosl --gear --combat --social --systems --text
@@ -54,18 +54,19 @@ test/integrity.mjs  L0 静态完整性门：悬空引用/goto 裸词/未定义�
                    + 序章白名单（开场不许提前提后文才到的地方）+ 回指门（"你想起某人说过的话"必须真听过 → 门槛控） + 楼层数字门（正文/提示里的"N楼"要与设定书楼层定案一致）+ 满血门（<<set $pc.hp to $pc.max_hp>> 必须落在 <<if>> 门控里）
 test/render-all.mjs L1 全段落渲染冒烟：逐段落 play × $era 双变体，无异常/无 .error/非空 + 断链门（a.link-broken 必须为 0）+ 裸标记门（畸形闭合在屏上漏字）
 test/walker.mjs    L2 对抗席游走器：种子化随机游走（一章+塔）+ 状态不变量 + 位点双支清扫（npm run soak 加量）
-test/coverage.mjs  L3 覆盖率 ratchet（五门）：基线不回退 / 新段落必配测 / 无交互盲区 / 时代双态 / 交互≥渲染
+test/coverage.mjs  L3 覆盖率 ratchet（六门）：基线不回退 / 新段落必配测 / 无交互盲区 / 时代双态 / 交互≥渲染 / **链接级覆盖**（render-all 的链接清单 × scenarios 的点击记录，未点过的须在 test/link-whitelist.json 里有理由）
                    ——基线更新：npm run update-coverage-baseline
 test/smoke.mjs    无头冒烟测试（快速车卡 → 酒馆 → 森林 → 洞穴 + 侧栏/存档/物品栏）
 test/boot.mjs      共享 JSDOM 启动（就绪轮询 + uncaught 监听 + `settle()` 等 Engine.isIdle 且 DOM 跟 State 同步
                    + 退出清理 + 可点选择器 CLICKABLE/CLICKABLE_SEL/LINKS）
                    ——渲染/冒烟/规则/属性/场景/游走全部走这里，不各自装配 JSDOM
-test/scenarios.mjs 分支场景测试（30 条路线：金路径 + 全部结局 + 设定集 + 图鉴 + 龙巢边 + 时代分叉 + 封印战 + 反 S/L + 星力软限 + 结局页收尾 + 女巫小屋只治一次）
+test/scenarios.mjs 分支场景测试（31 条路线：金路径 + 全部结局 + 设定集 + 图鉴 + 龙巢边 + 时代分叉 + 封印战 + 反 S/L + 星力软限 + 结局页收尾 + 女巫小屋只治一次 + 酒馆把桌子听遍）
 test/rules.mjs    规则层单测 + 表契约（10 组）+ 存档兼容矩阵（test/fixtures/saves/ 每版历史形状一档；改 Pc.defaults 必须同 PR 加 fixture）
 test/properties.mjs L5 数值属性：判定边界全枚举/优势支配律/伤害界限/战斗伤害单调律/车卡形状律
-scripts/audit.mjs   质量十一门：真相可达性/**canon 门**（设定书 §10 黑名单回流 + §9 双读断言扫描 + §3.9 传说覆盖 + §5.0 道具消费）/
+scripts/audit.mjs   质量十一门 + **文字工艺门（--craft）**：真相可达性/**canon 门**（设定书 §10 黑名单回流 + §9 双读断言扫描 + §3.9 传说覆盖 + §5.0 道具消费）/
                     选择意义感/系统可玩性/世界活性/语言经济/**互动门**/**反 S/L 门**/**行囊门 + 经济门**/**战斗动作池门**/**交涉门**/
                     图鉴门 + 数值三件套（检定成功率矩阵 / 经济时间线 / 龙战推演与道具伤害矩阵）
+                    文字工艺门：跨段落重复句 / 正文半角标点 / '' 奇偶 / 破折号·像·括号密度 ratchet（test/density-baseline.json）/ 道具名与 Items.defs 一致
                     ——改叙事文本断锚即红，设定裁剪后正文回流亦红，失败档给收益即红
 docs/
   lore-canon.md     ★ 设定书（唯一权威正史「送它回家」；正文与它冲突＝P1 缺陷）

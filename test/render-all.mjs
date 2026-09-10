@@ -3,7 +3,7 @@
 //   · 渲染确实发生（State.passage 变化——防 no-op 假绿，Engine.show 曾无声失败）
 //   · 无 uncaught 异常 · 无 .error 渲染元素 · 输出非空
 // 渲染期自动跳转（检定失败→死亡等）记为 forward 信息不算失败，但错误/空输出仍算。
-import { boot } from './boot.mjs';
+import { boot, CLICKABLE_SEL } from './boot.mjs';
 
 // 白盒 A9：共享 boot（d20 恒 11：中性、无自然 20/1；uncaught 监听内置）
 const { w, uncaught, sleep } = await boot({ random: 0.5 });
@@ -34,6 +34,7 @@ const all = [...w.document.querySelectorAll('tw-passagedata')].map((el) => ({
 const isInfra = (p) => p.name.startsWith('Story') || p.tags.some((t) => ['script', 'widget', 'stylesheet'].includes(t));
 const content = all.filter((p) => !isInfra(p) && p.name);
 
+const linkMap = new Map();
 let fails = 0, renders = 0;
 const covered = [], forwards = [];
 // 注意：连续两个段落都自动跳转到同一目标时，「上一次渲染后的 State.passage」会与本次相同
@@ -68,6 +69,9 @@ for (const p of content) {
 			const at = out.indexOf('<');
 			problems.push(`渲染文本里有裸标记：${JSON.stringify(out.slice(Math.max(0, at - 20), at + 20))}`);
 		}
+		// 链接清单（#168 机检⑩）：把"这一段渲染出来的可点元素"落盘，交给 coverage.mjs 的链接级覆盖门
+		// 对账——按"段落|时代"记格的老口径看不见"同段里有一条链接从没被点过"（P1-1 / P1-29 都这么漏）。
+		linkMap.set(`${p.name}|${era ?? w.SugarCube.State.variables.era}`, [...new Set([...w.document.querySelectorAll(`#passages ${CLICKABLE_SEL}`)].map((x) => x.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean))]);
 		if (uncaught.length > before) problems.push(`uncaught: ${uncaught[before].slice(0, 120)}`);
 		if (errs > 0) { const t = [...w.document.querySelectorAll('#passages .error')].map((e) => e.textContent.slice(0, 80)).join(' | '); problems.push(`${errs} 个 .error：${t}`); }
 		if (!out) problems.push('输出为空');
@@ -81,6 +85,7 @@ for (const p of content) {
 import { writeFileSync, mkdirSync } from 'node:fs';
 mkdirSync('build', { recursive: true });
 writeFileSync('build/coverage-render.json', JSON.stringify({ cells: [...new Set(covered)] }, null, 1));
+writeFileSync('build/coverage-links.json', JSON.stringify({ links: Object.fromEntries([...linkMap].sort((a, b) => a[0].localeCompare(b[0]))) }, null, 1));
 
 console.log(`\n渲染 ${renders} 次（${content.length} 内容段落 × era 变体）· 覆盖 ${new Set(covered).size} 格 · 自动跳转 ${forwards.length} 次${forwards.length ? '（' + [...new Set(forwards)].join('，') + '）' : ''}`);
 if (fails) { console.error(`✗ ${fails} 处渲染失败`); process.exit(1); }

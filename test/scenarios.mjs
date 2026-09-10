@@ -115,11 +115,13 @@ async function routeTrue() {
 	await c('回到观星者');
 	await c('回到宴上');
 	await c('找那位从不离手一支哨子的老人'); // 当时的女巫（她本人）
+	await c('在塔里找那根杖');             // 寻杖 → 找到 + 还杖
+	await c('回到当时的女巫');
+	if (pcOf(w).world.witch_favor !== true) throw new Error('还杖未置 witch_favor');
 	await c('把她那支哨换过来');           // → 好哨（哨是她的）
 	await c('回到当时的女巫');
 	await c('回到宴上');
-	await c('找厅角那位不肯多说的老人');   // 老巫女（晚年穿越回来的那位）
-	await c('把三百年后的办法告诉她');     // 告知与告别 → 卷轴
+	await c('找厅角那位不肯多说的老人');   // 老巫女（只露面，不持关键信息）
 	await c('回到宴上');
 	await c('去把花喂给它');               // 喂花
 	await c('回到宴上');
@@ -457,6 +459,8 @@ async function routeSleepVoluntary() {
 	await c('回到观星者');
 	await c('回到宴上');
 	await c('找那位从不离手一支哨子的老人'); // 当时的女巫（她本人）
+	await c('在塔里找那根杖');             // 寻杖 → 好感
+	await c('回到当时的女巫');
 	await c('把她那支哨换过来');
 	await c('回到当时的女巫');
 	await c('回到宴上');
@@ -465,6 +469,40 @@ async function routeSleepVoluntary() {
 	await c('叫醒它');
 	await c('看着它再睡下去');
 	if (passageOf(w) !== '结局 自愿的长眠') throw new Error(`未达自愿的长眠（${passageOf(w)}）`);
+	return { w };
+}
+
+// ── 路线 23：换哨双门槛（无好感不换 / 无星图不换）──
+async function routeExchangeGate() {
+	const { w, click: c } = await newGame(0.99, 0);
+	const links = () => [...w.document.querySelectorAll('#passages a.link-internal')].map((x) => x.textContent);
+	await toWitch(c);
+	await toTower(c);
+	await c('坠入');
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	await c('收下钥匙');
+	await c('用钥匙打开铁门');
+	await c('在宴上找人说话');
+	await c('找那位从不离手一支哨子的老人');
+	// ① 无星图 → 无换哨选项
+	if (links().some((s) => s.includes('把她那支哨换过来'))) throw new Error('无星图却出现换哨选项');
+	// ② 还杖（好感）→ 仍无星图 → 仍无换哨
+	await c('在塔里找那根杖');
+	await c('回到当时的女巫');
+	if (pcOf(w).world.witch_favor !== true) throw new Error('还杖未置 witch_favor');
+	if (links().some((s) => s.includes('把她那支哨换过来'))) throw new Error('有好感但无星图，仍不该出现换哨选项');
+	if (pcOf(w).inv['好哨']) throw new Error('门槛未过却拿到好哨');
+	// ③ 取星图 → 换哨选项出现
+	await c('回到宴上');
+	await c('问那位一直在算星的人');
+	await c('求他把完整星图给你');
+	await c('回到观星者');
+	await c('回到宴上');
+	await c('找那位从不离手一支哨子的老人');
+	if (!links().some((s) => s.includes('把她那支哨换过来'))) throw new Error('好感 + 星图齐备后仍无换哨选项');
 	return { w };
 }
 
@@ -522,6 +560,7 @@ const routes = [
 	['时代分叉', routeEraBranches],
 	['花田死亡', routeFlowerDeath],
 	['花田·哥布林情报', routeFlowerGoblin],
+	['换哨双门槛', routeExchangeGate],
 ];
 
 const results = await Promise.all(routes.map(async ([name, fn]) => {

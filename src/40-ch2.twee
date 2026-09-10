@@ -268,25 +268,32 @@
 	两个人伏在案上抄东西，纸卷堆到脚边。窗外传来宴上的笑声，一个人抬头听了听，又低头写。
 
 	架子上那本你认得的手稿，此刻还只写了一半。
+
+	（墙上的暗格是空的。这本日记，还要再过些年才写得完。）
 <</if>>
 
-<<if not $pc.inv["日记"]>>
-	<<sitecheck "书房·检视">>
-	<<if $last_check.success>>
-		暗格里有一本硬皮日记。翻到最后一页，一行字被描过两遍：
-		//"''雾就是它漏出来的力气''——缺的从来不是咒。"//
-		<<give "日记">><<set $pc.ev.failure_cause to true>>
+<<if $era is "present">>
+	<<if not $pc.inv["日记"]>>
+		<<sitecheck "书房·检视">>
+		<<if $last_check.success>>
+			暗格里有一本硬皮日记。翻到最后一页，一行字被描过两遍：
+			//"''雾就是它漏出来的力气''——缺的从来不是咒。"//
+			<<give "日记">><<set $pc.ev.failure_cause to true>>
+
+			封底里还夹着一卷纸，纸角磨得发毛——''后半本是她算清了的完整术式''。
+			<<give "传送术卷轴">>
+		<<else>>
+			你只摸到一手灰。
+		<</if>>
 	<<else>>
-		你只摸到一手灰。
+		（这里你''已搜过''。）
 	<</if>>
-<<else>>
-	（这里你''已搜过''。）
-<</if>>
 
-<<if $pc.inv["日记"] and not $pc.ev.observation_lock>>
-	你继续往下读：她写过一句更小的话——//"没人看过它睡得怎么样。"//
-	<<set $pc.ev.observation_lock to true>>
-	[[照她抄在页边的封印术念一遍|结局 劣化封印]]
+	<<if $pc.inv["日记"] and not $pc.ev.observation_lock>>
+		你继续往下读：她写过一句更小的话——//"没人看过它睡得怎么样。"//
+		<<set $pc.ev.observation_lock to true>>
+		[[照她抄在页边的封印术念一遍|结局 劣化封印]]
+	<</if>>
 <</if>>
 
 <<flip>>

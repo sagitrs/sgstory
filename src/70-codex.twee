@@ -12,6 +12,7 @@
 	[[术语|设定集·术语]]
 	[[结局|设定集·结局]]
 	[[图鉴|设定集·图鉴]]
+	<p class="codex-note" id="ui-detail"><<= SgUI.renderToggle()>></p>
 	<<back "回到故事">>
 </div>
 

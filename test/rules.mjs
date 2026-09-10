@@ -168,6 +168,56 @@ for (const file of fixtures) {
 	new w.SugarCube.Wikifier(null, '<<econ "dragon_hoard">>');
 	ok(v.pc.gold === 17, `经济事件表驱动：econ 用表值 +7（实际 ${v.pc.gold}）`);
 	w.eval('Game.Economy.events.dragon_hoard.delta = 10');
+	// ②b 判定标注 + 计算过程（M10）
+	{
+		const R = w.Rules;
+		const pc = w.Pc.defaults();
+		pc.abilities = { str: 16, dex: 10, con: 14, int: 8, wis: 16, cha: 8 };
+		pc.skills = ['运动'];
+		let r = R.check(pc, '运动', 12);
+		eq(r.label, '运动检定（力量）', '标注判定属性：技能 → 属性');
+		eq(r.ability, 'str', '技能映射到属性');
+		eq(r.mod, 5, '修正构成 = 力量 +3 + 熟练 +2');
+		eq(r.parts.map((x) => `${x.k}${x.v}`).join(' '), '力量3 熟练2', '修正拆项（属性 + 熟练）');
+		r = R.check(pc, '调查', 12);
+		eq(r.label, '调查检定（智力）', '未熟练的技能照样标注属性');
+		eq(r.parts.length, 1, '未熟练 → 只有属性一项');
+		eq(r.mod, -1, '智力 8 → -1');
+		r = R.save(pc, 'con', 13);
+		eq(r.label, '体质豁免', '豁免标注为"体质豁免"');
+		eq(r.parts[0].k, '体质', '豁免也是按属性算');
+		// 优势：两枚都记下来（计算过程要能显示"取高/取低"）
+		w.eval(`(function(){const q=[0.12,0.82];Math.random=()=>q.length?q.shift():0.5;})()`);
+		r = R.check(pc, '运动', 12, { adv: 1, advWhy: '测试' });
+		eq(r.rolls.length, 2, '优势记两枚骰');
+		eq(r.roll, Math.max(...r.rolls), '优势取高');
+		w.eval(`(function(){const q=[0.12,0.82];Math.random=()=>q.length?q.shift():0.5;})()`);
+		r = R.check(pc, '运动', 12, { adv: -1, disWhy: '测试' });
+		eq(r.roll, Math.min(...r.rolls), '劣势取低');
+		// 渲染：计算过程 + 为什么
+		w.SugarCube.State.variables.pc = pc;   // 渲染宏读的是 State 上的 $pc
+		let frag = w.document.createDocumentFragment();
+		new w.SugarCube.Wikifier(frag, '<<check "运动" 12>>');
+		let txt = frag.textContent;
+		ok(txt.includes('运动检定（力量）'), '渲染：标注"用什么属性判定"');
+		ok(txt.includes('力量') && txt.includes('熟练') && txt.includes('DC12') && txt.includes('d20('), '渲染：计算过程（属性+熟练+骰面+DC）');
+		// 优势时把"为什么"和两枚骰都写出来
+		w.eval(`(function(){const q=[0.12,0.82];Math.random=()=>q.length?q.shift():0.5;})()`);
+		frag = w.document.createDocumentFragment();
+		new w.SugarCube.Wikifier(frag, '<<check "运动" 12 adv 0 0 "测试位点" "道具·坏哨" "">>');
+		txt = frag.textContent;
+		ok(txt.includes('测试位点') && txt.includes('优势：道具·坏哨') && txt.includes('取高'), '渲染：位点 + 优势来源 + 取骰过程');
+		// 开关：关掉明细 → 只剩 d20 + 总修正
+		const before = w.SgUI.showDetail();
+		w.SgUI.setDetail(false);
+		frag = w.document.createDocumentFragment();
+		new w.SugarCube.Wikifier(frag, '<<check "运动" 12 adv 0 0 "测试位点" "道具·坏哨" "">>');
+		txt = frag.textContent;
+		ok(!txt.includes('熟练') && !txt.includes('取高') && txt.includes('d20('), '关掉明细：只留骰面与总修正');
+		w.SgUI.setDetail(before);
+		ok(w.SgUI.showDetail() === before, '开关回写（localStorage 持久化）');
+	}
+
 	// ③ 战斗伤害：改减伤 → battleDamage 跟随
 	const I = w.Game.Items;
 	eq(I.battleDamage(1, {}, 0), 4, 'battleDamage：空手 R1 = 3+1 = 4');

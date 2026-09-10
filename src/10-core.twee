@@ -26,16 +26,39 @@ window.Rules = {
 		const a = random(1, 20), b = random(1, 20);
 		return adv > 0 ? Math.max(a, b) : Math.min(a, b);
 	},
-	// nat：要求「天然出目」等于 nat 才算成功（彩蛋检定用；此时 DC 不参与判定）
-	check(pc, skill, dc, { adv = 0, bonus = 0, nat = 0 } = {}) {
-		const mod = this.skillMod(pc, skill) + bonus + (pc.flags?.luck ? 1 : 0);
-		const roll = this.d20(adv), total = roll + mod;
-		return { label: `${skill}检定`, skill, dc, roll, mod, total, nat, success: nat ? roll === nat : roll === 20 ? true : roll === 1 ? false : total >= dc };
+	// 判定标注：说清"用什么属性判定"（技能 → 属性，SRD 5.2）
+	skillLabel(skill) { const ab = this.SKILLS[skill]; return ab ? `${skill}检定（${this.ABILITIES[ab]}）` : `${skill}检定`; },
+	// 取骰：记下两枚供"计算过程"显示（优势取高 / 劣势取低）
+	roll(adv) {
+		const a = random(1, 20);
+		if (!adv) return { roll: a, rolls: [a] };
+		const b = random(1, 20);
+		return { roll: adv > 0 ? Math.max(a, b) : Math.min(a, b), rolls: [a, b] };
 	},
-	save(pc, ability, dc, { adv = 0, bonus = 0, nat = 0 } = {}) {
-		const mod = this.abilityMod(pc, ability) + bonus + (pc.flags?.luck ? 1 : 0);
-		const roll = this.d20(adv), total = roll + mod;
-		return { label: `${this.ABILITIES[ability]}豁免`, ability, dc, roll, mod, total, nat, success: nat ? roll === nat : roll === 20 ? true : roll === 1 ? false : total >= dc };
+	// 修正构成（拆项：判定属性 + 熟练 + 加值 + 幸运）
+	parts(pc, ability, { skill = '', bonus = 0 } = {}) {
+		const out = [{ k: this.ABILITIES[ability] ?? ability, v: this.abilityMod(pc, ability), kind: 'ability' }];
+		if (skill && (pc.skills ?? []).includes(skill)) out.push({ k: '熟练', v: this.prof(), kind: 'prof' });
+		if (bonus) out.push({ k: '额外加值', v: bonus, kind: 'bonus' });
+		if (pc.flags?.luck) out.push({ k: '幸运', v: 1, kind: 'luck' });
+		return out;
+	},
+	// nat：要求「天然出目」等于 nat 才算成功（彩蛋检定用；此时 DC 不参与判定）
+	check(pc, skill, dc, { adv = 0, bonus = 0, nat = 0, site = '', advWhy = '', disWhy = '' } = {}) {
+		const ability = this.SKILLS[skill];
+		if (!ability) throw new Error(`未知技能: ${skill}`);
+		const parts = this.parts(pc, ability, { skill, bonus });
+		const mod = parts.reduce((n, p) => n + p.v, 0);
+		const { roll, rolls } = this.roll(adv), total = roll + mod;
+		return { label: this.skillLabel(skill), site, skill, ability, dc, roll, rolls, mod, total, parts, adv, advWhy, disWhy, nat,
+			success: nat ? roll === nat : roll === 20 ? true : roll === 1 ? false : total >= dc };
+	},
+	save(pc, ability, dc, { adv = 0, bonus = 0, nat = 0, site = '', advWhy = '', disWhy = '' } = {}) {
+		const parts = this.parts(pc, ability, { bonus });
+		const mod = parts.reduce((n, p) => n + p.v, 0);
+		const { roll, rolls } = this.roll(adv), total = roll + mod;
+		return { label: `${this.ABILITIES[ability]}豁免`, site, ability, dc, roll, rolls, mod, total, parts, adv, advWhy, disWhy, nat,
+			success: nat ? roll === nat : roll === 20 ? true : roll === 1 ? false : total >= dc };
 	},
 };
 
@@ -77,24 +100,58 @@ window.Pc = {
 };
 
 // ── 宏：<<check 技名 DC [adv|dis] [加值]>> / <<save 属性 DC [adv|dis] [加值]>> ──
+// 计算过程显示开关（"显示计算过程"；关掉只剩结果）。本地持久化，与图鉴同一套 localStorage 套路
+window.SgUI = {
+	KEY: 'sgstory.ui.v1',
+	read() { try { return JSON.parse(window.localStorage.getItem(this.KEY) ?? '{}') ?? {}; } catch { return {}; } },
+	write(d) { try { window.localStorage.setItem(this.KEY, JSON.stringify(d)); } catch { /* 降级：本次会话有效 */ } },
+	showDetail() { const d = this.read(); return d.detail === undefined ? true : !!d.detail; },
+	setDetail(on) { const d = this.read(); d.detail = !!on; this.write(d); },
+	toggle() { this.setDetail(!this.showDetail()); },
+	// 设定集里的开关（<<replace>> 就地重画）
+	renderToggle() {
+		if (this.showDetail()) {
+			return `计算过程：'''开'''　${'<<link "关掉：只留骰面与总修正">><<set _t to SgUI.toggle()>><<replace "#ui-detail">><<= SgUI.renderToggle()>> <</replace>><</link>>'}`;
+		}
+		return `计算过程：'''关'''　${'<<link "打开：显示属性、熟练与取骰过程">><<set _t to SgUI.toggle()>><<replace "#ui-detail">><<= SgUI.renderToggle()>> <</replace>><</link>>'}`;
+	},
+};
+
 function renderCheck(res) {
 	State.variables.last_check = res;
 	const cls = res.success ? 'check-success' : 'check-fail';
-	const modStr = res.mod >= 0 ? `+${res.mod}` : `${res.mod}`;
 	const dcStr = res.nat ? `需天然 ${res.nat}` : `DC${res.dc}`;
-	return `<div class="check-result ${cls}">🎯 ${res.label} ${dcStr}：` +
-		`<span class="check-dice">d20(${res.roll})</span> ${modStr} = <b>${res.total}</b> ${res.success ? '✔ 成功' : '✘ 失败'}</div>`;
+	const detail = SgUI.showDetail();
+	const modStr = res.mod >= 0 ? `+${res.mod}` : `${res.mod}`;
+	const parts = (res.parts ?? []).filter((p) => p.v).map((p) => `${p.v >= 0 ? '+' : ''}${p.v} ${p.k}`).join(' ');
+	const head = `<div class="check-result ${cls}">🎯 <span class="check-label">${res.label}</span>` +
+		(res.site ? ` <span class="check-site">〔${res.site}〕</span>` : '') + ` · ${dcStr}：` +
+		`<span class="check-dice">d20(${res.roll})</span>${detail && parts ? ` ${parts}` : ` ${modStr}`} = <b>${res.total}</b> ${res.success ? '✔ 成功' : '✘ 失败'}</div>`;
+	if (!detail) return head;
+	const notes = [];
+	if (res.adv > 0) notes.push(`优势：${res.advWhy || '有利条件'}（${(res.rolls ?? []).join(' / ')} 取高）`);
+	if (res.adv < 0) notes.push(`劣势：${res.disWhy || '不利条件'}（${(res.rolls ?? []).join(' / ')} 取低）`);
+	if (res.nat) notes.push(`只有天然 ${res.nat} 才算成功（DC 不参与）`);
+	if (!notes.length) return head;
+	return head + `<div class="check-why">↳ ${notes.join(' · ')}</div>`;
 }
+// <<check 技名 DC [adv|dis] [加值] [nat] [位点] [优势理由] [劣势理由]>>
 Macro.add('check', {
 	handler() {
 		const adv = this.args[2] === 'adv' ? 1 : this.args[2] === 'dis' ? -1 : 0;
-		$(this.output).append(renderCheck(Rules.check(pcNow(), this.args[0], this.args[1], { adv, bonus: Number(this.args[3]) || 0, nat: Number(this.args[4]) || 0 })));
+		$(this.output).append(renderCheck(Rules.check(pcNow(), this.args[0], this.args[1], {
+			adv, bonus: Number(this.args[3]) || 0, nat: Number(this.args[4]) || 0,
+			site: this.args[5] ?? '', advWhy: this.args[6] ?? '', disWhy: this.args[7] ?? '',
+		})));
 	},
 });
 Macro.add('save', {
 	handler() {
 		const adv = this.args[2] === 'adv' ? 1 : this.args[2] === 'dis' ? -1 : 0;
-		$(this.output).append(renderCheck(Rules.save(pcNow(), this.args[0], this.args[1], { adv, bonus: Number(this.args[3]) || 0, nat: Number(this.args[4]) || 0 })));
+		$(this.output).append(renderCheck(Rules.save(pcNow(), this.args[0], this.args[1], {
+			adv, bonus: Number(this.args[3]) || 0, nat: Number(this.args[4]) || 0,
+			site: this.args[5] ?? '', advWhy: this.args[6] ?? '', disWhy: this.args[7] ?? '',
+		})));
 	},
 });
 
@@ -103,6 +160,14 @@ Macro.add('lastcheck', {
 	handler() {
 		const r = State.variables.pc?.ev?.last_roll;
 		if (r) $(this.output).append(renderCheck(r));
+	},
+});
+// 只在"刚掷过这些位点之一"时复显（hub 用：防止拿别处的旧骰面骗人）
+Macro.add('lastcheckFor', {
+	handler() {
+		const sites = this.args.map(String);
+		const r = State.variables.pc?.ev?.last_roll;
+		if (r && sites.includes(r.site)) $(this.output).append(renderCheck(r));
 	},
 });
 
@@ -170,13 +235,20 @@ Macro.add('dragonbar', {
 <<widget "sitecheck">>
 	<<set _site to Game.Checks.sites[$args[0]]>>
 	<<set _adv to $args[1]>>
-	<<if not _adv and Game.Items.advAt($args[0], $pc.inv)>><<set _adv to "adv">><</if>>
-	<<if not _adv and Game.Checks.knowledge[$args[0]] and $pc.world[Game.Checks.knowledge[$args[0]]]>><<set _adv to "adv">><</if>>
-	<<if not _adv and _site.dis>><<set _adv to "dis">><</if>>
+	<<set _why to "">>
+	<<set _why2 to "">>
+	<<set _item to Game.Items.advSource($args[0], $pc.inv)>>
+	<<if not _adv and _item>><<set _adv to "adv">><<set _why to "道具" + _item>><</if>>
+	<<if not _adv and Game.Checks.knowledge[$args[0]] and $pc.world[Game.Checks.knowledge[$args[0]]]>>
+		<<set _adv to "adv">><<set _why to "情报·" + (Game.Checks.knowledgeWhy[Game.Checks.knowledge[$args[0]]] ?? Game.Checks.knowledge[$args[0]])>>
+	<</if>>
+	<<if not _adv and _site.dis>>
+		<<set _adv to "dis">><<set _why2 to _site.disWhy ?? "这一手本来就悬">>
+	<</if>>
 	<<if _site.abil>>
-		<<save _site.abil _site.dc _adv 0 _site.nat>>
+		<<save _site.abil _site.dc _adv 0 _site.nat $args[0] _why _why2>>
 	<<else>>
-		<<check _site.skill _site.dc _adv 0 _site.nat>>
+		<<check _site.skill _site.dc _adv 0 _site.nat $args[0] _why _why2>>
 	<</if>>
 <</widget>>
 

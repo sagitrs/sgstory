@@ -38,6 +38,7 @@
 | **M7f** | **PR-B 文档对齐**（大纲 v1.4 / 实施图 v2.0） | 文档一致 | ✅ #154 |
 | **M7g** | **PR-C 传说层**（§3.9 补两条 + 传说覆盖门） | canon 门 + 场景路线 | ✅ #155 |
 | **M9** | **互动化改造**：信息类检定一律玩家发起（`sites[].auto` 标注战斗位点）· 酒馆 9 桌打听 + 请一轮酒 · 女巫小屋 7 问 · `<<snapshot>>`/`<<lastcheck>>` 骰面复显 · `Choices.sites` 臂数更新 · **互动门** | 七门 + 2 条新路线 | ✅ 本 PR |
+| **M10** | **判定可见 + 反 S/L**：`Rules.check/save` 返回 `label`（属性标注）/ `parts`（加值拆项）/ `rolls`（双骰）/ `advWhy`；渲染成一行完整算式 + `↳` 优势行；`SgUI` 开关（设定集页脚）；`Checks.keyYields` + `sites[].yields` + **反 S/L 门**；`<<lastcheckFor>>` 防旧骰面串页；8 个关键产出补第二路（含 3 处"失败仍到手"） | 八门 + 27 路线 + 规则单测 | ✅ 本 PR |
 | **M8** | **道具图鉴**：`Game.Codex`（10 页 / 32 线索）· `SgCodex` 跨周目持久化（`localStorage['sgstory.codex.v1']`）· `<<ending "key" final\|chapter>>` 登记宏 · `设定集·图鉴` 页 · 存档位 8 → 16（`Config.saves.maxSlotSaves`） | 六门 + 场景路线 + 图鉴门 | ✅ 本 PR |
 | **M7h** | **删三件闲物**（请柬 / 星名页 / 碎镜片）+ 守林人的杖移出清单 + **道具消费门 / 假代价门** | canon 门 + 全绿 | ✅ 本 PR |
 
@@ -73,6 +74,7 @@ src/
 | `<<dragonbar>>` | 龙血条（`$pc.dragon.hp` / `Game.Dragon.hp`） | `Game.Dragon` |
 | `<<snapshot>>` | 把 `$last_check` 存进 `$pc.ev.last_roll`（玩家发起的检定在 link 里掷完就存） | — |
 | `<<lastcheck>>` | 复显上一条快照的骰面（不掷骰）——`<<goto>>` 重渲染后骰面不丢 | `$pc.ev.last_roll` |
+| `<<lastcheckFor "位点" …>>` | 只当 `$pc.ev.last_roll.site` 属于给定位点时才复显（**防旧骰面串到别的段落**） | `$pc.ev.last_roll` |
 | `<<ending "名" final\|chapter>>` | 结局登记（本档 `$pc.ev.ending` + 永久入图鉴账本；**终局才给空页提示**） | `Game.Codex` |
 | `<<econ 事件>>` | 金币收支（含 `gives` 入账、烙印/技能折扣） | `Game.Economy` |
 | `<<give "道具">>` / `<<setflag "旗标">>` | 物品栏 / 世界旗标 | `Game.Items.defs` |
@@ -175,6 +177,8 @@ src/
 **机检六门**：`--truth` `--canon` `--echoes` `--choices` `--systems` `--text`。
 
 **canon 门（M1b）**：`docs/lore-canon.md` §10「已裁剪设定」是唯一黑名单来源。门做两件事——① **行覆盖**：§10 每一行必须被 `CANON_ROWS` 认领（新增裁剪行不认领即红）；② **词扫描**：认领行禁词不得出现在 shipped 文本（正文 + 数据表字符串；`/% %/`、JS 行注释、CSS 块注释不计），否定句（如「没有亡灵」「不集齐开锁」）允许。另含定向检查：`守林人*` 段落不得出现「她」。**第 ⑤ 项＝传说覆盖门（v17 §3.9）**：设定书 §3.9 对照表的每一行必须被认领，且每条传说在正文里必须有 NPC 投放锚（`LEGENDS`，8 条 9 锚）——**登记了却没人说即红**。当前：§10 行 **71** · 认领 **72** 条 · 禁词 **124** 个 · 命中 0。
+**反 S/L 门（M10）**：`Game.Checks.keyYields` 每个关键产出的**通路 ≥2 条且判定属性 ≥2 种**；`Checks.sites[].yields` 必须指向真产出。当前 **9 个产出 · 22 条通路**（其中 3 条"失败仍到手"）。`--nosl --check` 已接入 `npm test`。
+
 **互动门（M9）**：① 段落**顶层**的 `<<sitecheck>>` 必须是 `sites[x].auto` 有理由的**战斗**位点（信息类检定只能由玩家动作发起）② 顶层读 `$last_check` ⇒ 同段落顶层必须有本轮检定（判定结果必须先落旗标）③ 位点无孤儿。当前 **检定 20 处（玩家发起 12 · 进场即动手 8）**。
 
 **图鉴门（v17 M8）**：① 双向覆盖（`Items.defs` ↔ `Codex.items`）② 每页 ≥2 线索 + 非空提示（≤40 字、不得含 §9 双读禁断言）③ **线索不白送**（新档下必须全假）④ **线索可挣**（全收集态必须全真）⑤ **每个 `结局*` 段落必须 `<<ending "…" final|chapter>>`**。当前 **10 页 · 32 线索 · 命中 0**。

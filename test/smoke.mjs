@@ -68,8 +68,10 @@ assert(!w.document.querySelector('#passages .check-result'), 'M9：森林边缘�
 await click('在雾里站住，听一听');            // 玩家的动作
 const checkBox = w.document.querySelector('#passages .check-result');
 assert(!!checkBox, '玩家发起后：森林察觉检定结果框渲染');
+assert(checkBox.textContent.includes('察觉检定（感知）'), 'M10：判定标注了属性（察觉检定（感知））');
+assert(checkBox.textContent.includes('感知') && checkBox.textContent.includes('DC10'), 'M10：显示计算过程（属性 + DC + 骰面）');
 const lc = w.SugarCube.State.variables.last_check;
-assert(lc && lc.roll === 11 && lc.label === '察觉检定', '<<sitecheck>> 经 <<check>> 产出 $last_check');
+assert(lc && lc.roll === 11 && lc.label === '察觉检定（感知）' && lc.site === '森林·察觉', '<<sitecheck>> 经 <<check>> 产出 $last_check（含位点与属性标注）');
 assert(w.SugarCube.State.variables.pc.ev.forest_heard === true, '听雾结果落旗标（forest_heard）');
 const styleStory = w.document.querySelector('#style-story')?.textContent ?? '';
 assert(styleStory.includes('LXGW WenKai') && styleStory.includes('@font-face'), '霞鹜文楷子集已内嵌（@font-face）');

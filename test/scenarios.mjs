@@ -119,8 +119,9 @@ async function routeTrue() {
 	await c('回到观星者');
 	await c('回到宴上');
 	await c('找那位从不离手一支哨子的老人'); // 当时的女巫（她本人）
-	await c('在塔里找那根杖');             // 寻杖 → 找到 + 还杖
-	await c('回到当时的女巫');
+	await c('在塔里找那根杖');
+	await c('自己动手翻：桌布底下、酒箱后头都掀开看');   // M10：翻找是动作（d20 恒 20 必成）
+	await c('把杖拿回去还她');             // M10：还杖是动作（还完就站在她面前）
 	if (pcOf(w).world.family_favor !== true) throw new Error('还杖未置 family_favor');
 	await c('把她那支哨换过来');           // → 好哨（哨是她的）
 	await c('回到当时的女巫');
@@ -133,7 +134,8 @@ async function routeTrue() {
 	await c('翻转护身符：回到');           // 翻回现在
 	await c('安静地退出去');               // 门厅
 	await c('先上二楼看看');
-	await c('伸手去摸烤炉后头的暗格');     // M9：暗格要自己摸 → 日记 + 传送术卷轴
+	await c('伸手去摸烤炉后头的暗格');     // M9：暗格要自己摸（有门道＝免检 → 直接知道位置）
+	await c('把暗格里的东西取出来');       // M10：知道位置之后，取物是另一步
 	await c('上三楼');
 	await c('上三楼拐角看看');
 	await c('上四楼');
@@ -323,6 +325,7 @@ async function routeSeal() {
 	await c('推门进去');
 	await c('先上二楼看看');
 	await c('伸手去摸烤炉后头的暗格');     // M9：先摸到日记
+	await c('把暗格里的东西取出来');       // M10：取物是另一步
 	await c('把日记往下读');               // → 观察到"没人看过它睡得怎么样"
 	await c('照她抄在页边的封印术');
 	if (passageOf(w) !== '结局 劣化封印') throw new Error(`未达劣化封印（${passageOf(w)}）`);
@@ -440,6 +443,14 @@ async function routeCodex() {
 	await c('回设定集');
 	await c('图鉴');
 	if (passageOf(w) !== '设定集·图鉴') throw new Error(`未达设定集·图鉴（${passageOf(w)}）`);
+	await c('回设定集');
+	// M10：计算过程开关（就地重画，不换段落）
+	const before = w.SgUI.showDetail();
+	await c(before ? '关掉：只留骰面与总修正' : '打开：显示属性、熟练与取骰过程');
+	if (w.SgUI.showDetail() === before) throw new Error('计算过程开关没有翻转');
+	if (passageOf(w) !== '设定集') throw new Error('开关不该离开设定集页（应就地重画）');
+	await c(before ? '打开：显示属性、熟练与取骰过程' : '关掉：只留骰面与总修正');
+	if (w.SgUI.showDetail() !== before) throw new Error('计算过程开关没有翻回去');
 	return { w };
 }
 
@@ -528,8 +539,9 @@ async function routeSleepVoluntary() {
 	await c('回到观星者');
 	await c('回到宴上');
 	await c('找那位从不离手一支哨子的老人'); // 当时的女巫（她本人）
-	await c('在塔里找那根杖');             // 寻杖 → 好感
-	await c('回到当时的女巫');
+	await c('在塔里找那根杖');
+	await c('自己动手翻：桌布底下、酒箱后头都掀开看');   // M10：翻找是动作（d20 恒 20 必成）
+	await c('把杖拿回去还她');                          // M10：还杖是动作
 	await c('把她那支哨换过来');
 	await c('回到当时的女巫');
 	await c('回到宴上');
@@ -560,7 +572,8 @@ async function routeExchangeGate() {
 	if (links().some((s) => s.includes('把她那支哨换过来'))) throw new Error('无星图却出现换哨选项');
 	// ② 还杖（好感）→ 仍无星图 → 仍无换哨
 	await c('在塔里找那根杖');
-	await c('回到当时的女巫');
+	await c('自己动手翻：桌布底下、酒箱后头都掀开看');   // M10：翻找是动作（d20 恒 20 必成）
+	await c('把杖拿回去还她');                          // M10：还杖是动作
 	if (pcOf(w).world.family_favor !== true) throw new Error('还杖未置 family_favor');
 	if (links().some((s) => s.includes('把她那支哨换过来'))) throw new Error('有好感但无星图，仍不该出现换哨选项');
 	if (pcOf(w).inv['好哨']) throw new Error('门槛未过却拿到好哨');
@@ -660,12 +673,84 @@ async function routeAskForIt() {
 	await c('收下钥匙');
 	await c('先上二楼看看');
 	w.eval('Math.random = () => 0.01');             // 以后所有检定必败
-	await c('伸手去摸烤炉后头的暗格');               // 有门道 → 免检直接摸到
-	if (pcOf(w).inv['日记'] !== true || pcOf(w).inv['传送术卷轴'] !== true) throw new Error('女巫门道没免掉书房的检视（暗格该直接摸到）');
+	await c('伸手去摸烤炉后头的暗格');               // 有门道 → 免检（不再掷骰），直接知道暗格在哪
+	if (pcOf(w).ev.study_found !== true) throw new Error('女巫门道没免掉书房的检视（该直接知道暗格位置）');
+	await c('把暗格里的东西取出来');                 // M10：取物是另一步
+	if (pcOf(w).inv['日记'] !== true || pcOf(w).inv['传送术卷轴'] !== true) throw new Error('暗格里的东西没拿到');
 	// 没有门道就得掷骰：这里的失败分支留在下一段
 	await c('把日记往下读');
 	if (pcOf(w).ev.observation_lock !== true) throw new Error('"往下读"没记账');
 	if (!w.document.querySelector('#passages').textContent.includes('没人看过它睡得怎么样')) throw new Error('observation_lock 锚句（书房侧）未渲染');
+	return { w };
+}
+
+// ── 路线 27：非酋不读档（M10）——把"主路属性"打瘸，靠另一条路照样拿全 ──
+//    智力 8（-1）· 感知 16（+3）· 骰面恒 11：调查类必败，感知类必成。
+async function routeNoSaveScum() {
+	const { w, click: c } = await newGame(0.5, 0);      // d20 恒 11
+	const pc = pcOf(w);
+	pc.abilities = { str: 10, dex: 10, con: 14, int: 8, wis: 16, cha: 8 };
+	pc.ev = {};
+	await c('靠窗那桌——他们在讲塔上那盏灯');     // 酒馆问一桌
+	await c('推门出发，走进暮色');
+	await c('去那间亮着灯的小屋');
+	await c('谢过她，往林子深处走');
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	// 守林人：游说（魅力 8 → 必败）换"察觉"这条路
+	await c('先看清他靴边那一圈白');
+	if (pcOf(w).world.flower_warned !== true) throw new Error('察觉路没换来花田警告');
+	await c('收下钥匙');
+	// 门厅：先看清钉子（感知 → 必成），不必赌调查
+	await c('先看清钉子是怎么卡的');
+	if (pcOf(w).ev.hall_seen !== true) throw new Error('察觉路没换来"钉子看清了"');
+	await c('摘哨子（钉子怎么卡的，你已经看清了）');
+	if (pcOf(w).inv['坏哨'] !== true) throw new Error('看清钉子之后没拿到哨子');
+	// 花田：走"下风处"（生存 → 必成）
+	await c('出塔，回到塔外');
+	await c('塔基墙根那片花');
+	await c('绕到下风处，连土一起端起来');
+	if (pcOf(w).inv['月光花'] !== true) throw new Error('生存路没拿到月光花');
+	await c('回塔门');
+	await c('推门进去');
+	await c('先上二楼看看');
+	// 书房：调查（智力 8 → 10 < 12 必败）→ 改敲墙（感知 → 必成）
+	await c('伸手去摸烤炉后头的暗格');
+	if (pcOf(w).ev.study_found) throw new Error('智力 8 的调查不该成功（骰面恒 11 → 10 < 12）');
+	await c('先敲一敲炉膛后头的墙');
+	if (pcOf(w).ev.study_found !== true) throw new Error('察觉路没换来暗格位置');
+	await c('把暗格里的东西取出来');
+	if (pcOf(w).inv['日记'] !== true) throw new Error('换路之后没拿到日记');
+	await c('上三楼');
+	await c('上三楼拐角看看');
+	await c('把护臂翻过来，看内侧的记号');        // 察觉 → 必成
+	if (pcOf(w).ev.forge_seen !== true) throw new Error('察觉路没换来护臂来历');
+	await c('上四楼');
+	await c('盯住缺口里那几粒没连上的点');        // 察觉 → 必成（本条路线故意不拿那册书）
+	if (pcOf(w).ev.star_ledger !== true) throw new Error('察觉路没换来那笔账');
+	await c('上顶楼');
+	await c('下楼，打开地下那道门');
+	await c('翻转护身符：坠入');                  // 先翻到过去（位置决定年代）
+	await c('在宴上找人说话');
+	await c('问那位一直在算星的人');
+	await c('先不开口，看他手上的笔停顿在哪');    // 洞悉 → 必成
+	if (pcOf(w).ev.seer_gave !== true) throw new Error('洞悉路没换来星图');
+	await c('求他把完整星图给你');
+	if (pcOf(w).inv['完整星图'] !== true) throw new Error('星图没拿到');
+	await c('回到观星者');
+	await c('回到宴上');
+	await c('找那位从不离手一支哨子的老人');
+	await c('在塔里找那根杖');
+	await c('站在一边看：厅里谁一直在瞟那张空架子');  // 洞悉 → 必成
+	if (pcOf(w).ev.staff_found !== true) throw new Error('洞悉路没找到杖');
+	await c('把杖拿回去还她');
+	if (pcOf(w).world.family_favor !== true) throw new Error('还杖没落 family_favor');
+	await c('看她手里那支哨子');                   // 洞悉 → 必成
+	if (pcOf(w).ev.witch_grip !== true) throw new Error('洞悉路没看清哨子');
+	await c('把她那支哨换过来');
+	if (pcOf(w).inv['好哨'] !== true) throw new Error('好哨没换到');
 	return { w };
 }
 
@@ -696,6 +781,7 @@ const routes = [
 	['换哨双门槛', routeExchangeGate],
 	['打听·碰壁与请酒', routeTavernAsk],
 	['情报自己问（免检暗格）', routeAskForIt],
+	['非酋不读档（换属性路）', routeNoSaveScum],
 ];
 
 const results = await Promise.all(routes.map(async ([name, fn]) => {

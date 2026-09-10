@@ -56,6 +56,7 @@
 		<<set $pc.world.flower_warned to true>>
 	<</if>>
 	<div id="fanlin-act">
+	<<lastcheckFor "塔外花田" "花田·下风">>
 	<<link "伸手去摘最靠里的那一朵">>
 		<<replace "#fanlin-act">>
 			<<if $pc.world.flower_warned>>
@@ -71,6 +72,16 @@
 				<</if>>
 			<</if>>
 		<</replace>>
+	<</link>>
+	<<link "绕到下风处，连土一起端起来">>
+		<<sitecheck "花田·下风">><<snapshot>>
+		<<if $last_check.success>>
+			你退到上风头，屏着气把刀插进土里，整块端起来——''根没断，花也没散''。<<give "月光花">>
+		<<else>>
+			土比你估的松。你被那股甜味按了一下，膝盖先着了地。<<damage 3>>
+			（''你在地上趴了一会儿，到底还是把那块土捧起来了。''）<<give "月光花">>
+		<</if>>
+		<<goto "塔外花田">>
 	<</link>>
 	<<if not $pc.world.flower_warned>>
 		<<link "先别动它，退回塔门">><<goto "塔门">><</link>>
@@ -208,6 +219,17 @@
 			<</if>>
 			<<goto "守林人">>
 		<</link>>
+		<<link "先看清他靴边那一圈白">>
+			<<sitecheck "守林人·指花">><<snapshot>>
+			<<if $last_check.success>>
+				他靴边沾着一圈银白的花粉——''他每天都要从那片花边上走一趟''。
+				你把这事说破，他沉默了一下："……那花会睡人。要摘，先把气含住。我小时候在那儿睡过一下午。"
+				<<set $pc.world.flower_warned to true>><<set $pc.ev.keeper_told to true>>
+			<<else>>
+				他斗篷上都是雾水，什么也看不出来。<<set $pc.ev.keeper_refused to true>>
+			<</if>>
+			<<goto "守林人">>
+		<</link>>
 		<<link "先不问花的事">><</link>>
 	<</if>>
 <</if>>
@@ -305,19 +327,41 @@
 <</if>>
 
 <<if not $pc.inv["坏哨"]>>
-	<div id="hall-whistle">
-	<<link "把墙上那支哨子摘下来">>
-		<<replace "#hall-whistle">>
-			<<sitecheck "门厅·翻检">><<snapshot>><<lastcheck>>
+	<<if $pc.ev.hall_seen>>
+		<<link "摘哨子（钉子怎么卡的，你已经看清了）">>
+			<<give "坏哨">><<goto "门厅">>
+		<</link>>
+	<<else>>
+		<<lastcheckFor "门厅·翻检" "门厅·看钉" "门厅·硬掰">>
+		<<link "把墙上那支哨子摘下来">>
+			<<sitecheck "门厅·翻检">><<snapshot>>
 			<<if $last_check.success>>
 				你把哨子从钉子上提起来，放进''物品栏''。<<give "坏哨">>
 			<<else>>
 				哨子卡在钉子上。你拨了半天，指头刮破了一道口子——到底还是弄下来了。
 				<<damage 1>><<give "坏哨">>
 			<</if>>
-		<</replace>>
-	<</link>>
-	</div>
+			<<goto "门厅">>
+		<</link>>
+		<<link "先看清钉子是怎么卡的">>
+			<<sitecheck "门厅·看钉">><<snapshot>>
+			<<if $last_check.success>>
+				钉子锈成了一个钩，得往上提、再往外带。（''看准了，就不必用蛮力。''）<<set $pc.ev.hall_seen to true>>
+			<<else>>
+				灰太厚，看不清。（''看不通就用手：把墙上那支哨子摘下来。''）
+			<</if>>
+			<<goto "门厅">>
+		<</link>>
+		<<link "踩上墙边那只箱子，硬掰下来">>
+			<<sitecheck "门厅·硬掰">><<snapshot>>
+			<<if $last_check.success>>
+				你借了箱子的高度，一把攥住哨子拧了下来。<<give "坏哨">>
+			<<else>>
+				箱子一滑，你磕在墙角上。<<damage 2>>好歹把哨子攥下来了。<<give "坏哨">>
+			<</if>>
+			<<goto "门厅">>
+		<</link>>
+	<</if>>
 <<else>>
 	（这里你''翻找过这里''，没有别的了。）
 <</if>>
@@ -352,34 +396,63 @@
 
 <<if $era is "present">>
 	<<if not $pc.inv["日记"]>>
-		<<link "伸手去摸烤炉后头的暗格">>
-			<<if $pc.world.witch_hint>>
-				暗格的位置分毫不差——你一下就摸到了。里面是一本硬皮日记，翻到最后一页，一行字被描过两遍：
-				//"''雾就是它漏出来的力气''——缺的从来不是咒。"//
+		<<if $pc.ev.study_found>>
+			<<link "把暗格里的东西取出来">>
 				<<give "日记">><<set $pc.ev.failure_cause to true>>
-
-				封底里还夹着一卷纸，纸角磨得发毛——''后半本是她算清了的完整术式''。
-				<<give "传送术卷轴">>
-			<<else>>
-				<<sitecheck "书房·检视">><<snapshot>>
-				<<if $last_check.success>>
-					<<set $pc.ev.diary_ok to true>>
-					暗格里有一本硬皮日记。翻到最后一页，一行字被描过两遍：
-					//"''雾就是它漏出来的力气''——缺的从来不是咒。"//
-					<<give "日记">><<set $pc.ev.failure_cause to true>>
-
-					封底里还夹着一卷纸，纸角磨得发毛——''后半本是她算清了的完整术式''。
-					<<give "传送术卷轴">>
+				暗格里是一本硬皮日记。翻到最后一页，一行字被描过两遍：
+				//"''雾就是它漏出来的力气''——缺的从来不是咒。"//
+				封底里还夹着一卷纸，纸角磨得发毛——''后半本是她算清了的完整术式''。<<give "传送术卷轴">>
+				<<goto "书房">>
+			<</link>>
+		<<else>>
+			<<lastcheckFor "书房·检视" "书房·敲墙" "书房·断代" "书房·强拆">>
+			<<link "伸手去摸烤炉后头的暗格">>
+				<<if $pc.world.witch_hint>>
+					暗格的位置分毫不差——你一下就摸到了。（''女巫的门道''省掉了这一手。）
+					<<set $pc.ev.study_found to true>>
 				<<else>>
-					<<set $pc.ev.diary_no to true>>
-					你只摸到一手灰，手指头在炉壁上磕了一下。<<damage 1>>
-					（''暗格也许不在这一侧——你要是问过女巫，就不用这么摸。''）
+					<<sitecheck "书房·检视">><<snapshot>>
+					<<if $last_check.success>><<set $pc.ev.study_found to true>>
+					<<else>>你只摸到一手灰，手指头在炉壁上磕了一下。<<damage 1>>
+						（''这一侧什么都没有。''炉膛后头的墙，也许该先''敲一敲''；架上的抄本按年份排一遍，也能看出点什么；要么就干脆''把炉膛挪开''。）
+					<</if>>
 				<</if>>
-			<</if>>
-			<<goto "书房">>
-		<</link>>
+				<<goto "书房">>
+			<</link>>
+			<<link "先敲一敲炉膛后头的墙">>
+				<<sitecheck "书房·敲墙">><<snapshot>>
+				<<if $last_check.success>>
+					有一块砖的声音是空的。你按下它的边角——砖松了。（''你知道暗格在哪儿了。''）
+					<<set $pc.ev.study_found to true>>
+				<<else>>
+					墙是实的。你敲得手指发麻。（''这一手不看运气——架上的抄本按年份排一遍，也许更管用。''）
+				<</if>>
+				<<goto "书房">>
+			<</link>>
+			<<link "把架上的抄本按年份排一遍">>
+				<<sitecheck "书房·断代">><<snapshot>>
+				<<if $last_check.success>>
+					你数了年份，看出哪一册被人反复翻过——页边一行小字写着"烤炉后头"。（''你知道暗格在哪儿了。''）
+					<<set $pc.ev.study_found to true>>
+				<<else>>
+					年份对不上，你排了半天也没理出头绪。（''书读不通，就用手：''伸手去摸烤炉后头的暗格''。）
+				<</if>>
+				<<goto "书房">>
+			<</link>>
+			<<link "干脆把炉膛挪开——''用力''">>
+				<<sitecheck "书房·强拆">><<snapshot>>
+				<<if $last_check.success>>
+					你换了半个姿势，把炉膛整个挪开半尺——暗格就在后头，砖面是松的。
+					<<set $pc.ev.study_found to true>>
+				<<else>>
+					炉膛纹丝不动，你的肩膀先撞在了墙上。<<damage 2>>
+					（''但你摸到了那条缝——暗格确实在这儿。''）<<set $pc.ev.study_found to true>>
+				<</if>>
+				<<goto "书房">>
+			<</link>>
+		<</if>>
 	<<else>>
-		<<if $pc.ev.diary_ok>><<lastcheck>><</if>>
+		<<lastcheckFor "书房·检视" "书房·敲墙" "书房·断代" "书房·强拆">>
 		（这里你''已搜过''。）
 	<</if>>
 
@@ -410,7 +483,7 @@
 		<<goto "书房">>
 	<</link>>
 <<else>>
-	<<lastcheck>>
+	<<lastcheckFor "书房·追问">>
 	（这架书你翻过了。）
 <</if>>
 
@@ -451,19 +524,35 @@
 架上摆着一副锻到一半的''护臂''——照"守林人的臂"量的尺寸。
 
 <<if not $pc.ev.forge_seen>>
+	<<lastcheckFor "工坊·识货" "工坊·记号" "工坊·问铁匠">>
 	<<link "拿起那副护臂，比一比尺寸">>
 		<<sitecheck "工坊·识货">><<snapshot>>
 		<<if $last_check.success>>
 			你看得出来：这甲是照着一个人的手臂打的，那人还没来取。
 			<<set $pc.ev.forge_seen to true>>
 		<<else>>
-			铁片子冻手，你只看出一层锈。<<damage 1>>
-			<<set $pc.ev.forge_seen to true>>
+			铁片子冻手，你只看出一层锈。<<damage 1>>（''手冻僵了看不清，就换个法子：把护臂翻过来看记号；三百年前这炉子边上还有人，问他也行。''）
 		<</if>>
 		<<goto "工坊">>
 	<</link>>
+	<<link "把护臂翻过来，看内侧的记号">>
+		<<sitecheck "工坊·记号">><<snapshot>>
+		<<if $last_check.success>>
+			内侧有几个冲出来的记号——是量尺寸时留下的手记：''"守林人的臂"''。
+			<<set $pc.ev.forge_seen to true>>
+		<<else>>
+			锈盖住了记号。<<damage 1>>（''看不清就换个法子：直接问打它的人。''）
+		<</if>>
+		<<goto "工坊">>
+	<</link>>
+	<<if $era is "past">>
+		<<link "问炉子边那个铁匠：这副甲是给谁打的">>
+			他把锤子往肩上一搭："给守林人家的小子。前年量的臂，人还没来取——你要是见着他，替我说一声。"<<set $pc.ev.forge_seen to true>>
+			<<goto "工坊">>
+		<</link>>
+	<</if>>
 <<else>>
-	<<lastcheck>>
+	<<lastcheckFor "工坊·识货" "工坊·记号" "工坊·问铁匠">>
 	（这甲是照一个人的手臂打的，那人还没来取。）
 <</if>>
 
@@ -492,24 +581,33 @@
 <</if>>
 
 <<if $era is "present">>
+	<<lastcheckFor "天文台·典籍" "天文台·光点" "天文台·对书">>
 	<<if not $pc.ev.star_ledger>>
 		<<link "顺着注记读一读缺口边上那半幅星轨">>
 			<<sitecheck "天文台·典籍">><<snapshot>>
+			<<if $last_check.success>><<set $pc.ev.star_ledger to true>>
+			<<else>>字太小，光又斜，你读不出记的是谁。（''读不通就换个法子：盯住缺口里那几粒没连上的点；手边有那册手稿的话，对着看也行。''）<</if>>
+			<<goto "天文台">>
+		<</link>>
+		<<link "盯住缺口里那几粒没连上的点">>
+			<<sitecheck "天文台·光点">><<snapshot>>
 			<<if $last_check.success>>
+				那几粒点的间距是等分的——有人拿它们当过一把尺。''这笔账没人算过''：谁也没给"它睡了多久、攒了多少"记过一笔。
 				<<set $pc.ev.star_ledger to true>>
 			<<else>>
-				<<set $pc.ev.ledger_fail to true>>
+				看得久了，那些点像在动。你揉了揉眼睛。（''眼睛不行就换手：顺注记读，或者对着那册手稿看。''）
 			<</if>>
 			<<goto "天文台">>
 		<</link>>
-	<</if>>
-	<<if $pc.ev.star_ledger>>
-		<<lastcheck>>
+		<<if $pc.inv["观星者的书"]>>
+			<<link "翻开那册手稿，对着缺口看">>
+			书里那段注记正好接上缺口——''这笔账没人算过''：谁也没给"它睡了多久、攒了多少"记过一笔。
+				<<set $pc.ev.star_ledger to true>>
+				<<goto "天文台">>
+			<</link>>
+		<</if>>
+	<<else>>
 		你顺着注记读懂了半幅星轨——''这笔账没人算过''：谁也没给"它睡了多久、攒了多少"记过一笔。
-	<</if>>
-	<<if $pc.ev.ledger_fail and not $pc.ev.star_ledger>>
-		<<lastcheck>>
-		字太小，光又斜。你看出那是记账的写法，却读不出记的是谁。（''再看一次也行——这地方的时间跟外面不太一样。''）
 	<</if>>
 <<else>>
 	''三百年前''的穹顶是完整的。银线如织，每颗星旁都注着名字。

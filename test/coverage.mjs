@@ -118,15 +118,50 @@ if (interactCells.size < renderCells.size) {
 	gate5++;
 }
 
+// ── 门6（#168 机检⑩）：链接级覆盖——渲染出来的每一个可点元素，必须真被某条路线点过 ──
+// 老口径按「段落|时代」记格：同一段里有一条链接从没被点过，照样是绿的。P1-1 的断链与 P1-29
+// 的"抄书人跑腿"就是这样漏掉的。这里把 render-all 收集的链接清单与 scenarios 的点击记录对账，
+// 未点过的必须命中 test/link-whitelist.json 里一条带理由的规则。
+const LINKS_RENDER = 'build/coverage-links.json';
+const LINKS_CLICK = 'build/coverage-links-scenarios.json';
+const LINKS_WL = 'test/link-whitelist.json';
+let gate6 = 0;
+if (!existsSync(LINKS_RENDER) || !existsSync(LINKS_CLICK)) {
+	console.error(`✗ 门6 链接级覆盖：缺 ${LINKS_RENDER} / ${LINKS_CLICK}——请先完整跑 render-all 与 scenarios`);
+	gate6++;
+} else {
+	const renderLinks = JSON.parse(readFileSync(LINKS_RENDER, 'utf8')).links ?? {};
+	const clickLinks = JSON.parse(readFileSync(LINKS_CLICK, 'utf8')).links ?? {};
+	const rules = (JSON.parse(readFileSync(LINKS_WL, 'utf8')).rules ?? []).map((r) => ({ key: new RegExp(r.key), label: new RegExp(r.label), why: r.why }));
+	const uncovered = [];
+	for (const [key, labels] of Object.entries(renderLinks)) {
+		const clicked = new Set(clickLinks[key] ?? []);
+		for (const label of labels) {
+			if (clicked.has(label)) continue;
+			if (rules.some((r) => r.key.test(key) && r.label.test(label))) continue;
+			uncovered.push(`${key}::${label}`);
+		}
+	}
+	if (uncovered.length) {
+		console.error(`✗ 门6 链接级覆盖缺口 ${uncovered.length} 条（渲染出来却没有任何路线点过）：`);
+		for (const u of uncovered.slice(0, 20)) console.error(`   ${u}`);
+		if (uncovered.length > 20) console.error(`   …还有 ${uncovered.length - 20} 条`);
+		console.error(`  → 给其中至少一条补上 scenarios 路线 / walker 注入，或在 ${LINKS_WL} 里补一条带理由的规则`);
+		gate6++;
+	} else {
+		console.log(`链接级覆盖：${Object.keys(renderLinks).length} 格全部对账通过（点过的 + 白名单规则内）`);
+	}
+}
+
 // ── 基线更新/判定 ───────────────────────────────────────
 if (UPDATE) {
 	writeFileSync(BASELINE, JSON.stringify({ render: [...renderCells].sort(), interact: [...interactCells].sort() }, null, '\t') + '\n');
 	console.log(`✔ 基线已更新：渲染 ${renderCells.size} 格 / 交互 ${interactCells.size} 格（${BASELINE}，请人工审后提交）`);
 	process.exit(0);
 }
-const gates = gate1 + gate2 + gate3 + gate4 + gate5;
+const gates = gate1 + gate2 + gate3 + gate4 + gate5 + gate6;
 if (gates > 0) {
 	if (!existsSync(BASELINE)) console.error('ℹ 首次生成基线：node test/coverage.mjs --update-baseline');
 	process.exit(1);
 }
-console.log('✔ 覆盖率 ratchet 通过（门1 无缩水 · 门2 新段落配测 · 门3 无交互盲区 · 门4 时代双态 · 门5 交互≥渲染）');
+console.log('✔ 覆盖率 ratchet 通过（门1 无缩水 · 门2 新段落配测 · 门3 无交互盲区 · 门4 时代双态 · 门5 交互≥渲染 · 门6 链接级覆盖）');

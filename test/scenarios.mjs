@@ -8,6 +8,7 @@ import { boot, CLICKABLE, CLICKABLE_SEL } from './boot.mjs';
 
 let failures = 0;
 const visited = new Set();
+const clickedLinks = new Map(); // `${段落}|${时代}` → 真被点过的链接标签集（#168 机检⑩）
 
 async function newGame(randomStub, preset = 0) {
 	// random 传函数：每次调用都取同一个定值，d20 于是变成确定骰
@@ -31,6 +32,13 @@ async function newGame(randomStub, preset = 0) {
 		for (let i = 0; i < 20 && !a; i++) { await sleep(100); await settle(); a = findLink(label); }
 		if (!a) throw new Error(`找不到链接「${label}」@ ${w.SugarCube.State.passage}（可选：${[...w.document.querySelectorAll(CLICKABLE)].map((x) => x.textContent).join(' / ')}）`);
 		mark();
+		// 链接级覆盖（#168 机检⑩）：记下"这一段|这个时代里真被点过的那条链接"——
+		// 只记段落格是看不见链接盲区的（P1-1 的断链、P1-29 的抄书人跑腿都从没被点过）。
+		{
+			const key = `${w.SugarCube.State.passage}|${w.SugarCube.State.variables.era}`;
+			if (!clickedLinks.has(key)) clickedLinks.set(key, new Set());
+			clickedLinks.get(key).add(a.textContent.replace(/\s+/g, ' ').trim());
+		}
 		const before = uncaught.length;
 		a.click();
 		await settle();
@@ -298,7 +306,7 @@ async function routeBurn() {
 	await c('到拐角的小工坊看看');
 	await c('上三楼');
 	await c('上顶楼');
-	await c('折断法杖');
+	await c('折断杖');
 	if (passageOf(w) !== '结局 焚塔者') throw new Error(`未达焚塔者（${passageOf(w)}）`);
 	return { w };
 }
@@ -715,6 +723,32 @@ async function routeEraBranches() {
 }
 
 // ── 路线 25：打听碰壁 → 越问越难 → 换手段/换筹码（B2：代价因手段而异）──
+// ── 路线 31：酒馆·把桌子听遍（#168 机检⑩：这一段渲染出来的八桌人 + 那幅画，全都要真点过一次）──
+// P1-1 的断链与 "不老的女人" 那桌就藏在这里：段落级覆盖一直是绿的，因为它只看"段落|时代"格。
+async function routeTavernAllTables() {
+	const { w, click: c } = await newGame(0.5, 0);
+	const tables = [
+		['靠窗那桌——他们在讲塔上那盏灯', 'tav_light'],
+		['讲守林人的那一桌', 'tav_keeper'],
+		['上了年纪的村人——他说那条龙早死了', 'tav_dragon'],
+		['跑生意的——他说雾是怨念', 'tav_grudge'],
+		['掉了半口牙的老头——他嗤了一声', 'tav_seal'],
+		['接嘴的那个人——「不老的女人」', 'tav_ageless'],
+		['背着画板的游客——他在问月光花', 'tav_flower'],
+		['前些年那队人', 'tav_iron'],
+		['墙上那幅旧画', 'tav_painting'],
+	];
+	for (const [label, flag] of tables) {
+		await c(label);
+		if (pcOf(w).ev[flag] !== true) throw new Error(`点了「${label}」却没记下 ${flag}（这一桌的内容没落地？）`);
+	}
+	// 每桌听完，酒馆里的传闻都该在正文里出现过一遍（§3.9 传说只能由 NPC 口耳相传）
+	const text = passageText(w);
+	for (const key of ['不老的女人', '铁门锁着', '怨念', '封印']) {
+		if (!text.includes(key)) throw new Error(`听完所有桌子，正文里没出现「${key}」`);
+	}
+}
+
 async function routeTavernAsk() {
 	const { w, click: c } = await newGame(0.01, 0);   // d20 恒 1：所有检定必败
 	// 酒馆：一桌一问（问过就消失）
@@ -902,6 +936,7 @@ const routes = [
 	['花田死亡', routeFlowerDeath],
 	['花田·哥布林情报', routeFlowerGoblin],
 	['换哨双门槛', routeExchangeGate],
+	['酒馆·把桌子听遍', routeTavernAllTables],
 	['打听·碰壁与请酒', routeTavernAsk],
 	['情报自己问（免检暗格）', routeAskForIt],
 	['非酋不读档（换属性路）', routeNoSaveScum],
@@ -924,6 +959,7 @@ failures = results.filter(Boolean).length;
 
 mkdirSync('build', { recursive: true });
 writeFileSync('build/coverage-scenarios.json', JSON.stringify({ cells: [...visited].sort() }, null, 1));
+writeFileSync('build/coverage-links-scenarios.json', JSON.stringify({ links: Object.fromEntries([...clickedLinks].map(([k, v]) => [k, [...v].sort()]).sort((a, b) => a[0].localeCompare(b[0]))) }, null, 1));
 console.log(`\n路线 ${routes.length} 条 · 交互覆盖 ${visited.size} 格`);
 if (failures) { console.error(`✗ ${failures} 条路线失败`); process.exit(1); }
 console.log('✔ 分支场景测试通过');

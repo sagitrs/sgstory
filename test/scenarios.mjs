@@ -275,6 +275,10 @@ async function routeVoid() {
 	await c('雾里有个影子挡着路');
 	await c('慢慢放下手');
 	await c('顺着那条窄路走过去');
+	// 好感链：空手见守林人不被纠正"封印"，说一句"它不会变成恶龙"拿好感，但好感不换放行
+	await c('说一句：它不会变成恶龙');
+	if (pcOf(w).keeper.trust_dragon !== true) throw new Error('好感链未落旗（keeper.trust_dragon）');
+	await c('回到守林人');
 	await c('那就用他家的封印术');
 	if (passageOf(w) !== '结局 送入虚空') throw new Error(`未达送入虚空（${passageOf(w)}）`);
 	return { w };

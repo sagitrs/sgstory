@@ -43,3 +43,5 @@
 - 新增自动回归检查覆盖逆序提问、跨场景清理和失败后请酒的新回复焦点。静态审计的浏览器接口替身补齐原生事件注册接口；规则检查没有减项。最终 `npm test` 通过，29 条路线和既有覆盖门保持通过。
 
 证据：[修复前测量](evidence/feedback-review-2026-09-10/before.json)、[新反馈复测](evidence/feedback-review-2026-09-10/after.json)、[重复交涉及键盘/读档复测](evidence/feedback-review-2026-09-10/keyboard-and-repeat-final.json)。手机交涉截图：[修复前](evidence/feedback-review-2026-09-10/mobile-social-before.png) / [修复后](evidence/feedback-review-2026-09-10/mobile-social-after.png) / [失败后请酒](evidence/feedback-review-2026-09-10/mobile-social-repeat-after.png)。本补修仍只做了 Chromium 实际浏览器验证。
+
+后续同步至上游 `d95c83a` 的冲突处理与新一轮验证，单独记录于[上游同步复核](rebase-review-2026-09-10.md)；本页历史截图与测量未被覆盖。

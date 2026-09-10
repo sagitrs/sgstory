@@ -40,6 +40,8 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     needs: [test, soak]
     runs-on: ubuntu-latest
+    outputs:
+      page_url: ${{ steps.deployment.outputs.page_url }}
     permissions:
       pages: write
       id-token: write
@@ -64,3 +66,27 @@ jobs:
           path: dist
       - id: deployment
         uses: actions/deploy-pages@v4
+
+  post-deploy-smoke:
+    # 线上冒烟（#188）：部署后拉线上产物，断言可达/字体外链/preload/体积预算
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: [deploy]
+    runs-on: ubuntu-latest
+    steps:
+      - name: smoke
+        run: |
+          set -e
+          URL="${{ needs.deploy.outputs.page_url }}"
+          OK=""
+          for i in 1 2 3 4 5; do
+            if curl -sfL "$URL" -o /tmp/idx.html; then OK=1; break; fi
+            echo "第 $i 次未就绪（CDN 传播），15s 后重试…"; sleep 15
+          done
+          test -n "$OK" || { echo "✗ 线上页面不可达：$URL"; exit 1; }
+          grep -q 'id="font-face"' /tmp/idx.html || { echo "✗ 缺 @font-face 注入"; exit 1; }
+          test "$(grep -c 'rel="preload"' /tmp/idx.html)" -ge 2 || { echo "✗ 字体 preload 不足 2"; exit 1; }
+          SZ=$(wc -c < /tmp/idx.html)
+          test "$SZ" -lt 1000000 || { echo "✗ index.html ${SZ}B ≥ 1MB（疑似回胖/内嵌字体）"; exit 1; }
+          curl -sfL -o /dev/null "${URL}fonts/LXGWWenKai-Regular.woff2" || { echo "✗ 字体 404（mis-deploy）"; exit 1; }
+          curl -sfL -o /dev/null "${URL}fonts/LXGWWenKai-Medium.woff2" || { echo "✗ 字体 404（mis-deploy）"; exit 1; }
+          echo "✔ 线上冒烟通过：index ${SZ}B + 字体外链可达 + preload ×2"

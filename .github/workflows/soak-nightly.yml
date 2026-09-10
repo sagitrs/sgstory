@@ -1,0 +1,33 @@
+name: soak-nightly
+
+on:
+  schedule:
+    - cron: '0 20 * * *'  # UTC 20:00 = 北京 04:00
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  soak:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        seed: [1, 7, 42]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: pip install fonttools brotli
+      - run: node build.mjs
+      - run: node test/walker.mjs 30 30 ${{ matrix.seed }}
+      - if: failure() || success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: walker-log-seed-${{ matrix.seed }}
+          path: build/coverage-walker.json
+          if-no-files-found: ignore

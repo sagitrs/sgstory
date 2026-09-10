@@ -128,6 +128,7 @@ async function truePath(w, c) {
 	await c('翻转护身符：坠入');           // 揣着花翻回过去（喂花只能在过去做）
 	await c('推门进去');                   // 门厅（过去）
 	await c('先上二楼看看');               // 书房（过去：暗格是空的）
+	await c('指出架上一册错抄的星象历');   // #168 P1-29：这份跑腿只在过去那一侧（d20 恒 20 → 成）
 	await c('到拐角的小工坊看看');         // 工坊（同一层）
 	await c('把它打完');                   // 龙鳞护臂
 	await c('上三楼');                     // 天文台
@@ -374,7 +375,7 @@ async function routeSeal() {
 	await c('伸手去摸烤炉后头的暗格');     // M9：先摸到日记
 	await c('把暗格里的东西取出来');       // M10：取物是另一步
 	await c('把日记往下读');               // → 观察到"没人看过它睡得怎么样"
-	await c('照她抄在页边的封印术');
+	await c('照着守林人家那卷封印术念一遍');
 	if (passageOf(w) !== '结局 劣化封印') throw new Error(`未达劣化封印（${passageOf(w)}）`);
 	return { w };
 }
@@ -761,7 +762,7 @@ async function routeAskForIt() {
 	const wq = pcOf(w).ev;
 	if (!(wq.wq_painting && wq.wq_night && wq.wq_talisman && wq.wq_under && wq.wq_past && wq.wq_alone)) throw new Error('女巫小屋提问未全部记账');
 	const wqText = w.document.querySelector('#passages').textContent;
-	if (!wqText.includes('行头是一代一代传下来的')) throw new Error('§3.9 传说"行头"锚句未渲染');
+	if (!wqText.includes('别拿那幅画比')) throw new Error('女巫小屋的"形似"回指未渲染（#168 P1-14：不再给解释）');
 	if (!wqText.includes('改不了的不是历史')) throw new Error('observation_lock 锚句（女巫小屋侧）未渲染');
 	await c('花 8 金币：问塔里的门道');              // witch_hint
 	await c('谢过她，往林子深处走');

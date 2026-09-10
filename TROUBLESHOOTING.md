@@ -226,3 +226,19 @@ await w.SugarCube.Engine.start();   // 视口非零后这个 promise 才真的 r
 **预防（本次新增两道门）**：
 - **静态**：`test/integrity.mjs` 断言每个 `<<set $pc.hp to $pc.max_hp>>` 的**前一个非空行**必须是 `<<if ...>>`；
 - **行为**：`test/scenarios.mjs` 加路线「女巫小屋·只治一次」——第一次带伤进（1/14）必须回满，第二次带伤进（1/14）必须**还是 1**。
+
+## 坑17 · 测试脚本里塞 Node 原生的 Array 对象 → SugarCube 克隆直接抛错〔#168 批次二 · 测试基建〕
+
+**现场**：验证"有火把走哪一支"时，直接给状态塞了个数组：`pc.gear = ['长剑', '火把']`，随后 `Engine.play('洞穴')`。
+渲染出来的是一整块 `.error`：`Error: attempted to clone unsupported type: Array`——而且报错里**还带着引擎源码**，
+`head` 一屏刷出几百 KB，真凶从那堆东西里几乎看不出来。
+
+**根因**：jsdom 里有两个 `Array` 构造函数——Node 侧的和 jsdom 侧（`window.Array`）。SugarCube 的 `clone()`
+用 `O instanceof Array` 判类型，跨 realm 的对象**不是**它认识的那个 `Array`，于是走兜底分支报"unsupported type"。
+而每次回合都要深拷贝状态（坑 2），所以只要状态里躺着一个跨 realm 的容器，这一翻必炸。
+
+**解法**：测试里**别给状态赋 JS 字面量容器**——要么走引擎自己的入口（`w.eval(...)` / `<<set>>`），
+要么就地改已有容器：`if (!pc.gear.includes('火把')) pc.gear.push('火把')`。
+
+**预防**：渲染类断言**顺手查 `.error`**（`#passages .error` 存在即 throw）——本次正是加了这一条，
+才没把"整段替换成报错块"当成"渲染正常"放过去。

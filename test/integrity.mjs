@@ -257,8 +257,11 @@ for (const [name, terms] of Object.entries(PRELUDE_BANS)) {
 // （没看画也照写）。这类"凭空记得"是语义问题，机器只能钉住**已知的几处**：
 // 短语必须落在 `<<if $pc.ev.<flag>>>` 里，否则红。新增此类回指就往表里加一行。
 const CALLBACKS = [
-	{ passage: '洞穴', phrase: '你想起老板娘那句话', flag: 'tav_tips' },
-	{ passage: '女巫小屋', phrase: '你在酒馆那幅旧画上见过', flag: 'tav_painting' },
+	{ passage: '洞穴', phrase: '你想起老板娘那句话', flag: 'tav_tips', said: '别在雾里睡觉', saidIn: '酒馆' },
+	{ passage: '女巫小屋', phrase: '你在酒馆那幅旧画上见过', flag: 'tav_painting', said: '旧画', saidIn: '酒馆' },
+	// #168 P1-11：NPC 的口头承诺也得真在某处说过——`scope` 默认 `pc.ev`，守林人这条挂的是 `$pc.keeper.met`
+	{ passage: '塔门', phrase: '守林人说过', flag: 'met', scope: 'pc.keeper', said: '从大门走', saidIn: '守林人' },
+	{ passage: '半途的林子', phrase: '守林人说过', flag: 'met', scope: 'pc.keeper', said: '从大门走', saidIn: '守林人' },
 ];
 for (const c of CALLBACKS) {
 	const p = passages.get(c.passage);
@@ -270,10 +273,20 @@ for (const c of CALLBACKS) {
 	let depth = 0;
 	for (const m of body.slice(0, idx).matchAll(/<<if\s+([^>]*)>>|<<\/if>>/g)) {
 		if (m[0].startsWith('<<if')) {
-			if (new RegExp(`\\$pc\\.ev\\.${c.flag}\\b`).test(m[1]) && !/\bnot\b/.test(m[1])) depth++;
+			const ns = `\\$${(c.scope ?? 'pc.ev').replace(/\./g, '\\.')}\\.`;
+			if (new RegExp(`${ns}${c.flag}\\b`).test(m[1]) && !/\bnot\b/.test(m[1])) depth++;
 		} else depth = Math.max(0, depth - 1);
 	}
-	if (depth <= 0) errors.push(`[回指] ${p.file}:${p.line} 「${c.passage}」提到「${c.phrase}」，但这一句没有落在 <<if $pc.ev.${c.flag}>> 里——玩家可能根本没听过`);
+	if (depth <= 0) errors.push(`[回指] ${p.file}:${p.line} 「${c.passage}」提到「${c.phrase}」，但这一句没有落在 <<if $${c.scope ?? 'pc.ev'}.${c.flag}>> 里——玩家可能根本没听过`);
+	// 光挂门控还不够（#168 P1-11 的反例：门控是对的，那句话却**全篇没人说过**）——
+	// 回指的承诺必须真在某处的 NPC 嘴里兑现：
+	if (c.said) {
+		const from = passages.get(c.saidIn);
+		if (!from) errors.push(`[回指] 表里写的出处段落「${c.saidIn}」不存在`);
+		else if (!from.body.replace(COMMENT_RX, '').includes(c.said)) {
+			errors.push(`[回指] 「${c.passage}」回指的「${c.said}」在「${c.saidIn}」里没人说过——NPC 的承诺也得到场（#168 批次二）`);
+		}
+	}
 }
 
 // ── 楼层数字门（#168 P1-4）：说了「X楼」就必须与设定书的楼层定案一致 ──

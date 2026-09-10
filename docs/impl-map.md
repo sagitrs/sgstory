@@ -1,8 +1,9 @@
 # sgstory 实施图（impl-map）——M1 骨架落地规范
 
-> **状态**：v2.7（**M1 骨架 + M2–M4 文案 + M5 终局 + M6a–f 打磨 + M5c–M5g 口径 + M7 v17 全案（去神秘化 / 传说层 / 好感合一 / 封印战）+ M8 图鉴 + M9 互动化 + M10 判定可见 + M11 A 组 + M12 B1 战斗动作池 + M13 B2 交涉 + M14 温室撤除与月光花改口径 + M15 结局页收尾** 已完成）
+> **状态**：v2.7（**M1 骨架 + M2–M4 文案 + M5 终局 + M6a–f 打磨 + M5c–M5g 口径 + M7 v17 全案（去神秘化 / 传说层 / 好感合一 / 封印战）+ M8 图鉴 + M9 互动化 + M10 判定可见 + M11 A 组 + M12 B1 战斗动作池 + M13 B2 交涉 + M14 温室撤除与月光花改口径 + M15 结局页收尾** 已完成；v2.7·D **文档对齐**：门数/路线数/段落数/覆盖基线/键数全对着代码核过一遍）
 > **定位**：`docs/game-outline.md`（玩法大纲）的**工程落地版**——把大纲翻译成**段落图 / 文件结构 / 状态模型 / 测试策略**。
 > **权威关系**：实现细节稿。**与设定书冲突以设定书为准**；与大纲冲突以大纲为准。
+> **读法**：§0 的里程碑表是**施工记录**——表里的门数/路线数/段落数都是**当时值**；**现状**看 §2（状态）、§3（段落图）、§5（测试策略）与 §5 末尾的「当前规模」。
 
 ---
 
@@ -11,7 +12,7 @@
 | 切片 | 内容 | 验收 | 状态 |
 |---|---|---|---|
 | **M1a-1** | 实施图 + `audit.mjs` 去硬编码（文件发现式） | `npm test` 绿 | ✅ #127 |
-| **M1a-2** | **原子换骨**：新 `src/**`（11 文件 / 68 内容段 → 现 67 段；`封印·涂毒`/`封印·冲` 在 M12 并入动作池后退休）+ 新状态模型 + 命题集 v1 锚句在位 + 测试套重写 | `npm test` 绿 · `npm run soak` 0 违法 | ✅ 本 PR |
+| **M1a-2** | **原子换骨**：新 `src/**`（11 文件 / 68 内容段 → 现 66 段；`封印·涂毒`/`封印·冲` 在 M12 并入动作池后退休）+ 新状态模型 + 命题集 v1 锚句在位 + 测试套重写 | `npm test` 绿 · `npm run soak` 0 违法 | ✅ 本 PR |
 | **M1b** | canon 门（`audit --canon` 读设定书 §10 黑名单回流检测 + 行覆盖） | 六门绿 | ✅ #129 |
 | **M1c** | 覆盖率 ratchet 收紧（5 门）+ 场景矩阵扩展（20 路线）+ `npm run soak` 接回 CI | 覆盖率门 + CI soak job | ✅ 本 PR |
 | **M2** | 序章 + 一章文案（雾影·龙梦回放 / 酒馆四传说 / 女巫半知交底 / 翻转教学） | 六门 + 20 路线 | ✅ 本 PR |
@@ -57,15 +58,16 @@
 src/
   00-meta.twee        StoryTitle / StoryData（起始段「开场」）
   10-core.twee        Rules[script] + StoryInit + Widgets[widget] + StoryCaption
-  15-tables.twee      Game Tables[script]（Checks / Economy / Items / Truth /
-                      Echoes / Choices / Systems / Shifts / Dragon）
+  15-tables.twee      Game Tables[script]（Checks / Economy / Items / Gear / Combat /
+                      Social / Codex / Truth / Echoes / Choices / Systems / Shifts /
+                      Star / Dragon）+ Pc（状态形状 + migrate）
   20-chargen.twee     Chargen Data[script]（3 轮）+ 车卡 / 角色卡
   30-ch1.twee         序章 + 一章（时间）：开场 · 酒馆（+B2 交涉面板）· 森林边缘 · 洞穴（+B2 交涉面板）· 女巫小屋 · 林间小径
   40-ch2.twee         二章（手段）：塔门 · 塔外花田 · 雾之魔物 · 守林人（+B2 两个交涉面板（花 / 术）· ·送 / ·守 / **·封印** / **·信**）· 门厅 · 书房 · 工坊（二楼拐角）· 天文台（三楼）· 顶楼
   50-ch3.twee         三章（坐标）：地下宴会厅 · 宴会·过去 · 观星者（+B2 求图面板）· 当时的女巫（+B2 看哨/换哨面板）· 寻杖 · 老巫女（+B2 回绝面板）· 喂花 · 交付 · 唤醒 · **封印·并肩（B1 动作池）** · 龙·战 / 龙·再冲 · 归位
   60-endings.twee     结局（10 个出口）
   70-codex.twee       设定集（hub + 三律 / 守塔的人家 / 塔 / 道具 / 术语 / 结局 / **图鉴**）
-  80-script.twee      StoryScript（存档钩子 / S·L 快捷键）
+  80-script.twee      StoryScript（存档钩子 / S·L 快捷键（读档 .then(Engine.show) 才重画）/ 结局页收尾入口 / 图鉴持久化 / 段落起始状态归一化）
   90-style.twee       StoryStyleSheet
 ```
 
@@ -95,7 +97,7 @@ src/
 
 ---
 
-## 2. 状态模型（单一源 `Pc.defaults()`，25 键）
+## 2. 状态模型（单一源 `Pc.defaults()`，26 键）
 
 | 组 | 字段 | 说明 |
 |---|---|---|
@@ -107,16 +109,16 @@ src/
 | 物品 | `inv`（对象：`{ 时光护符: true, … }`） | 拾到即入；**不集齐开锁**（v16 §5.0） |
 | 证据 | `ev.*`（`mist_guard` `observation_lock` `keeper_why` `failure_cause` `star_ledger` `threshold` `coord` `letter_seen` …） | 真相链标记 |
 | 交涉（B2） | `$pc.soc` = `{ att: {}, tries: {}, read: {} }` | 态度偏移（−1 敌意 / 0 冷淡 / +1 友好）· 同一手试过几次（`askId\|site` → 5×DC）· 读过谁（解锁 reader 型筹码）；待办动作走 `$pc.ev.soc`，结果留痕走 `$pc.ev.soc_last[askId]` |
-| 龙 | `dragon.hp` `dragon.defeats` `dragon.awake` `dragon.venom` | 阈值触发战斗（`ev.threshold`）；封印战：**花毒液**（龙的攻击 −2）；**轮次改由 `$pc.ev.fight.round` 管**（B1 动作池，`dragon.round` 已退役） |
+| 龙 | `dragon.hp` `dragon.defeats` `dragon.awake` `dragon.venom` | 阈值触发战斗（`ev.threshold`）；封印战：**花毒液**（龙的攻击 −2）；**轮次改由 `$pc.ev.fight.round` 管**（B1 动作池把 `dragon.round` 这个空字段删了） |
 | 战斗（B1） | **不在 `$pc`**：`$pc.ev.fight` = `{ pool, round, offer, act, adv, guard, skipFoe, flee, last, done }` | 每轮随机 3 选 1 的回合状态；点牌只写 `act` 再重渲染，判定在段落渲染顶部结算 |
 | 图鉴（跨周目） | **不在 `$pc`**：`localStorage['sgstory.codex.v1']` = `{ clues, endings, finals }` | 线索由 `Codex.satisfied(pc)` 每段落并进账本；**不用 `settings`**（`Setting.save()` 只落盘注册过的 Setting） |
 | 世界 | `world.*`（`rumor` `goblin_spared` `witch_hint` `flower_fed` `whistle_blown` `seer_asked` `old_witch_told` `mist_fought` `scroll_delivered` `fog_thin` **`family_favor`** …） | 旗标（`Game.Echoes` 覆盖门管）；**`family_favor`＝全篇唯一人情线**（还杖，v17 补正 #2） |
 
-**迁移**：所有新增字段必须过 `Pc.migrate()`（幂等补型 + 嵌套合并），否则旧档读入即崩。`test/fixtures/saves/` 5 版历史形状（v13 旧档 / 二章早期 / 型损 / 极简 / 药膏时代）逐版断言补齐·保值·修型·幂等。
+**迁移**：所有新增字段必须过 `Pc.migrate()`（幂等补型 + 嵌套合并），否则旧档读入即崩。`test/fixtures/saves/` **6 版**历史形状（v13 旧档 / 二章早期 / 型损 / 极简 / 药膏与时代 / **交涉前**（B2：没有 `soc` 台账））逐版断言补齐·保值·修型·幂等。
 
 ---
 
-## 3. 段落图（v17 现状 + M8–M14，66 内容段）
+## 3. 段落图（v17 现状 + M8–M15，66 内容段）
 
 ### 基础设施
 `StoryTitle` `StoryData` `StoryInit` `Widgets` `StoryCaption` `StoryScript` `StoryStyleSheet`
@@ -184,16 +186,16 @@ src/
 | `test/integrity.mjs` | 段落图结构/死链/孤儿/宏拼写/词汇纪律 | 重写（`ERA_FILES` 由 `<<flip>>` 动态发现） |
 | `test/rules.mjs` | d20 内核 + 车卡 3 轮 + `Pc.migrate` 矩阵 + 表契约（10 组） | 重写 |
 | `test/properties.mjs` | 属性测试（判定边界全枚举 / 支配律 / 伤害界限 / 战斗伤害单调律 / 车卡形状律） | 重写 |
-| `test/scenarios.mjs` | **26 条路线**（金路径 + 全部结局 + 设定集 + 龙巢边） | 重写 |
+| `test/scenarios.mjs` | **29 条路线**（金路径 + 全部结局 + 设定集 + 龙巢边 + 时代分叉 + 封印战 + 反 S/L + 星力软限 + 结局页收尾） | 重写 |
 | `test/smoke.mjs` | 启动 → 快速车卡 → 酒馆 → 森林 → 洞穴 + 侧栏/存档/物品栏 | 重写 |
-| `test/coverage.mjs` | 渲染/交互覆盖率 ratchet | **收紧为 5 门**（基线：渲染 **80** / 交互 **84**） |
+| `test/coverage.mjs` | 渲染/交互覆盖率 ratchet | **收紧为 5 门**（基线：渲染 **76** / 交互 **80**） |
 
-**机检六门**：`--truth` `--canon` `--echoes` `--choices` `--systems` `--text`。
+**机检十一门**：`--truth` `--canon` `--echoes` `--choices` `--interact` `--nosl` `--gear` `--combat` `--social` `--systems` `--text`（**全部进 `npm test`**）+ 数值三件套（检定成功率矩阵 / 经济时间线 / `--dragon` 龙战推演）。
 
-**canon 门（M1b）**：`docs/lore-canon.md` §10「已裁剪设定」是唯一黑名单来源。门做两件事——① **行覆盖**：§10 每一行必须被 `CANON_ROWS` 认领（新增裁剪行不认领即红）；② **词扫描**：认领行禁词不得出现在 shipped 文本（正文 + 数据表字符串；`/% %/`、JS 行注释、CSS 块注释不计），否定句（如「没有亡灵」「不集齐开锁」）允许。另含定向检查：`守林人*` 段落不得出现「她」。**第 ⑤ 项＝传说覆盖门（v17 §3.9）**：设定书 §3.9 对照表的每一行必须被认领，且每条传说在正文里必须有 NPC 投放锚（`LEGENDS`，8 条 9 锚）——**登记了却没人说即红**。当前：§10 行 **71** · 认领 **72** 条 · 禁词 **124** 个 · 命中 0。
+**canon 门（M1b）**：`docs/lore-canon.md` §10「已裁剪设定」是唯一黑名单来源。门做两件事——① **行覆盖**：§10 每一行必须被 `CANON_ROWS` 认领（新增裁剪行不认领即红）；② **词扫描**：认领行禁词不得出现在 shipped 文本（正文 + 数据表字符串；`/% %/`、JS 行注释、CSS 块注释不计），否定句（如「没有亡灵」「不集齐开锁」）允许。另含定向检查：`守林人*` 段落不得出现「她」。**第 ⑤ 项＝传说覆盖门（v17 §3.9）**：设定书 §3.9 对照表的每一行必须被认领，且每条传说在正文里必须有 NPC 投放锚（`LEGENDS`，9 条 10 锚）——**登记了却没人说即红**。当前：§3.9 传说 **9 行 · 9 认领 · 10 投放锚**；§10 行 **72** · 认领 **73** 条 · 禁词 **127** 个 · 命中 0。
 **行囊门 + 经济门（A 组）**：每件行囊有来源/说法/效果/发放点、`advSites` 位点真实；正文不许出现表外行囊；每条 `Economy.events` 必须有落点（`gives` / `setflag` / `give` 道具），纯收入要在 `CLAIM` 里写明理由。当前 **3 件行囊 · 10 条经济事件全认领**。`--gear --check` 已接入 `npm test`（两个负例验过）。
 
-**反 S/L 门（M10）**：`Game.Checks.keyYields` 每个关键产出的**通路 ≥2 条且判定属性 ≥2 种**；`Checks.sites[].yields` 必须指向真产出。交涉诉求（`Social.asks[*].yield`）另算：**掷骰手段属性 ≥2 种**，**或**存在一条**免检筹码**（把对方想要的摆出来＝不必掷骰）——这就是 2024「give them what they want → no check」落成的反 S/L 保障。当前 **12 个产出 · 36 条通路**（其中 3 条「失败仍到手」、4 条免检筹码）。`--nosl --check` 已接入 `npm test`。
+**反 S/L 门（M10）**：`Game.Checks.keyYields` 每个关键产出的**通路 ≥2 条且判定属性 ≥2 种**；`Checks.sites[].yields` 必须指向真产出。交涉诉求（`Social.asks[*].yield`）另算：**掷骰手段属性 ≥2 种**，**或**存在一条**免检筹码**（把对方想要的摆出来＝不必掷骰）——这就是 2024「give them what they want → no check」落成的反 S/L 保障。当前 **12 个产出 · 62 条通路**（其中 4 条是交涉里的**免检筹码**）。另有 3 条通路设计成「**失败仍到手**、只赔血」——那条靠正文人工保证，门只看通路数与属性种类。`--nosl --check` 已接入 `npm test`。
 
 **交涉门（B2）**：每条诉求的每一手都在 `Social.approaches` 里（技能/豁免都要有开口方式）；筹码条件必须真的可能成立、`needRead` 的诉求必须有读人的手、`gives` 只能是 auto/adv；有掷骰路子的诉求必须有 `ok`/`bad`/`done`/`apply`；有免检筹码必须有 `auto` 过场；**态度阶梯就是 −5/0/+5 三档**；代价必须因手段而异（重试代价 · 态度代价 · 无代价三种都在）。当前 **8 件诉求 · 19 个开口位点 · 11 枚筹码 · 2 件「始终/条件性不肯」**。`--social --check` 已接入 `npm test`（两个负例验过）。
 
@@ -205,7 +207,7 @@ src/
 
 **§9 双读断言（M6a）**：只扫正文（不扫 `[script]`/`[stylesheet]`），禁 6 条断言——`长生` · `同一个人` · `初代巫女` · `初代` · `穿越` · `晚年`。命中即红并指出段落。当前命中 0；注入测试已验证（`设定集·三律` 注入「长生 / 同一个人」→ 门红并报段落）。
 
-**当前规模**：`npm test` 全绿（**28 条路线** · 内容段 67 · 渲染 78 · 交互 82 · 正文 ≈1.34 万字）；`npm run soak`（游走 20+20 局 + **51 位点**双支）0 违法，**已接回 CI 独立 job**（`deploy` 依赖 `[test, soak]`）。
+**当前规模**：`npm test` 全绿（**29 条路线** · 内容段 **66** · 渲染 **76** · 交互 **80** · `audit --text` 载荷标注 66 · 叙事段去标记 ≈1.85 万字）；`npm run soak`（游走 20+20 局 + **63 位点**双支清扫）0 违法，**已接回 CI 独立 job**（`deploy` 依赖 `[test, soak]`）。
 
 **覆盖率 5 门（M1c）**：① 基线不回退 · ② 新段落必配测 · ③ **无交互盲区**（内容段落必须有可点击到达路径）· ④ **时代双态**（按 `$era` 分叉的 **10 段**必须 present/past 都被交互踩到）· ⑤ **交互格 ≥ 渲染格**。
 
@@ -217,17 +219,17 @@ src/
 2. `20-chargen`（3 轮 + 3 预设）→ `rules.mjs` 绿 ✅
 3. `30/40/50/60` 段落图（正文 + 锚句）→ `render-all` + `integrity` 绿 ✅
 4. `70-codex` + `80/90` → `smoke` 绿 ✅
-5. `test/scenarios.mjs` 路线 → 全绿 ✅（现 **26 条**）
+5. `test/scenarios.mjs` 路线 → 全绿 ✅（现 **29 条**）
 6. `npm run soak` → 0 违法 ✅
 7. 重生成 `test/coverage-baseline.json` ✅
 
-## 7. M1a-2 遗留（M1b/M1c/M2 接手）
+## 7. M1a-2 遗留（已全部由后续里程碑接手清掉）
 
 | # | 项 | 归属 |
 |---|---|---|
 | 1 | ~~canon 门~~ ✅ M1b 已完成 | — |
-| 2 | 各楼层「过去 / 现在」正文分叉（当前仅塔门 / 天文台 / 地下宴会厅 / 交付 / 宴会·过去 分叉） | M2–M5 |
-| 3 | 雾之魔物 / 守林人 的完整战斗数值（当前为机制性劝退：单挑必败） | M2 |
-| 4 | `Game.Items.effects` 中 `龙鳞护臂` 的打造前置（工坊）已有；`守林人的杖` 终局归属待 M3 | M3 |
-| 5 | ~~文本量目标（1.2–1.5 万字 / 60–80 段）~~ ✅ 现 **≈1.34 万字 / 67 段** | — |
+| 2 | ~~各楼层「过去 / 现在」正文分叉~~ ✅ 现 **10 段**时代分叉（覆盖率门 ④ 全踩） | — |
+| 3 | ~~雾之魔物 / 守林人 的完整战斗数值~~ ✅ M12 **B1 动作池**（雾影 6 / 封印 10 / 龙 6 手，`--combat` 门） | — |
+| 4 | ~~`龙鳞护臂` 打造前置 / `守林人的杖` 终局归属~~ ✅ 护臂在 `工坊`；杖**一直在守林人手里**（v17 补正 #4 移出物品栏） | — |
+| 5 | ~~文本量目标（1.2–1.5 万字 / 60–80 段）~~ ✅ 现 **≈1.85 万字（叙事段去标记）/ 66 段** | — |
 | 6 | ~~`npm run soak` 接回 CI~~ ✅ M1c 已完成（独立 job，`deploy` 依赖 `[test, soak]`） | — |

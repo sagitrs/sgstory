@@ -17,4 +17,5 @@
 | `westward-unification.md` | 西式统一方案 | 四信物 / 占星师 / 囚室 等命名与设定未对齐 v14 |
 
 **现行权威**：`docs/lore-canon.md`（v17）。
-**未归档**：`design-review.md`、`quality-selfaudit-ch123.md`（流程记录，非设定稿，无冲突）。
+**未归档**：`design-review.md`、`quality-selfaudit-ch123.md`——流程记录，不是设定稿，所以不存在**与设定书冲突**的问题；
+但两者都是**换骨前那一代**的走查（旧 `src/**` / 五门机检 / 20 余位点），**文中的数字与段落名都已不是现状**，文件抬头已加历史横幅。

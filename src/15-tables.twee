@@ -1,7 +1,7 @@
 :: Game Tables [script]
 // ── 声明式数据表（v16）——机制数值单一源 ──────────────────────
 // 正文只经词汇宏引用：<<sitecheck 位点 [adv]>> / <<econ 事件>> / <<give "道具">>。
-// 审计：node scripts/audit.mjs（五门）。
+// 审计：node scripts/audit.mjs（十一门 + 数值三件套；每一门都能单独跑 --x）。
 // 权威关系：本表只承载机制；与 docs/lore-canon.md 冲突以设定书为准（P1）。
 window.Game = (() => {
 	// ── 位点表（技能检定 / 豁免）──────────────────────────

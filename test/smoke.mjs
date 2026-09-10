@@ -93,8 +93,9 @@ assert(checkBox.textContent.includes('感知') && checkBox.textContent.includes(
 const lc = w.SugarCube.State.variables.last_check;
 assert(lc && lc.roll === 11 && lc.label === '察觉检定（感知）' && lc.site === '森林·察觉', '<<sitecheck>> 经 <<check>> 产出 $last_check（含位点与属性标注）');
 assert(w.SugarCube.State.variables.pc.ev.forest_heard === true, '听雾结果落旗标（forest_heard）');
-const styleStory = w.document.querySelector('#style-story')?.textContent ?? '';
-assert(styleStory.includes('LXGW WenKai') && styleStory.includes('@font-face'), '霞鹜文楷子集已内嵌（@font-face）');
+const fontCss = w.document.querySelector('#font-face')?.textContent ?? '';
+assert(fontCss.includes("'LXGW WenKai'") && fontCss.includes('fonts/LXGWWenKai-Regular.woff2') && fontCss.includes('font-display: swap'), '霞鹜文楷子集外链 dist/fonts（swap，非阻塞）');
+assert(w.document.querySelectorAll('head link[rel="preload"][as="font"]').length === 2, '字体 preload ×2（与解析并行）');
 
 // ── 洞穴：选择肢 + 旗标 ──
 await click('走进山脚的洞穴');

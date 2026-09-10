@@ -9,7 +9,7 @@
 
 ```bash
 npm install
-npm run build   # 编译 → dist/index.html（单文件，浏览器直接打开即玩）
+npm run build   # 编译 → dist/（index.html + fonts/ 外链子集字体，目录整体分发，浏览器直接打开即玩）
 npm run serve   # 本地预览：http://localhost:8000
 npm test        # 构建后全链（~2min）：L0 静态门（含表一致性）→ 十一道质量门（真相/canon/回声/选择/互动/**反 S/L**/**行囊+经济**/**战斗动作池**/**交涉**/系统/文本）→ 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(32 路线并行) → 覆盖门
 npm run soak    # 游走器加量长测（20+20 局，~1.5min）：CI 独立 job（M1c 接回）；发布前 / 状态机重改动时也可本地跑
@@ -76,7 +76,7 @@ docs/
   design-review.md  D6 可用性走查存档（呈现层改动时复审）
   quality-selfaudit-ch123.md  1–3 章八维自检存档（流程记录，非设定稿）
 build.mjs         合并 src/*.twee → extwee 编译
-dist/index.html   编译产物（单文件游戏）
+dist/             编译产物（index.html + fonts/*.woff2，自包含可离线；字体外链：首访更小、复访走缓存）
 ```
 
 ## Twee 语法速查

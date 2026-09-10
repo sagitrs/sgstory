@@ -1,39 +1,17 @@
 // 分支场景测试（M1a-2 换骨后）：金路径 + 分支矩阵（每条结局一条路线）
 // Math.random 劫持：0.99 → d20 恒 20（自然 20 必成）；0.01 → 恒 1（自然 1 必败）；0.5 → 恒 11
 // 交互覆盖落盘 build/coverage-scenarios.json（coverage.mjs 门禁用）
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { JSDOM, VirtualConsole } from 'jsdom';
+//
+// JSDOM 启动 / 就绪轮询 / uncaught 监听 / 退出清理全部走 test/boot.mjs——一处修，全脚本受益。
+import { writeFileSync, mkdirSync } from 'node:fs';
+import { boot } from './boot.mjs';
 
-const html = readFileSync('dist/index.html', 'utf8');
-const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let failures = 0;
 const visited = new Set();
 
 async function newGame(randomStub, preset = 0) {
-	const uncaught = [];
-	const vc = new VirtualConsole();
-	vc.on('jsdomError', (e) => {
-		const msg = String(e?.message ?? e);
-		if (msg.startsWith('Uncaught')) uncaught.push(msg);
-	});
-	const dom = new JSDOM(html, {
-		runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/', virtualConsole: vc,
-		beforeParse(window) { window.Math.random = () => randomStub; },
-	});
-	const w = dom.window;
-	const pollUntil = async (cond, timeoutMs, what) => {
-		const t0 = Date.now();
-		while (!cond()) {
-			if (Date.now() - t0 > timeoutMs) throw new Error(`等待超时：${what}`);
-			await sleep(50);
-		}
-	};
-	await pollUntil(() => typeof w.SugarCube?.Wikifier === 'function' && w.document.querySelector('#passages'), 30000, 'SugarCube 加载');
-	new w.SugarCube.Wikifier(null, w.document.querySelector('tw-passagedata[name="StoryInit"]').textContent);
-	w.SugarCube.Engine.start();
-	await pollUntil(() => w.document.querySelector('#passages .passage[data-passage="开场"]'), 15000, '起始段渲染');
-	await sleep(120);
-
+	// random 传函数：每次调用都取同一个定值，d20 于是变成确定骰
+	const { w, uncaught, sleep, settle } = await boot({ random: () => randomStub });
 	const mark = () => visited.add(`${w.SugarCube.State.passage}|${w.SugarCube.State.variables?.era ?? '-'}`);
 	const click = async (label) => {
 		// 精确优先：避免「塔」被「守塔的人家」这类包含关系抢先命中（子串兜底保留，供动态文案用）
@@ -42,8 +20,10 @@ async function newGame(randomStub, preset = 0) {
 		if (!a) throw new Error(`找不到链接「${label}」@ ${w.SugarCube.State.passage}（可选：${[...w.document.querySelectorAll('#passages a.link-internal, #passages a.soc-opt')].map((x) => x.textContent).join(' / ')}）`);
 		mark();
 		const before = uncaught.length;
+		await settle();          // 等上一翻画完再点——否则 SugarCube 会丢掉这次点击
 		a.click();
-		await sleep(300);
+		await settle();
+		await sleep(120);
 		mark();
 		if (uncaught.length > before) throw new Error(`点击「${label}」后脚本异常：${uncaught[before].slice(0, 160)}`);
 	};
@@ -119,10 +99,9 @@ async function truePath(w, c) {
 	await c('回塔门');                     // 塔门
 	await c('推门进去');                   // 门厅
 	await c('先上二楼看看');               // 书房（过去：暗格是空的）
-	await c('上三楼');                     // 温室（纯氛围）
-	await c('上三楼拐角看看');             // 工坊
+	await c('到拐角的小工坊看看');         // 工坊（同一层）
 	await c('把它打完');                   // 龙鳞护臂
-	await c('上四楼');                     // 天文台
+	await c('上三楼');                     // 天文台
 	await c('在书架上找到一册');           // 观星者的书
 	await c('上顶楼');                     // 顶楼
 	await c('下楼，打开地下那道门');       // 地下宴会厅（过去）
@@ -155,9 +134,8 @@ async function truePath(w, c) {
 	await c('先上二楼看看');
 	await c('伸手去摸烤炉后头的暗格');     // M9：暗格要自己摸（有门道＝免检 → 直接知道位置）
 	await c('把暗格里的东西取出来');       // M10：知道位置之后，取物是另一步
+	await c('到拐角的小工坊看看');
 	await c('上三楼');
-	await c('上三楼拐角看看');
-	await c('上四楼');
 	await c('上顶楼');
 	await c('把卷轴和星图交给他');         // 交付（现在）
 	await c('下楼');                       // 地下宴会厅（现在）
@@ -271,9 +249,8 @@ async function routeTop() {
 	await c('继续往塔那边走');
 	await c('推门进去');
 	await c('先上二楼看看');
+	await c('到拐角的小工坊看看');
 	await c('上三楼');
-	await c('上三楼拐角看看');
-	await c('上四楼');
 	await c('上顶楼');
 	await c('接他的班');
 	if (passageOf(w) !== '结局 新任守林人') throw new Error(`未达新任守林人（${passageOf(w)}）`);
@@ -286,9 +263,8 @@ async function routeBurn() {
 	await c('继续往塔那边走');
 	await c('推门进去');
 	await c('先上二楼看看');
+	await c('到拐角的小工坊看看');
 	await c('上三楼');
-	await c('上三楼拐角看看');
-	await c('上四楼');
 	await c('上顶楼');
 	await c('折断法杖');
 	if (passageOf(w) !== '结局 焚塔者') throw new Error(`未达焚塔者（${passageOf(w)}）`);
@@ -301,9 +277,8 @@ async function routeKeeperFight() {
 	await c('继续往塔那边走');
 	await c('推门进去');
 	await c('先上二楼看看');
+	await c('到拐角的小工坊看看');
 	await c('上三楼');
-	await c('上三楼拐角看看');
-	await c('上四楼');
 	await c('上顶楼');
 	await c('抢他的杖');
 	if (passageOf(w) !== '结局 讨伐') throw new Error(`未达讨伐（${passageOf(w)}）`);
@@ -387,9 +362,8 @@ async function routeDragonBattle(withBook) {
 	await c('收下钥匙');
 	if (withBook) {
 		await c('先上二楼看看');
+		await c('到拐角的小工坊看看');
 		await c('上三楼');
-		await c('上三楼拐角看看');
-		await c('上四楼');
 		await c('在书架上找到一册');
 		await c('上顶楼');
 		await c('下楼，打开地下那道门');
@@ -433,9 +407,8 @@ async function routeSleepForever() {
 	await c('顺着那条窄路走过去');
 	await c('收下钥匙');
 	await c('先上二楼看看');
+	await c('到拐角的小工坊看看');
 	await c('上三楼');
-	await c('上三楼拐角看看');
-	await c('上四楼');
 	await c('上顶楼');
 	await c('下楼，打开地下那道门');
 	await c('在宴上找人说话');
@@ -445,9 +418,8 @@ async function routeSleepForever() {
 	await c('翻转护身符：回到');
 	await c('安静地退出去');
 	await c('先上二楼看看');
+	await c('到拐角的小工坊看看');
 	await c('上三楼');
-	await c('上三楼拐角看看');
-	await c('上四楼');
 	await c('上顶楼');
 	await c('下楼');
 	await c('叫醒它');
@@ -526,7 +498,7 @@ async function routeBestiary() {
 	if ((txt.match(/？？？/g) ?? []).length !== locked.length) {
 		throw new Error(`图鉴锁定页数量与账本不符（渲染 ${(txt.match(/？？？/g) ?? []).length} / 账本 ${locked.length}）`);
 	}
-	if (!txt.includes('塔基外侧墙根那片银白')) throw new Error('走到过终局后，锁定页未给出指向');
+	if (!txt.includes('塔根墙下那片银白')) throw new Error('走到过终局后，锁定页未给出指向');
 	if (!txt.includes(`已解锁 ${unlocked.length} / ${names.length}`)) throw new Error('图鉴计数行不对');
 	return { w };
 }
@@ -659,9 +631,8 @@ async function routeEraBranches() {
 	await c('安静地退出去');
 	await c('翻转护身符：坠入');     // 门厅（过去）
 	await c('先上二楼看看');
+	await c('到拐角的小工坊看看');
 	await c('上三楼');
-	await c('上三楼拐角看看');
-	await c('上四楼');
 	await c('上顶楼');               // 顶楼（过去）
 	await c('把卷轴和星图交给他');   // 交付（过去）← 覆盖
 	if (passageOf(w) !== '交付') throw new Error(`未达交付（${passageOf(w)}）`);
@@ -784,11 +755,10 @@ async function routeNoSaveScum() {
 	if (pcOf(w).ev.study_found !== true) throw new Error('察觉路没换来暗格位置');
 	await c('把暗格里的东西取出来');
 	if (pcOf(w).inv['日记'] !== true) throw new Error('换路之后没拿到日记');
-	await c('上三楼');
-	await c('上三楼拐角看看');
+	await c('到拐角的小工坊看看');
 	await c('把护臂翻过来，看内侧的记号');        // 察觉 → 必成
 	if (pcOf(w).ev.forge_seen !== true) throw new Error('察觉路没换来护臂来历');
-	await c('上四楼');
+	await c('上三楼');
 	await c('盯住缺口里那几粒没连上的点');        // 察觉 → 必成（本条路线故意不拿那册书）
 	if (pcOf(w).ev.star_ledger !== true) throw new Error('察觉路没换来那笔账');
 	await c('上顶楼');

@@ -237,8 +237,8 @@ Macro.add('dragonbar', {
 	<<set _adv to $args[1]>>
 	<<set _why to "">>
 	<<set _why2 to "">>
-	<<set _item to Game.Items.advSource($args[0], $pc.inv)>>
-	<<if not _adv and _item>><<set _adv to "adv">><<set _why to "道具" + _item>><</if>>
+	<<set _item to Game.Items.advSource($args[0], $pc.inv, $pc.gear)>>
+	<<if not _adv and _item>><<set _adv to "adv">><<set _why to (Game.Items.advAt($args[0], { [_item]: true }) ? "道具" : "行囊") + _item>><</if>>
 	<<if not _adv and Game.Checks.knowledge[$args[0]] and $pc.world[Game.Checks.knowledge[$args[0]]]>>
 		<<set _adv to "adv">><<set _why to "情报·" + (Game.Checks.knowledgeWhy[Game.Checks.knowledge[$args[0]]] ?? Game.Checks.knowledge[$args[0]])>>
 	<</if>>
@@ -257,7 +257,7 @@ Macro.add('dragonbar', {
 	<<set _ev to Game.Economy.events[$args[0]]>>
 	<<set _d to Game.Economy.priceOf($args[0], $pc)>>
 	<<set $pc.gold to $pc.gold + _d>>
-	<<if _ev.gives>><<run Object.entries(_ev.gives).forEach(([k, v]) => (State.variables.pc[k] = (State.variables.pc[k] ?? 0) + v))>><</if>>
+	<<if _ev.gives>><<run Object.entries(_ev.gives).forEach(([k, v]) => { if (Array.isArray(v)) (State.variables.pc[k] = [...(State.variables.pc[k] ?? []), ...v.filter((x) => !(State.variables.pc[k] ?? []).includes(x))]); else State.variables.pc[k] = (State.variables.pc[k] ?? 0) + v; })>><</if>>
 	<span class="econ-note">（<<if _d lt 0>>金币 _d<<elseif _d gt 0>>金币 +_d<<else>>——<</if>>）</span>
 <</widget>>
 
@@ -318,6 +318,8 @@ Macro.add('dragonbar', {
 $pc.speciesLabel $pc.classLabel
 <<hpbar>>
 金币：$pc.gold
+药膏：$pc.salves 副（受伤时自动用，回 4 点）
+<<if $pc.gear.length>>行囊：<<print $pc.gear.join('、')>><</if>>
 <div class="inv-block">
 ''物品栏''
 <div class="inv-list"><<inventory>></div>

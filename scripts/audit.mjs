@@ -189,6 +189,69 @@ if (wantAll || arg('sel').length || arg('nosl')) {
 	}
 }
 
+// ── ⓪j 行囊门 + 经济门（A1/A2/A5）：花了钱、带在身上的，必须真的有用 ──
+//    行囊＝职业装备（长剑 / 火把），不进口具表（canon §5.0 仍是 10 件），但必须进数值。
+if (wantAll || arg('sel').length || arg('gear')) {
+	console.log('\n══ ⓪j 行囊门 + 经济门——钱花出去、东西带在身上，都要落到机制上 ══');
+	let bad = 0;
+	const srcAll = SRC_FILES.map((f) => readFileSync(f, 'utf8')).join('\n');
+	const gearRows = Game.Gear?.defs ?? {};
+
+	// ① 每件行囊：有来源、有说法、有效果、发得出来、优势位点真实
+	for (const [k, d] of Object.entries(gearRows)) {
+		const eff = (d.damage ?? 0) > 0 || (d.advSites ?? []).length > 0;
+		if (!d.from || !d.note || !eff) { console.log(`  ✗ 行囊「${k}」缺来源/说法/效果`); bad++; }
+		for (const s of d.advSites ?? []) {
+			if (!Game.Checks.sites[s]) { console.log(`  ✗ 行囊「${k}」的优势位点在位点表里不存在：${s}`); bad++; }
+		}
+		const granted = new RegExp(`gear:\\s*\\[[^\\]]*['"]${k}['"]`).test(srcAll) || srcAll.includes(`gear.push('${k}')`);
+		if (!granted) { console.log(`  ✗ 行囊「${k}」没有任何发放点（说了有、没人给）`); bad++; }
+		console.log(`  · ${k}：${d.note}（${d.from}）`);
+	}
+	// ② 正文发的行囊必须在表里（不许有表外装备）
+	for (const m of srcAll.matchAll(/gear\.push\(['"]([^'"]+)['"]\)/g)) {
+		if (!gearRows[m[1]]) { console.log(`  ✗ 正文发了未登记的行囊：${m[1]}`); bad++; }
+	}
+	for (const m of srcAll.matchAll(/gear:\s*\[([^\]]*)\]/g)) {
+		for (const raw of m[1].split(',')) {
+			const k = raw.trim().replace(/['"]/g, '');
+			if (k && !gearRows[k]) { console.log(`  ✗ 经济表发了未登记的行囊：${k}`); bad++; }
+		}
+	}
+
+	// ③ 经济事件必须落地：给东西 / 落旗标 / 给道具，或写明"纯收入/纯代价"的理由
+	const CLAIM = {
+		torch_buy:    { kind: 'gives' },
+		salve_buy:    { kind: 'gives' },
+		rumor_buy:    { kind: 'flag', flag: 'rumor' },
+		witch_hint:   { kind: 'flag', flag: 'witch_hint' },
+		goblin_bribe: { kind: 'flag', flag: 'goblin_spared' },
+		forged_scale: { kind: 'item', item: '龙鳞护臂' },
+		drink_round:  { kind: 'flag', flag: 'ev.tav_tips' },
+		goblin_kill:  { kind: 'income', reason: '打跑了才捡得到——纯收入那一侧' },
+		study_errand: { kind: 'income', reason: '跑腿钱——纯收入那一侧' },
+		dragon_hoard: { kind: 'income', reason: '巢边识货——纯收入那一侧' },
+	};
+	const rows = SRC_FILES.flatMap((f) => readFileSync(f, 'utf8').split('\n').map((line) => [f, line]));
+	for (const [key, ev] of Object.entries(Game.Economy.events)) {
+		const c = CLAIM[key];
+		const uses = rows.filter(([, line]) => line.includes(`econ "${key}"`));
+		if (!c) { console.log(`  ✗ 经济事件「${key}」没声明落点——要么给出东西，要么在 CLAIM 里写理由`); bad++; continue; }
+		if (uses.length === 0) { console.log(`  ✗ 经济事件「${key}」没有任何使用点（表里挂着、正文没花）；或去掉。）`); bad++; continue; }
+		const text = uses.map(([f, line]) => line).join('\n');
+		const fail = (why) => { console.log(`  ✗ 经济事件「${key}」${why}`); bad++; };
+		if (c.kind === 'gives' && !ev.gives) fail('表里没写 gives');
+		const flagTail = (c.flag ?? '').replace(/^ev\./, '');
+		if (c.kind === 'flag' && !(text.includes(`setflag "${c.flag}"`) || text.includes(`${flagTail} to true`))) fail(`正文没落旗标 ${c.flag}`);
+		if (c.kind === 'item' && !text.includes(`give "${c.item}"`)) fail(`正文没给道具 ${c.item}`);
+		if (c.kind === 'income' && !(ev.delta > 0)) fail('写成纯收入却是扣钱');
+	}
+	if (process.argv.includes('--check')) {
+		if (bad) { console.error(`\n✗ 行囊门 + 经济门：${bad} 项`); process.exit(1); }
+		console.log('\n✔ 行囊门 + 经济门通过（装备有来源有效果 · 每笔钱都落到东西/旗标上）');
+	}
+}
+
 // ── ⓪h 互动门（M9）：信息靠动作与交涉换来，不靠自动检定 ──
 if (wantAll || arg('interact')) {
 	console.log('\n══ ⓪h 互动门（M9）——信息必须由玩家动作发起 ══');
@@ -385,7 +448,7 @@ if (wantAll || arg('dragon')) {
 			const pHit = successRate(p.pc, sealSite, L.adv);          // 坏哨（默认带）＝优势
 			const pSave = successRate(p.pc, saveSite, !!(L.inv['观星者的书'] || L.adv && false));
 			const need = D.hp - D.sealAt;
-			const perHit = Math.max(1, D.bladeDamage);
+			const perHit = Math.max(1, (D.bladeOf ? D.bladeOf(p.pc) : D.bladeDamage));   // A1：行囊里有剑就多一分
 			let dhp = D.hp, taken = 0, r = 0;
 			for (; r < 30 && dhp > D.sealAt; r++) {
 				dhp -= perHit * pHit;                                  // 期望伤害

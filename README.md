@@ -11,7 +11,7 @@
 npm install
 npm run build   # 编译 → dist/index.html（单文件，浏览器直接打开即玩）
 npm run serve   # 本地预览：http://localhost:8000
-npm test        # 构建后全链（~2min）：L0 静态门（含表一致性）→ 八道质量门（真相/canon/回声/选择/互动/**反 S/L**/系统/文本）→ 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(27 路线并行) → 覆盖门
+npm test        # 构建后全链（~2min）：L0 静态门（含表一致性）→ 九道质量门（真相/canon/回声/选择/互动/**反 S/L**/**行囊+经济**/系统/文本）→ 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(28 路线并行) → 覆盖门
 npm run soak    # 游走器加量长测（20+20 局，~1.5min）：CI 独立 job（M1c 接回）；发布前 / 状态机重改动时也可本地跑
 npm run audit   # 表驱动审计（#28/#34）：--truth/--canon/--choices/--systems/--echoes/--text 六道质量门 + --dragon 彩蛋率门 + 数值三件套
                  # （--check 模式已进 npm test：真相通路/设定回流/选择臂数/机制发现性/世界回声/文本载荷）

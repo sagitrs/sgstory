@@ -148,7 +148,7 @@
 <</if>>
 <<if not $pc.gear.includes("火把")>>
 	<<link `"花 " + (-Game.Economy.priceOf("torch_buy", $pc)) + " 金币：买一支火把"`>>
-		<<econ "torch_buy">><<run $pc.gear.push("火把")>><<goto "酒馆">>
+		<<econ "torch_buy">><<goto "酒馆">>
 	<</link>>
 <</if>>
 <<if not $pc.inv["时光护符"]>>

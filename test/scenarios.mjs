@@ -36,8 +36,9 @@ async function newGame(randomStub, preset = 0) {
 
 	const mark = () => visited.add(`${w.SugarCube.State.passage}|${w.SugarCube.State.variables?.era ?? '-'}`);
 	const click = async (label) => {
-		const a = [...w.document.querySelectorAll('#passages a.link-internal')]
-			.find((x) => x.textContent === label || x.textContent.includes(label));
+		// 精确优先：避免「塔」被「守塔的人家」这类包含关系抢先命中（子串兜底保留，供动态文案用）
+		const links = [...w.document.querySelectorAll('#passages a.link-internal')];
+		const a = links.find((x) => x.textContent === label) ?? links.find((x) => x.textContent.includes(label));
 		if (!a) throw new Error(`找不到链接「${label}」@ ${w.SugarCube.State.passage}（可选：${[...w.document.querySelectorAll('#passages a.link-internal')].map((x) => x.textContent).join(' / ')}）`);
 		mark();
 		const before = uncaught.length;
@@ -390,7 +391,7 @@ async function routeCodex() {
 	await c('打开设定集');
 	await c('世界三律');
 	await c('回设定集');
-	await c('三家');
+	await c('守塔的人家');
 	await c('回设定集');
 	await c('塔');
 	await c('回设定集');

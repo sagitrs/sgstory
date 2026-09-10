@@ -46,7 +46,6 @@ window.Game = (() => {
 			goblin_bribe: { delta: -5, skillDiscount: { skill: '恐吓', to: -3 }, chapter: 1, note: '洞穴·买路' },
 			goblin_kill:  { delta: 3, chapter: 1, note: '洞穴·搜刮' },
 			study_errand: { delta: 6, chapter: 2, note: '书房·指出错抄的跑腿钱' },
-			lens_sell:    { delta: 4, chapter: 2, note: '天文台·卖碎镜片（永失一份证物）' },
 			forged_scale: { delta: -8, chapter: 2, note: '工坊·打造龙鳞护臂' },
 			dragon_hoard: { delta: 10, chapter: 3, note: '巢边·识货' },
 		},
@@ -67,15 +66,11 @@ window.Game = (() => {
 			坏哨:         { from: '塔·门厅', note: '守林人家挂在门边那支；龙认得形状——带着就有用' },
 			好哨:         { from: '过去·当时的女巫（她本人）', note: '吹响＝让龙冷静下来' },
 			月光花:       { from: '塔外·一楼墙根', note: '献龙＝睡得稳（不提前醒、不烧路费）；毒液抹刃＝龙的攻击 −2（封印战）；贸然摘＝拿命试' },
-			守林人的杖:   { from: '守林人', note: '发动术式的媒介' },
 			守林人的钥匙: { from: '守林人', note: '通往地下宴会厅那道门' },
 			观星者的书:   { from: '塔·观测廊 / 龙穴', note: '证物（风化无法伪造）+ 现象与线索' },
 			完整星图:     { from: '过去·天文台', note: '带回现在就是坐标' },
-			请柬:         { from: '女巫小屋', note: '那场宴唯一的凭据' },
 			龙鳞护臂:     { from: '塔·工坊', note: '受击 −1' },
-			星名页:       { from: '地下宴会厅', note: '龙名字的前半"维"' },
 			传送术卷轴:   { from: '现在·书房（日记后半本）', note: '完整术式（她算清的那一卷）' },
-			碎镜片:       { from: '塔·天文台', note: '证物 / 换钱（换掉就永失一份证物）' },
 		},
 		// 战斗侧效果（位点优势 / 减伤）
 		effects: {

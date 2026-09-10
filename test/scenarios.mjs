@@ -81,7 +81,7 @@ async function getKey(c) {
 // ── 路线 1：金路径 → 送星归位 ─────────────────────────────
 async function routeTrue() {
 	const { w, click: c } = await newGame(0.99, 0);
-	await toWitch(c);                     // 女巫小屋：护符 + 请柬
+	await toWitch(c);                     // 女巫小屋：护符
 	await c('问塔里的门道');               // witch_hint
 	await toTower(c);                     // 林间小径
 	await c('坠入');                      // 翻到过去
@@ -217,7 +217,6 @@ async function routeTop() {
 	await c('上三楼');
 	await c('上三楼拐角看看');
 	await c('上四楼');
-	await c('从碎掉的望远镜里挑');         // 碎镜片（现在年代）
 	await c('上顶楼');
 	await c('接他的班');
 	if (passageOf(w) !== '结局 新任守林人') throw new Error(`未达新任守林人（${passageOf(w)}）`);
@@ -444,9 +443,7 @@ async function routeLair() {
 	await c('收下钥匙');
 	await c('用钥匙打开铁门');
 	await c('绕着它走一圈');
-	await c('从它身下抽出那半页碎纸');
 	await c('识货，捡几件值钱的');
-	if (!pcOf(w).inv['星名页']) throw new Error('龙·巢边未取得星名页');
 	if (pcOf(w).gold < 10) throw new Error(`识货未入账（gold=${pcOf(w).gold}）`);
 	await c('退开');
 	return { w };

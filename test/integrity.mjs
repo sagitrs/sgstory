@@ -235,6 +235,47 @@ for (const p of passages.values()) {
 	if (!INFRA(p) && !seen.has(p.name)) W(p, `段落「${p.name}」静态不可达（若仅经动态跳转到达请忽略，否则是死内容）`);
 }
 
+// ── 序章白名单：开场在车卡之前，玩家一次门都没进过 ────────────
+// 反例（M16 修）：开场里写着「酒馆里的人说过很多种版本……」——可酒馆是**车卡之后**才第一次进门的地方
+// （`角色卡` 结尾那句「酒馆的门还亮着」才把它摆到眼前）。语义门测不到"把还没经历的地方当已发生"，
+// 但至少把地名钉住：这几段里不许出现后文才到的地方。
+const PRELUDE_BANS = {
+	'开场': ['酒馆', '歪脖子鸭'],
+};
+for (const [name, terms] of Object.entries(PRELUDE_BANS)) {
+	const p = passages.get(name);
+	if (!p) continue;
+	const body = p.body.replace(COMMENT_RX, '');
+	for (const t of terms) {
+		if (body.includes(t)) errors.push(`[序章] ${p.file}:${p.line} 段落「${name}」提到了还没到的地方「${t}」——开场在车卡之前，玩家没进过任何一处；若确要写远景，放宽这条规则并在注释里写明理由`);
+	}
+}
+
+// ── 回指门：写「你想起某人说过的话」之前，先确认你真听过 ──────
+// 反例（M16 一起修的）：开场写「酒馆里的人说过……」（那时还没进门）；洞穴写
+// 「你想起酒馆里那些人的话」（那桌人从没讲过石头）；女巫小屋写「你在酒馆的旧画上见过」
+// （没看画也照写）。这类"凭空记得"是语义问题，机器只能钉住**已知的几处**：
+// 短语必须落在 `<<if $pc.ev.<flag>>>` 里，否则红。新增此类回指就往表里加一行。
+const CALLBACKS = [
+	{ passage: '洞穴', phrase: '你想起老板娘那句话', flag: 'tav_tips' },
+	{ passage: '女巫小屋', phrase: '你在酒馆那幅旧画上见过', flag: 'tav_painting' },
+];
+for (const c of CALLBACKS) {
+	const p = passages.get(c.passage);
+	if (!p) { errors.push(`[回指] 表里写的段落「${c.passage}」不存在`); continue; }
+	const body = p.body.replace(COMMENT_RX, '');
+	const idx = body.indexOf(c.phrase);
+	if (idx < 0) { errors.push(`[回指] 「${c.passage}」里找不到短语「${c.phrase}」（改了文案就同步这张表）`); continue; }
+	// 数一下这句话前面有没有"还开着的" <<if $pc.ev.flag>>（含 not 的不算——那是不许引用）
+	let depth = 0;
+	for (const m of body.slice(0, idx).matchAll(/<<if\s+([^>]*)>>|<<\/if>>/g)) {
+		if (m[0].startsWith('<<if')) {
+			if (new RegExp(`\\$pc\\.ev\\.${c.flag}\\b`).test(m[1]) && !/\bnot\b/.test(m[1])) depth++;
+		} else depth = Math.max(0, depth - 1);
+	}
+	if (depth <= 0) errors.push(`[回指] ${p.file}:${p.line} 「${c.passage}」提到「${c.phrase}」，但这一句没有落在 <<if $pc.ev.${c.flag}>> 里——玩家可能根本没听过`);
+}
+
 // ── 输出 ─────────────────────────────────────────────────
 const lit = edges.filter((e) => !e.dynamic).length, dyn = edges.filter((e) => e.dynamic).length;
 console.log(`段落 ${passages.size} · 宏/widget ${defined.size} · 边 ${lit} 静态 + ${dyn} 动态（${Object.entries(kindCount).map(([k, v]) => `${k}:${v}`).join(' ')}）`);

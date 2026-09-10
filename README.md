@@ -51,6 +51,7 @@ src/
 vendor/
   format.js       SugarCube 2.37.3 官方 story format（升级时替换此文件）
 test/integrity.mjs  L0 静态完整性门：悬空引用/goto 裸词/未定义宏 + 词汇纪律 W1-W3 + 表一致性硬门（#28/#29）
+                   + 序章白名单（开场不许提前提后文才到的地方）+ 回指门（"你想起某人说过的话"必须真听过 → 门槛控）
 test/render-all.mjs L1 全段落渲染冒烟：逐段落 play × $era 双变体，无异常/无 .error/非空
 test/walker.mjs    L2 对抗席游走器：种子化随机游走（一章+塔）+ 状态不变量 + 位点双支清扫（npm run soak 加量）
 test/coverage.mjs  L3 覆盖率 ratchet（五门）：基线不回退 / 新段落必配测 / 无交互盲区 / 时代双态 / 交互≥渲染

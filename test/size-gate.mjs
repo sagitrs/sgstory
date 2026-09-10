@@ -10,11 +10,15 @@ const rows = { 'index.html': statSync('dist/index.html').size };
 rows.fonts = readdirSync('dist/fonts').reduce((a, f) => a + statSync(`dist/fonts/${f}`).size, 0);
 
 let failures = 0;
-const base = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')).rows : {};
+const parsed = existsSync(BASELINE) ? JSON.parse(readFileSync(BASELINE, 'utf8')) : { rows: {}, tolerancePct: {} };
+const base = parsed.rows;
+const tol = parsed.tolerancePct ?? {};
 for (const [k, v] of Object.entries(rows)) {
 	const b = base[k];
 	if (b == null) { console.error(`✗ ${k}: 基线缺失（${v}B）——请 --update-size 重签`); failures++; continue; }
-	if (v > b) { console.error(`✗ ${k}: ${v}B > 基线 ${b}B（+${v - b}）。确需增大：node test/size-gate.mjs --update-size 并在 PR 写明理由`); failures++; }
+	const allow = Math.ceil(b * ((tol[k] ?? 0) / 100));
+	if (v > b + allow) { console.error(`✗ ${k}: ${v}B > 基线 ${b}B +容差 ${allow}B。确需增大：node test/size-gate.mjs --update-size 并在 PR 写明理由`); failures++; }
+	else if (v > b) console.log(`~ ${k}: ${v}B 在容差内（基线 ${b}B +${v - b} ≤ ${allow}B，构建噪声）`);
 	else if (v < b) console.log(`ℹ ${k}: ${v}B < 基线 ${b}B（-${b - v}）——可收紧：node test/size-gate.mjs --update-size`);
 	else console.log(`✓ ${k}: ${v}B = 基线`);
 }

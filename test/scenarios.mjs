@@ -4,7 +4,7 @@
 //
 // JSDOM 启动 / 就绪轮询 / uncaught 监听 / 退出清理全部走 test/boot.mjs——一处修，全脚本受益。
 import { writeFileSync, mkdirSync } from 'node:fs';
-import { boot } from './boot.mjs';
+import { boot, CLICKABLE, CLICKABLE_SEL } from './boot.mjs';
 
 let failures = 0;
 const visited = new Set();
@@ -13,14 +13,25 @@ async function newGame(randomStub, preset = 0) {
 	// random 传函数：每次调用都取同一个定值，d20 于是变成确定骰
 	const { w, uncaught, sleep, settle } = await boot({ random: () => randomStub });
 	const mark = () => visited.add(`${w.SugarCube.State.passage}|${w.SugarCube.State.variables?.era ?? '-'}`);
-	const click = async (label) => {
+	const findLink = (label) => {
+		// 只看"当前这一段"（data-passage 与 State.passage 相符的那个 .passage）：
+		// State 已经变了、旧段落元素还没被换下来时，全局查找会点到上一段的链接。
+		const cur = [...w.document.querySelectorAll('#passages .passage')]
+			.find((e) => e.dataset.passage === w.SugarCube.State.passage);
+		const pool = cur ? [cur] : [...w.document.querySelectorAll('#passages')];
+		const links = pool.flatMap((el) => [...el.querySelectorAll(CLICKABLE_SEL)]);
 		// 精确优先：避免「塔」被「守塔的人家」这类包含关系抢先命中（子串兜底保留，供动态文案用）
-		const links = [...w.document.querySelectorAll('#passages a.link-internal, #passages a.soc-opt')];
-		const a = links.find((x) => x.textContent === label) ?? links.find((x) => x.textContent.includes(label));
-		if (!a) throw new Error(`找不到链接「${label}」@ ${w.SugarCube.State.passage}（可选：${[...w.document.querySelectorAll('#passages a.link-internal, #passages a.soc-opt')].map((x) => x.textContent).join(' / ')}）`);
+		return links.find((x) => x.textContent === label) ?? links.find((x) => x.textContent.includes(label));
+	};
+	const click = async (label) => {
+		await settle();          // 等上一翻画完再点——否则 SugarCube 会丢掉这次点击
+		let a = findLink(label);
+		// 并行跑三十来条路线时，段落元素偶发晚一拍才换（State 已经变了、DOM 还没换完）——
+		// 这一条兜底等一下，省得把"机器忙"报成"游戏坏了"
+		for (let i = 0; i < 20 && !a; i++) { await sleep(100); await settle(); a = findLink(label); }
+		if (!a) throw new Error(`找不到链接「${label}」@ ${w.SugarCube.State.passage}（可选：${[...w.document.querySelectorAll(CLICKABLE)].map((x) => x.textContent).join(' / ')}）`);
 		mark();
 		const before = uncaught.length;
-		await settle();          // 等上一翻画完再点——否则 SugarCube 会丢掉这次点击
 		a.click();
 		await settle();
 		await sleep(120);
@@ -40,7 +51,21 @@ async function newGame(randomStub, preset = 0) {
 	return { w, click, uncaught };
 }
 
-const linksOf = (w) => [...w.document.querySelectorAll('#passages a.link-internal, #passages a.soc-opt')].map((x) => x.textContent);
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const linksOf = (w) => [...w.document.querySelectorAll(CLICKABLE)].map((x) => x.textContent);
+// 当前段落的链接（只认 data-passage 与 State.passage 相符的那个 .passage）。
+// 并行跑三十来条路线时，State 已经变了、段落元素偶发晚一拍——先等一下再取，
+// 免得把"机器忙"读成"这一段没有出口"。
+async function waitLinks(w, timeoutMs = 2000) {
+	const t0 = Date.now();
+	for (;;) {
+		const cur = [...w.document.querySelectorAll('#passages .passage')]
+			.find((e) => e.dataset.passage === w.SugarCube.State.passage);
+		const links = cur ? [...cur.querySelectorAll(CLICKABLE_SEL)] : [];
+		if (links.length || Date.now() - t0 > timeoutMs) return links;
+		await sleep(50);
+	}
+}
 const passageOf = (w) => w.SugarCube.State.passage;
 // B1：战斗每一轮的面板是随机 3 选 1——测试不去猜哪三张，只管"有牌就打"
 // 直到出现目标链接（战斗的出口）或段落里已经没有链接（已经落到结局）
@@ -48,12 +73,14 @@ async function fightTo(c, w, stops, maxRounds = 12) {
 	const where = passageOf(w);
 	for (let i = 0; i < maxRounds; i++) {
 		if (passageOf(w) !== where) return;   // 已经离开战斗（落到结局）
-		const links = linksOf(w);
+		const els = await waitLinks(w);
+		if (passageOf(w) !== where) return;   // 等 DOM 的这段工夫里可能已经落到结局了
+		if (!els.length) return;
+		const links = els.map((x) => x.textContent);
 		if (links.some((l) => stops.includes(l))) return;
-		if (!links.length) return;
 		// 备药优先：池子第一轮一定把「涂毒」发到手上
-		const pref = links.find((l) => l === '把花汁抹在刃上');
-		await c(pref ?? links[0]);
+		const pref = els.find((x) => x.textContent === '把花汁抹在刃上');
+		await c((pref ?? els[0]).textContent);
 	}
 	throw new Error(`战斗没能在 ${maxRounds} 轮内结束（等「${stops.join('/')}」@ ${passageOf(w)}）`);
 }
@@ -167,7 +194,7 @@ async function routeTooManyFlips() {
 	if (pcOf(w).star.spent <= w.Game.Star.budget) throw new Error(`乱翻之后 spent=${pcOf(w).star.spent} 没超过预算`);
 	if (w.SugarCube.State.variables.era !== 'present') throw new Error('乱翻之后没有停在现在');
 	await c('叫醒它');                    // 唤醒
-	if ([...w.document.querySelectorAll('#passages a.link-internal, #passages a.soc-opt')].some((x) => x.textContent.includes('让守林人动手'))) {
+	if ([...w.document.querySelectorAll(CLICKABLE)].some((x) => x.textContent.includes('让守林人动手'))) {
 		throw new Error('翻太多之后还出现了「让守林人动手」——软限没生效');
 	}
 	await c('退出去');
@@ -390,8 +417,11 @@ async function routeDragonDeath() {
 	await c('攻击它');
 	// B1：d20=1 → 每一手都大失败；可能还没打完两轮就被打成 结局 死亡
 	await fightTo(c, w, ['爬起来，再冲一次']);
-	if (linksOf(w).includes('爬起来，再冲一次')) await c('爬起来，再冲一次'); // d20=1 → 龙·再冲 必败
-	if (passageOf(w) !== '结局 死亡') throw new Error(`未达死亡（${passageOf(w)}）`);
+	// 还在龙·战（没被打死）才点"再冲一次"——别拿上一段残留的 DOM 去点
+	if (passageOf(w) === '龙·战' && (await waitLinks(w)).some((x) => x.textContent.includes('爬起来，再冲一次'))) {
+		await c('爬起来，再冲一次'); // d20=1 → 龙·再冲 必败
+	}
+	if (passageOf(w) !== '结局 死亡') throw new Error(`未达死亡（${passageOf(w)}；走过：${w.SugarCube.State.passages.slice(-6).join(' → ')}）`);
 	return { w };
 }
 
@@ -503,6 +533,37 @@ async function routeBestiary() {
 	return { w };
 }
 
+// ── 路线 29：结局页的收尾入口（C1：退回上一步 / 读档 / 从头再来）──
+async function routeEndingFooter() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await c('就此回头，把这片林子留给别人');            // 章节出口（平凡之路）
+	if (passageOf(w) !== '结局 平凡之路') throw new Error(`没走到章节出口（${passageOf(w)}）`);
+	const foot = w.document.querySelector('#passages .ending-foot');
+	if (!foot) throw new Error('结局页没挂收尾入口（退回上一步 / 读档 / 从头再来）');
+	if (w.document.querySelector('#passages .passage').lastElementChild !== foot) throw new Error('收尾卡没挪到段落末尾');
+	if (foot.querySelector('button[data-end-act="undo"]').disabled) throw new Error('刚走了几步就说不能退回上一步');
+	if (!foot.textContent.includes('还没有存档')) throw new Error('没存档时"读档"应说明还没有存档');
+	// 退回上一步 → 回酒馆；存一次档 → 再走到结局 → 读档回存档点
+	await c('退回上一步');
+	if (passageOf(w) !== '酒馆') throw new Error(`退回上一步没回到酒馆（${passageOf(w)}）`);
+	w.sgQuickSave();
+	if (!w.SugarCube.Save.browser.slot.has(1)) throw new Error('快速存档没落进 slot 1');
+	await c('就此回头，把这片林子留给别人');
+	await c('读档');
+	if (passageOf(w) !== '酒馆') throw new Error(`读档没回到存档点（${passageOf(w)}）`);
+	// 再走到结局 → 从头再来：回开场、本档清零、图鉴的永久记录留着
+	await c('就此回头，把这片林子留给别人');
+	if (w.document.querySelector('#passages .ending-foot').textContent.includes('还没有存档')) throw new Error('已经存过档，"读档"不该还说没有存档');
+	await c('从头再来');
+	if (passageOf(w) !== '开场') throw new Error(`从头再来没回到开场（${passageOf(w)}）`);
+	const pc = pcOf(w);
+	if (!pc || pc.hp !== pc.max_hp) throw new Error(`重开后本档没回到初始形状（hp=${pc?.hp}/${pc?.max_hp}）`);
+	if (Object.keys(pc.soc?.tries ?? {}).length) throw new Error('重开后交涉账没清（本档应清零）');
+	if (w.SugarCube.State.variables.era !== 'present') throw new Error('重开后 era 没回到 present');
+	if (!w.SgCodex.read().endings.includes('平凡之路')) throw new Error('重开后图鉴的永久记录丢了（应当留着）');
+	return { w };
+}
+
 // ── 路线 13：龙·巢边（现在年代，翻检龙身下的收藏）──
 async function routeLair() {
 	const { w, click: c } = await newGame(0.99, 0);
@@ -576,7 +637,7 @@ async function routeSleepVoluntary() {
 // ── 路线 23：换哨双门槛（无好感不换 / 无星图不换）──
 async function routeExchangeGate() {
 	const { w, click: c } = await newGame(0.99, 0);
-	const links = () => [...w.document.querySelectorAll('#passages a.link-internal, #passages a.soc-opt')].map((x) => x.textContent);
+	const links = () => [...w.document.querySelectorAll(CLICKABLE)].map((x) => x.textContent);
 	await toWitch(c);
 	await toTower(c);
 	await c('坠入');
@@ -815,6 +876,7 @@ const routes = [
 	['情报自己问（免检暗格）', routeAskForIt],
 	['非酋不读档（换属性路）', routeNoSaveScum],
 	['乱翻的代价（星力软限）', routeTooManyFlips],
+	['结局页收尾（C1）', routeEndingFooter],
 ];
 
 const results = await Promise.all(routes.map(async ([name, fn]) => {

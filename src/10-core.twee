@@ -183,6 +183,10 @@ Macro.add('ending', {
 			State.variables.pc.ev.ending = key;                          // 本档记录
 			if (window.SgCodex) window.SgCodex.recordEnding(key, kind);  // 永久记录
 		}
+		// C1 收尾入口：每个结局都要有出口。卡片渲染在调用处（段落顶部），
+		// 渲染完由 StoryScript 的 :passagerender 挪到段落末尾。
+		const foot = window.SgEnding?.foot(key, kind);
+		if (foot) jQuery(this.output).append(foot);
 	},
 });
 

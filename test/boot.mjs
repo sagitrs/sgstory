@@ -34,6 +34,14 @@ function hookExit() {
 	}
 }
 
+// 可点元素的统一选择器：普通链接 / 交涉面板选项 / 结局页收尾按钮。
+// 一处定义，各测试脚本共用——新增一种控件只改这里（"修复辐射不再依赖记得改每个文件"）。
+// 相对选择器（在某个段落元素里查）——别用字符串 replace 拼绝对选择器，那个坑很深
+export const CLICKABLE_SEL = 'a.link-internal, a.soc-opt, button[data-end-act]';
+export const LINKS_SEL = 'a.link-internal, a.soc-opt'; // 只算"剧情链接"（不含结局页的导航按钮）
+export const CLICKABLE = `#passages ${CLICKABLE_SEL}`;
+export const LINKS = `#passages ${LINKS_SEL}`;
+
 export async function boot({ random = 0.5, start = true } = {}) {
 	hookExit();
 	const uncaught = [];
@@ -61,12 +69,18 @@ export async function boot({ random = 0.5, start = true } = {}) {
 	for (const [prop, val] of [['clientWidth', 1024], ['clientHeight', 768]]) {
 		try { Object.defineProperty(w.document.documentElement, prop, { value: val, configurable: true }); } catch { /* 老 jsdom 无妨 */ }
 	}
-	// 「等到这一翻画完」——SugarCube 的 Engine.isIdle() 就是这个意思。比固定 sleep 可靠：
-	// 上一翻还在画的时候点下一翻，SugarCube 会把这次点击**丢掉**（场景测试偶发"点了没走")。
-	const settle = async (timeoutMs = 5000) => {
+	// 「等到这一翻真的画完」。两个条件都要：
+	//   ① Engine.isIdle()——上一翻还在画的时候点下一翻，SugarCube 会把这次点击**丢掉**；
+	//   ② DOM 跟上了 State——回退 / 读档走的是 State.goTo() + 异步 engineShow()，State.passage
+	//      会先变，段落元素晚一拍才换（并行跑多条路线时尤其明显）。
+	const settle = async (timeoutMs = 3000) => {
 		const t = Date.now();
-		while (typeof w.SugarCube?.Engine?.isIdle === 'function' && !w.SugarCube.Engine.isIdle()) {
-			if (Date.now() - t > timeoutMs) return;
+		for (;;) {
+			const els = w.document.querySelectorAll('#passages .passage');
+			const domSynced = els.length === 0 || [...els].some((e) => e.dataset.passage === w.SugarCube.State.passage);
+			const idle = typeof w.SugarCube?.Engine?.isIdle !== 'function' || w.SugarCube.Engine.isIdle();
+			if (idle && domSynced) break;
+			if (Date.now() - t > timeoutMs) break;
 			await sleep(20);
 		}
 		await sleep(20);

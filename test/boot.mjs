@@ -61,6 +61,16 @@ export async function boot({ random = 0.5, start = true } = {}) {
 	for (const [prop, val] of [['clientWidth', 1024], ['clientHeight', 768]]) {
 		try { Object.defineProperty(w.document.documentElement, prop, { value: val, configurable: true }); } catch { /* 老 jsdom 无妨 */ }
 	}
+	// 「等到这一翻画完」——SugarCube 的 Engine.isIdle() 就是这个意思。比固定 sleep 可靠：
+	// 上一翻还在画的时候点下一翻，SugarCube 会把这次点击**丢掉**（场景测试偶发"点了没走")。
+	const settle = async (timeoutMs = 5000) => {
+		const t = Date.now();
+		while (typeof w.SugarCube?.Engine?.isIdle === 'function' && !w.SugarCube.Engine.isIdle()) {
+			if (Date.now() - t > timeoutMs) return;
+			await sleep(20);
+		}
+		await sleep(20);
+	};
 	// 就绪轮询（#27 CI 教训：固定 sleep 在 2 核 runner 上不成立）
 	const t0 = Date.now();
 	while (!(typeof w.SugarCube?.Wikifier === 'function' && w.document.querySelector('#passages'))) {
@@ -69,16 +79,20 @@ export async function boot({ random = 0.5, start = true } = {}) {
 	}
 	new w.SugarCube.Wikifier(null, w.document.querySelector('tw-passagedata[name="StoryInit"]').textContent);
 	if (start) {
-		w.SugarCube.Engine.start();
+		// Engine.start() 的 promise 要等"视口就绪 + 载入屏清空"才 resolve——视口非零之后它**真的会
+		// resolve**（旧版视口恒 0，这个 promise 永远挂着，只能靠固定 sleep 猜启动完了没有）。
+		// 现在 await 它就是"完全启动"的可靠信号；再等起始段落地，避免往还在启动的实例上点链接。
+		await Promise.race([w.SugarCube.Engine.start(), sleep(15000)]);
 		const t1 = Date.now();
 		while (!w.document.querySelector('#passages .passage[data-passage="开场"]')) {
 			if (Date.now() - t1 > 15000) throw new Error('等待超时：起始段渲染');
 			await sleep(50);
 		}
+		await settle();
 	}
-	await sleep(150);
+	await sleep(50);
 	// dom 一并返回：游走器等老调用点仍在用；新代码请用 close()
-	return { w, dom, uncaught, sleep, close };
+	return { w, dom, uncaught, sleep, settle, close };
 }
 
 export { cleanup as closeAllWindows };

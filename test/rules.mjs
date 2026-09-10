@@ -137,6 +137,25 @@ for (const file of fixtures) {
 	ok(!!w.Game?.Economy?.events, 'Game 表已加载（events 在）');
 	ok(!!w.Game?.Items?.defs, 'Game 表已加载（Items.defs 在）');
 	ok(!!w.Game?.Truth?.claims?.length, 'Game 表已加载（Truth.claims 在）');
+	ok(!!w.Game?.Codex?.items, 'Game 表已加载（Codex.items 在）');
+	// 〇 图鉴表契约（v17 M8）：页 = 道具清单；线索不白送 / 都能挣；解锁＝全部线索
+	{
+		const C = w.Game.Codex, defs = Object.keys(w.Game.Items.defs).sort();
+		eq(Object.keys(C.items).sort().join(','), defs.join(','), '图鉴页与 Items.defs 一一对应');
+		const fresh = w.Pc.defaults();
+		for (const [item, def] of Object.entries(C.items)) {
+			ok(def.clues.length >= 2, `图鉴「${item}」线索 ≥2`);
+			ok(def.clues.every((cl) => !cl.test(fresh)), `图鉴「${item}」新档下无白送线索`);
+		}
+		// 解锁＝线索集齐（半齐不解锁，齐了才解锁）
+		const store = { clues: { 月光花: { own: true, warned: true, fed: true } }, endings: [], finals: [] };
+		ok(!C.isUnlocked('月光花', store), '月光花 3/4 线索不解锁');
+		store.clues.月光花.venom = true;
+		ok(C.isUnlocked('月光花', store), '月光花 4/4 线索解锁');
+		eq(C.progress('月光花', { clues: { 月光花: { own: true } } }).got, 1, 'progress 计数');
+		// 永久性：store 里没有的页就是锁定页
+		ok(!C.isUnlocked('坏哨', { clues: {} }), '空账本 → 未解锁');
+	}
 	// ① 位点 DC：改表 → sitecheck 用新 DC
 	w.eval('Game.Checks.sites["洞穴·战斗"].dc = 20');
 	w.SugarCube.State.variables.pc = w.Pc.defaults();

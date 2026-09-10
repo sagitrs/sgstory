@@ -428,6 +428,40 @@ async function routeCodex() {
 	await c('回设定集');
 	await c('结局');
 	if (passageOf(w) !== '设定集·结局') throw new Error(`未达设定集·结局（${passageOf(w)}）`);
+	await c('回设定集');
+	await c('图鉴');
+	if (passageOf(w) !== '设定集·图鉴') throw new Error(`未达设定集·图鉴（${passageOf(w)}）`);
+	return { w };
+}
+
+// ── 路线 12b：图鉴（线索齐才解锁 ＋ 终局后空页给指向）──
+async function routeBestiary() {
+	// 直接跑金路径（每个路线都是独立 jsdom → localStorage 干净）
+	const { w, c } = await routeTrue();
+	const store = w.SgCodex.read();
+	if (!store.finals.includes('送星归位')) throw new Error('终局未登记进图鉴账本（finals 为空）');
+	// 坏哨三线索齐（拿到 / 带着它在雾里交手 / 见过另一支）→ 该页解锁
+	if (!w.SgCodex.unlocked('坏哨')) {
+		const got = JSON.stringify(store.clues['坏哨'] ?? {});
+		throw new Error(`坏哨线索齐了却没解锁（${got}）`);
+	}
+	// 月光花只差"毒液抹刃"（那条在封印战线）→ 必须仍是锁定页
+	if (w.SgCodex.unlocked('月光花')) throw new Error('月光花线索未齐却解锁了（解锁条件应是"全部线索"）');
+	await c('打开设定集');
+	await c('图鉴');
+	const txt = w.document.querySelector('#passages').textContent;
+	if (!txt.includes('坏哨')) throw new Error('图鉴未列出已解锁的坏哨');
+	if (!txt.includes('守林人家削的引路哨')) throw new Error('图鉴未列出已解锁页的线索');
+	const names = Object.keys(w.Game.Codex.items);
+	const unlocked = names.filter((n) => w.SgCodex.unlocked(n));
+	if (unlocked.includes('月光花')) throw new Error('月光花只差一条线索，却也解锁了（解锁条件应是"全部线索"）');
+	const locked = names.filter((n) => !unlocked.includes(n));
+	if (!locked.length) throw new Error('金路径不该把所有页都解锁（毒液那条只在封印战线）');
+	if ((txt.match(/？？？/g) ?? []).length !== locked.length) {
+		throw new Error(`图鉴锁定页数量与账本不符（渲染 ${(txt.match(/？？？/g) ?? []).length} / 账本 ${locked.length}）`);
+	}
+	if (!txt.includes('塔基外侧墙根那片银白')) throw new Error('走到过终局后，锁定页未给出指向');
+	if (!txt.includes(`已解锁 ${unlocked.length} / ${names.length}`)) throw new Error('图鉴计数行不对');
 	return { w };
 }
 
@@ -580,6 +614,7 @@ const routes = [
 	['再度沉睡', routeSleepForever],
 	['洞穴动武', routeCave],
 	['设定集四页', routeCodex],
+	['图鉴·永久解锁', routeBestiary],
 	['龙·巢边', routeLair],
 	['老妇人', routeOldWoman],
 	['自愿的长眠', routeSleepVoluntary],

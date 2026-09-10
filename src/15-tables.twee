@@ -100,6 +100,120 @@ window.Game = (() => {
 		},
 	};
 
+	// ── 道具图鉴（v17 M8）：线索集 + 空页提示。线索必须"挣得到"（新档全 false）──
+	const Codex = {
+		items: {
+			时光护符: {
+				hint: '女巫小屋——她把它从炉火边递到你手里。',
+				clues: [
+					{ id: 'own',  label: '来历：初代巫女那件星铁', test: (p) => !!p.inv['时光护符'] },
+					{ id: 'flip', label: '用法：翻转在原处生效', test: (p) => (p.star?.spent ?? 0) >= 1 },
+					{ id: 'fog',  label: '它每用一次，雾就淡一些', test: (p) => !!p.world?.fog_thin },
+				],
+			},
+			日记: {
+				hint: '塔里二楼，烤炉后头那个暗格。',
+				clues: [
+					{ id: 'own',   label: '来历：她记那一夜的那一本', test: (p) => !!p.inv['日记'] },
+					{ id: 'cause', label: '那一夜发不动＝烧的是它自己的力气', test: (p) => !!p.ev?.failure_cause },
+					{ id: 'lock',  label: '能改的只有没被观测过的那部分', test: (p) => !!p.ev?.observation_lock },
+				],
+			},
+			坏哨: {
+				hint: '门厅门边那支锈的——三百年没人动过。',
+				clues: [
+					{ id: 'own',   label: '来历：守林人家削的引路哨', test: (p) => !!p.inv['坏哨'] },
+					{ id: 'fight', label: '带着它，雾里的东西会迟疑', test: (p) => !!p.world?.mist_fought },
+					{ id: 'other', label: '还有一支，是照着它的样子削的', test: (p) => !!p.inv['好哨'] || !!p.world?.family_favor },
+				],
+			},
+			好哨: {
+				hint: '三百年前那场宴上，长桌尽头那位妇人手里攥着一支。',
+				clues: [
+					{ id: 'own',    label: '来历：她自己削的玩具哨', test: (p) => !!p.inv['好哨'] },
+					{ id: 'blown',  label: '吹响它，龙会冷静下来', test: (p) => !!p.world?.whistle_blown },
+					{ id: 'favor',  label: '换来它的人情：替她找回那根杖', test: (p) => !!p.world?.family_favor },
+				],
+			},
+			月光花: {
+				hint: '塔基外侧墙根那片银白——雾最浓的地方。',
+				clues: [
+					{ id: 'own',    label: '来历：雾生的花，只在塔根', test: (p) => !!p.inv['月光花'] },
+					{ id: 'warned', label: '危险：味道闻久了会睡', test: (p) => !!p.world?.flower_warned },
+					{ id: 'fed',    label: '献给它＝睡得稳，不烧路费', test: (p) => !!p.world?.flower_fed },
+					{ id: 'venom',  label: '毒液抹刃＝它每一下都慢半拍', test: (p) => !!p.dragon?.venom },
+				],
+			},
+			守林人的钥匙: {
+				hint: '塔边那个男人腰上挂着一把，齿口磨圆了。',
+				clues: [
+					{ id: 'own',  label: '来历：他解下来放在桌上', test: (p) => !!p.inv['守林人的钥匙'] },
+					{ id: 'met',  label: '去塔的路上会先遇见他', test: (p) => !!p.keeper?.met },
+					{ id: 'why',  label: '他守的从来不是悔恨', test: (p) => !!p.ev?.keeper_why },
+					{ id: 'door', label: '铁门后头是地下那道门', test: (p) => !!p.world?.present_done || !!p.dragon?.awake },
+				],
+			},
+			观星者的书: {
+				hint: '四楼观测廊的书架——一册风化了的星象手稿。',
+				clues: [
+					{ id: 'own',   label: '来历：《论坠星》，只记现象不记谜底', test: (p) => !!p.inv['观星者的书'] },
+					{ id: 'proof', label: '证物：风化无法伪造', test: (p) => (p.keeper?.trust ?? 0) >= 2 },
+					{ id: 'letter', label: '夹着的那封信，观星者到死没拆', test: (p) => !!p.ev?.letter_seen },
+				],
+			},
+			完整星图: {
+				hint: '三百年前的穹顶是完整的——那份图只在那时候还活着。',
+				clues: [
+					{ id: 'own',   label: '来历：观星者手抄的那一份', test: (p) => !!p.inv['完整星图'] },
+					{ id: 'asked', label: '问过它从哪颗星被送来的', test: (p) => !!p.world?.seer_asked },
+					{ id: 'coord', label: '带回现在，它就是坐标', test: (p) => !!p.ev?.coord },
+				],
+			},
+			龙鳞护臂: {
+				hint: '三楼拐角那间小工坊——砧板上那副还没成形。',
+				clues: [
+					{ id: 'own',   label: '来历：熔炉边那一副，打到一半', test: (p) => !!p.inv['龙鳞护臂'] },
+					{ id: 'seen',  label: '他背上全是汗，嘴里哼着宴上的调子', test: (p) => !!p.world?.present_done },
+					{ id: 'worn',  label: '穿它挨过一下：受击 −1', test: (p) => !!p.dragon?.awake && !!p.inv['龙鳞护臂'] },
+				],
+			},
+			传送术卷轴: {
+				hint: '日记的封底——她算清的那一卷夹在那里。',
+				clues: [
+					{ id: 'own',     label: '来历：初代巫女晚年算清的完整术式', test: (p) => !!p.inv['传送术卷轴'] },
+					{ id: 'lock',    label: '她把没能用上的那一句写在旁边', test: (p) => !!p.ev?.observation_lock },
+					{ id: 'deliver', label: '只有守林人读得通', test: (p) => !!p.world?.scroll_delivered },
+				],
+			},
+		},
+		// 线索 id 列表
+		clueIds(item) {
+			return (this.items[item]?.clues ?? []).map((c) => c.id);
+		},
+		// 本档已满足的线索（纯函数，便于机检）
+		satisfied(pc) {
+			const out = {};
+			for (const [item, def] of Object.entries(this.items)) {
+				out[item] = (def.clues ?? []).filter((c) => {
+					try { return !!c.test(pc); } catch { return false; }
+				}).map((c) => c.id);
+			}
+			return out;
+		},
+		// 永久已解锁（线索集齐）
+		isUnlocked(item, store) {
+			const ids = this.clueIds(item);
+			const got = store?.clues?.[item] ?? {};
+			return ids.length > 0 && ids.every((id) => got[id]);
+		},
+		// 线索进度（x/y）
+		progress(item, store) {
+			const ids = this.clueIds(item);
+			const got = store?.clues?.[item] ?? {};
+			return { got: ids.filter((id) => got[id]).length, total: ids.length };
+		},
+	};
+
 	// ── 真相可达性（D1）：命题 × 通路，锚句机检 ──────────────
 	const Truth = {
 		claims: [
@@ -229,5 +343,5 @@ window.Game = (() => {
 		},
 	};
 
-	return { Checks, Economy, Items, Truth, Echoes, Choices, Systems, Shifts, Dragon };
+	return { Checks, Economy, Items, Codex, Truth, Echoes, Choices, Systems, Shifts, Dragon };
 })();

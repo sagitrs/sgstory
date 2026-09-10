@@ -98,6 +98,18 @@ Macro.add('save', {
 	},
 });
 
+// ── 结局登记宏（图鉴用：终局 final 才给空页提示，章节出口 chapter 只记账）──
+Macro.add('ending', {
+	handler() {
+		const key = String(this.args[0] ?? '').trim();
+		const kind = String(this.args[1] ?? 'final').trim();
+		if (key) {
+			State.variables.pc.ev.ending = key;                          // 本档记录
+			if (window.SgCodex) window.SgCodex.recordEnding(key, kind);  // 永久记录
+		}
+	},
+});
+
 // ── 血条宏 ──────────────────────────────────────────────
 Macro.add('hpbar', {
 	skipArgs: true,

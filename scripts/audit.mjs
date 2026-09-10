@@ -586,6 +586,47 @@ if (wantAll || arg('canon')) {
 		}
 	}
 	console.log(`  §5.0 道具：清单 ${itemNames.length} 件 · 零消费 ${itemHit === 0 ? 0 : itemHit}（假代价同计）`);
+	// ⑦ 道具图鉴门（v17 M8）：覆盖双向 · 线索可挣 · 线索可达 · 结局登记 · 提示不泄底
+	const C = Game.Codex;
+	let codexHit = 0;
+	const codexItems = Object.keys(C?.items ?? {});
+	for (const name of itemNames) if (!codexItems.includes(name)) { codexHit++; bad++; console.log(`  ✗ 图鉴缺页：「${name}」（Items.defs 有、Codex.items 没有）`); }
+	for (const name of codexItems) if (!itemNames.includes(name)) { codexHit++; bad++; console.log(`  ✗ 图鉴多页：「${name}」（Codex.items 有、Items.defs 没有）`); }
+	const freshPc = { ...Pc.defaults(), flags: [] };
+	const fullPc = Pc.defaults();
+	fullPc.inv = Object.fromEntries(itemNames.map((n) => [n, true]));
+	fullPc.star = { ...fullPc.star, spent: 2, charge: 0 };
+	fullPc.world = { fog_thin: true, mist_fought: true, family_favor: true, whistle_blown: true, flower_warned: true, flower_fed: true, seer_asked: true, present_done: true, scroll_delivered: true, rumor: true, goblin_spared: true, witch_hint: true };
+	fullPc.ev = { failure_cause: true, observation_lock: true, keeper_why: true, letter_seen: true, coord: true, mist_guard: true, threshold: true, star_ledger: true, old_witch: true };
+	fullPc.keeper = { ...fullPc.keeper, met: true, trust: 3, key: true, state: 'ally' };
+	fullPc.dragon = { ...fullPc.dragon, venom: true, awake: true, hp: 1 };
+	const clueTotal = codexItems.reduce((n, i) => n + (C.items[i].clues ?? []).length, 0);
+	for (const name of codexItems) {
+		const def = C.items[name];
+		const clues = def.clues ?? [];
+		if (clues.length < 2) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}」线索不足（≥2；实际 ${clues.length}）`); }
+		if (typeof def.hint !== 'string' || !def.hint.trim()) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}」缺空页提示`); }
+		else if (def.hint.length > 40) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}」提示过长（≤40 字；实际 ${def.hint.length}）`); }
+		for (const d of DUALREAD) if ((def.hint ?? '').includes(d.t)) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}」提示出现「${d.t}」（${d.why}）`); }
+		const ids = clues.map((c) => c.id);
+		if (new Set(ids).size !== ids.length) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}」线索 id 重复`); }
+		for (const c of clues) {
+			let free = false, ok2 = false;
+			try { free = !!c.test(freshPc); } catch (e) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}:${c.id}」线索函数报错：${e.message}`); continue; }
+			try { ok2 = !!c.test(fullPc); } catch { ok2 = false; }
+			if (free) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}:${c.id}」新档即满足（线索必须挣得到）`); }
+			if (!ok2) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}:${c.id}」在全收集态仍不满足（字段名大概写错了）`); }
+			if (!c.label || !String(c.label).trim()) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}:${c.id}」缺线索文案`); }
+		}
+	}
+	for (const [name, src] of passageSrc) {
+		if (!/^结局/.test(name)) continue;
+		const body = src.replace(/\/%[\s\S]*?%\//g, '');
+		const m = body.match(/<<ending\s+"([^"]+)"(?:\s+(final|chapter))?>>/);
+		if (!m) { codexHit++; bad++; console.log(`  ✗ 结局段落「${name}」未登记（缺 <<ending \"…\" final|chapter>>）`); }
+		else if (!['final', 'chapter'].includes(m[2] ?? 'final')) { codexHit++; bad++; console.log(`  ✗ 结局段落「${name}」kind 非法：${m[2]}`); }
+	}
+	console.log(`  §5.0 图鉴：页 ${codexItems.length} · 线索 ${clueTotal} 条 · 命中 ${codexHit}`);
 	console.log(`  §3.9 传说：表 ${legendRows.length} 行 · 认领 ${LEGENDS.length} 条 · 投放锚 ${LEGENDS.reduce((n, e) => n + e.anchors.length, 0)} 个 · 命中 ${legHit}（每行须有 ② 的真/误或 ① 的登记）`);
 	console.log(`  §10 行 ${rows.length} · 认领 ${CANON_ROWS.length} 条 · 禁词 ${termCount} 个 · 命中 ${hit}`);
 	console.log(`  §9 双读：禁断言 ${DUALREAD.length} 条 · 命中 ${dualHit}（正文不点破：长生/同一个人/初代/穿越/晚年）`);

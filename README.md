@@ -55,6 +55,7 @@ test/integrity.mjs  L0 静态完整性门：悬空引用/goto 裸词/未定义�
 test/render-all.mjs L1 全段落渲染冒烟：逐段落 play × $era 双变体，无异常/无 .error/非空 + 断链门（a.link-broken 必须为 0）+ 裸标记门（畸形闭合在屏上漏字）
 test/walker.mjs    L2 对抗席游走器：种子化随机游走（一章+塔）+ 状态不变量 + 位点双支清扫（npm run soak 加量）
 test/coverage.mjs  L3 覆盖率 ratchet（六门）：基线不回退 / 新段落必配测 / 无交互盲区 / 时代双态 / 交互≥渲染 / **链接级覆盖**（render-all 的链接清单 × scenarios 的点击记录，未点过的须在 test/link-whitelist.json 里有理由）
+test/render-all.mjs（门7 出口在最后·静态版）＋ test/walker.mjs（同款·真实状态版）：有可点元素的段落，**最后一个可点之后不许压着成块正文（≥30 字，按文本节点数、含收起 details 的最坏展开态）**——推进剧情的选项永远在最后（#179/#184）。豁免走 test/exits-whitelist.json（结局页 UI 脚注 / flip 过场）
                    ——基线更新：npm run update-coverage-baseline
 test/smoke.mjs    无头冒烟测试（快速车卡 → 酒馆 → 森林 → 洞穴 + 侧栏/存档/物品栏）
 test/boot.mjs      共享 JSDOM 启动（就绪轮询 + uncaught 监听 + `settle()` 等 Engine.isIdle 且 DOM 跟 State 同步

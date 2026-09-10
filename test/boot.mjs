@@ -37,6 +37,18 @@ function hookExit() {
 // 可点元素的统一选择器：普通链接 / 交涉面板选项 / 结局页收尾按钮。
 // 一处定义，各测试脚本共用——新增一种控件只改这里（"修复辐射不再依赖记得改每个文件"）。
 // 相对选择器（在某个段落元素里查）——别用字符串 replace 拼绝对选择器，那个坑很深
+// 「出口在最后」走查（#179）：最后一个可点元素之后的全部正文（按文本节点数，含收起 details——
+// 最坏展开态）。twee 的裸链接 + <br> 布局不包块级元素，元素级兄弟走查会漏掉裸文本节点。
+export const trailingAfterLast = (win, box, last) => {
+	const FOLLOWING = win.Node.DOCUMENT_POSITION_FOLLOWING, INSIDE = win.Node.DOCUMENT_POSITION_CONTAINED_BY;
+	const tw = win.document.createTreeWalker(box, win.NodeFilter.SHOW_TEXT);
+	let text = '';
+	for (let n = tw.nextNode(); n; n = tw.nextNode()) {
+		const pos = last.compareDocumentPosition(n);
+		if ((pos & FOLLOWING) && !(pos & INSIDE)) text += n.nodeValue;
+	}
+	return text.replace(/\s+/g, '');
+};
 export const CLICKABLE_SEL = 'a.link-internal, a.soc-opt, button[data-end-act]';
 export const LINKS_SEL = 'a.link-internal, a.soc-opt'; // 只算"剧情链接"（不含结局页的导航按钮）
 export const CLICKABLE = `#passages ${CLICKABLE_SEL}`;

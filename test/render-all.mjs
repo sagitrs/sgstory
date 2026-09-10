@@ -3,7 +3,9 @@
 //   · 渲染确实发生（State.passage 变化——防 no-op 假绿，Engine.show 曾无声失败）
 //   · 无 uncaught 异常 · 无 .error 渲染元素 · 输出非空
 // 渲染期自动跳转（检定失败→死亡等）记为 forward 信息不算失败，但错误/空输出仍算。
-import { boot, CLICKABLE_SEL } from './boot.mjs';
+import { boot, CLICKABLE_SEL, trailingAfterLast } from './boot.mjs';
+import { readFileSync } from 'node:fs';
+const exitsWhitelist = JSON.parse(readFileSync(new URL('./exits-whitelist.json', import.meta.url), 'utf-8'));
 
 // 白盒 A9：共享 boot（d20 恒 11：中性、无自然 20/1；uncaught 监听内置）
 const { w, uncaught, sleep } = await boot({ random: 0.5 });
@@ -68,6 +70,23 @@ for (const p of content) {
 		if (out.includes('<')) {
 			const at = out.indexOf('<');
 			problems.push(`渲染文本里有裸标记：${JSON.stringify(out.slice(Math.max(0, at - 20), at + 20))}`);
+		}
+		// 门7 出口在最后（#179 全场景审计，静态/默认状态版）：有可点元素的段落，最后一个可点之后
+		// 不许压着成块正文（≥30 字，含收起 details——按最坏展开态算）；结局页 UI 脚注走白名单。
+		// 状态依赖的布局问题由 walker 的同款不变量兜底（soak 走真实旗标状态）。
+		{
+			const box = [...w.document.querySelectorAll('#passages .passage')].filter((e) => e.dataset.passage === p.name).pop();
+			if (box && shown === p.name) {
+				const cs = [...box.querySelectorAll(CLICKABLE_SEL)];
+				const wl = (kind) => exitsWhitelist.some((e) => e.applyTo === kind && new RegExp(e.passage).test(p.name));
+				if (!cs.length) {
+					if (out.length > 40 && !p.src.includes('<<flip>>') && !wl('nolinks') && !p.name.startsWith('结局'))
+						problems.push(`无任何可点元素（非结局/非自动转场/非 flip 过场）`);
+				} else {
+					const text = trailingAfterLast(w, box, cs[cs.length - 1]);
+					if (text.length >= 30 && !wl('trailing')) problems.push(`出口不在最后：最后可点之后压着 ${text.length} 字正文`);
+				}
+			}
 		}
 		// 链接清单（#168 机检⑩）：把"这一段渲染出来的可点元素"落盘，交给 coverage.mjs 的链接级覆盖门
 		// 对账——按"段落|时代"记格的老口径看不见"同段里有一条链接从没被点过"（P1-1 / P1-29 都这么漏）。

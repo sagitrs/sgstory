@@ -86,6 +86,12 @@ assert(w.document.activeElement.closest('[data-heard="tav_light"]'), '逆序提�
 const tavFold2 = w.document.querySelector('.heard-fold');
 assert(tavFold2 && !tavFold2.hidden && tavFold2.textContent.includes('前年我上山'), '上一条回到已读折叠归档');
 assert(links().filter((a) => fresh.compareDocumentPosition(a) & FOLLOWING).length >= 5, '逆序提问后剩余选项仍在回答之后（方向不回头）');
+// #179 全场景原则「推进剧情的选项在最后」：折叠区整体在行动区之上——翻完旧账往下读就是出口
+assert(tavFold2.compareDocumentPosition(fresh) & FOLLOWING, '已读折叠在「本次回答」之前（翻旧账向下读完就是选项）');
+assert(tavFold2.compareDocumentPosition(w.document.querySelector('.tavern-actions')) & FOLLOWING, '已读折叠在行动区之前（展开态出口仍在最后）');
+tavFold2.open = true;   // 最坏展开态：折叠区最后一段之后必须还有可点出口
+const lastHeard = [...tavFold2.querySelectorAll('p')].pop();
+assert(links().filter((a) => lastHeard.compareDocumentPosition(a) & FOLLOWING).length >= 3, '展开折叠读到底，其后仍有出口（不回头向上找）');
 assert(links().some((a) => a.textContent.includes('金币：买一支火把')), '火把购买链接存在（表驱动价）');
 assert(links().some((a) => a.textContent.includes('听老猎人讲实话')), '付费传闻链接存在（表驱动价）');
 

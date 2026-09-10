@@ -60,10 +60,18 @@ assert(links().some((a) => a.textContent.includes('拿出筹码：请她喝一�
 assert(p.textContent.includes('冷淡 → DC12'), 'B2：面板标出态度与 DC');
 assert(links().length >= 12, `酒馆打听 hub 臂数 ≥12（实际 ${links().length}）`);
 assert(!w.document.querySelector('#passages .link-broken'), '酒馆传闻选项没有错误目标');
+// #180：三区分区——行动分组与已读折叠
+assert(w.document.querySelector('#passages .tavern-actions'), '酒馆行动区容器存在');
+assert(w.document.querySelectorAll('#passages .act-group').length === 3, '酒馆动作分为三组');
+const tavFold = w.document.querySelector('#passages .heard-fold');
+assert(tavFold && !tavFold.open, '已听传闻默认收起');
+assert(w.document.querySelector('#passages .act-group .act-n').textContent !== '', '分组条数角标已渲染');
 await click('接嘴的那个人——「不老的女人」');
 assert(pc().ev.tav_ageless === true && w.SugarCube.State.passage === '酒馆', '不老女人传闻显示完整，点击后留在酒馆并记账');
 assert(w.document.querySelector('#tav-heard').textContent.includes('前年我上山'), '不老女人传闻内容显示在记录区');
 assert(w.document.activeElement.closest('#tav-heard') && w.document.activeElement.textContent.includes('不老的女人'), '同页提问后焦点跟随本次回答');
+assert(w.document.querySelector('#passages .heard-fold').open, '回答在折叠区时点击后自动展开');
+assert(w.document.activeElement.closest('[data-heard="tav_ageless"]'), '焦点落在本次回答的整组容器上');
 await click('靠窗那桌——他们在讲塔上那盏灯');   // 问一桌
 assert(w.SugarCube.State.variables.pc.ev.tav_light === true, '问过的那桌记账（tav_light）');
 assert(w.document.querySelector('#passages').textContent.includes('三百年了，那灯没灭过'), '问出来的话渲染在记录区');

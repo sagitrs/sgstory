@@ -277,6 +277,7 @@ body {
 	.chargen-card, .charsheet, .passage .codex-hub { padding: 0.8em; }
 	.charsheet h2 { font-size: 1.1em; letter-spacing: 0.05em; }
 	.ability-table { font-size: 0.85em; }
+	.act-group { padding: 0.35em 0.5em; }
 	.ending-card { padding: 0.8em 0.9em; margin: 1em 0; }
 	.ending-card table { font-size: 0.85em; border-spacing: 0.6em 0.2em; }
 	.check-result { font-size: 0.85em; padding: 0.4em 0.6em; }
@@ -360,6 +361,22 @@ body {
 .soc-cost { display: block; color: #9a6b4f; font-size: 0.9em; }
 .soc-no, .soc-done { color: #8a7f6a; font-style: italic; }
 .tavern-tables a { display: block; width: fit-content; max-width: 100%; margin: 0.4em 0; }
+/* ── #180 同页交互分区：行动分组 + 已读折叠（#179）── */
+.tavern-actions { display: flex; flex-direction: column; gap: 0.55em; margin-top: 1em; }
+.act-group {
+	border: 1px solid rgba(169, 192, 218, 0.25);
+	border-radius: 10px;
+	padding: 0.45em 0.7em;
+	background: rgba(20, 24, 34, 0.45);
+}
+.act-group > summary { cursor: pointer; font-weight: 600; letter-spacing: 0.04em; }
+.act-group[open] > summary { margin-bottom: 0.35em; }
+.act-n { color: #8b8497; font-weight: 400; }
+.act-n:not(:empty)::before { content: "·"; margin: 0 0.4em; }
+.heard-fold { margin-top: 1.2em; border-top: 1px dashed rgba(169, 192, 218, 0.2); padding-top: 0.4em; }
+.heard-fold > summary { cursor: pointer; color: #8b8497; }
+.heard-fold[open] > summary { margin-bottom: 0.4em; }
+.heard-item { margin: 0.55em 0; }
 .action-feedback:focus-visible { outline: 1px solid #a9c0da; outline-offset: 0.3em; }
 
 @media (prefers-reduced-motion: reduce) {

@@ -93,12 +93,15 @@ async function routeTrue() {
 	await c('回到守林人');
 	await c('你守的到底是什么');           // 守林人·守
 	await c('回到守林人');
+	await c('问他：塔基墙根那片银白的花是什么'); // M9：花田的事得问（空手 → 游说 DC12，d20 恒 20 必成）
 	await c('收下钥匙');                   // 门厅
+	await c('把墙上那支哨子摘下来');       // M9：墙上那支哨子要自己摘（调查 DC10，d20 恒 20 必成）
 	await c('出塔，回到塔外');             // 塔门（过去）——守林人已警告
-	await c('塔基墙根那片花');             // 塔外花田 → 免判定拿花
+	await c('塔基墙根那片花');             // 塔外花田
+	await c('伸手去摘最靠里的那一朵');     // M9：采摘是动作 → 免判定拿花
 	await c('回塔门');                     // 塔门
 	await c('推门进去');                   // 门厅
-	await c('先上二楼看看');               // 书房 → 日记
+	await c('先上二楼看看');               // 书房（过去：暗格是空的）
 	await c('上三楼');                     // 温室（纯氛围）
 	await c('上三楼拐角看看');             // 工坊
 	await c('把它打完');                   // 龙鳞护臂
@@ -130,6 +133,7 @@ async function routeTrue() {
 	await c('翻转护身符：回到');           // 翻回现在
 	await c('安静地退出去');               // 门厅
 	await c('先上二楼看看');
+	await c('伸手去摸烤炉后头的暗格');     // M9：暗格要自己摸 → 日记 + 传送术卷轴
 	await c('上三楼');
 	await c('上三楼拐角看看');
 	await c('上四楼');
@@ -152,7 +156,8 @@ async function routeFlowerDeath() {
 	await toTower(c);
 	await c('继续往塔那边走');           // 塔门（现在）——绕开守林人，所以没有情报
 	w.eval('Math.random = () => 0.01'); // 花田体质豁免必败
-	await c('塔基墙根那片花');           // 塔外花田 → 贸然采摘
+	await c('塔基墙根那片花');           // 塔外花田
+	await c('伸手去摘最靠里的那一朵');     // M9：动手才掷骰 → 贸然采摘
 	if (passageOf(w) !== '结局 死亡') throw new Error(`花田未致死（停在 ${passageOf(w)}）`);
 	if (pcOf(w).world.flower_sleep !== true) throw new Error('死亡结局未走花田变体（flower_sleep 未置位）');
 	if (pcOf(w).inv['月光花']) throw new Error('昏迷却拿到了花');
@@ -169,7 +174,8 @@ async function routeFlowerGoblin() {
 	await c('去那间亮着灯的小屋');       // 森林边缘 → 女巫小屋
 	await c('谢过她，往林子深处走');     // → 林间小径
 	await c('继续往塔那边走');           // → 塔门（现在）
-	await c('塔基墙根那片花');           // → 花田：哥布林警告 → 免判定
+	await c('塔基墙根那片花');           // → 花田：哥布林警告
+	await c('伸手去摘最靠里的那一朵');     // → 免判定拿花
 	if (pcOf(w).inv['月光花'] !== true) throw new Error('有情报仍未拿到月光花（情报路径误走判定？）');
 	if (pcOf(w).world.flower_sleep) throw new Error('有情报却睡过去了');
 	if (pcOf(w).world.flower_warned !== true) throw new Error('哥布林未记录情报');
@@ -282,7 +288,8 @@ async function routeVoid() {
 	await c('明白了。下去');               // 门厅
 	// 顺手把花带上：毒液抹刃 → 龙的攻击劣势（v17 补正 #3）
 	await c('出塔，回到塔外');             // 塔门
-	await c('塔基墙根那片花');             // 塔外花田（d20 恒 20 → 体质豁免必成）
+	await c('塔基墙根那片花');             // 塔外花田
+	await c('伸手去摘最靠里的那一朵');     // M9：动手才掷骰（d20 恒 20 → 体质豁免必成）
 	if (pcOf(w).inv['月光花'] !== true) throw new Error('封印战路线没拿到月光花');
 	await c('回塔门');
 	await c('推门进去');                   // 门厅
@@ -315,6 +322,8 @@ async function routeSeal() {
 	await c('继续往塔那边走');
 	await c('推门进去');
 	await c('先上二楼看看');
+	await c('伸手去摸烤炉后头的暗格');     // M9：先摸到日记
+	await c('把日记往下读');               // → 观察到"没人看过它睡得怎么样"
 	await c('照她抄在页边的封印术');
 	if (passageOf(w) !== '结局 劣化封印') throw new Error(`未达劣化封印（${passageOf(w)}）`);
 	return { w };
@@ -597,6 +606,69 @@ async function routeEraBranches() {
 	return { w };
 }
 
+// ── 路线 25：打听碰壁 → 请一轮酒（M9：信息要自己问）──
+async function routeTavernAsk() {
+	const { w, click: c } = await newGame(0.01, 0);   // d20 恒 1：所有检定必败
+	// 酒馆：一桌一问（问过就消失）
+	await c('靠窗那桌——他们在讲塔上那盏灯');
+	if (pcOf(w).ev.tav_light !== true) throw new Error('问过的那桌没记账');
+	await c('问老板娘：进塔该注意什么');            // 游说 DC10 → 必败
+	if (pcOf(w).ev.tav_brushoff !== true || pcOf(w).ev.tav_tips) throw new Error('游说失败却没走"碰壁"分支');
+	const gold0 = pcOf(w).gold;
+	await c('请一轮酒');                            // 花钱换：3 金币
+	if (pcOf(w).ev.tav_tips !== true) throw new Error('请了酒还是没听到忠告');
+	if (pcOf(w).gold !== gold0 - 3) throw new Error(`请酒没扣钱（${gold0} → ${pcOf(w).gold}）`);
+	if (pcOf(w).ev.tav_fog) throw new Error('游说失败却拿到了"雾是从塔那边来的"');
+	if (!w.document.querySelector('#passages').textContent.includes('别在雾里睡觉')) throw new Error('忠告没渲染出来');
+	await c('推门出发，走进暮色');
+	await c('在雾里站住，听一听');                  // 察觉 DC10 → 必败 → 什么都没听清
+	if (pcOf(w).ev.forest_heard !== false) throw new Error('察觉失败却记成听清了');
+	await c('去那间亮着灯的小屋');
+	await c('问：雾到底是什么');
+	if (pcOf(w).ev.wq_fog !== true) throw new Error('女巫小屋的提问没记账');
+	await c('谢过她，往林子深处走');
+	await c('继续往塔那边走');
+	// 不采花：花田必须给"先别动它"的退路（M9：采摘是动作）
+	await c('塔基墙根那片花');
+	await c('先别动它，退回塔门');
+	if (passageOf(w) !== '塔门') throw new Error(`花田退路没回塔门（${passageOf(w)}）`);
+	if (pcOf(w).inv['月光花']) throw new Error('没动手却拿到了花');
+	return { w };
+}
+
+// ── 路线 26：情报自己问、暗格自己摸（M9）——含"女巫门道"免检 ──
+async function routeAskForIt() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await c('问老板娘：进塔该注意什么');            // 游说 DC10 → 必成 → 忠告 + 雾气来向
+	if (pcOf(w).ev.tav_tips !== true || pcOf(w).ev.tav_fog !== true) throw new Error('游说成功没拿到忠告/雾气来向');
+	if (!w.document.querySelector('#passages').textContent.includes('雾是从塔那边来的')) throw new Error('雾气来向没渲染');
+	await c('问一句女巫小屋怎么走');
+	for (const q of ['问：画上那场宴是怎么回事', '问：三百年前那一夜，你们家没送成的是什么', '问：这护符到底怎么用', '问：塔底下锁着的到底是什么', '问：你就这么看着，什么也不做？', '问：我一个人上去，够吗']) {
+		await c(q);
+	}
+	const wq = pcOf(w).ev;
+	if (!(wq.wq_painting && wq.wq_night && wq.wq_talisman && wq.wq_under && wq.wq_past && wq.wq_alone)) throw new Error('女巫小屋提问未全部记账');
+	const wqText = w.document.querySelector('#passages').textContent;
+	if (!wqText.includes('行头是一代一代传下来的')) throw new Error('§3.9 传说"行头"锚句未渲染');
+	if (!wqText.includes('改不了的不是历史')) throw new Error('observation_lock 锚句（女巫小屋侧）未渲染');
+	await c('花 8 金币：问塔里的门道');              // witch_hint
+	await c('谢过她，往林子深处走');
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	await c('收下钥匙');
+	await c('先上二楼看看');
+	w.eval('Math.random = () => 0.01');             // 以后所有检定必败
+	await c('伸手去摸烤炉后头的暗格');               // 有门道 → 免检直接摸到
+	if (pcOf(w).inv['日记'] !== true || pcOf(w).inv['传送术卷轴'] !== true) throw new Error('女巫门道没免掉书房的检视（暗格该直接摸到）');
+	// 没有门道就得掷骰：这里的失败分支留在下一段
+	await c('把日记往下读');
+	if (pcOf(w).ev.observation_lock !== true) throw new Error('"往下读"没记账');
+	if (!w.document.querySelector('#passages').textContent.includes('没人看过它睡得怎么样')) throw new Error('observation_lock 锚句（书房侧）未渲染');
+	return { w };
+}
+
 const routes = [
 	['金路径 送星归位', routeTrue],
 	['平凡之路', routeQuit],
@@ -622,6 +694,8 @@ const routes = [
 	['花田死亡', routeFlowerDeath],
 	['花田·哥布林情报', routeFlowerGoblin],
 	['换哨双门槛', routeExchangeGate],
+	['打听·碰壁与请酒', routeTavernAsk],
+	['情报自己问（免检暗格）', routeAskForIt],
 ];
 
 const results = await Promise.all(routes.map(async ([name, fn]) => {

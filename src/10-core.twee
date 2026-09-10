@@ -98,6 +98,14 @@ Macro.add('save', {
 	},
 });
 
+// ── 复显上一轮玩家发起的检定骰面（M9；不掷骰，只渲染快照）──
+Macro.add('lastcheck', {
+	handler() {
+		const r = State.variables.pc?.ev?.last_roll;
+		if (r) $(this.output).append(renderCheck(r));
+	},
+});
+
 // ── 结局登记宏（图鉴用：终局 final 才给空页提示，章节出口 chapter 只记账）──
 Macro.add('ending', {
 	handler() {
@@ -185,6 +193,12 @@ Macro.add('dragonbar', {
 <<widget "give">>
 	<<run $pc.inv[$args[0]] = true>>
 	<span class="gain">''获得【$args[0]】。''</span>
+<</widget>>
+
+/% 检定结果快照（M9）：玩家发起的检定在 link 里掷完骰后存一份，
+   结果分支重渲染时用 <<lastcheck>> 复显骰面——否则 <<goto>> 会把骰面一起丢掉 %/
+<<widget "snapshot">>
+	<<set $pc.ev.last_roll to $last_check>>
 <</widget>>
 
 /% 世界旗标：<<setflag "goblin_spared">> %/

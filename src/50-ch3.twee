@@ -110,11 +110,24 @@
 	<<setflag "seer_asked">>
 <</if>>
 <<if not $pc.inv["完整星图"]>>
-	<<link "求他把完整星图给你">><<goto "观星者·图">><</link>>
+	<<link "求他把完整星图给你">>
+		<<if $pc.inv["观星者的书"]>>
+			<<set $pc.ev.seer_gave to true>>
+		<<else>>
+			<<sitecheck "观星者·说服">><<snapshot>>
+			<<if $last_check.success>><<set $pc.ev.seer_gave to true>><<else>><<set $pc.ev.seer_refused to true>><</if>>
+		<</if>>
+		<<goto "观星者·图">>
+	<</link>>
 <</if>>
 <<if not $pc.ev.letter_seen>>
-	（案角压着一封信，火漆完好——''火漆完好''，没人拆过。）
-	<<set $pc.ev.letter_seen to true>>
+	<<link "拿起案角那封信">>
+		<<set $pc.ev.letter_seen to true>>
+		<<goto "观星者">>
+	<</link>>
+<</if>>
+<<if $pc.ev.letter_seen>>
+	（案角那封信火漆完好——''火漆完好''，没人拆过。收信人写的是"守林人家"。你把它放回原处。）
 <</if>>
 [[回到宴上|宴会·过去]]
 
@@ -150,16 +163,15 @@
 	他把书合上，又摊开自己算完的那一轨，抄了一份，递给你：
 	''"带回现在，它就是坐标。"''（三百年星位的变化，可以忽略。）
 	<<give "完整星图">><<set $pc.ev.coord to true>>
-<<else>>
-	<<sitecheck "观星者·说服">>
-	<<if $last_check.success>>
-		他盯着你看了半晌，终于把笔放下。他抄得很慢，一笔一笔，像在替谁写一封家书。
+<<elseif $pc.ev.seer_gave>>
+	<<lastcheck>>
+	他盯着你看了半晌，终于把笔放下。他抄得很慢，一笔一笔，像在替谁写一封家书。
 
-抄完，他把纸推过来：''"带回现在，它就是坐标。"''
-		<<give "完整星图">><<set $pc.ev.coord to true>>
-	<<else>>
-		"空口无凭。"他把图收了回去。
-	<</if>>
+	抄完，他把纸推过来：''"带回现在，它就是坐标。"''
+	<<give "完整星图">><<set $pc.ev.coord to true>>
+<<else>>
+	<<lastcheck>>
+	"空口无凭。"他把图收了回去。（''你要是说不动他，就得拿出他认得的东西来。''）
 <</if>>
 [[回到观星者|观星者]]
 
@@ -184,8 +196,21 @@
 <</if>>
 
 <<if $pc.inv["完整星图"] and $pc.world.family_favor and not $pc.inv["好哨"]>>
-	<<sitecheck "当时的女巫·辨认">>
-	<<if $last_check.success>>你注意到她握哨的手势——和守林人挂在门边那支一样。<</if>>
+	<<if not $pc.ev.witch_grip>>
+		<<link "看她手里那支哨子">>
+			<<sitecheck "当时的女巫·辨认">><<snapshot>>
+			<<if $last_check.success>><<set $pc.ev.witch_grip to true>><<else>><<set $pc.ev.witch_grip_fail to true>><</if>>
+			<<goto "当时的女巫">>
+		<</link>>
+	<</if>>
+	<<if $pc.ev.witch_grip>>
+		<<lastcheck>>
+		你看清了：她握哨的手势——和守林人挂在门边那支一样。
+	<</if>>
+	<<if $pc.ev.witch_grip_fail and not $pc.ev.witch_grip>>
+		<<lastcheck>>
+		（她手一直没松开。你看了半天，只看见一只攥紧的手。''再看一次也行。''）
+	<</if>>
 	<<link "把她那支哨换过来">><<goto "当时的女巫·换">><</link>>
 <<elseif $pc.inv["完整星图"] and not $pc.world.family_favor>>
 	（她看了你一眼，又去看那只空架子——像在等一件你还没替她办的事。）
@@ -200,7 +225,7 @@
 
 你沿着长桌走了一圈。架子上、门边、酒箱后头——都没有。
 
-<<sitecheck "寻杖">>
+<<sitecheck "寻杖">><<snapshot>>
 <<if $last_check.success>>
 	你绕到长桌尽头。桌布垂到地上，鼓着一角——你掀开，那根杖就靠在那儿，杖头朝里，''藏得很仔细''。
 
@@ -391,7 +416,7 @@
 /% payload: 张力 %/
 <<set $pc.dragon.round to ($pc.dragon.round ?? 0) + 1>>
 
-<<sitecheck "龙·斩击">>
+<<sitecheck "龙·斩击">><<snapshot>>
 <<if $last_check.success>>
 	你劈进去半寸。鳞底下那层是热的、软的——它''疼''。
 	<<set $pc.dragon.hp to Math.max(0, $pc.dragon.hp - Game.Dragon.bladeDamage)>>
@@ -401,7 +426,7 @@
 <<dragonbar>>
 
 ''它回手了。''
-<<sitecheck "龙·吐息">>
+<<sitecheck "龙·吐息">><<snapshot>>
 <<if not $last_check.success>>
 	<<set $pc.dragon.defeats to ($pc.dragon.defeats ?? 0) + 1>>
 	<<set _dmg to Game.Dragon.dragonDamage($pc.inv, $pc.dragon.round, $pc.dragon.defeats, $pc.dragon.venom)>>
@@ -427,10 +452,10 @@
 
 你冲了上去。
 
-<<sitecheck "龙·吐息">>
+<<sitecheck "龙·吐息">><<snapshot>>
 <<if $last_check.success>>你认出逆鳞那一处能透——它张口时你侧了身。<</if>>
 <<dragonbar>>
-<<sitecheck "龙·斩击">>
+<<sitecheck "龙·斩击">><<snapshot>>
 <<if $last_check.success>>你确实擦到了它的皮。<</if>>
 它甚至没有站起来。一记尾扫，把你连人带刀掀到墙上。
 
@@ -444,7 +469,7 @@
 :: 龙·再冲
 /% payload: 张力 %/
 ''你只有一次机会。''它太大了，你的刀在鳞上滑开——除非你正好劈进那道缝。
-<<sitecheck "龙·终击">>
+<<sitecheck "龙·终击">><<snapshot>>
 <<if $last_check.success>>
 	<<if $pc.inv["观星者的书"] or $pc.ev.failure_cause>>
 		[[你杀了它——却已经知道它是什么|结局 星落]]

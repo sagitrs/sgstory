@@ -161,6 +161,58 @@ if (wantAll || arg('choices')) {
 	}
 }
 
+// ── ⓪h 互动门（M9）：信息靠动作与交涉换来，不靠自动检定 ──
+if (wantAll || arg('interact')) {
+	console.log('\n══ ⓪h 互动门（M9）——信息必须由玩家动作发起 ══');
+	let bad = 0;
+	const stripLinks = (src) => src.replace(/<<link\b[\s\S]*?<\/link>>/g, '（link）');
+	const sites = Game.Checks.sites;
+	const usedSites = new Set();
+	let autoTop = 0, inLink = 0;
+	for (const [name, srcRaw] of passageSrc) {
+		const tags0 = passageTags.get(name) ?? [];
+		if (tags0.includes('script') || tags0.includes('stylesheet') || tags0.includes('widget')) continue; // 只扫正文
+		const src = srcRaw.replace(/\/%[\s\S]*?%\//g, '');
+		const outer = stripLinks(src);
+		for (const m of src.matchAll(/<<sitecheck\s+"([^"]+)"/g)) {
+			usedSites.add(m[1]);
+			if (!sites[m[1]]) { console.log(`  ✗ 段落「${name}」引用了不存在的位点「${m[1]}」`); bad++; }
+		}
+		// ① 顶层（非 link 内）的检定＝自动检定：只有"进场即动手"的战斗位点可以
+		for (const m of outer.matchAll(/<<sitecheck\s+"([^"]+)"/g)) {
+			autoTop++;
+			const site = sites[m[1]];
+			if (!site) continue;
+			if (!site.auto) { console.log(`  ✗ 段落「${name}」自动检定「${m[1]}」——信息类检定必须由玩家动作发起（移进 <<link>>，或给位点标 auto 并写明理由）`); bad++; }
+		}
+		// ② 渲染期读 $last_check ⇒ 同段落顶层必须有检定（否则会读到上一段落的陈旧结果）
+		if (outer.includes('$last_check') && !/<<sitecheck\s+"/.test(outer)) {
+			console.log(`  ✗ 段落「${name}」顶层读 $last_check 却没有本轮检定——判定结果必须落旗标后再渲染`); bad++;
+		}
+		inLink += (src.match(/<<sitecheck/g) ?? []).length - (outer.match(/<<sitecheck/g) ?? []).length;
+	}
+	// ③ 位点无孤儿（表里有、正文没人用）
+	for (const s of Object.keys(sites)) if (!usedSites.has(s)) { console.log(`  ✗ 位点「${s}」在表里但正文没人用`); bad++; }
+	// ④ 选择密度（报告项）：内容段落的 字/臂
+	const dens = [];
+	for (const [name, srcRaw] of passageSrc) {
+		const tags = passageTags.get(name) ?? [];
+		if (tags.includes('script') || tags.includes('stylesheet') || name.startsWith('Story')) continue;
+		if (name.startsWith('结局') || name.includes('设定集') || name === '样式') continue;
+		const src = srcRaw.replace(/\/%[\s\S]*?%\//g, '');
+		const chars = src.replace(/\s/g, '').length;
+		const arms = (src.match(/<<link\b/g) ?? []).length + (src.match(/\[\[/g) ?? []).length;
+		if (arms) dens.push({ name, chars, arms, r: chars / arms });
+	}
+	dens.sort((x, y) => y.r - x.r);
+	console.log(`  检定：${autoTop + inLink} 处（玩家发起 ${inLink} · 进场即动手 ${autoTop}）`);
+	console.log(`  最"薄"的五个段落（字/臂）：${dens.slice(0, 5).map((d) => `${d.name} ${d.r.toFixed(0)}`).join(' · ')}`);
+	if (process.argv.includes('--check')) {
+		if (bad) { console.error(`\n✗ 互动门：${bad} 项`); process.exit(1); }
+		console.log('\n✔ 互动门通过（信息类检定全部由玩家动作发起）');
+	}
+}
+
 // ── ⓪d D3 系统可玩性（#37）：机制发现性门 + 组合矩阵出具 ──
 if (wantAll || arg('systems')) {
 	console.log('\n══ ⓪d 系统可玩性（D3/#37）——规则不可知则不可实验：发现性锢点机检 ══');

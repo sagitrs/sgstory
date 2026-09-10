@@ -1,6 +1,6 @@
 # sgstory 实施图（impl-map）——M1 骨架落地规范
 
-> **状态**：v2.7（**M1 骨架 + M2–M4 文案 + M5 终局 + M6a–f 打磨 + M5c–M5g 口径 + M7 v17 全案（去神秘化 / 传说层 / 好感合一 / 封印战）+ M8 图鉴 + M9 互动化 + M10 判定可见 + M11 A 组 + M12 B1 战斗动作池 + M13 B2 交涉 + M14 温室撤除与月光花改口径 + M15 结局页收尾** 已完成；v2.7·D **文档对齐**：门数/路线数/段落数/覆盖基线/键数全对着代码核过一遍）
+> **状态**：v2.7（**M1 骨架 + M2–M4 文案 + M5 终局 + M6a–f 打磨 + M5c–M5g 口径 + M7 v17 全案（去神秘化 / 传说层 / 好感合一 / 封印战）+ M8 图鉴 + M9 互动化 + M10 判定可见 + M11 A 组 + M12 B1 战斗动作池 + M13 B2 交涉 + M14 温室撤除与月光花改口径 + M15 结局页收尾 + M16 序章与回指口径** 已完成；v2.7·D **文档对齐**：门数/路线数/段落数/覆盖基线/键数全对着代码核过一遍）
 > **定位**：`docs/game-outline.md`（玩法大纲）的**工程落地版**——把大纲翻译成**段落图 / 文件结构 / 状态模型 / 测试策略**。
 > **权威关系**：实现细节稿。**与设定书冲突以设定书为准**；与大纲冲突以大纲为准。
 > **读法**：§0 的里程碑表是**施工记录**——表里的门数/路线数/段落数都是**当时值**；**现状**看 §2（状态）、§3（段落图）、§5（测试策略）与 §5 末尾的「当前规模」。
@@ -41,6 +41,7 @@
 | **M9** | **互动化改造**：信息类检定一律玩家发起（`sites[].auto` 标注战斗位点）· 酒馆 9 桌打听 + 请一轮酒 · 女巫小屋 7 问 · `<<snapshot>>`/`<<lastcheck>>` 骰面复显 · `Choices.sites` 臂数更新 · **互动门** | 七门 + 2 条新路线 | ✅ 本 PR |
 | **M11** | **A 组·假代价清零**：`Game.Gear` 行囊表（伤害 / 优势，不进 `Items.defs`）· 秘典药膏 → `salves` · `Game.Star.budget = 4` 软限（超限 → 真结局降级「再度沉睡」+ `$pc.ev.star_short` 变体）· `seer_refused` 删 / `old_witch` 接进 `归位` · 侧栏药膏与行囊 · **行囊门 + 经济门（--gear）** | 九门 + 28 路线 + 规则单测 | ✅ 本 PR |
 | **M10** | **判定可见 + 反 S/L**：`Rules.check/save` 返回 `label`（属性标注）/ `parts`（加值拆项）/ `rolls`（双骰）/ `advWhy`；渲染成一行完整算式 + `↳` 优势行；`SgUI` 开关（设定集页脚）；`Checks.keyYields` + `sites[].yields` + **反 S/L 门**；`<<lastcheckFor>>` 防旧骰面串页；8 个关键产出补第二路（含 3 处"失败仍到手"） | 八门 + 27 路线 + 规则单测 | ✅ 本 PR |
+| **M16（回指口径）** | **主角只记得他真经历过的事**：`开场` 的传闻改成「一路听来的版本」（**不再提酒馆**——那是车卡之后才第一次进门的地方）· 洞穴「想起老板娘那句话」挂 `$pc.ev.tav_tips`、女巫小屋「在酒馆那幅旧画上见过」挂 `$pc.ev.tav_painting`（没听过/没看过走另一句）· 序章那句与车卡矛盾的"没带多余的东西"删掉 · **L0 加两条机检**：`PRELUDE_BANS`（`开场` 不许出现后文才到的地方）+ `CALLBACKS`（登记在册的回指句必须落在 `<<if $pc.ev.<flag>>>` 里） | 静态门 + 全量回归 · 29 路线 | ✅ 本 PR |
 | **M15（C1）** | **结局页收尾入口**：`<<ending>>` 追加 `.ending-foot` 卡片（**退回上一步** `Engine.backward()` / **读档** `sgLoadSlot` / **从头再来** `sgRestartRun`），`StoryScript` 的 `:passagerender` 把卡片挪到段落末尾 · `SgEnding.foot()` 一处渲染（新增结局自动有退路）· **修 `L` 读档不重画**（`slot.load()` 只还原状态，须 `.then(Engine.show)`）· 测试侧把可点选择器收进 `test/boot.mjs`（`CLICKABLE` / `CLICKABLE_SEL` / `LINKS`）+ `settle()` 追加 **DOM 跟 State 同步**、点击前只认"当前段落"的链接 | 全量回归 · 29 路线 | ✅ 本 PR |
 | **M14（v17 补正 #5）** | **温室撤除 + 月光花改口径**（操作者拍板）：删 `温室` 段落（**段落 67 → 66**）、楼层重排（`书房` → `工坊`（同层拐角）→ `天文台`）· 花改为**自己长在塔周围、沐浴星光**（`塔外花田` 叙述不再断言"雾越浓它越旺"）· **花与雾的关系无人知晓** → 酒馆新增一条 NPC 转述的**学者猜测**（`跑生意的`）· 修 P1 内部冲突（林间小径过去不该已经有花）· 图鉴提示与 `Echoes.anchors` 同步 · canon 门加两行 + 传说覆盖门加一条 | canon 门 + 全量回归 · 28 路线 · 覆盖 76/80 | ✅ 本 PR |
 | **M13（B2）** | **交涉**：`Game.Social`（`ATT/attAdj` 态度轴 · `approaches` 七种手段 · `asks` 8 件诉求 × `sites`/`levers`/`willing`/`unwilling`/`apply` · `attitude/shift/tries/dcOf/open/levers/leverOpen/roll/verdict/settle`）· 宏 `<<socresolve>>`/`<<socpanel>>` + `StoryScript` 的 `a.soc-opt` 委托点击（**选项不能用 `<<link>>`**：其内容点击时才解析，`<<for>>` 临时变量已被下一个面板覆盖）· 段落 `酒馆`/`守林人`/`观星者`/`当时的女巫`/`洞穴`/`老巫女` 改挂面板 · `$pc.soc = {att,tries,read}` · **交涉门（`--social`）** · 新增存档 fixture `s5-social.json`（`Pc.defaults` 26 键） | 十一门 + 28 路线 + 规则单测 | ✅ 本 PR |
@@ -183,7 +184,7 @@ src/
 | `test/boot.mjs` | jsdom 启动 + 就绪轮询 + uncaught 监听 + **`settle()`（等 `Engine.isIdle()`——上一翻没画完就点，SugarCube 会丢掉这次点击）** + **统一退出清理**（非零视口让 SugarCube 的视口就绪轮询收尾、`await Engine.start()` 才真正等到启动完成 → `beforeExit`/`exit`/信号统一 `close()` 全部窗口；**游走器与分支场景测试都走这里**，不再自己装配 JSDOM；可点选择器也在这里定义——`CLICKABLE`/`CLICKABLE_SEL`/`LINKS`，新增一种控件只改一处） | 保留 |
 | `test/render-all.mjs` | 全段落渲染（含 `$era` 双变体） | 保留（**76 格 / 66 内容段**） |
 | `test/walker.mjs` | 随机游走 + 不变量 + **位点双支清扫** | 重写（`inv` 闭集 / `star.spent` / `keeper.state`（**含 `seal`**）/ `dragon.hp`） |
-| `test/integrity.mjs` | 段落图结构/死链/孤儿/宏拼写/词汇纪律 | 重写（`ERA_FILES` 由 `<<flip>>` 动态发现） |
+| `test/integrity.mjs` | 段落图结构/死链/孤儿/宏拼写/词汇纪律 + **序章白名单**（`开场` 不许提前提后文的地方）+ **回指门**（"你想起某人说过的话"必须真听过） | 重写（`ERA_FILES` 由 `<<flip>>` 动态发现） |
 | `test/rules.mjs` | d20 内核 + 车卡 3 轮 + `Pc.migrate` 矩阵 + 表契约（10 组） | 重写 |
 | `test/properties.mjs` | 属性测试（判定边界全枚举 / 支配律 / 伤害界限 / 战斗伤害单调律 / 车卡形状律） | 重写 |
 | `test/scenarios.mjs` | **29 条路线**（金路径 + 全部结局 + 设定集 + 龙巢边 + 时代分叉 + 封印战 + 反 S/L + 星力软限 + 结局页收尾） | 重写 |

@@ -50,7 +50,13 @@ await click('出发，前往歪脖子鸭酒馆');
 p = w.document.querySelector('#passages .passage');
 assert(p.textContent.includes('歪脖子鸭'), '进入酒馆');
 assert(p.textContent.includes('10 枚金币'), '金币插值');
-assert(!!w.document.querySelector('#passages .check-result'), '酒馆打听检定结果框渲染');
+// M9：打听是动作——检定不再自动发生，先问，才掷骰
+assert(!w.document.querySelector('#passages .check-result'), 'M9：进酒馆不再自动掷打听检定');
+assert(links().some((a) => a.textContent.includes('问老板娘：进塔该注意什么')), '打听入口是玩家的动作（问老板娘）');
+assert(links().length >= 12, `酒馆打听 hub 臂数 ≥12（实际 ${links().length}）`);
+await click('靠窗那桌——他们在讲塔上那盏灯');   // 问一桌
+assert(w.SugarCube.State.variables.pc.ev.tav_light === true, '问过的那桌记账（tav_light）');
+assert(w.document.querySelector('#passages').textContent.includes('三百年了，那灯没灭过'), '问出来的话渲染在记录区');
 assert(links().some((a) => a.textContent.includes('金币：买一支火把')), '火把购买链接存在（表驱动价）');
 assert(links().some((a) => a.textContent.includes('听老猎人讲实话')), '付费传闻链接存在（表驱动价）');
 
@@ -58,10 +64,13 @@ await click('推门出发，走进暮色');
 
 // ── 森林边缘：检定结果框 ──
 assert(w.SugarCube.State.passage === '森林边缘', '到达森林边缘');
+assert(!w.document.querySelector('#passages .check-result'), 'M9：森林边缘不再自动掷察觉');
+await click('在雾里站住，听一听');            // 玩家的动作
 const checkBox = w.document.querySelector('#passages .check-result');
-assert(!!checkBox, '森林察觉检定结果框渲染');
+assert(!!checkBox, '玩家发起后：森林察觉检定结果框渲染');
 const lc = w.SugarCube.State.variables.last_check;
 assert(lc && lc.roll === 11 && lc.label === '察觉检定', '<<sitecheck>> 经 <<check>> 产出 $last_check');
+assert(w.SugarCube.State.variables.pc.ev.forest_heard === true, '听雾结果落旗标（forest_heard）');
 const styleStory = w.document.querySelector('#style-story')?.textContent ?? '';
 assert(styleStory.includes('LXGW WenKai') && styleStory.includes('@font-face'), '霞鹜文楷子集已内嵌（@font-face）');
 

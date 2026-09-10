@@ -11,7 +11,7 @@
 npm install
 npm run build   # 编译 → dist/index.html（单文件，浏览器直接打开即玩）
 npm run serve   # 本地预览：http://localhost:8000
-npm test        # 构建后全链（~2min）：L0 静态门（含表一致性）→ 六道质量门（真相/canon/回声/选择/系统/文本）→ 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(20 路线并行) → 覆盖门
+npm test        # 构建后全链（~2min）：L0 静态门（含表一致性）→ 七道质量门（真相/canon/回声/选择/互动/系统/文本）→ 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(26 路线并行) → 覆盖门
 npm run soak    # 游走器加量长测（20+20 局，~1.5min）：CI 独立 job（M1c 接回）；发布前 / 状态机重改动时也可本地跑
 npm run audit   # 表驱动审计（#28/#34）：--truth/--canon/--choices/--systems/--echoes/--text 六道质量门 + --dragon 彩蛋率门 + 数值三件套
                  # （--check 模式已进 npm test：真相通路/设定回流/选择臂数/机制发现性/世界回声/文本载荷）
@@ -51,7 +51,7 @@ test/walker.mjs    L2 对抗席游走器：种子化随机游走（一章+塔）
 test/coverage.mjs  L3 覆盖率 ratchet（五门）：基线不回退 / 新段落必配测 / 无交互盲区 / 时代双态 / 交互≥渲染
                    ——基线更新：npm run update-coverage-baseline
 test/smoke.mjs    无头冒烟测试（快速车卡 → 酒馆 → 森林 → 洞穴 + 侧栏/存档/物品栏）
-test/scenarios.mjs 分支场景测试（24 条路线：金路径 + 全部结局 + 设定集 + 龙巢边 + 时代分叉 + 封印战）
+test/scenarios.mjs 分支场景测试（26 条路线：金路径 + 全部结局 + 设定集 + 龙巢边 + 时代分叉 + 封印战）
 test/rules.mjs    规则层单测 + 表契约（10 组）+ 存档兼容矩阵（test/fixtures/saves/ 每版历史形状一档；改 Pc.defaults 必须同 PR 加 fixture）
 test/properties.mjs L5 数值属性：判定边界全枚举/优势支配律/伤害界限/战斗伤害单调律/车卡形状律
 scripts/audit.mjs   质量六门（主伞 #34）：真相可达性/**canon 门**（设定书 §10 黑名单回流 + §9 双读断言扫描）/选择意义感/

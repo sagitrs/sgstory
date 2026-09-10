@@ -44,6 +44,10 @@
 
 花不密，就一小片，贴着石头长。你蹲下来才看清：花瓣上凝着水，水是凉的。
 
+<<if $era is "past">>
+	三百年前这片花还没长出来——墙根只有湿土和新砌的石头。
+<</if>>
+
 <<if $pc.inv["月光花"]>>
 	（这一小片你已经摘过一朵了。剩下的，你不打算再碰。）
 <<else>>
@@ -51,20 +55,27 @@
 		角落里有个小小的身影冲你摆手："''你放走了我们家的''那个。这朵花是''睡花''——闻久了就起不来。你要摘，先憋住气。"
 		<<set $pc.world.flower_warned to true>>
 	<</if>>
-	<<if $pc.world.flower_warned>>
-		你含住气，把最靠里的那一朵连根带土捧起来。
-		<<give "月光花">>
-	<<else>>
-		你伸手去够最靠里的那一朵——花香先到了。不是香，是''沉''：像有人把一床湿被子从你头顶按下来。
+	<div id="fanlin-act">
+	<<link "伸手去摘最靠里的那一朵">>
+		<<replace "#fanlin-act">>
+			<<if $pc.world.flower_warned>>
+				（''你憋住气''，把最靠里的那一朵连根带土捧起来。）<<give "月光花">>
+			<<else>>
+				你伸手去够最靠里的那一朵——花香先到了。不是香，是''沉''：像有人把一床湿被子从你头顶按下来。
 
-		<<sitecheck "塔外花田">>
-		<<if $last_check.success>>
-			你不知怎么撑住了那一口气，指尖碰到花茎，把它连根带土捧起来。
-			<<give "月光花">>
-		<<else>>
-			你倒在花丛里。<<set $pc.world.flower_sleep to true>><<goto "结局 死亡">>
-		<</if>>
+				<<sitecheck "塔外花田">><<snapshot>><<lastcheck>>
+				<<if $last_check.success>>
+					你撑住了，把那一朵连根带土捧起来。<<give "月光花">>
+				<<else>>
+					<<set $pc.world.flower_sleep to true>><<goto "结局 死亡">>
+				<</if>>
+			<</if>>
+		<</replace>>
+	<</link>>
+	<<if not $pc.world.flower_warned>>
+		<<link "先别动它，退回塔门">><<goto "塔门">><</link>>
 	<</if>>
+	</div>
 <</if>>
 
 [[回塔门|塔门]]
@@ -110,13 +121,13 @@
 
 :: 雾之魔物·战
 /% payload: 张力 %/
-<<sitecheck "雾之魔物·挥击">>
+<<sitecheck "雾之魔物·挥击">><<snapshot>>
 <<if $last_check.success>>
 	你擦着它的边缘过去。它散了，又在三步外聚起来——没有追。
 <<else>>
 	<<damage 5>>它把你掀翻在地，又停住了。像在等你先动手。
 <</if>>
-<<sitecheck "雾之魔物·心防">>
+<<sitecheck "雾之魔物·心防">><<snapshot>>
 <<if $last_check.success>>
 	你忽然明白：它不是在守路，它是在守一个人。
 	<<set $pc.ev.mist_guard to true>>
@@ -166,7 +177,7 @@
 
 <<if _t is 0>>
 	"空着手来的。"他点点头，不意外，"那就听我一句：''别自己往下走''。这塔老了，楼板是空的。"
-	你没提"封印"这两个字。他也没提。"
+	你没提"封印"这两个字。他也没提。
 <<elseif _t is 1>>
 	你翻开日记。他看了很久，手指按在纸上没有动。
 	"这字迹……是我家先人那一辈的。"他抬起头，"它有名字，有家。''替我告诉它''——这句话，我们家传了三百年。"
@@ -177,21 +188,41 @@
 
 <<if _t > 0>>他看你的眼神比刚才松。<</if>>''"你要是真知道该怎么送它走，就说。我听着。"''
 <<set $pc.keeper.key to true>>
-<<sitecheck "守林人·交涉">>
-<<if $last_check.success>>他听你说话的时候，把灯拨亮了些。<</if>>
 他从腰上解下钥匙，放在桌上："地下那道门，只有这把钥匙开。"
 
 钥匙不新，齿口磨得圆了——被摸过很多次。
 
-"塔基墙根那片银白的花，"他补了一句，"味道闻久了会睡。要摘，先把气含住——我小时候在那儿睡过一下午，醒来天都黑了。"
-
-<<set $pc.world.flower_warned to true>>
 <<give "守林人的钥匙">>
+
+<<if not $pc.world.flower_warned>>
+	<<if _t > 0>>
+		"还有，"他叫住你，"塔基墙根那片银白的花——味道闻久了会睡。要摘，先把气含住。我小时候在那儿睡过一下午，醒来天都黑了。"
+		<<set $pc.world.flower_warned to true>>
+	<<else>>
+		<<link "问他：塔基墙根那片银白的花是什么">>
+			<<sitecheck "守林人·交涉">><<snapshot>>
+			<<if $last_check.success>>
+				<<set $pc.world.flower_warned to true>><<set $pc.ev.keeper_told to true>>
+			<<else>>
+				<<set $pc.ev.keeper_refused to true>>
+			<</if>>
+			<<goto "守林人">>
+		<</link>>
+		<<link "先不问花的事">><</link>>
+	<</if>>
+<</if>>
+<<if $pc.world.flower_warned and $pc.ev.keeper_told>>
+	<<lastcheck>>
+	"塔基墙根那片银白的花——味道闻久了会睡。要摘，先把气含住。"
+<</if>>
+<<if $pc.ev.keeper_refused and not $pc.world.flower_warned>>
+	<<lastcheck>>
+	"那片花？"他看了你一眼，把灯芯剪短了一截，"''你别去碰它''。"他不再说别的。（''他不认你这一句——你要是想让他说清楚，得让他看出你是干什么来的。''）
+<</if>>
 
 <<link "问他：为什么不自己去送">><<goto "守林人·送">><</link>>
 <<link "问他：你守的到底是什么">><<goto "守林人·守">><</link>>
 <<link "说一句：它不会变成恶龙">><<goto "守林人·信">><</link>>
-''"你要是真知道该怎么送它走，就说。我听着。"''
 [[收下钥匙，去看那道门|门厅]]
 [[逼他动手：你自己去杀|结局 守林人击杀]]
 [[那就用他家的封印术|守林人·封印]]
@@ -274,13 +305,19 @@
 <</if>>
 
 <<if not $pc.inv["坏哨"]>>
-	<<sitecheck "门厅·翻检">>
-	<<if $last_check.success>>
-		你把哨子摘下来，放进''物品栏''。
-		<<give "坏哨">>
-	<<else>>
-		哨子卡在钉子上，你拨了半天才弄下来。<<give "坏哨">>
-	<</if>>
+	<div id="hall-whistle">
+	<<link "把墙上那支哨子摘下来">>
+		<<replace "#hall-whistle">>
+			<<sitecheck "门厅·翻检">><<snapshot>><<lastcheck>>
+			<<if $last_check.success>>
+				你把哨子从钉子上提起来，放进''物品栏''。<<give "坏哨">>
+			<<else>>
+				哨子卡在钉子上。你拨了半天，指头刮破了一道口子——到底还是弄下来了。
+				<<damage 1>><<give "坏哨">>
+			<</if>>
+		<</replace>>
+	<</link>>
+	</div>
 <<else>>
 	（这里你''翻找过这里''，没有别的了。）
 <</if>>
@@ -315,34 +352,66 @@
 
 <<if $era is "present">>
 	<<if not $pc.inv["日记"]>>
-		<<sitecheck "书房·检视">>
-		<<if $last_check.success>>
-			暗格里有一本硬皮日记。翻到最后一页，一行字被描过两遍：
-			//"''雾就是它漏出来的力气''——缺的从来不是咒。"//
-			<<give "日记">><<set $pc.ev.failure_cause to true>>
+		<<link "伸手去摸烤炉后头的暗格">>
+			<<if $pc.world.witch_hint>>
+				暗格的位置分毫不差——你一下就摸到了。里面是一本硬皮日记，翻到最后一页，一行字被描过两遍：
+				//"''雾就是它漏出来的力气''——缺的从来不是咒。"//
+				<<give "日记">><<set $pc.ev.failure_cause to true>>
 
-			封底里还夹着一卷纸，纸角磨得发毛——''后半本是她算清了的完整术式''。
-			<<give "传送术卷轴">>
-		<<else>>
-			你只摸到一手灰。
-		<</if>>
+				封底里还夹着一卷纸，纸角磨得发毛——''后半本是她算清了的完整术式''。
+				<<give "传送术卷轴">>
+			<<else>>
+				<<sitecheck "书房·检视">><<snapshot>>
+				<<if $last_check.success>>
+					<<set $pc.ev.diary_ok to true>>
+					暗格里有一本硬皮日记。翻到最后一页，一行字被描过两遍：
+					//"''雾就是它漏出来的力气''——缺的从来不是咒。"//
+					<<give "日记">><<set $pc.ev.failure_cause to true>>
+
+					封底里还夹着一卷纸，纸角磨得发毛——''后半本是她算清了的完整术式''。
+					<<give "传送术卷轴">>
+				<<else>>
+					<<set $pc.ev.diary_no to true>>
+					你只摸到一手灰，手指头在炉壁上磕了一下。<<damage 1>>
+					（''暗格也许不在这一侧——你要是问过女巫，就不用这么摸。''）
+				<</if>>
+			<</if>>
+			<<goto "书房">>
+		<</link>>
 	<<else>>
+		<<if $pc.ev.diary_ok>><<lastcheck>><</if>>
 		（这里你''已搜过''。）
 	<</if>>
 
 	<<if $pc.inv["日记"] and not $pc.ev.observation_lock>>
+		<<link "把日记往下读">>
+			<<set $pc.ev.observation_lock to true>>
+			<<goto "书房">>
+		<</link>>
+	<</if>>
+	<<if $pc.ev.observation_lock>>
 		你继续往下读：她写过一句更小的话——//"没人看过它睡得怎么样。"//
-		<<set $pc.ev.observation_lock to true>>
 		[[照她抄在页边的封印术念一遍|结局 劣化封印]]
 	<</if>>
 <</if>>
 
 <<flip>>
 
-<<sitecheck "书房·追问">>
-<<if $last_check.success>>
-	你指出架上一册错抄的星象历。角落里抄书的人抬起头，塞给你几枚金币。
-	<<econ "study_errand">>
+<<if not $pc.ev.errand_done>>
+	<<link "指出架上一册错抄的星象历">>
+		<<sitecheck "书房·追问">><<snapshot>>
+		<<if $last_check.success>>
+			角落里抄书的人抬起头，塞给你几枚金币。<<econ "study_errand">>
+			<<set $pc.ev.errand_done to true>>
+		<<else>>
+			你说错了一处。他摇摇头，接着抄自己的。
+			<<set $pc.ev.errand_done to true>>
+		<</if>>
+		<<goto "书房">>
+	<</link>>
+<<else>>
+	<<lastcheck>>
+	（这架书你翻过了。）
 <</if>>
 
 [[上三楼|温室]]
@@ -381,8 +450,22 @@
 
 架上摆着一副锻到一半的''护臂''——照"守林人的臂"量的尺寸。
 
-<<sitecheck "工坊·识货">>
-<<if $last_check.success>>你看得出来：这甲是照着一个人的手臂打的，那人还没来取。<</if>>
+<<if not $pc.ev.forge_seen>>
+	<<link "拿起那副护臂，比一比尺寸">>
+		<<sitecheck "工坊·识货">><<snapshot>>
+		<<if $last_check.success>>
+			你看得出来：这甲是照着一个人的手臂打的，那人还没来取。
+			<<set $pc.ev.forge_seen to true>>
+		<<else>>
+			铁片子冻手，你只看出一层锈。<<damage 1>>
+			<<set $pc.ev.forge_seen to true>>
+		<</if>>
+		<<goto "工坊">>
+	<</link>>
+<<else>>
+	<<lastcheck>>
+	（这甲是照一个人的手臂打的，那人还没来取。）
+<</if>>
 
 <<if not $pc.inv["龙鳞护臂"]>>
 	<<link `"花 " + (-Game.Economy.priceOf("forged_scale", $pc)) + " 金币：把它打完，自己带上"`>>
@@ -395,7 +478,6 @@
 [[上四楼|天文台]]
 
 :: 天文台
-/% vocab: exempt W1 卖镜片 UI（经济词汇宏 + 删除物品），无叙事状态变更 %/
 /% payload: 信息|选择 %/
 四楼是天文台。穹顶缓缓转着，一幅星图投在内壁——只是''现在''的这幅，少了一角。
 
@@ -410,10 +492,24 @@
 <</if>>
 
 <<if $era is "present">>
-	<<sitecheck "天文台·典籍">>
-	<<if $last_check.success>>
+	<<if not $pc.ev.star_ledger>>
+		<<link "顺着注记读一读缺口边上那半幅星轨">>
+			<<sitecheck "天文台·典籍">><<snapshot>>
+			<<if $last_check.success>>
+				<<set $pc.ev.star_ledger to true>>
+			<<else>>
+				<<set $pc.ev.ledger_fail to true>>
+			<</if>>
+			<<goto "天文台">>
+		<</link>>
+	<</if>>
+	<<if $pc.ev.star_ledger>>
+		<<lastcheck>>
 		你顺着注记读懂了半幅星轨——''这笔账没人算过''：谁也没给"它睡了多久、攒了多少"记过一笔。
-		<<set $pc.ev.star_ledger to true>>
+	<</if>>
+	<<if $pc.ev.ledger_fail and not $pc.ev.star_ledger>>
+		<<lastcheck>>
+		字太小，光又斜。你看出那是记账的写法，却读不出记的是谁。（''再看一次也行——这地方的时间跟外面不太一样。''）
 	<</if>>
 <<else>>
 	''三百年前''的穹顶是完整的。银线如织，每颗星旁都注着名字。

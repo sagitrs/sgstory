@@ -9,9 +9,9 @@ window.Game = (() => {
 		sites: {
 			'酒馆·打听':   { skill: '游说', dc: 10 },
 			'森林·察觉':   { skill: '察觉', dc: 10 },
-			'洞穴·战斗':   { skill: '运动', dc: 12 },
-			'雾之魔物·挥击': { skill: '运动', dc: 12 },
-			'雾之魔物·心防': { abil: 'con', dc: 13 },
+			'洞穴·战斗':   { skill: '运动', dc: 12, auto: '战斗（玩家已选择动手）' },
+			'雾之魔物·挥击': { skill: '运动', dc: 12, auto: '战斗（玩家已选择动手）' },
+			'雾之魔物·心防': { abil: 'con', dc: 13, auto: '战斗（玩家已选择动手）' },
 			'守林人·交涉': { skill: '游说', dc: 12 },
 			'门厅·翻检':   { skill: '调查', dc: 10 },
 			'书房·追问':   { skill: '历史', dc: 10 },
@@ -22,11 +22,11 @@ window.Game = (() => {
 			'天文台·典籍': { skill: '奥秘', dc: 12 },
 			'观星者·说服': { skill: '历史', dc: 13 },
 			'当时的女巫·辨认': { skill: '洞悉', dc: 12 },
-			'寻杖':         { skill: '调查', dc: 13 },
-			'龙·吐息':     { abil: 'con', dc: 14 },
-			'龙·斩击':     { skill: '运动', dc: 10 },
+			'寻杖':         { skill: '调查', dc: 13, auto: '进入该段落＝玩家已经动手翻找（「在塔里找那根杖」）' },
+			'龙·吐息':     { abil: 'con', dc: 14, auto: '战斗（玩家已选择动手）' },
+			'龙·斩击':     { skill: '运动', dc: 10, auto: '战斗（玩家已选择动手）' },
 			// 彩蛋击杀（M5b）：需天然 20 且劣势 → 1/400 ≈ 0.25%，几乎不可达
-			'龙·终击':     { skill: '运动', dc: 20, nat: 20, dis: true },
+			'龙·终击':     { skill: '运动', dc: 20, nat: 20, dis: true, auto: '战斗（玩家已选择动手）' },
 		},
 		// ── 情报优势（M6d）：付费/交涉得来的知识 → 位点自动双骰取高 ──
 		// key = 位点，value = $pc.world 上的旗标名
@@ -41,6 +41,7 @@ window.Game = (() => {
 		events: {
 			torch_buy:    { delta: -10, chapter: 1, note: '酒馆·买火把' },
 			rumor_buy:    { delta: -5, chapter: 1, note: '酒馆·买传闻' },
+			drink_round:  { delta: -3, chapter: 1, note: '酒馆·请一轮酒' },
 			salve_buy:    { delta: -8, gives: { salves: 1 }, skillDiscount: { skill: '医药', to: -5 }, chapter: 1, note: '女巫·药膏（库存 +1）' },
 			witch_hint:   { delta: -8, featDiscount: { flag: 'lore', to: -5 }, chapter: 1, note: '女巫·塔里的门道（学识烙印半价）' },
 			goblin_bribe: { delta: -5, skillDiscount: { skill: '恐吓', to: -3 }, chapter: 1, note: '洞穴·买路' },
@@ -298,9 +299,16 @@ window.Game = (() => {
 	// ── 选择意义感（D2）：选择位点 × 臂数 ────────────────────
 	const Choices = {
 		sites: [
-			{ id: '酒馆·去处', p: '酒馆', arms: 3, kind: 'route', landing: 'route' },
+			{ id: '酒馆·打听', p: '酒馆', arms: 14, kind: 'social', landing: 'route' },
+			{ id: '女巫小屋·提问', p: '女巫小屋', arms: 11, kind: 'social', landing: 'route' },
+			{ id: '森林边缘·听雾', p: '森林边缘', arms: 3, kind: 'route', landing: 'route' },
 			{ id: '洞穴·处置', p: '洞穴', arms: 3, kind: 'moral', landing: 'route' },
-			{ id: '守林人·交涉', p: '守林人', arms: 3, kind: 'social', landing: 'route' },
+			{ id: '门厅·搜检', p: '门厅', arms: 5, kind: 'route', landing: 'route' },
+			{ id: '书房·搜查', p: '书房', arms: 5, kind: 'route', landing: 'route' },
+			{ id: '工坊·打量', p: '工坊', arms: 3, kind: 'route', landing: 'route' },
+			{ id: '天文台·读轨', p: '天文台', arms: 3, kind: 'route', landing: 'route' },
+			{ id: '花田·采摘', p: '塔外花田', arms: 3, kind: 'moral', landing: 'ending' },
+			{ id: '守林人·交涉', p: '守林人', arms: 8, kind: 'social', landing: 'route' },
 			{ id: '顶楼·抉择', p: '顶楼', arms: 3, kind: 'pivot', landing: 'route' },
 			{ id: '宴会·过去', p: '宴会·过去', arms: 4, kind: 'route', landing: 'route' },
 			{ id: '终局·打法', p: '地下宴会厅', arms: 4, kind: 'ending', landing: 'ending' },

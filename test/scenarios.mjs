@@ -506,6 +506,13 @@ async function routeCodex() {
 	}
 	await c('回设定集');
 	await c('术语');
+	// v17 补正 #7：雾＝星力的谜底只在设定集·术语，且要走到过终局（SgCodex.finals）才揭开
+	if (passageText(w).includes('漏出来的力气')) throw new Error('没走到终局就把雾的谜底揭开了');
+	w.SgCodex.recordEnding('送星归位', 'final');
+	if (!w.SgCodex.seenFinal()) throw new Error('终局没记进 SgCodex.finals');
+	await c('回设定集');
+	await c('术语');
+	if (!passageText(w).includes('漏出来的力气')) throw new Error('走到终局后，设定集·术语没有揭开谜底');
 	await c('回设定集');
 	await c('结局');
 	if (passageOf(w) !== '设定集·结局') throw new Error(`未达设定集·结局（${passageOf(w)}）`);
@@ -873,7 +880,7 @@ async function routeNoSaveScum() {
 	if (pcOf(w).ev.forge_seen !== true) throw new Error('察觉路没换来护臂来历');
 	await c('上三楼');
 	await c('盯住缺口里那几粒没连上的点');        // 察觉 → 必成（本条路线故意不拿那册书）
-	if (pcOf(w).ev.star_ledger !== true) throw new Error('察觉路没换来那笔账');
+	if (pcOf(w).ev.star_ledger !== true) throw new Error('察觉路没换来天文台的那半幅星轨');
 	await c('上顶楼');
 	await c('下楼，打开地下那道门');
 	await c('翻转护身符：坠入');                  // 先翻到过去（位置决定年代）
@@ -946,17 +953,17 @@ async function routeTextContext() {
 	check(!passageText(w).includes('路费'), '现在的宴会厅在未读日记时提前解释路费');
 	await c('安静地退出去');
 	await c('先上二楼看看');
-	check(!passageText(w).includes('雾就是它漏出来的力气'), '取出日记前提前显示内文');
+	check(!passageText(w).includes('缺的从来不是咒'), '取出日记前提前显示内文');
 	await c('伸手去摸烤炉后头的暗格');
 	await c('把暗格里的东西取出来');
 	check(pcOf(w).inv['日记'] && pcOf(w).inv['传送术卷轴'], '日记和卷轴未按既有规则取得');
-	check(passageText(w).includes('雾就是它漏出来的力气'), '日记取出后关键内文被同页重绘吃掉');
-	check(w.document.activeElement?.textContent.includes('雾就是它漏出来的力气'), '取出后焦点没有跟随日记线索');
+	check(passageText(w).includes('缺的从来不是咒'), '日记取出后关键内文被同页重绘吃掉');
+	check(w.document.activeElement?.textContent.includes('缺的从来不是咒'), '取出后焦点没有跟随日记线索');
 	await c('到拐角的小工坊看看');
 	await c('上三楼');
 	await c('上顶楼');
 	await c('下楼，打开地下那道门');
-	check(passageText(w).includes('路费'), '读过日记后缺少对雾的理解');
+	check(!passageText(w).includes('路费'), '读过日记也不许点破雾的来历（v17 补正 #7：谜底只在设定集）');
 	if (problems.length) throw new Error(problems.join('；'));
 	return { w };
 }

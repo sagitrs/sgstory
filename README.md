@@ -1,4 +1,4 @@
-# 送它回家 · Twine + SugarCube 脚手架
+# 迷雾森林 · Twine + SugarCube 脚手架
 
 基于浏览器的文字冒险游戏模板：**Twee 纯文本源码 → 编译成单个 HTML 文件**。
 剧情用 git 管理，构建走 CLI，也可随时导入 Twine 2 可视化编辑器双向编辑。

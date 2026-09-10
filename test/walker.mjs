@@ -98,7 +98,7 @@ async function walk(index, mode, stubMode, seed, maxSteps) {
 		}
 		if (!w.SugarCube.State.variables.pc?.abilities) throw new Error('车卡后角色不完整');
 		if (mode === 'tower') {
-			w.eval('(function(){const v=SugarCube.State.variables;v.pc.inv["时光护符"]=true;v.pc.inv["请柬"]=true;})()');
+			w.eval('(function(){const v=SugarCube.State.variables;v.pc.inv["时光护符"]=true;})()');
 			w.SugarCube.Engine.play('塔门'); await sleep(200);
 			trace.push('[inject→塔门]');
 		}

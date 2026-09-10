@@ -289,7 +289,7 @@
 
 <<flip>>
 
-<<if $pc.keeper.key>>
+<<if $pc.keeper.key or $pc.inv["守林人的钥匙"]>>
 	[[用钥匙打开铁门|地下宴会厅]]
 	[[先上二楼看看|书房]]
 <<else>>
@@ -410,12 +410,6 @@
 <</if>>
 
 <<if $era is "present">>
-	<<if not $pc.inv["碎镜片"]>>
-		<<link "从碎掉的望远镜里挑几块镜片">><<give "碎镜片">><<goto "天文台">><</link>>
-	<</if>>
-	<<if $pc.inv["碎镜片"]>>
-		<<link "把镜片卖给塔下的货郎（永失一份证物）">><<econ "lens_sell">><<run delete $pc.inv["碎镜片"]>><<goto "天文台">><</link>>
-	<</if>>
 	<<sitecheck "天文台·典籍">>
 	<<if $last_check.success>>
 		你顺着注记读懂了半幅星轨——''这笔账没人算过''：谁也没给"它睡了多久、攒了多少"记过一笔。
@@ -446,7 +440,7 @@
 
 风从窗缝里进来，把灯焰压得很低。
 
-<<if $pc.keeper.key>>
+<<if $pc.keeper.key or $pc.inv["守林人的钥匙"]>>
 	[[下楼，打开地下那道门|地下宴会厅]]
 [[把卷轴和星图交给他|交付]]
 <<else>>

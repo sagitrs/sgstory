@@ -422,7 +422,8 @@ const CANON_ROWS = [
 	{ src: '充能三次', terms: ['充能', 'amulet_charges'], why: '改隐藏计数（§3.5）' },
 	{ src: '魔力 / 星力混用', terms: ['魔力'], why: '术语统一为「星力」' },
 	{ src: '占星师', terms: ['占星师'], why: '术语统一为「观星者」' },
-	{ src: '卖星铁', terms: ['卖星铁'], why: '改碎镜片三用；星铁之杖是合法器物' },
+	{ src: '卖星铁', terms: ['卖星铁'], why: '星铁不可卖；v16 的"碎镜片三用"一并作废（v17 补正 #4）' },
+	{ src: '请柬 / 星名页 / 碎镜片', terms: ['请柬', '星名页', '碎镜片'], why: '三件闲物已删（假代价 / 零消费，v17 补正 #4）' },
 	{ src: '乡愁雾', terms: ['乡愁雾', '悔雾', '梦雾', '双层雾'], why: '单层雾＝龙漏出的星力' },
 	{ src: '共鸣锚免费无限切换', terms: ['共鸣锚'], why: '与隐藏星力冲突' },
 	{ src: '龙威递增', terms: ['龙威', 'lair', '双态地形'], why: '归为游戏机制稿，不入设定书' },
@@ -564,6 +565,27 @@ if (wantAll || arg('canon')) {
 			if (!prose.some((p2) => p2.text.includes(a))) { legHit++; bad++; console.log(`  ✗ 传说未投放（${e.says}）：「${a}」——§3.9 登记了却没人说`); }
 		}
 	}
+	// ⑥ 道具消费门（v17 补正 #4）：每件道具至少一处真消费；写了"永失/代价"的必须有下游
+	const itemNames = Object.keys(Game.Items.defs ?? {});
+	const econNotes = Object.entries(Game.Economy.events ?? {}).map(([k, e]) => `${k}${e.note ?? ''}`);
+	const metaAnchors = JSON.stringify([Game.Truth?.claims ?? {}, Game.Echoes?.list ?? {}, Game.Choices?.sites ?? {}]);
+	const giveOnly = (name) => new RegExp(`<<give ["']${name}["']>>`);
+	let itemHit = 0;
+	for (const name of itemNames) {
+		const use = [];
+		if (Game.Items.effects?.[name]) use.push('位点效果');
+		if (econNotes.some((n) => n.includes(name))) use.push('经济事件');
+		const holdLines = prose.flatMap((p2) => p2.text.split('\n'))
+			.filter((l) => l.includes(`$pc.inv["${name}"]`) && !giveOnly(name).test(l));
+		if (holdLines.length) use.push(`正文按持有分支×${holdLines.length}`);
+		if (metaAnchors.includes(name)) use.push('Truth/Echoes 锚');
+		if (!use.length) { itemHit++; bad++; console.log(`  ✗ 道具「${name}」零消费（拿到即止，无任何下游；v17 补正 #4 已删三件同类）`); }
+		const def = Game.Items.defs[name] ?? {};
+		if (/永失|换掉就|献出去就/.test(def.note ?? '') && !use.some((u) => u.startsWith('正文按持有') || u === '经济事件')) {
+			itemHit++; bad++; console.log(`  ✗ 道具「${name}」写了假代价（note 提"永失/换掉就"，但没有任何下游消费）`);
+		}
+	}
+	console.log(`  §5.0 道具：清单 ${itemNames.length} 件 · 零消费 ${itemHit === 0 ? 0 : itemHit}（假代价同计）`);
 	console.log(`  §3.9 传说：表 ${legendRows.length} 行 · 认领 ${LEGENDS.length} 条 · 投放锚 ${LEGENDS.reduce((n, e) => n + e.anchors.length, 0)} 个 · 命中 ${legHit}（每行须有 ② 的真/误或 ① 的登记）`);
 	console.log(`  §10 行 ${rows.length} · 认领 ${CANON_ROWS.length} 条 · 禁词 ${termCount} 个 · 命中 ${hit}`);
 	console.log(`  §9 双读：禁断言 ${DUALREAD.length} 条 · 命中 ${dualHit}（正文不点破：长生/同一个人/初代/穿越/晚年）`);

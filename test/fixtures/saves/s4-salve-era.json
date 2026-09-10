@@ -41,8 +41,7 @@
     "speciesKey": "human",
     "speciesLabel": "人类",
     "inv": {
-      "时光护符": true,
-      "请柬": true
+      "时光护符": true
     },
     "star": {
       "charge": 12,

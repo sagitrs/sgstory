@@ -114,10 +114,12 @@ async function routeTrue() {
 	await c('求他把完整星图给你');         // 观星者·图（有书 → 直接给）
 	await c('回到观星者');
 	await c('回到宴上');
-	await c('找那位从不离手一支哨子的老人'); // 老巫女
-	await c('为什么老是往回跑');           // 老巫女·跑
-	await c('回到老巫女');
-	await c('把她那支哨换过来');           // 老巫女·换 → 好哨
+	await c('找那位从不离手一支哨子的老人'); // 当时的女巫（她本人）
+	await c('把她那支哨换过来');           // → 好哨（哨是她的）
+	await c('回到当时的女巫');
+	await c('回到宴上');
+	await c('找厅角那位不肯多说的老人');   // 老巫女（晚年穿越回来的那位）
+	await c('为什么老是往回跑');           // → ev.failure_cause
 	await c('回到老巫女');
 	await c('把三百年后的办法告诉她');     // 告知与告别 → 卷轴
 	await c('回到宴上');
@@ -351,7 +353,7 @@ async function routeSleepForever() {
 	await c('上顶楼');
 	await c('下楼，打开地下那道门');
 	await c('在宴上找人说话');
-	await c('找那位从不离手一支哨子的老人');
+	await c('找厅角那位不肯多说的老人');   // 老巫女（晚年穿越的那位）
 	await c('为什么老是往回跑');
 	await c('回到老巫女');
 	await c('回到宴上');
@@ -458,11 +460,9 @@ async function routeSleepVoluntary() {
 	await c('求他把完整星图给你');   // 无书 → 说服检定（d20=20 必成）
 	await c('回到观星者');
 	await c('回到宴上');
-	await c('找那位从不离手一支哨子的老人');
-	await c('为什么老是往回跑');
-	await c('回到老巫女');
+	await c('找那位从不离手一支哨子的老人'); // 当时的女巫（她本人）
 	await c('把她那支哨换过来');
-	await c('回到老巫女');
+	await c('回到当时的女巫');
 	await c('回到宴上');
 	await c('回到地下宴会厅');
 	await c('翻转护身符：回到');

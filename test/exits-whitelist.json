@@ -1,0 +1,12 @@
+[
+	{
+		"passage": "^结局 ",
+		"reason": "结局页：最后的正文是 .ending-foot（存档提示等 UI 脚注），结局本身没有推进选项——不是「读完没路」",
+		"applyTo": "trailing"
+	},
+	{
+		"passage": "^宴会·过去$",
+		"reason": "现在时态的过场：渲染后 <<flip>> 自动翻进过去态（转场段，无推进选项是设计）",
+		"applyTo": "nolinks"
+	}
+]

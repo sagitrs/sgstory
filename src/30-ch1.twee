@@ -58,71 +58,6 @@
 	<</if>>
 <</if>>
 
-<div class="fresh-heard" hidden></div>
-<<nobr>>
-<div class="tavern-actions">
-<details class="act-group" name="tavern-acts" open>
-	<summary>找人打听<span class="act-n"></span></summary>
-	<div class="tavern-tables">
-<<if not $pc.ev.tav_light>>
-	<<link "靠窗那桌——他们在讲塔上那盏灯">><<set $pc.ev.tav_light to true>><<goto "酒馆">><</link>>
-<</if>>
-<<if not $pc.ev.tav_keeper>>
-	<<link "讲守林人的那一桌">><<set $pc.ev.tav_keeper to true>><<goto "酒馆">><</link>>
-<</if>>
-<<if not $pc.ev.tav_dragon>>
-	<<link "上了年纪的村人——他说那条龙早死了">><<set $pc.ev.tav_dragon to true>><<goto "酒馆">><</link>>
-<</if>>
-<<if not $pc.ev.tav_grudge>>
-	<<link "跑生意的——他说雾是怨念">><<set $pc.ev.tav_grudge to true>><<goto "酒馆">><</link>>
-<</if>>
-<<if not $pc.ev.tav_seal>>
-	<<link "掉了半口牙的老头——他嗤了一声">><<set $pc.ev.tav_seal to true>><<goto "酒馆">><</link>>
-<</if>>
-<<if not $pc.ev.tav_ageless>>
-	<<link "接嘴的那个人——「不老的女人」">><<set $pc.ev.tav_ageless to true>><<goto "酒馆">><</link>>
-<</if>>
-<<if not $pc.ev.tav_flower>>
-	<<link "背着画板的游客——他在问月光花">><<set $pc.ev.tav_flower to true>><<goto "酒馆">><</link>>
-<</if>>
-<<if not $pc.ev.tav_iron>>
-	<<link "前些年那队人">><<set $pc.ev.tav_iron to true>><<goto "酒馆">><</link>>
-<</if>>
-<<if not $pc.ev.tav_painting>>
-	<<link "墙上那幅旧画">><<set $pc.ev.tav_painting to true>><<goto "酒馆">><</link>>
-<</if>>
-</div>
-</details>
-<details class="act-group" name="tavern-acts" open>
-	<summary>柜台：打听与添置<span class="act-n"></span></summary>
-	<<if not $pc.world.rumor>>
-	<<link `"花 " + (-Game.Economy.priceOf("rumor_buy", $pc)) + " 金币：听老猎人讲实话"`>>
-		<<econ "rumor_buy">><<setflag "rumor">><<goto "酒馆">>
-	<</link>>
-<<else>>
-	（老猎人的牛皮里混着真话：''第三块板子是脆的''。）
-
-	他把酒碗往你那边推了推："洞里那排石板，第三块是脆的。真要动手，落脚时避开它。"
-
-	说完就低头喝酒，不再看你。<span class="sys-note">（''这条情报会在洞穴里帮你。''）</span>
-<</if>>
-	<<if not $pc.gear.includes("火把")>>
-	<<link `"花 " + (-Game.Economy.priceOf("torch_buy", $pc)) + " 金币：买一支火把"`>>
-		<<econ "torch_buy">><<goto "酒馆">>
-	<</link>>
-<</if>>
-</details>
-<details class="act-group" name="tavern-acts" open>
-	<summary>离开酒馆<span class="act-n"></span></summary>
-	<<if not $pc.inv["时光护符"]>>
-	<<link "问一句女巫小屋怎么走">><<goto "女巫小屋">><</link>>
-<</if>>
-	[[推门出发，走进暮色|森林边缘]]
-	[[就此回头，把这片林子留给别人|结局 平凡之路]]
-</details>
-</div>
-<</nobr>>
-
 <details class="heard-fold">
 	<summary>已听到的传闻<span class="act-n"></span></summary>
 	<div id="tav-heard" class="tavern-heard">
@@ -193,6 +128,71 @@
 <</if>>
 </div>
 </details>
+
+<div class="fresh-heard" hidden></div>
+<<nobr>>
+<div class="tavern-actions">
+<details class="act-group" name="tavern-acts" open>
+	<summary>找人打听<span class="act-n"></span></summary>
+	<div class="tavern-tables">
+<<if not $pc.ev.tav_light>>
+	<<link "靠窗那桌——他们在讲塔上那盏灯">><<set $pc.ev.tav_light to true>><<goto "酒馆">><</link>>
+<</if>>
+<<if not $pc.ev.tav_keeper>>
+	<<link "讲守林人的那一桌">><<set $pc.ev.tav_keeper to true>><<goto "酒馆">><</link>>
+<</if>>
+<<if not $pc.ev.tav_dragon>>
+	<<link "上了年纪的村人——他说那条龙早死了">><<set $pc.ev.tav_dragon to true>><<goto "酒馆">><</link>>
+<</if>>
+<<if not $pc.ev.tav_grudge>>
+	<<link "跑生意的——他说雾是怨念">><<set $pc.ev.tav_grudge to true>><<goto "酒馆">><</link>>
+<</if>>
+<<if not $pc.ev.tav_seal>>
+	<<link "掉了半口牙的老头——他嗤了一声">><<set $pc.ev.tav_seal to true>><<goto "酒馆">><</link>>
+<</if>>
+<<if not $pc.ev.tav_ageless>>
+	<<link "接嘴的那个人——「不老的女人」">><<set $pc.ev.tav_ageless to true>><<goto "酒馆">><</link>>
+<</if>>
+<<if not $pc.ev.tav_flower>>
+	<<link "背着画板的游客——他在问月光花">><<set $pc.ev.tav_flower to true>><<goto "酒馆">><</link>>
+<</if>>
+<<if not $pc.ev.tav_iron>>
+	<<link "前些年那队人">><<set $pc.ev.tav_iron to true>><<goto "酒馆">><</link>>
+<</if>>
+<<if not $pc.ev.tav_painting>>
+	<<link "墙上那幅旧画">><<set $pc.ev.tav_painting to true>><<goto "酒馆">><</link>>
+<</if>>
+</div>
+</details>
+<details class="act-group" name="tavern-acts" open>
+	<summary>柜台：打听与添置<span class="act-n"></span></summary>
+	<<if not $pc.world.rumor>>
+	<<link `"花 " + (-Game.Economy.priceOf("rumor_buy", $pc)) + " 金币：听老猎人讲实话"`>>
+		<<econ "rumor_buy">><<setflag "rumor">><<goto "酒馆">>
+	<</link>>
+<<else>>
+	（老猎人的牛皮里混着真话：''第三块板子是脆的''。）
+
+	他把酒碗往你那边推了推："洞里那排石板，第三块是脆的。真要动手，落脚时避开它。"
+
+	说完就低头喝酒，不再看你。<span class="sys-note">（''这条情报会在洞穴里帮你。''）</span>
+<</if>>
+	<<if not $pc.gear.includes("火把")>>
+	<<link `"花 " + (-Game.Economy.priceOf("torch_buy", $pc)) + " 金币：买一支火把"`>>
+		<<econ "torch_buy">><<goto "酒馆">>
+	<</link>>
+<</if>>
+</details>
+<details class="act-group" name="tavern-acts" open>
+	<summary>离开酒馆<span class="act-n"></span></summary>
+	<<if not $pc.inv["时光护符"]>>
+	<<link "问一句女巫小屋怎么走">><<goto "女巫小屋">><</link>>
+<</if>>
+	[[推门出发，走进暮色|森林边缘]]
+	[[就此回头，把这片林子留给别人|结局 平凡之路]]
+</details>
+</div>
+<</nobr>>
 
 :: 结局 平凡之路
 <<ending "平凡之路" chapter>>
@@ -314,6 +314,62 @@
 ''（她搅着炉子上的药。你想问什么，就问。）''
 <</if>>
 
+<details class="heard-fold">
+	<summary>已问过的事<span class="act-n"></span></summary>
+	<div id="wq-heard" class="tavern-heard">
+<<if $pc.ev.wq_painting>>
+	<div class="heard-item" data-heard="wq_painting">
+<p>——"酒馆有幅旧画，不少人拿我跟画上的女人比。"她低头添了把柴，''"别拿那幅画比。"''没再说别的。</p>
+<p>她说，画上那场宴，她家也有人在。"纸上写不清，你去过就知道了。"</p>
+
+	</div>
+<</if>>
+<<if $pc.ev.wq_night>>
+	<div class="heard-item" data-heard="wq_night">
+<p>——"我家传下来一句话：三百年前那一夜，''他们没能送成''。"</p>
+<p>她顿了一下，把药勺搁下："传下来的是这句话，不是道理。为什么没送成，我们家没人知道。"</p>
+
+	</div>
+<</if>>
+<<if $pc.ev.wq_fog>>
+	<div class="heard-item" data-heard="wq_fog">
+<p>——"雾是灾祸。我祖母这么说，她的祖母也这么说。''塔底下那位不肯走''，雾就一年比一年厚。"</p>
+<p>她说得很笃定，低头继续搅药，不再解释。</p>
+
+	</div>
+<</if>>
+<<if $pc.ev.wq_talisman>>
+	<div class="heard-item" data-heard="wq_talisman">
+<p>——"它能带你回到三百年前——''就站在你站的地方''。"</p>
+<p>"''我们守了三百年，等的就是走进来的人。''"她说"我们"的时候，语气很轻，像在说一件早就跟自己说定了的事。</p>
+
+	</div>
+<</if>>
+<<if $pc.ev.wq_under>>
+	<div class="heard-item" data-heard="wq_under">
+<p>——你问塔底下锁着的是什么。她看了你一会儿。</p>
+<p>"''别去改过去''。"她顿了顿，"这话在我们家说了三百年——''改不了的不是历史。''"</p>
+<p>（她没有说塔底下是什么，只又叮嘱了一遍别去改过去。）</p>
+
+	</div>
+<</if>>
+<<if $pc.ev.wq_past>>
+	<div class="heard-item" data-heard="wq_past">
+<p>——"我们哪敢不管。屋里的药要备着，塔上的灯要守着。真等它醒了伤人，村里谁受得住？"</p>
+<p>炉子上的药咕嘟了一声。她把盖子掀开又盖上，一句话也没往下说。</p>
+
+	</div>
+<</if>>
+<<if $pc.ev.wq_alone>>
+	<div class="heard-item" data-heard="wq_alone">
+<p>——"你要是走到了那一步，"她说，"''别急着动手。先看清楚它是什么。''"</p>
+<p>她看了一眼炉火，又补一句：''"还有一件事：别想着一个人把它解决掉。那东西不是拿刀能解决的事——可有时候，也得有人替你按着它。"''</p>
+
+	</div>
+<</if>>
+	</div>
+</details>
+
 <div class="fresh-heard" hidden></div>
 <<nobr>>
 <div class="tavern-actions">
@@ -375,61 +431,7 @@
 <</nobr>>
 
 <<if $pc.ev.wq_seen>>
-<details class="heard-fold">
-	<summary>已问过的事<span class="act-n"></span></summary>
-	<div id="wq-heard" class="tavern-heard">
-<<if $pc.ev.wq_painting>>
-	<div class="heard-item" data-heard="wq_painting">
-<p>——"酒馆有幅旧画，不少人拿我跟画上的女人比。"她低头添了把柴，''"别拿那幅画比。"''没再说别的。</p>
-<p>她说，画上那场宴，她家也有人在。"纸上写不清，你去过就知道了。"</p>
 
-	</div>
-<</if>>
-<<if $pc.ev.wq_night>>
-	<div class="heard-item" data-heard="wq_night">
-<p>——"我家传下来一句话：三百年前那一夜，''他们没能送成''。"</p>
-<p>她顿了一下，把药勺搁下："传下来的是这句话，不是道理。为什么没送成，我们家没人知道。"</p>
-
-	</div>
-<</if>>
-<<if $pc.ev.wq_fog>>
-	<div class="heard-item" data-heard="wq_fog">
-<p>——"雾是灾祸。我祖母这么说，她的祖母也这么说。''塔底下那位不肯走''，雾就一年比一年厚。"</p>
-<p>她说得很笃定，低头继续搅药，不再解释。</p>
-
-	</div>
-<</if>>
-<<if $pc.ev.wq_talisman>>
-	<div class="heard-item" data-heard="wq_talisman">
-<p>——"它能带你回到三百年前——''就站在你站的地方''。"</p>
-<p>"''我们守了三百年，等的就是走进来的人。''"她说"我们"的时候，语气很轻，像在说一件早就跟自己说定了的事。</p>
-
-	</div>
-<</if>>
-<<if $pc.ev.wq_under>>
-	<div class="heard-item" data-heard="wq_under">
-<p>——你问塔底下锁着的是什么。她看了你一会儿。</p>
-<p>"''别去改过去''。"她顿了顿，"这话在我们家说了三百年——''改不了的不是历史。''"</p>
-<p>（她没有说塔底下是什么，只又叮嘱了一遍别去改过去。）</p>
-
-	</div>
-<</if>>
-<<if $pc.ev.wq_past>>
-	<div class="heard-item" data-heard="wq_past">
-<p>——"我们哪敢不管。屋里的药要备着，塔上的灯要守着。真等它醒了伤人，村里谁受得住？"</p>
-<p>炉子上的药咕嘟了一声。她把盖子掀开又盖上，一句话也没往下说。</p>
-
-	</div>
-<</if>>
-<<if $pc.ev.wq_alone>>
-	<div class="heard-item" data-heard="wq_alone">
-<p>——"你要是走到了那一步，"她说，"''别急着动手。先看清楚它是什么。''"</p>
-<p>她看了一眼炉火，又补一句：''"还有一件事：别想着一个人把它解决掉。那东西不是拿刀能解决的事——可有时候，也得有人替你按着它。"''</p>
-
-	</div>
-<</if>>
-	</div>
-</details>
 <</if>>
 
 :: 林间小径

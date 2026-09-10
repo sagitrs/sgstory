@@ -59,7 +59,11 @@
 
 这些零碎紧挨着它的爪子。你看不出它为何留着，只知道其中还有几件值钱的东西。
 
-<<link "识货，捡几件值钱的">><<econ "dragon_hoard">><<goto "龙·巢边">><</link>>
+<<if not $pc.world.hoard_looted>>
+	<<link "识货，捡几件值钱的">><<econ "dragon_hoard">><<set $pc.world.hoard_looted to true>><<goto "龙·巢边">><</link>>
+<<else>>
+	那些零碎你看过了，值钱的都在你兜里。
+<</if>>
 <<if $pc.world.flower_fed>>（它睡得沉，你翻动身下那些零碎时，它也没有醒来。）<</if>>
 [[退开|地下宴会厅]]
 

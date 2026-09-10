@@ -738,6 +738,8 @@ window.Game = (() => {
 		leverOpen(a, lv, pc) {
 			if (lv.needRead && !pc?.soc?.read?.[a.npc]) return false;
 			if (lv.need && !lv.need(pc)) return false;
+			// 支付门（经济闭环）：带花费的筹码买不起就不亮——金币不许为负（与柜台/药膏同一规矩）
+			if (lv.econ && (pc?.gold ?? 0) < -Economy.priceOf(lv.econ, pc)) return false;
 			return true;
 		},
 		// 掷一次（不渲染）：骰面存进 $pc.ev.last_roll，交给 <<lastcheckFor>> 复显——

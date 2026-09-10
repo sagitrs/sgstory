@@ -533,6 +533,38 @@ if (wantAll || arg('canon')) {
 			if (text.includes(d.t)) { dualHit++; bad++; console.log(`  ✗ 段落「${name}」出现「${d.t}」（${d.why}）`); }
 		}
 	}
+	// ⑤ §3.9 传说覆盖门（v17）：每条传说都要①登记在对照表 ②在正文里有 NPC 投放锚
+	const LEGENDS = [
+		{ row: '那条龙早死了', anchors: ['那条龙早死了'], says: '长者' },
+		{ row: '三百年前女巫把它封印在塔下', anchors: ['按在塔底下'], says: '酒客' },
+		{ row: '雾是它死后的怨念', anchors: ['怨念', '怨灵'], says: '冒险者' },
+		{ row: '月光花是这儿的特产', anchors: ['这儿的特产'], says: '游客' },
+		{ row: '塔上住着个不老的女人', anchors: ['不老的女人'], says: '酒客' },
+		{ row: '谁也说不清他守的是什么', anchors: ['他拦过我一回'], says: '酒客' },
+		{ row: '雾是从塔那边来的', anchors: ['雾是从塔那边来的'], says: '老板娘' },
+		{ row: '前些年进去过一队人', anchors: ['铁门锁着'], says: '酒客' },
+	];
+	const s39 = lore.match(/^### 3\.9[\s\S]*?(?=^\n---\n)/m)?.[0] ?? '';
+	const legendBlock = s39.split(/\n\s*\n/).find((b2) => b2.includes('传说（正文里只能出现在 NPC 口中）')) ?? '';
+	const legendRows = legendBlock.split('\n').filter((l) => l.trim().startsWith('|'))
+		.map((l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim()))
+		.filter((c) => c[0] && !['传说（正文里只能出现在 NPC 口中）', '传说'].includes(c[0]) && !/^[\s:\-]+$/.test(c[0]));
+	let legHit = 0;
+	for (const r of legendRows) {
+		if (!LEGENDS.some((e) => r[0].includes(e.row))) { legHit++; bad++; console.log(`  ✗ §3.9 传说行未被覆盖门认领：${r[0].slice(0, 40)}`); }
+	}
+	const prose = [];
+	for (const [name, src] of passageSrc) {
+		const tags = passageTags.get(name) ?? [];
+		if (tags.includes('script') || tags.includes('stylesheet')) continue;
+		prose.push({ name, text: src.replace(/\/%[\s\S]*?%\//g, '') });
+	}
+	for (const e of LEGENDS) {
+		for (const a of e.anchors) {
+			if (!prose.some((p2) => p2.text.includes(a))) { legHit++; bad++; console.log(`  ✗ 传说未投放（${e.says}）：「${a}」——§3.9 登记了却没人说`); }
+		}
+	}
+	console.log(`  §3.9 传说：表 ${legendRows.length} 行 · 认领 ${LEGENDS.length} 条 · 投放锚 ${LEGENDS.reduce((n, e) => n + e.anchors.length, 0)} 个 · 命中 ${legHit}（每行须有 ② 的真/误或 ① 的登记）`);
 	console.log(`  §10 行 ${rows.length} · 认领 ${CANON_ROWS.length} 条 · 禁词 ${termCount} 个 · 命中 ${hit}`);
 	console.log(`  §9 双读：禁断言 ${DUALREAD.length} 条 · 命中 ${dualHit}（正文不点破：长生/同一个人/初代/穿越/晚年）`);
 	if (process.argv.includes('--check')) {

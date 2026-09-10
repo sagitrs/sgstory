@@ -465,7 +465,7 @@ Macro.add('dragonbar', {
 					<div class="soc-opts">
 					<<if _v is "willing">>
 						<<print `<a class="soc-opt" role="link" tabindex="0" data-ask="${_a.id}" data-how="will">开口：${_a.q}（${_a.tag}）</a>`>>
-						<span class="soc-meta">（他本来就要说——不必掷骰）</span>
+						<span class="soc-meta">（对方本来就要说——不必掷骰）</span>
 					<</if>>
 					<<for _i to 0; _i lt _S.levers(_a, $pc).length; _i++>>
 						<<set _lv to _S.levers(_a, $pc)[_i]>>

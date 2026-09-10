@@ -121,10 +121,12 @@ async function truePath(w, c) {
 	await c('收下钥匙');                   // 门厅
 	await c('把墙上那支哨子摘下来');       // M9：墙上那支哨子要自己摘（调查 DC10，d20 恒 20 必成）
 	await c('出塔，回到塔外');             // 塔门（过去）——守林人已警告
-	await c('塔基墙根那片花');             // 塔外花田
+	await c('翻转护身符：回到');           // #168 P1-8：花只长在"现在"这一侧，得先翻回现在（花→过去喂＝闭环）
+	await c('塔基墙根那片花');             // 塔外花田（现在）
 	await c('伸手去摘最靠里的那一朵');     // M9：采摘是动作 → 免判定拿花
-	await c('回塔门');                     // 塔门
-	await c('推门进去');                   // 门厅
+	await c('回塔门');                     // 塔门（现在）
+	await c('翻转护身符：坠入');           // 揣着花翻回过去（喂花只能在过去做）
+	await c('推门进去');                   // 门厅（过去）
 	await c('先上二楼看看');               // 书房（过去：暗格是空的）
 	await c('到拐角的小工坊看看');         // 工坊（同一层）
 	await c('把它打完');                   // 龙鳞护臂
@@ -223,7 +225,7 @@ async function routeFlowerDeath() {
 async function routeFlowerGoblin() {
 	const { w, click: c } = await newGame(0.5, 0); // d20 恒 11：若情报路径误走判定，DC16 必败
 	await c('推门出发，走进暮色');
-	await c('打着火把，走进山脚的洞穴');
+	await c('走进山脚的洞穴');
 	await c('拿出筹码：把几枚金币放在石头上（让路）'); // B2：给钱＝免检
 	await c('从它旁边过去');
 	if (pcOf(w).world.goblin_spared !== true) throw new Error('买路未置 goblin_spared');
@@ -464,7 +466,7 @@ async function routeSleepForever() {
 async function routeCave() {
 	const { w, click: c } = await newGame(0.99, 0);
 	await c('推门出发，走进暮色');
-	await c('打着火把，走进山脚的洞穴');
+	await c('走进山脚的洞穴');
 	await c('拔家伙');
 	if (pcOf(w).world.goblin_spared) throw new Error('动武分支不应置 goblin_spared');
 	if (passageOf(w) !== '森林边缘') throw new Error(`动武后应回森林边缘（实际 ${passageOf(w)}）`);
@@ -677,6 +679,10 @@ async function routeEraBranches() {
 	await toTower(c);
 	await c('坠入');
 	await c('继续往塔那边走');
+	await c('塔基墙根那片花');       // 塔外花田（过去）：花还没长出来 ← #168 P1-8 覆盖
+	if (pcOf(w).inv['月光花']) throw new Error('三百年前那一侧不该能摘到花（#168 P1-8）');
+	if (linksOf(w).some((x) => x.includes('摘'))) throw new Error('过去那一侧还留着采摘入口（#168 P1-8）');
+	await c('回塔门');
 	await c('雾里有个影子挡着路');
 	await c('慢慢放下手');
 	await c('顺着那条窄路走过去');
@@ -804,7 +810,7 @@ async function routeNoSaveScum() {
 	// 花田：走"下风处"（生存 → 必成）
 	await c('出塔，回到塔外');
 	await c('塔基墙根那片花');
-	await c('绕到下风处，连土一起端起来');
+	await c('退到上风头，连土一起端起来');
 	if (pcOf(w).inv['月光花'] !== true) throw new Error('生存路没拿到月光花');
 	await c('回塔门');
 	await c('推门进去');
@@ -847,6 +853,22 @@ async function routeNoSaveScum() {
 	return { w };
 }
 
+// ── 路线 30：女巫小屋只治一次（#168 P1-3 满血门 · 行为侧）──
+async function routeWitchHealOnce() {
+	const { w, click, uncaught } = await newGame(0.99);
+	const pc = pcOf(w);
+	pc.max_hp = 14;
+	pc.hp = 1;
+	await click('问一句女巫小屋怎么走');   // 第一次见面：她给一次见面礼
+	if (pcOf(w).hp !== pcOf(w).max_hp) throw new Error('首次见面没有回满（她该给一次见面礼）');
+	pcOf(w).hp = 1;
+	await w.SugarCube.Engine.play('女巫小屋');
+	await sleep(200);
+	if (pcOf(w).hp !== 1) throw new Error(`第二次带伤进门又回满了（${pcOf(w).hp}）——免费无限回血会让药膏与伤害失去意义`);
+	if (uncaught.length) throw new Error(`uncaught：${uncaught[0].slice(0, 160)}`);
+	return { w };
+}
+
 const routes = [
 	['金路径 送星归位', routeTrue],
 	['平凡之路', routeQuit],
@@ -877,6 +899,7 @@ const routes = [
 	['非酋不读档（换属性路）', routeNoSaveScum],
 	['乱翻的代价（星力软限）', routeTooManyFlips],
 	['结局页收尾（C1）', routeEndingFooter],
+	['女巫小屋·只治一次', routeWitchHealOnce],
 ];
 
 const results = await Promise.all(routes.map(async ([name, fn]) => {

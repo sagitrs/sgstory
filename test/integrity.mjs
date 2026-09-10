@@ -276,6 +276,48 @@ for (const c of CALLBACKS) {
 	if (depth <= 0) errors.push(`[回指] ${p.file}:${p.line} 「${c.passage}」提到「${c.phrase}」，但这一句没有落在 <<if $pc.ev.${c.flag}>> 里——玩家可能根本没听过`);
 }
 
+// ── 楼层数字门（#168 P1-4）：说了「X楼」就必须与设定书的楼层定案一致 ──
+// 反例（M14 撤温室重排楼层时漏改）：工坊写"三楼拐角"、天文台写"四楼是天文台"，
+// 而定义集 §5 的定案是 1F 门厅 / 2F 书房·工坊 / 3F 天文台 / 顶楼。
+const FLOOR_OF = { 门厅: 1, 书房: 2, 工坊: 2, 天文台: 3 };
+const CN_NUM = { 一: 1, 二: 2, 三: 3, 四: 4, 五: 5 };
+for (const p of passages.values()) {
+	const lines = p.body.replace(COMMENT_RX, '').split('\n');
+	for (let i = 0; i < lines.length; i++) {
+		const line = lines[i];
+		// (a) 同一行里点名了房间、又写了「N楼」→ 两处必须一致
+		for (const [room, floor] of Object.entries(FLOOR_OF)) {
+			if (!line.includes(room)) continue;
+			const m = line.match(/([一二三四五])楼/);
+			if (m && CN_NUM[m[1]] !== floor) {
+				errors.push(`[楼层] ${p.file}:${p.line + i} 「${room}」是 ${floor} 楼，这里写「${m[1]}楼」——与设定书楼层定案不符`);
+			}
+		}
+		// (b) 链接「上N楼」的目标段落必须就在 N 楼
+		for (const m of line.matchAll(/\[\[上([一二三四五])楼\|([^\]]+)\]\]/g)) {
+			const floor = Object.entries(FLOOR_OF).find(([room]) => m[2].includes(room))?.[1];
+			if (floor && CN_NUM[m[1]] !== floor) {
+				errors.push(`[楼层] ${p.file}:${p.line + i} 链接「${m[0]}」把玩家带到 ${floor} 楼的「${m[2]}」`);
+			}
+		}
+	}
+}
+
+// ── 满血门（#168 P1-3）：免费回满只许出现在一次性/条件门控里 ──
+// 反例：女巫小屋把 <<set $pc.hp to $pc.max_hp>> 放在段落顶层，每次进门满血——
+// 药膏（8 金）、洞穴 4 点伤害、花田掉血于是全部失去意义。
+const HEAL = '<<set $pc.hp to $pc.max_hp>>';
+for (const p of passages.values()) {
+	const lines = p.body.replace(COMMENT_RX, '').split('\n');
+	for (let i = 0; i < lines.length; i++) {
+		if (!lines[i].includes(HEAL)) continue;
+		const prev = [...lines.slice(0, i)].reverse().find((l) => l.trim()) ?? '';
+		if (!/^<<if\b/.test(prev.trim())) {
+			errors.push(`[满血] ${p.file}:${p.line + i} 段落「${p.name}」的 ${HEAL} 不在 <<if>> 门控里——免费回满会把药膏与伤害的意义抹掉`);
+		}
+	}
+}
+
 // ── 输出 ─────────────────────────────────────────────────
 const lit = edges.filter((e) => !e.dynamic).length, dyn = edges.filter((e) => e.dynamic).length;
 console.log(`段落 ${passages.size} · 宏/widget ${defined.size} · 边 ${lit} 静态 + ${dyn} 动态（${Object.entries(kindCount).map(([k, v]) => `${k}:${v}`).join(' ')}）`);

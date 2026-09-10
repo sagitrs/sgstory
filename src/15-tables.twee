@@ -9,13 +9,13 @@ window.Game = (() => {
 		// yields（M10 反 S/L 门）：这个位点能拿到什么关键产出。
 		// 门禁要求每个 keyYields 至少两条路、且**判定属性不同**——不同策略都能走通，不必读档。
 		sites: {
-			'酒馆·打听':   { skill: '游说', dc: 10 },
+			'酒馆·打听':   { skill: '游说', dc: 12 },
 			'森林·察觉':   { skill: '察觉', dc: 10 },
 			'洞穴·战斗':   { skill: '运动', dc: 12, auto: '战斗（玩家已选择动手）' },
 			'雾之魔物·挥击': { skill: '运动', dc: 12, auto: '战斗（玩家已选择动手）' },
 			'雾之魔物·心防': { skill: '洞悉', dc: 13 },
-			'守林人·交涉': { skill: '游说', dc: 12, yields: 'flag:flower_warned' },
-			'守林人·指花': { skill: '察觉', dc: 11, yields: 'flag:flower_warned' },
+			'守林人·交涉': { skill: '游说', dc: 12 },
+			'守林人·指花': { skill: '察觉', dc: 11 },
 			'门厅·翻检':   { skill: '调查', dc: 10, yields: '坏哨' },
 			'门厅·看钉':   { skill: '察觉', dc: 9,  yields: '坏哨' },
 			'门厅·硬掰':   { skill: '运动', dc: 12, yields: '坏哨' },
@@ -31,10 +31,10 @@ window.Game = (() => {
 			'花田·下风':   { skill: '生存', dc: 13, yields: '月光花' },
 			'天文台·典籍': { skill: '奥秘', dc: 12, yields: 'ev:star_ledger' },
 			'天文台·光点': { skill: '察觉', dc: 12, yields: 'ev:star_ledger' },
-			'观星者·说服': { skill: '历史', dc: 13, yields: '完整星图' },
-			'观星者·洞悉': { skill: '洞悉', dc: 13, yields: '完整星图' },
-			'当时的女巫·辨认': { skill: '洞悉', dc: 12, yields: 'ev:witch_grip' },
-			'当时的女巫·开口': { skill: '游说', dc: 13, yields: 'ev:witch_grip' },
+			'观星者·说服': { skill: '历史', dc: 13 },
+			'观星者·洞悉': { skill: '洞悉', dc: 13 },
+			'当时的女巫·辨认': { skill: '洞悉', dc: 12 },
+			'当时的女巫·开口': { skill: '游说', dc: 13 },
 			'寻杖':         { skill: '调查', dc: 13, yields: 'flag:family_favor', auto: '进入该段落＝玩家已经动手翻找（「在塔里找那根杖」）' },
 			'寻杖·问孩子': { skill: '游说', dc: 12, yields: 'flag:family_favor' },
 			'寻杖·看人':   { skill: '洞悉', dc: 11, yields: 'flag:family_favor' },
@@ -66,9 +66,28 @@ window.Game = (() => {
 			'龙·数拍':     { skill: '生存', dc: 13 },
 			// 彩蛋击杀（M5b）：需天然 20 且劣势 → 1/400 ≈ 0.25%，几乎不可达
 			'龙·终击':     { skill: '运动', dc: 20, nat: 20, dis: true, auto: '战斗（玩家已选择动手）', disWhy: '正面硬撼一条龙，只有运气站在你这边' },
+			// ── 交涉位点（B2 · D&D 2024 Influence）：同一句诉求，换手段＝换属性判定 ──
+			// 老板娘（歪脖子鸭）：问出「进塔该注意什么」
+			'老板娘·吓':   { skill: '恐吓', dc: 14 },
+			'老板娘·接话': { skill: '表演', dc: 14 },
+			'老板娘·读':   { skill: '洞悉', dc: 11 },
+			// 守林人：读人（洞悉）＋请他动术式（游说 / 历史＝引先例）
+			'守林人·读':   { skill: '洞悉', dc: 12 },
+			'守林人·求术': { skill: '游说', dc: 13 },
+			'守林人·引先例': { skill: '历史', dc: 12 },
+			// 观星者：磨（游说）—— 与「说服＝历史」「洞悉」并列的第三条路
+			'观星者·磨':   { skill: '游说', dc: 14 },
+			// 当时的女巫：激（恐吓）—— 认得出，但被她记住
+			'当时的女巫·激': { skill: '恐吓', dc: 16 },
+			// 洞穴·哥布林：哄（游说）/ 骗（欺瞒）/ 吓（恐吓）/ 看（洞悉＝读它抱着什么）
+			'哥布林·哄':   { skill: '游说', dc: 13 },
+			'哥布林·骗':   { skill: '欺瞒', dc: 12 },
+			'哥布林·吓':   { skill: '恐吓', dc: 10 },
+			'哥布林·看':   { skill: '洞悉', dc: 11 },
 		},
 		// 关键产出（M10）：每个都得有 ≥2 条通路、且判定属性不同——不许把玩家逼去读档
-		keyYields: ['日记', '坏哨', '月光花', '完整星图', 'flag:family_favor', 'flag:flower_warned', 'ev:witch_grip', 'ev:star_ledger', 'ev:forge_seen'],
+		keyYields: ['日记', '坏哨', '月光花', '完整星图', 'flag:family_favor', 'flag:flower_warned', 'ev:witch_grip', 'ev:star_ledger', 'ev:forge_seen',
+			'ev:tav_tips', 'flag:goblin_spared', 'keeper:seal'],
 		// ── 情报优势（M6d）：付费/交涉得来的知识 → 位点自动双骰取高 ──
 		// key = 位点，value = $pc.world 上的旗标名
 		knowledge: {
@@ -572,6 +591,192 @@ window.Game = (() => {
 		},
 	};
 
+
+	// ── 交涉（B2 · D&D 2024 Influence action + DMG 社交交互）──────────────
+	// 三档意愿（2024）：willing＝他本来就想给（不掷骰）· hesitant＝在理但要说服（掷骰）
+	//                  unwilling＝越了他的线（掷骰也没用，他直接回绝——掷骰不是万能钥匙）
+	// 态度（2024）：友好 / 冷淡 / 敌意 → 按 DMG 社交交互表折算成 DC 修正（−5 / 0 / +5）
+	// 手段（2024 Influence checks：游说 / 欺瞒 / 恐吓 / 表演；另按「用别的属性」侧栏加
+	//       洞悉＝读人 · 历史＝引先例）——同一诉求换手段＝换属性判定
+	// 筹码（DMG）：把对方想要的东西摆出来 → 免检（auto）或优势（adv）——有不靠嘴的路
+	// 失败各有代价：游说/历史 → 这一问更难再开口（DC 递增，对应 2024「24 小时内不能重试」）
+	//              欺瞒被识破 → 态度骤降 · 恐吓 → 得手也记仇
+	const Social = {
+		ATT: { friendly: '友好', neutral: '冷淡', hostile: '敌意' },
+		attAdj: { friendly: -5, neutral: 0, hostile: 5 },
+		approaches: {
+			游说: { verb: '把话说圆',             onFail: { retry: 5 },  note: '话说死了，这一问就更难再开口' },
+			欺瞒: { verb: '编一套他爱听的',       onFail: { att: -2 },   note: '被识破的人不会再把后背留给你' },
+			恐吓: { verb: '亮一亮手里的家伙',     onFail: { att: -1 },   onOk: { att: -1 }, note: '他让了，但他记住了（成了也记仇）' },
+			表演: { verb: '讲一段、唱一段',       onFail: {},            note: '图一乐，不落把柄' },
+			洞悉: { verb: '先看他手里攥着什么',   onFail: {},            read: true, note: '读人不花代价' },
+			察觉: { verb: '先看清他身上那点不对劲', onFail: {},          note: '线索就在他身上，看得见就说得出口' },
+			历史: { verb: '引一段先例',           onFail: { retry: 5 },  note: '记错了就没人再听你引' },
+		},
+		// 一个诉求＝一句话 ＋ 若干条开口的方式（sites）＋ 若干件他真正想要的（levers）
+		// verdict：unwilling（越线，掷骰也没用）→ willing（他本来就想给）→ 否则掷骰
+		asks: [
+			{ id: '老板娘·进塔', tag: '问路', npc: '老板娘', q: '进塔该注意什么', base: 'neutral', yield: 'ev:tav_tips',
+				sites: ['酒馆·打听', '老板娘·吓', '老板娘·接话', '老板娘·读'],
+				levers: [
+					{ id: 'drink', name: '请她喝一轮', gives: 'auto', econ: 'drink_round', note: '她不缺你这两句话，缺的是一轮酒' },
+					{ id: 'read',  name: '看出她一直在瞟炉子', gives: 'adv', needRead: true, note: '她怕的是火，不是塔' },
+				],
+				done: (pc) => !!pc.ev.tav_tips,
+				apply: (pc) => { pc.ev.tav_tips = true; pc.ev.tav_fog = true; },
+				ok: '"你要真想进去，"她把杯子放下，"就记住两件事：一是别在雾里睡觉，二是听见有人叫你名字，别应。"',
+				bad: `她把抹布在台面上又擦了一遍，没接你的话。（''她听过了，不想再说。''）`,
+				auto: '你把酒钱推过去。她愣了一下，然后真的坐下了："……你倒是会做人。坐下吧。"' },
+
+			{ id: '守林人·花', tag: '问花', npc: '守林人', q: '塔基墙根那片银白的花是什么', yield: 'flag:flower_warned',
+				base: (pc) => (pc.inv['时光护符'] ? 'friendly' : 'neutral'),
+				sites: ['守林人·交涉', '守林人·指花', '守林人·读'],
+				levers: [
+					{ id: 'journal', name: '把日记摊在桌上', gives: 'adv', need: (pc) => !!pc.inv['日记'], note: '那是我家先人那一辈的字' },
+					{ id: 'read',    name: '看出他靴边那一圈白', gives: 'adv', needRead: true, note: '他每天都要从那片花边上走一趟' },
+				],
+				// 2024「willing」由段落内手写（带日记/书＝他本来就要说：_t>0 → 直给），这里只留掷骰与筹码
+				done: (pc) => !!pc.world.flower_warned,
+				apply: (pc) => { pc.world.flower_warned = true; pc.ev.keeper_told = true; },
+				ok: '"那花会睡人。"他看了一眼炉子，"要摘，先把气含住。我小时候在那儿睡过一下午，醒来天都黑了。"',
+				bad: `"那片花？"他把灯芯剪短了一截，''"你别去碰它。"''他不再说别的。`,
+				auto: '他顺着你的手看过去，沉默了一下："……你看见我靴子了。"' },
+
+			{ id: '守林人·术', tag: '求术', npc: '守林人', q: '用你家那门术式', yield: 'keeper:seal',
+				base: (pc) => (pc.inv['时光护符'] ? 'friendly' : 'neutral'),
+				sites: ['守林人·求术', '守林人·引先例', '守林人·读'],
+				levers: [
+					{ id: 'talisman', name: '把脖子上那枚护符亮出来', gives: 'auto', need: (pc) => !!pc.inv['时光护符'], note: '他母亲给你的东西，他认得' },
+					{ id: 'read',     name: '看出他一直在练错的那几个字', gives: 'adv', needRead: true, note: '他要的不是赢，是把这一句念完' },
+				],
+				willing: (pc) => (pc.keeper?.trust ?? 0) > 0,
+				done: (pc) => pc.keeper?.state === 'seal',
+				apply: (pc) => { pc.keeper.state = 'seal'; },
+				ok: '他把手稿收进抽屉，在桌边坐下，示意你也坐。"术式我念得动。"他说，"我练了一辈子。"',
+				bad: '"这门东西不给人看。"他把灯拨正，"你要是不知道自己在求什么，就别求。"',
+				will: '他没等你说完，已经把抽屉拉开了。"你带着我家先人的字来，"他说，"那我就没什么可藏的。"',
+				auto: `他先看的是你脖子上那枚护符。"我妈让你来的。"他说——''那你就不是来找麻烦的''。` },
+
+			{ id: '观星者·图', tag: '求图', npc: '观星者', q: '把完整星图给我', yield: '完整星图',
+				base: (pc) => (pc.inv['观星者的书'] ? 'friendly' : 'neutral'),
+				sites: ['观星者·说服', '观星者·洞悉', '观星者·磨'],
+				levers: [
+					{ id: 'book', name: '把风化了的书放回案上', gives: 'auto', need: (pc) => !!pc.inv['观星者的书'], note: '那是他自己写的字' },
+					{ id: 'read', name: '看出他停在最后一轨', gives: 'adv', needRead: true, note: '他算不下去了，也没人替他算' },
+				],
+				done: (pc) => !!pc.ev.seer_gave,
+				apply: (pc) => { pc.ev.seer_gave = true; },
+				ok: `他把笔放下了。''"空口无凭"''那四个字，他没说。`,
+				bad: `"空口无凭。"他把图收了回去。（''你要是说不动他，就得拿出他认得的东西来。''）`,
+				auto: '你把那册风化了的书放在案上。他的手停住了。"这是我写的。"他翻了两页，看了很久。' },
+
+			{ id: '女巫·看哨', tag: '看哨', npc: '当时的女巫', q: '那支哨子，给我看看', base: 'neutral', yield: 'ev:witch_grip',
+				sites: ['当时的女巫·辨认', '当时的女巫·开口', '当时的女巫·激'],
+				levers: [
+					{ id: 'read', name: '看她握哨的手势', gives: 'adv', needRead: true, note: '那只手一直没松开过' },
+				],
+				done: (pc) => !!pc.ev.witch_grip,
+				apply: (pc) => { pc.ev.witch_grip = true; },
+				ok: '你把看出来的东西说出口。她把手翻过来给你看："你眼力不错。"',
+				bad: '她把手合上了。"哨子是我家的。"',
+				auto: '你还没开口，她已经注意到你在看那只手。' },
+
+			{ id: '女巫·换哨', tag: '换哨', npc: '当时的女巫', q: '把她那支哨换过来', base: 'neutral',
+				sites: [], levers: [],
+				// 2024「unwilling」：拿不出图与还杖这两件事，说不动她——这一步不是掷骰能过的
+				willing: (pc) => !!pc.inv['完整星图'] && !!pc.world.family_favor,
+				unwilling: (pc) => !(pc.inv['完整星图'] && pc.world.family_favor),
+				why: `（她把图与那根杖都算在了这一眼里——''这两样没凑齐，说什么都白说''。）`,
+				done: (pc) => !!pc.inv['好哨'],
+				apply: (pc) => { delete pc.inv['坏哨']; pc.inv['好哨'] = true; },
+				will: '她看了很久，像在核对一件只有她认得的东西，然后把手里那支哨递过来。' },
+
+			{ id: '哥布林·路', tag: '让路', npc: '哥布林', q: '让我过去', base: 'hostile', yield: 'flag:goblin_spared',
+				sites: ['哥布林·哄', '哥布林·骗', '哥布林·吓', '哥布林·看'],
+				levers: [
+					{ id: 'coin',   name: '把几枚金币放在石头上', gives: 'auto', econ: 'goblin_bribe', note: '它要的不是路，是能换东西的石头' },
+					{ id: 'stones', name: '把滚到脚边的石头给它捡回去', gives: 'auto', needRead: true, note: '它只是舍不得那些石头' },
+				],
+				done: (pc) => !!pc.world.goblin_spared,
+				apply: (pc) => { pc.world.goblin_spared = true; },
+				ok: '它把石头一块块码回怀里，往旁边挪了挪，让出半条路。',
+				bad: '它尖叫着把石头抱得更紧，牙齿打颤的声音更响了。',
+				auto: '你把金币放在它面前的石头上。它盯着看了一会儿，伸手抓走了。' },
+
+			{ id: '老巫女·开口', tag: '搭话', npc: '老巫女', q: '让她多说两句', base: 'neutral',
+				sites: [], levers: [],
+				unwilling: () => true,
+				why: `（她把袖子拢了拢。''这一桌没有你要问的事''——她不说，你也没什么能拿来换的。）`,
+				done: () => false,
+				no: '她没看你，只看着厅中央那张空着的位子。' },
+		],
+		ask(id) { return this.asks.find((a) => a.id === id) ?? null; },
+		attitude(a, pc) {
+			let att = typeof a.base === 'function' ? a.base(pc ?? {}) : (a.base ?? 'neutral');
+			const n = pc?.soc?.att?.[a.npc] ?? 0;
+			if (n >= 1) att = 'friendly';
+			else if (n <= -1) att = 'hostile';
+			return att;
+		},
+		shift(pc, npc, n) {
+			if (!pc.soc) pc.soc = { att: {}, tries: {}, read: {} };
+			pc.soc.att[npc] = (pc.soc.att[npc] ?? 0) + n;
+		},
+		tries(a, pc, site) { return pc?.soc?.tries?.[`${a.id}|${site}`] ?? 0; },
+		// DC ＝ 位点基础 DC ＋ 态度修正 ＋ 5 × 同一手已经试过几次（2024：不许原地重掷）
+		dcOf(a, site, pc) {
+			const s = Checks.sites[site] ?? {};
+			return Math.max(5, (s.dc ?? 15) + (this.attAdj[this.attitude(a, pc)] ?? 0) + 5 * this.tries(a, pc, site));
+		},
+		// 手上有哪几张牌：这一问能怎么开口（每张＝一项技能），筹码开没开
+		open(a, pc) {
+			return (a.sites ?? []).map((site) => {
+				const skill = Checks.sites[site]?.skill ?? '';
+				return { site, skill, ap: this.approaches[skill] ?? null, dc: this.dcOf(a, site, pc) };
+			}).filter((o) => o.ap);
+		},
+		levers(a, pc) { return (a.levers ?? []).filter((lv) => this.leverOpen(a, lv, pc)); },
+		leverOpen(a, lv, pc) {
+			if (lv.needRead && !pc?.soc?.read?.[a.npc]) return false;
+			if (lv.need && !lv.need(pc)) return false;
+			return true;
+		},
+		// 掷一次（不渲染）：骰面存进 $pc.ev.last_roll，交给 <<lastcheckFor>> 复显——
+		// 免得"结算处"与"面板处"各印一遍检定框
+		roll(pc, site, dc, advWhy) {
+			const s = Checks.sites[site] ?? {};
+			const opt = { adv: advWhy ? 1 : 0, site, advWhy: advWhy ?? '' };
+			return s.abil ? Rules.save(pc, s.abil, dc, opt) : Rules.check(pc, s.skill, dc, opt);
+		},
+		// 结果定档：willing＝不掷骰 · unwilling＝不掷骰（回绝）· 其余掷骰
+		verdict(a, pc) {
+			if (a.unwilling?.(pc)) return 'unwilling';
+			if (a.willing?.(pc)) return 'willing';
+			return 'roll';
+		},
+		// 落账：成功/失败各自的代价（2024 的态度与重试规则）
+		settle(a, pc, site, kind) {
+			const skill = Checks.sites[site]?.skill ?? '';
+			const ap = this.approaches[skill] ?? {};
+			if (!pc.soc) pc.soc = { att: {}, tries: {}, read: {} };
+			if (kind === 'crit' || kind === 'ok') {
+				if (ap.read) { if (!pc.soc.read) pc.soc.read = {}; pc.soc.read[a.npc] = true; }
+				if (ap.onOk?.att) this.shift(pc, a.npc, ap.onOk.att);
+				return [];
+			}
+			const notes = [];
+			// 重试代价只给「话说死了」的那几手（游说/历史）：这一手越问越难。
+			// 其它手段的代价另算——欺瞒/恐吓＝态度降级（整条轴都变贵），表演/洞悉/察觉＝只是没接上话。
+			if (site && ap.onFail?.retry) {
+				const k = `${a.id}|${site}`;
+				pc.soc.tries[k] = (pc.soc.tries[k] ?? 0) + 1;
+			}
+			if (ap.onFail?.retry) notes.push(`这一手他听过了——再开口，''更难''（DC +5）。`);
+			if (ap.onFail?.att) { this.shift(pc, a.npc, ap.onFail.att); notes.push(`''他记住了。''（态度 下滑）`); }
+			return notes;
+		},
+	};
+
 	const Star = {
 		budget: 4,          // 正路必要 3 次（塔内入过去 / 回现在取日记 / 宴会换哨）+ 1 次余量
 		overBudget(pc) { return (pc?.star?.spent ?? 0) > this.budget; },
@@ -594,5 +799,5 @@ window.Game = (() => {
 		},
 	};
 
-	return { Checks, Economy, Items, Gear, Combat, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon };
+	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon };
 })();

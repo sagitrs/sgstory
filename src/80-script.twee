@@ -100,3 +100,20 @@ jQuery(document).on(':passagestart', () => {
 	Pc.migrate(State.variables.pc);
 	SgCodex.sync();
 });
+
+/* ── 交涉面板（B2）的选项点击 ───────────────────────────────────────────────
+   选项为什么不用 <<link>>：<<link>> 的内容是**点击时**才解析的，那时 <<for>> 的临时变量
+   已经被同一段落里下一个面板覆盖（"点花的面板、算成求术的面板"）。所以面板直接发
+   <a data-ask data-how>，值与它一起进 DOM——点谁是谁。
+   只写状态 + 重渲染同一段落：判定与结算留在段落顶部的 <<socresolve>>，骰面因此留在帧里。 */
+jQuery(document).on('click.sgSocial', '#passages a.soc-opt', function (ev) {
+	ev.preventDefault();
+	const ask = String(this.dataset.ask ?? '');
+	if (!Game.Social.ask(ask)) return;
+	State.variables.pc.ev.soc = { id: ask, how: String(this.dataset.how ?? 'will') };
+	Engine.play(State.passage);
+});
+// 键盘可达（role="link" 的自制链接）
+jQuery(document).on('keydown.sgSocial', '#passages a.soc-opt', function (ev) {
+	if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); jQuery(this).trigger('click'); }
+});

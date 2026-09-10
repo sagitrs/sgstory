@@ -1,0 +1,65 @@
+{
+  "description": "S5 交涉前档（B2 之前的形状：没有 soc 台账，也没有 soc_last）——迁移必须补出态度/次数/读人三张空表",
+  "keep": {
+    "name": "话多的旅人",
+    "gold": 17,
+    "hp": 7
+  },
+  "pc": {
+    "name": "话多的旅人",
+    "round": 4,
+    "picked": [
+      "职业：说客",
+      "背景：江湖"
+    ],
+    "mode": "veteran",
+    "abilities": {
+      "str": 8,
+      "dex": 10,
+      "con": 10,
+      "int": 12,
+      "wis": 10,
+      "cha": 15
+    },
+    "skills": [
+      "游说",
+      "洞悉"
+    ],
+    "feats": [],
+    "gear": [
+      "火把"
+    ],
+    "flags": {
+      "lore": true
+    },
+    "gold": 17,
+    "hp": 7,
+    "max_hp": 9,
+    "salves": 1,
+    "classKey": "face",
+    "classLabel": "说客",
+    "bgKey": "rover",
+    "bgLabel": "江湖",
+    "speciesKey": "human",
+    "speciesLabel": "人类",
+    "inv": {
+      "时光护符": true,
+      "月光花": true
+    },
+    "star": {
+      "charge": 12,
+      "spent": 0
+    },
+    "keeper": {
+      "met": true,
+      "trust": 0,
+      "state": "post",
+      "key": false
+    },
+    "ev": {
+      "tav_tips": true
+    },
+    "world": {}
+  },
+  "expectSalves": 1
+}

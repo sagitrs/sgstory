@@ -37,9 +37,9 @@ async function newGame(randomStub, preset = 0) {
 	const mark = () => visited.add(`${w.SugarCube.State.passage}|${w.SugarCube.State.variables?.era ?? '-'}`);
 	const click = async (label) => {
 		// 精确优先：避免「塔」被「守塔的人家」这类包含关系抢先命中（子串兜底保留，供动态文案用）
-		const links = [...w.document.querySelectorAll('#passages a.link-internal')];
+		const links = [...w.document.querySelectorAll('#passages a.link-internal, #passages a.soc-opt')];
 		const a = links.find((x) => x.textContent === label) ?? links.find((x) => x.textContent.includes(label));
-		if (!a) throw new Error(`找不到链接「${label}」@ ${w.SugarCube.State.passage}（可选：${[...w.document.querySelectorAll('#passages a.link-internal')].map((x) => x.textContent).join(' / ')}）`);
+		if (!a) throw new Error(`找不到链接「${label}」@ ${w.SugarCube.State.passage}（可选：${[...w.document.querySelectorAll('#passages a.link-internal, #passages a.soc-opt')].map((x) => x.textContent).join(' / ')}）`);
 		mark();
 		const before = uncaught.length;
 		a.click();
@@ -60,7 +60,7 @@ async function newGame(randomStub, preset = 0) {
 	return { w, click, uncaught };
 }
 
-const linksOf = (w) => [...w.document.querySelectorAll('#passages a.link-internal')].map((x) => x.textContent);
+const linksOf = (w) => [...w.document.querySelectorAll('#passages a.link-internal, #passages a.soc-opt')].map((x) => x.textContent);
 const passageOf = (w) => w.SugarCube.State.passage;
 // B1：战斗每一轮的面板是随机 3 选 1——测试不去猜哪三张，只管"有牌就打"
 // 直到出现目标链接（战斗的出口）或段落里已经没有链接（已经落到结局）
@@ -110,7 +110,7 @@ async function truePath(w, c) {
 	await c('回到守林人');
 	await c('你守的到底是什么');           // 守林人·守
 	await c('回到守林人');
-	await c('问他：塔基墙根那片银白的花是什么'); // M9：花田的事得问（空手 → 游说 DC12，d20 恒 20 必成）
+	await c('把话说圆：游说（问花）'); // B2：花田的事得自己问（空手 → 游说 DC12，d20 恒 20 必成）
 	await c('收下钥匙');                   // 门厅
 	await c('把墙上那支哨子摘下来');       // M9：墙上那支哨子要自己摘（调查 DC10，d20 恒 20 必成）
 	await c('出塔，回到塔外');             // 塔门（过去）——守林人已警告
@@ -132,7 +132,8 @@ async function truePath(w, c) {
 	await c('回到观星者');
 	await c('那一夜会怎么样');
 	await c('回到观星者');
-	await c('求他把完整星图给你');         // 观星者·图（有书 → 直接给）
+	await c('拿出筹码：把风化了的书放回案上（求图）'); // B2：有书 → 免检筹码（不必掷骰）
+	await c('把那张抄好的图收下');
 	await c('回到观星者');
 	await c('回到宴上');
 	await c('找那位从不离手一支哨子的老人'); // 当时的女巫（她本人）
@@ -140,7 +141,8 @@ async function truePath(w, c) {
 	await c('自己动手翻：桌布底下、酒箱后头都掀开看');   // M10：翻找是动作（d20 恒 20 必成）
 	await c('把杖拿回去还她');             // M10：还杖是动作（还完就站在她面前）
 	if (pcOf(w).world.family_favor !== true) throw new Error('还杖未置 family_favor');
-	await c('把她那支哨换过来');           // → 好哨（哨是她的）
+	await c('开口：把她那支哨换过来（换哨）');   // B2：图与杖齐了 → willing，不掷骰
+	await c('把那支哨收好');                       // → 当时的女巫·换（哨是她的）           // → 好哨（哨是她的）
 	await c('回到当时的女巫');
 	await c('回到宴上');
 	await c('找厅角那位不肯多说的老人');   // 老巫女（只露面，不持关键信息）
@@ -187,7 +189,7 @@ async function routeTooManyFlips() {
 	if (pcOf(w).star.spent <= w.Game.Star.budget) throw new Error(`乱翻之后 spent=${pcOf(w).star.spent} 没超过预算`);
 	if (w.SugarCube.State.variables.era !== 'present') throw new Error('乱翻之后没有停在现在');
 	await c('叫醒它');                    // 唤醒
-	if ([...w.document.querySelectorAll('#passages a.link-internal')].some((x) => x.textContent.includes('让守林人动手'))) {
+	if ([...w.document.querySelectorAll('#passages a.link-internal, #passages a.soc-opt')].some((x) => x.textContent.includes('让守林人动手'))) {
 		throw new Error('翻太多之后还出现了「让守林人动手」——软限没生效');
 	}
 	await c('退出去');
@@ -217,7 +219,8 @@ async function routeFlowerGoblin() {
 	const { w, click: c } = await newGame(0.5, 0); // d20 恒 11：若情报路径误走判定，DC16 必败
 	await c('推门出发，走进暮色');
 	await c('打着火把，走进山脚的洞穴');
-	await c('买条路过去');               // goblin_spared
+	await c('拿出筹码：把几枚金币放在石头上（让路）'); // B2：给钱＝免检
+	await c('从它旁边过去');
 	if (pcOf(w).world.goblin_spared !== true) throw new Error('买路未置 goblin_spared');
 	await c('去那间亮着灯的小屋');       // 森林边缘 → 女巫小屋
 	await c('谢过她，往林子深处走');     // → 林间小径
@@ -331,7 +334,8 @@ async function routeVoid() {
 	// 好感链：空手见守林人不被纠正"封印"，说一句"它不会变成恶龙"（对话层，不落旗），好感不换放行
 	await c('说一句：它不会变成恶龙');
 	await c('回到守林人');
-	await c('那就用他家的封印术');       // → 守林人·封印：术式念得动，但要你先把它按下去
+	await c('把话说圆：游说（求术）');   // B2：求他动术式（游说 DC13，d20 恒 20 必成）
+	await c('那就让他念——用他家的封印术'); // → 守林人·封印
 	if (pcOf(w).keeper.state !== 'seal') throw new Error('封印计划未落 state=seal');
 	await c('明白了。下去');               // 门厅
 	// 顺手把花带上：毒液抹刃 → 龙的攻击劣势（v17 补正 #3）
@@ -577,14 +581,16 @@ async function routeSleepVoluntary() {
 	await c('用钥匙打开铁门');
 	await c('在宴上找人说话');
 	await c('问那位一直在算星的人');
-	await c('求他把完整星图给你');   // 无书 → 说服检定（d20=20 必成）
+	await c('引一段先例：历史（求图）');   // B2：无书 → 历史检定（d20=20 必成）
+	await c('把那张抄好的图收下');
 	await c('回到观星者');
 	await c('回到宴上');
 	await c('找那位从不离手一支哨子的老人'); // 当时的女巫（她本人）
 	await c('在塔里找那根杖');
 	await c('自己动手翻：桌布底下、酒箱后头都掀开看');   // M10：翻找是动作（d20 恒 20 必成）
 	await c('把杖拿回去还她');                          // M10：还杖是动作
-	await c('把她那支哨换过来');
+	await c('开口：把她那支哨换过来（换哨）');   // B2：图与杖齐了 → willing，不掷骰
+	await c('把那支哨收好');                       // → 当时的女巫·换（哨是她的）
 	await c('回到当时的女巫');
 	await c('回到宴上');
 	await c('回到地下宴会厅');
@@ -598,7 +604,7 @@ async function routeSleepVoluntary() {
 // ── 路线 23：换哨双门槛（无好感不换 / 无星图不换）──
 async function routeExchangeGate() {
 	const { w, click: c } = await newGame(0.99, 0);
-	const links = () => [...w.document.querySelectorAll('#passages a.link-internal')].map((x) => x.textContent);
+	const links = () => [...w.document.querySelectorAll('#passages a.link-internal, #passages a.soc-opt')].map((x) => x.textContent);
 	await toWitch(c);
 	await toTower(c);
 	await c('坠入');
@@ -622,7 +628,8 @@ async function routeExchangeGate() {
 	// ③ 取星图 → 换哨选项出现
 	await c('回到宴上');
 	await c('问那位一直在算星的人');
-	await c('求他把完整星图给你');
+	await c('引一段先例：历史（求图）');
+	await c('把那张抄好的图收下');
 	await c('回到观星者');
 	await c('回到宴上');
 	await c('找那位从不离手一支哨子的老人');
@@ -661,19 +668,31 @@ async function routeEraBranches() {
 	return { w };
 }
 
-// ── 路线 25：打听碰壁 → 请一轮酒（M9：信息要自己问）──
+// ── 路线 25：打听碰壁 → 越问越难 → 换手段/换筹码（B2：代价因手段而异）──
 async function routeTavernAsk() {
 	const { w, click: c } = await newGame(0.01, 0);   // d20 恒 1：所有检定必败
 	// 酒馆：一桌一问（问过就消失）
 	await c('靠窗那桌——他们在讲塔上那盏灯');
 	if (pcOf(w).ev.tav_light !== true) throw new Error('问过的那桌没记账');
-	await c('问老板娘：进塔该注意什么');            // 游说 DC10 → 必败
-	if (pcOf(w).ev.tav_brushoff !== true || pcOf(w).ev.tav_tips) throw new Error('游说失败却没走"碰壁"分支');
+	// ① 游说失败 → 「这一手」的 DC 递增（2024：不许原地重掷）
+	const dcOf = (site) => w.eval(`Game.Social.dcOf(Game.Social.ask('老板娘·进塔'), '${site}', SugarCube.State.variables.pc)`);
+	const before = Object.fromEntries(['酒馆·打听', '老板娘·吓'].map((s) => [s, dcOf(s)]));
+	await c('把话说圆：游说（问路）');              // 游说 → 必败
+	const last = pcOf(w).ev.soc_last?.['老板娘·进塔'];
+	if (!last || last.kind !== 'bad') throw new Error('游说失败却没记成失败档');
+	if (pcOf(w).ev.tav_tips) throw new Error('游说失败却拿到了忠告');
+	if (dcOf('酒馆·打听') !== before['酒馆·打听'] + 5) throw new Error(`游说失败后 DC 没涨（${before['酒馆·打听']} → ${dcOf('酒馆·打听')}）`);
+	if (dcOf('老板娘·吓') !== before['老板娘·吓']) throw new Error('重试代价只该压在这一手上，不该牵连别的手段');
+	// ② 换手段＝换属性：恐吓（同一句诉求走魅力另一条路），代价是「得手也记仇」
+	await c('亮一亮手里的家伙：恐吓（问路）');
+	if (pcOf(w).soc.att['老板娘'] !== -1) throw new Error(`恐吓失败没损态度（att=${pcOf(w).soc.att['老板娘']}）`);
+	if (dcOf('老板娘·吓') !== before['老板娘·吓'] + 5) throw new Error('态度降一级＝整条轴都变贵（敌意 +5 是全局的，与重试代价不同）');
+	// ③ 筹码：把对方想要的摆出来 → 免检得手（不给骰子机会）
 	const gold0 = pcOf(w).gold;
-	await c('请一轮酒');                            // 花钱换：3 金币
+	await c('拿出筹码：请她喝一轮（问路）');
 	if (pcOf(w).ev.tav_tips !== true) throw new Error('请了酒还是没听到忠告');
 	if (pcOf(w).gold !== gold0 - 3) throw new Error(`请酒没扣钱（${gold0} → ${pcOf(w).gold}）`);
-	if (pcOf(w).ev.tav_fog) throw new Error('游说失败却拿到了"雾是从塔那边来的"');
+	if (pcOf(w).soc.att['老板娘'] !== 0) throw new Error('筹码该把态度拉回冷淡以上（shift +1）');
 	if (!w.document.querySelector('#passages').textContent.includes('别在雾里睡觉')) throw new Error('忠告没渲染出来');
 	await c('推门出发，走进暮色');
 	await c('在雾里站住，听一听');                  // 察觉 DC10 → 必败 → 什么都没听清
@@ -694,7 +713,7 @@ async function routeTavernAsk() {
 // ── 路线 26：情报自己问、暗格自己摸（M9）——含"女巫门道"免检 ──
 async function routeAskForIt() {
 	const { w, click: c } = await newGame(0.99, 0);
-	await c('问老板娘：进塔该注意什么');            // 游说 DC10 → 必成 → 忠告 + 雾气来向
+	await c('把话说圆：游说（问路）');            // B2：游说 DC12 → 必成 → 忠告 + 雾气来向
 	if (pcOf(w).ev.tav_tips !== true || pcOf(w).ev.tav_fog !== true) throw new Error('游说成功没拿到忠告/雾气来向');
 	if (!w.document.querySelector('#passages').textContent.includes('雾是从塔那边来的')) throw new Error('雾气来向没渲染');
 	await c('问一句女巫小屋怎么走');
@@ -742,7 +761,7 @@ async function routeNoSaveScum() {
 	await c('慢慢放下手');
 	await c('顺着那条窄路走过去');
 	// 守林人：游说（魅力 8 → 必败）换"察觉"这条路
-	await c('先看清他靴边那一圈白');
+	await c('先看清他身上那点不对劲：察觉（问花）');
 	if (pcOf(w).world.flower_warned !== true) throw new Error('察觉路没换来花田警告');
 	await c('收下钥匙');
 	// 门厅：先看清钉子（感知 → 必成），不必赌调查
@@ -777,9 +796,9 @@ async function routeNoSaveScum() {
 	await c('翻转护身符：坠入');                  // 先翻到过去（位置决定年代）
 	await c('在宴上找人说话');
 	await c('问那位一直在算星的人');
-	await c('先不开口，看他手上的笔停顿在哪');    // 洞悉 → 必成
+	await c('先看他手里攥着什么：洞悉（求图）');    // B2：洞悉 → 必成
 	if (pcOf(w).ev.seer_gave !== true) throw new Error('洞悉路没换来星图');
-	await c('求他把完整星图给你');
+	await c('把那张抄好的图收下');
 	if (pcOf(w).inv['完整星图'] !== true) throw new Error('星图没拿到');
 	await c('回到观星者');
 	await c('回到宴上');
@@ -789,9 +808,10 @@ async function routeNoSaveScum() {
 	if (pcOf(w).ev.staff_found !== true) throw new Error('洞悉路没找到杖');
 	await c('把杖拿回去还她');
 	if (pcOf(w).world.family_favor !== true) throw new Error('还杖没落 family_favor');
-	await c('看她手里那支哨子');                   // 洞悉 → 必成
+	await c('先看他手里攥着什么：洞悉（看哨）');   // B2：看哨色也要自己开口                   // 洞悉 → 必成
 	if (pcOf(w).ev.witch_grip !== true) throw new Error('洞悉路没看清哨子');
-	await c('把她那支哨换过来');
+	await c('开口：把她那支哨换过来（换哨）');   // B2：图与杖齐了 → willing，不掷骰
+	await c('把那支哨收好');                       // → 当时的女巫·换（哨是她的）
 	if (pcOf(w).inv['好哨'] !== true) throw new Error('好哨没换到');
 	return { w };
 }

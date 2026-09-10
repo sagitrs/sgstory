@@ -110,29 +110,10 @@
 	<<setflag "seer_asked">>
 <</if>>
 <<if not $pc.inv["完整星图"]>>
-	<<lastcheckFor "观星者·说服" "观星者·洞悉">>
-	<<link "求他把完整星图给你">>
-		<<if $pc.ev.seer_gave>>
-			（他已经把笔放下了——不必再说。）
-		<<elseif $pc.inv["观星者的书"]>>
-			<<set $pc.ev.seer_gave to true>>
-		<<else>>
-			<<sitecheck "观星者·说服">><<snapshot>>
-			<<if $last_check.success>><<set $pc.ev.seer_gave to true>><</if>>
-		<</if>>
-		<<goto "观星者·图">>
-	<</link>>
-	<<if not $pc.inv["观星者的书"] and not $pc.ev.seer_gave>>
-		<<link "先不开口，看他手上的笔停顿在哪">>
-			<<sitecheck "观星者·洞悉">><<snapshot>>
-			<<if $last_check.success>>
-				他不是不肯给——他算到最后一轨就停了，停了很多年，没人替他往下算。
-				你说到这一点上，他把笔放下了。<<set $pc.ev.seer_gave to true>>
-			<<else>>
-				笔一直没停。你看不出他在想什么。（''看不透就直说：''求他把完整星图给你''。''）
-			<</if>>
-			<<goto "观星者">>
-		<</link>>
+	<<socresolve "观星者·图">>
+	<<socpanel "观星者·图">>
+	<<if $pc.ev.seer_gave>>
+		[[把那张抄好的图收下|观星者·图]]
 	<</if>>
 <</if>>
 <<if not $pc.ev.letter_seen>>
@@ -210,38 +191,25 @@
 	[[在塔里找那根杖|寻杖]]
 <</if>>
 
+<<socresolve "女巫·看哨">>
+<<socresolve "女巫·换哨">>
+
 <<if $pc.inv["完整星图"] and $pc.world.family_favor and not $pc.inv["好哨"]>>
-	<<lastcheckFor "当时的女巫·辨认" "当时的女巫·开口">>
-	<<if not $pc.ev.witch_grip>>
-		<<link "看她手里那支哨子">>
-			<<sitecheck "当时的女巫·辨认">><<snapshot>>
-			<<if $last_check.success>><<set $pc.ev.witch_grip to true>><<else>><<set $pc.ev.witch_grip_fail to true>><</if>>
-			<<goto "当时的女巫">>
-		<</link>>
-		<<link "直接开口：那支哨子，能不能给我看看">>
-			<<sitecheck "当时的女巫·开口">><<snapshot>>
-			<<if $last_check.success>>
-				她把哨子递过来半寸，又收回去："你眼力不错。"——''这一支和守林人门边那支，是一个模子里的。''
-				<<set $pc.ev.witch_grip to true>>
-			<<else>>
-				"哨子是我家的。"她把手合上了。（''她不肯递，就自己看——或者换一样她认得的东西来。''）
-			<</if>>
-			<<goto "当时的女巫">>
-		</link>>
-	<</if>>
+	<<socpanel "女巫·看哨">>
 	<<if $pc.ev.witch_grip>>
-		<<lastcheck>>
+		<<lastcheckFor "当时的女巫·辨认" "当时的女巫·开口">>
 		你看清了：她握哨的手势——和守林人挂在门边那支一样。
 	<</if>>
-	<<if $pc.ev.witch_grip_fail and not $pc.ev.witch_grip>>
-		<<lastcheck>>
-		（她手一直没松开。你看了半天，只看见一只攥紧的手。''再看一次也行。''）
+<<else>>
+	<<if $pc.inv["完整星图"] and not $pc.world.family_favor>>
+		（她看了你一眼，又去看那只空架子——像在等一件你还没替她办的事。）
+	<<elseif not $pc.inv["完整星图"]>>
+		（她看了你一眼，像在等一样你拿不出的东西。）
 	<</if>>
-	<<link "把她那支哨换过来">><<goto "当时的女巫·换">><</link>>
-<<elseif $pc.inv["完整星图"] and not $pc.world.family_favor>>
-	（她看了你一眼，又去看那只空架子——像在等一件你还没替她办的事。）
-<<elseif not $pc.inv["完整星图"]>>
-	（她看了你一眼，像在等一样你拿不出的东西。）
+<</if>>
+<<socpanel "女巫·换哨">>
+<<if $pc.inv["好哨"]>>
+	[[把那支哨收好|当时的女巫·换]]
 <</if>>
 [[回到宴上|宴会·过去]]
 
@@ -307,6 +275,8 @@
 <<else>>
 	（她把袖子拢了拢，没再说话。）
 <</if>>
+<<socresolve "老巫女·开口">>
+<<socpanel "老巫女·开口">>
 <<set $pc.ev.old_witch to true>>
 [[回到宴上|宴会·过去]]
 
@@ -322,8 +292,6 @@
 
 然后她伸手，把你那支锈的接了过去，收进袖子——像收一件本来就在她那儿的东西。
 
-<<run delete $pc.inv["坏哨"]>>
-<<give "好哨">>
 [[回到当时的女巫|当时的女巫]]
 
 :: 喂花

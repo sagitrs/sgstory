@@ -4,12 +4,13 @@
 // 不变量：hp/max_hp/gold/era/star.spent/keeper.state/dragon.hp/inv 闭集/$pc 形状
 // 双支清扫：逐位点直接 wikify <<sitecheck 位点>> 于 hi/lo 两档 → 每位点成败两支必达
 // 用法：node test/walker.mjs [ch1局数=4] [tower局数=4]
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
-import { JSDOM, VirtualConsole } from 'jsdom';
+import { writeFileSync, mkdirSync } from 'node:fs';
+// 统一进 test/boot.mjs（#27 就绪轮询 + 坑11 uncaught 监听 + 退出清理）——
+// 这里不再自己装配 JSDOM：随机源改传函数（种子流），窗口关不关由 boot 统一负责。
+import { boot } from './boot.mjs';
 
 const N_CH1 = Number(process.argv[2] ?? 4);
 const N_TOWER = Number(process.argv[3] ?? 4);
-const html = readFileSync('dist/index.html', 'utf8');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function makeRng(seed) {
@@ -21,37 +22,19 @@ const failures = [];
 const visitedCells = new Set();
 const rollObs = new Map();
 
-async function boot(stubMode, seed) {
+// 薄壳：stubMode 决定 Math.random 的档位；rng 是点击用的种子流（与掷骰随机源分开）
+async function walkerBoot(stubMode, seed) {
 	const rng = makeRng(seed);
-	const uncaught = [];
-	const vc = new VirtualConsole();
-	vc.on('jsdomError', (e) => { const m = String(e?.message ?? e); if (m.startsWith('Uncaught')) uncaught.push(m); });
 	let flip = false;
-	const dom = new JSDOM(html, {
-		runScripts: 'dangerously', pretendToBeVisual: true, url: 'http://localhost/', virtualConsole: vc,
-		beforeParse(window) {
-			window.Math.random = () => {
-				if (stubMode === 'hi') return 0.99;
-				if (stubMode === 'lo') return 0.01;
-				if (stubMode === 'neutral') return 0.5;
-				flip = !flip; return flip ? 0.99 : 0.01;
-			};
+	const { dom, w, uncaught, close } = await boot({
+		random: () => {
+			if (stubMode === 'hi') return 0.99;
+			if (stubMode === 'lo') return 0.01;
+			if (stubMode === 'neutral') return 0.5;
+			flip = !flip; return flip ? 0.99 : 0.01;
 		},
 	});
-	const t0 = Date.now();
-	while (!(typeof dom.window.SugarCube?.Wikifier === 'function' && dom.window.document.querySelector('#passages'))) {
-		if (Date.now() - t0 > 30000) throw new Error('等待超时：SugarCube 加载');
-		await sleep(50);
-	}
-	const w = dom.window;
-	new w.SugarCube.Wikifier(null, w.document.querySelector('tw-passagedata[name="StoryInit"]').textContent);
-	w.SugarCube.Engine.start();
-	const t1 = Date.now();
-	while (!w.document.querySelector('#passages .passage[data-passage="开场"]')) {
-		if (Date.now() - t1 > 15000) throw new Error('等待超时：起始段渲染');
-		await sleep(50);
-	}
-	return { dom, w, rng, uncaught };
+	return { dom, w, rng, uncaught, close };
 }
 
 // ── 不变量（车卡完成后才适用）─────────────────────────────
@@ -77,11 +60,11 @@ function invariantViolations(w) {
 
 // ── 走一局 ───────────────────────────────────────────────
 async function walk(index, mode, stubMode, seed, maxSteps) {
-	const { dom, w, rng, uncaught } = await boot(stubMode, seed);
+	const { w, rng, uncaught, close } = await walkerBoot(stubMode, seed);
 	const trace = [];
 	const cells = [];
 	const fail = (msg) => failures.push({ index, mode, stubMode, seed, step: trace.length, trace: [...trace], msg });
-	const clickables = () => [...w.document.querySelectorAll('#passages a.link-internal, #passages .choice-card a, #passages button')];
+	const clickables = () => [...w.document.querySelectorAll('#passages a.link-internal, #passages a.soc-opt, #passages .choice-card a, #passages button')];
 	const click = (el) => {
 		const label = (el.textContent || el.value || '?').trim().slice(0, 30);
 		trace.push(label);
@@ -119,14 +102,14 @@ async function walk(index, mode, stubMode, seed, maxSteps) {
 		fail(`异常中断: ${e.message}`);
 	}
 	cells.forEach((c) => visitedCells.add(c));
-	dom.window.close();
+	close();
 }
 
 // ── 位点双支清扫（定向、确定性）：逐位点直接 wikify ──────────
 async function dualBranchSweep() {
-	const { dom, w } = await boot('neutral', 424242);
+	const { w, close } = await walkerBoot('neutral', 424242);
 	// 真实车卡（保证技能/属性齐备）
-	const byLabel = (t) => [...w.document.querySelectorAll('#passages a.link-internal')].find((x) => x.textContent.trim() === t);
+	const byLabel = (t) => [...w.document.querySelectorAll('#passages a.link-internal, #passages a.soc-opt')].find((x) => x.textContent.trim() === t);
 	for (const label of ['踏上旅途', '快速成型', '出发，前往歪脖子鸭酒馆']) { byLabel(label).click(); await sleep(220); }
 	const sites = Object.keys(w.Game.Checks.sites);
 	const host = w.document.createElement('div');
@@ -142,7 +125,7 @@ async function dualBranchSweep() {
 			rollObs.set(`${key}|${lc.success}`, (rollObs.get(`${key}|${lc.success}`) ?? 0) + 1);
 		}
 	}
-	dom.window.close();
+	close();
 	for (const key of sites) {
 		for (const succ of ['true', 'false']) {
 			if (!rollObs.has(`${key}|${succ}`)) missing.push(`${key} 缺${succ === 'true' ? '成' : '败'}支`);

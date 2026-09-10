@@ -67,6 +67,8 @@ async function waitLinks(w, timeoutMs = 2000) {
 	}
 }
 const passageOf = (w) => w.SugarCube.State.passage;
+// 当前屏上的可读文本（给"不许提前泄底"这类断言用）
+const passageText = (w) => w.document.querySelector('#passages').textContent.replace(/\s+/g, ' ');
 // B1：战斗每一轮的面板是随机 3 选 1——测试不去猜哪三张，只管"有牌就打"
 // 直到出现目标链接（战斗的出口）或段落里已经没有链接（已经落到结局）
 async function fightTo(c, w, stops, maxRounds = 12) {
@@ -486,6 +488,11 @@ async function routeCodex() {
 	await c('塔');
 	await c('回设定集');
 	await c('道具');
+	// #168 P2-12：道具页只列身上有的——不许把好哨 / 完整星图 / 传送术卷轴这类终局件先摆出来
+	{
+		const t = passageText(w);
+		if (/好哨|完整星图|传送术卷轴/.test(t)) throw new Error(`道具页提前泄底：${t.slice(0, 90)}`);
+	}
 	await c('回设定集');
 	await c('术语');
 	await c('回设定集');

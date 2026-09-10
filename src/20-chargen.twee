@@ -26,7 +26,7 @@ window.ChargenRounds = [
 		],
 	},
 	{
-		title: '种族', intro: '你生来带着什么。（只影响数值）',
+		title: '种族', intro: '你生来带着什么。',
 		options: [
 			{ name: '人类', desc: '哪一行的活都干得来。没有长处，也没有短处。', effect: '力 +1 敏 +1',
 				apply(pc) { pc.abilities.str += 1; pc.abilities.dex += 1; pc.speciesKey = 'human'; pc.speciesLabel = '人类'; } },
@@ -141,7 +141,7 @@ window.ChargenPresets = [
 
 车卡已成。
 
-桌上的名字是你自己写的，属性是你自己挑的。接下来不管发生什么，都是这个人在走。
+属性是你自己挑的。接下来不管发生什么，都是这个人在走。
 
 雾在林子那头，酒馆的门还亮着。
 

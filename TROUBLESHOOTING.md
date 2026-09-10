@@ -242,3 +242,19 @@ await w.SugarCube.Engine.start();   // 视口非零后这个 promise 才真的 r
 
 **预防**：渲染类断言**顺手查 `.error`**（`#passages .error` 存在即 throw）——本次正是加了这一条，
 才没把"整段替换成报错块"当成"渲染正常"放过去。
+
+## 坑18 · `<<print>>` 里写裸的 `Items` / `State` —— 空集合时看不出错，一有东西就炸〔#168 批次三〕
+
+**现场**：道具页要"只列身上有的道具"，写成 `<<print Object.keys($pc.inv).filter(k => Items.defs[k]).join(' · ')>>`。
+行囊空着时渲染得好好的（显示占位文案），一旦身上有东西，屏上整段变成
+`Error: <<print>>: bad evaluation: Items is not defined` 外加源码。
+
+**根因**：`15-tables.twee` 里所有的表都挂在 **`window.Game.*`** 下面（`Game.Items.defs`）；`Items` 只是
+构造 `Game` 那个 IIFE 内部的局部名，**不是全局**。空行囊时 `.filter()` 一次都没调用回调，
+`Items` 根本没被求值 → 侥幸通过；有道具时回调执行 → 立刻 ReferenceError。
+
+**解法**：`<<print>>` 一律走 `Game.Items.defs` / `Game.Gear.defs` 这样的全名；
+`State` 也一样——测试脚本里要用 `w.SugarCube.State`，`w.eval('State…')` 会 `ReferenceError`。
+
+**预防**：门/断言**别只测空状态**。这次就是靠"给 3 件道具再渲染一次"才把雷踩出来的——
+新增的路线断言（道具页不许出现终局件）也顺带覆盖了"非空"这条路径。

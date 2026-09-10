@@ -200,6 +200,9 @@ for (const file of fixtures) {
 	ok(fsite?.dc >= 15, `塔外花田：DC 较高（≥15；实际 ${fsite?.dc}）`);
 	ok(w.Game.Checks.knowledge?.['塔外花田'] === undefined, '塔外花田：不入情报表——有情报是「免判定」，不是「优势」');
 	ok(!w.Game.Items.advAt('塔外花田', { 坏哨: true, 观星者的书: true, 月光花: true }), '塔外花田：任何道具都不给优势');
+	const ssite = w.Game.Checks.sites['寻杖'];
+	ok(ssite?.skill === '调查', '寻杖：调查检定（在塔里找那根被藏起来的杖）');
+	ok(ssite?.dc >= 12 && ssite?.dc <= 15, `寻杖：中等难度（12–15；实际 ${ssite?.dc}）`);
 	w.eval('Math.random = () => 0.5');
 	// ④d 彩蛋击杀（M5b）：<<sitecheck "龙·终击">> 需天然 20 + 劣势 → 1/400 ≈ 0.25%
 	const ks = w.Game.Checks.sites['龙·终击'];

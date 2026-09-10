@@ -141,7 +141,7 @@ const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }
 // ── F. 位点优势单调律（M5b 重定）：空手无优势；加件不撤销优势；彩蛋位点永不吃优势 ──
 {
 	const I = w.Game.Items;
-	const sites = ['雾之魔物·挥击', '雾之魔物·心防', '龙·吐息', '龙·斩击', '龙·终击', '塔外花田'];
+	const sites = ['雾之魔物·挥击', '雾之魔物·心防', '龙·吐息', '龙·斩击', '龙·终击', '塔外花田', '寻杖'];
 	const items = ['坏哨', '观星者的书', '月光花', '日记', '龙鳞护臂'];
 	const invOf = (keys) => Object.fromEntries(keys.map((k) => [k, true]));
 	let bad = 0, checked = 0;

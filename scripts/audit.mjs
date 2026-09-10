@@ -161,6 +161,34 @@ if (wantAll || arg('choices')) {
 	}
 }
 
+// ── ⓪i 反 S/L 门（M10）：关键产出不许只有一条路 ──
+if (wantAll || arg('sel').length || arg('nosl')) {
+	console.log('\n══ ⓪i 反 S/L 门（M10）——关键东西不止一条路，且判定属性不同 ══');
+	let bad = 0;
+	const sites = Game.Checks.sites;
+	const keys = Game.Checks.keyYields ?? [];
+	const byYield = new Map(keys.map((k) => [k, []]));
+	for (const [site, d] of Object.entries(sites)) {
+		if (!d.yields) continue;
+		if (!byYield.has(d.yields)) { console.log(`  ✗ 位点「${site}」的 yields=「${d.yields}」不在 keyYields 里`); bad++; continue; }
+		const ab = d.abil ?? Rules.SKILLS[d.skill];
+		byYield.get(d.yields).push({ site, ab, dc: d.dc });
+	}
+	for (const [key, paths] of byYield) {
+		const abilities = [...new Set(paths.map((p2) => p2.ab))];
+		const mark = paths.length >= 2 && abilities.length >= 2 ? '✓' : '✗';
+		if (mark === '✗') {
+			bad++;
+			console.log(`  ✗ 「${key}」通路 ${paths.length} 条 · 判定属性 ${abilities.length} 种——至少要两条路、且属性不同（免得非酋只能读档）`);
+		}
+		console.log(`  ${mark} ${key}：${paths.map((p2) => `${p2.site}（${p2.ab} DC${p2.dc}）`).join(' · ')}`);
+	}
+	if (process.argv.includes('--check')) {
+		if (bad) { console.error(`\n✗ 反 S/L 门：${bad} 项`); process.exit(1); }
+		console.log('\n✔ 反 S/L 门通过（关键产出全部多路可达）');
+	}
+}
+
 // ── ⓪h 互动门（M9）：信息靠动作与交涉换来，不靠自动检定 ──
 if (wantAll || arg('interact')) {
 	console.log('\n══ ⓪h 互动门（M9）——信息必须由玩家动作发起 ══');

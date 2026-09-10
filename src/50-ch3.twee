@@ -110,8 +110,11 @@
 	<<setflag "seer_asked">>
 <</if>>
 <<if not $pc.inv["完整星图"]>>
+	<<lastcheckFor "观星者·说服" "观星者·洞悉">>
 	<<link "求他把完整星图给你">>
-		<<if $pc.inv["观星者的书"]>>
+		<<if $pc.ev.seer_gave>>
+			（他已经把笔放下了——不必再说。）
+		<<elseif $pc.inv["观星者的书"]>>
 			<<set $pc.ev.seer_gave to true>>
 		<<else>>
 			<<sitecheck "观星者·说服">><<snapshot>>
@@ -119,6 +122,18 @@
 		<</if>>
 		<<goto "观星者·图">>
 	<</link>>
+	<<if not $pc.inv["观星者的书"] and not $pc.ev.seer_gave>>
+		<<link "先不开口，看他手上的笔停顿在哪">>
+			<<sitecheck "观星者·洞悉">><<snapshot>>
+			<<if $last_check.success>>
+				他不是不肯给——他算到最后一轨就停了，停了很多年，没人替他往下算。
+				你说到这一点上，他把笔放下了。<<set $pc.ev.seer_gave to true>>
+			<<else>>
+				笔一直没停。你看不出他在想什么。（''看不透就直说：''求他把完整星图给你''。''）
+			<</if>>
+			<<goto "观星者">>
+		<</link>>
+	<</if>>
 <</if>>
 <<if not $pc.ev.letter_seen>>
 	<<link "拿起案角那封信">>
@@ -196,12 +211,23 @@
 <</if>>
 
 <<if $pc.inv["完整星图"] and $pc.world.family_favor and not $pc.inv["好哨"]>>
+	<<lastcheckFor "当时的女巫·辨认" "当时的女巫·开口">>
 	<<if not $pc.ev.witch_grip>>
 		<<link "看她手里那支哨子">>
 			<<sitecheck "当时的女巫·辨认">><<snapshot>>
 			<<if $last_check.success>><<set $pc.ev.witch_grip to true>><<else>><<set $pc.ev.witch_grip_fail to true>><</if>>
 			<<goto "当时的女巫">>
 		<</link>>
+		<<link "直接开口：那支哨子，能不能给我看看">>
+			<<sitecheck "当时的女巫·开口">><<snapshot>>
+			<<if $last_check.success>>
+				她把哨子递过来半寸，又收回去："你眼力不错。"——''这一支和守林人门边那支，是一个模子里的。''
+				<<set $pc.ev.witch_grip to true>>
+			<<else>>
+				"哨子是我家的。"她把手合上了。（''她不肯递，就自己看——或者换一样她认得的东西来。''）
+			<</if>>
+			<<goto "当时的女巫">>
+		</link>>
 	<</if>>
 	<<if $pc.ev.witch_grip>>
 		<<lastcheck>>
@@ -225,23 +251,50 @@
 
 你沿着长桌走了一圈。架子上、门边、酒箱后头——都没有。
 
-<<sitecheck "寻杖">><<snapshot>>
-<<if $last_check.success>>
-	你绕到长桌尽头。桌布垂到地上，鼓着一角——你掀开，那根杖就靠在那儿，杖头朝里，''藏得很仔细''。
-
-	你把杖拿回去。她接过去，没道谢，只把杖靠回架子，回头看了你一眼。
-
-	''"今晚得用它。"''她说，''"要是它一直不在，我们就什么都做不成。"''
-
-	（她说这话的时候，厅角那位老人也朝这边看了一眼——很快又转开了。）
-
-	<<setflag "family_favor">>
-	[[回到当时的女巫|当时的女巫]]
-<<else>>
-	你什么也没找到。厅里太挤，桌布底下、酒箱后头都翻过了。
-	[[再找找|寻杖]]
-	[[回到宴上|宴会·过去]]
+<<lastcheckFor "寻杖" "寻杖·问孩子" "寻杖·看人">>
+<<if not $pc.world.family_favor and not $pc.ev.staff_found>>
+	<<link "自己动手翻：桌布底下、酒箱后头都掀开看">>
+		<<sitecheck "寻杖">><<snapshot>>
+		<<if $last_check.success>>你掀开长桌尽头的桌布——那根杖就靠在那儿，杖头朝里，''藏得很仔细''。<<set $pc.ev.staff_found to true>>
+		<<else>>你什么也没找到。厅里太挤，桌布底下、酒箱后头都翻过了。<<damage 1>>（''翻不通就开口问：''桌子底下钻来钻去的孩子，多半见过。''）
+		<</if>>
+		<<goto "寻杖">>
+	<</link>>
+	<<link "拉住那个在桌子底下钻的孩子，问他看没看见一根杖">>
+		<<sitecheck "寻杖·问孩子">><<snapshot>>
+		<<if $last_check.success>>
+			小孩指了指长桌尽头："那根长长的？被人塞到布下面去了。我看见了，我没说。"<<set $pc.ev.staff_found to true>>
+		<<else>>
+			小孩摇头，一溜烟钻走了。（''问不出就问别人——或者自己去看：''厅里总有人在看那张空架子。''）
+		<</if>>
+		<<goto "寻杖">>
+	<</link>>
+	<<link "站在一边看：厅里谁一直在瞟那张空架子">>
+		<<sitecheck "寻杖·看人">><<snapshot>>
+		<<if $last_check.success>>
+			你顺着她的目光看过去——长桌尽头，桌布垂到地上，鼓着一角。<<set $pc.ev.staff_found to true>>
+		<<else>>
+			满厅的人都在忙自己的。你看不出谁在找那根杖。（''看不出就问：厅里跑动的孩子最清楚。''）
+		<</if>>
+		<<goto "寻杖">>
+	<</link>>
 <</if>>
+<<if $pc.ev.staff_found and not $pc.world.family_favor>>
+	<<link "把杖拿回去还她">>
+		你把杖拿回去。她接过去，没道谢，只把杖靠回架子，回头看了你一眼。
+
+		''"今晚得用它。"''她说，''"要是它一直不在，我们就什么都做不成。"''
+
+		（她说这话的时候，厅角那位老人也朝这边看了一眼——很快又转开了。）
+
+		<<setflag "family_favor">>
+		<<goto "当时的女巫">>
+	<</link>>
+<</if>>
+<<if $pc.world.family_favor>>
+	（杖已经还回去了。）
+<</if>>
+[[回到宴上|宴会·过去]]
 
 :: 老巫女
 /% payload: 信息 %/

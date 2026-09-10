@@ -6,33 +6,58 @@
 window.Game = (() => {
 	// ── 位点表（技能检定 / 豁免）──────────────────────────
 	const Checks = {
+		// yields（M10 反 S/L 门）：这个位点能拿到什么关键产出。
+		// 门禁要求每个 keyYields 至少两条路、且**判定属性不同**——不同策略都能走通，不必读档。
 		sites: {
 			'酒馆·打听':   { skill: '游说', dc: 10 },
 			'森林·察觉':   { skill: '察觉', dc: 10 },
 			'洞穴·战斗':   { skill: '运动', dc: 12, auto: '战斗（玩家已选择动手）' },
 			'雾之魔物·挥击': { skill: '运动', dc: 12, auto: '战斗（玩家已选择动手）' },
 			'雾之魔物·心防': { abil: 'con', dc: 13, auto: '战斗（玩家已选择动手）' },
-			'守林人·交涉': { skill: '游说', dc: 12 },
-			'门厅·翻检':   { skill: '调查', dc: 10 },
+			'守林人·交涉': { skill: '游说', dc: 12, yields: 'flag:flower_warned' },
+			'守林人·指花': { skill: '察觉', dc: 11, yields: 'flag:flower_warned' },
+			'门厅·翻检':   { skill: '调查', dc: 10, yields: '坏哨' },
+			'门厅·看钉':   { skill: '察觉', dc: 9,  yields: '坏哨' },
+			'门厅·硬掰':   { skill: '运动', dc: 12, yields: '坏哨' },
 			'书房·追问':   { skill: '历史', dc: 10 },
-			'书房·检视':   { skill: '调查', dc: 12 },
-			'工坊·识货':   { skill: '历史', dc: 12 },
+			'书房·检视':   { skill: '调查', dc: 12, yields: '日记' },
+			'书房·敲墙':   { skill: '察觉', dc: 11, yields: '日记' },
+			'书房·断代':   { skill: '历史', dc: 13, yields: '日记' },
+			'书房·强拆':   { skill: '运动', dc: 13, yields: '日记' },
+			'工坊·识货':   { skill: '历史', dc: 12, yields: 'ev:forge_seen' },
+			'工坊·记号':   { skill: '察觉', dc: 11, yields: 'ev:forge_seen' },
 			// 塔基花田（v16 补正 #6）：贸然采花＝较高体质豁免；失败＝死亡结局（有情报免判定）
-			'塔外花田':     { abil: 'con', dc: 16 },
-			'天文台·典籍': { skill: '奥秘', dc: 12 },
-			'观星者·说服': { skill: '历史', dc: 13 },
-			'当时的女巫·辨认': { skill: '洞悉', dc: 12 },
-			'寻杖':         { skill: '调查', dc: 13, auto: '进入该段落＝玩家已经动手翻找（「在塔里找那根杖」）' },
+			'塔外花田':     { abil: 'con', dc: 16, yields: '月光花' },
+			'花田·下风':   { skill: '生存', dc: 13, yields: '月光花' },
+			'天文台·典籍': { skill: '奥秘', dc: 12, yields: 'ev:star_ledger' },
+			'天文台·光点': { skill: '察觉', dc: 12, yields: 'ev:star_ledger' },
+			'观星者·说服': { skill: '历史', dc: 13, yields: '完整星图' },
+			'观星者·洞悉': { skill: '洞悉', dc: 13, yields: '完整星图' },
+			'当时的女巫·辨认': { skill: '洞悉', dc: 12, yields: 'ev:witch_grip' },
+			'当时的女巫·开口': { skill: '游说', dc: 13, yields: 'ev:witch_grip' },
+			'寻杖':         { skill: '调查', dc: 13, yields: 'flag:family_favor', auto: '进入该段落＝玩家已经动手翻找（「在塔里找那根杖」）' },
+			'寻杖·问孩子': { skill: '游说', dc: 12, yields: 'flag:family_favor' },
+			'寻杖·看人':   { skill: '洞悉', dc: 11, yields: 'flag:family_favor' },
 			'龙·吐息':     { abil: 'con', dc: 14, auto: '战斗（玩家已选择动手）' },
 			'龙·斩击':     { skill: '运动', dc: 10, auto: '战斗（玩家已选择动手）' },
 			// 彩蛋击杀（M5b）：需天然 20 且劣势 → 1/400 ≈ 0.25%，几乎不可达
-			'龙·终击':     { skill: '运动', dc: 20, nat: 20, dis: true, auto: '战斗（玩家已选择动手）' },
+			'龙·终击':     { skill: '运动', dc: 20, nat: 20, dis: true, auto: '战斗（玩家已选择动手）', disWhy: '正面硬撼一条龙，只有运气站在你这边' },
 		},
+		// 关键产出（M10）：每个都得有 ≥2 条通路、且判定属性不同——不许把玩家逼去读档
+		keyYields: ['日记', '坏哨', '月光花', '完整星图', 'flag:family_favor', 'flag:flower_warned', 'ev:witch_grip', 'ev:star_ledger', 'ev:forge_seen'],
 		// ── 情报优势（M6d）：付费/交涉得来的知识 → 位点自动双骰取高 ──
 		// key = 位点，value = $pc.world 上的旗标名
 		knowledge: {
 			'洞穴·战斗': 'rumor',      // 老猎人：''第三块板子是脆的''
 			'书房·检视': 'witch_hint', // 女巫：塔里的门道（暗格位置）
+			'书房·敲墙': 'witch_hint',
+			'书房·断代': 'witch_hint',
+			'书房·强拆': 'witch_hint',
+		},
+		// 情报的人类可读说明（"为什么有优势"里显示这个，不是显示变量名）
+		knowledgeWhy: {
+			rumor: "老猎人的话（酒馆·第三块板子是脆的）",
+			witch_hint: "女巫的门道（小屋·暗格位置）",
 		},
 	};
 
@@ -93,11 +118,15 @@ window.Game = (() => {
 			return Math.max(1, base - flat - poison + rage);
 		},
 		advAt(site, inv) {
-			const keys = Object.keys(inv ?? {});
-			return keys.some((k) => {
+			return !!this.advSource(site, inv);
+		},
+		// 优势来源（M10）：说出是哪件道具——"为什么有优势"也要给玩家看
+		advSource(site, inv) {
+			for (const k of Object.keys(inv ?? {})) {
 				const e = this.effects[k];
-				return !!e && (e.advSite === site || (e.advSites ?? []).includes(site));
-			});
+				if (e && (e.advSite === site || (e.advSites ?? []).includes(site))) return k;
+			}
+			return '';
 		},
 	};
 

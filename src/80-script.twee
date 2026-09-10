@@ -177,6 +177,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 			scrollY: window.scrollY,
 			panel: panel ? [...content.querySelectorAll('.soc-ask')].indexOf(panel) : -1,
 			seen: new Set([...content.querySelectorAll(feedbackSelector)].map(textOf)),
+			heard: new Set([...content.querySelectorAll('[data-heard]')].map((el) => el.dataset.heard)),
 		};
 	};
 	// 捕获阶段早于宏与交涉处理器；键盘触发的自制链接也要记录。
@@ -193,13 +194,21 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		const content = ev.content;
 		const panel = previous.panel < 0 ? null : content.querySelectorAll('.soc-ask')[previous.panel];
 		const fresh = (elements) => [...elements].find((el) => textOf(el) && !previous.seen.has(textOf(el)));
-		const target = panel
-			? fresh(panel.querySelectorAll('.check-result, .soc-said, .soc-done'))
-				?? panel.querySelector('.soc-said') ?? panel.querySelector('.check-result, .soc-done')
-			: fresh(content.querySelectorAll(feedbackSelector));
+		// 优先按「新增回答容器」定位：一条话题的多段回答整体一组，不靠首段文字猜归属。
+		const newHeard = [...content.querySelectorAll('[data-heard]')]
+			.find((el) => !previous.heard.has(el.dataset.heard)) ?? null;
+		const target = newHeard
+			?? (panel
+				? fresh(panel.querySelectorAll('.check-result, .soc-said, .soc-done'))
+					?? panel.querySelector('.soc-said') ?? panel.querySelector('.check-result, .soc-done')
+				: fresh(content.querySelectorAll(feedbackSelector)));
 		requestAnimationFrame(() => {
 			if (previous.action !== action || content !== document.querySelector('#passages .passage:last-child')) return;
 			if (target) {
+				// 回答落在折叠区里时先展开祖先折叠块，再定位。
+				for (let anc = target.parentElement; anc && anc !== content; anc = anc.parentElement) {
+					if (anc instanceof HTMLDetailsElement) anc.open = true;
+				}
 				target.classList.add('action-feedback');
 				target.setAttribute('tabindex', '-1');
 				target.focus({ preventScroll: true });
@@ -208,6 +217,21 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 				// 只更新行囊等无正文反馈的同页操作，保留阅读位置。
 				window.scrollTo(0, previous.scrollY);
 			}
+		});
+	});
+
+	// 行动分组与已读记录的条数角标：纯展示，读当前渲染结果，不写任何状态。
+	jQuery(document).on(':passagerender.sgZones', (ev) => {
+		const content = ev.content;
+		content.querySelectorAll('details.act-group, details.heard-fold').forEach((d) => {
+			const badge = d.querySelector('.act-n');
+			if (!badge) return;
+			const scope = d.querySelector('.tavern-tables, .tavern-heard') ?? d;
+			const n = scope.matches('.tavern-heard')
+				? scope.querySelectorAll('[data-heard]').length
+				: scope.querySelectorAll('a').length;
+			badge.textContent = String(n);
+			badge.hidden = n === 0;
 		});
 	});
 })();

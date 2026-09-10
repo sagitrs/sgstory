@@ -48,6 +48,7 @@
 你摸了摸口袋，里面有 $pc.gold 枚金币。
 
 ''屋里一桌一个说法。想听哪一桌，就凑过去。''
+<<nobr>>
 <div class="tavern-tables">
 <<if not $pc.ev.tav_light>>
 	<<link "靠窗那桌——他们在讲塔上那盏灯">><<set $pc.ev.tav_light to true>><<goto "酒馆">><</link>>
@@ -77,7 +78,9 @@
 	<<link "墙上那幅旧画">><<set $pc.ev.tav_painting to true>><<goto "酒馆">><</link>>
 <</if>>
 </div>
+<</nobr>>
 
+<<nobr>>
 <div id="tav-heard" class="tavern-heard">
 <<if $pc.ev.tav_light>>
 	<p>——靠窗那桌：''"我爷爷的爷爷见过塔上亮着灯。三百年了，那灯没灭过。"''</p>
@@ -118,6 +121,7 @@
 	<p>你多看了两眼。画上的脸已经模糊，只辨得出长桌尽头站着一个女人。</p>
 <</if>>
 </div>
+<</nobr>>
 
 <<socresolve "老板娘·进塔">>
 <<socpanel "老板娘·进塔">>
@@ -267,6 +271,7 @@
 <<if $pc.ev.wq_seen>>
 ''（她搅着炉子上的药。你想问什么，就问。）''
 
+<<nobr>>
 <div class="tavern-tables">
 <<if not $pc.ev.wq_painting>>
 	<<link "问：你们家与那座塔有什么渊源">><<set $pc.ev.wq_painting to true>><<goto "女巫小屋">><</link>>
@@ -322,6 +327,7 @@
 	<p>她看了一眼炉火，又补一句：''"还有一件事：别想着一个人把它解决掉。那东西不是拿刀能解决的事——可有时候，也得有人替你按着它。"''</p>
 <</if>>
 </div>
+<</nobr>>
 <</if>>
 
 <<if not $pc.world.witch_hint>>

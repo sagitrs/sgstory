@@ -406,7 +406,7 @@ Macro.add('dragonbar', {
    解析，那时 <<for>> 的临时变量早被同段落的下一个面板覆盖了（"点花的面板、算成求术的面板"）。
    值与它一起走进 DOM，点谁是谁。 %/
 
-<<widget "socresolve">>
+<<widget "socresolve">><<nobr>>
 	<<set _a to Game.Social.ask($args[0])>>
 	<<if _a and $pc.ev.soc and $pc.ev.soc.id is _a.id>>
 		<<set _S to Game.Social>>
@@ -440,9 +440,9 @@ Macro.add('dragonbar', {
 		<</if>>
 		<<set $pc.ev.soc to null>>
 	<</if>>
-<</widget>>
+<</nobr>><</widget>>
 
-<<widget "socpanel">>
+<<widget "socpanel">><<nobr>>
 	<<set _a to Game.Social.ask($args[0])>>
 	<<set _S to Game.Social>>
 	<<if _a>>
@@ -482,25 +482,27 @@ Macro.add('dragonbar', {
 			<</if>>
 		</div>
 	<</if>>
-<</widget>>
+<</nobr>><</widget>>
 
 /% 物品栏（v16 §5.0）：侧栏列出身上带着的东西——不凑数、不集齐开锁 %/
-<<widget "inventory">>
+<<widget "inventory">><<nobr>>
 	<<set _inv to Object.keys($pc.inv ?? {})>>
 	<<if _inv.length>>
 		<<for _i to 0; _i lt _inv.length; _i++>><span class="inv-item">_inv[_i]</span><</for>>
 	<<else>>
 		（空）
 	<</if>>
-<</widget>>
+<</nobr>><</widget>>
 
 :: StoryCaption
 /% 侧边栏：常驻存档入口（v16 §5.0）+ 实时角色卡 + 物品栏 %/
+<<nobr>>
 <div class="save-bar">
-	<a class="save-btn" onclick="sgQuickSave()">💾 快速存档</a>
-	<a class="save-btn" onclick="sgQuickLoad()">📂 快速读档</a>
-	<a class="save-btn" onclick="sgSaveMenu()">🗂 存档 / 读档</a>
+	<button type="button" class="save-btn" onclick="sgQuickSave()">💾 快速存档</button>
+	<button type="button" class="save-btn" onclick="sgQuickLoad()">📂 快速读档</button>
+	<button type="button" class="save-btn" onclick="sgSaveMenu()">🗂 存档 / 读档</button>
 </div>
+<</nobr>>
 <<if $pc.classLabel>>
 ''$pc.name''
 $pc.speciesLabel $pc.classLabel

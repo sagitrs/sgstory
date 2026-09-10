@@ -59,6 +59,10 @@ assert(links().some((a) => a.textContent.includes('亮一亮手里的家伙：�
 assert(links().some((a) => a.textContent.includes('拿出筹码：请她喝一轮')), 'B2：筹码（把对方想要的摆出来＝不必掷骰）');
 assert(p.textContent.includes('冷淡 → DC12'), 'B2：面板标出态度与 DC');
 assert(links().length >= 12, `酒馆打听 hub 臂数 ≥12（实际 ${links().length}）`);
+assert(!w.document.querySelector('#passages .link-broken'), '酒馆传闻选项没有错误目标');
+await click('接嘴的那个人——「不老的女人」');
+assert(pc().ev.tav_ageless === true && w.SugarCube.State.passage === '酒馆', '不老女人传闻显示完整，点击后留在酒馆并记账');
+assert(w.document.querySelector('#tav-heard').textContent.includes('前年我上山'), '不老女人传闻内容显示在记录区');
 await click('靠窗那桌——他们在讲塔上那盏灯');   // 问一桌
 assert(w.SugarCube.State.variables.pc.ev.tav_light === true, '问过的那桌记账（tav_light）');
 assert(w.document.querySelector('#passages').textContent.includes('三百年了，那灯没灭过'), '问出来的话渲染在记录区');

@@ -68,6 +68,7 @@ window.ChargenPresets = [
 /% vocab: exempt W1 车卡模块 API（Chargen.applyPreset）与模式标记——点击态无叙事状态 %/
 /% payload: 选择 %/
 <<if $pc.mode is "">>
+<<nobr>>
 <div class="chargen-card">
 	<div class="chargen-progress">创建角色 · 选择方式</div>
 	<h3>快速模式</h3>
@@ -88,9 +89,11 @@ window.ChargenPresets = [
 		<<link "逐轮细调（3 轮三选一）">><<set $pc.mode to "expert">><<goto "车卡">><</link>>
 	</div>
 </div>
+<</nobr>>
 <<else>>
 <<set _round to ChargenRounds[$pc.round]>>
 <<set _n to $pc.round + 1>>
+<<nobr>>
 <div class="chargen-card">
 	<div class="chargen-progress">逐轮细调 · _n / 3</div>
 	<h3>_round.title</h3>
@@ -111,10 +114,12 @@ window.ChargenPresets = [
 	<</for>>
 	</div>
 </div>
+<</nobr>>
 <</if>>
 
 :: 角色卡
 /% payload: 信息|选择 %/
+<<nobr>>
 <div class="charsheet">
 	<h2>✦ $pc.name 的冒险卡 ✦</h2>
 	<p class="charsheet-line">$pc.speciesLabel · $pc.classLabel · $pc.bgLabel 出身</p>
@@ -138,6 +143,7 @@ window.ChargenPresets = [
 		<div><span class="label">药膏</span>$pc.salves 副</div>
 	</div>
 </div>
+<</nobr>>
 
 行囊已经收好。
 

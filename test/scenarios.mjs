@@ -60,7 +60,23 @@ async function newGame(randomStub, preset = 0) {
 	return { w, click, uncaught };
 }
 
+const linksOf = (w) => [...w.document.querySelectorAll('#passages a.link-internal')].map((x) => x.textContent);
 const passageOf = (w) => w.SugarCube.State.passage;
+// B1：战斗每一轮的面板是随机 3 选 1——测试不去猜哪三张，只管"有牌就打"
+// 直到出现目标链接（战斗的出口）或段落里已经没有链接（已经落到结局）
+async function fightTo(c, w, stops, maxRounds = 12) {
+	const where = passageOf(w);
+	for (let i = 0; i < maxRounds; i++) {
+		if (passageOf(w) !== where) return;   // 已经离开战斗（落到结局）
+		const links = linksOf(w);
+		if (links.some((l) => stops.includes(l))) return;
+		if (!links.length) return;
+		// 备药优先：池子第一轮一定把「涂毒」发到手上
+		const pref = links.find((l) => l === '把花汁抹在刃上');
+		await c(pref ?? links[0]);
+	}
+	throw new Error(`战斗没能在 ${maxRounds} 轮内结束（等「${stops.join('/')}」@ ${passageOf(w)}）`);
+}
 const pcOf = (w) => w.SugarCube.State.variables.pc;
 
 // ── 公共前段：酒馆 → 女巫小屋 → 林间小径 ──
@@ -87,8 +103,9 @@ async function truePath(w, c) {
 	await c('坠入');                      // 翻到过去
 	await c('继续往塔那边走');             // 塔门（过去）
 	await c('雾里有个影子挡着路');         // 雾之魔物
-	await c('举起武器');                   // 雾之魔物·战（d20=20 全成）
-	await c('爬起来，往塔那边去');         // 守林人
+	await c('举起武器');                   // 雾之魔物·战（d20=20 → 每一手大成功）
+	await fightTo(c, w, ['往塔那边去']);   // B1：打两轮手上的牌
+	await c('往塔那边去');                 // 守林人
 	await c('为什么不自己去送');           // 守林人·送
 	await c('回到守林人');
 	await c('你守的到底是什么');           // 守林人·守
@@ -328,17 +345,10 @@ async function routeVoid() {
 	await c('叫醒它');                   // → 唤醒（无好哨）
 	await c('和守林人并肩');             // → 封印·并肩
 	if (pcOf(w).dragon.hp > w.Game.Dragon.hp) throw new Error('封印战未初始化龙的血量');
-	// 把它打到 sealAt 以下（d20 恒 20 → 斩击必成、吐息必免）
-	let guard = 0;
-	while (pcOf(w).dragon.hp > w.Game.Dragon.sealAt) {
-		if (++guard > 20) throw new Error(`封印战打不下去（hp=${pcOf(w).dragon.hp}）`);
-		const links = [...w.document.querySelectorAll('#passages a.link-internal')].map((x) => x.textContent);
-		if (links.includes('先把花汁抹在刃上')) { await c('先把花汁抹在刃上'); continue; }
-		if (links.includes('压上去')) await c('压上去');
-		else if (links.includes('再压上去')) await c('再压上去');
-		else throw new Error(`封印战断了：${links.join(' / ')}`);
-	}
-	if (pcOf(w).dragon.venom !== true) throw new Error('封印战未走涂毒支（封印·涂毒 未覆盖）');
+	// B1：把它打到 sealAt 以下（d20 恒 20 → 每一手都大成功；吐息必免）
+	await fightTo(c, w, ['让他把最后一句念完'], 30);
+	if (pcOf(w).dragon.hp > w.Game.Dragon.sealAt) throw new Error(`封印战没打下去（hp=${pcOf(w).dragon.hp}）`);
+	if (pcOf(w).dragon.venom !== true) throw new Error('封印战未走涂毒支（战斗动作池·封印·涂毒 未覆盖）');
 	if (pcOf(w).hp <= 0) throw new Error('封印战里倒下了（本路线骰面恒 20，不该受伤）');
 	await c('让他把最后一句念完');
 	if (passageOf(w) !== '结局 送入虚空') throw new Error(`未达送入虚空（${passageOf(w)}）`);
@@ -383,6 +393,7 @@ async function routeDragonBattle(withBook) {
 		await c('用钥匙打开铁门');
 	}
 	await c('攻击它');
+	await fightTo(c, w, ['爬起来，再冲一次']);   // B1：先打两轮手上的牌
 	await c('爬起来，再冲一次');
 	await c('你杀了它');
 	if (passageOf(w) !== (withBook ? '结局 星落' : '结局 坠星之死')) throw new Error(`未达 ${withBook ? '星落' : '坠星之死'}（${passageOf(w)}）`);
@@ -399,7 +410,9 @@ async function routeDragonDeath() {
 	await c('收下钥匙');
 	await c('用钥匙打开铁门');
 	await c('攻击它');
-	await c('爬起来，再冲一次'); // d20=1 → 龙·再冲 必败 → 死亡
+	// B1：d20=1 → 每一手都大失败；可能还没打完两轮就被打成 结局 死亡
+	await fightTo(c, w, ['爬起来，再冲一次']);
+	if (linksOf(w).includes('爬起来，再冲一次')) await c('爬起来，再冲一次'); // d20=1 → 龙·再冲 必败
 	if (passageOf(w) !== '结局 死亡') throw new Error(`未达死亡（${passageOf(w)}）`);
 	return { w };
 }

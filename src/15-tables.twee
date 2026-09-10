@@ -13,7 +13,7 @@ window.Game = (() => {
 			'森林·察觉':   { skill: '察觉', dc: 10 },
 			'洞穴·战斗':   { skill: '运动', dc: 12, auto: '战斗（玩家已选择动手）' },
 			'雾之魔物·挥击': { skill: '运动', dc: 12, auto: '战斗（玩家已选择动手）' },
-			'雾之魔物·心防': { abil: 'con', dc: 13, auto: '战斗（玩家已选择动手）' },
+			'雾之魔物·心防': { skill: '洞悉', dc: 13 },
 			'守林人·交涉': { skill: '游说', dc: 12, yields: 'flag:flower_warned' },
 			'守林人·指花': { skill: '察觉', dc: 11, yields: 'flag:flower_warned' },
 			'门厅·翻检':   { skill: '调查', dc: 10, yields: '坏哨' },
@@ -40,6 +40,30 @@ window.Game = (() => {
 			'寻杖·看人':   { skill: '洞悉', dc: 11, yields: 'flag:family_favor' },
 			'龙·吐息':     { abil: 'con', dc: 14, auto: '战斗（玩家已选择动手）' },
 			'龙·斩击':     { skill: '运动', dc: 10, auto: '战斗（玩家已选择动手）' },
+			// ── 战斗动作池（B1）：每轮随机 3 选 1；每个动作都是一次属性化检定 ──
+			// 雾影（雾之魔物）
+			'雾影·迎上':   { skill: '运动', dc: 12 },
+			'雾影·让开':   { skill: '体操', dc: 12 },
+			'雾影·蹲低':   { skill: '隐匿', dc: 12 },
+			'雾影·亮哨':   { skill: '游说', dc: 10 },
+			'雾影·开口':   { skill: '游说', dc: 13 },
+			// 封印战（与守林人并肩）——基础攻击沿用「龙·斩击」（坏哨优势就在那儿）
+			'封印·找旧伤': { skill: '察觉', dc: 12 },
+			'封印·走位':   { skill: '体操', dc: 13 },
+			'封印·读吸气': { skill: '洞悉', dc: 13 },
+			'封印·涂毒':   { skill: '医药', dc: 11 },
+			'封印·呼应':   { skill: '游说', dc: 12 },
+			'封印·吹哨':   { skill: '表演', dc: 10 },
+			'封印·读术式': { skill: '奥秘', dc: 13 },
+			'封印·硬扛':   { abil: 'con', dc: 13 },
+			'封印·举臂':   { skill: '运动', dc: 12 },
+			// 单挑（必败线）：动作只决定你挨多重、看到多少
+			'龙·躲闪':     { skill: '体操', dc: 14 },
+			'龙·看缝':     { skill: '察觉', dc: 15 },
+			'龙·喊名':     { skill: '历史', dc: 14 },
+			'龙·横刀':     { skill: '运动', dc: 13 },
+			'龙·后撤':     { skill: '洞悉', dc: 12 },
+			'龙·数拍':     { skill: '生存', dc: 13 },
 			// 彩蛋击杀（M5b）：需天然 20 且劣势 → 1/400 ≈ 0.25%，几乎不可达
 			'龙·终击':     { skill: '运动', dc: 20, nat: 20, dis: true, auto: '战斗（玩家已选择动手）', disWhy: '正面硬撼一条龙，只有运气站在你这边' },
 		},
@@ -397,6 +421,157 @@ window.Game = (() => {
 
 	// ── 龙（强度参照标准 D&D 高挑战等级：单挑必败，基本只允许机制胜利）──
 	// ── 星力软限（canon §3.5/§7）：隐藏计数，余量 1~2 次翻转 ──
+	// ── 战斗动作池（B1）：每轮随机 3 选 1；每个动作三档结果（大成功 / 成功 / 失败）各有后果 ──
+	//    效果字段：dmg＝打掉它的血 · adv＝下一次攻击有优势 · guard＝这一轮少挨 N · hurt＝立刻受伤
+	//             skipFoe＝这一轮它没出手 · venom＝毒液抹刃 · flag＝落旗标 · flee＝可以退
+	const Combat = {
+		pools: {
+			雾影: ['雾影·迎上', '雾之魔物·心防', '雾影·亮哨', '雾影·让开', '雾影·开口', '雾影·蹲低'],
+			封印: ['龙·斩击', '封印·找旧伤', '封印·走位', '封印·读吸气', '封印·涂毒', '封印·呼应', '封印·吹哨', '封印·读术式', '封印·硬扛', '封印·举臂'],
+			龙:   ['龙·躲闪', '龙·看缝', '龙·喊名', '龙·横刀', '龙·后撤', '龙·数拍'],
+		},
+		actions: {
+			'雾影·迎上': { site: '雾影·迎上', label: '举刀迎上去，从它中间穿过去',
+				ok:   { text: "你从白里穿过去，像穿过一口凉气。它散开，又在你背后聚起来——没有追。" },
+				crit: { text: "你穿过它的时候，那团白''裂''了一下——你听见很轻的一声，像谁叹了气。它让开了半步，你从缝里挤过去。" },
+				bad:  { text: "你撞在一堵不存在的墙上，被弹回原地，肺里的气一下被挤空。", hurt: 5 } },
+			'雾之魔物·心防': { site: '雾之魔物·心防', label: '站住，看它的轮廓',
+				ok:   { text: "你不动，它也不动。看久了，你看出来：它不是拦路，是''在守一个人''。", flag: 'mist_guard' },
+				crit: { text: "你辨认出它站位的朝向——它一直面朝林子那边。''它守的是守林人。''你把手垂下来，它让开了。", flag: 'mist_guard', skipFoe: true },
+				bad:  { text: "你盯得太久，那团白已经贴到你脸上了。", hurt: 3 } },
+			'雾影·亮哨': { site: '雾影·亮哨', label: '把怀里那支哨子举起来', need: 'inv:坏哨',
+				ok:   { text: "你举起哨子。那团白停住了——''它认得这个形状''。它退开半步，让出一条路。", skipFoe: true },
+				crit: { text: "你举起哨子，风从哨口过了一下，响了一声。它整团往下沉了半尺，像行了个礼。", skipFoe: true, flag: 'mist_guard' },
+				bad:  { text: "雾扑过来，把哨子和你一起按了一下。", hurt: 3 } },
+			'雾影·让开': { site: '雾影·让开', label: '侧身让开半步，等它先动',
+				ok:   { text: "你让开，它扑了个空，散在你刚才站的地方。", guard: 5 },
+				crit: { text: "你让得很准——它扑过你的同时，你已经在它背后了。", guard: 5, skipFoe: true },
+				bad:  { text: "你让早了。它跟着你转，压在你肩上。", hurt: 4 } },
+			'雾影·开口': { site: '雾影·开口', label: '开口说：我不是来杀它的',
+				ok:   { text: "\"我不是来杀它的。\"你听见自己的声音散出去，落进那片白里。它顿了一下，让你半步。", guard: 3 },
+				crit: { text: "\"我不是来杀它的。\"——这句话它听过，也很久没听过了。它退回林子里，站回原来那个位置。", guard: 3, flag: 'mist_guard', skipFoe: true },
+				bad:  { text: "你的话被雾嚼掉了，一个字都没传出去。", hurt: 3 } },
+			'雾影·蹲低': { site: '雾影·蹲低', label: '蹲低，从它底下摸过去',
+				ok:   { text: "你贴着地面走，它从你头顶漂过去。", guard: 4 },
+				crit: { text: "你从它底下过去，起来的时候已经在它背后。它没有转身——它甚至没发现你。", guard: 4, skipFoe: true },
+				bad:  { text: "它压下来，你被按在泥里。", hurt: 4 } },
+
+			'龙·斩击': { site: '龙·斩击', label: '挥刃压上去',
+				ok:   { text: "你劈进去半寸。鳞底下那层是热的、软的——它''疼''。", dmg: 12 },
+				crit: { text: "刃顺着鳞缝滑进去，一路到底。它闷哼了一声，整间厅都跟着震。", dmg: 21 },
+				bad:  { text: "刀在鳞上滑开，震得你虎口发麻。它连头都没抬。", hurt: 2 } },
+			'封印·找旧伤': { site: '封印·找旧伤', label: '看它肩胛上那片歪掉的鳞',
+				ok:   { text: "那片鳞是旧的、歪的，底下没长严——''你找到了顺手的地方''。", adv: 1, dmg: 9 },
+				crit: { text: "歪鳞底下那道旧伤一直裂到骨。你记住它的位置：''下一次就打这里''。", adv: 1, dmg: 16 },
+				bad:  { text: "它一直动，你找不到那片鳞。", hurt: 1 } },
+			'封印·走位': { site: '封印·走位', label: '贴着它肋下绕，别站在正面',
+				ok:   { text: "你绕到它肋下，顺手在腿侧划了一道。它的头转不了那么快。", guard: 5, dmg: 7 },
+				crit: { text: "你贴着它肋下走，刃顺着甲缝带出去——它踩空了半步。", guard: 6, dmg: 14 },
+				bad:  { text: "你绕到一半，尾巴扫过来。", hurt: 4 } },
+			'封印·读吸气': { site: '封印·读吸气', label: '读它张嘴前的那一下吸气',
+				ok:   { text: "它吸气的时候喉咙会先缩一下。''你数准了''——雾扑出来时你已经不在那儿，刃也已经进去。", guard: 6, dmg: 7 },
+				crit: { text: "它吸气的节拍比你数的还慢半拍。你等它喷完，才往前一步，把刃送到最深。", guard: 6, dmg: 14 },
+				bad:  { text: "你数错了半拍，雾正打在你胸口上。", hurt: 4 } },
+			'封印·涂毒': { site: '封印·涂毒', label: '把花汁抹在刃上', need: 'inv:月光花',
+				ok:   { text: "汁是凉的，抹过铁面时有一点点响。''它见过这种东西''——库里堆着的那几枝，本来就是给它准备的。", venom: true, dmg: 6 },
+				crit: { text: "你抹得极匀。刃面上那层银白反着他杖尖那点微光——''它一看见就慢了半拍''，你趁那半拍送了进去。", venom: true, dmg: 13 },
+				bad:  { text: "手一抖，花汁抹歪了。还有半朵，可以再抹。", hurt: 1 } },
+			'封印·呼应': { site: '封印·呼应', label: '喊守林人：往左半步',
+				ok:   { text: "\"往左半步！\"他没回头，脚已经动了。他杖尖那点微光落在你让开的那条线上，也落在它肋下。", adv: 1, guard: 3, dmg: 8 },
+				crit: { text: "你们俩同时动了。那点微光顺着你的刃背挪过去——''那一句念得很稳''，你那一刀也压得很实。", adv: 1, dmg: 15 },
+				bad:  { text: "你喊晚了一步。他被自己的杖绊了一下，那一句念断了。", hurt: 2 } },
+			'封印·吹哨': { site: '封印·吹哨', label: '吹响那支哨子', need: 'inv:坏哨',
+				ok:   { text: "哨音很短。它的头偏了一下——''它在听''。你就着那个偏头切进去。", adv: 1, dmg: 6 },
+				crit: { text: "哨音撞在穹顶上又落下来，绕着它转了一圈。它整个低了下去——低到你够得着。", adv: 1, dmg: 14 },
+				bad:  { text: "哨子卡了一下，只出来一声破音。", hurt: 1 } },
+			'封印·读术式': { site: '封印·读术式', label: '听懂他念到哪儿，提前半句接上',
+				ok:   { text: "你听出下一个词。它还没到，你已经在它该在的地方了——刃和那句话一起落下去。", adv: 1, dmg: 10 },
+				crit: { text: "你比他自己早半拍念出那个词。他停了半息看你一眼，然后跟上——那半句从没念得这么顺。", adv: 1, dmg: 18 },
+				bad:  { text: "你猜错了词。术式的节拍乱了一下，他也被带着顿住。", hurt: 3 } },
+			'封印·硬扛': { site: '封印·硬扛', label: '不躲了，硬吃一下换一刀',
+				ok:   { text: "你吃下那一记，刀也吃进去了。", dmg: 18, hurt: 4 },
+				crit: { text: "你把肩膀顶上去，刃顺着它的力道往里走——''这一刀很深''。", dmg: 28, hurt: 2 },
+				bad:  { text: "你硬吃了一下，刀却滑了。", hurt: 8 } },
+			'封印·举臂': { site: '封印·举臂', label: '把护臂顶上去挡它的嘴', need: 'inv:龙鳞护臂',
+				ok:   { text: "那副甲卡进它齿缝里，它合不上嘴——你把刃从底下送进去。", guard: 6, dmg: 10 },
+				crit: { text: "甲撑住它的下颌，你从底下把刃一路送到柄。", guard: 6, dmg: 18 },
+				bad:  { text: "甲被撞得脱手，弹在你小腿上。", hurt: 3 } },
+
+			'龙·躲闪': { site: '龙·躲闪', label: '躲它的尾扫',
+				ok:   { text: "你滚开半步，尾巴擦着你的背过去。", guard: 6 },
+				crit: { text: "你从尾巴底下钻过去，顺手在它落脚处划了一道。", guard: 6, dmg: 3 },
+				bad:  { text: "你没躲开。", hurt: 6 } },
+			'龙·看缝': { site: '龙·看缝', label: '盯住逆鳞那道缝',
+				ok:   { text: "那道缝在它左肋，比别处浅。''你看见了。''", guard: 3 },
+				crit: { text: "缝比你想的长，一直通到颈根。''你看见了，也记住了。''", guard: 4, dmg: 2 },
+				bad:  { text: "它一直动，你什么也没看清。", hurt: 3 } },
+			'龙·喊名': { site: '龙·喊名', label: '把书里那个名字喊出来',
+				ok:   { text: "你喊了。它停了一拍——''像在听''。这一拍够你退开。", guard: 4 },
+				crit: { text: "你喊出那个名字。它整条都顿住了，喉咙里发出一声不像怒吼的声音。", guard: 5, dmg: 3 },
+				bad:  { text: "你喊错了音节。它连头都没偏。", hurt: 2 } },
+			'龙·横刀': { site: '龙·横刀', label: '横刀挡在身前',
+				ok:   { text: "刀背撑住了那一下。你的手臂麻到抬不起来。", guard: 5 },
+				crit: { text: "你借它的力道把刀背滑开，反手在它掌缘划了一道。", guard: 5, dmg: 4 },
+				bad:  { text: "刀被砸弯了一点，虎口裂了。", hurt: 5 } },
+			'龙·后撤': { site: '龙·后撤', label: '往后撤，回到门边',
+				ok:   { text: "你退到门边。它没有追——它甚至没有站起来。", guard: 4 },
+				crit: { text: "你退到门边，顺手推了推那道门：''还能开''。", guard: 4, flee: true },
+				bad:  { text: "你退得太急，后脚跟磕在门槛上。", hurt: 2 } },
+			'龙·数拍': { site: '龙·数拍', label: '数它的呼吸，等它换气',
+				ok:   { text: "它每三下换一次气。你掐着那个空当走位。", guard: 5 },
+				crit: { text: "它换气的空当比你以为的长。你在那个空当里多砍了一下。", guard: 5, dmg: 4 },
+				bad:  { text: "你数到第四下，它还在吸气。", hurt: 3 } },
+		},
+		// 这一手走哪一项属性、DC 多少（给玩家看：不同选择＝不同判定）
+		siteInfo(actionId) {
+			const s = Checks.sites[this.actions[actionId]?.site];
+			if (!s) return '';
+			const what = s.skill ? Rules.skillLabel(s.skill) : (s.abil === 'con' ? '体质豁免' : s.abil);
+			return `${what} DC${s.dc}`;
+		},
+		// 每轮给 3 个：排除条件不满足的、以及上一轮刚用过的
+		eligible(poolId, pc) {
+			const held = pc?.inv ?? {};
+			return (this.pools[poolId] ?? []).filter((id) => {
+				const need = this.actions[id]?.need;
+				if (!need) return true;
+				if (need.startsWith('inv:')) return !!held[need.slice(4)];
+				return true;
+			});
+		},
+		offer(poolId, round, pc, lastUsed) {
+			let list = this.eligible(poolId, pc).filter((id) => id !== lastUsed);
+			if (list.length < 3) list = this.eligible(poolId, pc);
+			const picked = [];
+			while (picked.length < 3 && list.length) {
+				const i = Math.min(list.length - 1, Math.floor(Math.random() * list.length));
+				picked.push(list.splice(i, 1)[0]);
+			}
+			// 备药优先：手上有花、还没涂毒 → 第一轮一定给「涂毒」（免得玩家永远等不到）
+			if (poolId === '封印' && (round ?? 1) === 1 && pc?.inv?.['月光花'] && !pc?.dragon?.venom && !picked.includes('封印·涂毒')) {
+				picked[picked.length - 1] = '封印·涂毒';
+			}
+			return [...new Set(picked)];
+		},
+		// 定档：天然 20 ＝ 大成功（大成功优先于成功/失败）
+		pick(actionId, res) {
+			const a = this.actions[actionId];
+			if (!a) throw new Error(`未登记的战斗动作: ${actionId}`);
+			const kind = res?.roll === 20 ? 'crit' : res?.success ? 'ok' : 'bad';
+			return { kind, eff: a[kind] ?? {} };
+		},
+		// 把效果的"非血量"部分落进状态（血量交给 <<damage>> 走 widget，好让药膏与死亡判定生效）
+		applyEffect(pc, eff, fight) {
+			if (eff.dmg) pc.dragon.hp = Math.max(0, (pc.dragon.hp ?? 0) - eff.dmg);
+			if (eff.adv) fight.adv = (fight.adv ?? 0) + eff.adv;
+			if (eff.guard) fight.guard = (fight.guard ?? 0) + eff.guard;
+			if (eff.skipFoe) fight.skipFoe = true;
+			if (eff.flee) fight.flee = true;
+			if (eff.venom) pc.dragon.venom = true;
+			if (eff.flag) pc.ev[eff.flag] = true;
+		},
+	};
+
 	const Star = {
 		budget: 4,          // 正路必要 3 次（塔内入过去 / 回现在取日记 / 宴会换哨）+ 1 次余量
 		overBudget(pc) { return (pc?.star?.spent ?? 0) > this.budget; },
@@ -419,5 +594,5 @@ window.Game = (() => {
 		},
 	};
 
-	return { Checks, Economy, Items, Gear, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon };
+	return { Checks, Economy, Items, Gear, Combat, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon };
 })();

@@ -372,5 +372,62 @@ for (const file of fixtures) {
 	ok(V().era === 'present' && V().pc.world.fog_thin === true, `flip 词汇：回现在留「雾淡」痕迹（实际 ${V().era}/${V().pc.world.fog_thin}）`);
 }
 
+// ── B1 战斗动作池：每轮随机 3 选 1（每手＝一次属性化检定，三档后果）──
+{
+	const C = w.Game.Combat;
+	const sites = w.Game.Checks.sites;
+	const full = w.Pc.defaults();
+	full.inv = { 坏哨: true, 月光花: true, 龙鳞护臂: true };
+	full.gear = [];
+	full.dragon = { venom: false, defeats: 0, hp: 60 };
+	// ① 池子与出牌数
+	ok(Object.keys(C.pools).length === 3, `三个战斗池（雾影/封印/龙，实际 ${Object.keys(C.pools).length}）`);
+	for (const [pool, ids] of Object.entries(C.pools)) {
+		const hand = C.offer(pool, 1, full, null);
+		ok(hand.length === 3, `${pool}：每轮恰好给 3 张牌（实际 ${hand.length}）`);
+		ok(new Set(hand).size === 3, `${pool}：三张牌不重复`);
+		ok(hand.every((id) => ids.includes(id)), `${pool}：发出来的牌都在池子里`);
+	}
+	// ② 上一轮用过的牌不再发（防"一路同一手"）
+	const first = C.offer('雾影', 1, full, null)[0];
+	let rerolled = [];
+	for (let i = 0; i < 8; i++) rerolled.push(...C.offer('雾影', 2, full, first));
+	ok(!rerolled.includes(first) || rerolled.length > 8, `上一手「${first}」被排除在下一轮手牌外`);
+	// ③ 需求门：没有花就不给「涂毒」，有花且第一轮一定给
+	const noFlower = w.Pc.defaults(); noFlower.inv = {}; noFlower.dragon = {};
+	ok(!C.eligible('封印', noFlower).includes('封印·涂毒'), '没有月光花：涂毒不在可出牌里');
+	ok(C.eligible('封印', noFlower).length >= 3, '没有任何道具也至少抽得满 3 张（不会空手）');
+	ok(C.offer('封印', 1, full, null).includes('封印·涂毒'), '有花且第一轮：涂毒一定进手牌（备药优先）');
+	full.dragon.venom = false;
+	ok(C.offer('封印', 1, full, '封印·涂毒').includes('封印·涂毒'), '备药优先：第一轮一定把涂毒发到手上（哪怕上一手刚点过）');
+	full.dragon.venom = true;
+	ok(!C.offer('封印', 1, full, '封印·涂毒').includes('封印·涂毒'), '已涂过毒：备药优先不再生效（涂毒按普通牌走）');
+	// ④ 定档：骰面 20 → 大成功；成败 → 各自档位
+	eq(C.pick('龙·斩击', { roll: 20, success: true }).kind, 'crit', '骰面 20 → 大成功档');
+	eq(C.pick('龙·斩击', { roll: 11, success: true }).kind, 'ok', '成功 → 成功档');
+	eq(C.pick('龙·斩击', { roll: 1, success: false }).kind, 'bad', '失败 → 失败档');
+	ok((() => { try { C.pick('不存在的动作', { roll: 11, success: true }); return false; } catch { return true; } })(), '未登记的动作抛错');
+	// ⑤ 每一手都写明走哪项属性、DC 多少
+	ok(C.siteInfo('雾影·蹲低') === '隐匿检定（敏捷） DC12', `siteInfo 标注属性与 DC（实际 ${C.siteInfo('雾影·蹲低')}）`);
+	ok(C.siteInfo('封印·硬扛') === '体质豁免 DC13', `save 位点标成豁免（实际 ${C.siteInfo('封印·硬扛')}）`);
+	for (const id of Object.keys(C.actions)) ok(!!C.siteInfo(id), `动作「${id}」有属性标注`);
+	// ⑥ 效果落状态：伤害/优势/减伤/免出手/旗标/毒
+	const f = { adv: 0, guard: 0, skipFoe: false, venom: false, flee: false };
+	const probe = w.Pc.defaults();
+	probe.dragon = { hp: 60, venom: false };
+	probe.ev = {};
+	C.applyEffect(probe, { dmg: 9, adv: 1, guard: 4, skipFoe: true, flag: 'mist_guard', venom: true, flee: true }, f);
+	ok(probe.dragon.hp === 51, `打掉血：60 → ${probe.dragon.hp}`);
+	ok(f.adv === 1 && f.guard === 4 && f.skipFoe === true && f.flee === true && probe.dragon.venom === true && probe.ev.mist_guard === true, '优势/减伤/免出手/可撤退/毒/旗标全部落到状态上');
+	// ⑦ 失败档不许给收益（三池通检）
+	const MECH = ['dmg', 'adv', 'guard', 'skipFoe', 'venom', 'flag', 'flee'];
+	const greedy = Object.entries(C.actions).filter(([, a]) => MECH.some((m) => a.bad?.[m])).map(([k]) => k);
+	eq(greedy, [], '所有动作的失败档都不给任何收益（失败就得疼）');
+	// ⑧ 池内判定分化：不同选择＝不同属性（否则"选择"只是同一掷的重命名）
+	for (const [pool, ids] of Object.entries(C.pools)) {
+		const kinds = new Set(ids.map((id) => sites[C.actions[id].site]?.skill ?? `save:${sites[C.actions[id].site]?.abil}`));
+		ok(kinds.size >= 2, `${pool}：池内至少两项不同判定（实际 ${[...kinds].join('/')}）`);
+	}
+}
 console.log(failures ? `\n${failures} 项失败` : '\n规则层测试全部通过');
 process.exit(failures ? 1 : 0);

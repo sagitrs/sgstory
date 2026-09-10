@@ -381,7 +381,6 @@
 <<set $pc.dragon.awake to true>>
 <<set $pc.dragon.hp to Game.Dragon.hp>>
 <<set $pc.dragon.defeats to 0>>
-<<set $pc.dragon.round to 0>>
 
 它醒了。
 
@@ -453,82 +452,50 @@
 
 守林人把杖横在胸前，杖尖对着厅的那一头。他念得很慢，每念一句停一下——''他在等你''。
 
+<<fightbegin "封印">>
+<<fightresolve "龙·吐息" true>>
 <<dragonbar>>
-<<if $pc.dragon.hp lte Game.Dragon.sealAt>>
-	''"让开。"''他的杖尖亮起来了。
-	[[让他把最后一句念完|结局 送入虚空]]
-<<else>>
-	雾里的东西站起来了。它还没醒透，但已经知道有人在动它的东西。
-
-	<<if $pc.inv["月光花"] and not $pc.dragon.venom>>
-		[[先把花汁抹在刃上|封印·涂毒]]
-	<</if>>
-	[[压上去|封印·冲]]
-	<<link "退出去">><<goto "结局 再度沉睡">><</link>>
-<</if>>
-
-:: 封印·涂毒
-/% payload: 信息 %/
-你把那朵银白的花在刃上碾开。汁是凉的，抹过铁面时有一点点响。
-
-''它见过这种东西。''——库里堆着的那几枝，本来就是给它准备的。
-
-<<set $pc.dragon.venom to true>>
-
-[[压上去|封印·冲]]
-
-:: 封印·冲
-/% payload: 张力 %/
-<<set $pc.dragon.round to ($pc.dragon.round ?? 0) + 1>>
-
-<<sitecheck "龙·斩击">><<snapshot>>
-<<if $last_check.success>>
-	你劈进去半寸。鳞底下那层是热的、软的——它''疼''。
-	<<set $pc.dragon.hp to Math.max(0, $pc.dragon.hp - Game.Dragon.bladeDamage)>>
-<<else>>
-	刀在鳞上滑开，震得你虎口发麻。它连头都没抬。
-<</if>>
-<<dragonbar>>
-
-''它回手了。''
-<<sitecheck "龙·吐息">><<snapshot>>
-<<if not $last_check.success>>
-	<<set $pc.dragon.defeats to ($pc.dragon.defeats ?? 0) + 1>>
-	<<set _dmg to Game.Dragon.dragonDamage($pc.inv, $pc.dragon.round, $pc.dragon.defeats, $pc.dragon.venom)>>
-	<<damage _dmg>>
-<<else>>
-	你贴着地滚开了。雾扑在你刚才站的地方，把那块石板舔掉一层。
-<</if>>
-
-<<set _sealed to $pc.dragon.hp lte Game.Dragon.sealAt>>
 <<if $pc.hp gt 0>>
-	<<if _sealed>>
-		''"够了——"''守林人的杖尖把整间厅都映白了。
+	<<if $pc.dragon.hp lte Game.Dragon.sealAt>>
+		<<set $pc.ev.fight.done to true>>
+		''"让开。"''他的杖尖亮起来了。
 		[[让他把最后一句念完|结局 送入虚空]]
 	<<else>>
-		[[再压上去|封印·并肩]]
+		雾里的东西站起来了。它还没醒透，但已经知道有人在动它的东西。
+		<<fightpanel "龙·吐息" true>>
+		<<link "退出去">><<set $pc.ev.fight.done to true>><<goto "结局 再度沉睡">><</link>>
 	<</if>>
 <</if>>
 
 :: 龙·战
 /% payload: 张力 %/
-<<set $pc.dragon.awake to true>>
-<<set $pc.dragon.hp to Game.Dragon.hp>>
+<<set _fresh to (!$pc.ev.fight or $pc.ev.fight.pool isnot "龙" or $pc.ev.fight.done)>>
+<<if _fresh>>
+	<<set $pc.dragon.awake to true>>
+	<<set $pc.dragon.hp to Game.Dragon.hp>>
+<</if>>
 
 你冲了上去。
 
-<<sitecheck "龙·吐息">><<snapshot>>
-<<if $last_check.success>>你认出逆鳞那一处能透——它张口时你侧了身。<</if>>
+<<fightbegin "龙">>
+<<fightresolve "龙·吐息" true>>
 <<dragonbar>>
-<<sitecheck "龙·斩击">><<snapshot>>
-<<if $last_check.success>>你确实擦到了它的皮。<</if>>
-它甚至没有站起来。一记尾扫，把你连人带刀掀到墙上。
-
-<<if $pc.ev.threshold>>
-	雾在它身上散得比刚才快——''它还没攒够''。你还有一次机会。
-	[[爬起来，再冲一次|龙·再冲]]
-<<else>>
-	<<damage 99>>
+<<if $pc.hp gt 0>>
+	<<if $pc.ev.fight.round gt 2>>
+		<<set $pc.ev.fight.done to true>>
+		它甚至没有站起来。一记尾扫，把你连人带刀掀到墙上。
+		<<if $pc.ev.threshold>>
+			雾在它身上散得比刚才快——''它还没攒够''。你还有一次机会。
+			[[爬起来，再冲一次|龙·再冲]]
+		<<else>>
+			<<damage 99>>
+		<</if>>
+	<<else>>
+		<<fightpanel "龙·吐息" true>>
+		<<if $pc.ev.fight.flee>>
+			<<link "趁着它没站起来，退到门边">><<set $pc.ev.fight.done to true>><<goto "地下宴会厅">><</link>>
+		<</if>>
+	<</if>>
 <</if>>
 
 :: 龙·再冲

@@ -1,0 +1,11 @@
+{
+	"note": "产物体积预算（字节）。只许降不许升——确需增大请 --update-size 重签并在 PR 写明理由。tolerancePct：跨环境构建噪声容差（fonttools 版本/编译元数据），超容差即红。",
+	"rows": {
+		"index.html": 831636,
+		"fonts": 672432
+	},
+	"tolerancePct": {
+		"index.html": 0.5,
+		"fonts": 2
+	}
+}

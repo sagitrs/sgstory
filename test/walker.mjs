@@ -11,6 +11,7 @@ import { boot, LINKS, trailingAfterLast } from './boot.mjs';
 
 const N_CH1 = Number(process.argv[2] ?? 4);
 const N_TOWER = Number(process.argv[3] ?? 4);
+const SEED_OFFSET = Number(process.argv[4] ?? 0); // 多种子 nightly：--seed-offset 平移基准种子
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function makeRng(seed) {
@@ -146,8 +147,8 @@ async function dualBranchSweep() {
 
 // ── 主流程 ───────────────────────────────────────────────
 const stubs = ['hi', 'lo', 'alt', 'neutral'];
-for (let i = 0; i < N_CH1; i++) await walk(i, 'ch1', stubs[i % stubs.length], 1000 + i * 7, 45);
-for (let i = 0; i < N_TOWER; i++) await walk(100 + i, 'tower', stubs[i % stubs.length], 2000 + i * 13, 60);
+for (let i = 0; i < N_CH1; i++) await walk(i, 'ch1', stubs[i % stubs.length], 1000 + i * 7 + SEED_OFFSET, 45);
+for (let i = 0; i < N_TOWER; i++) await walk(100 + i, 'tower', stubs[i % stubs.length], 2000 + i * 13 + SEED_OFFSET, 60);
 const nSites = await dualBranchSweep();
 
 mkdirSync('build', { recursive: true });

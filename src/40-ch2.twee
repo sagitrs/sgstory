@@ -275,7 +275,7 @@
 	<<if $last_check.success>>
 		暗格里有一本硬皮日记。翻到最后一页，一行字被描过两遍：
 		//"''雾就是它漏出来的力气''——缺的从来不是咒。"//
-		<<give "日记">>
+		<<give "日记">><<set $pc.ev.failure_cause to true>>
 	<<else>>
 		你只摸到一手灰。
 	<</if>>

@@ -119,8 +119,6 @@ async function routeTrue() {
 	await c('回到当时的女巫');
 	await c('回到宴上');
 	await c('找厅角那位不肯多说的老人');   // 老巫女（晚年穿越回来的那位）
-	await c('为什么老是往回跑');           // → ev.failure_cause
-	await c('回到老巫女');
 	await c('把三百年后的办法告诉她');     // 告知与告别 → 卷轴
 	await c('回到宴上');
 	await c('去把花喂给它');               // 喂花
@@ -354,8 +352,6 @@ async function routeSleepForever() {
 	await c('下楼，打开地下那道门');
 	await c('在宴上找人说话');
 	await c('找厅角那位不肯多说的老人');   // 老巫女（晚年穿越的那位）
-	await c('为什么老是往回跑');
-	await c('回到老巫女');
 	await c('回到宴上');
 	await c('回到地下宴会厅');
 	await c('翻转护身符：回到');

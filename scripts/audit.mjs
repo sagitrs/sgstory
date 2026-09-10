@@ -994,4 +994,4 @@ if (wantAll || arg('canon')) {
 	}
 }
 
-console.log('\n（数据源：src/15-game-tables.twee —— 改表即改此报告；伞 #21/#22 审计请跑本脚本）');
+console.log('\n（数据源：src/15-tables.twee —— 改表即改此报告；伞 #21/#22 审计请跑本脚本）');

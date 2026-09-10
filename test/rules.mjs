@@ -488,7 +488,7 @@ for (const file of fixtures) {
 	const p5 = emptyPc();
 	ok(!S.levers(S.ask('哥布林·路'), p5).some((lv) => lv.id === 'stones'), '没读过它之前，"把石头捡回去"这枚筹码不可见');
 	p5.soc.read['哥布林'] = true;
-	ok(S.levers(S.ask('哥布林·路'), p5).some((lv) => lv.id === 'stones'), '读过它之后 → 筹码出现（洞察换筹码）');
+	ok(S.levers(S.ask('哥布林·路'), p5).some((lv) => lv.id === 'stones'), '读过它之后 → 筹码出现（读人＝洞悉，换出筹码）');
 	// ⑦ 落账：成功＝apply 真的给东西；失败＝什么也不给
 	const p6 = emptyPc();
 	S.ask('观星者·图').apply(p6);

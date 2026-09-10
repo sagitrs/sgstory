@@ -1,7 +1,8 @@
 # TROUBLESHOOTING — Twine + SugarCube 踩坑实录
 
 > 来源：本项目开发实录（2026-09），每条都附**现场、根因、解法、预防**。
-> 对应测试文件是活文档：改引擎行为前先跑 `npm test`。
+> 对应测试文件是活文档：改引擎行为前先跑 `npm test`（十一门 + 29 路线 + 覆盖率五门）。
+> 条目按**发现顺序**编号（坑 9 / 坑 13 / 坑 14 都是后补的，不必重排）。
 >
 > 分级：**S1** 静默失败，难排查 · **S2** 语义反直觉，设计受限 · **S3** 环境噪音，有解
 
@@ -147,8 +148,8 @@ w.SugarCube.Engine.start();
 
 | 维度 | 现状 |
 |---|---|
-| 坑的性质 | 全部是**已知语义/时序**（S1×2、S2×2、S3×4），无数据损坏、无渲染错乱、无存档丢失 |
-| 坑的可防御性 | 每条已有解法且固化在 build/test 流水线里，复发会被 80 项断言拦住 |
+| 坑的性质 | 全部是**已知语义/时序**（S1×6、S2×4、S3×4），无数据损坏、无渲染错乱、无存档丢失 |
+| 坑的可防御性 | 每条已有解法且固化在 build/test 流水线里，复发会被断言拦住（`npm test` 十一门 + 29 路线 + 覆盖率五门） |
 | 坑 2 的本质 | 是 undo/存档功能的**代价**——切到 inkjs+自研前端等于自己重写这套状态快照 |
 | 生态收益 | 单文件分发、内置存档/回退、宏系统足够承载 D&D 检定层、CC 开源素材生态 |
 
@@ -164,3 +165,28 @@ w.SugarCube.Engine.start();
 **根因**：SugarCube 对反引号参数走自家表达式求值器，`$` 是变量 sigil——模板字面量 `${}` 的 `$` 直接撞枪口。字符串拼接/三元/函数调用都合法，唯独 `${}` 不行。
 **解法**：一律拼接式：`` ` "花 " + (-Game.Economy.priceOf(...)) + " 金币" ` ``（同样动态求值，运行时改表价实时反映）。
 **预防**：反引号参数里禁用 `${}`；动态标签用拼接。L1 渲染门会兜住（本坑即其抓获）。
+
+## 坑14 · jsdom 里「跑完不退」与「点了没走」——两个都不是脚本的错〔S1 · 测试基建〕
+
+**现场 A（跑完不退）**：测试脚本 `await` 全部跑完、所有断言都绿，进程却**吊死 30 秒才被 `timeout` 砍**；一开始以为是"忘了 `process.exit()`"。
+
+**根因 A**：**JavaScript 视口为零**。jsdom 不做布局，`document.documentElement.clientWidth/clientHeight` 恒为 `0`；SugarCube `Engine.start()` 里那段"等视口就绪再收尾"的 `setInterval`（40ms）**永远等不到就 `clearInterval`** → 计时器一直挂在事件循环上，`beforeExit` 永不触发（`process.exit()` 只是硬砍，问题还在）。
+
+**解法 A**：给 jsdom 一个非零视口，让它自己走完启动链：
+```js
+Object.defineProperty(w.document.documentElement, 'clientWidth', { value: 1024, configurable: true });
+Object.defineProperty(w.document.documentElement, 'clientHeight', { value: 768, configurable: true });
+await w.SugarCube.Engine.start();   // 视口非零后这个 promise 才真的 resolve——它才是"启动完成"的信号
+```
+实测：原本 30s 吊死 → **0.9s 自己退出**。
+
+**现场 B（点了没走 / 骰面与段落没换）**：并行跑 29 条路线时偶发"点了一个明明在屏幕上的链接，游戏不动"；隔离单跑永远复现不出。
+
+**根因 B**：`Engine.isIdle()` 为真 **≠ DOM 已经换好**。回退（`Engine.backward()`）与读档（`Save.browser.slot.load()` → `State.goTo()` + **异步** `engineShow()`）都是"变量先变、段落元素晚一拍"；这一拍里点击落在旧元素上（SugarCube 早一拍就会**丢弃**这次点击）。
+
+**解法 B**：`settle()` 判两条——`Engine.isIdle()` **且** DOM 里存在 `data-passage === State.passage` 的段落元素；点击**只认当前段落**里的链接（全局查找会点到上一段残留的那份 DOM）。三个真因都收进 `test/boot.mjs`，六个脚本共用。
+
+**预防**：
+- **别用固定 `sleep()` 当同步手段**——它在机器忙的时候必然不够（并行跑就现原形）；
+- **看状态也要看 DOM**：`State.passage` 与 `#passages .passage[data-passage]` 是两个东西，异步导航下会短暂不一致；
+- 断言"点了会跳走"的测试，天然就会抓到这类坑——本项目正是新增「结局页收尾」路线断言"读档后画面得跟着走"时，顺带发现了 `L` 快捷键**读档不重画**的真 bug（`slot.load()` 只还原状态，SugarCube 自己的存档界面也是 `load().then(Engine.show)`）。

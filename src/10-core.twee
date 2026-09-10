@@ -79,7 +79,7 @@ window.Pc = {
 			keeper: { met: false, trust: 0, state: 'post', key: false },
 			ev: {},               // 证据链
 			soc: { att: {}, tries: {}, read: {} },   // 交涉台账（B2）：态度偏移 / 同一手试过几次 / 读没读过这人
-			dragon: { hp: 0, defeats: 0, awake: false, round: 0, venom: false },
+			dragon: { hp: 0, defeats: 0, awake: false, venom: false },   // 轮次归 B1 动作池：$pc.ev.fight.round
 			world: {},            // 世界旗标
 		};
 	},

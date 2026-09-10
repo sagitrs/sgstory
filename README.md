@@ -11,7 +11,7 @@
 npm install
 npm run build   # 编译 → dist/index.html（单文件，浏览器直接打开即玩）
 npm run serve   # 本地预览：http://localhost:8000
-npm test        # 构建后全链（~2min）：L0 静态门（含表一致性）→ 十一道质量门（真相/canon/回声/选择/互动/**反 S/L**/**行囊+经济**/**战斗动作池**/**交涉**/系统/文本）→ 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(31 路线并行) → 覆盖门
+npm test        # 构建后全链（~2min）：L0 静态门（含表一致性）→ 十一道质量门（真相/canon/回声/选择/互动/**反 S/L**/**行囊+经济**/**战斗动作池**/**交涉**/系统/文本）→ 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(32 路线并行) → 覆盖门
 npm run soak    # 游走器加量长测（20+20 局，~1.5min）：CI 独立 job（M1c 接回）；发布前 / 状态机重改动时也可本地跑
 npm run audit   # 表驱动审计（#28/#34）：每个门都能单独跑，加载打印数值报告
                  #   十一门 —— --truth --canon --echoes --choices --interact --nosl --gear --combat --social --systems --text
@@ -60,7 +60,7 @@ test/smoke.mjs    无头冒烟测试（快速车卡 → 酒馆 → 森林 → �
 test/boot.mjs      共享 JSDOM 启动（就绪轮询 + uncaught 监听 + `settle()` 等 Engine.isIdle 且 DOM 跟 State 同步
                    + 退出清理 + 可点选择器 CLICKABLE/CLICKABLE_SEL/LINKS）
                    ——渲染/冒烟/规则/属性/场景/游走全部走这里，不各自装配 JSDOM
-test/scenarios.mjs 分支场景测试（31 条路线：金路径 + 全部结局 + 设定集 + 图鉴 + 龙巢边 + 时代分叉 + 封印战 + 反 S/L + 星力软限 + 结局页收尾 + 女巫小屋只治一次 + 酒馆把桌子听遍）
+test/scenarios.mjs 分支场景测试（32 条路线：金路径 + 全部结局 + 设定集 + 图鉴 + 龙巢边 + 时代分叉 + 封印战 + 反 S/L + 星力软限 + 结局页收尾 + 女巫小屋只治一次 + 酒馆把桌子听遍 + 文本上下文）
 test/rules.mjs    规则层单测 + 表契约（10 组）+ 存档兼容矩阵（test/fixtures/saves/ 每版历史形状一档；改 Pc.defaults 必须同 PR 加 fixture）
 test/properties.mjs L5 数值属性：判定边界全枚举/优势支配律/伤害界限/战斗伤害单调律/车卡形状律
 scripts/audit.mjs   质量十一门 + **文字工艺门（--craft）**：真相可达性/**canon 门**（设定书 §10 黑名单回流 + §9 双读断言扫描 + §3.9 传说覆盖 + §5.0 道具消费）/

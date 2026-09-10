@@ -37,6 +37,66 @@ jQuery(document).on('keydown.sgSave', (ev) => {
 	else if (ev.key === 'l' || ev.key === 'L') { ev.preventDefault(); window.sgQuickLoad(); }
 });
 
+// ── 道具图鉴（v17 M8）：跨周目永久解锁 ──
+// 不用 SugarCube 的 settings：Setting.save() 只持久化**注册过的** Setting，
+// 自定义键不落盘（见 vendor/format.js 的 save()）。这里自己用一个带命名空间的 localStorage 键。
+const SG_CODEX_KEY = 'sgstory.codex.v1';
+window.SgCodex = {
+	blank() { return { clues: {}, endings: [], finals: [] }; },
+	read() {
+		try {
+			const raw = window.localStorage.getItem(SG_CODEX_KEY);
+			const d = raw ? JSON.parse(raw) : null;
+			if (!d || typeof d !== 'object') return this.blank();
+			return { clues: d.clues ?? {}, endings: d.endings ?? [], finals: d.finals ?? [] };
+		} catch { return this.blank(); } // 隐私模式 / 坏数据：静默降级（只是不跨周目）
+	},
+	write(d) { try { window.localStorage.setItem(SG_CODEX_KEY, JSON.stringify(d)); } catch { /* 同上 */ } },
+	// 每段落：把本档新满足的线索并进永久记录（有变化才写盘）
+	sync() {
+		const pc = State.variables?.pc;
+		if (!pc || !window.Game?.Codex) return;
+		const store = this.read();
+		let changed = false;
+		for (const [item, ids] of Object.entries(Game.Codex.satisfied(pc))) {
+			if (!ids.length) continue;
+			const bucket = (store.clues[item] ??= {});
+			for (const id of ids) if (!bucket[id]) { bucket[id] = true; changed = true; }
+		}
+		if (changed) this.write(store);
+	},
+	// 结局登记：终局（final）才给空页提示；章节出口只记账
+	recordEnding(key, kind) {
+		const store = this.read();
+		if (!store.endings.includes(key)) store.endings.push(key);
+		if (kind === 'final' && !store.finals.includes(key)) store.finals.push(key);
+		this.write(store);
+	},
+	// 是否走到过任意终局（决定空页要不要给提示）
+	seenFinal() { return this.read().finals.length > 0; },
+	unlocked(item) { return Game.Codex.isUnlocked(item, this.read()); },
+	// 图鉴页渲染（锁定页＝空页；走到过终局后补一句指向）
+	render() {
+		const store = this.read();
+		const hintOn = this.seenFinal();
+		const rows = Object.keys(Game.Codex.items).map((item) => {
+			if (Game.Codex.isUnlocked(item, store)) {
+				const clues = Game.Codex.items[item].clues.map((c) => `<li>${c.label}</li>`).join('');
+				return `<div class="codex-entry"><h4>${item}</h4><ul class="codex-clues">${clues}</ul></div>`;
+			}
+			const tail = hintOn
+				? `<p class="codex-hint">${Game.Codex.items[item].hint}</p>`
+				: '<p class="codex-hint codex-hint-off">（走到过任意一个结局之后，这一页会给你一点指向。）</p>';
+			return `<div class="codex-entry codex-locked"><h4>？？？</h4>${tail}</div>`;
+		}).join('');
+		const got = Object.keys(Game.Codex.items).filter((i) => Game.Codex.isUnlocked(i, store)).length;
+		return `<h3>图鉴</h3><p>每件东西都散着几条线索。线索凑齐，这一页就亮起来——而且''永远亮着''：换周目、重开一档都在。</p><p>已解锁 <b>${got} / ${Object.keys(Game.Codex.items).length}</b>；走到过结局 <b>${store.finals.length}</b> 个。</p>${rows}`;
+	},
+};
+
 // 安全网：每个段落开始前归一化 $pc 形状（旧档缺字段/类型错误都会被补齐，
-// 幂等且代价可忽略——坑10 的纵深防御）
-jQuery(document).on(':passagestart', () => Pc.migrate(State.variables.pc));
+// 幂等且代价可忽略——坑10 的纵深防御）；顺带把图鉴线索并进永久记录。
+jQuery(document).on(':passagestart', () => {
+	Pc.migrate(State.variables.pc);
+	SgCodex.sync();
+});

@@ -278,7 +278,32 @@ async function routeVoid() {
 	// 好感链：空手见守林人不被纠正"封印"，说一句"它不会变成恶龙"（对话层，不落旗），好感不换放行
 	await c('说一句：它不会变成恶龙');
 	await c('回到守林人');
-	await c('那就用他家的封印术');
+	await c('那就用他家的封印术');       // → 守林人·封印：术式念得动，但要你先把它按下去
+	if (pcOf(w).keeper.state !== 'seal') throw new Error('封印计划未落 state=seal');
+	await c('明白了。下去');               // 门厅
+	// 顺手把花带上：毒液抹刃 → 龙的攻击劣势（v17 补正 #3）
+	await c('出塔，回到塔外');             // 塔门
+	await c('塔基墙根那片花');             // 塔外花田（d20 恒 20 → 体质豁免必成）
+	if (pcOf(w).inv['月光花'] !== true) throw new Error('封印战路线没拿到月光花');
+	await c('回塔门');
+	await c('推门进去');                   // 门厅
+	await c('用钥匙打开铁门');
+	await c('叫醒它');                   // → 唤醒（无好哨）
+	await c('和守林人并肩');             // → 封印·并肩
+	if (pcOf(w).dragon.hp > w.Game.Dragon.hp) throw new Error('封印战未初始化龙的血量');
+	// 把它打到 sealAt 以下（d20 恒 20 → 斩击必成、吐息必免）
+	let guard = 0;
+	while (pcOf(w).dragon.hp > w.Game.Dragon.sealAt) {
+		if (++guard > 20) throw new Error(`封印战打不下去（hp=${pcOf(w).dragon.hp}）`);
+		const links = [...w.document.querySelectorAll('#passages a.link-internal')].map((x) => x.textContent);
+		if (links.includes('先把花汁抹在刃上')) { await c('先把花汁抹在刃上'); continue; }
+		if (links.includes('压上去')) await c('压上去');
+		else if (links.includes('再压上去')) await c('再压上去');
+		else throw new Error(`封印战断了：${links.join(' / ')}`);
+	}
+	if (pcOf(w).dragon.venom !== true) throw new Error('封印战未走涂毒支（封印·涂毒 未覆盖）');
+	if (pcOf(w).hp <= 0) throw new Error('封印战里倒下了（本路线骰面恒 20，不该受伤）');
+	await c('让他把最后一句念完');
 	if (passageOf(w) !== '结局 送入虚空') throw new Error(`未达送入虚空（${passageOf(w)}）`);
 	return { w };
 }

@@ -279,7 +279,8 @@ if (wantAll || arg('dragon')) {
 		if (!ok) dragonBad++;
 		console.log(`  单挑彩蛋击杀率 ≈ ${(pKill * 100).toFixed(2)}%（天然 ${kill.nat}${kill.dis ? ' + 劣势' : ''}）→ ${ok ? '✓ 几乎不可达（≤1%）' : '✗ 过高（>1%）'}`);
 	}
-	const breakers = Object.entries(Game.Items.effects).filter(([, e]) => e.advSite === '龙·终击').map(([k]) => k);
+	const breakers = Object.entries(Game.Items.effects)
+		.filter(([, e]) => e.advSite === '龙·终击' || (e.advSites ?? []).includes('龙·终击')).map(([k]) => k);
 	if (breakers.length) { dragonBad++; console.log(`  ✗ 破坏平衡的道具仍在给彩蛋位点优势：${breakers.join('、')}`); }
 	// 正文不得对「劣势位点」硬写优势（防绕过 effects 表）
 	const disSites = Object.entries(Game.Checks.sites).filter(([, s]) => s.dis).map(([k]) => k);
@@ -288,6 +289,47 @@ if (wantAll || arg('dragon')) {
 		for (const s of disSites) if (src.includes(`<<sitecheck "${s}" "adv">>`)) hardcoded.push(`${name}→${s}`);
 	}
 	if (hardcoded.length) { dragonBad++; console.log(`  ✗ 正文对劣势位点硬写优势：${hardcoded.join('，')}`); }
+	// ── 封印战（v17 补正 #3）：与守林人并肩——把龙打到 sealAt 以下，他才能念完那一句 ──
+	console.log('\n  ── 封印战（普通结局·信息不足线）：需打掉 ' + (D.hp - D.sealAt) + ' 点血 ──');
+	const sealSite = Game.Checks.sites['龙·斩击'];
+	const saveSite = Game.Checks.sites['龙·吐息'];
+	const sealLoadouts = {
+		'裸装':           { inv: {}, venom: false, adv: true },
+		'只带花毒':       { inv: {}, venom: true, adv: true },
+		'花毒+护臂':      { inv: { 龙鳞护臂: true }, venom: true, adv: true },
+		'花毒+护臂+日记': { inv: { 龙鳞护臂: true, 日记: true }, venom: true, adv: true },
+	};
+	const sealRows = [];
+	for (const p of presets) {
+		for (const [ln, L] of Object.entries(sealLoadouts)) {
+			const pHit = successRate(p.pc, sealSite, L.adv);          // 坏哨（默认带）＝优势
+			const pSave = successRate(p.pc, saveSite, !!(L.inv['观星者的书'] || L.adv && false));
+			const need = D.hp - D.sealAt;
+			const perHit = Math.max(1, D.bladeDamage);
+			let dhp = D.hp, taken = 0, r = 0;
+			for (; r < 30 && dhp > D.sealAt; r++) {
+				dhp -= perHit * pHit;                                  // 期望伤害
+				taken += Game.Items.battleDamage(r + 1, L.inv, 0, L.venom) * (1 - pSave);
+			}
+			const alive = taken <= p.pc.max_hp;
+			sealRows.push({ preset: p.name, loadout: ln, rounds: r, taken: Math.round(taken * 10) / 10, hp: p.pc.max_hp, alive });
+			console.log(`  ${p.name}·${ln}: 期望 ${r} 轮 · 受击 ${taken.toFixed(1)} vs HP${p.pc.max_hp} → ${alive ? '✓ 活着按住它' : '✗ 先倒下'}`);
+		}
+	}
+	const nakedAlive = sealRows.filter((x) => x.loadout === '裸装' && x.alive).length;
+	const bestDead = sealRows.filter((x) => x.loadout === '花毒+护臂+日记' && !x.alive).length;
+	if (!(D.sealAt < D.hp)) { dragonBad++; console.log('  ✗ 封印阈值 sealAt 不小于龙的血量（封印无从发动）'); }
+	// 门 A：准备不足必须有人站不住（≥1 个预设裸装倒下）
+	if (nakedAlive >= presets.length) { dragonBad++; console.log('  ✗ 三个预设裸装都活着按完封印——准备完全无意义'); }
+	// 门 B：备齐花毒+减伤必须人人活得下来（普通结局应可达）
+	if (bestDead) { dragonBad++; console.log(`  ✗ 备齐花毒+减伤仍会倒下（${bestDead} 个预设）——普通结局应当可达`); }
+	// 门 C：毒性/减伤必须真的有用（带花毒一律不比裸装更疼）
+	const worse = presets.filter((p) => {
+		const naked = sealRows.find((x) => x.preset === p.name && x.loadout === '裸装');
+		const venom = sealRows.find((x) => x.preset === p.name && x.loadout === '只带花毒');
+		return venom && naked && venom.taken > naked.taken;
+	}).length;
+	if (worse) { dragonBad++; console.log(`  ✗ 花毒反而更疼（${worse} 个预设）——毒液方向搞反了`); }
 	if (process.argv.includes('--check') && dragonBad) { console.error('\n✗ ⓪f 龙战门：彩蛋击杀率或平衡项不合规'); process.exit(1); }
 }
 
@@ -331,7 +373,10 @@ if (wantAll || arg('items') || arg('tokens')) {
 	console.log('\n══ ③ 道具效果 · 龙战伤害矩阵（受击方=玩家，败次 0/2）══');
 	const I = Game.Items;
 	console.log(`减伤件：每件 −${I.perItemDamageReduce}；败次 +1 封顶 +2（M5b：件数共鸣与月光花优势已移除）`);
-	for (const [name, e] of Object.entries(I.effects)) console.log(`  ${name.padEnd(8, '　')} ${e.advSite ? `优势@${e.advSite}` : `减伤−${e.flatDamageReduce}`} —— ${e.note}`);
+	for (const [name, e] of Object.entries(I.effects)) {
+		const sites = [e.advSite, ...(e.advSites ?? [])].filter(Boolean);
+		console.log(`  ${name.padEnd(8, '　')} ${sites.length ? `优势@${sites.join('/')}` : `减伤−${e.flatDamageReduce}`} —— ${e.note}`);
+	}
 	const sets = [
 		{},
 		{ 日记: true },
@@ -402,6 +447,8 @@ const CANON_ROWS = [
 	{ src: '一族人当面纠正"封印"这个说法', terms: ['这塔里没有封印', '其实那不是封印'], why: '不知道来历的人面前不指正（v17 补正 #1）' },
 	{ src: '"好感换放行"', skip: '口径门：§9 纪律 #8（守村的责任心优先）', why: '好感只影响说多少（v17 补正 #1）' },
 	{ src: '两份好感（还杖人情 + 知情/信龙）', skip: '口径门：唯一人情线 family_favor＝还杖（v17 补正 #2）', why: '好感线合一是表结构，不走词扫描' },
+	{ src: '封印术想发动就发动', terms: ['把它封进虚空，雾从此散尽'], why: '发动有前置：先把龙打到 sealAt 以下（v17 补正 #3，旧结局文案已改）' },
+	{ src: '月光花无战斗用途', skip: '口径门：§5.4 毒液抹刃＝龙的攻击 −2（v17 补正 #3 部分回退）', why: 'advAt 恒 false 已由 rules/properties 机检' },
 	{ src: '「信物」概念', terms: ['信物'], why: '改为物品栏' },
 	{ src: '星图残页', terms: ['星图残页'], why: '证物改用观星者的书' },
 	{ src: '封印门', terms: ['封印门', '四道锁槽', '星鬥', '人鬥', '启门韵', '星纹共振'], why: '只留一道通往地下宴会厅的门' },

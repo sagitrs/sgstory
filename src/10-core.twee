@@ -55,7 +55,7 @@ window.Pc = {
 			star: { charge: 12, spent: 0 },   // 星力隐藏计数（玩家不可见）
 			keeper: { met: false, trust: 0, state: 'post', key: false },
 			ev: {},               // 证据链
-			dragon: { hp: 0, defeats: 0, awake: false },
+			dragon: { hp: 0, defeats: 0, awake: false, round: 0, venom: false },
 			world: {},            // 世界旗标
 		};
 	},

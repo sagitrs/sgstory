@@ -165,7 +165,8 @@ for (const file of fixtures) {
 	ok(I.advAt('雾之魔物·挥击', { 坏哨: true }), 'advAt：坏哨给雾之魔物挥击优势');
 	ok(!I.advAt('雾之魔物·心防', { 坏哨: true }), 'advAt：坏哨不给心防优势');
 	ok(I.advAt('龙·吐息', { 观星者的书: true }), 'advAt：观星者的书给吐息优势');
-	ok(!I.advAt('龙·斩击', { 月光花: true }), 'advAt：月光花不再给攻击优势（M5b：改为纯喂花道具）');
+	ok(I.advAt('龙·斩击', { 坏哨: true }), 'advAt：坏哨给封印战攻击优势（v17 补正 #3）');
+	ok(!I.advAt('龙·斩击', { 月光花: true }), 'advAt：月光花不给攻击优势——它让龙变弱（毒液），不是让你变强');
 	ok(!I.advAt('龙·斩击', { a: 1, b: 2 }), 'advAt：件数共鸣已移除（M5b）');
 	ok(!I.advAt('龙·终击', { 月光花: true, 日记: true, 龙鳞护臂: true }), 'advAt：彩蛋位点不吃任何道具优势');
 	// ④b 道具位点优势自动接线：坏哨 → <<sitecheck>> 自动双骰取高

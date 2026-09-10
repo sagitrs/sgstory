@@ -156,7 +156,8 @@ const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }
 	}
 	ok(bad === 0, `advAt 单调律：空手无优势 · 加件不撤销（已检查 ${checked} 个真值点）`);
 	ok(I.advAt('雾之魔物·挥击', invOf(items)) === true && I.advAt('龙·吐息', invOf(items)) === true, '满配：坏哨 / 观星者的书各给对应位点优势');
-	ok(I.advAt('龙·斩击', invOf(items)) === false && I.advAt('龙·终击', invOf(items)) === false, 'M5b：攻击与彩蛋位点不吃任何道具优势');
+	ok(I.advAt('龙·斩击', invOf(items)) === true, 'v17 补正 #3：坏哨给封印战攻击优势');
+	ok(I.advAt('龙·终击', invOf(items)) === false, 'M5b：彩蛋位点不吃任何道具优势');
 }
 
 console.log(failures ? `\n${failures} 项属性失败` : '\n属性测试全部通过');

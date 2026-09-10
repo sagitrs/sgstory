@@ -1,6 +1,6 @@
 # sgstory 实施图（impl-map）——M1 骨架落地规范
 
-> **状态**：v2.6（**M1 骨架 + M2–M4 文案 + M5 终局 + M6a–f 打磨 + M5c–M5g 口径 + M7 v17 全案（去神秘化 / 传说层 / 好感合一 / 封印战）+ M8 图鉴 + M9 互动化 + M10 判定可见 + M11 A 组 + M12 B1 战斗动作池 + M13 B2 交涉 + M14 温室撤除与月光花改口径** 已完成）
+> **状态**：v2.7（**M1 骨架 + M2–M4 文案 + M5 终局 + M6a–f 打磨 + M5c–M5g 口径 + M7 v17 全案（去神秘化 / 传说层 / 好感合一 / 封印战）+ M8 图鉴 + M9 互动化 + M10 判定可见 + M11 A 组 + M12 B1 战斗动作池 + M13 B2 交涉 + M14 温室撤除与月光花改口径 + M15 结局页收尾** 已完成）
 > **定位**：`docs/game-outline.md`（玩法大纲）的**工程落地版**——把大纲翻译成**段落图 / 文件结构 / 状态模型 / 测试策略**。
 > **权威关系**：实现细节稿。**与设定书冲突以设定书为准**；与大纲冲突以大纲为准。
 
@@ -40,6 +40,7 @@
 | **M9** | **互动化改造**：信息类检定一律玩家发起（`sites[].auto` 标注战斗位点）· 酒馆 9 桌打听 + 请一轮酒 · 女巫小屋 7 问 · `<<snapshot>>`/`<<lastcheck>>` 骰面复显 · `Choices.sites` 臂数更新 · **互动门** | 七门 + 2 条新路线 | ✅ 本 PR |
 | **M11** | **A 组·假代价清零**：`Game.Gear` 行囊表（伤害 / 优势，不进 `Items.defs`）· 秘典药膏 → `salves` · `Game.Star.budget = 4` 软限（超限 → 真结局降级「再度沉睡」+ `$pc.ev.star_short` 变体）· `seer_refused` 删 / `old_witch` 接进 `归位` · 侧栏药膏与行囊 · **行囊门 + 经济门（--gear）** | 九门 + 28 路线 + 规则单测 | ✅ 本 PR |
 | **M10** | **判定可见 + 反 S/L**：`Rules.check/save` 返回 `label`（属性标注）/ `parts`（加值拆项）/ `rolls`（双骰）/ `advWhy`；渲染成一行完整算式 + `↳` 优势行；`SgUI` 开关（设定集页脚）；`Checks.keyYields` + `sites[].yields` + **反 S/L 门**；`<<lastcheckFor>>` 防旧骰面串页；8 个关键产出补第二路（含 3 处"失败仍到手"） | 八门 + 27 路线 + 规则单测 | ✅ 本 PR |
+| **M15（C1）** | **结局页收尾入口**：`<<ending>>` 追加 `.ending-foot` 卡片（**退回上一步** `Engine.backward()` / **读档** `sgLoadSlot` / **从头再来** `sgRestartRun`），`StoryScript` 的 `:passagerender` 把卡片挪到段落末尾 · `SgEnding.foot()` 一处渲染（新增结局自动有退路）· **修 `L` 读档不重画**（`slot.load()` 只还原状态，须 `.then(Engine.show)`）· 测试侧把可点选择器收进 `test/boot.mjs`（`CLICKABLE` / `CLICKABLE_SEL` / `LINKS`）+ `settle()` 追加 **DOM 跟 State 同步**、点击前只认"当前段落"的链接 | 全量回归 · 29 路线 | ✅ 本 PR |
 | **M14（v17 补正 #5）** | **温室撤除 + 月光花改口径**（操作者拍板）：删 `温室` 段落（**段落 67 → 66**）、楼层重排（`书房` → `工坊`（同层拐角）→ `天文台`）· 花改为**自己长在塔周围、沐浴星光**（`塔外花田` 叙述不再断言"雾越浓它越旺"）· **花与雾的关系无人知晓** → 酒馆新增一条 NPC 转述的**学者猜测**（`跑生意的`）· 修 P1 内部冲突（林间小径过去不该已经有花）· 图鉴提示与 `Echoes.anchors` 同步 · canon 门加两行 + 传说覆盖门加一条 | canon 门 + 全量回归 · 28 路线 · 覆盖 76/80 | ✅ 本 PR |
 | **M13（B2）** | **交涉**：`Game.Social`（`ATT/attAdj` 态度轴 · `approaches` 七种手段 · `asks` 8 件诉求 × `sites`/`levers`/`willing`/`unwilling`/`apply` · `attitude/shift/tries/dcOf/open/levers/leverOpen/roll/verdict/settle`）· 宏 `<<socresolve>>`/`<<socpanel>>` + `StoryScript` 的 `a.soc-opt` 委托点击（**选项不能用 `<<link>>`**：其内容点击时才解析，`<<for>>` 临时变量已被下一个面板覆盖）· 段落 `酒馆`/`守林人`/`观星者`/`当时的女巫`/`洞穴`/`老巫女` 改挂面板 · `$pc.soc = {att,tries,read}` · **交涉门（`--social`）** · 新增存档 fixture `s5-social.json`（`Pc.defaults` 26 键） | 十一门 + 28 路线 + 规则单测 | ✅ 本 PR |
 | **M12（B1）** | **战斗动作池**：`Game.Combat`（`pools` 雾影 6 / 封印 10 / 龙 6 · `actions` 每手 `site`+`label`+`ok/crit/bad` · `eligible/offer/pick/applyEffect/siteInfo`）· 宏 `<<fightbegin>>`/`<<fightresolve>>`/`<<fightpanel>>`（回合状态 `$pc.ev.fight`）· 段落 `封印·并肩`/`龙·战` 改挂池子、`封印·涂毒`+`封印·冲` **退役** · `封印·读术式`（奥秘）给秘典留路 · **战斗动作池门（`--combat`）** · `audit --dragon` 封印战推演改为**按池内真牌取期望** | 十门 + 28 路线 + 规则单测 | ✅ 本 PR |
@@ -76,6 +77,7 @@ src/
 |---|---|---|
 | `<<sitecheck 位点 [adv\|dis] [加值] [nat]>>` | 技能检定 / 豁免（`abil` 位点自动走 `<<save>>`；`dis` 位点级劣势；`nat` 天然大成功） | `Game.Checks.sites` |
 | `<<dragonbar>>` | 龙血条（`$pc.dragon.hp` / `Game.Dragon.hp`） | `Game.Dragon` |
+| `<<ending "键" final\|chapter>>` | **C1** 记本档结局 + 图鉴永久账，并追加**收尾卡**（退回上一步 / 读档 / 从头再来）——`:passagerender` 再把卡片挪到段落末尾 | `SgCodex.recordEnding` / `SgEnding.foot` |
 | `<<socresolve "诉求">>` | **B2** 在段落渲染顶部结算待办交涉动作（掷骰 + 落账 + 写 `$pc.ev.soc_last`）——骰面因此与检定同帧 | `Game.Social.roll/settle` |
 | `<<socpanel "诉求">>` | **B2** 发这一句诉求的开口方式与筹码（`<a class="soc-opt" data-ask data-how>`；点击由 `StoryScript` 委托处理，只写 `$pc.ev.soc`） | `Game.Social.open/levers/verdict` |
 | `<<fightbegin "池">>` | **B1** 开一场战斗：初始化 `$pc.ev.fight`（**同池子且没打完就不重置**——点牌重渲染会再跑一遍本宏） | `Game.Combat.pools` |
@@ -176,7 +178,7 @@ src/
 
 | 文件 | 定位 | 现状 |
 |---|---|---|
-| `test/boot.mjs` | jsdom 启动 + 就绪轮询 + uncaught 监听 + **`settle()`（等 `Engine.isIdle()`——上一翻没画完就点，SugarCube 会丢掉这次点击）** + **统一退出清理**（非零视口让 SugarCube 的视口就绪轮询收尾、`await Engine.start()` 才真正等到启动完成 → `beforeExit`/`exit`/信号统一 `close()` 全部窗口；**游走器与分支场景测试都走这里**，不再自己装配 JSDOM） | 保留 |
+| `test/boot.mjs` | jsdom 启动 + 就绪轮询 + uncaught 监听 + **`settle()`（等 `Engine.isIdle()`——上一翻没画完就点，SugarCube 会丢掉这次点击）** + **统一退出清理**（非零视口让 SugarCube 的视口就绪轮询收尾、`await Engine.start()` 才真正等到启动完成 → `beforeExit`/`exit`/信号统一 `close()` 全部窗口；**游走器与分支场景测试都走这里**，不再自己装配 JSDOM；可点选择器也在这里定义——`CLICKABLE`/`CLICKABLE_SEL`/`LINKS`，新增一种控件只改一处） | 保留 |
 | `test/render-all.mjs` | 全段落渲染（含 `$era` 双变体） | 保留（**76 格 / 66 内容段**） |
 | `test/walker.mjs` | 随机游走 + 不变量 + **位点双支清扫** | 重写（`inv` 闭集 / `star.spent` / `keeper.state`（**含 `seal`**）/ `dragon.hp`） |
 | `test/integrity.mjs` | 段落图结构/死链/孤儿/宏拼写/词汇纪律 | 重写（`ERA_FILES` 由 `<<flip>>` 动态发现） |

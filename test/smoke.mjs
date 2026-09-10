@@ -1,5 +1,5 @@
 // 无头冒烟测试（jsdom，M1a-2 换骨后）：启动 → 快速车卡 → 酒馆 → 森林边缘 → 洞穴 + 侧栏/存档/物品栏
-import { boot } from './boot.mjs';
+import { boot, CLICKABLE } from './boot.mjs';
 
 const pageErrors = [];
 const { w, sleep } = await boot({ random: 0.5 });
@@ -9,7 +9,7 @@ const assert = (cond, msg) => {
 	console.log(`${cond ? '✓' : '✗'} ${msg}`);
 	if (!cond) process.exitCode = 1;
 };
-const links = () => [...w.document.querySelectorAll('#passages a.link-internal, #passages a.soc-opt')];
+const links = () => [...w.document.querySelectorAll(CLICKABLE)];
 const click = async (label) => {
 	const a = links().find((x) => x.textContent === label || x.textContent.includes(label));
 	if (!a) throw new Error(`找不到链接「${label}」@ ${w.SugarCube.State.passage}`);

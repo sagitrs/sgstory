@@ -22,12 +22,15 @@ Save.onLoad.add((save) => {
 // ── 常驻存档 / 读档（v16 §5.0：常驻界面，不埋进侧栏菜单）──
 // 侧栏固定块调这三个全局函数；S / L 为快捷键（不在输入框内时生效）。
 window.sgQuickSave = () => Save.browser.slot.save(1, `快速存档 · ${State.variables.pc?.name || '无名旅人'}`);
+// 读档有个坑：Save.browser.slot.load() 只把状态还原，**不会重画**（SugarCube 自己的存档界面
+// 也是 load().then(Engine.show)）。少了这一步，画面会停在原地——按 L 看着像没反应。
+window.sgLoadSlot = (index) => Save.browser.slot.load(index).then(Engine.show, (ex) => UI.alert(`读档失败：${ex.message}`));
 window.sgQuickLoad = () => {
 	if (!Save.browser.slot.has(1)) {
 		UI.alert('还没有存档——先按 S 快速存档。');
 		return;
 	}
-	Save.browser.slot.load(1);
+	window.sgLoadSlot(1);
 };
 window.sgSaveMenu = () => UI.saves();
 jQuery(document).on('keydown.sgSave', (ev) => {
@@ -93,6 +96,61 @@ window.SgCodex = {
 		return `<h3>图鉴</h3><p>每件东西都散着几条线索。线索凑齐，这一页就亮起来——而且''永远亮着''：换周目、重开一档都在。</p><p>已解锁 <b>${got} / ${Object.keys(Game.Codex.items).length}</b>；走到过结局 <b>${store.finals.length}</b> 个。</p>${rows}`;
 	},
 };
+
+/* ── 结局页的收尾入口（C1）─────────────────────────────────────────────────
+   每个 <<ending>>（终局 10 个 + 章节出口 5 个）都发这张卡：退回上一步 / 读档 / 从头再来。
+   卡片写在 <<ending>> 里（渲染在段落顶部），下面这个 :passagerender 把它挪到段落末尾——
+   于是"每个结局都有出口"只依赖 <<ending>> 一处（图鉴门已强制所有 结局* 段落都调它）。
+   为什么用 button + 委托而不是 <<link>>：这三个动作是导航/存档 API，不是段落跳转，
+   而且要能带条件显示（有没有存档、有没有上一步）。 */
+window.SgEnding = {
+	foot(key, kind) {
+		const hasSave = Save.browser.slot.has(1);
+		const canUndo = State.history.length > 1;
+		const loadLabel = hasSave ? '读档' : '读档（还没有存档）';
+		const undoAttr = canUndo ? '' : ' disabled';
+		return (
+			`<div class="ending-foot" data-ending="${key}" data-kind="${kind}">` +
+			`<p class="ending-foot-lead">——这一档到这儿了。要接着走，从这儿走：</p>` +
+			`<div class="ending-acts">` +
+			`<button type="button" class="end-act" data-end-act="undo"${undoAttr}>↶ 退回上一步</button>` +
+			`<button type="button" class="end-act" data-end-act="load">${loadLabel}</button>` +
+			`<button type="button" class="end-act" data-end-act="restart">↻ 从头再来</button>` +
+			`</div>` +
+			`<p class="ending-foot-hint">（随时按 <b>S</b> 存档、<b>L</b> 读档；也可以从侧栏开存档菜单。` +
+			`从头再来会清掉这一档的进度，<b>图鉴里已经亮起来的页留着</b>。）</p>` +
+			`</div>`
+		);
+	},
+};
+
+// 从头再来：本档清零、回开场。不用 SugarCube 的 Engine.restart()——它靠 window.location.reload()，
+// 单文件离线版也还得多一次整页重载；这里直接重跑 StoryInit 再落到起始段（同一条初始化路径）。
+window.sgRestartRun = () => {
+	State.reset();
+	new Wikifier(null, Story.get('StoryInit').processText());
+	Engine.play(Config.passages.start);
+};
+
+jQuery(document).on('click.sgEndAct', '#passages button[data-end-act]', function (ev) {
+	ev.preventDefault();
+	const act = String(this.dataset.endAct ?? '');
+	if (act === 'undo') {
+		if (State.history.length > 1) Engine.backward();
+	} else if (act === 'load') {
+		if (Save.browser.slot.has(1)) window.sgLoadSlot(1);
+		else UI.saves();
+	} else if (act === 'restart') {
+		window.sgRestartRun();
+	}
+});
+
+// 卡片挪到段落末尾（:passagerender 的 ev.content 就是这个段落元素）
+jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
+	const $content = jQuery(ev.content);
+	const $foot = $content.find('.ending-foot');
+	if ($foot.length) $content.append($foot);
+});
 
 // 安全网：每个段落开始前归一化 $pc 形状（旧档缺字段/类型错误都会被补齐，
 // 幂等且代价可忽略——坑10 的纵深防御）；顺带把图鉴线索并进永久记录。

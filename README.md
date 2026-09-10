@@ -51,9 +51,10 @@ test/walker.mjs    L2 对抗席游走器：种子化随机游走（一章+塔）
 test/coverage.mjs  L3 覆盖率 ratchet（五门）：基线不回退 / 新段落必配测 / 无交互盲区 / 时代双态 / 交互≥渲染
                    ——基线更新：npm run update-coverage-baseline
 test/smoke.mjs    无头冒烟测试（快速车卡 → 酒馆 → 森林 → 洞穴 + 侧栏/存档/物品栏）
-test/boot.mjs      共享 JSDOM 启动（就绪轮询 + uncaught 监听 + `settle()` 等 Engine.isIdle + 退出清理）
+test/boot.mjs      共享 JSDOM 启动（就绪轮询 + uncaught 监听 + `settle()` 等 Engine.isIdle 且 DOM 跟 State 同步
+                   + 退出清理 + 可点选择器 CLICKABLE/CLICKABLE_SEL/LINKS）
                    ——渲染/冒烟/规则/属性/场景/游走全部走这里，不各自装配 JSDOM
-test/scenarios.mjs 分支场景测试（28 条路线：金路径 + 全部结局 + 设定集 + 图鉴 + 龙巢边 + 时代分叉 + 封印战 + 反 S/L + 星力软限）
+test/scenarios.mjs 分支场景测试（29 条路线：金路径 + 全部结局 + 设定集 + 图鉴 + 龙巢边 + 时代分叉 + 封印战 + 反 S/L + 星力软限 + 结局页收尾）
 test/rules.mjs    规则层单测 + 表契约（10 组）+ 存档兼容矩阵（test/fixtures/saves/ 每版历史形状一档；改 Pc.defaults 必须同 PR 加 fixture）
 test/properties.mjs L5 数值属性：判定边界全枚举/优势支配律/伤害界限/战斗伤害单调律/车卡形状律
 scripts/audit.mjs   质量十一门：真相可达性/**canon 门**（设定书 §10 黑名单回流 + §9 双读断言扫描 + §3.9 传说覆盖 + §5.0 道具消费）/
@@ -118,6 +119,7 @@ $hp                   变量（$ 开头，可直接写在正文里插值）
 | 物品栏 | `StoryCaption` + `<<give>>` | 每件各有用途，**不集齐开锁**（v16 §5.0） |
 | 常驻存档 | `StoryCaption` + `StoryScript` | 侧栏固定块：快速存档/快速读档/存档菜单；快捷键 `S`/`L` |
 | 多结局 | `结局 *` × 10 | 真（送星归位）/ 降级（再度沉睡·自愿的长眠）/ 非真（击杀·虚空·劣化封印·**星落·坠星之死（彩蛋：天然 20 + 劣势 ≈0.25%）**·讨伐·死亡（含**花田长眠**））/ 章节（平凡之路·银月之赐·半途·新任守林人·焚塔者） |
+| 结局页收尾 | 每个 `结局 *` 段落末尾（`<<ending>>` 统一发牌） | **退回上一步** / **读档** / **从头再来**；「从头再来」只清本档，**图鉴的永久解锁跨周目留着** |
 
 存档/读档既有**侧栏常驻入口**（快速存档/快速读档/存档菜单，快捷键 `S`/`L`），也有**左侧边栏菜单**里的完整存档界面（SugarCube 内置，自动持久化到浏览器 localStorage）。
 

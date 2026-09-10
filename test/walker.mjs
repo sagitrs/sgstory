@@ -7,7 +7,7 @@
 import { writeFileSync, mkdirSync } from 'node:fs';
 // 统一进 test/boot.mjs（#27 就绪轮询 + 坑11 uncaught 监听 + 退出清理）——
 // 这里不再自己装配 JSDOM：随机源改传函数（种子流），窗口关不关由 boot 统一负责。
-import { boot } from './boot.mjs';
+import { boot, LINKS } from './boot.mjs';
 
 const N_CH1 = Number(process.argv[2] ?? 4);
 const N_TOWER = Number(process.argv[3] ?? 4);
@@ -64,7 +64,7 @@ async function walk(index, mode, stubMode, seed, maxSteps) {
 	const trace = [];
 	const cells = [];
 	const fail = (msg) => failures.push({ index, mode, stubMode, seed, step: trace.length, trace: [...trace], msg });
-	const clickables = () => [...w.document.querySelectorAll('#passages a.link-internal, #passages a.soc-opt, #passages .choice-card a, #passages button')];
+	const clickables = () => [...w.document.querySelectorAll(`${LINKS}, #passages .choice-card a`)];
 	const click = (el) => {
 		const label = (el.textContent || el.value || '?').trim().slice(0, 30);
 		trace.push(label);
@@ -109,7 +109,7 @@ async function walk(index, mode, stubMode, seed, maxSteps) {
 async function dualBranchSweep() {
 	const { w, close } = await walkerBoot('neutral', 424242);
 	// 真实车卡（保证技能/属性齐备）
-	const byLabel = (t) => [...w.document.querySelectorAll('#passages a.link-internal, #passages a.soc-opt')].find((x) => x.textContent.trim() === t);
+	const byLabel = (t) => [...w.document.querySelectorAll(LINKS)].find((x) => x.textContent.trim() === t);
 	for (const label of ['踏上旅途', '快速成型', '出发，前往歪脖子鸭酒馆']) { byLabel(label).click(); await sleep(220); }
 	const sites = Object.keys(w.Game.Checks.sites);
 	const host = w.document.createElement('div');

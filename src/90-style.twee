@@ -373,3 +373,22 @@ body {
 .ending-acts .end-act:hover:not([disabled]) { background: rgba(86, 72, 130, 0.85); }
 .ending-acts .end-act[disabled] { opacity: 0.45; cursor: not-allowed; }
 .ending-foot-hint { margin: 0.7em 0 0; font-size: 0.88em; opacity: 0.7; line-height: 1.5; }
+
+/* ── 系统提示 vs 叙事（#168 P2-5）：机制提示统一小字侧排，跟故事里的括号分开 ── */
+.sys-note {
+	display: block;
+	margin: 0.35em 0;
+	padding: 0.25em 0.7em;
+	font-size: 0.86em;
+	line-height: 1.55;
+	opacity: 0.72;
+	border-left: 2px solid rgba(200, 180, 255, 0.35);
+}
+/* ── 设定集词条（#168 P2-6）：定义性破折号改换行小标题 ── */
+.cx-term {
+	display: block;
+	margin-top: 0.5em;
+	font-weight: 600;
+	letter-spacing: 0.06em;
+	opacity: 0.92;
+}

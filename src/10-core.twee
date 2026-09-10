@@ -342,7 +342,7 @@ Macro.add('dragonbar', {
 					<<set _raw to Game.Dragon.dragonDamage($pc.inv, _f.round, ($pc.dragon.defeats ?? 0) + 1, $pc.dragon.venom)>>
 					<<set _dmg to Math.max(1, _raw - (_f.guard ?? 0))>>
 					<<if $last_check.success>>
-						<div class="fight-log">''它：''你贴着地滚开了——雾扑在你刚才站的地方，把那块石板舔掉一层。</div>
+						<div class="fight-log">''它：''你贴着地滚开了——它那一口咬在你刚才站的地方，石板裂了一层。</div>
 					<<else>>
 						<<set $pc.dragon.defeats to ($pc.dragon.defeats ?? 0) + 1>>
 						<div class="fight-log">''它：''它回手了——这一下你没能全躲开。</div>

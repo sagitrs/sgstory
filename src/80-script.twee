@@ -1,6 +1,7 @@
 :: StoryScript [script]
 // ── 全局配置（数值层与宏定义见「规则系统」「车卡数据」段落）──
 Config.history.maxStates = 40; // 可回退的步数（默认 20）
+Config.saves.maxSlotSaves = 16; // 存档位（默认 8；SugarCube 上限 = Save.MAX_INDEX+1 = 16）
 
 // 存档里写入自定义元数据，玩家在存档菜单里可以区分不同存档
 Save.onSave.add((save) => {
@@ -20,13 +21,13 @@ Save.onLoad.add((save) => {
 
 // ── 常驻存档 / 读档（v16 §5.0：常驻界面，不埋进侧栏菜单）──
 // 侧栏固定块调这三个全局函数；S / L 为快捷键（不在输入框内时生效）。
-window.sgQuickSave = () => Save.slots.save(1);
+window.sgQuickSave = () => Save.browser.slot.save(1, `快速存档 · ${State.variables.pc?.name || '无名旅人'}`);
 window.sgQuickLoad = () => {
-	if (typeof Save.slots.has === 'function' && !Save.slots.has(1)) {
+	if (!Save.browser.slot.has(1)) {
 		UI.alert('还没有存档——先按 S 快速存档。');
 		return;
 	}
-	Save.slots.load(1);
+	Save.browser.slot.load(1);
 };
 window.sgSaveMenu = () => UI.saves();
 jQuery(document).on('keydown.sgSave', (ev) => {

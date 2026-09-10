@@ -425,3 +425,6 @@ body {
 	letter-spacing: 0.06em;
 	opacity: 0.92;
 }
+/* #180 三区之「本次回答」：新听到的那条紧贴行动区上方（阅读方向恒向下，#179） */
+.fresh-heard { margin-top: 1em; padding-top: 0.15em; border-top: 1px solid rgba(169, 192, 218, 0.18); }
+.fresh-heard .heard-item { margin: 0.45em 0; }

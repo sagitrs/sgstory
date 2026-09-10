@@ -169,6 +169,9 @@ async function truePath(w, c) {
 	await c('去把花喂给它');               // 喂花
 	await c('回到宴上');
 	await c('回到地下宴会厅');             // 地下宴会厅（过去）
+	if (!passageText(w).includes('蜷着睡下了') || passageText(w).includes('雾从它身上')) {
+		throw new Error('喂花后过去的宴会厅没有对应安睡状态，或混入了未来的雾');
+	}
 	await c('翻转护身符：回到');           // 翻回现在
 	await c('安静地退出去');               // 门厅
 	await c('先上二楼看看');
@@ -912,6 +915,52 @@ async function routeWitchHealOnce() {
 	return { w };
 }
 
+// ── 变基后文本复审：时代、入门前提与日记线索必须对应当前经历 ──
+async function routeTextContext() {
+	const { w, click: c } = await newGame(0.99, 0);
+	const problems = [];
+	const check = (ok, message) => { if (!ok) problems.push(message); };
+	await toWitch(c);
+	await toTower(c);
+	check(passageText(w).includes('枯掉的月光花'), '现在的小径缺少枯花对照');
+	await c('坠入');
+	check(!passageText(w).includes('枯掉的月光花'), '过去的小径仍先描写未来才有的枯花');
+	await c('继续往塔那边走');
+	check(!linksOf(w).some((x) => x === '推门进去'), '未见守林人就能从过去的大门进入');
+	await c('塔基墙根那片花');
+	check(!passageText(w).includes('花瓣都朝上张着'), '过去的花田仍描写盛开的花');
+	await c('回塔门');
+	await c('翻转护身符：回到');
+	check(passageText(w).includes('进不去'), '未见守林人时缺少过去大门的限制提示');
+	await getKey(c);
+	await c('出塔，回到塔外');
+	check(!passageText(w).includes('进不去'), '已见守林人后仍提示过去的大门进不去');
+	await c('翻转护身符：坠入');
+	await c('推门进去');
+	await c('用钥匙打开铁门');
+	check(!passageText(w).includes('睡着一条龙'), '过去的宴会厅在喂花前就写龙睡着了');
+	check(!passageText(w).includes('雾从它身上'), '过去的宴会厅仍写三百年后的雾');
+	check(!passageText(w).includes('路费'), '未读日记就把雾的来历当作已知');
+	await c('翻转护身符：回到');
+	check(passageText(w).includes('睡着一条龙'), '现在的宴会厅缺少沉睡状态');
+	check(!passageText(w).includes('路费'), '现在的宴会厅在未读日记时提前解释路费');
+	await c('安静地退出去');
+	await c('先上二楼看看');
+	check(!passageText(w).includes('雾就是它漏出来的力气'), '取出日记前提前显示内文');
+	await c('伸手去摸烤炉后头的暗格');
+	await c('把暗格里的东西取出来');
+	check(pcOf(w).inv['日记'] && pcOf(w).inv['传送术卷轴'], '日记和卷轴未按既有规则取得');
+	check(passageText(w).includes('雾就是它漏出来的力气'), '日记取出后关键内文被同页重绘吃掉');
+	check(w.document.activeElement?.textContent.includes('雾就是它漏出来的力气'), '取出后焦点没有跟随日记线索');
+	await c('到拐角的小工坊看看');
+	await c('上三楼');
+	await c('上顶楼');
+	await c('下楼，打开地下那道门');
+	check(passageText(w).includes('路费'), '读过日记后缺少对雾的理解');
+	if (problems.length) throw new Error(problems.join('；'));
+	return { w };
+}
+
 const routes = [
 	['金路径 送星归位', routeTrue],
 	['平凡之路', routeQuit],
@@ -944,6 +993,7 @@ const routes = [
 	['乱翻的代价（星力软限）', routeTooManyFlips],
 	['结局页收尾（C1）', routeEndingFooter],
 	['女巫小屋·只治一次', routeWitchHealOnce],
+	['文本上下文（时代与日记）', routeTextContext],
 ];
 
 const results = await Promise.all(routes.map(async ([name, fn]) => {

@@ -27,3 +27,5 @@
 - 完整日志：[最终测试](evidence/rebase-review-2026-09-10/npm-test.log)、[随机游走](evidence/rebase-review-2026-09-10/soak.log)。
 
 历史文本与表现测试仍保留在[文本审校记录](text-review-2026-09-10.md)和[表现复审记录](visual-review-2026-09-10.md)，不把变基前的浏览器结果当作本次新结果。
+
+用户随后要求再进行一轮文本校对；以本轮完成状态为输入的新增发现、修订与验证见[变基后文本复审](text-review-after-rebase-2026-09-10.md)。

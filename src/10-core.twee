@@ -230,7 +230,7 @@ Macro.add('dragonbar', {
 	<<if $pc.salves gt 0 and $pc.hp gt 0>>
 		<<set $pc.salves to $pc.salves - 1>>
 		<<set $pc.hp to Math.min($pc.max_hp, $pc.hp + 4)>>
-		<span class="damage-flash">''你受到了 $args[0] 点伤害！''（药膏自动生效，回复 4 点）</span>
+		<span class="damage-flash">''你受到了 $args[0] 点伤害！''（消耗一副药膏，恢复最多 4 点生命，不超过上限）</span>
 	<<else>>
 		<span class="damage-flash">''你受到了 $args[0] 点伤害！''</span>
 	<</if>>
@@ -470,7 +470,7 @@ Macro.add('dragonbar', {
 					<<for _i to 0; _i lt _S.levers(_a, $pc).length; _i++>>
 						<<set _lv to _S.levers(_a, $pc)[_i]>>
 						<<print `<a class="soc-opt" role="link" tabindex="0" data-ask="${_a.id}" data-how="lever:${_lv.id}">拿出筹码：${_lv.name}（${_a.tag}）</a>`>>
-						<span class="soc-meta">（<<if _lv.econ>>花 <<print -Game.Economy.priceOf(_lv.econ, $pc)>> 金币 ｜ <</if>><<if _lv.gives is "auto">>不用开口<</if>><<if _lv.gives is "adv">>开口时占优势<</if>>，无需掷骰）</span>
+						<span class="soc-meta">（<<if _lv.econ>>花 <<print -Game.Economy.priceOf(_lv.econ, $pc)>> 金币 ｜ <</if>><<if _lv.gives is "auto">>直接答应，无需掷骰<</if>><<if _lv.gives is "adv">>后续交涉检定有优势<</if>>）</span>
 					<</for>>
 					<<for _i to 0; _i lt _S.open(_a, $pc).length; _i++>>
 						<<set _o to _S.open(_a, $pc)[_i]>>
@@ -506,7 +506,7 @@ Macro.add('dragonbar', {
 $pc.speciesLabel $pc.classLabel
 <<hpbar>>
 金币：$pc.gold
-药膏：$pc.salves 副（受伤时自动用，回 4 点）
+药膏：$pc.salves 副（受伤且存活时自动用，最多恢复 4 点生命）
 <<if $pc.gear.length>>行囊：<<print $pc.gear.join('、')>><</if>>
 <div class="inv-block">
 ''物品栏''

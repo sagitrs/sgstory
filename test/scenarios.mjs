@@ -155,7 +155,7 @@ async function truePath(w, c) {
 	await c('把那张抄好的图收下');
 	await c('回到观星者');
 	await c('回到宴上');
-	await c('找那位从不离手一支哨子的老人'); // 当时的女巫（她本人）
+	await c('找那位握着哨子的女巫'); // 当时的女巫（她本人）
 	await c('在塔里找那根杖');
 	await c('自己动手翻：桌布底下、酒箱后头都掀开看');   // M10：翻找是动作（d20 恒 20 必成）
 	await c('把杖拿回去还她');             // M10：还杖是动作（还完就站在她面前）
@@ -636,7 +636,7 @@ async function routeSleepVoluntary() {
 	await c('把那张抄好的图收下');
 	await c('回到观星者');
 	await c('回到宴上');
-	await c('找那位从不离手一支哨子的老人'); // 当时的女巫（她本人）
+	await c('找那位握着哨子的女巫'); // 当时的女巫（她本人）
 	await c('在塔里找那根杖');
 	await c('自己动手翻：桌布底下、酒箱后头都掀开看');   // M10：翻找是动作（d20 恒 20 必成）
 	await c('把杖拿回去还她');                          // M10：还杖是动作
@@ -647,7 +647,7 @@ async function routeSleepVoluntary() {
 	await c('回到地下宴会厅');
 	await c('翻转护身符：回到');
 	await c('叫醒它');
-	await c('看着它再睡下去');
+	await c('告诉它还送不动，让它自行选择长眠');
 	if (passageOf(w) !== '结局 自愿的长眠') throw new Error(`未达自愿的长眠（${passageOf(w)}）`);
 	return { w };
 }
@@ -666,7 +666,7 @@ async function routeExchangeGate() {
 	await c('收下钥匙');
 	await c('用钥匙打开铁门');
 	await c('在宴上找人说话');
-	await c('找那位从不离手一支哨子的老人');
+	await c('找那位握着哨子的女巫');
 	// ① 无星图 → 无换哨选项
 	if (links().some((s) => s.includes('把她那支哨换过来'))) throw new Error('无星图却出现换哨选项');
 	// ② 还杖（好感）→ 仍无星图 → 仍无换哨
@@ -683,7 +683,7 @@ async function routeExchangeGate() {
 	await c('把那张抄好的图收下');
 	await c('回到观星者');
 	await c('回到宴上');
-	await c('找那位从不离手一支哨子的老人');
+	await c('找那位握着哨子的女巫');
 	if (!links().some((s) => s.includes('把她那支哨换过来'))) throw new Error('好感 + 星图齐备后仍无换哨选项');
 	return { w };
 }
@@ -797,7 +797,7 @@ async function routeAskForIt() {
 	if (pcOf(w).ev.tav_tips !== true || pcOf(w).ev.tav_fog !== true) throw new Error('游说成功没拿到忠告/雾气来向');
 	if (!w.document.querySelector('#passages').textContent.includes('雾是从塔那边来的')) throw new Error('雾气来向没渲染');
 	await c('问一句女巫小屋怎么走');
-	for (const q of ['问：画上那场宴是怎么回事', '问：三百年前那一夜，你们家没送成的是什么', '问：这护符到底怎么用', '问：塔底下锁着的到底是什么', '问：你就这么看着，什么也不做？', '问：我一个人上去，够吗']) {
+	for (const q of ['问：你们家与那座塔有什么渊源', '问：三百年前那一夜，发生过什么', '问：这护符到底怎么用', '问：塔底下锁着的到底是什么', '问：你就这么看着，什么也不做？', '问：我一个人上去，够吗']) {
 		await c(q);
 	}
 	const wq = pcOf(w).ev;
@@ -849,7 +849,7 @@ async function routeNoSaveScum() {
 	if (pcOf(w).ev.hall_seen !== true) throw new Error('察觉路没换来"钉子看清了"');
 	await c('摘哨子（钉子怎么卡的，你已经看清了）');
 	if (pcOf(w).inv['坏哨'] !== true) throw new Error('看清钉子之后没拿到哨子');
-	// 花田：走"下风处"（生存 → 必成）
+	// 花田：走"上风处"（生存 → 必成；保留原位点 ID）
 	await c('出塔，回到塔外');
 	await c('塔基墙根那片花');
 	await c('退到上风头，连土一起端起来');
@@ -881,7 +881,7 @@ async function routeNoSaveScum() {
 	if (pcOf(w).inv['完整星图'] !== true) throw new Error('星图没拿到');
 	await c('回到观星者');
 	await c('回到宴上');
-	await c('找那位从不离手一支哨子的老人');
+	await c('找那位握着哨子的女巫');
 	await c('在塔里找那根杖');
 	await c('站在一边看：厅里谁一直在瞟那张空架子');  // 洞悉 → 必成
 	if (pcOf(w).ev.staff_found !== true) throw new Error('洞悉路没找到杖');

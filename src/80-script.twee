@@ -89,11 +89,11 @@ window.SgCodex = {
 			}
 			const tail = hintOn
 				? `<p class="codex-hint">${Game.Codex.items[item].hint}</p>`
-				: '<p class="codex-hint codex-hint-off">（走到过任意一个结局之后，这一页会给你一点指向。）</p>';
+				: '<p class="codex-hint codex-hint-off">（抵达任意终局后，这一页会给出线索提示；章节结局不计入。）</p>';
 			return `<div class="codex-entry codex-locked"><h4>？？？</h4>${tail}</div>`;
 		}).join('');
 		const got = Object.keys(Game.Codex.items).filter((i) => Game.Codex.isUnlocked(i, store)).length;
-		return `<h3>图鉴</h3><p>每件东西都散着几条线索。线索凑齐，这一页就亮起来——而且''永远亮着''：换周目、重开一档都在。</p><p>已解锁 <b>${got} / ${Object.keys(Game.Codex.items).length}</b>；走到过结局 <b>${store.finals.length}</b> 个。</p>${rows}`;
+		return `<h3>图鉴</h3><p>每件道具都有几条散落的线索。找齐后即可解锁对应图鉴，重新开始游戏也会保留已解锁的内容。</p><p>已解锁 <b>${got} / ${Object.keys(Game.Codex.items).length}</b>；已达成终局 <b>${store.finals.length}</b> 个。</p>${rows}`;
 	},
 };
 
@@ -111,14 +111,14 @@ window.SgEnding = {
 		const undoAttr = canUndo ? '' : ' disabled';
 		return (
 			`<div class="ending-foot" data-ending="${key}" data-kind="${kind}">` +
-			`<p class="ending-foot-lead">——这一档到这儿了。要接着走，从这儿走：</p>` +
+			`<p class="ending-foot-lead">这段旅程到此结束。你可以返回之前的选择，或开始新的旅程：</p>` +
 			`<div class="ending-acts">` +
 			`<button type="button" class="end-act" data-end-act="undo"${undoAttr}>↶ 退回上一步</button>` +
 			`<button type="button" class="end-act" data-end-act="load">${loadLabel}</button>` +
 			`<button type="button" class="end-act" data-end-act="restart">↻ 从头再来</button>` +
 			`</div>` +
 			`<p class="ending-foot-hint">（随时按 <b>S</b> 存档、<b>L</b> 读档；也可以从侧栏开存档菜单。` +
-			`从头再来会清掉这一档的进度，<b>图鉴里已经亮起来的页留着</b>。）</p>` +
+			`从头再来会重置当前进度，请先保存想保留的旅程；<b>已解锁的图鉴仍会保留</b>。）</p>` +
 			`</div>`
 		);
 	},

@@ -360,6 +360,7 @@ body {
 .soc-cost { display: block; color: #9a6b4f; font-size: 0.9em; }
 .soc-no, .soc-done { color: #8a7f6a; font-style: italic; }
 .tavern-tables a { display: block; width: fit-content; max-width: 100%; margin: 0.4em 0; }
+.action-feedback:focus-visible { outline: 1px solid #a9c0da; outline-offset: 0.3em; }
 
 @media (prefers-reduced-motion: reduce) {
 	.passage { animation: none; transition: none; }

@@ -152,6 +152,66 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 	if ($foot.length) $content.append($foot);
 });
 
+// 同页选项会重绘整个段落，而 SugarCube 默认回到页顶。
+// 只用点击前后的公开 DOM 找本次反馈；不把滚动目标写进存档或剧情状态。
+(() => {
+	const feedbackSelector = '.tavern-heard p, .check-result, .soc-said, .damage-flash, .fight-log, .gain, .econ-note';
+	const textOf = (el) => el.textContent.trim();
+	let pending = null;
+	let action = 0;
+
+	const remember = (ev) => {
+		pending = null;
+		action += 1;
+		const control = ev.target instanceof Element
+			? ev.target.closest('#passages a.link-internal, #passages a.soc-opt')
+			: null;
+		if (!control || control.closest('.chargen-card')) return;
+		const content = control.closest('.passage');
+		if (!content) return;
+		const panel = control.closest('.soc-ask');
+		pending = {
+			action,
+			passage: State.passage,
+			era: State.variables.era,
+			scrollY: window.scrollY,
+			panel: panel ? [...content.querySelectorAll('.soc-ask')].indexOf(panel) : -1,
+			seen: new Set([...content.querySelectorAll(feedbackSelector)].map(textOf)),
+		};
+	};
+	// 捕获阶段早于宏与交涉处理器；键盘触发的自制链接也要记录。
+	document.addEventListener('click', remember, true);
+	document.addEventListener('keydown', (ev) => {
+		if (ev.key === 'Enter' || ev.key === ' ') remember(ev);
+		else pending = null;
+	}, true);
+
+	jQuery(document).on(':passageend.sgFeedback', (ev) => {
+		const previous = pending;
+		pending = null;
+		if (!previous || previous.passage !== State.passage || previous.era !== State.variables.era) return;
+		const content = ev.content;
+		const panel = previous.panel < 0 ? null : content.querySelectorAll('.soc-ask')[previous.panel];
+		const fresh = (elements) => [...elements].find((el) => textOf(el) && !previous.seen.has(textOf(el)));
+		const target = panel
+			? fresh(panel.querySelectorAll('.check-result, .soc-said, .soc-done'))
+				?? panel.querySelector('.soc-said') ?? panel.querySelector('.check-result, .soc-done')
+			: fresh(content.querySelectorAll(feedbackSelector));
+		requestAnimationFrame(() => {
+			if (previous.action !== action || content !== document.querySelector('#passages .passage:last-child')) return;
+			if (target) {
+				target.classList.add('action-feedback');
+				target.setAttribute('tabindex', '-1');
+				target.focus({ preventScroll: true });
+				window.scrollTo(0, Math.max(0, window.scrollY + target.getBoundingClientRect().top - 32));
+			} else {
+				// 只更新行囊等无正文反馈的同页操作，保留阅读位置。
+				window.scrollTo(0, previous.scrollY);
+			}
+		});
+	});
+})();
+
 // 安全网：每个段落开始前归一化 $pc 形状（旧档缺字段/类型错误都会被补齐，
 // 幂等且代价可忽略——坑10 的纵深防御）；顺带把图鉴线索并进永久记录。
 jQuery(document).on(':passagestart', () => {

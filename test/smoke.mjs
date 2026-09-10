@@ -63,9 +63,11 @@ assert(!w.document.querySelector('#passages .link-broken'), '酒馆传闻选项�
 await click('接嘴的那个人——「不老的女人」');
 assert(pc().ev.tav_ageless === true && w.SugarCube.State.passage === '酒馆', '不老女人传闻显示完整，点击后留在酒馆并记账');
 assert(w.document.querySelector('#tav-heard').textContent.includes('前年我上山'), '不老女人传闻内容显示在记录区');
+assert(w.document.activeElement.closest('#tav-heard') && w.document.activeElement.textContent.includes('不老的女人'), '同页提问后焦点跟随本次回答');
 await click('靠窗那桌——他们在讲塔上那盏灯');   // 问一桌
 assert(w.SugarCube.State.variables.pc.ev.tav_light === true, '问过的那桌记账（tav_light）');
 assert(w.document.querySelector('#passages').textContent.includes('三百年了，那灯没灭过'), '问出来的话渲染在记录区');
+assert(w.document.activeElement.textContent.includes('三百年了，那灯没灭过'), '逆序提问定位新回答，不停在记录区最后一条');
 assert(links().some((a) => a.textContent.includes('金币：买一支火把')), '火把购买链接存在（表驱动价）');
 assert(links().some((a) => a.textContent.includes('听老猎人讲实话')), '付费传闻链接存在（表驱动价）');
 
@@ -73,6 +75,7 @@ await click('推门出发，走进暮色');
 
 // ── 森林边缘：检定结果框 ──
 assert(w.SugarCube.State.passage === '森林边缘', '到达森林边缘');
+assert(!w.document.querySelector('#passages .action-feedback'), '换场景不沿用上一页反馈目标');
 assert(!w.document.querySelector('#passages .check-result'), 'M9：森林边缘不再自动掷察觉');
 await click('在雾里站住，听一听');            // 玩家的动作
 const checkBox = w.document.querySelector('#passages .check-result');

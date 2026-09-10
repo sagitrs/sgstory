@@ -1,0 +1,342 @@
+{
+  "errors": [],
+  "records": [
+    {
+      "width": 1440,
+      "key": "Enter",
+      "stage": "social-keyboard",
+      "result": {
+        "scrollY": 1019,
+        "check": {
+          "x": 569.546875,
+          "y": 32.046875,
+          "width": 583.90625,
+          "height": 91.875,
+          "top": 32.046875,
+          "right": 1153.453125,
+          "bottom": 123.921875,
+          "left": 569.546875
+        },
+        "said": {
+          "x": 569.546875,
+          "y": 137.890625,
+          "width": 583.90625,
+          "height": 77.28125,
+          "top": 137.890625,
+          "right": 1153.453125,
+          "bottom": 215.171875,
+          "left": 569.546875
+        },
+        "text": "她把抹布在台面上又擦了一遍，没接你的话。（她听过了，不想再说。）",
+        "focus": "check-result check-fail action-feedback"
+      }
+    },
+    {
+      "width": 1440,
+      "key": "Enter",
+      "stage": "social-repeat",
+      "result": {
+        "scrollY": 1357,
+        "check": {
+          "x": 569.546875,
+          "y": -74.109375,
+          "width": 583.90625,
+          "height": 91.875,
+          "top": -74.109375,
+          "right": 1153.453125,
+          "bottom": 17.765625,
+          "left": 569.546875
+        },
+        "said": {
+          "x": 569.546875,
+          "y": 31.734375,
+          "width": 583.90625,
+          "height": 77.28125,
+          "top": 31.734375,
+          "right": 1153.453125,
+          "bottom": 109.015625,
+          "left": 569.546875
+        },
+        "text": "你把酒钱推过去。她愣了一下，然后真的坐下了：\"……你倒是会做人。坐下吧。\"",
+        "focus": "soc-said action-feedback"
+      }
+    },
+    {
+      "width": 1440,
+      "key": "Enter",
+      "stage": "navigation",
+      "passage": "女巫小屋",
+      "scrollY": 0,
+      "feedback": 0
+    },
+    {
+      "width": 1440,
+      "key": "Enter",
+      "stage": "quickload",
+      "passage": "酒馆",
+      "scrollY": 0,
+      "feedback": 0
+    },
+    {
+      "width": 390,
+      "key": "Enter",
+      "stage": "social-keyboard",
+      "result": {
+        "scrollY": 1134,
+        "check": {
+          "x": 83.546875,
+          "y": 31.5,
+          "width": 257.90625,
+          "height": 112.03125,
+          "top": 31.5,
+          "right": 341.453125,
+          "bottom": 143.53125,
+          "left": 83.546875
+        },
+        "said": {
+          "x": 83.546875,
+          "y": 156.03125,
+          "width": 257.90625,
+          "height": 154.5625,
+          "top": 156.03125,
+          "right": 341.453125,
+          "bottom": 310.59375,
+          "left": 83.546875
+        },
+        "text": "\"你要真想进去，\"她把杯子放下，\"就记住两件事：一是别在雾里睡觉，二是听见有人叫你名字，别应。\"",
+        "focus": "check-result check-success action-feedback"
+      }
+    },
+    {
+      "width": 390,
+      "key": "Enter",
+      "stage": "navigation",
+      "passage": "女巫小屋",
+      "scrollY": 0,
+      "feedback": 0
+    },
+    {
+      "width": 390,
+      "key": "Enter",
+      "stage": "quickload",
+      "passage": "酒馆",
+      "scrollY": 0,
+      "feedback": 0
+    },
+    {
+      "width": 390,
+      "key": " ",
+      "stage": "social-keyboard",
+      "result": {
+        "scrollY": 1134,
+        "check": {
+          "x": 83.546875,
+          "y": 31.5,
+          "width": 257.90625,
+          "height": 112.03125,
+          "top": 31.5,
+          "right": 341.453125,
+          "bottom": 143.53125,
+          "left": 83.546875
+        },
+        "said": {
+          "x": 83.546875,
+          "y": 156.03125,
+          "width": 257.90625,
+          "height": 154.5625,
+          "top": 156.03125,
+          "right": 341.453125,
+          "bottom": 310.59375,
+          "left": 83.546875
+        },
+        "text": "\"你要真想进去，\"她把杯子放下，\"就记住两件事：一是别在雾里睡觉，二是听见有人叫你名字，别应。\"",
+        "focus": "check-result check-success action-feedback"
+      }
+    },
+    {
+      "width": 390,
+      "key": " ",
+      "stage": "navigation",
+      "passage": "女巫小屋",
+      "scrollY": 0,
+      "feedback": 0
+    },
+    {
+      "width": 390,
+      "key": " ",
+      "stage": "quickload",
+      "passage": "酒馆",
+      "scrollY": 0,
+      "feedback": 0
+    },
+    {
+      "width": 390,
+      "key": "Enter",
+      "stage": "social-keyboard",
+      "result": {
+        "scrollY": 1134,
+        "check": {
+          "x": 83.546875,
+          "y": 31.5,
+          "width": 257.90625,
+          "height": 112.03125,
+          "top": 31.5,
+          "right": 341.453125,
+          "bottom": 143.53125,
+          "left": 83.546875
+        },
+        "said": {
+          "x": 83.546875,
+          "y": 156.03125,
+          "width": 257.90625,
+          "height": 154.5625,
+          "top": 156.03125,
+          "right": 341.453125,
+          "bottom": 310.59375,
+          "left": 83.546875
+        },
+        "text": "\"你要真想进去，\"她把杯子放下，\"就记住两件事：一是别在雾里睡觉，二是听见有人叫你名字，别应。\"",
+        "focus": "check-result check-success action-feedback"
+      }
+    },
+    {
+      "width": 390,
+      "key": "Enter",
+      "stage": "navigation",
+      "passage": "女巫小屋",
+      "scrollY": 0,
+      "feedback": 0
+    },
+    {
+      "width": 390,
+      "key": "Enter",
+      "stage": "quickload",
+      "passage": "酒馆",
+      "scrollY": 0,
+      "feedback": 0
+    },
+    {
+      "width": 390,
+      "key": " ",
+      "stage": "social-keyboard",
+      "result": {
+        "scrollY": 1134,
+        "check": {
+          "x": 83.546875,
+          "y": 31.5,
+          "width": 257.90625,
+          "height": 112.03125,
+          "top": 31.5,
+          "right": 341.453125,
+          "bottom": 143.53125,
+          "left": 83.546875
+        },
+        "said": {
+          "x": 83.546875,
+          "y": 156.03125,
+          "width": 257.90625,
+          "height": 154.5625,
+          "top": 156.03125,
+          "right": 341.453125,
+          "bottom": 310.59375,
+          "left": 83.546875
+        },
+        "text": "\"你要真想进去，\"她把杯子放下，\"就记住两件事：一是别在雾里睡觉，二是听见有人叫你名字，别应。\"",
+        "focus": "check-result check-success action-feedback"
+      }
+    },
+    {
+      "width": 390,
+      "key": " ",
+      "stage": "navigation",
+      "passage": "女巫小屋",
+      "scrollY": 0,
+      "feedback": 0
+    },
+    {
+      "width": 390,
+      "key": " ",
+      "stage": "quickload",
+      "passage": "酒馆",
+      "scrollY": 0,
+      "feedback": 0
+    },
+    {
+      "width": 390,
+      "key": "Enter",
+      "stage": "social-keyboard",
+      "result": {
+        "scrollY": 1134,
+        "check": {
+          "x": 83.546875,
+          "y": 31.5,
+          "width": 257.90625,
+          "height": 112.03125,
+          "top": 31.5,
+          "right": 341.453125,
+          "bottom": 143.53125,
+          "left": 83.546875
+        },
+        "said": {
+          "x": 83.546875,
+          "y": 156.03125,
+          "width": 257.90625,
+          "height": 115.921875,
+          "top": 156.03125,
+          "right": 341.453125,
+          "bottom": 271.953125,
+          "left": 83.546875
+        },
+        "text": "她把抹布在台面上又擦了一遍，没接你的话。（她听过了，不想再说。）",
+        "focus": "check-result check-fail action-feedback"
+      }
+    },
+    {
+      "width": 390,
+      "key": "Enter",
+      "stage": "social-repeat",
+      "result": {
+        "scrollY": 1490,
+        "check": {
+          "x": 83.546875,
+          "y": -92.65625,
+          "width": 257.90625,
+          "height": 112.03125,
+          "top": -92.65625,
+          "right": 341.453125,
+          "bottom": 19.375,
+          "left": 83.546875
+        },
+        "said": {
+          "x": 83.546875,
+          "y": 31.875,
+          "width": 257.90625,
+          "height": 115.921875,
+          "top": 31.875,
+          "right": 341.453125,
+          "bottom": 147.796875,
+          "left": 83.546875
+        },
+        "text": "你把酒钱推过去。她愣了一下，然后真的坐下了：\"……你倒是会做人。坐下吧。\"",
+        "focus": "soc-said action-feedback"
+      }
+    },
+    {
+      "width": 390,
+      "key": "Enter",
+      "stage": "navigation",
+      "passage": "女巫小屋",
+      "scrollY": 0,
+      "feedback": 0
+    },
+    {
+      "width": 390,
+      "key": "Enter",
+      "stage": "quickload",
+      "passage": "酒馆",
+      "scrollY": 0,
+      "feedback": 0
+    }
+  ],
+  "repeated": 2
+}

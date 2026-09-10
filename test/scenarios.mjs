@@ -770,6 +770,7 @@ async function routeTavernAsk() {
 	// ③ 筹码：把对方想要的摆出来 → 免检得手（不给骰子机会）
 	const gold0 = pcOf(w).gold;
 	await c('拿出筹码：请她喝一轮（问路）');
+	if (!w.document.activeElement.matches('.soc-said')) throw new Error('请酒后的焦点应落在本次回复，不能继续强调上次失败检定');
 	if (pcOf(w).ev.tav_tips !== true) throw new Error('请了酒还是没听到忠告');
 	if (pcOf(w).gold !== gold0 - 3) throw new Error(`请酒没扣钱（${gold0} → ${pcOf(w).gold}）`);
 	if (pcOf(w).soc.att['老板娘'] !== 0) throw new Error('筹码该把态度拉回冷淡以上（shift +1）');

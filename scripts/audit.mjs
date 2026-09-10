@@ -15,7 +15,7 @@ const ctx = {
 	Save: { onSave: { add() {} }, onLoad: { add() {} }, slots: {} },
 	jQuery: () => ({ on() {}, ariaClick() {}, off() {} }),
 	UI: { alert() {}, saves() {} }, Engine: {}, Story: { has: () => false },
-	setTimeout, clearTimeout, document: {},
+	setTimeout, clearTimeout, document: { addEventListener() {} },
 };
 for (const f of SRC_FILES) {
 	const text = readFileSync(f, 'utf8');

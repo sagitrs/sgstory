@@ -29,3 +29,17 @@
 - 手机酒馆：[390 像素修复前](evidence/ui-review-2026-09-10/mobile-tavern-before.png) / [360 像素修复后](evidence/ui-review-2026-09-10/mobile-tavern-after-360.png)
 - 最终：[360 像素角色卡](evidence/ui-review-2026-09-10/mobile-charsheet-after-360.png)、[桌面酒馆](evidence/ui-review-2026-09-10/desktop-tavern-after.png)
 - 数据：[布局扫描](evidence/ui-review-2026-09-10/layout-scan.json)、[键盘操作](evidence/ui-review-2026-09-10/keyboard-after.json)、[最终测量](evidence/ui-review-2026-09-10/final-measurements.json)
+
+## 同页选项反馈定位补修
+
+用户在本地继续试玩时反馈：点击选项后，新文字已出现，视口却回到第一行。独立测试代理在 `81a4301` 构建复现：引擎重绘后无条件回到顶部；390 像素下，酒馆旧画反馈位于屏下约 983 像素，交涉结果约 1852 像素，需要手动重新查找。
+
+补修在界面内临时记录点击前已显示的反馈，重绘同一场景后定位本次新增或改变的回答，并让键盘焦点跟随。逆序提问时同样定位本次回答。交涉面板优先选择新结果；失败后改为请酒时，定位新回复，避免强调保留下来的旧失败检定。换场景、翻转时代、读档和角色创建换轮保持原来的阅读起点，不把反馈位置写进存档。
+
+验证：
+
+- 18 条浏览器反馈检查通过，包含桌面/390 像素、逆序提问及默认动画/减少动画两种设置。新反馈均进入视野，多数距顶部约 26–32 像素；页面较短、达到最大滚动位置时保持完整可见。
+- 最终重复交涉检查：1440/390 下“游说失败 → 请酒”均聚焦新回复，距顶部约 32 像素；正常掷骰仍定位新检定。最终轮 6 次换场景及 6 次读档均无旧目标残留，滚动起点为 0；Enter/空格交互通过。
+- 新增自动回归检查覆盖逆序提问、跨场景清理和失败后请酒的新回复焦点。静态审计的浏览器接口替身补齐原生事件注册接口；规则检查没有减项。最终 `npm test` 通过，29 条路线和既有覆盖门保持通过。
+
+证据：[修复前测量](evidence/feedback-review-2026-09-10/before.json)、[新反馈复测](evidence/feedback-review-2026-09-10/after.json)、[重复交涉及键盘/读档复测](evidence/feedback-review-2026-09-10/keyboard-and-repeat-final.json)。手机交涉截图：[修复前](evidence/feedback-review-2026-09-10/mobile-social-before.png) / [修复后](evidence/feedback-review-2026-09-10/mobile-social-after.png) / [失败后请酒](evidence/feedback-review-2026-09-10/mobile-social-repeat-after.png)。本补修仍只做了 Chromium 实际浏览器验证。

@@ -180,7 +180,7 @@
 
 她身后的架子空着一格——本该靠着一根杖。
 
-<<if $pc.world.witch_favor>>
+<<if $pc.world.family_favor>>
 	（她看见你，点了点头。''那一眼比刚才软''。）
 <<else>>
 	她看见你，先看了你一眼，才开口："你要说什么，等会儿再说。"
@@ -190,11 +190,11 @@
 	[[在塔里找那根杖|寻杖]]
 <</if>>
 
-<<if $pc.inv["完整星图"] and $pc.world.witch_favor and not $pc.inv["好哨"]>>
+<<if $pc.inv["完整星图"] and $pc.world.family_favor and not $pc.inv["好哨"]>>
 	<<sitecheck "当时的女巫·辨认">>
 	<<if $last_check.success>>你注意到她握哨的手势——和守林人挂在门边那支一样。<</if>>
 	<<link "把她那支哨换过来">><<goto "当时的女巫·换">><</link>>
-<<elseif $pc.inv["完整星图"] and not $pc.world.witch_favor>>
+<<elseif $pc.inv["完整星图"] and not $pc.world.family_favor>>
 	（她看了你一眼，又去看那只空架子——像在等一件你还没替她办的事。）
 <<elseif not $pc.inv["完整星图"]>>
 	（她看了你一眼，像在等一样你拿不出的东西。）
@@ -217,7 +217,7 @@
 
 	（她说这话的时候，厅角那位老人也朝这边看了一眼——很快又转开了。）
 
-	<<setflag "witch_favor">>
+	<<setflag "family_favor">>
 	[[回到当时的女巫|当时的女巫]]
 <<else>>
 	你什么也没找到。厅里太挤，桌布底下、酒箱后头都翻过了。
@@ -231,7 +231,7 @@
 
 她看见你，先看了你一眼，才开口："你要说什么，等会儿再说。"
 
-<<if $pc.world.witch_favor>>
+<<if $pc.world.family_favor>>
 	（你回头看了一眼架子上那根杖。她也看过去，''没有惊讶''。）
 <<else>>
 	（她把袖子拢了拢，没再说话。）

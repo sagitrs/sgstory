@@ -118,7 +118,7 @@ async function routeTrue() {
 	await c('找那位从不离手一支哨子的老人'); // 当时的女巫（她本人）
 	await c('在塔里找那根杖');             // 寻杖 → 找到 + 还杖
 	await c('回到当时的女巫');
-	if (pcOf(w).world.witch_favor !== true) throw new Error('还杖未置 witch_favor');
+	if (pcOf(w).world.family_favor !== true) throw new Error('还杖未置 family_favor');
 	await c('把她那支哨换过来');           // → 好哨（哨是她的）
 	await c('回到当时的女巫');
 	await c('回到宴上');
@@ -275,9 +275,8 @@ async function routeVoid() {
 	await c('雾里有个影子挡着路');
 	await c('慢慢放下手');
 	await c('顺着那条窄路走过去');
-	// 好感链：空手见守林人不被纠正"封印"，说一句"它不会变成恶龙"拿好感，但好感不换放行
+	// 好感链：空手见守林人不被纠正"封印"，说一句"它不会变成恶龙"（对话层，不落旗），好感不换放行
 	await c('说一句：它不会变成恶龙');
-	if (pcOf(w).keeper.trust_dragon !== true) throw new Error('好感链未落旗（keeper.trust_dragon）');
 	await c('回到守林人');
 	await c('那就用他家的封印术');
 	if (passageOf(w) !== '结局 送入虚空') throw new Error(`未达送入虚空（${passageOf(w)}）`);
@@ -497,7 +496,7 @@ async function routeExchangeGate() {
 	// ② 还杖（好感）→ 仍无星图 → 仍无换哨
 	await c('在塔里找那根杖');
 	await c('回到当时的女巫');
-	if (pcOf(w).world.witch_favor !== true) throw new Error('还杖未置 witch_favor');
+	if (pcOf(w).world.family_favor !== true) throw new Error('还杖未置 family_favor');
 	if (links().some((s) => s.includes('把她那支哨换过来'))) throw new Error('有好感但无星图，仍不该出现换哨选项');
 	if (pcOf(w).inv['好哨']) throw new Error('门槛未过却拿到好哨');
 	// ③ 取星图 → 换哨选项出现

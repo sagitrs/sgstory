@@ -307,6 +307,11 @@
 
 :: 唤醒
 /% payload: 张力 %/
+<<set $pc.dragon.awake to true>>
+<<set $pc.dragon.hp to Game.Dragon.hp>>
+<<set $pc.dragon.defeats to 0>>
+<<set $pc.dragon.round to 0>>
+
 它醒了。
 
 不是睁眼——是整间厅里的雾，忽然都朝它身上倒着收回去。
@@ -319,10 +324,19 @@
 		[[让守林人动手|归位]]
 	<<else>>
 		可你手里没有能把它送回哪里的东西。它看了你一会儿，又慢慢躺回去。
+
+		<<if $pc.keeper.state is "seal">>
+			''"别急。"''守林人把杖横过来，杖尖抵着地，''"我这儿有一句话还没念完——你按住它。"''
+			[[和守林人并肩|封印·并肩]]
+		<</if>>
 		[[看着它再睡下去|结局 自愿的长眠]]
 	<</if>>
 <<else>>
 	没有哨声。它认得你手里的刀，不认得你。
+	<<if $pc.keeper.state is "seal">>
+		''"你别一个人上。"''守林人把你往后按了半步，杖已经横过来了，''"我念，你打——把它按下去，我才能把那一句念完。"''
+		[[和守林人并肩|封印·并肩]]
+	<</if>>
 	[[动手|龙·战]]
 	[[退出去|结局 再度沉睡]]
 <</if>>
@@ -348,6 +362,70 @@
 （银屑里浮起几点很淡的光。你想起宴上厅角那位老人——她好像正朝这边看，然后就不见了。你再看时，那里只有灰。）
 
 [[看着它走完|结局 送星归位]]
+
+
+:: 封印·并肩
+/% payload: 张力 %/
+''你只有一次机会，他也只有一次。''
+
+守林人把杖横在胸前，杖尖对着厅的那一头。他念得很慢，每念一句停一下——''他在等你''。
+
+<<dragonbar>>
+<<if $pc.dragon.hp lte Game.Dragon.sealAt>>
+	''"让开。"''他的杖尖亮起来了。
+	[[让他把最后一句念完|结局 送入虚空]]
+<<else>>
+	雾里的东西站起来了。它还没醒透，但已经知道有人在动它的东西。
+
+	<<if $pc.inv["月光花"] and not $pc.dragon.venom>>
+		[[先把花汁抹在刃上|封印·涂毒]]
+	<</if>>
+	[[压上去|封印·冲]]
+	<<link "退出去">><<goto "结局 再度沉睡">><</link>>
+<</if>>
+
+:: 封印·涂毒
+/% payload: 信息 %/
+你把那朵银白的花在刃上碾开。汁是凉的，抹过铁面时有一点点响。
+
+''它见过这种东西。''——库里堆着的那几枝，本来就是给它准备的。
+
+<<set $pc.dragon.venom to true>>
+
+[[压上去|封印·冲]]
+
+:: 封印·冲
+/% payload: 张力 %/
+<<set $pc.dragon.round to ($pc.dragon.round ?? 0) + 1>>
+
+<<sitecheck "龙·斩击">>
+<<if $last_check.success>>
+	你劈进去半寸。鳞底下那层是热的、软的——它''疼''。
+	<<set $pc.dragon.hp to Math.max(0, $pc.dragon.hp - Game.Dragon.bladeDamage)>>
+<<else>>
+	刀在鳞上滑开，震得你虎口发麻。它连头都没抬。
+<</if>>
+<<dragonbar>>
+
+''它回手了。''
+<<sitecheck "龙·吐息">>
+<<if not $last_check.success>>
+	<<set $pc.dragon.defeats to ($pc.dragon.defeats ?? 0) + 1>>
+	<<set _dmg to Game.Dragon.dragonDamage($pc.inv, $pc.dragon.round, $pc.dragon.defeats, $pc.dragon.venom)>>
+	<<damage _dmg>>
+<<else>>
+	你贴着地滚开了。雾扑在你刚才站的地方，把那块石板舔掉一层。
+<</if>>
+
+<<set _sealed to $pc.dragon.hp lte Game.Dragon.sealAt>>
+<<if $pc.hp gt 0>>
+	<<if _sealed>>
+		''"够了——"''守林人的杖尖把整间厅都映白了。
+		[[让他把最后一句念完|结局 送入虚空]]
+	<<else>>
+		[[再压上去|封印·并肩]]
+	<</if>>
+<</if>>
 
 :: 龙·战
 /% payload: 张力 %/

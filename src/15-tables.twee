@@ -79,23 +79,29 @@ window.Game = (() => {
 		},
 		// 战斗侧效果（位点优势 / 减伤）
 		effects: {
-			坏哨:       { advSite: '雾之魔物·挥击', note: '它认得那个形状——挥击劣势转优势' },
+			坏哨:       { advSite: '雾之魔物·挥击', advSites: ['龙·斩击'], note: '它认得那个形状——魔物挥击劣势转优势；封印战里让龙迟疑半拍（v17 补正 #3）' },
 			观星者的书: { advSite: '龙·吐息', note: '书里记着逆鳞可透——预判吐息' },
 			日记:       { flatDamageReduce: 1, note: '念出那两个小字——整场再 −1' },
 			龙鳞护臂:   { flatDamageReduce: 1, note: '受击 −1' },
 		},
 		perItemDamageReduce: 1,
-		// 受击方=玩家：伤害 = 基础 − 减伤件数 + 败次（封顶）
-		battleDamage(round, inv, defeats) {
+		// 月光花毒液（v17 补正 #3）：抹在刃上 → 它每一下都慢半拍（龙的攻击 −2）
+		poisonReduce: 2,
+		// 受击方=玩家：伤害 = 基础 − 减伤件数 − 毒液 + 败次（封顶）
+		battleDamage(round, inv, defeats, poisoned) {
 			const held = Object.keys(inv ?? {}).filter((k) => this.effects[k]?.flatDamageReduce);
 			const flat = held.reduce((a, k) => a + this.effects[k].flatDamageReduce, 0);
 			const rage = Math.min(2, defeats ?? 0);
 			const base = round >= 3 ? 5 : 3 + round;
-			return Math.max(1, base - flat + rage);
+			const poison = poisoned ? this.poisonReduce : 0;
+			return Math.max(1, base - flat - poison + rage);
 		},
 		advAt(site, inv) {
 			const keys = Object.keys(inv ?? {});
-			return keys.some((k) => this.effects[k]?.advSite === site);
+			return keys.some((k) => {
+				const e = this.effects[k];
+				return !!e && (e.advSite === site || (e.advSites ?? []).includes(site));
+			});
 		},
 	};
 
@@ -217,11 +223,14 @@ window.Game = (() => {
 	// ── 龙（强度参照标准 D&D 高挑战等级：单挑必败，基本只允许机制胜利）──
 	const Dragon = {
 		hp: 60,
+		// v17 补正 #3：封印术发动条件——把龙打到 sealAt 以下，守林人才能把最后一句念完
+		sealAt: 10,
+		bladeDamage: 10,   // 冒险者一剑能吃进去的量
 		hitBase: 6,
 		sneakHit: 12,
 		rage: 0,
-		dragonDamage(inv, round, defeats) {
-			return Items.battleDamage(round, inv, defeats);
+		dragonDamage(inv, round, defeats, poisoned) {
+			return Items.battleDamage(round, inv, defeats, poisoned);
 		},
 	};
 

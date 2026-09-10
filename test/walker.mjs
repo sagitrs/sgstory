@@ -65,7 +65,7 @@ function invariantViolations(w) {
 	if (!(pc.salves >= 0 && pc.salves <= 20)) bad.push(`salves=${pc.salves}`);
 	if (!['present', 'past'].includes(v.era)) bad.push(`era=${v.era}`);
 	if (!(pc.star && pc.star.spent >= 0 && pc.star.spent <= 50)) bad.push(`star.spent=${pc.star?.spent}`);
-	if (!['post', 'ally'].includes(pc.keeper?.state)) bad.push(`keeper.state=${pc.keeper?.state}`);
+	if (!['post', 'ally', 'seal'].includes(pc.keeper?.state)) bad.push(`keeper.state=${pc.keeper?.state}`);
 	if (!(pc.dragon && pc.dragon.hp >= 0 && pc.dragon.hp <= w.Game.Dragon.hp)) bad.push(`dragon.hp=${pc.dragon?.hp}`);
 	const universe = Object.keys(w.Game.Items.defs);
 	const stray = Object.keys(pc.inv ?? {}).filter((k) => !universe.includes(k));

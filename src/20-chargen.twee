@@ -11,7 +11,7 @@ window.ChargenRounds = [
 			{ name: '影手', desc: '眼观六路，擅长把危机掐灭在发生之前。你不太信直觉，你信自己数过的东西。', effect: '敏16 感13｜察觉·游说｜短刃｜HP 中',
 				apply(pc) { pc.abilities = { str: 12, dex: 16, con: 12, int: 12, wis: 13, cha: 12 }; pc.skills.push('察觉', '游说'); pc.gear.push('短刃'); pc.classHp = 10; pc.classKey = 'shadow'; pc.classLabel = '影手'; } },
 			{ name: '秘典', desc: '体质是硬伤，但你知道旧书里值钱的那几行在哪。别人带干粮，你带纸笔。', effect: '智16 感15｜奥秘·历史｜药膏｜HP 低',
-				apply(pc) { pc.abilities = { str: 8, dex: 12, con: 10, int: 16, wis: 15, cha: 11 }; pc.skills.push('奥秘', '历史'); pc.gear.push('药膏'); pc.classHp = 8; pc.classKey = 'sage'; pc.classLabel = '秘典'; } },
+				apply(pc) { pc.abilities = { str: 8, dex: 12, con: 10, int: 16, wis: 15, cha: 11 }; pc.skills.push('奥秘', '历史'); pc.salves += 1; pc.classHp = 8; pc.classKey = 'sage'; pc.classLabel = '秘典'; } },
 		],
 	},
 	{
@@ -135,6 +135,7 @@ window.ChargenPresets = [
 		<div><span class="label">金币</span>$pc.gold</div>
 		<div><span class="label">熟练技能</span><<print $pc.skills.join('、')>></div>
 		<div><span class="label">行囊</span><<print $pc.gear.length ? $pc.gear.join('、') : '空空如也'>></div>
+		<div><span class="label">药膏</span>$pc.salves 副</div>
 	</div>
 </div>
 

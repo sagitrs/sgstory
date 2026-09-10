@@ -118,7 +118,7 @@
 			<<set $pc.ev.seer_gave to true>>
 		<<else>>
 			<<sitecheck "观星者·说服">><<snapshot>>
-			<<if $last_check.success>><<set $pc.ev.seer_gave to true>><<else>><<set $pc.ev.seer_refused to true>><</if>>
+			<<if $last_check.success>><<set $pc.ev.seer_gave to true>><</if>>
 		<</if>>
 		<<goto "观星者·图">>
 	<</link>>
@@ -392,7 +392,19 @@
 	<<setflag "whistle_blown">>
 	它的头低下来，像是认出了谁。
 	<<if $pc.keeper.state is "ally" and $pc.inv["传送术卷轴"] and $pc.inv["完整星图"]>>
-		[[让守林人动手|归位]]
+		<<if Game.Star.overBudget($pc)>>
+			守林人举起杖，念出第一句。杖尖那点微光颤了一下——''没接上去''。
+
+			他又念了一遍，念得慢一点。光还是没接上来。
+
+			''"……不够。"''他说。他没说是什么不够。你也没问。
+			<<set $pc.ev.star_short to true>>
+			（你在心里跟着念了一遍那卷术式。''字都对。'')）
+
+			[[退出去|结局 再度沉睡]]
+		<<else>>
+			[[让守林人动手|归位]]
+		<</if>>
 	<<else>>
 		可你手里没有能把它送回哪里的东西。它看了你一会儿，又慢慢躺回去。
 
@@ -430,7 +442,7 @@
 
 厅里空了。只剩下三百年没动过的长桌，和一地化开的银屑。
 
-（银屑里浮起几点很淡的光。你想起宴上厅角那位老人——她好像正朝这边看，然后就不见了。你再看时，那里只有灰。）
+<<if $pc.ev.old_witch>>（银屑里浮起几点很淡的光。你想起宴上厅角那位老人——她好像正朝这边看，然后就不见了。你再看时，那里只有灰。）<<else>>（银屑落地，像一场很小的雪。）<</if>>
 
 [[看着它走完|结局 送星归位]]
 

@@ -74,6 +74,15 @@ eq(v.pc.hp, v.pc.max_hp, '满血出场');
 eq(v.pc.gold, 10, '佣兵金币 10');
 eq(v.pc.skills.filter((s) => s === '运动').length, 1, '职业/背景重复技能已去重');
 ok(v.pc.gear.includes('长剑'), '职业行囊生效');
+{
+	const sage = w.ChargenPresets.find((x) => x.name === '秘典');
+	const pc2 = w.Pc.defaults();
+	w.SugarCube.State.variables.pc = pc2;
+	for (let i = 0; i < sage.picks.length; i++) w.Chargen.pick(i, sage.picks[i]);
+	eq(pc2.salves, 1, '秘典的"药膏"是可用的药膏（salves），不是装备栏里的死物');
+	eq(pc2.gear.length, 0, '秘典不带表外装备');
+	w.SugarCube.State.variables.pc = v.pc;
+}
 ok(v.pc.name === '无名旅人', '未取名时默认「无名旅人」');
 
 // ── 快速模式预设：索引有效、applyPreset 数值与摘要一致 ──
@@ -216,6 +225,31 @@ for (const file of fixtures) {
 		ok(!txt.includes('熟练') && !txt.includes('取高') && txt.includes('d20('), '关掉明细：只留骰面与总修正');
 		w.SgUI.setDetail(before);
 		ok(w.SgUI.showDetail() === before, '开关回写（localStorage 持久化）');
+	}
+
+	// ②c 行囊（A1/A2）：装备进数值，不是装饰
+	{
+		const G = w.Game.Gear, I = w.Game.Items, D = w.Game.Dragon, S = w.Game.Star;
+		eq(G.damageBonus(['长剑']), 1, '行囊：长剑 → 伤害 +1');
+		eq(G.damageBonus(['短刃']), 1, '行囊：短刃 → 伤害 +1');
+		eq(G.damageBonus([]), 0, '行囊：空手 → 无加成');
+		eq(G.advSource('门厅·看钉', ['火把']), '火把', '行囊：火把给"看不清"的位点优势');
+		eq(G.advSource('门厅·看钉', ['长剑']), '', '行囊：剑不给看东西的优势');
+		eq(I.advSource('门厅·看钉', {}, ['火把']), '火把', '行囊优势接进道具侧查询（<<sitecheck>> 用同一条路）');
+		eq(I.advSource('雾之魔物·挥击', { 坏哨: true }, ['火把']), '坏哨', '道具优先，其次行囊（先说清是哪一件）');
+		eq(D.bladeOf({ gear: ['长剑'] }), D.bladeDamage + 1, '出剑伤害＝基础 + 行囊');
+		eq(D.bladeOf({ gear: [] }), D.bladeDamage, '空手不改出剑伤害');
+		// 行囊表的每一件都要有来源、说法、效果（与 audit ⓪j 同一口径）
+		for (const [k, d] of Object.entries(G.defs)) {
+			ok(!!d.from && !!d.note, `行囊「${k}」有来源与说法`);
+			ok((d.damage ?? 0) > 0 || (d.advSites ?? []).length > 0, `行囊「${k}」有效果`);
+			for (const s of d.advSites ?? []) ok(!!w.Game.Checks.sites[s], `行囊「${k}」的优势位点存在：${s}`);
+		}
+		// 星力软限（canon §3.5/§7）
+		eq(S.budget, 4, '星力预算＝4（正路 3 次 + 1 次余量）');
+		ok(!S.overBudget({ star: { spent: 4 } }), '翻 4 次仍在预算内');
+		ok(S.overBudget({ star: { spent: 5 } }), '翻 5 次超预算 → 真结局降级');
+		ok(!S.overBudget({}), '旧档无 star 不炸');
 	}
 
 	// ③ 战斗伤害：改减伤 → battleDamage 跟随

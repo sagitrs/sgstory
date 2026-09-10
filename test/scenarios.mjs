@@ -79,8 +79,8 @@ async function getKey(c) {
 }
 
 // ── 路线 1：金路径 → 送星归位 ─────────────────────────────
-async function routeTrue() {
-	const { w, click: c } = await newGame(0.99, 0);
+async function truePath(w, c) {
+	// 金路径的共同部分（走到「地下宴会厅（现在）」），供真结局路线与软限路线复用
 	await toWitch(c);                     // 女巫小屋：护符
 	await c('问塔里的门道');               // witch_hint
 	await toTower(c);                     // 林间小径
@@ -142,13 +142,42 @@ async function routeTrue() {
 	await c('上顶楼');
 	await c('把卷轴和星图交给他');         // 交付（现在）
 	await c('下楼');                       // 地下宴会厅（现在）
+}
+
+async function routeTrue() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await truePath(w, c);
 	await c('叫醒它');                     // 唤醒
 	await c('让守林人动手');               // 归位
 	await c('看着它走完');                 // 结局 送星归位
 	if (passageOf(w) !== '结局 送星归位') throw new Error(`金路径未达真结局（停在 ${passageOf(w)}）`);
 	if (pcOf(w).world.flower_warned !== true) throw new Error('守林人未给出花田警告（flower_warned）');
 	if (pcOf(w).world.flower_fed !== true) throw new Error('金路径未拿到并喂下月光花（flower_fed 未置位）');
+	if (passageOf(w) !== '结局 送星归位') throw new Error(`金路径未达真结局（停在 ${passageOf(w)}）`);
+	if (pcOf(w).world.flower_warned !== true) throw new Error('守林人未给出花田警告（flower_warned）');
+	if (pcOf(w).world.flower_fed !== true) throw new Error('金路径未拿到并喂下月光花（flower_fed 未置位）');
 	return { w, c, pc: pcOf(w) };
+}
+
+// ── 路线 28：乱翻的代价（A4）——翻太多，真结局就接不上了（canon §3.5 软限）──
+async function routeTooManyFlips() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await truePath(w, c);
+	for (let i = 0; i < 3; i++) {
+		await c('翻转护身符：坠入');
+		await c('翻转护身符：回到');
+	}
+	if (pcOf(w).star.spent <= w.Game.Star.budget) throw new Error(`乱翻之后 spent=${pcOf(w).star.spent} 没超过预算`);
+	if (w.SugarCube.State.variables.era !== 'present') throw new Error('乱翻之后没有停在现在');
+	await c('叫醒它');                    // 唤醒
+	if ([...w.document.querySelectorAll('#passages a.link-internal')].some((x) => x.textContent.includes('让守林人动手'))) {
+		throw new Error('翻太多之后还出现了「让守林人动手」——软限没生效');
+	}
+	await c('退出去');
+	if (passageOf(w) !== '结局 再度沉睡') throw new Error(`软限降级没有落到「再度沉睡」（停在 ${passageOf(w)}）`);
+	if (pcOf(w).ev.star_short !== true) throw new Error('降级结局没落 star_short（结局文案变体出不来）');
+	if (!w.document.querySelector('#passages').textContent.includes('该有的都在')) throw new Error('降级结局没渲染变体文案');
+	return { w };
 }
 
 // ── 路线 21：花田死亡（v16 补正 #6）——没见守林人、无情报 → 贸然采花 → 体质豁免失败 → 死亡 ──
@@ -782,6 +811,7 @@ const routes = [
 	['打听·碰壁与请酒', routeTavernAsk],
 	['情报自己问（免检暗格）', routeAskForIt],
 	['非酋不读档（换属性路）', routeNoSaveScum],
+	['乱翻的代价（星力软限）', routeTooManyFlips],
 ];
 
 const results = await Promise.all(routes.map(async ([name, fn]) => {

@@ -64,7 +64,7 @@ window.Game = (() => {
 	// ── 经济（钱买信息与准备，不买结果）─────────────────────
 	const Economy = {
 		events: {
-			torch_buy:    { delta: -10, chapter: 1, note: '酒馆·买火把' },
+			torch_buy:    { delta: -10, gives: { gear: ['火把'] }, chapter: 1, note: '酒馆·买火把（行囊里有它，黑处的位点给优势）' },
 			rumor_buy:    { delta: -5, chapter: 1, note: '酒馆·买传闻' },
 			drink_round:  { delta: -3, chapter: 1, note: '酒馆·请一轮酒' },
 			salve_buy:    { delta: -8, gives: { salves: 1 }, skillDiscount: { skill: '医药', to: -5 }, chapter: 1, note: '女巫·药膏（库存 +1）' },
@@ -85,6 +85,35 @@ window.Game = (() => {
 	};
 
 	// ── 道具（v16 §5.0：各有用途，不集齐开锁）────────────────
+	// ── 行囊（A1/A2）：职业装备进数值——不进口具表（canon §5.0 仍是 10 件）──
+	const Gear = {
+		defs: {
+			长剑: {
+				from: '职业·铁卫',
+				damage: 1,
+				note: '基础伤害 +1（把龙往下按得更快）',
+			},
+			短刃: {
+				from: '职业·影手',
+				damage: 1,
+				advSites: ['雾之魔物·挥击'],
+				note: '基础伤害 +1；贴身距离好使（雾里那个影子给优势）',
+			},
+			火把: {
+				from: '酒馆（10 金）',
+				advSites: ['洞穴·战斗', '门厅·看钉', '门厅·翻检', '书房·检视', '天文台·典籍'],
+				note: '黑处看得见：洞穴与「看不清」的那些位点给优势',
+			},
+		},
+		damageBonus(gear) {
+			return (gear ?? []).reduce((a, k) => a + (this.defs[k]?.damage ?? 0), 0);
+		},
+		// 行囊带来的优势来源（与道具同一套"说出为什么"的机制）
+		advSource(site, gear) {
+			return (gear ?? []).find((k) => (this.defs[k]?.advSites ?? []).includes(site)) ?? '';
+		},
+	};
+
 	const Items = {
 		defs: {
 			时光护符:     { from: '女巫（一章）', note: '翻转时代；原地生效（位置决定年代）' },
@@ -121,12 +150,12 @@ window.Game = (() => {
 			return !!this.advSource(site, inv);
 		},
 		// 优势来源（M10）：说出是哪件道具——"为什么有优势"也要给玩家看
-		advSource(site, inv) {
+		advSource(site, inv, gear) {
 			for (const k of Object.keys(inv ?? {})) {
 				const e = this.effects[k];
 				if (e && (e.advSite === site || (e.advSites ?? []).includes(site))) return k;
 			}
-			return '';
+			return Gear.advSource(site, gear);   // 行囊也能给优势（A1：火把）
 		},
 	};
 
@@ -367,6 +396,12 @@ window.Game = (() => {
 	};
 
 	// ── 龙（强度参照标准 D&D 高挑战等级：单挑必败，基本只允许机制胜利）──
+	// ── 星力软限（canon §3.5/§7）：隐藏计数，余量 1~2 次翻转 ──
+	const Star = {
+		budget: 4,          // 正路必要 3 次（塔内入过去 / 回现在取日记 / 宴会换哨）+ 1 次余量
+		overBudget(pc) { return (pc?.star?.spent ?? 0) > this.budget; },
+	};
+
 	const Dragon = {
 		hp: 60,
 		// v17 补正 #3：封印术发动条件——把龙打到 sealAt 以下，守林人才能把最后一句念完
@@ -378,7 +413,11 @@ window.Game = (() => {
 		dragonDamage(inv, round, defeats, poisoned) {
 			return Items.battleDamage(round, inv, defeats, poisoned);
 		},
+		// 玩家一剑吃进去多少（A1：行囊里有剑就多一分）
+		bladeOf(pc) {
+			return this.bladeDamage + Gear.damageBonus(pc?.gear);
+		},
 	};
 
-	return { Checks, Economy, Items, Codex, Truth, Echoes, Choices, Systems, Shifts, Dragon };
+	return { Checks, Economy, Items, Gear, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon };
 })();

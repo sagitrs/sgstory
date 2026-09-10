@@ -11,7 +11,7 @@ const SRC_FILES = readdirSync('src').filter((f) => f.endsWith('.twee')).sort().m
 const ctx = {
 	window: {}, console,
 	Macro: { add() {} }, State: { variables: {} }, $: () => ({ append() {} }),
-	Config: { history: {} },
+	Config: { history: {}, saves: {} },
 	Save: { onSave: { add() {} }, onLoad: { add() {} }, slots: {} },
 	jQuery: () => ({ on() {}, ariaClick() {}, off() {} }),
 	UI: { alert() {}, saves() {} }, Engine: {}, Story: { has: () => false },

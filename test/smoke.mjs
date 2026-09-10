@@ -84,6 +84,12 @@ assert(capText.includes('物品栏'), '侧栏物品栏渲染');
 assert(capText.includes('无名旅人') && capText.includes('铁卫'), '侧栏角色卡渲染');
 assert(!capText.includes('信物'), '侧栏不再出现「信物」口径');
 assert(typeof w.sgQuickSave === 'function' && typeof w.sgQuickLoad === 'function' && typeof w.sgSaveMenu === 'function', '常驻存档全局函数已挂载');
+// 存档位扩充 + 现代存档 API（Save.slots 已废弃 → Save.browser.slot）
+assert(w.SugarCube.Config.saves.maxSlotSaves === 16, `存档位 16（默认 8；实际上限 ${w.SugarCube.Save.MAX_INDEX + 1}）`);
+assert(w.SugarCube.Config.saves.maxSlotSaves <= w.SugarCube.Save.MAX_INDEX + 1, '存档位不越界');
+w.sgQuickSave();
+assert(w.SugarCube.Save.browser.slot.has(1) === true, '快速存档写入槽位（Save.browser.slot）');
+assert(w.SugarCube.Save.browser.slot.size >= 1, '存档数 ≥1');
 
 // ── 物品栏宏：给一件 → 侧栏列出 ──
 new w.SugarCube.Wikifier(null, '<<give "日记">>');

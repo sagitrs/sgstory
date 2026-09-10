@@ -58,6 +58,16 @@ for (const p of content) {
 		if (shown !== p.name) forwards.push(`${p.name} → ${shown}`); // 渲染期自动跳转（合法）
 		const errs = w.document.querySelectorAll('#passages .error').length;
 		const out = (w.document.querySelector('#passages')?.textContent ?? '').trim();
+		// 断链门（#168 P1-1）：标签里嵌引号这类写法会让 SugarCube 把整段宏体当成"跳到不存在的段落"，
+		// 渲染成 .link-broken。源码层完全看不出来（L0 只查悬空引用/裸 goto），只有这一步能抓。
+		const broken = [...w.document.querySelectorAll('#passages a.link-broken')]
+			.map((a) => `${a.getAttribute('data-passage') ?? '?'}（${a.textContent.slice(0, 20)}）`);
+		if (broken.length) problems.push(`${broken.length} 条断链（link-broken）：${broken.join(' | ')}`);
+		// 裸标记门（#168 P1-2）：畸形闭合标记（<</<</if>>）会在屏上漏出字面 `<` / `<</`
+		if (out.includes('<')) {
+			const at = out.indexOf('<');
+			problems.push(`渲染文本里有裸标记：${JSON.stringify(out.slice(Math.max(0, at - 20), at + 20))}`);
+		}
 		if (uncaught.length > before) problems.push(`uncaught: ${uncaught[before].slice(0, 120)}`);
 		if (errs > 0) { const t = [...w.document.querySelectorAll('#passages .error')].map((e) => e.textContent.slice(0, 80)).join(' | '); problems.push(`${errs} 个 .error：${t}`); }
 		if (!out) problems.push('输出为空');

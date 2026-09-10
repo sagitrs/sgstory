@@ -82,7 +82,7 @@ const styleStory = w.document.querySelector('#style-story')?.textContent ?? '';
 assert(styleStory.includes('LXGW WenKai') && styleStory.includes('@font-face'), '霞鹜文楷子集已内嵌（@font-face）');
 
 // ── 洞穴：选择肢 + 旗标 ──
-await click('打着火把，走进山脚的洞穴');
+await click('走进山脚的洞穴');
 assert(w.SugarCube.State.passage === '洞穴', '进入洞穴');
 assert(links().length >= 3, `洞穴选择肢 ≥3（实际 ${links().length}）`);
 await click('拿出筹码：把几枚金币放在石头上');

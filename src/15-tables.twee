@@ -256,7 +256,7 @@ window.Game = (() => {
 				],
 			},
 			观星者的书: {
-				hint: '四楼观测廊的书架——一册风化了的星象手稿。',
+				hint: '三楼天文台的书架——一册风化了的星象手稿。',
 				clues: [
 					{ id: 'own',   label: '来历：《论坠星》，只记现象不记谜底', test: (p) => !!p.inv['观星者的书'] },
 					{ id: 'proof', label: '证物：风化无法伪造', test: (p) => (p.keeper?.trust ?? 0) >= 2 },
@@ -272,7 +272,7 @@ window.Game = (() => {
 				],
 			},
 			龙鳞护臂: {
-				hint: '三楼拐角那间小工坊——砧板上那副还没成形。',
+				hint: '二楼拐角那间小工坊——砧板上那副还没成形。',
 				clues: [
 					{ id: 'own',   label: '来历：熔炉边那一副，打到一半', test: (p) => !!p.inv['龙鳞护臂'] },
 					{ id: 'seen',  label: '他背上全是汗，嘴里哼着宴上的调子', test: (p) => !!p.world?.present_done },
@@ -387,7 +387,7 @@ window.Game = (() => {
 			{ id: '星图在手', cause: { token: '完整星图' }, kind: 'past→present', echo: [{ p: '交付', anchor: '星图摊开' }] },
 		],
 		revisit: [
-			{ flag: 'present_done', p: '门厅', anchor: '翻找过这里' },
+			{ flag: 'present_done', p: '门厅', anchor: '翻找过' },   // #168 P3-3：原文"这里…翻找过这里"重复，改成"这里你已经翻找过了"
 			{ flag: 'past_done', p: '书房', anchor: '已搜过' },
 		],
 		exempt: {

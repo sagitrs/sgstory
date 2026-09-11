@@ -728,6 +728,7 @@ async function routeSleepVoluntary() {
 	await c('慢慢放下手');
 	await c('顺着那条窄路走过去');
 	await c('收下钥匙');
+	await c('把墙上那支哨子摘下来');               // #177：换哨要真拿着可换的那支
 	await c('用钥匙打开铁门');
 	await c('在宴上找人说话');
 	await c('问那位一直在算星的人');
@@ -775,7 +776,7 @@ async function routeExchangeGate() {
 	if (pcOf(w).world.family_favor !== true) throw new Error('还杖未置 family_favor');
 	if (links().some((s) => s.includes('把她那支哨换过来'))) throw new Error('有好感但无星图，仍不该出现换哨选项');
 	if (pcOf(w).inv['好哨']) throw new Error('门槛未过却拿到好哨');
-	// ③ 取星图 → 换哨选项出现
+	// ③ 取星图（本路线没拿门厅的哨）→ #177：手里没哨仍不肯（正文不收你根本没有的东西）
 	await c('回到宴上');
 	await c('问那位一直在算星的人');
 	await c('引一段先例：历史（求图）');
@@ -783,7 +784,24 @@ async function routeExchangeGate() {
 	await c('回到观星者');
 	await c('回到宴上');
 	await c('找那位握着哨子的人');
-	if (!links().some((s) => s.includes('把她那支哨换过来'))) throw new Error('好感 + 星图齐备后仍无换哨选项');
+	if (links().some((s) => s.includes('把她那支哨换过来'))) throw new Error('#177：图与杖齐了但手里没哨，不该出现可点的换哨');
+	if (!passageText(w).includes('还挂在门厅的钉子上')) throw new Error('#177：无哨时没给「哨在门厅」的指引');
+	if (pcOf(w).inv['好哨']) throw new Error('#177：无哨竟换到了好哨');
+	// ④ 回门厅取哨（现在那侧的钉子上）→ 回来换哨成功
+	await c('回到宴上');
+	await c('回到地下宴会厅');
+	await c('翻转护身符：回到');
+	await c('安静地退出去');
+	await c('把墙上那支哨子摘下来');
+	if (pcOf(w).inv['坏哨'] !== true) throw new Error('门厅（现在）没拿到坏哨');
+	await c('翻转护身符：坠入');
+	await c('用钥匙打开铁门');
+	await c('在宴上找人说话');
+	await c('找那位握着哨子的人');
+	if (!links().some((s) => s.includes('把她那支哨换过来'))) throw new Error('图、杖、哨三齐后仍无换哨选项');
+	await c('开口：把她那支哨换过来（换哨）');
+	await c('把那支哨收好');
+	if (pcOf(w).inv['好哨'] !== true || pcOf(w).inv['坏哨'] !== undefined) throw new Error('换哨没完成（好哨/坏哨交接）');
 	return { w };
 }
 

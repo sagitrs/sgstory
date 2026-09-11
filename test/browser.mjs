@@ -14,7 +14,7 @@
 //   ⑤ 视口矩阵 360×667 / 390×844 / 1280×844：无横向溢出；放大文字（200%）仍无溢出
 //
 // 退出码：断言失败＝1；缺浏览器/依赖＝0 并打印跳过原因（CI 友好）。
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 import http from 'node:http';
 import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -33,10 +33,34 @@ function findChrome() {
 	return null;
 }
 
+// 系统库（容器常见缺 libatk/libgbm 等）：按 SG_CHROME_LIBS → ~/.cache/sgstory-chrome-deps → /tmp/chromedeps 顺序自动发现，
+// 发现就把 LD_LIBRARY_PATH 交给子进程——使用者不必手工 export（准备命令：npm run browser:setup）。
+function findLibs() {
+	const cands = [process.env.SG_CHROME_LIBS, join(HOME, '.cache/sgstory-chrome-deps'), '/tmp/chromedeps'].filter(Boolean);
+	for (const d of cands) {
+		const p = join(d, 'usr/lib/x86_64-linux-gnu');
+		if (existsSync(p)) return `${p}:${join(d, 'lib/x86_64-linux-gnu')}`;
+	}
+	return null;
+}
+const LIBS = findLibs();
+const childEnv = { ...process.env };
+if (LIBS) childEnv.LD_LIBRARY_PATH = process.env.LD_LIBRARY_PATH ? `${LIBS}:${process.env.LD_LIBRARY_PATH}` : LIBS;
+
 const CHROME = findChrome();
 if (!CHROME) {
 	console.log('○ 真实浏览器验收：跳过（未找到 Chrome；设 CHROME_PATH 或装 Chrome for Testing）');
 	process.exit(0);
+}
+// 预检：库不全时 Chrome 起不来——直接给出准备命令，不让脚本超时失败
+{
+	const probe = spawnSync(CHROME, ['--version'], { env: childEnv, encoding: 'utf-8' });
+	if (probe.status !== 0) {
+		const missing = String(probe.stderr ?? '').match(/lib[A-Za-z0-9._-]+\.so[\d.]*/g) ?? [];
+		console.log(`○ 真实浏览器验收：跳过（Chrome 起不来${missing.length ? `，缺 ${[...new Set(missing)].join(', ')}` : ''}）`);
+		console.log('   准备：npm run browser:setup   （免 root 就地解包系统库到 ~/.cache/sgstory-chrome-deps）');
+		process.exit(0);
+	}
 }
 if (!existsSync('dist/index.html')) {
 	console.log('○ 真实浏览器验收：跳过（dist/index.html 不存在，先 npm run build）');
@@ -56,7 +80,7 @@ const profile = `/tmp/sgstory-browser-${process.pid}`;
 const chrome = spawn(CHROME, [
 	'--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
 	`--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${profile}`, 'about:blank',
-], { stdio: 'ignore', env: process.env });
+], { stdio: 'ignore', env: childEnv });
 
 const cleanup = () => { try { chrome.kill('SIGKILL'); } catch {} try { server.close(); } catch {} };
 process.on('exit', cleanup);

@@ -12,7 +12,8 @@
 		"audit": "node scripts/audit.mjs",
 		"soak": "node build.mjs && node test/walker.mjs 20 20 && node test/browser.mjs",
 		"update-coverage-baseline": "node test/coverage.mjs --update-baseline",
-		"browser": "node test/browser.mjs"
+		"browser": "node test/browser.mjs",
+		"browser:setup": "bash scripts/chrome-deps.sh"
 	},
 	"devDependencies": {
 		"extwee": "^2.3.7",

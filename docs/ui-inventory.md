@@ -94,7 +94,10 @@
 | 守林人返回行动区在视口内 | `top < 视口高 × 0.8` | ✓（26–161px） |
 | 开场/放大文字 200% 无横向溢出 | `scrollWidth ≤ innerWidth + 1` | ✓ 全视口 |
 
-**接入**：`npm run browser`；已并入 `npm run soak`（缺浏览器时打印跳过并返回 0，CI 友好）。容器缺系统库时用 `scripts/chrome-deps.sh`（`apt-get download` ＋ `dpkg -x` 免 root 就地解包，配合 `LD_LIBRARY_PATH`）。
+**接入与工具准备**：`npm run browser`；已并入 `npm run soak`（缺浏览器/缺系统库时打印跳过原因并返回 0，CI 友好）。
+- 系统库：`npm run browser:setup`（＝`scripts/chrome-deps.sh`，`apt-get download` ＋ `dpkg -x` **免 root** 就地解包到 `~/.cache/sgstory-chrome-deps`）
+- `test/browser.mjs` 自动发现该目录（或 `SG_CHROME_LIBS` / `/tmp/chromedeps`）并把 `LD_LIBRARY_PATH` 交给浏览器子进程——使用者**不需要手工 export**；预检失败时直接给出上面的准备命令
+- 浏览器本体：Chrome for Testing（默认扫 `~/.cache/puppeteer/chrome/*/chrome-linux64/chrome`，也可 `CHROME_PATH` 指定）
 
 **未覆盖（如实登记）**：手机实机、真实触屏手势、多周目（#271）、跨周目 localStorage 粘性行为；像素级「视觉审美」判断仍以人工试玩为准（本门只判可读性/可达性/溢出）。
 

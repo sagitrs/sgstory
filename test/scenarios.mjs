@@ -121,7 +121,7 @@ async function routeNoDragonWash() {
 	await c('继续往塔那边走');
 	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('收下钥匙');
-	await c('用钥匙打开铁门');                    // 地下宴会厅（过去）
+	await c('下楼赴宴');                    // 地下宴会厅（过去）
 	await c('翻转护身符：回到');                 // 地下宴会厅（现在）
 	// 预置打了一半的龙状态（打过几轮、败次 2＝rage 顶格），再从宴会厅重进「叫醒它」
 	w.eval('(function(){const p=SugarCube.State.variables.pc;p.dragon.awake=true;p.dragon.hp=30;p.dragon.defeats=2;})()');
@@ -256,7 +256,7 @@ async function routeBanquetEnds() {
 	await c('继续往塔那边走');
 	await c('有人从门里出来，拦住你');
 	await c('收下钥匙');
-	await c('用钥匙打开铁门');
+	await c('下楼赴宴');
 	await c('在宴上找人说话');
 	await c('看厅中央：仪式开始了');
 	await c('等宴散，护符自己会带你回去');  // A3：自动回未来
@@ -815,7 +815,7 @@ async function routeOldWoman() {
 	await c('继续往塔那边走');
 	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('收下钥匙');
-	await c('用钥匙打开铁门');
+	await c('下楼赴宴');
 	await c('在宴上找人说话');
 	await c('找刚才拦住你的老妇人');
 	await c('回到宴上');
@@ -832,7 +832,7 @@ async function routeSleepVoluntary() {
 	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('收下钥匙');
 	await c('把墙上那支哨子摘下来');               // #177：换哨要真拿着可换的那支
-	await c('用钥匙打开铁门');
+	await c('下楼赴宴');
 	await c('在宴上找人说话');
 	await c('问那位一直在算星的人');
 	await c('引一段先例：历史（求图）');   // B2：无书 → 历史检定（d20=20 必成）
@@ -865,7 +865,7 @@ async function routeExchangeGate() {
 	await c('继续往塔那边走');
 	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('收下钥匙');
-	await c('用钥匙打开铁门');
+	await c('下楼赴宴');
 	await c('在宴上找人说话');
 	await c('找那位握着哨子的人');
 	// ① 无星图 → 无换哨选项
@@ -896,7 +896,7 @@ async function routeExchangeGate() {
 	await c('把墙上那支哨子摘下来');
 	if (pcOf(w).inv['坏哨'] !== true) throw new Error('门厅（现在）没拿到坏哨');
 	await c('翻转护身符：坠入');
-	await c('用钥匙打开铁门');
+	await c('下楼赴宴');
 	await c('在宴上找人说话');
 	await c('找那位握着哨子的人');
 	if (!links().some((s) => s.includes('把她那支哨换过来'))) throw new Error('图、杖、哨三齐后仍无换哨选项');
@@ -923,9 +923,14 @@ async function routeEraBranches() {
 	// #219 A2：三百年前雾还没起——塔门（过去）不该出现雾之魔物
 	if (linksOf(w).some((x) => x.includes('雾里有个影子'))) throw new Error('过去塔门出现了雾之魔物（#219 A2：雾起于龙睡后）');
 	if (!linksOf(w).some((x) => x.includes('有人从门里出来'))) throw new Error('过去塔门缺守塔人拦路入口（#219 A2）');
+	await c('推门进去');
+	// #239②：宴当晚地下门不锁——过去门厅无钥匙也该能下楼赴宴
+	if (!linksOf(w).some((x) => x.includes('下楼赴宴'))) throw new Error('过去门厅铁门还锁着（#239②：宴当晚门为客开）');
+	if (!passageText(w).includes('铁门敞着')) throw new Error('过去门厅铁门仍写锁着（#239②）');
+	await c('出塔，回到塔外');
 	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('收下钥匙');
-	await c('用钥匙打开铁门');
+	await c('下楼赴宴');
 	await c('在宴上找人说话');       // 宴会·过去（过去）
 	await c('回到地下宴会厅');
 	await c('翻转护身符：回到');     // 地下宴会厅（现在）
@@ -1193,7 +1198,7 @@ async function routeTextContext() {
 	check(!passageText(w).includes('进不去'), '已见守林人后仍提示过去的大门进不去');
 	await c('翻转护身符：坠入');
 	await c('推门进去');
-	await c('用钥匙打开铁门');
+	await c('下楼赴宴');
 	check(!passageText(w).includes('睡着一条龙'), '过去的宴会厅在喂花前就写龙睡着了');
 	check(!passageText(w).includes('雾从它身上'), '过去的宴会厅仍写三百年后的雾');
 	check(!passageText(w).includes('路费'), '未读日记就把雾的来历当作已知');

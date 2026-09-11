@@ -814,5 +814,56 @@ window.Game = (() => {
 		},
 	};
 
-	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon };
+	// ── D7 NPC 动机登记簿（#253）：让渡行为登记（audit --npc 三查：位点全覆盖/锚句在段/动机非空）
+	// act：give:物品｜flag:旗标｜social:诉求｜note:表演层（只查锚句）
+	const NPC = {
+		entries: {
+			// 女巫（母·现在）
+			'女巫·交护符':        { npc: '女巫', act: 'give:时光护符', p: '女巫小屋', anchor: '等的不是它回来', motive: '压不住雾＋等了一百年——盼有人替她了结（#253 动机桥）' },
+			'女巫·遗赠情报':      { npc: '女巫', act: 'flag:witch_hint', p: '女巫小屋', anchor: '塔我进不去', motive: '遗赠执行——进不去塔（路认守林人家的钥匙），只能记下待人带进（#253）' },
+			'女巫·满血祝福':      { npc: '女巫', act: 'note', p: '女巫小屋', anchor: '坏的是这片林子的名声', motive: '声誉即生计——外人死在外头坏林子名声' },
+			// 老板娘 / 老猎人
+			'老板娘·两诫':        { npc: '老板娘', act: 'social:老板娘·进塔', p: '酒馆', anchor: '就记住两件事', motive: '见惯走不回来的人——一冬天送走三拨（#253）' },
+			'老猎人·洞穴情报':    { npc: '老猎人', act: 'flag:rumor', p: '酒馆', anchor: '这话值五枚', motive: '交易腔——实话值钱，爱听不听（#253）' },
+			// 守林人（现任）
+			'守林人·钥匙':        { npc: '守林人', act: 'give:守林人的钥匙', p: '守林人', anchor: '他从腰上解下钥匙', motive: '空手也给——护符即凭据（§5.12）' },
+			'守林人·花警告':      { npc: '守林人', act: 'flag:flower_warned', p: '守林人', anchor: '我小时候在那儿睡过一下午', motive: '保命信息无差别（#229）——亲历那一下午' },
+			'守林人·求术':        { npc: '守林人', act: 'social:守林人·术', p: 'Game Tables', anchor: '你带着我家的字来', motive: 'trust 门槛具象化——带家先人的字来就没得可藏（#230）' },
+			'守林人·铁匠回执':    { npc: '守林人', act: 'note', p: '守林人', anchor: '他不来取，就归用得上的人', motive: '先人的臂归用得上的人（#234 改）' },
+			'守林人·答所守':      { npc: '守林人', act: 'note', p: '顶楼', anchor: '守的从来不是悔恨', motive: '问即答——对话层，不落旗' },
+			// 雾之魔物 / 哥布林
+			'雾之魔物·让路':      { npc: '雾之魔物', act: 'note', p: '雾之魔物·退', anchor: '它已经散回雾里了', motive: '守的是塔里那位——生人当敌、熟人不拦（mist_guard 行转述）' },
+			'哥布林·让路':        { npc: '哥布林', act: 'social:哥布林·路', p: '洞穴', anchor: '让出半条路', motive: '要的不是路，是能换东西的石头（lever note 可见）' },
+			'哥布林·花田警告':    { npc: '哥布林', act: 'note', p: '塔外花田', anchor: '你放走了我们家的', motive: '报恩——你放走了它家的那个（fanlin 小孩）' },
+			// 过去·先人
+			'先人·拦路与开门':    { npc: '守林人（先人）', act: 'note', p: '塔门', anchor: '门为送星的人开着', motive: '差事拦人＋宴当晚迎客（补正 #10/#13）——拦生面孔非门禁' },
+			'先人·差事认符':      { npc: '守林人（先人）', act: 'flag:keeper.met', p: '守林人', anchor: '认符也认人', motive: '差事认符——两代同文、认符也认人（#239 口径 §4.1）' },
+			// 老妇人（宴）
+			'老妇人·放行':        { npc: '老妇人', act: 'note', p: '宴会·过去', anchor: '今晚人多。别挡着路就好', motive: '宴当晚不查来路——送迷路的客人回家' },
+			'老妇人·散场塞饼':    { npc: '老妇人', act: 'note', p: '宴·散场', anchor: '只往你手里塞了一小块还温着的饼', motive: '什么也没问（#233）——护符说明一切' },
+			'老妇人·回执':        { npc: '老妇人', act: 'note', p: '宴·散场', anchor: '什么也没问', motive: '散场回执与放行同源——今晚护符即身份' },
+			// 观星者
+			'观星者·星图':        { npc: '观星者', act: 'give:完整星图', p: '观星者·图', anchor: '这是我写的', motive: '写它的人把它带回来了（书 lever，#241）' },
+			'观星者·星夜答':      { npc: '观星者', act: 'note', p: '观星者', anchor: '你也是为它来的', motive: '宴内公共知识＋本行学者——问即答' },
+			// 当时的女巫（初代）
+			'初代·还杖人情':      { npc: '当时的女巫', act: 'flag:family_favor', p: '寻杖', anchor: '今晚全指着它', motive: '失主在场（#231）——杖回来今晚才做得成' },
+			'初代·换哨':          { npc: '当时的女巫', act: 'social:女巫·换哨', p: '当时的女巫·换', anchor: '我劝不动自己', motive: '图＋杖验明才换；果断递哨（#248）' },
+			'初代·看哨':          { npc: '当时的女巫', act: 'social:女巫·看哨', p: 'Game Tables', anchor: '你眼力不错', motive: '行家看一眼——公共知识的确认' },
+			// 其他
+			'宴上孩子·指杖':      { npc: '宴上孩子', act: 'note', p: '寻杖', anchor: '我看见了，我没说', motive: '没人正经问过他' },
+			'铁匠·托带话':        { npc: '铁匠', act: 'note', p: '工坊', anchor: '前年量的臂', motive: '先人的臂人没来取——话托给上山的人' },
+			'龙·败而不追':        { npc: '龙', act: 'note', p: '雾之魔物·战', anchor: '三步外聚起来', motive: '没醒透＋守的不是路——拦生人不追退者' },
+			'龙·巢边不醒':        { npc: '龙', act: 'note', p: '龙·巢边', anchor: '断剑、铜钱、碎瓷', motive: '§4.5 不干涉——宴为它办' },
+			'守林人·并肩':        { npc: '守林人', act: 'flag:keeper.state', p: '交付', anchor: '他收起卷轴', motive: '卷轴交到他手——术式念得动就并肩（ally 之由）' },
+			// 场景拾取（非 NPC 让渡，但同走 give 位点登记：动机＝获取逻辑）
+			'门厅·坏哨':          { npc: '场景', act: 'give:坏哨', p: 'Widgets', anchor: '你把哨子从钉子上提起来', motive: '观察/蛮力/直摘三路（反 S/L；看清免赌）' },
+			'塔外花田·月光花':    { npc: '场景', act: 'give:月光花', p: '塔外花田', anchor: '连根带土捧起来', motive: '含气即安全（警告后免判定）；下风败＝土散（#237）' },
+			'书房·日记':          { npc: '场景', act: 'give:日记', p: '书房', anchor: '暗格', motive: 'witch_hint 指路——家里记了一百年的东西' },
+			'书房·传送术卷轴':    { npc: '场景', act: 'give:传送术卷轴', p: '书房', anchor: '封底', motive: '完整术式夹在日记封底（补正 #9）' },
+			'工坊·龙鳞护臂':      { npc: '场景', act: 'give:龙鳞护臂', p: '工坊', anchor: '前年量的臂', motive: '铁匠代打的先人护臂——付 8 金归用得上的人' },
+			'天文台·观星者的书':  { npc: '场景', act: 'give:观星者的书', p: '天文台', anchor: '风化', motive: '三百年前手稿——观星者认得自己的字' },
+		},
+	};
+
+	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC };
 })();

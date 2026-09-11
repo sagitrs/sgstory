@@ -654,7 +654,7 @@ window.Game = (() => {
 					{ id: 'read',    name: '看出他靴边那一圈白', gives: 'adv', needRead: true, note: '他每天都要从那片花边上走一趟' },
 				],
 				// 2024「willing」由段落内手写（带日记/书＝他本来就要说：_t>0 → 直给），这里只留掷骰与筹码
-				done: (pc) => !!pc.world.flower_warned,
+								done: (pc) => !!pc.ev.keeper_told,   // #229：保命警告已提为初遇无差别——面板问的是「来历」这层
 				apply: (pc) => { pc.world.flower_warned = true; pc.ev.keeper_told = true; },
 				ok: '"那花会睡人。"他看了一眼炉子，"要摘，先把气含住。我小时候在那儿睡过一下午，醒来天都黑了。"',
 				bad: `"那片花？"他把灯芯剪短了一截，''"你别去碰它。"''他不再说别的。`,

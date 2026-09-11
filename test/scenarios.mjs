@@ -48,12 +48,13 @@ async function newGame(randomStub, preset = 0) {
 	};
 	// 车卡 + 出发
 	await click('踏上旅途');
-	await click('快速成型');
 	if (preset) {
-		// 选第 N 套预设（车卡页有多张卡片）
+		// 选第 N 套预设（点第 N 张卡里的「快速成型」；不带 preset 则默认第一张）
 		const cards = [...w.document.querySelectorAll('.choice-card')];
-		cards[preset].querySelector('a.link-internal').click();
+		cards[preset].querySelector('a').click();
 		await sleep(300);
+	} else {
+		await click('快速成型');
 	}
 	await click('出发，前往歪脖子鸭酒馆');
 	return { w, click, uncaught };
@@ -216,6 +217,31 @@ async function routeNeutralGold() {
 	await c('让守林人动手');
 	await c('看着它走完');
 	if (passageOf(w) !== '结局 送星归位') throw new Error(`中性骰金路径未达真结局（停在 ${passageOf(w)}）`);
+	return { w };
+}
+
+// ── 路线 36：#219 B1① 夺杖检定——失败＝带伤退回可重试，不直落结局 ──
+async function routeSeizeStaffFail() {
+	const { w, click: c } = await newGame(0.5, 2);   // 秘典：运动无受训/力弱 → 11+0 vs DC15 必败
+	await toWitch(c);
+	await toTower(c);
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手，退开一步');       // 秘典不经打：走窄路见守林人
+	await c('顺着那条窄路走过去');
+	await c('收下钥匙');
+	await c('先上二楼看看');
+	await c('到拐角的小工坊看看');
+	await c('上三楼');
+	await c('上顶楼');
+	const hp0 = pcOf(w).hp, salves0 = pcOf(w).salves ?? 0;
+	await c('抢他的杖，自己去打');         // 失败：手被按住，挨一记退回窗边
+	if (passageOf(w) === '结局 讨伐') throw new Error('#219 B1①：检定没过不该直落讨伐结局');
+	// 秘典带药膏：缺口满一副恢复量 → 自动烧掉抵伤（#201）；没药膏则净掉 4
+	const net = hp0 - pcOf(w).hp;
+	if (net !== 0 && net !== 4) throw new Error(`#219 B1①：夺杖失败伤势对不上（${hp0} → ${pcOf(w).hp}）`);
+	if (net === 0 && pcOf(w).salves !== salves0 - 1) throw new Error('#219 B1①：净伤 0 应是烧了一副药膏');
+	if (!linksOf(w).some((x) => x === '抢他的杖，自己去打')) throw new Error('#219 B1①：失败后应可重试');
 	return { w };
 }
 
@@ -489,11 +515,19 @@ async function routeSeal() {
 	await toWitch(c);
 	await toTower(c);
 	await c('继续往塔那边走');
-	await c('推门进去');
+	await getKey(c);                        // 钥匙：顶楼才能打开地下那道门
 	await c('先上二楼看看');
 	await c('伸手去摸烤炉后头的暗格');     // M9：先摸到日记
 	await c('把暗格里的东西取出来');       // M10：取物是另一步
 	await c('把日记往下读');               // → 观察到"没人看过它睡得怎么样"
+	// #219 B1②：施术门——先下去看过它（hall_seen），术式才对得上地方
+	await c('到拐角的小工坊看看');
+	await c('上三楼');
+	await c('上顶楼');
+	await c('下楼，打开地下那道门');
+	if (pcOf(w).ev.below_seen !== true) throw new Error('下过地下宴会厅，below_seen 没落账');
+	await c('安静地退出去');
+	await c('先上二楼看看');
 	await c('照着守林人家那卷封印术念一遍');
 	if (passageOf(w) !== '结局 劣化封印') throw new Error(`未达劣化封印（${passageOf(w)}）`);
 	return { w };
@@ -1086,12 +1120,12 @@ async function routeTextContext() {
 	await c('坠入');
 	check(!passageText(w).includes('枯掉的月光花'), '过去的小径仍先描写未来才有的枯花');
 	await c('继续往塔那边走');
-	check(!linksOf(w).some((x) => x === '推门进去'), '未见守林人就能从过去的大门进入');
+	// #219 B1③：宴当晚大门对谁都开（原「现在的认可对三百年前门卫生效」是矛盾）
+	check(linksOf(w).some((x) => x === '推门进去'), '过去大门该对谁都开（宴当晚开门迎客）');
 	await c('塔基墙根那片花');
 	check(!passageText(w).includes('花瓣都朝上张着'), '过去的花田仍描写盛开的花');
 	await c('回塔门');
 	await c('翻转护身符：回到');
-	check(passageText(w).includes('进不去'), '未见守林人时缺少过去大门的限制提示');
 	await getKey(c);
 	await c('出塔，回到塔外');
 	check(!passageText(w).includes('进不去'), '已见守林人后仍提示过去的大门进不去');
@@ -1139,6 +1173,7 @@ const routes = [
 	['洞穴动武', routeCave],
 	['设定集四页', routeCodex],
 	['图鉴·永久解锁', routeBestiary],
+	['夺杖检定（#219 B1①）', routeSeizeStaffFail],
 	['龙·巢边', routeLair],
 	['老妇人', routeOldWoman],
 	['自愿的长眠', routeSleepVoluntary],

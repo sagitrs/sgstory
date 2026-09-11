@@ -211,7 +211,9 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 	}
 	jQuery(document).on(':passagerender.sgResult', (ev) => {
 		const r = State.variables.pc?.ev?.last_result;
-		if (!r || r.p !== State.passage || (r.era && r.era !== State.variables.era) || !r.text) return;
+		if (!r || (r.era && r.era !== State.variables.era) || !r.text) return;
+		// 显示一次即清空：跨段导航（如洞穴动武→森林边缘）也把本次结果留在屏上
+		delete State.variables.pc.ev.last_result;
 		const content = ev.content;
 		if (content.querySelector('.scene-feedback')) return;
 		const div = document.createElement('div');

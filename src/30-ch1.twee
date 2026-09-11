@@ -182,6 +182,9 @@
 		<<econ "torch_buy">><<goto "酒馆">>
 	<</link>>
 <</if>>
+<<if $pc.gear.includes("火把")>>
+她看了一眼你肩后的火把，把柜台上的油灯往里挪了挪。''"走水没人救。看好火。"''
+<</if>>
 </details>
 <details class="act-group" name="tavern-acts" open>
 	<summary>离开酒馆<span class="act-n"></span></summary>
@@ -304,6 +307,10 @@
 
 	（你还没开口，她先点了下头。）
 
+	她看了你一会儿，不快，也不客气。
+
+	''"从迷雾森林那头过来的。"''不是问句。''"前些年也来过一队人，走得急，没进我这道门。"''
+
 	她把一只乌木匣推过来，匣里躺着一枚''时光护符''。"雾又浓了。我这儿压不住它。"
 
 	''"我儿子跟我住。"''她说，''"你要上去，先去找他——守林人。钥匙在他手里。给他看这枚护符，他认得。"''
@@ -408,7 +415,7 @@
 		<<econ "witch_hint">><<setflag "witch_hint">><<goto "女巫小屋">>
 	<</link>>
 <<else>>
-	<span class="sys-note">（她画给你看：''炉膛后头那个暗格''。位置分毫不差。''这条会在塔里的书房帮到你。''）</span>
+	<span class="sys-note">（她画给你看：''炉膛后头那个暗格''。位置分毫不差。''家里记了一百年的东西，不会有错。这条会在塔里的书房帮到你。''）</span>
 <</if>>
 	<<if $pc.gold gte (-Game.Economy.priceOf("salve_buy", $pc))>>
 	<<link `"花 " + (-Game.Economy.priceOf("salve_buy", $pc)) + " 金币买一副药膏（当前 " + $pc.salves + " 副）"`>>
@@ -420,6 +427,7 @@
 	<<set $pc.ev.wq_blessed to true>>
 	<span class="sys-note">（她挖了一勺药膏按在你肩上——''生命完全恢复。''药味苦得像烧焦的草。）</span>
 <</if>>
+她把药膏的口拧紧：''"药不收钱。你死在外头，坏的是这片林子的名声。"''
 	<<hpbar>>
 </details>
 <details class="act-group" name="witch-acts" open>

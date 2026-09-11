@@ -111,6 +111,30 @@ async function getKey(c) {
 	await c('收下钥匙');
 }
 
+// ── 路线 35：唤醒不洗状态（#178）——同一头龙：重进不回血、不败次清零 ──
+async function routeNoDragonWash() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await toWitch(c);
+	await toTower(c);
+	await c('坠入');
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	await c('收下钥匙');
+	await c('用钥匙打开铁门');                    // 地下宴会厅（过去）
+	await c('翻转护身符：回到');                 // 地下宴会厅（现在）
+	// 预置打了一半的龙状态（打过几轮、败次 2＝rage 顶格），再从宴会厅重进「叫醒它」
+	w.eval('(function(){const p=SugarCube.State.variables.pc;p.dragon.awake=true;p.dragon.hp=30;p.dragon.defeats=2;})()');
+	await c('叫醒它');
+	if (!passageText(w).includes('它没有再睡回去')) throw new Error('#178：重进唤醒没有「未再睡去」态文案');
+	if (pcOf(w).dragon.hp !== 30) throw new Error(`#178：重进唤醒洗了龙血（期望 30，实际 ${pcOf(w).dragon.hp}）`);
+	if (pcOf(w).dragon.defeats !== 2) throw new Error(`#178：重进唤醒洗了败次（期望 2，实际 ${pcOf(w).dragon.defeats}）`);
+	await c('动手');
+	if (pcOf(w).dragon.hp !== 30) throw new Error(`#178：龙·战 fresh 逻辑洗了龙血（期望 30，实际 ${pcOf(w).dragon.hp}）`);
+	return { w };
+}
+
 // ── 路线 34：中性骰金路径（#196）——d20 恒 11，检定会真失败；失败不锁死、替代路在、仍达真结局 ──
 //    既有金路径用 0.99（恒天然 20）：所有检定必成，「失败路径的体验」（重试/软锁/数值压力）从未被测过。
 async function routeNeutralGold() {
@@ -1108,6 +1132,7 @@ const routes = [
 	['非酋不读档（换属性路）', routeNoSaveScum],
 	['书房免伤路（#199）', routeStudyKnock],
 	['中性骰金路径（#196）', routeNeutralGold],
+	['唤醒不洗状态（#178）', routeNoDragonWash],
 	['乱翻的代价（星力软限）', routeTooManyFlips],
 	['结局页收尾（C1）', routeEndingFooter],
 	['女巫小屋·只治一次', routeWitchHealOnce],

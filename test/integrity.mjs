@@ -331,6 +331,21 @@ for (const p of passages.values()) {
 	}
 }
 
+// ── 段落登记门（#262/#185 阶段四／#264）：每个内容段落必须登记在 docs/ui-inventory.md ──
+// 「新场景自动进入模板及覆盖清单」的静态那一半：新增段落未登记即红（另一半点（渲染/覆盖）在 coverage 门）。
+{
+	try {
+		const inv = readFileSync(new URL('../docs/ui-inventory.md', import.meta.url), 'utf-8');
+		for (const p of passages.values()) {
+			if (p.tags.some((t) => ['script', 'widget', 'stylesheet'].includes(t))) continue;
+			if (p.name.startsWith('Story')) continue;
+			if (!inv.includes(p.name)) errors.push(`内容段落「${p.name}」未登记在 docs/ui-inventory.md（#262 段落登记门）`);
+		}
+	} catch (e) {
+		errors.push(`段落登记门读不到 docs/ui-inventory.md：${e.message}`);
+	}
+}
+
 // ── JS 注释泄漏门（#261/#185 阶段三）：twee 正文里的「// 注释」会当正文渲染 ──
 // 只允许 //斜体// 成对写法；[script]/[stylesheet] 段是 JS，注释合法，跳过。
 {

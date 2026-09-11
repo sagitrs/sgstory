@@ -429,9 +429,13 @@
 	<</link>>
 <</if>>
 	<<if not $pc.ev.wq_blessed>>
-	<<set $pc.hp to $pc.max_hp>>
 	<<set $pc.ev.wq_blessed to true>>
-	<span class="sys-note">（她挖了一勺药膏按在你肩上——''生命完全恢复。''药味苦得像烧焦的草。）</span>
+	<<if $pc.hp lt $pc.max_hp>>
+		<<set $pc.hp to $pc.max_hp>>
+		<span class="sys-note">（她看了眼你的伤，挖一勺药膏按上去——''生命完全恢复。''药味苦得像烧焦的草。）</span>
+	<<else>>
+		<span class="sys-note">（她打量你一遍，没有要处理的地方，把药匣收了回去。）</span>
+	<</if>>
 <</if>>
 她把药膏的口拧紧：''"药不收钱。你死在外头，坏的是这片林子的名声。"''
 	<<hpbar>>

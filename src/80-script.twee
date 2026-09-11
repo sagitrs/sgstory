@@ -229,6 +229,22 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		});
 	});
 
+	// #185：子对话返回主场景 → 落行动区（前段名＝本段名＋「·」前缀；只动滚动/焦点）
+	jQuery(document).on(':passageend.sgBackToActs', (ev) => {
+		const hist = State.history;
+		const prev = hist?.[hist.length - 2]?.title;
+		if (!prev || prev === State.passage || !prev.startsWith(State.passage + '·')) return;
+		const acts = ev.content.querySelector('.scene-acts');
+		if (!acts) return;
+		requestAnimationFrame(() => {
+			acts.setAttribute('tabindex', '-1');
+			acts.focus({ preventScroll: true });
+			if (typeof window.scrollTo === 'function') {
+				window.scrollTo(0, Math.max(0, window.scrollY + acts.getBoundingClientRect().top - 32));
+			}
+		});
+	});
+
 	// 行动分组与已读记录的条数角标：纯展示，读当前渲染结果，不写任何状态。
 	// 「本次回答」搬走条目后要复算一遍（角标减一、空折叠整块藏起），所以抽成函数两处共用。
 	const updateBadges = (content) => {

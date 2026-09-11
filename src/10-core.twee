@@ -226,6 +226,35 @@ Macro.add('dragonbar', {
 :: Widgets [widget]
 /% 受伤 + 药膏自动生效 + 死亡判定。用法：<<damage N>>。
    药膏自动门槛：缺口满 4 点（一副的恢复量）才自动用——满血/轻伤不烧药膏（#201）。 %/
+/% #185 门厅：取物结果单源；replace 原地重绘，goto 不再冲掉结果 %/
+<<widget "hallResult">>
+	<<lastcheck>>
+	<<if $args[0] is "翻检">>
+		<<if $last_check.success>>
+			你把哨子从钉子上提起来，收进行囊，可在''物品栏''查看。<<give "坏哨">>
+		<<else>>
+			哨子卡在钉子上。你拨了半天，指头刮破了一道口子——到底还是弄下来了。
+			<<damage 1>><<give "坏哨">>
+		<</if>>
+	<<else>>
+		<<if $last_check.success>>
+			你借了箱子的高度，一把攥住哨子拧了下来。<<give "坏哨">>
+		<<else>>
+			箱子一滑，你磕在墙角上。<<damage 2>>好歹把哨子攥下来了。<<give "坏哨">>
+		<</if>>
+	<</if>>
+	这里你已经''翻找过''了，没有别的。
+<</widget>>
+<<widget "hallPick">>
+	/% 看清钉子后：免赌一键取物 %/
+	<<link "摘哨子（钉子怎么卡的，你已经看清了）">>
+		<<replace "#hall-act">>
+			你把哨子从钉子上提起来，收进行囊，可在''物品栏''查看。<<give "坏哨">>
+			这里你已经''翻找过''了，没有别的。
+		<</replace>>
+	<</link>>
+<</widget>>
+
 <<widget "damage">>
 	<<set $pc.hp to Math.max(0, $pc.hp - $args[0])>>
 	<<if $pc.salves gt 0 and $pc.hp gt 0 and ($pc.max_hp - $pc.hp) gte 4>>
@@ -317,14 +346,14 @@ Macro.add('dragonbar', {
    回合状态挂在 $pc.ev.fight：{ pool, round, offer, act, adv, guard, skipFoe, flee, last, done }。
    点动作只写 $pc.ev.fight.act ＋重渲染（<<goto `passage()`>>）——结算在段落渲染顶部跑完，骰面不会丢。
    <<fightbegin>> 只在"新一场"重置：同池子且没打完＝这就是重渲染，不能清台账。 %/
-<<widget "fightbegin">>
+<<widget "fightbegin">><<nobr>>
 	<<if !$pc.ev.fight or $pc.ev.fight.pool isnot $args[0] or $pc.ev.fight.done>>
 		<<set $pc.ev.fight to { pool: $args[0], round: 1, offer: [], act: null, adv: 0, guard: 0, skipFoe: false, flee: false, last: null, done: false }>>
 	<</if>>
-<</widget>>
+<</nobr>><</widget>>
 
 /% 结算玩家选的那一手 ＋ 对手这一轮的动作 %/
-<<widget "fightresolve">>
+<<widget "fightresolve">><<nobr>>
 	<<set _f to $pc.ev.fight>>
 	<<if _f.act>>
 		<<set _a to Game.Combat.actions[_f.act]>>
@@ -374,10 +403,10 @@ Macro.add('dragonbar', {
 		<<set _f.adv to 0>>
 		<<set _f.skipFoe to false>>
 	<</if>>
-<</widget>>
+<</nobr>><</widget>>
 
 /% 这一轮的三张牌：每张都写明"走哪一项属性、DC 多少" %/
-<<widget "fightpanel">>
+<<widget "fightpanel">><<nobr>>
 	<<set _f to $pc.ev.fight>>
 	<<if _f.offer.length is 0>>
 		<<set _f.offer to Game.Combat.offer(_f.pool, _f.round, $pc, _f.last?.act)>>
@@ -403,7 +432,7 @@ Macro.add('dragonbar', {
 			<span class="fight-meta">（<<print Game.Combat.siteInfo(_f.offer[2])>>）</span>
 		<</if>>
 	</div>
-<</widget>>
+<</nobr>><</widget>>
 
 /% ── 交涉（B2 · D&D 2024 Influence action + DMG 社交交互）────────────────────
    三档意愿：willing（他本来就想给——不掷骰）· hesitant（掷骰）· unwilling（越线——掷骰也没用）

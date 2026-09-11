@@ -682,10 +682,10 @@ window.Game = (() => {
 
 			{ id: '女巫·换哨', tag: '换哨', npc: '当时的女巫', q: '把她那支哨换过来', base: 'neutral',
 				sites: [], levers: [],
-				// 2024「unwilling」：拿不出图与还杖这两件事，说不动她——这一步不是掷骰能过的
-				willing: (pc) => !!pc.inv['完整星图'] && !!pc.world.family_favor,
-				unwilling: (pc) => !(pc.inv['完整星图'] && pc.world.family_favor),
-				why: `（她把图与那根杖都算在了这一眼里——''这两样没凑齐，说什么都白说''。）`,
+				// 2024「unwilling」：拿不出图、还杖、手里那支哨，说不动她——这一步不是掷骰能过的（#177：交换要真拿着可换的哨）
+				willing: (pc) => !!pc.inv['完整星图'] && !!pc.world.family_favor && !!pc.inv['坏哨'],
+				unwilling: (pc) => !(pc.inv['完整星图'] && pc.world.family_favor && pc.inv['坏哨']),
+				why: `（她把图、那根杖、你手里那支哨都算在了这一眼里——''哪样没凑齐，说什么都白说''。）`,
 				done: (pc) => !!pc.inv['好哨'],
 				apply: (pc) => { delete pc.inv['坏哨']; pc.inv['好哨'] = true; },
 				will: '她看了很久，像在核对一件只有她认得的东西，然后把手里那支哨递过来。' },

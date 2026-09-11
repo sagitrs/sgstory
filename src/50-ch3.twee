@@ -210,6 +210,7 @@
 <<socresolve "女巫·换哨">>
 
 <<if $pc.inv["完整星图"] and $pc.world.family_favor and not $pc.inv["好哨"]>>
+	<<if not $pc.inv["坏哨"]>>你两手空空。能拿来换的那支哨，还挂在门厅的钉子上。<</if>>
 	<<socpanel "女巫·看哨">>
 	<<if $pc.ev.witch_grip>>
 		<<lastcheckFor "当时的女巫·辨认" "当时的女巫·开口">>

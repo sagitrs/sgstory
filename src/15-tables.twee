@@ -507,11 +507,13 @@ window.Game = (() => {
 				ok:   { text: "\"往左半步！\"他没回头，脚已经动了。他杖尖那点微光落在你让开的那条线上，也落在它肋下。", adv: 1, guard: 3, dmg: 8 },
 				crit: { text: "你们俩同时动了。那点微光顺着你的刃背挪过去——''那一句念得很稳''，你那一刀也压得很实。", adv: 1, dmg: 15 },
 				bad:  { text: "你喊晚了一步。他被自己的杖绊了一下，那一句念断了。", hurt: 2 } },
-			'封印·吹哨': { site: '封印·吹哨', label: '吹响那支哨子', need: 'inv:坏哨',
+			'封印·吹哨': { site: '封印·吹哨', label: '吹响那支哨子', need: 'invAny:坏哨|好哨',   // #250：换过哨（真结局线）也能吹——好哨是原版玩具哨
+				good: { need: 'inv:好哨', skipFoe: true, dmg: 3, note: '这支是原版的玩具哨——它认得每一个音，迟疑得更久' },
 				ok:   { text: "哨音很短。它的头偏了一下——''它在听''。你就着那个偏头切进去。", adv: 1, dmg: 6 },
 				crit: { text: "哨音撞在穹顶上又落下来，绕着它转了一圈。它整个低了下去——低到你够得着。", adv: 1, dmg: 14 },
 				bad:  { text: "哨子卡了一下，只出来一声破音。", hurt: 1 } },
 			'封印·读术式': { site: '封印·读术式', label: '听懂他念到哪儿，提前半句接上',
+				good: { need: 'inv:传送术卷轴', dmg: 3, note: '你读不通整卷，但跟读他念的那一句，字是对的' },
 				ok:   { text: "你听出下一个词。它还没到，你已经在它该在的地方了——刃和那句话一起落下去。", adv: 1, dmg: 10 },
 				crit: { text: "你比他自己早半拍念出那个词。他停了半息看你一眼，然后跟上——那半句从没念得这么顺。", adv: 1, dmg: 18 },
 				bad:  { text: "你猜错了词。术式的节拍乱了一下，他也被带着顿住。", hurt: 3 } },
@@ -563,6 +565,7 @@ window.Game = (() => {
 				const need = this.actions[id]?.need;
 				if (!need) return true;
 				if (need.startsWith('inv:')) return !!held[need.slice(4)];
+				if (need.startsWith('invAny:')) return need.slice(7).split('|').some((k) => held[k]);   // #250
 				return true;
 			});
 		},
@@ -594,6 +597,16 @@ window.Game = (() => {
 			if (bonus && r.eff.dmg) {
 				r.eff = { ...r.eff, dmg: r.eff.dmg + bonus };
 				r.gearBonus = bonus;
+			}
+			// #250：好档升级（好哨＝原版玩具哨／持卷跟读）——克隆合并，不动动作表单源
+			const g = this.actions[actionId]?.good;
+			if (g && (!g.need || (g.need.startsWith('inv:') ? !!pc?.inv?.[g.need.slice(4)] : true))) {
+				r.eff = {
+					...r.eff,
+					dmg: r.eff.dmg ? r.eff.dmg + (g.dmg ?? 0) : r.eff.dmg,
+					skipFoe: g.skipFoe || r.eff.skipFoe,
+				};
+				r.goodNote = g.note;
 			}
 			return r;
 		},
@@ -688,7 +701,8 @@ window.Game = (() => {
 				bad: `"空口无凭。"他把图收了回去。（''你要是说不动他，就得拿出他认得的东西来。''）`,
 				auto: '你把那册风化了的书放在案上。他的手停住了。"这是我写的。"他翻了两页，看了很久。' },
 
-			{ id: '女巫·看哨', tag: '看哨', npc: '当时的女巫', q: '那支哨子，给我看看', base: 'neutral', yield: 'ev:witch_grip',
+			{ id: '女巫·看哨', tag: '看哨', npc: '当时的女巫', q: '那支哨子，给我看看', base: (pc) => (pc.ev?.witch_gifted ? 'friendly' : 'neutral'),   // #249：贺礼＝态度位（非好感线）
+				yield: 'ev:witch_grip',
 				sites: ['当时的女巫·辨认', '当时的女巫·开口', '当时的女巫·激'],
 				levers: [
 					{ id: 'read', name: '看她握哨的手势', gives: 'adv', needRead: true, note: '那只手一直没松开过' },

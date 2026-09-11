@@ -1128,7 +1128,16 @@ if (wantAll || arg('canon')) {
 			.filter((l) => l.includes(`$pc.inv["${name}"]`) && !giveOnly(name).test(l));
 		if (holdLines.length) use.push(`正文按持有分支×${holdLines.length}`);
 		if (metaAnchors.includes(name)) use.push('Truth/Echoes 锚');
+		// #250：战斗/机制表引用（Combat need/good/effects 里的 inv: 消耗）也算一类用途
+		const tblSrc = passageSrc.get('Game Tables') ?? '';
+		if (tblSrc.includes(`inv:${name}`) || tblSrc.includes(`|${name}`)) use.push('战斗/机制表');
 		if (!use.length) { itemHit++; bad++; console.log(`  ✗ 道具「${name}」零消费（拿到即止，无任何下游；v17 补正 #4 已删三件同类）`); }
+		// #250：真结局链道具 ≥2 用途（豁免须登记理由）
+		const KEY_CHAIN = ['日记', '坏哨', '好哨', '月光花', '观星者的书', '完整星图', '传送术卷轴'];
+		const KEY_EXEMPT = {};
+		if (KEY_CHAIN.includes(name) && !KEY_EXEMPT[name] && use.length < 2) {
+			itemHit++; bad++; console.log(`  ✗ 真结局链道具「${name}」仅 ${use.length} 类用途（#250：≥2，豁免须登记 KEY_EXEMPT）`);
+		}
 		const def = Game.Items.defs[name] ?? {};
 		if (/永失|换掉就|献出去就/.test(def.note ?? '') && !use.some((u) => u.startsWith('正文按持有') || u === '经济事件')) {
 			itemHit++; bad++; console.log(`  ✗ 道具「${name}」写了假代价（note 提"永失/换掉就"，但没有任何下游消费）`);

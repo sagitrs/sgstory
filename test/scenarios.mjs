@@ -868,6 +868,15 @@ async function routeExchangeGate() {
 	await c('下楼赴宴');
 	await c('在宴上找人说话');
 	await c('找那位握着哨子的人');
+	// #249：宴上贺礼——月光花第三用途（预置一朵；赠出即失，三选一）
+	w.eval('(function(){SugarCube.State.variables.pc.inv["月光花"]=true;})()');
+	await c('回到宴上');
+	await c('找那位握着哨子的人');
+	if (!links().some((s) => s.includes('把那朵月光花送给她'))) throw new Error('#249：持花赴宴，该有赠礼入口');
+	await c('把那朵月光花送给她');
+	if (pcOf(w).ev.witch_gifted !== true) throw new Error('#249：赠礼未落 witch_gifted');
+	if (pcOf(w).inv['月光花'] !== undefined) throw new Error('#249：赠出该失去（三选一）');
+	if (!passageText(w).includes('它是药，也是毒')) throw new Error('#249：采药人的专业台词没落地');
 	// ① 无星图 → 无换哨选项
 	if (links().some((s) => s.includes('把她那支哨换过来'))) throw new Error('无星图却出现换哨选项');
 	// ② 还杖（好感）→ 仍无星图 → 仍无换哨

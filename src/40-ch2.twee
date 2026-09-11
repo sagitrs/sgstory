@@ -229,13 +229,11 @@
 <</if>>
 
 <<if not $pc.world.flower_warned>>
-	<<if _t > 0>>
-		"还有，"他叫住你，"塔基墙根那片银白的花——味道闻久了会睡。要摘，先把气含住。我小时候在那儿睡过一下午，醒来天都黑了。"
-		<<set $pc.world.flower_warned to true>>
-	<<else>>
-		<<socpanel "守林人·花">>
-	<</if>>
+	/% #229：保命信息不按交情发放——花警告与楼板警告同级，初遇对所有人说（canon §5.4） %/
+	"还有，"他叫住你，"塔基墙根那片银白的花——味道闻久了会睡。要摘，先把气含住。我小时候在那儿睡过一下午，醒来天都黑了。"
+	<<set $pc.world.flower_warned to true>>
 <</if>>
+<<socpanel "守林人·花">>   /% #229：面板＝问「来历」的加深路径（done 挂 keeper_told） %/
 <<if $pc.world.flower_warned and $pc.ev.keeper_told>>
 	<<lastcheckFor "守林人·交涉" "守林人·指花">>
 	''"塔基墙根那片银白的花——味道闻久了会睡。要摘，先把气含住。"''

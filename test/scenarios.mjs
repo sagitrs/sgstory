@@ -757,6 +757,43 @@ async function routeBestiary() {
 	return { w };
 }
 
+
+// ── 路线 39：跨周目粘性（#271：每条路线都是干净 localStorage，跨周目行为此前零覆盖）──
+async function routeCrossRunSticky() {
+	const { w, click: c } = await newGame(0.99, 0);
+	// ① 干净档：未走到过终局 → 术语页不得出现谜底（防「谜底门」退化成按 run 也能揭）
+	if (w.SgCodex.seenFinal()) throw new Error('干净新档不该 seenFinal');
+	w.SugarCube.Engine.play('设定集·术语');
+	await w.SugarCube.Engine.isIdle?.() ?? null;
+	for (let i = 0; i < 20 && passageOf(w) !== '设定集·术语'; i++) await new Promise((r) => setTimeout(r, 50));
+	if (w.document.querySelector('#passages').textContent.includes('它睡着时漏出来的力气')) {
+		throw new Error('干净新档的设定集·术语就出现了谜底（谜底门应须 seenFinal）');
+	}
+	// ② 模拟「此前已通关」：写入跨周目账本（localStorage），再重开一局
+	const seeded = { clues: { 日记: { own: true, cause: true, lock: true } }, endings: ['送星归位'], finals: ['送星归位'] };
+	w.localStorage.setItem('sgstory.codex.v1', JSON.stringify(seeded));
+	if (!w.SgCodex.seenFinal()) throw new Error('账本写入后 seenFinal 应为 true（粘性）');
+	w.sgRestartRun();
+	await new Promise((r) => setTimeout(r, 300));
+	// ③ 新周目：run 状态重置，账本保留
+	if (passageOf(w) !== '开场') throw new Error(`sgRestartRun 后应回开场（停在 ${passageOf(w)}）`);
+	if (w.SugarCube.State.variables.pc?.ev?.ending) throw new Error('sgRestartRun 未清 run 态（ev.ending 仍在）');
+	if (!w.SgCodex.seenFinal()) throw new Error('sgRestartRun 误清跨周目账本（seenFinal 丢了）');
+	// ④ 新周目开局即见谜底（设计决定：「走到过终局」＝曾经，跨周目有效）
+	w.SugarCube.Engine.play('设定集·术语');
+	for (let i = 0; i < 20 && passageOf(w) !== '设定集·术语'; i++) await new Promise((r) => setTimeout(r, 50));
+	const txt = w.document.querySelector('#passages').textContent;
+	if (!txt.includes('它睡着时漏出来的力气')) throw new Error('走到过终局的档，新周目术语页应给出谜底');
+	// ⑤ 图鉴：已解锁页保留 + 未解锁页给指向（seenFinal ⇒ 提示开）
+	w.SugarCube.Engine.play('设定集·图鉴');
+	for (let i = 0; i < 20 && passageOf(w) !== '设定集·图鉴'; i++) await new Promise((r) => setTimeout(r, 50));
+	const bt = w.document.querySelector('#passages').textContent;
+	if (!bt.includes('日记')) throw new Error('跨周目账本的已解锁页在新周目丢失');
+	if (!betHasHint(bt)) throw new Error('seenFinal 档的图鉴未给锁定页指向');
+	return { w };
+}
+function betHasHint(t) { return /塔根墙下那片银白|她把它从炉火边递到你手里|门厅门边那支锈的/.test(t); }
+
 // ── 路线 29：结局页的收尾入口（C1：退回上一步 / 读档 / 从头再来）──
 async function routeEndingFooter() {
 	const { w, click: c } = await newGame(0.99, 0);
@@ -1270,6 +1307,7 @@ const routes = [
 	['结局页收尾（C1）', routeEndingFooter],
 	['女巫小屋·只治一次', routeWitchHealOnce],
 	['文本上下文（时代与日记）', routeTextContext],
+	['跨周目粘性（#271）', routeCrossRunSticky],
 ];
 
 const results = await Promise.all(routes.map(async ([name, fn]) => {

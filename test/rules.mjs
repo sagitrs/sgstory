@@ -259,11 +259,15 @@ for (const file of fixtures) {
 			ok((d.damage ?? 0) > 0 || (d.advSites ?? []).length > 0, `行囊「${k}」有效果`);
 			for (const s of d.advSites ?? []) ok(!!w.Game.Checks.sites[s], `行囊「${k}」的优势位点存在：${s}`);
 		}
-		// 星力软限（canon §3.5/§7）
-		eq(S.budget, 4, '星力预算＝4（正路 3 次 + 1 次余量）');
-		ok(!S.overBudget({ star: { spent: 4 } }), '翻 4 次仍在预算内');
-		ok(S.overBudget({ star: { spent: 5 } }), '翻 5 次超预算 → 真结局降级');
+		// 星力软限（canon §3.5/§7；#256 方案 A：budget 6，序表承诺余量）
+		eq(S.budget, 6, '星力预算＝6（#256 方案 A：一次失误仍可通关）');
+		ok(!S.overBudget({ star: { spent: 6 } }), '翻 6 次仍在预算内');
+		ok(S.overBudget({ star: { spent: 7 } }), '翻 7 次超预算 → 真结局降级');
 		ok(!S.overBudget({}), '旧档无 star 不炸');
+		// 序表契约（行为化）：五类可信序都必须满足 budget − spent ≥ floor——
+		// 改 budget / 首翻免费 / 散场回程免费，都必须同步 orders，否则本断言红
+		ok((S.orders ?? []).length >= 5, '软限序表已登记（≥5 类可信序）');
+		for (const o of S.orders ?? []) ok(S.budget - o.spent >= o.floor, `序「${o.id}」余量 ${S.budget - o.spent} ≥ 承诺 ${o.floor}`);
 	}
 
 	// ③ 战斗伤害：改减伤 → battleDamage 跟随（#236 数值：基档 5/6/6 · 减伤件 −2 · 毒 −3 且压怒 · 败次封顶 +2）

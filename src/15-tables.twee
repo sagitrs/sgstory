@@ -826,7 +826,19 @@ window.Game = (() => {
 	};
 
 	const Star = {
-		budget: 4,          // 正路必要 3 次（塔内入过去 / 回现在取日记 / 宴会换哨）+ 1 次余量
+		// #256（方案 A）：budget 4→6。付费翻转数的可信序枚举见 orders——
+		// A 完美预备 2 / C 用散场免费回程 2 / B 忘带花 3 / D 一章试验+忘带花 5 / E 两次试验+忘带花 6。
+		// 取 6 使「一次失误」（D）仍余 1，正合 canon §3.5「必要范围内多翻一两次仍可通关」；
+		// 只有「两次失误」（E）才在归位处落到降级结局。改本值必须同步 orders 与 canon 补正。
+		budget: 6,
+		// 序 → 付费翻转数 + 承诺余量下限（floor）：门 ⓪r 断言 budget − spent ≥ floor
+		orders: [
+			{ id: 'A 完美预备', spent: 2, floor: 2, note: '花/日记/书先备齐，一次过去全办' },
+			{ id: 'C 散场免费回程', spent: 2, floor: 2, note: '首次过去以宴·散场回（不耗星力）' },
+			{ id: 'B 忘带花', spent: 3, floor: 1, note: '多一趟往返取花' },
+			{ id: 'D 一章试验＋忘带花', spent: 5, floor: 1, note: '跟了「试试看」的邀请，又忘了花——一次失误应仍可通关' },
+			{ id: 'E 两次试验＋忘带花', spent: 6, floor: 0, note: '两次失误：允许落在限上（再翻一次即降级）' },
+		],
 		overBudget(pc) { return (pc?.star?.spent ?? 0) > this.budget; },
 	};
 

@@ -203,7 +203,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 					const frag = jQuery(this.output).clone();
 					frag.find('.check-result').remove();
 					const fresh = frag.text().replace(/\s+/g, ' ').trim();
-					if (fresh && fresh.length < 400) State.variables.pc.ev.last_result = { p: State.passage, text: fresh };
+					if (fresh && fresh.length < 400) State.variables.pc.ev.last_result = { p: State.passage, era: State.variables.era, text: fresh };
 				}
 			} catch (e) { /* 捕获失败不影响导航 */ }
 			return origGoto.apply(this, arguments);
@@ -211,7 +211,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 	}
 	jQuery(document).on(':passagerender.sgResult', (ev) => {
 		const r = State.variables.pc?.ev?.last_result;
-		if (!r || r.p !== State.passage || !r.text) return;
+		if (!r || r.p !== State.passage || (r.era && r.era !== State.variables.era) || !r.text) return;
 		const content = ev.content;
 		if (content.querySelector('.scene-feedback')) return;
 		const div = document.createElement('div');
@@ -274,7 +274,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		const hist = State.history;
 		const prev = hist?.[hist.length - 2]?.title;
 		if (!prev || prev === State.passage || !prev.startsWith(State.passage + '·')) return;
-		const acts = ev.content.querySelector('.scene-acts');
+		const acts = ev.content.querySelector('.scene-acts, .tavern-actions');
 		if (!acts) return;
 		requestAnimationFrame(() => {
 			acts.setAttribute('tabindex', '-1');
@@ -326,6 +326,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		// （整束 ≤6 条纯链接、段落里没有别的行动容器时）——键盘跳转与分组一次覆盖全库。
 		const autoActs = (content) => {
 			if (content.querySelector('.scene-acts')) return content.querySelector('.scene-acts');
+			if (content.querySelector('.tavern-actions, .soc-ask, details.act-group')) return content.querySelector('.scene-acts');
 			const kids = [...content.childNodes];
 			let idx = kids.length, links = 0;
 			while (idx > 0) {
@@ -350,7 +351,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 
 		jQuery(document).on(':passageend.sgKeyboard', (ev) => {
 			const content = ev.content;
-			const acts = autoActs(content);
+			const acts = autoActs(content) ?? content.querySelector('.tavern-actions');
 			if (!acts) return;
 			if (!acts.id) acts.id = 'scene-acts';
 			if (content.querySelector('.skip-acts')) return;

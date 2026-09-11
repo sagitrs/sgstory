@@ -1,0 +1,15 @@
+:: 场景 Widgets [widget]
+/% #262（#185 阶段四）T-场景迁移配方（goto 式）：
+   ① 分支文本改 <<actOut `…`>>——把本次结果存进 $pc.ev.last_result（含段落名），照旧就地显示；
+   ② 行动区之前放 <<sceneFeedback>>——重渲染后把本次结果留在行动区正上方（replace 式同理可用）。
+   只存文本＋段落名，不存判定/次数：展开、折叠、回看都不改剧情与随机结果。 %/
+<<widget "actOut">><<nobr>>
+	<<set $pc.ev.last_result to { p: passage(), text: $args[0] }>>
+	<<run $(this.output).wiki(String($args[0]))>>
+<</nobr>><</widget>>
+
+<<widget "sceneFeedback">><<nobr>>
+	<<if $pc.ev.last_result and $pc.ev.last_result.p is passage()>>
+		<div class="scene-feedback"><<run $(this.output).wiki(String($pc.ev.last_result.text))>></div>
+	<</if>>
+<</nobr>><</widget>>

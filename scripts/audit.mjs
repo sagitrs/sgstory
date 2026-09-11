@@ -75,6 +75,57 @@ if (wantAll || arg('truth')) {
 }
 
 // ── ⓪b D4 世界活性（#38）：回声锚检 + set-never-echoed 覆盖门 ──
+// #267：叙事态分级——每个被写入的旗标必须落一桶（echo/mechanic/ending/codex/provenance/engine）
+// 推导优先，声明兜底：导出不了桶 → 红；声明 provenance/engine 却仍有叙事条件消费 → 错标红
+function classifyNarrativeState() {
+	// 注释（/% … %/）里的示例不是代码——先剥离，免得把文档里的 <<firstTime "X">> 当成真写入
+	const stripped = new Map([...passageSrc.entries()].map(([n, src]) => [n, src.replace(/\/%[\s\S]*?%\//g, ' ')]));
+	const isEngine = (name) => !!passageTags.get(name)?.some((t) => ['script', 'widget', 'stylesheet'].includes(t));
+	const isEnding = (name) => name.startsWith('结局');
+	const hasIf = (src, flag) => new RegExp(`<<if[^>]*\\$pc\\.(?:world|ev)\\.${flag}\\b`).test(src);
+	const written = new Set();
+	for (const src of stripped.values()) {
+		for (const m of src.matchAll(/<<setflag\s+"(\w+)"/g)) written.add(m[1]);
+		for (const m of src.matchAll(/<<set\s+\$pc\.(?:world|ev)\.(\w+)\s*to/g)) written.add(m[1]);
+		for (const m of src.matchAll(/pc\.(?:world|ev)\.(\w+)\s*=\s*true/g)) written.add(m[1]);
+		for (const m of src.matchAll(/pc\.(?:world|ev)\[["'](\w+)["']\]\s*=\s*true/g)) written.add(m[1]);
+		// #267：宏式写入（键是字面量参数）——<<firstTime "X">> 走 $pc.ev[X]，静态 set 正则看不见
+		for (const m of src.matchAll(/<<firstTime\s+"(\w+)">>/g)) written.add(m[1]);
+	}
+	const E = Game.Echoes;
+	const echoFlags = new Set([...E.list.flatMap((e) => [e.cause.flag, e.cause.token]), ...E.revisit.flatMap((r) => [r.flag, r.inv])].filter(Boolean));
+	const tblSrc = passageSrc.get('Game Tables') ?? '';
+	const codexFlags = new Set([...tblSrc.matchAll(/p\.(?:ev|world)\??\.(\w+)/g)].map((m) => m[1]));
+	const decl = { ...(Game.Consequences?.provenance ?? {}), ...(Game.Consequences?.engine ?? {}) };
+	const prop = { ...(Game.Consequences?.provenance ?? {}) };
+	const buckets = new Map();
+	const problems = [];
+	for (const flag of written) {
+		// 先算派生桶（echo 优先——回声表本身就是登记表），再校验声明是否与实况一致
+		const narrHit = [...stripped.entries()].some(([n, src]) => !isEngine(n) && !isEnding(n) && hasIf(src, flag));
+		const endHit = [...stripped.entries()].some(([n, src]) => isEnding(n) && hasIf(src, flag));
+		const engHit = [...stripped.entries()].some(([n, src]) => isEngine(n) && hasIf(src, flag));
+		let derived = null;
+		if (echoFlags.has(flag)) derived = 'echo';
+		else if (narrHit) derived = 'mechanic';
+		else if (endHit) derived = 'ending';
+		else if (codexFlags.has(flag)) derived = 'codex';
+		else if (engHit) derived = 'engine?';
+		if (flag in decl) {
+			const claimed = flag in prop ? 'provenance' : 'engine';
+			if (derived && derived !== 'engine?') problems.push(`「${flag}」声明为 ${claimed}，但实际属于 ${derived}——错标（声明与实况不一致）`);
+			else if (!String(decl[flag] ?? '').trim()) problems.push(`「${flag}」声明缺理由（why）`);
+			buckets.set(flag, claimed);
+			continue;
+		}
+		if (derived === 'engine?') { buckets.set(flag, 'engine?'); problems.push(`「${flag}」只在引擎段落被读——请登记为 engine（带理由）或补叙事消费`); continue; }
+		if (derived) { buckets.set(flag, derived); continue; }
+		buckets.set(flag, 'none');
+		problems.push(`「${flag}」无任何桶——无正文消费也无登记（假选择嫌疑）`);
+	}
+	return { written, buckets, problems };
+}
+
 // #266：锚句「条件归属」扫描——从段首到锚点走一遍条件栈，取出锚点处生效的 if 条件
 //（支持 if/elseif/else/switch 与 link 体；`not` 归一化为 negated 标记，else 分支取反）
 function conditionOwner(src, anchor) {
@@ -144,41 +195,13 @@ if (wantAll || arg('echoes')) {
 		}
 	}
 	console.log(`  （revisit 留痕 ${Game.Echoes.revisit.length} 处全锚定；分类：${Object.entries(kinds).map(([k, v]) => `${k}×${v}`).join(' ')}）`);
-	// 覆盖门：twee 中被写的旗标 ⊆ cause ∪ revisit ∪ exempt
-	const written = new Set();
-	for (const src of passageSrc.values()) {
-		for (const m of src.matchAll(/<<set\s+\$pc\.tower\.(\w+)\s*to/g)) written.add(`tower:${m[1]}`);
-		for (const m of src.matchAll(/<<set\s+\$(\w+)\s*to/g)) written.add(m[1]);
-		for (const m of src.matchAll(/<<setflag\s+"(\w+)"/g)) written.add(m[1]);
-		// #269：补采集（此前 80% 盲区）——$pc.world/ev.X to true 与 JS 侧 apply() 的 pc.world/ev.X = true
-		for (const m of src.matchAll(/<<set\s+\$pc\.(?:world|ev)\.(\w+)\s*to/g)) written.add(m[1]);
-		for (const m of src.matchAll(/pc\.(?:world|ev)\.(\w+)\s*=\s*true/g)) written.add(m[1]);
-		for (const m of src.matchAll(/pc\.(?:world|ev)\[["'](\w+)["']\]\s*=\s*true/g)) written.add(m[1]);
-	}
-	const covered = new Set([
-		...Game.Echoes.list.flatMap((e) => [e.cause.token ? `token:${e.cause.token}` : null, e.cause.towerFlag ? `tower:${e.cause.towerFlag}` : null, e.cause.flag ?? null, e.cause.gear ? `gear:${e.cause.gear}` : null].filter(Boolean)),
-		...Game.Echoes.revisit.flatMap((r) => [r.flag, r.inv && `inv:${r.inv}`, r.flag && `tower:${r.flag}`].filter(Boolean)),
-		...Object.keys(Game.Echoes.exempt),
-		'pc', 'player_name', 'last_check', 'era', // A5：引擎底座变量（非叙事旗标）——语义即豁免
-	]);
-	const orphans = [...written].filter((w) => !covered.has(w) && !w.startsWith('gear:') && !w.startsWith('token:'));
-	// #269：补采集（前此 80% 盲区）后暴露的历史旗标——先显式登记为「待分类」，新写旗标仍阻断；
-	// #267 落地「选择后果门」分级登记后，本表应清空（逐项归入 echo/gate/ending/codex/provenance/engine）。
-	const STATE_BACKLOG = new Set([
-		'last_roll', 'fog_thin', 'fight', 'soc_last', 'soc', 'last_result',
-		'tav_fog', 'tav_keeper', 'tav_dragon', 'tav_grudge', 'tav_ageless', 'tav_flower', 'tav_light', 'tav_iron', 'tav_seal', 'tav_seen',
-		'wq_painting', 'wq_night', 'wq_fog', 'wq_talisman', 'wq_under', 'wq_past', 'wq_alone', 'wq_blessed', 'wq_seen',
-		'keeper_told', 'keeper_why', 'keeper_intro', 'seer_gave', 'witch_grip', 'witch_gifted', 'forge_thanks',
-		'forest_listen', 'forest_heard', 'goblin_gone', 'goblin_spared',
-		'flower_sleep', 'flower_mud', 'flower_warned', 'hall_seen', 'failure_cause', 'study_found', 'observation_lock', 'errand_done',
-		'star_ledger', 'star_short', 'delivery_short', 'below_seen', 'threshold', 'hoard_looted', 'ritual_seen', 'banquet_over', 'letter_seen', 'coord', 'staff_found', 'mist_fought',
-	]);
-	const unregistered = orphans.filter((w) => !STATE_BACKLOG.has(w));
-	if (orphans.length) console.log(`  · 待分类旗标 ${orphans.length} 项（#269 补采集后可见；#267 分级登记后应清空）：${orphans.slice(0, 10).join('、')}${orphans.length > 10 ? ' …' : ''}`);
-	if (unregistered.length) { console.log(`  ⚠ set-never-echoed（新写旗标未登记）：${unregistered.join('、')}（被写但无回声/留痕/豁免）`); bad += unregistered.length; }
+	// #267：旗标分级由 ⓪q 选择后果门统一裁决（回声门只管回声本身）
+	const _cls = classifyNarrativeState();
+	if (_cls.problems.length) console.log(`  （另有 ${_cls.problems.length} 项旗标分级问题——见 ⓪q 选择后果门）`);
+
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ D4 回声门：${bad} 项失锚/未覆盖`); process.exit(1); }
-		console.log('\n✔ D4 回声门通过（全回声锚句在位、无 set-never-echoed）');
+		console.log('\n✔ D4 回声门通过（全回声锚句在条件门内；旗标分级见 ⓪q）');
 	}
 }
 
@@ -566,6 +589,23 @@ if (wantAll || arg('combat')) {
 	}
 }
 
+
+// ── ⓪q D2 选择后果门（#267）：每个被写入旗标必须落一桶 ══
+if (wantAll || arg('consequences')) {
+	console.log('\n══ ⓪q 选择后果门（#267）——非任意·非二元·后果可见（机械判据）══');
+	const { written, buckets, problems } = classifyNarrativeState();
+	const by = {};
+	for (const b of buckets.values()) by[b] = (by[b] ?? 0) + 1;
+	console.log(`  写入旗标 ${written.size} 个 → ${Object.entries(by).sort((a, b) => b[1] - a[1]).map(([k, v]) => `${k}×${v}`).join(' · ')}`);
+	const META = { echo: '回声表（Echoes）', mechanic: '正文条件消费', ending: '结局分支消费', codex: '图鉴线索消费', provenance: '出处登记（带理由）', engine: '引擎/界面态（带理由）' };
+	for (const [k, v] of Object.entries(META)) if (by[k]) console.log(`    ${k.padEnd(11)} ${by[k]} 项 ← ${v}`);
+	if (problems.length) for (const p of problems) console.log(`  ✗ ${p}`);
+	else console.log('  ✓ 每个写入旗标都有归属桶；provenance/engine 声明均带理由且无叙事消费');
+	if (process.argv.includes('--check')) {
+		if (problems.length) { console.error(`\n✗ 选择后果门：${problems.length} 项未归类/错标`); process.exit(1); }
+		console.log('\n✔ 选择后果门通过（旗标分级齐备、声明与实况一致）');
+	}
+}
 
 // ── ⓪p 位点失败纪律门（#199/#195）：带伤失败必须有解，无解决不许带伤 ──
 if (wantAll || arg('sitedisc')) {

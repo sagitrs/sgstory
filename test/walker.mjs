@@ -5,6 +5,7 @@
 // 双支清扫：逐位点直接 wikify <<sitecheck 位点>> 于 hi/lo 两档 → 每位点成败两支必达
 // 用法：node test/walker.mjs [ch1局数=4] [tower局数=4]
 import { writeFileSync, mkdirSync } from 'node:fs';
+import { mkHist, checkStep } from './invariants.mjs';
 // 统一进 test/boot.mjs（#27 就绪轮询 + 坑11 uncaught 监听 + 退出清理）——
 // 这里不再自己装配 JSDOM：随机源改传函数（种子流），窗口关不关由 boot 统一负责。
 import { boot, LINKS, trailingAfterLast } from './boot.mjs';
@@ -39,10 +40,11 @@ async function walkerBoot(stubMode, seed) {
 }
 
 // ── 不变量（车卡完成后才适用）─────────────────────────────
-function invariantViolations(w) {
+// #189 三件套（单调/once-only/前置蕴含）在 test/invariants.mjs，独立可单测；此处并入每步检查
+function invariantViolations(w, hist) {
 	const v = w.SugarCube.State.variables, pc = v?.pc;
 	if (!pc || !pc.abilities) return [];
-	const bad = [];
+	const bad = [...checkStep(hist, pc)];
 	if (!(pc.max_hp >= 1 && pc.max_hp <= 60)) bad.push(`max_hp=${pc.max_hp}`);
 	if (!(pc.hp >= 0 && pc.hp <= pc.max_hp)) bad.push(`hp=${pc.hp}/${pc.max_hp}`);
 	if (!(pc.gold >= 0 && pc.gold <= 1000)) bad.push(`gold=${pc.gold}（金币不许为负——经济闭环，花钱点须有支付门）`);
@@ -62,6 +64,7 @@ function invariantViolations(w) {
 // ── 走一局 ───────────────────────────────────────────────
 async function walk(index, mode, stubMode, seed, maxSteps) {
 	const { w, rng, uncaught, close } = await walkerBoot(stubMode, seed);
+	const walkHist = mkHist();   // #189：每局独立的三件套记忆（新局＝新档，不跨局比较）
 	const trace = [];
 	const cells = [];
 	const fail = (msg) => failures.push({ index, mode, stubMode, seed, step: trace.length, trace: [...trace], msg });
@@ -90,7 +93,7 @@ async function walk(index, mode, stubMode, seed, maxSteps) {
 			const p = w.SugarCube.State.passage ?? '?';
 			const era = w.SugarCube.State.variables.era ?? '-';
 			cells.push(`${p}|${era}`);
-			const inv = invariantViolations(w);
+			const inv = invariantViolations(w, walkHist);
 			if (inv.length) fail(`不变量违法: ${inv.join(';')} @${p}`);
 			const errs = w.document.querySelectorAll('#passages .error').length;
 			if (errs > 0) fail(`${errs} 个 .error 元素 @${p}`);

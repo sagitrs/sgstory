@@ -227,7 +227,7 @@ Macro.add('dragonbar', {
 /% 受伤 + 药膏自动生效 + 死亡判定。用法：<<damage N>>。
    药膏自动门槛：缺口满 4 点（一副的恢复量）才自动用——满血/轻伤不烧药膏（#201）。 %/
 /% #185 门厅：取物结果单源；replace 原地重绘，goto 不再冲掉结果 %/
-<<widget "hallResult">>
+<<widget "hallResult">><<nobr>>
 	<<lastcheck>>
 	<<if $args[0] is "翻检">>
 		<<if $last_check.success>>
@@ -243,19 +243,26 @@ Macro.add('dragonbar', {
 			箱子一滑，你磕在墙角上。<<damage 2>>好歹把哨子攥下来了。<<give "坏哨">>
 		<</if>>
 	<</if>>
-	这里你已经''翻找过''了，没有别的。
-<</widget>>
-<<widget "hallPick">>
+	<p>这里你已经''翻找过''了，没有别的。</p>
+<</nobr>><</widget>>
+<<widget "hallPick">><<nobr>>
 	/% 看清钉子后：免赌一键取物 %/
 	<<link "摘哨子（钉子怎么卡的，你已经看清了）">>
 		<<replace "#hall-act">>
-			你把哨子从钉子上提起来，收进行囊，可在''物品栏''查看。<<give "坏哨">>
-			这里你已经''翻找过''了，没有别的。
+			<p>你把哨子从钉子上提起来，收进行囊，可在''物品栏''查看。<<give "坏哨">></p>
+				<p>这里你已经''翻找过''了，没有别的。</p>
 		<</replace>>
 	<</link>>
+<</nobr>><</widget>>
+
+/% #261（#185 阶段三）首遇门控泛化：<<firstTime "flag">> → _first（并置位）。
+   用法：<<firstTime "keeper_intro">><<if _first>>完整首遇<<else>>返回短入口<</if>> %/
+<<widget "firstTime">>
+	<<set _first to !$pc.ev[$args[0]]>>
+	<<if _first>><<set $pc.ev[$args[0]] to true>><</if>>
 <</widget>>
 
-<<widget "damage">>
+<<widget "damage">><<nobr>>
 	<<set $pc.hp to Math.max(0, $pc.hp - $args[0])>>
 	<<if $pc.salves gt 0 and $pc.hp gt 0 and ($pc.max_hp - $pc.hp) gte 4>>
 		<<set $pc.salves to $pc.salves - 1>>
@@ -265,11 +272,11 @@ Macro.add('dragonbar', {
 		<span class="damage-flash">''你受到了 $args[0] 点伤害！''</span>
 	<</if>>
 	<<if $pc.hp lte 0>><<goto "结局 死亡">><</if>>
-<</widget>>
+<</nobr>><</widget>>
 
 /% 检定位点词汇：DC/技能出走 Game.Checks.sites；正文只传位点键。site.abil → 豁免，否则技能检定。
    携带道具的位点优势由 Game.Items.advAt 自动附加（无哨/书即无优势）；位点级 dis 自动劣势。 %/
-<<widget "sitecheck">>
+<<widget "sitecheck">><<nobr>>
 	<<set _site to Game.Checks.sites[$args[0]]>>
 	<<set _adv to $args[1]>>
 	<<set _why to "">>
@@ -287,16 +294,16 @@ Macro.add('dragonbar', {
 	<<else>>
 		<<check _site.skill _site.dc _adv 0 _site.nat $args[0] _why _why2>>
 	<</if>>
-<</widget>>
+<</nobr>><</widget>>
 
 /% 经济事件词汇：金额出走 Game.Economy；gives 自动入账 %/
-<<widget "econ">>
+<<widget "econ">><<nobr>>
 	<<set _ev to Game.Economy.events[$args[0]]>>
 	<<set _d to Game.Economy.priceOf($args[0], $pc)>>
 	<<set $pc.gold to $pc.gold + _d>>
 	<<if _ev.gives>><<run Object.entries(_ev.gives).forEach(([k, v]) => { if (Array.isArray(v)) (State.variables.pc[k] = [...(State.variables.pc[k] ?? []), ...v.filter((x) => !(State.variables.pc[k] ?? []).includes(x))]); else State.variables.pc[k] = (State.variables.pc[k] ?? 0) + v; })>><</if>>
 	<span class="econ-note">（<<if _d lt 0>>金币 _d<<elseif _d gt 0>>金币 +_d<<else>>——<</if>>）</span>
-<</widget>>
+<</nobr>><</widget>>
 
 /% 时代切回现在（不耗星力：时间自己走完的场合专用——宴散/仪式终） %/
 <<widget "eraPresent">>
@@ -304,10 +311,10 @@ Macro.add('dragonbar', {
 <</widget>>
 
 /% 拾取道具（物品栏）：<<give "日记">> %/
-<<widget "give">>
+<<widget "give">><<nobr>>
 	<<run $pc.inv[$args[0]] = true>>
 	<span class="gain">''获得【$args[0]】。''</span>
-<</widget>>
+<</nobr>><</widget>>
 
 /% 检定结果快照（M9）：玩家发起的检定在 link 里掷完骰后存一份，
    结果分支重渲染时用 <<lastcheck>> 复显骰面——否则 <<goto>> 会把骰面一起丢掉 %/
@@ -321,17 +328,17 @@ Macro.add('dragonbar', {
 <</widget>>
 
 /% 翻转时代（v16 §3.3）：原地生效、位置决定年代；耗隐藏星力；从过去回来时雾淡一些 %/
-<<widget "flip">>
+<<widget "flip">><<nobr>>
 	<<if $pc.world.fog_thin>>
-		<span class="flip-note">你回到现在。身边的雾，''淡了一些''。</span>
+		<div><span class="flip-note">你回到现在。身边的雾，''淡了一些''。</span></div>
 		<<set $pc.world.fog_thin to false>>
 	<</if>>
 	<<if not $pc.inv["时光护符"]>>
-		<span class="era-drained">你身上没有能校进另一段时间的东西。</span>
+		<div><span class="era-drained">你身上没有能校进另一段时间的东西。</span></div>
 	<<else>>
 		<<link `($era is "present" ? "翻转护身符：坠入『过去』" : "翻转护身符：回到『现在』")`>>
 			<<if not $pc.star.first_free>>
-				<<set $pc.star.first_free to true>>   // #219 C1②：头一次翻转不收费——造它的人留的一点余量（一章「试试看」不该写死终局）
+				<<set $pc.star.first_free to true>>   /% #219 C1②：头一次翻转不收费——造它的人留的一点余量 %/
 			<<else>>
 				<<set $pc.star.spent to $pc.star.spent + 1>>
 			<</if>>
@@ -340,7 +347,7 @@ Macro.add('dragonbar', {
 			<<goto `passage()`>>
 		<</link>>
 	<</if>>
-<</widget>>
+<</nobr>><</widget>>
 
 /% ── 战斗动作池（B1）：每轮随机 3 选 1；每个动作是一次属性化检定，成/败/大成功各有后果 ──
    回合状态挂在 $pc.ev.fight：{ pool, round, offer, act, adv, guard, skipFoe, flee, last, done }。

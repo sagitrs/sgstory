@@ -91,6 +91,17 @@ for (const p of content) {
 		// 链接清单（#168 机检⑩）：把"这一段渲染出来的可点元素"落盘，交给 coverage.mjs 的链接级覆盖门
 		// 对账——按"段落|时代"记格的老口径看不见"同段里有一条链接从没被点过"（P1-1 / P1-29 都这么漏）。
 		linkMap.set(`${p.name}|${era ?? w.SugarCube.State.variables.era}`, [...new Set([...w.document.querySelectorAll(`#passages ${CLICKABLE_SEL}`)].map((x) => x.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean))]);
+		// #261（#185 阶段三）三查：非叙事空行／关闭折叠区里的可聚焦控件／行动区跳转链接
+		{
+			const html = w.document.querySelector('#passages')?.innerHTML ?? '';
+			const brRun = html.match(/(?:<br\s*\/?>\s*){3,}/);
+			if (brRun) problems.push(`非叙事空行：连续 ${(brRun[0].match(/<br/g) ?? []).length} 个 <br>`);
+			const hiddenFocus = [...w.document.querySelectorAll('#passages details:not([open]) a, #passages details:not([open]) [tabindex], #passages details:not([open]) button')]
+				.filter((el) => el.tabIndex >= 0);
+			if (hiddenFocus.length) problems.push(`关闭折叠区含 ${hiddenFocus.length} 个可聚焦控件（Tab 顺序污染）`);
+			const acts = w.document.querySelector('#passages .scene-acts');
+			if (acts && shown === p.name && !w.document.querySelector('#passages .skip-acts')) problems.push('行动区缺「跳到行动」跳转链接');
+		}
 		if (uncaught.length > before) problems.push(`uncaught: ${uncaught[before].slice(0, 120)}`);
 		if (errs > 0) { const t = [...w.document.querySelectorAll('#passages .error')].map((e) => e.textContent.slice(0, 80)).join(' | '); problems.push(`${errs} 个 .error：${t}`); }
 		if (!out) problems.push('输出为空');

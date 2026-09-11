@@ -382,6 +382,15 @@ body {
 .action-feedback:focus-visible { outline: 1px solid #a9c0da; outline-offset: 0.3em; }
 /* ── #185 阶段二：T-场景行动区（通用）＋ T-战斗回合连续（检定→你→它→下一轮，紧凑成块）── */
 .scene-acts { display: flex; flex-direction: column; gap: 0.55em; margin-top: 1em; }
+/* #261 键盘：跳转链接聚焦才现 */
+.skip-link {
+	position: absolute; left: -9999px; top: 0; z-index: 90;
+	background: #2c2742; color: #e6dfd2; padding: 0.4em 0.7em;
+	border: 1px solid rgba(169, 192, 218, 0.35); border-radius: 8px;
+}
+.skip-link:focus { left: 0.6em; }
+/* 结果留屏反馈区 */
+#hall-act .check-result, #hall-act .damage-flash, #hall-act .gain { display: inline-block; margin: 0.15em 0; }
 .scene-acts > a { display: block; width: fit-content; max-width: 100%; margin: 0.3em 0; }
 .fight-log { margin: 0.45em 0; }
 .fight-acts { margin-top: 1em; }

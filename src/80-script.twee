@@ -245,6 +245,82 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		});
 	});
 
+	// ── #261（#185 阶段三）共用层空白归一 ───────────────────────────────
+	// 宏与模板的换行会逐行转 <br>，在行动区/块元素旁堆成非叙事空行。只清三类，不碰作者正文：
+	// ① 块容器直接子级里的 <br>（行动区、折叠区、交涉面板、战斗区、结局卡）
+	// ② 块级元素紧邻的 <br>（</div><br>、<br><div>）
+	// ③ 连续空行封顶：run ≥3 个 <br> 归一成 2（作者的单段空行＝2 个，保留）
+	const BLOCK_ZONES = '.scene-acts, .tavern-actions, .tavern-tables, .tavern-heard, .soc-ask, .soc-panel, .fight-acts, .fight-log, details, #hall-act, .ending-card, #keeper-acts';
+	const normalizeBlank = (content) => {
+		if (!content) return;
+		content.querySelectorAll(BLOCK_ZONES).forEach((z) => {
+			[...z.childNodes].forEach((n) => { if (n.nodeName === 'BR') n.remove(); });
+		});
+		content.querySelectorAll('div, details, p, h1, h2, h3, ul, ol').forEach((el) => {
+			let prev = el.previousSibling, next = el.nextSibling;
+			while (prev && prev.nodeName === 'BR') { const t = prev.previousSibling; prev.remove(); prev = t; }
+			while (next && next.nodeName === 'BR') { const t = next.nextSibling; next.remove(); next = t; }
+		});
+		let run = [];
+		const flush = () => { if (run.length > 2) run.slice(2).forEach((b) => b.remove()); run = []; };
+		[...content.childNodes].forEach((n) => {
+			if (n.nodeName === 'BR') { run.push(n); return; }
+			if (n.nodeType === 3 && !n.textContent.trim()) return;   // 空白文本算在同一段空行里
+			flush();
+		});
+		flush();
+	};
+
+	// #261（#185 阶段三）键盘继续路径：越过侧栏跳正文／直达行动区／折叠守卫
+	jQuery(() => {
+		const passages = document.getElementById('passages');
+		if (!passages) return;
+		passages.setAttribute('tabindex', '-1');   // 跳转落点可聚焦（不影响 Tab 顺序）
+		const jump = document.createElement('a');
+		jump.className = 'skip-link';
+		jump.href = '#passages';
+		jump.textContent = '跳到正文';
+		document.body.insertBefore(jump, document.body.firstChild);
+
+		jQuery(document).on(':passageend.sgKeyboard', (ev) => {
+			const content = ev.content;
+			const acts = content.querySelector('.scene-acts');
+			if (!acts) return;
+			if (!acts.id) acts.id = 'scene-acts';
+			if (content.querySelector('.skip-acts')) return;
+			const skip = document.createElement('a');
+			skip.className = 'skip-link skip-acts';
+			skip.href = '#' + acts.id;
+			skip.textContent = '跳到行动';
+			content.insertBefore(skip, content.firstChild);
+		});
+
+		// 替换式交互不触发 :passageend：焦点随旧节点消失时交回本次反馈
+		let focusInside = false;
+		document.addEventListener('focusin', (ev) => { focusInside = passages.contains(ev.target); }, true);
+		new MutationObserver(() => {
+			if (!focusInside) return;
+			const active = document.activeElement;
+			if (active && active !== document.body) { focusInside = passages.contains(active); return; }
+			focusInside = false;
+			const fb = passages.querySelector('.fresh-heard:not([hidden]), .check-result, .damage-flash, .gain:not(:empty), .scene-acts');
+			if (!fb) return;
+			normalizeBlank(passages);
+			fb.setAttribute('tabindex', '-1');
+			fb.focus({ preventScroll: true });
+			if (typeof window.scrollTo === 'function') {
+				window.scrollTo(0, Math.max(0, window.scrollY + fb.getBoundingClientRect().top - 32));
+			}
+		}).observe(passages, { childList: true, subtree: true });
+
+		document.addEventListener('toggle', (ev) => {
+			const d = ev.target;
+			if (d instanceof HTMLDetailsElement && !d.open && d.contains(document.activeElement)) {
+				d.querySelector('summary')?.focus({ preventScroll: true });
+			}
+		}, true);
+	});
+
 	// 行动分组与已读记录的条数角标：纯展示，读当前渲染结果，不写任何状态。
 	// 「本次回答」搬走条目后要复算一遍（角标减一、空折叠整块藏起），所以抽成函数两处共用。
 	const updateBadges = (content) => {
@@ -260,6 +336,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 			if (d instanceof HTMLDetailsElement && d.classList.contains('heard-fold')) d.hidden = n === 0;
 		});
 	};
+	jQuery(document).on(':passagerender.sgBlank', (ev) => normalizeBlank(ev.content));
 	jQuery(document).on(':passagerender.sgZones', (ev) => updateBadges(ev.content));
 })();
 

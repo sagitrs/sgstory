@@ -37,8 +37,8 @@
 /% payload: 信息|选择 %/
 黄昏，"歪脖子鸭"酒馆。壁炉的火光把每个人的影子都拉得老长。
 
-<<if not $pc.ev.tav_seen>>
-	<<set $pc.ev.tav_seen to true>>
+<<firstTime "tav_seen">>
+<<if _first>>
 	门一开，雾气跟进来一缕，又被屋里的人声压了回去。
 
 	你在门边站了一会儿，才有人给你让了个位子。
@@ -281,8 +281,8 @@
 
 门边挂着一件旧斗篷，比屋里那件长一截。这屋里住着两个人。
 
-<<if not $pc.ev.wq_seen>>
-	<<set $pc.ev.wq_seen to true>>
+<<firstTime "wq_seen">>
+<<if _first>>
 	屋里更暖。一个女人背对着你，在炉子前搅着什么。她回头时，你愣了一下——<<if $pc.ev.tav_painting>>她的身形与衣着，依稀像酒馆旧画上站在长桌尽头的女人。可画上的脸早已模糊，你无从细比。<<else>>她停下手里的活，抬眼等你开口。<</if>>
 
 	你还没开口，她先点了下头。

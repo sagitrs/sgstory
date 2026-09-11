@@ -331,6 +331,21 @@ for (const p of passages.values()) {
 	}
 }
 
+// ── JS 注释泄漏门（#261/#185 阶段三）：twee 正文里的「// 注释」会当正文渲染 ──
+// 只允许 //斜体// 成对写法；[script]/[stylesheet] 段是 JS，注释合法，跳过。
+{
+	for (const p of passages.values()) {
+		if (p.tags.some((t) => ['script', 'stylesheet'].includes(t))) continue;
+		p.body.split('\n').forEach((line, i) => {
+			// 去掉成对的 //…// 斜体后，行内还残留 // ⇒ 注释泄漏
+			const stripped = line.replace(/\/\/[^/\n]*\/\//g, '');
+			if (/\S\s*\/\//.test(stripped)) {
+				errors.push(`${p.name}:${i + 1} 正文含「//」注释（会渲染成文字）：${line.trim().slice(0, 60)}`);
+			}
+		});
+	}
+}
+
 // ── 输出 ─────────────────────────────────────────────────
 const lit = edges.filter((e) => !e.dynamic).length, dyn = edges.filter((e) => e.dynamic).length;
 console.log(`段落 ${passages.size} · 宏/widget ${defined.size} · 边 ${lit} 静态 + ${dyn} 动态（${Object.entries(kindCount).map(([k, v]) => `${k}:${v}`).join(' ')}）`);

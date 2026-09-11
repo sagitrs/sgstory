@@ -181,8 +181,8 @@
 /% #185：首遇＝完整相认（一次性）；返回＝短入口＋话题区 %/
 <<socresolve "守林人·花">>
 <<socresolve "守林人·术">>
-<<if not $pc.ev.keeper_intro>>
-<<set $pc.ev.keeper_intro to true>>
+<<firstTime "keeper_intro">>
+<<if _first>>
 塔门前站着一个人，背对着你。他是从塔里下来拦你的，手里还拿着剪灯芯的剪子，袖口沾着灯油。
 
 顶楼那盏灯由他照看。灯罩擦得很干净，灯油只剩半盏，灯芯剪得整整齐齐——守灯的人日子过得很慢，也很规矩。他不住这儿：他家在林子那头，他母亲的屋子里。
@@ -268,7 +268,7 @@
 	''"塔基墙根那片银白的花——味道闻久了会睡。要摘，先把气含住。"''
 <</if>>
 
-<div class="scene-acts" id="keeper-acts">
+<div class="scene-acts" id="keeper-acts"><<nobr>>
 	<<link "问他：为什么不自己去送">><<goto "守林人·送">><</link>>
 	<<link "问他：你守的到底是什么">><<goto "守林人·守">><</link>>
 	<<link "说一句：它不会变成恶龙">><<goto "守林人·信">><</link>>
@@ -278,7 +278,7 @@
 	<</if>>
 	[[收下钥匙，去看那道门|门厅]]
 	[[逼他动手：让他自己去|守林人·劝杀]]
-</div>
+<</nobr>></div>
 
 :: 守林人·劝杀
 /% payload: 张力|选择 %/
@@ -423,7 +423,7 @@
 
 墙上那枚弯钩钉子空着，钩尖还挂着一点线头。楼上的脚步声在楼梯口停了停，又退了回去——这塔里的动静，各有各的来历。
 
-<div id="hall-act">
+<div id="hall-act"><<nobr>>
 /% #185：结果留屏（replace＋hallResult 单源） %/
 <<if not $pc.inv["坏哨"]>>
 	<<if $pc.ev.hall_seen>>
@@ -462,7 +462,7 @@
 <<else>>
 	这里你已经''翻找过''了，没有别的。
 <</if>>
-</div>
+<</nobr>></div>
 
 <<if not $pc.world.present_done>><<setflag "present_done">><</if>>
 

@@ -475,7 +475,9 @@ for (const file of fixtures) {
 	const p3 = emptyPc();
 	eq(S.verdict(swap, p3), 'unwilling', '换哨：图与杖都没凑齐 → 不肯（不是"难"，是"没得谈"）');
 	p3.inv['完整星图'] = true; p3.world.family_favor = true;
-	eq(S.verdict(swap, p3), 'willing', '换哨：图与杖齐了 → 愿意（不掷骰）');
+	eq(S.verdict(swap, p3), 'unwilling', '换哨（#177）：图与杖齐了但手里没那支哨 → 仍不肯（正文不收你根本没有的东西）');
+	p3.inv['坏哨'] = true;
+	eq(S.verdict(swap, p3), 'willing', '换哨：图、杖、哨三齐 → 愿意（不掷骰）');
 	const ask0 = S.ask('老巫女·开口');
 	eq(S.verdict(ask0, p3), 'unwilling', '老巫女：始终不肯——演示"掷骰无用"这一步');
 	ok(!!ask0.why && ask0.no, '始终不肯的诉求写清了为什么 + 回绝过场');

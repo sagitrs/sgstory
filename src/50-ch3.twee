@@ -210,6 +210,7 @@
 <<socresolve "女巫·换哨">>
 
 <<if $pc.inv["完整星图"] and $pc.world.family_favor and not $pc.inv["好哨"]>>
+	<<if not $pc.inv["坏哨"]>>你两手空空。能拿来换的那支哨，还挂在门厅的钉子上。<</if>>
 	<<socpanel "女巫·看哨">>
 	<<if $pc.ev.witch_grip>>
 		<<lastcheckFor "当时的女巫·辨认" "当时的女巫·开口">>
@@ -361,13 +362,17 @@
 
 :: 唤醒
 /% payload: 张力 %/
-<<set $pc.dragon.awake to true>>
-<<set $pc.dragon.hp to Game.Dragon.hp>>
-<<set $pc.dragon.defeats to 0>>
+<<if not $pc.dragon.awake>>
+	<<set $pc.dragon.awake to true>>
+	<<set $pc.dragon.hp to Game.Dragon.hp>>
+	<<set $pc.dragon.defeats to 0>>
 
-它醒了。
+	它醒了。
 
-不是睁眼——是整间厅里的雾，忽然都朝它身上倒着收回去。
+	不是睁眼——是整间厅里的雾，忽然都朝它身上倒着收回去。
+<<else>>
+	它没有再睡回去。你退出去的这一会儿，它身上的伤还开着，雾也没再聚拢。
+<</if>>
 
 <<if $pc.inv["好哨"]>>
 	你吹响那支哨。哨音很轻，却让那片山一样的呼吸停了一拍。
@@ -463,7 +468,7 @@
 :: 龙·战
 /% payload: 张力 %/
 <<set _fresh to (!$pc.ev.fight or $pc.ev.fight.pool isnot "龙" or $pc.ev.fight.done)>>
-<<if _fresh>>
+<<if _fresh and not $pc.dragon.awake>>
 	<<set $pc.dragon.awake to true>>
 	<<set $pc.dragon.hp to Game.Dragon.hp>>
 <</if>>

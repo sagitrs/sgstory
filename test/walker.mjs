@@ -108,8 +108,28 @@ async function walk(index, mode, stubMode, seed, maxSteps) {
 					if (text.length >= 30) fail(`出口不在最后: 「${p}」最后可点之后压着 ${text.length} 字正文`);
 				}
 			}
+			// #265（#185 验收条 2）结果不吞门：点击前后 diff 资源——状态变了，屏上就得有对应文本。
+			// 例外：导航到结局页（死亡/结局自身叙述结果）。判定只看公开渲染文本，不猜内部路径。
+			const resSnap = () => {
+				const pc2 = w.SugarCube.State.variables.pc ?? {};
+				return { gold: pc2.gold ?? 0, hp: pc2.hp ?? 0, inv: Object.keys(pc2.inv ?? {}).filter((k) => pc2.inv[k]) };
+			};
+			const rBefore = resSnap();
 			click(cands[Math.floor(rng() * cands.length)]).checkErrors();
 			await sleep(70);
+			if (!String(w.SugarCube.State.passage ?? '').startsWith('结局')) {
+				const rAfter = resSnap();
+				const text = w.document.querySelector('#passages')?.textContent ?? '';
+				const slot = w.document.querySelector('#passages .scene-feedback')?.textContent ?? '';
+				const shown = text + ' ' + slot;
+				if (rAfter.gold !== rBefore.gold && !shown.includes('金币'))
+					fail(`结果不吞: 金币 ${rBefore.gold}→${rAfter.gold} 但屏上无「金币」`);
+				if (rAfter.hp < rBefore.hp && !/(伤害|伤|痛|药膏|血)/.test(shown))
+					fail(`结果不吞: 生命 ${rBefore.hp}→${rAfter.hp} 但屏上无伤害文本`);
+				const gained = rAfter.inv.filter((k) => !rBefore.inv.includes(k));
+				if (gained.length && !gained.some((k) => shown.includes(k)) && !/(获得|物品栏|收进|收好|拿到|手里的)/.test(shown))
+					fail(`结果不吞: 获得「${gained.join('、')}」但屏上无提示`);
+			}
 		}
 	} catch (e) {
 		fail(`异常中断: ${e.message}`);

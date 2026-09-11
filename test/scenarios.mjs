@@ -911,7 +911,13 @@ async function routeEraBranches() {
 	await c('到拐角的小工坊看看');
 	await c('上三楼');
 	await c('上顶楼');               // 顶楼（过去）
-	await c('把卷轴和星图交给他');   // 交付（过去）← 覆盖
+	await c('把卷轴和星图交给他');   // #219 D③：东西不齐＝就地反馈缺什么（不进交付）
+	if (passageOf(w) !== '顶楼') throw new Error(`#219 D③：不齐时不该进交付（${passageOf(w)}）`);
+	if (!passageText(w).includes('还没凑齐')) throw new Error('#219 D③：不齐反馈缺「还没凑齐」文案');
+	// 预置两样（同 #178 预置手法）→ 覆盖「交付」过去支：给完该提示回宴会厅先翻转
+	w.eval('(function(){const p=SugarCube.State.variables.pc;p.inv["传送术卷轴"]=true;p.inv["完整星图"]=true;})()');
+	await c('把卷轴和星图交给他');       // 预置后首点＝重渲染（else 支链接换成交付链接）
+	await c('把卷轴和星图交给他');
 	if (passageOf(w) !== '交付') throw new Error(`未达交付（${passageOf(w)}）`);
 	return { w };
 }

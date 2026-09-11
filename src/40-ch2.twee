@@ -537,7 +537,7 @@
 	（这甲是照一个人的手臂打的，那人还没来取。）
 <</if>>
 
-<<if not $pc.inv["龙鳞护臂"]>>
+<<if not $pc.inv["龙鳞护臂"] and $pc.gold gte (-Game.Economy.priceOf("forged_scale", $pc))>>
 	<<link `"花 " + (-Game.Economy.priceOf("forged_scale", $pc)) + " 金币：把它打完，自己带上"`>>
 		<<econ "forged_scale">><<give "龙鳞护臂">><<goto "工坊">>
 	<</link>>

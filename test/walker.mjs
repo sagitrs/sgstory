@@ -45,7 +45,7 @@ function invariantViolations(w) {
 	const bad = [];
 	if (!(pc.max_hp >= 1 && pc.max_hp <= 60)) bad.push(`max_hp=${pc.max_hp}`);
 	if (!(pc.hp >= 0 && pc.hp <= pc.max_hp)) bad.push(`hp=${pc.hp}/${pc.max_hp}`);
-	if (!(pc.gold >= -100 && pc.gold <= 1000)) bad.push(`gold=${pc.gold}`);
+	if (!(pc.gold >= 0 && pc.gold <= 1000)) bad.push(`gold=${pc.gold}（金币不许为负——经济闭环，花钱点须有支付门）`);
 	if (!(pc.salves >= 0 && pc.salves <= 20)) bad.push(`salves=${pc.salves}`);
 	if (!['present', 'past'].includes(v.era)) bad.push(`era=${v.era}`);
 	if (!(pc.star && pc.star.spent >= 0 && pc.star.spent <= 50)) bad.push(`star.spent=${pc.star?.spent}`);

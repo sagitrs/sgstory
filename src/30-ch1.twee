@@ -166,7 +166,7 @@
 </details>
 <details class="act-group" name="tavern-acts" open>
 	<summary>柜台：打听与添置<span class="act-n"></span></summary>
-	<<if not $pc.world.rumor>>
+	<<if not $pc.world.rumor and $pc.gold gte (-Game.Economy.priceOf("rumor_buy", $pc))>>
 	<<link `"花 " + (-Game.Economy.priceOf("rumor_buy", $pc)) + " 金币：听老猎人讲实话"`>>
 		<<econ "rumor_buy">><<setflag "rumor">><<goto "酒馆">>
 	<</link>>
@@ -177,7 +177,7 @@
 
 	说完就低头喝酒，不再看你。<span class="sys-note">（''这条情报会在洞穴里帮你。''）</span>
 <</if>>
-	<<if not $pc.gear.includes("火把")>>
+	<<if not $pc.gear.includes("火把") and $pc.gold gte (-Game.Economy.priceOf("torch_buy", $pc))>>
 	<<link `"花 " + (-Game.Economy.priceOf("torch_buy", $pc)) + " 金币：买一支火把"`>>
 		<<econ "torch_buy">><<goto "酒馆">>
 	<</link>>
@@ -256,6 +256,7 @@
 洞穴不深，走十几步就到了底。洞口漏进来一点灰光，照出一地碎石头。
 <</if>>
 
+<<if not $pc.world.goblin_gone>>
 一个哥布林缩在角落里，怀里抱着几块发亮的石头。
 
 它看见你，尖叫了一声，又缩了缩，把石头抱得更紧，整只都在抖。
@@ -282,12 +283,17 @@
 		<<if $pc.world.rumor>>（你落脚的时候，避开了第三块石板。''老猎人的话''。）<</if>>
 		<<sitecheck "洞穴·战斗">><<snapshot>>
 		<<if $last_check.success>>
-			<<econ "goblin_kill">>你把它打跑了，捡起散落的石头。<<goto "森林边缘">>
+			<<econ "goblin_kill">>你把它打跑了，捡起散落的石头。<<set $pc.world.goblin_gone to true>><<goto "森林边缘">>
 		<<else>>
-			<<damage 4>>它抓伤了你，趁乱钻进了石缝。<<goto "森林边缘">>
+			<<damage 4>>它抓伤了你，趁乱钻进了石缝。<<set $pc.world.goblin_gone to true>><<goto "森林边缘">>
 		<</if>>
 	<</link>>
 	<<link "什么都不做，绕开它">><<goto "森林边缘">><</link>>
+<</if>>
+<<else>>
+	角落空着。那几块发亮的石头还码在原地，成了一道没人守的墙。
+
+	[[从它旁边过去|森林边缘]]
 <</if>>
 
 [[退回森林边缘|森林边缘]]
@@ -403,7 +409,7 @@
 <</if>>
 <details class="act-group" name="witch-acts" open>
 	<summary>柜台：问门道与药膏<span class="act-n"></span></summary>
-	<<if not $pc.world.witch_hint>>
+	<<if not $pc.world.witch_hint and $pc.gold gte (-Game.Economy.priceOf("witch_hint", $pc))>>
 	<<link `"花 " + (-Game.Economy.priceOf("witch_hint", $pc)) + " 金币：问塔里的门道"`>>
 		<<econ "witch_hint">><<setflag "witch_hint">><<goto "女巫小屋">>
 	<</link>>

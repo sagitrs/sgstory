@@ -124,6 +124,38 @@ assert(w.document.querySelector('#passages').textContent.includes('让出半条�
 await click('从它旁边过去');
 assert(w.SugarCube.State.passage === '森林边缘', '买路后回到森林边缘');
 
+// ── 经济闭环（#188）：金币不许为负——支付门 + 刷钱点一次性 ──
+{
+	const g = pc().gold;                                   // 买路后 7
+	w.SugarCube.State.variables.pc.gold = 0;
+	await w.SugarCube.Engine.play('酒馆'); await sleep(150);
+	assert(!links().some((a) => a.textContent.includes('金币：听老猎人讲实话')), '金币 0：买传闻链接不亮（支付门）');
+	assert(!links().some((a) => a.textContent.includes('金币：买一支火把')), '金币 0：买火把链接不亮（支付门）');
+	assert(![...w.document.querySelectorAll('a.soc-opt')].some((a) => a.textContent.includes('请她喝一轮')), '金币 0：请她喝一轮筹码不亮（leverOpen 支付门）');
+	await w.SugarCube.Engine.play('女巫小屋'); await sleep(150);
+	assert(!links().some((a) => a.textContent.includes('金币：问塔里的门道')), '金币 0：问门道不亮（支付门）');
+	w.SugarCube.State.variables.pc.gold = g;
+	const g2 = pc().gold;                                  // 刷钱点一次性：龙·巢边 +10 只此一次
+	await w.SugarCube.Engine.play('龙·巢边'); await sleep(150);
+	const loot = links().find((a) => a.textContent.includes('识货，捡几件值钱的'));
+	assert(loot, '龙·巢边：识货链接在');
+	loot.click(); await sleep(200);
+	assert(pc().gold === g2 + 10 && pc().world.hoard_looted === true, `识货 +10 一次性（${g2} → ${pc().gold}）`);
+	assert(!links().some((a) => a.textContent.includes('识货，捡几件值钱的')), '识货后链接消失（不可重复刷）');
+	w.SugarCube.State.variables.pc.world.goblin_spared = false;   // 哥布林遭遇一次性：战斗两分支都退场
+	await w.SugarCube.Engine.play('洞穴'); await sleep(150);
+	const fight = links().find((a) => a.textContent.includes('拔家伙'));
+	assert(fight, '洞穴：哥布林遭遇在（未让路分支）');
+	fight.click(); await sleep(250);
+	assert(pc().world.goblin_gone === true, '战斗无论输赢哥布林都退场（goblin_gone）');
+	await w.SugarCube.Engine.play('洞穴'); await sleep(150);
+	assert(!links().some((a) => a.textContent.includes('拔家伙')), '退场后遭遇不可重复（不可刷 +3）');
+	assert(links().some((a) => a.textContent.includes('从它旁边过去')), '退场后角落空置、仍可通行');
+	w.SugarCube.State.variables.pc.world.goblin_spared = true;
+	await w.SugarCube.Engine.play('森林边缘'); await sleep(150);
+	assert(w.SugarCube.State.passage === '森林边缘', '经济闭环检查后回到森林边缘');
+}
+
 // ── 侧栏：常驻存档入口 + 物品栏（v16 §5.0）──
 // jsdom 不派发 :uiupdate（UI 栏在真实浏览器里才刷新），故直接渲染该段做单元检查。
 const capFrag = w.document.createDocumentFragment();

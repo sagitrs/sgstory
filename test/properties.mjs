@@ -142,10 +142,10 @@ const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }
 		const defeats = Math.floor(rng() * 4);
 		const d = I.battleDamage(round, inv, defeats);
 		cases++;
-		if (!(d >= 1 && d <= 7)) boundBad++;
+		if (!(d >= 1 && d <= 8)) boundBad++;   // #236：基档 5/6/6 + rage 封顶 +2 → 上界 8
 		if (I.battleDamage(round, inv, defeats + 1) < d) monoBad++;
 	}
-	ok(boundBad === 0, `战斗伤害界限 ${cases} 例随机装备/回合/败次：1 ≤ d ≤ 7`);
+	ok(boundBad === 0, `战斗伤害界限 ${cases} 例随机装备/回合/败次：1 ≤ d ≤ 8`);
 	ok(monoBad === 0, `战斗伤害单调律 ${cases} 例：败次增加不降低伤害`);
 }
 

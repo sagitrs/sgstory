@@ -224,13 +224,14 @@ Macro.add('dragonbar', {
 <<set $era to "present">>
 
 :: Widgets [widget]
-/% 受伤 + 药膏自动生效 + 死亡判定。用法：<<damage N>>。 %/
+/% 受伤 + 药膏自动生效 + 死亡判定。用法：<<damage N>>。
+   药膏自动门槛：缺口满 4 点（一副的恢复量）才自动用——满血/轻伤不烧药膏（#201）。 %/
 <<widget "damage">>
 	<<set $pc.hp to Math.max(0, $pc.hp - $args[0])>>
-	<<if $pc.salves gt 0 and $pc.hp gt 0>>
+	<<if $pc.salves gt 0 and $pc.hp gt 0 and ($pc.max_hp - $pc.hp) gte 4>>
 		<<set $pc.salves to $pc.salves - 1>>
-		<<set $pc.hp to Math.min($pc.max_hp, $pc.hp + 4)>>
-		<span class="damage-flash">''你受到了 $args[0] 点伤害！''（消耗一副药膏，恢复最多 4 点生命，不超过上限）</span>
+		<<set $pc.hp to $pc.hp + 4>>
+		<span class="damage-flash">''你受到了 $args[0] 点伤害！''（伤得重，消耗一副药膏，恢复 4 点生命）</span>
 	<<else>>
 		<span class="damage-flash">''你受到了 $args[0] 点伤害！''</span>
 	<</if>>
@@ -508,7 +509,7 @@ Macro.add('dragonbar', {
 $pc.speciesLabel $pc.classLabel
 <<hpbar>>
 金币：$pc.gold
-药膏：$pc.salves 副（受伤且存活时自动用，最多恢复 4 点生命）
+药膏：$pc.salves 副（缺口满 4 点时自动用，一副恢复 4 点）
 <<if $pc.gear.length>>行囊：<<print $pc.gear.join('、')>><</if>>
 <div class="inv-block">
 ''物品栏''

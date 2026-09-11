@@ -69,15 +69,26 @@ const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }
 		steps++;
 		if (!(pc.hp >= 0 && pc.hp <= pc.max_hp)) boundBad++;
 		if (pc.hp <= 0 && w.SugarCube.State.passage !== '结局 死亡') deathBad++;
-		if (withSalve && pc.hp > 0 && pc.salves !== 0) salveBad++;
+		// #201：缺口满 4（一副的恢复量）才自动烧——轻伤（n≤3）不烧，重伤存活（4≤n≤13）必烧，致死（n≥14）不烧
+		if (withSalve) {
+			const expect = (pc.hp > 0 && n >= 4) ? 0 : 1;
+			if (pc.salves !== expect) salveBad++;
+		}
 	}
 	ok(boundBad === 0, `伤害界限 ${steps} 步随机序列：hp∈[0,max_hp] 恒成立`);
 	ok(deathBad === 0, '归零死亡：hp<=0 时必跳转「结局 死亡」');
-	ok(salveBad === 0, '药膏自动生效：携带未用时受伤即消耗（+4 上限裁剪）');
+	ok(salveBad === 0, '药膏自动生效（#201 门槛）：轻伤不烧、缺口满 4 必烧、致死不烧');
 
 	// C1b. 药膏库存制：两副药膏挨两刀，每刀各自 +4（上限裁剪）
 	w.eval('(function(){const p=SugarCube.State.variables.pc;p.hp=14;p.max_hp=14;p.salves=2;})()');
 	w.SugarCube.Engine.play('森林边缘'); await sleep(30);
+	// C1b-0（#201）：轻伤不烧——满血挨 3，药膏原封不动
+	w.eval('(function(){const p=SugarCube.State.variables.pc;p.hp=14;p.max_hp=14;p.salves=2;})()');
+	new w.SugarCube.Wikifier(host, '<<damage 3>>');
+	await sleep(60);
+	const s0 = w.SugarCube.State.variables.pc;
+	ok(s0.hp === 11 && s0.salves === 2, `轻伤不烧药膏（#201）：3 伤停在 11/14，库存 2（实际 ${s0.hp}/${s0.salves}）`);
+	w.eval('(function(){const p=SugarCube.State.variables.pc;p.hp=14;p.max_hp=14;p.salves=2;})()');
 	new w.SugarCube.Wikifier(host, '<<damage 5>>');
 	await sleep(60);
 	const s1 = w.SugarCube.State.variables.pc;

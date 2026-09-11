@@ -333,12 +333,12 @@ Macro.add('dragonbar', {
 		<<else>>
 			<<sitecheck _a.site>>
 		<</if>>
-		<<set _r to Game.Combat.pick(_f.act, $last_check)>>
+		<<set _r to Game.Combat.playerEff(_f.act, $last_check, $pc)>>
 		<<set _f.last to { act: _f.act, kind: _r.kind, text: _r.eff.text, dmg: _r.eff.dmg ?? 0, hurt: _r.eff.hurt ?? 0, adv: _r.eff.adv ?? 0, guard: _r.eff.guard ?? 0 }>>
 		<div class="fight-log">
 			''你：<<print _a.label>>''　<<if _r.kind is "crit">><span class="fight-crit">''大成功''</span><</if>>
 			<<print _r.eff.text>>
-			<div class="fight-meta"><<if _r.eff.dmg>>打掉 <<print _r.eff.dmg>> 点　<</if>><<if _r.eff.adv>>下一击有优势　<</if>><<if _r.eff.guard>>这一轮少挨 <<print _r.eff.guard>>　<</if>><<if _r.eff.hurt>>自己挨了 <<print _r.eff.hurt>>　<</if>><<if _r.eff.skipFoe>>它这一轮没能出手　<</if>><<if _r.kind is "bad">>''没能得手''<</if>></div>
+			<div class="fight-meta"><<if _r.eff.dmg>>打掉 <<print _r.eff.dmg>> 点<</if>><<if _r.gearBonus>>（<<print Game.Gear.damageSource($pc.gear)>> +<<print _r.gearBonus>>）<</if>><<if _r.eff.dmg>>　<</if>><<if _r.eff.adv>>下一击有优势　<</if>><<if _r.eff.guard>>这一轮少挨 <<print _r.eff.guard>>　<</if>><<if _r.eff.hurt>>自己挨了 <<print _r.eff.hurt>>　<</if>><<if _r.eff.skipFoe>>它这一轮没能出手　<</if>><<if _r.kind is "bad">>''没能得手''<</if>></div>
 		</div>
 		<<run Game.Combat.applyEffect($pc, _r.eff, _f)>>
 		<<if _r.eff.hurt>><<damage _r.eff.hurt>><</if>>

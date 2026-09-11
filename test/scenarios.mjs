@@ -836,6 +836,26 @@ async function routeAskForIt() {
 	return { w };
 }
 
+// ── 路线 33：书房免伤路（#199）——敲墙照样通，一分血不花（多路不只在纸面）──
+async function routeStudyKnock() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await c('推门出发，走进暮色');
+	await c('去那间亮着灯的小屋');
+	await c('谢过她，往林子深处走');
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	await c('收下钥匙');
+	await c('先上二楼看看');
+	const hp0 = pcOf(w).hp;
+	await c('先敲一敲炉膛后头的墙');
+	if (pcOf(w).ev.study_found !== true) throw new Error('敲墙路没找到暗格');
+	if (pcOf(w).hp !== hp0) throw new Error('敲墙路不该掉血（免伤路）');
+	await c('把暗格里的东西取出来');
+	if (pcOf(w).inv['日记'] !== true) throw new Error('敲墙路没拿到日记');
+}
+
 // ── 路线 27：非酋不读档（M10）——把"主路属性"打瘸，靠另一条路照样拿全 ──
 //    智力 8（-1）· 感知 16（+3）· 骰面恒 11：调查类必败，感知类必成。
 async function routeNoSaveScum() {
@@ -868,11 +888,11 @@ async function routeNoSaveScum() {
 	await c('回塔门');
 	await c('推门进去');
 	await c('先上二楼看看');
-	// 书房：调查（智力 8 → 10 < 12 必败）→ 改敲墙（感知 → 必成）
+	// 书房：调查（智力 8 → 10 < 12 必败）→ #199 新纪律：带伤也拿到（伤＝代价不是空手）
+	const hpBefore = pcOf(w).hp;
 	await c('伸手去摸烤炉后头的暗格');
-	if (pcOf(w).ev.study_found) throw new Error('智力 8 的调查不该成功（骰面恒 11 → 10 < 12）');
-	await c('先敲一敲炉膛后头的墙');
-	if (pcOf(w).ev.study_found !== true) throw new Error('察觉路没换来暗格位置');
+	if (pcOf(w).ev.study_found !== true) throw new Error('检定失败也该带伤拿到（#199）');
+	if (pcOf(w).hp !== hpBefore - 1) throw new Error('带伤路没有付出 1 点代价');
 	await c('把暗格里的东西取出来');
 	if (pcOf(w).inv['日记'] !== true) throw new Error('换路之后没拿到日记');
 	await c('到拐角的小工坊看看');
@@ -997,6 +1017,7 @@ const routes = [
 	['打听·碰壁与请酒', routeTavernAsk],
 	['情报自己问（免检暗格）', routeAskForIt],
 	['非酋不读档（换属性路）', routeNoSaveScum],
+	['书房免伤路（#199）', routeStudyKnock],
 	['乱翻的代价（星力软限）', routeTooManyFlips],
 	['结局页收尾（C1）', routeEndingFooter],
 	['女巫小屋·只治一次', routeWitchHealOnce],

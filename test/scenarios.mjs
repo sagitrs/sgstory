@@ -118,9 +118,7 @@ async function routeNoDragonWash() {
 	await toTower(c);
 	await c('坠入');
 	await c('继续往塔那边走');
-	await c('雾里有个影子挡着路');
-	await c('慢慢放下手');
-	await c('顺着那条窄路走过去');
+	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('收下钥匙');
 	await c('用钥匙打开铁门');                    // 地下宴会厅（过去）
 	await c('翻转护身符：回到');                 // 地下宴会厅（现在）
@@ -149,10 +147,7 @@ async function routeNeutralGold() {
 	await toTower(c);
 	await c('坠入');
 	await c('继续往塔那边走');
-	await c('雾里有个影子挡着路');
-	await c('举起武器');
-	await fightTo(c, w, ['往塔那边去']);
-	await c('往塔那边去');                 // 守林人（空手 → _t=0）
+	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('为什么不自己去送');
 	await c('回到守林人');
 	await c('你守的到底是什么');
@@ -232,10 +227,7 @@ async function truePath(w, c) {
 	await toTower(c);                     // 林间小径
 	await c('坠入');                      // 翻到过去
 	await c('继续往塔那边走');             // 塔门（过去）
-	await c('雾里有个影子挡着路');         // 雾之魔物
-	await c('举起武器');                   // 雾之魔物·战（d20=20 → 每一手大成功）
-	await fightTo(c, w, ['往塔那边去']);   // B1：打两轮手上的牌
-	await c('往塔那边去');                 // 守林人
+	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('为什么不自己去送');           // 守林人·送
 	await c('回到守林人');
 	await c('你守的到底是什么');           // 守林人·守
@@ -290,6 +282,7 @@ async function truePath(w, c) {
 	await c('先上二楼看看');
 	await c('伸手去摸烤炉后头的暗格');     // M9：暗格要自己摸（有门道＝免检 → 直接知道位置）
 	await c('把暗格里的东西取出来');       // M10：知道位置之后，取物是另一步
+	await c('把日记往下读');             // 深读落 observation_lock（图鉴·日记三线索）
 	await c('到拐角的小工坊看看');
 	await c('上三楼');
 	await c('上顶楼');
@@ -561,9 +554,7 @@ async function routeSleepForever() {
 	await toTower(c);
 	await c('坠入');
 	await c('继续往塔那边走');
-	await c('雾里有个影子挡着路');
-	await c('慢慢放下手');
-	await c('顺着那条窄路走过去');
+	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('收下钥匙');
 	await c('先上二楼看看');
 	await c('到拐角的小工坊看看');
@@ -649,18 +640,23 @@ async function routeBestiary() {
 	const { w, c } = await routeTrue();
 	const store = w.SgCodex.read();
 	if (!store.finals.includes('送星归位')) throw new Error('终局未登记进图鉴账本（finals 为空）');
-	// 坏哨三线索齐（拿到 / 带着它在雾里交手 / 见过另一支）→ 该页解锁
-	if (!w.SgCodex.unlocked('坏哨')) {
-		const got = JSON.stringify(store.clues['坏哨'] ?? {});
-		throw new Error(`坏哨线索齐了却没解锁（${got}）`);
+	// 日记三线索齐（来历 / 那一夜发不动 / 深读观测锁）→ 该页解锁（#219 A2 后改用本页做解锁示例）
+	if (!w.SgCodex.unlocked('日记')) {
+		const got = JSON.stringify(store.clues['日记'] ?? {});
+		throw new Error(`日记线索齐了却没解锁（${got}）`);
 	}
+	// 坏哨 2/3 锁定（#219 A2：past 金路径不打雾——「带着它，雾里的东西会迟疑」须现在侧相遇才落账）
+	if (w.SgCodex.unlocked('坏哨')) throw new Error('坏哨三线索不齐却解锁了（fight 线索应须现在侧相遇）');
+	const whistleIds = w.Game.Codex.clueIds('坏哨');
+	const whistleGot = w.SgCodex.read().clues['坏哨'] ?? {};
+	if (whistleIds.filter((id) => whistleGot[id]).length !== 2) throw new Error(`坏哨应为 2/3 进度（实际 ${JSON.stringify(whistleGot)}）`);
 	// 月光花只差"毒液抹刃"（那条在封印战线）→ 必须仍是锁定页
 	if (w.SgCodex.unlocked('月光花')) throw new Error('月光花线索未齐却解锁了（解锁条件应是"全部线索"）');
 	await c('打开设定集');
 	await c('图鉴');
 	const txt = w.document.querySelector('#passages').textContent;
-	if (!txt.includes('坏哨')) throw new Error('图鉴未列出已解锁的坏哨');
-	if (!txt.includes('守林人家削的引路哨')) throw new Error('图鉴未列出已解锁页的线索');
+	if (!txt.includes('日记')) throw new Error('图鉴未列出已解锁的日记');
+	if (!txt.includes('她记那一夜的那一本')) throw new Error('图鉴未列出已解锁页的线索（日记·own）');
 	const names = Object.keys(w.Game.Codex.items);
 	const unlocked = names.filter((n) => w.SgCodex.unlocked(n));
 	if (unlocked.includes('月光花')) throw new Error('月光花只差一条线索，却也解锁了（解锁条件应是"全部线索"）');
@@ -730,9 +726,7 @@ async function routeOldWoman() {
 	await toTower(c);
 	await c('坠入');
 	await c('继续往塔那边走');
-	await c('雾里有个影子挡着路');
-	await c('慢慢放下手');
-	await c('顺着那条窄路走过去');
+	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('收下钥匙');
 	await c('用钥匙打开铁门');
 	await c('在宴上找人说话');
@@ -748,9 +742,7 @@ async function routeSleepVoluntary() {
 	await toTower(c);
 	await c('坠入');
 	await c('继续往塔那边走');
-	await c('雾里有个影子挡着路');
-	await c('慢慢放下手');
-	await c('顺着那条窄路走过去');
+	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('收下钥匙');
 	await c('把墙上那支哨子摘下来');               // #177：换哨要真拿着可换的那支
 	await c('用钥匙打开铁门');
@@ -784,9 +776,7 @@ async function routeExchangeGate() {
 	await toTower(c);
 	await c('坠入');
 	await c('继续往塔那边走');
-	await c('雾里有个影子挡着路');
-	await c('慢慢放下手');
-	await c('顺着那条窄路走过去');
+	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('收下钥匙');
 	await c('用钥匙打开铁门');
 	await c('在宴上找人说话');
@@ -840,9 +830,10 @@ async function routeEraBranches() {
 	if (pcOf(w).inv['月光花']) throw new Error('三百年前那一侧不该能摘到花（#168 P1-8）');
 	if (linksOf(w).some((x) => x.includes('摘'))) throw new Error('过去那一侧还留着采摘入口（#168 P1-8）');
 	await c('回塔门');
-	await c('雾里有个影子挡着路');
-	await c('慢慢放下手');
-	await c('顺着那条窄路走过去');
+	// #219 A2：三百年前雾还没起——塔门（过去）不该出现雾之魔物
+	if (linksOf(w).some((x) => x.includes('雾里有个影子'))) throw new Error('过去塔门出现了雾之魔物（#219 A2：雾起于龙睡后）');
+	if (!linksOf(w).some((x) => x.includes('有人从门里出来'))) throw new Error('过去塔门缺守塔人拦路入口（#219 A2）');
+	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('收下钥匙');
 	await c('用钥匙打开铁门');
 	await c('在宴上找人说话');       // 宴会·过去（过去）
@@ -985,8 +976,9 @@ async function routeStudyKnock() {
 	await c('谢过她，往林子深处走');
 	await c('继续往塔那边走');
 	await c('雾里有个影子挡着路');
-	await c('慢慢放下手');
-	await c('顺着那条窄路走过去');
+	await c('举起武器');                    // #219 A2 后：雾战＝现在侧内容，本路线补交互覆盖（d20 恒 20 无伤）
+	await fightTo(c, w, ['往塔那边去']);
+	await c('往塔那边去');
 	await c('收下钥匙');
 	await c('先上二楼看看');
 	const hp0 = pcOf(w).hp;

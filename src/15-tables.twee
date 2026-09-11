@@ -415,8 +415,6 @@ window.Game = (() => {
 			era: '时代机制本体', pc: '角色对象', player_name: '车卡名',
 			'keeper:state': '守林人关系态（对话文本即反馈）', 'keeper:key': '钥匙取得（物品栏即反馈）',
 			'dragon:awake': '战斗触发态（战斗本身即反馈）',
-			// #266：门厅翻检留痕——玩家可见留痕由 revisit·inv 坏哨 的复访文本承担；旗标本体供图鉴线索消费
-			present_done: '门厅翻检留痕（可见留痕＝revisit·inv 坏哨；旗标供图鉴线索消费）',
 			seer_asked: '问星/问夜＝当场回答文本＋图鉴线索（无跨场景文本回声，故不入回声表——#266）',
 		},
 	};
@@ -895,5 +893,27 @@ window.Game = (() => {
 		},
 	};
 
-	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC };
+	// ── 选择后果分级（#267）：每个被写入的旗标必须落一类 ──────────────
+	// 桶语义：echo＝由 Echoes 表承载体面回声｜mechanic＝有叙事条件消费（可达性/物品/文本分叉）
+	//        ending＝结局分支消费｜codex＝图鉴线索消费｜provenance＝出处登记｜engine＝引擎/界面态
+	// provenance / engine 须显式登记理由，且**不得**再被叙事条件消费（否则应归 mechanic）。
+	const Consequences = {
+		provenance: {
+			tav_light: '#217 井台散布点出处（玩家侧后果＝当场文本）',
+			tav_iron: '#217 废哨站散布点出处',
+			tav_seal: '#217 林缘空地散布点出处',
+			banquet_over: '宴散留痕（复访文案由 ritual_seen 驱动，本旗仅作记账）',
+		},
+		engine: {
+			last_roll: '骰面快照（<<lastcheck>>/<<lastcheckFor>> 复显用）',
+			last_result: '结果槽暂存位（#270 通用留屏）',
+			soc: '交涉台账（待处理交互，渲染期结算后清空）',
+			soc_last: '交涉回显（面板展示用）',
+			// 首遇门控：由 firstTime widget 消费 _first（静态扫描看不见该读点），玩家侧后果＝首遇/复访两段文本
+			tav_seen: '酒馆首遇门控（firstTime widget）',
+			keeper_intro: '守林人首遇门控（firstTime widget）',
+		},
+	};
+
+	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences };
 })();

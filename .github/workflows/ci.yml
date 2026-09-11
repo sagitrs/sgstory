@@ -19,6 +19,7 @@ jobs:
           cache: npm
       - run: npm ci
       - run: pip install fonttools brotli  # 字体子集化（霞鹜文楷）
+      - run: git fetch origin main --depth=1  # 门2（新段落必配测）需要 origin/main 基线（#208B 前它在 CI 恒跳过）
       - run: npm test
 
   soak:

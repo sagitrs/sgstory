@@ -297,6 +297,8 @@ body {
 }
 .codex-hub h2 { text-align: center; letter-spacing: 0.15em; }
 .codex-note { color: #8b8497; font-size: 0.9em; text-align: center; }
+/* 设定集页脚：UI 开关等小字脚注（#202）——置底、弱化，不与内容目录并列 */
+.codex-foot { color: #8b8497; font-size: 0.78em; text-align: center; margin-top: 1.6em; padding-top: 0.6em; border-top: 1px solid #3a3542; }
 .codex-locked { color: #5a5468; display: block; margin: 0.25em 0; font-size: 0.95em; }
 .codex-hub .macro-link { display: block; margin: 0.25em 0; }
 

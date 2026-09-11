@@ -389,7 +389,13 @@ body {
 	border: 1px solid rgba(169, 192, 218, 0.35); border-radius: 8px;
 }
 .skip-link:focus { left: 0.6em; }
-/* 结果留屏反馈区 */
+/* 结果留屏：本次结果槽（#262 通用，行动区正上方） */
+.scene-feedback {
+	border-left: 3px solid rgba(169, 192, 218, 0.45);
+	padding: 0.35em 0.6em; margin: 0.8em 0;
+	background: rgba(20, 24, 34, 0.5); border-radius: 0 8px 8px 0;
+}
+.scene-feedback:empty { display: none; }
 #hall-act .check-result, #hall-act .damage-flash, #hall-act .gain { display: inline-block; margin: 0.15em 0; }
 .scene-acts > a { display: block; width: fit-content; max-width: 100%; margin: 0.3em 0; }
 .fight-log { margin: 0.45em 0; }

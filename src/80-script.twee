@@ -172,6 +172,8 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		const panel = control.closest('.soc-ask');
 		pending = {
 			action,
+			root: content,
+			textBefore: content.textContent,
 			passage: State.passage,
 			era: State.variables.era,
 			scrollY: window.scrollY,
@@ -186,6 +188,44 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		if (ev.key === 'Enter' || ev.key === ' ') remember(ev);
 		else pending = null;
 	}, true);
+
+	// #262（#185 阶段四）通用结果留屏：goto 式流程里，链接内的检定/结果文本会随重渲染一起丢。
+	// 包一层 goto——导航前把「本次点击新出现、且不属于旧快照」的反馈文本存进 $pc.ev.last_result
+	// （带段落名）。重渲染时由下列 :passagerender 槽位放回行动区正上方；不进存档语义，只存文本。
+	const gotoMacro = (typeof Macro !== 'undefined' && typeof Macro.get === 'function') ? Macro.get('goto') : null;
+	if (gotoMacro) {
+		const origGoto = gotoMacro.handler;
+		gotoMacro.handler = function () {
+			try {
+				// 链接里的输出此刻还在 wikifier 缓冲里（未进 DOM）：从 <<goto>> 的 this.output 取，
+				// 去掉骰面（骰面由 <<lastcheckFor>> 复显，避免同一颗骰显示两遍）。
+				if (pending) {
+					const frag = jQuery(this.output).clone();
+					frag.find('.check-result').remove();
+					const fresh = frag.text().replace(/\s+/g, ' ').trim();
+					if (fresh && fresh.length < 400) State.variables.pc.ev.last_result = { p: State.passage, text: fresh };
+				}
+			} catch (e) { /* 捕获失败不影响导航 */ }
+			return origGoto.apply(this, arguments);
+		};
+	}
+	jQuery(document).on(':passagerender.sgResult', (ev) => {
+		const r = State.variables.pc?.ev?.last_result;
+		if (!r || r.p !== State.passage || !r.text) return;
+		const content = ev.content;
+		if (content.querySelector('.scene-feedback')) return;
+		const div = document.createElement('div');
+		div.className = 'scene-feedback';
+		jQuery(div).wiki(String(r.text));
+		const anchor = content.querySelector('.scene-acts, .tavern-actions, .soc-ask, details.act-group');
+		if (anchor) { anchor.parentNode.insertBefore(div, anchor); return; }
+		// 没有显式行动容器：插在段落「首个链接簇」之前——结果与行动相邻，且不改变出口在末
+		const kids = [...content.childNodes];
+		let idx = kids.findIndex((n) => n.nodeName === 'A' && n.classList.contains('link-internal'));
+		if (idx < 0) idx = kids.length;
+		while (idx > 0 && (kids[idx - 1].nodeName === 'BR' || (kids[idx - 1].nodeType === 3 && !kids[idx - 1].textContent.trim()))) idx--;
+		content.insertBefore(div, kids[idx] ?? null);
+	});
 
 	jQuery(document).on(':passageend.sgFeedback', (ev) => {
 		const previous = pending;
@@ -282,9 +322,35 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		jump.textContent = '跳到正文';
 		document.body.insertBefore(jump, document.body.firstChild);
 
+		// #262：没显式声明行动区的段落，自动把「末尾那串链接」识别成行动区并包进 .scene-acts
+		// （整束 ≤6 条纯链接、段落里没有别的行动容器时）——键盘跳转与分组一次覆盖全库。
+		const autoActs = (content) => {
+			if (content.querySelector('.scene-acts')) return content.querySelector('.scene-acts');
+			const kids = [...content.childNodes];
+			let idx = kids.length, links = 0;
+			while (idx > 0) {
+				const n = kids[idx - 1];
+				if (n.nodeName === 'BR' || (n.nodeType === 3 && !n.textContent.trim())) { idx--; continue; }
+				if (n.nodeName === 'A' && n.classList.contains('link-internal')) { links++; idx--; continue; }
+				break;
+			}
+			if (links < 2) return null;
+			const div = document.createElement('div');
+			div.className = 'scene-acts';
+			div.id = 'scene-acts';
+			content.insertBefore(div, kids[idx] ?? null);
+			while (div.nextSibling && div.nextSibling.nodeName !== '#text') {
+				if (div.nextSibling.nodeType === 3 || div.nextSibling.nodeName === 'BR') div.appendChild(div.nextSibling);
+				else break;
+			}
+			let last = div.previousSibling;
+			for (let n = div.nextSibling; n;) { const next = n.nextSibling; div.appendChild(n); n = next; }
+			return div;
+		};
+
 		jQuery(document).on(':passageend.sgKeyboard', (ev) => {
 			const content = ev.content;
-			const acts = content.querySelector('.scene-acts');
+			const acts = autoActs(content);
 			if (!acts) return;
 			if (!acts.id) acts.id = 'scene-acts';
 			if (content.querySelector('.skip-acts')) return;

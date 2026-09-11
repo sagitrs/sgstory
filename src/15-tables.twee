@@ -44,7 +44,7 @@ window.Game = (() => {
 			'寻杖':         { skill: '调查', dc: 13, yields: 'flag:family_favor', auto: '进入该段落＝玩家已经动手翻找（「在塔里找那根杖」）' },
 			'寻杖·问孩子': { skill: '游说', dc: 12, yields: 'flag:family_favor' },
 			'寻杖·看人':   { skill: '洞悉', dc: 11, yields: 'flag:family_favor' },
-			'龙·吐息':     { abil: 'con', dc: 14, auto: '战斗（玩家已选择动手）' },
+			'龙·吐息':     { skill: '洞悉', dc: 13, auto: '战斗（玩家已选择动手）' },   // #236：躲吐息＝读节拍（洞悉）而非硬抗（体质）——与观星者的书「预判吐息」同轴
 			'龙·斩击':     { skill: '运动', dc: 10, auto: '战斗（玩家已选择动手）' },
 			// ── 战斗动作池（B1）：每轮随机 3 选 1；每个动作都是一次属性化检定 ──
 			// 雾影（雾之魔物）
@@ -173,28 +173,28 @@ window.Game = (() => {
 			日记:         { from: '塔·书房', note: '记着那一夜发不动的真相；说服守林人' },
 			坏哨:         { from: '塔·门厅', note: '守林人家挂在门边那支；龙认得形状——带着就有用' },
 			好哨:         { from: '过去·当时的女巫（她本人）', note: '吹响＝让龙冷静下来' },
-			月光花:       { from: '塔外·塔根墙下', note: '献龙＝睡得稳（不提前醒）；毒液抹刃＝龙的攻击 −2（封印战）；贸然摘＝拿命试' },
+			月光花:       { from: '塔外·塔根墙下', note: '献龙＝睡得稳（不提前醒）；毒液抹刃＝龙的攻击 −3（封印战）；贸然摘＝拿命试' },
 			守林人的钥匙: { from: '守林人', note: '通往地下宴会厅那道门' },
 			观星者的书:   { from: '塔·天文台（观测廊）', note: '证物（风化无法伪造）+ 现象与线索' },
 			完整星图:     { from: '过去·天文台', note: '带回现在就是坐标' },
-			龙鳞护臂:     { from: '塔·工坊', note: '受击 −1' },
+			龙鳞护臂:     { from: '塔·工坊', note: '受击 −2' },
 			传送术卷轴:   { from: '现在·书房（日记后半本）', note: '完整术式（她算清的那一卷）' },
 		},
 		// 战斗侧效果（位点优势 / 减伤）
 		effects: {
 			坏哨:       { advSite: '雾之魔物·挥击', advSites: ['龙·斩击'], note: '它认得那个形状——魔物挥击劣势转优势；封印战里让龙迟疑半拍（v17 补正 #3）' },
 			观星者的书: { advSite: '龙·吐息', note: '书里记着逆鳞可透——预判吐息' },
-			日记:       { flatDamageReduce: 1, note: '念出那两个小字——整场再 −1' },
-			龙鳞护臂:   { flatDamageReduce: 1, note: '受击 −1' },
+			日记:       { flatDamageReduce: 2, note: '念出那两个小字——整场再 −2' },
+			龙鳞护臂:   { flatDamageReduce: 2, note: '受击 −2（照它的鳞打的甲，挡得住它的嘴）' },
 		},
-		// 月光花毒液（v17 补正 #3）：抹在刃上 → 它每一下都慢半拍（龙的攻击 −2）
-		poisonReduce: 2,
+		// 月光花毒液（v17 补正 #3）：抹在刃上 → 它每一下都慢半拍（龙的攻击 −3，且连败的火也压熄——#236）
+		poisonReduce: 3,
 		// 受击方=玩家：伤害 = 基础 − 减伤件数 − 毒液 + 败次（封顶）
 		battleDamage(round, inv, defeats, poisoned) {
 			const held = Object.keys(inv ?? {}).filter((k) => this.effects[k]?.flatDamageReduce);
 			const flat = held.reduce((a, k) => a + this.effects[k].flatDamageReduce, 0);
-			const rage = Math.min(2, defeats ?? 0);
-			const base = round >= 3 ? 5 : 3 + round;
+			const rage = poisoned ? 0 : Math.min(2, defeats ?? 0);   // #236：毒液压怒（它每一下都慢半拍——连败的火也压）；未涂毒＝连败递增封顶 +2
+			const base = round >= 3 ? 6 : 4 + round;
 			const poison = poisoned ? this.poisonReduce : 0;
 			return Math.max(1, base - flat - poison + rage);
 		},

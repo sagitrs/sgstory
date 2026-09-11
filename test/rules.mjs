@@ -266,18 +266,21 @@ for (const file of fixtures) {
 		ok(!S.overBudget({}), '旧档无 star 不炸');
 	}
 
-	// ③ 战斗伤害：改减伤 → battleDamage 跟随
+	// ③ 战斗伤害：改减伤 → battleDamage 跟随（#236 数值：基档 5/6/6 · 减伤件 −2 · 毒 −3 且压怒 · 败次封顶 +2）
 	const I = w.Game.Items;
-	eq(I.battleDamage(1, {}, 0), 4, 'battleDamage：空手 R1 = 3+1 = 4');
-	eq(I.battleDamage(2, {}, 0), 5, 'battleDamage：空手 R2 = 3+2 = 5');
-	eq(I.battleDamage(3, {}, 0), 5, 'battleDamage：空手 R3 封顶 5');
-	eq(I.battleDamage(1, { 龙鳞护臂: true }, 0), 3, 'battleDamage：龙鳞护臂 −1');
-	eq(I.battleDamage(1, { 日记: true, 龙鳞护臂: true }, 0), 2, 'battleDamage：日记+护臂 −2');
-	eq(I.battleDamage(1, {}, 2), 6, 'battleDamage：败次 +2 封顶');
+	eq(I.battleDamage(1, {}, 0), 5, 'battleDamage：空手 R1 = 4+1 = 5');
+	eq(I.battleDamage(2, {}, 0), 6, 'battleDamage：空手 R2 = 4+2 = 6');
+	eq(I.battleDamage(3, {}, 0), 6, 'battleDamage：空手 R3 封顶 6');
+	eq(I.battleDamage(1, { 龙鳞护臂: true }, 0), 3, 'battleDamage：龙鳞护臂 −2');
+	eq(I.battleDamage(1, { 日记: true, 龙鳞护臂: true }, 0), 1, 'battleDamage：日记+护臂 −4（地板 1）');
+	eq(I.battleDamage(1, {}, 2), 7, 'battleDamage：败次 +2 封顶');
 	eq(I.battleDamage(2, { 日记: true }, 5), 6, 'battleDamage：多败次封顶 +2（5 败 → +2）');
+	// #236：毒液既 −3 也压怒（poisoned=true → rage 归零，连败的火也压熄）
+	eq(I.battleDamage(2, {}, 3, true), 3, 'battleDamage：涂毒＝−3 且压怒（6−3+0，连败 3 次不吃 rage）');
+	eq(I.battleDamage(2, {}, 3, false), 8, 'battleDamage：未涂毒＝连败 3 次吃满 rage（6+2）');
 	w.eval('Game.Items.effects.日记.flatDamageReduce = 3');
-	eq(I.battleDamage(1, { 日记: true }, 0), 1, `battleDamage 表驱动：日记减伤改 3 → R1 = max(1,4-3)=1（实际 ${I.battleDamage(1, { 日记: true }, 0)}）`);
-	w.eval('Game.Items.effects.日记.flatDamageReduce = 1');
+	eq(I.battleDamage(1, { 日记: true }, 0), 2, `battleDamage 表驱动：日记减伤改 3 → R1 = max(1,5-3)=2（实际 ${I.battleDamage(1, { 日记: true }, 0)}）`);
+	w.eval('Game.Items.effects.日记.flatDamageReduce = 2');
 	// ④ 位点优势：advAt 表驱动 + 件数共鸣
 	ok(I.advAt('雾之魔物·挥击', { 坏哨: true }), 'advAt：坏哨给雾之魔物挥击优势');
 	ok(!I.advAt('雾之魔物·心防', { 坏哨: true }), 'advAt：坏哨不给心防优势');
@@ -336,11 +339,11 @@ for (const file of fixtures) {
 	new w.SugarCube.Wikifier(null, '<<sitecheck "龙·终击">>');
 	ok(v.last_check.roll === 20 && v.last_check.success === true && v.last_check.nat === 20, '彩蛋位点：桩 20 → 成功且标记 nat');
 	w.eval('Math.random = () => 0.5');
-	// ⑤ sitecheck 分流：abil 位点走 <<save>>
-	w.eval('Game.Checks.sites["龙·吐息"].dc = 9');
-	new w.SugarCube.Wikifier(null, '<<sitecheck "龙·吐息">>');
+	// ⑤ sitecheck 分流：abil 位点走 <<save>>（#236 后龙·吐息改洞悉，用塔外花田的 con 豁免做分流例）
+	w.eval('Game.Checks.sites["塔外花田"].dc = 9');
+	new w.SugarCube.Wikifier(null, '<<sitecheck "塔外花田">>');
 	ok(v.last_check?.dc === 9 && /体质/.test(v.last_check?.label ?? ''), `sitecheck 豁免分流走 save（dc=${v.last_check?.dc}，label=${v.last_check?.label}）`);
-	w.eval('Game.Checks.sites["龙·吐息"].dc = 14');
+	w.eval('Game.Checks.sites["塔外花田"].dc = 16');
 	// ⑥ #25 sink 契约：gives 入账 + 烙印/技能折扣表驱动
 	v.pc = w.Pc.defaults();
 	v.pc.gold = 30;

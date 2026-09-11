@@ -430,7 +430,7 @@ window.Game = (() => {
 		mechanics: [
 			{ id: 'check', rule: 'd20 + 属性/技能修正 ≥ DC；自然 20 必成、自然 1 必败', p: '洞穴', anchor: '检定' },
 			{ id: 'flip', rule: '翻转在原地生效（位置决定年代）；每次翻转耗星力，从过去回来时雾淡一些', p: '林间小径', anchor: '三百年前' },
-			{ id: 'inventory', rule: '拾到即入物品栏；每件各有用途，不集齐开锁', p: '门厅', anchor: '物品栏' },
+			{ id: 'inventory', rule: '拾到即入物品栏；每件各有用途，不集齐开锁', p: 'Widgets', anchor: '物品栏' },  // #185：门厅取物结果收进 hallResult 单源 widget（玩家侧仍在门厅渲染）
 			{ id: 'keeper_trust', rule: '守林人按带去的证物分层给帮助（空手 / 日记 / 观星者的书）；另有「信它不会变成恶龙」支线——好感 ↑，但不换放行（§4.0）', p: '守林人', anchor: '按你带来的东西' },
 			{ id: 'threshold', rule: '雾攒过阈值之后，攻击龙才触发战斗；之前动手它只会被惊醒一半', p: '地下宴会厅', anchor: '还不是时候' },
 		],

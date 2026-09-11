@@ -178,6 +178,11 @@
 
 :: 守林人
 /% payload: 信息|选择 %/
+/% #185：首遇＝完整相认（一次性）；返回＝短入口＋话题区 %/
+<<socresolve "守林人·花">>
+<<socresolve "守林人·术">>
+<<if not $pc.ev.keeper_intro>>
+<<set $pc.ev.keeper_intro to true>>
 塔门前站着一个人，背对着你。他是从塔里下来拦你的，手里还拿着剪灯芯的剪子，袖口沾着灯油。
 
 顶楼那盏灯由他照看。灯罩擦得很干净，灯油只剩半盏，灯芯剪得整整齐齐——守灯的人日子过得很慢，也很规矩。他不住这儿：他家在林子那头，他母亲的屋子里。
@@ -242,9 +247,9 @@
 钥匙不新，齿口磨得圆了——被摸过很多次。
 
 <<give "守林人的钥匙">>
-
-<<socresolve "守林人·花">>
-<<socresolve "守林人·术">>
+<<else>>
+他还在塔门前。见你看过来，朝你点了点头。
+<</if>>
 
 <<if $era is "present" and $pc.ev.forge_seen and not $pc.ev.forge_thanks>>
 	<<set $pc.ev.forge_thanks to true>>
@@ -263,15 +268,17 @@
 	''"塔基墙根那片银白的花——味道闻久了会睡。要摘，先把气含住。"''
 <</if>>
 
-<<link "问他：为什么不自己去送">><<goto "守林人·送">><</link>>
-<<link "问他：你守的到底是什么">><<goto "守林人·守">><</link>>
-<<link "说一句：它不会变成恶龙">><<goto "守林人·信">><</link>>
-<<socpanel "守林人·术">>
-<<if $pc.keeper.state is "seal">>
-	[[那就让他念——用他家的封印术|守林人·封印]]
-<</if>>
-[[收下钥匙，去看那道门|门厅]]
-[[逼他动手：让他自己去|守林人·劝杀]]
+<div class="scene-acts" id="keeper-acts">
+	<<link "问他：为什么不自己去送">><<goto "守林人·送">><</link>>
+	<<link "问他：你守的到底是什么">><<goto "守林人·守">><</link>>
+	<<link "说一句：它不会变成恶龙">><<goto "守林人·信">><</link>>
+	<<socpanel "守林人·术">>
+	<<if $pc.keeper.state is "seal">>
+		[[那就让他念——用他家的封印术|守林人·封印]]
+	<</if>>
+	[[收下钥匙，去看那道门|门厅]]
+	[[逼他动手：让他自己去|守林人·劝杀]]
+</div>
 
 :: 守林人·劝杀
 /% payload: 张力|选择 %/
@@ -414,45 +421,48 @@
 	楼上有人在敲什么东西，一下，又一下，隔着楼板听不真切。
 <</if>>
 
+墙上那枚弯钩钉子空着，钩尖还挂着一点线头。楼上的脚步声在楼梯口停了停，又退了回去——这塔里的动静，各有各的来历。
+
+<div id="hall-act">
+/% #185：结果留屏（replace＋hallResult 单源） %/
 <<if not $pc.inv["坏哨"]>>
 	<<if $pc.ev.hall_seen>>
-		<<link "摘哨子（钉子怎么卡的，你已经看清了）">>
-			<<give "坏哨">><<goto "门厅">>
-		<</link>>
+		<<hallPick "已看清">>
 	<<else>>
 		<<lastcheckFor "门厅·翻检" "门厅·看钉" "门厅·硬掰">>
 		<<link "把墙上那支哨子摘下来">>
 			<<sitecheck "门厅·翻检">><<snapshot>>
-			<<if $last_check.success>>
-				你把哨子从钉子上提起来，收进行囊，可在''物品栏''查看。<<give "坏哨">>
-			<<else>>
-				哨子卡在钉子上。你拨了半天，指头刮破了一道口子——到底还是弄下来了。
-				<<damage 1>><<give "坏哨">>
-			<</if>>
-			<<goto "门厅">>
+			<<replace "#hall-act">><<hallResult "翻检">><</replace>>
 		<</link>>
 		<<link "先看清钉子是怎么卡的">>
 			<<sitecheck "门厅·看钉">><<snapshot>>
-			<<if $last_check.success>>
-				钉子锈成了一个钩，得往上提、再往外带。（''看准了，就不必用蛮力。''）<<set $pc.ev.hall_seen to true>>
-			<<else>>
-				灰太厚，看不清。（''看不通就用手：把墙上那支哨子摘下来。''）
-			<</if>>
-			<<goto "门厅">>
+			<<replace "#hall-act">>
+				<<lastcheck>>
+				<<if $last_check.success>>
+					钉子锈成了一个钩，得往上提、再往外带。（''看准了，就不必用蛮力。''）<<set $pc.ev.hall_seen to true>>
+					<<hallPick "已看清">>
+				<<else>>
+					灰太厚，看不清。（''看不通就用手。''）
+					<<link "把墙上那支哨子摘下来">>
+						<<sitecheck "门厅·翻检">><<snapshot>>
+						<<replace "#hall-act">><<hallResult "翻检">><</replace>>
+					<</link>>
+					<<link "踩上墙边那只箱子，硬掰下来">>
+						<<sitecheck "门厅·硬掰">><<snapshot>>
+						<<replace "#hall-act">><<hallResult "硬掰">><</replace>>
+					<</link>>
+				<</if>>
+			<</replace>>
 		<</link>>
 		<<link "踩上墙边那只箱子，硬掰下来">>
 			<<sitecheck "门厅·硬掰">><<snapshot>>
-			<<if $last_check.success>>
-				你借了箱子的高度，一把攥住哨子拧了下来。<<give "坏哨">>
-			<<else>>
-				箱子一滑，你磕在墙角上。<<damage 2>>好歹把哨子攥下来了。<<give "坏哨">>
-			<</if>>
-			<<goto "门厅">>
+			<<replace "#hall-act">><<hallResult "硬掰">><</replace>>
 		<</link>>
 	<</if>>
 <<else>>
-	（这里你已经''翻找过''了，没有别的。）
+	这里你已经''翻找过''了，没有别的。
 <</if>>
+</div>
 
 <<if not $pc.world.present_done>><<setflag "present_done">><</if>>
 

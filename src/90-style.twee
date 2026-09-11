@@ -380,6 +380,13 @@ body {
 .heard-fold[open] > summary { margin-bottom: 0.4em; }
 .heard-item { margin: 0.55em 0; }
 .action-feedback:focus-visible { outline: 1px solid #a9c0da; outline-offset: 0.3em; }
+/* ── #185 阶段二：T-场景行动区（通用）＋ T-战斗回合连续（检定→你→它→下一轮，紧凑成块）── */
+.scene-acts { display: flex; flex-direction: column; gap: 0.55em; margin-top: 1em; }
+.scene-acts > a { display: block; width: fit-content; max-width: 100%; margin: 0.3em 0; }
+.fight-log { margin: 0.45em 0; }
+.fight-acts { margin-top: 1em; }
+.fight-acts a { display: block; width: fit-content; max-width: 100%; margin: 0.4em 0; }
+.fight-acts .fight-meta { color: #8a7f6a; }
 
 @media (prefers-reduced-motion: reduce) {
 	.passage { animation: none; transition: none; }

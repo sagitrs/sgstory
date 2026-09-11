@@ -208,7 +208,7 @@ window.Game = (() => {
 			时光护符: {
 				hint: '女巫小屋——她把它从炉火边递到你手里。',
 				clues: [
-					{ id: 'own',  label: '来历：初代巫女那件星铁', test: (p) => !!p.inv['时光护符'] },
+					{ id: 'own',  label: '来历：那位巫女亲手打的星铁', test: (p) => !!p.inv['时光护符'] },
 					{ id: 'flip', label: '用法：翻转在原处生效', test: (p) => (p.star?.spent ?? 0) >= 1 },
 					{ id: 'fog',  label: '它每用一次，雾就淡一些', test: (p) => !!p.world?.fog_thin },
 				],
@@ -217,7 +217,7 @@ window.Game = (() => {
 				hint: '塔里二楼，烤炉后头那个暗格。',
 				clues: [
 					{ id: 'own',   label: '来历：她记那一夜的那一本', test: (p) => !!p.inv['日记'] },
-					{ id: 'cause', label: '那一夜发不动＝烧的是它自己的力气', test: (p) => !!p.ev?.failure_cause },
+					{ id: 'cause', label: '那一夜发不动＝缺的从来不是咒（差在哪，纸上没写）', test: (p) => !!p.ev?.failure_cause },
 					{ id: 'lock',  label: '能改的只有没被观测过的那部分', test: (p) => !!p.ev?.observation_lock },
 				],
 			},
@@ -282,7 +282,7 @@ window.Game = (() => {
 			传送术卷轴: {
 				hint: '日记的封底——她算清的那一卷夹在那里。',
 				clues: [
-					{ id: 'own',     label: '来历：初代巫女晚年算清的完整术式', test: (p) => !!p.inv['传送术卷轴'] },
+					{ id: 'own',     label: '来历：她算到最后才写全的术式', test: (p) => !!p.inv['传送术卷轴'] },
 					{ id: 'lock',    label: '她把没能用上的那一句写在旁边', test: (p) => !!p.ev?.observation_lock },
 					{ id: 'deliver', label: '只有守林人读得通', test: (p) => !!p.world?.scroll_delivered },
 				],

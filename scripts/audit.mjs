@@ -911,6 +911,7 @@ if (wantAll || arg('canon')) {
 		{ t: '晚年', why: '§9 #5：不点破老巫女＝晚年回到那一夜' },
 		// v17 补正 #7（#168 待确认②拍板）：星账正文无人感知、不可测量——"雾＝星力"谁也不许点破，谜底只在设定集·术语（终局后）
 		{ t: '漏出来的力气', allow: ['设定集·术语'], why: 'v17 补正 #7：谜底只在设定集（SgCodex.seenFinal() 门内）' },
+		{ t: '它自己的力气', allow: ['设定集·术语'], why: 'v17 补正 #7（#219 A1）：图鉴线索/正文不得写出等式变体' },
 		{ t: '路费', why: 'v17 补正 #7：正文的雾不许被记成一笔账' },
 		{ t: '这笔账', why: 'v17 补正 #7：星账无人感知、不可测量' },
 		{ t: '攒得还不够', why: 'v17 补正 #7：没人算过它的积蓄' },
@@ -1000,6 +1001,7 @@ if (wantAll || arg('canon')) {
 		if (typeof def.hint !== 'string' || !def.hint.trim()) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}」缺空页提示`); }
 		else if (def.hint.length > 40) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}」提示过长（≤40 字；实际 ${def.hint.length}）`); }
 		for (const d of DUALREAD) if ((def.hint ?? '').includes(d.t)) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}」提示出现「${d.t}」（${d.why}）`); }
+		for (const cl of clues) for (const d of DUALREAD) if ((cl.label ?? '').includes(d.t)) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}」线索「${cl.id}」出现「${d.t}」（${d.why}）`); } // #219 A1：线索 label 一并扫
 		const ids = clues.map((c) => c.id);
 		if (new Set(ids).size !== ids.length) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}」线索 id 重复`); }
 		for (const c of clues) {

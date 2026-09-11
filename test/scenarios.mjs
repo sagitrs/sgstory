@@ -245,6 +245,31 @@ async function routeSeizeStaffFail() {
 	return { w };
 }
 
+// ── 路线 37：#219 A3/C1②——宴散自动回未来（不耗星力）＋首次翻转免费 ──
+async function routeBanquetEnds() {
+	const { w, click: c } = await newGame(0.5, 0);
+	await toWitch(c);
+	await c('问塔里的门道');
+	await toTower(c);
+	await c('坠入');                       // 第一次翻转：免费（C1②）
+	if (pcOf(w).star.spent !== 0) throw new Error(`#219 C1②：首次翻转不该收费（spent=${pcOf(w).star.spent}）`);
+	await c('继续往塔那边走');
+	await c('有人从门里出来，拦住你');
+	await c('收下钥匙');
+	await c('用钥匙打开铁门');
+	await c('在宴上找人说话');
+	await c('看厅中央：仪式开始了');
+	await c('等宴散，护符自己会带你回去');  // A3：自动回未来
+	await c('看看现在这门外的雾');
+	if (w.SugarCube.State.variables.era !== 'present') throw new Error('#219 A3：宴散该自动回到现在');
+	if (passageOf(w) !== '塔门') throw new Error(`#219 A3：宴散该落在塔门（${passageOf(w)}）`);
+	if (pcOf(w).star.spent !== 0) throw new Error(`#219 A3：宴散自动回未来不该耗星力（spent=${pcOf(w).star.spent}）`);
+	if (!passageText(w).includes('淡了一些')) throw new Error('#219 A3：回现在该渲染「雾淡了一些」');   // flip 渲染即消耗 fog_thin
+	await c('翻转护身符：坠入');
+	if (pcOf(w).star.spent !== 1) throw new Error(`#219 C1②：首翻之后该正常收费（spent=${pcOf(w).star.spent}）`);
+	return { w };
+}
+
 // ── 路线 1：金路径 → 送星归位 ─────────────────────────────
 async function truePath(w, c) {
 	// 金路径的共同部分（走到「地下宴会厅（现在）」），供真结局路线与软限路线复用
@@ -277,6 +302,9 @@ async function truePath(w, c) {
 	await c('上顶楼');                     // 顶楼
 	await c('下楼，打开地下那道门');       // 地下宴会厅（过去）
 	await c('在宴上找人说话');             // 宴会·过去
+	await c('看厅中央：仪式开始了');           // #219 A3：送星宴仪式上演
+	if (pcOf(w).ev.ritual_seen !== true) throw new Error('#219 A3：看过仪式没落 ritual_seen');
+	await c('回到宴上');
 	await c('问那位一直在算星的人');       // 观星者
 	await c('它从哪颗星来');
 	await c('回到观星者');
@@ -1174,6 +1202,7 @@ const routes = [
 	['设定集四页', routeCodex],
 	['图鉴·永久解锁', routeBestiary],
 	['夺杖检定（#219 B1①）', routeSeizeStaffFail],
+	['宴散自动回未来（#219 A3/C1②）', routeBanquetEnds],
 	['龙·巢边', routeLair],
 	['老妇人', routeOldWoman],
 	['自愿的长眠', routeSleepVoluntary],

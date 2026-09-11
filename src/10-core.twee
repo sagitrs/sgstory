@@ -75,7 +75,7 @@ window.Pc = {
 			hp: 0, max_hp: 0, gold: 0, salves: 0,
 			// 世界
 			inv: {},              // 物品栏：{ 名: true }
-			star: { charge: 12, spent: 0 },   // 星力隐藏计数（玩家不可见）
+			star: { charge: 12, spent: 0, first_free: false },   // 星力隐藏计数（玩家不可见）；first_free：头一次翻转不收费（#219 C1②）
 			keeper: { met: false, trust: 0, state: 'post', key: false },
 			ev: {},               // 证据链
 			soc: { att: {}, tries: {}, read: {} },   // 交涉台账（B2）：态度偏移 / 同一手试过几次 / 读没读过这人
@@ -269,6 +269,11 @@ Macro.add('dragonbar', {
 	<span class="econ-note">（<<if _d lt 0>>金币 _d<<elseif _d gt 0>>金币 +_d<<else>>——<</if>>）</span>
 <</widget>>
 
+/% 时代切回现在（不耗星力：时间自己走完的场合专用——宴散/仪式终） %/
+<<widget "eraPresent">>
+	<<set $era to "present">>
+<</widget>>
+
 /% 拾取道具（物品栏）：<<give "日记">> %/
 <<widget "give">>
 	<<run $pc.inv[$args[0]] = true>>
@@ -296,7 +301,11 @@ Macro.add('dragonbar', {
 		<span class="era-drained">你身上没有能校进另一段时间的东西。</span>
 	<<else>>
 		<<link `($era is "present" ? "翻转护身符：坠入『过去』" : "翻转护身符：回到『现在』")`>>
-			<<set $pc.star.spent to $pc.star.spent + 1>>
+			<<if not $pc.star.first_free>>
+				<<set $pc.star.first_free to true>>   // #219 C1②：头一次翻转不收费——造它的人留的一点余量（一章「试试看」不该写死终局）
+			<<else>>
+				<<set $pc.star.spent to $pc.star.spent + 1>>
+			<</if>>
 			<<set $era to ($era is "present" ? "past" : "present")>>
 			<<if $era is "present">><<set $pc.world.fog_thin to true>><</if>>
 			<<goto `passage()`>>

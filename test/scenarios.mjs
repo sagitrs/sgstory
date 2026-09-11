@@ -900,9 +900,12 @@ async function routeExchangeGate() {
 	await c('在宴上找人说话');
 	await c('找那位握着哨子的人');
 	if (!links().some((s) => s.includes('把她那支哨换过来'))) throw new Error('图、杖、哨三齐后仍无换哨选项');
+	// #228：喂过花的人来换哨——她的 will 台词换成「那朵花」变体（挣扎半拍再交）
+	w.eval('(function(){SugarCube.State.variables.pc.world.flower_fed=true;})()');
 	await c('开口：把她那支哨换过来（换哨）');
 	await c('把那支哨收好');
 	if (pcOf(w).inv['好哨'] !== true || pcOf(w).inv['坏哨'] !== undefined) throw new Error('换哨没完成（好哨/坏哨交接）');
+	if (!passageText(w).includes('那朵花')) throw new Error('#228：喂花后来换哨，她该先问「那朵花」');
 	return { w };
 }
 

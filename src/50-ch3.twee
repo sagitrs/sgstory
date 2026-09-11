@@ -34,7 +34,7 @@
 	<</if>>
 <</if>>
 
-<<set $pc.ev.below_seen to true>>   // #219 B1②：下过地下即见过它
+<<set $pc.ev.below_seen to true>>   /% #219 B1②：下过地下即见过它 %/
 <<if not $pc.ev.threshold>>
 	<<if $era is "present">>
 		它尚未醒透。''还不是时候''——可这不意味着动手安全；惊动它，你就得承受它的反击。

@@ -111,6 +111,95 @@ async function getKey(c) {
 	await c('收下钥匙');
 }
 
+// ── 路线 34：中性骰金路径（#196）——d20 恒 11，检定会真失败；失败不锁死、替代路在、仍达真结局 ──
+//    既有金路径用 0.99（恒天然 20）：所有检定必成，「失败路径的体验」（重试/软锁/数值压力）从未被测过。
+async function routeNeutralGold() {
+	const { w, click: c } = await newGame(0.5, 0);      // d20 恒 11（中性骰）
+	const pc = () => pcOf(w);
+	// 酒馆问路：游说（冷淡 DC12）· 魅力 +0 → 11 必败 → 失败后其余手段仍在（B2：这一手更难 ≠ 封门）
+	await c('把话说圆：游说（问路）');
+	const tavText = passageText(w);
+	if (!tavText.includes('恐吓（问路）') || !tavText.includes('表演（问路）')) throw new Error('游说失败后问路的其余手段不在了（失败锁死）');
+	await toWitch(c);
+	await c('问塔里的门道');               // witch_hint（-8 金）
+	await toTower(c);
+	await c('坠入');
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('举起武器');
+	await fightTo(c, w, ['往塔那边去']);
+	await c('往塔那边去');                 // 守林人（空手 → _t=0）
+	await c('为什么不自己去送');
+	await c('回到守林人');
+	await c('你守的到底是什么');
+	await c('回到守林人');
+	// 问花：护符＝凭据 → 友好 DC7 · 11+0 过（中性骰也问得动——凭据的意义）
+	await c('把话说圆：游说（问花）');
+	if (pc().world.flower_warned !== true) throw new Error('友好态度（护符在场）下游说（DC7）该成功');
+	await c('收下钥匙');
+	await c('把墙上那支哨子摘下来');       // 调查 DC10 · 11+0 勉强过
+	await c('出塔，回到塔外');
+	await c('翻转护身符：回到');
+	await c('塔基墙根那片花');
+	await c('伸手去摘最靠里的那一朵');
+	await c('回塔门');
+	await c('翻转护身符：坠入');
+	await c('推门进去');
+	await c('先上二楼看看');
+	await c('指出架上一册错抄的星象历');   // 历史 · 11+0 过（+6 金）
+	await c('到拐角的小工坊看看');
+	await c('把它打完');                   // 护臂（-8 金 → 0）
+	await c('上三楼');
+	await c('在书架上找到一册');
+	await c('上顶楼');
+	await c('下楼，打开地下那道门');
+	await c('在宴上找人说话');
+	await c('问那位一直在算星的人');
+	await c('它从哪颗星来');
+	await c('回到观星者');
+	await c('拿出筹码：把风化了的书放回案上（求图）'); // 有书 → 免检
+	await c('把那张抄好的图收下');
+	await c('回到观星者');
+	await c('回到宴上');
+	await c('找那位握着哨子的人');
+	await c('在塔里找那根杖');
+	// 寻杖：问孩子（游说 DC12 · 11+0 必败）→ 失败后另两条路仍在 → 翻（调查 DC13 必败 → #199 带伤也拿到）
+	await c('拉住那个在桌子底下钻的孩子，问他看没看见一根杖');
+	if (pc().ev.staff_found === true) throw new Error('中性骰下游说（+0 vs DC12）不该找到杖');
+	const altText = passageText(w);
+	if (!altText.includes('自己动手翻') || !altText.includes('站在一边看')) throw new Error('问孩子失败后寻杖的另两条路不在了（失败锁死）');
+	const hpBefore = pc().hp;
+	await c('自己动手翻：桌布底下、酒箱后头都掀开看');
+	if (pc().ev.staff_found !== true) throw new Error('翻找失败也该带伤拿到杖（#199）');
+	if (pc().hp !== hpBefore - 1) throw new Error('带伤路没有付出 1 点代价（#199）');
+	await c('把杖拿回去还她');
+	if (pc().world.family_favor !== true) throw new Error('还杖未置 family_favor');
+	await c('开口：把她那支哨换过来（换哨）');
+	await c('把那支哨收好');
+	await c('回到当时的女巫');
+	await c('回到宴上');
+	await c('找厅角那位不肯多说的老人');
+	await c('回到宴上');
+	await c('去把花喂给它');
+	await c('回到宴上');
+	await c('回到地下宴会厅');
+	await c('翻转护身符：回到');
+	await c('安静地退出去');
+	await c('先上二楼看看');
+	await c('伸手去摸烤炉后头的暗格');     // witch_hint → 免检
+	await c('把暗格里的东西取出来');
+	await c('到拐角的小工坊看看');
+	await c('上三楼');
+	await c('上顶楼');
+	await c('把卷轴和星图交给他');
+	await c('下楼');
+	await c('叫醒它');
+	await c('让守林人动手');
+	await c('看着它走完');
+	if (passageOf(w) !== '结局 送星归位') throw new Error(`中性骰金路径未达真结局（停在 ${passageOf(w)}）`);
+	return { w };
+}
+
 // ── 路线 1：金路径 → 送星归位 ─────────────────────────────
 async function truePath(w, c) {
 	// 金路径的共同部分（走到「地下宴会厅（现在）」），供真结局路线与软限路线复用
@@ -1018,6 +1107,7 @@ const routes = [
 	['情报自己问（免检暗格）', routeAskForIt],
 	['非酋不读档（换属性路）', routeNoSaveScum],
 	['书房免伤路（#199）', routeStudyKnock],
+	['中性骰金路径（#196）', routeNeutralGold],
 	['乱翻的代价（星力软限）', routeTooManyFlips],
 	['结局页收尾（C1）', routeEndingFooter],
 	['女巫小屋·只治一次', routeWitchHealOnce],

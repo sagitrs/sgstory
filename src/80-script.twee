@@ -298,10 +298,21 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		content.querySelectorAll(BLOCK_ZONES).forEach((z) => {
 			[...z.childNodes].forEach((n) => { if (n.nodeName === 'BR') n.remove(); });
 		});
+		// 块级元素紧邻的 <br>：游走时要跳过空白文本节点（模板换行常夹在其间）
+		const isBlankText = (n) => n && n.nodeType === 3 && !n.textContent.trim();
 		content.querySelectorAll('div, details, p, h1, h2, h3, ul, ol').forEach((el) => {
-			let prev = el.previousSibling, next = el.nextSibling;
-			while (prev && prev.nodeName === 'BR') { const t = prev.previousSibling; prev.remove(); prev = t; }
-			while (next && next.nodeName === 'BR') { const t = next.nextSibling; next.remove(); next = t; }
+			let prev = el.previousSibling;
+			while (prev && (prev.nodeName === 'BR' || isBlankText(prev))) {
+				const t = prev.previousSibling;
+				if (prev.nodeName === 'BR') prev.remove();
+				prev = t;
+			}
+			let next = el.nextSibling;
+			while (next && (next.nodeName === 'BR' || isBlankText(next))) {
+				const t = next.nextSibling;
+				if (next.nodeName === 'BR') next.remove();
+				next = t;
+			}
 		});
 		let run = [];
 		const flush = () => { if (run.length > 2) run.slice(2).forEach((b) => b.remove()); run = []; };

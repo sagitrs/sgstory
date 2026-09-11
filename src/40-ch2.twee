@@ -224,8 +224,8 @@
 
 <<if $pc.ev.forge_seen and not $pc.ev.forge_thanks>>
 	<<set $pc.ev.forge_thanks to true>>
-	你替工坊的铁匠带了话。他摩挲了一下空着的左臂，才想起你说的是哪一件。
-	''"那是我先人的臂。他不来取，就归用得上的人。"''他顿了顿，"替我谢谢他。"
+	你替工坊的铁匠带了话。他摸了摸左臂：照他尺寸打的那副护臂，他一直没去取。
+	''"那是我先人的臂。他不来取，就归用得上的人。"''他顿了顿，"替我谢谢他。''要是你还能回到炉火旺的那一晚。''""
 <</if>>
 
 <<if not $pc.world.flower_warned>>
@@ -567,12 +567,18 @@
 	（这甲是照一个人的手臂打的，那人还没来取。）
 <</if>>
 
-<<if not $pc.inv["龙鳞护臂"] and $pc.gold gte (-Game.Economy.priceOf("forged_scale", $pc))>>
-	<<link `"花 " + (-Game.Economy.priceOf("forged_scale", $pc)) + " 金币：把它打完，自己带上"`>>
-		<<econ "forged_scale">><<give "龙鳞护臂">><<goto "工坊">>
-	<</link>>
-<<else>>
+<<if $pc.inv["龙鳞护臂"]>>
 	（护臂你已经带上了。）
+<<elseif $era is "past">>
+	<<if $pc.gold gte (-Game.Economy.priceOf("forged_scale", $pc))>>
+		<<link `"花 " + (-Game.Economy.priceOf("forged_scale", $pc)) + " 金币：把它打完，自己带上"`>>
+			<<econ "forged_scale">><<give "龙鳞护臂">><<goto "工坊">>
+		<</link>>
+	<<else>>
+		铁匠把手一摊。''你的钱不够。''
+	<</if>>
+<<else>>
+	炉膛凉了三百年。''要打完它，得回到炉火还旺的那一晚。''
 <</if>>
 
 [[上三楼|天文台]]
@@ -647,7 +653,20 @@
 
 <<if $pc.keeper.key or $pc.inv["守林人的钥匙"]>>
 	[[下楼，打开地下那道门|地下宴会厅]]
-[[把卷轴和星图交给他|交付]]
+<<if $pc.ev.delivery_short>>
+	你翻遍行囊，又摊开手。''东西还没凑齐。''
+	<<if not $pc.inv["传送术卷轴"]>>缺''传送术卷轴''。<</if>>
+	<<if not $pc.inv["完整星图"]>>缺''完整星图''。<</if>>
+	<<set $pc.ev.delivery_short to false>>
+<</if>>
+<<if $pc.inv["传送术卷轴"] and $pc.inv["完整星图"]>>
+	[[把卷轴和星图交给他|交付]]
+<<else>>
+	<<link "把卷轴和星图交给他">>
+		<<set $pc.ev.delivery_short to true>>
+		<<goto "顶楼">>
+	<</link>>
+<</if>>
 <<else>>
 	[[下楼|门厅]]
 <</if>>
@@ -686,7 +705,7 @@
 :: 结局 焚塔者
 <<ending "焚塔者" chapter>>
 /% payload: 信息 %/
-杖断成两截。塔开始塌，从顶楼一路塌到地基。
+杖断成两截。''撑着这座塔的星力，原来一直顺着这根杖走''。断口处白光一泄，塔从顶楼一路塌到地基。
 
 雾从四面八方涌来，又被塌下来的石头撕成碎缕。你从烟里走出去的时候，林子安静了。
 

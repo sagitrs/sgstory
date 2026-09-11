@@ -27,7 +27,8 @@ for (const [k, v] of Object.entries(rows)) {
 	else console.log(`✓ ${k}: ${v}B = 基线`);
 }
 if (update) {
-	writeFileSync(BASELINE, JSON.stringify({ note: '产物体积预算（字节）。只许降不许升——确需增大请 --update-size 重签并在 PR 写明理由。', rows }, null, '\t') + '\n', 'utf8');
+	// 重签保留容差表（#211：跨环境噪声由容差吸收——丢了 tolerancePct 会退化成 0B 硬 ratchet）
+	writeFileSync(BASELINE, JSON.stringify({ note: '产物体积预算（字节）。只许降不许升——确需增大请 --update-size 重签并在 PR 写明理由。', rows, ...(parsed.tolerancePct ? { tolerancePct: parsed.tolerancePct } : {}) }, null, '\t') + '\n', 'utf8');
 	console.log('✔ 体积基线已重签');
 	process.exit(0);
 }

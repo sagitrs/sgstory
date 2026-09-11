@@ -912,6 +912,12 @@ window.Game = (() => {
 			// 首遇门控：由 firstTime widget 消费 _first（静态扫描看不见该读点），玩家侧后果＝首遇/复访两段文本
 			tav_seen: '酒馆首遇门控（firstTime widget）',
 			keeper_intro: '守林人首遇门控（firstTime widget）',
+			// dev #277 扩面后新增的首遇门控（同一 widget 消费 _first；静态扫描看不见读点）
+			seer_intro: '观星者首遇门控（#277，firstTime widget）',
+			witch_intro: '当时的女巫首遇门控（#277）',
+			banquet_intro: '宴会首遇门控（#277）',
+			observatory_intro: '天文台首遇门控（#277）',
+			tower_top_intro: '顶楼首遇门控（#277）',
 		},
 	};
 

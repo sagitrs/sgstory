@@ -399,7 +399,7 @@ window.Game = (() => {
 	// ── 选择意义感（D2）：选择位点 × 臂数 ────────────────────
 	const Choices = {
 		sites: [
-			{ id: '酒馆·打听', p: '酒馆', arms: 14, kind: 'social', landing: 'route' },
+			{ id: '酒馆·打听', p: '酒馆', arms: 11, kind: 'social', landing: 'route' },
 			{ id: '女巫小屋·提问', p: '女巫小屋', arms: 11, kind: 'social', landing: 'route' },
 			{ id: '森林边缘·听雾', p: '森林边缘', arms: 3, kind: 'route', landing: 'route' },
 			{ id: '洞穴·处置', p: '洞穴', arms: 3, kind: 'moral', landing: 'route' },

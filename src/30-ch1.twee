@@ -61,13 +61,6 @@
 <details class="heard-fold">
 	<summary>已听到的传闻<span class="act-n"></span></summary>
 	<div id="tav-heard" class="tavern-heard">
-<<if $pc.ev.tav_light>>
-	<div class="heard-item" data-heard="tav_light">
-<p>——靠窗那桌：''"我爷爷的爷爷见过塔上亮着灯。三百年了，那灯没灭过。"''</p>
-<p>他说完自己也笑了笑，像是从没想过谁在添油。</p>
-
-	</div>
-<</if>>
 <<if $pc.ev.tav_keeper>>
 	<div class="heard-item" data-heard="tav_keeper">
 <p>——讲守林人的那桌：''"个子很高，背有点驼，手里那根杖看着像木头，敲在石头上却不出声。"''</p>
@@ -92,13 +85,6 @@
 
 	</div>
 <</if>>
-<<if $pc.ev.tav_seal>>
-	<div class="heard-item" data-heard="tav_seal">
-<p>——掉了半口牙的老头把碗往桌上一顿：''"封印？三百年前那女巫把它''按在塔底下''——这种事也能说'死'？"''</p>
-<p>他啐了一口，低头接着吃。</p>
-
-	</div>
-<</if>>
 <<if $pc.ev.tav_ageless>>
 	<div class="heard-item" data-heard="tav_ageless">
 <p>——有人接嘴：''"那女巫还住在塔上呢。''不老的女人''。我爷爷见过她，我爹见过她，前年我上山，也见过她。"''</p>
@@ -110,12 +96,6 @@
 	<div class="heard-item" data-heard="tav_flower">
 <p>——背着画板的游客在问老板娘：''月光花''在哪儿采。"都说这是''这儿的特产''，只在塔附近有。我采一束带回去，做个纪念。"</p>
 <p>老板娘没答他，只是把杯子擦得更用力了。</p>
-
-	</div>
-<</if>>
-<<if $pc.ev.tav_iron>>
-	<div class="heard-item" data-heard="tav_iron">
-<p>——"前些年有队人进去过。"柜台边有人说，"回来三个，什么都没带出来，只说''铁门锁着''。"</p>
 
 	</div>
 <</if>>
@@ -135,9 +115,6 @@
 <details class="act-group" name="tavern-acts" open>
 	<summary>找人打听<span class="act-n"></span></summary>
 	<div class="tavern-tables">
-<<if not $pc.ev.tav_light>>
-	<<link "靠窗那桌——他们在讲塔上那盏灯">><<set $pc.ev.tav_light to true>><<goto "酒馆">><</link>>
-<</if>>
 <<if not $pc.ev.tav_keeper>>
 	<<link "讲守林人的那一桌">><<set $pc.ev.tav_keeper to true>><<goto "酒馆">><</link>>
 <</if>>
@@ -147,17 +124,11 @@
 <<if not $pc.ev.tav_grudge>>
 	<<link "跑生意的——他说雾是怨念">><<set $pc.ev.tav_grudge to true>><<goto "酒馆">><</link>>
 <</if>>
-<<if not $pc.ev.tav_seal>>
-	<<link "掉了半口牙的老头——他嗤了一声">><<set $pc.ev.tav_seal to true>><<goto "酒馆">><</link>>
-<</if>>
 <<if not $pc.ev.tav_ageless>>
 	<<link "接嘴的那个人——「不老的女人」">><<set $pc.ev.tav_ageless to true>><<goto "酒馆">><</link>>
 <</if>>
 <<if not $pc.ev.tav_flower>>
 	<<link "背着画板的游客——他在问月光花">><<set $pc.ev.tav_flower to true>><<goto "酒馆">><</link>>
-<</if>>
-<<if not $pc.ev.tav_iron>>
-	<<link "前些年那队人">><<set $pc.ev.tav_iron to true>><<goto "酒馆">><</link>>
 <</if>>
 <<if not $pc.ev.tav_painting>>
 	<<link "墙上那幅旧画">><<set $pc.ev.tav_painting to true>><<goto "酒馆">><</link>>
@@ -191,6 +162,7 @@
 	<<if not $pc.inv["时光护符"]>>
 	<<link "问一句女巫小屋怎么走">><<goto "女巫小屋">><</link>>
 <</if>>
+	<<link "离店前，去井台打点水">><<goto "村中井台">><</link>>
 	[[推门出发，走进暮色|森林边缘]]
 	[[就此回头，把这片林子留给别人|结局 平凡之路]]
 </details>
@@ -250,6 +222,8 @@
 
 [[走进山脚的洞穴|洞穴]]
 [[去那间亮着灯的小屋|女巫小屋]]
+[[路口钉着半截木牌|废哨站]]
+[[林缘空地有人抽烟斗|林缘空地]]
 
 :: 洞穴
 /% payload: 信息|选择 %/
@@ -311,7 +285,7 @@
 	<<set $pc.ev.wq_seen to true>>
 	屋里更暖。一个女人背对着你，在炉子前搅着什么。她回头时，你愣了一下——<<if $pc.ev.tav_painting>>她的身形与衣着，依稀像酒馆旧画上站在长桌尽头的女人。可画上的脸早已模糊，你无从细比。<<else>>她停下手里的活，抬眼等你开口。<</if>>
 
-	（你还没开口，她先点了下头。）
+	你还没开口，她先点了下头。
 
 	她看了你一会儿，不快，也不客气。
 
@@ -496,3 +470,48 @@
 </div>
 
 [[📖 打开设定集|设定集]]
+
+:: 村中井台
+/% payload: 信息 %/
+井台青苔滑手。一个妇人蹲在井边搓衣，看见你，只把身子往旁边让了让。
+
+你摇水上来，凉气顺着绳子爬上手背。
+
+她拧衣服的水声停了一下，朝塔的方向抬了抬下巴："那灯又亮了一整夜。"
+
+你顺着看过去，才注意到塔顶那一点光。她不再说了，把衣服按回水里。
+
+<<set $pc.ev.tav_light to true>>
+
+她的原话你记下了：''"我爷爷的爷爷见过塔上亮着灯。三百年了，那灯没灭过。"''说完她自己笑了笑，也不知道信不信。
+
+[[回酒馆|酒馆]]
+[[推门出发，走进暮色|森林边缘]]
+
+:: 废哨站
+/% payload: 信息 %/
+林子口钉着半截木牌，字迹被雨水泡得发涨：
+
+''"铁门锁着，别白费脚程。"''
+
+牌子底下压着几根烧过的火把梗，浸透了又干透，弯成钩状。泥地上的靴印深的深浅的浅，全都朝着同一个方向。
+
+<<set $pc.ev.tav_iron to true>>
+
+[[退回林子|森林边缘]]
+
+:: 林缘空地
+/% payload: 信息 %/
+一个干瘦的老人坐在树桩上抽烟斗，烟锅早就灭了。他脚边放着一杆老铳，枪口塞着布。
+
+看见你，他没拦，也没让。
+
+你问起塔底下的事。他把烟斗从嘴里拿出来，磕了磕。
+
+"都传是女巫把它''按在塔底下''。按没按住，只有那家人自己清楚。"
+
+他又把烟斗塞回去，闭上眼。再问，他就只剩抽烟的声音了。
+
+<<set $pc.ev.tav_seal to true>>
+
+[[回到林子边缘|森林边缘]]

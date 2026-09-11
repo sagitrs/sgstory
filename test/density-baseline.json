@@ -56,16 +56,16 @@
 			"chars": 489
 		},
 		"女巫小屋": {
-			"dash": 12.7,
-			"like": 2.9,
-			"paren": 4.9,
-			"chars": 1026
+			"dash": 10.7,
+			"like": 2.5,
+			"paren": 4.0,
+			"chars": 1211
 		},
 		"守林人": {
-			"dash": 8.7,
-			"like": 1.2,
-			"paren": 2.5,
-			"chars": 809
+			"dash": 7.9,
+			"like": 1.1,
+			"paren": 2.3,
+			"chars": 888
 		},
 		"守林人·信": {
 			"dash": 7.9,
@@ -110,10 +110,16 @@
 			"chars": 133
 		},
 		"工坊": {
-			"dash": 5.9,
+			"dash": 5.7,
 			"like": 0,
-			"paren": 7.9,
-			"chars": 506
+			"paren": 7.6,
+			"chars": 527
+		},
+		"废哨站": {
+			"dash": 0,
+			"like": 0,
+			"paren": 0,
+			"chars": 94
 		},
 		"开场": {
 			"dash": 6.7,
@@ -122,10 +128,10 @@
 			"chars": 450
 		},
 		"归位": {
-			"dash": 9,
-			"like": 15.1,
-			"paren": 6,
-			"chars": 332
+			"dash": 7,
+			"like": 11.7,
+			"paren": 4.7,
+			"chars": 427
 		},
 		"当时的女巫": {
 			"dash": 6.3,
@@ -139,6 +145,18 @@
 			"paren": 0,
 			"chars": 147
 		},
+		"村中井台": {
+			"dash": 0,
+			"like": 0,
+			"paren": 0,
+			"chars": 185
+		},
+		"林缘空地": {
+			"dash": 0,
+			"like": 0,
+			"paren": 0,
+			"chars": 146
+		},
 		"林间小径": {
 			"dash": 4,
 			"like": 0,
@@ -146,16 +164,16 @@
 			"chars": 250
 		},
 		"森林边缘": {
-			"dash": 11.6,
-			"like": 11.6,
+			"dash": 11.5,
+			"like": 11.5,
 			"paren": 2.9,
-			"chars": 345
+			"chars": 347
 		},
 		"洞穴": {
-			"dash": 7.1,
-			"like": 2.4,
-			"paren": 2.4,
-			"chars": 422
+			"dash": 6.5,
+			"like": 2.2,
+			"paren": 2.2,
+			"chars": 459
 		},
 		"结局 再度沉睡": {
 			"dash": 3,
@@ -245,7 +263,7 @@
 			"dash": 0,
 			"like": 0,
 			"paren": 6.1,
-			"chars": 164
+			"chars": 165
 		},
 		"老妇人": {
 			"dash": 0,
@@ -344,16 +362,16 @@
 			"chars": 277
 		},
 		"酒馆": {
-			"dash": 11.6,
-			"like": 2.5,
-			"paren": 2.5,
-			"chars": 1205
+			"dash": 8.9,
+			"like": 1.8,
+			"paren": 2.7,
+			"chars": 1121
 		},
 		"门厅": {
-			"dash": 1.7,
-			"like": 3.3,
-			"paren": 5,
-			"chars": 598
+			"dash": 1.6,
+			"like": 3.1,
+			"paren": 4.7,
+			"chars": 645
 		},
 		"雾之魔物": {
 			"dash": 12.7,
@@ -388,8 +406,8 @@
 		"龙·巢边": {
 			"dash": 0,
 			"like": 0,
-			"paren": 9.6,
-			"chars": 104
+			"paren": 7.8,
+			"chars": 128
 		},
 		"龙·战": {
 			"dash": 7.5,

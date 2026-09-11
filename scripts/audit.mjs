@@ -928,14 +928,14 @@ if (wantAll || arg('canon')) {
 	// ⑤ §3.9 传说覆盖门（v17）：每条传说都要①登记在对照表 ②在正文里有 NPC 投放锚
 	const LEGENDS = [
 		{ row: '那条龙早死了', anchors: ['那条龙早死了'], says: '长者' },
-		{ row: '三百年前女巫把它封印在塔下', anchors: ['按在塔底下'], says: '酒客' },
+		{ row: '三百年前女巫把它封印在塔下', anchors: ['按在塔底下'], says: '老猎人' },
 		{ row: '雾是它死后的怨念', anchors: ['怨念', '怨灵'], says: '冒险者' },
 		{ row: '月光花是这儿的特产', anchors: ['这儿的特产'], says: '游客' },
 		{ row: '月光花夜里接着星光长，谢下来就散成雾', anchors: ['雾是它谢下来的'], says: '跑生意的' },
 		{ row: '塔上住着个不老的女人', anchors: ['不老的女人'], says: '酒客' },
 		{ row: '谁也说不清他守的是什么', anchors: ['他拦过我一回'], says: '酒客' },
 		{ row: '雾是从塔那边来的', anchors: ['雾是从塔那边来的'], says: '老板娘' },
-		{ row: '前些年进去过一队人', anchors: ['铁门锁着'], says: '酒客' },
+		{ row: '前些年进去过一队人', anchors: ['铁门锁着'], says: '废哨站钉牌' },
 	];
 	const s39 = lore.match(/^### 3\.9[\s\S]*?(?=^\n---\n)/m)?.[0] ?? '';
 	const legendBlock = s39.split(/\n\s*\n/).find((b2) => b2.includes('传说（正文里只能出现在 NPC 口中）')) ?? '';

@@ -869,32 +869,42 @@ async function routeEraBranches() {
 async function routeTavernAllTables() {
 	const { w, click: c } = await newGame(0.5, 0);
 	const tables = [
-		['靠窗那桌——他们在讲塔上那盏灯', 'tav_light'],
 		['讲守林人的那一桌', 'tav_keeper'],
 		['上了年纪的村人——他说那条龙早死了', 'tav_dragon'],
 		['跑生意的——他说雾是怨念', 'tav_grudge'],
-		['掉了半口牙的老头——他嗤了一声', 'tav_seal'],
 		['接嘴的那个人——「不老的女人」', 'tav_ageless'],
 		['背着画板的游客——他在问月光花', 'tav_flower'],
-		['前些年那队人', 'tav_iron'],
 		['墙上那幅旧画', 'tav_painting'],
 	];
 	for (const [label, flag] of tables) {
 		await c(label);
 		if (pcOf(w).ev[flag] !== true) throw new Error(`点了「${label}」却没记下 ${flag}（这一桌的内容没落地？）`);
 	}
-	// 每桌听完，酒馆里的传闻都该在正文里出现过一遍（§3.9 传说只能由 NPC 口耳相传）
-	const text = passageText(w);
-	for (const key of ['不老的女人', '铁门锁着', '怨念', '封印']) {
-		if (!text.includes(key)) throw new Error(`听完所有桌子，正文里没出现「${key}」`);
+	const tavText = passageText(w);
+	for (const key of ['不老的女人', '怨念']) {
+		if (!tavText.includes(key)) throw new Error(`听完所有桌子，正文里没出现「${key}」`);
 	}
+	// 散布的三条（#217）：井台（灯）/ 废哨站（铁门）/ 林缘空地（封印）
+	await c('离店前，去井台打点水');
+	if (pcOf(w).ev.tav_light !== true) throw new Error('井台的灯传闻没记账（tav_light）');
+	if (!passageText(w).includes('三百年了，那灯没灭过')) throw new Error('井台的灯传闻没落地');
+	await c('推门出发，走进暮色');
+	await c('路口钉着半截木牌');
+	if (pcOf(w).ev.tav_iron !== true) throw new Error('哨站的铁门传闻没记账（tav_iron）');
+	if (!passageText(w).includes('铁门锁着')) throw new Error('哨站的铁门传闻没落地');
+	await c('退回林子');
+	await c('林缘空地有人抽烟斗');
+	if (pcOf(w).ev.tav_seal !== true) throw new Error('老猎人的封印传闻没记账（tav_seal）');
+	if (!passageText(w).includes('按在塔底下')) throw new Error('老猎人的封印传闻没落地');
+	await c('回到林子边缘');
 }
 
 async function routeTavernAsk() {
 	const { w, click: c } = await newGame(0.01, 0);   // d20 恒 1：所有检定必败
 	// 酒馆：一桌一问（问过就消失）
-	await c('靠窗那桌——他们在讲塔上那盏灯');
-	if (pcOf(w).ev.tav_light !== true) throw new Error('问过的那桌没记账');
+	await c('离店前，去井台打点水');
+	if (pcOf(w).ev.tav_light !== true) throw new Error('井台的灯传闻没记账（tav_light）');
+	await c('回酒馆');
 	// ① 游说失败 → 「这一手」的 DC 递增（2024：不许原地重掷）
 	const dcOf = (site) => w.eval(`Game.Social.dcOf(Game.Social.ask('老板娘·进塔'), '${site}', SugarCube.State.variables.pc)`);
 	const before = Object.fromEntries(['酒馆·打听', '老板娘·吓'].map((s) => [s, dcOf(s)]));
@@ -994,7 +1004,7 @@ async function routeNoSaveScum() {
 	const pc = pcOf(w);
 	pc.abilities = { str: 10, dex: 10, con: 14, int: 8, wis: 16, cha: 8 };
 	pc.ev = {};
-	await c('靠窗那桌——他们在讲塔上那盏灯');     // 酒馆问一桌
+	await c('离店前，去井台打点水');     // 酒馆问一桌 → 已散布到井台（#217）
 	await c('推门出发，走进暮色');
 	await c('去那间亮着灯的小屋');
 	await c('谢过她，往林子深处走');

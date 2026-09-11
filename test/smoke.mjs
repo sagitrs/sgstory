@@ -78,11 +78,11 @@ assert(w.document.activeElement.closest('[data-heard="tav_ageless"]'), '焦点�
 assert(fresh.compareDocumentPosition(w.document.querySelector('.tavern-actions')) & FOLLOWING, '本次回答槽在行动区之前（读完就是选项）');
 assert(links().filter((a) => fresh.compareDocumentPosition(a) & FOLLOWING).length >= 5, '本次回答之后还有可点选项——阅读方向向下，不回头向上找');
 assert(!w.document.querySelector('.heard-fold') || w.document.querySelector('.heard-fold').hidden, '首次打听后记录区为空，整块隐藏不留空壳');
-await click('靠窗那桌——他们在讲塔上那盏灯');   // 逆序问一桌
-assert(w.SugarCube.State.variables.pc.ev.tav_light === true, '问过的那桌记账（tav_light）');
+await click('跑生意的——他说雾是怨念');   // 逆序问一桌
+assert(w.SugarCube.State.variables.pc.ev.tav_grudge === true, '问过的那桌记账（tav_grudge）');
 fresh = w.document.querySelector('.fresh-heard');
-assert(fresh.textContent.includes('三百年了，那灯没灭过') && !fresh.textContent.includes('前年我上山'), '本次回答槽只留最新一条');
-assert(w.document.activeElement.closest('[data-heard="tav_light"]'), '逆序提问定位新回答（槽内整组容器）');
+assert(fresh.textContent.includes('雾是它谢下来的') && !fresh.textContent.includes('前年我上山'), '本次回答槽只留最新一条');
+assert(w.document.activeElement.closest('[data-heard="tav_grudge"]'), '逆序提问定位新回答（槽内整组容器）');
 const tavFold2 = w.document.querySelector('.heard-fold');
 assert(tavFold2 && !tavFold2.hidden && tavFold2.textContent.includes('前年我上山'), '上一条回到已读折叠归档');
 assert(links().filter((a) => fresh.compareDocumentPosition(a) & FOLLOWING).length >= 5, '逆序提问后剩余选项仍在回答之后（方向不回头）');
@@ -94,6 +94,10 @@ const lastHeard = [...tavFold2.querySelectorAll('p')].pop();
 assert(links().filter((a) => lastHeard.compareDocumentPosition(a) & FOLLOWING).length >= 3, '展开折叠读到底，其后仍有出口（不回头向上找）');
 assert(links().some((a) => a.textContent.includes('金币：买一支火把')), '火把购买链接存在（表驱动价）');
 assert(links().some((a) => a.textContent.includes('听老猎人讲实话')), '付费传闻链接存在（表驱动价）');
+await click('离店前，去井台打点水');   // #217：灯的传闻散布到井台
+assert(w.SugarCube.State.variables.pc.ev.tav_light === true, '井台的灯传闻记账（tav_light）');
+assert(w.document.querySelector('#passages').textContent.includes('三百年了，那灯没灭过'), '井台的灯传闻渲染');
+await click('回酒馆');
 
 await click('推门出发，走进暮色');
 

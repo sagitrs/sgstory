@@ -61,7 +61,9 @@ test/smoke.mjs    无头冒烟测试（快速车卡 → 酒馆 → 森林 → �
 test/boot.mjs      共享 JSDOM 启动（就绪轮询 + uncaught 监听 + `settle()` 等 Engine.isIdle 且 DOM 跟 State 同步
                    + 退出清理 + 可点选择器 CLICKABLE/CLICKABLE_SEL/LINKS）
                    ——渲染/冒烟/规则/属性/场景/游走全部走这里，不各自装配 JSDOM
-test/scenarios.mjs 分支场景测试（32 条路线：金路径 + 全部结局 + 设定集 + 图鉴 + 龙巢边 + 时代分叉 + 封印战 + 反 S/L + 星力软限 + 结局页收尾 + 女巫小屋只治一次 + 酒馆把桌子听遍 + 文本上下文）
+test/scenarios.mjs 分支场景测试（39 条路线：金路径 + 全部结局 + 设定集 + 图鉴 + 龙巢边 + 时代分叉 + 封印战 + 反 S/L + 星力软限 + 结局页收尾 + 女巫小屋只治一次 + 酒馆把桌子听遍 + 文本上下文 + **跨周目粘性**）
+                   ——跨周目口径（#271）：图鉴账本（localStorage）跨周目保留；谜底门＝「**曾经**走到过终局」，
+                   因此走到过终局的档在新周目开局即可在设定集·术语读到谜底；`sgRestartRun()` 只重置本局状态，不动账本。
 test/rules.mjs    规则层单测 + 表契约（10 组）+ 存档兼容矩阵（test/fixtures/saves/ 每版历史形状一档；改 Pc.defaults 必须同 PR 加 fixture）
 test/properties.mjs L5 数值属性：判定边界全枚举/优势支配律/伤害界限/战斗伤害单调律/车卡形状律
 scripts/audit.mjs   质量十一门 + **文字工艺门（--craft）**：真相可达性/**canon 门**（设定书 §10 黑名单回流 + §9 双读断言扫描 + §3.9 传说覆盖 + §5.0 道具消费）/

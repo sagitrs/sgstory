@@ -362,7 +362,8 @@ for (const file of fixtures) {
 	ok(!!flipLink && flipLink.textContent.includes('过去'), 'flip 词汇：现在时渲染「坠入过去」链接');
 	flipLink.click();
 	await sleep(250);
-	ok(V().era === 'past' && V().pc.star.spent === 1, `flip 词汇：现在→过去，星力 spent +1（实际 ${V().era}/${V().pc.star.spent}）`);
+	// #219 C1②：首次翻转不收费（first_free 置位，spent 不动）
+	ok(V().era === 'past' && V().pc.star.spent === 0 && V().pc.star.first_free === true, `flip 词汇：首翻免费——era past / spent 0 / first_free（实际 ${V().era}/${V().pc.star.spent}/${V().pc.star.first_free}）`);
 	const flipHost2 = w.document.createElement('div');
 	new w.SugarCube.Wikifier(flipHost2, '<<flip>>');
 	const flipLink2 = flipHost2.querySelector('a.link-internal');
@@ -370,6 +371,7 @@ for (const file of fixtures) {
 	flipLink2.click();
 	await sleep(250);
 	ok(V().era === 'present' && V().pc.world.fog_thin === true, `flip 词汇：回现在留「雾淡」痕迹（实际 ${V().era}/${V().pc.world.fog_thin}）`);
+	ok(V().pc.star.spent === 1, `flip 词汇：首翻之后正常收费 spent=1（实际 ${V().pc.star.spent}）`);
 }
 
 // ── B1 战斗动作池：每轮随机 3 选 1（每手＝一次属性化检定，三档后果）──

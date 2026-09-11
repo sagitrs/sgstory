@@ -383,25 +383,41 @@ window.Game = (() => {
 	// ── 世界活性回声（D4）：行为 × 回声，锚句机检 ─────────────
 	const Echoes = {
 		list: [
-			{ id: '传闻→洞穴', cause: { flag: 'rumor' }, kind: 'ch1→ch1', echo: [{ p: '洞穴', anchor: '老猎人的话' }] },
+			// #266：原锚「老猎人的话」在击杀 link 体内（点击态、且随后被 goto 重绘吞）——改锚入场可见的那一行
+			{ id: '传闻→洞穴', cause: { flag: 'rumor' }, kind: 'ch1→ch1', echo: [{ p: '洞穴', anchor: '老猎人说过' }] },
 			{ id: '放生→花田', cause: { flag: 'goblin_spared' }, kind: 'ch1→ch2', echo: [{ p: '塔外花田', anchor: '你放走了我们家的' }] },
 			{ id: '女巫门道→书房', cause: { flag: 'witch_hint' }, kind: 'ch1→ch2', echo: [{ p: '书房', anchor: '女巫说的暗格' }] },
-			{ id: '雾中交手→守林人', cause: { flag: 'mist_fought' }, kind: 'ch2→ch2', echo: [{ p: '守林人', anchor: '路上那团雾' }] },
-			{ id: '问过观星者', cause: { flag: 'seer_asked' }, kind: 'ch3→ch3', echo: [{ p: '交付', anchor: '观星者算过的那一轨' }] },
+			// #266：实际渲染门是「和平让路」（mist_guard），不是「交过手」（mist_fought）——语义随门更正
+			{ id: '让路→守林人', cause: { flag: 'mist_guard' }, kind: 'ch2→ch2', echo: [{ p: '守林人', anchor: '路上那团雾' }] },
+			// #266：「问过观星者」原与「星图在手」同段同支（该行由交付双件门控，与 seer_asked 无因果）——并入下条；
+			// 问星/问夜 的效果只在当场文本＋图鉴线索（见 exempt.seer_asked）
 			{ id: '还杖→换哨', cause: { flag: 'family_favor' }, kind: 'past→past', echo: [{ p: '当时的女巫', anchor: '那一眼比刚才软' }] },
 			{ id: '喂过花', cause: { flag: 'flower_fed' }, kind: 'past→present', echo: [{ p: '龙·巢边', anchor: '它睡得沉' }] },
-			{ id: '吹响好哨', cause: { flag: 'whistle_blown' }, kind: 'past→present', echo: [{ p: '归位', anchor: '哨声' }] },
-			{ id: '交付卷轴', cause: { flag: 'scroll_delivered' }, kind: 'ch3→ch3', echo: [{ p: '归位', anchor: '守林人握紧了卷轴' }] },
-			{ id: '星图在手', cause: { token: '完整星图' }, kind: 'past→present', echo: [{ p: '交付', anchor: '星图摊开' }] },
+			// #266：原锚「哨声」在归位段是无条件散文（假回声）——改锚到吹哨这个动作本身的所在分支
+			{ id: '吹响好哨', cause: { flag: 'whistle_blown' }, kind: 'past→present', echo: [{ p: '唤醒', anchor: '你吹响那支哨', gate: 'inv\\["好哨"\\]' }] },
+			// #266：同理——改锚到交付成功分支（归位段那句人人可见，无区分度）
+			{ id: '交付卷轴', cause: { flag: 'scroll_delivered' }, kind: 'ch3→ch3', echo: [{ p: '交付', anchor: '我们一起送它回家', gate: 'inv\\["传送术卷轴"\\]' }] },
+			{ id: '星图在手', cause: { token: '完整星图' }, kind: 'past→present', echo: [{ p: '交付', anchor: '观星者算过的那一轨' }] },
+			// #269：反向排查补登——代码里真实存在、此前未登记的跨场景反馈
+			{ id: '看画→女巫小屋', cause: { flag: 'tav_painting' }, kind: 'ch1→ch1', echo: [{ p: '女巫小屋', anchor: '依稀像酒馆旧画' }] },
+			{ id: '两诫→洞穴', cause: { flag: 'tav_tips' }, kind: 'ch1→ch1', echo: [{ p: '洞穴', anchor: '你想起老板娘那句话' }] },
+			{ id: '托话→守林人', cause: { flag: 'forge_seen' }, kind: 'ch2→ch2', echo: [{ p: '守林人', anchor: '你替工坊的铁匠带了话' }] },
+			{ id: '宴上老人→归位', cause: { flag: 'old_witch' }, kind: 'past→present', echo: [{ p: '归位', anchor: '银屑里浮起几点很淡的光' }] },
+			// #269：锚在 <<link>> 体内，但该 link 用 <<replace>> 原地重绘（结果留屏，非 goto 吞）——登记豁免
+			{ id: '花警告→花田', cause: { flag: 'flower_warned' }, kind: 'ch1→ch2', echo: [{ p: '塔外花田', anchor: '你憋住气', inLinkOk: true }] },
 		],
 		revisit: [
-			{ flag: 'present_done', p: '门厅', anchor: '翻找过' },   // #168 P3-3：原文"这里…翻找过这里"重复，改成"这里你已经翻找过了"
-			{ flag: 'past_done', p: '书房', anchor: '已搜过' },
+			// #266：实际门是「已取走坏哨」/「已取走日记」，不是 present_done / past_done（后者全仓无人写＝幽灵旗标）
+			{ inv: '坏哨', p: '门厅', anchor: '翻找过' },   // #168 P3-3：原文"这里…翻找过这里"重复，改成"这里你已经翻找过了"
+			{ inv: '日记', p: '书房', anchor: '已搜过' },
 		],
 		exempt: {
 			era: '时代机制本体', pc: '角色对象', player_name: '车卡名',
 			'keeper:state': '守林人关系态（对话文本即反馈）', 'keeper:key': '钥匙取得（物品栏即反馈）',
 			'dragon:awake': '战斗触发态（战斗本身即反馈）',
+			// #266：门厅翻检留痕——玩家可见留痕由 revisit·inv 坏哨 的复访文本承担；旗标本体供图鉴线索消费
+			present_done: '门厅翻检留痕（可见留痕＝revisit·inv 坏哨；旗标供图鉴线索消费）',
+			seer_asked: '问星/问夜＝当场回答文本＋图鉴线索（无跨场景文本回声，故不入回声表——#266）',
 		},
 	};
 

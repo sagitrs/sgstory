@@ -75,6 +75,40 @@ if (wantAll || arg('truth')) {
 }
 
 // ── ⓪b D4 世界活性（#38）：回声锚检 + set-never-echoed 覆盖门 ──
+// #266：锚句「条件归属」扫描——从段首到锚点走一遍条件栈，取出锚点处生效的 if 条件
+//（支持 if/elseif/else/switch 与 link 体；`not` 归一化为 negated 标记，else 分支取反）
+function conditionOwner(src, anchor) {
+	const idx = src.indexOf(anchor);
+	if (idx < 0) return { conds: [], inLink: false };
+	const re = /<<(\/?if|\/?link|elseif|else|\/?switch)\b[^>]*>>/g;
+	const stack = [];
+	const norm = (tok) => {
+		const m = tok.match(/<<if\s+not\s+([\s\S]*?)>>/);
+		return m ? { text: m[1], negated: true } : { text: tok.replace(/^<<(?:if|elseif|switch)\s*/, '').replace(/>>$/, ''), negated: false };
+	};
+	let m;
+	while ((m = re.exec(src)) && m.index < idx) {
+		const tok = m[1];
+		if (tok === '/if' || tok === '/switch' || tok === '/link') { stack.pop(); continue; }
+		if (tok === 'if' || tok === 'switch') { stack.push({ kind: 'cond', cond: norm(m[0]) }); continue; }
+		if (tok === 'elseif') { const top = stack[stack.length - 1]; if (top?.kind === 'cond') top.cond = norm(m[0]); continue; }
+		if (tok === 'else') { const top = stack[stack.length - 1]; if (top?.kind === 'cond') top.cond = { text: top.cond.text, negated: !top.cond.negated }; continue; }
+		if (tok === 'link') stack.push({ kind: 'link' });
+	}
+	return {
+		conds: stack.filter((s) => s.kind === 'cond' && s.cond).map((s) => ({ ...s.cond, raw: '' })),
+		inLink: stack.some((s) => s.kind === 'link'),
+	};
+}
+// 登记 cause → 期望条件正则（flag → world/ev.X；token → inv["X"]；towerFlag → tower.X）
+function causeReg(cause) {
+	if (!cause) return /$^/;
+	if (cause.token) return new RegExp(`inv\\s*(?:\\.|\\[)?["']?${cause.token}`);
+	if (cause.towerFlag) return new RegExp(`tower\\.${cause.towerFlag}`);
+	if (cause.gear) return new RegExp(`gear[^]*${cause.gear}`);
+	return new RegExp(`(?:world|ev)\\s*(?:\\.|\\[)["']?${cause.flag}`);
+}
+
 if (wantAll || arg('echoes')) {
 	console.log('\n══ ⓪b 世界活性回声（D4/#38）——行为×回声，锚句须在位 ══');
 	let bad = 0;
@@ -85,12 +119,29 @@ if (wantAll || arg('echoes')) {
 			const src = passageSrc.get(site.p);
 			if (src === undefined) { console.log(`  ✗ ${e.id}：位点段落「${site.p}」不存在`); bad++; continue; }
 			if (!src.includes(site.anchor)) { console.log(`  ✗ ${e.id}：「${site.p}」锚句丢失「${site.anchor}」`); bad++; continue; }
+			// #266 条件归属：锚句必须落在以登记 cause（或显式 gate）为条件的块内，且不在 <<link>> 体内
+			const own = conditionOwner(src, site.anchor);
+			const expect = site.gate ? new RegExp(site.gate) : causeReg(e.cause);
+			if (own.inLink && !site.inLinkOk) {
+				console.log(`  ✗ ${e.id}：「${site.p}」锚句在 <<link>> 体内（点击态文本——入场看不到，且多随 goto 重绘消失）`); bad++; continue;
+			}
+			if (!own.conds.length) {
+				console.log(`  ✗ ${e.id}：「${site.p}」锚句无条件门（假回声——任何人都看得到，与 cause 无因果）`); bad++; continue;
+			}
+			if (!own.conds.some((c) => expect.test(c.text) && (!c.negated || site.negate))) {
+				console.log(`  ✗ ${e.id}：「${site.p}」条件归属不符——登记 cause ${JSON.stringify(e.cause)}，实际最内层门：${own.conds.slice(-2).map((c) => (c.negated ? '!' : '') + c.text).join(' / ')}`); bad++; continue;
+			}
 			console.log(`  ✓ ${e.id}（${e.kind}）→ ${site.p}`);
 		}
 	}
 	for (const r of Game.Echoes.revisit) {
 		const src = passageSrc.get(r.p);
-		if (src === undefined || !src.includes(r.anchor)) { console.log(`  ✗ revisit ${r.flag}：「${r.p}」锚句丢失「${r.anchor}」`); bad++; continue; }
+		if (src === undefined || !src.includes(r.anchor)) { console.log(`  ✗ revisit ${r.flag ?? r.inv}：「${r.p}」锚句丢失「${r.anchor}」`); bad++; continue; }
+		const own = conditionOwner(src, r.anchor);
+		const expect = r.gate ? new RegExp(r.gate) : causeReg(r.inv ? { token: r.inv } : { flag: r.flag });
+		if (!own.conds.length || !own.conds.some((c) => expect.test(c.text) && (!c.negated || r.negate))) {
+			console.log(`  ✗ revisit ${r.flag ?? r.inv}：「${r.p}」条件归属不符（实际最内层门：${own.conds.slice(-2).map((c) => (c.negated ? '!' : '') + c.text).join(' / ') || '无'}）`); bad++;
+		}
 	}
 	console.log(`  （revisit 留痕 ${Game.Echoes.revisit.length} 处全锚定；分类：${Object.entries(kinds).map(([k, v]) => `${k}×${v}`).join(' ')}）`);
 	// 覆盖门：twee 中被写的旗标 ⊆ cause ∪ revisit ∪ exempt
@@ -99,15 +150,32 @@ if (wantAll || arg('echoes')) {
 		for (const m of src.matchAll(/<<set\s+\$pc\.tower\.(\w+)\s*to/g)) written.add(`tower:${m[1]}`);
 		for (const m of src.matchAll(/<<set\s+\$(\w+)\s*to/g)) written.add(m[1]);
 		for (const m of src.matchAll(/<<setflag\s+"(\w+)"/g)) written.add(m[1]);
+		// #269：补采集（此前 80% 盲区）——$pc.world/ev.X to true 与 JS 侧 apply() 的 pc.world/ev.X = true
+		for (const m of src.matchAll(/<<set\s+\$pc\.(?:world|ev)\.(\w+)\s*to/g)) written.add(m[1]);
+		for (const m of src.matchAll(/pc\.(?:world|ev)\.(\w+)\s*=\s*true/g)) written.add(m[1]);
+		for (const m of src.matchAll(/pc\.(?:world|ev)\[["'](\w+)["']\]\s*=\s*true/g)) written.add(m[1]);
 	}
 	const covered = new Set([
 		...Game.Echoes.list.flatMap((e) => [e.cause.token ? `token:${e.cause.token}` : null, e.cause.towerFlag ? `tower:${e.cause.towerFlag}` : null, e.cause.flag ?? null, e.cause.gear ? `gear:${e.cause.gear}` : null].filter(Boolean)),
-		...Game.Echoes.revisit.flatMap((r) => [r.flag, `tower:${r.flag}`]),
+		...Game.Echoes.revisit.flatMap((r) => [r.flag, r.inv && `inv:${r.inv}`, r.flag && `tower:${r.flag}`].filter(Boolean)),
 		...Object.keys(Game.Echoes.exempt),
 		'pc', 'player_name', 'last_check', 'era', // A5：引擎底座变量（非叙事旗标）——语义即豁免
 	]);
 	const orphans = [...written].filter((w) => !covered.has(w) && !w.startsWith('gear:') && !w.startsWith('token:'));
-	if (orphans.length) { console.log(`  ⚠ set-never-echoed：${orphans.join('、')}（被写但无回声/留痕/豁免）`); bad += orphans.length; }
+	// #269：补采集（前此 80% 盲区）后暴露的历史旗标——先显式登记为「待分类」，新写旗标仍阻断；
+	// #267 落地「选择后果门」分级登记后，本表应清空（逐项归入 echo/gate/ending/codex/provenance/engine）。
+	const STATE_BACKLOG = new Set([
+		'last_roll', 'fog_thin', 'fight', 'soc_last', 'soc', 'last_result',
+		'tav_fog', 'tav_keeper', 'tav_dragon', 'tav_grudge', 'tav_ageless', 'tav_flower', 'tav_light', 'tav_iron', 'tav_seal', 'tav_seen',
+		'wq_painting', 'wq_night', 'wq_fog', 'wq_talisman', 'wq_under', 'wq_past', 'wq_alone', 'wq_blessed', 'wq_seen',
+		'keeper_told', 'keeper_why', 'keeper_intro', 'seer_gave', 'witch_grip', 'witch_gifted', 'forge_thanks',
+		'forest_listen', 'forest_heard', 'goblin_gone', 'goblin_spared',
+		'flower_sleep', 'flower_mud', 'flower_warned', 'hall_seen', 'failure_cause', 'study_found', 'observation_lock', 'errand_done',
+		'star_ledger', 'star_short', 'delivery_short', 'below_seen', 'threshold', 'hoard_looted', 'ritual_seen', 'banquet_over', 'letter_seen', 'coord', 'staff_found', 'mist_fought',
+	]);
+	const unregistered = orphans.filter((w) => !STATE_BACKLOG.has(w));
+	if (orphans.length) console.log(`  · 待分类旗标 ${orphans.length} 项（#269 补采集后可见；#267 分级登记后应清空）：${orphans.slice(0, 10).join('、')}${orphans.length > 10 ? ' …' : ''}`);
+	if (unregistered.length) { console.log(`  ⚠ set-never-echoed（新写旗标未登记）：${unregistered.join('、')}（被写但无回声/留痕/豁免）`); bad += unregistered.length; }
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ D4 回声门：${bad} 项失锚/未覆盖`); process.exit(1); }
 		console.log('\n✔ D4 回声门通过（全回声锚句在位、无 set-never-echoed）');

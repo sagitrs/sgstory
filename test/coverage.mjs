@@ -74,7 +74,13 @@ const uncoveredNew = newPassages.filter((n) => {
 	return !cells && !(n in exempt) && !isInfra(n);
 });
 if (!hasBase) {
-	console.log('ℹ 无 origin/main 基线引用，门2（新内容必配测）跳过——本地完整生效');
+	if (process.env.ALLOW_GATE2_SKIP === '1') {
+		console.log('ℹ 门2 跳过已留痕（ALLOW_GATE2_SKIP=1）——新段落必配测本次未验证');
+	} else {
+		console.error('✗ 门2 需要 origin/main 基线。先执行：git fetch origin main');
+		console.error('  （确要跳过本次检查：ALLOW_GATE2_SKIP=1 node test/coverage.mjs）');
+		gate2++;
+	}
 }
 if (uncoveredNew.length) {
 	console.error(`✗ 新增段落未被任何交互测试踩到（gate#9 等效）：${uncoveredNew.join('，')}`);

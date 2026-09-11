@@ -153,6 +153,10 @@ window.Game = (() => {
 		damageBonus(gear) {
 			return (gear ?? []).reduce((a, k) => a + (this.defs[k]?.damage ?? 0), 0);
 		},
+		// #235：伤害加成来自哪件（fight-meta 要说出口，不给"无来由的 +1"）
+		damageSource(gear) {
+			return (gear ?? []).find((k) => (this.defs[k]?.damage ?? 0) > 0) ?? '';
+		},
 		// 行囊带来的优势来源（与道具同一套"说出为什么"的机制）
 		advSource(site, gear) {
 			return (gear ?? []).find((k) => (this.defs[k]?.advSites ?? []).includes(site)) ?? '';
@@ -179,7 +183,6 @@ window.Game = (() => {
 			日记:       { flatDamageReduce: 1, note: '念出那两个小字——整场再 −1' },
 			龙鳞护臂:   { flatDamageReduce: 1, note: '受击 −1' },
 		},
-		perItemDamageReduce: 1,
 		// 月光花毒液（v17 补正 #3）：抹在刃上 → 它每一下都慢半拍（龙的攻击 −2）
 		poisonReduce: 2,
 		// 受击方=玩家：伤害 = 基础 − 减伤件数 − 毒液 + 败次（封顶）
@@ -580,6 +583,16 @@ window.Game = (() => {
 			const kind = res?.roll === 20 ? 'crit' : res?.success ? 'ok' : 'bad';
 			return { kind, eff: a[kind] ?? {} };
 		},
+		// #235：玩家这一手的最终效果＝动作档位＋武器加成（克隆 eff——动作表是单源，不许就地改）
+		playerEff(actionId, res, pc) {
+			const r = this.pick(actionId, res);
+			const bonus = Gear.damageBonus(pc?.gear);
+			if (bonus && r.eff.dmg) {
+				r.eff = { ...r.eff, dmg: r.eff.dmg + bonus };
+				r.gearBonus = bonus;
+			}
+			return r;
+		},
 		// 把效果的"非血量"部分落进状态（血量交给 <<damage>> 走 widget，好让药膏与死亡判定生效）
 		applyEffect(pc, eff, fight) {
 			if (eff.dmg) pc.dragon.hp = Math.max(0, (pc.dragon.hp ?? 0) - eff.dmg);
@@ -789,16 +802,11 @@ window.Game = (() => {
 		hp: 60,
 		// v17 补正 #3：封印术发动条件——把龙打到 sealAt 以下，守林人才能把最后一句念完
 		sealAt: 10,
-		bladeDamage: 10,   // 冒险者一剑能吃进去的量
+		// hitBase/sneakHit：仅 audit ⓪f 期望模型消费（#236 将换分布模型对齐真实战斗）
 		hitBase: 6,
 		sneakHit: 12,
-		rage: 0,
 		dragonDamage(inv, round, defeats, poisoned) {
 			return Items.battleDamage(round, inv, defeats, poisoned);
-		},
-		// 玩家一剑吃进去多少（A1：行囊里有剑就多一分）
-		bladeOf(pc) {
-			return this.bladeDamage + Gear.damageBonus(pc?.gear);
 		},
 	};
 

@@ -237,8 +237,22 @@ for (const file of fixtures) {
 		eq(G.advSource('门厅·看钉', ['长剑']), '', '行囊：剑不给看东西的优势');
 		eq(I.advSource('门厅·看钉', {}, ['火把']), '火把', '行囊优势接进道具侧查询（<<sitecheck>> 用同一条路）');
 		eq(I.advSource('雾之魔物·挥击', { 坏哨: true }, ['火把']), '坏哨', '道具优先，其次行囊（先说清是哪一件）');
-		eq(D.bladeOf({ gear: ['长剑'] }), D.bladeDamage + 1, '出剑伤害＝基础 + 行囊');
-		eq(D.bladeOf({ gear: [] }), D.bladeDamage, '空手不改出剑伤害');
+		// #235：武器加成接进真实战斗（playerEff＝fightresolve 同一条路）
+		{
+			const C = w.Game.Combat;
+			const crit = { roll: 20, success: true }, ok = { roll: 14, success: true }, bad = { roll: 5, success: false };
+			const withSword = C.playerEff('龙·斩击', crit, { gear: ['长剑'] });
+			eq(withSword.eff.dmg, C.actions['龙·斩击'].crit.dmg + 1, '出剑：大成功 +武器 +1');
+			eq(withSword.gearBonus, 1, '出剑：加成来源标记');
+			eq(C.playerEff('龙·斩击', ok, { gear: ['长剑'] }).eff.dmg, C.actions['龙·斩击'].ok.dmg + 1, '出剑：成功档同样 +1');
+			eq(C.playerEff('龙·斩击', bad, { gear: ['长剑'] }).eff.dmg ?? 0, 0, '失手不吃武器加成');
+			eq(C.playerEff('龙·斩击', crit, { gear: [] }).gearBonus, undefined, '空手无加成标记');
+			eq(C.playerEff('龙·斩击', crit, { gear: ['火把'] }).eff.dmg, C.actions['龙·斩击'].crit.dmg, '火把不加伤害（只给优势）');
+			eq(w.Game.Gear.damageSource(['火把', '长剑']), '长剑', '加成来源说得出是哪件');
+			// 动作表不被污染（eff 是克隆，不是引用）
+			C.playerEff('龙·斩击', crit, { gear: ['长剑'] });
+			eq(C.actions['龙·斩击'].crit.dmg, withSword.eff.dmg - 1, '动作表单源未被就地改写');
+		}
 		// 行囊表的每一件都要有来源、说法、效果（与 audit ⓪j 同一口径）
 		for (const [k, d] of Object.entries(G.defs)) {
 			ok(!!d.from && !!d.note, `行囊「${k}」有来源与说法`);

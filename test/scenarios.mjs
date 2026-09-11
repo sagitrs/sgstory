@@ -270,6 +270,26 @@ async function routeBanquetEnds() {
 	return { w };
 }
 
+// ── 路线 38：#230 劝杀负例——三路检定可失败、可换路重试、可收回 ──
+async function routePersuadeFail() {
+	const { w, click: c } = await newGame(0.5, 0);   // d20 恒 11：历史/洞悉/游说 +0 全败
+	await toWitch(c);
+	await toTower(c);
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手，退开一步');
+	await c('顺着那条窄路走过去');
+	await c('逼他动手');
+	await c('摆出雾情');                     // 11+0 vs DC13 败
+	if (passageOf(w) !== '守林人·劝杀') throw new Error(`#230：雾情说败该留在劝杀可重试（${passageOf(w)}）`);
+	await c('自己担下来');                   // 11+0 vs DC13 败
+	if (passageOf(w) !== '守林人·劝杀') throw new Error('#230：自担说败该留在劝杀可重试');
+	await c('把话收回来');
+	if (passageOf(w) !== '守林人') throw new Error('#230：该能空手收回话头');
+	if (linksOf(w).some((x) => x === '逼他动手：让他自己去') === false) throw new Error('#230：收回后该还能再劝');
+	return { w };
+}
+
 // ── 路线 1：金路径 → 送星归位 ─────────────────────────────
 async function truePath(w, c) {
 	// 金路径的共同部分（走到「地下宴会厅（现在）」），供真结局路线与软限路线复用
@@ -498,6 +518,11 @@ async function routeKill() {
 	await c('慢慢放下手');
 	await c('顺着那条窄路走过去');
 	await c('逼他动手');
+	// #230：说服链——预置日记（routeKill 走守林人先行路线，身上没带；同 #178 预置手法）
+	w.eval('(function(){SugarCube.State.variables.pc.inv["日记"]=true;})()');
+	await c('把话收回来');                     // 预置后折返：重进劝杀，日记路出现
+	await c('逼他动手');
+	await c('摊开日记');
 	if (passageOf(w) !== '结局 守林人击杀') throw new Error(`未达守林人击杀（${passageOf(w)}）`);
 	return { w };
 }
@@ -1209,6 +1234,7 @@ const routes = [
 	['图鉴·永久解锁', routeBestiary],
 	['夺杖检定（#219 B1①）', routeSeizeStaffFail],
 	['宴散自动回未来（#219 A3/C1②）', routeBanquetEnds],
+	['劝杀三路可败可收（#230）', routePersuadeFail],
 	['龙·巢边', routeLair],
 	['老妇人', routeOldWoman],
 	['自愿的长眠', routeSleepVoluntary],

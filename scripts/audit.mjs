@@ -498,6 +498,32 @@ if (wantAll || arg('combat')) {
 	}
 }
 
+
+// ── ⓪p 位点失败纪律门（#199/#195）：带伤失败必须有解，无解决不许带伤 ──
+if (wantAll || arg('sitedisc')) {
+	console.log('\n══ ⓪p 位点失败纪律（#199）——伤＝代价，不是空手；无解决不许带伤 ══');
+	let bad = 0;
+	let seen = 0;
+	for (const [name, src] of passageSrc) {
+		const re = /<<sitecheck\s+"([^"]+)"[^>]*>>[\s\S]{0,1200}?<<if\s+\$last_check\.success>>([\s\S]*?)<<else>>([\s\S]*?)<<\/if>>/g;
+		for (const m of src.matchAll(re)) {
+			const site = m[1], badBranch = m[3];
+			if (!badBranch.includes('<<damage')) continue; // 只管带伤的失败档
+			seen++;
+			const resolves = /<<give\s|<<set\s+\$pc\.|<<goto\s/.test(badBranch);
+			if (!resolves) {
+				console.log(`  ✗ ${name} · ${site}：失败档带 <<damage>> 却不给结果（可无限磨伤）`);
+				bad++;
+			}
+		}
+	}
+	console.log(`  带伤失败档 ${seen} 处，全部落结果（给东西/置旗标/退场）`);
+	if (process.argv.includes('--check')) {
+		if (bad) { console.error(`\n✗ ⓪p 位点失败纪律门：${bad} 项`); process.exit(1); }
+		console.log('\n✔ ⓪p 位点失败纪律门通过（带伤失败必有解，无磨伤死角）');
+	}
+}
+
 // ── ⓪d D3 系统可玩性（#37）：机制发现性门 + 组合矩阵出具 ──
 if (wantAll || arg('systems')) {
 	console.log('\n══ ⓪d 系统可玩性（D3/#37）——规则不可知则不可实验：发现性锢点机检 ══');

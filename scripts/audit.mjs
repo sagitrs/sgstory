@@ -460,7 +460,7 @@ if (wantAll || arg('choices')) {
 }
 
 // ── ⓪i 反 S/L 门（M10）：关键产出不许只有一条路 ──
-if (wantAll || arg('sel').length || arg('nosl')) {
+if (wantAll || arg('sel') || arg('nosl')) {
 	console.log('\n══ ⓪i 反 S/L 门（M10）——关键东西不止一条路，且判定属性不同 ══');
 	let bad = 0;
 	const sites = Game.Checks.sites;
@@ -503,7 +503,7 @@ if (wantAll || arg('sel').length || arg('nosl')) {
 
 // ── ⓪j 行囊门 + 经济门（A1/A2/A5）：花了钱、带在身上的，必须真的有用 ──
 //    行囊＝职业装备（长剑 / 火把），不进口具表（canon §5.0 仍是 10 件），但必须进数值。
-if (wantAll || arg('sel').length || arg('gear')) {
+if (wantAll || arg('sel') || arg('gear')) {
 	console.log('\n══ ⓪j 行囊门 + 经济门——钱花出去、东西带在身上，都要落到机制上 ══');
 	let bad = 0;
 	const srcAll = SRC_FILES.map((f) => readFileSync(f, 'utf8')).join('\n');

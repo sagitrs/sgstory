@@ -814,6 +814,17 @@ async function routeInvestment() {
 	if (!passageText(w).includes('等分')) throw new Error('#291 G2：失败后屏上没留情报提示');
 	await c('顺着注记读一读缺口边上那半幅星轨');
 	if (!passageText(w).includes('情报')) throw new Error('#291 G2：带情报重试未标注优势来源');
+	// G3：跨时代合龙门——单侧证据问不出那一句（反例），两侧齐才出现（正例）
+	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.ev=pc.ev||{};pc.ev.failure_cause=true;delete pc.ev.seer_asked;delete pc.ev.coord;pc.ev.old_witch=true;SugarCube.State.variables.era="past";})()');
+	w.eval("SugarCube.Engine.play('老巫女')"); await sleep(150);
+	if (linksOf(w).some((x) => x.includes('那一夜该烧的'))) throw new Error('#291 G3：只带现在侧证据也问得出（门形同虚设）');
+	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.ev.seer_asked=true;})()');
+	w.eval("SugarCube.Engine.play('老巫女')"); await sleep(150);
+	if (!linksOf(w).some((x) => x.includes('那一夜该烧的'))) throw new Error('#291 G3：两侧证据齐了却问不出（门不可达）');
+	await c('问她：那一夜该烧的是什么？');
+	if (pcOf(w).ev.witch_fire_hint !== true) throw new Error('#291 G3：合龙门未产出只言片语');
+	if (!passageText(w).includes('等一个不在场的人把话说完')) throw new Error('#291 G3：只言片语没落地');
+
 	// G4：表达型选择（立场）必须被记住
 	w.eval("SugarCube.Engine.play('守林人')"); await sleep(150);
 	await c('说一句：它不会变成恶龙');

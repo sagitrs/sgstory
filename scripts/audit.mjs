@@ -131,6 +131,65 @@ if (wantAll || arg('truth')) {
 }
 
 // ── ⓪t I1 投入—回报（#291）：G2 失败产出内容 / G4 立场被记住（行为门＋反例）＋ G1·G5·G6 只读报告 ──
+// G3：跨时代合龙门（独立核，跑一次真数据；不进 investmentProblems 以免污染其自证样本）
+function crossEraProblems() {
+	const problems = [], notes = [];
+	const dom = Game.Investment?.eraDomain ?? {};
+	const past = new Set(dom.past ?? []), branch = new Set(dom.branch ?? []);
+	const flagPassages = new Map();
+	const note = (flag, p) => { if (!flagPassages.has(flag)) flagPassages.set(flag, new Set()); flagPassages.get(flag).add(p); };
+	for (const [name, src] of passageSrc) {
+		for (const m of src.matchAll(/<<setflag\s+"(\w+)"/g)) note(m[1], name);
+		for (const m of src.matchAll(/<<set\s+\$pc\.(?:world|ev)\.(\w+)\s+to\s+true/g)) note(m[1], name);
+	}
+	const eraDecl = dom.flagEra ?? {};
+	const derive = (flag) => {
+		const ps = flagPassages.get(flag);
+		if (!ps || !ps.size) return 'unknown';
+		if ([...ps].every((p) => past.has(p))) return 'past';
+		if ([...ps].some((p) => branch.has(p))) return 'ambiguous';
+		return 'present';
+	};
+	const eraOf = (flag) => eraDecl[flag] ?? derive(flag);
+	const crossEra = [];
+	for (const [name, src] of passageSrc) {
+		for (const m of src.matchAll(/<<if([^>]*)>>((?:(?!<<\/if>>)[\s\S]){0,400}?)<<\/if>>/g)) {
+			if (!/<<link[^>]*>>/.test(m[2])) continue;
+			const flags = [...m[1].matchAll(/\$pc\.(?:world|ev)\.(\w+)/g)].map((x) => x[1]);
+			if (flags.length < 2) continue;
+			const eras = new Set(flags.map(eraOf));
+			if (eras.has('past') && eras.has('present')) crossEra.push(`${name}（${flags.join('、')}）`);
+		}
+	}
+	if (crossEra.length < 1) problems.push('G3 全仓找不到「跨时代合龙门」：没有任何选项同时引用过去与现在两侧旗标');
+	else notes.push(`G3 跨时代合龙门 ${crossEra.length} 处：${crossEra.slice(0, 3).join('；')}`);
+	for (const g of dom.crossEraGates ?? []) {
+		const src = passageSrc.get(g.p);
+		if (!src) { problems.push(`G3 登记段落不存在：${g.p}`); continue; }
+		const at = src.indexOf(g.label);
+		if (at < 0) { problems.push(`G3 登记选项已不在「${g.p}」：${g.label}`); continue; }
+		const slice = src.slice(Math.max(0, at - 300), at);
+		const ifs = [...slice.matchAll(/<<if([^>]*)>>/g)];
+		const cond = ifs.length ? ifs[ifs.length - 1][1] : '';
+		for (const f of g.pastFlags ?? []) {
+			if (!cond.includes(f)) problems.push(`G3 「${g.label}」条件里缺过去侧旗标 ${f}`);
+			else if (eraOf(f) !== 'past') problems.push(`G3 旗标 ${f} 判定为 ${eraOf(f)}，声明为 past——与时代域表/声明不符`);
+		}
+		for (const f of g.presentFlags ?? []) {
+			if (!cond.includes(f)) problems.push(`G3 「${g.label}」条件里缺现在侧旗标 ${f}`);
+			else if (eraOf(f) !== 'present') problems.push(`G3 旗标 ${f} 判定为 ${eraOf(f)}，声明为 present——与时代域表/声明不符`);
+		}
+	}
+	// 歧义旗标（写在 $era 分支段落里）被跨时代门用到时必须显式声明
+	for (const g of dom.crossEraGates ?? []) {
+		for (const f of [...(g.pastFlags ?? []), ...(g.presentFlags ?? [])]) {
+			if (!eraDecl[f] && derive(f) === 'ambiguous') problems.push(`G3 旗标 ${f} 写在时代分支段落内，需在 eraDomain.flagEra 显式声明时代`);
+		}
+	}
+	notes.push(`G3 时代域：past ${(dom.past ?? []).length} 段 · branch ${(dom.branch ?? []).length} 段 · 登记门 ${(dom.crossEraGates ?? []).length} 处`);
+	return { problems, notes };
+}
+
 function investmentProblems({ keyYields = [], expressive = [], failClueExempt = {} } = {}) {
 	const problems = [], notes = [];
 	// 关键位点＝yields 落在 keyYields 的位点（keyYields 是「产出」，不是位点名）
@@ -174,6 +233,9 @@ if (wantAll || arg('investment')) {
 		expressive: I.expressive ?? [],
 		failClueExempt: I.failClueExempt ?? {},
 	});
+	const g3 = crossEraProblems();
+	problems.push(...g3.problems);
+	notes.push(...g3.notes);
 	let bad = problems.length;
 	problems.forEach((p) => console.log(`  ✗ ${p}`));
 	notes.forEach((n) => console.log(`  · ${n}`));

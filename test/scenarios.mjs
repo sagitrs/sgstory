@@ -932,6 +932,42 @@ async function routeFightAdv() {
 	return { w };
 }
 
+// ── #351：未喂花时「唤醒⇄归位」必须能走出去补花；且提示的时代不能说反 ──
+async function routeFlowerBack() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await c('问一句女巫小屋怎么走');
+	await c('往林子深处走');
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	await c('收下钥匙');
+	w.eval(`(function(){const v=SugarCube.State.variables;const pc=v.pc;
+	 pc.hp=18;pc.max_hp=18;
+	 for (const it of ['好哨','传送术卷轴','完整星图','时光护符']) pc.inv[it]=true;
+	 pc.keeper.state="ally"; pc.keeper.met=true; pc.world.flower_fed=false; pc.star.spent=0;
+	 pc.dragon={hp:60,defeats:0,venom:false,awake:false};
+	 v.era="present";})()`);
+	w.SugarCube.Engine.play('地下宴会厅'); await sleep(220);
+	await c('吹响哨子，叫醒它');
+	if (passageOf(w) !== '唤醒') throw new Error(`未到唤醒（${passageOf(w)}）`);
+	if (!linksOf(w).join('|').includes('回去把该带的带上')) throw new Error('#351：唤醒没有「回去补办」的出口（会与归位形成死循环）');
+	await c('让守林人动手');
+	if (passageOf(w) !== '归位') throw new Error(`未到归位（${passageOf(w)}）`);
+	const hint = passageText(w);
+	if (!hint.includes('开在现在的塔根墙下')) throw new Error('#351：归位提示没把花的时代说对（花在现在）');
+	if (hint.includes('只开在宴还没散的那一晚')) throw new Error('#351：归位提示仍在说花只在过去开');
+	await c('退开一步');
+	await c('回去把该带的带上');
+	if (passageOf(w) !== '地下宴会厅') throw new Error(`#351：补办路没有回到地下宴会厅（${passageOf(w)}）`);
+	await c('安静地退出去');
+	await c('出塔，回到塔外');
+	await c('塔基墙根那片花');
+	await c('伸手去摘最靠里的那一朵');
+	if (!pcOf(w).inv['月光花']) throw new Error('#351：按提示到塔根墙下没能摘到花（提示与实况不符）');
+	return { w };
+}
+
 // ── #291 I1：投入—回报（G2 失败给情报＋下次优势；G4 立场被记住）──
 async function routeInvestment() {
 	const { w, click: c } = await newGame(0.01, 0);   // 低骰：检定必败
@@ -1571,6 +1607,7 @@ const routes = [
 	['交付后互锁（#259）', routeDeliveredLocks, { synthetic: true }],   // 夹具驱动（13 处 w.eval / 0 点击）——不入 C4/E4 样本
 	['退出选项指向（#308/#312）', routeExitLabels, { synthetic: true }], // 夹具驱动（4 处 w.eval / 1 点击）——不入 C4/E4 样本
 	['选项指向与措辞（#309/#311/#313）', routeClarityB],
+	['缺花可走回补办（#351）', routeFlowerBack],
 	['封印战优势跨手生效（#352）', routeFightAdv],
 	['投入—回报（#291 I1）', routeInvestment],
 	['跨周目粘性（#271）', routeCrossRunSticky],

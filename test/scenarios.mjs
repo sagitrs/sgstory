@@ -597,6 +597,14 @@ async function routeVoid() {
 	await c('用钥匙打开铁门');
 	await c('叫醒它');                   // → 唤醒（无好哨）
 	await c('和守林人并肩');             // → 封印·并肩
+	// #310：战斗动作的标签必须读出**进攻意图**（含哨子这一手），且不得把安抚性吹哨也改成攻击口径
+	{
+		const A = w.Game.Combat.actions;
+		if (!String(A['封印·找旧伤'].label).includes('刺')) throw new Error('#310：找旧伤标签未表达攻击意图');
+		if (!String(A['封印·吹哨'].label).includes('出刀')) throw new Error('#310：吹哨标签未表达攻击意图');
+		const calm = String(A['雾影·亮哨'].label) + String(A['雾影·亮哨'].ok?.text ?? '');
+		if (/刺|砍|劈|出刀/.test(calm)) throw new Error('#310：安抚性吹哨被改成攻击口径');
+	}
 	if (pcOf(w).dragon.hp > w.Game.Dragon.hp) throw new Error('封印战未初始化龙的血量');
 	// B1：把它打到 sealAt 以下（d20 恒 20 → 每一手都大成功；吐息必免）
 	await fightTo(c, w, ['让他把最后一句念完'], 30);
@@ -808,6 +816,47 @@ async function routeBestiary() {
 	return { w };
 }
 
+
+// ── #308／#312：退出选项必须让玩家分清「返回」与「结束本次旅程」（文案批 A）──
+async function routeExitLabels() {
+	const { w, click: c } = await newGame(0.99, 0);
+	// ① 半途的林子：结局出口须写明「结束本次旅程」，普通返回不写
+	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.inv=pc.inv||{};pc.ev=pc.ev||{};pc.world=pc.world||{};pc.keeper=pc.keeper||{};pc.keeper.met=false;SugarCube.State.variables.era="present";SugarCube.Engine.play("半途的林子");})()');
+	await sleep(150);
+	{
+		const labels = linksOf(w);
+		const ending = labels.find((x) => x.includes('回头'));
+		const back = labels.find((x) => x.includes('回大门'));
+		if (!ending?.includes('结束本次旅程')) throw new Error('#308：半途林子的结局出口没写「结束本次旅程」');
+		if (back?.includes('结束本次旅程')) throw new Error('#308：普通返回被写成结束旅程');
+	}
+	// ② 唤醒：无哨时的出口＝结束；且标签带「结束本次旅程」；点它确到结局
+	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.inv=pc.inv||{};pc.keeper=pc.keeper||{};pc.dragon=pc.dragon||{};pc.dragon.awake=true;delete pc.inv["好哨"];pc.keeper.state="ally";pc.world.flower_fed=false;SugarCube.Engine.play("唤醒");})()');
+	await sleep(150);
+	{
+		const exit = linksOf(w).find((x) => x.includes('退出去'));
+		if (!exit?.includes('结束本次旅程')) throw new Error('#308：唤醒的结局出口没写「结束本次旅程」');
+	}
+	// ③ 归位：缺花时的出口是**返回**（回到唤醒），不得写「结束本次旅程」，且点击后确回唤醒
+	w.eval("SugarCube.Engine.play('归位')"); await sleep(150);
+	{
+		const back = linksOf(w).find((x) => x.includes('退开一步'));
+		if (!back) throw new Error('#308：归位缺花出口不见了');
+		if (back.includes('结束本次旅程')) throw new Error('#308：归位的返回出口被写成结束旅程');
+		await c('退开一步');
+		if (passageOf(w) !== '唤醒') throw new Error(`#308：归位返回应回唤醒（实际 ${passageOf(w)}）`);
+	}
+	// ④ #312：唤醒入口标签不得再暗示「准备已齐」
+	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.inv=pc.inv||{};pc.inv["好哨"]=true;pc.keeper.state="ally";SugarCube.Engine.play("地下宴会厅");})()');
+	await sleep(150);
+	{
+		const all = linksOf(w).join('|');
+		if (all.includes('现在可以了')) throw new Error('#312：地下宴会厅仍出现「现在可以了」的暗示');
+		const wake = linksOf(w).find((x) => x.includes('叫醒它'));
+		if (!wake) throw new Error('#312：叫醒入口不见了');
+	}
+	return { w };
+}
 
 // ── #291 I1：投入—回报（G2 失败给情报＋下次优势；G4 立场被记住）──
 async function routeInvestment() {
@@ -1439,6 +1488,7 @@ const routes = [
 	['女巫小屋·只治一次', routeWitchHealOnce],
 	['文本上下文（时代与日记）', routeTextContext],
 	['交付后互锁（#259）', routeDeliveredLocks],
+	['退出选项指向（#308/#312）', routeExitLabels],
 	['投入—回报（#291 I1）', routeInvestment],
 	['跨周目粘性（#271）', routeCrossRunSticky],
 ];

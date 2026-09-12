@@ -66,6 +66,9 @@ export const SEGMENTS = [
 	{ id: "test-choice-keys-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/choice-keys.mjs --selftest" },
 	// #407 D9①：选项前提可溯源（#404 的实例）——`--strict` 是红证入口
 	{ id: "test-premise-source-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/premise-source.mjs --selftest" },
+	// #407 D9④：场合面（NPC 登记簿须有 venue/role；当前登记模式报告）
+	{ id: "test-npc-venue-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/npc-venue.mjs --selftest" },
+	{ id: "test-npc-venue-mjs", phase: 'test', cost: 0, cmd: "node test/npc-venue.mjs" },
 	{ id: "test-premise-source-mjs", phase: 'test', cost: 0, cmd: "node test/premise-source.mjs" },
 	{ id: "test-choice-keys-mjs", phase: 'test', cost: 9, cmd: "node test/choice-keys.mjs" },
 	{ id: "test-globals-mjs", phase: 'test', cost: 0, cmd: "node test/globals.mjs" },

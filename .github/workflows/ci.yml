@@ -23,9 +23,9 @@ jobs:
       - run: npm test
 
   soak:
-    # L2 对抗席游走器加量长测（M1c 接回 CI）：20+20 局随机游走 + 位点双支清扫
+    # L2 对抗席游走器长测（#382 缩量）：10+10 局随机游走 + 位点双支清扫（双支为确定性定向扫描，与局数无关）
+    # 全量兜底 = soak-nightly.yml（30 30 + 多种子矩阵，更强覆盖）
     runs-on: ubuntu-latest
-    needs: test
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -34,7 +34,9 @@ jobs:
           cache: npm
       - run: npm ci
       - run: pip install fonttools brotli
-      - run: npm run soak
+      - run: npm run build
+      - run: node test/walker.mjs 10 10
+      - run: node test/browser.mjs
 
   deploy:
     # main 分支推送且测试通过后，自动发布到 GitHub Pages

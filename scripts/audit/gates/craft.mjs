@@ -4,6 +4,49 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 export const flag = 'craft';
 export const flags = ["craft"];
 
+// ── 纯函数（供自证；判据与真实运行**同一份代码**）──
+const stripMarkup = (s) => s.replace(/<<[\s\S]*?>>/g, '').replace(/\[\[[^\]]*\]\]/g, '').replace(/''/g, '').replace(/<[^>]*>/g, '');
+export const densityOf = (src) => {
+	const t = stripMarkup(src);
+	const n = t.length || 1;
+	return { dash: (t.split('——').length - 1) / n * 1000, like: (t.split('像').length - 1) / n * 1000, paren: (t.split('（').length - 1) / n * 1000, chars: t.length };
+};
+// ⑤ 跨段落重复句：≥10 字、且只留汉字后完全相同的句子（结构性白名单除外）
+export const judgeRepeats = (passages, ok = []) => {
+	const seen = new Map();
+	for (const n of Object.keys(passages)) {
+		for (const x of stripMarkup(passages[n]).split(/[。！？!?\n]/)) {
+			const t = x.replace(/[\s「」"'‘’“”：:，,、—－-]/g, '');
+			if (t.length < 10 || !/^[\u4e00-\u9fff]+$/.test(t)) continue;
+			if (!seen.has(t)) seen.set(t, []);
+			if (!seen.get(t).includes(n)) seen.get(t).push(n);
+		}
+	}
+	return [...seen].filter(([t, ps]) => ps.length > 1 && !ok.some((r) => r.test(t))).map(([t, ps]) => ({ text: t, passages: ps }));
+};
+// ⑥ 标点/斜体：半角标点混在汉字边 + `''` 奇数个（斜体会吃到段尾）
+export const judgePunctuation = (passages) => {
+	const halfRx = /[\u4e00-\u9fff][,;!?()]|[,;!?()][\u4e00-\u9fff]/g;
+	const half = [], odd = [];
+	for (const n of Object.keys(passages)) {
+		const hits = [...stripMarkup(passages[n]).matchAll(halfRx)].map((m) => m[0]);
+		if (hits.length) half.push({ name: n, hits });
+		const q = (passages[n].match(/''/g) ?? []).length;
+		if (q % 2) odd.push({ name: n, count: q });
+	}
+	return { half, odd };
+};
+// ⑦ 措辞密度 ratchet：与基线比只许降不许升（容差 tol）；新段不得超 cap
+export const judgeDensity = (now, baseRows = {}, { tol = 0.05, cap = 20 } = {}) => {
+	const out = [];
+	for (const [n, v] of Object.entries(now)) {
+		const b = baseRows[n];
+		if (!b) { const m = Math.max(v.dash, v.like, v.paren); if (m > cap) out.push({ name: n, why: `新段最密项 ${m.toFixed(1)}‰ > ${cap}‰` }); continue; }
+		for (const k of ['dash', 'like', 'paren']) if (v[k] > b[k] + tol) out.push({ name: n, why: `${k} 从 ${b[k]}‰ 涨到 ${v[k].toFixed(1)}‰（只许降不许升）` });
+	}
+	return out;
+};
+
 export const run = (ctx) => {
 	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
@@ -13,6 +56,28 @@ export const run = (ctx) => {
 if (wantAll || arg('craft')) {
 	console.log('\n══ ⓪m 文字工艺门（#168 机检 ⑤–⑧）══');
 	let bad = 0;
+	// ── 自证（先证会红，再判真实数据）──
+	{
+		const LONG = '他沿着林间那条小路一直走到天快黑的时候';   // ≥10 汉字
+		const cases = [
+			['正例：句子各段唯一', judgeRepeats({ A: LONG + '。', B: '另一句完全不同的话也够长的一句子' }).length, 0],
+			['反例①：同一句出现在两段', judgeRepeats({ A: LONG + '。', B: '开头。' + LONG + '。' }).length, 1],
+			['正例：短句不算（<10 汉字）', judgeRepeats({ A: '走吧。', B: '走吧。' }).length, 0],
+			['正例：结构性命中白名单', judgeRepeats({ A: LONG + '。', B: LONG + '。' }, [/^他沿着林间/]).length, 0],
+			['反例②：半角标点混用', judgePunctuation({ A: '他说,走吧。' }).half.length, 1],
+			['反例③：斜体标记奇数', judgePunctuation({ A: "''话没说完。" }).odd.length, 1],
+			['正例：干净段落', judgePunctuation({ A: '他说，走吧。' }).half.length + judgePunctuation({ A: "''对''" }).odd.length, 0],
+			['反例④：密度涨过容差', judgeDensity({ A: { dash: 1.2, like: 0, paren: 0 } }, { A: { dash: 1.0, like: 0, paren: 0 } }).length, 1],
+			['正例：密度持平/下降', judgeDensity({ A: { dash: 0.9, like: 0, paren: 0 } }, { A: { dash: 1.0, like: 0, paren: 0 } }).length, 0],
+			['反例⑤：新段超上限', judgeDensity({ NEW: { dash: 25, like: 0, paren: 0 } }, {}).length, 1],
+			['正例：新段在上限内', judgeDensity({ NEW: { dash: 12, like: 0, paren: 0 } }, {}).length, 0],
+		];
+		for (const [label, got, want] of cases) {
+			const ok = got === want;
+			console.log(`      ${ok ? '✓' : '✗'} 自证·${label}：检出 ${got}（期望 ${want}）`);
+			if (!ok) bad++;
+		}
+	}
 	const craftNames = [...passageSrc.keys()].filter((n) => !/^Story/.test(n) && !(passageTags.get(n) ?? []).some((t) => ['script', 'widget', 'stylesheet'].includes(t)));
 	const strip = (s) => s.replace(/<<[\s\S]*?>>/g, '').replace(/\[\[[^\]]*\]\]/g, '').replace(/''/g, '').replace(/<[^>]*>/g, '');
 

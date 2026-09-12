@@ -39,13 +39,11 @@ export const runFlag = (flag) => {
 export const FLAG_MODIFIERS = ['check'];
 
 // 源码里实际声明的开关（防新增漏保护 / 清单过期）
-const argFlagsFromSource = () => {
-	// #316 第 2 步：门已拆到 scripts/audit/gates/*.mjs，开关枚举必须覆盖两处
-	const files = ['scripts/audit.mjs', ...readdirSync('scripts/audit/gates').filter((f) => f.endsWith('.mjs')).map((f) => `scripts/audit/gates/${f}`)];
-	const src = files.map((f) => readFileSync(f, 'utf8')).join('\n');
-	return [...new Set([...src.matchAll(/arg\('([a-z0-9-]+)'\)/g)].map((m) => m[1]))]
-		.filter((f) => !FLAG_MODIFIERS.includes(f))
-		.sort();
+const argFlagsFromSource = async () => {
+	// #316 第 2 步后：**以注册表为权威声明**（门用 `flags: [...]` 分发，不一定出现 `arg('x')`）。
+	// 此前用正则扫 arg() → 新门（如 --state/--literals）会被误判成「清单过期」（与 F2 台账同一处坑）。
+	const { GATES } = await import('../scripts/audit/registry.mjs');
+	return [...new Set(GATES.flatMap((g) => g.flags ?? []))].filter((f) => !FLAG_MODIFIERS.includes(f)).sort();
 };
 
 const capture = () => {
@@ -146,7 +144,7 @@ if (!existsSync(GOLDEN)) { console.error(`✗ 找不到 ${GOLDEN}——先跑 --
 const baseline = JSON.parse(readFileSync(GOLDEN, 'utf8'));
 const current = capture();
 const problems = diffSnapshot(baseline, current)
-	.concat(generalChecks(FLAGS, current, runFlag(null).out, argFlagsFromSource()));
+	.concat(generalChecks(FLAGS, current, runFlag(null).out, await argFlagsFromSource()));
 
 console.log(`══ audit golden 比对 ══  ${FLAGS.length} 个开关（dragon 走结构比对：百分数归一为 N%）`);
 if (!problems.length) {

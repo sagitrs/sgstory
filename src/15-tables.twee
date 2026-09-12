@@ -289,7 +289,7 @@ window.Game = (() => {
 				hint: '三百年前的穹顶是完整的——那份图只在那时候还活着。',
 				clues: [
 					{ id: 'own',   label: '来历：观星者手抄的那一份', test: (p) => !!p.inv['完整星图'] },
-					{ id: 'asked', label: '问过它从哪颗星被送来的', test: (p) => !!p.world?.seer_asked },
+					{ id: 'asked', label: '问过它从哪颗星被送来的', test: (p) => !!p.ev?.seer_asked },   // #365：与生产者同域（ev）
 					{ id: 'coord', label: '带回现在，它就是坐标', test: (p) => !!p.ev?.coord },
 				],
 			},

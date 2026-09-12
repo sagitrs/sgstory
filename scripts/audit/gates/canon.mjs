@@ -231,8 +231,8 @@ if (wantAll || arg('canon')) {
 	const fullPc = Pc.defaults();
 	fullPc.inv = Object.fromEntries(itemNames.map((n) => [n, true]));
 	fullPc.star = { ...fullPc.star, spent: 2, charge: 0 };
-	fullPc.world = { fog_thin: true, mist_fought: true, family_favor: true, whistle_blown: true, flower_warned: true, flower_fed: true, seer_asked: true, present_done: true, scroll_delivered: true, rumor: true, goblin_spared: true, witch_hint: true };
-	fullPc.ev = { failure_cause: true, observation_lock: true, keeper_why: true, letter_seen: true, coord: true, mist_guard: true, threshold: true, star_ledger: true, old_witch: true };
+	fullPc.world = { fog_thin: true, mist_fought: true, family_favor: true, whistle_blown: true, flower_warned: true, flower_fed: true, present_done: true, scroll_delivered: true, rumor: true, goblin_spared: true, witch_hint: true };
+	fullPc.ev = { failure_cause: true, observation_lock: true, keeper_why: true, letter_seen: true, coord: true, mist_guard: true, threshold: true, star_ledger: true, old_witch: true, seer_asked: true };   // #365：seer_asked 与生产者/谓词同域（ev）
 	fullPc.keeper = { ...fullPc.keeper, met: true, trust: 3, key: true, state: 'ally' };
 	fullPc.dragon = { ...fullPc.dragon, venom: true, awake: true, hp: 1 };
 	const clueTotal = codexItems.reduce((n, i) => n + (C.items[i].clues ?? []).length, 0);

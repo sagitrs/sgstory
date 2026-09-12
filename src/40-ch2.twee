@@ -65,7 +65,7 @@
 
 	顺着墙往下坡走远些，也有，只是都枯了，只剩下干着的白。
 
-<<if $pc.inv["月光花"]>>
+<<if $pc.world.flower_taken>>
 	（这一小片你已经摘过一朵了。剩下的，你不打算再碰。）
 <<else>>
 	<<if $pc.world.goblin_spared>>
@@ -81,12 +81,12 @@
 	<<lastcheckFor "塔外花田" "花田·下风">>
 	<<link `($pc.world.flower_warned ? "憋住气，" : "") + "伸手去摘最靠里的那一朵"`>>
 		<<if $pc.world.flower_warned>>
-			（''你憋住气''，把最靠里的那一朵连根带土捧起来。）<<give "月光花">><<goto "塔外花田">>
+			（''你憋住气''，把最靠里的那一朵连根带土捧起来。）<<give "月光花">><<setflag "flower_taken">><<goto "塔外花田">>
 		<<else>>
 			你伸手去够最靠里的那一朵。花香先到了：不是香，是''沉''，像有人把一床湿被子从你头顶按下来。
 			<<sitecheck "塔外花田">><<snapshot>><<lastcheck>>
 			<<if $last_check.success>>
-				你撑住了，把那一朵连根带土捧起来。<<give "月光花">><<goto "塔外花田">>
+				你撑住了，把那一朵连根带土捧起来。<<give "月光花">><<setflag "flower_taken">><<goto "塔外花田">>
 			<<else>>
 				<<set $pc.world.flower_sleep to true>><<goto "结局 死亡">>
 			<</if>>
@@ -95,7 +95,7 @@
 	<<link "退到上风头，连土一起端起来">>
 		<<sitecheck "花田·下风">><<snapshot>>
 		<<if $last_check.success>>
-			你退到上风头，屏着气把刀插进土里，整块端起来——''根没断，花也没散''。<<give "月光花">>
+			你退到上风头，屏着气把刀插进土里，整块端起来——''根没断，花也没散''。<<give "月光花">><<setflag "flower_taken">>
 		<<else>>
 			土比你估的松。你被那股甜味按了一下，膝盖先着了地。<<damage `Game.Damage.hard`>>
 			你趴在地上缓了一会儿。再抬头，那一整块土已经散了，''花折在泥里''。这回没拿到，要么换个法子，要么先回去。<<set $pc.world.flower_mud to true>>
@@ -430,14 +430,14 @@
 
 墙上那枚弯钩钉子空着，钩尖还挂着一点线头。楼上的脚步声在楼梯口停了停，又退了回去——这塔里的动静，各有各的来历。
 
-<<if $pc.world.hall_hint and not $pc.inv["坏哨"]>><span class="sys-note">（你已经听过比法：那钉子是弯钩，往上提、再往外带。）</span><</if>>
+<<if $pc.world.hall_hint and not $pc.world.whistle_taken>><span class="sys-note">（你已经听过比法：那钉子是弯钩，往上提、再往外带。）</span><</if>>
 <div id="hall-act">
 /% #300 P1：原地 <<replace>> 的状态变更不落 history moment（存读档会丢）——改回渲染路径：
    动作仍在 link 体内掷骰/结算，随后 <<goto>> 重渲染；本次结果由 #270 的结果槽留屏。 %/
-<<if not $pc.inv["坏哨"]>>
+<<if not $pc.world.whistle_taken>>
 	<<if $pc.ev.hall_seen>>
 		<<link "摘哨子（钉子怎么卡的，你已经看清了）">>
-			你把哨子从钉子上提起来，收进行囊，可在''物品栏''查看。<<give "坏哨">>
+			你把哨子从钉子上提起来，收进行囊，可在''物品栏''查看。<<give "坏哨">><<setflag "whistle_taken">>
 			<<goto "门厅">>
 		<</link>>
 	<<else>>

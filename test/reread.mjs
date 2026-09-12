@@ -28,7 +28,7 @@ const MYSTERY_MARK = /终局后揭开|唯一揭开处|谜底/;
 // 终局级词表（#408）：真结局名 / 真结局目标 / 普通结局的达成做法
 export const ENDGAME_MARK = /送星归位|散开的东西重新凑齐|虚弱到无法打断/;
 // 已知缺陷（报告但不判失败；修复后**删掉本条并转严格**）——本仓约定：缺陷基线引用票号
-export const ENDGAME_KNOWN = { '设定集·结局': '#408' };
+export const ENDGAME_KNOWN = {};   // #408 已随 #419 修完（逐条结局门控）⇒ 白名单清空、R6 转严格
 export const endgameUngated = (pages, known = ENDGAME_KNOWN) => Object.entries(pages)
 	.filter(([, src]) => ENDGAME_MARK.test(src ?? '') && !GATE_SRC.test(src ?? ''))
 	.map(([name]) => name);
@@ -36,7 +36,10 @@ export const splitEndgame = (ungated, known = ENDGAME_KNOWN) => ({
 	known: ungated.filter((n) => n in known),
 	fresh: ungated.filter((n) => !(n in known)),
 });
-const GATE_SRC = /Sg.Codex\.seenFinal\(\)/;
+// 「有门控」的两种形态（#408 修完时的教训）：①整页按「走到过终局」门控 seenFinal()；
+// ②逐条结局门控 read().endings.includes(…)（#419 采用，更细——未走到的那条只给「还没走到」）。
+// 只认前者会对 #419 的修法误报，故两种都认。
+const GATE_SRC = /Sg\.Codex\.(?:seenFinal\(\)|read\(\)\.endings)/;
 
 // ── 纯函数（依赖注入：自证时喂夹具，不与真实游戏耦合）────────────────────
 // R1：零状态档下为真的线索

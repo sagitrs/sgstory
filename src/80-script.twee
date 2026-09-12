@@ -225,7 +225,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		const div = document.createElement('div');
 		div.className = 'scene-feedback';
 		jQuery(div).wiki(String(r.text));
-		const anchor = content.querySelector('.scene-acts, .tavern-actions, .soc-ask, details.act-group');
+		const anchor = content.querySelector('.scene-acts, .tavern-actions, .soc-ask, .fight-acts, details.act-group');
 		if (anchor) { anchor.parentNode.insertBefore(div, anchor); return; }
 		// 没有显式行动容器：插在段落「首个链接簇」之前——结果与行动相邻，且不改变出口在末
 		const kids = [...content.childNodes];

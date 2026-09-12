@@ -27,8 +27,10 @@ if (wantAll || arg('interact')) {
 			usedSites.add(m[1]);
 			if (!sites[m[1]]) { console.log(`  ✗ 段落「${name}」引用了不存在的位点「${m[1]}」`); bad++; }
 		}
-		// 战斗结算：<<fightresolve "对手位点" …>> 每一轮都掷——必须存在且标 auto
-		for (const m of outer.matchAll(/<<fightresolve\s+"([^"]+)"/g)) {
+		// 战斗结算：<<fightpanel "对手位点" …>>／（旧名）<<fightresolve …>> 每一轮都掷——必须存在且标 auto。
+		// #350：结算从渲染期搬到点击时刻后，对手位点由**面板**接收（段落里只剩 <<fightlog>> 只读回放），
+		// 故采集点从 fightresolve 改为 fightpanel（保留旧名以兼容）。
+		for (const m of outer.matchAll(/<<(?:fightpanel|fightresolve)\s+"([^"]+)"/g)) {
 			usedSites.add(m[1]);
 			autoTop++;
 			if (!sites[m[1]]) { console.log(`  ✗ 段落「${name}」的战斗对手位点「${m[1]}」不存在`); bad++; continue; }

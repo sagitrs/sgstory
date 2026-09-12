@@ -68,6 +68,27 @@
 			],
 			"ticket": "#300",
 			"note": "T 席扫描补出的同类站点（票面未提，实测同样丢）"
+		},
+		{
+			"label": "（封印战）第一张牌",
+			"where": "封印·并肩",
+			"nav": "sealRound",
+			"clickNthAction": 1,
+			"randomSequence": true,
+			"mutates": [
+				"ev:fight.round",
+				"pc.dragon.hp",
+				"hp",
+				"ev:fight.log（点击时结算 → goto 落地）"
+			],
+			"assert": [
+				"hp",
+				"dragon_hp",
+				"round",
+				"fight_log"
+			],
+			"ticket": "#350",
+			"note": "#350 原始复现点：旧实现把掷骰/结算放在**渲染期**（<<fightresolve>>），渲染期改动不进 moment → 存读档后整轮重掷（dhp 60→31、hp 14→16、选项也变）。本项用**变化序列随机**（固定值会让重掷结果相同而看不出来），断言 hp/龙血/回合/屏上战报四项一致"
 		}
 	],
 	"sitecheckExemptions": {

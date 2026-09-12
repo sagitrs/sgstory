@@ -50,6 +50,7 @@ if (LIBS) childEnv.LD_LIBRARY_PATH = process.env.LD_LIBRARY_PATH ? `${LIBS}:${pr
 const CHROME = findChrome();
 if (!CHROME) {
 	console.log('○ 真实浏览器验收：跳过（未找到 Chrome；设 CHROME_PATH 或装 Chrome for Testing）');
+	console.log('BROWSER_ASSERTIONS skipped');   // 未执行（无浏览器/无构建）：CI 守卫据此与「0/0 假绿」区分
 	process.exit(0);
 }
 // 预检：库不全时 Chrome 起不来——直接给出准备命令，不让脚本超时失败
@@ -59,11 +60,13 @@ if (!CHROME) {
 		const missing = String(probe.stderr ?? '').match(/lib[A-Za-z0-9._-]+\.so[\d.]*/g) ?? [];
 		console.log(`○ 真实浏览器验收：跳过（Chrome 起不来${missing.length ? `，缺 ${[...new Set(missing)].join(', ')}` : ''}）`);
 		console.log('   准备：npm run browser:setup   （免 root 就地解包系统库到 ~/.cache/sgstory-chrome-deps）');
+		console.log('BROWSER_ASSERTIONS skipped');   // 未执行（缺系统库）
 		process.exit(0);
 	}
 }
 if (!existsSync('dist/index.html')) {
 	console.log('○ 真实浏览器验收：跳过（dist/index.html 不存在，先 npm run build）');
+	console.log('BROWSER_ASSERTIONS skipped');   // 未执行（无浏览器/无构建）：CI 守卫据此与「0/0 假绿」区分
 	process.exit(0);
 }
 
@@ -115,7 +118,9 @@ await send('Runtime.enable');
 
 // ── 断言框架 ────────────────────────────────────────────────────
 let fails = 0;
-const check = (cond, msg) => { console.log(`${cond ? '✓' : '✗'} ${msg}`); if (!cond) fails++; };
+let total = 0;
+// 机器可读锚点：末行汇总印「断言 通过/总数」（CI 守卫看这一行，不必锚死具体条数）
+const check = (cond, msg) => { total++; console.log(`${cond ? '✓' : '✗'} ${msg}`); if (!cond) fails++; };
 const shots = 'build/browser-evidence';
 mkdirSync(shots, { recursive: true });
 const shoot = async (name) => {
@@ -345,7 +350,9 @@ for (const [W, H] of VP) {
 console.log('\n── 键盘序列（#284①，真机 Tab/Enter）');
 await keyboardCase(390, 844);
 
-console.log(`\n${fails ? '✗' : '✔'} 真实浏览器验收：${fails ? `${fails} 项失败` : '全部通过'}`);
+const summary = `${fails ? '✗' : '✔'} 真实浏览器验收：${fails ? `${fails} 项失败` : '全部通过'}（断言 ${total - fails}/${total} · ${VP.length} 视口 × 4 场景 ＋ 键盘序列 1 例）`;
+console.log(`\n${summary}`);
 console.log(`   截图：${shots}/（${VP.length} 视口 × 4 场景）`);
+console.log(`BROWSER_ASSERTIONS ${total - fails}/${total}`);   // CI 守卫用的稳定锚点
 cleanup();
 process.exit(fails ? 1 : 0);

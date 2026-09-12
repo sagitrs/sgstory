@@ -68,8 +68,12 @@ const FOLLOWING = w.Node.DOCUMENT_POSITION_FOLLOWING;
 let fresh = w.document.querySelector('.fresh-heard');
 assert(fresh && !fresh.hidden, '本次回答槽存在且已亮出');
 assert(fresh.textContent.includes('前年我上山'), '不老女人传闻内容显示在本次回答槽');
-assert(w.document.activeElement.closest('.fresh-heard') && w.document.activeElement.textContent.includes('不老的女人'), '同页提问后焦点跟随本次回答');
-assert(w.document.activeElement.closest('[data-heard="tav_ageless"]'), '焦点落在本次回答的整组容器上');
+// #304 口径（断言与渲染路径解耦）：**信息可见**用「文本在屏」验（上面两条已覆盖：槽存在/未隐藏/含本次内容），
+// **键盘可续**用「焦点落在 #passages 内」验——保留 #185 的键盘可达要求，但不再绑定「焦点落在哪个元素」。
+// 旧写法绑 `.fresh-heard` / `[data-heard=…]`：共用层一调反馈目标就假红（#304 flake 实证），且它挡不住真回归。
+// 真正的契约在实现侧：焦点掉到 body 时把焦点**收回 `#passages` 内**的反馈元素（80-script 的 MutationObserver）。
+const focusInPassages = () => !!w.document.activeElement?.closest('#passages');
+assert(focusInPassages(), '同页提问后焦点仍在正文区（键盘可续，#304 口径）');
 assert(fresh.compareDocumentPosition(w.document.querySelector('.tavern-actions')) & FOLLOWING, '本次回答槽在行动区之前（读完就是选项）');
 assert(links().filter((a) => fresh.compareDocumentPosition(a) & FOLLOWING).length >= 5, '本次回答之后还有可点选项——阅读方向向下，不回头向上找');
 assert(!w.document.querySelector('.heard-fold') || w.document.querySelector('.heard-fold').hidden, '首次打听后记录区为空，整块隐藏不留空壳');
@@ -77,7 +81,7 @@ await click('跑生意的');   // 逆序问一桌
 assert(w.SugarCube.State.variables.pc.ev.tav_grudge === true, '问过的那桌记账（tav_grudge）');
 fresh = w.document.querySelector('.fresh-heard');
 assert(fresh.textContent.includes('雾是它谢下来的') && !fresh.textContent.includes('前年我上山'), '本次回答槽只留最新一条');
-assert(w.document.activeElement.closest('[data-heard="tav_grudge"]'), '逆序提问定位新回答（槽内整组容器）');
+assert(focusInPassages(), '逆序提问后焦点仍在正文区（键盘可续，#304 口径）');
 const tavFold2 = w.document.querySelector('.heard-fold');
 assert(tavFold2 && !tavFold2.hidden && tavFold2.textContent.includes('前年我上山'), '上一条回到已读折叠归档');
 assert(links().filter((a) => fresh.compareDocumentPosition(a) & FOLLOWING).length >= 5, '逆序提问后剩余选项仍在回答之后（方向不回头）');

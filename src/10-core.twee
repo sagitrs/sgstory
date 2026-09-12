@@ -234,16 +234,16 @@ Macro.add('dragonbar', {
 	<<lastcheck>>
 	<<if $args[0] is "翻检">>
 		<<if $last_check.success>>
-			你把哨子从钉子上提起来，收进行囊，可在''物品栏''查看。<<give "坏哨">>
+			你把哨子从钉子上提起来，收进行囊，可在''物品栏''查看。<<give "坏哨">><<setflag "whistle_taken">>
 		<<else>>
 			哨子卡在钉子上。你拨了半天，指头刮破了一道口子——到底还是弄下来了。
-			<<damage 1>><<give "坏哨">>
+			<<damage 1>><<give "坏哨">><<setflag "whistle_taken">>
 		<</if>>
 	<<else>>
 		<<if $last_check.success>>
-			你借了箱子的高度，一把攥住哨子拧了下来。<<give "坏哨">>
+			你借了箱子的高度，一把攥住哨子拧了下来。<<give "坏哨">><<setflag "whistle_taken">>
 		<<else>>
-			箱子一滑，你磕在墙角上。<<damage 2>>好歹把哨子攥下来了。<<give "坏哨">>
+			箱子一滑，你磕在墙角上。<<damage 2>>好歹把哨子攥下来了。<<give "坏哨">><<setflag "whistle_taken">>
 		<</if>>
 	<</if>>
 	<p>这里你已经''翻找过''了，没有别的。</p>

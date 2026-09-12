@@ -75,23 +75,21 @@
 	<<if $pc.world.flower_mud>>
 		（你端散过一块土。剩下的花，得一块一块小心地起。）
 	<</if>>
-	<div id="fanlin-act">
+	<div id="fanlin-act"><<nobr>>
+/% #300 P1：改回渲染路径（状态必须落在 history moment 上，存读档才不丢） %/
 	<<lastcheckFor "塔外花田" "花田·下风">>
 	<<link "伸手去摘最靠里的那一朵">>
-		<<replace "#fanlin-act">>
-			<<if $pc.world.flower_warned>>
-				（''你憋住气''，把最靠里的那一朵连根带土捧起来。）<<give "月光花">>
+		<<if $pc.world.flower_warned>>
+			（''你憋住气''，把最靠里的那一朵连根带土捧起来。）<<give "月光花">><<goto "塔外花田">>
+		<<else>>
+			你伸手去够最靠里的那一朵。花香先到了：不是香，是''沉''，像有人把一床湿被子从你头顶按下来。
+			<<sitecheck "塔外花田">><<snapshot>><<lastcheck>>
+			<<if $last_check.success>>
+				你撑住了，把那一朵连根带土捧起来。<<give "月光花">><<goto "塔外花田">>
 			<<else>>
-				你伸手去够最靠里的那一朵——花香先到了。不是香，是''沉''：像有人把一床湿被子从你头顶按下来。
-
-				<<sitecheck "塔外花田">><<snapshot>><<lastcheck>>
-				<<if $last_check.success>>
-					你撑住了，把那一朵连根带土捧起来。<<give "月光花">>
-				<<else>>
-					<<set $pc.world.flower_sleep to true>><<goto "结局 死亡">>
-				<</if>>
+				<<set $pc.world.flower_sleep to true>><<goto "结局 死亡">>
 			<</if>>
-		<</replace>>
+		<</if>>
 	<</link>>
 	<<link "退到上风头，连土一起端起来">>
 		<<sitecheck "花田·下风">><<snapshot>>
@@ -99,15 +97,14 @@
 			你退到上风头，屏着气把刀插进土里，整块端起来——''根没断，花也没散''。<<give "月光花">>
 		<<else>>
 			土比你估的松。你被那股甜味按了一下，膝盖先着了地。<<damage 3>>
-			你趴在地上缓了一会儿。再抬头，那一整块土已经散了，''花折在泥里''。这回没拿到，要么换个法子，要么先回去。
-			<<set $pc.world.flower_mud to true>>
+			你趴在地上缓了一会儿。再抬头，那一整块土已经散了，''花折在泥里''。这回没拿到，要么换个法子，要么先回去。<<set $pc.world.flower_mud to true>>
 		<</if>>
 		<<goto "塔外花田">>
 	<</link>>
 	<<if not $pc.world.flower_warned>>
 		<<link "先别动它，退回塔门">><<goto "塔门">><</link>>
 	<</if>>
-	</div>
+	<</nobr>></div>
 <</if>>
 <</if>>
 
@@ -432,46 +429,39 @@
 墙上那枚弯钩钉子空着，钩尖还挂着一点线头。楼上的脚步声在楼梯口停了停，又退了回去——这塔里的动静，各有各的来历。
 
 <<if $pc.world.hall_hint and not $pc.inv["坏哨"]>><span class="sys-note">（你已经听过比法：那钉子是弯钩，往上提、再往外带。）</span><</if>>
-<div id="hall-act"><<nobr>>
-/% #185：结果留屏（replace＋hallResult 单源） %/
+<div id="hall-act">
+/% #300 P1：原地 <<replace>> 的状态变更不落 history moment（存读档会丢）——改回渲染路径：
+   动作仍在 link 体内掷骰/结算，随后 <<goto>> 重渲染；本次结果由 #270 的结果槽留屏。 %/
 <<if not $pc.inv["坏哨"]>>
 	<<if $pc.ev.hall_seen>>
-		<<hallPick "已看清">>
+		<<link "摘哨子（钉子怎么卡的，你已经看清了）">>
+			你把哨子从钉子上提起来，收进行囊，可在''物品栏''查看。<<give "坏哨">>
+			<<goto "门厅">>
+		<</link>>
 	<<else>>
 		<<lastcheckFor "门厅·翻检" "门厅·看钉" "门厅·硬掰">>
 		<<link "把墙上那支哨子摘下来">>
-			<<sitecheck "门厅·翻检">><<snapshot>>
-			<<replace "#hall-act">><<hallResult "翻检">><</replace>>
+			<<sitecheck "门厅·翻检">><<snapshot>><<hallResult "翻检">>
+			<<goto "门厅">>
 		<</link>>
 		<<link "先看清钉子是怎么卡的">>
 			<<sitecheck "门厅·看钉">><<snapshot>>
-			<<replace "#hall-act">>
-				<<lastcheck>>
-				<<if $last_check.success>>
-					钉子锈成了一个钩，得往上提、再往外带。（''看准了，就不必用蛮力。''）<<set $pc.ev.hall_seen to true>>
-					<<hallPick "已看清">>
-				<<else>>
-					灰太厚，看不清。但你先前听人比过：''那钉子是个弯钩，往上提、再往外带，不必硬掰''。<<set $pc.world.hall_hint to true>>
-					<<link "把墙上那支哨子摘下来">>
-						<<sitecheck "门厅·翻检">><<snapshot>>
-						<<replace "#hall-act">><<hallResult "翻检">><</replace>>
-					<</link>>
-					<<link "踩上墙边那只箱子，硬掰下来">>
-						<<sitecheck "门厅·硬掰">><<snapshot>>
-						<<replace "#hall-act">><<hallResult "硬掰">><</replace>>
-					<</link>>
-				<</if>>
-			<</replace>>
+			<<if $last_check.success>>
+				钉子锈成了一个钩，得往上提、再往外带。（''看准了，就不必用蛮力。''）<<set $pc.ev.hall_seen to true>>
+			<<else>>
+				灰太厚，看不清。但你先前听人比过：''那钉子是个弯钩，往上提、再往外带，不必硬掰''。<<set $pc.world.hall_hint to true>>
+			<</if>>
+			<<goto "门厅">>
 		<</link>>
 		<<link "踩上墙边那只箱子，硬掰下来">>
-			<<sitecheck "门厅·硬掰">><<snapshot>>
-			<<replace "#hall-act">><<hallResult "硬掰">><</replace>>
+			<<sitecheck "门厅·硬掰">><<snapshot>><<hallResult "硬掰">>
+			<<goto "门厅">>
 		<</link>>
 	<</if>>
 <<else>>
 	这里你已经''翻找过''了，没有别的。
 <</if>>
-<</nobr>></div>
+</div>
 
 <<if not $pc.world.present_done>><<setflag "present_done">><</if>>
 

@@ -168,6 +168,9 @@ Macro.add('lastcheck', {
 // 交涉面板的位点表在运行期才知道，只能整表传进来再由这里摊平。
 Macro.add('lastcheckFor', {
 	handler() {
+		// #300 P2：本次结果槽已经带着这一掷的骰面时不再复显（同一颗骰不显示两遍）
+		const lr = State.variables.pc?.ev?.last_result;
+		if (lr?.hasCheck && lr.p === State.passage) return;
 		const sites = this.args.flat(Infinity).map(String);
 		const r = State.variables.pc?.ev?.last_roll;
 		if (r && sites.includes(r.site)) $(this.output).append(renderCheck(r));

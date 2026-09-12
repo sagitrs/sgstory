@@ -51,5 +51,23 @@ try {
 	} catch (e) { bad++; console.error(`  ✗ #364 用例异常：${e.message.slice(0, 120)}`); } finally { w2.close?.(); }
 }
 
+// ── #403：门厅取物——同一颗骰/同一句结果只显示一遍 ──
+{
+	const s3 = await newGame({ random: 0.99, session: { wait: 140 } });
+	const w3 = s3.w;
+	const txt3 = () => (w3.document.querySelector('#passages')?.textContent ?? '').replace(/\s+/g, '');
+	try {
+		for (const l of ['问一句女巫小屋怎么走', '往林子深处走', '继续往塔那边走', '雾里有个影子挡着路', '慢慢放下手', '顺着那条窄路走过去', '收下钥匙']) await s3.clickByLabel(l);
+		w3.SugarCube.Engine.play('门厅'); await sleep(220);
+		await s3.clickByLabel('把墙上那支哨子摘下来'); await sleep(300);
+		const hits = (re) => (txt3().match(re) ?? []).length;
+		const d20 = hits(/d20\(/g), 查 = hits(/调查检定/g), 翻 = hits(/翻找过/g);
+		if (d20 !== 1 || 查 !== 1 || 翻 !== 1) { bad++; console.error(`  ✗ #403：门厅取物重复显示（d20×${d20}／调查检定×${查}／翻找过×${翻}；期望各 1）`); }
+		else console.log('  ✓ #403：门厅取物——骰面与结果各显示一遍');
+		if (!w3.SugarCube.State.variables.pc.inv['坏哨']) { bad++; console.error('  ✗ #403：去重把状态变更也去掉了（坏哨没进背包）'); }
+		else console.log('  ✓ #403：状态变更照旧（坏哨已入背包）');
+	} catch (e) { bad++; console.error(`  ✗ #403 用例异常：${e.message.slice(0, 120)}`); } finally { w3.close?.(); }
+}
+
 if (bad) { console.error(`\n✗ 历史结果绑定门：${bad} 项`); process.exit(1); }
 console.log('✔ 历史结果绑定到产生它的行动（跨段不串台）');

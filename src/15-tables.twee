@@ -1005,5 +1005,97 @@ window.Game = (() => {
 		bookkeeping: ['tav_light', 'tav_iron', 'tav_seal', 'banquet_over'],
 	};
 
-	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences, Investment, State };
+	// ── canon 规则层声称表（#247「Rules.claims」，实现名 Game.RuleClaims——避开已存在的
+	//    window.Rules 规则引擎与 Game.Checks）。每条＝一条 canon 条文 × 一条**可执行探针**：
+	//    · docAnchor 必须**逐字**出现在 docs/lore-canon.md（条文漂移即红）
+	//    · probe.p/era 决定在哪个段落、哪个时代渲染
+	//    · include 必须全部出现在渲染文本里；exclude 必须全部不出现
+	//    门：test/rules-claims.mjs（行为门＋合成反例自证）。#239 类「正文与 canon 脱钩」的常设防线。
+	const RuleClaims = {
+		claims: [
+			{
+				id: '§3.3-门外翻转-门为送星人开着',
+				sec: '§3.3', docAnchor: '在塔门外翻转',
+				rule: '在塔门外翻转 → 三百年前的塔外；送星宴已开席，门为送星的人开着',
+				p: '塔门', era: 'past', set: { 'pc.keeper.met': true },
+				include: ['门为送星的人开着'],
+				exclude: [],
+				why: '#239：塔门线收口——门外翻转不再要求先随守林人进大门',
+			},
+			{
+				id: '§3.3-门外翻转-无人拦你',
+				sec: '§3.3', docAnchor: '人群不问你是谁',
+				rule: '门外翻转到达的三百年前塔外，没人拦你（人群不问你是谁）',
+				p: '塔门', era: 'past', set: { 'pc.keeper.met': false },
+				include: ['没人拦你'],
+				exclude: [],
+				why: '§3.3 同一条文的另一半：没人认你时也不拦——门为送星的人开着与身份无关',
+			},
+			{
+				id: '§3.3-宴当晚-地下铁门不锁',
+				sec: '§3.3', docAnchor: '铁门不锁',
+				rule: '宴当晚过去塔内通往地下的铁门不锁（客人进出）',
+				p: '门厅', era: 'past',
+				include: ['铁门敞着'],
+				exclude: [],
+				why: '#239②：过去门厅铁门时代分态，无钥匙也能下楼赴宴',
+			},
+			{
+				id: '§3.3-三百年后-地下铁门须钥匙',
+				sec: '§3.3', docAnchor: '须守林人的钥匙',
+				rule: '三百年后的地下铁门须守林人的钥匙',
+				p: '门厅', era: 'present',
+				include: ['锁着'],
+				exclude: ['铁门敞着'],
+				why: '#239②的另一半：现在侧保持上锁，且不得再出现「敞着」',
+			},
+			{
+				id: '§5.12-钥匙唯一持有者-守林人',
+				sec: '§5.12', docAnchor: '唯一的钥匙',
+				rule: '通往地下宴会厅那道门唯一的钥匙由守林人持有，正常交涉即可拿到',
+				p: '守林人', era: 'present',
+				include: ['他从腰上解下钥匙'],
+				exclude: [],
+				why: '§5.12：钥匙是唯一入口，且「空手来的人也拿得到」',
+			},
+			{
+				id: '§4.1-守林人认的是差事与护符',
+				sec: '§4.1', docAnchor: '认符也认人',
+				rule: '守林人认的是差事与护符，不是个人（两代同文＝家训）',
+				p: '守林人', era: 'past',
+				include: ['认符也认人'],
+				exclude: [],
+				why: '#239③ C+B 最小集：不拆 keeper.met／keeper.met_past 两套旗标',
+			},
+			{
+				id: '§3.8-阈值-攻击龙即触发战斗',
+				sec: '§3.8', docAnchor: '攻击龙即触发战斗',
+				rule: '雾（星力）攒过某个值之后，攻击龙即触发战斗；阈值前动手不安全',
+				p: '地下宴会厅', era: 'present',
+				include: ['攻击它', '承受它的反击'],
+				exclude: [],
+				why: '#252②：删「打不起来」死机制后，阈值前的劝退文案仍在',
+			},
+			{
+				id: '§3.5-雾是唯一提示-现象层',
+				sec: '§3.5', docAnchor: '唯一提示＝雾',
+				rule: '星账不可见（不显示数字/进度条），唯一提示＝雾：每次从过去回来雾会淡一些',
+				p: '塔门', era: 'present', set: { 'pc.world.fog_thin': true, 'pc.star.spent': 3 },
+				include: ['薄了一层'],
+				exclude: [],
+				why: '#291 I1-G1：现象层钩子在累计翻转 ≥3 后出现（不显示任何数字）',
+			},
+			{
+				id: '§3.5-代价可感但不可见',
+				sec: '§3.5', docAnchor: '玩家不可见',
+				rule: '那笔账以隐藏计数实现：玩家不可见、不显示数字与进度条，只能从现象层感到',
+				p: '塔门', era: 'present', set: { 'pc.inv.时光护符': true, 'pc.star.spent': 3 },
+				include: ['被抽走了一点点什么'],
+				exclude: ['星力：', '进度条', '剩余星力'],
+				why: '§3.5：全游唯一提示是雾；此处同时钉住「不得把星账写成可见数字」',
+			},
+		],
+	};
+
+	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences, Investment, State, RuleClaims };
 })();

@@ -98,7 +98,10 @@ function evaluate(data, baseline) {
 	// C4 样本口径：**只比走完结局的完整路线**。理由（实测踩坑）：只用几次点击就结束的
 	// 专项用例，其轨迹天然是长路线的前缀，包含率（inter/min）必然 = 1.000——那与「路线趋同」
 	// 毫无关系，是伪信号。截断轨迹只记进 E4 表，不进 C4 比对。
-	const full = names.filter((k) => routes[k].ending);
+	// #338/#357：**合成用例排除**——构造性路线（首次点击前就注入状态）不计入「完整路线」样本，
+	// 否则会抬高家族数、压低最少交互数（两次实测：E4 最早交互数 3<5、C4 家族 18→19 打掉 R1b 自证）。
+	const synthetic = names.filter((k) => routes[k].synthetic);
+	const full = names.filter((k) => routes[k].ending && !routes[k].synthetic);
 	const routeText = Object.fromEntries(names.map((k) => [k, (routes[k].passages ?? []).map((p) => passageTexts[p] ?? '').join(' ')]));
 	const Graw = Object.fromEntries(names.map((k) => [k, ngrams(routeText[k])]));
 	// DF 过滤（在**完整路线**样本上统计：截断用例会把主线高频化，不能参与 df 统计）
@@ -138,7 +141,8 @@ function evaluate(data, baseline) {
 		commonCut,
 		emptyDistinctive,
 		routes: full.length,
-		truncated: names.length - full.length,
+		truncated: names.length - full.length - synthetic.length,
+		synthetic: synthetic.length,
 		clusterT: CLUSTER_T,
 		clusters: fams.length,
 		families: fams,
@@ -218,7 +222,10 @@ function selftest(data, baseline) {
 	{
 		const base = evaluate(data, null);
 		const full = Object.keys(data.routes).filter((k) => data.routes[k].ending);
-		const singles = base.c4.families.filter((f) => f.length === 1).map((f) => f[0]).slice(0, 4);
+		// 自适应：吸收「刚好跌破下限」所需的最少单成员家族数——这样**任何合法新增路线**都不会让反例失效
+		// （guest-1 实测：新增一条路线把家族数抬到 19 后，原来固定吸 4 条＝降到 16＝正好等于下限，反例不再咬合）。
+		const need = Math.max(1, base.c4.clusters - THRESHOLDS.clustersMin + 1);
+		const singles = base.c4.families.filter((f) => f.length === 1).map((f) => f[0]).slice(0, need);
 		const a = full[0], b = singles.map(() => a);
 		const bad = JSON.parse(JSON.stringify(data));
 		for (const t of singles) bad.routes[t].passages = [...bad.routes[a].passages];
@@ -298,6 +305,7 @@ else {
 	for (const b of r.beats) console.log(`   ${b.key}：可达段落 ${b.passages}｜被 ${b.routes} 条路线走到｜${b.why}`);
 	console.log(`\n══ C4 路线相异度 ══  （字符 ${CHAR_N}-gram；只比走完结局的 ${r.c4.routes} 条完整路线，另有 ${r.c4.truncated} 条截断用例不计入）`);
 	console.log(`  降噪：DF 过滤——被 ≥${r.c4.commonCut}/${r.c4.routes} 条路线共享的 5-gram 视为「共享主线/框架文本」，不计入相异度（#338）`);
+	console.log(`  样本：完整路线 ${r.c4.routes} 条（另有合成用例 ${r.c4.synthetic} 条、截断用例 ${r.c4.truncated} 条**不计入** C4/E4）`);
 	console.log(`  游玩路线家族（相似度 ≥ ${r.c4.clusterT} 自动归并）：${r.c4.clusters} 族`);
 	for (const f of r.c4.families) console.log(`   · ${f.length} 条：${f.join(' / ')}`);
 	console.log(`  跨家族平均相似度 ${r.c4.meanInterJaccard.toFixed(3)}｜最大 ${r.c4.maxInterJaccard.toFixed(3)}｜家族内最大 ${r.c4.maxIntraJaccard.toFixed(3)}（家族内高是预期的：同一段路径的多个用例）`);

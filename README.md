@@ -11,8 +11,11 @@
 npm install
 npm run build   # 编译 → dist/（index.html + fonts/ 外链子集字体，目录整体分发，浏览器直接打开即玩）
 npm run serve   # 本地预览：http://localhost:8000
-npm test        # 构建后全链（~2min）：L0 静态门（含表一致性）→ 十一道质量门（真相/canon/回声/选择/互动/**反 S/L**/**行囊+经济**/**战斗动作池**/**交涉**/系统/文本）→ 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(32 路线并行) → 覆盖门 → 体积门
-npm run soak    # 游走器加量长测（20+20 局，~1.5min）：CI 独立 job（M1c 接回）；发布前 / 状态机重改动时也可本地跑
+npm test        # 构建后全链（~2min）：L0 静态门（含表一致性）→ 十一道质量门（真相/canon/回声/选择/互动/**反 S/L**/**行囊+经济**/**战斗动作池**/**交涉**/系统/文本）→ 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(39 路线并行) → 覆盖门 → 旧存档×新界面 → 体积门
+npm run soak    # 游走器加量长测（20+20 局，~1.5min）+ 真浏览器验收（24 项）：CI 独立 job（M1c 接回）；发布前 / 状态机重改动时也可本地跑
+npm run browser # 真浏览器验收（#185 阶段五）：零依赖 CDP 直连 Chrome for Testing；缺浏览器/系统库时自动跳过（rc=0）
+npm run browser:setup  # 容器缺系统库：免 root 就地解包到 ~/.cache/sgstory-chrome-deps（apt-get download + dpkg -x）
+node scripts/ui-migration-diff.mjs  # 差异复核：工作区 vs 基线（默认 92f3d04）的玩家可见正文漂移 → docs/ui-migration-diff.md
 npm run audit   # 表驱动审计（#28/#34）：每个门都能单独跑，加载打印数值报告
                  #   十一门 —— --truth --canon --echoes --choices --interact --nosl --gear --combat --social --systems --text
                  #   数值三件套 —— 检定成功率矩阵 / 经济时间线 / --dragon 龙战推演与道具伤害矩阵
@@ -53,6 +56,8 @@ vendor/
 test/integrity.mjs  L0 静态完整性门：悬空引用/goto 裸词/未定义宏 + 词汇纪律 W1-W3 + 表一致性硬门（#28/#29）
                    + 序章白名单（开场不许提前提后文才到的地方）+ 回指门（"你想起某人说过的话"必须真听过 → 门槛控） + 楼层数字门（正文/提示里的"N楼"要与设定书楼层定案一致）+ 满血门（<<set $pc.hp to $pc.max_hp>> 必须落在 <<if>> 门控里）
 test/render-all.mjs L1 全段落渲染冒烟：逐段落 play × $era 双变体，无异常/无 .error/非空 + 断链门（a.link-broken 必须为 0）+ 裸标记门（畸形闭合在屏上漏字）
+test/saveui.mjs    旧存档 × 新界面兼容矩阵（#264）：6 fixture × 2 时代 × 6 代表段落（不凭空结果槽/不串反馈/不崩/首遇门控安全）
+test/browser.mjs   真浏览器验收（#263）：零依赖 CDP，3 视口 × 4 场景 × 操作前后 = 24 项断言 + 截图存证
 test/walker.mjs    L2 对抗席游走器：种子化随机游走（一章+塔）+ 状态不变量 + 位点双支清扫（npm run soak 加量）
 test/coverage.mjs  L3 覆盖率 ratchet（六门）：基线不回退 / 新段落必配测 / 无交互盲区 / 时代双态 / 交互≥渲染 / **链接级覆盖**（render-all 的链接清单 × scenarios 的点击记录，未点过的须在 test/link-whitelist.json 里有理由）
 test/render-all.mjs（门7 出口在最后·静态版）＋ test/walker.mjs（同款·真实状态版）：有可点元素的段落，**最后一个可点之后不许压着成块正文（≥30 字，按文本节点数、含收起 details 的最坏展开态）**——推进剧情的选项永远在最后（#179/#184）。豁免走 test/exits-whitelist.json（结局页 UI 脚注 / flip 过场）

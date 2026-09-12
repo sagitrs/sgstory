@@ -423,6 +423,16 @@ async function routeTooManyFlips() {
 	}
 	if (pcOf(w).star.spent <= w.Game.Star.budget) throw new Error(`乱翻之后 spent=${pcOf(w).star.spent} 没超过预算`);
 	if (w.SugarCube.State.variables.era !== 'present') throw new Error('乱翻之后没有停在现在');
+	// #291 I1-G1：现象层钩子——翻得多了，雾与人都要能被「感觉到」（不显示任何数字）
+	if (pcOf(w).star.spent >= 3) {
+		await c('翻转护身符：坠入');
+		await c('翻转护身符：回到');
+		if (!passageText(w).includes('薄了一层')) throw new Error('#291 G1：翻多次后雾的递进描写没出');
+		if (!passageText(w).includes('被抽走了一点点什么')) throw new Error('#291 G1：翻多次后没有代价的现象层提示');
+		w.eval("SugarCube.Engine.play('守林人')"); await sleep(150);
+		if (!passageText(w).includes('雾薄了')) throw new Error('#291 G1：守林人中途台词没出');
+		w.eval("SugarCube.Engine.play('地下宴会厅')"); await sleep(150);   // 归位到路线原所在段
+	}
 	await c('叫醒它');                    // 唤醒
 	if ([...w.document.querySelectorAll(CLICKABLE)].some((x) => x.textContent.includes('让守林人动手'))) {
 		throw new Error('翻太多之后还出现了「让守林人动手」——软限没生效');

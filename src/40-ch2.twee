@@ -254,6 +254,7 @@
 <<give "守林人的钥匙">>
 <<else>>
 他还在塔门前。见你看过来，朝你点了点头。<<if $pc.ev.keeper_kind>>''"你那天那句话，我记着。"''他说。<</if>>
+<<if $pc.star.spent gte 3>>''"你来回跑了几趟了。"''他看了一眼你身后的林子，''"雾薄了。可薄下去的东西，不全是你带回的。"''<</if>>
 <</if>>
 
 <<if $era is "present" and $pc.ev.forge_seen and not $pc.ev.forge_thanks>>

@@ -86,5 +86,38 @@ for (const file of fixtures) {
 	}
 }
 
+// ── #300 P1 回归：真实保存 / 加载往返（此前矩阵只做渲染，原理上抓不到「原地行动丢进度」）──
+{
+	const { w: w2 } = await boot({ random: 0.99 });   // 高骰：门厅取物必成
+	w2.eval(`(function(){
+		const pc = SugarCube.State.variables.pc;
+		pc.abilities = pc.abilities || { str: 16, dex: 12, con: 14, int: 10, wis: 12, cha: 10 };
+		pc.max_hp = pc.max_hp || 18; pc.hp = pc.max_hp; pc.inv = pc.inv || {};
+		delete pc.inv['坏哨']; delete pc.ev.hall_seen;
+		SugarCube.Engine.play('门厅');
+	})()`);
+	await sleep(200);
+	const click = (label) => {
+		const a = [...w2.document.querySelectorAll('#passages a')].find((x) => x.textContent.includes(label));
+		if (a) a.click();
+		return !!a;
+	};
+	check(click('把墙上那支哨子摘下来'), '[P1] 门厅取物入口存在');
+	await sleep(250);
+	check(w2.eval("SugarCube.State.variables.pc.inv['坏哨'] === true"), '[P1] 取物后坏哨在行囊');
+	check(w2.eval("!!document.querySelector('#passages .scene-feedback')"), '[P1] 取物后本次结果在屏');
+	// 真实存 → 破坏 → 读
+	w2.eval('SugarCube.Save.browser.slot.save(1, "P1 回归")');
+	await sleep(250);
+	w2.eval("(function(){ delete SugarCube.State.variables.pc.inv['坏哨']; delete SugarCube.State.variables.pc.ev.last_result; })()");
+	check(w2.eval("SugarCube.State.variables.pc.inv['坏哨'] === undefined"), '[P1] 破坏态就位（哨与结果已清）');
+	await w2.eval('SugarCube.Save.browser.slot.load(1)');
+	await sleep(250);
+	w2.eval('SugarCube.Engine.show()');
+	await sleep(250);
+	check(w2.eval("SugarCube.State.variables.pc.inv['坏哨'] === true"), '#300 P1：读档后坏哨须还在（原地行动状态进了 moment）');
+	check(w2.eval("document.querySelector('#passages').textContent.includes('翻找过')"), '#300 P1：读档后门厅处于「已翻找」态（不回到可摘取）');
+}
+
 console.log(`\n${fails ? '✗' : '✔'} 旧存档 × 新界面：${fails ? `${fails} 项失败` : '全部通过'}`);
 process.exit(fails ? 1 : 0);

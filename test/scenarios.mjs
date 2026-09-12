@@ -709,6 +709,11 @@ async function routeCave() {
 	await c('拔家伙');
 	if (pcOf(w).world.goblin_spared) throw new Error('动武分支不应置 goblin_spared');
 	if (passageOf(w) !== '森林边缘') throw new Error(`动武后应回森林边缘（实际 ${passageOf(w)}）`);
+	// #300 P2：跨段导航后这一掷的骰面不得丢——结果槽须带着检定行（DC/骰面）
+	const slot = w.document.querySelector('#passages .scene-feedback');
+	const diceLine = w.document.querySelector('#passages .check-result');
+	const slotText = slot?.textContent ?? '';
+	if (!diceLine && !/DC\d|d20|检定/.test(slotText)) throw new Error('#300 P2：跨段后检定框被吞（骰面丢失）');
 	return { w };
 }
 

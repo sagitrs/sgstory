@@ -76,7 +76,7 @@ vendor/
 test/integrity.mjs  L0 静态完整性门：悬空引用/goto 裸词/未定义宏 + 词汇纪律 W1-W3 + 表一致性硬门（#28/#29）
                    + 序章白名单（开场不许提前提后文才到的地方）+ 回指门（"你想起某人说过的话"必须真听过 → 门槛控） + 楼层数字门（正文/提示里的"N楼"要与设定书楼层定案一致）+ 满血门（<<set $pc.hp to $pc.max_hp>> 必须落在 <<if>> 门控里）
 test/render-all.mjs L1 全段落渲染冒烟：逐段落 play × $era 双变体，无异常/无 .error/非空 + 断链门（a.link-broken 必须为 0）+ 裸标记门（畸形闭合在屏上漏字）
-test/saveui.mjs    旧存档 × 新界面兼容矩阵（#264）：6 fixture × 2 时代 × 6 代表段落（不凭空结果槽/不串反馈/不崩/首遇门控安全）
+test/saveui.mjs    旧存档 × 新界面兼容矩阵（#264）＋**真实存读档往返**（#300 P1：原地取物→save→load，道具与「已翻找」态须回来）
 test/browser.mjs   真浏览器验收（#263）：零依赖 CDP，3 视口 × 4 场景 × 操作前后 = 24 项断言 + 截图存证
 test/walker.mjs    L2 对抗席游走器：种子化随机游走（一章+塔）+ 状态不变量 + 位点双支清扫（npm run soak 加量）
 test/coverage.mjs  L3 覆盖率 ratchet（六门）：基线不回退 / 新段落必配测 / 无交互盲区 / 时代双态 / 交互≥渲染 / **链接级覆盖**（render-all 的链接清单 × scenarios 的点击记录，未点过的须在 test/link-whitelist.json 里有理由）

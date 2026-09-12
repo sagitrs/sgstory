@@ -155,7 +155,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 // 同页选项会重绘整个段落，而 SugarCube 默认回到页顶。
 // 只用点击前后的公开 DOM 找本次反馈；不把滚动目标写进存档或剧情状态。
 (() => {
-	const feedbackSelector = '.tavern-heard p, .check-result, .soc-said, .damage-flash, .fight-log, .gain, .econ-note';
+	const feedbackSelector = '.scene-feedback, .tavern-heard p, .check-result, .soc-said, .damage-flash, .fight-log, .gain, .econ-note';
 	const textOf = (el) => el.textContent.trim();
 	let pending = null;
 	let action = 0;
@@ -197,13 +197,16 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		const origGoto = gotoMacro.handler;
 		gotoMacro.handler = function () {
 			try {
-				// 链接里的输出此刻还在 wikifier 缓冲里（未进 DOM）：从 <<goto>> 的 this.output 取，
-				// 去掉骰面（骰面由 <<lastcheckFor>> 复显，避免同一颗骰显示两遍）。
+				// 链接里的输出此刻还在 wikifier 缓冲里（未进 DOM）：从 <<goto>> 的 this.output 取。
+				// #300 P2：**保留骰面**——目标段落未必有 <<lastcheckFor>>（如洞穴动武→森林边缘），
+				// 剥掉骰面就等于把这一掷丢了；改为整段保留并标 hasCheck，由 lastcheckFor 侧避重。
 				if (pending) {
 					const frag = jQuery(this.output).clone();
-					frag.find('.check-result').remove();
+					const hasCheck = frag.find('.check-result').length > 0;
 					const fresh = frag.text().replace(/\s+/g, ' ').trim();
-					if (fresh && fresh.length < 400) State.variables.pc.ev.last_result = { p: State.passage, era: State.variables.era, text: fresh };
+					if (fresh && fresh.length < 400) {
+						State.variables.pc.ev.last_result = { p: State.passage, era: State.variables.era, text: fresh, hasCheck };
+					}
 				}
 			} catch (e) { /* 捕获失败不影响导航 */ }
 			return origGoto.apply(this, arguments);

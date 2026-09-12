@@ -965,6 +965,20 @@ window.Game = (() => {
 			  consumedBy: '守林人（返回短入口的回述）' },
 		],
 		failClueExempt: {},
+		// G3 时代域：past＝过去侧段落；branch＝段落内按 $era 分支（写入落在其中需显式声明）；
+		// 其余段落一律 present。crossEraGates＝登记的跨时代合龙门（条件须同时引用两侧旗标）。
+		eraDomain: {
+			past: ['宴会·过去', '宴·仪式', '宴·散场', '喂花', '寻杖', '当时的女巫', '当时的女巫·换',
+				'观星者', '观星者·星', '观星者·夜', '观星者·图', '老巫女', '老妇人', '林间小径', '宴·散场'],
+			branch: ['门厅', '书房', '天文台', '地下宴会厅', '塔门', '雾之魔物'],
+			// 写在时代分支段落里的旗标需显式声明（书房/门厅等的 present 侧写入）
+			flagEra: { failure_cause: 'present', seer_asked: 'past', coord: 'past' },
+			crossEraGates: [
+				{ id: 'witch_fire', p: '老巫女', label: '问她：那一夜该烧的是什么？',
+				  pastFlags: ['seer_asked', 'coord'], presentFlags: ['failure_cause'],
+				  yields: 'ev.witch_fire_hint', note: '过去（观星者）＋现在（书房日记）两边的证据合龙，才问得出这一句' },
+			],
+		},
 	};
 
 	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences, Investment };

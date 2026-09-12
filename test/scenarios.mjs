@@ -1353,7 +1353,10 @@ async function routeTavernAsk() {
 	// ③ 筹码：把对方想要的摆出来 → 免检得手（不给骰子机会）
 	const gold0 = pcOf(w).gold;
 	await c('拿出筹码：请她喝一轮（问路）');
-	if (!w.document.activeElement.matches('.soc-said')) throw new Error('请酒后的焦点应落在本次回复，不能继续强调上次失败检定');
+	// #304 口径：① 信息可见＝**本次回复在屏**（不能还挂着上次失败检定的反馈）；② 键盘可续＝焦点在 #passages 内
+	const said = w.document.querySelector('.soc-said');
+	if (!said || !said.textContent.includes('坐下吧')) throw new Error(`请酒后屏上不是本次回复（soc-said=${(said?.textContent ?? '（无）').slice(0, 40)}）`);
+	if (!w.document.activeElement?.closest('#passages')) throw new Error('请酒后焦点不在正文区（键盘不可续）');
 	if (pcOf(w).ev.tav_tips !== true) throw new Error('请了酒还是没听到忠告');
 	if (pcOf(w).gold !== gold0 - 3) throw new Error(`请酒没扣钱（${gold0} → ${pcOf(w).gold}）`);
 	if (pcOf(w).soc.att['老板娘'] !== 0) throw new Error('筹码该把态度拉回冷淡以上（shift +1）');
@@ -1552,7 +1555,8 @@ async function routeTextContext() {
 	await c('把暗格里的东西取出来');
 	check(pcOf(w).inv['日记'] && pcOf(w).inv['传送术卷轴'], '日记和卷轴未按既有规则取得');
 	check(passageText(w).includes('缺的从来不是咒'), '日记取出后关键内文被同页重绘吃掉');
-	check(w.document.activeElement?.textContent.includes('缺的从来不是咒'), '取出后焦点没有跟随日记线索');
+	// 信息可见已由上一行「日记取出后关键内文被同页重绘吃掉」覆盖；这里只留**键盘可续**（#304 口径）
+	check(!!w.document.activeElement?.closest('#passages'), '取出日记后焦点不在正文区（键盘不可续）');
 	await c('到拐角的小工坊看看');
 	await c('上三楼');
 	await c('上顶楼');

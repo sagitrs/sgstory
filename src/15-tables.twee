@@ -342,7 +342,7 @@ window.Game = (() => {
 	const Truth = {
 		claims: [
 			{ id: 'mist_is_fare', claim: '雾＝它睡着时漏出来的力气——正文无人知晓、不可测量（v17 补正 #7）：谜底只在设定集·术语，终局后揭开', sites: [
-				{ p: '设定集·术语', anchor: '它睡着时漏出来的力气', via: '设定集·术语（SgCodex.seenFinal() 门内——唯一揭开处）', type: 'codex' },
+				{ p: '设定集·术语', anchor: '它睡着时漏出来的力气', via: '设定集·术语（Sg.Codex.seenFinal() 门内——唯一揭开处）', type: 'codex' },
 				{ p: '结局 送星归位', anchor: '他不知道，你也不知道', via: '真结局收束（正文只给「不知」）', type: 'prose' },
 				{ p: '设定集·术语', anchor: '一年比一年浓', via: '设定集·术语（正文无人说得清）', type: 'codex' },
 			] },

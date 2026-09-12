@@ -1,7 +1,7 @@
 // A5「回读友好」门（#296 走查的机检部分）：**可回看不泄底**。
 //
 // 为什么能机检：A5 的判据在实现上是「**门控**」问题——图鉴条目/线索必须由**发现**（`test(pc)` 谓词）
-// 解锁，设定集里的「谜底级」知识必须由 `SgCodex.seenFinal()` 挡在终局之前。
+// 解锁，设定集里的「谜底级」知识必须由 `Sg.Codex.seenFinal()` 挡在终局之前。
 // 票面要求「复核其**行为**而非字符串」（#220 同类实锤就是这么漏的），故 R1/R2 是**行为**断言：
 // 给一个零状态档，任何已解锁的东西都是泄底。
 //
@@ -9,7 +9,7 @@
 //   R1 零状态档：新卡（`Pc.defaults()`）下，图鉴**不得有任何线索谓词为真**
 //   R2 空记录：空图鉴记录（`blank()`）下，不得有任何条目 `isUnlocked`
 //   R3 声明落地：`Game.Truth.claims` 里 `type:'codex'` 的站点段落必须真实存在（声明的证据点不许是空头）
-//   R4 谜底门控：`via` 标为「终局后揭开 / 唯一揭开处 / 谜底」的 codex 站点，其页面必须带 `SgCodex.seenFinal()`
+//   R4 谜底门控：`via` 标为「终局后揭开 / 唯一揭开处 / 谜底」的 codex 站点，其页面必须带 `Sg.Codex.seenFinal()`
 //   R5 自称谜底必门控：任何设定集页面若出现「谜底」字样，该页必须带 `seenFinal()` 门（防「新写的谜底忘了加门」）
 //
 // ⚠️ R4/R5 的**边界（只登记不判定，理由如下）**：
@@ -22,7 +22,7 @@
 import { createContext } from '../scripts/audit/context.mjs';
 
 const MYSTERY_MARK = /终局后揭开|唯一揭开处|谜底/;
-const GATE_SRC = /SgCodex\.seenFinal\(\)/;
+const GATE_SRC = /Sg.Codex\.seenFinal\(\)/;
 
 // ── 纯函数（依赖注入：自证时喂夹具，不与真实游戏耦合）────────────────────
 // R1：零状态档下为真的线索
@@ -97,11 +97,11 @@ const selftest = () => {
 	t('R3 正例：存在的站点不报', !missingCodexSites(claims, (p) => p === '设定集·术语').some((x) => x.includes('ok')));
 	t('R3 反例：引用了不存在的段落必须被抓', missingCodexSites(claims, (p) => p === '设定集·术语').some((x) => x.includes('设定集·不存在')));
 
-	const myst = [{ id: 'mist', sites: [{ p: '设定集·术语', type: 'codex', via: '设定集·术语（SgCodex.seenFinal() 门内——唯一揭开处）' }] }];
-	t('R4 正例：谜底站点带门则不报', ungatedMysterySites(myst, () => '<<if SgCodex.seenFinal()>>谜底<</if>>').length === 0);
+	const myst = [{ id: 'mist', sites: [{ p: '设定集·术语', type: 'codex', via: '设定集·术语（Sg.Codex.seenFinal() 门内——唯一揭开处）' }] }];
+	t('R4 正例：谜底站点带门则不报', ungatedMysterySites(myst, () => '<<if Sg.Codex.seenFinal()>>谜底<</if>>').length === 0);
 	t('R4 反例：谜底站点没门必须被抓', ungatedMysterySites(myst, () => '谜底：它睡着时漏出来的力气。').length === 1);
 
-	t('R5 正例：自称谜底且有门则不报', selfDeclaredMysteryUngated({ 页: '<<if SgCodex.seenFinal()>>雾 · 谜底<</if>>' }).length === 0);
+	t('R5 正例：自称谜底且有门则不报', selfDeclaredMysteryUngated({ 页: '<<if Sg.Codex.seenFinal()>>雾 · 谜底<</if>>' }).length === 0);
 	t('R5 反例：页面自称「谜底」却没门必须被抓', selfDeclaredMysteryUngated({ 页: '雾 · 谜底：它睡着时漏出来的力气。' }).includes('页'));
 
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项——A5 门没有咬合力`); process.exit(1); }
@@ -126,7 +126,7 @@ show(sites.length === 0, `R3 命题声明的 codex 站点段落都存在${sites.
 
 const mystSites = unionClaims(Game.Truth.claims, (c) => (c.sites ?? []).filter((s) => s.type === 'codex').map((s) => s.p));
 const ungated = ungatedMysterySites(Game.Truth.claims, (p) => passageSrc.get(p) ?? '');
-show(ungated.length === 0, `R4 「谜底级」codex 站点都真带 SgCodex.seenFinal() 门${ungated.length ? `：漏门 ${ungated.join(', ')}` : ''}`);
+show(ungated.length === 0, `R4 「谜底级」codex 站点都真带 Sg.Codex.seenFinal() 门${ungated.length ? `：漏门 ${ungated.join(', ')}` : ''}`);
 
 const pages = Object.fromEntries([...passageSrc].filter(([n]) => /^设定集/.test(n)));
 const selfMyst = selfDeclaredMysteryUngated(pages);

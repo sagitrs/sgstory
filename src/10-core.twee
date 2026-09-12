@@ -248,16 +248,6 @@ Macro.add('dragonbar', {
 	<</if>>
 	<p>这里你已经''翻找过''了，没有别的。</p>
 <</nobr>><</widget>>
-<<widget "hallPick">><<nobr>>
-	/% 看清钉子后：免赌一键取物 %/
-	<<link "摘哨子（钉子怎么卡的，你已经看清了）">>
-		<<replace "#hall-act">>
-			<p>你把哨子从钉子上提起来，收进行囊，可在''物品栏''查看。<<give "坏哨">></p>
-				<p>这里你已经''翻找过''了，没有别的。</p>
-		<</replace>>
-	<</link>>
-<</nobr>><</widget>>
-
 /% #261（#185 阶段三）首遇门控泛化：<<firstTime "flag">> → _first（并置位）。
    用法：<<firstTime "keeper_intro">><<if _first>>完整首遇<<else>>返回短入口<</if>> %/
 <<widget "firstTime">>

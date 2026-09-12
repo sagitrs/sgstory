@@ -1,5 +1,6 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { assertFreshDist } from '../../dist-fresh.mjs';
 // flags=['a11y']。校验：npm run audit:golden。
 export const flag = 'a11y';
 export const flags = ["a11y"];
@@ -41,7 +42,11 @@ if (wantAll || arg('a11y')) {
 	// lang：构建期注入（dist 存在时一并核对产物）
 	const bm = readFileSync('build.mjs', 'utf8');
 	if (!/<html[^>]*\\slang=/.test(bm) && !bm.includes('lang="zh-CN"')) { console.log('  ✗ build.mjs 未注入 <html lang>'); bad++; }
-	else if (existsSync('dist/index.html') && !/<html[^>]*\slang="zh-CN"/.test(readFileSync('dist/index.html', 'utf8'))) { console.log('  ✗ dist/index.html 缺 lang="zh-CN"'); bad++; }
+	else {
+		// #319③：读构建产物前先过新鲜度守卫——过期/缺失都响亮报错（此前缺产物会静默跳过＝假绿）
+		assertFreshDist({ who: '可访问性门（lang 检查）' });
+		if (!/<html[^>]*\slang="zh-CN"/.test(readFileSync('dist/index.html', 'utf8'))) { console.log('  ✗ dist/index.html 缺 lang="zh-CN"'); bad++; }
+	}
 	// 装饰 glyph：✦ 必须被 aria-hidden 包裹；.act-n 角标必须 aria-hidden
 	let bare = 0;
 	for (const f of SRC_FILES) {

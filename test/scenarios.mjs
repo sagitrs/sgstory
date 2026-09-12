@@ -901,6 +901,37 @@ async function routeClarityB() {
 	return { w };
 }
 
+// ── #352：准备动作的「下一击有优势」必须在**下一手**真的生效（不是本轮末尾就作废）──
+// 说明：本路线走**真实导航**到塔内再注入战斗状态——纯注入路线只有 2~3 击就到龙战，
+// 会踩 E4 里程碑不变量（「最早交互数 ≥5／情报 ≥3」），那是度量对合成路线的假阳性。
+async function routeFightAdv() {
+	const { w, click: c } = await newGame(0.99, 0);
+	await c('问一句女巫小屋怎么走');
+	await c('往林子深处走');
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	await c('收下钥匙');
+	// 中局注入：卷轴（读术式 good 档）＋ 三处情报（G2 知识旗标）＋ 固定牌面（不靠随机抽牌）
+	w.eval(`(function(){const v=SugarCube.State.variables;const pc=v.pc;
+	 pc.hp=18;pc.max_hp=18;pc.inv["传送术卷轴"]=true;pc.keeper.state="seal";pc.keeper.met=true;
+	 pc.ev.hall_hint=true;pc.ev.study_hint=true;pc.ev.ledger_hint=true;
+	 pc.dragon={hp:60,defeats:0,venom:false,awake:true};
+	 pc.ev.fight={pool:'封印',round:1,offer:['封印·读术式'],act:null,adv:0,guard:0,skipFoe:false,log:null};
+	 v.era="present";})()`);
+	w.SugarCube.Engine.play('封印·并肩'); await sleep(220);
+	await c('听懂他念到哪儿');        // 成功档 adv:1（d20 恒 20）
+	const f1 = w.SugarCube.State.variables.pc.ev.fight;
+	if ((f1.adv ?? 0) < 1) throw new Error('#352：准备动作给的「下一击有优势」在本轮末尾被清零了');
+	w.eval("(function(){SugarCube.State.variables.pc.ev.fight.offer=['封印·硬扛'];})()");
+	await c('不躲了，硬吃一下换一刀');
+	const f2 = w.SugarCube.State.variables.pc.ev.fight;
+	if (f2.log?.you?.rolledWithAdv !== true) throw new Error('#352：下一手掷骰没有吃到优势');
+	if ((f2.adv ?? 0) !== 0) throw new Error('#352：优势消费后没有清零（会变成常驻加值）');
+	return { w };
+}
+
 // ── #291 I1：投入—回报（G2 失败给情报＋下次优势；G4 立场被记住）──
 async function routeInvestment() {
 	const { w, click: c } = await newGame(0.01, 0);   // 低骰：检定必败
@@ -1540,6 +1571,7 @@ const routes = [
 	['交付后互锁（#259）', routeDeliveredLocks, { synthetic: true }],   // 夹具驱动（13 处 w.eval / 0 点击）——不入 C4/E4 样本
 	['退出选项指向（#308/#312）', routeExitLabels, { synthetic: true }], // 夹具驱动（4 处 w.eval / 1 点击）——不入 C4/E4 样本
 	['选项指向与措辞（#309/#311/#313）', routeClarityB],
+	['封印战优势跨手生效（#352）', routeFightAdv],
 	['投入—回报（#291 I1）', routeInvestment],
 	['跨周目粘性（#271）', routeCrossRunSticky],
 ];

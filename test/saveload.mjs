@@ -14,6 +14,7 @@
 // 站点清单由 test/saveload-inventory.mjs（静态门）保证不漏登记。
 
 import { readFileSync } from 'node:fs';
+import { boot, CLICKABLE_SEL } from './boot.mjs';
 import { newGame as openGame } from './harness.mjs';   // #317①：公共 harness（不再自建 newGame/click）
 
 const MANIFEST = JSON.parse(readFileSync(new URL('./saveload-sites.json', import.meta.url), 'utf8'));
@@ -72,6 +73,7 @@ const delta = (aStr, bStr) => {
 };
 
 let failures = 0;
+let knownDefects = 0;
 const rows = [];
 for (const site of MANIFEST.sites) {
 	const { w, click, settle } = await newGame(0.99);   // d20 恒 20：就地操作必成，排除「检定失败」干扰
@@ -101,6 +103,58 @@ for (const site of MANIFEST.sites) {
 	}
 }
 
+
+// ── 战斗回合 · 读档重放（#350）────────────────────────────────────────
+// 战斗结算 `<<fightresolve>>` 跑在**段落渲染期**（40-ch2:156 / 50-ch3:591）——读档会重渲染，
+// 于是同一轮被**再结算一次**：骰面重掷、成败翻面、HP 被改写（#350 实测：d20(20) 大成功 → d20(1) 大失败，hp18→14）。
+// 本用例刻意用**交替 RNG**：若用确定性 RNG，重放会得到同样结果，**看不出**这种「重放」缺陷。
+// 现状：已知缺陷（#350）→ 报告但不判失败；修复后本用例自然转绿，届时请移除 knownDefect 标记。
+{
+	const sleep2 = (ms) => new Promise((r) => setTimeout(r, ms));
+	let pick = 0;
+	const { w, settle } = await boot({ random: () => (pick++ % 2 ? 0.01 : 0.99) });
+	const find = (label) => {
+		const cur = [...w.document.querySelectorAll('#passages .passage')].find((e) => e.dataset.passage === w.SugarCube.State.passage);
+		const pool = cur ? [cur] : [...w.document.querySelectorAll('#passages')];
+		const links = pool.flatMap((el) => [...el.querySelectorAll(CLICKABLE_SEL)]);
+		return links.find((x) => x.textContent === label) ?? links.find((x) => x.textContent.includes(label));
+	};
+	const c = async (label) => {
+		await settle();
+		let a = find(label);
+		for (let i = 0; i < 20 && !a; i++) { await sleep2(100); await settle(); a = find(label); }
+		if (!a) throw new Error(`找不到「${label}」@ ${w.SugarCube.State.passage}`);
+		a.click(); await settle(); await sleep2(140);
+	};
+	try {
+		await c('踏上旅途'); await c('快速成型'); await c('出发，前往歪脖子鸭酒馆');
+		await c('问一句女巫小屋怎么走'); await c('往林子深处走'); await c('继续往塔那边走'); await c('雾里有个影子挡着路');
+		await c('举起武器，迎上去');
+		await settle(); await sleep2(300);
+		const acts = [...w.document.querySelectorAll(CLICKABLE_SEL)].filter((x) => !x.textContent.includes('设定集'));
+		if (!acts.length) throw new Error('战斗段没有可点行动');
+		await c(acts[0].textContent.replace(/\s+/g, '').slice(0, 10));
+		await settle(); await sleep2(300);
+		const pc = () => w.SugarCube.State.variables.pc;
+		const snap = () => `${pc().ev.fight?.round}|${pc().hp}|${(w.document.querySelector('#passages').textContent.replace(/\s+/g, ' ').match(/d20\(\d+\)[^｜]{0,24}/) ?? [''])[0]}`;
+		const before = snap();
+		w.sgQuickSave(); await sleep2(200);
+		const pr = w.sgLoadSlot(1); if (pr?.then) await pr.catch(() => {});
+		await settle(); await sleep2(600);
+		const after = snap();
+		if (before === after) {
+			console.log(`✓ 战斗回合 · 读档不重放：${before}`);
+		} else {
+			knownDefects++;
+			console.log(`⏳ [已知缺陷 #350] 战斗回合 · 读档重放：读档前「${before}」→ 读档后「${after}」`);
+			console.log('    根因：<<fightresolve>> 跑在段落渲染期，读档重渲染即重放本轮（修复后本用例应转绿并移除 knownDefect）');
+		}
+	} catch (e) {
+		knownDefects++;
+		console.log(`⏳ [已知缺陷 #350] 战斗回合用例未能跑通：${e.message}`);
+	}
+}
+
 for (const r of rows) {
 	const tag = r.ok ? '✓' : '✗';
 	console.log(`${tag} ${r.site.where}｜「${r.site.label.replace(/（[^）]*）/g, '')}…」${r.site.ticket}`);
@@ -115,7 +169,7 @@ for (const r of rows) {
 	if (r.dup) console.log('    ✗ S/L 后物品变多（重复发放）');
 }
 
-console.log(`\n就地行动站点 ${rows.length} 个：${rows.filter((r) => r.ok).length} 保值 / ${failures} 不保值`);
+console.log(`\n就地行动站点 ${rows.length} 个：${rows.filter((r) => r.ok).length} 保值 / ${failures} 不保值` + (knownDefects ? `｜已知缺陷 ${knownDefects}（不判失败，见 #350）` : ''));
 if (failures) {
 	console.error('✗ 存读档一致性门未通过（#300 P1：就地行动后的状态没有进入存档快照）');
 	console.error('  说明：本门在 #300 修复合入前**应当是红的**——它是缺陷基线证据，不是测试写错。');

@@ -76,7 +76,8 @@ const server = http.createServer((req, res) => {
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const PORT = server.address().port;
 const CDP_PORT = 9500 + Math.floor(Math.random() * 200);
-const profile = `/tmp/sgstory-browser-${process.pid}`;
+// profile 落 home 缓存，不占共享 /tmp（/tmp 是 19G tmpfs，多会话共用、常近满）
+const profile = join(HOME, `.cache/sgstory-browser-profile-${process.pid}`);
 const chrome = spawn(CHROME, [
 	'--headless=new', '--no-sandbox', '--disable-gpu', '--disable-dev-shm-usage',
 	`--remote-debugging-port=${CDP_PORT}`, `--user-data-dir=${profile}`, 'about:blank',

@@ -32,5 +32,24 @@ try {
 	else if (t.includes('森林·察觉')) { bad++; console.error('  ✗ #361：森林侧仍挂着过期骰面（应只在当场复显）'); }
 	else console.log('  ✓ 跨段后听雾正文保留、骰面不串台（不留过期骰面）');
 } catch (e) { bad++; console.error(`  ✗ 用例异常：${e.message.slice(0, 140)}`); } finally { w.close?.(); }
+// ── #364：结局未消费的临时结果不得串到设定集 ──
+{
+	const s2 = await newGame({ random: 0.99, session: { wait: 140 } });
+	const w2 = s2.w;
+	try {
+		// 造一个「有未消费结果」的状态：掷一次并把结果留在槽里，然后进结局页
+		w2.eval(`(function(){const pc=SugarCube.State.variables.pc;pc.ev=pc.ev||{};pc.ev.last_result={p:'森林边缘',era:SugarCube.State.variables.era,text:'（测试用临时结果）',hasCheck:false};})()`);
+		w2.SugarCube.Engine.play('结局 平凡之路'); await sleep(200);
+		const keep = w2.SugarCube.State.variables.pc.ev.last_result;
+		if (keep) { bad++; console.error('  ✗ #364：结局页没有把 last_result 消费掉（会挂到别的页面）'); }
+		else console.log('  ✓ 结局页消费掉未显示的临时结果');
+		// 再开设定集：不得出现那条陈旧结果
+		w2.SugarCube.Engine.play('设定集'); await sleep(200);
+		const txt = (w2.document.querySelector('#passages')?.textContent ?? '');
+		if (txt.includes('（测试用临时结果）')) { bad++; console.error('  ✗ #364：陈旧结果串到了设定集'); }
+		else console.log('  ✓ 设定集不再串入陈旧结果');
+	} catch (e) { bad++; console.error(`  ✗ #364 用例异常：${e.message.slice(0, 120)}`); } finally { w2.close?.(); }
+}
+
 if (bad) { console.error(`\n✗ 历史结果绑定门：${bad} 项`); process.exit(1); }
 console.log('✔ 历史结果绑定到产生它的行动（跨段不串台）');

@@ -22,7 +22,7 @@
 守林人没有留你。他说路在那边，你走的时候，别回头。
 
 <div class="ending-card">
-	<h2>✦ 送星归位 ✦</h2>
+	<h2><span aria-hidden="true">✦</span> 送星归位 <span aria-hidden="true">✦</span></h2>
 	<p class="codex-note">（它有名字，有家。这三百年，只差一个把它送回去的人。）</p>
 	<table>
 		<tr><td>冒险者</td><td>$pc.name（$pc.speciesLabel $pc.classLabel）</td></tr>
@@ -60,7 +60,7 @@
 你退到门口，最后看了它一眼。它的呼吸很平，平得像屋里没有人。
 
 <div class="ending-card">
-	<h2>✦ 再度沉睡 ✦</h2>
+	<h2><span aria-hidden="true">✦</span> 再度沉睡 <span aria-hidden="true">✦</span></h2>
 	<p class="codex-note">（送行未成。它还留在雾里。）</p>
 </div>
 
@@ -80,7 +80,7 @@
 你留在厅里，直到最后一点光也散了。
 
 <div class="ending-card">
-	<h2>✦ 自愿的长眠 ✦</h2>
+	<h2><span aria-hidden="true">✦</span> 自愿的长眠 <span aria-hidden="true">✦</span></h2>
 	<p class="codex-note">（它不是被打败的。它只是不想再等了。）</p>
 </div>
 
@@ -102,7 +102,7 @@
 守林人没有再回塔里。他把杖留在了门口。
 
 <div class="ending-card">
-	<h2>✦ 守林人击杀 ✦</h2>
+	<h2><span aria-hidden="true">✦</span> 守林人击杀 <span aria-hidden="true">✦</span></h2>
 	<p class="codex-note">（塔空了。钥匙还在他腰上。）</p>
 </div>
 
@@ -128,7 +128,7 @@
 那扇门后来一直锁着。
 
 <div class="ending-card">
-	<h2>✦ 送入虚空 ✦</h2>
+	<h2><span aria-hidden="true">✦</span> 送入虚空 <span aria-hidden="true">✦</span></h2>
 	<p class="codex-note">（安全，残忍。它永远回不了家。）</p>
 </div>
 
@@ -148,7 +148,7 @@
 第二年，雾又浓起来。
 
 <div class="ending-card">
-	<h2>✦ 劣化封印 ✦</h2>
+	<h2><span aria-hidden="true">✦</span> 劣化封印 <span aria-hidden="true">✦</span></h2>
 	<p class="codex-note">（压得住一时。压不住一辈子。）</p>
 </div>
 
@@ -176,7 +176,7 @@
 <<if $pc.inv["观星者的书"]>>那册书你还留着，只是没再翻开过。<</if>>
 
 <div class="ending-card">
-	<h2>✦ 星落 ✦</h2>
+	<h2><span aria-hidden="true">✦</span> 星落 <span aria-hidden="true">✦</span></h2>
 	<p class="codex-note">（它原本还有回家的可能。）</p>
 </div>
 
@@ -196,7 +196,7 @@
 塔门渐渐隐没在你身后的雾里。
 
 <div class="ending-card">
-	<h2>✦ 讨伐 ✦</h2>
+	<h2><span aria-hidden="true">✦</span> 讨伐 <span aria-hidden="true">✦</span></h2>
 	<p class="codex-note">（没有人再能送它回家了。）</p>
 </div>
 
@@ -218,7 +218,7 @@
 只有你知道，酒喝到一半，你听见了什么声音——很轻，像有人在很远的地方翻了一页书。
 
 <div class="ending-card">
-	<h2>✦ 坠星之死 ✦</h2>
+	<h2><span aria-hidden="true">✦</span> 坠星之死 <span aria-hidden="true">✦</span></h2>
 	<p class="codex-note">（也许有一天，你会在别的什么地方读到那册《论坠星》。）</p>
 </div>
 
@@ -237,7 +237,7 @@
 	反正你没有再醒过来。
 
 	<div class="ending-card">
-		<h2>✦ 死亡 ✦</h2>
+		<h2><span aria-hidden="true">✦</span> 死亡 <span aria-hidden="true">✦</span></h2>
 		<p class="codex-note">（那朵花睡得比你安稳。）</p>
 	</div>
 <<else>>
@@ -248,7 +248,7 @@
 	雾合上之前，你看见了一点光。
 
 	<div class="ending-card">
-		<h2>✦ 死亡 ✦</h2>
+		<h2><span aria-hidden="true">✦</span> 死亡 <span aria-hidden="true">✦</span></h2>
 		<p class="codex-note">（林子把你也留下了。）</p>
 	</div>
 <</if>>

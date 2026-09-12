@@ -59,7 +59,7 @@
 <</if>>
 
 <details class="heard-fold">
-	<summary>已听到的传闻<span class="act-n"></span></summary>
+	<summary>已听到的传闻<span class="act-n" aria-hidden="true"></span></summary>
 	<div id="tav-heard" class="tavern-heard">
 <<if $pc.ev.tav_keeper>>
 	<div class="heard-item" data-heard="tav_keeper">
@@ -113,7 +113,7 @@
 <<nobr>>
 <div class="tavern-actions">
 <details class="act-group" name="tavern-acts" open>
-	<summary>找人打听<span class="act-n"></span></summary>
+	<summary>找人打听<span class="act-n" aria-hidden="true"></span></summary>
 	<div class="tavern-tables">
 <<if not $pc.ev.tav_keeper>>
 	<<link "讲守林人的那一桌">><<set $pc.ev.tav_keeper to true>><<goto "酒馆">><</link>>
@@ -136,7 +136,7 @@
 </div>
 </details>
 <details class="act-group" name="tavern-acts" open>
-	<summary>柜台：打听与添置<span class="act-n"></span></summary>
+	<summary>柜台：打听与添置<span class="act-n" aria-hidden="true"></span></summary>
 	<<if not $pc.world.rumor and $pc.gold gte (-Game.Economy.priceOf("rumor_buy", $pc))>>
 	<<link `"花 " + (-Game.Economy.priceOf("rumor_buy", $pc)) + " 金币：听老猎人讲实话"`>>
 		<<econ "rumor_buy">><<setflag "rumor">><<goto "酒馆">>
@@ -158,7 +158,7 @@
 <</if>>
 </details>
 <details class="act-group" name="tavern-acts" open>
-	<summary>离开酒馆<span class="act-n"></span></summary>
+	<summary>离开酒馆<span class="act-n" aria-hidden="true"></span></summary>
 	<<if not $pc.inv["时光护符"]>>
 	<<link "问一句女巫小屋怎么走">><<goto "女巫小屋">><</link>>
 <</if>>
@@ -183,7 +183,7 @@
 再往后，你就没再听说了。
 
 <div class="ending-card">
-	<h2>✦ 平凡之路 ✦</h2>
+	<h2><span aria-hidden="true">✦</span> 平凡之路 <span aria-hidden="true">✦</span></h2>
 	<p class="codex-note">（有些人走进去，有些人没有。）</p>
 </div>
 
@@ -303,7 +303,7 @@
 <</if>>
 
 <details class="heard-fold">
-	<summary>已问过的事<span class="act-n"></span></summary>
+	<summary>已问过的事<span class="act-n" aria-hidden="true"></span></summary>
 	<div id="wq-heard" class="tavern-heard">
 <<if $pc.ev.wq_painting>>
 	<div class="heard-item" data-heard="wq_painting">
@@ -363,7 +363,7 @@
 <div class="tavern-actions">
 <<if $pc.ev.wq_seen>>
 <details class="act-group" name="witch-acts" open>
-	<summary>向她打听<span class="act-n"></span></summary>
+	<summary>向她打听<span class="act-n" aria-hidden="true"></span></summary>
 	<div class="tavern-tables">
 <<if not $pc.ev.wq_painting>>
 	<<link "问：你们家与那座塔有什么渊源">><<set $pc.ev.wq_painting to true>><<goto "女巫小屋">><</link>>
@@ -390,7 +390,7 @@
 </details>
 <</if>>
 <details class="act-group" name="witch-acts" open>
-	<summary>柜台：问门道与药膏<span class="act-n"></span></summary>
+	<summary>柜台：问门道与药膏<span class="act-n" aria-hidden="true"></span></summary>
 	<<if not $pc.world.witch_hint and $pc.gold gte (-Game.Economy.priceOf("witch_hint", $pc))>>
 	<<link `"花 " + (-Game.Economy.priceOf("witch_hint", $pc)) + " 金币：问塔里的门道"`>>
 		<<econ "witch_hint">><<setflag "witch_hint">><<goto "女巫小屋">>
@@ -417,7 +417,7 @@
 	<<hpbar>>
 </details>
 <details class="act-group" name="witch-acts" open>
-	<summary>离开小屋<span class="act-n"></span></summary>
+	<summary>离开小屋<span class="act-n" aria-hidden="true"></span></summary>
 	[[谢过她，往林子深处走|林间小径]]
 	[[转身回酒馆|酒馆]]
 </details>
@@ -471,7 +471,7 @@
 走出林子的时候，你回头看了一眼。塔的方向，雾比来时更浓。
 
 <div class="ending-card">
-	<h2>✦ 银月之赐 ✦</h2>
+	<h2><span aria-hidden="true">✦</span> 银月之赐 <span aria-hidden="true">✦</span></h2>
 	<p class="codex-note">（雾还在涨。总会有下一个人走进来。）</p>
 </div>
 

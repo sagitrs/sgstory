@@ -3,7 +3,7 @@
 :: 设定集
 /% payload: 信息 %/
 <div class="codex-hub">
-	<h2>✦ 设定集 ✦</h2>
+	<h2><span aria-hidden="true">✦</span> 设定集 <span aria-hidden="true">✦</span></h2>
 	<p class="codex-note">这里收录世界、道具与结局的说明；想回看自己发现的线索，可以打开图鉴。</p>
 	[[世界三律|设定集·三律]]
 	[[守塔的人家|设定集·守塔的人家]]

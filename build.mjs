@@ -59,3 +59,12 @@ if (fontCss) {
 
 console.log(`\n✔ 编译完成：${OUT}（合并了 ${files.length} 个源文件${fontCss ? ' + 字体外链' : ''}）`);
 console.log('  浏览器直接打开即可游玩；也可用 Twine 2 编辑器导入继续可视化编辑。');
+
+// #272：读屏语言——SugarCube 模板不带 lang；构建期无条件注入 <html lang="zh-CN">
+//（放这里而不是 if (fontCss) 块内：字体缺失时也必须注入）
+{
+	const html = readFileSync(OUT, 'utf8');
+	if (!/<html[^>]*\slang=/.test(html)) {
+		writeFileSync(OUT, html.replace(/<html(?=[\s>])/, '<html lang="zh-CN"'));
+	}
+}

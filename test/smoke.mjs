@@ -88,7 +88,7 @@ tavFold2.open = true;   // 最坏展开态：折叠区最后一段之后必须�
 const lastHeard = [...tavFold2.querySelectorAll('p')].pop();
 assert(links().filter((a) => lastHeard.compareDocumentPosition(a) & FOLLOWING).length >= 3, '展开折叠读到底，其后仍有出口（不回头向上找）');
 assert(links().some((a) => a.textContent.includes('金币：买一支火把')), '火把购买链接存在（表驱动价）');
-assert(links().some((a) => a.textContent.includes('听老猎人讲实话')), '付费传闻链接存在（表驱动价）');
+assert(links().some((a) => a.textContent.includes('请他讲讲洞里的路')), '付费传闻链接存在（表驱动价）');
 await click('离店前，去井台打点水');   // #217：灯的传闻散布到井台
 assert(w.SugarCube.State.variables.pc.ev.tav_light === true, '井台的灯传闻记账（tav_light）');
 assert(w.document.querySelector('#passages').textContent.includes('三百年了，那灯没灭过'), '井台的灯传闻渲染');
@@ -128,7 +128,7 @@ assert(w.SugarCube.State.passage === '森林边缘', '买路后回到森林边�
 	const g = pc().gold;                                   // 买路后 7
 	w.SugarCube.State.variables.pc.gold = 0;
 	await w.SugarCube.Engine.play('酒馆'); await sleep(150);
-	assert(!links().some((a) => a.textContent.includes('金币：听老猎人讲实话')), '金币 0：买传闻链接不亮（支付门）');
+	assert(!links().some((a) => a.textContent.includes('金币：请他讲讲洞里的路')), '金币 0：买传闻链接不亮（支付门）');
 	assert(!links().some((a) => a.textContent.includes('金币：买一支火把')), '金币 0：买火把链接不亮（支付门）');
 	assert(![...w.document.querySelectorAll('a.soc-opt')].some((a) => a.textContent.includes('请她喝一轮')), '金币 0：请她喝一轮筹码不亮（leverOpen 支付门）');
 	await w.SugarCube.Engine.play('女巫小屋'); await sleep(150);
@@ -136,11 +136,11 @@ assert(w.SugarCube.State.passage === '森林边缘', '买路后回到森林边�
 	w.SugarCube.State.variables.pc.gold = g;
 	const g2 = pc().gold;                                  // 刷钱点一次性：龙·巢边 +10 只此一次
 	await w.SugarCube.Engine.play('龙·巢边'); await sleep(150);
-	const loot = links().find((a) => a.textContent.includes('识货，捡几件值钱的'));
-	assert(loot, '龙·巢边：识货链接在');
+	const loot = links().find((a) => a.textContent.includes('从零碎里挑出几件值钱的'));
+	assert(loot, '龙·巢边：挑零碎链接在');
 	loot.click(); await sleep(200);
 	assert(pc().gold === g2 + 10 && pc().world.hoard_looted === true, `识货 +10 一次性（${g2} → ${pc().gold}）`);
-	assert(!links().some((a) => a.textContent.includes('识货，捡几件值钱的')), '识货后链接消失（不可重复刷）');
+	assert(!links().some((a) => a.textContent.includes('从零碎里挑出几件值钱的')), '挑走后链接消失（不可重复刷）');
 	w.SugarCube.State.variables.pc.world.goblin_spared = false;   // 哥布林遭遇一次性：战斗两分支都退场
 	await w.SugarCube.Engine.play('洞穴'); await sleep(150);
 	const fight = links().find((a) => a.textContent.includes('拔家伙'));

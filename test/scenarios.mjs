@@ -320,7 +320,7 @@ async function routePersuadeFail() {
 	if (passageOf(w) !== '守林人·劝杀') throw new Error('#230：自担说败该留在劝杀可重试');
 	await c('把话收回来');
 	if (passageOf(w) !== '守林人') throw new Error('#230：该能空手收回话头');
-	if (linksOf(w).some((x) => x === '逼他动手：让他自己去') === false) throw new Error('#230：收回后该还能再劝');
+	if (linksOf(w).some((x) => x === '逼他动手：让他亲手了结它') === false) throw new Error('#230：收回后该还能再劝');
 	return { w };
 }
 
@@ -362,7 +362,7 @@ async function truePath(w, c) {
 	await c('问那位一直在算星的人');       // 观星者
 	await c('它从哪颗星来');
 	await c('回到观星者');
-	await c('那一夜会怎么样');
+	await c('今晚的仪式能成吗');
 	await c('回到观星者');
 	await c('拿出筹码：把风化了的书放回案上（求图）'); // B2：有书 → 免检筹码（不必掷骰）
 	await c('把那张抄好的图收下');
@@ -858,6 +858,40 @@ async function routeExitLabels() {
 	return { w };
 }
 
+// ── #309／#311／#313：选项指向与措辞（B 批）——每处读得出「我在做什么」──
+async function routeClarityB() {
+	const { w } = await newGame(0.99, 0);
+	const play = async (p, set) => { if (set) { w.eval(set); } w.eval(`SugarCube.Engine.play(${JSON.stringify(p)})`); await sleep(150); };
+	// #311-A：未获警告时，现场给出身体征兆；已获警告时选项体现屏息
+	await play('塔外花田', '(function(){const pc=SugarCube.State.variables.pc;pc.world.goblin_spared=false;pc.world.flower_warned=false;pc.world.flower_mud=false;pc.inv={};SugarCube.State.variables.era="present";})()');
+	if (!passageText(w).includes('眼皮跟着沉了沉')) throw new Error('#311：未警告的花田缺「靠近有危险」的征兆');
+	if (linksOf(w).some((x) => x.includes('憋住气，伸手去摘'))) throw new Error('#311：未警告时不该预先给出屏息动作');
+	await play('塔外花田', '(function(){SugarCube.State.variables.pc.world.flower_warned=true;})()');
+	if (!linksOf(w).some((x) => x.includes('憋住气，伸手去摘最靠里的那一朵'))) throw new Error('#311：已警告时选项未体现屏息');
+	// #311-B：护臂选项写出导致受伤的擦锈动作
+	await play('工坊', null);
+	if (!linksOf(w).some((x) => x.includes('擦开内侧的锈'))) throw new Error('#311：护臂选项未写出擦锈动作');
+	// #309：劝杀入口与日记论据都读得出「了结它」
+	await play('守林人', '(function(){const pc=SugarCube.State.variables.pc;pc.inv={};pc.inv["日记"]=true;pc.keeper.met=true;pc.keeper.state="ally";SugarCube.State.variables.era="present";})()');
+	if (!linksOf(w).some((x) => x.includes('逼他动手：让他亲手了结它'))) throw new Error('#309：劝杀入口未写清动手对象与目的');
+	await play('守林人·劝杀', null);
+	const diary = linksOf(w).find((x) => x.includes('摊开日记'));
+	if (!diary?.includes('了结它')) throw new Error('#309：日记论据未表达是在说服对方了结它');
+	// #313：其余选项的行动指向
+	await play('酒馆', '(function(){const pc=SugarCube.State.variables.pc;pc.gold=99;pc.ev=pc.ev||{};SugarCube.State.variables.era="present";})()');
+	if (!linksOf(w).some((x) => x.includes('问一句女巫小屋怎么走，然后过去'))) throw new Error('#313①：问路选项未写出随后动身');
+	if (!linksOf(w).some((x) => x.includes('请他讲讲洞里的路'))) throw new Error('#313⑤：传闻选项仍以「实话」作主句');
+	await play('森林边缘', null);
+	if (!linksOf(w).some((x) => x.includes('凑近辨认木牌上的字'))) throw new Error('#313②：木牌选项仍是环境陈述');
+	await play('洞穴', '(function(){SugarCube.State.variables.pc.world.goblin_spared=false;})()');
+	if (!linksOf(w).some((x) => x.includes('拔家伙，逼它退开'))) throw new Error('#313④：洞穴选项缺「做什么」的主句');
+	await play('龙·巢边', '(function(){SugarCube.State.variables.pc.world.hoard_looted=false;})()');
+	if (!linksOf(w).some((x) => x.includes('从零碎里挑出几件值钱的'))) throw new Error('#313⑥：战利品选项仍在对玩家本领作评价');
+	await play('观星者', '(function(){const pc=SugarCube.State.variables.pc;pc.ev.seer_asked=false;SugarCube.State.variables.era="past";})()');
+	if (!linksOf(w).some((x) => x.includes('今晚的仪式能成吗'))) throw new Error('#313③：观星者问句仍用「那一夜」指代当晚');
+	return { w };
+}
+
 // ── #291 I1：投入—回报（G2 失败给情报＋下次优势；G4 立场被记住）──
 async function routeInvestment() {
 	const { w, click: c } = await newGame(0.01, 0);   // 低骰：检定必败
@@ -1017,7 +1051,7 @@ async function routeLair() {
 	await c('收下钥匙');
 	await c('用钥匙打开铁门');
 	await c('绕着它走一圈');
-	await c('识货，捡几件值钱的');
+	await c('挑出几件值钱的');
 	if (pcOf(w).gold < 10) throw new Error(`识货未入账（gold=${pcOf(w).gold}）`);
 	await c('退开');
 	return { w };
@@ -1160,7 +1194,11 @@ async function routeEraBranches() {
 	await c('在宴上找人说话');       // 宴会·过去（过去）
 	await c('回到地下宴会厅');
 	await c('翻转护身符：回到');     // 地下宴会厅（现在）
-	await c('在宴上找人说话');       // 宴会·过去（现在）← 覆盖
+	// #313⑦：现在的地下宴会厅不再直接给「赴宴」动作——先提示要回到过去（不自动消耗翻转）
+	if (linksOf(w).some((x) => x.includes('在宴上找人说话'))) throw new Error('#313⑦：现在侧仍直接给赴宴入口');
+	if (!passageText(w).includes('得先翻转护符回到那一晚')) throw new Error('#313⑦：现在侧缺「先回到过去」的提示');
+	await c('回那一晚看看');         // 宴会·过去（现在）：只给「先翻护符」的提示
+	if (!passageText(w).includes('人声属于三百年前')) throw new Error('#313⑦：现在侧进入宴会未提示需翻转');
 	await c('翻转护身符：坠入');     // 宴会·过去（过去）
 	await c('回到地下宴会厅');
 	await c('翻转护身符：回到');     // 地下宴会厅（现在）
@@ -1207,7 +1245,7 @@ async function routeTavernAllTables() {
 	if (pcOf(w).ev.tav_light !== true) throw new Error('井台的灯传闻没记账（tav_light）');
 	if (!passageText(w).includes('三百年了，那灯没灭过')) throw new Error('井台的灯传闻没落地');
 	await c('推门出发，走进暮色');
-	await c('路口钉着半截木牌');
+	await c('辨认木牌');
 	if (pcOf(w).ev.tav_iron !== true) throw new Error('哨站的铁门传闻没记账（tav_iron）');
 	if (!passageText(w).includes('铁门锁着')) throw new Error('哨站的铁门传闻没落地');
 	await c('退回林子');
@@ -1356,7 +1394,7 @@ async function routeNoSaveScum() {
 	await c('把暗格里的东西取出来');
 	if (pcOf(w).inv['日记'] !== true) throw new Error('换路之后没拿到日记');
 	await c('到拐角的小工坊看看');
-	await c('把护臂翻过来，看内侧的记号');        // 察觉 → 必成
+	await c('擦开内侧的锈');        // 察觉 → 必成
 	if (pcOf(w).ev.forge_seen !== true) throw new Error('察觉路没换来护臂来历');
 	await c('上三楼');
 	await c('盯住缺口里那几粒没连上的点');        // 察觉 → 必成（本条路线故意不拿那册书）
@@ -1489,6 +1527,7 @@ const routes = [
 	['文本上下文（时代与日记）', routeTextContext],
 	['交付后互锁（#259）', routeDeliveredLocks],
 	['退出选项指向（#308/#312）', routeExitLabels],
+	['选项指向与措辞（#309/#311/#313）', routeClarityB],
 	['投入—回报（#291 I1）', routeInvestment],
 	['跨周目粘性（#271）', routeCrossRunSticky],
 ];

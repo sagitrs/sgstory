@@ -138,7 +138,7 @@
 <details class="act-group" name="tavern-acts" open>
 	<summary>柜台：打听与添置<span class="act-n" aria-hidden="true"></span></summary>
 	<<if not $pc.world.rumor and $pc.gold gte (-Game.Economy.priceOf("rumor_buy", $pc))>>
-	<<link `"花 " + (-Game.Economy.priceOf("rumor_buy", $pc)) + " 金币：听老猎人讲实话"`>>
+	<<link `"花 " + (-Game.Economy.priceOf("rumor_buy", $pc)) + " 金币：请他讲讲洞里的路"`>>
 		<<econ "rumor_buy">><<setflag "rumor">><<goto "酒馆">>
 	<</link>>
 <<else>>
@@ -160,7 +160,7 @@
 <details class="act-group" name="tavern-acts" open>
 	<summary>离开酒馆<span class="act-n" aria-hidden="true"></span></summary>
 	<<if not $pc.inv["时光护符"]>>
-	<<link "问一句女巫小屋怎么走">><<goto "女巫小屋">><</link>>
+	<<link "问一句女巫小屋怎么走，然后过去">><<goto "女巫小屋">><</link>>
 <</if>>
 	<<link "离店前，去井台打点水">><<goto "村中井台">><</link>>
 	[[推门出发，走进暮色|森林边缘]]
@@ -222,7 +222,7 @@
 
 [[走进山脚的洞穴|洞穴]]
 [[去那间亮着灯的小屋|女巫小屋]]
-[[路口钉着半截木牌|废哨站]]
+[[凑近辨认木牌上的字|废哨站]]
 [[林缘空地有人抽烟斗|林缘空地]]
 
 :: 洞穴
@@ -256,7 +256,7 @@
 	它把石头一块块码回怀里，往旁边挪了挪，让出半条路。
 	[[从它旁边过去|森林边缘]]
 <<else>>
-	<<link "拔家伙——''检定''过不过得看你的手">>
+	<<link "拔家伙，逼它退开——''检定''过不过得看你的手">>
 		<<if $pc.world.rumor>>（你落脚的时候，避开了第三块石板。''老猎人的话''。）<</if>>
 		<<sitecheck "洞穴·战斗">><<snapshot>>
 		<<if $last_check.success>>

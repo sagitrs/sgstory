@@ -15,6 +15,7 @@
 //   node scripts/report-gate-ledger.mjs --selftest # 自证（合成输入，验判定会咬）
 
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
+import { planChain } from './test-plan.mjs';
 
 const LEDGER = 'docs/gate-ledger.md';
 const PKG = 'package.json';
@@ -46,7 +47,12 @@ export const REASONS = {
 
 
 const pkg = JSON.parse(readFileSync(PKG, 'utf8'));
-const testChain = pkg.scripts.test ?? '';
+// #381：「跑哪些段」的单一权威是 `scripts/test-plan.mjs`（引入跑器后不再靠匹配 package.json 的长 `&&` 串——
+// 那串已改成一行 `node scripts/run-tests.mjs`）。但**仍要校验 npm test 真的在跑那个跑器**：
+// 计划里写了、CI 却没人跑 ＝ 幻影门（见下方 phantom-runner 判定）。
+const testChain = planChain();
+const testEntry = pkg.scripts.test ?? '';
+const RUNNER_RE = /scripts\/run-tests\.mjs/;
 
 // ── 枚举：常设机检 = audit 开关 + scripts/report-*.mjs + test/*.mjs ──────────
 const MODIFIERS = ['check'];
@@ -189,6 +195,10 @@ if (argv.includes('--selftest')) { selftest(); process.exit(0); }
 const md = markdown(rows);
 const s = summary(rows);
 const probs = problems(rows, auditFlags, chainFlags(testChain));
+// 幻影门（反向查）：跑器没被 npm test 调用 → 表里的「已接线」全是假的
+if (!RUNNER_RE.test(testEntry)) {
+	probs.push({ id: 'package.json:test', code: 'phantom-runner', msg: `npm test 没有调用 scripts/run-tests.mjs（当前：${testEntry.slice(0, 80)}）——计划与 CI 实况脱钩，本台账的「已接线」列全部不可信` });
+}
 
 if (argv.includes('--update')) {
 	writeFileSync(LEDGER, md);

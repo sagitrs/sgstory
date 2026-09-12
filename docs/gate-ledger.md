@@ -8,7 +8,7 @@
 > 为什么要有这张表：本仓当日集齐四类「空判」——覆盖≠验收 / **反例空判** / **死开关**（#331）/ **原理不可达断言**（#338）。
 > 台账的首要用途不是统计，而是**让「没有自证的门」在表上看得见**。
 
-**严格行为化率（有自证）：18/53 = 34%** ｜ **有断言但缺自证：18**（＝下方工作清单）｜ 仅登记：4
+**严格行为化率（有自证）：20/53 = 37.7%** ｜ **有断言但缺自证：18**（＝下方工作清单）｜ 仅登记：4
 
 | 门 | 类型 | 形态 | 自证 | 接线（npm test） | 理由（仅登记/未接线必填） |
 |---|---|---|---|---|---|
@@ -43,7 +43,7 @@
 | `scripts/report-rhythm.mjs` | 报告脚本 | 行为化 | ✅ | ✅ | R1/R1b/R2/正例 四例自证，已入 npm test |
 | `test/audit-golden.mjs` | 测试脚本 | 行为化 | ✅ | — | 按需跑（npm run audit:golden）：拆/改 audit 时用；全量跑 24 个开关较慢 |
 | `test/browser.mjs` | 测试脚本 | 行为化 | ✅ | — | 需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑 |
-| `test/combat-adv.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
+| `test/combat-adv.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/coverage.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
 | `test/fatal-guard.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/g3-evidence.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
@@ -57,7 +57,7 @@
 | `test/rules-claims.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/rules.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
 | `test/saveload-inventory.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | 自证 6 例（含 widget 间接改状态） |
-| `test/saveload.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
+| `test/saveload.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | **自证按需跑**：`node test/saveload.mjs --selftest`（故障注入＝落档后人为扰动，断言比较器判红）；不塞主链的理由＝自证需完整导航（成本≈主跑 30s，收益不值） |
 | `test/saveui.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
 | `test/scenarios.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/silent-gate.mjs` | 测试脚本 | 行为化 | — | ✅ |  |

@@ -9,7 +9,7 @@
 //   · `wait` 可调：不同脚本原本用 140 / 220 / 350ms 的固定等待，迁移时保持原值，避免顺手改行为。
 //
 // 未迁移（有意）：
-//   · `scenarios.mjs`——其路线体正被文案批（#308–#313）改动，等那批合入后再迁移，免同段冲突；
+//   · `scenarios.mjs`——#317② 本轮已迁（文案批 #308–#313 合入后）；
 //   · `walker.mjs` 的对抗式游走（元素级点击 + `checkErrors()` + 种子流 + 选项卡也在候选里）语义特殊，
 //     点击壳保留它自己的检查逻辑——强行统一会改动「游走器看得到哪些链接」，那是覆盖率的自变量。
 
@@ -18,6 +18,8 @@ import { boot, CLICKABLE, CLICKABLE_SEL } from './boot.mjs';
 export { CLICKABLE, LINKS, LINKS_SEL, CLICKABLE_SEL, trailingAfterLast } from './boot.mjs';
 
 const defaultSleep = (ms) => new Promise((r) => setTimeout(r, ms));
+// 段落名含中文与「·」，属性选择器里需要转义引号/反斜杠
+const CSS_ESC = (v) => String(v).replace(/["\\]/g, '\\$&');
 
 // 一个会话：绑定某个 jsdom 窗口与它的 settle/sleep
 export function makeSession(w, { settle = async () => {}, sleep = defaultSleep, scope = 'current', wait = 140, tries = 20 } = {}) {
@@ -56,7 +58,33 @@ export function makeSession(w, { settle = async () => {}, sleep = defaultSleep, 
 		if (!byLabel(label)) return null;
 		return clickByLabel(label, opts);
 	};
-	return { w, links, byLabel, clickEl, clickByLabel, tryClickByLabel, passage, text, pc, settle, sleep };
+
+	// ── #317②：按**稳定 key** 定位（不再依赖中文文案）──────────────────────────
+	// key 由 `src/80-script.twee` 末尾的派生 pass 写进 `data-choice` ＝ 目标段落名；
+	// 作者可用 `data-key` 容器覆盖。**定位用 key，断言仍用文案**（两者分开，改文案不再连动测试）。
+	const byKey = (key, { scope: sc = scope } = {}) => {
+		const pool = sc === 'any' ? [...w.document.querySelectorAll(`[data-choice="${CSS_ESC(key)}"]`)]
+			: [...(currentBox()?.querySelectorAll(`[data-choice="${CSS_ESC(key)}"]`) ?? [])];
+		return pool[0] ?? null;
+	};
+	// 三元组（guest-1 复核建议）：派生值 / 作者覆盖 / 兜底文案——便于统计「还有多少点击在靠文案定位」
+	const keyOf = (el) => ({
+		choice: el?.dataset?.choice ?? null,
+		authored: el?.closest('[data-key]')?.dataset?.key ?? null,
+		label: (el?.textContent ?? '').trim().replace(/\s+/g, ' '),
+	});
+	const clickByKey = async (key, { wait: w2 = wait, tries: n = tries, scope: sc } = {}) => {
+		await settle();
+		let a = byKey(key, { scope: sc });
+		for (let i = 0; i < n && !a; i++) { await sleep(100); await settle(); a = byKey(key, { scope: sc }); }
+		if (!a) {
+			const avail = links().map((x) => keyOf(x).choice ?? x.textContent.replace(/\s+/g, '')).join(' / ');
+			throw new Error(`找不到 key「${key}」@ ${passage()}（可选：${avail}）`);
+		}
+		await clickEl(a, { wait: w2 });
+		return a;
+	};
+	return { w, links, byLabel, byKey, keyOf, clickEl, clickByLabel, clickByKey, tryClickByLabel, passage, text, pc, settle, sleep };
 }
 
 // 开一局并把车卡走完（车卡 → 角色卡 → 出发）

@@ -7,11 +7,26 @@
 //   ① 让事件循环真的能空下来（见下面那段"非零视口"：SugarCube 的视口就绪轮询永不收尾）；
 //   ② boot 出来的每个窗口登记在 live 里，beforeExit / exit / SIGINT / SIGTERM 统一 close。
 // 于是脚本不再需要自己收场，`await boot()` 的脚本跑完就退。
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { JSDOM, VirtualConsole } from 'jsdom';
 
-const html = readFileSync(new URL('../dist/index.html', import.meta.url), 'utf8');
+const distPath = new URL('../dist/index.html', import.meta.url);
+const html = readFileSync(distPath, 'utf8');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// ── dist 过期守卫（一次修，全脚本受益）──────────────────────────────
+// test/*.mjs 跑的是构建产物 dist/index.html，不是 src/*.twee。
+// 源码改了、忘了 build 时，所有 jsdom 测试都会基于**旧游戏**断言 → 得到与源码不符的
+// 假红（或假绿）。2026-09-12 实际咬过一次：pull 了 G3 之后直接跑 scenarios，
+// 得到「门不可达」的假红，实际只是 dist 落后 4 分钟。
+// 这里不自动 build（那会掩盖问题），而是**大声报错并给出修复命令**。
+const newestSrc = Math.max(
+	...readdirSync(new URL('../src', import.meta.url)).filter((f) => f.endsWith('.twee'))
+		.map((f) => statSync(new URL(`../src/${f}`, import.meta.url)).mtimeMs),
+);
+if (statSync(distPath).mtimeMs < newestSrc) {
+	throw new Error('dist/index.html 比 src/*.twee 旧——先跑 `npm run build`（否则断言基于旧游戏，结果是假红/假绿）');
+}
 
 // ── 统一退出清理（一处修，全脚本受益）──────────────────────────────
 const live = new Set();

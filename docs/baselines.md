@@ -167,3 +167,14 @@
 npm test                      # 含静态门（登记完整性）
 npm run test:saveload         # 行为门：#300 修复前应为红（缺陷基线证据）
 ```
+
+## 附：dist 过期守卫（2026-09-12 实测咬过一次）
+
+`test/*.mjs` 跑的是**构建产物** `dist/index.html`，不是 `src/*.twee`。源码改了、忘了 `npm run build` 时，
+所有 jsdom 断言都基于**旧游戏** → 得到与源码不符的**假红/假绿**。
+
+实际案例：pull 了 G3（#302）之后直接跑 `node test/scenarios.mjs`，得到「#291 G3：两侧证据齐了却问不出（门不可达）」的**假红**——
+真实原因只是 `dist/index.html` 落后源码 4 分钟。重建后同一条路线通过（覆盖 85 格）。
+
+现在 `test/boot.mjs` 在任何脚本启动时都会校验 `dist` 是否比 `src/*.twee` 新，过期则**大声报错并给出修复命令**
+（不自动 build——那会掩盖问题）。`npm run test:saveload` 已改为先 build 再跑。

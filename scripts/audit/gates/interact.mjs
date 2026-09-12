@@ -4,6 +4,20 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 export const flag = 'interact';
 export const flags = ["interact"];
 
+// ── 纯函数（自证与真实运行**同一份代码**）──
+const stripLinksOf = (src) => String(src).replace(/<<link\b[\s\S]*?<\/link>>/g, '（link）');
+// ① 引用了不存在的位点
+export const missingSites = (src, sites) => [...String(src).matchAll(/<<sitecheck\s+"([^"]+)"/g)]
+	.map((m) => m[1]).filter((k) => !sites[k]);
+// ② 顶层（不在 <<link>> 体内）的 sitecheck ⇒ 自动检定：位点必须标 auto＋理由
+export const topLevelAutoChecks = (src, sites) => [...stripLinksOf(src).matchAll(/<<sitecheck\s+"([^"]+)"/g)]
+	.map((m) => m[1]).filter((k) => sites[k] && !sites[k].auto);
+// ③ 顶层读 $last_check 却没有本轮检定（会读到上一段的陈旧结果）
+export const staleLastCheck = (src) => {
+	const outer = stripLinksOf(src);
+	return outer.includes('$last_check') && !/<<sitecheck\s+"/.test(outer);
+};
+
 export const run = (ctx) => {
 	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
@@ -11,6 +25,24 @@ export const run = (ctx) => {
 if (wantAll || arg('interact')) {
 	console.log('\n══ ⓪h 互动门（M9）——信息必须由玩家动作发起 ══');
 	let bad = 0;
+	// ── 自证（先证会红，再判真实数据）──
+	{
+		const S = { 有: { skill: '察觉', dc: 10 }, 自动: { skill: '察觉', dc: 10, auto: '进场即动手' } };
+		const cases = [
+			['正例：位点都存在于表里', missingSites('<<sitecheck "有">>', S).length, 0],
+			['反例①：引用了不存在的位点', missingSites('<<sitecheck "没有">>', S).length, 1],
+			['正例：顶层检定但位点已标 auto', topLevelAutoChecks('<<sitecheck "自动">>', S).length, 0],
+			['反例②：顶层检定且位点未标 auto', topLevelAutoChecks('<<sitecheck "有">>', S).length, 1],
+			['正例：检定在 <<link>> 体内（玩家发起）', topLevelAutoChecks('<<link "点">><<sitecheck "有">><</link>>', S).length, 0],
+			['反例③：顶层读 $last_check 却没有本轮检定', staleLastCheck('<<if $last_check.success>>甲<</if>>') ? 1 : 0, 1],
+			['正例：顶层读 $last_check 且同段有检定', staleLastCheck('<<sitecheck "有">><<if $last_check.success>>甲<</if>>') ? 1 : 0, 0],
+		];
+		for (const [label, got, want] of cases) {
+			const ok = got === want;
+			console.log(`      ${ok ? '✓' : '✗'} 自证·${label}：得 ${got}（期望 ${want}）`);
+			if (!ok) bad++;
+		}
+	}
 	const stripLinks = (src) => src.replace(/<<link\b[\s\S]*?<\/link>>/g, '（link）');
 	const sites = Game.Checks.sites;
 	const usedSites = new Set();
@@ -23,10 +55,8 @@ if (wantAll || arg('interact')) {
 		if (tags0.includes('script') || tags0.includes('stylesheet') || tags0.includes('widget')) continue; // 只扫正文
 		const src = srcRaw.replace(/\/%[\s\S]*?%\//g, '');
 		const outer = stripLinks(src);
-		for (const m of src.matchAll(/<<sitecheck\s+"([^"]+)"/g)) {
-			usedSites.add(m[1]);
-			if (!sites[m[1]]) { console.log(`  ✗ 段落「${name}」引用了不存在的位点「${m[1]}」`); bad++; }
-		}
+		for (const m of src.matchAll(/<<sitecheck\s+"([^"]+)"/g)) usedSites.add(m[1]);
+		for (const k of missingSites(src, sites)) { console.log(`  ✗ 段落「${name}」引用了不存在的位点「${k}」`); bad++; }
 		// 战斗结算：<<fightpanel "对手位点" …>>／（旧名）<<fightresolve …>> 每一轮都掷——必须存在且标 auto。
 		// #350：结算从渲染期搬到点击时刻后，对手位点由**面板**接收（段落里只剩 <<fightlog>> 只读回放），
 		// 故采集点从 fightresolve 改为 fightpanel（保留旧名以兼容）。
@@ -37,14 +67,10 @@ if (wantAll || arg('interact')) {
 			if (!sites[m[1]].auto) { console.log(`  ✗ 段落「${name}」的战斗对手位点「${m[1]}」未标 auto 理由`); bad++; }
 		}
 		// ① 顶层（非 link 内）的检定＝自动检定：只有"进场即动手"的战斗位点可以
-		for (const m of outer.matchAll(/<<sitecheck\s+"([^"]+)"/g)) {
-			autoTop++;
-			const site = sites[m[1]];
-			if (!site) continue;
-			if (!site.auto) { console.log(`  ✗ 段落「${name}」自动检定「${m[1]}」——信息类检定必须由玩家动作发起（移进 <<link>>，或给位点标 auto 并写明理由）`); bad++; }
-		}
+		for (const _m of outer.matchAll(/<<sitecheck\s+"([^"]+)"/g)) autoTop++;
+		for (const k of topLevelAutoChecks(src, sites)) { console.log(`  ✗ 段落「${name}」自动检定「${k}」——信息类检定必须由玩家动作发起（移进 <<link>>，或给位点标 auto 并写明理由）`); bad++; }
 		// ② 渲染期读 $last_check ⇒ 同段落顶层必须有检定（否则会读到上一段落的陈旧结果）
-		if (outer.includes('$last_check') && !/<<sitecheck\s+"/.test(outer)) {
+		if (staleLastCheck(src)) {
 			console.log(`  ✗ 段落「${name}」顶层读 $last_check 却没有本轮检定——判定结果必须落旗标后再渲染`); bad++;
 		}
 		inLink += (src.match(/<<sitecheck/g) ?? []).length - (outer.match(/<<sitecheck/g) ?? []).length;

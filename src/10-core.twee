@@ -234,26 +234,29 @@ Macro.add('dragonbar', {
 /% 受伤 + 药膏自动生效 + 死亡判定。用法：<<damage N>>。
    药膏自动门槛：缺口满 4 点（一副的恢复量）才自动用——满血/轻伤不烧药膏（#201）。 %/
 /% #185 门厅：取物结果单源；replace 原地重绘，goto 不再冲掉结果 %/
+/% #403：门厅取物——**同一颗骰只显示一遍、同一句结果只显示一遍**。
+   ① 去掉原先开头的 <<lastcheck>>：骰面由 <<sitecheck>> 自己渲染（结果槽再承载一次进 dist），
+      两句都渲染就会在槽里出现两次骰面；
+   ② 结果句在「结果槽已承载本次结果」时不再复述（槽由 #270 的 goto 包装捕获 link 输出）；
+   ③ 状态变更（give/damage/setflag）**与显示无关，始终执行**。 %/
 <<widget "hallResult">><<nobr>>
-	<<lastcheck>>
+	<<set _slotHasIt to $pc.ev.last_result and $pc.ev.last_result.p is passage()>>
 	<<if $args[0] is "翻检">>
 		<<if $last_check.success>>
-			你把哨子从钉子上提起来，收进行囊，可在''物品栏''查看。<<give "坏哨">><<setflag "whistle_taken">>
+			<<if not _slotHasIt>>你把哨子从钉子上提起来，收进行囊，可在''物品栏''查看。<</if>><<give "坏哨">><<setflag "whistle_taken">>
 		<<else>>
-			哨子卡在钉子上。你拨了半天，指头刮破了一道口子——到底还是弄下来了。
-			<<damage 1>><<give "坏哨">><<setflag "whistle_taken">>
+			<<if not _slotHasIt>>哨子卡在钉子上。你拨了半天，指头刮破了一道口子——到底还是弄下来了。<</if>><<damage 1>><<give "坏哨">><<setflag "whistle_taken">>
 		<</if>>
 	<<else>>
 		<<if $last_check.success>>
-			你借了箱子的高度，一把攥住哨子拧了下来。<<give "坏哨">><<setflag "whistle_taken">>
+			<<if not _slotHasIt>>你借了箱子的高度，一把攥住哨子拧了下来。<</if>><<give "坏哨">><<setflag "whistle_taken">>
 		<<else>>
-			箱子一滑，你磕在墙角上。<<damage 2>>好歹把哨子攥下来了。<<give "坏哨">><<setflag "whistle_taken">>
+			<<if not _slotHasIt>>箱子一滑，你磕在墙角上。好歹把哨子攥下来了。<</if>><<damage 2>><<give "坏哨">><<setflag "whistle_taken">>
 		<</if>>
 	<</if>>
-	<p>这里你已经''翻找过''了，没有别的。</p>
+	/% 「这里你已经翻找过了」由**门厅段落自己的 else 支**渲染（单源）——放在 widget 里会被 #270 结果槽连同 link 输出一起捕获，于是同一句在槽与段落各显示一遍（#403）。 %/
 <</nobr>><</widget>>
-/% #261（#185 阶段三）首遇门控泛化：<<firstTime "flag">> → _first（并置位）。
-   用法：<<firstTime "keeper_intro">><<if _first>>完整首遇<<else>>返回短入口<</if>> %/
+
 <<widget "firstTime">>
 	<<set _first to !$pc.ev[$args[0]]>>
 	<<if _first>><<set $pc.ev[$args[0]] to true>><</if>>

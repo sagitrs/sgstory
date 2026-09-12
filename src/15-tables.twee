@@ -945,6 +945,7 @@ window.Game = (() => {
 		engine: {
 			last_roll: '骰面快照（<<lastcheck>>/<<lastcheckFor>> 复显用）',
 			last_result: '结果槽暂存位（#270 通用留屏）',
+			soc_lever: '已摆出的优势筹码（#360：只给 adv，不完成诉求；随下一次手段掷骰消费后清空）',
 			// #357：致命伤在 <<damage>> 里**即刻登记结局**（否则 :passagestart 的
 			// hp≤0 安全网会抢在结局页之前把 hp 修回 1）；消费者＝安全网的 !ending 门
 			// ＋设定集/图鉴的结局记账，故归 engine。
@@ -1017,7 +1018,7 @@ window.Game = (() => {
 			{ id: 'seer', where: '观星者与星图', prefix: ['seer_'], keys: ['coord', 'star_ledger', 'star_short'], note: '问过什么、给过什么、星账与坐标' },
 			{ id: 'banquet', where: '过去的宴会与仪式', prefix: ['banquet_', 'staff_', 'ritual_'], keys: ['family_favor', 'old_witch'], note: '入场、藏杖、仪式所见、人情与老巫女' },
 			{ id: 'dragon', where: '龙与送行/封印', prefix: ['fight_', 'hoard_', 'whistle_', 'scroll_', 'delivery_', 'failure_', 'observation_', 'fog_', 'letter_'], keys: ['ending', 'fight'], note: '战斗台账、龙巢、哨、卷轴交付、真相锚与观测锁' },
-			{ id: 'runtime', where: '运行时/界面态（非剧情状态）', keys: ['last_result', 'last_roll', 'soc', 'soc_last'], note: '结果槽、骰面快照、交涉面板的瞬态' },
+			{ id: 'runtime', where: '运行时/界面态（非剧情状态）', keys: ['last_result', 'last_roll', 'soc', 'soc_last', 'soc_lever'], note: '结果槽、骰面快照、交涉面板的瞬态（含 #360 已摆出的优势筹码）' },
 		],
 		// 「仅记账」键：写下来只为登记（出处/复访记账），**没有行为消费者**——消费者就是本表本身。
 		// 允许存在，但必须在此显式声明：`audit --state` 对未声明的「只有写」键照旧红灯。

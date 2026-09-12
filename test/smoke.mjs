@@ -105,8 +105,11 @@ assert(w.SugarCube.State.passage === '森林边缘', '到达森林边缘');
 assert(!w.document.querySelector('#passages .action-feedback'), '换场景不沿用上一页反馈目标');
 assert(!w.document.querySelector('#passages .check-result'), 'M9：森林边缘不再自动掷察觉');
 await click('在雾里站住，听一听');            // 玩家的动作
-const checkBox = w.document.querySelector('#passages .check-result');
-assert(!!checkBox, '玩家发起后：森林察觉检定结果框渲染');
+// #361：动作后的骰面可能由**结果槽**承载（#300 P2「同一颗骰不显示两遍」）——
+// 历史块改用 lastcheckFor 后，当场那一掷在槽里显示，不再另起一个 .check-result
+const checkBox = w.document.querySelector('#passages .check-result') ?? w.document.querySelector('#passages .scene-feedback');
+assert(!!checkBox, '玩家发起后：森林察觉检定结果框渲染（.check-result 或结果槽）');
+assert(checkBox.textContent.includes('察觉'), '玩家发起后：骰面确实是这次察觉检定');
 assert(checkBox.textContent.includes('察觉检定（感知）'), 'M10：判定标注了属性（察觉检定（感知））');
 assert(checkBox.textContent.includes('感知') && checkBox.textContent.includes('DC10'), 'M10：显示计算过程（属性 + DC + 骰面）');
 const lc = w.SugarCube.State.variables.last_check;

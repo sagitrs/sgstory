@@ -1013,6 +1013,7 @@ window.Game = (() => {
 			{ id: 'keeper', where: '守林人', prefix: ['keeper_'], note: '首遇、劝杀论据、立场、他告诉过你什么' },
 			{ id: 'tower', where: '塔内（门厅/书房/工坊/天文台/顶楼/地下）', prefix: ['hall_', 'study_', 'forge_', 'observatory_', 'tower_', 'below_', 'ledger_', 'errand_'], keys: ['present_done', 'threshold'], note: '各房间的察看与机关态' },
 			{ id: 'flower', where: '塔外花田', prefix: ['flower_'], note: '喂花、泥、警告与昏睡（致死位点）' },
+			{ id: 'observatory', where: '天文台的藏品与手稿', prefix: ['book_'], note: '#359：风化书的取得（场地状态，与背包分开——#358 同族）' },
 			{ id: 'seer', where: '观星者与星图', prefix: ['seer_'], keys: ['coord', 'star_ledger', 'star_short'], note: '问过什么、给过什么、星账与坐标' },
 			{ id: 'banquet', where: '过去的宴会与仪式', prefix: ['banquet_', 'staff_', 'ritual_'], keys: ['family_favor', 'old_witch'], note: '入场、藏杖、仪式所见、人情与老巫女' },
 			{ id: 'dragon', where: '龙与送行/封印', prefix: ['fight_', 'hoard_', 'whistle_', 'scroll_', 'delivery_', 'failure_', 'observation_', 'fog_', 'letter_'], keys: ['ending', 'fight'], note: '战斗台账、龙巢、哨、卷轴交付、真相锚与观测锁' },

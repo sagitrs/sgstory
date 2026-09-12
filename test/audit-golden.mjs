@@ -12,7 +12,7 @@
 //      是否给 MC 加固定种子（让门完全确定性）属**行为变更**，留待单独裁决。
 //   ② 收尾行（数据源提示）含路径文本，不参与归一化，作为普通内容比对。
 import { execFileSync } from 'node:child_process';
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 
 const GOLDEN = 'test/audit-golden.json';
 const FLAGS = [
@@ -40,7 +40,9 @@ export const FLAG_MODIFIERS = ['check'];
 
 // 源码里实际声明的开关（防新增漏保护 / 清单过期）
 const argFlagsFromSource = () => {
-	const src = readFileSync('scripts/audit.mjs', 'utf8');
+	// #316 第 2 步：门已拆到 scripts/audit/gates/*.mjs，开关枚举必须覆盖两处
+	const files = ['scripts/audit.mjs', ...readdirSync('scripts/audit/gates').filter((f) => f.endsWith('.mjs')).map((f) => `scripts/audit/gates/${f}`)];
+	const src = files.map((f) => readFileSync(f, 'utf8')).join('\n');
 	return [...new Set([...src.matchAll(/arg\('([a-z0-9-]+)'\)/g)].map((m) => m[1]))]
 		.filter((f) => !FLAG_MODIFIERS.includes(f))
 		.sort();

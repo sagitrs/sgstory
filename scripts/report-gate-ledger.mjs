@@ -50,19 +50,20 @@ const testChain = pkg.scripts.test ?? '';
 
 // ── 枚举：常设机检 = audit 开关 + scripts/report-*.mjs + test/*.mjs ──────────
 const MODIFIERS = ['check'];
-const auditSrc = readFileSync('scripts/audit.mjs', 'utf8');
+// #316 第 2 步：门拆到 scripts/audit/gates/*.mjs —— 枚举与自证检测都覆盖两处
+const gateFiles = readdirSync('scripts/audit/gates').filter((f) => f.endsWith('.mjs')).sort();
+const gateSrc = Object.fromEntries(gateFiles.map((f) => [f, readFileSync(`scripts/audit/gates/${f}`, 'utf8')]));
+const auditSrc = [readFileSync('scripts/audit.mjs', 'utf8'), ...Object.values(gateSrc)].join('\n');
 const auditFlags = [...new Set([...auditSrc.matchAll(/arg\('([a-z0-9-]+)'\)/g)].map((m) => m[1]))]
 	.filter((f) => !MODIFIERS.includes(f)).sort();
 
-// 每个 audit 开关的「自证」：取其**门段**（从该门的 if 起到下一个门的 if 之前）里是否含「自证」。
-// 踩坑：首版用「到第一个 \n} 为止」的非贪婪匹配 → 门内有嵌套块时提前截断，把有自证的门误判为缺自证
-// （实测 audit:echoes 明明有「自证·回声锚对」却进了缺自证清单）。改为按门起点切片。
-const gateStarts = [...auditSrc.matchAll(/^if \(wantAll \|\|/gm)].map((m) => m.index);
+// 每个 audit 开关的「自证」：其**门模块**里是否含「自证」字样（本仓既有形态）。
+// #316 第 2 步后门已独立成文件 → 直接看该门所属模块。
 const auditSelfProof = (flag) => {
-	const start = auditSrc.search(new RegExp(`^if \\(wantAll \\|\\| [^\\n]*arg\\('${flag}'\\)`, 'm'));
-	if (start < 0) return false;
-	const next = gateStarts.find((i) => i > start) ?? auditSrc.length;
-	return /自证/.test(auditSrc.slice(start, next));
+	for (const [f, src] of Object.entries(gateSrc)) {
+		if (new RegExp(`arg\\('${flag}'\\)`).test(src)) return /自证/.test(src);
+	}
+	return false;
 };
 
 const reportScripts = readdirSync('scripts').filter((f) => f.startsWith('report-') && f.endsWith('.mjs')).sort();

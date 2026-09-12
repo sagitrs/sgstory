@@ -5,7 +5,7 @@ export const flag = 'sitedisc';
 export const flags = ["sitedisc"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ⓪p 位点失败纪律门（#199/#195）：带伤失败必须有解，无解决不许带伤 ──
 if (wantAll || arg('sitedisc')) {

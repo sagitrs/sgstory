@@ -5,7 +5,7 @@ export const flag = 'social';
 export const flags = ["social"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ⓪l 交涉门（B2 · D&D 2024 Influence）：意愿三档 · 手段换属性 · 代价因手段而异 ──
 if (wantAll || arg('social')) {
@@ -33,7 +33,7 @@ if (wantAll || arg('social')) {
 		// 筹码：道具/行囊/情报必须真的存在
 		for (const lv of a.levers ?? []) {
 			if (lv.need) {
-				const probe = ctx.Pc.defaults();
+				const probe = ctx.Game.Pc.defaults();
 				probe.inv = { 日记: true, 观星者的书: true, 时光护符: true, 完整星图: true };
 				probe.world = { family_favor: true };
 				let okReq = false;

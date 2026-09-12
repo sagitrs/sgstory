@@ -53,11 +53,11 @@ export const createContext = ({ srcDir = 'src', argv = process.argv } = {}) => {
 	// ── 源文件发现（M1a-1）：不再硬编码路径——改文件名/拆文件不再牵动工具 ──
 	const SRC_FILES = readdirSync(srcDir).filter((f) => f.endsWith('.twee')).sort().map((f) => `${srcDir}/${f}`);
 	const ctx = loadScripts(SRC_FILES);
-	const { Rules, Pc, Game } = ctx.window;   // #320 阶段 3：Chargen* 已收进 Game.Chargen
+	const { Game } = ctx.window;   // #320 阶段 3：Chargen* 已收进 Game.Chargen
 
 	// ── 预设角色（车卡全链 apply，与运行时同构）──
 	const presets = Game.Chargen.presets.map((p) => {
-		const pc = Pc.defaults();
+		const pc = Game.Pc.defaults();
 		ctx.State.variables.pc = pc; // Game.Chargen.pick 直接读 State.variables.pc
 		for (let r = 0; r < p.picks.length; r++) Game.Chargen.pick(r, p.picks[r]);
 		return { name: p.name, pc };

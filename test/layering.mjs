@@ -18,12 +18,12 @@ const check = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!o
 let failures = 0;
 
 if (process.argv.includes('--selftest')) {
-	const base = { '10-core.twee': 'window.Rules = {};', '15-tables.twee': 'window.Game = {};' };
+	const base = { '10-core.twee': 'window.Game.Rules = {};', '15-tables.twee': 'window.Game = {};' };
 	const cases = [
-		['合规图 → 不得报错', base, { order: ['10-core.twee', '15-tables.twee'], modules: { '10-core.twee': { deps: [], defines: ['Rules'] }, '15-tables.twee': { deps: ['10-core.twee'], defines: ['Game'] } } }, 0],
+		['合规图 → 不得报错', base, { order: ['10-core.twee', '15-tables.twee'], modules: { '10-core.twee': { deps: [], defines: ['Game.Rules'] }, '15-tables.twee': { deps: ['10-core.twee'], defines: ['Game'] } } }, 0],
 		['前向依赖（15 依赖 20，但 20 在后）→ 必须报红', { '10-core.twee': '', '15-tables.twee': '', '20-chargen.twee': '' }, { order: ['10-core.twee', '15-tables.twee', '20-chargen.twee'], modules: { '15-tables.twee': { deps: ['20-chargen.twee'], defines: [] } } }, 1],
 		['新增文件未登记 → 必须报红', { ...base, '12-new.twee': '' }, { order: ['10-core.twee', '15-tables.twee'], modules: {} }, 1],
-		['声明定义但正文里没有（改名/挪走）→ 必须报红', base, { order: ['10-core.twee', '15-tables.twee'], modules: { '10-core.twee': { deps: [], defines: ['Rules', '不存在的符号'] } } }, 1],
+		['声明定义但正文里没有（改名/挪走）→ 必须报红', base, { order: ['10-core.twee', '15-tables.twee'], modules: { '10-core.twee': { deps: [], defines: ['Game.Rules', '不存在的符号'] } } }, 1],
 		['ORDER 里的文件不存在 → 必须报红', base, { order: ['10-core.twee', '15-tables.twee', '99-gone.twee'], modules: {} }, 1],
 		// #320 阶段 3：defines 支持**点号路径**（`window.Game.Chargen = …` 声明 `Game.Chargen`）
 		['点号 defines：声明与实际相符 → 绿', { '15-tables.twee': 'window.Game = {};', '20-chargen.twee': 'window.Game.Chargen = {};' }, { order: ['15-tables.twee', '20-chargen.twee'], modules: { '20-chargen.twee': { deps: ['15-tables.twee'], defines: ['Game.Chargen'] } } }, 0],

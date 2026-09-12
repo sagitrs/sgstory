@@ -5,7 +5,7 @@ export const flag = 'sel';
 export const flags = ["sel", "gear"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ⓪j 行囊门 + 经济门（A1/A2/A5）：花了钱、带在身上的，必须真的有用 ──
 //    行囊＝职业装备（长剑 / 火把），不进口具表（canon §5.0 仍是 10 件），但必须进数值。
@@ -57,7 +57,7 @@ if (wantAll || arg('sel') || arg('gear')) {
 	for (const a of Game.Social?.asks ?? []) for (const lv of a.levers ?? []) if (lv.econ) leverUses.push({ ask: a, lever: lv });
 	const socialSettles = (flagTail, item) => {
 		for (const u of leverUses) {
-			const stub = ctx.Pc.defaults();
+			const stub = ctx.Game.Pc.defaults();
 			stub.inv = {}; stub.ev = {}; stub.world = {}; stub.keeper = { met: false, trust: 0, state: 'post', key: false };
 			try {
 				for (const lv2 of u.ask.levers ?? []) if (typeof lv2.need !== 'function' || lv2.need(stub)) u.ask.apply(stub);

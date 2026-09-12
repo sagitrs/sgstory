@@ -2,7 +2,9 @@
 // ── 规则内核（d20 / SRD 5.2 风格）——数值层单一源 ─────────────
 // 设计模式参考（未复制代码）：Another-RPG-Engine (MIT) 修饰栈 / foundryvtt-dnd5e (MIT) 公式组织
 // 规则数值来源：D&D SRD 5.2（CC BY 4.0, © Wizards of the Coast）
-window.Rules = {
+// #320 阶段 4：规则内核挂到 `Game.Rules`（本文件最早加载，故在此建命名空间根）
+window.Game ??= {};
+window.Game.Rules = {
 	ABILITIES: { str: '力量', dex: '敏捷', con: '体质', int: '智力', wis: '感知', cha: '魅力' },
 	SKILLS: {
 		运动: 'str', 体操: 'dex', 巧手: 'dex', 隐匿: 'dex',
@@ -62,10 +64,10 @@ window.Rules = {
 	},
 };
 
-window.pcNow = () => State.variables.pc;
-
 // ── 角色状态形状：单一默认源 + 旧档迁移（新增字段必须过这里，否则读档即崩）──
-window.Pc = {
+window.Game.Pc = {
+	// 取当前 pc（原裸全局 `Game.Pc.now()`，#320 阶段 4 并进来）
+	now() { return State.variables.pc; },
 	defaults() {
 		return {
 			// 车卡
@@ -142,7 +144,7 @@ function renderCheck(res) {
 Macro.add('check', {
 	handler() {
 		const adv = this.args[2] === 'adv' ? 1 : this.args[2] === 'dis' ? -1 : 0;
-		$(this.output).append(renderCheck(Rules.check(pcNow(), this.args[0], this.args[1], {
+		$(this.output).append(renderCheck(Game.Rules.check(Game.Pc.now(), this.args[0], this.args[1], {
 			adv, bonus: Number(this.args[3]) || 0, nat: Number(this.args[4]) || 0,
 			site: this.args[5] ?? '', advWhy: this.args[6] ?? '', disWhy: this.args[7] ?? '',
 		})));
@@ -151,7 +153,7 @@ Macro.add('check', {
 Macro.add('save', {
 	handler() {
 		const adv = this.args[2] === 'adv' ? 1 : this.args[2] === 'dis' ? -1 : 0;
-		$(this.output).append(renderCheck(Rules.save(pcNow(), this.args[0], this.args[1], {
+		$(this.output).append(renderCheck(Game.Rules.save(Game.Pc.now(), this.args[0], this.args[1], {
 			adv, bonus: Number(this.args[3]) || 0, nat: Number(this.args[4]) || 0,
 			site: this.args[5] ?? '', advWhy: this.args[6] ?? '', disWhy: this.args[7] ?? '',
 		})));
@@ -199,7 +201,7 @@ Macro.add('ending', {
 Macro.add('hpbar', {
 	skipArgs: true,
 	handler() {
-		const pc = pcNow();
+		const pc = Game.Pc.now();
 		const hp = Math.max(0, pc.hp ?? 0), max = pc.max_hp ?? 1;
 		const pct = Math.round((hp / max) * 100);
 		const color = pct > 50 ? '#5dbb63' : pct > 25 ? '#e0a458' : '#d1495b';
@@ -212,7 +214,7 @@ Macro.add('hpbar', {
 Macro.add('dragonbar', {
 	skipArgs: true,
 	handler() {
-		const pc = pcNow();
+		const pc = Game.Pc.now();
 		const hp = Math.max(0, pc.dragon?.hp ?? 0), max = window.Game?.Dragon?.hp ?? 1;
 		const pct = Math.round((hp / max) * 100);
 		jQuery(this.output).append(
@@ -223,9 +225,9 @@ Macro.add('dragonbar', {
 });
 
 :: StoryInit
-/% 全局状态初始化（默认形状单一源见 Pc.defaults） %/
+/% 全局状态初始化（默认形状单一源见 Game.Pc.defaults） %/
 <<set $player_name to "">>
-<<set $pc to Pc.defaults()>>
+<<set $pc to Game.Pc.defaults()>>
 <<set $era to Game.Era.PRESENT>>
 
 :: Widgets [widget]

@@ -7,7 +7,7 @@ import { createContext } from './audit/context.mjs';
 // #316 拆分第 1 步：加载区（源文件发现 / vm 直载 [script] / 预设 / 段落索引 / CLI）已抽到
 // scripts/audit/context.mjs——各门模块的共同依赖。此处仅做绑定，**不改任何加载语义**。
 const ctx = createContext();
-const { SRC_FILES, Rules, Pc, Game, presets, passageSrc, passageRaw, passageTags, arg, wantAll } = ctx;
+const { SRC_FILES, Game, presets, passageSrc, passageRaw, passageTags, arg, wantAll } = ctx;
 
 // ── ⓪ D1 真相可达性（#35）：命题 × 通路，锚点机检 ──
 import { GATES } from './audit/registry.mjs';

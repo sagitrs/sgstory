@@ -5,7 +5,7 @@ export const flag = 'craft';
 export const flags = ["craft"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ⓪m 文字工艺门（#168 批次四 · 机检 ⑤–⑧）：重复台词 / 标点与斜体 / 措辞密度 / 道具名主张 ──
 // 这四道落在"读起来"这一层：机器能替人盯住的只有形态——同一句重复、半角标点、斜体标记不成对、

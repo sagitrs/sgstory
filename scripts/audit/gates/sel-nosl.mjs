@@ -5,7 +5,7 @@ export const flag = 'sel';
 export const flags = ["sel", "nosl"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ⓪i 反 S/L 门（M10）：关键产出不许只有一条路 ──
 if (wantAll || arg('sel') || arg('nosl')) {
@@ -17,7 +17,7 @@ if (wantAll || arg('sel') || arg('nosl')) {
 	for (const [site, d] of Object.entries(sites)) {
 		if (!d.yields) continue;
 		if (!byYield.has(d.yields)) { console.log(`  ✗ 位点「${site}」的 yields=「${d.yields}」不在 keyYields 里`); bad++; continue; }
-		const ab = d.abil ?? Rules.SKILLS[d.skill];
+		const ab = d.abil ?? Game.Rules.SKILLS[d.skill];
 		byYield.get(d.yields).push({ site, ab, dc: d.dc });
 	}
 	// 交涉诉求（B2）：同一句诉求换手段＝换属性；另有一条"免检筹码"（不给骰子机会）
@@ -28,7 +28,7 @@ if (wantAll || arg('sel') || arg('nosl')) {
 		for (const site of a.sites ?? []) {
 			const d = sites[site];
 			if (!d) { console.log(`  ✗ 诉求「${a.id}」的开口方式「${site}」不是位点`); bad++; continue; }
-			list.push({ site, ab: d.abil ?? Rules.SKILLS[d.skill], dc: d.dc });
+			list.push({ site, ab: d.abil ?? Game.Rules.SKILLS[d.skill], dc: d.dc });
 		}
 		if ((a.levers ?? []).some((l) => l.gives === 'auto') || a.willing) list.free = true;
 	}

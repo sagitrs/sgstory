@@ -5,7 +5,7 @@ export const flag = 'systems';
 export const flags = ["systems"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ⓪d D3 系统可玩性（#37）：机制发现性门 + 组合矩阵出具 ──
 if (wantAll || arg('systems')) {

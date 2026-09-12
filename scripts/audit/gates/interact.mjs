@@ -5,7 +5,7 @@ export const flag = 'interact';
 export const flags = ["interact"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ⓪h 互动门（M9）：信息靠动作与交涉换来，不靠自动检定 ──
 if (wantAll || arg('interact')) {

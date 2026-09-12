@@ -3,7 +3,8 @@
 // 正文只经词汇宏引用：<<sitecheck 位点 [adv]>> / <<econ 事件>> / <<give "道具">>。
 // 审计：node scripts/audit.mjs（十一门 + 数值三件套；每一门都能单独跑 --x）。
 // 权威关系：本表只承载机制；与 docs/lore-canon.md 冲突以设定书为准（P1）。
-window.Game = (() => {
+// #320 阶段 4：**合并式**赋值——本文件在 10-core 之后加载，整体赋值会抹掉 Game.Rules / Game.Pc
+window.Game = Object.assign(window.Game ?? {}, (() => {
 	// ── 位点表（技能检定 / 豁免）──────────────────────────
 	const Checks = {
 		// yields（M10 反 S/L 门）：这个位点能拿到什么关键产出。
@@ -594,7 +595,7 @@ window.Game = (() => {
 		siteInfo(actionId) {
 			const s = Checks.sites[this.actions[actionId]?.site];
 			if (!s) return '';
-			const what = s.skill ? Rules.skillLabel(s.skill) : (s.abil === 'con' ? '体质豁免' : s.abil);
+			const what = s.skill ? Game.Rules.skillLabel(s.skill) : (s.abil === 'con' ? '体质豁免' : s.abil);
 			return `${what} DC${s.dc}`;
 		},
 		// 每轮给 3 个：排除条件不满足的、以及上一轮刚用过的
@@ -819,7 +820,7 @@ window.Game = (() => {
 		roll(pc, site, dc, advWhy) {
 			const s = Checks.sites[site] ?? {};
 			const opt = { adv: advWhy ? 1 : 0, site, advWhy: advWhy ?? '' };
-			return s.abil ? Rules.save(pc, s.abil, dc, opt) : Rules.check(pc, s.skill, dc, opt);
+			return s.abil ? Game.Rules.save(pc, s.abil, dc, opt) : Game.Rules.check(pc, s.skill, dc, opt);
 		},
 		// 结果定档：willing＝不掷骰 · unwilling＝不掷骰（回绝）· 其余掷骰
 		verdict(a, pc) {
@@ -1025,8 +1026,8 @@ window.Game = (() => {
 		bookkeeping: ['tav_light', 'tav_iron', 'tav_seal', 'banquet_over'],
 	};
 
-	// ── canon 规则层声称表（#247「Rules.claims」，实现名 Game.RuleClaims——避开已存在的
-	//    window.Rules 规则引擎与 Game.Checks）。每条＝一条 canon 条文 × 一条**可执行探针**：
+	// ── canon 规则层声称表（#247「Game.Rules.claims」，实现名 Game.RuleClaims——避开已存在的
+	//    window.Game.Rules 规则引擎与 Game.Checks）。每条＝一条 canon 条文 × 一条**可执行探针**：
 	//    · docAnchor 必须**逐字**出现在 docs/lore-canon.md（条文漂移即红）
 	//    · probe.p/era 决定在哪个段落、哪个时代渲染
 	//    · include 必须全部出现在渲染文本里；exclude 必须全部不出现
@@ -1118,4 +1119,4 @@ window.Game = (() => {
 	};
 
 	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences, Investment, State, RuleClaims, Damage, Era };
-})();
+})());

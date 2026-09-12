@@ -25,7 +25,7 @@
 **根因**：SugarCube 为支持**回退（Back）/存档（Save）**，每创建一个历史 moment 就把故事变量结构化克隆。这是特性不是 bug——没有它就没有可靠的 undo。
 
 **解法**：两条纪律——
-1. JS/宏代码访问玩家状态一律**现取**：`State.variables.pc` 或 `pcNow()`，禁止缓存引用跨 `<<goto>>`/链接跳转；
+1. JS/宏代码访问玩家状态一律**现取**：`State.variables.pc` 或 `Game.Pc.now()`，禁止缓存引用跨 `<<goto>>`/链接跳转；
 2. 单次渲染内（两次导航之间）引用是安全的，可以短持。
 
 **影响设计**：任何"JS 对象挂住游戏状态"的架构（战斗管理器、长生命周期实体）都会踩这坑。状态必须以纯数据存在 `$variables` 里，行为层无状态。
@@ -92,8 +92,8 @@ w.SugarCube.Engine.start();
 **根因**：SugarCube 读档**整体还原**存档时的变量结构。上线迭代新增任何 `$pc` 字段，旧档一律缺失；消费点（`.length`/`.includes`/遍历）随即崩。测试全绿也拦不住——**所有测试都从新 StoryInit 起步，"旧存档形状"是独立的输入类**。
 
 **解法（三层）**：
-1. 默认形状单一源：`Pc.defaults()`（StoryInit 与迁移共用，字段数有断言守恒 18）
-2. 入口归一化：章节入口 `<<run Pc.migrate($pc)>>`（幂等，补缺/修型/不覆盖）
+1. 默认形状单一源：`Game.Pc.defaults()`（StoryInit 与迁移共用，字段数有断言守恒 18）
+2. 入口归一化：章节入口 `<<run Game.Pc.migrate($pc)>>`（幂等，补缺/修型/不覆盖）
 3. 全局安全网：`:passagestart` 钩子每段归一化
 
 **测试覆盖模式**：
@@ -102,7 +102,7 @@ w.SugarCube.Engine.start();
   - ⚠️ 替换必须用 `w.eval(\`SugarCube.State.variables.pc = ${JSON.stringify(旧档)}\`)` 在**页面域内**构造：
     SugarCube 建历史快照用 `instanceof Array` 判型，Node 侧构造的数组跨 realm，
     会误抛 "attempted to clone unsupported type: Array"（真实浏览器读档不受影响——坑10测试注）
-- 纪律：**新增状态字段 → 必须同 PR 更新 Pc.defaults + 跑路线H**
+- 纪律：**新增状态字段 → 必须同 PR 更新 Game.Pc.defaults + 跑路线H**
 
 ## 坑 8 · `<<textbox>>` 与成员变量路径 〔S3 · 预防性规避〕
 
@@ -139,7 +139,7 @@ w.SugarCube.Engine.start();
 - **管道吞退出码**：`npm test | tail` 的退出码是 `tail` 的——曾让坏 package.json 一路绿灯合入 main。用 `set -o pipefail` 或先落日志再看。
 - **JSON 改动即校验**：`python3 -c "json.load(open('package.json'))"` 一行保平安。
 - **测试链完整性**：新增测试文件记得挂进 `npm test`（rules.mjs 曾漏挂两周才被"断言数对不上"暴露）。
-- **结构演进必配 fixture（#15）**：改 `Pc.defaults()` 的 PR 必须同 PR 在 `test/fixtures/saves/` 落一版新历史形状并跑全矩阵（npm test 含）。矩阵四律：补齐/保值/修型/幂等——矩阵首轮就抓到过 null 默认（abilities）修型永不触发的真漏洞。
+- **结构演进必配 fixture（#15）**：改 `Game.Pc.defaults()` 的 PR 必须同 PR 在 `test/fixtures/saves/` 落一版新历史形状并跑全矩阵（npm test 含）。矩阵四律：补齐/保值/修型/幂等——矩阵首轮就抓到过 null 默认（abilities）修型永不触发的真漏洞。
 
 ---
 

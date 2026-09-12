@@ -6,7 +6,7 @@
 // 给一个零状态档，任何已解锁的东西都是泄底。
 //
 // 判据：
-//   R1 零状态档：新卡（`Pc.defaults()`）下，图鉴**不得有任何线索谓词为真**
+//   R1 零状态档：新卡（`Game.Pc.defaults()`）下，图鉴**不得有任何线索谓词为真**
 //   R2 空记录：空图鉴记录（`blank()`）下，不得有任何条目 `isUnlocked`
 //   R3 声明落地：`Game.Truth.claims` 里 `type:'codex'` 的站点段落必须真实存在（声明的证据点不许是空头）
 //   R4 谜底门控：`via` 标为「终局后揭开 / 唯一揭开处 / 谜底」的 codex 站点，其页面必须带 `Sg.Codex.seenFinal()`
@@ -111,11 +111,11 @@ const selftest = () => {
 if (process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 
 // ── 真实运行 ─────────────────────────────────────────────────────────
-const { Game, Pc, passageSrc } = createContext();
+const { Game, passageSrc } = createContext();
 const fails = [];
 const show = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) fails.push(msg); };
 
-const leak = virginLeaks(Game.Codex.items, Pc.defaults());
+const leak = virginLeaks(Game.Codex.items, Game.Pc.defaults());
 show(leak.length === 0, `R1 零状态档下图鉴无已解锁线索${leak.length ? `：泄漏 ${leak.join(', ')}` : ''}`);
 
 const blanks = blankUnlocks(Game.Codex.items, Game.Codex, { clues: {}, endings: [], finals: [] });

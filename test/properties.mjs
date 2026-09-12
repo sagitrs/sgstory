@@ -12,7 +12,7 @@ const queueDice = (dice) => {
 	w.eval(`(function(){const q=${JSON.stringify(q)};Math.random=()=>q.length?q.shift():0.5;})()`);
 };
 
-const R = w.Rules;
+const R = w.Game.Rules;
 const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }, skills: ['察觉'], flags: {} };
 
 // ── A. 判定决策边界全枚举：die 1..20 × DC {8,10,12,15} ──
@@ -110,7 +110,7 @@ const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }
 	let shapeBad = 0;
 	const runs = [];
 	for (let run = 0; run < 6; run++) {
-		w.eval('SugarCube.State.variables.pc = Pc.defaults()');
+		w.eval('SugarCube.State.variables.pc = Game.Pc.defaults()');
 		for (let r = 0; r < 3; r++) {
 			const n = w.eval(`Game.Chargen.rounds[${r}].options.length`);
 			w.eval(`Game.Chargen.pick(${r}, ${Math.floor(rng() * n)})`);

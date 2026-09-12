@@ -24,9 +24,6 @@ export const RULE = /^(Game|Sg)/;
 // 白名单＝**现状**（迁移目标写在值里）。迁移一类就删一类——删干净后 A2 会因此变绿，而 A1 永久生效。
 export const WHITELIST = {
 	Game: '命名空间根（保留）',
-	Rules: '→ Game.Rules',
-	Pc: '→ Game.Pc',
-	pcNow: '→ Game.Pc.now()',
 };
 
 // 剥注释：块注释 `/% … %/`（可跨行）与行注释 `// …`（URL 的 `://` 不剥）

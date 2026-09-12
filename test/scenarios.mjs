@@ -758,6 +758,37 @@ async function routeBestiary() {
 }
 
 
+// ── #291 I1：投入—回报（G2 失败给情报＋下次优势；G4 立场被记住）──
+async function routeInvestment() {
+	const { w, click: c } = await newGame(0.01, 0);   // 低骰：检定必败
+	await toWitch(c);
+	await toTower(c);
+	await c('继续往塔那边走');
+	await c('推门进去');                                // 门厅
+	// G2：看钉失败 → 产出情报旗标（失败给信息）＋ 屏上留提示
+	await c('先看清钉子是怎么卡的');
+	if (pcOf(w).world.hall_hint !== true) throw new Error('#291 G2：看钉失败未产出情报旗标');
+	if (!passageText(w).includes('弯钩')) throw new Error('#291 G2：失败后屏上没留情报提示');
+	// 情报接进优势通道（下一次同一手自动双骰取高，且检出行标注来源）
+	if (w.Game.Checks.knowledge['门厅·看钉'] !== 'hall_hint') throw new Error('#291 G2：情报未接入位点优势');
+	// 可重试的位点验证「带情报重试」：天文台·典籍（失败 → ledger_hint → 重试标注优势来源）
+	await c('先上二楼看看');
+	await c('到拐角的小工坊看看');
+	await c('上三楼');
+	await c('顺着注记读一读缺口边上那半幅星轨');
+	if (pcOf(w).world.ledger_hint !== true) throw new Error('#291 G2：典籍失败未产出情报旗标');
+	if (!passageText(w).includes('等分')) throw new Error('#291 G2：失败后屏上没留情报提示');
+	await c('顺着注记读一读缺口边上那半幅星轨');
+	if (!passageText(w).includes('情报')) throw new Error('#291 G2：带情报重试未标注优势来源');
+	// G4：表达型选择（立场）必须被记住
+	w.eval("SugarCube.Engine.play('守林人')"); await sleep(150);
+	await c('说一句：它不会变成恶龙');
+	if (pcOf(w).ev.keeper_kind !== true) throw new Error('#291 G4：立场选择未写入状态');
+	w.eval("SugarCube.Engine.play('守林人')"); await sleep(150);
+	if (!passageText(w).includes('你那天那句话')) throw new Error('#291 G4：立场未被守林人回收（说了等于没说）');
+	return { w };
+}
+
 // ── #259 M1/M2：交付后的互锁（顶楼连续性／书房劣化封印禁用）──
 async function routeDeliveredLocks() {
 	const { w } = await newGame(0.99, 0);
@@ -1346,6 +1377,7 @@ const routes = [
 	['女巫小屋·只治一次', routeWitchHealOnce],
 	['文本上下文（时代与日记）', routeTextContext],
 	['交付后互锁（#259）', routeDeliveredLocks],
+	['投入—回报（#291 I1）', routeInvestment],
 	['跨周目粘性（#271）', routeCrossRunSticky],
 ];
 

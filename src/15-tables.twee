@@ -102,11 +102,24 @@ window.Game = (() => {
 			'书房·敲墙': 'witch_hint',
 			'书房·断代': 'witch_hint',
 			'书房·强拆': 'witch_hint',
+			// #291 I1-G2：失败档产出的情报（fail-forward）——下次同一手自动双骰取高
+			'门厅·看钉': 'hall_hint',
+			'门厅·翻检': 'hall_hint',
+			'门厅·硬掰': 'hall_hint',
+			'天文台·典籍': 'ledger_hint',
+			'天文台·光点': 'ledger_hint',
+			'寻杖': 'staff_hint',
+			'寻杖·问孩子': 'staff_hint',
+			'寻杖·看人': 'staff_hint',
 		},
 		// 情报的人类可读说明（"为什么有优势"里显示这个，不是显示变量名）
 		knowledgeWhy: {
 			rumor: "老猎人的话（酒馆·第三块板子是脆的）",
 			witch_hint: "她画过的那一处（小屋·暗格位置）",
+			hall_hint: "弯钩钉的提法（门厅·往上提、再往外带）",
+			study_hint: "摸熟的墙面（书房·暗格在炉膛后头）",
+			ledger_hint: "点距等分（天文台·星轨缺口读法）",
+			staff_hint: "孩子的眼神（寻杖·桌布底下）",
 		},
 	};
 
@@ -945,5 +958,14 @@ window.Game = (() => {
 		},
 	};
 
-	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences };
+	// ── I1 投入—回报（#291）：G4 立场登记表（说了必须被记住）＋ G2 豁免登记（空＝无豁免） ──
+	const Investment = {
+		expressive: [
+			{ id: 'keeper_kind', p: '守林人', label: '说一句：它不会变成恶龙', flag: 'keeper_kind',
+			  consumedBy: '守林人（返回短入口的回述）' },
+		],
+		failClueExempt: {},
+	};
+
+	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences, Investment };
 })();

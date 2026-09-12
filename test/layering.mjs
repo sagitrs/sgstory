@@ -25,6 +25,9 @@ if (process.argv.includes('--selftest')) {
 		['新增文件未登记 → 必须报红', { ...base, '12-new.twee': '' }, { order: ['10-core.twee', '15-tables.twee'], modules: {} }, 1],
 		['声明定义但正文里没有（改名/挪走）→ 必须报红', base, { order: ['10-core.twee', '15-tables.twee'], modules: { '10-core.twee': { deps: [], defines: ['Rules', '不存在的符号'] } } }, 1],
 		['ORDER 里的文件不存在 → 必须报红', base, { order: ['10-core.twee', '15-tables.twee', '99-gone.twee'], modules: {} }, 1],
+		// #320 阶段 3：defines 支持**点号路径**（`window.Game.Chargen = …` 声明 `Game.Chargen`）
+		['点号 defines：声明与实际相符 → 绿', { '15-tables.twee': 'window.Game = {};', '20-chargen.twee': 'window.Game.Chargen = {};' }, { order: ['15-tables.twee', '20-chargen.twee'], modules: { '20-chargen.twee': { deps: ['15-tables.twee'], defines: ['Game.Chargen'] } } }, 0],
+		['点号 defines：声明的点号路径不存在 → 必须报红', { '15-tables.twee': 'window.Game = {};', '20-chargen.twee': 'window.Game.Other = {};' }, { order: ['15-tables.twee', '20-chargen.twee'], modules: { '20-chargen.twee': { deps: ['15-tables.twee'], defines: ['Game.Chargen'] } } }, 1],
 	];
 	let bad = 0;
 	for (const [name, sources, opts, want] of cases) {
@@ -34,7 +37,7 @@ if (process.argv.includes('--selftest')) {
 		console.log(`${ok ? '✓' : '✗'} ${name}（命中 ${got}，期望 ${want}）`);
 	}
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项——分层 lint 没有咬合力`); process.exit(1); }
-	console.log('\n✔ 自证通过：合规绿 / 前向依赖红 / 未登记红 / 定义漂移红 / 文件缺失红');
+	console.log('\n✔ 自证通过：合规绿 / 前向依赖红 / 未登记红 / 定义漂移红 / 文件缺失红 / 点号 defines 正反例');
 	process.exit(0);
 }
 

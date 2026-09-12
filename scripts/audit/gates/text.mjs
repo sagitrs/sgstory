@@ -5,7 +5,7 @@ export const flag = 'text';
 export const flags = ["text"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, Chargen, ChargenPresets, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ⓪e D5 语言经济（#39）：载荷标注门 + 词频报告 + 套路句式门 ──
 if (wantAll || arg('text')) {

@@ -5,7 +5,7 @@ export const flag = 'items';
 export const flags = ["items", "tokens"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, Chargen, ChargenPresets, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ③ 道具效果 · 龙战伤害矩阵（伞 #22：高潮战审计）──
 if (wantAll || arg('items') || arg('tokens')) {

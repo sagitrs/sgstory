@@ -53,13 +53,13 @@ export const createContext = ({ srcDir = 'src', argv = process.argv } = {}) => {
 	// ── 源文件发现（M1a-1）：不再硬编码路径——改文件名/拆文件不再牵动工具 ──
 	const SRC_FILES = readdirSync(srcDir).filter((f) => f.endsWith('.twee')).sort().map((f) => `${srcDir}/${f}`);
 	const ctx = loadScripts(SRC_FILES);
-	const { Rules, Pc, Chargen, ChargenPresets, Game } = ctx.window;
+	const { Rules, Pc, Game } = ctx.window;   // #320 阶段 3：Chargen* 已收进 Game.Chargen
 
 	// ── 预设角色（车卡全链 apply，与运行时同构）──
-	const presets = ChargenPresets.map((p) => {
+	const presets = Game.Chargen.presets.map((p) => {
 		const pc = Pc.defaults();
-		ctx.State.variables.pc = pc; // Chargen.pick 直接读 State.variables.pc
-		for (let r = 0; r < p.picks.length; r++) Chargen.pick(r, p.picks[r]);
+		ctx.State.variables.pc = pc; // Game.Chargen.pick 直接读 State.variables.pc
+		for (let r = 0; r < p.picks.length; r++) Game.Chargen.pick(r, p.picks[r]);
 		return { name: p.name, pc };
 	});
 
@@ -67,7 +67,7 @@ export const createContext = ({ srcDir = 'src', argv = process.argv } = {}) => {
 	const arg = (k) => argv.includes(`--${k}`);
 	const wantAll = !argv.some((a) => a.startsWith('--'));
 
-	// 注意：把 vm 上下文里的**全部提升全局**一并摊平返回——原 audit.mjs 里存在 `ctx.ChargenRounds`
+	// 注意：把 vm 上下文里的**全部提升全局**一并摊平返回——原 audit.mjs 里存在 `ctx.Game.Chargen.rounds`
 	// 这类「从 vm 上下文取表」的用法（拆分时被 golden 的「单跑内容须在全跑里」断言当场抓到全跑崩溃）。
 	// 保持这个兼容面，才能做到「只搬家不改行为」。
 	return { ...ctx, SRC_FILES, srcDir, presets, passageSrc, passageRaw, passageTags, arg, wantAll, argv, vmCtx: ctx };

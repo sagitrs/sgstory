@@ -35,9 +35,6 @@ export const WHITELIST = {
 	Rules: '→ Game.Rules',
 	Pc: '→ Game.Pc',
 	pcNow: '→ Game.Pc.now()',
-	Chargen: '→ Game.Chargen',
-	ChargenPresets: '→ Game.Chargen.presets',
-	ChargenRounds: '→ Game.Chargen.rounds',
 };
 
 // 剥注释：块注释 `/% … %/`（可跨行）与行注释 `// …`（URL 的 `://` 不剥）
@@ -106,7 +103,7 @@ const srcFiles = readdirSync('src').filter((f) => f.endsWith('.twee')).sort().ma
 const found = scanGlobals(srcFiles);
 const v = judge(found);
 
-const family = (n) => (n === 'Game' ? 'Game.*' : /^Sg/.test(n) ? 'Sg*' : /^sg/.test(n) ? 'sg*' : /^Chargen/.test(n) ? 'Chargen*' : '裸名/其它');
+const family = (n) => (n === 'Game' ? 'Game.*' : /^Sg/.test(n) ? 'Sg*' : /^sg/.test(n) ? 'sg*' : '裸名/其它');
 const byFam = {};
 for (const n of found.keys()) (byFam[family(n)] ??= []).push(n);
 

@@ -2,7 +2,11 @@
 // ── 车卡：3 轮三选一（职业 / 背景 / 种族）───────────────────
 // 种族只改数值，不带叙事线（大纲 OQ2）。
 // 纪律：注入技能必须落在位点技能或经济消费里（幽灵技能门，audit --choices）。
-window.ChargenRounds = [
+// #320 阶段 3：车卡三件套收进 `Game.Chargen`（rounds / presets / API）。本文件在 15-tables 之后加载，
+// 命名空间已存在；`??=` 只是保险（若将来调整 ORDER，不会静默挂到 undefined 上）。
+window.Game ??= {};
+window.Game.Chargen = {
+	rounds: [
 	{
 		title: '职业', intro: '你凭什么本领走到这里？',
 		options: [
@@ -36,16 +40,19 @@ window.ChargenRounds = [
 				apply(pc) { pc.abilities.con += 2; pc.abilities.str += 1; pc.speciesKey = 'dwarf'; pc.speciesLabel = '矮人'; } },
 		],
 	},
-];
-
-window.Chargen = {
+	],
+	presets: [
+		{ name: '铁卫', desc: '矮人佣兵，擅长迎击与自保。话不多，剑很稳。', summary: '力17 体17｜HP 高｜长剑·运动', picks: [0, 0, 2] },
+		{ name: '影手', desc: '精灵修行者，身手轻捷。先听清动静，再行动。', summary: '敏18 感14｜HP 中｜短刃·察觉', picks: [1, 1, 1] },
+		{ name: '秘典', desc: '人类抄书人，不擅硬碰硬，却熟悉旧书与秘闻。', summary: '智16 感15｜HP 低｜药膏·奥秘', picks: [2, 2, 0] },
+	],
 	pick(roundIdx, optIdx) {
 		const pc = State.variables.pc;
-		ChargenRounds[roundIdx].options[optIdx].apply(pc);
+		this.rounds[roundIdx].options[optIdx].apply(pc);
 		pc.skills = [...new Set(pc.skills)];
-		pc.picked.push(`${ChargenRounds[roundIdx].title}：${ChargenRounds[roundIdx].options[optIdx].name}`);
+		pc.picked.push(`${this.rounds[roundIdx].title}：${this.rounds[roundIdx].options[optIdx].name}`);
 		pc.round += 1;
-		if (pc.round >= ChargenRounds.length) this.finalize(pc);
+		if (pc.round >= this.rounds.length) this.finalize(pc);
 	},
 	finalize(pc) {
 		pc.name = State.variables.player_name || '无名旅人';
@@ -53,19 +60,13 @@ window.Chargen = {
 		pc.hp = pc.max_hp;
 	},
 	applyPreset(idx) {
-		const picks = ChargenPresets[idx].picks;
-		for (let r = 0; r < ChargenRounds.length; r++) this.pick(r, picks[r]);
+		const picks = this.presets[idx].picks;
+		for (let r = 0; r < this.rounds.length; r++) this.pick(r, picks[r]);
 	},
 };
 
-window.ChargenPresets = [
-	{ name: '铁卫', desc: '矮人佣兵，擅长迎击与自保。话不多，剑很稳。', summary: '力17 体17｜HP 高｜长剑·运动', picks: [0, 0, 2] },
-	{ name: '影手', desc: '精灵修行者，身手轻捷。先听清动静，再行动。', summary: '敏18 感14｜HP 中｜短刃·察觉', picks: [1, 1, 1] },
-	{ name: '秘典', desc: '人类抄书人，不擅硬碰硬，却熟悉旧书与秘闻。', summary: '智16 感15｜HP 低｜药膏·奥秘', picks: [2, 2, 0] },
-];
-
 :: 车卡
-/% vocab: exempt W1 车卡模块 API（Chargen.applyPreset）与模式标记——点击态无叙事状态 %/
+/% vocab: exempt W1 车卡模块 API（Game.Chargen.applyPreset）与模式标记——点击态无叙事状态 %/
 /% payload: 选择 %/
 <<if $pc.mode is "">>
 <<nobr>>
@@ -74,13 +75,13 @@ window.ChargenPresets = [
 	<h3>快速模式</h3>
 	<p class="chargen-intro">选用一套预设角色，即可出发；也可以分 3 轮选择职业、背景与种族。</p>
 	<div class="choices">
-	<<for _i to 0; _i lt ChargenPresets.length; _i++>>
+	<<for _i to 0; _i lt Game.Chargen.presets.length; _i++>>
 		<<capture _i>>
 		<div class="choice-card">
-			<div class="choice-name"><<print ChargenPresets[_i].name>></div>
-			<div class="choice-desc"><<print ChargenPresets[_i].desc>></div>
-			<div class="choice-effect"><<print ChargenPresets[_i].summary>></div>
-			<<link "快速成型">><<run Chargen.applyPreset(_i)>><<goto "角色卡">><</link>>
+			<div class="choice-name"><<print Game.Chargen.presets[_i].name>></div>
+			<div class="choice-desc"><<print Game.Chargen.presets[_i].desc>></div>
+			<div class="choice-effect"><<print Game.Chargen.presets[_i].summary>></div>
+			<<link "快速成型">><<run Game.Chargen.applyPreset(_i)>><<goto "角色卡">><</link>>
 		</div>
 		<</capture>>
 	<</for>>
@@ -91,7 +92,7 @@ window.ChargenPresets = [
 </div>
 <</nobr>>
 <<else>>
-<<set _round to ChargenRounds[$pc.round]>>
+<<set _round to Game.Chargen.rounds[$pc.round]>>
 <<set _n to $pc.round + 1>>
 <<nobr>>
 <div class="chargen-card">
@@ -106,7 +107,7 @@ window.ChargenPresets = [
 			<div class="choice-desc">_round.options[_i].desc</div>
 			<div class="choice-effect">_round.options[_i].effect</div>
 			<<link "选择此项">>
-				<<run Chargen.pick($pc.round, _i)>>
+				<<run Game.Chargen.pick($pc.round, _i)>>
 				<<if $pc.round gte 3>><<goto "角色卡">><<else>><<goto "车卡">><</if>>
 			<</link>>
 		</div>

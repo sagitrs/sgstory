@@ -5,7 +5,7 @@ export const flag = 'choices';
 export const flags = ["choices"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, Chargen, ChargenPresets, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ⓪c D2 选择意义感（#36）：选择表机检 + 幽灵技能门 + 过程差异占比 ──
 if (wantAll || arg('choices')) {
@@ -30,9 +30,9 @@ if (wantAll || arg('choices')) {
 	for (const c of Game.Choices.sites) {
 		let okArm = true;
 		if (c.kind === 'chargen') {
-			const n = ctx.ChargenRounds[c.round]?.options.length;
+			const n = ctx.Game.Chargen.rounds[c.round]?.options.length;
 			okArm = n === c.arms;
-			if (!okArm) { console.log(`  ✗ ${c.id}：ChargenRounds[${c.round}] 臂数 ${n} ≠ 表 ${c.arms}`); bad++; }
+			if (!okArm) { console.log(`  ✗ ${c.id}：Game.Chargen.rounds[${c.round}] 臂数 ${n} ≠ 表 ${c.arms}`); bad++; }
 		} else {
 			const src = passageSrc.get(c.p);
 			if (src === undefined) { console.log(`  ✗ ${c.id}：段落「${c.p}」不存在`); bad++; okArm = false; }
@@ -54,7 +54,7 @@ if (wantAll || arg('choices')) {
 	const consumed = new Set([...Object.values(Game.Economy.events).map((e) => e.skillDiscount?.skill).filter(Boolean), '洞悉']);
 	const exempt = new Set(Object.keys(Game.Choices.exemptSkills));
 	const injected = new Set();
-	for (const round of ctx.ChargenRounds) for (const opt of round.options) for (const m of String(opt.apply).matchAll(/skills\.push\(([^)]*)\)/g)) for (const sk of m[1].matchAll(/'([^']+)'/g)) injected.add(sk[1]);
+	for (const round of ctx.Game.Chargen.rounds) for (const opt of round.options) for (const m of String(opt.apply).matchAll(/skills\.push\(([^)]*)\)/g)) for (const sk of m[1].matchAll(/'([^']+)'/g)) injected.add(sk[1]);
 	const ghosts = [...injected].filter((sk) => !siteSkills.has(sk) && !consumed.has(sk) && !exempt.has(sk));
 	if (ghosts.length) { console.log(`  ✗ 幽灵技能（注入无消费未豁免）：${ghosts.join('、')}`); bad += ghosts.length; }
 	else console.log(`  幽灵技能门：注入 ${injected.size} 技能全部有消费或豁免`);

@@ -5,7 +5,7 @@ export const flag = 'starbudget';
 export const flags = ["starbudget"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, Chargen, ChargenPresets, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ⓪r 软限余量门（#256 方案 A）：五类可信序的付费翻转数 vs budget − 承诺余量 ══
 if (wantAll || arg('starbudget')) {

@@ -138,9 +138,9 @@ for (const p of passages.values()) {
 		if (ex?.kinds.includes(kind)) { const line = `${p.file}:${p.line} 段落「${p.name}」豁免 ${kind}：${ex.reason}`; if (!vocabExempts.includes(line)) vocabExempts.push(line); }
 		else vocabWarn.push(`${p.file}:${p.line} [${kind}] 段落「${p.name}」${msg}`);
 	};
-	// W1：点击态裸状态变更（词汇允许：Engine.restart 导航 / Chargen.* 模块 API）
+	// W1：点击态裸状态变更（词汇允许：Engine.restart 导航 / Game.Chargen.* 模块 API）
 	for (const m of body.matchAll(/<<(link|button|linkappend|linkprepend|linkreplace)\b[^>]*>>([\s\S]*?)<<\/\1>>/g)) { // 开标签>>：[^>]*后须吃两个>，否则捕获体残留>使^锚失效
-		const stripped = m[2].replace(/^\s*<<run\s+(?:Engine\.restart\s*\(\s*\)|Chargen\.\w+\s*\([^)]*\))\s*>>\s*$/gm, '');
+		const stripped = m[2].replace(/^\s*<<run\s+(?:Engine\.restart\s*\(\s*\)|Game\.Chargen\.\w+\s*\([^)]*\))\s*>>\s*$/gm, '');
 		const hits = [...new Set([...stripped.matchAll(/<<(set|run|script)\b/g)].map((x) => x[1]))];
 		if (hits.length) warn('W1', `link 体内裸 ${hits.join('/')}（点击态代码 → 提升为词汇宏或豁免）：${m[0].replace(/\s+/g, ' ').slice(0, 50)}`);
 	}

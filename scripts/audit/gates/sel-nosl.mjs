@@ -5,7 +5,7 @@ export const flag = 'sel';
 export const flags = ["sel", "nosl"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, Chargen, ChargenPresets, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ⓪i 反 S/L 门（M10）：关键产出不许只有一条路 ──
 if (wantAll || arg('sel') || arg('nosl')) {

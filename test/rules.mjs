@@ -55,7 +55,7 @@ const nat1 = dom1.w.Rules.check(pc, '察觉', 1);
 ok(nat1.roll === 1 && !nat1.success, '自然 1 → 无视加值必然失败');
 
 // ── 车卡：3 轮 × 每轮 3 选项，apply 均可执行 ──
-const rounds = w.ChargenRounds;
+const rounds = w.Game.Chargen.rounds;
 eq(rounds.length, 3, '车卡共 3 轮（职业/背景/种族）');
 ok(rounds.every((r) => r.options.length === 3), '每轮恰好 3 个选项');
 ok(rounds.every((r) => r.options.every((o) => typeof o.apply === 'function')), '所有选项都有 apply 函数');
@@ -64,7 +64,7 @@ ok(rounds.every((r) => r.options.every((o) => o.name && o.desc && o.effect)), '�
 const v = w.SugarCube.State.variables;
 const freshPc = () => { v.pc = w.Pc.defaults(); return v.pc; };
 freshPc();
-for (const [r, o] of [[0, 0], [1, 0], [2, 2]]) w.Chargen.pick(r, o); // 铁卫 / 佣兵 / 矮人
+for (const [r, o] of [[0, 0], [1, 0], [2, 2]]) w.Game.Chargen.pick(r, o); // 铁卫 / 佣兵 / 矮人
 eq(v.pc.round, 3, '车卡完成 3 轮');
 eq(v.pc.picked.length, 3, 'picked 记录 3 条');
 eq(v.pc.abilities.str, 17, '铁卫 16 + 矮人 1 = 17');
@@ -75,10 +75,10 @@ eq(v.pc.gold, 10, '佣兵金币 10');
 eq(v.pc.skills.filter((s) => s === '运动').length, 1, '职业/背景重复技能已去重');
 ok(v.pc.gear.includes('长剑'), '职业行囊生效');
 {
-	const sage = w.ChargenPresets.find((x) => x.name === '秘典');
+	const sage = w.Game.Chargen.presets.find((x) => x.name === '秘典');
 	const pc2 = w.Pc.defaults();
 	w.SugarCube.State.variables.pc = pc2;
-	for (let i = 0; i < sage.picks.length; i++) w.Chargen.pick(i, sage.picks[i]);
+	for (let i = 0; i < sage.picks.length; i++) w.Game.Chargen.pick(i, sage.picks[i]);
 	eq(pc2.salves, 1, '秘典的"药膏"是可用的药膏（salves），不是装备栏里的死物');
 	eq(pc2.gear.length, 0, '秘典不带表外装备');
 	w.SugarCube.State.variables.pc = v.pc;
@@ -86,17 +86,17 @@ ok(v.pc.gear.includes('长剑'), '职业行囊生效');
 ok(v.pc.name === '无名旅人', '未取名时默认「无名旅人」');
 
 // ── 快速模式预设：索引有效、applyPreset 数值与摘要一致 ──
-const presets = w.ChargenPresets;
+const presets = w.Game.Chargen.presets;
 eq(presets.length, 3, '三套快速预设');
 ok(presets.every((p) => p.picks.length === rounds.length), '每套预设覆盖全部 3 轮');
 ok(presets.every((p) => p.picks.every((i, r) => i >= 0 && i < rounds[r].options.length)), '预设索引均有效');
-freshPc(); w.Chargen.applyPreset(0);
+freshPc(); w.Game.Chargen.applyPreset(0);
 eq(v.pc.abilities.str, 17, '铁卫预设：力 17');
 ok(v.pc.speciesKey === 'dwarf' && v.pc.classKey === 'guard', '铁卫预设：矮人铁卫');
-freshPc(); w.Chargen.applyPreset(1);
+freshPc(); w.Game.Chargen.applyPreset(1);
 eq(v.pc.abilities.dex, 18, '影手预设：敏 18（16+精灵2）');
 ok(v.pc.bgKey === 'wanderer', '影手预设：修行者出身');
-freshPc(); w.Chargen.applyPreset(2);
+freshPc(); w.Game.Chargen.applyPreset(2);
 ok(v.pc.flags.lore && v.pc.skills.includes('调查'), '秘典预设：学识烙印 + 调查');
 
 // ── Pc 形状迁移：基础行为 + 存档兼容矩阵（fixture 驱动）──

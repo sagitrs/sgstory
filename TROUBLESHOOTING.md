@@ -14,7 +14,7 @@
 
 **根因**：SugarCube 的 `setup` 全局在完整启动链中才创建；`[script]` 段落的求值时点早于它（jsdom 环境必现，真实浏览器时序更宽松但不可依赖）。
 
-**解法**：不用 `setup`，用自有全局命名空间（`window.Rules` / `window.Chargen` / `window.ChargenPresets`）。
+**解法**：不用 `setup`，用自有全局命名空间（`window.Game` —— 数据/规则挂 `Game.*`、UI/运行时挂 `Sg.*`，见 `docs/dev-conventions.md` §7）。
 
 **预防**：script 段落里避免一切对引擎注入全局的早期依赖；见坑 6 的分片原则。
 
@@ -32,7 +32,7 @@
 
 ## 坑 3 · wikitext 只插值 `$var`/`_temp`，裸全局名不插值 〔S2〕
 
-**现场**：段落里写 `ChargenPresets[_i].name` 原样显示字符串；而 `_round.options[_i].name` 正常。
+**现场**：段落里写 `Game.Chargen.presets[_i].name` 原样显示字符串；而 `_round.options[_i].name` 正常。
 
 **根因**：SugarCube 的裸文本插值只识别 `$`（故事变量）和 `_`（临时变量）前缀；任意 JS 表达式必须走 `<<print expr>>`。
 

@@ -43,6 +43,8 @@ npm run watch   # 修改 src/ 自动重新编译
 | 工程侧 | 段落登记门／结果不吞门／存档×新界面／覆盖三查 | `test/integrity.mjs`／`test/walker.mjs`／`test/saveui.mjs` | ✅ 行为化 |
 
 > 维度定义、候选池与提取方法见 `docs/quality-dimensions.md`；覆盖与未覆盖口径见 `docs/ui-coverage-gaps.md`。
+>
+> **三条工程约定**（写新门/新用例前先读）：① 新门挂 `scripts/test-plan.mjs`（`package.json` 的 test 只有一行 run-tests）；② 选项定位用 `data-choice`＝目标段落名（`c('塔门')`／`clickByKey`，**断言仍写文案**），歧义由 `test/choice-keys.mjs` 静态把住；③ `src/` 只有 `Game.*`（数据/规则）与 `Sg.*`（UI/运行时）两个根，新增裸全局会被 `test/globals.mjs` 拦下。
 
 ### 纪律：词汇表与断言（#29）
 

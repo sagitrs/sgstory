@@ -24,9 +24,6 @@ export const RULE = /^(Game|Sg)/;
 // 白名单＝**现状**（迁移目标写在值里）。迁移一类就删一类——删干净后 A2 会因此变绿，而 A1 永久生效。
 export const WHITELIST = {
 	Game: '命名空间根（保留）',
-	SgUI: '→ Sg.UI',
-	SgCodex: '→ Sg.Codex',
-	SgEnding: '→ Sg.Ending',
 	sgQuickSave: '→ Sg.save.quick',
 	sgLoadSlot: '→ Sg.save.load',
 	sgQuickLoad: '→ Sg.save.quickLoad',
@@ -48,7 +45,8 @@ export const scanGlobals = (files) => {
 	for (const f of files) {
 		const lines = stripComments(readFileSync(f, 'utf8')).split('\n');
 		lines.forEach((line, i) => {
-			for (const m of line.matchAll(/window\.([A-Za-z_$][A-Za-z0-9_$]*)\s*=(?!=)/g)) {
+			// 复合赋值也算「创建全局」：`??=` / `||=` / `&&=`（`+=` 之类不算本约定所指的全局定义）
+			for (const m of line.matchAll(/window\.([A-Za-z_$][A-Za-z0-9_$]*)\s*(?:\?\?|\|\||&&)?=(?!=)/g)) {
 				if (!found.has(m[1])) found.set(m[1], []);
 				found.get(m[1]).push({ file: f, line: i + 1 });
 			}
@@ -71,24 +69,27 @@ export const judge = (found, whitelist = WHITELIST) => {
 const selftest = () => {
 	let bad = 0;
 	const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
-	const W = { Game: '', OldBare: '', SgUI: '' };
+	const W = { Game: '', OldBare: '', SgX: '' };
 	const found = (...names) => new Map(names.map((n) => [n, [{ file: 'x', line: 1 }]]));
 
-	const ok = judge(found('Game', 'OldBare', 'SgUI'), W);
+	const ok = judge(found('Game', 'OldBare', 'SgX'), W);
 	t('正例：白名单名齐、无新增 → 全绿', !ok.added.length && !ok.phantom.length && ok.bare.join() === 'OldBare');
 
-	const add = judge(found('Game', 'OldBare', 'SgUI', 'Foo'), W);
+	const add = judge(found('Game', 'OldBare', 'SgX', 'Foo'), W);
 	t('反例①：新裸全局 `Foo` → A1 报红', add.added.join() === 'Foo');
 
-	const ph = judge(found('Game', 'SgUI'), W);
+	const ph = judge(found('Game', 'SgX'), W);
 	t('反例②：白名单里的 `OldBare` 已不存在 → A2 报红（防白名单腐烂）', ph.phantom.join() === 'OldBare');
 
-	const ns = judge(found('Game', 'SgUI', 'SgThing'), W);
+	const ns = judge(found('Game', 'SgX', 'SgThing'), W);
 	t('正例：新增**合规**全局 `SgThing` → 不报红，只登记', !ns.added.length && ns.namespaced.join() === 'SgThing');
 
-	const cmp = stripComments("if (typeof window.scrollTo === 'function') {}\nwindow.x == 1;\nwindow.y += 1;");
-	const cmpNames = [...cmp.matchAll(/window\.([A-Za-z_$][A-Za-z0-9_$]*)\s*=(?!=)/g)].map((m) => m[1]);
-	t('假阳性守卫①：`===`／`==`／`+=` 都不算赋值', cmpNames.length === 0);
+	const cmp = stripComments("if (typeof window.scrollTo === 'function') {}\nwindow.x == 1;\nwindow.y += 1;\nwindow.Z?.m = 1;");
+	const cmpNames = [...cmp.matchAll(/window\.([A-Za-z_$][A-Za-z0-9_$]*)\s*(?:\?\?|\|\||&&)?=(?!=)/g)].map((m) => m[1]);
+	t('假阳性守卫①：`===`／`==`／`+=`／`?.` 都不算赋值', cmpNames.length === 0);
+	const compound = stripComments('window.Sg ??= {};\nwindow.Foo ||= 1;\nwindow.Bar &&= 2;');
+	const compoundNames = [...compound.matchAll(/window\.([A-Za-z_$][A-Za-z0-9_$]*)\s*(?:\?\?|\|\||&&)?=(?!=)/g)].map((m) => m[1]);
+	t('正例：`??=`／`||=`／`&&=` 也算创建全局（不许漏认）', compoundNames.join() === 'Sg,Foo,Bar');
 	const cmt = stripComments('/% window.Foo = 1; %/\n// window.Bar = 2;\nconst u = "https://x/y";\nwindow.Baz = 3;');
 	const cmtNames = [...cmt.matchAll(/window\.([A-Za-z_$][A-Za-z0-9_$]*)\s*=(?!=)/g)].map((m) => m[1]);
 	t('假阳性守卫②：注释里的赋值不算，真赋值仍被认到', cmtNames.length === 1 && cmtNames[0] === 'Baz');

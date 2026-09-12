@@ -19,7 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 export const ORDER = [
 	'00-meta.twee',      // StoryTitle / StoryData（无依赖）
-	'10-core.twee',      // Rules / pcNow / Pc / SgUI ＋ 宏（无依赖）
+	'10-core.twee',      // Rules / pcNow / Pc / Sg.UI ＋ 宏（无依赖）
 	'11-scene.twee',     // 场景 widget（actOut / sceneFeedback）
 	'15-tables.twee',    // Game.*（加载期需要 Rules / Pc）
 	'20-chargen.twee',   // Game.Chargen（rounds/presets/API；加载期需要 Rules）
@@ -28,14 +28,14 @@ export const ORDER = [
 	'50-ch3.twee',
 	'60-endings.twee',
 	'70-codex.twee',
-	'80-script.twee',    // 存档 API / SgCodex / SgEnding（需要前面全部）
+	'80-script.twee',    // 存档 API / Sg.Codex / Sg.Ending（需要前面全部）
 	'90-style.twee',     // 纯 CSS
 ];
 
 // 每个模块：加载期依赖 + 必须定义的符号（用于抓「改了名/挪了位置」）
 export const MODULES = {
 	'00-meta.twee': { deps: [], defines: [], note: '故事元数据（StoryTitle / StoryData）' },
-	'10-core.twee': { deps: [], defines: ['Rules', 'Pc', 'SgUI', 'pcNow'], note: '规则内核与界面基座' },
+	'10-core.twee': { deps: [], defines: ['Rules', 'Pc', 'Sg.UI', 'pcNow'], note: '规则内核与界面基座' },
 	'11-scene.twee': { deps: ['10-core.twee'], defines: ['widget:actOut', 'widget:sceneFeedback'], note: '场景迁移配方（结果留屏）' },
 	'15-tables.twee': { deps: ['10-core.twee'], defines: ['Game'], note: '声明式数据表' },
 	'20-chargen.twee': { deps: ['10-core.twee', '15-tables.twee'], defines: ['Game.Chargen'], note: '车卡（#320 阶段 3 收进 Game 命名空间）' },
@@ -44,7 +44,7 @@ export const MODULES = {
 	'50-ch3.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee'], defines: [], note: '第三章（剧情段）' },
 	'60-endings.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee'], defines: [], note: '结局页' },
 	'70-codex.twee': { deps: ['10-core.twee', '15-tables.twee'], defines: [], note: '设定集' },
-	'80-script.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee', '20-chargen.twee', '70-codex.twee'], defines: ['SgCodex', 'SgEnding'], note: '存档 API 与运行时胶水' },
+	'80-script.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee', '20-chargen.twee', '70-codex.twee'], defines: ['Sg.Codex', 'Sg.Ending'], note: '存档 API 与运行时胶水' },
 	'90-style.twee': { deps: ['10-core.twee'], defines: [], note: '样式' },
 };
 

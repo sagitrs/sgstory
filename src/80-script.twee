@@ -44,7 +44,7 @@ jQuery(document).on('keydown.sgSave', (ev) => {
 // 不用 SugarCube 的 settings：Setting.save() 只持久化**注册过的** Setting，
 // 自定义键不落盘（见 vendor/format.js 的 save()）。这里自己用一个带命名空间的 localStorage 键。
 const SG_CODEX_KEY = 'sgstory.codex.v1';
-window.SgCodex = {
+window.Sg.Codex = {
 	blank() { return { clues: {}, endings: [], finals: [] }; },
 	read() {
 		try {
@@ -103,7 +103,7 @@ window.SgCodex = {
    于是"每个结局都有出口"只依赖 <<ending>> 一处（图鉴门已强制所有 结局* 段落都调它）。
    为什么用 button + 委托而不是 <<link>>：这三个动作是导航/存档 API，不是段落跳转，
    而且要能带条件显示（有没有存档、有没有上一步）。 */
-window.SgEnding = {
+window.Sg.Ending = {
 	foot(key, kind) {
 		const hasSave = Save.browser.slot.has(1);
 		const canUndo = State.history.length > 1;
@@ -444,7 +444,7 @@ jQuery(document).on(':passagestart', () => {
 		if (typeof pc.max_hp !== 'number' || pc.max_hp <= 0) pc.max_hp = 18;
 		if ((typeof pc.hp !== 'number' || pc.hp <= 0) && !pc.ev?.ending) pc.hp = 1;
 	}
-	SgCodex.sync();
+	Sg.Codex.sync();
 });
 
 /* ── 交涉面板（B2）的选项点击 ───────────────────────────────────────────────

@@ -217,14 +217,14 @@ for (const file of fixtures) {
 		txt = frag.textContent;
 		ok(txt.includes('测试位点') && txt.includes('优势：道具·坏哨') && txt.includes('取高'), '渲染：位点 + 优势来源 + 取骰过程');
 		// 开关：关掉明细 → 只剩 d20 + 总修正
-		const before = w.SgUI.showDetail();
-		w.SgUI.setDetail(false);
+		const before = w.Sg.UI.showDetail();
+		w.Sg.UI.setDetail(false);
 		frag = w.document.createDocumentFragment();
 		new w.SugarCube.Wikifier(frag, '<<check "运动" 12 adv 0 0 "测试位点" "道具·坏哨" "">>');
 		txt = frag.textContent;
 		ok(!txt.includes('熟练') && !txt.includes('取高') && txt.includes('d20('), '关掉明细：只留骰面与总修正');
-		w.SgUI.setDetail(before);
-		ok(w.SgUI.showDetail() === before, '开关回写（localStorage 持久化）');
+		w.Sg.UI.setDetail(before);
+		ok(w.Sg.UI.showDetail() === before, '开关回写（localStorage 持久化）');
 	}
 
 	// ②c 行囊（A1/A2）：装备进数值，不是装饰

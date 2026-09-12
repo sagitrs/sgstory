@@ -765,10 +765,10 @@ async function routeCodex() {
 	}
 	await c('回设定集');
 	await c('术语');
-	// v17 补正 #7：雾＝星力的谜底只在设定集·术语，且要走到过终局（SgCodex.finals）才揭开
+	// v17 补正 #7：雾＝星力的谜底只在设定集·术语，且要走到过终局（Sg.Codex.finals）才揭开
 	if (passageText(w).includes('漏出来的力气')) throw new Error('没走到终局就把雾的谜底揭开了');
-	w.SgCodex.recordEnding('送星归位', 'final');
-	if (!w.SgCodex.seenFinal()) throw new Error('终局没记进 SgCodex.finals');
+	w.Sg.Codex.recordEnding('送星归位', 'final');
+	if (!w.Sg.Codex.seenFinal()) throw new Error('终局没记进 Sg.Codex.finals');
 	await c('回设定集');
 	await c('术语');
 	if (!passageText(w).includes('漏出来的力气')) throw new Error('走到终局后，设定集·术语没有揭开谜底');
@@ -780,12 +780,12 @@ async function routeCodex() {
 	if (passageOf(w) !== '设定集·图鉴') throw new Error(`未达设定集·图鉴（${passageOf(w)}）`);
 	await c('回设定集');
 	// M10：计算过程开关（就地重画，不换段落）
-	const before = w.SgUI.showDetail();
+	const before = w.Sg.UI.showDetail();
 	await c(before ? '关掉：只留骰面与总修正' : '打开：显示属性、熟练与取骰过程');
-	if (w.SgUI.showDetail() === before) throw new Error('计算过程开关没有翻转');
+	if (w.Sg.UI.showDetail() === before) throw new Error('计算过程开关没有翻转');
 	if (passageOf(w) !== '设定集') throw new Error('开关不该离开设定集页（应就地重画）');
 	await c(before ? '打开：显示属性、熟练与取骰过程' : '关掉：只留骰面与总修正');
-	if (w.SgUI.showDetail() !== before) throw new Error('计算过程开关没有翻回去');
+	if (w.Sg.UI.showDetail() !== before) throw new Error('计算过程开关没有翻回去');
 	return { w };
 }
 
@@ -793,27 +793,27 @@ async function routeCodex() {
 async function routeBestiary() {
 	// 直接跑金路径（每个路线都是独立 jsdom → localStorage 干净）
 	const { w, c } = await routeTrue();
-	const store = w.SgCodex.read();
+	const store = w.Sg.Codex.read();
 	if (!store.finals.includes('送星归位')) throw new Error('终局未登记进图鉴账本（finals 为空）');
 	// 日记三线索齐（来历 / 那一夜发不动 / 深读观测锁）→ 该页解锁（#219 A2 后改用本页做解锁示例）
-	if (!w.SgCodex.unlocked('日记')) {
+	if (!w.Sg.Codex.unlocked('日记')) {
 		const got = JSON.stringify(store.clues['日记'] ?? {});
 		throw new Error(`日记线索齐了却没解锁（${got}）`);
 	}
 	// 坏哨 2/3 锁定（#219 A2：past 金路径不打雾——「带着它，雾里的东西会迟疑」须现在侧相遇才落账）
-	if (w.SgCodex.unlocked('坏哨')) throw new Error('坏哨三线索不齐却解锁了（fight 线索应须现在侧相遇）');
+	if (w.Sg.Codex.unlocked('坏哨')) throw new Error('坏哨三线索不齐却解锁了（fight 线索应须现在侧相遇）');
 	const whistleIds = w.Game.Codex.clueIds('坏哨');
-	const whistleGot = w.SgCodex.read().clues['坏哨'] ?? {};
+	const whistleGot = w.Sg.Codex.read().clues['坏哨'] ?? {};
 	if (whistleIds.filter((id) => whistleGot[id]).length !== 2) throw new Error(`坏哨应为 2/3 进度（实际 ${JSON.stringify(whistleGot)}）`);
 	// 月光花只差"毒液抹刃"（那条在封印战线）→ 必须仍是锁定页
-	if (w.SgCodex.unlocked('月光花')) throw new Error('月光花线索未齐却解锁了（解锁条件应是"全部线索"）');
+	if (w.Sg.Codex.unlocked('月光花')) throw new Error('月光花线索未齐却解锁了（解锁条件应是"全部线索"）');
 	await c('打开设定集');
 	await c('图鉴');
 	const txt = w.document.querySelector('#passages').textContent;
 	if (!txt.includes('日记')) throw new Error('图鉴未列出已解锁的日记');
 	if (!txt.includes('她记那一夜的那一本')) throw new Error('图鉴未列出已解锁页的线索（日记·own）');
 	const names = Object.keys(w.Game.Codex.items);
-	const unlocked = names.filter((n) => w.SgCodex.unlocked(n));
+	const unlocked = names.filter((n) => w.Sg.Codex.unlocked(n));
 	if (unlocked.includes('月光花')) throw new Error('月光花只差一条线索，却也解锁了（解锁条件应是"全部线索"）');
 	const locked = names.filter((n) => !unlocked.includes(n));
 	if (!locked.length) throw new Error('金路径不该把所有页都解锁（毒液那条只在封印战线）');
@@ -1052,7 +1052,7 @@ async function routeDeliveredLocks() {
 async function routeCrossRunSticky() {
 	const { w, click: c } = await newGame(0.99, 0);
 	// ① 干净档：未走到过终局 → 术语页不得出现谜底（防「谜底门」退化成按 run 也能揭）
-	if (w.SgCodex.seenFinal()) throw new Error('干净新档不该 seenFinal');
+	if (w.Sg.Codex.seenFinal()) throw new Error('干净新档不该 seenFinal');
 	w.SugarCube.Engine.play('设定集·术语');
 	await w.SugarCube.Engine.isIdle?.() ?? null;
 	for (let i = 0; i < 20 && passageOf(w) !== '设定集·术语'; i++) await new Promise((r) => setTimeout(r, 50));
@@ -1062,13 +1062,13 @@ async function routeCrossRunSticky() {
 	// ② 模拟「此前已通关」：写入跨周目账本（localStorage），再重开一局
 	const seeded = { clues: { 日记: { own: true, cause: true, lock: true } }, endings: ['送星归位'], finals: ['送星归位'] };
 	w.localStorage.setItem('sgstory.codex.v1', JSON.stringify(seeded));
-	if (!w.SgCodex.seenFinal()) throw new Error('账本写入后 seenFinal 应为 true（粘性）');
+	if (!w.Sg.Codex.seenFinal()) throw new Error('账本写入后 seenFinal 应为 true（粘性）');
 	w.sgRestartRun();
 	await new Promise((r) => setTimeout(r, 300));
 	// ③ 新周目：run 状态重置，账本保留
 	if (passageOf(w) !== '开场') throw new Error(`sgRestartRun 后应回开场（停在 ${passageOf(w)}）`);
 	if (w.SugarCube.State.variables.pc?.ev?.ending) throw new Error('sgRestartRun 未清 run 态（ev.ending 仍在）');
-	if (!w.SgCodex.seenFinal()) throw new Error('sgRestartRun 误清跨周目账本（seenFinal 丢了）');
+	if (!w.Sg.Codex.seenFinal()) throw new Error('sgRestartRun 误清跨周目账本（seenFinal 丢了）');
 	// ④ 新周目开局即见谜底（设计决定：「走到过终局」＝曾经，跨周目有效）
 	w.SugarCube.Engine.play('设定集·术语');
 	for (let i = 0; i < 20 && passageOf(w) !== '设定集·术语'; i++) await new Promise((r) => setTimeout(r, 50));
@@ -1111,7 +1111,7 @@ async function routeEndingFooter() {
 	if (!pc || pc.hp !== pc.max_hp) throw new Error(`重开后本档没回到初始形状（hp=${pc?.hp}/${pc?.max_hp}）`);
 	if (Object.keys(pc.soc?.tries ?? {}).length) throw new Error('重开后交涉账没清（本档应清零）');
 	if (w.SugarCube.State.variables.era !== 'present') throw new Error('重开后 era 没回到 present');
-	if (!w.SgCodex.read().endings.includes('平凡之路')) throw new Error('重开后图鉴的永久记录丢了（应当留着）');
+	if (!w.Sg.Codex.read().endings.includes('平凡之路')) throw new Error('重开后图鉴的永久记录丢了（应当留着）');
 	return { w };
 }
 

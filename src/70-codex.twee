@@ -13,7 +13,7 @@
 	[[结局|设定集·结局]]
 	[[图鉴|设定集·图鉴]]
 	<<back "回到故事">>
-	<p class="codex-foot" id="ui-detail"><<= SgUI.renderToggle()>></p>
+	<p class="codex-foot" id="ui-detail"><<= Sg.UI.renderToggle()>></p>
 </div>
 
 :: 设定集·三律
@@ -62,7 +62,7 @@
 :: 设定集·图鉴
 /% payload: 信息 %/
 <div class="codex-hub">
-	<<= SgCodex.render()>>
+	<<= Sg.Codex.render()>>
 	<<back "回设定集">>
 </div>
 
@@ -86,7 +86,7 @@
 	<h3>术语</h3>
 	<p><span class="cx-term">星力</span>翻转要花的东西。不显示数字，也不显示进度。</p>
 	<p><span class="cx-term">雾</span>一年比一年浓。没人说得清它从哪儿来。</p>
-	<<if SgCodex.seenFinal()>>
+	<<if Sg.Codex.seenFinal()>>
 		<p><span class="cx-term">雾 · 谜底</span>它睡着时漏出来的力气。翻转护身符花的每一笔都从这里取：从过去回来，雾就淡一分。没人量得过它，也没人算清过它。把它送回去，雾就退了。</p>
 	<</if>>
 	<p><span class="cx-term">翻转</span>在原地生效，让你在现在与三百年前之间往返。</p>

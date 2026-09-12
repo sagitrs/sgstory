@@ -48,7 +48,9 @@ jobs:
           CI_REQUIRE_BROWSER: "1"
           CHROME_PATH: ${{ github.workspace }}/pw-chromium-ci
         run: |
-          ln -sf "$(node -e "console.log(require('playwright').chromium.executablePath())")" "$CHROME_PATH"
+          PW_PATH=$(node -e "console.log(require('playwright').chromium.executablePath())")
+          test -x "$PW_PATH" || { echo "ERROR: playwright chromium 缺失"; exit 1; }
+          ln -sf "$PW_PATH" "$CHROME_PATH"
           node test/browser.mjs
 
   deploy:

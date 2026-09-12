@@ -12,6 +12,8 @@
 		"audit": "node scripts/audit.mjs",
 		"report:rhythm": "node scripts/report-rhythm.mjs",
 		"report:freshness": "node scripts/report-ledger-freshness.mjs",
+		"audit:golden": "node test/audit-golden.mjs",
+		"audit:golden:update": "node test/audit-golden.mjs --update",
 		"report:freshness:check": "node scripts/report-ledger-freshness.mjs --selftest && node scripts/report-ledger-freshness.mjs --check",
 		"test:saveload": "node build.mjs && node test/saveload.mjs",
 		"report:rhythm:check": "node scripts/report-rhythm.mjs --check && node scripts/report-rhythm.mjs --selftest",

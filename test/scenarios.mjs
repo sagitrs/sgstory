@@ -539,6 +539,8 @@ async function routeKeeperFight() {
 	await c('上顶楼');
 	await c('抢他的杖');
 	if (passageOf(w) !== '结局 讨伐') throw new Error(`未达讨伐（${passageOf(w)}）`);
+	// #300 裁决：结局页不显示「本次结果」槽（保持纯净）——那一掷在豁免表登记理由
+	if (w.document.querySelector('#passages .scene-feedback')) throw new Error('#300 裁决：结局页出现了结果槽');
 	return { w };
 }
 

@@ -215,6 +215,9 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 	jQuery(document).on(':passagerender.sgResult', (ev) => {
 		const r = State.variables.pc?.ev?.last_result;
 		if (!r || (r.era && r.era !== State.variables.era) || !r.text) return;
+		// #300 裁决（2026-09-12）：**结局页不显示本次结果槽**——结局以自身叙述为准；
+		// 落点是结局页的那些掷（顶楼·夺杖→讨伐、龙·终击→星落/坠星之死）在豁免表登记理由。
+		if (String(State.passage ?? '').startsWith('结局')) return;
 		// 显示一次即清空：跨段导航（如洞穴动武→森林边缘）也把本次结果留在屏上
 		delete State.variables.pc.ev.last_result;
 		const content = ev.content;

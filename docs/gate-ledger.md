@@ -8,7 +8,7 @@
 > 为什么要有这张表：本仓当日集齐四类「空判」——覆盖≠验收 / **反例空判** / **死开关**（#331）/ **原理不可达断言**（#338）。
 > 台账的首要用途不是统计，而是**让「没有自证的门」在表上看得见**。
 
-**严格行为化率（有自证）：24/56 = 42.9%** ｜ **有断言但缺自证：16**（＝下方工作清单）｜ 仅登记：4
+**严格行为化率（有自证）：26/56 = 46.4%** ｜ **有断言但缺自证：14**（＝下方工作清单）｜ 仅登记：4
 
 | 门 | 类型 | 形态 | 自证 | 接线（npm test） | 理由（仅登记/未接线必填） |
 |---|---|---|---|---|---|
@@ -18,7 +18,7 @@
 | `audit:choices` | audit 开关 | 行为化（缺自证） | — | ✅ |  |
 | `audit:combat` | audit 开关 | 行为化（缺自证） | — | ✅ |  |
 | `audit:consequences` | audit 开关 | 行为化（缺自证） | — | ✅ |  |
-| `audit:craft` | audit 开关 | 行为化（缺自证） | — | ✅ |  |
+| `audit:craft` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:dragon` | audit 开关 | 行为化（缺自证） | — | ✅ |  |
 | `audit:echoes` | audit 开关 | 行为化（缺自证） | — | ✅ |  |
 | `audit:economy` | audit 开关 | 仅登记 | — | — | 收支时间线是人读报表（数值本身由 --checks/--gear 门覆盖） |
@@ -32,7 +32,7 @@
 | `audit:sel` | audit 开关 | 行为化（缺自证） | — | — | 接线说明：--sel 只是 --nosl＋--gear 的便捷别名，链上跑的是更具体的两个 flag，故没有单独的 --sel --check（**形态是有判定的门**，此前台账误标「仅登记」，已由形态对账改正） |
 | `audit:sitedisc` | audit 开关 | 行为化（缺自证） | — | ✅ |  |
 | `audit:social` | audit 开关 | 行为化（缺自证） | — | ✅ |  |
-| `audit:starbudget` | audit 开关 | 行为化（缺自证） | — | ✅ |  |
+| `audit:starbudget` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:state` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:systems` | audit 开关 | 行为化 | ✅ | ✅ | 机制×锚句门（**有判定**：机制必须有可感知锚句）——此前台账误标「仅登记」，由形态对账查出并改正；自证待补 |
 | `audit:text` | audit 开关 | 行为化 | ✅ | ✅ | 文本载荷门（**有判定**：载荷阈值）——此前台账误标「仅登记」，由形态对账查出并改正；自证待补（密度 ratchet 在 --craft，本门是自己的载荷线） |
@@ -69,7 +69,7 @@
 | `test/social-lever.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
 | `test/walker.mjs` | 测试脚本 | 行为化 | — | — | 随机游走 soak（npm run soak）：耗时长、种子流非确定，不进 npm test |
 
-## F2 工作清单：有断言但**缺自证**（16 项）
+## F2 工作清单：有断言但**缺自证**（14 项）
 
 > 这些门**在跑、也在断言**，但从没被证明「反例会红」——本仓当日四类空判（覆盖≠验收／反例空判／死开关 #331／原理不可达 #338）都出自这一类。
 > 补法：给该门加一个**合成反例**用例（正例＋反例），并在本脚本的 `REASONS` 里改标 `行为化`。
@@ -79,7 +79,6 @@
 - `audit:choices`（audit 开关）
 - `audit:combat`（audit 开关）
 - `audit:consequences`（audit 开关）
-- `audit:craft`（audit 开关）
 - `audit:dragon`（audit 开关）
 - `audit:echoes`（audit 开关）
 - `audit:gear`（audit 开关）
@@ -89,4 +88,3 @@
 - `audit:sel`（audit 开关）
 - `audit:sitedisc`（audit 开关）
 - `audit:social`（audit 开关）
-- `audit:starbudget`（audit 开关）

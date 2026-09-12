@@ -4,6 +4,13 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 export const flag = 'starbudget';
 export const flags = ["starbudget"];
 
+// 纯函数（供自证；判据与真实运行同一份代码）：余量承诺 = budget − spent ≥ floor
+export const judgeOrders = (orders, budget) => {
+	const empty = !(orders ?? []).length;
+	const findings = (orders ?? []).map((o) => ({ id: o.id, margin: budget - o.spent, floor: o.floor })).filter((x) => x.margin < x.floor);
+	return { empty, findings };
+};
+
 export const run = (ctx) => {
 	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
@@ -12,6 +19,20 @@ if (wantAll || arg('starbudget')) {
 	console.log('\n══ ⓪r 软限余量门（#256）——budget − spent ≥ floor（按序）══');
 	const S = Game.Star;
 	let bad = 0;
+	// ── 自证（先证会红，再判真实数据）──
+	{
+		const cases = [
+			['正例：余量恰好达标', judgeOrders([{ id: 'a', spent: 4, floor: 2 }], 6), 0, false],
+			['反例①：余量不足', judgeOrders([{ id: 'a', spent: 5, floor: 2 }], 6), 1, false],
+			['反例②：多序中一条违背', judgeOrders([{ id: 'a', spent: 2, floor: 2 }, { id: 'b', spent: 6, floor: 1 }], 6), 1, false],
+			['反例③：表没登记（空）', judgeOrders([], 6), 0, true],
+		];
+		for (const [label, got, wantN, wantEmpty] of cases) {
+			const ok = got.findings.length === wantN && got.empty === wantEmpty;
+			console.log(`      ${ok ? '✓' : '✗'} 自证·${label}：检出 ${got.findings.length}（期望 ${wantN}）· 空表=${got.empty}（期望 ${wantEmpty}）`);
+			if (!ok) bad++;
+		}
+	}
 	for (const o of S.orders ?? []) {
 		const margin = S.budget - o.spent;
 		const ok = margin >= o.floor;

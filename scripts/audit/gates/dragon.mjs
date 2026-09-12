@@ -5,7 +5,7 @@ export const flag = 'dragon';
 export const flags = ["dragon"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ① 检定成功率矩阵（伞 #22：难度审计）──
 // 成功率解析计算：d20 枚举（优势=双骰取高）；自然20必成/自然1必败（SRD 5.2）
@@ -29,8 +29,8 @@ if (wantAll || arg('dragon')) {
 		let round = 1, guard = 0, lastUsed = '';
 		const modOf = (site) => {
 			const s = Game.Checks.sites[site];
-			const abil = s.abil ?? Rules.SKILLS[s.skill];
-			return Rules.parts(pc, abil, { skill: s.skill }).reduce((a, p) => a + p.v, 0);
+			const abil = s.abil ?? Game.Rules.SKILLS[s.skill];
+			return Game.Rules.parts(pc, abil, { skill: s.skill }).reduce((a, p) => a + p.v, 0);
 		};
 		const hitP = (site, adv) => {   // 数值概率（选牌用；结算用真骰）
 			let w = adv ? 3 : 1, l = adv ? 1 : 3;	// 20 记胜、1 记败（权重＝两骰取高/取低的计数）

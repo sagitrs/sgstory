@@ -5,7 +5,7 @@ export const flag = 'consequences';
 export const flags = ["consequences"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ⓪q D2 选择后果门（#267）：每个被写入旗标必须落一桶 ══
 if (wantAll || arg('consequences')) {

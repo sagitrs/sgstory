@@ -184,7 +184,7 @@ new w.SugarCube.Wikifier(null, '<<give "日记">>');
 const capFrag2 = w.document.createDocumentFragment();
 new w.SugarCube.Wikifier(capFrag2, w.document.querySelector('tw-passagedata[name="StoryCaption"]').textContent);
 assert(capFrag2.textContent.includes('日记'), '获得道具后侧栏物品栏列出（日记）');
-assert(w.Pc.has('日记'), 'Pc.has 判定物品在栏');
+assert(w.Game.Pc.has('日记'), 'Game.Pc.has 判定物品在栏');
 
 assert(pageErrors.length === 0, `页面无运行时错误${pageErrors.length ? '：' + pageErrors.join(' | ') : ''}`);
 console.log(process.exitCode ? '\n冒烟测试失败' : '\n冒烟测试全部通过');

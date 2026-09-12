@@ -14,7 +14,7 @@ const ok = (cond, msg) => {
 
 // 白盒 A9/A10：共享 boot ×3 实例（pollUntil + uncaught；random 参数化替代手写 JSDOM）
 const { w, sleep } = await boot({ random: 0.5 }); // d20 恒为 11
-const R = w.Rules;
+const R = w.Game.Rules;
 
 // ── 调整值 ──
 eq(R.mod(10), 0, 'mod(10) = 0');
@@ -47,11 +47,11 @@ ok(bonused.mod === 7, '情境加值并入修正（+1+6）');
 
 // ── 自然 20 / 自然 1（SRD 5.2）──
 const dom20 = await boot({ random: 0.999 });
-const nat20 = dom20.w.Rules.check(pc, '运动', 30);
+const nat20 = dom20.w.Game.Rules.check(pc, '运动', 30);
 ok(nat20.roll === 20 && nat20.success, '自然 20 → 无视 DC 必然成功');
-ok(dom20.w.Rules.save(pc, 'str', 25).success, '豁免同样适用自然 20 规则');
+ok(dom20.w.Game.Rules.save(pc, 'str', 25).success, '豁免同样适用自然 20 规则');
 const dom1 = await boot({ random: 0.0001 });
-const nat1 = dom1.w.Rules.check(pc, '察觉', 1);
+const nat1 = dom1.w.Game.Rules.check(pc, '察觉', 1);
 ok(nat1.roll === 1 && !nat1.success, '自然 1 → 无视加值必然失败');
 
 // ── 车卡：3 轮 × 每轮 3 选项，apply 均可执行 ──
@@ -62,7 +62,7 @@ ok(rounds.every((r) => r.options.every((o) => typeof o.apply === 'function')), '
 ok(rounds.every((r) => r.options.every((o) => o.name && o.desc && o.effect)), '选项均有名称/描述/效果三件套');
 
 const v = w.SugarCube.State.variables;
-const freshPc = () => { v.pc = w.Pc.defaults(); return v.pc; };
+const freshPc = () => { v.pc = w.Game.Pc.defaults(); return v.pc; };
 freshPc();
 for (const [r, o] of [[0, 0], [1, 0], [2, 2]]) w.Game.Chargen.pick(r, o); // 铁卫 / 佣兵 / 矮人
 eq(v.pc.round, 3, '车卡完成 3 轮');
@@ -76,7 +76,7 @@ eq(v.pc.skills.filter((s) => s === '运动').length, 1, '职业/背景重复技�
 ok(v.pc.gear.includes('长剑'), '职业行囊生效');
 {
 	const sage = w.Game.Chargen.presets.find((x) => x.name === '秘典');
-	const pc2 = w.Pc.defaults();
+	const pc2 = w.Game.Pc.defaults();
 	w.SugarCube.State.variables.pc = pc2;
 	for (let i = 0; i < sage.picks.length; i++) w.Game.Chargen.pick(i, sage.picks[i]);
 	eq(pc2.salves, 1, '秘典的"药膏"是可用的药膏（salves），不是装备栏里的死物');
@@ -101,30 +101,30 @@ ok(v.pc.flags.lore && v.pc.skills.includes('调查'), '秘典预设：学识烙�
 
 // ── Pc 形状迁移：基础行为 + 存档兼容矩阵（fixture 驱动）──
 const oldPc = { name: '旧档', round: 8, gold: 40, hp: 14, max_hp: 14, skills: ['运动'], gear: ['火把'], abilities: { str: 15 }, flags: { courage: true } };
-const m1 = w.Pc.migrate(oldPc);
+const m1 = w.Game.Pc.migrate(oldPc);
 eq(m1.inv, {}, '旧档缺 inv → 补空对象');
 ok(m1.star && typeof m1.star === 'object' && m1.star.charge === 12, '旧档缺 star → 补默认星力');
 ok(m1.keeper && m1.keeper.met === false, '旧档缺 keeper → 补默认关系态');
 ok(m1.dragon && m1.dragon.hp === 0, '旧档缺 dragon → 补默认战斗态');
 eq(m1.gold, 40, '已有字段保留不动');
 ok(m1.flags.courage === true, '嵌套已有值保留');
-const m2 = w.Pc.migrate({ skills: '损坏', star: null, inv: [] });
+const m2 = w.Game.Pc.migrate({ skills: '损坏', star: null, inv: [] });
 ok(Array.isArray(m2.skills) && m2.skills.length === 0, '类型损坏修正（skills 非数组）');
 ok(m2.star && typeof m2.star === 'object', '类型损坏修正（star 为 null）');
 ok(!Array.isArray(m2.inv) && typeof m2.inv === 'object', '类型损坏修正（inv 为数组）');
-ok(w.Pc.migrate(undefined).name === '', 'undefined → 整体默认');
-w.Pc.migrate(m1);
+ok(w.Game.Pc.migrate(undefined).name === '', 'undefined → 整体默认');
+w.Game.Pc.migrate(m1);
 eq(m1.gold, 40, '迁移幂等（重复跑不破坏）');
-eq(Object.keys(w.Pc.defaults()).length, 26, '默认形状字段数守恒（26，防误删）');
+eq(Object.keys(w.Game.Pc.defaults()).length, 26, '默认形状字段数守恒（26，防误删）');
 
 // ── L4 存档兼容矩阵：每版历史形状一个 fixture，统一断言四条律 ──
-const DEFAULT_KEYS = Object.keys(w.Pc.defaults());
+const DEFAULT_KEYS = Object.keys(w.Game.Pc.defaults());
 const fixtureDir = 'test/fixtures/saves';
 const fixtures = readdirSync(fixtureDir).filter((f) => f.endsWith('.json')).sort();
 ok(fixtures.length >= 5, `存档 fixture 至少 5 版历史形状（现有 ${fixtures.length}）`);
 for (const file of fixtures) {
 	const fx = JSON.parse(readFileSync(`${fixtureDir}/${file}`, 'utf8'));
-	const m = w.Pc.migrate(JSON.parse(JSON.stringify(fx.pc)));
+	const m = w.Game.Pc.migrate(JSON.parse(JSON.stringify(fx.pc)));
 	const label = file.split('.')[0];
 	const missingKeys = DEFAULT_KEYS.filter((k) => !(k in m));
 	ok(missingKeys.length === 0, `[${label}] 补齐：defaults 全键在（缺 ${missingKeys.join(',') || '无'}）`);
@@ -134,7 +134,7 @@ for (const file of fixtures) {
 	ok(m.abilities === null || typeof m.abilities === 'object', `[${label}] 修型：abilities 型合法`);
 	for (const k of ['skills', 'feats', 'gear', 'picked']) ok(Array.isArray(m[k]), `[${label}] 修型：${k} 为数组`);
 	for (const k of ['inv', 'star', 'keeper', 'ev', 'dragon', 'world', 'flags', 'soc']) ok(m[k] && typeof m[k] === 'object' && !Array.isArray(m[k]), `[${label}] 修型：${k} 为对象`);
-	const again = w.Pc.migrate(JSON.parse(JSON.stringify(m)));
+	const again = w.Game.Pc.migrate(JSON.parse(JSON.stringify(m)));
 	ok(JSON.stringify(again) === JSON.stringify(m), `[${label}] 幂等：二次迁移深度相等`);
 	if (fx.expectSalves !== undefined) ok(m.salves === fx.expectSalves, `[${label}] 保值：salves=${fx.expectSalves}`);
 	if (fx.expectJunkKept) ok('futureVersionField' in m, `[${label}] 余键：未知字段不删（向前兼容）`);
@@ -151,7 +151,7 @@ for (const file of fixtures) {
 	{
 		const C = w.Game.Codex, defs = Object.keys(w.Game.Items.defs).sort();
 		eq(Object.keys(C.items).sort().join(','), defs.join(','), '图鉴页与 Items.defs 一一对应');
-		const fresh = w.Pc.defaults();
+		const fresh = w.Game.Pc.defaults();
 		for (const [item, def] of Object.entries(C.items)) {
 			ok(def.clues.length >= 2, `图鉴「${item}」线索 ≥2`);
 			ok(def.clues.every((cl) => !cl.test(fresh)), `图鉴「${item}」新档下无白送线索`);
@@ -167,7 +167,7 @@ for (const file of fixtures) {
 	}
 	// ① 位点 DC：改表 → sitecheck 用新 DC
 	w.eval('Game.Checks.sites["洞穴·战斗"].dc = 20');
-	w.SugarCube.State.variables.pc = w.Pc.defaults();
+	w.SugarCube.State.variables.pc = w.Game.Pc.defaults();
 	new w.SugarCube.Wikifier(null, '<<sitecheck "洞穴·战斗">>');
 	ok(v.last_check.dc === 20, `位点 DC 表驱动：sitecheck 用表值 20（实际 ${v.last_check?.dc}）`);
 	w.eval('Game.Checks.sites["洞穴·战斗"].dc = 12');
@@ -179,8 +179,8 @@ for (const file of fixtures) {
 	w.eval('Game.Economy.events.dragon_hoard.delta = 10');
 	// ②b 判定标注 + 计算过程（M10）
 	{
-		const R = w.Rules;
-		const pc = w.Pc.defaults();
+		const R = w.Game.Rules;
+		const pc = w.Game.Pc.defaults();
 		pc.abilities = { str: 16, dex: 10, con: 14, int: 8, wis: 16, cha: 8 };
 		pc.skills = ['运动'];
 		let r = R.check(pc, '运动', 12);
@@ -296,7 +296,7 @@ for (const file of fixtures) {
 	// ④b 道具位点优势自动接线：坏哨 → <<sitecheck>> 自动双骰取高
 	const diceQueue = [0.12, 0.82]; // d20 → 3, 17
 	w.eval(`(function(){const q=${JSON.stringify(diceQueue)};Math.random=()=>q.length?q.shift():0.5;})()`);
-	v.pc = w.Pc.defaults(); v.pc.inv['坏哨'] = true;
+	v.pc = w.Game.Pc.defaults(); v.pc.inv['坏哨'] = true;
 	new w.SugarCube.Wikifier(null, '<<sitecheck "雾之魔物·挥击">>');
 	ok(v.last_check.roll === 17, `sitecheck 自动优势：坏哨 → 双骰取高（实际 ${v.last_check.roll}）`);
 	v.pc.inv = {};
@@ -310,7 +310,7 @@ for (const file of fixtures) {
 	// knowledge 的 key 必须是已登记位点（表一致性）
 	ok(Object.keys(w.Game.Checks.knowledge).every((k) => k in w.Game.Checks.sites), 'knowledge 的位点均存在于 Checks.sites');
 	const dq3 = [0.12, 0.82];
-	v.pc = w.Pc.defaults(); v.pc.world.rumor = true;
+	v.pc = w.Game.Pc.defaults(); v.pc.world.rumor = true;
 	w.eval(`(function(){const q=${JSON.stringify(dq3)};Math.random=()=>q.length?q.shift():0.5;})()`);
 	new w.SugarCube.Wikifier(null, '<<sitecheck "洞穴·战斗">>');
 	ok(v.last_check.roll === 17, `情报优势：rumor → 双骰取高（实际 ${v.last_check.roll}）`);
@@ -332,10 +332,10 @@ for (const file of fixtures) {
 	// ④d 彩蛋击杀（M5b）：<<sitecheck "龙·终击">> 需天然 20 + 劣势 → 1/400 ≈ 0.25%
 	const ks = w.Game.Checks.sites['龙·终击'];
 	ok(ks?.nat === 20 && ks?.dis === true, '龙·终击：需天然 20 且带劣势（≈0.25%）');
-	v.pc = w.Pc.defaults();
+	v.pc = w.Game.Pc.defaults();
 	const atRoll = (r) => {
 		w.eval(`Math.random = () => ${(r - 0.5) / 20}`);
-		return w.Rules.check(v.pc, '运动', 20, { nat: 20, bonus: 100 });
+		return w.Game.Rules.check(v.pc, '运动', 20, { nat: 20, bonus: 100 });
 	};
 	ok(atRoll(20).success === true, 'nat 机制：天然 20 必成（加值/DC 不参与）');
 	ok(atRoll(19).success === false, 'nat 机制：天然 19 即使 +100 也失败');
@@ -349,7 +349,7 @@ for (const file of fixtures) {
 	ok(v.last_check?.dc === 9 && /体质/.test(v.last_check?.label ?? ''), `sitecheck 豁免分流走 save（dc=${v.last_check?.dc}，label=${v.last_check?.label}）`);
 	w.eval('Game.Checks.sites["塔外花田"].dc = 16');
 	// ⑥ #25 sink 契约：gives 入账 + 烙印/技能折扣表驱动
-	v.pc = w.Pc.defaults();
+	v.pc = w.Game.Pc.defaults();
 	v.pc.gold = 30;
 	new w.SugarCube.Wikifier(null, '<<econ "salve_buy">>');
 	ok(v.pc.gold === 22 && v.pc.salves === 1, `salve_buy：-8 金且 gives 入账 salves 0→1（实际 ${v.pc.gold}/${v.pc.salves}）`);
@@ -368,15 +368,15 @@ for (const file of fixtures) {
 	ok(v.pc.world.goblin_spared === true, 'setflag 词汇：世界旗标置真');
 	// ⑧ give 词汇（物品栏）
 	new w.SugarCube.Wikifier(null, '<<give "日记">>');
-	ok(v.pc.inv['日记'] === true && w.Pc.has('日记'), 'give 词汇：入物品栏');
+	ok(v.pc.inv['日记'] === true && w.Game.Pc.has('日记'), 'give 词汇：入物品栏');
 	// ⑨ damage 词汇：扣血 + 药膏自动生效
-	v.pc = w.Pc.defaults(); v.pc.max_hp = 14; v.pc.hp = 14; v.pc.salves = 1;
+	v.pc = w.Game.Pc.defaults(); v.pc.max_hp = 14; v.pc.hp = 14; v.pc.salves = 1;
 	new w.SugarCube.Wikifier(null, '<<damage 5>>');
 	ok(v.pc.hp === 13 && v.pc.salves === 0, `damage 词汇：5 伤回 4 → 13/14，药膏 1→0（实际 ${v.pc.hp}/${v.pc.salves}）`);
 	// ⑩ flip 词汇：时代翻转 + 隐藏星力 + 雾淡留痕（点击链接驱动）
 	// ⚠ SugarCube 每次导航会克隆 State.variables：点击后必须重新取引用，否则读到旧时刻
 	const V = () => w.SugarCube.State.variables;
-	V().pc = w.Pc.defaults(); V().pc.inv['时光护符'] = true; V().era = 'present';
+	V().pc = w.Game.Pc.defaults(); V().pc.inv['时光护符'] = true; V().era = 'present';
 	const flipHost = w.document.createElement('div');
 	new w.SugarCube.Wikifier(flipHost, '<<flip>>');
 	const flipLink = flipHost.querySelector('a.link-internal');
@@ -399,7 +399,7 @@ for (const file of fixtures) {
 {
 	const C = w.Game.Combat;
 	const sites = w.Game.Checks.sites;
-	const full = w.Pc.defaults();
+	const full = w.Game.Pc.defaults();
 	full.inv = { 坏哨: true, 月光花: true, 龙鳞护臂: true };
 	full.gear = [];
 	full.dragon = { venom: false, defeats: 0, hp: 60 };
@@ -417,7 +417,7 @@ for (const file of fixtures) {
 	for (let i = 0; i < 8; i++) rerolled.push(...C.offer('雾影', 2, full, first));
 	ok(!rerolled.includes(first) || rerolled.length > 8, `上一手「${first}」被排除在下一轮手牌外`);
 	// ③ 需求门：没有花就不给「涂毒」，有花且第一轮一定给
-	const noFlower = w.Pc.defaults(); noFlower.inv = {}; noFlower.dragon = {};
+	const noFlower = w.Game.Pc.defaults(); noFlower.inv = {}; noFlower.dragon = {};
 	ok(!C.eligible('封印', noFlower).includes('封印·涂毒'), '没有月光花：涂毒不在可出牌里');
 	ok(C.eligible('封印', noFlower).length >= 3, '没有任何道具也至少抽得满 3 张（不会空手）');
 	ok(C.offer('封印', 1, full, null).includes('封印·涂毒'), '有花且第一轮：涂毒一定进手牌（备药优先）');
@@ -436,7 +436,7 @@ for (const file of fixtures) {
 	for (const id of Object.keys(C.actions)) ok(!!C.siteInfo(id), `动作「${id}」有属性标注`);
 	// ⑥ 效果落状态：伤害/优势/减伤/免出手/旗标/毒
 	const f = { adv: 0, guard: 0, skipFoe: false, venom: false, flee: false };
-	const probe = w.Pc.defaults();
+	const probe = w.Game.Pc.defaults();
 	probe.dragon = { hp: 60, venom: false };
 	probe.ev = {};
 	C.applyEffect(probe, { dmg: 9, adv: 1, guard: 4, skipFoe: true, flag: 'mist_guard', venom: true, flee: true }, f);
@@ -470,7 +470,7 @@ for (const file of fixtures) {
 		}
 	}
 	// ③ DC ＝ 位点基础 + 态度 + 5×同一手试过几次
-	const pc = w.Pc.defaults();
+	const pc = w.Game.Pc.defaults();
 	const a0 = S.ask('老板娘·进塔');
 	const base = sites['酒馆·打听'].dc;
 	ok(S.dcOf(a0, '酒馆·打听', pc) === base, `冷淡：DC ＝ 基础 ${base}`);
@@ -493,7 +493,7 @@ for (const file of fixtures) {
 	S.settle(a0, pc, '老板娘·接话', 'bad');
 	ok(pc.soc.att['老板娘'] === att1, '表演失败 → 态度不动（代价最低，只是没接上话）');
 	// ⑤ 意愿三档：愿意＝不掷骰直接给；不肯＝掷骰也没用
-	const emptyPc = () => { const p2 = w.Pc.defaults(); p2.inv = {}; p2.ev = {}; p2.world = {}; p2.keeper = { met: false, trust: 0, state: 'post', key: false }; return p2; };
+	const emptyPc = () => { const p2 = w.Game.Pc.defaults(); p2.inv = {}; p2.ev = {}; p2.world = {}; p2.keeper = { met: false, trust: 0, state: 'post', key: false }; return p2; };
 	const swap = S.ask('女巫·换哨');
 	const p3 = emptyPc();
 	eq(S.verdict(swap, p3), 'unwilling', '换哨：图与杖都没凑齐 → 不肯（不是"难"，是"没得谈"）');

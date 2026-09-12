@@ -130,7 +130,7 @@
 
 | 现有资产 | 为什么抓不到 P1 |
 |---|---|
-| `test/saveui.mjs`（90 行） | 只做 `Pc.migrate(fixture)` → 渲染 → 点击后断言 `slots <= 1 && hasText`，**从不调用 `Save.browser.slot.save()` / `Sg.save.load()`** |
+| `test/saveui.mjs`（90 行） | 只做 `Game.Pc.migrate(fixture)` → 渲染 → 点击后断言 `slots <= 1 && hasText`，**从不调用 `Save.browser.slot.save()` / `Sg.save.load()`** |
 | `test/browser.mjs` | 门厅键盘用例在 Enter 之后即停，**不按 S/L** |
 | `test/scenarios.mjs` | 路线只断言剧情分支与旗标，**不含存读档往返** |
 
@@ -238,7 +238,7 @@ G1 的正例落点（不含任何数字，守 canon §3.5 星账不可测量）�
 
 | 面 | 门控（实现机制） | 实测 | 判定 |
 |---|---|---|---|
-| **图鉴**（10 条目 / 32 线索） | 每条线索一个 `test(pc)` 谓词（`Game.Codex.items`） | **零状态档（`Pc.defaults()`）下 0 条为真**；空图鉴记录下 0 条目 `isUnlocked` | ✅ 可回看不泄底 |
+| **图鉴**（10 条目 / 32 线索） | 每条线索一个 `test(pc)` 谓词（`Game.Codex.items`） | **零状态档（`Game.Pc.defaults()`）下 0 条为真**；空图鉴记录下 0 条目 `isUnlocked` | ✅ 可回看不泄底 |
 | **结局账本**（图鉴页） | 未解锁条目渲染成 `？？？`；提示句只在 `Sg.Codex.seenFinal()` 后给；页内明示「重新开始游戏也会保留已解锁的内容」 | 跨周目保留＝**设计**（I1-G5 重玩换视角），且已向玩家明示 | ✅ |
 | **设定集固定页**（8 页） | 「谜底级」内容由 `Sg.Codex.seenFinal()` 门控；其余页是 `Truth.claims` **声明的证据面** | 谜底级命题 `mist_is_fare` 的 codex 站点（`设定集·术语`）**确实带门**；`keeper_is_alive`／`no_seal` 的 codex 站点（`设定集·三律`／`设定集·塔`）在命题表里被**声明为第 3 条线索** → 是「给定」不是泄底 | ✅ 一致 |
 | **已读折叠区**（酒馆「已听到的传闻」） | 按 `$pc.ev.*` 旗标逐条渲染 | 未听到的条目**不在 DOM 里** | ✅ |

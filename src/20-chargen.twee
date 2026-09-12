@@ -56,7 +56,7 @@ window.Game.Chargen = {
 	},
 	finalize(pc) {
 		pc.name = State.variables.player_name || '无名旅人';
-		pc.max_hp = (pc.classHp ?? 8) + Rules.mod(pc.abilities.con) * 2;
+		pc.max_hp = (pc.classHp ?? 8) + Game.Rules.mod(pc.abilities.con) * 2;
 		pc.hp = pc.max_hp;
 	},
 	applyPreset(idx) {
@@ -128,12 +128,12 @@ window.Game.Chargen = {
 	<table class="ability-table">
 		<tr><th>力量</th><th>敏捷</th><th>体质</th><th>智力</th><th>感知</th><th>魅力</th></tr>
 		<tr>
-			<td>$pc.abilities.str<br>//<<print Rules.fmod($pc.abilities.str)>>//</td>
-			<td>$pc.abilities.dex<br>//<<print Rules.fmod($pc.abilities.dex)>>//</td>
-			<td>$pc.abilities.con<br>//<<print Rules.fmod($pc.abilities.con)>>//</td>
-			<td>$pc.abilities.int<br>//<<print Rules.fmod($pc.abilities.int)>>//</td>
-			<td>$pc.abilities.wis<br>//<<print Rules.fmod($pc.abilities.wis)>>//</td>
-			<td>$pc.abilities.cha<br>//<<print Rules.fmod($pc.abilities.cha)>>//</td>
+			<td>$pc.abilities.str<br>//<<print Game.Rules.fmod($pc.abilities.str)>>//</td>
+			<td>$pc.abilities.dex<br>//<<print Game.Rules.fmod($pc.abilities.dex)>>//</td>
+			<td>$pc.abilities.con<br>//<<print Game.Rules.fmod($pc.abilities.con)>>//</td>
+			<td>$pc.abilities.int<br>//<<print Game.Rules.fmod($pc.abilities.int)>>//</td>
+			<td>$pc.abilities.wis<br>//<<print Game.Rules.fmod($pc.abilities.wis)>>//</td>
+			<td>$pc.abilities.cha<br>//<<print Game.Rules.fmod($pc.abilities.cha)>>//</td>
 		</tr>
 	</table>
 	<div class="charsheet-rows">

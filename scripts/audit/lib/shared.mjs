@@ -1,7 +1,7 @@
 // audit 跨门共享 helper（#316 第 2 步）：被 ≥2 个门使用的定义集中于此，由壳注入 ctx。
 // 清单：build/_shared_list.json（收敛循环自动发现）。
 export const makeShared = (ctx) => {
-	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll } = ctx;
+	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll } = ctx;
 	function classifyNarrativeState() {
 		// 注释（/% … %/）里的示例不是代码——先剥离，免得把文档里的 <<firstTime "X">> 当成真写入
 		const stripped = new Map([...passageSrc.entries()].map(([n, src]) => [n, src.replace(/\/%[\s\S]*?%\//g, ' ')]));
@@ -51,7 +51,7 @@ export const makeShared = (ctx) => {
 		return { written, buckets, problems };
 	}
 	function successRate(pc, site, adv) {
-		const mod = site.abil ? Rules.save_mod_for_audit ?? Rules.abilityMod(pc, site.abil) : Rules.skillMod(pc, site.skill);
+		const mod = site.abil ? Game.Rules.save_mod_for_audit ?? Game.Rules.abilityMod(pc, site.abil) : Game.Rules.skillMod(pc, site.skill);
 		const single = (r) => (r === 20 ? true : r === 1 ? false : r + mod >= site.dc);
 		let win = 0, total = 0;
 		for (let a = 1; a <= 20; a++) {

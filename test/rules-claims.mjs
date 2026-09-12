@@ -1,4 +1,4 @@
-// canon 规则层声称门（#247「Rules.claims」，实现名 Game.RuleClaims）——行为门：
+// canon 规则层声称门（#247「Game.Rules.claims」，实现名 Game.RuleClaims）——行为门：
 //   每条＝一条 canon 条文 × 一条**可执行探针**（渲染某段落 × 某时代 × 某状态 → 断言屏上文本）。
 //   ① 条文侧：docAnchor 必须逐字存在于 docs/lore-canon.md（条文被改写/删除＝红）；
 //   ② 正文侧：include 必须全部在屏、exclude 必须全部不在屏（正文与 canon 脱钩＝红）；
@@ -84,7 +84,7 @@ const render = (c) => {
 	return { play: c.p, state: c };
 };
 
-console.log('\n══ canon 规则层声称门（Rules.claims）══');
+console.log('\n══ canon 规则层声称门（Game.Rules.claims）══');
 const claims = w.Game.RuleClaims.claims;
 console.log(`  声称 ${claims.length} 条｜canon 文档 ${DOC}`);
 const texts = new Map();

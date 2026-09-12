@@ -29,11 +29,11 @@ for (const file of fixtures) {
 	const fx = JSON.parse(readFileSync(`${fixtureDir}/${file}`, 'utf8'));
 	const label = file.split('.')[0];
 	const before = uncaught.length;
-	// 把 fixture 的 pc 载进引擎（走真实迁移路径 Pc.migrate），并清掉界面态残留
+	// 把 fixture 的 pc 载进引擎（走真实迁移路径 Game.Pc.migrate），并清掉界面态残留
 	w.eval(`(function(){
 		const v = SugarCube.State.variables;
 		const raw = ${JSON.stringify(fx.pc)};
-		v.pc = Pc.migrate(JSON.parse(JSON.stringify(raw)));
+		v.pc = Game.Pc.migrate(JSON.parse(JSON.stringify(raw)));
 		v.era = 'present';
 		delete v.pc.ev.last_result;   // 旧档不该有（若 fixture 里带了也不该被信任——先清再看闸门）
 	})()`);

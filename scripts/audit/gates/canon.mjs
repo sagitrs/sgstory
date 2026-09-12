@@ -5,7 +5,7 @@ export const flag = 'canon';
 export const flags = ["canon"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 // ── ⓪g canon 门（M1b）：设定书 §10「已裁剪设定」→ src 回流检测 ──
 // 权威链：docs/lore-canon.md §10 是唯一黑名单来源。本门做两件事：
 //   ① 行覆盖：§10 每一行必须被下表认领（新增行不认领即红——防设定裁剪后正文悄悄回流）
@@ -227,8 +227,8 @@ if (wantAll || arg('canon')) {
 	const codexItems = Object.keys(C?.items ?? {});
 	for (const name of itemNames) if (!codexItems.includes(name)) { codexHit++; bad++; console.log(`  ✗ 图鉴缺页：「${name}」（Items.defs 有、Codex.items 没有）`); }
 	for (const name of codexItems) if (!itemNames.includes(name)) { codexHit++; bad++; console.log(`  ✗ 图鉴多页：「${name}」（Codex.items 有、Items.defs 没有）`); }
-	const freshPc = { ...Pc.defaults(), flags: [] };
-	const fullPc = Pc.defaults();
+	const freshPc = { ...Game.Pc.defaults(), flags: [] };
+	const fullPc = Game.Pc.defaults();
 	fullPc.inv = Object.fromEntries(itemNames.map((n) => [n, true]));
 	fullPc.star = { ...fullPc.star, spent: 2, charge: 0 };
 	fullPc.world = { fog_thin: true, mist_fought: true, family_favor: true, whistle_blown: true, flower_warned: true, flower_fed: true, present_done: true, scroll_delivered: true, rumor: true, goblin_spared: true, witch_hint: true };

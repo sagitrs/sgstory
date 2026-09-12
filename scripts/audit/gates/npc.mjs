@@ -5,7 +5,7 @@ export const flag = 'npc';
 export const flags = ["npc"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── D7 NPC 动机登记簿门（#253）：三查 ──────────────────────────
 // ① 位点全覆盖：全部 <<give>> 调用点＋社交 yield＋立场旗标落位点，必须有登记条目；

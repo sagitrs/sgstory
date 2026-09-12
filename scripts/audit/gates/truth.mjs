@@ -5,7 +5,7 @@ export const flag = 'truth';
 export const flags = ["truth"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 // ── D1/D8 判据实现（#247 D8）：锚数 ≥3 ＋ 类型 ≥2 ＋ 类型声明与来源一致 ──
 // 类型口径（可机检）：codex＝设定集/图鉴页；echo＝该 (p,anchor) 出现在 Game.Echoes.list；social＝锚句出现在
 // 交涉面板文本里；prose＝其余正文。声明与来源不符即红——防「标签造假」的假冗余。

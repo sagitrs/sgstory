@@ -56,7 +56,7 @@ function invariantViolations(w, hist) {
 	const universe = Object.keys(w.Game.Items.defs);
 	const stray = Object.keys(pc.inv ?? {}).filter((k) => !universe.includes(k));
 	if (stray.length) bad.push(`inv 越闭集: ${JSON.stringify(stray)}`);
-	const shape = w.eval('(function(){const b=Object.keys(Pc.defaults());return b.filter(k=>!(k in SugarCube.State.variables.pc));})()');
+	const shape = w.eval('(function(){const b=Object.keys(Game.Pc.defaults());return b.filter(k=>!(k in SugarCube.State.variables.pc));})()');
 	if (shape.length) bad.push(`$pc 缺键(迁移漏洞): ${shape.join(',')}`);
 	return bad;
 }

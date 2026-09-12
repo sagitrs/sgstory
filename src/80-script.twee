@@ -437,7 +437,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 // 安全网：每个段落开始前归一化 $pc 形状（旧档缺字段/类型错误都会被补齐，
 // 幂等且代价可忽略——坑10 的纵深防御）；顺带把图鉴线索并进永久记录。
 jQuery(document).on(':passagestart', () => {
-	Pc.migrate(State.variables.pc);
+	Game.Pc.migrate(State.variables.pc);
 	// #264：旧档/手改档的「已倒下」残余——hp 或 max_hp ≤ 0 且没有结局记录时，
 	// 场景会用 <<if $pc.hp gt 0>> 渲染空白页（实测：极简档进雾之魔物·战空白）。
 	// 修到「一点余气」，让玩家能看见场景与出口而不是黑屏；真正的死亡仍走结局流程。

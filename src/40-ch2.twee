@@ -12,7 +12,7 @@
 
 门里的光照不到门外。你在门槛前停住，还看不清里面有谁。
 
-<<if $era is "present">>
+<<if $era is Game.Era.PRESENT>>
 	石头是黑的，缝里长满青苔，往上数不清有几层——只有最上面那一层，亮着一扇窗。风把雾吹到塔身上，雾就顺着石缝往上爬，像在找一道缝钻进去。
 <<else>>
 	三百年前的塔外，石墙还是新砌的。门里人声不断，灯火照着地上散落的金币。有人喊了一声什么，是招呼人的调子。
@@ -20,14 +20,14 @@
 	你抬手想打个招呼，没人停步。有人从你身边走过，向门里应了一声。
 <</if>>
 <<else>>
-<<if $era is "present">>
+<<if $era is Game.Era.PRESENT>>
 	门缝里那点火光还在。
 <<else>>
 	门里人声还热。灯火照在地上，一路铺到门里。
 <</if>>
 <</if>>
 
-<<if $era is "present">>
+<<if $era is Game.Era.PRESENT>>
 	<<if $pc.keeper.met>>
 		<span class="sys-note">守林人已经认了你。就在门外翻过去，也能从三百年前的大门进入。</span>
 	<<else>>
@@ -44,7 +44,7 @@
 <<flip>>
 
 [[推门进去|门厅]]
-<<if $era is "present">>
+<<if $era is Game.Era.PRESENT>>
 	[[雾里有个影子挡着路|雾之魔物]]
 <<else>>
 	<<if not $pc.keeper.met>>
@@ -56,7 +56,7 @@
 
 :: 塔外花田
 /% payload: 信息|选择 %/
-<<if $era is "past">>
+<<if $era is Game.Era.PAST>>
 	三百年前这片花还没长出来，墙根只有湿土和新砌的石头。
 <<else>>
 	塔基外侧的墙根下，生着一小片银白的花。别处的草都黄了，这里却开得最旺——花瓣都朝上张着，像整夜都在接星光。
@@ -97,7 +97,7 @@
 		<<if $last_check.success>>
 			你退到上风头，屏着气把刀插进土里，整块端起来——''根没断，花也没散''。<<give "月光花">>
 		<<else>>
-			土比你估的松。你被那股甜味按了一下，膝盖先着了地。<<damage 3>>
+			土比你估的松。你被那股甜味按了一下，膝盖先着了地。<<damage `Game.Damage.hard`>>
 			你趴在地上缓了一会儿。再抬头，那一整块土已经散了，''花折在泥里''。这回没拿到，要么换个法子，要么先回去。<<set $pc.world.flower_mud to true>>
 		<</if>>
 		<<goto "塔外花田">>
@@ -201,7 +201,7 @@
 
 "你从哪儿来？"
 
-<<if $era is "past">>
+<<if $era is Game.Era.PAST>>
 	<<if $pc.keeper.met>>
 		''他说话的样子，与三百年后那位一字不差。''这家人把该说的，都写进了差事里。
 	<<else>>
@@ -227,14 +227,14 @@
 	你没提"封印"这两个字。他也没提。
 <<elseif _t is 1>>
 	你翻开日记。他看了很久，手指按在纸上没有动。
-	<<if $era is "past">>
+	<<if $era is Game.Era.PAST>>
 		"这字迹……是我娘的。"他抬起头，"它有名字，有家。''替我告诉它''——这句话，我们家传了三百年。"
 	<<else>>
 		"这字迹……是我家先人那一辈的。"他抬起头，"它有名字，有家。''替我告诉它''——这句话，我们家传了三百年。"
 	<</if>>
 <<else>>
 	你把那册书放在桌上。他的手指停在一处风化的折角上，很久没有拿开。
-	<<if $era is "past">>
+	<<if $era is Game.Era.PAST>>
 		"这不是我的东西。"他说，"这是观星者的。''他今晚就在楼下的宴上。''"
 	<<else>>
 		"这不是我的东西。"他说，"这是三百年前那位观星者的。你从塔里找到了它。"
@@ -244,7 +244,7 @@
 <<if _t > 0>>他看你的眼神比刚才松。<</if>>''"你要是真知道该怎么送它走，就说。我听着。"''
 <<set $pc.keeper.key to true>>
 "从大门走。"他朝林子外抬了下下巴，"塔后头的石阶早塌了，绕过去也是白绕。"
-<<if $era is "past">>
+<<if $era is Game.Era.PAST>>
 	他从腰上解下钥匙，搁进你手里："地下今晚为客开着。这钥匙你也收着，''我家的差事，认符也认人。''"
 <<else>>
 	他从腰上解下钥匙，搁进你手里："地下那道门，只有这把钥匙开。"
@@ -258,7 +258,7 @@
 <<if $pc.star.spent gte 3>>''"你来回跑了几趟了。"''他看了一眼你身后的林子，''"雾薄了。可薄下去的东西，不全是你带回的。"''<</if>>
 <</if>>
 
-<<if $era is "present" and $pc.ev.forge_seen and not $pc.ev.forge_thanks>>
+<<if $era is Game.Era.PRESENT and $pc.ev.forge_seen and not $pc.ev.forge_thanks>>
 	<<set $pc.ev.forge_thanks to true>>
 	你替工坊的铁匠带了话。他摸了摸左臂：照他尺寸打的那副护臂，他一直没去取。
 	''"那是我先人的臂。他不来取，就归用得上的人。"''他顿了顿，"替我谢谢他。''要是你还能回到炉火旺的那一晚。''""
@@ -408,7 +408,7 @@
 /% payload: 信息|选择 %/
 门厅墙边有枚挂哨子的钉子，钉身弯成钩状。卡在这种钉子上的''锈了的哨子''，得找准角度才能取下。
 
-再往里，是通往地下的一道门：铁门<<if $era is "past">>敞着，楼下漫上灯光和饭菜的暖气<<else>>，锁着<</if>>。门框上刻着一行很小的字，磨得几乎看不清。
+再往里，是通往地下的一道门：铁门<<if $era is Game.Era.PAST>>敞着，楼下漫上灯光和饭菜的暖气<<else>>，锁着<</if>>。门框上刻着一行很小的字，磨得几乎看不清。
 
 楼上有脚步声，很轻，隔一层就听不真切了。这塔里不像空了三百年。
 
@@ -416,7 +416,7 @@
 
 你没应。
 
-<<if $era is "past">>
+<<if $era is Game.Era.PAST>>
 	三百年前的门厅不空。
 
 	守林人替你把门撑开，自己留在了门外。
@@ -469,7 +469,7 @@
 
 <<flip>>
 
-<<if $era is "past">>
+<<if $era is Game.Era.PAST>>
 	[[下楼赴宴|地下宴会厅]]
 	[[先上二楼看看|书房]]
 <<else>>
@@ -488,7 +488,7 @@
 
 架上的书大半是星象历，抄本摞着抄本，页边写满了小字。有一本摊在桌上，停在中间一页，像是有人刚读到一半就走了。
 
-<<if $era is "past">>
+<<if $era is Game.Era.PAST>>
 	三百年前的书房里，有人正在赶抄手稿。
 
 	两个人伏在案上抄东西，纸卷堆到脚边。窗外传来宴上的笑声，一个人抬头听了听，又低头写。
@@ -496,7 +496,7 @@
 	（墙上的暗格是空的。）
 <</if>>
 
-<<if $era is "present">>
+<<if $era is Game.Era.PRESENT>>
 	<<lastcheckFor "书房·检视" "书房·敲墙" "书房·断代" "书房·强拆">>
 	<<if not $pc.inv["日记"]>>
 		<<if $pc.world.study_hint>><span class="sys-note">（你已经摸清：暗格在炉膛后头那面墙里。）</span><</if>>
@@ -514,7 +514,7 @@
 				<<else>>
 					<<sitecheck "书房·检视">><<snapshot>>
 					<<if $last_check.success>><<set $pc.ev.study_found to true>>
-					<<else>>你只摸到一手灰，手指头在炉壁上磕了一下，磕得生疼。再往里探半寸，指尖碰到了匣子的边角，你把它抠了出来，又忍着疼把四壁摸了一遍，确认再没有别的物件藏在这里。<<damage 1>>（''拿到了，手也磕破了。''）<<set $pc.ev.study_found to true>>
+					<<else>>你只摸到一手灰，手指头在炉壁上磕了一下，磕得生疼。再往里探半寸，指尖碰到了匣子的边角，你把它抠了出来，又忍着疼把四壁摸了一遍，确认再没有别的物件藏在这里。<<damage `Game.Damage.graze`>>（''拿到了，手也磕破了。''）<<set $pc.ev.study_found to true>>
 					<</if>>
 				<</if>>
 				<<goto "书房">>
@@ -545,7 +545,7 @@
 					你换了半个姿势，把炉膛整个挪开半尺——暗格就在后头，砖面是松的。
 					<<set $pc.ev.study_found to true>>
 				<<else>>
-					炉膛纹丝不动，你的肩膀先撞在了墙上。<<damage 2>>
+					炉膛纹丝不动，你的肩膀先撞在了墙上。<<damage `Game.Damage.hurt`>>
 					（''但你摸到了那条缝——暗格确实在这儿。''）<<set $pc.ev.study_found to true>>
 				<</if>>
 				<<goto "书房">>
@@ -581,7 +581,7 @@
 					<<goto "结局 劣化封印">>
 				<<else>>
 					有一个音你咬错了。窗外的雾贴着玻璃''顿了顿''，又漫了上来。
-					<<damage 2>>
+					<<damage `Game.Damage.hurt`>>
 					<<goto "书房">>
 				<</if>>
 			<</link>>
@@ -593,7 +593,7 @@
 
 <<flip>>
 
-<<if $era is "past">>
+<<if $era is Game.Era.PAST>>
 	<<if not $pc.ev.errand_done>>
 		<<link "指出架上一册错抄的星象历">>
 			<<sitecheck "书房·追问">><<snapshot>>
@@ -624,7 +624,7 @@
 
 墙上挂着一排大小不一的锤子，最小的那把柄上缠着布，缠得很仔细。
 
-<<if $era is "past">>
+<<if $era is Game.Era.PAST>>
 	三百年前的工坊炉火正旺。
 
 	一个铁匠夹着那块鳞甲在砧上敲，一下，一下。他背上全是汗，嘴里还哼着宴上的调子。
@@ -632,7 +632,7 @@
 	架上那副护臂还没有收口，内衬也未装好。
 <</if>>
 <<else>>
-<<if $era is "past">>
+<<if $era is Game.Era.PAST>>
 	炉火还旺。他还在敲那块鳞甲。
 <<else>>
 	工坊还是老样子。风箱挂在炉边，砧台上落着一层灰。
@@ -650,7 +650,7 @@
 			你看得出来：这甲是照着一个人的手臂打的，那人还没来取。
 			<<set $pc.ev.forge_seen to true>>
 		<<else>>
-			铁片子冻手，你只看出一层锈。你把它抱到炉边焐了焐再看，看明白了：这甲是照着一个人的手臂打的，那人还没来取。<<damage 1>>（''手冻僵了，好歹看清了。''）<<set $pc.ev.forge_seen to true>>
+			铁片子冻手，你只看出一层锈。你把它抱到炉边焐了焐再看，看明白了：这甲是照着一个人的手臂打的，那人还没来取。<<damage `Game.Damage.graze`>>（''手冻僵了，好歹看清了。''）<<set $pc.ev.forge_seen to true>>
 		<</if>>
 		<<goto "工坊">>
 	<</link>>
@@ -660,11 +660,11 @@
 			内侧有几个冲出来的记号——是量尺寸时留下的手记：''"守林人的臂"''。
 			<<set $pc.ev.forge_seen to true>>
 		<<else>>
-			锈盖住了记号。你拿指节去蹭，蹭破了一层皮，到底看清那几个冲出来的手记：''"守林人的臂"''。<<damage 1>>（''看清了，手也蹭破了。''）<<set $pc.ev.forge_seen to true>>
+			锈盖住了记号。你拿指节去蹭，蹭破了一层皮，到底看清那几个冲出来的手记：''"守林人的臂"''。<<damage `Game.Damage.graze`>>（''看清了，手也蹭破了。''）<<set $pc.ev.forge_seen to true>>
 		<</if>>
 		<<goto "工坊">>
 	<</link>>
-	<<if $era is "past">>
+	<<if $era is Game.Era.PAST>>
 		<<link "问炉子边那个铁匠：这副甲是给谁打的">>
 			他把锤子往肩上一搭："给守林人家的小子。前年量的臂，人还没来取——你要是见着他，替我说一声。"<<set $pc.ev.forge_seen to true>>
 			<<goto "工坊">>
@@ -677,7 +677,7 @@
 
 <<if $pc.inv["龙鳞护臂"]>>
 	（护臂你已经带上了。）
-<<elseif $era is "past">>
+<<elseif $era is Game.Era.PAST>>
 	<<if $pc.gold gte (-Game.Economy.priceOf("forged_scale", $pc))>>
 		<<link `"花 " + (-Game.Economy.priceOf("forged_scale", $pc)) + " 金币：把它打完，自己带上"`>>
 			<<econ "forged_scale">><<give "龙鳞护臂">><<goto "工坊">>
@@ -710,7 +710,7 @@
 	（那册手稿你已经收着了。）
 <</if>>
 
-<<if $era is "present">>
+<<if $era is Game.Era.PRESENT>>
 	/% #252①：canon §4.6「死在工作台前的普通人骸骨」 %/
 	工作台前伏着一具骸骨，怀里抱着一册算稿，摊着的笔停在半行算式上。三百年的姿势。他等的是算式，''算式没人能替他等''。
 	这不是谁的魂，也不是什么守望。这家断了，只剩他还趴在答案旁边。
@@ -810,7 +810,7 @@
 			<<goto "结局 讨伐">>
 		<<else>>
 			他的手先一步按在杖上。你没夺下来，肩膀挨了一记，退回窗边。
-			<<damage 4>>
+			<<damage `Game.Damage.heavy`>>
 			<<goto "顶楼">>
 		<</if>>
 	<</link>>

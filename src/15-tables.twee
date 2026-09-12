@@ -987,6 +987,20 @@ window.Game = (() => {
 	// 「当前有哪些键、谁写、谁读、语义是什么」。本表按场景声明键归属；机检见 `audit --state`。
 	// 口径：键按 `prefix`（前缀）或 `keys`（精确）匹配；**一个键只能命中一个域**（歧义即红）；
 	//       未命中任何域的键即红（新增键必须在此登记，或明确落入某个既有域）。
+	// ── #318③ 常量表（消除剧情里的裸数值与裸字符串）──
+	// 剧情文件里 `<<damage 4>>` / `<<damage 99>>` 这类裸数字无法回答「这个 4 是什么意思」，
+	// 而 99 更是魔法数（处死）。统一走本表；机检见 `audit --literals`。
+	const Damage = {
+		graze: 1,   // 擦伤：磕碰、冻手、划破手背
+		hurt: 2,    // 受伤：肩膀撞墙、炉膛硬来
+		hard: 3,    // 重击：花香按倒、土散去
+		heavy: 4,   // 重伤：魔物抓伤、硬掰下来
+		lethal: 99, // 处死（昏睡/摔死等的判定值）——此前是裸 `<<damage 99>>`
+	};
+	// 时代常量：**代码路径**（条件/赋值/模板）一律用这两个；数据表的 `era:` 字段保留规范字符串，
+	// 由 `audit --literals` 校验其取值合法（数据侧不做常量替换，避免表内自引用顺序问题）。
+	const Era = { PAST: 'past', PRESENT: 'present' };
+
 	const State = {
 		domains: [
 			{ id: 'tavern', where: '酒馆（传闻与打听）', prefix: ['tav_'], keys: ['rumor'], note: '六桌传闻的点亮态与打听结果' },
@@ -1097,5 +1111,5 @@ window.Game = (() => {
 		],
 	};
 
-	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences, Investment, State, RuleClaims };
+	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences, Investment, State, RuleClaims, Damage, Era };
 })();

@@ -12,7 +12,7 @@
 
 你的脚步声沿着地砖传出去。
 
-<<if $era is "present">>
+<<if $era is Game.Era.PRESENT>>
 	厅的正中睡着一条龙。
 
 	鳞甲随它的呼吸起伏，像一座缓缓隆起的山。你一眼就看见了它——''没有封印，也没有锁''。
@@ -27,7 +27,7 @@
 	<</if>>
 <</if>>
 <<else>>
-<<if $era is "present">>
+<<if $era is Game.Era.PRESENT>>
 	那条龙还在睡。雾从它身上渗出来，漫过地砖。
 <<else>>
 	宴还在。长桌边还是那些人。<<if $pc.world.flower_fed>>那条龙蜷着睡下了，呼吸平稳，只留下一点淡淡的香气。<<else>>那条龙卧在厅的另一头。<</if>>
@@ -36,7 +36,7 @@
 
 <<set $pc.ev.below_seen to true>>   /% #219 B1②：下过地下即见过它 %/
 <<if not $pc.ev.threshold>>
-	<<if $era is "present">>
+	<<if $era is Game.Era.PRESENT>>
 		它尚未醒透。''还不是时候''——可这不意味着动手安全；惊动它，你就得承受它的反击。
 	<</if>>
 	<<set $pc.ev.threshold to true>>
@@ -44,7 +44,7 @@
 
 <<flip>>
 
-<<if $era is "past">>
+<<if $era is Game.Era.PAST>>
 	[[在宴上找人说话|宴会·过去]]
 <<else>>
 	[[回那一晚看看|宴会·过去]]
@@ -52,7 +52,7 @@
 	这会子宴早散了。要找人说话，得先翻转护符回到那一晚。
 <</if>>
 
-<<if $era is "present">>
+<<if $era is Game.Era.PRESENT>>
 	[[绕着它走一圈|龙·巢边]]
 	<<if $pc.keeper.state is "ally" and $pc.inv["好哨"]>>
 		[[吹响哨子，叫醒它|唤醒]]
@@ -85,7 +85,7 @@
 
 :: 宴会·过去
 /% payload: 信息|选择 %/
-<<if $era is "present">>
+<<if $era is Game.Era.PRESENT>>
 	（人声属于三百年前。先翻转护身符，才能走进那场送行。）
 	<<flip>>
 <<else>>
@@ -342,7 +342,7 @@
 	<<link "自己动手翻：桌布底下、酒箱后头都掀开看">>
 		<<sitecheck "寻杖">><<snapshot>>
 		<<if $last_check.success>>你掀开长桌尽头的桌布——那根杖就靠在那儿，杖头朝里，''藏得很仔细''。<<set $pc.ev.staff_found to true>>
-		<<else>>人群挡住了去路。你挤了几次，手背被木箱边缘划破，硬是从桌布底下把那根杖抽了出来，趁没人看你，把它靠在了手边的桌腿上。<<damage 1>>（''拿到了，手也破了。''）<<set $pc.ev.staff_found to true>>
+		<<else>>人群挡住了去路。你挤了几次，手背被木箱边缘划破，硬是从桌布底下把那根杖抽了出来，趁没人看你，把它靠在了手边的桌腿上。<<damage `Game.Damage.graze`>>（''拿到了，手也破了。''）<<set $pc.ev.staff_found to true>>
 		<</if>>
 		<<goto "寻杖">>
 	<</link>>
@@ -460,7 +460,7 @@
 
 :: 交付
 /% payload: 信息|选择 %/
-<<if $era is "past">>
+<<if $era is Game.Era.PAST>>
 	（这件事得在现在做。）
 	[[回到地下宴会厅，再翻转护身符|地下宴会厅]]
 <<else>>
@@ -640,5 +640,5 @@
 		[[你杀了它|结局 坠星之死]]
 	<</if>>
 <<else>>
-	<<damage 99>>
+	<<damage `Game.Damage.lethal`>>
 <</if>>

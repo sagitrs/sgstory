@@ -22,6 +22,7 @@ import * as g_items_tokens from './gates/items-tokens.mjs';
 import * as g_canon from './gates/canon.mjs';
 import * as g_craft from './gates/craft.mjs';
 import * as g_state from './gates/state.mjs';
+import * as g_literals from './gates/literals.mjs';
 
 export const GATES = [
 	g_truth,
@@ -47,4 +48,5 @@ export const GATES = [
 	g_canon,
 	g_craft,
 	g_state,
+	g_literals,
 ];

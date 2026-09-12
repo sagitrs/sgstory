@@ -262,7 +262,7 @@
 		<<if $last_check.success>>
 			<<econ "goblin_kill">>你把它打跑了，捡起散落的石头。<<set $pc.world.goblin_gone to true>><<goto "森林边缘">>
 		<<else>>
-			<<damage 4>>它抓伤了你，趁乱钻进了石缝。<<set $pc.world.goblin_gone to true>><<goto "森林边缘">>
+			<<damage `Game.Damage.heavy`>>它抓伤了你，趁乱钻进了石缝。<<set $pc.world.goblin_gone to true>><<goto "森林边缘">>
 		<</if>>
 	<</link>>
 	<<link "什么都不做，绕开它">><<goto "森林边缘">><</link>>
@@ -430,7 +430,7 @@
 
 :: 林间小径
 /% payload: 信息|选择 %/
-<<if $era is "present">>
+<<if $era is Game.Era.PRESENT>>
 	雾更浓了。走了没多远，你就分不清自己是从哪边来的。
 
 	你捏紧护身符。银辉顺着指缝漏出来，照见脚边一丛枯掉的月光花——花瓣是干的，茎还立着。
@@ -449,7 +449,7 @@
 <<flip>>
 
 [[继续往塔那边走|塔门]]
-<<if $era is "present">>
+<<if $era is Game.Era.PRESENT>>
 	[[就此收手，回去归还护符|结局 银月之赐]]
 <<else>>
 	借你护符的那位，在''现在''的酒馆里。先翻转回去。

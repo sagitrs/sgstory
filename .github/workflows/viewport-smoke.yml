@@ -31,9 +31,11 @@ jobs:
           test -x "$PW_PATH" || { echo "ERROR: playwright chromium 缺失"; exit 1; }
           ln -sf "$PW_PATH" "$CHROME_PATH"
           OUT=$(node test/browser.mjs 2>&1 | tee /dev/stderr)
-          # skip 守卫：缺浏览器=退 0 打印跳过是脚本设计，但在 CI 接线后必须「真执行」（#284 关票硬条件）
-          echo "$OUT" | grep -qiE "skip|跳过" && { echo "ERROR: browser.mjs 进入 skip 形态——CI 接线失效"; exit 1; }
-          echo "$OUT" | grep -qE "24/24|[0-9]+/[0-9]+ (passed|通过)" || { echo "ERROR: 未见断言执行计数"; exit 1; }
+          # 三态守卫（#284①③ 合入后脚本形态：正常=BROWSER_ASSERTIONS N/M 锚点行 / skipped / 失败非零退）
+          echo "$OUT" | grep -q 'BROWSER_ASSERTIONS skipped' && { echo "ERROR: browser.mjs 跳过——CI 接线失效"; exit 1; }
+          N=$(echo "$OUT" | sed -nE 's/^BROWSER_ASSERTIONS ([0-9]+)\/([0-9]+)$/\1/p')
+          test -n "$N" && test "$N" -ge 24 || { echo "ERROR: 断言计数未达下界（N=$N）"; exit 1; }
+          echo "$OUT" | grep -q '真实浏览器验收：全部通过' || { echo "ERROR: 未见成功行"; exit 1; }
       - if: failure() || success()
         uses: actions/upload-artifact@v4
         with:

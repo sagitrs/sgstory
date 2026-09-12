@@ -11,7 +11,7 @@
 		"watch": "node --watch --watch-path=src build.mjs",
 		"audit": "node scripts/audit.mjs",
 		"report:rhythm": "node scripts/report-rhythm.mjs",
-		"test:saveload": "node test/saveload.mjs",
+		"test:saveload": "node build.mjs && node test/saveload.mjs",
 		"report:rhythm:check": "node scripts/report-rhythm.mjs --check && node scripts/report-rhythm.mjs --selftest",
 		"soak": "node build.mjs && node test/walker.mjs 20 20 && node test/browser.mjs",
 		"update-coverage-baseline": "node test/coverage.mjs --update-baseline",

@@ -323,12 +323,20 @@ Macro.add('dragonbar', {
 /% 翻转时代（v16 §3.3）：原地生效、位置决定年代；耗隐藏星力；从过去回来时雾淡一些 %/
 <<widget "flip">><<nobr>>
 	<<if $pc.world.fog_thin>>
-		<div><span class="flip-note">你回到现在。身边的雾，''淡了一些''。</span></div>
+		/% #291 I1-G1：现象层钩子——跑得多了，雾的变化要能被感觉到（不显示任何数字） %/
+		<<if $pc.star.spent gte 3>>
+			<div><span class="flip-note">你回到现在。雾比上回更''薄了一层''，林子里的声音听得清楚了些。</span></div>
+		<<else>>
+			<div><span class="flip-note">你回到现在。身边的雾，''淡了一些''。</span></div>
+		<</if>>
 		<<set $pc.world.fog_thin to false>>
 	<</if>>
 	<<if not $pc.inv["时光护符"]>>
 		<div><span class="era-drained">你身上没有能校进另一段时间的东西。</span></div>
 	<<else>>
+		<<if $pc.star.spent gte 3>>
+			<div><span class="sys-note">（你翻得越来越熟了。可每次回来，身上都像被抽走了一点点什么。）</span></div>
+		<</if>>
 		<<link `($era is "present" ? "翻转护身符：坠入『过去』" : "翻转护身符：回到『现在』")`>>
 			<<if not $pc.star.first_free>>
 				<<set $pc.star.first_free to true>>   /% #219 C1②：头一次翻转不收费——造它的人留的一点余量 %/

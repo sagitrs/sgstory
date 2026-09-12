@@ -361,12 +361,12 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 			{ id: 'observation_lock', claim: '能改的不是"历史"，是没被观测过的那部分（它睡得怎么样）', sites: [
 				{ p: '女巫小屋', anchor: '改不了的不是历史', via: '现在·女巫（家训＝错误结论，须被推翻）', type: 'prose' },
 				{ p: '书房', anchor: '没人看过它睡得怎么样', via: '现在·日记', type: 'prose' },
-				{ p: '设定集·三律', anchor: '唯道具传承', via: '设定集·三律（人记不住的由道具记住）', type: 'codex' },
+				{ p: '设定集·三律', anchor: '物替人记', via: '设定集·三律（人记不住的由东西替他们记）', type: 'codex' },
 			] },
 			{ id: 'keeper_is_alive', claim: '塔顶那位就是守林人本人——活人，持钥匙，终局唯一能发动送行术的人', sites: [
 				{ p: '守林人', anchor: '我就是守林人', via: '现在·守林人', type: 'prose' },
 				{ p: '顶楼', anchor: '守的从来不是悔恨', via: '现在·顶楼自语', type: 'prose' },
-				{ p: '设定集·三律', anchor: '能活过一百年的只有龙', via: '设定集·三律（守林人是凡人传承）', type: 'codex' },
+				{ p: '设定集·三律', anchor: '活过一百年的只有它', via: '设定集·三律（守林人是凡人传承）', type: 'codex' },
 			] },
 			{ id: 'mist_is_guard', claim: '雾中的形＝雾聚成的守卫，在森林里陪着守林人；它攻击旅人只是把生人误认成屠龙者', sites: [
 				{ p: '雾之魔物·退', anchor: '像谁量过', via: '现在·雾里让出的那条路（只量了一个人宽）', type: 'prose' },

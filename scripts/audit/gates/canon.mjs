@@ -5,7 +5,7 @@ export const flag = 'canon';
 export const flags = ["canon"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, Chargen, ChargenPresets, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 // ── ⓪g canon 门（M1b）：设定书 §10「已裁剪设定」→ src 回流检测 ──
 // 权威链：docs/lore-canon.md §10 是唯一黑名单来源。本门做两件事：
 //   ① 行覆盖：§10 每一行必须被下表认领（新增行不认领即红——防设定裁剪后正文悄悄回流）

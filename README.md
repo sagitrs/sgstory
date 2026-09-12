@@ -47,7 +47,7 @@ npm run watch   # 修改 src/ 自动重新编译
 ### 纪律：词汇表与断言（#29）
 
 - **内容只许用既定词汇**：机制动作走词汇宏（sitecheck/econ/give/setflag/flip/damage…）、状态读取用 `$pc.*` 展示；L0 对三类越界告警（不阻断）：
-  - `W1` link/button 体内裸 `set/run/script`（点击态代码只有手写路线能测——O(内容) 负担源头；允许表：`Engine.restart` 导航 / `Chargen.*` 模块 API）
+  - `W1` link/button 体内裸 `set/run/script`（点击态代码只有手写路线能测——O(内容) 负担源头；允许表：`Engine.restart` 导航 / `Game.Chargen.*` 模块 API）
   - `W2` era **写**越界出翻转域（读不禁；翻转域＝挂了 `<<flip>>` 的段落所在文件，M1a-2 起动态发现）；`W3` 旗标只写不读/只读不写
   - 豁免：段落内 `/% vocab: exempt W1 理由 %/`，豁免会留痕打印——豁免清单即收编工单
 - **数值单一源（#28）**：DC/定价/道具效果/命题/回声住 `src/15-tables.twee`（`window.Game`），正文只传位点/事件键；L0 硬拦：引用键不存在 / 表孤儿项 / 正文硬编码 `$pc.gold` 或数字 DC 残留。改数值改表 + `npm run audit`，不动叙事文本。
@@ -65,8 +65,8 @@ src/
   00-meta.twee   故事元数据：标题、IFID、起始段落
   10-core.twee   Rules（d20 内核）+ StoryInit + Widgets（词汇宏）+ StoryCaption（侧栏）
   15-tables.twee ★ window.Game（位点/经济/道具/行囊/战斗/交涉/图鉴/命题/回声/选择/系统/翻转锚/星力/龙）
-                   + Pc（状态形状与迁移）+ ChargenRounds——机制数值单一源（#28）
-  20-chargen.twee ChargenRounds（3 轮）+ ChargenPresets + 车卡 / 角色卡
+                   + Pc（状态形状与迁移）+ Game.Chargen（车卡三件套）——机制数值单一源（#28）
+  20-chargen.twee Game.Chargen.rounds（3 轮）+ Game.Chargen.presets + 车卡 / 角色卡
   30-ch1.twee    ★ 序章 + 一章（时间）正文
   40-ch2.twee    ★ 二章（手段）正文
   50-ch3.twee    ★ 三章（坐标）正文

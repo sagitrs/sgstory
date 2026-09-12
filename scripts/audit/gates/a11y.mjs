@@ -6,7 +6,7 @@ export const flag = 'a11y';
 export const flags = ["a11y"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, Chargen, ChargenPresets, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 
 // ── ⓪s 可访问性门（#272）：对比度 AA ＋ lang ＋ 装饰 glyph 语义 ──

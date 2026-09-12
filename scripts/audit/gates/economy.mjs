@@ -5,7 +5,7 @@ export const flag = 'economy';
 export const flags = ["economy"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, Chargen, ChargenPresets, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ② 经济收支时间线（伞 #22：余额审计）──
 if (wantAll || arg('economy')) {

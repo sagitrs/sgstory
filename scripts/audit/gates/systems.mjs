@@ -5,13 +5,13 @@ export const flag = 'systems';
 export const flags = ["systems"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, Chargen, ChargenPresets, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ⓪d D3 系统可玩性（#37）：机制发现性门 + 组合矩阵出具 ──
 if (wantAll || arg('systems')) {
 	console.log('\n══ ⓪d 系统可玩性（D3/#37）——规则不可知则不可实验：发现性锢点机检 ══');
 	let bad = 0;
-	const chargenText = ctx.ChargenRounds.flatMap((r) => r.options.flatMap((o) => [o.name, o.desc, o.effect])).join('\n');
+	const chargenText = ctx.Game.Chargen.rounds.flatMap((r) => r.options.flatMap((o) => [o.name, o.desc, o.effect])).join('\n');
 	for (const m of Game.Systems.mechanics) {
 		const src = m.p === '[chargen]' ? chargenText : passageSrc.get(m.p);
 		if (src === undefined) { console.log(`  ✗ ${m.id}：源「${m.p}」不存在`); bad++; continue; }

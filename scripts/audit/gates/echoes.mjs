@@ -5,7 +5,7 @@ export const flag = 'echoes';
 export const flags = ["echoes"];
 
 export const run = (ctx) => {
-	const { Game, Rules, Pc, Chargen, ChargenPresets, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, Rules, Pc, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ⓪b D4 世界活性（#38）：回声锚检 + set-never-echoed 覆盖门 ──
 // #267：叙事态分级——每个被写入的旗标必须落一桶（echo/mechanic/ending/codex/provenance/engine）

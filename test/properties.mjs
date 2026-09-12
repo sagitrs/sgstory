@@ -112,8 +112,8 @@ const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }
 	for (let run = 0; run < 6; run++) {
 		w.eval('SugarCube.State.variables.pc = Pc.defaults()');
 		for (let r = 0; r < 3; r++) {
-			const n = w.eval(`ChargenRounds[${r}].options.length`);
-			w.eval(`Chargen.pick(${r}, ${Math.floor(rng() * n)})`);
+			const n = w.eval(`Game.Chargen.rounds[${r}].options.length`);
+			w.eval(`Game.Chargen.pick(${r}, ${Math.floor(rng() * n)})`);
 		}
 		const p = JSON.parse(w.eval('JSON.stringify(SugarCube.State.variables.pc)'));
 		runs.push(`${p.classKey}/${p.bgKey}/${p.speciesKey}`);

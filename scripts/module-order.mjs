@@ -22,7 +22,7 @@ export const ORDER = [
 	'10-core.twee',      // Rules / pcNow / Pc / SgUI ＋ 宏（无依赖）
 	'11-scene.twee',     // 场景 widget（actOut / sceneFeedback）
 	'15-tables.twee',    // Game.*（加载期需要 Rules / Pc）
-	'20-chargen.twee',   // Chargen / ChargenPresets / ChargenRounds（加载期需要 Rules）
+	'20-chargen.twee',   // Game.Chargen（rounds/presets/API；加载期需要 Rules）
 	'30-ch1.twee',
 	'40-ch2.twee',
 	'50-ch3.twee',
@@ -38,7 +38,7 @@ export const MODULES = {
 	'10-core.twee': { deps: [], defines: ['Rules', 'Pc', 'SgUI', 'pcNow'], note: '规则内核与界面基座' },
 	'11-scene.twee': { deps: ['10-core.twee'], defines: ['widget:actOut', 'widget:sceneFeedback'], note: '场景迁移配方（结果留屏）' },
 	'15-tables.twee': { deps: ['10-core.twee'], defines: ['Game'], note: '声明式数据表' },
-	'20-chargen.twee': { deps: ['10-core.twee', '15-tables.twee'], defines: ['Chargen', 'ChargenPresets', 'ChargenRounds'], note: '车卡' },
+	'20-chargen.twee': { deps: ['10-core.twee', '15-tables.twee'], defines: ['Game.Chargen'], note: '车卡（#320 阶段 3 收进 Game 命名空间）' },
 	'30-ch1.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee', '20-chargen.twee'], defines: [], note: '第一章（剧情段）' },
 	'40-ch2.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee'], defines: [], note: '第二章（剧情段）' },
 	'50-ch3.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee'], defines: [], note: '第三章（剧情段）' },
@@ -75,7 +75,8 @@ export const checkModuleGraph = (sources, { order = ORDER, modules = MODULES } =
 	// ③ 声明的定义必须真的在该文件里出现（抓「改名/挪走/删掉」）
 	const actualDefines = (src) => {
 		const out = new Set();
-		for (const m of src.matchAll(/window\.(\w+)\s*=/g)) out.add(m[1]);
+		// #320：支持**点号路径**（`window.Game.Chargen = …` → `Game.Chargen`），否则命名空间化的定义无法声明
+		for (const m of src.matchAll(/window\.((?:\w+\.)*\w+)\s*=(?!=)/g)) out.add(m[1]);
 		for (const m of src.matchAll(/<<widget "([^"]+)"/g)) out.add(`widget:${m[1]}`);
 		return out;
 	};

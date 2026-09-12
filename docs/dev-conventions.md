@@ -135,3 +135,48 @@ SugarCube 序列化的是 **history moment**；同页 `<<replace>>` 修改的是
 | 门 | 断言 |
 |---|---|
 | `audit --literals --check`（在 `npm test` 链里，纳入 golden 保护） | 两条判定 ＋ **5 例合成自证**（常量绿／裸时代红／裸伤害红／数据字段绿／常量定义行绿） |
+
+## 5. CI 测试计划与并行跑器（#381）
+
+**单一权威**：`scripts/test-plan.mjs` 的 `SEGMENTS` 是「CI 跑哪些段」的唯一定义。**不要**再往
+`package.json` 的 `test` 脚本里塞 `&&`——那里只有一行 `node scripts/run-tests.mjs`。
+
+```js
+{ id: 'test-reread-mjs', phase: 'test', cost: 0, cmd: 'node test/reread.mjs --selftest' },
+{ id: 'test-reread-mjs-1', phase: 'test', cost: 0, cmd: 'node test/reread.mjs' },
+```
+
+| 字段 | 含义 |
+|---|---|
+| `id` | 稳定标识（`--only=<子串>` 用；同段重复运行加 `-1`/`-2` 后缀） |
+| `phase` | `build` 的段**先跑且独占**（后续段都可能读 `dist/`）；其余段可并行 |
+| `cost` | 本机实测秒数（**仅供跑器打印串行合计与预估**，不参与任何判定——不要求精确，但新增重段请顺手填） |
+| `needs` | **前序段的产物依赖**：本段要读某段落盘的产物就写它的 id。调度器保证前序全部成功才起跑；前序红了/跳过 → 本段标 `skipped`（不白跑、不假绿）。配错（指向不存在的段）或成环 → **起跑前**报错退出 2 |
+| `cmd` | 与旧链**逐字一致**的 shell 命令 |
+
+**跑器**（`scripts/run-tests.mjs`）：
+
+```bash
+npm test                                   # 并行（默认 jobs = min(4, 核数)）
+npm run test:serial                        # 串行＝旧链行为（排查/对照）
+npm run test:list                          # 列出计划与串行合计
+node scripts/run-tests.mjs --jobs=2 --only=scenarios   # 调试单段
+```
+
+- **退出码**：`0` 全绿 / `1` 有段失败 / `2` 用法错或**选择为空**（空选择不许当绿）；
+- 失败段的 stdout/stderr 会被原样打印（尾部 28 行）并汇总「哪几段红」——**不吞输出**；
+- 跑器**每次运行先自证**（成功/失败识别、失败输出不吞、并行真的重叠、`phase:'build'` 红即中止；约 2s，`--no-selftest` 可关）。判「CI 绿不绿」的东西，自己坏了必须当场暴露。
+
+**产物依赖面**（改测试的落盘/读取时同步这里——CI 曾因漏掉它红过一轮）：
+
+| 产物 | 生产者 | 消费者 |
+|---|---|---|
+| `build/coverage-render.json` · `build/coverage-links.json` | `test/render-all.mjs` | `test/coverage.mjs` |
+| `build/coverage-scenarios.json` · `build/coverage-links-scenarios.json` · `build/route-traces.json` | `test/scenarios.mjs` | `test/coverage.mjs`（前两个）· `scripts/report-rhythm.mjs`（`route-traces.json`，**连 `--selftest` 也用它当正例**） |
+
+**新增门的三件事**（缺一即红）：
+
+1. 往 `SEGMENTS` 加一段（不是往 `package.json` 加），读前序产物时写 `needs`；
+2. 台账 `docs/gate-ledger.md` 的「已接线」列来自 `planChain()`，所以只要段在计划里就会自动判定 ✓；但 `npm test` **必须仍是 `node scripts/run-tests.mjs`**——`report-gate-ledger.mjs` 有 `phantom-runner` 反向查，脱钩即红。
+
+**成本口径（2026-09-12 实测）**：53 段 · 串行合计 **197s**（本机 32 核）/ **186s**（`taskset -c 0-3`）→ 并行 4 核 **54s**（**3.4×**，53/53 绿）；CI `npm test` 原为 **207s**（环境准备仅 17s）。新增段时请自问：这段的 `cost` 是否值得？单段 > 60s 或串行合计 > 4 分钟就该先优化/拆分。

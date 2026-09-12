@@ -130,7 +130,7 @@
 
 | 现有资产 | 为什么抓不到 P1 |
 |---|---|
-| `test/saveui.mjs`（90 行） | 只做 `Pc.migrate(fixture)` → 渲染 → 点击后断言 `slots <= 1 && hasText`，**从不调用 `Save.browser.slot.save()` / `sgLoadSlot()`** |
+| `test/saveui.mjs`（90 行） | 只做 `Pc.migrate(fixture)` → 渲染 → 点击后断言 `slots <= 1 && hasText`，**从不调用 `Save.browser.slot.save()` / `Sg.save.load()`** |
 | `test/browser.mjs` | 门厅键盘用例在 Enter 之后即停，**不按 S/L** |
 | `test/scenarios.mjs` | 路线只断言剧情分支与旗标，**不含存读档往返** |
 

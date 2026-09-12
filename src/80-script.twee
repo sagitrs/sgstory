@@ -21,23 +21,26 @@ Save.onLoad.add((save) => {
 
 // ── 常驻存档 / 读档（v16 §5.0：常驻界面，不埋进侧栏菜单）──
 // 侧栏固定块调这三个全局函数；S / L 为快捷键（不在输入框内时生效）。
-window.sgQuickSave = () => Save.browser.slot.save(1, `快速存档 · ${State.variables.pc?.name || '无名旅人'}`);
-// 读档有个坑：Save.browser.slot.load() 只把状态还原，**不会重画**（SugarCube 自己的存档界面
-// 也是 load().then(Engine.show)）。少了这一步，画面会停在原地——按 L 看着像没反应。
-window.sgLoadSlot = (index) => Save.browser.slot.load(index).then(Engine.show, (ex) => UI.alert(`读档失败：${ex.message}`));
-window.sgQuickLoad = () => {
-	if (!Save.browser.slot.has(1)) {
-		UI.alert('还没有存档——先按 S 快速存档。');
-		return;
-	}
-	window.sgLoadSlot(1);
+// #320 阶段 1：这五个收进 `Sg.save.*`（UI/运行时命名空间，见 docs/dev-conventions.md §7）
+window.Sg.save = {
+	quick: () => Save.browser.slot.save(1, `快速存档 · ${State.variables.pc?.name || '无名旅人'}`),
+	// 读档有个坑：Save.browser.slot.load() 只把状态还原，**不会重画**（SugarCube 自己的存档界面
+	// 也是 load().then(Engine.show)）。少了这一步，画面会停在原地——按 L 看着像没反应。
+	load: (index) => Save.browser.slot.load(index).then(Engine.show, (ex) => UI.alert(`读档失败：${ex.message}`)),
+	quickLoad: () => {
+		if (!Save.browser.slot.has(1)) {
+			UI.alert('还没有存档——先按 S 快速存档。');
+			return;
+		}
+		window.Sg.save.load(1);
+	},
+	menu: () => UI.saves(),
 };
-window.sgSaveMenu = () => UI.saves();
 jQuery(document).on('keydown.sgSave', (ev) => {
 	const tag = (ev.target?.tagName ?? '').toUpperCase();
 	if (tag === 'INPUT' || tag === 'TEXTAREA' || ev.ctrlKey || ev.metaKey || ev.altKey) return;
-	if (ev.key === 's' || ev.key === 'S') { ev.preventDefault(); window.sgQuickSave(); }
-	else if (ev.key === 'l' || ev.key === 'L') { ev.preventDefault(); window.sgQuickLoad(); }
+	if (ev.key === 's' || ev.key === 'S') { ev.preventDefault(); window.Sg.save.quick(); }
+	else if (ev.key === 'l' || ev.key === 'L') { ev.preventDefault(); window.Sg.save.quickLoad(); }
 });
 
 // ── 道具图鉴（v17 M8）：跨周目永久解锁 ──
@@ -126,7 +129,7 @@ window.Sg.Ending = {
 
 // 从头再来：本档清零、回开场。不用 SugarCube 的 Engine.restart()——它靠 window.location.reload()，
 // 单文件离线版也还得多一次整页重载；这里直接重跑 StoryInit 再落到起始段（同一条初始化路径）。
-window.sgRestartRun = () => {
+window.Sg.save.restart = () => {
 	State.reset();
 	new Wikifier(null, Story.get('StoryInit').processText());
 	Engine.play(Config.passages.start);
@@ -138,10 +141,10 @@ jQuery(document).on('click.sgEndAct', '#passages button[data-end-act]', function
 	if (act === 'undo') {
 		if (State.history.length > 1) Engine.backward();
 	} else if (act === 'load') {
-		if (Save.browser.slot.has(1)) window.sgLoadSlot(1);
+		if (Save.browser.slot.has(1)) window.Sg.save.load(1);
 		else UI.saves();
 	} else if (act === 'restart') {
-		window.sgRestartRun();
+		window.Sg.save.restart();
 	}
 });
 

@@ -1063,12 +1063,12 @@ async function routeCrossRunSticky() {
 	const seeded = { clues: { 日记: { own: true, cause: true, lock: true } }, endings: ['送星归位'], finals: ['送星归位'] };
 	w.localStorage.setItem('sgstory.codex.v1', JSON.stringify(seeded));
 	if (!w.Sg.Codex.seenFinal()) throw new Error('账本写入后 seenFinal 应为 true（粘性）');
-	w.sgRestartRun();
+	w.Sg.save.restart();
 	await new Promise((r) => setTimeout(r, 300));
 	// ③ 新周目：run 状态重置，账本保留
-	if (passageOf(w) !== '开场') throw new Error(`sgRestartRun 后应回开场（停在 ${passageOf(w)}）`);
-	if (w.SugarCube.State.variables.pc?.ev?.ending) throw new Error('sgRestartRun 未清 run 态（ev.ending 仍在）');
-	if (!w.Sg.Codex.seenFinal()) throw new Error('sgRestartRun 误清跨周目账本（seenFinal 丢了）');
+	if (passageOf(w) !== '开场') throw new Error(`Sg.save.restart 后应回开场（停在 ${passageOf(w)}）`);
+	if (w.SugarCube.State.variables.pc?.ev?.ending) throw new Error('Sg.save.restart 未清 run 态（ev.ending 仍在）');
+	if (!w.Sg.Codex.seenFinal()) throw new Error('Sg.save.restart 误清跨周目账本（seenFinal 丢了）');
 	// ④ 新周目开局即见谜底（设计决定：「走到过终局」＝曾经，跨周目有效）
 	w.SugarCube.Engine.play('设定集·术语');
 	for (let i = 0; i < 20 && passageOf(w) !== '设定集·术语'; i++) await new Promise((r) => setTimeout(r, 50));
@@ -1097,7 +1097,7 @@ async function routeEndingFooter() {
 	// 退回上一步 → 回酒馆；存一次档 → 再走到结局 → 读档回存档点
 	await c('退回上一步');
 	if (passageOf(w) !== '酒馆') throw new Error(`退回上一步没回到酒馆（${passageOf(w)}）`);
-	w.sgQuickSave();
+	w.Sg.save.quick();
 	if (!w.SugarCube.Save.browser.slot.has(1)) throw new Error('快速存档没落进 slot 1');
 	await c('就此回头，把这片林子留给别人');
 	await c('读档');

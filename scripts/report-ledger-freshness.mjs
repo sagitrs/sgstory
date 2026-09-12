@@ -90,6 +90,69 @@ export const judge = (refs, stateOf) => {
 	return { mismatches, unresolved, unmarked };
 };
 
+// ── #297 对标台账行级新鲜度（**离线**判据：不联网，故可进主链路）──────────
+// 为什么单列一节：伞票 #297 的动机原文就是「**F6 只管我们自己文档的漂移，不管竞品侧**」——
+// `docs/benchmark-ledger.md` 的「最近复核 / 触发条件」两列一旦留空或过期，这份 12 款竞品的对标
+// 调研就变死档（#291/#295 的落点还在长，死档会让人按过时基准做决定）。
+// 判据只对**表格数据行**（不判散文），逐条可核对：
+//   ① 行数栅栏：竞品 ≥12、外部基准 ≥5、探索票 ≥4（防「悄悄删行」式腐化）
+//   ② 「最近复核」首个日期可解析，且距今 ≤ FRESH_DAYS —— 账本自己声明的触发条件③就是「季度例行」，故取 90 天
+//   ③ 「触发条件」非空（空 / `—` / `-` / `无` 都算缺失）
+//   ④ 「我们的落点」可核对：`--flag` 必须在 audit 注册表内；`docs|test|scripts/*.md|.mjs|.json` 路径必须存在
+//      （仅判**反引号包裹**的旗标与路径：散文里提「双读门」这类中文名无法机检，不猜）
+//   ⑤ 探索表「票」列必须是 `#NNN` 或 `—`（验收条 3：每项有票号或明确归属）
+export const FRESH_DAYS = 90;
+
+// 纯函数：给台账文本 + 依赖（今日 / 已知旗标 / 文件存在性），返回 findings。
+// 依赖注入是为了能在自证里造反例（不起真实文件系统、不改真实日期）。
+export const judgeBenchmarkLedger = (text, { today = new Date(), knownFlags = new Set(), fileExists = () => true } = {}) => {
+	const findings = [];
+	const cells = (line) => line.split('|').slice(1, -1).map((c) => c.trim());
+	// 按空行切表块（每块首行表头、次行分隔、其余数据）
+	const blocks = [];
+	let cur = null;
+	for (const line of text.split('\n')) {
+		if (/^\s*\|/.test(line)) cur = [...(cur ?? []), line];
+		else if (cur) { blocks.push(cur); cur = null; }
+	}
+	if (cur) blocks.push(cur);
+	const counts = { 竞品: 0, 基准: 0, 票: 0 };
+	for (const b of blocks) {
+		const head = cells(b[0])[0] ?? '';
+		const kind = head.includes('竞品') ? '竞品' : head.includes('基准') ? '基准' : head.includes('票') ? '票' : null;
+		if (!kind) continue;   // 非本台账的表（如验收清单）跳过
+		for (const line of b.slice(2)) {
+			const c = cells(line);
+			counts[kind]++;
+			const where = `${kind}表「${(c[0] ?? '').replace(/\*\*/g, '').slice(0, 24)}」`;
+			if (kind === '票') {
+				const own = (c[0] ?? '').replace(/\*\*/g, '');
+				if (!/^#\d+$/.test(own) && own !== '—') findings.push({ code: 'explore-unowned', msg: `${where}：「票」列应为 \`#NNN\` 或 \`—\`（验收条 3 要求明确归属）` });
+				if (!c[3]) findings.push({ code: 'explore-status', msg: `${where}：「状态」列留空` });
+				continue;
+			}
+			const m = (c[4] ?? '').match(/(\d{4})-(\d{2})-(\d{2})/);
+			if (!m) findings.push({ code: 'review-missing', msg: `${where}：「最近复核」列没有可解析日期（须写 \`YYYY-MM-DD\`）` });
+			else {
+				const days = Math.floor((today - new Date(`${m[1]}-${m[2]}-${m[3]}T00:00:00Z`)) / 86400000);
+				if (days > FRESH_DAYS) findings.push({ code: 'review-stale', msg: `${where}：复核已过 ${days} 天（>${FRESH_DAYS} 天）→ 复核该行后更新日期` });
+			}
+			if (!c[5] || /^(—|-|无|N\/A)$/.test(c[5])) findings.push({ code: 'trigger-missing', msg: `${where}：「触发条件」列留空（验收条 2 要求不许留空）` });
+			const spot = c[3] ?? '';
+			for (const f of [...spot.matchAll(/`(--[a-z0-9-]+)/g)].map((x) => x[1])) {
+				if (!knownFlags.has(f.slice(2))) findings.push({ code: 'unknown-flag', msg: `${where}：落点引用了 audit 注册表里没有的门旗标 ${f}` });
+			}
+			for (const p of [...spot.matchAll(/`((?:docs|test|scripts)\/[A-Za-z0-9_./-]+\.(?:md|mjs|json|twee))`/g)].map((x) => x[1])) {
+				if (!fileExists(p)) findings.push({ code: 'missing-path', msg: `${where}：落点引用的文件不存在 ${p}` });
+			}
+		}
+	}
+	for (const [kind, min] of [['竞品', 12], ['基准', 5], ['票', 4]]) {
+		if (counts[kind] < min) findings.push({ code: 'row-floor', msg: `${kind}表数据行 ${counts[kind]} 行 < 下限 ${min}（不许悄悄删行）` });
+	}
+	return { findings, counts };
+};
+
 // ── 文档收集 ─────────────────────────────────────────────────────────
 const collectDocs = () => {
 	const files = [];
@@ -126,8 +189,42 @@ const selftest = () => {
 	];
 	let bad = 0;
 	for (const [name, ok] of cases) { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${name}`); }
+
+	// ── #297：对标台账行级判据的自证（正例 + 反例；反例造在**纯文本**上，不起文件系统）──
+	const TODAY = new Date('2026-09-12T00:00:00Z');
+	const KNOWN = new Set(['dragon', 'echoes']);
+	const fixture = (o = {}) => {
+		const spot = o.spot ?? '#1 · `--dragon` · `docs/baselines.md`';
+		const review = o.review ?? '2026-09-12 复核：已复核';
+		const trigger = o.trigger ?? '该作出新作时';
+		const row = (n) => `| **竞品${n}** | 2020-01 | 维度 | ${spot} | ${review} | ${trigger} |`;
+		const bench = (n) => `| **基准${n}** | 理论 | 维度 | \`--echoes\` | 2026-09-12 首次登记 | 官方修订时 |`;
+		const ex = (n) => `| **#${200 + n}** | 内容 | 形态 | ✅ 已合 |`;
+		const H = '| 竞品 | 时点·版本 | 学到的维度 | 我们的落点（票号／文件／门） | 最近复核 | 触发条件 |';
+		const S = '|---|---|---|---|---|---|';
+		return [
+			H, S, ...Array.from({ length: o.competitors ?? 12 }, (_, i) => row(i + 1)),
+			'', '| 基准 | 时点·版本 | 学到的维度 | 我们的落点（票号／文件／门） | 最近复核 | 触发条件 |', S,
+			...Array.from({ length: o.benchmarks ?? 5 }, (_, i) => bench(i + 1)),
+			'', '| 票 | 内容 | 形态 | 状态 |', '|---|---|---|---|',
+			...(o.exploreRows ?? Array.from({ length: o.explore ?? 4 }, (_, i) => ex(i + 1))),
+		].join('\n');
+	};
+	const codes = (o) => judgeBenchmarkLedger(fixture(o), { today: TODAY, knownFlags: KNOWN }).findings.map((f) => f.code);
+	const ledgerCases = [
+		['台账正例（12 竞品 / 5 基准 / 4 探索票，行行齐全）→ 无 findings', codes({}).length === 0],
+		['反例① 竞品少一行（11）→ row-floor', codes({ competitors: 11 }).includes('row-floor')],
+		['反例② 复核日期过期（2020-01-01，>90 天）→ review-stale', codes({ review: '2020-01-01 复核' }).includes('review-stale')],
+		['反例③ 复核列没有日期（「首次登记」）→ review-missing', codes({ review: '首次登记' }).includes('review-missing')],
+		['反例④ 触发条件留空 → trigger-missing', codes({ trigger: '' }).includes('trigger-missing')],
+		['反例⑤ 落点写了不存在的门旗标（`--no-such-flag`）→ unknown-flag', codes({ spot: '`--no-such-flag`' }).includes('unknown-flag')],
+		['反例⑥ 落点写了不存在的文件（`docs/nope.md`）→ missing-path', judgeBenchmarkLedger(fixture({ spot: '`docs/nope.md`' }), { today: TODAY, knownFlags: KNOWN, fileExists: () => false }).findings.some((f) => f.code === 'missing-path')],
+		['反例⑦ 探索票行「票」列写 `-`（归属不明）→ explore-unowned', codes({ exploreRows: ['| - | 内容 | 形态 | ✅ |', '| **#201** | 内容 | 形态 | ✅ |', '| **#202** | 内容 | 形态 | ✅ |', '| **#203** | 内容 | 形态 | ✅ |'] }).includes('explore-unowned')],
+	];
+	for (const [name, ok] of ledgerCases) { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${name}`); }
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过：一致绿 / 闭环标记但未闭环红 / 在办标记但已闭环红 / 无标记只登记 / 就近匹配');
+	console.log('\n✔ 自证通过：引用）一致绿 / 闭环标记但未闭环红 / 在办标记但已闭环红 / 无标记只登记 / 就近匹配');
+	console.log('✔ 自证通过：台账）行数栅栏 / 复核缺日期 / 复核过期 / 触发条件留空 / 未知门旗标 / 文件不存在 / 归属不明');
 };
 
 // ── 真实运行（仅在直接执行时跑；被 import 时只导出纯函数，便于单测）────────
@@ -137,6 +234,29 @@ if (!isEntry) { /* 作为模块被引入：不执行主流程 */ }
 else if (argv.includes('--selftest')) { selftest(); process.exit(0); }
 else {
 
+// ── #297 竞品侧：对标台账行级新鲜度（**离线**，故 `npm test` 用 `--ledger` 只跑本段）──
+const LEDGER_PATH = 'docs/benchmark-ledger.md';
+const runLedger = async () => {
+	if (!existsSync(LEDGER_PATH)) { console.error(`   ✗ 缺少 ${LEDGER_PATH}`); return 1; }
+	const { GATES } = await import('./audit/registry.mjs');
+	const knownFlags = new Set(GATES.flatMap((g) => g.flags ?? []));
+	const { findings, counts } = judgeBenchmarkLedger(readFileSync(LEDGER_PATH, 'utf8'), { knownFlags, fileExists: (p) => existsSync(p) });
+	console.log(`══ F6 竞品侧：对标台账行级新鲜度 ══  ${LEDGER_PATH}`);
+	console.log(`  竞品 ${counts.竞品} 行 / 外部基准 ${counts.基准} 行 / 探索票 ${counts.票} 行｜复核阈值 ${FRESH_DAYS} 天（账本声明「季度例行」）`);
+	for (const f of findings) console.error(`   ✗ [${f.code}] ${f.msg}`);
+	if (!findings.length) console.log('  ✔ 每行都有在期复核日期与非空触发条件；落点引用的门旗标与文件都真实存在');
+	return findings.length;
+};
+
+if (argv.includes('--ledger')) {
+	const bad = await runLedger();
+	if (bad && argv.includes('--check')) { console.error(`\n✗ F6 竞品侧台账未通过（${bad} 项）`); process.exit(1); }
+	process.exit(0);   // 只跑离线段：不碰网络（网络段见 --check 无 --ledger 的路径）
+}
+
+const ledgerBad = await runLedger();
+console.log('');
+
 const TOKEN = process.env.GITHUB_TOKEN || process.env.GH_TOKEN || '';
 const docs = collectDocs();
 const refs = docs.flatMap((f) => parseRefs(readFileSync(f, 'utf8'), f));
@@ -145,6 +265,7 @@ const unique = [...new Set(refs.map((r) => r.ref))];
 if (!TOKEN) {
 	console.log(`扫到 ${docs.length} 个文档、${refs.length} 处 #NNN 引用（唯一 ${unique.length} 个）`);
 	console.log('○ 跳过（无 token：设 GITHUB_TOKEN 或 GH_TOKEN 后再跑；本门不把网络依赖塞进主链路）');
+	if (ledgerBad && argv.includes('--check')) { console.error(`\n✗ F6 竞品侧台账未通过（${ledgerBad} 项）`); process.exit(1); }
 	process.exit(0);
 }
 
@@ -179,8 +300,9 @@ if (argv.includes('--json')) {
 	if (!mismatches.length) console.log('\n✔ 所有带标记的引用都与 GitHub 真实状态一致');
 }
 
-if (argv.includes('--check') && mismatches.length) {
-	console.error(`\n✗ F6 新鲜度未通过：${mismatches.length} 处标记与真实状态不符（更新文档，或把「在办」标记写准）`);
+if (argv.includes('--check') && (mismatches.length || ledgerBad)) {
+	if (mismatches.length) console.error(`\n✗ F6 新鲜度未通过：${mismatches.length} 处标记与真实状态不符（更新文档，或把「在办」标记写准）`);
+	if (ledgerBad) console.error(`\n✗ F6 竞品侧台账未通过（${ledgerBad} 项）`);
 	process.exit(1);
 }
 }

@@ -21,6 +21,19 @@ jobs:
       - run: npm i --no-save playwright
       - run: npx playwright install --with-deps chromium
       - run: node scripts/viewport-smoke.mjs
+      # #284 ②：真机验收 24 断言接线（方案㈡：复用本 job 已装 chromium）
+      - name: browser.mjs real-browser acceptance (24 assertions)
+        env:
+          CHROME_PATH: ${{ github.workspace }}/pw-chromium-tmp
+        run: |
+          # playwright chromium 可执行路径注入（脚本默认扫 puppeteer 缓存——CI 面不适用）
+          PW_PATH=$(node -e "console.log(require('playwright').chromium.executablePath())")
+          test -x "$PW_PATH" || { echo "ERROR: playwright chromium 缺失"; exit 1; }
+          ln -sf "$PW_PATH" "$CHROME_PATH"
+          OUT=$(node test/browser.mjs 2>&1 | tee /dev/stderr)
+          # skip 守卫：缺浏览器=退 0 打印跳过是脚本设计，但在 CI 接线后必须「真执行」（#284 关票硬条件）
+          echo "$OUT" | grep -qiE "skip|跳过" && { echo "ERROR: browser.mjs 进入 skip 形态——CI 接线失效"; exit 1; }
+          echo "$OUT" | grep -qE "24/24|[0-9]+/[0-9]+ (passed|通过)" || { echo "ERROR: 未见断言执行计数"; exit 1; }
       - if: failure() || success()
         uses: actions/upload-artifact@v4
         with:

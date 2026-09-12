@@ -39,6 +39,7 @@ npm run watch   # 修改 src/ 自动重新编译
 | D1+ 规则层一致 | （在建）canon 条文×行为断言 | `Rules.claims`（伙伴会话） | ⏳ |
 | #22+ 数值分布 | 蒙特卡洛 2 万局三门 | `--dragon` | ✅ 行为化 |
 | 交叉线互锁（C2） | 交付后互锁路线（#259） | `test/scenarios.mjs` 路线 40 | ✅ 行为化 |
+| I1 投入—回报 | G2 失败给情报＋下次优势／G4 立场写入并跨段回收；G1/G5/G6 报告 | `--investment`；路线 41 | ✅ 行为化（G1/G5/G6 报告） |
 | 工程侧 | 段落登记门／结果不吞门／存档×新界面／覆盖三查 | `test/integrity.mjs`／`test/walker.mjs`／`test/saveui.mjs` | ✅ 行为化 |
 
 > 维度定义、候选池与提取方法见 `docs/quality-dimensions.md`；覆盖与未覆盖口径见 `docs/ui-coverage-gaps.md`。

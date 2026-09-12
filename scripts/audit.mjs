@@ -130,6 +130,85 @@ if (wantAll || arg('truth')) {
 	}
 }
 
+// ── ⓪t I1 投入—回报（#291）：G2 失败产出内容 / G4 立场被记住（行为门＋反例）＋ G1·G5·G6 只读报告 ──
+function investmentProblems({ keyYields = [], expressive = [], failClueExempt = {} } = {}) {
+	const problems = [], notes = [];
+	// 关键位点＝yields 落在 keyYields 的位点（keyYields 是「产出」，不是位点名）
+	const keySites = new Set(Object.entries(Game.Checks.sites ?? {})
+		.filter(([, d]) => d.yields && keyYields.includes(d.yields))
+		.map(([name]) => name));
+	const CLUE = /<<setflag\s+"|<<give\s+"|<<set\s+\$pc\.(?:world|ev)\.[A-Za-z_]+\s+to\s+true/;
+	// G2：关键产出位点的失败档必须给知识型产出（情报旗标／物品）——失败＝信息，不只扣资源
+	let seen = 0;
+	for (const [name, src] of passageSrc) {
+		for (const m of src.matchAll(/<<sitecheck\s+"([^"]+)"[^>]*>>[\s\S]{0,900}?<<if\s+\$last_check\.success>>([\s\S]*?)<<else>>([\s\S]*?)<<\/if>>/g)) {
+			const site = m[1];
+			if (!keySites.has(site)) continue;
+			seen++;
+			if (CLUE.test(m[3])) continue;
+			if (failClueExempt[site]) { notes.push(`G2 豁免：${site}（${failClueExempt[site]}）`); continue; }
+			problems.push(`G2 关键位点「${site}」失败档无知识产出（${name}）`);
+		}
+	}
+	notes.push(`G2 关键位点失败档扫描 ${seen} 处`);
+	// G4：表达型选择（立场）必须写入可回收状态，且在别处被消费
+	for (const e of expressive) {
+		const src = passageSrc.get(e.p);
+		if (!src) { problems.push(`G4 登记段落不存在：${e.p}`); continue; }
+		const at = src.indexOf(e.label);
+		if (at < 0) { problems.push(`G4 登记的立场选项已不在「${e.p}」：${e.label}`); continue; }
+		const body = src.slice(at, at + 240);
+		const writes = new RegExp(`(?:world|ev)\\.${e.flag}\\b`).test(body) || new RegExp(`setflag\\s+"${e.flag}"`).test(body);
+		if (!writes) { problems.push(`G4 立场「${e.label}」未写入 ${e.flag}（说了等于没说）`); continue; }
+		const consumed = [...passageSrc.entries()].some(([n, s]) => n !== e.p && new RegExp(`<<if[^>]*\\$pc\\.(?:world|ev)\\.${e.flag}\\b`).test(s));
+		if (!consumed) problems.push(`G4 立场旗标 ${e.flag} 未被任何别处回收（记了没用）`);
+	}
+	return { problems, notes };
+}
+
+if (wantAll || arg('investment')) {
+	console.log('\n══ ⓪t 投入—回报对称性（I1/#291）——失败给信息 · 立场被记住 · 三条只读报告 ══');
+	const I = Game.Investment ?? {};
+	const { problems, notes } = investmentProblems({
+		keyYields: Game.Checks.keyYields ?? [],
+		expressive: I.expressive ?? [],
+		failClueExempt: I.failClueExempt ?? {},
+	});
+	let bad = problems.length;
+	problems.forEach((p) => console.log(`  ✗ ${p}`));
+	notes.forEach((n) => console.log(`  · ${n}`));
+	// 反例自证（#247「门必须行为化」）：合成登记表 → 检查器须按预期判红/判绿
+	{
+		const cases = [
+			['正例：立场已写入且被回收（真实已接线样本）', { keyYields: [], expressive: [{ id: 'ok', p: '守林人', label: '说一句：它不会变成恶龙', flag: 'keeper_kind' }] }, 0],
+			['反例：写了但没回收', { keyYields: [], expressive: [{ id: 'norec', p: '顶楼', label: '折断', flag: 'never_consumed_xyz' }] }, 1],
+			['反例：选项已不在段落', { keyYields: [], expressive: [{ id: 'gone', p: '顶楼', label: '不存在的标签', flag: 'x' }] }, 1],
+		];
+		let selfBad = 0;
+		for (const [label, sample, expect] of cases) {
+			const hit = investmentProblems(sample).problems.length;
+			const ok = expect === 0 ? hit === 0 : hit > 0;
+			if (!ok) selfBad++;
+			console.log(`      ${ok ? '✓' : '✗'} 自证·${label}：检出 ${hit}（期望${expect === 0 ? ' 0' : ' >0'}）`);
+		}
+		if (selfBad) bad += selfBad;
+	}
+	// G1/G5/G6 只读报告（有意不 ratchet：数字入基线，等数据说话）
+	{
+		const clockish = [...passageSrc.values()].join(' ').match(/clock|timer|日程|day_count/gi) ?? [];
+		const fogHooks = [...passageSrc.entries()].filter(([, s]) => /fog_thin|fog_/.test(s)).length;
+		const seenFinal = [...passageSrc.values()].join(' ').match(/seenFinal\(\)/g)?.length ?? 0;
+		const spatial = [...passageSrc.entries()].filter(([, s]) => /二楼|三楼|顶楼|塔基|厅的那一头|门边/.test(s)).length;
+		console.log(`  · G1 时间可感：时钟类状态 ${clockish.length} 处（设计如此：§3.5 星账不可测量）；现象层钩子（雾/星力叙述）${fogHooks} 段`);
+		console.log(`  · G5 重玩换视角：二周目专属知识层 ${seenFinal} 处（谜底门）`);
+		console.log(`  · G6 空间记忆锚：含空间锚句的段落 ${spatial} 段（不引入地图系统，锚走文字）`);
+	}
+	if (process.argv.includes('--check')) {
+		if (bad) { console.error(`\n✗ I1 投入—回报门：${bad} 项`); process.exit(1); }
+		console.log('\n✔ I1 投入—回报门通过（G2 失败有信息 · G4 立场被记住 · 自证通过）');
+	}
+}
+
 // ── ⓪b D4 世界活性（#38）：回声锚检 + set-never-echoed 覆盖门 ──
 // #267：叙事态分级——每个被写入的旗标必须落一桶（echo/mechanic/ending/codex/provenance/engine）
 // 推导优先，声明兜底：导出不了桶 → 红；声明 provenance/engine 却仍有叙事条件消费 → 错标红

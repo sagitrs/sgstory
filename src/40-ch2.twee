@@ -256,7 +256,7 @@
 
 <<give "守林人的钥匙">>
 <<else>>
-他还在塔门前。见你看过来，朝你点了点头。
+他还在塔门前。见你看过来，朝你点了点头。<<if $pc.ev.keeper_kind>>''"你那天那句话，我记着。"''他说。<</if>>
 <</if>>
 
 <<if $era is "present" and $pc.ev.forge_seen and not $pc.ev.forge_thanks>>
@@ -279,7 +279,7 @@
 <div class="scene-acts" id="keeper-acts"><<nobr>>
 	<<link "问他：为什么不自己去送">><<goto "守林人·送">><</link>>
 	<<link "问他：你守的到底是什么">><<goto "守林人·守">><</link>>
-	<<link "说一句：它不会变成恶龙">><<goto "守林人·信">><</link>>
+	<<link "说一句：它不会变成恶龙">><<set $pc.ev.keeper_kind to true>><<goto "守林人·信">><</link>>
 	<<socpanel "守林人·术">>
 	<<if $pc.keeper.state is "seal">>
 		[[那就让他念——用他家的封印术|守林人·封印]]
@@ -431,6 +431,7 @@
 
 墙上那枚弯钩钉子空着，钩尖还挂着一点线头。楼上的脚步声在楼梯口停了停，又退了回去——这塔里的动静，各有各的来历。
 
+<<if $pc.world.hall_hint and not $pc.inv["坏哨"]>><span class="sys-note">（你已经听过比法：那钉子是弯钩，往上提、再往外带。）</span><</if>>
 <div id="hall-act"><<nobr>>
 /% #185：结果留屏（replace＋hallResult 单源） %/
 <<if not $pc.inv["坏哨"]>>
@@ -450,7 +451,7 @@
 					钉子锈成了一个钩，得往上提、再往外带。（''看准了，就不必用蛮力。''）<<set $pc.ev.hall_seen to true>>
 					<<hallPick "已看清">>
 				<<else>>
-					灰太厚，看不清。（''看不通就用手。''）
+					灰太厚，看不清。但你先前听人比过：''那钉子是个弯钩，往上提、再往外带，不必硬掰''。<<set $pc.world.hall_hint to true>>
 					<<link "把墙上那支哨子摘下来">>
 						<<sitecheck "门厅·翻检">><<snapshot>>
 						<<replace "#hall-act">><<hallResult "翻检">><</replace>>
@@ -506,6 +507,7 @@
 <<if $era is "present">>
 	<<lastcheckFor "书房·检视" "书房·敲墙" "书房·断代" "书房·强拆">>
 	<<if not $pc.inv["日记"]>>
+		<<if $pc.world.study_hint>><span class="sys-note">（你已经摸清：暗格在炉膛后头那面墙里。）</span><</if>>
 		<<if $pc.ev.study_found>>
 			<<link "把暗格里的东西取出来">>
 				<<give "日记">><<set $pc.ev.failure_cause to true>>
@@ -531,7 +533,7 @@
 					有一块砖的声音是空的。你按下它的边角——砖松了。（''你知道暗格在哪儿了。''）
 					<<set $pc.ev.study_found to true>>
 				<<else>>
-					你没听出哪里不同，手指倒敲得发麻。（''换一条线索：把架上的抄本按年份排一遍，也许能找出暗格的位置。''）
+					你没听出哪里不同，手指倒敲得发麻。倒是把墙摸熟了：''缝在炉膛后头那面墙上''。<<set $pc.world.study_hint to true>>（''换一条线索：把架上的抄本按年份排一遍。''）
 				<</if>>
 				<<goto "书房">>
 			<</link>>
@@ -541,7 +543,7 @@
 					你数了年份，看出哪一册被人反复翻过——页边一行小字写着"烤炉后头"。（''你知道暗格在哪儿了。''）
 					<<set $pc.ev.study_found to true>>
 				<<else>>
-					年份对不上，你排了半天也没理出头绪。（''书读不通，就换个法子：伸手摸一摸，或试着挪开烤炉。''）
+					年份对不上，你排了半天也没理出头绪。倒是把位置记下了：''暗格在炉膛后头那面墙里''。<<set $pc.world.study_hint to true>>（''书读不通，就换个法子。''）
 				<</if>>
 				<<goto "书房">>
 			<</link>>
@@ -722,11 +724,12 @@
 	这不是谁的魂，也不是什么守望。这家断了，只剩他还趴在答案旁边。
 
 	<<lastcheckFor "天文台·典籍" "天文台·光点" "天文台·对书">>
+	<<if $pc.world.ledger_hint>><span class="sys-note">（你已经知道：那些点是等分的。）</span><</if>>
 	<<if not $pc.ev.star_ledger>>
 		<<link "顺着注记读一读缺口边上那半幅星轨">>
 			<<sitecheck "天文台·典籍">><<snapshot>>
 			<<if $last_check.success>><<set $pc.ev.star_ledger to true>>
-			<<else>>字太小，光又斜，你读不出记的是谁。<span class="sys-note">（这一手得换个法子：盯住缺口里那几粒没连上的点；手边有那册手稿的话，对着看也行。）</span><</if>>
+			<<else>>字太小，光又斜，你读不出记的是谁。''但那几粒点的间距，你记住了''。<<set $pc.world.ledger_hint to true>><span class="sys-note">（换个法子：盯住缺口里那几粒没连上的点；手边有那册手稿的话，对着看也行。）</span><</if>>
 			<<goto "天文台">>
 		<</link>>
 		<<link "盯住缺口里那几粒没连上的点">>
@@ -735,7 +738,7 @@
 				那几粒点的间距是等分的——有人拿它们当过一把尺。''量的是什么，纸上没写。''
 				<<set $pc.ev.star_ledger to true>>
 			<<else>>
-				看得久了，那些点像在动。你揉了揉眼睛。<span class="sys-note">（眼睛不行就换手：顺注记读，或者对着那册手稿看。）</span>
+				看得久了，那些点像在动。你揉了揉眼睛。''好在点与点之间是等分的''。<<set $pc.world.ledger_hint to true>><span class="sys-note">（眼睛不行就换手：顺注记读，或者对着那册手稿看。）</span>
 			<</if>>
 			<<goto "天文台">>
 		<</link>>

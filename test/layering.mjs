@@ -12,6 +12,7 @@
 // 自证：`node test/layering.mjs --selftest`
 
 import { checkModuleGraph, ORDER, MODULES, readModules } from '../scripts/module-order.mjs';
+import { selftest as distFreshSelftest } from '../scripts/dist-fresh.mjs';
 
 const check = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) failures++; };
 let failures = 0;
@@ -37,6 +38,8 @@ if (process.argv.includes('--selftest')) {
 	process.exit(0);
 }
 
+if (process.argv.includes('--dist-fresh')) { distFreshSelftest(); process.exit(0); }
+
 const sources = readModules();
 const found = checkModuleGraph(sources);
 
@@ -49,6 +52,9 @@ check(found.length === 0, found.length === 0
 	? '顺序表与文件一一对应 · 依赖边只指向更早模块 · 声明的定义都在正文里'
 	: `分层 lint 未通过 ${found.length} 项`);
 for (const f of found) console.log(`    [${f.code}] ${f.msg}`);
+
+// #319③：dist 新鲜度守卫的自证（合成目录；已在 npm test 链上）
+distFreshSelftest();
 
 console.log(`\n${failures ? '✗ 构建期分层 lint 未通过' : '✔ 构建期分层 lint 通过（模块顺序与依赖显式且成立）'}`);
 if (failures) process.exit(1);

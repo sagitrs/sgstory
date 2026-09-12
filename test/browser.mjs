@@ -16,8 +16,8 @@
 // 退出码：断言失败＝1；缺浏览器/依赖＝0 并打印跳过原因（CI 友好）。
 import { spawn, spawnSync } from 'node:child_process';
 import http from 'node:http';
-import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'node:fs';
+import { join, extname, resolve } from 'node:path';
 
 const HOME = process.env.HOME ?? '';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -71,10 +71,29 @@ if (!existsSync('dist/index.html')) {
 }
 
 // ── 静态服务 + 浏览器 ───────────────────────────────────────────
-const html = readFileSync('dist/index.html');
+// #363（P2）：原来这个服务器**不区分路径**，所有请求都回 dist/index.html —— 于是
+// `/fonts/*.woff2` 也被回成 HTML，浏览器验收实际跑在**兜底字体**上（换行/行动位置/块间距都没验到发布字体）。
+// 现在按**实际路径与 MIME** 服务 dist/，并对缺文件回 404（不再静默拿 HTML 兜底）。
+const MIME = {
+	'.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8',
+	'.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8', '.txt': 'text/plain; charset=utf-8',
+	'.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf',
+	'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.webp': 'image/webp',
+};
+const ROOT = resolve('dist');
 const server = http.createServer((req, res) => {
-	res.setHeader('content-type', 'text/html; charset=utf-8');
-	res.end(html);
+	let pathname;
+	try { pathname = decodeURIComponent(new URL(req.url, 'http://127.0.0.1').pathname); } catch { pathname = '/'; }
+	if (pathname === '/' || pathname.endsWith('/')) pathname += 'index.html';
+	const file = resolve(join(ROOT, pathname));
+	if (!file.startsWith(ROOT) || !existsSync(file) || !statSync(file).isFile()) {   // 防目录穿越 + 缺文件 404
+		res.statusCode = 404;
+		res.setHeader('content-type', 'text/plain; charset=utf-8');
+		res.end('not found');
+		return;
+	}
+	res.setHeader('content-type', MIME[extname(file)] ?? 'application/octet-stream');
+	res.end(readFileSync(file));
 });
 await new Promise((r) => server.listen(0, '127.0.0.1', r));
 const PORT = server.address().port;
@@ -162,6 +181,25 @@ const loadFresh = async () => {
 		if (ok) break;
 	}
 	await ev(HELPERS);
+	// #363：**字体必须真的加载**（此前服务器把所有路径都回 HTML → 验收跑在兜底字体上）。
+	// 断言两件事：① 两个 woff2 由服务器按 font/* MIME 提供（且不是 HTML 兜底）；② 页面的字体族确实来自该文件。
+	const fontProbe = await ev(`(async () => {
+		const files = ['fonts/LXGWWenKai-Regular.woff2', 'fonts/LXGWWenKai-Medium.woff2'];
+		const out = [];
+		for (const f of files) {
+			const r = await fetch(f);
+			const buf = await r.arrayBuffer();
+			out.push({ f, status: r.status, type: r.headers.get('content-type') || '', bytes: buf.byteLength, magic: String.fromCharCode(...new Uint8Array(buf.slice(0, 4))) });
+		}
+		await document.fonts.ready;
+		const faces = [...document.fonts].map((x) => x.family + ':' + x.status);
+		return { out, status: document.fonts.status, faces, check: document.fonts.check('16px "LXGW WenKai"') };
+	})()`);
+	const badFont = (fontProbe?.out ?? []).filter((r) => r.status !== 200 || !/^font\//.test(r.type) || r.magic !== 'wOF2');
+	check((fontProbe?.out ?? []).length === 2 && badFont.length === 0,
+		`#363 字体按 font/* MIME 提供且是 woff2（非 HTML 兜底）${badFont.length ? `：异常 ${JSON.stringify(badFont)}` : ''}`);
+	check(/loaded/.test(fontProbe?.status ?? '') && (fontProbe?.check === true),
+		`#363 发布字体已加载（document.fonts：${fontProbe?.status}；check LXGW WenKai=${fontProbe?.check}；faces=${(fontProbe?.faces ?? []).filter((x) => /LXGW|WenKai/i.test(x)).join(',') || '—'}）`);
 };
 // 直接进段落（布局检查用；状态按需注入）——与 jsdom 侧同款短路手法
 const enter = async (passage, stateJs = '') => {

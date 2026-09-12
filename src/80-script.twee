@@ -466,3 +466,21 @@ jQuery(document).on('click.sgSocial', '#passages a.soc-opt', function (ev) {
 jQuery(document).on('keydown.sgSocial', '#passages a.soc-opt', function (ev) {
 	if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); jQuery(this).trigger('click'); }
 });
+
+/* ── #317② 选项稳定定位键（**派生**：只加属性、幂等、不改状态）──────────────
+   为什么：测试靠**中文文案**定位 UI 是本仓最脆的耦合之一（实测改一句文案连动 5 处测试调用点）。
+   这里给内部链接补一个稳定键：`data-choice` ＝ **目标段落名**（内容骨架，与文案解耦）。
+   规则（按 guest-1 的复核建议）：
+     · **只加属性、不碰任何状态** —— 兼容「渲染路径契约」与 `audit --state` 口径；
+     · **幂等** —— 已有 `data-choice` 就跳过：作者显式覆盖优先（`data-key` 容器或未来的 widget）；
+     · 注册在**文件末尾**，故在所有其它 `:passageend` 后处理**之后**执行
+       （那些 pass 会做焦点回收 / 行动区包裹 / 跳转链接插入；派生若先跑会被重排丢掉或重复）。
+   歧义由 `test/choice-keys.mjs` 静态枚举（同段落同目标 ≥2 条 → 要求作者覆盖或进白名单）。 */
+jQuery(document).on(':passageend.sgChoiceKey', (ev) => {
+	const root = ev.content ?? document.querySelector('#passages');
+	if (!root?.querySelectorAll) return;
+	for (const a of root.querySelectorAll('a.link-internal[data-passage]')) {
+		if (a.dataset.choice) continue;                        // 幂等 + 作者覆盖优先
+		a.dataset.choice = a.closest('[data-key]')?.dataset.key || a.dataset.passage;
+	}
+});

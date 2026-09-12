@@ -9,6 +9,7 @@ import { boot, CLICKABLE, CLICKABLE_SEL } from './boot.mjs';
 
 let failures = 0;
 const visited = new Set();
+const ALL_LOC = [];   // #317②：每次点击的定位方式（key / 文案）汇总
 const clickedLinks = new Map(); // `${段落}|${时代}` → 真被点过的链接标签集（#168 机检⑩）
 
 // ── #295（E4 节奏 / C4 相异度）：每条路线的可机读轨迹 ───────────────────
@@ -52,23 +53,39 @@ async function newGame(randomStub, preset = 0) {
 			}
 		}
 	};
-	const findLink = (label) => {
-		// 只看"当前这一段"（data-passage 与 State.passage 相符的那个 .passage）：
-		// State 已经变了、旧段落元素还没被换下来时，全局查找会点到上一段的链接。
+	// 只看"当前这一段"（data-passage 与 State.passage 相符的那个 .passage）：
+	// State 已经变了、旧段落元素还没被换下来时，全局查找会点到上一段的链接。
+	const pool = () => {
 		const cur = [...w.document.querySelectorAll('#passages .passage')]
 			.find((e) => e.dataset.passage === w.SugarCube.State.passage);
-		const pool = cur ? [cur] : [...w.document.querySelectorAll('#passages')];
-		const links = pool.flatMap((el) => [...el.querySelectorAll(CLICKABLE_SEL)]);
+		return (cur ? [cur] : [...w.document.querySelectorAll('#passages')]).flatMap((el) => [...el.querySelectorAll(CLICKABLE_SEL)]);
+	};
+	// #317②：**按稳定 key 定位**（`data-choice` ＝ 目标段落名，由 80-script 的派生 pass 写入）
+	const findKey = (key) => pool().find((x) => x.dataset?.choice === key) ?? null;
+	// #317②：对外的小工具（与 test/harness.mjs 同形）——`keyOf` 返回三元组：派生 key / 作者覆盖 / 文案兜底
+	const keyOf = (el) => ({
+		choice: el?.dataset?.choice ?? null,
+		authored: el?.closest('[data-key]')?.dataset?.key ?? null,
+		label: (el?.textContent ?? '').trim().replace(/\s+/g, ' '),
+	});
+	// 定位方式统计（#317② 验收要的「还有多少点击靠文案定位」）——每个 session 一份，汇总时相加
+	const locStats = { key: 0, label: 0 };
+	ALL_LOC.push(locStats);   // 汇总到模块级（验收要看「还有多少点击靠文案」）
+	const findLink = (label) => {
+		const links = pool();
 		// 精确优先：避免「塔」被「守塔的人家」这类包含关系抢先命中（子串兜底保留，供动态文案用）
 		return links.find((x) => x.textContent === label) ?? links.find((x) => x.textContent.includes(label));
 	};
-	const click = async (label) => {
+	// #317②：`what` 先当 **key** 找（`data-choice`），找不到再当**文案**找。
+	// 于是「迁移」＝把调用点的中文文案换成目标段落名，未迁的调用点行为完全不变（渐进迁移）。
+	const click = async (what) => {
 		await settle();          // 等上一翻画完再点——否则 SugarCube 会丢掉这次点击
-		let a = findLink(label);
+		let a = findKey(what);
+		if (a) locStats.key += 1; else locStats.label += 1;
 		// 并行跑三十来条路线时，段落元素偶发晚一拍才换（State 已经变了、DOM 还没换完）——
 		// 这一条兜底等一下，省得把"机器忙"报成"游戏坏了"
-		for (let i = 0; i < 20 && !a; i++) { await sleep(100); await settle(); a = findLink(label); }
-		if (!a) throw new Error(`找不到链接「${label}」@ ${w.SugarCube.State.passage}（可选：${[...w.document.querySelectorAll(CLICKABLE)].map((x) => x.textContent).join(' / ')}）`);
+		for (let i = 0; i < 20 && !a; i++) { await sleep(100); await settle(); a = findKey(what) ?? findLink(what); }
+		if (!a) throw new Error(`找不到「${what}」（key 或文案都试过）@ ${w.SugarCube.State.passage}（可选：${[...w.document.querySelectorAll(CLICKABLE)].map((x) => x.textContent).join(' / ')}）`);
 		mark();
 		// 链接级覆盖（#168 机检⑩）：记下"这一段|这个时代里真被点过的那条链接"——
 		// 只记段落格是看不见链接盲区的（P1-1 的断链、P1-29 的抄书人跑腿都从没被点过）。
@@ -83,7 +100,7 @@ async function newGame(randomStub, preset = 0) {
 		await settle();
 		await sleep(120);
 		mark();
-		if (uncaught.length > before) throw new Error(`点击「${label}」后脚本异常：${uncaught[before].slice(0, 160)}`);
+		if (uncaught.length > before) throw new Error(`点击「${what}」后脚本异常：${uncaught[before].slice(0, 160)}`);
 	};
 	// 车卡 + 出发
 	await click('踏上旅途');
@@ -96,7 +113,7 @@ async function newGame(randomStub, preset = 0) {
 		await click('快速成型');
 	}
 	await click('出发，前往歪脖子鸭酒馆');
-	return { w, click, uncaught };
+	return { w, click, uncaught, locStats, byKey: findKey, keyOf };
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -157,7 +174,7 @@ async function routeNoDragonWash() {
 	await toWitch(c);
 	await toTower(c);
 	await c('坠入');
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('收下钥匙');
 	await c('下楼赴宴');                    // 地下宴会厅（过去）
@@ -186,7 +203,7 @@ async function routeNeutralGold() {
 	await c('问塔里的门道');               // witch_hint（-8 金）
 	await toTower(c);
 	await c('坠入');
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('为什么不自己去送');
 	await c('回到守林人');
@@ -206,13 +223,13 @@ async function routeNeutralGold() {
 	await c('推门进去');
 	await c('先上二楼看看');
 	await c('指出架上一册错抄的星象历');   // 历史 · 11+0 过（+6 金）
-	await c('到拐角的小工坊看看');
+	await c('工坊');
 	await c('把它打完');                   // 护臂（-8 金 → 0）
-	await c('上三楼');
+	await c('天文台');
 	await c('翻转护身符：回到');           // #359：风化书只能在**现在**取——先翻回现在
 	await c('在书架上找到一册');
 	await c('翻转护身符：坠入');           // 再揣着书翻回那一晚
-	await c('上顶楼');
+	await c('顶楼');
 	await c('下楼，打开地下那道门');
 	await c('在宴上找人说话');
 	await c('问那位一直在算星的人');
@@ -221,7 +238,7 @@ async function routeNeutralGold() {
 	await c('拿出筹码：把风化了的书放回案上（求图）'); // 有书 → 免检
 	await c('把那张抄好的图收下');
 	await c('回到观星者');
-	await c('回到宴上');
+	await c('宴会·过去');
 	await c('找那位握着哨子的人');
 	await c('在塔里找那根杖');
 	// 寻杖：问孩子（游说 DC12 · 11+0 必败）→ 失败后另两条路仍在 → 翻（调查 DC13 必败 → #199 带伤也拿到）
@@ -238,20 +255,20 @@ async function routeNeutralGold() {
 	await c('开口：把她那支哨换过来（换哨）');
 	await c('把那支哨收好');
 	await c('回到当时的女巫');
-	await c('回到宴上');
+	await c('宴会·过去');
 	await c('找厅角那位不肯多说的老人');
-	await c('回到宴上');
+	await c('宴会·过去');
 	await c('去把花喂给它');
-	await c('回到宴上');
+	await c('宴会·过去');
 	await c('回到地下宴会厅');
 	await c('翻转护身符：回到');
 	await c('安静地退出去');
 	await c('先上二楼看看');
 	await c('伸手去摸烤炉后头的暗格');     // witch_hint → 免检
 	await c('把暗格里的东西取出来');
-	await c('到拐角的小工坊看看');
-	await c('上三楼');
-	await c('上顶楼');
+	await c('工坊');
+	await c('天文台');
+	await c('顶楼');
 	await c('把卷轴和星图交给他');
 	await c('下楼');
 	await c('叫醒它');
@@ -266,15 +283,15 @@ async function routeSeizeStaffFail() {
 	const { w, click: c } = await newGame(0.5, 2);   // 秘典：运动无受训/力弱 → 11+0 vs DC15 必败
 	await toWitch(c);
 	await toTower(c);
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('雾里有个影子挡着路');
 	await c('慢慢放下手，退开一步');       // 秘典不经打：走窄路见守林人
 	await c('顺着那条窄路走过去');
 	await c('收下钥匙');
 	await c('先上二楼看看');
-	await c('到拐角的小工坊看看');
-	await c('上三楼');
-	await c('上顶楼');
+	await c('工坊');
+	await c('天文台');
+	await c('顶楼');
 	const hp0 = pcOf(w).hp, salves0 = pcOf(w).salves ?? 0;
 	await c('抢他的杖，自己去打');         // 失败：手被按住，挨一记退回窗边
 	if (passageOf(w) === '结局 讨伐') throw new Error('#219 B1①：检定没过不该直落讨伐结局');
@@ -294,7 +311,7 @@ async function routeBanquetEnds() {
 	await toTower(c);
 	await c('坠入');                       // 第一次翻转：免费（C1②）
 	if (pcOf(w).star.spent !== 0) throw new Error(`#219 C1②：首次翻转不该收费（spent=${pcOf(w).star.spent}）`);
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('有人从门里出来，拦住你');
 	await c('收下钥匙');
 	await c('下楼赴宴');
@@ -316,7 +333,7 @@ async function routePersuadeFail() {
 	const { w, click: c } = await newGame(0.5, 0);   // d20 恒 11：历史/洞悉/游说 +0 全败
 	await toWitch(c);
 	await toTower(c);
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('雾里有个影子挡着路');
 	await c('慢慢放下手，退开一步');
 	await c('顺着那条窄路走过去');
@@ -338,7 +355,7 @@ async function truePath(w, c) {
 	await c('问塔里的门道');               // witch_hint
 	await toTower(c);                     // 林间小径
 	await c('坠入');                      // 翻到过去
-	await c('继续往塔那边走');             // 塔门（过去）
+	await c('塔门');             // 塔门（过去）
 	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('为什么不自己去送');           // 守林人·送
 	await c('回到守林人');
@@ -356,18 +373,18 @@ async function truePath(w, c) {
 	await c('推门进去');                   // 门厅（过去）
 	await c('先上二楼看看');               // 书房（过去：暗格是空的）
 	await c('指出架上一册错抄的星象历');   // #168 P1-29：这份跑腿只在过去那一侧（d20 恒 20 → 成）
-	await c('到拐角的小工坊看看');         // 工坊（同一层）
+	await c('工坊');         // 工坊（同一层）
 	await c('把它打完');                   // 龙鳞护臂
-	await c('上三楼');                     // 天文台（过去）
+	await c('天文台');                     // 天文台（过去）
 	await c('翻转护身符：回到');           // #359：风化书只能在**现在**取
 	await c('在书架上找到一册');           // 观星者的书（现在侧）
 	await c('翻转护身符：坠入');           // 揣着书翻回那一晚
-	await c('上顶楼');                     // 顶楼
+	await c('顶楼');                     // 顶楼
 	await c('下楼，打开地下那道门');       // 地下宴会厅（过去）
 	await c('在宴上找人说话');             // 宴会·过去
 	await c('看厅中央：仪式开始了');           // #219 A3：送星宴仪式上演
 	if (pcOf(w).ev.ritual_seen !== true) throw new Error('#219 A3：看过仪式没落 ritual_seen');
-	await c('回到宴上');
+	await c('宴会·过去');
 	await c('问那位一直在算星的人');       // 观星者
 	await c('它从哪颗星来');
 	await c('回到观星者');
@@ -376,7 +393,7 @@ async function truePath(w, c) {
 	await c('拿出筹码：把风化了的书放回案上（求图）'); // B2：有书 → 免检筹码（不必掷骰）
 	await c('把那张抄好的图收下');
 	await c('回到观星者');
-	await c('回到宴上');
+	await c('宴会·过去');
 	await c('找那位握着哨子的人'); // 当时的女巫（她本人）
 	await c('在塔里找那根杖');
 	await c('自己动手翻：桌布底下、酒箱后头都掀开看');   // M10：翻找是动作（d20 恒 20 必成）
@@ -385,11 +402,11 @@ async function truePath(w, c) {
 	await c('开口：把她那支哨换过来（换哨）');   // B2：图与杖齐了 → willing，不掷骰
 	await c('把那支哨收好');                       // → 当时的女巫·换（哨是她的）           // → 好哨（哨是她的）
 	await c('回到当时的女巫');
-	await c('回到宴上');
+	await c('宴会·过去');
 	await c('找厅角那位不肯多说的老人');   // 老巫女（只露面，不持关键信息）
-	await c('回到宴上');
+	await c('宴会·过去');
 	await c('去把花喂给它');               // 喂花
-	await c('回到宴上');
+	await c('宴会·过去');
 	await c('回到地下宴会厅');             // 地下宴会厅（过去）
 	if (!passageText(w).includes('蜷着睡下了') || passageText(w).includes('雾从它身上')) {
 		throw new Error('喂花后过去的宴会厅没有对应安睡状态，或混入了未来的雾');
@@ -400,9 +417,9 @@ async function truePath(w, c) {
 	await c('伸手去摸烤炉后头的暗格');     // M9：暗格要自己摸（有门道＝免检 → 直接知道位置）
 	await c('把暗格里的东西取出来');       // M10：知道位置之后，取物是另一步
 	await c('把日记往下读');             // 深读落 observation_lock（图鉴·日记三线索）
-	await c('到拐角的小工坊看看');
-	await c('上三楼');
-	await c('上顶楼');
+	await c('工坊');
+	await c('天文台');
+	await c('顶楼');
 	await c('把卷轴和星图交给他');         // 交付（现在）
 	await c('下楼');                       // 地下宴会厅（现在）
 }
@@ -458,7 +475,7 @@ async function routeFlowerDeath() {
 	const { w, click: c } = await newGame(0.99, 0);
 	await toWitch(c);
 	await toTower(c);
-	await c('继续往塔那边走');           // 塔门（现在）——绕开守林人，所以没有情报
+	await c('塔门');           // 塔门（现在）——绕开守林人，所以没有情报
 	w.eval('Math.random = () => 0.01'); // 花田体质豁免必败
 	await c('塔基墙根那片花');           // 塔外花田
 	await c('伸手去摘最靠里的那一朵');     // M9：动手才掷骰 → 贸然采摘
@@ -478,7 +495,7 @@ async function routeFlowerGoblin() {
 	if (pcOf(w).world.goblin_spared !== true) throw new Error('买路未置 goblin_spared');
 	await c('去那间亮着灯的小屋');       // 森林边缘 → 女巫小屋
 	await c('谢过她，往林子深处走');     // → 林间小径
-	await c('继续往塔那边走');           // → 塔门（现在）
+	await c('塔门');           // → 塔门（现在）
 	await c('塔基墙根那片花');           // → 花田：哥布林警告
 	await c('伸手去摘最靠里的那一朵');     // → 免判定拿花
 	if (pcOf(w).inv['月光花'] !== true) throw new Error('有情报仍未拿到月光花（情报路径误走判定？）');
@@ -510,7 +527,7 @@ async function routeHalf() {
 	const { w, click: c } = await newGame(0.5, 0);
 	await toWitch(c);
 	await toTower(c);
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('绕到塔后');
 	await c('算了，回头');
 	if (passageOf(w) !== '结局 半途') throw new Error(`未达半途（${passageOf(w)}）`);
@@ -522,12 +539,12 @@ async function routeTop() {
 	const { w, click: c } = await newGame(0.5, 0);
 	await toWitch(c);
 	await toTower(c);
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('推门进去');
 	await c('先上二楼看看');
-	await c('到拐角的小工坊看看');
-	await c('上三楼');
-	await c('上顶楼');
+	await c('工坊');
+	await c('天文台');
+	await c('顶楼');
 	await c('接他的班');
 	if (passageOf(w) !== '结局 新任守林人') throw new Error(`未达新任守林人（${passageOf(w)}）`);
 	return { w };
@@ -536,12 +553,12 @@ async function routeBurn() {
 	const { w, click: c } = await newGame(0.5, 0);
 	await toWitch(c);
 	await toTower(c);
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('推门进去');
 	await c('先上二楼看看');
-	await c('到拐角的小工坊看看');
-	await c('上三楼');
-	await c('上顶楼');
+	await c('工坊');
+	await c('天文台');
+	await c('顶楼');
 	await c('折断杖');
 	if (passageOf(w) !== '结局 焚塔者') throw new Error(`未达焚塔者（${passageOf(w)}）`);
 	return { w };
@@ -550,12 +567,12 @@ async function routeKeeperFight() {
 	const { w, click: c } = await newGame(0.5, 0);
 	await toWitch(c);
 	await toTower(c);
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('推门进去');
 	await c('先上二楼看看');
-	await c('到拐角的小工坊看看');
-	await c('上三楼');
-	await c('上顶楼');
+	await c('工坊');
+	await c('天文台');
+	await c('顶楼');
 	await c('抢他的杖');
 	if (passageOf(w) !== '结局 讨伐') throw new Error(`未达讨伐（${passageOf(w)}）`);
 	// #300 裁决：结局页不显示「本次结果」槽（保持纯净）——那一掷在豁免表登记理由
@@ -568,7 +585,7 @@ async function routeKill() {
 	const { w, click: c } = await newGame(0.99, 0);
 	await toWitch(c);
 	await toTower(c);
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('雾里有个影子挡着路');
 	await c('慢慢放下手');
 	await c('顺着那条窄路走过去');
@@ -585,7 +602,7 @@ async function routeVoid() {
 	const { w, click: c } = await newGame(0.99, 0);
 	await toWitch(c);
 	await toTower(c);
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('雾里有个影子挡着路');
 	await c('慢慢放下手');
 	await c('顺着那条窄路走过去');
@@ -630,16 +647,16 @@ async function routeSeal() {
 	const { w, click: c } = await newGame(0.99, 0);
 	await toWitch(c);
 	await toTower(c);
-	await c('继续往塔那边走');
+	await c('塔门');
 	await getKey(c);                        // 钥匙：顶楼才能打开地下那道门
 	await c('先上二楼看看');
 	await c('伸手去摸烤炉后头的暗格');     // M9：先摸到日记
 	await c('把暗格里的东西取出来');       // M10：取物是另一步
 	await c('把日记往下读');               // → 观察到"没人看过它睡得怎么样"
 	// #219 B1②：施术门——先下去看过它（hall_seen），术式才对得上地方
-	await c('到拐角的小工坊看看');
-	await c('上三楼');
-	await c('上顶楼');
+	await c('工坊');
+	await c('天文台');
+	await c('顶楼');
 	await c('下楼，打开地下那道门');
 	if (pcOf(w).ev.below_seen !== true) throw new Error('下过地下宴会厅，below_seen 没落账');
 	await c('安静地退出去');
@@ -654,17 +671,17 @@ async function routeDragonBattle(withBook) {
 	const { w, click: c } = await newGame(0.99, 0);
 	await toWitch(c);
 	await toTower(c);
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('雾里有个影子挡着路');
 	await c('慢慢放下手');
 	await c('顺着那条窄路走过去');
 	await c('收下钥匙');
 	if (withBook) {
 		await c('先上二楼看看');
-		await c('到拐角的小工坊看看');
-		await c('上三楼');
+		await c('工坊');
+		await c('天文台');
 		await c('在书架上找到一册');
-		await c('上顶楼');
+		await c('顶楼');
 		await c('下楼，打开地下那道门');
 	} else {
 		await c('用钥匙打开铁门');
@@ -680,7 +697,7 @@ async function routeDragonDeath() {
 	const { w, click: c } = await newGame(0.01, 0); // d20=1 必败
 	await toWitch(c);
 	await toTower(c);
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('雾里有个影子挡着路');
 	await c('慢慢放下手');
 	await c('顺着那条窄路走过去');
@@ -703,24 +720,24 @@ async function routeSleepForever() {
 	await toWitch(c);
 	await toTower(c);
 	await c('坠入');
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('收下钥匙');
 	await c('先上二楼看看');
-	await c('到拐角的小工坊看看');
-	await c('上三楼');
-	await c('上顶楼');
+	await c('工坊');
+	await c('天文台');
+	await c('顶楼');
 	await c('下楼，打开地下那道门');
 	await c('在宴上找人说话');
 	await c('找厅角那位不肯多说的老人');   // 老巫女（晚年穿越的那位）
-	await c('回到宴上');
+	await c('宴会·过去');
 	await c('回到地下宴会厅');
 	await c('翻转护身符：回到');
 	await c('安静地退出去');
 	await c('先上二楼看看');
-	await c('到拐角的小工坊看看');
-	await c('上三楼');
-	await c('上顶楼');
+	await c('工坊');
+	await c('天文台');
+	await c('顶楼');
 	await c('下楼');
 	await c('叫醒它');
 	if (passageOf(w) !== '唤醒') throw new Error(`未到唤醒（${passageOf(w)}）`);
@@ -908,7 +925,7 @@ async function routeFightAdv() {
 	const { w, click: c } = await newGame(0.99, 0);
 	await c('问一句女巫小屋怎么走');
 	await c('往林子深处走');
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('雾里有个影子挡着路');
 	await c('慢慢放下手');
 	await c('顺着那条窄路走过去');
@@ -937,7 +954,7 @@ async function routeFlowerBack() {
 	const { w, click: c } = await newGame(0.99, 0);
 	await c('问一句女巫小屋怎么走');
 	await c('往林子深处走');
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('雾里有个影子挡着路');
 	await c('慢慢放下手');
 	await c('顺着那条窄路走过去');
@@ -973,7 +990,7 @@ async function routeInvestment() {
 	const { w, click: c } = await newGame(0.01, 0);   // 低骰：检定必败
 	await toWitch(c);
 	await toTower(c);
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('推门进去');                                // 门厅
 	// G2：看钉失败 → 产出情报旗标（失败给信息）＋ 屏上留提示
 	await c('先看清钉子是怎么卡的');
@@ -983,8 +1000,8 @@ async function routeInvestment() {
 	if (w.Game.Checks.knowledge['门厅·看钉'] !== 'hall_hint') throw new Error('#291 G2：情报未接入位点优势');
 	// 可重试的位点验证「带情报重试」：天文台·典籍（失败 → ledger_hint → 重试标注优势来源）
 	await c('先上二楼看看');
-	await c('到拐角的小工坊看看');
-	await c('上三楼');
+	await c('工坊');
+	await c('天文台');
 	await c('顺着注记读一读缺口边上那半幅星轨');
 	if (pcOf(w).world.ledger_hint !== true) throw new Error('#291 G2：典籍失败未产出情报旗标');
 	if (!passageText(w).includes('等分')) throw new Error('#291 G2：失败后屏上没留情报提示');
@@ -1120,7 +1137,7 @@ async function routeLair() {
 	const { w, click: c } = await newGame(0.99, 0);
 	await toWitch(c);
 	await toTower(c);
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('雾里有个影子挡着路');
 	await c('慢慢放下手');
 	await c('顺着那条窄路走过去');
@@ -1139,13 +1156,13 @@ async function routeOldWoman() {
 	await toWitch(c);
 	await toTower(c);
 	await c('坠入');
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('收下钥匙');
 	await c('下楼赴宴');
 	await c('在宴上找人说话');
 	await c('找刚才拦住你的老妇人');
-	await c('回到宴上');
+	await c('宴会·过去');
 	return { w };
 }
 
@@ -1155,7 +1172,7 @@ async function routeSleepVoluntary() {
 	await toWitch(c);
 	await toTower(c);
 	await c('坠入');
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('收下钥匙');
 	await c('把墙上那支哨子摘下来');               // #177：换哨要真拿着可换的那支
@@ -1165,7 +1182,7 @@ async function routeSleepVoluntary() {
 	await c('引一段先例：历史（求图）');   // B2：无书 → 历史检定（d20=20 必成）
 	await c('把那张抄好的图收下');
 	await c('回到观星者');
-	await c('回到宴上');
+	await c('宴会·过去');
 	await c('找那位握着哨子的人'); // 当时的女巫（她本人）
 	await c('在塔里找那根杖');
 	await c('自己动手翻：桌布底下、酒箱后头都掀开看');   // M10：翻找是动作（d20 恒 20 必成）
@@ -1173,7 +1190,7 @@ async function routeSleepVoluntary() {
 	await c('开口：把她那支哨换过来（换哨）');   // B2：图与杖齐了 → willing，不掷骰
 	await c('把那支哨收好');                       // → 当时的女巫·换（哨是她的）
 	await c('回到当时的女巫');
-	await c('回到宴上');
+	await c('宴会·过去');
 	await c('回到地下宴会厅');
 	await c('翻转护身符：回到');
 	await c('叫醒它');
@@ -1189,7 +1206,7 @@ async function routeExchangeGate() {
 	await toWitch(c);
 	await toTower(c);
 	await c('坠入');
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('有人从门里出来，拦住你');   // #219 A2：过去无雾——守塔人出来拦
 	await c('收下钥匙');
 	await c('下楼赴宴');
@@ -1197,7 +1214,7 @@ async function routeExchangeGate() {
 	await c('找那位握着哨子的人');
 	// #249：宴上贺礼——月光花第三用途（预置一朵；赠出即失，三选一）
 	w.eval('(function(){SugarCube.State.variables.pc.inv["月光花"]=true;})()');
-	await c('回到宴上');
+	await c('宴会·过去');
 	await c('找那位握着哨子的人');
 	if (!links().some((s) => s.includes('把那朵月光花送给她'))) throw new Error('#249：持花赴宴，该有赠礼入口');
 	await c('把那朵月光花送给她');
@@ -1214,18 +1231,18 @@ async function routeExchangeGate() {
 	if (links().some((s) => s.includes('把她那支哨换过来'))) throw new Error('有好感但无星图，仍不该出现换哨选项');
 	if (pcOf(w).inv['好哨']) throw new Error('门槛未过却拿到好哨');
 	// ③ 取星图（本路线没拿门厅的哨）→ #177：手里没哨仍不肯（正文不收你根本没有的东西）
-	await c('回到宴上');
+	await c('宴会·过去');
 	await c('问那位一直在算星的人');
 	await c('引一段先例：历史（求图）');
 	await c('把那张抄好的图收下');
 	await c('回到观星者');
-	await c('回到宴上');
+	await c('宴会·过去');
 	await c('找那位握着哨子的人');
 	if (links().some((s) => s.includes('把她那支哨换过来'))) throw new Error('#177：图与杖齐了但手里没哨，不该出现可点的换哨');
 	if (!passageText(w).includes('还挂在门厅的钉子上')) throw new Error('#177：无哨时没给「哨在门厅」的指引');
 	if (pcOf(w).inv['好哨']) throw new Error('#177：无哨竟换到了好哨');
 	// ④ 回门厅取哨（现在那侧的钉子上）→ 回来换哨成功
-	await c('回到宴上');
+	await c('宴会·过去');
 	await c('回到地下宴会厅');
 	await c('翻转护身符：回到');
 	await c('安静地退出去');
@@ -1251,7 +1268,7 @@ async function routeEraBranches() {
 	await toWitch(c);
 	await toTower(c);
 	await c('坠入');
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('塔基墙根那片花');       // 塔外花田（过去）：花还没长出来 ← #168 P1-8 覆盖
 	if (pcOf(w).inv['月光花']) throw new Error('三百年前那一侧不该能摘到花（#168 P1-8）');
 	if (linksOf(w).some((x) => x.includes('摘'))) throw new Error('过去那一侧还留着采摘入口（#168 P1-8）');
@@ -1281,9 +1298,9 @@ async function routeEraBranches() {
 	await c('安静地退出去');
 	await c('翻转护身符：坠入');     // 门厅（过去）
 	await c('先上二楼看看');
-	await c('到拐角的小工坊看看');
-	await c('上三楼');
-	await c('上顶楼');               // 顶楼（过去）
+	await c('工坊');
+	await c('天文台');
+	await c('顶楼');               // 顶楼（过去）
 	await c('把卷轴和星图交给他');   // #219 D③：东西不齐＝就地反馈缺什么（不进交付）
 	if (passageOf(w) !== '顶楼') throw new Error(`#219 D③：不齐时不该进交付（${passageOf(w)}）`);
 	if (!passageText(w).includes('还没凑齐')) throw new Error('#219 D③：不齐反馈缺「还没凑齐」文案');
@@ -1368,7 +1385,7 @@ async function routeTavernAsk() {
 	await c('问：雾到底是什么');
 	if (pcOf(w).ev.wq_fog !== true) throw new Error('女巫小屋的提问没记账');
 	await c('谢过她，往林子深处走');
-	await c('继续往塔那边走');
+	await c('塔门');
 	// 不采花：花田必须给"先别动它"的退路（M9：采摘是动作）
 	await c('塔基墙根那片花');
 	await c('先别动它，退回塔门');
@@ -1394,7 +1411,7 @@ async function routeAskForIt() {
 	if (!wqText.includes('改不了的不是历史')) throw new Error('observation_lock 锚句（女巫小屋侧）未渲染');
 	await c('花 8 金币：问塔里的门道');              // witch_hint
 	await c('谢过她，往林子深处走');
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('雾里有个影子挡着路');
 	await c('慢慢放下手');
 	await c('顺着那条窄路走过去');
@@ -1418,7 +1435,7 @@ async function routeStudyKnock() {
 	await c('推门出发，走进暮色');
 	await c('去那间亮着灯的小屋');
 	await c('谢过她，往林子深处走');
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('雾里有个影子挡着路');
 	await c('举起武器');                    // #219 A2 后：雾战＝现在侧内容，本路线补交互覆盖（d20 恒 20 无伤）
 	await fightTo(c, w, ['往塔那边去']);
@@ -1444,7 +1461,7 @@ async function routeNoSaveScum() {
 	await c('推门出发，走进暮色');
 	await c('去那间亮着灯的小屋');
 	await c('谢过她，往林子深处走');
-	await c('继续往塔那边走');
+	await c('塔门');
 	await c('雾里有个影子挡着路');
 	await c('慢慢放下手');
 	await c('顺着那条窄路走过去');
@@ -1472,13 +1489,13 @@ async function routeNoSaveScum() {
 	if (pcOf(w).hp !== hpBefore - 1) throw new Error('带伤路没有付出 1 点代价');
 	await c('把暗格里的东西取出来');
 	if (pcOf(w).inv['日记'] !== true) throw new Error('换路之后没拿到日记');
-	await c('到拐角的小工坊看看');
+	await c('工坊');
 	await c('擦开内侧的锈');        // 察觉 → 必成
 	if (pcOf(w).ev.forge_seen !== true) throw new Error('察觉路没换来护臂来历');
-	await c('上三楼');
+	await c('天文台');
 	await c('盯住缺口里那几粒没连上的点');        // 察觉 → 必成（本条路线故意不拿那册书）
 	if (pcOf(w).ev.star_ledger !== true) throw new Error('察觉路没换来天文台的那半幅星轨');
-	await c('上顶楼');
+	await c('顶楼');
 	await c('下楼，打开地下那道门');
 	await c('翻转护身符：坠入');                  // 先翻到过去（位置决定年代）
 	await c('在宴上找人说话');
@@ -1488,7 +1505,7 @@ async function routeNoSaveScum() {
 	await c('把那张抄好的图收下');
 	if (pcOf(w).inv['完整星图'] !== true) throw new Error('星图没拿到');
 	await c('回到观星者');
-	await c('回到宴上');
+	await c('宴会·过去');
 	await c('找那位握着哨子的人');
 	await c('在塔里找那根杖');
 	await c('站在一边看：厅里谁一直在瞟那张空架子');  // 洞悉 → 必成
@@ -1529,7 +1546,7 @@ async function routeTextContext() {
 	check(passageText(w).includes('枯掉的月光花'), '现在的小径缺少枯花对照');
 	await c('坠入');
 	check(!passageText(w).includes('枯掉的月光花'), '过去的小径仍先描写未来才有的枯花');
-	await c('继续往塔那边走');
+	await c('塔门');
 	// #219 B1③：宴当晚大门对谁都开（原「现在的认可对三百年前门卫生效」是矛盾）
 	check(linksOf(w).some((x) => x === '推门进去'), '过去大门该对谁都开（宴当晚开门迎客）');
 	await c('塔基墙根那片花');
@@ -1557,9 +1574,9 @@ async function routeTextContext() {
 	check(passageText(w).includes('缺的从来不是咒'), '日记取出后关键内文被同页重绘吃掉');
 	// 信息可见已由上一行「日记取出后关键内文被同页重绘吃掉」覆盖；这里只留**键盘可续**（#304 口径）
 	check(!!w.document.activeElement?.closest('#passages'), '取出日记后焦点不在正文区（键盘不可续）');
-	await c('到拐角的小工坊看看');
-	await c('上三楼');
-	await c('上顶楼');
+	await c('工坊');
+	await c('天文台');
+	await c('顶楼');
 	await c('下楼，打开地下那道门');
 	check(!passageText(w).includes('路费'), '读过日记也不许点破雾的来历（v17 补正 #7：谜底只在设定集）');
 	if (problems.length) throw new Error(problems.join('；'));
@@ -1638,6 +1655,29 @@ writeFileSync('build/route-traces.json', JSON.stringify({
 	routes: Object.fromEntries([...traces].sort((a, b) => a[0].localeCompare(b[0]))),
 	passageTexts: Object.fromEntries([...passageTexts].sort((a, b) => a[0].localeCompare(b[0]))),
 }, null, 1));
+// #317② 机制自证（**不走路线**）：证明「定位用 key、断言用文案」这条路真的通——
+// 取当前段落的可点链接：① 每条都带派生 key；② keyOf 给出三元组；③ 按 key 点一条能真的走过去。
+{
+	const s2 = await newGame(0.5, 0);
+	const { w: w2, click: c2, keyOf } = s2;
+	const anchorOf = () => [...w2.document.querySelectorAll('#passages a.link-internal[data-passage]')].filter((a) => a.dataset.choice);
+	const links = anchorOf();
+	if (!links.length) throw new Error('当前段落没有带 key 的内部链接（派生 pass 没跑？）');
+	if (links.some((a) => !a.dataset.choice)) throw new Error('有内部链接缺 data-choice');
+	const info = keyOf(links[0]);
+	if (!info.choice || !info.label) throw new Error(`keyOf 三元组不全：${JSON.stringify(info)}`);
+	const from = passageOf(w2);
+	await c2(info.choice);                                   // **按 key 点**（不是文案）
+	if (passageOf(w2) === from) throw new Error(`按 key「${info.choice}」点击后段落没变化`);
+	console.log(`  ✓ 机制自证：${links.length} 条链接带 key｜keyOf=${JSON.stringify(info).slice(0, 70)}｜按 key 从「${from}」走到「${passageOf(w2)}」`);
+}
+{
+	// #317②：定位方式统计——「还有多少点击靠中文文案」（迁移进度可见）
+	const k = ALL_LOC.reduce((a, x) => a + x.key, 0);
+	const l = ALL_LOC.reduce((a, x) => a + x.label, 0);
+	const pct = k + l ? Math.round((k / (k + l)) * 100) : 0;
+	console.log(`定位方式：key ${k} 次 / 文案 ${l} 次（key 占比 ${pct}%）`);
+}
 console.log(`\n路线 ${routes.length} 条 · 交互覆盖 ${visited.size} 格`);
 if (failures) { console.error(`✗ ${failures} 条路线失败`); process.exit(1); }
 console.log('✔ 分支场景测试通过');

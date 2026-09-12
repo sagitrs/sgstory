@@ -9,7 +9,7 @@ import { boot, CLICKABLE_SEL } from './boot.mjs';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const { w, settle } = await boot({ random: () => 0.99 });
-const hasOption = () => [...w.document.querySelectorAll(CLICKABLE_SEL)].some((a) => a.textContent.includes('那一夜该烧的是什么'));
+const hasOption = () => [...w.document.querySelectorAll(CLICKABLE_SEL)].some((a) => a.textContent.includes('缺的那一句话，是谁没说完'));
 
 const probe = async (seed) => {
 	w.eval(`(function(){const pc=SugarCube.State.variables.pc;pc.ev=pc.ev||{};

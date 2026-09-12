@@ -264,7 +264,13 @@ Macro.add('dragonbar', {
 	<<else>>
 		<span class="damage-flash">''你受到了 $args[0] 点伤害！''</span>
 	<</if>>
-	<<if $pc.hp lte 0>><<goto "结局 死亡">><</if>>
+	<<if $pc.hp lte 0>>
+		/% #357：致命伤**即刻登记结局**——安全网（:passagestart 的 hp≤0 修补）以
+		   `!pc.ev.ending` 为门，若不先登记，它会赶在结局页渲染前把 hp 修回 1，
+		   把刚受致命伤的角色"复活"。 %/
+		<<set $pc.ev.ending to "死亡">>
+		<<goto "结局 死亡">>
+	<</if>>
 <</nobr>><</widget>>
 
 /% 检定位点词汇：DC/技能出走 Game.Checks.sites；正文只传位点键。site.abil → 豁免，否则技能检定。

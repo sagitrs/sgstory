@@ -344,7 +344,7 @@
 		<<if $last_check.success>>你掀开长桌尽头的桌布——那根杖就靠在那儿，杖头朝里，''藏得很仔细''。<<set $pc.ev.staff_found to true>>
 		<<else>>人群挡住了去路。你挤了几次，手背被木箱边缘划破，硬是从桌布底下把那根杖抽了出来，趁没人看你，把它靠在了手边的桌腿上。<<damage `Game.Damage.graze`>>（''拿到了，手也破了。''）<<set $pc.ev.staff_found to true>>
 		<</if>>
-		<<goto "寻杖">>
+		<<if $pc.hp gt 0>><<goto "寻杖">><</if>>
 	<</link>>
 	<<link "拉住那个在桌子底下钻的孩子，问他看没看见一根杖">>
 		<<sitecheck "寻杖·问孩子">><<snapshot>>

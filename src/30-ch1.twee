@@ -262,7 +262,7 @@
 		<<if $last_check.success>>
 			<<econ "goblin_kill">>你把它打跑了，捡起散落的石头。<<set $pc.world.goblin_gone to true>><<goto "森林边缘">>
 		<<else>>
-			<<damage `Game.Damage.heavy`>>它抓伤了你，趁乱钻进了石缝。<<set $pc.world.goblin_gone to true>><<goto "森林边缘">>
+			<<damage `Game.Damage.heavy`>>它抓伤了你，趁乱钻进了石缝。<<set $pc.world.goblin_gone to true>><<if $pc.hp gt 0>><<goto "森林边缘">><</if>>
 		<</if>>
 	<</link>>
 	<<link "什么都不做，绕开它">><<goto "森林边缘">><</link>>

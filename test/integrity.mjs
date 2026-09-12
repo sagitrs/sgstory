@@ -331,6 +331,40 @@ for (const p of passages.values()) {
 	}
 }
 
+// ── 致命伤不被覆盖门（#357）：<<damage>> 之后的同层 <<goto>> 必须包在存活条件里 ──
+// 为什么：#357 实锤——「<<damage heavy>> … <<goto "顶楼">>」在致命伤时，damage 内的
+//   「<<goto 结局 死亡>>」会被随后的普通 goto 覆盖，玩家带着 hp0 继续剧情（更糟的是
+//   :passagestart 的 hp≤0 安全网会把 hp 修回 1，等于复活）。
+// 判据（纯函数，便于合成反例）：在同一段落里，`<<damage …>>` 之后**中间没有 <<if/<<else/<</if>**
+//   的第一个 `<<goto "…">>`，若它自己没有处在 `<<if $pc.hp gt 0>>` 里，即判红。
+export const scanFatalOverrides = (body) => {
+	const out = [];
+	const rx = /<<damage[^\n>]*>>/g;
+	let m;
+	while ((m = rx.exec(body))) {
+		const rest = body.slice(m.index + m[0].length, m.index + m[0].length + 400);
+		const g = rest.match(/(?:(?!<<if|<<else|<<\/if>|<<link\b|::)[\s\S])*?(<<goto "[^"]+">>)/);
+		if (!g) continue;
+		const guarded = /<<if\s+\$pc\.hp\s+gt\s+0>>\s*$/.test(rest.slice(0, g.index)) || /<<if\s+\$pc\.hp\s+gt\s+0>>\s*<<goto/.test(rest.slice(0, g.index + g[0].length));
+		if (!guarded) out.push({ goto: g[1], at: m.index });
+	}
+	return out;
+};
+// 自证：正例（有守卫）＋ 反例（无守卫）各一
+{
+	const good = '<<damage 4>>你挨了一下。<<if $pc.hp gt 0>><<goto "顶楼">><</if>>';
+	const bad = '<<damage 4>>你挨了一下。<<goto "顶楼">>';
+	const okGood = scanFatalOverrides(good).length === 0;
+	const okBad = scanFatalOverrides(bad).length === 1;
+	if (!okGood || !okBad) errors.push(`[致命伤门] 自证失败：正例 ${scanFatalOverrides(good).length}（期望 0）／反例 ${scanFatalOverrides(bad).length}（期望 1）`);
+}
+for (const p of passages.values()) {
+	if (p.tags.some((t) => ['script', 'stylesheet'].includes(t))) continue;
+	for (const f of scanFatalOverrides(p.body.replace(COMMENT_RX, ''))) {
+		errors.push(`[致命伤] ${p.file}:${p.line} 段落「${p.name}」的 ${f.goto} 紧跟在 <<damage>> 之后却没有存活条件——致命伤时它会覆盖「结局 死亡」的跳转（#357）`);
+	}
+}
+
 // ── 段落登记门（#262/#185 阶段四／#264）：每个内容段落必须登记在 docs/ui-inventory.md ──
 // 「新场景自动进入模板及覆盖清单」的静态那一半：新增段落未登记即红（另一半点（渲染/覆盖）在 coverage 门）。
 {

@@ -1,101 +1,151 @@
-// #300 §5 静态门（测试基建，不含产品修复）：两件事必须永远成立
+// #300 §5 静态门 → **#315 升级为禁止制**（测试基建，不含产品修复）
 //
-//  ① **就地行动站点不得漏登记**：正文里凡「<<link>> 体内含 <<replace>> 且改状态
-//     （<<give>>／<<damage>>／<<set $…>>）」的站点，都必须在 test/saveload-sites.json 里
-//     有对应条目——这样未来新增同类站点会被立刻抓住，不必等它变成第二个 #300。
-//     （#300 票面明确要求「不要只对门厅与洞穴添加段落名特判」，本门就是那条要求的机械保证。）
+// 口径来源：`docs/dev-conventions.md`「渲染路径契约」——**就地反馈不得改状态**。
+// 语法上两条路径长得几乎一样（都是 <<link>> + 结果文本），只靠人记必出错：
+// #300 P1（存档丢道具/丢检定记录）就是这么来的。本门把口径变成机械约束。
+//
+// 三条断言：
+//
+//  ① **禁止就地改状态**（#315 新）：凡「<<link>> 体内含 <<replace>> 且改状态
+//     （<<give>>／<<damage>>／<<set $…>>）」的站点，**一律红灯**——正确做法是
+//     「结算 → 结果留屏 → <<goto>>」。确有必要时须写进 test/saveload-sites.json 的
+//     `inPageMutationsAllowed` 白名单（每条：理由 ＋ 票号），否则不得通过。
+//     （#300 票面要求的「不要只对门厅与洞穴打特判」由此升级：不是登记，是禁止。）
 //
 //  ② **检定 key 必须有归宿**：通用 goto 包装会先删掉 .check-result，假定落地段用
 //     <<lastcheckFor>> 复显。因此每个 <<sitecheck "KEY">> 的 KEY 要么出现在某处
-//     <<lastcheckFor>> 的参数里，要么在豁免表里写明理由（含票号）。
-//     空豁免＝红灯：不允许「反正没人看」的静默例外。
+//     <<lastcheckFor>> 的参数里，要么在豁免表里写明理由（含票号）。空豁免＝红灯。
 //
-// 本文件只做静态检查，因此**在缺陷基线上也是绿的**（它保证的是「被登记」，不是「已修好」）；
-// 「已修好」由 test/saveload.mjs（行为门）负责，那张门在 #300 修复前应当是红的。
+//  ③ **行为矩阵依赖的 widget 必须仍在**（间接站点：状态变更藏在 widget 体内，
+//     扫描器看不见 link 体内的直接变更）。
+//
+// 自证：`node test/saveload-inventory.mjs --selftest` —— 用**合成源码**验证
+//   「非法站点 → 红」「合规站点 → 绿」。没有这一步，禁止制就只是纸面承诺。
+//
+// 说明：本文件只做静态检查，因此它保证的是「**规则成立**」，不是「行为已正确」；
+// 「行为正确」由 test/saveload.mjs（存读档保值矩阵）负责。
 
 import { readFileSync, readdirSync } from 'node:fs';
 
 const MANIFEST = JSON.parse(readFileSync(new URL('./saveload-sites.json', import.meta.url), 'utf8'));
-const files = readdirSync(new URL('../src', import.meta.url)).filter((f) => f.endsWith('.twee'));
-const source = files.map((f) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8')).join('\n');
+const readSrc = () => {
+	const dir = new URL('../src', import.meta.url);
+	return readdirSync(dir).filter((f) => f.endsWith('.twee')).sort()
+		.map((f) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8')).join('\n');
+};
 
-let failures = 0;
-const check = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) failures++; };
-const label = (s) => s.replace(/（[^）]*）/g, '').replace(/\s+/g, '').slice(0, 14);
-
-// ── ① 就地行动站点扫描 ────────────────────────────────────────────────
+// ── 扫描器（纯函数：给字符串，返回发现；自证靠它喂合成源码）────────────────
 // 排除 <<set _x …>>（宏内临时变量，不进存档语义）
 const MUTATORS = ['<<give', '<<damage', '<<set $'];
-const found = [];
-{
+export const scanInPageMutations = (source) => {
+	const out = [];
 	const re = /<<link "([^"]+)"\s*>>([\s\S]*?)<<\/link>>/g;
 	let m;
 	while ((m = re.exec(source))) {
-		const [full, name, body] = m;
+		const body = m[2];
 		if (!body.includes('<<replace')) continue;
 		if (!MUTATORS.some((k) => body.includes(k))) continue;
 		const passage = (source.slice(0, m.index).match(/^:: (.+)$/gm) ?? [':: ?']).pop().replace(/^:: /, '').trim();
-		found.push({ label: name, passage, mutators: MUTATORS.filter((k) => body.includes(k)) });
+		out.push({ label: m[1], passage, mutators: MUTATORS.filter((k) => body.includes(k)) });
 	}
-}
-const manifestLabels = new Set(MANIFEST.sites.map((s) => s.label));
-const unregistered = found.filter((f) => !manifestLabels.has(f.label));
-// 带 behavioralOnly 的条目＝**经 widget 间接改状态**的站点：扫描器看不见 link 体内的直接变更，
-// 所以它们不参与「静态发现」对账（否则永远误报 stale），但必须校验那个 widget 还在。
-const stale = MANIFEST.sites.filter((s) => !s.behavioralOnly && !found.some((f) => f.label === s.label));
+	return out;
+};
 
-check(found.length >= 0, `扫到「就地 replace ＋ 改状态」站点 ${found.length} 处（直接变更）`);
-for (const f of found) console.log(`    · ${f.passage}｜「${label(f.label)}…」 ${f.mutators.join(' ')}`);
-const indirect = MANIFEST.sites.filter((s) => s.behavioralOnly);
-for (const s of indirect) {
-	const okWidget = new RegExp(`<<widget "${s.behavioralOnly}"`).test(source);
-	check(okWidget, `间接站点依赖的 widget 仍在：「${label(s.label)}…」 → <<widget "${s.behavioralOnly}">>${okWidget ? '' : '（widget 改名/删除了，登记项已失效）'}`);
-}
-check(unregistered.length === 0,
-	unregistered.length === 0
-		? '没有**未登记**的就地行动站点（新增同类站点不会静默漏测）'
-		: `有 ${unregistered.length} 处就地行动站点**未登记**（补进 saveload-sites.json，并写清 nav/断言）：${unregistered.map((u) => `${u.passage}「${u.label}」`).join('、')}`);
-// 清单条目「不再出现在静态扫描里」**不算失败**，只报告：
-// 站点可能因为修复（例：#305 把门厅/花田改回 goto 渲染路径）而不再属「就地变更」类型，
-// 但其行为要求（操作后立即 S/L 必须保值）仍然成立——由行为门继续盯。
-// 本门的职责是「防新增未登记风险」，不是「阻止风险面的正当收缩」。
-if (stale.length) {
-	console.log('~ 以下登记项已不在静态扫描范围内（可能因修复换了渲染路径；仍由行为门盯）：');
-	for (const s of stale) console.log(`    · ${s.where}｜「${s.label.replace(/（[^）]*）/g, '')}…」`);
-}
-for (const s of MANIFEST.sites) {
-	check(!!s.nav && Array.isArray(s.assert) && s.assert.length > 0 && !!s.ticket,
-		`登记项完整（nav/断言项/票号）：「${label(s.label)}…」 → nav=${s.nav} assert=${(s.assert ?? []).join('+')} ${s.ticket ?? '(缺票号)'}`);
+export const scanSitecheckKeys = (source) => {
+	const keys = new Set();
+	for (const m of source.matchAll(/<<sitecheck "([^"]+)"(?:\s+"([^"]+)")?/g)) {
+		keys.add(m[1]);
+		if (m[2]) keys.add(m[2]);
+	}
+	const redisplayed = new Set();
+	for (const m of source.matchAll(/<<lastcheckFor ([^>]+)>>/g)) {
+		for (const k of m[1].matchAll(/"([^"]+)"/g)) redisplayed.add(k[1]);
+	}
+	return { keys, redisplayed };
+};
+
+// ── 判定（纯函数：给源码 + 清单，返回失败列表）────────────────────────────
+export const evaluate = (source, manifest = MANIFEST) => {
+	const failures = [];
+	const found = scanInPageMutations(source);
+	const allowed = manifest.inPageMutationsAllowed ?? {};
+	// ① 禁止制：未登记白名单的就地改状态站点＝红
+	for (const f of found) {
+		if (!allowed[f.label]) {
+			failures.push({ code: 'in-page-mutation', msg: `${f.passage}｜「${f.label}」（${f.mutators.join(' ')}）就地改状态且未登记白名单——改为「结算 → 结果留屏 → <<goto>>」，或写明理由＋票号进 inPageMutationsAllowed` });
+		}
+	}
+	// ①b 白名单不得有失效条目（改了名/删了站点却留着豁免）
+	const foundLabels = new Set(found.map((f) => f.label));
+	const staleAllowed = Object.keys(allowed).filter((k) => !foundLabels.has(k));
+	for (const k of staleAllowed) failures.push({ code: 'stale-allowance', msg: `白名单条目「${k}」在正文里已找不到就地改状态站点（改新名或删除）` });
+
+	// ③ 间接站点依赖的 widget 必须仍在
+	const behaviorOnly = (manifest.sites ?? []).filter((s) => s.behavioralOnly);
+	const staleWidget = behaviorOnly.filter((s) => !new RegExp(`<<widget "${s.behavioralOnly}"`).test(source));
+	for (const s of staleWidget) failures.push({ code: 'missing-widget', msg: `行为矩阵依赖的 widget <<${s.behavioralOnly}>> 不存在了（「${s.label}」的登记项已失效）` });
+
+	// ② 检定 key 归宿
+	const { keys, redisplayed } = scanSitecheckKeys(source);
+	const exempt = manifest.sitecheckExemptions ?? {};
+	const orphan = [...keys].filter((k) => !redisplayed.has(k) && !exempt[k]);
+	for (const k of orphan) failures.push({ code: 'orphan-key', msg: `<<sitecheck "${k}">> 既不复显（<<lastcheckFor>>）也无豁免：跨段后检定框会静默丢失` });
+	const noReason = Object.entries(exempt).filter(([, v]) => !v || String(v).trim().length < 8 || !/#\d+/.test(String(v)));
+	for (const [k] of noReason) failures.push({ code: 'exemption-without-reason', msg: `豁免「${k}」缺理由或缺票号（不允许空豁免）` });
+
+	return { failures, found, keys, redisplayed, allowed, staleAllowed };
+};
+
+// ── 自证：禁止制必须咬得住 ─────────────────────────────────────────────
+const SELFTEST = () => {
+	const legal = `:: 好站点\n<<link "取走那支哨子">>\n\t<<give "坏哨">><<goto "门厅">>\n<</link>>\n`;
+	const illegal = `:: 坏站点\n<<link "就地取走那支哨子">>\n\t<<replace "#act">><p>你取下了它。<<give "坏哨">></p><</replace>>\n<</link>>\n`;
+	const tempOnly = `:: 纯界面态\n<<link "展开细节">>\n\t<<set _t to 1>><<replace "#act">>点开了<</replace>>\n<</link>>\n`;
+	const cases = [
+		['合规（结算 → goto）→ 不得报红', legal, 0],
+		['非法（就地 replace + give）→ 必须报红', illegal, 1],
+		['纯界面态（只改临时变量）→ 不得报红', tempOnly, 0],
+	];
+	let bad = 0;
+	for (const [name, src, want] of cases) {
+		const { failures } = evaluate(src, { inPageMutationsAllowed: {}, sitecheckExemptions: {} });
+		const hit = failures.filter((f) => f.code === 'in-page-mutation').length;
+		const ok = hit === want;
+		if (!ok) bad++;
+		console.log(`${ok ? '✓' : '✗'} ${name}（命中 ${hit}，期望 ${want}）`);
+	}
+	// 白名单失效也必须报红
+	const staleSrc = `:: 好站点\n<<link "取走那支哨子">>\n\t<<give "坏哨">><<goto "门厅">>\n<</link>>\n`;
+	const { failures: f2 } = evaluate(staleSrc, { inPageMutationsAllowed: { '早已删掉的老站点': '理由 #300' }, sitecheckExemptions: {} });
+	const staleHit = f2.some((f) => f.code === 'stale-allowance');
+	console.log(`${staleHit ? '✓' : '✗'} 白名单失效条目 → 必须报红`);
+	if (!staleHit) bad++;
+	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项——禁止制没有咬合力（纸面承诺）`); process.exit(1); }
+	console.log('\n✔ 自证通过：合法绿 / 非法红 / 纯界面态绿 / 白名单失效红');
+};
+
+if (process.argv.includes('--selftest')) { SELFTEST(); process.exit(0); }
+
+// ── 真实源码检查 ───────────────────────────────────────────────────────
+const source = readSrc();
+const { failures, found, keys, redisplayed, allowed } = evaluate(source);
+
+let failuresCount = 0;
+const check = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) failuresCount++; };
+const label = (s) => s.replace(/（[^）]*）/g, '').replace(/\s+/g, '').slice(0, 14);
+
+console.log(`扫描源文件：${readdirSync(new URL('../src', import.meta.url)).filter((f) => f.endsWith('.twee')).length} 个 twee`);
+check(found.length === 0,
+	found.length === 0
+		? '就地行动**零站点**（口径：就地反馈不得改状态；正确做法＝结算 → 结果留屏 → goto）'
+		: `有 ${found.length} 处就地改状态站点（白名单 ${Object.keys(allowed).length} 条）`);
+for (const f of found) console.log(`    · ${f.passage}｜「${label(f.label)}…」 ${f.mutators.join(' ')}${allowed[f.label] ? '（白名单）' : ''}`);
+check(keys.size > 0, `扫到 <<sitecheck>> key ${keys.size} 个（${redisplayed.size} 个有复显 / ${Object.keys(MANIFEST.sitecheckExemptions ?? {}).length} 个登记豁免）`);
+for (const s of (MANIFEST.sites ?? []).filter((x) => x.behavioralOnly)) {
+	check(!failures.some((f) => f.code === 'missing-widget' && f.msg.includes(s.behavioralOnly)), `间接站点依赖的 widget 仍在：<<${s.behavioralOnly}>>`);
 }
 
-// ── ② 检定 key 的归宿 ────────────────────────────────────────────────
-// 注意口径：此处扫的是**全仓 key 的静态归宿**（复显 或 豁免），不判断运行时可见性；
-// 运行时可见性由 test/saveload.mjs 的跨段用例与人工走查（#296）负责。
-const siteKeys = new Set();
-for (const m of source.matchAll(/<<sitecheck "([^"]+)"(?:\s+"([^"]+)")?/g)) {
-	siteKeys.add(m[1]);
-	if (m[2]) siteKeys.add(m[2]);
-}
-const redisplayed = new Set();
-for (const m of source.matchAll(/<<lastcheckFor ([^>]+)>>/g)) {
-	for (const k of m[1].matchAll(/"([^"]+)"/g)) redisplayed.add(k[1]);
-}
-const exempt = MANIFEST.sitecheckExemptions ?? {};
-const orphan = [...siteKeys].filter((k) => !redisplayed.has(k) && !exempt[k]);
-const staleExempt = Object.keys(exempt).filter((k) => !siteKeys.has(k));
-const noReason = Object.entries(exempt).filter(([, v]) => !v || String(v).trim().length < 8 || !/#\d+/.test(String(v)));
+for (const f of failures) check(false, `[${f.code}] ${f.msg}`);
 
-check(siteKeys.size > 0, `扫到 <<sitecheck>> key ${siteKeys.size} 个（其中 ${redisplayed.size} 个有 <<lastcheckFor>> 复显，${Object.keys(exempt).length} 个登记豁免）`);
-check(orphan.length === 0,
-	orphan.length === 0
-		? '每个检定 key 都有归宿（复显 或 豁免＋理由）——没有「静默丢检定框」的新增空间'
-		: `${orphan.length} 个 key 既不复显也没豁免：${orphan.join('、')}（补 <<lastcheckFor>>，或进豁免表写明理由）`);
-check(staleExempt.length === 0,
-	staleExempt.length === 0 ? '豁免表没有失效条目' : `豁免表有失效条目（正文里已无此 key）：${staleExempt.join('、')}`);
-check(noReason.length === 0,
-	noReason.length === 0
-		? '每条豁免都写了理由且引用了票号（不允许空豁免）'
-		: `${noReason.length} 条豁免缺理由或缺票号：${noReason.map(([k]) => k).join('、')}`);
-
-console.log(`\n${failures ? `✗ 静态门 ${failures} 项未通过` : '✔ 就地行动与检定 key 登记完整（静态门）'}`);
-if (failures) process.exit(1);
+console.log(`\n${failuresCount ? `✗ 静态门 ${failuresCount} 项未通过` : '✔ 渲染路径契约成立（禁止就地改状态）＋ 检定 key 归宿完整（静态门）'}`);
+if (failuresCount) process.exit(1);

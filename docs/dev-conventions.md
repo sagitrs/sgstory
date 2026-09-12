@@ -179,4 +179,10 @@ node scripts/run-tests.mjs --jobs=2 --only=scenarios   # 调试单段
 1. 往 `SEGMENTS` 加一段（不是往 `package.json` 加），读前序产物时写 `needs`；
 2. 台账 `docs/gate-ledger.md` 的「已接线」列来自 `planChain()`，所以只要段在计划里就会自动判定 ✓；但 `npm test` **必须仍是 `node scripts/run-tests.mjs`**——`report-gate-ledger.mjs` 有 `phantom-runner` 反向查，脱钩即红。
 
+**「跳过」不许静默（#363/#385 族）**：验收类脚本在**前置条件不满足**时只打印锚点行并退 0，会让绿灯含义失真（看着跑了、其实一行断言都没跑）。约定：
+
+- 需要真机/真浏览器的脚本，**守卫下沉到脚本**：`CI_REQUIRE_BROWSER=1` ⇒ **跳过即失败**（`test/browser.mjs` 已实现；调用方只需给这个环境变量，不要再内联 `grep skipped`）；
+- **断言数下界自 ratchet**：下界写在脚本里（`MIN_ASSERTIONS`），**跟着断言数走**——删断言即红。不要在 workflow 里写魔数（曾写 `N -ge 24`，而实际已 38，删 14 条也放行）；
+- 稳定锚点（`BROWSER_ASSERTIONS n/m` / `… skipped`）保留给人读，但**不要**让 CI 依赖解析它。
+
 **成本口径（2026-09-12 实测）**：53 段 · 串行合计 **197s**（本机 32 核）/ **186s**（`taskset -c 0-3`）→ 并行 4 核 **54s**（**3.4×**，53/53 绿）；CI `npm test` 原为 **207s**（环境准备仅 17s）。新增段时请自问：这段的 `cost` 是否值得？单段 > 60s 或串行合计 > 4 分钟就该先优化/拆分。

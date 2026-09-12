@@ -42,7 +42,7 @@
 | `scripts/report-ledger-freshness.mjs` | 报告脚本 | 行为化 | ✅ | ✅ | **离线段已入 npm test**（`--ledger --check`：#297 对标台账行级新鲜度——行数栅栏/复核日期在期/触发条件非空/落点引用的门旗标与文件真实存在，7 例自证）；**网络段仍需 token**（#NNN 标记与 GitHub 真实状态一致），不塞主链路，由 `npm run report:freshness:check` 人工/定时跑 |
 | `scripts/report-rhythm.mjs` | 报告脚本 | 行为化 | ✅ | ✅ | R1/R1b/R2/正例 四例自证，已入 npm test |
 | `test/audit-golden.mjs` | 测试脚本 | 行为化 | ✅ | — | 按需跑（npm run audit:golden）：拆/改 audit 时用；全量跑 24 个开关较慢 |
-| `test/browser.mjs` | 测试脚本 | 行为化 | ✅ | — | 需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑 |
+| `test/browser.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | 需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑 |
 | `test/combat-adv.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/coverage.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
 | `test/fatal-guard.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |

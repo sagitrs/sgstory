@@ -47,28 +47,65 @@ const LIBS = findLibs();
 const childEnv = { ...process.env };
 if (LIBS) childEnv.LD_LIBRARY_PATH = process.env.LD_LIBRARY_PATH ? `${LIBS}:${process.env.LD_LIBRARY_PATH}` : LIBS;
 
+// ── CI 契约与断言下界（#385 收口）────────────────────────────────────
+// 为什么放在脚本里：CI 里「未找到 Chrome → 打印 skipped → **exit 0**」正是 #363/#385 那类**静默降级**
+// ——绿灯看着有验收，其实一行断言都没跑。此前每个调用方各自内联 grep 守卫（`viewport-smoke.yml` 有、
+// `ci.yml` 曾漏），既重复又会漏。现在把契约下沉：
+//   `CI_REQUIRE_BROWSER=1` ⇒ **跳过即失败**（脚本唯一的真源；调用方只需给这个环境变量）
+//   `MIN_ASSERTIONS`       ⇒ 断言数**下界自 ratchet**：跟着脚本里的断言数走，删除断言即红
+//     （换成 workflow 里的魔数就会腐烂：原来写死 `N -ge 24`，而实际早已 38 —— 删 14 条断言也照样放行）
+export const REQUIRE_BROWSER = process.env.CI_REQUIRE_BROWSER === '1';
+export const MIN_ASSERTIONS = 38;   // ← 新增断言时同步 +1；它只许涨（ratchet），降要说明理由
+
+// 跳过时该退什么码（纯函数，便于自证）
+export const skipVerdict = (requireBrowser) => (requireBrowser
+	? { code: 1, notes: ['✗ CI_REQUIRE_BROWSER=1：浏览器验收被跳过 ＝ CI 接线失效（不许静默降级）'] }
+	: { code: 0, notes: [] });
+
+// 跑完时的判定（纯函数，便于自证）
+export const evaluateRun = ({ total, fails, minAssertions = MIN_ASSERTIONS }) => {
+	if (total < minAssertions) {
+		return { code: 1, notes: [`✗ 断言数 ${total} < 下界 ${minAssertions}——这不像失败，像**被删除**：请补回断言，或同步下调 MIN_ASSERTIONS 并写明理由`] };
+	}
+	if (fails) return { code: 1, notes: [`✗ ${fails} 条断言失败`] };
+	return { code: 0, notes: [] };
+};
+
+const bail = (reason) => {
+	const v = skipVerdict(REQUIRE_BROWSER);
+	if (REQUIRE_BROWSER) console.error(`✗ 真实浏览器验收跳过：${reason}`);
+	else console.log(`○ 真实浏览器验收：跳过（${reason}）`);
+	console.log('BROWSER_ASSERTIONS skipped');   // 稳定锚点：与「0/0 假绿」区分
+	for (const n of v.notes) console.error(n);
+	process.exit(v.code);
+};
+
+const selftest = () => {
+	let bad = 0;
+	const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
+	t('跳过 + CI_REQUIRE_BROWSER=1 → 必须失败（不许静默降级）', skipVerdict(true).code === 1);
+	t('跳过 + 本地（无该变量）→ 允许，退 0', skipVerdict(false).code === 0);
+	t('38/38 达下界 → 通过', evaluateRun({ total: 38, fails: 0 }).code === 0);
+	t('37/38（有失败）→ 失败', evaluateRun({ total: 38, fails: 1 }).code === 1);
+	t('20/20 低于下界 → 失败（断言被删也算红，不靠 workflow 魔数）', evaluateRun({ total: 20, fails: 0, minAssertions: 38 }).code === 1);
+	t('0/0 → 失败（0/0 假绿）', evaluateRun({ total: 0, fails: 0 }).code === 1);
+	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
+	console.log('\n✔ 自证通过：CI 跳过必红 / 本地可跳 / 达下界绿 / 有失败红 / 断言被删红 / 0-0 假绿红');
+};
+if (process.argv.includes('--selftest')) { selftest(); process.exit(0); }
+
 const CHROME = findChrome();
-if (!CHROME) {
-	console.log('○ 真实浏览器验收：跳过（未找到 Chrome；设 CHROME_PATH 或装 Chrome for Testing）');
-	console.log('BROWSER_ASSERTIONS skipped');   // 未执行（无浏览器/无构建）：CI 守卫据此与「0/0 假绿」区分
-	process.exit(0);
-}
+if (!CHROME) bail('未找到 Chrome；设 CHROME_PATH 或装 Chrome for Testing');
 // 预检：库不全时 Chrome 起不来——直接给出准备命令，不让脚本超时失败
 {
 	const probe = spawnSync(CHROME, ['--version'], { env: childEnv, encoding: 'utf-8' });
 	if (probe.status !== 0) {
 		const missing = String(probe.stderr ?? '').match(/lib[A-Za-z0-9._-]+\.so[\d.]*/g) ?? [];
-		console.log(`○ 真实浏览器验收：跳过（Chrome 起不来${missing.length ? `，缺 ${[...new Set(missing)].join(', ')}` : ''}）`);
 		console.log('   准备：npm run browser:setup   （免 root 就地解包系统库到 ~/.cache/sgstory-chrome-deps）');
-		console.log('BROWSER_ASSERTIONS skipped');   // 未执行（缺系统库）
-		process.exit(0);
+		bail(`Chrome 起不来${missing.length ? `，缺 ${[...new Set(missing)].join(', ')}` : ''}`);
 	}
 }
-if (!existsSync('dist/index.html')) {
-	console.log('○ 真实浏览器验收：跳过（dist/index.html 不存在，先 npm run build）');
-	console.log('BROWSER_ASSERTIONS skipped');   // 未执行（无浏览器/无构建）：CI 守卫据此与「0/0 假绿」区分
-	process.exit(0);
-}
+if (!existsSync('dist/index.html')) bail('dist/index.html 不存在，先 npm run build');
 
 // ── 静态服务 + 浏览器 ───────────────────────────────────────────
 // #363（P2）：原来这个服务器**不区分路径**，所有请求都回 dist/index.html —— 于是
@@ -116,7 +153,7 @@ for (let i = 0; i < 60 && !target; i++) {
 	} catch { /* 等浏览器起来 */ }
 	if (!target) await sleep(250);
 }
-if (!target) { console.log('○ 真实浏览器验收：跳过（浏览器未起来）'); cleanup(); process.exit(0); }
+if (!target) { cleanup(); bail('浏览器未起来（Chrome 进程/端口未就绪）'); }
 
 const ws = new WebSocket(target.webSocketDebuggerUrl);
 await new Promise((r, j) => { ws.addEventListener('open', r, { once: true }); ws.addEventListener('error', j, { once: true }); });
@@ -391,6 +428,8 @@ await keyboardCase(390, 844);
 const summary = `${fails ? '✗' : '✔'} 真实浏览器验收：${fails ? `${fails} 项失败` : '全部通过'}（断言 ${total - fails}/${total} · ${VP.length} 视口 × 4 场景 ＋ 键盘序列 1 例）`;
 console.log(`\n${summary}`);
 console.log(`   截图：${shots}/（${VP.length} 视口 × 4 场景）`);
-console.log(`BROWSER_ASSERTIONS ${total - fails}/${total}`);   // CI 守卫用的稳定锚点
+const verdict = evaluateRun({ total, fails });
+for (const n of verdict.notes) console.error(n);
+console.log(`BROWSER_ASSERTIONS ${total - fails}/${total}`);   // 稳定锚点（#385 后 CI 不再需要解析它，保留供人读）
 cleanup();
-process.exit(fails ? 1 : 0);
+process.exit(verdict.code);

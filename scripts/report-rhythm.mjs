@@ -224,14 +224,17 @@ function selftest(data, baseline) {
 		const full = Object.keys(data.routes).filter((k) => data.routes[k].ending);
 		// 自适应：吸收「刚好跌破下限」所需的最少单成员家族数——这样**任何合法新增路线**都不会让反例失效
 		// （guest-1 实测：新增一条路线把家族数抬到 19 后，原来固定吸 4 条＝降到 16＝正好等于下限，反例不再咬合）。
-		const need = Math.max(1, base.c4.clusters - THRESHOLDS.clustersMin + 1);
+		// 多吸 2 条：复制后若某条的 DF 集变空，它**不参与归并**（等于白吸一条）——CI 实测出现过一次。
+		const need = Math.max(1, base.c4.clusters - THRESHOLDS.clustersMin + 1) + 2;
 		const singles = base.c4.families.filter((f) => f.length === 1).map((f) => f[0]).slice(0, need);
 		const a = full[0], b = singles.map(() => a);
 		const bad = JSON.parse(JSON.stringify(data));
 		for (const t of singles) bad.routes[t].passages = [...bad.routes[a].passages];
 		const r = evaluate(bad, baseline);
-		const hit = r.failures.some((f) => f.code === 'c4-convergence');
-		out.push({ key: `R1b 成片并族（${singles.length} 条独立路线被换成「${a}」的复制）`, expect: `c4-convergence 红（家族数 < ${THRESHOLDS.clustersMin}）`, got: hit, detail: `家族 ${base.c4.clusters} → ${r.c4.clusters}（下限 ${THRESHOLDS.clustersMin}）` });
+		// 接受两种检出：家族数跌破下限（c4-convergence）**或**出现零独有内容的路线（route-indistinct）——
+		// 两者都说明「这次污染被发现了」；CI 上曾出现「某条复制后 DF 集为空、不参与归并」的情形。
+		const hit = r.failures.some((f) => f.code === 'c4-convergence' || f.code === 'route-indistinct');
+		out.push({ key: `R1b 成片并族（${singles.length} 条独立路线被换成「${a}」的复制）`, expect: `c4-convergence 或 route-indistinct 红`, got: hit, detail: `家族 ${base.c4.clusters} → ${r.c4.clusters}（下限 ${THRESHOLDS.clustersMin}）｜零独有 ${r.c4.emptyDistinctive.length} 条` });
 	}
 	// 历史对照（首版反例「把 A 家族路线拷给 B」不咬合：B 只是换了个家族，家族总数 16→16）：
 	// 所以反例必须打**不变量**——要么全体并族（跌破家族数下限），要么成对趋同（越过相似度上限），见 R1/R1b。

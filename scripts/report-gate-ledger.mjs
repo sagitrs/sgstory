@@ -43,6 +43,7 @@ export const REASONS = {
 	'test/audit-golden.mjs': { wired: false, form: '行为化', reason: '按需跑（npm run audit:golden）：拆/改 audit 时用；全量跑 24 个开关较慢' },
 	'test/saveload-inventory.mjs': { wired: true, form: '行为化', reason: '自证 6 例（含 widget 间接改状态）' },
 	'test/layering.mjs': { wired: true, form: '行为化', reason: '自证 5 例' },
+	'test/saveload.mjs': { wired: true, form: '行为化', reason: '**自证按需跑**：`node test/saveload.mjs --selftest`（故障注入＝落档后人为扰动，断言比较器判红）；不塞主链的理由＝自证需完整导航（成本≈主跑 30s，收益不值）' },
 };
 
 

@@ -99,7 +99,6 @@ const delta = (aStr, bStr) => {
 };
 
 let failures = 0;
-let knownDefects = 0;
 const rows = [];
 for (const site of MANIFEST.sites) {
 	// #350：战斗站点要用**变化**的随机序列——固定值会让「重掷」算出相同结果而看不见
@@ -146,7 +145,13 @@ for (const site of MANIFEST.sites) {
 // 战斗结算 `<<fightresolve>>` 跑在**段落渲染期**（40-ch2:156 / 50-ch3:591）——读档会重渲染，
 // 于是同一轮被**再结算一次**：骰面重掷、成败翻面、HP 被改写（#350 实测：d20(20) 大成功 → d20(1) 大失败，hp18→14）。
 // 本用例刻意用**交替 RNG**：若用确定性 RNG，重放会得到同样结果，**看不出**这种「重放」缺陷。
-// 现状：已知缺陷（#350）→ 报告但不判失败；修复后本用例自然转绿，届时请移除 knownDefect 标记。
+// 现状：**#350 已修（#355 合入）**：结算从渲染期搬到点击时刻 → 本用例转**严格**（不再容忍）。
+//
+// 红证来源（诚实记录）：本用例在修复前**确实报红**（当时以「已知缺陷 #350（不判失败）」形式长期报告：
+// `读档前 d20(20) 大成功 → 读档后 d20(1) 大失败`）。修复把结算搬进点击时刻并**删除了 `<<fightresolve>>`
+// 这个 widget 本身**（现在 src 里已无该名字）→ 所以**一行回退无法复现**该缺陷，红证只能由这段历史提供。
+// 为使「比较器确实有牙」当场可证，本文件带 `--selftest`：正常流程后**注入一次人为扰动**
+// （落档后改 hp），断言比较器判红——即它确实能看见「读档前后状态漂移」。
 {
 	const sleep2 = (ms) => new Promise((r) => setTimeout(r, ms));
 	let pick = 0;
@@ -182,14 +187,21 @@ for (const site of MANIFEST.sites) {
 		const after = snap();
 		if (before === after) {
 			console.log(`✓ 战斗回合 · 读档不重放：${before}`);
+			if (process.argv.includes('--selftest')) {
+				// 故障注入：人为扰动 → 比较器必须判红（证明它不是空判）
+				w.eval('(function(){const pc=SugarCube.State.variables.pc; if(pc.ev.fight) pc.hp = (pc.hp ?? 1) - 1;})()');
+				const perturbed = snap();
+				if (perturbed === before) { failures++; console.log('✗ 自证失败：人为扰动后比较器仍判「未漂移」——本用例是空判'); }
+				else console.log(`✓ 自证：注入扰动后比较器判红（${before} → ${perturbed}）`);
+			}
 		} else {
-			knownDefects++;
-			console.log(`⏳ [已知缺陷 #350] 战斗回合 · 读档重放：读档前「${before}」→ 读档后「${after}」`);
-			console.log('    根因：<<fightresolve>> 跑在段落渲染期，读档重渲染即重放本轮（修复后本用例应转绿并移除 knownDefect）');
+			failures++;
+			console.log(`✗ 战斗回合 · 读档重放本轮：读档前「${before}」→ 读档后「${after}」`);
+			console.log('    根因应回看：<<fightresolve>> 是否又跑回了**段落渲染期**（读档重渲染即重放本轮）');
 		}
 	} catch (e) {
-		knownDefects++;
-		console.log(`⏳ [已知缺陷 #350] 战斗回合用例未能跑通：${e.message}`);
+		failures++;
+		console.log(`✗ 战斗回合用例未能跑通：${e.message}`);
 	}
 }
 
@@ -207,7 +219,7 @@ for (const r of rows) {
 	if (r.dup) console.log('    ✗ S/L 后物品变多（重复发放）');
 }
 
-console.log(`\n就地行动站点 ${rows.length} 个：${rows.filter((r) => r.ok).length} 保值 / ${failures} 不保值` + (knownDefects ? `｜已知缺陷 ${knownDefects}（不判失败，见 #350）` : ''));
+console.log(`\n就地行动站点 ${rows.length} 个：${rows.filter((r) => r.ok).length} 保值 / ${failures} 不保值（含战斗回合读档重放）`);
 if (failures) {
 	console.error('✗ 存读档一致性门未通过（#300 P1：就地行动后的状态没有进入存档快照）');
 	console.error('  说明：本门在 #300 修复合入前**应当是红的**——它是缺陷基线证据，不是测试写错。');

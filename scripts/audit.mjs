@@ -2,56 +2,14 @@
 // 替代一次性 jsdom 探查脚本。改表即改报告，秒级重算（无需启动场景）。
 // 用法：node scripts/audit.mjs [--canon] [--checks] [--economy] [--items] [--dragon] [--combat] [--social]（缺省全输出）
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import vm from 'node:vm';
+import { createContext } from './audit/context.mjs';
 
-// ── 源文件发现（M1a-1）：不再硬编码路径——改文件名/拆文件不再牵动工具 ──
-const SRC_FILES = readdirSync('src').filter((f) => f.endsWith('.twee')).sort().map((f) => `src/${f}`);
-
-// ── vm 直载全部 [script] 段（按文件名序；浏览器专属全局用 stub 兑底）──
-const ctx = {
-	window: {}, console,
-	Macro: { add() {} }, State: { variables: {} }, $: () => ({ append() {} }),
-	Config: { history: {}, saves: {} },
-	Save: { onSave: { add() {} }, onLoad: { add() {} }, slots: {} },
-	jQuery: () => ({ on() {}, ariaClick() {}, off() {} }),
-	UI: { alert() {}, saves() {} }, Engine: {}, Story: { has: () => false },
-	setTimeout, clearTimeout, document: { addEventListener() {} },
-};
-for (const f of SRC_FILES) {
-	const text = readFileSync(f, 'utf8');
-	const scripts = [...text.matchAll(/::\s*[^\n[\]]+\[script\]([\s\S]*?)(?=\n::|$)/g)].map((m) => m[1]);
-	for (const body of scripts) vm.runInNewContext(body, ctx, { filename: f });
-}
-// 浏览器侧 window.X 是全局——vm 侧需手动提升
-for (const k of Object.keys(ctx.window)) if (!(k in ctx)) ctx[k] = ctx.window[k];
-const { Rules, Pc, Chargen, ChargenPresets, Game } = ctx.window;
-
-// ── 预设角色（车卡全链 apply，与运行时同构）──
-const presets = ChargenPresets.map((p) => {
-	const pc = Pc.defaults();
-	ctx.State.variables.pc = pc; // Chargen.pick 直接读 State.variables.pc
-	for (let r = 0; r < p.picks.length; r++) Chargen.pick(r, p.picks[r]);
-	return { name: p.name, pc };
-});
-
-const arg = (k) => process.argv.includes(`--${k}`);
-const wantAll = !process.argv.some((a) => a.startsWith('--'));
+// #316 拆分第 1 步：加载区（源文件发现 / vm 直载 [script] / 预设 / 段落索引 / CLI）已抽到
+// scripts/audit/context.mjs——各门模块的共同依赖。此处仅做绑定，**不改任何加载语义**。
+const ctx = createContext();
+const { SRC_FILES, Rules, Pc, Chargen, ChargenPresets, Game, presets, passageSrc, passageRaw, passageTags, arg, wantAll } = ctx;
 
 // ── ⓪ D1 真相可达性（#35）：命题 × 通路，锚点机检 ──
-const passageSrc = new Map(); // name -> 去注释源文（锚点检查用）
-const passageRaw = new Map(); // name -> 原文（payload 注释检查用）
-const passageTags = new Map(); // name -> tags[]
-for (const f of SRC_FILES) {
-	const text = readFileSync(f, 'utf8');
-	const parts = text.split(/^::\s*/m);
-	for (const part of parts.slice(1)) {
-		const nl = part.indexOf('\n');
-		const name = part.slice(0, nl).replace(/\[[^\]]*\]\s*$/, '').trim();
-		passageTags.set(name, (part.slice(0, nl).match(/\[([^\]]*)\]/)?.[1] ?? '').trim().split(/\s+/).filter(Boolean));
-		passageRaw.set(name, part.slice(nl + 1));
-		passageSrc.set(name, part.slice(nl + 1).replace(/\/%[\s\S]*?%\//g, ''));
-	}
-}
 // ── D1/D8 判据实现（#247 D8）：锚数 ≥3 ＋ 类型 ≥2 ＋ 类型声明与来源一致 ──
 // 类型口径（可机检）：codex＝设定集/图鉴页；echo＝该 (p,anchor) 出现在 Game.Echoes.list；social＝锚句出现在
 // 交涉面板文本里；prose＝其余正文。声明与来源不符即红——防「标签造假」的假冗余。

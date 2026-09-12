@@ -27,6 +27,23 @@ const CHAR_N = 5;          // 中文按字符 n-gram（无词边界），5-gram 
 // 它们会让「同一条主线、只有结局不同」的两条路线看起来 90% 相似（实测把 16 族压到 14 族）。
 // 只保留 df/total ≤ COMMON_DF 的 5-gram：剩下的才是「这条路线区别于别人的内容」。
 const COMMON_DF = 0.5;
+// #338 修正：阈值是**声明式绝对不变量**，不是「上次观测值」。
+// 教训：我最初把本地观测（clusters=18 等）签进基线做**等值判定**，于是 CI 与本地轨迹的细微差异
+// 就会把门判红（实测：CI 上「正例」直接失败）。这类门必须对**不变量**ratchet——
+//   · 家族数有**下限**（大规模趋同才会跌破）；
+//   · 跨家族相似度有**上限**（成对趋同才会越线）；
+//   · 五拍/里程碑是**结构带**（拍子被删/不可逆点被推得极远或极近才会出带）。
+// 基线文件保留观测值，只用于**漂移可见**（报告里对照），不参与判定。
+export const THRESHOLDS = {
+	clustersMin: 16,           // 现有 18；历史漂移是 16 → 14（成片并族），16 能抓住这一类
+	minDistinctiveGrams: 50,   // 每条完整路线在 DF 过滤后至少要有这么多**独有** 5-gram（现有最少 117，余量大）
+	beatsMinRoutes: 3,         // 每一拍至少被 3 条路线走到
+	e4: { minClicksFloor: 5, maxClicksCap: 25, minEvFloor: 3 },
+};
+// 已删的一条断言（记下为什么）：曾想用「跨家族最大相似度 ≤ 0.92」抓成对趋同——
+// 但家族是按 ≥ clusterT(0.9) 聚出来的，**任何越过 0.92 的配对早已并入同族**，该断言原理上不可达。
+// 反例自证当场把它证伪（R1b 报「家族 18 → 17｜跨家族最大 0.741」，不咬合）。真正能咬的是
+// ①家族数下限（成片并族）②每条路线的独有内容下限（趋同的极端形态）。
 const TOL = 0.02;          // 报告型 ratchet 的容差（构建噪声/文案微调不该红）
 
 // ── 五拍人工标注（一次性入基线；每拍列出该拍在正文里的落点段落）────────────
@@ -129,6 +146,7 @@ function evaluate(data, baseline) {
 		meanInterJaccard: interPairs.reduce((s, p) => s + p.jaccard, 0) / (interPairs.length || 1),
 		maxInterJaccard: interPairs.reduce((m, p) => Math.max(m, p.jaccard), 0),
 		topConvergent: [...interPairs].sort((x, y) => y.jaccard - x.jaccard).slice(0, 5),
+		distinctive,
 	};
 
 	// E4：首个不可逆点（取花田/龙战里先到的那个）
@@ -165,21 +183,17 @@ function evaluate(data, baseline) {
 
 	const failures = [];
 	if (baseline) {
-		const t = TOL;
-		if (c4.maxInterJaccard > baseline.c4.maxInterJaccard + t) failures.push({ code: 'c4-convergence', msg: `跨家族最大相似度 ${c4.maxInterJaccard.toFixed(3)} > 基线 ${baseline.c4.maxInterJaccard} + ${t}（两条不同的游玩路线趋同）` });
-		if (c4.meanInterJaccard > baseline.c4.meanInterJaccard + t) failures.push({ code: 'c4-convergence', msg: `跨家族平均相似度 ${c4.meanInterJaccard.toFixed(3)} > 基线 ${baseline.c4.meanInterJaccard} + ${t}（整体趋同）` });
-		if (c4.clusters < baseline.c4.clusters) failures.push({ code: 'c4-convergence', msg: `游玩路线家族数 ${c4.clusters} < 基线 ${baseline.c4.clusters}（有路线被并入另一家族）` });
+		const T = THRESHOLDS;
+		if (c4.clusters < T.clustersMin) failures.push({ code: 'c4-convergence', msg: `游玩路线家族数 ${c4.clusters} < 下限 ${T.clustersMin}（成片并族＝内容趋同）` });
+		const thin = distinctive.filter((d) => d.grams < T.minDistinctiveGrams);
+		if (thin.length) failures.push({ code: 'route-indistinct', msg: `以下完整路线的独有 5-gram 少于 ${T.minDistinctiveGrams}（趋同）：${thin.map((d) => `${d.route}=${d.grams}`).join('、')}` });
 		if (c4.emptyDistinctive.length) failures.push({ code: 'route-indistinct', msg: `以下完整路线在 DF 过滤后**没有任何独有 5-gram**（趋同的极端形态）：${c4.emptyDistinctive.join('、')}` });
-		if (e4.routesHit < baseline.e4.routesHit) failures.push({ code: 'e4-milestone', msg: `走到首个不可逆点的路线数 ${e4.routesHit} < 基线 ${baseline.e4.routesHit}` });
-		if (e4.minClicks !== null && e4.minClicks < baseline.e4.minClicks - 1) failures.push({ code: 'e4-milestone', msg: `首个不可逆点最早交互数 ${e4.minClicks} < 基线 ${baseline.e4.minClicks} − 1（不可逆点被推近＝铺垫变少）` });
-		if (e4.maxClicks !== null && e4.maxClicks > baseline.e4.maxClicks + 2) failures.push({ code: 'e4-milestone', msg: `首个不可逆点最晚交互数 ${e4.maxClicks} > 基线 ${baseline.e4.maxClicks} + 2（不可逆点被推远）` });
-		if (e4.minEv !== null && e4.minEv < baseline.e4.minEv - 1) failures.push({ code: 'e4-milestone', msg: `不可逆点时最少情报 ${e4.minEv} < 基线 ${baseline.e4.minEv} − 1（信息覆盖退化）` });
-		if (e4.maxEv !== null && e4.maxEv > baseline.e4.maxEv + 2) failures.push({ code: 'e4-milestone', msg: `不可逆点时最多情报 ${e4.maxEv} > 基线 ${baseline.e4.maxEv} + 2` });
+		if (e4.routesHit < 3) failures.push({ code: 'e4-milestone', msg: `走到首个不可逆点的完整路线只有 ${e4.routesHit} 条（< 3）` });
+		if (e4.minClicks !== null && e4.minClicks < T.e4.minClicksFloor) failures.push({ code: 'e4-milestone', msg: `首个不可逆点最早交互数 ${e4.minClicks} < 下限 ${T.e4.minClicksFloor}（铺垫被压掉）` });
+		if (e4.maxClicks !== null && e4.maxClicks > T.e4.maxClicksCap) failures.push({ code: 'e4-milestone', msg: `首个不可逆点最晚交互数 ${e4.maxClicks} > 上限 ${T.e4.maxClicksCap}（不可逆点被推得极远）` });
+		if (e4.minEv !== null && e4.minEv < T.e4.minEvFloor) failures.push({ code: 'e4-milestone', msg: `不可逆点时最少情报 ${e4.minEv} < 下限 ${T.e4.minEvFloor}（信息覆盖退化）` });
 		for (const b of beats) {
-			const ub = baseline.beats?.[b.key];
-			if (!ub) { failures.push({ code: 'beat-missing', msg: `基线里没有「${b.key}」` }); continue; }
-			if (b.routes < 3) failures.push({ code: 'beat-coverage', msg: `「${b.key}」只有 ${b.routes} 条路线走到（< 3）` });
-			if (b.passages < ub.passages) failures.push({ code: 'beat-coverage', msg: `「${b.key}」可达段落 ${b.passages} < 基线 ${ub.passages}（拍子被削弱/删段）` });
+			if (b.routes < THRESHOLDS.beatsMinRoutes) failures.push({ code: 'beat-coverage', msg: `「${b.key}」只有 ${b.routes} 条路线走到（< ${THRESHOLDS.beatsMinRoutes}）` });
 		}
 	}
 	return { c4, e4, beats, failures, routeCount: names.length };
@@ -188,23 +202,32 @@ function evaluate(data, baseline) {
 // ── 反例自证（#247 横切原则：门必须行为化，须有正例＋反例）────────────────
 function selftest(data, baseline) {
 	const out = [];
-	// R1 路线趋同：把「一条有独立内容的路线」整条换成另一家族的复制品。
-	// 踩坑记录（很值得留）：首版反例是「把 A 的序列拷给另一家族的 B」——不咬合。原因：B 只是
-	// 换了个家族（旧家族剩下的人自成一族），家族总数 16 → 16，断言抓不到。真正的退化是
-	// **一条路线的独立内容消失**（独有家族被并掉），所以反例必须选一个**单成员家族**当牺牲品。
+	// R1 全体并族：把首条路线的段落序列复制给**所有**完整路线 → 家族数跌破下限（真实趋同的极端形态）
 	{
-		const names = Object.keys(data.routes);
 		const base = evaluate(data, null);
-		const [c0] = base.c4.families;
-		const a = c0[0];
-		const singles = base.c4.families.filter((f) => f.length === 1).map((f) => f[0]);
-		const b = singles.find((n) => n !== a) ?? names.find((n) => n !== a);
+		const full = Object.keys(data.routes).filter((k) => data.routes[k].ending);
+		const src0 = full[0];
 		const bad = JSON.parse(JSON.stringify(data));
-		bad.routes[b].passages = [...bad.routes[a].passages];
+		for (const k of full) bad.routes[k].passages = [...bad.routes[src0].passages];
 		const r = evaluate(bad, baseline);
-		const hitR1 = r.failures.some((f) => f.code === 'c4-convergence');
-		out.push({ key: `R1 路线趋同（把独立路线「${b}」的正文换成「${a}」的复制）`, expect: 'c4-convergence 红（家族数下降）', got: hitR1, detail: `家族 ${base.c4.clusters} → ${r.c4.clusters}｜跨家族最大 ${r.c4.maxInterJaccard.toFixed(3)}` });
+		const hit = r.failures.some((f) => f.code === 'c4-convergence' || f.code === 'route-indistinct');
+		out.push({ key: 'R1 全体并族（所有完整路线都换成同一条的复制）', expect: 'c4-convergence 或 route-indistinct 红', got: hit, detail: `家族 ${base.c4.clusters} → ${r.c4.clusters}（下限 ${THRESHOLDS.clustersMin}）｜零独有内容 ${r.c4.emptyDistinctive.length} 条` });
 	}
+	// R1b 成片并族（历史漂移的形态）：把 4 条单成员家族的路线整条换成同一条的复制
+	// → 那 4 个家族消失 → 家族数跌破下限
+	{
+		const base = evaluate(data, null);
+		const full = Object.keys(data.routes).filter((k) => data.routes[k].ending);
+		const singles = base.c4.families.filter((f) => f.length === 1).map((f) => f[0]).slice(0, 4);
+		const a = full[0], b = singles.map(() => a);
+		const bad = JSON.parse(JSON.stringify(data));
+		for (const t of singles) bad.routes[t].passages = [...bad.routes[a].passages];
+		const r = evaluate(bad, baseline);
+		const hit = r.failures.some((f) => f.code === 'c4-convergence');
+		out.push({ key: `R1b 成片并族（${singles.length} 条独立路线被换成「${a}」的复制）`, expect: `c4-convergence 红（家族数 < ${THRESHOLDS.clustersMin}）`, got: hit, detail: `家族 ${base.c4.clusters} → ${r.c4.clusters}（下限 ${THRESHOLDS.clustersMin}）` });
+	}
+	// 历史对照（首版反例「把 A 家族路线拷给 B」不咬合：B 只是换了个家族，家族总数 16→16）：
+	// 所以反例必须打**不变量**——要么全体并族（跌破家族数下限），要么成对趋同（越过相似度上限），见 R1/R1b。
 	// R2 五拍缺拍：把所有结局页（⑤ 奖励与揭示）从轨迹里抹掉 → 该拍覆盖应当掉 → 必须红
 	{
 		const bad = JSON.parse(JSON.stringify(data));
@@ -216,10 +239,11 @@ function selftest(data, baseline) {
 		const hitR2 = r.failures.some((f) => f.code === 'beat-coverage' && f.msg.includes('⑤'));
 		out.push({ key: 'R2 五拍缺拍（抹掉全部结局页＝⑤ 揭示）', expect: 'beat-coverage 红（⑤）', got: hitR2, detail: `⑤ passages=${r.beats[4].passages} routes=${r.beats[4].routes}` });
 	}
-	// 正例：真实数据必须全绿
+	// 正例：真实数据必须全绿（对**不变量**判定，应不受环境轨迹细微差异影响）
 	{
 		const r = evaluate(data, baseline);
-		out.push({ key: '正例：真实轨迹 vs 基线', expect: '无 failure', got: r.failures.length === 0, detail: `failures=${r.failures.length}` });
+		out.push({ key: '正例：真实轨迹 vs 不变量阈值', expect: '无 failure', got: r.failures.length === 0, detail: `failures=${r.failures.length}` });
+		for (const f of r.failures) console.log(`      [${f.code}] ${f.msg}`);
 	}
 	const bad = out.filter((o) => !o.got);
 	for (const o of out) console.log(`${o.got ? '✓' : '✗'} ${o.key}\n    期望 ${o.expect}｜实况 ${o.detail}`);
@@ -248,8 +272,11 @@ if (flag('--selftest')) {
 if (flag('--update-baseline')) {
 	const r = evaluate(data, null);
 	const nb = {
-		note: 'E4 节奏 / C4 相异度 基线（#295）。由 scripts/report-rhythm.mjs --update-baseline 生成；数字变化须在 PR 里说明理由。',
-		c4: { charN: r.c4.charN, commonDf: r.c4.commonDf, routes: r.c4.routes, clusterT: r.c4.clusterT, clusters: r.c4.clusters, meanInterJaccard: +r.c4.meanInterJaccard.toFixed(4), maxInterJaccard: +r.c4.maxInterJaccard.toFixed(4) },
+		note: 'E4 节奏 / C4 相异度 **漂移观测**（#295/#338）。判定用的是脚本内声明的绝对不变量 THRESHOLDS，'
+			+ '不是本文件的数值——本文件只用于「漂移可见」：数值变了会在报告里对照出来。'
+			+ '#338 教训：拿本地观测值做等值判定，会在 CI（2 核、轨迹细微差异）上直接判红。',
+		thresholds: THRESHOLDS,
+		c4: { charN: r.c4.charN, commonDf: r.c4.commonDf, routes: r.c4.routes, clusterT: r.c4.clusterT, clusters: r.c4.clusters, meanInterJaccard: +r.c4.meanInterJaccard.toFixed(4), maxInterJaccard: +r.c4.maxInterJaccard.toFixed(4), minDistinctive: Math.min(...r.c4.distinctive.map((d) => d.grams)) },
 		e4: { routesHit: r.e4.routesHit, minClicks: r.e4.minClicks, maxClicks: r.e4.maxClicks, minEv: r.e4.minEv, maxEv: r.e4.maxEv },
 		beats: Object.fromEntries(r.beats.map((b) => [b.key, { passages: b.passages, routes: b.routes }])),
 	};

@@ -821,7 +821,7 @@
 你把它换了个握法，然后就没再动。
 
 <div class="ending-card">
-	<h2>✦ 新任守林人 ✦</h2>
+	<h2><span aria-hidden="true">✦</span> 新任守林人 <span aria-hidden="true">✦</span></h2>
 	<p class="codex-note">（雾还在涨。你成了那个"等它醒"的人。）</p>
 </div>
 
@@ -839,7 +839,7 @@
 你走出很远，回头看，塔已经不在那儿了，雾却还遮着那片地方。
 
 <div class="ending-card">
-	<h2>✦ 焚塔者 ✦</h2>
+	<h2><span aria-hidden="true">✦</span> 焚塔者 <span aria-hidden="true">✦</span></h2>
 	<p class="codex-note">（塔倒了。它还在底下睡着。）</p>
 </div>
 
@@ -857,7 +857,7 @@
 你没有做错什么。你只是没有再往前一步。
 
 <div class="ending-card">
-	<h2>✦ 半途 ✦</h2>
+	<h2><span aria-hidden="true">✦</span> 半途 <span aria-hidden="true">✦</span></h2>
 	<p class="codex-note">（雾还在涨。）</p>
 </div>
 

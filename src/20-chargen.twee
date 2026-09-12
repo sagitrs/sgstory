@@ -121,7 +121,7 @@ window.ChargenPresets = [
 /% payload: 信息|选择 %/
 <<nobr>>
 <div class="charsheet">
-	<h2>✦ $pc.name 的冒险卡 ✦</h2>
+	<h2><span aria-hidden="true">✦</span> $pc.name 的冒险卡 <span aria-hidden="true">✦</span></h2>
 	<p class="charsheet-line">$pc.speciesLabel · $pc.classLabel · $pc.bgLabel 出身</p>
 	<<hpbar>>
 	<table class="ability-table">

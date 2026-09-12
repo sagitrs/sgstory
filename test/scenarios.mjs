@@ -4,16 +4,49 @@
 //
 // JSDOM 启动 / 就绪轮询 / uncaught 监听 / 退出清理全部走 test/boot.mjs——一处修，全脚本受益。
 import { writeFileSync, mkdirSync } from 'node:fs';
+import { AsyncLocalStorage } from 'node:async_hooks';
 import { boot, CLICKABLE, CLICKABLE_SEL } from './boot.mjs';
 
 let failures = 0;
 const visited = new Set();
 const clickedLinks = new Map(); // `${段落}|${时代}` → 真被点过的链接标签集（#168 机检⑩）
 
+// ── #295（E4 节奏 / C4 相异度）：每条路线的可机读轨迹 ───────────────────
+// 路线是并行跑的，所以「现在跑的是哪条路线」不能用全局变量——用 AsyncLocalStorage
+// 跟着异步上下文走，才不会串台。轨迹落 build/route-traces.json，由
+// scripts/report-rhythm.mjs 消费（报告型探索票，不并进 audit.mjs）。
+const routeCtx = new AsyncLocalStorage();
+const traces = new Map();        // 路线名 → { passages, clicks, milestones, ending }
+const passageTexts = new Map();  // 段落 → 归一化屏文（去重存一份，供 C4 n-gram 用）
+const MILESTONE_PASSAGES = {     // 首个不可逆点（E4）：花田＝致死位点；龙战＝决战
+	花田: ['塔外花田'],
+	龙战: ['龙·战', '封印·并肩'],
+};
+// 段落里的可见文本（去掉标签与多余空白）——n-gram 只吃正文，不吃 markup
+const screenText = (w) => (w.document.querySelector('#passages')?.textContent ?? '').replace(/\s+/g, ' ').trim();
+
 async function newGame(randomStub, preset = 0) {
 	// random 传函数：每次调用都取同一个定值，d20 于是变成确定骰
 	const { w, uncaught, sleep, settle } = await boot({ random: () => randomStub });
-	const mark = () => visited.add(`${w.SugarCube.State.passage}|${w.SugarCube.State.variables?.era ?? '-'}`);
+	// 同一条路线可能 boot 多次（跨周目/读档用例）——轨迹按路线名累加，不覆盖
+	const routeName = routeCtx.getStore() ?? '(未命名路线)';
+	const trace = traces.get(routeName) ?? { passages: [], clicks: 0, milestones: {}, ending: null };
+	traces.set(routeName, trace);
+	const mark = () => {
+		const p = w.SugarCube.State.passage;
+		visited.add(`${p}|${w.SugarCube.State.variables?.era ?? '-'}`);
+		// #295 轨迹：段落序列（相邻重复折叠，回退重访仍计一次）+ 屏文去重入库
+		if (trace.passages[trace.passages.length - 1] !== p) trace.passages.push(p);
+		if (!passageTexts.has(p)) passageTexts.set(p, screenText(w));
+		if (p.startsWith('结局')) trace.ending = p;
+		// 首个不可逆点：到达时记下「已点了几下」与「当时手里有多少情报旗标」
+		const ev = w.SugarCube.State.variables?.pc?.ev ?? {};
+		for (const [key, list] of Object.entries(MILESTONE_PASSAGES)) {
+			if (!trace.milestones[key] && list.includes(p)) {
+				trace.milestones[key] = { atClick: trace.clicks, passage: p, evCount: Object.keys(ev).length, flags: Object.keys(ev).sort() };
+			}
+		}
+	};
 	const findLink = (label) => {
 		// 只看"当前这一段"（data-passage 与 State.passage 相符的那个 .passage）：
 		// State 已经变了、旧段落元素还没被换下来时，全局查找会点到上一段的链接。
@@ -40,6 +73,7 @@ async function newGame(randomStub, preset = 0) {
 			clickedLinks.get(key).add(a.textContent.replace(/\s+/g, ' ').trim());
 		}
 		const before = uncaught.length;
+		trace.clicks += 1;   // #295：玩家动作计数（一次点击＝一次交互）
 		a.click();
 		await settle();
 		await sleep(120);
@@ -1383,7 +1417,7 @@ const routes = [
 
 const results = await Promise.all(routes.map(async ([name, fn]) => {
 	try {
-		await fn();
+		await routeCtx.run(name, fn);   // #295：把路线名绑到该路线的异步上下文上
 		console.log(`✓ ${name}`);
 		return null;
 	} catch (e) {
@@ -1396,6 +1430,11 @@ failures = results.filter(Boolean).length;
 mkdirSync('build', { recursive: true });
 writeFileSync('build/coverage-scenarios.json', JSON.stringify({ cells: [...visited].sort() }, null, 1));
 writeFileSync('build/coverage-links-scenarios.json', JSON.stringify({ links: Object.fromEntries([...clickedLinks].map(([k, v]) => [k, [...v].sort()]).sort((a, b) => a[0].localeCompare(b[0]))) }, null, 1));
+// #295：路线轨迹（E4 节奏 / C4 相异度 的原始数据）
+writeFileSync('build/route-traces.json', JSON.stringify({
+	routes: Object.fromEntries([...traces].sort((a, b) => a[0].localeCompare(b[0]))),
+	passageTexts: Object.fromEntries([...passageTexts].sort((a, b) => a[0].localeCompare(b[0]))),
+}, null, 1));
 console.log(`\n路线 ${routes.length} 条 · 交互覆盖 ${visited.size} 格`);
 if (failures) { console.error(`✗ ${failures} 条路线失败`); process.exit(1); }
 console.log('✔ 分支场景测试通过');

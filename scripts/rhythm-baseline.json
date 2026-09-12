@@ -1,0 +1,40 @@
+{
+	"note": "E4 节奏 / C4 相异度 基线（#295）。由 scripts/report-rhythm.mjs --update-baseline 生成；数字变化须在 PR 里说明理由。",
+	"c4": {
+		"charN": 5,
+		"routes": 21,
+		"clusterT": 0.9,
+		"clusters": 16,
+		"meanInterJaccard": 0.4668,
+		"maxInterJaccard": 0.8943
+	},
+	"e4": {
+		"routesHit": 15,
+		"minClicks": 7,
+		"maxClicks": 20,
+		"minEv": 4,
+		"maxEv": 13
+	},
+	"beats": {
+		"① 入口与门槛": {
+			"passages": 13,
+			"routes": 40
+		},
+		"② 谜题与交涉挑战": {
+			"passages": 20,
+			"routes": 27
+		},
+		"③ 诡计与挫折": {
+			"passages": 5,
+			"routes": 15
+		},
+		"④ 高潮": {
+			"passages": 5,
+			"routes": 12
+		},
+		"⑤ 奖励与揭示": {
+			"passages": 19,
+			"routes": 23
+		}
+	}
+}

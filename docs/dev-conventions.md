@@ -19,8 +19,12 @@
 ### 规则
 
 1. **就地反馈一律「结算 → 结果留屏 → `<<goto>>`」**；
-2. **禁止**在就地 `<<replace>>` 内改游戏状态（`<<give` / `<<damage` / `<<set $…`）；
-3. 就地 `<<replace>>` 只允许改**纯界面态**：展开/折叠、开关、滚动定位、局部高亮。
+2. **禁止「只靠就地 `<<replace>>` 落地的状态变更」**——判定式（机检同款）：
+   link 体内**有 `<<replace>>`** ∧ **改状态**（直接：`<<give`/`<<damage`/`<<set $…`/`<<run $pc…`；
+   **或间接：调用了一个自身会改状态的 widget**）∧ **没有 `<<goto>>`**；
+3. 于是由此推出两条**合法**写法：
+   - **改状态后接换段**（`<<goto>>`）＝合法，这正是契约形状——状态随换段进入 history moment；`<<replace>>` 与 `<<goto>>` 同时出现也合法（落地以换段为准）；
+   - **就地 `<<replace>>` 只改纯界面态**（展开/折叠/开关/滚动/局部高亮）或临时变量（`<<set _x…>>`）＝合法。
 
 ### 为什么（不是洁癖，是存档语义）
 
@@ -41,8 +45,8 @@ SugarCube 序列化的是 **history moment**；同页 `<<replace>>` 修改的是
 
 | 门 | 文件 | 断言 |
 |---|---|---|
-| 静态（**禁止制**） | `test/saveload-inventory.mjs` | 发现「就地 `<<replace>>` ＋ 改状态」站点即红；确需例外须进 `test/saveload-sites.json` 的 `inPageMutationsAllowed`（理由＋票号） |
-| 静态自证 | 同上 `--selftest` | 合规绿 / **非法红** / 纯界面态绿 / 白名单失效红 |
+| 静态（**禁止制**） | `test/saveload-inventory.mjs` | 按规则 2 的判定式命中即红；**含 widget 间接变更**（`<<widget>>` 体内 `<<give/<<damage/<<set $/<<run $pc` 者视为「会改状态的 widget」）；确需例外须进 `test/saveload-sites.json` 的 `inPageMutationsAllowed`（理由＋票号） |
+| 静态自证 | 同上 `--selftest` | 合规绿 / **非法红** / 纯界面态绿 / **widget 间接改状态红** / widget＋goto 绿 / 白名单失效红 |
 | 行为 | `test/saveload.mjs` | 就地操作 → 立即存档 → 读档 → **物品/旗标/HP/金币/检定记录**五项保值 |
 
 > 已有先例：`test/boot.mjs` 的 **dist 过期守卫**（#306）与本节同属「把隐性规则变成会咬人的门」。

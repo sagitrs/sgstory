@@ -6,10 +6,14 @@
 //
 // 三条断言：
 //
-//  ① **禁止就地改状态**（#315 新）：凡「<<link>> 体内含 <<replace>> 且改状态
-//     （<<give>>／<<damage>>／<<set $…>>）」的站点，**一律红灯**——正确做法是
-//     「结算 → 结果留屏 → <<goto>>」。确有必要时须写进 test/saveload-sites.json 的
-//     `inPageMutationsAllowed` 白名单（每条：理由 ＋ 票号），否则不得通过。
+//  ① **禁止「只靠就地 replace 落地的状态变更」**（#315 新；语义精确化见下）：
+//     判定式＝ link 体内**有 <<replace>>** ∧ **改状态**（直接：<<give>>/<<damage>>/<<set $…>>/
+//     <<run $pc…>>；或**间接**：调用了一个自身会改状态的 widget）∧ **没有 <<goto>>**。
+//     · 改状态**后接换段**（<<goto>>）＝**合法**——这正是契约要求的「结算 → 结果留屏 → goto」；
+//       状态随换段进入 history moment，存档不丢。
+//     · 只改临时变量（<<set _x…>>）、纯界面态（展开/折叠/高亮）＝**合法**。
+//     · 确需例外须写进 test/saveload-sites.json 的 `inPageMutationsAllowed`（理由 ＋ 票号）。
+//     间接（widget）覆盖是 #305 复审时由同伴指出的盲区，本版补上。
 //     （#300 票面要求的「不要只对门厅与洞穴打特判」由此升级：不是登记，是禁止。）
 //
 //  ② **检定 key 必须有归宿**：通用 goto 包装会先删掉 .check-result，假定落地段用
@@ -36,17 +40,36 @@ const readSrc = () => {
 
 // ── 扫描器（纯函数：给字符串，返回发现；自证靠它喂合成源码）────────────────
 // 排除 <<set _x …>>（宏内临时变量，不进存档语义）
-const MUTATORS = ['<<give', '<<damage', '<<set $'];
+const MUTATORS = ['<<give', '<<damage', '<<set $', '<<run $pc'];
+const bodyMutates = (body) => MUTATORS.some((k) => body.includes(k));
+
+// 「自身会改状态的 widget」——link 体内调用它也算改状态（#305 复审指出的盲区）
+export const scanMutatingWidgets = (source) => {
+	const out = new Set();
+	for (const m of source.matchAll(/<<widget "([^"]+)">>([\s\S]*?)<<\/widget>>/g)) {
+		if (bodyMutates(m[2]) || /<<run\s+\$pc\./.test(m[2])) out.add(m[1]);
+	}
+	return out;
+};
+
 export const scanInPageMutations = (source) => {
 	const out = [];
+	const mutatingWidgets = scanMutatingWidgets(source);
+	const indirect = (body) => [...mutatingWidgets].filter((w) => body.includes('<<' + w));
 	const re = /<<link "([^"]+)"\s*>>([\s\S]*?)<<\/link>>/g;
 	let m;
 	while ((m = re.exec(source))) {
 		const body = m[2];
-		if (!body.includes('<<replace')) continue;
-		if (!MUTATORS.some((k) => body.includes(k))) continue;
+		if (!body.includes('<<replace')) continue;          // 无就地重绘 → 与存档语义无关
+		if (body.includes('<<goto')) continue;             // 换段即落地（契约要求的形状）→ 合法
+		const ind = indirect(body);
+		if (!bodyMutates(body) && ind.length === 0) continue;
 		const passage = (source.slice(0, m.index).match(/^:: (.+)$/gm) ?? [':: ?']).pop().replace(/^:: /, '').trim();
-		out.push({ label: m[1], passage, mutators: MUTATORS.filter((k) => body.includes(k)) });
+		out.push({
+			label: m[1], passage,
+			mutators: MUTATORS.filter((k) => body.includes(k)),
+			viaWidgets: ind,
+		});
 	}
 	return out;
 };
@@ -101,10 +124,15 @@ const SELFTEST = () => {
 	const legal = `:: 好站点\n<<link "取走那支哨子">>\n\t<<give "坏哨">><<goto "门厅">>\n<</link>>\n`;
 	const illegal = `:: 坏站点\n<<link "就地取走那支哨子">>\n\t<<replace "#act">><p>你取下了它。<<give "坏哨">></p><</replace>>\n<</link>>\n`;
 	const tempOnly = `:: 纯界面态\n<<link "展开细节">>\n\t<<set _t to 1>><<replace "#act">>点开了<</replace>>\n<</link>>\n`;
+	// #305 复审指出的盲区：状态变更藏在 widget 体内
+	const withWidget = `:: 有 widget\n<<widget "wTake">><<nobr>\n\t<<give "坏哨">>\n<</nobr>><</widget>>\n\n:: 站点\n<<link "经 widget 取物">>\n\t<<replace "#act">>你取下了它。<<wTake>><</replace>>\n<</link>>\n`;
+	const widgetPlusGoto = `:: 有 widget\n<<widget "wTake">><<nobr>\n\t<<give "坏哨">>\n<</nobr>><</widget>>\n\n:: 站点\n<<link "经 widget 取物并换段">>\n\t<<wTake>><<goto "门厅">>\n<</link>>\n`;
 	const cases = [
 		['合规（结算 → goto）→ 不得报红', legal, 0],
 		['非法（就地 replace + give）→ 必须报红', illegal, 1],
 		['纯界面态（只改临时变量）→ 不得报红', tempOnly, 0],
+		['**经 widget 间接改状态 + 就地 replace（无 goto）→ 必须报红**', withWidget, 1],
+		['经 widget 改状态 + goto（无 replace）→ 不得报红', widgetPlusGoto, 0],
 	];
 	let bad = 0;
 	for (const [name, src, want] of cases) {

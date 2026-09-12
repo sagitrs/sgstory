@@ -758,6 +758,44 @@ async function routeBestiary() {
 }
 
 
+// ── #259 M1/M2：交付后的互锁（顶楼连续性／书房劣化封印禁用）──
+async function routeDeliveredLocks() {
+	const { w } = await newGame(0.99, 0);
+	// 真实路径等价：先首访顶楼（设 firstTime 旗标——交付动作本身也在顶楼发生），再置盟约态
+	w.eval("SugarCube.Engine.play('顶楼')"); await sleep(120);
+	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.world=pc.world||{};pc.world.scroll_delivered=true;pc.keeper=pc.keeper||{};pc.keeper.met=true;pc.keeper.key=true;pc.keeper.state="ally";pc.inv=pc.inv||{};pc.inv["守林人的钥匙"]=true;})()');
+	// M1：顶楼＝人已下去；抢杖收紧；另两出口改写
+	w.eval("SugarCube.Engine.play('顶楼')"); await sleep(150);
+	const top = passageText(w);
+	if (!top.includes('瞭望位空着')) throw new Error('#259 M1：交付后顶楼仍写守林人站在瞭望位');
+	if (linksOf(w).some((x) => x.includes('抢他的杖'))) throw new Error('#259 M1：交付后仍可抢他的杖');
+	if (!linksOf(w).some((x) => x.includes('违背约定'))) throw new Error('#259 M1：接班出口未按盟约态改写');
+	if (!linksOf(w).some((x) => x.includes('折断那半卷手稿'))) throw new Error('#259 M1：焚塔出口未改写');
+	// M2：书房劣化封印禁用＋ack（施术口在 observation_lock 之后）
+	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.ev.observation_lock=true;})()');
+	w.eval("SugarCube.Engine.play('书房')"); await sleep(150);
+	const study = passageText(w);
+	if (linksOf(w).some((x) => x.includes('照着守林人家那卷封印术念一遍'))) throw new Error('#259 M2：交付后仍可施劣化封印');
+	if (!study.includes('那卷术式在他手上')) throw new Error('#259 M2：缺禁用 ack 文案');
+	// 反例：未交付时抢杖仍在（确认门确是按 scroll_delivered 收的）
+	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.world.scroll_delivered=false;})()');
+	w.eval("SugarCube.Engine.play('顶楼')"); await sleep(150);
+	if (!linksOf(w).some((x) => x.includes('抢他的杖'))) throw new Error('#259 M1：未交付时抢杖被误收');
+	// m4：喂过花再并肩，开场应有互文
+	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.world.flower_fed=true;pc.ev.fight=null;pc.hp=18;pc.max_hp=18;})()');
+	w.eval("SugarCube.Engine.play('封印·并肩')"); await sleep(150);
+	if (!passageText(w).includes('花让它睡得沉')) throw new Error('#259 m4：喂花后并肩缺互文');
+	// m5：伤过的龙在归位段有 ack
+	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.dragon=pc.dragon||{};pc.dragon.hp=Game.Dragon.hp-12;pc.dragon.awake=true;})()');
+	w.eval("SugarCube.Engine.play('归位')"); await sleep(150);
+	if (!passageText(w).includes('刚结的血口')) throw new Error('#259 m5：伤龙归位缺 ack');
+	// m3：盟约态但手里没有好哨——唤醒处要给出「哨在长桌尽头」的指引
+	w.eval('(function(){const pc=SugarCube.State.variables.pc;delete pc.inv["好哨"];pc.keeper.state="ally";pc.dragon.awake=true;})()');
+	w.eval("SugarCube.Engine.play('唤醒')"); await sleep(150);
+	if (!passageText(w).includes('在长桌尽头那位手里')) throw new Error('#259 m3：无哨唤醒缺指引');
+	return { w };
+}
+
 // ── 路线 39：跨周目粘性（#271：每条路线都是干净 localStorage，跨周目行为此前零覆盖）──
 async function routeCrossRunSticky() {
 	const { w, click: c } = await newGame(0.99, 0);
@@ -1307,6 +1345,7 @@ const routes = [
 	['结局页收尾（C1）', routeEndingFooter],
 	['女巫小屋·只治一次', routeWitchHealOnce],
 	['文本上下文（时代与日记）', routeTextContext],
+	['交付后互锁（#259）', routeDeliveredLocks],
 	['跨周目粘性（#271）', routeCrossRunSticky],
 ];
 

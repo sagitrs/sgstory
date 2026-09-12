@@ -23,6 +23,10 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 const TRACES = 'build/route-traces.json';
 const BASELINE = 'scripts/rhythm-baseline.json';
 const CHAR_N = 5;          // 中文按字符 n-gram（无词边界），5-gram 是中文相似度的常用档
+// #338：**文档频率过滤**——被多数路线共享的 5-gram 是「共享主线 + 框架文本」（结果槽、雾递进提示…），
+// 它们会让「同一条主线、只有结局不同」的两条路线看起来 90% 相似（实测把 16 族压到 14 族）。
+// 只保留 df/total ≤ COMMON_DF 的 5-gram：剩下的才是「这条路线区别于别人的内容」。
+const COMMON_DF = 0.5;
 const TOL = 0.02;          // 报告型 ratchet 的容差（构建噪声/文案微调不该红）
 
 // ── 五拍人工标注（一次性入基线；每拍列出该拍在正文里的落点段落）────────────
@@ -79,7 +83,12 @@ function evaluate(data, baseline) {
 	// 毫无关系，是伪信号。截断轨迹只记进 E4 表，不进 C4 比对。
 	const full = names.filter((k) => routes[k].ending);
 	const routeText = Object.fromEntries(names.map((k) => [k, (routes[k].passages ?? []).map((p) => passageTexts[p] ?? '').join(' ')]));
-	const G = Object.fromEntries(names.map((k) => [k, ngrams(routeText[k])]));
+	const Graw = Object.fromEntries(names.map((k) => [k, ngrams(routeText[k])]));
+	// DF 过滤（在**完整路线**样本上统计：截断用例会把主线高频化，不能参与 df 统计）
+	const df = new Map();
+	for (const k of full) for (const g of Graw[k]) df.set(g, (df.get(g) ?? 0) + 1);
+	const commonCut = Math.max(2, Math.ceil(full.length * COMMON_DF));
+	const G = Object.fromEntries(names.map((k) => [k, new Set([...Graw[k]].filter((g) => (df.get(g) ?? 0) < commonCut))]));
 
 	// C4：先把完整路线按相似度**聚成「游玩路线家族」**，再比家族之间的距离。
 	// 为什么不能直接用两两数字（实测踩坑）：测试用例里有大量「同一段路径的两个用例」
@@ -104,8 +113,13 @@ function evaluate(data, baseline) {
 	const famOf = new Map();
 	fams.forEach((f, i) => f.forEach((k) => famOf.set(k, i)));
 	const interPairs = pairs.filter((p) => famOf.get(p.a) !== famOf.get(p.b));
+	const distinctive = full.map((k) => ({ route: k, grams: G[k].size, raw: Graw[k].size }));
+	const emptyDistinctive = distinctive.filter((d) => d.grams === 0).map((d) => d.route);
 	const c4 = {
 		charN: CHAR_N,
+		commonDf: COMMON_DF,
+		commonCut,
+		emptyDistinctive,
 		routes: full.length,
 		truncated: names.length - full.length,
 		clusterT: CLUSTER_T,
@@ -155,6 +169,7 @@ function evaluate(data, baseline) {
 		if (c4.maxInterJaccard > baseline.c4.maxInterJaccard + t) failures.push({ code: 'c4-convergence', msg: `跨家族最大相似度 ${c4.maxInterJaccard.toFixed(3)} > 基线 ${baseline.c4.maxInterJaccard} + ${t}（两条不同的游玩路线趋同）` });
 		if (c4.meanInterJaccard > baseline.c4.meanInterJaccard + t) failures.push({ code: 'c4-convergence', msg: `跨家族平均相似度 ${c4.meanInterJaccard.toFixed(3)} > 基线 ${baseline.c4.meanInterJaccard} + ${t}（整体趋同）` });
 		if (c4.clusters < baseline.c4.clusters) failures.push({ code: 'c4-convergence', msg: `游玩路线家族数 ${c4.clusters} < 基线 ${baseline.c4.clusters}（有路线被并入另一家族）` });
+		if (c4.emptyDistinctive.length) failures.push({ code: 'route-indistinct', msg: `以下完整路线在 DF 过滤后**没有任何独有 5-gram**（趋同的极端形态）：${c4.emptyDistinctive.join('、')}` });
 		if (e4.routesHit < baseline.e4.routesHit) failures.push({ code: 'e4-milestone', msg: `走到首个不可逆点的路线数 ${e4.routesHit} < 基线 ${baseline.e4.routesHit}` });
 		if (e4.minClicks !== null && e4.minClicks < baseline.e4.minClicks - 1) failures.push({ code: 'e4-milestone', msg: `首个不可逆点最早交互数 ${e4.minClicks} < 基线 ${baseline.e4.minClicks} − 1（不可逆点被推近＝铺垫变少）` });
 		if (e4.maxClicks !== null && e4.maxClicks > baseline.e4.maxClicks + 2) failures.push({ code: 'e4-milestone', msg: `首个不可逆点最晚交互数 ${e4.maxClicks} > 基线 ${baseline.e4.maxClicks} + 2（不可逆点被推远）` });
@@ -234,7 +249,7 @@ if (flag('--update-baseline')) {
 	const r = evaluate(data, null);
 	const nb = {
 		note: 'E4 节奏 / C4 相异度 基线（#295）。由 scripts/report-rhythm.mjs --update-baseline 生成；数字变化须在 PR 里说明理由。',
-		c4: { charN: r.c4.charN, routes: r.c4.routes, clusterT: r.c4.clusterT, clusters: r.c4.clusters, meanInterJaccard: +r.c4.meanInterJaccard.toFixed(4), maxInterJaccard: +r.c4.maxInterJaccard.toFixed(4) },
+		c4: { charN: r.c4.charN, commonDf: r.c4.commonDf, routes: r.c4.routes, clusterT: r.c4.clusterT, clusters: r.c4.clusters, meanInterJaccard: +r.c4.meanInterJaccard.toFixed(4), maxInterJaccard: +r.c4.maxInterJaccard.toFixed(4) },
 		e4: { routesHit: r.e4.routesHit, minClicks: r.e4.minClicks, maxClicks: r.e4.maxClicks, minEv: r.e4.minEv, maxEv: r.e4.maxEv },
 		beats: Object.fromEntries(r.beats.map((b) => [b.key, { passages: b.passages, routes: b.routes }])),
 	};
@@ -255,6 +270,7 @@ else {
 	console.log('\n  五拍齐备度（Five Room Dungeon 口径，人工标注一次）：');
 	for (const b of r.beats) console.log(`   ${b.key}：可达段落 ${b.passages}｜被 ${b.routes} 条路线走到｜${b.why}`);
 	console.log(`\n══ C4 路线相异度 ══  （字符 ${CHAR_N}-gram；只比走完结局的 ${r.c4.routes} 条完整路线，另有 ${r.c4.truncated} 条截断用例不计入）`);
+	console.log(`  降噪：DF 过滤——被 ≥${r.c4.commonCut}/${r.c4.routes} 条路线共享的 5-gram 视为「共享主线/框架文本」，不计入相异度（#338）`);
 	console.log(`  游玩路线家族（相似度 ≥ ${r.c4.clusterT} 自动归并）：${r.c4.clusters} 族`);
 	for (const f of r.c4.families) console.log(`   · ${f.length} 条：${f.join(' / ')}`);
 	console.log(`  跨家族平均相似度 ${r.c4.meanInterJaccard.toFixed(3)}｜最大 ${r.c4.maxInterJaccard.toFixed(3)}｜家族内最大 ${r.c4.maxIntraJaccard.toFixed(3)}（家族内高是预期的：同一段路径的多个用例）`);

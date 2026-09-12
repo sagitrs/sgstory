@@ -31,6 +31,7 @@ const NAV = {
 	async 'hall-direct'(c) { await toHall(c); },
 	async 'hall-observe'(c) { await toHall(c); },
 	async 'hall-observed'(c) { await toHall(c); await c('先看清钉子是怎么卡的'); },
+	async sealRound(c, w) { await toSealRound(c, w); },
 	async flower(c) {
 		await c('问一句女巫小屋怎么走');
 		await c('往林子深处走');
@@ -38,6 +39,26 @@ const NAV = {
 		await c('塔基墙根那片花');
 	},
 };
+// #350：封印战一轮（点击第一张牌）——状态需结盟＋好哨＋卷轴星图，从地下宴会厅进
+async function toSealRound(c, w) {
+	await c('问一句女巫小屋怎么走');
+	await c('往林子深处走');
+	await c('继续往塔那边走');
+	await c('雾里有个影子挡着路');
+	await c('慢慢放下手');
+	await c('顺着那条窄路走过去');
+	await c('收下钥匙');
+	w.eval(`(function(){const v=SugarCube.State.variables;const pc=v.pc;
+	 pc.hp=18; pc.max_hp=18; pc.salves=2;
+	 pc.inv["好哨"]=true; pc.inv["传送术卷轴"]=true; pc.inv["完整星图"]=true;
+	 pc.keeper.state="seal"; pc.keeper.met=true;
+	 pc.dragon={hp:60,defeats:0,venom:false,awake:true};
+	 v.era="present";})()`);
+	w.SugarCube.Engine.play('地下宴会厅'); await sleep(250);
+	await c('叫醒它');
+	await c('和守林人并肩');
+}
+
 async function toHall(c) {
 	await c('问一句女巫小屋怎么走');
 	await c('往林子深处走');
@@ -56,12 +77,17 @@ const snapshot = (w) => {
 		ev: JSON.stringify(Object.keys(pc.ev ?? {}).sort()),
 		world: JSON.stringify(Object.keys(pc.world ?? {}).sort()),
 		hp: pc.hp, gold: pc.gold,
+		dragon_hp: pc.dragon?.hp ?? null,
+		round: pc.ev?.fight?.round ?? null,
+		fight_log: (w.document.querySelector('.fight-log')?.textContent ?? '').replace(/\s+/g, ' ').trim() || null,
 		last_roll: pc.ev?.last_roll?.site ?? null,
 	};
 };
 const FIELD = {
 	inv: (s) => `物品 ${s.inv}`, ev: (s) => `旗标 ${s.ev}`, world: (s) => `世界态 ${s.world}`,
-	hp: (s) => `HP ${s.hp}`, gold: (s) => `金币 ${s.gold}`, last_roll: (s) => `检定记录 ${s.last_roll ?? '（无）'}`,
+	hp: (s) => `HP ${s.hp}`, gold: (s) => `金币 ${s.gold}`,
+	dragon_hp: (s) => `龙血 ${s.dragon_hp}`, round: (s) => `回合 ${s.round}`,
+	fight_log: (s) => `战报「${s.fight_log ?? '（无）'}」`, last_roll: (s) => `检定记录 ${s.last_roll ?? '（无）'}`,
 };
 const SET_FIELDS = new Set(['inv', 'ev', 'world']);
 // 集合类字段只报**差集**（丢什么/多什么），整表刷屏看不清真正的证据
@@ -76,11 +102,23 @@ let failures = 0;
 let knownDefects = 0;
 const rows = [];
 for (const site of MANIFEST.sites) {
-	const { w, click, settle } = await newGame(0.99);   // d20 恒 20：就地操作必成，排除「检定失败」干扰
+	// #350：战斗站点要用**变化**的随机序列——固定值会让「重掷」算出相同结果而看不见
+	let seq = 0;
+	const SEQ = [0.99, 0.99, 0.02, 0.02, 0.99, 0.02, 0.99, 0.02];
+	const rnd = site.randomSequence ? () => SEQ[(seq++) % SEQ.length] : 0.99;
+	const { w, click, settle } = await newGame(rnd);   // 默认 d20 恒 20：就地操作必成，排除「检定失败」干扰
 	try {
-		await NAV[site.nav](click);
+		await NAV[site.nav](click, w);
 		const beforeAction = snapshot(w);
-		await click(site.label);
+		if (site.clickNthAction) {
+			// 战斗牌是随机抽的，按序号点（第 N 张），比按标签稳
+			const acts = [...w.document.querySelectorAll('#passages .fight-acts a.link-internal')];
+			const el = acts[site.clickNthAction - 1];
+			if (!el) throw new Error(`战斗面板第 ${site.clickNthAction} 张牌不存在`);
+			el.click(); await sleep(300);
+		} else {
+			await click(site.label);
+		}
 		const afterAction = snapshot(w);
 		const acted = JSON.stringify(afterAction) !== JSON.stringify(beforeAction);
 		w.sgQuickSave();

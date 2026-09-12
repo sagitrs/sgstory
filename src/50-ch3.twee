@@ -595,7 +595,7 @@
 <<if $pc.world.flower_fed>>花让它睡得沉。你按下去的时候，它连挣扎都慢了半拍。<</if>>
 
 <<fightbegin "封印">>
-<<fightresolve "龙·吐息" true>>
+<<fightlog>>
 <<dragonbar>>
 <<if $pc.hp gt 0>>
 	<<if $pc.dragon.hp lte Game.Dragon.sealAt>>
@@ -620,7 +620,7 @@
 你冲了上去。
 
 <<fightbegin "龙">>
-<<fightresolve "龙·吐息" true>>
+<<fightlog>>
 <<dragonbar>>
 <<if $pc.hp gt 0>>
 	<<if $pc.ev.fight.round gt 2>>

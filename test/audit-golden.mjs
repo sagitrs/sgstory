@@ -18,7 +18,7 @@ const GOLDEN = 'test/audit-golden.json';
 const FLAGS = [
 	'truth', 'investment', 'echoes', 'choices', 'sel', 'nosl', 'gear', 'interact', 'social', 'combat',
 	'a11y', 'starbudget', 'consequences', 'sitedisc', 'systems', 'text', 'npc', 'dragon', 'checks',
-	'economy', 'items', 'tokens', 'canon', 'craft', 'state',
+	'economy', 'items', 'tokens', 'canon', 'craft', 'state', 'literals',
 ];
 
 // 归一化：只对不确定输出的开关生效（其余逐字节）

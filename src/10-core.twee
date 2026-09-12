@@ -224,7 +224,7 @@ Macro.add('dragonbar', {
 /% 全局状态初始化（默认形状单一源见 Pc.defaults） %/
 <<set $player_name to "">>
 <<set $pc to Pc.defaults()>>
-<<set $era to "present">>
+<<set $era to Game.Era.PRESENT>>
 
 :: Widgets [widget]
 /% 受伤 + 药膏自动生效 + 死亡判定。用法：<<damage N>>。
@@ -300,7 +300,7 @@ Macro.add('dragonbar', {
 
 /% 时代切回现在（不耗星力：时间自己走完的场合专用——宴散/仪式终） %/
 <<widget "eraPresent">>
-	<<set $era to "present">>
+	<<set $era to Game.Era.PRESENT>>
 <</widget>>
 
 /% 拾取道具（物品栏）：<<give "日记">> %/
@@ -337,14 +337,14 @@ Macro.add('dragonbar', {
 		<<if $pc.star.spent gte 3>>
 			<div><span class="sys-note">（你翻得越来越熟了。可每次回来，身上都像被抽走了一点点什么。）</span></div>
 		<</if>>
-		<<link `($era is "present" ? "翻转护身符：坠入『过去』" : "翻转护身符：回到『现在』")`>>
+		<<link `($era is Game.Era.PRESENT ? "翻转护身符：坠入『过去』" : "翻转护身符：回到『现在』")`>>
 			<<if not $pc.star.first_free>>
 				<<set $pc.star.first_free to true>>   /% #219 C1②：头一次翻转不收费——造它的人留的一点余量 %/
 			<<else>>
 				<<set $pc.star.spent to $pc.star.spent + 1>>
 			<</if>>
-			<<set $era to ($era is "present" ? "past" : "present")>>
-			<<if $era is "present">><<set $pc.world.fog_thin to true>><</if>>
+			<<set $era to ($era is Game.Era.PRESENT ? Game.Era.PAST : Game.Era.PRESENT)>>
+			<<if $era is Game.Era.PRESENT>><<set $pc.world.fog_thin to true>><</if>>
 			<<goto `passage()`>>
 		<</link>>
 	<</if>>
@@ -562,7 +562,7 @@ $pc.speciesLabel $pc.classLabel
 <div class="inv-list"><<inventory>></div>
 </div>
 <<if $pc.inv["时光护符"]>>
-⌛ <<if $era is "past">>过去<<else>>现在<</if>>
+⌛ <<if $era is Game.Era.PAST>>过去<<else>>现在<</if>>
 <</if>>
 [[📖 设定集|设定集]]
 <</if>>

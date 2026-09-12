@@ -15,7 +15,7 @@
 
 import { createContext } from '../scripts/audit/context.mjs';
 
-export const PREMISE_KNOWN = { witch_fire: '#404' };   // 修完删除本条
+export const PREMISE_KNOWN = {};   // #404 已修（问法改建立于「缺的从来不是咒」）——白名单已清空，本门转严格
 
 // 纯函数（自证与真实运行同一份代码）：grantOf(flag) → [{ p, src }]
 export const judgePremise = (entry, grantOf) => {

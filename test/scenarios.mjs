@@ -1010,11 +1010,11 @@ async function routeInvestment() {
 	// G3：跨时代合龙门——单侧证据问不出那一句（反例），两侧齐才出现（正例）
 	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.ev=pc.ev||{};pc.ev.failure_cause=true;delete pc.ev.seer_asked;delete pc.ev.coord;pc.ev.old_witch=true;SugarCube.State.variables.era="past";})()');
 	w.eval("SugarCube.Engine.play('老巫女')"); await sleep(150);
-	if (linksOf(w).some((x) => x.includes('那一夜该烧的'))) throw new Error('#291 G3：只带现在侧证据也问得出（门形同虚设）');
+	if (linksOf(w).some((x) => x.includes('缺的那一句话'))) throw new Error('#291 G3：只带现在侧证据也问得出（门形同虚设）');
 	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.ev.seer_asked=true;})()');
 	w.eval("SugarCube.Engine.play('老巫女')"); await sleep(150);
-	if (!linksOf(w).some((x) => x.includes('那一夜该烧的'))) throw new Error('#291 G3：两侧证据齐了却问不出（门不可达）');
-	await c('问她：那一夜该烧的是什么？');
+	if (!linksOf(w).some((x) => x.includes('缺的那一句话'))) throw new Error('#291 G3：两侧证据齐了却问不出（门不可达）');
+	await c('缺的那一句话');
 	if (pcOf(w).ev.witch_fire_hint !== true) throw new Error('#291 G3：合龙门未产出只言片语');
 	if (!passageText(w).includes('等一个不在场的人把话说完')) throw new Error('#291 G3：只言片语没落地');
 

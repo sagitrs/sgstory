@@ -16,6 +16,7 @@ const clickedLinks = new Map(); // `${段落}|${时代}` → 真被点过的链�
 // 跟着异步上下文走，才不会串台。轨迹落 build/route-traces.json，由
 // scripts/report-rhythm.mjs 消费（报告型探索票，不并进 audit.mjs）。
 const routeCtx = new AsyncLocalStorage();
+const syntheticRoutes = new Set();   // 注册表里标了 synthetic 的路线名（见 routes 表第三列）
 const traces = new Map();        // 路线名 → { passages, clicks, milestones, ending }
 const passageTexts = new Map();  // 段落 → 归一化屏文（去重存一份，供 C4 n-gram 用）
 const MILESTONE_PASSAGES = {     // 首个不可逆点（E4）：花田＝致死位点；龙战＝决战
@@ -32,6 +33,10 @@ async function newGame(randomStub, preset = 0) {
 	const routeName = routeCtx.getStore() ?? '(未命名路线)';
 	const trace = traces.get(routeName) ?? { passages: [], clicks: 0, milestones: {}, ending: null };
 	traces.set(routeName, trace);
+	// #338/#357：**合成用例标记**（注册表第三列 `{ synthetic: true }`）——
+	// 「夹具注入 + 少量点击却走完到结局」的构造性用例不该计入 C4/E4 的完整路线样本，
+	// 否则会抬高家族数、压低最少交互数（实测两次：E4 最早交互数 3<5、C4 家族 18→19 打掉 R1b 自证）。
+	if (routeCtx.getStore() && syntheticRoutes.has(routeCtx.getStore())) trace.synthetic = true;
 	const mark = () => {
 		const p = w.SugarCube.State.passage;
 		visited.add(`${p}|${w.SugarCube.State.variables?.era ?? '-'}`);
@@ -1486,6 +1491,9 @@ async function routeTextContext() {
 	return { w };
 }
 
+// #338/#357 约定：**第三列 `{ synthetic: true }`** 标记「夹具注入 + 少量点击」的构造性用例——
+// 它们仍会跑（覆盖门需要），但不计入 C4/E4 的「完整路线」样本（否则抬高家族数、压低最少交互数，
+// 扰动家族下限与 E4 里程碑带；实测两次：E4 最早交互数 3<5、C4 家族 18→19 打掉 R1b 自证）。
 const routes = [
 	['金路径 送星归位', routeTrue],
 	['平凡之路', routeQuit],
@@ -1525,14 +1533,15 @@ const routes = [
 	['结局页收尾（C1）', routeEndingFooter],
 	['女巫小屋·只治一次', routeWitchHealOnce],
 	['文本上下文（时代与日记）', routeTextContext],
-	['交付后互锁（#259）', routeDeliveredLocks],
-	['退出选项指向（#308/#312）', routeExitLabels],
+	['交付后互锁（#259）', routeDeliveredLocks, { synthetic: true }],   // 夹具驱动（13 处 w.eval / 0 点击）——不入 C4/E4 样本
+	['退出选项指向（#308/#312）', routeExitLabels, { synthetic: true }], // 夹具驱动（4 处 w.eval / 1 点击）——不入 C4/E4 样本
 	['选项指向与措辞（#309/#311/#313）', routeClarityB],
 	['投入—回报（#291 I1）', routeInvestment],
 	['跨周目粘性（#271）', routeCrossRunSticky],
 ];
 
-const results = await Promise.all(routes.map(async ([name, fn]) => {
+const results = await Promise.all(routes.map(async ([name, fn, meta]) => {
+	if (meta?.synthetic) syntheticRoutes.add(name);
 	try {
 		await routeCtx.run(name, fn);   // #295：把路线名绑到该路线的异步上下文上
 		console.log(`✓ ${name}`);

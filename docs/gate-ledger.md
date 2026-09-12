@@ -8,7 +8,7 @@
 > 为什么要有这张表：本仓当日集齐四类「空判」——覆盖≠验收 / **反例空判** / **死开关**（#331）/ **原理不可达断言**（#338）。
 > 台账的首要用途不是统计，而是**让「没有自证的门」在表上看得见**。
 
-**严格行为化率（有自证）：33/60 = 55%** ｜ **有断言但缺自证：10**（＝下方工作清单）｜ 仅登记：4
+**严格行为化率（有自证）：33/59 = 55.9%** ｜ **有断言但缺自证：9**（＝下方工作清单）｜ 仅登记：4
 
 | 门 | 类型 | 形态 | 自证 | 接线（npm test） | 理由（仅登记/未接线必填） |
 |---|---|---|---|---|---|
@@ -23,7 +23,7 @@
 | `audit:echoes` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:economy` | audit 开关 | 仅登记 | — | — | 收支时间线是人读报表（数值本身由 --checks/--gear 门覆盖） |
 | `audit:gear` | audit 开关 | 行为化（缺自证） | — | ✅ |  |
-| `audit:interact` | audit 开关 | 行为化（缺自证） | — | ✅ |  |
+| `audit:interact` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:investment` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:items` | audit 开关 | 仅登记 | — | — | 龙战伤害矩阵是人读对照表（战斗数值由 --dragon 分布门覆盖） |
 | `audit:literals` | audit 开关 | 行为化 | ✅ | ✅ |  |
@@ -53,7 +53,6 @@
 | `test/integrity.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/invariants.unit.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/layering.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | 自证 5 例 |
-| `test/notes-model.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/npc-venue.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/onetime-pickups.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
 | `test/premise-source.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
@@ -73,7 +72,7 @@
 | `test/social-lever.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
 | `test/walker.mjs` | 测试脚本 | 行为化 | — | — | 随机游走 soak（npm run soak）：耗时长、种子流非确定，不进 npm test |
 
-## F2 工作清单：有断言但**缺自证**（10 项）
+## F2 工作清单：有断言但**缺自证**（9 项）
 
 > 这些门**在跑、也在断言**，但从没被证明「反例会红」——本仓当日四类空判（覆盖≠验收／反例空判／死开关 #331／原理不可达 #338）都出自这一类。
 > 补法：给该门加一个**合成反例**用例（正例＋反例），并在本脚本的 `REASONS` 里改标 `行为化`。
@@ -84,7 +83,6 @@
 - `audit:consequences`（audit 开关）
 - `audit:dragon`（audit 开关）
 - `audit:gear`（audit 开关）
-- `audit:interact`（audit 开关）
 - `audit:npc`（audit 开关）
 - `audit:sel`（audit 开关）
 - `audit:social`（audit 开关）

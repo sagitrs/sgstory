@@ -29,7 +29,7 @@
 	},
 	"interact": {
 		"code": 0,
-		"out": "\n══ ⓪h 互动门（M9）——信息必须由玩家动作发起 ══\n  检定：69 处（玩家发起 43（交涉 19）· 进场即动手 4 · 战斗动作池 22）\n  最\"薄\"的五个段落（字/臂）：Widgets 2712 · 角色卡 1201 · 观星者·图 577 · 车卡 449 · 开场 434\n\n（数据源：src/15-tables.twee —— 改表即改此报告；伞 #21/#22 审计请跑本脚本）\n"
+		"out": "\n══ ⓪h 互动门（M9）——信息必须由玩家动作发起 ══\n      ✓ 自证·正例：位点都存在于表里：得 0（期望 0）\n      ✓ 自证·反例①：引用了不存在的位点：得 1（期望 1）\n      ✓ 自证·正例：顶层检定但位点已标 auto：得 0（期望 0）\n      ✓ 自证·反例②：顶层检定且位点未标 auto：得 1（期望 1）\n      ✓ 自证·正例：检定在 <<link>> 体内（玩家发起）：得 0（期望 0）\n      ✓ 自证·反例③：顶层读 $last_check 却没有本轮检定：得 1（期望 1）\n      ✓ 自证·正例：顶层读 $last_check 且同段有检定：得 0（期望 0）\n  检定：69 处（玩家发起 43（交涉 19）· 进场即动手 4 · 战斗动作池 22）\n  最\"薄\"的五个段落（字/臂）：Widgets 2712 · 角色卡 1201 · 观星者·图 577 · 车卡 449 · 开场 434\n\n（数据源：src/15-tables.twee —— 改表即改此报告；伞 #21/#22 审计请跑本脚本）\n"
 	},
 	"social": {
 		"code": 0,
@@ -40,8 +40,8 @@
 		"out": "\n══ ⓪k 战斗动作池门（B1）——随机 3 选 1，每手都有属性、成/败/大成功都有后果 ══\n  ✓ 雾影：6 手 → 每轮 3 选 1 · 判定 运动/洞悉/游说/体操/隐匿 · 可推进 5 · 可保命 5\n  ✓ 封印：10 手 → 每轮 3 选 1 · 判定 运动/察觉/体操/洞悉/医药/游说/表演/奥秘/save:con · 可推进 10 · 可保命 4\n  ✓ 龙：6 手 → 每轮 3 选 1 · 判定 体操/察觉/历史/运动/洞悉/生存 · 可推进 6 · 可保命 6\n  ✓ 定档：骰面 20 → 大成功 · 成功 → 成功档 · 失败 → 失败档\n\n（数据源：src/15-tables.twee —— 改表即改此报告；伞 #21/#22 审计请跑本脚本）\n"
 	},
 	"a11y": {
-		"code": 1,
-		"out": "\n══ ⓪s 可访问性门（#272）——对比度 / lang / 装饰语义 ══\n  · 对比度扫描：基准底色 #191722，检查 42 条声明（阈值 正文 ≥4.5 / 装饰 ≥3.0，装饰白名单 1 条带理由）\nfile:///home/sagitrs/bots/workspaces/sagitrs-developer/sgstory/scripts/dist-fresh.mjs:31\n\t\tthrow new Error('dist/index.html 比 src/*.twee 旧——先跑 `npm run build`（否则断言基于旧游戏，结果是假红/假绿）');\n\t\t      ^\n\nError: dist/index.html 比 src/*.twee 旧——先跑 `npm run build`（否则断言基于旧游戏，结果是假红/假绿）\n    at assertFreshDist (file:///home/sagitrs/bots/workspaces/sagitrs-developer/sgstory/scripts/dist-fresh.mjs:31:9)\n    at Module.run (file:///home/sagitrs/bots/workspaces/sagitrs-developer/sgstory/scripts/audit/gates/a11y.mjs:47:3)\n    at file:///home/sagitrs/bots/workspaces/sagitrs-developer/sgstory/scripts/audit.mjs:33:29\n    at ModuleJob.run (node:internal/modules/esm/module_job:343:25)\n    at async onImport.tracePromise.__proto__ (node:internal/modules/esm/loader:681:26)\n    at async asyncRunEntryPointWithESMLoader (node:internal/modules/run_main:117:5)\n\nNode.js v22.23.2\n"
+		"code": 0,
+		"out": "\n══ ⓪s 可访问性门（#272）——对比度 / lang / 装饰语义 ══\n  · 对比度扫描：基准底色 #191722，检查 42 条声明（阈值 正文 ≥4.5 / 装饰 ≥3.0，装饰白名单 1 条带理由）\n  · 语义：✦ 装饰 glyph 全包裹、.act-n 角标 aria-hidden、<html lang=\"zh-CN\"> 构建期注入\n\n（数据源：src/15-tables.twee —— 改表即改此报告；伞 #21/#22 审计请跑本脚本）\n"
 	},
 	"starbudget": {
 		"code": 0,

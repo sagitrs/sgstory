@@ -102,6 +102,14 @@ for (const p of content) {
 			const acts = w.document.querySelector('#passages .scene-acts');
 			if (acts && shown === p.name && !w.document.querySelector('#passages .skip-acts')) problems.push('行动区缺「跳到行动」跳转链接');
 		}
+		// #359：跨时代证物——风化书只能在**现在**的天文台取得（过去侧现取＝绕过「带书免检」）
+		if (p.name === '天文台' && era) {
+			const cur = [...w.document.querySelectorAll('#passages .passage')].filter((e) => e.dataset.passage === p.name).pop();
+			const labels = [...(cur?.querySelectorAll('a.link-internal, button.link-internal') ?? [])].map((a) => a.textContent.trim());
+			const has = labels.some((x) => x.includes('在书架上找到一册'));
+			if (era === 'present' && !has) problems.push('#359：现在侧的天文台必须给取书入口');
+			if (era === 'past' && has) problems.push('#359：过去侧的天文台不得给取书入口（风化书只能从现在带过去）');
+		}
 		if (uncaught.length > before) problems.push(`uncaught: ${uncaught[before].slice(0, 120)}`);
 		if (errs > 0) { const t = [...w.document.querySelectorAll('#passages .error')].map((e) => e.textContent.slice(0, 80)).join(' | '); problems.push(`${errs} 个 .error：${t}`); }
 		if (!out) problems.push('输出为空');

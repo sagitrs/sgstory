@@ -79,6 +79,8 @@ export const SEGMENTS = [
 	{ id: "test-onetime-pickups-mjs", phase: 'test', cost: 18.1, cmd: "node test/onetime-pickups.mjs" },
 	{ id: "test-roll-binding-mjs", phase: 'test', cost: 0, cmd: "node test/roll-binding.mjs" },
 	{ id: "test-codex-gating-mjs", phase: 'test', cost: 0, cmd: "node test/codex-gating.mjs" },
+	{ id: 'test-notes-model-mjs-selftest', phase: 'test', cost: 0, cmd: 'node test/notes-model.mjs --selftest' },
+	{ id: 'test-notes-model-mjs', phase: 'test', cost: 0, cmd: 'node test/notes-model.mjs' },
 	// main 侧新增（#360 交涉筹码按类型分派，guest-1）：reb 冲突时按「计划＝单一权威」加在这里
 	{ id: "test-social-lever-mjs", phase: 'test', cost: 0, cmd: "node test/social-lever.mjs" },
 	{ id: "test-coverage-mjs", phase: 'test', cost: 0, needs: ['test-render-all-mjs', 'test-scenarios-mjs'], cmd: "node test/coverage.mjs" },

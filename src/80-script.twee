@@ -47,6 +47,33 @@ jQuery(document).on('keydown.sgSave', (ev) => {
 // 不用 SugarCube 的 settings：Setting.save() 只持久化**注册过的** Setting，
 // 自定义键不落盘（见 vendor/format.js 的 save()）。这里自己用一个带命名空间的 localStorage 键。
 const SG_CODEX_KEY = 'sgstory.codex.v1';
+// ── 笔记（伞 #422 阶段 1）：知识的唯一取值口 ──────────────────────────
+//     · `has(id)` 走条目的 `grant`（阶段 1 它读的是现有旗标 → 零行为变化）
+//     · `all()` 返回已知笔记（按声明顺序），`missing(req)` 便于条件表做「缺什么」诊断
+//     · 阶段 3 之后写点搬到 `add()`；在此之前本封装**只读**，不写状态（渲染路径契约）
+window.Sg.notes = {
+	// 单一路径求值器：笔记只声明 flagPath（如 'ev.tav_tips'），求值在此一处完成——
+	// 这样数据表里不出现任何字面旗标读点（否则会被「选择后果」门的消费推导算成叙事消费）。
+	readPath(pc, path) {
+		let cur = pc;
+		for (const seg of String(path ?? '').split('.')) { if (cur == null) return undefined; cur = cur[seg]; }
+		return cur;
+	},
+	entry(id) { return Game?.Notes?.entries?.[id] ?? null; },
+	ids() { return Object.keys(Game?.Notes?.entries ?? {}); },
+	has(id) {
+		const e = this.entry(id);
+		if (!e) return false;
+		const v = typeof e.grant === 'function' ? e.grant(State.variables.pc) : this.readPath(State.variables.pc, e.flagPath);
+		return !!v;
+	},
+	all() { return this.ids().filter((id) => this.has(id)); },
+	missing(req = []) {
+		const need = req.flatMap((r) => (typeof r === 'string' ? [r] : (r?.any ?? [])));
+		return need.filter((id) => !this.has(id));
+	},
+};
+
 window.Sg.Codex = {
 	blank() { return { clues: {}, endings: [], finals: [] }; },
 	read() {

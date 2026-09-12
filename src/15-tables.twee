@@ -1176,5 +1176,58 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 		],
 	};
 
-	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences, Investment, State, RuleClaims, Damage, Era };
+	// ── 笔记模型（伞 #422 阶段 1）：把「知识」从散落的旗标收进一张表 ──
+	//     · 知识＝「我知道什么」（≠ 世界态「发生过什么」≠ 持有物「我拿着什么」）
+	//     · 阶段 1 的 grant **只读**现有旗标（笔记是视图，旗标仍是运行时真值）⇒ 零行为变化
+	//     · 段落条件**不动**（阶段 2 才做纯转发）；词句与来源在此单点维护，便于机检与作者查阅
+	//     · 门：test/notes-model.mjs（字段齐全 ＋ flagPath 与状态契约域对得上 ＋ 合成反例自证）
+	const Notes = {
+		entries: {
+			// ── 酒馆（六桌传闻，一章）──
+			n_tav_tips:  { title: '柜台那两句提醒', src: '酒馆', tags: ['一章', '酒馆'],
+				body: '老板娘说过两件事：别在雾里睡觉；听见有人叫你名字，别应。',
+				era: 'present', flagPath: 'ev.tav_tips' },
+			n_tav_fog:   { title: '雾里的路会自己合上', src: '酒馆', tags: ['一章', '酒馆'],
+				body: '有人提起：雾散了又会聚，走进去的人得记着自己的脚印。',
+				era: 'present', flagPath: 'ev.tav_fog' },
+			n_tav_light: { title: '三百年没灭的那盏灯', src: '井台', tags: ['一章', '酒馆'],
+				body: '井台边有人说，塔上那盏灯三百年了，一次也没灭过。',
+				era: 'present', flagPath: 'ev.tav_light' },
+			n_tav_iron:  { title: '废哨站那半截牌子', src: '废哨站', tags: ['一章', '酒馆'],
+				body: '牌子上的字被磨掉了大半，只剩一个「等」字。',
+				era: 'present', flagPath: 'ev.tav_iron' },
+			n_tav_seal:  { title: '林缘空地上说过的封印', src: '林缘空地', tags: ['一章', '酒馆'],
+				body: '有人压低声音说起「封印」两个字，随即被旁边的人用眼神拦住。',
+				era: 'present', flagPath: 'ev.tav_seal' },
+			n_tav_grudge: { title: '一桩没人肯提的旧怨', src: '酒馆', tags: ['一章', '酒馆'],
+				body: '酒桌上有人提到「那家人」，话没说完就被打断了。',
+				era: 'present', flagPath: 'ev.tav_grudge' },
+			n_tav_ageless: { title: '村里的老人算不清年头', src: '酒馆', tags: ['一章', '酒馆'],
+				body: '村口那位老人说不上自己多大年纪，只说「比那盏灯小些」。',
+				era: 'present', flagPath: 'ev.tav_ageless' },
+			n_tav_flower: { title: '墙根那片银白的花', src: '酒馆', tags: ['一章', '酒馆'],
+				body: '有人说塔根墙下那片花开得怪，别处的草都黄了，只它旺。',
+				era: 'present', flagPath: 'ev.tav_flower' },
+			// ── 森林听雾（一章）──
+			n_forest_heard:  { title: '雾里露出来的那点灯火', src: '森林边缘', tags: ['一章', '森林'],
+				body: '灯火悬在半空，白的、冷的；还看见有金币从雾里飘过去。',
+				era: 'present', flagPath: 'ev.forest_heard' },
+			// ── 女巫小屋（一章）──
+			n_wq_seen: { title: '她先把你看了一遍', src: '女巫小屋', tags: ['一章', '女巫'],
+				body: '她没问你从哪来，先看了你脖子上的东西。',
+				era: 'present', flagPath: 'ev.wq_seen' },
+			n_wq_night: { title: '那一夜的半句', src: '女巫小屋', tags: ['一章', '女巫'],
+				body: '提起那一夜，她只说了半句，剩下的用炉火盖过去了。',
+				era: 'present', flagPath: 'ev.wq_night' },
+			n_wq_fog: { title: '雾不是天生的', src: '女巫小屋', tags: ['一章', '女巫'],
+				body: '她说这雾有来处，只是现在没到时候。',
+				era: 'present', flagPath: 'ev.wq_fog' },
+			// ── 花田警告（跨章，一章末—二章）──
+			n_flower_warned: { title: '那片花会睡人', src: '守林人／哥布林', tags: ['二章', '花田', '保命'],
+				body: '塔根墙下那片银白的花闻久了会睡；要摘，先把气含住。',
+				era: 'present', flagPath: 'world.flower_warned' },
+		},
+	};
+
+	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences, Investment, State, RuleClaims, Damage, Era, Notes };
 })());

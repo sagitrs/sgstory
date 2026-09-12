@@ -6,7 +6,7 @@
 // 于是「操作后状态」与「存档快照」之间的一致性从来没被断言过（#300 §4）。
 //
 // 本门对 test/saveload-sites.json 里每个站点跑：
-//   导航到站点 → 就地操作 → 快照 → sgQuickSave() → sgLoadSlot(1) → 快照 → 逐项比对
+//   导航到站点 → 就地操作 → 快照 → Sg.save.quick() → Sg.save.load(1) → 快照 → 逐项比对
 // 断言项取登记表里的 assert（物品/旗标/HP/金币/检定记录），另加「不得重复发物」。
 //
 // **当前状态：本门在 #300 修复前应当是红的**——那是缺陷基线证据，不是测试写错。
@@ -120,9 +120,9 @@ for (const site of MANIFEST.sites) {
 		}
 		const afterAction = snapshot(w);
 		const acted = JSON.stringify(afterAction) !== JSON.stringify(beforeAction);
-		w.sgQuickSave();
+		w.Sg.save.quick();
 		await sleep(200);
-		const p = w.sgLoadSlot(1);
+		const p = w.Sg.save.load(1);
 		if (p?.then) await p.catch(() => {});
 		await settle(); await sleep(400);
 		const afterLoad = snapshot(w);
@@ -181,8 +181,8 @@ for (const site of MANIFEST.sites) {
 		const pc = () => w.SugarCube.State.variables.pc;
 		const snap = () => `${pc().ev.fight?.round}|${pc().hp}|${(w.document.querySelector('#passages').textContent.replace(/\s+/g, ' ').match(/d20\(\d+\)[^｜]{0,24}/) ?? [''])[0]}`;
 		const before = snap();
-		w.sgQuickSave(); await sleep2(200);
-		const pr = w.sgLoadSlot(1); if (pr?.then) await pr.catch(() => {});
+		w.Sg.save.quick(); await sleep2(200);
+		const pr = w.Sg.save.load(1); if (pr?.then) await pr.catch(() => {});
 		await settle(); await sleep2(600);
 		const after = snap();
 		if (before === after) {

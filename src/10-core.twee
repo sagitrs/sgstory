@@ -585,9 +585,9 @@ Macro.add('dragonbar', {
 /% 侧边栏：常驻存档入口（v16 §5.0）+ 实时角色卡 + 物品栏 %/
 <<nobr>>
 <div class="save-bar">
-	<button type="button" class="save-btn" onclick="sgQuickSave()">💾 快速存档</button>
-	<button type="button" class="save-btn" onclick="sgQuickLoad()">📂 快速读档</button>
-	<button type="button" class="save-btn" onclick="sgSaveMenu()">🗂 存档 / 读档</button>
+	<button type="button" class="save-btn" onclick="Sg.save.quick()">💾 快速存档</button>
+	<button type="button" class="save-btn" onclick="Sg.save.quickLoad()">📂 快速读档</button>
+	<button type="button" class="save-btn" onclick="Sg.save.menu()">🗂 存档 / 读档</button>
 </div>
 <</nobr>>
 <<if $pc.classLabel>>

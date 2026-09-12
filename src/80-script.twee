@@ -424,6 +424,15 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 // 幂等且代价可忽略——坑10 的纵深防御）；顺带把图鉴线索并进永久记录。
 jQuery(document).on(':passagestart', () => {
 	Pc.migrate(State.variables.pc);
+	// #264：旧档/手改档的「已倒下」残余——hp 或 max_hp ≤ 0 且没有结局记录时，
+	// 场景会用 <<if $pc.hp gt 0>> 渲染空白页（实测：极简档进雾之魔物·战空白）。
+	// 修到「一点余气」，让玩家能看见场景与出口而不是黑屏；真正的死亡仍走结局流程。
+	// 只对「已车卡」的档生效：未车卡（abilities 为空）是正常初始形状，不得改动（C1 收尾路线会验）
+	const pc = State.variables.pc;
+	if (pc.abilities) {
+		if (typeof pc.max_hp !== 'number' || pc.max_hp <= 0) pc.max_hp = 18;
+		if ((typeof pc.hp !== 'number' || pc.hp <= 0) && !pc.ev?.ending) pc.hp = 1;
+	}
 	SgCodex.sync();
 });
 

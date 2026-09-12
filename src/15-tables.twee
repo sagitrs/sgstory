@@ -945,6 +945,10 @@ window.Game = (() => {
 		engine: {
 			last_roll: '骰面快照（<<lastcheck>>/<<lastcheckFor>> 复显用）',
 			last_result: '结果槽暂存位（#270 通用留屏）',
+			// #357：致命伤在 <<damage>> 里**即刻登记结局**（否则 :passagestart 的
+			// hp≤0 安全网会抢在结局页之前把 hp 修回 1）；消费者＝安全网的 !ending 门
+			// ＋设定集/图鉴的结局记账，故归 engine。
+			ending: '本档结局记录（engine：安全网门控＋图鉴记账；#357 起由 <<damage>> 提前登记）',
 			soc: '交涉台账（待处理交互，渲染期结算后清空）',
 			soc_last: '交涉回显（面板展示用）',
 			// 首遇门控：由 firstTime widget 消费 _first（静态扫描看不见该读点），玩家侧后果＝首遇/复访两段文本

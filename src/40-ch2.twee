@@ -100,7 +100,7 @@
 			土比你估的松。你被那股甜味按了一下，膝盖先着了地。<<damage `Game.Damage.hard`>>
 			你趴在地上缓了一会儿。再抬头，那一整块土已经散了，''花折在泥里''。这回没拿到，要么换个法子，要么先回去。<<set $pc.world.flower_mud to true>>
 		<</if>>
-		<<goto "塔外花田">>
+		<<if $pc.hp gt 0>><<goto "塔外花田">><</if>>
 	<</link>>
 	<<if not $pc.world.flower_warned>>
 		<<link "先别动它，退回塔门">><<goto "塔门">><</link>>
@@ -517,7 +517,7 @@
 					<<else>>你只摸到一手灰，手指头在炉壁上磕了一下，磕得生疼。再往里探半寸，指尖碰到了匣子的边角，你把它抠了出来，又忍着疼把四壁摸了一遍，确认再没有别的物件藏在这里。<<damage `Game.Damage.graze`>>（''拿到了，手也磕破了。''）<<set $pc.ev.study_found to true>>
 					<</if>>
 				<</if>>
-				<<goto "书房">>
+				<<if $pc.hp gt 0>><<goto "书房">><</if>>
 			<</link>>
 			<<link "先敲一敲炉膛后头的墙">>
 				<<sitecheck "书房·敲墙">><<snapshot>>
@@ -548,7 +548,7 @@
 					炉膛纹丝不动，你的肩膀先撞在了墙上。<<damage `Game.Damage.hurt`>>
 					（''但你摸到了那条缝——暗格确实在这儿。''）<<set $pc.ev.study_found to true>>
 				<</if>>
-				<<goto "书房">>
+				<<if $pc.hp gt 0>><<goto "书房">><</if>>
 			<</link>>
 		<</if>>
 	<<else>>
@@ -582,7 +582,7 @@
 				<<else>>
 					有一个音你咬错了。窗外的雾贴着玻璃''顿了顿''，又漫了上来。
 					<<damage `Game.Damage.hurt`>>
-					<<goto "书房">>
+					<<if $pc.hp gt 0>><<goto "书房">><</if>>
 				<</if>>
 			<</link>>
 		<<else>>
@@ -652,7 +652,7 @@
 		<<else>>
 			铁片子冻手，你只看出一层锈。你把它抱到炉边焐了焐再看，看明白了：这甲是照着一个人的手臂打的，那人还没来取。<<damage `Game.Damage.graze`>>（''手冻僵了，好歹看清了。''）<<set $pc.ev.forge_seen to true>>
 		<</if>>
-		<<goto "工坊">>
+		<<if $pc.hp gt 0>><<goto "工坊">><</if>>
 	<</link>>
 	<<link "把护臂翻过来，擦开内侧的锈看记号">>
 		<<sitecheck "工坊·记号">><<snapshot>>
@@ -662,7 +662,7 @@
 		<<else>>
 			锈盖住了记号。你拿指节去蹭，蹭破了一层皮，到底看清那几个冲出来的手记：''"守林人的臂"''。<<damage `Game.Damage.graze`>>（''看清了，手也蹭破了。''）<<set $pc.ev.forge_seen to true>>
 		<</if>>
-		<<goto "工坊">>
+		<<if $pc.hp gt 0>><<goto "工坊">><</if>>
 	<</link>>
 	<<if $era is Game.Era.PAST>>
 		<<link "问炉子边那个铁匠：这副甲是给谁打的">>
@@ -811,7 +811,7 @@
 		<<else>>
 			他的手先一步按在杖上。你没夺下来，肩膀挨了一记，退回窗边。
 			<<damage `Game.Damage.heavy`>>
-			<<goto "顶楼">>
+			<<if $pc.hp gt 0>><<goto "顶楼">><</if>>
 		<</if>>
 	<</link>>
 	[[接他的班，替他守下去|结局 新任守林人]]

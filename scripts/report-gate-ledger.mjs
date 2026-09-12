@@ -27,11 +27,11 @@ export const REASONS = {
 	'audit:economy': { form: '仅登记', reason: '收支时间线是人读报表（数值本身由 --checks/--gear 门覆盖）' },
 	'audit:items': { form: '仅登记', reason: '龙战伤害矩阵是人读对照表（战斗数值由 --dragon 分布门覆盖）' },
 	'audit:tokens': { form: '仅登记', reason: '与 --items 同族：词法/道具矩阵报表' },
-	'audit:text': { form: '仅登记', reason: '文本载荷报表；密度阈值已由 --craft 门 ratchet' },
+	'audit:text': { reason: '文本载荷门（**有判定**：载荷阈值）——此前台账误标「仅登记」，由形态对账查出并改正；自证待补（密度 ratchet 在 --craft，本门是自己的载荷线）' },
 	'audit:checks': { form: '仅登记', reason: '检定位点总表（覆盖性由 --sitedisc/--interact 族门承担）' },
-	'audit:systems': { form: '仅登记', reason: '机制×锚句报表；机制可感知性由 --investment 的 G1/G5/G6 段承担' },
+	'audit:systems': { reason: '机制×锚句门（**有判定**：机制必须有可感知锚句）——此前台账误标「仅登记」，由形态对账查出并改正；自证待补' },
 	'audit:canon': { reason: '禁词/回流扫描（断言存在，但**没有自证**——已列入 F2 工作清单；§10 已裁剪项不得回流）' },
-	'audit:sel': { form: '仅登记', wired: true, reason: '--sel 只是 --nosl＋--gear 的便捷别名；链上跑的是更具体的两个 flag，故没有单独的 --sel --check' },
+	'audit:sel': { wired: true, reason: '接线说明：--sel 只是 --nosl＋--gear 的便捷别名，链上跑的是更具体的两个 flag，故没有单独的 --sel --check（**形态是有判定的门**，此前台账误标「仅登记」，已由形态对账改正）' },
 	// ── 报告脚本（id 形如 scripts/<file>）──
 	'scripts/report-rhythm.mjs': { wired: true, form: '行为化', reason: 'R1/R1b/R2/正例 四例自证，已入 npm test' },
 	'scripts/report-ledger-freshness.mjs': { wired: false, form: '行为化', reason: '需要网络与 token（GITHUB_TOKEN）——不塞进 npm test 主链路；由人工/定时跑 npm run report:freshness:check' },
@@ -59,6 +59,16 @@ const auditFlags = [...new Set([...auditSrc.matchAll(/arg\('([a-z0-9-]+)'\)/g)].
 
 // 每个 audit 开关的「自证」：其**门模块**里是否含「自证」字样（本仓既有形态）。
 // #316 第 2 步后门已独立成文件 → 直接看该门所属模块。
+// guest-1 建议③：形态（报告/判定）不应只手写——**从源码派生「有没有判定路径」**，
+// 再与台账声明对账：声明「仅登记」但门里已有判定（bad++/✗/exit(1)/failures.push）＝形态升级未同步 → 红。
+const ASSERT_PAT = /bad\s*\+\+|\(\+\+bad\)|✗|process\.exit\(1\)|failures\.push\(|problems\.push\(/;
+const gateHasAssert = (flag) => {
+	for (const src of Object.values(gateSrc)) {
+		if (new RegExp(`arg\\('${flag}'\\)`).test(src)) return ASSERT_PAT.test(src);
+	}
+	return false;
+};
+
 const auditSelfProof = (flag) => {
 	for (const [f, src] of Object.entries(gateSrc)) {
 		if (new RegExp(`arg\\('${flag}'\\)`).test(src)) return /自证/.test(src);
@@ -87,7 +97,7 @@ const push = (id, kind, wired, selfProof, extra = {}) => {
 	});
 };
 
-for (const f of auditFlags) push(`audit:${f}`, 'audit 开关', testChain.includes(`scripts/audit.mjs --${f} --check`), auditSelfProof(f));
+for (const f of auditFlags) push(`audit:${f}`, 'audit 开关', testChain.includes(`scripts/audit.mjs --${f} --check`), auditSelfProof(f), { hasAssert: gateHasAssert(f) });
 for (const f of reportScripts) push(`scripts/${f}`, '报告脚本', testChain.includes(`scripts/${f}`), readFileSync(`scripts/${f}`, 'utf8').includes('--selftest'));
 for (const f of testFiles) push(`test/${f}`, '测试脚本', testChain.includes(`test/${f}`), /负例|反例|selftest/.test(readFileSync(`test/${f}`, 'utf8')));
 
@@ -105,6 +115,14 @@ export const problems = (rows, declared = null, chain = []) => {
 	for (const r of rows) {
 		if ((!r.wired || r.form === '仅登记') && !r.reason) {
 			out.push({ id: r.id, code: 'missing-reason', msg: `${r.form === '仅登记' ? '仅登记' : '未接线'}但没写理由` });
+		}
+		// 形态对账（建议③）：声明「仅登记」但门里有判定路径 → 升级未同步
+		if (r.hasAssert === true && r.form === '仅登记') {
+			out.push({ id: r.id, code: 'form-drift', msg: '台账标「仅登记」，但门里已有判定路径（bad++/✗/exit(1)/failures.push）——形态升级未同步，请改标并复核理由' });
+		}
+		// 反向：门里没有任何判定、也没声明「仅登记」→ 它不是门
+		if (r.hasAssert === false && r.form !== '仅登记') {
+			out.push({ id: r.id, code: 'assertless-gate', msg: '门里没有任何判定路径，但台账未标「仅登记」——它其实是纯报告' });
 		}
 	}
 	return out;
@@ -151,6 +169,8 @@ const selftest = () => {
 		['合规行 → 不得报', [{ id: 'x', kind: 'k', wired: true, selfProof: true, form: '行为化', reason: '' }], 0],
 		['仅登记但写了理由 → 不得报', [{ id: 'x', kind: 'k', wired: true, selfProof: false, form: '仅登记', reason: '人读报表' }], 0],
 		['幻影门（链上有、audit 无）→ 必须报', [{ id: 'a', kind: 'k', wired: true, selfProof: true, form: '行为化', reason: '' }], 1, ['a']],
+		['标仅登记但门里有判定 → 必须报（形态升级未同步）', [{ id: 'x', kind: 'k', wired: true, selfProof: false, form: '仅登记', reason: '旧理由', hasAssert: true }], 1],
+		['门里无判定却没标仅登记 → 必须报', [{ id: 'x', kind: 'k', wired: true, selfProof: false, form: '行为化', reason: '', hasAssert: false }], 1],
 	];
 	let bad = 0;
 	for (const [name, input, want, decl] of cases) {

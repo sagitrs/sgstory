@@ -80,7 +80,9 @@ const gateHasAssert = (flag) => {
 
 const auditSelfProof = (flag) => {
 	const g = moduleOfFlag(flag);
-	return g ? /自证/.test(gateSrc[g.file.replace('scripts/audit/gates/', '')]) : false;
+	// 收紧（#247 F2 工作清单）：只认**打印约定** `自证·<label>：检出 N（期望 M）`——
+	// 裸「自证」二字一句注释就能满足（本仓吃过这类文本启发式的亏），而 `自证·` 只有在夹具真跑时才打得出来。
+	return g ? /自证·/.test(gateSrc[g.file.replace('scripts/audit/gates/', '')]) : false;
 };
 
 const reportScripts = readdirSync('scripts').filter((f) => f.startsWith('report-') && f.endsWith('.mjs')).sort();

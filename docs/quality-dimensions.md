@@ -217,7 +217,7 @@
 - 断言形态：行为门（正例＋反例）/ 仅登记 / 报告入基线 —— 若「仅登记」，理由：
 - 反例设计（若有）：清掉什么条件 → 断言什么消失
 - 成本估计：机检 <小时> / 人工走查 <小时>
-- 落点：`scripts/audit.mjs --<flag>` / `test/scenarios.mjs` 路线 / `test/browser.mjs` 用例 / 走查清单
+- 落点：**新门加在 `scripts/audit/gates/<name>.mjs`**（`scripts/audit.mjs` 自 #316 起只是 22 行的薄壳：加载 `scripts/audit/context.mjs` ＋按注册表分发；门之间**零 import**）——`node scripts/audit.mjs --<flag>` 调用；接线由 `docs/gate-ledger.md` 的台账门强制（见上文「假绿家族第 6 例」）/ `test/scenarios.mjs` 路线 / `test/browser.mjs` 用例 / 走查清单
 - 核销条件：门绿 ＋ 首轮数据入基线；或清单结论入 `design-review.md`
 ```
 

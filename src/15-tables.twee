@@ -983,6 +983,9 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 			crossEraGates: [
 				{ id: 'witch_fire', p: '老巫女', label: '问她：那一夜该烧的是什么？',
 				  pastFlags: ['seer_asked', 'coord'], presentFlags: ['failure_cause'],
+				  // #407 D9①「前提可溯源」：问题里那个概念（这里是「烧」）必须**已经在玩家可见文本里出现过**，
+				  // 否则选项替玩家问了一个他不可能知道的问题（#404 实锤）。门见 test/premise-source.mjs。
+				  premise: '烧',
 				  yields: 'ev.witch_fire_hint', note: '过去（观星者）＋现在（书房日记）两边的证据合龙，才问得出这一句' },
 			],
 		},

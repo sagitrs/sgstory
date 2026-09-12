@@ -8,6 +8,7 @@
 //   ④ 首遇门控对旧档安全：缺 keeper_intro/tav_seen 等新旗标 ⇒ 走「首遇」支（不崩、不跳支）
 import { readdirSync, readFileSync } from 'node:fs';
 import { boot, CLICKABLE } from './boot.mjs';
+import { makeSession } from './harness.mjs';   // #317①：公共 harness
 
 const fixtureDir = 'test/fixtures/saves';
 const fixtures = readdirSync(fixtureDir).filter((f) => f.endsWith('.json')).sort();
@@ -76,10 +77,9 @@ for (const file of fixtures) {
 	// 旧档 + 一次真实点击：结果槽只带本次结果，且不重复结算
 	w.eval(`(function(){ const v=SugarCube.State.variables; v.pc.hp = Math.max(v.pc.hp ?? 0, 18); v.pc.max_hp = Math.max(v.pc.max_hp ?? 0, 18); v.pc.inv = v.pc.inv || {}; v.pc.ev = v.pc.ev || {}; delete v.pc.inv['坏哨']; delete v.pc.ev.hall_seen; SugarCube.Engine.play('门厅'); })()`);
 	await sleep(150);
-	const clickable = [...w.document.querySelectorAll(CLICKABLE)].find((a) => a.textContent.includes('先看清钉子'));
-	if (clickable) {
-		clickable.click();
-		await sleep(150);
+	// #317①：点击走 harness（可选点击：入口不存在时返回 null，不抛）
+	const s1 = makeSession(w, { sleep, wait: 150 });
+	if (await s1.tryClickByLabel('先看清钉子')) {
 		const slots = w.document.querySelectorAll('#passages .scene-feedback').length;
 		const hasText = (w.document.querySelector('#passages')?.textContent ?? '').includes('看清');
 		check(slots <= 1 && hasText, `[${label}] 点击后结果在屏且不重复（槽=${slots}）`);
@@ -97,13 +97,10 @@ for (const file of fixtures) {
 		SugarCube.Engine.play('门厅');
 	})()`);
 	await sleep(200);
-	const click = (label) => {
-		const a = [...w2.document.querySelectorAll('#passages a')].find((x) => x.textContent.includes(label));
-		if (a) a.click();
-		return !!a;
-	};
-	check(click('把墙上那支哨子摘下来'), '[P1] 门厅取物入口存在');
-	await sleep(250);
+	// #317①：走 harness 的可选点击（返回元素或 null）
+	const s2 = makeSession(w2, { sleep, wait: 250, scope: 'any' });
+	const took = await s2.tryClickByLabel('把墙上那支哨子摘下来');
+	check(!!took, '[P1] 门厅取物入口存在');
 	check(w2.eval("SugarCube.State.variables.pc.inv['坏哨'] === true"), '[P1] 取物后坏哨在行囊');
 	check(w2.eval("!!document.querySelector('#passages .scene-feedback')"), '[P1] 取物后本次结果在屏');
 	// 真实存 → 破坏 → 读

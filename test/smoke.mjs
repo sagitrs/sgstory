@@ -1,22 +1,17 @@
 // 无头冒烟测试（jsdom，M1a-2 换骨后）：启动 → 快速车卡 → 酒馆 → 森林边缘 → 洞穴 + 侧栏/存档/物品栏
-import { boot, CLICKABLE } from './boot.mjs';
+import { boot } from './boot.mjs';
+import { makeSession } from './harness.mjs';   // #317①：公共 harness（不再自建 links/click/pc）
 
 const pageErrors = [];
-const { w, sleep } = await boot({ random: 0.5 });
+const { w, sleep, settle } = await boot({ random: 0.5 });
 w.addEventListener('error', (...a) => pageErrors.push(String(a[0]).slice(0, 200)));
 
 const assert = (cond, msg) => {
 	console.log(`${cond ? '✓' : '✗'} ${msg}`);
 	if (!cond) process.exitCode = 1;
 };
-const links = () => [...w.document.querySelectorAll(CLICKABLE)];
-const click = async (label) => {
-	const a = links().find((x) => x.textContent === label || x.textContent.includes(label));
-	if (!a) throw new Error(`找不到链接「${label}」@ ${w.SugarCube.State.passage}`);
-	a.click();
-	await sleep(350);
-};
-const pc = () => w.SugarCube.State.variables.pc;
+// #317①：这几行原本是本文件自建的一套；现在由 harness 提供（scope=any + 350ms 保持原行为）
+const { links, clickByLabel: click, pc } = makeSession(w, { settle, sleep, scope: 'any', wait: 350 });
 
 // ── 开场 ──
 let p = w.document.querySelector('#passages .passage');

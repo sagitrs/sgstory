@@ -14,33 +14,15 @@
 // 站点清单由 test/saveload-inventory.mjs（静态门）保证不漏登记。
 
 import { readFileSync } from 'node:fs';
-import { boot, CLICKABLE_SEL } from './boot.mjs';
+import { newGame as openGame } from './harness.mjs';   // #317①：公共 harness（不再自建 newGame/click）
 
 const MANIFEST = JSON.parse(readFileSync(new URL('./saveload-sites.json', import.meta.url), 'utf8'));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 async function newGame(randomStub) {
-	const { w, settle } = await boot({ random: () => randomStub });
-	const find = (label) => {
-		const cur = [...w.document.querySelectorAll('#passages .passage')].find((e) => e.dataset.passage === w.SugarCube.State.passage);
-		const pool = cur ? [cur] : [...w.document.querySelectorAll('#passages')];
-		const links = pool.flatMap((el) => [...el.querySelectorAll(CLICKABLE_SEL)]);
-		return links.find((x) => x.textContent === label) ?? links.find((x) => x.textContent.includes(label));
-	};
-	const click = async (label) => {
-		await settle();
-		let a = find(label);
-		for (let i = 0; i < 20 && !a; i++) { await sleep(100); await settle(); a = find(label); }
-		if (!a) {
-			const avail = [...w.document.querySelectorAll(CLICKABLE_SEL)].map((x) => x.textContent.replace(/\s+/g, '')).join(' / ');
-			throw new Error(`找不到「${label}」@ ${w.SugarCube.State.passage}（可选：${avail}）`);
-		}
-		a.click(); await settle(); await sleep(120);
-	};
-	await click('踏上旅途');
-	await click('快速成型');
-	await click('出发，前往歪脖子鸭酒馆');
-	return { w, click, settle };
+	// #317①：车卡与点击全走 test/harness.mjs（scope/wait 保持本脚本原有语义：当前段落、120ms）
+	const s = await openGame({ random: randomStub, session: { wait: 120 } });
+	return { w: s.w, click: s.clickByLabel, settle: s.settle };
 }
 
 // ── 导航到各站点（与 #300 复现路径一致）──────────────────────────────

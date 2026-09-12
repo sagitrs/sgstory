@@ -492,19 +492,27 @@ Macro.add('dragonbar', {
 		<<if _how is "will">>
 			<<run _a.apply($pc)>>
 			<<set $pc.ev.soc_last[_a.id] to { kind: "will", text: _a.will }>>
-		<<elseif _how.startsWith("lever:")>>
-			<<set _lv to _S.levers(_a, $pc).find((l) => l.id is _how.slice(6))>>
-			<<if _lv>>
-				<<if _lv.econ>><<econ _lv.econ>><</if>>
-				<<run _S.shift($pc, _a.npc, 1)>>
-				<<run _a.apply($pc)>>
-				<<set $pc.ev.soc_last[_a.id] to { kind: "auto", text: _a.auto, notes: ["拿出了筹码：" + _lv.name] }>>
-			<</if>>
+			<<elseif _how.startsWith("lever:")>>
+				<<set _lv to _S.levers(_a, $pc).find((l) => l.id is _how.slice(6))>>
+				<<if _lv>>
+					<<if _lv.gives is "adv">>
+						/% #360：优势筹码只把「这一问更有把握」摆出来——**不完成诉求**。真正掷骰的是随后选的手段（site 分支），届时才带上 adv 与理由。 %/
+						<<set $pc.ev.soc_lever to _lv.id>>
+						<<set $pc.ev.soc_last[_a.id] to { kind: "lever", text: "你把筹码摆了出来：" + _lv.name + "。他看了一眼，没有立刻接话。", notes: ["下一掷有优势（" + _lv.note + "）"] }>>
+					<<else>>
+						<<if _lv.econ>><<econ _lv.econ>><</if>>
+						<<run _S.shift($pc, _a.npc, 1)>>
+						<<run _a.apply($pc)>>
+						<<set $pc.ev.soc_last[_a.id] to { kind: "auto", text: _a.auto, notes: ["拿出了筹码：" + _lv.name] }>>
+					<</if>>
+				<</if>>
 		<<elseif _how.startsWith("site:")>>
 			<<set _site to _how.slice(5)>>
 			<<set _dc to _S.dcOf(_a, _site, $pc)>>
-			<<set _lv to _S.levers(_a, $pc).find((l) => l.gives is "adv" and not l.econ)>>
+				<<set _lv to _S.levers(_a, $pc).find((l) => l.id is $pc.ev.soc_lever)>>
+				<<if not _lv>><<set _lv to _S.levers(_a, $pc).find((l) => l.gives is "adv" and not l.econ)>><</if>>
 			<<set _res to _S.roll($pc, _site, _dc, _lv?.note ?? "")>>
+				<<set $pc.ev.soc_lever to null>>
 			<<set $pc.ev.last_roll to _res>>
 			<<if _res.success>>
 				<<run _a.apply($pc)>>

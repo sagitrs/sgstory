@@ -1,5 +1,15 @@
 {
-	"note": "E4 节奏 / C4 相异度 基线（#295）。由 scripts/report-rhythm.mjs --update-baseline 生成；数字变化须在 PR 里说明理由。",
+	"note": "E4 节奏 / C4 相异度 **漂移观测**（#295/#338）。判定用的是脚本内声明的绝对不变量 THRESHOLDS，不是本文件的数值——本文件只用于「漂移可见」：数值变了会在报告里对照出来。#338 教训：拿本地观测值做等值判定，会在 CI（2 核、轨迹细微差异）上直接判红。",
+	"thresholds": {
+		"clustersMin": 16,
+		"minDistinctiveGrams": 50,
+		"beatsMinRoutes": 3,
+		"e4": {
+			"minClicksFloor": 5,
+			"maxClicksCap": 25,
+			"minEvFloor": 3
+		}
+	},
 	"c4": {
 		"charN": 5,
 		"commonDf": 0.5,
@@ -7,7 +17,8 @@
 		"clusterT": 0.9,
 		"clusters": 18,
 		"meanInterJaccard": 0.1041,
-		"maxInterJaccard": 0.8501
+		"maxInterJaccard": 0.8501,
+		"minDistinctive": 117
 	},
 	"e4": {
 		"routesHit": 15,

@@ -8,7 +8,7 @@
 > 为什么要有这张表：本仓当日集齐四类「空判」——覆盖≠验收 / **反例空判** / **死开关**（#331）/ **原理不可达断言**（#338）。
 > 台账的首要用途不是统计，而是**让「没有自证的门」在表上看得见**。
 
-**严格行为化率（有自证）：21/55 = 38.2%** ｜ **有断言但缺自证：18**（＝下方工作清单）｜ 仅登记：4
+**严格行为化率（有自证）：20/54 = 37%** ｜ **有断言但缺自证：18**（＝下方工作清单）｜ 仅登记：4
 
 | 门 | 类型 | 形态 | 自证 | 接线（npm test） | 理由（仅登记/未接线必填） |
 |---|---|---|---|---|---|
@@ -42,12 +42,11 @@
 | `scripts/report-ledger-freshness.mjs` | 报告脚本 | 行为化 | ✅ | ✅ | **离线段已入 npm test**（`--ledger --check`：#297 对标台账行级新鲜度——行数栅栏/复核日期在期/触发条件非空/落点引用的门旗标与文件真实存在，7 例自证）；**网络段仍需 token**（#NNN 标记与 GitHub 真实状态一致），不塞主链路，由 `npm run report:freshness:check` 人工/定时跑 |
 | `scripts/report-rhythm.mjs` | 报告脚本 | 行为化 | ✅ | ✅ | R1/R1b/R2/正例 四例自证，已入 npm test |
 | `test/audit-golden.mjs` | 测试脚本 | 行为化 | ✅ | — | 按需跑（npm run audit:golden）：拆/改 audit 时用；全量跑 24 个开关较慢 |
-| `test/browser.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | 需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑 |
+| `test/browser.mjs` | 测试脚本 | 行为化 | ✅ | — | 需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑 |
 | `test/combat-adv.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/coverage.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
 | `test/fatal-guard.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/g3-evidence.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
-| `test/globals.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/integrity.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/invariants.unit.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/layering.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | 自证 5 例 |

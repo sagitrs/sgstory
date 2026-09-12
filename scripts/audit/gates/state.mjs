@@ -163,14 +163,14 @@ export const run = (ctx) => {
 	const bk = (ctx.Game.State?.bookkeeping ?? []).filter((k) => keys.get(k)?.w.size && !keys.get(k)?.r.size);
 	console.log(`  状态键 ${keys.size} 个｜域 ${domains.length} 个（${perDomain.join(' · ')}）`);
 	if (bk.length) console.log(`  仅记账键（已声明，无行为消费者）：${bk.join('、')}`);
-	console.log(`  问题：未声明 ${byKind.undeclared ?? 0} · 歧义 ${byKind.ambiguous ?? 0} · 只有写 ${byKind['write-only'] ?? 0} · 只有读 ${byKind['read-only'] ?? 0}`);
+	console.log(`  问题：未声明 ${byKind.undeclared ?? 0} · 歧义 ${byKind.ambiguous ?? 0} · 只有写 ${byKind['write-only'] ?? 0} · 只有读 ${byKind['read-only'] ?? 0} · 命名空间不一致 ${nsBad.length}`);
 	for (const p of problems.slice(0, 12)) { console.log(`  ✗ ${p.key}：${p.detail}`); bad++; }
-	// 命名空间不一致：#365 未修前只报告（修好后把下面这段并入上面的 bad++）
-	for (const p of nsBad) console.log(`  ⏳ [已知缺陷 #365] ${p.key}：${p.detail}`);
+	// 命名空间不一致（#365 已修 → 转严格：任何读域缺同域写入即红灯）
+	for (const p of nsBad) { console.log(`  ✗ ${p.key}：${p.detail}`); bad++; }
 	if (problems.length > 12) { console.log(`  …另有 ${problems.length - 12} 项`); bad += problems.length - 12; }
 
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ 状态契约门：${bad} 项`); process.exit(1); }
-		console.log('\n✔ 状态契约门通过（键全有域归属 · 无歧义 · 有写有读 · 自证通过）');
+		console.log('\n✔ 状态契约门通过（键全有域归属 · 无歧义 · 有写有读 · 命名空间一致 · 自证通过）');
 	}
 };

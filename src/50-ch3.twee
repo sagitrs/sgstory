@@ -193,10 +193,13 @@
 他还在算。笔尖悬在那行算式上，没抬头。
 <</if>>
 
-<<if not $pc.ev.seer_asked>>
+/% #365：两个提问**各自一次性**（此前共用一个旗标 → 问过第一个，第二个就消失，玩家只能问一个）；
+   `ev.seer_asked` 作**证据**旗标（问过任一个即置位，供跨时代合龙门与图鉴线索用）。 %/
+<<if not $pc.ev.seer_asked_star>>
 	[[问他：它从哪颗星来|观星者·星]]
+<</if>>
+<<if not $pc.ev.seer_asked_night>>
 	[[问他：今晚的仪式能成吗|观星者·夜]]
-	<<setflag "seer_asked">>
 <</if>>
 <<if not $pc.inv["完整星图"]>>
 	<<socresolve "观星者·图">>
@@ -223,6 +226,8 @@
 "少掉的是它自己。它的家还在图上，是另一颗。"
 
 他用笔尖在那颗星上点了一下，留下一个很小的墨点。
+
+<<set $pc.ev.seer_asked_star to true>><<set $pc.ev.seer_asked to true>>
 
 [[回到观星者|观星者]]
 
@@ -264,6 +269,8 @@
 	<<lastcheck>>
 	"空口无凭。"他把图收了回去。（''你要是说不动他，就得拿出他认得的东西来。''）
 <</if>>
+<<set $pc.ev.seer_asked_night to true>><<set $pc.ev.seer_asked to true>>
+
 [[回到观星者|观星者]]
 
 :: 当时的女巫

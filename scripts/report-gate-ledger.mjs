@@ -54,8 +54,12 @@ const MODIFIERS = ['check'];
 const gateFiles = readdirSync('scripts/audit/gates').filter((f) => f.endsWith('.mjs')).sort();
 const gateSrc = Object.fromEntries(gateFiles.map((f) => [f, readFileSync(`scripts/audit/gates/${f}`, 'utf8')]));
 const auditSrc = [readFileSync('scripts/audit.mjs', 'utf8'), ...Object.values(gateSrc)].join('\n');
-const auditFlags = [...new Set([...auditSrc.matchAll(/arg\('([a-z0-9-]+)'\)/g)].map((m) => m[1]))]
-	.filter((f) => !MODIFIERS.includes(f)).sort();
+// **以注册表为权威声明**（此前用正则扫 arg('x')——新门若只写 flags:['state'] 就会被误判成幻影门）
+const registry = await import('./audit/registry.mjs');
+const gateMods = [];
+for (const f of gateFiles) gateMods.push({ file: `scripts/audit/gates/${f}`, mod: await import(`./audit/gates/${f}`) });
+const auditFlags = [...new Set(registry.GATES.flatMap((g) => g.flags ?? []))].filter((f) => !MODIFIERS.includes(f)).sort();
+const moduleOfFlag = (flag) => gateMods.find((g) => (g.mod.flags ?? []).includes(flag));
 
 // 每个 audit 开关的「自证」：其**门模块**里是否含「自证」字样（本仓既有形态）。
 // #316 第 2 步后门已独立成文件 → 直接看该门所属模块。
@@ -63,17 +67,13 @@ const auditFlags = [...new Set([...auditSrc.matchAll(/arg\('([a-z0-9-]+)'\)/g)].
 // 再与台账声明对账：声明「仅登记」但门里已有判定（bad++/✗/exit(1)/failures.push）＝形态升级未同步 → 红。
 const ASSERT_PAT = /bad\s*\+\+|\(\+\+bad\)|✗|process\.exit\(1\)|failures\.push\(|problems\.push\(/;
 const gateHasAssert = (flag) => {
-	for (const src of Object.values(gateSrc)) {
-		if (new RegExp(`arg\\('${flag}'\\)`).test(src)) return ASSERT_PAT.test(src);
-	}
-	return false;
+	const g = moduleOfFlag(flag);
+	return g ? ASSERT_PAT.test(gateSrc[g.file.replace('scripts/audit/gates/', '')]) : false;
 };
 
 const auditSelfProof = (flag) => {
-	for (const [f, src] of Object.entries(gateSrc)) {
-		if (new RegExp(`arg\\('${flag}'\\)`).test(src)) return /自证/.test(src);
-	}
-	return false;
+	const g = moduleOfFlag(flag);
+	return g ? /自证/.test(gateSrc[g.file.replace('scripts/audit/gates/', '')]) : false;
 };
 
 const reportScripts = readdirSync('scripts').filter((f) => f.startsWith('report-') && f.endsWith('.mjs')).sort();

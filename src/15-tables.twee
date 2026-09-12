@@ -982,5 +982,28 @@ window.Game = (() => {
 		},
 	};
 
-	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences, Investment };
+	// ── #318① 状态契约（Game.State）：`pc.ev` / `pc.world` 的键必须落在某个**场景域**里 ──
+	// 为什么需要：这些键是自由名字空间（81 个，散在 9 个 src 文件里写），此前**没有任何一处**能回答
+	// 「当前有哪些键、谁写、谁读、语义是什么」。本表按场景声明键归属；机检见 `audit --state`。
+	// 口径：键按 `prefix`（前缀）或 `keys`（精确）匹配；**一个键只能命中一个域**（歧义即红）；
+	//       未命中任何域的键即红（新增键必须在此登记，或明确落入某个既有域）。
+	const State = {
+		domains: [
+			{ id: 'tavern', where: '酒馆（传闻与打听）', prefix: ['tav_'], keys: ['rumor'], note: '六桌传闻的点亮态与打听结果' },
+			{ id: 'witch-hut', where: '女巫小屋', prefix: ['wq_', 'witch_'], note: '话题、祝福、护符与遗赠情报' },
+			{ id: 'forest', where: '林间与雾之魔物', prefix: ['forest_', 'mist_', 'goblin_'], note: '听见/静听、交手与守卫、哥布林的去向' },
+			{ id: 'keeper', where: '守林人', prefix: ['keeper_'], note: '首遇、劝杀论据、立场、他告诉过你什么' },
+			{ id: 'tower', where: '塔内（门厅/书房/工坊/天文台/顶楼/地下）', prefix: ['hall_', 'study_', 'forge_', 'observatory_', 'tower_', 'below_', 'ledger_', 'errand_'], keys: ['present_done', 'threshold'], note: '各房间的察看与机关态' },
+			{ id: 'flower', where: '塔外花田', prefix: ['flower_'], note: '喂花、泥、警告与昏睡（致死位点）' },
+			{ id: 'seer', where: '观星者与星图', prefix: ['seer_'], keys: ['coord', 'star_ledger', 'star_short'], note: '问过什么、给过什么、星账与坐标' },
+			{ id: 'banquet', where: '过去的宴会与仪式', prefix: ['banquet_', 'staff_', 'ritual_'], keys: ['family_favor', 'old_witch'], note: '入场、藏杖、仪式所见、人情与老巫女' },
+			{ id: 'dragon', where: '龙与送行/封印', prefix: ['fight_', 'hoard_', 'whistle_', 'scroll_', 'delivery_', 'failure_', 'observation_', 'fog_', 'letter_'], keys: ['ending', 'fight'], note: '战斗台账、龙巢、哨、卷轴交付、真相锚与观测锁' },
+			{ id: 'runtime', where: '运行时/界面态（非剧情状态）', keys: ['last_result', 'last_roll', 'soc', 'soc_last'], note: '结果槽、骰面快照、交涉面板的瞬态' },
+		],
+		// 「仅记账」键：写下来只为登记（出处/复访记账），**没有行为消费者**——消费者就是本表本身。
+		// 允许存在，但必须在此显式声明：`audit --state` 对未声明的「只有写」键照旧红灯。
+		bookkeeping: ['tav_light', 'tav_iron', 'tav_seal', 'banquet_over'],
+	};
+
+	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences, Investment, State };
 })();

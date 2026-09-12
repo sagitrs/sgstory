@@ -177,6 +177,83 @@ const enter = async (passage, stateJs = '') => {
 	await sleep(150);
 };
 
+// #284①：真机键盘序列——用 CDP Input 真发 Tab/Enter（不是 JS 派发合成事件）
+const pressKey = async (key, code, vk) => {
+	const base = { key, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk };
+	await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...base });
+	await send('Input.dispatchKeyEvent', { type: 'keyUp', ...base });
+	await sleep(70);
+};
+const TAB = () => pressKey('Tab', 'Tab', 9);
+const ENTER = () => pressKey('Enter', 'Enter', 13);
+const focusInfo = () => ev(`(function(){
+	const a = document.activeElement;
+	if (!a) return null;
+	return {
+		tag: a.tagName, text: (a.textContent || '').trim().slice(0, 22), cls: String(a.className || ''),
+		inPassages: !!a.closest('#passages'),
+		inClosedDetails: !!a.closest('details:not([open])'),
+		inActs: !!a.closest('.scene-acts, .tavern-actions'),
+		isFeedback: a.classList.contains('action-feedback') || a.classList.contains('scene-feedback'),
+	};
+})()`);
+
+// 键盘用例（#284①）：一条正例序列 ＋ 一条反例自测（证明「折叠区不入序」的检查有牙）
+async function keyboardCase(W, H) {
+	await setViewport(W, H);
+	await loadFresh();
+	await ev(HELPERS);
+	await enter('门厅', `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; delete pc.inv['坏哨']; delete pc.ev.hall_seen;`);
+	const vp = `${W}x${H}`;
+
+	// 反例自测：往正文里塞一个「关闭的 details ＋ 可聚焦链接」，先证明检查器认得出，
+	// 再证明 Tab 不会进去（原生行为）——若将来有人给折叠区里放控件又设 display 假隐藏，这条会红。
+	const negative = await ev(`(function(){
+		const box = document.querySelector('#passages .passage');
+		const d = document.createElement('details');
+		d.innerHTML = '<summary>反例折叠</summary><a href="#" id="neg-probe" tabindex="0">反例控件</a>';
+		box.appendChild(d);
+		const probe = document.getElementById('neg-probe');
+		return { exists: !!probe, closedDetected: !!probe.closest('details:not([open])') };
+	})()`);
+	check(negative.exists && negative.closedDetected, `${vp} 键盘反例自测：检查器能识别「关闭折叠区内的可聚焦控件」`);
+
+	// 正例：Tab 序列（正文 → 跳到行动 → 行动区），全程不得落进关闭的折叠区
+	const seq = [];
+	for (let i = 0; i < 30; i++) {
+		await TAB();
+		const f = await focusInfo();
+		if (!f) break;
+		seq.push(f);
+		if (f.inActs) break;                       // 到达行动区即停
+	}
+	check(seq.some((f) => f.text.includes('跳到正文')), `${vp} 键盘：首个跳转链接「跳到正文」可达（越过侧栏）`);
+	check(seq.some((f) => f.text.includes('跳到行动')), `${vp} 键盘：「跳到行动」在 Tab 序列内`);
+	check(seq.every((f) => !f.inClosedDetails), `${vp} 键盘：Tab 序列不入关闭的折叠区（走了 ${seq.length} 步）`);
+	check(seq.some((f) => f.inActs), `${vp} 键盘：Tab 能抵达行动区控件`);
+
+	// 键盘触发一次真实交互：把焦点放到「先看清钉子是怎么卡的」再 Enter
+	const focusedAction = await ev(`(function(){
+		const a = [...document.querySelectorAll('#passages a')].find(x => x.textContent.includes('先看清钉子要怎么卡') || x.textContent.includes('先看清钉子是怎么卡的'));
+		if (!a) return false;
+		a.focus();
+		return document.activeElement === a;
+	})()`);
+	if (focusedAction) {
+		await ENTER();
+		await sleep(800);
+		const after = await ev(`(function(){
+			const fb = document.querySelector('#passages .action-feedback, #passages .scene-feedback, #passages .check-result');
+			const inside = !!document.activeElement?.closest('#passages');
+			return { hasFb: !!fb, focusInside: inside, focusCls: String(document.activeElement?.className || '') };
+		})()`);
+		check(after.hasFb && after.focusInside,
+			`${vp} 键盘：Enter 触发交互后结果在屏且焦点回收正文（focus=${after.focusCls.slice(0, 40)}）`);
+	} else {
+		check(false, `${vp} 键盘：找不到可聚焦的行动链接（状态不对？）`);
+	}
+}
+
 const VP = [[360, 667], [390, 844], [1280, 844]];
 const label = (w, h) => `${w}x${h}`;
 
@@ -262,6 +339,10 @@ for (const [W, H] of VP) {
 	check(ov2.scroll <= ov2.inner + 1, `${vp} 放大文字 200% 无横向溢出（${ov2.scroll} ≤ ${ov2.inner}）`);
 	await ev(`document.documentElement.style.fontSize=''`);
 }
+
+// #284①：键盘序列（真机按键）——单视口做即可，走 390×844
+console.log('\n── 键盘序列（#284①，真机 Tab/Enter）');
+await keyboardCase(390, 844);
 
 console.log(`\n${fails ? '✗' : '✔'} 真实浏览器验收：${fails ? `${fails} 项失败` : '全部通过'}`);
 console.log(`   截图：${shots}/（${VP.length} 视口 × 4 场景）`);

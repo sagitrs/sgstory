@@ -217,6 +217,9 @@
 - 断言形态：行为门（正例＋反例）/ 仅登记 / 报告入基线 —— 若「仅登记」，理由：
 - 反例设计（若有）：清掉什么条件 → 断言什么消失
 - 成本估计：机检 <小时> / 人工走查 <小时>
+- **接线（#381）**：`package.json` 的 `test` **只有一行** `node scripts/run-tests.mjs`——**新门不要加 `&&` 段**，而是往 `scripts/test-plan.mjs` 的 `SEGMENTS` 加一条 `{ id, phase:'test', cost, cmd }`（要读前序产物的写 `needs`，调度器保证顺序、前序红则级联跳过）；`docs/gate-ledger.md`（F2 台账）的「已接线」判定读 `planChain()`，改完跑 `npm run report:gates:update`。
+- **选项定位（#317②）**：内部链接由渲染后处理补 `data-choice` ＝ **目标段落名**（`[data-key]` 可显式覆盖）；测试用 `c('目标段落名')`／`session.clickByKey(key)` 定位、**断言仍写文案**（定位与断言分离）。歧义由 `test/choice-keys.mjs` 静态把住：逐段落×双时代枚举，同一渲染态出现 ≥2 条同 key 即红——所以「按段落名点」与「按那条文案点」必是同一条**可证**。
+- **命名（#320）**：`src/*.twee` 里只剩两个根 `Game.*`（数据/规则）与 `Sg.*`（UI/运行时）；**新增裸全局会被 `test/globals.mjs` 拦下**。迁移后的对应关系：`Game.Pc.now()`、`Game.Rules.*`、`Game.Pc.*`、存档 `Sg.save.{quick,load,quickLoad,menu,restart}`、UI `Sg.UI`／图鉴 `Sg.Codex`／结局页 `Sg.Ending`。
 - 落点：**新门加在 `scripts/audit/gates/<name>.mjs`**（`scripts/audit.mjs` 自 #316 起只是 22 行的薄壳：加载 `scripts/audit/context.mjs` ＋按注册表分发；门之间**零 import**）——`node scripts/audit.mjs --<flag>` 调用；接线由 `docs/gate-ledger.md` 的台账门强制（见上文「假绿家族第 6 例」）/ `test/scenarios.mjs` 路线 / `test/browser.mjs` 用例 / 走查清单
 - 核销条件：门绿 ＋ 首轮数据入基线；或清单结论入 `design-review.md`
 ```

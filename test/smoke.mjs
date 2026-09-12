@@ -66,7 +66,7 @@ assert(w.document.querySelectorAll('#passages .act-group').length === 3, '酒馆
 const tavFold = w.document.querySelector('#passages .heard-fold');
 assert(tavFold && !tavFold.open, '已听传闻默认收起');
 assert(w.document.querySelector('#passages .act-group .act-n').textContent !== '', '分组条数角标已渲染');
-await click('接嘴的那个人——「不老的女人」');
+await click('接嘴的那个人');
 assert(pc().ev.tav_ageless === true && w.SugarCube.State.passage === '酒馆', '不老女人传闻显示完整，点击后留在酒馆并记账');
 // #179 复发修复（#180 三区补全）：本次回答搬进紧贴行动区的槽位，场景内阅读方向恒向下
 const FOLLOWING = w.Node.DOCUMENT_POSITION_FOLLOWING;
@@ -78,7 +78,7 @@ assert(w.document.activeElement.closest('[data-heard="tav_ageless"]'), '焦点�
 assert(fresh.compareDocumentPosition(w.document.querySelector('.tavern-actions')) & FOLLOWING, '本次回答槽在行动区之前（读完就是选项）');
 assert(links().filter((a) => fresh.compareDocumentPosition(a) & FOLLOWING).length >= 5, '本次回答之后还有可点选项——阅读方向向下，不回头向上找');
 assert(!w.document.querySelector('.heard-fold') || w.document.querySelector('.heard-fold').hidden, '首次打听后记录区为空，整块隐藏不留空壳');
-await click('跑生意的——他说雾是怨念');   // 逆序问一桌
+await click('跑生意的');   // 逆序问一桌
 assert(w.SugarCube.State.variables.pc.ev.tav_grudge === true, '问过的那桌记账（tav_grudge）');
 fresh = w.document.querySelector('.fresh-heard');
 assert(fresh.textContent.includes('雾是它谢下来的') && !fresh.textContent.includes('前年我上山'), '本次回答槽只留最新一条');

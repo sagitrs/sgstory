@@ -511,17 +511,17 @@ Macro.add('dragonbar', {
 					<div class="soc-opts">
 					<<if _v is "willing">>
 						<<print `<a class="soc-opt" role="link" tabindex="0" data-ask="${_a.id}" data-how="will">开口：${_a.q}（${_a.tag}）</a>`>>
-						<span class="soc-meta">（对方本来就要说——不必掷骰）</span>
+						<span class="soc-meta">（对方本来就要说<<if SgUI.showDetail()>>——不必掷骰<</if>>）</span>
 					<</if>>
 					<<for _i to 0; _i lt _S.levers(_a, $pc).length; _i++>>
 						<<set _lv to _S.levers(_a, $pc)[_i]>>
 						<<print `<a class="soc-opt" role="link" tabindex="0" data-ask="${_a.id}" data-how="lever:${_lv.id}">拿出筹码：${_lv.name}（${_a.tag}）</a>`>>
-						<span class="soc-meta">（<<if _lv.econ>>花 <<print -Game.Economy.priceOf(_lv.econ, $pc)>> 金币 ｜ <</if>><<if _lv.gives is "auto">>直接答应，无需掷骰<</if>><<if _lv.gives is "adv">>后续交涉检定有优势<</if>>）</span>
+						<span class="soc-meta">（<<if _lv.econ>>花 <<print -Game.Economy.priceOf(_lv.econ, $pc)>> 金币 ｜ <</if>><<if _lv.gives is "auto">>直接答应<<if SgUI.showDetail()>>，无需掷骰<</if>><</if>><<if _lv.gives is "adv">>后续更有把握<<if SgUI.showDetail()>>（交涉检定有优势）<</if>><</if>>）</span>
 					<</for>>
 					<<for _i to 0; _i lt _S.open(_a, $pc).length; _i++>>
 						<<set _o to _S.open(_a, $pc)[_i]>>
 						<<print `<a class="soc-opt" role="link" tabindex="0" data-ask="${_a.id}" data-how="site:${_o.site}">${_o.ap.verb}：${_o.skill}（${_a.tag}）</a>`>>
-						<span class="soc-meta">（<<print _S.ATT[_att]>> → DC<<print _o.dc>><<if _o.ap.onFail?.retry>> ｜ 失败：这一手更难<</if>><<if _o.ap.onFail?.att>> ｜ 失败：<<print _a.npc>>记住（态度降一级）<</if>><<if not _o.ap.onFail?.retry and not _o.ap.onFail?.att>> ｜ 失败：只是没接上话<</if>><<if _o.ap.onOk?.att>> ｜ 成了也记仇<</if>>）</span>
+						<span class="soc-meta">（<<print _S.ATT[_att]>><<if SgUI.showDetail()>> → DC<<print _o.dc>><</if>><<if _o.ap.onFail?.retry>> ｜ 失败：话说死了，更难开口<</if>><<if _o.ap.onFail?.att>> ｜ 失败：<<print _a.npc>>记住了<<if SgUI.showDetail()>>（态度降一级）<</if>><</if>><<if not _o.ap.onFail?.retry and not _o.ap.onFail?.att>> ｜ 失败：只是没接上话<</if>><<if _o.ap.onOk?.att>> ｜ 成了也记仇<</if>>）</span>
 					<</for>>
 					</div>
 				<</if>>

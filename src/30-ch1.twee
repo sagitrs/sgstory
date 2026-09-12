@@ -119,13 +119,13 @@
 	<<link "讲守林人的那一桌">><<set $pc.ev.tav_keeper to true>><<goto "酒馆">><</link>>
 <</if>>
 <<if not $pc.ev.tav_dragon>>
-	<<link "上了年纪的村人——他说那条龙早死了">><<set $pc.ev.tav_dragon to true>><<goto "酒馆">><</link>>
+	<<link "上了年纪的村人">><<set $pc.ev.tav_dragon to true>><<goto "酒馆">><</link>>
 <</if>>
 <<if not $pc.ev.tav_grudge>>
-	<<link "跑生意的——他说雾是怨念">><<set $pc.ev.tav_grudge to true>><<goto "酒馆">><</link>>
+	<<link "跑生意的">><<set $pc.ev.tav_grudge to true>><<goto "酒馆">><</link>>
 <</if>>
 <<if not $pc.ev.tav_ageless>>
-	<<link "接嘴的那个人——「不老的女人」">><<set $pc.ev.tav_ageless to true>><<goto "酒馆">><</link>>
+	<<link "接嘴的那个人">><<set $pc.ev.tav_ageless to true>><<goto "酒馆">><</link>>
 <</if>>
 <<if not $pc.ev.tav_flower>>
 	<<link "背着画板的游客——他在问月光花">><<set $pc.ev.tav_flower to true>><<goto "酒馆">><</link>>

@@ -44,7 +44,13 @@
 
 <<flip>>
 
-[[在宴上找人说话|宴会·过去]]
+<<if $era is "past">>
+	[[在宴上找人说话|宴会·过去]]
+<<else>>
+	[[回那一晚看看|宴会·过去]]
+
+	这会子宴早散了。要找人说话，得先翻转护符回到那一晚。
+<</if>>
 
 <<if $era is "present">>
 	[[绕着它走一圈|龙·巢边]]
@@ -70,7 +76,7 @@
 这些零碎紧挨着它的爪子。你看不出它为何留着，只知道其中还有几件值钱的东西。
 
 <<if not $pc.world.hoard_looted>>
-	<<link "识货，捡几件值钱的">><<econ "dragon_hoard">><<set $pc.world.hoard_looted to true>><<goto "龙·巢边">><</link>>
+	<<link "从零碎里挑出几件值钱的">><<econ "dragon_hoard">><<set $pc.world.hoard_looted to true>><<goto "龙·巢边">><</link>>
 <<else>>
 	那些零碎你看过了，值钱的都在你兜里。
 <</if>>
@@ -189,7 +195,7 @@
 
 <<if not $pc.ev.seer_asked>>
 	[[问他：它从哪颗星来|观星者·星]]
-	[[问他：那一夜会怎么样|观星者·夜]]
+	[[问他：今晚的仪式能成吗|观星者·夜]]
 	<<setflag "seer_asked">>
 <</if>>
 <<if not $pc.inv["完整星图"]>>

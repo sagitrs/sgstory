@@ -62,6 +62,8 @@ export const SEGMENTS = [
 	{ id: "test-smoke-mjs", phase: 'test', cost: 7.5, cmd: "node test/smoke.mjs" },
 	// 浏览器验收本体在 CI 的 soak job 跑（需 Chrome）；**守卫逻辑的自证不需要 Chrome**，故进主链
 	{ id: "test-browser-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/browser.mjs --selftest" },
+	{ id: "test-globals-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/globals.mjs --selftest" },
+	{ id: "test-globals-mjs", phase: 'test', cost: 0, cmd: "node test/globals.mjs" },
 	{ id: "test-scenarios-mjs", phase: 'test', cost: 23.6, cmd: "node test/scenarios.mjs" },
 	{ id: "scripts-report-rhythm-mjs-selftest", phase: 'test', cost: 0.2, needs: ['test-scenarios-mjs'], cmd: "node scripts/report-rhythm.mjs --selftest" },
 	{ id: "scripts-report-rhythm-mjs-check", phase: 'test', cost: 0, needs: ['test-scenarios-mjs'], cmd: "node scripts/report-rhythm.mjs --check" },

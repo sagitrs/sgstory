@@ -88,6 +88,17 @@ for (const p of content) {
 				}
 			}
 		}
+		// #407 D9② 同屏去重（次数面）：同一渲染态里**同一块检定结果只许出现一次**。
+		// 判据来自 #403 实锤（门厅取物：`<<sitecheck>>` 渲染一次 + `<<lastcheck>>` 复显一次 ⇒ d20(11) 两遍）——
+		// 那是"点一次后的屏"，渲染级只能抓"渲染时就重复"的那一半；点击态那一半由 roll-binding 的 #403 断言持有。
+		{
+			const seen = new Map();
+			for (const el2 of w.document.querySelectorAll('#passages .check-result')) {
+				const key = (el2.textContent ?? '').replace(/\s+/g, ' ').trim();
+				seen.set(key, (seen.get(key) ?? 0) + 1);
+			}
+			for (const [key2, n] of seen) if (n >= 2) problems.push(`同一屏里同一块检定结果出现 ${n} 遍（#407 D9②同屏去重）：${key2.slice(0, 60)}`);
+		}
 		// 链接清单（#168 机检⑩）：把"这一段渲染出来的可点元素"落盘，交给 coverage.mjs 的链接级覆盖门
 		// 对账——按"段落|时代"记格的老口径看不见"同段里有一条链接从没被点过"（P1-1 / P1-29 都这么漏）。
 		linkMap.set(`${p.name}|${era ?? w.SugarCube.State.variables.era}`, [...new Set([...w.document.querySelectorAll(`#passages ${CLICKABLE_SEL}`)].map((x) => x.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean))]);

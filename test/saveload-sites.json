@@ -1,0 +1,52 @@
+{
+	"note": "「就地行动」站点矩阵（#300 §5 机检的数据源）。两个消费者：test/saveload-inventory.mjs（静态覆盖：不得有站点漏登记）与 test/saveload.mjs（行为：就地操作→立即 S/L→状态保值）。新增就地行动站点时必须同步补这里，否则静态门红。",
+	"sites": [
+		{
+			"label": "把墙上那支哨子摘下来",
+			"where": "门厅",
+			"nav": "hall-direct",
+			"mutates": ["give:坏哨（经 widget hallResult）", "ev:last_roll"],
+			"assert": ["inv", "ev", "hp", "gold"],
+			"ticket": "#300",
+			"behavioralOnly": "hallResult",
+			"note": "票面 P1 原始复现点。状态变更藏在 widget <<hallResult>> 里，静态扫描器只看得见 link 体内的**直接**变更——所以本项登记为「间接站点」，只由行为门盯（静态门只校验该 widget 仍存在）"
+		},
+		{
+			"label": "先看清钉子是怎么卡的",
+			"where": "门厅",
+			"nav": "hall-observe",
+			"mutates": ["ev:hall_seen", "ev:last_roll"],
+			"assert": ["ev", "hp", "gold"],
+			"ticket": "#300",
+			"note": "只改旗标不发物的同页行动——用来证明 P1 不是「物品入库」独有的问题"
+		},
+		{
+			"label": "摘哨子（钉子怎么卡的，你已经看清了）",
+			"where": "门厅（widget hallPick，看清钉子后才出现）",
+			"nav": "hall-observed",
+			"mutates": ["give:坏哨", "ev:last_roll"],
+			"assert": ["inv", "ev", "hp", "gold"],
+			"ticket": "#300",
+			"note": "免赌取物路（#185 结果留屏的单源入口）"
+		},
+		{
+			"label": "伸手去摘最靠里的那一朵",
+			"where": "塔外花田",
+			"nav": "flower",
+			"mutates": ["give:月光花", "ev:last_roll"],
+			"assert": ["inv", "ev", "hp", "gold"],
+			"ticket": "#300",
+			"note": "T 席扫描补出的同类站点（票面未提，实测同样丢）"
+		}
+	],
+	"sitecheckExemptions": {
+		"森林·察觉": "同页 <<replace>>，无跨段跳转——静态扫描的误报（#300 §3 已实测有框）",
+		"洞穴·战斗": "已知缺陷：跨段后检定框被吞（#300 P2，已实测）——#300 修复合入后应删除本豁免",
+		"顶楼·夺杖": "已知缺陷：跨段落在结局页，检定框全无（#300 P2，T 席实测）——修复后应删除本豁免",
+		"书房·施术": "未实测：直跳段落时前置状态不足，跨段可见性待定（#300 §3）——修复时一并裁定",
+		"守林人·劝杀·日记": "未实测：同上（#300 §3）",
+		"守林人·劝杀·自担": "未实测：同上（#300 §3）",
+		"守林人·劝杀·雾情": "未实测：同上（#300 §3）",
+		"龙·终击": "未实测：龙·再冲 的该动作被状态门控，跨段可见性待定（#300 §3）"
+	}
+}

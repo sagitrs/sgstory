@@ -232,7 +232,7 @@ async function routeNeutralGold() {
 	await c('顶楼');
 	await c('下楼，打开地下那道门');
 	await c('在宴上找人说话');
-	await c('问那位一直在算星的人');
+	await c('观星者');
 	await c('它从哪颗星来');
 	await c('回到观星者');
 	await c('拿出筹码：把风化了的书放回案上（求图）'); // 有书 → 免检
@@ -385,7 +385,7 @@ async function truePath(w, c) {
 	await c('看厅中央：仪式开始了');           // #219 A3：送星宴仪式上演
 	if (pcOf(w).ev.ritual_seen !== true) throw new Error('#219 A3：看过仪式没落 ritual_seen');
 	await c('宴会·过去');
-	await c('问那位一直在算星的人');       // 观星者
+	await c('观星者');       // 观星者
 	await c('它从哪颗星来');
 	await c('回到观星者');
 	await c('今晚的仪式能成吗');
@@ -1178,7 +1178,7 @@ async function routeSleepVoluntary() {
 	await c('把墙上那支哨子摘下来');               // #177：换哨要真拿着可换的那支
 	await c('下楼赴宴');
 	await c('在宴上找人说话');
-	await c('问那位一直在算星的人');
+	await c('观星者');
 	await c('引一段先例：历史（求图）');   // B2：无书 → 历史检定（d20=20 必成）
 	await c('把那张抄好的图收下');
 	await c('回到观星者');
@@ -1232,7 +1232,7 @@ async function routeExchangeGate() {
 	if (pcOf(w).inv['好哨']) throw new Error('门槛未过却拿到好哨');
 	// ③ 取星图（本路线没拿门厅的哨）→ #177：手里没哨仍不肯（正文不收你根本没有的东西）
 	await c('宴会·过去');
-	await c('问那位一直在算星的人');
+	await c('观星者');
 	await c('引一段先例：历史（求图）');
 	await c('把那张抄好的图收下');
 	await c('回到观星者');
@@ -1499,7 +1499,7 @@ async function routeNoSaveScum() {
 	await c('下楼，打开地下那道门');
 	await c('翻转护身符：坠入');                  // 先翻到过去（位置决定年代）
 	await c('在宴上找人说话');
-	await c('问那位一直在算星的人');
+	await c('观星者');
 	await c('先看他手里攥着什么：洞悉（求图）');    // B2：洞悉 → 必成
 	if (pcOf(w).ev.seer_gave !== true) throw new Error('洞悉路没换来星图');
 	await c('把那张抄好的图收下');

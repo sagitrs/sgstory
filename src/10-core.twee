@@ -377,9 +377,12 @@ Macro.add('dragonbar', {
 	<<else>>
 		<<sitecheck _a.site>>
 	<</if>>
+	<<set _hadAdv to _f.adv gt 0>>
+	/% #352：优势在**被这一手消费后**才清零（旧实现放在本轮末尾清零 → 准备动作的「下一击有优势」当场作废） %/
+	<<set _f.adv to 0>>
 	<<set _r to Game.Combat.playerEff(_f.act, $last_check, $pc)>>
 	<<set _f.last to { act: _f.act, kind: _r.kind, text: _r.eff.text, dmg: _r.eff.dmg ?? 0, hurt: _r.eff.hurt ?? 0, adv: _r.eff.adv ?? 0, guard: _r.eff.guard ?? 0 }>>
-	<<set _log to { you: { label: _a.label, kind: _r.kind, text: _r.eff.text, dmg: _r.eff.dmg ?? 0, gearBonus: _r.gearBonus ?? 0, gearName: Game.Gear.damageSource($pc.gear), adv: _r.eff.adv ?? 0, guard: _r.eff.guard ?? 0, hurt: _r.eff.hurt ?? 0, skipFoe: _r.eff.skipFoe ?? false, goodNote: _r.goodNote ?? "" }, foe: null }>>
+	<<set _log to { you: { label: _a.label, kind: _r.kind, text: _r.eff.text, dmg: _r.eff.dmg ?? 0, gearBonus: _r.gearBonus ?? 0, gearName: Game.Gear.damageSource($pc.gear), adv: _r.eff.adv ?? 0, guard: _r.eff.guard ?? 0, hurt: _r.eff.hurt ?? 0, skipFoe: _r.eff.skipFoe ?? false, goodNote: _r.goodNote ?? "", rolledWithAdv: _hadAdv }, foe: null }>>
 	<<run Game.Combat.applyEffect($pc, _r.eff, _f)>>
 	<<if _r.eff.hurt>><<damage _r.eff.hurt>><</if>>
 	<<set _f.act to null>>
@@ -412,7 +415,6 @@ Macro.add('dragonbar', {
 	/% #350：下一轮的牌也在**点击时**抽定（渲染时抽＝读档重抽，玩家看到的选项会变） %/
 	<<set _f.offer to Game.Combat.offer(_f.pool, _f.round, $pc, _f.last?.act)>>
 	<<set _f.guard to 0>>
-	<<set _f.adv to 0>>
 	<<set _f.skipFoe to false>>
 	<<set _f.log to _log>>
 <</nobr>><</widget>>

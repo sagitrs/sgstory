@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { execSync } from 'node:child_process';
+import { ORDER } from './scripts/module-order.mjs';
 
 const SRC = 'src';
 const OUT = 'dist/index.html';
@@ -7,13 +8,24 @@ const OUT = 'dist/index.html';
 mkdirSync('build', { recursive: true });
 mkdirSync('dist', { recursive: true });
 
-// 按文件名顺序合并 src/ 下所有 .twee 文件
-const files = readdirSync(SRC).filter((f) => f.endsWith('.twee')).sort();
+// #319：加载顺序**显式**声明在 scripts/module-order.mjs（不再靠文件名前缀隐含）。
+// 这里只做两件守门：文件必须都在 ORDER 里，ORDER 里的文件必须都存在。
+const files = readdirSync(SRC).filter((f) => f.endsWith('.twee'));
 if (files.length === 0) {
 	console.error('src/ 下没有找到 .twee 文件');
 	process.exit(1);
 }
-const merged = files.map((f) => readFileSync(`${SRC}/${f}`, 'utf8').trimEnd()).join('\n\n') + '\n';
+{
+	const unlisted = files.filter((f) => !ORDER.includes(f));
+	const missing = ORDER.filter((f) => !files.includes(f));
+	if (unlisted.length || missing.length) {
+		if (unlisted.length) console.error(`✗ 以下文件未登记加载顺序（补进 scripts/module-order.mjs 的 ORDER）：${unlisted.join(', ')}`);
+		if (missing.length) console.error(`✗ ORDER 里的文件不存在：${missing.join(', ')}`);
+		process.exit(1);
+	}
+}
+const filesOrdered = ORDER;
+const merged = filesOrdered.map((f) => readFileSync(`${SRC}/${f}`, 'utf8').trimEnd()).join('\n\n') + '\n';
 writeFileSync('build/game.twee', merged, 'utf8');
 
 // ── 字体子集化（霞鹜文楷 → dist/fonts 外链 + preload）────────────────

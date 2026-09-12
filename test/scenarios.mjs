@@ -1046,9 +1046,9 @@ async function routeTavernAllTables() {
 	const { w, click: c } = await newGame(0.5, 0);
 	const tables = [
 		['讲守林人的那一桌', 'tav_keeper'],
-		['上了年纪的村人——他说那条龙早死了', 'tav_dragon'],
-		['跑生意的——他说雾是怨念', 'tav_grudge'],
-		['接嘴的那个人——「不老的女人」', 'tav_ageless'],
+		['上了年纪的村人', 'tav_dragon'],
+		['跑生意的', 'tav_grudge'],
+		['接嘴的那个人', 'tav_ageless'],
 		['背着画板的游客——他在问月光花', 'tav_flower'],
 		['墙上那幅旧画', 'tav_painting'],
 	];

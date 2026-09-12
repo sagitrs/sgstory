@@ -24,6 +24,25 @@ npm run audit   # 表驱动审计（#28/#34）：每个门都能单独跑，加�
 npm run watch   # 修改 src/ 自动重新编译
 ```
 
+### 质量维度 × 门（十维基线表，#247）
+
+| 维度 | 常设门／形态 | 命令 | 行为化 |
+|---|---|---|---|
+| D1 真相可达性 | 命题×通路×锚句；**D8 扩**：≥3 锚＋类型 ≥2＋声明一致＋反例自证 | `node scripts/audit.mjs --truth --check` | ✅ 行为化 |
+| D2 选择意义感 | 旗标分级落桶（76 旗标全分级） | `--choices --consequences` | ✅ 行为化 |
+| D3 系统可玩性 | 机制×锚句（玩家侧可发现） | `--systems` | ✅ 行为化 |
+| D4 世界活性 | 回声条件归属检查＋覆盖门全量采集 | `--echoes`；`test/coverage.mjs` | ✅ 行为化 |
+| D5 语言经济 | 载荷/密度 ratchet/术语一致（新颖度待补） | `--text --craft` | 机检（密度） |
+| D6 可用性适配 | 走查清单＋真机 24 项（含键盘）＋渲染三查 | `npm run browser`；`test/render-all.mjs` | ✅ 行为化（审美留人工） |
+| D7 局面与角色合理性 | `Game.NPC` 登记簿三查（位点/锚句/动机） | `--npc` | ✅ 行为化 |
+| D8 线索冗余 | ≥3 锚＋类型 ≥2＋类型来源一致＋反例自证 | `--truth` | ✅ 行为化 |
+| D1+ 规则层一致 | （在建）canon 条文×行为断言 | `Rules.claims`（伙伴会话） | ⏳ |
+| #22+ 数值分布 | 蒙特卡洛 2 万局三门 | `--dragon` | ✅ 行为化 |
+| 交叉线互锁（C2） | 交付后互锁路线（#259） | `test/scenarios.mjs` 路线 40 | ✅ 行为化 |
+| 工程侧 | 段落登记门／结果不吞门／存档×新界面／覆盖三查 | `test/integrity.mjs`／`test/walker.mjs`／`test/saveui.mjs` | ✅ 行为化 |
+
+> 维度定义、候选池与提取方法见 `docs/quality-dimensions.md`；覆盖与未覆盖口径见 `docs/ui-coverage-gaps.md`。
+
 ### 纪律：词汇表与断言（#29）
 
 - **内容只许用既定词汇**：机制动作走词汇宏（sitecheck/econ/give/setflag/flip/damage…）、状态读取用 `$pc.*` 展示；L0 对三类越界告警（不阻断）：

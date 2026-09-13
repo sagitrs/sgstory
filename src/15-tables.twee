@@ -1268,9 +1268,32 @@ Object.assign((window.Sg.story ??= {}), {
 		if (typeof v !== 'number') throw new Error('Sg.story.dragonMaxHp：故事未提供 Game.Dragon.hp（结构缺失必须报错，#441-E）');
 		return v;
 	},
-	actionLabel: (id) => {
+	// ── #459 切片三：sim（`21-resolve.twee`）的**故事数据**入口 ─────────────────────────
+	// 为什么必须走这里（实测的硬理由，不是洁癖）：sim 要搬进 `src/engine/**`，而它原来用**别名**
+	// `const T = window.Game; T.Checks.sites[...]` 直读故事表——而层间门按**字面量**匹配 ⇒ 别名整个躲过去
+	// （实测：把 sim 模拟成 engine 层跑 `checkLayerDirection()`，命中 **0**，可它明明在读故事表 ✗）。
+	// ⇒ **门绿不能证明边界成立**；这条纪律只能靠"真的没有直读"来守。
+	checkSite: (name) => {
+		const s = window.Game?.Checks?.sites?.[name];
+		if (!s) throw new Error(`Sg.story.checkSite：位点「${name}」未登记（结构缺失必须报错，#441-E）`);
+		return s;
+	},
+	// 位点的「情报捷径」（旗标 ＋ 文案）：**可选** —— 没有捷径是合法状态，不是结构缺失 ⇒ 返回 null
+	checkKnowledge: (name) => {
+		const flag = window.Game?.Checks?.knowledge?.[name];
+		if (!flag) return null;
+		const why = window.Game?.Checks?.knowledgeWhy?.[flag] ?? flag;
+		return { flag, why };
+	},
+	combatAction: (id) => {
 		const a = window.Game?.Combat?.actions?.[id];
-		if (!a || typeof a.label !== 'string' || !a.label) throw new Error(`Sg.story.actionLabel：动作「${id}」未登记或缺 label（结构缺失必须报错，#441-E）`);
+		if (!a) throw new Error(`Sg.story.combatAction：动作「${id}」未登记（结构缺失必须报错，#441-E）`);
+		return a;
+	},
+	// 由 `combatAction()` 派生（**单一权威**：动作未登记只有一处会报错）
+	actionLabel: (id) => {
+		const a = window.Sg.story.combatAction(id);
+		if (typeof a.label !== 'string' || !a.label) throw new Error(`Sg.story.actionLabel：动作「${id}」缺 label（结构缺失必须报错，#441-E）`);
 		return a.label;
 	},
 });

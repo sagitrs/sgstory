@@ -115,7 +115,9 @@ ok(!Array.isArray(m2.inv) && typeof m2.inv === 'object', '类型损坏修正（i
 ok(w.Game.Pc.migrate(undefined).name === '', 'undefined → 整体默认');
 w.Game.Pc.migrate(m1);
 eq(m1.gold, 40, '迁移幂等（重复跑不破坏）');
-eq(Object.keys(w.Game.Pc.defaults()).length, 26, '默认形状字段数守恒（26，防误删）');
+// #486（S1）：新增 `gearHp`（装备耐久 `{ 具名: 剩余 }`）⇒ 26 → 27。
+// 这个计数是**防误删**的栅栏：加/删字段都要在这里显式改一次并说明理由（改动即审计线索）。
+eq(Object.keys(w.Game.Pc.defaults()).length, 27, '默认形状字段数守恒（27，防误删；#486 加 gearHp）');
 
 // ── L4 存档兼容矩阵：每版历史形状一个 fixture，统一断言四条律 ──
 const DEFAULT_KEYS = Object.keys(w.Game.Pc.defaults());

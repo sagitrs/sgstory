@@ -88,6 +88,15 @@ Object.assign(window.Game.Combat, {
 	resolveFoe(pc, foeSite, isDragon, log) {
 		const T = window.Game, f = pc.ev.fight;
 		let check = null, hurt = 0;
+		// #486（S1）：受击再过一道「掷部位 ⇒ 护具吸伤/耐久 ⇒ 溢出落 HP」。
+		// `mechanics()` 未启用时 `slotAbsorb` 返回 `null` ⇒ **原样返回**（显式降级，零行为变化）。
+		const mitigate = (raw) => {
+			const plan = T.Combat.slotAbsorb(pc, raw);
+			if (!plan) return raw;
+			if (plan.gear) pc.gearHp = { ...(pc.gearHp ?? {}), [plan.gear]: plan.gearHp };
+			log.foe = { ...(log.foe ?? {}), slots: plan };   // 台账留证：打了哪个部位、被哪件吸了多少
+			return plan.toHp;
+		};
 		if (pc.hp > 0) {
 			if (f.skipFoe) {
 				log.foe = { text: '这一轮它没有出手。' };
@@ -101,13 +110,13 @@ Object.assign(window.Game.Combat, {
 					} else {
 						pc.dragon.defeats = (pc.dragon.defeats ?? 0) + 1;
 						log.foe = { text: '它回手了——这一下你没能全躲开。' };
-						hurt = dmg;
+						hurt = mitigate(dmg);
 					}
 				} else if (check.success) {
 					log.foe = { text: '它扑了个空，散在你刚才站的地方——没有追。' };
 				} else {
 					log.foe = { text: '它把你掀翻在地，又停住了。像在等你先动手。' };
-					hurt = T.Damage.shove;   // 原裸 `<<damage 5>>`；具名后仍同值（非档位值，见 15-tables 注）
+					hurt = mitigate(T.Damage.shove);   // 原裸 `<<damage 5>>`；具名后仍同值（非档位值，见 15-tables 注）
 				}
 			}
 		}
@@ -269,6 +278,54 @@ Object.assign(window.Game.Combat, {
 			picked[picked.length - 1] = '封印·涂毒';
 		}
 		return [...new Set(picked)];
+	},
+	// ── S1（`#486`）：部位 · 耐久 · 保护关系 ───────────────────────────────
+	// 契约：**故事只声明**（`Sg.story.mechanics()`：`hitLocations` / `slots[*].protects` /
+	// `equipment[*].{slot,maxHp,reduce}`——形状权威＝`scripts/audit/lib/story-shape.mjs`，`#459`），
+	// **机制全在引擎**（本块）。`mechanics()` 为 `null` ⇒ 本块**一律不被调用** ⇒ 旧路径不变（#492 显式降级）。
+	// 状态：`pc.gearHp = { 具名: 剩余耐久 }`（缺项＝满耐久；0 ⇒ 损坏）。
+	slotsDecl() { return window.Sg.story.mechanics?.() ?? null; },
+	gearHpOf(pc, mech, gearName) {
+		const max = mech?.equipment?.[gearName]?.maxHp ?? 0;
+		const cur = pc?.gearHp?.[gearName];
+		return typeof cur === 'number' ? cur : max;
+	},
+	// 受击：掷部位（走**可注入** rng）⇒ 该部位有护具就按声明减成（本片只落 `flat`）⇒
+	// 余量由该件**耐久吸收**，溢出量落 HP；耐久 ≤ 0 ⇒ **损坏**（`reduce` 归 0 且不再吸伤）。
+	// **纯函数**：只返回计划，不写 `pc`（调用方决定何时落）。
+	slotAbsorb(pc, hurt) {
+		const mech = this.slotsDecl();
+		if (!mech) return null;                                   // 未启用 ⇒ 调用方走旧路径
+		const parts = mech.hitLocations ?? [];
+		const rng = window.Game.Rules.rng;                        // 唯一随机入口（node 未注入 ⇒ 大声报错）
+		const part = parts[Math.min(parts.length - 1, rng.d(parts.length) - 1)];
+		const worn = (pc?.gear ?? []).filter((g) => g && mech.equipment?.[g]);
+		const gearName = worn.find((g) => (mech.slots?.[mech.equipment[g].slot]?.protects ?? null) === part) ?? null;
+		if (!gearName) return { part, gear: null, reduce: 0, absorbed: 0, toHp: hurt, gearHp: null, broke: false };
+		const def = mech.equipment[gearName];
+		const form = Object.keys(def.reduce ?? {})[0];
+		if (form !== 'flat') throw new Error(`Game.Combat.slotAbsorb：减成形态「${form}」本片未实现（已实现：flat）——声明面不得大于实现面（#486）`);
+		const hp0 = this.gearHpOf(pc, mech, gearName);
+		if (hp0 <= 0) return { part, gear: gearName, reduce: 0, absorbed: 0, toHp: hurt, gearHp: 0, broke: true };   // 已损坏：不吸伤、不减成
+		const reduce = def.reduce.flat ?? 0;
+		const after = Math.max(0, hurt - reduce);
+		const absorbed = Math.min(hp0, after);
+		const hp1 = hp0 - absorbed;
+		return { part, gear: gearName, reduce, absorbed, toHp: after - absorbed, gearHp: hp1, broke: hp1 <= 0 };
+	},
+	// 判定失败的耐久扣减（S1 已定 ④：**掷骰** −1 或 −2）；返回计划，不写 `pc`。
+	gearWear(pc, gearName) {
+		const mech = this.slotsDecl();
+		if (!mech || !mech.equipment?.[gearName]) return null;
+		const loss = window.Game.Rules.rng.d(2);                   // 1..2（已定 ④：不设"直接损坏"档）
+		const from = this.gearHpOf(pc, mech, gearName);
+		return { gear: gearName, loss, from, to: Math.max(0, from - loss) };
+	},
+	// 温泉（S1 已定 ④：v1 唯一修复点）——返回"满耐久表"；调用方写 `pc.gearHp`。
+	repairAll(pc) {
+		const mech = this.slotsDecl();
+		if (!mech) return null;
+		return Object.fromEntries(Object.entries(mech.equipment ?? {}).map(([n, d]) => [n, d.maxHp]));
 	},
 	pick(actionId, res) {
 		const a = window.Sg.story.combatAction(actionId);

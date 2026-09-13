@@ -91,6 +91,9 @@ window.Game.Pc = {
 			classKey: '', classLabel: '', bgKey: '', bgLabel: '', speciesKey: '', speciesLabel: '',
 			abilities: null, skills: [], feats: [], gear: [], flags: {},
 			hp: 0, max_hp: 0, gold: 0, salves: 0,
+			// #486（S1）：**装备耐久** `{ 具名: 剩余 }`——未启用部位/耐久的故事恒为空对象（`slotAbsorb` 不被调用）。
+			// 缺项＝满耐久（`maxHp` 由故事声明）；`migrate()` 会给旧档补上这个键。
+			gearHp: {},
 			// 世界
 			inv: {},              // 物品栏：{ 名: true }
 			star: { charge: 12, spent: 0, first_free: false },   // 星力隐藏计数（玩家不可见）；first_free：头一次翻转不收费（#219 C1②）

@@ -115,12 +115,24 @@ export const STORY_SYMBOLS = [
 	'Game.Codex', 'Game.Truth', 'Game.Echoes', 'Game.Choices', 'Game.Systems', 'Game.Star',
 	'Game.Dragon', 'Game.NPC', 'Game.Consequences', 'Game.Investment', 'Game.Notes', 'Game.Chargen',
 ];
+// 归一化：把"逃逸写法"折成点号路径，再做子串匹配。
+// 起因（guest-1 实测、我复现）：裸子串匹配会**漏检** `Game?.Dragon` / `Game["Notes"]` / `Game . NPC`，
+// 现网 `10-core.twee:218` 的 `window.Game?.Dragon?.hp` 就是这样漏掉的 ⇒ 第 4 步的"`--strict` 转绿"会**假绿**。
+// 处理的逃逸：可选链 `?.`、方括号字符串/模板访问 `["x"]`/['x']/`x`、点号两侧空白（含换行）。
+// **已知不覆盖**（写清楚，别假装判据是全的）：解构/别名（`const {Dragon} = Game`、`const G = Game; G.Dragon`）、
+// 动态键（`Game[k]`）、字符串拼接出的表名。这些要么靠人工走查，要么等第 4 步换更强的判据（不再按名字匹配）。
+export const normalizeSymbolRefs = (src) => String(src)
+	.replace(/\?\s*\./g, '.')                                  // a?.b → a.b（含换行）
+	.replace(/\[\s*(['"`])([A-Za-z_$][\w$]*)\1\s*\]/g, '.$2')  // a["b"] → a.b
+	.replace(/\s*\.\s*/g, '.');                                // a . b → a.b（含换行）
+
 // 纯函数：返回引擎文件里的越界引用（供 test/layering.mjs 与自证共用）
 export const checkLayerDirection = (sources, { layers = LAYER_OF, symbols = STORY_SYMBOLS } = {}) => {
 	const out = [];
 	for (const [name, src] of Object.entries(sources)) {
 		if (layers[name] !== 'engine') continue;
-		const hits = symbols.filter((sym) => String(src).includes(sym));
+		const norm = normalizeSymbolRefs(src);
+		const hits = symbols.filter((sym) => norm.includes(sym));
 		if (hits.length) out.push({ file: name, symbols: hits });
 	}
 	return out;

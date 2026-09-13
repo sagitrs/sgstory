@@ -45,6 +45,7 @@ if (wantAll || arg('items') || arg('tokens')) {
 		{ 日记: true, 龙鳞护臂: true, 观星者的书: true },
 		{ 日记: true, 龙鳞护臂: true, 观星者的书: true, 坏哨: true },
 	];
+	let selfBad = 0;
 	// 自证 3 例（合成 I：可控，不依赖真表）
 	{
 		let bad = 0;
@@ -57,7 +58,8 @@ if (wantAll || arg('items') || arg('tokens')) {
 			['不变量：败次 0/2 也算（合成 I 里两档相同 ⇒ 不报）', damageInvariants(fakeI, [{ 甲: true }]).length === 0],
 		];
 		for (const [label, ok] of cases) { if (!ok) bad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
-		globalThis.__itemsSelfBad = bad;
+		// 局部计数（此前用 `globalThis.__itemsSelfBad` 绕作用域——#474 明确禁止）
+		selfBad = bad;
 	}
 	console.log('  道具组合 → R1/R2/R3 伤害（败次=0 | 败次=2）');
 	for (const set of sets) {
@@ -67,6 +69,6 @@ if (wantAll || arg('items') || arg('tokens')) {
 	const viol = damageInvariants(I, sets);
 	if (viol.length) { for (const v of viol.slice(0, 5)) console.log(`  ✗ 伤害不变量被打破：${v}`); }
 	else console.log('  ✓ 伤害不变量成立（减伤件越多越不疼；败次越高越疼或不减）');
-	if (process.argv.includes('--check') && (viol.length || globalThis.__itemsSelfBad)) { console.error(`\n✗ 道具/龙战矩阵段：${viol.length} 项不变量 + ${globalThis.__itemsSelfBad} 项自证`); process.exit(1); }
+	if (process.argv.includes('--check') && (viol.length || selfBad)) { console.error(`\n✗ 道具/龙战矩阵段：${viol.length} 项不变量 + ${selfBad} 项自证`); process.exit(1); }
 }
 };

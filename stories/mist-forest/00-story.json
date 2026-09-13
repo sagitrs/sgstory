@@ -1,0 +1,21 @@
+{
+	"slug": "mist-forest",
+	"title": "迷雾森林",
+	"subtitle": "送星归位",
+	"entry": "开场",
+	"files": [
+		"00-meta.twee",
+		"10-core.twee",
+		"11-scene.twee",
+		"15-tables.twee",
+		"16-notes-cross.twee",
+		"20-chargen.twee",
+		"30-ch1.twee",
+		"40-ch2.twee",
+		"50-ch3.twee",
+		"60-endings.twee",
+		"70-codex.twee",
+		"80-script.twee",
+		"90-style.twee"
+	]
+}

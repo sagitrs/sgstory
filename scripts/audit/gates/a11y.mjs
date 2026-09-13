@@ -57,7 +57,12 @@ export const run = (ctx) => {
 if (wantAll || arg('a11y')) {
 	console.log('\n══ ⓪s 可访问性门（#272）——对比度 / lang / 装饰语义 ══');
 	let bad = 0;
-	const css = readFileSync('src/90-style.twee', 'utf8');
+	// #458（搬家）：CSS 源**不写死单根**——`src/90-style.twee` 已随目录级隔离落到 `src/engine/50-present/`。
+	// 做法：在**源文件权威清单**（`allSourceFiles()` 的产物）里按 basename 找，且必须**唯一命中**
+	// （0 或 >1 ⇒ 大声报错；宁可不跑，也不要静默拿错文件 —— 那就是「假绿」）。
+	const styleSrcs = SRC_FILES.filter((f) => /(^|\/)90-style\.twee$/.test(f));
+	if (styleSrcs.length !== 1) throw new Error(`a11y：源清单里 90-style.twee 命中 ${styleSrcs.length} 个（应为 1）——搬家/改名后请复查本判据`);
+	const css = readFileSync(styleSrcs[0], 'utf8');
 	const baseMatch = css.match(/body\s*\{[^}]*background(?:-color)?\s*:\s*(#[0-9a-fA-F]{6})/);
 	const base = baseMatch ? baseMatch[1] : '#191722';
 	const cf = contrastFindings(css, { base });

@@ -7,7 +7,7 @@
 // 行为纪律（#316）：本文件只做「搬家」，不改任何加载语义——输出必须与拆分前逐字节一致
 // （验证方式：npm run audit:golden）。
 import { readFileSync, readdirSync } from 'node:fs';
-import { allSourceFiles } from '../module-order.mjs';
+import { allSourceFiles, orderFiles } from '../module-order.mjs';
 import vm from 'node:vm';
 
 // ── vm 直载全部 [script] 段（按文件名序；浏览器专属全局用 stub 兑底）──
@@ -50,10 +50,15 @@ const indexPassages = (srcFiles) => {
 	return { passageSrc, passageRaw, passageTags };
 };
 
-export const createContext = ({ srcDir = 'src', argv = process.argv } = {}) => {
+export const createContext = ({ argv = process.argv } = {}) => {
 	// ── 源文件发现（M1a-1）：不再硬编码路径——改文件名/拆文件不再牵动工具 ──
 	// #458 切片B：源文件发现收成单一权威（`SOURCE_ROOTS` 只含 `src` 时返回值与旧写法**逐字符相同**）
-	const SRC_FILES = allSourceFiles([srcDir]);
+	// #458 切片C：**加载顺序的唯一权威是 `ORDER`**（不是词典序）——搬家后故事文件在 `stories/**`，
+	// 词典序会把 `21-resolve`（引擎）排到故事表之前 ⇒ `Object.assign(window.Game.Checks, …)` 直接 TypeError。
+	// 搬家前「词典序 ≈ 加载顺序」只是巧合（`00-meta`→`05-store`→`10-core`→…）。
+	// 根不再是「单个 src」：源清单 = `SOURCE_ROOTS`（`src/**` ＋ `stories/**`）。
+	// 旧写法 `allSourceFiles(['src'])` 在搬家后**漏掉故事文件** ⇒ `Game.Checks` 根本没建 ⇒ 门全崩（实测）。
+	const SRC_FILES = orderFiles(allSourceFiles());
 	const ctx = loadScripts(SRC_FILES);
 	const { Game } = ctx.window;   // #320 阶段 3：Chargen* 已收进 Game.Chargen
 
@@ -72,5 +77,5 @@ export const createContext = ({ srcDir = 'src', argv = process.argv } = {}) => {
 	// 注意：把 vm 上下文里的**全部提升全局**一并摊平返回——原 audit.mjs 里存在 `ctx.Game.Chargen.rounds`
 	// 这类「从 vm 上下文取表」的用法（拆分时被 golden 的「单跑内容须在全跑里」断言当场抓到全跑崩溃）。
 	// 保持这个兼容面，才能做到「只搬家不改行为」。
-	return { ...ctx, SRC_FILES, srcDir, presets, passageSrc, passageRaw, passageTags, arg, wantAll, argv, vmCtx: ctx };
+	return { ...ctx, SRC_FILES, presets, passageSrc, passageRaw, passageTags, arg, wantAll, argv, vmCtx: ctx };
 };

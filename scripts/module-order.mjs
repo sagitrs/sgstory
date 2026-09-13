@@ -295,5 +295,15 @@ export const allSourceFiles = (roots = SOURCE_ROOTS) => {
 	for (const r of roots) walk(r);
 	return out.sort();
 };
+/** 按**加载顺序**（`ORDER`）排一组源文件；`ORDER` 未登记的排在最后（保持其相对顺序，稳定排序）。
+ *  为什么要它（#458 切片C 的实测教训）：`allSourceFiles()` 是**词典序**，而加载顺序由目录/文件名共同决定。
+ *  搬家前「词典序 ≈ 加载顺序」只是**巧合**（`00-meta`→`05-store`→`10-core`→…）；搬家后故事文件住进
+ *  `stories/**`（排在 `src/**` 之后）⇒ 若照词典序执行，`21-resolve` 会在故事表建 `Game.Checks` 之前跑
+ *  ⇒ `Object.assign(window.Game.Checks, …)` 直接 `TypeError`（audit 上下文实测）。
+ *  ⇒ **加载顺序的唯一权威是 `ORDER`**，任何「按源清单逐文件执行」的调用点都必须过这里。 */
+export const orderFiles = (files, order = ORDER) => [...files].sort((a, b) => {
+	const ia = order.indexOf(a), ib = order.indexOf(b);
+	return (ia < 0 ? order.length : ia) - (ib < 0 ? order.length : ib);
+});
 /** 按 basename 或路径后缀解析源文件（供只认文件名的调用点用，如 `resolve-node.mjs`）。 */
 export const sourcePath = (name, roots = SOURCE_ROOTS) => allSourceFiles(roots).find((f) => f === name || f.endsWith(`/${name}`)) ?? name;

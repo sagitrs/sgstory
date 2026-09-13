@@ -29,14 +29,14 @@
 // 说明：本文件只做静态检查，因此它保证的是「**规则成立**」，不是「行为已正确」；
 // 「行为正确」由 test/saveload.mjs（存读档保值矩阵）负责。
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import { allSourceFiles } from '../scripts/module-order.mjs';
 
 const MANIFEST = JSON.parse(readFileSync(new URL('./saveload-sites.json', import.meta.url), 'utf8'));
-const readSrc = () => {
-	const dir = new URL('../src', import.meta.url);
-	return readdirSync(dir).filter((f) => f.endsWith('.twee')).sort()
-		.map((f) => readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8')).join('\n');
-};
+// #458 切片C：源文件发现走**单一权威**（`src/**` ＋ `stories/**`）——原先只扫 `src/`，
+// 搬家后故事文件住进 `stories/**` ⇒ 扫到 0 个 `<<sitecheck>>` ⇒ 本门**假绿**（实测）。
+const SRC_FILES = allSourceFiles();
+const readSrc = () => SRC_FILES.map((p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8')).join('\n');
 
 // ── 扫描器（纯函数：给字符串，返回发现；自证靠它喂合成源码）────────────────
 // 排除 <<set _x …>>（宏内临时变量，不进存档语义）
@@ -162,7 +162,7 @@ let failuresCount = 0;
 const check = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) failuresCount++; };
 const label = (s) => s.replace(/（[^）]*）/g, '').replace(/\s+/g, '').slice(0, 14);
 
-console.log(`扫描源文件：${readdirSync(new URL('../src', import.meta.url)).filter((f) => f.endsWith('.twee')).length} 个 twee`);
+console.log(`扫描源文件：${SRC_FILES.length} 个 twee（单一权威：src/** ＋ stories/**）`);
 check(found.length === 0,
 	found.length === 0
 		? '就地行动**零站点**（口径：就地反馈不得改状态；正确做法＝结算 → 结果留屏 → goto）'

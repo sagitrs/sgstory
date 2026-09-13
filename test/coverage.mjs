@@ -26,8 +26,10 @@ if (!renderCells.size || !interactCells.size) {
 
 // ── 段落清单（与 integrity.mjs 同源解析）──────────────────
 const passages = new Map();
-for (const f of allSourceFiles().map((p) => p.split('/').pop())) {
-	const lines = readFileSync(join('src', f), 'utf8').split('\n');
+// #458 切片C：按**路径**读（单一权威），不再「取 basename 再拼回 src/」——
+// 搬家后故事文件在 `stories/**`，旧写法直接 ENOENT（实测），且 basename 相同即静默读错文件。
+for (const p of allSourceFiles()) {
+	const lines = readFileSync(p, 'utf8').split('\n');
 	const heads = [];
 	for (let i = 0; i < lines.length; i++) {
 		const m = lines[i].match(/^::\s+(.+?)\s*(?:\[([^\]]*)\])?\s*(?:\{.*\})?\s*$/);
@@ -35,7 +37,7 @@ for (const f of allSourceFiles().map((p) => p.split('/').pop())) {
 	}
 	heads.forEach((h, k) => {
 		const end = k + 1 < heads.length ? heads[k + 1].i : lines.length;
-		passages.set(h.name, { file: f, tags: h.tags, body: lines.slice(h.i + 1, end).join('\n') });
+		passages.set(h.name, { file: p, tags: h.tags, body: lines.slice(h.i + 1, end).join('\n') });
 	});
 }
 const isInfra = (name) => {

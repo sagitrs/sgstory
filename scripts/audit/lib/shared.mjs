@@ -198,3 +198,13 @@ export const makeShared = (ctx) => {
 
 	return { classifyNarrativeState, successRate };
 };
+
+// ── JS 注释剥离（`#486` 的副产品）────────────────────────────────────────
+// 为什么需要：`--text` 的「总字」把 `[script]` 段里的 **JS 注释**也当正文数了——它只剥 Twee 注释 `/% %/`。
+// 实测代价：加一行 `//` 说明就把「主题词密度/总字」推高（`#519` +92 · `#486` 机制片 +2572），
+// 逼着每次改引擎注释都要重签 golden ⇒ **基线被注释噪声占满**，真正的正文漂移反而看不见。
+// 规则与 `gates/literals.mjs` 的 `blankComments` 同口径：`/* */` 块；`//` 行注释，**但前面不是 `:`**
+// （避免把 `https://…` 截断）。**挖空而非删除**（保留行号/长度语义，供需要行号的调用方）。
+export const stripJsComments = (text) => String(text)
+	.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+	.replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + ' '.repeat(m.length - p1.length));

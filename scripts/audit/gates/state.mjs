@@ -13,7 +13,7 @@
 //   `<<setflag "k">>` / `<<firstTime "k">>`（动态写入 `$pc.ev[k]` 并动态读回）· `$pc.ev["k"]`
 //   · 表内谓词 `(p) => p.world?.k`。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { qualifiedWriteKeys, keyCharsetViolations } from '../lib/shared.mjs';
+import { qualifiedWriteKeys, keyCharsetViolations, readKeys } from '../lib/shared.mjs';
 
 export const flag = 'state';
 export const flags = ['state'];
@@ -122,15 +122,8 @@ export const analyze = (sources) => {
 				bump(key, 'r', site + '(firstTime)');
 				if (keys.has(key)) keys.get(key).dynamic = true;
 			}
-			const reads = [
-				...[...line.matchAll(/\$pc\.(ev|world)\.([a-z_]\w*)/g)].map((m) => `${m[1]}.${m[2]}`),
-				...[...line.matchAll(/\bpc\.(ev|world)\.([a-z_]\w*)/g)].map((m) => `${m[1]}.${m[2]}`),
-				...[...line.matchAll(/\bp\.(?:ev|world)\??\.([a-z_]\w*)/g)].map((m) => `${/p\.ev/.test(m[0]) ? 'ev' : 'world'}.${m[1]}`),
-			];
-			for (const k of reads) {
-				if (new RegExp(`\\.${k}\\s*(=|to)\\b`).test(line)) continue; // 写行不算读
-				bump(k, 'r', site);
-			}
+			// 读点形态取自**单一权威** `readKeys()`（`lib/shared.mjs`；与写点并列，`#436` 原范围 1）
+			for (const k of readKeys(line)) bump(k, 'r', site);
 		}
 	}
 	return keys;

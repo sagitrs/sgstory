@@ -10,11 +10,11 @@
 import { readdirSync, existsSync, statSync, mkdirSync, writeFileSync, rmSync, utimesSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
-import { legacyHtml } from './dist-paths.mjs';
+import { defaultStoryHtml } from './dist-paths.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 // 单一权威（#441 切片 β1）：不要在这里再写一份 `dist/index.html`
-export const DIST_PATH = legacyHtml();
+export const DIST_PATH = defaultStoryHtml();
 export const SRC_DIR = join(ROOT, 'src');
 
 export const distState = ({ distPath = DIST_PATH, srcDir = SRC_DIR } = {}) => {

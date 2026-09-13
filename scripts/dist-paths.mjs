@@ -4,10 +4,10 @@
 // 一旦散落，改路径就会漏改某处 ⇒ **假红/假绿**（测试跑的还是旧产物）。
 // 所以：**所有消费者从这里取路径**，代码里不再出现 `dist/index.html` 字面量。
 //
-// 过渡期（切片 α，向后兼容）：
-//   `legacyHtml()` = 默认故事的产物（仍是 `dist/index.html`）——老消费者不动也正确；
-//   `storyHtml(slug)` = 每个故事的产物（新路径）；
-//   `shelfHtml()` = 书架页（α 落在 `dist/shelf.html`；β 翻成 `dist/index.html`）。
+// 契约（β2 起）：
+//   `dist/index.html`        = **书架页**（`shelfHtml()`）——进站先选故事；
+//   `dist/stories/<slug>/…`  = 每个故事的产物（`storyHtml(slug)`）；
+//   **没有**"根路径下的游戏本体"这回事：要游戏就 `defaultStoryHtml()`，别再往 `index.html` 上想。
 import { readdirSync, existsSync, readFileSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -31,11 +31,11 @@ export const readStory = (slug) => JSON.parse(readFileSync(join(STORIES_DIR, slu
 /** 故事产物：`dist/stories/<slug>/index.html`（**相对 fonts/ 的深度是 2 层**）。 */
 export const storyHtml = (slug = DEFAULT_SLUG) => join(DIST_DIR, 'stories', slug, 'index.html');
 
-/** 书架页：α 阶段 `dist/shelf.html`；β 阶段改这里一处即可翻成 `dist/index.html`。 */
-export const shelfHtml = () => join(DIST_DIR, 'shelf.html');
+/** 书架页：**`dist/index.html`**（β2 起首页＝书架；这是"多故事"对外的门面）。 */
+export const shelfHtml = () => join(DIST_DIR, 'index.html');
 
-/** 过渡期：默认故事的旧路径（老消费者读它）。β 阶段本函数删除。 */
-export const legacyHtml = () => join(DIST_DIR, 'index.html');
+/** 默认故事的产物（消费者要"游戏本体"时用它；**不是** `dist/index.html`——那是书架页）。 */
+export const defaultStoryHtml = () => storyHtml(DEFAULT_SLUG);
 
 /** 字体目录是**共享根路径**（`dist/fonts/`）：故事页用 `../../fonts/`，根页用 `fonts/`。 */
 export const FONT_PREFIX_FROM_ROOT = 'fonts/';

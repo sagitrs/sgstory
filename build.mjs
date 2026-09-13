@@ -3,8 +3,8 @@ import { execSync } from 'node:child_process';
 import { join, dirname, relative } from 'node:path';
 import { ORDER, MODULES } from './scripts/module-order.mjs';
 import {
-	ROOT, storySlugs, readStory, storyHtml, shelfHtml, legacyHtml,
-	DEFAULT_SLUG, FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY,
+	ROOT, storySlugs, readStory, storyHtml, shelfHtml,
+	FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY,
 } from './scripts/dist-paths.mjs';
 
 const SRC = 'src';
@@ -115,18 +115,11 @@ for (const s of stories) {
 	injectLang(out);
 }
 
-// ── 过渡期（切片 α）：默认故事同时写根路径 `dist/index.html` ──────────────
-// 老的链接、老消费者（test/*.mjs、scripts/*、GitHub Pages 首页）照旧可用。
-// 该副本与故事页**只差字体前缀**（`../../fonts/` → `fonts/`）。
-{
-	const page = readFileSync(storyHtml(DEFAULT_SLUG), 'utf8');
-	writeFileSync(legacyHtml(), fontCss ? page.split(FONT_PREFIX_FROM_STORY).join(FONT_PREFIX_FROM_ROOT) : page);
-}
-
-console.log(`\n✔ 编译完成：${relative(ROOT, legacyHtml())}（= ${DEFAULT_SLUG}，合并了 ${(stories.find((s) => s.slug === DEFAULT_SLUG)?.files ?? []).length + engineFiles.length} 个源文件${fontCss ? ' + 字体外链' : ''}）`);
+console.log(`\n✔ 编译完成：${stories.length} 个故事（${stories.map((s) => s.slug).join('、')}）→ dist/stories/<slug>/index.html${fontCss ? ' ＋ 字体外链' : ''}`);
 console.log('  浏览器直接打开即可游玩；也可用 Twine 2 编辑器导入继续可视化编辑。');
 
 // ── 书架页（#441 切片④）：**读目录**生成 ⇒ 加故事只需加目录，不手写清单 ──────
+// β2 起它就是 `dist/index.html`（进站门面）。
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 {
 	const rows = stories

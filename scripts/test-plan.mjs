@@ -62,6 +62,10 @@ export const SEGMENTS = [
 	{ id: "test-smoke-mjs", phase: 'test', cost: 7.5, cmd: "node test/smoke.mjs" },
 	// #441 切片③④：多故事产物 + 书架页 + 故事页字体前缀（纯函数自证 + 真实产物检查）
 	{ id: "test-multi-story-mjs", phase: 'test', cost: 0.1, cmd: "node test/multi-story.mjs" },
+	// #436 收编（#493 的硬前置）：audit golden 基线。实测**全量仅 8.0s**（dragon 7.0s ＋ 其余每个 30–55ms）
+	// ⇒ 不需要"便宜子集"，整段进链；自证单列（比对函数自身的 10 例）
+	{ id: "test-audit-golden-mjs", phase: 'test', cost: 8, cmd: "node test/audit-golden.mjs" },
+	{ id: "test-audit-golden-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/audit-golden.mjs --selftest" },
 	// #457：文案计数**规则**自证（R1–R5；数字是 #459 `Sg.story.copy()` 迁移的基线）
 	{ id: "scripts-report-copy-text-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node scripts/report-copy-text.mjs --selftest" },
 	// 浏览器验收本体在 CI 的 soak job 跑（需 Chrome）；**守卫逻辑的自证不需要 Chrome**，故进主链

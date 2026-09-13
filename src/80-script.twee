@@ -54,7 +54,10 @@ const SG_CODEX_KEY = 'sgstory.codex.v1';
 window.Sg.notes = {
 	// 单一路径求值器：笔记只声明 flagPath（如 'ev.tav_tips'），求值在此一处完成——
 	// 这样数据表里不出现任何字面旗标读点（否则会被「选择后果」门的消费推导算成叙事消费）。
+	// 多源 OR（#432-B8/B12）：flagPath 允许给**字符串数组** —— 同一知识的几条获取路径取 any
+	//（例：`world.hall_hint`（看钉失败听人比过）∨ `ev.hall_seen`（看钉成功看准了））。
 	readPath(pc, path) {
+		if (Array.isArray(path)) return path.some((q) => this.readPath(pc, q));
 		let cur = pc;
 		for (const seg of String(path ?? '').split('.')) { if (cur == null) return undefined; cur = cur[seg]; }
 		return cur;

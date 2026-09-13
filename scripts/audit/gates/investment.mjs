@@ -1,5 +1,7 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+// `#433` 阶段 2：条件可能写成 `Sg.notes.has('n_x')` ⇒ 判定「某选项引用了哪些旗标」必须认第二种形状
+import { noteReadFlags, noteIdsForFlag, conditionReadsFlag } from '../lib/shared.mjs';
 // flags=['investment']。校验：npm run audit:golden。
 export const flag = 'investment';
 export const flags = ["investment"];
@@ -9,13 +11,17 @@ export const run = (ctx) => {
 
 // ── ⓪t I1 投入—回报（#291）：G2 失败产出内容 / G4 立场被记住（行为门＋反例）＋ G1·G5·G6 只读报告 ──
 // G3：跨时代合龙门（独立核，跑一次真数据；不进 investmentProblems 以免污染其自证样本）
-function crossEraProblems() {
+// `input` 可注入（默认取真实来源 ⇒ 向后兼容），供自证用合成样本
+function crossEraProblems(input = {}) {
+	const sources = input.sources ?? passageSrc;
 	const problems = [], notes = [];
-	const dom = Game.Investment?.eraDomain ?? {};
+	const dom = input.domain ?? Game.Investment?.eraDomain ?? {};
+	const NOTES = input.notes ?? Game.Notes?.entries ?? {};
+	const NOTE_IDS = noteIdsForFlag(NOTES);
 	const past = new Set(dom.past ?? []), branch = new Set(dom.branch ?? []);
 	const flagPassages = new Map();
 	const note = (flag, p) => { if (!flagPassages.has(flag)) flagPassages.set(flag, new Set()); flagPassages.get(flag).add(p); };
-	for (const [name, src] of passageSrc) {
+	for (const [name, src] of sources) {
 		for (const m of src.matchAll(/<<setflag\s+"(\w+)"/g)) note(m[1], name);
 		for (const m of src.matchAll(/<<set\s+\$pc\.(?:world|ev)\.(\w+)\s+to\s+true/g)) note(m[1], name);
 	}
@@ -29,10 +35,12 @@ function crossEraProblems() {
 	};
 	const eraOf = (flag) => eraDecl[flag] ?? derive(flag);
 	const crossEra = [];
-	for (const [name, src] of passageSrc) {
+	for (const [name, src] of sources) {
 		for (const m of src.matchAll(/<<if([^>]*)>>((?:(?!<<\/if>>)[\s\S]){0,400}?)<<\/if>>/g)) {
 			if (!/<<link[^>]*>>/.test(m[2])) continue;
-			const flags = [...m[1].matchAll(/\$pc\.(?:world|ev)\.(\w+)/g)].map((x) => x[1]);
+			// 两种读点形状都算「引用了该旗标」：① 直接 `$pc.ev.flag`；② 经笔记 `Sg.notes.has('n_flag')`
+			// 两种读点形状一次扫出（按出现顺序）⇒ 报告文本与改写前逐字一致
+			const flags = noteReadFlags(m[1], NOTES);
 			if (flags.length < 2) continue;
 			const eras = new Set(flags.map(eraOf));
 			if (eras.has('past') && eras.has('present')) crossEra.push(`${name}（${flags.join('、')}）`);
@@ -41,7 +49,7 @@ function crossEraProblems() {
 	if (crossEra.length < 1) problems.push('G3 全仓找不到「跨时代合龙门」：没有任何选项同时引用过去与现在两侧旗标');
 	else notes.push(`G3 跨时代合龙门 ${crossEra.length} 处：${crossEra.slice(0, 3).join('；')}`);
 	for (const g of dom.crossEraGates ?? []) {
-		const src = passageSrc.get(g.p);
+		const src = sources.get(g.p);
 		if (!src) { problems.push(`G3 登记段落不存在：${g.p}`); continue; }
 		const at = src.indexOf(g.label);
 		if (at < 0) { problems.push(`G3 登记选项已不在「${g.p}」：${g.label}`); continue; }
@@ -49,11 +57,11 @@ function crossEraProblems() {
 		const ifs = [...slice.matchAll(/<<if([^>]*)>>/g)];
 		const cond = ifs.length ? ifs[ifs.length - 1][1] : '';
 		for (const f of g.pastFlags ?? []) {
-			if (!cond.includes(f)) problems.push(`G3 「${g.label}」条件里缺过去侧旗标 ${f}`);
+			if (!conditionReadsFlag(cond, f, NOTE_IDS.get(f) ?? [])) problems.push(`G3 「${g.label}」条件里缺过去侧旗标 ${f}`);
 			else if (eraOf(f) !== 'past') problems.push(`G3 旗标 ${f} 判定为 ${eraOf(f)}，声明为 past——与时代域表/声明不符`);
 		}
 		for (const f of g.presentFlags ?? []) {
-			if (!cond.includes(f)) problems.push(`G3 「${g.label}」条件里缺现在侧旗标 ${f}`);
+			if (!conditionReadsFlag(cond, f, NOTE_IDS.get(f) ?? [])) problems.push(`G3 「${g.label}」条件里缺现在侧旗标 ${f}`);
 			else if (eraOf(f) !== 'present') problems.push(`G3 旗标 ${f} 判定为 ${eraOf(f)}，声明为 present——与时代域表/声明不符`);
 		}
 	}
@@ -130,6 +138,28 @@ if (wantAll || arg('investment')) {
 			console.log(`      ${ok ? '✓' : '✗'} 自证·${label}：检出 ${hit}（期望${expect === 0 ? ' 0' : ' >0'}）`);
 		}
 		if (selfBad) bad += selfBad;
+		// G3 自证（#433 阶段 2）：跨时代门必须认「经笔记读」的旗标——否则转发后会被判成"找不到合龙门"（假红）
+		{
+			const SRC = new Map([
+				['过去片段', '<<set $pc.ev.p_flag to true>>'],
+				['现在片段', '<<set $pc.ev.q_flag to true>>'],
+				['选项甲', "<<if $pc.ev.p_flag and Sg.notes.has('n_q')>><<link \"跨\">>走<</link>><</if>>"],
+				['选项乙', "<<if $pc.ev.p_flag and $pc.ev.q_flag>><<link \"跨\">>走<</link>><</if>>"],
+			]);
+			const DOM = { past: ['过去片段'], branch: [], flagEra: {} };
+			const NOTES = { n_q: { flagPath: 'ev.q_flag' } };
+			const g3cases = [
+				['正例：现在侧旗标经笔记读 ⇒ 仍算跨时代合龙门', { sources: SRC, domain: DOM, notes: NOTES }, 0],
+				['正例：两侧都直接读（未转发的原形状）', { sources: new Map([...SRC, ['选项甲', SRC.get('选项乙')]]), domain: DOM, notes: NOTES }, 0],
+				['反例：只引用过去一侧 ⇒ 判"找不到合龙门"', { sources: new Map([['过去片段', SRC.get('过去片段')], ['选项甲', "<<if $pc.ev.p_flag>><<link \"单\">>走<</link>><</if>>"]]), domain: DOM, notes: NOTES }, 1],
+			];
+			for (const [label, input, expect] of g3cases) {
+				const hit = crossEraProblems(input).problems.length;
+				const ok = expect === 0 ? hit === 0 : hit > 0;
+				if (!ok) bad++;
+				console.log(`      ${ok ? '✓' : '✗'} 自证·${label}：检出 ${hit}（期望${expect === 0 ? ' 0' : ' >0'}）`);
+			}
+		}
 	}
 	// G1/G5/G6 只读报告（有意不 ratchet：数字入基线，等数据说话）
 	{

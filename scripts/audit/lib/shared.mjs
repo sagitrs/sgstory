@@ -101,7 +101,22 @@ export const conditionReadsFlag = (text, flag, noteIds = []) => {
 	if (new RegExp(`(?:world|ev)\\s*(?:\\.|\\[)?["']?${flag}\\b`).test(String(text ?? ''))) return true;
 	return noteIds.some((id) => new RegExp(`Sg\\.notes\\.(?:has|entry)\\(\\s*['"]${id}['"]`).test(String(text ?? '')));
 };
-export const noteReadFlags = (text, entries) => new Set(noteReadKeys(text, entries).map((k) => k.replace(/^(ev|world)\./, '')));
+// 条件文本里读到的旗标（**裸键，按出现顺序去重**）——两种形状一次扫完。
+// 为什么强调顺序：报告文本（如 `--investment` G3 的「老巫女（seer_asked、coord、failure_cause）」）
+// 直接印这串旗标 ⇒ 顺序稳定才能让「纯转发」的判据保持逐字一致（否则每转一处就要重签 golden 一行）。
+// 返回**数组**（与 `noteReadKeys()` 一致：Set 会被 `.concat()` 当成单个元素——踩过一次）。
+export const noteReadFlags = (text, entries) => {
+	const paths = notePaths(entries);
+	const ids = [...paths.keys()];
+	const alt = ids.length ? `|Sg\\.notes\\.(?:has|entry)\\(\\s*['"](${ids.map((i) => i.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})['"]` : '';
+	const re = new RegExp(`\\$pc\\.(?:world|ev)\\.([a-z_]\\w*)${alt}`, 'g');
+	const out = [], seen = new Set();
+	for (const m of String(text ?? '').matchAll(re)) {
+		const flags = m[1] ? [m[1]] : (paths.get(m[2]) ?? []).map((k) => k.replace(/^(ev|world)\./, ''));
+		for (const f of flags) if (!seen.has(f)) { seen.add(f); out.push(f); }
+	}
+	return out;
+};
 
 export const makeShared = (ctx) => {
 	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll } = ctx;

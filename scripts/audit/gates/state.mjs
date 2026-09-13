@@ -13,6 +13,7 @@
 //   `<<setflag "k">>` / `<<firstTime "k">>`（动态写入 `$pc.ev[k]` 并动态读回）· `$pc.ev["k"]`
 //   · 表内谓词 `(p) => p.world?.k`。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { qualifiedWriteKeys, keyCharsetViolations } from '../lib/shared.mjs';
 
 export const flag = 'state';
 export const flags = ['state'];
@@ -35,15 +36,16 @@ export const analyze = (sources) => {
 		for (const line of t.split('\n')) {
 			if (line.startsWith(':: ')) passage = line.slice(3).trim();
 			const site = `${f.split('/').pop()}:${passage}`;
+			// 写点形态取自**单一权威** `WRITE_PATTERNS`（#476 复核建议）；`$pc.ev['x']` 那一条是**读**
+			// （firstTime 的读侧），不属于写点，仍留在本门。
 			const writes = [
-				...[...line.matchAll(/\$pc\.(ev|world)\.([a-z_]\w*)\s+to\b/g)].map((m) => `${m[1]}.${m[2]}`),
-				...[...line.matchAll(/\bpc\.(ev|world)\.([a-z_]\w*)\s*=[^=]/g)].map((m) => `${m[1]}.${m[2]}`),
-				// setflag / firstTime 写的是 **world 域**（见 10-core 的 setflag widget）
-				...[...line.matchAll(/<<setflag "([a-z_]\w*)"/g)].map((m) => `world.${m[1]}`),
-				...[...line.matchAll(/<<firstTime "([a-z_]\w*)"/g)].map((m) => `ev.${m[1]}`),
+				...qualifiedWriteKeys(line),
 				...[...line.matchAll(/\$pc\.ev\[['"]([a-z_]\w*)['"]\]/g)].map((m) => `ev.${m[1]}`),
 			];
 			for (const k of writes) bump(k, 'w', site);
+			// #476 复核建议②：`[a-z_]\w*` 是上面写点正则的**隐含前提** —— 不满足（大写/数字/特殊字符开头）
+			// 会被**静默漏检**（既不算写点、也不进 `--state` 的账）。⇒ 把这个前提变成判据。
+			for (const k of keyCharsetViolations(line)) problems.push({ kind: 'key-charset', key: k, detail: `键名不匹配 [a-z_]\w* —— 写点正则会静默漏检它（要么改名，要么放宽 WRITE_PATTERNS 并同步 state.mjs）` });
 			// firstTime 是「读一次再写」——记成动态读，避免误判「只有写」
 			// firstTime 读的是 **ev 域**（其 widget 写/读 `$pc.ev[$args[0]]`）——此前写成裸键名，
 			// 导致 nsMismatch 报出「读的是 tav_seen.tav_seen」这种自指假阳性。

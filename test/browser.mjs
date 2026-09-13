@@ -1,5 +1,5 @@
 
-import { defaultStoryHtml } from '../scripts/dist-paths.mjs';
+import { defaultStoryHtml, storyRelPath, FONT_PREFIX_FROM_STORY } from '../scripts/dist-paths.mjs';
 // #263（#185 阶段五）真实浏览器验收：零依赖 CDP 驱动（Node 22 内建 fetch + WebSocket）
 //
 // 为什么不用 puppeteer/playwright：本仓只需「导航 + 求值 + 截图 + 视口」四件事，
@@ -213,17 +213,28 @@ const setViewport = async (w, h) => {
 const loadFresh = async () => {
 	// 每次重载前清掉自动存档：视口之间不串状态（否则上一轮的旗标/血量会污染判定）
 	await ev('try{localStorage.clear()}catch(e){}');
-	await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/index.html` });
+	// #441 β2：根路径 `index.html` 已是**书架页** ⇒ 必须按 storyRelPath() 进故事页。
+	// 这里加一道守卫：万一又跑到别的产物上，**立即 bail**而不是让后面 38 条断言"合理地"全红
+	// （那类失败看起来像布局回归，实际是"测试跑错了产物"——本仓最贵的一种假红）。
+	await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/${storyRelPath()}` });
 	for (let i = 0; i < 40; i++) {
 		await sleep(250);
 		const ok = await ev('!!(window.SugarCube && SugarCube.State && SugarCube.State.passage)').catch(() => false);
 		if (ok) break;
 	}
+	// #441 β2 守卫（放在就绪等待**之后**：navigate 后立刻查会误报——页面还没解析完）：
+	// 万一又跑到书架页/别的产物上，**立即 bail**，而不是让后面 38 条断言"合理地"全红
+	// （那类失败看起来像布局回归，实际是"测试跑错了产物"——本仓最贵的一种假红）。
+	{
+		const ok = await ev('!!document.getElementById("font-face") && !!document.getElementById("passages")');
+		if (!ok) bail(`导航到的不是故事页（期望 ${storyRelPath()}）——是不是又跑到书架页/别的产物上了？`);
+	}
 	await ev(HELPERS);
 	// #363：**字体必须真的加载**（此前服务器把所有路径都回 HTML → 验收跑在兜底字体上）。
 	// 断言两件事：① 两个 woff2 由服务器按 font/* MIME 提供（且不是 HTML 兜底）；② 页面的字体族确实来自该文件。
 	const fontProbe = await ev(`(async () => {
-		const files = ['fonts/LXGWWenKai-Regular.woff2', 'fonts/LXGWWenKai-Medium.woff2'];
+		// 两层上溯：故事页在 dist/stories/<slug>/ ⇒ 由 dist-paths 的常量插值进来（外层模板字面量里不能再写反引号）
+		const files = ['Regular', 'Medium'].map((w) => '${FONT_PREFIX_FROM_STORY}LXGWWenKai-' + w + '.woff2');
 		const out = [];
 		for (const f of files) {
 			const r = await fetch(f);

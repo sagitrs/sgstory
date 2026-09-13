@@ -37,6 +37,9 @@ export const shelfHtml = () => join(DIST_DIR, 'index.html');
 /** 默认故事的产物（消费者要"游戏本体"时用它；**不是** `dist/index.html`——那是书架页）。 */
 export const defaultStoryHtml = () => storyHtml(DEFAULT_SLUG);
 
+/** 故事产物**相对 dist 根**的路径（服务器/URL 用；#363 的验收服务器与 ci 的线上冒烟都按这个形状取）。 */
+export const storyRelPath = (slug = DEFAULT_SLUG) => `stories/${slug}/index.html`;
+
 /** 字体目录是**共享根路径**（`dist/fonts/`）：故事页用 `../../fonts/`，根页用 `fonts/`。 */
 export const FONT_PREFIX_FROM_ROOT = 'fonts/';
 export const FONT_PREFIX_FROM_STORY = '../../fonts/';

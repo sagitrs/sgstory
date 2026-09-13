@@ -3,6 +3,7 @@ import { execSync } from 'node:child_process';
 import { ORDER } from './scripts/module-order.mjs';
 
 const SRC = 'src';
+const STORIES = 'stories';
 const OUT = 'dist/index.html';
 
 mkdirSync('build', { recursive: true });
@@ -24,7 +25,30 @@ if (files.length === 0) {
 		process.exit(1);
 	}
 }
-const filesOrdered = ORDER;
+// ── #441 第 1 步（切片①）：**故事清单**是"哪些文件属于这个故事"的权威 ──────────
+// 加载顺序仍是 `scripts/module-order.mjs` 的 ORDER（清单不表达顺序，只表达归属）。
+// 本步输出路径与产物**保持不变**（多故事输出、书架页、命名空间隔离见切片③④⑤）。
+const storyDirs = existsSync(STORIES) ? readdirSync(STORIES).filter((d) => existsSync(`${STORIES}/${d}/00-story.json`)) : [];
+if (storyDirs.length === 0) {
+	console.error(`✗ ${STORIES}/ 下没有找到故事清单（需 <slug>/00-story.json）`);
+	process.exit(1);
+}
+const storyDir = storyDirs[0];                     // 切片①只构建第一个故事（多故事见切片③）
+const story = JSON.parse(readFileSync(`${STORIES}/${storyDir}/00-story.json`, 'utf8'));
+const manifest = story.files ?? [];
+{
+	const notOnDisk = manifest.filter((f) => !existsSync(`${SRC}/${f}`));
+	if (notOnDisk.length) { console.error(`✗ 故事清单 ${storyDir} 列出的文件不存在：${notOnDisk.join(', ')}`); process.exit(1); }
+	const onlyInManifest = manifest.filter((f) => !ORDER.includes(f));
+	const onlyInOrder = ORDER.filter((f) => !manifest.includes(f));
+	if (onlyInManifest.length || onlyInOrder.length) {
+		if (onlyInManifest.length) console.error(`✗ 这些文件在故事清单里但不在 ORDER（无法确定加载顺序）：${onlyInManifest.join(', ')}`);
+		if (onlyInOrder.length) console.error(`✗ 这些文件在 ORDER 里但不属于本故事清单：${onlyInOrder.join(', ')}`);
+		process.exit(1);
+	}
+}
+// 合并顺序仍由 ORDER 决定（清单只筛归属）⇒ 产物与改动前逐字节等价
+const filesOrdered = ORDER.filter((f) => manifest.includes(f));
 const merged = filesOrdered.map((f) => readFileSync(`${SRC}/${f}`, 'utf8').trimEnd()).join('\n\n') + '\n';
 writeFileSync('build/game.twee', merged, 'utf8');
 

@@ -81,6 +81,27 @@ export const noteReadKeys = (text, entries) => {
 	return [...out];
 };
 // 文本里**经笔记**读到的裸键（D2 按裸键判）
+// ── 笔记**写点**（`#434` 阶段 3）：`Sg.notes.add('n_x')` 写的是该笔记 `flagPath` 里的键 ──────────
+// 与读点（`noteReadKeys`）并列，仍是**单一权威**。为什么需要它：写点从「字面量写旗标」改成
+// 「经 `Sg.notes.add` 写」之后，按**字面量**认写点的门（`--state` 的"有写有读"、D2 的桶分类）
+// 会把该键判成**只有读** ⇒ 假红。（阶段 2 的 5 个消费点就是这个剧本，那次换的是**读**点形状。）
+export const NOTE_WRITE_RE = /Sg\.notes\.add\(\s*['"](n_[a-z0-9_]+)['"]/g;
+/** 文本里 `Sg.notes.add('n_x')` 引用的笔记 id。 */
+export const noteWriteRefs = (text) => {
+	const out = new Set();
+	for (const m of String(text ?? '').matchAll(NOTE_WRITE_RE)) out.add(m[1]);
+	return [...out];
+};
+/** 经 `Sg.notes.add()` 写到的**限定键**（`ev.x`/`world.x`）。 */
+export const noteWriteKeys = (text, entries) => {
+	const paths = notePaths(entries);
+	const out = new Set();
+	for (const id of noteWriteRefs(text)) for (const p of (paths.get(id) ?? [])) out.add(p);
+	return [...out];
+};
+/** 同上，返回**裸键**（D2 按裸键判）。 */
+export const noteWriteFlags = (text, entries) => noteWriteKeys(text, entries).map((k) => k.replace(/^(ev|world)\./, ''));
+
 // 旗标（裸键）→ 引用它的笔记 id 数组（`#433`：门按旗标判"谁读了它"时要用）
 export const noteIdsForFlag = (entries) => {
 	const M = new Map();
@@ -150,7 +171,8 @@ export const makeShared = (ctx) => {
 		const written = new Set();
 		for (const src of stripped.values()) {
 			// 写点形态来自**单一权威** `WRITE_PATTERNS`（#476 复核建议：两处字面量曾漂移过一次）
-			for (const k of writeKeys(src)) written.add(k);
+			// ＋ #434 的笔记写点（`Sg.notes.add('n_x')` ⇒ 该笔记 flagPath 的裸键也算被写）
+			for (const k of [...writeKeys(src), ...noteWriteFlags(src, noteEntries)]) written.add(k);
 		}
 		const E = Echoes;
 		const echoFlags = new Set([...E.list.flatMap((e) => [e.cause.flag, e.cause.token]), ...E.revisit.flatMap((r) => [r.flag, r.inv])].filter(Boolean));

@@ -850,6 +850,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 			banquet_over: '宴散留痕（复访文案由 ritual_seen 驱动，本旗仅作记账）',
 		},
 		engine: {
+			notes: '#434 阶段 3：笔记的"已授予"真存储（`pc.ev.notes.<noteId>`）。**消费方是引擎侧** `Sg.notes.has()`（`stored ∨ 旗标`）⇒ 正文条件走的是 `<<if Sg.notes.has(…)>>`，故它不是"无正文消费"，而是**引擎态**：在此登记声明，实况与声明一致即可。',
 			last_roll: '骰面快照（<<lastcheck>>/<<lastcheckFor>> 复显用）',
 			last_result: '结果槽暂存位（#270 通用留屏）',
 			soc_lever: '已摆出的优势筹码（#360：只给 adv，不完成诉求；随下一次手段掷骰消费后清空）',
@@ -933,6 +934,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 			{ id: 'seer', where: '观星者与星图', prefix: ['seer_'], keys: ['coord', 'star_ledger', 'star_short'], note: '问过什么、给过什么、星账与坐标' },
 			{ id: 'banquet', where: '过去的宴会与仪式', prefix: ['banquet_', 'staff_', 'ritual_'], keys: ['family_favor', 'old_witch'], note: '入场、藏杖、仪式所见、人情与老巫女' },
 			{ id: 'dragon', where: '龙与送行/封印', prefix: ['fight_', 'hoard_', 'whistle_', 'scroll_', 'delivery_', 'failure_', 'observation_', 'fog_', 'letter_'], keys: ['ending', 'fight'], note: '战斗台账、龙巢、哨、卷轴交付、真相锚与观测锁' },
+			{ id: 'notes', where: '笔记（知识的"已授予"真存储）', keys: ['notes'], note: '#434 阶段 3：`pc.ev.notes.<noteId>` 记录已授予（读侧 `Sg.notes.has` ＝ 本存储 ∨ 旗标 ⇒ 旧档不丢；写侧 `Sg.notes.add` 双写旗标）' },
 			{ id: 'runtime', where: '运行时/界面态（非剧情状态）', keys: ['last_result', 'last_roll', 'soc', 'soc_last', 'soc_lever'], note: '结果槽、骰面快照、交涉面板的瞬态（含 #360 已摆出的优势筹码）' },
 		],
 		// 「仅记账」键：写下来只为登记（出处/复访记账），**没有行为消费者**——消费者就是本表本身。

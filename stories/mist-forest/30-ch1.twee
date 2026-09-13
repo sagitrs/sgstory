@@ -116,22 +116,22 @@
 	<summary>找人打听<span class="act-n" aria-hidden="true"></span></summary>
 	<div class="tavern-tables">
 <<if not Sg.notes.has('n_tav_keeper')>>
-	<<link "讲守林人的那一桌">><<set $pc.ev.tav_keeper to true>><<goto "酒馆">><</link>>
+	<<link "讲守林人的那一桌">><<run Sg.notes.add('n_tav_keeper')>><<goto "酒馆">><</link>>
 <</if>>
 <<if not Sg.notes.has('n_tav_dragon')>>
-	<<link "上了年纪的村人">><<set $pc.ev.tav_dragon to true>><<goto "酒馆">><</link>>
+	<<link "上了年纪的村人">><<run Sg.notes.add('n_tav_dragon')>><<goto "酒馆">><</link>>
 <</if>>
 <<if not Sg.notes.has('n_tav_grudge')>>
-	<<link "跑生意的">><<set $pc.ev.tav_grudge to true>><<goto "酒馆">><</link>>
+	<<link "跑生意的">><<run Sg.notes.add('n_tav_grudge')>><<goto "酒馆">><</link>>
 <</if>>
 <<if not Sg.notes.has('n_tav_ageless')>>
-	<<link "接嘴的那个人">><<set $pc.ev.tav_ageless to true>><<goto "酒馆">><</link>>
+	<<link "接嘴的那个人">><<run Sg.notes.add('n_tav_ageless')>><<goto "酒馆">><</link>>
 <</if>>
 <<if not Sg.notes.has('n_tav_flower')>>
-	<<link "背着画板的游客——他在问月光花">><<set $pc.ev.tav_flower to true>><<goto "酒馆">><</link>>
+	<<link "背着画板的游客——他在问月光花">><<run Sg.notes.add('n_tav_flower')>><<goto "酒馆">><</link>>
 <</if>>
 <<if not Sg.notes.has('n_tav_painting')>>
-	<<link "墙上那幅旧画">><<set $pc.ev.tav_painting to true>><<goto "酒馆">><</link>>
+	<<link "墙上那幅旧画">><<run Sg.notes.add('n_tav_painting')>><<goto "酒馆">><</link>>
 <</if>>
 </div>
 </details>
@@ -139,7 +139,7 @@
 	<summary>柜台：打听与添置<span class="act-n" aria-hidden="true"></span></summary>
 	<<if not Sg.notes.has('n_rumor') and $pc.gold gte (-Game.Economy.priceOf("rumor_buy", $pc))>>
 	<<link `"花 " + (-Game.Economy.priceOf("rumor_buy", $pc)) + " 金币：请他讲讲洞里的路"`>>
-		<<econ "rumor_buy">><<setflag "rumor">><<goto "酒馆">>
+		<<econ "rumor_buy">><<run Sg.notes.add('n_rumor')>><<goto "酒馆">>
 	<</link>>
 <<else>>
 	（老猎人的牛皮里混着真话：''第三块板子是脆的''。）
@@ -370,25 +370,25 @@
 	<summary>向她打听<span class="act-n" aria-hidden="true"></span></summary>
 	<div class="tavern-tables">
 <<if not Sg.notes.has('n_wq_painting')>>
-	<<link "问：你们家与那座塔有什么渊源">><<set $pc.ev.wq_painting to true>><<goto "女巫小屋">><</link>>
+	<<link "问：你们家与那座塔有什么渊源">><<run Sg.notes.add('n_wq_painting')>><<goto "女巫小屋">><</link>>
 <</if>>
 <<if not Sg.notes.has('n_wq_night')>>
-	<<link "问：三百年前那一夜，发生过什么">><<set $pc.ev.wq_night to true>><<goto "女巫小屋">><</link>>
+	<<link "问：三百年前那一夜，发生过什么">><<run Sg.notes.add('n_wq_night')>><<goto "女巫小屋">><</link>>
 <</if>>
 <<if not Sg.notes.has('n_wq_fog')>>
-	<<link "问：雾到底是什么">><<set $pc.ev.wq_fog to true>><<goto "女巫小屋">><</link>>
+	<<link "问：雾到底是什么">><<run Sg.notes.add('n_wq_fog')>><<goto "女巫小屋">><</link>>
 <</if>>
 <<if not Sg.notes.has('n_wq_talisman')>>
-	<<link "问：这护符到底怎么用">><<set $pc.ev.wq_talisman to true>><<goto "女巫小屋">><</link>>
+	<<link "问：这护符到底怎么用">><<run Sg.notes.add('n_wq_talisman')>><<goto "女巫小屋">><</link>>
 <</if>>
 <<if not Sg.notes.has('n_wq_under')>>
-	<<link "问：塔底下锁着的到底是什么">><<set $pc.ev.wq_under to true>><<goto "女巫小屋">><</link>>
+	<<link "问：塔底下锁着的到底是什么">><<run Sg.notes.add('n_wq_under')>><<goto "女巫小屋">><</link>>
 <</if>>
 <<if not Sg.notes.has('n_wq_past')>>
-	<<link "问：你就这么看着，什么也不做？">><<set $pc.ev.wq_past to true>><<goto "女巫小屋">><</link>>
+	<<link "问：你就这么看着，什么也不做？">><<run Sg.notes.add('n_wq_past')>><<goto "女巫小屋">><</link>>
 <</if>>
 <<if not Sg.notes.has('n_wq_alone')>>
-	<<link "问：我一个人上去，够吗">><<set $pc.ev.wq_alone to true>><<goto "女巫小屋">><</link>>
+	<<link "问：我一个人上去，够吗">><<run Sg.notes.add('n_wq_alone')>><<goto "女巫小屋">><</link>>
 <</if>>
 </div>
 </details>
@@ -397,7 +397,7 @@
 	<summary>柜台：问门道与药膏<span class="act-n" aria-hidden="true"></span></summary>
 	<<if not Sg.notes.has('n_witch_hint') and $pc.gold gte (-Game.Economy.priceOf("witch_hint", $pc))>>
 	<<link `"花 " + (-Game.Economy.priceOf("witch_hint", $pc)) + " 金币：问塔里的门道"`>>
-		<<econ "witch_hint">><<setflag "witch_hint">><<goto "女巫小屋">>
+		<<econ "witch_hint">><<run Sg.notes.add('n_witch_hint')>><<goto "女巫小屋">>
 	<</link>>
 <<else>>
 	<span class="sys-note">（她画给你看：''炉膛后头那个暗格''。位置分毫不差。''家里记了一百年的东西，不会有错。这条会在塔里的书房帮到你。''）</span>
@@ -491,7 +491,7 @@
 
 你顺着看过去，才注意到塔顶那一点光。她不再说了，把衣服按回水里。
 
-<<set $pc.ev.tav_light to true>>
+<<run Sg.notes.add('n_tav_light')>>
 
 她的原话你记下了：''"我爷爷的爷爷见过塔上亮着灯。三百年了，那灯没灭过。"''说完她自己笑了笑，也不知道信不信。
 
@@ -506,7 +506,7 @@
 
 牌子底下压着几根烧过的火把梗，浸透了又干透，弯成钩状。泥地上的靴印深的深浅的浅，全都朝着同一个方向。
 
-<<set $pc.ev.tav_iron to true>>
+<<run Sg.notes.add('n_tav_iron')>>
 
 [[退回林子|森林边缘]]
 
@@ -522,6 +522,6 @@
 
 他又把烟斗塞回去，闭上眼。再问，他就只剩抽烟的声音了。
 
-<<set $pc.ev.tav_seal to true>>
+<<run Sg.notes.add('n_tav_seal')>>
 
 [[回到林子边缘|森林边缘]]

@@ -122,6 +122,8 @@ export const SEGMENTS = [
 	{ id: "scripts-report-selftest-validity-mjs", phase: 'test', cost: 0.2, cmd: "node scripts/report-selftest-validity.mjs" },
 	// #459／#482：故事「新机制声明表」的形状门（六条可机检点 · 各带正反自证）
 	{ id: "test-story-shape-mjs", phase: 'test', cost: 0.1, cmd: "node test/story-shape.mjs" },
+	// #434 阶段 3：`Sg.notes.add()` 的行为门（幂等 · 双写 · 双读 · 多源 setPath 护栏）
+	{ id: "test-notes-write-mjs", phase: 'test', cost: 0.2, cmd: "node test/notes-write.mjs" },
 ];
 
 // ── 门的**两层化**（#436-a）：引擎门 / 故事门 ──────────────────────────────

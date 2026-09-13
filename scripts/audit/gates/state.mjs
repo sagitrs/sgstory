@@ -13,7 +13,7 @@
 //   `<<setflag "k">>` / `<<firstTime "k">>`（动态写入 `$pc.ev[k]` 并动态读回）· `$pc.ev["k"]`
 //   · 表内谓词 `(p) => p.world?.k`。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { qualifiedWriteKeys, keyCharsetViolations, readKeys, noteReadKeys } from '../lib/shared.mjs';
+import { qualifiedWriteKeys, keyCharsetViolations, readKeys, noteReadKeys, noteWriteKeys } from '../lib/shared.mjs';
 
 export const flag = 'state';
 export const flags = ['state'];
@@ -109,6 +109,8 @@ export const analyze = (sources, { notes } = {}) => {
 			// （firstTime 的读侧），不属于写点，仍留在本门。
 			const writes = [
 				...qualifiedWriteKeys(line),
+				// #434：写点新增一种形状 —— `Sg.notes.add('n_x')` 写的是该笔记 `flagPath` 的键
+				...noteWriteKeys(line, notes),
 				...[...line.matchAll(/\$pc\.ev\[['"]([a-z_]\w*)['"]\]/g)].map((m) => `ev.${m[1]}`),
 			];
 			for (const k of writes) bump(k, 'w', site);
@@ -208,6 +210,8 @@ export const run = (ctx) => {
 		['键名不匹配 `[a-z_]\\w*` → 检出，且 `analyze()` **不崩**（#476 遗留地雷）', analyze({ 'a.twee': ':: P\npc.ev.BadKey = true' }), D, 1, 'charset'],
 		// #433 阶段 2：读点换了写法（`Sg.notes.has`）但「读了什么」不该消失
 		['经笔记的读（`Sg.notes.has`）也算读 ⇒ 不再是"只有写"', null, D, 0, 'noteRead'],
+		// #434 阶段 3：写点换了写法（`Sg.notes.add`）但「写了什么」不该消失 —— 未读时必须报"只有写"
+		['经笔记的写（`Sg.notes.add`）也算写 ⇒ 未读时必报"只有写"', null, D, 1, 'noteWrite'],
 	];
 	let selfBad = 0;
 	for (const [label, keys, dm, expect, kind] of selfCases) {
@@ -215,6 +219,7 @@ export const run = (ctx) => {
 			kind === 'ns' ? nsMismatch(keys).length
 			: kind === 'charset' ? charsetViolations({ 'a.twee': ':: P\npc.ev.BadKey = true' }).length
 			: kind === 'noteRead' ? check(analyze({ 'a.twee': ':: P\n<<set $pc.ev.tav_x to true>>\n<<if Sg.notes.has(\'n_x\')>>y<</if>>' }, { notes: { n_x: { flagPath: 'ev.tav_x' } } }), dm).length
+			: kind === 'noteWrite' ? check(analyze({ 'a.twee': ":: P\n<<run Sg.notes.add('n_x')>>" }, { notes: { n_x: { flagPath: 'ev.tav_x' } } }), dm).length
 			: kind === 'dynamic-undeclared' ? checkDynamic(dynamicSites({ 's.twee': ':: P\n<<firstTime `"cellar_" + $era`>>' }), []).length
 			: kind === 'dynamic-covered' ? checkDynamic(dynamicSites({ 's.twee': ':: P\n<<firstTime `"cellar_" + $era`>>' }), [{ prefix: 'cellar_', via: 'firstTime', values: ['past'] }]).length
 			: kind === 'dynamic-stale' ? checkDynamic([], [{ prefix: 'gone_', via: 'firstTime', values: ['past'] }]).length

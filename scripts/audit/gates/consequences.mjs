@@ -31,6 +31,8 @@ if (wantAll || arg('consequences')) {
 		['反例保护：`pc.ev.a == 1`（比较，不是赋值）**不算写入**',
 			(() => { const r = classifyNarrativeState({ passageSrc: new Map([['P', 'if (pc.ev.a == 1) {}']]), passageTags: new Map() }); return !r.written.has('a'); })()],
 		['`/% %/` 注释里的 `<<firstTime "b">>` **不算写入**（剥注释边界）', (() => { const r = classifyNarrativeState({ passageSrc: new Map([['P', '/% <<firstTime "b">> %/']]), passageTags: new Map() }); return !r.written.has('b'); })()],
+			// #434 阶段 3：经 `Sg.notes.add('n_a')` 写的旗标**也要算写入**（写点换了形状）
+			['经 `Sg.notes.add` 写的旗标算写入（裸键 a）', (() => { const r = classifyNarrativeState({ passageSrc: new Map([['P', "Sg.notes.add('n_a')"]]), passageTags: new Map(), notes: { n_a: { flagPath: 'ev.a' } } }); return r.written.has('a'); })()],
 			['结局段落里读 ⇒ ending 桶（isEnding 边界）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['结局·某', '<<if $pc.ev.a>>x<</if>>']] })); return r.buckets.get('a') === 'ending'; })()],
 		];
 		for (const [label, ok] of cases) { if (!ok) bad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }

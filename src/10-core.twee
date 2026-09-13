@@ -247,7 +247,7 @@ Macro.add('dragonbar', {
 	skipArgs: true,
 	handler() {
 		const pc = Game.Pc.now();
-		const hp = Math.max(0, pc.dragon?.hp ?? 0), max = window.Game?.Dragon?.hp ?? 1;
+		const hp = Math.max(0, pc.dragon?.hp ?? 0), max = Sg.story.dragonMaxHp();   // #441-E：故事数据经契约取（引擎不再直读 Game.Dragon）
 		const pct = Math.round((hp / max) * 100);
 		jQuery(this.output).append(
 			`<div class="hpbar"><div class="hpbar-fill" style="width:${pct}%;background:#7a4a8f"></div>` +
@@ -428,7 +428,7 @@ Macro.add('dragonbar', {
 	<div class="fight-acts">
 		''这一轮你能做的：''
 		<<if _f.offer.length gt 0>>
-			<<link `Game.Combat.actions[_f.offer[0]].label`>>
+			<<link `Sg.story.actionLabel(_f.offer[0])`>>
 				<<set _orig to passage()>>
 				<<run Game.Combat.chooseAction($pc, 0)>>
 				<<fightact $args[0] $args[1]>>
@@ -438,7 +438,7 @@ Macro.add('dragonbar', {
 			<span class="fight-meta">（<<print Game.Combat.siteInfo(_f.offer[0])>>）</span>
 		<</if>>
 		<<if _f.offer.length gt 1>>
-			<<link `Game.Combat.actions[_f.offer[1]].label`>>
+			<<link `Sg.story.actionLabel(_f.offer[1])`>>
 				<<set _orig to passage()>>
 				/% #350/#357：结算在点击时完成；**死透就不再归位**——<<damage>> 已跳「结局 死亡」，再 goto 会把它覆盖掉。用**存活条件**判，不依赖 widget 里的 passage() %/
 				<<run Game.Combat.chooseAction($pc, 1)>>
@@ -448,7 +448,7 @@ Macro.add('dragonbar', {
 			<span class="fight-meta">（<<print Game.Combat.siteInfo(_f.offer[1])>>）</span>
 		<</if>>
 		<<if _f.offer.length gt 2>>
-			<<link `Game.Combat.actions[_f.offer[2]].label`>>
+			<<link `Sg.story.actionLabel(_f.offer[2])`>>
 				<<set _orig to passage()>>
 				/% #350/#357：结算在点击时完成；**死透就不再归位**——<<damage>> 已跳「结局 死亡」，再 goto 会把它覆盖掉。用**存活条件**判，不依赖 widget 里的 passage() %/
 				<<run Game.Combat.chooseAction($pc, 2)>>

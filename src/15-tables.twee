@@ -1261,4 +1261,16 @@ Object.assign((window.Sg.story ??= {}), {
 	notes: () => window.Game?.Notes?.entries ?? {},
 	// 条件表（阶段 4）：占位；`#435` 落地后改为读它自己的表（名字由 `#435` 定）
 	rules: () => [],
+	// #441-E：引擎需要的**故事数据入口**（结构缺失 ⇒ **报错**，不许静默 0/空 —— 那会让引擎带着错数据跑）
+	// 这两个入口是为“引擎文件不得直读故事表”那条层间 lint（#459）立的；故事换实现时只改这里。
+	dragonMaxHp: () => {
+		const v = window.Game?.Dragon?.hp;
+		if (typeof v !== 'number') throw new Error('Sg.story.dragonMaxHp：故事未提供 Game.Dragon.hp（结构缺失必须报错，#441-E）');
+		return v;
+	},
+	actionLabel: (id) => {
+		const a = window.Game?.Combat?.actions?.[id];
+		if (!a || typeof a.label !== 'string' || !a.label) throw new Error(`Sg.story.actionLabel：动作「${id}」未登记或缺 label（结构缺失必须报错，#441-E）`);
+		return a.label;
+	},
 });

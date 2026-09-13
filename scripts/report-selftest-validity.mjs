@@ -73,14 +73,18 @@ export const selftestExitFindings = (src) => {
 	if (!raw.includes('自证·')) return [];
 	const code = stripForScan(raw);
 	const counters = new Set([...code.matchAll(/(?<![\w$.])([A-Za-z_$][\w$]*)\s*(?:\+\+|\+=)/g)].map((m) => m[1]));
-	const lines = code.split('\n');
+	// **实现要点（第三次尝试，前两次都错在这）**：不要解析"语句体"——“从退出点向前找最近的 `if`，
+	// 用字符级配平取出它的条件”既简单又够用；退出点与条件之间隔着 `{`、`console.error(...)` 都不影响。
 	const guarded = new Set();
-	for (let i = 0; i < lines.length; i++) {
-		if (!/process\.exit\(\s*1\s*\)/.test(lines[i])) continue;
-		for (let j = Math.max(0, i - 4); j <= i; j++) {
-			const ifm = lines[j].match(/\bif\s*\(([^)]*)\)/);
-			if (ifm) for (const id of idents(ifm[1])) guarded.add(id);
-		}
+	for (const em of code.matchAll(/process\.exit\(\s*1\s*\)/g)) {
+		const before = code.slice(0, em.index);
+		const ifs = [...before.matchAll(/\bif\b/g)];
+		if (!ifs.length) continue;
+		const paren = code.indexOf('(', ifs[ifs.length - 1].index);
+		if (paren === -1 || paren > em.index) continue;
+		let depth = 0, i = paren;
+		for (; i < code.length; i++) { if (code[i] === '(') depth++; else if (code[i] === ')') { depth--; if (depth === 0) break; } }
+		for (const id of idents(code.slice(paren + 1, i))) guarded.add(id);
 	}
 	// 「自证块里的计数器」＝文件里被增量的计数器；只要**其中任一**进了退出码守卫即可
 	return [...counters].some((c) => guarded.has(c)) ? [] : [{ kind: 'selftest-cannot-fail', counters: [...counters] }];

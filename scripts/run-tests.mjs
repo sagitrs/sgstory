@@ -16,12 +16,14 @@
 //   node scripts/run-tests.mjs --serial        # 串行，与旧链等价（排查/对照用）
 //   node scripts/run-tests.mjs --jobs=2        # 自定义并发
 //   node scripts/run-tests.mjs --only=scenarios --only=t-reread   # 只跑匹配的段（可多次）
+//   node scripts/run-tests.mjs --engine-only   # **只跑引擎门**（＋构建/构建期 lint/产物守卫）——#436-a
+//   node scripts/run-tests.mjs --story-only    # 只跑故事门（排查"是不是本故事的判据在红"）
 //   node scripts/run-tests.mjs --list          # 只列计划
 //   node scripts/run-tests.mjs --selftest      # 跑器自身的自证（不跑真计划）
 
 import { spawn } from 'node:child_process';
 import { cpus } from 'node:os';
-import { testPlan } from './test-plan.mjs';
+import { testPlan, segmentLayer, validateLayers } from './test-plan.mjs';
 
 const argv = process.argv.slice(2);
 const has = (k) => argv.includes(`--${k}`);
@@ -167,6 +169,18 @@ const selftest = async ({ quiet = false } = {}) => {
 	const cyc = await runPlan([{ id: 'p', needs: ['q'], cmd: 'node -e "1"' }, { id: 'q', needs: ['p'], cmd: 'node -e "1"' }], { jobs: 1 });
 	t('needs 成环 → 起跑前报错', Array.isArray(cyc.error) && /成环/.test(cyc.error.join('')));
 
+	// #436-a：门的分层（--engine-only/--story-only 的口径）——层表必须与计划**恰好对齐**、
+	// 引擎集合非空且两不交（空选择／歧义都会让"第二故事只跑引擎门"这条出口判据失真）
+	{
+		const plan = testPlan();
+		const probs = validateLayers(plan);
+		t('计划分层表自洽（无未归层/无僵尸声明/无歧义）', probs.length === 0);
+		const eng = plan.filter((s) => segmentLayer(s) === 'engine');
+		const sto = plan.filter((s) => segmentLayer(s) === 'story');
+		t('引擎门集合非空且与故事门不交（并集＝全计划）', eng.length > 0 && sto.length > 0 && eng.length + sto.length === plan.length);
+		t('引擎门里含 build ＋ 5 道引擎门（--state/--literals/--sitedisc/--text/--consequences）',
+			eng.some((s) => s.phase === 'build') && ['state', 'literals', 'sitedisc', 'text', 'consequences'].every((f) => eng.some((s) => s.cmd.includes(`--${f} --check`))));
+	}
 	if (bad) { console.error(`\n✗ 跑器自证失败 ${bad} 项`); process.exit(1); }
 	if (!quiet) console.log('\n✔ 跑器自证通过：成功/失败识别、失败输出不吞、并行真的重叠、setup 红即中止、needs 前置/级联跳过/配错报错');
 	else console.log('✓ 跑器自证通过（成功/失败识别 · 输出不吞 · 并行真重叠 · setup 红即中止 · needs 语义）');
@@ -179,9 +193,19 @@ if (!has('no-selftest')) await selftest({ quiet: true });
 
 // ── CLI ─────────────────────────────────────────────────────────────
 const plan0 = testPlan();
+// ── 层过滤（#436-a）：`--engine-only` 用于「第二故事能不能接」的出口判据（故事门会判红本故事以外的东西）
+//    放在 `--list` **之前** ⇒ `--list --engine-only` 可以预览选择结果
+const layerWant = has('engine-only') ? 'engine' : has('story-only') ? 'story' : null;
+if (layerWant) {
+	// 层表自检（新增门忘了归层 ⇒ 起跑前就报，别跑到一半才发现选择口径不完整）
+	const layerProblems = validateLayers(plan0);
+	if (layerProblems.length) { console.error(`✗ 门的分层表有问题（--${layerWant}-only 依赖它）：\n  ${layerProblems.join('\n  ')}`); process.exit(2); }
+}
+const layerSel = layerWant ? plan0.filter((s) => segmentLayer(s) === layerWant) : null;
 if (has('list')) {
-	console.log(`计划 ${plan0.length} 段（串行实测合计 ${sec(plan0.reduce((a, s) => a + s.cost, 0) * 1000)}）：`);
-	for (const s of plan0) console.log(`  ${s.phase === 'build' ? '[build]' : '       '} ${s.id}${s.needs ? `  (needs: ${s.needs.join(', ')})` : ''}  ${s.cmd}`);
+	const shown = layerSel ?? plan0;
+	console.log(`计划 ${shown.length} 段${layerWant ? `（--${layerWant}-only 从 ${plan0.length} 段里选出）` : ''}（串行实测合计 ${sec(shown.reduce((a, s) => a + s.cost, 0) * 1000)}）：`);
+	for (const s of shown) console.log(`  ${s.phase === 'build' ? '[build]' : '       '} ${s.id}${s.needs ? `  (needs: ${s.needs.join(', ')})` : ''}  ${s.cmd}`);
 	process.exit(0);
 }
 const only = argv.filter((a) => a.startsWith('--only=')).map((a) => a.slice(7));
@@ -197,10 +221,14 @@ const withDeps = (sel) => {
 	if (added.length) console.log(`○ --only：自动带上前置段 ${added.join(', ')}`);
 	return plan0.filter((s) => out.has(s.id));   // 保持计划顺序
 };
-const plan = only.length ? withDeps(plan0.filter((s) => only.some((o) => s.id.includes(o) || s.cmd.includes(o)))) : plan0;
+if (layerSel) console.log(`○ --${layerWant}-only：选中 ${layerSel.length}/${plan0.length} 段（另一层 ${plan0.length - layerSel.length} 段不跑）`);
+// `--engine-only` 与 `--only=` 同时给 ⇒ **取交集**（两层过滤正交，不互相覆盖）
+const onlySel = only.length ? plan0.filter((s) => only.some((o) => s.id.includes(o) || s.cmd.includes(o))) : null;
+const sel = layerSel && onlySel ? layerSel.filter((s) => onlySel.includes(s)) : (layerSel ?? onlySel ?? plan0);
+const plan = onlySel || layerSel ? withDeps(sel) : plan0;
 
-if (!plan.length) { console.error('✗ 没有匹配到任何段（--only 写错了？）——空选择不是绿'); process.exit(2); }
-if (only.length && !plan.some((s) => s.phase === 'build') && plan0.some((s) => s.phase === 'build')) {
+if (!plan.length) { console.error(`✗ 没有匹配到任何段（${layerWant ? `--${layerWant}-only 的选择为空` : '--only 写错了？'}）——空选择不是绿`); process.exit(2); }
+if ((only.length || layerWant) && !plan.some((s) => s.phase === 'build') && plan0.some((s) => s.phase === 'build')) {
 	console.log(`○ 提示：本次未选中 build 段，dist 可能不是最新的（--only 调试时常见）`);
 }
 // 计划自检（needs 配错/成环要在起跑前报，而不是跑到一半才发现）

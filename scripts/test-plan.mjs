@@ -103,6 +103,60 @@ export const SEGMENTS = [
 	{ id: "scripts-report-gate-ledger-mjs", phase: 'test', cost: 0, cmd: "node scripts/report-gate-ledger.mjs" },
 ];
 
+// ── 门的**两层化**（#436-a）：引擎门 / 故事门 ──────────────────────────────
+// 判据不是"哪个文件"，而是「**判据从哪来**」：
+//   · **引擎门**：判据与故事内容无关（拿清单/声明式表当输入）⇒ 换故事只换输入 ⇒ 第二故事能直接跑；
+//   · **故事门**：判据来自**本故事的散文与内容**（锚句/段落名/路线/NPC 动机）⇒ 第二故事会被判红。
+// 为什么需要它：`#441-F`（第 1/4 步出口＝第二故事能接）的出口判据就是「**只跑引擎门**」；
+//   若把 24 道门全跑，第二故事一定会被本故事的判据判红。
+//
+// 口径（可机检，且**反沉默**）：
+//   ① `AUDIT_ENGINE ∪ AUDIT_STORY` 必须**恰好等于**计划里出现的所有 `--<flag> --check` 段（多一个、
+//      少一个都红）——新增门忘了归层会被 `validateLayers()` 当场抓住；
+//   ② 同一个 flag 不许同时出现在两层（歧义即红）；
+//   ③ 未分类的**非门段**一律按 `story` 处理（**保守**：绝不误入引擎门集合 ⇒ `--engine-only` 只多不少地安全）；
+//      要把它划进引擎门，就显式加进 `ENGINE_EXTRA`（一行）。
+// 注：`a11y` 也是引擎门，但**尚未接线**（F2 台账：未接线 7 道）⇒ 接线时加进本表（否则 `validateLayers()` 的僵尸声明会报红——这正是想要的行为）
+export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 'text'];
+export const AUDIT_STORY = ['truth', 'canon', 'echoes', 'starbudget', 'choices', 'combat', 'craft', 'dragon',
+	'gear', 'interact', 'investment', 'nosl', 'npc', 'social', 'systems'];
+// 非门段里**与故事内容无关**的那些（构建 / 构建期 lint / 产物守卫）：显式登记，不放宽默认
+export const ENGINE_EXTRA = ['build-mjs',
+	'test-layering-mjs-selftest', 'test-layering-mjs', 'test-globals-mjs', 'test-silent-gate-mjs',
+	'test-size-gate-mjs-selftest', 'test-size-gate-mjs'];
+
+// 段 → 层。`--<flag> --check` 形式的段从 flag 表推；其余：在 `ENGINE_EXTRA` 里 ⇒ engine，否则 story。
+export const segmentLayer = (seg) => {
+	const m = auditFlag(seg);
+	if (m) return AUDIT_ENGINE.includes(m) ? 'engine' : 'story';
+	if (m && (AUDIT_ENGINE.includes(m[1]) || AUDIT_STORY.includes(m[1]))) return AUDIT_ENGINE.includes(m[1]) ? 'engine' : 'story';
+	return ENGINE_EXTRA.includes(seg.id) ? 'engine' : 'story';
+};
+
+// 只认 **`scripts/audit.mjs` 的门段**的 flag —— 别把 `report-ledger-freshness --ledger --check`
+// 这类同名形态误当门（本 PR 的校验第一次跑就抓到过这个假阳性）
+export const auditFlag = (seg) => {
+	const cmd = seg.cmd ?? '';
+	if (!/scripts\/audit\.mjs\b/.test(cmd)) return null;
+	const m = /--([a-z-]+)\s+--check\b/.exec(cmd);
+	return m ? m[1] : null;
+};
+
+// 计划校验（跑器起跑前调用；返回问题清单，空＝通过）
+export const validateLayers = (plan = SEGMENTS) => {
+	const problems = [];
+	const dup = AUDIT_ENGINE.filter((f) => AUDIT_STORY.includes(f));
+	if (dup.length) problems.push(`层表歧义：${dup.join('、')} 同时在 engine 与 story`);
+	// 计划里真实的 audit 段 ⇒ 必须**恰好**被两层覆盖
+	const planFlags = new Set();
+	for (const s of plan) { const f = auditFlag(s); if (f) planFlags.add(f); }
+	const declared = new Set([...AUDIT_ENGINE, ...AUDIT_STORY]);
+	for (const f of planFlags) if (!declared.has(f)) problems.push(`未归层：计划里的 \`--${f} --check\` 段没有任何层（新增门请加进 AUDIT_ENGINE／AUDIT_STORY）`);
+	for (const f of declared) if (!planFlags.has(f)) problems.push(`僵尸层声明：\`${f}\` 在层表里，但计划里没有对应段（删段时请同步层表）`);
+	for (const id of ENGINE_EXTRA) if (!plan.some((s) => s.id === id)) problems.push(`僵尸 ENGINE_EXTRA 条目：${id} 不在计划里`);
+	return problems;
+};
+
 export const testPlan = () => SEGMENTS;
 // **旧格式**：把计划拼回 `&&` 串（对照/调试用）
 export const planChain = () => SEGMENTS.map((s) => s.cmd).join(' && ');

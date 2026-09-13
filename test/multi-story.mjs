@@ -8,7 +8,7 @@
 //   P3 过渡期根页 `dist/index.html` 用根路径前缀（`fonts/`）且与默认故事页只差前缀
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROOT, DIST_DIR, DEFAULT_SLUG, storySlugs, storyHtml, shelfHtml, legacyHtml, FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY } from '../scripts/dist-paths.mjs';
+import { ROOT, DIST_DIR,  DEFAULT_SLUG, storySlugs, storyHtml, shelfHtml, legacyHtml, FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY } from '../scripts/dist-paths.mjs';
 
 export const SHELF_MAX_BYTES = 100_000; // ci 席建议的书架页上界（防日后被塞内嵌资产）
 
@@ -63,7 +63,7 @@ if (existsSync(legacyHtml()) && built.includes(DEFAULT_SLUG)) {
 	const root = readFileSync(legacyHtml(), 'utf8');
 	const story = readFileSync(storyHtml(DEFAULT_SLUG), 'utf8');
 	const asRoot = story.split(FONT_PREFIX_FROM_STORY).join(FONT_PREFIX_FROM_ROOT);
-	if (root !== asRoot) problems.push({ code: 'P3', msg: `dist/index.html 与默认故事产物的差异不只是字体前缀（过渡期契约：两者只差前缀）` });
+	if (root !== asRoot) problems.push({ code: 'P3', msg: `${legacyHtml()} 与默认故事产物的差异不只是字体前缀（过渡期契约：两者只差前缀）` });
 }
 
 if (process.argv.includes('--selftest')) {

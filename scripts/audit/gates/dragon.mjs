@@ -4,6 +4,18 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 export const flag = 'dragon';
 export const flags = ["dragon"];
 
+// ── #342 F2 自证：龙战门的"数字"全靠**确定性随机源** ⇒ 它本身必须可自证 ──
+/** mulberry32：小、快、**确定性**（同种子同序列）——MC/彩蛋率可信的前提。 */
+export const mulberry32 = (a) => () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+/** d20：优势取两次较大值（与 SugarCube 的优势语义一致）。 */
+export const d20 = (rng, adv) => { const r1 = 1 + Math.floor(rng() * 20), r2 = 1 + Math.floor(rng() * 20); return adv ? Math.max(r1, r2) : r1; };
+/** 单挑彩蛋击杀率：天然 20 ⇒ 1/20；劣势再平方；门槛 ≤1%（几乎不可达）。 */
+export const natKillRate = (site) => (site?.dis ? (1 / 20) ** 2 : 1 / 20);
+export const natKillOk = (site, limit = 0.01) => natKillRate(site) <= limit;
+/** 破坏平衡的"给彩蛋位点优势"的道具。 */
+export const critSiteBreakers = (effects, site = '龙·终击') =>
+	Object.entries(effects ?? {}).filter(([, e]) => e?.advSite === site || (e?.advSites ?? []).includes(site)).map(([k]) => k);
+
 export const run = (ctx) => {
 	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
@@ -17,11 +29,20 @@ if (wantAll || arg('dragon')) {
 	// #236：期望值对连败方差视而不见（旧模型给「只带花毒」发活证书，实测 2 万局活 6.7%）。
 	// 改忠实规则的蒙特卡洛：offer 三选一/贪心选牌/道具优势/武器 +1/药膏缺口≥4 自动用/败次 rage 封顶。
 	const GAMES = 20000;
-	const mulberry32 = (a) => () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
-	const d20 = (rng, adv) => {
-		const r1 = 1 + Math.floor(rng() * 20), r2 = 1 + Math.floor(rng() * 20);
-		return adv ? Math.max(r1, r2) : r1;
-	};
+	// 计数器声明必须**早于任何使用**（本门此前把 `let dragonBad` 写在彩蛋段之前的使用点之后 ⇒ 一旦非空就会 TDZ 崩，
+	// 而"自证失败"同样会崩而不是判红——和 ⓪q 门同一类隐性问题，一并修）
+	let dragonBad = 0;
+	// 自证 5 例（确定性随机源 + 两条彩蛋判据）
+	{
+		const cases = [
+			['mulberry32 确定性：同种子 ⇒ 同序列', (() => { const a = mulberry32(42), b = mulberry32(42); return [0, 1, 2].every(() => a() === b()); })()],
+			['mulberry32 不同种子 ⇒ 不同序列（防"种子没接上"）', (() => { const a = mulberry32(1), b = mulberry32(2); return a() !== b(); })()],
+			['d20 范围 1..20，且优势 ≥ 普通（同种子对照）', (() => { const r = mulberry32(7); const seq = Array.from({ length: 200 }, () => d20(r, true)); const r2 = mulberry32(7); const plain = Array.from({ length: 200 }, () => d20(r2, false)); return seq.every((v) => v >= 1 && v <= 20) && seq.every((v, i) => v >= plain[i]); })()],
+			['彩蛋率：天然 20 ⇒ 5% > 1% 门槛 ⇒ 不通过（正例是 nat 全预设同）', !natKillOk({ nat: '20' }) && Math.abs(natKillRate({ nat: '20' }) - 0.05) < 1e-12],
+			['彩蛋率：劣势 ⇒ 平方 0.25% ≤ 1% ⇒ 通过；给彩蛋位点优势的道具会被抓', natKillOk({ nat: '20', dis: true }) && critSiteBreakers({ 甲: { advSite: '龙·终击' }, 乙: { advSites: ['别的'] } }).join() === '甲'],
+		];
+		for (const [label, ok] of cases) { if (!ok) dragonBad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
+	}
 	// 一次性模拟一局封印战（真实动作池/检定/结算——与 fightresolve 同语义）
 	const simSeal = (rng, pc0, inv, salves) => {
 		const pc = JSON.parse(JSON.stringify(pc0));
@@ -116,20 +137,17 @@ if (wantAll || arg('dragon')) {
 	if (arg('check') && mcBad) { console.error(`\n✗ 封印战 MC 三门未过：${mcBad} 项（分布口径，canon §3.8）`); process.exit(1); }
 	console.log('（#236：三门改分布口径——期望值对连败方差视而不见的问题不再。只带花毒无门：canon 未承诺其存活。）');
 	// 彩蛋击杀率（M5b 拍板）：需「天然 20」；若位点带劣势 → 1/400。>1% 即红。
-	let dragonBad = 0;
 	const kill = Game.Checks.sites['龙·终击'];
 	if (!kill || kill.nat !== 20) {
 		dragonBad++;
 		console.log('  ✗ 未定义「龙·终击」彩蛋位点（nat: 20）');
 	} else {
-		const pNat = 1 / 20;
-		const pKill = kill.dis ? pNat * pNat : pNat;
-		const ok = pKill <= 0.01;
+		const pKill = natKillRate(kill);
+		const ok = natKillOk(kill);
 		if (!ok) dragonBad++;
 		console.log(`  单挑彩蛋击杀率 ≈ ${(pKill * 100).toFixed(2)}%（天然 ${kill.nat}${kill.dis ? ' + 劣势' : ''}）→ ${ok ? '✓ 几乎不可达（≤1%）' : '✗ 过高（>1%）'}`);
 	}
-	const breakers = Object.entries(Game.Items.effects)
-		.filter(([, e]) => e.advSite === '龙·终击' || (e.advSites ?? []).includes('龙·终击')).map(([k]) => k);
+	const breakers = critSiteBreakers(Game.Items.effects);
 	if (breakers.length) { dragonBad++; console.log(`  ✗ 破坏平衡的道具仍在给彩蛋位点优势：${breakers.join('、')}`); }
 	// 正文不得对「劣势位点」硬写优势（防绕过 effects 表）
 	const disSites = Object.entries(Game.Checks.sites).filter(([, s]) => s.dis).map(([k]) => k);

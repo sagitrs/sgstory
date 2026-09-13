@@ -36,3 +36,84 @@ Object.assign(window.Game.Checks, {
 		return res;
 	},
 });
+
+// ── 战斗回合的「算」（#441-A 第二刀）──────────────────────────────────────
+// 现状问题：`<<fightpanel>>` 的 link 体里 `<<set $pc.ev.fight.act>>` ＋ `<<fightact>>` ——
+// **点一下既算又画**（T 席在 `#441` 上点名的那处）。现在拆成两段：
+//   · `pick`／`ensureOffer`：面板点击的落点（state 写在 sim 侧，面板只调）
+//   · `resolvePlayer`／`resolveFoe`：两段式结算（保留原本的**渲染顺序**：玩家骰面 → 玩家受伤闪光 →
+//     对手骰面 → 挨打闪光；`<<damage>>` 仍由 present 调，它是结算词汇宏）
+// 两段式而不是一次性：玩家受伤后的 `hp` 决定对手那一轮是否发生，而 `hp` 由 present 的 `<<damage>>` 落，
+// 拆成两段才能让「渲染顺序」与「hp 时序」同时与旧实现逐字一致。
+Object.assign(window.Game.Combat, {
+	// 面板惰性抽牌（下一页没抽过就抽）——旧实现是 `<<set _f.offer to …>>`（`_f` 是 state 的别名 ⇒ 也是写状态）
+	ensureOffer(pc) {
+		const T = window.Game, f = pc.ev.fight;
+		if (f && f.offer.length === 0) f.offer = T.Combat.offer(f.pool, f.round, pc, f.last?.act);
+	},
+	// 点下第 idx 张牌：只写「这一手是什么」，结算留给 `resolvePlayer`
+	// 命名注意：**不能叫 `pick`**——`Game.Combat.pick(actionId, res)` 已被「动作档位求值」占用
+	//（`playerEff` 在用它）；同名会被本 Object.assign 覆盖 ⇒ 2026-09-13 实测踩过（回合结算当场炸）。
+	chooseAction(pc, idx) { pc.ev.fight.act = pc.ev.fight.offer[idx]; },
+	// 玩家这一手：掷骰（写 `$last_check`）→ 结算 → 写台账。返回 `{ check, hurt, log }`
+	// `hurt` 由 present 的 `<<damage>>` 落（不在此处扣 hp）——保住旧的渲染/时序完全一致。
+	resolvePlayer(pc, foeSite, isDragon) {
+		const T = window.Game, f = pc.ev.fight;
+		const a = T.Combat.actions[f.act];
+		const check = T.Checks.resolve(a.site, pc, f.adv ? 'adv' : null);
+		const hadAdv = (f.adv ?? 0) > 0;
+		// #352：优势在**被这一手消费后**才清零（旧实现放在本轮末尾清零 → 准备动作的「下一击有优势」当场作废）
+		f.adv = 0;
+		const r = T.Combat.playerEff(f.act, check, pc);
+		const eff = r.eff ?? {};
+		f.last = { act: f.act, kind: r.kind, text: eff.text, dmg: eff.dmg ?? 0, hurt: eff.hurt ?? 0, adv: eff.adv ?? 0, guard: eff.guard ?? 0 };
+		const log = {
+			you: {
+				label: a.label, kind: r.kind, text: eff.text, dmg: eff.dmg ?? 0,
+				gearBonus: r.gearBonus ?? 0, gearName: T.Gear.damageSource(pc.gear),
+				adv: eff.adv ?? 0, guard: eff.guard ?? 0, hurt: eff.hurt ?? 0,
+				skipFoe: eff.skipFoe ?? false, goodNote: r.goodNote ?? '', rolledWithAdv: hadAdv,
+			},
+			foe: null,
+		};
+		T.Combat.applyEffect(pc, eff, f);
+		f.act = null;
+		return { check, hurt: eff.hurt ?? 0, log };
+	},
+	// 对手那一轮 ＋ 收尾（轮次/下一轮牌/清 guard 与 skipFoe/落台账）。**无论 hp 是否归零都要走收尾**
+	// （旧实现里收尾在 `if ($pc.hp gt 0)` 之外）。对手检定未发生时 `check` 为 null。
+	resolveFoe(pc, foeSite, isDragon, log) {
+		const T = window.Game, f = pc.ev.fight;
+		let check = null, hurt = 0;
+		if (pc.hp > 0) {
+			if (f.skipFoe) {
+				log.foe = { text: '这一轮它没有出手。' };
+			} else {
+				check = T.Checks.resolve(foeSite, pc, null);
+				if (isDragon) {
+					const raw = T.Dragon.dragonDamage(pc.inv, f.round, (pc.dragon.defeats ?? 0) + 1, pc.dragon.venom);
+					const dmg = Math.max(1, raw - (f.guard ?? 0));
+					if (check.success) {
+						log.foe = { text: '你贴着地滚开了——它那一口咬在你刚才站的地方，石板裂了一层。' };
+					} else {
+						pc.dragon.defeats = (pc.dragon.defeats ?? 0) + 1;
+						log.foe = { text: '它回手了——这一下你没能全躲开。' };
+						hurt = dmg;
+					}
+				} else if (check.success) {
+					log.foe = { text: '它扑了个空，散在你刚才站的地方——没有追。' };
+				} else {
+					log.foe = { text: '它把你掀翻在地，又停住了。像在等你先动手。' };
+					hurt = T.Damage.shove;   // 原裸 `<<damage 5>>`；具名后仍同值（非档位值，见 15-tables 注）
+				}
+			}
+		}
+		f.round = (f.round ?? 1) + 1;
+		// #350：下一轮的牌也在**点击时**抽定（渲染时抽＝读档重抽，玩家看到的选项会变）
+		f.offer = T.Combat.offer(f.pool, f.round, pc, f.last?.act);
+		f.guard = 0;
+		f.skipFoe = false;
+		f.log = log;
+		return { check, hurt, log };
+	},
+});

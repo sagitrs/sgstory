@@ -121,10 +121,54 @@ t('`Game.Checks.rollSite` / `resolve` 已在 node 里可调用', typeof Game.Che
 		const hits = [...stripComments(s).matchAll(/Math\.random\s*\(/g)].length;
 		t(`④ ${f} 无直调 \`Math.random()\``, hits === 0, `命中 ${hits}`);
 	}
-	for (const w of ['sitecheck', 'hallResult']) {
+	// 只查 **present** widget；sim widget（`fightact`／`socresolve`／`snapshot`／`setflag`／`damage`…）本就负责写状态
+	for (const w of ['sitecheck', 'hallResult', 'fightpanel', 'socpanel', 'fightlog']) {
 		const body = widgetBody(core, w);
 		t(`④ widget「${w}」体内无状态写点（present 不写状态）`, body !== null && !writesStoryState(body));
 	}
+}
+
+// ── ⑤ 战斗回合能在 node 里跑完整一轮（#441-A 第二刀的验收）──
+{
+	const pc = JSON.parse(JSON.stringify(ctx.presets[0].pc));   // 不污染其他用例的预置角色
+	pc.ev.fight = null;
+		t('⑤ `Game.Combat.ensureOffer`/`chooseAction`/`resolvePlayer`/`resolveFoe` 已在 node 里可调用',
+		['ensureOffer', 'chooseAction', 'resolvePlayer', 'resolveFoe'].every((k) => typeof Game.Combat[k] === 'function'));
+	// 起一场雾影战（池名与剧情一致），并在 node 里走完整一轮
+	pc.hp = pc.max_hp = 18;
+	pc.ev.fight = { pool: '雾影', round: 1, offer: [], act: null, adv: 0, guard: 0, skipFoe: false, flee: false, last: null, done: false };
+	Game.Combat.ensureOffer(pc);
+	t('⑤ `ensureOffer` 抽满这一轮的三张牌', pc.ev.fight.offer.length === 3, JSON.stringify(pc.ev.fight.offer));
+	Game.Combat.chooseAction(pc, 0);
+	t('⑤ `chooseAction` 只写「选中哪一手」（sim 侧）', pc.ev.fight.act === pc.ev.fight.offer[0], String(pc.ev.fight.act));
+	R.rng.set((lo, hi) => hi);   // 恒最大：玩家这一手必成
+	const hp0 = pc.hp;
+	const p1 = Game.Combat.resolvePlayer(pc, '雾之魔物·挥击', false);
+	t('⑤ `resolvePlayer` 返回骰面（注入 rng=20 ⇒ 天然 20）', p1.check?.roll === 20 && !!p1.log.you.text, JSON.stringify({ roll: p1.check?.roll, label: p1.log.you.label }));
+	t('⑤ 台账含 `rolledWithAdv` 与 `gearName` 两列（旧实现就有的渲染输入）', typeof p1.log.you.rolledWithAdv === 'boolean' && 'gearName' in p1.log.you);
+	t('⑤ `resolvePlayer` **不扣 hp**（hp 由 present 的 `<<damage>>` 落）', pc.hp === hp0, `${pc.hp} vs ${hp0}`);
+	t('⑤ `resolvePlayer` 已写台账 `last` 与清 `act`', !!pc.ev.fight.last && pc.ev.fight.act === null);
+	R.rng.set((lo, hi) => lo);   // 恒最小：对手必中
+	pc.ev.fight.skipFoe = false;   // 显式关掉「跳过对手」（`offer[0]` 可能是带 skipFoe 的那一手，那样对手本就不出手）
+	const fo = Game.Combat.resolveFoe(pc, '雾之魔物·挥击', false, p1.log);
+	t('⑤ `resolveFoe` 返回对手骰面 ＋ 伤值（供 present 调 `<<damage>>`）', !!fo.check && fo.hurt > 0, JSON.stringify({ roll: fo.check?.roll, hurt: fo.hurt }));
+	t('⑤ `resolveFoe` 已收尾：轮次 +1 ／ 抽下一轮牌 ／ 清 guard 与 skipFoe ／ 落 log',
+		pc.ev.fight.round === 2 && pc.ev.fight.offer.length === 3 && pc.ev.fight.guard === 0 && pc.ev.fight.skipFoe === false && pc.ev.fight.log === p1.log,
+		JSON.stringify({ round: pc.ev.fight.round, offer: pc.ev.fight.offer.length }));
+	// `skipFoe` 分支：对手不出手（`check` 为 null、无伤、台账写明）
+	{
+		const pc2 = JSON.parse(JSON.stringify(ctx.presets[0].pc));
+		pc2.hp = pc2.max_hp = 18;
+		pc2.ev.fight = { pool: '雾影', round: 1, offer: [], act: null, adv: 0, guard: 0, skipFoe: true, flee: false, last: null, done: false };
+		const log2 = { you: { label: 'x' }, foe: null };
+		const r2 = Game.Combat.resolveFoe(pc2, '雾之魔物·挥击', false, log2);
+		t('⑤ `skipFoe` 分支：不出手 ⇒ `check` 为 null、无伤、台账写明', r2.check === null && r2.hurt === 0 && String(r2.log.foe?.text).includes('没有出手'), JSON.stringify(r2.log.foe));
+	}
+	// 死透也要收尾（旧实现的收尾在 `if ($pc.hp gt 0)` 之外）
+	pc.hp = 0;
+	const before = pc.ev.fight.round;
+	const fo2 = Game.Combat.resolveFoe(pc, '雾之魔物·挥击', false, p1.log);
+	t('⑤ hp≤0 ⇒ 对手不再行动（`check` 为 null）但收尾照跑', fo2.check === null && pc.ev.fight.round === before + 1, JSON.stringify({ check: fo2.check, round: pc.ev.fight.round }));
 }
 
 console.log(bad ? `\n✗ 结算门：${bad} 项` : '\n✔ 结算门通过（rng 可注入 · rollSite 纯 · resolve 写槽 · 推导等价 · present 不写状态）');

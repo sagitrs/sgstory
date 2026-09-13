@@ -16,27 +16,83 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT } from './dist-paths.mjs';
 
-/** 去掉 JS 注释与**单行字符串字面量**（V1 只关心代码位置；V2 需要保留字符串里的 `自证·`）。 */
-const stripForScanRaw = (src) =>
-	String(src)
-		.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
-		.replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + ' '.repeat(m.length - p1.length))
-		.replace(/'(\\.|[^'\\\n])*'/g, (m) => `'${' '.repeat(Math.max(0, m.length - 2))}'`)
-		.replace(/"(\\.|[^"\\\n])*"/g, (m) => `"${' '.repeat(Math.max(0, m.length - 2))}"`);
+/** #474：**一个扫描器**做全部字面量遮蔽（注释／字符串／模板／正则），一次词法走完。
+ *
+ *  为什么不是几条正则：原先用「注释 → 单/双引号串 → 模板 → 正则」四条正则**顺序**剥，每一层都能与
+ *  另一层错配（`'` 在模板里、backtick 在正则里、`/` 在模板里…）——错配是**跨行贪婪**的，会把整段代码
+ *  抹成空白 ⇒ `counters` 为空 ⇒ V2 判「自证不能判红」（假阳性）；同一次错位也造**假阴性**（把真问题抹掉）。
+ *  实测三个受害者：本文件、`test/store-keys.mjs`、`scripts/report-copy-text.mjs`（＋`test/silent-gate.mjs` 的正则）。
+ *  **换顺序治不了**（先剥正则 ⇒ 正则吃掉模板的收尾 backtick；先剥模板 ⇒ 模板吃掉正则里的 backtick）。
+ *  ⇒ 正解是逐字符扫描：只有**未转义**的定界符才换状态；**保留换行**（行号不漂）；未闭合 ⇒ 保守剥到行尾
+ *  并计入 `unterminated`（由调用方**打印诊断**，绝不静默 —— 反沉默）。
+ *
+ *  `/` 是正则还是除法：看**前一个有效字符**（`(`/`=`/`,`/`!`… ⇒ 正则；标识符/`)`/`]` ⇒ 除法）。
+ *  这是通行的启发式；真正的分歧点会被 `unterminated` 诊断暴露出来，不会静默错下去。
+ */
+const REGEX_PREV = new Set([...'(,=:[!&|?{};+-*%~^<>', '\n']);
+export const maskLiterals = (src) => {
+	const text = String(src);
+	let out = '', i = 0, unterminated = 0;
+	const blank = (t) => t.replace(/[^\n]/g, ' ');
+	// ⚠️ 关键：在**已遮蔽的输出流**上回溯，而不是原始文本 —— 否则会撞上**注释里的字**
+	//（本文件 `DECL_PATTERNS` 的注释是中文 ⇒ 行首正则被误判成除法 ⇒ 该行内容没被遮蔽 ⇒ V1 假阳性）。
+	// 另：`/` 前面若是**关键字**（`return /$^/`）同样是正则位置 —— 只看单个字符会把 `return` 的 `n` 当除法 ✗。
+	const REGEX_PREV_WORDS = new Set(['return', 'typeof', 'instanceof', 'in', 'of', 'new', 'delete', 'void', 'do', 'else', 'yield', 'await', 'case']);
+	const prevIsRegexPos = () => {
+		const m = /([A-Za-z_$][\w$]*)\s*$/.exec(out);
+		if (m) return REGEX_PREV_WORDS.has(m[1]);
+		for (let k = out.length - 1; k >= 0; k--) { if (/\s/.test(out[k])) continue; return REGEX_PREV.has(out[k]); }
+		return true;
+	};
+	while (i < text.length) {
+		const ch = text[i], next = text[i + 1];
+		if (ch === '/' && next === '/') { const eol = text.indexOf('\n', i); const end = eol === -1 ? text.length : eol; out += blank(text.slice(i, end)); i = end; continue; }
+		if (ch === '/' && next === '*') {
+			const close = text.indexOf('*/', i + 2);
+			if (close === -1) { unterminated++; out += blank(text.slice(i)); break; }
+			out += blank(text.slice(i, close + 2)); i = close + 2; continue;
+		}
+		if (ch === "'" || ch === '"') {
+			let j = i + 1, closed = false;
+			while (j < text.length) { if (text[j] === '\\') { j += 2; continue; } if (text[j] === ch) { closed = true; break; } if (text[j] === '\n') break; j++; }
+			if (!closed) { unterminated++; const eol = text.indexOf('\n', i); const end = eol === -1 ? text.length : eol; out += ch + blank(text.slice(i + 1, end)); i = end; continue; }
+			out += ch + blank(text.slice(i + 1, j)) + ch; i = j + 1; continue;
+		}
+		if (ch === '`') {
+			let j = i + 1, closed = false;
+			while (j < text.length) { if (text[j] === '\\') { j += 2; continue; } if (text[j] === '`') { closed = true; break; } j++; }
+			if (!closed) { unterminated++; const eol = text.indexOf('\n', i); const end = eol === -1 ? text.length : eol; out += '`' + blank(text.slice(i + 1, end)); i = end; continue; }
+			out += '`' + blank(text.slice(i + 1, j)) + '`'; i = j + 1; continue;
+		}
+		if (ch === '/' && prevIsRegexPos()) {
+			let j = i + 1, closed = false, inClass = false;
+			while (j < text.length) {
+				const c = text[j];
+				if (c === '\\') { j += 2; continue; }
+				if (c === '\n') break;
+				if (c === '[') inClass = true; else if (c === ']') inClass = false;
+				else if (c === '/' && !inClass) { closed = true; break; }
+				j++;
+			}
+			if (!closed) { unterminated++; out += '/'; i++; continue; }
+			let k = j + 1; while (k < text.length && /[gimsuy]/.test(text[k])) k++;
+			out += '/' + blank(text.slice(i + 1, j)) + '/' + text.slice(j + 1, k); i = k; continue;
+		}
+		out += ch; i++;
+	}
+	return { code: out, unterminated };
+};
 
-/** #474：**只剥注释**（保留字符串/模板）——用于判“有没有打印 `自证·`”：
- *  它写在**字符串字面量**里（`console.log('自证·' + label)`）⇒ 必须在保留字符串的文本上判；
- *  而写在**注释**里的 `自证·` 不算（本文件自己就被这条误报过 ✗）。 */
+/** 剥离 + **可诊断**（`stripForScan` 是它的薄封装）。`unterminated` ⇒ 未闭合字面量（已保守处理）。 */
+export const stripDiag = (src) => maskLiterals(src);
+export const stripForScan = (src) => stripDiag(src).code;
+
+/** **只剥注释**（保留字符串/模板）——用于判"有没有打印 `自证·`"：它写在**字符串**里要看得见，
+ *  写在**注释**里不算（本文件自己就被这条误报过 ✗）。这一条只需行内正则，无错配风险。 */
 export const stripCommentsOnly = (src) =>
 	String(src)
 		.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
 		.replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + ' '.repeat(m.length - p1.length));
-
-/** #474 精化（debug 实测）：在基础剥离之后再剥**模板字面量**与**正则字面量**。
- *  起因：V1 的假阳性全部来自这两处 —— 错误消息里的插值 `kind=${…}`、正则 `/<html[^>]*\slang=/`。 */
-export const stripForScan = (src) => String(stripForScanRaw(src))
-	.replace(/`(?:\\.|[^`\\])*`/g, (m) => '`' + ' '.repeat(Math.max(0, m.length - 2)) + '`')
-	.replace(/(^|[=(,:;[!&|?{}+\-*%<>~^])\s*\/(?![*/])(?:\\.|[^/\\\n])+\/[gimsuy]*/g, (m, p1) => p1 + ' '.repeat(Math.max(0, m.length - p1.length)));
 
 const DECL_PATTERNS = [
 	// `let a = 0, b = 1;` 这类**多重声明**要每个都算（此前只取第一个 ⇒ canGuard/hit/odd/italBad 全被误报）
@@ -153,8 +209,23 @@ if (process.argv.includes('--selftest')) {
 	t('V2 边界：退出写成 `process.exit(bad ? 1 : 0)` 也算计入（`test/store-keys.mjs` 的写法）', selftestExitFindings('let bad = 0;\nif (!ok) bad++;\nconsole.log("自证·x");\nprocess.exit(bad ? 1 : 0);').length === 0);
 	t('V2 关键：`自证·` 写在**字符串**里 ⇒ 必须看得见（否则 V2 恒不触发 ⇒ 假干净 ✗）', selftestExitFindings('let bad = 0;\nif (!ok) bad++;\nconsole.log("自证·x");\nif (problems.length) process.exit(1);').some((f) => f.kind === 'selftest-cannot-fail'));
 	t('V2 边界：没有 `自证·` 的文件不适用（不报）', selftestExitFindings('let bad = 0;\nbad++;').length === 0);
+	// #474 修复的回归自证（两个受害者就是被这条击中的）
+	t('V2 回归：**正则里含 backtick** ⇒ 不得吞掉计数器（本文件/store-keys 被误报的根因）',
+		selftestExitFindings('let bad = 0;\nconst re = /`(?:\\\\.|[^`\\\\])*`/g;\nif (!ok) bad++;\nconsole.log("自证·x");\nif (bad) { process.exit(1); }').length === 0);
+	t('扫描器版：模板里含 `/` 也**不误剥**（`report-copy-text.mjs` 的根因）',
+		(() => { const r = stripDiag('let bad = 0;\nconst s = `a/b ${x}`;\nbad++;\n'); return r.unterminated === 0 && /bad\+\+/.test(r.code); })());
+	t('扫描器版：**关键字后的 `/` 是正则**（`return /$^/`）—— 只看前一个字符会误判成除法',
+		(() => { const r = stripDiag('const f = (c) => { if (!c) return /$^/; };\nlet bad = 0;\nbad++;\n'); return r.unterminated === 0 && /bad\+\+/.test(r.code); })());
+	t('扫描器版：除法**不**被当成正则（`const a = b / c;`）',
+		(() => { const r = stripDiag('let bad = 0;\nconst a = b / c;\nbad++;\n'); return r.unterminated === 0 && /bad\+\+/.test(r.code) && /b /.test(r.code); })());
+	t('扫描器版：**未闭合模板**只剥到行尾（绝不吞后文）且报诊断（反沉默）',
+		stripDiag('let bad = 0;\nbad++;\nconst s = `未闭合 ${x};\nbad++;\n').unterminated === 1 && /bad\+\+/.test(stripDiag('let bad = 0;\nbad++;\nconst s = `未闭合 ${x};\nbad++;\n').code));
+	t('扫描器版：模板**跨行**也剥得掉，且**保留换行**（行号不漂）', (() => {
+		const r = stripDiag('const t = `a\n${bad++}\nb`;\nbad++;\n');
+		return r.unterminated === 0 && !/\$\{/.test(r.code) && (r.code.match(/\n/g) || []).length === 4;
+	})());
 	if (bad) { console.error(`\n✗ 自证有效性检测器自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证有效性检测器自证通过（V1 ×8：声明顺序/未声明/闭包警告/模板/正则/纯赋值/参数-for-of-解构/obj.x++ ＋ V2 ×4：能判红/不能判红/注释不算/字符串算）');
+	console.log('\n✔ 自证有效性检测器自证通过（V1 ×8 ＋ V2 ×10：能判红/不能判红/注释不算/字符串算/正则含 backtick 不误报/模板含斜杠不误剥/关键字后正则/除法不误判/未闭合模板保守剥/跨行模板保留换行）');
 	process.exit(0);
 }
 
@@ -166,6 +237,9 @@ const problems = [];
 for (const f of files) {
 	const src = readFileSync(f, 'utf8');
 	const rel = f.slice(ROOT.length + 1);
+	// #474：剥离器**自报可疑形态**（未转义 backtick 为奇数 ⇒ 本次跳过了模板剥离）。
+	// 打印出来而不是静默：跳过意味着 V1 可能对该文件有假阳性 —— 那要**看得见**。
+	if (stripDiag(src).unterminated) console.log(`○ [unterminated-template] ${rel}（有 ${stripDiag(src).unterminated} 处未闭合模板 ⇒ 只剥到行尾；若该文件有 V1 报告，先看这里）`);
 	for (const x of incrementFindings(src)) problems.push({ file: rel, ...x });
 	for (const x of selftestExitFindings(src)) problems.push({ file: rel, ...x });
 }

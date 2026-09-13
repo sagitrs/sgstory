@@ -1,5 +1,5 @@
 
-import { legacyHtml, ROOT } from './dist-paths.mjs';
+import { defaultStoryHtml, ROOT } from './dist-paths.mjs';
 import { relative } from 'node:path';
 // 视口冒烟（#208D，手动档）：构建产物在四档视口下 ① 无页面/console 错误 ② scrollWidth 不劣于基线（ratchet 只许降）。
 // 首跑自建档 test/viewport-baseline.json；390 档存在既有横向溢出（#169 实测），基线如实记录、后续只紧不松。
@@ -10,7 +10,7 @@ import { pathToFileURL } from 'node:url';
 
 const WIDTHS = [360, 390, 768, 1440];
 const BASE = 'test/viewport-baseline.json';
-if (!existsSync(legacyHtml())) { console.error(`✗ 缺 ${relative(ROOT, legacyHtml())}，请先构建`); process.exit(1); }
+if (!existsSync(defaultStoryHtml())) { console.error(`✗ 缺 ${relative(ROOT, defaultStoryHtml())}，请先构建`); process.exit(1); }
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
@@ -21,7 +21,7 @@ page.on('console', (m) => { if (m.type() === 'error') errors.push(`console: ${m.
 const results = {};
 for (const w of WIDTHS) {
 	await page.setViewportSize({ width: w, height: 900 });
-	await page.goto(pathToFileURL(legacyHtml()).href);
+	await page.goto(pathToFileURL(defaultStoryHtml()).href);
 	await page.waitForSelector('#passages .passage', { timeout: 15000 });
 	await page.waitForTimeout(300);
 	results[w] = { scrollWidth: await page.evaluate(() => document.documentElement.scrollWidth) };

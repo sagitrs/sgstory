@@ -1,5 +1,5 @@
 
-import { legacyHtml } from '../scripts/dist-paths.mjs';
+import { defaultStoryHtml } from '../scripts/dist-paths.mjs';
 // #263（#185 阶段五）真实浏览器验收：零依赖 CDP 驱动（Node 22 内建 fetch + WebSocket）
 //
 // 为什么不用 puppeteer/playwright：本仓只需「导航 + 求值 + 截图 + 视口」四件事，
@@ -107,7 +107,7 @@ if (!CHROME) bail('未找到 Chrome；设 CHROME_PATH 或装 Chrome for Testing'
 		bail(`Chrome 起不来${missing.length ? `，缺 ${[...new Set(missing)].join(', ')}` : ''}`);
 	}
 }
-if (!existsSync(legacyHtml())) bail(`${legacyHtml()} 不存在，先 npm run build`);
+if (!existsSync(defaultStoryHtml())) bail(`${defaultStoryHtml()} 不存在，先 npm run build`);
 
 // ── 静态服务 + 浏览器 ───────────────────────────────────────────
 // #363（P2）：原来这个服务器**不区分路径**，所有请求都回 dist/index.html —— 于是

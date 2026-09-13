@@ -1,5 +1,5 @@
 
-import { legacyHtml, ROOT } from '../scripts/dist-paths.mjs';
+import { defaultStoryHtml, ROOT } from '../scripts/dist-paths.mjs';
 import { relative } from 'node:path';
 // L0.5 产物体积 ratchet（对抗席评估 → #187）：首屏字节预算，只许降不许升。
 // 超基线 → 红；低于基线 → 收紧。重签：node test/size-gate.mjs --update-size（PR 写明理由）。
@@ -73,8 +73,8 @@ const writeBaseline = (obj) => {
 	renameSync(tmp, BASELINE);
 };
 
-if (!existsSync(legacyHtml())) { console.error(`✗ 缺 ${relative(ROOT, legacyHtml())}，请先构建`); process.exit(1); }
-const rows = { 'index.html': statSync(legacyHtml()).size };
+if (!existsSync(defaultStoryHtml())) { console.error(`✗ 缺 ${relative(ROOT, defaultStoryHtml())}，请先构建`); process.exit(1); }
+const rows = { 'index.html': statSync(defaultStoryHtml()).size };
 rows.fonts = readdirSync('dist/fonts').reduce((a, f) => a + statSync(`dist/fonts/${f}`).size, 0);
 
 // #411 CI 实测：这条读曾在 CI 上 JSON.parse 崩（基线被写坏/半写）——改成**读重试 + 可诊断报错**，

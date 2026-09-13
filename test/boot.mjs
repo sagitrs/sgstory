@@ -1,5 +1,5 @@
 
-import { legacyHtml } from '../scripts/dist-paths.mjs';
+import { defaultStoryHtml } from '../scripts/dist-paths.mjs';
 import { pathToFileURL } from 'node:url';
 // 共享 JSDOM boot（白盒检视 A9 修复）：#27 的 pollUntil 就绪轮询 + 坑11 的 uncaught 监听
 // 统一进此 helper——修复辐射不再依赖"记得改每个文件"。
@@ -14,7 +14,7 @@ import { readFileSync } from 'node:fs';
 import { assertFreshDist } from '../scripts/dist-fresh.mjs';
 import { JSDOM, VirtualConsole } from 'jsdom';
 
-const distPath = new URL(pathToFileURL(legacyHtml()).href);
+const distPath = new URL(pathToFileURL(defaultStoryHtml()).href);
 const html = readFileSync(distPath, 'utf8');
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 

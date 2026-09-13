@@ -110,11 +110,26 @@ export const runPlan = async (plan, { jobs = 1, onDone = () => {} } = {}) => {
 const sec = (ms) => `${(ms / 1000).toFixed(1)}s`;
 const tail = (s, n = 28) => s.split('\n').slice(-n).join('\n');
 
+// 失败**可诊断**：尾部 28 行**不够**——#448 的 CI 上 test-scenarios-mjs 红过一次，
+// 但"哪条路线失败"的 ✗ 明细在 28 行之前被截掉，只能看到汇总「1 条路线失败」，
+// 于是无法判断是 flaky 还是真回归（本地复跑 3 次全绿也说明不了问题出在哪）。
+// 所以除尾部外，另**从全量输出里抽出关键行**（✗ / 失败 / Error），去重后限量打印。
+const DIGEST_RE = /(^|\s)(✗|×)|失败|Error|error:/;
+export const failureDigest = (s, max = 12) => {
+	const uniq = [...new Set(s.split('\n').map((l) => l.trim()).filter((l) => l && DIGEST_RE.test(l)))];
+	return { total: uniq.length, lines: uniq.slice(0, max), truncated: Math.max(0, uniq.length - max) };
+};
+
 // ── 自证（不跑真计划）────────────────────────────────────────────────────
 const selftest = async ({ quiet = false } = {}) => {
 	let bad = 0;
 	const t = (msg, ok) => { if (!ok) bad++; if (!quiet || !ok) console.log(`${ok ? '✓' : '✗'} ${msg}`); };
 
+	{
+		const longOut = ['✓ a', ...Array.from({ length: 200 }, (_, i) => `普通行 ${i}`), '✗ 路线「某某」失败'].join('\n');
+		t('失败摘要：能从**被尾部截掉**的位置抽出 ✗ 行（#448 的诊断缺口）', failureDigest(longOut).lines.some((l) => l.includes('✗ 路线')));
+		t('失败摘要：全绿输出不产生摘要行', failureDigest('✓ a\n✓ b').total === 0);
+	}
 	const okSeg = { id: 'ok', cmd: 'node -e "console.log(1)"' };
 	const badSeg = { id: 'bad', cmd: 'node -e "console.error(\'炸了\');process.exit(3)"' };
 	const sleepMs = (ms) => `node -e "setTimeout(()=>{},${ms})"`;
@@ -206,7 +221,11 @@ const { results, skipped, wallMs, aborted } = await runPlan(plan, {
 		if (r.skipped) { console.log(`○ ${'—'.padStart(7)}  ${r.seg.id}  → 跳过（前序段未成功）`); return; }
 		const tag = r.code === 0 ? '✓' : '✗';
 		console.log(`${tag} ${sec(r.ms).padStart(7)}  ${r.seg.id}${r.code === 0 ? '' : `  → 退出码 ${r.code}`}`);
-		if (r.code !== 0) console.log(`\n──── ${r.seg.id} 的输出（尾部 28 行）────\n${tail(r.out)}\n──── 输出结束 ────\n`);
+		if (r.code !== 0) {
+			const d = failureDigest(r.out);
+			if (d.total) console.log(`\n──── ${r.seg.id} 的关键行（全量输出里的 ✗/失败 行，共 ${d.total} 条${d.truncated ? `，只显示前 ${d.lines.length}` : ''}）────\n${d.lines.join('\n')}`);
+			console.log(`\n──── ${r.seg.id} 的输出（尾部 28 行）────\n${tail(r.out)}\n──── 输出结束 ────\n`);
+		}
 	},
 });
 

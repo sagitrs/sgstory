@@ -319,12 +319,12 @@ Macro.add('dragonbar', {
 <</nobr>><</widget>>
 
 /% 经济事件词汇：金额出走 Game.Economy；gives 自动入账 %/
+/% 经济事件词汇：金额出走 Game.Economy；gives 自动入账 %/
+/% #441-A：落帐（算价＋金币＋gives）搬去 `Game.Economy.apply`（sim）；文案格式与 `<<socresolve>>`
+   共用 `Game.Economy.note`（单一源，否则两处各写一份必漂）。 %/
 <<widget "econ">><<nobr>>
-	<<set _ev to Game.Economy.events[$args[0]]>>
-	<<set _d to Game.Economy.priceOf($args[0], $pc)>>
-	<<set $pc.gold to $pc.gold + _d>>
-	<<if _ev.gives>><<run Object.entries(_ev.gives).forEach(([k, v]) => { if (Array.isArray(v)) (State.variables.pc[k] = [...(State.variables.pc[k] ?? []), ...v.filter((x) => !(State.variables.pc[k] ?? []).includes(x))]); else State.variables.pc[k] = (State.variables.pc[k] ?? 0) + v; })>><</if>>
-	<span class="econ-note">（<<if _d lt 0>>金币 _d<<elseif _d gt 0>>金币 +_d<<else>>——<</if>>）</span>
+	<<set _d to Game.Economy.apply($pc, $args[0]).delta>>
+	<span class="econ-note"><<print Game.Economy.note(_d)>></span>
 <</nobr>><</widget>>
 
 /% 时代切回现在（不耗星力：时间自己走完的场合专用——宴散/仪式终） %/
@@ -469,48 +469,12 @@ Macro.add('dragonbar', {
    解析，那时 <<for>> 的临时变量早被同段落的下一个面板覆盖了（"点花的面板、算成求术的面板"）。
    值与它一起走进 DOM，点谁是谁。 %/
 
+/% #441-A：本 widget 现在只负责**调 sim ＋ 渲染**——分支判定与全部状态写点都在
+   `Game.Social.resolveAsk`（`21-resolve.twee`）。它**唯一渲染的东西**是筹码那一支的金额文案。
+   抽出的意义：`test/social-lever.mjs` 可以不经浏览器驱动整个交涉回合。 %/
 <<widget "socresolve">><<nobr>>
-	<<set _a to Game.Social.ask($args[0])>>
-	<<if _a and $pc.ev.soc and $pc.ev.soc.id is _a.id>>
-		<<set _S to Game.Social>>
-		<<set _how to $pc.ev.soc.how>>
-		<<if not $pc.ev.soc_last>><<set $pc.ev.soc_last to {}>><</if>>
-		<<if _how is "will">>
-			<<run _a.apply($pc)>>
-			<<set $pc.ev.soc_last[_a.id] to { kind: "will", text: _a.will }>>
-			<<elseif _how.startsWith("lever:")>>
-				<<set _lv to _S.levers(_a, $pc).find((l) => l.id is _how.slice(6))>>
-				<<if _lv>>
-					<<if _lv.gives is "adv">>
-						/% #360：优势筹码只把「这一问更有把握」摆出来——**不完成诉求**。真正掷骰的是随后选的手段（site 分支），届时才带上 adv 与理由。 %/
-						<<set $pc.ev.soc_lever to _lv.id>>
-						<<set $pc.ev.soc_last[_a.id] to { kind: "lever", text: "你把筹码摆了出来：" + _lv.name + "。他看了一眼，没有立刻接话。", notes: ["下一掷有优势（" + _lv.note + "）"] }>>
-					<<else>>
-						<<if _lv.econ>><<econ _lv.econ>><</if>>
-						<<run _S.shift($pc, _a.npc, 1)>>
-						<<run _a.apply($pc)>>
-						<<set $pc.ev.soc_last[_a.id] to { kind: "auto", text: _a.auto, notes: ["拿出了筹码：" + _lv.name] }>>
-					<</if>>
-				<</if>>
-		<<elseif _how.startsWith("site:")>>
-			<<set _site to _how.slice(5)>>
-			<<set _dc to _S.dcOf(_a, _site, $pc)>>
-				<<set _lv to _S.levers(_a, $pc).find((l) => l.id is $pc.ev.soc_lever)>>
-				<<if not _lv>><<set _lv to _S.levers(_a, $pc).find((l) => l.gives is "adv" and not l.econ)>><</if>>
-			<<set _res to _S.roll($pc, _site, _dc, _lv?.note ?? "")>>
-				<<set $pc.ev.soc_lever to null>>
-			<<set $pc.ev.last_roll to _res>>
-			<<if _res.success>>
-				<<run _a.apply($pc)>>
-				<<set _notes to _S.settle(_a, $pc, _site, _res.roll is 20 ? "crit" : "ok")>>
-				<<set $pc.ev.soc_last[_a.id] to { kind: "ok", text: _a.ok, notes: _notes }>>
-			<<else>>
-				<<set _notes to _S.settle(_a, $pc, _site, "bad")>>
-				<<set $pc.ev.soc_last[_a.id] to { kind: "bad", text: _a.bad, notes: _notes }>>
-			<</if>>
-		<</if>>
-		<<set $pc.ev.soc to null>>
-	<</if>>
+	<<set _r to Game.Social.resolveAsk($pc, $args[0], $pc.ev.soc?.how ?? null)>>
+	<<if _r and _r.econ>><span class="econ-note"><<print Game.Economy.note(_r.econ.delta)>></span><</if>>
 <</nobr>><</widget>>
 
 <<widget "socpanel">><<nobr>>

@@ -254,6 +254,22 @@ Object.assign(window.Game.Combat, {
 			return true;
 		});
 	},
+	// #519：从故事文件搬来（原用 `Math.random`）⇒ 改走可注入的 `Game.Rules.rng`；node 侧调用点须先注入。
+	// 每轮给 3 个：排除条件不满足的、以及上一轮刚用过的
+	offer(poolId, round, pc, lastUsed) {
+		let list = this.eligible(poolId, pc).filter((id) => id !== lastUsed);
+		if (list.length < 3) list = this.eligible(poolId, pc);
+		const picked = [];
+		while (picked.length < 3 && list.length) {
+			const i = Math.min(list.length - 1, window.Game.Rules.rng.d(list.length) - 1);
+			picked.push(list.splice(i, 1)[0]);
+		}
+		// 备药优先：手上有花、还没涂毒 → 第一轮一定给「涂毒」（免得玩家永远等不到）
+		if (poolId === '封印' && (round ?? 1) === 1 && pc?.inv?.['月光花'] && !pc?.dragon?.venom && !picked.includes('封印·涂毒')) {
+			picked[picked.length - 1] = '封印·涂毒';
+		}
+		return [...new Set(picked)];
+	},
 	pick(actionId, res) {
 		const a = window.Sg.story.combatAction(actionId);
 		const kind = res?.roll === 20 ? 'crit' : res?.success ? 'ok' : 'bad';

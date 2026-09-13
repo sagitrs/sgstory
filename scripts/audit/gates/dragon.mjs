@@ -5,8 +5,9 @@ export const flag = 'dragon';
 export const flags = ["dragon"];
 
 // ── #342 F2 自证：龙战门的"数字"全靠**确定性随机源** ⇒ 它本身必须可自证 ──
-/** mulberry32：小、快、**确定性**（同种子同序列）——MC/彩蛋率可信的前提。 */
-export const mulberry32 = (a) => () => { a |= 0; a = (a + 0x6d2b79f5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+// #519：种子源挪到共享 lib（门与门不许互相 import）——本文件继续再导出，原调用点与自证不动。
+import { mulberry32, asSugarRandom, withSeededRng } from '../lib/rng.mjs';
+export { mulberry32, asSugarRandom, withSeededRng };
 /** d20：优势取两次较大值（与 SugarCube 的优势语义一致）。 */
 export const d20 = (rng, adv) => { const r1 = 1 + Math.floor(rng() * 20), r2 = 1 + Math.floor(rng() * 20); return adv ? Math.max(r1, r2) : r1; };
 /** 单挑彩蛋击杀率：天然 20 ⇒ 1/20；劣势再平方；门槛 ≤1%（几乎不可达）。 */
@@ -108,10 +109,16 @@ if (wantAll || arg('dragon')) {
 	};
 	const mcRate = (pc, inv, salves) => {
 		const rng = mulberry32(20260911);
-		const saved = Math.random; Math.random = rng;	// offer 内部也走种子
+		// #519：`Combat.offer` 已改走**可注入**的 `Game.Rules.rng`（不再吃 `Math.random`）。
+		// 这里把**同一条种子流**装进 `Game.Rules.rng`（`asSugarRandom` 与 SugarCube 的
+		// `random(1,n)` 同公式）⇒ offer 与结算共用一条流、调用序不变 ⇒ **输出与原实现逐位一致**
+		// （实测：golden 无需重签，见 PR）。
 		let win = 0;
-		for (let i = 0; i < GAMES; i++) if (simSeal(rng, pc, inv, salves)) win++;
-		Math.random = saved;
+		// ⚠️ 必须装**同一个闭包**（不是同种子的第二个实例）：结算用 `rng`，offer 用 `Game.Rules.rng`
+		// —— 两条流共用一个实例时调用序与旧实现（`Math.random = rng`）完全一致。
+		Game.Rules.rng.set(asSugarRandom(rng));
+		try { for (let i = 0; i < GAMES; i++) if (simSeal(rng, pc, inv, salves)) win++; }
+		finally { Game.Rules.rng.reset(); }
 		return win / GAMES;
 	};
 	// 三门（canon §3.8 口径：满配稳 / 花毒+一件减伤才稳 / 裸装倒）

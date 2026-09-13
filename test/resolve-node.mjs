@@ -31,6 +31,12 @@ export const stripComments = (s) => String(s).replace(/\/%[\s\S]*?%\//g, '').rep
 export const writesStoryState = (body) =>
 	/<<set\s+\$/.test(body ?? '') || /State\.variables[.\[]/.test(body ?? '');
 
+// 纯函数：机制**定义**是否漏在故事文件里（#519）——按签名匹配，避免"提到名字"就红。
+export const mechanismInStory = (files, name) => {
+	const def = new RegExp(`(^|\\n)\\s*${name}\\s*\\(\\s*poolId`);
+	return files.filter(([, src]) => def.test(stripComments(src))).map(([f]) => f);
+};
+
 if (SELFTEST) {
 	console.log('══ 结算门 · 自证 ══');
 	const cases = [
@@ -45,6 +51,15 @@ if (SELFTEST) {
 		const ok = got === want;
 		console.log(`  ${ok ? '✓' : '✗'} ${label}：检出 ${got}（期望 ${want}）`);
 		if (!ok) bad++;
+	}
+	// #519：防回流——机制漏回故事文件必须能被抳住（自证：正例不报／反例必报）
+	{
+		const story = [['stories/x/15-tables.twee', "\t\toffer(poolId, round, pc, lastUsed) {\n\t\t\tconst list = [];\n\t\t},"]],
+			clean = [['stories/x/15-tables.twee', "\t\t// offer 已搬去 sim\n\t\tconst x = 1;"]];
+		const hit = mechanismInStory(story, 'offer'), none = mechanismInStory(clean, 'offer');
+		console.log(`  ${hit.length === 1 ? '✓' : '✗'} 反例：故事文件里定义 offer ⇒ 必须抓到（检出 ${hit.length}，期望 1）`);
+		console.log(`  ${none.length === 0 ? '✓' : '✗'} 正例：只在注释里提 offer ⇒ 不报（检出 ${none.length}，期望 0）`);
+		if (hit.length !== 1 || none.length !== 0) bad++;
 	}
 	// 注释剥离：注释里提到 `Math.random()` 不算命中，真调用仍算
 	{
@@ -121,6 +136,13 @@ t('`Game.Checks.rollSite` / `resolve` 已在 node 里可调用', typeof Game.Che
 	for (const [f, s] of noMathRandom) {
 		const hits = [...stripComments(s).matchAll(/Math\.random\s*\(/g)].length;
 		t(`④ ${f} 无直调 \`Math.random()\``, hits === 0, `命中 ${hits}`);
+	}
+	// #519：机制不许再漏回故事文件（`#512` 的唯一残留就是 `offer`——它吃了 `Math.random()`）。
+	// 判据：`offer` 的**定义**必须在 sim；任何 `stories/**` 文件里出现它的定义 ⇒ 红。
+	{
+		const storyFiles = allSourceFiles().filter((f) => f.startsWith('stories/'));
+		const offenders = mechanismInStory(storyFiles.map((f) => [f, readFileSync(f, 'utf8')]), 'offer');
+		t('④ `Combat.offer` 定义在 sim（不在故事文件）', sim.includes('offer(poolId') && offenders.length === 0, offenders.join(' '));
 	}
 	// 只查 **present** widget；sim widget（`fightact`／`socresolve`／`snapshot`／`setflag`／`damage`…）本就负责写状态
 	for (const w of ['sitecheck', 'hallResult', 'fightpanel', 'socpanel', 'fightlog', 'socresolve', 'econ']) {

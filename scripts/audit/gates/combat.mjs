@@ -1,5 +1,6 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { withSeededRng } from '../lib/rng.mjs';
 // flags=['combat']。校验：npm run audit:golden。
 export const flag = 'combat';
 export const flags = ["combat"];
@@ -72,7 +73,9 @@ if (wantAll || arg('combat')) {
 		if (!canHurt) { console.log(`  ✗ 池「${pool}」没有任何能推进战斗的动作——玩家只能挨打`); bad++; }
 		if (!canGuard) { console.log(`  ✗ 池「${pool}」没有任何减伤/免伤的动作——只能硬换血`); bad++; }
 		// ④ 空手不会死人：裸装（无道具）也能抽出 3 张牌
-		const naked = C.offer(pool, 1, nakedPc, null);
+		// #519：`offer` 现走 `Game.Rules.rng`（node 侧未注入 ⇒ 大声报错）⇒ 这里给一条**固定种子流**，
+		// 顺带把本门从"每次跑抽到的牌不同"变成**可复算**（判据只看张数，但输出进 golden 不该抖）。
+		const naked = withSeededRng(Game, 20260913, () => C.offer(pool, 1, nakedPc, null));
 		if (naked.length < 3) { console.log(`  ✗ 池「${pool}」裸装只抽到 ${naked.length} 张牌——手牌不足 3 选 1`); bad++; }
 		if (ids.some((id) => !C.actions[id])) { /* 上面已报 */ } else { /* 去重后统计 */ }
 		const dup = ids.length - uniq.length;

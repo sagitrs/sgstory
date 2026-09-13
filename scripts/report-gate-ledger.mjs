@@ -31,7 +31,7 @@ export const REASONS = {
 	'audit:text': { reason: '文本载荷门（**有判定**：载荷阈值）——此前台账误标「仅登记」，由形态对账查出并改正；自证待补（密度 ratchet 在 --craft，本门是自己的载荷线）' },
 	'audit:checks': { form: '行为化', reason: '检定矩阵：天然位点概率（1/20，劣势平方）＋优势标记阈值＋**单调性不变量**（优势 ≥ 普通），自证 5 例（含浮点边界陷阱留注）' },
 	'audit:systems': { reason: '机制×锚句门（**有判定**：机制必须有可感知锚句）——此前台账误标「仅登记」，由形态对账查出并改正；自证待补' },
-	'audit:canon': { reason: '禁词/回流扫描（断言存在，但**没有自证**——已列入 F2 工作清单；§10 已裁剪项不得回流）' },
+	'audit:canon': { form: '行为化', reason: '禁词/回流扫描：表格解析/§10 行覆盖/守林人代词/§9 双读（含 `allow` 白名单与 `/% %/` 剥注释）/§3.9 传说投放，**自证 6 例**（#342 第 8 波）' },
 	'audit:sel': { wired: true, reason: '接线说明：--sel 只是 --nosl＋--gear 的便捷别名，链上跑的是更具体的两个 flag，故没有单独的 --sel --check（**形态是有判定的门**，此前台账误标「仅登记」，已由形态对账改正）' },
 	// ── 报告脚本（id 形如 scripts/<file>）──
 	'scripts/report-rhythm.mjs': { wired: true, form: '行为化', reason: 'R1/R1b/R2/正例 四例自证，已入 npm test' },

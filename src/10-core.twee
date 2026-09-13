@@ -275,13 +275,13 @@ Macro.add('dragonbar', {
 		<<if $last_check.success>>
 			<<if not _slotHasIt>>你把哨子从钉子上提起来，收进行囊，可在''物品栏''查看。<</if>><<give "坏哨">><<setflag "whistle_taken">>
 		<<else>>
-			<<if not _slotHasIt>>哨子卡在钉子上。你拨了半天，指头刮破了一道口子——到底还是弄下来了。<</if>><<damage 1>><<give "坏哨">><<setflag "whistle_taken">>
+			<<if not _slotHasIt>>哨子卡在钉子上。你拨了半天，指头刮破了一道口子——到底还是弄下来了。<</if>><<damage `Game.Damage.graze`>><<give "坏哨">><<setflag "whistle_taken">>
 		<</if>>
 	<<else>>
 		<<if $last_check.success>>
 			<<if not _slotHasIt>>你借了箱子的高度，一把攥住哨子拧了下来。<</if>><<give "坏哨">><<setflag "whistle_taken">>
 		<<else>>
-			<<if not _slotHasIt>>箱子一滑，你磕在墙角上。好歹把哨子攥下来了。<</if>><<damage 2>><<give "坏哨">><<setflag "whistle_taken">>
+			<<if not _slotHasIt>>箱子一滑，你磕在墙角上。好歹把哨子攥下来了。<</if>><<damage `Game.Damage.hurt`>><<give "坏哨">><<setflag "whistle_taken">>
 		<</if>>
 	<</if>>
 	/% 「这里你已经翻找过了」由**门厅段落自己的 else 支**渲染（单源）——放在 widget 里会被 #270 结果槽连同 link 输出一起捕获，于是同一句在槽与段落各显示一遍（#403）。 %/
@@ -392,54 +392,16 @@ Macro.add('dragonbar', {
 /% 结算玩家选的那一手 ＋ 对手这一轮的动作 %/
 /% #350：**结算必须在点击时刻完成**——渲染期的状态变更不进 moment，S/L 会重掷这一轮
    （与 #300 P1 同源）。fightact＝点击时掷骰/结算/写日志；fightlog＝渲染期**只读**回放。 %/
+/% #441-A：本 widget 现在只负责**调 sim ＋ 渲染**——算与写在 `Game.Combat.resolvePlayer`／`resolveFoe`。
+   拆两段（而不是一次算完）是为了让**渲染顺序**（玩家骰面 → 玩家受伤闪光 → 对手骰面 → 挨打闪光）
+   与 **hp 时序**（玩家受伤后的 hp 决定对手这一轮是否发生）与旧实现逐字一致。 %/
 <<widget "fightact">><<nobr>>
-	<<set _f to $pc.ev.fight>>
-	<<set _a to Game.Combat.actions[_f.act]>>
-	<<if _f.adv>>
-		<<sitecheck _a.site "adv" "上一手的准备">>
-	<<else>>
-		<<sitecheck _a.site>>
-	<</if>>
-	<<set _hadAdv to _f.adv gt 0>>
-	/% #352：优势在**被这一手消费后**才清零（旧实现放在本轮末尾清零 → 准备动作的「下一击有优势」当场作废） %/
-	<<set _f.adv to 0>>
-	<<set _r to Game.Combat.playerEff(_f.act, $last_check, $pc)>>
-	<<set _f.last to { act: _f.act, kind: _r.kind, text: _r.eff.text, dmg: _r.eff.dmg ?? 0, hurt: _r.eff.hurt ?? 0, adv: _r.eff.adv ?? 0, guard: _r.eff.guard ?? 0 }>>
-	<<set _log to { you: { label: _a.label, kind: _r.kind, text: _r.eff.text, dmg: _r.eff.dmg ?? 0, gearBonus: _r.gearBonus ?? 0, gearName: Game.Gear.damageSource($pc.gear), adv: _r.eff.adv ?? 0, guard: _r.eff.guard ?? 0, hurt: _r.eff.hurt ?? 0, skipFoe: _r.eff.skipFoe ?? false, goodNote: _r.goodNote ?? "", rolledWithAdv: _hadAdv }, foe: null }>>
-	<<run Game.Combat.applyEffect($pc, _r.eff, _f)>>
-	<<if _r.eff.hurt>><<damage _r.eff.hurt>><</if>>
-	<<set _f.act to null>>
-	<<if $pc.hp gt 0>>
-		<<if _f.skipFoe>>
-			<<set _log.foe to { text: '这一轮它没有出手。' }>>
-		<<else>>
-			<<sitecheck $args[0]>>
-			<<if $args[1]>>
-				<<set _raw to Game.Dragon.dragonDamage($pc.inv, _f.round, ($pc.dragon.defeats ?? 0) + 1, $pc.dragon.venom)>>
-				<<set _dmg to Math.max(1, _raw - (_f.guard ?? 0))>>
-				<<if $last_check.success>>
-					<<set _log.foe to { text: '你贴着地滚开了——它那一口咬在你刚才站的地方，石板裂了一层。' }>>
-				<<else>>
-					<<set $pc.dragon.defeats to ($pc.dragon.defeats ?? 0) + 1>>
-					<<set _log.foe to { text: '它回手了——这一下你没能全躲开。' }>>
-					<<damage _dmg>>
-				<</if>>
-			<<else>>
-				<<if $last_check.success>>
-					<<set _log.foe to { text: '它扑了个空，散在你刚才站的地方——没有追。' }>>
-				<<else>>
-					<<set _log.foe to { text: '它把你掀翻在地，又停住了。像在等你先动手。' }>>
-					<<damage 5>>
-				<</if>>
-			<</if>>
-		<</if>>
-	<</if>>
-	<<set _f.round to (_f.round ?? 1) + 1>>
-	/% #350：下一轮的牌也在**点击时**抽定（渲染时抽＝读档重抽，玩家看到的选项会变） %/
-	<<set _f.offer to Game.Combat.offer(_f.pool, _f.round, $pc, _f.last?.act)>>
-	<<set _f.guard to 0>>
-	<<set _f.skipFoe to false>>
-	<<set _f.log to _log>>
+	<<set _p to Game.Combat.resolvePlayer($pc, $args[0], $args[1])>>
+	<<checkres `_p.check`>>
+	<<if _p.hurt>><<damage _p.hurt>><</if>>
+	<<set _fo to Game.Combat.resolveFoe($pc, $args[0], $args[1], _p.log)>>
+	<<if _fo.check>><<checkres `_fo.check`>><</if>>
+	<<if _fo.hurt>><<damage _fo.hurt>><</if>>
 <</nobr>><</widget>>
 
 /% 渲染期只读回放上一手（#315 契约：渲染路径不得改状态；#350：S/L 后必须复现同一手） %/
@@ -455,17 +417,18 @@ Macro.add('dragonbar', {
 	<</if>>
 <</nobr>><</widget>>
 
+/% #441-A：面板是 **present** —— 抽牌与「选中哪一手」都改走 `Game.Combat.ensureOffer`／`chooseAction`（sim），
+   本 widget 体内因此不再有 `<<set $…>>`（旧实现三处 `<<set $pc.ev.fight.act to …>>` ＋ 一处经 `_f` 别名的
+   `<<set _f.offer to …>>`，后者同样是写状态）。 %/
 <<widget "fightpanel">><<nobr>>
+	<<run Game.Combat.ensureOffer($pc)>>
 	<<set _f to $pc.ev.fight>>
-	<<if _f.offer.length is 0>>
-		<<set _f.offer to Game.Combat.offer(_f.pool, _f.round, $pc, _f.last?.act)>>
-	<</if>>
 	<div class="fight-acts">
 		''这一轮你能做的：''
 		<<if _f.offer.length gt 0>>
 			<<link `Game.Combat.actions[_f.offer[0]].label`>>
 				<<set _orig to passage()>>
-				<<set $pc.ev.fight.act to $pc.ev.fight.offer[0]>>
+				<<run Game.Combat.chooseAction($pc, 0)>>
 				<<fightact $args[0] $args[1]>>
 				/% #350/#357：结算在点击时完成；**死透就不再归位**——<<damage>> 已跳「结局 死亡」，再 goto 会把它覆盖掉。用**存活条件**判，不依赖 widget 里的 passage() %/
 				<<if $pc.hp gt 0>><<goto `_orig`>><</if>>
@@ -475,9 +438,9 @@ Macro.add('dragonbar', {
 		<<if _f.offer.length gt 1>>
 			<<link `Game.Combat.actions[_f.offer[1]].label`>>
 				<<set _orig to passage()>>
-				<<set $pc.ev.fight.act to $pc.ev.fight.offer[1]>>
-				<<fightact $args[0] $args[1]>>
 				/% #350/#357：结算在点击时完成；**死透就不再归位**——<<damage>> 已跳「结局 死亡」，再 goto 会把它覆盖掉。用**存活条件**判，不依赖 widget 里的 passage() %/
+				<<run Game.Combat.chooseAction($pc, 1)>>
+				<<fightact $args[0] $args[1]>>
 				<<if $pc.hp gt 0>><<goto `_orig`>><</if>>
 			<</link>>
 			<span class="fight-meta">（<<print Game.Combat.siteInfo(_f.offer[1])>>）</span>
@@ -485,9 +448,9 @@ Macro.add('dragonbar', {
 		<<if _f.offer.length gt 2>>
 			<<link `Game.Combat.actions[_f.offer[2]].label`>>
 				<<set _orig to passage()>>
-				<<set $pc.ev.fight.act to $pc.ev.fight.offer[2]>>
-				<<fightact $args[0] $args[1]>>
 				/% #350/#357：结算在点击时完成；**死透就不再归位**——<<damage>> 已跳「结局 死亡」，再 goto 会把它覆盖掉。用**存活条件**判，不依赖 widget 里的 passage() %/
+				<<run Game.Combat.chooseAction($pc, 2)>>
+				<<fightact $args[0] $args[1]>>
 				<<if $pc.hp gt 0>><<goto `_orig`>><</if>>
 			<</link>>
 			<span class="fight-meta">（<<print Game.Combat.siteInfo(_f.offer[2])>>）</span>

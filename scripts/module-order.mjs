@@ -228,11 +228,6 @@ export const CONST_SECTION = {
 	// （搬家时很可能发生）判据就静默失效。现在改成"**所有文件都判**"，例外只在声明的文件中排除。
 	damageMacro: /<<damage\s+(-?\d+)\s*>>/,
 	damageExemptFiles: [],
-	// ⏳ 已知缺陷（#457 查出）：引擎文件里的裸伤害数字，**按文件计数登记**（不按行号——行号会随改动漂移，
-	// 用"该文件允许几处"这种粗粒度反而更稳、也照样能腐烂）。查出的三处中 `10-core.twee:416` 的
-	// `<<damage 5>>` 是**魔法数**（`Game.Damage` 只有 1/2/3/4/99）——不只是"字面量"问题。
-	// 修法：`1/2` → `Game.Damage.graze/hurt`；`5` 需要内容侧定级（或复用 heavy/lethal）。
-	// **这三行正是 `#461` 要抽的"算"**（`:248`/`:254` 在 `sitecheck`/`hallResult`，`:416` 在 `fightact`）
-	// ⇒ 由他在抽纯函数时同批修，我这边只登记、不判红。
-	knownBareDamage: { '10-core.twee': { count: 3, ref: '#461' } },
+	// ⏳ 裸伤害数字登记：**已清零**（`#461` 抽「算」时同批修完：`1/2` → `Game.Damage.graze/hurt`，
+	//   `5` → 具名 `Game.Damage.shove`）。此后本键缺席即「无例外」；新出现的裸伤害数字一律直接判红。
 };

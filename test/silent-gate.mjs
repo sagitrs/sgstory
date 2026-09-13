@@ -2,8 +2,9 @@
 // 空 catch / 无说明吞错即红。合理降级在 catch 内写明原因即可（现有 7 处均合规）。
 // 豁免：行内或块内注释含汉字即视为已说明；确需无声吞错用 // silent-gate: ok <理由>。
 import { readFileSync, readdirSync } from 'node:fs';
+import { allSourceFiles } from '../scripts/module-order.mjs';
 
-const files = readdirSync('src').filter((f) => f.endsWith('.twee')).map((f) => `src/${f}`);
+const files = allSourceFiles();   // #458 切片B：单一权威
 const CJK = /\p{Script=Han}/u;
 let bad = 0;
 for (const f of files) {

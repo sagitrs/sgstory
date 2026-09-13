@@ -1,5 +1,9 @@
-import { readdirSync, readFileSync } from 'node:fs';
+import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
+
+/** 仓库根（`scripts/` 的上一级）——`allSourceFiles()` 用（#458 切片B）。 */
+const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '');
 
 // ── 模块图（#319）：**显式**声明加载顺序与跨文件依赖——不再靠 `readdirSync().sort()` 的文件名前缀隐含。
 //
@@ -269,3 +273,26 @@ export const CONST_SECTION = {
 	// ⏳ 裸伤害数字登记：**已清零**（`#461` 抽「算」时同批修完：`1/2` → `Game.Damage.graze/hurt`，
 	//   `5` → 具名 `Game.Damage.shove`）。此后本键缺席即「无例外」；新出现的裸伤害数字一律直接判红。
 };
+
+// ── 源文件发现的**单一权威**（#458 切片B）────────────────────────────────────
+// 背景：`readdirSync('src')` 这类"单根枚举"散落在 ≈10 个文件里（build/audit context/coverage/globals/
+// silent-gate/store-keys/dist-fresh…）⇒ 搬家（故事文件要住到 `stories/<slug>/**`）会牵动每一处 ✗。
+// 做法：把发现收到这里。**今天 `SOURCE_ROOTS` 只有 `src`** ⇒ 返回值与既有写法**逐字符相同**（零行为变化 ✓）；
+// 搬家时只改本数组（并让 `ORDER`/`MODULES` 的键改成路径）✓。
+export const SOURCE_ROOTS = ['src'];
+export const allSourceFiles = (roots = SOURCE_ROOTS) => {
+	const out = [];
+	const walk = (rel) => {
+		const abs = join(ROOT, rel);
+		if (!existsSync(abs)) return;
+		for (const e of readdirSync(abs, { withFileTypes: true })) {
+			const r = `${rel}/${e.name}`;
+			if (e.isDirectory()) { if (!/^(node_modules|\.)/.test(e.name)) walk(r); continue; }
+			if (e.name.endsWith('.twee')) out.push(r);
+		}
+	};
+	for (const r of roots) walk(r);
+	return out.sort();
+};
+/** 按 basename 或路径后缀解析源文件（供只认文件名的调用点用，如 `resolve-node.mjs`）。 */
+export const sourcePath = (name, roots = SOURCE_ROOTS) => allSourceFiles(roots).find((f) => f === name || f.endsWith(`/${name}`)) ?? name;

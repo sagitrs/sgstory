@@ -18,6 +18,7 @@
 // 自证：`node test/globals.mjs --selftest`（正例 2 + 反例 4，含两类假阳性守卫）
 
 import { readFileSync, readdirSync } from 'node:fs';
+import { allSourceFiles } from '../scripts/module-order.mjs';
 
 export const RULE = /^(Game|Sg)/;
 
@@ -92,7 +93,7 @@ const selftest = () => {
 
 if (process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 
-const srcFiles = readdirSync('src').filter((f) => f.endsWith('.twee')).sort().map((f) => `src/${f}`);
+const srcFiles = allSourceFiles();   // #458 切片B：单一权威
 const found = scanGlobals(srcFiles);
 const v = judge(found);
 

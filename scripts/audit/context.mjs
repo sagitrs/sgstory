@@ -7,6 +7,7 @@
 // 行为纪律（#316）：本文件只做「搬家」，不改任何加载语义——输出必须与拆分前逐字节一致
 // （验证方式：npm run audit:golden）。
 import { readFileSync, readdirSync } from 'node:fs';
+import { allSourceFiles } from '../module-order.mjs';
 import vm from 'node:vm';
 
 // ── vm 直载全部 [script] 段（按文件名序；浏览器专属全局用 stub 兑底）──
@@ -51,7 +52,8 @@ const indexPassages = (srcFiles) => {
 
 export const createContext = ({ srcDir = 'src', argv = process.argv } = {}) => {
 	// ── 源文件发现（M1a-1）：不再硬编码路径——改文件名/拆文件不再牵动工具 ──
-	const SRC_FILES = readdirSync(srcDir).filter((f) => f.endsWith('.twee')).sort().map((f) => `${srcDir}/${f}`);
+	// #458 切片B：源文件发现收成单一权威（`SOURCE_ROOTS` 只含 `src` 时返回值与旧写法**逐字符相同**）
+	const SRC_FILES = allSourceFiles([srcDir]);
 	const ctx = loadScripts(SRC_FILES);
 	const { Game } = ctx.window;   // #320 阶段 3：Chargen* 已收进 Game.Chargen
 

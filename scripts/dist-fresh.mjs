@@ -8,6 +8,7 @@
 // 缺失为什么也要报错：此前 audit 的 a11y 门用 `existsSync` 兜住 → dist 不存在时该检查**静默跳过**，
 // 那就是「假绿」的一种（没跑，却看起来通过）。
 import { readdirSync, existsSync, statSync, mkdirSync, writeFileSync, rmSync, utimesSync } from 'node:fs';
+import { allSourceFiles } from './module-order.mjs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { defaultStoryHtml } from './dist-paths.mjs';
@@ -19,7 +20,12 @@ export const SRC_DIR = join(ROOT, 'src');
 
 export const distState = ({ distPath = DIST_PATH, srcDir = SRC_DIR } = {}) => {
 	if (!existsSync(distPath)) return { exists: false, fresh: false };
-	const newestSrc = Math.max(...readdirSync(srcDir).filter((f) => f.endsWith('.twee')).map((f) => statSync(join(srcDir, f)).mtimeMs));
+	// #458 切片B：默认走**单一权威** `allSourceFiles()`（搬家后同时看 `src/**` 与 `stories/**`，
+	// 否则故事文件改动会被新鲜度守卫**静默漏掉** ✗）；显式传 `srcDir`（自证的合成目录）时按它枚举。
+	const files = srcDir === SRC_DIR
+		? allSourceFiles().map((p) => join(ROOT, p))
+		: readdirSync(srcDir).filter((f) => f.endsWith('.twee')).map((f) => join(srcDir, f));
+	const newestSrc = Math.max(...files.map((f) => statSync(f).mtimeMs));
 	const distMtime = statSync(distPath).mtimeMs;
 	return { exists: true, fresh: distMtime >= newestSrc, newestSrc, distMtime };
 };

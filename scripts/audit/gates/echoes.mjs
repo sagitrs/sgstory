@@ -30,19 +30,24 @@ export function conditionOwner(src, anchor) {
 	};
 }
 // 登记 cause → 期望条件正则（flag → world/ev.X；token → inv["X"]；towerFlag → tower.X）
-export function causeReg(cause) {
+import { noteIdsForFlag } from '../lib/shared.mjs';
+
+export function causeReg(cause, noteIds = []) {
 	if (!cause) return /$^/;
 	if (cause.token) return new RegExp(`inv\\s*(?:\\.|\\[)?["']?${cause.token}`);
 	if (cause.towerFlag) return new RegExp(`tower\\.${cause.towerFlag}`);
 	if (cause.gear) return new RegExp(`gear[^]*${cause.gear}`);
-	return new RegExp(`(?:world|ev)\\s*(?:\\.|\\[)["']?${cause.flag}`);
+	// #433 阶段 2：条件可写成 `Sg.notes.has('n_x')` —— 它读的仍是该旗标，两种形状都要认
+	const direct = `(?:world|ev)\\s*(?:\\.|\\[)["']?${cause.flag}`;
+	const viaNote = noteIds.length ? `|Sg\\.notes\\.(?:has|entry)\\(\\s*['"](${noteIds.join('|')})['"]` : '';
+	return new RegExp(direct + viaNote);
 }
 // 站点判定（纯函数）：返回 null（通过）或 { code, detail }——真实运行与自证**同一份代码**
-export const judgeEchoSite = (site, cause, src) => {
+export const judgeEchoSite = (site, cause, src, noteIds = []) => {
 	if (src === undefined) return { code: 'no-passage', detail: `位点段落「${site.p}」不存在` };
 	if (!src.includes(site.anchor)) return { code: 'no-anchor', detail: `「${site.p}」锚句丢失「${site.anchor}」` };
 	const own = conditionOwner(src, site.anchor);
-	const expect = site.gate ? new RegExp(site.gate) : causeReg(cause);
+	const expect = site.gate ? new RegExp(site.gate) : causeReg(cause, noteIds);
 	if (own.inLink && !site.inLinkOk) return { code: 'in-link', detail: `「${site.p}」锚句在 <<link>> 体内（点击态文本——入场看不到，且多随 goto 重绘消失）` };
 	if (!own.conds.length) return { code: 'no-gate', detail: `「${site.p}」锚句无条件门（假回声——任何人都看得到，与 cause 无因果）` };
 	if (!own.conds.some((c) => expect.test(c.text) && (!c.negated || site.negate))) {
@@ -81,6 +86,7 @@ if (wantAll || arg('echoes')) {
 			['causeReg：token → inv', causeReg({ token: '日记' }), (r) => r.test("$pc.inv['日记']")],
 			['causeReg：towerFlag → tower.*', causeReg({ towerFlag: 'x' }), (r) => r.test('tower.x')],
 			['causeReg：无 cause → 不匹配任何门', causeReg(null), (r) => !r.test('随便什么门')],
+			['causeReg：旗标经笔记读（`Sg.notes.has`）也算命中（#433 阶段 2 的形状）', causeReg({ flag: 'k' }, ['n_k']), (r) => r.test("Sg.notes.has('n_k')") && !r.test("Sg.notes.has('n_other')")],
 			['站点正例：归属相符', judgeEchoSite(site, { flag: 'k' }, SRCOK), (v) => v === null],
 			['站点反例①：无条件门（假回声）', judgeEchoSite(site, { flag: 'k' }, A), (v) => v?.code === 'no-gate'],
 			['站点反例②：门与 cause 不符', judgeEchoSite(site, { flag: 'other' }, SRCOK), (v) => v?.code === 'mismatch'],
@@ -95,12 +101,14 @@ if (wantAll || arg('echoes')) {
 			if (!pass) bad++;
 		}
 	}
+	// #433 阶段 2：条件可能写成 `Sg.notes.has('n_x')` ⇒ 把「旗标 → 笔记 id」交给判定器（两种形状都认）
+	const NOTE_IDS = noteIdsForFlag(Game.Notes?.entries ?? {});
 	const kinds = {};
 	for (const e of Game.Echoes.list) {
 		kinds[e.kind] = (kinds[e.kind] ?? 0) + 1;
 		for (const site of e.echo) {
 			// #266 条件归属：锚句必须落在以登记 cause（或显式 gate）为条件的块内，且不在 <<link>> 体内
-			const v = judgeEchoSite(site, e.cause, passageSrc.get(site.p));
+			const v = judgeEchoSite(site, e.cause, passageSrc.get(site.p), NOTE_IDS.get(e.cause?.flag) ?? []);
 			if (v) { console.log(`  ✗ ${e.id}：${v.detail}`); bad++; continue; }
 			console.log(`  ✓ ${e.id}（${e.kind}）→ ${site.p}`);
 		}
@@ -109,7 +117,7 @@ if (wantAll || arg('echoes')) {
 		const src = passageSrc.get(r.p);
 		if (src === undefined || !src.includes(r.anchor)) { console.log(`  ✗ revisit ${r.flag ?? r.inv}：「${r.p}」锚句丢失「${r.anchor}」`); bad++; continue; }
 		const own = conditionOwner(src, r.anchor);
-		const expect = r.gate ? new RegExp(r.gate) : causeReg(r.inv ? { token: r.inv } : { flag: r.flag });
+		const expect = r.gate ? new RegExp(r.gate) : causeReg(r.inv ? { token: r.inv } : { flag: r.flag }, NOTE_IDS.get(r.flag) ?? []);
 		if (!own.conds.length || !own.conds.some((c) => expect.test(c.text) && (!c.negated || r.negate))) {
 			console.log(`  ✗ revisit ${r.flag ?? r.inv}：「${r.p}」条件归属不符（实际最内层门：${own.conds.slice(-2).map((c) => (c.negated ? '!' : '') + c.text).join(' / ') || '无'}）`); bad++;
 		}

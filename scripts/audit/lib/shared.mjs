@@ -81,6 +81,26 @@ export const noteReadKeys = (text, entries) => {
 	return [...out];
 };
 // 文本里**经笔记**读到的裸键（D2 按裸键判）
+// 旗标（裸键）→ 引用它的笔记 id 数组（`#433`：门按旗标判"谁读了它"时要用）
+export const noteIdsForFlag = (entries) => {
+	const M = new Map();
+	for (const [id, ps] of notePaths(entries)) {
+		for (const p of ps) {
+			const f = p.replace(/^(ev|world)\./, '');
+			if (!M.has(f)) M.set(f, []);
+			M.get(f).push(id);
+		}
+	}
+	return M;
+};
+// **条件文本是否消费了旗标 `flag`**（两种形状，单一权威）：
+//   ① 直接读：`$pc.ev.flag` / `$pc.world['flag']`
+//   ② 经笔记：`Sg.notes.has('n_flag')`（该笔记的 flagPath 含此旗标）
+// `noteIds`：该旗标对应的笔记 id 数组（`noteIdsForFlag()` 的结果，缺省＝只认形状①）
+export const conditionReadsFlag = (text, flag, noteIds = []) => {
+	if (new RegExp(`(?:world|ev)\\s*(?:\\.|\\[)?["']?${flag}\\b`).test(String(text ?? ''))) return true;
+	return noteIds.some((id) => new RegExp(`Sg\\.notes\\.(?:has|entry)\\(\\s*['"]${id}['"]`).test(String(text ?? '')));
+};
 export const noteReadFlags = (text, entries) => new Set(noteReadKeys(text, entries).map((k) => k.replace(/^(ev|world)\./, '')));
 
 export const makeShared = (ctx) => {

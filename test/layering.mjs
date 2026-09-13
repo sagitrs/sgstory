@@ -67,6 +67,8 @@ if (process.argv.includes('--selftest')) {
 		t('归一化：点号两侧空白/换行 a .\n b → a.b', normalizeSymbolRefs('a .\n b') === 'a.b');
 		t('层拒反例：逃逸写法 Game?.Dragon 必须被抓（第 2 步曾漏检，guest-1 实测）', checkLayerDirection({ E: 'window.Game?.Dragon?.hp' }, { layers: L, symbols: ['Game.Dragon'] }).length === 1);
 		t('层拒反例：方括号写法 Game["Notes"] 必须被抓', checkLayerDirection({ E: 'Game["Notes"]' }, { layers: L, symbols: ['Game.Notes'] }).length === 1);
+		t('层拒反例（#459 别名）：`const T = window.Game` 后写 `T.Checks.sites` 也必须被抓', checkLayerDirection({ E: 'const T = window.Game; const x = T.Checks.sites;' }, { layers: L, symbols: ['Game.Checks.sites'] }).length === 1);
+		t('层间正例（#459 别名）：别名只用来读引擎机制 ⇒ 不报', checkLayerDirection({ E: 'const T = window.Game; T.Checks.resolve();' }, { layers: L, symbols: ['Game.Checks.sites'] }).length === 0);
 		t('层数正例：**故事**文件引用故事符号不算越界（反向允许）', checkLayerDirection({ S: 'const x = Game.NPC;' }, { layers: L, symbols: SY }).length === 0);
 	}
 	for (const [name, sources, opts, want] of cases) {

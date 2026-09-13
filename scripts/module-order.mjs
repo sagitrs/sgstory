@@ -122,6 +122,8 @@ export const STORY_SYMBOLS = [
 	// ⚠️ 残留的过渡味道（记在案，不假装没有）：机制与数据**共用同一个命名空间**（引擎把 `resolve` 挂在故事提供的 `Game.Checks` 上）。
 	//    第 3/4 步（#458/#459）应该把它们分开（机制住在引擎命名空间、数据由故事提供）。
 	'Game.Checks.sites',
+	// #459（guest-1 实测漏检）：情报捷径的两张数据表 —— sim 原来在读（`knowledge`／`knowledgeWhy`），门却不会咬 ✗
+	'Game.Checks.knowledge', 'Game.Checks.knowledgeWhy',
 	'Game.Economy.events',
 	'Game.Items.defs', 'Game.Items.effects',
 	'Game.Gear.defs',
@@ -149,10 +151,20 @@ export const stripCommentsForLint = (src) => String(src)
 	.replace(/\/\*[\s\S]*?\*\//g, ' ')
 	.replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
 
-export const normalizeSymbolRefs = (src) => String(src)
-	.replace(/\?\s*\./g, '.')                                  // a?.b → a.b（含换行）
-	.replace(/\[\s*(['"`])([A-Za-z_$][\w$]*)\1\s*\]/g, '.$2')  // a["b"] → a.b
-	.replace(/\s*\.\s*/g, '.');                                // a . b → a.b（含换行）
+export const normalizeSymbolRefs = (src) => {
+	const text = String(src);
+	// #459（guest-1 实测）：**别名会让裸子串匹配变瞎** —— `const T = window.Game` 之后 `T.Checks.sites`
+	// 明摆着是故事数据，门却**命中 0** ✗ ⇒「引擎层未引用任何故事符号」这句话对用别名的文件**没有证据力**。
+	// 做法：先把“指向 `window.Game`／`Game` 的**简单别名**”展开（仅此一类；解构/多级别名不展开 = 已知边界）。
+	const aliases = new Set();
+	for (const m of text.matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:window\.)?Game\b/g)) aliases.add(m[1]);
+	let out = text;
+	for (const a of aliases) out = out.replace(new RegExp('(?<![\\w$."' + String.fromCharCode(96) + '])' + a + '\\s*\\.\\s*', 'g'), 'Game.');
+	return out
+		.replace(/\?\s*\./g, '.')
+		.replace(/\[\s*(['"`])([A-Za-z_$][\w$]*)\1\s*\]/g, '.$2')
+		.replace(/\s*\.\s*/g, '.');
+};
 
 // 纯函数：返回引擎文件里的越界引用（供 test/layering.mjs 与自证共用）
 export const checkLayerDirection = (sources, { layers = LAYER_OF, symbols = STORY_SYMBOLS } = {}) => {

@@ -38,7 +38,12 @@ export const aggregatorChecks = (srcText) => {
 	const all = [...String(srcText).matchAll(/return\s*\{([^}]*)\}\s*;/g)];
 	if (!all.length) return { found: false, missing: [] };
 	const m = all[all.length - 1];
-	const returned = m[1].split(',').map((s) => s.trim().split(':')[0].trim()).filter(Boolean);
+	// guest-1 实测：`return { flag, why: expr }` 里 `why` 是**键**、不是被引用的标识符 ⇒ 键不算、只查值侧。
+	const returned = m[1].split(',').flatMap((part) => {
+		const t = part.trim(); if (!t) return [];
+		if (t.includes(':')) return [t.slice(t.indexOf(':') + 1).trim()];   // 键值对 ⇒ 只看值
+		return [t];                                                          // 简写 ⇒ 自己就是被引用者
+	}).filter(Boolean);
 	const declared = new Set([...String(srcText).matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map((x) => x[1]));
 	// 也允许 `import`/函数参数等来源：只报"既没本地声明、也不在文件里出现过赋值"的名字
 	const assigned = new Set([...String(srcText).matchAll(/([A-Za-z_$][\w$]*)\s*=/g)].map((x) => x[1]));
@@ -102,6 +107,7 @@ if (process.argv.includes('--selftest')) {
 	t('常量声明指向不存在的文件 ⇒ stale-const-decl', checkPlaces({ ...base, constFiles: ['gone.twee'] }).some((x) => x.code === 'stale-const-decl'));
 	t('聚合 return 引用未声明标识符 ⇒ aggregator-broken（挪常量段常犯）', aggregatorChecks('const Era = {}; return { Era, Gone };').missing.join() === 'Gone');
 	t('聚合 return 里都是已声明的 ⇒ 空', aggregatorChecks('const Era = {}, Damage = {}; return { Era, Damage };').missing.length === 0);
+	t('聚合 return 的对象**键**不算引用（`{ flag, why: obj }` ⇒ 只查 `flag` 与 `obj`）', aggregatorChecks('const flag = 1, obj = {}; return { flag, why: obj };').missing.length === 0);
 	if (bad) { console.error(`\n✗ move-precheck 自证失败 ${bad} 项`); process.exit(1); }
 	console.log('\n✔ move-precheck 自证通过（六处 × 正反例 ＋ 聚合返回）');
 	process.exit(0);

@@ -13,7 +13,7 @@
 //   `<<setflag "k">>` / `<<firstTime "k">>`（动态写入 `$pc.ev[k]` 并动态读回）· `$pc.ev["k"]`
 //   · 表内谓词 `(p) => p.world?.k`。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { qualifiedWriteKeys, keyCharsetViolations, readKeys } from '../lib/shared.mjs';
+import { qualifiedWriteKeys, keyCharsetViolations, readKeys, noteReadKeys } from '../lib/shared.mjs';
 
 export const flag = 'state';
 export const flags = ['state'];
@@ -93,7 +93,7 @@ export const charsetViolations = (sources) => {
 // 命名空间：`ev.`（事件/证据）与 `world.`（世界态）。**同一个键名在两个域里各有一份**——
 // 只按裸键名归并会漏掉「写 world.X / 读 ev.X」这类失效（#365：观星者写 world.seer_asked、
 // 跨时代门读 ev.seer_asked → 证据支路静默失效）。故写/读都记成 `域.键`。
-export const analyze = (sources) => {
+export const analyze = (sources, { notes } = {}) => {
 	const keys = new Map();
 	const bump = (k, kind, site) => {
 		if (!keys.has(k)) keys.set(k, { w: new Set(), r: new Set(), dynamic: false });
@@ -123,7 +123,8 @@ export const analyze = (sources) => {
 				if (keys.has(key)) keys.get(key).dynamic = true;
 			}
 			// 读点形态取自**单一权威** `readKeys()`（`lib/shared.mjs`；与写点并列，`#436` 原范围 1）
-			for (const k of readKeys(line)) bump(k, 'r', site);
+			// ＋ **经笔记的读**（`#433` 阶段 2：`Sg.notes.has('n_x')` 读的是那条笔记的 flagPath 键）
+			for (const k of [...readKeys(line), ...noteReadKeys(line, notes)]) bump(k, 'r', site);
 		}
 	}
 	return keys;
@@ -205,12 +206,15 @@ export const run = (ctx) => {
 		['动态写点有声明覆盖 → 不得报', analyze({ 'a.twee': ':: P\n<<firstTime `"cellar_" + $era`>>' }), [{ id: 'tower', prefix: ['cellar_'] }], 0, 'dynamic-covered'],
 		['声明了却没有写点（僵尸声明）→ 红', analyze(SELF_GOOD), D, 1, 'dynamic-stale'],
 		['键名不匹配 `[a-z_]\\w*` → 检出，且 `analyze()` **不崩**（#476 遗留地雷）', analyze({ 'a.twee': ':: P\npc.ev.BadKey = true' }), D, 1, 'charset'],
+		// #433 阶段 2：读点换了写法（`Sg.notes.has`）但「读了什么」不该消失
+		['经笔记的读（`Sg.notes.has`）也算读 ⇒ 不再是"只有写"', null, D, 0, 'noteRead'],
 	];
 	let selfBad = 0;
 	for (const [label, keys, dm, expect, kind] of selfCases) {
 			const hit =
 			kind === 'ns' ? nsMismatch(keys).length
 			: kind === 'charset' ? charsetViolations({ 'a.twee': ':: P\npc.ev.BadKey = true' }).length
+			: kind === 'noteRead' ? check(analyze({ 'a.twee': ':: P\n<<set $pc.ev.tav_x to true>>\n<<if Sg.notes.has(\'n_x\')>>y<</if>>' }, { notes: { n_x: { flagPath: 'ev.tav_x' } } }), dm).length
 			: kind === 'dynamic-undeclared' ? checkDynamic(dynamicSites({ 's.twee': ':: P\n<<firstTime `"cellar_" + $era`>>' }), []).length
 			: kind === 'dynamic-covered' ? checkDynamic(dynamicSites({ 's.twee': ':: P\n<<firstTime `"cellar_" + $era`>>' }), [{ prefix: 'cellar_', via: 'firstTime', values: ['past'] }]).length
 			: kind === 'dynamic-stale' ? checkDynamic([], [{ prefix: 'gone_', via: 'firstTime', values: ['past'] }]).length
@@ -225,7 +229,7 @@ export const run = (ctx) => {
 	// ── 真实数据 ──
 	const sources = {};
 	for (const f of ctx.SRC_FILES) sources[f] = readFileSync(f, 'utf8');
-	const keys = analyze(sources);
+	const keys = analyze(sources, { notes: ctx.Game.Notes?.entries });
 	const declaredDyn = ctx.Game.State?.dynamicKeys ?? [];
 	// 动态族**展开成具体键**并入键图 ⇒ 这些键照样受「域归属／有写有读／命名空间」四条判定管
 	for (const { key } of expandDynamic(declaredDyn)) {

@@ -51,9 +51,9 @@
 
 <<socresolve "老板娘·进塔">>
 <<socpanel "老板娘·进塔">>
-<<if $pc.ev.tav_tips>>
+<<if Sg.notes.has('n_tav_tips')>>
 	<p>老板娘把杯子放下，看了你一眼：''"你要真想进去，就记住两件事：一是别在雾里睡觉，二是听见有人叫你名字，别应。"''她说这话时手上没停，''"你这样的，我一冬天能送走三拨。记住两件，兴许能少送一个。"''</p>
-	<<if $pc.ev.tav_fog>>
+	<<if Sg.notes.has('n_tav_fog')>>
 		<p>（她多说了两句：''雾是从塔那边来的''——说这话的时候她没看你，眼睛盯着炉子。炉子里的火噼啪响了一声。）</p>
 	<</if>>
 <</if>>
@@ -61,7 +61,7 @@
 <details class="heard-fold">
 	<summary>已听到的传闻<span class="act-n" aria-hidden="true"></span></summary>
 	<div id="tav-heard" class="tavern-heard">
-<<if $pc.ev.tav_keeper>>
+<<if Sg.notes.has('n_tav_keeper')>>
 	<div class="heard-item" data-heard="tav_keeper">
 <p>——讲守林人的那桌：''"个子很高，背有点驼，手里那根杖看着像木头，敲在石头上却不出声。"''</p>
 <p>''"他拦过我一回。"''那人说，''"不凶。就是让你别再往前走了。"''</p>
@@ -69,14 +69,14 @@
 
 	</div>
 <</if>>
-<<if $pc.ev.tav_dragon>>
+<<if Sg.notes.has('n_tav_dragon')>>
 	<div class="heard-item" data-heard="tav_dragon">
 <p>——上了年纪的村人，语气很淡：''"那条龙早死了。"''</p>
 <p>"我小时候我爷爷就这么说。你要真想听细节，去问''女巫的后代''——那家人到现在还惦记着那档子事，旁人谁还管。"</p>
 
 	</div>
 <</if>>
-<<if $pc.ev.tav_grudge>>
+<<if Sg.notes.has('n_tav_grudge')>>
 	<div class="heard-item" data-heard="tav_grudge">
 <p>——跑生意的讲得眉飞色舞：雾是龙死后的''怨念''，会化成''怨灵''，专挑进塔的人下手。</p>
 <p>他说完自己先笑了，也不知道信不信。</p>
@@ -85,21 +85,21 @@
 
 	</div>
 <</if>>
-<<if $pc.ev.tav_ageless>>
+<<if Sg.notes.has('n_tav_ageless')>>
 	<div class="heard-item" data-heard="tav_ageless">
 <p>——有人接嘴：''"那女巫还住在塔上呢。''不老的女人''。我爷爷见过她，我爹见过她，前年我上山，也见过她。"''</p>
 <p>没人接这话。老板娘重重放下手里的一摞碗。</p>
 
 	</div>
 <</if>>
-<<if $pc.ev.tav_flower>>
+<<if Sg.notes.has('n_tav_flower')>>
 	<div class="heard-item" data-heard="tav_flower">
 <p>——背着画板的游客在问老板娘：''月光花''在哪儿采。"都说这是''这儿的特产''，只在塔附近有。我采一束带回去，做个纪念。"</p>
 <p>老板娘没答他，只是把杯子擦得更用力了。</p>
 
 	</div>
 <</if>>
-<<if $pc.ev.tav_painting>>
+<<if Sg.notes.has('n_tav_painting')>>
 	<div class="heard-item" data-heard="tav_painting">
 <p>——墙上的旧画，颜色掉得只剩轮廓：一场宴，长桌、灯、很多人。画角有一行小字，看不清了。</p>
 <p>你多看了两眼。画上的脸已经模糊，只辨得出长桌尽头站着一个女人。</p>
@@ -115,29 +115,29 @@
 <details class="act-group" name="tavern-acts" open>
 	<summary>找人打听<span class="act-n" aria-hidden="true"></span></summary>
 	<div class="tavern-tables">
-<<if not $pc.ev.tav_keeper>>
+<<if not Sg.notes.has('n_tav_keeper')>>
 	<<link "讲守林人的那一桌">><<set $pc.ev.tav_keeper to true>><<goto "酒馆">><</link>>
 <</if>>
-<<if not $pc.ev.tav_dragon>>
+<<if not Sg.notes.has('n_tav_dragon')>>
 	<<link "上了年纪的村人">><<set $pc.ev.tav_dragon to true>><<goto "酒馆">><</link>>
 <</if>>
-<<if not $pc.ev.tav_grudge>>
+<<if not Sg.notes.has('n_tav_grudge')>>
 	<<link "跑生意的">><<set $pc.ev.tav_grudge to true>><<goto "酒馆">><</link>>
 <</if>>
-<<if not $pc.ev.tav_ageless>>
+<<if not Sg.notes.has('n_tav_ageless')>>
 	<<link "接嘴的那个人">><<set $pc.ev.tav_ageless to true>><<goto "酒馆">><</link>>
 <</if>>
-<<if not $pc.ev.tav_flower>>
+<<if not Sg.notes.has('n_tav_flower')>>
 	<<link "背着画板的游客——他在问月光花">><<set $pc.ev.tav_flower to true>><<goto "酒馆">><</link>>
 <</if>>
-<<if not $pc.ev.tav_painting>>
+<<if not Sg.notes.has('n_tav_painting')>>
 	<<link "墙上那幅旧画">><<set $pc.ev.tav_painting to true>><<goto "酒馆">><</link>>
 <</if>>
 </div>
 </details>
 <details class="act-group" name="tavern-acts" open>
 	<summary>柜台：打听与添置<span class="act-n" aria-hidden="true"></span></summary>
-	<<if not $pc.world.rumor and $pc.gold gte (-Game.Economy.priceOf("rumor_buy", $pc))>>
+	<<if not Sg.notes.has('n_rumor') and $pc.gold gte (-Game.Economy.priceOf("rumor_buy", $pc))>>
 	<<link `"花 " + (-Game.Economy.priceOf("rumor_buy", $pc)) + " 金币：请他讲讲洞里的路"`>>
 		<<econ "rumor_buy">><<setflag "rumor">><<goto "酒馆">>
 	<</link>>
@@ -208,7 +208,7 @@
 	<</link>>
 <</if>>
 <<if $pc.ev.forest_listen>>
-	<<if $pc.ev.forest_heard>>
+	<<if Sg.notes.has('n_forest_heard')>>
 		/% #361：历史结果绑定到**产生它的那次行动**（按位点避重），否则洞穴战斗之后
 		   回森林会把战斗骰串到听雾正文上（同一个 <<lastcheck>> 读的是最新骰面） %/
 		<div class="heard"><<lastcheckFor "森林·察觉">>雾里浮起一点灯火——不是酒馆那种黄，是很冷的、悬在半空的白。紧接着是说话声，很多人的说话声，隔着一层水似的，听不清字句，却听得出那股高兴劲儿。
@@ -242,7 +242,7 @@
 
 它看见你，尖叫了一声，又缩了缩，把石头抱得更紧，整只都在抖。
 
-那石头亮得很淡，跟林子里的雾是同一个颜色。<<if $pc.ev.tav_tips>>你想起老板娘那句话——''别在雾里睡觉，别应''。这光跟雾是一路的。<<else>>你不知道那是什么——只知道不该伸手。<</if>>
+那石头亮得很淡，跟林子里的雾是同一个颜色。<<if Sg.notes.has('n_tav_tips')>>你想起老板娘那句话——''别在雾里睡觉，别应''。这光跟雾是一路的。<<else>>你不知道那是什么——只知道不该伸手。<</if>>
 
 洞里很静，只有它牙齿打颤的声音。
 
@@ -250,7 +250,7 @@
 
 哥布林没有扑上来。它只是把石头一块块码在身前，像垒一道墙。
 
-<<if $pc.world.rumor>>
+<<if Sg.notes.has('n_rumor')>>
 	你脚下的石板一块块松着。''老猎人说过''——''第三块板子是脆的''。
 <</if>>
 
@@ -261,7 +261,7 @@
 	[[从它旁边过去|森林边缘]]
 <<else>>
 	<<link "拔家伙，逼它退开——''检定''过不过得看你的手">>
-		<<if $pc.world.rumor>>（你落脚的时候，避开了第三块石板。''老猎人的话''。）<</if>>
+		<<if Sg.notes.has('n_rumor')>>（你落脚的时候，避开了第三块石板。''老猎人的话''。）<</if>>
 		<<sitecheck "洞穴·战斗">><<snapshot>>
 		<<if $last_check.success>>
 			<<econ "goblin_kill">>你把它打跑了，捡起散落的石头。<<set $pc.world.goblin_gone to true>><<goto "森林边缘">>
@@ -287,7 +287,7 @@
 
 <<firstTime "wq_seen">>
 <<if _first>>
-	屋里更暖。一个女人背对着你，在炉子前搅着什么。她回头时，你愣了一下——<<if $pc.ev.tav_painting>>她的身形与衣着，依稀像酒馆旧画上站在长桌尽头的女人。可画上的脸早已模糊，你无从细比。<<else>>她停下手里的活，抬眼等你开口。<</if>>
+	屋里更暖。一个女人背对着你，在炉子前搅着什么。她回头时，你愣了一下——<<if Sg.notes.has('n_tav_painting')>>她的身形与衣着，依稀像酒馆旧画上站在长桌尽头的女人。可画上的脸早已模糊，你无从细比。<<else>>她停下手里的活，抬眼等你开口。<</if>>
 
 	你还没开口，她先点了下头。
 
@@ -302,42 +302,42 @@
 
 	<<give "时光护符">>
 <</if>>
-<<if $pc.ev.wq_seen>>
+<<if Sg.notes.has('n_wq_seen')>>
 ''（她搅着炉子上的药。你想问什么，就问。）''
 <</if>>
 
 <details class="heard-fold">
 	<summary>已问过的事<span class="act-n" aria-hidden="true"></span></summary>
 	<div id="wq-heard" class="tavern-heard">
-<<if $pc.ev.wq_painting>>
+<<if Sg.notes.has('n_wq_painting')>>
 	<div class="heard-item" data-heard="wq_painting">
 <p>——"酒馆有幅旧画，不少人拿我跟画上的女人比。"她低头添了把柴，''"别拿那幅画比。"''没再说别的。</p>
 <p>她说，画上那场宴，她家也有人在。"纸上写不清，你去过就知道了。"</p>
 
 	</div>
 <</if>>
-<<if $pc.ev.wq_night>>
+<<if Sg.notes.has('n_wq_night')>>
 	<div class="heard-item" data-heard="wq_night">
 <p>——"我家传下来一句话：三百年前那一夜，''他们没能送成''。"</p>
 <p>她顿了一下，把药勺搁下："传下来的是这句话，不是道理。为什么没送成，我们家没人知道。"</p>
 
 	</div>
 <</if>>
-<<if $pc.ev.wq_fog>>
+<<if Sg.notes.has('n_wq_fog')>>
 	<div class="heard-item" data-heard="wq_fog">
 <p>——"雾是灾祸。我祖母这么说，她的祖母也这么说。''塔底下那位不肯走''，雾就一年比一年厚。"</p>
 <p>她说得很笃定，低头继续搅药，不再解释。</p>
 
 	</div>
 <</if>>
-<<if $pc.ev.wq_talisman>>
+<<if Sg.notes.has('n_wq_talisman')>>
 	<div class="heard-item" data-heard="wq_talisman">
 <p>——"它能带你回到三百年前——''就站在你站的地方''。"</p>
 <p>"''我们守了三百年，等的就是走进来的人。''"她说"我们"的时候，语气很轻，像在说一件早就跟自己说定了的事。</p>
 
 	</div>
 <</if>>
-<<if $pc.ev.wq_under>>
+<<if Sg.notes.has('n_wq_under')>>
 	<div class="heard-item" data-heard="wq_under">
 <p>——你问塔底下锁着的是什么。她看了你一会儿。</p>
 <p>"''别去改过去''。"她顿了顿，"这话在我们家说了三百年——''改不了的不是历史。''"</p>
@@ -345,14 +345,14 @@
 
 	</div>
 <</if>>
-<<if $pc.ev.wq_past>>
+<<if Sg.notes.has('n_wq_past')>>
 	<div class="heard-item" data-heard="wq_past">
 <p>——"我们哪敢不管。屋里的药要备着，塔上的灯要守着。真等它醒了伤人，村里谁受得住？"</p>
 <p>炉子上的药咕嘟了一声。她把盖子掀开又盖上，一句话也没往下说。</p>
 
 	</div>
 <</if>>
-<<if $pc.ev.wq_alone>>
+<<if Sg.notes.has('n_wq_alone')>>
 	<div class="heard-item" data-heard="wq_alone">
 <p>——"你要是走到了那一步，"她说，"''别急着动手。先看清楚它是什么。''"</p>
 <p>她看了一眼炉火，又补一句：''"还有一件事：别想着一个人把它解决掉。那东西不是拿刀能解决的事——可有时候，也得有人替你按着它。"''</p>
@@ -365,29 +365,29 @@
 <div class="fresh-heard" hidden></div>
 <<nobr>>
 <div class="tavern-actions">
-<<if $pc.ev.wq_seen>>
+<<if Sg.notes.has('n_wq_seen')>>
 <details class="act-group" name="witch-acts" open>
 	<summary>向她打听<span class="act-n" aria-hidden="true"></span></summary>
 	<div class="tavern-tables">
-<<if not $pc.ev.wq_painting>>
+<<if not Sg.notes.has('n_wq_painting')>>
 	<<link "问：你们家与那座塔有什么渊源">><<set $pc.ev.wq_painting to true>><<goto "女巫小屋">><</link>>
 <</if>>
-<<if not $pc.ev.wq_night>>
+<<if not Sg.notes.has('n_wq_night')>>
 	<<link "问：三百年前那一夜，发生过什么">><<set $pc.ev.wq_night to true>><<goto "女巫小屋">><</link>>
 <</if>>
-<<if not $pc.ev.wq_fog>>
+<<if not Sg.notes.has('n_wq_fog')>>
 	<<link "问：雾到底是什么">><<set $pc.ev.wq_fog to true>><<goto "女巫小屋">><</link>>
 <</if>>
-<<if not $pc.ev.wq_talisman>>
+<<if not Sg.notes.has('n_wq_talisman')>>
 	<<link "问：这护符到底怎么用">><<set $pc.ev.wq_talisman to true>><<goto "女巫小屋">><</link>>
 <</if>>
-<<if not $pc.ev.wq_under>>
+<<if not Sg.notes.has('n_wq_under')>>
 	<<link "问：塔底下锁着的到底是什么">><<set $pc.ev.wq_under to true>><<goto "女巫小屋">><</link>>
 <</if>>
-<<if not $pc.ev.wq_past>>
+<<if not Sg.notes.has('n_wq_past')>>
 	<<link "问：你就这么看着，什么也不做？">><<set $pc.ev.wq_past to true>><<goto "女巫小屋">><</link>>
 <</if>>
-<<if not $pc.ev.wq_alone>>
+<<if not Sg.notes.has('n_wq_alone')>>
 	<<link "问：我一个人上去，够吗">><<set $pc.ev.wq_alone to true>><<goto "女巫小屋">><</link>>
 <</if>>
 </div>
@@ -395,7 +395,7 @@
 <</if>>
 <details class="act-group" name="witch-acts" open>
 	<summary>柜台：问门道与药膏<span class="act-n" aria-hidden="true"></span></summary>
-	<<if not $pc.world.witch_hint and $pc.gold gte (-Game.Economy.priceOf("witch_hint", $pc))>>
+	<<if not Sg.notes.has('n_witch_hint') and $pc.gold gte (-Game.Economy.priceOf("witch_hint", $pc))>>
 	<<link `"花 " + (-Game.Economy.priceOf("witch_hint", $pc)) + " 金币：问塔里的门道"`>>
 		<<econ "witch_hint">><<setflag "witch_hint">><<goto "女巫小屋">>
 	<</link>>
@@ -428,7 +428,7 @@
 </div>
 <</nobr>>
 
-<<if $pc.ev.wq_seen>>
+<<if Sg.notes.has('n_wq_seen')>>
 
 <</if>>
 

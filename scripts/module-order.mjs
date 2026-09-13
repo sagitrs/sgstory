@@ -210,3 +210,27 @@ export const checkEngineRanks = (sources, { rankOf = rankOfPath, signatures = RA
 	}
 	return { spread, banHits };
 };
+
+// ── #441-C：门不再写死"常量段在哪个文件" ────────────────────────────────────
+// 背景：`literals.mjs` 原先写死 `base === '15-tables.twee'`。按 #441-D 搬家后常量段会移到
+// `src/engine/**`，那两条判据会**静默失效**（判据永远绿、无人机察觉）——本仓最贵的一类假绿。
+// 做法：承载文件改为**声明**（单一权威），并且做**反向断言**：
+//   「任何文件里出现常量定义（`const Era = {`）却没被声明」⇒ 报 `stale-declaration`。
+// ⇒ 搬家**只会变红一次**（提示你更新声明），**不会**静默变绿。
+export const CONST_SECTION = {
+	// 允许出现"数据字段里的 era 字面量"与"`const Era = {…}` 定义"的文件（用**路径后缀**匹配，兼容搬家后的新路径）
+	files: ['15-tables.twee'],
+	eraDecl: /const Era = \{/,              // 常量定义行的特征
+	eraDataField: /(flagEra|era:)/,         // 故事表数据字段的特征
+	// 裸伤害数字：**不再按文件名限定章节**。原先只在 `30/40/50/60-ch*.twee` 里判 ⇒ 章节一旦改名
+	// （搬家时很可能发生）判据就静默失效。现在改成"**所有文件都判**"，例外只在声明的文件中排除。
+	damageMacro: /<<damage\s+(-?\d+)\s*>>/,
+	damageExemptFiles: [],
+	// ⏳ 已知缺陷（#457 查出）：引擎文件里的裸伤害数字，**按文件计数登记**（不按行号——行号会随改动漂移，
+	// 用"该文件允许几处"这种粗粒度反而更稳、也照样能腐烂）。查出的三处中 `10-core.twee:416` 的
+	// `<<damage 5>>` 是**魔法数**（`Game.Damage` 只有 1/2/3/4/99）——不只是"字面量"问题。
+	// 修法：`1/2` → `Game.Damage.graze/hurt`；`5` 需要内容侧定级（或复用 heavy/lethal）。
+	// **这三行正是 `#461` 要抽的"算"**（`:248`/`:254` 在 `sitecheck`/`hallResult`，`:416` 在 `fightact`）
+	// ⇒ 由他在抽纯函数时同批修，我这边只登记、不判红。
+	knownBareDamage: { '10-core.twee': { count: 3, ref: '#461' } },
+};

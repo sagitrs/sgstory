@@ -2,7 +2,8 @@
 //
 // 为什么：`<<damage 99>>` 这类裸数字无法回答「99 是什么意思」（它是「处死」的魔法数），
 // 而 `$era is "past"` 的字符串字面量拼错一个字母会**静默失效**（条件永假，不报错）。
-// 常量表在 `src/15-tables.twee`：`Game.Era`（PAST/PRESENT）、`Game.Damage`（graze/hurt/hard/heavy/lethal）。
+// 常量表**承载在哪个文件由 `scripts/module-order.mjs` 的 `CONST_SECTION` 声明**（#441-C：
+// 门里不写死文件名——否则搬家时判据会静默失效）。常量本体：`Game.Era`（PAST/PRESENT）、`Game.Damage`。
 //
 // 两条判定（＋合成自证）：
 //   ① 裸时代字面量：`'past'`/`"past"`/`'present'`/`"present"` 只能出现在 `15-tables.twee` 的
@@ -10,30 +11,84 @@
 //   ② 裸伤害数字：剧情文件里 `<<damage <数字>>>` 一律红——必须写成 `<<damage \`Game.Damage.x\`>>`
 //      （注意：SugarCube 宏的**裸词参数会被当字符串**，所以必须用 backtick 表达式，见本仓 integrity 门「坑11」）。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { CONST_SECTION } from '../../module-order.mjs';
 
 export const flag = 'literals';
 export const flags = ['literals'];
 
-// 纯函数：给 { 文件: 源码 }，返回问题清单（供自证喂合成源码）
-export const analyze = (sources) => {
+
+/** 把注释**挖空**（保留行号）：`/% … %/`（可跨行）、`<!-- … -->`（可跨行）、`//` 行注释。
+ *  为什么：注释与文档里常引用示例（`15-tables.twee:1001` 就写着「剧情文件里 `<<damage 4>>` 这类…」）
+ *  ——判据若把注释当代码，就会把**文档**判红（更糟的是会诱使人删掉说明）。
+ *  边界：`//` 只在**前面不是 `:`** 时才算注释，避免把 `https://…` 当注释截断（自证有例）。 */
+export const blankComments = (text) => {
+	let block = null; // 'twee' | 'html'
+	return String(text).split('\n').map((line) => {
+		let out = '';
+		let i = 0;
+		while (i < line.length) {
+			if (block) {
+				const end = block === 'twee' ? line.indexOf('%/', i) : line.indexOf('-->', i);
+				if (end === -1) { i = line.length; break; }
+				i = end + (block === 'twee' ? 2 : 3); block = null; continue;
+			}
+			if (line.startsWith('/%', i)) { block = 'twee'; i += 2; continue; }
+			if (line.startsWith('<!--', i)) { block = 'html'; i += 4; continue; }
+			if (line.startsWith('//', i) && line[i - 1] !== ':') break; // 行注释（`://` 不算，避免截断 URL）
+			out += line[i]; i++;
+		}
+		return out;
+	});
+};
+
+// 纯函数：给 { 文件: 源码 }，返回问题清单（供自证喂合成源码）。
+// #441-C：承载文件从 `opts.files`（声明）来；并做**反向断言** stale-declaration。
+export const analyze = (sources, opts = CONST_SECTION) => {
 	const problems = [];
+	const hitsByFile = {};
+	const declared = (f) => (opts.files ?? []).some((n) => f === n || f.endsWith(`/${n}`));
 	for (const [f, src] of Object.entries(sources)) {
 		const base = f.split('/').pop();
-		src.split('\n').forEach((line, i) => {
+		const isDeclared = declared(f);
+		blankComments(src).forEach((line, i) => {
 			const where = `${base}:${i + 1}`;
-			// ① 时代字面量
+			// ⓪ 反向断言：出现"常量定义"却没在声明里 ⇒ 说明**搬走了但没更新声明**（不许静默变绿）
+			if (opts.eraDecl && opts.eraDecl.test(line) && !isDeclared) {
+				problems.push({ kind: 'stale-declaration', where, detail: `这里有常量定义（${opts.eraDecl}）但文件未被 CONST_SECTION.files 声明——搬家后请更新声明（scripts/module-order.mjs）` });
+			}
+			// ① 时代字面量：只允许在**已声明文件**的数据字段 / 常量定义行
 			const eraHits = [...line.matchAll(/["'](past|present)["']/g)];
 			if (eraHits.length) {
-				const isTableData = base === '15-tables.twee' && /(flagEra|era:)/.test(line);
-				const isConstDef = base === '15-tables.twee' && /const Era = \{/.test(line);
+				const isTableData = isDeclared && opts.eraDataField.test(line);
+				const isConstDef = isDeclared && opts.eraDecl.test(line);
 				if (!isTableData && !isConstDef) problems.push({ kind: 'bare-era', where, detail: line.trim().slice(0, 80) });
 			}
-			// ② 裸伤害数字（只在剧情文件里判：30/40/50/60 章）
-			if (/^[3-6]0-ch\d\.twee$/.test(base) || /^(30|40|50|60)-ch/.test(base)) {
-				const dmg = line.match(/<<damage\s+(-?\d+)\s*>>/);
-				if (dmg) problems.push({ kind: 'bare-damage', where, detail: `<<damage ${dmg[1]}>> → 应写成 <<damage \`Game.Damage.x\`>>` });
+			// ② 裸伤害数字：**所有文件都判**（不再按章节文件名限定——改名不再导致静默失效）
+			if (!(opts.damageExemptFiles ?? []).some((n) => f === n || f.endsWith(`/${n}`))) {
+				const dmg = line.match(opts.damageMacro ?? /<<damage\s+(-?\d+)\s*>>/);
+				if (dmg) {
+					hitsByFile[base] = (hitsByFile[base] ?? 0) + 1;
+					problems.push({ kind: 'bare-damage', tentative: true, where, file: base, detail: `<<damage ${dmg[1]}>> → 应写成 <<damage \`Game.Damage.x\`>>` });
+				}
 			}
 		});
+	}
+	// ⏳ 已知缺陷：按文件计数登记（登记了 ⇒ 转 ⏳ 不计红；登记数 > 实际命中 ⇒ **白名单腐烂** ⇒ 报红）
+	const known = opts.knownBareDamage ?? {};
+	for (const p of problems) {
+		if (p.kind !== 'bare-damage') continue;
+		const k = known[p.file];
+		if (k == null) continue;
+		if ((hitsByFile[p.file] ?? 0) > k.count) continue; // 超出登记数的那部分仍然报红
+		p.kind = 'known-bare-damage';
+		p.tentative = false;
+		p.ref = k.ref;
+	}
+	const analyzedBases = new Set(Object.keys(sources).map((f) => f.split('/').pop()));
+	for (const [file, k] of Object.entries(known)) {
+		if (!analyzedBases.has(file)) continue; // 该文件没进这次分析 ⇒ 没有"腐烂"的证据（别对着合成源自证误报）
+		const got = hitsByFile[file] ?? 0;
+		if (got < k.count) problems.push({ kind: 'stale-whitelist', where: `${file}`, detail: `已知缺陷登记说这里有 ${k.count} 处裸伤害数字，实际只剩 ${got} 处 ⇒ **修好了就要删登记**（${k.ref}）` });
 	}
 	return problems;
 };
@@ -49,10 +104,28 @@ export const run = (ctx) => {
 		['裸伤害数字（剧情文件）→ 红', { '40-ch2.twee': ':: P\n<<damage 4>>' }, 1],
 		['数据字段里的 era 字面量 → 不红', { '15-tables.twee': "\t\tp: '塔门', era: 'past'," }, 0],
 		['常量定义行 → 不红', { '15-tables.twee': "const Era = { PAST: 'past', PRESENT: 'present' };" }, 0],
+		// #441-C：搬家支持 + 反沉默（这三例就是本次改造的理由）
+		['搬家后**声明更新**了 → 常量定义行不红', { 'engine/10-kernel/constants.twee': "const Era = { PAST: 'past' };" }, 0, { files: ['engine/10-kernel/constants.twee'], eraDecl: /const Era = \{/, eraDataField: /(flagEra|era:)/, damageMacro: /<<damage\s+(-?\d+)\s*>>/ }],
+		['搬家后**没更新声明** → stale-declaration 红（否则此处会静默变绿）', { 'engine/10-kernel/constants.twee': "const Era = { PAST: 'past' };" }, 1],
+		['章节**改了名**的裸伤害数字仍要红（旧判据按文件名限定 ⇒ 会静默漏掉）', { 'stories/mist-forest/chapter-two.twee': ':: P\n<<damage 4>>' }, 1],
+		// 注释边界（本次改造顺带修掉的假阳性：注释里引用示例不该判红）
+		['注释里的示例：`//` 行注释 → 不红', { 'a.twee': '// 剧情文件里 <<damage 4>> 这类裸数字无法回答含义' }, 0],
+		['注释里的示例：`/% %/` 块 → 不红', { 'a.twee': '/% <<damage 4>> 与 "past" %/' }, 0],
+		['注释里的示例：`<!-- -->` 块 → 不红', { 'a.twee': '<!-- <<damage 4>> "past" -->' }, 0],
+		['跨行 `/% %/` 块里的示例 → 不红（块状态跨行）', { 'a.twee': '/% 开头\n<<damage 4>>\n"past"\n%/ 结束' }, 0],
+		['URL 里的 `//` 不算注释 → 其后的裸伤害数字仍要红', { 'a.twee': '见 https://example.com/x 然后 <<damage 4>>' }, 1],
+		// ⏳ 已知缺陷登记的三种行为（登记生效 / 腐烂 / 超登记数仍红）
+		['登记过的裸伤害数字 → 转 ⏳（不计红）', { '10-core.twee': ':: P\n<<damage 1>>' }, 0, { files: [], damageMacro: /<<damage\s+(-?\d+)\s*>>/, knownBareDamage: { '10-core.twee': { count: 1, ref: '#461' } } }],
+		['登记了但已修好 → 腐烂报红（逼你删登记）', { '10-core.twee': ':: P\n<<damage `Game.Damage.graze`>>' }, 1, { files: [], damageMacro: /<<damage\s+(-?\d+)\s*>>/, knownBareDamage: { '10-core.twee': { count: 1, ref: '#461' } } }],
+		['超出登记数的部分仍要红（登记只覆盖已知的 N 处）', { '10-core.twee': ':: P\n<<damage 1>>\n<<damage 7>>' }, 1, { files: [], damageMacro: /<<damage\s+(-?\d+)\s*>>/, knownBareDamage: { '10-core.twee': { count: 1, ref: '#461' } } }],
+
+
+
 	];
 	let selfBad = 0;
-	for (const [label, src, expect] of SELF) {
-		const hit = analyze(src).length;
+	for (const [label, src, expect, opts] of SELF) {
+		// ⏳（known-bare-damage）报告但不判失败 ⇒ 自证比较的是"判红数"
+		const hit = analyze(src, opts ?? CONST_SECTION).filter((p) => p.kind !== 'known-bare-damage').length;
 		const ok = expect === 0 ? hit === 0 : hit > 0;
 		if (!ok) selfBad++;
 		console.log(`      ${ok ? '✓' : '✗'} 自证·${label}：检出 ${hit}（期望${expect === 0 ? ' 0' : ' >0'}）`);
@@ -64,8 +137,12 @@ export const run = (ctx) => {
 	const problems = analyze(sources);
 	const byKind = problems.reduce((a, p) => (a[p.kind] = (a[p.kind] ?? 0) + 1, a), {});
 	console.log(`  裸时代字面量 ${byKind['bare-era'] ?? 0} 处 · 裸伤害数字 ${byKind['bare-damage'] ?? 0} 处`);
-	for (const p of problems.slice(0, 10)) { console.log(`  ✗ ${p.where}：${p.detail}`); bad++; }
-	if (problems.length > 10) { console.log(`  …另有 ${problems.length - 10} 项`); bad += problems.length - 10; }
+	const known = problems.filter((p) => p.kind === 'known-bare-damage');
+	const real = problems.filter((p) => p.kind !== 'known-bare-damage');
+	for (const p of known) console.log(`  ⏳ [已知缺陷 ${p.ref}] ${p.where}：${p.detail}`);
+	if (known.length) console.log(`  （⏳ 报告但不判失败：${known.length} 处——修好后**必须删登记**，否则腐烂检查会报红）`);
+	for (const p of real.slice(0, 10)) { console.log(`  ✗ ${p.where}：${p.detail}`); bad++; }
+	if (real.length > 10) { console.log(`  …另有 ${real.length - 10} 项`); bad += real.length - 10; }
 
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ 常量与字面量门：${bad} 项`); process.exit(1); }

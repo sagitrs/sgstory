@@ -92,6 +92,12 @@ export const SEGMENTS = [
 	// #436 原范围 1：笔记模型门已从 `test/notes-model.mjs` **升级为 audit 门**（可单跑 `--notes`），
 	// 一个段替代原来的 `-selftest` ＋ 主跑两段（自证在门内，与其它门一致）。
 	{ id: 'scripts-audit-mjs-notes-check', phase: 'test', cost: 0, cmd: 'node scripts/audit.mjs --notes --check' },
+	// #436 原范围 3：**玩家可见正文漂移**接进计划（`#422-D`／阶段 2 的判据是「漂移＝0」）。
+	// 基线用 `origin/main`（CI 里可达：工作流有 `git fetch origin main --depth=1`；那个 92f3d04
+	// 迁移基线在浅克隆里取不到——脚本现在会**明确报错**而不是把"读不到"当成"没变化"）。
+	// 报告落 `build/`（gitignored）⇒ CI 不脏树；本地想看文档版就按 README 直接跑脚本（默认写 docs/）。
+	{ id: 'scripts-ui-migration-diff-selftest', phase: 'test', cost: 0, cmd: 'node scripts/ui-migration-diff.mjs --selftest' },
+	{ id: 'scripts-ui-migration-diff-check', phase: 'test', cost: 0.4, cmd: 'node scripts/ui-migration-diff.mjs --check --baseline=origin/main --out=build/ui-migration-diff.md' },
 	// main 侧新增（#360 交涉筹码按类型分派，guest-1）：reb 冲突时按「计划＝单一权威」加在这里
 	{ id: "test-social-lever-mjs", phase: 'test', cost: 0, cmd: "node test/social-lever.mjs" },
 	{ id: "test-coverage-mjs", phase: 'test', cost: 0, needs: ['test-render-all-mjs', 'test-scenarios-mjs'], cmd: "node test/coverage.mjs" },

@@ -1,4 +1,5 @@
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { allSourceFiles } from './scripts/module-order.mjs';
 import { execSync } from 'node:child_process';
 import { join, dirname, relative } from 'node:path';
 import { ORDER, MODULES } from './scripts/module-order.mjs';
@@ -14,15 +15,14 @@ mkdirSync('dist', { recursive: true });
 
 // #319：加载顺序**显式**声明在 scripts/module-order.mjs（不再靠文件名前缀隐含）。
 // 这里只做两件守门：文件必须都在 ORDER 里，ORDER 里的文件必须都存在。
-const files = readdirSync(SRC).filter((f) => f.endsWith('.twee'));
+const files = allSourceFiles();   // #458 切片C：源文件发现走**单一权威**（搬家后＝`src/**` ＋ `stories/**`，路径为键）
 if (files.length === 0) {
 	console.error('src/ 下没有找到 .twee 文件');
 	process.exit(1);
 }
 {
 	const unlisted = files.filter((f) => !ORDER.includes(f));
-	const missing = ORDER.filter((f) => !files.includes(f));
-	if (unlisted.length || missing.length) {
+	const missing = ORDER.filter((f) => !files.includes(f));	if (unlisted.length || missing.length) {
 		if (unlisted.length) console.error(`✗ 以下文件未登记加载顺序（补进 scripts/module-order.mjs 的 ORDER）：${unlisted.join(', ')}`);
 		if (missing.length) console.error(`✗ ORDER 里的文件不存在：${missing.join(', ')}`);
 		process.exit(1);
@@ -42,7 +42,7 @@ const stories = slugs.map((slug) => ({ slug, ...readStory(slug) }));
 {
 	for (const s of stories) {
 		const list = s.files ?? [];
-		const notOnDisk = list.filter((f) => !existsSync(`${SRC}/${f}`));
+		const notOnDisk = list.filter((f) => !existsSync(f));
 		if (notOnDisk.length) { console.error(`✗ 故事清单 ${s.slug} 列出的文件不存在：${notOnDisk.join(', ')}`); process.exit(1); }
 		const onlyInManifest = list.filter((f) => !ORDER.includes(f));
 		if (onlyInManifest.length) { console.error(`✗ 这些文件在故事清单里但不在 ORDER（无法确定加载顺序）：${onlyInManifest.join(', ')}`); process.exit(1); }
@@ -58,7 +58,7 @@ const stories = slugs.map((slug) => ({ slug, ...readStory(slug) }));
 // 合并顺序由 ORDER 决定（清单只筛归属）；引擎文件在前（它们本身就在 ORDER 前部）
 const mergedOf = (s) =>
 	ORDER.filter((f) => engineFiles.includes(f) || (s.files ?? []).includes(f))
-		.map((f) => readFileSync(`${SRC}/${f}`, 'utf8').trimEnd())
+		.map((f) => readFileSync(f, 'utf8').trimEnd())
 		.join('\n\n') + '\n';
 const merges = new Map(stories.map((s) => [s.slug, mergedOf(s)]));
 

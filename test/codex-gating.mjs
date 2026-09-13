@@ -28,7 +28,9 @@ w.SugarCube.Engine.play('设定集·三律'); await sleep(200);
 }
 
 // ② #408：清掉结局记录 → 不得出现做法；写入记录 → 才给
-w.eval("window.localStorage.removeItem(window.SG_CODEX_KEY ?? 'sgstory-codex');");
+// #462：键构造已收敛到 `Sg.store`。原写法 `window.SG_CODEX_KEY ?? 'sgstory-codex'` **两个都不是真键**
+// （`SG_CODEX_KEY` 是模块内 const、不挂 window）⇒ 这一句其实从没清掉过图鉴。改成按 store 清（新键＋老键）。
+w.eval("try { Sg.store.clear('story','codex.v1'); localStorage.removeItem(Sg.store.LEGACY['codex.v1']); } catch (e) {}");
 w.SugarCube.Engine.play('设定集·结局'); await sleep(200);
 {
 	const t = text();

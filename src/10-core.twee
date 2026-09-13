@@ -123,9 +123,11 @@ window.Game.Pc = {
 // #320 阶段 2：UI 与运行时统一挂到 `Sg.*`（数据/规则挂 `Game.*`，见 docs/dev-conventions.md §7）
 window.Sg ??= {};
 window.Sg.UI = {
-	KEY: 'sgstory.ui.v1',
-	read() { try { return JSON.parse(window.localStorage.getItem(this.KEY) ?? '{}') ?? {}; } catch { return {}; } },
-	write(d) { try { window.localStorage.setItem(this.KEY, JSON.stringify(d)); } catch { /* 降级：本次会话有效 */ } },
+	// #441-B/#462：键构造收敛到 `Sg.store`（本处是 **engine** 作用域 ⇒ 不加故事前缀，
+	// 键名仍是 `sgstory.ui.v1` ⇒ 与旧档兼容、无需迁移；跨故事共享「显示计算过程」这类偏好）。
+	key() { return window.Sg.store.key('engine', 'ui.v1'); },
+	read() { try { return JSON.parse(window.localStorage.getItem(this.key()) ?? '{}') ?? {}; } catch { return {}; } },
+	write(d) { try { window.localStorage.setItem(this.key(), JSON.stringify(d)); } catch { /* 降级：本次会话有效 */ } },
 	showDetail() { const d = this.read(); return d.detail === undefined ? true : !!d.detail; },
 	setDetail(on) { const d = this.read(); d.detail = !!on; this.write(d); },
 	toggle() { this.setDetail(!this.showDetail()); },

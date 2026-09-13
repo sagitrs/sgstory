@@ -138,3 +138,75 @@ export const checkLayerDirection = (sources, { layers = LAYER_OF, symbols = STOR
 	return out;
 };
 export const LAYER_OF = Object.fromEntries(Object.entries(MODULES).map(([k, v]) => [k, v.layer ?? 'story']));
+
+// ── #441 第 3 步前置：engine 内部 **rank** ＋ 四条「禁止边」（登记模式）────────────
+// 依据：guest-1 的现状测量（engine 侧 1634 行塞在 3 文件 5 种职责里）＋ T 席复核后的口径。
+// **rank 的真正来源是目录名**（搬家后）：`src/engine/40-sim/**.twee` ⇒ rank 4。
+// 搬家前文件还平铺在 `src/*.twee`，`rankOfPath()` 返回 null ⇒ 此时只能**登记**：
+// 用「签名散布」量出**每个文件目前跨了几种职责**（＝要拆成几个文件）＋ 量出四条禁止边的违反。
+// 这套产出**就是第 3 步的作业单**；搬家后 `rankOfPath()` 生效，同一处判据转严格。
+export const RANKS = [
+	{ rank: 0, name: 'boot', dir: '00-boot', note: '启动与接线；**唯一**知道"故事在哪"的地方（读故事清单 / Config.saves.id / Config.history）' },
+	{ rank: 1, name: 'kernel', dir: '10-kernel', note: '纯计算：零依赖，node 可直测（不得摸 State/DOM/localStorage/Config）' },
+	{ rank: 2, name: 'state', dir: '20-state', note: '状态与契约：读写 pc/State，不碰 DOM' },
+	{ rank: 3, name: 'persist', dir: '30-persist', note: '跨存档持久化：localStorage / Save 钩子，不摸 DOM' },
+	{ rank: 4, name: 'sim', dir: '40-sim', note: '结算：掷骰 → 写 State（把"算"从 widget 里剥出来的部分）' },
+	{ rank: 5, name: 'present', dir: '50-present', note: '呈现：DOM/jQuery/CSS，**只读 State、不写**（#315 渲染路径契约）' },
+];
+
+/** 目录名 ⇒ rank（搬家后生效；今天一律 null ⇒ 登记模式）。 */
+export const rankOfPath = (p) => {
+	// 目录名是 `NN-name`（`00-boot`/`10-kernel`/…/`50-present`）⇒ rank＝**十位**那个数字。
+	// （第一版写成 `Number(m[1])` 返回 40 ⇒ 自证当场抓住；未知前缀返回 null = "未分层"，会在作业单里露出来。）
+	const m = /(?:^|\/)engine\/(\d\d)-/.exec(String(p));
+	if (!m) return null;
+	const n = Number(m[1][0]);
+	return RANKS.some((r) => r.rank === n) ? n : null;
+};
+
+/** 每个 rank 的**签名**（登记模式用它量"这个文件目前跨了几种职责"）。 */
+export const RANK_SIGNATURES = {
+	0: ['StoryInit', 'Config.history', 'Config.saves', '00-story.json'],
+	1: ['Game.Rules', 'renderCheck'],
+	2: ['Game.Pc', 'State.variables', 'setflag', 'snapshot', 'damage', 'give', 'firstTime'],
+	3: ['localStorage', 'Save.onSave', 'Save.onLoad', 'Sg.save'],
+	4: ['fightbegin', 'fightact', 'socresolve', 'sitecheck', 'econ'],
+	5: ['jQuery', 'document.', 'Sg.UI', 'StoryCaption', ':passagerender', ':passageend', 'actOut', 'sceneFeedback'],
+};
+
+/** 纯样式文件：不参与签名匹配（CSS 里的类名 `.damage-x` 会被误当代码 ⇒ 假阳性）。
+ *  搬家后全在 `50-present/style.twee`，本表随之删除。 */
+export const STYLE_FILES = ['90-style.twee'];
+
+/** 四条禁止边（每条对应本仓已有纪律；都能机检）。 */
+export const RANK_BANS = [
+	{ rank: 1, name: 'kernel 零依赖', patterns: [/\bState\./, /\bjQuery\b/, /\bdocument\./, /\blocalStorage\b/, /\bConfig\./], why: '纯函数可 node 直测' },
+	{ rank: 5, name: 'present 不写状态', patterns: [/<<set\s+\$/, /\bState\.variables\.\w+\s*=/, /<<run\s+.*State\.variables\.\w+\s*=/], why: '#315 渲染路径契约' },
+	{ rank: 3, name: 'persist 无 DOM', patterns: [/\bjQuery\b/, /\bdocument\./, /\$\s*\(/], why: '存档逻辑可在 node 测' },
+	{ rank: 0, name: '只有 boot 碰故事身份', patterns: [/00-story\.json/, /Config\.saves\.id/, /Config\.history/], why: '「引擎不知道故事名」——第 4 步第二故事接入的判据', onlyIn: 0 },
+];
+
+/** 纯函数：登记模式报告 —— ①每个文件跨了哪些 rank（＝要拆几份）②四条禁止边的违反。 */
+export const checkEngineRanks = (sources, { rankOf = rankOfPath, signatures = RANK_SIGNATURES, bans = RANK_BANS, engineFiles, styleFiles = STYLE_FILES } = {}) => {
+	const spread = [];
+	const banHits = [];
+	for (const [file, src] of Object.entries(sources)) {
+		if (engineFiles && !engineFiles.includes(file)) continue;
+		const s = String(src);
+		const isStyle = styleFiles.some((n) => file.endsWith(n));
+		const ranks = isStyle ? [] : Object.keys(signatures).map(Number).filter((r) => signatures[r].some((mark) => s.includes(mark)));
+		const fromPath = rankOf(file);
+		spread.push({ file, ranks, fromPath, kind: isStyle ? 'style' : 'code' });
+		for (const ban of bans) {
+			if (ban.onlyIn != null) {
+				// 「只有 rank N 可碰」：其他 rank 的文件里出现即违反（今天用文件是否属于该 rank 判断；未分层时跳过）
+				if (fromPath == null || fromPath === ban.onlyIn) continue;
+			} else if (fromPath != null && fromPath !== ban.rank) continue;
+			for (const p of ban.patterns) {
+				const m = p.exec(s);
+				if (m) { banHits.push({ file, ban: ban.name, rank: ban.rank, sample: m[0] }); break; }
+			}
+		}
+	}
+	return { spread, banHits };
+};

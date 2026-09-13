@@ -11,11 +11,12 @@
 //
 // 自证：`node test/layering.mjs --selftest`
 
-import { checkModuleGraph, ORDER, MODULES, readModules, checkLayerDirection, LAYER_OF, STORY_SYMBOLS, normalizeSymbolRefs } from '../scripts/module-order.mjs';
+import { checkModuleGraph, ORDER, MODULES, readModules, checkLayerDirection, LAYER_OF, STORY_SYMBOLS, normalizeSymbolRefs, checkEngineRanks, rankOfPath } from '../scripts/module-order.mjs';
 import { selftest as distFreshSelftest } from '../scripts/dist-fresh.mjs';
 
 const check = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) failures++; };
 let failures = 0;
+let bad = 0;   // 自证计数器（模块级：t() 在任何作用域调用都可用；此前它声明在块内 ⇒ t() 抛 ReferenceError）
 const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
 
 if (process.argv.includes('--selftest')) {
@@ -30,7 +31,29 @@ if (process.argv.includes('--selftest')) {
 		['点号 defines：声明与实际相符 → 绿', { '15-tables.twee': 'window.Game = {};', '20-chargen.twee': 'window.Game.Chargen = {};' }, { order: ['15-tables.twee', '20-chargen.twee'], modules: { '20-chargen.twee': { deps: ['15-tables.twee'], defines: ['Game.Chargen'] } } }, 0],
 		['点号 defines：声明的点号路径不存在 → 必须报红', { '15-tables.twee': 'window.Game = {};', '20-chargen.twee': 'window.Game.Other = {};' }, { order: ['15-tables.twee', '20-chargen.twee'], modules: { '20-chargen.twee': { deps: ['15-tables.twee'], defines: ['Game.Chargen'] } } }, 1],
 	];
-	let bad = 0;
+	// #441 第 3 步前置：rank 派生 + 职责散布 + 四条禁止边（纯函数自证）
+	t('rank 派生：src/engine/40-sim/x.twee → 4', rankOfPath('src/engine/40-sim/x.twee') === 4);
+	t('rank 派生：未分层（src/10-core.twee）→ null（登记模式）', rankOfPath('src/10-core.twee') === null);
+	t('rank 派生：未知前缀（src/engine/70-weird/x.twee）→ null（不猜）', rankOfPath('src/engine/70-weird/x.twee') === null);
+	{
+		const sig = { 1: ['Game.Rules'], 5: ['jQuery'] };
+		const r1 = checkEngineRanks({ 'a.twee': 'Game.Rules.x' }, { engineFiles: ['a.twee'], signatures: sig, bans: [], styleFiles: [] });
+		t('职责散布正例：只含 kernel 签名 → [1]（不必拆）', JSON.stringify(r1.spread[0].ranks) === '[1]');
+		const r2 = checkEngineRanks({ 'a.twee': 'Game.Rules + jQuery' }, { engineFiles: ['a.twee'], signatures: sig, bans: [], styleFiles: [] });
+		t('职责散布反例：同时含 kernel 与 present 签名 → [1,5]（需拆）', JSON.stringify(r2.spread[0].ranks) === '[1,5]');
+		const r3 = checkEngineRanks({ 'b.twee': 'jQuery' }, { engineFiles: ['b.twee'], signatures: sig, bans: [], styleFiles: ['b.twee'] });
+		t('样式文件不参与签名：ranks 空且 kind=style（防 CSS 类名假阳性）', r3.spread[0].ranks.length === 0 && r3.spread[0].kind === 'style');
+		const bans = [{ rank: 1, name: 'kernel 零依赖', patterns: [/\blocalStorage\b/] }];
+		const r4 = checkEngineRanks({ 'b.twee': 'localStorage.x' }, { engineFiles: ['b.twee'], signatures: {}, bans, styleFiles: [], rankOf: () => 1 });
+		t('禁止边反例：rank 1 文件里出现 localStorage → 报', r4.banHits.length === 1 && r4.banHits[0].ban === 'kernel 零依赖');
+		const r5 = checkEngineRanks({ 'b.twee': 'return 1' }, { engineFiles: ['b.twee'], signatures: {}, bans, styleFiles: [], rankOf: () => 1 });
+		t('禁止边正例：干净的 rank 1 文件 → 0 报', r5.banHits.length === 0);
+		const bans2 = [{ rank: 0, name: '只有 boot 碰故事身份', patterns: [/Config\.history/], onlyIn: 0 }];
+		const r6 = checkEngineRanks({ 'b.twee': 'Config.history' }, { engineFiles: ['b.twee'], signatures: {}, bans: bans2, styleFiles: [], rankOf: () => 2 });
+		t('禁止边 onlyIn 反例：rank 2 文件碰 Config.history → 报', r6.banHits.length === 1);
+		const r7 = checkEngineRanks({ 'b.twee': 'Config.history' }, { engineFiles: ['b.twee'], signatures: {}, bans: bans2, styleFiles: [], rankOf: () => 0 });
+		t('禁止边 onlyIn 正例：rank 0（boot）自己碰 → 不报', r7.banHits.length === 0);
+	}
 	// #441 第 2 步：层间方向（引擎不得引用故事符号；反向允许）
 	{
 		const L = { 'E': 'engine', 'S': 'story' };
@@ -81,6 +104,23 @@ for (const f of found) console.log(`    [${f.code}] ${f.msg}`);
 	} else {
 		console.log('\n✔ 层间方向：引擎层未引用任何故事符号（声明清单 ' + STORY_SYMBOLS.length + ' 个符号全未命中）');
 	}
+}
+
+// ── #441 第 3 步前置：engine 内部 rank（**登记模式**）────────────────────────
+// 输出＝第 3 步的作业单：每个引擎文件"跨了几种职责"（＝要拆几份）＋四条禁止边的候选违规。
+// 搬家后 `rankOfPath()` 由目录名生效，同一处判据转严格（`--strict` 退 1）。
+{
+	const mods = readModules();
+	const engine = Object.keys(mods).filter((f) => LAYER_OF[f] === 'engine');
+	const r = checkEngineRanks(mods, { engineFiles: engine });
+	const multi = r.spread.filter((x) => x.ranks.length > 1);
+	console.log(`\n○ engine rank（#441 第 3 步前置，**登记模式**）：${engine.length} 个引擎文件 · ${multi.length} 个跨多个 rank（要拆）· 候选违规 ${r.banHits.length} 处`);
+	for (const x of r.spread) {
+		console.log(`    ${x.file.padEnd(16)} ${x.kind === 'style' ? '（纯样式，不参与签名；将来落 50-present）' : `跨 rank [${x.ranks.join(',')}]${x.ranks.length > 1 ? ' ← 需拆' : ''}`}`);
+	}
+	const byBan = [...new Set(r.banHits.map((h) => h.ban))];
+	if (byBan.length) console.log(`    候选违规的类别：${byBan.join(' / ')}（**未分层 ⇒ 尚不能判定"层内违规"**；搬家后逐条转严格）`);
+	if (process.argv.includes('--strict')) failures++;
 }
 
 // #319③：dist 新鲜度守卫的自证（合成目录；已在 npm test 链上）

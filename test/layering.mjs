@@ -11,11 +11,12 @@
 //
 // 自证：`node test/layering.mjs --selftest`
 
-import { checkModuleGraph, ORDER, MODULES, readModules } from '../scripts/module-order.mjs';
+import { checkModuleGraph, ORDER, MODULES, readModules, checkLayerDirection, LAYER_OF, STORY_SYMBOLS } from '../scripts/module-order.mjs';
 import { selftest as distFreshSelftest } from '../scripts/dist-fresh.mjs';
 
 const check = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) failures++; };
 let failures = 0;
+const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
 
 if (process.argv.includes('--selftest')) {
 	const base = { '10-core.twee': 'window.Game.Rules = {};', '15-tables.twee': 'window.Game = {};' };
@@ -30,6 +31,14 @@ if (process.argv.includes('--selftest')) {
 		['点号 defines：声明的点号路径不存在 → 必须报红', { '15-tables.twee': 'window.Game = {};', '20-chargen.twee': 'window.Game.Other = {};' }, { order: ['15-tables.twee', '20-chargen.twee'], modules: { '20-chargen.twee': { deps: ['15-tables.twee'], defines: ['Game.Chargen'] } } }, 1],
 	];
 	let bad = 0;
+	// #441 第 2 步：层间方向（引擎不得引用故事符号；反向允许）
+	{
+		const L = { 'E': 'engine', 'S': 'story' };
+		const SY = ['Game.NPC'];
+		t('层数正例：引擎文件不引用故事符号', checkLayerDirection({ E: 'window.Game = {};' }, { layers: L, symbols: SY }).length === 0);
+		t('层拒反例：引擎文件引用故事符号必须被抓', checkLayerDirection({ E: 'const x = Game.NPC;' }, { layers: L, symbols: SY }).length === 1);
+		t('层数正例：**故事**文件引用故事符号不算越界（反向允许）', checkLayerDirection({ S: 'const x = Game.NPC;' }, { layers: L, symbols: SY }).length === 0);
+	}
 	for (const [name, sources, opts, want] of cases) {
 		const got = checkModuleGraph(sources, opts).length;
 		const ok = got === want;
@@ -55,6 +64,19 @@ check(found.length === 0, found.length === 0
 	? '顺序表与文件一一对应 · 依赖边只指向更早模块 · 声明的定义都在正文里'
 	: `分层 lint 未通过 ${found.length} 项`);
 for (const f of found) console.log(`    [${f.code}] ${f.msg}`);
+
+// ── #441 第 2 步：**层间方向**（引擎 → 故事 单向）──────────────────────────
+// 登记模式：先产出「引擎文件里出现了故事符号」的清单（＝第 3 步的拆分作业单）；`--strict` 才判红。
+{
+	const leaks = checkLayerDirection(readModules());
+	if (leaks.length) {
+		console.log(`\n○ 层间方向（#441 第 2 步，**登记模式**）：引擎文件里出现故事符号 ${leaks.length} 处 —— 这是第 3 步（文件/表拆分）的作业单；\`--strict\` 会让它判红`);
+		for (const l of leaks) console.log(`    ${l.file}（engine）→ ${l.symbols.join(' / ')}`);
+		if (process.argv.includes('--strict')) failures++;
+	} else {
+		console.log('\n✔ 层间方向：引擎层未引用任何故事符号（声明清单 ' + STORY_SYMBOLS.length + ' 个符号全未命中）');
+	}
+}
 
 // #319③：dist 新鲜度守卫的自证（合成目录；已在 npm test 链上）
 distFreshSelftest();

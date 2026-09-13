@@ -11,7 +11,18 @@ const assert = (cond, msg) => {
 	if (!cond) process.exitCode = 1;
 };
 // #317①：这几行原本是本文件自建的一套；现在由 harness 提供（scope=any + 350ms 保持原行为）
-const { links, clickByLabel: click, pc } = makeSession(w, { settle, sleep, scope: 'any', wait: 350 });
+// #484：`waitRaf: true` ⇒ 每次点击后**先等产品的一个 rAF tick**（产品在 rAF 回调里 un-hide/focus），
+// 再等原定的 350ms ⇒ 与「产品的时钟」对齐，消除高负载下「rAF 晚于定时器」造成的同型假红
+//（guest-1 逐 tick 实测：**1 tick 即够**；我那组「推 800ms」的受控实验也复现了旧写法的假红）。
+// #484 回归：测试侧注入 rAF 延迟（模拟高负载下的尾部事件）——`SG_RAF_DELAY_MS=800 node test/smoke.mjs`
+// 必须仍然通过（这就是“等产品自己的时钟”这个修法的回归证据；默认不开 ⇒ 不影响正常跑）。
+if (process.env.SG_RAF_DELAY_MS) {
+	const ms = Number(process.env.SG_RAF_DELAY_MS);
+	const realRaf = w.requestAnimationFrame?.bind(w);
+	if (realRaf && ms > 0) w.requestAnimationFrame = (cb) => setTimeout(() => realRaf(cb), ms);
+}
+
+const { links, clickByLabel: click, pc } = makeSession(w, { settle, sleep, scope: 'any', wait: 350, waitRaf: true });
 
 // ── 开场 ──
 let p = w.document.querySelector('#passages .passage');

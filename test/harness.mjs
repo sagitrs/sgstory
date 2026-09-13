@@ -22,7 +22,15 @@ const defaultSleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const CSS_ESC = (v) => String(v).replace(/["\\]/g, '\\$&');
 
 // 一个会话：绑定某个 jsdom 窗口与它的 settle/sleep
-export function makeSession(w, { settle = async () => {}, sleep = defaultSleep, scope = 'current', wait = 140, tries = 20 } = {}) {
+export function makeSession(w, { settle = async () => {}, sleep = defaultSleep, scope = 'current', wait = 140, tries = 20, waitRaf = false } = {}) {
+	// #484：**等产品自己的时钟**。产品在 `requestAnimationFrame` 回调里做 `hidden=false` ＋ `focus()`（`src/80-script.twee`），
+	// 而测试原先只等**定时器**（`sleep`）—— 高负载下 rAF 晚于定时器 ⇒ 断言读到 `hidden` ⇒ 那 5 条同型假红。
+	// guest-1 逐 tick 实测：**等 1 个 tick 就够**（产品的回调注册在 `:passageend` 内，早于测试的注册 ⇒ FIFO 它先跑），2 个 tick 同样 ✓。
+	// 默认 **关**（不动既有脚本行为 ✗）；按需开启。
+	const rafTick = () => new Promise((r) => {
+		if (typeof w.requestAnimationFrame === 'function') w.requestAnimationFrame(() => r());
+		else setTimeout(r, 16);
+	});
 	const links = () => {
 		if (scope === 'any') return [...w.document.querySelectorAll(CLICKABLE)];
 		const cur = [...w.document.querySelectorAll('#passages .passage')].find((e) => e.dataset.passage === w.SugarCube.State.passage);
@@ -40,6 +48,7 @@ export function makeSession(w, { settle = async () => {}, sleep = defaultSleep, 
 		await settle();
 		el.click();
 		await settle();
+		if (waitRaf) await rafTick();   // #484：先等产品的一个 rAF tick，再等定时器
 		await sleep(w2);
 	};
 	const clickByLabel = async (label, { wait: w2 = wait, tries: n = tries } = {}) => {
@@ -84,7 +93,7 @@ export function makeSession(w, { settle = async () => {}, sleep = defaultSleep, 
 		await clickEl(a, { wait: w2 });
 		return a;
 	};
-	return { w, links, byLabel, byKey, keyOf, clickEl, clickByLabel, clickByKey, tryClickByLabel, passage, text, pc, settle, sleep };
+	return { w, links, byLabel, byKey, keyOf, clickEl, clickByLabel, clickByKey, tryClickByLabel, passage, text, pc, settle, sleep, rafTick };
 }
 
 // 开一局并把车卡走完（车卡 → 角色卡 → 出发）

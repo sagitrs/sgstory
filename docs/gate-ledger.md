@@ -44,7 +44,7 @@
 | `scripts/report-ledger-freshness.mjs` | 报告脚本 | 行为化 | ✅ | ✅ | **离线段已入 npm test**（`--ledger --check`：#297 对标台账行级新鲜度——行数栅栏/复核日期在期/触发条件非空/落点引用的门旗标与文件真实存在，7 例自证）；**网络段仍需 token**（#NNN 标记与 GitHub 真实状态一致），不塞主链路，由 `npm run report:freshness:check` 人工/定时跑 |
 | `scripts/report-rhythm.mjs` | 报告脚本 | 行为化 | ✅ | ✅ | R1/R1b/R2/正例 四例自证，已入 npm test |
 | `scripts/report-selftest-validity.mjs` | 报告脚本 | 行为化 | ✅ | — | **报告模式，暂不接线**（#474）：V2 已抓到真问题（4 门自证不会让门退 1），但 V1 仍有 3 类假阳性待精化 ⇒ 红门不许进链；自证 8 例，残余清单在 #474 |
-| `test/audit-golden.mjs` | 测试脚本 | 行为化 | ✅ | — | 按需跑（npm run audit:golden）：拆/改 audit 时用；全量跑 24 个开关较慢 |
+| `test/audit-golden.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | **已入 npm test**（#436 收编）：实测全量 **8.0s**（dragon 7.0s ＋ 其余每个 30–55ms ⇒ 无需子集；此前"24 个开关较慢"的估计不成立）。收编时逐条归因既有漂移（18 个开关：10 纯自证插入／3 含新不变量行／3 数值替换／1 `state`（#483）） |
 | `test/browser.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | 需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑 |
 | `test/choice-keys.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/codex-gating.mjs` | 测试脚本 | 行为化 | — | ✅ |  |

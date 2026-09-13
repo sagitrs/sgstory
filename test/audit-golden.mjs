@@ -19,6 +19,8 @@ const FLAGS = [
 	'truth', 'investment', 'echoes', 'choices', 'sel', 'nosl', 'gear', 'interact', 'social', 'combat',
 	'a11y', 'starbudget', 'consequences', 'sitedisc', 'systems', 'text', 'npc', 'dragon', 'checks',
 	'economy', 'items', 'tokens', 'canon', 'craft', 'state', 'literals',
+	// #436 收编：新增门必须进 golden 保护（否则 unprotected-flag 会报 —— guest-1 的 --notes 就是这样被发现的）
+	'notes',
 ];
 
 // 归一化：只对不确定输出的开关生效（其余逐字节）

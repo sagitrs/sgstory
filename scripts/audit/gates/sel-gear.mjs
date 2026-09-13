@@ -4,6 +4,27 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 export const flag = 'sel';
 export const flags = ["sel", "gear"];
 
+// ── 判据纯函数（#342 F2 自证：主跑与自证共用同一份代码）──────────────────────
+/** 装备"有效果"：要么进伤害，要么给优势位点（canon §5.4） */
+export const gearEffectOK = (d) => (d.damage ?? 0) > 0 || (d.advSites ?? []).length > 0;
+/** 装备"发得出来"：表驱动 `gear: ['x']` 或运行时 `gear.push('x')` */
+export const gearGranted = (k, srcAll) =>
+	new RegExp(`gear:\\s*\\[[^\\]]*['"]${k}['"]`).test(srcAll) || srcAll.includes(`gear.push('${k}')`);
+/** 经济事件落点声明的合法 kind —— 写错（如 'givs'）会让下面所有分支都不命中 ⇒ **静默不检**，故单列一条判据 */
+export const CLAIM_KINDS = ['gives', 'flag', 'item', 'income'];
+export const claimKindBad = (claim) => !CLAIM_KINDS.includes(claim?.kind);
+/** 纯函数：经济事件"钱花出去有没有落地"（socialSettles 注入 ⇒ 可自证） */
+export const econLandingVerdict = ({ claim, ev, text, socialSettles = () => false }) => {
+	if (!claim) return 'no-claim';
+	if (claimKindBad(claim)) return 'bad-kind';
+	const flagTail = (claim.flag ?? '').replace(/^ev\./, '');
+	if (claim.kind === 'gives' && !ev.gives) return 'no-gives';
+	if (claim.kind === 'flag' && !(text.includes(`setflag "${claim.flag}"`) || text.includes(`${flagTail} to true`)) && !socialSettles(flagTail, null)) return 'no-flag';
+	if (claim.kind === 'item' && !text.includes(`give "${claim.item}"`) && !socialSettles(null, claim.item)) return 'no-item';
+	if (claim.kind === 'income' && !(ev.delta > 0)) return 'income-negative';
+	return null;
+};
+
 export const run = (ctx) => {
 	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
@@ -17,13 +38,11 @@ if (wantAll || arg('sel') || arg('gear')) {
 
 	// ① 每件行囊：有来源、有说法、有效果、发得出来、优势位点真实
 	for (const [k, d] of Object.entries(gearRows)) {
-		const eff = (d.damage ?? 0) > 0 || (d.advSites ?? []).length > 0;
-		if (!d.from || !d.note || !eff) { console.log(`  ✗ 行囊「${k}」缺来源/说法/效果`); bad++; }
+		if (!d.from || !d.note || !gearEffectOK(d)) { console.log(`  ✗ 行囊「${k}」缺来源/说法/效果`); bad++; }
 		for (const s of d.advSites ?? []) {
 			if (!Game.Checks.sites[s]) { console.log(`  ✗ 行囊「${k}」的优势位点在位点表里不存在：${s}`); bad++; }
 		}
-		const granted = new RegExp(`gear:\\s*\\[[^\\]]*['"]${k}['"]`).test(srcAll) || srcAll.includes(`gear.push('${k}')`);
-		if (!granted) { console.log(`  ✗ 行囊「${k}」没有任何发放点（说了有、没人给）`); bad++; }
+		if (!gearGranted(k, srcAll)) { console.log(`  ✗ 行囊「${k}」没有任何发放点（说了有、没人给）`); bad++; }
 		console.log(`  · ${k}：${d.note}（${d.from}）`);
 	}
 	// ② 正文发的行囊必须在表里（不许有表外装备）
@@ -74,12 +93,36 @@ if (wantAll || arg('sel') || arg('gear')) {
 		if (!c) { console.log(`  ✗ 经济事件「${key}」没声明落点——要么给出东西，要么在 CLAIM 里写理由`); bad++; continue; }
 		if (uses.length === 0 && !leverOk) { console.log(`  ✗ 经济事件「${key}」没有任何使用点（表里挂着、正文没花）；或去掉。）`); bad++; continue; }
 		const text = uses.map(([f, line]) => line).join('\n');
-		const fail = (why) => { console.log(`  ✗ 经济事件「${key}」${why}`); bad++; };
-		if (c.kind === 'gives' && !ev.gives) fail('表里没写 gives');
-		const flagTail = (c.flag ?? '').replace(/^ev\./, '');
-		if (c.kind === 'flag' && !(text.includes(`setflag "${c.flag}"`) || text.includes(`${flagTail} to true`)) && !socialSettles(flagTail, null)) fail(`正文没落旗标 ${c.flag}（正文与交涉筹码都没落到）`);
-		if (c.kind === 'item' && !text.includes(`give "${c.item}"`) && !socialSettles(null, c.item)) fail(`正文没给道具 ${c.item}`);
-		if (c.kind === 'income' && !(ev.delta > 0)) fail('写成纯收入却是扣钱');
+		const CLAIM_MSG = {
+			'no-gives': '表里没写 gives',
+			'bad-kind': `落点声明 kind=${JSON.stringify(c.kind)} 不合法（只能是 ${CLAIM_KINDS.join(' / ')}）——写错会让所有分支都不命中、静默不检`,
+			'no-flag': `正文没落旗标 ${c.flag}（正文与交涉筹码都没落到）`,
+			'no-item': `正文没给道具 ${c.item}`,
+			'income-negative': '写成纯收入却是扣钱',
+		};
+		const v = econLandingVerdict({ claim: c, ev, text, socialSettles });
+		if (v) { console.log(`  ✗ 经济事件「${key}」${CLAIM_MSG[v] ?? v}`); bad++; }
+	}
+	{
+		const cases = [
+			['行囊效果正例：有伤害 / 有优势位点 → 有效果', gearEffectOK({ damage: 3 }) && gearEffectOK({ advSites: ['书房'] })],
+			['行囊效果反例：既无伤害也无优势位点 → 报红', !gearEffectOK({ note: '好看' })],
+			['行囊效果边界：damage=0 且有优势位点 → 有效果（0 不算效果）', gearEffectOK({ damage: 0, advSites: ['甲'] })],
+			['发放点正例：表驱动 gear: [\'长剑\'] → 发得出来', gearGranted('长剑', "gear: ['长剑', '火把']")],
+			['发放点正例：运行时 gear.push(\'火把\') → 发得出来', gearGranted('火把', "pc.gear.push('火把')")],
+			['发放点反例：只提名字、没有发放 → 报红', !gearGranted('长剑', '长剑很好看')],
+			['落点反例①：没声明 → no-claim', econLandingVerdict({ claim: null, ev: {} }) === 'no-claim'],
+			['落点反例②：kind 写错成 givs → bad-kind（**旧版会静默不检**）', econLandingVerdict({ claim: { kind: 'givs' }, ev: { gives: 1 } }) === 'bad-kind'],
+			['落点正例①：flag 落 setflag → 通过', econLandingVerdict({ claim: { kind: 'flag', flag: 'rumor' }, ev: {}, text: 'setflag "rumor"' }) === null],
+			['落点正例②：flag 走交涉筹码（socialSettles 注入）→ 通过', econLandingVerdict({ claim: { kind: 'flag', flag: 'ev.tav_tips' }, ev: {}, text: '', socialSettles: (f) => f === 'tav_tips' }) === null],
+			['落点反例③：flag 哪都没落 → no-flag', econLandingVerdict({ claim: { kind: 'flag', flag: 'ev.tav_tips' }, ev: {}, text: '' }) === 'no-flag'],
+			['落点正例③：item 落 give → 通过', econLandingVerdict({ claim: { kind: 'item', item: '龙鳞护臂' }, ev: {}, text: 'give "龙鳞护臂"' }) === null],
+			['落点反例④：income 却是扣钱 → income-negative', econLandingVerdict({ claim: { kind: 'income' }, ev: { delta: -3 }, text: '' }) === 'income-negative'],
+			['落点正例④：gives 声明且表里有 gives → 通过', econLandingVerdict({ claim: { kind: 'gives' }, ev: { gives: 2 }, text: '' }) === null],
+			['落点反例⑤：gives 声明但表里没有 → no-gives', econLandingVerdict({ claim: { kind: 'gives' }, ev: {}, text: '' }) === 'no-gives'],
+		];
+		for (const [label, pass] of cases) { console.log(`      ${pass ? '✓' : '✗'} 自证·${label}`); if (!pass) bad++; }
+		console.log(`      自证·检出 ${cases.filter(([, p]) => p).length}（期望 ${cases.length}）`);
 	}
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ 行囊门 + 经济门：${bad} 项`); process.exit(1); }

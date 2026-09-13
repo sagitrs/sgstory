@@ -115,16 +115,40 @@ export const readModules = (dir = new URL('../src', import.meta.url)) => {
 // 判据：`layer: 'engine'` 的文件里**不得出现故事层定义的符号**（反向允许）。
 // 「故事符号」用**声明**给出（而不是扫源码推断）——本仓的既有做法：声明 + 对账，宁漏不假。
 export const STORY_SYMBOLS = [
-	'Game.Checks', 'Game.Economy', 'Game.Items', 'Game.Gear', 'Game.Combat', 'Game.Social',
-	'Game.Codex', 'Game.Truth', 'Game.Echoes', 'Game.Choices', 'Game.Systems', 'Game.Star',
-	'Game.Dragon', 'Game.NPC', 'Game.Consequences', 'Game.Investment', 'Game.Notes', 'Game.Chargen',
-];
+	// #459 细化（2026-09-13）：**判据的粒度＝所有权** —— 引擎不许摸的是**故事数据**，不是"叫 Game.X 的东西"。
+	// 起因：`10-core` 里的 `Game.Checks.resolve(...)`／`Game.Economy.apply(...)`／`Game.Combat.resolvePlayer(...)`
+	// 全是**引擎机制**（`21-resolve.twee`，sim 侧），却因与故事数据同名空间而被误判 ⇒ 作业单失真（5 处"命中"里只有 1 处是真的）。
+	// ⇒ 现在按**数据路径**列（`Game.Checks.sites` 是故事数据；`Game.Checks.resolve` 是引擎机制）。
+	// ⚠️ 残留的过渡味道（记在案，不假装没有）：机制与数据**共用同一个命名空间**（引擎把 `resolve` 挂在故事提供的 `Game.Checks` 上）。
+	//    第 3/4 步（#458/#459）应该把它们分开（机制住在引擎命名空间、数据由故事提供）。
+	'Game.Checks.sites',
+	'Game.Economy.events',
+	'Game.Items.defs', 'Game.Items.effects',
+	'Game.Gear.defs',
+	'Game.Combat.actions', 'Game.Combat.pools',
+	'Game.Social.asks', 'Game.Social.approaches',
+	'Game.NPC.entries',
+	'Game.Truth.claims',
+	'Game.Echoes.list', 'Game.Echoes.revisit',
+	'Game.Choices.sites',
+	'Game.Systems', 'Game.Star', 'Game.Dragon', 'Game.Consequences', 'Game.Investment',
+	'Game.Notes.entries', 'Game.Chargen',
+];;
 // 归一化：把"逃逸写法"折成点号路径，再做子串匹配。
 // 起因（guest-1 实测、我复现）：裸子串匹配会**漏检** `Game?.Dragon` / `Game["Notes"]` / `Game . NPC`，
 // 现网 `10-core.twee:218` 的 `window.Game?.Dragon?.hp` 就是这样漏掉的 ⇒ 第 4 步的"`--strict` 转绿"会**假绿**。
 // 处理的逃逸：可选链 `?.`、方括号字符串/模板访问 `["x"]`/['x']/`x`、点号两侧空白（含换行）。
 // **已知不覆盖**（写清楚，别假装判据是全的）：解构/别名（`const {Dragon} = Game`、`const G = Game; G.Dragon`）、
 // 动态键（`Game[k]`）、字符串拼接出的表名。这些要么靠人工走查，要么等第 4 步换更强的判据（不再按名字匹配）。
+/** 剥注释后再匹配——判据不该把**注释里的提及**当引用（Twee 块注释／HTML 注释／JS 行注释与块注释）。
+ *  起因（#459）：`10-core.twee:315` 是一行块注释里提了一句 `Game.Checks.sites`，却被判成"引擎读故事数据"（假阳性）。
+ */
+export const stripCommentsForLint = (src) => String(src)
+	.replace(/\/%[\s\S]*?%\//g, ' ')
+	.replace(/<!--[\s\S]*?-->/g, ' ')
+	.replace(/\/\*[\s\S]*?\*\//g, ' ')
+	.replace(/(^|[^:])\/\/[^\n]*/g, '$1 ');
+
 export const normalizeSymbolRefs = (src) => String(src)
 	.replace(/\?\s*\./g, '.')                                  // a?.b → a.b（含换行）
 	.replace(/\[\s*(['"`])([A-Za-z_$][\w$]*)\1\s*\]/g, '.$2')  // a["b"] → a.b
@@ -135,7 +159,7 @@ export const checkLayerDirection = (sources, { layers = LAYER_OF, symbols = STOR
 	const out = [];
 	for (const [name, src] of Object.entries(sources)) {
 		if (layers[name] !== 'engine') continue;
-		const norm = normalizeSymbolRefs(src);
+		const norm = normalizeSymbolRefs(stripCommentsForLint(src));   // #459：剥注释后再匹配（注释里的提及不算引用）
 		const hits = symbols.filter((sym) => norm.includes(sym));
 		if (hits.length) out.push({ file: name, symbols: hits });
 	}

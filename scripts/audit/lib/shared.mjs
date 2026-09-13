@@ -18,8 +18,11 @@ export const makeShared = (ctx) => {
 		for (const src of stripped.values()) {
 			for (const m of src.matchAll(/<<setflag\s+"(\w+)"/g)) written.add(m[1]);
 			for (const m of src.matchAll(/<<set\s+\$pc\.(?:world|ev)\.(\w+)\s*to/g)) written.add(m[1]);
-			for (const m of src.matchAll(/pc\.(?:world|ev)\.(\w+)\s*=\s*true/g)) written.add(m[1]);
-			for (const m of src.matchAll(/pc\.(?:world|ev)\[["'](\w+)["']\]\s*=\s*true/g)) written.add(m[1]);
+			// 赋值式写入：#441-A 把位点/结算的写点从宏式（`<<set $pc.ev.X to …>>`）改成 JS 赋值后
+			// 才发现原判据只认 `= true` ⇒ `= null`／对象／字符串的写点**看不见**（D2 覆盖面静默缩小）。
+			// 放宽为「任意赋值」（不含 `==`），与 `state.mjs` 的口径一致。
+			for (const m of src.matchAll(/pc\.(?:world|ev)\.([a-z_]\w*)\s*=[^=]/g)) written.add(m[1]);
+			for (const m of src.matchAll(/pc\.(?:world|ev)\[["']([a-z_]\w*)["']\]\s*=[^=]/g)) written.add(m[1]);
 			// #267：宏式写入（键是字面量参数）——<<firstTime "X">> 走 $pc.ev[X]，静态 set 正则看不见
 			for (const m of src.matchAll(/<<firstTime\s+"(\w+)">>/g)) written.add(m[1]);
 		}

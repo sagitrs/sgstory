@@ -26,7 +26,11 @@ if (wantAll || arg('consequences')) {
 			['非引擎段落里 `<<if $pc.ev.a>>` ⇒ mechanic；引擎段落里读 ⇒ 「请登记为 engine」', (() => { const r1 = classifyNarrativeState(mk({ passageSrc: [['Q', '<<if $pc.ev.a>>x<</if>>']] })); const r2 = classifyNarrativeState(mk({ passageSrc: [['S', '<<if $pc.ev.a>>x<</if>>']], passageTags: [['S', ['script']]] })); return r1.buckets.get('a') === 'mechanic' && r2.problems.some((p) => p.includes('请登记为 engine')); })()],
 			['声明与实况不符 ⇒ 错标红', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['Q', '<<if $pc.ev.a>>x<</if>>']], Consequences: { provenance: {}, engine: { a: '引擎态' } } })); return r.problems.some((p) => p.includes('错标')); })()],
 			['声明缺理由 ⇒ 红', (() => { const r = classifyNarrativeState(mk({ Consequences: { provenance: { a: '  ' }, engine: {} } })); return r.problems.some((p) => p.includes('声明缺理由')); })()],
-			['`/% %/` 注释里的 `<<firstTime "b">>` **不算写入**（剥注释边界）', (() => { const r = classifyNarrativeState({ passageSrc: new Map([['P', '/% <<firstTime "b">> %/']]), passageTags: new Map() }); return !r.written.has('b'); })()],
+			['#441-A：JS 赋值式写入（`pc.ev.a = null`／对象／非 true）**也要算写入**——原判据只认 `= true`',
+			(() => { const r = classifyNarrativeState({ passageSrc: new Map([['P', 'pc.ev.a = null; pc.ev.b = { x: 1 }; pc.ev.c = true;']]), passageTags: new Map() }); return ['a', 'b', 'c'].every((k) => r.written.has(k)); })()],
+		['反例保护：`pc.ev.a == 1`（比较，不是赋值）**不算写入**',
+			(() => { const r = classifyNarrativeState({ passageSrc: new Map([['P', 'if (pc.ev.a == 1) {}']]), passageTags: new Map() }); return !r.written.has('a'); })()],
+		['`/% %/` 注释里的 `<<firstTime "b">>` **不算写入**（剥注释边界）', (() => { const r = classifyNarrativeState({ passageSrc: new Map([['P', '/% <<firstTime "b">> %/']]), passageTags: new Map() }); return !r.written.has('b'); })()],
 			['结局段落里读 ⇒ ending 桶（isEnding 边界）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['结局·某', '<<if $pc.ev.a>>x<</if>>']] })); return r.buckets.get('a') === 'ending'; })()],
 		];
 		for (const [label, ok] of cases) { if (!ok) bad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }

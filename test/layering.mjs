@@ -61,6 +61,8 @@ if (process.argv.includes('--selftest')) {
 		t('层数正例：引擎文件不引用故事符号', checkLayerDirection({ E: 'window.Game = {};' }, { layers: L, symbols: SY }).length === 0);
 		t('层拒反例：引擎文件引用故事符号必须被抓', checkLayerDirection({ E: 'const x = Game.NPC;' }, { layers: L, symbols: SY }).length === 1);
 		t('归一化：可选链 a?.b → a.b', normalizeSymbolRefs('a?.b') === 'a.b');
+		t('剥注释正例： 里的提及不算引用（#459 的假阳性）', checkLayerDirection({ E: '/% Game.NPC %/' }, { layers: L, symbols: SY }).length === 0);
+		t('剥注释反例：注释外的真实引用仍要抓', checkLayerDirection({ E: 'const x = Game.NPC; // Game.NPC' }, { layers: L, symbols: SY }).length === 1);
 		t('归一化：方括号字符串 a["b"] → a.b', normalizeSymbolRefs('a["b"]') === 'a.b');
 		t('归一化：点号两侧空白/换行 a .\n b → a.b', normalizeSymbolRefs('a .\n b') === 'a.b');
 		t('层拒反例：逃逸写法 Game?.Dragon 必须被抓（第 2 步曾漏检，guest-1 实测）', checkLayerDirection({ E: 'window.Game?.Dragon?.hp' }, { layers: L, symbols: ['Game.Dragon'] }).length === 1);

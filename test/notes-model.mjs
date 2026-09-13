@@ -13,6 +13,12 @@ import { createContext } from '../scripts/audit/context.mjs';
 const SELFTEST = process.argv.includes('--selftest');
 const REQUIRED = ['title', 'src', 'body', 'tags', 'era', 'flagPath'];
 
+// `flagPath` 可以是字符串或**字符串数组**（多源 OR，#432-B8/B12）：
+// 同一知识的几条获取路径取 any（例：`world.hall_hint` ∨ `ev.hall_seen`）。
+// 每条路径都必须①已登记在状态契约域、②在空状态下为假。
+export const flagPaths = (e) => (Array.isArray(e?.flagPath) ? e.flagPath : (e?.flagPath == null ? [] : [e.flagPath]));
+const keyOf = (p) => String(p ?? '').split('.').pop();
+
 // 纯函数检查器（自证与真实运行同一份代码）
 export function auditNotes(entries, domainKeys) {
 	const problems = [];
@@ -23,21 +29,29 @@ export function auditNotes(entries, domainKeys) {
 			if (empty) problems.push(`${id}：缺字段「${f}」`);
 		}
 		if (e?.grant != null && typeof e.grant !== 'function') problems.push(`${id}：grant 必须是函数或省略（省略＝用 flagPath 求值）`);
-		const key = String(e?.flagPath ?? '').split('.').pop();
-		if (key && !domainKeys.has(key)) problems.push(`${id}：flagPath 的键「${key}」未登记在状态契约域（--state）里`);
+		for (const p of flagPaths(e)) {
+			const key = keyOf(p);
+			// 「域.键」形状：域只能是 ev / world（笔记读的是知识与世界态；持有物不进笔记——#432-B11）
+			if (!/^(ev|world)\.[a-z_]\w*$/.test(String(p ?? ''))) problems.push(`${id}：flagPath「${p}」不是「域.键」形状（应为 ev.<键> 或 world.<键>）`);
+			else if (!domainKeys.has(key)) problems.push(`${id}：flagPath 的键「${key}」未登记在状态契约域（--state）里`);
+		}
 	}
 	return problems;
 }
 
 if (SELFTEST) {
 	console.log('══ 笔记模型门 · 自证 ══');
-	const dom = new Set(['tav_tips', 'flower_warned']);
+	const dom = new Set(['tav_tips', 'flower_warned', 'hall_hint', 'hall_seen']);
 	const good = { n_a: { title: 't', src: 's', body: 'b', tags: ['x'], era: 'present', flagPath: 'ev.tav_tips' } };
+	const multi = { n_m: { title: 't', src: 's', body: 'b', tags: ['x'], era: 'present', flagPath: ['world.hall_hint', 'ev.hall_seen'] } };
 	const cases = [
 		['正例（字段齐全＋旗标已登记）', good, 0],
 		['反例①：缺字段 body', { n_a: { ...good.n_a, body: '' } }, 1],
 		['反例②：flagPath 的键未登记', { n_a: { ...good.n_a, flagPath: 'ev.no_such_key' } }, 1],
 		['反例③：grant 写死非函数', { n_a: { ...good.n_a, grant: true } }, 1],
+		['正例④：多源 OR（两条路径都已登记）', multi, 0],
+		['反例④：多源 OR 其中一条未登记', { n_m: { ...multi.n_m, flagPath: ['world.hall_hint', 'ev.no_such_key'] } }, 1],
+		['反例⑤：flagPath 不是「域.键」形状', { n_a: { ...good.n_a, flagPath: 'tav_tips' } }, 1],
 	];
 	let bad = 0;
 	for (const [label, entries, expect] of cases) {
@@ -47,7 +61,7 @@ if (SELFTEST) {
 		if (!ok) bad++;
 	}
 	if (bad) { console.error(`\n✗ 自证失败（${bad} 项）`); process.exit(1); }
-	console.log('✔ 自证通过（正例绿／缺字段红／旗标未登记红／grant 写死红）');
+	console.log('✔ 自证通过（正例绿／缺字段红／旗标未登记红／grant 写死红／多源 OR 两条路径都查）');
 }
 
 const ctx = createContext();
@@ -57,19 +71,21 @@ const domainKeys = new Set();
 for (const d of ctx.Game.State.domains) {
 	for (const k of d.keys ?? []) domainKeys.add(k);
 	for (const pre of d.prefix ?? []) {
-		for (const id of Object.keys(entries)) { const k = String(entries[id].flagPath ?? '').split('.').pop(); if (k?.startsWith(pre)) domainKeys.add(k); }
+		for (const id of Object.keys(entries)) { for (const p of flagPaths(entries[id])) { const k = keyOf(p); if (k?.startsWith(pre)) domainKeys.add(k); } }
 	}
 }
 console.log('\n══ 笔记模型门（阶段 1：形状与对齐）══');
 console.log(`  笔记 ${Object.keys(entries).length} 条｜状态契约域键 ${domainKeys.size} 个`);
 const problems = auditNotes(entries, domainKeys);
-// ③ 空状态下不得"已知"（笔记不该一开局就成立）——按 flagPath 求值验证
+// ③ 空状态下不得"已知"（笔记不该一开局就成立）——按 flagPath 求值验证（多源 OR：每条路径都不得为真）
 {
 	const empty = { ev: {}, world: {}, inv: {} };
 	for (const [id, e] of Object.entries(entries)) {
-		let cur = empty;
-		for (const seg of String(e.flagPath ?? '').split('.')) { cur = cur == null ? undefined : cur[seg]; }
-		if (cur) problems.push(`${id}：flagPath 在空状态下为真（写死？）`);
+		for (const p of flagPaths(e)) {
+			let cur = empty;
+			for (const seg of String(p).split('.')) { cur = cur == null ? undefined : cur[seg]; }
+			if (cur) problems.push(`${id}：flagPath「${p}」在空状态下为真（写死？）`);
+		}
 	}
 }
 if (problems.length) {

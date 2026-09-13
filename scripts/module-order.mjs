@@ -22,9 +22,12 @@ export const ORDER = [
 	'10-core.twee',      // Game.Rules / Game.Pc / Sg.UI ＋ 宏（无依赖）
 	'11-scene.twee',     // 场景 widget（actOut / sceneFeedback）
 	'15-tables.twee',    // Game.*（加载期需要 Rules / Pc）
-	// 笔记模型（伞 #422）的增量文件：只往 Game.Notes.entries 追加条目。#428 预登记三条，
-	// 认领 B 组（#429/#430/#431）时**不必再动本文件**——按文件名建文件即可。
-	'16-notes-cross.twee',   // 笔记模型增量文件（#422）：B3 已落；B1/B2 由当轮协调者登记
+	// 笔记模型（伞 #422）的增量文件：只往 Game.Notes.entries 追加条目。
+	// 每批一个文件（#428 机制）⇒ 多席并行落表零冲突；新增文件必须在此登记（build 会拒绝未登记的文件）。
+	'16-notes-ch1.twee',      // 笔记增量文件（#442 B0）：一章补漏
+	'16-notes-ch2.twee',      // 笔记增量文件（#429 B1）：二章
+	'16-notes-ch3.twee',      // 笔记增量文件（#430 B2）：三章
+	'16-notes-cross.twee',    // 笔记增量文件（#431 B3）：跨章/展示层
 	'20-chargen.twee',   // Game.Chargen（rounds/presets/API；加载期需要 Rules）
 	'30-ch1.twee',
 	'40-ch2.twee',
@@ -41,7 +44,10 @@ export const MODULES = {
 	'10-core.twee': { deps: [], defines: ['Game.Rules', 'Game.Pc', 'Sg.UI'], layer: 'engine', note: '规则内核与界面基座' },
 	'11-scene.twee': { deps: ['10-core.twee'], defines: ['widget:actOut', 'widget:sceneFeedback'], layer: 'engine', note: '场景迁移配方（结果留屏）' },
 	'15-tables.twee': { deps: ['10-core.twee'], defines: ['Game'], layer: 'story', note: '声明式数据表' },
-	'16-notes-cross.twee': { deps: ['15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#422 B3）：只往 Game.Notes.entries 追加条目' },
+	'16-notes-ch1.twee': { deps: ['15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#442 B0）：只往 Game.Notes.entries 追加条目' },
+	'16-notes-ch2.twee': { deps: ['15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#429 B1）：只往 Game.Notes.entries 追加条目' },
+	'16-notes-ch3.twee': { deps: ['15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#430 B2）：只往 Game.Notes.entries 追加条目' },
+	'16-notes-cross.twee': { deps: ['15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#431 B3）：只往 Game.Notes.entries 追加条目' },
 	'20-chargen.twee': { deps: ['10-core.twee', '15-tables.twee'], defines: ['Game.Chargen'], layer: 'story', note: '车卡（#320 阶段 3 收进 Game 命名空间）' },
 	'30-ch1.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee', '20-chargen.twee'], defines: [], layer: 'story', note: '第一章（剧情段）' },
 	'40-ch2.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee'], defines: [], layer: 'story', note: '第二章（剧情段）' },
@@ -49,8 +55,7 @@ export const MODULES = {
 	'60-endings.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee'], defines: [], layer: 'story', note: '结局页' },
 	'70-codex.twee': { deps: ['10-core.twee', '15-tables.twee'], defines: [], layer: 'story', note: '设定集' },
 	'80-script.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee', '20-chargen.twee', '70-codex.twee'], defines: ['Sg.Codex', 'Sg.Ending'], layer: 'story', note: '存档 API 与运行时胶水' },
-	'90-style.twee': { deps: ['10-core.twee'], defines: [], layer: 'engine', note: '样式' },
-};
+	'90-style.twee': { deps: ['10-core.twee'], defines: [], layer: 'engine', note: '样式' },};
 
 // ── 判定（纯函数，供 test/layering.mjs 与自证共用）──────────────────────
 // sources: { 文件名: 源码字符串 }

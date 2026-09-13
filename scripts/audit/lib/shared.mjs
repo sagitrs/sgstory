@@ -2,10 +2,16 @@
 // 清单：build/_shared_list.json（收敛循环自动发现）。
 export const makeShared = (ctx) => {
 	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll } = ctx;
-	function classifyNarrativeState() {
+	// #342 F2：可**注入输入**（默认取闭包里的真实来源 ⇒ 向后兼容）。没有这一层，
+	// 依赖本分类器的门（如 ⓪q 选择后果门）只能用真产物自证——那等于"用被测对象证明被测对象"。
+	function classifyNarrativeState(input = {}) {
+		const sources = input.passageSrc ?? passageSrc;
+		const tags = input.passageTags ?? passageTags;
+		const Echoes = input.Echoes ?? Game.Echoes;
+		const Consequences = input.Consequences ?? Game.Consequences;
 		// 注释（/% … %/）里的示例不是代码——先剥离，免得把文档里的 <<firstTime "X">> 当成真写入
-		const stripped = new Map([...passageSrc.entries()].map(([n, src]) => [n, src.replace(/\/%[\s\S]*?%\//g, ' ')]));
-		const isEngine = (name) => !!passageTags.get(name)?.some((t) => ['script', 'widget', 'stylesheet'].includes(t));
+		const stripped = new Map([...sources.entries()].map(([n, src]) => [n, src.replace(/\/%[\s\S]*?%\//g, ' ')]));
+		const isEngine = (name) => !!tags.get(name)?.some((t) => ['script', 'widget', 'stylesheet'].includes(t));
 		const isEnding = (name) => name.startsWith('结局');
 		const hasIf = (src, flag) => new RegExp(`<<if[^>]*\\$pc\\.(?:world|ev)\\.${flag}\\b`).test(src);
 		const written = new Set();
@@ -17,12 +23,12 @@ export const makeShared = (ctx) => {
 			// #267：宏式写入（键是字面量参数）——<<firstTime "X">> 走 $pc.ev[X]，静态 set 正则看不见
 			for (const m of src.matchAll(/<<firstTime\s+"(\w+)">>/g)) written.add(m[1]);
 		}
-		const E = Game.Echoes;
+		const E = Echoes;
 		const echoFlags = new Set([...E.list.flatMap((e) => [e.cause.flag, e.cause.token]), ...E.revisit.flatMap((r) => [r.flag, r.inv])].filter(Boolean));
-		const tblSrc = passageSrc.get('Game Tables') ?? '';
+		const tblSrc = sources.get('Game Tables') ?? '';
 		const codexFlags = new Set([...tblSrc.matchAll(/p\.(?:ev|world)\??\.(\w+)/g)].map((m) => m[1]));
-		const decl = { ...(Game.Consequences?.provenance ?? {}), ...(Game.Consequences?.engine ?? {}) };
-		const prop = { ...(Game.Consequences?.provenance ?? {}) };
+		const decl = { ...(Consequences?.provenance ?? {}), ...(Consequences?.engine ?? {}) };
+		const prop = { ...(Consequences?.provenance ?? {}) };
 		const buckets = new Map();
 		const problems = [];
 		for (const flag of written) {

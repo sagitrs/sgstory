@@ -210,5 +210,5 @@ PR 里贴两样：**① 本批分类判断表**（每条：知识/世界态/运�
 | 4 | 14 条判定异议全部 confirm：`forest_listen`→b、`delivery_short`/`star_short`→c2、`staff_found`/`witch_gifted`/`keeper_kind`→b、`ritual_seen`→c1、`study_found`→拆、`rumor`→收、`fog_thin`→b、`coord`→不落、`hall_seen`→收＋合并、`wq_seen`→收＋标注、`below_seen`→收＋`derived` | `#432`（作者侧）＋ T 席 14/14 confirm |
 | 5 | 半 A 采纳：`seer_asked`→b、`seer_asked_star`/`_night`→c1、`tav_seen`→c1（原判 b，按边界②收敛）、`mist_guard` 拆键命名 | T 席半 A（`#422`） |
 | 6 | 修正 3 处**来源**错（`ledger_hint` 书房·账册→天文台／`observation_lock` 天文台→书房／`letter_seen` 书房·信→观星者） | `#432` §A-3 |
-| 7 | 记入**门盲区**：`--state` 门只看字面量键，6 个动态键隐身；`cellar_*` 若可见即红 → 交 `#436` | `#432` §A-2 |
+| 7 | ~~记入**门盲区**：`--state` 门只看字面量键，6 个动态键隐身~~ → **已修（`#436-c①`）**：改为 `Game.State.dynamicKeys` 声明族 ＋ 展开入键图 ＋「未覆盖／僵尸声明」双向判据；门现报 **93** 键（87＋6） | `#432` §A-2 → `#436` |
 | 8 | 记入**已知基线**：`tav_light`/`tav_iron`/`tav_seal` 是 `bookkeeping`（零消费）却已收成笔记 → `#436` 消费可数门的基线 | `#432` §C |

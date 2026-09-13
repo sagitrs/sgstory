@@ -20,6 +20,75 @@ export const flags = ['state'];
 
 const stripComments = (t) => t.replace(/\/%[\s\S]*?%\//g, '');
 
+// ── 动态写点（#436-c①）：模板字面量键（``<<firstTime `"cellar_" + $era`>>``）──────────────────
+// **静态看不到具体键**（`analyze()` 的字面量正则匹配不到）⇒ 这类键此前**既不算写点、也不进域表**，
+// 即「按域表盘点」会静默漏掉它们（`#432` 的 93 键盘点就踩过同一口子：文档写 78，实测 93）。
+// 口径：**看不见的要看得见地登记**——故事侧在 `Game.State.dynamicKeys` 里声明**族**（`prefix`／`via`／`values`），
+// 本门负责：① 展开成具体键**参与既有四条判定**；② **未覆盖**的动态写点 ⇒ 红（防悄悄多出一族）；
+//            ③ 声明了却没有对应写点 ⇒ 红（**反沉默**：搬家/改名后声明不许留成僵尸）。
+export const dynamicSites = (sources) => {
+	const out = [];
+	for (const [f, raw] of Object.entries(sources)) {
+		const t = stripComments(raw);
+		let passage = '?';
+		for (const line of t.split('\n')) {
+			if (line.startsWith(':: ')) passage = line.slice(3).trim();
+			for (const m of line.matchAll(/<<(firstTime|setflag)\s+`([^`]*)`/g)) {
+				out.push({ file: f.split('/').pop(), passage, via: m[1], expr: m[2].trim() });
+			}
+		}
+	}
+	return out;
+};
+
+// 纯函数：声明族 → 具体键（`ev.<prefix><value>`；`firstTime` 写/读的都是 **ev 域**，见 `10-core` 的 widget）
+export const expandDynamic = (declared = []) => {
+	const keys = [];
+	for (const fam of declared) {
+		for (const v of fam.values ?? []) keys.push({ key: `ev.${fam.prefix}${v}`, family: fam });
+	}
+	return keys;
+};
+
+// 纯函数：动态写点 × 声明族 → 问题清单（未覆盖写点 ⇒ 红；僵尸声明 ⇒ 红）
+export const checkDynamic = (sites, declared = []) => {
+	const problems = [];
+	const covered = (s) => declared.some((fam) => fam.via === s.via && String(s.expr).includes(fam.prefix));
+	for (const s of sites) {
+		if (!covered(s)) {
+			problems.push({
+				kind: 'undeclared-dynamic',
+				key: s.expr,
+				detail: `${s.file}:${s.passage} 的 \`<<${s.via} \`…\`>>\`（表达式 \`${s.expr}\`）**没有任何声明的动态族覆盖它** ⇒ 这类键静态看不见、会静默漏出域表。请在 \`Game.State.dynamicKeys\` 登记 { prefix, via, values }`,
+			});
+		}
+	}
+	for (const fam of declared) {
+		const hit = sites.some((s) => fam.via === s.via && String(s.expr).includes(fam.prefix));
+		if (!hit) problems.push({ kind: 'stale-dynamic', key: fam.prefix, detail: `声明了动态族 \`${fam.prefix}\`（via ${fam.via}）但**源码里没有对应的动态写点**——改名/搬家后请同步声明（否则声明会烂在那里）` });
+	}
+	return problems;
+};
+
+// 纯函数（#476 复核遗留的**地雷**）：键名不匹配 `[a-z_]\w*` 的写点，写点正则会**静默漏检**它。
+// 旧位置在 `analyze()` 里往一个**那个作用域根本不存在的 `problems`** 上 push ⇒ 一旦真出现这类键，
+// 门会 **抛 ReferenceError（崩）而不是报红**（今天现网无此类键 ⇒ 潜伏）。这里改成独立纯函数：
+// `analyze()` 保持纯、由调用方（`run()`）合并进 problems，且**可被自证直接驱动**（含"不崩"这一条）。
+export const charsetViolations = (sources) => {
+	const out = [];
+	for (const [f, raw] of Object.entries(sources)) {
+		const t = stripComments(raw);
+		let passage = '?';
+		for (const line of t.split('\n')) {
+			if (line.startsWith(':: ')) passage = line.slice(3).trim();
+			for (const k of keyCharsetViolations(line)) {
+				out.push({ kind: 'key-charset', key: k, detail: `${f.split('/').pop()}:${passage} 的键名不匹配 [a-z_]\\w* —— 写点正则会静默漏检它（要么改名，要么放宽 WRITE_PATTERNS 并同步 state.mjs）` });
+			}
+		}
+	}
+	return out;
+};
+
 // 纯函数：给 { 文件: 源码 }，返回键的写/读图（供自证喂合成源码）
 // 命名空间：`ev.`（事件/证据）与 `world.`（世界态）。**同一个键名在两个域里各有一份**——
 // 只按裸键名归并会漏掉「写 world.X / 读 ev.X」这类失效（#365：观星者写 world.seer_asked、
@@ -43,9 +112,8 @@ export const analyze = (sources) => {
 				...[...line.matchAll(/\$pc\.ev\[['"]([a-z_]\w*)['"]\]/g)].map((m) => `ev.${m[1]}`),
 			];
 			for (const k of writes) bump(k, 'w', site);
-			// #476 复核建议②：`[a-z_]\w*` 是上面写点正则的**隐含前提** —— 不满足（大写/数字/特殊字符开头）
-			// 会被**静默漏检**（既不算写点、也不进 `--state` 的账）。⇒ 把这个前提变成判据。
-			for (const k of keyCharsetViolations(line)) problems.push({ kind: 'key-charset', key: k, detail: `键名不匹配 [a-z_]\w* —— 写点正则会静默漏检它（要么改名，要么放宽 WRITE_PATTERNS 并同步 state.mjs）` });
+			// 键名形态的前提已抽成 `charsetViolations()`（#436-c①：原先在这里 push 一个**不存在的** `problems`
+			// ⇒ 真出现这类键时门会崩而不是报红）；`analyze()` 保持纯函数，由 `run()` 合并进 problems。
 			// firstTime 是「读一次再写」——记成动态读，避免误判「只有写」
 			// firstTime 读的是 **ev 域**（其 widget 写/读 `$pc.ev[$args[0]]`）——此前写成裸键名，
 			// 导致 nsMismatch 报出「读的是 tav_seen.tav_seen」这种自指假阳性。
@@ -139,10 +207,21 @@ export const run = (ctx) => {
 		// #365 类：setflag 写 **world**，条件却读 **ev** → ev 那一支永远不成立
 		['命名空间不一致（写 world / 读 ev）→ 必须报', analyze({ 'a.twee': ':: P\n<<setflag "seer_asked">>\n<<if $pc.ev.seer_asked>>x<</if>>' }), D, 1, 'ns'],
 		['写读同域（都 world）→ 不得报', analyze({ 'a.twee': ':: P\n<<setflag "seer_asked">>\n<<if $pc.world.seer_asked>>x<</if>>' }), D, 0, 'ns'],
+		// #436-c①：动态族（模板字面量键——静态看不见，必须由故事侧声明）
+		['动态写点未声明族 → 红', analyze({ 'a.twee': ':: P\n<<firstTime `"cellar_" + $era`>>' }), D, 1, 'dynamic-undeclared'],
+		['动态写点有声明覆盖 → 不得报', analyze({ 'a.twee': ':: P\n<<firstTime `"cellar_" + $era`>>' }), [{ id: 'tower', prefix: ['cellar_'] }], 0, 'dynamic-covered'],
+		['声明了却没有写点（僵尸声明）→ 红', analyze(SELF_GOOD), D, 1, 'dynamic-stale'],
+		['键名不匹配 `[a-z_]\\w*` → 检出，且 `analyze()` **不崩**（#476 遗留地雷）', analyze({ 'a.twee': ':: P\npc.ev.BadKey = true' }), D, 1, 'charset'],
 	];
 	let selfBad = 0;
 	for (const [label, keys, dm, expect, kind] of selfCases) {
-		const hit = kind === 'ns' ? nsMismatch(keys).length : check(keys, dm).length;
+			const hit =
+			kind === 'ns' ? nsMismatch(keys).length
+			: kind === 'charset' ? charsetViolations({ 'a.twee': ':: P\npc.ev.BadKey = true' }).length
+			: kind === 'dynamic-undeclared' ? checkDynamic(dynamicSites({ 's.twee': ':: P\n<<firstTime `"cellar_" + $era`>>' }), []).length
+			: kind === 'dynamic-covered' ? checkDynamic(dynamicSites({ 's.twee': ':: P\n<<firstTime `"cellar_" + $era`>>' }), [{ prefix: 'cellar_', via: 'firstTime', values: ['past'] }]).length
+			: kind === 'dynamic-stale' ? checkDynamic([], [{ prefix: 'gone_', via: 'firstTime', values: ['past'] }]).length
+			: check(keys, dm).length;
 		// 语义：expect=0 表示「必须零检出」，expect>0 表示「必须有检出」（不锁具体条数）
 		const ok = expect === 0 ? hit === 0 : hit > 0;
 		if (!ok) selfBad++;
@@ -154,7 +233,18 @@ export const run = (ctx) => {
 	const sources = {};
 	for (const f of ctx.SRC_FILES) sources[f] = readFileSync(f, 'utf8');
 	const keys = analyze(sources);
-	const problems = check(keys, domains, ctx.Game.State?.bookkeeping ?? []);
+	const declaredDyn = ctx.Game.State?.dynamicKeys ?? [];
+	// 动态族**展开成具体键**并入键图 ⇒ 这些键照样受「域归属／有写有读／命名空间」四条判定管
+	for (const { key } of expandDynamic(declaredDyn)) {
+		if (!keys.has(key)) keys.set(key, { w: new Set(), r: new Set(), dynamic: true });
+		const e = keys.get(key);
+		e.w.add('(dynamic:firstTime)'); e.r.add('(dynamic:firstTime)'); e.dynamic = true;
+	}
+	const problems = [
+		...check(keys, domains, ctx.Game.State?.bookkeeping ?? []),
+		...charsetViolations(sources),
+		...checkDynamic(dynamicSites(sources), declaredDyn),
+	];
 	// #365：命名空间不一致 → 现在**报告**（已知缺陷形式，不判失败），等修复后转严格
 	const nsBad = nsMismatch(keys);
 	const byKind = problems.reduce((acc, p) => (acc[p.kind] = (acc[p.kind] ?? 0) + 1, acc), {});
@@ -165,7 +255,9 @@ export const run = (ctx) => {
 	const bk = (ctx.Game.State?.bookkeeping ?? []).filter((k) => keys.get(k)?.w.size && !keys.get(k)?.r.size);
 	console.log(`  状态键 ${keys.size} 个｜域 ${domains.length} 个（${perDomain.join(' · ')}）`);
 	if (bk.length) console.log(`  仅记账键（已声明，无行为消费者）：${bk.join('、')}`);
-	console.log(`  问题：未声明 ${byKind.undeclared ?? 0} · 歧义 ${byKind.ambiguous ?? 0} · 只有写 ${byKind['write-only'] ?? 0} · 只有读 ${byKind['read-only'] ?? 0} · 命名空间不一致 ${nsBad.length}`);
+	const dynN = expandDynamic(declaredDyn).length;
+	if (dynN) console.log(`  动态族 ${declaredDyn.length} 个 ⇒ 展开 ${dynN} 个动态键（已并入上面的「状态键」计数与四条判定）`);
+	console.log(`  问题：未声明 ${byKind.undeclared ?? 0} · 歧义 ${byKind.ambiguous ?? 0} · 只有写 ${byKind['write-only'] ?? 0} · 只有读 ${byKind['read-only'] ?? 0} · 命名空间不一致 ${nsBad.length} · 键名形态 ${byKind['key-charset'] ?? 0} · 动态未声明 ${byKind['undeclared-dynamic'] ?? 0} · 僵尸动态声明 ${byKind['stale-dynamic'] ?? 0}`);
 	for (const p of problems.slice(0, 12)) { console.log(`  ✗ ${p.key}：${p.detail}`); bad++; }
 	// 命名空间不一致（#365 已修 → 转严格：任何读域缺同域写入即红灯）
 	for (const p of nsBad) { console.log(`  ✗ ${p.key}：${p.detail}`); bad++; }

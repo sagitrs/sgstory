@@ -271,7 +271,10 @@
 <</if>>
 <<socpanel "守林人·花">>   /% #229：面板＝问「来历」的加深路径（done 挂 keeper_told） %/
 <<if Sg.notes.has('n_flower_warned') and Sg.notes.has('n_keeper_told')>>
-	<<lastcheckFor "守林人·交涉" "守林人·指花">>
+	/% #516：这里原先还有一行 `<<lastcheckFor "守林人·交涉" "守林人·指花">>` —— 它与 `<<socpanel>>` 内的
+	   复显（10-core:490 的 `<<lastcheckFor _a.sites>>`）渲染**同一颗骰** ⇒ 同屏两遍。
+	   两组条件有**蕴含**（`n_keeper_told` 正是面板那个问题问出来的）⇒ 面板那份**必然在场**，
+	   故删本条复显、保留正文（骰面不丢、也不重）。缺陷票 #516。 %/
 	''"塔基墙根那片银白的花——味道闻久了会睡。要摘，先把气含住。"''
 <</if>>
 

@@ -76,9 +76,9 @@ const feedbackTexts = (w) => {
 // `--strict` 把已知缺陷也当失败（这就是那批修复工作的**红证**）。
 // ⚠️ 白名单**腐烂**由本门自己报：登记了却没再命中 ⇒ 修好忘删（见文末）。
 export const DUP_KNOWN = {
-	'守林人·交涉': '#516（socpanel 本轮结果 ＋ 段落内 `<<lastcheckFor>>` 复显（40-ch2:274）⇒ 同一颗骰面同屏两遍）',
-	'守林人·指花': '#516（同一处，同上）',
-	'当时的女巫·辨认': '#516（同一机制的另一处：50-ch3:322 的 `<<lastcheckFor>>`）',
+	// #516 已修（2026-09-13）：三处同屏重复的根因都是「段落级 `<<lastcheckFor>>` ＋ `<<socpanel>>` 内复显
+	// 渲染同一颗骰」⇒ 删掉段落级那两行（正文保留、面板那份兜住骰面）。本表留空 ⇒ 再出现即**新缺陷**，
+	// 门会当作 fresh 判红（登记腐烂也会被 knownDupSeen 的腐烂检查报出来）。
 };
 export const dupSite = (key) => String(key).split('|')[0];
 export const splitDuplicates = (dups, known = DUP_KNOWN) => ({

@@ -14,7 +14,7 @@
 //                且该分支可达 `process.exit(1)`。否则 `selftest-cannot-fail`。
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROOT } from '../scripts/dist-paths.mjs';
+import { ROOT } from './dist-paths.mjs';
 
 /** 去掉 JS 注释与**单行字符串字面量**（V1 只关心代码位置；V2 需要保留字符串里的 `自证·`）。 */
 export const stripForScan = (src) =>

@@ -42,11 +42,18 @@ export const ORDER = [
 	'stories/mist-forest/70-codex.twee',
 	'src/80-script.twee',    // 存档 API / Sg.Codex / Sg.Ending（需要前面全部）
 	'src/engine/50-present/90-style.twee',     // 纯 CSS
+	// ── 第二个故事（#460 最小示例）：**证明引擎与故事已解耦** ──
+	// 它不共享 mist-forest 的任何文件（那是另一个故事的资产）；引擎文件对所有故事共享 ⇒ 由 `mergedOf()` 自动带上。
+	'stories/minimal-demo/00-meta.twee',      // StoryTitle / StoryData / StoryIdentity（无依赖）
+	'stories/minimal-demo/10-demo.twee',      // 段落 ＋ StoryBindings（只依赖引擎）
 ];
 
 // 每个模块：加载期依赖 + 必须定义的符号（用于抓「改了名/挪了位置」）
 export const MODULES = {
 	'stories/mist-forest/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '故事元数据（StoryTitle / StoryData）' },
+	// ── 第二个故事（#460）：layer 'story'，只依赖引擎 ──
+	'stories/minimal-demo/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '第二个故事的元数据（StoryTitle / StoryData / StoryIdentity）' },
+	'stories/minimal-demo/10-demo.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '最小示例段落 ＋ StoryBindings（引擎接入契约的空表）' },
 	'src/engine/30-persist/05-store.twee': { deps: [], defines: ['Sg.store'], layer: 'engine', note: '存储缝（#441-B/#462）：localStorage 键构造的唯一落点' },
 	'src/10-core.twee': { deps: [], defines: ['Game.Rules', 'Game.Pc', 'Sg.UI'], layer: 'engine', note: '规则内核与界面基座' },
 	'src/engine/50-present/11-scene.twee': { deps: ['src/10-core.twee'], defines: ['widget:actOut', 'widget:sceneFeedback'], layer: 'engine', note: '场景迁移配方（结果留屏）' },

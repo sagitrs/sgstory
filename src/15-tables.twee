@@ -1235,3 +1235,21 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 
 	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences, Investment, State, RuleClaims, Damage, Era, Notes };
 })());
+
+:: StoryBindings [script]
+// ── 故事侧注册引擎要用的数据入口（接入契约；#436-b，伞 #441 第 4 步的最小前两片）──────
+// 为什么在这里：契约的**实现**属故事（数据是故事的），**调用**属引擎（`Sg.notes` 等机制）。
+//   · `notes()` ⇒ 笔记表（`Game.Notes.entries`）——`Sg.notes` 从此**不再直接摸 `Game.Notes`**，
+//     这样 `#441-D` 把 `Sg.notes` 搬去引擎侧后，层间 lint 不会判它「引擎引用故事符号」。
+//   · `rules()` ⇒ 条件表的输入（伞 #422 阶段 4／`#435` 的选择器）——**今天还没有**，先占位返回空数组；
+//     它落地时只改这一行（选择器与门都已按契约调用，不必回头改调用面）。
+// 纪律（T 席在 `#441` 上补的）：**结构缺失 ⇒ 报错**（未注册却来取数据必须炸），
+//   **文案缺失 ⇒ 兜底**（那是 `copy()` 的事，不是这里）；两类不许混成一个 `?? {}`。
+// 将来 `#441-E` 的 `00-boot` 会把注册收进故事包（`stories/<slug>/**`），届时本段随故事走。
+window.Sg ??= {};
+Object.assign((window.Sg.story ??= {}), {
+	// 笔记表：引擎侧只经此取数（返回**表本身**，缺表即空表——表是数据集，不是结构）
+	notes: () => window.Game?.Notes?.entries ?? {},
+	// 条件表（阶段 4）：占位；`#435` 落地后改为读它自己的表（名字由 `#435` 定）
+	rules: () => [],
+});

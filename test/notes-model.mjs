@@ -88,6 +88,44 @@ const problems = auditNotes(entries, domainKeys);
 		}
 	}
 }
+
+// ── ⑦ 接入契约（#436-b）：`Sg.notes` 只经 `Sg.story.notes()` 取表；未注册 ⇒ fail-loud ──
+{
+	console.log('\n══ 接入契约（#436-b）══');
+	const Sg = ctx.Sg;
+	const story = Sg.story;
+	const realNotes = story?.notes;
+	let bad2 = 0;
+	const t2 = (label, cond, extra = '') => { if (cond) console.log(`  ✓ ${label}`); else { bad2++; console.error(`  ✗ ${label}${extra ? '：' + extra : ''}`); } };
+	t2('故事已注册 `Sg.story.notes()`（本仓在 `15-tables.twee` 的 `:: StoryBindings`）', typeof realNotes === 'function');
+	// 行为化：换掉提供者 ⇒ `Sg.notes` 立刻反映（证明它**确实经契约取数**，不是自己去摸 Game.Notes）
+	try {
+		const probe = { n_probe: { title: 't', src: 's', body: 'b', tags: ['x'], era: 'present', flagPath: 'ev.tav_tips' } };
+		story.notes = () => probe;
+		t2('换掉 `Sg.story.notes()` ⇒ `Sg.notes.ids()` 立刻跟着变（＝确实经契约）', Sg.notes.ids().join() === 'n_probe', Sg.notes.ids().join());
+		// 结构缺失 ⇒ fail-loud
+		delete story.notes;
+		let threw = '';
+		try { Sg.notes.ids(); } catch (e) { threw = String(e.message); }
+		t2('未注册 ⇒ **报错**（不静默当空表）', threw.includes('接入契约'), threw || '（没有报错）');
+		// 结构**畸形**也要报错（只兜"数据缺失"，不兜"形状不对"）
+		for (const [label, bad] of [['null', () => null], ['数组', () => []], ['非对象', () => 'x']]) {
+			story.notes = bad;
+			let th = '';
+			try { Sg.notes.ids(); } catch (e) { th = String(e.message); }
+			t2(`提供者返回 ${label} ⇒ **报错**（形状不对 ≠ 空表）`, th.includes('结构畸形'), th || '（没有报错）');
+		}
+		// 空对象是**合法空表**（数据缺失，不报错）
+		story.notes = () => ({});
+		let ok = true;
+		try { ok = Sg.notes.ids().length === 0; } catch { ok = false; }
+		t2('提供者返回 `{}` ⇒ 合法空表（数据缺失不报错）', ok);
+	} finally { story.notes = realNotes; }   // 复原（下面的用例还要用真表）
+	t2('复原后仍读真表', Sg.notes.ids().length >= 13, String(Sg.notes.ids().length));
+	t2('`Sg.story.rules()` 已占位且返回数组（阶段 4／`#435` 落地时只改实现）', Array.isArray(Sg.story.rules?.()), String(Sg.story.rules?.()));
+	if (bad2) { console.error(`\n✗ 接入契约：${bad2} 项`); process.exitCode = 1; }
+}
+
 if (problems.length) {
 	for (const p of problems) console.error(`  ✗ ${p}`);
 	console.error(`\n✗ 笔记模型门：${problems.length} 项`);

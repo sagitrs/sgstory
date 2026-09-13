@@ -25,7 +25,17 @@ const MILESTONE_PASSAGES = {     // 首个不可逆点（E4）：花田＝致死
 	龙战: ['龙·战', '封印·并肩'],
 };
 // 段落里的可见文本（去掉标签与多余空白）——n-gram 只吃正文，不吃 markup
-const screenText = (w) => (w.document.querySelector('#passages')?.textContent ?? '').replace(/\s+/g, ' ').trim();
+// #451（guest-1 定位）：**只读与 `State.passage` 对齐的那一段**。
+// 原先读**整个 `#passages`** ⇒ SugarCube 过渡期旧段落元素还在容器里 ⇒ 那一瞬容器文本含**新旧两段**
+// ⇒「不许提前泄底」这类断言会命中**上一段**的文字而假红（本机窗口 ≈2–3ms；CI 2 核＋并发下变宽 ⇒ 偶发）。
+// 口径与 `pool()`（:57）和 `boot.mjs` 的 `settle()` 一致 ⇒ **语义不变、脆性消失**；
+// 仅在对齐元素缺位时兜底读容器（那一步本该被 `settle()` 挡住）。
+const alignedText = (w) => {
+	const cur = [...w.document.querySelectorAll('#passages .passage')]
+		.find((e) => e.dataset.passage === w.SugarCube.State.passage);
+	return ((cur ?? w.document.querySelector('#passages'))?.textContent ?? '');
+};
+const screenText = (w) => alignedText(w).replace(/\s+/g, ' ').trim();
 
 async function newGame(randomStub, preset = 0) {
 	// random 传函数：每次调用都取同一个定值，d20 于是变成确定骰
@@ -132,8 +142,8 @@ async function waitLinks(w, timeoutMs = 2000) {
 	}
 }
 const passageOf = (w) => w.SugarCube.State.passage;
-// 当前屏上的可读文本（给"不许提前泄底"这类断言用）
-const passageText = (w) => w.document.querySelector('#passages').textContent.replace(/\s+/g, ' ');
+// 当前屏上的可读文本（给"不许提前泄底"这类断言用）—— #451：只读与 `State.passage` 对齐的那一段
+const passageText = (w) => alignedText(w).replace(/\s+/g, ' ');
 // B1：战斗每一轮的面板是随机 3 选 1——测试不去猜哪三张，只管"有牌就打"
 // 直到出现目标链接（战斗的出口）或段落里已经没有链接（已经落到结局）
 async function fightTo(c, w, stops, maxRounds = 12) {

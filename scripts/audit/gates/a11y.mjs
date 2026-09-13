@@ -1,3 +1,5 @@
+
+import { legacyHtml } from '../../dist-paths.mjs';
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { assertFreshDist } from '../../dist-fresh.mjs';
@@ -45,7 +47,7 @@ if (wantAll || arg('a11y')) {
 	else {
 		// #319③：读构建产物前先过新鲜度守卫——过期/缺失都响亮报错（此前缺产物会静默跳过＝假绿）
 		assertFreshDist({ who: '可访问性门（lang 检查）' });
-		if (!/<html[^>]*\slang="zh-CN"/.test(readFileSync('dist/index.html', 'utf8'))) { console.log('  ✗ dist/index.html 缺 lang="zh-CN"'); bad++; }
+		if (!/<html[^>]*\slang="zh-CN"/.test(readFileSync(legacyHtml(), 'utf8'))) { console.log('  ✗ dist/index.html 缺 lang="zh-CN"'); bad++; }
 	}
 	// 装饰 glyph：✦ 必须被 aria-hidden 包裹；.act-n 角标必须 aria-hidden
 	let bare = 0;

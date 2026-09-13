@@ -1021,7 +1021,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 			{ id: 'witch-hut', where: '女巫小屋', prefix: ['wq_', 'witch_'], note: '话题、祝福、护符与遗赠情报' },
 			{ id: 'forest', where: '林间与雾之魔物', prefix: ['forest_', 'mist_', 'goblin_'], note: '听见/静听、交手与守卫、哥布林的去向' },
 			{ id: 'keeper', where: '守林人', prefix: ['keeper_'], note: '首遇、劝杀论据、立场、他告诉过你什么' },
-			{ id: 'tower', where: '塔内（门厅/书房/工坊/天文台/顶楼/地下）', prefix: ['hall_', 'study_', 'forge_', 'observatory_', 'tower_', 'below_', 'ledger_', 'errand_'], keys: ['present_done', 'threshold'], note: '各房间的察看与机关态' },
+			{ id: 'tower', where: '塔内（门厅/书房/工坊/天文台/顶楼/地下）', prefix: ['hall_', 'study_', 'forge_', 'observatory_', 'tower_', 'below_', 'cellar_', 'ledger_', 'errand_'], keys: ['present_done', 'threshold'], note: '各房间的察看与机关态' },
 			{ id: 'flower', where: '塔外花田', prefix: ['flower_'], note: '喂花、泥、警告与昏睡（致死位点）' },
 			{ id: 'observatory', where: '天文台的藏品与手稿', prefix: ['book_'], note: '#359：风化书的取得（场地状态，与背包分开——#358 同族）' },
 			{ id: 'seer', where: '观星者与星图', prefix: ['seer_'], keys: ['coord', 'star_ledger', 'star_short'], note: '问过什么、给过什么、星账与坐标' },
@@ -1032,6 +1032,15 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 		// 「仅记账」键：写下来只为登记（出处/复访记账），**没有行为消费者**——消费者就是本表本身。
 		// 允许存在，但必须在此显式声明：`audit --state` 对未声明的「只有写」键照旧红灯。
 		bookkeeping: ['tav_light', 'tav_iron', 'tav_seal', 'banquet_over'],
+		// ── 动态键族（#436-c①）：模板字面量键（``<<firstTime `"cellar_" + $era`>>``）静态看不见，
+		//    所以**在这里登记族**，由 `--state` 门展开成具体键（`<prefix><value>`）后照常受四条判定管。
+		//    口径：未覆盖的动态写点 ⇒ 红（防悄悄多出一族）；声明了却没有写点 ⇒ 红（反沉默：防僵尸声明）。
+		//    值用 `Era` 常量而非 'past'/'present' 字面量（`--literals` 门只放行 era:/flagEra: 数据字段）。
+		dynamicKeys: [
+			{ prefix: 'tower_gate_', via: 'firstTime', values: [Era.PAST, Era.PRESENT], note: '塔门首遇（复访文案：门缝里的光/门里人声）' },
+			{ prefix: 'forge_',      via: 'firstTime', values: [Era.PAST, Era.PRESENT], note: '工坊首遇（复访文案：炉火还旺/老样子）' },
+			{ prefix: 'cellar_',     via: 'firstTime', values: [Era.PAST, Era.PRESENT], note: '地下宴会厅首遇（复访文案：龙还在睡/宴还在）' },
+		],
 	};
 
 	// ── canon 规则层声称表（#247「Game.Rules.claims」，实现名 Game.RuleClaims——避开已存在的

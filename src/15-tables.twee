@@ -168,17 +168,6 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				note: '黑处看得见：洞穴与「看不清」的那些位点给优势',
 			},
 		},
-		damageBonus(gear) {
-			return (gear ?? []).reduce((a, k) => a + (this.defs[k]?.damage ?? 0), 0);
-		},
-		// #235：伤害加成来自哪件（fight-meta 要说出口，不给"无来由的 +1"）
-		damageSource(gear) {
-			return (gear ?? []).find((k) => (this.defs[k]?.damage ?? 0) > 0) ?? '';
-		},
-		// 行囊带来的优势来源（与道具同一套"说出为什么"的机制）
-		advSource(site, gear) {
-			return (gear ?? []).find((k) => (this.defs[k]?.advSites ?? []).includes(site)) ?? '';
-		},
 	};
 
 	const Items = {
@@ -204,25 +193,6 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 		// 月光花毒液（v17 补正 #3）：抹在刃上 → 它每一下都慢半拍（龙的攻击 −3，且连败的火也压熄——#236）
 		poisonReduce: 3,
 		// 受击方=玩家：伤害 = 基础 − 减伤件数 − 毒液 + 败次（封顶）
-		battleDamage(round, inv, defeats, poisoned) {
-			const held = Object.keys(inv ?? {}).filter((k) => this.effects[k]?.flatDamageReduce);
-			const flat = held.reduce((a, k) => a + this.effects[k].flatDamageReduce, 0);
-			const rage = poisoned ? 0 : Math.min(2, defeats ?? 0);   // #236：毒液压怒（它每一下都慢半拍——连败的火也压）；未涂毒＝连败递增封顶 +2
-			const base = round >= 3 ? 6 : 4 + round;
-			const poison = poisoned ? this.poisonReduce : 0;
-			return Math.max(1, base - flat - poison + rage);
-		},
-		advAt(site, inv) {
-			return !!this.advSource(site, inv);
-		},
-		// 优势来源（M10）：说出是哪件道具——"为什么有优势"也要给玩家看
-		advSource(site, inv, gear) {
-			for (const k of Object.keys(inv ?? {})) {
-				const e = this.effects[k];
-				if (e && (e.advSite === site || (e.advSites ?? []).includes(site))) return k;
-			}
-			return Gear.advSource(site, gear);   // 行囊也能给优势（A1：火把）
-		},
 	};
 
 	// ── 道具图鉴（v17 M8）：线索集 + 空页提示。线索必须"挣得到"（新档全 false）──
@@ -599,16 +569,6 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 			return `${what} DC${s.dc}`;
 		},
 		// 每轮给 3 个：排除条件不满足的、以及上一轮刚用过的
-		eligible(poolId, pc) {
-			const held = pc?.inv ?? {};
-			return (this.pools[poolId] ?? []).filter((id) => {
-				const need = this.actions[id]?.need;
-				if (!need) return true;
-				if (need.startsWith('inv:')) return !!held[need.slice(4)];
-				if (need.startsWith('invAny:')) return need.slice(7).split('|').some((k) => held[k]);   // #250
-				return true;
-			});
-		},
 		offer(poolId, round, pc, lastUsed) {
 			let list = this.eligible(poolId, pc).filter((id) => id !== lastUsed);
 			if (list.length < 3) list = this.eligible(poolId, pc);
@@ -622,43 +582,6 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				picked[picked.length - 1] = '封印·涂毒';
 			}
 			return [...new Set(picked)];
-		},
-		// 定档：天然 20 ＝ 大成功（大成功优先于成功/失败）
-		pick(actionId, res) {
-			const a = this.actions[actionId];
-			if (!a) throw new Error(`未登记的战斗动作: ${actionId}`);
-			const kind = res?.roll === 20 ? 'crit' : res?.success ? 'ok' : 'bad';
-			return { kind, eff: a[kind] ?? {} };
-		},
-		// #235：玩家这一手的最终效果＝动作档位＋武器加成（克隆 eff——动作表是单源，不许就地改）
-		playerEff(actionId, res, pc) {
-			const r = this.pick(actionId, res);
-			const bonus = Gear.damageBonus(pc?.gear);
-			if (bonus && r.eff.dmg) {
-				r.eff = { ...r.eff, dmg: r.eff.dmg + bonus };
-				r.gearBonus = bonus;
-			}
-			// #250：好档升级（好哨＝原版玩具哨／持卷跟读）——克隆合并，不动动作表单源
-			const g = this.actions[actionId]?.good;
-			if (g && (!g.need || (g.need.startsWith('inv:') ? !!pc?.inv?.[g.need.slice(4)] : true))) {
-				r.eff = {
-					...r.eff,
-					dmg: r.eff.dmg ? r.eff.dmg + (g.dmg ?? 0) : r.eff.dmg,
-					skipFoe: g.skipFoe || r.eff.skipFoe,
-				};
-				r.goodNote = g.note;
-			}
-			return r;
-		},
-		// 把效果的"非血量"部分落进状态（血量交给 <<damage>> 走 widget，好让药膏与死亡判定生效）
-		applyEffect(pc, eff, fight) {
-			if (eff.dmg) pc.dragon.hp = Math.max(0, (pc.dragon.hp ?? 0) - eff.dmg);
-			if (eff.adv) fight.adv = (fight.adv ?? 0) + eff.adv;
-			if (eff.guard) fight.guard = (fight.guard ?? 0) + eff.guard;
-			if (eff.skipFoe) fight.skipFoe = true;
-			if (eff.flee) fight.flee = true;
-			if (eff.venom) pc.dragon.venom = true;
-			if (eff.flag) pc.ev[eff.flag] = true;
 		},
 	};
 
@@ -875,9 +798,6 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 		// hitBase/sneakHit：仅 audit ⓪f 期望模型消费（#236 将换分布模型对齐真实战斗）
 		hitBase: 6,
 		sneakHit: 12,
-		dragonDamage(inv, round, defeats, poisoned) {
-			return Items.battleDamage(round, inv, defeats, poisoned);
-		},
 	};
 
 	// ── D7 NPC 动机登记簿（#253）：让渡行为登记（audit --npc 三查：位点全覆盖/锚句在段/动机非空）
@@ -1289,6 +1209,18 @@ Object.assign((window.Sg.story ??= {}), {
 		const a = window.Game?.Combat?.actions?.[id];
 		if (!a) throw new Error(`Sg.story.combatAction：动作「${id}」未登记（结构缺失必须报错，#441-E）`);
 		return a;
+	},
+	// ── #512：sim 机制所需的**故事数据**入口（槽位外的表：道具/装备/战斗池/数值）──────────
+	// 缺省语义**照旧**：`itemDef`/`itemEffect`/`gearDef` 用 `?? null`（原文是 `this.defs[k]?.x` 的可选链）；
+	// `combatPool` 用 `?? []`（原文 `this.pools[poolId] ?? []`）；只有**必需的数值**才 fail-loud。
+	itemDef: (name) => window.Game?.Items?.defs?.[name] ?? null,
+	itemEffect: (name) => window.Game?.Items?.effects?.[name] ?? null,
+	gearDef: (name) => window.Game?.Gear?.defs?.[name] ?? null,
+	combatPool: (id) => window.Game?.Combat?.pools?.[id] ?? [],
+	poisonReduce: () => {
+		const v = window.Game?.Items?.poisonReduce;
+		if (typeof v !== 'number') throw new Error('Sg.story.poisonReduce：故事未提供 Items.poisonReduce（结构缺失必须报错，#441-E）');
+		return v;
 	},
 	// 由 `combatAction()` 派生（**单一权威**：动作未登记只有一处会报错）
 	actionLabel: (id) => {

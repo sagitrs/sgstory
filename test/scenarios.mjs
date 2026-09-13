@@ -37,6 +37,77 @@ const alignedText = (w) => {
 };
 const screenText = (w) => alignedText(w).replace(/\s+/g, ' ').trim();
 
+// ── #407 D9②（次数面·**通用版**）：点击态同屏去重 ──────────────────────────────
+// 判据：**一次点击之后**，同一屏上同一组骰面（位点｜DC｜d20）**只许出现一遍**。
+// 为什么必须补这一半：`test/render-all.mjs` 的不变量看的是**静止的渲染态** ⇒ 对「点一下才产生」的重复
+// **抓不到**（实测：反做 #403 的修法——把 `<<lastcheck>>` 加回 `hallResult`——渲染级仍 0 命中）。
+// 实测的形态（本判据就是按它写的）：点「把墙上那支哨子摘下来」后，结果被写进**同一个**反馈块两次
+//   `🎯 …〔门厅·翻检〕· DC10：d20(20) … 🎯 …〔门厅·翻检〕· DC10：d20(20) …`（修复态只有一份）
+// ⇒ 所以计数口径必须按**骰面三元组的出现次数**，而不是“块数”（重复在一个块里）。
+// 采样时点：块在点击后 ≈+30ms 出现（`settle()` ＋ `sleep(120)` 之后稳定存在）。
+
+// 纯函数：从一段文本里抽出所有「位点｜DC/天然｜d20」三元组
+export const diceSegments = (text) => [...String(text).matchAll(/〔([^〕]+)〕\s*·\s*([^：:]*?)[：:]\s*d20\s*\(\s*(\d+)\s*\)/g)]
+	.map((m) => `${m[1]}|${m[2].replace(/\s+/g, '')}|d20(${m[3]})`);
+
+// 纯函数：给一批检定反馈块的归一化文本，返回出现 ≥2 遍的骰面三元组（自证见 `--selftest`）
+export const duplicateDice = (texts) => {
+	const seen = new Map();
+	for (const t of texts) for (const k of diceSegments(t)) seen.set(k, (seen.get(k) ?? 0) + 1);
+	return [...seen].filter(([, n]) => n >= 2).map(([key, n]) => ({ key, n }));
+};
+
+// 取当前屏上的检定反馈块（两个来源：段落内联的 `.check-result` ＋ 反馈槽 `.scene-feedback`
+// —— `#403` 的重复就落在后者，只看 `.check-result` 会漏）。
+// 口径与 `alignedText` 一致：**别把转场期旧段落里的块算进来**（否则会把转场期上一段的骰面误判成重复）。
+const feedbackTexts = (w) => {
+	const cur = [...w.document.querySelectorAll('#passages .passage')]
+		.find((e) => e.dataset.passage === w.SugarCube.State.passage);
+	const mine = (el) => { const p = el.closest('.passage'); return !p || p === cur; };
+	return [...w.document.querySelectorAll('#passages .check-result, #passages .scene-feedback')]
+		.filter(mine).map((el) => (el.textContent ?? '').replace(/\s+/g, ' ').trim()).filter(Boolean);
+};
+
+
+
+   // 本 RUN 真的命中过的登记位点（用于白名单腐烂检测）
+
+// 已知缺陷登记（**报告但不判失败**；修好后删条目即转严格 —— 本仓约定，同 `test/premise-source.mjs`）。
+// `--strict` 把已知缺陷也当失败（这就是那批修复工作的**红证**）。
+// ⚠️ 白名单**腐烂**由本门自己报：登记了却没再命中 ⇒ 修好忘删（见文末）。
+export const DUP_KNOWN = {
+	'守林人·交涉': '#516（socpanel 本轮结果 ＋ 段落内 `<<lastcheckFor>>` 复显（40-ch2:274）⇒ 同一颗骰面同屏两遍）',
+	'守林人·指花': '#516（同一处，同上）',
+	'当时的女巫·辨认': '#516（同一机制的另一处：50-ch3:322 的 `<<lastcheckFor>>`）',
+};
+export const dupSite = (key) => String(key).split('|')[0];
+export const splitDuplicates = (dups, known = DUP_KNOWN) => ({
+	fresh: dups.filter((d) => !known[dupSite(d.key)]),
+	known: dups.filter((d) => known[dupSite(d.key)]),
+});
+const STRICT = process.argv.includes('--strict');
+const knownDupSeen = new Set();   // 本 RUN 真的命中过的登记位点（用于白名单腐烂检测）
+
+// 自证：`node test/scenarios.mjs --selftest`（不 boot，秒级；样本取实测文本）
+if (process.argv.includes('--selftest')) {
+	let bad = 0;
+	const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
+	const FIXED = '🎯 调查检定（智力） 〔门厅·翻检〕 · DC10：d20(20) +0 = 20 ★ 大成功 你把哨子从钉子上提起来，收进行囊，可在物品栏查看。 获得【坏哨】。';
+	const DUP = '🎯 调查检定（智力） 〔门厅·翻检〕 · DC10：d20(20) +0 = 20 ★ 大成功 🎯 调查检定（智力） 〔门厅·翻检〕 · DC10：d20(20) +0 = 20 ★ 大成功 你把哨子从钉子上提起来，收进行囊，可在物品栏查看。 获得【坏哨】。';
+	t('正例：修复态的单份结果不报（实测文本）', duplicateDice([FIXED]).length === 0);
+	t('反例：同一个块里骰面出现两遍 ⇒ 必须报（#403 的反做形态，实测文本）', duplicateDice([DUP]).length === 1 && duplicateDice([DUP])[0].n === 2);
+	t('反例：跨两个块重复同一骰面 ⇒ 必须报', duplicateDice([FIXED, FIXED]).length === 1);
+	t('边界：两个**不同位点**各一份 ⇒ 不报', duplicateDice([FIXED, FIXED.replace(/门厅·翻检/g, '门厅·看钉')]).length === 0);
+	t('边界：同一位点但**骰面不同**（20 / 3）⇒ 不报', duplicateDice([FIXED, FIXED.replace('d20(20)', 'd20(3)')]).length === 0);
+	t('边界：块里没有骰面（如纯道具反馈）⇒ 不报', duplicateDice(['获得【火把】', '获得【火把】']).length === 0);
+	// 已知缺陷姿态（本仓约定：登记 ⇒ 只报告；未登记 ⇒ 判红；白名单腐烂单独报）
+	const KD = { 位点A: '#1（示例）' };
+	t('登记命中：已在 DUP_KNOWN 里的位点 ⇒ 归 known（不判失败）', splitDuplicates([{ key: '位点A|DC10|d20(20)', n: 2 }], KD).known.length === 1 && splitDuplicates([{ key: '位点A|DC10|d20(20)', n: 2 }], KD).fresh.length === 0);
+	t('登记未命中：不在名单里的位点 ⇒ 归 fresh（会判红）', splitDuplicates([{ key: '位点B|DC10|d20(20)', n: 2 }], KD).fresh.length === 1);
+	console.log(bad ? `\n✗ #407 D9② 自证未通过（${bad} 项）` : '\n✔ #407 D9② 自证通过（正例 1 · 反例 2 · 边界 3 · 登记 2）');
+	process.exit(bad ? 1 : 0);
+}
+
 async function newGame(randomStub, preset = 0) {
 	// random 传函数：每次调用都取同一个定值，d20 于是变成确定骰
 	const { w, uncaught, sleep, settle } = await boot({ random: () => randomStub });
@@ -111,6 +182,18 @@ async function newGame(randomStub, preset = 0) {
 		await sleep(120);
 		mark();
 		if (uncaught.length > before) throw new Error(`点击「${what}」后脚本异常：${uncaught[before].slice(0, 160)}`);
+		// #407 D9②（通用版）：点一下之后，同一屏上同一组骰面只许出现一遍（#403 是天然反例：
+		// `<<sitecheck>>` 渲染一次、`hallResult` 的复显再写一次 ⇒ 同一颗骰面在一屏上两遍）
+		{
+			const { fresh, known } = splitDuplicates(duplicateDice(feedbackTexts(w)));
+			for (const d of known) {
+				if (knownDupSeen.has(dupSite(d.key))) continue;   // 同一处只报一次（几十条路线会反复命中）
+				knownDupSeen.add(dupSite(d.key));
+				console.log(`⏳ [已知缺陷 ${DUP_KNOWN[dupSite(d.key)]}] 同屏重复骰面 ×${d.n}：${d.key}（点「${what}」）——报告但不判失败`);
+			}
+			if (fresh.length) throw new Error(`同屏重复检定结果（#407 D9② 点击态）：点「${what}」后同一组骰面出现 ${fresh[0].n} 遍 —— ${fresh[0].key}`);
+			if (STRICT && known.length) throw new Error(`同屏重复检定结果（--strict：已知缺陷也判失败）：点「${what}」后 ${known[0].key}`);
+		}
 	};
 	// 车卡 + 出发
 	await click('踏上旅途');
@@ -1687,6 +1770,14 @@ writeFileSync('build/route-traces.json', JSON.stringify({
 	const l = ALL_LOC.reduce((a, x) => a + x.label, 0);
 	const pct = k + l ? Math.round((k / (k + l)) * 100) : 0;
 	console.log(`定位方式：key ${k} 次 / 文案 ${l} 次（key 占比 ${pct}%）`);
+}
+// #407 D9②：白名单腐烂检查——登记了却没再命中 ⇒ 修好忘删（本仓既有纪律：修好了就要删登记）
+{
+	const stale = Object.keys(DUP_KNOWN).filter((site) => !knownDupSeen.has(site));
+	if (stale.length) {
+		console.error(`⚠ [stale-whitelist] DUP_KNOWN 里的位点本次未再命中同屏重复：${stale.join('、')} ⇒ 若已修好请删登记（#516）`);
+		if (STRICT) failures += 1;
+	}
 }
 console.log(`\n路线 ${routes.length} 条 · 交互覆盖 ${visited.size} 格`);
 if (failures) { console.error(`✗ ${failures} 条路线失败`); process.exit(1); }

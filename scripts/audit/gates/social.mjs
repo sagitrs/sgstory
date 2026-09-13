@@ -4,6 +4,15 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 export const flag = 'social';
 export const flags = ["social"];
 
+// ── 判据纯函数（#342 F2 自证：主跑与自证共用同一份代码，避免"自证另写一套"）──
+// 态度阶梯：DMG 社交交互表压成的那根轴 = 友好 −5 / 冷淡 0 / 敌意 +5，且**恰好三档**
+export const attAdjBogus = (adj) => Object.entries(adj ?? {}).filter(([, v]) => ![0, 5, -5].includes(v));
+export const attAdjWrongTiers = (adj) => Object.keys(adj ?? {}).length !== 3;
+// 筹码给法：只能 auto＝免检 或 adv＝优势
+export const leverGivesBad = (gives) => !['auto', 'adv'].includes(gives);
+// 失败代价三分类（"代价因手段而异"这条判据的核心）
+export const failKindOf = (approach) => (approach?.onFail?.retry ? '重试代价' : (approach?.onFail?.att ? '态度代价' : '无代价'));
+
 export const run = (ctx) => {
 	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
@@ -16,8 +25,8 @@ if (wantAll || arg('social')) {
 	const apKeys = Object.keys(S?.approaches ?? {});
 	const failKinds = new Set();
 	// DC 阶梯：态度修正必须就是 DMG 社交交互表压成的那根轴（友好 −5 / 冷淡 0 / 敌意 +5）
-	const bogus = Object.entries(S?.attAdj ?? {}).filter(([, v]) => ![0, 5, -5].includes(v));
-	if (bogus.length || Object.keys(S?.attAdj ?? {}).length !== 3) {
+	const bogus = attAdjBogus(S?.attAdj);
+	if (bogus.length || attAdjWrongTiers(S?.attAdj)) {
 		console.log(`  ✗ 态度修正不是 DMG 表里的 −5/0/+5 三档：${JSON.stringify(S?.attAdj)}`); bad++;
 	} else console.log('  态度阶梯：友好 −5 · 冷淡 0 · 敌意 +5（DMG 社交交互表）');
 	for (const a of S?.asks ?? []) {
@@ -44,7 +53,7 @@ if (wantAll || arg('social')) {
 				console.log(`  ✗ 诉求「${a.id}」的筹码「${lv.name}」要"读过这人"，但这个诉求没有读人的手`); bad++;
 			}
 			if (lv.econ && !Game.Economy.events[lv.econ]) { console.log(`  ✗ 诉求「${a.id}」的筹码「${lv.name}」用了不存在的经济事件「${lv.econ}」`); bad++; }
-			if (!['auto', 'adv'].includes(lv.gives)) { console.log(`  ✗ 诉求「${a.id}」的筹码「${lv.name}」gives=${lv.gives}（只能 auto＝免检 或 adv＝优势）`); bad++; }
+			if (leverGivesBad(lv.gives)) { console.log(`  ✗ 诉求「${a.id}」的筹码「${lv.name}」gives=${lv.gives}（只能 auto＝免检 或 adv＝优势）`); bad++; }
 		}
 		// 三档意愿：至少要有回绝（否则"掷骰无用"这一步没被演示过）
 		if (a.unwilling && !a.why) { console.log(`  ✗ 诉求「${a.id}」有 unwilling 分支却没写 why——玩家看不到"为什么掷骰没用"`); bad++; }
@@ -57,7 +66,7 @@ if (wantAll || arg('social')) {
 			const fails = new Set((a.sites ?? []).map((s) => {
 				const d = Game.Checks.sites[s];
 				const ap = S.approaches[d.abil ? d.abil : d.skill] ?? {};
-				return ap.onFail?.retry ? '重试代价' : (ap.onFail?.att ? '态度代价' : '无代价');
+				return failKindOf(ap);
 			}));
 			for (const f of fails) failKinds.add(f);
 		}
@@ -65,6 +74,20 @@ if (wantAll || arg('social')) {
 	}
 	// 代价要因手段而异（2024：不同手段的失败代价不同）
 	for (const k of ['重试代价', '态度代价', '无代价']) if (!failKinds.has(k)) { console.log(`  ✗ 没有任何一手是「${k}」——手段之间没有代价差异`); bad++; }
+		const cases = [
+			['态度阶梯正例：−5/0/+5 恰好三档 → 合规', attAdjBogus({ 友好: -5, 冷淡: 0, 敌意: 5 }).length === 0 && !attAdjWrongTiers({ 友好: -5, 冷淡: 0, 敌意: 5 })],
+			['态度阶梯反例：出现 +10（不在 DMG 表里）→ 报红', attAdjBogus({ 友好: -5, 冷淡: 0, 敌意: 10 }).length === 1],
+			['态度阶梯反例：只有两档（缺档）→ 报红', attAdjWrongTiers({ 友好: -5, 冷淡: 0 })],
+			['态度阶梯边界：表缺失 → 报红', attAdjBogus(undefined).length === 0 && attAdjWrongTiers(undefined)],
+			['筹码给法正例：auto / adv → 合规', !leverGivesBad('auto') && !leverGivesBad('adv')],
+			['筹码给法反例：gives=free → 报红', leverGivesBad('free')],
+			['失败代价：retry 优先于 att → 重试代价', failKindOf({ onFail: { retry: true, att: -1 } }) === '重试代价'],
+			['失败代价：只有 att → 态度代价', failKindOf({ onFail: { att: -1 } }) === '态度代价'],
+			['失败代价：无 onFail / 空 → 无代价（边界）', failKindOf(undefined) === '无代价' && failKindOf({}) === '无代价'],
+		];
+		for (const [label, pass] of cases) { console.log(`      ${pass ? '✓' : '✗'} 自证·${label}`); if (!pass) bad++; }
+		console.log(`      自证·检出 ${cases.filter(([, p]) => p).length}（期望 ${cases.length}）`);
+
 	console.log(`  代价差异：${[...failKinds].join(' · ')}（游说/历史＝越问越难 · 欺瞒/恐吓＝态度下降 · 表演/洞悉/察觉＝只丢这一句）`);
 	// 至少一条常驻面板的「unwilling」示范（让玩家看见"掷骰无用"这一步存在）
 	const stubborn = (S.asks ?? []).filter((a) => a.unwilling && !(a.willing));

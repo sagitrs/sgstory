@@ -8,24 +8,24 @@
 > 为什么要有这张表：本仓当日集齐四类「空判」——覆盖≠验收 / **反例空判** / **死开关**（#331）/ **原理不可达断言**（#338）。
 > 台账的首要用途不是统计，而是**让「没有自证的门」在表上看得见**。
 
-**严格行为化率（有自证）：39/62 = 62.9%** ｜ **有断言但缺自证：6**（＝下方工作清单）｜ 仅登记：4
+**严格行为化率（有自证）：44/63 = 69.8%** ｜ **有断言但缺自证：6**（＝下方工作清单）｜ 仅登记：0
 
 | 门 | 类型 | 形态 | 自证 | 接线（npm test） | 理由（仅登记/未接线必填） |
 |---|---|---|---|---|---|
 | `audit:a11y` | audit 开关 | 行为化（缺自证） | — | ✅ |  |
 | `audit:canon` | audit 开关 | 行为化（缺自证） | — | ✅ | 禁词/回流扫描（断言存在，但**没有自证**——已列入 F2 工作清单；§10 已裁剪项不得回流） |
-| `audit:checks` | audit 开关 | 仅登记 | — | — | 检定位点总表（覆盖性由 --sitedisc/--interact 族门承担） |
+| `audit:checks` | audit 开关 | 行为化 | ✅ | — | 检定矩阵：天然位点概率（1/20，劣势平方）＋优势标记阈值＋**单调性不变量**（优势 ≥ 普通），自证 5 例（含浮点边界陷阱留注） |
 | `audit:choices` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:combat` | audit 开关 | 行为化（缺自证） | — | ✅ |  |
 | `audit:consequences` | audit 开关 | 行为化（缺自证） | — | ✅ |  |
 | `audit:craft` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:dragon` | audit 开关 | 行为化（缺自证） | — | ✅ |  |
 | `audit:echoes` | audit 开关 | 行为化 | ✅ | ✅ |  |
-| `audit:economy` | audit 开关 | 仅登记 | — | — | 收支时间线是人读报表（数值本身由 --checks/--gear 门覆盖） |
+| `audit:economy` | audit 开关 | 行为化 | ✅ | — | 收支时间线：**报表算术即判据**（`delta:null` 不计入／按**章序**累计／序走最低），自证 3 例（#342 第 8 波；此前标「仅登记」，由形态对账查出并改正） |
 | `audit:gear` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:interact` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:investment` | audit 开关 | 行为化 | ✅ | ✅ |  |
-| `audit:items` | audit 开关 | 仅登记 | — | — | 龙战伤害矩阵是人读对照表（战斗数值由 --dragon 分布门覆盖） |
+| `audit:items` | audit 开关 | 行为化 | ✅ | — | 龙战伤害矩阵：**两条不变量**（减伤件更多 ⇒ 伤害不增；败次 0→2 ⇒ 伤害不减）＋自证 3 例（合成 I，不依赖真表） |
 | `audit:literals` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:nosl` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:npc` | audit 开关 | 行为化（缺自证） | — | ✅ |  |
@@ -36,7 +36,7 @@
 | `audit:state` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:systems` | audit 开关 | 行为化 | ✅ | ✅ | 机制×锚句门（**有判定**：机制必须有可感知锚句）——此前台账误标「仅登记」，由形态对账查出并改正；自证待补 |
 | `audit:text` | audit 开关 | 行为化 | ✅ | ✅ | 文本载荷门（**有判定**：载荷阈值）——此前台账误标「仅登记」，由形态对账查出并改正；自证待补（密度 ratchet 在 --craft，本门是自己的载荷线） |
-| `audit:tokens` | audit 开关 | 仅登记 | — | — | 与 --items 同族：词法/道具矩阵报表 |
+| `audit:tokens` | audit 开关 | 行为化 | ✅ | — | 与 --items 同族：伤害矩阵不变量 ＋ 自证（同一次改动） |
 | `audit:truth` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `scripts/report-copy-text.mjs` | 报告脚本 | 行为化 | ✅ | ✅ |  |
 | `scripts/report-gate-ledger.mjs` | 报告脚本 | 行为化 | ✅ | ✅ | 本文件自身的自检（台账不腐），已入 npm test |
@@ -53,7 +53,7 @@
 | `test/globals.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/integrity.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/invariants.unit.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/layering.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | 自证 5 例 |
+| `test/layering.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | 自证 16 例（模块依赖 / 点号 defines / 层间方向 / engine rank 派生与四条禁止边） |
 | `test/multi-story.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/notes-model.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/npc-venue.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |

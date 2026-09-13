@@ -37,6 +37,7 @@ export const REASONS = {
 	'scripts/report-rhythm.mjs': { wired: true, form: '行为化', reason: 'R1/R1b/R2/正例 四例自证，已入 npm test' },
 	'scripts/report-ledger-freshness.mjs': { form: '行为化', reason: '**离线段已入 npm test**（`--ledger --check`：#297 对标台账行级新鲜度——行数栅栏/复核日期在期/触发条件非空/落点引用的门旗标与文件真实存在，7 例自证）；**网络段仍需 token**（#NNN 标记与 GitHub 真实状态一致），不塞主链路，由 `npm run report:freshness:check` 人工/定时跑' },
 	'scripts/report-gate-ledger.mjs': { wired: true, form: '行为化', reason: '本文件自身的自检（台账不腐），已入 npm test' },
+	'scripts/move-precheck.mjs': { wired: true, form: '行为化', reason: '#458 前置：**六处同步**校验（源文件/ORDER/MODULES/故事清单/常量声明/聚合返回）＋单根假设清点；自证 8 例（六处正反例＋聚合返回）' },
 	'scripts/report-selftest-validity.mjs': { wired: false, reason: '**报告模式，暂不接线**（#474）：V2 已抓到真问题（4 门自证不会让门退 1），但 V1 仍有 3 类假阳性待精化 ⇒ 红门不许进链；自证 8 例，残余清单在 #474' },
 	// ── 测试脚本（id 形如 test/<file>）──
 	'test/walker.mjs': { wired: false, reason: '随机游走 soak（npm run soak）：耗时长、种子流非确定，不进 npm test' },

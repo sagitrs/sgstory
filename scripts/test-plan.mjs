@@ -62,6 +62,9 @@ export const SEGMENTS = [
 	{ id: "test-smoke-mjs", phase: 'test', cost: 7.5, cmd: "node test/smoke.mjs" },
 	// #441 切片③④：多故事产物 + 书架页 + 故事页字体前缀（纯函数自证 + 真实产物检查）
 	{ id: "test-multi-story-mjs", phase: 'test', cost: 0.1, cmd: "node test/multi-story.mjs" },
+	// #458 前置：**六处同步**校验（源文件/ORDER/MODULES/故事清单/常量声明/聚合返回）＋单根假设清点
+	{ id: "scripts-move-precheck-mjs", phase: 'test', cost: 0.2, cmd: "node scripts/move-precheck.mjs" },
+	{ id: "scripts-move-precheck-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node scripts/move-precheck.mjs --selftest" },
 	// #436 收编（#493 的硬前置）：audit golden 基线。实测**全量仅 8.0s**（dragon 7.0s ＋ 其余每个 30–55ms）
 	// ⇒ 不需要"便宜子集"，整段进链；自证单列（比对函数自身的 10 例）
 	{ id: "test-audit-golden-mjs", phase: 'test', cost: 8, cmd: "node test/audit-golden.mjs" },

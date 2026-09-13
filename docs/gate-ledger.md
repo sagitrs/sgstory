@@ -62,6 +62,7 @@
 | `test/properties.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
 | `test/render-all.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
 | `test/reread.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
+| `test/resolve-node.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/roll-binding.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
 | `test/rules-claims.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/rules.mjs` | 测试脚本 | 行为化 | — | ✅ |  |

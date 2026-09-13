@@ -1,0 +1,38 @@
+:: Resolve [script]
+// ── 结算（sim，伞 #441 的 `40-sim` rank 落点）──────────────────────────────
+// 为什么单独一个文件（#441-A）：把「算」从 widget 里剥出来——
+//   · `rollSite`：**纯函数**，不写状态、不渲染 ⇒ 可在 **node** 里直接驱动（不经浏览器）
+//   · `resolve` ：薄封装，多一步「写结果槽 `$last_check`」（段落分支读它）＝ sim 侧
+// 现状只有位点检定一条；战斗（`fightact`）与交涉（`socresolve`）在 #441-A 的后续批次按同一形状接上。
+// 依赖：`10-core.twee`（Game.Rules / Game.Rules.rng）＋ `15-tables.twee`（Game.Checks / Game.Items）。
+// 命名根：挂 `Game.Checks.*`（数据/规则 ⇒ Game.*，见 docs/dev-conventions.md §7）。
+Object.assign(window.Game.Checks, {
+	// 位点判定的**算**：查位点表 → 推导优势/劣势（道具·行囊·情报·位点自带）→ 掷骰
+	// 纯函数：`pc` 只读、不碰 `State`、不渲染 ⇒ node 侧注入 `Game.Rules.rng` 即可复算成败。
+	rollSite(site, pc, advArg) {
+		const T = window.Game;
+		const s = T.Checks.sites[site];
+		if (!s) throw new Error(`未知位点: ${site}`);
+		let adv = advArg, why = '', why2 = '';
+		if (!adv) {
+			const item = T.Items.advSource(site, pc.inv, pc.gear);
+			if (item) { adv = 'adv'; why = (T.Items.advAt(site, { [item]: true }) ? '道具' : '行囊') + item; }
+		}
+		if (!adv) {
+			const k = T.Checks.knowledge?.[site];
+			if (k && pc.world?.[k]) { adv = 'adv'; why = '情报·' + (T.Checks.knowledgeWhy?.[k] ?? k); }
+		}
+		if (!adv && s.dis) { adv = 'dis'; why2 = s.disWhy ?? '这一手本来就悬'; }
+		const opt = {
+			adv: adv === 'adv' ? 1 : adv === 'dis' ? -1 : 0,
+			bonus: 0, nat: s.nat ?? 0, site, advWhy: why, disWhy: why2,
+		};
+		return s.abil ? T.Rules.save(pc, s.abil, s.dc, opt) : T.Rules.check(pc, s.skill, s.dc, opt);
+	},
+	// sim 侧入口：算完把结果写进**结果槽**（`$last_check`——段落分支与 `<<snapshot>>` 读它）
+	resolve(site, pc, advArg) {
+		const res = this.rollSite(site, pc, advArg);
+		State.variables.last_check = res;
+		return res;
+	},
+});

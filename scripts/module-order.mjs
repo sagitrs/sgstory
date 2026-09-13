@@ -29,6 +29,7 @@ export const ORDER = [
 	'16-notes-ch3.twee',      // 笔记增量文件（#430 B2）：三章
 	'16-notes-cross.twee',    // 笔记增量文件（#431 B3）：跨章/展示层
 	'20-chargen.twee',   // Game.Chargen（rounds/presets/API；加载期需要 Rules）
+	'21-resolve.twee',    // 结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）
 	'30-ch1.twee',
 	'40-ch2.twee',
 	'50-ch3.twee',
@@ -49,6 +50,7 @@ export const MODULES = {
 	'16-notes-ch3.twee': { deps: ['15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#430 B2）：只往 Game.Notes.entries 追加条目' },
 	'16-notes-cross.twee': { deps: ['15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#431 B3）：只往 Game.Notes.entries 追加条目' },
 	'20-chargen.twee': { deps: ['10-core.twee', '15-tables.twee'], defines: ['Game.Chargen'], layer: 'story', note: '车卡（#320 阶段 3 收进 Game 命名空间）' },
+	'21-resolve.twee': { deps: ['10-core.twee', '15-tables.twee'], defines: [], layer: 'story', note: '结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）' },
 	'30-ch1.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee', '20-chargen.twee'], defines: [], layer: 'story', note: '第一章（剧情段）' },
 	'40-ch2.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee'], defines: [], layer: 'story', note: '第二章（剧情段）' },
 	'50-ch3.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee'], defines: [], layer: 'story', note: '第三章（剧情段）' },

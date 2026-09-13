@@ -94,7 +94,7 @@ Object.assign(window.Game.Combat, {
 			} else {
 				check = T.Checks.resolve(foeSite, pc, null);
 				if (isDragon) {
-					const raw = T.Dragon.dragonDamage(pc.inv, f.round, (pc.dragon.defeats ?? 0) + 1, pc.dragon.venom);
+					const raw = T.Combat.dragonDamage(pc.inv, f.round, (pc.dragon.defeats ?? 0) + 1, pc.dragon.venom);
 					const dmg = Math.max(1, raw - (f.guard ?? 0));
 					if (check.success) {
 						log.foe = { text: '你贴着地滚开了——它那一口咬在你刚才站的地方，石板裂了一层。' };
@@ -191,5 +191,100 @@ Object.assign(window.Game.Social, {
 		}
 		pc.ev.soc = null;
 		return { econ };
+	},
+});
+
+// ── #512：机制从故事文件（`15-tables.twee`）搬进 sim ────────────────────────────────
+// 为什么搬：这些是**机制**（取数/结算），却住在故事文件里 ⇒ 引擎侧只能"往上"调故事实现（层间方向反了）。
+// 搬法：**公开面一字不动**（同名同命名空间 ⇒ 调用方无感），只把**数据读取**改走 `Sg.story.*`。
+// 零行为变化由 `audit:golden`（逐字节）＋ `npm test`＋`soak` 兜住；`Sg.story` 的缺省语义与原文逐条对齐
+// （`?? null` 对应 `this.defs[k]?.x`；`?? []` 对应 `this.pools[...] ?? []`；只有必需数值 fail-loud）。
+// ⚠️ 两个**有意留在故事侧**的（本片不搬，另票）：
+//   ① `Combat.offer` —— 它用 `Math.random()`，而 sim 有既有的门「不得直调 `Math.random()`」
+//      （`test/resolve-node.mjs` ④ 实测会咬）。改成 `Game.Rules.rng.d(n)-1`（同公式）在**浏览器/jsdom** 下等价，
+//      但会让 `--combat`／`--dragon` 的蒙特卡洛在 node 侧从"真随机"变成"必须先注入 rng" ⇒ 那是**另一个自变量**
+//      （会改这两道门的输出与 golden）⇒ 按单变量纪律本片不动，另开票处理"注入 rng ＋ 重签蒙特卡洛基线"。
+//      ⇒ 本片后 sim 仍调 `Game.Combat.offer` 一处（`STORY_SYMBOLS` 不含它 ⇒ 层间判据 0 命中，但架构上仍是"引擎调故事机制"✗）。
+//   ② `Combat.eligible` 已随本片搬入 sim（`offer` 经 `this.eligible` 调用它 ⇒ 运行时同命名空间解析 ✓）。
+Object.assign(window.Game.Gear, {
+	damageBonus(gear) {
+		return (gear ?? []).reduce((a, k) => a + (window.Sg.story.gearDef(k)?.damage ?? 0), 0);
+	},
+	damageSource(gear) {
+		return (gear ?? []).find((k) => (window.Sg.story.gearDef(k)?.damage ?? 0) > 0) ?? '';
+	},
+	advSource(site, gear) {
+		return (gear ?? []).find((k) => (window.Sg.story.gearDef(k)?.advSites ?? []).includes(site)) ?? '';
+	},
+});
+Object.assign(window.Game.Items, {
+	advAt(site, inv) {
+		return !!window.Game.Items.advSource(site, inv);
+	},
+	advSource(site, inv, gear) {
+		for (const k of Object.keys(inv ?? {})) {
+			const e = window.Sg.story.itemEffect(k);
+			if (e && (e.advSite === site || (e.advSites ?? []).includes(site))) return k;
+		}
+		return window.Game.Gear.advSource(site, gear);   // 行囊也能给优势（A1：火把）
+	},
+	battleDamage(round, inv, defeats, poisoned) {
+		const held = Object.keys(inv ?? {}).filter((k) => window.Sg.story.itemEffect(k)?.flatDamageReduce);
+		const flat = held.reduce((a, k) => a + window.Sg.story.itemEffect(k).flatDamageReduce, 0);
+		const rage = poisoned ? 0 : Math.min(2, defeats ?? 0);   // #236：毒液压怒（它每一下都慢半拍——连败的火也压）；未涂毒＝连败递增封顶 +2
+		const base = round >= 3 ? 6 : 4 + round;
+		const poison = poisoned ? window.Sg.story.poisonReduce() : 0;
+		return Math.max(1, base - flat - poison + rage);
+	},
+});
+Object.assign(window.Game.Combat, {
+	// ⚠️ 为什么挂 `Combat` 而不是龙的命名空间：后者在 `STORY_SYMBOLS` 里是**整命名空间**类符号
+	//（它主要是数据：hp/sealAt/entries…）⇒ 引擎侧往它上面挂**机制**会被层间门判（实测命中 1 处）。
+	// 语义上它本来就是"这一回合龙的那一下"＝战斗结算 ⇒ 住 `Combat` 更对；调用方只有本文件一处，已同步。
+	dragonDamage(inv, round, defeats, poisoned) {
+		return window.Game.Items.battleDamage(round, inv, defeats, poisoned);
+	},
+	eligible(poolId, pc) {
+		const held = pc?.inv ?? {};
+		return window.Sg.story.combatPool(poolId).filter((id) => {
+			const need = window.Sg.story.combatAction(id)?.need;
+			if (!need) return true;
+			if (need.startsWith('inv:')) return !!held[need.slice(4)];
+			if (need.startsWith('invAny:')) return need.slice(7).split('|').some((k) => held[k]);   // #250
+			return true;
+		});
+	},
+	pick(actionId, res) {
+		const a = window.Sg.story.combatAction(actionId);
+		const kind = res?.roll === 20 ? 'crit' : res?.success ? 'ok' : 'bad';
+		return { kind, eff: a[kind] ?? {} };
+	},
+	playerEff(actionId, res, pc) {
+		const r = window.Game.Combat.pick(actionId, res);
+		const bonus = window.Game.Gear.damageBonus(pc?.gear);
+		if (bonus && r.eff.dmg) {
+			r.eff = { ...r.eff, dmg: r.eff.dmg + bonus };
+			r.gearBonus = bonus;
+		}
+		// #250：好档升级（好哨＝原版玩具哨／持卷跟读）——克隆合并，不动动作表单源
+		const g = window.Sg.story.combatAction(actionId)?.good;
+		if (g && (!g.need || (g.need.startsWith('inv:') ? !!pc?.inv?.[g.need.slice(4)] : true))) {
+			r.eff = {
+				...r.eff,
+				dmg: r.eff.dmg ? r.eff.dmg + (g.dmg ?? 0) : r.eff.dmg,
+				skipFoe: g.skipFoe || r.eff.skipFoe,
+			};
+			r.goodNote = g.note;
+		}
+		return r;
+	},
+	applyEffect(pc, eff, fight) {
+		if (eff.dmg) pc.dragon.hp = Math.max(0, (pc.dragon.hp ?? 0) - eff.dmg);
+		if (eff.adv) fight.adv = (fight.adv ?? 0) + eff.adv;
+		if (eff.guard) fight.guard = (fight.guard ?? 0) + eff.guard;
+		if (eff.skipFoe) fight.skipFoe = true;
+		if (eff.flee) fight.flee = true;
+		if (eff.venom) pc.dragon.venom = true;
+		if (eff.flag) pc.ev[eff.flag] = true;
 	},
 });

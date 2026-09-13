@@ -45,8 +45,9 @@ jQuery(document).on('keydown.sgSave', (ev) => {
 
 // ── 道具图鉴（v17 M8）：跨周目永久解锁 ──
 // 不用 SugarCube 的 settings：Setting.save() 只持久化**注册过的** Setting，
-// 自定义键不落盘（见 vendor/format.js 的 save()）。这里自己用一个带命名空间的 localStorage 键。
-const SG_CODEX_KEY = 'sgstory.codex.v1';
+// 自定义键不落盘（见 vendor/format.js 的 save()）。键构造收敛到 `Sg.store`（**story** 作用域 ⇒
+// 按 slug 隔离：`sgstory.<slug>.codex.v1`）；老键 `sgstory.codex.v1` 由 `Sg.store.migrate()` 幂等迁移
+// （#441-B/#462）。这里不再持有键名字面量——`sgstory.` 只允许出现在 `src/05-store.twee` 一处。
 // ── 笔记（伞 #422 阶段 1）：知识的唯一取值口 ──────────────────────────
 //     · `has(id)` 走条目的 `grant`（阶段 1 它读的是现有旗标 → 零行为变化）
 //     · `all()` 返回已知笔记（按声明顺序），`missing(req)` 便于条件表做「缺什么」诊断
@@ -81,13 +82,13 @@ window.Sg.Codex = {
 	blank() { return { clues: {}, endings: [], finals: [] }; },
 	read() {
 		try {
-			const raw = window.localStorage.getItem(SG_CODEX_KEY);
+			const raw = window.Sg.store.rawWithLegacy('codex.v1');   // 新键优先；缺席则迁旧键并兜底读
 			const d = raw ? JSON.parse(raw) : null;
 			if (!d || typeof d !== 'object') return this.blank();
 			return { clues: d.clues ?? {}, endings: d.endings ?? [], finals: d.finals ?? [] };
 		} catch { return this.blank(); } // 隐私模式 / 坏数据：静默降级（只是不跨周目）
 	},
-	write(d) { try { window.localStorage.setItem(SG_CODEX_KEY, JSON.stringify(d)); } catch { /* 同上 */ } },
+	write(d) { try { window.localStorage.setItem(window.Sg.store.key('story', 'codex.v1'), JSON.stringify(d)); } catch { /* 同上 */ } },
 	// 每段落：把本档新满足的线索并进永久记录（有变化才写盘）
 	sync() {
 		const pc = State.variables?.pc;

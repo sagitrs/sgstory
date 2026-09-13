@@ -19,6 +19,7 @@ import { fileURLToPath } from 'node:url';
 
 export const ORDER = [
 	'00-meta.twee',      // StoryTitle / StoryData（无依赖）
+	'05-store.twee',     // 存储缝（#441-B/#462）：localStorage 键构造的唯一落点（引擎/故事两作用域）
 	'10-core.twee',      // Game.Rules / Game.Pc / Sg.UI ＋ 宏（无依赖）
 	'11-scene.twee',     // 场景 widget（actOut / sceneFeedback）
 	'15-tables.twee',    // Game.*（加载期需要 Rules / Pc）
@@ -42,6 +43,7 @@ export const ORDER = [
 // 每个模块：加载期依赖 + 必须定义的符号（用于抓「改了名/挪了位置」）
 export const MODULES = {
 	'00-meta.twee': { deps: [], defines: [], layer: 'story', note: '故事元数据（StoryTitle / StoryData）' },
+	'05-store.twee': { deps: [], defines: ['Sg.store'], layer: 'story', note: '存储缝（#441-B/#462）：localStorage 键构造的唯一落点' },
 	'10-core.twee': { deps: [], defines: ['Game.Rules', 'Game.Pc', 'Sg.UI'], layer: 'engine', note: '规则内核与界面基座' },
 	'11-scene.twee': { deps: ['10-core.twee'], defines: ['widget:actOut', 'widget:sceneFeedback'], layer: 'engine', note: '场景迁移配方（结果留屏）' },
 	'15-tables.twee': { deps: ['10-core.twee'], defines: ['Game'], layer: 'story', note: '声明式数据表' },

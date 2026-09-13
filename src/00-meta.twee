@@ -9,3 +9,10 @@
 	"start": "开场",
 	"zoom": 1
 }
+
+:: StoryIdentity [script]
+// 故事身份（**单一源**）：`#441-B/#462` 的 localStorage 命名空间用；**引擎不硬编码故事名**。
+// 将来 `#441-E` 的 `00-boot` 接手同一处注入（slug 由 `stories/<slug>/00-story.json` 经 build 传入）。
+// 与清单的一致性由门 `test/store-keys.mjs` 把住（两处漂移即红）。
+window.Sg ??= {};
+window.Sg.storyId = { slug: 'mist-forest' };

@@ -5,6 +5,7 @@
 	"entry": "开场",
 	"files": [
 		"00-meta.twee",
+		"05-store.twee",
 		"10-core.twee",
 		"11-scene.twee",
 		"15-tables.twee",

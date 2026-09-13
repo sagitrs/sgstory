@@ -83,6 +83,9 @@ export const SEGMENTS = [
 	{ id: "test-onetime-pickups-mjs", phase: 'test', cost: 18.1, cmd: "node test/onetime-pickups.mjs" },
 	{ id: "test-roll-binding-mjs", phase: 'test', cost: 0, cmd: "node test/roll-binding.mjs" },
 	{ id: "test-codex-gating-mjs", phase: 'test', cost: 0, cmd: "node test/codex-gating.mjs" },
+	// #462：存储缝（键构造单一落点 · 两作用域 · 幂等迁移）
+	{ id: 'test-store-keys-mjs-selftest', phase: 'test', cost: 0, cmd: 'node test/store-keys.mjs --selftest' },
+	{ id: 'test-store-keys-mjs', phase: 'test', cost: 0, cmd: 'node test/store-keys.mjs' },
 	// #441-A：结算可脱离浏览器驱动（rng 可注入 · rollSite 纯 · present 不写状态）
 	{ id: 'test-resolve-node-mjs-selftest', phase: 'test', cost: 0, cmd: 'node test/resolve-node.mjs --selftest' },
 	{ id: 'test-resolve-node-mjs', phase: 'test', cost: 0, cmd: 'node test/resolve-node.mjs' },

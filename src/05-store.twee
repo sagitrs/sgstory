@@ -1,0 +1,74 @@
+:: Store [script]
+// ── 存储缝（伞 #441 的 `30-persist` rank 落点；本票 #441-B/#462）──────────────────
+// 为什么需要它：`localStorage` 的键散在 `10-core`（`Sg.UI.KEY`）与 `80-script`（`SG_CODEX_KEY`）两处，
+// 而**多故事**要求「故事键按故事隔离、引擎键不隔离」——散着写必然某处漏加前缀 ⇒ 两故事互相污染。
+// ⇒ 把**键构造收敛到这一个文件**（`key()` 是唯一落点），其余文件只调它。
+//
+// 隔离口径（判据＝**层标签决定要不要隔离**，与 `module-order.mjs` 的 `layer`／rank 是同一份事实）：
+//   · scope='engine' ⇒ `sgstory.<name>`（name 自带版本，如 `ui.v1`）          —— 引擎偏好跨故事一致（如「显示计算过程」），**不隔离**
+//   · scope='story'  ⇒ `sgstory.<slug>.<name>`（如 `codex.v1`）   —— 图鉴/存档等故事数据，**按 slug 隔离**
+//
+// 故事身份**由故事声明**（`00-meta.twee` 的 `Sg.storyId`），引擎**不硬编码故事名**——
+// 这是 `#441` 第 4 步「引擎不知道故事名」的第一处落地；将来 `#441-E` 的 `00-boot` 接手同一处注入
+// （届时 slug 由 `stories/<slug>/00-story.json` 经 build 注入，本文件不必改）。
+window.Sg ??= {};
+
+window.Sg.store = {
+	// 老键 → 逻辑名（**一次性幂等迁移**；回滚后旧键仍在 ⇒ 不丢数据）。逻辑名**自带版本**（`codex.v1`），
+	// 于是键名 = `sgstory.<name>`／`sgstory.<slug>.<name>`，版本升级只改这里。
+	// 只登记**故事键**：引擎键（`sgstory.ui.v1`）不加前缀 ⇒ 键名不变 ⇒ 不需要迁移。
+	LEGACY: { 'codex.v1': 'sgstory.codex.v1' },
+	_migratedFor: null,   // 已迁移过的 slug（换了 slug 要重跑）
+
+	// 故事身份（引擎**只消费**，不定义）。缺它而索要 story 键 ⇒ 见 `key()` 的 fail-loud。
+	slug() { return window.Sg.storyId?.slug ?? null; },
+	ls() { return window.localStorage ?? null; },
+
+	// **键构造的唯一落点**。`scope ∈ {'engine','story'}`。
+	// story 键缺 slug ⇒ **明确报错**（不静默退化成裸键——那会让两个故事互相污染，且是"静默"的）。
+	key(scope, name) {
+		if (scope === 'engine') return `sgstory.${name}`;
+		if (scope !== 'story') throw new Error(`Sg.store.key: 未知 scope「${scope}」（只认 'engine' / 'story'）`);
+		const slug = this.slug();
+		if (!slug) throw new Error(`Sg.store.key: 索要 story 键「${name}」，但故事身份未注入（Sg.storyId.slug）——多故事下这会静默串档`);
+		return `sgstory.${slug}.${name}`;
+	},
+
+	// 幂等迁移：新键**缺席**且旧键在场 ⇒ 搬过去并删旧键；已搬过（新键在场）⇒ 不动。
+	// 返回 `{ moved, skipped }`（供探针断言「跑第二次不变」）。`force` 让调用点（读路径）可重试。
+	migrate({ force = false } = {}) {
+		const slug = this.slug();
+		const moved = [], skipped = [];
+		if (!slug) return { moved, skipped };               // 无身份 ⇒ 无从谈 story 键，静默无操作
+		if (!force && this._migratedFor === slug) return { moved, skipped };
+		for (const [name, oldKey] of Object.entries(this.LEGACY)) {
+			const newKey = this.key('story', name);
+			const raw = this.ls()?.getItem(oldKey);
+			if (raw == null) { skipped.push(name); continue; }                          // 没旧键 ⇒ 无事可做
+			if (this.ls()?.getItem(newKey) != null) { skipped.push(name); continue; }   // 已搬过 ⇒ **幂等**：不覆盖新值
+			this.ls()?.setItem(newKey, raw);
+			this.ls()?.removeItem(oldKey);
+			moved.push(name);
+		}
+		this._migratedFor = slug;
+		return { moved, skipped };
+	},
+
+	// 读／写薄封装（与既有 `Sg.UI`／`Sg.Codex` 同款降级：隐私模式／坏数据 ⇒ 静默降级到"本次会话有效"）
+	read(scope, name) { try { return JSON.parse(this.ls()?.getItem(this.key(scope, name)) ?? 'null'); } catch { return null; } },
+	write(scope, name, value) { try { this.ls()?.setItem(this.key(scope, name), JSON.stringify(value)); return true; } catch { return false; } },
+	clear(scope, name) { try { this.ls()?.removeItem(this.key(scope, name)); } catch { /* 同上 */ } },
+
+	// 老键的**兜底读**（迁移尚未发生或刚被外部种入旧键时——`test/scenarios.mjs` 就是这种用法）：
+	// 先把旧键搬到新键（幂等），再返回新键的原始串。
+	rawWithLegacy(name) {
+		const newKey = this.key('story', name);
+		let raw = this.ls()?.getItem(newKey);
+		if (raw == null) {
+			this.migrate({ force: true });
+			raw = this.ls()?.getItem(newKey);
+			if (raw == null) raw = this.ls()?.getItem(this.LEGACY[name]) ?? null;
+		}
+		return raw;
+	},
+};

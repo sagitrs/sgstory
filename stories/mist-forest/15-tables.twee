@@ -1213,6 +1213,11 @@ Object.assign((window.Sg.story ??= {}), {
 	// ── #512：sim 机制所需的**故事数据**入口（槽位外的表：道具/装备/战斗池/数值）──────────
 	// 缺省语义**照旧**：`itemDef`/`itemEffect`/`gearDef` 用 `?? null`（原文是 `this.defs[k]?.x` 的可选链）；
 	// `combatPool` 用 `?? []`（原文 `this.pools[poolId] ?? []`）；只有**必需的数值**才 fail-loud。
+	// ── #459／#482：**新机制声明表**（故事 2 用；故事 1 v1 **显式声明"未启用"**）──────────────
+	// 形状与六条可机检点见 `docs/engine-story-boundary.md`；校验器在 `scripts/audit/lib/story-shape.mjs`，
+	// 门是 `test/story-shape.mjs`（已入 npm test）。**为什么显式返回 null 而不是省略**：`#492` 要求
+	// 「降级必须是显式的」—— 引擎**不得**把"未声明"当成"0 减成"（那会悄悄改掉故事 1 的平衡）。
+	mechanics: () => null,
 	itemDef: (name) => window.Game?.Items?.defs?.[name] ?? null,
 	itemEffect: (name) => window.Game?.Items?.effects?.[name] ?? null,
 	gearDef: (name) => window.Game?.Gear?.defs?.[name] ?? null,

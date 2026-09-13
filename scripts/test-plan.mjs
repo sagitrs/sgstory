@@ -120,6 +120,8 @@ export const SEGMENTS = [
 	{ id: "scripts-report-gate-ledger-mjs", phase: 'test', cost: 0, cmd: "node scripts/report-gate-ledger.mjs" },
 	// #474 接线：`自证·` 必须「失败计入退出码」且「不崩」（静态扫描 scripts/ ＋ test/ 共 77 文件，0 致命）
 	{ id: "scripts-report-selftest-validity-mjs", phase: 'test', cost: 0.2, cmd: "node scripts/report-selftest-validity.mjs" },
+	// #459／#482：故事「新机制声明表」的形状门（六条可机检点 · 各带正反自证）
+	{ id: "test-story-shape-mjs", phase: 'test', cost: 0.1, cmd: "node test/story-shape.mjs" },
 ];
 
 // ── 门的**两层化**（#436-a）：引擎门 / 故事门 ──────────────────────────────

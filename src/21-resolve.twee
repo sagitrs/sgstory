@@ -117,3 +117,76 @@ Object.assign(window.Game.Combat, {
 		return { check, hurt, log };
 	},
 });
+
+// ── 经济事件的「落帐」与文案（#441-A 第三刀）──────────────────────────────
+// 为什么要抽：`<<econ>>` 原本把「算价 ＋ 落金币 ＋ 落 gives ＋ 渲染文案」挤在一个 widget 里，
+// 而 `<<socresolve>>` 要**在自己的分支里**调它（筹码那一支）⇒ 想让社交回合能在 node 里驱动，
+// 就得把「落帐」抽成 sim 函数；文案格式抽成 `note()`（**单一源**，否则两处各写一份必漂）。
+Object.assign(window.Game.Economy, {
+	// sim：算价 → 落金币 → 落 gives。返回 `{ delta }`（供 present 渲染文案）
+	apply(pc, id) {
+		const ev = this.events[id];
+		const d = this.priceOf(id, pc);
+		pc.gold = pc.gold + d;
+		if (ev?.gives) {
+			for (const [k, v] of Object.entries(ev.gives)) {
+				if (Array.isArray(v)) pc[k] = [...(pc[k] ?? []), ...v.filter((x) => !(pc[k] ?? []).includes(x))];
+				else pc[k] = (pc[k] ?? 0) + v;
+			}
+		}
+		return { delta: d };
+	},
+	// present：金额文案（`<<econ>>` widget 与 `<<socresolve>>` 共用此一处）
+	note(d) { return `（${d < 0 ? `金币 ${d}` : d > 0 ? `金币 +${d}` : '——'}）`; },
+});
+
+// ── 交涉回合的「算」（#441-A 第三刀）──────────────────────────────────────
+// 现状：`<<socresolve>>` 是「算 ＋ 写」的 sim widget；它**唯一渲染的东西**是筹码那一支里的 `<<econ>>` 文案。
+// 抽出后：状态写点全在 sim；widget 只剩「调 sim ＋ 渲染那一句文案」⇒ `test/social-lever.mjs` 可以不经浏览器驱动。
+// ⚠️ 顺序敏感：`econ` 原本在 `shift`／`apply` **之前**（`priceOf` 可能吃 `apply` 落的旗标折扣）——
+//    本实现**保持原顺序**（econ 先落、`apply` 后调），别为了「看起来整齐」把它挪位。
+Object.assign(window.Game.Social, {
+	// 返回 `{ econ: { delta } | null }`；`null`＝这次点击不该结算（`$pc.ev.soc` 与 ask 不匹配）
+	resolveAsk(pc, askId, how) {
+		const T = window.Game, S = T.Social;
+		const a = S.ask(askId);
+		if (!a || !pc.ev.soc || pc.ev.soc.id !== a.id) return null;
+		if (!pc.ev.soc_last) pc.ev.soc_last = {};
+		let econ = null;
+		const h = String(how ?? '');
+		if (h === 'will') {
+			a.apply(pc);
+			pc.ev.soc_last[a.id] = { kind: 'will', text: a.will };
+		} else if (h.startsWith('lever:')) {
+			const lv = S.levers(a, pc).find((l) => l.id === h.slice(6));
+			if (lv) {
+				if (lv.gives === 'adv') {
+					// #360：优势筹码只把「这一问更有把握」摆出来——**不完成诉求**。
+					pc.ev.soc_lever = lv.id;
+					pc.ev.soc_last[a.id] = { kind: 'lever', text: '你把筹码摆了出来：' + lv.name + '。他看了一眼，没有立刻接话。', notes: ['下一掷有优势（' + lv.note + '）'] };
+				} else {
+					if (lv.econ) econ = { delta: T.Economy.apply(pc, lv.econ).delta };
+					S.shift(pc, a.npc, 1);
+					a.apply(pc);
+					pc.ev.soc_last[a.id] = { kind: 'auto', text: a.auto, notes: ['拿出了筹码：' + lv.name] };
+				}
+			}
+		} else if (h.startsWith('site:')) {
+			const site = h.slice(5);
+			const dc = S.dcOf(a, site, pc);
+			let lv = S.levers(a, pc).find((l) => l.id === pc.ev.soc_lever);
+			if (!lv) lv = S.levers(a, pc).find((l) => l.gives === 'adv' && !l.econ);
+			const res = S.roll(pc, site, dc, lv?.note ?? '');
+			pc.ev.soc_lever = null;
+			pc.ev.last_roll = res;
+			if (res.success) {
+				a.apply(pc);
+				pc.ev.soc_last[a.id] = { kind: 'ok', text: a.ok, notes: S.settle(a, pc, site, res.roll === 20 ? 'crit' : 'ok') };
+			} else {
+				pc.ev.soc_last[a.id] = { kind: 'bad', text: a.bad, notes: S.settle(a, pc, site, 'bad') };
+			}
+		}
+		pc.ev.soc = null;
+		return { econ };
+	},
+});

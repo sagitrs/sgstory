@@ -122,7 +122,7 @@ t('`Game.Checks.rollSite` / `resolve` 已在 node 里可调用', typeof Game.Che
 		t(`④ ${f} 无直调 \`Math.random()\``, hits === 0, `命中 ${hits}`);
 	}
 	// 只查 **present** widget；sim widget（`fightact`／`socresolve`／`snapshot`／`setflag`／`damage`…）本就负责写状态
-	for (const w of ['sitecheck', 'hallResult', 'fightpanel', 'socpanel', 'fightlog']) {
+	for (const w of ['sitecheck', 'hallResult', 'fightpanel', 'socpanel', 'fightlog', 'socresolve', 'econ']) {
 		const body = widgetBody(core, w);
 		t(`④ widget「${w}」体内无状态写点（present 不写状态）`, body !== null && !writesStoryState(body));
 	}
@@ -169,6 +169,66 @@ t('`Game.Checks.rollSite` / `resolve` 已在 node 里可调用', typeof Game.Che
 	const before = pc.ev.fight.round;
 	const fo2 = Game.Combat.resolveFoe(pc, '雾之魔物·挥击', false, p1.log);
 	t('⑤ hp≤0 ⇒ 对手不再行动（`check` 为 null）但收尾照跑', fo2.check === null && pc.ev.fight.round === before + 1, JSON.stringify({ check: fo2.check, round: pc.ev.fight.round }));
+}
+
+
+// ── ⑥ 交涉回合 ＋ 经济落帐能在 node 里跑（#441-A 第三刀的验收）──
+{
+	const mk = (over = {}) => {
+		const p = JSON.parse(JSON.stringify(ctx.presets[0].pc));
+		p.gold = 50;
+		p.ev.soc_last = {};
+		return Object.assign(p, over);
+	};
+	t('⑥ `Game.Social.resolveAsk` ／ `Game.Economy.apply`／`note` 已在 node 里可调用',
+		typeof Game.Social.resolveAsk === 'function' && typeof Game.Economy.apply === 'function' && typeof Game.Economy.note === 'function');
+	// will 分支：不掷骰、直接落地
+	{
+		const pc = mk({ ev: { soc_last: {}, soc: { id: '老板娘·进塔', how: 'will' } } });
+		const r = Game.Social.resolveAsk(pc, '老板娘·进塔', pc.ev.soc.how);
+		t('⑥ `will` 分支：写台账 ＋ 清 `$pc.ev.soc` ＋ 无 econ', r && r.econ === null && pc.ev.soc === null && pc.ev.soc_last['老板娘·进塔']?.kind === 'will');
+	}
+	// lever:drink（gives=auto ＋ econ=drink_round）⇒ 落金币、返回 delta
+	{
+		const pc = mk({ ev: { soc_last: {}, soc: { id: '老板娘·进塔', how: 'lever:drink' } } });
+		const g0 = pc.gold;
+		const r = Game.Social.resolveAsk(pc, '老板娘·进塔', pc.ev.soc.how);
+		const d = Game.Economy.priceOf('drink_round', pc);
+		t('⑥ 筹码-自动分支：金币按事件落帐 ＋ 返回 delta 供 present 渲染', r?.econ?.delta === d && pc.gold === g0 + d,
+			JSON.stringify({ delta: r?.econ?.delta, gold: pc.gold, want: g0 + d }));
+		t('⑥ 该分支写 `auto` 台账（含「拿出了筹码」notes）', pc.ev.soc_last['老板娘·进塔']?.kind === 'auto' && String(pc.ev.soc_last['老板娘·进塔']?.notes?.[0]).includes('拿出了筹码'));
+	}
+	// lever:read（gives=adv）⇒ 只摆筹码、不完成诉求；随后 site: 分支才掷骰
+	{
+		// `read` 这一手挂了 `needRead` —— 必须先把「读过这人」摆上，否则 `levers()` 会把它滤掉
+		const pc = mk({ ev: { soc_last: {}, soc: { id: '老板娘·进塔', how: 'lever:read' } }, soc: { att: {}, tries: {}, read: { 老板娘: true } } });
+		Game.Social.resolveAsk(pc, '老板娘·进塔', pc.ev.soc.how);
+		t('⑥ 优势筹码分支：只写 `soc_lever`、**不完成诉求**（#360）', pc.ev.soc_lever === 'read' && pc.ev.soc_last['老板娘·进塔']?.kind === 'lever');
+	}
+	// site: 分支：注入 rng ⇒ 必成／必败两档
+	{
+		const pc = mk({ ev: { soc_last: {}, soc: { id: '老板娘·进塔', how: 'site:酒馆·打听' } }, soc: { att: {}, tries: {}, read: {} } });
+		R.rng.set((lo, hi) => hi);   // 恒最大 ⇒ 天然 20（大成功）
+		const r = Game.Social.resolveAsk(pc, '老板娘·进塔', pc.ev.soc.how);
+		t('⑥ `site:` 分支（rng=20）：台账 `ok`/`crit` ＋ 结果写入 `last_roll` ＋ 清 `soc_lever`',
+			['ok', 'crit'].includes(pc.ev.soc_last['老板娘·进塔']?.kind) && !!pc.ev.last_roll && pc.ev.soc_lever === null,
+			JSON.stringify({ kind: pc.ev.soc_last['老板娘·进塔']?.kind, roll: pc.ev.last_roll?.roll }));
+		const pc2 = mk({ ev: { soc_last: {}, soc: { id: '老板娘·进塔', how: 'site:酒馆·打听' } }, soc: { att: {}, tries: {}, read: {} } });
+		R.rng.set((lo, hi) => lo);   // 恒最小 ⇒ 天然 1（大失败）
+		Game.Social.resolveAsk(pc2, '老板娘·进塔', pc2.ev.soc.how);
+		t('⑥ `site:` 分支（rng=1）：台账 `bad`', pc2.ev.soc_last['老板娘·进塔']?.kind === 'bad', JSON.stringify(pc2.ev.soc_last['老板娘·进塔']?.kind));
+	}
+	// 不匹配 ⇒ 不结算（防「拿别处的点击算成这一处」）
+	{
+		const pc = mk({ ev: { soc_last: {}, soc: { id: '别的诉求', how: 'will' } } });
+		const r = Game.Social.resolveAsk(pc, '老板娘·进塔', pc.ev.soc.how);
+		t('⑥ `$pc.ev.soc.id` 与 ask 不匹配 ⇒ 返回 null 且**不写任何东西**', r === null && pc.ev.soc !== null && Object.keys(pc.ev.soc_last).length === 0);
+	}
+	// 文案格式单一源
+	t('⑥ `Game.Economy.note` 三档（负／正／零）与旧 widget 逐字一致',
+		Game.Economy.note(-8) === '（金币 -8）' && Game.Economy.note(3) === '（金币 +3）' && Game.Economy.note(0) === '（——）',
+		[JSON.stringify(Game.Economy.note(-8)), JSON.stringify(Game.Economy.note(3)), JSON.stringify(Game.Economy.note(0))].join(' / '));
+	R.rng.reset();
 }
 
 console.log(bad ? `\n✗ 结算门：${bad} 项` : '\n✔ 结算门通过（rng 可注入 · rollSite 纯 · resolve 写槽 · 推导等价 · present 不写状态）');

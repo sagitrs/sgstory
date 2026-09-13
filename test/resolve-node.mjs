@@ -14,6 +14,7 @@
 //
 // 用法：node test/resolve-node.mjs [--selftest]
 import { readFileSync } from 'node:fs';
+import { allSourceFiles, sourcePath } from '../scripts/module-order.mjs';
 import { createContext } from '../scripts/audit/context.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
@@ -114,8 +115,8 @@ t('`Game.Checks.rollSite` / `resolve` 已在 node 里可调用', typeof Game.Che
 
 // ── ④ 静态纪律：无直调 Math.random ／ present widget 不写状态 ──
 {
-	const core = readFileSync('src/10-core.twee', 'utf8');
-	const sim = readFileSync('src/21-resolve.twee', 'utf8');
+	const core = readFileSync(sourcePath('10-core.twee'), 'utf8');
+	const sim = readFileSync(sourcePath('21-resolve.twee'), 'utf8');
 	const noMathRandom = [['10-core.twee', core], ['21-resolve.twee', sim]];
 	for (const [f, s] of noMathRandom) {
 		const hits = [...stripComments(s).matchAll(/Math\.random\s*\(/g)].length;

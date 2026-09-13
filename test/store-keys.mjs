@@ -11,6 +11,7 @@
 //
 // 用法：node test/store-keys.mjs [--selftest]（**无 jsdom**：直接给 vm 上下文挂一个 localStorage stub）
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { allSourceFiles, sourcePath } from '../scripts/module-order.mjs';
 import { createContext } from '../scripts/audit/context.mjs';
 
 const SELFTEST = process.argv.includes('--selftest');
@@ -138,8 +139,8 @@ t('① 未知 scope ⇒ 报错（不许静默当 engine 处理）', (() => { try
 
 // ⑤ 单一落点（`src/**` 里 `sgstory.` 只允许出现在 store）
 {
-	const files = readdirSync('src').filter((f) => f.endsWith('.twee'));
-	const sources = Object.fromEntries(files.map((f) => [f, readFileSync('src/' + f, 'utf8')]));
+	const files = allSourceFiles();   // #458 切片B：单一权威（今天与 readdirSync('src') 同集合）
+	const sources = Object.fromEntries(files.map((f) => [f, readFileSync(f, 'utf8')]));
 	const offenders = findKeyLiterals(sources);
 	t('⑤ `src/**` 的 `sgstory.` 键字面量只出现在 `05-store.twee`', offenders.length === 0, offenders.join(' '));
 }
@@ -154,8 +155,8 @@ t('① 未知 scope ⇒ 报错（不许静默当 engine 处理）', (() => { try
 
 // ⑦ 两个消费点都不再持有键字面量（`Sg.UI` engine ／ `Sg.Codex` story）
 {
-	const core = readFileSync('src/10-core.twee', 'utf8');
-	const script = readFileSync('src/80-script.twee', 'utf8');
+	const core = readFileSync(sourcePath('10-core.twee'), 'utf8');
+	const script = readFileSync(sourcePath('80-script.twee'), 'utf8');
 	t("⑦ `Sg.UI` 走 `Sg.store.key('engine','ui.v1')` 且不再持有键字面量", /Sg\.store\.key\('engine', 'ui\.v1'\)/.test(stripComments(core)) && !/["'`]sgstory\./.test(stripComments(core)));
 	t('⑦ `Sg.Codex` 走 `Sg.store`（键字面量已清零、老键名只在 store 里）', /Sg\.store\.(key|rawWithLegacy)/.test(stripComments(script)) && !/["'`]sgstory\./.test(stripComments(script)));
 }

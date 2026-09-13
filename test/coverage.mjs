@@ -6,6 +6,7 @@
 //   门5（交互≥渲染）：交互格数不得少于渲染格数
 // 用法：node test/coverage.mjs [--update-baseline]
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { allSourceFiles } from '../scripts/module-order.mjs';
 import { execSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';
@@ -25,7 +26,7 @@ if (!renderCells.size || !interactCells.size) {
 
 // ── 段落清单（与 integrity.mjs 同源解析）──────────────────
 const passages = new Map();
-for (const f of readdirSync('src').filter((x) => x.endsWith('.twee')).sort()) {
+for (const f of allSourceFiles().map((p) => p.split('/').pop())) {
 	const lines = readFileSync(join('src', f), 'utf8').split('\n');
 	const heads = [];
 	for (let i = 0; i < lines.length; i++) {

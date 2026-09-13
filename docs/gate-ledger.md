@@ -32,6 +32,7 @@
 | `audit:npc` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:sel` | audit 开关 | 行为化 | ✅ | — | 接线说明：--sel 只是 --nosl＋--gear 的便捷别名，链上跑的是更具体的两个 flag，故没有单独的 --sel --check（**形态是有判定的门**，此前台账误标「仅登记」，已由形态对账改正） |
 | `audit:sitedisc` | audit 开关 | 行为化 | ✅ | ✅ |  |
+| `audit:slots` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:social` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:starbudget` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:state` | audit 开关 | 行为化 | ✅ | ✅ |  |

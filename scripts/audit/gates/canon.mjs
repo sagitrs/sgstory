@@ -4,6 +4,44 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 export const flag = 'canon';
 export const flags = ["canon"];
 
+// ── #342 F2 自证：canon 门的判据都是"表格解析 + 文本包含"，可剥成纯函数 ──
+/** markdown 表格行 → 单元格数组（跳过表头/分隔行/空行；`skip(c0)` 可再排除自定义表头）。 */
+export const parseTableRows = (text, skip = () => false) =>
+	String(text).split('\n').filter((l) => l.trim().startsWith('|'))
+		.map((l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim()))
+		.filter((c) => c[0] && !skip(c[0]) && !/^[\s:\-]+$/.test(c[0]));
+/** §10 行是否被 canon 门认领。 */
+export const uncoveredCanonRows = (rows, canonRows) => rows.filter((r) => !canonRows.some((e) => r[0].includes(e.src))).map((r) => r[0]);
+/** 守林人段落不得出现女性代词（§10）。 */
+export const keeperFemaleViolations = (ship) => ship.filter(({ name, text }) => /^守林人/.test(name) && text.includes('她')).map(({ name }) => name);
+/** §9 双读纪律：正文不得点破的断言（`allow` 白名单段落除外；只扫正文，剥 `/% %/` 注释）。 */
+export const dualReadViolations = (passageSrc, passageTags, dualread) => {
+	const out = [];
+	for (const [name, src] of passageSrc) {
+		const tags = passageTags.get(name) ?? [];
+		if (tags.includes('script') || tags.includes('stylesheet')) continue;
+		const text = String(src).replace(/\/%[\s\S]*?%\//g, '');
+		for (const d of dualread) {
+			if ((d.allow ?? []).includes(name)) continue;
+			if (text.includes(d.t)) out.push({ name, t: d.t, why: d.why });
+		}
+	}
+	return out;
+};
+/** 正文集合（剥 `/% %/` 注释；排除 script/stylesheet）。 */
+export const proseOf = (passageSrc, passageTags) => {
+	const out = [];
+	for (const [name, src] of passageSrc) {
+		const tags = passageTags.get(name) ?? [];
+		if (tags.includes('script') || tags.includes('stylesheet')) continue;
+		out.push({ name, text: String(src).replace(/\/%[\s\S]*?%\//g, '') });
+	}
+	return out;
+};
+/** §3.9 传说行未认领 / 传说锚句未投放。 */
+export const legendRowUnclaimed = (legendRows, legends) => legendRows.filter((r) => !legends.some((e) => r[0].includes(e.row))).map((r) => r[0]);
+export const legendNotShipped = (legends, prose) => legends.flatMap((e) => e.anchors.filter((a) => !prose.some((p2) => p2.text.includes(a))).map((a) => ({ says: e.says, anchor: a })));
+
 export const run = (ctx) => {
 	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 // ── ⓪g canon 门（M1b）：设定书 §10「已裁剪设定」→ src 回流检测 ──
@@ -93,14 +131,25 @@ if (wantAll || arg('canon')) {
 	let bad = 0;
 	const lore = readFileSync('docs/lore-canon.md', 'utf8');
 	const s10 = lore.match(/^## 10\.[\s\S]*?(?=^## 11\.)/m)?.[0] ?? '';
-	const rows = s10.split('\n').filter((l) => l.trim().startsWith('|'))
-		.map((l) => l.trim().replace(/^\||\|$/g, '').split('|').map((c) => c.trim()))
-		.filter((c) => c[0] && c[0] !== '旧设定' && !/^[\s:\-]+$/.test(c[0]));
+	const rows = parseTableRows(s10, (c0) => c0 === '旧设定');
 	// ① 行覆盖
-	const uncovered = rows.filter((r) => !CANON_ROWS.some((e) => r[0].includes(e.src)));
+	const uncovered = uncoveredCanonRows(rows, CANON_ROWS);
 	if (uncovered.length) {
 		bad += uncovered.length;
-		for (const r of uncovered) console.log(`  ✗ §10 行未被 canon 门认领：${r[0].slice(0, 60)}`);
+		for (const r of uncovered) console.log(`  ✗ §10 行未被 canon 门认领：${r.slice(0, 60)}`);
+	}
+	// 自证 6 例（合成输入）
+	{
+		const rows2 = parseTableRows('| 旧设定 | 新 |\n|---|---|\n| 甲 | x |\n| 乙 | y |', (c0) => c0 === '旧设定');
+		const cases = [
+			['表格解析：跳过表头/分隔行 ⇒ 只剩数据行', rows2.length === 2 && rows2[0][0] === '甲'],
+			['§10 覆盖：认领「甲」未认领「乙」⇒ 只报乙', uncoveredCanonRows(rows2, [{ src: '甲' }]).join() === '乙'],
+			['守林人女性代词：`守林人·X` 含「她」⇒ 报；别的段落含「她」⇒ 不报', keeperFemaleViolations([{ name: '守林人·甲', text: '她' }, { name: '村民', text: '她' }]).join() === '守林人·甲'],
+			['双读：正文出现禁断言 ⇒ 报；`allow` 白名单段落 ⇒ 不报', dualReadViolations(new Map([['P', '长生'], ['设定集·术语', '漏出来的力气']]), new Map(), [{ t: '长生' }, { t: '漏出来的力气', allow: ['设定集·术语'] }]).length === 1],
+			['双读：`script` 段落不扫、`/% %/` 注释里不算（同一句放三处，只有正文那处报）', dualReadViolations(new Map([['P', '/% 长生 %/'], ['S', '长生'], ['Q', '长生']]), new Map([['S', ['script']]]), [{ t: '长生' }]).map((v) => v.name).join() === 'Q'],
+			['传说：未投放锚句 ⇒ 报；已投放 ⇒ 不报（§3.9 行同理）', legendNotShipped([{ row: 'x', anchors: ['甲', '乙'], says: '长者' }], proseOf(new Map([['P', '甲']]), new Map())).map((v) => v.anchor).join() === '乙' && legendRowUnclaimed([['未认领行']], [{ row: '甲' }]).join() === '未认领行'],
+		];
+		for (const [label, ok] of cases) { if (!ok) bad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
 	}
 	// ② 词扫描（shipped 文本：正文 + 数据表字符串；JS 行注释 / CSS 块注释 / /% %/ 不计）
 	const ship = [];
@@ -131,9 +180,7 @@ if (wantAll || arg('canon')) {
 		for (const a of e.also ?? []) check(a.t, a.negate, e.why, e);
 	}
 	// ③ 定向：守林人段落不得出现女性代词
-	for (const { name, text } of ship) {
-		if (/^守林人/.test(name) && text.includes('她')) { hit++; bad++; console.log(`  ✗ 段落「${name}」出现「她」（§10：守林人为女性 —— 改为男性）`); }
-	}
+	for (const name of keeperFemaleViolations(ship)) { hit++; bad++; console.log(`  ✗ 段落「${name}」出现「她」（§10：守林人为女性 —— 改为男性）`); }
 	// ④ §9 双读纪律（M6a）：正文不得点破的断言（只扫正文，不扫数据表脚本）
 	const DUALREAD = [
 		{ t: '长生', why: '§9 #2/#3：只有龙长寿；正文不出现「长生」断言' },
@@ -150,15 +197,7 @@ if (wantAll || arg('canon')) {
 		{ t: '攒得还不够', why: 'v17 补正 #7：没人算过它的积蓄' },
 	];
 	let dualHit = 0;
-	for (const [name, src] of passageSrc) {
-		const tags = passageTags.get(name) ?? [];
-		if (tags.includes('script') || tags.includes('stylesheet')) continue; // 只扫正文
-		const text = src.replace(/\/%[\s\S]*?%\//g, ''); // 剥 /% %/ 注释
-		for (const d of DUALREAD) {
-			if ((d.allow ?? []).includes(name)) continue; // 白名单：谜底只许在设定集·术语
-			if (text.includes(d.t)) { dualHit++; bad++; console.log(`  ✗ 段落「${name}」出现「${d.t}」（${d.why}）`); }
-		}
-	}
+	for (const v of dualReadViolations(passageSrc, passageTags, DUALREAD)) { dualHit++; bad++; console.log(`  ✗ 段落「${v.name}」出现「${v.t}」（${v.why}）`); }
 	// ⑤ §3.9 传说覆盖门（v17）：每条传说都要①登记在对照表 ②在正文里有 NPC 投放锚
 	const LEGENDS = [
 		{ row: '那条龙早死了', anchors: ['那条龙早死了'], says: '长者' },

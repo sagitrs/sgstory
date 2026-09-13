@@ -102,8 +102,10 @@ export const run = (ctx) => {
 		['正例：用 Game.Era 常量', { 'a.twee': ':: P\n<<if $era is Game.Era.PAST>>x<</if>>\n<<damage `Game.Damage.hurt`>>' }, 0],
 		['裸时代字面量 → 红', { 'a.twee': ':: P\n<<if $era is "past">>x<</if>>' }, 1],
 		['裸伤害数字（剧情文件）→ 红', { '40-ch2.twee': ':: P\n<<damage 4>>' }, 1],
-		['数据字段里的 era 字面量 → 不红', { '15-tables.twee': "\t\tp: '塔门', era: 'past'," }, 0],
-		['常量定义行 → 不红', { '15-tables.twee': "const Era = { PAST: 'past', PRESENT: 'present' };" }, 0],
+		// #458 切片C：fixture 的文件名**取自声明**（`CONST_SECTION.files`），不再写死 `15-tables.twee`——
+		// 否则搬家/改名后 declared() 匹配不上 ⇒ 自证「不红」失败（实测：期望 0 检出 1/2）。
+		['数据字段里的 era 字面量 → 不红', { [CONST_SECTION.files[0]]: "\t\tp: '塔门', era: 'past'," }, 0],
+		['常量定义行 → 不红', { [CONST_SECTION.files[0]]: "const Era = { PAST: 'past', PRESENT: 'present' };" }, 0],
 		// #441-C：搬家支持 + 反沉默（这三例就是本次改造的理由）
 		['搬家后**声明更新**了 → 常量定义行不红', { 'engine/10-kernel/constants.twee': "const Era = { PAST: 'past' };" }, 0, { files: ['engine/10-kernel/constants.twee'], eraDecl: /const Era = \{/, eraDataField: /(flagEra|era:)/, damageMacro: /<<damage\s+(-?\d+)\s*>>/ }],
 		['搬家后**没更新声明** → stale-declaration 红（否则此处会静默变绿）', { 'engine/10-kernel/constants.twee': "const Era = { PAST: 'past' };" }, 1],

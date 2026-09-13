@@ -22,48 +22,48 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '');
 // 依赖边只写**加载期**真实需要，宁少勿多；声明与实际不符时，`defines` 清单会把它抓出来。
 
 export const ORDER = [
-	'00-meta.twee',      // StoryTitle / StoryData（无依赖）
-	'05-store.twee',     // 存储缝（#441-B/#462）：localStorage 键构造的唯一落点（引擎/故事两作用域）
-	'10-core.twee',      // Game.Rules / Game.Pc / Sg.UI ＋ 宏（无依赖）
-	'11-scene.twee',     // 场景 widget（actOut / sceneFeedback）
-	'15-tables.twee',    // Game.*（加载期需要 Rules / Pc）
+	'stories/mist-forest/00-meta.twee',      // StoryTitle / StoryData（无依赖）
+	'src/engine/30-persist/05-store.twee',     // 存储缝（#441-B/#462）：localStorage 键构造的唯一落点（引擎/故事两作用域）
+	'src/10-core.twee',      // Game.Rules / Game.Pc / Sg.UI ＋ 宏（无依赖）
+	'src/engine/50-present/11-scene.twee',     // 场景 widget（actOut / sceneFeedback）
+	'stories/mist-forest/15-tables.twee',    // Game.*（加载期需要 Rules / Pc）
 	// 笔记模型（伞 #422）的增量文件：只往 Game.Notes.entries 追加条目。
 	// 每批一个文件（#428 机制）⇒ 多席并行落表零冲突；新增文件必须在此登记（build 会拒绝未登记的文件）。
-	'16-notes-ch1.twee',      // 笔记增量文件（#442 B0）：一章补漏
-	'16-notes-ch2.twee',      // 笔记增量文件（#429 B1）：二章
-	'16-notes-ch3.twee',      // 笔记增量文件（#430 B2）：三章
-	'16-notes-cross.twee',    // 笔记增量文件（#431 B3）：跨章/展示层
-	'20-chargen.twee',   // Game.Chargen（rounds/presets/API；加载期需要 Rules）
-	'21-resolve.twee',    // 结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）
-	'30-ch1.twee',
-	'40-ch2.twee',
-	'50-ch3.twee',
-	'60-endings.twee',
-	'70-codex.twee',
-	'80-script.twee',    // 存档 API / Sg.Codex / Sg.Ending（需要前面全部）
-	'90-style.twee',     // 纯 CSS
+	'stories/mist-forest/16-notes-ch1.twee',      // 笔记增量文件（#442 B0）：一章补漏
+	'stories/mist-forest/16-notes-ch2.twee',      // 笔记增量文件（#429 B1）：二章
+	'stories/mist-forest/16-notes-ch3.twee',      // 笔记增量文件（#430 B2）：三章
+	'stories/mist-forest/16-notes-cross.twee',    // 笔记增量文件（#431 B3）：跨章/展示层
+	'stories/mist-forest/20-chargen.twee',   // Game.Chargen（rounds/presets/API；加载期需要 Rules）
+	'src/engine/40-sim/21-resolve.twee',    // 结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）
+	'stories/mist-forest/30-ch1.twee',
+	'stories/mist-forest/40-ch2.twee',
+	'stories/mist-forest/50-ch3.twee',
+	'stories/mist-forest/60-endings.twee',
+	'stories/mist-forest/70-codex.twee',
+	'src/80-script.twee',    // 存档 API / Sg.Codex / Sg.Ending（需要前面全部）
+	'src/engine/50-present/90-style.twee',     // 纯 CSS
 ];
 
 // 每个模块：加载期依赖 + 必须定义的符号（用于抓「改了名/挪了位置」）
 export const MODULES = {
-	'00-meta.twee': { deps: [], defines: [], layer: 'story', note: '故事元数据（StoryTitle / StoryData）' },
-	'05-store.twee': { deps: [], defines: ['Sg.store'], layer: 'story', note: '存储缝（#441-B/#462）：localStorage 键构造的唯一落点' },
-	'10-core.twee': { deps: [], defines: ['Game.Rules', 'Game.Pc', 'Sg.UI'], layer: 'engine', note: '规则内核与界面基座' },
-	'11-scene.twee': { deps: ['10-core.twee'], defines: ['widget:actOut', 'widget:sceneFeedback'], layer: 'engine', note: '场景迁移配方（结果留屏）' },
-	'15-tables.twee': { deps: ['10-core.twee'], defines: ['Game'], layer: 'story', note: '声明式数据表' },
-	'16-notes-ch1.twee': { deps: ['15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#442 B0）：只往 Game.Notes.entries 追加条目' },
-	'16-notes-ch2.twee': { deps: ['15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#429 B1）：只往 Game.Notes.entries 追加条目' },
-	'16-notes-ch3.twee': { deps: ['15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#430 B2）：只往 Game.Notes.entries 追加条目' },
-	'16-notes-cross.twee': { deps: ['15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#431 B3）：只往 Game.Notes.entries 追加条目' },
-	'20-chargen.twee': { deps: ['10-core.twee', '15-tables.twee'], defines: ['Game.Chargen'], layer: 'story', note: '车卡（#320 阶段 3 收进 Game 命名空间）' },
-	'21-resolve.twee': { deps: ['10-core.twee', '15-tables.twee'], defines: [], layer: 'story', note: '结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）' },
-	'30-ch1.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee', '20-chargen.twee'], defines: [], layer: 'story', note: '第一章（剧情段）' },
-	'40-ch2.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee'], defines: [], layer: 'story', note: '第二章（剧情段）' },
-	'50-ch3.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee'], defines: [], layer: 'story', note: '第三章（剧情段）' },
-	'60-endings.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee'], defines: [], layer: 'story', note: '结局页' },
-	'70-codex.twee': { deps: ['10-core.twee', '15-tables.twee'], defines: [], layer: 'story', note: '设定集' },
-	'80-script.twee': { deps: ['10-core.twee', '11-scene.twee', '15-tables.twee', '20-chargen.twee', '70-codex.twee'], defines: ['Sg.Codex', 'Sg.Ending'], layer: 'story', note: '存档 API 与运行时胶水' },
-	'90-style.twee': { deps: ['10-core.twee'], defines: [], layer: 'engine', note: '样式' },};
+	'stories/mist-forest/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '故事元数据（StoryTitle / StoryData）' },
+	'src/engine/30-persist/05-store.twee': { deps: [], defines: ['Sg.store'], layer: 'engine', note: '存储缝（#441-B/#462）：localStorage 键构造的唯一落点' },
+	'src/10-core.twee': { deps: [], defines: ['Game.Rules', 'Game.Pc', 'Sg.UI'], layer: 'engine', note: '规则内核与界面基座' },
+	'src/engine/50-present/11-scene.twee': { deps: ['src/10-core.twee'], defines: ['widget:actOut', 'widget:sceneFeedback'], layer: 'engine', note: '场景迁移配方（结果留屏）' },
+	'stories/mist-forest/15-tables.twee': { deps: ['src/10-core.twee'], defines: ['Game'], layer: 'story', note: '声明式数据表' },
+	'stories/mist-forest/16-notes-ch1.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#442 B0）：只往 Game.Notes.entries 追加条目' },
+	'stories/mist-forest/16-notes-ch2.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#429 B1）：只往 Game.Notes.entries 追加条目' },
+	'stories/mist-forest/16-notes-ch3.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#430 B2）：只往 Game.Notes.entries 追加条目' },
+	'stories/mist-forest/16-notes-cross.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#431 B3）：只往 Game.Notes.entries 追加条目' },
+	'stories/mist-forest/20-chargen.twee': { deps: ['src/10-core.twee', 'stories/mist-forest/15-tables.twee'], defines: ['Game.Chargen'], layer: 'story', note: '车卡（#320 阶段 3 收进 Game 命名空间）' },
+	'src/engine/40-sim/21-resolve.twee': { deps: ['src/10-core.twee', 'stories/mist-forest/15-tables.twee'], defines: [], layer: 'engine', note: '结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）' },
+	'stories/mist-forest/30-ch1.twee': { deps: ['src/10-core.twee', 'src/engine/50-present/11-scene.twee', 'stories/mist-forest/15-tables.twee', 'stories/mist-forest/20-chargen.twee'], defines: [], layer: 'story', note: '第一章（剧情段）' },
+	'stories/mist-forest/40-ch2.twee': { deps: ['src/10-core.twee', 'src/engine/50-present/11-scene.twee', 'stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '第二章（剧情段）' },
+	'stories/mist-forest/50-ch3.twee': { deps: ['src/10-core.twee', 'src/engine/50-present/11-scene.twee', 'stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '第三章（剧情段）' },
+	'stories/mist-forest/60-endings.twee': { deps: ['src/10-core.twee', 'src/engine/50-present/11-scene.twee', 'stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '结局页' },
+	'stories/mist-forest/70-codex.twee': { deps: ['src/10-core.twee', 'stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '设定集' },
+	'src/80-script.twee': { deps: ['src/10-core.twee', 'src/engine/50-present/11-scene.twee', 'stories/mist-forest/15-tables.twee', 'stories/mist-forest/20-chargen.twee', 'stories/mist-forest/70-codex.twee'], defines: ['Sg.Codex', 'Sg.Ending'], layer: 'story', note: '存档 API 与运行时胶水' },
+	'src/engine/50-present/90-style.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'engine', note: '样式' },};
 
 // ── 判定（纯函数，供 test/layering.mjs 与自证共用）──────────────────────
 // sources: { 文件名: 源码字符串 }
@@ -107,11 +107,11 @@ export const checkModuleGraph = (sources, { order = ORDER, modules = MODULES } =
 	return failures;
 };
 
-export const readModules = (dir = new URL('../src', import.meta.url)) => {
+export const readModules = () => {
+	// #458 切片C：走**单一权威**（路径为键，与 MODULES／ORDER 一致）——此前只枚举 `src/*.twee` 且按 basename 键，
+	// 搬家后 ⇒ 键与 MODULES 对不上 ⇒ rank 报告里"引擎文件 0 个"（假绿 ✗）。
 	const out = {};
-	for (const f of readdirSync(fileURLToPath(dir)).filter((f) => f.endsWith('.twee')).sort()) {
-		out[f] = readFileSync(new URL(`../src/${f}`, import.meta.url), 'utf8');
-	}
+	for (const f of allSourceFiles()) out[f] = readFileSync(join(ROOT, f), 'utf8');
 	return out;
 };
 
@@ -220,7 +220,7 @@ export const RANK_SIGNATURES = {
 
 /** 纯样式文件：不参与签名匹配（CSS 里的类名 `.damage-x` 会被误当代码 ⇒ 假阳性）。
  *  搬家后全在 `50-present/style.twee`，本表随之删除。 */
-export const STYLE_FILES = ['90-style.twee'];
+export const STYLE_FILES = ['src/engine/50-present/90-style.twee'];
 
 /** 四条禁止边（每条对应本仓已有纪律；都能机检）。 */
 export const RANK_BANS = [
@@ -256,14 +256,14 @@ export const checkEngineRanks = (sources, { rankOf = rankOfPath, signatures = RA
 };
 
 // ── #441-C：门不再写死"常量段在哪个文件" ────────────────────────────────────
-// 背景：`literals.mjs` 原先写死 `base === '15-tables.twee'`。按 #441-D 搬家后常量段会移到
+// 背景：`literals.mjs` 原先写死 `base === 'stories/mist-forest/15-tables.twee'`。按 #441-D 搬家后常量段会移到
 // `src/engine/**`，那两条判据会**静默失效**（判据永远绿、无人机察觉）——本仓最贵的一类假绿。
 // 做法：承载文件改为**声明**（单一权威），并且做**反向断言**：
 //   「任何文件里出现常量定义（`const Era = {`）却没被声明」⇒ 报 `stale-declaration`。
 // ⇒ 搬家**只会变红一次**（提示你更新声明），**不会**静默变绿。
 export const CONST_SECTION = {
 	// 允许出现"数据字段里的 era 字面量"与"`const Era = {…}` 定义"的文件（用**路径后缀**匹配，兼容搬家后的新路径）
-	files: ['15-tables.twee'],
+	files: ['stories/mist-forest/15-tables.twee'],
 	eraDecl: /const Era = \{/,              // 常量定义行的特征
 	eraDataField: /(flagEra|era:)/,         // 故事表数据字段的特征
 	// 裸伤害数字：**不再按文件名限定章节**。原先只在 `30/40/50/60-ch*.twee` 里判 ⇒ 章节一旦改名
@@ -279,7 +279,8 @@ export const CONST_SECTION = {
 // silent-gate/store-keys/dist-fresh…）⇒ 搬家（故事文件要住到 `stories/<slug>/**`）会牵动每一处 ✗。
 // 做法：把发现收到这里。**今天 `SOURCE_ROOTS` 只有 `src`** ⇒ 返回值与既有写法**逐字符相同**（零行为变化 ✓）；
 // 搬家时只改本数组（并让 `ORDER`/`MODULES` 的键改成路径）✓。
-export const SOURCE_ROOTS = ['src'];
+// #458 切片C：`src` 覆盖 `src/*.twee`（两个尚未拆分的混合体）**与** `src/engine/**`；`stories` 覆盖故事包。
+export const SOURCE_ROOTS = ['src', 'stories'];
 export const allSourceFiles = (roots = SOURCE_ROOTS) => {
 	const out = [];
 	const walk = (rel) => {
@@ -294,5 +295,15 @@ export const allSourceFiles = (roots = SOURCE_ROOTS) => {
 	for (const r of roots) walk(r);
 	return out.sort();
 };
+/** 按**加载顺序**（`ORDER`）排一组源文件；`ORDER` 未登记的排在最后（保持其相对顺序，稳定排序）。
+ *  为什么要它（#458 切片C 的实测教训）：`allSourceFiles()` 是**词典序**，而加载顺序由目录/文件名共同决定。
+ *  搬家前「词典序 ≈ 加载顺序」只是**巧合**（`00-meta`→`05-store`→`10-core`→…）；搬家后故事文件住进
+ *  `stories/**`（排在 `src/**` 之后）⇒ 若照词典序执行，`21-resolve` 会在故事表建 `Game.Checks` 之前跑
+ *  ⇒ `Object.assign(window.Game.Checks, …)` 直接 `TypeError`（audit 上下文实测）。
+ *  ⇒ **加载顺序的唯一权威是 `ORDER`**，任何「按源清单逐文件执行」的调用点都必须过这里。 */
+export const orderFiles = (files, order = ORDER) => [...files].sort((a, b) => {
+	const ia = order.indexOf(a), ib = order.indexOf(b);
+	return (ia < 0 ? order.length : ia) - (ib < 0 ? order.length : ib);
+});
 /** 按 basename 或路径后缀解析源文件（供只认文件名的调用点用，如 `resolve-node.mjs`）。 */
 export const sourcePath = (name, roots = SOURCE_ROOTS) => allSourceFiles(roots).find((f) => f === name || f.endsWith(`/${name}`)) ?? name;

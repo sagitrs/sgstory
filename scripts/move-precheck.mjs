@@ -11,7 +11,7 @@
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { ROOT } from './dist-paths.mjs';
-import { ORDER, MODULES, CONST_SECTION, LAYER_OF } from './module-order.mjs';
+import { ORDER, MODULES, CONST_SECTION, LAYER_OF, allSourceFiles } from './module-order.mjs';
 
 const SRC = join(ROOT, 'src');
 const STORIES = join(ROOT, 'stories');
@@ -58,10 +58,10 @@ export const checkPlaces = ({ srcFiles, order, modules, manifests, constFiles, a
 	for (const f of srcFiles) if (!(f in modules)) out.push({ code: 'missing-modules', msg: `src/${f} 未进 MODULES（漏了会崩）` });
 	const claimed = new Set(manifests.flatMap((m) => m.files));
 	for (const f of srcFiles) {
-		if ((LAYER_OF[f] ?? 'story') === 'engine') continue; // 引擎文件不必属于某个故事
+		if ((LAYER_OF[f] ?? 'story') === 'engine') continue;   // 引擎文件不必属于某个故事（f 是路径 ✓）
 		if (!claimed.has(f)) out.push({ code: 'unclaimed-file', msg: `src/${f} 既非引擎文件、也不属于任何故事清单` });
 	}
-	for (const f of [...constFiles]) if (!srcFiles.includes(f)) out.push({ code: 'stale-const-decl', msg: `CONST_SECTION.files 里的 ${f} 不存在（搬走了没更新声明）` });
+	for (const f of [...constFiles]) if (!srcFiles.some((x) => x === f || x.endsWith(`/${f}`))) out.push({ code: 'stale-const-decl', msg: `CONST_SECTION.files 里的 ${f} 不存在（搬走了没更新声明）` });
 	if (aggregatorSrc) {
 		const a = aggregatorChecks(aggregatorSrc);
 		if (a.found) for (const id of a.missing) out.push({ code: 'aggregator-broken', msg: `聚合 return 引用了未声明的「${id}」（挪走常量段常犯）` });
@@ -70,7 +70,7 @@ export const checkPlaces = ({ srcFiles, order, modules, manifests, constFiles, a
 };
 
 // ── main ────────────────────────────────────────────────────────────────
-const srcFiles = diskSources();
+const srcFiles = allSourceFiles();   // #458：dogfooding——自己的校验也走单一权威（**路径视角**，与 ORDER/清单一致）
 const aggregatorPath = srcFiles.includes('15-tables.twee') ? join(SRC, '15-tables.twee') : null;
 const problems = checkPlaces({
 	srcFiles,

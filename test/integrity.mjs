@@ -6,19 +6,20 @@
 // 警告（不阻断）：静态不可达段落（动态跳转可致误报，仅提示）
 // 用法：node test/integrity.mjs [srcDir=src]
 import { readdirSync, readFileSync } from 'node:fs';
+import { allSourceFiles } from '../scripts/module-order.mjs';
 import { join } from 'node:path';
 import vm from 'node:vm';
 import { conditionReadsFlag, noteIdsForFlag } from '../scripts/audit/lib/shared.mjs';
 
-const SRC = process.argv[2] ?? 'src';
+const SRC = process.argv[2] ?? null;   // #458 切片C：默认走**单一权威**（搬家后＝src/**＋stories/**）；显式传参时仍按目录扫
 
 // SugarCube 2.37 内置宏（宁多勿漏——漏一个就是误报）
 const BUILTIN = new Set('set unset if elseif else endif for to step break continue switch case default endswitch while endwhile print nprint run script silent endsilent nobr endnobr include link endlink linkappend endlinkappend linkprepend endlinkprepend linkreplace endlinkreplace button endbutton actions addclass removeclass toggleclass append prepend replace textbox radio checkbox listbox endlistbox option optionsfrom numberbox cycle endcycle list endlist dropdown enddropdown goto back return repeat endrepeat stop timed endtimed next widget endwidget capture endcapture forget remember remove comment endcomment audio createsoundmacro masteraudio playlist done'.split(/\s+/));
 
 // ── 解析段落（先收全部头行，再切相邻头之间的 body——避免越界吞并）──
 const passages = new Map(); // name → { file, line, tags, body }
-for (const f of readdirSync(SRC).filter((x) => x.endsWith('.twee')).sort()) {
-	const lines = readFileSync(join(SRC, f), 'utf8').split('\n');
+for (const f of (SRC ? readdirSync(SRC).filter((x) => x.endsWith('.twee')).sort().map((x) => [x, join(SRC, x)]) : allSourceFiles().map((p) => [p.split('/').pop(), p]))) {
+	const lines = readFileSync(f[1], 'utf8').split('\n');
 	const heads = []; // { i, name, tags }
 	for (let i = 0; i < lines.length; i++) {
 		const m = lines[i].match(/^::\s+(.+?)\s*(?:\[([^\]]*)\])?\s*(?:\{.*\})?\s*$/);
@@ -259,7 +260,7 @@ for (const [name, terms] of Object.entries(PRELUDE_BANS)) {
 // 短语必须落在 `<<if $pc.ev.<flag>>>` 里，否则红。新增此类回指就往表里加一行。
 // 旗标 → 笔记 id：从**笔记表**读（`15-tables.twee` 与增量文件里的 `flagPath`）——供回指门认新形状
 const NOTE_IDS = (() => {
-	const text = readdirSync(SRC).filter((x) => x.endsWith('.twee')).sort().map((f) => readFileSync(join(SRC, f), 'utf8')).join('\n');
+	const text = (SRC ? readdirSync(SRC).filter((x) => x.endsWith('.twee')).sort().map((f) => readFileSync(join(SRC, f), 'utf8')) : allSourceFiles().map((p) => readFileSync(p, 'utf8'))).join('\n');
 	const entries = {};
 	for (const m of text.matchAll(/\b(n_[a-z0-9_]+):\s*\{/g)) {
 		const start = m.index + m[0].length - 1;

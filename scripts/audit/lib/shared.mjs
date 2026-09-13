@@ -52,6 +52,37 @@ export const keyCharsetViolations = (text) =>
 
 // audit 跨门共享 helper（#316 第 2 步）：被 ≥2 个门使用的定义集中于此，由壳注入 ctx。
 // 清单：build/_shared_list.json（收敛循环自动发现）。
+// ── 笔记引用（`#433` 阶段 2 的读点形状）：`Sg.notes.has('n_x')`／`Sg.notes.entry('n_x')`／`note:n_x` ──
+// 为什么放在这里（与写点/读点并列）：阶段 2 把段落条件从 `<<if $pc.ev.X>>` 改成 `Sg.notes.has('n_X')`，
+// 于是「谁读了旗标 X」这件事**换了写法但不该消失**——依赖它的门（`--state` 的有写有读、D2 的桶分类）
+// 必须跟着认这个形状。否则转发的第一步就会把一堆键判成"只有写"⇒ 门红而代码其实等价（假红）。
+// 这就是设计稿那条纪律：**先让门认新形状，再改内容**。
+export const NOTE_REF_RE = /Sg\.notes\.(?:has|entry)\(\s*['"](n_[a-z0-9_]+)['"]|(?:^|[^\w:])note:(n_[a-z0-9_]+)/g;
+// 文本里引用的笔记 id
+export const noteRefs = (text) => {
+	const out = new Set();
+	for (const m of String(text ?? '').matchAll(NOTE_REF_RE)) out.add(m[1] ?? m[2]);
+	return [...out];
+};
+// 笔记表 → id → flagPath（限定键数组）
+export const notePaths = (entries) => {
+	const M = new Map();
+	for (const [id, e] of Object.entries(entries ?? {})) {
+		const fp = Array.isArray(e?.flagPath) ? e.flagPath : (e?.flagPath ? [e.flagPath] : []);
+		M.set(id, fp.map(String));
+	}
+	return M;
+};
+// 文本里**经笔记**读到的限定键（`ev.x`/`world.x`）
+export const noteReadKeys = (text, entries) => {
+	const paths = notePaths(entries);
+	const out = new Set();
+	for (const id of noteRefs(text)) for (const p of (paths.get(id) ?? [])) out.add(p);
+	return [...out];
+};
+// 文本里**经笔记**读到的裸键（D2 按裸键判）
+export const noteReadFlags = (text, entries) => new Set(noteReadKeys(text, entries).map((k) => k.replace(/^(ev|world)\./, '')));
+
 export const makeShared = (ctx) => {
 	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll } = ctx;
 	// #342 F2：可**注入输入**（默认取闭包里的真实来源 ⇒ 向后兼容）。没有这一层，
@@ -65,7 +96,22 @@ export const makeShared = (ctx) => {
 		const stripped = new Map([...sources.entries()].map(([n, src]) => [n, src.replace(/\/%[\s\S]*?%\//g, ' ')]));
 		const isEngine = (name) => !!tags.get(name)?.some((t) => ['script', 'widget', 'stylesheet'].includes(t));
 		const isEnding = (name) => name.startsWith('结局');
-		const hasIf = (src, flag) => new RegExp(`<<if[^>]*\\$pc\\.(?:world|ev)\\.${flag}\\b`).test(src);
+		// `hasIf`：这一段的**正文条件**是否消费了该旗标。两种形状都认（#433 阶段 2）：
+		//   ① 直接读 `<<if … $pc.ev.flag>>`；② 经笔记读 `<<if Sg.notes.has('n_flag')>>`（该笔记的 flagPath 含此旗标）
+		const noteEntries = input.notes ?? Game.Notes?.entries ?? {};
+		const notePathsById = notePaths(noteEntries);
+		const flagsByNote = new Map();
+		for (const [id, ps] of notePathsById) for (const p of ps) {
+			const f = p.replace(/^(ev|world)\./, '');
+			if (!flagsByNote.has(f)) flagsByNote.set(f, []);
+			flagsByNote.get(f).push(id);
+		}
+		const refsByPassage = new Map([...stripped.entries()].map(([n, src]) => [n, new Set(noteRefs(src))]));
+		// `(段落名, 源码, 旗标)`：两种形状任一命中即算「这一段消费了该旗标」
+		const hasIf = (name, src, flag) => {
+			if (new RegExp(`<<if[^>]*\\$pc\\.(?:world|ev)\\.${flag}\\b`).test(src)) return true;
+			return (flagsByNote.get(flag) ?? []).some((id) => refsByPassage.get(name)?.has(id));
+		};
 		const written = new Set();
 		for (const src of stripped.values()) {
 			// 写点形态来自**单一权威** `WRITE_PATTERNS`（#476 复核建议：两处字面量曾漂移过一次）
@@ -81,9 +127,9 @@ export const makeShared = (ctx) => {
 		const problems = [];
 		for (const flag of written) {
 			// 先算派生桶（echo 优先——回声表本身就是登记表），再校验声明是否与实况一致
-			const narrHit = [...stripped.entries()].some(([n, src]) => !isEngine(n) && !isEnding(n) && hasIf(src, flag));
-			const endHit = [...stripped.entries()].some(([n, src]) => isEnding(n) && hasIf(src, flag));
-			const engHit = [...stripped.entries()].some(([n, src]) => isEngine(n) && hasIf(src, flag));
+			const narrHit = [...stripped.entries()].some(([n, src]) => !isEngine(n) && !isEnding(n) && hasIf(n, src, flag));
+			const endHit = [...stripped.entries()].some(([n, src]) => isEnding(n) && hasIf(n, src, flag));
+			const engHit = [...stripped.entries()].some(([n, src]) => isEngine(n) && hasIf(n, src, flag));
 			let derived = null;
 			if (echoFlags.has(flag)) derived = 'echo';
 			else if (narrHit) derived = 'mechanic';

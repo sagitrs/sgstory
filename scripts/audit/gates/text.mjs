@@ -1,5 +1,6 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { stripJsComments } from '../lib/shared.mjs';
 // flags=['text']。校验：npm run audit:golden。
 export const flag = 'text';
 export const flags = ["text"];
@@ -52,6 +53,7 @@ if (wantAll || arg('text')) {
 			['反例②：命中套路句式', judgeCliche('心跳如潮水', ['如潮水', '不由得']), 1],
 			['正例：黑名单外不算', judgeBlacklist(['a.twee'], ['星官'], readOf), 0],
 			['反例③：风格违和词（含行号）', judgeBlacklist(['a.twee'], ['青梧'], readOf), 1],
+			['正例：`//` 与 `/* */` 注释不成正文（#486）', stripJsComments('正文// 注释\n/* 块\n注释 */更多').replace(/[\s''/]/g, '').length, '正文更多'.length],
 		];
 		for (const [label, got, want] of cases) {
 			const n = Array.isArray(got) ? got.length : got;
@@ -68,7 +70,8 @@ if (wantAll || arg('text')) {
 	console.log(`  载荷标注：${payloads.size}（信息 ${[...payloads.values()].filter((v) => v.includes('信息')).length} · 张力 ${[...payloads.values()].filter((v) => v.includes('张力')).length} · 选择 ${[...payloads.values()].filter((v) => v.includes('选择')).length}）`);
 	// 词频报告（主题词健康度）
 	let narrative = '';
-	for (const src of passageSrc.values()) narrative += src.replace(/\/%[\s\S]*?%\//g, '').replace(/<<[^>]*>>/g, '').replace(/\[\[[^\]]*\]\]/g, '').replace(/[\s''/]/g, '');
+	// #486：先剥 **JS 注释**（`[script]` 段里的 `//`／`/* */` 不是正文——不然改一行引擎注释就推高基线）
+	for (const src of passageSrc.values()) narrative += stripJsComments(src).replace(/\/%[\s\S]*?%\//g, '').replace(/<<[^>]*>>/g, '').replace(/\[\[[^\]]*\]\]/g, '').replace(/[\s''/]/g, '');
 	const words = ['雾','星','塔','月光','森林','守林人','信物','三百'];
 	console.log(`  主题词密度：${words.map((w) => `${w}×${narrative.split(w).length - 1}`).join(' ')}（总字 ${narrative.length}）`);
 	// 套路句式门：白名单外命中即红（改写后划掉）

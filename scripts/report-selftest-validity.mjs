@@ -17,12 +17,26 @@ import { join } from 'node:path';
 import { ROOT } from './dist-paths.mjs';
 
 /** 去掉 JS 注释与**单行字符串字面量**（V1 只关心代码位置；V2 需要保留字符串里的 `自证·`）。 */
-export const stripForScan = (src) =>
+const stripForScanRaw = (src) =>
 	String(src)
 		.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
 		.replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + ' '.repeat(m.length - p1.length))
 		.replace(/'(\\.|[^'\\\n])*'/g, (m) => `'${' '.repeat(Math.max(0, m.length - 2))}'`)
 		.replace(/"(\\.|[^"\\\n])*"/g, (m) => `"${' '.repeat(Math.max(0, m.length - 2))}"`);
+
+/** #474：**只剥注释**（保留字符串/模板）——用于判“有没有打印 `自证·`”：
+ *  它写在**字符串字面量**里（`console.log('自证·' + label)`）⇒ 必须在保留字符串的文本上判；
+ *  而写在**注释**里的 `自证·` 不算（本文件自己就被这条误报过 ✗）。 */
+export const stripCommentsOnly = (src) =>
+	String(src)
+		.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+		.replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + ' '.repeat(m.length - p1.length));
+
+/** #474 精化（debug 实测）：在基础剥离之后再剥**模板字面量**与**正则字面量**。
+ *  起因：V1 的假阳性全部来自这两处 —— 错误消息里的插值 `kind=${…}`、正则 `/<html[^>]*\slang=/`。 */
+export const stripForScan = (src) => String(stripForScanRaw(src))
+	.replace(/`(?:\\.|[^`\\])*`/g, (m) => '`' + ' '.repeat(Math.max(0, m.length - 2)) + '`')
+	.replace(/(^|[=(,:;[!&|?{}+\-*%<>~^])\s*\/(?![*/])(?:\\.|[^/\\\n])+\/[gimsuy]*/g, (m, p1) => p1 + ' '.repeat(Math.max(0, m.length - p1.length)));
 
 const DECL_PATTERNS = [
 	// `let a = 0, b = 1;` 这类**多重声明**要每个都算（此前只取第一个 ⇒ canGuard/hit/odd/italBad 全被误报）
@@ -57,12 +71,19 @@ export const incrementFindings = (src) => {
 	const out = [];
 	// 只认 `x++` 与复合赋值（`+=` `-=` …）＋**裸 `=` 但要排除 HTML 属性/比较**：
 	//   `aria-hidden="true"` / `class="x"` 这类属性曾被误当赋值（188 项假阳性里的主因之一）
-	for (const m of code.matchAll(/(?<![\w$.\-"'])([A-Za-z_$][\w$]*)\s*(?:\+\+|[+\-*/|&^]?=(?!=)(?![\s]*["'`]))/g)) {
+	// #474 精化：V1 只判**自增/复合赋值**（`X++`／`X += …`）。纯 `=` 与"自证能否判红"无关，
+	// 而 debug 实测的假阳性（模板插值 `kind=${…}`、正则 `\slang=`、参数默认值 `dir =`、纯赋值 `hooked =`）**全是 `=` 形态**。
+	for (const m of code.matchAll(/(?<![\w$.\-"'])([A-Za-z_$][\w$]*)\s*(?:\+\+|[+\-*/|&^]=)/g)) {
 		const id = m[1];
 		if (['if', 'for', 'while', 'return', 'typeof', 'const', 'let', 'var'].includes(id)) continue;
 		const at = declAt.get(id);
-		if (at === undefined) out.push({ ident: id, line: code.slice(0, m.index).split('\n').length, kind: 'undeclared-increment' });
-		else if (at > m.index) out.push({ ident: id, line: code.slice(0, m.index).split('\n').length, kind: 'tdz-increment' });
+		const ln = code.slice(0, m.index).split('\n').length;
+		const hit = { ident: id, line: ln, match: JSON.stringify(m[0]), src: (code.split('\n')[ln - 1] ?? '').trim().slice(0, 70) };
+		if (at === undefined) out.push({ ...hit, kind: 'undeclared-increment' });
+		// #474 精化（已知边界，**降为警告**）："声明在增量之后"在**闭包**里是合法的——
+		// `const check = () => { failures++ }` 写在 `let failures = 0` 之前，但**调用在之后** ⇒ 运行时没问题 ✗。
+		// 静态分析判不了调用序 ⇒ 这类只报 `tdz-warning`（打印、不计失败）；`undeclared-increment` 仍计失败。
+		else if (at > m.index) out.push({ ...hit, kind: 'tdz-warning' });
 	}
 	return out;
 };
@@ -72,11 +93,20 @@ export const selftestExitFindings = (src) => {
 	const raw = String(src);
 	if (!raw.includes('自证·')) return [];
 	const code = stripForScan(raw);
+	// #474：用**只剥注释**的文本判“有没有打印 `自证·`” —— 它写在字符串里（保留 ✓），写在注释里不算（剥掉 ✓）。
+	// （踩坑留档：先前用 `code`（连字符串一起剥）判 ⇒ `console.log("自证·")` 被抹掉 ⇒ V2 恒不触发 ⇒ **假干净** ✗，是自证把它抱回来的。）
+	if (!stripCommentsOnly(raw).includes('自证·')) return [];
 	const counters = new Set([...code.matchAll(/(?<![\w$.])([A-Za-z_$][\w$]*)\s*(?:\+\+|\+=)/g)].map((m) => m[1]));
 	// **实现要点（第三次尝试，前两次都错在这）**：不要解析"语句体"——“从退出点向前找最近的 `if`，
 	// 用字符级配平取出它的条件”既简单又够用；退出点与条件之间隔着 `{`、`console.error(...)` 都不影响。
 	const guarded = new Set();
-	for (const em of code.matchAll(/process\.exit\(\s*1\s*\)/g)) {
+	for (const em of code.matchAll(/process\.exit\(([^)]*)\)/g)) {
+		// #474：退出写成 `process.exit(bad ? 1 : 0)` 也算“计入退出码”（`test/store-keys.mjs` 就是这么写的 ——
+		// 先前只认 `process.exit(1)` ⇒ 把好门误报成“不能判红” ✗）。
+		if (em[1] && em[1].trim() !== '1') {
+			for (const id of idents(em[1])) guarded.add(id);
+			continue;
+		}
 		const before = code.slice(0, em.index);
 		const ifs = [...before.matchAll(/\bif\b/g)];
 		if (!ifs.length) continue;
@@ -108,7 +138,10 @@ if (process.argv.includes('--selftest')) {
 	let bad = 0;
 	const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
 	t('V1 正例：先声明后自增 → 不报', incrementFindings('let bad = 0;\nbad++;').length === 0);
-	t('V1 反例：声明在使用之后 → tdz-increment', incrementFindings('bad++;\nlet bad = 0;').some((f) => f.kind === 'tdz-increment'));
+	t('V1 反例：声明在使用之后 → tdz-warning（**降为警告**：闭包里合法，静态判不了调用序）', incrementFindings('bad++;\nlet bad = 0;').some((f) => f.kind === 'tdz-warning'));
+	t('V1 精化：模板字面量里的插值**不算赋值**（`kind=${…}` 曾是最大假阳性源）', incrementFindings('const s = `kind=${c.kind}`;').length === 0);
+	t('V1 精化：正则字面量里的内容**不算**（`/<html[^>]*\\slang=/`）', incrementFindings('if (!/<html[^>]*\\slang=/.test(x)) {}').length === 0);
+	t('V1 精化：纯赋值不再判（`hooked = true` 与“自证能否判红”无关）', incrementFindings('hooked = true;').length === 0);
 	t('V1 反例：完全没有声明 → undeclared-increment', incrementFindings('foo++;').some((f) => f.kind === 'undeclared-increment'));
 	t('V1 边界：函数参数 / for-of / 解构 声明也算（不许假阳性）',
 		incrementFindings('const f = (bad) => { bad++; };\nfor (const x of []) { x += 1; }\nlet { y } = o; y++;').length === 0);
@@ -116,9 +149,12 @@ if (process.argv.includes('--selftest')) {
 	t('V2 正例：自证 + 计数器进退出码 → 不报', selftestExitFindings('let bad = 0;\nif (!ok) bad++;\nconsole.log("自证·x");\nif (bad) { console.error("x"); process.exit(1); }').length === 0);
 	t('V2 反例：自证 + 计数器**没进**退出码 → selftest-cannot-fail',
 		selftestExitFindings('let bad = 0;\nif (!ok) bad++;\nconsole.log("自证·x");\nif (problems.length) process.exit(1);').some((f) => f.kind === 'selftest-cannot-fail'));
+	t('V2 边界：`自证·` 写在**注释**里 ⇒ 不算（误报过本文件）', selftestExitFindings('// 打印了 自证· 才是自证\nlet bad = 0; bad++;').length === 0);
+	t('V2 边界：退出写成 `process.exit(bad ? 1 : 0)` 也算计入（`test/store-keys.mjs` 的写法）', selftestExitFindings('let bad = 0;\nif (!ok) bad++;\nconsole.log("自证·x");\nprocess.exit(bad ? 1 : 0);').length === 0);
+	t('V2 关键：`自证·` 写在**字符串**里 ⇒ 必须看得见（否则 V2 恒不触发 ⇒ 假干净 ✗）', selftestExitFindings('let bad = 0;\nif (!ok) bad++;\nconsole.log("自证·x");\nif (problems.length) process.exit(1);').some((f) => f.kind === 'selftest-cannot-fail'));
 	t('V2 边界：没有 `自证·` 的文件不适用（不报）', selftestExitFindings('let bad = 0;\nbad++;').length === 0);
 	if (bad) { console.error(`\n✗ 自证有效性检测器自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证有效性检测器自证通过（V1 声明顺序/未声明 ×5 ＋ V2 能否判红 ×3）');
+	console.log('\n✔ 自证有效性检测器自证通过（V1 ×8：声明顺序/未声明/闭包警告/模板/正则/纯赋值/参数-for-of-解构/obj.x++ ＋ V2 ×4：能判红/不能判红/注释不算/字符串算）');
 	process.exit(0);
 }
 
@@ -134,15 +170,21 @@ for (const f of files) {
 	for (const x of selftestExitFindings(src)) problems.push({ file: rel, ...x });
 }
 const real = problems.filter((p) => !(WHITELIST[p.file] && WHITELIST[p.file].includes(p.kind)));
+const warnings = real.filter((p) => p.kind === 'tdz-warning');
+const fatal = real.filter((p) => p.kind !== 'tdz-warning');
+for (const w of warnings) console.log(`○ [${w.kind}] ${w.file}:${w.line} → ${w.ident}（声明在其后，但可能是闭包 ⇒ 不计失败）`);
 const stale = Object.entries(WHITELIST).filter(([file, kinds]) => !problems.some((p) => p.file === file && kinds.includes(p.kind)));
 
 if (stale.length) {
 	console.error(`✗ 自证有效性白名单腐烂（条目已不需要）⇒ 删掉它：${stale.map(([f]) => f).join('、')}`);
 	process.exit(1);
 }
-if (real.length) {
-	console.error(`✗ 自证有效性自检未通过 ${real.length} 项：`);
-	for (const p of real) console.error(`    [${p.kind}] ${p.file}${p.line ? `:${p.line}` : ''}${p.ident ? ` → ${p.ident}` : ''}`);
+if (fatal.length) {
+	console.error(`✗ 自证有效性自检未通过 ${fatal.length} 项：`);
+	for (const p of fatal) {
+		const extra = process.env.SV_DEBUG ? ` ｜ match=${p.match} ｜ 行=${JSON.stringify(p.src)}` : '';
+		console.error(`    [${p.kind}] ${p.file}${p.line ? `:${p.line}` : ''}${p.ident ? ` → ${p.ident}` : ''}${extra}`);
+	}
 	console.error('    （§9 第 1/2 条：打印了 `自证·` ≠ 自证有效 ⇒ 失败要计入退出码，且失败路径不能崩）');
 	process.exit(1);
 }

@@ -25,11 +25,11 @@ const PKG = 'package.json';
 // 「未接线」＝不在 npm test 链里（允许，但必须说明谁来跑、何时跑）。
 export const REASONS = {
 	// ── audit 开关（id 形如 audit:<flag>）──
-	'audit:economy': { form: '仅登记', reason: '收支时间线是人读报表（数值本身由 --checks/--gear 门覆盖）' },
-	'audit:items': { form: '仅登记', reason: '龙战伤害矩阵是人读对照表（战斗数值由 --dragon 分布门覆盖）' },
-	'audit:tokens': { form: '仅登记', reason: '与 --items 同族：词法/道具矩阵报表' },
+	'audit:economy': { form: '行为化', reason: '收支时间线：**报表算术即判据**（`delta:null` 不计入／按**章序**累计／序走最低），自证 3 例（#342 第 8 波；此前标「仅登记」，由形态对账查出并改正）' },
+	'audit:items': { form: '行为化', reason: '龙战伤害矩阵：**两条不变量**（减伤件更多 ⇒ 伤害不增；败次 0→2 ⇒ 伤害不减）＋自证 3 例（合成 I，不依赖真表）' },
+	'audit:tokens': { form: '行为化', reason: '与 --items 同族：伤害矩阵不变量 ＋ 自证（同一次改动）' },
 	'audit:text': { reason: '文本载荷门（**有判定**：载荷阈值）——此前台账误标「仅登记」，由形态对账查出并改正；自证待补（密度 ratchet 在 --craft，本门是自己的载荷线）' },
-	'audit:checks': { form: '仅登记', reason: '检定位点总表（覆盖性由 --sitedisc/--interact 族门承担）' },
+	'audit:checks': { form: '行为化', reason: '检定矩阵：天然位点概率（1/20，劣势平方）＋优势标记阈值＋**单调性不变量**（优势 ≥ 普通），自证 5 例（含浮点边界陷阱留注）' },
 	'audit:systems': { reason: '机制×锚句门（**有判定**：机制必须有可感知锚句）——此前台账误标「仅登记」，由形态对账查出并改正；自证待补' },
 	'audit:canon': { reason: '禁词/回流扫描（断言存在，但**没有自证**——已列入 F2 工作清单；§10 已裁剪项不得回流）' },
 	'audit:sel': { wired: true, reason: '接线说明：--sel 只是 --nosl＋--gear 的便捷别名，链上跑的是更具体的两个 flag，故没有单独的 --sel --check（**形态是有判定的门**，此前台账误标「仅登记」，已由形态对账改正）' },
@@ -42,7 +42,7 @@ export const REASONS = {
 	'test/browser.mjs': { wired: false, reason: '需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑' },
 	'test/audit-golden.mjs': { wired: false, form: '行为化', reason: '按需跑（npm run audit:golden）：拆/改 audit 时用；全量跑 24 个开关较慢' },
 	'test/saveload-inventory.mjs': { wired: true, form: '行为化', reason: '自证 6 例（含 widget 间接改状态）' },
-	'test/layering.mjs': { wired: true, form: '行为化', reason: '自证 5 例' },
+	'test/layering.mjs': { wired: true, form: '行为化', reason: '自证 16 例（模块依赖 / 点号 defines / 层间方向 / engine rank 派生与四条禁止边）' },
 	'test/saveload.mjs': { wired: true, form: '行为化', reason: '**自证按需跑**：`node test/saveload.mjs --selftest`（故障注入＝落档后人为扰动，断言比较器判红）；不塞主链的理由＝自证需完整导航（成本≈主跑 30s，收益不值）' },
 };
 

@@ -1,3 +1,32 @@
+// ── 写点识别：**单一权威**（#476 复核建议）──────────────────────────────────
+// 此前 `shared.mjs`（D2 分类器）与 `gates/state.mjs` 各写一份字面量 ⇒ **漂移过一次**：
+// shared 只认 `= true`、state 认任意赋值 ⇒ D2 门看不见 `= null`／对象写点（#476 修的正是这个洞）。
+// ⇒ 形态只此一处，两处消费方都从这里取。
+// **隐含约束**：旗标键必须匹配 `[a-z_]\w*`（大写/数字开头会被静默漏检）——用 `keyCharsetViolations` 兜住。
+export const KEY_CHARSET = /^[a-z_]\w*$/;
+export const WRITE_PATTERNS = [
+	{ re: /<<setflag\s+"([a-z_]\w*)"/g, kind: 'world' },                 // 宏式写 world 域
+	{ re: /<<set\s+\$pc\.(ev|world)\.([a-z_]\w*)\s+to\b/g, kind: 'scoped' },
+	{ re: /\bpc\.(ev|world)\.([a-z_]\w*)\s*=[^=]/g, kind: 'scoped' },     // 赋值式（含 `= null`／对象／字符串）
+	{ re: /\bpc\.(ev|world)\[["']([a-z_]\w*)["']\]\s*=[^=]/g, kind: 'scoped' },
+	{ re: /<<firstTime\s+"([a-z_]\w*)"\s*>>/g, kind: 'ev' },            // 宏式写 ev 域（读一次再写）
+];
+/** 裸键集合（D2 分类器用）。 */
+export const writeKeys = (text) => {
+	const out = new Set();
+	for (const { re } of WRITE_PATTERNS) for (const m of String(text).matchAll(re)) out.add(m[2] ?? m[1]);
+	return out;
+};
+/** 限定键（`ev.x` / `world.x`；--state 用）。 */
+export const qualifiedWriteKeys = (text) => {
+	const out = [];
+	for (const { re, kind } of WRITE_PATTERNS) for (const m of String(text).matchAll(re)) out.push(kind === 'scoped' ? `${m[1]}.${m[2]}` : `${kind}.${m[1]}`);
+	return out;
+};
+/** 键形态违规：`pc.ev.Bad` 这类键会被上面的正则**静默漏检** ⇒ 单独兜住。 */
+export const keyCharsetViolations = (text) =>
+	[...String(text).matchAll(/\bpc\.(?:ev|world)\.([A-Za-z_$][\w$]*)/g)].filter((m) => !KEY_CHARSET.test(m[1])).map((m) => m[1]);
+
 // audit 跨门共享 helper（#316 第 2 步）：被 ≥2 个门使用的定义集中于此，由壳注入 ctx。
 // 清单：build/_shared_list.json（收敛循环自动发现）。
 export const makeShared = (ctx) => {
@@ -16,15 +45,8 @@ export const makeShared = (ctx) => {
 		const hasIf = (src, flag) => new RegExp(`<<if[^>]*\\$pc\\.(?:world|ev)\\.${flag}\\b`).test(src);
 		const written = new Set();
 		for (const src of stripped.values()) {
-			for (const m of src.matchAll(/<<setflag\s+"(\w+)"/g)) written.add(m[1]);
-			for (const m of src.matchAll(/<<set\s+\$pc\.(?:world|ev)\.(\w+)\s*to/g)) written.add(m[1]);
-			// 赋值式写入：#441-A 把位点/结算的写点从宏式（`<<set $pc.ev.X to …>>`）改成 JS 赋值后
-			// 才发现原判据只认 `= true` ⇒ `= null`／对象／字符串的写点**看不见**（D2 覆盖面静默缩小）。
-			// 放宽为「任意赋值」（不含 `==`），与 `state.mjs` 的口径一致。
-			for (const m of src.matchAll(/pc\.(?:world|ev)\.([a-z_]\w*)\s*=[^=]/g)) written.add(m[1]);
-			for (const m of src.matchAll(/pc\.(?:world|ev)\[["']([a-z_]\w*)["']\]\s*=[^=]/g)) written.add(m[1]);
-			// #267：宏式写入（键是字面量参数）——<<firstTime "X">> 走 $pc.ev[X]，静态 set 正则看不见
-			for (const m of src.matchAll(/<<firstTime\s+"(\w+)">>/g)) written.add(m[1]);
+			// 写点形态来自**单一权威** `WRITE_PATTERNS`（#476 复核建议：两处字面量曾漂移过一次）
+			for (const k of writeKeys(src)) written.add(k);
 		}
 		const E = Echoes;
 		const echoFlags = new Set([...E.list.flatMap((e) => [e.cause.flag, e.cause.token]), ...E.revisit.flatMap((r) => [r.flag, r.inv])].filter(Boolean));

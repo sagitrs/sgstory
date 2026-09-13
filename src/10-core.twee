@@ -4,7 +4,23 @@
 // 规则数值来源：D&D SRD 5.2（CC BY 4.0, © Wizards of the Coast）
 // #320 阶段 4：规则内核挂到 `Game.Rules`（本文件最早加载，故在此建命名空间根）
 window.Game ??= {};
+// ── 随机源（#441-A 抽纯函数的第一步）：**唯一取值口**，可注入 ──────────────
+// 为什么要有它：`#441` 的四条验收之一是「战斗/交涉/位点判定能**不经浏览器**在 node 里驱动」——
+// 而 `random()`（SugarCube 全局）在 node 里不存在 ⇒ 判定函数必须把随机源当**依赖**而不是直接调。
+// 纪律：`10-kernel`／`50-present` 里**不得出现直调 `Math.random()`**（本文件与后续 sim 件一律走此处）。
+// 注入方式：浏览器/ jsdom 默认走 SugarCube `random()`（harness 覆盖 `window.Math.random` 仍然有效）；
+//           node 侧先 `Game.Rules.rng.set((lo, hi) => k)` 再驱动。
 window.Game.Rules = {
+	rng: {
+		_impl: null,
+		set(fn) { this._impl = fn; return this; },
+		reset() { this._impl = null; return this; },
+		d(n) {
+			if (this._impl) return this._impl(1, n);
+			if (typeof random === 'function') return random(1, n);   // SugarCube 默认源
+			throw new Error('Game.Rules.rng 未注入随机源：node 环境请先 Game.Rules.rng.set(fn)');
+		},
+	},
 	ABILITIES: { str: '力量', dex: '敏捷', con: '体质', int: '智力', wis: '感知', cha: '魅力' },
 	SKILLS: {
 		运动: 'str', 体操: 'dex', 巧手: 'dex', 隐匿: 'dex',
@@ -24,17 +40,17 @@ window.Game.Rules = {
 		return m;
 	},
 	d20(adv) {
-		if (!adv) return random(1, 20);
-		const a = random(1, 20), b = random(1, 20);
+		if (!adv) return this.rng.d(20);
+		const a = this.rng.d(20), b = this.rng.d(20);
 		return adv > 0 ? Math.max(a, b) : Math.min(a, b);
 	},
 	// 判定标注：说清"用什么属性判定"（技能 → 属性，SRD 5.2）
 	skillLabel(skill) { const ab = this.SKILLS[skill]; return ab ? `${skill}检定（${this.ABILITIES[ab]}）` : `${skill}检定`; },
 	// 取骰：记下两枚供"计算过程"显示（优势取高 / 劣势取低）
 	roll(adv) {
-		const a = random(1, 20);
+		const a = this.rng.d(20);
 		if (!adv) return { roll: a, rolls: [a] };
-		const b = random(1, 20);
+		const b = this.rng.d(20);
 		return { roll: adv > 0 ? Math.max(a, b) : Math.min(a, b), rolls: [a, b] };
 	},
 	// 修正构成（拆项：判定属性 + 熟练 + 加值 + 幸运）
@@ -123,7 +139,8 @@ window.Sg.UI = {
 };
 
 function renderCheck(res) {
-	State.variables.last_check = res;
+	// #441-A：本函数改为**纯渲染**（不再写 `State.variables.last_check`）——
+	// 结果槽的写入属「算」那一步（`Game.Checks.resolve`／`check`·`save` 宏），present 只渲染。
 	const cls = res.success ? 'check-success' : 'check-fail';
 	const dcStr = res.nat ? `需天然 ${res.nat}` : `DC${res.dc}`;
 	const detail = Sg.UI.showDetail();
@@ -141,23 +158,36 @@ function renderCheck(res) {
 	return head + `<div class="check-why">↳ ${notes.join(' · ')}</div>`;
 }
 // <<check 技名 DC [adv|dis] [加值] [nat] [位点] [优势理由] [劣势理由]>>
+// #441-A：本宏＝「算 ＋ 写结果槽 ＋ 渲染」的历史入口（段落里的 ad-hoc 检定用它）；
+// 位点检定（sitecheck）改走 `Game.Checks.resolve`（算）＋ `<<checkres>>`（渲染）。
 Macro.add('check', {
 	handler() {
 		const adv = this.args[2] === 'adv' ? 1 : this.args[2] === 'dis' ? -1 : 0;
-		$(this.output).append(renderCheck(Game.Rules.check(Game.Pc.now(), this.args[0], this.args[1], {
+		const res = Game.Rules.check(Game.Pc.now(), this.args[0], this.args[1], {
 			adv, bonus: Number(this.args[3]) || 0, nat: Number(this.args[4]) || 0,
 			site: this.args[5] ?? '', advWhy: this.args[6] ?? '', disWhy: this.args[7] ?? '',
-		})));
+		});
+		State.variables.last_check = res;
+		$(this.output).append(renderCheck(res));
 	},
 });
 Macro.add('save', {
 	handler() {
 		const adv = this.args[2] === 'adv' ? 1 : this.args[2] === 'dis' ? -1 : 0;
-		$(this.output).append(renderCheck(Game.Rules.save(Game.Pc.now(), this.args[0], this.args[1], {
+		const res = Game.Rules.save(Game.Pc.now(), this.args[0], this.args[1], {
 			adv, bonus: Number(this.args[3]) || 0, nat: Number(this.args[4]) || 0,
 			site: this.args[5] ?? '', advWhy: this.args[6] ?? '', disWhy: this.args[7] ?? '',
-		})));
+		});
+		State.variables.last_check = res;
+		$(this.output).append(renderCheck(res));
 	},
+});
+// ── 渲染一枚**已结算**的检定（#441-A）：present 侧入口，只渲染、不掷骰、不写状态 ──
+// 用法：<<checkres `Game.Checks.resolve("门厅·翻检", $pc, null)`>>
+// 拆开的理由：原 `<<sitecheck>>` 把「推导优势 + 掷骰 + 写结果槽 + 渲染」挤在一个 widget 里，
+// 使位点判定只能在浏览器里测（#441 的四条验收之四：不经浏览器可驱动 resolve()）。
+Macro.add('checkres', {
+	handler() { $(this.output).append(renderCheck(this.args[0])); },
 });
 
 // ── 复显上一轮玩家发起的检定骰面（M9；不掷骰，只渲染快照）──
@@ -280,26 +310,12 @@ Macro.add('dragonbar', {
 	<</if>>
 <</nobr>><</widget>>
 
-/% 检定位点词汇：DC/技能出走 Game.Checks.sites；正文只传位点键。site.abil → 豁免，否则技能检定。
-   携带道具的位点优势由 Game.Items.advAt 自动附加（无哨/书即无优势）；位点级 dis 自动劣势。 %/
+/% 检定位点词汇：DC/技能出走 Game.Checks.sites（正文只传位点键）；优势推导与掷骰住在
+   `Game.Checks.resolve`（新文件 `src/21-resolve.twee`，sim 侧），本 widget 只负责**调它 + 渲染**。
+   为什么这样拆（#441-A）：「点一下既算又画」是「界面/判定分离」在这份代码里的唯一实体障碍——
+   抽完后本 widget 体内不再有 `<<set $…>>`（present 不写状态），且 `resolve()` 能在 node 里直接驱动。 %/
 <<widget "sitecheck">><<nobr>>
-	<<set _site to Game.Checks.sites[$args[0]]>>
-	<<set _adv to $args[1]>>
-	<<set _why to "">>
-	<<set _why2 to "">>
-	<<set _item to Game.Items.advSource($args[0], $pc.inv, $pc.gear)>>
-	<<if not _adv and _item>><<set _adv to "adv">><<set _why to (Game.Items.advAt($args[0], { [_item]: true }) ? "道具" : "行囊") + _item>><</if>>
-	<<if not _adv and Game.Checks.knowledge[$args[0]] and $pc.world[Game.Checks.knowledge[$args[0]]]>>
-		<<set _adv to "adv">><<set _why to "情报·" + (Game.Checks.knowledgeWhy[Game.Checks.knowledge[$args[0]]] ?? Game.Checks.knowledge[$args[0]])>>
-	<</if>>
-	<<if not _adv and _site.dis>>
-		<<set _adv to "dis">><<set _why2 to _site.disWhy ?? "这一手本来就悬">>
-	<</if>>
-	<<if _site.abil>>
-		<<save _site.abil _site.dc _adv 0 _site.nat $args[0] _why _why2>>
-	<<else>>
-		<<check _site.skill _site.dc _adv 0 _site.nat $args[0] _why _why2>>
-	<</if>>
+	<<checkres `Game.Checks.resolve($args[0], $pc, $args[1])`>>
 <</nobr>><</widget>>
 
 /% 经济事件词汇：金额出走 Game.Economy；gives 自动入账 %/

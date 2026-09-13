@@ -4,6 +4,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 export const flag = 'sel';
 export const flags = ["sel", "gear"];
 
+import { noteWriteFlags } from '../lib/shared.mjs';
 // ── 判据纯函数（#342 F2 自证：主跑与自证共用同一份代码）──────────────────────
 /** 装备"有效果"：要么进伤害，要么给优势位点（canon §5.4） */
 export const gearEffectOK = (d) => (d.damage ?? 0) > 0 || (d.advSites ?? []).length > 0;
@@ -14,12 +15,15 @@ export const gearGranted = (k, srcAll) =>
 export const CLAIM_KINDS = ['gives', 'flag', 'item', 'income'];
 export const claimKindBad = (claim) => !CLAIM_KINDS.includes(claim?.kind);
 /** 纯函数：经济事件"钱花出去有没有落地"（socialSettles 注入 ⇒ 可自证） */
-export const econLandingVerdict = ({ claim, ev, text, socialSettles = () => false }) => {
+export const econLandingVerdict = ({ claim, ev, text, socialSettles = () => false, noteFlags = new Set() }) => {
 	if (!claim) return 'no-claim';
 	if (claimKindBad(claim)) return 'bad-kind';
 	const flagTail = (claim.flag ?? '').replace(/^ev\./, '');
 	if (claim.kind === 'gives' && !ev.gives) return 'no-gives';
-	if (claim.kind === 'flag' && !(text.includes(`setflag "${claim.flag}"`) || text.includes(`${flagTail} to true`)) && !socialSettles(flagTail, null)) return 'no-flag';
+	// #434 阶段 3：落旗标的**第三种形状** —— `Sg.notes.add('n_x')`（写的是该笔记 flagPath 的键）。
+	// 口径走单一权威 `noteWriteFlags()`（与 `--state`／D2 同一份），别在这里再写一套字面量。
+	const byNote = noteFlags.has(flagTail);
+	if (claim.kind === 'flag' && !(text.includes(`setflag "${claim.flag}"`) || text.includes(`${flagTail} to true`) || byNote) && !socialSettles(flagTail, null)) return 'no-flag';
 	if (claim.kind === 'item' && !text.includes(`give "${claim.item}"`) && !socialSettles(null, claim.item)) return 'no-item';
 	if (claim.kind === 'income' && !(ev.delta > 0)) return 'income-negative';
 	return null;
@@ -100,7 +104,7 @@ if (wantAll || arg('sel') || arg('gear')) {
 			'no-item': `正文没给道具 ${c.item}`,
 			'income-negative': '写成纯收入却是扣钱',
 		};
-		const v = econLandingVerdict({ claim: c, ev, text, socialSettles });
+		const v = econLandingVerdict({ claim: c, ev, text, socialSettles, noteFlags: new Set(noteWriteFlags(text, Game.Notes?.entries ?? {})) });
 		if (v) { console.log(`  ✗ 经济事件「${key}」${CLAIM_MSG[v] ?? v}`); bad++; }
 	}
 	{
@@ -114,6 +118,9 @@ if (wantAll || arg('sel') || arg('gear')) {
 			['落点反例①：没声明 → no-claim', econLandingVerdict({ claim: null, ev: {} }) === 'no-claim'],
 			['落点反例②：kind 写错成 givs → bad-kind（**旧版会静默不检**）', econLandingVerdict({ claim: { kind: 'givs' }, ev: { gives: 1 } }) === 'bad-kind'],
 			['落点正例①：flag 落 setflag → 通过', econLandingVerdict({ claim: { kind: 'flag', flag: 'rumor' }, ev: {}, text: 'setflag "rumor"' }) === null],
+			// #434 阶段 3：落旗标的第三种形状（经 `Sg.notes.add`）
+			['落点正例③：flag 经 `Sg.notes.add` 落（noteFlags 注入）→ 通过', econLandingVerdict({ claim: { kind: 'flag', flag: 'rumor' }, ev: {}, text: "Sg.notes.add('n_rumor')", noteFlags: new Set(['rumor']) }) === null],
+			['落点反例③：文本里有 `Sg.notes.add` 但**没给 noteFlags** ⇒ 仍判 no-flag（防"看见了就放行"）', econLandingVerdict({ claim: { kind: 'flag', flag: 'rumor' }, ev: {}, text: "Sg.notes.add('n_rumor')" }) === 'no-flag'],
 			['落点正例②：flag 走交涉筹码（socialSettles 注入）→ 通过', econLandingVerdict({ claim: { kind: 'flag', flag: 'ev.tav_tips' }, ev: {}, text: '', socialSettles: (f) => f === 'tav_tips' }) === null],
 			['落点反例③：flag 哪都没落 → no-flag', econLandingVerdict({ claim: { kind: 'flag', flag: 'ev.tav_tips' }, ev: {}, text: '' }) === 'no-flag'],
 			['落点正例③：item 落 give → 通过', econLandingVerdict({ claim: { kind: 'item', item: '龙鳞护臂' }, ev: {}, text: 'give "龙鳞护臂"' }) === null],

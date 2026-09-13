@@ -73,13 +73,42 @@ window.Sg.notes = {
 		if (t == null || typeof t !== 'object' || Array.isArray(t)) throw new Error('Sg.notes：`Sg.story.notes()` 未返回笔记表（拿到 ' + (t === null ? 'null' : Array.isArray(t) ? 'array' : typeof t) + '）——结构畸形必须报错');
 		return t;
 	},
+	// 写入器（与 readPath 对称）：`'ev.x'`／`'world.x'`。
+	// #434 阶段 3：**机制住在引擎侧**（读侧 `has()` 也是在这求值、数据由 `Sg.story.notes()` 给）
+	// —— 故事侧**不新增 provider**，表里的 `flagPath` **就是**写回声明（形状定稿见 Discussion #513）。
+	writePath(pc, path, v) {
+		const segs = String(path ?? '').split('.');
+		let cur = pc;
+		for (const s of segs.slice(0, -1)) { if (cur[s] == null) cur[s] = {}; cur = cur[s]; }
+		cur[segs[segs.length - 1]] = v;
+	},
+	// 真存储（#434）：`pc.ev.notes` 是「已授予」的**记录**；旧档只有旗标 ⇒ 由 has() 的旗标面兜住
+	stored(id) { return !!State.variables.pc?.ev?.notes?.[id]; },
 	entry(id) { return this.table()[id] ?? null; },
 	ids() { return Object.keys(this.table()); },
+	// 读取语义（写死，见 Discussion #513）：`has(id) = stored(id) ∨ any(readPath(flagPath))`
 	has(id) {
 		const e = this.entry(id);
 		if (!e) return false;
+		if (this.stored(id)) return true;
 		const v = typeof e.grant === 'function' ? e.grant(State.variables.pc) : this.readPath(State.variables.pc, e.flagPath);
 		return !!v;
+	},
+	// 授予（#434）：**幂等** ＋ 真存储 ＋ **双写**（同时置旗标，票面「旗标降为兼容字段」）。
+	// 多源护栏：`flagPath` 是**数组**时必须显式 `setPath`（写哪一条）⇒ 缺则**报错**，绝不静默多写一个旗标。
+	add(id, pc = State.variables.pc) {
+		const e = this.entry(id);
+		if (!e) throw new Error(`Sg.notes.add：笔记「${id}」未登记（结构缺失必须报错，#434）`);
+		if (this.has(id)) return false;
+		if (Array.isArray(e.flagPath)) {
+			if (!e.setPath) throw new Error(`Sg.notes.add：笔记「${id}」的 flagPath 是数组（多源 OR）⇒ 必须显式声明 setPath（该写哪一条）——不许静默多写一个旗标（#434/#435）`);
+			this.writePath(pc, e.setPath, true);
+		} else {
+			this.writePath(pc, e.flagPath, true);
+		}
+		pc.ev.notes = pc.ev.notes ?? {};
+		pc.ev.notes[id] = true;
+		return true;
 	},
 	all() { return this.ids().filter((id) => this.has(id)); },
 	missing(req = []) {

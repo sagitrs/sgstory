@@ -7,6 +7,20 @@ export const flags = ["text"];
 
 // ── 纯函数（供自证喂合成数据；判据与真实运行**同一份代码**）──
 // ① 载荷标注：内容段落（非 infra）必须有 `payload:` 标注
+/** 纯函数：把段落源码拼成「正文语料」——**跳过 infra 段**（`[script]`／widget／stylesheet 是代码，不是玩家读到的字）
+ *  并先剥 JS 注释。为什么两件事都要（`#527` 的两个实测）：
+ *  · 只剥注释不够：`[script]` 段的 **JS 代码本体**也会被当正文（S1 机制片实测 +1776 字）；
+ *  · 注释更不是正文（`#519` +92 · `#486` +2572 —— 改一行说明就逼重签 golden）。
+ *  口径与 `judgePayloads` 的 `isInfra` **同源**（同一份判定，别两处各写一套）。 */
+export const buildNarrative = (entries, isInfra) => {
+	let out = '';
+	for (const [name, src] of entries) {
+		if (isInfra(name)) continue;
+		out += stripJsComments(src).replace(/\/%[\s\S]*?%\//g, '').replace(/<<[^>]*>>/g, '').replace(/\[\[[^\]]*\]\]/g, '').replace(/[\s''/]/g, '');
+	}
+	return out;
+};
+
 export const judgePayloads = (entries, isInfra) => {
 	const out = [];
 	for (const [name, src] of entries) {
@@ -54,6 +68,9 @@ if (wantAll || arg('text')) {
 			['正例：黑名单外不算', judgeBlacklist(['a.twee'], ['星官'], readOf), 0],
 			['反例③：风格违和词（含行号）', judgeBlacklist(['a.twee'], ['青梧'], readOf), 1],
 			['正例：`//` 与 `/* */` 注释不成正文（#486）', stripJsComments('正文// 注释\n/* 块\n注释 */更多').replace(/[\s''/]/g, '').length, '正文更多'.length],
+			['正例：`//` 与 `/* */` 注释不成正文（#486）', stripJsComments('正文// 注释\n/* 块\n注释 */更多').replace(/[\s''/]/g, '').length, '正文更多'.length],
+			['正例：infra 段（`[script]`）整段不成正文（#527）', buildNarrative([['X', 'const a = 1'], ['P', '正文']], (n) => n === 'X').length, '正文'.length],
+			['反例：内容段仍要计数（防"把正文一起漏掉"）', buildNarrative([['P', '正文']], () => false).length, '正文'.length],
 		];
 		for (const [label, got, want] of cases) {
 			const n = Array.isArray(got) ? got.length : got;
@@ -70,8 +87,7 @@ if (wantAll || arg('text')) {
 	console.log(`  载荷标注：${payloads.size}（信息 ${[...payloads.values()].filter((v) => v.includes('信息')).length} · 张力 ${[...payloads.values()].filter((v) => v.includes('张力')).length} · 选择 ${[...payloads.values()].filter((v) => v.includes('选择')).length}）`);
 	// 词频报告（主题词健康度）
 	let narrative = '';
-	// #486：先剥 **JS 注释**（`[script]` 段里的 `//`／`/* */` 不是正文——不然改一行引擎注释就推高基线）
-	for (const src of passageSrc.values()) narrative += stripJsComments(src).replace(/\/%[\s\S]*?%\//g, '').replace(/<<[^>]*>>/g, '').replace(/\[\[[^\]]*\]\]/g, '').replace(/[\s''/]/g, '');
+	narrative = buildNarrative(passageSrc, isInfra);   // #527：跳过 infra 段 ＋ 剥 JS 注释（两件都要）
 	const words = ['雾','星','塔','月光','森林','守林人','信物','三百'];
 	console.log(`  主题词密度：${words.map((w) => `${w}×${narrative.split(w).length - 1}`).join(' ')}（总字 ${narrative.length}）`);
 	// 套路句式门：白名单外命中即红（改写后划掉）

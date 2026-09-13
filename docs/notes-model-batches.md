@@ -191,7 +191,8 @@ Object.assign((window.Game.Notes ??= { entries: {} }).entries, {
 ## 4. 出口判据（所有 B 组批次统一）
 
 ```bash
-node test/notes-model.mjs                # 字段齐全 ＋ flagPath 已登记 ＋ 空状态不为真
+node scripts/audit.mjs --notes --check   # 形状/对齐 ＋ 接入契约 ＋ **消费可数**（#436：已升级为 audit 门，可单跑）
+node scripts/audit.mjs --state --check   # flagPath 的键必须登记在状态契约域里
 node scripts/audit.mjs --state --check   # 新引用没破坏状态契约
 npm test                                 # 全链（改门后跑 npm run report:gates:update）
 ```

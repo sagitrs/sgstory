@@ -24,6 +24,29 @@ export const qualifiedWriteKeys = (text) => {
 	return out;
 };
 /** 键形态违规：`pc.ev.Bad` 这类键会被上面的正则**静默漏检** ⇒ 单独兜住。 */
+// ── 读点形态（与写点同一处权威；`#436` 原范围 1）────────────────────────────
+// 三种写法：`$pc.ev.x`（正文/宏）、`pc.ev.x`（裸 JS，如表内函数体）、`p.ev?.x`（表内谓词）。
+// **读点必须排除写行**（同一行里出现 `.ev.x =` / `.ev.x to`）——否则"写了没人读"会被算成读过
+//（本仓 #365 那类误判的根源；`analyze()` 里的行为逐字保留）。
+export const READ_PATTERNS = [
+	/\$pc\.(ev|world)\.([a-z_]\w*)/g,
+	/\bpc\.(ev|world)\.([a-z_]\w*)/g,
+	/\bp\.(ev|world)\??\.([a-z_]\w*)/g,
+];
+// 单行 → 去重后的**限定键**（`ev.x` / `world.x`）
+export const readKeys = (text) => {
+	const line = String(text ?? '');
+	const out = new Set();
+	for (const re of READ_PATTERNS) {
+		for (const m of line.matchAll(new RegExp(re.source, 'g'))) {
+			const k = `${m[1]}.${m[2]}`;
+			if (new RegExp(`\\.${k}\\s*(=|to)\\b`).test(line)) continue;   // 写行不算读
+			out.add(k);
+		}
+	}
+	return [...out];
+};
+
 export const keyCharsetViolations = (text) =>
 	[...String(text).matchAll(/\bpc\.(?:ev|world)\.([A-Za-z_$][\w$]*)/g)].filter((m) => !KEY_CHARSET.test(m[1])).map((m) => m[1]);
 

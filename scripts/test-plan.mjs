@@ -89,8 +89,9 @@ export const SEGMENTS = [
 	// #441-A：结算可脱离浏览器驱动（rng 可注入 · rollSite 纯 · present 不写状态）
 	{ id: 'test-resolve-node-mjs-selftest', phase: 'test', cost: 0, cmd: 'node test/resolve-node.mjs --selftest' },
 	{ id: 'test-resolve-node-mjs', phase: 'test', cost: 0, cmd: 'node test/resolve-node.mjs' },
-	{ id: 'test-notes-model-mjs-selftest', phase: 'test', cost: 0, cmd: 'node test/notes-model.mjs --selftest' },
-	{ id: 'test-notes-model-mjs', phase: 'test', cost: 0, cmd: 'node test/notes-model.mjs' },
+	// #436 原范围 1：笔记模型门已从 `test/notes-model.mjs` **升级为 audit 门**（可单跑 `--notes`），
+	// 一个段替代原来的 `-selftest` ＋ 主跑两段（自证在门内，与其它门一致）。
+	{ id: 'scripts-audit-mjs-notes-check', phase: 'test', cost: 0, cmd: 'node scripts/audit.mjs --notes --check' },
 	// main 侧新增（#360 交涉筹码按类型分派，guest-1）：reb 冲突时按「计划＝单一权威」加在这里
 	{ id: "test-social-lever-mjs", phase: 'test', cost: 0, cmd: "node test/social-lever.mjs" },
 	{ id: "test-coverage-mjs", phase: 'test', cost: 0, needs: ['test-render-all-mjs', 'test-scenarios-mjs'], cmd: "node test/coverage.mjs" },
@@ -118,7 +119,7 @@ export const SEGMENTS = [
 //      要把它划进引擎门，就显式加进 `ENGINE_EXTRA`（一行）。
 // 注：`a11y` 也是引擎门，但**尚未接线**（F2 台账：未接线 7 道）⇒ 接线时加进本表（否则 `validateLayers()` 的僵尸声明会报红——这正是想要的行为）
 export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 'text'];
-export const AUDIT_STORY = ['truth', 'canon', 'echoes', 'starbudget', 'choices', 'combat', 'craft', 'dragon',
+export const AUDIT_STORY = ['truth', 'canon', 'echoes', 'starbudget', 'choices', 'combat', 'craft', 'dragon', 'notes',
 	'gear', 'interact', 'investment', 'nosl', 'npc', 'social', 'systems'];
 // 非门段里**与故事内容无关**的那些（构建 / 构建期 lint / 产物守卫）：显式登记，不放宽默认
 export const ENGINE_EXTRA = ['build-mjs',

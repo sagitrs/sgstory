@@ -28,6 +28,7 @@
 | `audit:items` | audit 开关 | 行为化 | ✅ | — | 龙战伤害矩阵：**两条不变量**（减伤件更多 ⇒ 伤害不增；败次 0→2 ⇒ 伤害不减）＋自证 3 例（合成 I，不依赖真表） |
 | `audit:literals` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:nosl` | audit 开关 | 行为化 | ✅ | ✅ |  |
+| `audit:notes` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:npc` | audit 开关 | 行为化 | ✅ | ✅ |  |
 | `audit:sel` | audit 开关 | 行为化 | ✅ | — | 接线说明：--sel 只是 --nosl＋--gear 的便捷别名，链上跑的是更具体的两个 flag，故没有单独的 --sel --check（**形态是有判定的门**，此前台账误标「仅登记」，已由形态对账改正） |
 | `audit:sitedisc` | audit 开关 | 行为化 | ✅ | ✅ |  |
@@ -56,7 +57,6 @@
 | `test/invariants.unit.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/layering.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | 自证 16 例（模块依赖 / 点号 defines / 层间方向 / engine rank 派生与四条禁止边） |
 | `test/multi-story.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/notes-model.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/npc-venue.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/onetime-pickups.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
 | `test/premise-source.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |

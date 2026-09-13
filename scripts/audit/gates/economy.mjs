@@ -54,5 +54,7 @@ if (wantAll || arg('economy')) {
 		];
 		for (const [label, ok] of cases) { if (!ok) bad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
 	}
+	// #474：自证失败必须让门退 1（此前本门是纯报表、没有出口 ⇒ 自证写了也不会判红）
+	if (process.argv.includes('--check') && bad) { console.error(`\n✗ 经济收支时间线段：${bad} 项自证失败`); process.exit(1); }
 }
 };

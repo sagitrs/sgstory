@@ -265,19 +265,44 @@ Object.assign(window.Game.Combat, {
 	},
 	// #519：从故事文件搬来（原用 `Math.random`）⇒ 改走可注入的 `Game.Rules.rng`；node 侧调用点须先注入。
 	// 每轮给 3 个：排除条件不满足的、以及上一轮刚用过的
+	// **共用**的「随机 n 选 1」（`#489` 判据 1：事件池与战斗池**同一套**选择机制——不另写一份随机）。
+	// 纯函数（拷贝后 splice，不改入参）；走**可注入** rng。抽出来的理由：第二处（事件池）要用它，
+	// 而「两处各写一份随机」正是本仓反复撞过的那类分散口径。
+	pickN(list, n) {
+		const poolCopy = [...list];
+		const picked = [];
+		const rng = window.Game.Rules.rng;                        // 唯一随机入口（node 未注入 ⇒ 大声报错）
+		while (picked.length < n && poolCopy.length) {
+			const i = Math.min(poolCopy.length - 1, rng.d(poolCopy.length) - 1);
+			picked.push(poolCopy.splice(i, 1)[0]);
+		}
+		return picked;
+	},
 	offer(poolId, round, pc, lastUsed) {
 		let list = this.eligible(poolId, pc).filter((id) => id !== lastUsed);
 		if (list.length < 3) list = this.eligible(poolId, pc);
-		const picked = [];
-		while (picked.length < 3 && list.length) {
-			const i = Math.min(list.length - 1, window.Game.Rules.rng.d(list.length) - 1);
-			picked.push(list.splice(i, 1)[0]);
-		}
+		const picked = this.pickN(list, 3);                       // #489：走**共用**选择机制
 		// 备药优先：手上有花、还没涂毒 → 第一轮一定给「涂毒」（免得玩家永远等不到）
 		if (poolId === '封印' && (round ?? 1) === 1 && pc?.inv?.['月光花'] && !pc?.dragon?.venom && !picked.includes('封印·涂毒')) {
 			picked[picked.length - 1] = '封印·涂毒';
 		}
 		return [...new Set(picked)];
+	},
+	// ── S4（`#489`）：通用事件池 ＋ 线索三选一 ─────────────────────────
+	// 契约（声明面）：`mechanics().roads[i] = { from:number, to:number, options:[{kind,hint,noCheck?}] }`
+	//   · 三选一只定**事件类型**（已定 ①）；事件**内部那一次判定**由内容面接线（S5）；
+	//   · 判据 1）三选一与战斗池走**同一个** `pickN`；2）同段三路线索两两不等价（口径在 lib：`story-shape.mjs`）；
+	//     3）“无判定选项”与“不死档”是**声明属性**（也由 lib 单权威判定，本块只消费）。
+	roadsDecl() { return this.slotsDecl()?.roads ?? null; },
+	/** 一段路的「三选一」：从该段 options 里随机取 3 个（`exclude` ＝ 本段已经出现过的类型不重复）。 */
+	roadOffer(idx, exclude = []) {
+		const roads = this.roadsDecl();
+		if (!roads) return null;                                  // 未启用 ⇒ 调用方不调（显式降级）
+		const road = roads[idx - 1];                              // 段号**从 1 计**（与声明里的 from/to 一致）
+		if (!road) throw new Error(`Game.Combat.roadOffer：本故事没有第 ${idx} 段路（可用 1..${roads.length}，#489）`);
+		const all = road.options ?? [];
+		const filtered = all.filter((o) => !exclude.includes(o?.kind));
+		return this.pickN(filtered.length >= 3 ? filtered : all, 3);   // 与战斗池同一套选择机制
 	},
 	// ── S1（`#486`）：部位 · 耐久 · 保护关系 ───────────────────────────────
 	// 契约：**故事只声明**（`Sg.story.mechanics()`：`hitLocations` / `slots[*].protects` /

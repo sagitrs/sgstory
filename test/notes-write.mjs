@@ -117,6 +117,25 @@ if (multi) {
 	if (had === undefined) delete pc.inv['__测试道具_b'];
 }
 
+// ⑨ 授予家族第三类 `sets`（`#435` Q1 拍板）：引擎面宣告 ＋ 只置真 ＋ 幂等 ＋ 裸键默认 `ev.` ＋ 与 `yields`/`gives` **同处**执行
+// 为什么要有这一面：`world.flower_taken`／`flower_sleep`／`ev.forge_thanks` 这类旗标**没有笔记** ⇒ 进不了 `yields`；
+// 它们也不是物品 ⇒ 进不了 `gives`。没有第三面时，这些位点只能永远留在段落里（就是 D3／D4／D8 卡住的原因）。
+{
+	case_('授予面宣告：`Sg.rules.effects` 含 yields/gives/sets（与 `--rules` 的 `undeclaredSets` 反沉默判据同轴）',
+		Array.isArray(Sg.rules.effects) && ['yields', 'gives', 'sets'].every((x) => Sg.rules.effects.includes(x)), JSON.stringify(Sg.rules.effects));
+
+	const s1 = Sg.rules.applySets({ id: 's1', scope: 'S', sets: ['__测试旗标_a', 'world.__测试旗标_w'] });
+	case_('`sets`：裸键默认 `ev.`（与 `holds()` 同口径）＋ `world.` 限定写真域 ⇒ 返回本次新落下的键',
+		s1.join() === '__测试旗标_a,world.__测试旗标_w' && pc.ev.__测试旗标_a === true && pc.world.__测试旗标_w === true, JSON.stringify(s1));
+	const s2 = Sg.rules.applySets({ id: 's1', scope: 'S', sets: ['__测试旗标_a', 'world.__测试旗标_w'] });
+	case_('`sets`·幂等：同一行**再渲一次** ⇒ 返回空（不重复记账）', Array.isArray(s2) && s2.length === 0, JSON.stringify(s2));
+	case_('`sets`：无 `sets` 的行 ⇒ 不写任何东西（`text` 只渲染的行不该写状态）', Sg.rules.applySets({ id: 's2', scope: 'S' }).length === 0);
+	case_('`sets`·只置真：已为真的键不重复计入（只置真语义，不写数值/枚举）', Sg.rules.applySets({ id: 's3', scope: 'S', sets: ['__测试旗标_a'] }).length === 0);
+	case_('`sets`：裸键与 `world.` 限定写的是**不同域**（裸键默认 `ev.`，别把世界态写成 `ev.`）', pc.ev.__测试旗标_a === true && pc.ev.__测试旗标_w === undefined, `ev.${pc.ev.__测试旗标_w} world.${pc.world.__测试旗标_w}`);
+
+	delete pc.ev.__测试旗标_a; delete pc.world.__测试旗标_w;   // 不留测试键
+}
+
 // ⑥ 语义钉死：`has()` 的定义就是 `stored ∨ 旗标`（Discussion #513 的 Q2 第 1 条）
 case_('读取语义写死：`has(id) = stored(id) ∨ any(readPath(flagPath))`（本文件 ③ 与 ① 两条合起来就是它）', true);
 

@@ -8,7 +8,11 @@
 //   `premise`  散文锚句（`test/premise-source.mjs` 用；字段名沿用原口径）
 //   `yields`   本行被选中后授予的笔记 id（由调用处 `Sg.notes.add` 落地，本表不写状态）
 //   `text`     选中时渲染的正文（模板；**不含字面状态读**）
-// 门：① 死规则门（`scripts/audit/gates/rules.mjs`）② 「表里不得出现字面状态读」（T 席 · #435）
+// 门（`--rules` 写侧 ＋ `--reads` 读侧，两条例均属 `#435`）：
+//   ① 死规则门（永不被选中的行）· `prereq` 形状（同 scope＋禁环）· 并列 prio 报告
+//   ② `text` 列只许**纯渲染**（不得含状态写宏——写请走 `yields`，A 方案由 `<<rules>>` 统一落）
+//      ＋ `scope` 与调用点一致：未接管行（无 `<<rules>>` 调用）／同一段落同位点重复调用／`段落#位点` 归属不符
+//   ③ 表里不得出现字面状态读（`req`/`any`/`exclude`/`prereq`/`yields`/`text`）——只许 note id／键名，求值走封装层
 // 入口：选择器在引擎侧（`src/engine/40-sim/21-resolve.twee` 的 `Sg.rules`），**只经 `Sg.story.rules()` 取表**。
 Object.assign((window.Sg.story ??= {}), {
 	rules: () => [

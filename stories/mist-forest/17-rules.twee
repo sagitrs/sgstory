@@ -19,7 +19,17 @@ Object.assign((window.Sg.story ??= {}), {
 			//（`#435` 形状 PR 的**第一个真实样本**；`#516` 动过的那处正文）
 			req: ['n_flower_warned', 'n_keeper_told'],
 			prio: 10,
-			text: "''\"塔基墙根那片银白的花——味道闻久了会睡。要摘，先把气含住。\"''",
+			text: `''"塔基墙根那片银白的花——味道闻久了会睡。要摘，先把气含住。"''`,
+		},
+		{
+			id: 'flowerfield.stand', scope: '塔外花田#站一会',   // 一段落多条件位点 ⇒ scope 用 `段落#位点`（本文件约定）
+			exclude: ['n_flower_warned'], prio: 10,
+			text: `你在花田边站了一会儿。风从花那边过来，眼皮跟着沉了沉。`,
+		},
+		{
+			id: 'flowerfield.back', scope: '塔外花田#退回',
+			exclude: ['n_flower_warned'], prio: 10,
+			text: `		<<link "先别动它，退回塔门">><<goto "塔门">><</link>>`,
 		},
 	],
 });

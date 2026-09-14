@@ -1,5 +1,6 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { storyText } from '../lib/shared.mjs';
 // flags=['craft']。校验：npm run audit:golden。
 export const flag = 'craft';
 export const flags = ["craft"];
@@ -78,7 +79,9 @@ if (wantAll || arg('craft')) {
 			if (!ok) bad++;
 		}
 	}
-	const craftNames = [...passageSrc.keys()].filter((n) => !/^Story/.test(n) && !(passageTags.get(n) ?? []).some((t) => ['script', 'widget', 'stylesheet'].includes(t)));
+	// #435 前置 0：本门判的是**正文**（重复台词/标点/措辞密度）⇒ 取故事文本源（内容段落 ∪ 归属到它的表行 `text`）
+	const st = storyText({ passageSrc, passageTags, rows: ctx.window?.Sg?.story?.rules?.() ?? [] });
+	const craftNames = [...st.text.keys()].filter((n) => !/^Story/.test(n) && !(passageTags.get(n) ?? []).some((t) => ['script', 'widget', 'stylesheet'].includes(t)));
 	const strip = (s) => s.replace(/<<[\s\S]*?>>/g, '').replace(/\[\[[^\]]*\]\]/g, '').replace(/''/g, '').replace(/<[^>]*>/g, '');
 
 	// ⑤ 重复台词门：同一句出现在两段以上（≥10 汉字、只留汉字后比对）——结局层与 NPC 台词重复最伤
@@ -86,7 +89,7 @@ if (wantAll || arg('craft')) {
 	const REPEAT_OK = [/^（守林人说过从大门走$/];
 	const seen = new Map();
 	for (const n of craftNames) {
-		for (const x of strip(passageSrc.get(n)).split(/[。！？!?\n]/)) {
+		for (const x of strip(st.text.get(n)).split(/[。！？!?\n]/)) {
 			const t = x.replace(/[\s「」"'‘’“”：:，,、—－-]/g, '');
 			if (t.length < 10 || !/^[\u4e00-\u9fff]+$/.test(t)) continue;
 			if (!seen.has(t)) seen.set(t, []);
@@ -102,9 +105,9 @@ if (wantAll || arg('craft')) {
 	const halfRx = /[\u4e00-\u9fff][,;!?()]|[,;!?()][\u4e00-\u9fff]/g;
 	let half = 0, italBad = 0;
 	for (const n of craftNames) {
-		const hits = [...strip(passageSrc.get(n)).matchAll(halfRx)].map((m) => m[0]);
+		const hits = [...strip(st.text.get(n)).matchAll(halfRx)].map((m) => m[0]);
 		if (hits.length) { console.log(`  ✗ [标点] 「${n}」混了半角标点：${hits.join(' ')}`); bad++; half += hits.length; }
-		const q = (passageSrc.get(n).match(/''/g) ?? []).length;
+		const q = (st.text.get(n).match(/''/g) ?? []).length;
 		if (q % 2) { console.log(`  ✗ [斜体] 「${n}」的 '' 标记是奇数（${q}）——斜体会一直吃到段尾`); bad++; italBad++; }
 	}
 	console.log(`  ⑥ 标点与斜体门：半角混用 ${half} 处 · 斜体不成对 ${italBad} 段`);
@@ -118,7 +121,7 @@ if (wantAll || arg('craft')) {
 		return { dash: (t.split('——').length - 1) / n * 1000, like: (t.split('像').length - 1) / n * 1000, paren: (t.split('（').length - 1) / n * 1000, chars: t.length };
 	};
 	const now = {};
-	for (const n of craftNames) now[n] = densityOf(passageSrc.get(n));
+	for (const n of craftNames) now[n] = densityOf(st.text.get(n));
 	if (process.argv.includes('--update-density')) {
 		const rows = Object.fromEntries(Object.entries(now).sort((a, b) => a[0].localeCompare(b[0])).map(([k, v]) => [k, { dash: +v.dash.toFixed(1), like: +v.like.toFixed(1), paren: +v.paren.toFixed(1), chars: v.chars }]));
 		writeFileSync(DENSITY, JSON.stringify({ note: '#168 机检⑦ 措辞密度 ratchet：破折号/像/括号 每千字次数。只许降不许升——改写后确实要变密，请 --update-density 重签并在 PR 里写明理由。', rows }, null, '\t') + '\n');

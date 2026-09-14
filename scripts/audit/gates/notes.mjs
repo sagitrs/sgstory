@@ -10,7 +10,7 @@
 //      这样门在阶段推进时**不需要改判据**）。
 //   · **反沉默**：`bookkeeping` 里声明了零消费、实际却有消费点的笔记键 ⇒ 红（声明烂在那里）。
 import { readFileSync, readdirSync } from 'node:fs';
-import { readKeys } from '../lib/shared.mjs';
+import { readKeys, ruleRowKeys } from '../lib/shared.mjs';
 
 export const flag = 'notes';
 export const flags = ['notes'];
@@ -38,6 +38,19 @@ export const auditShape = (entries, domainKeys) => {
 		}
 	}
 	return problems;
+};
+
+// ── 纯函数：表行读点（`#435` 前置 0）──────────────────────────────────────
+// 阶段 4 之后，**表行的 `req`/`any`/`exclude` 就是读点**（求值走 `Sg.notes`/`Sg.rules` 封装层）。
+// 不收进来 ⇒ 把条件从段落搬进表之后，那些笔记会被判「**零消费**」（假红：搬家反而把笔记判死）。
+// 限定键与域的对应关系走单一权威 `ruleRowKeys()`（它与 `--state` 的"有写有读"同一份）。
+export const rowReads = (rows, entries) => {
+	const M = new Map();
+	for (const r of rows ?? []) for (const k of ruleRowKeys(r, entries)) {
+		if (!M.has(k)) M.set(k, new Set());
+		M.get(k).add(`表行:${r?.id ?? '?'}`);
+	}
+	return M;
 };
 
 // ── 纯函数：消费可数（#436 原范围 2）────────────────────────────────────────
@@ -82,8 +95,9 @@ export const run = (ctx) => {
 			for (const id of Object.keys(entries)) for (const p of flagPaths(entries[id])) { const k = keyOf(p); if (k?.startsWith(pre)) domainKeys.add(k); }
 		}
 	}
-	// 读点集合（键 → 读点）：用**单一权威** `readKeys()`
-	const reads = new Map();
+	// 读点集合（键 → 读点）：用**单一权威** `readKeys()`；`#435` 前置 0：再加上**表行的读点**
+	// （`req`/`any`/`exclude` ⇒ `ruleRowKeys()`）——否则条件搬进表后笔记会被判「零消费」
+	const reads = rowReads(ctx.window?.Sg?.story?.rules?.() ?? [], entries);
 	for (const [f, src] of Object.entries(sources)) {
 		for (const line of src.replace(/\/%[\s\S]*?%\//g, '').split('\n')) {
 			for (const k of readKeys(line)) {
@@ -120,6 +134,9 @@ export const run = (ctx) => {
 			['消费·已声明却真的被读了 → 僵尸豁免红', auditConsumption(good, R({ 'ev.tav_tips': ['a.twee'] }), ['tav_tips'], '').length, 1],
 			['消费·域写错（只有 `world.tav_tips` 的读点）⇒ 仍算零消费（#365 口径）', auditConsumption(good, R({ 'world.tav_tips': ['a.twee'] }), [], '').length, 1],
 			['消费·笔记 id 被条件引用（`note:n_a`）也算消费', auditConsumption(good, R({}), [], "req: ['note:n_a']").length, 0],
+			// #435 前置 0：表行读点（`ruleRowKeys`）也算消费——否则搬家后笔记会被判"零消费"
+			['消费·表行 `req` 里的 note id 算消费（经 `ruleRowKeys` 展开到 flagPath）', auditConsumption(good, rowReads([{ id: 'R', req: ['n_a'] }], good), [], '').length, 0],
+			['消费·表行**没有**指向它的读点 ⇒ 仍算零消费（反沉默）', auditConsumption(good, rowReads([{ id: 'R', req: ['n_other'] }], good), [], '').length, 1],
 		];
 		for (const [label, got, want] of cases.length === 0 ? [] : cse) {
 			const ok = got === want;

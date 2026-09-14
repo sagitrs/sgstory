@@ -1,5 +1,6 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { storyText } from '../lib/shared.mjs';
 // flags=['truth']。校验：npm run audit:golden。
 export const flag = 'truth';
 export const flags = ["truth"];
@@ -9,7 +10,8 @@ export const run = (ctx) => {
 // ── D1/D8 判据实现（#247 D8）：锚数 ≥3 ＋ 类型 ≥2 ＋ 类型声明与来源一致 ──
 // 类型口径（可机检）：codex＝设定集/图鉴页；echo＝该 (p,anchor) 出现在 Game.Echoes.list；social＝锚句出现在
 // 交涉面板文本里；prose＝其余正文。声明与来源不符即红——防「标签造假」的假冗余。
-function claimProblems(claims, { minAnchors = 3, minTypes = 2 } = {}) {
+// `text`：故事文本源（#435 前置 0 的单一权威）——锚句可以落在表行的 `text` 里（归属到 `scope` 段落）
+function claimProblems(claims, { minAnchors = 3, minTypes = 2, text = passageSrc } = {}) {
 	const problems = [];
 	const echoPairs = new Set();
 	for (const e of Game.Echoes?.list ?? []) for (const x of e.echo ?? []) echoPairs.add(`${x.p}::${x.anchor}`);
@@ -26,7 +28,7 @@ function claimProblems(claims, { minAnchors = 3, minTypes = 2 } = {}) {
 		const types = new Set((c.sites ?? []).map((s) => s.type ?? sourceTypeOf(s)));
 		if (types.size < minTypes) problems.push(`${c.id}：线索类型 ${types.size} < ${minTypes}（${[...types].join('/')}）`);
 		for (const site of c.sites ?? []) {
-			const src = passageSrc.get(site.p);
+			const src = text.get(site.p);
 			if (src === undefined) { problems.push(`${c.id}：段落「${site.p}」不存在`); continue; }
 			if (!src.includes(site.anchor)) problems.push(`${c.id}：锚句丢失「${site.p}」→「${site.anchor}」`);
 			if (site.type && site.type !== sourceTypeOf(site)) {
@@ -38,7 +40,9 @@ function claimProblems(claims, { minAnchors = 3, minTypes = 2 } = {}) {
 }
 if (wantAll || arg('truth')) {
 	console.log('\n══ ⓪ 真相可达性（D1/D8）——每命题 ≥3 通路，线索类型 ≥2，类型声明须与来源一致 ══');
-	const { problems, echoPairs } = claimProblems(Game.Truth.claims);
+	// #435 前置 0：锚句面＝故事文本源（内容段落 ∪ 归属到它的表行 `text`）——`site.p` 仍是段落名（表行按其 `scope` 归属）
+	const st = storyText({ passageSrc, passageTags, rows: ctx.window?.Sg?.story?.rules?.() ?? [] });
+	const { problems, echoPairs } = claimProblems(Game.Truth.claims, { text: st.text });
 	let bad = problems.length;
 	for (const c of Game.Truth.claims) {
 		const types = [...new Set(c.sites.map((s) => s.type))].join('/');

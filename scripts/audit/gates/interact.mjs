@@ -1,5 +1,6 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { storyText } from '../lib/shared.mjs';
 // flags=['interact']。校验：npm run audit:golden。
 export const flag = 'interact';
 export const flags = ["interact"];
@@ -44,13 +45,16 @@ if (wantAll || arg('interact')) {
 		}
 	}
 	const stripLinks = (src) => src.replace(/<<link\b[\s\S]*?<\/link>>/g, '（link）');
+	// #435 前置 0：扫描面＝**故事文本源**（内容段落 ∪ 归属到它的表行 `text`）——位点/检定搬进表后
+	// 仍按 `scope` 的段落归属受本门管（否刚 ①顶层自动检定 ②陈旧 `$last_check` ④密度 都会"看不见"表里的正文）
+	const st = storyText({ passageSrc, passageTags, rows: ctx.window?.Sg?.story?.rules?.() ?? [] });
 	const sites = Game.Checks.sites;
 	const usedSites = new Set();
 	// 战斗动作池（B1）：池里的位点由玩家从面板上选——等同「玩家发起」；
 	// 对手位点由 <<fightresolve "位点">> 驱动——等同「进场即动手」（须标 auto）。
 	const poolSites = new Set(Object.values(Game.Combat?.actions ?? {}).map((a) => a.site));
 	let autoTop = 0, inLink = 0;
-	for (const [name, srcRaw] of passageSrc) {
+	for (const [name, srcRaw] of st.text) {
 		const tags0 = passageTags.get(name) ?? [];
 		if (tags0.includes('script') || tags0.includes('stylesheet') || tags0.includes('widget')) continue; // 只扫正文
 		const src = srcRaw.replace(/\/%[\s\S]*?%\//g, '');
@@ -90,7 +94,7 @@ if (wantAll || arg('interact')) {
 	for (const s of Object.keys(sites)) if (!usedSites.has(s)) { console.log(`  ✗ 位点「${s}」在表里但正文没人用`); bad++; }
 	// ④ 选择密度（报告项）：内容段落的 字/臂
 	const dens = [];
-	for (const [name, srcRaw] of passageSrc) {
+	for (const [name, srcRaw] of st.text) {
 		const tags = passageTags.get(name) ?? [];
 		if (tags.includes('script') || tags.includes('stylesheet') || name.startsWith('Story')) continue;
 		if (name.startsWith('结局') || name.includes('设定集') || name === '样式') continue;

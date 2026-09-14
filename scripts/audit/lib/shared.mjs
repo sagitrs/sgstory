@@ -254,6 +254,42 @@ export const makeShared = (ctx) => {
 	return { classifyNarrativeState, successRate };
 };
 
+// ── 故事文本源（**唯一权威**，`#435` 前置 0）──────────────────────────────────
+// 为什么要有它：阶段 4 把叙述也搬进条件表之后，「这段话属于哪个段落」不再由"字面写在段落里"决定，
+// 而是由**归属**决定 —— 表行 `scope` 的 `#` 前那一截就是它的段落。若每道门自己拼一次文本面，
+// 就必然各自漂移：guest 实测**一次搬家同时红六道门**（`--truth`/`--echoes`/`--npc`/`--notes`/
+// `--interact`/`--text`），那不是六个 bug，是**一个横切面**（门的文本面窄了）。
+// 单一权威的用途：各门都从 `storyText().text` 取"段落文本"，不再各自 `passageSrc.get(p)`。
+export const MECH_TAGS = ['script', 'widget', 'stylesheet'];
+
+/** 段落名 → **故事文本**（内容段落原文 ∪ 归属到它的表行 `text`，按**表序**追加）。
+ *
+ *  边界（都写在这里，免得各门各自解释）：
+ *  · 追加的是**所有候选行**的 `text`（不是"选中的那一行"）—— 这是"文本集合"，不是"`pick()` 选哪行"；
+ *    哪个行被选中是运行期的事，可能随状态变（门判的是"文本可达"）。
+ *  · `scope` 段落不存在 ⇒ **不归属**，进 `orphans`（`--rules` 另报红；这里不静默吞）。
+ *  · `isMech(name)`：机制段（`[script]`/`widget`/`stylesheet`）——门自己决定跳不跳（与 `--text` 同口径）。
+ */
+export const storyText = ({ passageSrc = new Map(), passageTags = new Map(), rows = [] } = {}) => {
+	const text = new Map([...passageSrc].map(([n, s]) => [n, String(s ?? '')]));
+	const tableText = new Map(), rowIds = new Map(), orphans = [];
+	for (const r of rows ?? []) {
+		if (!r?.id || r.text == null || r.text === '') continue;
+		const p = String(r.scope ?? '').split('#')[0];
+		if (!text.has(p)) { orphans.push({ id: r.id, scope: r.scope, passage: p }); continue; }
+		text.set(p, `${text.get(p)}\n${r.text}`);
+		tableText.set(p, [...(tableText.get(p) ?? []), String(r.text)]);
+		rowIds.set(p, [...(rowIds.get(p) ?? []), r.id]);
+	}
+	const tagsOf = (n) => passageTags?.get?.(n) ?? [];
+	const isMech = (n) => tagsOf(n).some((t) => MECH_TAGS.includes(t));
+	return { text, tableText, rowIds, orphans, isMech, isNarrative: (n) => !isMech(n) };
+};
+
+/** 哪些表行的 `text` 含这个错句（（段落 ＋ 锚句）→ 行）—— `--echoes` 的"表侧条件归属"用它。 */
+export const rowsContaining = (rows, passage, anchor) =>
+	(rows ?? []).filter((r) => r?.id && r.text && String(r.scope ?? '').split('#')[0] === passage && String(r.text).includes(anchor));
+
 // ── JS 注释剥离（`#486` 的副产品）────────────────────────────────────────
 // 为什么需要：`--text` 的「总字」把 `[script]` 段里的 **JS 注释**也当正文数了——它只剥 Twee 注释 `/% %/`。
 // 实测代价：加一行 `//` 说明就把「主题词密度/总字」推高（`#519` +92 · `#486` 机制片 +2572），

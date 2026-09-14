@@ -73,9 +73,16 @@ for (const p of passages.values()) {
 	for (const m of body.matchAll(/\[\[[^\]\n]*\](?!\])/g)) {
 		E(p, `未闭合 wiki 链接（会渲染成纯文本）: ${m[0].slice(0, 50)}`);
 	}
+	// #435 附：**JS 转义串的归一**（本门第一版的假阳就出在这）——
+	// 条件表把文案放在 JS 字符串里（`text: '…<<goto \"塔门\">>…'`），而门扫的是**源码形态**：
+	// 那时的参数看起来是 `\"塔门\"`（既不以引号开头、也不是反引号/`$`）⇒ 被判成"裸词"✗，
+	// 但**运行期**它就是普通字符串参数。⇒ 判据前先折回运行期形态（与 `#508`"别名让层间门变瞎"同类：
+	// 门不能拿源码形态当运行期形态）。
+	// 边界：只在**整体被转义引号包住**时归一（`\"x\"` → `"x"`），避免把普通正文里真写错的 `\"` 一起放过。
+	const unescapeArg = (a) => (/^\\["'][\s\S]*\\["']$/.test(a) ? a.replace(/\\"/g, '"').replace(/\\'/g, "'") : a);
 	// 2) goto：引号=字面量（查存在）；裸词=错误；反引号/$var=动态（跳过）
 	for (const m of body.matchAll(/<<goto\s+([^>]*?)>>/g)) {
-		const arg = m[1].trim();
+		const arg = unescapeArg(m[1].trim());
 		if (/^["']/.test(arg)) {
 			const t = arg.slice(1, -1).trim();
 			push(p, t, 'goto');
@@ -88,7 +95,7 @@ for (const p of passages.values()) {
 	}
 	// 3) include / link|button 带目标参数 / actions
 	for (const m of body.matchAll(/<<include\s+([^>]*?)>>/g)) {
-		const arg = m[1].trim();
+		const arg = unescapeArg(m[1].trim());
 		if (/^["']/.test(arg)) {
 			const t = arg.slice(1, -1).trim();
 			push(p, t, 'include');

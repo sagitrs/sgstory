@@ -12,8 +12,14 @@ import { pathToFileURL } from 'node:url';
 //   node scripts/ui-migration-diff.mjs --out=<path>                # 报告落点（默认 docs/ui-migration-diff.md）
 //   node scripts/ui-migration-diff.mjs --zero                      # **逐段 0 漂移**（`#422-D`／阶段 2 纯转发的判据）
 //   node scripts/ui-migration-diff.mjs --selftest                  # 判据自证（合成正反例，不碰 git）
+//   node scripts/ui-migration-diff.mjs --story=<slug> --out=<path>  # **指定故事**（`#619`）；非默认故事必须显式给 `--out=`
 //
 // 退出码：未登记漂移 ⇒ 1；`--check` 下**基线不可达** ⇒ 1（见下）；纯报告 ⇒ 0。
+//
+// ⚠ **`#619` 第四条防线：`--story` 曾是被静默忽略的参数** —— 脚本全文没解析它，恒按 `DEFAULT_SLUG`（`mist-forest`）取文件集，
+//   于是 `--story=hollow-cave` 这类调用**看着生效、实际只比故事 1**：给故事 2 加一句可见正文，它照样报"变更 0 段"（空门）。
+//   现在：① 显式解析 `--story=`（取该故事的文件集）；② **未知参数一律报错**（静默按默认值跑＝"参数没生效却在给绿"）；
+//   ③ 非默认故事必须显式 `--out=`（默认落点是故事 1 的报告，不许被覆盖）。
 //
 // ⚠ 三条「假绿」防线（`#436` 原范围 3 补，`#557` 又补一条；都有自证钉住）：
 //   ① **基线不可达必须红**：旧版 `git show <base>:<file>` 的失败被 `catch` 吃掉 ⇒ 浅克隆里
@@ -31,8 +37,25 @@ import { execSync } from 'node:child_process';
 import { writeFileSync, readFileSync } from 'node:fs';
 import vm from 'node:vm';
 import { MODULES, scopedFiles } from './module-order.mjs';
-import { DEFAULT_SLUG, readStory } from './dist-paths.mjs';
+import { DEFAULT_SLUG, readStory, storySlugs } from './dist-paths.mjs';
 import { storyText } from './audit/lib/shared.mjs';
+
+/** 纯函数：命令行判据（`#619`）。**静默接受但忽略参数**是本仓"假绿"家族的常客 ⇒ 这里把三条都钉住：
+ *  未知参数报错 · `--story` 必须存在 · 非默认故事必须显式给 `--out=`。 */
+export const cliProblems = ({ argv = [], known = [], defaultSlug = 'mist-forest' } = {}) => {
+	const out = [];
+	const KNOWN = ['baseline', 'out', 'check', 'zero', 'selftest', 'story'];
+	for (const a of argv) {
+		if (a.startsWith('--') && !KNOWN.some((k) => a === `--${k}` || a.startsWith(`--${k}=`))) {
+			out.push(`未知参数「${a}」（只认 ${KNOWN.map((k) => '--' + k).join(' / ')}）—— 未知参数一律报错：静默按默认值跑＝"参数没生效却在给绿"`);
+		}
+	}
+	const slug = (argv.find((a) => a.startsWith('--story=')) ?? '').slice('--story='.length) || defaultSlug;
+	if (known.length && !known.includes(slug)) out.push(`--story=${slug} 不存在（可用：${known.join(' / ')}）`);
+	if (slug !== defaultSlug && !argv.some((a) => a.startsWith('--out='))) out.push(`非默认故事（${slug}）必须显式给 --out=（默认落点 docs/ui-migration-diff.md 是故事 1 的报告，别覆盖它）`);
+	if (argv.filter((a) => !a.startsWith('--')).length > 1) out.push('位置参数最多一个（旧用法：唯一位置参数＝基线提交）');
+	return out;
+};
 
 // ── 纯函数：判据（自证与真实运行**同一份代码**）─────────────────────────────
 // `base`／`cur`：段落名 → 正文；`invText`：docs/ui-inventory.md 全文
@@ -158,6 +181,16 @@ const main = () => {
 	};
 	const positional = argv.filter((a) => !a.startsWith('--'))[0];
 
+	// ── `#619` 命令行判据（未知参数 / 故事存在性 / 非默认故事的落点）──
+	{
+		const cliBad = cliProblems({ argv, known: storySlugs(), defaultSlug: DEFAULT_SLUG });
+		if (cliBad.length) {
+			for (const m of cliBad) console.error(`✗ ${m}`);
+			console.error('  用法：node scripts/ui-migration-diff.mjs [--baseline=<ref>] [--out=<path>] [--story=<slug>] [--check] [--zero] [--selftest]');
+			process.exit(1);
+		}
+	}
+
 	if (argv.includes('--selftest')) {
 		console.log('══ UI 差异复核 · 自证 ══');
 		const M = (o) => new Map(Object.entries(o));
@@ -178,6 +211,13 @@ const main = () => {
 			['正例（#595）：同一段内**位置变了**（片段多重集同）⇒ 不算漂移', judge(M({ P: '甲。乙。' }), M({ P: '乙。甲。' }), ''), (r) => r.rows.length === 0],
 			['🔴 反例（#595 的口径边界）：**改字**仍然红（多重集变了）', judge(M({ P: '甲。乙。' }), M({ P: '甲。丙。' }), ''), (r) => r.rows.length === 1],
 			['🔴 反例（#595 的反面）：行 `scope` 指向**不存在的段落** ⇒ 不归属（本门不吞；由 `--rules` 报）', mergeRowTexts(M({ P: '' }), [{ id: 'r', scope: '不存在', text: 'x' }]).has('不存在') === false, (x) => x === true],
+			// `#619`：`--story` 曾被静默忽略（空门）⇒ 三条命令行判据都要有牙
+			['正例（#619）：默认故事、无参数 ⇒ 不报', cliProblems({ argv: [], known: ['mist-forest', 'hollow-cave'] }), (r) => r.length === 0],
+			['正例（#619）：`--story=hollow-cave --out=…` ⇒ 不报', cliProblems({ argv: ['--story=hollow-cave', '--out=build/x.md'], known: ['mist-forest', 'hollow-cave'] }), (r) => r.length === 0],
+			['🔴 反例（#619）：未知参数（打错一个字母）⇒ 报', cliProblems({ argv: ['--stonry=hollow-cave'], known: ['mist-forest'] }), (r) => r.length === 1],
+			['🔴 反例（#619）：`--story=不存在` ⇒ 报', cliProblems({ argv: ['--story=nope', '--out=x.md'], known: ['mist-forest'] }), (r) => r.length === 1],
+			['🔴 反例（#619）：非默认故事未给 `--out=` ⇒ 报（别覆盖故事 1 的报告）', cliProblems({ argv: ['--story=hollow-cave'], known: ['mist-forest', 'hollow-cave'] }), (r) => r.length === 1],
+			['🔴 反例（#619）：两个位置参数 ⇒ 报', cliProblems({ argv: ['a', 'b'], known: ['mist-forest'] }), (r) => r.length === 1],
 		];
 		let bad = 0;
 		for (const [label, got, ok] of cases) {
@@ -211,7 +251,8 @@ const main = () => {
 	let baseFiles = [];
 	try { baseFiles = execSync(`git ls-tree -r --name-only ${BASE}`, { encoding: 'utf8' }).split('\n'); } catch { baseFiles = []; }
 	// 工作区侧：**默认故事作用域**（引擎 ∪ 默认故事清单）；基线侧：基线树里的 `*.twee`（与工作区交集之外的交给 `inputProblems` 报）
-	const scopeNames = new Set(defaultStoryFiles());
+	const SLUG = (flagVal('story', DEFAULT_SLUG) || DEFAULT_SLUG);
+	const scopeNames = new Set(scopedFiles(readStory(SLUG)));      // `#619`：按指定故事取文件集（不再是恒取默认故事）
 	const SRC = sourceFiles(baseFiles.filter((f) => !f.includes('stories/') || scopeNames.has(f)), Object.fromEntries(Object.entries(MODULES).filter(([k]) => scopeNames.has(k))));
 
 	const curRaw = new Map();

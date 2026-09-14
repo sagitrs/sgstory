@@ -190,9 +190,10 @@ export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 't
 // **`#607` P0 起 `AUDIT_STORY` 的含义**：＝「**尚未迁移**的故事门」清单（历史包袱；搬完一批删一批）。
 // 已搬进 `stories/<slug>/gates/` 的门由**该故事的清单**声明（`00-story.json` 的 `gates`），由 `scripts/audit/discovery.mjs`
 // 发现 ⇒ 下方这两个表只描述"还在工具层的门"。落点与机制见 `docs/story-gates-design.md`。
-// **已搬走（P1 试点）**：`economy` / `items`＋`tokens` / `notes` → `stories/mist-forest/gates/`。
-export const AUDIT_STORY = ['truth', 'canon', 'echoes', 'starbudget', 'choices', 'combat', 'craft', 'dragon', 'rules', 'reads', 'cave', 'combat-dist',
-	'gear', 'interact', 'investment', 'nosl', 'npc', 'social', 'systems'];
+// **已搬走**：P1 试点 `economy` / `items`＋`tokens` / `notes`；P2-A 第一批 `truth` / `choices` / `nosl` / `interact` /
+//   `social` / `combat` / `starbudget` / `systems` / `checks` → `stories/mist-forest/gates/`。
+export const AUDIT_STORY = ['canon', 'echoes', 'craft', 'dragon', 'rules', 'reads', 'cave', 'combat-dist',
+	'gear', 'investment', 'npc'];
 // 非门段里**与故事内容无关**的那些（构建 / 构建期 lint / 产物守卫）：显式登记，不放宽默认
 export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs', 'scripts-audit-mjs-story2-engine', 'scripts-audit-mjs-story3-engine',
 	'test-story-runtime-mjs-selftest', 'test-story-runtime-mjs',

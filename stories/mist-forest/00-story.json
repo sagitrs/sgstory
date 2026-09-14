@@ -27,8 +27,17 @@
 		"src/engine/50-present/90-style.twee"
 	],
 	"gates": [
+		"stories/mist-forest/gates/truth.mjs",
+		"stories/mist-forest/gates/choices.mjs",
+		"stories/mist-forest/gates/interact.mjs",
+		"stories/mist-forest/gates/social.mjs",
+		"stories/mist-forest/gates/combat.mjs",
+		"stories/mist-forest/gates/starbudget.mjs",
+		"stories/mist-forest/gates/systems.mjs",
+		"stories/mist-forest/gates/checks.mjs",
 		"stories/mist-forest/gates/economy.mjs",
-		"stories/mist-forest/gates/items-tokens.mjs",
-		"stories/mist-forest/gates/notes.mjs"
+		"stories/mist-forest/gates/notes.mjs",
+		"stories/mist-forest/gates/sel-nosl.mjs",
+		"stories/mist-forest/gates/items-tokens.mjs"
 	]
 }

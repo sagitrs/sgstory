@@ -124,7 +124,7 @@ mechanics: () => ({
 
 | 面 | 落点／机制（**P0 接线 · P1 试点 3 门已搬**） |
 |---|---|
-| 故事门的**住址** | `stories/<slug>/gates/*.mjs`。**已搬**（P1 试点）：`economy` / `items`＋`tokens` / `notes` → `stories/mist-forest/gates/`；其余（含 `cave`／`combat-dist`）待搬 |
+| 故事门的**住址** | `stories/<slug>/gates/*.mjs`。**已搬**：P1 试点 `economy`／`items`＋`tokens`／`notes`；P2-A① `truth`／`choices`／`nosl`／`interact`／`social`／`combat`／`starbudget`／`systems`／`checks` → `stories/mist-forest/gates/`。待搬：`canon`／`echoes`／`craft`／`dragon`／`rules`／`reads`／`investment`／`npc`／`gear`（故事 1）与 `cave`／`combat-dist`（故事 3，需 golden 学「归属」）。**`a11y` 概念上是引擎门**（判产物可访问性，读 `dist/`）⇒ 不是迁移对象，留在工具层 |
 | **声明** | `stories/<slug>/00-story.json` 的 `gates: [...]`（路径；顺序即本故事内次序）。**空数组是合法声明**（"本故事暂无自有门"），但**键必须存在** |
 | **发现** | `scripts/audit/discovery.mjs`：`engineGates()`（registry 里 flag ∈ `AUDIT_ENGINE`）∪ `pendingGates()`（**待迁移**：registry 里其余的门，搬完一批删一批）∪ `declaredGates(slug)`（清单声明）＝ `gatesForStory(slug)` |
 | **执行顺序** | `GATE_ORDER`（计划面，只定次序）：搬家只改**住址**、不改输出次序 ⇒ `audit:golden` 零漂移可比对 |
@@ -132,8 +132,10 @@ mechanics: () => ({
 | **机器证据** | `test/gate-discovery.mjs`（23 条断言：无孤儿门 · 顺序稳定 · 声明只属本故事 · 引擎门被所有故事选中 · 十条反例）＋ `test-plan.mjs` 的层表接线（`declaredStoryFlags`）＋ `audit:golden`（**搬门后仍零漂移**） |
 | **台账面** | `scripts/report-gate-ledger.mjs` 的枚举与「自证/判定路径」检测**同时覆盖故事侧的门**（否则门一搬走，台账那几行会静默消失）；`test/audit-golden.mjs` 的"未保护开关"检查同理（用 `allKnownFlags()`） |
 
-**每批的出口判据都是"零行为变化"**：P0（机制，一门未搬）与 P1（试点 3 门搬家）各自都以
+**每批的出口判据都是"零行为变化"**：P0（机制，一门未搬）、P1（3 门）与 P2-A①（9 门）各自都以
 `audit:golden` **逐字节零漂移**收口——这就是"搬家只改住址、不改行为"的机械证据。
+（踩坑记录：搬完文件后跑 `npm run audit:golden` **必须先 `npm run build`**——`git mv` 刷新了 mtime，
+而 `--a11y` 会断言产物新鲜度、旧 `dist` 会让它失败并把**全跑**打断，表现为"27 个开关不符"的假象。）
 `--engine-only` 的语义与顺序不变；搬走的门改由**它所属的故事**选中（点名别的故事的门 ⇒ 明确报错）。
 
 ## 3. 兼容模式（**必须显式降级**，`#492`）

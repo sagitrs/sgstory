@@ -21,6 +21,34 @@ export const GRADE_SET = ['most', 'low'];
  *  将来要实现 `dice`／`percent`：**同一 PR 里**同时改这里 ＋ 引擎实现 ＋ 门的 `violations` 口径（三处同源）。 */
 export const REDUCE_FORMS = ['flat'];
 
+/** 六类事件（已定 ①：每步从这六类里随机三选一）——**词表就是引擎/内容面的口径**。 */
+export const KIND_SET = ['shortFight', 'longFight', 'chest', 'cave', 'trap', 'traveller'];
+
+/** 判据 3（前半）：该段是否有「无判定选项」（如"径直通过宝箱"）。 */
+export const roadNoCheck = (road) => (road?.options ?? []).some((o) => o?.noCheck === true);
+
+/** 判据 3（后半）：**死档检查**——每个 `to` 要么是终点（最大的 `to`），要么是另一段的 `from`。 */
+export const roadDeadEnds = (roads) => {
+	const list = (roads ?? []).filter(Boolean);
+	if (!list.length) return [];
+	const froms = new Set(list.map((r) => r.from));
+	const terminal = Math.max(...list.map((r) => r.to ?? 0));
+	return list.filter((r) => r.to !== terminal && !froms.has(r.to)).map((r) => ({ from: r.from, to: r.to }));
+};
+
+/** 判据 2：同段三路线索**两两可区分**（归一化后比较）——返回重复的线索文本。 */
+export const roadHintCollisions = (road) => {
+	const norm = (s) => String(s ?? '').replace(/\s+/g, '').trim();
+	const seen = new Set();
+	const dup = [];
+	for (const o of road?.options ?? []) {
+		const h = norm(o?.hint);
+		if (seen.has(h)) dup.push(h);
+		else seen.add(h);
+	}
+	return dup;
+};
+
 /** 归一化（判"两两不可等价"时用）：去空白 —— 「碎石间有拖行的痕迹」与同文多空格视为等价。 */
 const norm = (s) => String(s ?? '').replace(/\s+/g, '').trim();
 
@@ -147,9 +175,16 @@ export const validateStoryMechanics = (m, ctx = {}) => {
 		if (dup.length) push(`roads[${i}] 线索**等价**（${dup.join(' / ')}）⇒ 玩家无法区分这两条路`);
 		for (const [k, o] of opts.entries()) {
 			if (typeof o?.kind !== 'string' || !o.kind) push(`roads[${i}].options[${k}].kind 缺失`);
+			// #489（S4）：`kind` 必须是六类事件词表之一（已定 ①）——否则"每步从六类里三选一"无从机检
+			else if (!KIND_SET.includes(o.kind)) push(`roads[${i}].options[${k}].kind=${JSON.stringify(o.kind)} 不在事件词表里（${KIND_SET.join(' / ')}）`);
+			if (o?.noCheck !== undefined && typeof o.noCheck !== 'boolean') push(`roads[${i}].options[${k}].noCheck 必须是布尔（#489）`);
 		}
+		// 判据 3 前半：每段至少要有一个「无判定选项」（如"径直通过宝箱"）——否则玩家只能赌
+		if (!roadNoCheck(r)) push(`roads[${i}] 没有任何 \`noCheck:true\` 的选项 ⇒ 这一段没有"不掷骰也能走"的路（#489 判据 3）`);
 	}
 	if (!(m.roads ?? []).length) push('roads：未声明事件池（5 段×3 路是本机制的内容面）');
+	// #489 判据 3（后半）：**不死档** —— 每个 `to` 要么是终点，要么是另一段的 `from`（纯函数，与门同源）
+	for (const d of roadDeadEnds(m.roads)) push(`roads：从第 ${d.from} 段走到第 ${d.to} 段是**死档**（既不是终点，也没有从它出发的路）`);
 
 	// ⑥ 随机源：表里不得藏随机源（引擎代码纪律见文档；表只放声明）
 	return { enabled: true, problems };

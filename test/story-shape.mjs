@@ -39,7 +39,9 @@ const base = () => ({
 		long: { waves: [{ pool: 'cave.w1', difficulty: 1 }, { pool: 'cave.w2', difficulty: 2, reinforce: true }], rewardsScale: 1.5 },
 	},
 	roads: [
-		{ from: 0, to: 1, options: [{ kind: 'short', hint: '碎石间有拖行的痕迹' }, { kind: 'chest', hint: '岩壁凹处反着一点金属光' }, { kind: 'trap', hint: '地面浮土比别处松' }] },
+		// #489（S4）：`kind` 必须是六类事件词表之一；每段至少一个 `noCheck:true`；`to` 不许是死档
+		{ from: 0, to: 1, options: [{ kind: 'shortFight', hint: '碎石间有拖行的痕迹' }, { kind: 'chest', hint: '岩壁凹处反着一点金属光', noCheck: true }, { kind: 'trap', hint: '地面浮土比别处松' }] },
+		{ from: 1, to: 2, options: [{ kind: 'longFight', hint: '地上有很多脚印，都朝着一个方向' }, { kind: 'cave', hint: '那边吹过来的风是热的', noCheck: true }, { kind: 'traveller', hint: '石缝里卡着一小块布' }] },
 	],
 });
 const ctx = { poolNames: () => ['cave.w1', 'cave.w2'], abilities: ['str', 'dex', 'con', 'int', 'wis', 'cha'] };
@@ -59,6 +61,12 @@ case_('① 反例：hitLocations 重复 ⇒ 必须抓', run(mutate((m) => { m.hi
 // ── ② 装备与耐久 ──
 case_('② 正例：maxHp>0 ＋ reduce 只写一种', run(base()).problems.length === 0);
 case_('② 反例：maxHp = 0 ⇒ 必须抓（耐久上限）', run(mutate((m) => { m.equipment.皮甲.maxHp = 0; })).problems.some((p) => p.includes('maxHp')));
+case_('⑤ 反例：`kind` 不在六类事件词表里 ⇒ 必须抓（已定 ①，#489）',
+	run(mutate((m) => { m.roads[0].options[0].kind = 'short'; })).problems.some((p) => p.includes('不在事件词表里')));
+case_('⑤ 反例：某段没有 `noCheck:true` 的选项 ⇒ 必须抓（判据 3：不掷骰也要有路可走，#489）',
+	run(mutate((m) => { m.roads[0].options.forEach((o) => { delete o.noCheck; }); })).problems.some((p) => p.includes('noCheck')));
+case_('⑤ 反例：死档（某个 `to` 既非终点也无后继段）⇒ 必须抓（判据 3 后半，#489）',
+	run(mutate((m) => { m.roads[0].to = 4; })).problems.some((p) => p.includes('死档')));
 case_('④ 反例：`rewardsScale` 非正数 ⇒ 必须抓（奖励曲线要用它乘，#488）',
 	run(mutate((m) => { m.encounters.long.rewardsScale = -1; })).problems.some((p) => p.includes('rewardsScale 必须是正数')));
 case_('③ 反例：statuses 缺 `turns` ⇒ 必须抓（持续回合必须可声明，#487）',

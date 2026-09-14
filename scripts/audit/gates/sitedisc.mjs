@@ -5,13 +5,15 @@ export const flag = 'sitedisc';
 export const flags = ["sitedisc"];
 
 // 纯函数（自证与真实运行**同一份代码**）：给一段源码，返回「带伤失败档却没有结果」的位点
+import { noteWriteRefs } from '../lib/shared.mjs';
 export const judgeFailBranches = (src) => {
 	const re = /<<sitecheck\s+"([^"]+)"[^>]*>>[\s\S]{0,1200}?<<if\s+\$last_check\.success>>([\s\S]*?)<<else>>([\s\S]*?)<<\/if>>/g;
 	const out = [];
 	for (const m of String(src).matchAll(re)) {
 		const site = m[1], badBranch = m[3];
 		if (!badBranch.includes('<<damage')) continue;          // 只管**带伤**的失败档（无伤的失败不在本门范围）
-		if (!/<<give\s|<<set\s+\$pc\.|<<goto\s/.test(badBranch)) out.push({ site });
+		// #434：失败档"给了结果"多了第四种形状 —— 经 `Sg.notes.add('n_x')` 给知识（走单一权威）
+		if (!/<<give\s|<<set\s+\$pc\.|<<goto\s/.test(badBranch) && noteWriteRefs(badBranch).length === 0) out.push({ site });
 	}
 	return out;
 };
@@ -32,6 +34,8 @@ if (wantAll || arg('sitedisc')) {
 			['正例：带伤失败 + 给东西', wrap('擦破皮。<<damage 2>><<give "药膏">>'), 0],
 			['正例：带伤失败 + 退场', wrap('被推下去。<<damage 3>><<goto "门厅">>'), 0],
 			['反例①：带伤失败却不给结果（可无限磨伤）', wrap('疼。<<damage 1>>'), 1],
+			// #434：经 `Sg.notes.add` 给知识也算"有结果"（改之前会被判红 ✗）
+			['正例④：带伤失败但经 `Sg.notes.add` 给知识 ⇒ 通过', wrap("疼。<<damage 1>><<run Sg.notes.add('n_forge_seen')>>"), 0],
 			['正例：无伤的空手失败**不在本门范围**', wrap('没成，但你没受伤。'), 0],
 			['正例：没有 sitecheck 结构', '普通段落，没有检定。', 0],
 		];

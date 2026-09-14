@@ -1,7 +1,7 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 // `#433` 阶段 2：条件可能写成 `Sg.notes.has('n_x')` ⇒ 判定「某选项引用了哪些旗标」必须认第二种形状
-import { noteReadFlags, noteIdsForFlag, conditionReadsFlag } from '../lib/shared.mjs';
+import { noteReadFlags, noteIdsForFlag, conditionReadsFlag, noteWriteRefs } from '../lib/shared.mjs';
 // flags=['investment']。校验：npm run audit:golden。
 export const flag = 'investment';
 export const flags = ["investment"];
@@ -75,7 +75,7 @@ function crossEraProblems(input = {}) {
 	return { problems, notes };
 }
 
-function investmentProblems({ keyYields = [], expressive = [], failClueExempt = {} } = {}) {
+function investmentProblems({ keyYields = [], expressive = [], failClueExempt = {}, passages = passageSrc } = {}) {
 	const problems = [], notes = [];
 	// 关键位点＝yields 落在 keyYields 的位点（keyYields 是「产出」，不是位点名）
 	const keySites = new Set(Object.entries(Game.Checks.sites ?? {})
@@ -84,12 +84,14 @@ function investmentProblems({ keyYields = [], expressive = [], failClueExempt = 
 	const CLUE = /<<setflag\s+"|<<give\s+"|<<set\s+\$pc\.(?:world|ev)\.[A-Za-z_]+\s+to\s+true/;
 	// G2：关键产出位点的失败档必须给知识型产出（情报旗标／物品）——失败＝信息，不只扣资源
 	let seen = 0;
-	for (const [name, src] of passageSrc) {
+	for (const [name, src] of passages) {
 		for (const m of src.matchAll(/<<sitecheck\s+"([^"]+)"[^>]*>>[\s\S]{0,900}?<<if\s+\$last_check\.success>>([\s\S]*?)<<else>>([\s\S]*?)<<\/if>>/g)) {
 			const site = m[1];
 			if (!keySites.has(site)) continue;
 			seen++;
-			if (CLUE.test(m[3])) continue;
+			// #434：#434 之后「给知识」多了**第四种形状** —— `Sg.notes.add('n_x')`（写的是该笔记 flagPath 的键）。
+			// 走单一权威 `noteWriteRefs()`（与 `--state`／D2／`--sel`-`--gear` 同一份），不在此另写正则。
+			if (CLUE.test(m[3]) || noteWriteRefs(m[3]).length > 0) continue;
 			if (failClueExempt[site]) { notes.push(`G2 豁免：${site}（${failClueExempt[site]}）`); continue; }
 			problems.push(`G2 关键位点「${site}」失败档无知识产出（${name}）`);
 		}
@@ -125,10 +127,18 @@ if (wantAll || arg('investment')) {
 	notes.forEach((n) => console.log(`  · ${n}`));
 	// 反例自证（#247「门必须行为化」）：合成登记表 → 检查器须按预期判红/判绿
 	{
+		// #434：G2 自证要一个**真实存在**的关键位点（`yields` 用来选"关键"）——从表里取第一个，别写死
+		const KEY_ENTRY = Object.entries(Game.Checks?.sites ?? {}).find(([, d]) => d.yields) ?? ['（无）', {}];
+		const KEY_SITE = KEY_ENTRY[0];
+		const KEY_YIELD = KEY_ENTRY[1].yields;
 		const cases = [
 			['正例：立场已写入且被回收（真实已接线样本）', { keyYields: [], expressive: [{ id: 'ok', p: '守林人', label: '说一句：它不会变成恶龙', flag: 'keeper_kind' }] }, 0],
 			['反例：写了但没回收', { keyYields: [], expressive: [{ id: 'norec', p: '顶楼', label: '折断', flag: 'never_consumed_xyz' }] }, 1],
 			['反例：选项已不在段落', { keyYields: [], expressive: [{ id: 'gone', p: '顶楼', label: '不存在的标签', flag: 'x' }] }, 1],
+			// #434：G2 的「失败档给知识」多了第四种形状 —— 经 `Sg.notes.add('n_x')`
+			['G2 正例：失败档经 `Sg.notes.add` 给知识 ⇒ 通过（改之前会被判"无知识产出"✗）',
+				{ keyYields: [KEY_YIELD], passages: new Map([['合成段', `<<sitecheck "${KEY_SITE}">><<if $last_check.success>>好<<else>><<run Sg.notes.add('n_forge_seen')>><</if>>`]]) }, 0],
+			['G2 反例：同段落**没有**任何知识产出 ⇒ 必报', { keyYields: [KEY_YIELD], passages: new Map([['合成段', `<<sitecheck "${KEY_SITE}">><<if $last_check.success>>好<<else>>只扣血<</if>>`]]) }, 1],
 		];
 		let selfBad = 0;
 		for (const [label, sample, expect] of cases) {

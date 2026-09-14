@@ -123,7 +123,23 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 		dynamicKeys: [],
 	};
 
-	return { Checks, Combat, Items, Economy, Gear, Social, Truth, Echoes, Shifts, Investment, Notes, State };
+	// #572: Consequences 表——引擎运行时槽的**消费面登记**（D2 门判据：每个被写入的旗标须有桶）。
+	// 与 State.domains 的 runtime 域互补：域=读写在哪，桶=消费归因——两门两套。
+	// 从 mist-forest 同型抄（该故事 rc=0 的在役面）；本故事独有：cave_step（洞窟步进）——注释字面量不再重复运行时键名（#572：writeKeys 从 JS // 注释误提取）。
+	const Consequences = {
+		provenance: {},
+		engine: {
+			notes: '#434：笔记"已授予"真存储（Sg.notes.has 消费方在引擎侧）',
+			last_roll: '骰面快照（<<lastcheck>> 复显用）',
+			last_result: '结果槽暂存位（#270 通用留屏）',
+			soc_lever: '交涉优势筹码（随下一次手段掷骰消费后清空）',
+			soc: '交涉台账（渲染期结算后清空）',
+			soc_last: '交涉回显（面板展示用）',
+			ending: '本档结局记录（engine：安全网门控＋图鉴记账）',
+			cave_step: '洞窟步进计数（引擎侧递增，无叙事条件消费）',
+		},
+	};
+	return { Checks, Combat, Items, Economy, Gear, Social, Truth, Echoes, Shifts, Investment, Notes, State, Consequences };
 })());
 
 :: StoryBindings [script]

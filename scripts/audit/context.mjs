@@ -82,7 +82,9 @@ export const createContext = ({ argv = process.argv, story = null } = {}) => {
 	if (!ctx.State.variables.pc) ctx.State.variables.pc = Game.Pc.defaults();
 	const { passageSrc, passageRaw, passageTags } = indexPassages(SRC_FILES);
 	const arg = (k) => argv.includes(`--${k}`);
-	const wantAll = !argv.some((a) => a.startsWith('--'));
+	// #572: `--engine-only` 时被 AUDIT_ENGINE 选中的门必须真跑——各门早退守卫
+	// `if (!wantAll && !arg(flag)) return` 的 wantAll 在此语境须为真（选≠跑=门面比说的窄）。
+	const wantAll = !argv.some((a) => a.startsWith('--')) || argv.includes('--engine-only');
 
 	// 注意：把 vm 上下文里的**全部提升全局**一并摊平返回——原 audit.mjs 里存在 `ctx.Game.Chargen.rounds`
 	// 这类「从 vm 上下文取表」的用法（拆分时被 golden 的「单跑内容须在全跑里」断言当场抓到全跑崩溃）。

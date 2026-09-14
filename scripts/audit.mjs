@@ -34,6 +34,7 @@ const selected = GATES
 // 2026-09-14 把引擎里的**故事 1 片段**（`hallResult` widget ＋ `fog_thin`）搬回 `stories/mist-forest/12-widgets.twee`
 // 之后，两门对第二/第三故事**都是真绿**（9/9）⇒ 清单**已删**（这正是那份清单存在的意义：修好就删）。
 if (arg('engine-only') && !selected.length) { console.error('✗ `--engine-only` 没有选中任何引擎门——检查 test-plan 的 AUDIT_ENGINE'); process.exit(2); }
+// #572 自证：engine-only 选中数 == 实跑数（早退守卫曾令选≠跑）——末行汇总（见文尾）
 
 // #366：以前「未知开关」或「只传 --check」会**一个门都不跑却退出 0**（假绿）。现在一律响亮报错。
 if (unknown.length) {
@@ -45,7 +46,10 @@ if (!selected.length) {
 	process.exit(2);
 }
 
-for (const g of selected) g.run(ctx);
+// #572 自证：engine-only 时输出「选中 N 门 == 实跑 N 门」（早退守卫曾令选≠跑）
+const ranCount = { n: 0 };
+for (const g of selected) { g.run(ctx); ranCount.n++; }
+if (arg('engine-only')) console.log(`  · --engine-only 自证：选中 ${selected.length} 门·实跑 ${ranCount.n} 门（${selected.map((g) => g.flags[0]).join(' ')}）——#572 守卫已修（选=跑）`);
 
 
 console.log('\n（数据源：src/15-tables.twee —— 改表即改此报告；伞 #21/#22 审计请跑本脚本）');

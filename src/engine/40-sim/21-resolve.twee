@@ -684,8 +684,8 @@ window.Sg.rules = {
 		return granted;
 	},
 	// **状态键**面（`#435` Q1：授予家族第三类 —— `yields` 笔记／`gives` 物品／`sets` 状态键）。
-	// 行里声明 `sets: ['world.flower_taken']` ≡ `<<setflag "flower_taken">>`，由 `<<rules>>` 渲染成功后统一落。
-	// 为什么要有第三类：世界态/运行时旗标（`flower_taken`／`flower_sleep`／`forge_thanks`…）**没有笔记**，
+	// 行里声明 `sets: ['world.flower_taken']`（等价于 setflag 宏）——由 `<<rules>>` 渲染成功后统一落。
+	// 为什么要有第三类：世界态/运行时旗标（如 flower_taken／flower_sleep／forge_thanks…）**没有笔记**，
 	// 既进不了 `yields`（那是笔记），也不该进 `gives`（那是物品）——此前这类位点只能永远留在段落里。
 	// 口径三条（门侧 `setProblems()` 机检）：只置**真**（不写数值/枚举）· 键必须是**已登记的状态键** ·
 	// **有笔记的键不得走这里**（必须 `yields`，否则同一知识两条写路）。

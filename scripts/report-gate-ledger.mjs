@@ -65,9 +65,17 @@ const gateSrc = Object.fromEntries(gateFiles.map((f) => [f, readFileSync(`script
 const auditSrc = [readFileSync('scripts/audit.mjs', 'utf8'), ...Object.values(gateSrc)].join('\n');
 // **以注册表为权威声明**（此前用正则扫 arg('x')——新门若只写 flags:['state'] 就会被误判成幻影门）
 const registry = await import('./audit/registry.mjs');
+// `#607` P1：**故事侧声明的门**（`stories/<slug>/gates/**`）同样是门——枚举与「自证/判定路径」检测都要覆盖它们，
+// 否则门一搬走，台账里那几行会**静默消失**（形态检测也读不到源码 ⇒ 误判）。
+const { declaredGatesAll } = await import('./audit/discovery.mjs');
+const declaredMods = await declaredGatesAll();
+const storyGateSrc = Object.fromEntries(declaredMods.map((m) => [m.file, readFileSync(m.file, 'utf8')]));
+/** 门的源码：工具层按文件名取，故事侧按路径取。 */
+const srcOf = (file) => (file.startsWith('scripts/audit/gates/') ? gateSrc[file.replace('scripts/audit/gates/', '')] : storyGateSrc[file]);
 const gateMods = [];
 for (const f of gateFiles) gateMods.push({ file: `scripts/audit/gates/${f}`, mod: await import(`./audit/gates/${f}`) });
-const auditFlags = [...new Set(registry.GATES.flatMap((g) => g.flags ?? []))].filter((f) => !MODIFIERS.includes(f)).sort();
+for (const m of declaredMods) gateMods.push({ file: m.file, mod: m });
+const auditFlags = [...new Set([...registry.GATES, ...declaredMods].flatMap((g) => g.flags ?? []))].filter((f) => !MODIFIERS.includes(f)).sort();
 const moduleOfFlag = (flag) => gateMods.find((g) => (g.mod.flags ?? []).includes(flag));
 
 // 每个 audit 开关的「自证」：其**门模块**里是否含「自证」字样（本仓既有形态）。
@@ -77,14 +85,14 @@ const moduleOfFlag = (flag) => gateMods.find((g) => (g.mod.flags ?? []).includes
 const ASSERT_PAT = /bad\s*\+\+|\(\+\+bad\)|✗|process\.exit\(1\)|failures\.push\(|problems\.push\(/;
 const gateHasAssert = (flag) => {
 	const g = moduleOfFlag(flag);
-	return g ? ASSERT_PAT.test(gateSrc[g.file.replace('scripts/audit/gates/', '')]) : false;
+	return g ? ASSERT_PAT.test(srcOf(g.file)) : false;
 };
 
 const auditSelfProof = (flag) => {
 	const g = moduleOfFlag(flag);
 	// 收紧（#247 F2 工作清单）：只认**打印约定** `自证·<label>：检出 N（期望 M）`——
 	// 裸「自证」二字一句注释就能满足（本仓吃过这类文本启发式的亏），而 `自证·` 只有在夹具真跑时才打得出来。
-	return g ? /自证·/.test(gateSrc[g.file.replace('scripts/audit/gates/', '')]) : false;
+	return g ? /自证·/.test(srcOf(g.file)) : false;
 };
 
 const reportScripts = readdirSync('scripts').filter((f) => f.startsWith('report-') && f.endsWith('.mjs')).sort();

@@ -57,7 +57,8 @@ console.log('══ 门发现与归属门（#607 P0）══');
 const slugs = storySlugs();
 const problems = await validateDiscovery();
 t('A1 真实仓库的发现面自检为空', problems.length === 0, problems.join('；'));
-t('A1b `GATE_ORDER` 覆盖 registry 的全部门（无未登记、无僵尸）', judgeOrderCoverage({ keys: GATES.map(gateKey) }).length === 0);
+t('A1b `GATE_ORDER` 覆盖**全部门**（工具层 registry ∪ 故事侧已声明；无未登记、无僵尸）',
+		judgeOrderCoverage({ keys: [...new Set([...GATES.map(gateKey), ...(await declaredGatesAll()).map(gateKey)])] }).length === 0);
 
 const perStory = {};
 for (const slug of slugs) perStory[slug] = await gatesForStory(slug);
@@ -86,7 +87,7 @@ for (const slug of slugs) perStory[slug] = await gatesForStory(slug);
 		}
 		if (!perStory[m.owner].some((g) => (g.file ?? '') === m.file)) violations.push(`${m.file} 没被它所属的故事「${m.owner}」选中`);
 	}
-	t('A4 已声明的门只被它所属的故事选中（P0 尚无声明 ⇒ 平凡真）', violations.length === 0, violations.join('；'));
+	t('A4 已声明的门**只被它所属的故事**选中（且必须被其所属故事选中）', violations.length === 0, violations.join('；'));
 }
 // A5 引擎门被所有故事选中
 {

@@ -1,4 +1,9 @@
 // audit 门注册表（#316 第 2 步）：**数组顺序即执行顺序**（与拆分前逐块一致）。
+//
+// `#607` P1 起：**故事门陆续搬进 `stories/<slug>/gates/`**，由该故事的清单（`00-story.json` 的 `gates`）声明，
+// 由 `scripts/audit/discovery.mjs` 发现 ⇒ 本表**只登记住在本目录（工具层）的门**：引擎门 ＋ **待迁移**的故事门。
+// 执行顺序由 `discovery.mjs` 的 `GATE_ORDER` 统一给出（搬家只改住址、不改次序）。
+// 已搬走的（P1 试点 3 门）：`economy` / `items`＋`tokens` / `notes` ⇒ `stories/mist-forest/gates/`。
 import * as g_truth from './gates/truth.mjs';
 import * as g_investment from './gates/investment.mjs';
 import * as g_echoes from './gates/echoes.mjs';
@@ -17,13 +22,10 @@ import * as g_text from './gates/text.mjs';
 import * as g_npc from './gates/npc.mjs';
 import * as g_dragon from './gates/dragon.mjs';
 import * as g_checks from './gates/checks.mjs';
-import * as g_economy from './gates/economy.mjs';
-import * as g_items_tokens from './gates/items-tokens.mjs';
 import * as g_canon from './gates/canon.mjs';
 import * as g_craft from './gates/craft.mjs';
 import * as g_state from './gates/state.mjs';
 import * as g_literals from './gates/literals.mjs';
-import * as g_notes from './gates/notes.mjs';
 import * as g_rules from './gates/rules.mjs';
 import * as g_reads from './gates/reads.mjs';
 import * as g_cave from './gates/cave.mjs';
@@ -53,8 +55,6 @@ export const GATES = [
 	g_npc,
 	g_dragon,
 	g_checks,
-	g_economy,
-	g_items_tokens,
 	g_canon,
 	g_craft,
 	g_state,
@@ -62,7 +62,6 @@ export const GATES = [
 	g_rules,
 	g_reads,
 	g_cave,
-	g_notes,
 	g_slots,
 	g_status,
 	g_waves,

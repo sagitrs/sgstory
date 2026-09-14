@@ -238,8 +238,9 @@ else {
 const LEDGER_PATH = 'docs/benchmark-ledger.md';
 const runLedger = async () => {
 	if (!existsSync(LEDGER_PATH)) { console.error(`   ✗ 缺少 ${LEDGER_PATH}`); return 1; }
-	const { GATES } = await import('./audit/registry.mjs');
-	const knownFlags = new Set(GATES.flatMap((g) => g.flags ?? []));
+	// `#607` P1：门可能住故事侧（清单声明）⇒ 已知 flag 面走 discovery，别只看工具层注册表
+	const { allKnownFlags } = await import('./audit/discovery.mjs');
+	const knownFlags = await allKnownFlags();
 	const { findings, counts } = judgeBenchmarkLedger(readFileSync(LEDGER_PATH, 'utf8'), { knownFlags, fileExists: (p) => existsSync(p) });
 	console.log(`══ F6 竞品侧：对标台账行级新鲜度 ══  ${LEDGER_PATH}`);
 	console.log(`  竞品 ${counts.竞品} 行 / 外部基准 ${counts.基准} 行 / 探索票 ${counts.票} 行｜复核阈值 ${FRESH_DAYS} 天（账本声明「季度例行」）`);

@@ -54,8 +54,10 @@ export const FLAG_MODIFIERS = ['check', 'strict'];   // `--strict`：把「报�
 const argFlagsFromSource = async () => {
 	// #316 第 2 步后：**以注册表为权威声明**（门用 `flags: [...]` 分发，不一定出现 `arg('x')`）。
 	// 此前用正则扫 arg() → 新门（如 --state/--literals）会被误判成「清单过期」（与 F2 台账同一处坑）。
-	const { GATES } = await import('../scripts/audit/registry.mjs');
-	return [...new Set(GATES.flatMap((g) => g.flags ?? []))].filter((f) => !FLAG_MODIFIERS.includes(f)).sort();
+	// `#607` P1：声明面＝**全部已知门**（引擎 ∪ 待迁移 ∪ 故事侧已声明）——门搬进 `stories/<slug>/gates/` 后
+	// 仍受基线保护（否则搬一道门就会假报「清单有源码里已不存在的开关」）。
+	const { allKnownFlags } = await import('../scripts/audit/discovery.mjs');
+	return [...(await allKnownFlags())].filter((f) => !FLAG_MODIFIERS.includes(f)).sort();
 };
 
 const capture = () => {

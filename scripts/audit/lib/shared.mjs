@@ -285,8 +285,11 @@ export const makeShared = (ctx) => {
 			for (const f of ruleRowFlags(r, noteEntries)) rowFlags.add(f);
 		}
 		// `(段落名, 源码, 旗标)`：两种形状任一命中即算「这一段消费了该旗标」
+		// `#581`：条件形态还包 `<<elseif>>`——原先只认 `<<if>>` ⇒ `<<elseif $pc.ev.X>>` 这类**叙事条件读**被漏掉，
+		// 该键会被判“无任何桶”（假红）。方向只会把假红变绿：加宽的是“**条件读**”的识别，不是把所有读取都算进来。
+		// （注：`cave_step` 那条**不是**这个原因——它读写都在 `[widget]` 段里，按门口径属引擎面；已单独登记。）
 		const hasIf = (name, src, flag) => {
-			if (new RegExp(`<<if[^>]*\\$pc\\.(?:world|ev)\\.${flag}\\b`).test(src)) return true;
+			if (new RegExp(`<<(?:if|elseif)[^>]*\\$pc\\.(?:world|ev)\\.${flag}\\b`).test(src)) return true;
 			return (flagsByNote.get(flag) ?? []).some((id) => refsByPassage.get(name)?.has(id));
 		};
 		const written = new Set();

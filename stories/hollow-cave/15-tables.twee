@@ -130,6 +130,13 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 // 接入契约（`#436-b`／`#441-E`）：引擎侧每个 `Sg.story.X` 都必须由故事注册（**结构缺失 ⇒ 报错**；
 // 空表／`null` 是**合法数据集**）。清单＝`grep -rho 'Sg\.story\.[a-zA-Z_]*' src/ | sort -u`（`#554` 实测所得）。
 window.Sg ??= {};
+// `#581`：本故事自己的状态键登记（引擎保留槽由**引擎**种默认，见 `src/10-core.twee`）。
+// `cave_step`：洞窟步进（第 5 步之后转入地下村落），由 `:: 洞窟工具 [widget]` 的 `caveNext` 维护——
+// 它读写都在**widget 段**里（D2 门把 widget 算引擎面）⇒ 登记为 `engine` 并写明理由；
+// 若将来步进要影响**叙事文案**（在叙事段读它），把它改成 `provenance` 以外的口径或干脆不声明。
+Object.assign(((window.Game.Consequences ??= { provenance: {}, engine: {} }).engine), {
+	cave_step: '洞窟步进：由 `caveNext` widget 维护（达到 5 步转入地下村落）',
+});
 Object.assign((window.Sg.story ??= {}), {
 	notes: () => window.Game.Notes.entries,
 	rules: () => [],

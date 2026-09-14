@@ -45,6 +45,8 @@ if (wantAll || arg('consequences')) {
 			['表行（scope=叙事段）引用该旗标 ⇒ mechanic 桶', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['Q', ''], ['P', '<<setflag "a">>']], passageTags: [['Q', []]], rules: [{ id: 'r', scope: 'Q', req: ['a'], prio: 1 }] })); return r.buckets.get('a') === 'mechanic' && r.problems.length === 0; })()],
 			['表行 scope 是**引擎段**（script 标签）⇒ 不算叙事消费', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['Q', ''], ['S', ''], ['P', '<<setflag "a">>']], passageTags: [['S', ['script']]], rules: [{ id: 'r', scope: 'S', req: ['a'], prio: 1 }] })); return r.buckets.get('a') !== 'mechanic'; })()],
 			['结局段落里读 ⇒ ending 桶（isEnding 边界）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['结局·某', '<<if $pc.ev.a>>x<</if>>']] })); return r.buckets.get('a') === 'ending'; })()],
+			// `#581`：条件形态加宽——`<<elseif>>` 也是**叙事条件读**（原先只认 `<<if>>` ⇒ 该键被判“无任何桶”假红）
+			['`<<elseif $pc.ev.X>>` 也算条件消费（#581）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['Q', '<<if $pc.ev.z>>甲<<elseif $pc.ev.a>>乙<</if>>']] })); return r.buckets.get('a') === 'mechanic' && r.problems.length === 0; })()],
 		];
 		for (const [label, ok] of cases) { if (!ok) bad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
 	}

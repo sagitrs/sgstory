@@ -46,10 +46,15 @@ if (!selected.length) {
 	process.exit(2);
 }
 
-// #572 自证：engine-only 时输出「选中 N 门 == 实跑 N 门」（早退守卫曾令选≠跑）
-const ranCount = { n: 0 };
-for (const g of selected) { g.run(ctx); ranCount.n++; }
-if (arg('engine-only')) console.log(`  · --engine-only 自证：选中 ${selected.length} 门·实跑 ${ranCount.n} 门（${selected.map((g) => g.flags[0]).join(' ')}）——#572 守卫已修（选=跑）`);
+// #572 自证（D 席 RC①修·真牙版）：engine-only 时 wantAll 必须=true——守卫根因条件
+// context.mjs 回归（wantAll=false + engine-only）时本行红，非无条件计数
+if (arg('engine-only') && !ctx.wantAll) {
+	console.error('✗ --engine-only 自证失败：wantAll=false（早退守卫将令选≠跑——#572 回归）');
+	process.exit(1);
+}
+if (arg('engine-only')) console.log(`  · --engine-only 选=跑：${selected.length} 门（守卫根因条件 wantAll=true 已验——#572）`);
+
+for (const g of selected) g.run(ctx);   // ← D 席 RC 复审探针根因：此行曾在 amend 中被吞——门从未被调
 
 
 console.log('\n（数据源：src/15-tables.twee —— 改表即改此报告；伞 #21/#22 审计请跑本脚本）');

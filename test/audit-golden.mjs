@@ -13,6 +13,7 @@
 //   ② 收尾行（数据源提示）含路径文本，不参与归一化，作为普通内容比对。
 import { execFileSync } from 'node:child_process';
 import { assertFreshDist } from '../scripts/dist-fresh.mjs';
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 
 const GOLDEN = 'test/audit-golden.json';
@@ -36,9 +37,9 @@ const FLAGS = [
 // 归一化：只对不确定输出的开关生效（其余逐字节）
 export const normalize = (flag, text) => (flag === 'dragon' ? text.replace(/[\d.]+%/g, 'N%') : text);
 
-// flag 传 null ＝ 「无参数全跑」（wantAll 只在没有任何 `--` 参数时为真）
-export const runFlag = (flag) => {
-	const args = flag === null ? ['scripts/audit.mjs'] : ['scripts/audit.mjs', `--${flag}`];
+// flag 传 null ＝ 「无参数全跑」（wantAll 只在没有任何 `--` 参数时为真）；`extra` 追加到命令行尾部（`--story` 等）。
+export const runFlag = (flag, extra = []) => {
+	const args = flag === null ? ['scripts/audit.mjs', ...extra] : ['scripts/audit.mjs', `--${flag}`, ...extra];
 	try {
 		const out = execFileSync('node', args, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
 		return { code: 0, out };
@@ -60,10 +61,29 @@ const argFlagsFromSource = async () => {
 	return [...(await allKnownFlags())].filter((f) => !FLAG_MODIFIERS.includes(f)).sort();
 };
 
-const capture = () => {
+// ── `#607` P2-B：**按归属跑** ────────────────────────────────────────────────
+// 门的住址可能在故事侧（`stories/<slug>/gates/`）⇒ 它**只被它所属的故事**选中：单跑不补 `--story <owner>`
+// 会直接撞上归属守卫（rc=2）。默认故事（`DEFAULT_SLUG`）的门**不补** `--story`——保持既有基线与 CLI 默认语义
+// **逐字可比**（避免无意义的全量重签）。
+export const storyArgs = (flag, { ownerMap = {}, defaultStory = DEFAULT_SLUG } = {}) => {
+	const owner = ownerMap[flag];
+	return owner && owner !== defaultStory ? ['--story', owner] : [];
+};
+
+/** 归属表 ＋ **每个故事的**「无参数全跑」输出（`not-in-full-run` 交叉核对要按该门所属故事比）。 */
+const ownersAndFullRuns = async () => {
+	const { declaredGatesAll } = await import('../scripts/audit/discovery.mjs');
+	const ownerMap = {};
+	for (const m of await declaredGatesAll()) for (const f of m.flags ?? []) ownerMap[f] = m.owner;
+	const fullRuns = { [DEFAULT_SLUG]: runFlag(null).out };
+	for (const s of [...new Set(Object.values(ownerMap))].filter((s) => s !== DEFAULT_SLUG)) fullRuns[s] = runFlag(null, ['--story', s]).out;
+	return { ownerMap, fullRuns };
+};
+
+const capture = (ownerMap = {}) => {
 	const snapshot = {};
 	for (const f of FLAGS) {
-		const { code, out } = runFlag(f);
+		const { code, out } = runFlag(f, storyArgs(f, { ownerMap }));
 		snapshot[f] = { code, out: normalize(f, out) };
 	}
 	return snapshot;
@@ -96,14 +116,18 @@ export const contentLines = (text) => text.split('\n').filter((l) => l.trim() &&
 // ① 每个开关单跑必须有**实质输出**（防 --sel 类死开关：只打收尾行 + rc=0）
 // ② 每个开关的单跑输出必须能在「无参数全跑」里找到（防只在一条路径上生效）
 // ③ 源码里出现的 \`arg('x')\` 必须都在受保护清单里（防新增开关漏保护），反之亦然（防清单过期）
-export const generalChecks = (flags, snapshot, allRun, argFlags) => {
+export const generalChecks = (flags, snapshot, allRun, argFlags, opts = {}) => {
+	const { ownerMap = {}, fullRuns = null, defaultStory = DEFAULT_SLUG } = opts;
+	// 该门的『全跑』基准：给了 `fullRuns` 就按**它所属的故事**取，否则退回单一 `allRun`（自证里的旧形态）
+	const fullRunOf = (f) => (fullRuns ? (fullRuns[ownerMap[f] ?? defaultStory] ?? '') : allRun);
 	const problems = [];
 	for (const f of flags) {
 		const lines = contentLines(snapshot[f].out);
 		if (lines.length === 0) problems.push({ kind: 'empty-flag', flag: f, detail: '单跑无实质输出（只剩收尾行）——正是「死开关／假绿」形态（参见 #331）' });
-		if (allRun) {
+		const run = fullRunOf(f);
+		if (run) {
 			const norm = (t) => t.replace(/[\d.]+%/g, 'N%');   // 两侧都归一百分数：本检查看「内容在不在」，不看数值
-			const hay = new Set(norm(allRun).split('\n').map((l) => l.trim()));
+			const hay = new Set(norm(run).split('\n').map((l) => l.trim()));
 			const missing = lines.map((l) => norm(l).trim()).filter((l) => !hay.has(l));
 			if (missing.length > 3) problems.push({ kind: 'not-in-full-run', flag: f, detail: `有 ${missing.length} 行在「无参数全跑」里找不到（可能只在单跑路径生效或缺覆盖）：例 ${missing[0].slice(0, 60)}` });
 		}
@@ -137,10 +161,15 @@ const selftest = () => {
 		['单跑未纳入保护清单 → 必须报', generalChecks(['a'], { a: { code: 0, out: 'x\n' } }, null, ['a', 'b']).some((p) => p.kind === 'unprotected-flag')],
 		['清单有源码里已不存在的开关 → 必须报', generalChecks(['a', 'ghost'], { a: { code: 0, out: 'x\n' }, ghost: { code: 0, out: 'y\n' } }, null, ['a']).some((p) => p.kind === 'stale-flag')],
 		['单跑内容不在全跑输出里 → 必须报', generalChecks(['a'], { a: { code: 0, out: 'l1\nl2\nl3\nl4\nl5\n' } }, 'l1\n', ['a']).some((p) => p.kind === 'not-in-full-run')],
+		// `#607` P2-B：**他故事的门**要拿**该故事**的全跑核对；只按默认故事的全跑比会误报
+		['他故事的门 ⇒ 用该故事的全跑核对（默认全跑里没有也不误报）', !generalChecks(['a'], { a: { code: 0, out: 'x1\nx2\nx3\nx4\nx5\n' } }, 'dflt\n', ['a'], { ownerMap: { a: 's2' }, fullRuns: { [DEFAULT_SLUG]: 'dflt\n', s2: 'x1\nx2\nx3\nx4\nx5\n' } }).some((p) => p.kind === 'not-in-full-run')],
+		['他故事的门 ⇒ 该故事的全跑里也没有 ⇒ 仍必须报', generalChecks(['a'], { a: { code: 0, out: 'x1\nx2\nx3\nx4\nx5\n' } }, 'dflt\n', ['a'], { ownerMap: { a: 's2' }, fullRuns: { [DEFAULT_SLUG]: 'dflt\n', s2: 'y\n' } }).some((p) => p.kind === 'not-in-full-run')],
+		['`storyArgs`：他故事的门 ⇒ 补 `--story <owner>`', storyArgs('cave', { ownerMap: { cave: 'hollow-cave' } }).join(' ') === '--story hollow-cave'],
+		['`storyArgs`：默认故事的门／无归属的门 ⇒ 不补（基线逐字可比）', storyArgs('truth', { ownerMap: { truth: DEFAULT_SLUG } }).length === 0 && storyArgs('a11y', { ownerMap: {} }).length === 0],
 	];
 	for (const [name, ok] of gc) { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${name}`); }
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项——golden 比对没有咬合力`); process.exit(1); }
-	console.log('\n✔ 自证通过：一致绿 / 多行红 / 少行红 / 退出码变红 / 缺开关红 / dragon 数值抖动绿 / 死开关红 / 漏保护红 / 清单过期红 / 单跑脱离全跑红');
+	console.log('\n✔ 自证通过：一致绿 / 多行红 / 少行红 / 退出码变红 / 缺开关红 / dragon 数值抖动绿 / 死开关红 / 漏保护红 / 清单过期红 / 单跑脱离全跑红 / 归属（本故事·他故事）红绿分明');
 };
 
 const argv = process.argv.slice(2);
@@ -151,7 +180,8 @@ if (argv.includes('--update')) {
 	// 当成"新基线"烘进去（实测踩过两次：`#532` 期间我与 guest-1 各一次）。
 	// 这一条把「重签」从"能把错误固化下来的入口"改成"要么新鲜、要么当场拒绝"。
 	assertFreshDist({ who: 'audit-golden --update' });
-	const snapshot = capture();
+	const { ownerMap } = await ownersAndFullRuns();
+	const snapshot = capture(ownerMap);
 	writeFileSync(GOLDEN, JSON.stringify(snapshot, null, '\t') + '\n');
 	console.log(`✔ 基线已写入 ${GOLDEN}（${FLAGS.length} 个开关；dragon 走结构比对）`);
 	for (const f of FLAGS) console.log(`    ${f}: ${snapshot[f].out.split('\n').length} 行 · 退出码 ${snapshot[f].code}`);
@@ -160,9 +190,10 @@ if (argv.includes('--update')) {
 
 if (!existsSync(GOLDEN)) { console.error(`✗ 找不到 ${GOLDEN}——先跑 --update 建基线`); process.exit(1); }
 const baseline = JSON.parse(readFileSync(GOLDEN, 'utf8'));
-const current = capture();
+const { ownerMap, fullRuns } = await ownersAndFullRuns();
+const current = capture(ownerMap);
 const problems = diffSnapshot(baseline, current)
-	.concat(generalChecks(FLAGS, current, runFlag(null).out, await argFlagsFromSource()));
+	.concat(generalChecks(FLAGS, current, null, await argFlagsFromSource(), { ownerMap, fullRuns }));
 
 console.log(`══ audit golden 比对 ══  ${FLAGS.length} 个开关（dragon 走结构比对：百分数归一为 N%）`);
 if (!problems.length) {

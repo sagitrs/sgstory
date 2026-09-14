@@ -82,7 +82,14 @@ export const createContext = ({ argv = process.argv, story = null } = {}) => {
 	if (!ctx.State.variables.pc) ctx.State.variables.pc = Game.Pc.defaults();
 	const { passageSrc, passageRaw, passageTags } = indexPassages(SRC_FILES);
 	const arg = (k) => argv.includes(`--${k}`);
-	const wantAll = !argv.some((a) => a.startsWith('--'));
+	// `#607` P2-B：`--story <slug>` **单独给**（一个门开关都没点）⇒「**本故事作用域全跑**」。
+	// 今日它走"没有选中任何门"退 2 ⇒ 第二个故事的**全跑无路可走**（golden 的 `not-in-full-run` 交叉核对
+	// 正需要它；"看看这个故事的体检报告"这类用法也才成立）。与 `--engine-only`（`#572`：选择已定 ⇒ 打开
+	// wantAll）**同源**：选择由 `selected` 一处说了算，修饰符不该被当成"必须再点一个门"。
+	// `--check`／`--strict` 单独给仍退 2（既没点故事也没点门）——那条防假绿的守卫不变。
+	const MODIFIER_NAMES = ['check', 'strict', 'story', 'engine-only'];
+	const gateGiven = argv.some((a) => a.startsWith('--') && !MODIFIER_NAMES.includes(a.replace(/^--/, '')));
+	const wantAll = !argv.some((a) => a.startsWith('--')) || (arg('story') && !gateGiven);
 
 	// 注意：把 vm 上下文里的**全部提升全局**一并摊平返回——原 audit.mjs 里存在 `ctx.Game.Chargen.rounds`
 	// 这类「从 vm 上下文取表」的用法（拆分时被 golden 的「单跑内容须在全跑里」断言当场抓到全跑崩溃）。

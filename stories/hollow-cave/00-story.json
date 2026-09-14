@@ -8,5 +8,8 @@
 		"stories/hollow-cave/15-tables.twee",
 		"stories/hollow-cave/10-cave.twee"
 	],
-	"gates": []
+	"gates": [
+		"stories/hollow-cave/gates/cave.mjs",
+		"stories/hollow-cave/gates/combat-dist.mjs"
+	]
 }

@@ -194,8 +194,9 @@ export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 't
 // 发现 ⇒ 下方这两个表只描述"还在工具层的门"。落点与机制见 `docs/story-gates-design.md`。
 // **已搬走**：P1 试点 `economy` / `items`＋`tokens` / `notes`；P2-A① `truth` / `choices` / `nosl` / `interact` /
 //   `social` / `combat` / `starbudget` / `systems` / `checks`；P2-A② `canon` / `echoes` / `craft` / `dragon` /
-//   `rules` / `reads` / `investment` / `npc` / `gear` ⇒ `stories/mist-forest/gates/`（故事 1 已搬完）。
-export const AUDIT_STORY = ['cave', 'combat-dist'];   // #607 P2 之后仅剩**故事 3** 的两道（待 P2-B 搬运；`a11y` 概念上是引擎门、未进本表）
+//   `rules` / `reads` / `investment` / `npc` / `gear` ⇒ `stories/mist-forest/gates/`（故事 1 已搬完）；
+//   P2-B `cave` / `combat-dist` ⇒ `stories/hollow-cave/gates/`（故事 3 的两门）。
+export const AUDIT_STORY = [];   // #607 P2-B：**故事门已全部搬到故事侧**（`stories/<slug>/gates/`，清单声明）⇒ 工具层不再有故事门
 // 非门段里**与故事内容无关**的那些（构建 / 构建期 lint / 产物守卫）：显式登记，不放宽默认
 export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs', 'scripts-audit-mjs-story2-engine', 'scripts-audit-mjs-story3-engine',
 	'test-story-runtime-mjs-selftest', 'test-story-runtime-mjs',

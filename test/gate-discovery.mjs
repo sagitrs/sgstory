@@ -11,6 +11,7 @@
 //   A5 引擎门被**所有**故事选中（`--engine-only` 的地基）；
 //   A6 纯函数反例：清单缺键／越界／路径不存在／文件存在但未声明／重复声明／跨故事重名／故事门偷用引擎 flag／
 //      顺序表未登记／僵尸顺序键 ⇒ 逐条**必须报**（`--selftest` 之外的"反例"字样也让台账认出自证形态）。
+import { execFileSync } from 'node:child_process';
 import { judgeManifestGates, judgeGateSet, judgeOrderCoverage, judgeFlagOwnership, gateKey, GATE_ORDER,
 	engineGates, pendingGates, declaredGates, declaredGatesAll, gatesForStory, validateDiscovery } from '../scripts/audit/discovery.mjs';
 import { GATES } from '../scripts/audit/registry.mjs';
@@ -102,6 +103,22 @@ for (const slug of slugs) perStory[slug] = await gatesForStory(slug);
 	t('A5b `engineGates() ∪ pendingGates()` 恰好等于 registry（无门被落下、无门同时属两层）', union.size === GATES.length && [...eng].every((k) => !pend.has(k)));
 }
 
+// ── A8 CLI 作用域（`#607` P2-B）：`--story <slug>` 单独给 ⇒ **本故事作用域全跑** ────────────
+// 为什么要有这条：他故事的门只被**它所属的故事**选中，而"他故事的全跑"此前**无路可走**
+// （`--story X` 单独给 ⇒ "没有选中任何门"退 2）⇒ golden 的 `not-in-full-run` 交叉核对无法按归属比。
+// 与 `--engine-only`（`#572`）同源：选择已由 `selected` 定，修饰符不该被当成"必须再点一个门"。
+{
+	const run = (args) => {
+		try { return { code: 0, out: execFileSync('node', ['scripts/audit.mjs', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) }; }
+		catch (e) { return { code: e.status ?? 1, out: `${e.stdout ?? ''}${e.stderr ?? ''}` }; }
+	};
+	const hollow = run(['--story', 'hollow-cave']);
+	t('`--story hollow-cave` 单独给 ⇒ rc=0（本故事作用域全跑）', hollow.code === 0, `rc=${hollow.code}`);
+	t('…且该跑确实含**故事 3 自己的门**（洞窟声明面／战斗分布）', /洞窟声明面|战斗分布口径门/.test(hollow.out));
+	t('…且**不含**故事 1 的门（作用域没串）', !/文字工艺门|canon 门/.test(hollow.out));
+	t('`--check` 单独给（既没点故事也没点门）⇒ rc=2（防假绿守卫不变）', run(['--check']).code === 2);
+}
+
 // ── P0 等价证据（第一道门搬进故事侧后，本块自动停止断言）────────────
 {
 	const declaredAll = await declaredGatesAll();
@@ -118,4 +135,4 @@ if (bad) {
 	console.error(`\n✗ 门发现与归属门未通过（${bad} 项）—— 归属必须显式、结构缺失必须报错（#607）`);
 	process.exit(1);
 }
-console.log('\n✔ 门发现与归属门通过（无孤儿门 · 顺序稳定 · 声明只属本故事 · 十条反例都咬得住）');
+console.log('\n✔ 门发现与归属门通过（无孤儿门 · 顺序稳定 · 声明只属本故事 · 十条反例都咬得住 · 作用域全跑四条）');

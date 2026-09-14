@@ -237,12 +237,73 @@ const main = async () => {
 		} finally { close(); }
 	}
 
+	// ── 判据 ⑥：故事 2 的旅人面（`#490` 已定 ⑥）──
+	{
+		const slug = 'hollow-cave';
+		const runCase = async ({ name, rng, gold = 0, click, judge }) => {
+			const { w, close, sleep, settle } = await boot({ story: slug, random: 0.9 });
+			try {
+				w.Game.Rules.rng.set((lo, hi) => rng[hi] ?? 1);
+				if (gold) w.eval(`SugarCube.State.variables.pc.gold = ${gold}`);
+				w.SugarCube.Engine.play('路·2c');                 // 旅人实例段落（第 2 段）
+				await settle(); await sleep(220);
+				const anchors = [...w.document.querySelectorAll('#passages a.link-internal')];
+				const labels = anchors.map((a) => a.textContent.replace(/\s+/g, ''));
+				const before = JSON.parse(JSON.stringify(w.SugarCube.State.variables.pc));
+				const expect = {
+					price: w.Game.Economy.prices['干粮'],
+					reward: w.Sg.story.mechanics().encounters.short.reward.gold,
+				};
+				const target = anchors.find((a) => a.textContent.replace(/\s+/g, '').includes(click));
+				if (!target) {
+					problems.push({ code: 'traveller', slug, msg: `${name}：找不到链接「${click}」（可选：${labels.join(' / ')}）` });
+					return;
+				}
+				target.click();
+				await settle(); await sleep(260);
+				const pc = w.SugarCube.State.variables.pc;
+				const fails = judge({ pc, before, labels, expect });
+				problems.push(...fails.map((msg) => ({ code: 'traveller', slug, msg: `${name}：${msg}` })));
+				console.log(`  ${fails.length ? '✗' : '✓'} ${slug} ⑥ ${name}`);
+				for (const m of fails) console.log(`      ✗ ${m}`);
+			} catch (e) {
+				problems.push({ code: 'traveller', slug, msg: `${name} 跑不完：${e.message}` });
+			} finally { close(); }
+		};
+
+		await runCase({
+			name: '中立＋交涉失败 ⇒ 转敌对走短战斗（且没钱不显示交易路）',
+			rng: { 100: 80, 20: 3 }, click: '开口求他匀一点吃的',
+			judge: ({ pc, labels }) => [
+				...(pc.ev.cave_att === 'foe' ? [] : [`交涉失败应转敌对（cave_att=${JSON.stringify(pc.ev.cave_att)}）`]),
+				...(pc.ev.fight?.wave?.encounter === 'short' ? [] : ['交涉失败应进短战斗（ev.fight.wave.encounter ≠ short）']),
+				...(labels.some((l) => l.includes('掏出')) ? ['身上没钱却出现了交易路（一口价：没钱不卖）'] : []),
+			],
+		});
+		await runCase({
+			name: '钱够 ⇒ 一口价交易按**表价**扣钱并给干粮',
+			rng: { 100: 80, 20: 19 }, gold: 5, click: '掏出',
+			judge: ({ pc, before, expect }) => [
+				...(pc.gold === before.gold - expect.price ? [] : [`交易没按表价扣钱（${before.gold}→${pc.gold}，表价 ${expect.price}）`]),
+				...(pc.inv['干粮'] ? [] : ['交易后没拿到干粮']),
+			],
+		});
+		await runCase({
+			name: '敌对＋短战斗胜利 ⇒ 掉金币（金本位的来源）',
+			rng: { 100: 20, 20: 19 }, click: '迎面劈过去',
+			judge: ({ pc, before, expect }) => [
+				...(pc.gold === before.gold + expect.reward ? [] : [`短战斗胜利没掉金币（${before.gold}→${pc.gold}，声明 ${expect.reward}）`]),
+				...(pc.ev.cave_battered ? ['胜利却落了「挨打」笔记'] : []),
+			],
+		});
+	}
+
 	if (problems.length) {
 		console.error(`\n✗ 逐故事运行时契约门未通过 ${problems.length} 项：`);
 		for (const p of problems) console.error(`  ✗ ${p.msg}`);
 		process.exit(1);
 	}
-	console.log('\n✔ 逐故事运行时契约门通过（面存在 · 位点能判 · 笔记可用 · 侧栏可用 · 机制真落）');
+	console.log('\n✔ 逐故事运行时契约门通过（面存在 · 位点能判 · 笔记可用 · 侧栏可用 · 机制真落 · 旅人面闭环）');
 	process.exit(0);   // jsdom 的视口轮询会把事件循环吊住（boot.mjs 的注释）⇒ 自己收场
 };
 

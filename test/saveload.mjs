@@ -205,6 +205,67 @@ for (const site of MANIFEST.sites) {
 	}
 }
 
+// ── #533：S1/S2/S3 的**新状态**必须进存档快照（`gearHp` ／ `statuses` ／ `ev.fight.wave`）──────────
+// 为什么单列一块：上面那张表只看 `inv`／`ev`／`hp`／`gold`／检定记录 ⇒ **看不见**这三个新字段，
+// 于是「读档把耐久重置成满值／异常清空／波次清零」这类**静默修复**不会被任何断言抓到。
+//
+// ⚠️ 三条**实测**的 moment 事实（本块第一版就是被它坑掉的，写下来别再踩）：
+//   ① 直接改活对象（Node 侧或 `w.eval` 直写）**不进存档**；
+//   ② 经**宏**写（`<<set>>`／`<<run>>`，即游戏自己的路径）**且之后有过一次导航**（`<<goto>>`／`Engine.play`）
+//      ⇒ 保值 ✓（存档捕获的是**最后一次导航时刻**的状态——与 `fightact` 注释里的 `#350` 同一条语义）；
+//   ③ 宏写但**不导航** ⇒ 仍然丢 ✗。
+{
+	const { w, settle } = await newGame(0.99);
+	const live = () => w.SugarCube.State.variables.pc;      // 每次现取：读档会换掉整个状态对象图
+	const read = () => { const p = live(); return {
+		gearHp: JSON.stringify(p.gearHp ?? {}),
+		statuses: JSON.stringify(p.statuses ?? {}),
+		wave: JSON.stringify(p.ev?.fight?.wave ?? null),
+	}; };
+	const label = { gearHp: '装备耐久（含损坏态 0）', statuses: '部位×异常', wave: '波次状态' };
+	const write = (sets) => {
+		w.eval(`new window.SugarCube.Wikifier(null, ${JSON.stringify(sets)})`);       // 走宏（＝游戏路径）
+		w.eval('window.SugarCube.Engine.play(window.SugarCube.State.passage)');        // 导航一次 ⇒ 写进 moment
+	};
+	let bad533 = 0;
+	const t = (okk, msg, extra = '') => { if (okk) console.log(`    ✓ ${msg}`); else { bad533++; failures++; console.log(`    ✗ ${msg}${extra ? '：' + extra : ''}`); } };
+	try {
+		await settle();
+		// 造出"有内容"的三个状态：护具**已损坏**(0) ／ 异常在身 ／ 波次进行到第二批
+		write('<<set $pc.gearHp to {"布衣": 0, "护胫": 2}>><<set $pc.statuses to {"手": {"流血": 2}}>><<set $pc.ev.fight to {"pool": "p1", "round": 2, "wave": {"encounter": "long", "idx": 2, "hits": 1, "rounds": 2}}>>');
+		await settle(); await sleep(200);
+		const saved = read();
+		w.Sg.save.quick();
+		await sleep(250);
+		live().gearHp = {}; live().statuses = {}; live().ev.fight = { pool: 'p1', round: 2, wave: null };   // 改坏活状态
+		const p = w.Sg.save.load(1);
+		if (p?.then) await p.catch(() => {});
+		await settle(); await sleep(400);
+		const back = read();
+		const lost = Object.keys(saved).filter((k) => saved[k] !== back[k]);
+		console.log(`\n#533 新状态保值（gearHp ／ statuses ／ ev.fight.wave）：宏写 → 导航 → 存 → 改坏 → 读`);
+		for (const k of lost) console.log(`    丢 ${k}（${label[k]}）：${saved[k]} → ${back[k]}`);
+		t(lost.length === 0, '三个新状态都进存档快照', lost.join(' / '));
+		t(JSON.parse(back.gearHp)?.布衣 === 0, '损坏态保留为 **0**（不是缺项、不是满值）', back.gearHp);
+		// 判据自证（反例）：把**损坏态**改成"满耐久"（最典型的静默修复）⇒ 判据必须报
+		const bait = { ...back, gearHp: JSON.stringify({ 布衣: 3, 护胫: 2 }) };
+		t(Object.keys(saved).some((k) => saved[k] !== bait[k]), '自证·反例：把 gearHp 重置成满耐久 ⇒ 判据会报');
+		// 事实钉住（不是期望值）：**宏写但不导航** ⇒ 存档里没有它
+		w.eval('new window.SugarCube.Wikifier(null, \'<<set $pc.ev.fight to {"pool":"p1","round":9,"wave":null}>>\')');
+		w.Sg.save.quick();
+		await sleep(250);
+		const p2 = w.Sg.save.load(1);
+		if (p2?.then) await p2.catch(() => {});
+		await settle(); await sleep(300);
+		t(JSON.stringify(live().ev?.fight ?? null) !== JSON.stringify({ pool: 'p1', round: 9, wave: null }),
+			'事实钉住：宏写但**不导航** ⇒ 不进存档（moment 语义；红了说明 moment 变了，要重估本票判定方式）', JSON.stringify(live().ev?.fight ?? null));
+	} catch (e) {
+		failures++;
+		console.log(`\n✗ #533 新状态保值：用例异常 —— ${e.message}`);
+	}
+	console.log(bad533 ? '' : '');
+}
+
 for (const r of rows) {
 	const tag = r.ok ? '✓' : '✗';
 	console.log(`${tag} ${r.site.where}｜「${r.site.label.replace(/（[^）]*）/g, '')}…」${r.site.ticket}`);

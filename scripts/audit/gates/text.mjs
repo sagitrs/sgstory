@@ -2,6 +2,8 @@
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { stripJsComments, storyText } from '../lib/shared.mjs';
 // flags=['text']。校验：npm run audit:golden。
+import { ROOT } from '../../dist-paths.mjs';
+import { loadStoryAudit } from '../lib/story-audit.mjs';
 export const flag = 'text';
 export const flags = ["text"];
 
@@ -98,17 +100,32 @@ if (wantAll || arg('text')) {
 	const st = storyText({ passageSrc, passageTags, rows: ctx.window?.Sg?.story?.rules?.() ?? [] });
 	let narrative = '';
 	narrative = buildNarrative(st.text, isInfra);   // #527：跳过 infra 段 ＋ 剥 JS 注释（两件都要）
-	const words = ['雾','星','塔','月光','森林','守林人','信物','三百'];
-	console.log(`  主题词密度：${words.map((w) => `${w}×${narrative.split(w).length - 1}`).join(' ')}（总字 ${narrative.length}）`);
+	// `#602`：**主题词表属该故事的数据**（经 `Sg.story.text()` 取）——原先硬编码在本门里 ⇒
+	// 换故事后本行还在打印**故事 1 的词**（全 0 照绿＝空判，实测 `--story hollow-cave` 输出 `雾×0 星×0 …`）。
+	// 数据住**该故事目录**（`stories/<slug>/audit.json`，不进产物）；缺文件/畸形 ⇒ 抛错（`loadStoryAudit` 负责）
+	const auditData = loadStoryAudit(ctx.storySlug, { root: ROOT });
+	const words = auditData.topicWords;
+	if (!words.length) console.log('  主题词密度：**本故事未声明主题词**（`stories/<slug>/audit.json` 的 `text.topicWords` 为空）——本判据对该故事不适用，不再借用其它故事的词表（#602）');
+	else console.log(`  主题词密度：${words.map((w) => `${w}×${narrative.split(w).length - 1}`).join(' ')}（总字 ${narrative.length}）`);
 	console.log(`  故事文本源：内容段落 ＋ 表行 \`text\`（归属到 ${[...st.rowIds.keys()].length} 个段落、${[...st.rowIds.values()].flat().length} 行）${st.orphans.length ? ` · ⚠ ${st.orphans.length} 行归属段落不存在（见 --rules）` : ''}`);
 	// 套路句式门：白名单外命中即红（改写后划掉）
 	const CLICHE = ['如潮水', '毛骨悚然', '倒吸一口', '心中一紧', '你感到一阵', '不由得'];
 	// ── D5.6 风格门（#72 西式统一）：违和词黑名单——命名回潮/佛教词/中式餐具与体例
-	for (const f of judgeBlacklist(SRC_FILES, ['青梧', '星官', '星落林', '坠星志', '月光倾城', '平凡之光', '执念', '动筷', '汤盅', '温了又温', '一坛', '爬回了天上', '森林的根里'], (k) => readFileSync(k, 'utf8'))) {
-		console.log(`  ✗ 风格违和词「${f.word}」@ ${f.file.split('/').pop()}:${f.line}（#72 黑名单——替换表 docs/archive/westward-unification.md）`);
-		bad++;
+	// `#602`：**风格违和词黑名单也属该故事的数据**（原先写死在本门 ⇒ 故事 2/3 会被故事 1 的黑名单判红）。
+	const blacklist = auditData.styleBlacklist;
+	if (!blacklist.length) console.log('  风格门：**本故事未声明违和词**（`stories/<slug>/audit.json` 的 `text.styleBlacklist` 为空；空表是合法数据集）——跳过扫描（#602）');
+	else {
+		// 只扫**正文段**：`[script]`/`[widget]`/`[stylesheet]` 是数据/机制（**黑名单本身就声明在那里**，
+		// 扫它们等于让词表命中自己），而风格门本来只管散文（`#602`）。
+		const proseOf = (f) => readFileSync(f, 'utf8').split(/^::\s*/m).slice(1)
+			.filter((part) => !/\[(script|widget|stylesheet)\b/.test(part.slice(0, part.indexOf('\n'))))
+			.map((part) => part.slice(part.indexOf('\n') + 1)).join('\n');
+		for (const f of judgeBlacklist(SRC_FILES, blacklist, proseOf)) {
+			console.log(`  ✗ 风格违和词「${f.word}」@ ${f.file.split('/').pop()}:${f.line}（本故事声明的黑名单——替换表 docs/archive/westward-unification.md）`);
+			bad++;
+		}
+		console.log(`  风格门：黑名单 ${blacklist.length} 词扫描完成`);
 	}
-	console.log('  风格门：黑名单 13 词扫描完成');
 		const hits = judgeCliche(narrative, CLICHE);
 	if (hits.length) { console.log(`  ✗ 套路句式命中：${hits.join('、')}`); bad += hits.length; }
 	else console.log('  套路句式门：零命中');

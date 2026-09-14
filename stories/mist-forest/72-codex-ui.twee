@@ -1,10 +1,13 @@
 :: CodexUI [script]
-// ── 道具图鉴（v17 M8）——**故事 1 专属的界面面**（`#574`）────────────────────────────────
+// ── 道具图鉴（v17 M8）——**故事 1 专属的界面面**（`#574`）────────────────────────────
 // 为什么从 `src/80-script.twee` 搬到这里：那个文件里其余部分是**引擎运行时胶水**（存档 API／`Sg.notes`／
 // 结局收尾／渲染后处理），对每个故事都成立；而图鉴这一块**直接读 `Game.Codex.items`**（故事 1 的数据），
-// 留在引擎文件里就让"故事 2／3 的产物"被牵连（它曾把整份 80-script 拖出第二/第三故事的作用域 ⇒
-// `Sg.save`／`Sg.notes` 一并消失）。搬出来之后，引擎侧对它的唯一引用是 `Sg.Codex?.sync?.()`（可选面）。
-// 形状：`Sg.Codex`（read/write/sync/recordEnding/seenFinal/unlocked/render）；老键迁移见 `Sg.store`。
+// 留在引擎文件里就会把整份 80-script 一起拖出第二/第三故事的作用域 ⇒ `Sg.save`／`Sg.notes` 一并消失。
+// 搬出后引擎侧对它的唯一引用是可选链（`Sg.Codex?.sync?.()`）；形状：`Sg.Codex`（read/write/sync/
+// recordEnding/seenFinal/unlocked/render）。
+// 键走 `Sg.store`（`sgstory.<slug>.codex.v1`，老键由 `Sg.store.migrate()` 幂等迁移）——`Sg.store` 是
+// localStorage 键构造的唯一落点，故这里不持有键名字面量。
+// 注：`#576` 起 `/% %/` 块注释不进产物（build 期剥离），所以这类说明可以写全。
 // ── 道具图鉴（v17 M8）：跨周目永久解锁 ──
 // 不用 SugarCube 的 settings：Setting.save() 只持久化**注册过的** Setting，
 // 自定义键不落盘（见 vendor/format.js 的 save()）。键构造收敛到 `Sg.store`（**story** 作用域 ⇒
@@ -14,14 +17,13 @@ window.Sg.Codex = {
 	blank() { return { clues: {}, endings: [], finals: [] }; },
 	read() {
 		try {
-			const raw = window.Sg.store.rawWithLegacy('codex.v1');   // 新键优先；缺席则迁旧键并兜底读
+			const raw = window.Sg.store.rawWithLegacy('codex.v1');
 			const d = raw ? JSON.parse(raw) : null;
 			if (!d || typeof d !== 'object') return this.blank();
 			return { clues: d.clues ?? {}, endings: d.endings ?? [], finals: d.finals ?? [] };
-		} catch { return this.blank(); } // 隐私模式 / 坏数据：静默降级（只是不跨周目）
+		} catch { return this.blank(); }
 	},
 	write(d) { try { window.localStorage.setItem(window.Sg.store.key('story', 'codex.v1'), JSON.stringify(d)); } catch { /* 同上 */ } },
-	// 每段落：把本档新满足的线索并进永久记录（有变化才写盘）
 	sync() {
 		const pc = State.variables?.pc;
 		if (!pc || !window.Game?.Codex) return;
@@ -34,17 +36,14 @@ window.Sg.Codex = {
 		}
 		if (changed) this.write(store);
 	},
-	// 结局登记：终局（final）才给空页提示；章节出口只记账
 	recordEnding(key, kind) {
 		const store = this.read();
 		if (!store.endings.includes(key)) store.endings.push(key);
 		if (kind === 'final' && !store.finals.includes(key)) store.finals.push(key);
 		this.write(store);
 	},
-	// 是否走到过任意终局（决定空页要不要给提示）
 	seenFinal() { return this.read().finals.length > 0; },
 	unlocked(item) { return Game.Codex.isUnlocked(item, this.read()); },
-	// 图鉴页渲染（锁定页＝空页；走到过终局后补一句指向）
 	render() {
 		const store = this.read();
 		const hintOn = this.seenFinal();

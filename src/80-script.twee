@@ -43,8 +43,8 @@ jQuery(document).on('keydown.sgSave', (ev) => {
 	else if (ev.key === 'l' || ev.key === 'L') { ev.preventDefault(); window.Sg.save.quickLoad(); }
 });
 // ── 道具图鉴（`Sg.Codex`）已搬去 `stories/mist-forest/72-codex-ui.twee`（`#574`）——
-//    它读故事 1 的 `Game.Codex`，属**故事面**；本文件其余部分是**引擎运行时胶水**（layer: engine）。
-//    引擎侧对它的引用是可选面：见下方 `:passagestart` 的 `Sg.Codex?.sync?.()`。
+//    它读故事 1 的 `Game.Codex`，属**故事面**；本文件其余部分是**引擎运行时胶水**（layer: engine），
+//    对每个故事都成立。引擎侧对它的引用是可选面：见下方 `:passagestart` 的 `Sg.Codex?.sync?.()`。
 
 // ── 笔记（伞 #422 阶段 1）：知识的唯一取值口 ──────────────────────────
 //     · `has(id)` 走条目的 `grant`（阶段 1 它读的是现有旗标 → 零行为变化）

@@ -57,7 +57,11 @@ const stories = slugs.map((slug) => ({ slug, ...readStory(slug) }));
 
 // 合并顺序由 ORDER 决定（清单只筛归属）；引擎文件在前（它们本身就在 ORDER 前部）
 // #460：合并口径与门（`scripts/audit/context.mjs`）**共用同一权威** `scopedFiles()`
-const mergedOf = (s) => scopedFiles(s).map((f) => readFileSync(f, 'utf8').trimEnd()).join('\n\n') + '\n';
+// `#576`：编译前剥掉 `/% %/` **twee 块注释**——它们是给作者的，SugarCube 渲染时本就不输出，
+// 但会被原样写进 `dist/stories/<slug>/index.html`（实测默认故事页 ≈ +12KB）并进字体子集。
+// 只剥 twee 块注释：`[script]` 段里的 JS 行注释（`//`）是**代码**，不能动。
+const stripTweeComments = (text) => String(text).replace(/\/%[\s\S]*?%\//g, ' ');
+const mergedOf = (s) => scopedFiles(s).map((f) => stripTweeComments(readFileSync(f, 'utf8')).trimEnd()).join('\n\n') + '\n';
 const merges = new Map(stories.map((s) => [s.slug, mergedOf(s)]));
 
 // ── 字体子集化（霞鹜文楷 → dist/fonts 外链 + preload）────────────────

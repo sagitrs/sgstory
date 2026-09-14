@@ -8,7 +8,7 @@
 //   P3 过渡期根页 `dist/index.html` 用根路径前缀（`fonts/`）且与默认故事页只差前缀
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROOT, DIST_DIR,  DEFAULT_SLUG, storySlugs, storyHtml, shelfHtml, defaultStoryHtml, FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY } from '../scripts/dist-paths.mjs';
+import { ROOT, DIST_DIR,  DEFAULT_SLUG, storySlugs, storyHtml, shelfHtml, defaultStoryHtml, FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY, STORY_PAGE_MAX_BYTES } from '../scripts/dist-paths.mjs';
 
 export const SHELF_MAX_BYTES = 100_000; // ci 席建议的书架页上界（防日后被塞内嵌资产）
 
@@ -52,6 +52,12 @@ export const checkStoryFontRefs = (html, fontFiles, { prefix = FONT_PREFIX_FROM_
 	return out;
 };
 
+/** 纯函数：故事页**硬上界**（`#576`）——与 CI 的 `post-deploy-smoke` 同一口径，但**在 PR 时**就判。
+ *  为什么必须有：`size-gate` 的基线 997,937B ＋ 0.5% 容差 ≈ 1,002.9KB，而部署后是 1,000,000B 硬红
+ *  ⇒ 中间有一条 ~5KB 宽的窗带：**PR 与 soak 全绿、main 的部署后冒烟红**（`#576` 实测撞上）。 */
+export const judgeStoryPage = ({ slug, bytes, max = STORY_PAGE_MAX_BYTES }) =>
+	bytes >= max ? [{ code: 'P4', msg: `故事「${slug}」产物 ${bytes}B ≥ 上界 ${max}B（疑似回胖/内嵌资产；部署后冒烟用的是同一上界）` }] : [];
+
 // ── main ────────────────────────────────────────────────────────────────
 const problems = [];
 const built = [];
@@ -62,6 +68,7 @@ for (const slug of storySlugs()) {
 	if (!existsSync(p)) continue; // 未构建的故事不算"已构建"
 	built.push(slug);
 	problems.push(...checkStoryFontRefs(readFileSync(p, 'utf8'), fontFiles));
+	problems.push(...judgeStoryPage({ slug, bytes: statSync(p).size }));
 }
 
 if (!existsSync(shelfHtml())) {
@@ -96,6 +103,8 @@ if (process.argv.includes('--selftest')) {
 	t('S4 反例②：起始段渲染为空（产物存在 ≠ 产物能跑）→ 报红', judgeBoot({ slug: 'a', era: 'present', text: '   ', errors: [] }).length === 1);
 	t('S4 反例③：启动有未捕获报错 → 报红', judgeBoot({ slug: 'a', era: 'present', text: '正文', errors: ['Uncaught: boom'] }).some((f) => f.code === 'S4'));
 	t('S3 反例：书架页超过体积上界 → 报红', checkShelf(shelfOK, ['a', 'b'], { bytes: 200_000 }).some((f) => f.code === 'S3'));
+	t('P4 正例：故事页在上界内 → 不报', judgeStoryPage({ slug: 'a', bytes: STORY_PAGE_MAX_BYTES - 1 }).length === 0);
+	t('P4 反例：故事页顶到上界（＝部署后冒烟的口径）→ 报红', judgeStoryPage({ slug: 'a', bytes: STORY_PAGE_MAX_BYTES }).some((f) => f.code === 'P4'));
 	const goodPage = `<link href="${FONT_PREFIX_FROM_STORY}LXGWWenKai-Regular.woff2"><style>url('${FONT_PREFIX_FROM_STORY}LXGWWenKai-Medium.woff2')</style>`;
 	t('P1/P2 正例：前缀正确且字体文件存在 → 0 问题', checkStoryFontRefs(goodPage, ['LXGWWenKai-Regular.woff2', 'LXGWWenKai-Medium.woff2']).length === 0);
 	t('P1 反例：故事页用了根路径前缀（深两层会 404）→ 报红', checkStoryFontRefs(goodPage.split(FONT_PREFIX_FROM_STORY).join(FONT_PREFIX_FROM_ROOT), []).some((f) => f.code === 'P1'));

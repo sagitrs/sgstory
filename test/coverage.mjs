@@ -6,7 +6,10 @@
 //   门5（交互≥渲染）：交互格数不得少于渲染格数
 // 用法：node test/coverage.mjs [--update-baseline]
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { allSourceFiles } from '../scripts/module-order.mjs';
+import { scopedFiles } from '../scripts/module-order.mjs';
+import { DEFAULT_SLUG, readStory } from '../scripts/dist-paths.mjs';
+// #460／#441-E：**故事作用域** —— 覆盖宇宙＝引擎 ∪ 默认故事清单（第二故事的覆盖面由它自己的票管）
+const allSourceFiles = () => scopedFiles(readStory(DEFAULT_SLUG));
 import { execSync } from 'node:child_process';
 import { readdirSync } from 'node:fs';
 import { join } from 'node:path';

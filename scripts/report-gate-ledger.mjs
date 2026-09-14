@@ -114,7 +114,10 @@ for (const f of testFiles) push(`test/${f}`, '测试脚本', testChain.includes(
 
 // ── 判定 ─────────────────────────────────────────────────────────────
 // 链上出现的 audit 开关（用于「幻影门」反向查：链里跑了但 audit 里没有 = 手打字面量漂移/已删除）
-export const chainFlags = (testChain) => [...new Set([...testChain.matchAll(/audit\.mjs --([a-z0-9-]+)/g)].map((m) => m[1]))];
+// 修饰符：**自身不是门**（`check` 是退出码开关；`story <slug>`／`engine-only` 是作用域/选择面）
+// —— 不过滤掉的话，形如 `audit.mjs --check --story …` 的段会被判成"幻影门 check"（本仓 #460 的实测）
+export const CHAIN_MODIFIERS = ['check', 'strict', 'story', 'engine-only'];
+export const chainFlags = (testChain) => [...new Set([...testChain.matchAll(/audit\.mjs --([a-z0-9-]+)/g)].map((m) => m[1]))].filter((f) => !CHAIN_MODIFIERS.includes(f));
 
 export const problems = (rows, declared = null, chain = []) => {
 	const out = [];

@@ -124,6 +124,10 @@ export const SEGMENTS = [
 	{ id: "test-story-shape-mjs", phase: 'test', cost: 0.1, cmd: "node test/story-shape.mjs" },
 	// #434 阶段 3：`Sg.notes.add()` 的行为门（幂等 · 双写 · 双读 · 多源 setPath 护栏）
 	{ id: "test-notes-write-mjs", phase: 'test', cost: 0.2, cmd: "node test/notes-write.mjs" },
+	// #460／#441-E：**第二故事接入自检** —— 用最小故事（stories/minimal-demo）跑**引擎门**：
+	// 「引擎不知道故事名」的可执行证据（产物：书架 2 项；门：引擎门对第二故事绿）。`--check` 前置以免被
+	// `auditFlag()` 认成某个门段（它不是单门段，层归属见 `ENGINE_EXTRA`）。
+	{ id: "scripts-audit-mjs-story2-engine", phase: 'test', cost: 0.2, cmd: "node scripts/audit.mjs --check --story minimal-demo --engine-only" },
 	// #435 阶段 4：条件表门（死规则 = 永不被选中的行）
 	{ id: "scripts-audit-mjs-rules-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --rules --check" },
 	// #435 阶段 4：「无字面状态读」门（：表/内容都经封装层读——票面「数据表不得出现字面状态读」）
@@ -157,7 +161,7 @@ export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 't
 export const AUDIT_STORY = ['truth', 'canon', 'echoes', 'starbudget', 'choices', 'combat', 'craft', 'dragon', 'rules', 'reads', 'notes',
 	'gear', 'interact', 'investment', 'nosl', 'npc', 'social', 'systems'];
 // 非门段里**与故事内容无关**的那些（构建 / 构建期 lint / 产物守卫）：显式登记，不放宽默认
-export const ENGINE_EXTRA = ['build-mjs',
+export const ENGINE_EXTRA = ['build-mjs', 'scripts-audit-mjs-story2-engine',
 	'test-layering-mjs-selftest', 'test-layering-mjs', 'test-globals-mjs', 'test-silent-gate-mjs',
 	'test-size-gate-mjs-selftest', 'test-size-gate-mjs'];
 

@@ -1,0 +1,11 @@
+{
+	"slug": "minimal-demo",
+	"title": "最小示例",
+	"subtitle": "引擎自检用",
+	"entry": "开场",
+	"files": [
+		"stories/minimal-demo/00-meta.twee",
+		"stories/minimal-demo/10-demo.twee",
+		"stories/minimal-demo/15-tables.twee"
+	]
+}

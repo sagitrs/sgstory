@@ -339,3 +339,26 @@ FCFS **81.3s** vs LPT **84.3s**；②「每个测试段各自 boot JSDOM」不�
   修正①：原先只放行 `ev|world` 两域 ⇒ 误杀 `keeper.met`／`star.spent` 这类**第三命名空间**。
 - **状态契约面**（`ruleRowKeys()`/`ruleRowFlags()`）：**非 `ev`/`world` 域的键跳过**（它们不在状态契约域里，今天也看不见）——修正②：
   不跳过的话 `keeper.met` 会被当成裸键 `met` ⇒ `--state` 报"未落入任何域"（引入一个今天不存在的假红）。
+
+---
+
+## 12. 故事作用域：故事门的**分析宇宙**（`#460`／`#441-E`）
+
+**规则**：一个故事的**分析宇宙** ＝ **引擎文件**（`MODULES.layer === 'engine'`）∪ **该故事 `00-story.json` 声明的 `files`**；顺序由 `ORDER` 决定。
+**单一权威**：`scripts/module-order.mjs` 的 **`scopedFiles(story)`** —— 构建（`build.mjs`）与门（`scripts/audit` 的 `createContext`）**共用同一份**（各算一次就会出现"产物是 A、门在判 A＋B"的错位）。
+
+**为什么必须是硬规则**（spike `feat/460-minimal-demo` 实测）：宇宙若＝全部源文件，第二个故事会
+① **污染**第一个故事的指标（同名段落、载荷统计、最薄段落榜、密度基线）；② **又被**第一个故事的判据要求（段落登记手册、覆盖宇宙、可达性）。
+⇒ 一次引入就 4 段门红，根因只有一句：**故事门没有故事作用域**。
+
+**用法**
+- `node scripts/audit.mjs --story <slug> [--engine-only] --check`；默认故事（`mist-forest`）⇒ 与改前**逐字节相同**（golden 零漂移）；
+- `npm test` 的 `scripts-audit-mjs-story2-engine` 段：拿**最小故事**（`stories/minimal-demo`）跑**引擎门** —— 这是「引擎不知道故事名」的**可执行证据**（产物侧：书架 2 项）。
+
+**第二故事的接入契约（实测清单，不是设计稿）**：引擎侧每一个 `Sg.story.X` 都是一个**必须由故事注册**的口子
+（`grep -rho 'Sg\.story\.[a-zA-Z_]*' src/ | sort -u`）；样例见 `stories/minimal-demo/15-tables.twee` 的 `StoryBindings`。
+纪律不变：**结构缺失 ⇒ 报错**（空表／`null` 是**合法数据集**）；**文案缺失** ⇒ 兜底。
+另外：车卡（`Game.Chargen`）与那些空容器（`Game.Checks` 等）**不是每个故事都有** —— 审计侧已按"缺省可用"处理。
+
+**已知阻塞（×2 道引擎门，`#512`）**：`src/10-core.twee` 的 `hallResult` widget 仍写**故事 1 的键**（`whistle_taken` 等）⇒
+第二个故事在 `--state`／`--consequences` 上是**假红**（判的不是它自己）。清单＝`scripts/audit.mjs` 的 `STORY2_BLOCKED`（**带理由；修好请删**）。

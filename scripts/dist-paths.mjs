@@ -43,3 +43,8 @@ export const storyRelPath = (slug = DEFAULT_SLUG) => `stories/${slug}/index.html
 /** 字体目录是**共享根路径**（`dist/fonts/`）：故事页用 `../../fonts/`，根页用 `fonts/`。 */
 export const FONT_PREFIX_FROM_ROOT = 'fonts/';
 export const FONT_PREFIX_FROM_STORY = '../../fonts/';
+
+/** 故事页**硬上界**（字节）——与 CI 的 `post-deploy-smoke` 同一口径（那边写的是同数字的字面量）。
+ *  为什么放这里：`#576` 实测过一条"窗带"——`test/size-gate.mjs` 的基线 997,937B ＋ 0.5% 容差 ≈ 1,002.9KB，
+ *  而部署后是 1,000,000B 硬红 ⇒ **997,937–1,002,926B 之间 PR/soak 全绿、main 的部署后冒烟红**。 */
+export const STORY_PAGE_MAX_BYTES = 1_000_000;

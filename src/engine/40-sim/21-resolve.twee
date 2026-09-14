@@ -641,11 +641,24 @@ window.Sg.rules = {
 		return rows.filter((r) => this.matches(r, pc, chose))
 			.sort((a, b) => (b.prio ?? 0) - (a.prio ?? 0) || idx.get(a) - idx.get(b))[0] ?? null;
 	},
+	// 授予：把行声明的 `yields` 落到 `Sg.notes.add`（**A 方案**：`text` 只渲染，授予由调用侧统一做）。
+	// 返回**本次真正新授予**的 id（幂等 ⇒ 第二次调用返回 `[]`）——这个返回值就是"连渲两次只落一次"的取证面。
+	applyYields(row) {
+		const ids = Array.isArray(row?.yields) ? row.yields : row?.yields ? [row.yields] : [];
+		const granted = [];
+		for (const id of ids) if (window.Sg.notes.add(String(id))) granted.push(String(id));
+		return granted;
+	},
 };
-// `<<rules "作用域">>`：选中就渲染该行 `text`（present 层只读；不写状态）
+// `<<rules "作用域">>`：选中 → **先渲染** `text` → **渲染成功后再落 `yields`**。
+// 为什么必须"渲染后"（dev 定稿的规则①）：授予要与"这一行真的被选中且渲染成功"绑定 —— 渲染若抛错就不该记账，
+// 否则声明与实际写点必然漂移（本仓反复撞过的那类）。规则②（幂等/重渲染安全）由 `Sg.notes.add` 的幂等结构性保证：
+// 连渲两次只落一次 ⇒ 结果留屏重放、SugarCube 重渲染都安全。
 Macro.add('rules', {
 	handler() {
 		const row = window.Sg.rules.pick(String(this.args[0] ?? ''));
-		if (row && row.text) $(this.output).wiki(String(row.text));
+		if (!row) return;
+		if (row.text) $(this.output).wiki(String(row.text));   // 先渲染（抛错则不往下走）
+		window.Sg.rules.applyYields(row);                       // 渲染成功后再授予（幂等）
 	},
 });

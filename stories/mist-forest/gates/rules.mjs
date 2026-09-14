@@ -22,7 +22,7 @@
 //      · **同位点重复调用**：同一段落里同一 `scope` 被调用 ≥2 次 ⇒ 两个位点抢同一行（渲染重复）；
 //      · **归属不符**：`scope` 写成 `段落#位点`（＝声明了归属段落）时，调用点必须**就在那个段落**里。
 //      另：无对应行的调用点 ⇒ 红（`pick()` 返回 null ＝ 正文静默消失，是本门要抓的同一类静默）。
-import { WRITE_PATTERNS, NOTE_WRITE_RE, rowOps, condKeysOf, yieldsList, notePaths } from '../../../scripts/../scripts/audit/lib/shared.mjs';
+import { WRITE_PATTERNS, NOTE_WRITE_RE, NOTE_WRITE_API_RE, rowOps, condKeysOf, yieldsList, notePaths } from '../../../scripts/../scripts/audit/lib/shared.mjs';
 
 export const flag = 'rules';
 export const flags = ['rules'];
@@ -150,7 +150,7 @@ export const textWriteProbs = (text) => {
 			if (TEXT_WRITE_MACROS.includes(name)) raw.push(`<<${name}>>`);
 		}
 		for (const { re } of WRITE_PATTERNS) if (new RegExp(re.source, 'g').test(body)) raw.push('状态赋值');
-		if (new RegExp(NOTE_WRITE_RE.source, 'g').test(body)) raw.push('Sg.notes.add()');
+		if (NOTE_WRITE_API_RE.test(body)) raw.push('Sg.notes.add()');   // 只咬裸 API；宏形态 `<<note>>` 在白名单里
 		if (raw.length) out.push({ domain: `点击态#${i + 1}`, hits: [...new Set(raw)] });
 	});
 	return out;
@@ -265,10 +265,11 @@ export const ruleCalls = (sources, tagsOf = () => []) => {
 	for (const [p, src] of sources ?? []) {
 		const tags = tagsOf(p) ?? [];
 		if (['script', 'widget', 'stylesheet'].some((t) => tags.includes(t))) continue;
-		for (const m of String(src ?? '').matchAll(/<<\s*rules\s+([^>]*?)>>/g)) {
-			const raw = m[1].trim();
+		// `#624` 批 1：`<<rulelist>>`（菜单：渲染全部命中行）与 `<<rules>>`（单选）**同属调用面**
+		for (const m of String(src ?? '').matchAll(/<<\s*(rules|rulelist)\s+([^>]*?)>>/g)) {
+			const raw = m[2].trim();
 			const lit = /^(['"])([\s\S]*)\1$/.exec(raw);
-			if (lit) calls.push({ p, scope: lit[2] });
+			if (lit) calls.push({ p, scope: lit[2], macro: m[1] });
 			else dynamic.push({ p, raw });
 		}
 	}
@@ -424,6 +425,11 @@ export const run = (ctx) => {
 		for (const id of orphanRows(rows, calls)) { console.log(`  ✗ 未接管行：行「${id}」的 \`scope\` 没有任何 \`<<rules "…">>\` 调用点 ⇒ 永不被渲染`); bad++; }
 		for (const k of duplicateCalls(calls)) { const [p, scope] = k.split('|'); console.log(`  ✗ 同位点重复调用：段落「${p}」里 \`<<rules "${scope}">>\` 出现 ≥2 次（两个位点抢同一行）`); bad++; }
 		for (const p of scopeProblems(rows, calls)) { console.log(`  ✗ ${p}`); bad++; }
+		{ // `#624` 批 1：同一作用域**同时**被 `<<rules>>` 与 `<<rulelist>>` 接管 ⇒ 单选/菜单两套语义打架
+			const byScope = new Map();
+			for (const c of calls) byScope.set(c.scope, new Set([...(byScope.get(c.scope) ?? []), c.macro ?? 'rules']));
+			for (const [scope, macros] of byScope) if (macros.size > 1) { console.log(`  ✗ 作用域「${scope}」同时被 ${[...macros].map((m) => '<<' + m + '>>').join(' 与 ')} 接管——单选/菜单语义冲突，请只用一种`); bad++; }
+		}
 		for (const id of unknownScopes(rows, new Set(ctx.passageSrc?.keys() ?? []))) { const r = rows.find((x) => x.id === id); console.log(`  ✗ 归属段落不存在：行「${id}」的 \`scope\` 「${r.scope}」的段落部分不在段落清单里（scope 是**结构**：它决定该行 text 算哪个段落的故事文本）`); bad++; }
 		for (const d of dynamic) console.log(`  · 无法静态判定：段落「${d.p}」的 \`<<rules ${d.raw}>>\`（参数不是引号字面量）`);
 		for (const t of ties(rows)) console.log(`  · 并列 prio：scope=${t.scope} prio=${t.prio} ⇒ ${t.ids.join(' / ')}（裁决＝表序最前）`);

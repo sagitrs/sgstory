@@ -31,7 +31,8 @@ $hp                   变量（$ 开头，可直接写在正文里插值）
 | `<<hpbar>>` / `<<dragonbar>>` / `<<inventory>>` | 血条 / 龙血条 / 侧栏物品栏（由 `$pc.inv` 派生） |
 | `<<snapshot>>` / `<<lastcheck>>` / `<<lastcheckFor "位点">>` | 存下本条检定的骰面 / 复显它 / 只在指定段落复显 |
 | `<<ending "键" final>>` | 结局登记（本档 + 图鉴永久账）并追加收尾卡（退回上一步 / 读档 / 从头再来） |
-| `<<rules>>` | 条件表落地处（`doc`/`text` 纯渲染 ＋ `yields`/`gives`/`sets` 三个授予面） |
+| `<<rules "作用域">>` | 条件表**单选**落地处（first-match wins；`text` 纯渲染 ＋ `yields`/`gives`/`sets` 三个授予面） |
+| `<<rulelist "作用域">>` | 条件表**菜单**落地处（`#624` 批 1：渲染**全部命中**的行，按 `prio` → 表序） |
 
 ## 三、写内容的硬纪律（机检会咬）
 

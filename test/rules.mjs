@@ -615,5 +615,38 @@ for (const file of fixtures) {
 	eq(pick('地下宴会厅#提醒', P({}, {})), '地下宴会厅.提醒.else', '边界：keeper.state **缺失** ⇒ 走 else（与原文 else 同语义）');
 }
 
+// ── `#624` 批 1：**菜单进表**（`<<rulelist>>` 渲染全部命中行）──
+// 与 `pick()`（单选）互补：一个作用域 = 一个"还能问哪几个话题"的菜单。
+// 注：话题行的条件键是**笔记 id**（`n_tav_*`）⇒ 走 `Sg.notes.has()`（不是 `pc.ev`），所以这里替换笔记判定做对照。
+{
+	const Sg = w.Sg;
+	const P = { ev: {}, world: {}, keeper: {}, star: {}, inv: {}, soc: {} };
+	const keep = Sg.notes.has;
+	const withNotes = (list) => { const set = new Set(list); Sg.notes.has = (id) => set.has(String(id)); };
+	const ids = (scope) => Sg.rules.pickAll(scope, { pc: P, chose: new Set() }).map((r) => r.id);
+	withNotes([]);
+	eq(ids('酒馆#打听').length, 6, '菜单：一个话题都没问过 ⇒ 6 行全渲染（`pick` 只会给 1 行）');
+	ok(Sg.rules.pick('酒馆#打听', { pc: P, chose: new Set() }) !== null, '对照：单选入口 `pick()` 在同一作用域只给 1 行');
+	withNotes(['n_tav_keeper']);
+	eq(ids('酒馆#打听').length, 5, '问过一条 ⇒ 少一条（`exclude` 生效）');
+	withNotes(['n_tav_keeper', 'n_tav_dragon', 'n_tav_grudge', 'n_tav_ageless', 'n_tav_flower', 'n_tav_painting']);
+	eq(ids('酒馆#打听').length, 0, '全问过 ⇒ 菜单为空（不再渲染任何行）');
+	withNotes([]);
+	eq(ids('女巫小屋#打听').length, 7, '女巫小屋菜单：7 条话题');
+	ok(ids('酒馆#打听').every((id) => id.startsWith('酒馆.t')), '菜单行的 id 归属正确（同 scope）');
+	Sg.notes.has = keep;
+
+	// 真机：渲染段落 ⇒ 数链接；点一条 ⇒ 笔记落下 ＋ 再渲染少一条
+	w.SugarCube.Engine.play('酒馆');
+	await sleep(200);
+	const countLinks = () => [...w.document.querySelectorAll('#passages a.link-internal')].filter((a) => /讲守林人的那一桌|上了年纪的村人|跑生意的|接嘴的那个人|背着画板的游客|墙上那幅旧画/.test(a.textContent)).length;
+	eq(countLinks(), 6, '真机：酒馆菜单渲染出 6 条话题链接');
+	const pickLink = () => [...w.document.querySelectorAll('#passages a.link-internal')].find((a) => a.textContent.includes('讲守林人的那一桌'));
+	pickLink().click();
+	await sleep(300);
+	ok(w.eval("Sg.notes.has('n_tav_keeper')") === true, '真机：点一次 ⇒ 笔记 n_tav_keeper 落下（`<<note>>` 点击态）');
+	eq(countLinks(), 5, '真机：再渲染 ⇒ 菜单少一条（问过的不再出现）');
+}
+
 console.log(failures ? `\n${failures} 项失败` : '\n规则层测试全部通过');
 process.exit(failures ? 1 : 0);

@@ -132,12 +132,19 @@ export const SEGMENTS = [
 	// #460／#441-E：**第二故事接入自检** —— 用最小故事（stories/minimal-demo）跑**引擎门**：
 	// 「引擎不知道故事名」的可执行证据（产物：书架 2 项；门：引擎门对第二故事绿）。`--check` 前置以免被
 	// `auditFlag()` 认成某个门段（它不是单门段，层归属见 `ENGINE_EXTRA`）。
-	{ id: "scripts-audit-mjs-story2-engine", phase: 'test', cost: 0.2, cmd: "node scripts/audit.mjs --check --story minimal-demo --engine-only" },
+	// `#572`：原本写的是 `--engine-only`（而它**选中 ≠ 真跑**）⇒ 改成**显式列出**本段真意（S1–S4 四件套）。
+	// 另九道引擎门（`consequences`／`sitedisc`／`text`…）对第二/第三故事**现在会真的跑并报红**（真实缺陷，
+	// 不是本段的事）：引擎保留槽未登记／`flower_taken` 从引擎泄漏 → `#575`；故事 2 的位点失败纪律 → `#576`。
+	{ id: "scripts-audit-mjs-story2-engine", phase: 'test', cost: 0.2, cmd: "node scripts/audit.mjs --slots --status --waves --roads --check --story minimal-demo" },
 	// #490（S5 片二）：**第三个故事**的**洞窟声明面门**（表↔内容双向对账；故事门，故显式指定 --story）
 	{ id: "scripts-audit-mjs-cave-hollow", phase: 'test', cost: 0.1, cmd: "node scripts/audit.mjs --cave --check --story hollow-cave" },
+	// `#572`：**「选中 ⇒ 真跑」门** —— 门的 `run()` 被选中也可能静默早退（九道引擎门里七道就是这样）。
+	// 本段自证 `runSelectedGates()` ＋ 真跑默认故事，断言末行「选中 9 门 · 实跑 9 门」（修前那条汇总行不存在）。
+	{ id: "test-audit-gates-run-mjs", phase: 'test', cost: 0.3, needs: ["scripts-audit-mjs-story2-engine"], cmd: "node test/audit-gates-run.mjs" },
 	// #490（S5）：**第三个故事**（无名洞窟）的引擎门 —— 它**声明了** S1–S4 的四件套（`mechanics()` 非 null）
 	// ⇒ 四道引擎门在这里第一次判**一个真正启用了新机制的故事**（`#486`–`#489` 的出口判据）。
-	{ id: "scripts-audit-mjs-story3-engine", phase: 'test', cost: 0.2, cmd: "node scripts/audit.mjs --check --story hollow-cave --engine-only" },
+	// `#572`：同上，把真意写显（不再用“选中 ≠ 真跑”的 `--engine-only`）；其余引擎门暴露的红见 `#575`／`#576`。
+	{ id: "scripts-audit-mjs-story3-engine", phase: 'test', cost: 0.2, cmd: "node scripts/audit.mjs --slots --status --waves --roads --check --story hollow-cave" },
 	// #435 阶段 4：条件表门（死规则 = 永不被选中的行）
 	{ id: "scripts-audit-mjs-rules-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --rules --check" },
 	// #435 阶段 4：「无字面状态读」门（：表/内容都经封装层读——票面「数据表不得出现字面状态读」）

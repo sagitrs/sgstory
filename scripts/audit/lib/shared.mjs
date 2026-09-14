@@ -383,3 +383,21 @@ export const rowsContaining = (rows, passage, anchor) =>
 export const stripJsComments = (text) => String(text)
 	.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
 	.replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + ' '.repeat(m.length - p1.length));
+
+// ── `#572`「选中 ⇒ 真跑」：逐门执行并记录**这道门到底有没有产出输出** ──────────────
+// 为什么需要它：每道门的 `run()` 都是「选中了也可能静默 return」的形状（`if (!wantAll && !arg('<flag>')) return;`），
+// 而 `audit.mjs` 的 `selected` 只决定**调用谁** ⇒ 光看 `selected` 分不出「跑了」与「被守卫打回」。
+// 2026-09-14 实测：`--engine-only --check` 时 9 道引擎门里只有 `state`／`literals`（无守卫）真跑，
+// 其余 7 道逐个早退 —— 计划里那两段却把它当成「四道引擎门对第二/第三故事绿」的证据（假绿）。
+// 纯逻辑（`log` 可注入）⇒ 自证与真实运行同一份代码。
+export const runSelectedGates = (gates, ctx, log = console) => {
+	const silent = [];
+	for (const g of gates ?? []) {
+		let spoke = false;
+		const orig = log.log;
+		log.log = (...a) => { spoke = true; return orig.apply(log, a); };
+		try { g.run(ctx); } finally { log.log = orig; }   // 门内 `process.exit` 不回到这里也无妨（进程都要退了）
+		if (!spoke) silent.push(g.flags?.[0] ?? '(未命名门)');
+	}
+	return { silent, selected: (gates ?? []).length, ran: (gates ?? []).length - silent.length };
+};

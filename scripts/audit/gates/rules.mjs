@@ -22,7 +22,7 @@
 //      · **同位点重复调用**：同一段落里同一 `scope` 被调用 ≥2 次 ⇒ 两个位点抢同一行（渲染重复）；
 //      · **归属不符**：`scope` 写成 `段落#位点`（＝声明了归属段落）时，调用点必须**就在那个段落**里。
 //      另：无对应行的调用点 ⇒ 红（`pick()` 返回 null ＝ 正文静默消失，是本门要抓的同一类静默）。
-import { WRITE_PATTERNS, NOTE_WRITE_RE } from '../lib/shared.mjs';
+import { WRITE_PATTERNS, NOTE_WRITE_RE, rowOps, yieldsList, notePaths } from '../lib/shared.mjs';
 
 export const flag = 'rules';
 export const flags = ['rules'];
@@ -184,6 +184,26 @@ export const setProblems = (rows, { notes = {}, domains = [] } = {}) => {
 	}
 	return out;
 };
+/** **算子声明面**：行里用了 `{ gte: … }`／`{ lte: … }`／`{ oneOf: … }` ⇒ 引擎必须在 `Sg.rules.ops` 里宣告
+ *  （与 `prefixes`／`effects` 同轴的反沉默：引擎不认的算子会让条件**永假**＝行静默死掉）。 */
+export const undeclaredOps = (rows, declared = []) => {
+	const used = new Set((rows ?? []).flatMap((r) => rowOps(r)));
+	return [...used].filter((op) => !(declared ?? []).includes(op)).map((op) => ({ op, declared: declared ?? [] }));
+};
+/** **多源笔记的路径声明**（`#491` 另票）：`yields: [{ id:'n_x', path:'world.x' }]` 的 `path` 必须属于
+ *  该笔记的 `flagPath` 集合 —— 否则就是"声明了一条不存在的路径"（写进去读不出来：`Sg.notes.has` 永不成立）。 */
+export const yieldPathProblems = (rows, notes = {}) => {
+	const paths = notePaths(notes);
+	const out = [];
+	for (const r of rows ?? []) for (const y of yieldsList(r)) {
+		if (!y.path) continue;
+		const known = paths.get(y.id) ?? [];
+		if (!known.length) out.push({ id: r.id, yield: y.id, path: y.path, why: '该 `yields` 条目的笔记不存在（`Game.Notes.entries` 里没有）' });
+		else if (!known.includes(y.path)) out.push({ id: r.id, yield: y.id, path: y.path, why: `该路径不属于这条笔记的 flagPath（可用：${known.join('/')}）` });
+	}
+	return out;
+};
+
 /** **引擎兑现的"面"**：行里用到的面必须由引擎宣告（`Sg.rules.effects`）——反沉默。
  *  为什么（与 `prefixes` 同轴）：被引擎忽略的声明＝**静默空转**（行看起来授予了，实际什么都没发生）。
  *  注：`yields`/`gives` 早于本机制（老声明面，不追溯）；`sets` 是新增面 ⇒ 用到就必须宣告。 */
@@ -291,6 +311,14 @@ export const run = (ctx) => {
 			['正例：前缀键被引擎宣告支持 ⇒ 不报', undeclaredPrefixes([{ id: 'A', req: ['inv:日记'] }], ['inv', 'era']).length === 0],
 			['🔴 反例：用了未宣告的前缀（`inv:` 而引擎只认状态键）⇒ 报（否则条件永假＝行静默死）', undeclaredPrefixes([{ id: 'A', req: ['inv:日记'] }], []).join() !== ''],
 			['边界：非前缀键（note id／裸键／`ev.x`）不参与前缀判定', rowKeyPrefixes([{ id: 'A', req: ['n_x'], any: ['fog_thin'], exclude: ['ev.y'] }]).length === 0],
+			// 另票（#491）：对象算子形条件 ＋ 多源笔记的 path 声明（机制侧未落地 ⇒ 门侧先就位）
+			['正例：算子被引擎宣告 ⇒ 不报', undeclaredOps([{ id: 'A', req: [{ gte: ['star.spent', 3] }] }], ['gte']).length === 0],
+			['🔴 反例：用了未宣告的算子 ⇒ 报（否则条件永假）', undeclaredOps([{ id: 'A', req: [{ oneOf: ['keeper.state', ['seal']] }] }], []).length === 1],
+			['边界：字符串条件项不参与算子判定', undeclaredOps([{ id: 'A', req: ['n_x', 'fog_thin'] }], []).length === 0],
+			['正例：`yields` 的 path 属于该笔记的 flagPath ⇒ 不报', yieldPathProblems([{ id: 'A', yields: [{ id: 'n_x', path: 'world.x' }] }], { n_x: { flagPath: ['world.x', 'ev.x2'] } }).length === 0],
+			['🔴 反例：path 不属于该笔记 ⇒ 报（写进去读不出来）', yieldPathProblems([{ id: 'A', yields: [{ id: 'n_x', path: 'world.nope' }] }], { n_x: { flagPath: 'world.x' } }).length === 1],
+			['🔴 反例：`yields` 指向不存在的笔记 ⇒ 报', yieldPathProblems([{ id: 'A', yields: [{ id: 'n_gone', path: 'world.x' }] }], {}).length === 1],
+			['边界：`yields` 用字符串形（无 path）⇒ 不参与 path 判定', yieldPathProblems([{ id: 'A', yields: ['n_x'] }], {}).length === 0],
 			// Q1：`sets:`（授予家族第三类）的三条收窄 ＋ 引擎面宣告
 			['正例：`sets` 写已登记的无笔记状态键 ⇒ 不报', setProblems([{ id: 'A', sets: ['world.flower_taken'] }], { notes: {}, domains: [{ id: 'flower', prefix: ['flower_'] }] }).length === 0],
 			['🔴 反例：`sets` 写了**有笔记**的键 ⇒ 报（必须走 `yields`）', setProblems([{ id: 'A', sets: ['world.hall_hint'] }], { notes: { n_hall_hint: { flagPath: 'world.hall_hint' } }, domains: [{ id: 'tower', prefix: ['hall_'] }] }).some((p) => p.why.includes('有笔记'))],
@@ -331,6 +359,8 @@ export const run = (ctx) => {
 		for (const b of textBranchRows(rows)) for (const pr of b.probs) { console.log(`  ✗ \`text\` 分支越界：行「${b.id}」的 ${`<<if ${pr.cond}>>`} 读了 ${pr.why.join('、')}——分支只许读**渲染期只读槽**（$last_check／\`_\` 前缀局部量）；状态/时代/持有物/笔记请写成行的 req/any/exclude（键形含 inv:／era:）`); bad++; }
 		for (const u of undeclaredPrefixes(rows, ctx.window?.Sg?.rules?.prefixes ?? [])) { console.log(`  ✗ 前缀键未被引擎宣告：行里用了「${u.prefix}:」，但 \`Sg.rules.prefixes\`（当前 ${JSON.stringify(u.declared)}）里没有它——引擎不认的前缀会让条件**永假**（行静默死掉）`); bad++; }
 		for (const p of setProblems(rows, { notes: ctx.Game?.Notes?.entries ?? {}, domains: ctx.Game?.State?.domains ?? [] })) { console.log(`  ✗ \`sets\` 声明非法：行「${p.id}」的「${p.key}」——${p.why}`); bad++; }
+		for (const u of undeclaredOps(rows, ctx.window?.Sg?.rules?.ops ?? [])) { console.log(`  ✗ 算子未被引擎宣告：行里用了「${u.op}」，但 \`Sg.rules.ops\`（当前 ${JSON.stringify(u.declared)}）里没有它——引擎不认的算子会让条件**永假**（行静默死掉）`); bad++; }
+		for (const q of yieldPathProblems(rows, ctx.Game?.Notes?.entries ?? {})) { console.log(`  ✗ \`yields\` 路径声明非法：行「${q.id}」的「${q.yield}」→「${q.path}」——${q.why}`); bad++; }
 		for (const u of undeclaredSets(rows, ctx.window?.Sg?.rules?.effects ?? [])) { console.log(`  ✗ 行面未被引擎宣告：表里用了「${u.surface}」，但 \`Sg.rules.effects\`（当前 ${JSON.stringify(u.declared)}）里没有它——引擎不兑现的声明＝**静默空转**`); bad++; }
 		for (const w of textWriteRows(rows)) { console.log(`  ✗ \`text\` 不是纯渲染：行「${w.id}」含 ${w.hits.join('、')}——写状态请走「yields」（A 方案：渲染成功后由 \`<<rules>>\` 统一落 Sg.notes.add）`); bad++; }
 		const { calls, dynamic } = ruleCalls(ctx.passageSrc, (p) => ctx.passageTags?.get(p) ?? []);

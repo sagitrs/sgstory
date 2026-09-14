@@ -474,6 +474,75 @@ Object.assign(window.Game.Combat, {
 		pc.statuses = applied.statuses;
 		return { hurt: applied.hurt, hits: applied.hits, steps: plan.steps };
 	},
+	// ── S3（`#488`）：波次战斗 ＋ 失败重置 ─────────────────────────────
+	// 契约（声明面，`#459` 已声明）：`mechanics().encounters[id] = { waves:[{pool,difficulty,reinforce?}], rewardsScale? }`
+	//   · 短＝乘 1 批、长＝乘 2 批（第二批 difficulty 更大 ＋ `reinforce:true`）——形状门在校验；
+	//   · **已定 ②的常数就是引擎口径**：短＝单次判定定胜负（1 回合·1 命中即可）；
+	//     长＝**3 回合上限 ＋ 3 次成功**（每批各自计）；回合用尽未倒 ⇒ 判负。
+	// 状态：`pc.ev.fight.wave = { encounter, idx, hits, rounds }`（**不新增顶层键** ⇒ 不牵动 `--state` 域表）。
+	// `mechanics()` 为 `null` ⇒ 本块一律不被调用（`#492` 显式降级）。
+	wavePlan(id) {
+		const mech = this.slotsDecl();
+		if (!mech) return null;                                  // 未启用 ⇒ 调用方不调
+		const enc = mech.encounters?.[id];
+		if (!enc) throw new Error(`Game.Combat.wavePlan：遭遇「${id}」未声明（结构缺失必须报错，#488）`);
+		const waves = enc.waves ?? [];
+		if (waves.length !== 1 && waves.length !== 2) throw new Error(`Game.Combat.wavePlan：遭遇「${id}」的批数必须是 1（短）或 2（长）——实际 ${waves.length}（#488）`);
+		const long = waves.length === 2;
+		return {
+			id, waves: waves.map((wv) => ({ pool: wv.pool, difficulty: wv.difficulty, reinforce: !!wv.reinforce })),
+			long, rounds: long ? 3 : 1, hits: long ? 3 : 1,          // 已定 ②：两档只在"回合数"这一维正交
+			rewardsScale: typeof enc.rewardsScale === 'number' ? enc.rewardsScale : 1,
+		};
+	},
+	/** 开始一场带波次的遭遇（写 `pc.ev.fight.wave`）；返回本批的 `{ pool }` 供战斗 UI 用。 */
+	waveBegin(pc, id) {
+		const plan = this.wavePlan(id);
+		if (!plan) return null;
+		pc.ev.fight = { ...(pc.ev.fight ?? {}), wave: { encounter: id, idx: 1, hits: 0, rounds: 0 } };
+		return { pool: plan.waves[0].pool, plan };
+	},
+	/** 记一次「本回合的命中/成败」；返回推进后的相位：`continue`／`advance`（增援）／`cleared`／`failed`。 */
+	waveRecord(pc, success) {
+		const w = pc?.ev?.fight?.wave;
+		if (!w) throw new Error('Game.Combat.waveRecord：尚未 `waveBegin`（没有波次状态）——调用方先开局（#488）');
+		const plan = this.wavePlan(w.encounter);
+		w.rounds += 1;
+		if (success) w.hits += 1;
+		if (w.hits >= plan.hits) {
+			if (w.idx >= plan.waves.length) return { phase: 'cleared', plan, wave: w, advance: false };
+			w.idx += 1; w.hits = 0; w.rounds = 0;                  // **增援**：清完一批才进下一批，且下一批各自重置计数
+			return { phase: 'advance', plan, wave: w, advance: true, pool: plan.waves[w.idx - 1].pool };
+		}
+		if (w.rounds >= plan.rounds) return { phase: 'failed', plan, wave: w, advance: false };
+		return { phase: 'continue', plan, wave: w, advance: false };
+	},
+	/** 奖励曲线：难度越高奖励越大（**单调**可机检）——只给倍数，具体金币/道具属内容面（S5）。 */
+	waveRewardScale(id, waveIdx = 1) {
+		const plan = this.wavePlan(id);
+		if (!plan) return null;
+		const wv = plan.waves[Math.min(plan.waves.length - 1, Math.max(0, waveIdx - 1))];
+		return plan.rewardsScale * wv.difficulty;                    // 线性：同一遭遇内随难度严格递增
+	},
+	/** 全灭判定（已定 ⑧：`reset` 只在**全灭**时触发；单步失败＝**带伤继续**）。 */
+	runOver(pc) { return (pc?.hp ?? 1) <= 0; },
+	/** 失败重置（已定 ⑧）：回出生点 ＋ **道具清零** ＋ 耐久/异常一并清；**保留**笔记/图鉴/已解锁。
+	 *  返回被重置的字段清单（供门/UI 逐条核销）——`RESET_KEEPS` 是「**不清什么**」的显式声明。 */
+	resetRun(pc) {
+		const before = {
+			inv: Object.keys(pc?.inv ?? {}).length,
+			gearHp: Object.keys(pc?.gearHp ?? {}).length,
+			statuses: Object.keys(pc?.statuses ?? {}).length,
+		};
+		pc.inv = {};
+		pc.gearHp = {};
+		pc.statuses = {};
+		pc.hp = pc.max_hp ?? pc.hp;
+		if (pc.ev) pc.ev.fight = null;                     // 瞬态战斗状态整块清（“回出生点”语义）
+		return { reset: ['inv', 'gearHp', 'statuses', 'hp', 'ev.fight'], before, keeps: [...Game.Combat.RESET_KEEPS] };
+	},
+	/** 「**不清什么**」的显式声明（已定 ⑧）：清单本身就是判据面——门会逐项断言它们不受 `resetRun` 影响。 */
+	RESET_KEEPS: ['ev', 'soc', 'star', 'dragon', 'world', 'Sg.notes', 'Sg.Codex', 'Sg.store'],
 	pick(actionId, res) {
 		const a = window.Sg.story.combatAction(actionId);
 		const kind = res?.roll === 20 ? 'crit' : res?.success ? 'ok' : 'bad';

@@ -25,6 +25,7 @@ import * as g_state from './gates/state.mjs';
 import * as g_literals from './gates/literals.mjs';
 import * as g_notes from './gates/notes.mjs';
 import * as g_slots from './gates/slots.mjs';
+import * as g_status from './gates/status.mjs';
 
 export const GATES = [
 	g_truth,
@@ -53,4 +54,5 @@ export const GATES = [
 	g_literals,
 	g_notes,
 	g_slots,
+	g_status,
 ];

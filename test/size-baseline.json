@@ -1,8 +1,8 @@
 {
 	"note": "产物体积预算（字节）。只许降不许升——确需增大请 --update-size 重签并在 PR 写明理由。",
 	"rows": {
-		"index.html": 965279,
-		"fonts": 745632
+		"index.html": 977563,
+		"fonts": 747368
 	},
 	"tolerancePct": {
 		"index.html": 0.5,

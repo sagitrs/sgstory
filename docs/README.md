@@ -13,6 +13,7 @@
 | 做质量评审 | `docs/quality-dimensions.md`（§一 方法 · §四 作业模板） | `docs/reviews/`（走查/评审存档，非权威） |
 | 接一个新故事 | `docs/engine-story-boundary.md` | `docs/story2-contracts.md` · `docs/repo-map.md`（§二 层归属） |
 | 查历史 / 作废稿 | `docs/archive/README.md` | — |
+| 想知道表能不能放点击态写 | `docs/click-time-writes-design.md` | `docs/notes-model.md`（§已知边界） |
 
 ## 二、权威表（谁说话算数）
 
@@ -49,6 +50,7 @@
 | `docs/gate-ledger.md` | 92 | **生成物** | `npm run report:gates:update`（**不要手改**） |
 | `docs/repo-map.md` | 84 | 地图 | 目录结构 ＋ 层归属 ＋ 权威落点速查 |
 | `docs/ui-coverage-gaps.md` | 75 | 口径 | 覆盖与未覆盖的判定口径 |
+| `docs/click-time-writes-design.md` | 96 | 设计稿·待评审 | 点击态写侧能否进表（`#624` 普查后的形状；含片一/片二与未决项） |
 | `docs/benchmark-ledger.md` | 55 | 台账 | ★待收：目前**没有其它文档引用它**（`#606`） |
 | `docs/reviews/visual-review-2026-09-10.md` | 47 | 存档 | 2026-09-10 视觉走查 |
 | `docs/twee-cheatsheet.md` | 41 | 速查 | 本仓在用的 Twee 语法 ＋ 自定义词汇宏 |

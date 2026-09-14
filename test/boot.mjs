@@ -69,7 +69,7 @@ export const LINKS_SEL = 'a.link-internal, a.soc-opt'; // 只算"剧情链接"�
 export const CLICKABLE = `#passages ${CLICKABLE_SEL}`;
 export const LINKS = `#passages ${LINKS_SEL}`;
 
-export async function boot({ random = 0.5, start = true, story = null, entry = null } = {}) {
+export async function boot({ random = 0.5, start = true, story = null, entry = null, url = 'http://localhost/' } = {}) {
 	hookExit();
 	const uncaught = [];
 	const vc = new VirtualConsole();
@@ -80,7 +80,7 @@ export async function boot({ random = 0.5, start = true, story = null, entry = n
 	const dom = new JSDOM(htmlOf(story), {
 		runScripts: 'dangerously',
 		pretendToBeVisual: true,
-		url: 'http://localhost/',
+		url,                       // `#491` 判据 10：可传 `?seed=&pool=` 验调试开关
 		virtualConsole: vc,
 		// random 可以是定值（0.5 → 恒中性）也可以是函数（游走器用种子流）
 		beforeParse(window) { window.Math.random = typeof random === 'function' ? random : () => random; },

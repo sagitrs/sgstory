@@ -139,6 +139,47 @@ if (multi) {
 // ⑥ 语义钉死：`has()` 的定义就是 `stored ∨ 旗标`（Discussion #513 的 Q2 第 1 条）
 case_('读取语义写死：`has(id) = stored(id) ∨ any(readPath(flagPath))`（本文件 ③ 与 ① 两条合起来就是它）', true);
 
+// ⑩ 路径限定授予（`#569`）：`yields: [{ id, path }]` —— 多源笔记的“这一支写哪条 path”
+// 为何不能靠 `add()`：`add()` 只看 `has(id)`（多源 OR）⇒ “听人比过”已真时，“看清了钉子”那一条**永远写不下去**。
+if (multi) {
+	const e = Sg.notes.entry(multi);
+	const [p1, p2] = Array.isArray(e.flagPath) ? e.flagPath : [e.flagPath, e.flagPath];
+	const reset = () => {
+		for (const p of Array.isArray(e.flagPath) ? e.flagPath : [e.flagPath]) Sg.notes.writePath(pc, p, false);
+		if (pc.ev.notes) delete pc.ev.notes[multi];
+	};
+	reset();
+	const a1 = Sg.notes.addPath(multi, p2);
+	case_(`路径限定：\`addPath\` 只写声明的那条（${p2}）`, a1 === true && Sg.notes.readPath(pc, p2) === true && Sg.notes.has(multi) === true);
+	case_(`路径限定：没写另一条（${p1}）—— 不静默多写旗标`, Sg.notes.readPath(pc, p1) === false || Sg.notes.readPath(pc, p1) === undefined);
+	const a2 = Sg.notes.addPath(multi, p2);
+	case_('路径限定·路径级幂等：同一条再写 ⇒ 返回 false（状态不变）', a2 === false && Sg.notes.readPath(pc, p2) === true);
+	// 🔴 关键用例：另一条已真（＝“知识已在”）时，本行声明的 path **仍必须**写下去
+	reset();
+	Sg.notes.writePath(pc, p1, true);
+	case_('🔴 关键：`has(id)` 已真（另一条 path 已写）时，`addPath` **仍**能写本行那条（`add()` 做不到）',
+		Sg.notes.has(multi) === true && Sg.notes.addPath(multi, p2) === true && Sg.notes.readPath(pc, p2) === true);
+	case_('路径限定·fail-loud：path 不属于该笔记 ⇒ 报（写进去读不出来）', (() => { try { Sg.notes.addPath(multi, 'world.不存在的路径'); return false; } catch { return true; } })());
+	case_('路径限定·fail-loud：未登记 id ⇒ 报', (() => { try { Sg.notes.addPath('n_nope', p2); return false; } catch { return true; } })());
+	// 引擎侧接线：`applyYields` 混合形状（老形状 ＋ 新形状同处）
+	reset();
+	const mix = Sg.rules.applyYields({ id: 'mix', scope: 'S', yields: [{ id: multi, path: p2 }] });
+	const mix2 = Sg.rules.applyYields({ id: 'mix', scope: 'S', yields: [{ id: multi, path: p2 }] });
+	case_('`applyYields` 认 `{id,path}`：首次落 ⇒ 返回 [id]；再渲一次 ⇒ 空（幂等）', mix.join() === multi && mix2.length === 0, `mix=${JSON.stringify(mix)} mix2=${JSON.stringify(mix2)}`);
+	case_('`applyYields` 混合形状：字符串形与对象形同一行共存 ⇒ 两者都落', (() => {
+		Sg.notes.writePath(pc, Sg.notes.entry(single).flagPath, false);
+		if (pc.ev.notes) delete pc.ev.notes[single];
+		reset();
+		const r = Sg.rules.applyYields({ id: 'mix2', scope: 'S', yields: [single, { id: multi, path: p2 }] });
+		return r.length === 2 && Sg.notes.has(single) && Sg.notes.readPath(pc, p2) === true;
+	})());
+	case_('`applyYields` 对象形缺 `path` ⇒ 当老形状走（与门侧 `yieldPathProblems()` 的口径一致）', (() => {
+		Sg.notes.writePath(pc, Sg.notes.entry(single).flagPath, false);
+		if (pc.ev.notes) delete pc.ev.notes[single];
+		return Sg.rules.applyYields({ id: 'mix3', scope: 'S', yields: [{ id: single }] }).join() === single;
+	})());
+}
+
 if (bad) {
 	console.error(`\n✗ 笔记写入门未通过（${bad} 项）—— \`Sg.notes.add\` 动的是存档语义，四条性质不许退让（#434）`);
 	process.exit(1);

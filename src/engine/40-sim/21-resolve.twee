@@ -662,9 +662,17 @@ window.Sg.rules = {
 	// 授予：把行声明的 `yields` 落到 `Sg.notes.add`（**A 方案**：`text` 只渲染，授予由调用侧统一做）。
 	// 返回**本次真正新授予**的 id（幂等 ⇒ 第二次调用返回 `[]`）——这个返回值就是"连渲两次只落一次"的取证面。
 	applyYields(row) {
-		const ids = Array.isArray(row?.yields) ? row.yields : row?.yields ? [row.yields] : [];
+		const list = Array.isArray(row?.yields) ? row.yields : row?.yields ? [row.yields] : [];
 		const granted = [];
-		for (const id of ids) if (window.Sg.notes.add(String(id))) granted.push(String(id));
+		for (const y of list) {
+			// `#569`：**混合形状** —— `'n_x'`（老）与 `{ id, path }`（多源笔记的路径限定授予）。
+			// `{ id }` 不带 `path` ⇒ 当老形状走（门侧 `yieldPathProblems()` 也不参与 path 判定）。
+			if (y && typeof y === 'object') {
+				const id = String(y.id);
+				const hit = y.path == null ? window.Sg.notes.add(id) : window.Sg.notes.addPath(id, String(y.path));
+				if (hit) granted.push(id);
+			} else if (window.Sg.notes.add(String(y))) granted.push(String(y));
+		}
 		return granted;
 	},
 	// **物品**面（`#435`：dev 定的"写点面分两类"）——行里声明 `gives: ['月光花']`，由 `<<rules>>`

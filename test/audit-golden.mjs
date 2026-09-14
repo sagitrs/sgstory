@@ -12,6 +12,7 @@
 //      是否给 MC 加固定种子（让门完全确定性）属**行为变更**，留待单独裁决。
 //   ② 收尾行（数据源提示）含路径文本，不参与归一化，作为普通内容比对。
 import { execFileSync } from 'node:child_process';
+import { assertFreshDist } from '../scripts/dist-fresh.mjs';
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 
 const GOLDEN = 'test/audit-golden.json';
@@ -136,6 +137,10 @@ const argv = process.argv.slice(2);
 if (argv.includes('--selftest')) { selftest(); process.exit(0); }
 
 if (argv.includes('--update')) {
+	// #534：**写入前先断言 dist 新鲜** —— 否则 dist 过期时 `--a11y` 的 `dist-fresh` 报错文本会被
+	// 当成"新基线"烘进去（实测踩过两次：`#532` 期间我与 guest-1 各一次）。
+	// 这一条把「重签」从"能把错误固化下来的入口"改成"要么新鲜、要么当场拒绝"。
+	assertFreshDist({ who: 'audit-golden --update' });
 	const snapshot = capture();
 	writeFileSync(GOLDEN, JSON.stringify(snapshot, null, '\t') + '\n');
 	console.log(`✔ 基线已写入 ${GOLDEN}（${FLAGS.length} 个开关；dragon 走结构比对）`);

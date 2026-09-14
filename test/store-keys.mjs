@@ -28,6 +28,20 @@ export const findKeyLiterals = (sources, allow = STORE_FILE) =>
 		.filter(([, src]) => /["'`]sgstory\./.test(stripComments(src)))
 		.map(([f]) => f);
 
+// 纯函数（供自证）：**跨故事隔离**（`#491` 判据 6：存档／图鉴／键命名空间）——
+// 三条各自可红：① 故事键（按 slug 前缀）不得相同；② 知识面（笔记 id）不得重叠；
+// ③ 产物 IFID 不得相同（SugarCube 以 IFID 作存档键 ⇒ 同源 localStorage 下 IFID 相同就会互相覆盖存档）。
+export const judgeIsolation = ({ keyA, keyB, idsA, idsB, ifidA, ifidB }) => {
+	const out = [];
+	if (!keyA || !keyB) out.push('故事键取不到（`Sg.store.key` 或 slug 缺失）');
+	else if (keyA === keyB) out.push(`两个故事的故事键相同：${keyA} ⇒ 键命名空间没隔离`);
+	const overlap = [...(idsA ?? [])].filter((k) => (idsB ?? new Set()).has(k));
+	if (overlap.length) out.push(`两个故事共享了笔记 id：${overlap.slice(0, 3).join(' / ')}（知识面串了）`);
+	if (!ifidA || !ifidB) out.push('产物缺 IFID ⇒ 存档隔离不可判定');
+	else if (ifidA === ifidB) out.push('两个故事 IFID 相同 ⇒ 同源 localStorage 下存档会互相覆盖');
+	return out;
+};
+
 // 纯函数（供自证）：内存 localStorage stub（node 侧无浏览器）
 export const fakeLS = (init = {}) => {
 	const m = new Map(Object.entries(init));
@@ -53,6 +67,17 @@ if (SELFTEST) {
 		const ok = got === want;
 		console.log(`  ${ok ? '✓' : '✗'} ${label}：检出 ${got}（期望 ${want}）`);
 		if (!ok) bad++;
+	}
+	// #491 判据 6：跨故事隔离判据的正反例
+	{
+		const ok = { keyA: 'sgstory.a.codex.v1', keyB: 'sgstory.b.codex.v1', idsA: new Set(['n_a']), idsB: new Set(['n_b']), ifidA: 'I1', ifidB: 'I2' };
+		const cases = [
+			['正例：键不同 ＋ 知识不重叠 ＋ IFID 不同 ⇒ 0 条', judgeIsolation(ok).length === 0],
+			['🔴 反例：两故事故事键相同 ⇒ 报', judgeIsolation({ ...ok, keyB: ok.keyA }).length === 1],
+			['🔴 反例：笔记 id 重叠 ⇒ 报', judgeIsolation({ ...ok, idsB: new Set(['n_a', 'n_b']) }).some((s) => s.includes('笔记 id'))],
+			['🔴 反例：IFID 相同 ⇒ 报（存档会互相覆盖）', judgeIsolation({ ...ok, ifidB: 'I1' }).some((s) => s.includes('IFID'))],
+		];
+		for (const [label, cond] of cases) { if (!cond) bad++; console.log(`      ${cond ? '✓' : '✗'} 自证·${label}`); }
 	}
 	// stub 自证：map 语义与 localStorage 一致（缺失键返回 null、remove 后不残留）
 	{
@@ -151,6 +176,23 @@ t('① 未知 scope ⇒ 报错（不许静默当 engine 处理）', (() => { try
 	const manifest = `${dir}/00-story.json`;
 	const ok = existsSync(manifest) && JSON.parse(readFileSync(manifest, 'utf8')).slug === slug;
 	t('⑥ `Sg.storyId.slug` 与 `stories/<slug>/00-story.json` 一致（防两处漂移）', ok, manifest);
+}
+
+// ⑦ 跨故事隔离（`#491` 判据 6）：用**两个真实 slug** 实测（不是合成的 `other-story`）
+{
+	const { storyHtml } = await import('../scripts/dist-paths.mjs');
+	const readIfid = (slug) => (readFileSync(storyHtml(slug), 'utf8').match(/ifid="([^"]+)"/) ?? [])[1] ?? null;
+	const A = createContext({ story: 'mist-forest' }), B = createContext({ story: 'hollow-cave' });
+	const obs = {
+		keyA: A.window?.Sg?.store?.key?.('story', 'codex.v1') ?? null,
+		keyB: B.window?.Sg?.store?.key?.('story', 'codex.v1') ?? null,
+		idsA: new Set(Object.keys(A.window?.Sg?.story?.notes?.() ?? {})),
+		idsB: new Set(Object.keys(B.window?.Sg?.story?.notes?.() ?? {})),
+		ifidA: readIfid('mist-forest'), ifidB: readIfid('hollow-cave'),
+	};
+	const problems = judgeIsolation(obs);
+	for (const p of problems) { bad++; console.error(`  ✗ ⑦ ${p}`); }
+	console.log(`  ${problems.length ? '✗' : '✓'} ⑦ 跨故事隔离：故事键 ${obs.keyA} ≠ ${obs.keyB} ｜ 笔记 id ${obs.idsA.size} vs ${obs.idsB.size}（重叠 ${[...obs.idsA].filter((k) => obs.idsB.has(k)).length}）｜ IFID ${String(obs.ifidA).slice(0, 8)}… ≠ ${String(obs.ifidB).slice(0, 8)}…`);
 }
 
 // ⑦ 两个消费点都不再持有键字面量（`Sg.UI` engine ／ `Sg.Codex` story）

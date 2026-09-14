@@ -190,7 +190,8 @@ export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 't
 // **`#607` P0 起 `AUDIT_STORY` 的含义**：＝「**尚未迁移**的故事门」清单（历史包袱；搬完一批删一批）。
 // 已搬进 `stories/<slug>/gates/` 的门由**该故事的清单**声明（`00-story.json` 的 `gates`），由 `scripts/audit/discovery.mjs`
 // 发现 ⇒ 下方这两个表只描述"还在工具层的门"。落点与机制见 `docs/story-gates-design.md`。
-export const AUDIT_STORY = ['truth', 'canon', 'echoes', 'starbudget', 'choices', 'combat', 'craft', 'dragon', 'rules', 'reads', 'cave', 'notes', 'combat-dist',
+// **已搬走（P1 试点）**：`economy` / `items`＋`tokens` / `notes` → `stories/mist-forest/gates/`。
+export const AUDIT_STORY = ['truth', 'canon', 'echoes', 'starbudget', 'choices', 'combat', 'craft', 'dragon', 'rules', 'reads', 'cave', 'combat-dist',
 	'gear', 'interact', 'investment', 'nosl', 'npc', 'social', 'systems'];
 // 非门段里**与故事内容无关**的那些（构建 / 构建期 lint / 产物守卫）：显式登记，不放宽默认
 export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs', 'scripts-audit-mjs-story2-engine', 'scripts-audit-mjs-story3-engine',
@@ -233,7 +234,10 @@ export const validateLayers = (plan = SEGMENTS, { declaredStoryFlags = [] } = {}
 	for (const s of plan) { const f = auditFlag(s); if (f) planFlags.add(f); }
 	const declared = new Set([...AUDIT_ENGINE, ...AUDIT_STORY, ...declaredStoryFlags]);
 	for (const f of planFlags) if (!declared.has(f)) problems.push(`未归层：计划里的 \`--${f} --check\` 段没有任何层（新增门请加进 AUDIT_ENGINE／AUDIT_STORY）`);
-	for (const f of declared) if (!planFlags.has(f)) problems.push(`僵尸层声明：\`${f}\` 在层表里，但计划里没有对应段（删段时请同步层表）`);
+	// 僵尸：**工具层层表**里声明了、却没有对应计划段（删段时忘了同步层表）。
+	// 注：`declaredStoryFlags`（故事清单声明的门）**不参与**这一条——它们住故事侧，未接线的判定归
+	// `report-gate-ledger.mjs` 的 F2（「未接线必须写明理由」），这里只管"层表 ↔ 计划"的一致性。
+	for (const f of [...AUDIT_ENGINE, ...AUDIT_STORY]) if (!planFlags.has(f)) problems.push(`僵尸层声明：${f} 在层表里，但计划里没有对应段（删段时请同步层表）`);
 	for (const id of ENGINE_EXTRA) if (!plan.some((s) => s.id === id)) problems.push(`僵尸 ENGINE_EXTRA 条目：${id} 不在计划里`);
 	return problems;
 };

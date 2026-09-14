@@ -10,7 +10,7 @@
 //      这样门在阶段推进时**不需要改判据**）。
 //   · **反沉默**：`bookkeeping` 里声明了零消费、实际却有消费点的笔记键 ⇒ 红（声明烂在那里）。
 import { readFileSync, readdirSync } from 'node:fs';
-import { readKeys, ruleRowKeys } from '../lib/shared.mjs';
+import { readKeys, ruleRowKeys } from '../../../scripts/audit/lib/shared.mjs';
 
 export const flag = 'notes';
 export const flags = ['notes'];

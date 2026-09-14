@@ -26,5 +26,9 @@
 		"src/80-script.twee",
 		"src/engine/50-present/90-style.twee"
 	],
-	"gates": []
+	"gates": [
+		"stories/mist-forest/gates/economy.mjs",
+		"stories/mist-forest/gates/items-tokens.mjs",
+		"stories/mist-forest/gates/notes.mjs"
+	]
 }

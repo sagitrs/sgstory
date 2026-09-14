@@ -179,12 +179,12 @@ Object.assign((window.Game.Notes ??= { entries: {} }).entries, {
 
 | 批次 | 文件（独占） | 收 | 不收 | 拆/其他 | 本批要落的 id |
 |---|---|---|---|---|---|
-| B0 一章补漏（#442） | `src/16-notes-ch1.twee` | 10 | 6 | 0 | `tav_dragon`／`tav_keeper`／`tav_painting`／`wq_alone`／`wq_painting`／`wq_past`／`wq_talisman`／`wq_under`／`witch_hint`／`rumor` |
-| B1 二章（#429） | `src/16-notes-ch2.twee` | 7 | 15 | 1 | `hall_hint`／`hall_seen`／`study_hint`／`ledger_hint`／`failure_cause`／`observation_lock`／`forge_seen` |
-| B2 三章（#430） | `src/16-notes-ch3.twee` | 8 | 24 | 2 | `keeper_told`／`keeper_why`／`star_ledger`／`witch_fire_hint`／`witch_grip`／`old_witch`／`staff_hint`／`letter_seen` |
-| B3 跨章/展示层（#431） | `src/16-notes-cross.twee` | 0 | 6 | 0 | — |
-| 阶段 1（#426）已落 | `src/15-tables.twee`（`Game.Notes` 域） | 13 | 0 | 0 | `tav_tips`／`tav_fog`／`tav_light`／`tav_iron`／`tav_seal`／`tav_grudge`／`tav_ageless`／`tav_flower`／`wq_seen`／`wq_night`／`wq_fog`／`forest_heard`／`flower_warned` |
-| B3 机制样板（#439）已落 | `src/16-notes-cross.twee` | 1 | 0 | 0 | `below_seen` |
+| B0 一章补漏（#442） | `stories/mist-forest/16-notes-ch1.twee` | 10 | 6 | 0 | `tav_dragon`／`tav_keeper`／`tav_painting`／`wq_alone`／`wq_painting`／`wq_past`／`wq_talisman`／`wq_under`／`witch_hint`／`rumor` |
+| B1 二章（#429） | `stories/mist-forest/16-notes-ch2.twee` | 7 | 15 | 1 | `hall_hint`／`hall_seen`／`study_hint`／`ledger_hint`／`failure_cause`／`observation_lock`／`forge_seen` |
+| B2 三章（#430） | `stories/mist-forest/16-notes-ch3.twee` | 8 | 24 | 2 | `keeper_told`／`keeper_why`／`star_ledger`／`witch_fire_hint`／`witch_grip`／`old_witch`／`staff_hint`／`letter_seen` |
+| B3 跨章/展示层（#431） | `stories/mist-forest/16-notes-cross.twee` | 0 | 6 | 0 | — |
+| 阶段 1（#426）已落 | `stories/mist-forest/15-tables.twee`（`Game.Notes` 域） | 13 | 0 | 0 | `tav_tips`／`tav_fog`／`tav_light`／`tav_iron`／`tav_seal`／`tav_grudge`／`tav_ageless`／`tav_flower`／`wq_seen`／`wq_night`／`wq_fog`／`forest_heard`／`flower_warned` |
+| B3 机制样板（#439）已落 | `stories/mist-forest/16-notes-cross.twee` | 1 | 0 | 0 | `below_seen` |
 
 ---
 

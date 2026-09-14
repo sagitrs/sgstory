@@ -5,7 +5,7 @@
 
 ## 1. 故事侧注册什么
 
-`window.Sg.story`（由故事文件注册；故事 1 现落在 `src/15-tables.twee` 的 `:: StoryBindings`，`)`#441-D`）搬家后随故事包走 `stories/<slug>/**`）。
+`window.Sg.story`（由故事文件注册；故事 1 现落在 `stories/mist-forest/15-tables.twee` 的 `:: StoryBindings`，`)`#441-D`）搬家后随故事包走 `stories/<slug>/**`）。
 
 | provider | 用途 | 缺省语义（**三条不许混**） |
 |---|---|---|

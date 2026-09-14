@@ -1,0 +1,72 @@
+# 文档索引（`docs/`）
+
+> 入口页是仓库根的 `README.md`（"是什么 ＋ 一键跑起来"）；**本页回答"哪份是权威、写什么的时候读哪份"**。
+> 归档口径：`docs/archive/` 只放**作废稿**（禁止回流，逐稿对照表见 `docs/archive/README.md`）。
+
+## 一、按任务读（推荐路径）
+
+| 我要…… | 先读 | 再读 |
+|---|---|---|
+| 写 / 改剧情 | `docs/lore-canon.md`（设定唯一权威） | `docs/game-outline.md` · `docs/twee-cheatsheet.md` · `docs/game-mechanics.md` |
+| 改引擎 / 机制 | `docs/dev-conventions.md` | `docs/repo-map.md` · `docs/engine-story-boundary.md` |
+| 加 / 改门与测试 | `docs/quality-dimensions.md` | `docs/gate-ledger.md` · `docs/ui-coverage-gaps.md` |
+| 做质量评审 | `docs/quality-dimensions.md`（§一 方法 · §四 作业模板） | `docs/design-review.md`（D6 走查存档） |
+| 接一个新故事 | `docs/engine-story-boundary.md` | `docs/story2-contracts.md` · `docs/repo-map.md`（§二 层归属） |
+| 查历史 / 作废稿 | `docs/archive/README.md` | — |
+
+## 二、权威表（谁说话算数）
+
+| 面 | 唯一权威 | 形态 |
+|---|---|---|
+| 设定 / 正史（正文与它冲突＝P1 缺陷） | `docs/lore-canon.md` | 手写 |
+| 游戏设计与里程碑蓝本（不具设定权威） | `docs/game-outline.md` | 手写 |
+| 知识模型（笔记 / 世界态 / 运行时） | `docs/notes-model.md` | 手写 |
+| 质量维度与每门判据 | `docs/quality-dimensions.md` | 手写 |
+| 代码级约定（渲染路径 / 构建顺序 / 命名 / 条件表形状） | `docs/dev-conventions.md` | 手写 |
+| 引擎与故事的边界、故事接入契约 | `docs/engine-story-boundary.md` · `docs/story2-contracts.md` | 手写 |
+| 模块顺序与层归属 | `scripts/module-order.mjs`（代码即权威） | 代码 |
+| 目录 / 文件层说明 | `docs/repo-map.md` | 手写 |
+| 门的登记与接线 | `docs/gate-ledger.md` | **生成物** |
+| 节奏 / 相异度基线 | `docs/baselines.md` | **生成物** |
+| UI 盘点 / 覆盖缺口 | `docs/ui-inventory.md` · `docs/ui-coverage-gaps.md` | 手写 ＋ 机检 |
+| 玩家可见正文漂移 | `docs/ui-migration-diff.md` | **生成物** |
+
+## 三、全量清单
+
+| 文件 | 行数 | 类别 | 说明 |
+|---|---|---|---|
+| `docs/lore-canon.md` | 729 | 权威 | 设定书；正文／文案不得与之冲突 |
+| `docs/game-outline.md` | 502 | 设计 | 机制与内容蓝本；里程碑表里的门数/路线数是**当时值** |
+| `docs/dev-conventions.md` | 454 | 权威 | 14 条代码级约定，每条都配"会咬人的门" |
+| `docs/baselines.md` | 429 | **生成物** | `npm run report:rhythm`；★待收：一份文件里 7 个 h1（`#606`） |
+| `docs/impl-map.md` | 304 | 实施图 | M1 骨架落地：段落图/状态模型/测试策略 |
+| `docs/story2-contracts.md` | 274 | 权威 | 故事 2/3 的接入契约清单 |
+| `docs/quality-dimensions.md` | 273 | 权威 | 维度总表 ＋ 候选池 ＋ 给测试的作业模板 |
+| `docs/notes-model.md` | 217 | 权威 | 三类划分 ＋ 判定口诀 ＋ 迁移五步 |
+| `docs/notes-model-batches.md` | 215 | 记录 | 笔记模型分批迁移的过程记录 |
+| `docs/ui-inventory.md` | 201 | 盘点 | 段落与交互元素清单 |
+| `docs/engine-story-boundary.md` | 130 | 权威 | 两层边界与接入契约 |
+| `docs/gate-ledger.md` | 92 | **生成物** | `npm run report:gates:update`（**不要手改**） |
+| `docs/repo-map.md` | 84 | 地图 | 目录结构 ＋ 层归属 ＋ 权威落点速查 |
+| `docs/ui-coverage-gaps.md` | 75 | 口径 | 覆盖与未覆盖的判定口径 |
+| `docs/benchmark-ledger.md` | 55 | 台账 | ★待收：目前**没有其它文档引用它**（`#606`） |
+| `docs/visual-review-2026-09-10.md` | 47 | 存档 | 2026-09-10 视觉走查 |
+| `docs/twee-cheatsheet.md` | 41 | 速查 | 本仓在用的 Twee 语法 ＋ 自定义词汇宏 |
+| `docs/text-review-2026-09-10.md` | 41 | 存档 | 文本走查（另一份 `…after-rebase…` 是重基后的复跑） |
+| `docs/quality-selfaudit-ch123.md` | 38 | 存档 | 1–3 章八维自检（流程记录，非设定稿） |
+| `docs/game-mechanics.md` | 31 | 速查 | 数值系统 ＋ 演示机制（故事 1 机制面） |
+| `docs/rebase-review-2026-09-10.md` | 31 | 存档 | 重基复核记录 |
+| `docs/text-review-after-rebase-2026-09-10.md` | 29 | 存档 | 重基后的文本复跑 |
+| `docs/design-review.md` | 28 | 存档 | D6 可用性走查（呈现层改动时复审） |
+| `docs/credits.md` | 20 | 参考 | 参考资源 ＋ 第三方鸣谢 |
+| `docs/ui-migration-diff.md` | 16 | **生成物** | `node scripts/ui-migration-diff.mjs` |
+| `docs/archive/` | 10 份 | 作废 | 禁止回流；对照表见 `docs/archive/README.md` |
+
+## 四、口径与惯例
+
+- **生成物不要手改**：`docs/baselines.md`（`report:rhythm`）· `docs/gate-ledger.md`（`report:gates:update`）· `docs/ui-migration-diff.md`。
+- **状态标记必须是真的**：文档里 `#NNN`／PR 号旁边的 ✅／⏳ 要与 GitHub 真实状态同类 —— `npm run report:freshness`（`docs/dev-conventions.md` F6 节）。
+- **文档格式有门**：`node scripts/md-format.mjs` —— 每个 `*.md` 的围栏必须成对、标题不许落在代码块里（`#603`；`README.md` 曾因一个多余的围栏让四个标题被吞）。
+- **引用仓内路径要真实存在**：这条**尚未接线**成门（`#606` 片一）；当前已知 **14 处陈旧路径**（`src/*.twee` 搬家后未更新）待收。
+- **动文档要不要跑全链**：只改文档的 PR 不跑 soak（`docs/dev-conventions.md` §10）。
+- **本页与 `docs/archive/README.md` 的分工**：本页管"现役文档"，归档页管"作废稿与其替代关系"。

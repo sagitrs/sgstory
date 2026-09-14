@@ -143,7 +143,9 @@
 	<</link>>
 <<elseif $pc.inv[_c.tool]>>
 	<<link `"用" + _c.tool + "撬它（通用道具 −3）"`>>
-		<<sitecheck `_rare ? _c.rareSite : _c.site`>>
+		/% `#491` 判据 3：道具路径必须用**降难位点**（`toolSite`／`rareToolSite`，各自 = 同档 −3）——
+		   原先写的是 `_rare ? rareSite : site` ⇒ 拿道具 DC 一点没降（声明的"各降 3"没兑现）。 %/
+		<<sitecheck `_rare ? _c.rareToolSite : _c.toolSite`>>
 		<<if $last_check.success>>
 			具压住了机关。里面是干粮，和一小块铁片。
 			<<if _rare>><<give (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><</if>>

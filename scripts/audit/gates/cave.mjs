@@ -43,12 +43,23 @@ export const poolProblems = (pool, hasPassage, prefix = '路·') => {
 	return out;
 };
 /** 纯函数③：宝箱声明面（位点已登记 ＋ 工具在道具表 ＋ 奖品曲线非空）。 */
-export const chestProblems = (chest, { hasSite, hasItem } = {}) => {
+export const chestProblems = (chest, { hasSite, hasItem, siteOf } = {}) => {
 	const out = [];
 	if (!chest) return out;
 	for (const [id, m] of Object.entries(chest.mechanisms ?? {})) {
 		for (const f of ['site', 'rareSite', 'toolSite']) if (!hasSite?.(m?.[f])) out.push({ code: 'site-missing', why: `机关「${id}」的 \`${f}\`（${m?.[f]}）不是已登记位点` });
 		if (!hasItem?.(m?.tool)) out.push({ code: 'tool-missing', why: `机关「${id}」的工具「${m?.tool}」不在道具表（Game.Items.defs）里` });
+		// `#491` 判据 3（声明侧）：已定 ③ 的"通用道具**各降 3**"与"珍贵比普通高"必须是**位点表里的真实差值**——
+		// 否则声明的四条路径里那条"道具降难"只是文案（DC 没动 ⇒ 玩家拿道具也没用）。
+		const dc = (n) => siteOf?.(n)?.dc;
+		if (siteOf) {
+			const [a, b, c] = [dc(m?.site), dc(m?.rareSite), dc(m?.toolSite)];
+			if ([a, b, c].every((x) => typeof x === 'number')) {
+				if (typeof chest.toolReduce === 'number' && b - a !== 0) { /* 普通/珍贵之差由下表单独判 */ }
+				if (a - c !== chest.toolReduce) out.push({ code: 'tool-reduce', why: `机关「${id}」的工具降难不是声明的 ${chest.toolReduce}：普通 DC ${a} − 借助具 DC ${c} = ${a - c}（已定 ③：通用道具各降 3）` });
+				if (!(b > a)) out.push({ code: 'rarity-dc', why: `机关「${id}」的珍贵 DC ${b} 没有高于普通 DC ${a}（已定 ③：珍贵更难）` });
+			}
+		}
 	}
 	if (!Object.keys(chest.loot ?? {}).length) out.push({ code: 'loot-missing', why: '`chest.loot` 为空——稀有度→奖品曲线缺失（宝箱四路径要有兑现）' });
 	for (const [r, l] of Object.entries(chest.loot ?? {})) if (!Array.isArray(l) || !l.length) out.push({ code: 'loot-empty', why: `稀有度「${r}」的奖品清单为空` });
@@ -73,6 +84,16 @@ export const run = (ctx) => {
 			['🔴 ② 反例：实例缺 `hint`／`ref` 解析不到 ⇒ 各报一条', poolProblems({ kinds: KINDS, entries: { ...Object.fromEntries(KINDS.map((k) => [k, [{ id: '1a', hint: 'x', ref: '1a' }]])), cave: [{ id: '9z', ref: '9z' }] } }, has).length === 2],
 			['边界：`eventPool` 未启用（null）⇒ 不报（故事 1 走这条）', poolProblems(null, has).length === 0],
 			['③ 正例：宝箱声明面齐（位点已登记＋工具在道具表＋奖品曲线非空）', chestProblems({ mechanisms: { 锁扣: { site: 'A', rareSite: 'B', toolSite: 'C', tool: '撬棍' } }, loot: { 普通: ['干粮'] } }, { hasSite: (x) => !!x, hasItem: (x) => x === '撬棍' }).length === 0],
+			// `#491` 判据 3（声明侧）：位点表里的 DC 差必须兑现"道具各降 3"与"珍贵更难"
+			['③ 正例（#491）：工具降难＝声明值（12−9=3）且珍贵(15)>普通(12) ⇒ 不报', chestProblems(
+				{ mechanisms: { 锁扣: { site: 'A', rareSite: 'B', toolSite: 'C', tool: '撬棍' } }, loot: { 普通: ['干粮'] }, toolReduce: 3 },
+				{ hasSite: () => true, hasItem: () => true, siteOf: (n) => ({ A: { dc: 12 }, B: { dc: 15 }, C: { dc: 9 } })[n] }).length === 0],
+			['🔴 ③ 反例（#491）：工具降难只降 1（12−11）⇒ 报（声明的"各降 3"没兑现）', chestProblems(
+				{ mechanisms: { 锁扣: { site: 'A', rareSite: 'B', toolSite: 'C', tool: '撬棍' } }, loot: { 普通: ['干粮'] }, toolReduce: 3 },
+				{ hasSite: () => true, hasItem: () => true, siteOf: (n) => ({ A: { dc: 12 }, B: { dc: 15 }, C: { dc: 11 } })[n] }).some((p) => p.code === 'tool-reduce')],
+			['🔴 ③ 反例（#491）：珍贵 DC 没高于普通 ⇒ 报', chestProblems(
+				{ mechanisms: { 锁扣: { site: 'A', rareSite: 'B', toolSite: 'C', tool: '撬棍' } }, loot: { 普通: ['干粮'] }, toolReduce: 3 },
+				{ hasSite: () => true, hasItem: () => true, siteOf: (n) => ({ A: { dc: 12 }, B: { dc: 12 }, C: { dc: 9 } })[n] }).some((p) => p.code === 'rarity-dc')],
 			['🔴 ③ 反例：三个位点都没登记（3）＋工具不在道具表（1）＋奖品曲线空（1）⇒ 5 条', chestProblems({ mechanisms: { 锁扣: { site: 'A', rareSite: 'B', toolSite: 'C', tool: '不存在' } }, loot: {} }, { hasSite: () => false, hasItem: () => false }).length === 5],
 		];
 		let selfBad = 0;
@@ -89,7 +110,7 @@ export const run = (ctx) => {
 		const rows = mech.roads.flatMap((r) => r.options ?? []);
 		for (const p of refProblems(rows, hasPassage)) { console.log(`  ✗ 路「${p.kind}」ref=${p.ref}：${p.why}`); bad++; }
 		for (const p of poolProblems(story.eventPool?.(1) ?? null, hasPassage)) { console.log(`  ✗ 事件池：${p.why}`); bad++; }
-		for (const p of chestProblems(mech.chest, { hasSite: (n) => !!story.checkSite?.(n), hasItem: (n) => !!story.itemEffect?.(n) })) { console.log(`  ✗ 宝箱声明面：${p.why}`); bad++; }
+		for (const p of chestProblems(mech.chest, { hasSite: (n) => !!story.checkSite?.(n), hasItem: (n) => !!story.itemEffect?.(n), siteOf: (n) => story.checkSite?.(n) })) { console.log(`  ✗ 宝箱声明面：${p.why}`); bad++; }
 		const noCheck = (mech.roads ?? []).filter((r) => (r.options ?? []).some((o) => o.noCheck)).length;
 		console.log(`  · 五段三路：${(mech.roads ?? []).length} 段 · ${rows.length} 条路 · 有 \`noCheck\` 的段 ${noCheck} 个 · 实例段落全部解析 ✓`);
 	}

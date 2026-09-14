@@ -6,13 +6,18 @@
 //   `prio`     **显式优先级**（选择器按它降序、同 prio 按声明顺序稳定 ⇒ 不做隐式顺序假设）
 //   `scope`    作用域（哪一段/哪个话题）—— 死规则门的"同作用域"比较靠它
 //   `premise`  散文锚句（`test/premise-source.mjs` 用；字段名沿用原口径）
-//   `yields`   本行被选中后授予的笔记 id（由调用处 `Sg.notes.add` 落地，本表不写状态）
+//   `yields`   本行被选中后授予的**笔记** id（由调用处 `Sg.notes.add` 落地，本表不写状态）
+//   `gives`    本行被选中后授予的**物品**（由 `Sg.rules.applyGrants` 落地，同上）
+//   `sets`     本行被选中后置真的**状态键**（`sets: ['world.flower_taken']` ≡ `<<setflag "flower_taken">>`；裸键默认 `ev.`）
+//              ———— 授予家族**三类**（笔记／物品／状态键）都在 `<<rules>>` **渲染成功后同处**落地（写点恒在一处，`#435` Q1）
+//              `sets` 三条收窄（门侧 `setProblems()` 机检）：只许布尔置真 · 键必须已登记在状态契约域 · **有笔记的键必须走 `yields`**
 //   `text`     选中时渲染的正文（模板；**不含字面状态读**）
 // 门（`--rules` 写侧 ＋ `--reads` 读侧，两条例均属 `#435`）：
 //   ① 死规则门（永不被选中的行）· `prereq` 形状（同 scope＋禁环）· 并列 prio 报告
 //   ② `text` 列只许**纯渲染**（不得含状态写宏——写请走 `yields`，A 方案由 `<<rules>>` 统一落）
 //      ＋ `scope` 与调用点一致：未接管行（无 `<<rules>>` 调用）／同一段落同位点重复调用／`段落#位点` 归属不符
-//   ③ 表里不得出现字面状态读（`req`/`any`/`exclude`/`prereq`/`yields`/`text`）——只许 note id／键名，求值走封装层
+//   ③ 表里不得出现字面状态读（`req`/`any`/`exclude`/`prereq`/`yields`/`gives`/`sets`/`text`）——只许 note id／键名，求值走封装层
+//   ④ 行里用到的**面**与**键形前缀**必须是引擎宣告过的（`Sg.rules.effects`／`Sg.rules.prefixes`）——引擎不兑现的声明＝静默空转
 // 入口：选择器在引擎侧（`src/engine/40-sim/21-resolve.twee` 的 `Sg.rules`），**只经 `Sg.story.rules()` 取表**。
 Object.assign((window.Sg.story ??= {}), {
 	rules: () => [
@@ -48,5 +53,44 @@ Object.assign((window.Sg.story ??= {}), {
 		{ id: '书房.暗格', scope: '书房#暗格', req: ['n_witch_hint'], prio: 10, text: `''女巫说的暗格''，位置分毫不差。` },
 		{ id: '书房.暗格.else', scope: '书房#暗格', exclude: ['n_witch_hint'], prio: 10, text: `你不确定那是不是暗格。` },
 		{ id: '天文台.账本', scope: '天文台#账本', req: ['n_ledger_hint'], prio: 10, text: `<span class="sys-note">（你已经知道：那些点是等分的。）</span>` },
+		// 来源：`40-ch2.twee` 里原先手写的 <<if $era is Game.Era.PAST>> ＋ 内层 <<if $pc.keeper.met>>
+		{ id: '守林人.初见.met', scope: '守林人#初见', req: ['era:past', 'keeper.met'], prio: 10, text: `		''他说话的样子，与三百年后那位一字不差。''这家人把该说的，都写进了差事里。
+	` },
+		{ id: '守林人.初见.young', scope: '守林人#初见', req: ['era:past'], exclude: ['keeper.met'], prio: 10, text: `		他年轻些，腰上那把钥匙的穗子还是新的。
+	` },
+		// 来源：`40-ch2.twee` 里原先手写的 <<if $pc.inv["时光护符"]>>（行内）
+		{ id: '守林人.护符', scope: '守林人#护符', req: ['inv:时光护符'], prio: 10, text: `（他先看的是你脖子上那枚护符——''他一眼就认出来了''。）"''我妈让你来的。''"他说，语气没什么起伏，"那你就不是来找麻烦的。"
+
+` },
+		// 来源：`40-ch2.twee` 里原先手写的 <<if $era is Game.Era.PRESENT and Sg.notes.has('n_forge_seen') and not $pc.ev.forge_thanks>>
+		{ id: '守林人.带话', scope: '守林人#带话', req: ['era:present', 'n_forge_seen'], exclude: ['forge_thanks'], sets: ['forge_thanks'], prio: 10, text: `	
+	你替工坊的铁匠带了话。他摸了摸左臂：照他尺寸打的那副护臂，他一直没去取。
+	''"那是我先人的臂。他不来取，就归用得上的人。"''他顿了顿，"替我谢谢他。''要是你还能回到炉火旺的那一晚。''""
+` },
+		// 来源：`40-ch2.twee` 里原先手写的 <<if $era is Game.Era.PAST>>（钥匙那句）
+		{ id: '守林人.回头.past', scope: '守林人#回头', req: ['era:past'], prio: 10, text: `	他从腰上解下钥匙，搁进你手里："地下今晚为客开着。这钥匙你也收着，''我家的差事，认符也认人。''"
+` },
+		{ id: '守林人.回头.present', scope: '守林人#回头', exclude: ['era:past'], prio: 10, text: `	他从腰上解下钥匙，搁进你手里："地下那道门，只有这把钥匙开。"
+` },
+		// 来源：`40-ch2.twee` 里原先手写的 <<if $pc.inv["日记"]>>（摊开日记）
+		{ id: '守林人·劝杀.日记', scope: '守林人·劝杀#日记', req: ['inv:日记'], prio: 10, text: `	<<link "摊开日记：缺的从来不是咒，是有人肯了结它">>
+		<<sitecheck "守林人·劝杀·日记">><<snapshot>>
+		<<if $last_check.success>>
+			他一页一页翻过去。翻到那行被描过两遍的字，他的手停了很久。
+
+			"''下早了。''"他合上日记，起身取杖，"这件事，我家欠它一个准话。我去把它了结。"
+
+			<<goto "结局 守林人击杀">>
+		<<else>>
+			他把日记推回来："描过两遍的字，我妈也描过。''你读出来的，未必是我们没读出来的。''"
+
+			<<goto "守林人·劝杀">>
+		<</if>>
+	<</link>>
+` },
+		{ id: '守林人·劝杀.日记.else', scope: '守林人·劝杀#日记', exclude: ['inv:日记'], prio: 10, text: `	（没带日记：你想说服他，手里得有''他们家自己没读懂的东西''。）
+` },
+		// 来源：`40-ch2.twee` 里原先手写的 <<if $pc.inv["日记"]>>（行内）
+		{ id: '守林人·送.日记', scope: '守林人·送#日记', req: ['inv:日记'], prio: 10, text: `（日记里那半句，你还记得。）` },
 	],
 });

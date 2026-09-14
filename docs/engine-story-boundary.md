@@ -63,6 +63,11 @@ mechanics: () => ({
 **实现与门**：校验器 `scripts/audit/lib/story-shape.mjs`（纯函数，导出 `validateStoryMechanics()` ＋ 两张词表 `GRADE_SET`／`REDUCE_FORMS` ——
 改口径只动这两处）；门 `test/story-shape.mjs`（**真实契约** ＋ 六条各带**正反自证**，失败计入退出码），已挂进 `npm test`。
 
+**真实契约的作用域＝每个注册故事**（`storySlugs()` 逐个判，`#571`）：原先只判默认故事，而默认故事声明的是
+「未启用」（**合法**，见 §3）⇒ 第三个故事的真实声明**一次都没被形状校验过**——`statusPenalty` 两处键形错误
+（`麻痹@腿`／`流血@躯干` 用的是中文标签，而引擎按 `statuses` 的 id 取值）就是这样漏过去的：声明仍在、**减成恒为 0**、
+不报错也不告警（`退 0` 不是证据，`docs/dev-conventions.md` §13）。
+
 ## 3. 兼容模式（**必须显式降级**，`#492`）
 
 - 故事**未**声明新机制 ⇒ `mechanics()` 返回 **`null`**（故事 1 v1 就是这样，注释里写明理由）；

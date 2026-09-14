@@ -9,6 +9,8 @@
 // 用法：node test/story-shape.mjs
 import { createContext } from '../scripts/audit/context.mjs';
 import { validateStoryMechanics, GRADE_SET, REDUCE_FORMS } from '../scripts/audit/lib/story-shape.mjs';
+// `#571`：真实契约的**作用域**＝`storySlugs()`（单一权威，与 build／multi-story 同源）
+import { storySlugs, DEFAULT_SLUG } from '../scripts/dist-paths.mjs';
 
 let bad = 0;
 const case_ = (label, ok, extra = '') => {
@@ -121,23 +123,28 @@ case_('边界：`enabled:true` 只表示"故事声明了这套表"，与"跑不�
 case_('词表：分档词表与减成形态是**声明式枚举**（改口径要动这两处 ⇒ 门会跟着变）',
 	GRADE_SET.join() === 'most,low' && REDUCE_FORMS.join() === 'flat');   // #486：只列**已实现**的形态
 
-// ── ① 真实契约：当前故事必须"未启用"或"形状合法" ──
-{
-	const { window: w } = createContext({ argv: [] });
+// ── ① 真实契约：**每个注册故事**都必须"未启用"或"形状合法" ──
+// 为什么是每个故事（`#571`）：原先只判默认故事（`createContext({ argv: [] })`）——而默认故事的 `mechanics()`
+// 是 `null`（「未启用」是**合法声明**，见 `#492`）⇒ **第三个故事的真实声明一次都没被形状校验过**，
+// 于是 `statusPenalty` 两处键形错误（中文标签 vs 英文 id）静默通过、异常减成恒为 0（``退 0``不是证据，`#557` §13）。
+// 本片**只改作用域，不改判据**（判据仍是 `validateStoryMechanics`）。
+for (const slug of storySlugs()) {
+	const { window: w } = createContext({ story: slug, argv: [] });
 	const Sg = w.Sg ?? {};
+	const isDefault = slug === DEFAULT_SLUG;
 	if (typeof Sg?.story?.mechanics !== 'function') {
 		bad++;
-		console.error('      ✗ 契约：`Sg.story.mechanics()` 未注册 —— 故事侧必须显式声明（未启用也要声明，见 #492）');
-	} else {
-		const m = Sg.story.mechanics();
-		const poolNames = () => Object.keys(w.Game?.Combat?.pools ?? {});
-		const abilities = Object.keys(w.Game?.Rules?.ABILITIES ?? {});
-		const r = validateStoryMechanics(m, { poolNames, abilities });
-		const ok = r.problems.length === 0;
-		if (!ok) bad++;
-		console.log(`      ${ok ? '✓' : '✗'} 真实契约：当前故事 ${r.enabled ? '**已启用**新机制（形状合法 ✓）' : '**未启用**（显式声明 null ⇒ 引擎走旧路径 ✓）'}${ok ? '' : '：' + r.problems.join('；')}`);
-		if (r.enabled) console.log(`        （启用了 ${Object.keys(m.slots ?? {}).length} 槽位 · ${Object.keys(m.equipment ?? {}).length} 装备 · ${Object.keys(m.statuses ?? {}).length} 异常 · ${(m.roads ?? []).length} 段事件池）`);
+		console.error(`      ✗ 契约·${slug}：\`Sg.story.mechanics()\` 未注册 —— 故事侧必须显式声明（未启用也要声明，见 #492）`);
+		continue;
 	}
+	const m = Sg.story.mechanics();
+	const poolNames = () => Object.keys(w.Game?.Combat?.pools ?? {});
+	const abilities = Object.keys(w.Game?.Rules?.ABILITIES ?? {});
+	const r = validateStoryMechanics(m, { poolNames, abilities });
+	const ok = r.problems.length === 0;
+	if (!ok) bad++;
+	console.log(`      ${ok ? '✓' : '✗'} 真实契约·${slug}${isDefault ? '（默认故事）' : ''}：${r.enabled ? '**已启用**新机制（形状合法 ✓）' : '**未启用**（显式声明 null ⇒ 引擎走旧路径 ✓）'}${ok ? '' : '：' + r.problems.join('；')}`);
+	if (r.enabled) console.log(`        （启用了 ${Object.keys(m.slots ?? {}).length} 槽位 · ${Object.keys(m.equipment ?? {}).length} 装备 · ${Object.keys(m.statuses ?? {}).length} 异常 · ${(m.roads ?? []).length} 段事件池）`);
 }
 
 if (bad) {

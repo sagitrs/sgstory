@@ -620,6 +620,10 @@ window.Sg.rules = {
 	// **键形前缀的宣告**（`#435` 口径②，dev 的 `--rules` 判据会核对）：行里用了**未宣告**的前缀 ⇒ 红。
 	// 为什么必须在引擎侧宣告：引擎不认的前缀会让条件**永假** ⇒ 行静默死掉，没有任何门看得见（本仓反复踩的那类）。
 	prefixes: ['inv', 'era'],
+	// **引擎兑现的"面"**（`#435` Q1 拍板，与 `prefixes` 同轴的反沉默面）：行里用到的授予面必须是这里声明过的。
+	// 为什么：被引擎忽略的声明＝**静默空转**——行看起来授予了，实际什么都没发生，而没有任何门看得见。
+	// `yields`/`gives` 早于本机制（老面，不追溯）；`sets` 是新增面 ⇒ 用到就必须在这里宣告。
+	effects: ['yields', 'gives', 'sets'],
 	// 一个"键名"是否满足：`n_*` ⇒ 笔记（`Sg.notes.has`，含双读）；`inv:`／`era:` ⇒ 见下；否则按旗标路径读（`ev.`／`world.` 或裸名）
 	holds(key, pc) {
 		const k = String(key);
@@ -674,17 +678,37 @@ window.Sg.rules = {
 		}
 		return granted;
 	},
+	// **状态键**面（`#435` Q1：授予家族第三类 —— `yields` 笔记／`gives` 物品／`sets` 状态键）。
+	// 行里声明 `sets: ['world.flower_taken']` ≡ `<<setflag "flower_taken">>`，由 `<<rules>>` 渲染成功后统一落。
+	// 为什么要有第三类：世界态/运行时旗标（`flower_taken`／`flower_sleep`／`forge_thanks`…）**没有笔记**，
+	// 既进不了 `yields`（那是笔记），也不该进 `gives`（那是物品）——此前这类位点只能永远留在段落里。
+	// 口径三条（门侧 `setProblems()` 机检）：只置**真**（不写数值/枚举）· 键必须是**已登记的状态键** ·
+	// **有笔记的键不得走这里**（必须 `yields`，否则同一知识两条写路）。
+	// 裸键默认 `ev.`（与 `holds()` 同口径）；写入走 `Sg.notes.writePath`（与读侧同一权威，不另开写路）。
+	applySets(row) {
+		const pc = State.variables.pc;
+		const keys = Array.isArray(row?.sets) ? row.sets : row?.sets ? [row.sets] : [];
+		const set = [];
+		for (const k0 of keys) {
+			const k = String(k0);
+			const path = k.includes('.') ? k : `ev.${k}`;
+			if (window.Sg.notes.readPath(pc, path) !== true) { window.Sg.notes.writePath(pc, path, true); set.push(k); }
+		}
+		return set;
+	},
 };
-// `<<rules "作用域">>`：选中 → **先渲染** `text` → **渲染成功后再落 `yields`**。
+// `<<rules "作用域">>`：选中 → **先渲染** `text` → **渲染成功后再落** `yields`／`gives`／`sets`。
 // 为什么必须"渲染后"（dev 定稿的规则①）：授予要与"这一行真的被选中且渲染成功"绑定 —— 渲染若抛错就不该记账，
-// 否则声明与实际写点必然漂移（本仓反复撞过的那类）。规则②（幂等/重渲染安全）由 `Sg.notes.add` 的幂等结构性保证：
-// 连渲两次只落一次 ⇒ 结果留屏重放、SugarCube 重渲染都安全。
+// 否则声明与实际写点必然漂移（本仓反复撞过的那类）。规则②（幂等/重渲染安全）由各面自己的幂等保证：
+// `Sg.notes.add` 连调两次只落一次、`applyGrants`/`applySets` 也只在"真的新落下"时才计入 ⇒
+// 结果留屏重放、SugarCube 重渲染都安全。三面同处（**写点恒在 `<<rules>>` 一处**），顺序无关。
 Macro.add('rules', {
 	handler() {
 		const row = window.Sg.rules.pick(String(this.args[0] ?? ''));
 		if (!row) return;
 		if (row.text) $(this.output).wiki(String(row.text));   // 先渲染（抛错则不往下走）
 		window.Sg.rules.applyYields(row);                       // 渲染成功后再授予（笔记；幂等）
-		window.Sg.rules.applyGrants(row);                       // 物品面（同上，两处写点都恒在此）
+		window.Sg.rules.applyGrants(row);                       // 物品面（同上）
+		window.Sg.rules.applySets(row);                         // 状态键面（同上；只置真）
 	},
 });

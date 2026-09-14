@@ -536,5 +536,29 @@ for (const file of fixtures) {
 	ok(saveRes.label.includes('豁免') && saveRes.ability === 'con', `abil 位点走豁免（${saveRes.label}）`);
 }
 
+// ── ⑩ 授予三面**同处**执行（`#435` Q1）：“表＝声明（条件/文本/授予），写点执行恒在 `<<rules>>` 一处”──
+// 为什么要端到端测（这个文件是唯一带真 SugarCube 的 harness）：`notes-write.mjs` 只能证三个 `apply*` 各自对；
+// “三面都接在 `<<rules>>` 上、且连渲两次只落一次”只能在这里证。
+{
+	const Sg = w.Sg;
+	const keep = w.Sg.story.rules;
+	const noted = Sg.notes.ids().find((id) => { const e = Sg.notes.entry(id); return e && !Array.isArray(e.flagPath); });
+	w.Sg.story.rules = () => [{ id: '__测试·三面', scope: '__测试域', prio: 1, text: '（三面）', yields: [noted], gives: ['__测试道具_e2e'], sets: ['__测试旗标_e2e'] }];
+	const vars = w.SugarCube.State.variables;
+	Sg.notes.writePath(vars.pc, Sg.notes.entry(noted).flagPath, false);   // 三面先复位到“未授予”
+	if (vars.pc.ev.notes) delete vars.pc.ev.notes[noted];
+	delete vars.pc.inv['__测试道具_e2e'];
+	vars.pc.ev.__测试旗标_e2e = false;
+	new w.SugarCube.Wikifier(w.document.createElement('div'), '<<rules "__测试域">>');
+	ok(Sg.notes.has(noted) && vars.pc.inv['__测试道具_e2e'] === true && vars.pc.ev.__测试旗标_e2e === true,
+		'一次 `<<rules>>` 渲染 ⇒ **三面同落**（yields 笔记 ＋ gives 物品 ＋ sets 状态键）');
+	const before = JSON.stringify({ ev: vars.pc.ev, world: vars.pc.world, inv: vars.pc.inv });
+	new w.SugarCube.Wikifier(w.document.createElement('div'), '<<rules "__测试域">>');
+	ok(JSON.stringify({ ev: vars.pc.ev, world: vars.pc.world, inv: vars.pc.inv }) === before,
+		'连渲两次 ⇒ 状态**逐字节不变**（三面各自幂等，结果留屏重放/重渲染安全）');
+	w.Sg.story.rules = keep;
+	delete vars.pc.ev.__测试旗标_e2e; delete vars.pc.inv['__测试道具_e2e'];
+}
+
 console.log(failures ? `\n${failures} 项失败` : '\n规则层测试全部通过');
 process.exit(failures ? 1 : 0);

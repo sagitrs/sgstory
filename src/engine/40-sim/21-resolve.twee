@@ -557,6 +557,43 @@ Object.assign((window.Game.Combat ??= {}), {
 		const wv = plan.waves[Math.min(plan.waves.length - 1, Math.max(0, waveIdx - 1))];
 		return plan.rewardsScale * wv.difficulty;                    // 线性：同一遭遇内随难度严格递增
 	},
+	/** 遭遇奖励的**归一化形状**（`#600`）：`reward = { gold, item }`，`item` 允许 `'道具'`（＝必掉）或 `{ id, chance }`。
+	 *  为什么要有这个面：掉落规则以前只活在散文里（内容里各拄一遍 "读 reward.gold"），表里的声明与行为对不上也没人看得见。
+	 *  ⇒ 现在**声明是单一权威**：内容只渲染、门按它判、掉落按它掷。
+	 *  结构问题 **fail-loud**（未登记的道具属故事面，由 `--waves` 对账；这里只管形状），因为静默当"不掉"正是本仓反复踩的那类。 */
+	/** 参数：
+	 * @param {string} id 遭遇 id
+	 * @returns {{ gold: number, item: { id: string, chance: number } | null }}
+	 */
+	encounterReward(id) {
+		const enc = this.slotsDecl()?.encounters?.[id];
+		if (!enc) return { gold: 0, item: null };
+		const r = enc.reward ?? {};
+		const gold = typeof r.gold === 'number' && r.gold > 0 ? r.gold : 0;
+		let item = null;
+		if (r.item != null) {
+			const o = typeof r.item === 'string' ? { id: r.item, chance: 100 } : r.item;
+			if (typeof o?.id !== 'string' || !o.id) throw new Error(`Game.Combat.encounterReward：encounters.${id}.reward.item 必须是道具名或 { id, chance }（拿到 ${JSON.stringify(r.item)}）——结构畸形必须报错（#600）`);
+			const chance = o.chance ?? 100;
+			if (!(typeof chance === 'number' && chance >= 1 && chance <= 100)) throw new Error(`Game.Combat.encounterReward：encounters.${id}.reward.item.chance 必须在 1..100（拿到 ${JSON.stringify(o.chance)}）——结构畸形必须报错（#600）`);
+			item = { id: o.id, chance };
+		}
+		return { gold, item };
+	},
+	/** 结算一次遭遇奖励：落金币 ＋ 按 `chance` 掷掉落（写 `pc.inv`）。**返回本次真的给了什么**（文案按返回值渲染）。
+	 *  · `rng` 可注入（测试用）；默认走 `Game.Rules.rng.d(100)`（受 `?seed=` 影响 ⇒ 可复算）。
+	 *  · 幂等：道具是 `pc.inv[id] = true`（重复给不报错，与 `<<give>>` 同口径）；金币按次累加。
+	 *  · 单一落点：内容不许再自己读 `reward.gold`／自己掷骰（`--waves` 有"声明 ↔ 内容对账"断言）。 */
+	grantReward(pc, id, { rng } = {}) {
+		const { gold, item } = this.encounterReward(id);
+		if (gold > 0) pc.gold = (pc.gold ?? 0) + gold;
+		let got = null;
+		if (item) {
+			const roll = rng ? rng(1, 100) : window.Game.Rules.rng.d(100);
+			if (roll <= item.chance) { pc.inv = pc.inv ?? {}; pc.inv[item.id] = true; got = item.id; }
+		}
+		return { gold, item: got };
+	},
 	/** 全灭判定（已定 ⑧：`reset` 只在**全灭**时触发；单步失败＝**带伤继续**）。 */
 	runOver(pc) { return (pc?.hp ?? 1) <= 0; },
 	/** 失败重置（已定 ⑧）：回出生点 ＋ **道具清零** ＋ 耐久/异常一并清；**保留**笔记/图鉴/已解锁。

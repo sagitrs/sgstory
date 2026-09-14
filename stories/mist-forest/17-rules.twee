@@ -35,5 +35,18 @@ Object.assign((window.Sg.story ??= {}), {
 			exclude: ['n_flower_warned'], prio: 10,
 			text: `		<<link "先别动它，退回塔门">><<goto "塔门">><</link>>`,
 		},
+		{ id: '雾之魔物·战.初见', scope: '雾之魔物·战#初见', req: ['n_mist_is_guard'], prio: 10, text: `			''它退开半步，让出一条路。''你知道它守的是谁——它也知道你知道了。
+			[[往塔那边去|守林人]]
+		` },
+		{ id: '雾之魔物·战.初见.else', scope: '雾之魔物·战#初见', exclude: ['n_mist_is_guard'], prio: 10, text: `			它散了，又在三步外聚起来。你从它旁边过去，它没有追。
+			[[往塔那边去|守林人]]
+		` },
+		{ id: '守林人.雾影', scope: '守林人#雾影', req: ['n_mist_is_guard'], prio: 10, text: `（你提起路上那团雾，问他它为什么让了路。他说：''"它只是把生人当成了敌人。"''）` },
+		{ id: '守林人.花警', scope: '守林人#花警', exclude: ['n_flower_warned'], yields: ['n_flower_warned'], prio: 10, text: `	/% #229：保命信息不按交情发放——花警告与楼板警告同级，初遇对所有人说（canon §5.4） %/
+	"还有，"他叫住你，"塔基墙根那片银白的花——味道闻久了会睡。要摘，先把气含住。我小时候在那儿睡过一下午，醒来天都黑了。"
+	` },
+		{ id: '书房.暗格', scope: '书房#暗格', req: ['n_witch_hint'], prio: 10, text: `''女巫说的暗格''，位置分毫不差。` },
+		{ id: '书房.暗格.else', scope: '书房#暗格', exclude: ['n_witch_hint'], prio: 10, text: `你不确定那是不是暗格。` },
+		{ id: '天文台.账本', scope: '天文台#账本', req: ['n_ledger_hint'], prio: 10, text: `<span class="sys-note">（你已经知道：那些点是等分的。）</span>` },
 	],
 });

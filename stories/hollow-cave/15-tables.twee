@@ -136,7 +136,9 @@ const MECH = {
 		paralysis: { label: '麻痹', parts: ['手臂', '腿'], turns: 3, check: { attr: 'con', dc: 14 },
 			onFail: [{ harm: 'damage', dice: '1', when: 'most' }, { addStatus: 'random', part: 'random', when: 'low' }] },
 	},
-	statusPenalty: { '麻痹@腿': { check: -2 }, '流血@躯干': { check: -1 } },
+	// `#571`：键形是 **`<statuses 的 id>@<部位>`**（引擎侧 `statusPenaltyFor` 就按 `\`${id}@${part}\`` 取）——
+	// 原先写成中文标签（`麻痹@腿`／`流血@躯干`）⇒ 永远取不到 ⇒ 减成恒为 0（静默空转；门见 `test/story-shape.mjs`）。
+	statusPenalty: { 'paralysis@腿': { check: -2 }, 'bleed@躯干': { check: -1 } },
 	// 短/长战斗＝1 批／2 批（第二批更难且增援）
 	encounters: {
 		short: { waves: [{ pool: 'cave.w1', difficulty: 1 }] },

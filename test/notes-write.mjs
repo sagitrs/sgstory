@@ -90,6 +90,14 @@ if (multi) {
 	case_('A 方案：首次渲染后授予 ⇒ 返回新授予的 id', Array.isArray(first) && first.length === 1 && first[0] === fresh, JSON.stringify(first) + ' fresh=' + fresh);
 	case_('A 方案·幂等：同一行**再渲一次** ⇒ 返回空（不重复写）', Array.isArray(second) && second.length === 0, JSON.stringify(second));
 	case_('A 方案·无 yields 的行 ⇒ 授予为空（`text` 只渲染的行不该写状态）', Sg.rules.applyYields({ id: 'r2', scope: 'S' }).length === 0);
+	// 物品面（dev 口径：写点面分两类 —— 笔记 `yields`／物品 `gives`，执行恒在 `<<rules>>` 一处）
+	{
+		const g1 = Sg.rules.applyGrants({ id: 'g1', scope: 'S', gives: ['__测试道具_a'] });
+		const g2 = Sg.rules.applyGrants({ id: 'g1', scope: 'S', gives: ['__测试道具_a'] });
+		case_('物品面：首次渲染后授予 ⇒ 返回新落下的物品', g1.length === 1 && g1[0] === '__测试道具_a', JSON.stringify(g1));
+		case_('物品面·幂等：同一行再渲一次 ⇒ 返回空（不重复记账）', g2.length === 0, JSON.stringify(g2));
+		case_('物品面：无 `gives` 的行 ⇒ 不写任何东西', Sg.rules.applyGrants({ id: 'g2', scope: 'S' }).length === 0 && pc.inv['__测试道具_a'] === true);
+	}
 	case_('A 方案·未登记 id ⇒ `add` 报错（fail-loud，不静默）', (() => { try { Sg.rules.applyYields({ id: 'r3', scope: 'S', yields: ['n_nope'] }); return false; } catch { return true; } })());
 }
 

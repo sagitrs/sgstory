@@ -1,7 +1,7 @@
 # 文字冒险游戏质量维度提取手册（给测试/评审）
 
 > **用途**：把「从竞品与理论里提炼质量维度」这件事变成可复用的作业流程——测试按本手册提取维度、写成判据、落成机检门或人工走查项，交回 #247（十维伞）核销。
-> **配套**：`docs/quality-selfaudit-ch123.md`（#34 八维首轮自检，历史存档）、`docs/design-review.md`（D6 可用性走查）、`docs/ui-coverage-gaps.md`（覆盖与未覆盖口径）、`docs/impl-map.md`（工程侧变更账）。
+> **配套**：`docs/reviews/quality-selfaudit-ch123.md`（#34 八维首轮自检，历史存档）、`docs/reviews/design-review.md`（D6 可用性走查）、`docs/ui-coverage-gaps.md`（覆盖与未覆盖口径）、`docs/impl-map.md`（工程侧变更账）。
 > **原则**（#247 横切验收）：**门必须行为化**——每条机检要么给「正例（置条件→断言效果）＋反例（清条件→断言效果消失）」，要么显式标注「仅登记/存在性检查」并说明理由。
 
 ## 一、提取方法（三步）
@@ -22,7 +22,7 @@
 | 只读报告 | 还没有稳定判据（先看数据） | 数字进基线，暂不 ratchet |
 | 存在性门 | 只需防漏登记 | 红/绿，但**必须标注为仅登记** |
 | 行为门 | 判据可行为化 | 正反例断言（scenarios/探针） |
-| 人工走查清单 | 审美/手感/理解成本 | 清单＋结论入 `design-review.md` |
+| 人工走查清单 | 审美/手感/理解成本 | 清单＋结论入 `reviews/design-review.md` |
 
 ### 反例设计的第二条纪律：反例必须真的会变红（反面教训）
 
@@ -81,7 +81,7 @@
 | **D3 系统可玩性** | 每条核心机制都有玩家侧说明（能被发现） | `audit --systems`（机制×锚句） | ✅ 行为化 |
 | **D4 世界活性** | 玩家的行为在**别处**留下可感知回声 | `audit --echoes`（条件归属检查）＋覆盖门（全量采集） | ✅ #266/#269 已闭环（PR #275） |
 | **D5 语言经济** | 文本载荷与滥调在密度线内，术语全篇一致 | `audit --text/--craft`（载荷/密度/术语） | ✅ 机检（密度 ratchet） |
-| **D6 可用性适配** | 读→选→懂结果→继续，四步不缺；窄屏/放大可读 | `design-review.md` 走查 ＋ 浏览器门（`test/browser.mjs`）＋ `render-all` 三查 | ✅ 结构＋真机；审美判断留人工 |
+| **D6 可用性适配** | 读→选→懂结果→继续，四步不缺；窄屏/放大可读 | `reviews/design-review.md` 走查 ＋ 浏览器门（`test/browser.mjs`）＋ `render-all` 三查 | ✅ 结构＋真机；审美判断留人工 |
 | **D7 局面与角色合理性**（新） | NPC 每个让渡型行为都由登记动机推出 | `Game.NPC` 登记簿 ＋ `audit --npc` 三查（#253） | ✅ 首批回填完成；待 #247 核销 |
 | **D8 线索冗余与路径鲁棒性**（新） | 每命题 ≥3 锚、线索类型 ≥2，且类型声明与来源一致 | `audit --truth`（D1/D8 门＋**反例自证**） | ✅ 12 命题全达标（本 PR） |
 
@@ -251,7 +251,7 @@
 - **选项定位（#317②）**：内部链接由渲染后处理补 `data-choice` ＝ **目标段落名**（`[data-key]` 可显式覆盖）；测试用 `c('目标段落名')`／`session.clickByKey(key)` 定位、**断言仍写文案**（定位与断言分离）。歧义由 `test/choice-keys.mjs` 静态把住：逐段落×双时代枚举，同一渲染态出现 ≥2 条同 key 即红——所以「按段落名点」与「按那条文案点」必是同一条**可证**。
 - **命名（#320）**：`src/*.twee` 里只剩两个根 `Game.*`（数据/规则）与 `Sg.*`（UI/运行时）；**新增裸全局会被 `test/globals.mjs` 拦下**。迁移后的对应关系：`Game.Pc.now()`、`Game.Rules.*`、`Game.Pc.*`、存档 `Sg.save.{quick,load,quickLoad,menu,restart}`、UI `Sg.UI`／图鉴 `Sg.Codex`／结局页 `Sg.Ending`。
 - 落点：**新门加在 `scripts/audit/gates/<name>.mjs`**（`scripts/audit.mjs` 自 #316 起只是 22 行的薄壳：加载 `scripts/audit/context.mjs` ＋按注册表分发；门之间**零 import**）——`node scripts/audit.mjs --<flag>` 调用；接线由 `docs/gate-ledger.md` 的台账门强制（见上文「假绿家族第 6 例」）/ `test/scenarios.mjs` 路线 / `test/browser.mjs` 用例 / 走查清单
-- 核销条件：门绿 ＋ 首轮数据入基线；或清单结论入 `design-review.md`
+- 核销条件：门绿 ＋ 首轮数据入基线；或清单结论入 `reviews/design-review.md`
 ```
 
 **优先建议与分工**（2026-09-12 与伙伴会话对齐）：

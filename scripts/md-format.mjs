@@ -23,7 +23,7 @@
 //   F5「入口页体量 ratchet」（`#603` 片二）：`README.md` 行数 ≤ 上限（默认 120，`README_MAX_LINES` 可覆盖）。
 //       —— README 曾长到 270 行/24KB（"什么都有"＝等于没有）：十维密表、整棵目录树、Twee 速查、机制表全塞在入口页。
 //       分层之后必须**防止再长回去**，所以给入口页一条会咬人的上限（不是审美，是可判定的）。
-import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { globSync } from 'node:fs';
 import { join, relative } from 'node:path';
@@ -162,7 +162,8 @@ const main = () => {
 
 	// ── F4：引用的仓内路径必须存在（`#606` 片一）──
 	const tracked = new Set(execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean));
-	const existsInRepo = (p) => tracked.has(p);
+	// 存在性 = 已跟踪 **或** 工作区里真有 —— 否则「刚写好还没 git add」的文档会被误判成陈旧（实测撞过一次）。
+	const existsInRepo = (p) => tracked.has(p) || existsSync(join(ROOT, p));
 	const globMatchesInRepo = (p) => (p.includes('*') ? globSync(p, { cwd: ROOT }) : []);
 	const basenameIndex = new Set([...tracked].map((p) => p.split('/').pop()));
 	let pathRefs = 0, pathBad = 0, exempted = 0, plannedPaths = 0;

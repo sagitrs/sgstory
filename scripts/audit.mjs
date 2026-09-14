@@ -14,7 +14,8 @@ import { GATES } from './audit/registry.mjs';
 import { makeShared } from './audit/lib/shared.mjs';
 Object.assign(ctx, makeShared(ctx));
 
-const MODIFIERS = ['check'];
+// 修饰符：只影响退出码/严密档位，自身不选门（`--strict`＝把"报告制"判据转硬）
+const MODIFIERS = ['check', 'strict'];
 const known = new Set([...GATES.flatMap((g) => g.flags ?? []), ...MODIFIERS]);
 const given = process.argv.slice(2).filter((a) => a.startsWith('--')).map((a) => a.replace(/^--/, ''));
 const unknown = given.filter((f) => !known.has(f));

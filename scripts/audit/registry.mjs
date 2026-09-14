@@ -25,6 +25,7 @@ import * as g_state from './gates/state.mjs';
 import * as g_literals from './gates/literals.mjs';
 import * as g_notes from './gates/notes.mjs';
 import * as g_rules from './gates/rules.mjs';
+import * as g_reads from './gates/reads.mjs';
 import * as g_slots from './gates/slots.mjs';
 import * as g_status from './gates/status.mjs';
 import * as g_waves from './gates/waves.mjs';
@@ -56,6 +57,7 @@ export const GATES = [
 	g_state,
 	g_literals,
 	g_rules,
+	g_reads,
 	g_notes,
 	g_slots,
 	g_status,

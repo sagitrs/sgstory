@@ -26,6 +26,7 @@ const FLAGS = [
 	'roads',   // #489（S4）：事件池与三选一门（引擎门）
 	// #436 收编：新增门必须进 golden 保护（否则 unprotected-flag 会报 —— guest-1 的 --notes 就是这样被发现的）
 	'rules',
+	'reads',   // #435 阶段 4：「无字面状态读」门（故事门：输入＝条件表＋故事面源码）
 	'notes',
 ];
 
@@ -44,7 +45,7 @@ export const runFlag = (flag) => {
 };
 
 // 非「门」的 CLI 修饰符：只影响退出码/输出方式，不需要 golden 保护
-export const FLAG_MODIFIERS = ['check'];
+export const FLAG_MODIFIERS = ['check', 'strict'];   // `--strict`：把「报告制」判据转硬（`--reads`）
 
 // 源码里实际声明的开关（防新增漏保护 / 清单过期）
 const argFlagsFromSource = async () => {

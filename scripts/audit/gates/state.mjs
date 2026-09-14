@@ -13,7 +13,7 @@
 //   `<<setflag "k">>` / `<<firstTime "k">>`（动态写入 `$pc.ev[k]` 并动态读回）· `$pc.ev["k"]`
 //   · 表内谓词 `(p) => p.world?.k`。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { qualifiedWriteKeys, keyCharsetViolations, readKeys, noteReadKeys, noteWriteKeys, ruleRowKeys, ruleRowSetKeys } from '../lib/shared.mjs';
+import { qualifiedWriteKeys, keyCharsetViolations, readKeys, noteReadKeys, noteWriteKeys, ruleRowKeys, ruleRowSetKeys, stripJsComments } from '../lib/shared.mjs';
 
 export const flag = 'state';
 export const flags = ['state'];
@@ -245,21 +245,27 @@ export const run = (ctx) => {
 	bad += selfBad;
 
 	// ── 真实数据 ──
+	// 读/写点扫描前先剥 **JS 注释**（`stripJsComments` 单一权威，与 `--text`／`--reads` 同口径）：
+	// 注释里的示例（例如引擎侧 `sets: ['world.flower_taken']` 的口径说明）不是写点——不剥就会造**假红**
+	//（`#460` 实测：第二/第三故事因此报"flower_taken 只有写没有读"）。Twee 注释 `/% %/` 另由 `readKeys` 调用处剥。
 	const sources = {};
-	for (const f of ctx.SRC_FILES) sources[f] = readFileSync(f, 'utf8');
+	for (const f of ctx.SRC_FILES) sources[f] = stripJsComments(readFileSync(f, 'utf8'));
 	const NOTES = ctx.Game.Notes?.entries;
 	const RULES = ctx.window?.Sg?.story?.rules?.() ?? [];
 	const keys = analyze(sources, { notes: NOTES });
 	// #435 阶段 4：**条件表行里的键也是读点** —— 手写 `<<if>>` 搬进表之后，源码里就没有这个读点了；
 	// 不补这一步，被引用的旗标会被判「只有写」⇒ 假红（阶段 4 版的"新形状"，排查清单第 1 条 🔴）。
-	for (const row of RULES) for (const k of ruleRowKeys(row, NOTES)) {
-		const e = keys.get(k);
-		if (e) e.r.add(`条件表:${row.scope ?? '?'}`);   // 只给**已出现**的键补读点（表引用了没人写/读的键 ⇒ 由"只有读"那条照旧红 ✓）
-	}
-	// `#435` Q1：行的 `sets` 是**写点**（写点也搬进表）⇒ 不补这一步，只经 `sets` 写的键会被判「只有读」⇒ 假红
-	for (const row of RULES) for (const k of ruleRowSetKeys(row)) {
+	// 表侧读写点**对称**注入（`#435`）：`req`/`any`/`exclude` ＝ 读，`sets` ＝ 写。
+	// 必须**两边都能建条目**：只手写 `sets`（无段落读点）而行的 `exclude` 又引用同一键时，
+	// 若读侧"只给已出现的键补读点"就会漏 ⇒ 判成「只有写」（实测：`forge_thanks`，`#556` 的首个 `sets:` 行）。
+	const bump2 = (k, kind, label) => {
 		if (!keys.has(k)) keys.set(k, { w: new Set(), r: new Set() });
-		keys.get(k).w.add(`条件表:${row.scope ?? '?'}`);
+		keys.get(k)[kind].add(label);
+	};
+	for (const row of RULES) {
+		const label = `条件表:${row.scope ?? '?'}`;
+		for (const k of ruleRowKeys(row, NOTES)) bump2(k, 'r', label);
+		for (const k of ruleRowSetKeys(row)) bump2(k, 'w', label);
 	}
 	const declaredDyn = ctx.Game.State?.dynamicKeys ?? [];
 	// 动态族**展开成具体键**并入键图 ⇒ 这些键照样受「域归属／有写有读／命名空间」四条判定管
@@ -268,13 +274,23 @@ export const run = (ctx) => {
 		const e = keys.get(key);
 		e.w.add('(dynamic:firstTime)'); e.r.add('(dynamic:firstTime)'); e.dynamic = true;
 	}
+	// `#460`：**引擎内部槽**（读写点**都**在机制段里，故事一个字没碰）⇒ 只要求登记域，
+	// 不判「有写有读」——那是判**故事**有没有真用它；引擎自己的槽由引擎自洽（否则一个不用检定/交涉的
+	// 故事会被判"幽灵条件/死分支"假红：`soc` 由引擎面板读、`last_roll` 由引擎 snapshot 写）。
+	const isMechSite = (label) => /\[(script|widget|stylesheet)\]$/.test(String(label));
+	// 注：`check()`/`nsMismatch()` 的 `key` 是**裸键名**（`mergeByBare` 的键）⇒ 这里同步存裸名
+	const engineOnly = new Set([...keys].filter(([, v]) => {
+		const sites = [...(v.wSites ?? v.w ?? []), ...(v.rSites ?? v.r ?? [])];
+		return sites.length > 0 && sites.every(isMechSite);
+	}).map(([k]) => k).map((k) => k.replace(/^(ev|world)\./, '')));
 	const problems = [
-		...check(keys, domains, ctx.Game.State?.bookkeeping ?? []),
+		...check(keys, domains, ctx.Game.State?.bookkeeping ?? []).filter((p) => !(engineOnly.has(p.key) && (p.kind === 'write-only' || p.kind === 'read-only'))),
+		...([...engineOnly].length ? [] : []),
 		...charsetViolations(sources),
 		...checkDynamic(dynamicSites(sources), declaredDyn),
 	];
 	// #365：命名空间不一致 → 现在**报告**（已知缺陷形式，不判失败），等修复后转严格
-	const nsBad = nsMismatch(keys);
+	const nsBad = nsMismatch(keys).filter((p) => !engineOnly.has(p.key));   // 同 `check()`：引擎内部槽不判
 	const byKind = problems.reduce((acc, p) => (acc[p.kind] = (acc[p.kind] ?? 0) + 1, acc), {});
 	const perDomain = domains.map((d) => {
 		const n = [...mergeByBare(keys).keys()].filter((b) => (d.keys ?? []).includes(b) || (d.prefix ?? []).some((p) => b.startsWith(p))).length;
@@ -282,6 +298,7 @@ export const run = (ctx) => {
 	});
 	const bk = (ctx.Game.State?.bookkeeping ?? []).filter((k) => keys.get(k)?.w.size && !keys.get(k)?.r.size);
 	console.log(`  状态键 ${keys.size} 个｜域 ${domains.length} 个（${perDomain.join(' · ')}）`);
+	if (engineOnly.size) console.log(`  · 引擎内部槽（读写点都在机制段、故事未参与 ⇒ 只要求登记域，不判有写有读）：${[...engineOnly].sort().join('、')}`);
 	if (bk.length) console.log(`  仅记账键（已声明，无行为消费者）：${bk.join('、')}`);
 	const dynN = expandDynamic(declaredDyn).length;
 	if (dynN) console.log(`  动态族 ${declaredDyn.length} 个 ⇒ 展开 ${dynN} 个动态键（已并入上面的「状态键」计数与四条判定）`);

@@ -26,6 +26,7 @@ export const ORDER = [
 	'src/engine/30-persist/05-store.twee',     // 存储缝（#441-B/#462）：localStorage 键构造的唯一落点（引擎/故事两作用域）
 	'src/10-core.twee',      // Game.Rules / Game.Pc / Sg.UI ＋ 宏（无依赖）
 	'src/engine/50-present/11-scene.twee',     // 场景 widget（actOut / sceneFeedback）
+	'stories/mist-forest/12-widgets.twee',    // 故事 1 的 widget（#460：从引擎 10-core 搬回：hallResult / flip）
 	'stories/mist-forest/15-tables.twee',    // Game.*（加载期需要 Rules / Pc）
 	// 笔记模型（伞 #422）的增量文件：只往 Game.Notes.entries 追加条目。
 	// 每批一个文件（#428 机制）⇒ 多席并行落表零冲突；新增文件必须在此登记（build 会拒绝未登记的文件）。
@@ -61,6 +62,7 @@ export const ORDER = [
 // 每个模块：加载期依赖 + 必须定义的符号（用于抓「改了名/挪了位置」）
 export const MODULES = {
 	'stories/mist-forest/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '故事元数据（StoryTitle / StoryData）' },
+	'stories/mist-forest/12-widgets.twee': { deps: ['src/10-core.twee'], defines: ['widget:hallResult', 'widget:flip'], layer: 'story', note: '故事 1 的 widget（#460：从引擎 10-core 搬回——引擎不该知道哨子/时代翻转是什么）' },
 	// ── 第二个故事（#460）：layer 'story'，只依赖引擎 ──
 	'stories/minimal-demo/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '第二个故事的元数据（StoryTitle / StoryData / StoryIdentity）' },
 	'stories/minimal-demo/15-tables.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '第二个故事的最小声明面：引擎**加载期**要用的空容器（#460 实测的接入契约）' },

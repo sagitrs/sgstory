@@ -440,7 +440,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 		mechanics: [
 			{ id: 'check', rule: 'd20 + 属性/技能修正 ≥ DC；自然 20 必成、自然 1 必败', p: '洞穴', anchor: '检定' },
 			{ id: 'flip', rule: '翻转在原地生效（位置决定年代）；每次翻转耗星力，从过去回来时雾淡一些', p: '林间小径', anchor: '三百年前' },
-			{ id: 'inventory', rule: '拾到即入物品栏；每件各有用途，不集齐开锁', p: 'Widgets', anchor: '物品栏' },  // #185：门厅取物结果收进 hallResult 单源 widget（玩家侧仍在门厅渲染）
+			{ id: 'inventory', rule: '拾到即入物品栏；每件各有用途，不集齐开锁', p: '门厅取物', anchor: '物品栏' },  // #185：门厅取物结果收进 hallResult 单源 widget（玩家侧仍在门厅渲染）
 			{ id: 'keeper_trust', rule: '守林人按带去的证物分层给帮助（空手 / 日记 / 观星者的书）；另有「信它不会变成恶龙」支线——好感 ↑，但不换放行（§4.0）', p: '守林人', anchor: '按你带来的东西' },
 			{ id: 'threshold', rule: '雾攒过阈值之后，攻击龙即触发战斗；现在线的雾早已攒过三百年', p: '地下宴会厅', anchor: '还不是时候' },
 		],
@@ -828,7 +828,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 			'龙·巢边不醒':        { npc: '龙', act: 'note', p: '龙·巢边', anchor: '断剑、铜钱、碎瓷', venue: '地下宴会厅', role: '龙', motive: '§4.5 不干涉——宴为它办' },
 			'守林人·并肩':        { npc: '守林人', act: 'flag:keeper.state', p: '交付', anchor: '他收起卷轴', venue: '顶楼', role: '守林人', motive: '卷轴交到他手——术式念得动就并肩（ally 之由）' },
 			// 场景拾取（非 NPC 让渡，但同走 give 位点登记：动机＝获取逻辑）
-			'门厅·坏哨':          { npc: '场景', act: 'give:坏哨', p: 'Widgets', anchor: '你把哨子从钉子上提起来', venue: '门厅', role: '场景（物件）', motive: '观察/蛮力/直摘三路（反 S/L；看清免赌）' },
+			'门厅·坏哨':          { npc: '场景', act: 'give:坏哨', p: '门厅取物', anchor: '你把哨子从钉子上提起来', venue: '门厅', role: '场景（物件）', motive: '观察/蛮力/直摘三路（反 S/L；看清免赌）' },
 			'门厅·坏哨·已看清直取': { npc: '场景', act: 'give:坏哨', p: '门厅', anchor: '你把哨子从钉子上提起来', venue: '门厅', role: '场景（物件）', motive: '#185 结果留屏的单源入口：#305 起走渲染路径（link 内结算 → <<goto>>），看清钉子后免赌直取' },
 			'塔外花田·月光花':    { npc: '场景', act: 'give:月光花', p: '塔外花田', anchor: '连根带土捧起来', venue: '塔外花田', role: '场景（物件）', motive: '含气即安全（警告后免判定）；下风败＝土散（#237）' },
 			'书房·日记':          { npc: '场景', act: 'give:日记', p: '书房', anchor: '暗格', venue: '书房', role: '场景（物件）', motive: 'witch_hint 指路——家里记了一百年的东西' },

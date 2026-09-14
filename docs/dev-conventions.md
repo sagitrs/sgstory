@@ -358,6 +358,21 @@ FCFS **81.3s** vs LPT **84.3s**；②「每个测试段各自 boot JSDOM」不�
 - `node scripts/audit.mjs --story <slug> [--engine-only] --check`；默认故事（`mist-forest`）⇒ 与改前**逐字节相同**（golden 零漂移）；
 - `npm test` 的 `scripts-audit-mjs-story2-engine` 段：拿**最小故事**（`stories/minimal-demo`）跑**引擎门** —— 这是「引擎不知道故事名」的**可执行证据**（产物侧：书架 2 项）。
 
+**引擎保留的运行时槽（接入契约的一部分，`#460` 补齐）**：引擎自己会写这几个键
+（`ev.last_result`／`ev.last_roll`／`ev.soc`／`ev.soc_last`／`ev.soc_lever`／`ev.fight`／`ev.ending`）⇒
+**每个故事都要在自己的 `Game.State.domains` 里登记它们**（否则 `--state` 判"未落入任何域"）。
+反过来，**读写点都在机制段、故事一个字没碰**的键（引擎内部槽）只要求登记域，**不判「有写有读」**
+（那是判**故事**有没有真用它；否则一个不用检定/交涉的故事会被判"幽灵条件/死分支"假红）。
+
+**引擎自建容器（`#460`／`#512`）**：`21-resolve` 里 7 处 `Object.assign(window.Game.X, …)` 已改为
+`Object.assign((window.Game.X ??= {}), …)` —— 引擎**不依赖故事提供容器**（原先只有故事 1 的 `15-tables` 会建它们，
+第二个故事在加载期就崩）。故事侧只需往容器里填数据。
+
+**引擎里的故事 1 片段已搬回（`#460`）**：`hallResult`（门厅取物）与 `flip`（时代翻转）原本住在引擎 `10-core` 的
+`Widgets` 段里 ⇒ 任何第二/第三故事跑 `--state`／`--consequences` 都是**假红**。现搬到
+`stories/mist-forest/12-widgets.twee`；`StoryCaption` 的「📖 设定集」链接改成**存在才渲染**（`<<if Story.has("设定集")>>`），
+否则它在新故事里是死链。
+
 **第二故事的接入契约（实测清单，不是设计稿）**：引擎侧每一个 `Sg.story.X` 都是一个**必须由故事注册**的口子
 （`grep -rho 'Sg\.story\.[a-zA-Z_]*' src/ | sort -u`）；样例见 `stories/minimal-demo/15-tables.twee` 的 `StoryBindings`。
 纪律不变：**结构缺失 ⇒ 报错**（空表／`null` 是**合法数据集**）；**文案缺失** ⇒ 兜底。

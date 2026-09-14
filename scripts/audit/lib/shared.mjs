@@ -32,6 +32,9 @@ export const READ_PATTERNS = [
 	/\$pc\.(ev|world)\.([a-z_]\w*)/g,
 	/\bpc\.(ev|world)\.([a-z_]\w*)/g,
 	/\bp\.(ev|world)\??\.([a-z_]\w*)/g,
+	// `#460` 补：**引擎 JS 里的读**写法（`State.variables.pc?.ev?.last_roll`）此前**任何模式都不认** ⇒
+	// 「只有写没有读」把引擎自己的运行时槽判成假红（实测：`last_roll` 只靠一条**注释**里提了一句才"有读"）。
+	/\bState\.variables\.pc\??\.(ev|world)\??\.([a-z_]\w*)/g,
 ];
 // 单行 → 去重后的**限定键**（`ev.x` / `world.x`）
 export const readKeys = (text) => {

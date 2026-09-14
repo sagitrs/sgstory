@@ -84,7 +84,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 	const State = {
 		domains: [
 			{ id: 'cave', prefix: ['cave_', 'chest_'], note: '洞窟进程（步数、事件选择、机关、钥匙）' },
-			{ id: 'runtime', keys: ['last_result', 'last_roll', 'soc', 'soc_last', 'soc_lever', 'fight'], note: '引擎保留的运行时槽（每故事都写）' },
+			{ id: 'runtime', keys: ['last_result', 'last_roll', 'soc', 'soc_last', 'soc_lever', 'fight', 'ending'], note: '引擎保留的运行时槽（每故事都写）' },
 			{ id: 'gear', prefix: ['gearHp'], note: '装备耐久（S1 机制的状态面）' },
 			{ id: 'cave-status', keys: ['statuses'], note: '部位×异常（S2 机制的状态面）' },
 		],

@@ -145,7 +145,10 @@ t('`Game.Checks.rollSite` / `resolve` 已在 node 里可调用', typeof Game.Che
 		t('④ `Combat.offer` 定义在 sim（不在故事文件）', sim.includes('offer(poolId') && offenders.length === 0, offenders.join(' '));
 	}
 	// 只查 **present** widget；sim widget（`fightact`／`socresolve`／`snapshot`／`setflag`／`damage`…）本就负责写状态
-	for (const w of ['sitecheck', 'hallResult', 'fightpanel', 'socpanel', 'fightlog', 'socresolve', 'econ']) {
+	// 名单＝**引擎侧**的 present 层 widget。`hallResult`（门厅取物）原先在引擎 `10-core` 里，
+	// `#460` 起搬回 `stories/mist-forest/12-widgets.twee`——**故事侧**的 widget 写状态是本仓的既定形状
+	// （`#403`：状态变更与显示无关、始终执行），故不再列入本判据。
+	for (const w of ['sitecheck', 'fightpanel', 'socpanel', 'fightlog', 'socresolve', 'econ']) {
 		const body = widgetBody(core, w);
 		t(`④ widget「${w}」体内无状态写点（present 不写状态）`, body !== null && !writesStoryState(body));
 	}

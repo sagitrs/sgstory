@@ -75,12 +75,40 @@ export const validateStoryMechanics = (m, ctx = {}) => {
 		const whens = (st?.onFail ?? []).map((x) => x?.when);
 		for (const w of whens) if (!GRADE_SET.includes(w)) push(`statuses.${id}.onFail 出现未知分档 ${JSON.stringify(w)}（词表：${GRADE_SET.join(' | ')}）`);
 		for (const g of GRADE_SET) if (!whens.includes(g)) push(`statuses.${id}.onFail 缺「${g}」档 ⇒ 判了却没效果（分档必须穷尽 ${GRADE_SET.join(' | ')}）`);
+		// ── #487（S2）补：**持续回合与被动效果**必须可声明，且**只认引擎实现了的形态** ──
+		// 为什么是"必填"：`statusTick` 要按它递减/清除；缺了它判据无法落地（引擎会当场报错）。
+		if (!(typeof st?.turns === 'number' && st.turns > 0)) push(`statuses.${id}.turns 必须是正数（持续回合：statusTick 按它递减并清除）`);
+		if (st?.perRound !== undefined) {
+			const keys = Object.keys(st.perRound ?? {});
+			if (!keys.length) push(`statuses.${id}.perRound 是空对象（写了等于没写）`);
+			for (const k of keys) if (k !== 'hp') push(`statuses.${id}.perRound.${k} 本片未实现（只认 hp:number，#487）`);
+			if (st.perRound?.hp !== undefined && typeof st.perRound.hp !== 'number') push(`statuses.${id}.perRound.hp 必须是数字`);
+		}
+		// `onFail` 的**效果形态**：只认引擎实现的两种（`harm:'damage'`＋`dice` ／ `addStatus:'random'`＋`part`）
+		for (const [k, e] of (st?.onFail ?? []).entries()) {
+			const harmOk = e?.harm === 'damage' && (typeof e?.dice === 'string' || typeof e?.dice === 'number');
+			// `addStatus` 必须给 `part`（`'random'` 或合法部位）——否则引擎不知道该往哪落
+			const addOk = e?.addStatus === 'random' && (e?.part === 'random' || (hit ?? []).includes(e?.part));
+			if (harmOk || addOk) continue;
+			push(`statuses.${id}.onFail[${k}] 效果形态未实现（只认 harm:'damage'+dice ／ addStatus:'random'，#487）`);
+		}
+		// 骰式的**可解析性**：引擎只认 `N` 与 `NdM`（声明面不得大于实现面）
+		for (const [k, e] of (st?.onFail ?? []).entries()) {
+			if (e?.harm === 'damage' && e?.dice !== undefined && !/^\d+(d\d+)?$/.test(String(e.dice))) {
+				push(`statuses.${id}.onFail[${k}].dice=${JSON.stringify(e.dice)} 无法解析（引擎只认 \`N\` 或 \`NdM\`）`);
+			}
+		}
 	}
 	for (const [key, pen] of Object.entries(m.statusPenalty ?? {})) {
 		const [statusId, part] = key.split('@');
 		if (!Object.hasOwn(m.statuses ?? {}, statusId)) push(`statusPenalty['${key}'] 引用了未声明的异常 ${JSON.stringify(statusId)}`);
 		if (part && !(hit ?? []).includes(part)) push(`statusPenalty['${key}'] 的部位 ${JSON.stringify(part)} 不在 hitLocations`);
 		if (!pen || typeof pen !== 'object' || !Object.keys(pen).length) push(`statusPenalty['${key}'] 减成是空对象（写了等于没写）`);
+		// #487：本片只实现了 `check:number`（该部位判定减成）——别的键会让引擎当场报错 ⇒ 在形状门先拦
+		for (const [k, v] of Object.entries(pen ?? {})) {
+			if (k !== 'check') push(`statusPenalty['${key}'].${k} 本片未实现（只认 check:number，#487）`);
+			else if (typeof v !== 'number') push(`statusPenalty['${key}'].check 必须是数字`);
+		}
 	}
 
 	// ④ 波次：短＝1 批 / 长＝2 批（这就是"短/长战斗"的可机检定义）

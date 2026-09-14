@@ -29,10 +29,11 @@ const base = () => ({
 		长剑: { slot: 'body', maxHp: 8, reduce: { flat: 1 }, weapon: true },
 	},
 	statuses: {
-		bleed: { label: '流血', parts: '*', check: { attr: 'con', dc: 12 }, onFail: [{ harm: 'damage', dice: '1d4', when: 'most' }, { addStatus: 'random', part: 'random', when: 'low' }] },
-		stun: { label: '眩晕', parts: ['头'], check: { attr: 'con', dc: 14 }, onFail: [{ harm: 'damage', when: 'most' }, { addStatus: 'random', when: 'low' }] },
+		// #487（S2）：新增 `turns`（必填）· `perRound.hp`（可选）· `onFail` 效果只认已实现的两形态
+		bleed: { label: '流血', parts: '*', turns: 5, perRound: { hp: -1 }, check: { attr: 'con', dc: 12 }, onFail: [{ harm: 'damage', dice: '1d4', when: 'most' }, { addStatus: 'random', part: 'random', when: 'low' }] },
+		stun: { label: '眩晕', parts: ['头'], turns: 3, check: { attr: 'con', dc: 14 }, onFail: [{ harm: 'damage', dice: '1', when: 'most' }, { addStatus: 'random', part: 'random', when: 'low' }] },
 	},
-	statusPenalty: { 'stun@头': { all: -2 } },
+	statusPenalty: { 'stun@头': { check: -2 } },   // #487：本片只认 check（该部位判定减成）
 	encounters: {
 		short: { waves: [{ pool: 'cave.w1', difficulty: 1 }] },
 		long: { waves: [{ pool: 'cave.w1', difficulty: 1 }, { pool: 'cave.w2', difficulty: 2, reinforce: true }], rewardsScale: 1.5 },
@@ -58,6 +59,18 @@ case_('① 反例：hitLocations 重复 ⇒ 必须抓', run(mutate((m) => { m.hi
 // ── ② 装备与耐久 ──
 case_('② 正例：maxHp>0 ＋ reduce 只写一种', run(base()).problems.length === 0);
 case_('② 反例：maxHp = 0 ⇒ 必须抓（耐久上限）', run(mutate((m) => { m.equipment.皮甲.maxHp = 0; })).problems.some((p) => p.includes('maxHp')));
+case_('③ 反例：statuses 缺 `turns` ⇒ 必须抓（持续回合必须可声明，#487）',
+	run(mutate((m) => { m.statuses.bleed.turns = undefined; })).problems.some((p) => p.includes('turns 必须是正数')));
+case_('③ 反例：`perRound` 出现未实现的键 ⇒ 必须抓（#487）',
+	run(mutate((m) => { m.statuses.bleed.perRound = { mp: -1 }; })).problems.some((p) => p.includes('perRound.mp 本片未实现')));
+case_('③ 反例：`onFail` 效果形态未实现（缺 `dice` 的 harm）⇒ 必须抓（#487）',
+	run(mutate((m) => { m.statuses.bleed.onFail[0] = { harm: 'damage', when: 'most' }; })).problems.some((p) => p.includes('效果形态未实现')));
+case_('③ 反例：骰式不可解析（`1d4+2`）⇒ 必须抓（引擎只认 `N` / `NdM`，#487）',
+	run(mutate((m) => { m.statuses.bleed.onFail[0] = { harm: 'damage', dice: '1d4+2', when: 'most' }; })).problems.some((p) => p.includes('无法解析')));
+case_('③ 反例：`addStatus` 没给 `part` ⇒ 必须抓（引擎不知道往哪落，#487）',
+	run(mutate((m) => { delete m.statuses.bleed.onFail[1].part; })).problems.some((p) => p.includes('效果形态未实现')));
+case_('④ 反例：`statusPenalty` 出现非 `check` 键 ⇒ 必须抓（#487）',
+	run(mutate((m) => { m.statusPenalty['stun@头'] = { all: -2 }; })).problems.some((p) => p.includes('all 本片未实现')));
 case_('② 反例：reduce 声明了**未实现**的形态（`dice`）⇒ 必须抓（声明面不得大于实现面，#486）',
 	run(mutate((m) => { m.equipment.皮甲.reduce = { dice: '1d4' }; })).problems.some((p) => p.includes('只写一种')));
 case_('② 反例：reduce 写了两种形态 ⇒ 必须抓（引擎无法判定按哪种结算）',

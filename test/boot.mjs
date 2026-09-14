@@ -1,5 +1,5 @@
 
-import { defaultStoryHtml } from '../scripts/dist-paths.mjs';
+import { defaultStoryHtml, storyHtml, DEFAULT_SLUG, readStory } from '../scripts/dist-paths.mjs';
 import { pathToFileURL } from 'node:url';
 // 共享 JSDOM boot（白盒检视 A9 修复）：#27 的 pollUntil 就绪轮询 + 坑11 的 uncaught 监听
 // 统一进此 helper——修复辐射不再依赖"记得改每个文件"。
@@ -14,8 +14,14 @@ import { readFileSync } from 'node:fs';
 import { assertFreshDist } from '../scripts/dist-fresh.mjs';
 import { JSDOM, VirtualConsole } from 'jsdom';
 
-const distPath = new URL(pathToFileURL(defaultStoryHtml()).href);
-const html = readFileSync(distPath, 'utf8');
+// `#460`：**多故事真启动门**要一故事一启 ⇒ 产物与起始段都参数化（缺省仍是默认故事，向后兼容）
+const HTML_OF = new Map();
+const htmlOf = (story) => {
+	const key = story ?? DEFAULT_SLUG;
+	if (!HTML_OF.has(key)) HTML_OF.set(key, readFileSync(new URL(pathToFileURL(storyHtml(key)).href), 'utf8'));
+	return HTML_OF.get(key);
+};
+const entryOf = (story) => readStory(story ?? DEFAULT_SLUG).entry ?? '开场';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ── dist 过期守卫：实现已抽到 scripts/dist-fresh.mjs（#319③，测试与 audit 共用一处）──
@@ -63,7 +69,7 @@ export const LINKS_SEL = 'a.link-internal, a.soc-opt'; // 只算"剧情链接"�
 export const CLICKABLE = `#passages ${CLICKABLE_SEL}`;
 export const LINKS = `#passages ${LINKS_SEL}`;
 
-export async function boot({ random = 0.5, start = true } = {}) {
+export async function boot({ random = 0.5, start = true, story = null, entry = null } = {}) {
 	hookExit();
 	const uncaught = [];
 	const vc = new VirtualConsole();
@@ -71,7 +77,7 @@ export async function boot({ random = 0.5, start = true } = {}) {
 		const msg = String(e?.message ?? e);
 		if (msg.startsWith('Uncaught')) uncaught.push(msg);
 	});
-	const dom = new JSDOM(html, {
+	const dom = new JSDOM(htmlOf(story), {
 		runScripts: 'dangerously',
 		pretendToBeVisual: true,
 		url: 'http://localhost/',
@@ -119,8 +125,9 @@ export async function boot({ random = 0.5, start = true } = {}) {
 		// 现在 await 它就是"完全启动"的可靠信号；再等起始段落地，避免往还在启动的实例上点链接。
 		await Promise.race([w.SugarCube.Engine.start(), sleep(15000)]);
 		const t1 = Date.now();
-		while (!w.document.querySelector('#passages .passage[data-passage="开场"]')) {
-			if (Date.now() - t1 > 15000) throw new Error('等待超时：起始段渲染');
+		const entryPassage = entry ?? entryOf(story);
+		while (!w.document.querySelector(`#passages .passage[data-passage="${entryPassage}"]`)) {
+			if (Date.now() - t1 > 15000) throw new Error(`等待超时：起始段渲染（${entryPassage}）`);
 			await sleep(50);
 		}
 		await settle();

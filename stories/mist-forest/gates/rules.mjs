@@ -125,9 +125,39 @@ export const textWrites = (text) => {
 	if (new RegExp(NOTE_WRITE_RE.source, 'g').test(t)) hits.push('Sg.notes.add()');
 	return [...new Set(hits)];
 };
-/** 全表：哪些行的 `text` 含状态写 ⇒ `[{ id, hits }]`。 */
+/** 点击态域**允许**的词汇宏（与 L0-W1 同一份口径）。
+ *  `damage` **刻意不在内**：带它的即"检定＋后果机制块"（`docs/notes-model.md` 边界 4）⇒ 机制块不搬，让它红当护栏。 */
+export const CLICK_VOCAB_MACROS = ['note', 'give', 'setflag', 'econ', 'flip'];
+/** 分域：`text` → `{ render, clicks }`（点击态域＝`<<link>>…<</link>>` 体内；渲染域＝其余）。 */
+export const splitTextDomains = (text) => {
+	const t = String(text ?? '');
+	const clicks = [...t.matchAll(/<<link\b[^>]*>>([\s\S]*?)<\/link>>/g)].map((m) => m[1]);
+	return { render: t.replace(/<<link\b[^>]*>>([\s\S]*?)<\/link>>/g, ''), clicks };
+};
+/** **`#624` 片一** 的新判据：按域判写（`[]`＝纯渲染）。
+ *  渲染域：**任何**写形态 ⇒ 红（判据与旧版一字不动）。
+ *  点击态域：只许词汇宏；裸 `<<set>>`／`<<run>>`／`<<script>>`／模块 API（`Sg.notes.add`…）／`<<damage>>` ⇒ 红。 */
+export const textWriteProbs = (text) => {
+	const out = [];
+	const { render, clicks } = splitTextDomains(text);
+	const rh = textWrites(render);
+	if (rh.length) out.push({ domain: '渲染', hits: rh });
+	clicks.forEach((body, i) => {
+		const raw = [];
+		for (const m of body.matchAll(/<<\s*([A-Za-z_][\w]*)\b/g)) {
+			const name = m[1];
+			if (CLICK_VOCAB_MACROS.includes(name)) continue;
+			if (TEXT_WRITE_MACROS.includes(name)) raw.push(`<<${name}>>`);
+		}
+		for (const { re } of WRITE_PATTERNS) if (new RegExp(re.source, 'g').test(body)) raw.push('状态赋值');
+		if (new RegExp(NOTE_WRITE_RE.source, 'g').test(body)) raw.push('Sg.notes.add()');
+		if (raw.length) out.push({ domain: `点击态#${i + 1}`, hits: [...new Set(raw)] });
+	});
+	return out;
+};
+/** 全表：哪些行的 `text` 含状态写 ⇒ `[{ id, probs }]`。 */
 export const textWriteRows = (rows) =>
-	(rows ?? []).filter((r) => r?.id).map((r) => ({ id: r.id, hits: textWrites(r.text) })).filter((x) => x.hits.length);
+	(rows ?? []).filter((r) => r?.id).map((r) => ({ id: r.id, probs: textWriteProbs(r.text) })).filter((x) => x.probs.length);
 
 // ── ③' `text` 里的**分支**只许读「渲染期只读槽」（`#435` 口径，guest 问的"机制内层 `<<if>>`"）─────
 // 口径（2026-09-14 拍板）：判定结果 → 两段文案**属渲染**（`<<if $last_check.success>>…<<else>>…`），
@@ -315,6 +345,12 @@ export const run = (ctx) => {
 			['🔴 反例：`text` 含赋值式 `pc.world.x = true` ⇒ 报', textWrites(`<<run (pc.world.x = true)>>`).includes('状态赋值')],
 			['边界：`<<if>>` 只读不写 ⇒ 不算写侧问题（读侧归 `--reads`）', textWrites(`<<if Sg.notes.has('n_x')>>字<</if>>`).length === 0],
 			['边界：宏名前缀不误伤（`<<setflag>>` 只算 setflag，不算 set）', textWrites(`<<setflag "a">>`).includes('<<setflag>>') && !textWrites(`<<setflag "a">>`).includes('<<set>>')],
+			// `#624` 片一：**分域**判据（渲染域一字不动；点击态域只许词汇宏）
+			['正例（#624）：点击态域用词汇宏（`<<note>>`／`<<give>>`）⇒ 绿', textWriteProbs(`<<link "问一句">><<note "n_x">><<goto "塔门">><</link>>`).length === 0],
+			['🔴 反例（#624）：点击态域裸 `<<run>>` ⇒ 红', textWriteProbs(`<<link "问">><<run Sg.notes.add('n_x')>><<goto "塔门">><</link>>`).some((p) => p.domain.startsWith('点击态') && p.hits.some((h) => h.includes('run') || h.includes('Sg.notes.add')))],
+			['🔴 反例（#624）：点击态域 `<<damage>>` ⇒ 红（机制块按边界 4 不搬）', textWriteProbs(`<<link "动手">><<damage 3>><</link>>`).some((p) => p.hits.includes('<<damage>>'))],
+			['🔴 反例（#624）：**渲染域**写 ⇒ 红（判据未放宽）', textWriteProbs(`先写一句 <<note "n_x">>`).some((p) => p.domain === '渲染')],
+			['边界（#624）：link 外与 link 内各一处 ⇒ 只有渲染域那处红', textWriteProbs(`<<note "n_a">> <<link "问">><<note "n_b">><</link>>`).filter((p) => p.domain === '渲染').length === 1],
 			// ③' `text` 分支只许读渲染期只读槽
 			['正例：判定结果分支（`$last_check.success`）⇒ 放行（属渲染）', textBranchProbs(`<<if $last_check.success>>成<<else>>败<</if>>`).length === 0],
 			['正例：`_` 前缀局部量（渲染期临时量）⇒ 放行', textBranchProbs(`<<if _n gt 1>>多<</if>>`).length === 0],
@@ -383,7 +419,7 @@ export const run = (ctx) => {
 		for (const u of undeclaredOps(rows, ctx.window?.Sg?.rules?.ops ?? [])) { console.log(`  ✗ 算子未被引擎宣告：行里用了「${u.op}」，但 \`Sg.rules.ops\`（当前 ${JSON.stringify(u.declared)}）里没有它——引擎不认的算子会让条件**永假**（行静默死掉）`); bad++; }
 		for (const q of yieldPathProblems(rows, ctx.Game?.Notes?.entries ?? {})) { console.log(`  ✗ \`yields\` 路径声明非法：行「${q.id}」的「${q.yield}」→「${q.path}」——${q.why}`); bad++; }
 		for (const u of undeclaredSets(rows, ctx.window?.Sg?.rules?.effects ?? [])) { console.log(`  ✗ 行面未被引擎宣告：表里用了「${u.surface}」，但 \`Sg.rules.effects\`（当前 ${JSON.stringify(u.declared)}）里没有它——引擎不兑现的声明＝**静默空转**`); bad++; }
-		for (const w of textWriteRows(rows)) { console.log(`  ✗ \`text\` 不是纯渲染：行「${w.id}」含 ${w.hits.join('、')}——写状态请走「yields」（A 方案：渲染成功后由 \`<<rules>>\` 统一落 Sg.notes.add）`); bad++; }
+		for (const w of textWriteRows(rows)) for (const pr of w.probs) { console.log(`  ✗ \`text\` 不是纯渲染（${pr.domain}域）：行「${w.id}」含 ${pr.hits.join('、')}——渲染域的写请走「yields」（A 方案：渲染成功后由 \`<<rules>>\` 统一落）；**点击态**域只许词汇宏（${CLICK_VOCAB_MACROS.map((m) => '<<' + m + '>>').join('／')}，\`damage\` 不在内 ⇒ 机制块不搬）`); bad++; }
 		const { calls, dynamic } = ruleCalls(ctx.passageSrc, (p) => ctx.passageTags?.get(p) ?? []);
 		for (const id of orphanRows(rows, calls)) { console.log(`  ✗ 未接管行：行「${id}」的 \`scope\` 没有任何 \`<<rules "…">>\` 调用点 ⇒ 永不被渲染`); bad++; }
 		for (const k of duplicateCalls(calls)) { const [p, scope] = k.split('|'); console.log(`  ✗ 同位点重复调用：段落「${p}」里 \`<<rules "${scope}">>\` 出现 ≥2 次（两个位点抢同一行）`); bad++; }

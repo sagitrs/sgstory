@@ -93,6 +93,20 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 			title: '石壁的回声', src: '空洞', tags: ['线索'], era: window.Game.Era.PRESENT, flagPath: 'ev.cave_echo',
 			body: '空洞把脚步声送了回来：前面还有多远、哪一段地面下面是空的——听一遍就记住了一半。',
 		},
+		// `#490` 片五：旅人事件面的三条（察言所得／挨过那一下／他帮过你）——笔记＝知识，
+		// 旗标由 `Sg.notes.add` 双写（`flagPath`）⇒ ⑥ 的「记一次旗标」落在这条通道上。
+		n_cave_trav: {
+			title: '火堆边那个人', src: '洞里的旅人', tags: ['旅人'], era: window.Game.Era.PRESENT, flagPath: 'ev.cave_trav',
+			body: '他把那把东西放在右手边，拇指却一直没离开——不是要动手，是在等你先说话。',
+		},
+		n_cave_battered: {
+			title: '它下一口往哪咬', src: '洞里的东西', tags: ['战斗'], era: window.Game.Era.PRESENT, flagPath: 'ev.cave_battered',
+			body: '挨过那一下之后你知道它的脾气了：先往肋上撞，再等你抬手。',
+		},
+		n_cave_help: {
+			title: '他给过你半块干粮', src: '洞里的旅人', tags: ['旅人'], era: window.Game.Era.PRESENT, flagPath: 'ev.cave_help',
+			body: '他没要钱，把干粮掰了一半推过来，只把火堆拨旺了一点。你欠他一次。',
+		},
 	} };
 
 	// 状态契约域（`--state`）：本故事的键 + **引擎保留的运行时槽**（引擎会写它们 ⇒ 故事必须登记）
@@ -157,9 +171,11 @@ const MECH = {
 	// 原先写成中文标签（`麻痹@腿`／`流血@躯干`）⇒ 永远取不到 ⇒ 减成恒为 0（静默空转；门见 `test/story-shape.mjs`）。
 	statusPenalty: { 'paralysis@腿': { check: -2 }, 'bleed@躯干': { check: -1 } },
 	// 短/长战斗＝1 批／2 批（第二批更难且增援）
+	// `#490` 已定 ⑥：抽查「金本位」——金币来源就靠这里（`reward.gold`，S3 契约 §3.2 的声明形状）；
+	// 长战斗（两批、更难）奖励更高 ⇒ 与 `waveRewardScale` 的单调口径同向。
 	encounters: {
-		short: { waves: [{ pool: 'cave.w1', difficulty: 1 }] },
-		long: { waves: [{ pool: 'cave.w1', difficulty: 1 }, { pool: 'cave.w2', difficulty: 2, reinforce: true }], rewardsScale: 1.5 },
+		short: { waves: [{ pool: 'cave.w1', difficulty: 1 }], reward: { gold: 3 } },
+		long: { waves: [{ pool: 'cave.w1', difficulty: 1 }, { pool: 'cave.w2', difficulty: 2, reinforce: true }], rewardsScale: 1.5, reward: { gold: 9 } },
 	},
 	// 五步主线：每步 3 路（段号从 1 计，与 `roadOffer(idx)` 一致）；每步至少一个 `noCheck:true`（不掷骰也有路）
 	roads: [

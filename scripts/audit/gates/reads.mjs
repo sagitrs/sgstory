@@ -22,7 +22,7 @@
 // 用法：node scripts/audit.mjs --reads --check ／ node scripts/audit.mjs --reads --check --strict
 import { readFileSync } from 'node:fs';
 import { LAYER_OF } from '../../module-order.mjs';
-import { readKeys, notePaths, stripJsComments, condKeysOf } from '../lib/shared.mjs';
+import { literalReadKeys, readKeys, notePaths, stripJsComments, condKeysOf } from '../lib/shared.mjs';
 
 export const flag = 'reads';
 export const flags = ['reads'];
@@ -33,25 +33,16 @@ export const STORY_PREFIX = 'stories/';
 const MECH_TAGS = ['script', 'widget', 'stylesheet'];
 
 // ── 基线：故事面里的**知识键**字面直读（逐条带理由）。新增即红；修好的条目只报告。 ──
-// 为什么是这些（都是阶段 4 的待搬项，不是"允许的写法"）：
-//   · 叙事段那 5 处：手写分支还没换进条件表（`#435` 内容批进行中）；
-//   · `Game Tables` 那 9 处：`Codex.clues[].test`（图鉴线索判定）与面板 `done/apply` 谓词，
-//     阶段 4/5 随「合龙门/线索」搬进条件表后消失。
+// 现状（`#437` 批二，2026-09-14）：`Game Tables` 那 9 处**已归零** —— `Codex.clues[].test` 与面板 `done/apply`
+// 的谓词改走**封装层**（`Sg.notes.readPath(p, 'ev.x')`）：它仍是**读点**（`readKeys()` 认它 ⇒ 消费可数不丢），
+// 但**不再是"字面状态读"**（那正是本门要抓的"绕过封装层的裸读"）——两个口径分成 `readKeys()`/`literalReadKeys()`。
+// 剩 5 处是**叙事段**里的手写分支（阶段 4 的待搬项，不是"允许的写法"）。
 export const READ_KNOWN = {
 	'塔外花田|world.flower_warned': '阶段 4 待搬家：`<<link>>` 里的条件文案（花警告）',
 	'门厅|world.hall_hint': '阶段 4 待搬家：门厅提示位点的手写分支',
 	'门厅|ev.hall_seen': '阶段 4 待搬家：门厅「看钉」位点的手写分支（与 hall_hint 同一条笔记两源）',
 	'书房|world.study_hint': '阶段 4 待搬家：书房提示位点的手写分支',
 	'书房|ev.study_found': '阶段 4 待搬家：书房暗格位点的手写分支（知识并入 study_hint）',
-	'Game Tables|ev.failure_cause': '声明表兼容读取：`Codex.clues[].test`（图鉴线索判定，阶段 4/5 待搬）',
-	'Game Tables|ev.observation_lock': '声明表兼容读取：`Codex.clues[].test`（图鉴线索判定，阶段 4/5 待搬）',
-	'Game Tables|ev.keeper_why': '声明表兼容读取：`Codex.clues[].test`（图鉴线索判定，阶段 4/5 待搬）',
-	'Game Tables|ev.letter_seen': '声明表兼容读取：`Codex.clues[].test`（图鉴线索判定，阶段 4/5 待搬）',
-	'Game Tables|ev.tav_tips': '声明表兼容读取：酒馆面板位点 `done/apply` 谓词（阶段 4/5 待搬）',
-	'Game Tables|ev.tav_fog': '声明表兼容读取：酒馆面板位点 `done/apply` 谓词（阶段 4/5 待搬）',
-	'Game Tables|ev.keeper_told': '声明表兼容读取：守林人面板位点 `done` 谓词（阶段 4/5 待搬）',
-	'Game Tables|world.flower_warned': '声明表兼容读取：花警告（线索判定 ＋ 位点 `apply`）',
-	'Game Tables|ev.witch_grip': '声明表兼容读取：老巫女面板位点 `done/apply` 谓词（阶段 4/5 待搬）',
 };
 
 // ── 源文件 → 段落清单（**注入式**：`read` 可换成 fixture，便于自证；判据不依赖被测对象）──
@@ -89,7 +80,7 @@ export const scanReads = (segments) => {
 	const out = [];
 	for (const s of segments) {
 		s.src.split('\n').forEach((l, i) => {
-			for (const key of readKeys(l)) out.push({ file: s.file, passage: s.passage, kind: s.kind, line: s.line + i, key });
+			for (const key of literalReadKeys(l)) out.push({ file: s.file, passage: s.passage, kind: s.kind, line: s.line + i, key });
 		});
 	}
 	return out;
@@ -130,9 +121,9 @@ export const tableReadProblems = (rows) => {
 			// 两种**前缀键**（`inv:<道具>`／`era:<时代>`，求值在引擎侧 `Sg.rules.holds()`）。
 			// 修正①（2026-09-14）：原先只放行 `ev|world` 两域 ⇒ **误杀 `keeper.met`/`star.spent`** 这类第三命名空间。
 			if (!/^(n_[a-z0-9_]+|[a-z_]\w*|[a-z_]\w*\.[a-z_]\w*|inv:.+|era:(?:past|present))$/.test(k)) out.push({ id: r.id, field, what: '键形态', detail: k });
-			for (const key of readKeys(k)) out.push({ id: r.id, field, what: '字面状态读', detail: key });
+			for (const key of literalReadKeys(k)) out.push({ id: r.id, field, what: '字面状态读', detail: key });
 		}
-		for (const key of readKeys(r.text ?? '')) out.push({ id: r.id, field: 'text', what: '字面状态读', detail: key });
+		for (const key of literalReadKeys(r.text ?? '')) out.push({ id: r.id, field: 'text', what: '字面状态读', detail: key });
 	}
 	return out;
 };
@@ -154,6 +145,9 @@ export const run = (ctx) => {
 			['边界：`yields` 用 note id ⇒ 不报（与 `req` 同一命名空间）', tableReadProblems([{ id: 'A', yields: 'n_witch_fire_hint' }]).length === 0],
 			['边界：`n_*` 里的下划线不被当"路径点"误判', tableReadProblems([{ id: 'A', req: 'n_flower_warned' }]).length === 0],
 			['正例：前缀键 `inv:日记`／`era:present` 是合法键形（求值在引擎侧）', tableReadProblems([{ id: 'A', req: ['inv:日记'], any: ['era:present'] }]).length === 0],
+			['正例（#437 批二）：`Sg.notes.readPath(p, \'ev.x\')` 是**封装层读** ⇒ 不算"字面状态读"', tableReadProblems([{ id: 'A', text: `<<if Sg.notes.readPath(p, 'ev.x')>>甲<</if>>` }]).length === 0],
+			['边界（同一形状的两面）：封装层读**仍是读点**（`readKeys` 认它 ⇒ 消费可数不丢）', (() => { const m = readKeys(`Sg.notes.readPath(p, 'ev.x')`); return m.includes('ev.x'); })()],
+			['🔴 反例：直读 `p.ev.x` 照旧报（封装层读的引入没有放水）', tableReadProblems([{ id: 'A', text: '<<if p.ev.x>>甲<</if>>' }]).length === 1],
 			['正例（另票 #491）：对象算子形条件的**键**照常判形态（阈值/算子不进形态判定）', tableReadProblems([{ id: 'A', req: [{ gte: ['star.spent', 3] }, 'n_x'] }]).length === 0],
 			['正例（修正①）：第三命名空间的状态路径 `keeper.met`／`star.spent` 是合法键形', tableReadProblems([{ id: 'A', req: ['keeper.met'], any: ['star.spent'] }]).length === 0],
 			['🔴 反例（修正①的反面）：多段路径 `pc.ev.x` ／ 带 `$` 的 `$pc.ev.x` 仍拦', tableReadProblems([{ id: 'A', req: ['$pc.ev.x'] }]).length > 0 && tableReadProblems([{ id: 'A', req: ['a.b.c'] }]).some((p) => p.what === '键形态')],
@@ -164,7 +158,8 @@ export const run = (ctx) => {
 			['边界：基线内 ⇒ 不算新增（但仍在清单里，收口时归零）', baselineProblems([{ passage: '书房', key: 'ev.study_found', known: true }]).fresh.length === 0],
 			['反沉默：注释里的示例不算读（`/% … %/` 挖空）', scanReads(segmentsOf(['stories/x.twee'], () => ':: P\n/% <<if $pc.ev.a>> %/\n正文\n')).length === 0],
 			['反沉默：机制段的 JS 注释也不算读（`stripJsComments` 单一权威，与 `--text` 同口径）', scanReads(segmentsOf(['stories/z.twee'], () => ':: T [script]\n// 示例：pc.ev.a 读法\n正文\n')).length === 0],
-			['机制段（`[script]`）不算叙事面（它走③的报告面）', scanReads(segmentsOf(['stories/z.twee'], () => ':: T [script]\npc.ev.a = true\n'))[0].kind === 'mech'],
+			['机制段（`[script]`）不算叙事面（它走③的报告面）', scanReads(segmentsOf(['stories/z.twee'], () => ':: T [script]\n<<if pc.ev.a>>x<</if>>\n'))[0].kind === 'mech'],
+			['边界（新修）：**赋值行不算读**——`pc.ev.a = true` 既不是读点也不该被算成"字面状态读"', literalReadKeys('pc.ev.a = true').length === 0 && literalReadKeys('<<set $pc.ev.a to true>>').length === 0],
 		];
 		let selfBad = 0;
 		for (const [label, ok] of cases) { if (!ok) selfBad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }

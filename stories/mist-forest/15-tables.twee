@@ -210,8 +210,8 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				hint: '塔里二楼，烤炉后头那个暗格。',
 				clues: [
 					{ id: 'own',   label: '来历：她记那一夜的那一本', test: (p) => !!p.inv['日记'] },
-					{ id: 'cause', label: '那一夜发不动＝缺的从来不是咒（差在哪，纸上没写）', test: (p) => !!p.ev?.failure_cause },
-					{ id: 'lock',  label: '能改的只有没被观测过的那部分', test: (p) => !!p.ev?.observation_lock },
+					{ id: 'cause', label: '那一夜发不动＝缺的从来不是咒（差在哪，纸上没写）', test: (p) => !!Sg.notes.readPath(p, 'ev.failure_cause') },
+					{ id: 'lock',  label: '能改的只有没被观测过的那部分', test: (p) => !!Sg.notes.readPath(p, 'ev.observation_lock') },
 				],
 			},
 			坏哨: {
@@ -234,7 +234,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				hint: '塔根墙下那片银白——只在塔周围这一带活着。',
 				clues: [
 					{ id: 'own',    label: '来历：夜里接着星光，自己长在塔根', test: (p) => !!p.inv['月光花'] },
-					{ id: 'warned', label: '危险：味道闻久了会睡', test: (p) => !!p.world?.flower_warned },
+					{ id: 'warned', label: '危险：味道闻久了会睡', test: (p) => !!Sg.notes.readPath(p, 'world.flower_warned') },
 					{ id: 'fed',    label: '献给它＝睡得稳，不提前醒', test: (p) => !!p.world?.flower_fed },
 					{ id: 'venom',  label: '毒液抹刃＝它每一下都慢半拍', test: (p) => !!p.dragon?.venom },
 				],
@@ -244,7 +244,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				clues: [
 					{ id: 'own',  label: '来历：他解下来放在桌上', test: (p) => !!p.inv['守林人的钥匙'] },
 					{ id: 'met',  label: '去塔的路上会先遇见他', test: (p) => !!p.keeper?.met },
-					{ id: 'why',  label: '他守的从来不是悔恨', test: (p) => !!p.ev?.keeper_why },
+					{ id: 'why',  label: '他守的从来不是悔恨', test: (p) => !!Sg.notes.readPath(p, 'ev.keeper_why') },
 					{ id: 'door', label: '铁门后头是地下那道门', test: (p) => !!p.world?.present_done || !!p.dragon?.awake },
 				],
 			},
@@ -253,7 +253,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				clues: [
 					{ id: 'own',   label: '来历：《论坠星》，只记现象不记谜底', test: (p) => !!p.inv['观星者的书'] },
 					{ id: 'proof', label: '证物：风化无法伪造', test: (p) => (p.keeper?.trust ?? 0) >= 2 },
-					{ id: 'letter', label: '夹着的那封信，观星者到死没拆', test: (p) => !!p.ev?.letter_seen },
+					{ id: 'letter', label: '夹着的那封信，观星者到死没拆', test: (p) => !!Sg.notes.readPath(p, 'ev.letter_seen') },
 				],
 			},
 			完整星图: {
@@ -276,7 +276,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				hint: '日记的封底——她算清的那一卷夹在那里。',
 				clues: [
 					{ id: 'own',     label: '来历：她算到最后才写全的术式', test: (p) => !!p.inv['传送术卷轴'] },
-					{ id: 'lock',    label: '她把没能用上的那一句写在旁边', test: (p) => !!p.ev?.observation_lock },
+					{ id: 'lock',    label: '她把没能用上的那一句写在旁边', test: (p) => !!Sg.notes.readPath(p, 'ev.observation_lock') },
 					{ id: 'deliver', label: '只有守林人读得通', test: (p) => !!p.world?.scroll_delivered },
 				],
 			},
@@ -602,7 +602,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 					{ id: 'drink', name: '请她喝一轮', gives: 'auto', econ: 'drink_round', note: '她不缺你这两句话，缺的是一轮酒' },
 					{ id: 'read',  name: '看出她一直在瞟炉子', gives: 'adv', needRead: true, note: '她怕的是火，不是塔' },
 				],
-				done: (pc) => !!pc.ev.tav_tips,
+				done: (pc) => !!Sg.notes.readPath(pc, 'ev.tav_tips'),
 				apply: (pc) => { pc.ev.tav_tips = true; pc.ev.tav_fog = true; },
 				ok: '"你要真想进去，"她把杯子放下，"就记住两件事：一是别在雾里睡觉，二是听见有人叫你名字，别应。"',
 				bad: `她把抹布在台面上又擦了一遍，没接你的话。（''她听过了，不想再说。''）`,
@@ -616,7 +616,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 					{ id: 'read',    name: '看出他靴边那一圈白', gives: 'adv', needRead: true, note: '他每天都要从那片花边上走一趟' },
 				],
 				// 2024「willing」由段落内手写（带日记/书＝他本来就要说：_t>0 → 直给），这里只留掷骰与筹码
-								done: (pc) => !!pc.ev.keeper_told,   // #229：保命警告已提为初遇无差别——面板问的是「来历」这层
+								done: (pc) => !!Sg.notes.readPath(pc, 'ev.keeper_told'),   // #229：保命警告已提为初遇无差别——面板问的是「来历」这层
 				apply: (pc) => { pc.world.flower_warned = true; pc.ev.keeper_told = true; },
 				ok: '"那花会睡人。"他看了一眼炉子，"要摘，先把气含住。我小时候在那儿睡过一下午，醒来天都黑了。"',
 				bad: `"那片花？"他把灯芯剪短了一截，''"你别去碰它。"''他不再说别的。`,
@@ -656,7 +656,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				levers: [
 					{ id: 'read', name: '看她握哨的手势', gives: 'adv', needRead: true, note: '那只手一直没松开过' },
 				],
-				done: (pc) => !!pc.ev.witch_grip,
+				done: (pc) => !!Sg.notes.readPath(pc, 'ev.witch_grip'),
 				apply: (pc) => { pc.ev.witch_grip = true; },
 				ok: '你把看出来的东西说出口。她把手翻过来给你看："你眼力不错。"',
 				bad: '她把手合上了。"哨子是我家的。"',

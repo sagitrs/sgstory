@@ -36,18 +36,32 @@ export const READ_PATTERNS = [
 	// 「只有写没有读」把引擎自己的运行时槽判成假红（实测：`last_roll` 只靠一条**注释**里提了一句才"有读"）。
 	/\bState\.variables\.pc\??\.(ev|world)\??\.([a-z_]\w*)/g,
 ];
-// 单行 → 去重后的**限定键**（`ev.x` / `world.x`）
+// `#437` 批二的形状：**经封装层的路径读** —— `Sg.notes.readPath(pc, 'ev.x')`／`writePath` 的读侧。
+// 为什么要单列：表里的谓词从"直读旗标"（`!!p.ev.x`）改成走封装层之后，**消费点不该消失**
+//（`--notes` 的消费可数、D2 的分级都靠"谁读了它"）；但它**不是**「无字面状态读」要抓的那种直读
+//（那份判据管的是"绕过封装层的裸读"）⇒ 两个口径必须分开，否则改一处就假红另一处。
+export const WRAPPED_READ_RE = /Sg\.notes\.readPath\(\s*[^,()]+,\s*['"]([a-z_]+)\.([a-z_]\w*)['"]/g;
+export const wrappedReadKeys = (text) => [...String(text ?? '').matchAll(new RegExp(WRAPPED_READ_RE.source, 'g'))].map((m) => `${m[1]}.${m[2]}`);
+// 单行 → 去重后的**限定键**（`ev.x` / `world.x`）——**含**封装层读（"谁读了它"的单一权威）
 export const readKeys = (text) => {
 	const line = String(text ?? '');
 	const out = new Set();
 	for (const re of READ_PATTERNS) {
 		for (const m of line.matchAll(new RegExp(re.source, 'g'))) {
 			const k = `${m[1]}.${m[2]}`;
-			if (new RegExp(`\\.${k}\\s*(=|to)\\b`).test(line)) continue;   // 写行不算读
+			// 写行不算读：`to true`／`= true`／`=true`／`= {` 都要排掉；`(?!=)` 排 `==`，`(?![a-z])` 排 `tower`
+			if (new RegExp(`\\.${k}\\s*(?:=(?!=)|to(?![a-z]))`).test(line)) continue;
 			out.add(k);
 		}
 	}
+	for (const k of wrappedReadKeys(line)) out.add(k);
 	return [...out];
+};
+/** **字面状态读**（＝「无字面状态读」门的判据）：`readKeys()` **减去**封装层读。
+ *  两个口径分开是刻意的：`--reads` 管"绕过封装层的裸读"，而"谁读了它"要连封装层读一起算。 */
+export const literalReadKeys = (text) => {
+	const wrapped = new Set(wrappedReadKeys(text));
+	return readKeys(text).filter((k) => !wrapped.has(k));
 };
 
 export const keyCharsetViolations = (text) =>
@@ -213,10 +227,17 @@ export const noteReadFlags = (text, entries) => {
 	const ids = [...paths.keys()];
 	const alt = ids.length ? `|Sg\\.notes\\.(?:has|entry)\\(\\s*['"](${ids.map((i) => i.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')})['"]` : '';
 	const re = new RegExp(`\\$pc\\.(?:world|ev)\\.([a-z_]\\w*)${alt}`, 'g');
+	// `#437` 批二：表里的谓词改走封装层（`Sg.notes.readPath(p,'ev.x')`）之后，这条读点**不该消失**
+	//（D2 按旗标分桶）⇒ 与 `readKeys()` 同源地把它也算进来。
+	const wrapped = [...String(text ?? '').matchAll(new RegExp(WRAPPED_READ_RE.source, 'g'))].map((m) => `${m[1]}.${m[2]}`);
 	const out = [], seen = new Set();
 	for (const m of String(text ?? '').matchAll(re)) {
 		const flags = m[1] ? [m[1]] : (paths.get(m[2]) ?? []).map((k) => k.replace(/^(ev|world)\./, ''));
 		for (const f of flags) if (!seen.has(f)) { seen.add(f); out.push(f); }
+	}
+	for (const p2 of wrapped) {
+		const f = p2.replace(/^(ev|world)\./, '');
+		if (!seen.has(f)) { seen.add(f); out.push(f); }
 	}
 	return out;
 };
@@ -268,7 +289,12 @@ export const makeShared = (ctx) => {
 		const E = Echoes;
 		const echoFlags = new Set([...E.list.flatMap((e) => [e.cause.flag, e.cause.token]), ...E.revisit.flatMap((r) => [r.flag, r.inv])].filter(Boolean));
 		const tblSrc = sources.get('Game Tables') ?? '';
-		const codexFlags = new Set([...tblSrc.matchAll(/p\.(?:ev|world)\??\.(\w+)/g)].map((m) => m[1]));
+		// `#437` 批二：图鉴桶的旗标集合 = 表里的**直读**（`p.ev.X`／`p.world?.X`）∪ **封装层读**
+		//（`Sg.notes.readPath(p, 'ev.X')`）——此前只认前者，谓词改走封装层后它就静默失明了。
+		// 注：这里**不**用 `readKeys()` 全量（它会把表里**字符串文案**中提到的 `pc.ev.notes` 也算成读点）。
+		const codexFlags = new Set([
+			...tblSrc.matchAll(/p\.(?:ev|world)\??\.(\w+)/g),
+		].map((m) => m[1]).concat(wrappedReadKeys(tblSrc).map((k) => k.replace(/^(ev|world)\./, ''))));
 		const decl = { ...(Consequences?.provenance ?? {}), ...(Consequences?.engine ?? {}) };
 		const prop = { ...(Consequences?.provenance ?? {}) };
 		const buckets = new Map();

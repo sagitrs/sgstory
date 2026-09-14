@@ -53,6 +53,10 @@
    本故事原先写 `maxHp` ⇒ 侧栏血条分母为 0、`resetRun` 会把 hp 归 0）。 %/
 <<set $pc.hp to 20>><<set $pc.max_hp to 20>><<set $pc.gold to 0>>
 <<give "旧剑">><<give "火把">>
+/% `#491` 判据 8：把这两样**装到身上**（`pc.gear`）——S1 的耐久／减成机制只认 `pc.gear`
+   （`slotAbsorb`／`gearWear` 都按它找装备）⇒ 只放进 `inv` 等于机制没有承载体。
+   只装剑与火把：`#482` 的规格是"身上只剩这两样"。 %/
+<<set $pc.gear to ["旧剑", "火把"]>>
 [[站起来，往深处走|岔口]]
 
 :: 岔口
@@ -168,6 +172,8 @@
 	''温泉''。水是热的。你把伤口浸进去，疼了一阵，然后不那么疼了。
 	<<set $pc.hp to Math.min($pc.max_hp, $pc.hp + 6)>>
 	<<set $pc.statuses to {}>>
+	/% `#491` 判据 8／S1 已定 ④：温泉是 v1 **唯一修复点**（`repairAll` 返回满耐久表）——顺带把家什养回来 %/
+	<<if $pc.gear and $pc.gear.length>><<set $pc.gearHp to Game.Combat.repairAll($pc)>>（家什也泡了一泡。）<</if>>
 	<<link "起来，继续走">><<caveNext>><</link>>
 <<elseif _k is "矿洞">>
 	''矿洞''。岩层里夹着一条亮线。你抠下来一小块，磨成了一把''锈钥匙''。
@@ -185,7 +191,11 @@
 			<<if $last_check.success>>
 				石头没有滑。你过去了，鞋还干着。
 			<<else>>
-				石头翻了，你半身泡进水里。<<damage `Game.Damage.graze`>>
+石头翻了，你半身泡进水里。<<damage `Game.Damage.graze`>>
+	/% `#491` 判据 8（已定 ⑦）：地下湖**失败 ⇒ 扣耐久**（S1 的 `gearWear`：掷骰 −1/−2；`gearHpOf` 缺项＝满耐久） %/
+	<<set _w to Game.Combat.gearWear($pc, "旧剑")>>
+	<<set $pc.gearHp to Object.assign($pc.gearHp ?? {}, { [_w.gear]: _w.to })>>
+	水下的石头刮过剑鞘。
 				/% `#574`：`applyStatus` **返回**新状态对象（不改入参）⇒ 必须接住赋值，否则异常根本不落（本故事原先两处都丢了返回值）。 %/
 			<<set $pc.statuses to Game.Combat.applyStatus($pc, "bleed", "腿").statuses>>
 			<</if>>
@@ -193,8 +203,12 @@
 		<</link>>
 	<<else>>
 		<<link "摸着黑蹚过去">>
-			水到腰。你过去了，但腿上的口子在流血。
+水到腰。你过去了，但腿上的口子在流血。
 			<<damage `Game.Damage.hurt`>>
+			/% `#491` 判据 8：黑水里那一趟也刮了家什（同 ⑦：失败 ⇒ 扣耐久） %/
+			<<set _w to Game.Combat.gearWear($pc, "旧剑")>>
+			<<set $pc.gearHp to Object.assign($pc.gearHp ?? {}, { [_w.gear]: _w.to })>>
+			剑鞘在水里磕出了一道口子。
 			<<set $pc.statuses to Game.Combat.applyStatus($pc, "bleed", "腿").statuses>>
 			<<caveNext>>
 		<</link>>

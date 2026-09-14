@@ -298,12 +298,93 @@ const main = async () => {
 		});
 	}
 
+	// ── 判据 ⑦：五种洞窟效果（`#491` 判据 8／已定 ⑦）──
+	{
+		const slug = 'hollow-cave';
+		const snap = (w) => {
+			const pc = w.SugarCube.State.variables.pc;
+			return {
+				hp: pc.hp, torch: pc.ev.cave_torch ?? 0, key: !!pc.inv['钥匙'],
+				note: pc.ev.cave_echo === true, statuses: Object.keys(pc.statuses ?? {}).length,
+				sword: pc.gearHp?.['旧剑'] ?? 2,                       // 缺项＝满耐久（声明 maxHp 2）
+			};
+		};
+		const runCave = async ({ kind, d5, click, before = () => {}, judge }) => {
+			const { w, close, sleep, settle } = await boot({ story: slug, random: 0.9 });
+			try {
+				// `机制·cave` 用 `rng.d(5)` 抽洞穴种类；其余骰面固定给 3（判定失败 ⇒ 走失败支）
+				// d(5) 抽种类；d(20) 给 3（判定失败 ⇒ 走失败支）；其余（如 gearWear 的 d(2)）给 1
+				w.Game.Rules.rng.set((lo, hi) => (hi === 5 ? d5 : hi === 20 ? 3 : 1));
+				before(w);
+				// ⚠ 快照必须在**进入段落之前**取：`机制·cave` 的四种效果（钥匙/回血/线索/火把）在**渲染期**就落地，
+				//    只有地下湖的伤害与耐久扣减在 link 体内（点击时）。取早了会看不出效果、取晚了会漏掉效果。
+				const was = snap(w);
+				w.SugarCube.Engine.play('路·2b');                       // 特殊洞窟实例（第 2 段）
+				await settle(); await sleep(220);
+				const anchors = [...w.document.querySelectorAll('#passages a.link-internal')];
+				const target = anchors.find((a) => a.textContent.replace(/\s+/g, '').includes(click));
+				if (!target) {
+					problems.push({ code: 'cave', slug, msg: `${kind}：找不到链接「${click}」（可选：${anchors.map((a) => a.textContent.replace(/\s+/g, '')).join(' / ')}）` });
+					return;
+				}
+				target.click();
+				await settle(); await sleep(260);
+				const now = snap(w);
+				const fails = judge({ was, now });
+				problems.push(...fails.map((msg) => ({ code: 'cave', slug, msg: `${kind}：${msg}` })));
+				console.log(`  ${fails.length ? '✗' : '✓'} ${slug} ⑦ ${kind}：hp ${was.hp}→${now.hp} · 钥匙 ${now.key} · 线索 ${now.note} · 火把 ${was.torch}→${now.torch} · 剑耐久 ${was.sword}→${now.sword} · 异常 ${was.statuses}→${now.statuses}`);
+				for (const m of fails) console.log(`      ✗ ${m}`);
+			} catch (e) {
+				problems.push({ code: 'cave', slug, msg: `${kind} 跑不完：${e.message}` });
+			} finally { close(); }
+		};
+
+		// ① 矿洞 ⇒ 得钥匙（反例：不得搭上线索/火把/耐久）
+		await runCave({ kind: '矿洞⇒得钥匙', d5: 1, click: '收好，继续走',
+			judge: ({ was, now }) => [
+				...(now.key ? [] : ['矿洞没给钥匙（已定 ⑦：矿洞＝得钥匙×1）']),
+				...(now.torch === was.torch ? [] : ['矿洞不该动火把续航']),
+				...(now.note === was.note ? [] : ['矿洞不该给线索']),
+			] });
+		// ② 温泉 ⇒ 回 HP ＋ 清异常 ＋ **修耐久**（v1 唯一修复点）
+		await runCave({ kind: '温泉⇒回HP＋清异常＋修耐久', d5: 2, click: '起来，继续走',
+			before: (w) => w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.hp=10;pc.statuses={腿:{bleed:2}};pc.gear=["旧剑","火把"];pc.gearHp={旧剑:1};})()'),
+			judge: ({ was, now }) => [
+				...(now.hp > was.hp ? [] : [`温泉没回 HP（${was.hp}→${now.hp}）`]),
+				...(now.statuses === 0 ? [] : [`温泉没清异常（剩 ${now.statuses} 处）`]),
+				...(now.sword > was.sword ? [] : [`温泉没修耐久（剑 ${was.sword}→${now.sword}；S1 已定 ④：v1 唯一修复点）`]),
+				...(now.torch === was.torch ? [] : ['温泉不该动火把续航']),
+			] });
+		// ③ 空洞 ⇒ 落线索（反例：不得给钥匙/动耐久）
+		await runCave({ kind: '空洞⇒落线索', d5: 3, click: '记住回音，继续走',
+			judge: ({ was, now }) => [
+				...(now.note ? [] : ['空洞没落线索（已定 ⑦：空洞＝给线索）']),
+				...(now.key ? ['空洞不该给钥匙'] : []),
+				...(now.sword === was.sword ? [] : ['空洞不该动耐久']),
+			] });
+		// ④ 地下湖（失败支）⇒ 扣耐久（反例：不得给钥匙/动火把）
+		await runCave({ kind: '地下湖⇒失败扣耐久', d5: 4, click: '举着火把，踩着露出水面的石头过去',
+			before: (w) => w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.ev.cave_torch=1;pc.gear=["旧剑","火把"];})()'),
+			judge: ({ was, now }) => [
+				...(now.sword < was.sword ? [] : [`地下湖失败没扣耐久（剑 ${was.sword}→${now.sword}；已定 ⑦：失败 −1 耐久）`]),
+				...(now.torch === was.torch ? [] : ['地下湖不该动火把续航']),
+				...(now.key ? ['地下湖不该给钥匙'] : []),
+			] });
+		// ⑤ 蘑菇洞 ⇒ 火把续航 +1（反例：不得给钥匙/动耐久）
+		await runCave({ kind: '蘑菇洞⇒火把续航+1', d5: 5, click: '让火把在这里换一口气，继续走',
+			judge: ({ was, now }) => [
+				...(now.torch === was.torch + 1 ? [] : [`蘑菇洞没给火把续航 +1（${was.torch}→${now.torch}）`]),
+				...(now.key ? ['蘑菇洞不该给钥匙'] : []),
+				...(now.sword === was.sword ? [] : ['蘑菇洞不该动耐久']),
+			] });
+	}
+
 	if (problems.length) {
 		console.error(`\n✗ 逐故事运行时契约门未通过 ${problems.length} 项：`);
 		for (const p of problems) console.error(`  ✗ ${p.msg}`);
 		process.exit(1);
 	}
-	console.log('\n✔ 逐故事运行时契约门通过（面存在 · 位点能判 · 笔记可用 · 侧栏可用 · 机制真落 · 旅人面闭环）');
+	console.log('\n✔ 逐故事运行时契约门通过（面存在 · 位点能判 · 笔记可用 · 侧栏可用 · 机制真落 · 旅人面闭环 · 五种洞窟效果）');
 	process.exit(0);   // jsdom 的视口轮询会把事件循环吊住（boot.mjs 的注释）⇒ 自己收场
 };
 

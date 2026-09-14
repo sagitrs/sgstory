@@ -12,7 +12,7 @@
 //   ④ **可复算**：同一 seed 跑两次 ⇒ 报表**逐字节一致**（多种子 ＋ 固定骰面复算，与 `--dragon` 同口径）。
 //
 // 用法：`node scripts/audit.mjs --combat-dist --check --story hollow-cave`
-import { mulberry32, asSugarRandom } from '../lib/rng.mjs';
+import { mulberry32, asSugarRandom } from '../../../scripts/audit/lib/rng.mjs';
 
 export const flag = 'combat-dist';
 export const flags = ['combat-dist'];

@@ -124,15 +124,17 @@ mechanics: () => ({
 
 | 面 | 落点／机制（**P0 接线 · P1 试点 3 门已搬**） |
 |---|---|
-| 故事门的**住址** | `stories/<slug>/gates/*.mjs`。**故事 1 已搬完**（21 门）：P1 试点 3 门 ＋ P2-A① 9 门 ＋ P2-A② 9 门 ⇒ 全部住 `stories/mist-forest/gates/`。**待搬**：`cave`／`combat-dist`（故事 3，同一批要把 `audit-golden` 改成 **owner-aware** 并按归属补 `--story`）。**`a11y` 概念上是引擎门**（判产物可访问性、读 `dist/`）⇒ 不是迁移对象，留在工具层（层声明待接线后补） |
+| 故事门的**住址** | `stories/<slug>/gates/*.mjs`。**故事门已全部住故事侧**：故事 1（21 门：P1 3 ＋ P2-A① 9 ＋ P2-A② 9）＋ 故事 3（`cave`／`combat-dist`，P2-B）⇒ 工具层 `scripts/audit/gates/**` 只剩**引擎门**（10）＋ `a11y`。**`a11y` 概念上是引擎门**（判产物可访问性、读 `dist/`）⇒ 不是迁移对象，留在工具层（层声明待接线后补） |
 | **声明** | `stories/<slug>/00-story.json` 的 `gates: [...]`（路径；顺序即本故事内次序）。**空数组是合法声明**（"本故事暂无自有门"），但**键必须存在** |
 | **发现** | `scripts/audit/discovery.mjs`：`engineGates()`（registry 里 flag ∈ `AUDIT_ENGINE`）∪ `pendingGates()`（**待迁移**：registry 里其余的门，搬完一批删一批）∪ `declaredGates(slug)`（清单声明）＝ `gatesForStory(slug)` |
 | **执行顺序** | `GATE_ORDER`（计划面，只定次序）：搬家只改**住址**、不改输出次序 ⇒ `audit:golden` 零漂移可比对 |
+| **作用域全跑** | `--story <slug>` **单独给**（一个门开关都没点）⇒「本故事作用域全跑」（`#607` P2-B 起的 CLI 语义）。此前它退 2「没有选中任何门」⇒ **他故事的全跑无路可走**，`audit-golden` 的 `not-in-full-run` 交叉核对无法按归属比；`--check`／`--strict` 单独给仍退 2（防假绿守卫不变） |
+| **基线按归属跑** | `test/audit-golden.mjs`：他故事的门单跑**自动补 `--story <owner>`**（默认故事的门不补 ⇒ 基线逐字可比）；`not-in-full-run` 交叉核对按**该门所属故事**的全跑比。P2-B 为此**带归因重签**了 `cave`／`combat-dist` 两条（重签范围经 diff 核对：36 键不变、只这两条变） |
 | **fail-loud** | 清单缺 `gates` 键／路径越界／文件不存在／`gates/` 下有**未声明**的文件／形状不对／**跨故事或跨层重名**／故事门偷用引擎 flag／顺序表未登记或僵尸键 ⇒ 逐条报错（每次 audit 调用都跑 `validateDiscovery()`） |
 | **机器证据** | `test/gate-discovery.mjs`（23 条断言：无孤儿门 · 顺序稳定 · 声明只属本故事 · 引擎门被所有故事选中 · 十条反例）＋ `test-plan.mjs` 的层表接线（`declaredStoryFlags`）＋ `audit:golden`（**搬门后仍零漂移**） |
 | **台账面** | `scripts/report-gate-ledger.mjs` 的枚举与「自证/判定路径」检测**同时覆盖故事侧的门**（否则门一搬走，台账那几行会静默消失）；`test/audit-golden.mjs` 的"未保护开关"检查同理（用 `allKnownFlags()`） |
 
-**每批的出口判据都是"零行为变化"**：P0（机制，一门未搬）、P1（3 门）、P2-A①（9 门）与 P2-A②（9 门）各自都以
+**每批的出口判据都是"零行为变化"**：P0（机制，一门未搬）、P1（3 门）、P2-A①（9 门）、P2-A②（9 门）与 P2-B（故事 3 两门 ＋ golden 学会归属）各自都以
 `audit:golden` **逐字节零漂移**收口——这就是"搬家只改住址、不改行为"的机械证据。
 （踩坑记录：搬完文件后跑 `npm run audit:golden` **必须先 `npm run build`**——`git mv` 刷新了 mtime，
 而 `--a11y` 会断言产物新鲜度、旧 `dist` 会让它失败并把**全跑**打断，表现为"27 个开关不符"的假象。）

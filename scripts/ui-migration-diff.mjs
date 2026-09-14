@@ -29,8 +29,10 @@ import { pathToFileURL } from 'node:url';
 //      跳过，所以「全量清单」不会凭空多出假段落；下次搬家/改目录时**不会再漂出第二次**。
 import { execSync } from 'node:child_process';
 import { writeFileSync, readFileSync } from 'node:fs';
+import vm from 'node:vm';
 import { MODULES, scopedFiles } from './module-order.mjs';
 import { DEFAULT_SLUG, readStory } from './dist-paths.mjs';
+import { storyText } from './audit/lib/shared.mjs';
 
 // ── 纯函数：判据（自证与真实运行**同一份代码**）─────────────────────────────
 // `base`／`cur`：段落名 → 正文；`invText`：docs/ui-inventory.md 全文
@@ -39,8 +41,8 @@ export const judge = (base, cur, invText) => {
 	let unregistered = 0;
 	for (const [name, body] of cur) {
 		const before = base.get(name);
-		const nowText = visible(body);
-		const beforeText = before === undefined ? null : visible(before);
+		const nowText = fingerprint(body);
+		const beforeText = before === undefined ? null : fingerprint(before);
 		if (beforeText !== null && beforeText === nowText) continue;
 		const registered = invText.includes(name);
 		if (!registered) unregistered++;
@@ -56,13 +58,32 @@ export const judge = (base, cur, invText) => {
 	return { rows, unregistered, removed };
 };
 
-export const visible = (body) => body
+const EDGE = /^[（）。，、；：！？…“”‘’《》〈〉·—\s]+|[（）。，、；：！？…“”‘’《》〈〉·—\s]+$/g;
+/** 与 `visible()` 同口径，但**保留空白/换行**（本门的片段切分靠它们划界）。 */
+export const visibleKeepWs = (body) => body
 	.replace(/\/%[\s\S]*?%\//g, '')            // twee 注释
 	.replace(/<%[\s\S]*?%>/g, '')              // 原始 HTML 块
 	.replace(/<<[^>]*>>/g, '')                 // 宏
 	.replace(/\[\[([^\]|]+)\|?[^\]]*\]\]/g, '$1') // 链接：留显示名
-	.replace(/''/g, '').replace(/\/\//g, '')
-	.replace(/\s+/g, '');
+	.replace(/<[^>]+>/g, '')                   // `#595`：**标签不是玩家可见正文**
+	.replace(/''/g, '').replace(/\/\//g, '');
+
+export const visible = (body) => visibleKeepWs(body).replace(/\s+/g, '');
+
+/** `#595`：判定口径从“拼起来逐字节相同”改成“**可见片段多重集相同**”。
+ *  为什么要改：`#435` 之后文本可以搬进条件表的行（`scope` 归属），**位置必变**（从段落中部搬到段落尾部），
+ *  而玩家读到的**内容**没变。用拼接串比就会把每一次“搬表”都抵成漂移（`#593` 实测 `门厅 -55`／`书房 -49`）。
+ *  切分/归一化三步（都只为消除“位置/边界”差异，**不改内容**）：
+ *    ① 剥 HTML 标签——标记不是玩家可见正文；② 按**句末标点与换行**切片段（行文本由 `storyText` 换行追加 ⇒ 天然分界）；
+ *    ③ 片段**边缘标点**归一（同一句邻接不同标点时归到同一片段）；片段内空白归一。
+ *  代价（如实记）：**纯重排序**与“**只改边缘标点**”不再算漂移（那是迁移/排版的正常形态）；
+ *  **改字/增删句子仍然会红**（多重集变了）。 */
+export const fragments = (body) => visibleKeepWs(body)
+	.split(/(?<=[。！？；…])|\n+/)
+	.map((s) => s.replace(/\s+/g, '').replace(EDGE, '').trim())
+	.filter(Boolean)
+	.sort();
+export const fingerprint = (body) => fragments(body).join('\n');
 
 // ── 输入健全性（`#557` 防线②）：空的一侧就是**判据不可信**，而不是"没问题" ──
 // 纯函数（与自证同一份代码）：只要返回非空，本门就必须响（且不再分是不是 `--check`）。
@@ -81,6 +102,38 @@ export const sourceFiles = (baseFiles = [], modules = {}) => [...new Set([...Obj
  *  ⇒ 任何"新增内容"的 PR 都会被判成"未登记漂移"（实测：新增 `路·*` 76 段 ⇒ 红），而那不是本门要防的东西。
  *  ⇒ 工作区侧＝**默认故事作用域**；基线侧仍取基线树里存在的同名文件（"删了正文文件"照样看得见）。 */
 export const defaultStoryFiles = () => scopedFiles(readStory(DEFAULT_SLUG));
+
+/** 从一段源文里取“条件表行”（`#595`）：把每个 `[script]` 段在沙箱里跑一遍，收 `Sg.story.rules()`。
+ *  为什么不禁表文件路径：迁移会把常量/表搬家（`#441`／`#448`），写死路径 = 下次搬家再静默失效（`#559` 的教训）。
+ *  失败（引用缺失/语法错）⇒ **返回空并由调用方报**，绝不静默当“没有表”。 */
+export const rowsFromSources = (sources) => {
+	const rows = [];
+	const failed = [];
+	// 表的脚本依赖 `window.Sg.story` 这类容器（由引擎先建）；本门不启动引擎 ⇒
+	// 用一个**自生成嵌套**的 Proxy 当 `window`（只取数据、不跑机制）：`window.Sg.story ??= {}` 这类写法照常成立。
+	const makeStub = () => new Proxy({}, {
+		get: (o, k) => (k in o ? o[k] : (o[k] = makeStub())),
+		set: (o, k, v) => { o[k] = v; return true; },
+	});
+	for (const [name, text] of sources) {
+		for (const m of String(text).matchAll(/::\s*[^\n[\]]+\[script\]([\s\S]*?)(?=\n::|$)/g)) {
+			const body = m[1];
+			// 只跑"**注册**条件表"的脚本（形如 `rules: () => […]`）；引擎里只"读"表的脚本不参与
+			if (!/rules\s*:/.test(body)) continue;
+			const w = makeStub();
+			try {
+				vm.runInNewContext(body, { window: w, Object, JSON, Math, String, Array, console }, { filename: name });
+				const r = w.Sg?.story?.rules?.();
+				if (Array.isArray(r)) rows.push(...r);
+			} catch (e) { failed.push(`${name}：${e.message}`); }
+		}
+	}
+	return { rows, failed };
+};
+
+/** 把条件表的行 `text` 按 **`scope` 归属**并入段落（`#595`）—— 与其它门**同一份权威**（`storyText()`）。
+ *  这就是本票的修法：“文本搬进表”在玩家眼里**没变**，所以不能算漂移。 */
+export const mergeRowTexts = (passageMap, rows) => storyText({ passageSrc: passageMap, passageTags: new Map(), rows }).text;
 
 export const parsePassages = (twee) => {
 	const out = new Map();
@@ -120,6 +173,11 @@ const main = () => {
 			['🔴 反例：工作区 0 段／基线非空 ⇒ 报（否则任何段落都看成"已删除"）', inputProblems({ curSize: 0, baseSize: 66, total: 7 }), (r) => r.length === 1],
 			['🔴 反例：基线 0 段／工作区非空 ⇒ 报（旧版只盖这一种）', inputProblems({ curSize: 66, baseSize: 0, total: 7, baseline: 'x' }), (r) => r.length === 1],
 			['正例：两侧都有段落 ⇒ 不报（正常路径不受影响）', inputProblems({ curSize: 73, baseSize: 73, total: 25, baseline: 'origin/main' }), (r) => r.length === 0],
+			// `#595`：文本从段落**搬进条件表行**（`scope` 指向该段）⇒ 玩家可见正文没变 ⇒ **不算漂移**
+			['正例（#595）：文本从段落搬进行（`scope` 指向该段）⇒ 不算漂移', judge(M({ P: '你好' }), mergeRowTexts(M({ P: '' }), [{ id: 'r', scope: 'P#位点', text: '你好' }]), ''), (r) => r.rows.length === 0],
+			['正例（#595）：同一段内**位置变了**（片段多重集同）⇒ 不算漂移', judge(M({ P: '甲。乙。' }), M({ P: '乙。甲。' }), ''), (r) => r.rows.length === 0],
+			['🔴 反例（#595 的口径边界）：**改字**仍然红（多重集变了）', judge(M({ P: '甲。乙。' }), M({ P: '甲。丙。' }), ''), (r) => r.rows.length === 1],
+			['🔴 反例（#595 的反面）：行 `scope` 指向**不存在的段落** ⇒ 不归属（本门不吞；由 `--rules` 报）', mergeRowTexts(M({ P: '' }), [{ id: 'r', scope: '不存在', text: 'x' }]).has('不存在') === false, (x) => x === true],
 		];
 		let bad = 0;
 		for (const [label, got, ok] of cases) {
@@ -156,21 +214,32 @@ const main = () => {
 	const scopeNames = new Set(defaultStoryFiles());
 	const SRC = sourceFiles(baseFiles.filter((f) => !f.includes('stories/') || scopeNames.has(f)), Object.fromEntries(Object.entries(MODULES).filter(([k]) => scopeNames.has(k))));
 
-	const cur = new Map();
+	const curRaw = new Map();
+	const curSrc = new Map();
 	for (const f of SRC) {
 		let t = '';
 		try { t = readFileSync(f, 'utf8'); } catch { continue; }
-		for (const [k, v] of parsePassages(t)) cur.set(k, v);
+		curSrc.set(f, t);
+		for (const [k, v] of parsePassages(t)) curRaw.set(k, v);
 	}
+	const curRows = rowsFromSources(curSrc);
+	// `#595`：把表行 `text` 按 `scope` 归属并入段落（与 `--text`／`--echoes` 等同权威）——“搬进表”不算漂移。
+	const cur = mergeRowTexts(curRaw, curRows.rows);
 
-	const base = new Map();
+	const baseRaw = new Map();
+	const baseSrc = new Map();
 	let baseUnreadable = 0;
 	for (const f of SRC) {
 		try {
 			const t = execSync(`git show ${BASE}:${f}`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-			for (const [k, v] of parsePassages(t)) base.set(k, v);
+			baseSrc.set(f, t);
+			for (const [k, v] of parsePassages(t)) baseRaw.set(k, v);
 		} catch { baseUnreadable++; /* 基线上没有这个文件（新增文件）或工作区已删——见防线② */ }
 	}
+	const baseRows = rowsFromSources(baseSrc);
+	const base = mergeRowTexts(baseRaw, baseRows.rows);
+	// 表读不出来（沙箱抛错）⇒ **响亮报**（不静默当“没有表”：那会把“搬进表的文本”当成凭空消失）
+	for (const f of [...curRows.failed, ...baseRows.failed]) console.error(`⚠ 条件表行读取失败（本门的表面退化）：${f}`);
 
 	// ── ② 输入健全性（`#557`）：任一侧 0 段 ⇒ 判据不可信，**读不出输入就该响**（不再分 `--check`）──
 	{

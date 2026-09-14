@@ -47,7 +47,11 @@ const ctx = createContext();
 const { Game, passageSrc } = ctx;
 const entries = Game.Investment.eraDomain.crossEraGates ?? [];
 const WRITE = (flag) => new RegExp(`ev\\.${flag}\\s*(?:to|=)(?!=)`);   // `$pc.ev.k to true` / `pc.ev.k = true`
-const grantOf = (flag) => [...passageSrc].filter(([, src]) => WRITE(flag).test(src)).map(([p, src]) => ({ p, src }));
+// #434：#434 之后旗标也可能**经 `Sg.notes.add('n_x')`** 被授予（写的是该笔记 flagPath 的键）——
+// 故"可溯源"要认这条形状；口径走单一权威 `noteWriteFlags()`（与 --state／D2／--sel-gear／--sitedisc 同一份）。
+const NOTES = Game.Notes?.entries ?? {};
+const { noteWriteFlags } = await import('../scripts/audit/lib/shared.mjs');
+const grantOf = (flag) => [...passageSrc].filter(([, src]) => WRITE(flag).test(src) || noteWriteFlags(src, NOTES).includes(flag)).map(([p, src]) => ({ p, src }));
 
 console.log(`══ D9① 前提可溯源门（#407）══  跨时代问句 ${entries.length} 条｜声明了 premise 的 ${entries.filter((e) => e.premise).length} 条`);
 let fails = 0;

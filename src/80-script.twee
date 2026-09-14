@@ -109,6 +109,23 @@ window.Sg.notes = {
 		return true;
 	},
 	all() { return this.ids().filter((id) => this.has(id)); },
+	// **路径限定的授予**（`#569`）：行里声明 `yields: [{ id, path }]` ⇒ 只写**声明的那一条** path。
+	// 与 `add()` 的三处差别（逐条写清，因为它们是这个 API 存在的理由）：
+	//   ① **路径级幂等**：只看“这条 path 真不真”，**不看** `has(id)`。因为多源笔记里
+	//      “听人比过”（`world.` 那条已真）之后**仍要能**记下“看清了钉子”（`ev.` 那条）——两条 path 各记各的；
+	//   ② `path` 必须属于该笔记的 `flagPath`（否则写进去**读不出来** ⇒ fail-loud；门侧 `yieldPathProblems()` 同判据）；
+	//   ③ `setPath` 护栏**不适用**（本调用就是“显式声明走哪条”本身）——所以 `add()` 对多源笔记的报错路径不受影响。
+	addPath(id, path, pc = State.variables.pc) {
+		const e = this.entry(id);
+		if (!e) throw new Error(`Sg.notes.addPath：笔记「${id}」未登记（结构缺失必须报错，#569）`);
+		const ps = Array.isArray(e.flagPath) ? e.flagPath : [e.flagPath];
+		if (!ps.includes(String(path))) throw new Error(`Sg.notes.addPath：路径「${path}」不属于笔记「${id}」的 flagPath（${ps.join('／')}）——写进去读不出来（#569）`);
+		if (this.readPath(pc, path) === true) return false;      // ① 路径级幂等
+		this.writePath(pc, path, true);
+		pc.ev.notes = pc.ev.notes ?? {};
+		pc.ev.notes[id] = true;
+		return true;
+	},
 	missing(req = []) {
 		const need = req.flatMap((r) => (typeof r === 'string' ? [r] : (r?.any ?? [])));
 		return need.filter((id) => !this.has(id));

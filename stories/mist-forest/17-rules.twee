@@ -1,24 +1,12 @@
 :: StoryRules [script]
-// ── 条件表（伞 #422 阶段 4／`#435`）：手写段落分支 → **表驱动** ─────────────────────────
-// 形状让 reader 一眼看懂，让**门**读得动（这是本表存在的理由，不是风格偏好）：
-//   `req`      全部满足（键名／笔记 id；求值走封装层 ⇒ 表里**不出现字面状态读**）
-//   `any`      至少一个满足；`exclude` 必须都不满足；`prereq` 前置行 id（必须先选中过）
-//   `prio`     **显式优先级**（选择器按它降序、同 prio 按声明顺序稳定 ⇒ 不做隐式顺序假设）
-//   `scope`    作用域（哪一段/哪个话题）—— 死规则门的"同作用域"比较靠它
-//   `premise`  散文锚句（`test/premise-source.mjs` 用；字段名沿用原口径）
-//   `yields`   本行被选中后授予的**笔记** id（由调用处 `Sg.notes.add` 落地，本表不写状态）
-//   `gives`    本行被选中后授予的**物品**（由 `Sg.rules.applyGrants` 落地，同上）
-//   `sets`     本行被选中后置真的**状态键**（`sets: ['world.flower_taken']` ≡ `<<setflag "flower_taken">>`；裸键默认 `ev.`）
-//              ———— 授予家族**三类**（笔记／物品／状态键）都在 `<<rules>>` **渲染成功后同处**落地（写点恒在一处，`#435` Q1）
-//              `sets` 三条收窄（门侧 `setProblems()` 机检）：只许布尔置真 · 键必须已登记在状态契约域 · **有笔记的键必须走 `yields`**
-//   `text`     选中时渲染的正文（模板；**不含字面状态读**）
-// 门（`--rules` 写侧 ＋ `--reads` 读侧，两条例均属 `#435`）：
-//   ① 死规则门（永不被选中的行）· `prereq` 形状（同 scope＋禁环）· 并列 prio 报告
-//   ② `text` 列只许**纯渲染**（不得含状态写宏——写请走 `yields`，A 方案由 `<<rules>>` 统一落）
-//      ＋ `scope` 与调用点一致：未接管行（无 `<<rules>>` 调用）／同一段落同位点重复调用／`段落#位点` 归属不符
-//   ③ 表里不得出现字面状态读（`req`/`any`/`exclude`/`prereq`/`yields`/`gives`/`sets`/`text`）——只许 note id／键名，求值走封装层
-//   ④ 行里用到的**面**与**键形前缀**必须是引擎宣告过的（`Sg.rules.effects`／`Sg.rules.prefixes`）——引擎不兑现的声明＝静默空转
-// 入口：选择器在引擎侧（`src/engine/40-sim/21-resolve.twee` 的 `Sg.rules`），**只经 `Sg.story.rules()` 取表**。
+// 条件表（`#435`）：手写段落分支 → **表驱动**。字段语义、三条机检纪律、与该表配套的门，
+// 统一写在 `docs/dev-conventions.md` §11–§12（单一权威）；这里只留最省字的速记：
+//   `req`全部满足 / `any`至少一个 / `exclude`都不满足 / `prereq`前置行 id / `prio`显式优先级（降序、同 prio 按表序）
+//   `scope` 作用域（`段落` 或 `段落#位点`；是**结构**：决定该行 text 算哪个段落的故事文本）
+//   `premise` 散文锚句 / `yields` 授予笔记 id / `gives` 授予物品 / `sets` 置真状态键（三类写点都在 `<<rules>>` 渲染成功后同处落）
+//   `text` 选中时渲染的正文（**不含渲染期状态读**；点击态写只许词汇宏 —— `#624`）
+// 选择器在引擎侧（`src/engine/40-sim/21-resolve.twee`），**只经 `Sg.story.rules()` 取表**；
+// 单选用 `<<rules "scope">>`、菜单用 `<<rulelist "scope">>`（渲染全部命中行）。
 Object.assign((window.Sg.story ??= {}), {
 	rules: () => [
 		{
@@ -105,5 +93,19 @@ Object.assign((window.Sg.story ??= {}), {
 		{ id: '地下宴会厅.哨子.else', scope: '地下宴会厅#哨子', prio: 5, text: `		[[叫醒它|唤醒]]` },
 		{ id: '地下宴会厅.提醒', scope: '地下宴会厅#提醒', any: [{ oneOf: ['keeper.state', ['seal', 'ally']] }], prio: 10, text: `		守林人没有拦你，只说了一句：''"你打不过它。"''说完便退到门边。` },
 		{ id: '地下宴会厅.提醒.else', scope: '地下宴会厅#提醒', exclude: [{ oneOf: ['keeper.state', ['seal', 'ally']] }], prio: 10, text: `		门框内侧刻着一行小字，刻痕很旧了：''"别动手。你打不过它。"''落款没有名字。` },
+		// `#624` 批 1（菜单进表）：`<<rulelist>>` 渲染全部命中行；点击态用词汇宏 `<<note>>`（非裸 run）。
+		{ id: '酒馆.t1', scope: '酒馆#打听', exclude: ['n_tav_keeper'], prio: 10, text: `	<<link "讲守林人的那一桌">><<note "n_tav_keeper">><<goto "酒馆">><</link>>` },
+		{ id: '酒馆.t2', scope: '酒馆#打听', exclude: ['n_tav_dragon'], prio: 10, text: `	<<link "上了年纪的村人">><<note "n_tav_dragon">><<goto "酒馆">><</link>>` },
+		{ id: '酒馆.t3', scope: '酒馆#打听', exclude: ['n_tav_grudge'], prio: 10, text: `	<<link "跑生意的">><<note "n_tav_grudge">><<goto "酒馆">><</link>>` },
+		{ id: '酒馆.t4', scope: '酒馆#打听', exclude: ['n_tav_ageless'], prio: 10, text: `	<<link "接嘴的那个人">><<note "n_tav_ageless">><<goto "酒馆">><</link>>` },
+		{ id: '酒馆.t5', scope: '酒馆#打听', exclude: ['n_tav_flower'], prio: 10, text: `	<<link "背着画板的游客——他在问月光花">><<note "n_tav_flower">><<goto "酒馆">><</link>>` },
+		{ id: '酒馆.t6', scope: '酒馆#打听', exclude: ['n_tav_painting'], prio: 10, text: `	<<link "墙上那幅旧画">><<note "n_tav_painting">><<goto "酒馆">><</link>>` },
+		{ id: '女巫.t1', scope: '女巫小屋#打听', exclude: ['n_wq_painting'], prio: 10, text: `	<<link "问：你们家与那座塔有什么渊源">><<note "n_wq_painting">><<goto "女巫小屋">><</link>>` },
+		{ id: '女巫.t2', scope: '女巫小屋#打听', exclude: ['n_wq_night'], prio: 10, text: `	<<link "问：三百年前那一夜，发生过什么">><<note "n_wq_night">><<goto "女巫小屋">><</link>>` },
+		{ id: '女巫.t3', scope: '女巫小屋#打听', exclude: ['n_wq_fog'], prio: 10, text: `	<<link "问：雾到底是什么">><<note "n_wq_fog">><<goto "女巫小屋">><</link>>` },
+		{ id: '女巫.t4', scope: '女巫小屋#打听', exclude: ['n_wq_talisman'], prio: 10, text: `	<<link "问：这护符到底怎么用">><<note "n_wq_talisman">><<goto "女巫小屋">><</link>>` },
+		{ id: '女巫.t5', scope: '女巫小屋#打听', exclude: ['n_wq_under'], prio: 10, text: `	<<link "问：塔底下锁着的到底是什么">><<note "n_wq_under">><<goto "女巫小屋">><</link>>` },
+		{ id: '女巫.t6', scope: '女巫小屋#打听', exclude: ['n_wq_past'], prio: 10, text: `	<<link "问：你就这么看着，什么也不做？">><<note "n_wq_past">><<goto "女巫小屋">><</link>>` },
+		{ id: '女巫.t7', scope: '女巫小屋#打听', exclude: ['n_wq_alone'], prio: 10, text: `	<<link "问：我一个人上去，够吗">><<note "n_wq_alone">><<goto "女巫小屋">><</link>>` },
 	],
 });

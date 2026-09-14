@@ -733,6 +733,15 @@ window.Sg.rules = {
 		return rows.filter((r) => this.matches(r, pc, chose))
 			.sort((a, b) => (b.prio ?? 0) - (a.prio ?? 0) || idx.get(a) - idx.get(b))[0] ?? null;
 	},
+	// **菜单**：同一作用域**所有**命中的行（按 `prio` 降序、同 prio 按表序）——与 `pick()` 的"单选"分工见 `<<rulelist>>`。
+	// 为什么需要它（`#624` 批 1 勘察）：`pick()` 是 first-match wins ⇒ 一个作用域只渲染一行；
+	// 而"一次能问六个话题"这种**菜单**天然是一组**同时可用**的行 ⇒ 表机制必须有"渲染全部命中行"的入口。
+	pickAll(scope, { pc = State.variables.pc, chose = new Set() } = {}) {
+		const rows = this.table().filter((r) => r && r.scope === scope);
+		const idx = new Map(rows.map((r, i) => [r, i]));
+		return rows.filter((r) => this.matches(r, pc, chose))
+			.sort((a, b) => (b.prio ?? 0) - (a.prio ?? 0) || idx.get(a) - idx.get(b));
+	},
 	// 授予：把行声明的 `yields` 落到 `Sg.notes.add`（**A 方案**：`text` 只渲染，授予由调用侧统一做）。
 	// 返回**本次真正新授予**的 id（幂等 ⇒ 第二次调用返回 `[]`）——这个返回值就是"连渲两次只落一次"的取证面。
 	applyYields(row) {
@@ -797,5 +806,21 @@ Macro.add('rules', {
 		window.Sg.rules.applyYields(row);                       // 渲染成功后再授予（笔记；幂等）
 		window.Sg.rules.applyGrants(row);                       // 物品面（同上）
 		window.Sg.rules.applySets(row);                         // 状态键面（同上；只置真）
+	},
+});
+
+
+// `<<rulelist "作用域">>`（`#624` 批 1）：渲染**全部命中**的行（按 `prio` → 表序）。
+// 与 `<<rules>>` 的分工：`<<rules>>` ＝ **单选**（first-match wins，用于同一处的互斥变体）；
+// `<<rulelist>>` ＝ **菜单**（同时可用的多个入口，例如"还能问哪几个话题"）。
+// 授予面与 `<<rules>>` 完全同路（渲染成功后再落），所以两类行共用同一套判据。
+Macro.add('rulelist', {
+	handler() {
+		for (const row of window.Sg.rules.pickAll(String(this.args[0] ?? ''))) {
+			if (row.text) $(this.output).wiki(String(row.text));
+			window.Sg.rules.applyYields(row);
+			window.Sg.rules.applyGrants(row);
+			window.Sg.rules.applySets(row);
+		}
 	},
 });

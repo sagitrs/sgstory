@@ -161,7 +161,13 @@ export const ruleRowKeys = (row, entries) => {
 // 与读点（`noteReadKeys`）并列，仍是**单一权威**。为什么需要它：写点从「字面量写旗标」改成
 // 「经 `Sg.notes.add` 写」之后，按**字面量**认写点的门（`--state` 的"有写有读"、D2 的桶分类）
 // 会把该键判成**只有读** ⇒ 假红。（阶段 2 的 5 个消费点就是这个剧本，那次换的是**读**点形状。）
-export const NOTE_WRITE_RE = /Sg\.notes\.add\(\s*['"](n_[a-z0-9_]+)['"]/g;
+// 两种**写点形状**（单一权威）：① 模块 API `Sg.notes.add('n_x')`；② 词汇宏 ``<<note "n_x">>``（`#624` 片一新增，
+// 表行与点击态里该用宏）。**新写点形状只改这一处** —— 否则 `--state`／D2／`--sel-gear`／`premise-source`
+// 会集体把它当"只读" ⇒ 幽灵条件假红（阶段 2 的五消费点、`#624` 批 1 都撞过同一剧本）。
+export const NOTE_WRITE_RE = /(?:Sg\.notes\.add\(\s*['"](n_[a-z0-9_]+)['"]|<<\s*note\s+['"](n_[a-z0-9_]+)['"])/g;
+/** 只要**模块 API** 那一种（`Sg.notes.add(`）。判「表里该用宏还是裸 API」时用它（`#624` 片一）：
+ *  `NOTE_WRITE_RE` 认两种形状（记账用），而**点击态域里的 `<<note>>` 是允许的**，不许当成裸 API 判红。 */
+export const NOTE_WRITE_API_RE = /Sg\.notes\.add\(/;
 /** 条件键 → 与段落 `<<if>>` 里**同形**的条件文本（`n_*` ⇒ `Sg.notes.has('n_x')`；其余 ⇒ `$pc.<域>.<键>`，裸键默认 `ev.`）。
  *  为什么必须只有一份（`#435` 前置 0）：表侧条件（行的 `req`/`any`/`exclude`）要过**同一份**判据
  *  （`causeReg()`／`conditionReadsFlag()`），若两处各写一套转换 ⇒ 必然漂移（`--echoes` 与 `--investment` G3 都用它）。 */
@@ -176,10 +182,10 @@ export const condTextOf = (cond) => {
 export const ruleRowSetKeys = (row) => (Array.isArray(row?.sets) ? row.sets : row?.sets ? [row.sets] : [])
 	.map(String).filter((k) => !/^(?:inv|era):/.test(k) && !k.startsWith('n_')).map((k) => (k.includes('.') ? k : `ev.${k}`));
 
-/** 文本里 `Sg.notes.add('n_x')` 引用的笔记 id。 */
+/** 文本里 `Sg.notes.add('n_x')`（或 `<<note "n_x">>`）引用的笔记 id。 */
 export const noteWriteRefs = (text) => {
 	const out = new Set();
-	for (const m of String(text ?? '').matchAll(NOTE_WRITE_RE)) out.add(m[1]);
+	for (const m of String(text ?? '').matchAll(NOTE_WRITE_RE)) out.add(m[1] ?? m[2]);   // 两种形状各有自己的捕获组
 	return [...out];
 };
 /** 经 `Sg.notes.add()` 写到的**限定键**（`ev.x`/`world.x`）。 */

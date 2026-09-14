@@ -115,24 +115,7 @@
 <details class="act-group" name="tavern-acts" open>
 	<summary>找人打听<span class="act-n" aria-hidden="true"></span></summary>
 	<div class="tavern-tables">
-<<if not Sg.notes.has('n_tav_keeper')>>
-	<<link "讲守林人的那一桌">><<run Sg.notes.add('n_tav_keeper')>><<goto "酒馆">><</link>>
-<</if>>
-<<if not Sg.notes.has('n_tav_dragon')>>
-	<<link "上了年纪的村人">><<run Sg.notes.add('n_tav_dragon')>><<goto "酒馆">><</link>>
-<</if>>
-<<if not Sg.notes.has('n_tav_grudge')>>
-	<<link "跑生意的">><<run Sg.notes.add('n_tav_grudge')>><<goto "酒馆">><</link>>
-<</if>>
-<<if not Sg.notes.has('n_tav_ageless')>>
-	<<link "接嘴的那个人">><<run Sg.notes.add('n_tav_ageless')>><<goto "酒馆">><</link>>
-<</if>>
-<<if not Sg.notes.has('n_tav_flower')>>
-	<<link "背着画板的游客——他在问月光花">><<run Sg.notes.add('n_tav_flower')>><<goto "酒馆">><</link>>
-<</if>>
-<<if not Sg.notes.has('n_tav_painting')>>
-	<<link "墙上那幅旧画">><<run Sg.notes.add('n_tav_painting')>><<goto "酒馆">><</link>>
-<</if>>
+<<rulelist "酒馆#打听">>
 </div>
 </details>
 <details class="act-group" name="tavern-acts" open>
@@ -369,27 +352,7 @@
 <details class="act-group" name="witch-acts" open>
 	<summary>向她打听<span class="act-n" aria-hidden="true"></span></summary>
 	<div class="tavern-tables">
-<<if not Sg.notes.has('n_wq_painting')>>
-	<<link "问：你们家与那座塔有什么渊源">><<run Sg.notes.add('n_wq_painting')>><<goto "女巫小屋">><</link>>
-<</if>>
-<<if not Sg.notes.has('n_wq_night')>>
-	<<link "问：三百年前那一夜，发生过什么">><<run Sg.notes.add('n_wq_night')>><<goto "女巫小屋">><</link>>
-<</if>>
-<<if not Sg.notes.has('n_wq_fog')>>
-	<<link "问：雾到底是什么">><<run Sg.notes.add('n_wq_fog')>><<goto "女巫小屋">><</link>>
-<</if>>
-<<if not Sg.notes.has('n_wq_talisman')>>
-	<<link "问：这护符到底怎么用">><<run Sg.notes.add('n_wq_talisman')>><<goto "女巫小屋">><</link>>
-<</if>>
-<<if not Sg.notes.has('n_wq_under')>>
-	<<link "问：塔底下锁着的到底是什么">><<run Sg.notes.add('n_wq_under')>><<goto "女巫小屋">><</link>>
-<</if>>
-<<if not Sg.notes.has('n_wq_past')>>
-	<<link "问：你就这么看着，什么也不做？">><<run Sg.notes.add('n_wq_past')>><<goto "女巫小屋">><</link>>
-<</if>>
-<<if not Sg.notes.has('n_wq_alone')>>
-	<<link "问：我一个人上去，够吗">><<run Sg.notes.add('n_wq_alone')>><<goto "女巫小屋">><</link>>
-<</if>>
+<<rulelist "女巫小屋#打听">>
 </div>
 </details>
 <</if>>

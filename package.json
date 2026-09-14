@@ -26,7 +26,8 @@
 		"browser:setup": "bash scripts/chrome-deps.sh",
 		"test:serial": "node scripts/run-tests.mjs --serial",
 		"test:list": "node scripts/run-tests.mjs --list",
-		"report:polarity": "node scripts/report-polarity-gap.mjs"
+		"report:polarity": "node scripts/report-polarity-gap.mjs",
+		"report:two-state": "node scripts/report-two-state.mjs"
 	},
 	"devDependencies": {
 		"extwee": "^2.3.7",

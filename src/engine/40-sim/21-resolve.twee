@@ -290,15 +290,12 @@ Object.assign(window.Game.Combat, {
 		const cur = pc?.gearHp?.[gearName];
 		return typeof cur === 'number' ? cur : max;
 	},
-	// 受击：掷部位（走**可注入** rng）⇒ 该部位有护具就按声明减成（本片只落 `flat`）⇒
-	// 余量由该件**耐久吸收**，溢出量落 HP；耐久 ≤ 0 ⇒ **损坏**（`reduce` 归 0 且不再吸伤）。
-	// **纯函数**：只返回计划，不写 `pc`（调用方决定何时落）。
-	slotAbsorb(pc, hurt) {
+	// 受击（指定部位）：该部位有护具就按声明减成（本片只落 `flat`）⇒ 余量由该件**耐久吸收**，
+	// 溢出量落 HP；耐久 ≤ 0 ⇒ **损坏**（`reduce` 归 0 且不再吸伤）。**纯函数**：只返回计划，不写 `pc`。
+	// （S2 需要「指定部位」的形态：异常结算的"该部位受伤"不该另掷一个部位 ⇒ 抽出本方法。）
+	slotAbsorbAt(pc, part, hurt) {
 		const mech = this.slotsDecl();
 		if (!mech) return null;                                   // 未启用 ⇒ 调用方走旧路径
-		const parts = mech.hitLocations ?? [];
-		const rng = window.Game.Rules.rng;                        // 唯一随机入口（node 未注入 ⇒ 大声报错）
-		const part = parts[Math.min(parts.length - 1, rng.d(parts.length) - 1)];
 		const worn = (pc?.gear ?? []).filter((g) => g && mech.equipment?.[g]);
 		const gearName = worn.find((g) => (mech.slots?.[mech.equipment[g].slot]?.protects ?? null) === part) ?? null;
 		if (!gearName) return { part, gear: null, reduce: 0, absorbed: 0, toHp: hurt, gearHp: null, broke: false };
@@ -313,6 +310,15 @@ Object.assign(window.Game.Combat, {
 		const hp1 = hp0 - absorbed;
 		return { part, gear: gearName, reduce, absorbed, toHp: after - absorbed, gearHp: hp1, broke: hp1 <= 0 };
 	},
+	// 受击（掷部位，走**可注入** rng）：掷出部位后交给 `slotAbsorbAt`。
+	slotAbsorb(pc, hurt) {
+		const mech = this.slotsDecl();
+		if (!mech) return null;
+		const parts = mech.hitLocations ?? [];
+		const rng = window.Game.Rules.rng;                        // 唯一随机入口（node 未注入 ⇒ 大声报错）
+		const part = parts[Math.min(parts.length - 1, rng.d(parts.length) - 1)];
+		return this.slotAbsorbAt(pc, part, hurt);
+	},
 	// 判定失败的耐久扣减（S1 已定 ④：**掷骰** −1 或 −2）；返回计划，不写 `pc`。
 	gearWear(pc, gearName) {
 		const mech = this.slotsDecl();
@@ -326,6 +332,147 @@ Object.assign(window.Game.Combat, {
 		const mech = this.slotsDecl();
 		if (!mech) return null;
 		return Object.fromEntries(Object.entries(mech.equipment ?? {}).map(([n, d]) => [n, d.maxHp]));
+	},
+	// ── S2（`#487`）：部位 × 异常（每回合判定：恢复／恶化／受伤） ───────────────
+	// 契约（声明面；形状权威＝`scripts/audit/lib/story-shape.mjs`）：
+	//   `mechanics().statuses[id] = { parts:'*'|[部位…], turns:n, check:{attr,dc}, onFail:[{when,…}] }`
+	//   `mechanics().statusPenalty['status@part'] = { check:n }`   ← 作用域：**该部位相关判定**
+	// 状态：`pc.statuses = { 部位: { 异常: 剩余回合 } }`（缺项／0 ⇒ 不生效）
+	// 顺序（已定 ⑤）：**回合开始 → 异常结算 → 玩家行动 → 敌人行动 → 回合推进**
+	//   ⇒ `fightact` 在 `resolvePlayer` **之前**调一次 `tickStatuses`；本块**只算**，落 HP 仍由 present 的 `<<damage>>`。
+	// `mechanics()` 为 `null` ⇒ 本块一律不被调用（`#492` 显式降级）。
+	statusLowRoll: 5,      // 低骰分档阈值（设计稿 §2.3／§8 D4）：d20 原值 ≤ 5 ⇒ `low` 档，其余 ⇒ `most`
+	statusParts(mech, id) {
+		const st = mech?.statuses?.[id];
+		if (!st) return [];
+		return st.parts === '*' ? (mech.hitLocations ?? []) : (st.parts ?? []);
+	},
+	/** 枚举生效中的 `{ 部位, 异常, 剩余回合 }`。 */
+	statusInstances(pc) {
+		const out = [];
+		for (const [part, bag] of Object.entries(pc?.statuses ?? {})) {
+			for (const [id, turns] of Object.entries(bag ?? {})) if (turns > 0) out.push({ part, id, turns });
+		}
+		return out;
+	},
+	/** 该部位当前的判定减成（`statusPenalty['异常@部位']`；本片只认 `check` 键，其余形态报错）。 */
+	statusPenaltyFor(pc, part, mech = this.slotsDecl()) {
+		let sum = 0;
+		for (const { id } of this.statusInstances(pc)) {
+			if (!this.statusParts(mech, id).includes(part)) continue;
+			const pen = mech.statusPenalty?.[`${id}@${part}`];
+			if (!pen) continue;
+			for (const [k, v] of Object.entries(pen)) {
+				if (k !== 'check' || typeof v !== 'number') throw new Error(`Game.Combat.statusPenaltyFor：statusPenalty['${id}@${part}'] 的键「${k}」本片未实现（只认 check:number）——声明面不得大于实现面（#487）`);
+				sum += v;
+			}
+		}
+		return sum;
+	},
+	/** 骰式：v1 只认两种形态——**纯整数**（固定伤害，如 "受伤 2 点"）与 **`NdM`**（走注入 rng）。
+	 *  其余形态（`1d4+2`/`2d6-1`…）**报错**：声明面不得大于实现面（#487）。 */
+	rollDice(expr) {
+		const m = /^(\d+)(?:d(\d+))?$/.exec(String(expr ?? ''));
+		if (!m) throw new Error(`Game.Combat.rollDice：只认 \`N\` 或 \`NdM\`（收到 ${JSON.stringify(expr)}）——声明面不得大于实现面（#487）`);
+		const n = Number(m[1]);
+		if (!m[2]) return n;                                      // 纯整数 ⇒ 固定值
+		const rng = window.Game.Rules.rng;
+		let sum = 0;
+		for (let i = 0; i < n; i++) sum += rng.d(Number(m[2]));
+		return sum;
+	},
+	/** `onFail` 一档的**效果**（本片只认两种；随机目标在**算**里就落定 ⇒ 计划完整、可复算）。 */
+	statusEffect(entry, mech, excludeId) {
+		if (entry?.harm === 'damage') return { kind: 'damage', amount: this.rollDice(entry.dice ?? '1') };
+		if (entry?.addStatus === 'random') {
+			const ids = Object.keys(mech.statuses ?? {}).filter((x) => x !== excludeId);
+			if (!ids.length) return { kind: 'none' };
+			const rng = window.Game.Rules.rng;
+			const id = ids[Math.min(ids.length - 1, rng.d(ids.length) - 1)];
+			const parts = this.statusParts(mech, id);
+			const part = entry.part === 'random' ? parts[Math.min(parts.length - 1, rng.d(parts.length) - 1)] : entry.part;
+			return { kind: 'addStatus', id, part, turns: mech.statuses[id].turns };
+		}
+		throw new Error(`Game.Combat.statusTick：onFail 效果形态未实现（本片只认 harm:'damage'+dice ／ addStatus:'random'）——声明面不得大于实现面（#487）`);
+	},
+	/** **纯函数**：一回合的异常结算计划（不写 `pc`）。逐 (部位 × 异常) 各判定一次：
+	 *  每回合被动（`perRound.hp`）⇒ 该部位扣 HP（走 S1 的减成/耐久）→ 判定 ⇒ 成功恢复（−1，到 0 清）／失败按分档出效果。 */
+	statusTick(pc) {
+		const mech = this.slotsDecl();
+		if (!mech) return null;                                   // 未启用 ⇒ 调用方不调（显式降级）
+		const statuses = mech.statuses ?? {};
+		const steps = [];
+		for (const { part, id, turns } of this.statusInstances(pc)) {
+			const st = statuses[id];
+			if (!st) throw new Error(`Game.Combat.statusTick：状态「${id}」不在声明表里（结构缺失必须报错，#487）`);
+			if (!(typeof st.turns === 'number' && st.turns > 0)) throw new Error(`Game.Combat.statusTick：状态「${id}」缺 \`turns\`（正数）——持续回合必须可声明（#487）`);
+			const per = st.perRound?.hp;
+			if (per !== undefined && typeof per !== 'number') throw new Error(`Game.Combat.statusTick：状态「${id}」的 \`perRound.hp\` 必须是数字（#487）`);
+			const res = window.Game.Rules.save(pc, st.check.attr, st.check.dc, { bonus: this.statusPenaltyFor(pc, part, mech) });
+			const step = { part, id, res, perRound: typeof per === 'number' ? per : 0 };
+			if (res.success) { step.kind = 'recover'; step.turns = turns - 1; steps.push(step); continue; }
+			const grade = res.roll <= this.statusLowRoll ? 'low' : 'most';
+			const entry = (st.onFail ?? []).find((x) => x.when === grade);
+			if (!entry) throw new Error(`Game.Combat.statusTick：状态「${id}」缺「${grade}」档（分档必须穷尽，#459）`);
+			step.kind = 'fail'; step.grade = grade; step.effect = this.statusEffect(entry, mech, id);
+			steps.push(step);
+		}
+		return { steps };
+	},
+	/** 把计划**落**成新状态 ＋ 本回合要落 HP 的伤害（新状态返回，**不直接改调用方对象**）。 */
+	statusTickApply(pc, plan) {
+		if (!plan) return null;
+		const mech = this.slotsDecl();
+		const next = {};
+		for (const [part, bag] of Object.entries(pc?.statuses ?? {})) next[part] = { ...bag };
+		const drop = (part, id) => { if (next[part]) { delete next[part][id]; if (!Object.keys(next[part]).length) delete next[part]; } };
+		const put = (part, id, turns) => { next[part] = { ...(next[part] ?? {}), [id]: turns }; };
+		let hurt = 0;
+		const hits = [];
+		for (const s of plan.steps) {
+			if (s.perRound) {
+				const at = this.slotAbsorbAt(pc, s.part, Math.abs(s.perRound));   // 每回合被动也走 S1 的减成/耐久
+				if (at?.gear) pc.gearHp = { ...(pc.gearHp ?? {}), [at.gear]: at.gearHp };
+				hits.push({ part: s.part, from: s.id, ...at });
+				hurt += at ? at.toHp : Math.abs(s.perRound);
+			}
+			if (s.kind === 'recover') { if (s.turns > 0) put(s.part, s.id, s.turns); else drop(s.part, s.id); continue; }
+			if (s.effect?.kind === 'damage') {
+				const at = this.slotAbsorbAt(pc, s.part, s.effect.amount);
+				if (at?.gear) pc.gearHp = { ...(pc.gearHp ?? {}), [at.gear]: at.gearHp };
+				hits.push({ part: s.part, from: s.id, ...at });
+				hurt += at ? at.toHp : s.effect.amount;
+			} else if (s.effect?.kind === 'addStatus') {
+				put(s.effect.part, s.effect.id, s.effect.turns);
+			}
+		}
+		return { statuses: next, hurt, hits };
+	},
+	/** 施加一个异常（内容面/失败分档用）：部位必须在声明允许范围内，否则报错。 */
+	applyStatus(pc, id, part) {
+		const mech = this.slotsDecl();
+		if (!mech) return null;
+		const st = mech.statuses?.[id];
+		if (!st) throw new Error(`Game.Combat.applyStatus：状态「${id}」未声明（结构缺失必须报错，#487）`);
+		if (!this.statusParts(mech, id).includes(part)) throw new Error(`Game.Combat.applyStatus：「${id}」不允许落在「${part}」（仅限部位是声明的一部分，#487）`);
+		return { statuses: { ...(pc?.statuses ?? {}), [part]: { ...(pc.statuses?.[part] ?? {}), [id]: st.turns } } };
+	},
+	/** 解除（消耗品路径）：按异常 id 清（`S5` 的消耗品调它；物品↔异常映射属故事数据）。 */
+	cureStatus(pc, id) {
+		const next = {};
+		for (const [part, bag] of Object.entries(pc?.statuses ?? {})) { const b = { ...bag }; delete b[id]; if (Object.keys(b).length) next[part] = b; }
+		return { statuses: next };
+	},
+	/** 温泉（已定 ⑤：清全部——与 S1 的 `repairAll` 同一处场景，一起用）。 */
+	clearStatuses() { return { statuses: {} }; },
+	/** 回合开始「算 ＋ 落」一步到位：写 `pc.statuses`，返回本回合因异常落 HP 的量
+	 *（present 用 `<<damage>>` 落，与其他伤害同一处）。未启用 ⇒ 返回 `null`（调用方跳过）。 */
+	tickStatuses(pc) {
+		const plan = this.statusTick(pc);
+		if (!plan) return null;
+		const applied = this.statusTickApply(pc, plan);
+		pc.statuses = applied.statuses;
+		return { hurt: applied.hurt, hits: applied.hits, steps: plan.steps };
 	},
 	pick(actionId, res) {
 		const a = window.Sg.story.combatAction(actionId);

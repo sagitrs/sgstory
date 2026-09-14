@@ -94,6 +94,8 @@ window.Game.Pc = {
 			// #486（S1）：**装备耐久** `{ 具名: 剩余 }`——未启用部位/耐久的故事恒为空对象（`slotAbsorb` 不被调用）。
 			// 缺项＝满耐久（`maxHp` 由故事声明）；`migrate()` 会给旧档补上这个键。
 			gearHp: {},
+			// #487（S2）：**部位 × 异常** —— `{ 部位: { 异常: 剩余回合 } }`（未启用该机制的故事恒为空对象）。
+			statuses: {},
 			// 世界
 			inv: {},              // 物品栏：{ 名: true }
 			star: { charge: 12, spent: 0, first_free: false },   // 星力隐藏计数（玩家不可见）；first_free：头一次翻转不收费（#219 C1②）
@@ -401,6 +403,11 @@ Macro.add('dragonbar', {
    拆两段（而不是一次算完）是为了让**渲染顺序**（玩家骰面 → 玩家受伤闪光 → 对手骰面 → 挨打闪光）
    与 **hp 时序**（玩家受伤后的 hp 决定对手这一轮是否发生）与旧实现逐字一致。 %/
 <<widget "fightact">><<nobr>>
+	/% #487（S2）：**回合开始 → 异常结算** —— 在玩家行动之前先结算（已定 ⑤的顺序）。
+	   未启用新机制（`Sg.story.mechanics()` 为 null）⇒ `tickStatuses` 返回 null ⇒ 这一行完全无副作用。
+	   落 HP 仍走 present 的 `<<damage>>`（与其他伤害同一处，保住既有渲染/时序）。 %/
+	<<set _st to Game.Combat.tickStatuses($pc)>>
+	<<if _st and _st.hurt>><<damage _st.hurt>><</if>>
 	<<set _p to Game.Combat.resolvePlayer($pc, $args[0], $args[1])>>
 	<<checkres `_p.check`>>
 	<<if _p.hurt>><<damage _p.hurt>><</if>>

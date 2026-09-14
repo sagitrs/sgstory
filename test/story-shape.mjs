@@ -59,6 +59,8 @@ case_('① 反例：hitLocations 重复 ⇒ 必须抓', run(mutate((m) => { m.hi
 // ── ② 装备与耐久 ──
 case_('② 正例：maxHp>0 ＋ reduce 只写一种', run(base()).problems.length === 0);
 case_('② 反例：maxHp = 0 ⇒ 必须抓（耐久上限）', run(mutate((m) => { m.equipment.皮甲.maxHp = 0; })).problems.some((p) => p.includes('maxHp')));
+case_('④ 反例：`rewardsScale` 非正数 ⇒ 必须抓（奖励曲线要用它乘，#488）',
+	run(mutate((m) => { m.encounters.long.rewardsScale = -1; })).problems.some((p) => p.includes('rewardsScale 必须是正数')));
 case_('③ 反例：statuses 缺 `turns` ⇒ 必须抓（持续回合必须可声明，#487）',
 	run(mutate((m) => { m.statuses.bleed.turns = undefined; })).problems.some((p) => p.includes('turns 必须是正数')));
 case_('③ 反例：`perRound` 出现未实现的键 ⇒ 必须抓（#487）',

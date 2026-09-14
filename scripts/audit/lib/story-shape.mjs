@@ -124,6 +124,10 @@ export const validateStoryMechanics = (m, ctx = {}) => {
 			if (lw[1].reinforce !== true) push('encounters.long 第二批必须 reinforce:true（增援）');
 		}
 	}
+	// #488（S3）：`rewardsScale` 可选，但给了必须是正数（奖励曲线要用它乘；负数/0 ⇒ 奖励不随难度增）
+	for (const [id, e] of Object.entries(enc)) {
+		if (e?.rewardsScale !== undefined && !(typeof e.rewardsScale === 'number' && e.rewardsScale > 0)) push(`encounters.${id}.rewardsScale 必须是正数（实际 ${JSON.stringify(e.rewardsScale)}）`);
+	}
 	const known = poolNames();
 	for (const [id, e] of Object.entries(enc)) {
 		for (const [i, wv] of (e?.waves ?? []).entries()) {

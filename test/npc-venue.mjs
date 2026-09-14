@@ -14,8 +14,9 @@ import { createContext } from '../scripts/audit/context.mjs';
 
 // 场所枚举（可增补；增补即代表"这个场所被承认"）——取自现有段落名的主要场所
 export const VENUES = ['女巫小屋', '酒馆', '塔外花田', '塔门', '门厅', '书房', '工坊', '天文台', '顶楼', '地下宴会厅', '宴会·过去', '宴·散场', '林间小径', '洞穴', '雾·路径'];
-// 登记模式开关（补列完成后删除本行即转严格，或直接跑 --strict）
-export const KNOWN_PENDING = '#407 ④（venue/role 两列尚未补）';
+// `#407` ④ 收口：**venue/role 两列已补齐**（35/35，`15-tables.twee` 的 NPC 登记簿）⇒ 本门**转严格**：
+// 删掉原先的"登记模式开关"（`KNOWN_PENDING`）——现在任何缺列/枚举漂移都直接判红（旧口径的报告行不再存在）。
+// 历史：转严格前的首轮清单在 `docs/baselines.md` 的④面附录里（红靶已完成）。
 
 export const judgeVenue = (entries, venues = VENUES) => {
 	const out = [];
@@ -44,12 +45,12 @@ const ctx = createContext();
 const entries = ctx.Game.NPC?.entries ?? {};
 const total = Object.keys(entries).length;
 const findings = judgeVenue(entries);
-const strict = process.argv.includes('--strict');
 
 console.log(`══ D9④ 场合面门（#407）══  NPC 让渡行为登记 ${total} 条｜缺 venue/role 的 ${findings.length} 项`);
 for (const f of findings.slice(0, 5)) console.log(`  · ${f.id}：${f.why}`);
 if (findings.length > 5) console.log(`  · …另有 ${findings.length - 5} 项`);
 
 if (!findings.length) { console.log('✔ 场合面门通过：每条登记都声明了「在哪」与「岗位/身份」'); process.exit(0); }
-if (strict) { console.error(`\n✗ 场合面门未通过（--strict：${findings.length} 项缺列）`); process.exit(1); }
-console.log(`\n⏳ [已知缺陷 ${KNOWN_PENDING}] 报告但不判失败——补列完成后跑 --strict 转严格（这也是那批补列的红靶）`);
+// `#407` ④ 已转严格（补列完成）：缺列/枚举漂移一律红（`--strict` 保留为兼容别名，不再改变语义）
+console.error(`\n✗ 场合面门未通过（${findings.length} 项缺列/漂移）—— #407 ④ 已转严格（venue/role 缺列或不在场所枚举都判红）`);
+process.exit(1);

@@ -81,6 +81,18 @@ export const noteReadKeys = (text, entries) => {
 	return [...out];
 };
 // 文本里**经笔记**读到的裸键（D2 按裸键判）
+// 条件表行引用的**限定键**（`ev.x`/`world.x`）——`--state` 用（它按限定键判"有写有读"）。
+// 与 `ruleRowFlags()`（裸键，D2 用）同源：都从 `req/any/exclude` 取；`n_*` 展开成笔记的 `flagPath`。
+export const ruleRowKeys = (row, entries) => {
+	const paths = notePaths(entries);
+	const out = new Set();
+	for (const key of [...(row?.req ?? []), ...(row?.any ?? []), ...(row?.exclude ?? [])].map(String)) {
+		if (key.startsWith('n_')) for (const p of (paths.get(key) ?? [])) out.add(p);
+		else out.add(key.includes('.') ? key : `ev.${key}`);
+	}
+	return [...out];
+};
+
 // ── 笔记**写点**（`#434` 阶段 3）：`Sg.notes.add('n_x')` 写的是该笔记 `flagPath` 里的键 ──────────
 // 与读点（`noteReadKeys`）并列，仍是**单一权威**。为什么需要它：写点从「字面量写旗标」改成
 // 「经 `Sg.notes.add` 写」之后，按**字面量**认写点的门（`--state` 的"有写有读"、D2 的桶分类）

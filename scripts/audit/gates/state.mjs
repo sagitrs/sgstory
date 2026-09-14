@@ -13,7 +13,7 @@
 //   `<<setflag "k">>` / `<<firstTime "k">>`（动态写入 `$pc.ev[k]` 并动态读回）· `$pc.ev["k"]`
 //   · 表内谓词 `(p) => p.world?.k`。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { qualifiedWriteKeys, keyCharsetViolations, readKeys, noteReadKeys, noteWriteKeys } from '../lib/shared.mjs';
+import { qualifiedWriteKeys, keyCharsetViolations, readKeys, noteReadKeys, noteWriteKeys, ruleRowKeys } from '../lib/shared.mjs';
 
 export const flag = 'state';
 export const flags = ['state'];
@@ -93,7 +93,7 @@ export const charsetViolations = (sources) => {
 // 命名空间：`ev.`（事件/证据）与 `world.`（世界态）。**同一个键名在两个域里各有一份**——
 // 只按裸键名归并会漏掉「写 world.X / 读 ev.X」这类失效（#365：观星者写 world.seer_asked、
 // 跨时代门读 ev.seer_asked → 证据支路静默失效）。故写/读都记成 `域.键`。
-export const analyze = (sources, { notes } = {}) => {
+export const analyze = (sources, { notes, rules } = {}) => {
 	const keys = new Map();
 	const bump = (k, kind, site) => {
 		if (!keys.has(k)) keys.set(k, { w: new Set(), r: new Set(), dynamic: false });
@@ -212,6 +212,8 @@ export const run = (ctx) => {
 		['经笔记的读（`Sg.notes.has`）也算读 ⇒ 不再是"只有写"', null, D, 0, 'noteRead'],
 		// #434 阶段 3：写点换了写法（`Sg.notes.add`）但「写了什么」不该消失 —— 未读时必须报"只有写"
 		['经笔记的写（`Sg.notes.add`）也算写 ⇒ 未读时必报"只有写"', null, D, 1, 'noteWrite'],
+		// #435 阶段 4：条件表行里的键＝读点（手写 `<<if>>` 搬进表后，源码里没有这个读点了）
+		['条件表行引用的键算读 ⇒ 不再是"只有写"', null, D, 0, 'ruleRead'],
 	];
 	let selfBad = 0;
 	for (const [label, keys, dm, expect, kind] of selfCases) {
@@ -220,6 +222,11 @@ export const run = (ctx) => {
 			: kind === 'charset' ? charsetViolations({ 'a.twee': ':: P\npc.ev.BadKey = true' }).length
 			: kind === 'noteRead' ? check(analyze({ 'a.twee': ':: P\n<<set $pc.ev.tav_x to true>>\n<<if Sg.notes.has(\'n_x\')>>y<</if>>' }, { notes: { n_x: { flagPath: 'ev.tav_x' } } }), dm).length
 			: kind === 'noteWrite' ? check(analyze({ 'a.twee': ":: P\n<<run Sg.notes.add('n_x')>>" }, { notes: { n_x: { flagPath: 'ev.tav_x' } } }), dm).length
+			: kind === 'ruleRead' ? (() => {
+				const ks = analyze({ 'a.twee': ':: P\n<<set $pc.ev.tav_x to true>>' }, { notes: {}, rules: [{ id: 'r', scope: 'P', req: ['ev.tav_x'] }] });
+				for (const k of ruleRowKeys({ req: ['ev.tav_x'] }, {})) (ks.get(k) ?? { r: new Set() }).r.add('条件表:P');
+				return check(ks, dm).length;
+			})()
 			: kind === 'dynamic-undeclared' ? checkDynamic(dynamicSites({ 's.twee': ':: P\n<<firstTime `"cellar_" + $era`>>' }), []).length
 			: kind === 'dynamic-covered' ? checkDynamic(dynamicSites({ 's.twee': ':: P\n<<firstTime `"cellar_" + $era`>>' }), [{ prefix: 'cellar_', via: 'firstTime', values: ['past'] }]).length
 			: kind === 'dynamic-stale' ? checkDynamic([], [{ prefix: 'gone_', via: 'firstTime', values: ['past'] }]).length
@@ -234,7 +241,15 @@ export const run = (ctx) => {
 	// ── 真实数据 ──
 	const sources = {};
 	for (const f of ctx.SRC_FILES) sources[f] = readFileSync(f, 'utf8');
-	const keys = analyze(sources, { notes: ctx.Game.Notes?.entries });
+	const NOTES = ctx.Game.Notes?.entries;
+	const RULES = ctx.window?.Sg?.story?.rules?.() ?? [];
+	const keys = analyze(sources, { notes: NOTES });
+	// #435 阶段 4：**条件表行里的键也是读点** —— 手写 `<<if>>` 搬进表之后，源码里就没有这个读点了；
+	// 不补这一步，被引用的旗标会被判「只有写」⇒ 假红（阶段 4 版的"新形状"，排查清单第 1 条 🔴）。
+	for (const row of RULES) for (const k of ruleRowKeys(row, NOTES)) {
+		const e = keys.get(k);
+		if (e) e.r.add(`条件表:${row.scope ?? '?'}`);   // 只给**已出现**的键补读点（表引用了没人写/读的键 ⇒ 由"只有读"那条照旧红 ✓）
+	}
 	const declaredDyn = ctx.Game.State?.dynamicKeys ?? [];
 	// 动态族**展开成具体键**并入键图 ⇒ 这些键照样受「域归属／有写有读／命名空间」四条判定管
 	for (const { key } of expandDynamic(declaredDyn)) {

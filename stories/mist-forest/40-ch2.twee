@@ -75,7 +75,7 @@
 	<<if $pc.world.flower_mud>>
 		（你端散过一块土。剩下的花，得一块一块小心地起。）
 	<</if>>
-	<<if not Sg.notes.has('n_flower_warned')>>你在花田边站了一会儿。风从花那边过来，眼皮跟着沉了沉。<</if>>
+	<<rules "塔外花田#站一会">>
 	<div id="fanlin-act"><<nobr>>
 /% #300 P1：改回渲染路径（状态必须落在 history moment 上，存读档才不丢） %/
 	<<lastcheckFor "塔外花田" "花田·下风">>
@@ -102,9 +102,7 @@
 		<</if>>
 		<<if $pc.hp gt 0>><<goto "塔外花田">><</if>>
 	<</link>>
-	<<if not Sg.notes.has('n_flower_warned')>>
-		<<link "先别动它，退回塔门">><<goto "塔门">><</link>>
-	<</if>>
+	<<rules "塔外花田#退回">>
 	<</nobr>></div>
 <</if>>
 <</if>>

@@ -97,5 +97,13 @@ Object.assign((window.Sg.story ??= {}), {
 		// 它们同时也是 `#437` 批二里最后两处"叙事段知识键直读"——搬进表后 `--reads` 的那两条基线随之核销。
 		{ id: '门厅.已听比法', scope: '门厅#已听比法', req: ['world.hall_hint'], exclude: ['world.whistle_taken'], prio: 10, text: `<span class="sys-note">（你已经听过比法：那钉子是弯钩，往上提、再往外带。）</span>` },
 		{ id: '书房.已摸清暗格', scope: '书房#已摸清暗格', req: ['world.study_hint'], prio: 10, text: `<span class="sys-note">（你已经摸清：暗格在炉膛后头那面墙里。）</span>` },
+		// `#624`：`#568` 的对象算子（`{ gte: […] }`／`{ oneOf: […] }`）首批真实位点（原手写 if 在 40-ch2／50-ch3）。
+		// 复合条件的否定（原文 else）用「无条件 ＋ 更低 prio」兜底行表达（`exclude` 单条盖不住）。
+		{ id: '守林人.软限', scope: '守林人#软限', req: [{ gte: ['star.spent', 3] }], prio: 10, text: `''"你来回跑了几趟了。"''他看了一眼你身后的林子，''"雾薄了。可薄下去的东西，不全是你带回的。"''` },
+		{ id: '守林人.封印选项', scope: '守林人#封印选项', req: [{ oneOf: ['keeper.state', ['seal']] }], prio: 10, text: `	[[那就让他念——用他家的封印术|守林人·封印]]` },
+		{ id: '地下宴会厅.哨子', scope: '地下宴会厅#哨子', req: [{ oneOf: ['keeper.state', ['ally']] }, 'inv:好哨'], prio: 10, text: `		[[吹响哨子，叫醒它|唤醒]]` },
+		{ id: '地下宴会厅.哨子.else', scope: '地下宴会厅#哨子', prio: 5, text: `		[[叫醒它|唤醒]]` },
+		{ id: '地下宴会厅.提醒', scope: '地下宴会厅#提醒', any: [{ oneOf: ['keeper.state', ['seal', 'ally']] }], prio: 10, text: `		守林人没有拦你，只说了一句：''"你打不过它。"''说完便退到门边。` },
+		{ id: '地下宴会厅.提醒.else', scope: '地下宴会厅#提醒', exclude: [{ oneOf: ['keeper.state', ['seal', 'ally']] }], prio: 10, text: `		门框内侧刻着一行小字，刻痕很旧了：''"别动手。你打不过它。"''落款没有名字。` },
 	],
 });

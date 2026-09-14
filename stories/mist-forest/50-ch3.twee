@@ -54,17 +54,9 @@
 
 <<if $era is Game.Era.PRESENT>>
 	[[绕着它走一圈|龙·巢边]]
-	<<if $pc.keeper.state is "ally" and $pc.inv["好哨"]>>
-		[[吹响哨子，叫醒它|唤醒]]
-	<<else>>
-		[[叫醒它|唤醒]]
-	<</if>>
+	<<rules "地下宴会厅#哨子">>
 	/% #252②：canon §4.5 守林人不干涉，最多提醒一句 %/
-	<<if $pc.keeper.state is "seal" or $pc.keeper.state is "ally">>
-		守林人没有拦你，只说了一句：''"你打不过它。"''说完便退到门边。
-	<<else>>
-		门框内侧刻着一行小字，刻痕很旧了：''"别动手。你打不过它。"''落款没有名字。
-	<</if>>
+	<<rules "地下宴会厅#提醒">>
 	[[攻击它|龙·战]]
 	[[安静地退出去|门厅]]
 <</if>>

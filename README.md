@@ -56,6 +56,47 @@ npm run watch   # 修改 src/ 自动重新编译
 - **路线断言降脆**（scenarios 约定）：只断终局账本（结局段、hp/gold/旗标终值）与关键里程碑；不断中间每步 hp/gold——中间值随叙事改动高频变脆。文案断言只锚稳定令牌（如「月光」），不锚整句。
 ```
 
+## 知识模型（笔记／世界态／运行时）
+
+**为什么单列一节**：本仓把「玩家知道什么」与「世界发生了什么」当作**两类不同的存储**，条件、门与文案都按这条线分（D1／D2／D4／D8 四条质量维度的判定都建立在它上面）。
+**唯一权威是 [`docs/notes-model.md`](docs/notes-model.md)**（本节是入口版本；两处若有出入以那份为准）。
+
+```
+段落/选项内容  ←  select(条件语言)
+                   ├── notes   笔记（我知道什么）—— 条件写 `Sg.notes.has('n_X')`
+                   ├── world   世界态（发生过什么）
+                   ├── items   物品栏（我拿着什么）—— 条件写 `inv:<道具>`
+                   └── state   数值/态度（星力、态度、回合…）
+```
+
+**判定口诀**（与 `docs/notes-model.md` §1 同源）：
+
+| 情形 | 归类 |
+|---|---|
+| 能写成「你知道了……」一句**玩家可复述**的话 | **笔记**（`notes`） |
+| 只是「发生过／已拥有」 | **世界态**（`world`／`items`） |
+| **运行时**：既不可复述、也不改变世界结果（去重与首遇记账／瞬态） | **运行时**（`state`） |
+| 一个键**同时**承担两类语义 | **拆成两个键**（别让它两用） |
+
+**迁移五步**（每步可独立合入、可回滚；完整版见 `docs/notes-model.md` §4）：
+
+| 步 | 内容 | 出口判据 |
+|---|---|---|
+| 1 | `Game.Notes` 表 ＋ `Sg.notes.*` 封装（读现有旗标，零行为变化） | `--notes` 门 |
+| 2 | 段落条件 `$pc.ev.X` → `Sg.notes.has('n_X')`（纯转发） | **可见漂移 0**（`ui-migration-diff`） |
+| 3 | 写点 `setflag X` → `Sg.notes.add('n_X')`（旗标降为兼容字段） | `--state` 域表更新 ＋ `saveload` 往返 |
+| 4 | 对话内容**按表组装**（`stories/<slug>/17-rules.twee` ＋ 引擎侧选择器） | `--rules`／`--reads`／`premise-source`／`choice-keys` |
+| 5 | 清理兼容层（删旗标）＋ 手册更新 | 裸旗标计数归零门 |
+
+**层归属**（写新内容/新门之前先分清；`#441` 结合面）：
+
+| 面 | 在哪 | 谁读它 |
+|---|---|---|
+| **引擎机制** | `Sg.notes`（求值/写入/幂等）· `Sg.rules`（条件表选择器 ＋ `yields`/`gives`/`sets` 三面） | 与具体故事**无关**：故事 2／3 复用同一套 |
+| **故事数据** | `stories/<slug>/15-tables.twee`（`Game.*`）· `16-notes-*.twee`（笔记表）· `17-rules.twee`（条件表行） | 只在**本故事**内生效 |
+
+> 两条机检纪律：**读侧一律经封装层**（条件表里不出现字面状态读，`--reads`）· **写侧一律在 `<<rules>>` 一处落地**（`--rules` 的 `text` 纯渲染＋三个授予面）。
+
 ## 工程约定
 
 代码级约定（渲染路径 / 构建顺序 / 状态契约 / 命名）统一写在 **[`docs/dev-conventions.md`](docs/dev-conventions.md)**——**凡约定必配一条会咬人的门**。
@@ -63,20 +104,29 @@ npm run watch   # 修改 src/ 自动重新编译
 ## 目录结构
 
 ```
-src/
-  00-meta.twee   故事元数据：标题、IFID、起始段落
+src/               引擎层（与具体故事无关；层归属与加载顺序的**单一权威**：scripts/module-order.mjs）
+  engine/30-persist/05-store.twee   localStorage 键构造的唯一落点（引擎/故事两作用域 ＋ 幂等迁移，#462）
+  engine/40-sim/21-resolve.twee     机制/选择器：Sg.rules（条件表选择器 ＋ sets/yields/gives 三个授予面）
+  engine/50-present/11-scene.twee   呈现层共用件（场景/面板/折叠/结果槽）
+  engine/50-present/90-style.twee   全局样式（暗色主题）
   10-core.twee   Rules（d20 内核）+ StoryInit + Widgets（词汇宏）+ StoryCaption（侧栏）
-  15-tables.twee ★ window.Game（位点/经济/道具/行囊/战斗/交涉/图鉴/命题/回声/选择/系统/翻转锚/星力/龙）
-                   + Pc（状态形状与迁移）+ Game.Chargen（车卡三件套）——机制数值单一源（#28）
-  20-chargen.twee Game.Chargen.rounds（3 轮）+ Game.Chargen.presets + 车卡 / 角色卡
-  30-ch1.twee    ★ 序章 + 一章（时间）正文
-  40-ch2.twee    ★ 二章（手段）正文
-  50-ch3.twee    ★ 三章（坐标）正文
-  60-endings.twee ★ 结局（10 个出口）
-  70-codex.twee  ★ 设定集（hub + 三律/守塔的人家/塔/道具/术语/结局/图鉴）
   80-script.twee StoryScript：存档钩子 + S/L 快捷键（读档要 .then(Engine.show) 才重画）+ 结局页收尾入口
                    + 图鉴跨周目持久化（localStorage）+ 段落起始的状态归一化
-  90-style.twee  StoryStyleSheet：全局样式（暗色主题）
+stories/           多故事：**每个故事一个目录**（接入契约 #441-E／#460；引擎只经 Sg.story.* 取数据）
+  mist-forest/    故事 1「迷雾森林」（本 README 主体）
+    00-meta.twee   故事元数据：标题、IFID、起始段落
+    15-tables.twee ★ window.Game（位点/经济/道具/行囊/战斗/交涉/图鉴/命题/回声/选择/系统/翻转锚/星力/龙）
+                    + Pc（状态形状与迁移）+ Game.Chargen（车卡三件套）——机制数值单一源（#28）
+    16-notes-*.twee 笔记表（知识模型）增量文件：ch1/ch2/ch3/cross（#429–#431）
+    17-rules.twee  条件表（#435 阶段 4）：行数组（req/any/exclude/prio/yields/gives/sets）——选择器在引擎侧
+    20-chargen.twee Game.Chargen.rounds（3 轮）+ Game.Chargen.presets + 车卡 / 角色卡
+    30-ch1.twee    ★ 序章 + 一章（时间）正文
+    40-ch2.twee    ★ 二章（手段）正文
+    50-ch3.twee    ★ 三章（坐标）正文
+    60-endings.twee ★ 结局（10 个出口）
+    70-codex.twee  ★ 设定集（hub + 三律/守塔的人家/塔/道具/术语/结局/图鉴）
+  minimal-demo/   故事 2：最小示例（#460 接入契约的验证物）
+  hollow-cave/    故事 3「无名洞窟」：雏形（#490 S5）
 vendor/
   format.js       SugarCube 2.37.3 官方 story format（升级时替换此文件）
 test/integrity.mjs  L0 静态完整性门：悬空引用/goto 裸词/未定义宏 + 词汇纪律 W1-W3 + 表一致性硬门（#28/#29）
@@ -105,6 +155,10 @@ scripts/audit.mjs   质量十一门 + **文字工艺门（--craft）**：真相�
 docs/
   lore-canon.md     ★ 设定书（唯一权威正史「送它回家」；正文与它冲突＝P1 缺陷）
   game-outline.md   ★ 游戏大纲（依据设定书扩展的机制/内容蓝本；不具设定权威）
+  notes-model.md    ★ 知识模型唯一权威（三类划分 ＋ 判定口诀 ＋ 迁移五步 ＋ 表语法已知边界）
+  dev-conventions.md 代码级约定（渲染路径/构建顺序/状态契约/命名/条件表形状）——见「工程约定」
+  engine-story-boundary.md  引擎/故事两层的边界与接入契约（#441）
+  story2-contracts.md       故事 2/3 的接入契约清单（#460／#490）
   impl-map.md       实施图（M1 骨架落地：段落图/状态模型/测试策略）
   archive/          已作废稿（禁止回流；对照表见 docs/archive/README.md）
   design-review.md  D6 可用性走查存档（呈现层改动时复审）

@@ -76,6 +76,23 @@ if (multi) {
 	case_('未登记笔记 ⇒ **报错**（结构缺失 fail-loud，不静默）', !!threw && /未登记/.test(threw?.message ?? ''));
 }
 
+// ⑦ A 方案（Discussion #513 定稿）：`yields` 由调用侧在**渲染后**统一授予；幂等 ⇒ 连渲两次只落一次
+{
+	// 用一个**尚未授予**的单值笔记（前面的用例已经授予过 `single` ⇒ 直接复用它只会拿到空 ⟹ 看起来像失败 ✗）
+	const fresh = Sg.notes.ids().find((id) => {
+		const e = Sg.notes.entry(id);
+		return e && !Array.isArray(e.flagPath) && id !== single;
+	});
+	if (fresh) { Sg.notes.writePath(pc, Sg.notes.entry(fresh).flagPath, false); delete pc.ev.notes?.[fresh]; }
+	const row = { id: 'r1', scope: 'S', yields: [fresh] };
+	const first = Sg.rules.applyYields(row);
+	const second = Sg.rules.applyYields(row);   // 模拟"同一行被再渲染一次"（结果留屏重放/重渲染）
+	case_('A 方案：首次渲染后授予 ⇒ 返回新授予的 id', Array.isArray(first) && first.length === 1 && first[0] === fresh, JSON.stringify(first) + ' fresh=' + fresh);
+	case_('A 方案·幂等：同一行**再渲一次** ⇒ 返回空（不重复写）', Array.isArray(second) && second.length === 0, JSON.stringify(second));
+	case_('A 方案·无 yields 的行 ⇒ 授予为空（`text` 只渲染的行不该写状态）', Sg.rules.applyYields({ id: 'r2', scope: 'S' }).length === 0);
+	case_('A 方案·未登记 id ⇒ `add` 报错（fail-loud，不静默）', (() => { try { Sg.rules.applyYields({ id: 'r3', scope: 'S', yields: ['n_nope'] }); return false; } catch { return true; } })());
+}
+
 // ⑥ 语义钉死：`has()` 的定义就是 `stored ∨ 旗标`（Discussion #513 的 Q2 第 1 条）
 case_('读取语义写死：`has(id) = stored(id) ∨ any(readPath(flagPath))`（本文件 ③ 与 ① 两条合起来就是它）', true);
 

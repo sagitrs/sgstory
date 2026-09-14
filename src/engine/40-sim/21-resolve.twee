@@ -637,27 +637,56 @@ window.Sg.rules = {
 	// 为什么：被引擎忽略的声明＝**静默空转**——行看起来授予了，实际什么都没发生，而没有任何门看得见。
 	// `yields`/`gives` 早于本机制（老面，不追溯）；`sets` 是新增面 ⇒ 用到就必须在这里宣告。
 	effects: ['yields', 'gives', 'sets'],
-	// 一个"键名"是否满足：`n_*` ⇒ 笔记（`Sg.notes.has`，含双读）；`inv:`／`era:` ⇒ 见下；否则按旗标路径读（`ev.`／`world.` 或裸名）
-	holds(key, pc) {
+	// **条件项的"对象算子"词表**（`#568`，与 `prefixes`／`effects` 同轴）：行里用了未宣告的算子 ⇒ `--rules` 判红。
+	// 为什么必须由引擎宣告：引擎不认的算子会让条件**永假** ⇒ 行静默死掉（本仓反复踩的那类）。
+	// 词表与门侧同一份口径（`scripts/audit/lib/shared.mjs` 的 `OPS`）；两侧漂移会被 `--rules` 当场抓住。
+	ops: ['gte', 'lte', 'oneOf'],
+	// 一个"键"的**值**（不是真假）：`n_*` ⇒ 笔记真假；`inv:`／`era:` ⇒ 持有／时代；其余按 `readPath` 走（裸键＝`ev.`）。
+	// 与下面 `holds()` 的分工：`holds` 问"这个键成不成立"，`readKey` 问"这个键是多少"（算子形要比大小／比集合）。
+	readKey(key, pc) {
 		const k = String(key);
 		if (k.startsWith('n_')) return window.Sg.notes.has(k);
 		const m = /^(inv|era):(.+)$/.exec(k);
 		if (m) {
-			if (m[1] === 'inv') return !!(pc?.inv ?? {})[m[2]];                       // 持有物（不在 pc.ev/world 域）
-			const want = window.Game?.Era?.[String(m[2]).toUpperCase()] ?? m[2];      // 时代（`era:present`／`era:past`）
+			if (m[1] === 'inv') return !!(pc?.inv ?? {})[m[2]];                      // 持有物（不在 pc.ev/world 域）
+			const want = window.Game?.Era?.[String(m[2]).toUpperCase()] ?? m[2];     // 时代（`era:present`／`era:past`）
 			return State.variables.era === want;
 		}
-		const path = k.includes('.') ? k : `ev.${k}`;
-		return !!window.Sg.notes.readPath(pc, path);
+		return window.Sg.notes.readPath(pc, k.includes('.') ? k : `ev.${k}`);
+	},
+	// 一个"键名"是否成不成立（真值）—— 逐字沿用旧口径，现在是 `readKey` 的 `!!` 投影（一处实现、两个问法）。
+	holds(key, pc) { return !!this.readKey(key, pc); },
+	// 单个**条件项**是否满足（`#568`）：字符串 ⇒ 沿用 `holds()`；对象 ⇒ 按算子比较。
+	// 结构问题一律 **fail-loud**（畸形／未宣告算子 ⇒ 抛错）——静默为假正是本票要根除的那类；
+	// 而**取值失败**（键缺失、类型不可比）⇒ 只**不匹配**（false）："还没发生"是合法状态，不是结构缺陷。
+	holdsCond(cond, pc) {
+		if (cond == null || typeof cond !== 'object' || Array.isArray(cond)) return this.holds(cond, pc);
+		const names = Object.keys(cond);
+		if (names.length !== 1) throw new Error(`Sg.rules：条件项对象形必须**恰有一个**算子（拿到 ${names.length} 个：${names.join('／')}）——结构畸形必须报错（#568）`);
+		const op = names[0];
+		if (!this.ops.includes(op)) throw new Error(`Sg.rules：算子「${op}」未被引擎宣告（\`Sg.rules.ops\` = ${JSON.stringify(this.ops)}）——未宣告的算子会让条件永假（#568）`);
+		const args = cond[op];
+		if (!Array.isArray(args) || args.length < 2) throw new Error(`Sg.rules：算子「${op}」的参数必须是 [键, …值]（拿到 ${JSON.stringify(args)}）——结构畸形必须报错（#568）`);
+		const [key, ...rest] = args;
+		const got = this.readKey(key, pc);
+		if (got === undefined || got === null) return false;                        // 键缺失 ⇒ 不匹配
+		if (op === 'oneOf') {
+			const allowed = rest.length === 1 && Array.isArray(rest[0]) ? rest[0] : rest;   // `['k', ['a','b']]` 或 `['k','a','b']`
+			return allowed.includes(got);
+		}
+		const want = rest[0];
+		if (typeof got !== 'number' || typeof want !== 'number') return false;     // 数值算子遇非数值 ⇒ 不匹配（不硬比、不抛）
+		return op === 'gte' ? got >= want : got <= want;
 	},
 	// 行是否满足（`req` 全中 ∧ `any` 至少一（空＝不要求）∧ `exclude` 全不中 ∧ `prereq` 已选中过）
+	// 三个字段走**同一**抽取（字符串／对象形都认）；`prereq` 是**行 id**，不是条件项 ⇒ 不走 `holdsCond`。
 	matches(row, pc, chose = new Set()) {
-		const keys = (x) => (Array.isArray(x) ? x : x ? [x] : []);
-		if (!keys(row.req).every((k) => this.holds(k, pc))) return false;
-		const any = keys(row.any);
-		if (any.length && !any.some((k) => this.holds(k, pc))) return false;
-		if (keys(row.exclude).some((k) => this.holds(k, pc))) return false;
-		if (!keys(row.prereq).every((id) => chose.has(id))) return false;
+		const items = (x) => (Array.isArray(x) ? x : x ? [x] : []);
+		if (!items(row.req).every((c) => this.holdsCond(c, pc))) return false;
+		const any = items(row.any);
+		if (any.length && !any.some((c) => this.holdsCond(c, pc))) return false;
+		if (items(row.exclude).some((c) => this.holdsCond(c, pc))) return false;
+		if (!items(row.prereq).every((id) => chose.has(id))) return false;
 		return true;
 	},
 	// 选择：过滤作用域 → **按 prio 降序（稳定：同 prio 保持声明序）** → 取第一条

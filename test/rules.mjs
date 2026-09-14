@@ -560,5 +560,41 @@ for (const file of fixtures) {
 	delete vars.pc.ev.__测试旗标_e2e; delete vars.pc.inv['__测试道具_e2e'];
 }
 
+// ── `#568` 条件项的**对象算子形**（`gte`／`lte`／`oneOf`）：引擎兑现 ＋ 结构畸形 fail-loud ──
+// 背景：门侧（`#560`）早已能**解析**对象形条件项，而引擎只会按字符串键做真值判断
+// ⇒ `{ gte: ['star.spent', 3] }` 会被当成"某个键"取真值 ⇒ **静默为假**（行为错，且没有任何门看得见）。
+// 这一段就是那个缺口的回归门：正例／反例／边界（缺键、类型不可比）／fail-loud 四类。
+{
+	const Sg = w.Sg;
+	const OPS = (await import('../scripts/audit/lib/shared.mjs')).OPS;
+	eq(Sg.rules.ops, OPS, '`Sg.rules.ops` 与门侧 `OPS` 是**同一词表**（两侧漂移会被 `--rules` 抓住）');
+	const p = { ev: { seen: true, n: 7 }, world: { done: false }, inv: { 钥匙: true }, star: { spent: 3 }, keeper: { state: 'seal' } };
+	const M = (row) => Sg.rules.matches(row, p, new Set());
+	// 正例 / 反例（gte · lte）
+	ok(M({ req: [{ gte: ['star.spent', 3] }] }), 'gte：`star.spent`=3 ≥ 3 ⇒ 匹配（第三命名空间读得到）');
+	ok(!M({ req: [{ gte: ['star.spent', 4] }] }), 'gte：3 ≥ 4 不成立 ⇒ 不匹配');
+	ok(M({ req: [{ lte: ['star.spent', 3] }] }), 'lte：3 ≤ 3 ⇒ 匹配（边界取等）');
+	ok(!M({ req: [{ lte: ['star.spent', 2] }] }), 'lte：3 ≤ 2 不成立 ⇒ 不匹配');
+	// oneOf：两种写法都认（嵌套数组 / 平铺）
+	ok(M({ any: [{ oneOf: ['keeper.state', ['seal', 'open']] }] }), 'oneOf（嵌套数组）：seal ∈ 集合 ⇒ 匹配');
+	ok(M({ any: [{ oneOf: ['keeper.state', 'seal', 'open'] }] }), 'oneOf（平铺）：同上 ⇒ 匹配');
+	ok(!M({ any: [{ oneOf: ['keeper.state', ['open']] }] }), 'oneOf：seal ∉ [open] ⇒ 不匹配');
+	// 边界：缺键 ⇒ 不匹配且不抛（"还没发生"是合法状态，不是结构缺陷）
+	ok(!M({ req: [{ gte: ['star.nope', 1] }] }), '边界：键缺失 ⇒ 不匹配且**不抛错**');
+	ok(!M({ req: [{ oneOf: ['ev.nope', [true]] }] }), '边界：`oneOf` 遇缺键 ⇒ 不匹配');
+	ok(!M({ req: [{ gte: ['keeper.state', 1] }] }), '边界：数值算子遇非数值 ⇒ 不匹配（不抛错、不做字符串比）');
+	// 与字符串键混用；exclude / 前缀键也走同一条判据
+	ok(M({ req: [{ gte: ['star.spent', 1] }, 'ev.seen'] }), '混合：对象形 ＋ 字符串键 ⇒ 都中才匹配');
+	ok(!M({ req: [{ gte: ['star.spent', 1] }, 'ev.nope'] }), '混合：字符串键不中 ⇒ 不匹配');
+	ok(!M({ exclude: [{ oneOf: ['keeper.state', ['seal']] }] }), 'exclude 认对象形：命中即排除');
+	ok(M({ req: [{ oneOf: ['inv:钥匙', [true]] }] }), '前缀键：`inv:钥匙` 在对象形里照样求值 ⇒ 匹配');
+	// 结构畸形 ⇒ fail-loud（静默为假正是本票要根除的那类）
+	const throws = (row) => { try { M(row); return false; } catch { return true; } };
+	ok(throws({ req: [{ gt: ['star.spent', 1] }] }), '未宣告算子「gt」⇒ **抛错**（不静默为假）');
+	ok(throws({ req: [{ gte: ['star.spent', 1], lte: ['star.spent', 9] }] }), '一个对象里两个算子 ⇒ 抛错（结构畸形）');
+	ok(throws({ req: [{ gte: ['star.spent'] }] }), '算子参数只有键、没有值 ⇒ 抛错');
+	ok(throws({ req: [{ gte: 'star.spent' }] }), '算子参数不是数组 ⇒ 抛错');
+}
+
 console.log(failures ? `\n${failures} 项失败` : '\n规则层测试全部通过');
 process.exit(failures ? 1 : 0);

@@ -1,7 +1,7 @@
 # 文档索引（`docs/`）
 
 > 入口页是仓库根的 `README.md`（"是什么 ＋ 一键跑起来"）；**本页回答"哪份是权威、写什么的时候读哪份"**。
-> 归档口径：`docs/archive/` 只放**作废稿**（禁止回流，逐稿对照表见 `docs/archive/README.md`）。
+> 存档口径：`docs/archive/` ＝ **已作废的设定稿**（禁止回流，对照表见 `docs/archive/README.md`）；`docs/reviews/` ＝ **走查/评审的流程记录**（非权威、可过期，见 `docs/reviews/README.md`）。
 
 ## 一、按任务读（推荐路径）
 
@@ -10,7 +10,7 @@
 | 写 / 改剧情 | `docs/lore-canon.md`（设定唯一权威） | `docs/game-outline.md` · `docs/twee-cheatsheet.md` · `docs/game-mechanics.md` |
 | 改引擎 / 机制 | `docs/dev-conventions.md` | `docs/repo-map.md` · `docs/engine-story-boundary.md` |
 | 加 / 改门与测试 | `docs/quality-dimensions.md` | `docs/gate-ledger.md` · `docs/ui-coverage-gaps.md` |
-| 做质量评审 | `docs/quality-dimensions.md`（§一 方法 · §四 作业模板） | `docs/design-review.md`（D6 走查存档） |
+| 做质量评审 | `docs/quality-dimensions.md`（§一 方法 · §四 作业模板） | `docs/reviews/`（走查/评审存档，非权威） |
 | 接一个新故事 | `docs/engine-story-boundary.md` | `docs/story2-contracts.md` · `docs/repo-map.md`（§二 层归属） |
 | 查历史 / 作废稿 | `docs/archive/README.md` | — |
 
@@ -50,17 +50,18 @@
 | `docs/repo-map.md` | 84 | 地图 | 目录结构 ＋ 层归属 ＋ 权威落点速查 |
 | `docs/ui-coverage-gaps.md` | 75 | 口径 | 覆盖与未覆盖的判定口径 |
 | `docs/benchmark-ledger.md` | 55 | 台账 | ★待收：目前**没有其它文档引用它**（`#606`） |
-| `docs/visual-review-2026-09-10.md` | 47 | 存档 | 2026-09-10 视觉走查 |
+| `docs/reviews/visual-review-2026-09-10.md` | 47 | 存档 | 2026-09-10 视觉走查 |
 | `docs/twee-cheatsheet.md` | 41 | 速查 | 本仓在用的 Twee 语法 ＋ 自定义词汇宏 |
-| `docs/text-review-2026-09-10.md` | 41 | 存档 | 文本走查（另一份 `…after-rebase…` 是重基后的复跑） |
-| `docs/quality-selfaudit-ch123.md` | 38 | 存档 | 1–3 章八维自检（流程记录，非设定稿） |
+| `docs/reviews/text-review-2026-09-10.md` | 41 | 存档 | 文本走查（另一份 `…after-rebase…` 是重基后的复跑） |
+| `docs/reviews/quality-selfaudit-ch123.md` | 38 | 存档 | 1–3 章八维自检（流程记录，非设定稿） |
 | `docs/game-mechanics.md` | 31 | 速查 | 数值系统 ＋ 演示机制（故事 1 机制面） |
-| `docs/rebase-review-2026-09-10.md` | 31 | 存档 | 重基复核记录 |
-| `docs/text-review-after-rebase-2026-09-10.md` | 29 | 存档 | 重基后的文本复跑 |
-| `docs/design-review.md` | 28 | 存档 | D6 可用性走查（呈现层改动时复审） |
+| `docs/reviews/rebase-review-2026-09-10.md` | 31 | 存档 | 重基复核记录 |
+| `docs/reviews/text-review-after-rebase-2026-09-10.md` | 29 | 存档 | 重基后的文本复跑 |
+| `docs/reviews/design-review.md` | 28 | 存档 | D6 可用性走查（呈现层改动时复审） |
 | `docs/credits.md` | 20 | 参考 | 参考资源 ＋ 第三方鸣谢 |
 | `docs/ui-migration-diff.md` | 16 | **生成物** | `node scripts/ui-migration-diff.mjs` |
 | `docs/archive/` | 10 份 | 作废 | 禁止回流；对照表见 `docs/archive/README.md` |
+| `docs/reviews/` | 7 份 | 存档 | 走查/评审流程记录（非权威）；见 `docs/reviews/README.md` |
 
 ## 四、口径与惯例
 
@@ -69,4 +70,4 @@
 - **文档格式有门**：`node scripts/md-format.mjs` —— ① 每个 `*.md` 的围栏必须成对、标题不许落在代码块里（`#603`；`README.md` 曾因一个多余的围栏让四个标题被吞）；② **反引号里的仓内路径必须存在**（`#606` 片一；`src/*.twee` 搬家后曾有 11 处引用未更新，已修）；③ **入口页体量 ratchet**：`README.md` ≤ 120 行（防它再长回 godfile）。
 - **要引用已消失的历史路径**：同行写 `<!-- path-exempt: 理由 -->`（门会**留痕打印**豁免，便于收编 —— 别用它掩盖真错误）。
 - **动文档要不要跑全链**：只改文档的 PR 不跑 soak（`docs/dev-conventions.md` §10）。
-- **本页与 `docs/archive/README.md` 的分工**：本页管"现役文档"，归档页管"作废稿与其替代关系"。
+- **本页与两个存档目录的分工**：本页管"现役文档 ＋ 两张清单"；`docs/archive/README.md` 管"作废稿与其替代关系"；`docs/reviews/README.md` 管"流程记录（走查/评审）"。

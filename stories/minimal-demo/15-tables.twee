@@ -22,7 +22,7 @@ window.Game = Object.assign(window.Game ?? {}, {
 	Investment: { expressive: [], failClueExempt: {}, eraDomain: { past: [], branch: [], flagEra: {}, crossEraGates: [] } },
 	// 接入契约：**引擎保留的运行时槽**由引擎写（`last_result`/`last_roll`/`soc*`/`fight`）⇒ 故事必须登记，
 	// 否则 `--state` 会判"未落入任何域"（`#460`：这条纪律写进 `docs/dev-conventions.md` §12 的契约清单）。
-	State: { domains: [{ id: 'runtime', keys: ['last_result', 'last_roll', 'soc', 'soc_last', 'soc_lever', 'fight', 'ending'], note: '引擎保留的运行时槽（每个故事都要登记）' }], bookkeeping: [], dynamicKeys: [] },
+	State: { domains: [{ id: 'runtime', keys: ['last_result', 'last_roll', 'soc', 'soc_last', 'soc_lever', 'fight', 'ending', 'notes'], note: '引擎保留的运行时槽（每个故事都要登记）' }], bookkeeping: [], dynamicKeys: [] },
 	Notes: { entries: {} },
 });
 

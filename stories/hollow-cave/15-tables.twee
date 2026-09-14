@@ -6,28 +6,32 @@
 // 形状权威：`scripts/audit/lib/story-shape.mjs`（S1–S4 的六条机检）；口径：`docs/story2-contracts.md`。
 window.Game = Object.assign(window.Game ?? {}, (() => {
 	const Checks = {
-		// 位点表（技能／豁免；`yields` 是"这个位点能拿到什么关键产出"——反 S/L 门用）
+		// 位点表。形状（引擎侧 `Game.Checks.rollSite`）：**`skill`＝技能名**（中文，经 `Game.Rules.SKILLS` 映射到属性）
+		// ／**`abil`＝属性豁免**（`str`/`dex`/`con`/`int`/`wis`/`cha`）。
+		// `#574`：本表原先写 `skill: 'dex'` 这类**属性键**（`skill` 要的是**技能名**） ⇒ `Rules.check` 找不到技能名 ⇒ **抛「未知技能: dex」**
+		// ⇒ 五步主线的每一次判定都在报错（不落伤害/异常/成败分支，事件变成走过场）。修法＝改用 `abil`（语义不变：属性豁免）。
+		// `yields` 是"这个位点能拿到什么关键产出"——反 S/L 门用）
 		sites: {
-			'洞窟·挥剑': { skill: 'str', dc: 12 },
-			'洞窟·躲闪': { skill: 'dex', dc: 11 },
-			'洞窟·围斗': { skill: 'str', dc: 13 },
-			'洞窟·撑住': { skill: 'con', dc: 12 },
+			'洞窟·挥剑': { abil: 'str', dc: 12 },
+			'洞窟·躲闪': { abil: 'dex', dc: 11 },
+			'洞窟·围斗': { abil: 'str', dc: 13 },
+			'洞窟·撑住': { abil: 'con', dc: 12 },
 			// 宝箱（S4 §4.3）：3 机关 × {普通 12 · 珍贵 15 · 借助通用道具 9（−3）}——**降难走声明**，不在内容里改 DC
-			'宝箱·锁扣': { skill: 'dex', dc: 12 },
-			'宝箱·锁扣·珍贵': { skill: 'dex', dc: 15 },
-			'宝箱·锁扣·借助具': { skill: 'dex', dc: 9 },
-			'宝箱·机关针': { skill: 'con', dc: 12 },
-			'宝箱·机关针·珍贵': { skill: 'con', dc: 15 },
-			'宝箱·机关针·借助具': { skill: 'con', dc: 9 },
-			'宝箱·石块': { skill: 'str', dc: 12 },
-			'宝箱·石块·珍贵': { skill: 'str', dc: 15 },
-			'宝箱·石块·借助具': { skill: 'str', dc: 9 },
-			'洞窟·矿脉': { skill: 'wis', dc: 11 },
-			'洞窟·地下湖': { skill: 'dex', dc: 13 },
-			'洞窟·蘑菇': { skill: 'int', dc: 11 },
-			'陷阱·闪避': { skill: 'dex', dc: 12 },
-			'旅人·察言': { skill: 'wis', dc: 12 },
-			'旅人·开口': { skill: 'cha', dc: 12 },
+			'宝箱·锁扣': { abil: 'dex', dc: 12 },
+			'宝箱·锁扣·珍贵': { abil: 'dex', dc: 15 },
+			'宝箱·锁扣·借助具': { abil: 'dex', dc: 9 },
+			'宝箱·机关针': { abil: 'con', dc: 12 },
+			'宝箱·机关针·珍贵': { abil: 'con', dc: 15 },
+			'宝箱·机关针·借助具': { abil: 'con', dc: 9 },
+			'宝箱·石块': { abil: 'str', dc: 12 },
+			'宝箱·石块·珍贵': { abil: 'str', dc: 15 },
+			'宝箱·石块·借助具': { abil: 'str', dc: 9 },
+			'洞窟·矿脉': { abil: 'wis', dc: 11 },
+			'洞窟·地下湖': { abil: 'dex', dc: 13 },
+			'洞窟·蘑菇': { abil: 'int', dc: 11 },
+			'陷阱·闪避': { abil: 'dex', dc: 12 },
+			'旅人·察言': { abil: 'wis', dc: 12 },
+			'旅人·开口': { abil: 'cha', dc: 12 },
 		},
 		keyYields: [],
 	};
@@ -78,13 +82,26 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 	const Echoes = { list: [], revisit: [] };
 	const Shifts = { anchors: [] };
 	const Investment = { expressive: [], failClueExempt: {}, eraDomain: { past: [], branch: [], flagEra: {}, crossEraGates: [] } };
-	const Notes = { entries: {} };
+	// `#574`：内容里 `Sg.notes.add(...)` 用到的笔记**必须在这里登记**（引擎 fail-loud：未登记即报错）——
+	// 原先 `entries` 为空而内容照写 ⇒ 宝箱／矿洞／空洞三条路在真机上抛错（当时的门没覆盖到这一面）。
+	const Notes = { entries: {
+		n_cave_loot: {
+			title: '箱子里的东西', src: '洞里的箱子', tags: ['宝物'], era: window.Game.Era.PRESENT, flagPath: 'ev.cave_loot',
+			body: '铁皮箱子里只有干粮，和一件能撬东西的家什。有人比你先到过，也没能全部带走。',
+		},
+		n_cave_echo: {
+			title: '石壁的回声', src: '空洞', tags: ['线索'], era: window.Game.Era.PRESENT, flagPath: 'ev.cave_echo',
+			body: '空洞把脚步声送了回来：前面还有多远、哪一段地面下面是空的——听一遍就记住了一半。',
+		},
+	} };
 
 	// 状态契约域（`--state`）：本故事的键 + **引擎保留的运行时槽**（引擎会写它们 ⇒ 故事必须登记）
 	const State = {
 		domains: [
 			{ id: 'cave', prefix: ['cave_', 'chest_'], note: '洞窟进程（步数、事件选择、机关、钥匙）' },
-			{ id: 'runtime', keys: ['last_result', 'last_roll', 'soc', 'soc_last', 'soc_lever', 'fight', 'ending'], note: '引擎保留的运行时槽（每故事都写）' },
+			// `#574`：`notes` 也是引擎写的槽（`Sg.notes.add` 的「已授予」真存储 `pc.ev.notes`）——引擎运行时胶水
+			// 现在真的进了每个故事的产物 ⇒ 每个故事都要登记它（读写点都在引擎侧 ⇒ 只要求登记域）。
+			{ id: 'runtime', keys: ['last_result', 'last_roll', 'soc', 'soc_last', 'soc_lever', 'fight', 'ending', 'notes'], note: '引擎保留的运行时槽（每故事都写）' },
 			{ id: 'gear', prefix: ['gearHp'], note: '装备耐久（S1 机制的状态面）' },
 			{ id: 'cave-status', keys: ['statuses'], note: '部位×异常（S2 机制的状态面）' },
 		],

@@ -156,9 +156,11 @@ t('① 未知 scope ⇒ 报错（不许静默当 engine 处理）', (() => { try
 // ⑦ 两个消费点都不再持有键字面量（`Sg.UI` engine ／ `Sg.Codex` story）
 {
 	const core = readFileSync(sourcePath('10-core.twee'), 'utf8');
-	const script = readFileSync(sourcePath('80-script.twee'), 'utf8');
+	// `#574`：`Sg.Codex`（图鉴界面）从 `src/80-script.twee` 搬回**故事面**（`stories/mist-forest/72-codex-ui.twee`）
+	// —— 判据跟着**定义落点**走（`sourcePath` 按路径后缀匹配 ⇒ 不写死搬家后的前缀）。
+	const codex = readFileSync(sourcePath('72-codex-ui.twee'), 'utf8');
 	t("⑦ `Sg.UI` 走 `Sg.store.key('engine','ui.v1')` 且不再持有键字面量", /Sg\.store\.key\('engine', 'ui\.v1'\)/.test(stripComments(core)) && !/["'`]sgstory\./.test(stripComments(core)));
-	t('⑦ `Sg.Codex` 走 `Sg.store`（键字面量已清零、老键名只在 store 里）', /Sg\.store\.(key|rawWithLegacy)/.test(stripComments(script)) && !/["'`]sgstory\./.test(stripComments(script)));
+	t('⑦ `Sg.Codex` 走 `Sg.store`（键字面量已清零、老键名只在 store 里）', /Sg\.store\.(key|rawWithLegacy)/.test(stripComments(codex)) && !/["'`]sgstory\./.test(stripComments(codex)));
 }
 
 console.log(bad ? `\n✗ 存储缝门：${bad} 项` : '\n✔ 存储缝门通过（作用域 · 隔离 · fail-loud · 幂等迁移 · 单一落点 · 身份一致）');

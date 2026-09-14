@@ -264,6 +264,14 @@ const unique = [...new Set(refs.map((r) => r.ref))];
 
 if (!TOKEN) {
 	console.log(`扫到 ${docs.length} 个文档、${refs.length} 处 #NNN 引用（唯一 ${unique.length} 个）`);
+	// `#562` 反沉默：**CI 里**没有 token ⇒ 红。此前一律"○ 跳过 + exit 0"，于是这道门**在 CI 里从未真正跑过**——
+	// 一类"门在链上但恒空转"的假绿（与 `#557`／`dev-conventions §13` 同类：**解析不到输入就该响**）。
+	// 本地开发允许无 token（警告跳过），因为不把网络依赖塞进日常链路；**CI 必须能核验**。
+	if (process.env.CI) {
+		console.error('\n✗ F6 台账新鲜度门：CI 环境没有 token（`GH_TOKEN`／`GITHUB_TOKEN`）⇒ **无法核验 issue 状态**。');
+		console.error('  请给该 job 注入 `GH_TOKEN: ${{ github.token }}`（见 `#562`）——否则这道门在链上恒空转、假绿。');
+		process.exit(1);
+	}
 	console.log('○ 跳过（无 token：设 GITHUB_TOKEN 或 GH_TOKEN 后再跑；本门不把网络依赖塞进主链路）');
 	if (ledgerBad && argv.includes('--check')) { console.error(`\n✗ F6 竞品侧台账未通过（${ledgerBad} 项）`); process.exit(1); }
 	process.exit(0);

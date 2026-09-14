@@ -126,7 +126,7 @@ export const SEGMENTS = [
 	// #574：逐故事**运行时契约**门 —— 面存在 / 位点能判 / 笔记可用 / 侧栏可用 / 机制真落
 	// （成因：`Sg.*` 面缺一段、位点写成属性键、`applyStatus` 返回值被丢、`maxHp` 字段名——四件都曾静默通过）
 	{ id: "test-story-runtime-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/story-runtime.mjs --selftest" },
-	{ id: "test-story-runtime-mjs", phase: 'test', cost: 5, cmd: "node test/story-runtime.mjs" },
+	{ id: "test-story-runtime-mjs", phase: 'test', cost: 8, cmd: "node test/story-runtime.mjs" },
 	// #434 阶段 3：`Sg.notes.add()` 的行为门（幂等 · 双写 · 双读 · 多源 setPath 护栏）
 	{ id: "test-notes-write-mjs", phase: 'test', cost: 0.2, cmd: "node test/notes-write.mjs" },
 	// #460／#441-E：**第二故事接入自检** —— 用最小故事（stories/minimal-demo）跑**引擎门**：

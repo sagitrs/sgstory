@@ -71,8 +71,10 @@ jobs:
           retention-days: 1
 
   soak:
-    # L2 对抗席游走器长测（#382 缩量）：10+10 局随机游走 + 位点双支清扫（双支为确定性定向扫描，与局数无关）
-    # 全量兜底 = soak-nightly.yml（30 30 + 多种子矩阵，更强覆盖）
+    # **确定性部分＋真机**（`#630`／伞 `#626`）：位点**双支清扫**（定向扫描，与局数无关，实测 68 位点 ≈3s）＋ 真机浏览器断言。
+    # 随机游走**已从 PR 门撤出**——它是**仪器**不是**判据**：断言的是"抽样路径上没崩"，不是"行为符合预期"；
+    # 把它设成门＝用抽样运气冒充规格（这正是伞 `#626` 要改的形态）。长测改由 `soak-nightly.yml` 跑（report-only）。
+    # 覆盖口径早就不吃它：`test/coverage.mjs:24`＝`#27` 的降级决定。
     # #520：**纯文档改动跳过本 job**（`changes` job 判；理由与失败开向见那里）
     needs: [changes]
     if: needs.changes.outputs.code == 'true'
@@ -87,7 +89,8 @@ jobs:
       - run: npm ci
       - run: pip install fonttools brotli
       - run: npm run build
-      - run: node test/walker.mjs 10 10
+      # 0 0 ＝ 只跑**确定性**的位点双支清扫（不再抽样）；随机游走的多种子矩阵见 nightly
+      - run: node test/walker.mjs 0 0
       # #385：真机浏览器断言入 PR 门（原步骤恒 skipped——绿灯含义失真，#363 静默降级族）
       - run: npm i --no-save playwright
       - uses: actions/cache@v4

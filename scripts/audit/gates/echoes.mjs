@@ -30,7 +30,7 @@ export function conditionOwner(src, anchor) {
 	};
 }
 // 登记 cause → 期望条件正则（flag → world/ev.X；token → inv["X"]；towerFlag → tower.X）
-import { noteIdsForFlag, storyText, rowsContaining } from '../lib/shared.mjs';
+import { noteIdsForFlag, storyText, rowsContaining, condTextOf } from '../lib/shared.mjs';
 
 const asList = (x) => (Array.isArray(x) ? x.map(String) : x ? [String(x)] : []);
 /** 表行条件 → 与 `conditionOwner` 同形状的 `conds`（`req`/`any` 为正、`exclude` 为取反）。
@@ -39,10 +39,9 @@ const asList = (x) => (Array.isArray(x) ? x.map(String) : x ? [String(x)] : []);
  *  注：表行条件只能表达**状态键**；`cause.token`（持有物）/`towerFlag` 那类若搬到表里，本门会如实判红
  *  （不是漏判：那种回声的位点本就该留在段落）。 */
 export const rowCondsOf = (row) => {
-	const keyText = (k) => (String(k).startsWith('n_') ? `Sg.notes.has('${k}')` : `$pc.${String(k).includes('.') ? k : `ev.${k}`}`);
 	return [
-		...[...asList(row?.req), ...asList(row?.any)].map((k) => ({ text: keyText(k), negated: false })),
-		...asList(row?.exclude).map((k) => ({ text: keyText(k), negated: true })),
+		...[...asList(row?.req), ...asList(row?.any)].map((k) => ({ text: condTextOf(k), negated: false })),
+		...asList(row?.exclude).map((k) => ({ text: condTextOf(k), negated: true })),
 	];
 };
 

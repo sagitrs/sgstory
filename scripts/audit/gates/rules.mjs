@@ -161,6 +161,37 @@ export const rowKeyPrefixes = (rows) => {
 	}
 	return [...out];
 };
+/** `sets:` 形状判据（`#435` Q1 拍板：**授予家族第三类**——`yields` 笔记／`gives` 物品／`sets` 状态键）。
+ *  三条收窄（都可机检，就是为了不让"表＝脚本"）：
+ *   ① 键必须是**已登记的状态键**（裸键或 `ev.`/`world.` 限定；复用 `--state` 的域表）；
+ *   ② **有笔记的键不得进 `sets`**（那必须走 `yields`——否则就是"同一知识两条写路"，正是 `#434` 用 fail-loud 挡的）；
+ *   ③ 只许**布尔置真**语义（`sets: ['k']` ≡ `<<setflag "k">>`）；数值/枚举写不在内（另票）。
+ *  另：写点仍恒在 `<<rules>>` 一处（引擎侧 `applySets`，幂等，与 `applyYields`/`applyGrants` 同面）。 */
+export const setProblems = (rows, { notes = {}, domains = [] } = {}) => {
+	const flagPaths = new Set();
+	for (const e of Object.values(notes ?? {})) for (const p of (Array.isArray(e?.flagPath) ? e.flagPath : e?.flagPath ? [e.flagPath] : [])) flagPaths.add(String(p));
+	const match = (b) => (domains ?? []).filter((d) => (d.keys ?? []).includes(b) || (d.prefix ?? []).some((x) => b.startsWith(x)));
+	const out = [];
+	for (const r of rows ?? []) {
+		for (const k0 of (Array.isArray(r?.sets) ? r.sets : r?.sets ? [r.sets] : [])) {
+			const k = String(k0), bare = k.replace(/^(ev|world)\./, '');
+			if (/^(?:inv|era):/.test(k) || k.startsWith('n_')) { out.push({ id: r.id, key: k, why: '键形非法（`sets` 只写状态键：不写 note id／前缀键）' }); continue; }
+			if (!/^(?:ev|world)\.[a-z_]\w*$/.test(k) && !/^[a-z_]\w*$/.test(k)) { out.push({ id: r.id, key: k, why: '键形非法（写裸键或 `ev.`/`world.` 限定；裸键默认 `ev.`，与 `holds()` 同口径）' }); continue; }
+			const qualified = k.includes('.') ? k : `ev.${k}`;
+			if (flagPaths.has(qualified)) { out.push({ id: r.id, key: k, why: '该键**有笔记** ⇒ 必须走 `yields`（避免同一知识两条写路）' }); continue; }
+			if (!match(bare).length) out.push({ id: r.id, key: k, why: '键未登记在状态契约域（`--state`）里' });
+		}
+	}
+	return out;
+};
+/** **引擎兑现的"面"**：行里用到的面必须由引擎宣告（`Sg.rules.effects`）——反沉默。
+ *  为什么（与 `prefixes` 同轴）：被引擎忽略的声明＝**静默空转**（行看起来授予了，实际什么都没发生）。
+ *  注：`yields`/`gives` 早于本机制（老声明面，不追溯）；`sets` 是新增面 ⇒ 用到就必须宣告。 */
+export const undeclaredSets = (rows, declared = []) => {
+	const used = (rows ?? []).some((r) => r?.sets != null && !(Array.isArray(r.sets) && !r.sets.length));
+	return used && !(declared ?? []).includes('sets') ? [{ surface: 'sets', declared: declared ?? [] }] : [];
+};
+
 /** 未被引擎宣告支持的前缀 ⇒ `[{ prefix, declared }]`。 */
 export const undeclaredPrefixes = (rows, declared = []) =>
 	rowKeyPrefixes(rows).filter((p) => !(declared ?? []).includes(p)).map((prefix) => ({ prefix, declared: declared ?? [] }));
@@ -260,6 +291,13 @@ export const run = (ctx) => {
 			['正例：前缀键被引擎宣告支持 ⇒ 不报', undeclaredPrefixes([{ id: 'A', req: ['inv:日记'] }], ['inv', 'era']).length === 0],
 			['🔴 反例：用了未宣告的前缀（`inv:` 而引擎只认状态键）⇒ 报（否则条件永假＝行静默死）', undeclaredPrefixes([{ id: 'A', req: ['inv:日记'] }], []).join() !== ''],
 			['边界：非前缀键（note id／裸键／`ev.x`）不参与前缀判定', rowKeyPrefixes([{ id: 'A', req: ['n_x'], any: ['fog_thin'], exclude: ['ev.y'] }]).length === 0],
+			// Q1：`sets:`（授予家族第三类）的三条收窄 ＋ 引擎面宣告
+			['正例：`sets` 写已登记的无笔记状态键 ⇒ 不报', setProblems([{ id: 'A', sets: ['world.flower_taken'] }], { notes: {}, domains: [{ id: 'flower', prefix: ['flower_'] }] }).length === 0],
+			['🔴 反例：`sets` 写了**有笔记**的键 ⇒ 报（必须走 `yields`）', setProblems([{ id: 'A', sets: ['world.hall_hint'] }], { notes: { n_hall_hint: { flagPath: 'world.hall_hint' } }, domains: [{ id: 'tower', prefix: ['hall_'] }] }).some((p) => p.why.includes('有笔记'))],
+			['🔴 反例：`sets` 写了未登记的键 ⇒ 报（新增状态键必须登记）', setProblems([{ id: 'A', sets: ['no_such_flag'] }], { notes: {}, domains: [] }).some((p) => p.why.includes('未登记'))],
+			['🔴 反例：`sets` 写 note id／前缀键 ⇒ 报（不是状态键）', setProblems([{ id: 'A', sets: ['n_x'] }], {}).length === 1 && setProblems([{ id: 'A', sets: ['inv:日记'] }], {}).length === 1],
+			['🔴 反例：用了 `sets` 但引擎未宣告 ⇒ 报（否则静默空转）', undeclaredSets([{ id: 'A', sets: ['world.x'] }], []).length === 1],
+			['正例：引擎宣告了 `sets` ⇒ 不报；没用到 `sets` 的行不需要宣告', undeclaredSets([{ id: 'A', sets: ['world.x'] }], ['sets']).length === 0 && undeclaredSets([{ id: 'A', yields: ['n_x'] }], []).length === 0],
 		);
 		// ④ scope 机检（调用面）
 		const AT = (p, scope) => ({ p, scope });
@@ -292,6 +330,8 @@ export const run = (ctx) => {
 		for (const d of deadRows(rows)) { console.log(`  ✗ 死规则：行「${d.id}」永不被选中（被「${d.killedBy}」完全覆盖）`); bad++; }
 		for (const b of textBranchRows(rows)) for (const pr of b.probs) { console.log(`  ✗ \`text\` 分支越界：行「${b.id}」的 ${`<<if ${pr.cond}>>`} 读了 ${pr.why.join('、')}——分支只许读**渲染期只读槽**（$last_check／\`_\` 前缀局部量）；状态/时代/持有物/笔记请写成行的 req/any/exclude（键形含 inv:／era:）`); bad++; }
 		for (const u of undeclaredPrefixes(rows, ctx.window?.Sg?.rules?.prefixes ?? [])) { console.log(`  ✗ 前缀键未被引擎宣告：行里用了「${u.prefix}:」，但 \`Sg.rules.prefixes\`（当前 ${JSON.stringify(u.declared)}）里没有它——引擎不认的前缀会让条件**永假**（行静默死掉）`); bad++; }
+		for (const p of setProblems(rows, { notes: ctx.Game?.Notes?.entries ?? {}, domains: ctx.Game?.State?.domains ?? [] })) { console.log(`  ✗ \`sets\` 声明非法：行「${p.id}」的「${p.key}」——${p.why}`); bad++; }
+		for (const u of undeclaredSets(rows, ctx.window?.Sg?.rules?.effects ?? [])) { console.log(`  ✗ 行面未被引擎宣告：表里用了「${u.surface}」，但 \`Sg.rules.effects\`（当前 ${JSON.stringify(u.declared)}）里没有它——引擎不兑现的声明＝**静默空转**`); bad++; }
 		for (const w of textWriteRows(rows)) { console.log(`  ✗ \`text\` 不是纯渲染：行「${w.id}」含 ${w.hits.join('、')}——写状态请走「yields」（A 方案：渲染成功后由 \`<<rules>>\` 统一落 Sg.notes.add）`); bad++; }
 		const { calls, dynamic } = ruleCalls(ctx.passageSrc, (p) => ctx.passageTags?.get(p) ?? []);
 		for (const id of orphanRows(rows, calls)) { console.log(`  ✗ 未接管行：行「${id}」的 \`scope\` 没有任何 \`<<rules "…">>\` 调用点 ⇒ 永不被渲染`); bad++; }

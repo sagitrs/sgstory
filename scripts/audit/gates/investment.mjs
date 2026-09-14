@@ -1,7 +1,7 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 // `#433` 阶段 2：条件可能写成 `Sg.notes.has('n_x')` ⇒ 判定「某选项引用了哪些旗标」必须认第二种形状
-import { noteReadFlags, noteIdsForFlag, conditionReadsFlag, noteWriteRefs, storyText, ruleRowFlags } from '../lib/shared.mjs';
+import { noteReadFlags, noteIdsForFlag, conditionReadsFlag, noteWriteRefs, storyText, ruleRowFlags, condTextOf, rowsContaining } from '../lib/shared.mjs';
 // flags=['investment']。校验：npm run audit:golden。
 export const flag = 'investment';
 export const flags = ["investment"];
@@ -58,6 +58,21 @@ function crossEraProblems(input = {}) {
 	if (crossEra.length < 1) problems.push('G3 全仓找不到「跨时代合龙门」：没有任何选项同时引用过去与现在两侧旗标');
 	else notes.push(`G3 跨时代合龙门 ${crossEra.length} 处：${crossEra.slice(0, 3).join('；')}`);
 	for (const g of dom.crossEraGates ?? []) {
+		// `#435` 前置 0 补：**条件面接表侧** —— 选项 `label` 落在某行的 `text` 里 ⇒ 条件＝该行的 `req`/`any`
+		//（与段落里的 `<<if>>` **同一份判据**，条件文本由单一权威 `condTextOf()` 合成 ⇒ 不另写一套转换）。
+		const viaRow = (input.rows ?? []).flatMap((r) => rowsContaining([r], g.p, g.label));
+		if (viaRow.length) {
+			const cond = viaRow.flatMap((r) => [...(r.req ?? []), ...(r.any ?? [])].map(String).map(condTextOf)).join(' ');
+			for (const f of g.pastFlags ?? []) {
+				if (!conditionReadsFlag(cond, f, NOTE_IDS.get(f) ?? [])) problems.push(`G3 「${g.label}」（表行 ${viaRow.map((r) => r.id).join('/')}）条件里缺过去侧旗标 ${f}`);
+				else if (eraOf(f) !== 'past') problems.push(`G3 旗标 ${f} 判定为 ${eraOf(f)}，声明为 past——与时代域表/声明不符`);
+			}
+			for (const f of g.presentFlags ?? []) {
+				if (!conditionReadsFlag(cond, f, NOTE_IDS.get(f) ?? [])) problems.push(`G3 「${g.label}」（表行 ${viaRow.map((r) => r.id).join('/')}）条件里缺现在侧旗标 ${f}`);
+				else if (eraOf(f) !== 'present') problems.push(`G3 旗标 ${f} 判定为 ${eraOf(f)}，声明为 present——与时代域表/声明不符`);
+			}
+			continue;
+		}
 		const src = sources.get(g.p);
 		if (!src) { problems.push(`G3 登记段落不存在：${g.p}`); continue; }
 		const at = src.indexOf(g.label);
@@ -177,6 +192,21 @@ if (wantAll || arg('investment')) {
 				['正例：现在侧旗标经笔记读 ⇒ 仍算跨时代合龙门', { sources: SRC, domain: DOM, notes: NOTES }, 0],
 				['正例：两侧都直接读（未转发的原形状）', { sources: new Map([...SRC, ['选项甲', SRC.get('选项乙')]]), domain: DOM, notes: NOTES }, 0],
 				['反例：只引用过去一侧 ⇒ 判"找不到合龙门"', { sources: new Map([['过去片段', SRC.get('过去片段')], ['选项甲', "<<if $pc.ev.p_flag>><<link \"单\">>走<</link>><</if>>"]]), domain: DOM, notes: NOTES }, 1],
+			// #435 前置 0 补：G3 的**登记合龙门条件面接表侧**（选项 label 落在表行 ⇒ 条件＝行的 req/any）
+			['G3 表侧正例：选项在表行里且 `req` 覆盖声明两侧旗标 ⇒ 不报',
+				{ rows: [{ id: 'R', scope: '老巫女', req: ['seer_asked', 'coord', 'n_failure_cause'], text: '<<link "问">>问她：缺的那一句话，是谁没说完？<</link>>' }],
+				  domain: { past: [], branch: [], flagEra: { failure_cause: 'present', seer_asked: 'past', coord: 'past' },
+					  crossEraGates: [{ id: 'witch_fire', p: '老巫女', label: '问她：缺的那一句话，是谁没说完？', pastFlags: ['seer_asked', 'coord'], presentFlags: ['failure_cause'] }] },
+				  sources: new Map(), notes: { n_failure_cause: { flagPath: 'ev.failure_cause' } } }, 0],
+			['G3 表侧反例：表行的条件缺一个声明旗标 ⇒ 必报',
+				{ rows: [{ id: 'R', scope: '老巫女', req: ['seer_asked', 'coord'], text: '问她：缺的那一句话，是谁没说完？' }],
+				  domain: { past: [], branch: [], flagEra: { failure_cause: 'present', seer_asked: 'past', coord: 'past' },
+					  crossEraGates: [{ id: 'witch_fire', p: '老巫女', label: '问她：缺的那一句话，是谁没说完？', pastFlags: ['seer_asked', 'coord'], presentFlags: ['failure_cause'] }] },
+				  sources: new Map(), notes: { n_failure_cause: { flagPath: 'ev.failure_cause' } } }, 1],
+			['G3 表侧反例：表行存在但条件全空（无 `req`/`any`）⇒ 必报（假合龙门）',
+				{ rows: [{ id: 'R', scope: '老巫女', text: '问她：缺的那一句话，是谁没说完？' }],
+				  domain: { past: [], branch: [], flagEra: {}, crossEraGates: [{ id: 'witch_fire', p: '老巫女', label: '问她：缺的那一句话，是谁没说完？', pastFlags: ['seer_asked'], presentFlags: ['failure_cause'] }] },
+				  sources: new Map(), notes: {} }, 1],
 			];
 			for (const [label, input, expect] of g3cases) {
 				const hit = crossEraProblems(input).problems.length;

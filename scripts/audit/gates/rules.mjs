@@ -13,6 +13,17 @@
 //     反过来 `any(B)` 落在 `any(A)` 里时也可能 B 不中——两种我们都用反例搜索兜住。）
 //
 // 用法：node scripts/audit.mjs --rules --check
+//
+// 追加（`#435` 三片之①，2026-09-14）——**写侧**（读侧＝新门 `--reads`）：
+//   ③ `text` 列只许**纯渲染**：A 方案（`text` 只渲染，`yields` 由 `<<rules>>` 渲染成功后统一落
+//      `Sg.notes.add`）若允许表里写状态，就会**悄悄退化成 B**（数据里夹机制：`yields` 变装饰、与真写点各自漂移）。
+//   ④ `scope` 机检（三条，都属"行永不被选中/两位点抢一行"同族）：
+//      · **未接管行**：`scope` 全仓无 `<<rules "…">>` 调用点 ⇒ 该行永远不被渲染（搬家漏了半截）；
+//      · **同位点重复调用**：同一段落里同一 `scope` 被调用 ≥2 次 ⇒ 两个位点抢同一行（渲染重复）；
+//      · **归属不符**：`scope` 写成 `段落#位点`（＝声明了归属段落）时，调用点必须**就在那个段落**里。
+//      另：无对应行的调用点 ⇒ 红（`pick()` 返回 null ＝ 正文静默消失，是本门要抓的同一类静默）。
+import { WRITE_PATTERNS, NOTE_WRITE_RE } from '../lib/shared.mjs';
+
 export const flag = 'rules';
 export const flags = ['rules'];
 
@@ -88,6 +99,69 @@ export const ties = (rows) => {
 	return [...byScope.entries()].filter(([, ids]) => ids.length > 1).map(([k, ids]) => ({ scope: k.split('|')[0], prio: k.split('|')[1], ids }));
 };
 
+// ── ③ `text` 列只许纯渲染（写侧判据）────────────────────────────────────────
+// 形态清单与 `--reads`（读侧）刻意**成对**：一个管"表里不许写"，一个管"表里不许读"。
+// 写宏：SugarCube/本仓会改状态的宏；赋值式：复用 `shared.mjs` 的 `WRITE_PATTERNS` **单一权威**
+//（`<<set $pc.ev.x to>>`／`pc.ev.x =` 都在其中）；`Sg.notes.add()` 复用 `NOTE_WRITE_RE`。
+// 允许：`<<link>>`／`<<goto>>`／`<<if>>`／widget 之类的**纯渲染/导航**（它们不改状态）。
+export const TEXT_WRITE_MACROS = ['set', 'setflag', 'run', 'give', 'damage', 'ending', 'firstTime', 'note'];
+/** 一行 `text` 里的状态写形态（空数组＝纯渲染）。 */
+export const textWrites = (text) => {
+	const t = String(text ?? '');
+	const hits = [];
+	for (const m of t.matchAll(/<<\s*([A-Za-z_][\w]*)\b/g)) if (TEXT_WRITE_MACROS.includes(m[1])) hits.push(`<<${m[1]}>>`);
+	for (const { re } of WRITE_PATTERNS) if (new RegExp(re.source, 'g').test(t)) hits.push('状态赋值');
+	if (new RegExp(NOTE_WRITE_RE.source, 'g').test(t)) hits.push('Sg.notes.add()');
+	return [...new Set(hits)];
+};
+/** 全表：哪些行的 `text` 含状态写 ⇒ `[{ id, hits }]`。 */
+export const textWriteRows = (rows) =>
+	(rows ?? []).filter((r) => r?.id).map((r) => ({ id: r.id, hits: textWrites(r.text) })).filter((x) => x.hits.length);
+
+// ── ④ scope 机检（调用面）────────────────────────────────────────────────
+/** 静态取出 `<<rules "scope">>` 调用点（**机制段不算**：引擎注释里的示例不是调用）。
+ *  参数不是引号字面量（反引号表达式等）⇒ 无法静态判定，单独报告（**反沉默**：不静默跳过）。 */
+export const ruleCalls = (sources, tagsOf = () => []) => {
+	const calls = [], dynamic = [];
+	for (const [p, src] of sources ?? []) {
+		const tags = tagsOf(p) ?? [];
+		if (['script', 'widget', 'stylesheet'].some((t) => tags.includes(t))) continue;
+		for (const m of String(src ?? '').matchAll(/<<\s*rules\s+([^>]*?)>>/g)) {
+			const raw = m[1].trim();
+			const lit = /^(['"])([\s\S]*)\1$/.exec(raw);
+			if (lit) calls.push({ p, scope: lit[2] });
+			else dynamic.push({ p, raw });
+		}
+	}
+	return { calls, dynamic };
+};
+/** 未接管行：`scope` 无任何调用点 ⇒ 永远不被渲染。 */
+export const orphanRows = (rows, calls) => {
+	const scopes = new Set((calls ?? []).map((c) => c.scope));
+	return (rows ?? []).filter((r) => r?.id).filter((r) => !scopes.has(r.scope)).map((r) => r.id);
+};
+/** 同位点重复调用：同一段落里同一 `scope` 被调用 ≥2 次（两个位点抢同一行）。 */
+export const duplicateCalls = (calls) => {
+	const seen = new Map();
+	for (const c of calls ?? []) {
+		const k = `${c.p}|${c.scope}`;
+		seen.set(k, (seen.get(k) ?? 0) + 1);
+	}
+	return [...seen.entries()].filter(([, n]) => n > 1).map(([k]) => k);
+};
+/** 归属不符：`scope` 含 `#`（＝声明归属段落）时，调用点必须在**该段落**里；另报"调用点无对应行"。 */
+export const scopeProblems = (rows, calls) => {
+	const list = (rows ?? []).filter((r) => r?.id);
+	const scopes = new Set(list.map((r) => r.scope));
+	const out = [];
+	for (const c of calls ?? []) {
+		if (!scopes.has(c.scope)) { out.push(`调用点无对应行：段落「${c.p}」的 \`<<rules "${c.scope}">>\` 在表里找不到 scope（漏登记＝正文静默消失）`); continue; }
+		const [passage] = String(c.scope).split('#');
+		if (c.scope.includes('#') && passage !== c.p) out.push(`归属不符：scope「${c.scope}」声明归属「${passage}」，却从段落「${c.p}」调用`);
+	}
+	return out;
+};
+
 export const run = (ctx) => {
 	const { arg, wantAll } = ctx;
 	if (!(wantAll || arg('rules'))) return;
@@ -108,18 +182,77 @@ export const run = (ctx) => {
 			['`prereq`：指向不存在的行 ⇒ 报', prereqProblems([R('A', { prereq: ['nope'] })]).some((p) => p.includes('不存在'))],
 			['并列 prio：报告清单（不判红）', ties([R('A'), R('B', { req: ['z'] })])[0]?.ids.length === 2],
 		];
+		// ③ 写侧：`text` 只许纯渲染
+		const T = (text) => ({ id: 'T', scope: 'S', req: [], prio: 1, text });
+		cases.push(
+			['正例：`text` 纯渲染（`<<link>>`/`<<goto>>`/散文）⇒ 无写形态', textWrites(`先别动它 <<link "退回">><<goto "塔门">><</link>>`).length === 0],
+			['🔴 反例：`text` 含 `<<set $pc.ev.x to true>>` ⇒ 报', textWrites(`<<set $pc.ev.a to true>>`).includes('状态赋值') && textWrites(`<<set $pc.ev.a to true>>`).includes('<<set>>')],
+			['🔴 反例：`text` 含 `Sg.notes.add()` ⇒ 报（A 方案退化成 B 的形态）', textWrites(`<<run Sg.notes.add('n_x')>>`).includes('Sg.notes.add()')],
+			['🔴 反例：`text` 含 `<<give>>` ⇒ 报', textWrites(`<<give "月光花">>`).includes('<<give>>')],
+			['🔴 反例：`text` 含赋值式 `pc.world.x = true` ⇒ 报', textWrites(`<<run (pc.world.x = true)>>`).includes('状态赋值')],
+			['边界：`<<if>>` 只读不写 ⇒ 不算写侧问题（读侧归 `--reads`）', textWrites(`<<if Sg.notes.has('n_x')>>字<</if>>`).length === 0],
+			['边界：宏名前缀不误伤（`<<setflag>>` 只算 setflag，不算 set）', textWrites(`<<setflag "a">>`).includes('<<setflag>>') && !textWrites(`<<setflag "a">>`).includes('<<set>>')],
+		);
+		// ④ scope 机检（调用面）
+		const AT = (p, scope) => ({ p, scope });
+		cases.push(
+			['正例：`scope` 有调用点、归属段落一致 ⇒ 无问题', scopeProblems([R('A', { scope: '塔外花田#站一会' })], [AT('塔外花田', '塔外花田#站一会')]).length === 0],
+			['🔴 反例：未接管行（`scope` 无调用点）⇒ 报', orphanRows([R('A'), R('B', { scope: 'T' })], [AT('P', 'S')]).join() === 'B'],
+			['🔴 反例：同段同位点调用两次 ⇒ 报', duplicateCalls([AT('P', 'A#1'), AT('P', 'A#1')]).length === 1],
+			['边界：不同段落各调一次（同名 scope）⇒ 不报重复', duplicateCalls([AT('P', 'Q'), AT('R', 'Q')]).length === 0],
+			['🔴 反例：`段落#位点` 从别的段落调用 ⇒ 归属不符', scopeProblems([R('A', { scope: '塔外花田#站一会' })], [AT('塔门', '塔外花田#站一会')]).some((x) => x.includes('归属不符'))],
+			['🔴 反例：调用点无对应行 ⇒ 报（正文会静默消失）', scopeProblems([R('A')], [AT('P', 'nope')]).some((x) => x.includes('无对应行'))],
+			['边界：无 `#` 的话题式 scope 可从任意段落调用', scopeProblems([R('A', { scope: '守林人' })], [AT('守林人·守', '守林人')]).length === 0],
+		);
 		let selfBad = 0;
 		for (const [label, ok] of cases) { if (!ok) selfBad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
 		bad += selfBad;
+	}
+	{
+		// 选择器自证（真代码路径）：`Sg.rules.pick()` 用临时表跑，跑完还原（**注入式**，不靠真表形状）
+		let badSel = 0;
+		for (const [label, ok] of selectorCases(ctx.window)) { if (!ok) badSel++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
+		bad += badSel;
 	}
 	const rows = ctx.window?.Sg?.story?.rules?.() ?? [];
 	if (!Array.isArray(rows)) { console.log('  ✗ `Sg.story.rules()` 未返回行数组'); bad++; }
 	else {
 		for (const p of prereqProblems(rows)) { console.log(`  ✗ ${p}`); bad++; }
 		for (const d of deadRows(rows)) { console.log(`  ✗ 死规则：行「${d.id}」永不被选中（被「${d.killedBy}」完全覆盖）`); bad++; }
+		for (const w of textWriteRows(rows)) { console.log(`  ✗ \`text\` 不是纯渲染：行「${w.id}」含 ${w.hits.join('、')}——写状态请走「yields」（A 方案：渲染成功后由 \`<<rules>>\` 统一落 Sg.notes.add）`); bad++; }
+		const { calls, dynamic } = ruleCalls(ctx.passageSrc, (p) => ctx.passageTags?.get(p) ?? []);
+		for (const id of orphanRows(rows, calls)) { console.log(`  ✗ 未接管行：行「${id}」的 \`scope\` 没有任何 \`<<rules "…">>\` 调用点 ⇒ 永不被渲染`); bad++; }
+		for (const k of duplicateCalls(calls)) { const [p, scope] = k.split('|'); console.log(`  ✗ 同位点重复调用：段落「${p}」里 \`<<rules "${scope}">>\` 出现 ≥2 次（两个位点抢同一行）`); bad++; }
+		for (const p of scopeProblems(rows, calls)) { console.log(`  ✗ ${p}`); bad++; }
+		for (const d of dynamic) console.log(`  · 无法静态判定：段落「${d.p}」的 \`<<rules ${d.raw}>>\`（参数不是引号字面量）`);
 		for (const t of ties(rows)) console.log(`  · 并列 prio：scope=${t.scope} prio=${t.prio} ⇒ ${t.ids.join(' / ')}（裁决＝表序最前）`);
-		console.log(`  · 条件表 ${rows.length} 行 · 作用域 ${[...new Set(rows.map((r) => r.scope))].length} 个`);
+		console.log(`  · 条件表 ${rows.length} 行 · 作用域 ${[...new Set(rows.map((r) => r.scope))].length} 个 · 调用点 ${calls.length} 个`);
 	}
 	if (bad) { console.error(`\n✗ 条件表门未通过（${bad} 项）`); process.exit(1); }
-	console.log('✔ 条件表门通过（无死规则 · prereq 形状合法）');
+	console.log('✔ 条件表门通过（无死规则 · prereq 形状合法 · `text` 纯渲染 · scope 与调用点一致）');
+};
+
+/** 选择器自证：`Sg.rules.pick()` 的真代码路径（临时表 ⇒ 跑完还原）。
+ *  为什么值得单独一测：位点约定（`段落#位点`）与 prio 裁决是**表↔引擎的接口**，它们错了不会有别的门叫。 */
+export const selectorCases = (w) => {
+	if (!w?.Sg?.rules?.pick || !w?.Sg?.story) return [['选择器自证：`Sg.rules.pick()` 不可用（dist 陈旧？）', false]];
+	const story = w.Sg.story, saved = story.rules, out = [], pc = w.Game?.Pc?.defaults?.() ?? {};
+	const pick = (scope) => w.Sg.rules.pick(scope, { pc, chose: new Set() });
+	try {
+		// 同段两位点各取各的行（`段落#位点` 约定的机检——共用 scope 会互相抢行，是结构性的）
+		story.rules = () => [
+			{ id: 'a1', scope: 'P#一', prio: 10, req: [], text: '一' },
+			{ id: 'a2', scope: 'P#二', prio: 10, req: [], text: '二' },
+		];
+		out.push(['同段两位点各取各的行（`段落#位点` 约定）', pick('P#一')?.id === 'a1' && pick('P#二')?.id === 'a2']);
+		story.rules = () => [{ id: 'low', scope: 'Q', prio: 1, req: [] }, { id: 'high', scope: 'Q', prio: 9, req: [] }];
+		out.push(['选择器：显式 `prio` 高者先中', pick('Q')?.id === 'high']);
+		story.rules = () => [{ id: 'first', scope: 'Q', prio: 5, req: [] }, { id: 'second', scope: 'Q', prio: 5, req: [] }];
+		out.push(['选择器：同 `prio` ⇒ 表序最前（不做隐式顺序假设）', pick('Q')?.id === 'first']);
+		story.rules = saved;
+	} catch (e) {
+		story.rules = saved;
+		return [...out, [`选择器自证崩了：${e?.message ?? e}`, false]];
+	}
+	return out;
 };

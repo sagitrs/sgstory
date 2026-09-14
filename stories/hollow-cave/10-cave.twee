@@ -38,7 +38,8 @@
 <<set _opts to Game.Combat.roadOffer(_n)>>
 <<if _opts and _opts.length>>
 	<<for _i to 0; _i lt _opts.length; _i++>>
-		<<link _opts[_i].hint>><<goto `"事件·" + _opts[_i].kind`>><</link>>
+		/% `#490`：每条路是一个**实例段落**（`路·<ref>`），六类事件各有一个**机制模板**（`机制·<kind>`）%/
+		<<link _opts[_i].hint>><<goto `"路·" + _opts[_i].ref`>><</link>>
 		<br>
 	<</for>>
 <<else>>
@@ -51,7 +52,7 @@
 <div class="sys-note">（身上带着异常：<<= $pc.statuses ? Object.keys($pc.statuses).join("、") : "">>。）</div>
 <</if>>
 
-:: 事件·shortFight
+:: 机制·shortFight
 /% payload: 张力 %/
 石壁后面窜出来一只东西，没有眼睛，壳是湿的。它先动的。
 
@@ -67,7 +68,7 @@
 	<<caveNext>>
 <</link>>
 
-:: 事件·longFight
+:: 机制·longFight
 /% payload: 张力 %/
 两只。它们不急着上，一人一边，等你自己乱。
 
@@ -82,7 +83,7 @@
 	<<set _phase to Game.Combat.waveRecord($pc, $last_check.success)>>
 	<<if _phase is "advance">>
 		这一批倒下了。石缝里又钻出来更多——它还有同伙。
-		<<include "事件·longFight">>
+		<<include "机制·longFight">>
 	<<elseif _phase is "cleared">>
 		最后一只也塌下去了。你站着，喘了很久。
 		<<set $pc.ev.fight to {}>>
@@ -94,11 +95,11 @@
 		<<caveNext>>
 	<<else>>
 		它退了半步。你还有机会。
-		<<include "事件·longFight">>
+		<<include "机制·longFight">>
 	<</if>>
 <</link>>
 
-:: 事件·chest
+:: 机制·chest
 /% payload: 选择 %/
 岩壁凹处嵌着一只箱子，铁皮鼓起，锁扣锈成了红色。
 
@@ -110,6 +111,8 @@
 <<if $pc.inv["钥匙"]>>
 	<<link "用那把锈钥匙开它（难度降为 0）">>
 		钥匙转半圈。机关根本没来得及动，箱盖就弹开了。
+		<<set _loot to Sg.story.lootOf(_rare ? "珍贵" : "普通")>>
+		<<if _loot.includes("TOOL")>><<give (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>>（顺手多了一件能降难的家什。）<</if>>
 		<<give "干粮">><<run Sg.notes.add("n_cave_loot")>>
 		<<caveNext>>
 	<</link>>
@@ -118,6 +121,7 @@
 		<<sitecheck `_rare ? _c.rareSite : _c.site`>>
 		<<if $last_check.success>>
 			具压住了机关。里面是干粮，和一小块铁片。
+			<<if _rare>><<give (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><</if>>
 			<<give "干粮">><<run Sg.notes.add("n_cave_loot")>>
 		<<else>>
 			具滑了，机关针扎进虎口。<<damage `Game.Damage.graze`>>
@@ -128,7 +132,7 @@
 	<<link "徒手解它">>
 		<<sitecheck `_rare ? _c.rareSite : _c.site`>>
 		<<if $last_check.success>>
-			锁扣应声而开。里面是干粮。
+			锁扣应声而开。里面是干粮<<if _rare>>，底下还压着一件能降难的家什<<give (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><</if>>。
 			<<give "干粮">><<run Sg.notes.add("n_cave_loot")>>
 		<<else>>
 			锁扣没动，指头先破了。<<damage `Game.Damage.graze`>>
@@ -138,7 +142,7 @@
 <</if>>
 <<link "不管它，径直走过去">><<caveNext>><</link>>
 
-:: 事件·cave
+:: 机制·cave
 /% payload: 信息 %/
 这里的洞不一样——空气里有点别的什么。
 
@@ -183,7 +187,7 @@
 	<<link "让火把在这里换一口气，继续走">><<caveNext>><</link>>
 <</if>>
 
-:: 事件·trap
+:: 机制·trap
 /% payload: 张力 %/
 脚下那层浮土比别处松。
 
@@ -199,7 +203,7 @@
 	<<caveNext>>
 <</link>>
 
-:: 事件·traveller
+:: 机制·traveller
 /% payload: 选择 %/
 前面有火光，在动。是一个人，裹着看不懂的布，坐在自己的火堆边。
 
@@ -252,3 +256,109 @@
 你站在那儿，身上剩着剑、火把，和一路带下来的伤。
 
 <<ending "地下村落" final>>
+
+/% ── 五段 × 三路：**每条路一个实例段落**（`#490` §4.1 六类事件各出 1–2 个实例；机制在 `机制·*`）── %/
+
+:: 路·1a
+/% payload: 张力 %/
+碎石间的拖痕还很新。再往里两步，那东西从石壁后头转了出来——没有眼睛，壳是湿的。
+
+<<include "机制·shortFight">>
+
+
+:: 路·1b
+/% payload: 选择 %/
+岩壁凹处嵌着一只箱子，铁皮鼓起。
+
+<<include "机制·chest">>
+
+
+:: 路·1c
+/% payload: 张力 %/
+这一段地面的浮土比别处松，边缘还翘着。
+
+<<include "机制·trap">>
+
+
+:: 路·2a
+/% payload: 张力 %/
+地上的脚印都朝一个方向，而且不止一双。你往前走，两边石壁后头各响了一声。
+
+<<include "机制·longFight">>
+
+
+:: 路·2b
+/% payload: 信息 %/
+这里吹过来的风是热的。
+
+<<include "机制·cave">>
+
+
+:: 路·2c
+/% payload: 信息 %/
+石缝里卡着一小块布——干净的，还带着线头。
+
+<<include "机制·traveller">>
+
+
+:: 路·3a
+/% payload: 张力 %/
+头顶有细砂在往下落，落在你肩上，簌簌的。
+
+<<include "机制·trap">>
+
+
+:: 路·3b
+/% payload: 选择 %/
+锁扣露在外面，锈得发红，锁舌上还挂着一小截断齿。
+
+<<include "机制·chest">>
+
+
+:: 路·3c
+/% payload: 张力 %/
+远处有东西在啃石头，一下，一下，很耐心。
+
+<<include "机制·shortFight">>
+
+
+:: 路·4a
+/% payload: 信息 %/
+滴水声从很低的地方传上来，落点空空的。
+
+<<include "机制·cave">>
+
+
+:: 路·4b
+/% payload: 张力 %/
+前面传来两声脚步——不是一只，是两只，一前一后。
+
+<<include "机制·longFight">>
+
+
+:: 路·4c
+/% payload: 信息 %/
+前面有火光，在动。有人在那边生了火。
+
+<<include "机制·traveller">>
+
+
+:: 路·5a
+/% payload: 信息 %/
+洞口那边能看见村子的屋顶，压着土，冒着烟。
+
+<<include "机制·cave">>
+
+
+:: 路·5b
+/% payload: 选择 %/
+最后一只箱子压在半塌的碎石底下，只露出一个角。
+
+<<include "机制·chest">>
+
+
+:: 路·5c
+/% payload: 张力 %/
+它守在那儿，不让路。看见你，就往前挪了一步。
+
+<<include "机制·longFight">>

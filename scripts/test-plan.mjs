@@ -129,6 +129,8 @@ export const SEGMENTS = [
 	// 「引擎不知道故事名」的可执行证据（产物：书架 2 项；门：引擎门对第二故事绿）。`--check` 前置以免被
 	// `auditFlag()` 认成某个门段（它不是单门段，层归属见 `ENGINE_EXTRA`）。
 	{ id: "scripts-audit-mjs-story2-engine", phase: 'test', cost: 0.2, cmd: "node scripts/audit.mjs --check --story minimal-demo --engine-only" },
+	// #490（S5 片二）：**第三个故事**的**洞窟声明面门**（表↔内容双向对账；故事门，故显式指定 --story）
+	{ id: "scripts-audit-mjs-cave-hollow", phase: 'test', cost: 0.1, cmd: "node scripts/audit.mjs --cave --check --story hollow-cave" },
 	// #490（S5）：**第三个故事**（无名洞窟）的引擎门 —— 它**声明了** S1–S4 的四件套（`mechanics()` 非 null）
 	// ⇒ 四道引擎门在这里第一次判**一个真正启用了新机制的故事**（`#486`–`#489` 的出口判据）。
 	{ id: "scripts-audit-mjs-story3-engine", phase: 'test', cost: 0.2, cmd: "node scripts/audit.mjs --check --story hollow-cave --engine-only" },
@@ -162,7 +164,7 @@ export const SEGMENTS = [
 //      要把它划进引擎门，就显式加进 `ENGINE_EXTRA`（一行）。
 // 注：`a11y` 也是引擎门，但**尚未接线**（F2 台账：未接线 7 道）⇒ 接线时加进本表（否则 `validateLayers()` 的僵尸声明会报红——这正是想要的行为）
 export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 'text', 'slots', 'status', 'waves', 'roads'];   // #486：slots 是引擎门（输入＝声明表）
-export const AUDIT_STORY = ['truth', 'canon', 'echoes', 'starbudget', 'choices', 'combat', 'craft', 'dragon', 'rules', 'reads', 'notes',
+export const AUDIT_STORY = ['truth', 'canon', 'echoes', 'starbudget', 'choices', 'combat', 'craft', 'dragon', 'rules', 'reads', 'cave', 'notes',
 	'gear', 'interact', 'investment', 'nosl', 'npc', 'social', 'systems'];
 // 非门段里**与故事内容无关**的那些（构建 / 构建期 lint / 产物守卫）：显式登记，不放宽默认
 export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs', 'scripts-audit-mjs-story2-engine', 'scripts-audit-mjs-story3-engine',

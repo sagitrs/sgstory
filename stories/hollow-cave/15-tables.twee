@@ -145,25 +145,25 @@ const MECH = {
 	// 五步主线：每步 3 路（段号从 1 计，与 `roadOffer(idx)` 一致）；每步至少一个 `noCheck:true`（不掷骰也有路）
 	roads: [
 		{ from: 0, to: 1, options: [
-			{ kind: 'shortFight', hint: '碎石间有拖行的痕迹' },
-			{ kind: 'chest', hint: '岩壁凹处反着一点金属光', noCheck: true },
-			{ kind: 'trap', hint: '地面浮土比别处松' }] },
+			{ kind: 'shortFight', hint: '碎石间有拖行的痕迹', ref: '1a' },
+			{ kind: 'chest', hint: '岩壁凹处反着一点金属光', ref: '1b', noCheck: true },
+			{ kind: 'trap', hint: '地面浮土比别处松', ref: '1c' }] },
 		{ from: 1, to: 2, options: [
-			{ kind: 'longFight', hint: '地上的脚印都朝一个方向' },
-			{ kind: 'cave', hint: '那边吹过来的风是热的', noCheck: true },
-			{ kind: 'traveller', hint: '石缝里卡着一小块布' }] },
+			{ kind: 'longFight', hint: '地上的脚印都朝一个方向', ref: '2a' },
+			{ kind: 'cave', hint: '那边吹过来的风是热的', ref: '2b', noCheck: true },
+			{ kind: 'traveller', hint: '石缝里卡着一小块布', ref: '2c' }] },
 		{ from: 2, to: 3, options: [
-			{ kind: 'trap', hint: '头顶有细砂在往下落', noCheck: true },
-			{ kind: 'chest', hint: '锁扣露在外面，锈得发红' },
-			{ kind: 'shortFight', hint: '远处有东西在啃石头' }] },
+			{ kind: 'trap', hint: '头顶有细砂在往下落', ref: '3a', noCheck: true },
+			{ kind: 'chest', hint: '锁扣露在外面，锈得发红', ref: '3b' },
+			{ kind: 'shortFight', hint: '远处有东西在啃石头', ref: '3c' }] },
 		{ from: 3, to: 4, options: [
-			{ kind: 'cave', hint: '滴水声从很低的地方传上来', noCheck: true },
-			{ kind: 'longFight', hint: '两声脚步，不是一只' },
-			{ kind: 'traveller', hint: '前面有火光，在动' }] },
+			{ kind: 'cave', hint: '滴水声从很低的地方传上来', ref: '4a', noCheck: true },
+			{ kind: 'longFight', hint: '两声脚步，不是一只', ref: '4b' },
+			{ kind: 'traveller', hint: '前面有火光，在动', ref: '4c' }] },
 		{ from: 4, to: 5, options: [
-			{ kind: 'cave', hint: '洞口那边能看见村子的屋顶', noCheck: true },
-			{ kind: 'chest', hint: '最后一只箱子，压在半塌的碎石下' },
-			{ kind: 'longFight', hint: '它守在那儿，不让路' }] },
+			{ kind: 'cave', hint: '洞口那边能看见村子的屋顶', ref: '5a', noCheck: true },
+			{ kind: 'chest', hint: '最后一只箱子，压在半塌的碎石下', ref: '5b' },
+			{ kind: 'longFight', hint: '它守在那儿，不让路', ref: '5c' }] },
 	],
 	// 宝箱（S4 §4.3）：3 种机关 × 2 档稀有度；通用道具各降 3；钥匙降为 0；也可径直通过
 	chest: {
@@ -172,6 +172,8 @@ const MECH = {
 			机关针: { site: '宝箱·机关针', rareSite: '宝箱·机关针·珍贵', toolSite: '宝箱·机关针·借助具', tool: '手套' },
 			石块: { site: '宝箱·石块', rareSite: '宝箱·石块·珍贵', toolSite: '宝箱·石块·借助具', tool: '铁撬' },
 		},
+		// `#490` §4.3：**稀有度 → 奖品曲线**（普通给消耗品；珍贵多给一件"通用道具"，那正是降难链的来源）
+		loot: { 普通: ['干粮'], 珍贵: ['干粮', 'TOOL'] },
 		rarities: { 普通: { dc: 12 }, 珍贵: { dc: 15 } },
 		toolReduce: 3, keyReduce: 'to-zero',
 	},
@@ -180,5 +182,12 @@ Object.assign(window.Sg.story, {
 	mechanics: () => MECH,
 	// 以下两面是 S6 的门要消费的声明（引擎目前不经它们取数 ⇒ 先声明、不假装已接线；见 `#491`）
 	chestDef: (id) => MECH.chest.mechanisms[id] ?? null,
-	eventPool: (step) => ({ kinds: ['shortFight', 'longFight', 'chest', 'cave', 'trap', 'traveller'], step }),
+	lootOf: (rarity) => MECH.chest.loot[rarity] ?? [],
+	// 六类事件的**实例清单**（每条路一个实例：`{id, kind, hint, ref}`）——门侧用它查"hint 两两不同 / ref 解析得到段落"
+	eventPool: (step) => {
+		const all = MECH.roads.flatMap((r) => r.options ?? []);
+		const entries = {};
+		for (const o of all) (entries[o.kind] ??= []).push({ id: `${o.ref}`, kind: o.kind, hint: o.hint, ref: o.ref });
+		return { kinds: ['shortFight', 'longFight', 'chest', 'cave', 'trap', 'traveller'], entries, step };
+	},
 });

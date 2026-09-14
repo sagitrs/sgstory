@@ -30,7 +30,7 @@ export function conditionOwner(src, anchor) {
 	};
 }
 // 登记 cause → 期望条件正则（flag → world/ev.X；token → inv["X"]；towerFlag → tower.X）
-import { noteIdsForFlag, storyText, rowsContaining, condTextOf } from '../lib/shared.mjs';
+import { noteIdsForFlag, storyText, rowsContaining, condTextOf } from '../../../scripts/../scripts/audit/lib/shared.mjs';
 
 const asList = (x) => (Array.isArray(x) ? x.map(String) : x ? [String(x)] : []);
 /** 表行条件 → 与 `conditionOwner` 同形状的 `conds`（`req`/`any` 为正、`exclude` 为取反）。

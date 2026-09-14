@@ -6,7 +6,7 @@ export const flags = ["dragon"];
 
 // ── #342 F2 自证：龙战门的"数字"全靠**确定性随机源** ⇒ 它本身必须可自证 ──
 // #519：种子源挪到共享 lib（门与门不许互相 import）——本文件继续再导出，原调用点与自证不动。
-import { mulberry32, asSugarRandom, withSeededRng } from '../lib/rng.mjs';
+import { mulberry32, asSugarRandom, withSeededRng } from '../../../scripts/../scripts/audit/lib/rng.mjs';
 export { mulberry32, asSugarRandom, withSeededRng };
 /** d20：优势取两次较大值（与 SugarCube 的优势语义一致）。 */
 export const d20 = (rng, adv) => { const r1 = 1 + Math.floor(rng() * 20), r2 = 1 + Math.floor(rng() * 20); return adv ? Math.max(r1, r2) : r1; };

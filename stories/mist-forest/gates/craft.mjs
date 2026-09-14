@@ -1,6 +1,6 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { storyText } from '../lib/shared.mjs';
+import { storyText } from '../../../scripts/../scripts/audit/lib/shared.mjs';
 // flags=['craft']。校验：npm run audit:golden。
 export const flag = 'craft';
 export const flags = ["craft"];

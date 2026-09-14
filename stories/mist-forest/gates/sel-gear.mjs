@@ -4,7 +4,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 export const flag = 'sel';
 export const flags = ["sel", "gear"];
 
-import { noteWriteFlags } from '../lib/shared.mjs';
+import { noteWriteFlags } from '../../../scripts/../scripts/audit/lib/shared.mjs';
 // ── 判据纯函数（#342 F2 自证：主跑与自证共用同一份代码）──────────────────────
 /** 装备"有效果"：要么进伤害，要么给优势位点（canon §5.4） */
 export const gearEffectOK = (d) => (d.damage ?? 0) > 0 || (d.advSites ?? []).length > 0;

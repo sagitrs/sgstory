@@ -28,16 +28,25 @@
 	],
 	"gates": [
 		"stories/mist-forest/gates/truth.mjs",
+		"stories/mist-forest/gates/investment.mjs",
+		"stories/mist-forest/gates/echoes.mjs",
 		"stories/mist-forest/gates/choices.mjs",
+		"stories/mist-forest/gates/sel-nosl.mjs",
+		"stories/mist-forest/gates/sel-gear.mjs",
 		"stories/mist-forest/gates/interact.mjs",
 		"stories/mist-forest/gates/social.mjs",
 		"stories/mist-forest/gates/combat.mjs",
 		"stories/mist-forest/gates/starbudget.mjs",
 		"stories/mist-forest/gates/systems.mjs",
+		"stories/mist-forest/gates/npc.mjs",
+		"stories/mist-forest/gates/dragon.mjs",
 		"stories/mist-forest/gates/checks.mjs",
 		"stories/mist-forest/gates/economy.mjs",
-		"stories/mist-forest/gates/notes.mjs",
-		"stories/mist-forest/gates/sel-nosl.mjs",
-		"stories/mist-forest/gates/items-tokens.mjs"
+		"stories/mist-forest/gates/items-tokens.mjs",
+		"stories/mist-forest/gates/canon.mjs",
+		"stories/mist-forest/gates/craft.mjs",
+		"stories/mist-forest/gates/rules.mjs",
+		"stories/mist-forest/gates/reads.mjs",
+		"stories/mist-forest/gates/notes.mjs"
 	]
 }

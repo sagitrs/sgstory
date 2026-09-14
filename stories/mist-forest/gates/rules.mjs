@@ -22,7 +22,7 @@
 //      · **同位点重复调用**：同一段落里同一 `scope` 被调用 ≥2 次 ⇒ 两个位点抢同一行（渲染重复）；
 //      · **归属不符**：`scope` 写成 `段落#位点`（＝声明了归属段落）时，调用点必须**就在那个段落**里。
 //      另：无对应行的调用点 ⇒ 红（`pick()` 返回 null ＝ 正文静默消失，是本门要抓的同一类静默）。
-import { WRITE_PATTERNS, NOTE_WRITE_RE, rowOps, yieldsList, notePaths } from '../lib/shared.mjs';
+import { WRITE_PATTERNS, NOTE_WRITE_RE, rowOps, yieldsList, notePaths } from '../../../scripts/../scripts/audit/lib/shared.mjs';
 
 export const flag = 'rules';
 export const flags = ['rules'];

@@ -1,7 +1,7 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 // `#433` 阶段 2：条件可能写成 `Sg.notes.has('n_x')` ⇒ 判定「某选项引用了哪些旗标」必须认第二种形状
-import { noteReadFlags, noteIdsForFlag, conditionReadsFlag, noteWriteRefs, storyText, ruleRowFlags, condTextOf, rowsContaining } from '../lib/shared.mjs';
+import { noteReadFlags, noteIdsForFlag, conditionReadsFlag, noteWriteRefs, storyText, ruleRowFlags, condTextOf, rowsContaining } from '../../../scripts/../scripts/audit/lib/shared.mjs';
 // flags=['investment']。校验：npm run audit:golden。
 export const flag = 'investment';
 export const flags = ["investment"];

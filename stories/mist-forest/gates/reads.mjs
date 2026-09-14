@@ -21,10 +21,10 @@
 //
 // 用法：node scripts/audit.mjs --reads --check ／ node scripts/audit.mjs --reads --check --strict
 import { readFileSync } from 'node:fs';
-import { LAYER_OF } from '../../module-order.mjs';
-import { ROOT } from '../../dist-paths.mjs';
-import { loadStoryAudit } from '../lib/story-audit.mjs';
-import { literalReadKeys, readKeys, notePaths, stripJsComments, condKeysOf } from '../lib/shared.mjs';
+import { LAYER_OF } from '../../../scripts/module-order.mjs';
+import { ROOT } from '../../../scripts/dist-paths.mjs';
+import { loadStoryAudit } from '../../../scripts/../scripts/audit/lib/story-audit.mjs';
+import { literalReadKeys, readKeys, notePaths, stripJsComments, condKeysOf } from '../../../scripts/../scripts/audit/lib/shared.mjs';
 
 export const flag = 'reads';
 export const flags = ['reads'];

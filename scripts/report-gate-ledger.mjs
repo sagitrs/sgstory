@@ -35,6 +35,7 @@ export const REASONS = {
 	'audit:sel': { wired: true, reason: '接线说明：--sel 只是 --nosl＋--gear 的便捷别名，链上跑的是更具体的两个 flag，故没有单独的 --sel --check（**形态是有判定的门**，此前台账误标「仅登记」，已由形态对账改正）' },
 	// ── 报告脚本（id 形如 scripts/<file>）──
 	'scripts/report-rhythm.mjs': { wired: true, form: '行为化', reason: 'R1/R1b/R2/正例 四例自证，已入 npm test' },
+	'scripts/report-polarity-gap.mjs': { form: '行为化', reason: '**未接线（report-only）**：条件原子 × 极性的**覆盖缺口报告**（伞 `#626`／本票 `#628`）。它**刻意不是门**——观测是抽样的（未观测 ≠ 断言不存在），设成门就等于用抽样运气冒充「行为符合预期」（正是伞票要改掉的形态）。谁来跑：`npm run report:polarity`（前置 `npm run build`）；何时跑：裁决撤 soak 之前先看缺口、以及矩阵门（依赖 `#629`）落码前定行数。自证 8 例（注释遮蔽／`elseif`／widget 标记／`era` 两态／三档计数正反例／渲染点名），`--selftest` 能红。' },
 	'scripts/report-ledger-freshness.mjs': { form: '行为化', reason: '**离线段已入 npm test**（`--ledger --check`：#297 对标台账行级新鲜度——行数栅栏/复核日期在期/触发条件非空/落点引用的门旗标与文件真实存在，7 例自证）；**网络段仍需 token**（#NNN 标记与 GitHub 真实状态一致），不塞主链路，由 `npm run report:freshness:check` 人工/定时跑' },
 	'scripts/report-gate-ledger.mjs': { wired: true, form: '行为化', reason: '本文件自身的自检（台账不腐），已入 npm test' },
 	'scripts/move-precheck.mjs': { wired: true, form: '行为化', reason: '#458 前置：**六处同步**校验（源文件/ORDER/MODULES/故事清单/常量声明/聚合返回）＋单根假设清点；自证 8 例（六处正反例＋聚合返回）' },

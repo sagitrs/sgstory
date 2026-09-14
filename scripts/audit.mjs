@@ -13,23 +13,34 @@ const ctx = createContext({ story: storyArg });
 const { SRC_FILES, Game, presets, passageSrc, passageRaw, passageTags, arg, wantAll, storySlug } = ctx;
 
 // ── ⓪ D1 真相可达性（#35）：命题 × 通路，锚点机检 ──
-import { GATES } from './audit/registry.mjs';
+// `#607` P0：门的**发现与归属**收到 `audit/discovery.mjs`（引擎门 ∪ 待迁移 ∪ 本故事已声明；按 `GATE_ORDER` 排）。
+// 选择面从此不依赖 registry 的数组顺序，而依赖**归属**与**顺序表**——搬家只改住址、不改输出次序（golden 零漂移可比对）。
+import { gatesForStory, engineGates, allKnownFlags, validateDiscovery, checkFlagOwnership } from './audit/discovery.mjs';
 import { makeShared, runSelectedGates } from './audit/lib/shared.mjs';
-import { AUDIT_ENGINE } from './test-plan.mjs';
 import { DEFAULT_SLUG as DEFAULT_STORY_SLUG } from './dist-paths.mjs';
 Object.assign(ctx, makeShared(ctx));
 
 // 修饰符：只影响退出码/严密档位/选择面，自身不选门
 //   `--strict`＝把"报告制"判据转硬；`--story <slug>`＝切故事作用域（带值）；`--engine-only`＝只跑引擎门（#436-a）
 const MODIFIERS = ['check', 'strict', 'story', 'engine-only'];
-const known = new Set([...GATES.flatMap((g) => g.flags ?? []), ...MODIFIERS]);
+// `#607` P0：发现面的自检（清单缺 `gates` 键／越界／文件存在但未声明／跨故事重名／顺序表未登记…）——
+// **每次调用都跑**：这些是"结构缺失"，必须响亮报错而不是静默少跑几道门。
+const discoveryProblems = await validateDiscovery();
+if (discoveryProblems.length) {
+	console.error('✗ 门发现面自检未通过（`#607`；见 docs/story-gates-design.md）：');
+	for (const p of discoveryProblems) console.error(`   · ${p}`);
+	process.exit(1);
+}
+const known = new Set([...(await allKnownFlags()), ...MODIFIERS]);
 const given = process.argv.slice(2).filter((a) => a.startsWith('--')).map((a) => a.replace(/^--/, ''));
 const unknown = given.filter((f) => !known.has(f));
 // `--engine-only`（`#436-a`）：只跑**引擎门**（`test-plan.mjs` 的 `AUDIT_ENGINE` 是层表单一权威）
 // ——这是「第二故事能不能接」的出口判据（故事门会判红本故事以外的东西，见 `#460` spike）。
-const selected = GATES
-	.filter((g) => arg('engine-only') ? g.flags.some((f) => AUDIT_ENGINE.includes(f)) : (wantAll || g.flags.some((f) => arg(f))))
-	;
+// `--engine-only`：只跑**引擎门**（`test-plan.mjs` 的 `AUDIT_ENGINE` 是层表单一权威；由 discovery 过滤）
+// ；否则＝**当前故事作用域**的门（引擎 ∪ 待迁移 ∪ 本故事已声明）里被点名的那些。
+const selected = arg('engine-only')
+	? await engineGates()
+	: (await gatesForStory(storySlug)).filter((g) => wantAll || g.flags.some((f) => arg(f)));
 // 注（`#460`／`#512`）：这里曾有一份 `STORY2_BLOCKED` 清单（第二故事跳过 `--state`／`--consequences`）——
 // 2026-09-14 把引擎里的**故事 1 片段**（`hallResult` widget ＋ `fog_thin`）搬回 `stories/mist-forest/12-widgets.twee`
 // 之后，两门对第二/第三故事**都是真绿**（9/9）⇒ 清单**已删**（这正是那份清单存在的意义：修好就删）。
@@ -42,6 +53,16 @@ if (arg('engine-only') && !selected.length) { console.error('✗ `--engine-only`
 if (arg('engine-only')) ctx.wantAll = true;
 
 // #366：以前「未知开关」或「只传 --check」会**一个门都不跑却退出 0**（假绿）。现在一律响亮报错。
+// `#607` P0：**点名了别的故事的门** ⇒ 明确报错（而不是沉默地"没选中任何门"，更不是照跑别人的判据）。
+// 只对**已搬进故事侧**的门生效（未迁移的门仍按今天口径）；`--engine-only` 模式下 flag 不是选择器 ⇒ 跳过。
+if (!arg('engine-only')) {
+	const ownerProblems = await checkFlagOwnership({ flags: given, slug: storySlug });
+	if (ownerProblems.length) {
+		console.error('✗ 门归属：');
+		for (const p of ownerProblems) console.error(`   · ${p}`);
+		process.exit(2);
+	}
+}
 if (unknown.length) {
 	console.error(`✗ 未知开关：${unknown.map((f) => `--${f}`).join('、')}（可用：${[...known].sort().join(' ')}）`);
 	process.exit(2);

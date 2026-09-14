@@ -7,5 +7,6 @@
 		"stories/minimal-demo/00-meta.twee",
 		"stories/minimal-demo/10-demo.twee",
 		"stories/minimal-demo/15-tables.twee"
-	]
+	],
+	"gates": []
 }

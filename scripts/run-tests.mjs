@@ -24,6 +24,11 @@
 import { spawn } from 'node:child_process';
 import { cpus } from 'node:os';
 import { testPlan, segmentLayer, validateLayers } from './test-plan.mjs';
+// `#607`：故事清单声明的门 flag（P0 为空集合 ⇒ 层判定与今天**逐字相同**；P1 起门搬家后仍判得出故事层）
+import { declaredGatesAll } from './audit/discovery.mjs';
+// 声明面在**顶层**取（不在 `selftest()` 里取）：`selftest()` 在文件中部就被调用，
+// 若把 `const` 放在它之后，函数体引用它会踩 TDZ（跑一次 `--selftest` 就当场报）。
+const declaredStoryFlags = [...new Set((await declaredGatesAll()).flatMap((m) => m.flags ?? []))];
 
 const argv = process.argv.slice(2);
 const has = (k) => argv.includes(`--${k}`);
@@ -173,7 +178,7 @@ const selftest = async ({ quiet = false } = {}) => {
 	// 引擎集合非空且两不交（空选择／歧义都会让"第二故事只跑引擎门"这条出口判据失真）
 	{
 		const plan = testPlan();
-		const probs = validateLayers(plan);
+		const probs = validateLayers(plan, { declaredStoryFlags });
 		t('计划分层表自洽（无未归层/无僵尸声明/无歧义）', probs.length === 0);
 		const eng = plan.filter((s) => segmentLayer(s) === 'engine');
 		const sto = plan.filter((s) => segmentLayer(s) === 'story');
@@ -198,10 +203,10 @@ const plan0 = testPlan();
 const layerWant = has('engine-only') ? 'engine' : has('story-only') ? 'story' : null;
 if (layerWant) {
 	// 层表自检（新增门忘了归层 ⇒ 起跑前就报，别跑到一半才发现选择口径不完整）
-	const layerProblems = validateLayers(plan0);
+	const layerProblems = validateLayers(plan0, { declaredStoryFlags });
 	if (layerProblems.length) { console.error(`✗ 门的分层表有问题（--${layerWant}-only 依赖它）：\n  ${layerProblems.join('\n  ')}`); process.exit(2); }
 }
-const layerSel = layerWant ? plan0.filter((s) => segmentLayer(s) === layerWant) : null;
+const layerSel = layerWant ? plan0.filter((s) => segmentLayer(s, declaredStoryFlags) === layerWant) : null;
 if (has('list')) {
 	const shown = layerSel ?? plan0;
 	console.log(`计划 ${shown.length} 段${layerWant ? `（--${layerWant}-only 从 ${plan0.length} 段里选出）` : ''}（串行实测合计 ${sec(shown.reduce((a, s) => a + s.cost, 0) * 1000)}）：`);

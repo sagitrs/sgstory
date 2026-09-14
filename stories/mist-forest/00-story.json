@@ -25,5 +25,6 @@
 		"stories/mist-forest/72-codex-ui.twee",
 		"src/80-script.twee",
 		"src/engine/50-present/90-style.twee"
-	]
+	],
+	"gates": []
 }

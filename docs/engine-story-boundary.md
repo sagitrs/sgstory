@@ -115,6 +115,25 @@ mechanics: () => ({
 **为什么必需**：这四条曾同时静默通过——`Sg.notes` 缺失、位点写成属性键、`applyStatus` 返回值被丢、`maxHp`
 字段名写错（引擎是 `max_hp`）。它们的共性就一句话：**“内容声称做了什么”与“运行时真的发生了什么”从来没人对过账**。
 
+### 门的归属：住哪、谁拥有、按什么顺序跑（`#607` P0 已起步）
+
+`#602` 方案 1 管**判据数据**；这一节管**门代码**。今天的状况：34 道门全部登记在 `scripts/audit/registry.mjs` 的
+`GATES` 里，其中 12 道判的是**故事 1 的内容**——而"这道门属于哪个故事"此前只存在于 `test-plan.mjs` 的
+`AUDIT_STORY` 字符串数组里（它只说"是故事门"，**说不出"是谁的门"**）⇒ `--story hollow-cave --truth` 会
+**照跑故事 1 的门**（拿别人的判据判你）。设计稿：`docs/story-gates-design.md`。
+
+| 面 | 落点／机制（P0 已接线） |
+|---|---|
+| 故事门的**住址** | `stories/<slug>/gates/*.mjs`（P1 起逐门搬入；P0 一处都还没搬） |
+| **声明** | `stories/<slug>/00-story.json` 的 `gates: [...]`（路径；顺序即本故事内次序）。**空数组是合法声明**（"本故事暂无自有门"），但**键必须存在** |
+| **发现** | `scripts/audit/discovery.mjs`：`engineGates()`（registry 里 flag ∈ `AUDIT_ENGINE`）∪ `pendingGates()`（**待迁移**：registry 里其余的门，搬完一批删一批）∪ `declaredGates(slug)`（清单声明）＝ `gatesForStory(slug)` |
+| **执行顺序** | `GATE_ORDER`（计划面，只定次序）：搬家只改**住址**、不改输出次序 ⇒ `audit:golden` 零漂移可比对 |
+| **fail-loud** | 清单缺 `gates` 键／路径越界／文件不存在／`gates/` 下有**未声明**的文件／形状不对／**跨故事或跨层重名**／故事门偷用引擎 flag／顺序表未登记或僵尸键 ⇒ 逐条报错（每次 audit 调用都跑 `validateDiscovery()`） |
+| **机器证据** | `test/gate-discovery.mjs`（24 条断言：无孤儿门 · 顺序稳定 · 声明只属本故事 · 引擎门被所有故事选中 · 十条反例）＋ `test-plan.mjs` 的层表接线（`declaredStoryFlags` 参数，P1 起生效） |
+
+**P0 的出口判据是"零行为变化"**：`audit:golden` 逐字节零漂移（发现机制接了但一门未搬）；
+`git show --stat` 里 `scripts/audit/gates/**` **一个字节都没动**。
+
 ## 3. 兼容模式（**必须显式降级**，`#492`）
 
 - 故事**未**声明新机制 ⇒ `mechanics()` 返回 **`null`**（故事 1 v1 就是这样，注释里写明理由）；

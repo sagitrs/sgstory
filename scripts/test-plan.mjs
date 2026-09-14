@@ -148,6 +148,8 @@ export const SEGMENTS = [
 	{ id: "scripts-audit-mjs-combat-dist-hollow", phase: 'test', cost: 3, cmd: "node scripts/audit.mjs --combat-dist --check --story hollow-cave" },
 	// #602：**引擎门不得出现故事专有字面量**（防"假解耦"回潮：故事判据数据住 `stories/<slug>/audit.json`）
 	{ id: "scripts-audit-mjs-engine-story-free", phase: 'test', cost: 0.1, cmd: "node scripts/audit.mjs --engine-story-free --check" },
+	// #607 P0：门的**发现与归属**（引擎门 ∪ 待迁移 ∪ 本故事已声明；顺序表；结构缺失必红）
+	{ id: "test-gate-discovery-mjs", phase: 'test', cost: 0, cmd: "node test/gate-discovery.mjs" },
 	// `#572`：**「选中 ⇒ 真跑」门** —— 门的 `run()` 被选中也可能静默早退（九道引擎门里七道就是这样）。
 	// 本段自证 `runSelectedGates()` ＋ 真跑默认故事，断言末行「选中 9 门 · 实跑 9 门」（修前那条汇总行不存在）。
 	{ id: "test-audit-gates-run-mjs", phase: 'test', cost: 0.3, needs: ["scripts-audit-mjs-story2-engine"], cmd: "node test/audit-gates-run.mjs" },
@@ -185,19 +187,28 @@ export const SEGMENTS = [
 //      要把它划进引擎门，就显式加进 `ENGINE_EXTRA`（一行）。
 // 注：`a11y` 也是引擎门，但**尚未接线**（F2 台账：未接线 7 道）⇒ 接线时加进本表（否则 `validateLayers()` 的僵尸声明会报红——这正是想要的行为）
 export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 'text', 'engine-story-free', 'slots', 'status', 'waves', 'roads'];   // #486：slots 是引擎门（输入＝声明表）
+// **`#607` P0 起 `AUDIT_STORY` 的含义**：＝「**尚未迁移**的故事门」清单（历史包袱；搬完一批删一批）。
+// 已搬进 `stories/<slug>/gates/` 的门由**该故事的清单**声明（`00-story.json` 的 `gates`），由 `scripts/audit/discovery.mjs`
+// 发现 ⇒ 下方这两个表只描述"还在工具层的门"。落点与机制见 `docs/story-gates-design.md`。
 export const AUDIT_STORY = ['truth', 'canon', 'echoes', 'starbudget', 'choices', 'combat', 'craft', 'dragon', 'rules', 'reads', 'cave', 'notes', 'combat-dist',
 	'gear', 'interact', 'investment', 'nosl', 'npc', 'social', 'systems'];
 // 非门段里**与故事内容无关**的那些（构建 / 构建期 lint / 产物守卫）：显式登记，不放宽默认
 export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs', 'scripts-audit-mjs-story2-engine', 'scripts-audit-mjs-story3-engine',
 	'test-story-runtime-mjs-selftest', 'test-story-runtime-mjs',
 	'test-layering-mjs-selftest', 'test-layering-mjs', 'test-globals-mjs', 'test-silent-gate-mjs',
-	'test-size-gate-mjs-selftest', 'test-size-gate-mjs'];
+	'test-size-gate-mjs-selftest', 'test-size-gate-mjs',
+	// #607：门发现面与故事内容无关（清单/归属/顺序表）
+	'test-gate-discovery-mjs'];
 
 // 段 → 层。`--<flag> --check` 形式的段从 flag 表推；其余：在 `ENGINE_EXTRA` 里 ⇒ engine，否则 story。
-export const segmentLayer = (seg) => {
+// `declaredStoryFlags`＝**故事清单里声明的门 flag**（`#607` P1 起非空）：它们同样是"故事层"，
+// 只是住址已经从工具层搬走 ⇒ 层判定必须认它们，否则搬家那一刻 `validateLayers()` 会误报"未归层"。
+export const segmentLayer = (seg, declaredStoryFlags = []) => {
 	const m = auditFlag(seg);
 	if (m) return AUDIT_ENGINE.includes(m) ? 'engine' : 'story';
-	if (m && (AUDIT_ENGINE.includes(m[1]) || AUDIT_STORY.includes(m[1]))) return AUDIT_ENGINE.includes(m[1]) ? 'engine' : 'story';
+	if (m && (AUDIT_ENGINE.includes(m[1]) || AUDIT_STORY.includes(m[1]) || declaredStoryFlags.includes(m[1]))) {
+		return AUDIT_ENGINE.includes(m[1]) ? 'engine' : 'story';
+	}
 	return ENGINE_EXTRA.includes(seg.id) ? 'engine' : 'story';
 };
 
@@ -211,14 +222,16 @@ export const auditFlag = (seg) => {
 };
 
 // 计划校验（跑器起跑前调用；返回问题清单，空＝通过）
-export const validateLayers = (plan = SEGMENTS) => {
+export const validateLayers = (plan = SEGMENTS, { declaredStoryFlags = [] } = {}) => {
 	const problems = [];
 	const dup = AUDIT_ENGINE.filter((f) => AUDIT_STORY.includes(f));
 	if (dup.length) problems.push(`层表歧义：${dup.join('、')} 同时在 engine 与 story`);
+	const dup2 = AUDIT_ENGINE.filter((f) => declaredStoryFlags.includes(f));
+	if (dup2.length) problems.push(`层表歧义（门已搬进故事侧却仍声明成引擎门）：${dup2.join('、')}——清 AUDIT_ENGINE 或改故事的声明（#607）`);
 	// 计划里真实的 audit 段 ⇒ 必须**恰好**被两层覆盖
 	const planFlags = new Set();
 	for (const s of plan) { const f = auditFlag(s); if (f) planFlags.add(f); }
-	const declared = new Set([...AUDIT_ENGINE, ...AUDIT_STORY]);
+	const declared = new Set([...AUDIT_ENGINE, ...AUDIT_STORY, ...declaredStoryFlags]);
 	for (const f of planFlags) if (!declared.has(f)) problems.push(`未归层：计划里的 \`--${f} --check\` 段没有任何层（新增门请加进 AUDIT_ENGINE／AUDIT_STORY）`);
 	for (const f of declared) if (!planFlags.has(f)) problems.push(`僵尸层声明：\`${f}\` 在层表里，但计划里没有对应段（删段时请同步层表）`);
 	for (const id of ENGINE_EXTRA) if (!plan.some((s) => s.id === id)) problems.push(`僵尸 ENGINE_EXTRA 条目：${id} 不在计划里`);

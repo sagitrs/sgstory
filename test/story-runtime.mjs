@@ -530,12 +530,69 @@ const main = async () => {
 		await runChest({ label: '⑥ 径直通过（无判定·无惩罚）', path: '跳过', rng: { 3: 1, 2: 2, 20: 19 }, click: '径直走过去' });
 	}
 
+	// ── 判据 ⑩：调试开关（`#491` 判据 10／已定 ⑩）——只 URL 参数 · 默认零影响 · **不进玩家 UI** ──
+	{
+		const slug = 'hollow-cave';
+		const playOnce = async (url, { pool = false } = {}) => {
+			const { w, close, sleep, settle } = await boot({ story: slug, random: 0.9, url });
+			try {
+				w.SugarCube.Engine.play('路·1b');                 // 宝箱实例（骰面与机关都由 rng 决定）
+				await settle(); await sleep(200);
+				const text = w.document.querySelector('#passages').textContent.replace(/\s+/g, ' ');
+				const ui = (w.document.querySelector('#ui-bar')?.textContent ?? '').replace(/\s+/g, ' ');
+				const a = [...w.document.querySelectorAll('#passages a.link-internal')].find((x) => x.textContent.replace(/\s+/g, '').includes('徒手'));
+				a?.click(); await settle(); await sleep(220);
+				return { text, ui, check: w.SugarCube.State.variables.last_check ?? null, links: [...w.document.querySelectorAll('#passages a.link-internal')].map((x) => x.textContent.replace(/\s+/g, '')) };
+			} finally { close(); }
+		};
+		// ⑩-1 同 seed 两次 ⇒ 渲染文本与骰面**逐字节一致**（复算口径）
+		{
+			const a = await playOnce('http://localhost/?seed=1234');
+			const b = await playOnce('http://localhost/?seed=1234');
+			const same = a.text === b.text && JSON.stringify(a.check) === JSON.stringify(b.check);
+			console.log(`  ${same ? '✓' : '✗'} ${slug} ⑩ ?seed=1234 两次：正文与骰面逐字节一致（roll=${a.check?.roll ?? '—'}）`);
+			if (!same) problems.push({ code: 'debug-seed', slug, msg: `?seed=1234 两次结果不同（正文或骰面）——调试开关没有真的固定随机源` });
+		}
+		// ⑩-2 不同 seed ⇒ 至少一处不同（防"种子没接上"）
+		{
+			const r = [];
+			for (const s of [1, 2, 3, 4, 5, 6]) r.push((await playOnce(`http://localhost/?seed=${s}`)).check?.roll ?? null);
+			const distinct = new Set(r.filter((x) => x != null)).size;
+			const ok = r.every((x) => x != null) && distinct >= 2;
+			console.log(`  ${ok ? '✓' : '✗'} ${slug} ⑩ 不同 seed ⇒ 骰面有差异（6 个种子得到 ${distinct} 种骰面：${r.join('/')}）`);
+			if (!ok) problems.push({ code: 'debug-seed-b', slug, msg: `不同 seed 得到相同骰面（${r.join('/')}）——种子没接到 rng 上` });
+		}
+		// ⑩-3 `?pool=` 只出指定类型（放宽"三选一"是有意的：调试开关的意图就是"只让我要的那类出现"）
+		{
+			const { w, close, sleep, settle } = await boot({ story: slug, random: 0.9, url: 'http://localhost/?seed=7&pool=traveller' });
+			try {
+				// 第 1 段的三个选项里**没有**旅人 ⇒ 先推到第 2 段（2a/2b/2c，其中 2c＝旅人）再验过滤
+				w.eval('SugarCube.State.variables.pc.ev.cave_step = 1');
+				w.SugarCube.Engine.play('岔口');                  // 三选一那一屏
+				await settle(); await sleep(200);
+				const links = [...w.document.querySelectorAll('#passages a.link-internal')].map((x) => x.textContent.replace(/\s+/g, ''));
+				const hints = { traveller: ['石缝里卡着一小块布', '前面有火光，在动'] };
+				const onlyWanted = links.length >= 1 && links.every((l) => hints.traveller.some((h) => l.includes(h)));
+				console.log(`  ${onlyWanted ? '✓' : '✗'} ${slug} ⑩ ?pool=traveller：岔口只出旅人路（${links.join(' / ') || '（无）'}）`);
+				if (!onlyWanted) problems.push({ code: 'debug-pool', slug, msg: `?pool=traveller 时岔口出现了非旅人路：${links.join(' / ')}` });
+			} finally { close(); }
+		}
+		// ⑩-4 **不进玩家 UI**：带参数 vs 不带参数，玩家可见文本（正文 ＋ 侧栏）一致
+		{
+			const plain = await playOnce('http://localhost/');
+			const withDbg = await playOnce('http://localhost/?seed=1234&pool=chest,shortFight,trap,cave,longFight');
+			const sameText = plain.ui === withDbg.ui;
+			console.log(`  ${sameText ? '✓' : '✗'} ${slug} ⑩ 开关不进玩家 UI（侧栏文本带/不带参数一致）`);
+			if (!sameText) problems.push({ code: 'debug-ui', slug, msg: '调试开关改变了侧栏（玩家可见）文本 ⇒ 它进了玩家 UI' });
+		}
+	}
+
 	if (problems.length) {
 		console.error(`\n✗ 逐故事运行时契约门未通过 ${problems.length} 项：`);
 		for (const p of problems) console.error(`  ✗ ${p.msg}`);
 		process.exit(1);
 	}
-	console.log('\n✔ 逐故事运行时契约门通过（面存在 · 位点能判 · 笔记可用 · 侧栏可用 · 机制真落 · 旅人面闭环 · 五种洞窟效果 · 失败重置 · 宝箱四路径）');
+	console.log('\n✔ 逐故事运行时契约门通过（面存在 · 位点能判 · 笔记可用 · 侧栏可用 · 机制真落 · 旅人面闭环 · 五种洞窟效果 · 失败重置 · 宝箱四路径 · 调试开关）');
 	process.exit(0);   // jsdom 的视口轮询会把事件循环吊住（boot.mjs 的注释）⇒ 自己收场
 };
 

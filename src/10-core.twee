@@ -45,9 +45,38 @@ window.Game.Rules = {
 		reset() { this._impl = null; return this; },
 		d(n) {
 			if (this._impl) return this._impl(1, n);
+			// `#491` 判据 10：URL 给了 `?seed=` ⇒ 惰性装上内联 PRNG（**整局骰子固定**；没给则零影响）
+			const dbg = window.Game?.Rules?.debug;
+			if (dbg && dbg.seed != null && typeof window.Game.Rules.seedRng === 'function') {
+				this._impl = window.Game.Rules.seedRng(dbg.seed);
+				return this._impl(1, n);
+			}
 			if (typeof random === 'function') return random(1, n);   // SugarCube 默认源
 			throw new Error('Game.Rules.rng 未注入随机源：node 环境请先 Game.Rules.rng.set(fn)');
 		},
+	},
+	// ── `#491` 判据 10：**调试开关**（限"构建期/URL 参数"，**不进玩家 UI**）───────────────
+	// 口径（已定 ⑩）：① 只在 URL 带参数时生效 ⇒ 默认**零影响**；② 只影响**随机与事件池**，不动规则/数值表；
+	//   ③ 不渲染任何 UI（玩家看不到开关本身）⇒ 验收的确定性证据由它提供（`?seed=123&pool=short,long,chest`）。
+	debug: (() => {
+		try {
+			const q = new URLSearchParams((typeof location !== 'undefined' && location.search) || '');
+			const seed = q.get('seed'), pool = q.get('pool');
+			return {
+				seed: seed == null || seed === '' || !Number.isFinite(Number(seed)) ? null : (Number(seed) >>> 0),
+				pool: pool ? pool.split(',').map((s) => s.trim()).filter(Boolean) : null,
+			};
+		} catch { return { seed: null, pool: null }; }             // 无 location（vm/node）⇒ 空开关
+	})(),
+	/** 内联 PRNG（mulberry32；不引 `scripts/` 的 node 侧工具，那些不进产物）。 */
+	seedRng(seed) {
+		let a = seed >>> 0;
+		return (lo, hi) => {
+			a = (a + 0x6D2B79F5) >>> 0;
+			let x = Math.imul(a ^ (a >>> 15), 1 | a);
+			x = (x + Math.imul(x ^ (x >>> 7), 61 | x)) ^ x;
+			return lo + Math.floor((((x ^ (x >>> 14)) >>> 0) / 4294967296) * (hi - lo + 1));
+		};
 	},
 	ABILITIES: { str: '力量', dex: '敏捷', con: '体质', int: '智力', wis: '感知', cha: '魅力' },
 	SKILLS: {

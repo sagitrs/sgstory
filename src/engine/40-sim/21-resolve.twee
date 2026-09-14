@@ -300,7 +300,15 @@ Object.assign((window.Game.Combat ??= {}), {
 		if (!roads) return null;                                  // 未启用 ⇒ 调用方不调（显式降级）
 		const road = roads[idx - 1];                              // 段号**从 1 计**（与声明里的 from/to 一致）
 		if (!road) throw new Error(`Game.Combat.roadOffer：本故事没有第 ${idx} 段路（可用 1..${roads.length}，#489）`);
-		const all = road.options ?? [];
+		let all = road.options ?? [];
+		// `#491` 判据 10（已定 ⑩）：`?pool=a,b` 只从这些**事件类型**里出（**调试开关**，不进玩家 UI）；
+		// 命中即**照用**（不足 3 条也照用：调试开关的意图就是"只让我要的那几类出现"——放宽"三选一"是**有意**的，
+		// 它只在 URL 带 `?pool=` 时发生，玩家侧不可见）；一条都没命中（写错类型名）才回退全量，避免把路走成死档。
+		const wanted = window.Game?.Rules?.debug?.pool;
+		if (Array.isArray(wanted) && wanted.length) {
+			const only = all.filter((o) => wanted.includes(o?.kind));
+			if (only.length) all = only;
+		}
 		const filtered = all.filter((o) => !exclude.includes(o?.kind));
 		return this.pickN(filtered.length >= 3 ? filtered : all, 3);   // 与战斗池同一套选择机制
 	},

@@ -351,6 +351,9 @@ FCFS **81.3s** vs LPT **84.3s**；②「每个测试段各自 boot JSDOM」不�
 ① **污染**第一个故事的指标（同名段落、载荷统计、最薄段落榜、密度基线）；② **又被**第一个故事的判据要求（段落登记手册、覆盖宇宙、可达性）。
 ⇒ 一次引入就 4 段门红，根因只有一句：**故事门没有故事作用域**。
 
+**现状（三个故事）**：`mist-forest`（故事 1，默认）· `minimal-demo`（第二故事，**接入契约的自检夹具**）·
+`hollow-cave`（第三故事，`#490` S5 雏形：**唯一声明了 S1–S4 四件套的故事** ⇒ 那四道引擎门在这里判真数据）。
+
 **用法**
 - `node scripts/audit.mjs --story <slug> [--engine-only] --check`；默认故事（`mist-forest`）⇒ 与改前**逐字节相同**（golden 零漂移）；
 - `npm test` 的 `scripts-audit-mjs-story2-engine` 段：拿**最小故事**（`stories/minimal-demo`）跑**引擎门** —— 这是「引擎不知道故事名」的**可执行证据**（产物侧：书架 2 项）。

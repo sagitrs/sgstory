@@ -39,6 +39,8 @@ export const ORDER = [
 	//（`Object.assign(window.Game.Checks, …)`）⇒ 必须排在它前面。多故事并存下 ORDER 的"全局交错"语义
 	// 值得另票收紧（per-story ORDER），本票先按既有形状办。
 	'stories/minimal-demo/00-meta.twee',      // StoryTitle / StoryData / StoryIdentity（无依赖）
+	'stories/hollow-cave/00-meta.twee',       // StoryTitle / StoryData / StoryIdentity
+	'stories/hollow-cave/15-tables.twee',     // 声明面（S1–S4 的表）＋ StoryBindings：**引擎加载期**要用（必须排在 21-resolve 前）
 	'stories/minimal-demo/15-tables.twee',    // 最小声明面：引擎加载期要用的空容器
 	'stories/mist-forest/20-chargen.twee',   // Game.Chargen（rounds/presets/API；加载期需要 Rules）
 	'src/engine/40-sim/21-resolve.twee',    // 结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）
@@ -50,6 +52,8 @@ export const ORDER = [
 	'src/80-script.twee',    // 存档 API / Sg.Codex / Sg.Ending（需要前面全部）
 	'src/engine/50-present/90-style.twee',     // 纯 CSS
 	'stories/minimal-demo/10-demo.twee',      // 段落 ＋ StoryBindings（只依赖引擎）
+	// ── 第三个故事（#490 S5「无名洞窟」雏形）：同样按相对位置交错登记 ──
+	'stories/hollow-cave/10-cave.twee',       // 段落：醒来 → 五步三选一 → 地下村落
 	// ── 第二个故事（#460 最小示例）：证明引擎与故事已解耦 ──
 	// 它不共享 mist-forest 的任何文件（那是另一个故事的资产）；引擎文件对所有故事共享 ⇒ 由 `scopedFiles()` 自动带上。
 ];
@@ -60,6 +64,9 @@ export const MODULES = {
 	// ── 第二个故事（#460）：layer 'story'，只依赖引擎 ──
 	'stories/minimal-demo/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '第二个故事的元数据（StoryTitle / StoryData / StoryIdentity）' },
 	'stories/minimal-demo/15-tables.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '第二个故事的最小声明面：引擎**加载期**要用的空容器（#460 实测的接入契约）' },
+	'stories/hollow-cave/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '第三个故事（无名洞窟）的元数据' },
+	'stories/hollow-cave/15-tables.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '无名洞窟的声明面：S1–S4 声明表（mechanics）＋ StoryBindings（引擎接入契约）' },
+	'stories/hollow-cave/10-cave.twee': { deps: ['stories/hollow-cave/15-tables.twee'], defines: [], layer: 'story', note: '无名洞窟段落：五步三选一主线' },
 	'stories/minimal-demo/10-demo.twee': { deps: ['stories/minimal-demo/15-tables.twee'], defines: [], layer: 'story', note: '最小示例段落 ＋ StoryBindings（引擎接入契约的空表）' },
 	'src/engine/30-persist/05-store.twee': { deps: [], defines: ['Sg.store'], layer: 'engine', note: '存储缝（#441-B/#462）：localStorage 键构造的唯一落点' },
 	'src/10-core.twee': { deps: [], defines: ['Game.Rules', 'Game.Pc', 'Sg.UI'], layer: 'engine', note: '规则内核与界面基座' },

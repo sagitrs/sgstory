@@ -1,0 +1,256 @@
+/% ═══════════ 无名洞窟（`#490` S5 雏形 · 五步主线）═══════════
+   主角醒来在洞中，身上只剩一把旧剑与一支火把；走 5 步（每步六类事件三选一）到地下村落。
+   本片**刻意简短**（`#490`：文风同《迷雾森林》，段落可更短）——它考的是机制接线，不是打磨文案。
+   机制口径见 `stories/hollow-cave/15-tables.twee` 与 `docs/story2-contracts.md`。 %/
+
+:: 洞窟工具 [widget]
+/% 步进：一个事件走完 ⇒ 步数 +1；第 5 步之后 ⇒ 地下村落（终点）。
+   异常每步结算一次（S2 的 `tickStatuses`：算＋落都在引擎，这里只调用）。 %/
+<<widget "caveNext">><<nobr>>
+	<<run Game.Combat.tickStatuses($pc)>>
+	<<set $pc.ev.cave_step to ($pc.ev.cave_step ?? 0) + 1>>
+	<<if $pc.hp lte 0>>
+		<<goto "死在洞里">>
+	<<elseif $pc.ev.cave_step gt 5>>
+		<<goto "地下村落">>
+	<<else>>
+		<<goto "岔口">>
+	<</if>>
+<</nobr>><</widget>>
+
+:: 醒来
+/% payload: 信息 %/
+你在一处半塌的石室里醒过来。后脑很沉，身上能摸到的东西只有两样：一把刃上有缺口的''旧剑''，
+一支还在烧的''火把''。其余的都没有了——行囊、钱、干粮。
+
+前面只有一条路。
+
+<<set $pc.ev.cave_step to 0>>
+<<set $pc.hp to 20>><<set $pc.maxHp to 20>><<set $pc.gold to 0>>
+<<give "旧剑">><<give "火把">>
+[[站起来，往深处走|岔口]]
+
+:: 岔口
+/% payload: 选择 %/
+洞在这里分开了。三条都不像路，但至少都通着。
+
+<<set _n to ($pc.ev.cave_step ?? 0) + 1>>
+<<set _opts to Game.Combat.roadOffer(_n)>>
+<<if _opts and _opts.length>>
+	<<for _i to 0; _i lt _opts.length; _i++>>
+		<<link _opts[_i].hint>><<goto `"事件·" + _opts[_i].kind`>><</link>>
+		<br>
+	<</for>>
+<<else>>
+	/% 声明缺失 ⇒ 不静默：给一条明说的退路 %/
+	路标坏掉了（条件表没读到）。你只能照着一个方向硬走。
+	[[往深处走|地下村落]]
+<</if>>
+
+<<if $pc.statuses and Object.keys($pc.statuses).length>>
+<div class="sys-note">（身上带着异常：<<= $pc.statuses ? Object.keys($pc.statuses).join("、") : "">>。）</div>
+<</if>>
+
+:: 事件·shortFight
+/% payload: 张力 %/
+石壁后面窜出来一只东西，没有眼睛，壳是湿的。它先动的。
+
+<<set _w to Game.Combat.waveBegin($pc, "short")>>
+<<link "迎面劈过去">>
+	<<sitecheck "洞窟·挥剑">>
+	<<set _phase to Game.Combat.waveRecord($pc, $last_check.success)>>
+	<<if $last_check.success>>
+		刃压住了它。它退进石缝里，没再出来。
+	<<else>>
+		它撞在你肋上。<<damage `Game.Damage.hurt`>>
+	<</if>>
+	<<caveNext>>
+<</link>>
+
+:: 事件·longFight
+/% payload: 张力 %/
+两只。它们不急着上，一人一边，等你自己乱。
+
+<<if not $pc.ev.fight or not $pc.ev.fight.wave>>
+	<<set _w to Game.Combat.waveBegin($pc, "long")>>
+<</if>>
+<<set _wv to $pc.ev.fight.wave>>
+第 <<= _wv.idx>> 批 · 本轮 <<= _wv.rounds + 1>>/3（命中 <<= _wv.hits>>/3）
+
+<<link "把火把举低，逼它退到石壁边">>
+	<<sitecheck "洞窟·围斗">>
+	<<set _phase to Game.Combat.waveRecord($pc, $last_check.success)>>
+	<<if _phase is "advance">>
+		这一批倒下了。石缝里又钻出来更多——它还有同伙。
+		<<include "事件·longFight">>
+	<<elseif _phase is "cleared">>
+		最后一只也塌下去了。你站着，喘了很久。
+		<<set $pc.ev.fight to {}>>
+		<<caveNext>>
+	<<elseif _phase is "failed">>
+		你被压在地上。它们没有追——它们只是不让你过。
+		<<damage `Game.Damage.hard`>>
+		<<set $pc.ev.fight to {}>>
+		<<caveNext>>
+	<<else>>
+		它退了半步。你还有机会。
+		<<include "事件·longFight">>
+	<</if>>
+<</link>>
+
+:: 事件·chest
+/% payload: 选择 %/
+岩壁凹处嵌着一只箱子，铁皮鼓起，锁扣锈成了红色。
+
+<<set _m to (["锁扣", "机关针", "石块"])[Game.Rules.rng.d(3) - 1]>>
+<<set _rare to Game.Rules.rng.d(2) is 1>>
+<<set _c to Game.Combat.slotsDecl().chest.mechanisms[_m]>>
+机关看着像''<<= _m>>''<<if _rare>>（这一只压得比别的沉——珍贵）<</if>>。
+
+<<if $pc.inv["钥匙"]>>
+	<<link "用那把锈钥匙开它（难度降为 0）">>
+		钥匙转半圈。机关根本没来得及动，箱盖就弹开了。
+		<<give "干粮">><<run Sg.notes.add("n_cave_loot")>>
+		<<caveNext>>
+	<</link>>
+<<elseif $pc.inv[_c.tool]>>
+	<<link `"用" + _c.tool + "撬它（通用道具 −3）"`>>
+		<<sitecheck `_rare ? _c.rareSite : _c.site`>>
+		<<if $last_check.success>>
+			具压住了机关。里面是干粮，和一小块铁片。
+			<<give "干粮">><<run Sg.notes.add("n_cave_loot")>>
+		<<else>>
+			具滑了，机关针扎进虎口。<<damage `Game.Damage.graze`>>
+		<</if>>
+		<<caveNext>>
+	<</link>>
+<<else>>
+	<<link "徒手解它">>
+		<<sitecheck `_rare ? _c.rareSite : _c.site`>>
+		<<if $last_check.success>>
+			锁扣应声而开。里面是干粮。
+			<<give "干粮">><<run Sg.notes.add("n_cave_loot")>>
+		<<else>>
+			锁扣没动，指头先破了。<<damage `Game.Damage.graze`>>
+		<</if>>
+		<<caveNext>>
+	<</link>>
+<</if>>
+<<link "不管它，径直走过去">><<caveNext>><</link>>
+
+:: 事件·cave
+/% payload: 信息 %/
+这里的洞不一样——空气里有点别的什么。
+
+<<set _k to (["矿洞", "温泉", "空洞", "地下湖", "蘑菇洞"])[Game.Rules.rng.d(5) - 1]>>
+<<if _k is "温泉">>
+	''温泉''。水是热的。你把伤口浸进去，疼了一阵，然后不那么疼了。
+	<<set $pc.hp to Math.min($pc.maxHp, $pc.hp + 6)>>
+	<<set $pc.statuses to {}>>
+	<<link "起来，继续走">><<caveNext>><</link>>
+<<elseif _k is "矿洞">>
+	''矿洞''。岩层里夹着一条亮线。你抠下来一小块，磨成了一把''锈钥匙''。
+	<<give "钥匙">>
+	<<link "收好，继续走">><<caveNext>><</link>>
+<<elseif _k is "空洞">>
+	''空洞''。什么都没有——但回声告诉你前面还有多远，哪一段地面是空的。
+	<<run Sg.notes.add("n_cave_echo")>>
+	<<link "记住回音，继续走">><<caveNext>><</link>>
+<<elseif _k is "地下湖">>
+	''地下湖''。水黑得不像水。你得踩过去。
+	<<if $pc.inv["火把"]>>
+		<<link "举着火把，踩着露出水面的石头过去">>
+			<<sitecheck "洞窟·地下湖">>
+			<<if $last_check.success>>
+				石头没有滑。你过去了，鞋还干着。
+			<<else>>
+				石头翻了，你半身泡进水里。<<damage `Game.Damage.graze`>>
+				<<run Game.Combat.applyStatus($pc, "bleed", "腿")>>
+			<</if>>
+			<<caveNext>>
+		<</link>>
+	<<else>>
+		<<link "摸着黑蹚过去">>
+			水到腰。你过去了，但腿上的口子在流血。
+			<<damage `Game.Damage.hurt`>>
+			<<run Game.Combat.applyStatus($pc, "bleed", "腿")>>
+			<<caveNext>>
+		<</link>>
+	<</if>>
+<<else>>
+	''蘑菇洞''。孢子浮在火光里。你把火把举高——它烧得比刚才稳。
+	<<set $pc.ev.cave_torch to ($pc.ev.cave_torch ?? 0) + 1>>
+	<<link "让火把在这里换一口气，继续走">><<caveNext>><</link>>
+<</if>>
+
+:: 事件·trap
+/% payload: 张力 %/
+脚下那层浮土比别处松。
+
+<<link "侧身扑过去">>
+	<<sitecheck "陷阱·闪避">>
+	<<if $last_check.success>>
+		你从塌下去的那块地上翻了过去。
+	<<else>>
+		碎石把你带倒。坑底插着削尖的木片。
+		<<damage `Game.Damage.hurt`>>
+		<<run Game.Combat.applyStatus($pc, "bleed", "躯干")>>
+	<</if>>
+	<<caveNext>>
+<</link>>
+
+:: 事件·traveller
+/% payload: 选择 %/
+前面有火光，在动。是一个人，裹着看不懂的布，坐在自己的火堆边。
+
+<<if Game.Rules.rng.d(100) lte 50>>
+	他听见你，先站了起来——手里的东西不像工具。
+	<<link "先动手">>
+		<<sitecheck "洞窟·挥剑">>
+		<<if $last_check.success>>
+			他退了。你没有追。
+		<<else>>
+			他比你快。<<damage `Game.Damage.hurt`>>
+		<</if>>
+		<<caveNext>>
+	<</link>>
+	<<link "把火把压低，慢慢退开">>
+		他没有跟上来。
+		<<caveNext>>
+	<</link>>
+<<else>>
+	他往旁边挪了挪，给你腾出一块地方。火堆边放着一块干粮。
+	<<link "坐下，跟他换一点东西">>
+		<<if $pc.gold gte 3>>
+			你付了三枚，他给了你一块''干粮''。
+			<<set $pc.gold to $pc.gold - 3>>
+			<<set $pc.ev.cave_fed to true>>
+			<<give "干粮">>
+		<<else>>
+			他没有要钱。他把干粮掰了一半给你。
+			<<give "干粮">>
+		<</if>>
+		<<caveNext>>
+	<</link>>
+	<<link "请他帮个忙（给一件消耗品）">>
+		他从布里摸出一小包灰，让你敷在伤口上。
+		<<set $pc.hp to Math.min($pc.maxHp ?? 20, $pc.hp + 3)>>
+		<<set $pc.ev.cave_helped to true>>
+		<<caveNext>>
+	<</link>>
+<</if>>
+
+:: 死在洞里
+/% payload: 张力 %/
+你没走到第五步。火把烧到最后一段，灭了。
+
+<<ending "死在洞里" final>>
+
+:: 地下村落
+/% payload: 信息 %/
+洞口的尽头是个村子。房子是石头垒的，屋顶压着土，烟从几个烟囱里冒出来——
+很低的地方，居然有人住。
+
+你站在那儿，身上剩着剑、火把，和一路带下来的伤。
+
+<<ending "地下村落" final>>

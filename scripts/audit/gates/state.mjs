@@ -13,7 +13,7 @@
 //   `<<setflag "k">>` / `<<firstTime "k">>`（动态写入 `$pc.ev[k]` 并动态读回）· `$pc.ev["k"]`
 //   · 表内谓词 `(p) => p.world?.k`。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { qualifiedWriteKeys, keyCharsetViolations, readKeys, noteReadKeys, noteWriteKeys, ruleRowKeys } from '../lib/shared.mjs';
+import { qualifiedWriteKeys, keyCharsetViolations, readKeys, noteReadKeys, noteWriteKeys, ruleRowKeys, ruleRowSetKeys } from '../lib/shared.mjs';
 
 export const flag = 'state';
 export const flags = ['state'];
@@ -214,6 +214,7 @@ export const run = (ctx) => {
 		['经笔记的写（`Sg.notes.add`）也算写 ⇒ 未读时必报"只有写"', null, D, 1, 'noteWrite'],
 		// #435 阶段 4：条件表行里的键＝读点（手写 `<<if>>` 搬进表后，源码里没有这个读点了）
 		['条件表行引用的键算读 ⇒ 不再是"只有写"', null, D, 0, 'ruleRead'],
+		['条件表行的 `sets` 算写 ⇒ 不再是"只有读"', null, D, 0, 'ruleSet'],
 	];
 	let selfBad = 0;
 	for (const [label, keys, dm, expect, kind] of selfCases) {
@@ -222,6 +223,11 @@ export const run = (ctx) => {
 			: kind === 'charset' ? charsetViolations({ 'a.twee': ':: P\npc.ev.BadKey = true' }).length
 			: kind === 'noteRead' ? check(analyze({ 'a.twee': ':: P\n<<set $pc.ev.tav_x to true>>\n<<if Sg.notes.has(\'n_x\')>>y<</if>>' }, { notes: { n_x: { flagPath: 'ev.tav_x' } } }), dm).length
 			: kind === 'noteWrite' ? check(analyze({ 'a.twee': ":: P\n<<run Sg.notes.add('n_x')>>" }, { notes: { n_x: { flagPath: 'ev.tav_x' } } }), dm).length
+			: kind === 'ruleSet' ? (() => {
+				const ks = analyze({ 'a.twee': ':: P\n<<if $pc.ev.tav_x>>y<</if>>' }, { notes: {}, rules: [{ id: 'r', scope: 'P', sets: ['ev.tav_x'] }] });
+				for (const k of ruleRowSetKeys({ sets: ['ev.tav_x'] })) { if (!ks.has(k)) ks.set(k, { w: new Set(), r: new Set() }); ks.get(k).w.add('条件表:P'); }
+				return check(ks, dm).length;
+			})()
 			: kind === 'ruleRead' ? (() => {
 				const ks = analyze({ 'a.twee': ':: P\n<<set $pc.ev.tav_x to true>>' }, { notes: {}, rules: [{ id: 'r', scope: 'P', req: ['ev.tav_x'] }] });
 				for (const k of ruleRowKeys({ req: ['ev.tav_x'] }, {})) (ks.get(k) ?? { r: new Set() }).r.add('条件表:P');
@@ -249,6 +255,11 @@ export const run = (ctx) => {
 	for (const row of RULES) for (const k of ruleRowKeys(row, NOTES)) {
 		const e = keys.get(k);
 		if (e) e.r.add(`条件表:${row.scope ?? '?'}`);   // 只给**已出现**的键补读点（表引用了没人写/读的键 ⇒ 由"只有读"那条照旧红 ✓）
+	}
+	// `#435` Q1：行的 `sets` 是**写点**（写点也搬进表）⇒ 不补这一步，只经 `sets` 写的键会被判「只有读」⇒ 假红
+	for (const row of RULES) for (const k of ruleRowSetKeys(row)) {
+		if (!keys.has(k)) keys.set(k, { w: new Set(), r: new Set() });
+		keys.get(k).w.add(`条件表:${row.scope ?? '?'}`);
 	}
 	const declaredDyn = ctx.Game.State?.dynamicKeys ?? [];
 	// 动态族**展开成具体键**并入键图 ⇒ 这些键照样受「域归属／有写有读／命名空间」四条判定管

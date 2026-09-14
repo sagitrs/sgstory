@@ -90,6 +90,10 @@ export const ruleRowKeys = (row, entries) => {
 		// `#435`：**前缀键**（`inv:<道具>`／`era:<时代>`）不是状态键（持有物/时代都不在状态契约域里）
 		// ⇒ 不参与"有写有读"；它们的求值在引擎侧 `Sg.rules.holds()`。
 		if (/^(?:inv|era):/.test(key)) continue;
+		// `#435` 修正②：**第三命名空间**（`keeper.`/`star.`/`gold.`…）不是 `pc.ev`/`pc.world` 的键
+		// ⇒ 不参与状态契约（`--state`）与旗标分级（D2）。不跳过的话 `keeper.met` 会被当成裸键 `met`
+		// ⇒ `--state` 报"未落入任何域"（= 引入一个今天看不见的假红）。
+		if (key.includes('.') && !/^(?:ev|world)\./.test(key)) continue;
 		if (key.startsWith('n_')) for (const p of (paths.get(key) ?? [])) out.add(p);
 		else out.add(key.includes('.') ? key : `ev.${key}`);
 	}
@@ -101,6 +105,18 @@ export const ruleRowKeys = (row, entries) => {
 // 「经 `Sg.notes.add` 写」之后，按**字面量**认写点的门（`--state` 的"有写有读"、D2 的桶分类）
 // 会把该键判成**只有读** ⇒ 假红。（阶段 2 的 5 个消费点就是这个剧本，那次换的是**读**点形状。）
 export const NOTE_WRITE_RE = /Sg\.notes\.add\(\s*['"](n_[a-z0-9_]+)['"]/g;
+/** 条件键 → 与段落 `<<if>>` 里**同形**的条件文本（`n_*` ⇒ `Sg.notes.has('n_x')`；其余 ⇒ `$pc.<域>.<键>`，裸键默认 `ev.`）。
+ *  为什么必须只有一份（`#435` 前置 0）：表侧条件（行的 `req`/`any`/`exclude`）要过**同一份**判据
+ *  （`causeReg()`／`conditionReadsFlag()`），若两处各写一套转换 ⇒ 必然漂移（`--echoes` 与 `--investment` G3 都用它）。 */
+export const condTextOf = (key) => {
+	const k = String(key);
+	return k.startsWith('n_') ? `Sg.notes.has('${k}')` : `$pc.${k.includes('.') ? k : `ev.${k}`}`;
+};
+/** 条件表行的 **`sets` 写点**（`#435` Q1：授予家族第三类——状态键写点也搬进表）。与 `ruleRowKeys()` 同命名空间：
+ *  裸键默认 `ev.`（与 `Sg.rules.holds()` 同口径）；写世界态请写全 `world.x`；note id／前缀键不是状态键 ⇒ 跳过。 */
+export const ruleRowSetKeys = (row) => (Array.isArray(row?.sets) ? row.sets : row?.sets ? [row.sets] : [])
+	.map(String).filter((k) => !/^(?:inv|era):/.test(k) && !k.startsWith('n_')).map((k) => (k.includes('.') ? k : `ev.${k}`));
+
 /** 文本里 `Sg.notes.add('n_x')` 引用的笔记 id。 */
 export const noteWriteRefs = (text) => {
 	const out = new Set();
@@ -125,6 +141,7 @@ export const ruleRowFlags = (row, entries) => {
 	const out = new Set();
 	for (const key of [...(row?.req ?? []), ...(row?.any ?? []), ...(row?.exclude ?? [])].map(String)) {
 		if (/^(?:inv|era):/.test(key)) continue;   // 同 `ruleRowKeys()`：前缀键不是旗标，不参与分级
+		if (key.includes('.') && !/^(?:ev|world)\./.test(key)) continue;   // 同上：第三命名空间不是旗标
 		if (key.startsWith('n_')) for (const p of (paths.get(key) ?? [])) out.add(p.replace(/^(ev|world)\./, ''));
 		else out.add(key.replace(/^(ev|world)\./, ''));
 	}

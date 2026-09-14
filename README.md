@@ -1,251 +1,71 @@
 # 迷雾森林 · Twine + SugarCube 脚手架
 
-基于浏览器的文字冒险游戏模板：**Twee 纯文本源码 → 编译成单个 HTML 文件**。
-剧情用 git 管理，构建走 CLI，也可随时导入 Twine 2 可视化编辑器双向编辑。
-
-## 快速开始
+基于浏览器的文字冒险游戏模板：**Twee 纯文本源码 → 编译成单个 HTML 文件**；剧情用 git 管理，构建走 CLI，也可随时导入 Twine 2 可视化编辑。
+本仓是**一套引擎 ＋ 三个故事**：引擎（`src/`）与故事数据（`stories/<slug>/`）解耦，接入契约见 [`docs/engine-story-boundary.md`](docs/engine-story-boundary.md)。
 
 **▶ 在线试玩：https://sagitrs.github.io/sgstory/**（push 到 main → 测试通过 → 自动发布）
 
+## 快速开始
+
 ```bash
 npm install
-npm run build   # 编译 → dist/（index.html + fonts/ 外链子集字体，目录整体分发，浏览器直接打开即玩）
+npm run build   # 编译 → dist/（index.html + fonts/ 外链子集字体，浏览器直接打开即玩）
 npm run serve   # 本地预览：http://localhost:8000
-npm test        # 构建后全链（~2min）：L0 静态门（含表一致性）→ 十一道质量门（真相/canon/回声/选择/互动/**反 S/L**/**行囊+经济**/**战斗动作池**/**交涉**/系统/文本）→ 规则/属性单测 → L1 全段渲染 → 冒烟 → 场景(39 路线并行) → 覆盖门 → 旧存档×新界面 → 体积门
-npm run soak    # 游走器加量长测（20+20 局，~1.5min）+ 真浏览器验收（24 项）：CI 独立 job（M1c 接回）；发布前 / 状态机重改动时也可本地跑
-npm run browser # 真浏览器验收（#185 阶段五）：零依赖 CDP 直连 Chrome for Testing；缺浏览器/系统库时自动跳过（rc=0）
-npm run browser:setup  # 容器缺系统库：免 root 就地解包到 ~/.cache/sgstory-chrome-deps（apt-get download + dpkg -x）
-node scripts/ui-migration-diff.mjs  # 差异复核：工作区 vs 基线（默认 92f3d04）的玩家可见正文漂移 → docs/ui-migration-diff.md
-npm run audit   # 表驱动审计（#28/#34）：每个门都能单独跑，加载打印数值报告
-                 #   十一门 —— --truth --canon --echoes --choices --interact --nosl --gear --combat --social --systems --text
-                 #   数值三件套 —— 检定成功率矩阵 / 经济时间线 / --dragon 龙战推演与道具伤害矩阵
-                 # 加 --check 就是 CI 用的判定态（真相通路/设定回流/传说覆盖/道具消费/选择臂数/互动发起方/反 S/L/
-                 # 行囊与钱/动作池三档/交涉代价/机制发现性/文本载荷/彩蛋率），npm test 全跑
+npm test        # 全链（~2min）：L0 静态门 → 质量门 → 单测 → 全段渲染 → 冒烟 → 场景 → 覆盖 → 旧存档 → 体积
+npm run soak    # 加量长测（游走器 20+20 局）
+npm run browser # 真浏览器验收（零依赖 CDP，3 视口 × 4 场景 = 24 项）；容器缺系统库时 npm run browser:setup 免 root 就地解包
+npm run audit   # 表驱动审计：每个门都能单独跑（--truth --canon --echoes … --text）；加 --check 是 CI 判定态
 npm run watch   # 修改 src/ 自动重新编译
 ```
 
-### 质量维度 × 门（十维基线表，#247）
+门清单与"每门检什么"见 [`docs/quality-dimensions.md`](docs/quality-dimensions.md)；门的登记/接线见 [`docs/gate-ledger.md`](docs/gate-ledger.md)（生成物）；
+CI 变红时先看 [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)。
 
-| 维度 | 常设门／形态 | 命令 | 行为化 |
-|---|---|---|---|
-| D1 真相可达性 | 命题×通路×锚句；**D8 扩**：≥3 锚＋类型 ≥2＋声明一致＋反例自证 | `node scripts/audit.mjs --truth --check` | ✅ 行为化 |
-| D2 选择意义感 | 旗标分级落桶（76 旗标全分级） | `--choices --consequences` | ✅ 行为化 |
-| D3 系统可玩性 | 机制×锚句（玩家侧可发现） | `--systems` | ✅ 行为化 |
-| D4 世界活性 | 回声条件归属检查＋覆盖门全量采集 | `--echoes`；`test/coverage.mjs` | ✅ 行为化 |
-| D5 语言经济 | 载荷/密度 ratchet/术语一致（新颖度待补） | `--text --craft` | 机检（密度） |
-| D6 可用性适配 | 走查清单＋真机 24 项（含键盘）＋渲染三查 | `npm run browser`；`test/render-all.mjs` | ✅ 行为化（审美留人工） |
-| D7 局面与角色合理性 | `Game.NPC` 登记簿三查（位点/锚句/动机） | `--npc` | ✅ 行为化 |
-| D8 线索冗余 | ≥3 锚＋类型 ≥2＋类型来源一致＋反例自证 | `--truth` | ✅ 行为化 |
-| D1+ 规则层一致 | canon 条文的**逐字锚**（文档侧）＋**渲染探针**（正文侧）：include 必在屏、exclude 必不在屏、空探针即红 | `Game.RuleClaims`（9 条）× `test/rules-claims.mjs` | ✅ 行为化 |
-| #22+ 数值分布 | 蒙特卡洛 2 万局三门 | `--dragon` | ✅ 行为化 |
-| 交叉线互锁（C2） | 交付后互锁路线（#259） | `test/scenarios.mjs` 路线 40 | ✅ 行为化 |
-| I1 投入—回报 | G1 时间可感（现象层钩子，不显数字）／G2 失败给情报＋下次优势／G3 跨时代合龙门／G4 立场写入并跨段回收；G5/G6 报告 | `--investment`；路线 41 | ✅ 行为化（G5/G6 报告） |
-| 工程侧 | 段落登记门／结果不吞门／存档×新界面／覆盖三查 | `test/integrity.mjs`／`test/walker.mjs`／`test/saveui.mjs` | ✅ 行为化 |
+## 三个故事
 
-> 维度定义、候选池与提取方法见 `docs/quality-dimensions.md`；覆盖与未覆盖口径见 `docs/ui-coverage-gaps.md`。
->
-> **三条工程约定**（写新门/新用例前先读）：① 新门挂 `scripts/test-plan.mjs`（`package.json` 的 test 只有一行 run-tests）；② 选项定位用 `data-choice`＝目标段落名（`c('塔门')`／`clickByKey`，**断言仍写文案**），歧义由 `test/choice-keys.mjs` 静态把住；③ `src/` 只有 `Game.*`（数据/规则）与 `Sg.*`（UI/运行时）两个根，新增裸全局会被 `test/globals.mjs` 拦下。
+| 故事 | 目录 | 状态 |
+|---|---|---|
+| ① **迷雾森林** | `stories/mist-forest/` | 完整：3 章 ＋ 10 个结局 ＋ 5 个章节出口 |
+| ② 最小示例 | `stories/minimal-demo/` | 接入契约的验证物（引擎不知道故事名） |
+| ③ 无名洞窟 | `stories/hollow-cave/` | 雏形：五事件主线（战斗系统试验场） |
 
-### 纪律：词汇表与断言（#29）
+## 知识模型（一句话版）
 
-- **内容只许用既定词汇**：机制动作走词汇宏（sitecheck/econ/give/setflag/flip/damage…）、状态读取用 `$pc.*` 展示；L0 对三类越界告警（不阻断）：
-  - `W1` link/button 体内裸 `set/run/script`（点击态代码只有手写路线能测——O(内容) 负担源头；允许表：`Engine.restart` 导航 / `Game.Chargen.*` 模块 API）
-  - `W2` era **写**越界出翻转域（读不禁；翻转域＝挂了 `<<flip>>` 的段落所在文件，M1a-2 起动态发现）；`W3` 旗标只写不读/只读不写
-  - 豁免：段落内 `/% vocab: exempt W1 理由 %/`，豁免会留痕打印——豁免清单即收编工单
-- **数值单一源（#28）**：DC/定价/道具效果/命题/回声住 `src/15-tables.twee`（`window.Game`），正文只传位点/事件键；L0 硬拦：引用键不存在 / 表孤儿项 / 正文硬编码 `$pc.gold` 或数字 DC 残留。改数值改表 + `npm run audit`，不动叙事文本。
-- **路线断言降脆**（scenarios 约定）：只断终局账本（结局段、hp/gold/旗标终值）与关键里程碑；不断中间每步 hp/gold——中间值随叙事改动高频变脆。文案断言只锚稳定令牌（如「月光」），不锚整句。
+把「**玩家知道什么**」与「**世界发生了什么**」当**两类存储**分开：能写成「你知道了……」⇒ **笔记**（`Sg.notes.has('n_X')`）；
+只是"发生过／已拥有" ⇒ **世界态**（`world`／`items`）；两者同键 ⇒ **拆成两个键**。
 
-## 知识模型（笔记／世界态／运行时）
+- 完整版（三类划分 ＋ 判定口诀 ＋ 迁移五步 ＋ 层归属）：[`docs/notes-model.md`](docs/notes-model.md) —— **唯一权威**；
+- 故事的机制面（数值系统 ＋ 演示机制）：[`docs/game-mechanics.md`](docs/game-mechanics.md)。
 
-**为什么单列一节**：本仓把「玩家知道什么」与「世界发生了什么」当作**两类不同的存储**，条件、门与文案都按这条线分（D1／D2／D4／D8 四条质量维度的判定都建立在它上面）。
-**唯一权威是 [`docs/notes-model.md`](docs/notes-model.md)**（本节是入口版本；两处若有出入以那份为准）。
+## 去哪里读什么
 
-```
-段落/选项内容  ←  select(条件语言)
-                   ├── notes   笔记（我知道什么）—— 条件写 `Sg.notes.has('n_X')`
-                   ├── world   世界态（发生过什么）
-                   ├── items   物品栏（我拿着什么）—— 条件写 `inv:<道具>`
-                   └── state   数值/态度（星力、态度、回合…）
-```
-
-**判定口诀**（与 `docs/notes-model.md` §1 同源）：
-
-| 情形 | 归类 |
+| 我要…… | 去哪 |
 |---|---|
-| 能写成「你知道了……」一句**玩家可复述**的话 | **笔记**（`notes`） |
-| 只是「发生过／已拥有」 | **世界态**（`world`／`items`） |
-| **运行时**：既不可复述、也不改变世界结果（去重与首遇记账／瞬态） | **运行时**（`state`） |
-| 一个键**同时**承担两类语义 | **拆成两个键**（别让它两用） |
+| **文档全索引**（权威表 ＋ 按任务读） | [`docs/README.md`](docs/README.md) |
+| 仓库目录 / 文件职责 / 层归属 | [`docs/repo-map.md`](docs/repo-map.md) |
+| Twee 语法与本仓词汇宏速查 | [`docs/twee-cheatsheet.md`](docs/twee-cheatsheet.md) |
+| 故事 1 的机制面（数值 ＋ 演示机制） | [`docs/game-mechanics.md`](docs/game-mechanics.md) |
+| 写剧情：设定与设计蓝本 | [`docs/lore-canon.md`](docs/lore-canon.md)（**设定唯一权威**）· [`docs/game-outline.md`](docs/game-outline.md) |
+| 改引擎：代码级约定 | [`docs/dev-conventions.md`](docs/dev-conventions.md) |
+| 加门 / 测试：判据与作业模板 | [`docs/quality-dimensions.md`](docs/quality-dimensions.md) |
 
-**迁移五步**（每步可独立合入、可回滚；完整版见 `docs/notes-model.md` §4）：
+## 工程约定（写新门 / 新用例前先读三条）
 
-| 步 | 内容 | 出口判据 |
-|---|---|---|
-| 1 | `Game.Notes` 表 ＋ `Sg.notes.*` 封装（读现有旗标，零行为变化） | `--notes` 门 |
-| 2 | 段落条件 `$pc.ev.X` → `Sg.notes.has('n_X')`（纯转发） | **可见漂移 0**（`ui-migration-diff`） |
-| 3 | 写点 `setflag X` → `Sg.notes.add('n_X')`（旗标降为兼容字段） | `--state` 域表更新 ＋ `saveload` 往返 |
-| 4 | 对话内容**按表组装**（`stories/<slug>/17-rules.twee` ＋ 引擎侧选择器） | `--rules`／`--reads`／`premise-source`／`choice-keys` |
-| 5 | 清理兼容层（删旗标）＋ 手册更新 | 裸旗标计数归零门 |
+① 新门挂 [`scripts/test-plan.mjs`](scripts/test-plan.mjs)（`package.json` 的 test 只有一行 run-tests）；
+② 选项定位用 `data-choice`＝目标段落名（`c('塔门')`／`clickByKey`，**断言仍写文案**），歧义由 `test/choice-keys.mjs` 静态把住；
+③ 全局只有两个根：`Game.*`（数据/规则）与 `Sg.*`（UI/运行时），新增裸全局会被 `test/globals.mjs` 拦下。
 
-**层归属**（写新内容/新门之前先分清；`#441` 结合面）：
+另有两条会咬人的机检纪律（细节见上文 `dev-conventions.md`）：**机制动作只走词汇宏**、状态读取用 `$pc.*` 展示（W1–W3 告警）；
+**数值单一源**——DC/定价/道具效果/命题/回声只许住故事侧表，正文只传位点/事件键（L0 硬拦）。
 
-| 面 | 在哪 | 谁读它 |
-|---|---|---|
-| **引擎机制** | `Sg.notes`（求值/写入/幂等）· `Sg.rules`（条件表选择器 ＋ `yields`/`gives`/`sets` 三面） | 与具体故事**无关**：故事 2／3 复用同一套 |
-| **故事数据** | `stories/<slug>/15-tables.twee`（`Game.*`）· `16-notes-*.twee`（笔记表）· `17-rules.twee`（条件表行） | 只在**本故事**内生效 |
+## 编辑器与维护
 
-> 两条机检纪律：**读侧一律经封装层**（条件表里不出现字面状态读，`--reads`）· **写侧一律在 `<<rules>>` 一处落地**（`--rules` 的 `text` 纯渲染＋三个授予面）。
+- **与 Twine 2 配合**：Library → Import 选 `dist/index.html` 可导入可视化编辑；导出 HTML 后用 `npx extwee -d -i 导出的.html -o 反编译.twee` 回到源码。
+- **升级 SugarCube**：换 `vendor/format.js` ＋ 更新故事元数据 `stories/mist-forest/00-meta.twee` 里的 `format-version`。
+- **玩家可见正文漂移复核**：`node scripts/ui-migration-diff.mjs`（工作区 vs 基线 → `docs/ui-migration-diff.md`）。
+- **发布**：push 到 main → CI 跑测试 → 构建并自动发布到 GitHub Pages。
 
-## 工程约定
-
-代码级约定（渲染路径 / 构建顺序 / 状态契约 / 命名）统一写在 **[`docs/dev-conventions.md`](docs/dev-conventions.md)**——**凡约定必配一条会咬人的门**。
-
-## 目录结构
-
-```
-src/               引擎层（与具体故事无关；层归属与加载顺序的**单一权威**：scripts/module-order.mjs）
-  engine/30-persist/05-store.twee   localStorage 键构造的唯一落点（引擎/故事两作用域 ＋ 幂等迁移，#462）
-  engine/40-sim/21-resolve.twee     机制/选择器：Sg.rules（条件表选择器 ＋ sets/yields/gives 三个授予面）
-  engine/50-present/11-scene.twee   呈现层共用件（场景/面板/折叠/结果槽）
-  engine/50-present/90-style.twee   全局样式（暗色主题）
-  10-core.twee   Rules（d20 内核）+ StoryInit + Widgets（词汇宏）+ StoryCaption（侧栏）
-  80-script.twee StoryScript：存档钩子 + S/L 快捷键（读档要 .then(Engine.show) 才重画）+ 结局页收尾入口
-                   + 图鉴跨周目持久化（localStorage）+ 段落起始的状态归一化
-stories/           多故事：**每个故事一个目录**（接入契约 #441-E／#460；引擎只经 Sg.story.* 取数据）
-  mist-forest/    故事 1「迷雾森林」（本 README 主体）
-    00-meta.twee   故事元数据：标题、IFID、起始段落
-    15-tables.twee ★ window.Game（位点/经济/道具/行囊/战斗/交涉/图鉴/命题/回声/选择/系统/翻转锚/星力/龙）
-                    + Pc（状态形状与迁移）+ Game.Chargen（车卡三件套）——机制数值单一源（#28）
-    16-notes-*.twee 笔记表（知识模型）增量文件：ch1/ch2/ch3/cross（#429–#431）
-    17-rules.twee  条件表（#435 阶段 4）：行数组（req/any/exclude/prio/yields/gives/sets）——选择器在引擎侧
-    20-chargen.twee Game.Chargen.rounds（3 轮）+ Game.Chargen.presets + 车卡 / 角色卡
-    30-ch1.twee    ★ 序章 + 一章（时间）正文
-    40-ch2.twee    ★ 二章（手段）正文
-    50-ch3.twee    ★ 三章（坐标）正文
-    60-endings.twee ★ 结局（10 个出口）
-    70-codex.twee  ★ 设定集（hub + 三律/守塔的人家/塔/道具/术语/结局/图鉴）
-  minimal-demo/   故事 2：最小示例（#460 接入契约的验证物）
-  hollow-cave/    故事 3「无名洞窟」：雏形（#490 S5）
-vendor/
-  format.js       SugarCube 2.37.3 官方 story format（升级时替换此文件）
-test/integrity.mjs  L0 静态完整性门：悬空引用/goto 裸词/未定义宏 + 词汇纪律 W1-W3 + 表一致性硬门（#28/#29）
-                   + 序章白名单（开场不许提前提后文才到的地方）+ 回指门（"你想起某人说过的话"必须真听过 → 门槛控） + 楼层数字门（正文/提示里的"N楼"要与设定书楼层定案一致）+ 满血门（<<set $pc.hp to $pc.max_hp>> 必须落在 <<if>> 门控里）
-test/render-all.mjs L1 全段落渲染冒烟：逐段落 play × $era 双变体，无异常/无 .error/非空 + 断链门（a.link-broken 必须为 0）+ 裸标记门（畸形闭合在屏上漏字）
-test/saveui.mjs    旧存档 × 新界面兼容矩阵（#264）＋**真实存读档往返**（#300 P1：原地取物→save→load，道具与「已翻找」态须回来）
-test/browser.mjs   真浏览器验收（#263）：零依赖 CDP，3 视口 × 4 场景 × 操作前后 = 24 项断言 + 截图存证
-test/walker.mjs    L2 对抗席游走器：种子化随机游走（一章+塔）+ 状态不变量 + 位点双支清扫（npm run soak 加量）
-test/coverage.mjs  L3 覆盖率 ratchet（六门）：基线不回退 / 新段落必配测 / 无交互盲区 / 时代双态 / 交互≥渲染 / **链接级覆盖**（render-all 的链接清单 × scenarios 的点击记录，未点过的须在 test/link-whitelist.json 里有理由）
-test/render-all.mjs（门7 出口在最后·静态版）＋ test/walker.mjs（同款·真实状态版）：有可点元素的段落，**最后一个可点之后不许压着成块正文（≥30 字，按文本节点数、含收起 details 的最坏展开态）**——推进剧情的选项永远在最后（#179/#184）。豁免走 test/exits-whitelist.json（结局页 UI 脚注 / flip 过场）
-                   ——基线更新：npm run update-coverage-baseline
-test/smoke.mjs    无头冒烟测试（快速车卡 → 酒馆 → 森林 → 洞穴 + 侧栏/存档/物品栏）
-test/boot.mjs      共享 JSDOM 启动（就绪轮询 + uncaught 监听 + `settle()` 等 Engine.isIdle 且 DOM 跟 State 同步
-                   + 退出清理 + 可点选择器 CLICKABLE/CLICKABLE_SEL/LINKS）
-                   ——渲染/冒烟/规则/属性/场景/游走全部走这里，不各自装配 JSDOM
-test/scenarios.mjs 分支场景测试（39 条路线：金路径 + 全部结局 + 设定集 + 图鉴 + 龙巢边 + 时代分叉 + 封印战 + 反 S/L + 星力软限 + 结局页收尾 + 女巫小屋只治一次 + 酒馆把桌子听遍 + 文本上下文 + **跨周目粘性**）
-                   ——跨周目口径（#271）：图鉴账本（localStorage）跨周目保留；谜底门＝「**曾经**走到过终局」，
-                   因此走到过终局的档在新周目开局即可在设定集·术语读到谜底；`Sg.save.restart()` 只重置本局状态，不动账本。
-test/rules.mjs    规则层单测 + 表契约（10 组）+ 存档兼容矩阵（test/fixtures/saves/ 每版历史形状一档；改 Game.Pc.defaults 必须同 PR 加 fixture）
-test/properties.mjs L5 数值属性：判定边界全枚举/优势支配律/伤害界限/战斗伤害单调律/车卡形状律
-scripts/audit.mjs   质量十一门 + **文字工艺门（--craft）**：真相可达性/**canon 门**（设定书 §10 黑名单回流 + §9 双读断言扫描 + §3.9 传说覆盖 + §5.0 道具消费）/
-                    选择意义感/系统可玩性/世界活性/语言经济/**互动门**/**反 S/L 门**/**行囊门 + 经济门**/**战斗动作池门**/**交涉门**/
-                    图鉴门 + 数值三件套（检定成功率矩阵 / 经济时间线 / 龙战推演与道具伤害矩阵）
-                    文字工艺门：跨段落重复句 / 正文半角标点 / '' 奇偶 / 破折号·像·括号密度 ratchet（test/density-baseline.json）/ 道具名与 Items.defs 一致
-                    ——改叙事文本断锚即红，设定裁剪后正文回流亦红，失败档给收益即红
-docs/
-  lore-canon.md     ★ 设定书（唯一权威正史「送它回家」；正文与它冲突＝P1 缺陷）
-  game-outline.md   ★ 游戏大纲（依据设定书扩展的机制/内容蓝本；不具设定权威）
-  notes-model.md    ★ 知识模型唯一权威（三类划分 ＋ 判定口诀 ＋ 迁移五步 ＋ 表语法已知边界）
-  dev-conventions.md 代码级约定（渲染路径/构建顺序/状态契约/命名/条件表形状）——见「工程约定」
-  engine-story-boundary.md  引擎/故事两层的边界与接入契约（#441）
-  story2-contracts.md       故事 2/3 的接入契约清单（#460／#490）
-  impl-map.md       实施图（M1 骨架落地：段落图/状态模型/测试策略）
-  archive/          已作废稿（禁止回流；对照表见 docs/archive/README.md）
-  design-review.md  D6 可用性走查存档（呈现层改动时复审）
-  quality-selfaudit-ch123.md  1–3 章八维自检存档（流程记录，非设定稿）
-build.mjs         合并 src/*.twee → extwee 编译
-dist/             编译产物（index.html + fonts/*.woff2，自包含可离线；字体外链：首访更小、复访走缓存）
-```
-
-## Twee 语法速查
-
-```
-:: 段落名              定义段落（一个"场景/节点"）
-[[显示文字|段落名]]     链接跳转（也可写成 [[段落名->显示文字]]）
-$hp                   变量（$ 开头，可直接写在正文里插值）
-<<set $gold -= 10>>    赋值
-<<if $gold gte 10>>…<<else>>…<</if>>   条件（gte/lte/eq/is/not）
-<<textbox "$name" "默认值">>           文本输入
-<<damage 20>>          本模板自定义 Widget：扣血（药膏自动生效）+ 死亡跳转
-<<sitecheck "位点">>    词汇宏：按表查 DC 走技能检定 / 豁免（<<check>> / <<save>>）
-<<fightbegin/fightresolve/fightpanel>>  B1 战斗动作池：每轮随机 3 选 1，每手一次属性化检定，成/败/大成功各有后果
-<<socresolve/socpanel "诉求">>  B2 交涉：同一句诉求换手段＝换属性/换代价；筹码（给/亮/读）＝免检
-<<econ "事件">>         词汇宏：按表收支金币（含折扣与 gives 入账）
-<<give "道具">>         词汇宏：入物品栏；<<setflag "旗标">> 置世界旗标
-<<flip>>               词汇宏：时代翻转（原地生效、耗隐藏星力、回现在雾淡）
-<<hpbar>>              本模板自定义宏：渲染血条
-<<snapshot>>           存下本条检定的骰面；<<lastcheck>> 复显它、<<lastcheckFor "位点">> 只在指定段落复显
-<<ending "键" final>>  结局登记（本档 + 图鉴永久账）并追加收尾卡（退回上一步 / 读档 / 从头再来）
-<<dragonbar>>          龙血条；<<inventory>> 侧栏物品栏（由 $pc.inv 派生）
-<<include "段落名">>    在当前段落中嵌入另一个段落
-''粗体''  //斜体//      基础排版
-/% 注释 %/             注释不会输出
-```
-
-## 内置的数值系统（D&D SRD 5.2 检定制）
-
-- **六属性 + 调整值**：力量/敏捷/体质/智力/感知/魅力，mod = (score-10)/2 向下取整
-- **18 技能**：技能→属性映射，熟练 = 调整值 + 熟练加值(+2)
-- **d20 检定**：`<<check "察觉" 10 "adv">>` / 豁免 `<<save "con" 15>>`，
-  支持优势/劣势（双骰取高/低）与自然 20/1 必成/必败（2024 版规则）
-- **3 轮三选一车卡**（15–30 分钟单周目，v16）：职业（属性/技能/行囊/生命骰）→ 背景（技能/金币/烙印）→ 种族（**只改数值**），
-  另有 3 套一键预设；3³ = 27 种细调组合
-
-## 内置的演示机制
-
-| 机制 | 位置 | 说明 |
-|---|---|---|
-| 车卡流程 | `车卡/角色卡` | 3 轮三选一（+3 预设），数据驱动 |
-| 检定驱动剧情 | `酒馆/森林边缘/洞穴/雾之魔物/书房/工坊/天文台/观星者/当时的女巫/寻杖/老巫女/塔外花田` | 技能检定/豁免代替裸随机（`<<sitecheck>>`）；**塔外花田**＝体质豁免 DC16，失败＝**死亡结局**（有情报免判定） |
-| 资源经济 | `酒馆/女巫小屋/洞穴/书房/工坊/天文台/龙·巢边` | 金币买信息与准备；学识烙印与技能折扣 |
-| 情报=优势 | `酒馆→洞穴`、`守林人` | 传闻给检定优势；带证物分层解锁守林人回答 |
-| 道德分支 | `洞穴` | 买路 / 动武 / 绕开 → 一章回响（**塔外花田**：放生的哥布林会告诉你花的危险） |
-| **交涉（B2 手段×筹码）** | `酒馆` / `守林人` / `观星者` / `当时的女巫` / `洞穴` / `老巫女` | **同一句诉求换手段＝换属性判定**（游说/欺瞒/恐吓/表演/洞悉/察觉/历史）；**态度定 DC**（友好 −5 / 冷淡 0 / 敌意 +5，DMG 表）；**代价因手段而异**（游说失败＝这一手更难，欺瞒/恐吓＝态度降级，表演/洞悉＝只丢这一句）；**筹码＝免检**（给钱/亮护符/把日记摊开）；`老巫女` 与 `女巫·换哨` 演示 **willing/unwilling**（他本来就要说 / 掷骰也没用）——`audit --social` |
-| **战斗（B1 动作池）** | `雾之魔物·战` / `封印·并肩` / `龙·战` | **每轮随机 3 选 1**：每手是一次**属性化检定**（面板写明属性与 DC），**成 / 败 / 骰面 20 大成功**三档各有后果；上一轮打过的不再发；**失败档不给收益**（`audit --combat`） |
-| 双时代探索 | `<<flip>>` × 7 个锚点 | **翻转在原地生效，位置决定年代**（v16 §3.3）；从过去回来雾淡一些；**第 5 次起星力见底** → 真结局降级「再度沉睡」 |
-| 星力隐藏计数 | `$pc.star` | 玩家不可见，无数字/进度条；唯一反馈＝雾淡（v16 §3.5） |
-| 物品栏 | `StoryCaption` + `<<give>>` | 每件各有用途，**不集齐开锁**（v16 §5.0） |
-| 常驻存档 | `StoryCaption` + `StoryScript` | 侧栏固定块：快速存档/快速读档/存档菜单；快捷键 `S`/`L` |
-| 多结局 | `结局 *` × 10 | 真（送星归位）/ 降级（再度沉睡·自愿的长眠）/ 非真（击杀·虚空·劣化封印·**星落·坠星之死（彩蛋：天然 20 + 劣势 ≈0.25%）**·讨伐·死亡（含**花田长眠**））/ 章节（平凡之路·银月之赐·半途·新任守林人·焚塔者） |
-| 结局页收尾 | 每个 `结局 *` 段落末尾（`<<ending>>` 统一发牌） | **退回上一步** / **读档** / **从头再来**；「从头再来」只清本档，**图鉴的永久解锁跨周目留着** |
-
-存档/读档既有**侧栏常驻入口**（快速存档/快速读档/存档菜单，快捷键 `S`/`L`），也有**左侧边栏菜单**里的完整存档界面（SugarCube 内置，自动持久化到浏览器 localStorage）。
-
-## 与 Twine 2 编辑器配合
-
-Twine 2（桌面版）可以**导入编译产物继续可视化编辑**：
-
-1. 打开 Twine 2 → Library → Import → 选 `dist/index.html`
-2. 节点图里编辑后导出 HTML
-3. `npx extwee -d -i 导出的.html -o 反编译.twee` 可回到 Twee 源码
-
-建议：日常写作用 Twee + git；给策划看结构时用 Twine 2。
-
-## 升级 SugarCube
-
-1. 到 https://github.com/tmedwards/sugarcube-2/releases 下载新版 zip
-2. 用其中的 `format.js` 替换 `vendor/format.js`
-3. 更新 `src/00-meta.twee` 里的 `format-version`
-
-## 参考
-
-- SugarCube 文档（必读）：https://www.motoslave.net/sugarcube/2/docs/
-- Twee 3 规范：https://github.com/iftechfoundation/twine-specs/blob/master/twee-3-specification.md
-- extwee（编译器）：https://github.com/videlais/extwee
-- Twine 官网/下载：https://twinery.org
-- VS Code 语法高亮：扩展商店搜 **twee3-language-tools**
-- 踩坑实录与引擎评估：[TROUBLESHOOTING.md](TROUBLESHOOTING.md)
-
-## 许可
+## 许可与来源
 
 | 部分 | 许可证 | 文件 |
 |---|---|---|
@@ -256,14 +76,4 @@ Twine 2（桌面版）可以**导入编译产物继续可视化编辑**：
 | D&D SRD 5.2（规则数值来源） | CC BY 4.0（© Wizards of the Coast） | [NOTICE](NOTICE) |
 | extwee / jsdom（仅开发期） | MIT | [NOTICE](NOTICE) |
 
-## 鸣谢
-
-本项目实现时参考了以下开源项目（未直接包含其代码）：
-
-- [Another-RPG-Engine](https://github.com/AnotherRPGEnthusiast/Another-RPG-Engine)（MIT）— SugarCube 原生 RPG 引擎，数值修饰栈模式
-- [foundryvtt/dnd5e](https://github.com/foundryvtt/dnd5e)（MIT）— 5e 规则的权威 JS 实现，检定公式组织
-- [rpg-dice-roller](https://github.com/dice-roller/rpg-dice-roller)（MIT）— 骰子表达式解析思路
-- [5e-bits/5e-srd-api](https://github.com/5e-bits/5e-srd-api)（MIT）— SRD 数据组织
-- [Ascend Nousta's Tower](https://jaclynlewis.itch.io/ascend-noustas-tower)（CC BY-SA 4.0, © Jaclyn Lewis）— 第二章「守林人之塔」的单页地城结构灵感（未复制内容）
-
-发布流程：push 到 main → CI 跑测试 → 构建并自动发布到 GitHub Pages。
+第三方项目鸣谢与外部参考资源：[`docs/credits.md`](docs/credits.md)。

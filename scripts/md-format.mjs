@@ -15,6 +15,9 @@
 //   F2「标题不在块内」：逐行模拟 GitHub 的围栏状态机（每个围栏行翻转一次），
 //       任何 `#…` 标题出现在**块内** ⇒ 判红，并**点名文件与行号**。
 //   F3「围栏行不被当作正文标签」：围栏行的语言串里不许再混 `` ` ``（防"```` ```js ``` ``"这类的成因复现）。
+//   F5「入口页体量 ratchet」（`#603` 片二）：`README.md` 行数 ≤ 上限（默认 120，`README_MAX_LINES` 可覆盖）。
+//       —— README 曾长到 270 行/24KB（"什么都有"＝等于没有）：十维密表、整棵目录树、Twee 速查、机制表全塞在入口页。
+//       分层之后必须**防止再长回去**，所以给入口页一条会咬人的上限（不是审美，是可判定的）。
 import { readFileSync, readdirSync, statSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -56,6 +59,21 @@ export const analyzeMarkdown = (text, { file = '<mem>' } = {}) => {
 	return { fences, odd: fences.length % 2 !== 0, headingsInFence, problems };
 };
 
+/** 入口页体量上限（行）。分层后的 README 是 79 行；留余量到 120，再超就说明参考件又在往入口页塞。 */
+export const README_MAX_LINES = Number(process.env.README_MAX_LINES ?? 120);
+
+/** 纯函数：入口页体量检查。 */
+export const checkReadmeBudget = (text, { max = README_MAX_LINES, file = 'README.md' } = {}) => {
+	const lines = String(text).split('\n').length;
+	return {
+		lines,
+		problems: lines > max
+			? [`${file}：**入口页 ${lines} 行 > 上限 ${max} 行** ⇒ 又在变 godfile；`
+				+ '把"参考件"（目录树/速查表/维度表/机制表）移到 `docs/` 并在 `docs/README.md` 登记，入口页只留入口']
+			: [],
+	};
+};
+
 /** 走仓库里所有 `*.md`（跳过构建产物与依赖目录）。 */
 export const allMarkdown = (dir = ROOT, out = []) => {
 	for (const name of readdirSync(dir)) {
@@ -81,6 +99,8 @@ const main = () => {
 		['正例：**成对**围栏里的 bash 注释（`# 十一门 …`）⇒ 不误报（这是我第一版误报过的形态）',
 			analyzeMarkdown('## 节\n\n```bash\nnpm run audit\n                 #   十一门 —— --truth …\n```\n').problems.length === 0],
 		['围栏行语言串混反引号 ⇒ 判红', analyzeMarkdown('```js`\ncode\n```\n').problems.some((p) => p.includes('反引号'))],
+		['入口页 100 行（≤120）⇒ 不报', checkReadmeBudget(Array(100).fill('x').join('\n'), { max: 120 }).problems.length === 0],
+		['🔴 入口页 200 行 ⇒ 判红并点名行数上限', checkReadmeBudget(Array(200).fill('x').join('\n'), { max: 120 }).problems.some((p) => p.includes('200 行') && p.includes('godfile'))],
 	];
 	for (const [label, ok] of self) {
 		if (ok) console.log(`      ✓ 自证·${label}`);
@@ -98,8 +118,15 @@ const main = () => {
 	}
 	console.log(`      扫描 ${files.length} 个 md：围栏奇数 ${oddFiles} 个 · 有标题被吞 ${inFenceFiles} 个`);
 
+	// ── F5：入口页体量 ratchet ──
+	if (files.includes('README.md')) {
+		const b = checkReadmeBudget(readFileSync(join(ROOT, 'README.md'), 'utf8'));
+		for (const p of b.problems) { bad++; console.error(`  ✗ ${p}`); }
+		console.log(`      入口页 README.md ${b.lines} 行（上限 ${README_MAX_LINES}）`);
+	}
+
 	if (bad) {
-		console.error(`\n✗ 文档格式门未通过（${bad} 项）—— 围栏必须成对，标题不许落在代码块里（#603）`);
+		console.error(`\n✗ 文档格式门未通过（${bad} 项）—— 围栏必须成对 · 标题不许落在代码块里 · 入口页不许超上限（#603）`);
 		process.exit(1);
 	}
 	console.log('\n✔ 文档格式门通过（围栏全成对 · 无标题被吞）');

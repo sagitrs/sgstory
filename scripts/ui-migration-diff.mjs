@@ -29,7 +29,8 @@ import { pathToFileURL } from 'node:url';
 //      跳过，所以「全量清单」不会凭空多出假段落；下次搬家/改目录时**不会再漂出第二次**。
 import { execSync } from 'node:child_process';
 import { writeFileSync, readFileSync } from 'node:fs';
-import { MODULES } from './module-order.mjs';
+import { MODULES, scopedFiles } from './module-order.mjs';
+import { DEFAULT_SLUG, readStory } from './dist-paths.mjs';
 
 // ── 纯函数：判据（自证与真实运行**同一份代码**）─────────────────────────────
 // `base`／`cur`：段落名 → 正文；`invText`：docs/ui-inventory.md 全文
@@ -75,6 +76,11 @@ export const inputProblems = ({ curSize = 0, baseSize = 0, unreadable = 0, total
 // ── 清单同源（防线③）：工作区侧取 `MODULES`，基线侧取**基线树里实际存在的** `*.twee` ──
 // 两侧取并集，是为了“本 PR 删了一个正文文件”这类情形也能被看见（只取工作区清单会把基线侧一起漏掉）。
 export const sourceFiles = (baseFiles = [], modules = {}) => [...new Set([...Object.keys(modules), ...baseFiles])].filter((f) => f.endsWith('.twee')).sort();
+/** `#460` **故事作用域**（与本仓其它故事门同一条口径）：本门是**迁移取证**门 ——
+ *  它证明"纯转发没改可见文本"，判的是**默认故事**的正文面。把新故事（第二/第三个）的正文也算进来
+ *  ⇒ 任何"新增内容"的 PR 都会被判成"未登记漂移"（实测：新增 `路·*` 76 段 ⇒ 红），而那不是本门要防的东西。
+ *  ⇒ 工作区侧＝**默认故事作用域**；基线侧仍取基线树里存在的同名文件（"删了正文文件"照样看得见）。 */
+export const defaultStoryFiles = () => scopedFiles(readStory(DEFAULT_SLUG));
 
 export const parsePassages = (twee) => {
 	const out = new Map();
@@ -146,7 +152,9 @@ const main = () => {
 
 	let baseFiles = [];
 	try { baseFiles = execSync(`git ls-tree -r --name-only ${BASE}`, { encoding: 'utf8' }).split('\n'); } catch { baseFiles = []; }
-	const SRC = sourceFiles(baseFiles, MODULES);
+	// 工作区侧：**默认故事作用域**（引擎 ∪ 默认故事清单）；基线侧：基线树里的 `*.twee`（与工作区交集之外的交给 `inputProblems` 报）
+	const scopeNames = new Set(defaultStoryFiles());
+	const SRC = sourceFiles(baseFiles.filter((f) => !f.includes('stories/') || scopeNames.has(f)), Object.fromEntries(Object.entries(MODULES).filter(([k]) => scopeNames.has(k))));
 
 	const cur = new Map();
 	for (const f of SRC) {

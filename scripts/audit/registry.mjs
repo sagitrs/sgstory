@@ -26,6 +26,7 @@ import * as g_literals from './gates/literals.mjs';
 import * as g_notes from './gates/notes.mjs';
 import * as g_slots from './gates/slots.mjs';
 import * as g_status from './gates/status.mjs';
+import * as g_waves from './gates/waves.mjs';
 
 export const GATES = [
 	g_truth,
@@ -55,4 +56,5 @@ export const GATES = [
 	g_notes,
 	g_slots,
 	g_status,
+	g_waves,
 ];

@@ -84,12 +84,44 @@ export const noteReadKeys = (text, entries) => {
 	return [...out];
 };
 // 文本里**经笔记**读到的裸键（D2 按裸键判）
+// ── 条件项 → 键名（`#491` 另票的口径：**对象形算子条件**）────────────────────────────
+// 行的 `req`/`any`/`exclude` 里，一项可以是：
+//   · 字符串：`'n_x'`（note id）／`'fog_thin'`（裸键＝`ev.`）／`'world.x'`／`'inv:日记'`／`'era:past'`；
+//   · **对象算子形**（数值/枚举另票）：`{ gte: ['star.spent', 3] }`／`{ lte: ['hp', 1] }`／`{ oneOf: ['keeper.state', ['seal']] }`。
+// 这里只取**键**（算子/阈值不进状态契约、不进旗标分级）——门侧各消费点都经它，避免各写一套。
+// 算子本身的**声明面**＝`Sg.rules.ops`（与 `prefixes`／`effects` 同轴：用了未声明的算子 ⇒ `--rules` 判红）。
+export const OPS = ['gte', 'lte', 'oneOf'];
+export const condKeysOf = (cond) => {
+	if (cond && typeof cond === 'object' && !Array.isArray(cond)) {
+		const out = [];
+		for (const [op, v] of Object.entries(cond)) {
+			if (!OPS.includes(op) || !Array.isArray(v) || v.length < 1) continue;
+			out.push(String(v[0]));
+		}
+		return out;
+	}
+	return [String(cond)];
+};
+/** 行里用到的算子（去重；供「算子必须由引擎宣告」的判据用）。 */
+export const rowOps = (row) => {
+	const out = new Set();
+	for (const field of ['req', 'any', 'exclude']) for (const cond of asListOf(row?.[field])) {
+		if (cond && typeof cond === 'object' && !Array.isArray(cond)) for (const op of Object.keys(cond)) if (OPS.includes(op)) out.add(op);
+	}
+	return [...out];
+};
+const asListOf = (x) => (Array.isArray(x) ? x : x == null ? [] : [x]);
+/** `yields` 项 → `[{ id, path }]`（`#491` 另票：**多源笔记的路径选择**）——`'n_x'` 或 `{ id:'n_x', path:'world.x' }`。 */
+export const yieldsList = (row) => asListOf(row?.yields).map((y) => (y && typeof y === 'object' && !Array.isArray(y)
+	? { id: String(y.id ?? ''), path: y.path ? String(y.path) : null }
+	: { id: String(y), path: null }));
+
 // 条件表行引用的**限定键**（`ev.x`/`world.x`）——`--state` 用（它按限定键判"有写有读"）。
 // 与 `ruleRowFlags()`（裸键，D2 用）同源：都从 `req/any/exclude` 取；`n_*` 展开成笔记的 `flagPath`。
 export const ruleRowKeys = (row, entries) => {
 	const paths = notePaths(entries);
 	const out = new Set();
-	for (const key of [...(row?.req ?? []), ...(row?.any ?? []), ...(row?.exclude ?? [])].map(String)) {
+	for (const key of [...asListOf(row?.req), ...asListOf(row?.any), ...asListOf(row?.exclude)].flatMap(condKeysOf)) {
 		// `#435`：**前缀键**（`inv:<道具>`／`era:<时代>`）不是状态键（持有物/时代都不在状态契约域里）
 		// ⇒ 不参与"有写有读"；它们的求值在引擎侧 `Sg.rules.holds()`。
 		if (/^(?:inv|era):/.test(key)) continue;
@@ -111,8 +143,10 @@ export const NOTE_WRITE_RE = /Sg\.notes\.add\(\s*['"](n_[a-z0-9_]+)['"]/g;
 /** 条件键 → 与段落 `<<if>>` 里**同形**的条件文本（`n_*` ⇒ `Sg.notes.has('n_x')`；其余 ⇒ `$pc.<域>.<键>`，裸键默认 `ev.`）。
  *  为什么必须只有一份（`#435` 前置 0）：表侧条件（行的 `req`/`any`/`exclude`）要过**同一份**判据
  *  （`causeReg()`／`conditionReadsFlag()`），若两处各写一套转换 ⇒ 必然漂移（`--echoes` 与 `--investment` G3 都用它）。 */
-export const condTextOf = (key) => {
-	const k = String(key);
+export const condTextOf = (cond) => {
+	// 对象算子形 ⇒ 取它的**键**再合成（阈值/算子不影响"这段文本是否提到该旗标"这一判据）
+	if (cond && typeof cond === 'object' && !Array.isArray(cond)) return condKeysOf(cond).map(condTextOf).join(' ');
+	const k = String(cond);
 	return k.startsWith('n_') ? `Sg.notes.has('${k}')` : `$pc.${k.includes('.') ? k : `ev.${k}`}`;
 };
 /** 条件表行的 **`sets` 写点**（`#435` Q1：授予家族第三类——状态键写点也搬进表）。与 `ruleRowKeys()` 同命名空间：
@@ -142,7 +176,7 @@ export const noteWriteFlags = (text, entries) => noteWriteKeys(text, entries).ma
 export const ruleRowFlags = (row, entries) => {
 	const paths = notePaths(entries);
 	const out = new Set();
-	for (const key of [...(row?.req ?? []), ...(row?.any ?? []), ...(row?.exclude ?? [])].map(String)) {
+	for (const key of [...asListOf(row?.req), ...asListOf(row?.any), ...asListOf(row?.exclude)].flatMap(condKeysOf)) {
 		if (/^(?:inv|era):/.test(key)) continue;   // 同 `ruleRowKeys()`：前缀键不是旗标，不参与分级
 		if (key.includes('.') && !/^(?:ev|world)\./.test(key)) continue;   // 同上：第三命名空间不是旗标
 		if (key.startsWith('n_')) for (const p of (paths.get(key) ?? [])) out.add(p.replace(/^(ev|world)\./, ''));

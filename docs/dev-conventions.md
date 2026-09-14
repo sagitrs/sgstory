@@ -380,3 +380,21 @@ FCFS **81.3s** vs LPT **84.3s**；②「每个测试段各自 boot JSDOM」不�
 
 **已知阻塞（×2 道引擎门，`#512`）**：`src/10-core.twee` 的 `hallResult` widget 仍写**故事 1 的键**（`whistle_taken` 等）⇒
 第二个故事在 `--state`／`--consequences` 上是**假红**（判的不是它自己）。清单＝`scripts/audit.mjs` 的 `STORY2_BLOCKED`（**带理由；修好请删**）。
+
+### 条件项两种形状：字符串键 ／ **对象算子**（另票口径，门侧先就位）
+
+| 形状 | 例 | 语义 |
+|---|---|---|
+| 字符串 | `'n_flower_warned'` · `'fog_thin'` · `'world.x'` · `'inv:日记'` · `'era:past'` | 键为真 |
+| **对象算子** | `{ gte: ['star.spent', 3] }` · `{ lte: ['hp', 1] }` · `{ oneOf: ['keeper.state', ['seal']] }` | 数值/枚举比较 |
+
+- **算子词表由引擎宣告**：`Sg.rules.ops = ['gte','lte','oneOf']`（与 `prefixes`／`effects` 同轴的反沉默：用了未声明的算子 ⇒ `--rules` 判红——引擎不认的算子会让条件**永假**＝行静默死掉）；
+- 门侧只取**键**参与状态契约（`--state`）与旗标分级（D2）（阈值/算子不进契约）：单一权威 `condKeysOf()`；
+- `--reads` 的键形态与 `premise-source` 的依据键都认这个形状；
+- **`$pc.hp gt 0` 这类护栏不算"未搬条件位点"**（它不决定哪段文案被选中）——票面记账时单列，不进门的判据。
+
+### `yields` 的两种形状：note id ／ **`{ id, path }`**（多源笔记的路径选择）
+
+多源笔记（`n_study_hint`＝`world.study_hint` ∨ `ev.study_found`）没法用 `Sg.notes.add` 的 fail-loud 默认路径 ⇒ 行里必须**声明走哪条**：
+`yields: [{ id: 'n_study_hint', path: 'world.study_hint' }]`。
+门侧判据（`--rules` 的 `yieldPathProblems()`）：`path` 必须**属于该笔记的 `flagPath` 集合**，否则红——防"声明了一条不存在的路径"（写进去读不出来：`Sg.notes.has` 永不成立）。

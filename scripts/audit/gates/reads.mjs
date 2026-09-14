@@ -22,7 +22,7 @@
 // 用法：node scripts/audit.mjs --reads --check ／ node scripts/audit.mjs --reads --check --strict
 import { readFileSync } from 'node:fs';
 import { LAYER_OF } from '../../module-order.mjs';
-import { readKeys, notePaths, stripJsComments } from '../lib/shared.mjs';
+import { readKeys, notePaths, stripJsComments, condKeysOf } from '../lib/shared.mjs';
 
 export const flag = 'reads';
 export const flags = ['reads'];
@@ -118,13 +118,14 @@ export const baselineProblems = (khits) => ({
 
 // ── ① 条件表行（读侧）────────────────────────────────────────────────────
 const KEYS_OF = ['req', 'any', 'exclude', 'prereq', 'yields'];
-const asList = (x) => (Array.isArray(x) ? x.map(String) : x ? [String(x)] : []);
+// 注意**不要**先 `String()`：条件项可能是**对象算子形**（`{ gte: ['star.spent', 3] }`，另票 #491）
+const asList = (x) => (Array.isArray(x) ? x : x == null ? [] : [x]);
 /** 条件表行的读侧判据 ⇒ `[{ id, field, what, detail }]`（空＝干净）。 */
 export const tableReadProblems = (rows) => {
 	const out = [];
 	for (const r of rows ?? []) {
 		if (!r?.id) continue;
-		for (const field of KEYS_OF) for (const k of asList(r[field])) {
+		for (const field of KEYS_OF) for (const k of asList(r[field]).flatMap(condKeysOf)) {
 			// `#435` 键形：note id ∕ 裸键（默认 `ev.`）∕ **任意域的状态路径**（`ev.`/`world.`/`keeper.`/`star.`…）∕
 			// 两种**前缀键**（`inv:<道具>`／`era:<时代>`，求值在引擎侧 `Sg.rules.holds()`）。
 			// 修正①（2026-09-14）：原先只放行 `ev|world` 两域 ⇒ **误杀 `keeper.met`/`star.spent`** 这类第三命名空间。
@@ -153,6 +154,7 @@ export const run = (ctx) => {
 			['边界：`yields` 用 note id ⇒ 不报（与 `req` 同一命名空间）', tableReadProblems([{ id: 'A', yields: 'n_witch_fire_hint' }]).length === 0],
 			['边界：`n_*` 里的下划线不被当"路径点"误判', tableReadProblems([{ id: 'A', req: 'n_flower_warned' }]).length === 0],
 			['正例：前缀键 `inv:日记`／`era:present` 是合法键形（求值在引擎侧）', tableReadProblems([{ id: 'A', req: ['inv:日记'], any: ['era:present'] }]).length === 0],
+			['正例（另票 #491）：对象算子形条件的**键**照常判形态（阈值/算子不进形态判定）', tableReadProblems([{ id: 'A', req: [{ gte: ['star.spent', 3] }, 'n_x'] }]).length === 0],
 			['正例（修正①）：第三命名空间的状态路径 `keeper.met`／`star.spent` 是合法键形', tableReadProblems([{ id: 'A', req: ['keeper.met'], any: ['star.spent'] }]).length === 0],
 			['🔴 反例（修正①的反面）：多段路径 `pc.ev.x` ／ 带 `$` 的 `$pc.ev.x` 仍拦', tableReadProblems([{ id: 'A', req: ['$pc.ev.x'] }]).length > 0 && tableReadProblems([{ id: 'A', req: ['a.b.c'] }]).some((p) => p.what === '键形态')],
 			['🔴 反例：`inv:` 写成运行时读 `$pc.inv[…]` ⇒ 键形态报（`readKeys` 只管 ev/world，故这里靠形态兜住）', tableReadProblems([{ id: 'A', req: ["$pc.inv['日记']"] }]).some((p) => p.what === '键形态')],

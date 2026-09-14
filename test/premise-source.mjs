@@ -25,7 +25,7 @@
 // 自证：`node test/premise-source.mjs --selftest`
 
 import { createContext } from '../scripts/audit/context.mjs';
-import { notePaths, noteWriteRefs } from '../scripts/audit/lib/shared.mjs';
+import { notePaths, noteWriteRefs, condKeysOf } from '../scripts/audit/lib/shared.mjs';
 
 export const PREMISE_KNOWN = {};   // #404 已修（问法改建立于「缺的从来不是咒」）——白名单已清空，本门转严格
 
@@ -35,7 +35,8 @@ const norm = (k) => String(k).replace(/^(ev|world)\./, '');
 /** 条目 → **依据键**（两种数据源共用；缺省空数组）。 */
 export const evidenceKeys = (entry) => [
 	...asList(entry?.keys), ...asList(entry?.pastFlags), ...asList(entry?.presentFlags),
-	...asList(entry?.req), ...asList(entry?.any),
+	// `#491` 另票：对象算子形条件（`{ gte: ['star.spent', 3] }`）的**键**同样是依据
+	...[...asList(entry?.req), ...asList(entry?.any)].flatMap(condKeysOf),
 ];
 
 /** 纯函数（自证与真实运行同一份代码）：grantOf(key) → [{ p, src }] */

@@ -1,7 +1,7 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 // `#433` 阶段 2：条件可能写成 `Sg.notes.has('n_x')` ⇒ 判定「某选项引用了哪些旗标」必须认第二种形状
-import { noteReadFlags, noteIdsForFlag, conditionReadsFlag, noteWriteRefs } from '../lib/shared.mjs';
+import { noteReadFlags, noteIdsForFlag, conditionReadsFlag, noteWriteRefs, storyText, ruleRowFlags } from '../lib/shared.mjs';
 // flags=['investment']。校验：npm run audit:golden。
 export const flag = 'investment';
 export const flags = ["investment"];
@@ -46,6 +46,15 @@ function crossEraProblems(input = {}) {
 			if (eras.has('past') && eras.has('present')) crossEra.push(`${name}（${flags.join('、')}）`);
 		}
 	}
+	// #435 前置 0：**表侧合龙门** —— 行的条件（`req`/`any`）同时引用过去＋现在两侧旗标，且该行 `text` 里有 `<<link>>`
+	//（＝一个选项）。不收进来 ⇒ 把合龙门搬进表之后本门会报「全仓找不到合龙门」（假红）。
+	for (const r of input.rows ?? []) {
+		if (!/<<link/.test(String(r?.text ?? ''))) continue;
+		const flags = ruleRowFlags(r, NOTES);
+		if (flags.length < 2) continue;
+		const eras = new Set(flags.map(eraOf));
+		if (eras.has('past') && eras.has('present')) crossEra.push(`${String(r.scope ?? '').split('#')[0]}（${flags.join('、')}）`);
+	}
 	if (crossEra.length < 1) problems.push('G3 全仓找不到「跨时代合龙门」：没有任何选项同时引用过去与现在两侧旗标');
 	else notes.push(`G3 跨时代合龙门 ${crossEra.length} 处：${crossEra.slice(0, 3).join('；')}`);
 	for (const g of dom.crossEraGates ?? []) {
@@ -75,7 +84,7 @@ function crossEraProblems(input = {}) {
 	return { problems, notes };
 }
 
-function investmentProblems({ keyYields = [], expressive = [], failClueExempt = {}, passages = passageSrc } = {}) {
+function investmentProblems({ keyYields = [], expressive = [], failClueExempt = {}, passages = passageSrc, rows = [], notes: notesByFlag = null } = {}) {
 	const problems = [], notes = [];
 	// 关键位点＝yields 落在 keyYields 的位点（keyYields 是「产出」，不是位点名）
 	const keySites = new Set(Object.entries(Game.Checks.sites ?? {})
@@ -99,27 +108,33 @@ function investmentProblems({ keyYields = [], expressive = [], failClueExempt = 
 	notes.push(`G2 关键位点失败档扫描 ${seen} 处`);
 	// G4：表达型选择（立场）必须写入可回收状态，且在别处被消费
 	for (const e of expressive) {
-		const src = passageSrc.get(e.p);
+		const src = passages.get(e.p);
 		if (!src) { problems.push(`G4 登记段落不存在：${e.p}`); continue; }
 		const at = src.indexOf(e.label);
 		if (at < 0) { problems.push(`G4 登记的立场选项已不在「${e.p}」：${e.label}`); continue; }
 		const body = src.slice(at, at + 240);
 		const writes = new RegExp(`(?:world|ev)\\.${e.flag}\\b`).test(body) || new RegExp(`setflag\\s+"${e.flag}"`).test(body);
 		if (!writes) { problems.push(`G4 立场「${e.label}」未写入 ${e.flag}（说了等于没说）`); continue; }
-		const consumed = [...passageSrc.entries()].some(([n, s]) => n !== e.p && new RegExp(`<<if[^>]*\\$pc\\.(?:world|ev)\\.${e.flag}\\b`).test(s));
+		// 回收面：别的段落里的手写 `<<if $pc.ev.flag>>` **或** 表行的条件（`req`/`any`/`exclude`）——阶段 4 的两种形状
+		const consumed = [...passages.entries()].some(([n, s]) => n !== e.p && new RegExp(`<<if[^>]*\\$pc\\.(?:world|ev)\\.${e.flag}\\b`).test(s))
+			|| (rows ?? []).some((r) => ruleRowFlags(r, Game.Notes?.entries ?? {}).includes(e.flag));
 		if (!consumed) problems.push(`G4 立场旗标 ${e.flag} 未被任何别处回收（记了没用）`);
 	}
 	return { problems, notes };
 }
 if (wantAll || arg('investment')) {
+	// #435 前置 0：文本面＝故事文本源（内容段落 ∪ 归属到它的表行 `text`）；rows 同时喂 G3/G4 的「表侧条件」
+	const rules = ctx.window?.Sg?.story?.rules?.() ?? [];
+	const st = storyText({ passageSrc, passageTags, rows: rules });
 	console.log('\n══ ⓪t 投入—回报对称性（I1/#291）——失败给信息 · 立场被记住 · 三条只读报告 ══');
 	const I = Game.Investment ?? {};
 	const { problems, notes } = investmentProblems({
 		keyYields: Game.Checks.keyYields ?? [],
 		expressive: I.expressive ?? [],
 		failClueExempt: I.failClueExempt ?? {},
+		passages: st.text, rows: rules,
 	});
-	const g3 = crossEraProblems();
+	const g3 = crossEraProblems({ sources: st.text, rows: rules });
 	problems.push(...g3.problems);
 	notes.push(...g3.notes);
 	let bad = problems.length;

@@ -1,5 +1,6 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { storyText } from '../lib/shared.mjs';
 // flags=['choices']。校验：npm run audit:golden。
 export const flag = 'choices';
 export const flags = ["choices"];
@@ -44,12 +45,15 @@ if (wantAll || arg('choices')) {
 			if (!ok) bad++;
 		}
 	}
+	// #435 前置 0：臂数按**故事文本源**算（内容段落 ∪ 归属到它的表行 `text`）——选择肢搬进表后
+	// 仍然算"可点臂"（否则搬一处就掉一臂 ⇒ 表臂虚报红）
+	const st = storyText({ passageSrc, passageTags, rows: ctx.window?.Sg?.story?.rules?.() ?? [] });
 	// 可点臂数（下界）：每个 <<link>> 与 [[ ]] 记一臂——同目标的两个选择肢也算两臂
-	const edgesOf = (name) => outEdges(passageSrc.get(name) ?? '');
+	const edgesOf = (name) => outEdges(st.text.get(name) ?? '');
 	// 交涉面板（B2）也发臂：<<socpanel "诉求">> 的每条开口方式与筹码都是可点的一项
 	const socArms = (name) => {
 		let n = 0;
-		for (const m of (passageSrc.get(name) ?? '').matchAll(/<<socpanel\s+"([^"]+)"/g)) {
+		for (const m of (st.text.get(name) ?? '').matchAll(/<<socpanel\s+"([^"]+)"/g)) {
 			const a = Game.Social?.ask?.(m[1]);
 			if (!a) continue;
 			n += (a.sites ?? []).length + (a.levers ?? []).length + (a.willing ? 1 : 0);
@@ -64,7 +68,7 @@ if (wantAll || arg('choices')) {
 			okArm = !judgeChargenArms(ctx.Game.Chargen.rounds, [c]).length;
 			if (!okArm) { console.log(`  ✗ ${c.id}：Game.Chargen.rounds[${c.round}] 臂数 ${n} ≠ 表 ${c.arms}`); bad++; }
 		} else {
-			const src = passageSrc.get(c.p);
+			const src = st.text.get(c.p);
 			if (src === undefined) { console.log(`  ✗ ${c.id}：段落「${c.p}」不存在`); bad++; okArm = false; }
 			else {
 				const e = edgesOf(c.p) + socArms(c.p);

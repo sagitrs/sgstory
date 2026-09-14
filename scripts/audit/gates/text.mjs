@@ -1,6 +1,6 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { stripJsComments } from '../lib/shared.mjs';
+import { stripJsComments, storyText } from '../lib/shared.mjs';
 // flags=['text']。校验：npm run audit:golden。
 export const flag = 'text';
 export const flags = ["text"];
@@ -71,6 +71,12 @@ if (wantAll || arg('text')) {
 			['正例：`//` 与 `/* */` 注释不成正文（#486）', stripJsComments('正文// 注释\n/* 块\n注释 */更多').replace(/[\s''/]/g, '').length, '正文更多'.length],
 			['正例：infra 段（`[script]`）整段不成正文（#527）', buildNarrative([['X', 'const a = 1'], ['P', '正文']], (n) => n === 'X').length, '正文'.length],
 			['反例：内容段仍要计数（防"把正文一起漏掉"）', buildNarrative([['P', '正文']], () => false).length, '正文'.length],
+			// #435 前置 0：故事文本源（内容段落 ∪ 归属到它的表行 `text`）——本门「总字」的口径
+			['正例：表行 `text` 按 `scope` 归属进段落（总字含表）', buildNarrative(storyText({ passageSrc: new Map([['P', '甲']]), passageTags: new Map(), rows: [{ id: 'R', scope: 'P#一', text: '乙' }] }).text, () => false).length, '甲乙'.length],
+			['正例：多行按**表序**追加（顺序稳定 ⇒ 基线可复算）', buildNarrative(storyText({ passageSrc: new Map([['P', '']]), rows: [{ id: 'A', scope: 'P#一', text: '一' }, { id: 'B', scope: 'P#二', text: '二' }] }).text, () => false).length, '一二'.length],
+			['边界：`scope` 段落不存在 ⇒ **不归属**（进 `orphans`，由 `--rules` 判红）', storyText({ passageSrc: new Map([['P', '甲']]), rows: [{ id: 'R', scope: '无此段', text: '乙' }] }).orphans.length, 1],
+			['边界：行 `text` 为空 ⇒ 不产生归属（不会凭空多一个空行）', (storyText({ passageSrc: new Map([['P', '甲']]), rows: [{ id: 'R', scope: 'P#一', text: '' }] }).text.get('P') ?? '').length, '甲'.length],
+			['边界：`段落#位点` 只取 `#` 前归属（位点名不进段落名）', storyText({ passageSrc: new Map([['P', '']]), rows: [{ id: 'R', scope: 'P#位点', text: '乙' }] }).rowIds.get('P').join(), 'R'],
 		];
 		for (const [label, got, want] of cases) {
 			const n = Array.isArray(got) ? got.length : got;
@@ -86,10 +92,15 @@ if (wantAll || arg('text')) {
 	for (const f of judgePayloads(passageRaw, isInfra)) { console.log(`  ✗ 段落「${f.name}」缺 payload 标注`); bad++; }
 	console.log(`  载荷标注：${payloads.size}（信息 ${[...payloads.values()].filter((v) => v.includes('信息')).length} · 张力 ${[...payloads.values()].filter((v) => v.includes('张力')).length} · 选择 ${[...payloads.values()].filter((v) => v.includes('选择')).length}）`);
 	// 词频报告（主题词健康度）
+	// #435 前置 0：【故事文本源】单一权威 —— 内容段落 ∪ 归属到它的表行 `text`。
+	// 为什么必须收进来：表里的 `text` 也是玩家读到的正文；不收 ⇒ 阶段 4 之后「总字」**系统性偏低**
+	//（guest 实测 25998→25967 而 `--zero` 退 0：可见文本没变，只是搬进了表）
+	const st = storyText({ passageSrc, passageTags, rows: ctx.window?.Sg?.story?.rules?.() ?? [] });
 	let narrative = '';
-	narrative = buildNarrative(passageSrc, isInfra);   // #527：跳过 infra 段 ＋ 剥 JS 注释（两件都要）
+	narrative = buildNarrative(st.text, isInfra);   // #527：跳过 infra 段 ＋ 剥 JS 注释（两件都要）
 	const words = ['雾','星','塔','月光','森林','守林人','信物','三百'];
 	console.log(`  主题词密度：${words.map((w) => `${w}×${narrative.split(w).length - 1}`).join(' ')}（总字 ${narrative.length}）`);
+	console.log(`  故事文本源：内容段落 ＋ 表行 \`text\`（归属到 ${[...st.rowIds.keys()].length} 个段落、${[...st.rowIds.values()].flat().length} 行）${st.orphans.length ? ` · ⚠ ${st.orphans.length} 行归属段落不存在（见 --rules）` : ''}`);
 	// 套路句式门：白名单外命中即红（改写后划掉）
 	const CLICHE = ['如潮水', '毛骨悚然', '倒吸一口', '心中一紧', '你感到一阵', '不由得'];
 	// ── D5.6 风格门（#72 西式统一）：违和词黑名单——命名回潮/佛教词/中式餐具与体例

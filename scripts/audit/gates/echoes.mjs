@@ -30,7 +30,21 @@ export function conditionOwner(src, anchor) {
 	};
 }
 // 登记 cause → 期望条件正则（flag → world/ev.X；token → inv["X"]；towerFlag → tower.X）
-import { noteIdsForFlag } from '../lib/shared.mjs';
+import { noteIdsForFlag, storyText, rowsContaining } from '../lib/shared.mjs';
+
+const asList = (x) => (Array.isArray(x) ? x.map(String) : x ? [String(x)] : []);
+/** 表行条件 → 与 `conditionOwner` 同形状的 `conds`（`req`/`any` 为正、`exclude` 为取反）。
+ *  为什么需要它（`#435` 前置 0）：叙述搬进表后，锚句的「条件」不再写在段落里的 `<<if>>`，
+ *  而是**行的 `req`/`any`/`exclude`** —— 归属判据必须认这条路，否则真回声会被判成「假回声（无条件门）」。
+ *  注：表行条件只能表达**状态键**；`cause.token`（持有物）/`towerFlag` 那类若搬到表里，本门会如实判红
+ *  （不是漏判：那种回声的位点本就该留在段落）。 */
+export const rowCondsOf = (row) => {
+	const keyText = (k) => (String(k).startsWith('n_') ? `Sg.notes.has('${k}')` : `$pc.${String(k).includes('.') ? k : `ev.${k}`}`);
+	return [
+		...[...asList(row?.req), ...asList(row?.any)].map((k) => ({ text: keyText(k), negated: false })),
+		...asList(row?.exclude).map((k) => ({ text: keyText(k), negated: true })),
+	];
+};
 
 export function causeReg(cause, noteIds = []) {
 	if (!cause) return /$^/;
@@ -43,10 +57,12 @@ export function causeReg(cause, noteIds = []) {
 	return new RegExp(direct + viaNote);
 }
 // 站点判定（纯函数）：返回 null（通过）或 { code, detail }——真实运行与自证**同一份代码**
-export const judgeEchoSite = (site, cause, src, noteIds = []) => {
+// `rowConds`：锚句落在**表行**里时，该行的条件（`req`/`any`/`exclude`）—— 非空则不再走段落的 `<<if>>` 栈
+//（两者是同一个问题的两种形态："锚句在什么条件下可见"）。
+export const judgeEchoSite = (site, cause, src, noteIds = [], rowConds = []) => {
 	if (src === undefined) return { code: 'no-passage', detail: `位点段落「${site.p}」不存在` };
 	if (!src.includes(site.anchor)) return { code: 'no-anchor', detail: `「${site.p}」锚句丢失「${site.anchor}」` };
-	const own = conditionOwner(src, site.anchor);
+	const own = rowConds.length ? { conds: rowConds, inLink: false } : conditionOwner(src, site.anchor);
 	const expect = site.gate ? new RegExp(site.gate) : causeReg(cause, noteIds);
 	if (own.inLink && !site.inLinkOk) return { code: 'in-link', detail: `「${site.p}」锚句在 <<link>> 体内（点击态文本——入场看不到，且多随 goto 重绘消失）` };
 	if (!own.conds.length) return { code: 'no-gate', detail: `「${site.p}」锚句无条件门（假回声——任何人都看得到，与 cause 无因果）` };
@@ -94,6 +110,14 @@ if (wantAll || arg('echoes')) {
 			['站点正例：取反门 + negate:true', judgeEchoSite({ ...site, negate: true }, { flag: 'k' }, `<<if not $pc.ev.k>>${A}<</if>>`), (v) => v === null],
 			['站点反例④：在 link 体内', judgeEchoSite(site, { flag: 'k' }, `<<if $pc.ev.k>><<link "点">>${A}<</link>><</if>>`), (v) => v?.code === 'in-link'],
 			['站点反例⑤：段落不存在 / 锚句丢失', [judgeEchoSite(site, { flag: 'k' }, undefined)?.code, judgeEchoSite(site, { flag: 'k' }, '别的文本')?.code], (v) => v[0] === 'no-passage' && v[1] === 'no-anchor'],
+			// #435 前置 0：锚句搬进**表行** ⇒ 条件来自行的 `req`/`any`/`exclude`
+			['表行正例：`req` 里的 note id 覆盖 cause', judgeEchoSite(site, { flag: 'k' }, `前文${A}`, ['n_k'], rowCondsOf({ req: ['n_k'] })), (v) => v === null],
+			['表行正例：裸键 `req`（默认 `ev.` 域，与 `Sg.rules.holds()` 同口径）', judgeEchoSite(site, { flag: 'k' }, `前文${A}`, [], rowCondsOf({ req: ['k'] })), (v) => v === null],
+			['表行反例①：行的 `req` 与 cause 不符 ⇒ mismatch', judgeEchoSite(site, { flag: 'other' }, `前文${A}`, [], rowCondsOf({ req: ['k'] })), (v) => v?.code === 'mismatch'],
+			['表行反例②：行无任何条件（`req/any/exclude` 全空）⇒ 假回声', judgeEchoSite(site, { flag: 'k' }, `前文${A}`, [], []), (v) => v?.code === 'no-gate'],
+			['表行正例：`exclude` 里的 cause ＋ 声明 `negate:true` ⇒ 通过', judgeEchoSite({ ...site, negate: true }, { flag: 'k' }, `前文${A}`, [], rowCondsOf({ exclude: ['k'] })), (v) => v === null],
+			['表行反例③：`exclude` 里的 cause 但未声明 `negate` ⇒ mismatch', judgeEchoSite(site, { flag: 'k' }, `前文${A}`, [], rowCondsOf({ exclude: ['k'] })), (v) => v?.code === 'mismatch'],
+			['表行反例④：`cause` 是持有物（`token`）⇔ 行条件表达不了 ⇒ 如实 mismatch（该位点应留在段落）', judgeEchoSite(site, { token: '日记' }, `前文${A}`, [], rowCondsOf({ req: ['k'] })), (v) => v?.code === 'mismatch'],
 		];
 		for (const [label, got, ok] of cases) {
 			const pass = ok(got);
@@ -103,20 +127,25 @@ if (wantAll || arg('echoes')) {
 	}
 	// #433 阶段 2：条件可能写成 `Sg.notes.has('n_x')` ⇒ 把「旗标 → 笔记 id」交给判定器（两种形状都认）
 	const NOTE_IDS = noteIdsForFlag(Game.Notes?.entries ?? {});
+	// #435 前置 0：锚句面＝故事文本源；锚句落在**表行**里时，条件改用该行的 `req`/`any`/`exclude`
+	const rules = ctx.window?.Sg?.story?.rules?.() ?? [];
+	const st = storyText({ passageSrc, passageTags, rows: rules });
+	const condsFor = (p, anchor) => rowsContaining(rules, p, anchor).flatMap((r) => rowCondsOf(r));
 	const kinds = {};
 	for (const e of Game.Echoes.list) {
 		kinds[e.kind] = (kinds[e.kind] ?? 0) + 1;
 		for (const site of e.echo) {
 			// #266 条件归属：锚句必须落在以登记 cause（或显式 gate）为条件的块内，且不在 <<link>> 体内
-			const v = judgeEchoSite(site, e.cause, passageSrc.get(site.p), NOTE_IDS.get(e.cause?.flag) ?? []);
+			const v = judgeEchoSite(site, e.cause, st.text.get(site.p), NOTE_IDS.get(e.cause?.flag) ?? [], condsFor(site.p, site.anchor));
 			if (v) { console.log(`  ✗ ${e.id}：${v.detail}`); bad++; continue; }
 			console.log(`  ✓ ${e.id}（${e.kind}）→ ${site.p}`);
 		}
 	}
 	for (const r of Game.Echoes.revisit) {
-		const src = passageSrc.get(r.p);
+		const src = st.text.get(r.p);
 		if (src === undefined || !src.includes(r.anchor)) { console.log(`  ✗ revisit ${r.flag ?? r.inv}：「${r.p}」锚句丢失「${r.anchor}」`); bad++; continue; }
-		const own = conditionOwner(src, r.anchor);
+		const rc = condsFor(r.p, r.anchor);
+		const own = rc.length ? { conds: rc } : conditionOwner(src, r.anchor);
 		const expect = r.gate ? new RegExp(r.gate) : causeReg(r.inv ? { token: r.inv } : { flag: r.flag }, NOTE_IDS.get(r.flag) ?? []);
 		if (!own.conds.length || !own.conds.some((c) => expect.test(c.text) && (!c.negated || r.negate))) {
 			console.log(`  ✗ revisit ${r.flag ?? r.inv}：「${r.p}」条件归属不符（实际最内层门：${own.conds.slice(-2).map((c) => (c.negated ? '!' : '') + c.text).join(' / ') || '无'}）`); bad++;

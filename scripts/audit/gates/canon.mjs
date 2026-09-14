@@ -1,5 +1,6 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { storyText } from '../lib/shared.mjs';
 // flags=['canon']。校验：npm run audit:golden。
 export const flag = 'canon';
 export const flags = ["canon"];
@@ -151,9 +152,11 @@ if (wantAll || arg('canon')) {
 		];
 		for (const [label, ok] of cases) { if (!ok) bad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
 	}
+	// #435 前置 0：本门多数判据看的是**正文**（禁词/双读/传说锚句/代词）⇒ 取故事文本源（内容段落 ∪ 归属到它的表行 `text`）
+	const st = storyText({ passageSrc, passageTags, rows: ctx.window?.Sg?.story?.rules?.() ?? [] });
 	// ② 词扫描（shipped 文本：正文 + 数据表字符串；JS 行注释 / CSS 块注释 / /% %/ 不计）
 	const ship = [];
-	for (const [name, src] of passageSrc) {
+	for (const [name, src] of st.text) {
 		const tags = passageTags.get(name) ?? [];
 		let text = src;
 		if (tags.includes('script') || tags.includes('stylesheet')) {
@@ -197,7 +200,7 @@ if (wantAll || arg('canon')) {
 		{ t: '攒得还不够', why: 'v17 补正 #7：没人算过它的积蓄' },
 	];
 	let dualHit = 0;
-	for (const v of dualReadViolations(passageSrc, passageTags, DUALREAD)) { dualHit++; bad++; console.log(`  ✗ 段落「${v.name}」出现「${v.t}」（${v.why}）`); }
+	for (const v of dualReadViolations(st.text, passageTags, DUALREAD)) { dualHit++; bad++; console.log(`  ✗ 段落「${v.name}」出现「${v.t}」（${v.why}）`); }
 	// ⑤ §3.9 传说覆盖门（v17）：每条传说都要①登记在对照表 ②在正文里有 NPC 投放锚
 	const LEGENDS = [
 		{ row: '那条龙早死了', anchors: ['那条龙早死了'], says: '长者' },
@@ -220,7 +223,7 @@ if (wantAll || arg('canon')) {
 		if (!LEGENDS.some((e) => r[0].includes(e.row))) { legHit++; bad++; console.log(`  ✗ §3.9 传说行未被覆盖门认领：${r[0].slice(0, 40)}`); }
 	}
 	const prose = [];
-	for (const [name, src] of passageSrc) {
+	for (const [name, src] of st.text) {
 		const tags = passageTags.get(name) ?? [];
 		if (tags.includes('script') || tags.includes('stylesheet')) continue;
 		prose.push({ name, text: src.replace(/\/%[\s\S]*?%\//g, '') });

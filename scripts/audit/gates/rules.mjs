@@ -162,6 +162,15 @@ export const scopeProblems = (rows, calls) => {
 	return out;
 };
 
+/** 归属段落必须**真实存在**：`scope` 的 `#` 前那一截（无 `#` 则整个 `scope`）＝该行 `text` 归属的段落。
+ *  为什么需要它（guest 建议，2026-09-14）：`段落#位点` 约定把 `scope` 从"备注"变成了**结构**——
+ *  它决定该行的 `text` 算哪个段落的故事文本（归属面）；scope 打错 ⇒ 归属到一个**不存在的段落**
+ *  （其它三条机检都看不出来：无调用点会报"未接管"，但"调用点也对不上"时可能悄悄漂）。 */
+export const unknownScopes = (rows, passages) => {
+	const names = passages instanceof Set ? passages : new Set(passages ?? []);
+	return (rows ?? []).filter((r) => r?.id).filter((r) => !names.has(String(r.scope ?? '').split('#')[0])).map((r) => r.id);
+};
+
 export const run = (ctx) => {
 	const { arg, wantAll } = ctx;
 	if (!(wantAll || arg('rules'))) return;
@@ -203,6 +212,9 @@ export const run = (ctx) => {
 			['🔴 反例：`段落#位点` 从别的段落调用 ⇒ 归属不符', scopeProblems([R('A', { scope: '塔外花田#站一会' })], [AT('塔门', '塔外花田#站一会')]).some((x) => x.includes('归属不符'))],
 			['🔴 反例：调用点无对应行 ⇒ 报（正文会静默消失）', scopeProblems([R('A')], [AT('P', 'nope')]).some((x) => x.includes('无对应行'))],
 			['边界：无 `#` 的话题式 scope 可从任意段落调用', scopeProblems([R('A', { scope: '守林人' })], [AT('守林人·守', '守林人')]).length === 0],
+			['正例：`scope` 的归属段落在段落清单里 ⇒ 无问题', unknownScopes([R('A', { scope: '塔外花田#站一会' })], ['塔外花田', '塔门']).length === 0],
+			['🔴 反例：`scope` 的归属段落不存在（打错字）⇒ 报', unknownScopes([R('A', { scope: '塔外花田#站一会' })], ['塔门']).join() === 'A'],
+			['🔴 反例：无 `#` 的 scope 也必须是真实段落名', unknownScopes([R('A', { scope: 'keeper.flower' })], ['守林人']).join() === 'A'],
 		);
 		let selfBad = 0;
 		for (const [label, ok] of cases) { if (!ok) selfBad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
@@ -224,6 +236,7 @@ export const run = (ctx) => {
 		for (const id of orphanRows(rows, calls)) { console.log(`  ✗ 未接管行：行「${id}」的 \`scope\` 没有任何 \`<<rules "…">>\` 调用点 ⇒ 永不被渲染`); bad++; }
 		for (const k of duplicateCalls(calls)) { const [p, scope] = k.split('|'); console.log(`  ✗ 同位点重复调用：段落「${p}」里 \`<<rules "${scope}">>\` 出现 ≥2 次（两个位点抢同一行）`); bad++; }
 		for (const p of scopeProblems(rows, calls)) { console.log(`  ✗ ${p}`); bad++; }
+		for (const id of unknownScopes(rows, new Set(ctx.passageSrc?.keys() ?? []))) { const r = rows.find((x) => x.id === id); console.log(`  ✗ 归属段落不存在：行「${id}」的 \`scope\` 「${r.scope}」的段落部分不在段落清单里（scope 是**结构**：它决定该行 text 算哪个段落的故事文本）`); bad++; }
 		for (const d of dynamic) console.log(`  · 无法静态判定：段落「${d.p}」的 \`<<rules ${d.raw}>>\`（参数不是引号字面量）`);
 		for (const t of ties(rows)) console.log(`  · 并列 prio：scope=${t.scope} prio=${t.prio} ⇒ ${t.ids.join(' / ')}（裁决＝表序最前）`);
 		console.log(`  · 条件表 ${rows.length} 行 · 作用域 ${[...new Set(rows.map((r) => r.scope))].length} 个 · 调用点 ${calls.length} 个`);

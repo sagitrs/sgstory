@@ -1,5 +1,6 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { storyText } from '../lib/shared.mjs';
 // flags=['systems']。校验：npm run audit:golden。
 export const flag = 'systems';
 export const flags = ["systems"];
@@ -51,11 +52,12 @@ if (wantAll || arg('systems')) {
 		}
 	}
 	const chargenText = ctx.Game.Chargen.rounds.flatMap((r) => r.options.flatMap((o) => [o.name, o.desc, o.effect])).join('\n');
-	const mechSrc = (k) => (k === '[chargen]' ? chargenText : passageSrc.get(k));
+	const st = storyText({ passageSrc, passageTags, rows: ctx.window?.Sg?.story?.rules?.() ?? [] });
+	const mechSrc = (k) => (k === '[chargen]' ? chargenText : st.text.get(k));
 	for (const m of Game.Systems.mechanics.filter((m) => !judgeMechanics([m], mechSrc).length)) console.log(`  ✓ ${m.id}：${m.rule}`);
 	for (const f of judgeMechanics(Game.Systems.mechanics, mechSrc)) { console.log(`  ✗ ${f.id}：${f.why}`); bad++; }
 	// C1 共鸣锚（#49）：锚段落存在且挂了 <<flip>>
-	for (const f of judgeShifts(Game.Shifts.anchors, (k) => passageSrc.get(k), (k) => passageRaw.get(k))) { console.log(`  ✗ ${f.why}`); bad++; }
+	for (const f of judgeShifts(Game.Shifts.anchors, (k) => st.text.get(k), (k) => passageRaw.get(k))) { console.log(`  ✗ ${f.why}`); bad++; }
 	console.log(`  共鸣锚：${Game.Shifts.anchors.length} 处全锚定（${Game.Shifts.unlimited ? '免费无限·位置门控' : ''}）`);
 	console.log('  ── 机制×机制组合（实现证据出具）──');
 	for (const c of Game.Systems.combos) console.log(`  · ${c.a} × ${c.b} ← ${c.evidence}`);

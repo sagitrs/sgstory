@@ -118,6 +118,53 @@ export const textWrites = (text) => {
 export const textWriteRows = (rows) =>
 	(rows ?? []).filter((r) => r?.id).map((r) => ({ id: r.id, hits: textWrites(r.text) })).filter((x) => x.hits.length);
 
+// ── ③' `text` 里的**分支**只许读「渲染期只读槽」（`#435` 口径，guest 问的"机制内层 `<<if>>`"）─────
+// 口径（2026-09-14 拍板）：判定结果 → 两段文案**属渲染**（`<<if $last_check.success>>…<<else>>…`），
+// 不是"数据里夹机制" —— 把"判定面"外置就得让表声明检定/DC/骰，那才是把**机制**复制进表。
+// 所以允许 `<<if>>`，但边界写死、可机检：
+//   ✔ 允许读：**判定结果槽**（`$last_check`）与 `_` 前缀局部量（SugarCube 渲染期临时量）；
+//   ✘ 禁止读：状态路径（`pc.ev/pc.world`，`--reads` 另判）· 笔记/表 API（`Sg.notes.*`/`Sg.rules.*`）· 持有物（`inv[…]`）·
+//                `$era` —— 这些属**条件面**，请写成行的 `req`/`any`/`exclude`（键形含 `inv:<道具>`／`era:<时代>`）。
+export const TEXT_BRANCH_ALLOW = ['last_check'];
+export const TEXT_BRANCH_FORBID = [
+	[/\bSg\.(?:notes|rules)\b/, 'Sg.notes/Sg.rules（笔记/表 API）'],
+	[/\binv\s*\[/, 'inv[…]（持有物）'],
+	[/\$era\b/, '$era（时代）'],
+	[/\bGame\.Consequences\b/, 'Game.Consequences'],
+];
+/** 一行 `text` 里的分支条件违规 ⇒ `[{ cond, why }]`（空＝干净）。 */
+export const textBranchProbs = (text) => {
+	const out = [];
+	for (const m of String(text ?? '').matchAll(/<<\s*(?:if|elseif)\s+([\s\S]*?)>>/g)) {
+		const cond = m[1].trim();
+		const why = [];
+		for (const v of cond.matchAll(/\$([A-Za-z_]\w*)/g)) if (!TEXT_BRANCH_ALLOW.includes(v[1])) why.push(`$${v[1]}`);
+		for (const [re, label] of TEXT_BRANCH_FORBID) if (re.test(cond)) why.push(label);
+		if (why.length) out.push({ cond, why: [...new Set(why)] });
+	}
+	return out;
+};
+/** 全表：`text` 分支越界的行 ⇒ `[{ id, probs }]`。 */
+export const textBranchRows = (rows) =>
+	(rows ?? []).filter((r) => r?.id).map((r) => ({ id: r.id, probs: textBranchProbs(r.text) })).filter((x) => x.probs.length);
+
+// ── ③'' 键形：条件语言的**声明面**（前缀键必须由引擎宣告支持——反沉默）─────────────────
+// `#435`：条件键可以是 `n_*` note id ∕ 裸键名 ∕ `ev.x`／`world.x`（状态路径），以及**前缀形**：
+// `inv:<道具>`（持有物）· `era:<时代>`（时代）。前缀的**求值**在引擎侧 `Sg.rules.holds()`；
+// ⇒ 引擎必须在 `Sg.rules.prefixes` 里**宣告**它支持哪些前缀，门的判据是「行里用的前缀 ⊆ 引擎宣告的」。
+// 为什么要这层：否则作者写了 `inv:日记` 而引擎不认 ⇒ **条件永远不命中**（行静默死掉，最坏那种 bug）。
+export const rowKeyPrefixes = (rows) => {
+	const out = new Set();
+	for (const r of rows ?? []) for (const f of ['req', 'any', 'exclude']) for (const k of (Array.isArray(r?.[f]) ? r[f] : r?.[f] ? [r[f]] : [])) {
+		const m = /^([a-z_]+):/.exec(String(k));
+		if (m) out.add(m[1]);
+	}
+	return [...out];
+};
+/** 未被引擎宣告支持的前缀 ⇒ `[{ prefix, declared }]`。 */
+export const undeclaredPrefixes = (rows, declared = []) =>
+	rowKeyPrefixes(rows).filter((p) => !(declared ?? []).includes(p)).map((prefix) => ({ prefix, declared: declared ?? [] }));
+
 // ── ④ scope 机检（调用面）────────────────────────────────────────────────
 /** 静态取出 `<<rules "scope">>` 调用点（**机制段不算**：引擎注释里的示例不是调用）。
  *  参数不是引号字面量（反引号表达式等）⇒ 无法静态判定，单独报告（**反沉默**：不静默跳过）。 */
@@ -201,6 +248,18 @@ export const run = (ctx) => {
 			['🔴 反例：`text` 含赋值式 `pc.world.x = true` ⇒ 报', textWrites(`<<run (pc.world.x = true)>>`).includes('状态赋值')],
 			['边界：`<<if>>` 只读不写 ⇒ 不算写侧问题（读侧归 `--reads`）', textWrites(`<<if Sg.notes.has('n_x')>>字<</if>>`).length === 0],
 			['边界：宏名前缀不误伤（`<<setflag>>` 只算 setflag，不算 set）', textWrites(`<<setflag "a">>`).includes('<<setflag>>') && !textWrites(`<<setflag "a">>`).includes('<<set>>')],
+			// ③' `text` 分支只许读渲染期只读槽
+			['正例：判定结果分支（`$last_check.success`）⇒ 放行（属渲染）', textBranchProbs(`<<if $last_check.success>>成<<else>>败<</if>>`).length === 0],
+			['正例：`_` 前缀局部量（渲染期临时量）⇒ 放行', textBranchProbs(`<<if _n gt 1>>多<</if>>`).length === 0],
+			['🔴 反例：分支里读状态 `$pc.ev.x` ⇒ 报（那是条件面的事）', textBranchProbs(`<<if $pc.ev.x>>甲<</if>>`).length === 1],
+			['🔴 反例：分支里读 `$era` ⇒ 报（时代请写成 `era:` 键）', textBranchProbs(`<<if $era is Game.Era.PRESENT>>甲<</if>>`).some((p) => p.why.some((w) => w.includes('$era')))],
+			['🔴 反例：分支里读笔记 API `Sg.notes.has(...)` ⇒ 报', textBranchProbs(`<<if Sg.notes.has('n_x')>>甲<</if>>`).some((p) => p.why.some((w) => w.includes('Sg.notes')))],
+			['🔴 反例：分支里读持有物 `inv[…]` ⇒ 报（请写成 `inv:` 键）', textBranchProbs(`<<if $pc.inv['日记']>>甲<</if>>`).length === 1],
+			['边界：混写（只读槽 ＋ 状态）⇒ 如实报出状态那个', textBranchProbs(`<<if $last_check.success and $pc.world.fog_thin>>甲<</if>>`).length === 1],
+			// ③'' 前缀键必须由引擎宣告
+			['正例：前缀键被引擎宣告支持 ⇒ 不报', undeclaredPrefixes([{ id: 'A', req: ['inv:日记'] }], ['inv', 'era']).length === 0],
+			['🔴 反例：用了未宣告的前缀（`inv:` 而引擎只认状态键）⇒ 报（否则条件永假＝行静默死）', undeclaredPrefixes([{ id: 'A', req: ['inv:日记'] }], []).join() !== ''],
+			['边界：非前缀键（note id／裸键／`ev.x`）不参与前缀判定', rowKeyPrefixes([{ id: 'A', req: ['n_x'], any: ['fog_thin'], exclude: ['ev.y'] }]).length === 0],
 		);
 		// ④ scope 机检（调用面）
 		const AT = (p, scope) => ({ p, scope });
@@ -231,6 +290,8 @@ export const run = (ctx) => {
 	else {
 		for (const p of prereqProblems(rows)) { console.log(`  ✗ ${p}`); bad++; }
 		for (const d of deadRows(rows)) { console.log(`  ✗ 死规则：行「${d.id}」永不被选中（被「${d.killedBy}」完全覆盖）`); bad++; }
+		for (const b of textBranchRows(rows)) for (const pr of b.probs) { console.log(`  ✗ \`text\` 分支越界：行「${b.id}」的 ${`<<if ${pr.cond}>>`} 读了 ${pr.why.join('、')}——分支只许读**渲染期只读槽**（$last_check／\`_\` 前缀局部量）；状态/时代/持有物/笔记请写成行的 req/any/exclude（键形含 inv:／era:）`); bad++; }
+		for (const u of undeclaredPrefixes(rows, ctx.window?.Sg?.rules?.prefixes ?? [])) { console.log(`  ✗ 前缀键未被引擎宣告：行里用了「${u.prefix}:」，但 \`Sg.rules.prefixes\`（当前 ${JSON.stringify(u.declared)}）里没有它——引擎不认的前缀会让条件**永假**（行静默死掉）`); bad++; }
 		for (const w of textWriteRows(rows)) { console.log(`  ✗ \`text\` 不是纯渲染：行「${w.id}」含 ${w.hits.join('、')}——写状态请走「yields」（A 方案：渲染成功后由 \`<<rules>>\` 统一落 Sg.notes.add）`); bad++; }
 		const { calls, dynamic } = ruleCalls(ctx.passageSrc, (p) => ctx.passageTags?.get(p) ?? []);
 		for (const id of orphanRows(rows, calls)) { console.log(`  ✗ 未接管行：行「${id}」的 \`scope\` 没有任何 \`<<rules "…">>\` 调用点 ⇒ 永不被渲染`); bad++; }

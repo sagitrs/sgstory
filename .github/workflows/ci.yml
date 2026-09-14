@@ -56,7 +56,11 @@ jobs:
       - run: npm ci
       - run: pip install fonttools brotli  # 字体子集化（霞鹜文楷）
       - run: git fetch origin main --depth=1  # 门2（新段落必配测）需要 origin/main 基线（#208B 前它在 CI 恒跳过）
+      # #562：**F6 台账新鲜度门**要查 issue 状态（`| #247 待办 |` 这类标记的实况）⇒ CI 必须给 token，
+      # 否则它「○ 跳过（无 token）」并**退 0** —— 那是「门在 CI 里从未真正跑过」的真空洞（与 `#557` 的假绿同类）。
       - run: npm test
+        env:
+          GH_TOKEN: ${{ github.token }}
       # #520：把产物交给 deploy 复用（main push 才传）——deploy 原先自己 checkout＋npm ci＋build（≈20s），
       # 而这两个 job 刚刚都构过同样的 dist。
       - if: github.ref == 'refs/heads/main' && github.event_name == 'push'

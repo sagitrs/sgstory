@@ -287,8 +287,10 @@ export const checkEngineRanks = (sources, { rankOf = rankOfPath, signatures = RA
 // ⇒ 搬家**只会变红一次**（提示你更新声明），**不会**静默变绿。
 export const CONST_SECTION = {
 	// 允许出现"数据字段里的 era 字面量"与"`const Era = {…}` 定义"的文件（用**路径后缀**匹配，兼容搬家后的新路径）
-	files: ['stories/mist-forest/15-tables.twee'],
-	eraDecl: /const Era = \{/,              // 常量定义行的特征
+	// `#562`：**引擎侧默认常量**（`10-core` 的 `Game.Era ??= {…}`／`Game.Damage ??= {…}`）也是常量载体
+	// ——否则 `--literals` 会把那两行判成"裸时代字面量"（引擎给默认值 ⇒ 必须一起声明，这是"搬家要同步声明"的同一条纪律）
+	files: ['stories/mist-forest/15-tables.twee', 'src/10-core.twee'],
+	eraDecl: /const Era = \{|Game\.Era \?\?= \{/,              // 常量定义行的特征
 	eraDataField: /(flagEra|era:)/,         // 故事表数据字段的特征
 	// 裸伤害数字：**不再按文件名限定章节**。原先只在 `30/40/50/60-ch*.twee` 里判 ⇒ 章节一旦改名
 	// （搬家时很可能发生）判据就静默失效。现在改成"**所有文件都判**"，例外只在声明的文件中排除。

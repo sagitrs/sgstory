@@ -270,29 +270,6 @@ Macro.add('dragonbar', {
 :: Widgets [widget]
 /% 受伤 + 药膏自动生效 + 死亡判定。用法：<<damage N>>。
    药膏自动门槛：缺口满 4 点（一副的恢复量）才自动用——满血/轻伤不烧药膏（#201）。 %/
-/% #185 门厅：取物结果单源；replace 原地重绘，goto 不再冲掉结果 %/
-/% #403：门厅取物——**同一颗骰只显示一遍、同一句结果只显示一遍**。
-   ① 去掉原先开头的 <<lastcheck>>：骰面由 <<sitecheck>> 自己渲染（结果槽再承载一次进 dist），
-      两句都渲染就会在槽里出现两次骰面；
-   ② 结果句在「结果槽已承载本次结果」时不再复述（槽由 #270 的 goto 包装捕获 link 输出）；
-   ③ 状态变更（give/damage/setflag）**与显示无关，始终执行**。 %/
-<<widget "hallResult">><<nobr>>
-	<<set _slotHasIt to $pc.ev.last_result and $pc.ev.last_result.p is passage()>>
-	<<if $args[0] is "翻检">>
-		<<if $last_check.success>>
-			<<if not _slotHasIt>>你把哨子从钉子上提起来，收进行囊，可在''物品栏''查看。<</if>><<give "坏哨">><<setflag "whistle_taken">>
-		<<else>>
-			<<if not _slotHasIt>>哨子卡在钉子上。你拨了半天，指头刮破了一道口子——到底还是弄下来了。<</if>><<damage `Game.Damage.graze`>><<give "坏哨">><<setflag "whistle_taken">>
-		<</if>>
-	<<else>>
-		<<if $last_check.success>>
-			<<if not _slotHasIt>>你借了箱子的高度，一把攥住哨子拧了下来。<</if>><<give "坏哨">><<setflag "whistle_taken">>
-		<<else>>
-			<<if not _slotHasIt>>箱子一滑，你磕在墙角上。好歹把哨子攥下来了。<</if>><<damage `Game.Damage.hurt`>><<give "坏哨">><<setflag "whistle_taken">>
-		<</if>>
-	<</if>>
-	/% 「这里你已经翻找过了」由**门厅段落自己的 else 支**渲染（单源）——放在 widget 里会被 #270 结果槽连同 link 输出一起捕获，于是同一句在槽与段落各显示一遍（#403）。 %/
-<</nobr>><</widget>>
 
 <<widget "firstTime">>
 	<<set _first to !$pc.ev[$args[0]]>>
@@ -356,35 +333,6 @@ Macro.add('dragonbar', {
 	<<run $pc.world[$args[0]] = true>>
 <</widget>>
 
-/% 翻转时代（v16 §3.3）：原地生效、位置决定年代；耗隐藏星力；从过去回来时雾淡一些 %/
-<<widget "flip">><<nobr>>
-	<<if $pc.world.fog_thin>>
-		/% #291 I1-G1：现象层钩子——跑得多了，雾的变化要能被感觉到（不显示任何数字） %/
-		<<if $pc.star.spent gte 3>>
-			<div><span class="flip-note">你回到现在。雾比上回更''薄了一层''，林子里的声音听得清楚了些。</span></div>
-		<<else>>
-			<div><span class="flip-note">你回到现在。身边的雾，''淡了一些''。</span></div>
-		<</if>>
-		<<set $pc.world.fog_thin to false>>
-	<</if>>
-	<<if not $pc.inv["时光护符"]>>
-		<div><span class="era-drained">你身上没有能校进另一段时间的东西。</span></div>
-	<<else>>
-		<<if $pc.star.spent gte 3>>
-			<div><span class="sys-note">（你翻得越来越熟了。可每次回来，身上都像被抽走了一点点什么。）</span></div>
-		<</if>>
-		<<link `($era is Game.Era.PRESENT ? "翻转护身符：坠入『过去』" : "翻转护身符：回到『现在』")`>>
-			<<if not $pc.star.first_free>>
-				<<set $pc.star.first_free to true>>   /% #219 C1②：头一次翻转不收费——造它的人留的一点余量 %/
-			<<else>>
-				<<set $pc.star.spent to $pc.star.spent + 1>>
-			<</if>>
-			<<set $era to ($era is Game.Era.PRESENT ? Game.Era.PAST : Game.Era.PRESENT)>>
-			<<if $era is Game.Era.PRESENT>><<set $pc.world.fog_thin to true>><</if>>
-			<<goto `passage()`>>
-		<</link>>
-	<</if>>
-<</nobr>><</widget>>
 
 /% ── 战斗动作池（B1）：每轮随机 3 选 1；每个动作是一次属性化检定，成/败/大成功各有后果 ──
    回合状态挂在 $pc.ev.fight：{ pool, round, offer, act, adv, guard, skipFoe, flee, last, done }。
@@ -564,5 +512,6 @@ $pc.speciesLabel $pc.classLabel
 <<if $pc.inv["时光护符"]>>
 ⌛ <<if $era is Game.Era.PAST>>过去<<else>>现在<</if>>
 <</if>>
-[[📖 设定集|设定集]]
+/% #460：设定集是本故事的页面（引擎不知道故事名）⇒ **存在才渲染**；否则第二/第三故事侧栏会出现死链 %/
+<<if Story.has("设定集")>>[[📖 设定集|设定集]]<</if>>
 <</if>>

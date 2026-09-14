@@ -27,20 +27,12 @@ const given = process.argv.slice(2).filter((a) => a.startsWith('--')).map((a) =>
 const unknown = given.filter((f) => !known.has(f));
 // `--engine-only`（`#436-a`）：只跑**引擎门**（`test-plan.mjs` 的 `AUDIT_ENGINE` 是层表单一权威）
 // ——这是「第二故事能不能接」的出口判据（故事门会判红本故事以外的东西，见 `#460` spike）。
-// 第二故事（`#460` 接入自检）此刻**跑不动**的引擎门 —— 已知阻塞，**清单带理由**：
-//   都是同一个根因：**引擎里还有故事 1 的专属片段**（`src/10-core.twee` 的 `hallResult` widget 写
-//   `whistle_taken`／`fog_fin` 等故事 1 的键）⇒ 任何第二故事在这两道上都是**假红**（判的不是它自己）。
-//   ⇒ 收敛在 `#512`（引擎/故事边界）；**改好后请删本清单**（否则第二故事会带着一个已消失的"豁免"跑）。
-//   ⚠️ 只对**非默认故事**生效（默认故事的判据逐字不变）。
-const STORY2_BLOCKED = {
-	consequences: '#512：引擎 10-core 的 hallResult widget 仍写故事 1 的键（whistle_taken）⇒ 第二故事的"桶分级"判的不是它自己',
-	state: '#512：同上（引擎保留键/故事 1 的键未由第二故事登记；等引擎侧改成 `??=` 自建容器 ＋ 专属片段搬回故事）',
-};
-const blocked = (wantAll === false || arg('engine-only')) && storySlug !== DEFAULT_STORY_SLUG ? STORY2_BLOCKED : {};
 const selected = GATES
 	.filter((g) => arg('engine-only') ? g.flags.some((f) => AUDIT_ENGINE.includes(f)) : (wantAll || g.flags.some((f) => arg(f))))
-	.filter((g) => !g.flags.some((f) => f in blocked));
-for (const [f, why] of Object.entries(blocked)) if (GATES.some((g) => g.flags.includes(f))) console.log(`· 已知阻塞（跳过 --${f}）：${why}`);
+	;
+// 注（`#460`／`#512`）：这里曾有一份 `STORY2_BLOCKED` 清单（第二故事跳过 `--state`／`--consequences`）——
+// 2026-09-14 把引擎里的**故事 1 片段**（`hallResult` widget ＋ `fog_thin`）搬回 `stories/mist-forest/12-widgets.twee`
+// 之后，两门对第二/第三故事**都是真绿**（9/9）⇒ 清单**已删**（这正是那份清单存在的意义：修好就删）。
 if (arg('engine-only') && !selected.length) { console.error('✗ `--engine-only` 没有选中任何引擎门——检查 test-plan 的 AUDIT_ENGINE'); process.exit(2); }
 
 // #366：以前「未知开关」或「只传 --check」会**一个门都不跑却退出 0**（假绿）。现在一律响亮报错。

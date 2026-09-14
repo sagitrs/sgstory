@@ -158,7 +158,7 @@
 	<<link "记住回音，继续走">><<caveNext>><</link>>
 <<elseif _k is "地下湖">>
 	''地下湖''。水黑得不像水。你得踩过去。
-	<<if $pc.inv["火把"]>>
+	<<if $pc.inv["火把"] and ($pc.ev.cave_torch ?? 0) gt 0>>
 		<<link "举着火把，踩着露出水面的石头过去">>
 			<<sitecheck "洞窟·地下湖">>
 			<<if $last_check.success>>
@@ -224,7 +224,6 @@
 		<<if $pc.gold gte 3>>
 			你付了三枚，他给了你一块''干粮''。
 			<<set $pc.gold to $pc.gold - 3>>
-			<<set $pc.ev.cave_fed to true>>
 			<<give "干粮">>
 		<<else>>
 			他没有要钱。他把干粮掰了一半给你。
@@ -235,7 +234,6 @@
 	<<link "请他帮个忙（给一件消耗品）">>
 		他从布里摸出一小包灰，让你敷在伤口上。
 		<<set $pc.hp to Math.min($pc.maxHp ?? 20, $pc.hp + 3)>>
-		<<set $pc.ev.cave_helped to true>>
 		<<caveNext>>
 	<</link>>
 <</if>>

@@ -9,7 +9,7 @@
 // 本文件搬进 `src/engine/**` 后**不再直读故事表**（⚠️ 层间门按字面量匹配，这里曾用别名 `T.Game` 躲过它，
 // 所以"门绿"不等于边界成立；本文件的证据是"真的没有直读"，见 PR）。
 // 命名根：挂 `Game.Checks.*`（数据/规则 ⇒ Game.*，见 docs/dev-conventions.md §7）。
-Object.assign(window.Game.Checks, {
+Object.assign((window.Game.Checks ??= {}), {
 	// 位点判定的**算**：查位点表 → 推导优势/劣势（道具·行囊·情报·位点自带）→ 掷骰
 	// 纯函数：`pc` 只读、不碰 `State`、不渲染 ⇒ node 侧注入 `Game.Rules.rng` 即可复算成败。
 	rollSite(site, pc, advArg) {
@@ -48,7 +48,7 @@ Object.assign(window.Game.Checks, {
 //     对手骰面 → 挨打闪光；`<<damage>>` 仍由 present 调，它是结算词汇宏）
 // 两段式而不是一次性：玩家受伤后的 `hp` 决定对手那一轮是否发生，而 `hp` 由 present 的 `<<damage>>` 落，
 // 拆成两段才能让「渲染顺序」与「hp 时序」同时与旧实现逐字一致。
-Object.assign(window.Game.Combat, {
+Object.assign((window.Game.Combat ??= {}), {
 	// 面板惰性抽牌（下一页没抽过就抽）——旧实现是 `<<set _f.offer to …>>`（`_f` 是 state 的别名 ⇒ 也是写状态）
 	ensureOffer(pc) {
 		const T = window.Game, f = pc.ev.fight;
@@ -134,7 +134,7 @@ Object.assign(window.Game.Combat, {
 // 为什么要抽：`<<econ>>` 原本把「算价 ＋ 落金币 ＋ 落 gives ＋ 渲染文案」挤在一个 widget 里，
 // 而 `<<socresolve>>` 要**在自己的分支里**调它（筹码那一支）⇒ 想让社交回合能在 node 里驱动，
 // 就得把「落帐」抽成 sim 函数；文案格式抽成 `note()`（**单一源**，否则两处各写一份必漂）。
-Object.assign(window.Game.Economy, {
+Object.assign((window.Game.Economy ??= {}), {
 	// sim：算价 → 落金币 → 落 gives。返回 `{ delta }`（供 present 渲染文案）
 	apply(pc, id) {
 		const ev = this.events[id];
@@ -157,7 +157,7 @@ Object.assign(window.Game.Economy, {
 // 抽出后：状态写点全在 sim；widget 只剩「调 sim ＋ 渲染那一句文案」⇒ `test/social-lever.mjs` 可以不经浏览器驱动。
 // ⚠️ 顺序敏感：`econ` 原本在 `shift`／`apply` **之前**（`priceOf` 可能吃 `apply` 落的旗标折扣）——
 //    本实现**保持原顺序**（econ 先落、`apply` 后调），别为了「看起来整齐」把它挪位。
-Object.assign(window.Game.Social, {
+Object.assign((window.Game.Social ??= {}), {
 	// 返回 `{ econ: { delta } | null }`；`null`＝这次点击不该结算（`$pc.ev.soc` 与 ask 不匹配）
 	resolveAsk(pc, askId, how) {
 		const T = window.Game, S = T.Social;
@@ -215,7 +215,7 @@ Object.assign(window.Game.Social, {
 //      （会改这两道门的输出与 golden）⇒ 按单变量纪律本片不动，另开票处理"注入 rng ＋ 重签蒙特卡洛基线"。
 //      ⇒ 本片后 sim 仍调 `Game.Combat.offer` 一处（`STORY_SYMBOLS` 不含它 ⇒ 层间判据 0 命中，但架构上仍是"引擎调故事机制"✗）。
 //   ② `Combat.eligible` 已随本片搬入 sim（`offer` 经 `this.eligible` 调用它 ⇒ 运行时同命名空间解析 ✓）。
-Object.assign(window.Game.Gear, {
+Object.assign((window.Game.Gear ??= {}), {
 	damageBonus(gear) {
 		return (gear ?? []).reduce((a, k) => a + (window.Sg.story.gearDef(k)?.damage ?? 0), 0);
 	},
@@ -226,7 +226,7 @@ Object.assign(window.Game.Gear, {
 		return (gear ?? []).find((k) => (window.Sg.story.gearDef(k)?.advSites ?? []).includes(site)) ?? '';
 	},
 });
-Object.assign(window.Game.Items, {
+Object.assign((window.Game.Items ??= {}), {
 	advAt(site, inv) {
 		return !!window.Game.Items.advSource(site, inv);
 	},
@@ -246,7 +246,7 @@ Object.assign(window.Game.Items, {
 		return Math.max(1, base - flat - poison + rage);
 	},
 });
-Object.assign(window.Game.Combat, {
+Object.assign((window.Game.Combat ??= {}), {
 	// ⚠️ 为什么挂 `Combat` 而不是龙的命名空间：后者在 `STORY_SYMBOLS` 里是**整命名空间**类符号
 	//（它主要是数据：hp/sealAt/entries…）⇒ 引擎侧往它上面挂**机制**会被层间门判（实测命中 1 处）。
 	// 语义上它本来就是"这一回合龙的那一下"＝战斗结算 ⇒ 住 `Combat` 更对；调用方只有本文件一处，已同步。
@@ -602,6 +602,11 @@ Object.assign(window.Game.Combat, {
 		if (eff.flag) pc.ev[eff.flag] = true;
 	},
 });
+
+// 注（`#460`）：本文件里的 `Object.assign((window.Game.X ??= {}), …)` 是**引擎自建容器**——
+//   原先写的是 `Object.assign(window.Game.X, …)`，那些容器**只有故事 1 的 `15-tables.twee` 会建**
+//   ⇒ 一个"只有引擎 ＋ 自己的段落"的故事在**加载期**就崩（`TypeError: Cannot convert undefined or null to object`）。
+//   引擎不该依赖故事提供容器（`#512` 的方向）：`??=` 自建，故事只往里填数据。
 
 // ── 条件表选择器（伞 #422 阶段 4／`#435`）——**引擎侧**机制，只经 `Sg.story.rules()` 取表 ──────────
 // 归属（`#441` 结合面）：选择器与死规则门属**引擎层**（与故事内容无关）；表属**故事层**。

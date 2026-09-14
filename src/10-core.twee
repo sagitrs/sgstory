@@ -380,6 +380,13 @@ Macro.add('dragonbar', {
 	<<set $era to Game.Era.PRESENT>>
 <</widget>>
 
+/% #624 片一：落一条**笔记**（幂等；与 `<<give>>` 同族的词汇宏）。
+   为什么要有它：点击态（link 体内）与表行 `text` 里**只该出现词汇宏**，不该出现裸 `<<run Sg.notes.add(…)>>`
+   （W1 的允许表里本来也没有裸模块 API）⇒ 表内表外同一种写法。不打印任何东西（知识到手的文案由内容自己写）。 %/
+<<widget "note">><<nobr>>
+	<<run Sg.notes.add($args[0])>>
+<</nobr>><</widget>>
+
 /% 拾取道具（物品栏）：<<give "日记">> %/
 <<widget "give">><<nobr>>
 	<<run $pc.inv[$args[0]] = true>>

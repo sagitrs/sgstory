@@ -125,7 +125,8 @@ export const tableReadProblems = (rows) => {
 	for (const r of rows ?? []) {
 		if (!r?.id) continue;
 		for (const field of KEYS_OF) for (const k of asList(r[field])) {
-			if (!/^(n_[a-z0-9_]+|[a-z_]\w*|(?:ev|world)\.[a-z_]\w*)$/.test(k)) out.push({ id: r.id, field, what: '键形态', detail: k });
+			// `#435`：条件语言键形加两种**前缀键**（求值在引擎侧 `Sg.rules.holds()`）：`inv:<道具>`／`era:<时代>`
+			if (!/^(n_[a-z0-9_]+|[a-z_]\w*|(?:ev|world)\.[a-z_]\w*|inv:.+|era:(?:past|present))$/.test(k)) out.push({ id: r.id, field, what: '键形态', detail: k });
 			for (const key of readKeys(k)) out.push({ id: r.id, field, what: '字面状态读', detail: key });
 		}
 		for (const key of readKeys(r.text ?? '')) out.push({ id: r.id, field: 'text', what: '字面状态读', detail: key });
@@ -149,6 +150,8 @@ export const run = (ctx) => {
 			['🔴 反例：`text` 里直读 `$pc.world.y` ⇒ 报（`text` 也在扫描面内）', tableReadProblems([{ id: 'A', text: '他去 <<if $pc.world.y>>…<</if>>' }]).some((p) => p.field === 'text')],
 			['边界：`yields` 用 note id ⇒ 不报（与 `req` 同一命名空间）', tableReadProblems([{ id: 'A', yields: 'n_witch_fire_hint' }]).length === 0],
 			['边界：`n_*` 里的下划线不被当"路径点"误判', tableReadProblems([{ id: 'A', req: 'n_flower_warned' }]).length === 0],
+			['正例：前缀键 `inv:日记`／`era:present` 是合法键形（求值在引擎侧）', tableReadProblems([{ id: 'A', req: ['inv:日记'], any: ['era:present'] }]).length === 0],
+			['🔴 反例：`inv:` 写成运行时读 `$pc.inv[…]` ⇒ 键形态报（`readKeys` 只管 ev/world，故这里靠形态兜住）', tableReadProblems([{ id: 'A', req: ["$pc.inv['日记']"] }]).some((p) => p.what === '键形态')],
 			['正例：知识键在叙事段直读 ⇒ 命中（`know` 索引单一权威）', knowledgeHits(scanReads(segmentsOf(['stories/x.twee'], () => ':: P\n<<if $pc.ev.a>>x<</if>>\n')), new Map([['ev.a', 'n_a']])).length === 1],
 			['边界：非知识键（世界态）不在②的扫描面内（走③报告）', knowledgeHits(scanReads(segmentsOf(['stories/x.twee'], () => ':: P\n<<if $pc.world.b>>x<</if>>\n')), new Map([['ev.a', 'n_a']])).length === 0],
 			['🔴 反例：故事面新增知识键直读（不在基线）⇒ `fresh` 非空', baselineProblems([{ passage: '新段', key: 'ev.new', known: false }]).fresh.length === 1],

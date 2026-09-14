@@ -87,6 +87,9 @@ export const ruleRowKeys = (row, entries) => {
 	const paths = notePaths(entries);
 	const out = new Set();
 	for (const key of [...(row?.req ?? []), ...(row?.any ?? []), ...(row?.exclude ?? [])].map(String)) {
+		// `#435`：**前缀键**（`inv:<道具>`／`era:<时代>`）不是状态键（持有物/时代都不在状态契约域里）
+		// ⇒ 不参与"有写有读"；它们的求值在引擎侧 `Sg.rules.holds()`。
+		if (/^(?:inv|era):/.test(key)) continue;
 		if (key.startsWith('n_')) for (const p of (paths.get(key) ?? [])) out.add(p);
 		else out.add(key.includes('.') ? key : `ev.${key}`);
 	}
@@ -121,6 +124,7 @@ export const ruleRowFlags = (row, entries) => {
 	const paths = notePaths(entries);
 	const out = new Set();
 	for (const key of [...(row?.req ?? []), ...(row?.any ?? []), ...(row?.exclude ?? [])].map(String)) {
+		if (/^(?:inv|era):/.test(key)) continue;   // 同 `ruleRowKeys()`：前缀键不是旗标，不参与分级
 		if (key.startsWith('n_')) for (const p of (paths.get(key) ?? [])) out.add(p.replace(/^(ev|world)\./, ''));
 		else out.add(key.replace(/^(ev|world)\./, ''));
 	}

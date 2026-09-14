@@ -98,6 +98,25 @@ export const judgeRealPath = ({ slug, hpBefore, hpAfter, statuses, lastCheck, un
 	return out;
 };
 
+/** 纯函数：判据 ⑧ —— 失败重置的观测（`landing` 观测重置落地时的状态；`born` 观测回到出生点后的状态）。 */
+export const judgeReset = ({ landing, obs, born }) => {
+	const out = [];
+	if (obs.landing !== '倒下') out.push({ code: 'reset-landing', msg: `全灭没有走重置落地页（落在「${obs.landing}」）——应经 \`resetRun\` 回出生点` });
+	if (obs.inv.length) out.push({ code: 'reset-inv', msg: `道具没清零（还剩 ${obs.inv.join('/')}）` });
+	if (obs.gearHp) out.push({ code: 'reset-gear', msg: `耐久表没清（剩 ${obs.gearHp} 件）` });
+	if (obs.statuses) out.push({ code: 'reset-status', msg: `异常没清（剩 ${obs.statuses} 处）` });
+	if (obs.hp !== landing) out.push({ code: 'reset-hp', msg: `hp 没回满（${obs.hp} ≠ max_hp ${landing}）` });
+	if (!obs.note) out.push({ code: 'reset-note', msg: '**笔记/线索被清了**（已定 ⑧ 明确要求保留；`RESET_KEEPS`）' });
+	if (obs.at !== '醒来') out.push({ code: 'reset-born', msg: `重置后没回出生点（落在「${obs.at}」）` });
+	{
+		const kit = new Set(born ?? []);
+		const want = ['旧剑', '火把'];
+		if (born?.length && (kit.size !== want.length || !want.every((k) => kit.has(k)))) out.push({ code: 'reset-kit', msg: `出生点起始装备不对（${born.join('/')}）——应只发剑与火把` });
+	}
+	if (obs.bornStep !== 0) out.push({ code: 'reset-step', msg: `步数没归零（${obs.bornStep}）` });
+	return out;
+};
+
 const main = async () => {
 	const problems = [];
 	const selftest = process.argv.includes('--selftest');
@@ -141,6 +160,13 @@ const main = async () => {
 		t('⑤ 反例：异常没落（返回值被丢）⇒ 报', judgeRealPath({ ...good, statuses: {} }).some((p) => p.code === 'no-status'));
 		t('⑤ 反例：结果槽没落 ⇒ 报', judgeRealPath({ ...good, lastCheck: undefined }).some((p) => p.code === 'no-check'));
 		t('⑤ 反例：有未捕获报错 ⇒ 报', judgeRealPath({ ...good, uncaught: ['Uncaught: boom'] }).some((p) => p.code === 'uncaught'));
+
+		const okReset = { landing: 20, obs: { landing: '倒下', inv: [], gearHp: 0, statuses: 0, hp: 20, note: true, at: '醒来', bornStep: 0 }, born: ['旧剑', '火把'] };
+		t('⑧ 正例：全灭 ⇒ 回出生点＋道具清零＋笔记保留 ⇒ 0 条', judgeReset(okReset).length === 0);
+		t('⑧ 反例：笔记被清 ⇒ 报（已定 ⑧ 明确要求保留）', judgeReset({ ...okReset, obs: { ...okReset.obs, note: false } }).some((p) => p.code === 'reset-note'));
+		t('⑧ 反例：道具没清零 ⇒ 报', judgeReset({ ...okReset, obs: { ...okReset.obs, inv: ['干粮'] } }).some((p) => p.code === 'reset-inv'));
+		t('⑧ 反例：没回出生点（落到别处）⇒ 报', judgeReset({ ...okReset, obs: { ...okReset.obs, at: '岔口' } }).some((p) => p.code === 'reset-born'));
+		t('⑧ 反例：hp 没回满 ⇒ 报', judgeReset({ ...okReset, obs: { ...okReset.obs, hp: 3 } }).some((p) => p.code === 'reset-hp'));
 
 		if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
 		console.log('\n✔ 自证通过（面收集 × 缺失判定 × 笔记登记 × 侧栏判据 × 真机路判据 正反例）');
@@ -379,12 +405,66 @@ const main = async () => {
 			] });
 	}
 
+	// ── 判据 ⑧：失败重置（`#491` 判据 4／已定 ⑧）——"仅全灭触发" 与 "单步失败不终止" 两条互为反例 ──
+	{
+		const slug = 'hollow-cave';
+		const trapClick = async (w, { settle, sleep }) => {
+			w.SugarCube.Engine.play('路·1c');                       // 陷阱实例
+			await settle(); await sleep(220);
+			const a = [...w.document.querySelectorAll('#passages a.link-internal')].find((x) => x.textContent.includes('侧身'));
+			if (!a) return null;
+			a.click(); await settle(); await sleep(260);
+			return w.SugarCube.State.passage;
+		};
+		// ⑧-1 全灭 ⇒ 重置
+		{
+			const { w, close, sleep, settle, uncaught } = await boot({ story: slug, random: 0.9 });
+			try {
+				w.Game.Rules.rng.set((lo, hi) => (hi === 20 ? 3 : 1));   // 判定失败；`gearWear` 的 d(2)→1
+				w.eval(`(function(){const pc=SugarCube.State.variables.pc;
+					pc.hp=1; pc.max_hp=20; pc.inv["干粮"]=true; pc.inv["钥匙"]=true; pc.gearHp={旧剑:1};
+					pc.ev.cave_step=3; pc.ev.cave_echo=true; pc.gear=["旧剑","火把"];})()`);
+				const landing = await trapClick(w, { settle, sleep });
+				const pc = w.SugarCube.State.variables.pc;
+				const obs = {
+					landing,
+					hp: pc.hp,
+					inv: Object.keys(pc.inv ?? {}),
+					gearHp: Object.keys(pc.gearHp ?? {}).length,
+					statuses: Object.keys(pc.statuses ?? {}).length,
+					note: pc.ev.cave_echo === true,
+					at: null, bornStep: null,
+				};
+				const wake = [...w.document.querySelectorAll('#passages a.link-internal')].find((x) => x.textContent.includes('睁眼'));
+				let born = null;
+				if (wake) { wake.click(); await settle(); await sleep(220); obs.at = w.SugarCube.State.passage; born = Object.keys(w.SugarCube.State.variables.pc.inv ?? {}); obs.bornStep = w.SugarCube.State.variables.pc.ev.cave_step; }
+				const fails = judgeReset({ landing: 20, obs, born }).concat(uncaught.length ? [{ code: 'reset-uncaught', msg: `未捕获报错：${String(uncaught[0]).split('\n')[0].slice(0, 100)}` }] : []);
+				problems.push(...fails.map((f) => ({ ...f, slug })));
+				console.log(`  ${fails.length ? '✗' : '✓'} ${slug} ⑧ 全灭⇒重置：落地「${obs.landing}」· hp ${obs.hp} · inv ${obs.inv.length} 件 · 耐久表 ${obs.gearHp} · 异常 ${obs.statuses} · 线索保留 ${obs.note} · 回「${obs.at}」· 步数 ${obs.bornStep}`);
+				for (const f of fails) console.log(`      ✗ ${f.msg}`);
+			} catch (e) { problems.push({ code: 'reset', slug, msg: `全灭重置跑不完：${e.message}` }); } finally { close(); }
+		}
+		// ⑧-2 单步失败（未全灭）⇒ **不终止**：带伤继续到下一段
+		{
+			const { w, close, sleep, settle } = await boot({ story: slug, random: 0.9 });
+			try {
+				w.Game.Rules.rng.set((lo, hi) => (hi === 20 ? 3 : 1));
+				w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.hp=20;pc.max_hp=20;pc.gear=["旧剑","火把"];})()');
+				const landing = await trapClick(w, { settle, sleep });
+				const pc = w.SugarCube.State.variables.pc;
+				const ok = landing === '岔口' && pc.hp < 20 && pc.hp > 0;
+				problems.push(...(ok ? [] : [{ code: 'reset-step-fail', slug, msg: `单步失败应当**带伤继续**（落在「${landing}」，hp ${pc.hp}）——已定 ⑧：仅全灭才回出生点` }]));
+				console.log(`  ${ok ? '✓' : '✗'} ${slug} ⑧ 单步失败不终止：落地「${landing}」· hp 20→${pc.hp}`);
+			} catch (e) { problems.push({ code: 'reset', slug, msg: `单步失败路跑不完：${e.message}` }); } finally { close(); }
+		}
+	}
+
 	if (problems.length) {
 		console.error(`\n✗ 逐故事运行时契约门未通过 ${problems.length} 项：`);
 		for (const p of problems) console.error(`  ✗ ${p.msg}`);
 		process.exit(1);
 	}
-	console.log('\n✔ 逐故事运行时契约门通过（面存在 · 位点能判 · 笔记可用 · 侧栏可用 · 机制真落 · 旅人面闭环 · 五种洞窟效果）');
+	console.log('\n✔ 逐故事运行时契约门通过（面存在 · 位点能判 · 笔记可用 · 侧栏可用 · 机制真落 · 旅人面闭环 · 五种洞窟效果 · 失败重置）');
 	process.exit(0);   // jsdom 的视口轮询会把事件循环吊住（boot.mjs 的注释）⇒ 自己收场
 };
 

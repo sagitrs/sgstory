@@ -9,8 +9,12 @@
 <<widget "caveNext">><<nobr>>
 	<<run Game.Combat.tickStatuses($pc)>>
 	<<set $pc.ev.cave_step to ($pc.ev.cave_step ?? 0) + 1>>
-	<<if $pc.hp lte 0>>
-		<<goto "死在洞里">>
+	<<if Game.Combat.runOver($pc)>>
+		/% `#491` 判据 4（`#488` 已定 ⑧）：**仅全灭**触发重置——`resetRun` 清 `inv`／`gearHp`／`statuses`／
+		   战斗态并把 hp 回满（**保留** `ev`（含笔记）／`soc`／`world`／`Sg.notes`／`Sg.store`）；落到「倒下」页，
+		   由那里回**出生点**（`醒来` 会把起始两件装备再发给玩家）。单步失败**不终止**（带伤继续＝走 else）。 %/
+		<<set _r to Game.Combat.resetRun($pc)>>
+		<<goto "倒下">>
 	<<elseif $pc.ev.cave_step gt 5>>
 		<<goto "地下村落">>
 	<<else>>
@@ -305,11 +309,16 @@
 	<</link>>
 <</if>>
 
-:: 死在洞里
+:: 倒下
 /% payload: 张力 %/
 你没走到第五步。火把烧到最后一段，灭了。
 
-<<ending "死在洞里" final>>
+黑从四面包上来。你听见自己的呼吸，然后连那个也没有了。
+
+——再睁眼，还是那间半塌的石室：剑还在手边，其余的都没有了。
+（全灭会回到出生点、道具清零；**一路记下的线索与回音仍在**。）
+
+[[睁眼|醒来]]
 
 :: 地下村落
 /% payload: 信息 %/

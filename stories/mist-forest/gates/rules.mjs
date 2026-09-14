@@ -22,13 +22,19 @@
 //      · **同位点重复调用**：同一段落里同一 `scope` 被调用 ≥2 次 ⇒ 两个位点抢同一行（渲染重复）；
 //      · **归属不符**：`scope` 写成 `段落#位点`（＝声明了归属段落）时，调用点必须**就在那个段落**里。
 //      另：无对应行的调用点 ⇒ 红（`pick()` 返回 null ＝ 正文静默消失，是本门要抓的同一类静默）。
-import { WRITE_PATTERNS, NOTE_WRITE_RE, rowOps, yieldsList, notePaths } from '../../../scripts/../scripts/audit/lib/shared.mjs';
+import { WRITE_PATTERNS, NOTE_WRITE_RE, rowOps, condKeysOf, yieldsList, notePaths } from '../../../scripts/../scripts/audit/lib/shared.mjs';
 
 export const flag = 'rules';
 export const flags = ['rules'];
 
 const keys = (x) => (Array.isArray(x) ? x.map(String) : x ? [String(x)] : []);
-const norm = (x) => keys(x).map((k) => k.replace(/^(ev|world)\./, ''));
+const asList = (x) => (Array.isArray(x) ? x : x ? [x] : []);
+/** 条件项 → 键（**单一权威** `condKeysOf`）：字符串项／对象算子项都取到真键。
+ *  `#624` 之前这里是 `keys(x).map(String)` ⇒ 对象形被 `String()` 成 `'[object Object]'`，
+ *  于是"死规则/并列 prio"的键推理**对新形状静默失去意义**（不报错、但结论全是噪声）。 */
+const norm = (x) => asList(x).flatMap((c) => condKeysOf(c)).map((k) => String(k).replace(/^(ev|world)\./, ''));
+/** 行里是否用了对象算子（`{ gte: … }` 这类）—— 数值/集合语义不参与布尔包含判定，见 `deadRows`。 */
+export const opRows = (rows) => (rows ?? []).filter((r) => r?.id && rowOps(r).length > 0).map((r) => r.id);
 
 /** 一行在给定赋值下是否命中（纯函数；`state` 断言键集合，`chose` 是先前行 id 集合）。 */
 export const rowMatches = (row, state, chose) =>
@@ -52,8 +58,13 @@ export const deadRows = (rows) => {
 	const out = [];
 	for (const a of list) {
 		const reqA = norm(a.req), exA = norm(a.exclude);
+		// `#624`：**任一侧含对象算子 ⇒ 保守跳过**（不判死也不当被判死）。
+		// 为什么必须这样：`gte`／`oneOf` 的语义是"数值/集合"的，而下面是**布尔键包含**推理——
+		// 硬套会给出**错误结论**（假红/假绿都不可接受）。宁可不判，也不误判；跳过的行由 `opRows()` 在报告里点名。
+		if (rowOps(a).length) continue;
 		const killer = list.find((b) => {
 			if (b === a || b.scope !== a.scope || !((b.prio ?? 0) > (a.prio ?? 0))) return false;
+			if (rowOps(b).length) return false;                                     // ← 含算子的行不当"杀手"（同理由）
 			if (!norm(b.req).every((k) => reqA.includes(k))) return false;          // ①
 			if (!norm(b.exclude).every((k) => exA.includes(k))) return false;       // ②
 			const anyB = norm(b.any);
@@ -283,6 +294,11 @@ export const run = (ctx) => {
 			['🔴 dev 的反例②：`any(B)⊆any(A)` 而 A 只保证"任一" ⇒ 不是死规则（A 中 b 而 B 要 c 时）', deadRows([R('A', { req: [], any: ['b', 'c'] }), R('B', { req: [], any: ['c'], prio: 20 })]).length === 0],
 			['边界：同 prio ⇒ 不是死规则（裁决＝表序最前）', deadRows([R('A'), R('B', { req: [], prio: 10 })]).length === 0],
 			['边界：不同 scope ⇒ 互不相干', deadRows([R('A'), R('B', { req: [], prio: 20, scope: 'T' })]).length === 0],
+			// `#624`：对象算子形（数值/枚举）—— 键抽取必须走单一权威，且死规则分析**保守跳过**
+			['正例（#624）：对象形的键抽取走 `condKeysOf`（不再 `[object Object]`）', JSON.stringify(norm([{ gte: ['star.spent', 3] }, 'n_x', { oneOf: ['keeper.state', ['seal']] }])) === JSON.stringify(['star.spent', 'n_x', 'keeper.state'])],
+			['🔴 反例（#624）：含算子的行**不判死**（数值语义不能套布尔包含）', deadRows([R('A', { req: [{ gte: ['star.spent', 3] }], prio: 5 }), R('B', { req: [], prio: 20 })]).length === 0],
+			['🔴 反例（#624）：含算子的行也**不当杀手**', deadRows([R('A'), R('B', { req: [{ oneOf: ['keeper.state', ['seal']] }], prio: 20 })]).length === 0],
+			['正例（#624）：`opRows()` 点名含算子的行（跳过要**可见**，不能静默）', JSON.stringify(opRows([R('A', { req: [{ gte: ['x', 1] }] }), R('B')])) === JSON.stringify(['A'])],
 			['边界：B 的 prio **更低** ⇒ 不报（A 先中）', deadRows([R('A'), R('B', { req: [], prio: 5 })]).length === 0],
 			['`prereq`：跨 scope ⇒ 报', prereqProblems([R('A'), R('B', { scope: 'T', prereq: ['A'] })]).some((p) => p.includes('跨 scope'))],
 			['`prereq`：成环 ⇒ 报', prereqProblems([R('A', { prereq: ['B'] }), R('B', { prereq: ['A'] })]).some((p) => p.includes('成环'))],
@@ -356,6 +372,11 @@ export const run = (ctx) => {
 	else {
 		for (const p of prereqProblems(rows)) { console.log(`  ✗ ${p}`); bad++; }
 		for (const d of deadRows(rows)) { console.log(`  ✗ 死规则：行「${d.id}」永不被选中（被「${d.killedBy}」完全覆盖）`); bad++; }
+		{
+			// `#624`：含算子的行被保守跳过 —— 必须**点名叫出来**（跳过的判据不能是静默的）
+			const opIds = opRows(rows);
+			if (opIds.length) console.log(`  · 含对象算子的行 ${opIds.length} 条（${opIds.join('／')}）：**死规则分析保守跳过**（数值/集合语义不参与布尔包含判定——宁可不判，不可误判）`);
+		}
 		for (const b of textBranchRows(rows)) for (const pr of b.probs) { console.log(`  ✗ \`text\` 分支越界：行「${b.id}」的 ${`<<if ${pr.cond}>>`} 读了 ${pr.why.join('、')}——分支只许读**渲染期只读槽**（$last_check／\`_\` 前缀局部量）；状态/时代/持有物/笔记请写成行的 req/any/exclude（键形含 inv:／era:）`); bad++; }
 		for (const u of undeclaredPrefixes(rows, ctx.window?.Sg?.rules?.prefixes ?? [])) { console.log(`  ✗ 前缀键未被引擎宣告：行里用了「${u.prefix}:」，但 \`Sg.rules.prefixes\`（当前 ${JSON.stringify(u.declared)}）里没有它——引擎不认的前缀会让条件**永假**（行静默死掉）`); bad++; }
 		for (const p of setProblems(rows, { notes: ctx.Game?.Notes?.entries ?? {}, domains: ctx.Game?.State?.domains ?? [] })) { console.log(`  ✗ \`sets\` 声明非法：行「${p.id}」的「${p.key}」——${p.why}`); bad++; }

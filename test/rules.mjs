@@ -596,5 +596,24 @@ for (const file of fixtures) {
 	ok(throws({ req: [{ gte: 'star.spent' }] }), '算子参数不是数组 ⇒ 抛错');
 }
 
+// ── `#624`：对象算子在**真表**里的首批位点（选择器端到端：`Sg.rules.pick(scope, {pc})`）──
+// 与上面那段的区别：上面证"引擎能不能算"，这一段证"内容真的在用、且选出来的行对"。
+{
+	const Sg = w.Sg;
+	const P = (ev = {}, keeper = {}, star = {}, inv = {}) => ({ ev, world: {}, keeper, star, inv, soc: {} });
+	const pick = (scope, pc) => { const r = Sg.rules.pick(scope, { pc, chose: new Set() }); return r?.id ?? null; };
+	eq(pick('守林人#软限', P({}, {}, { spent: 3 })), '守林人.软限', '`gte`：star.spent=3 ⇒ 守林人.软限（脚本 40-ch2 的星力软限那句已进表）');
+	eq(pick('守林人#软限', P({}, {}, { spent: 2 })), null, '`gte` 边界：spent=2 ⇒ 不选中（原 `<<if>>` 也不渲染）');
+	eq(pick('守林人#封印选项', P({}, { state: 'seal' })), '守林人.封印选项', '`oneOf`：keeper.state=seal ⇒ 封印选项行');
+	eq(pick('守林人#封印选项', P({}, { state: 'ally' })), null, '`oneOf` 反例：ally ⇒ 不选中（原 `<<if>>` 同样不渲染）');
+	eq(pick('地下宴会厅#哨子', P({}, { state: 'ally' }, {}, { 好哨: true })), '地下宴会厅.哨子', '复合 `req`（算子 ＋ `inv:` 键）：ally＋好哨 ⇒ 哨子选项');
+	eq(pick('地下宴会厅#哨子', P({}, { state: 'ally' }, {}, {})), '地下宴会厅.哨子.else', '🔴 兜底行语义：ally 但**没哨子** ⇒ 走 else 选项（`exclude` 单条表达不了这种否定 ⇒ 更低 prio 的兜底行）');
+	eq(pick('地下宴会厅#哨子', P({}, {}, {}, { 好哨: true })), '地下宴会厅.哨子.else', '兜底行：state 未设 ＋ 有哨子 ⇒ 仍走 else（与原文一致）');
+	eq(pick('地下宴会厅#提醒', P({}, { state: 'seal' })), '地下宴会厅.提醒', '`any`＋`oneOf`：seal ⇒ 守林人那句');
+	eq(pick('地下宴会厅#提醒', P({}, { state: 'ally' })), '地下宴会厅.提醒', '`oneOf` 多值：ally ⇒ 同一句（原文 `or`）');
+	eq(pick('地下宴会厅#提醒', P({}, { state: 'none' })), '地下宴会厅.提醒.else', '否定行（`exclude`＋算子）：none ⇒ 门框小字那句');
+	eq(pick('地下宴会厅#提醒', P({}, {})), '地下宴会厅.提醒.else', '边界：keeper.state **缺失** ⇒ 走 else（与原文 else 同语义）');
+}
+
 console.log(failures ? `\n${failures} 项失败` : '\n规则层测试全部通过');
 process.exit(failures ? 1 : 0);

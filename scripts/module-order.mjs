@@ -50,7 +50,8 @@ export const ORDER = [
 	'stories/mist-forest/50-ch3.twee',
 	'stories/mist-forest/60-endings.twee',
 	'stories/mist-forest/70-codex.twee',
-	'src/80-script.twee',    // 存档 API / Sg.Codex / Sg.Ending（需要前面全部）
+	'stories/mist-forest/72-codex-ui.twee',   // `Sg.Codex`（`#574`：从 80-script 搬回故事侧——它读 `Game.Codex`）
+	'src/80-script.twee',    // 存档 API / Sg.notes / Sg.Ending ＋ 渲染后处理（**引擎层**，`#574` 修正 layer）
 	'src/engine/50-present/90-style.twee',     // 纯 CSS
 	'stories/minimal-demo/10-demo.twee',      // 段落 ＋ StoryBindings（只依赖引擎）
 	// ── 第三个故事（#490 S5「无名洞窟」雏形）：同样按相对位置交错登记 ──
@@ -86,7 +87,8 @@ export const MODULES = {
 	'stories/mist-forest/50-ch3.twee': { deps: ['src/10-core.twee', 'src/engine/50-present/11-scene.twee', 'stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '第三章（剧情段）' },
 	'stories/mist-forest/60-endings.twee': { deps: ['src/10-core.twee', 'src/engine/50-present/11-scene.twee', 'stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '结局页' },
 	'stories/mist-forest/70-codex.twee': { deps: ['src/10-core.twee', 'stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '设定集' },
-	'src/80-script.twee': { deps: ['src/10-core.twee', 'src/engine/50-present/11-scene.twee', 'stories/mist-forest/15-tables.twee', 'stories/mist-forest/20-chargen.twee', 'stories/mist-forest/70-codex.twee'], defines: ['Sg.Codex', 'Sg.Ending'], layer: 'story', note: '存档 API 与运行时胶水' },
+	'src/80-script.twee': { deps: ['src/10-core.twee'], defines: ['Sg.save', 'Sg.notes', 'Sg.Ending'], layer: 'engine', note: "引擎运行时胶水（`#574` 修正 layer）：存档 API（`Sg.save`）· `Sg.notes`（数据经 `Sg.story.notes()`）· 结局收尾 · 结果留屏/空白归一/键盘路径/`data-choice` 派生——对**每个故事**成立 ⇒ 必须随引擎进每个故事的作用域" },
+	'stories/mist-forest/72-codex-ui.twee': { deps: ['src/10-core.twee'], defines: ['Sg.Codex'], layer: 'story', note: '道具图鉴界面（`#574`：从 80-script 搬回故事 1——它直接读 `Game.Codex.items`，是故事面）' },
 	'src/engine/50-present/90-style.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'engine', note: '样式' },};
 
 // ── 判定（纯函数，供 test/layering.mjs 与自证共用）──────────────────────

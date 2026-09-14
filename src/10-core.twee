@@ -235,7 +235,8 @@ Macro.add('ending', {
 		const kind = String(this.args[1] ?? 'final').trim();
 		if (key) {
 			State.variables.pc.ev.ending = key;                          // 本档记录
-			if (window.Sg.Codex) window.Sg.Codex.recordEnding(key, kind);  // 永久记录
+			// `#574`：图鉴是**故事可选面**（故事 1 有、故事 2/3 没有）⇒ 可选链：没有它就只是不记账。
+			window.Sg.Codex?.recordEnding?.(key, kind);  // 永久记录（有图鉴的故事才记）
 		}
 		// C1 收尾入口：每个结局都要有出口。卡片渲染在调用处（段落顶部），
 		// 渲染完由 StoryScript 的 :passagerender 挪到段落末尾。
@@ -523,5 +524,19 @@ $pc.speciesLabel $pc.classLabel
 ⌛ <<if $era is Game.Era.PAST>>过去<<else>>现在<</if>>
 <</if>>
 /% #460：设定集是本故事的页面（引擎不知道故事名）⇒ **存在才渲染**；否则第二/第三故事侧栏会出现死链 %/
+<<if Story.has("设定集")>>[[📖 设定集|设定集]]<</if>>
+<<elseif not Game.Chargen>>
+/% `#574`：**没有车卡的故事**（第二/第三个）——侧栏退化为最小面：血量·金币·物品·存档。
+   为什么需要一个分支而不是共用上面那段：那段以车卡产物（`name`／`speciesLabel`／`classLabel`／`salves`／
+   `gear`）为前提，没有车卡的故事里那些字段永远是空。而"能看见血量的战斗试验场"是本故事的前提
+   （`#491` 的真机验收也看这一面）⇒ 缺车卡不等于缺侧栏。
+   故事 1 不受影响：它有车卡（`Game.Chargen` 在场）⇒ 车卡前仍是"只有存档按钮"，与改前逐字相同。 %/
+<<hpbar>>
+金币：$pc.gold
+<div class="inv-block">
+''物品栏''
+<div class="inv-list"><<inventory>></div>
+</div>
+/% 设定集同样是"存在才渲染"（本故事没有它 ⇒ 不出现死链） %/
 <<if Story.has("设定集")>>[[📖 设定集|设定集]]<</if>>
 <</if>>

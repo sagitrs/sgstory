@@ -26,7 +26,9 @@
 前面只有一条路。
 
 <<set $pc.ev.cave_step to 0>>
-<<set $pc.hp to 20>><<set $pc.maxHp to 20>><<set $pc.gold to 0>>
+/% `#574`：血量上限用引擎字段 **`max_hp`**（`Game.Pc.defaults()`／`<<hpbar>>`／`resetRun` 都按它读；
+   本故事原先写 `maxHp` ⇒ 侧栏血条分母为 0、`resetRun` 会把 hp 归 0）。 %/
+<<set $pc.hp to 20>><<set $pc.max_hp to 20>><<set $pc.gold to 0>>
 <<give "旧剑">><<give "火把">>
 [[站起来，往深处走|岔口]]
 
@@ -149,7 +151,7 @@
 <<set _k to (["矿洞", "温泉", "空洞", "地下湖", "蘑菇洞"])[Game.Rules.rng.d(5) - 1]>>
 <<if _k is "温泉">>
 	''温泉''。水是热的。你把伤口浸进去，疼了一阵，然后不那么疼了。
-	<<set $pc.hp to Math.min($pc.maxHp, $pc.hp + 6)>>
+	<<set $pc.hp to Math.min($pc.max_hp, $pc.hp + 6)>>
 	<<set $pc.statuses to {}>>
 	<<link "起来，继续走">><<caveNext>><</link>>
 <<elseif _k is "矿洞">>
@@ -169,7 +171,8 @@
 				石头没有滑。你过去了，鞋还干着。
 			<<else>>
 				石头翻了，你半身泡进水里。<<damage `Game.Damage.graze`>>
-				<<run Game.Combat.applyStatus($pc, "bleed", "腿")>>
+				/% `#574`：`applyStatus` **返回**新状态对象（不改入参）⇒ 必须接住赋值，否则异常根本不落（本故事原先两处都丢了返回值）。 %/
+			<<set $pc.statuses to Game.Combat.applyStatus($pc, "bleed", "腿").statuses>>
 			<</if>>
 			<<caveNext>>
 		<</link>>
@@ -177,7 +180,7 @@
 		<<link "摸着黑蹚过去">>
 			水到腰。你过去了，但腿上的口子在流血。
 			<<damage `Game.Damage.hurt`>>
-			<<run Game.Combat.applyStatus($pc, "bleed", "腿")>>
+			<<set $pc.statuses to Game.Combat.applyStatus($pc, "bleed", "腿").statuses>>
 			<<caveNext>>
 		<</link>>
 	<</if>>
@@ -198,7 +201,7 @@
 	<<else>>
 		碎石把你带倒。坑底插着削尖的木片。
 		<<damage `Game.Damage.hurt`>>
-		<<run Game.Combat.applyStatus($pc, "bleed", "躯干")>>
+		<<set $pc.statuses to Game.Combat.applyStatus($pc, "bleed", "躯干").statuses>>
 	<</if>>
 	<<caveNext>>
 <</link>>
@@ -237,7 +240,7 @@
 	<</link>>
 	<<link "请他帮个忙（给一件消耗品）">>
 		他从布里摸出一小包灰，让你敷在伤口上。
-		<<set $pc.hp to Math.min($pc.maxHp ?? 20, $pc.hp + 3)>>
+		<<set $pc.hp to Math.min($pc.max_hp ?? 20, $pc.hp + 3)>>
 		<<caveNext>>
 	<</link>>
 <</if>>
@@ -254,6 +257,8 @@
 很低的地方，居然有人住。
 
 你站在那儿，身上剩着剑、火把，和一路带下来的伤。
+<<if Sg.notes.has("n_cave_echo")>>空洞里那阵回声你还记着——村子前面那段路，你知道该踩哪一块石头。<</if>>
+<<if Sg.notes.has("n_cave_loot")>>行囊里压着从箱子里拿的干粮，不多，但是真的。<</if>>
 
 <<ending "地下村落" final>>
 

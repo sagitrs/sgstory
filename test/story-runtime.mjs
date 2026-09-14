@@ -117,6 +117,27 @@ export const judgeReset = ({ landing, obs, born }) => {
 	return out;
 };
 
+/** 纯函数：判据 ⑨ —— 宝箱某一条路径的观测。`before/after` 为点击前后的 `State.variables` 快照（只取需要的字段）。 */
+export const judgeChestPath = ({ path, before, after, landed }) => {
+	const out = [];
+	const got = !!after.inv['干粮'];
+	if (landed !== '岔口' && landed !== '地下村落') out.push({ code: 'chest-dead-end', msg: `路径「${path}」没有出口（落在「${landed}」）——宝箱不得产生死档` });
+	if (path === '判定' || path === '道具') {
+		if (!got) out.push({ code: 'chest-no-loot', msg: `路径「${path}」成功后没拿到奖励` });
+		if (after.check?.dc !== after.expectDc) out.push({ code: 'chest-dc', msg: `路径「${path}」用的 DC 不是 ${after.expectDc}（实际 ${after.check?.dc}）` });
+	}
+	if (path === '钥匙') {
+		if (!got) out.push({ code: 'chest-no-loot', msg: '钥匙路径没拿到奖励（降为 0 只是"不掷骰"，不是"没奖品"）' });
+		if (JSON.stringify(before.check) !== JSON.stringify(after.check)) out.push({ code: 'chest-checked', msg: '钥匙路径**起了判定**（已定 ③：钥匙把难度降为 0 ⇒ 不该掷骰）' });
+	}
+	if (path === '跳过') {
+		if (got) out.push({ code: 'chest-skip-loot', msg: '径直通过却拿到了奖励（已定 ③：跳过 = 无判定、**无奖励**）' });
+		if (after.hp !== before.hp) out.push({ code: 'chest-skip-hurt', msg: `径直通过掉了血（${before.hp}→${after.hp}）——已定 ③：跳过无惩罚` });
+		if (JSON.stringify(before.check) !== JSON.stringify(after.check)) out.push({ code: 'chest-checked', msg: '径直通过**起了判定**（已定 ③：不掷骰）' });
+	}
+	return out;
+};
+
 const main = async () => {
 	const problems = [];
 	const selftest = process.argv.includes('--selftest');
@@ -160,6 +181,15 @@ const main = async () => {
 		t('⑤ 反例：异常没落（返回值被丢）⇒ 报', judgeRealPath({ ...good, statuses: {} }).some((p) => p.code === 'no-status'));
 		t('⑤ 反例：结果槽没落 ⇒ 报', judgeRealPath({ ...good, lastCheck: undefined }).some((p) => p.code === 'no-check'));
 		t('⑤ 反例：有未捕获报错 ⇒ 报', judgeRealPath({ ...good, uncaught: ['Uncaught: boom'] }).some((p) => p.code === 'uncaught'));
+
+		const cbase = { inv: {}, check: null, hp: 20 };
+		const okPath = (path, over = {}) => judgeChestPath({ path, before: cbase, after: { ...cbase, dc: 12, ...over, expectDc: 12, check: { dc: 12 }, inv: { 干粮: true } }, landed: '岔口' });
+		t('⑨ 正例：判定路径 DC＝12 且拿到奖励、有出口 ⇒ 0 条', okPath('判定').length === 0);
+		t('⑨ 反例：判定路径 DC 不对（用 9 当普通）⇒ 报', judgeChestPath({ path: '判定', before: cbase, after: { ...cbase, hp: 20, inv: { 干粮: true }, expectDc: 12, check: { dc: 9 } }, landed: '岔口' }).some((p) => p.code === 'chest-dc'));
+		t('⑨ 反例：钥匙路径起了判定 ⇒ 报（已定 ③：降为 0）', judgeChestPath({ path: '钥匙', before: cbase, after: { ...cbase, hp: 20, inv: { 干粮: true }, check: { dc: 12 }, expectDc: 12 }, landed: '岔口' }).some((p) => p.code === 'chest-checked'));
+		t('⑨ 反例：跳过却拿到奖励 ⇒ 报', judgeChestPath({ path: '跳过', before: cbase, after: { ...cbase, hp: 20, inv: { 干粮: true }, check: null, expectDc: 0 }, landed: '岔口' }).some((p) => p.code === 'chest-skip-loot'));
+		t('⑨ 反例：跳过掉了血 ⇒ 报（无惩罚）', judgeChestPath({ path: '跳过', before: cbase, after: { ...cbase, hp: 18, inv: {}, check: null, expectDc: 0 }, landed: '岔口' }).some((p) => p.code === 'chest-skip-hurt'));
+		t('⑨ 反例：路径没有出口（死档）⇒ 报', judgeChestPath({ path: '跳过', before: cbase, after: { ...cbase, hp: 20, inv: {}, check: null, expectDc: 0 }, landed: '机制·chest' }).some((p) => p.code === 'chest-dead-end'));
 
 		const okReset = { landing: 20, obs: { landing: '倒下', inv: [], gearHp: 0, statuses: 0, hp: 20, note: true, at: '醒来', bornStep: 0 }, born: ['旧剑', '火把'] };
 		t('⑧ 正例：全灭 ⇒ 回出生点＋道具清零＋笔记保留 ⇒ 0 条', judgeReset(okReset).length === 0);
@@ -459,12 +489,53 @@ const main = async () => {
 		}
 	}
 
+	// ── 判据 ⑨：宝箱四路径（`#491` 判据 3／已定 ③）——判定 · 道具降难（−3）· 钥匙（不起判定）· 径直通过（无惩罚） ──
+	{
+		const slug = 'hollow-cave';
+		const runChest = async ({ label, preset = () => {}, rng = {}, click, expectDc, path }) => {
+			const { w, close, sleep, settle } = await boot({ story: slug, random: 0.9 });
+			try {
+				// `机制·chest`：`d(3)` 选机关（1⇒锁扣）· `d(2)` 定稀有度（2⇒普通 DC12）· `d(20)` 判定骰
+				w.Game.Rules.rng.set((lo, hi) => rng[hi] ?? 1);
+				preset(w);
+				w.SugarCube.Engine.play('路·1b');                 // 宝箱实例（第 1 段）
+				await settle(); await sleep(220);
+				const before = (() => { const v = w.SugarCube.State.variables; return { inv: Object.keys(v.pc.inv ?? {}).length ? { ...v.pc.inv } : {}, check: v.last_check ?? null, hp: v.pc.hp }; })();
+				const anchors = [...w.document.querySelectorAll('#passages a.link-internal')];
+				const target = anchors.find((a) => a.textContent.replace(/\s+/g, '').includes(click));
+				if (!target) {
+					problems.push({ code: 'chest', slug, msg: `${label}：找不到链接「${click}」（可选：${anchors.map((a) => a.textContent.replace(/\s+/g, '')).join(' / ')}）` });
+					return;
+				}
+				target.click();
+				await settle(); await sleep(260);
+				const vars = w.SugarCube.State.variables;
+				const after = { inv: { ...vars.pc.inv }, check: vars.last_check ?? null, hp: vars.pc.hp, expectDc };
+				const landed = w.SugarCube.State.passage;
+				const fails = judgeChestPath({ path, before, after, landed });
+				problems.push(...fails.map((f) => ({ ...f, slug })));
+				console.log(`  ${fails.length ? '✗' : '✓'} ${slug} ⑨ ${label}：落地「${landed}」· 干粮 ${!!after.inv['干粮']} · DC ${after.check?.dc ?? '—'}${expectDc != null ? `(期望 ${expectDc})` : ''} · hp ${before.hp}→${after.hp}`);
+				for (const f of fails) console.log(`      ✗ ${f.msg}`);
+			} catch (e) { problems.push({ code: 'chest', slug, msg: `${label} 跑不完：${e.message}` }); } finally { close(); }
+		};
+
+		await runChest({ label: '① 判定路径（徒手·普通 DC12）', path: '判定', rng: { 3: 1, 2: 2, 20: 19 }, click: '徒手解它', expectDc: 12 });
+		await runChest({ label: '② 通用道具降难（撬棍·DC9＝12−3）', path: '道具', rng: { 3: 1, 2: 2, 20: 19 }, click: '撬它', expectDc: 9,
+			preset: (w) => w.eval('SugarCube.State.variables.pc.inv["撬棍"]=true') });
+		await runChest({ label: '③ 判定路径（徒手·珍贵 DC15）', path: '判定', rng: { 3: 1, 2: 1, 20: 19 }, click: '徒手解它', expectDc: 15 });
+		await runChest({ label: '④ 通用道具降难（珍贵×撬棍·DC12＝15−3）', path: '道具', rng: { 3: 1, 2: 1, 20: 19 }, click: '撬它', expectDc: 12,
+			preset: (w) => w.eval('SugarCube.State.variables.pc.inv["撬棍"]=true') });
+		await runChest({ label: '⑤ 钥匙降为 0（不起判定）', path: '钥匙', rng: { 3: 1, 2: 2, 20: 19 }, click: '锈钥匙',
+			preset: (w) => w.eval('SugarCube.State.variables.pc.inv["钥匙"]=true') });
+		await runChest({ label: '⑥ 径直通过（无判定·无惩罚）', path: '跳过', rng: { 3: 1, 2: 2, 20: 19 }, click: '径直走过去' });
+	}
+
 	if (problems.length) {
 		console.error(`\n✗ 逐故事运行时契约门未通过 ${problems.length} 项：`);
 		for (const p of problems) console.error(`  ✗ ${p.msg}`);
 		process.exit(1);
 	}
-	console.log('\n✔ 逐故事运行时契约门通过（面存在 · 位点能判 · 笔记可用 · 侧栏可用 · 机制真落 · 旅人面闭环 · 五种洞窟效果 · 失败重置）');
+	console.log('\n✔ 逐故事运行时契约门通过（面存在 · 位点能判 · 笔记可用 · 侧栏可用 · 机制真落 · 旅人面闭环 · 五种洞窟效果 · 失败重置 · 宝箱四路径）');
 	process.exit(0);   // jsdom 的视口轮询会把事件循环吊住（boot.mjs 的注释）⇒ 自己收场
 };
 

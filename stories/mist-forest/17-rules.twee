@@ -92,5 +92,10 @@ Object.assign((window.Sg.story ??= {}), {
 ` },
 		// 来源：`40-ch2.twee` 里原先手写的 <<if $pc.inv["日记"]>>（行内）
 		{ id: '守林人·送.日记', scope: '守林人·送#日记', req: ['inv:日记'], prio: 10, text: `（日记里那半句，你还记得。）` },
+		// `#569` 读侧口径（票面「知识面走笔记、经历/分支面走键」）：这两处要的是**具体那条 path**
+		//（"听过比法" ≠ "看清了钉子"）⇒ 用键名作 `req`（键名在表里由封装层求值，不是字面状态读）。
+		// 它们同时也是 `#437` 批二里最后两处"叙事段知识键直读"——搬进表后 `--reads` 的那两条基线随之核销。
+		{ id: '门厅.已听比法', scope: '门厅#已听比法', req: ['world.hall_hint'], exclude: ['world.whistle_taken'], prio: 10, text: `<span class="sys-note">（你已经听过比法：那钉子是弯钩，往上提、再往外带。）</span>` },
+		{ id: '书房.已摸清暗格', scope: '书房#已摸清暗格', req: ['world.study_hint'], prio: 10, text: `<span class="sys-note">（你已经摸清：暗格在炉膛后头那面墙里。）</span>` },
 	],
 });

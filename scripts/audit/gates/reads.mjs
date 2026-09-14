@@ -39,9 +39,7 @@ const MECH_TAGS = ['script', 'widget', 'stylesheet'];
 // 剩 5 处是**叙事段**里的手写分支（阶段 4 的待搬项，不是"允许的写法"）。
 export const READ_KNOWN = {
 	'塔外花田|world.flower_warned': '阶段 4 待搬家：`<<link>>` 里的条件文案（花警告）',
-	'门厅|world.hall_hint': '阶段 4 待搬家：门厅提示位点的手写分支',
 	'门厅|ev.hall_seen': '阶段 4 待搬家：门厅「看钉」位点的手写分支（与 hall_hint 同一条笔记两源）',
-	'书房|world.study_hint': '阶段 4 待搬家：书房提示位点的手写分支',
 	'书房|ev.study_found': '阶段 4 待搬家：书房暗格位点的手写分支（知识并入 study_hint）',
 };
 

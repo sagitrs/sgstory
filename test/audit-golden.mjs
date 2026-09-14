@@ -19,6 +19,7 @@ const FLAGS = [
 	'truth', 'investment', 'echoes', 'choices', 'sel', 'nosl', 'gear', 'interact', 'social', 'combat',
 	'a11y', 'starbudget', 'consequences', 'sitedisc', 'systems', 'text', 'npc', 'dragon', 'checks',
 	'economy', 'items', 'tokens', 'canon', 'craft', 'state', 'literals',
+	'slots',   // #486（S1）：槽位/耐久机制门（引擎门）
 	// #436 收编：新增门必须进 golden 保护（否则 unprotected-flag 会报 —— guest-1 的 --notes 就是这样被发现的）
 	'notes',
 ];

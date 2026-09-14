@@ -58,6 +58,8 @@ case_('① 反例：hitLocations 重复 ⇒ 必须抓', run(mutate((m) => { m.hi
 // ── ② 装备与耐久 ──
 case_('② 正例：maxHp>0 ＋ reduce 只写一种', run(base()).problems.length === 0);
 case_('② 反例：maxHp = 0 ⇒ 必须抓（耐久上限）', run(mutate((m) => { m.equipment.皮甲.maxHp = 0; })).problems.some((p) => p.includes('maxHp')));
+case_('② 反例：reduce 声明了**未实现**的形态（`dice`）⇒ 必须抓（声明面不得大于实现面，#486）',
+	run(mutate((m) => { m.equipment.皮甲.reduce = { dice: '1d4' }; })).problems.some((p) => p.includes('只写一种')));
 case_('② 反例：reduce 写了两种形态 ⇒ 必须抓（引擎无法判定按哪种结算）',
 	run(mutate((m) => { m.equipment.皮甲.reduce = { flat: 2, percent: 10 }; })).problems.some((p) => p.includes('只写一种')));
 case_('② 反例：slot 不是已声明槽位 ⇒ 必须抓', run(mutate((m) => { m.equipment.皮甲.slot = 'tail'; })).problems.some((p) => p.includes('不是已声明槽位')));
@@ -94,7 +96,7 @@ case_('边界：`mechanics()` 返回 null ⇒ `enabled:false` 且**不报错**�
 	run(null).enabled === false && run(null).problems.length === 0);
 case_('边界：`enabled:true` 只表示"故事声明了这套表"，与"跑不跑"无关（未启用时 enabled=false）', run(base()).enabled === true && run(null).enabled === false);
 case_('词表：分档词表与减成形态是**声明式枚举**（改口径要动这两处 ⇒ 门会跟着变）',
-	GRADE_SET.join() === 'most,low' && REDUCE_FORMS.join() === 'flat,dice,percent');
+	GRADE_SET.join() === 'most,low' && REDUCE_FORMS.join() === 'flat');   // #486：只列**已实现**的形态
 
 // ── ① 真实契约：当前故事必须"未启用"或"形状合法" ──
 {

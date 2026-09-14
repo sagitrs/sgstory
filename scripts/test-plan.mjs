@@ -124,6 +124,9 @@ export const SEGMENTS = [
 	{ id: "test-story-shape-mjs", phase: 'test', cost: 0.1, cmd: "node test/story-shape.mjs" },
 	// #434 阶段 3：`Sg.notes.add()` 的行为门（幂等 · 双写 · 双读 · 多源 setPath 护栏）
 	{ id: "test-notes-write-mjs", phase: 'test', cost: 0.2, cmd: "node test/notes-write.mjs" },
+	// #486（S1）：槽位/耐久**机制**门（引擎门——判据来自声明表，不读故事散文）：
+	// 两态语义 · 部位命中分布 · 损坏阈值 · 兼容降级 · 「声明面 ≤ 实现面」
+	{ id: 'scripts-audit-mjs-slots-check', phase: 'test', cost: 0, cmd: 'node scripts/audit.mjs --slots --check' },
 ];
 
 // ── 门的**两层化**（#436-a）：引擎门 / 故事门 ──────────────────────────────
@@ -140,7 +143,7 @@ export const SEGMENTS = [
 //   ③ 未分类的**非门段**一律按 `story` 处理（**保守**：绝不误入引擎门集合 ⇒ `--engine-only` 只多不少地安全）；
 //      要把它划进引擎门，就显式加进 `ENGINE_EXTRA`（一行）。
 // 注：`a11y` 也是引擎门，但**尚未接线**（F2 台账：未接线 7 道）⇒ 接线时加进本表（否则 `validateLayers()` 的僵尸声明会报红——这正是想要的行为）
-export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 'text'];
+export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 'text', 'slots'];   // #486：slots 是引擎门（输入＝声明表）
 export const AUDIT_STORY = ['truth', 'canon', 'echoes', 'starbudget', 'choices', 'combat', 'craft', 'dragon', 'notes',
 	'gear', 'interact', 'investment', 'nosl', 'npc', 'social', 'systems'];
 // 非门段里**与故事内容无关**的那些（构建 / 构建期 lint / 产物守卫）：显式登记，不放宽默认

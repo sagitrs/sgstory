@@ -15,8 +15,11 @@
 
 /** 失败分档词表：**引擎口径的唯一权威**（改这里就是改口径，改完要跑 `test/story-shape.mjs`）。 */
 export const GRADE_SET = ['most', 'low'];
-/** 减成（`reduce`）允许的形态。故事声明"哪一种"，引擎按声明取值 ⇒ 这里就是**枚举权威**。 */
-export const REDUCE_FORMS = ['flat', 'dice', 'percent'];
+/** 减成（`reduce`）允许的形态。故事声明"哪一种"，引擎按声明取值 ⇒ 这里就是**枚举权威**。
+ *  ⚠️ **声明面不得大于实现面**（`#486` 切片②）：本表只列**引擎真的实现了**的形态 —— 引擎侧
+ *  `Game.Combat.slotAbsorb` 目前只落 `flat`（其余形态**大声报错**，不许静默 0 减成）。
+ *  将来要实现 `dice`／`percent`：**同一 PR 里**同时改这里 ＋ 引擎实现 ＋ 门的 `violations` 口径（三处同源）。 */
+export const REDUCE_FORMS = ['flat'];
 
 /** 归一化（判"两两不可等价"时用）：去空白 —— 「碎石间有拖行的痕迹」与同文多空格视为等价。 */
 const norm = (s) => String(s ?? '').replace(/\s+/g, '').trim();

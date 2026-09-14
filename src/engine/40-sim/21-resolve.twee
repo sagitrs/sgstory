@@ -649,6 +649,22 @@ window.Sg.rules = {
 		for (const id of ids) if (window.Sg.notes.add(String(id))) granted.push(String(id));
 		return granted;
 	},
+	// **物品**面（`#435`：dev 定的"写点面分两类"）——行里声明 `gives: ['月光花']`，由 `<<rules>>`
+	// 渲染成功后统一落（与 `yields` 同处、同幂等面）。**可见文案不在这里生成**：`<<give>>` 的
+	// 「获得【…】」提示改为写在行的 `text` 里（逐字不变 ⇒ `--zero` 仍为 0），否则提示会被追加到
+	// 渲染结果的**末尾**而与原位不同 ⇒ 文本漂移 ✗。口径一句话：**表＝声明（条件／文本／授予），
+	// 写点执行恒在 `<<rules>>` 一处**。
+	applyGrants(row) {
+		const pc = State.variables.pc;
+		const items = Array.isArray(row?.gives) ? row.gives : row?.gives ? [row.gives] : [];
+		const granted = [];
+		for (const it of items) {
+			const k = String(it);
+			pc.inv = pc.inv ?? {};
+			if (pc.inv[k] !== true) { pc.inv[k] = true; granted.push(k); }
+		}
+		return granted;
+	},
 };
 // `<<rules "作用域">>`：选中 → **先渲染** `text` → **渲染成功后再落 `yields`**。
 // 为什么必须"渲染后"（dev 定稿的规则①）：授予要与"这一行真的被选中且渲染成功"绑定 —— 渲染若抛错就不该记账，
@@ -659,6 +675,7 @@ Macro.add('rules', {
 		const row = window.Sg.rules.pick(String(this.args[0] ?? ''));
 		if (!row) return;
 		if (row.text) $(this.output).wiki(String(row.text));   // 先渲染（抛错则不往下走）
-		window.Sg.rules.applyYields(row);                       // 渲染成功后再授予（幂等）
+		window.Sg.rules.applyYields(row);                       // 渲染成功后再授予（笔记；幂等）
+		window.Sg.rules.applyGrants(row);                       // 物品面（同上，两处写点都恒在此）
 	},
 });

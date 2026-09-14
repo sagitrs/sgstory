@@ -64,6 +64,7 @@ export const SEGMENTS = [
 	// （这就是"等产品自己的时钟（1 个 rAF tick）"这个修法的回归证据；不注入时是一次普通 smoke）
 	{ id: "test-smoke-mjs-raf-delayed", phase: 'test', cost: 8, cmd: "SG_RAF_DELAY_MS=800 node test/smoke.mjs" },
 	// #441 切片③④：多故事产物 + 书架页 + 故事页字体前缀（纯函数自证 + 真实产物检查）
+	// `#460`／`#566`：**逐故事真启动**（StoryInit 无错 ＋ `$era` 已定义 ＋ 起始段非空）——本段已含此判据
 	{ id: "test-multi-story-mjs", phase: 'test', cost: 0.1, cmd: "node test/multi-story.mjs" },
 	// #458 前置：**六处同步**校验（源文件/ORDER/MODULES/故事清单/常量声明/聚合返回）＋单根假设清点
 	{ id: "scripts-move-precheck-mjs", phase: 'test', cost: 0.2, cmd: "node scripts/move-precheck.mjs" },
@@ -164,7 +165,7 @@ export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 't
 export const AUDIT_STORY = ['truth', 'canon', 'echoes', 'starbudget', 'choices', 'combat', 'craft', 'dragon', 'rules', 'reads', 'notes',
 	'gear', 'interact', 'investment', 'nosl', 'npc', 'social', 'systems'];
 // 非门段里**与故事内容无关**的那些（构建 / 构建期 lint / 产物守卫）：显式登记，不放宽默认
-export const ENGINE_EXTRA = ['build-mjs', 'scripts-audit-mjs-story2-engine', 'scripts-audit-mjs-story3-engine',
+export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs', 'scripts-audit-mjs-story2-engine', 'scripts-audit-mjs-story3-engine',
 	'test-layering-mjs-selftest', 'test-layering-mjs', 'test-globals-mjs', 'test-silent-gate-mjs',
 	'test-size-gate-mjs-selftest', 'test-size-gate-mjs'];
 

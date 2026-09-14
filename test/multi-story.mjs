@@ -12,6 +12,19 @@ import { ROOT, DIST_DIR,  DEFAULT_SLUG, storySlugs, storyHtml, shelfHtml, defaul
 
 export const SHELF_MAX_BYTES = 100_000; // ci 席建议的书架页上界（防日后被塞内嵌资产）
 
+/** 纯函数（`#460`）：**一个故事真的启动起来了吗** —— 判据三条，缺一即红。
+ *  为什么要有它：`multi-story` 原先只查"产物存在 / 书架链接 / 字体文件"，而 `test/boot.mjs` 恒读
+ *  **默认故事**的产物 ⇒ 新故事**启动即崩也全绿**（实测：`minimal-demo`／`hollow-cave` 的 `$era` 恒 `undefined`，
+ *  StoryInit 抛 `Cannot read properties of undefined (reading 'PRESENT')`，SugarCube 允许继续 ⇒ 起始段照样渲染 ⇒ **像"能玩"**）。
+ *  ⇒ 这是 `#557` 的同一族："产物存在 ≠ 产物能跑"（`docs/dev-conventions.md` §13 第 1 条：读不到输入就该响）。 */
+export const judgeBoot = ({ slug, era, text, errors = [] }) => {
+	const out = [];
+	if (errors.length) out.push({ code: 'S4', msg: `故事「${slug}」启动报错：${String(errors[0]).split('\n')[0].slice(0, 120)}` });
+	if (era === undefined || era === null || era === '') out.push({ code: 'S4', msg: `故事「${slug}」的 \`$era\` 未初始化（${String(era)}）——引擎侧常量默认值缺失（#562 的成因）` });
+	if (!String(text ?? '').trim()) out.push({ code: 'S4', msg: `故事「${slug}」起始段渲染为空（产物存在 ≠ 产物能跑）` });
+	return out;
+};
+
 /** 纯函数：书架页内容 × 已构建故事 → 问题列表（可自证）。 */
 export const checkShelf = (html, builtSlugs, { maxBytes = SHELF_MAX_BYTES, bytes = null } = {}) => {
 	const out = [];
@@ -77,6 +90,11 @@ if (process.argv.includes('--selftest')) {
 	t('S1/S2 正例：两款故事都有链接、无多余链接 → 0 问题', checkShelf(shelfOK, ['a', 'b'], { bytes: 900 }).length === 0);
 	t('S1 反例：漏了 b 的链接 → 报红', checkShelf(shelfOK, ['a', 'b', 'c'], { bytes: 900 }).some((f) => f.code === 'S1'));
 	t('S2 反例：链接指向已被删掉的故事 c → 报红（链接腐烂）', checkShelf(shelfOK + '<a href="stories/c/index.html">C</a>', ['a', 'b'], { bytes: 900 }).some((f) => f.code === 'S2'));
+	// S4（#460／#566）：逐故事真启动 —— 正例 + 三个反例（缺 era／空起始段／有报错）
+	t('S4 正例：`$era` 已初始化 ＋ 起始段非空 ＋ 无报错 → 0 问题', judgeBoot({ slug: 'a', era: 'present', text: '正文', errors: [] }).length === 0);
+	t('S4 反例①：`$era` 未初始化（＝#566 的成因）→ 报红', judgeBoot({ slug: 'a', era: undefined, text: '正文', errors: [] }).length === 1);
+	t('S4 反例②：起始段渲染为空（产物存在 ≠ 产物能跑）→ 报红', judgeBoot({ slug: 'a', era: 'present', text: '   ', errors: [] }).length === 1);
+	t('S4 反例③：启动有未捕获报错 → 报红', judgeBoot({ slug: 'a', era: 'present', text: '正文', errors: ['Uncaught: boom'] }).some((f) => f.code === 'S4'));
 	t('S3 反例：书架页超过体积上界 → 报红', checkShelf(shelfOK, ['a', 'b'], { bytes: 200_000 }).some((f) => f.code === 'S3'));
 	const goodPage = `<link href="${FONT_PREFIX_FROM_STORY}LXGWWenKai-Regular.woff2"><style>url('${FONT_PREFIX_FROM_STORY}LXGWWenKai-Medium.woff2')</style>`;
 	t('P1/P2 正例：前缀正确且字体文件存在 → 0 问题', checkStoryFontRefs(goodPage, ['LXGWWenKai-Regular.woff2', 'LXGWWenKai-Medium.woff2']).length === 0);
@@ -88,6 +106,24 @@ if (process.argv.includes('--selftest')) {
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
 	console.log('\n✔ 自证通过（书架 S1/S2/S3 × 故事页 P1/P2 正反例）');
 	process.exit(0);
+}
+
+// ── S4（#460）：**逐故事真启动**（StoryInit 无错 ＋ `$era` 已定义 ＋ 起始段非空）──
+{
+	const { boot } = await import('./boot.mjs');
+	for (const slug of [...built]) {
+		const { w, uncaught, close } = await boot({ story: slug });
+		try {
+			const era = w.SugarCube?.State?.variables?.era;
+			const text = w.document.querySelector('#passages .passage')?.textContent ?? '';
+			const errs = [...uncaught];
+			console.log(`  ${judgeBoot({ slug, era, text, errors: errs }).length ? '✗' : '✓'} 故事「${slug}」启动：\`$era\`=${String(era)} · 起始段 ${text.trim().length} 字${errs.length ? ` · 报错 ${errs.length} 条` : ''}`);
+			problems.push(...judgeBoot({ slug, era, text, errors: errs }));
+		} catch (e) {
+			console.log(`  ✗ 故事「${slug}」启动异常：${e.message}`);
+			problems.push({ code: 'S4', msg: `故事「${slug}」启动异常：${e.message}` });
+		} finally { close(); }
+	}
 }
 
 if (problems.length) {

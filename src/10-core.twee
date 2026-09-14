@@ -318,8 +318,14 @@ Macro.add('dragonbar', {
 		/% #357：致命伤**即刻登记结局**——安全网（:passagestart 的 hp≤0 修补）以
 		   `!pc.ev.ending` 为门，若不先登记，它会赶在结局页渲染前把 hp 修回 1，
 		   把刚受致命伤的角色"复活"。 %/
-		<<set $pc.ev.ending to "死亡">>
-		<<goto "结局 死亡">>
+		/% `#491` 判据 4：这一跳是**故事可选面**——引擎不得假定每故事都有一页「结局 死亡」
+		   （本仓反复的"引擎知道故事名"族：`hallResult`／`fog_thin`／`Sg.Codex` 同一个教训）。
+		   没有该页的故事（用**重置**语义的「无名洞窟」）⇒ 什么都不做：登记 `ending` 会钉住安全网，
+		   还会让故事自己的"回出生点"失去机会（实测：`<<damage>>` 抛 `passage "结局 死亡" does not exist`）。 %/
+		<<if Story.has("结局 死亡")>>
+			<<set $pc.ev.ending to "死亡">>
+			<<goto "结局 死亡">>
+		<</if>>
 	<</if>>
 <</nobr>><</widget>>
 

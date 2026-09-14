@@ -32,7 +32,7 @@ if (wantAll || arg('sitedisc')) {
 		const cases = [
 			['正例：带伤失败 + 置旗标', wrap('你磕了一下。<<damage 1>><<set $pc.ev.x to true>>'), 0],
 			['正例：带伤失败 + 给东西', wrap('擦破皮。<<damage 2>><<give "药膏">>'), 0],
-			['正例：带伤失败 + 退场', wrap('被推下去。<<damage 3>><<goto "门厅">>'), 0],
+			['正例：带伤失败 + 退场', wrap('被推下去。<<damage 3>><<goto "某处">>'), 0],
 			['反例①：带伤失败却不给结果（可无限磨伤）', wrap('疼。<<damage 1>>'), 1],
 			// #434：经 `Sg.notes.add` 给知识也算"有结果"（改之前会被判红 ✗）
 			['正例④：带伤失败但经 `Sg.notes.add` 给知识 ⇒ 通过', wrap("疼。<<damage 1>><<run Sg.notes.add('n_forge_seen')>>"), 0],

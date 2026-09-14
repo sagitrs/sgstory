@@ -143,6 +143,8 @@ export const SEGMENTS = [
 	{ id: "test-cave-longfight-mjs", phase: 'test', cost: 1, cmd: "node test/cave-longfight.mjs" },
 	// #491 判据 1：**本故事**的战斗分布口径（胜率对闭式 · 期望回合/受伤期望 · 分布面 · 同种子复算）
 	{ id: "scripts-audit-mjs-combat-dist-hollow", phase: 'test', cost: 3, cmd: "node scripts/audit.mjs --combat-dist --check --story hollow-cave" },
+	// #602：**引擎门不得出现故事专有字面量**（防"假解耦"回潮：故事判据数据住 `stories/<slug>/audit.json`）
+	{ id: "scripts-audit-mjs-engine-story-free", phase: 'test', cost: 0.1, cmd: "node scripts/audit.mjs --engine-story-free --check" },
 	// `#572`：**「选中 ⇒ 真跑」门** —— 门的 `run()` 被选中也可能静默早退（九道引擎门里七道就是这样）。
 	// 本段自证 `runSelectedGates()` ＋ 真跑默认故事，断言末行「选中 9 门 · 实跑 9 门」（修前那条汇总行不存在）。
 	{ id: "test-audit-gates-run-mjs", phase: 'test', cost: 0.3, needs: ["scripts-audit-mjs-story2-engine"], cmd: "node test/audit-gates-run.mjs" },
@@ -179,7 +181,7 @@ export const SEGMENTS = [
 //   ③ 未分类的**非门段**一律按 `story` 处理（**保守**：绝不误入引擎门集合 ⇒ `--engine-only` 只多不少地安全）；
 //      要把它划进引擎门，就显式加进 `ENGINE_EXTRA`（一行）。
 // 注：`a11y` 也是引擎门，但**尚未接线**（F2 台账：未接线 7 道）⇒ 接线时加进本表（否则 `validateLayers()` 的僵尸声明会报红——这正是想要的行为）
-export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 'text', 'slots', 'status', 'waves', 'roads'];   // #486：slots 是引擎门（输入＝声明表）
+export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 'text', 'engine-story-free', 'slots', 'status', 'waves', 'roads'];   // #486：slots 是引擎门（输入＝声明表）
 export const AUDIT_STORY = ['truth', 'canon', 'echoes', 'starbudget', 'choices', 'combat', 'craft', 'dragon', 'rules', 'reads', 'cave', 'notes', 'combat-dist',
 	'gear', 'interact', 'investment', 'nosl', 'npc', 'social', 'systems'];
 // 非门段里**与故事内容无关**的那些（构建 / 构建期 lint / 产物守卫）：显式登记，不放宽默认

@@ -104,7 +104,7 @@ export const run = (ctx) => {
 		['裸伤害数字（剧情文件）→ 红', { '40-ch2.twee': ':: P\n<<damage 4>>' }, 1],
 		// #458 切片C：fixture 的文件名**取自声明**（`CONST_SECTION.files`），不再写死 `15-tables.twee`——
 		// 否则搬家/改名后 declared() 匹配不上 ⇒ 自证「不红」失败（实测：期望 0 检出 1/2）。
-		['数据字段里的 era 字面量 → 不红', { [CONST_SECTION.files[0]]: "\t\tp: '塔门', era: 'past'," }, 0],
+		['数据字段里的 era 字面量 → 不红', { [CONST_SECTION.files[0]]: "\t\tp: '某段', era: 'past'," }, 0],
 		['常量定义行 → 不红', { [CONST_SECTION.files[0]]: "const Era = { PAST: 'past', PRESENT: 'present' };" }, 0],
 		// #441-C：搬家支持 + 反沉默（这三例就是本次改造的理由）
 		['搬家后**声明更新**了 → 常量定义行不红', { 'engine/10-kernel/constants.twee': "const Era = { PAST: 'past' };" }, 0, { files: ['engine/10-kernel/constants.twee'], eraDecl: /const Era = \{/, eraDataField: /(flagEra|era:)/, damageMacro: /<<damage\s+(-?\d+)\s*>>/ }],

@@ -22,6 +22,8 @@
 // 用法：node scripts/audit.mjs --reads --check ／ node scripts/audit.mjs --reads --check --strict
 import { readFileSync } from 'node:fs';
 import { LAYER_OF } from '../../module-order.mjs';
+import { ROOT } from '../../dist-paths.mjs';
+import { loadStoryAudit } from '../lib/story-audit.mjs';
 import { literalReadKeys, readKeys, notePaths, stripJsComments, condKeysOf } from '../lib/shared.mjs';
 
 export const flag = 'reads';
@@ -37,11 +39,11 @@ const MECH_TAGS = ['script', 'widget', 'stylesheet'];
 // 的谓词改走**封装层**（`Sg.notes.readPath(p, 'ev.x')`）：它仍是**读点**（`readKeys()` 认它 ⇒ 消费可数不丢），
 // 但**不再是"字面状态读"**（那正是本门要抓的"绕过封装层的裸读"）——两个口径分成 `readKeys()`/`literalReadKeys()`。
 // 剩 5 处是**叙事段**里的手写分支（阶段 4 的待搬项，不是"允许的写法"）。
-export const READ_KNOWN = {
-	'塔外花田|world.flower_warned': '阶段 4 待搬家：`<<link>>` 里的条件文案（花警告）',
-	'门厅|ev.hall_seen': '阶段 4 待搬家：门厅「看钉」位点的手写分支（与 hall_hint 同一条笔记两源）',
-	'书房|ev.study_found': '阶段 4 待搬家：书房暗格位点的手写分支（知识并入 study_hint）',
-};
+// `#602`：**基线属该故事的数据**（原先写死本门 ⇒ 换故事后口径错位）。引擎侧默认空表；
+// 真实基线经 `Sg.story.readBaseline()` 取（故事 1 的三条已搬进 `stories/mist-forest/15-tables.twee`）。
+export const READ_KNOWN = {};
+/** 形状校验 + 取该故事的基线（未注册/形状不对 ⇒ 报错；空对象是合法数据集）。 */
+export const storyReadBaseline = (ctx) => loadStoryAudit(ctx.storySlug, { root: ROOT }).readBaseline;
 
 // ── 源文件 → 段落清单（**注入式**：`read` 可换成 fixture，便于自证；判据不依赖被测对象）──
 /** `:: 段落名 [tags]` 切段；注释**挖空但保留换行**（行号不漂）。 */
@@ -100,9 +102,9 @@ export const knowledgeHits = (hits, know, known = READ_KNOWN) =>
 		.map((h) => ({ ...h, note: know.get(h.key), known: `${h.passage}|${h.key}` in known }));
 
 /** ② 基线判据：新增（必须红）／腐烂（只报告）。 */
-export const baselineProblems = (khits) => ({
+export const baselineProblems = (khits, known = READ_KNOWN) => ({
 	fresh: khits.filter((h) => !h.known),
-	stale: Object.keys(READ_KNOWN).filter((k) => !khits.some((h) => `${h.passage}|${h.key}` === k)),
+	stale: Object.keys(known).filter((k) => !khits.some((h) => `${h.passage}|${h.key}` === k)),
 });
 
 // ── ① 条件表行（读侧）────────────────────────────────────────────────────
@@ -177,10 +179,11 @@ export const run = (ctx) => {
 	const segments = segmentsOf(ctx.SRC_FILES ?? []);
 	const hits = scanReads(segments);
 	const know = knowledgeIndex(ctx.Game?.Notes?.entries ?? {});
-	const kh = knowledgeHits(hits, know);
-	const { fresh, stale } = baselineProblems(kh);
+	const RB = storyReadBaseline(ctx);                        // `#602`：该故事的基线（故事 1 的三条已搬去故事侧）
+	const kh = knowledgeHits(hits, know, RB);
+	const { fresh, stale } = baselineProblems(kh, RB);
 	for (const h of fresh) { console.log(`  ✗ 知识键字面直读（基线外）：${h.file}:${h.line} 段落「${h.passage}」${h.key}（笔记 ${h.note}）——请走 \`Sg.notes.has('${h.note}')\` 或搬进条件表`); bad++; }
-	if (stale.length) console.log(`  · 基线已修好（请从 READ_KNOWN 删除这些条目）：${stale.join('、')}`);
+	if (stale.length) console.log(`  · 基线已修好（请从**本故事**的 \`Sg.story.readBaseline()\` 删除这些条目）：${stale.join('、')}`);
 	const other = hits.filter((h) => !(faceOf(h) === 'story' && know.has(h.key)));
 	const byFace = { narr: 0, decl: 0, mech: 0 };
 	for (const h of other) byFace[faceOf(h) === 'mech' ? 'mech' : h.kind === 'narr' ? 'narr' : 'decl']++;

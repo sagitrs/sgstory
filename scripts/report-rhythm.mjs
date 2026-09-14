@@ -1,6 +1,6 @@
 // #295 探索票（报告型）：E4 节奏密度 ＋ C4 路线相异度
 //
-// 数据源：build/route-traces.json（test/scenarios.mjs 跑 40 条路线时顺带落盘的轨迹）。
+// 数据源：build/route-traces.json（`test/scenarios.mjs` 跑**全部路线**时顺带落盘的轨迹；条数随路线增减，别在注释里写死）。
 // 之所以不塞进 scripts/audit.mjs：那是 D 席在办的活跃文件（#247 的 D8/I1 批次），
 // 本脚本刻意独立成新文件，避免双写；也刻意只做「只读报告＋基线 ratchet」，
 // 不做 CI 硬红（探索票口径：先入基线，数字稳定后再谈阈值）。

@@ -1,0 +1,25 @@
+:: StoryRules [script]
+// ── 条件表（伞 #422 阶段 4／`#435`）：手写段落分支 → **表驱动** ─────────────────────────
+// 形状让 reader 一眼看懂，让**门**读得动（这是本表存在的理由，不是风格偏好）：
+//   `req`      全部满足（键名／笔记 id；求值走封装层 ⇒ 表里**不出现字面状态读**）
+//   `any`      至少一个满足；`exclude` 必须都不满足；`prereq` 前置行 id（必须先选中过）
+//   `prio`     **显式优先级**（选择器按它降序、同 prio 按声明顺序稳定 ⇒ 不做隐式顺序假设）
+//   `scope`    作用域（哪一段/哪个话题）—— 死规则门的"同作用域"比较靠它
+//   `premise`  散文锚句（`test/premise-source.mjs` 用；字段名沿用原口径）
+//   `yields`   本行被选中后授予的笔记 id（由调用处 `Sg.notes.add` 落地，本表不写状态）
+//   `text`     选中时渲染的正文（模板；**不含字面状态读**）
+// 门：① 死规则门（`scripts/audit/gates/rules.mjs`）② 「表里不得出现字面状态读」（T 席 · #435）
+// 入口：选择器在引擎侧（`src/engine/40-sim/21-resolve.twee` 的 `Sg.rules`），**只经 `Sg.story.rules()` 取表**。
+Object.assign((window.Sg.story ??= {}), {
+	rules: () => [
+		{
+			id: 'keeper.flower_warning_echo',
+			scope: '守林人',
+			// 来源：`40-ch2.twee` 里原先手写的 `<<if Sg.notes.has('n_flower_warned') and Sg.notes.has('n_keeper_told')>>`
+			//（`#435` 形状 PR 的**第一个真实样本**；`#516` 动过的那处正文）
+			req: ['n_flower_warned', 'n_keeper_told'],
+			prio: 10,
+			text: "''\"塔基墙根那片银白的花——味道闻久了会睡。要摘，先把气含住。\"''",
+		},
+	],
+});

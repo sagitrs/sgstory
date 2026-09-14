@@ -102,6 +102,18 @@ export const noteWriteKeys = (text, entries) => {
 /** 同上，返回**裸键**（D2 按裸键判）。 */
 export const noteWriteFlags = (text, entries) => noteWriteKeys(text, entries).map((k) => k.replace(/^(ev|world)\./, ''));
 
+// ── 条件表**行**引用的裸键（`#435` 阶段 4）：`req`/`any`/`exclude` 里的键名/笔记 id ────────────
+// 为什么要它：条件从段落搬进表之后，D2 的"正文条件消费"（`hasIf`）会**看不见**这个读点 ⇒
+// 键被判「只在引擎段落被读」⇒ 假红（阶段 4 版本的"新形状"）。归属按行的 **`scope`**（＝哪一段）算。
+export const ruleRowFlags = (row, entries) => {
+	const paths = notePaths(entries);
+	const out = new Set();
+	for (const key of [...(row?.req ?? []), ...(row?.any ?? []), ...(row?.exclude ?? [])].map(String)) {
+		if (key.startsWith('n_')) for (const p of (paths.get(key) ?? [])) out.add(p.replace(/^(ev|world)\./, ''));
+		else out.add(key.replace(/^(ev|world)\./, ''));
+	}
+	return [...out];
+};
 // 旗标（裸键）→ 引用它的笔记 id 数组（`#433`：门按旗标判"谁读了它"时要用）
 export const noteIdsForFlag = (entries) => {
 	const M = new Map();
@@ -163,6 +175,15 @@ export const makeShared = (ctx) => {
 			flagsByNote.get(f).push(id);
 		}
 		const refsByPassage = new Map([...stripped.entries()].map(([n, src]) => [n, new Set(noteRefs(src))]));
+		// #435 阶段 4：**条件表行**里的键也算「正文条件消费」——按行的 `scope`（＝哪一段）判它是不是叙事段落。
+		// 否则条件一搬进表，D2 就看不见这个读点（键被判「只在引擎段落被读」⇒ 假红）。
+		// 表的来源：优先**注入**（node 侧没有 `window` 全局 ⇒ 不能在这里直读 `Sg.story`），退回 `Game.Rules.entries`
+		const rulesRows = input.rules ?? Game.Rules?.entries ?? [];
+		const rowFlags = new Set();
+		for (const r of rulesRows) {
+			if (!r?.scope || isEngine(r.scope) || isEnding(r.scope)) continue;   // 只算**叙事**段落的行
+			for (const f of ruleRowFlags(r, noteEntries)) rowFlags.add(f);
+		}
 		// `(段落名, 源码, 旗标)`：两种形状任一命中即算「这一段消费了该旗标」
 		const hasIf = (name, src, flag) => {
 			if (new RegExp(`<<if[^>]*\\$pc\\.(?:world|ev)\\.${flag}\\b`).test(src)) return true;
@@ -184,7 +205,7 @@ export const makeShared = (ctx) => {
 		const problems = [];
 		for (const flag of written) {
 			// 先算派生桶（echo 优先——回声表本身就是登记表），再校验声明是否与实况一致
-			const narrHit = [...stripped.entries()].some(([n, src]) => !isEngine(n) && !isEnding(n) && hasIf(n, src, flag));
+			const narrHit = rowFlags.has(flag) || [...stripped.entries()].some(([n, src]) => !isEngine(n) && !isEnding(n) && hasIf(n, src, flag));
 			const endHit = [...stripped.entries()].some(([n, src]) => isEnding(n) && hasIf(n, src, flag));
 			const engHit = [...stripped.entries()].some(([n, src]) => isEngine(n) && hasIf(n, src, flag));
 			let derived = null;

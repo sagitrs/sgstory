@@ -25,6 +25,7 @@ const FLAGS = [
 	'waves',   // #488（S3）：波次与重置门（引擎门）
 	'roads',   // #489（S4）：事件池与三选一门（引擎门）
 	// #436 收编：新增门必须进 golden 保护（否则 unprotected-flag 会报 —— guest-1 的 --notes 就是这样被发现的）
+	'rules',
 	'notes',
 ];
 

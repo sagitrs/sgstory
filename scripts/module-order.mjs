@@ -32,7 +32,8 @@ export const ORDER = [
 	'stories/mist-forest/16-notes-ch1.twee',      // 笔记增量文件（#442 B0）：一章补漏
 	'stories/mist-forest/16-notes-ch2.twee',      // 笔记增量文件（#429 B1）：二章
 	'stories/mist-forest/16-notes-ch3.twee',      // 笔记增量文件（#430 B2）：三章
-	'stories/mist-forest/16-notes-cross.twee',    // 笔记增量文件（#431 B3）：跨章/展示层
+	'stories/mist-forest/16-notes-cross.twee',
+	'stories/mist-forest/17-rules.twee',    // 条件表（#435 阶段 4）：只往 Sg.story.rules() 追加行    // 笔记增量文件（#431 B3）：跨章/展示层
 	'stories/mist-forest/20-chargen.twee',   // Game.Chargen（rounds/presets/API；加载期需要 Rules）
 	'src/engine/40-sim/21-resolve.twee',    // 结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）
 	'stories/mist-forest/30-ch1.twee',
@@ -55,6 +56,7 @@ export const MODULES = {
 	'stories/mist-forest/16-notes-ch2.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#429 B1）：只往 Game.Notes.entries 追加条目' },
 	'stories/mist-forest/16-notes-ch3.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#430 B2）：只往 Game.Notes.entries 追加条目' },
 	'stories/mist-forest/16-notes-cross.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#431 B3）：只往 Game.Notes.entries 追加条目' },
+	'stories/mist-forest/17-rules.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '条件表（#435 阶段 4）：行数组，选择器在引擎侧' },
 	'stories/mist-forest/20-chargen.twee': { deps: ['src/10-core.twee', 'stories/mist-forest/15-tables.twee'], defines: ['Game.Chargen'], layer: 'story', note: '车卡（#320 阶段 3 收进 Game 命名空间）' },
 	'src/engine/40-sim/21-resolve.twee': { deps: ['src/10-core.twee', 'stories/mist-forest/15-tables.twee'], defines: [], layer: 'engine', note: '结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）' },
 	'stories/mist-forest/30-ch1.twee': { deps: ['src/10-core.twee', 'src/engine/50-present/11-scene.twee', 'stories/mist-forest/15-tables.twee', 'stories/mist-forest/20-chargen.twee'], defines: [], layer: 'story', note: '第一章（剧情段）' },

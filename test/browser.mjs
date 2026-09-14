@@ -1,5 +1,5 @@
 
-import { defaultStoryHtml, storyRelPath, FONT_PREFIX_FROM_STORY } from '../scripts/dist-paths.mjs';
+import { defaultStoryHtml, storyRelPath, storyHtml, FONT_PREFIX_FROM_STORY } from '../scripts/dist-paths.mjs';
 // #263（#185 阶段五）真实浏览器验收：零依赖 CDP 驱动（Node 22 内建 fetch + WebSocket）
 //
 // 为什么不用 puppeteer/playwright：本仓只需「导航 + 求值 + 截图 + 视口」四件事，
@@ -57,7 +57,7 @@ if (LIBS) childEnv.LD_LIBRARY_PATH = process.env.LD_LIBRARY_PATH ? `${LIBS}:${pr
 //   `MIN_ASSERTIONS`       ⇒ 断言数**下界自 ratchet**：跟着脚本里的断言数走，删除断言即红
 //     （换成 workflow 里的魔数就会腐烂：原来写死 `N -ge 24`，而实际早已 38 —— 删 14 条断言也照样放行）
 export const REQUIRE_BROWSER = process.env.CI_REQUIRE_BROWSER === '1';
-export const MIN_ASSERTIONS = 38;   // ← 新增断言时同步 +1；它只许涨（ratchet），降要说明理由
+export const MIN_ASSERTIONS = 59;   // ← 新增断言时同步 +1；它只许涨（ratchet），降要说明理由（`#491` 判据 5：故事 2 三视口 +15）
 
 // 跳过时该退什么码（纯函数，便于自证）
 export const skipVerdict = (requireBrowser) => (requireBrowser
@@ -87,9 +87,10 @@ const selftest = () => {
 	const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
 	t('跳过 + CI_REQUIRE_BROWSER=1 → 必须失败（不许静默降级）', skipVerdict(true).code === 1);
 	t('跳过 + 本地（无该变量）→ 允许，退 0', skipVerdict(false).code === 0);
-	t('38/38 达下界 → 通过', evaluateRun({ total: 38, fails: 0 }).code === 0);
-	t('37/38（有失败）→ 失败', evaluateRun({ total: 38, fails: 1 }).code === 1);
-	t('20/20 低于下界 → 失败（断言被删也算红，不靠 workflow 魔数）', evaluateRun({ total: 20, fails: 0, minAssertions: 38 }).code === 1);
+	// 用 `MIN_ASSERTIONS` 现算（不写死数字）：下界一涨，这几例自动跟着走（否则每加断言都要改自证）
+	t(`${MIN_ASSERTIONS}/${MIN_ASSERTIONS} 达下界 → 通过`, evaluateRun({ total: MIN_ASSERTIONS, fails: 0 }).code === 0);
+	t(`${MIN_ASSERTIONS}/${MIN_ASSERTIONS}（有失败）→ 失败`, evaluateRun({ total: MIN_ASSERTIONS, fails: 1 }).code === 1);
+	t(`${MIN_ASSERTIONS - 5}/${MIN_ASSERTIONS - 5} 低于下界 → 失败（断言被删也算红，不靠 workflow 魔数）`, evaluateRun({ total: MIN_ASSERTIONS - 5, fails: 0, minAssertions: MIN_ASSERTIONS }).code === 1);
 	t('0/0 → 失败（0/0 假绿）', evaluateRun({ total: 0, fails: 0 }).code === 1);
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
 	console.log('\n✔ 自证通过：CI 跳过必红 / 本地可跳 / 达下界绿 / 有失败红 / 断言被删红 / 0-0 假绿红');
@@ -210,13 +211,13 @@ const setViewport = async (w, h) => {
 	await send('Emulation.setDeviceMetricsOverride', { width: w, height: h, deviceScaleFactor: 2, mobile: w < 700 });
 	await sleep(150);
 };
-const loadFresh = async () => {
+const loadFresh = async (story = null) => {
 	// 每次重载前清掉自动存档：视口之间不串状态（否则上一轮的旗标/血量会污染判定）
 	await ev('try{localStorage.clear()}catch(e){}');
 	// #441 β2：根路径 `index.html` 已是**书架页** ⇒ 必须按 storyRelPath() 进故事页。
 	// 这里加一道守卫：万一又跑到别的产物上，**立即 bail**而不是让后面 38 条断言"合理地"全红
 	// （那类失败看起来像布局回归，实际是"测试跑错了产物"——本仓最贵的一种假红）。
-	await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/${storyRelPath()}` });
+	await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/${storyRelPath(story ?? undefined)}` });
 	for (let i = 0; i < 40; i++) {
 		await sleep(250);
 		const ok = await ev('!!(window.SugarCube && SugarCube.State && SugarCube.State.passage)').catch(() => false);
@@ -227,7 +228,7 @@ const loadFresh = async () => {
 	// （那类失败看起来像布局回归，实际是"测试跑错了产物"——本仓最贵的一种假红）。
 	{
 		const ok = await ev('!!document.getElementById("font-face") && !!document.getElementById("passages")');
-		if (!ok) bail(`导航到的不是故事页（期望 ${storyRelPath()}）——是不是又跑到书架页/别的产物上了？`);
+		if (!ok) bail(`导航到的不是故事页（期望 ${storyRelPath(story ?? undefined)}）——是不是又跑到书架页/别的产物上了？`);
 	}
 	await ev(HELPERS);
 	// #363：**字体必须真的加载**（此前服务器把所有路径都回 HTML → 验收跑在兜底字体上）。
@@ -432,6 +433,41 @@ for (const [W, H] of VP) {
 	const ov2 = await ev('window.__sg.overflow()');
 	check(ov2.scroll <= ov2.inner + 1, `${vp} 放大文字 200% 无横向溢出（${ov2.scroll} ≤ ${ov2.inner}）`);
 	await ev(`document.documentElement.style.fontSize=''`);
+}
+
+// ── `#491` 判据 5：**第三个故事**的真机三视口（本故事自己的一遍；故事 1 的用例不套用）──
+{
+	const SB = 'hollow-cave';
+	if (!existsSync(storyHtml(SB))) {
+		console.log(`\n（跳过故事 2 真机：${storyHtml(SB)} 不存在——先 npm run build）`);
+	} else {
+		console.log('\n══ 故事 2 真机三视口（#491 判据 5／无名洞窟）══');
+		for (const [W, H] of VP) {
+			const vp = label(W, H);
+			await setViewport(W, H);
+			await loadFresh(SB);
+			console.log(`\n── 视口 ${vp}（故事 2）`);
+			// ① 开场无横向溢出
+			const ov = await ev('window.__sg.overflow()');
+			check(ov.scroll <= ov.inner + 1, `${vp} 故事2 开场无横向溢出（${ov.scroll} ≤ ${ov.inner}）`);
+			// ② 侧栏：**没有车卡的故事也要能看见血量与物品**（`#574` 的最小面；这是"战斗试验场"的前提）
+			const bar = await ev(`(function(){const c=document.querySelector('#story-caption')||document.getElementById('ui-bar');return { hp: !!document.querySelector('.hpbar'), inv: !!document.querySelector('.inv-block'), text: (c?.textContent||'').replace(/\\s+/g,' ').slice(0,40) };})()`);
+			check(bar.hp, `${vp} 故事2 侧栏给出**血量条**（无车卡的最小面）`);
+			check(bar.inv, `${vp} 故事2 侧栏给出**物品栏**`);
+			// ③ 三选一：真机布局下至少两条路落在视口内（可点性/首屏不空）
+			await ev('window.__sg.play("岔口")');
+			await sleep(320);
+			const cards = await ev('window.__sg.blocks("#passages a.link-internal")');
+			const inVp = (cards ?? []).filter((b) => b.bottom <= H + 1).length;
+			check((cards ?? []).length >= 2 && inVp >= 2, `${vp} 故事2 三选一：≥2 条路在视口内（共 ${(cards ?? []).length} 条 · 在内 ${inVp}）`);
+			// ④ 200% 文字缩放仍无横向溢出（与故事 1 同口径）
+			await ev('document.documentElement.style.fontSize = "200%"');
+			await sleep(220);
+			const ov2 = await ev('window.__sg.overflow()');
+			check(ov2.scroll <= ov2.inner + 1, `${vp} 故事2 文字 200% 无横向溢出（${ov2.scroll} ≤ ${ov2.inner}）`);
+			await ev('document.documentElement.style.fontSize = ""');
+		}
+	}
 }
 
 // #284①：键盘序列（真机按键）——单视口做即可，走 390×844

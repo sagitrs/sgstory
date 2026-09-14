@@ -602,3 +602,50 @@ Object.assign(window.Game.Combat, {
 		if (eff.flag) pc.ev[eff.flag] = true;
 	},
 });
+
+// ── 条件表选择器（伞 #422 阶段 4／`#435`）——**引擎侧**机制，只经 `Sg.story.rules()` 取表 ──────────
+// 归属（`#441` 结合面）：选择器与死规则门属**引擎层**（与故事内容无关）；表属**故事层**。
+// 规则（`#435` 票面）：first-match wins，但**优先级只看显式 `prio`**（同 prio 按声明顺序**稳定**）——
+// 不做"声明越靠前越优先"的隐式假设（那会让重排表变成行为变更）。
+window.Sg ??= {};
+window.Sg.rules = {
+	// 表**只经故事注册的入口**取；结构缺失/畸形 ⇒ fail-loud（与 `Sg.notes.table()` 同一纪律）
+	table() {
+		const provide = window.Sg.story?.rules;
+		if (typeof provide !== 'function') throw new Error('Sg.rules：故事未注册 `Sg.story.rules()`（接入契约 #436-b／#441-E）——结构缺失必须报错');
+		const t = provide();
+		if (!Array.isArray(t)) throw new Error('Sg.rules：`Sg.story.rules()` 必须返回**行数组**（拿到 ' + (t === null ? 'null' : typeof t) + '）');
+		return t;
+	},
+	// 一个"键名"是否满足：`n_*` ⇒ 笔记（`Sg.notes.has`，含双读）；否则按旗标路径读（`ev.`／`world.` 或裸名）
+	holds(key, pc) {
+		const k = String(key);
+		if (k.startsWith('n_')) return window.Sg.notes.has(k);
+		const path = k.includes('.') ? k : `ev.${k}`;
+		return !!window.Sg.notes.readPath(pc, path);
+	},
+	// 行是否满足（`req` 全中 ∧ `any` 至少一（空＝不要求）∧ `exclude` 全不中 ∧ `prereq` 已选中过）
+	matches(row, pc, chose = new Set()) {
+		const keys = (x) => (Array.isArray(x) ? x : x ? [x] : []);
+		if (!keys(row.req).every((k) => this.holds(k, pc))) return false;
+		const any = keys(row.any);
+		if (any.length && !any.some((k) => this.holds(k, pc))) return false;
+		if (keys(row.exclude).some((k) => this.holds(k, pc))) return false;
+		if (!keys(row.prereq).every((id) => chose.has(id))) return false;
+		return true;
+	},
+	// 选择：过滤作用域 → **按 prio 降序（稳定：同 prio 保持声明序）** → 取第一条
+	pick(scope, { pc = State.variables.pc, chose = new Set() } = {}) {
+		const rows = this.table().filter((r) => r && r.scope === scope);
+		const idx = new Map(rows.map((r, i) => [r, i]));
+		return rows.filter((r) => this.matches(r, pc, chose))
+			.sort((a, b) => (b.prio ?? 0) - (a.prio ?? 0) || idx.get(a) - idx.get(b))[0] ?? null;
+	},
+};
+// `<<rules "作用域">>`：选中就渲染该行 `text`（present 层只读；不写状态）
+Macro.add('rules', {
+	handler() {
+		const row = window.Sg.rules.pick(String(this.args[0] ?? ''));
+		if (row && row.text) $(this.output).wiki(String(row.text));
+	},
+});

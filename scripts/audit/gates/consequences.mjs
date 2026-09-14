@@ -11,7 +11,9 @@ export const run = (ctx) => {
 if (wantAll || arg('consequences')) {
 	console.log('\n══ ⓪q 选择后果门（#267）——非任意·非二元·后果可见（机械判据）══');
 	let bad = 0;
-	const { written, buckets, problems } = classifyNarrativeState();
+	// #435 阶段 4：把**条件表**注入分类器（node 侧没有 `window` 全局 ⇒ 由这里给；表的来源＝故事契约）
+	const RULES = ctx.window?.Sg?.story?.rules?.() ?? [];
+	const { written, buckets, problems } = classifyNarrativeState({ rules: RULES });
 	// 自证 7 例（**合成输入**——这就是给分类器加注入参数的理由）
 	{
 		const mk = (over = {}) => ({
@@ -19,6 +21,7 @@ if (wantAll || arg('consequences')) {
 			passageTags: new Map(over.passageTags ?? []),
 			Echoes: over.Echoes ?? { list: [], revisit: [] },
 			Consequences: over.Consequences ?? { provenance: {}, engine: {} },
+			rules: over.rules ?? [],   // #435：条件表的注入口（自证要用它，别再被 mk() 吞掉）
 		});
 		const cases = [
 			['回声表消费 ⇒ 落 echo 桶、无问题', (() => { const r = classifyNarrativeState(mk({ Echoes: { list: [{ cause: { flag: 'a' } }], revisit: [] } })); return r.buckets.get('a') === 'echo' && r.problems.length === 0; })()],
@@ -33,6 +36,9 @@ if (wantAll || arg('consequences')) {
 		['`/% %/` 注释里的 `<<firstTime "b">>` **不算写入**（剥注释边界）', (() => { const r = classifyNarrativeState({ passageSrc: new Map([['P', '/% <<firstTime "b">> %/']]), passageTags: new Map() }); return !r.written.has('b'); })()],
 			// #434 阶段 3：经 `Sg.notes.add('n_a')` 写的旗标**也要算写入**（写点换了形状）
 			['经 `Sg.notes.add` 写的旗标算写入（裸键 a）', (() => { const r = classifyNarrativeState({ passageSrc: new Map([['P', "Sg.notes.add('n_a')"]]), passageTags: new Map(), notes: { n_a: { flagPath: 'ev.a' } } }); return r.written.has('a'); })()],
+			// #435 阶段 4：条件表行里的键算「正文条件消费」（按行 `scope` 归属）；scope 是引擎段则不算
+			['表行（scope=叙事段）引用该旗标 ⇒ mechanic 桶', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['Q', ''], ['P', '<<setflag "a">>']], passageTags: [['Q', []]], rules: [{ id: 'r', scope: 'Q', req: ['a'], prio: 1 }] })); return r.buckets.get('a') === 'mechanic' && r.problems.length === 0; })()],
+			['表行 scope 是**引擎段**（script 标签）⇒ 不算叙事消费', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['Q', ''], ['S', ''], ['P', '<<setflag "a">>']], passageTags: [['S', ['script']]], rules: [{ id: 'r', scope: 'S', req: ['a'], prio: 1 }] })); return r.buckets.get('a') !== 'mechanic'; })()],
 			['结局段落里读 ⇒ ending 桶（isEnding 边界）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['结局·某', '<<if $pc.ev.a>>x<</if>>']] })); return r.buckets.get('a') === 'ending'; })()],
 		];
 		for (const [label, ok] of cases) { if (!ok) bad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }

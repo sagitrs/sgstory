@@ -42,6 +42,26 @@ export const poolProblems = (pool, hasPassage, prefix = '路·') => {
 	}
 	return out;
 };
+/** 纯函数④：战斗奖励声明面（`#600`）—— 归一化能过 ＋ 掉落道具已登记 ＋ **内容只经单一落点**（声明 ↔ 内容对账）。
+ *  为什么要有"对账"这一半：`#600` 的现场就是"规则只活在散文里"——表里能声明掉落，但内容自己读 `reward.gold`、自己掷骰，
+ *  于是声明变了行为不变（或反过来），**没有任何门看得见**。 */
+export const rewardProblems = (mech, { normalize, hasItem, srcOf } = {}) => {
+	const out = [];
+	const enc = mech?.encounters ?? {};
+	for (const id of Object.keys(enc)) {
+		let r = null;
+		try { r = normalize(id); }
+		catch (e) { out.push({ code: 'reward-shape', why: `encounters.${id}.reward 形状不合法（引擎拒绝归一化）：${e?.message ?? e}` }); continue; }
+		if (r?.item && !hasItem(r.item.id)) out.push({ code: 'reward-item-unknown', why: `encounters.${id}.reward.item 指到**未登记的道具**「${r.item.id}」（表里没有它 ⇒ 掉下去也进不了物品栏语义）` });
+	}
+	const declaredItem = Object.keys(enc).some((id) => enc[id]?.reward?.item);
+	if (declaredItem) {
+		const src = ['机制·longFight', '洞窟工具'].map((n) => srcOf(n) ?? '').join('\n');
+		if (!/Game\.Combat\.grantReward\(/.test(src)) out.push({ code: 'reward-not-wired', why: '声明了 `reward.item`，但内容里没有 `Game.Combat.grantReward(` —— 声明与行为对不上（规则只活在表里）' });
+		if (/slotsDecl\(\)\.encounters/.test(src)) out.push({ code: 'reward-bypassed', why: '内容里仍在直接读 `slotsDecl().encounters…`（绕过单一落点 ⇒ 声明与行为迟早漂移）' });
+	}
+	return out;
+};
 /** 纯函数③：宝箱声明面（位点已登记 ＋ 工具在道具表 ＋ 奖品曲线非空）。 */
 export const chestProblems = (chest, { hasSite, hasItem, siteOf } = {}) => {
 	const out = [];
@@ -83,6 +103,12 @@ export const run = (ctx) => {
 			['🔴 ② 反例：某类没有实例 ⇒ 报', poolProblems({ kinds: KINDS, entries: { ...Object.fromEntries(KINDS.map((k) => [k, [{ id: '1a', hint: 'x', ref: '1a' }]])), trap: [] } }, has).length === 1],
 			['🔴 ② 反例：实例缺 `hint`／`ref` 解析不到 ⇒ 各报一条', poolProblems({ kinds: KINDS, entries: { ...Object.fromEntries(KINDS.map((k) => [k, [{ id: '1a', hint: 'x', ref: '1a' }]])), cave: [{ id: '9z', ref: '9z' }] } }, has).length === 2],
 			['边界：`eventPool` 未启用（null）⇒ 不报（故事 1 走这条）', poolProblems(null, has).length === 0],
+			// `#600` 奖励声明面：正例／🔴 未登记道具／🔴 形状非法／🔴 内容没接／🔴 内容绕过
+			['④ 正例：掉落道具已登记且内容走单一落点', rewardProblems({ encounters: { short: { reward: { gold: 3, item: { id: '钥匙', chance: 30 } } } } }, { normalize: () => ({ gold: 3, item: { id: '钥匙', chance: 30 } }), hasItem: (x) => x === '钥匙', srcOf: () => '<<set _r to Game.Combat.grantReward($pc, "short")>>' }).length === 0],
+			['🔴 ④ 反例：掉落指向未登记道具 ⇒ 报', rewardProblems({ encounters: { short: { reward: { item: '不存在的钥匙' } } } }, { normalize: () => ({ gold: 0, item: { id: '不存在的钥匙', chance: 100 } }), hasItem: (x) => x === '钥匙', srcOf: () => 'Game.Combat.grantReward(' }).length === 1],
+			['🔴 ④ 反例：声明形状非法（引擎拒绝归一化）⇒ 报', rewardProblems({ encounters: { short: { reward: { item: { id: '钥匙', chance: 0 } } } } }, { normalize: () => { throw new Error('chance 必须在 1..100'); }, hasItem: () => true, srcOf: () => 'Game.Combat.grantReward(' }).length === 1],
+			['🔴 ④ 反例：声明了掉落但内容没接 ⇒ 报"声明与行为对不上"', rewardProblems({ encounters: { long: { reward: { item: '钥匙' } } } }, { normalize: () => ({ gold: 0, item: { id: '钥匙', chance: 100 } }), hasItem: () => true, srcOf: () => '（内容里没有落账调用）' }).some((p) => p.code === 'reward-not-wired')],
+			['🔴 ④ 反例：内容绕过单一落点（自己读声明）⇒ 报', rewardProblems({ encounters: { long: { reward: { item: '钥匙' } } } }, { normalize: () => ({ gold: 0, item: { id: '钥匙', chance: 100 } }), hasItem: () => true, srcOf: () => 'Game.Combat.grantReward($pc, "long") 和 (Game.Combat.slotsDecl().encounters.long.reward ?? {}).gold' }).some((p) => p.code === 'reward-bypassed')],
 			['③ 正例：宝箱声明面齐（位点已登记＋工具在道具表＋奖品曲线非空）', chestProblems({ mechanisms: { 锁扣: { site: 'A', rareSite: 'B', toolSite: 'C', tool: '撬棍' } }, loot: { 普通: ['干粮'] } }, { hasSite: (x) => !!x, hasItem: (x) => x === '撬棍' }).length === 0],
 			// `#491` 判据 3（声明侧）：位点表里的 DC 差必须兑现"道具各降 3"与"珍贵更难"
 			['③ 正例（#491）：工具降难＝声明值（12−9=3）且珍贵(15)>普通(12) ⇒ 不报', chestProblems(
@@ -111,10 +137,11 @@ export const run = (ctx) => {
 		for (const p of refProblems(rows, hasPassage)) { console.log(`  ✗ 路「${p.kind}」ref=${p.ref}：${p.why}`); bad++; }
 		for (const p of poolProblems(story.eventPool?.(1) ?? null, hasPassage)) { console.log(`  ✗ 事件池：${p.why}`); bad++; }
 		for (const p of chestProblems(mech.chest, { hasSite: (n) => !!story.checkSite?.(n), hasItem: (n) => !!story.itemEffect?.(n), siteOf: (n) => story.checkSite?.(n) })) { console.log(`  ✗ 宝箱声明面：${p.why}`); bad++; }
+		for (const p of rewardProblems(mech, { normalize: (id) => w?.Game?.Combat?.encounterReward(id), hasItem: (n) => !!story.itemEffect?.(n), srcOf: (n) => ctx.passageSrc?.get(n) })) { console.log(`  ✗ 战斗奖励声明面：${p.why}`); bad++; }
 		const noCheck = (mech.roads ?? []).filter((r) => (r.options ?? []).some((o) => o.noCheck)).length;
 		console.log(`  · 五段三路：${(mech.roads ?? []).length} 段 · ${rows.length} 条路 · 有 \`noCheck\` 的段 ${noCheck} 个 · 实例段落全部解析 ✓`);
 	}
 
 	if (bad) { console.error(`\n✗ 洞窟声明面门未通过（${bad} 项）`); process.exit(1); }
-	console.log('✔ 洞窟声明面门通过（表↔内容双向对账 · 宝箱声明面齐）');
+	console.log('✔ 洞窟声明面门通过（表↔内容双向对账 · 宝箱声明面齐 · 战斗奖励声明面与落点一致）');
 };

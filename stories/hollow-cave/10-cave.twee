@@ -33,8 +33,10 @@
 		<<set _phase to Game.Combat.waveRecord($pc, $last_check.success)>>
 		<<if $last_check.success>>
 			<<print $args[2]>>
-			<<set _g to (Game.Combat.slotsDecl().encounters[_enc].reward ?? {}).gold ?? 0>>
-			<<if _g gt 0>><<set $pc.gold to $pc.gold + _g>><<if $args[5]>><<print $args[5]>><</if>><</if>>
+			/% `#600`：奖励（金币 ＋ 掉落）走**声明面**的单一落点 —— 内容不再自己读 `reward.gold`、也不自己掷骰 %/
+			<<set _r to Game.Combat.grantReward($pc, _enc)>>
+			<<if _r.gold gt 0>><<if $args[5]>><<print $args[5]>><</if>><</if>>
+			<<if _r.item>><<give _r.item>><</if>>
 		<<else>>
 			<<print $args[3]>>
 			<<damage `Game.Damage.hurt`>>
@@ -113,8 +115,10 @@
 		<<goto "机制·longFight">>
 	<<elseif _ph is "cleared">>
 		最后一只也塌下去了。你站着，喘了很久。
-		<<set _g to (Game.Combat.slotsDecl().encounters.long.reward ?? {}).gold ?? 0>>
-		<<if _g gt 0>><<set $pc.gold to $pc.gold + _g>>（两只身上都挂着旧币，你收了起来。）<</if>>
+		/% `#600`：长战斗**必掉**钥匙（声明面 `item: '钥匙'`）；金币与掉落同走一处落账 %/
+		<<set _r to Game.Combat.grantReward($pc, "long")>>
+		<<if _r.gold gt 0>>（两只身上都挂着旧币，你收了起来。）<</if>>
+		<<if _r.item>>领头那只腰上挂着一把''锈钥匙''。<<give _r.item>><</if>>
 		<<set $pc.ev.fight to {}>>
 		<<caveNext>>
 	<<elseif _ph is "failed">>

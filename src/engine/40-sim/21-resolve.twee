@@ -617,10 +617,19 @@ window.Sg.rules = {
 		if (!Array.isArray(t)) throw new Error('Sg.rules：`Sg.story.rules()` 必须返回**行数组**（拿到 ' + (t === null ? 'null' : typeof t) + '）');
 		return t;
 	},
-	// 一个"键名"是否满足：`n_*` ⇒ 笔记（`Sg.notes.has`，含双读）；否则按旗标路径读（`ev.`／`world.` 或裸名）
+	// **键形前缀的宣告**（`#435` 口径②，dev 的 `--rules` 判据会核对）：行里用了**未宣告**的前缀 ⇒ 红。
+	// 为什么必须在引擎侧宣告：引擎不认的前缀会让条件**永假** ⇒ 行静默死掉，没有任何门看得见（本仓反复踩的那类）。
+	prefixes: ['inv', 'era'],
+	// 一个"键名"是否满足：`n_*` ⇒ 笔记（`Sg.notes.has`，含双读）；`inv:`／`era:` ⇒ 见下；否则按旗标路径读（`ev.`／`world.` 或裸名）
 	holds(key, pc) {
 		const k = String(key);
 		if (k.startsWith('n_')) return window.Sg.notes.has(k);
+		const m = /^(inv|era):(.+)$/.exec(k);
+		if (m) {
+			if (m[1] === 'inv') return !!(pc?.inv ?? {})[m[2]];                       // 持有物（不在 pc.ev/world 域）
+			const want = window.Game?.Era?.[String(m[2]).toUpperCase()] ?? m[2];      // 时代（`era:present`／`era:past`）
+			return State.variables.era === want;
+		}
 		const path = k.includes('.') ? k : `ev.${k}`;
 		return !!window.Sg.notes.readPath(pc, path);
 	},

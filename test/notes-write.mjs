@@ -101,6 +101,22 @@ if (multi) {
 	case_('A 方案·未登记 id ⇒ `add` 报错（fail-loud，不静默）', (() => { try { Sg.rules.applyYields({ id: 'r3', scope: 'S', yields: ['n_nope'] }); return false; } catch { return true; } })());
 }
 
+// ⑧ 键形前缀（#435 口径②）：引擎宣告 `prefixes` ＋ `holds()` 真会求值 —— 否则"未宣告前缀 ⇒ 永假"那类静默失效
+{
+	const had = pc.inv?.['__测试道具_b'];
+	pc.inv = pc.inv ?? {}; pc.inv['__测试道具_b'] = true;
+	case_('前缀宣告：`Sg.rules.prefixes` 含 inv/era（与 `holds()` 的求值能力一一对应）',
+		Array.isArray(Sg.rules.prefixes) && ['inv', 'era'].every((x) => Sg.rules.prefixes.includes(x)), JSON.stringify(Sg.rules.prefixes));
+	case_('`inv:<道具>`：持有 ⇒ 真', Sg.rules.holds('inv:__测试道具_b', pc) === true);
+	case_('`inv:<道具>`：不持有 ⇒ 假（不静默为真）', Sg.rules.holds('inv:__不存在的道具_z', pc) === false);
+	const era0 = State.variables.era;
+	State.variables.era = w.Game.Era.PRESENT;   // 启动时 era 是 undefined（由故事稍后设置）⇒ 用例自己摆好前提
+	case_('`era:<时代>`：与当前时代相符 ⇒ 真', Sg.rules.holds('era:present', pc) === true);
+	case_('`era:<时代>`：不相符 ⇒ 假（不静默为真）', Sg.rules.holds('era:past', pc) === false);
+	State.variables.era = era0;
+	if (had === undefined) delete pc.inv['__测试道具_b'];
+}
+
 // ⑥ 语义钉死：`has()` 的定义就是 `stored ∨ 旗标`（Discussion #513 的 Q2 第 1 条）
 case_('读取语义写死：`has(id) = stored(id) ∨ any(readPath(flagPath))`（本文件 ③ 与 ① 两条合起来就是它）', true);
 

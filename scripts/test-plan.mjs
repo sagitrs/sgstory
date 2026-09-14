@@ -141,6 +141,9 @@ export const SEGMENTS = [
 	// `#598`（操作者实测的缺陷）：**长战斗「点得动、走得掉」**真机回归 —— 静态门看不见这类运行期死路
 	// （`waveRecord` 返回对象被当字符串比 ⇒ 两条出口不可达；`<<include>>` 不导航 ⇒ 点了没反应）。
 	{ id: "test-cave-longfight-mjs", phase: 'test', cost: 1, cmd: "node test/cave-longfight.mjs" },
+	// `#603`：**文档格式门** —— `README.md` 曾因一个多余的 ``` 让四个标题被吞进代码块（GitHub 上不是节）；
+	// `docs/**` 与 README 此前**零机检**（L0 扫 twee、craft 扫正文）。
+	{ id: "scripts-md-format-mjs", phase: 'test', cost: 0.1, cmd: "node scripts/md-format.mjs" },
 	// #491 判据 1：**本故事**的战斗分布口径（胜率对闭式 · 期望回合/受伤期望 · 分布面 · 同种子复算）
 	{ id: "scripts-audit-mjs-combat-dist-hollow", phase: 'test', cost: 3, cmd: "node scripts/audit.mjs --combat-dist --check --story hollow-cave" },
 	// `#572`：**「选中 ⇒ 真跑」门** —— 门的 `run()` 被选中也可能静默早退（九道引擎门里七道就是这样）。

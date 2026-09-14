@@ -7,5 +7,6 @@
 		"stories/hollow-cave/00-meta.twee",
 		"stories/hollow-cave/15-tables.twee",
 		"stories/hollow-cave/10-cave.twee"
-	]
+	],
+	"gates": []
 }

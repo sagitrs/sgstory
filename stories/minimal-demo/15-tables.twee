@@ -1,0 +1,48 @@
+:: Game Tables [script]
+// ── 第二个故事的**最小声明面**（`#460`）：本文件是「引擎接入契约」的**可执行清单** ─────────────
+//
+// 为什么它会存在（是本票实测挖出来的，不是设计出来的）：
+//   引擎侧 `21-resolve` 在**加载期**就 `Object.assign(window.Game.Checks, {…})`（还有 Combat／Economy／
+//   Gear／Items／Social）——而那些容器原先**只有故事 1 的 `15-tables.twee` 会建**。
+//   ⇒ 一个"只有引擎 ＋ 自己的段落"的故事在加载期就崩（`TypeError: Cannot convert undefined or null to object`）。
+//   这正是 `#512` 要清的"反向依赖"的一个实例：**引擎依赖故事提供容器**。
+//   本文件先用最小容器把契约补上（引擎侧改成 `??=` 自建属另一票）；它同时是第二故事接入的**样板**。
+//
+// 纪律（`#436-b`／`#441-E`）：**结构缺失 ⇒ 报错**，所以空表要**显式**给（空表是合法数据集，不是缺失）。
+window.Game = Object.assign(window.Game ?? {}, {
+	Checks: { sites: {}, keyYields: [] },
+	Combat: { pools: {}, actions: {} },
+	Economy: { prices: {}, events: [] },
+	Gear: { defs: {} },
+	Items: { defs: {} },
+	Social: { asks: [] },
+	Truth: { claims: [] },
+	Echoes: { list: [], revisit: [] },
+	Shifts: { anchors: [] },
+	Investment: { expressive: [], failClueExempt: {}, eraDomain: { past: [], branch: [], flagEra: {}, crossEraGates: [] } },
+	State: { domains: [], bookkeeping: [], dynamicKeys: [] },
+	Notes: { entries: {} },
+});
+
+:: StoryBindings [script]
+// 接入契约（`#436-b`／`#441-E`）的**完整面**：引擎侧的取数口**只**经 `Sg.story.*`，纪律是
+// 「**结构缺失 ⇒ 报错**」（未注册却来取数必须炸——不静默降级）；所以第二故事必须把**全部**口子显式注册，
+// 空表/`null` 是**合法数据集**（本故事无机制 ⇒ 多数返回 `null`＝"未启用"，调用方跳过）。
+//
+// 本清单是**实测得出**的（`grep -rho "Sg\.story\.[a-zA-Z_]*" src/ | sort -u`）——引擎里每一个 `Sg.story.X`
+// 就是一个必须注册的口子。这正是「第二故事接入」缺的那张清单：引擎知道故事名越少，这张表越短。
+window.Sg ??= {};
+Object.assign((window.Sg.story ??= {}), {
+	notes: () => ({}),                 // 笔记表：本故事无笔记 ⇒ 空表（合法）
+	rules: () => [],                   // 条件表：空表（合法）
+	mechanics: () => null,             // 新机制声明表：未启用 ⇒ `null`（调用方必须跳过，不许当空表）
+	checkSite: () => null,             // 位点表
+	checkKnowledge: () => null,        // 位点→知识映射
+	combatPool: () => [],              // 战斗池
+	combatAction: () => null,          // 战斗动作
+	actionLabel: (id) => String(id),   // 动作文案：**文案缺失** ⇒ 兜底不报错（与"结构缺失"分开）
+	gearDef: () => null,               // 装备声明
+	itemEffect: () => null,            // 道具效果
+	poisonReduce: () => 0,             // 毒液减成
+	dragonMaxHp: () => 0,              // 龙血上限（本故事无龙）
+});

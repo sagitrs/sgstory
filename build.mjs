@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 
 import { allSourceFiles } from './scripts/module-order.mjs';
 import { execSync } from 'node:child_process';
 import { join, dirname, relative } from 'node:path';
-import { ORDER, MODULES } from './scripts/module-order.mjs';
+import { ORDER, MODULES, engineFiles as engineFilesOf, scopedFiles } from './scripts/module-order.mjs';
 import {
 	ROOT, storySlugs, readStory, storyHtml, shelfHtml,
 	FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY,
@@ -37,7 +37,7 @@ if (slugs.length === 0) {
 	console.error('✗ stories/ 下没有找到故事清单（需 <slug>/00-story.json）');
 	process.exit(1);
 }
-const engineFiles = ORDER.filter((f) => (MODULES[f]?.layer ?? 'story') === 'engine');
+const engineFiles = engineFilesOf(ORDER, MODULES);
 const stories = slugs.map((slug) => ({ slug, ...readStory(slug) }));
 {
 	for (const s of stories) {
@@ -56,10 +56,8 @@ const stories = slugs.map((slug) => ({ slug, ...readStory(slug) }));
 }
 
 // 合并顺序由 ORDER 决定（清单只筛归属）；引擎文件在前（它们本身就在 ORDER 前部）
-const mergedOf = (s) =>
-	ORDER.filter((f) => engineFiles.includes(f) || (s.files ?? []).includes(f))
-		.map((f) => readFileSync(f, 'utf8').trimEnd())
-		.join('\n\n') + '\n';
+// #460：合并口径与门（`scripts/audit/context.mjs`）**共用同一权威** `scopedFiles()`
+const mergedOf = (s) => scopedFiles(s).map((f) => readFileSync(f, 'utf8').trimEnd()).join('\n\n') + '\n';
 const merges = new Map(stories.map((s) => [s.slug, mergedOf(s)]));
 
 // ── 字体子集化（霞鹜文楷 → dist/fonts 外链 + preload）────────────────

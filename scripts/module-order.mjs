@@ -34,6 +34,12 @@ export const ORDER = [
 	'stories/mist-forest/16-notes-ch3.twee',      // 笔记增量文件（#430 B2）：三章
 	'stories/mist-forest/16-notes-cross.twee',
 	'stories/mist-forest/17-rules.twee',    // 条件表（#435 阶段 4）：只往 Sg.story.rules() 追加行    // 笔记增量文件（#431 B3）：跨章/展示层
+	// ── 第二个故事（#460）：**按与 mist-forest 同构的相对位置交错登记** ──
+	// 为什么要交错而不是追加在末尾：`15-tables` 建的空容器是引擎侧 `21-resolve` **加载期**就要 assign 的对象
+	//（`Object.assign(window.Game.Checks, …)`）⇒ 必须排在它前面。多故事并存下 ORDER 的"全局交错"语义
+	// 值得另票收紧（per-story ORDER），本票先按既有形状办。
+	'stories/minimal-demo/00-meta.twee',      // StoryTitle / StoryData / StoryIdentity（无依赖）
+	'stories/minimal-demo/15-tables.twee',    // 最小声明面：引擎加载期要用的空容器
 	'stories/mist-forest/20-chargen.twee',   // Game.Chargen（rounds/presets/API；加载期需要 Rules）
 	'src/engine/40-sim/21-resolve.twee',    // 结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）
 	'stories/mist-forest/30-ch1.twee',
@@ -43,11 +49,18 @@ export const ORDER = [
 	'stories/mist-forest/70-codex.twee',
 	'src/80-script.twee',    // 存档 API / Sg.Codex / Sg.Ending（需要前面全部）
 	'src/engine/50-present/90-style.twee',     // 纯 CSS
+	'stories/minimal-demo/10-demo.twee',      // 段落 ＋ StoryBindings（只依赖引擎）
+	// ── 第二个故事（#460 最小示例）：证明引擎与故事已解耦 ──
+	// 它不共享 mist-forest 的任何文件（那是另一个故事的资产）；引擎文件对所有故事共享 ⇒ 由 `scopedFiles()` 自动带上。
 ];
 
 // 每个模块：加载期依赖 + 必须定义的符号（用于抓「改了名/挪了位置」）
 export const MODULES = {
 	'stories/mist-forest/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '故事元数据（StoryTitle / StoryData）' },
+	// ── 第二个故事（#460）：layer 'story'，只依赖引擎 ──
+	'stories/minimal-demo/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '第二个故事的元数据（StoryTitle / StoryData / StoryIdentity）' },
+	'stories/minimal-demo/15-tables.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '第二个故事的最小声明面：引擎**加载期**要用的空容器（#460 实测的接入契约）' },
+	'stories/minimal-demo/10-demo.twee': { deps: ['stories/minimal-demo/15-tables.twee'], defines: [], layer: 'story', note: '最小示例段落 ＋ StoryBindings（引擎接入契约的空表）' },
 	'src/engine/30-persist/05-store.twee': { deps: [], defines: ['Sg.store'], layer: 'engine', note: '存储缝（#441-B/#462）：localStorage 键构造的唯一落点' },
 	'src/10-core.twee': { deps: [], defines: ['Game.Rules', 'Game.Pc', 'Sg.UI'], layer: 'engine', note: '规则内核与界面基座' },
 	'src/engine/50-present/11-scene.twee': { deps: ['src/10-core.twee'], defines: ['widget:actOut', 'widget:sceneFeedback'], layer: 'engine', note: '场景迁移配方（结果留屏）' },
@@ -308,4 +321,19 @@ export const orderFiles = (files, order = ORDER) => [...files].sort((a, b) => {
 	return (ia < 0 ? order.length : ia) - (ib < 0 ? order.length : ib);
 });
 /** 按 basename 或路径后缀解析源文件（供只认文件名的调用点用，如 `resolve-node.mjs`）。 */
+/** 引擎文件（`MODULES.layer === 'engine'`）——**故事作用域**的一半。 */
+export const engineFiles = (order = ORDER, modules = MODULES) => order.filter((f) => (modules[f]?.layer ?? 'story') === 'engine');
+
+/** **故事作用域**（`#460` / `#441-E`）：一个故事的**分析宇宙** ＝ 引擎文件 ∪ 该故事清单声明的文件，顺序由 `ORDER` 决定。
+ *
+ *  为什么必须是**一处权威**：构建（`build.mjs`）与门（`scripts/audit`）若各算一次，第二个故事一进来就会
+ *  出现"产物是 A、而门在判 A＋B"的错位。spike（`feat/460-minimal-demo`）实测的根因就是：
+ *  故事门的分析宇宙＝**全部源文件**，于是第二个故事**既污染**第一个故事的指标（同名段落/载荷统计/最薄榜），
+ *  **又被**第一个故事的判据要求（段落登记/覆盖宇宙/密度基线）。⇒ 宇宙按故事切，两边共用本函数。
+ */
+export const scopedFiles = (story, { order = ORDER, modules = MODULES } = {}) => {
+	const eng = engineFiles(order, modules);
+	return order.filter((f) => eng.includes(f) || (story?.files ?? []).includes(f));
+};
+
 export const sourcePath = (name, roots = SOURCE_ROOTS) => allSourceFiles(roots).find((f) => f === name || f.endsWith(`/${name}`)) ?? name;

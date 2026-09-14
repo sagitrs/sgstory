@@ -195,6 +195,10 @@ export const run = (ctx) => {
 	const SELF_UNDECLARED = { 'bad.twee': ':: P\n<<set $pc.ev.nosuch to true>>\n<<if $pc.ev.nosuch>>y<</if>>' };
 	const D = [{ id: 'tavern', prefix: ['tav_'] }];
 	const selfCases = [
+		// #580：遮蔽（`writeKeys`/`qualifiedWriteKeys` 先遮后扫）——注释里的写点不是写点
+		['正例（#580）：`//` 注释里的写点不算写 ⇒ 不报', analyze({ 'a.twee': ':: P\n// <<set $pc.ev.tav_x to true>>' }), D, 0, 'check'],
+		['正例（#580）：`/* */` 里的写点不算写 ⇒ 不报', analyze({ 'a.twee': ':: P\n/* pc.ev.tav_x = true; */' }), D, 0, 'check'],
+		['反例（#580）：真代码里的写点必须算 ⇒ 未读时必报', analyze({ 'a.twee': ':: P\n<<set $pc.ev.tav_x to true>>' }), D, 1, 'check'],
 		['正例：声明域内且有写有读', analyze(SELF_GOOD), D, 0, 'check'],
 		['未声明域 → 红', analyze(SELF_UNDECLARED), D, 1, 'check'],
 		['只有写 → 红', analyze({ 'a.twee': ':: P\n<<set $pc.ev.tav_z to true>>' }), D, 1, 'check'],

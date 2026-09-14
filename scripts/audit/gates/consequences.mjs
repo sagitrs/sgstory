@@ -24,6 +24,11 @@ if (wantAll || arg('consequences')) {
 			rules: over.rules ?? [],   // #435：条件表的注入口（自证要用它，别再被 mk() 吞掉）
 		});
 		const cases = [
+			// #580：注释遮蔽（`maskComments` 单一实现）——**双向**：注释里的示例不算写点；真代码里的必须算
+			['正例（#580）：`//` 注释里的 `<<setflag "b">>` 不算写点', !classifyNarrativeState(mk({ passageSrc: [['P2', '// <<setflag "b">>']] })).written.has('b')],
+			['正例（#580）：`/% %/` 注释里的 `<<setflag "b">>` 不算写点', !classifyNarrativeState(mk({ passageSrc: [['P3', '/% <<setflag "b">> %/']] })).written.has('b')],
+			['反例（#580）：真代码里的 `<<setflag "b">>` **必须**算写点（防遮蔽过度）', classifyNarrativeState(mk({ passageSrc: [['P4', '<<setflag "b">>']] })).written.has('b')],
+			['正例（#580）：正则字面量里的 `//` 不再把后面的代码吃掉（旧两条正则曾过度遮蔽）', classifyNarrativeState(mk({ passageSrc: [['P5', 'const re = /\\/\\//g; pc.ev.b = true;']] })).written.has('b')],
 			['回声表消费 ⇒ 落 echo 桶、无问题', (() => { const r = classifyNarrativeState(mk({ Echoes: { list: [{ cause: { flag: 'a' } }], revisit: [] } })); return r.buckets.get('a') === 'echo' && r.problems.length === 0; })()],
 			['写入但无人消费、无声明 ⇒ 「无任何桶」（假选择嫌疑）', (() => { const r = classifyNarrativeState(mk()); return r.buckets.get('a') === 'none' && r.problems.some((p) => p.includes('无任何桶')); })()],
 			['非引擎段落里 `<<if $pc.ev.a>>` ⇒ mechanic；引擎段落里读 ⇒ 「请登记为 engine」', (() => { const r1 = classifyNarrativeState(mk({ passageSrc: [['Q', '<<if $pc.ev.a>>x<</if>>']] })); const r2 = classifyNarrativeState(mk({ passageSrc: [['S', '<<if $pc.ev.a>>x<</if>>']], passageTags: [['S', ['script']]] })); return r1.buckets.get('a') === 'mechanic' && r2.problems.some((p) => p.includes('请登记为 engine')); })()],

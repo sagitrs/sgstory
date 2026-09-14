@@ -1,3 +1,8 @@
+// `#580`：注释遮蔽＝**一处**（`mask.mjs`，单扫描器按词法一次遮蔽）。写点/读点提取一律先遮后扫——
+// 否则注释里的示例会变成"真的写了/真的读了"（实测：引擎 JS 注释里的 `<<setflag "flower_taken">>`
+// 让 `--consequences` 把该键当成每个故事都写了 ⇒ 不声明它的故事假红）。
+import { maskComments } from './mask.mjs';
+
 // ── 写点识别：**单一权威**（#476 复核建议）──────────────────────────────────
 // 此前 `shared.mjs`（D2 分类器）与 `gates/state.mjs` 各写一份字面量 ⇒ **漂移过一次**：
 // shared 只认 `= true`、state 认任意赋值 ⇒ D2 门看不见 `= null`／对象写点（#476 修的正是这个洞）。
@@ -14,13 +19,15 @@ export const WRITE_PATTERNS = [
 /** 裸键集合（D2 分类器用）。 */
 export const writeKeys = (text) => {
 	const out = new Set();
-	for (const { re } of WRITE_PATTERNS) for (const m of String(text).matchAll(re)) out.add(m[2] ?? m[1]);
+	const masked = maskComments(text);
+	for (const { re } of WRITE_PATTERNS) for (const m of masked.matchAll(re)) out.add(m[2] ?? m[1]);
 	return out;
 };
 /** 限定键（`ev.x` / `world.x`；--state 用）。 */
 export const qualifiedWriteKeys = (text) => {
 	const out = [];
-	for (const { re, kind } of WRITE_PATTERNS) for (const m of String(text).matchAll(re)) out.push(kind === 'scoped' ? `${m[1]}.${m[2]}` : `${kind}.${m[1]}`);
+	const masked = maskComments(text);
+	for (const { re, kind } of WRITE_PATTERNS) for (const m of masked.matchAll(re)) out.push(kind === 'scoped' ? `${m[1]}.${m[2]}` : `${kind}.${m[1]}`);
 	return out;
 };
 /** 键形态违规：`pc.ev.Bad` 这类键会被上面的正则**静默漏检** ⇒ 单独兜住。 */
@@ -41,10 +48,11 @@ export const READ_PATTERNS = [
 //（`--notes` 的消费可数、D2 的分级都靠"谁读了它"）；但它**不是**「无字面状态读」要抓的那种直读
 //（那份判据管的是"绕过封装层的裸读"）⇒ 两个口径必须分开，否则改一处就假红另一处。
 export const WRAPPED_READ_RE = /Sg\.notes\.readPath\(\s*[^,()]+,\s*['"]([a-z_]+)\.([a-z_]\w*)['"]/g;
-export const wrappedReadKeys = (text) => [...String(text ?? '').matchAll(new RegExp(WRAPPED_READ_RE.source, 'g'))].map((m) => `${m[1]}.${m[2]}`);
+export const wrappedReadKeys = (text) => [...maskComments(text).matchAll(new RegExp(WRAPPED_READ_RE.source, 'g'))].map((m) => `${m[1]}.${m[2]}`);
 // 单行 → 去重后的**限定键**（`ev.x` / `world.x`）——**含**封装层读（"谁读了它"的单一权威）
 export const readKeys = (text) => {
-	const line = String(text ?? '');
+	// `#580`：注释里的提法**不算读**（`maskComments` 保长度 ⇒ 行内逻辑不受影响）
+	const line = maskComments(text);
 	const out = new Set();
 	for (const re of READ_PATTERNS) {
 		for (const m of line.matchAll(new RegExp(re.source, 'g'))) {
@@ -252,7 +260,8 @@ export const makeShared = (ctx) => {
 		const Echoes = input.Echoes ?? Game.Echoes;
 		const Consequences = input.Consequences ?? Game.Consequences;
 		// 注释（/% … %/）里的示例不是代码——先剥离，免得把文档里的 <<firstTime "X">> 当成真写入
-		const stripped = new Map([...sources.entries()].map(([n, src]) => [n, src.replace(/\/%[\s\S]*?%\//g, ' ')]));
+		// `#580`：写点面来自**共享遮蔽**（原先只剥 `/% %/` ⇒ `//` JS 注释里的示例会泄漏成真实写点）
+		const stripped = new Map([...sources.entries()].map(([n, src]) => [n, maskComments(src, { file: n })]));
 		const isEngine = (name) => !!tags.get(name)?.some((t) => ['script', 'widget', 'stylesheet'].includes(t));
 		const isEnding = (name) => name.startsWith('结局');
 		// `hasIf`：这一段的**正文条件**是否消费了该旗标。两种形状都认（#433 阶段 2）：
@@ -380,6 +389,10 @@ export const rowsContaining = (rows, passage, anchor) =>
 // 逼着每次改引擎注释都要重签 golden ⇒ **基线被注释噪声占满**，真正的正文漂移反而看不见。
 // 规则与 `gates/literals.mjs` 的 `blankComments` 同口径：`/* */` 块；`//` 行注释，**但前面不是 `:`**
 // （避免把 `https://…` 截断）。**挖空而非删除**（保留行号/长度语义，供需要行号的调用方）。
+// `#580`：**本入口保持原语义**（两条正则 + `[^:]` 守卫绕 `https://`）——为什么不像写点那样换成词法器：
+// 它跑在**散文**上（`--text` 的"总字"），而散文里有 `''强调''`／单个撇号；词法器的"未闭合字符串剥到行尾"
+// 会把散文吃掉（实测 −1 字 ⇒ golden 漂移）。散文面用启发式、代码面用词法器，**这是有意的分工**。
+// 真正需要词法器的是**写点/读点提取**（`writeKeys`／`qualifiedWriteKeys`／`readKeys`／D2 的 `stripped`）——见上。
 export const stripJsComments = (text) => String(text)
 	.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
 	.replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + ' '.repeat(m.length - p1.length));

@@ -921,7 +921,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 			{ id: 'seer', where: '观星者与星图', prefix: ['seer_'], keys: ['coord', 'star_ledger', 'star_short'], note: '问过什么、给过什么、星账与坐标' },
 			{ id: 'banquet', where: '过去的宴会与仪式', prefix: ['banquet_', 'staff_', 'ritual_'], keys: ['family_favor', 'old_witch'], note: '入场、藏杖、仪式所见、人情与老巫女' },
 			{ id: 'dragon', where: '龙与送行/封印', prefix: ['fight_', 'hoard_', 'whistle_', 'scroll_', 'delivery_', 'failure_', 'observation_', 'fog_', 'letter_'], keys: ['ending', 'fight'], note: '战斗台账、龙巢、哨、卷轴交付、真相锚与观测锁' },
-			{ id: 'notes', where: '笔记（知识的"已授予"真存储）', keys: ['notes'], note: '#434 阶段 3：`pc.ev.notes.<noteId>` 记录已授予（读侧 `Sg.notes.has` ＝ 本存储 ∨ 旗标 ⇒ 旧档不丢；写侧 `Sg.notes.add` 双写旗标）' },
+			{ id: 'notes', where: '笔记（知识的"已授予"真存储）', keys: ['notes'], note: '#434／#437 批三收口：`pc.ev.notes.<noteId>` 是**唯一真存储**——读侧 `Sg.notes.has(id, pc)` **只认它**（旗标兜底已退场）；旧档（只有旗标）由 `Game.Pc.migrate()` 里的 `Sg.notes.migrateLegacy()` **写一次迁移**补齐。写侧：单源笔记 `Sg.notes.add()`（落存储 ＋ 声明的那条旗标），多源笔记走 `<<notepath "id" "path">>`／`addPath()` **显式声明写哪一条**。单源读点已全部改成 `has()`（门：`singleReadProblems()`，基线空）' },
 			{ id: 'runtime', where: '运行时/界面态（非剧情状态）', keys: ['last_result', 'last_roll', 'soc', 'soc_last', 'soc_lever'], note: '结果槽、骰面快照、交涉面板的瞬态（含 #360 已摆出的优势筹码）' },
 		],
 		// 「仅记账」键：写下来只为登记（出处/复访记账），**没有行为消费者**——消费者就是本表本身。

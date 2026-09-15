@@ -22,6 +22,7 @@ if (wantAll || arg('consequences')) {
 			Echoes: over.Echoes ?? { list: [], revisit: [] },
 			Consequences: over.Consequences ?? { provenance: {}, engine: {} },
 			rules: over.rules ?? [],   // #435：条件表的注入口（自证要用它，别再被 mk() 吞掉）
+			notes: over.notes,         // #437 C-2c-3：笔记表也要能注入（图鉴读形状的自证要用）
 		});
 		const cases = [
 			// #580：注释遮蔽（`maskComments` 单一实现）——**双向**：注释里的示例不算写点；真代码里的必须算
@@ -47,6 +48,9 @@ if (wantAll || arg('consequences')) {
 			['结局段落里读 ⇒ ending 桶（isEnding 边界）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['结局·某', '<<if $pc.ev.a>>x<</if>>']] })); return r.buckets.get('a') === 'ending'; })()],
 			// `#581`：条件形态加宽——`<<elseif>>` 也是**叙事条件读**（原先只认 `<<if>>` ⇒ 该键被判“无任何桶”假红）
 			['`<<elseif $pc.ev.X>>` 也算条件消费（#581）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['Q', '<<if $pc.ev.z>>甲<<elseif $pc.ev.a>>乙<</if>>']] })); return r.buckets.get('a') === 'mechanic' && r.problems.length === 0; })()],
+			// `#437` C-2c-3：读侧兼容层退场后图鉴谓词改走 `Sg.notes.has('n_x')`
+			['`Sg.notes.has("n_a")` 也算图鉴读 ⇒ codex 桶（#437 C-2c-3）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['P', '<<setflag "a">>'], ['Game Tables', "Sg.notes.has('n_a')"]], passageTags: [['Game Tables', ['script']]], notes: { n_a: { flagPath: 'ev.a' } } })); return r.buckets.get('a') === 'codex' && r.problems.length === 0; })()],
+			['🔴 没有 `has("n_a")` 这类读 ⇒ **不进** codex 桶（防"有笔记条目就算读"的误判）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['P', '<<setflag "a">>'], ['Game Tables', 'const x = 1;']], notes: { n_a: { flagPath: 'ev.a' } } })); return r.buckets.get('a') !== 'codex'; })()],
 		];
 		for (const [label, ok] of cases) { if (!ok) bad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
 	}

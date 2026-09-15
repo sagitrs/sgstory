@@ -355,7 +355,13 @@ export const makeShared = (ctx) => {
 		// 注：这里**不**用 `readKeys()` 全量（它会把表里**字符串文案**中提到的 `pc.ev.notes` 也算成读点）。
 		const codexFlags = new Set([
 			...tblSrc.matchAll(/p\.(?:ev|world)\??\.(\w+)/g),
-		].map((m) => m[1]).concat(wrappedReadKeys(tblSrc).map((k) => k.replace(/^(ev|world)\./, ''))));
+		].map((m) => m[1])
+			.concat(wrappedReadKeys(tblSrc).map((k) => k.replace(/^(ev|world)\./, '')))
+			// `#437` C-2c-3：**读侧兼容层退场**后图鉴/门判据改走 `Sg.notes.has('n_x')`（单源笔记的规范形状）
+			// ⇒ 不认它就会"转一处、桶丢一处"（实测：转图鉴 5 处 ⇒ `--consequences` `codex×3 → codex×2 · engine?×1`；
+			// 再转 NPC 3 处 ⇒ `--echoes` 分级 5 → 6）。`noteReadKeys` 只认**笔记引用**（不像全量 `readKeys()`
+			// 会把表里字符串文案提到的 `pc.ev.notes` 也算成读点）。
+			.concat(noteReadKeys(tblSrc, noteEntries).map((k) => String(k).replace(/^(ev|world)\./, ''))));
 		const decl = { ...(Consequences?.provenance ?? {}), ...(Consequences?.engine ?? {}) };
 		const prop = { ...(Consequences?.provenance ?? {}) };
 		const buckets = new Map();

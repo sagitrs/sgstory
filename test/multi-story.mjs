@@ -8,9 +8,25 @@
 //   P3 过渡期根页 `dist/index.html` 用根路径前缀（`fonts/`）且与默认故事页只差前缀
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROOT, DIST_DIR,  DEFAULT_SLUG, storySlugs, storyHtml, shelfHtml, defaultStoryHtml, FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY, STORY_PAGE_MAX_BYTES } from '../scripts/dist-paths.mjs';
+import { ROOT, DIST_DIR,  DEFAULT_SLUG, storySlugs, storyHtml, shelfHtml, defaultStoryHtml, FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY, STORY_PAGE_MAX_BYTES, SHELF_PAGE_MAX_BYTES } from '../scripts/dist-paths.mjs';
 
-export const SHELF_MAX_BYTES = 100_000; // ci 席建议的书架页上界（防日后被塞内嵌资产）
+// 书架页上界：**单一权威在 `scripts/dist-paths.mjs`**（`#576` 未决①：同一件事曾散成四份口径）
+export const SHELF_MAX_BYTES = SHELF_PAGE_MAX_BYTES;
+
+/** **P5**（`#576` 未决①）：部署后冒烟（`.github/workflows/ci.yml`）里的体积上界**必须与常量同值**。
+ *  为什么用门而不是让 workflow 读常量：冒烟作业**不 checkout 仓库**（只 curl 线上产物）⇒ 读不到常量；
+ *  于是改成「两处数字由门钉住、不等就在 PR 里红」——歧义不再拖到部署之后才发现。 */
+export const ciLiteralProblems = (yaml, { story = STORY_PAGE_MAX_BYTES, shelf = SHELF_PAGE_MAX_BYTES } = {}) => {
+	const out = [];
+	const y = String(yaml ?? '');
+	const storyLit = /test\s+"\$SSZ"\s+-lt\s+(\d+)/.exec(y);
+	const shelfLit = /test\s+"\$SZ"\s+-gt\s+0\s+-a\s+"\$SZ"\s+-lt\s+(\d+)/.exec(y);
+	if (!storyLit) out.push({ code: 'P5', msg: 'ci.yml 里找不到故事页上界断言（test "$SSZ" -lt …）——口径锚点丢了' });
+	else if (Number(storyLit[1]) !== story) out.push({ code: 'P5', msg: `ci.yml 故事页上界 ${storyLit[1]} ≠ STORY_PAGE_MAX_BYTES ${story}（两处口径漂了）` });
+	if (!shelfLit) out.push({ code: 'P5', msg: 'ci.yml 里找不到书架页上界断言（test "$SZ" … -lt …）' });
+	else if (Number(shelfLit[1]) !== shelf) out.push({ code: 'P5', msg: `ci.yml 书架页上界 ${shelfLit[1]} ≠ SHELF_PAGE_MAX_BYTES ${shelf}` });
+	return out;
+};
 
 /** 纯函数（`#460`）：**一个故事真的启动起来了吗** —— 判据三条，缺一即红。
  *  为什么要有它：`multi-story` 原先只查"产物存在 / 书架链接 / 字体文件"，而 `test/boot.mjs` 恒读
@@ -90,6 +106,13 @@ if (!existsSync(shelfHtml())) {
 	}
 }
 
+// P5（`#576` 未决①）：部署后冒烟里的两个上界字面量必须与常量同值
+{
+	const ciPath = join(ROOT, '.github', 'workflows', 'ci.yml');
+	if (!existsSync(ciPath)) problems.push({ code: 'P5', msg: '找不到 .github/workflows/ci.yml（口径锚点没了）' });
+	else problems.push(...ciLiteralProblems(readFileSync(ciPath, 'utf8')));
+}
+
 if (process.argv.includes('--selftest')) {
 	let bad = 0;
 	const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
@@ -105,6 +128,12 @@ if (process.argv.includes('--selftest')) {
 	t('S3 反例：书架页超过体积上界 → 报红', checkShelf(shelfOK, ['a', 'b'], { bytes: 200_000 }).some((f) => f.code === 'S3'));
 	t('P4 正例：故事页在上界内 → 不报', judgeStoryPage({ slug: 'a', bytes: STORY_PAGE_MAX_BYTES - 1 }).length === 0);
 	t('P4 反例：故事页顶到上界（＝部署后冒烟的口径）→ 报红', judgeStoryPage({ slug: 'a', bytes: STORY_PAGE_MAX_BYTES }).some((f) => f.code === 'P4'));
+	// P5（`#576` 未决①）：CI 里的字面量必须与常量同值
+	const CI_OK = 'test "$SSZ" -lt 1000000 || exit 1\ntest "$SZ" -gt 0 -a "$SZ" -lt 100000 || exit 1\n';
+	t('P5 正例：ci.yml 两个上界与常量同值 → 0 问题', ciLiteralProblems(CI_OK).length === 0);
+	t('🔴 P5 反例：ci.yml 故事页上界漂了（999999）→ 报红', ciLiteralProblems(CI_OK.replace('-lt 1000000', '-lt 999999')).some((f) => f.code === 'P5'));
+	t('🔴 P5 反例：ci.yml 书架页上界漂了 → 报红', ciLiteralProblems(CI_OK.replace('-lt 100000', '-lt 200000')).some((f) => f.code === 'P5'));
+	t('🔴 P5 反例：断言被删掉 ⇒ 报「口径锚点丢了」', ciLiteralProblems('echo 无断言').length === 2);
 	const goodPage = `<link href="${FONT_PREFIX_FROM_STORY}LXGWWenKai-Regular.woff2"><style>url('${FONT_PREFIX_FROM_STORY}LXGWWenKai-Medium.woff2')</style>`;
 	t('P1/P2 正例：前缀正确且字体文件存在 → 0 问题', checkStoryFontRefs(goodPage, ['LXGWWenKai-Regular.woff2', 'LXGWWenKai-Medium.woff2']).length === 0);
 	t('P1 反例：故事页用了根路径前缀（深两层会 404）→ 报红', checkStoryFontRefs(goodPage.split(FONT_PREFIX_FROM_STORY).join(FONT_PREFIX_FROM_ROOT), []).some((f) => f.code === 'P1'));

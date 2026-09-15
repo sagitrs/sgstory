@@ -135,10 +135,20 @@ const SCENARIOS = [
 
 const collect = async () => {
 	const all = [];
+	const perScenario = [];
 	for (const sc of SCENARIOS) {
 		const { steps } = await runScenario(sc);
+		// **逐项反沉默**（`#441` 交叉验证的教训："总体非空"闸拦不住"少抽一项"）：
+		// 每个场景自己必须采到 ≥1 步——否则某个场景静默 0 步（段落名改了/播种失效）时，
+		// 基线里就没有它的覆盖面，而门照样绿。
+		if (!steps.length) {
+			console.error(`✗ 场景「${sc.scenario}／${sc.policy}」采到 **0 步**——该场景静默失效（段落名/播种/门控变了），基线与对照都缺它的覆盖面`);
+			process.exit(1);
+		}
+		perScenario.push(`${sc.scenario}/${sc.policy}=${steps.length} 步`);
 		all.push(...steps);
 	}
+	if (process.env.FIGHT_SEQ_VERBOSE) console.error(`   采到：${perScenario.join(' · ')}`);
 	return all;
 };
 

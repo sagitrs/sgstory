@@ -85,7 +85,14 @@ if (wantAll || arg('sel') || arg('gear')) {
 			try {
 				for (const lv2 of u.ask.levers ?? []) if (typeof lv2.need !== 'function' || lv2.need(stub)) u.ask.apply(stub);
 			} catch { /* 条件不满足就算了 */ }
-			if (flagTail && (stub.ev?.[flagTail] === true || stub.world?.[flagTail] === true)) return true;
+			// `#733` 片 2-b：翻面后 `apply()` **不再写单源旗标** ⇒ 落点判据必须也能看**笔记存储**
+			//（`Sg.notes.add(id, stub)` 会把 `stub.ev.notes[id]` 置真）；旗标那一支保留（多源笔记仍写旗标 ✓）。
+			const flagHit = flagTail && (stub.ev?.[flagTail] === true || stub.world?.[flagTail] === true);
+			const noteHit = flagTail && Object.entries(ctx.Game.Notes?.entries ?? {}).some(([id, e]) => {
+				const fp = Array.isArray(e?.flagPath) ? e.flagPath : [e?.flagPath];
+				return fp.some((x) => String(x).replace(/^(ev|world)\./, '') === flagTail) && stub.ev?.notes?.[id] === true;
+			});
+			if (flagHit || noteHit) return true;
 			if (item && stub.inv?.[item]) return true;
 		}
 		return false;

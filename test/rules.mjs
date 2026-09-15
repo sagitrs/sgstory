@@ -312,11 +312,12 @@ for (const file of fixtures) {
 	// knowledge 的 key 必须是已登记位点（表一致性）
 	ok(Object.keys(w.Game.Checks.knowledge).every((k) => k in w.Game.Checks.sites), 'knowledge 的位点均存在于 Checks.sites');
 	const dq3 = [0.12, 0.82];
-	v.pc = w.Game.Pc.defaults(); v.pc.world.rumor = true;
+	// `#733` 片 2-b：情报优势看笔记面 ⇒ 给存储（`ev.notes`），不再靠 `world.rumor` 旗标
+	v.pc = w.Game.Pc.defaults(); v.pc.ev.notes = { n_rumor: true };
 	w.eval(`(function(){const q=${JSON.stringify(dq3)};Math.random=()=>q.length?q.shift():0.5;})()`);
 	new w.SugarCube.Wikifier(null, '<<sitecheck "洞穴·战斗">>');
 	ok(v.last_check.roll === 17, `情报优势：rumor → 双骰取高（实际 ${v.last_check.roll}）`);
-	v.pc.world.rumor = false;
+	v.pc.ev.notes = {};
 	w.eval(`(function(){const q=${JSON.stringify(dq3)};Math.random=()=>q.length?q.shift():0.5;})()`);
 	new w.SugarCube.Wikifier(null, '<<sitecheck "洞穴·战斗">>');
 	ok(v.last_check.roll === 3, `无情报：单骰（实际 ${v.last_check.roll}）`);
@@ -522,7 +523,8 @@ for (const file of fixtures) {
 	ok(p6.ev.seer_gave === true, '观星者成功 → seer_gave 落账');
 	const p7 = emptyPc();
 	S.ask('守林人·花').apply(p7);
-	ok(p7.world.flower_warned === true && p7.ev.keeper_told === true, '守林人花事成功 → 警告 + 记账');
+	// `#733` 片 2-b：单源笔记停写旗标 ⇒ 断言改看**存储**（形式无关）
+	ok(p7.ev?.notes?.n_flower_warned === true && p7.ev?.notes?.n_keeper_told === true, '守林人花事成功 → 警告 + 记账（笔记存储）');
 	const p8 = emptyPc();
 	p8.inv['坏哨'] = true;
 	S.ask('女巫·换哨').apply(p8);

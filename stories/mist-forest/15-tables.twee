@@ -1197,11 +1197,26 @@ Object.assign((window.Sg.story ??= {}), {
 		return s;
 	},
 	// 位点的「情报捷径」（旗标 ＋ 文案）：**可选** —— 没有捷径是合法状态，不是结构缺失 ⇒ 返回 null
-	checkKnowledge: (name) => {
+	checkKnowledge: (name, pc = State.variables.pc) => {
 		const flag = window.Game?.Checks?.knowledge?.[name];
 		if (!flag) return null;
 		const why = window.Game?.Checks?.knowledgeWhy?.[flag] ?? flag;
-		return { flag, why };
+		// `#733` 片 2-b：**同时给出"是否持有"**（笔记面判定 `Sg.notes.has(id)`）——翻面（单源停写旗标）之后，
+		// 引擎若只回落读裸旗标 `pc.world[flag]` 会**丢掉这条情报优势**（实测 `#291 G2` 红）。
+		// 读侧唯一权威是 `Sg.notes`（`has(id, pc)` 只认存储）；这里按 `flagPath` 反查笔记 id，找不到就回落读旗标。
+		const entries = window.Sg?.story?.notes?.() ?? {};
+		const want = 'world.' + flag;
+		const id = Object.keys(entries).find((k) => {
+			const fp = Array.isArray(entries[k]?.flagPath) ? entries[k].flagPath : [entries[k]?.flagPath];
+			return fp.includes(want);
+		});
+		// `pc` 参数：引擎目前只传位点名（`checkKnowledge(site)`）⇒ 默认取当前存档的 pc；
+		// 若引擎改为传 pc（`checkKnowledge(site, pc)`）这里**自动生效** ⇒ 单测/合成态也能驱动（`#441-A` 的可驱动性）。
+		// 「持有」＝**存储 ∨ 该路径旗标**（与引擎接缝的"held 优先、回落旧读法"同构）：
+		//   · 翻面之后：单源旗标不再写 ⇒ 靠 `has(id, pc)`（存储）判 ✓；
+		//   · 合成态/旧档/单测：存储可能没有、旗标还在 ⇒ 回落 `readPath` ✓（等价于旧行为 ✓）。
+		const held = window.Sg.notes.has(id ?? '__none__', pc) || !!window.Sg?.notes?.readPath?.(pc, want);
+		return { flag, why, held };
 	},
 	combatAction: (id) => {
 		const a = window.Game?.Combat?.actions?.[id];

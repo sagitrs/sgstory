@@ -76,15 +76,18 @@ const SEED = Number(arg('seed', 20260915));
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** 跑一个场景：**同种子、同播种、同策略**。返回该场景的步骤序列。 */
-const runScenario = async ({ scenario, policy, maxSteps = 8 }) => {
+/** 跑一个场景：**同种子、同播种、同策略**。返回该场景的步骤序列。
+ *  `sc.inv` 明确列出该场景的道具（不靠上一局残留）——`月光花` 那一支走的是引擎里的“备药优先自动选牌”。 */
+const runScenario = async ({ passage, policy, inv = ['好哨'], label = null, maxSteps = 8 }) => {
+	const key = `${passage}／${label ?? policy}`;
 	const { w, settle } = await boot({ random: mulberry32(SEED) });
 	await settle();
 	const pc = () => w.SugarCube.State.variables.pc;
-	// 固定播种（与 `test/combat-adv.mjs` 同一套：盟约＋龙醒＋好哨＋干净台账）
-	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.hp=40;pc.max_hp=40;pc.ev.fight=null;'
-		+ 'pc.keeper={state:"ally"};pc.dragon={hp:Game.Dragon.hp,awake:true,defeats:0};pc.inv["好哨"]=true;pc.ev.failure_cause=true;})()');
-	w.SugarCube.Engine.play(scenario);
+	// 固定播种（与 `test/combat-adv.mjs` 同一套：盟约＋龙醒＋干净台账；道具由场景显式给）
+	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.hp=40;pc.max_hp=40;pc.ev.fight=null;pc.inv={};'
+		+ `for (const k of ${JSON.stringify(inv)}) pc.inv[k]=true;`
+		+ 'pc.keeper={state:"ally"};pc.dragon={hp:Game.Dragon.hp,awake:true,defeats:0};pc.ev.failure_cause=true;})()');
+	w.SugarCube.Engine.play(passage);
 	await settle(); await sleep(200);
 	// **掷骰序记录器**（票面判据 2 的要害）：包一层 `Game.Combat` 用的检定入口 ⇒ 每一步里发生的**每一次**检定
 	// （玩家的与对手的）都按发生顺序记下来。为什么必须在 `Checks.resolve` 这一层：`fight.log.you` 不带骰面，
@@ -117,7 +120,7 @@ const runScenario = async ({ scenario, policy, maxSteps = 8 }) => {
 		const ck = L?.you ?? {};
 		const last = checks[checks.length - 1] ?? {};
 		steps.push({
-			scenario, step, round: null, act: g?.last?.act ?? null,
+			scenario: key, step, round: null, act: g?.last?.act ?? null,
 			roll: ck.roll ?? last.roll ?? null, total: ck.total ?? last.total ?? null,
 			success: ck.success ?? last.success ?? null, kind: ck.kind ?? null,
 			dmg: ck.dmg ?? null, hurt: ck.hurt ?? null, adv: ck.adv ?? null, skipFoe: ck.skipFoe ?? null, hp: pc()?.hp ?? null,
@@ -129,8 +132,11 @@ const runScenario = async ({ scenario, policy, maxSteps = 8 }) => {
 };
 
 const SCENARIOS = [
-	{ scenario: '封印·并肩', policy: 'first' },
-	{ scenario: '封印·并肩', policy: 'adv' },
+	{ passage: '封印·并肩', policy: 'first', inv: ['好哨'] },
+	{ passage: '封印·并肩', policy: 'adv', inv: ['好哨'] },
+	// 覆盖面：引擎里有一条“备药优先”的**自动选牌**（手上有 `月光花`＋首轮＋未涂毒 ⇒ 换掉最后一张）
+	// ⇒ 不给它一个场景，那段代码改坏了本门也看不见（`#441` 交叉验证抽到的就是这类“覆盖”洞）。
+	{ passage: '封印·并肩', policy: 'first', inv: ['好哨', '月光花'], label: '备药优先支' },
 ];
 
 const collect = async () => {
@@ -142,10 +148,10 @@ const collect = async () => {
 		// 每个场景自己必须采到 ≥1 步——否则某个场景静默 0 步（段落名改了/播种失效）时，
 		// 基线里就没有它的覆盖面，而门照样绿。
 		if (!steps.length) {
-			console.error(`✗ 场景「${sc.scenario}／${sc.policy}」采到 **0 步**——该场景静默失效（段落名/播种/门控变了），基线与对照都缺它的覆盖面`);
+			console.error(`✗ 场景「${sc.passage}／${sc.label ?? sc.policy}」采到 **0 步**——该场景静默失效（段落名/播种/门控变了），基线与对照都缺它的覆盖面`);
 			process.exit(1);
 		}
-		perScenario.push(`${sc.scenario}/${sc.policy}=${steps.length} 步`);
+		perScenario.push(`${sc.passage}／${sc.label ?? sc.policy}=${steps.length} 步`);
 		all.push(...steps);
 	}
 	if (process.env.FIGHT_SEQ_VERBOSE) console.error(`   采到：${perScenario.join(' · ')}`);
@@ -164,7 +170,7 @@ if (!once.length) { console.error('✗ 没有采到任何一步（场景或播�
 const now = canon(once);
 if (UPDATE) {
 	writeFileSync(BASE, JSON.stringify(JSON.parse(now), null, '\t') + '\n');
-	console.log(`✔ 已写入基线 ${BASE}（${once.length} 步 · seed=${SEED} · 场景 ${SCENARIOS.map((s) => `${s.scenario}/${s.policy}`).join(' · ')}）`);
+	console.log(`✔ 已写入基线 ${BASE}（${once.length} 步 · seed=${SEED} · 场景 ${SCENARIOS.map((s) => `${s.passage}/${s.label ?? s.policy}`).join(' · ')}）`);
 	process.exit(0);
 }
 if (!existsSync(BASE)) { console.error(`✗ 缺基线 ${BASE}（先跑 --update）`); process.exit(1); }
@@ -175,5 +181,5 @@ if (d) {
 	console.error('  逐字节对照是"平衡没变"的最强证据；若这是**有意**的数值/行为调整 ⇒ 必须逐条归因（#493 允许的差异只有"0 差异"或"归因＋操作者确认"）');
 	process.exit(1);
 }
-console.log(`✔ 战斗序列逐字节一致（${once.length} 步 · seed=${SEED} · ${SCENARIOS.map((s) => `${s.scenario}/${s.policy}`).join(' · ')}）——掷骰序未变`);
+console.log(`✔ 战斗序列逐字节一致（${once.length} 步 · seed=${SEED} · ${SCENARIOS.map((s) => `${s.passage}/${s.label ?? s.policy}`).join(' · ')}）——掷骰序未变`);
 process.exit(0);

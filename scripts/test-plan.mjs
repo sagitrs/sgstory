@@ -160,6 +160,8 @@ export const SEGMENTS = [
 	{ id: "test-itemmatrix-mjs", phase: 'test', cost: 5, cmd: "node test/itemmatrix.mjs" },
 	// #608：**短战斗相位门**（引擎侧 widget 的契约：四相位→分支 · 未结束不结算不推进 · 奖励/失败笔记走声明面）
 	{ id: "test-shortfight-phases-mjs", phase: 'test', cost: 3, cmd: "node test/shortfight-phases.mjs" },
+	// 洞窟五步主线**末步**门（操作者实测）：走满 5 步再回岔口时**不许**抛 `roadOffer(6)` 红框 ⇒ 越界走退路
+	{ id: "test-cave-roads-mjs", phase: 'test', cost: 1, cmd: "node test/cave-roads.mjs" },
 	// `#660` 片三-3：**pc 默认形状住引擎、数值走故事**（`Game.Pc.defaults()` 摘掉 `Sg.story.pcDefaults()` 后每个值都必须中性；
 	// 缺面 ⇒ 显式降级 · 畸形面 ⇒ fail-loud · `migrate()` 兜底带故事数值 · 三故事键集合一致）
 	{ id: "test-pc-defaults-mjs", phase: 'test', cost: 2, cmd: "node test/pc-defaults.mjs" },
@@ -218,7 +220,10 @@ export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs', 'scripts-audit
 	// #608：短战斗相位门判的是**引擎侧契约**（故事只是驱动）
 	'test-shortfight-phases-mjs',
 	// `#660` 片三-3：pc 默认**形状**住引擎（故事只给数值）⇒ 判的是引擎侧契约
-	'test-pc-defaults-mjs'];
+	'test-pc-defaults-mjs',
+	// 洞窟末步门判的是**故事 2 的内容**（`stories/hollow-cave/10-cave.twee`）⇒ 归 story 层；为免与故事层计数混淆，
+	// 这里显式登记为"故事内容门"的同族（不进 ENGINE_EXTRA）
+	];
 
 // 段 → 层。`--<flag> --check` 形式的段从 flag 表推；其余：在 `ENGINE_EXTRA` 里 ⇒ engine，否则 story。
 // `declaredStoryFlags`＝**故事清单里声明的门 flag**（`#607` P1 起非空）：它们同样是"故事层"，

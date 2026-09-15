@@ -161,6 +161,7 @@ jobs:
           grep -q 'id="font-face"' /tmp/story.html || { echo "✗ 故事页缺 @font-face 注入"; exit 1; }
           test "$(grep -c 'rel="preload"' /tmp/story.html)" -ge 2 || { echo "✗ 故事页字体 preload 不足 2"; exit 1; }
           SSZ=$(wc -c < /tmp/story.html)
+          # 上界与 `scripts/dist-paths.mjs` 的 STORY_PAGE_MAX_BYTES／SHELF_PAGE_MAX_BYTES 同口径（由 test/multi-story.mjs 的 P5 门钉住，别只改这里）
           test "$SSZ" -lt 1000000 || { echo "✗ 故事页 ${SSZ}B ≥ 1MB（疑似回胖/内嵌字体）"; exit 1; }
           curl -sfL -o /dev/null "${URL}fonts/LXGWWenKai-Regular.woff2" || { echo "✗ 字体 404（mis-deploy）"; exit 1; }
           curl -sfL -o /dev/null "${URL}fonts/LXGWWenKai-Medium.woff2" || { echo "✗ 字体 404（mis-deploy）"; exit 1; }

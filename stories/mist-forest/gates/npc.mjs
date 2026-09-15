@@ -40,15 +40,34 @@ export const uncoveredGiveSites = (sites, entries) =>
 		return !entries.some((e) => e.act === `give:${item}` && e.p === p);
 	});
 /** 未登记的社交让渡（三形态：`social:<id>` / `flag:<x>` / 无冒号 ⇒ `give:<y>`）。 */
-export const uncoveredYields = (asks, entries) =>
-	(asks ?? []).filter((ask) => {
+export const uncoveredYields = (asks, entries) => {
+	// 形态表（`#733` 片 1 加一种）：`social:<askId>` · `flag:<x>` · **`note:<noteId>`** · 无冒号 ⇒ `give:<道具>`。
+	// 为什么加 `note:`：单源知识在声明面改用笔记键（与读侧 `Sg.notes.has(id)` 同词根）——
+	// 分类器的 `NOTE_REF_RE` 本来就认 `note:(n_…)`，引擎 `applyYields` 也认 id ⇒ 零新语法。
+	const tail = (v, pre) => (String(v).startsWith(pre) ? String(v).slice(pre.length) : null);
+	return (asks ?? []).filter((ask) => {
 		if (!ask.yield) return false;
-		const flagYield = String(ask.yield).startsWith('flag:') ? String(ask.yield).slice(5) : null;
+		const y = String(ask.yield);
+		const flagYield = tail(y, 'flag:');
+		const noteYield = tail(y, 'note:');
 		return !entries.some((e) =>
 			e.act === `social:${ask.id}`
 			|| (flagYield && e.act === `flag:${flagYield}`)
-			|| (!flagYield && !String(ask.yield).includes(':') && e.act === `give:${ask.yield}`));
+			|| (noteYield && e.act === `note:${noteYield}`)
+			|| (!flagYield && !noteYield && !y.includes(':') && e.act === `give:${y}`));
 	}).map((a) => `${a.id}（yield ${a.yield}）`);
+};
+/** **声明的产出口必须真的落到**（`note:` 形态，`#733` 片 1 · dev 要求"新形状必须能红"）：
+ *  某个 ask 声明 `yield: 'note:n_x'` ⇒ 故事源码里必须有对它的**写点**（`Sg.notes.add('n_x')`／`<<note "n_x">>`／
+ *  `addPath('n_x', …)`／`<<notepath "n_x" …>>`）——否则"声明了但没人给"就是空头承诺（`--sel` 对经济事件已有同型判据）。 */
+export const unlandedNoteYields = (asks, sources) => {
+	const text = Object.values(sources ?? {}).join('\n');
+	return (asks ?? [])
+		.map((a) => (String(a.yield ?? '').startsWith('note:') ? String(a.yield).slice(5) : null))
+		.filter(Boolean)
+		.filter((id) => !new RegExp(`(?:add|addPath)\\(\\s*['"]${id}['"]|<<\\s*(?:note|notepath)\\s+['"]${id}['"]`).test(text))
+		.map((id) => `note:${id}`);
+};
 /** 立场旗标：正文里出现（剥注释后）却没登记 ⇒ 报。 */
 export const uncoveredFlagSites = (flagSites, passageSrc, entries) =>
 	flagSites.filter(([act, re]) => [...passageSrc.values()].some((src) => re.test(src) || re.test(stripBlockComments(src))) && !entries.some((e) => e.act === act)).map(([act]) => act);
@@ -85,6 +104,11 @@ if (wantAll || arg('npc')) {
 		bad++;
 	}
 	for (const y of uncoveredYields(Game.Social.asks, entries)) { console.log(`  ✗ 社交让渡未登记：${y}`); bad++; }
+	// `#733` 片 1：声明的 `note:` 产出必须有写点（"声明了但没人给"＝空头承诺）
+	// ⚠️ 写点可能在**表侧**（`apply(pc)` 里 `Sg.notes.add(...)`）⇒ 必须扫**整个故事作用域**（引擎＋故事文件），
+	//    只扫段落会把"表里给的"误判成"没人给"（实测：`n_tav_tips`/`n_flower_warned`/`n_witch_grip` 三条正是表侧授予）。
+	const allStorySrc = Object.fromEntries(SRC_FILES.map((f) => { try { return [f, readFileSync(f, 'utf8')]; } catch { return [f, '']; } }));
+	for (const y of unlandedNoteYields(Game.Social.asks, allStorySrc)) { console.log(`  ✗ 声明的产出没落到（找不到对 ${y} 的写点）`); bad++; }
 	// 自证 6 例（合成输入）
 	{
 		const E = (act, p) => ({ act, p, motive: 'x', anchor: 'y' });
@@ -94,6 +118,9 @@ if (wantAll || arg('npc')) {
 			['表行 `gives` 与段落 `<<give>>` 合并去重', giveSitesOf(new Map([['P', '<<give "日记">>']]), [{ id: 'R', scope: 'P', gives: '日记' }]).size === 1],
 			['泛型占位：`Game Tables` 段的 `<<give "道具">>` 被跳过（由 social 条目覆盖）', giveSitesOf(new Map([['Game Tables', '<<give "道具">>']])).size === 0 && giveSitesOf(new Map([['P', '<<give "道具">>']])).size === 1],
 			['give 覆盖：有 `give:日记` 且同段 ⇒ 不报；换段 ⇒ 报', uncoveredGiveSites(new Set(['P::日记']), [E('give:日记', 'P')]).length === 0 && uncoveredGiveSites(new Set(['P::日记']), [E('give:日记', 'Q')]).length === 1],
+			['yield 四形态（`#733`）：`note:<id>` 也能覆盖', uncoveredYields([{ id: 'q', yield: 'note:n_x' }], [E('note:n_x', 'P')]).length === 0 && uncoveredYields([{ id: 'q', yield: 'note:n_x' }], []).length === 1],
+			['🔴 声明的 note 产出**没有写点** ⇒ `unlandedNoteYields()` 点名（新形状必须能红）', unlandedNoteYields([{ id: 'q', yield: 'note:n_x' }], { 'a.twee': '<<note "n_other">>' }).length === 1],
+			['✅ 有写点 ⇒ 不报（`<<note>>`／`add`／`notepath` 三种都认）', unlandedNoteYields([{ id: 'q', yield: 'note:n_x' }], { 'a.twee': "Sg.notes.add('n_x')" }).length === 0 && unlandedNoteYields([{ id: 'q', yield: 'note:n_x' }], { 'a.twee': '<<notepath "n_x" "ev.x">>' }).length === 0],
 			['yield 三形态：social:<id> / flag:<x> / 无冒号 ⇒ give:<y> 任一条都能覆盖', uncoveredYields([{ id: 'q', yield: 'flag:x' }], [E('flag:x', 'P')]).length === 0 && uncoveredYields([{ id: 'q', yield: '日记' }], [E('give:日记', 'P')]).length === 0 && uncoveredYields([{ id: 'q', yield: 'flag:x' }], []).length === 1],
 			['立场旗标：正文出现但未登记 ⇒ 报；登记了 ⇒ 不报', uncoveredFlagSites([['flag:r', /world\.r to true/]], new Map([['P', 'world.r to true']]), []).length === 1 && uncoveredFlagSites([['flag:r', /world\.r to true/]], new Map([['P', 'world.r to true']]), [{ act: 'flag:r' }]).length === 0],
 			// ⚠️ 钉住**现有语义**（不是我认为对的语义）：原实现先测**原始**源码、再测剥注释版 ⇒

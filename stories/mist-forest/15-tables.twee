@@ -31,13 +31,13 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 			'书房·敲墙':   { skill: '察觉', dc: 11, yields: '日记' },
 			'书房·断代':   { skill: '历史', dc: 13, yields: '日记' },
 			'书房·强拆':   { skill: '运动', dc: 13, yields: '日记' },
-			'工坊·识货':   { skill: '历史', dc: 12, yields: 'ev:forge_seen' },
-			'工坊·记号':   { skill: '察觉', dc: 11, yields: 'ev:forge_seen' },
+			'工坊·识货':   { skill: '历史', dc: 12, yields: 'note:n_forge_seen' },
+			'工坊·记号':   { skill: '察觉', dc: 11, yields: 'note:n_forge_seen' },
 			// 塔基花田（v16 补正 #6）：贸然采花＝较高体质豁免；失败＝死亡结局（有情报免判定）
 			'塔外花田':     { abil: 'con', dc: 16, yields: '月光花' },
 			'花田·下风':   { skill: '生存', dc: 13, yields: '月光花' },
-			'天文台·典籍': { skill: '奥秘', dc: 12, yields: 'ev:star_ledger' },
-			'天文台·光点': { skill: '察觉', dc: 12, yields: 'ev:star_ledger' },
+			'天文台·典籍': { skill: '奥秘', dc: 12, yields: 'note:n_star_ledger' },
+			'天文台·光点': { skill: '察觉', dc: 12, yields: 'note:n_star_ledger' },
 			'观星者·说服': { skill: '历史', dc: 13 },
 			'观星者·洞悉': { skill: '洞悉', dc: 13 },
 			'当时的女巫·辨认': { skill: '洞悉', dc: 12 },
@@ -93,8 +93,8 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 			'哥布林·看':   { skill: '洞悉', dc: 11 },
 		},
 		// 关键产出（M10）：每个都得有 ≥2 条通路、且判定属性不同——不许把玩家逼去读档
-		keyYields: ['日记', '坏哨', '月光花', '完整星图', 'flag:family_favor', 'flag:flower_warned', 'ev:witch_grip', 'ev:star_ledger', 'ev:forge_seen',
-			'ev:tav_tips', 'flag:goblin_spared', 'keeper:seal'],
+		keyYields: ['日记', '坏哨', '月光花', '完整星图', 'flag:family_favor', 'note:n_flower_warned', 'note:n_witch_grip', 'note:n_star_ledger', 'note:n_forge_seen',
+			'note:n_tav_tips', 'flag:goblin_spared', 'keeper:seal'],
 		// ── 情报优势（M6d）：付费/交涉得来的知识 → 位点自动双骰取高 ──
 		// key = 位点，value = $pc.world 上的旗标名
 		knowledge: {
@@ -596,7 +596,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 		// 一个诉求＝一句话 ＋ 若干条开口的方式（sites）＋ 若干件他真正想要的（levers）
 		// verdict：unwilling（越线，掷骰也没用）→ willing（他本来就想给）→ 否则掷骰
 		asks: [
-			{ id: '老板娘·进塔', tag: '问路', npc: '老板娘', q: '进塔该注意什么', base: 'neutral', yield: 'ev:tav_tips',
+			{ id: '老板娘·进塔', tag: '问路', npc: '老板娘', q: '进塔该注意什么', base: 'neutral', yield: 'note:n_tav_tips',
 				sites: ['酒馆·打听', '老板娘·吓', '老板娘·接话', '老板娘·读'],
 				levers: [
 					{ id: 'drink', name: '请她喝一轮', gives: 'auto', econ: 'drink_round', note: '她不缺你这两句话，缺的是一轮酒' },
@@ -608,7 +608,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				bad: `她把抹布在台面上又擦了一遍，没接你的话。（''她听过了，不想再说。''）`,
 				auto: '你把酒钱推过去。她愣了一下，然后真的坐下了："……你倒是会做人。坐下吧。"' },
 
-			{ id: '守林人·花', tag: '问花', npc: '守林人', q: '塔基墙根那片银白的花是什么', yield: 'flag:flower_warned',
+			{ id: '守林人·花', tag: '问花', npc: '守林人', q: '塔基墙根那片银白的花是什么', yield: 'note:n_flower_warned',
 				base: (pc) => (pc.inv['时光护符'] ? 'friendly' : 'neutral'),
 				sites: ['守林人·交涉', '守林人·指花', '守林人·读'],
 				levers: [
@@ -651,7 +651,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				auto: '你把那册风化了的书放在案上。他的手停住了。"这是我写的。"他翻了两页，看了很久。' },
 
 			{ id: '女巫·看哨', tag: '看哨', npc: '当时的女巫', q: '那支哨子，给我看看', base: (pc) => (pc.ev?.witch_gifted ? 'friendly' : 'neutral'),   // #249：贺礼＝态度位（非好感线）
-				yield: 'ev:witch_grip',
+				yield: 'note:n_witch_grip',
 				sites: ['当时的女巫·辨认', '当时的女巫·开口', '当时的女巫·激'],
 				levers: [
 					{ id: 'read', name: '看她握哨的手势', gives: 'adv', needRead: true, note: '那只手一直没松开过' },
@@ -792,14 +792,14 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 		entries: {
 			// 女巫（母·现在）
 			'女巫·交护符':        { npc: '女巫', act: 'give:时光护符', p: '女巫小屋', anchor: '等的不是它回来', venue: '女巫小屋', role: '女巫', motive: '压不住雾＋等了一百年——盼有人替她了结（#253 动机桥）' },
-			'女巫·遗赠情报':      { npc: '女巫', act: 'flag:witch_hint', p: '女巫小屋', anchor: '塔我进不去', venue: '女巫小屋', role: '女巫', motive: '遗赠执行——进不去塔（路认守林人家的钥匙），只能记下待人带进（#253）' },
+			'女巫·遗赠情报':      { npc: '女巫', act: 'note:n_witch_hint', p: '女巫小屋', anchor: '塔我进不去', venue: '女巫小屋', role: '女巫', motive: '遗赠执行——进不去塔（路认守林人家的钥匙），只能记下待人带进（#253）' },
 			'女巫·满血祝福':      { npc: '女巫', act: 'note', p: '女巫小屋', anchor: '坏的是这片林子的名声', venue: '女巫小屋', role: '女巫', motive: '声誉即生计——外人死在外头坏林子名声' },
 			// 老板娘 / 老猎人
 			'老板娘·两诫':        { npc: '老板娘', act: 'social:老板娘·进塔', p: '酒馆', anchor: '就记住两件事', venue: '酒馆', role: '酒馆老板娘', motive: '见惯走不回来的人——一冬天送走三拨（#253）' },
-			'老猎人·洞穴情报':    { npc: '老猎人', act: 'flag:rumor', p: '酒馆', anchor: '这话值五枚', venue: '酒馆', role: '酒客', motive: '交易腔——实话值钱，爱听不听（#253）' },
+			'老猎人·洞穴情报':    { npc: '老猎人', act: 'note:n_rumor', p: '酒馆', anchor: '这话值五枚', venue: '酒馆', role: '酒客', motive: '交易腔——实话值钱，爱听不听（#253）' },
 			// 守林人（现任）
 			'守林人·钥匙':        { npc: '守林人', act: 'give:守林人的钥匙', p: '守林人', anchor: '他从腰上解下钥匙', venue: '塔门', role: '守林人', motive: '空手也给——护符即凭据（§5.12）' },
-			'守林人·花警告':      { npc: '守林人', act: 'flag:flower_warned', p: '守林人', anchor: '我小时候在那儿睡过一下午', venue: '塔门', role: '守林人', motive: '保命信息无差别（#229）——亲历那一下午' },
+			'守林人·花警告':      { npc: '守林人', act: 'note:n_flower_warned', p: '守林人', anchor: '我小时候在那儿睡过一下午', venue: '塔门', role: '守林人', motive: '保命信息无差别（#229）——亲历那一下午' },
 			'守林人·求术':        { npc: '守林人', act: 'social:守林人·术', p: 'Game Tables', anchor: '你带着我家的字来', venue: '塔门', role: '守林人', motive: 'trust 门槛具象化——带家先人的字来就没得可藏（#230）' },
 			'守林人·铁匠回执':    { npc: '守林人', act: 'note', p: '守林人', anchor: '他不来取，就归用得上的人', venue: '塔门', role: '守林人', motive: '先人的臂归用得上的人（#234 改）' },
 			'守林人·答所守':      { npc: '守林人', act: 'note', p: '顶楼', anchor: '守的从来不是悔恨', venue: '顶楼', role: '守林人', motive: '问即答——对话层，不落旗' },

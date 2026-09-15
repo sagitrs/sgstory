@@ -572,7 +572,8 @@ Object.assign((window.Game.Combat ??= {}), {
 		if (waves.length !== 1 && waves.length !== 2) throw new Error(`Game.Combat.wavePlan：遭遇「${id}」的批数必须是 1（短）或 2（长）——实际 ${waves.length}（#488）`);
 		const long = waves.length === 2;
 		return {
-			id, waves: waves.map((wv) => ({ pool: wv.pool, difficulty: wv.difficulty, reinforce: !!wv.reinforce })),
+			// `#705` 片二：波里**声明的 `enemies`** 必须带出来（原先被这条 map 丢掉 ⇒ 运行时永远看不到敌人）。
+			id, waves: waves.map((wv) => ({ pool: wv.pool, difficulty: wv.difficulty, reinforce: !!wv.reinforce, enemies: Array.isArray(wv.enemies) ? [...wv.enemies] : undefined })),
 			// `#599`（2026-09-14 口径定案）：长战斗**回合上限 3 → 5**，保留"需 3 次成功"——
 			// 依据：① 保留"三击"＝长战斗的形，只松压力；② `#600` 必掉钥匙 × 0.74% 清完率自相矛盾；
 			// ③ 候选里这是"保持结构、只改压力"的那档（改命中数＝改形）。两批清完率 ≈ 16.6%。
@@ -580,12 +581,106 @@ Object.assign((window.Game.Combat ??= {}), {
 			rewardsScale: typeof enc.rewardsScale === 'number' ? enc.rewardsScale : 1,
 		};
 	},
-	/** 开始一场带波次的遭遇（写 `pc.ev.fight.wave`）；返回本批的 `{ pool }` 供战斗 UI 用。 */
+	/** 开始一场带波次的遭遇（写 `pc.ev.fight.wave`；`#705` 片二起：声明了 `enemies` 的波同时**实例化敌人**）；返回本批的 `{ pool }` 供战斗 UI 用。 */
 	waveBegin(pc, id) {
 		const plan = this.wavePlan(id);
 		if (!plan) return null;
 		pc.ev.fight = { ...(pc.ev.fight ?? {}), wave: { encounter: id, idx: 1, hits: 0, rounds: 0 } };
 		return { pool: plan.waves[0].pool, plan };
+	},
+	// ── `#705` 片二／`#702` a2（5e 对齐）：**敌人实例**（HP 会掉、归零退场）＋ 攻击骰 vs AC ─────────
+	// **opt-in 唯一开关**：`encounters[id].waves[i].enemies` 声明了 ⇒ 该波走本模式；未声明 ⇒ 旧二元模式。
+	// **单一权威**：属性/骰式只住**声明面**（`enemies[id] = { hp, ac, attack:{ bonus, dmg, parts } }`）；
+	//   实例只存**可变**状态 `{ id, hp }`（改声明 ⇒ 真机行为跟着变——判据面就吃这条）。
+	// 数学（5e）：玩家 `d20 + 属性调整 + 熟练` vs `foe.ac`；敌人 `d20 + attack.bonus` vs **`pc.ac`**；
+	//   伤害都是骰式（`NdM±K`，`rollDice`）；敌人的伤害**落部位**（`attack.parts`）⇒ `slotAbsorbAt`。
+	/** 玩家 AC（5e）：`10 + dexMod + Σ 护具.ac`。未启用部位机制 ⇒ `null`（调用方走旧路径）。
+	 *  护具未声明 `ac` ⇒ 记 0（背包/武器）；声明了但非数字 ⇒ 报错（结构畸形必须报错）。 */
+	pcAC(pc) {
+		const mech = this.slotsDecl();
+		if (!mech) return null;
+		let ac = 10 + window.Game.Rules.abilityMod(pc, 'dex');
+		for (const g of pc?.gear ?? []) {
+			const def = mech.equipment?.[g];
+			if (!def || def.ac === undefined) continue;
+			if (typeof def.ac !== 'number') throw new Error(`Game.Combat.pcAC：护具「${g}」的 \`ac\` 必须是数字（#702）`);
+			ac += def.ac;
+		}
+		return ac;
+	},
+	/** 敌人声明（单一权威）。未声明 ⇒ **报错**：结构缺失必须报错（`#705`）。 */
+	enemyDef(id) {
+		const def = this.slotsDecl()?.enemies?.[id];
+		if (!def) throw new Error(`Game.Combat.enemyDef：敌人「${id}」未声明（结构缺失必须报错，#705）`);
+		return def;
+	},
+	/** 该【波】声明的敌人 id 列表；未声明 `enemies` ⇒ `null`（＝旧二元模式）。 */
+	waveFoeIds(id, waveIdx = 0) {
+		const plan = this.wavePlan(id);
+		if (!plan) return null;
+		const wv = plan.waves[Math.min(plan.waves.length - 1, Math.max(0, waveIdx))];
+		return Array.isArray(wv.enemies) && wv.enemies.length ? wv.enemies : null;
+	},
+	/** 敌人满 HP（从声明面读；非正数 ⇒ 报错）。 */
+	enemyMaxHp(id) {
+		const d = this.enemyDef(id);
+		if (typeof d.hp !== 'number' || d.hp <= 0) throw new Error(`Game.Combat：敌人「${id}」的 \`hp\` 必须是正数（拿到 ${JSON.stringify(d.hp)}，#705）`);
+		return d.hp;
+	},
+	/** 实例化当前波（`waveBegin`／增援时调）：写 `pc.ev.fight.wave.foes`；未声明 `enemies` ⇒ `null`（不写键）。 */
+	foeSpawn(pc, waveIdx = 0) {
+		const w = pc?.ev?.fight?.wave;
+		if (!w) throw new Error('Game.Combat.foeSpawn：尚未 `waveBegin`（没有波次状态）——调用方先开局（#705）');
+		const ids = this.waveFoeIds(w.encounter, waveIdx);
+		if (!ids) return null;
+		w.foes = ids.map((id) => ({ id, hp: this.enemyMaxHp(id) }));
+		return w.foes;
+	},
+	/** 玩家 ➜ 敌人（5e）：`d20 + 属性调整 + 熟练` vs `foe.ac`（天然 20 必中／天然 1 必失）。
+	 *  **纯**：返回**新的** `foes` 列表（调用方写 `pc.ev.fight.wave.foes`）＋ 这一击的记录（`#701` 的日志面吃它）。 */
+	foeStrike(pc, { ability = 'str', dmg = '1', adv = 0, target = 0 } = {}) {
+		const w = pc?.ev?.fight?.wave;
+		const foes = w?.foes;
+		if (!Array.isArray(foes) || !foes.length) throw new Error('Game.Combat.foeStrike：当前波没有敌人实例（先 `foeSpawn`，#705）');
+		const i = Math.min(foes.length - 1, Math.max(0, target));
+		const foe = foes[i];
+		const def = this.enemyDef(foe.id);
+		if (typeof def.ac !== 'number') throw new Error(`Game.Combat.foeStrike：敌人「${foe.id}」的 \`ac\` 必须是数字（#702）`);
+		const { roll, rolls } = window.Game.Rules.roll(adv);
+		const mod = window.Game.Rules.abilityMod(pc, ability) + window.Game.Rules.prof();
+		const total = roll + mod;
+		const crit = roll === 20, fumble = roll === 1;
+		const hit = crit || (!fumble && total >= def.ac);
+		let dealt = 0;
+		const next = foes.map((f) => ({ ...f }));
+		if (hit) {
+			dealt = this.rollDice(dmg) * (crit ? 2 : 1);           // 5e：暴击＝伤害骰翻倍
+			next[i].hp = next[i].hp - dealt;
+		}
+		const down = next[i].hp <= 0;
+		const out = down ? next.filter((_, k) => k !== i) : next;
+		return { foe: foe.id, roll, rolls, mod, total, ac: def.ac, hit, crit, dmg: dealt, hp: Math.max(0, next[i].hp), down, foes: out, target: i };
+	},
+	/** 敌人 ➜ 玩家（5e）：`d20 + attack.bonus`（＋可选优势）vs **`pc.ac`**（`pcAC()`；未启用 ⇒ 报错）；
+	 *  命中 ⇒ `rollDice(attack.dmg)` ⇒ 部位取 `attack.parts`（掷一个）⇒ **`slotAbsorbAt`**（减成/耐久/HP 一次算清）。
+	 *  **纯**：返回计划（`hp`/`gearHp` 由调用方落），与 `slotAbsorbAt` 同口径。 */
+	foeHit(pc, foeOrId, { adv = 0 } = {}) {
+		const id = typeof foeOrId === 'string' ? foeOrId : foeOrId?.id;
+		const def = this.enemyDef(id);
+		const ac = this.pcAC(pc);
+		if (ac === null) throw new Error('Game.Combat.foeHit：未启用部位机制（`mechanics()` 为 null）⇒ 敌人攻击不落部位（#705）');
+		const atk = def.attack ?? {};
+		if (typeof atk.bonus !== 'number') throw new Error(`Game.Combat.foeHit：敌人「${id}」的 \`attack.bonus\` 必须是数字（拿到 ${JSON.stringify(atk.bonus)}，#702）`);
+		const parts = Array.isArray(atk.parts) && atk.parts.length ? atk.parts : (this.slotsDecl()?.hitLocations ?? []);
+		if (!parts.length) throw new Error(`Game.Combat.foeHit：敌人「${id}」没有可落部位（\`attack.parts\` 空且没有 \`hitLocations\`，#705）`);
+		const { roll, rolls } = window.Game.Rules.roll(adv);
+		const total = roll + atk.bonus;
+		const crit = roll === 20, fumble = roll === 1;
+		const hit = crit || (!fumble && total >= ac);
+		const part = parts[Math.min(parts.length - 1, window.Game.Rules.rng.d(parts.length) - 1)];
+		const raw = hit ? this.rollDice(atk.dmg) * (crit ? 2 : 1) : 0;
+		const absorb = hit ? this.slotAbsorbAt(pc, part, raw) : null;
+		return { foe: id, roll, rolls, bonus: atk.bonus, total, ac, hit, crit, part, raw, absorb };
 	},
 	/** 记一次「本回合的命中/成败」；返回推进后的相位：`continue`／`advance`（增援）／`cleared`／`failed`。 */
 	waveRecord(pc, success) {
@@ -593,6 +688,18 @@ Object.assign((window.Game.Combat ??= {}), {
 		if (!w) throw new Error('Game.Combat.waveRecord：尚未 `waveBegin`（没有波次状态）——调用方先开局（#488）');
 		const plan = this.wavePlan(w.encounter);
 		w.rounds += 1;
+		// `#705` 片二（`#702` a2）：声明了本波的 `enemies` ⇒ 通关判据＝**敌人全灭**（`hits` 退场，见判据⑦）；
+		// 未声明 ⇒ 逐字节走旧的二元口径 ⇒ 故事 1 不受影响（`fight-seq` 基线不变）。
+		if (Array.isArray(w.foes)) {                       // `#705` 片二：**实例在场**才算敌人模式（声明只说"能开"）
+			if ((w.foes ?? []).length === 0) {
+				if (w.idx >= plan.waves.length) return { phase: 'cleared', plan, wave: w, advance: false };
+				w.idx += 1; w.hits = 0; w.rounds = 0;
+				this.foeSpawn(pc, w.idx - 1);                      // 增援：新一批**实例化**（HP 满）
+				return { phase: 'advance', plan, wave: w, advance: true, pool: plan.waves[w.idx - 1].pool };
+			}
+			if (w.rounds >= plan.rounds) return { phase: 'failed', plan, wave: w, advance: false };
+			return { phase: 'continue', plan, wave: w, advance: false };
+		}
 		if (success) w.hits += 1;
 		if (w.hits >= plan.hits) {
 			if (w.idx >= plan.waves.length) return { phase: 'cleared', plan, wave: w, advance: false };

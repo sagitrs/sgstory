@@ -213,28 +213,46 @@ const MECH = {
 	},
 	// `#696`：五洞窟的产出也**声明化**（`#600` 的同族口径）——**钥匙主源是战斗** ⇒ 矿洞掉钥匙是 25% 的小概率，其余给干粮。
 	caveRewards: { 矿洞: { keyChance: 25, fallback: '干粮' } },
-	// 五步主线：每步 3 路（段号从 1 计，与 `roadOffer(idx)` 一致）；每步至少一个 `noCheck:true`（不掷骰也有路）
+	// 五步主线：段号从 1 计（与 `roadOffer(idx)` 一致）；每步至少一个 `noCheck:true`（不掷骰也有路）。
+	// `#718`（操作者实测：**每段恰好 3 条 ⇒ 重开零变体**）：每段声明 **6 条**、**类型互不重复** ⇒
+	// `roadOffer` 从该段 6 条里随机取 3 ⇒ 每段 **C(6,3)=20 种组合**（原先 3 条里取 3 ⇒ 恒 1 种）。
+	// 只**复用**既有 15 个实例段落（`路·<ref>`），不新增内容段落；线索在同段内两两不等价（门判据⑤）。
 	roads: [
 		{ from: 0, to: 1, options: [
 			{ kind: 'shortFight', hint: '碎石间有拖行的痕迹', ref: '1a' },
 			{ kind: 'chest', hint: '岩壁凹处反着一点金属光', ref: '1b', noCheck: true },
-			{ kind: 'trap', hint: '地面浮土比别处松', ref: '1c' }] },
-		{ from: 1, to: 2, options: [
-			{ kind: 'longFight', hint: '地上的脚印都朝一个方向', ref: '2a' },
+			{ kind: 'trap', hint: '地面浮土比别处松', ref: '1c' },
+			{ kind: 'longFight', hint: '脚印都朝着一个方向，没有回头的', ref: '4b' },
 			{ kind: 'cave', hint: '那边吹过来的风是热的', ref: '2b', noCheck: true },
 			{ kind: 'traveller', hint: '石缝里卡着一小块布', ref: '2c' }] },
-		{ from: 2, to: 3, options: [
-			{ kind: 'trap', hint: '头顶有细砂在往下落', ref: '3a', noCheck: true },
+		{ from: 1, to: 2, options: [
+			{ kind: 'longFight', hint: '地上的脚印都朝一个方向', ref: '2a' },
+			{ kind: 'cave', hint: '那边的岩壁潮得能拧出水', ref: '2b', noCheck: true },
+			{ kind: 'traveller', hint: '前面有人在低声哼调子', ref: '2c' },
+			{ kind: 'shortFight', hint: '远处有东西在啃石头', ref: '3c' },
 			{ kind: 'chest', hint: '锁扣露在外面，锈得发红', ref: '3b' },
-			{ kind: 'shortFight', hint: '远处有东西在啃石头', ref: '3c' }] },
-		{ from: 3, to: 4, options: [
+			{ kind: 'trap', hint: '头顶有细砂在往下落', ref: '3a', noCheck: true }] },
+		{ from: 2, to: 3, options: [
+			{ kind: 'trap', hint: '头顶的细砂又落下来一层', ref: '3a', noCheck: true },
+			{ kind: 'chest', hint: '半塌的石堆里露着一只箱角', ref: '3b' },
+			{ kind: 'shortFight', hint: '碎石在动，不是风', ref: '3c' },
 			{ kind: 'cave', hint: '滴水声从很低的地方传上来', ref: '4a', noCheck: true },
 			{ kind: 'longFight', hint: '两声脚步，不是一只', ref: '4b' },
 			{ kind: 'traveller', hint: '前面有火光，在动', ref: '4c' }] },
+		{ from: 3, to: 4, options: [
+			{ kind: 'cave', hint: '风里有股湿乎乎的凉意', ref: '4a', noCheck: true },
+			{ kind: 'longFight', hint: '它守在那儿，不让路', ref: '4b' },
+			{ kind: 'traveller', hint: '火光停着不动了，像在等你', ref: '4c' },
+			{ kind: 'chest', hint: '最后一只箱子，压在半塌的碎石下', ref: '5b' },
+			{ kind: 'shortFight', hint: '拖行的痕迹又出现了，比先前深', ref: '1a' },
+			{ kind: 'trap', hint: '脚下的浮土松得反常', ref: '1c' }] },
 		{ from: 4, to: 5, options: [
 			{ kind: 'cave', hint: '洞口那边能看见村子的屋顶', ref: '5a', noCheck: true },
-			{ kind: 'chest', hint: '最后一只箱子，压在半塌的碎石下', ref: '5b' },
-			{ kind: 'longFight', hint: '它守在那儿，不让路', ref: '5c' }] },
+			{ kind: 'chest', hint: '箱子上落着一层新灰', ref: '5b' },
+			{ kind: 'longFight', hint: '有东西堵在最后一段路上', ref: '5c' },
+			{ kind: 'shortFight', hint: '碎石间的声音越来越近', ref: '1a' },
+			{ kind: 'trap', hint: '细砂从头顶漏下来', ref: '3a', noCheck: true },
+			{ kind: 'traveller', hint: '有人在暗处叫住了你', ref: '4c' }] },
 	],
 	// 宝箱（S4 §4.3）：3 种机关 × 2 档稀有度；通用道具各降 3；钥匙降为 0；也可径直通过
 	chest: {

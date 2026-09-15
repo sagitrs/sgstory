@@ -4,6 +4,7 @@
 //
 // JSDOM 启动 / 就绪轮询 / uncaught 监听 / 退出清理全部走 test/boot.mjs——一处修，全脚本受益。
 import { writeFileSync, mkdirSync } from 'node:fs';
+import * as os from 'node:os';   // `#647`：失败行带 loadavg（分诊用）
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { boot, CLICKABLE, CLICKABLE_SEL } from './boot.mjs';
 
@@ -1744,14 +1745,23 @@ const routes = [
 	['跨周目粘性（#271）', routeCrossRunSticky],
 ];
 
+// `#647`（flaky 观测）：路线失败时把**分诊三件套**一起打进日志 —— 路线名 · 本路线耗时 · 当时的机器负载。
+// 为什么：本票的历史是"CI 负载下偶发红 / 本地与重跑皆绿"，没有耗时与负载就**无法归类**（code 还是 infra）；
+// 这三项在 CI 日志里随失败行一起出现，才是"抓到一次复发 ⇒ 段级归类"的前提（口径见票上 2026-09-15 的裁定）。
+const routeTimes = new Map();
+const loadAt = () => { try { return os.loadavg()[0].toFixed(2); } catch { return '?'; } };
 const results = await Promise.all(routes.map(async ([name, fn, meta]) => {
 	if (meta?.synthetic) syntheticRoutes.add(name);
+	const t0 = Date.now();
 	try {
 		await routeCtx.run(name, fn);   // #295：把路线名绑到该路线的异步上下文上
-		console.log(`✓ ${name}`);
+		routeTimes.set(name, Date.now() - t0);
+		console.log(`✓ ${name}（${Date.now() - t0}ms）`);
 		return null;
 	} catch (e) {
-		console.error(`✗ ${name}：${e.message}`);
+		const ms = Date.now() - t0;
+		routeTimes.set(name, ms);
+		console.error(`✗ ${name}：${e.message}　【分诊（#647）：本路线 ${ms}ms · loadavg ${loadAt()} · 并发路线 ${routes.length} 条】`);
 		return name;
 	}
 }));

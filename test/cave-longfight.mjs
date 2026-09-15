@@ -49,7 +49,8 @@ const runFight = async (random) => {
 		if (!progressed({ before, after, waveBefore: wb, waveAfter: wa })) { stuckAt = clicks + 1; break; }
 		if (w.SugarCube.State.passage !== '机制·longFight') { clicks++; break; }
 	}
-	return { clicks, leftTo: w.SugarCube.State.passage, stuckAt, gold: Number(w.eval('SugarCube.State.variables.pc.gold')) || 0 };
+	// `#661`：离开长战斗后**结果句必须到玩家眼前**（文本曾在 link 缓冲、`<<goto>>` 在尾段里跑 ⇒ 整段丢）
+	return { clicks, leftTo: w.SugarCube.State.passage, stuckAt, endText: screen(), gold: Number(w.eval('SugarCube.State.variables.pc.gold')) || 0 };
 };
 
 console.log('══ 长战斗「点得动、走得掉」门（#598）══');
@@ -66,6 +67,8 @@ console.log('══ 长战斗「点得动、走得掉」门（#598）══');
 for (const [label, random] of [['败路（random=0.5 ⇒ d20=11）', 0.5], ['胜路（random=0.99 ⇒ d20=20）', 0.99]]) {
 	const r = await runFight(random);
 	if (r.stuckAt) { bad++; console.error(`      ✗ ${label}：第 ${r.stuckAt} 击**没有进展**（屏与波次都没变）——"点了没反应"`); continue; }
+	// `#661`：离开后**结果句必须到玩家眼前**（`runFight` 里取的是落点屏文本）
+	if (!/最后一只也塌下去了|你被压在地上/.test(r.endText ?? '')) { bad++; console.error(`      ✗ ${label}：离开后**看不到胜/败句**（\`#661\`）——屏：${String(r.endText).slice(0, 80)}`); continue; }
 	if (r.leftTo === '机制·longFight') { bad++; console.error(`      ✗ ${label}：点了 ${r.clicks} 次仍**没离开**长战斗 ⇒ 死路`); continue; }
 	console.log(`      ✓ ${label}：${r.clicks} 击后离开 ⇒ ${r.leftTo}（金币 ${r.gold}）`);
 	const isWin = r.gold > 0;

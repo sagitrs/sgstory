@@ -96,10 +96,10 @@
 		   ⇒ 取 `.phase`；两条“继续/增援”改成 `<<goto>>`（真的重渲染本段落，计数与结果槽才会更新）。 %/
 		<<set _ph to Game.Combat.waveRecord($pc, $last_check.success).phase>>
 	<<if _ph is "advance">>
-		这一批倒下了。石缝里又钻出来更多——它还有同伙。
+		<<actOut "这一批倒下了。石缝里又钻出来更多——它还有同伙。">>
 		<<goto "机制·longFight">>
 	<<elseif _ph is "cleared">>
-		最后一只也塌下去了。你站着，喘了很久。
+		<<actOut "最后一只也塌下去了。你站着，喘了很久。">>
 		/% `#600`：长战斗**必掉**钥匙（声明面 `item: '钥匙'`）；金币与掉落同走一处落账 %/
 		<<set _r to Game.Combat.grantReward($pc, "long")>>
 		<<if _r.gold gt 0>>（两只身上都挂着旧币，你收了起来。）<</if>>
@@ -107,12 +107,12 @@
 		<<set $pc.ev.fight to {}>>
 		<<caveNext>>
 	<<elseif _ph is "failed">>
-		你被压在地上。它们没有追——它们只是不让你过。
+		<<actOut "你被压在地上。它们没有追——它们只是不让你过。">>
 		<<damage `Game.Damage.hard`>>
 		<<set $pc.ev.fight to {}>>
 		<<caveNext>>
 	<<else>>
-		它退了半步。你还有机会。
+		<<actOut "它退了半步。你还有机会。">>
 		<<goto "机制·longFight">>
 	<</if>>
 <</link>>

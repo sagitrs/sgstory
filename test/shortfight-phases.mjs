@@ -38,6 +38,8 @@ export const phaseKind = (phase) => (phase === 'cleared' ? 'win' : phase === 'fa
 
 const PILOT = '机制·shortFight';
 const TAIL_STEP = 1;   // 尾段＝`机制·shortFight·尾`（本故事的 `<<caveNext>>` ⇒ 步数 +1）
+const WIN_SENTENCE = '刃压住了它';       // 第 ③ 实参（胜句）
+const LOSE_SENTENCE = '它撞在你肋上';    // 第 ④ 实参（败句）
 
 /** 跑一个相位：返回点击后的观测（落点／金币／hp／步数／失败笔记／屏文本）。 */
 const runPhase = async ({ phase, dice = 0.99, rewardGold = null, label }) => {
@@ -71,10 +73,10 @@ const runPhase = async ({ phase, dice = 0.99, rewardGold = null, label }) => {
 	} finally { try { close?.(); } catch { /* 关窗失败不影响结论 */ } }
 };
 
-// ⚠️ **本门不判"胜/败句是否出现在屏上"**：实测（`Engine.play('机制·shortFight')` 与真实路径 `路·1a` 两条都试过）
-// 这两句**根本没到玩家眼前**——`$pc.ev.last_result` 为 `undefined`、落点段落的文本里也没有它。
-// 那是**既有缺陷**（`#262` 的留屏包装器读的是 `<<goto>>` 宏的输出，而本 widget 是裸 `<<print>>` 打进 **link 动作**的缓冲），
-// 与 `#608` 的搬运无关（搬前搬后同构）⇒ 已另开票 **`#661`**，**不在本门里钉住它**（钉住＝把 bug 当期望）。
+// ③ **可见性**（`#661` 修复后补上；`#608` 的门当初**刻意不判**它——那时两句根本没到玩家眼前，钉住＝把 bug 当期望）：
+//   胜句／败句必须**出现在屏上**（跨段导航后仍可见）。根因是"文本打在 link 动作缓冲里、而 `<<goto>>` 在**尾段/widget** 里跑"
+//   ⇒ 留屏包装器读不到它；修法＝分支句改走 `<<actOut>>`（`#262` 的**既定协议**：就地显示 ＋ 存 `$pc.ev.last_result`）。
+//   **探针**：把任一分支句改回裸 `<<print>>`／裸文本 ⇒ 本门当场红（实测）。
 
 // ── ① 四相位 → 分支 ──
 for (const [phase, dice] of [['cleared', 0.99], ['failed', 0.01], ['continue', 0.99], ['advance', 0.99]]) {
@@ -83,8 +85,10 @@ for (const [phase, dice] of [['cleared', 0.99], ['failed', 0.01], ['continue', 0
 	if (kind === 'win') {
 		ok(r.gold > 0, `${phase}：**结算**（金币 ${r.gold} > 0）`, `gold=${r.gold}`);
 		ok(r.step === TAIL_STEP, `${phase}：**推进**（步数 = ${TAIL_STEP}，尾段跑过）`, `step=${r.step}`);
+		ok(r.text.includes(WIN_SENTENCE), `${phase}：**胜句出现在屏上**（\`#661\`）`, r.text.slice(0, 80));
 	} else if (kind === 'lose') {
 		ok(r.gold === 0, `${phase}：**不结算**（金币 0）`, `gold=${r.gold}`);
+		ok(r.text.includes(LOSE_SENTENCE), `${phase}：**败句出现在屏上**（\`#661\`）`, r.text.slice(0, 80));
 		ok(r.hp < r.hpBefore, `${phase}：受伤（${r.hpBefore}→${r.hp}）`);
 		ok(r.note, `${phase}：写了**声明面的失败笔记**（\`n_cave_battered\`）`);
 		ok(r.step === TAIL_STEP, `${phase}：**推进**（步数 = ${TAIL_STEP}）`, `step=${r.step}`);
@@ -93,6 +97,7 @@ for (const [phase, dice] of [['cleared', 0.99], ['failed', 0.01], ['continue', 0
 		ok(r.gold === 0, `${phase}：**未结束 ⇒ 不结算**（金币 0；这正是"用 success 分支"会红的地方）`, `gold=${r.gold}`);
 		ok(r.step === 0, `${phase}：**未结束 ⇒ 不推进**（步数 0）`, `step=${r.step}`);
 		ok(r.passage === PILOT, `${phase}：重渲染本段（落点＝${PILOT}）`, `落点=${r.passage}`);
+		ok(r.text.includes(WIN_SENTENCE), `${phase}：胜句照印（重渲染后仍可见，\`#661\`）`, r.text.slice(0, 80));
 	}
 }
 

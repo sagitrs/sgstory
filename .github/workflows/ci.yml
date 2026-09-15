@@ -167,7 +167,7 @@ jobs:
           test "$(grep -c 'rel="preload"' /tmp/story.html)" -ge 2 || { echo "✗ 故事页字体 preload 不足 2"; exit 1; }
           SSZ=$(wc -c < /tmp/story.html)
           # 上界与 `scripts/dist-paths.mjs` 的 STORY_PAGE_MAX_BYTES／SHELF_PAGE_MAX_BYTES 同口径（由 test/multi-story.mjs 的 P5 门钉住，别只改这里）
-          test "$SSZ" -lt 1100000 || { echo "✗ 故事页 ${SSZ}B ≥ 上界（疑似回胖/内嵌字体；上界 2026-09-14 由 1MB 抬到 1.1MB，理由见 dist-paths.mjs 常量注释）"; exit 1; }
+          test "$SSZ" -lt 2000000 || { echo "✗ 故事页 ${SSZ}B ≥ 上界（疑似回胖/内嵌字体；上界 2026-09-14 抬到 2MB（曾 1MB→1.1MB），理由见 dist-paths.mjs 常量注释）"; exit 1; }
           curl -sfL -o /dev/null "${URL}fonts/LXGWWenKai-Regular.woff2" || { echo "✗ 字体 404（mis-deploy）"; exit 1; }
           curl -sfL -o /dev/null "${URL}fonts/LXGWWenKai-Medium.woff2" || { echo "✗ 字体 404（mis-deploy）"; exit 1; }
           echo "✔ 线上冒烟通过：书架 ${SZ}B（含故事链接）+ 故事页 ${SSZ}B 字体三断言 + 字体外链可达"

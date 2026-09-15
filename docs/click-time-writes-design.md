@@ -58,7 +58,7 @@
 - 行形如 `req: [{ gte: ['gold', { price: 'rumor_buy' }] }]`；
 - 引擎侧经 `Sg.story.*` 取当前值（**新登记面**，与 `mechanics()`／`itemEffect()` 同族）；
 - 门侧加"取值项表"`Sg.rules.terms = ['price']`（与 `ops`／`prefixes`／`effects` 同轴的**反沉默面**）：行里用了未宣告的取值项 ⇒ 红；
-- 消费者：可负担性 4 处（`30-ch1` 的 `rumor_buy`／`torch_buy`／`witch_hint`／`salve_buy`）＋ 女巫小屋的相关链接文案（价格要显示 ⇒ 值也要能插进 `text`，这一条**要不要**做请先定，见未决项 3）。
+- 消费者：可负担性 **3 处已迁**（`30-ch1` 的 `rumor_buy`／`torch_buy`／`witch_hint`／`salve_buy`）＋ 女巫小屋的相关链接文案（价格要显示 ⇒ 值也要能插进 `text`，这一条**要不要**做请先定，见未决项 3）。
 
 ## 4. 批次（34 处）
 

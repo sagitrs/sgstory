@@ -678,6 +678,25 @@ window.Sg.rules = {
 	// 为什么必须由引擎宣告：引擎不认的算子会让条件**永假** ⇒ 行静默死掉（本仓反复踩的那类）。
 	// 词表与门侧同一份口径（`scripts/audit/lib/shared.mjs` 的 `OPS`）；两侧漂移会被 `--rules` 当场抓住。
 	ops: ['gte', 'lte', 'oneOf'],
+	// **取值项**（`#624` 片二，与 `ops` 同轴的反沉默面）：条件里可以写"随状态变的值"，当前只有
+	// `{ price: '<econ 事件 id>' }`（＝该事件**当前要花多少钱**，正数）。为什么要有它：可负担性判定
+	// （`gold ≥ 价格`）原本只能在散文里算 ⇒ 那几处进不了表。用到的取值项必须在这里宣告（门核对）。
+	terms: ['price'],
+	// 取值项 → 数：`{ price: id }` ⇒ `-Game.Economy.priceOf(id, pc)`（事件价是**负增量**，取正数＝要花的钱）；
+	// 字面量原样返回。**未宣告/畸形 ⇒ fail-loud**（静默当字面量会让条件永假，正是本仓反复踩的那类）。
+	termValue(t, pc) {
+		if (!t || typeof t !== 'object' || Array.isArray(t)) return t;
+		const names = Object.keys(t);
+		const bad = names.length !== 1 || !this.terms.includes(names[0]);
+		if (bad) throw new Error(`Sg.rules：取值项 ${JSON.stringify(t)} 非法（\`Sg.rules.terms\` = ${JSON.stringify(this.terms)}）——未宣告或畸形必须报错（#624）`);
+		if (names[0] === 'price') {
+			// ⚠️ **必须绑到 `Game.Economy` 上调用**（`priceOf` 里用 `this.events`）：把函数取出来再调会丢 `this`（实测 TypeError）。
+			const E = window.Game?.Economy;
+			if (typeof E?.priceOf !== 'function') throw new Error('Sg.rules：取值项「price」需要引擎经济面 `Game.Economy.priceOf`（当前未注册）');
+			return -E.priceOf(t.price, pc);
+		}
+		return t;
+	},
 	// 一个"键"的**值**（不是真假）：`n_*` ⇒ 笔记真假；`inv:`／`era:` ⇒ 持有／时代；其余按 `readPath` 走（裸键＝`ev.`）。
 	// 与下面 `holds()` 的分工：`holds` 问"这个键成不成立"，`readKey` 问"这个键是多少"（算子形要比大小／比集合）。
 	readKey(key, pc) {
@@ -689,6 +708,9 @@ window.Sg.rules = {
 			const want = window.Game?.Era?.[String(m[2]).toUpperCase()] ?? m[2];     // 时代（`era:present`／`era:past`）
 			return State.variables.era === want;
 		}
+		// `#624` 片二：**显式根** `pc.` ⇒ 从 pc 根走。为什么需要：`pc.gold`／`pc.hp` 这类**顶层字段**原本没有键形可用——
+		// 裸键＝`ev.`、`world.` 是另一个域、第三命名空间又必须带点 ⇒ 可负担性判定（`gold ≥ 价格`）写不出来。
+		if (k.startsWith('pc.')) return window.Sg.notes.readPath(pc, k.slice(3));
 		return window.Sg.notes.readPath(pc, k.includes('.') ? k : `ev.${k}`);
 	},
 	// 一个"键名"是否成不成立（真值）—— 逐字沿用旧口径，现在是 `readKey` 的 `!!` 投影（一处实现、两个问法）。
@@ -705,13 +727,14 @@ window.Sg.rules = {
 		const args = cond[op];
 		if (!Array.isArray(args) || args.length < 2) throw new Error(`Sg.rules：算子「${op}」的参数必须是 [键, …值]（拿到 ${JSON.stringify(args)}）——结构畸形必须报错（#568）`);
 		const [key, ...rest] = args;
+		// **先解析操作数**（取值项）：结构问题必须 fail-loud，不能因为键恰好缺失就把它静默跳过。
+		const want = op === 'oneOf' ? null : this.termValue(rest[0], pc);
 		const got = this.readKey(key, pc);
 		if (got === undefined || got === null) return false;                        // 键缺失 ⇒ 不匹配
 		if (op === 'oneOf') {
 			const allowed = rest.length === 1 && Array.isArray(rest[0]) ? rest[0] : rest;   // `['k', ['a','b']]` 或 `['k','a','b']`
 			return allowed.includes(got);
 		}
-		const want = rest[0];
 		if (typeof got !== 'number' || typeof want !== 'number') return false;     // 数值算子遇非数值 ⇒ 不匹配（不硬比、不抛）
 		return op === 'gte' ? got >= want : got <= want;
 	},

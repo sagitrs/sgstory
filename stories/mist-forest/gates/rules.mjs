@@ -231,6 +231,24 @@ export const undeclaredOps = (rows, declared = []) => {
 	const used = new Set((rows ?? []).flatMap((r) => rowOps(r)));
 	return [...used].filter((op) => !(declared ?? []).includes(op)).map((op) => ({ op, declared: declared ?? [] }));
 };
+/** **取值项声明面**（`#624` 片二）：条件里写了 `{ gte: ['gold', { price: 'x' }] }` ⇒ 引擎必须在 `Sg.rules.terms` 里宣告
+ *  （与 `ops`／`prefixes`／`effects` 同轴的反沉默）；取值项里出现**未宣告的名字**（含打错、含多个算子位）一并报。 */
+export const undeclaredTerms = (rows, declared = []) => {
+	const out = [];
+	const seen = new Set();
+	const scan = (x) => {
+		if (!x || typeof x !== 'object' || Array.isArray(x)) return;
+		for (const name of Object.keys(x)) if (!seen.has(name)) { seen.add(name); if (!(declared ?? []).includes(name)) out.push({ term: name, declared: declared ?? [] }); }
+	};
+	for (const r of rows ?? []) for (const field of ['req', 'any', 'exclude']) {
+		const list = Array.isArray(r?.[field]) ? r[field] : r?.[field] ? [r[field]] : [];
+		for (const cond of list) {
+			if (!cond || typeof cond !== 'object' || Array.isArray(cond)) continue;
+			for (const args of Object.values(cond)) if (Array.isArray(args)) for (const a of args.slice(1)) scan(a);
+		}
+	}
+	return out;
+};
 /** **多源笔记的路径声明**（`#491` 另票）：`yields: [{ id:'n_x', path:'world.x' }]` 的 `path` 必须属于
  *  该笔记的 `flagPath` 集合 —— 否则就是"声明了一条不存在的路径"（写进去读不出来：`Sg.notes.has` 永不成立）。 */
 export const yieldPathProblems = (rows, notes = {}) => {
@@ -368,6 +386,10 @@ export const run = (ctx) => {
 			['正例：算子被引擎宣告 ⇒ 不报', undeclaredOps([{ id: 'A', req: [{ gte: ['star.spent', 3] }] }], ['gte']).length === 0],
 			['🔴 反例：用了未宣告的算子 ⇒ 报（否则条件永假）', undeclaredOps([{ id: 'A', req: [{ oneOf: ['keeper.state', ['seal']] }] }], []).length === 1],
 			['边界：字符串条件项不参与算子判定', undeclaredOps([{ id: 'A', req: ['n_x', 'fog_thin'] }], []).length === 0],
+			// `#624` 片二：取值项声明面
+			['正例（#624）：取值项被引擎宣告 ⇒ 不报', undeclaredTerms([{ id: 'A', req: [{ gte: ['gold', { price: 'rumor_buy' }] }] }], ['price']).length === 0],
+			['🔴 反例（#624）：未宣告的取值项 ⇒ 报', undeclaredTerms([{ id: 'A', req: [{ gte: ['gold', { priceOf: 'x' }] }] }], ['price']).some((u) => u.term === 'priceOf')],
+			['边界（#624）：字面量操作数不参与取值项判定', undeclaredTerms([{ id: 'A', req: [{ gte: ['star.spent', 3] }] }], []).length === 0],
 			['正例：`yields` 的 path 属于该笔记的 flagPath ⇒ 不报', yieldPathProblems([{ id: 'A', yields: [{ id: 'n_x', path: 'world.x' }] }], { n_x: { flagPath: ['world.x', 'ev.x2'] } }).length === 0],
 			['🔴 反例：path 不属于该笔记 ⇒ 报（写进去读不出来）', yieldPathProblems([{ id: 'A', yields: [{ id: 'n_x', path: 'world.nope' }] }], { n_x: { flagPath: 'world.x' } }).length === 1],
 			['🔴 反例：`yields` 指向不存在的笔记 ⇒ 报', yieldPathProblems([{ id: 'A', yields: [{ id: 'n_gone', path: 'world.x' }] }], {}).length === 1],
@@ -418,6 +440,7 @@ export const run = (ctx) => {
 		for (const u of undeclaredPrefixes(rows, ctx.window?.Sg?.rules?.prefixes ?? [])) { console.log(`  ✗ 前缀键未被引擎宣告：行里用了「${u.prefix}:」，但 \`Sg.rules.prefixes\`（当前 ${JSON.stringify(u.declared)}）里没有它——引擎不认的前缀会让条件**永假**（行静默死掉）`); bad++; }
 		for (const p of setProblems(rows, { notes: ctx.Game?.Notes?.entries ?? {}, domains: ctx.Game?.State?.domains ?? [] })) { console.log(`  ✗ \`sets\` 声明非法：行「${p.id}」的「${p.key}」——${p.why}`); bad++; }
 		for (const u of undeclaredOps(rows, ctx.window?.Sg?.rules?.ops ?? [])) { console.log(`  ✗ 算子未被引擎宣告：行里用了「${u.op}」，但 \`Sg.rules.ops\`（当前 ${JSON.stringify(u.declared)}）里没有它——引擎不认的算子会让条件**永假**（行静默死掉）`); bad++; }
+		for (const u of undeclaredTerms(rows, ctx.window?.Sg?.rules?.terms ?? [])) { console.log(`  ✗ 取值项未被引擎宣告：行里用了「${u.term}」，但 \`Sg.rules.terms\`（当前 ${JSON.stringify(u.declared)}）里没有它——引擎不认的取值项会让条件**永假**（行静默死掉）`); bad++; }
 		for (const q of yieldPathProblems(rows, ctx.Game?.Notes?.entries ?? {})) { console.log(`  ✗ \`yields\` 路径声明非法：行「${q.id}」的「${q.yield}」→「${q.path}」——${q.why}`); bad++; }
 		for (const u of undeclaredSets(rows, ctx.window?.Sg?.rules?.effects ?? [])) { console.log(`  ✗ 行面未被引擎宣告：表里用了「${u.surface}」，但 \`Sg.rules.effects\`（当前 ${JSON.stringify(u.declared)}）里没有它——引擎不兑现的声明＝**静默空转**`); bad++; }
 		for (const w of textWriteRows(rows)) for (const pr of w.probs) { console.log(`  ✗ \`text\` 不是纯渲染（${pr.domain}域）：行「${w.id}」含 ${pr.hits.join('、')}——渲染域的写请走「yields」（A 方案：渲染成功后由 \`<<rules>>\` 统一落）；**点击态**域只许词汇宏（${CLICK_VOCAB_MACROS.map((m) => '<<' + m + '>>').join('／')}，\`damage\` 不在内 ⇒ 机制块不搬）`); bad++; }

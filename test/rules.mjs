@@ -648,5 +648,44 @@ for (const file of fixtures) {
 	eq(countLinks(), 5, '真机：再渲染 ⇒ 菜单少一条（问过的不再出现）');
 }
 
+// ── `#624` 片二：**取值项**（`{ price: '<econ id>' }`）＋ 可负担性行（批 4）──
+// 形状：`req: [{ gte: ['gold', { price: 'rumor_buy' }] }]` —— 操作数是"随状态变的值"，由引擎经封装层取。
+{
+	const Sg = w.Sg;
+	const keepHas = Sg.notes.has, keepTerms = Sg.rules.terms;
+	const setNotes = (list) => { const set = new Set(list); Sg.notes.has = (id) => set.has(String(id)); };
+	const base = { ev: {}, world: {}, keeper: {}, star: {}, inv: {}, soc: {} };
+	const pickId = (gold, notes = []) => { setNotes(notes); const r = Sg.rules.pick('酒馆#打听情报', { pc: { ...base, gold }, chose: new Set() }); return r?.id ?? null; };
+	const price = -w.Game.Economy.priceOf('rumor_buy', { ...base, gold: 100 });
+	ok(price > 0, `取值项：事件「rumor_buy」当前价 ${price} 金（经封装层算出，不是硬编码）`);
+	eq(pickId(price), '酒馆.情报.买', `req 用取值项：钱刚好够（gold=${price}）⇒ 选中「买」行`);
+	eq(pickId(price - 1), '酒馆.情报.else', '反例：少 1 金 ⇒ 落到兜底行（渲染"买不起"原文案）');
+	eq(pickId(price, ['n_rumor']), '酒馆.情报.else', '已买过（n_rumor）⇒ 兜底行（`exclude` 生效）');
+	eq(pickId(999, ['n_rumor']), '酒馆.情报.else', '边界：钱多但也已买过 ⇒ 仍兜底行（条件不看钱）');
+	// 未宣告的取值项 ⇒ fail-loud（静默当字面量会让条件永假）
+	Sg.rules.terms = [];
+	let threw = false;
+	try { pickId(999); } catch { threw = true; }
+	ok(threw, '🔴 取值项未宣告 ⇒ **抛错**（不静默当真/假）');
+	Sg.rules.terms = keepTerms;
+	// 真机：钱够 ⇒ 看到带价格的买入口；点一次 ⇒ 扣钱 ＋ 落笔记；再渲染 ⇒ 换文案
+	w.eval('SugarCube.State.variables.pc.gold = 99');
+	setNotes([]);
+	Sg.notes.has = keepHas;
+	w.SugarCube.Engine.play('酒馆');
+	await sleep(250);
+	const buyLink = () => [...w.document.querySelectorAll('#passages a.link-internal')].find((a) => /请他讲讲洞里的路/.test(a.textContent));
+	const goldBefore = Number(w.eval('SugarCube.State.variables.pc.gold'));
+	ok(buyLink() !== undefined, '真机：钱够 ⇒ 酒馆里出现「请他讲讲洞里的路」入口');
+	ok(new RegExp(`花 ${price} 金币`).test(buyLink().textContent), `真机：入口标签写着真实价格「花 ${price} 金币」（`<<price>>`／封装层口径）`);
+	buyLink().click();
+	await sleep(300);
+	ok(Number(w.eval('SugarCube.State.variables.pc.gold')) === goldBefore - price, `真机：点一次扣 ${price} 金（${goldBefore} → ${goldBefore - price}）`);
+	ok(w.eval("Sg.notes.has('n_rumor')") === true, '真机：笔记 n_rumor 落下（点击态 `<<note>>`）');
+	setNotes(['n_rumor']);
+	eq(pickId(999, ['n_rumor']), '酒馆.情报.else', '真机后再取：已买过 ⇒ 兜底行（与屏上一致）');
+	Sg.notes.has = keepHas;
+}
+
 console.log(failures ? `\n${failures} 项失败` : '\n规则层测试全部通过');
 process.exit(failures ? 1 : 0);

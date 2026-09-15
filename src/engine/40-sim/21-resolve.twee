@@ -410,17 +410,18 @@ Object.assign((window.Game.Combat ??= {}), {
 		}
 		return sum;
 	},
-	/** 骰式：v1 只认两种形态——**纯整数**（固定伤害，如 "受伤 2 点"）与 **`NdM`**（走注入 rng）。
-	 *  其余形态（`1d4+2`/`2d6-1`…）**报错**：声明面不得大于实现面（#487）。 */
+	/** 骰式：**纯整数**（`N`，固定伤害）· **`NdM`** · **`NdM±K`**（`#702` 5e 对齐新增：伤害骰 ＋ 属性调整，如 `1d8+3`）。
+	 *  其余形态（`1d4+2d6`、`abc`…）**报错**：声明面不得大于实现面（#487／#702）。 */
 	rollDice(expr) {
-		const m = /^(\d+)(?:d(\d+))?$/.exec(String(expr ?? ''));
-		if (!m) throw new Error(`Game.Combat.rollDice：只认 \`N\` 或 \`NdM\`（收到 ${JSON.stringify(expr)}）——声明面不得大于实现面（#487）`);
+		const m = /^(\d+)(?:d(\d+))?(?:([+-])(\d+))?$/.exec(String(expr ?? ''));
+		if (!m) throw new Error(`Game.Combat.rollDice：只认 \`N\`／\`NdM\`／\`NdM±K\`（收到 ${JSON.stringify(expr)}）——声明面不得大于实现面（#487／#702）`);
 		const n = Number(m[1]);
-		if (!m[2]) return n;                                      // 纯整数 ⇒ 固定值
+		const flat = m[3] ? (m[3] === '-' ? -1 : 1) * Number(m[4]) : 0;   // 属性调整
+		if (!m[2]) return n + flat;                                      // 纯整数（可带调整）
 		const rng = window.Game.Rules.rng;
 		let sum = 0;
 		for (let i = 0; i < n; i++) sum += rng.d(Number(m[2]));
-		return sum;
+		return sum + flat;
 	},
 	/** `onFail` 一档的**效果**（本片只认两种；随机目标在**算**里就落定 ⇒ 计划完整、可复算）。 */
 	statusEffect(entry, mech, excludeId) {

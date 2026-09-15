@@ -42,8 +42,8 @@ const base = () => ({
 	},
 	// `#705`：有战斗就必须有敌人属性（HP／AC／攻击骰／可落部位）
 	enemies: {
-		鼠: { name: '洞窟鼠', hp: 4, ac: 11, attack: { site: '洞窟·鼠咬', dmg: '1d4+1', parts: ['腿'] }, traits: [], drops: [] },
-		虫: { name: '硬壳甲虫', hp: 9, ac: 14, attack: { site: '洞窟·甲虫冲撞', dmg: '1d6+2', parts: ['躯干'] }, traits: ['硬壳'], drops: [] },
+		鼠: { name: '洞窟鼠', hp: 4, ac: 11, attack: { bonus: 3, dmg: '1d4+1', parts: ['腿'] }, traits: [], drops: [] },
+		虫: { name: '硬壳甲虫', hp: 9, ac: 14, attack: { bonus: 4, dmg: '1d6+2', parts: ['躯干'] }, traits: ['硬壳'], drops: [] },
 	},
 	roads: [
 		// #489（S4）：`kind` 必须是六类事件词表之一；每段至少一个 `noCheck:true`；`to` 不许是死档
@@ -82,8 +82,10 @@ case_('③ 反例：`perRound` 出现未实现的键 ⇒ 必须抓（#487）',
 	run(mutate((m) => { m.statuses.bleed.perRound = { mp: -1 }; })).problems.some((p) => p.includes('perRound.mp 本片未实现')));
 case_('③ 反例：`onFail` 效果形态未实现（缺 `dice` 的 harm）⇒ 必须抓（#487）',
 	run(mutate((m) => { m.statuses.bleed.onFail[0] = { harm: 'damage', when: 'most' }; })).problems.some((p) => p.includes('效果形态未实现')));
-case_('③ 反例：骰式不可解析（`1d4+2`）⇒ 必须抓（引擎只认 `N` / `NdM`，#487）',
-	run(mutate((m) => { m.statuses.bleed.onFail[0] = { harm: 'damage', dice: '1d4+2', when: 'most' }; })).problems.some((p) => p.includes('无法解析')));
+case_('③ 正例（#702 5e）：骰式 `1d4+2` **合法**（伤害骰＋属性调整，引擎已支持 `NdM±K`）',
+	run(mutate((m) => { m.statuses.bleed.onFail[0].dice = '1d4+2'; })).problems.length === 0);
+case_('③ 反例：骰式仍不可解析（`1d4+2d6`）⇒ 必须抓',
+	run(mutate((m) => { m.statuses.bleed.onFail[0] = { harm: 'damage', dice: '1d4+2d6', when: 'most' }; })).problems.some((p) => p.includes('无法解析')));
 case_('③ 反例：`addStatus` 没给 `part` ⇒ 必须抓（引擎不知道往哪落，#487）',
 	run(mutate((m) => { delete m.statuses.bleed.onFail[1].part; })).problems.some((p) => p.includes('效果形态未实现')));
 case_('④ 反例：`statusPenalty` 出现非 `check` 键 ⇒ 必须抓（#487）',
@@ -125,6 +127,7 @@ case_('⑥ 正例（#705）：敌人有 HP／AC／骰式攻击／合法落点 �
 case_('🔴 ⑥ 反例（#705）：**有 encounters 却没有 enemies** ⇒ 必须抓', run(mutate((m) => { delete m.enemies; })).problems.some((p) => p.includes('enemies')));
 case_('🔴 ⑥ 反例（#705）：`hp` 不是正整数 ⇒ 必须抓', run(mutate((m) => { m.enemies.鼠.hp = 0; })).problems.some((p) => p.includes('hp')));
 case_('🔴 ⑥ 反例（#705）：`ac` 缺失 ⇒ 必须抓', run(mutate((m) => { delete m.enemies.鼠.ac; })).problems.some((p) => p.includes('ac')));
+case_('🔴 ⑥ 反例（#702 5e）：`attack.bonus` 缺失 ⇒ 必须抓（敌人必须能掷攻击骰）', run(mutate((m) => { delete m.enemies.鼠.attack.bonus; })).problems.some((p) => p.includes('bonus')));
 case_('🔴 ⑥ 反例（#705）：**伤害写成固定数字** ⇒ 必须抓（不可测）', run(mutate((m) => { m.enemies.鼠.attack.dmg = 3; })).problems.some((p) => p.includes('dmg')));
 case_('🔴 ⑥ 反例（#705）：攻击落点不在 hitLocations ⇒ 必须抓', run(mutate((m) => { m.enemies.鼠.attack.parts = ['尾巴']; })).problems.some((p) => p.includes('hitLocations')));
 case_('🔴 ⑥ 反例（#705）：遭遇引用了**未声明**的敌人 ⇒ 必须抓', run(mutate((m) => { m.encounters.short.waves[0].enemies = ['幽灵']; })).problems.some((p) => p.includes('未声明')));

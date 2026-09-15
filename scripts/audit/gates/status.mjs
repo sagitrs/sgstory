@@ -148,7 +148,8 @@ export const run = (ctx) => {
 				['`turns` 缺失', () => { const m = { ...MECH, statuses: { ...MECH.statuses, 流血: { ...MECH.statuses.流血, turns: undefined } } }; return [m, () => Game.Combat.statusTick(clone(PC))]; }],
 				['`perRound.hp` 非数字', () => { const m = { ...MECH, statuses: { ...MECH.statuses, 流血: { ...MECH.statuses.流血, perRound: { hp: 'x' } } } }; return [m, () => Game.Combat.statusTick(clone(PC))]; }],
 				['`statusPenalty` 出现非 `check` 键', () => { const m2 = { ...MECH, statusPenalty: { '麻痹@手腕': { dmg: -1 } } }; return [m2, () => Game.Combat.statusPenaltyFor({ statuses: { 手腕: { 麻痹: 1 } } }, '手腕', m2)]; }],
-				['骰式不是 `N` 也不是 `NdM`', () => [MECH, () => Game.Combat.rollDice('1d4+2')]],
+				// `#702`：`NdM±K` 现在是**合法**骰式（伤害骰＋属性调整）⇒ 反例改用仍非法的形态
+				['骰式不是 `N`／`NdM`／`NdM±K`', () => [MECH, () => Game.Combat.rollDice('1d4+2d6')]],
 			];
 			for (const [label, mk] of badCases) {
 				const [m, fn] = mk();

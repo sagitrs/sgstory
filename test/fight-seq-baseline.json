@@ -1,0 +1,415 @@
+[
+	{
+		"scenario": "封印·并肩",
+		"step": 0,
+		"round": null,
+		"act": "封印·读吸气",
+		"roll": 18,
+		"total": 18,
+		"success": true,
+		"kind": "bad",
+		"dmg": 0,
+		"hurt": 4,
+		"adv": 0,
+		"skipFoe": false,
+		"hp": 36,
+		"checks": [
+			{
+				"site": "封印·读吸气",
+				"roll": 12,
+				"total": 12,
+				"success": false,
+				"nat": 0,
+				"adv": 0
+			},
+			{
+				"site": "龙·吐息",
+				"roll": 18,
+				"total": 18,
+				"success": true,
+				"nat": 0,
+				"adv": 0
+			}
+		]
+	},
+	{
+		"scenario": "封印·并肩",
+		"step": 1,
+		"round": null,
+		"act": "封印·呼应",
+		"roll": 7,
+		"total": 7,
+		"success": false,
+		"kind": "ok",
+		"dmg": 8,
+		"hurt": 0,
+		"adv": 1,
+		"skipFoe": false,
+		"hp": 32,
+		"checks": [
+			{
+				"site": "封印·呼应",
+				"roll": 18,
+				"total": 18,
+				"success": true,
+				"nat": 0,
+				"adv": 0
+			},
+			{
+				"site": "龙·吐息",
+				"roll": 7,
+				"total": 7,
+				"success": false,
+				"nat": 0,
+				"adv": 0
+			}
+		]
+	},
+	{
+		"scenario": "封印·并肩",
+		"step": 2,
+		"round": null,
+		"act": "封印·读吸气",
+		"roll": 20,
+		"total": 20,
+		"success": true,
+		"kind": "bad",
+		"dmg": 0,
+		"hurt": 4,
+		"adv": 0,
+		"skipFoe": false,
+		"hp": 28,
+		"checks": [
+			{
+				"site": "封印·读吸气",
+				"roll": 10,
+				"total": 10,
+				"success": false,
+				"nat": 0,
+				"adv": 1
+			},
+			{
+				"site": "龙·吐息",
+				"roll": 20,
+				"total": 20,
+				"success": true,
+				"nat": 0,
+				"adv": 0
+			}
+		]
+	},
+	{
+		"scenario": "封印·并肩",
+		"step": 3,
+		"round": null,
+		"act": "封印·走位",
+		"roll": 4,
+		"total": 4,
+		"success": false,
+		"kind": "ok",
+		"dmg": 7,
+		"hurt": 0,
+		"adv": 0,
+		"skipFoe": false,
+		"hp": 25,
+		"checks": [
+			{
+				"site": "封印·走位",
+				"roll": 17,
+				"total": 17,
+				"success": true,
+				"nat": 0,
+				"adv": 0
+			},
+			{
+				"site": "龙·吐息",
+				"roll": 4,
+				"total": 4,
+				"success": false,
+				"nat": 0,
+				"adv": 0
+			}
+		]
+	},
+	{
+		"scenario": "封印·并肩",
+		"step": 4,
+		"round": null,
+		"act": "封印·吹哨",
+		"roll": 10,
+		"total": 10,
+		"success": true,
+		"kind": "ok",
+		"dmg": 9,
+		"hurt": 0,
+		"adv": 1,
+		"skipFoe": true,
+		"hp": 25,
+		"checks": [
+			{
+				"site": "封印·吹哨",
+				"roll": 10,
+				"total": 10,
+				"success": true,
+				"nat": 0,
+				"adv": 0
+			}
+		]
+	},
+	{
+		"scenario": "封印·并肩",
+		"step": 5,
+		"round": null,
+		"act": "龙·斩击",
+		"roll": 4,
+		"total": 4,
+		"success": false,
+		"kind": "ok",
+		"dmg": 12,
+		"hurt": 0,
+		"adv": 0,
+		"skipFoe": false,
+		"hp": 17,
+		"checks": [
+			{
+				"site": "龙·斩击",
+				"roll": 19,
+				"total": 19,
+				"success": true,
+				"nat": 0,
+				"adv": 1
+			},
+			{
+				"site": "龙·吐息",
+				"roll": 4,
+				"total": 4,
+				"success": false,
+				"nat": 0,
+				"adv": 0
+			}
+		]
+	},
+	{
+		"scenario": "封印·并肩",
+		"step": 6,
+		"round": null,
+		"act": "封印·硬扛",
+		"roll": 8,
+		"total": 8,
+		"success": false,
+		"kind": "bad",
+		"dmg": 0,
+		"hurt": 8,
+		"adv": 0,
+		"skipFoe": false,
+		"hp": 1,
+		"checks": [
+			{
+				"site": "封印·硬扛",
+				"roll": 6,
+				"total": 6,
+				"success": false,
+				"nat": 0,
+				"adv": 0
+			},
+			{
+				"site": "龙·吐息",
+				"roll": 8,
+				"total": 8,
+				"success": false,
+				"nat": 0,
+				"adv": 0
+			}
+		]
+	},
+	{
+		"scenario": "封印·并肩",
+		"step": 7,
+		"round": null,
+		"act": "封印·吹哨",
+		"roll": 16,
+		"total": 16,
+		"success": true,
+		"kind": "ok",
+		"dmg": 9,
+		"hurt": 0,
+		"adv": 1,
+		"skipFoe": true,
+		"hp": 1,
+		"checks": [
+			{
+				"site": "封印·吹哨",
+				"roll": 16,
+				"total": 16,
+				"success": true,
+				"nat": 0,
+				"adv": 0
+			}
+		]
+	},
+	{
+		"scenario": "封印·并肩",
+		"step": 0,
+		"round": null,
+		"act": "封印·呼应",
+		"roll": 18,
+		"total": 18,
+		"success": true,
+		"kind": "ok",
+		"dmg": 8,
+		"hurt": 0,
+		"adv": 1,
+		"skipFoe": false,
+		"hp": 40,
+		"checks": [
+			{
+				"site": "封印·呼应",
+				"roll": 12,
+				"total": 12,
+				"success": true,
+				"nat": 0,
+				"adv": 0
+			},
+			{
+				"site": "龙·吐息",
+				"roll": 18,
+				"total": 18,
+				"success": true,
+				"nat": 0,
+				"adv": 0
+			}
+		]
+	},
+	{
+		"scenario": "封印·并肩",
+		"step": 1,
+		"round": null,
+		"act": "封印·读术式",
+		"roll": 11,
+		"total": 11,
+		"success": false,
+		"kind": "ok",
+		"dmg": 10,
+		"hurt": 0,
+		"adv": 1,
+		"skipFoe": false,
+		"hp": 33,
+		"checks": [
+			{
+				"site": "封印·读术式",
+				"roll": 18,
+				"total": 18,
+				"success": true,
+				"nat": 0,
+				"adv": 1
+			},
+			{
+				"site": "龙·吐息",
+				"roll": 11,
+				"total": 11,
+				"success": false,
+				"nat": 0,
+				"adv": 0
+			}
+		]
+	},
+	{
+		"scenario": "封印·并肩",
+		"step": 2,
+		"round": null,
+		"act": "封印·呼应",
+		"roll": 8,
+		"total": 8,
+		"success": false,
+		"kind": "crit",
+		"dmg": 15,
+		"hurt": 0,
+		"adv": 1,
+		"skipFoe": false,
+		"hp": 25,
+		"checks": [
+			{
+				"site": "封印·呼应",
+				"roll": 20,
+				"total": 20,
+				"success": true,
+				"nat": 0,
+				"adv": 1
+			},
+			{
+				"site": "龙·吐息",
+				"roll": 8,
+				"total": 8,
+				"success": false,
+				"nat": 0,
+				"adv": 0
+			}
+		]
+	},
+	{
+		"scenario": "封印·并肩",
+		"step": 3,
+		"round": null,
+		"act": "封印·找旧伤",
+		"roll": 2,
+		"total": 2,
+		"success": false,
+		"kind": "ok",
+		"dmg": 9,
+		"hurt": 0,
+		"adv": 1,
+		"skipFoe": false,
+		"hp": 17,
+		"checks": [
+			{
+				"site": "封印·找旧伤",
+				"roll": 14,
+				"total": 14,
+				"success": true,
+				"nat": 0,
+				"adv": 1
+			},
+			{
+				"site": "龙·吐息",
+				"roll": 2,
+				"total": 2,
+				"success": false,
+				"nat": 0,
+				"adv": 0
+			}
+		]
+	},
+	{
+		"scenario": "封印·并肩",
+		"step": 4,
+		"round": null,
+		"act": "封印·呼应",
+		"roll": 17,
+		"total": 17,
+		"success": true,
+		"kind": "crit",
+		"dmg": 15,
+		"hurt": 0,
+		"adv": 1,
+		"skipFoe": false,
+		"hp": 17,
+		"checks": [
+			{
+				"site": "封印·呼应",
+				"roll": 20,
+				"total": 20,
+				"success": true,
+				"nat": 0,
+				"adv": 1
+			},
+			{
+				"site": "龙·吐息",
+				"roll": 17,
+				"total": 17,
+				"success": true,
+				"nat": 0,
+				"adv": 0
+			}
+		]
+	}
+]

@@ -331,6 +331,10 @@ const main = async () => {
 			const { w, close, sleep, settle } = await boot({ story: slug, random: 0.9 });
 			try {
 				w.Game.Rules.rng.set((lo, hi) => rng[hi] ?? 1);
+				// `#696`（操作者裁定：金币要有出口）：旅人里**一半是商人** ⇒ 本组判据验的是**plain**分支
+				// （一口价／开口求他／转敌对），必须把它钉住，否则随机那一半会跑到商人分支去（实测：本门红 2 项）。
+				// 商人分支的判据在 `test/cave-merchant.mjs`（专票专项）。
+				w.eval("SugarCube.State.variables.pc.ev.cave_trade = 'plain'");
 				if (gold) w.eval(`SugarCube.State.variables.pc.gold = ${gold}`);
 				w.SugarCube.Engine.play('路·2c');                 // 旅人实例段落（第 2 段）
 				await settle(); await sleep(220);

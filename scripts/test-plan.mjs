@@ -160,6 +160,8 @@ export const SEGMENTS = [
 	{ id: "test-itemmatrix-mjs", phase: 'test', cost: 5, cmd: "node test/itemmatrix.mjs" },
 	// #608：**短战斗相位门**（引擎侧 widget 的契约：四相位→分支 · 未结束不结算不推进 · 奖励/失败笔记走声明面）
 	{ id: "test-shortfight-phases-mjs", phase: 'test', cost: 3, cmd: "node test/shortfight-phases.mjs" },
+	// 洞窟「商人」门（`#696` 操作者裁定：金币要有出口 ⇒ 旅人里随机出现商人；报价读声明面 · 买不起不显示 · 火把油）
+	{ id: "test-cave-merchant-mjs", phase: 'test', cost: 1, cmd: "node test/cave-merchant.mjs" },
 	// 洞窟五步主线**末步**门（操作者实测）：走满 5 步再回岔口时**不许**抛 `roadOffer(6)` 红框 ⇒ 越界走退路
 	{ id: "test-cave-roads-mjs", phase: 'test', cost: 1, cmd: "node test/cave-roads.mjs" },
 	// `#660` 片三-3：**pc 默认形状住引擎、数值走故事**（`Game.Pc.defaults()` 摘掉 `Sg.story.pcDefaults()` 后每个值都必须中性；

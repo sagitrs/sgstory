@@ -141,8 +141,11 @@
 	<<link "用那把锈钥匙开它（难度降为 0）">>
 		钥匙转半圈。机关根本没来得及动，箱盖就弹开了。
 		<<set _loot to Sg.story.lootOf(_rare ? "珍贵" : "普通")>>
+		/% `#696`：**金币主源＝战斗与宝箱**（声明面 `chest.gold`，门做声明↔内容对账） %/
+		<<set _g to Sg.story.chestGold(_rare ? "珍贵" : "普通")>>
 		<<if _loot.includes("TOOL")>><<set _tool to (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><<give _tool>>（顺手多了一件能降难的家什。）<</if>>
 		<<give "干粮">><<note "n_cave_loot">>
+		<<if _g gt 0>><<set $pc.gold to $pc.gold + _g>>（箱底的旧币：<<= _g>> 枚。）<</if>>
 		<<caveNext>>
 	<</link>>
 <<elseif $pc.inv[_c.tool]>>
@@ -154,6 +157,7 @@
 			具压住了机关。里面是干粮，和一小块铁片。
 			<<if _rare>><<set _tool to (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><<give _tool>><</if>>
 			<<give "干粮">><<note "n_cave_loot">>
+			<<set _g to Sg.story.chestGold(_rare ? "珍贵" : "普通")>><<if _g gt 0>><<set $pc.gold to $pc.gold + _g>>（箱底的旧币：<<= _g>> 枚。）<</if>>
 		<<else>>
 			具滑了，机关针扎进虎口。<<damage `Game.Damage.graze`>>
 		<</if>>
@@ -165,8 +169,12 @@
 		<<if $last_check.success>>
 			锁扣应声而开。里面是干粮<<if _rare>>，底下还压着一件能降难的家什<<set _tool to (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><<give _tool>><</if>>。
 			<<give "干粮">><<note "n_cave_loot">>
+			<<set _g to Sg.story.chestGold(_rare ? "珍贵" : "普通")>><<if _g gt 0>><<set $pc.gold to $pc.gold + _g>>（箱底的旧币：<<= _g>> 枚。）<</if>>
 		<<else>>
-			锁扣没动，指头先破了。<<damage `Game.Damage.graze`>>
+			/% `#696`（操作者裁定）：**硬开（徒手）惩罚必须拉高**——否则「没钥匙硬开」的收益高于「打仗拿钥匙再开」：
+			   徒手失败＝更重的伤害 ＋ **严重异常**（流血 5 回合，战斗中每回合掉血）；道具失败保持轻罚（`graze`）；钥匙路必开无风险。 %/
+			锁扣没动，机关整条咬进手背，血顺着指缝往下淌。<<damage `Game.Damage.hurt`>>
+			<<set $pc.statuses to Game.Combat.applyStatus($pc, "bleed", "手臂").statuses>>
 		<</if>>
 		<<caveNext>>
 	<</link>>
@@ -186,8 +194,16 @@
 	<<if $pc.gear and $pc.gear.length>><<set $pc.gearHp to Game.Combat.repairAll($pc)>>（家什也泡了一泡。）<</if>>
 	<<link "起来，继续走">><<caveNext>><</link>>
 <<elseif _k is "矿洞">>
-	''矿洞''。岩层里夹着一条亮线。你抠下来一小块，磨成了一把''锈钥匙''。
-	<<give "钥匙">>
+	/% `#696`（操作者裁定：**战斗＝钥匙主源**）：矿洞掉钥匙是 25% 的小概率，其余给干粮——
+	   产出走声明面（`Sg.story.caveReward`），门与 EV 报告都读它。 %/
+	<<set _cr to Sg.story.caveReward("矿洞")>>
+	<<if Game.Rules.rng.d(100) lte _cr.keyChance>>
+		''矿洞''。岩层里夹着一条亮线。你抠下来一小块，磨成了一把''锈钥匙''。
+		<<give "钥匙">>
+	<<else>>
+		''矿洞''。岩层硬得抠不动，只在碎石里翻出几块能垫肚子的东西。
+		<<give _cr.fallback>>
+	<</if>>
 	<<link "收好，继续走">><<caveNext>><</link>>
 <<elseif _k is "空洞">>
 	''空洞''。什么都没有——但回声告诉你前面还有多远，哪一段地面是空的。

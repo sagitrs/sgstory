@@ -11,6 +11,8 @@
 //      且每条实例的 `ref` 也解析得到段落、`hint` 非空（内容→表）；
 //   ③ `Sg.story.chestDef(id)`：三个位点名（`site`/`rareSite`/`toolSite`）都必须是**已登记位点**，
 //      `tool` 必须在 `Game.Items.defs` 里，且 `loot` 的档位非空（稀有度→奖品曲线存在）；
+//   ⑥ 宝箱惩罚分级（`#696`）：钥匙必开／道具轻罚／徒手重罚（严重异常）。
+//   ⑦ `#696` 收入声明↔内容对账：`chest.gold`／`caveRewards` 声明了且内容读它。
 //   ⑤ 路面**类型标签**齐备（`#692` ①）：出现的每个 kind 都要有非空标签（新增类不给标签 ⇒ 红）。
 //   ④ 三选一每段 ≥1 个 `noCheck` 选项（"不掷骰也有路可走"）——形状门管声明，这里管**内容侧**也有对应实例。
 export const flag = 'cave';
@@ -99,6 +101,52 @@ export const labelProblems = (kinds, labelOf) => {
 	return out;
 };
 
+/** 纯函数⑥：宝箱**惩罚分级**（`#696`，操作者裁定）——三路代价必须**严格分级**，
+ *  否则「没钥匙硬开」的收益会高于「打仗拿钥匙再开」（那正是这条裁定的靶心）。
+ *  判据（对 `机制·chest` 段源码，与 `#600` 的 reward 对账同族）：
+ *   ① **钥匙路必开**：该分支不得出现 `sitecheck`；
+ *   ② **道具路失败＝轻**：不得 `applyStatus`（应是轻罚，如 `Game.Damage.graze`）；
+ *   ③ **徒手路失败＝重**：必须有 `applyStatus`（严重异常）——只靠伤害不够（伤害可被护具吸掉）。 */
+export const penaltyGradeProblems = (src) => {
+	const s = String(src ?? '');
+	if (!s.trim()) return [{ code: 'chest-src-missing', why: '取不到 `机制·chest` 段源码（本判据要读内容才能判）' }];
+	const iKey = s.indexOf('$pc.inv["钥匙"]');
+	const iTool = s.indexOf('$pc.inv[_c.tool]');
+	const iBare = s.indexOf('<<else>>', iTool);
+	const iEnd = s.indexOf('不管它，径直走过去');
+	if (iKey < 0 || iTool < 0 || iBare < 0 || iEnd < 0) {
+		return [{ code: 'chest-shape', why: '宝箱三路（钥匙／道具／徒手）的结构已变，本判据读不到三块——请同步更新本门' }];
+	}
+	const key = s.slice(iKey, iTool), tool = s.slice(iTool, iBare), bare = s.slice(iBare, iEnd);
+	const out = [];
+	if (/<<\s*sitecheck/.test(key)) out.push({ code: 'key-risky', why: '钥匙路出现了 `sitecheck`——钥匙本该**必开**（`keyReduce: to-zero`）' });
+	if (/applyStatus/.test(tool)) out.push({ code: 'tool-too-heavy', why: '道具路失败带了 `applyStatus`——道具路径应是**轻罚**（降难 −3 的代价），重罚留给徒手' });
+	if (!/applyStatus/.test(bare)) out.push({ code: 'bare-too-light', why: '徒手路失败没有严重异常（`applyStatus`）——硬开与"打仗拿钥匙"的代价差不够（操作者裁定）' });
+	return out;
+};
+
+/** 纯函数⑦：`#696` 的**收入声明面 ↔ 内容**对账（同 `#600` 口径）：
+ *  宝箱金币（`chest.gold`）与五洞窟产出（`caveRewards`）必须**声明了且内容真的读它**（`chestGold(`/`caveReward(`），
+ *  否则"声明变了行为不变"（或反过来）——没有任何门看得见。 */
+export const incomeProblems = (mech, { src } = {}) => {
+	const out = [];
+	const gold = mech?.chest?.gold ?? {};
+	for (const r of Object.keys(mech?.chest?.loot ?? {})) {
+		const v = gold[r];
+		if (typeof v !== 'number' || v <= 0) out.push({ code: 'chest-gold-missing', why: `宝箱档「${r}」没有声明金币（\`chest.gold\`）——操作者裁定"金币主源＝战斗与宝箱"` });
+	}
+	const cave = mech?.caveRewards?.矿洞 ?? null;
+	if (!cave) out.push({ code: 'cave-reward-missing', why: '`caveRewards.矿洞` 未声明（五洞窟产出要进声明面）' });
+	else {
+		if (typeof cave.keyChance !== 'number' || cave.keyChance < 0 || cave.keyChance > 100) out.push({ code: 'cave-keychance', why: `\`caveRewards.矿洞.keyChance\` 必须是 0..100（实际 ${JSON.stringify(cave.keyChance)}）` });
+		if (!cave.fallback) out.push({ code: 'cave-fallback', why: '`caveRewards.矿洞.fallback` 未声明（不掉钥匙时给什么）' });
+	}
+	const t = String(src ?? '');
+	if (Object.keys(gold).length && !/Sg\.story\.chestGold\(/.test(t)) out.push({ code: 'chest-gold-not-wired', why: '声明了 `chest.gold` 但内容没读 `Sg.story.chestGold(`（声明与行为对不上）' });
+	if (cave && !/Sg\.story\.caveReward\(/.test(t)) out.push({ code: 'cave-reward-not-wired', why: '声明了 `caveRewards` 但内容没读 `Sg.story.caveReward(`（声明与行为对不上）' });
+	return out;
+};
+
 export const run = (ctx) => {
 	const { arg, wantAll, window: w } = ctx;
 	if (!(wantAll || arg('cave'))) return;
@@ -108,6 +156,10 @@ export const run = (ctx) => {
 	// 自证（纯函数 + 注入输入；正反例都跑同一份判据）
 	{
 		const has = (n) => ['路·1a', '路·2b'].includes(n);
+		// `#696` ⑥⑦ 的合成输入（提出来，条目保持扁平的 [label, cond]）
+		const GRADE_GOOD = 'if ($pc.inv["钥匙"]) { 钥匙转半圈 } elseif ($pc.inv[_c.tool]) { <<sitecheck "t">> <<damage `Game.Damage.graze`>> } <<else>> { <<sitecheck "s">> <<damage `Game.Damage.hurt`>> <<set $pc.statuses to Game.Combat.applyStatus($pc, "bleed", "手臂").statuses>> } 不管它，径直走过去';
+		const INCOME_M = { chest: { loot: { 普通: ['干粮'], 珍贵: ['干粮', 'TOOL'] }, gold: { 普通: 5, 珍贵: 12 } }, caveRewards: { 矿洞: { keyChance: 25, fallback: '干粮' } } };
+		const INCOME_SRC = 'Sg.story.chestGold(_rare ? "珍贵" : "普通") Sg.story.caveReward("矿洞")';
 		const cases = [
 			['① 正例：`ref` 解析得到实例段落', refProblems([{ kind: 'chest', ref: '1a' }], has).length === 0],
 			['🔴 ① 反例：`ref` 指向不存在的段落 ⇒ 报（表里有路、内容没有）', refProblems([{ kind: 'chest', ref: '9z' }], has).length === 1],
@@ -122,6 +174,15 @@ export const run = (ctx) => {
 			['🔴 ④ 反例：声明形状非法（引擎拒绝归一化）⇒ 报', rewardProblems({ encounters: { short: { reward: { item: { id: '钥匙', chance: 0 } } } } }, { normalize: () => { throw new Error('chance 必须在 1..100'); }, hasItem: () => true, srcOf: () => 'Game.Combat.grantReward(' }).length === 1],
 			['🔴 ④ 反例：声明了掉落但内容没接 ⇒ 报"声明与行为对不上"', rewardProblems({ encounters: { long: { reward: { item: '钥匙' } } } }, { normalize: () => ({ gold: 0, item: { id: '钥匙', chance: 100 } }), hasItem: () => true, srcOf: () => '（内容里没有落账调用）' }).some((p) => p.code === 'reward-not-wired')],
 			['🔴 ④ 反例：内容绕过单一落点（自己读声明）⇒ 报', rewardProblems({ encounters: { long: { reward: { item: '钥匙' } } } }, { normalize: () => ({ gold: 0, item: { id: '钥匙', chance: 100 } }), hasItem: () => true, srcOf: () => 'Game.Combat.grantReward($pc, "long") 和 (Game.Combat.slotsDecl().encounters.long.reward ?? {}).gold' }).some((p) => p.code === 'reward-bypassed')],
+			['⑥ 正例（#696）：钥匙无 sitecheck ＋ 道具轻罚 ＋ 徒手带严重异常 ⇒ 不报', penaltyGradeProblems(GRADE_GOOD).length === 0],
+			['🔴 ⑥ 反例（#696）：钥匙路也掷骰 ⇒ 报', penaltyGradeProblems(GRADE_GOOD.replace('钥匙转半圈', '<<sitecheck "k">>')).some((p) => p.code === 'key-risky')],
+			['🔴 ⑥ 反例（#696）：道具路也带严重异常 ⇒ 报', penaltyGradeProblems(GRADE_GOOD.replace('Game.Damage.graze', 'Game.Combat.applyStatus($pc, "bleed", "手")')).some((p) => p.code === 'tool-too-heavy')],
+			['🔴 ⑥ 反例（#696）：徒手路只有伤害、没有严重异常 ⇒ 报', penaltyGradeProblems(GRADE_GOOD.replace(/<<set \$pc\.statuses[^>]*>>/, '')).some((p) => p.code === 'bare-too-light')],
+			['⑥ 反例：取不到宝箱段源码 ⇒ 报（不静默判过）', penaltyGradeProblems('').length === 1],
+			['⑦ 正例（#696）：宝箱金币与五洞窟产出都声明了且内容读它 ⇒ 不报', incomeProblems(INCOME_M, { src: INCOME_SRC }).length === 0],
+			['🔴 ⑦ 反例（#696）：某档没声明金币 ⇒ 报', incomeProblems({ ...INCOME_M, chest: { ...INCOME_M.chest, gold: { 普通: 5 } } }, { src: INCOME_SRC }).some((p) => p.code === 'chest-gold-missing')],
+			['🔴 ⑦ 反例（#696）：声明了金币但内容没读 ⇒ 报', incomeProblems(INCOME_M, { src: 'Sg.notes.add("x")' }).some((p) => p.code === 'chest-gold-not-wired')],
+			['🔴 ⑦ 反例（#696）：`keyChance` 越界 ⇒ 报', incomeProblems({ ...INCOME_M, caveRewards: { 矿洞: { keyChance: 120, fallback: '干粮' } } }, { src: INCOME_SRC }).some((p) => p.code === 'cave-keychance')],
 			['⑤ 正例（#692）：六类都有类型标签 ⇒ 不报', labelProblems(KINDS, (k) => ({ shortFight: '短战斗', longFight: '长战斗', chest: '宝箱', cave: '特殊洞窟', trap: '陷阱', traveller: '旅人' })[k]).length === 0],
 			['🔴 ⑤ 反例（#692）：某类标签为空 ⇒ 报', labelProblems(KINDS, (k) => (k === 'trap' ? '' : 'x')).length === 1],
 			['🔴 ⑤ 反例（#692）：新增第七类却没标签 ⇒ 报', labelProblems([...KINDS, 'puzzle'], (k) => (k === 'puzzle' ? null : 'x')).length === 1],
@@ -154,6 +215,8 @@ export const run = (ctx) => {
 		for (const p of poolProblems(story.eventPool?.(1) ?? null, hasPassage)) { console.log(`  ✗ 事件池：${p.why}`); bad++; }
 		for (const p of chestProblems(mech.chest, { hasSite: (n) => !!story.checkSite?.(n), hasItem: (n) => !!story.itemEffect?.(n), siteOf: (n) => story.checkSite?.(n) })) { console.log(`  ✗ 宝箱声明面：${p.why}`); bad++; }
 		for (const p of rewardProblems(mech, { normalize: (id) => w?.Game?.Combat?.encounterReward(id), hasItem: (n) => !!story.itemEffect?.(n), srcOf: (n) => ctx.passageSrc?.get(n) })) { console.log(`  ✗ 战斗奖励声明面：${p.why}`); bad++; }
+		for (const p of penaltyGradeProblems(ctx.passageSrc?.get('机制·chest') ?? '')) { console.log(`  ✗ 宝箱惩罚分级：${p.why}`); bad++; }
+		for (const p of incomeProblems(mech, { src: ['机制·chest', '机制·cave'].map((n) => ctx.passageSrc?.get(n) ?? '').join('\n') })) { console.log(`  ✗ 收入声明面：${p.why}`); bad++; }
 		const kindsSeen = [...new Set([...KINDS, ...rows.map((o) => o.kind).filter(Boolean), ...((story.eventPool?.(1)?.kinds) ?? [])])];
 		for (const p of labelProblems(kindsSeen, (k) => story.eventKindLabel?.(k))) { console.log(`  ✗ 类型标签：${p.why}`); bad++; }
 		const noCheck = (mech.roads ?? []).filter((r) => (r.options ?? []).some((o) => o.noCheck)).length;
@@ -161,5 +224,5 @@ export const run = (ctx) => {
 	}
 
 	if (bad) { console.error(`\n✗ 洞窟声明面门未通过（${bad} 项）`); process.exit(1); }
-	console.log('✔ 洞窟声明面门通过（表↔内容双向对账 · 宝箱声明面齐 · 战斗奖励声明面与落点一致 · 路面类型标签齐备 #692）');
+	console.log('✔ 洞窟声明面门通过（表↔内容双向对账 · 宝箱声明面齐 · 战斗奖励声明面与落点一致 · 路面类型标签齐备 #692 · 宝箱惩罚分级与收入声明 #696）');
 };

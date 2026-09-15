@@ -41,7 +41,7 @@
 			<<print $args[3]>>
 			<<damage `Game.Damage.hurt`>>
 			/% 带伤失败也要有"结果"（`--sitedisc` 判据）：这一下换来的是对它的了解（笔记写点） %/
-			<<run Sg.notes.add("n_cave_battered")>>
+			<<note "n_cave_battered">>
 		<</if>>
 		<<caveNext>>
 	<</link>>
@@ -146,7 +146,7 @@
 		钥匙转半圈。机关根本没来得及动，箱盖就弹开了。
 		<<set _loot to Sg.story.lootOf(_rare ? "珍贵" : "普通")>>
 		<<if _loot.includes("TOOL")>><<give (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>>（顺手多了一件能降难的家什。）<</if>>
-		<<give "干粮">><<run Sg.notes.add("n_cave_loot")>>
+		<<give "干粮">><<note "n_cave_loot">>
 		<<caveNext>>
 	<</link>>
 <<elseif $pc.inv[_c.tool]>>
@@ -157,7 +157,7 @@
 		<<if $last_check.success>>
 			具压住了机关。里面是干粮，和一小块铁片。
 			<<if _rare>><<give (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><</if>>
-			<<give "干粮">><<run Sg.notes.add("n_cave_loot")>>
+			<<give "干粮">><<note "n_cave_loot">>
 		<<else>>
 			具滑了，机关针扎进虎口。<<damage `Game.Damage.graze`>>
 		<</if>>
@@ -168,7 +168,7 @@
 		<<sitecheck `_rare ? _c.rareSite : _c.site`>>
 		<<if $last_check.success>>
 			锁扣应声而开。里面是干粮<<if _rare>>，底下还压着一件能降难的家什<<give (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><</if>>。
-			<<give "干粮">><<run Sg.notes.add("n_cave_loot")>>
+			<<give "干粮">><<note "n_cave_loot">>
 		<<else>>
 			锁扣没动，指头先破了。<<damage `Game.Damage.graze`>>
 		<</if>>
@@ -195,7 +195,7 @@
 	<<link "收好，继续走">><<caveNext>><</link>>
 <<elseif _k is "空洞">>
 	''空洞''。什么都没有——但回声告诉你前面还有多远，哪一段地面是空的。
-	<<run Sg.notes.add("n_cave_echo")>>
+	<<note "n_cave_echo">>
 	<<link "记住回音，继续走">><<caveNext>><</link>>
 <<elseif _k is "地下湖">>
 	''地下湖''。水黑得不像水。你得踩过去。
@@ -275,7 +275,7 @@
 			<<sitecheck "旅人·察言">>
 			<<if $last_check.success>>
 				他把那把东西放在右手边，拇指却一直没离开——不是要动手，是在等你先说话。
-				<<run Sg.notes.add("n_cave_trav")>>
+				<<note "n_cave_trav">>
 			<<else>>
 				他裹着布，什么也看不出来。你只看出他在等。
 			<</if>>
@@ -303,7 +303,7 @@
 			<<if $last_check.success>>
 				他看了你一会儿，把干粮掰了一半推过来。他没说话，只把火堆拨旺了一点。
 				<<give "干粮">>
-				<<run Sg.notes.add("n_cave_help")>>
+				<<note "n_cave_help">>
 				<<caveNext>>
 			<<else>>
 				他把火堆往自己那边拨了拨，手摸向身后那把东西——话说死了。

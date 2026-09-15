@@ -34,7 +34,7 @@
 <</if>>
 <</if>>
 
-<<run Sg.notes.add('n_below_seen')>>   /% #219 B1②：下过地下即见过它 %/
+<<note "n_below_seen">>   /% #219 B1②：下过地下即见过它 %/
 <<if not $pc.ev.threshold>>
 	<<if $era is Game.Era.PRESENT>>
 		它尚未醒透。''还不是时候''——可这不意味着动手安全；惊动它，你就得承受它的反击。
@@ -202,7 +202,7 @@
 <</if>>
 <<if not Sg.notes.has('n_letter_seen')>>
 	<<link "拿起案角那封信">>
-		<<run Sg.notes.add('n_letter_seen')>>
+		<<note "n_letter_seen">>
 		<<goto "观星者">>
 	<</link>>
 <</if>>
@@ -351,7 +351,7 @@
 		<<if $last_check.success>>
 			小孩指了指长桌尽头："那根长长的？被人塞到布下面去了。我看见了，我没说。"<<set $pc.ev.staff_found to true>>
 		<<else>>
-			小孩摇头，一溜烟钻走了。可他的眼睛''朝桌布底下瞟了一下''。<<run Sg.notes.add('n_staff_hint')>>（''问不出就换个办法：''自己翻找。）
+			小孩摇头，一溜烟钻走了。可他的眼睛''朝桌布底下瞟了一下''。<<note "n_staff_hint">>（''问不出就换个办法：''自己翻找。）
 		<</if>>
 		<<goto "寻杖">>
 	<</link>>
@@ -360,7 +360,7 @@
 		<<if $last_check.success>>
 			你留意到有人朝长桌尽头瞥了一眼。顺着那道目光看去，垂地的桌布正鼓着一角。<<set $pc.ev.staff_found to true>>
 		<<else>>
-			满厅的人都在忙着。你看不出谁在找那根杖，倒是注意到''孩子总往桌布底下瞟''。<<run Sg.notes.add('n_staff_hint')>>（''看不出就问：厅里跑动的孩子最清楚。''）
+			满厅的人都在忙着。你看不出谁在找那根杖，倒是注意到''孩子总往桌布底下瞟''。<<note "n_staff_hint">>（''看不出就问：厅里跑动的孩子最清楚。''）
 		<</if>>
 		<<goto "寻杖">>
 	<</link>>
@@ -395,13 +395,13 @@
 <</if>>
 <<socresolve "老巫女·开口">>
 <<socpanel "老巫女·开口">>
-<<run Sg.notes.add('n_old_witch')>>
+<<note "n_old_witch">>
 
 /% #291 G3：跨时代合龙门——须同时带上「现在」与「过去」两边的证据，才问得出这一句；
    不给提示按钮：条件不满足时这一项根本不存在。 %/
 <<if Sg.notes.has('n_failure_cause') and ($pc.ev.seer_asked or $pc.ev.coord)>>
 	<<link "问她：缺的那一句话，是谁没说完？">>
-		<<run Sg.notes.add('n_witch_fire_hint')>>
+		<<note "n_witch_fire_hint">>
 		<<goto "老巫女">>
 	<</link>>
 <</if>>

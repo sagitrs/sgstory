@@ -122,7 +122,7 @@
 	<summary>柜台：打听与添置<span class="act-n" aria-hidden="true"></span></summary>
 	<<if not Sg.notes.has('n_rumor') and $pc.gold gte (-Game.Economy.priceOf("rumor_buy", $pc))>>
 	<<link `"花 " + (-Game.Economy.priceOf("rumor_buy", $pc)) + " 金币：请他讲讲洞里的路"`>>
-		<<econ "rumor_buy">><<run Sg.notes.add('n_rumor')>><<goto "酒馆">>
+		<<econ "rumor_buy">><<note "n_rumor">><<goto "酒馆">>
 	<</link>>
 <<else>>
 	（老猎人的牛皮里混着真话：''第三块板子是脆的''。）
@@ -360,7 +360,7 @@
 	<summary>柜台：问门道与药膏<span class="act-n" aria-hidden="true"></span></summary>
 	<<if not Sg.notes.has('n_witch_hint') and $pc.gold gte (-Game.Economy.priceOf("witch_hint", $pc))>>
 	<<link `"花 " + (-Game.Economy.priceOf("witch_hint", $pc)) + " 金币：问塔里的门道"`>>
-		<<econ "witch_hint">><<run Sg.notes.add('n_witch_hint')>><<goto "女巫小屋">>
+		<<econ "witch_hint">><<note "n_witch_hint">><<goto "女巫小屋">>
 	<</link>>
 <<else>>
 	<span class="sys-note">（她画给你看：''炉膛后头那个暗格''。位置分毫不差。''家里记了一百年的东西，不会有错。这条会在塔里的书房帮到你。''）</span>
@@ -454,7 +454,7 @@
 
 你顺着看过去，才注意到塔顶那一点光。她不再说了，把衣服按回水里。
 
-<<run Sg.notes.add('n_tav_light')>>
+<<note "n_tav_light">>
 
 她的原话你记下了：''"我爷爷的爷爷见过塔上亮着灯。三百年了，那灯没灭过。"''说完她自己笑了笑，也不知道信不信。
 
@@ -469,7 +469,7 @@
 
 牌子底下压着几根烧过的火把梗，浸透了又干透，弯成钩状。泥地上的靴印深的深浅的浅，全都朝着同一个方向。
 
-<<run Sg.notes.add('n_tav_iron')>>
+<<note "n_tav_iron">>
 
 [[退回林子|森林边缘]]
 
@@ -485,6 +485,6 @@
 
 他又把烟斗塞回去，闭上眼。再问，他就只剩抽烟的声音了。
 
-<<run Sg.notes.add('n_tav_seal')>>
+<<note "n_tav_seal">>
 
 [[回到林子边缘|森林边缘]]

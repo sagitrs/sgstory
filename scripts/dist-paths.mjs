@@ -44,10 +44,18 @@ export const storyRelPath = (slug = DEFAULT_SLUG) => `stories/${slug}/index.html
 export const FONT_PREFIX_FROM_ROOT = 'fonts/';
 export const FONT_PREFIX_FROM_STORY = '../../fonts/';
 
-/** 故事页**硬上界**（字节）——与 CI 的 `post-deploy-smoke` 同一口径（那边写的是同数字的字面量）。
- *  为什么放这里：`#576` 实测过一条"窗带"——`test/size-gate.mjs` 的基线 997,937B ＋ 0.5% 容差 ≈ 1,002.9KB，
- *  而部署后是 1,000,000B 硬红 ⇒ **997,937–1,002,926B 之间 PR/soak 全绿、main 的部署后冒烟红**。 */
-export const STORY_PAGE_MAX_BYTES = 1_000_000;
+/** 故事页**硬上界**（字节）——与 CI 的 `post-deploy-smoke` 同一口径（那边写的是同数字的字面量，由 P5 门钉住）。
+ *  `#576` 实测过一条"窗带"：`test/size-gate.mjs` 的基线 ＋ 0.5% 容差 ≈ 1,002.9KB，而部署后 1,000,000B 硬红
+ *  ⇒ **997,937–1,002,926B 之间 PR/soak 全绿、main 的部署后冒烟红**（本常量就是为消掉这条窗带而收进来的）。
+ *
+ *  **2026-09-14 由 `1_000_000` 抬到 `1_100_000`**（操作者裁定："可以抬上界"）。理由与边界：
+ *   · 三个故事**共享同一份引擎内联**，内容仍在增量期（`#624` 的点击态写侧迁移还在往条件表里加行）；
+ *     故事页顶到 1MB 时，判据会开始逼着内容"为了字节而压注释"——那是**判据在指挥内容**，方向反了；
+ *   · **真正的防回胖护栏是 `test/size-gate.mjs` 的 ratchet**（基线 ＋ 0.5% 容差、"只许降不许升"）——
+ *     它比本上界更紧，且改动要重签＋写理由 ⇒ 抬本上界**不等于放宽 ratchet**；
+ *   · 本上界只当**"疑似回胖/内嵌资产"的警报线**（部署后冒烟那条硬判），所以留 10% 余量够用。
+ *   · 哪天要再抬：先把 `size-gate` 的基线为什么涨说清楚，否则只是把警报线推后。 */
+export const STORY_PAGE_MAX_BYTES = 1_100_000;
 /** 书架页**硬上界**（字节）——与 CI 的 `post-deploy-smoke` 同一口径（那边写的是同数字的字面量，
  *  由 `test/multi-story.mjs` 的 P5 门钉住：两处不等就在 PR 里红）。`#576` 未决① 的处置：不搬钱，搬判据。 */
 export const SHELF_PAGE_MAX_BYTES = 100_000;

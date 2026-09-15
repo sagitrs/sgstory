@@ -306,6 +306,11 @@ export const makeShared = (ctx) => {
 		// （注：`cave_step` 那条**不是**这个原因——它读写都在 `[widget]` 段里，按门口径属引擎面；已单独登记。）
 		const hasIf = (name, src, flag) => {
 			if (new RegExp(`<<(?:if|elseif)[^>]*\\$pc\\.(?:world|ev)\\.${flag}\\b`).test(src)) return true;
+			// `#437` 批三（口径扩展）：知识键**直读归零**之后，叙事条件改走**封装层**
+			//（`<<if Sg.notes.readPath($pc, 'ev.X')>>`）——这一段**仍然消费**了该旗标，
+			// 不认它就会"转一处、消费点丢一处"（`--consequences` 判「无任何桶」= 假红；实测
+			// `hall_seen`/`study_found` 两键就是这样掉出来的）。接收者不限于 `$pc`（与 `WRAPPED_READ_RE` 同口径）。
+			if (new RegExp(`Sg\\.notes\\.readPath\\(\\s*[^,()]+,\\s*['"](?:ev|world)\\.${flag}['"]`).test(src)) return true;
 			return (flagsByNote.get(flag) ?? []).some((id) => refsByPassage.get(name)?.has(id));
 		};
 		const written = new Set();

@@ -79,7 +79,7 @@
 	<div id="fanlin-act"><<nobr>>
 /% #300 P1：改回渲染路径（状态必须落在 history moment 上，存读档才不丢） %/
 	<<lastcheckFor "塔外花田" "花田·下风">>
-	<<link `($pc.world.flower_warned ? "憋住气，" : "") + "伸手去摘最靠里的那一朵"`>>
+	<<link `(Sg.notes.has('n_flower_warned') ? "憋住气，" : "") + "伸手去摘最靠里的那一朵"`>>
 		<<if Sg.notes.has('n_flower_warned')>>
 			（''你憋住气''，把最靠里的那一朵连根带土捧起来。）<<give "月光花">><<setflag "flower_taken">><<goto "塔外花田">>
 		<<else>>
@@ -391,7 +391,7 @@
 /% #300 P1：原地 <<replace>> 的状态变更不落 history moment（存读档会丢）——改回渲染路径：
    动作仍在 link 体内掷骰/结算，随后 <<goto>> 重渲染；本次结果由 #270 的结果槽留屏。 %/
 <<if not $pc.world.whistle_taken>>
-	<<if $pc.ev.hall_seen>>
+	<<if Sg.notes.readPath($pc, 'ev.hall_seen')>>
 		<<link "摘哨子（钉子怎么卡的，你已经看清了）">>
 			你把哨子从钉子上提起来，收进行囊，可在''物品栏''查看。<<give "坏哨">><<setflag "whistle_taken">>
 			<<goto "门厅">>
@@ -456,7 +456,7 @@
 	<<lastcheckFor "书房·检视" "书房·敲墙" "书房·断代" "书房·强拆">>
 	<<if not $pc.inv["日记"]>>
 		<<rules "书房#已摸清暗格">>
-		<<if $pc.ev.study_found>>
+		<<if Sg.notes.readPath($pc, 'ev.study_found')>>
 			<<link "把暗格里的东西取出来">>
 				<<give "日记">><<note "n_failure_cause">>
 				<<give "传送术卷轴">>

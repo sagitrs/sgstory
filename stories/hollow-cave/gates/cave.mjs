@@ -11,6 +11,7 @@
 //      且每条实例的 `ref` 也解析得到段落、`hint` 非空（内容→表）；
 //   ③ `Sg.story.chestDef(id)`：三个位点名（`site`/`rareSite`/`toolSite`）都必须是**已登记位点**，
 //      `tool` 必须在 `Game.Items.defs` 里，且 `loot` 的档位非空（稀有度→奖品曲线存在）；
+//   ⑤ 路面**类型标签**齐备（`#692` ①）：出现的每个 kind 都要有非空标签（新增类不给标签 ⇒ 红）。
 //   ④ 三选一每段 ≥1 个 `noCheck` 选项（"不掷骰也有路可走"）——形状门管声明，这里管**内容侧**也有对应实例。
 export const flag = 'cave';
 export const flags = ['cave'];
@@ -86,6 +87,18 @@ export const chestProblems = (chest, { hasSite, hasItem, siteOf } = {}) => {
 	return out;
 };
 
+/** 纯函数⑤：路面**类型标签**齐备（`#692` ①）——出现的每个 `kind` 都必须有非空标签。
+ *  为什么入库：操作者裁定"三选一要显式标类型"；若新增第七类 kind 而不给标签，玩家只会看到空白/问号前缀，
+ *  且**没有任何门**看得见（与 `#688` 那类"全靠肉眼"的缺陷同族）。 */
+export const labelProblems = (kinds, labelOf) => {
+	const out = [];
+	for (const k of kinds) {
+		const l = labelOf?.(k);
+		if (typeof l !== 'string' || !l.trim()) out.push({ code: 'label-missing', why: `事件类「${k}」没有类型标签（路面提示会出现空白/问号前缀，#692）` });
+	}
+	return out;
+};
+
 export const run = (ctx) => {
 	const { arg, wantAll, window: w } = ctx;
 	if (!(wantAll || arg('cave'))) return;
@@ -109,6 +122,9 @@ export const run = (ctx) => {
 			['🔴 ④ 反例：声明形状非法（引擎拒绝归一化）⇒ 报', rewardProblems({ encounters: { short: { reward: { item: { id: '钥匙', chance: 0 } } } } }, { normalize: () => { throw new Error('chance 必须在 1..100'); }, hasItem: () => true, srcOf: () => 'Game.Combat.grantReward(' }).length === 1],
 			['🔴 ④ 反例：声明了掉落但内容没接 ⇒ 报"声明与行为对不上"', rewardProblems({ encounters: { long: { reward: { item: '钥匙' } } } }, { normalize: () => ({ gold: 0, item: { id: '钥匙', chance: 100 } }), hasItem: () => true, srcOf: () => '（内容里没有落账调用）' }).some((p) => p.code === 'reward-not-wired')],
 			['🔴 ④ 反例：内容绕过单一落点（自己读声明）⇒ 报', rewardProblems({ encounters: { long: { reward: { item: '钥匙' } } } }, { normalize: () => ({ gold: 0, item: { id: '钥匙', chance: 100 } }), hasItem: () => true, srcOf: () => 'Game.Combat.grantReward($pc, "long") 和 (Game.Combat.slotsDecl().encounters.long.reward ?? {}).gold' }).some((p) => p.code === 'reward-bypassed')],
+			['⑤ 正例（#692）：六类都有类型标签 ⇒ 不报', labelProblems(KINDS, (k) => ({ shortFight: '短战斗', longFight: '长战斗', chest: '宝箱', cave: '特殊洞窟', trap: '陷阱', traveller: '旅人' })[k]).length === 0],
+			['🔴 ⑤ 反例（#692）：某类标签为空 ⇒ 报', labelProblems(KINDS, (k) => (k === 'trap' ? '' : 'x')).length === 1],
+			['🔴 ⑤ 反例（#692）：新增第七类却没标签 ⇒ 报', labelProblems([...KINDS, 'puzzle'], (k) => (k === 'puzzle' ? null : 'x')).length === 1],
 			['③ 正例：宝箱声明面齐（位点已登记＋工具在道具表＋奖品曲线非空）', chestProblems({ mechanisms: { 锁扣: { site: 'A', rareSite: 'B', toolSite: 'C', tool: '撬棍' } }, loot: { 普通: ['干粮'] } }, { hasSite: (x) => !!x, hasItem: (x) => x === '撬棍' }).length === 0],
 			// `#491` 判据 3（声明侧）：位点表里的 DC 差必须兑现"道具各降 3"与"珍贵更难"
 			['③ 正例（#491）：工具降难＝声明值（12−9=3）且珍贵(15)>普通(12) ⇒ 不报', chestProblems(
@@ -138,10 +154,12 @@ export const run = (ctx) => {
 		for (const p of poolProblems(story.eventPool?.(1) ?? null, hasPassage)) { console.log(`  ✗ 事件池：${p.why}`); bad++; }
 		for (const p of chestProblems(mech.chest, { hasSite: (n) => !!story.checkSite?.(n), hasItem: (n) => !!story.itemEffect?.(n), siteOf: (n) => story.checkSite?.(n) })) { console.log(`  ✗ 宝箱声明面：${p.why}`); bad++; }
 		for (const p of rewardProblems(mech, { normalize: (id) => w?.Game?.Combat?.encounterReward(id), hasItem: (n) => !!story.itemEffect?.(n), srcOf: (n) => ctx.passageSrc?.get(n) })) { console.log(`  ✗ 战斗奖励声明面：${p.why}`); bad++; }
+		const kindsSeen = [...new Set([...KINDS, ...rows.map((o) => o.kind).filter(Boolean), ...((story.eventPool?.(1)?.kinds) ?? [])])];
+		for (const p of labelProblems(kindsSeen, (k) => story.eventKindLabel?.(k))) { console.log(`  ✗ 类型标签：${p.why}`); bad++; }
 		const noCheck = (mech.roads ?? []).filter((r) => (r.options ?? []).some((o) => o.noCheck)).length;
 		console.log(`  · 五段三路：${(mech.roads ?? []).length} 段 · ${rows.length} 条路 · 有 \`noCheck\` 的段 ${noCheck} 个 · 实例段落全部解析 ✓`);
 	}
 
 	if (bad) { console.error(`\n✗ 洞窟声明面门未通过（${bad} 项）`); process.exit(1); }
-	console.log('✔ 洞窟声明面门通过（表↔内容双向对账 · 宝箱声明面齐 · 战斗奖励声明面与落点一致）');
+	console.log('✔ 洞窟声明面门通过（表↔内容双向对账 · 宝箱声明面齐 · 战斗奖励声明面与落点一致 · 路面类型标签齐备 #692）');
 };

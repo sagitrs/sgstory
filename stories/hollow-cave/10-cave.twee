@@ -57,8 +57,11 @@
 		   循环变量与 `_opts` 都已失效 ⇒ 实测「点了没反应」×100（三条路全废）。
 		   修法：把**跳去哪/显示什么**在**渲染期**算进临时量，用 `<<capture>>` 拷进点击处理器的作用域。 %/
 		<<set _tgt to "路·" + _opts[_i].ref>>
-		<<set _hint to _opts[_i].hint>>
-		<<capture _tgt _hint>><<link _hint>><<goto _tgt>><</link>><</capture>>
+		/% `#692`（①，操作者裁定）：三选一必须让玩家**看出这条是什么**——类型标签（声明面）＋ flavor。
+		   为什么不做成"风险档"（②）：操作者的选择是①（显式类型），并另开票用**奖励**引导玩家别总是绕过战斗。 %/
+		<<set _lbl to Sg.story.eventKindLabel(_opts[_i].kind) ?? "？">>
+		<<set _text to "【" + _lbl + "】" + _opts[_i].hint>>
+		<<capture _tgt _text>><<link _text>><<goto _tgt>><</link>><</capture>>
 		<br>
 	<</for>>
 <<else>>

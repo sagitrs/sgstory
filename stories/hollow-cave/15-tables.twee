@@ -123,7 +123,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 			{ id: 'cave', prefix: ['cave_', 'chest_'], note: '洞窟进程（步数、事件选择、机关、钥匙）' },
 			// `#574`：`notes` 也是引擎写的槽（`Sg.notes.add` 的「已授予」真存储 `pc.ev.notes`）——引擎运行时胶水
 			// 现在真的进了每个故事的产物 ⇒ 每个故事都要登记它（读写点都在引擎侧 ⇒ 只要求登记域）。
-			{ id: 'runtime', keys: ['last_result', 'last_roll', 'soc', 'soc_last', 'soc_lever', 'fight', 'ending', 'notes'], note: '引擎保留的运行时槽（每故事都写）' },
+			{ id: 'runtime', keys: ['last_result', 'last_roll', 'soc', 'soc_last', 'soc_lever', 'fight', 'ending', 'notes', 'settle'], note: '引擎保留的运行时槽（每故事都写）' },
 			{ id: 'gear', prefix: ['gearHp'], note: '装备耐久（S1 机制的状态面）' },
 			{ id: 'cave-status', keys: ['statuses'], note: '部位×异常（S2 机制的状态面）' },
 		],
@@ -144,6 +144,10 @@ window.Sg ??= {};
 // 若将来步进要影响**叙事文案**（在叙事段读它），把它改成 `provenance` 以外的口径或干脆不声明。
 Object.assign(((window.Game.Consequences ??= { provenance: {}, engine: {} }).engine), {
 	cave_step: '洞窟步进：由 `caveNext` widget 维护（达到 5 步转入地下村落）',
+	// `#691`：本次事件的**结算/产出文案**暂存位——产出点（正文段）写、`caveNext`（`[widget]` 段＝引擎面）读并
+	// 提升成 `last_result{p: 落点}` ⇒ 落点段用 `<<sceneFeedback>>` 显示。**消费方是引擎/呈现层**（留屏协议），
+	// 按门口径属引擎态（与 `last_result` 同族）⇒ 在此登记声明，实况与声明一致即可。
+	settle: '留屏协议的**待提升文案**（`#691`）：正文产出点写、`caveNext` 提升为 `last_result` 后清空',
 });
 Object.assign((window.Sg.story ??= {}), {
 	notes: () => window.Game.Notes.entries,

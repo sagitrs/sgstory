@@ -1,0 +1,43 @@
+:: 短战斗 Widget [widget]
+/% `#608`（S3 上移）：短战斗的**机制**从 `stories/hollow-cave/10-cave.twee` 搬进引擎——
+   故事只留**文案与实参**（正是 `#512` 的方向：机制住引擎、数据/文案住故事）。
+
+   实参（7 个）：
+     ① 位点（`<<sitecheck>>` 的 key）  ② 按钮文案  ③ 胜句  ④ 败句  ⑤ 遭遇 id（声明面）  ⑥ 战利品句  ⑦ 尾段名
+
+   **相位口径**（`#598`／`#600` 的教训，本 widget 的核心）：
+     `Game.Combat.waveRecord()` 返回**对象** `{ phase, wave, plan, advance }`，分支**只看 `.phase`**：
+       · `continue`／`advance` ⇒ **不结算、不推进**：印胜句后**重渲染本段**（本回合已记账，局面留待下一击）；
+       · `cleared` ⇒ 胜句 ＋ `grantReward`（**声明面**结算：金币/掉落都从 `encounters[*].reward` 来）；
+       · `failed`  ⇒ 败句 ＋ `<<damage>>` ＋ **声明面的失败笔记**（`encounters[*].failNote`）。
+     ⚠️ 不许拿 `waveRecord()` 的返回值与字符串比、也不许用 `$last_check.success` 代替相位——
+        `success` 只是"这一击中了"，**不是**"打完了"（短档 `hits=1` 时两者恰好同构，换个声明就会错）。
+
+   尾段（第 7 实参）：结算后要执行的**故事侧段落名**（例：本故事的五步步进，那一段里是 `<<caveNext>>`）。
+   引擎不知道「下一步是什么」 ⇒ 只 `<<include>>` 这一段；缺省空串 ⇒ 不执行（显式降级）。
+   （试过"尾段＝wiki 片段 + `$(this.output).wiki()`"的写法：**不驱动导航**（步数不动）⇒ 实测否决。） %/
+<<widget "shortFight">><<nobr>>
+	<<set _enc to $args[4] ?? "short">>
+	<<set _tail to $args[6] ?? "">>
+	<<set _note to Game.Combat.encounterFailNote(_enc)>>
+	<<run Game.Combat.waveBegin($pc, _enc)>>
+	<<link $args[1]>>
+		<<sitecheck $args[0]>>
+		<<set _phase to (Game.Combat.waveRecord($pc, $last_check.success) ?? {}).phase>>
+		<<if _phase is "continue" or _phase is "advance">>
+			<<print $args[2]>>
+			<<goto `passage()`>>
+		<<elseif _phase is "cleared">>
+			<<print $args[2]>>
+			<<set _r to Game.Combat.grantReward($pc, _enc)>>
+			<<if _r.gold gt 0>><<if $args[5]>><<print $args[5]>><</if>><</if>>
+			<<if _r.item>><<give _r.item>><</if>>
+			<<if _tail>><<include `_tail`>><</if>>
+		<<else>>
+			<<print $args[3]>>
+			<<damage `Game.Damage.hurt`>>
+			<<if _note>><<note _note>><</if>>
+			<<if _tail>><<include `_tail`>><</if>>
+		<</if>>
+	<</link>>
+<</nobr>><</widget>>

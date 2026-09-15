@@ -203,6 +203,9 @@ export const run = (ctx) => {
 		['未声明域 → 红', analyze(SELF_UNDECLARED), D, 1, 'check'],
 		['只有写 → 红', analyze({ 'a.twee': ':: P\n<<set $pc.ev.tav_z to true>>' }), D, 1, 'check'],
 		['只有读 → 红', analyze({ 'a.twee': ':: P\n<<if $pc.ev.tav_q>>y<</if>>' }), D, 1, 'check'],
+		// `#608`：**声明面驱动的写点**——引擎侧是变量（`<<note _note>>`），字面 id 只在故事数据表里（`failNote`）
+		['正例（#608）：声明面 `failNote` 的写点 ⇒ 不算「只有读」', analyze({ 'a.twee': `:: T\n\tencounters: { short: { failNote: 'n_tav_x' } },\n:: P\n<<if Sg.notes.has('n_tav_x')>>y<</if>>` }, { notes: { n_tav_x: { flagPath: 'ev.tav_x' } } }), [{ id: 'tavern', prefix: ['tav_'] }], 0, 'check'],
+		['反例（#608）：**没有**声明面写点时，同一个夹具必须报「只有读」——这一条保证上面那条不是空判', analyze({ 'a.twee': `:: P\n<<if Sg.notes.has('n_tav_x')>>y<</if>>` }, { notes: { n_tav_x: { flagPath: 'ev.tav_x' } } }), [{ id: 'tavern', prefix: ['tav_'] }], 1, 'check'],
 		['歧义（命中两个域）→ 红', analyze(SELF_GOOD), [{ id: 'a', prefix: ['tav_'] }, { id: 'b', prefix: ['tav_x'] }], 1, 'check'],
 		// #365 类：setflag 写 **world**，条件却读 **ev** → ev 那一支永远不成立
 		['命名空间不一致（写 world / 读 ev）→ 必须报', analyze({ 'a.twee': ':: P\n<<setflag "seer_asked">>\n<<if $pc.ev.seer_asked>>x<</if>>' }), D, 1, 'ns'],

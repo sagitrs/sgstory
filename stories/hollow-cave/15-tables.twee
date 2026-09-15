@@ -188,7 +188,7 @@ const MECH = {
 	// `#600`（已定 ③）：**钥匙掉落**也住在声明面（`reward.item`，与 `gold` 同轴）：长战斗**必掉**、短战斗 **30%**。
 	// 形状：`'道具'`（＝必掉）或 `{ id, chance }`；内容侧只渲染，落账在 `Game.Combat.grantReward`（单一落点）。
 	encounters: {
-		short: { waves: [{ pool: 'cave.w1', difficulty: 1 }], reward: { gold: 3, item: { id: '钥匙', chance: 30 } } },
+		short: { waves: [{ pool: 'cave.w1', difficulty: 1 }], reward: { gold: 3, item: { id: '钥匙', chance: 30 } }, failNote: 'n_cave_battered' },
 		long: { waves: [{ pool: 'cave.w1', difficulty: 1 }, { pool: 'cave.w2', difficulty: 2, reinforce: true }], rewardsScale: 1.5, reward: { gold: 9, item: '钥匙' } },
 	},
 	// 五步主线：每步 3 路（段号从 1 计，与 `roadOffer(idx)` 一致）；每步至少一个 `noCheck:true`（不掷骰也有路）

@@ -171,6 +171,11 @@ export const NOTE_WRITE_RE = /(?:Sg\.notes\.add\(\s*['"](n_[a-z0-9_]+)['"]|<<\s*
 /** 只要**模块 API** 那一种（`Sg.notes.add(`）。判「表里该用宏还是裸 API」时用它（`#624` 片一）：
  *  `NOTE_WRITE_RE` 认两种形状（记账用），而**点击态域里的 `<<note>>` 是允许的**，不许当成裸 API 判红。 */
 export const NOTE_WRITE_API_RE = /Sg\.notes\.add\(/;
+/** **声明面驱动的写点**（`#608`）：短战斗 widget 落败时按 `encounters[*].failNote` 写笔记——
+ *  引擎侧是**变量**（`<<note _note>>`），字面 id 只在**故事的数据表**里 ⇒ 静态扫描必须以声明为源，
+ *  否则 `--state` 会报「只有读没有写（幽灵条件）」（实测：`cave_battered` 恰好踩中）。 */
+export const DECLARED_NOTE_WRITE_RE = /failNote\s*:\s*['"](n_[a-z0-9_]+)['"]/g;
+export const declaredNoteWriteRefs = (text) => [...String(text ?? '').matchAll(DECLARED_NOTE_WRITE_RE)].map((m) => m[1]);
 /** 条件键 → 与段落 `<<if>>` 里**同形**的条件文本（`n_*` ⇒ `Sg.notes.has('n_x')`；其余 ⇒ `$pc.<域>.<键>`，裸键默认 `ev.`）。
  *  为什么必须只有一份（`#435` 前置 0）：表侧条件（行的 `req`/`any`/`exclude`）要过**同一份**判据
  *  （`causeReg()`／`conditionReadsFlag()`），若两处各写一套转换 ⇒ 必然漂移（`--echoes` 与 `--investment` G3 都用它）。 */
@@ -189,6 +194,8 @@ export const ruleRowSetKeys = (row) => (Array.isArray(row?.sets) ? row.sets : ro
 export const noteWriteRefs = (text) => {
 	const out = new Set();
 	for (const m of String(text ?? '').matchAll(NOTE_WRITE_RE)) out.add(m[1] ?? m[2]);   // 两种形状各有自己的捕获组
+	// `#608`：**声明面驱动的写点**（`encounters[*].failNote`）同样算写——引擎侧是变量，字面 id 只在数据里
+	for (const id of declaredNoteWriteRefs(text)) out.add(id);
 	return [...out];
 };
 /** 经 `Sg.notes.add()` 写到的**限定键**（`ev.x`/`world.x`）。 */

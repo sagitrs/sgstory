@@ -11,13 +11,13 @@ permissions:
 
 jobs:
   changes:
-    # #520（CI 时长）：**只改文档就别跑 soak**。
-    # 判据：**所有**改动文件都落在「文档面」（`docs/**` 或任意 `*.md`）⇒ `code=false`（跳 soak）；否则照跑。
-    # 为什么单开一个 job（而不是在 soak 里早退）：跳过的理由要**可见可审**——`soak: skipped` ＋ 本 job 的
+    # #520（CI 时长）：**只改文档就别跑真机/确定性面**。
+    # 判据：**所有**改动文件都落在「文档面」（`docs/**` 或任意 `*.md`）⇒ `code=false`（跳 `realmachine`）；否则照跑。
+    # 为什么单开一个 job（而不是在 `realmachine` 里早退）：跳过的理由要**可见可审**——`realmachine: skipped` ＋ 本 job 的
     # 输出（改了哪些文件、判成什么）都留在 run 页上，符合本仓「不许静默降级」的纪律。
     # 失败开向：算不出改动面 ⇒ `code=true`（照跑），**不静默少跑**。
     # push（main）恒 `code=true`：`deploy` 依赖它，main 上这一段不该省。
-    # 成本：无 checkout，一次 API 调用（≈3-5s）；与 test 并行，只可能让 soak 晚几秒起跑。
+    # 成本：无 checkout，一次 API 调用（≈3-5s）；与 test 并行，只可能让 `realmachine` 晚几秒起跑。
     runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
@@ -41,7 +41,7 @@ jobs:
           fi
           echo "code=$code" >> "$GITHUB_OUTPUT"
           if [ "$code" = "false" ]; then
-            echo "⇒ 纯文档改动，**跳过 soak**（walker ＋ 真机浏览器）：它们对文档零价值（实测 124s）"
+            echo "⇒ 纯文档改动，**跳过 realmachine**（位点双支清扫 ＋ 真机浏览器）：它们对文档零价值"
           fi
 
   test:
@@ -70,7 +70,9 @@ jobs:
           path: dist
           retention-days: 1
 
-  soak:
+  realmachine:
+    # `#630`／伞 `#626`：**名字与内容对齐**——这里装的是**确定性**断言（位点双支清扫）＋**真机**浏览器断言，
+    # 不再是随机长测（那个已搬进 `soak-nightly.yml`，report-only）。旧名 `soak` 会让人以为门禁里还跑抽样。
     # **确定性部分＋真机**（`#630`／伞 `#626`）：位点**双支清扫**（定向扫描，与局数无关，实测 68 位点 ≈3s）＋ 真机浏览器断言。
     # 随机游走**已从 PR 门撤出**——它是**仪器**不是**判据**：断言的是"抽样路径上没崩"，不是"行为符合预期"；
     # 把它设成门＝用抽样运气冒充规格（这正是伞 `#626` 要改的形态）。长测改由 `soak-nightly.yml` 跑（report-only）。
@@ -111,7 +113,7 @@ jobs:
   deploy:
     # main 分支推送且测试通过后，自动发布到 GitHub Pages
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
-    needs: [test, soak]
+    needs: [test, realmachine]
     runs-on: ubuntu-latest
     outputs:
       page_url: ${{ steps.deployment.outputs.page_url }}

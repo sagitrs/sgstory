@@ -53,7 +53,12 @@
 <<if _opts and _opts.length>>
 	<<for _i to 0; _i lt _opts.length; _i++>>
 		/% `#490`：每条路是一个**实例段落**（`路·<ref>`），六类事件各有一个**机制模板**（`机制·<kind>`）%/
-		<<link _opts[_i].hint>><<goto `"路·" + _opts[_i].ref`>><</link>>
+		/% `#688`（P0）：`<<link>>` 体在**点击时**才求值 —— 直接写 `<<goto `"路·" + _opts[_i].ref`>>` 时
+		   循环变量与 `_opts` 都已失效 ⇒ 实测「点了没反应」×100（三条路全废）。
+		   修法：把**跳去哪/显示什么**在**渲染期**算进临时量，用 `<<capture>>` 拷进点击处理器的作用域。 %/
+		<<set _tgt to "路·" + _opts[_i].ref>>
+		<<set _hint to _opts[_i].hint>>
+		<<capture _tgt _hint>><<link _hint>><<goto _tgt>><</link>><</capture>>
 		<br>
 	<</for>>
 <<else>>
@@ -86,7 +91,10 @@
 	<<set _w to Game.Combat.waveBegin($pc, "long")>>
 <</if>>
 <<set _wv to $pc.ev.fight.wave>>
-第 <<= _wv.idx>> 批 · 本轮 <<= _wv.rounds + 1>>/3（命中 <<= _wv.hits>>/3）
+/% `#689`（顺带）：显示里的 `/3` 是**硬编码**，而 `#599` 已把长战斗回合上限定成 **5**（`plan.rounds`）⇒
+   玩家看到"本轮 4/3、5/3"以为早就该结束。改为从**声明面**取（`wavePlan(enc).rounds`／`.hits`）。 %/
+<<set _pl to Game.Combat.wavePlan(_wv.encounter)>>
+第 <<= _wv.idx>> 批 · 本轮 <<= _wv.rounds + 1>>/<<= _pl.rounds>>（命中 <<= _wv.hits>>/<<= _pl.hits>>）
 
 <<link "把火把举低，逼它退到石壁边">>
 	<<sitecheck "洞窟·围斗">>
@@ -96,10 +104,10 @@
 		   ⇒ 取 `.phase`；两条“继续/增援”改成 `<<goto>>`（真的重渲染本段落，计数与结果槽才会更新）。 %/
 		<<set _ph to Game.Combat.waveRecord($pc, $last_check.success).phase>>
 	<<if _ph is "advance">>
-		<<actOut "这一批倒下了。石缝里又钻出来更多——它还有同伙。">>
+		<<set $pc.ev.last_result to { p: passage(), era: $era, text: "这一批倒下了。石缝里又钻出来更多——它还有同伙。" }>><<print "这一批倒下了。石缝里又钻出来更多——它还有同伙。">>
 		<<goto "机制·longFight">>
 	<<elseif _ph is "cleared">>
-		<<actOut "最后一只也塌下去了。你站着，喘了很久。">>
+		<<set $pc.ev.last_result to { p: passage(), era: $era, text: "最后一只也塌下去了。你站着，喘了很久。" }>><<print "最后一只也塌下去了。你站着，喘了很久。">>
 		/% `#600`：长战斗**必掉**钥匙（声明面 `item: '钥匙'`）；金币与掉落同走一处落账 %/
 		<<set _r to Game.Combat.grantReward($pc, "long")>>
 		<<if _r.gold gt 0>>（两只身上都挂着旧币，你收了起来。）<</if>>
@@ -107,12 +115,12 @@
 		<<set $pc.ev.fight to {}>>
 		<<caveNext>>
 	<<elseif _ph is "failed">>
-		<<actOut "你被压在地上。它们没有追——它们只是不让你过。">>
+		<<set $pc.ev.last_result to { p: passage(), era: $era, text: "你被压在地上。它们没有追——它们只是不让你过。" }>><<print "你被压在地上。它们没有追——它们只是不让你过。">>
 		<<damage `Game.Damage.hard`>>
 		<<set $pc.ev.fight to {}>>
 		<<caveNext>>
 	<<else>>
-		<<actOut "它退了半步。你还有机会。">>
+		<<set $pc.ev.last_result to { p: passage(), era: $era, text: "它退了半步。你还有机会。" }>><<print "它退了半步。你还有机会。">>
 		<<goto "机制·longFight">>
 	<</if>>
 <</link>>
@@ -130,7 +138,7 @@
 	<<link "用那把锈钥匙开它（难度降为 0）">>
 		钥匙转半圈。机关根本没来得及动，箱盖就弹开了。
 		<<set _loot to Sg.story.lootOf(_rare ? "珍贵" : "普通")>>
-		<<if _loot.includes("TOOL")>><<give (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>>（顺手多了一件能降难的家什。）<</if>>
+		<<if _loot.includes("TOOL")>><<set _tool to (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><<give _tool>>（顺手多了一件能降难的家什。）<</if>>
 		<<give "干粮">><<note "n_cave_loot">>
 		<<caveNext>>
 	<</link>>
@@ -141,7 +149,7 @@
 		<<sitecheck `_rare ? _c.rareToolSite : _c.toolSite`>>
 		<<if $last_check.success>>
 			具压住了机关。里面是干粮，和一小块铁片。
-			<<if _rare>><<give (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><</if>>
+			<<if _rare>><<set _tool to (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><<give _tool>><</if>>
 			<<give "干粮">><<note "n_cave_loot">>
 		<<else>>
 			具滑了，机关针扎进虎口。<<damage `Game.Damage.graze`>>
@@ -152,7 +160,7 @@
 	<<link "徒手解它">>
 		<<sitecheck `_rare ? _c.rareSite : _c.site`>>
 		<<if $last_check.success>>
-			锁扣应声而开。里面是干粮<<if _rare>>，底下还压着一件能降难的家什<<give (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><</if>>。
+			锁扣应声而开。里面是干粮<<if _rare>>，底下还压着一件能降难的家什<<set _tool to (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><<give _tool>><</if>>。
 			<<give "干粮">><<note "n_cave_loot">>
 		<<else>>
 			锁扣没动，指头先破了。<<damage `Game.Damage.graze`>>

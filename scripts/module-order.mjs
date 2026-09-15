@@ -24,7 +24,8 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '');
 export const ORDER = [
 	'stories/mist-forest/00-meta.twee',      // StoryTitle / StoryData（无依赖）
 	'src/engine/30-persist/05-store.twee',     // 存储缝（#441-B/#462）：localStorage 键构造的唯一落点（引擎/故事两作用域）
-	'src/10-core.twee',      // Game.Rules / Game.Pc / Sg.UI ＋ 宏（无依赖）
+	'src/engine/10-const.twee',   // 引擎常量（#660 片二）：Game.Era / Game.Damage —— **必须排在 10-core 之前**
+	'src/10-core.twee',      // Game.Rules / Game.Pc / Sg.UI ＋ 宏（依赖 10-const 的常量）
 	'src/engine/50-present/11-scene.twee',     // 场景 widget（actOut / sceneFeedback）
 	'stories/mist-forest/12-widgets.twee',    // 故事 1 的 widget（#460：从引擎 10-core 搬回：hallResult / flip）
 	'stories/mist-forest/15-tables.twee',    // Game.*（加载期需要 Rules / Pc）
@@ -73,7 +74,8 @@ export const MODULES = {
 	'stories/hollow-cave/10-cave.twee': { deps: ['stories/hollow-cave/15-tables.twee'], defines: [], layer: 'story', note: '无名洞窟段落：五步三选一主线' },
 	'stories/minimal-demo/10-demo.twee': { deps: ['stories/minimal-demo/15-tables.twee'], defines: [], layer: 'story', note: '最小示例段落 ＋ StoryBindings（引擎接入契约的空表）' },
 	'src/engine/30-persist/05-store.twee': { deps: [], defines: ['Sg.store'], layer: 'engine', note: '存储缝（#441-B/#462）：localStorage 键构造的唯一落点' },
-	'src/10-core.twee': { deps: [], defines: ['Game.Rules', 'Game.Pc', 'Sg.UI'], layer: 'engine', note: '规则内核与界面基座' },
+	'src/engine/10-const.twee': { deps: [], defines: ['Game.Era', 'Game.Damage'], layer: 'engine', note: '引擎常量（#660 片二）：时代枚举与伤害档梯的**唯一落点**' },
+	'src/10-core.twee': { deps: ['src/engine/10-const.twee'], defines: ['Game.Rules', 'Game.Pc', 'Sg.UI'], layer: 'engine', note: '规则内核与界面基座（常量见 10-const）' },
 	'src/engine/50-present/11-scene.twee': { deps: ['src/10-core.twee'], defines: ['widget:actOut', 'widget:sceneFeedback'], layer: 'engine', note: '场景迁移配方（结果留屏）' },
 	'stories/mist-forest/15-tables.twee': { deps: ['src/10-core.twee'], defines: ['Game'], layer: 'story', note: '声明式数据表' },
 	'stories/mist-forest/16-notes-ch1.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#442 B0）：只往 Game.Notes.entries 追加条目' },
@@ -293,8 +295,8 @@ export const CONST_SECTION = {
 	// 允许出现"数据字段里的 era 字面量"与"`const Era = {…}` 定义"的文件（用**路径后缀**匹配，兼容搬家后的新路径）
 	// `#562`：**引擎侧默认常量**（`10-core` 的 `Game.Era ??= {…}`／`Game.Damage ??= {…}`）也是常量载体
 	// ——否则 `--literals` 会把那两行判成"裸时代字面量"（引擎给默认值 ⇒ 必须一起声明，这是"搬家要同步声明"的同一条纪律）
-	files: ['stories/mist-forest/15-tables.twee', 'src/10-core.twee'],
-	eraDecl: /const Era = \{|Game\.Era \?\?= \{/,              // 常量定义行的特征
+	files: ['stories/mist-forest/15-tables.twee', 'src/engine/10-const.twee'],
+	eraDecl: /const Era = \{|Game\.Era \?\?= \{|Game\.Era = \{/,   // 常量定义行的特征（`#660` 片二：单源用普通赋值）
 	eraDataField: /(flagEra|era:)/,         // 故事表数据字段的特征
 	// 裸伤害数字：**不再按文件名限定章节**。原先只在 `30/40/50/60-ch*.twee` 里判 ⇒ 章节一旦改名
 	// （搬家时很可能发生）判据就静默失效。现在改成"**所有文件都判**"，例外只在声明的文件中排除。

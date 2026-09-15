@@ -22,20 +22,10 @@ Object.assign(((window.Game.Consequences ??= { provenance: {}, engine: {} }).eng
 	// （无名洞窟）会在**叙事段落**读它（`<<if $pc.ev.fight.wave>>`）⇒ D2 会算成 `mechanic` 桶，
 	// 此时再声明为 `engine` 就是“错标”；没有战斗内容的故事（minimal-demo）才是引擎面 ⇒ 由**它自己**登记。
 });
-// ── 加载期常量的**引擎默认值**（`#460`／`#562`）──────────────────────────────────────────
-// 为什么由引擎兜底：`StoryInit`／`<<eraPresent>>`／`<<if $era is Game.Era.PAST>>` 这些**引擎侧**代码
-// 在**每个故事**的启动路径上都会读到 `Game.Era`；而它原先**只由故事 1 的 `15-tables` 建** ⇒ 第二/第三个
-// 故事启动即崩（`Error [StoryInit]: <<set>>: bad evaluation: Cannot read properties of undefined (reading 'PRESENT')`），
-// 而且 SugarCube 允许继续 ⇒ 起始段照样渲染 ⇒ **看起来"能玩"**（guest 实测：`$era` 是 `undefined`）。
-// 口径（与 `21-resolve` 的容器 `??=` 同轴）：**引擎给默认值，故事按需覆盖**——故事里同值覆盖是零行为变化。
-// 时代值：`'past'`／`'present'` 是本仓的**常量词表**（`--literals` 只许它们出现在声明的常量载体里，见 CONST_SECTION）。
-window.Game.Era ??= { PAST: 'past', PRESENT: 'present' };
-// 伤害档位：引擎侧 `<<damage>>` 家族／widget 用它；**故事不再各写一份**（`#660` 片一收的单源，见下注释）。
-//   graze=1 擦伤（磕碰、冻手）· hurt=2 受伤（肩膀撞墙）· hard=3 重击（花香按倒、土散去）·
-//   heavy=4 重伤（魔物抓伤、硬掰）· lethal=99 处死（昏睡/摔死的判定值——此前是裸 `<<damage 99>>`）；
-//   shove=5 是**非档位值**（雾影非龙向的固定反手伤，原为裸 `<<damage 5>>`，`#461` 抽算时具名）——
-//   它不在 1/2/3/4/99 的档梯上，**保持原值**（"5 归哪一档"是内容侧定级，见 `#461` PR，不在这里擅自改平衡）。
-window.Game.Damage ??= { graze: 1, hurt: 2, hard: 3, heavy: 4, lethal: 99, shove: 5 };
+// ── 加载期常量：**已搬到 `src/engine/10-const.twee`**（`#660` 片二，dev 裁定 Q1）──
+// `Game.Era`（时代枚举）与 `Game.Damage`（伤害档梯）是**引擎政策**、不是故事数据。
+// 本文件**不再定义**它们（谁是源必须唯一）——只依赖 ORDER 保证那一份先加载（`scripts/module-order.mjs`，
+// 本文件排在 `10-const` **之后**），历史原因与口径写在那一页的头注里。
 // ── 随机源（#441-A 抽纯函数的第一步）：**唯一取值口**，可注入 ──────────────
 // 为什么要有它：`#441` 的四条验收之一是「战斗/交涉/位点判定能**不经浏览器**在 node 里驱动」——
 // 而 `random()`（SugarCube 全局）在 node 里不存在 ⇒ 判定函数必须把随机源当**依赖**而不是直接调。

@@ -1,0 +1,24 @@
+:: 引擎常量 [script]
+// ── `#660` 片二（dev 裁定 Q1）：**引擎常量的唯一落点** ──────────────────────────────
+// 本页只放"与故事无关的政策常量"：`Game.Era`（时代枚举）· `Game.Damage`（伤害档梯）。
+// 为什么单列一页、而不是继续塞在 `src/10-core.twee`：`10-core` 是「Rules ＋ StoryInit ＋ Widgets ＋ StoryCaption」的杂居页；
+//   而常量有**加载顺序**要求（下面 `ORDER` 那一段），单列之后"谁是源"一眼可见。
+// 加载顺序（`scripts/module-order.mjs` 的 `ORDER`）：**必须排在 `src/10-core.twee` 之前** ——
+//   `10-core` 的 `StoryInit`／引擎侧 widget 在**加载期与启动期**就会读 `Game.Era`/`Game.Damage`。
+// 口径：**普通赋值** `=` —— 本页是**唯一源**（`#660` 片二按 dev 裁定 Q1 收口：引擎不再"兜底"、故事不再"覆盖"，
+//   "谁是源"必须唯一）。三个故事都不定义它们；`--literals` 的常量载体声明（`CONST_SECTION.files`）已指向本页。
+// 历史：`#562` 之前这两个常量**只由故事 1 的 `15-tables` 建** ⇒ 第二/第三个故事启动即崩
+//   （`Error [StoryInit]: … reading 'PRESENT'`，且 SugarCube 允许继续 ⇒ 起始段照样渲染 ⇒ 看起来"能玩"）。
+// `#660` 片一先删掉故事侧那份重复定义，片二把它们从 `10-core` 搬来本页（`10-core` 不再定义）。
+
+window.Game ??= {};
+
+// 时代值：`'past'`／`'present'` 是本仓的**常量词表**（`--literals` 只许它们出现在声明的常量载体里）。
+window.Game.Era = { PAST: 'past', PRESENT: 'present' };
+
+// 伤害档梯（引擎侧 `<<damage>>` 家族／widget 用它）：
+//   graze=1 擦伤（磕碰、冻手、划破手背）· hurt=2 受伤（肩膀撞墙、炉膛硬来）· hard=3 重击（花香按倒、土散去）·
+//   heavy=4 重伤（魔物抓伤、硬掰下来）· lethal=99 处死（昏睡/摔死的判定值——此前是裸 `<<damage 99>>`）。
+// ⚠️ `shove=5` 是**非档位值**：雾影（非龙向）的固定反手伤，原为 `10-core` 的裸 `<<damage 5>>`（`#461` 抽算时具名）。
+//    它不在 1/2/3/4/99 的档梯上，**保持原值**；"5 该归哪一档"是**内容侧定级**（见 `#461` 的 PR），不在引擎里擅自改平衡。
+window.Game.Damage = { graze: 1, hurt: 2, hard: 3, heavy: 4, lethal: 99, shove: 5 };

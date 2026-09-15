@@ -201,7 +201,8 @@ const Game = (() => {
 	// ⇒ 先把常量行跑一遍（真实加载顺序就是引擎在前）；跑不出来的话下面会点名（反沉默，别静默 undefined）。
 	const constFiles = CONST_SECTION.files.map((f) => join(ROOT, f));
 	const constSrc = constFiles.filter((f) => existsSync(f)).map((f) => readFileSync(f, 'utf8')).join('\n');
-	for (const m of constSrc.matchAll(/^window\.Game\.[A-Za-z]+ \?\?= .*$/gm)) vm.runInNewContext(m[0], ctx);
+	// 常量行两种形状都跑：`window.Game.Era = {…}`（`#660` 片二后的单源）与旧的 `??= {…}`
+	for (const m of constSrc.matchAll(/^window\.Game\.[A-Za-z]+ \??= .*$/gm)) vm.runInNewContext(m[0], ctx);
 	if (!ctx.window.Game?.Era || !ctx.window.Game?.Damage) errors.push('引擎常量未被载入（CONST_SECTION.files 里应有 `Game.Era ??=`／`Game.Damage ??=` 两行）——数据表会拿到 undefined');
 	vm.runInNewContext(gamePassage.body, ctx);
 	return ctx.window.Game;

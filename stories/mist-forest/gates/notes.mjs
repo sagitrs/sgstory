@@ -96,14 +96,9 @@ export const auditConsumption = (entries, reads, bookkeeping, refText) => {
 // ⇒ 改成 `Sg.notes.has(id, pc)` 会让该旗标**丢桶**（实测：转图鉴 5 处 ⇒ `codex×3 → codex×2 · engine?×1`；
 // 再转 NPC 3 处 ⇒ `--echoes` 分级问题 5 → 6）。口径同 `docs/notes-model.md` §4.1：**先让门认新形状，再改内容**。
 export const SINGLE_READ_BASELINE = {
-	'stories/mist-forest/15-tables.twee::ev.failure_cause': 'C-2c-3 待搬：图鉴谓词读单源笔记的 path ⇒ 改 `Sg.notes.has(\'n_failure_cause\')`（行为等价）',
-	'stories/mist-forest/15-tables.twee::ev.observation_lock': 'C-2c-3 待搬：图鉴谓词两处（`n_observation_lock` 单源）',
-	'stories/mist-forest/15-tables.twee::world.flower_warned': 'C-2c-3 待搬：图鉴谓词（`n_flower_warned` 单源）',
-	'stories/mist-forest/15-tables.twee::ev.keeper_why': 'C-2c-3 待搬：图鉴谓词（`n_keeper_why` 单源）',
-	'stories/mist-forest/15-tables.twee::ev.letter_seen': 'C-2c-3 待搬：图鉴谓词（`n_letter_seen` 单源）',
-	'stories/mist-forest/15-tables.twee::ev.tav_tips': 'C-2c-3 待搬：NPC `done:` 谓词（`n_tav_tips` 单源）',
-	'stories/mist-forest/15-tables.twee::ev.keeper_told': 'C-2c-3 待搬：NPC `done:` 谓词（`n_keeper_told` 单源）',
-	'stories/mist-forest/15-tables.twee::ev.witch_grip': 'C-2c-3 待搬：NPC `done:` 谓词（`n_witch_grip` 单源）',
+	// ✅ `#437` C-2c-3 完成（2026-09-15，`#720` 的分类器扩面之后）：9 处单源读点全部改成 `Sg.notes.has(id, pc)`，
+	// 基线**清空**（空对象＝"本故事没有单源 `readPath` 读点"）。新增一处 ⇒ 门当场红（判据在 `singleReadProblems()`）。
+	// 多源笔记（`ev.hall_seen`／`ev.study_found`）**仍用 `readPath`** —— 那是"哪一条路径拿到了"的语义，必须保留。
 };
 
 export const notepathProblems = ({ entries = {}, sources = {} } = {}) => {

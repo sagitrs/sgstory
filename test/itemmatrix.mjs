@@ -8,6 +8,7 @@
 //   ① **行键＝谓词上下文**：每行的期望声明在该行**完整谓词**下（不是"某个原子为真"）——`<<if A and B>>` 下只满足 A 时，
 //      行为**不等于**"A 为真的期望"（实测：交付链接仍在、落点仍是本段）；
 //   · 行隔离：每行开始前**恢复车卡后的基线状态**（`restore()`）⇒ 行与行互不污染、与执行顺序无关；
+//   · `exempt`（可选）：**显式豁免**某些原子（理由必填、与 `promised` 互斥）——例：`era` 已有 coverage 门4。
 //   · 两相位：`expects`＝渲染后·点击前；`expectsAfter`＝点击后（有 `click` 的行**必须**在 `expectsAfter` 里给 `lands`）；
 //   · 判据面：`text`/`noText`（散文）· `choice`/`noChoice`（可点项）· `lands`（落点）· `delta`（状态）· `domCount`（**结构**：选择器命中数）；
 //   · 数据口径：`patches` 里 `null`＝**删键**（道具不在行囊里＝键不存在），与 `delta` 期望的 `null` 对称；
@@ -84,6 +85,15 @@ export const judgeMatrixShape = (data, { slug = '?' } = {}) => {
 	if (!data || typeof data !== 'object' || Array.isArray(data)) return [`故事「${slug}」的 matrix.json 不是对象`];
 	if (!Array.isArray(data.promised) || !data.promised.length) problems.push(`故事「${slug}」的 \`promised\` 必须是非空数组（承诺覆盖的原子）`);
 	if (!Array.isArray(data.rows) || !data.rows.length) problems.push(`故事「${slug}」的 \`rows\` 必须是非空数组`);
+	// **显式豁免**（`#640` 批七）：某些原子已有**同形态的既有机制**（例：`era` ← coverage 门4「时代双态」），
+	// 矩阵再承诺就是**两份真相** ⇒ 记在这里，**理由必填**，且不许与 `promised` 重叠。
+	if (data.exempt !== undefined) {
+		if (!data.exempt || typeof data.exempt !== 'object' || Array.isArray(data.exempt)) problems.push(`故事「${slug}」的 \`exempt\` 必须是对象（原子 → 理由）`);
+		else for (const [atom, why] of Object.entries(data.exempt)) {
+			if (typeof why !== 'string' || why.trim().length < 12) problems.push(`豁免「${atom}」缺理由（要写清"为什么矩阵不管它"，≥12 字）`);
+			if ((data.promised ?? []).includes(atom)) problems.push(`「${atom}」同时出现在 \`promised\` 与 \`exempt\`——豁免与承诺互斥`);
+		}
+	}
 	for (const r of data.rows ?? []) {
 		if (!r.id || !r.passage || !r.patches || !Array.isArray(r.expects) || !r.expects.length) problems.push(`行「${r.id ?? '?'}」缺字段（需要 id/passage/patches/expects）`);
 		if (!Array.isArray(r.covers) || !r.covers.length) problems.push(`行「${r.id ?? '?'}」缺 \`covers\`（这行覆盖了哪个原子的哪一侧）`);
@@ -125,6 +135,8 @@ export const selftest = () => {
 	t('承诺腐烂：内容里已抽不到该原子 ⇒ 报', checkPromised({ promised: ['inv:A'], knownAtoms: new Set(), rows: [{ id: 'r1', covers: [{ atom: 'inv:A', polarity: 'true' }, { atom: 'inv:A', polarity: 'false' }] }] }).some((p) => p.includes('承诺腐烂')));
 	t('形状：缺 `promised`/`rows`/行字段 ⇒ 逐条报', judgeMatrixShape({ slug: 's', rows: [{ id: 'r' }] }).length >= 3);
 	t('形状反例：有 `click` 却没有 `expectsAfter.lands` ⇒ 报（点击后果必须断言）', judgeMatrixShape({ slug: 's', promised: ['x'], rows: [{ id: 'r', passage: 'p', patches: {}, covers: [{ atom: 'x', polarity: 'true' }], expects: [{ kind: 'text', value: 'x' }], click: { label: 'a' } }] }).some((p) => p.includes('lands')));
+	t('形状反例：豁免缺理由 ⇒ 报', judgeMatrixShape({ slug: 's', promised: ['x'], rows: [{ id: 'r', passage: 'p', patches: {}, covers: [{ atom: 'x', polarity: 'true' }], expects: [{ kind: 'text', value: 'x' }] }], exempt: { era: '短' } }).some((p) => p.includes('缺理由')));
+	t('形状反例：同一原子既承诺又豁免 ⇒ 报（两份真相）', judgeMatrixShape({ slug: 's', promised: ['era'], rows: [{ id: 'r', passage: 'p', patches: {}, covers: [{ atom: 'era', polarity: 'true' }], expects: [{ kind: 'text', value: 'x' }] }], exempt: { era: '已有 coverage 门4 的双态机制，矩阵不重复承诺' } }).some((p) => p.includes('互斥')));
 	t('形状反例：`random` 误写进 `patches` ⇒ 报（实测踩过：门读不到、骰面仍是中性）', judgeMatrixShape({ slug: 's', promised: ['x'], rows: [{ id: 'r', passage: 'p', patches: { random: 0.99 }, covers: [{ atom: 'x', polarity: 'true' }], expects: [{ kind: 'text', value: 'x' }] }] }).some((p) => p.includes('行级')));
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项——矩阵门判据没有咬合力（#640）`); process.exit(1); }
 	console.log('\n✔ 自证通过：期望六类（text/noText/choice/noChoice/lands/delta，含未知类型必报）＋ ratchet（两侧/未承诺/非法极性/承诺腐烂）＋ 形状');
@@ -171,7 +183,9 @@ for (const slug of slugs) {
 	if (shape.length) { bad += shape.length; for (const p of shape) console.error(`  ✗ ${p}`); continue; }
 	const coverage = checkPromised({ promised: data.promised, rows: data.rows, knownAtoms: atomSetFor(slug) });
 	if (coverage.length) { bad += coverage.length; for (const p of coverage) console.error(`  ✗ 故事「${slug}」${p}`); }
-	console.log(`  · 故事「${slug}」：行 ${data.rows.length} · 承诺原子 ${data.promised.length}（覆盖检查${coverage.length ? ' **未过**' : '通过'}）`);
+	const exemptList = Object.entries(data.exempt ?? {});
+	console.log(`  · 故事「${slug}」：行 ${data.rows.length} · 承诺原子 ${data.promised.length} · 显式豁免 ${exemptList.length}（覆盖检查${coverage.length ? ' **未过**' : '通过'}）`);
+	for (const [atom, why] of exemptList) console.log(`      · 豁免 \`${atom}\`：${why}`);
 	const { w, close } = await boot({ story: slug, random: () => 0.5 });
 	try {
 		// 车卡（与真机/游走器同一引导路径）——**抓一份基线**，每行开始前恢复：

@@ -67,11 +67,7 @@
 
 这些零碎紧挨着它的爪子。你看不出它为何留着，只知道其中还有几件值钱的东西。
 
-<<if not $pc.world.hoard_looted>>
-	<<link "从零碎里挑出几件值钱的">><<econ "dragon_hoard">><<set $pc.world.hoard_looted to true>><<goto "龙·巢边">><</link>>
-<<else>>
-	那些零碎你看过了，值钱的都在你兜里。
-<</if>>
+<<rules "龙·巢边#拾荒">>
 <<if $pc.world.flower_fed>>（它睡得沉，你翻动身下那些零碎时，它也没有醒来。）<</if>>
 [[退开|地下宴会厅]]
 
@@ -200,15 +196,8 @@
 		[[把那张抄好的图收下|观星者·图]]
 	<</if>>
 <</if>>
-<<if not Sg.notes.has('n_letter_seen')>>
-	<<link "拿起案角那封信">>
-		<<note "n_letter_seen">>
-		<<goto "观星者">>
-	<</link>>
-<</if>>
-<<if Sg.notes.has('n_letter_seen')>>
-	（案角那封信''火漆完好''，没人拆过。收信人写着"观星者"。你把它放回原处。）
-<</if>>
+<<rules "观星者#取信">>
+<<rules "观星者#信已读">>
 [[回到宴上|宴会·过去]]
 
 :: 观星者·星
@@ -365,18 +354,7 @@
 		<<goto "寻杖">>
 	<</link>>
 <</if>>
-<<if $pc.ev.staff_found and not $pc.world.family_favor>>
-	<<link "把杖拿回去还她">>
-		你把杖拿回去。她接过去，没道谢，只把杖靠回架子，回头看了你一眼。
-
-		''"今晚得用它。"''她说，''"要是它一直不在，我们就什么都做不成。"''
-
-		（她说这话的时候，厅角那位老人也顺着看过来，很快又转开了。）
-
-		<<setflag "family_favor">>
-		<<goto "当时的女巫">>
-	<</link>>
-<</if>>
+<<rules "寻杖#还杖">>
 <<if $pc.world.family_favor>>
 	（杖已经还回去了。）
 <</if>>
@@ -399,17 +377,8 @@
 
 /% #291 G3：跨时代合龙门——须同时带上「现在」与「过去」两边的证据，才问得出这一句；
    不给提示按钮：条件不满足时这一项根本不存在。 %/
-<<if Sg.notes.has('n_failure_cause') and ($pc.ev.seer_asked or $pc.ev.coord)>>
-	<<link "问她：缺的那一句话，是谁没说完？">>
-		<<note "n_witch_fire_hint">>
-		<<goto "老巫女">>
-	<</link>>
-<</if>>
-<<if Sg.notes.has('n_witch_fire_hint')>>
-	她看了你很久。你说的那两件事，被她放在一起称了称。
-	"''缺的不是咒。''"她终于开口，"''是等一个不在场的人把话说完。''"
-	她把手拢回袖子里，''不再说了''。
-<</if>>
+<<rules "老巫女#问她">>
+<<rules "老巫女#答话">>
 [[回到宴上|宴会·过去]]
 
 :: 当时的女巫·换

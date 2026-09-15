@@ -133,5 +133,31 @@ Object.assign((window.Sg.story ??= {}), {
 		{ id: '天文台.取书.现在', scope: '天文台#取书', req: ['era:present'], exclude: ['world.book_taken'], prio: 10, text: `		<<link "在书架上找到一册风化了的星象手稿">><<give "观星者的书">><<setflag "book_taken">><<goto "天文台">><</link>>` },
 		{ id: '天文台.取书.过去', scope: '天文台#取书', exclude: ['era:present', 'world.book_taken'], prio: 10, text: `		架子上还是当年那些抄本，纸都还新，没有一册是风化的——''风化要三百年''。` },
 		{ id: '天文台.取书.已取', scope: '天文台#取书', req: ['world.book_taken'], prio: 10, text: `	那一册已经不在架上了。` },
+		// `#624` 批 3：`50-ch3` 里**守卫可表达 ＋ 体内全是词汇宏**的位点（其余按边界 1/安全阀登记）。
+		// 注意：原文里**同时**渲染的块（入口 ＋ 已得后的说明）各占一个 `scope`（单选选择器一作用域只出一行）。
+		{ id: '龙巢边.拾荒.可拿', scope: '龙·巢边#拾荒', exclude: ['world.hoard_looted'], prio: 10, text: `	<<link "从零碎里挑出几件值钱的">><<econ "dragon_hoard">><<setflag "hoard_looted">><<goto "龙·巢边">><</link>>` },
+		{ id: '龙巢边.拾荒.已拿', scope: '龙·巢边#拾荒', req: ['world.hoard_looted'], prio: 10, text: `	那些零碎你看过了，值钱的都在你兜里。` },
+		{ id: '寻杖.还杖', scope: '寻杖#还杖', req: ['staff_found'], exclude: ['world.family_favor'], prio: 10, text: `	<<link "把杖拿回去还她">>
+			你把杖拿回去。她接过去，没道谢，只把杖靠回架子，回头看了你一眼。
+
+			''"今晚得用它。"''她说，''"要是它一直不在，我们就什么都做不成。"''
+
+			（她说这话的时候，厅角那位老人也顺着看过来，很快又转开了。）
+
+			<<setflag "family_favor">>
+			<<goto "当时的女巫">>
+		<</link>>` },
+		{ id: '老巫女.问她', scope: '老巫女#问她', req: ['n_failure_cause'], any: ['seer_asked', 'coord'], prio: 10, text: `	<<link "问她：缺的那一句话，是谁没说完？">>
+		<<note "n_witch_fire_hint">>
+		<<goto "老巫女">>
+	<</link>>` },
+		{ id: '老巫女.答话', scope: '老巫女#答话', req: ['n_witch_fire_hint'], prio: 10, text: `	她看了你很久。你说的那两件事，被她放在一起称了称。
+	"''缺的不是咒。''"她终于开口，"''是等一个不在场的人把话说完。''"
+	她把手拢回袖子里，''不再说了''。` },
+		{ id: '观星者.取信', scope: '观星者#取信', exclude: ['n_letter_seen'], prio: 10, text: `	<<link "拿起案角那封信">>
+		<<note "n_letter_seen">>
+		<<goto "观星者">>
+	<</link>>` },
+		{ id: '观星者.信已读', scope: '观星者#信已读', req: ['n_letter_seen'], prio: 10, text: `	（案角那封信''火漆完好''，没人拆过。收信人写着"观星者"。你把它放回原处。）` },
 	],
 });

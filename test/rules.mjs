@@ -706,5 +706,31 @@ for (const file of fixtures) {
 	V.era = keep;
 }
 
+// ── `#624` 批 3：`50-ch3` 的四个可迁位点（守卫可表达 ＋ 体内全是词汇宏）──
+{
+	const Sg = w.Sg;
+	const keepHas = Sg.notes.has;
+	const setNotes = (list) => { const set = new Set(list); Sg.notes.has = (id) => set.has(String(id)); };
+	const P = (ev = {}, world = {}) => ({ ev, world, keeper: {}, star: {}, inv: {}, soc: {} });
+	const pickId = (scope, ...args) => Sg.rules.pick(scope, { pc: P(...args), chose: new Set() })?.id ?? null;
+	setNotes([]);
+	eq(pickId('龙·巢边#拾荒'), '龙巢边.拾荒.可拿', '拾荒：没拿过 ⇒ 「挑值钱的」入口（`<<econ>>`＋`<<setflag>>` 都在点击态）');
+	eq(pickId('龙·巢边#拾荒', {}, { hoard_looted: true }), '龙巢边.拾荒.已拿', '拾荒：拿过 ⇒ 「你看过了」那句（`req: [world.hoard_looted]`）');
+	eq(pickId('寻杖#还杖', { staff_found: true }), '寻杖.还杖', '还杖：`staff_found ∧ ¬family_favor` ⇒ 选中（原手写复合条件）');
+	eq(pickId('寻杖#还杖', { staff_found: true }, { family_favor: true }), null, '还杖：已经还过（family_favor）⇒ 不选中');
+	eq(pickId('寻杖#还杖', {}), null, '还杖：还没找到杖 ⇒ 不选中');
+	setNotes(['n_failure_cause']);
+	eq(pickId('老巫女#问她', { seer_asked: true }), '老巫女.问她', '问她：`n_failure_cause ∧ (seer_asked ∨ coord)` ⇒ 选中（`any` 两支任一）');
+	eq(pickId('老巫女#问她', { coord: true }), '老巫女.问她', '问她：另一支（`coord`）同样成立');
+	eq(pickId('老巫女#问她', {}), null, '问她：两件证据都没有 ⇒ 不选中');
+	setNotes(['n_failure_cause', 'n_witch_fire_hint']);
+	eq(pickId('老巫女#答话'), '老巫女.答话', '答话：拿到 `n_witch_fire_hint` ⇒ 渲染回答（**独立 scope**：与入口可同时存在）');
+	setNotes([]);
+	eq(pickId('观星者#取信'), '观星者.取信', '取信：没读过信 ⇒ 入口行');
+	setNotes(['n_letter_seen']);
+	eq(pickId('观星者#信已读'), '观星者.信已读', '信已读：读过 ⇒ 说明行（独立 scope）');
+	Sg.notes.has = keepHas;
+}
+
 console.log(failures ? `\n${failures} 项失败` : '\n规则层测试全部通过');
 process.exit(failures ? 1 : 0);

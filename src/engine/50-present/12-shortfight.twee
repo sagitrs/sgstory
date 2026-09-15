@@ -10,6 +10,8 @@
        · `continue`／`advance` ⇒ **不结算、不推进**：印胜句后**重渲染本段**（本回合已记账，局面留待下一击）；
        · `cleared` ⇒ 胜句 ＋ `grantReward`（**声明面**结算：金币/掉落都从 `encounters[*].reward` 来）；
        · `failed`  ⇒ 败句 ＋ `<<damage>>` ＋ **声明面的失败笔记**（`encounters[*].failNote`）。
+   **留屏（`#661`）**：三分支都先声明 `$pc.ev.last_result = { p, era, text }` **再**印/导航 —— 让结果句跟着玩家走到下一段
+   （等价于 `#262` 配方①的 `<<actOut>>`，但**不能直接用它**：同段重渲染语境里 `this.output` 为 null，实测报 `bad evaluation`）。
      ⚠️ 不许拿 `waveRecord()` 的返回值与字符串比、也不许用 `$last_check.success` 代替相位——
         `success` 只是"这一击中了"，**不是**"打完了"（短档 `hits=1` 时两者恰好同构，换个声明就会错）。
 
@@ -25,15 +27,18 @@
 		<<sitecheck $args[0]>>
 		<<set _phase to (Game.Combat.waveRecord($pc, $last_check.success) ?? {}).phase>>
 		<<if _phase is "continue" or _phase is "advance">>
+			<<set $pc.ev.last_result to { p: passage(), era: $era, text: $args[2] }>>
 			<<print $args[2]>>
 			<<goto `passage()`>>
 		<<elseif _phase is "cleared">>
+			<<set $pc.ev.last_result to { p: passage(), era: $era, text: $args[2] }>>
 			<<print $args[2]>>
 			<<set _r to Game.Combat.grantReward($pc, _enc)>>
 			<<if _r.gold gt 0>><<if $args[5]>><<print $args[5]>><</if>><</if>>
 			<<if _r.item>><<give _r.item>><</if>>
 			<<if _tail>><<include `_tail`>><</if>>
 		<<else>>
+			<<set $pc.ev.last_result to { p: passage(), era: $era, text: $args[3] }>>
 			<<print $args[3]>>
 			<<damage `Game.Damage.hurt`>>
 			<<if _note>><<note _note>><</if>>

@@ -84,13 +84,15 @@ window.Sg.notes = {
 	stored(id, pc = State.variables.pc) { return !!pc?.ev?.notes?.[id]; },
 	entry(id) { return this.table()[id] ?? null; },
 	ids() { return Object.keys(this.table()); },
-	// 读取语义（`#437` C-2c-2 起）：`has(id) = stored(id)` —— **只认真存储**。
+	// 读取语义（`#437` C-2c-2 起）：`has(id, pc = 当前存档的 pc) = stored(id, pc)` —— **只认真存储**。
+	// `pc` 参数（`#437` C-2c-3）：图鉴/门里的判据是 `test(p)` 形式，吃的是**传入的 pc**（例如门的"全收集态"合成 pc）——
+	// 不给这个参数，`has()` 会一直读全局存档 ⇒ 判据在合成态上是错的（实测 `--canon` 报「全收集态仍不满足」）。
 	// 兼容层（旗标兜底 `∨ any(readPath(flagPath))`）已随本片退场；旧档的旗标由 `migrateLegacy()` **一次性补进存储**，
 	// 所以"旧档载入不丢知识"这条不变（`Game.Pc.migrate()` 里调用 ⇒ 每次载档幂等补齐）。
-	has(id) {
+	has(id, pc = State.variables.pc) {
 		const e = this.entry(id);
 		if (!e) return false;
-		return this.stored(id);
+		return this.stored(id, pc);
 	},
 	// **旧档迁移**（`#437` C-2c-2）：把"只有旗标、没有 `ev.notes`"的存档补成存储态。
 	// 为什么必须单独一条（而不是留在 `has()` 里兜底）：兜底是**读侧的兼容层**——它让"旗标"与"存储"两份状态

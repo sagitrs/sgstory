@@ -277,6 +277,17 @@ if (wantAll || arg('canon')) {
 	fullPc.ev = { failure_cause: true, observation_lock: true, keeper_why: true, letter_seen: true, coord: true, mist_guard: true, threshold: true, star_ledger: true, old_witch: true, seer_asked: true };   // #365：seer_asked 与生产者/谓词同域（ev）
 	fullPc.keeper = { ...fullPc.keeper, met: true, trust: 3, key: true, state: 'ally' };
 	fullPc.dragon = { ...fullPc.dragon, venom: true, awake: true, hp: 1 };
+	// `#437` C-2c-3：图鉴谓词改走 `Sg.notes.has(id, p)` 之后，"全收集态"**必须同时是笔记已授予态** ——
+	// 否则 good 判据（`!ok2` ⇒ "全收集态仍不满足"）会假红：判据看的是**存储**，而这里只填了旗标。
+	// 口径：`fullPc` 是"玩家把该挣的都挣到手"的合成态 ⇒ 每条笔记都该在存储里（用引擎的授予 API 落，不手写 `ev.notes`）。
+	const SgN = ctx.Sg?.notes;
+	// 只授予"能由 `add()` 一次落定"的笔记：**多源**笔记（`flagPath` 是数组且没声明 `setPath`）必须显式走 `addPath`
+	// ——那些笔记的**两条路径旗标**本来就已经填进 `fullPc.world/ev` 了（上面那两行）⇒ 这里跳过它们才是对的。
+	for (const id of SgN?.ids?.() ?? []) {
+		const e = SgN.entry(id);
+		if (Array.isArray(e?.flagPath) && !e.setPath) continue;
+		SgN.add(id, fullPc);
+	}
 	const clueTotal = codexItems.reduce((n, i) => n + (C.items[i].clues ?? []).length, 0);
 	for (const name of codexItems) {
 		const def = C.items[name];

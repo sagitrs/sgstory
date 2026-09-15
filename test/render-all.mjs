@@ -73,7 +73,7 @@ for (const p of content) {
 		}
 		// 门7 出口在最后（#179 全场景审计，静态/默认状态版）：有可点元素的段落，最后一个可点之后
 		// 不许压着成块正文（≥30 字，含收起 details——按最坏展开态算）；结局页 UI 脚注走白名单。
-		// 状态依赖的布局问题由 walker 的同款不变量兜底（soak 走真实旗标状态）。
+		// 状态依赖的布局问题由 walker 的同款不变量兜底（夜间 soak 走真实旗标状态；PR 门只跑确定性双支清扫）。
 		{
 			const box = [...w.document.querySelectorAll('#passages .passage')].filter((e) => e.dataset.passage === p.name).pop();
 			if (box && shown === p.name) {

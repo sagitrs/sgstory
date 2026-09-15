@@ -14,6 +14,7 @@
 | 接一个新故事 | `docs/engine-story-boundary.md` | `docs/story2-contracts.md` · `docs/repo-map.md`（§二 层归属） |
 | 查历史 / 作废稿 | `docs/archive/README.md` | — |
 | 想知道表能不能放点击态写 | `docs/click-time-writes-design.md` | `docs/notes-model.md`（§已知边界） |
+| 要把手写 `<<if>>` 搬进条件表 | **`docs/rules-table-guide.md`**（决策树＋踩坑） | `docs/dev-conventions.md` §11–§12（形状正典） |
 
 ## 二、权威表（谁说话算数）
 
@@ -48,6 +49,7 @@
 | `docs/ui-inventory.md` | 201 | 盘点 | 段落与交互元素清单 |
 | `docs/engine-story-boundary.md` | 130 | 权威 | 两层边界与接入契约 |
 | `docs/gate-ledger.md` | 92 | **生成物** | `npm run report:gates:update`（**不要手改**） |
+| `docs/rules-table-guide.md` | 118 | 手册 | 表语法实战："这个能不能进表"决策树 ＋ 踩坑清单（`#624` 沉淀） |
 | `docs/repo-map.md` | 84 | 地图 | 目录结构 ＋ 层归属 ＋ 权威落点速查 |
 | `docs/ui-coverage-gaps.md` | 75 | 口径 | 覆盖与未覆盖的判定口径 |
 | `docs/click-time-writes-design.md` | 96 | 设计稿·待评审 | 点击态写侧能否进表（`#624` 普查后的形状；含片一/片二与未决项） |

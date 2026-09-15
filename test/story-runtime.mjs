@@ -21,9 +21,11 @@
 // 用法：`node test/story-runtime.mjs`（自证：`--selftest`）
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { scopedFiles } from '../scripts/module-order.mjs';
+import { scopedFiles, engineFiles } from '../scripts/module-order.mjs';
 import { storySlugs, readStory, ROOT } from '../scripts/dist-paths.mjs';
 import { boot } from './boot.mjs';
+import { qualifiedWriteKeys } from '../scripts/audit/lib/shared.mjs';
+import { createContext } from '../scripts/audit/context.mjs';
 
 /** 纯函数：从若干源码里收集引用的 `Sg.*` 面（`路径 → 来源文件`）。注释里的提及不算、可选链不算。 */
 export const apiUses = (sources) => {
@@ -201,6 +203,35 @@ const main = async () => {
 		if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
 		console.log('\n✔ 自证通过（面收集 × 缺失判定 × 笔记登记 × 侧栏判据 × 真机路判据 正反例）');
 		process.exit(0);
+	}
+
+	// ── [域表纪律] 域表的**归属**是可机检的（`#660` 片三-4）──────────────────────────────
+	// 纪律：**域表是故事数据**（`Game.State.domains` 住 `stories/<slug>/`）——引擎**不声明域**，
+	// 但它写的每个键必须能在**每个故事**的域表里找到归属（否则 `--state` 会红：`未落入任何域`）。
+	// 这条之所以成立，靠的是**作用域构造**：`scopedFiles(story)` ＝ 引擎文件 ∪ 本故事文件 ⇒ 域表判定天然覆盖引擎写点。
+	// 本段把这个**机制**钉住（只判结果的话，`scopedFiles` 哪天漏了引擎文件，门会静默变成"只查故事写点"）。
+	{
+		const eng = engineFiles();
+		const engWrites = new Set();
+		for (const f of eng) for (const k of qualifiedWriteKeys(readFileSync(join(ROOT, f), 'utf8'))) engWrites.add(k);
+		let bad2 = 0;
+		for (const slug of storySlugs()) {
+			const files = scopedFiles(readStory(slug));
+			const inScope = files.filter((f) => eng.includes(f)).length;
+			const okScope = inScope > 0 && files.some((f) => f.startsWith(`stories/${slug}/`));
+			console.log(`${okScope ? '✓' : '✗'} [域表纪律] 故事作用域 ⊇ 引擎文件（${slug}：引擎 ${inScope} 个 ＋ 本故事 ${files.length - inScope} 个）⇒ 域表判定覆盖引擎写点`);
+			if (!okScope) bad2++;
+			// 引擎写点必须在**本故事**域表里有归属（空判守卫：引擎写点集必须非空）
+			const domains = createContext({ story: slug, argv: [] }).Game?.State?.domains ?? [];
+			const uncovered = [...engWrites].filter((k) => {
+				const bare = String(k).split('.').pop();   // `ev.last_result` ⇒ `last_result`（域表按**裸键名**匹配）
+				return !domains.some((d) => (d.keys ?? []).includes(bare) || (d.prefix ?? []).some((p) => bare.startsWith(p)));
+			});
+			const okDom = engWrites.size > 0 && uncovered.length === 0;
+			console.log(`${okDom ? '✓' : '✗'} [域表纪律] 引擎写点（${engWrites.size} 个键）在「${slug}」域表里**全有归属**${okDom ? '' : '——未归属：' + uncovered.join('、')}`);
+			if (!okDom) bad2++;
+		}
+		if (bad2) { console.error(`\n✗ 域表归属纪律 ${bad2} 项失败`); process.exit(1); }
 	}
 
 	// ── 逐故事：① 面存在 · ② 位点能判 · ③ 笔记可用 · ④ 侧栏 ──

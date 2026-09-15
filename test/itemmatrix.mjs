@@ -8,6 +8,7 @@
 //   ① **行键＝谓词上下文**：每行的期望声明在该行**完整谓词**下（不是"某个原子为真"）——`<<if A and B>>` 下只满足 A 时，
 //      行为**不等于**"A 为真的期望"（实测：交付链接仍在、落点仍是本段）；
 //   · 数据口径：`patches` 里 `null`＝**删键**（道具不在行囊里＝键不存在），与 `delta` 期望的 `null` 对称；
+//     行可另给 `random`（数字）＝该行渲染前的 `Math.random` 档位（把 `<<sitecheck>>` 的成败侧稳定构造出来）；
 //   ② **期望用渲染后 + 行为面口径**：`缺''完整星图''` 在屏上是 `<em>` 斜体（`textContent` **不含引号**）；
 //      真/假两支的**标签可能完全相同**（实测「把卷轴和星图交给他」两侧同字）⇒ 必须有 `lands`（点下去落到哪一段）与 `delta`（状态增量）；
 //   ③ **极性覆盖 ratchet**：数据里的 `promised` 原子**只增不减**；每个 promised 原子都要有**真/假两侧**的行；承诺的原子若在内容里消失 ⇒ 红（承诺腐烂）。
@@ -151,6 +152,8 @@ for (const slug of slugs) {
 	const { w, close } = await boot({ story: slug, random: () => 0.5 });
 	try {
 		for (const row of data.rows) {
+			// 行可指定骰面档位（`<<sitecheck>>`/检定类分支要靠它把某一侧**稳定**构造出来）
+			if (typeof row.random === 'number') w.eval(`Math.random = () => ${row.random}`);
 			inject(w, row.patches);
 			w.SugarCube.Engine.play(row.passage);
 			await sleep(220);

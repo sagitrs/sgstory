@@ -13,7 +13,6 @@
 // 前置：**先 `npm run build`**（读产物）。
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
-import { boot, CLICKABLE_SEL } from '../test/boot.mjs';
 
 const arg = (name, dflt) => {
 	const p = process.argv.find((x) => x.startsWith(`--${name}=`));
@@ -35,7 +34,34 @@ const mulberry32 = (a) => () => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const clean = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 
-const findings = { errors: [], stuck: [], unreached: [], silentLoot: [], notes: [] };
+/** 抽 **DOM 错误**（SugarCube 把宏错误渲染成红框，**不进 `uncaught`** —— guest 在 `#710` 实测到：
+ *  只数 `uncaught` 会漏报整条红框）。纯函数（吃元素文本数组）⇒ 可自证。 */
+export const collectDomErrors = (texts = []) => {
+	const out = [];
+	for (const t of texts) {
+		const s0 = String(t ?? '').replace(/\s+/g, ' ').trim();
+		if (s0) out.push(s0.slice(0, 200));
+	}
+	return [...new Set(out)];
+};
+/** 从页面里取错误框文本（选择器：`#passages .error` ／ `.error-view` ／ `#error`）。 */
+export const domErrorTexts = (doc) => [...(doc?.querySelectorAll?.('#passages .error, .error-view, #error') ?? [])].map((e) => e.textContent ?? '');
+
+const selftest = () => {
+	let bad = 0;
+	const t = (m, c) => { if (!c) bad++; console.log(`${c ? '✓' : '✗'} ${m}`); };
+	t('正例：抽到一条红框文本（去空白）', collectDomErrors(['  <<set>>：本故事没有第 6 段路  ']).length === 1);
+	t('🔴 反例：多条相同 ⇒ 去重成一条', collectDomErrors(['e', ' e ']).length === 1);
+	t('边界：空/空白 ⇒ 0 条（不空判成"有错"）', collectDomErrors(['', '   ', null]).length === 0);
+	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
+	console.log('\n✔ 自证通过：红框文本抽取 / 去重 / 空白不空判');
+};
+if (process.argv.includes('--selftest')) { selftest(); process.exit(0); }
+
+// `test/boot.mjs` **惰性导入**：它一 import 就会断言 dist 新鲜度（`--selftest` 是纯函数自证，不该依赖产物）。
+const { boot, CLICKABLE_SEL } = await import('../test/boot.mjs');
+
+const findings = { errors: [], domErrors: [], stuck: [], unreached: [], silentLoot: [], notes: [] };
 
 for (let run = 0; run < RUNS; run++) {
 	const seed = SEED0 + run * 977;
@@ -45,6 +71,7 @@ for (let run = 0; run < RUNS; run++) {
 	const seenPassages = [];
 	let budget = CLICKS;
 	let lastErrCount = 0;
+	const seenDom = new Set();
 	while (budget-- > 0) {
 		const pouch = clean(w.document.querySelector('#passages')?.textContent ?? '');
 		const passage = w.SugarCube.State.passage;
@@ -64,6 +91,11 @@ for (let run = 0; run < RUNS; run++) {
 			for (const e of uncaught.slice(lastErrCount)) findings.errors.push({ run, seed, at: passage, action: label, err: clean(e).slice(0, 220) });
 			lastErrCount = uncaught.length;
 		}
+		// ①b **DOM 红框**（`#710` 的教训：宏错误不进 `uncaught`，只数 uncaught 会漏报）
+		for (const t of collectDomErrors(domErrorTexts(w.document))) {
+			if (!seenDom.has(t)) { seenDom.add(t); findings.domErrors.push({ run, seed, at: passage, action: label, err: t }); }
+		}
+
 		// ② 点了没反应（段落没变且屏文没变）
 		if (after === before && w.SugarCube.State.passage === beforeP && !after.includes('失败') && !after.includes('成功')) {
 			findings.stuck.push({ run, seed, at: passage, why: `点了「${label}」后段落与屏文都没变` });
@@ -92,11 +124,17 @@ L.push(`| 维度 | 命中 | 说明 |`);
 L.push(`|---|---|---|`);
 L.push(`| 未捕获错误 | **${findings.errors.length}** | 去重后 ${uniq(findings.errors, (x) => x.err.slice(0, 60)).length} 类 |`);
 L.push(`| 点了没反应 | **${findings.stuck.length}** | 排除"同段重渲染但文本变了"的正例 |`);
+L.push(`| **DOM 红框**（宏错误） | **${findings.domErrors.length}** | \`#passages .error\` 等（不进 uncaught；见 #710 的教训） |`);
 L.push(`| 静默产出（道具进包但屏上没提） | **${findings.silentLoot.length}** | 差分 \`pc.inv\` ＋ 屏文不含新增物名 |`);
 L.push('');
 if (findings.errors.length) {
 	L.push(`## 未捕获错误（去重）`); L.push('');
 	for (const e of uniq(findings.errors, (x) => x.err.slice(0, 60))) L.push(`- ×${e.n} 段落「${e.at}」点「${e.action}」⇒ \`${e.err}\``);
+	L.push('');
+}
+if (findings.domErrors.length) {
+L.push(`| **DOM 红框**（宏错误） | **${findings.domErrors.length}** | \`#passages .error\` 等（不进 uncaught；见 #710 的教训） |`);
+	for (const e of findings.domErrors) L.push(`- run ${e.run} 段落「${e.at}」点「${e.action}」⇒ \`${e.err}\``);
 	L.push('');
 }
 if (findings.stuck.length) {

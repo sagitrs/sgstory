@@ -13,9 +13,25 @@
 		/% `#491` 判据 4（`#488` 已定 ⑧）：**仅全灭**触发重置——`resetRun` 清 `inv`／`gearHp`／`statuses`／
 		   战斗态并把 hp 回满（**保留** `ev`（含笔记）／`soc`／`world`／`Sg.notes`／`Sg.store`）；落到「倒下」页，
 		   由那里回**出生点**（`醒来` 会把起始两件装备再发给玩家）。单步失败**不终止**（带伤继续＝走 else）。 %/
+		<<set _land to "倒下">>
+	<<elseif $pc.ev.cave_step gt 5>>
+		<<set _land to "地下村落">>
+	<<else>>
+		<<set _land to "岔口">>
+	<</if>>
+	/% `#691`（操作者实测「开宝箱没提示获得了什么」）：结算/产出文案原先在**本段**印完紧接着导航
+	   ⇒ 刚出现就被下一段覆盖。现在走 `#262` 留屏协议：产出点只写 `$pc.ev.settle`（**不必知道落点**），
+	   这里把它提升成 `$pc.ev.last_result = { p: 落点, era, text }`（落点由本 widget 决定 ✓）并就地印一次；
+	   落点段用 `<<sceneFeedback>>` 再显示一次 ⇒ 玩家**两屏都能看到**。 %/
+	<<if $pc.ev.settle>>
+		<<set $pc.ev.last_result to { p: _land, era: $era, text: $pc.ev.settle }>>
+		<<print $pc.ev.settle>>
+		<<set $pc.ev.settle to "">>
+	<</if>>
+	<<if _land is "倒下">>
 		<<set _r to Game.Combat.resetRun($pc)>>
 		<<goto "倒下">>
-	<<elseif $pc.ev.cave_step gt 5>>
+	<<elseif _land is "地下村落">>
 		<<goto "地下村落">>
 	<<else>>
 		<<goto "岔口">>
@@ -52,6 +68,8 @@
 /% 操作者实测（2026-09-15）：走满 5 步后再回岔口 ⇒ 这里**无条件**调 `roadOffer(6)` ⇒
    SugarCube 红框 `<<set>>: bad evaluation: Game.Combat.roadOffer：本故事没有第 6 段路（可用 1..5，#489）`。
    口径：**段号越界不是异常，是"这一段路走完了"**，该走退路（往深处走），不该留一条红框给玩家看。 %/
+/% `#691`：显示上一屏的结算/产出文案（`#661` 协议；`p` 已由 `caveNext` 指向本段） %/
+<<sceneFeedback>>
 <<set _roads to Game.Combat.roadsDecl() ?? []>>
 <<set _opts to _n lte _roads.length ? Game.Combat.roadOffer(_n) : []>>
 <<if _opts and _opts.length>>
@@ -118,15 +136,17 @@
 		<<set $pc.ev.last_result to { p: passage(), era: $era, text: "这一批倒下了。石缝里又钻出来更多——它还有同伙。" }>><<print "这一批倒下了。石缝里又钻出来更多——它还有同伙。">>
 		<<goto "机制·longFight">>
 	<<elseif _ph is "cleared">>
-		<<set $pc.ev.last_result to { p: passage(), era: $era, text: "最后一只也塌下去了。你站着，喘了很久。" }>><<print "最后一只也塌下去了。你站着，喘了很久。">>
-		/% `#600`：长战斗**必掉**钥匙（声明面 `item: '钥匙'`）；金币与掉落同走一处落账 %/
-		<<set _r to Game.Combat.grantReward($pc, "long")>>
-		<<if _r.gold gt 0>>（两只身上都挂着旧币，你收了起来。）<</if>>
-		<<if _r.item>>领头那只腰上挂着一把''锈钥匙''。<<give _r.item>><</if>>
 		<<set $pc.ev.fight to {}>>
+		/% `#600`：长战斗**必掉**钥匙（声明面 `item: '钥匙'`）；金币与掉落同走一处落账。
+		   `#691`：文案改走 `$pc.ev.settle`（**落点**由 `caveNext` 定＝岔口）——原先写 `p: passage()` 是错的
+		   （本段是战斗段，而下一屏是岔口 ⇒ `<<sceneFeedback>>` 永远不会显示）。 %/
+		<<set $pc.ev.settle to "最后一只也塌下去了。">>
+		<<set _r to Game.Combat.grantReward($pc, "long")>>
+		<<if _r.gold gt 0>><<set $pc.ev.settle to $pc.ev.settle + "两只身上都挂着旧币，你收了起来（" + _r.gold + " 枚）。">><</if>>
+		<<if _r.item>><<set $pc.ev.settle to $pc.ev.settle + "领头那只腰上挂着一把锈钥匙——你拿走了。">><<give _r.item>><</if>>
 		<<caveNext>>
 	<<elseif _ph is "failed">>
-		<<set $pc.ev.last_result to { p: passage(), era: $era, text: "你被压在地上。它们没有追——它们只是不让你过。" }>><<print "你被压在地上。它们没有追——它们只是不让你过。">>
+		<<set $pc.ev.settle to "你被压在地上。它们没有追——它们只是不让你过。">>
 		<<damage `Game.Damage.hard`>>
 		<<set $pc.ev.fight to {}>>
 		<<caveNext>>
@@ -151,9 +171,10 @@
 		<<set _loot to Sg.story.lootOf(_rare ? "珍贵" : "普通")>>
 		/% `#696`：**金币主源＝战斗与宝箱**（声明面 `chest.gold`，门做声明↔内容对账） %/
 		<<set _g to Sg.story.chestGold(_rare ? "珍贵" : "普通")>>
-		<<if _loot.includes("TOOL")>><<set _tool to (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><<give _tool>>（顺手多了一件能降难的家什。）<</if>>
+		<<set $pc.ev.settle to "钥匙转半圈，箱盖弹开了——里面是干粮。">>
+		<<if _loot.includes("TOOL")>><<set _tool to (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><<set $pc.ev.settle to $pc.ev.settle + "顺手还捞到一件能降难的家什（" + _tool + "）。">><<give _tool>><</if>>
 		<<give "干粮">><<note "n_cave_loot">>
-		<<if _g gt 0>><<set $pc.gold to $pc.gold + _g>>（箱底的旧币：<<= _g>> 枚。）<</if>>
+		<<if _g gt 0>><<set $pc.gold to $pc.gold + _g>><<set $pc.ev.settle to $pc.ev.settle + "箱底的旧币：" + _g + " 枚。">><</if>>
 		<<caveNext>>
 	<</link>>
 <<elseif $pc.inv[_c.tool]>>
@@ -162,10 +183,10 @@
 		   原先写的是 `_rare ? rareSite : site` ⇒ 拿道具 DC 一点没降（声明的"各降 3"没兑现）。 %/
 		<<sitecheck `_rare ? _c.rareToolSite : _c.toolSite`>>
 		<<if $last_check.success>>
-			具压住了机关。里面是干粮，和一小块铁片。
-			<<if _rare>><<set _tool to (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><<give _tool>><</if>>
+			<<set $pc.ev.settle to "撬棍压住了机关，箱盖开了——里面是干粮，和一小块铁片。">>
+			<<if _rare>><<set _tool to (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><<set $pc.ev.settle to $pc.ev.settle + "底下还压着一件能降难的家什（" + _tool + "）。">><<give _tool>><</if>>
 			<<give "干粮">><<note "n_cave_loot">>
-			<<set _g to Sg.story.chestGold(_rare ? "珍贵" : "普通")>><<if _g gt 0>><<set $pc.gold to $pc.gold + _g>>（箱底的旧币：<<= _g>> 枚。）<</if>>
+			<<set _g to Sg.story.chestGold(_rare ? "珍贵" : "普通")>><<if _g gt 0>><<set $pc.gold to $pc.gold + _g>><<set $pc.ev.settle to $pc.ev.settle + "箱底的旧币：" + _g + " 枚。">><</if>>
 		<<else>>
 			具滑了，机关针扎进虎口。<<damage `Game.Damage.graze`>>
 		<</if>>
@@ -175,9 +196,10 @@
 	<<link "徒手解它">>
 		<<sitecheck `_rare ? _c.rareSite : _c.site`>>
 		<<if $last_check.success>>
-			锁扣应声而开。里面是干粮<<if _rare>>，底下还压着一件能降难的家什<<set _tool to (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><<give _tool>><</if>>。
+			<<set $pc.ev.settle to "锁扣应声而开——里面是干粮。">>
+			<<if _rare>><<set _tool to (["撬棍", "手套", "铁撬"])[Game.Rules.rng.d(3) - 1]>><<set $pc.ev.settle to $pc.ev.settle + "底下还压着一件能降难的家什（" + _tool + "）。">><<give _tool>><</if>>
 			<<give "干粮">><<note "n_cave_loot">>
-			<<set _g to Sg.story.chestGold(_rare ? "珍贵" : "普通")>><<if _g gt 0>><<set $pc.gold to $pc.gold + _g>>（箱底的旧币：<<= _g>> 枚。）<</if>>
+			<<set _g to Sg.story.chestGold(_rare ? "珍贵" : "普通")>><<if _g gt 0>><<set $pc.gold to $pc.gold + _g>><<set $pc.ev.settle to $pc.ev.settle + "箱底的旧币：" + _g + " 枚。">><</if>>
 		<<else>>
 			/% `#696`（操作者裁定）：**硬开（徒手）惩罚必须拉高**——否则「没钥匙硬开」的收益高于「打仗拿钥匙再开」：
 			   徒手失败＝更重的伤害 ＋ **严重异常**（流血 5 回合，战斗中每回合掉血）；道具失败保持轻罚（`graze`）；钥匙路必开无风险。 %/
@@ -199,7 +221,8 @@
 	<<set $pc.hp to Math.min($pc.max_hp, $pc.hp + 6)>>
 	<<set $pc.statuses to {}>>
 	/% `#491` 判据 8／S1 已定 ④：温泉是 v1 **唯一修复点**（`repairAll` 返回满耐久表）——顺带把家什养回来 %/
-	<<if $pc.gear and $pc.gear.length>><<set $pc.gearHp to Game.Combat.repairAll($pc)>>（家什也泡了一泡。）<</if>>
+	<<set $pc.ev.settle to "伤口浸进热水，疼了一阵，然后不那么疼了。">>
+	<<if $pc.gear and $pc.gear.length>><<set $pc.gearHp to Game.Combat.repairAll($pc)>><<set $pc.ev.settle to $pc.ev.settle + "家什也泡了一泡，耐久回满。">><</if>>
 	<<link "起来，继续走">><<caveNext>><</link>>
 <<elseif _k is "矿洞">>
 	/% `#696`（操作者裁定：**战斗＝钥匙主源**）：矿洞掉钥匙是 25% 的小概率，其余给干粮——
@@ -208,14 +231,17 @@
 	<<if Game.Rules.rng.d(100) lte _cr.keyChance>>
 		''矿洞''。岩层里夹着一条亮线。你抠下来一小块，磨成了一把''锈钥匙''。
 		<<give "钥匙">>
+		<<set $pc.ev.settle to "从矿脉里磨出了一把锈钥匙。">>
 	<<else>>
 		''矿洞''。岩层硬得抠不动，只在碎石里翻出几块能垫肚子的东西。
 		<<give _cr.fallback>>
+		<<set $pc.ev.settle to "矿洞里没抠到料，只翻出几块干粮。">>
 	<</if>>
 	<<link "收好，继续走">><<caveNext>><</link>>
 <<elseif _k is "空洞">>
 	''空洞''。什么都没有——但回声告诉你前面还有多远，哪一段地面是空的。
 	<<note "n_cave_echo">>
+	<<set $pc.ev.settle to "你记住了空洞的回声：前面哪一段地面是空的。">>
 	<<link "记住回音，继续走">><<caveNext>><</link>>
 <<elseif _k is "地下湖">>
 	''地下湖''。水黑得不像水。你得踩过去。
@@ -387,6 +413,8 @@
 
 :: 地下村落
 /% payload: 信息 %/
+/% `#691`：终点也显示上一屏的结算文案（`#719` 的整局收获清单将落在这里） %/
+<<sceneFeedback>>
 洞口的尽头是个村子。房子是石头垒的，屋顶压着土，烟从几个烟囱里冒出来——
 很低的地方，居然有人住。
 

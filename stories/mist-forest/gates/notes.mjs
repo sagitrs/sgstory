@@ -78,6 +78,35 @@ export const auditConsumption = (entries, reads, bookkeeping, refText) => {
 	return problems;
 };
 
+/** **`<<notepath "id" "path">>` 的两条判据**（`#437` 批三 C-2b′，与引擎 `addPath` 的护栏**同判据**）：
+ *  ① **path 必须属于该笔记的 `flagPath`** —— 写进去读不出来的 path 是**静默丢数据**（引擎侧也会抛，这里提前静态报）；
+ *  ② **多源笔记（`flagPath` 是数组）必须用 `<<notepath>>` 显式声明写哪一条**（或声明 `setPath`）——
+ *     否则 `<<note>>`／`Sg.notes.add()` 会被引擎的护栏拒绝（`add()` 对多源无 `setPath` ⇒ 抛错）。
+ *  为什么静态也要报（而不是只靠引擎运行时抛）：运行时抛是"点了才知道"，静态报是"改完就红"。 */
+export const notepathProblems = ({ entries = {}, sources = {} } = {}) => {
+	const problems = [];
+	const ids = new Set(Object.keys(entries));
+	const NP = /<<\s*notepath\s+['"](n_[a-z0-9_]+)['"]\s+['"]((?:ev|world)\.[a-z0-9_]+)['"]/g;
+	const NOTE = /(?:<<\s*note\s+['"](n_[a-z0-9_]+)['"]|Sg\.notes\.add\(\s*['"](n_[a-z0-9_]+)['"])/g;
+	for (const [f, src] of Object.entries(sources)) {
+		const text = String(src ?? '').replace(/\/%[\s\S]*?%\//g, '');   // 注释里的示例不是代码
+		for (const m of text.matchAll(NP)) {
+			const [, id, path] = m;
+			if (!ids.has(id)) { problems.push({ id, where: f, detail: `\`<<notepath>>\` 的笔记 id「${id}」**未登记**（写进去读不出来）` }); continue; }
+			if (!flagPaths(entries[id]).includes(path)) {
+				problems.push({ id, where: f, detail: `\`<<notepath>>\` 的 path「${path}」**不属于**该笔记的 \`flagPath\`（${flagPaths(entries[id]).join('／')}）——写进去读不出来` });
+			}
+		}
+		for (const m of text.matchAll(NOTE)) {
+			const id = m[1] ?? m[2];
+			const e = entries[id];
+			if (!e || flagPaths(e).length <= 1 || e.setPath) continue;   // 未登记/单源/已声明 setPath ⇒ 不归本判据管
+			problems.push({ id, where: f, detail: `多源笔记用了 \`<<note>>\`／\`Sg.notes.add()\`——必须用 \`<<notepath "id" "path">>\` 声明**写哪一条**（或声明 \`setPath\`）` });
+		}
+	}
+	return problems;
+};
+
 export const run = (ctx) => {
 	console.log('\n══ ⓪w 笔记模型门（伞 #422）——形状/对齐 · 接入契约 · 消费可数 ══');
 	const domains = ctx.Game.State?.domains ?? [];
@@ -138,6 +167,23 @@ export const run = (ctx) => {
 			['消费·表行 `req` 里的 note id 算消费（经 `ruleRowKeys` 展开到 flagPath）', auditConsumption(good, rowReads([{ id: 'R', req: ['n_a'] }], good), [], '').length, 0],
 			['消费·表行**没有**指向它的读点 ⇒ 仍算零消费（反沉默）', auditConsumption(good, rowReads([{ id: 'R', req: ['n_other'] }], good), [], '').length, 1],
 		];
+		// `#437` 批三 C-2b′：`<<notepath>>` 判据（path 合法性 · 多源必须显式声明）
+		const multi = { n_hall: { title: 't', src: 's', body: 'b', tags: ['x'], era: 'present', flagPath: ['world.hall_hint', 'ev.hall_seen'] } };
+		const single = { n_one: { title: 't', src: 's', body: 'b', tags: ['x'], era: 'present', flagPath: 'ev.tav_tips' } };
+		const npc = [
+			['notepath·正例：path 属于该笔记 ==> 0 项', notepathProblems({ entries: multi, sources: { 'a.twee': '<<notepath "n_hall" "ev.hall_seen">>' } }).length, 0],
+			['notepath·🔴 path 不属于该笔记（typo）⇒ 报', notepathProblems({ entries: multi, sources: { 'a.twee': '<<notepath "n_hall" "ev.typo">>' } }).length, 1],
+			['notepath·🔴 笔记 id 未登记 ⇒ 报', notepathProblems({ entries: single, sources: { 'a.twee': '<<notepath "n_nope" "ev.tav_tips">>' } }).length, 1],
+			['notepath·🔴 多源笔记用 `<<note>>` ⇒ 报（必须声明写哪一条）', notepathProblems({ entries: { ...multi, ...single }, sources: { 'a.twee': '<<note "n_hall">>' } }).length, 1],
+			['notepath·正例：单源笔记用 `<<note>>` ⇒ 不报', notepathProblems({ entries: single, sources: { 'a.twee': '<<note "n_one">>' } }).length, 0],
+			['notepath·边界：多源**声明了 setPath** ⇒ `<<note>>` 合法（不搞一刀切）', notepathProblems({ entries: { n_hall: { ...multi.n_hall, setPath: 'ev.hall_seen' } }, sources: { 'a.twee': '<<note "n_hall">>' } }).length, 0],
+			['notepath·边界：注释里的 `<<notepath>>` 示例不算（遮注释）', notepathProblems({ entries: single, sources: { 'a.twee': '/% 例：<<notepath "n_one" "ev.wrong">> %/' } }).length, 0],
+		];
+		for (const [label, got, want] of npc) {
+			const ok = got === want;
+			if (!ok) bad++;
+			console.log(`      ${ok ? '✓' : '✗'} 自证·${label}：检出 ${got}（期望 ${want}）`);
+		}
 		for (const [label, got, want] of cases.length === 0 ? [] : cse) {
 			const ok = got === want;
 			if (!ok) bad++;
@@ -149,6 +195,7 @@ export const run = (ctx) => {
 	const bk = ctx.Game.State?.bookkeeping ?? [];
 	const shape = auditShape(entries, domainKeys);
 	const cons = auditConsumption(entries, reads, bk, allText);
+	const nps = notepathProblems({ entries, sources });   // `#437` C-2b′：`<<notepath>>` 的 path/多源判据
 	// 空状态下不得"已知"（笔记不该一开局就成立）——按 flagPath 求值验证（多源 OR：每条路径都不得为真）
 	const emptyProblems = [];
 	{
@@ -197,14 +244,14 @@ export const run = (ctx) => {
 		if (!Array.isArray(ctx.Sg?.story?.rules?.())) contract.push({ id: 'Sg.story.rules', detail: '`Sg.story.rules()` 应返回数组（阶段 4／#435 的占位契约）' });
 	}
 
-	const printed = [...shape, ...emptyProblems, ...contract, ...cons];
+	const printed = [...shape, ...emptyProblems, ...contract, ...cons, ...nps];
 	console.log(`  笔记 ${Object.keys(entries).length} 条｜状态契约域键 ${domainKeys.size} 个｜零消费豁免 ${bk.filter((k) => Object.values(entries).some((e) => flagPaths(e).map(keyOf).includes(k))).length} 条`);
-	if (!printed.length) console.log('  ✓ 形状齐全 · flagPath 与域表对齐 · 空状态不为真 · 接入契约成立 · 每条笔记都有消费点');
+	if (!printed.length) console.log('  ✓ 形状齐全 · flagPath 与域表对齐 · 空状态不为真 · 接入契约成立 · 每条笔记都有消费点 · `<<notepath>>` 的 path 合法且多源已显式声明');
 	for (const p of printed.slice(0, 12)) { console.log(`  ✗ ${p.id}：${p.detail}`); bad++; }
 	if (printed.length > 12) { console.log(`  …另有 ${printed.length - 12} 项`); bad += printed.length - 12; }
 
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ 笔记模型门：${bad} 项`); process.exit(1); }
-		console.log('\n✔ 笔记模型门通过（形状/对齐 + 接入契约 + 消费可数 + 自证）');
+		console.log('\n✔ 笔记模型门通过（形状/对齐 + 接入契约 + 消费可数 + `notepath` path/多源 + 自证）');
 	}
 };

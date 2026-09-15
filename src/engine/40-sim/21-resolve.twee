@@ -346,6 +346,27 @@ Object.assign((window.Game.Combat ??= {}), {
 		const cur = pc?.gearHp?.[gearName];
 		return typeof cur === 'number' ? cur : max;
 	},
+	/** `#703`：侧栏（`StoryCaption`）用的**只读快照**——装备耐久与部位异常此前**全仓零渲染**（数据早就在状态里）。
+	 *  只算不写（渲染路径不得改状态，`#315` 契约）；未启用新机制的故事（故事 1／最小示例）⇒ 空列表 ⇒ 侧栏整块不出现。 */
+	gearDurability(pc) {
+		const mech = this.slotsDecl();
+		if (!mech) return [];
+		return (pc?.gear ?? []).filter((g) => mech.equipment?.[g]).map((g) => {
+			const max = mech.equipment[g].maxHp ?? 0;
+			const cur = this.gearHpOf(pc, mech, g);
+			return { name: g, cur, max, broken: cur <= 0 };
+		});
+	},
+	statusEntries(pc) {
+		const mech = this.slotsDecl();
+		if (!mech) return [];
+		const out = [];
+		for (const [part, map] of Object.entries(pc?.statuses ?? {})) {
+			for (const [id, turns] of Object.entries(map ?? {})) out.push({ part, id, label: mech.statuses?.[id]?.label ?? id, turns });
+		}
+		return out;
+	},
+
 	// 受击（指定部位）：该部位有护具就按声明减成（本片只落 `flat`）⇒ 余量由该件**耐久吸收**，
 	// 溢出量落 HP；耐久 ≤ 0 ⇒ **损坏**（`reduce` 归 0 且不再吸伤）。**纯函数**：只返回计划，不写 `pc`。
 	// （S2 需要「指定部位」的形态：异常结算的"该部位受伤"不该另掷一个部位 ⇒ 抽出本方法。）

@@ -58,6 +58,19 @@ const MECH = {
 
 const PC = { gear: ['布衣'], gearHp: {}, abilities: { con: 10 }, skills: [], flags: {}, statuses: { 衣服: { 流血: 2 } } };
 
+/** `#703`：**机制必须可被玩家看见**——S1 的耐久与 S2 的异常若没有任何渲染点，
+ *  "机制存在"对玩家等于不存在（操作者反馈③："UI 上看不到装备状态和部位状态"）。
+ *  判据（源码级、可反例）：侧栏渲染面（`StoryCaption` 所在文件）必须调用引擎的只读快照入口
+ *  `Game.Combat.gearDurability(` 与 `Game.Combat.statusEntries(`。 */
+export const visibilityProblems = (sidebarSrc) => {
+	const src = String(sidebarSrc ?? '');
+	if (!src.trim()) return [{ code: 'sidebar-src-missing', why: '取不到侧栏源码（`src/10-core.twee`）——本判据要读渲染面才能判' }];
+	const out = [];
+	if (!/Game\.Combat\.gearDurability\(/.test(src)) out.push({ code: 'gearhp-invisible', why: '侧栏没有渲染**装备耐久**（`Game.Combat.gearDurability(`）——S1 机制对玩家不可见（#703）' });
+	if (!/Game\.Combat\.statusEntries\(/.test(src)) out.push({ code: 'status-invisible', why: '侧栏没有渲染**部位异常**（`Game.Combat.statusEntries(`）——S2 机制对玩家不可见（#703）' });
+	return out;
+};
+
 export const run = (ctx) => {
 	const { Game, arg, wantAll } = ctx;
 	const Sg = ctx.window?.Sg;
@@ -166,6 +179,21 @@ export const run = (ctx) => {
 		{
 			const base = { mech: MECH, prev: { 衣服: { 流血: 2 } } };
 			const ok = { ...base, plan: { steps: [{ part: '衣服', id: '流血', turns: 1, kind: 'recover', perRound: -1, res: { roll: 20 } }] } };
+			// `#703`：机制可见性（**独立循环**——它判的是"渲染面有没有引用"，不是 plan 违反项）
+			{
+				const visCases = [
+					['#703 正例：侧栏渲染了装备耐久与部位异常 ⇒ 不报', '行囊 <<set _gh to Game.Combat.gearDurability($pc)>> <<set _st to Game.Combat.statusEntries($pc)>>', 0],
+					['🔴 #703 反例：删掉装备耐久渲染 ⇒ 报', '<<set _st to Game.Combat.statusEntries($pc)>>', 1],
+					['🔴 #703 反例：删掉部位异常渲染 ⇒ 报', '<<set _gh to Game.Combat.gearDurability($pc)>>', 1],
+					['#703 反例：取不到侧栏源码 ⇒ 报（不静默判过）', '', 1],
+				];
+				for (const [label, src, want] of visCases) {
+					const got = visibilityProblems(src);
+					const okk = want === 0 ? got.length === 0 : got.length >= want;
+					console.log(`      ${okk ? '✓' : '✗'} 自证·${label}：检出 ${got.length}（期望 ${want === 0 ? 0 : '≥' + want}）`);
+					if (!okk) bad++;
+				}
+			}
 			const cases = [
 				['正例：合规计划不报', ok, 0],
 				['反例①：恢复后回合数不对', { ...base, plan: { steps: [{ ...ok.plan.steps[0], turns: 7 }] } }, 1],
@@ -185,8 +213,15 @@ export const run = (ctx) => {
 		Game.Rules.rng.reset();
 	}
 
+	// `#703`：**机制必须可被玩家看见**——侧栏（`StoryCaption`）必须渲染装备耐久与部位异常
+	//（两者此前全仓零渲染；操作者反馈③）。判据看的是**渲染面**，不是状态里有没有数据。
+	{
+		const sidebar = ctx.passageSrc?.get('StoryCaption') ?? '';
+		for (const p of visibilityProblems(sidebar)) { console.log(`  ✗ 机制可见性：${p.why}`); bad++; }
+	}
+
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ ⓪y 部位×异常门：${bad} 项`); process.exit(1); }
-		console.log('\n✔ 部位×异常门通过（被动 · 判定恢复 · 失败分档 · 减成作用域 · 解除 · 兼容降级 · 声明面≤实现面）');
+		console.log('\n✔ 部位×异常门通过（被动 · 判定恢复 · 失败分档 · 减成作用域 · 解除 · 兼容降级 · 声明面≤实现面 · 机制可见性 #703）');
 	}
 };

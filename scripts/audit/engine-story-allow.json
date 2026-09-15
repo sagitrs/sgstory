@@ -4,11 +4,10 @@
 		"consequences.mjs::图鉴": "桶名标签：本门的 `codex` 桶（收藏面）——与最小示例的段落名同词纯属巧合（#602）",
 		"waves.mjs::图鉴": "契约描述：`RESET_KEEPS` 的\"不清什么\"清单里含收藏面（引擎侧契约，非故事数据）（#602）",
 		"src/10-core.twee::Game.Combat.siteInfo": "**移除计划：片三-1（Economy 接缝）后随 Combat 片清（#660）**——`<<sitecheck>>` 词汇宏读故事的动作表取位点信息",
-		"src/10-core.twee::Game.Economy.priceOf": "**移除计划：片三-1（#660）**——`<<econ>>` 走 `Game.Economy.apply`，而 `priceOf` 是**故事侧**的折扣函数（同族的 `this.priceOf` 见 21-resolve）",
+		"src/10-core.twee::Game.Economy.priceOf": "**长期保留（不是欠账）**：折扣/定价是**故事政策**（`Economy.priceOf` 住故事侧，引擎只调它）——引擎侧的 `apply` 与 `<<econ>>` 都经它算价（#660 片三-1 已把\"取事件表\"那一半接缝走 `Sg.story.econEvents()`，这两条剩的是**调用故事函数**，不搬）(#660)",
 		"src/10-core.twee::Game.Social.ask": "**移除计划：片三-Social（#660）**——`<<socresolve>>` 词汇宏按诉求取面板数据",
 		"src/80-script.twee::Game.Social.ask": "**移除计划：片三-Social（#660）**——`Sg` 侧渲染交涉面板时读诉求",
-		"src/engine/40-sim/21-resolve.twee::Game.Economy.priceOf": "**移除计划：片三-1（#660）**——`apply` 调故事的折扣函数",
-		"src/engine/40-sim/21-resolve.twee::Game.Economy.this.events": "**移除计划：片三-1（#660）**——`priceOf` 里 `this.events[id]`：故事事件表被合进 `Game.Economy`（本档**形态 C**）",
-		"src/engine/40-sim/21-resolve.twee::Game.Economy.this.priceOf": "**移除计划：片三-1（#660）**——`apply` 里 `this.priceOf(id, pc)`（同上）"
+		"src/engine/40-sim/21-resolve.twee::Game.Economy.priceOf": "**长期保留（不是欠账）**：折扣/定价是**故事政策**（`Economy.priceOf` 住故事侧，引擎只调它）——引擎侧的 `apply` 与 `<<econ>>` 都经它算价（#660 片三-1 已把\"取事件表\"那一半接缝走 `Sg.story.econEvents()`，这两条剩的是**调用故事函数**，不搬）(#660)",
+		"src/engine/40-sim/21-resolve.twee::Game.Economy.this.priceOf": "**长期保留（不是欠账）**：折扣/定价是**故事政策**（`Economy.priceOf` 住故事侧，引擎只调它）——引擎侧的 `apply` 与 `<<econ>>` 都经它算价（#660 片三-1 已把\"取事件表\"那一半接缝走 `Sg.story.econEvents()`，这两条剩的是**调用故事函数**，不搬）(#660)"
 	}
 }

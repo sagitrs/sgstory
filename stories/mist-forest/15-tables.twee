@@ -1154,6 +1154,8 @@ window.Sg ??= {};
 Object.assign((window.Sg.story ??= {}), {
 	// 笔记表：引擎侧只经此取数（返回**表本身**，缺表即空表——表是数据集，不是结构）
 	notes: () => window.Game?.Notes?.entries ?? {},
+	// `#660` 片三-1：经济事件表**只经此面**给引擎（引擎不再直读 `Game.Economy.events`）
+	econEvents: () => window.Game.Economy.events,   // `#660` 片三-1（`Economy` 是上一段的局部 const ⇒ 只能经 `window.Game` 取）
 	// 条件表（阶段 4）：占位；`#435` 落地后改为读它自己的表（名字由 `#435` 定）
 	rules: () => [],
 	// #441-E：引擎需要的**故事数据入口**（结构缺失 ⇒ **报错**，不许静默 0/空 —— 那会让引擎带着错数据跑）

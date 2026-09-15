@@ -18,14 +18,43 @@
    尾段（第 7 实参）：结算后要执行的**故事侧段落名**（例：本故事的五步步进，那一段里是 `<<caveNext>>`）。
    引擎不知道「下一步是什么」 ⇒ 只 `<<include>>` 这一段；缺省空串 ⇒ 不执行（显式降级）。
    （试过"尾段＝wiki 片段 + `$(this.output).wiki()`"的写法：**不驱动导航**（步数不动）⇒ 实测否决。） %/
+:: 敌人回合 Widget [widget]
+/% `#705` 片二-B（`#702` a2）：**一个完整回合**的机制 —— 玩家攻击（5e 攻击骰 vs `foe.ac`）
+   ⇒ 还站着的敌人**反击**（`d20 + attack.bonus` vs `pc.ac` ⇒ 骰式伤害 ⇒ **落部位** ⇒ `slotAbsorbAt`）
+   ⇒ 把 HP/护具耐久**落**到 `$pc`（HP 走 `<<damage>>`，护具耐久直接写 `$pc.gearHp`）。
+
+   为什么住引擎：**掷骰与结算顺序**是机制（故事只给"动作 id ⇒ attr/dmg/defend"这一层数据）；
+   为什么印日志：`#701` 的日志面就吃这一行（出目／AC／部位／减成／耐久／落 HP 全在里面），
+   而"部件受伤反馈"（`#704`）吃 `absorb`（部位＋护具＋吸收量＋是否损坏）。
+
+   用法：`<<foeRound "洞窟·挥剑">>`（调用前该波必须已 `foeSpawn`；无实例 ⇒ 什么都不做，交回旧路径）。 %/
+<<widget "foeRound">><<nobr>>
+	/% ⚠️ 本 widget 只做**渲染**：机制（掷骰／结算／日志串）全在 `Game.Combat.foeRound()` 里。
+	   为什么这么切（`#705` 片二-B 实测的教训）：SugarCube 的 `<<set>>` 解析器吃不下"长表达式 ＋ 嵌套
+	   三元 ＋ 计算键对象 ＋ 数组字面量"的组合（报 `bad evaluation: Cannot read properties of undefined`），
+	   而且那种失败**只在真机点开时才现形**。搬进 JS 后同一份逻辑还能被 node 门（`test/foe-5e.mjs`）直接测。 %/
+	<<set _r to Game.Combat.foeRound($pc, Sg.story.combatAction($args[0]))>>
+	<<if _r.hurt gt 0>><<damage _r.hurt>><</if>>
+	<span class="fight-log"><<= _r.log>></span>
+<</nobr>><</widget>>
+
 <<widget "shortFight">><<nobr>>
 	<<set _enc to $args[4] ?? "short">>
 	<<set _tail to $args[6] ?? "">>
 	<<set _note to Game.Combat.encounterFailNote(_enc)>>
 	<<run Game.Combat.waveBegin($pc, _enc)>>
+	<<run Game.Combat.foeSpawn($pc, 0)>>
 	<<link $args[1]>>
-		<<sitecheck $args[0]>>
-		<<set _phase to (Game.Combat.waveRecord($pc, $last_check.success) ?? {}).phase>>
+		/% `#705` 片二-B：**有敌人实例**（故事声明了 `enemies`）⇒ 5e 攻击骰 ＋ 敌人反击（落部位）；
+		   没有实例 ⇒ 逐字节走旧路径（`sitecheck` ＋ `waveRecord`）⇒ 未声明敌人属性的故事**一行不变**。 %/
+		<<set _foes to $pc.ev.fight.wave.foes>>
+		<<if _foes and _foes.length gt 0>>
+			<<foeRound $args[0]>>
+			<<set _phase to (Game.Combat.waveRecord($pc, true) ?? {}).phase>>
+		<<else>>
+			<<sitecheck $args[0]>>
+			<<set _phase to (Game.Combat.waveRecord($pc, $last_check.success) ?? {}).phase>>
+		<</if>>
 		<<if _phase is "continue" or _phase is "advance">>
 			<<set $pc.ev.last_result to { p: passage(), era: $era, text: $args[2] }>>
 			<<print $args[2]>>

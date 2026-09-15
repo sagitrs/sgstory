@@ -137,6 +137,7 @@
 
 <<if not $pc.ev.fight or not $pc.ev.fight.wave>>
 	<<set _w to Game.Combat.waveBegin($pc, "long")>>
+	<<run Game.Combat.foeSpawn($pc, 0)>>
 <</if>>
 <<set _wv to $pc.ev.fight.wave>>
 /% `#689`（顺带）：显示里的 `/3` 是**硬编码**，而 `#599` 已把长战斗回合上限定成 **5**（`plan.rounds`）⇒
@@ -145,13 +146,22 @@
 第 <<= _wv.idx>> 批 · 本轮 <<= _wv.rounds + 1>>/<<= _pl.rounds>>（命中 <<= _wv.hits>>/<<= _pl.hits>>）
 
 <<link "把火把举低，逼它退到石壁边">>
-	<<sitecheck "洞窟·围斗">>
+	/% `#705` 片二-B：这一手的机制走引擎的 `<<foeRound>>`（5e 攻击骰 ＋ 敌人反击落部位）；`#702` 判据⑦：
+	   通关判据是**敌人全灭**，不再数 `hits`。 %/
+	<<foeRound "洞窟·围斗">>
 		/% `#598`：`waveRecord()` 返回的是**对象** `{ phase, plan, wave, advance }`（引擎契约），
 		   原先拿**整个对象**与字符串比 ⇒ 三个分支全不中、只落到 `<<else>>`；而两条 `<<include>>` **不导航**
 		   ⇒ 波次计数与骰面都不刷新 ⇒ 玩家侧就是“点了没反应”（且长战斗成了**死路**）。
 		   ⇒ 取 `.phase`；两条“继续/增援”改成 `<<goto>>`（真的重渲染本段落，计数与结果槽才会更新）。 %/
-		<<set _ph to Game.Combat.waveRecord($pc, $last_check.success).phase>>
+		<<set _foes to $pc.ev.fight.wave.foes>>
+		<<if _foes and _foes.length gt 0>>
+			<<set _ph to (Game.Combat.waveRecord($pc, true) ?? {}).phase>>
+		<<else>>
+			<<sitecheck "洞窟·围斗">>
+			<<set _ph to (Game.Combat.waveRecord($pc, $last_check.success) ?? {}).phase>>
+		<</if>>
 	<<if _ph is "advance">>
+		<<run Game.Combat.foeSpawn($pc, $pc.ev.fight.wave.idx - 1)>>
 		<<set $pc.ev.last_result to { p: passage(), era: $era, text: "这一批倒下了。石缝里又钻出来更多——它还有同伙。" }>><<print "这一批倒下了。石缝里又钻出来更多——它还有同伙。">>
 		<<goto "机制·longFight">>
 	<<elseif _ph is "cleared">>

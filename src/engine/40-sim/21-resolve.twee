@@ -661,6 +661,31 @@ Object.assign((window.Game.Combat ??= {}), {
 		const out = down ? next.filter((_, k) => k !== i) : next;
 		return { foe: foe.id, roll, rolls, mod, total, ac: def.ac, hit, crit, dmg: dealt, hp: Math.max(0, next[i].hp), down, foes: out, target: i };
 	},
+	/** `#705` 片二-B：**一个完整回合**（玩家攻击 ⇒ 还站着的敌人反击 ⇒ 落护具耐久）。
+	 *  **机制住引擎、文案住 widget**：这里返回 `{ log, strike, hits, hurt }`（`log` 就是 `#701` 的日志面素材），
+	 *  **HP 的落法不在本函数**（返回 `hurt`，由调用方的 `<<damage>>` 落 ⇒ 死亡/药膏等既有政策一处不改）。
+	 *  为什么不做成纯函数：`foeStrike`/`foeHit` 是纯的（算），这里是"算＋落"的调用方侧（与 `tickStatuses` 同族）。
+	 *  @param {object} actionRef 故事声明的动作（`{ attr, dmg, defend }`；缺项 ⇒ 中性默认） */
+	foeRound(pc, actionRef) {
+		const a = actionRef ?? {};
+		const strike = this.foeStrike(pc, { ability: a.attr ?? 'str', dmg: a.dmg ?? '1' });
+		pc.ev.fight.wave.foes = strike.foes;
+		const log = [strike.hit
+			? `你 ${strike.roll}+${strike.mod}=${strike.total} vs 甲${strike.ac} ⇒ 命中 ${strike.dmg} 点（${strike.foe} 剩 ${strike.hp}）`
+			: `你 ${strike.roll}+${strike.mod}=${strike.total} vs 甲${strike.ac} ⇒ 落空`];
+		let hurt = 0;
+		for (const f of pc.ev.fight.wave.foes) {
+			const h = this.foeHit(pc, f, { adv: a.defend ? -1 : 0 });
+			if (!h.hit) { log.push(`${h.foe} ${h.roll}+${h.bonus}=${h.total} vs 你 甲${h.ac} ⇒ 落空`); continue; }
+			if (h.absorb.gear) pc.gearHp = { ...(pc.gearHp ?? {}), [h.absorb.gear]: h.absorb.gearHp };
+			hurt += h.absorb.toHp;
+			log.push(`${h.foe} ${h.roll}+${h.bonus}=${h.total} vs 你 甲${h.ac} ⇒ 打中${h.part} ${h.raw} 点`
+				+ (h.absorb.gear ? `（${h.absorb.gear} 减 ${h.absorb.reduce}、吸 ${h.absorb.absorbed} ⇒ 耐久 ${h.absorb.gearHp}${h.absorb.broke ? '，**损坏**' : ''}）` : '')
+				+ `，落 HP ${h.absorb.toHp}`);
+		}
+		if (!pc.ev.fight.wave.foes.length) log.push('—— 这一批清干净了。');
+		return { log: log.join('｜'), strike, hurt };
+	},
 	/** 敌人 ➜ 玩家（5e）：`d20 + attack.bonus`（＋可选优势）vs **`pc.ac`**（`pcAC()`；未启用 ⇒ 报错）；
 	 *  命中 ⇒ `rollDice(attack.dmg)` ⇒ 部位取 `attack.parts`（掷一个）⇒ **`slotAbsorbAt`**（减成/耐久/HP 一次算清）。
 	 *  **纯**：返回计划（`hp`/`gearHp` 由调用方落），与 `slotAbsorbAt` 同口径。 */

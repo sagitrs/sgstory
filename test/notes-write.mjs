@@ -19,6 +19,7 @@ const case_ = (label, ok, extra = '') => {
 };
 
 const { window: w, State } = createContext({ argv: [] });
+const Game = w.Game;   // `#437` C-2c-2：真机语义要验 `Game.Pc.migrate()` 会顺带跑迁移
 const Sg = w.Sg;
 const pc = State.variables.pc;
 const snap = () => JSON.stringify({ ev: pc.ev, world: pc.world });
@@ -56,9 +57,16 @@ if (single) {
 	case_(`幂等：第二次 \`add('${single}')\` ⇒ 返回 false`, r2 === false);
 	case_('幂等：状态逐字节不变（连跑两次＝一次）', snap() === afterFirst, `before=${before.length}B after=${snap().length}B`);
 
-	// ③ 双读：模拟**旧档**（只有旗标、没有 `pc.ev.notes`）⇒ has() 仍真
+	// ③ **旧档迁移**（`#437` C-2c-2）：兜底退场 ⇒ 只有旗标的旧档**不再**自动为真，改为**写一次迁移**补齐
 	delete pc.ev.notes[single];
-	case_('双读：旧档（只有旗标、无 `pc.ev.notes`）⇒ `has()` 仍为真（知识不丢）', Sg.notes.has(single) === true);
+	case_('🔴 C-2c-2：旧档（只有旗标、无存储）⇒ `has()` **不再**为真（读侧兼容层已退场）', Sg.notes.has(single) === false);
+	case_('✅ 反向探针（承重）：`migrateLegacy()` 补写后 ⇒ `has()` 为真（旧档知识不丢）', Sg.notes.migrateLegacy(pc) >= 1 && Sg.notes.has(single) === true);
+	case_('迁移幂等：再跑一次 ⇒ 补写 0 条', Sg.notes.migrateLegacy(pc) === 0);
+	case_('真机语义：`Game.Pc.migrate()` 会顺带跑迁移（旧档载入路径）', (() => {
+		delete pc.ev.notes[single];                       // 再造一次旧档
+		Game.Pc.migrate(pc);                              // 载档时必经
+		return Sg.notes.has(single) === true;
+	})());
 }
 
 // ④ 多源护栏：数组 flagPath 且没 setPath ⇒ 必须报错（当前 hall/study 两族正是如此 ⇒ 本票有意不搬）
@@ -156,10 +164,10 @@ if (multi) {
 	case_(`路径限定：没写另一条（${p1}）—— 不静默多写旗标`, Sg.notes.readPath(pc, p1) === false || Sg.notes.readPath(pc, p1) === undefined);
 	const a2 = Sg.notes.addPath(multi, p2);
 	case_('路径限定·路径级幂等：同一条再写 ⇒ 返回 false（状态不变）', a2 === false && Sg.notes.readPath(pc, p2) === true);
-	// 🔴 关键用例：另一条已真（＝“知识已在”）时，本行声明的 path **仍必须**写下去
+	// 🔴 关键用例：另一条已授予（＝“知识已在”）时，本行声明的 path **仍必须**写下去
 	reset();
-	Sg.notes.writePath(pc, p1, true);
-	case_('🔴 关键：`has(id)` 已真（另一条 path 已写）时，`addPath` **仍**能写本行那条（`add()` 做不到）',
+	Sg.notes.addPath(multi, p1);                       // 走**受认可**的授予路径（同时落该 path 与存储）
+	case_('🔴 关键：`has(id)` 已真（另一条 path 已授予）时，`addPath` **仍**能写本行那条（`add()` 做不到）',
 		Sg.notes.has(multi) === true && Sg.notes.addPath(multi, p2) === true && Sg.notes.readPath(pc, p2) === true);
 	case_('路径限定·fail-loud：path 不属于该笔记 ⇒ 报（写进去读不出来）', (() => { try { Sg.notes.addPath(multi, 'world.不存在的路径'); return false; } catch { return true; } })());
 	case_('路径限定·fail-loud：未登记 id ⇒ 报', (() => { try { Sg.notes.addPath('n_nope', p2); return false; } catch { return true; } })());
@@ -240,4 +248,4 @@ if (bad) {
 	console.error(`\n✗ 笔记写入门未通过（${bad} 项）—— \`Sg.notes.add\` 动的是存档语义，四条性质不许退让（#434）`);
 	process.exit(1);
 }
-console.log('\n✔ 笔记写入门通过（幂等 · 双写 · 双读 · 多源护栏 · 未登记 fail-loud）');
+console.log('\n✔ 笔记写入门通过（幂等 · 旗标＋存储双写 · **旧档迁移**（兜底已退场）· 多源护栏 · 未登记 fail-loud）');

@@ -81,16 +81,35 @@ window.Sg.notes = {
 		cur[segs[segs.length - 1]] = v;
 	},
 	// 真存储（#434）：`pc.ev.notes` 是「已授予」的**记录**；旧档只有旗标 ⇒ 由 has() 的旗标面兜住
-	stored(id) { return !!State.variables.pc?.ev?.notes?.[id]; },
+	stored(id, pc = State.variables.pc) { return !!pc?.ev?.notes?.[id]; },
 	entry(id) { return this.table()[id] ?? null; },
 	ids() { return Object.keys(this.table()); },
-	// 读取语义（写死，见 Discussion #513）：`has(id) = stored(id) ∨ any(readPath(flagPath))`
+	// 读取语义（`#437` C-2c-2 起）：`has(id) = stored(id)` —— **只认真存储**。
+	// 兼容层（旗标兜底 `∨ any(readPath(flagPath))`）已随本片退场；旧档的旗标由 `migrateLegacy()` **一次性补进存储**，
+	// 所以"旧档载入不丢知识"这条不变（`Game.Pc.migrate()` 里调用 ⇒ 每次载档幂等补齐）。
 	has(id) {
 		const e = this.entry(id);
 		if (!e) return false;
-		if (this.stored(id)) return true;
-		const v = typeof e.grant === 'function' ? e.grant(State.variables.pc) : this.readPath(State.variables.pc, e.flagPath);
-		return !!v;
+		return this.stored(id);
+	},
+	// **旧档迁移**（`#437` C-2c-2）：把"只有旗标、没有 `ev.notes`"的存档补成存储态。
+	// 为什么必须单独一条（而不是留在 `has()` 里兜底）：兜底是**读侧的兼容层**——它让"旗标"与"存储"两份状态
+	// 长期并行存在（谁写谁忘都能蒙对）；改成**写一次迁移**之后，`has()` 只认一份真源，模型才闭合。
+	// 幂等：已 stored 的跳过；返回补写条数（0 = 无需迁移）。
+	migrateLegacy(pc = State.variables.pc) {
+		if (!pc || typeof pc !== 'object') return 0;
+		let n = 0;
+		for (const id of this.ids()) {
+			if (this.stored(id, pc)) continue;
+			const e = this.entry(id);
+			const v = typeof e?.grant === 'function' ? e.grant(pc) : this.readPath(pc, e?.flagPath);
+			if (!v) continue;
+			pc.ev = pc.ev ?? {};
+			pc.ev.notes = pc.ev.notes ?? {};
+			pc.ev.notes[id] = true;
+			n++;
+		}
+		return n;
 	},
 	// 授予（#434）：**幂等** ＋ 真存储 ＋ **双写**（同时置旗标，票面「旗标降为兼容字段」）。
 	// 多源护栏：`flagPath` 是**数组**时必须显式 `setPath`（写哪一条）⇒ 缺则**报错**，绝不静默多写一个旗标。

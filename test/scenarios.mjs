@@ -1486,7 +1486,9 @@ async function routeTavernAsk() {
 	if (!w.document.querySelector('#passages').textContent.includes('别在雾里睡觉')) throw new Error('忠告没渲染出来');
 	await c('推门出发，走进暮色');
 	await c('在雾里站住，听一听');                  // 察觉 DC10 → 必败 → 什么都没听清
-	if (pcOf(w).ev.forest_heard !== false) throw new Error('察觉失败却记成听清了');
+	// `#437` 批三 C-2b：写侧改走 `Sg.notes`（`<<note "n_forest_heard">>`）之后，**失败不再写 `false`**——
+	// 断言本意是「没记成听清」，而「试过没试过」另由 `ev.forest_listen` 记（同一次点击里写）⇒ 只看有没有记成听清。
+	if (pcOf(w).ev.forest_heard === true) throw new Error('察觉失败却记成听清了');
 	await c('去那间亮着灯的小屋');
 	await c('问：雾到底是什么');
 	if (pcOf(w).ev.wq_fog !== true) throw new Error('女巫小屋的提问没记账');

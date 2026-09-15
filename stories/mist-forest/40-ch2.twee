@@ -405,9 +405,9 @@
 		<<link "先看清钉子是怎么卡的">>
 			<<sitecheck "门厅·看钉">><<snapshot>>
 			<<if $last_check.success>>
-				钉子锈成了一个钩，得往上提、再往外带。（''看准了，就不必用蛮力。''）<<set $pc.ev.hall_seen to true>>
+				钉子锈成了一个钩，得往上提、再往外带。（''看准了，就不必用蛮力。''）<<notepath "n_hall_hint" "ev.hall_seen">>
 			<<else>>
-				灰太厚，看不清。但你先前听人比过：''那钉子是个弯钩，往上提、再往外带，不必硬掰''。<<set $pc.world.hall_hint to true>>
+				灰太厚，看不清。但你先前听人比过：''那钉子是个弯钩，往上提、再往外带，不必硬掰''。<<notepath "n_hall_hint" "world.hall_hint">>
 			<</if>>
 			<<goto "门厅">>
 		<</link>>
@@ -466,11 +466,11 @@
 			<<link "伸手去摸烤炉后头的暗格">>
 				<<if Sg.notes.has('n_witch_hint')>>
 					暗格的位置分毫不差——你一下就摸到了。（暗格就在她画过的那一处。）
-					<<set $pc.ev.study_found to true>>
+					<<notepath "n_study_hint" "ev.study_found">>
 				<<else>>
 					<<sitecheck "书房·检视">><<snapshot>>
-					<<if $last_check.success>><<set $pc.ev.study_found to true>>
-					<<else>>你只摸到一手灰，手指头在炉壁上磕了一下，磕得生疼。再往里探半寸，指尖碰到了匣子的边角，你把它抠了出来，又忍着疼把四壁摸了一遍，确认再没有别的物件藏在这里。<<damage `Game.Damage.graze`>>（''拿到了，手也磕破了。''）<<set $pc.ev.study_found to true>>
+					<<if $last_check.success>><<notepath "n_study_hint" "ev.study_found">>
+					<<else>>你只摸到一手灰，手指头在炉壁上磕了一下，磕得生疼。再往里探半寸，指尖碰到了匣子的边角，你把它抠了出来，又忍着疼把四壁摸了一遍，确认再没有别的物件藏在这里。<<damage `Game.Damage.graze`>>（''拿到了，手也磕破了。''）<<notepath "n_study_hint" "ev.study_found">>
 					<</if>>
 				<</if>>
 				<<if $pc.hp gt 0>><<goto "书房">><</if>>
@@ -479,9 +479,9 @@
 				<<sitecheck "书房·敲墙">><<snapshot>>
 				<<if $last_check.success>>
 					有一块砖的声音是空的。你按下它的边角——砖松了。（''你知道暗格在哪儿了。''）
-					<<set $pc.ev.study_found to true>>
+					<<notepath "n_study_hint" "ev.study_found">>
 				<<else>>
-					你没听出哪里不同，手指倒敲得发麻。倒是把墙摸熟了：''缝在炉膛后头那面墙上''。<<set $pc.world.study_hint to true>>（''换一条线索：把架上的抄本按年份排一遍。''）
+					你没听出哪里不同，手指倒敲得发麻。倒是把墙摸熟了：''缝在炉膛后头那面墙上''。<<notepath "n_study_hint" "world.study_hint">>（''换一条线索：把架上的抄本按年份排一遍。''）
 				<</if>>
 				<<goto "书房">>
 			<</link>>
@@ -489,9 +489,9 @@
 				<<sitecheck "书房·断代">><<snapshot>>
 				<<if $last_check.success>>
 					你数了年份，看出哪一册被人反复翻过——页边一行小字写着"烤炉后头"。（''你知道暗格在哪儿了。''）
-					<<set $pc.ev.study_found to true>>
+					<<notepath "n_study_hint" "ev.study_found">>
 				<<else>>
-					年份对不上，你排了半天也没理出头绪。倒是把位置记下了：''暗格在炉膛后头那面墙里''。<<set $pc.world.study_hint to true>>（''书读不通，就换个法子。''）
+					年份对不上，你排了半天也没理出头绪。倒是把位置记下了：''暗格在炉膛后头那面墙里''。<<notepath "n_study_hint" "world.study_hint">>（''书读不通，就换个法子。''）
 				<</if>>
 				<<goto "书房">>
 			<</link>>
@@ -499,10 +499,10 @@
 				<<sitecheck "书房·强拆">><<snapshot>>
 				<<if $last_check.success>>
 					你换了半个姿势，把炉膛整个挪开半尺——暗格就在后头，砖面是松的。
-					<<set $pc.ev.study_found to true>>
+					<<notepath "n_study_hint" "ev.study_found">>
 				<<else>>
 					炉膛纹丝不动，你的肩膀先撞在了墙上。<<damage `Game.Damage.hurt`>>
-					（''但你摸到了那条缝——暗格确实在这儿。''）<<set $pc.ev.study_found to true>>
+					（''但你摸到了那条缝——暗格确实在这儿。''）<<notepath "n_study_hint" "ev.study_found">>
 				<</if>>
 				<<if $pc.hp gt 0>><<goto "书房">><</if>>
 			<</link>>

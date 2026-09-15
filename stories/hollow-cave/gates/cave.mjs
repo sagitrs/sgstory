@@ -11,6 +11,7 @@
 //      且每条实例的 `ref` 也解析得到段落、`hint` 非空（内容→表）；
 //   ③ `Sg.story.chestDef(id)`：三个位点名（`site`/`rareSite`/`toolSite`）都必须是**已登记位点**，
 //      `tool` 必须在 `Game.Items.defs` 里，且 `loot` 的档位非空（稀有度→奖品曲线存在）；
+//   ⑨ 终点必须有**整局结算**（`#719`）。
 //   ⑧ 敌人攻击位点必须已登记（`#705`）。
 //   ⑥ 宝箱惩罚分级（`#696`）：钥匙必开／道具轻罚／徒手重罚（严重异常）。
 //   ⑦ `#696` 收入声明↔内容对账：`chest.gold`／`caveRewards` 声明了且内容读它。
@@ -160,6 +161,15 @@ export const enemySiteProblems = (mech, { hasSite } = {}) => {
 	return out;
 };
 
+/** 纯函数⑨：终点**整局结算**（`#719`）——`地下村落` 必须渲染"这一趟带出来的东西"（`<<caveSummary>>`）。
+ *  没有它，玩家走到头只有散文、看不到自己积累了什么（操作者/guest 实测：钥匙/干粮/金币全无结算）。 */
+export const endingSummaryProblems = (endSrc) => {
+	const s = String(endSrc ?? '');
+	if (!s.trim()) return [{ code: 'ending-src-missing', why: '取不到终点段落源码（`地下村落`）——本判据要读内容才能判' }];
+	if (!/<<\s*caveSummary\s*>>/.test(s)) return [{ code: 'no-summary', why: '终点没有整局结算（`<<caveSummary>>`）——只有散文，玩家看不到收获（#719）' }];
+	return [];
+};
+
 export const run = (ctx) => {
 	const { arg, wantAll, window: w } = ctx;
 	if (!(wantAll || arg('cave'))) return;
@@ -181,6 +191,10 @@ export const run = (ctx) => {
 			['🔴 ② 反例：某类没有实例 ⇒ 报', poolProblems({ kinds: KINDS, entries: { ...Object.fromEntries(KINDS.map((k) => [k, [{ id: '1a', hint: 'x', ref: '1a' }]])), trap: [] } }, has).length === 1],
 			['🔴 ② 反例：实例缺 `hint`／`ref` 解析不到 ⇒ 各报一条', poolProblems({ kinds: KINDS, entries: { ...Object.fromEntries(KINDS.map((k) => [k, [{ id: '1a', hint: 'x', ref: '1a' }]])), cave: [{ id: '9z', ref: '9z' }] } }, has).length === 2],
 			['边界：`eventPool` 未启用（null）⇒ 不报（故事 1 走这条）', poolProblems(null, has).length === 0],
+			// `#719`：终点整局结算（正例／🔴 删掉 ⇒ 报／取不到源码 ⇒ 报）
+			['⑨ 正例（#719）：终点渲染整局结算 ⇒ 不报', endingSummaryProblems('你站在那儿。\n<<caveSummary>>\n<<ending "地下村落" final>>').length === 0],
+			['🔴 ⑨ 反例（#719）：终点删掉结算 ⇒ 报', endingSummaryProblems('你站在那儿。\n<<ending "地下村落" final>>').some((p) => p.code === 'no-summary')],
+			['⑨ 反例（#719）：取不到终点源码 ⇒ 报（不静默判过）', endingSummaryProblems('').length === 1],
 			// `#600` 奖励声明面：正例／🔴 未登记道具／🔴 形状非法／🔴 内容没接／🔴 内容绕过
 			['④ 正例：掉落道具已登记且内容走单一落点', rewardProblems({ encounters: { short: { reward: { gold: 3, item: { id: '钥匙', chance: 30 } } } } }, { normalize: () => ({ gold: 3, item: { id: '钥匙', chance: 30 } }), hasItem: (x) => x === '钥匙', srcOf: () => '<<set _r to Game.Combat.grantReward($pc, "short")>>' }).length === 0],
 			['🔴 ④ 反例：掉落指向未登记道具 ⇒ 报', rewardProblems({ encounters: { short: { reward: { item: '不存在的钥匙' } } } }, { normalize: () => ({ gold: 0, item: { id: '不存在的钥匙', chance: 100 } }), hasItem: (x) => x === '钥匙', srcOf: () => 'Game.Combat.grantReward(' }).length === 1],
@@ -231,6 +245,7 @@ export const run = (ctx) => {
 		for (const p of poolProblems(story.eventPool?.(1) ?? null, hasPassage)) { console.log(`  ✗ 事件池：${p.why}`); bad++; }
 		for (const p of chestProblems(mech.chest, { hasSite: (n) => !!story.checkSite?.(n), hasItem: (n) => !!story.itemEffect?.(n), siteOf: (n) => story.checkSite?.(n) })) { console.log(`  ✗ 宝箱声明面：${p.why}`); bad++; }
 		for (const p of rewardProblems(mech, { normalize: (id) => w?.Game?.Combat?.encounterReward(id), hasItem: (n) => !!story.itemEffect?.(n), srcOf: (n) => ctx.passageSrc?.get(n) })) { console.log(`  ✗ 战斗奖励声明面：${p.why}`); bad++; }
+		for (const p of endingSummaryProblems(ctx.passageSrc?.get('地下村落') ?? '')) { console.log(`  ✗ 终点结算：${p.why}`); bad++; }
 		for (const p of enemySiteProblems(mech, { hasSite: (n) => !!story.checkSite?.(n) })) { console.log(`  ✗ 敌人攻击位点：${p.why}`); bad++; }
 		for (const p of penaltyGradeProblems(ctx.passageSrc?.get('机制·chest') ?? '')) { console.log(`  ✗ 宝箱惩罚分级：${p.why}`); bad++; }
 		for (const p of incomeProblems(mech, { src: ['机制·chest', '机制·cave'].map((n) => ctx.passageSrc?.get(n) ?? '').join('\n') })) { console.log(`  ✗ 收入声明面：${p.why}`); bad++; }
@@ -241,5 +256,5 @@ export const run = (ctx) => {
 	}
 
 	if (bad) { console.error(`\n✗ 洞窟声明面门未通过（${bad} 项）`); process.exit(1); }
-	console.log('✔ 洞窟声明面门通过（表↔内容双向对账 · 宝箱声明面齐 · 战斗奖励声明面与落点一致 · 路面类型标签齐备 #692 · 宝箱惩罚分级与收入声明 #696 · 敌人攻击位点已登记 #705）');
+	console.log('✔ 洞窟声明面门通过（表↔内容双向对账 · 宝箱声明面齐 · 战斗奖励声明面与落点一致 · 路面类型标签齐备 #692 · 宝箱惩罚分级与收入声明 #696 · 敌人攻击位点已登记 #705 · 终点有整局结算 #719）');
 };

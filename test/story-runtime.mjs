@@ -606,8 +606,9 @@ const main = async () => {
 				w.SugarCube.Engine.play('岔口');                  // 三选一那一屏
 				await settle(); await sleep(200);
 				const links = [...w.document.querySelectorAll('#passages a.link-internal')].map((x) => x.textContent.replace(/\s+/g, ''));
-				const hints = { traveller: ['石缝里卡着一小块布', '前面有火光，在动'] };
-				const onlyWanted = links.length >= 1 && links.every((l) => hints.traveller.some((h) => l.includes(h)));
+				// `#718`：每段从 6 条里随机取 3 ⇒ 线索会随声明变；期望值**从声明面推导**（不再硬编码线索白名单）
+				const wantHints = JSON.parse(w.eval(`JSON.stringify((Sg.story.mechanics().roads[1].options ?? []).filter((o) => o.kind === 'traveller').map((o) => o.hint))`));
+				const onlyWanted = links.length >= 1 && links.every((l) => wantHints.some((h) => l.includes(String(h).replace(/\s+/g, ''))));
 				console.log(`  ${onlyWanted ? '✓' : '✗'} ${slug} ⑩ ?pool=traveller：岔口只出旅人路（${links.join(' / ') || '（无）'}）`);
 				if (!onlyWanted) problems.push({ code: 'debug-pool', slug, msg: `?pool=traveller 时岔口出现了非旅人路：${links.join(' / ')}` });
 			} finally { close(); }

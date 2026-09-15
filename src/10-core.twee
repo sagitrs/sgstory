@@ -401,8 +401,21 @@ Macro.add('dragonbar', {
 
 /% 世界旗标：<<setflag "goblin_spared">> %/
 <<widget "setflag">>
-	<<run $pc.world[$args[0]] = true>>
+	/% `#624` 片三：裸键写 `world`（原语义）；**带点路径**（`ev.x`／`world.x`）走 `Sg.notes.writePath`
+	   —— 点击态里"置某个 ev 旗标"原先只能裸 `<<set $pc.ev.x to true>>`（表行 `text` 里不许）。 %/
+	<<if $args[0].includes('.')>>
+		<<run Sg.notes.writePath($pc, $args[0], true)>>
+	<<else>>
+		<<run $pc.world[$args[0]] = true>>
+	<</if>>
 <</widget>>
+
+/% `#624` 片三：**取走**一件道具（`<<take "月光花">>` ≡ `delete $pc.inv["月光花"]`）。
+   为什么要有它：赠出/交出的位点原本只能裸 `<<run delete $pc.inv[…]>><<set $pc.ev.x to true>>` ⇒ 进不了表。
+   幂等：没有这件道具也不报错（内容常在条件分支里调用）。 %/
+<<widget "take">><<nobr>>
+	<<run delete $pc.inv[$args[0]]>>
+<</nobr>><</widget>>
 
 
 /% ── 战斗动作池（B1）：每轮随机 3 选 1；每个动作是一次属性化检定，成/败/大成功各有后果 ──

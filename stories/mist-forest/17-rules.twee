@@ -159,5 +159,11 @@ Object.assign((window.Sg.story ??= {}), {
 		<<goto "观星者">>
 	<</link>>` },
 		{ id: '观星者.信已读', scope: '观星者#信已读', req: ['n_letter_seen'], prio: 10, text: `	（案角那封信''火漆完好''，没人拆过。收信人写着"观星者"。你把它放回原处。）` },
+		// `#624` 片三：新词汇宏解锁的位点 —— `<<take>>`（取走道具）与 `<<setflag "ev.x">>`（置 ev 旗标）。
+		{ id: '当时的女巫.送花', scope: '当时的女巫#送花', req: ['inv:月光花'], prio: 10, text: `	<<link "把那朵月光花送给她——贺今晚这桩送行">>
+		<<take "月光花">>
+		<<setflag "ev.witch_gifted">>
+		<<goto "当时的女巫">>
+	<</link>>` },
 	],
 });

@@ -732,5 +732,26 @@ for (const file of fixtures) {
 	Sg.notes.has = keepHas;
 }
 
+// ── `#624` 片三：两个新词汇宏解锁的位点（`<<take>>`／`<<setflag "ev.x">>`）──
+{
+	const Sg = w.Sg;
+	const P = (inv = {}, ev = {}, fight = null) => ({ ev: fight ? { ...ev, fight } : ev, world: {}, keeper: {}, star: {}, inv, soc: {} });
+	const pick = (scope, pc) => Sg.rules.pick(scope, { pc, chose: new Set() });
+	eq(pick('当时的女巫#送花', P({ 月光花: true }))?.id, '当时的女巫.送花', '送花：带着月光花 ⇒ 选中（`req: [inv:月光花]`）');
+	eq(pick('当时的女巫#送花', P({})), null, '送花：没有花 ⇒ 不选中');
+	// 真机：点一次 ⇒ 花被取走（`<<take>>`）＋ ev 旗标置真（`<<setflag "ev.x">>`）
+	const V = w.SugarCube.State.variables;
+	V.pc.inv['月光花'] = true; delete V.pc.ev.witch_gifted;
+	w.eval('SugarCube.Engine.play("当时的女巫")');
+	await sleep(250);
+	const link = () => [...w.document.querySelectorAll('#passages a.link-internal')].find((a) => /把那朵月光花送给她/.test(a.textContent));
+	ok(link() !== undefined, '真机：带花进「当时的女巫」⇒ 出现送花入口');
+	link().click();
+	await sleep(300);
+	ok(w.eval("SugarCube.State.variables.pc.inv['月光花'] === undefined"), '真机：点一次 ⇒ `<<take "月光花">>` 把花取走（inv 里没了）');
+	ok(w.eval('SugarCube.State.variables.pc.ev.witch_gifted === true'), '真机：`<<setflag "ev.witch_gifted">>` 把 **ev** 旗标置真（原来只能裸 `<<set>>`）');
+	// 战斗退开：守卫是战斗瞬态
+}
+
 console.log(failures ? `\n${failures} 项失败` : '\n规则层测试全部通过');
 process.exit(failures ? 1 : 0);

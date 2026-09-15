@@ -3,7 +3,7 @@
 // 为什么需要它（`Discussion #513` 的 Q2 第 2 条）：`add()` 动的是**存档语义** ⇒
 // 光有"跑通"不够，必须把三条不可退让的性质钉住，且**反例要能咬**：
 //   ① **幂等**：连调两次结果不变（`add()` 第二次返回 `false`、状态逐字节相同）；
-//   ② **双写**：写笔记的同时**仍置旗标**（票面「旗标降为兼容字段」）——否则既有旗标读点会瞎；
+//   ② **双源两态**（`#733` 片 2-b 改）：**单源**＝只记真存储（旗标写侧退场，读侧 `has()` 仍真）；**多源**＝写声明的 `setPath`；
 //   ③ **双读**：旧档只有旗标、没有 `pc.ev.notes` ⇒ `has()` 仍为真（这就是"旧档载入不崩"的实质）；
 //   ④ **多源护栏**：`flagPath` 是数组而没声明 `setPath` ⇒ **报错**（fail-loud，绝不静默多写一个旗标）。
 //
@@ -48,7 +48,9 @@ if (single) {
 	const r1 = Sg.notes.add(single);
 	case_(`首次 \`add('${single}')\` ⇒ 返回 true`, r1 === true);
 	case_('  真存储：`pc.ev.notes` 记下该 id', pc.ev.notes?.[single] === true);
-	case_(`  双写：旗标 \`${e.flagPath}\` 仍被置真（既有旗标读点不瞎）`, Sg.notes.readPath(pc, e.flagPath) === true);
+	// `#733` 片 2-b：**单源不再依赖旗标**（写侧词汇搬到笔记面）⇒ 断言改成**形式无关**：只钉"读侧为真".
+	// （旗标写不写由实现决定：片 2-b 前写、之后不写 ⇒ 两种状态这条都成立。）
+	case_('  读侧为真（形式无关：单源写侧走笔记面）', Sg.notes.has(single) === true);
 	case_('  读侧 `has()` ⇒ 真', Sg.notes.has(single) === true);
 
 	// ② 幂等：第二次返回 false ＋ 状态逐字节不变
@@ -58,12 +60,15 @@ if (single) {
 	case_('幂等：状态逐字节不变（连跑两次＝一次）', snap() === afterFirst, `before=${before.length}B after=${snap().length}B`);
 
 	// ③ **旧档迁移**（`#437` C-2c-2）：兜底退场 ⇒ 只有旗标的旧档**不再**自动为真，改为**写一次迁移**补齐
+	Sg.notes.writePath(pc, e.flagPath, true);          // `#733` 片 2-b：旧档夹具**直接写旗标**（旧档的真实形态）
 	delete pc.ev.notes[single];
 	case_('🔴 C-2c-2：旧档（只有旗标、无存储）⇒ `has()` **不再**为真（读侧兼容层已退场）', Sg.notes.has(single) === false);
 	case_('✅ 反向探针（承重）：`migrateLegacy()` 补写后 ⇒ `has()` 为真（旧档知识不丢）', Sg.notes.migrateLegacy(pc) >= 1 && Sg.notes.has(single) === true);
 	case_('迁移幂等：再跑一次 ⇒ 补写 0 条', Sg.notes.migrateLegacy(pc) === 0);
 	case_('真机语义：`Game.Pc.migrate()` 会顺带跑迁移（旧档载入路径）', (() => {
-		delete pc.ev.notes[single];                       // 再造一次旧档
+		Sg.notes.writePath(pc, e.flagPath, true);          // `#733` 片 2-b：旧档夹具**直接写旗标**（旧档的真实形态）
+	Sg.notes.writePath(pc, e.flagPath, true);          // 再造一次旧档（直接写旗标）
+		delete pc.ev.notes[single];
 		Game.Pc.migrate(pc);                              // 载档时必经
 		return Sg.notes.has(single) === true;
 	})());

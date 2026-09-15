@@ -73,14 +73,14 @@ const tavFold = w.document.querySelector('#passages .heard-fold');
 assert(tavFold && !tavFold.open, '已听传闻默认收起');
 assert(w.document.querySelector('#passages .act-group .act-n').textContent !== '', '分组条数角标已渲染');
 await click('接嘴的那个人');
-assert(pc().ev.tav_ageless === true && w.SugarCube.State.passage === '酒馆', '不老女人传闻显示完整，点击后留在酒馆并记账');
+assert(w.Sg.notes.has('n_tav_ageless', pc()) && w.SugarCube.State.passage === '酒馆', '不老女人传闻显示完整，点击后留在酒馆并记账');
 // #484：这几条断言偶发失败（干净 main 上 4/20），但只留一句断言名 ⇒ 无法定位。**失败时带现场快照**
 //（同 #449 的思路：让失败可诊断，而不是靠复现者猜）。成功路径**零开销、零影响**（只有取消息时才拼字符串）。
 const snap = () => {
 	const doc = w.document;
 	const f = doc.querySelector('.fresh-heard');
 	const act = doc.activeElement;
-	return `[现场] passage=${w.SugarCube?.State?.passage}｜tav_ageless=${pc().ev.tav_ageless}` +
+	return `[现场] passage=${w.SugarCube?.State?.passage}｜tav_ageless=${w.Sg.notes.has('n_tav_ageless', pc())}` +
 		`｜fresh=${f ? `${f.hidden ? 'hidden' : 'visible'}:${(f.textContent || '').replace(/\s+/g, ' ').slice(0, 20)}` : 'none'}` +
 		`｜active=${act ? (act.className || act.tagName) : 'null'}｜activeInPassages=${!!act?.closest?.('#passages')}` +
 		`｜links=${links().length}`;
@@ -101,7 +101,7 @@ assert(fresh.compareDocumentPosition(w.document.querySelector('.tavern-actions')
 assert(links().filter((a) => fresh.compareDocumentPosition(a) & FOLLOWING).length >= 5, '本次回答之后还有可点选项——阅读方向向下，不回头向上找');
 assert(!w.document.querySelector('.heard-fold') || w.document.querySelector('.heard-fold').hidden, '首次打听后记录区为空，整块隐藏不留空壳' + ' ｜ ' + snap());
 await click('跑生意的');   // 逆序问一桌
-assert(w.SugarCube.State.variables.pc.ev.tav_grudge === true, '问过的那桌记账（tav_grudge）');
+assert(w.Sg.notes.has('n_tav_grudge', w.SugarCube.State.variables.pc), '问过的那桌记账（tav_grudge）');
 fresh = w.document.querySelector('.fresh-heard');
 assert(fresh.textContent.includes('雾是它谢下来的') && !fresh.textContent.includes('前年我上山'), '本次回答槽只留最新一条' + ' ｜ ' + snap());
 assert(focusInPassages(), '逆序提问后焦点仍在正文区（键盘可续，#304 口径）' + ' ｜ ' + snap());
@@ -117,7 +117,7 @@ assert(links().filter((a) => lastHeard.compareDocumentPosition(a) & FOLLOWING).l
 assert(links().some((a) => a.textContent.includes('金币：买一支火把')), '火把购买链接存在（表驱动价）');
 assert(links().some((a) => a.textContent.includes('请他讲讲洞里的路')), '付费传闻链接存在（表驱动价）');
 await click('离店前，去井台打点水');   // #217：灯的传闻散布到井台
-assert(w.SugarCube.State.variables.pc.ev.tav_light === true, '井台的灯传闻记账（tav_light）');
+assert(w.Sg.notes.has('n_tav_light', w.SugarCube.State.variables.pc), '井台的灯传闻记账（tav_light）');
 assert(w.document.querySelector('#passages').textContent.includes('三百年了，那灯没灭过'), '井台的灯传闻渲染');
 await click('回酒馆');
 
@@ -137,7 +137,7 @@ assert(checkBox.textContent.includes('察觉检定（感知）'), 'M10：判定�
 assert(checkBox.textContent.includes('感知') && checkBox.textContent.includes('DC10'), 'M10：显示计算过程（属性 + DC + 骰面）');
 const lc = w.SugarCube.State.variables.last_check;
 assert(lc && lc.roll === 11 && lc.label === '察觉检定（感知）' && lc.site === '森林·察觉', '<<sitecheck>> 经 <<check>> 产出 $last_check（含位点与属性标注）');
-assert(w.SugarCube.State.variables.pc.ev.forest_heard === true, '听雾结果落旗标（forest_heard）');
+assert(w.Sg.notes.has('n_forest_heard', w.SugarCube.State.variables.pc), '听雾结果落旗标（forest_heard）');
 const fontCss = w.document.querySelector('#font-face')?.textContent ?? '';
 assert(fontCss.includes("'LXGW WenKai'") && fontCss.includes('fonts/LXGWWenKai-Regular.woff2') && fontCss.includes('font-display: swap'), '霞鹜文楷子集外链 dist/fonts（swap，非阻塞）');
 assert(w.document.querySelectorAll('head link[rel="preload"][as="font"]').length === 2, '字体 preload ×2（与解析并行）');

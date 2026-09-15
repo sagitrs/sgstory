@@ -55,9 +55,10 @@ export const polarityBucket = (atom, value) => {
 };
 
 // ── 纯函数：③ 报告渲染 ───────────────────────────────────────────────
-export const renderReport = ({ sites, obs, runs, failedRuns = 0, visitedPassages = new Set(), scVisited = new Set(), scCells = new Set(), walkerCells = new Set() }) => {
+export const renderReport = ({ sites, obs, runs, failedRuns = 0, visitedPassages = new Set(), scVisited = new Set(), scCells = new Set(), walkerCells = new Set(), promised = [] }) => {
 	const { uniq, both, one, none } = tallyPolarity(sites, obs);
 	const atoms = [...new Set(uniq.map((s) => s.atom))].sort();
+	const promisedSet = new Set(promised);   // **门承诺**的原子（`#640` 的 `matrix.json`）——与「抽样可见性」是两个口径，这里并排给读者
 	const rule = uniq.filter(isRuleSite);
 	const erasOf = (p) => [...new Set([...scCells, ...walkerCells].filter((c) => String(c).startsWith(`${p}|`)).map((c) => String(c).split('|')[1]))];
 	const byAtom = atoms.map((a) => {
@@ -77,6 +78,7 @@ export const renderReport = ({ sites, obs, runs, failedRuns = 0, visitedPassages
 	L.push(`| 条件原子 | ${atoms.length} |`);
 	L.push(`| 涉及段 | ${new Set(uniq.map((s) => s.passage)).size} |`);
 	L.push(`| 游走观测 | ${runs} 局（失败/中断 ${failedRuns} 局）· 访问段 ${visitedPassages.size} |`);
+	L.push(`| **已被门承诺的原子** | ${promisedSet.size}／${atoms.length}（\`matrix.json\` 的 \`promised\`；门只管承诺，本报告只管**抽样可见性**） |`);
 	L.push(`| scenarios 落盘 | 访问段 ${scVisited.size}（era 格 ${scCells.size}）｜walker 落盘格 ${walkerCells.size} |`);
 	L.push('');
 	L.push('| 站点状态 | 数 | 含义（**抽样**） |');
@@ -85,9 +87,9 @@ export const renderReport = ({ sites, obs, runs, failedRuns = 0, visitedPassages
 	L.push(`| 只到过一态 | ${one.length} | 另一侧**零观测** ⇒ 待验 |`);
 	L.push(`| 完全没观测到 | ${none.length} | 该段该原子一次都没求值过 |`);
 	L.push('\n## 按原子（缺口排序，缺口大者在前）\n');
-	L.push('| 原子 | 站点 | 两态 | 未观测 | scenarios 到过的段 | 涉及段 |');
-	L.push('|---|---|---|---|---|---|');
-	for (const r of byAtom) L.push(`| \`${r.atom}\` | ${r.sites} | ${r.both} | ${r.never} | ${r.scPassages} | ${r.passages} |`);
+	L.push('| 原子 | 站点 | 两态 | 未观测 | 门已承诺 | scenarios 到过的段 | 涉及段 |');
+	L.push('|---|---|---|---|---|---|---|');
+	for (const r of byAtom) L.push(`| \`${r.atom}\` | ${r.sites} | ${r.both} | ${r.never} | ${promisedSet.has(r.atom) ? '✅' : '—'} | ${r.scPassages} | ${r.passages} |`);
 	L.push('\n## 单态 / 未观测 站点清单\n');
 	L.push('| 段 | 行 | 原子 | 观测(真/假) | scenarios 到过段 | era 格 | tag |');
 	L.push('|---|---|---|---|---|---|---|');

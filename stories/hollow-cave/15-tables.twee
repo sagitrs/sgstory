@@ -37,6 +37,9 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 			'陷阱·闪避': { abil: 'dex', dc: 12 },
 			'旅人·察言': { abil: 'wis', dc: 12 },
 			'旅人·开口': { abil: 'cha', dc: 12 },
+			// `#705`：敌人出手的位点（玩家用它掷对抗；形状与既有位点一致）
+			'洞窟·鼠咬': { abil: 'dex', dc: 12 },
+			'洞窟·甲虫冲撞': { abil: 'dex', dc: 13 },
 		},
 		keyYields: [],
 	};
@@ -192,8 +195,8 @@ const MECH = {
 	// 形状：`'道具'`（＝必掉）或 `{ id, chance }`；内容侧只渲染，落账在 `Game.Combat.grantReward`（单一落点）。
 	encounters: {
 		// `#696`（操作者裁定）：**战斗＝钥匙主源** ⇒ 短战掉率 30 → **50**（长战仍必掉）。
-		short: { waves: [{ pool: 'cave.w1', difficulty: 1 }], reward: { gold: 3, item: { id: '钥匙', chance: 50 } }, failNote: 'n_cave_battered' },
-		long: { waves: [{ pool: 'cave.w1', difficulty: 1 }, { pool: 'cave.w2', difficulty: 2, reinforce: true }], rewardsScale: 1.5, reward: { gold: 9, item: '钥匙' } },
+		short: { waves: [{ pool: 'cave.w1', difficulty: 1, enemies: ['洞窟鼠', '洞窟鼠'] }], reward: { gold: 3, item: { id: '钥匙', chance: 50 } }, failNote: 'n_cave_battered' },
+		long: { waves: [{ pool: 'cave.w1', difficulty: 1, enemies: ['洞窟鼠', '洞窟鼠'] }, { pool: 'cave.w2', difficulty: 2, reinforce: true, enemies: ['硬壳甲虫'] }], rewardsScale: 1.5, reward: { gold: 9, item: '钥匙' } },
 	},
 	// `#692`（①，操作者裁定）：路面提示要**显式标出事件类型**（玩家才谈得上"选"）。
 	// 标签住**声明面**（不是写死在段落里）：新增第七类 kind 时，门（`stories/hollow-cave/gates/cave.mjs` 判据⑤）
@@ -201,6 +204,13 @@ const MECH = {
 	kindLabels: {
 		shortFight: '短战斗', longFight: '长战斗', chest: '宝箱',
 		cave: '特殊洞窟', trap: '陷阱', traveller: '旅人',
+	},
+	// `#705`（片一：**声明面＋门**；机制接线见片二）：敌人**必须有属性**——没有属性（HP/AC/攻击落点），
+	// 部位/耐久/异常三套机制永远没机会被触发（操作者：「敌人太简单…无法测试到上述问题」）。
+	// 与「数据住故事、机制住引擎」同口径：这里只声明 [名字/HP/AC/攻击位点与伤害骰/可落部位/特性/掉落]。
+	enemies: {
+		洞窟鼠: { name: '洞窟鼠', hp: 4, ac: 11, attack: { site: '洞窟·鼠咬', dmg: '1d4+1', parts: ['腿', '手臂'] }, traits: ['成群'], drops: [] },
+		硬壳甲虫: { name: '硬壳甲虫', hp: 9, ac: 14, attack: { site: '洞窟·甲虫冲撞', dmg: '1d6+2', parts: ['躯干'] }, traits: ['硬壳'], drops: [] },
 	},
 	// `#696`：五洞窟的产出也**声明化**（`#600` 的同族口径）——**钥匙主源是战斗** ⇒ 矿洞掉钥匙是 25% 的小概率，其余给干粮。
 	caveRewards: { 矿洞: { keyChance: 25, fallback: '干粮' } },
@@ -247,6 +257,7 @@ Object.assign(window.Sg.story, {
 	mechanics: () => MECH,
 	eventKindLabel: (k) => MECH.kindLabels?.[k] ?? null,
 	chestGold: (rarity) => MECH.chest.gold?.[rarity] ?? 0,
+	enemyDef: (id) => MECH.enemies?.[id] ?? null,   // `#705` 片一：取值口先落（引擎侧机制接线见片二）
 	caveReward: (k) => MECH.caveRewards?.[k] ?? null,
 	// 以下两面是 S6 的门要消费的声明（引擎目前不经它们取数 ⇒ 先声明、不假装已接线；见 `#491`）
 	chestDef: (id) => MECH.chest.mechanisms[id] ?? null,

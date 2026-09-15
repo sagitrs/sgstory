@@ -164,6 +164,33 @@ export const validateStoryMechanics = (m, ctx = {}) => {
 		}
 	}
 
+	// ⑥ 敌人属性面（`#705`）：**有战斗就必须有敌人属性**——没有属性（HP/AC/攻击/落点），
+	//    部位/耐久/异常三套机制永远没机会被触发（操作者原话：「无法测试到上述问题」）。
+	const enemies = m.enemies ?? {};
+	if (Object.keys(enc).length && !Object.keys(enemies).length) {
+		push('enemies：声明了 `encounters`（有战斗）却没有 `enemies` —— 敌人必须有 HP／AC／攻击（#705）');
+	}
+	for (const [id, e] of Object.entries(enemies)) {
+		if (!e || typeof e !== 'object') { push(`enemies.${id} 必须是对象`); continue; }
+		if (typeof e.name !== 'string' || !e.name.trim()) push(`enemies.${id}.name 必须是非空字符串`);
+		if (!(Number.isInteger(e.hp) && e.hp > 0)) push(`enemies.${id}.hp 必须是正整数（实际 ${JSON.stringify(e.hp)}）`);
+		if (!(Number.isInteger(e.ac) && e.ac >= 1)) push(`enemies.${id}.ac 必须是正整数（实际 ${JSON.stringify(e.ac)}）`);
+		const atk = e.attack ?? {};
+		if (typeof atk.site !== 'string' || !atk.site.trim()) push(`enemies.${id}.attack.site 必须声明（它是玩家用来掷对抗的位点）`);
+		if (typeof atk.dmg !== 'string' || !/^\d+(d\d+)?([+-]\d+)?$/.test(atk.dmg)) {
+			push(`enemies.${id}.attack.dmg=${JSON.stringify(atk.dmg)} 必须是骰式（N／NdM／NdM+K）——固定数字＝不可测（#705／#702 方向 3）`);
+		}
+		for (const part of (atk.parts ?? [])) if (!(hit ?? []).includes(part)) push(`enemies.${id}.attack.parts 的 ${JSON.stringify(part)} 不在 hitLocations（打在哪儿必须可声明）`);
+	}
+	for (const [id, e] of Object.entries(enc)) {
+		for (const [i, wv] of (e?.waves ?? []).entries()) {
+			const refs = wv?.enemies;
+			if (refs === undefined) continue;
+			if (!Array.isArray(refs) || !refs.length) push(`encounters.${id}.waves[${i}].enemies 必须是**非空数组**（写了就该真有敌人）`);
+			else for (const nm of refs) if (!Object.hasOwn(enemies, nm)) push(`encounters.${id}.waves[${i}].enemies 引用了**未声明**的敌人 ${JSON.stringify(nm)}`);
+		}
+	}
+
 	// ⑤ 事件池与线索：同段各路线索**两两不可等价**
 	for (const [i, r] of (m.roads ?? []).entries()) {
 		const opts = r?.options ?? [];

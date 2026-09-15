@@ -11,6 +11,7 @@
 //      且每条实例的 `ref` 也解析得到段落、`hint` 非空（内容→表）；
 //   ③ `Sg.story.chestDef(id)`：三个位点名（`site`/`rareSite`/`toolSite`）都必须是**已登记位点**，
 //      `tool` 必须在 `Game.Items.defs` 里，且 `loot` 的档位非空（稀有度→奖品曲线存在）；
+//   ⑧ 敌人攻击位点必须已登记（`#705`）。
 //   ⑥ 宝箱惩罚分级（`#696`）：钥匙必开／道具轻罚／徒手重罚（严重异常）。
 //   ⑦ `#696` 收入声明↔内容对账：`chest.gold`／`caveRewards` 声明了且内容读它。
 //   ⑤ 路面**类型标签**齐备（`#692` ①）：出现的每个 kind 都要有非空标签（新增类不给标签 ⇒ 红）。
@@ -147,6 +148,18 @@ export const incomeProblems = (mech, { src } = {}) => {
 	return out;
 };
 
+/** 纯函数⑧：敌人**攻击位点**必须已登记（`#705`）——玩家的对抗检定是"拿敌人的攻击位点掷"，
+ *  位点没登记 ⇒ 那一下永远掷不了（`resolveFoe` 会当场报错/落到兜底 DC）。 */
+export const enemySiteProblems = (mech, { hasSite } = {}) => {
+	const out = [];
+	for (const [id, e] of Object.entries(mech?.enemies ?? {})) {
+		const site = e?.attack?.site;
+		if (!site) continue;                       // 形状面（site 必填）归 `story-shape.mjs`，这里只管"登记没登记"
+		if (!hasSite?.(site)) out.push({ code: 'enemy-site-unknown', why: `敌人「${id}」的攻击位点「${site}」不是已登记位点（玩家拿它掷对抗 ⇒ 未登记＝那一下永远掷不出去）` });
+	}
+	return out;
+};
+
 export const run = (ctx) => {
 	const { arg, wantAll, window: w } = ctx;
 	if (!(wantAll || arg('cave'))) return;
@@ -179,6 +192,9 @@ export const run = (ctx) => {
 			['🔴 ⑥ 反例（#696）：道具路也带严重异常 ⇒ 报', penaltyGradeProblems(GRADE_GOOD.replace('Game.Damage.graze', 'Game.Combat.applyStatus($pc, "bleed", "手")')).some((p) => p.code === 'tool-too-heavy')],
 			['🔴 ⑥ 反例（#696）：徒手路只有伤害、没有严重异常 ⇒ 报', penaltyGradeProblems(GRADE_GOOD.replace(/<<set \$pc\.statuses[^>]*>>/, '')).some((p) => p.code === 'bare-too-light')],
 			['⑥ 反例：取不到宝箱段源码 ⇒ 报（不静默判过）', penaltyGradeProblems('').length === 1],
+			['⑧ 正例（#705）：敌人攻击位点是已登记位点 ⇒ 不报', enemySiteProblems({ enemies: { 鼠: { attack: { site: '洞窟·鼠咬' } } } }, { hasSite: (n) => n === '洞窟·鼠咬' }).length === 0],
+			['🔴 ⑧ 反例（#705）：攻击位点未登记 ⇒ 报', enemySiteProblems({ enemies: { 鼠: { attack: { site: '洞窟·幽灵咬' } } } }, { hasSite: () => false }).some((p) => p.code === 'enemy-site-unknown')],
+			['⑧ 边界（#705）：没有 enemies ⇒ 不报（故事 1／最小示例走这条）', enemySiteProblems({}, { hasSite: () => false }).length === 0],
 			['⑦ 正例（#696）：宝箱金币与五洞窟产出都声明了且内容读它 ⇒ 不报', incomeProblems(INCOME_M, { src: INCOME_SRC }).length === 0],
 			['🔴 ⑦ 反例（#696）：某档没声明金币 ⇒ 报', incomeProblems({ ...INCOME_M, chest: { ...INCOME_M.chest, gold: { 普通: 5 } } }, { src: INCOME_SRC }).some((p) => p.code === 'chest-gold-missing')],
 			['🔴 ⑦ 反例（#696）：声明了金币但内容没读 ⇒ 报', incomeProblems(INCOME_M, { src: 'Sg.notes.add("x")' }).some((p) => p.code === 'chest-gold-not-wired')],
@@ -215,6 +231,7 @@ export const run = (ctx) => {
 		for (const p of poolProblems(story.eventPool?.(1) ?? null, hasPassage)) { console.log(`  ✗ 事件池：${p.why}`); bad++; }
 		for (const p of chestProblems(mech.chest, { hasSite: (n) => !!story.checkSite?.(n), hasItem: (n) => !!story.itemEffect?.(n), siteOf: (n) => story.checkSite?.(n) })) { console.log(`  ✗ 宝箱声明面：${p.why}`); bad++; }
 		for (const p of rewardProblems(mech, { normalize: (id) => w?.Game?.Combat?.encounterReward(id), hasItem: (n) => !!story.itemEffect?.(n), srcOf: (n) => ctx.passageSrc?.get(n) })) { console.log(`  ✗ 战斗奖励声明面：${p.why}`); bad++; }
+		for (const p of enemySiteProblems(mech, { hasSite: (n) => !!story.checkSite?.(n) })) { console.log(`  ✗ 敌人攻击位点：${p.why}`); bad++; }
 		for (const p of penaltyGradeProblems(ctx.passageSrc?.get('机制·chest') ?? '')) { console.log(`  ✗ 宝箱惩罚分级：${p.why}`); bad++; }
 		for (const p of incomeProblems(mech, { src: ['机制·chest', '机制·cave'].map((n) => ctx.passageSrc?.get(n) ?? '').join('\n') })) { console.log(`  ✗ 收入声明面：${p.why}`); bad++; }
 		const kindsSeen = [...new Set([...KINDS, ...rows.map((o) => o.kind).filter(Boolean), ...((story.eventPool?.(1)?.kinds) ?? [])])];
@@ -224,5 +241,5 @@ export const run = (ctx) => {
 	}
 
 	if (bad) { console.error(`\n✗ 洞窟声明面门未通过（${bad} 项）`); process.exit(1); }
-	console.log('✔ 洞窟声明面门通过（表↔内容双向对账 · 宝箱声明面齐 · 战斗奖励声明面与落点一致 · 路面类型标签齐备 #692 · 宝箱惩罚分级与收入声明 #696）');
+	console.log('✔ 洞窟声明面门通过（表↔内容双向对账 · 宝箱声明面齐 · 战斗奖励声明面与落点一致 · 路面类型标签齐备 #692 · 宝箱惩罚分级与收入声明 #696 · 敌人攻击位点已登记 #705）');
 };

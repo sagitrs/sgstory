@@ -4,81 +4,474 @@
 	"promised": [
 		"inv:传送术卷轴",
 		"inv:完整星图",
-		"inv:月光花"
+		"inv:月光花",
+		"inv:日记",
+		"inv:观星者的书",
+		"note:n_observation_lock",
+		"note:n_below_seen"
 	],
 	"rows": [
 		{
 			"id": "顶楼·空手（两件都缺）",
 			"passage": "顶楼",
-			"patches": { "pc.keeper.key": true, "pc.ev.delivery_short": true, "pc.inv.传送术卷轴": null, "pc.inv.完整星图": null },
-			"covers": [{ "atom": "inv:传送术卷轴", "polarity": "false" }, { "atom": "inv:完整星图", "polarity": "false" }],
-			"click": { "label": "把卷轴和星图交给他" },
+			"patches": {
+				"pc.keeper.key": true,
+				"pc.ev.delivery_short": true,
+				"pc.inv.传送术卷轴": null,
+				"pc.inv.完整星图": null
+			},
+			"covers": [
+				{
+					"atom": "inv:传送术卷轴",
+					"polarity": "false"
+				},
+				{
+					"atom": "inv:完整星图",
+					"polarity": "false"
+				}
+			],
+			"click": {
+				"label": "把卷轴和星图交给他"
+			},
 			"expects": [
-				{ "kind": "text", "value": "缺传送术卷轴" },
-				{ "kind": "text", "value": "缺完整星图" },
-				{ "kind": "lands", "value": "顶楼" }
+				{
+					"kind": "text",
+					"value": "缺传送术卷轴"
+				},
+				{
+					"kind": "text",
+					"value": "缺完整星图"
+				},
+				{
+					"kind": "lands",
+					"value": "顶楼"
+				}
 			]
 		},
 		{
 			"id": "顶楼·只有卷轴",
 			"passage": "顶楼",
-			"patches": { "pc.keeper.key": true, "pc.ev.delivery_short": true, "pc.inv.传送术卷轴": true, "pc.inv.完整星图": null },
-			"covers": [{ "atom": "inv:传送术卷轴", "polarity": "true" }, { "atom": "inv:完整星图", "polarity": "false" }],
-			"click": { "label": "把卷轴和星图交给他" },
+			"patches": {
+				"pc.keeper.key": true,
+				"pc.ev.delivery_short": true,
+				"pc.inv.传送术卷轴": true,
+				"pc.inv.完整星图": null
+			},
+			"covers": [
+				{
+					"atom": "inv:传送术卷轴",
+					"polarity": "true"
+				},
+				{
+					"atom": "inv:完整星图",
+					"polarity": "false"
+				}
+			],
+			"click": {
+				"label": "把卷轴和星图交给他"
+			},
 			"expects": [
-				{ "kind": "text", "value": "缺完整星图" },
-				{ "kind": "noText", "value": "缺传送术卷轴" },
-				{ "kind": "lands", "value": "顶楼" }
+				{
+					"kind": "text",
+					"value": "缺完整星图"
+				},
+				{
+					"kind": "noText",
+					"value": "缺传送术卷轴"
+				},
+				{
+					"kind": "lands",
+					"value": "顶楼"
+				}
 			]
 		},
 		{
 			"id": "顶楼·只有星图",
 			"passage": "顶楼",
-			"patches": { "pc.keeper.key": true, "pc.ev.delivery_short": true, "pc.inv.传送术卷轴": null, "pc.inv.完整星图": true },
-			"covers": [{ "atom": "inv:传送术卷轴", "polarity": "false" }, { "atom": "inv:完整星图", "polarity": "true" }],
-			"click": { "label": "把卷轴和星图交给他" },
+			"patches": {
+				"pc.keeper.key": true,
+				"pc.ev.delivery_short": true,
+				"pc.inv.传送术卷轴": null,
+				"pc.inv.完整星图": true
+			},
+			"covers": [
+				{
+					"atom": "inv:传送术卷轴",
+					"polarity": "false"
+				},
+				{
+					"atom": "inv:完整星图",
+					"polarity": "true"
+				}
+			],
+			"click": {
+				"label": "把卷轴和星图交给他"
+			},
 			"expects": [
-				{ "kind": "text", "value": "缺传送术卷轴" },
-				{ "kind": "noText", "value": "缺完整星图" },
-				{ "kind": "lands", "value": "顶楼" }
+				{
+					"kind": "text",
+					"value": "缺传送术卷轴"
+				},
+				{
+					"kind": "noText",
+					"value": "缺完整星图"
+				},
+				{
+					"kind": "lands",
+					"value": "顶楼"
+				}
 			]
 		},
 		{
 			"id": "顶楼·两件齐（交付真支）",
 			"passage": "顶楼",
-			"patches": { "pc.keeper.key": true, "pc.ev.delivery_short": true, "pc.inv.传送术卷轴": true, "pc.inv.完整星图": true },
-			"covers": [{ "atom": "inv:传送术卷轴", "polarity": "true" }, { "atom": "inv:完整星图", "polarity": "true" }],
-			"click": { "label": "把卷轴和星图交给他" },
+			"patches": {
+				"pc.keeper.key": true,
+				"pc.ev.delivery_short": true,
+				"pc.inv.传送术卷轴": true,
+				"pc.inv.完整星图": true
+			},
+			"covers": [
+				{
+					"atom": "inv:传送术卷轴",
+					"polarity": "true"
+				},
+				{
+					"atom": "inv:完整星图",
+					"polarity": "true"
+				}
+			],
+			"click": {
+				"label": "把卷轴和星图交给他"
+			},
 			"expects": [
-				{ "kind": "noText", "value": "缺" },
-				{ "kind": "lands", "value": "交付" }
+				{
+					"kind": "noText",
+					"value": "缺"
+				},
+				{
+					"kind": "lands",
+					"value": "交付"
+				}
 			]
 		},
 		{
 			"id": "喂花·有花（真支：给出即消耗）",
 			"passage": "喂花",
-			"patches": { "pc.inv.月光花": true, "pc.world.flower_fed": false },
-			"covers": [{ "atom": "inv:月光花", "polarity": "true" }],
-			"click": { "label": "回到宴上" },
+			"patches": {
+				"pc.inv.月光花": true,
+				"pc.world.flower_fed": false
+			},
+			"covers": [
+				{
+					"atom": "inv:月光花",
+					"polarity": "true"
+				}
+			],
+			"click": {
+				"label": "回到宴上"
+			},
 			"expects": [
-				{ "kind": "text", "value": "你把银白的花放在它鼻端" },
-				{ "kind": "delta", "path": "pc.inv[\"月光花\"]", "value": null },
-				{ "kind": "delta", "path": "pc.world.flower_fed", "value": true },
-				{ "kind": "lands", "value": "宴会·过去" }
+				{
+					"kind": "text",
+					"value": "你把银白的花放在它鼻端"
+				},
+				{
+					"kind": "delta",
+					"path": "pc.inv[\"月光花\"]",
+					"value": null
+				},
+				{
+					"kind": "delta",
+					"path": "pc.world.flower_fed",
+					"value": true
+				},
+				{
+					"kind": "lands",
+					"value": "宴会·过去"
+				}
 			]
 		},
 		{
 			"id": "喂花·没花（假支：只有退路，不消耗）",
 			"passage": "喂花",
-			"patches": { "pc.inv.月光花": null, "pc.world.flower_fed": false },
-			"covers": [{ "atom": "inv:月光花", "polarity": "false" }],
-			"click": { "label": "回到宴上" },
+			"patches": {
+				"pc.inv.月光花": null,
+				"pc.world.flower_fed": false
+			},
+			"covers": [
+				{
+					"atom": "inv:月光花",
+					"polarity": "false"
+				}
+			],
+			"click": {
+				"label": "回到宴上"
+			},
 			"expects": [
-				{ "kind": "text", "value": "你身上没有可用的月光花" },
-				{ "kind": "noText", "value": "你把银白的花放在它鼻端" },
-				{ "kind": "delta", "path": "pc.inv[\"月光花\"]", "value": null },
-				{ "kind": "delta", "path": "pc.world.flower_fed", "value": false },
-				{ "kind": "lands", "value": "宴会·过去" }
+				{
+					"kind": "text",
+					"value": "你身上没有可用的月光花"
+				},
+				{
+					"kind": "noText",
+					"value": "你把银白的花放在它鼻端"
+				},
+				{
+					"kind": "delta",
+					"path": "pc.inv[\"月光花\"]",
+					"value": null
+				},
+				{
+					"kind": "delta",
+					"path": "pc.world.flower_fed",
+					"value": false
+				},
+				{
+					"kind": "lands",
+					"value": "宴会·过去"
+				}
+			]
+		},
+		{
+			"id": "守林人·空手（相认：不带任何旧记录）",
+			"passage": "守林人",
+			"patches": {
+				"era": "present",
+				"pc.keeper.met": false,
+				"pc.ev.keeper_intro": null,
+				"pc.inv.日记": null,
+				"pc.inv.观星者的书": null
+			},
+			"covers": [
+				{
+					"atom": "inv:日记",
+					"polarity": "false"
+				},
+				{
+					"atom": "inv:观星者的书",
+					"polarity": "false"
+				}
+			],
+			"expects": [
+				{
+					"kind": "text",
+					"value": "没带来旧记录"
+				},
+				{
+					"kind": "noText",
+					"value": "你翻开日记"
+				},
+				{
+					"kind": "noText",
+					"value": "你把那册书放在桌上"
+				},
+				{
+					"kind": "delta",
+					"path": "pc.keeper.trust",
+					"value": 0
+				}
+			]
+		},
+		{
+			"id": "守林人·只带日记（相认：trust=1）",
+			"passage": "守林人",
+			"patches": {
+				"era": "present",
+				"pc.keeper.met": false,
+				"pc.ev.keeper_intro": null,
+				"pc.inv.日记": true,
+				"pc.inv.观星者的书": null
+			},
+			"covers": [
+				{
+					"atom": "inv:日记",
+					"polarity": "true"
+				},
+				{
+					"atom": "inv:观星者的书",
+					"polarity": "false"
+				}
+			],
+			"expects": [
+				{
+					"kind": "text",
+					"value": "你翻开日记"
+				},
+				{
+					"kind": "noText",
+					"value": "你把那册书放在桌上"
+				},
+				{
+					"kind": "delta",
+					"path": "pc.keeper.trust",
+					"value": 1
+				}
+			]
+		},
+		{
+			"id": "守林人·带书（相认：trust=2）",
+			"passage": "守林人",
+			"patches": {
+				"era": "present",
+				"pc.keeper.met": false,
+				"pc.ev.keeper_intro": null,
+				"pc.inv.日记": null,
+				"pc.inv.观星者的书": true
+			},
+			"covers": [
+				{
+					"atom": "inv:观星者的书",
+					"polarity": "true"
+				}
+			],
+			"expects": [
+				{
+					"kind": "text",
+					"value": "你把那册书放在桌上"
+				},
+				{
+					"kind": "delta",
+					"path": "pc.keeper.trust",
+					"value": 2
+				}
+			]
+		},
+		{
+			"id": "书房·无日记（暗格未取）",
+			"passage": "书房",
+			"patches": {
+				"era": "present",
+				"pc.inv.日记": null,
+				"pc.ev.notes": {
+					"n_observation_lock": null,
+					"n_below_seen": null
+				}
+			},
+			"covers": [
+				{
+					"atom": "inv:日记",
+					"polarity": "false"
+				},
+				{
+					"atom": "note:n_observation_lock",
+					"polarity": "false"
+				}
+			],
+			"expects": [
+				{
+					"kind": "noText",
+					"value": "你翻开从暗格里取出的硬皮日记"
+				},
+				{
+					"kind": "noChoice",
+					"value": "把日记往下读"
+				},
+				{
+					"kind": "noText",
+					"value": "你继续往下读"
+				}
+			]
+		},
+		{
+			"id": "书房·持日记（未读锁：给出「往下读」）",
+			"passage": "书房",
+			"patches": {
+				"era": "present",
+				"pc.inv.日记": true,
+				"pc.ev.notes": {
+					"n_observation_lock": null,
+					"n_below_seen": null
+				}
+			},
+			"covers": [
+				{
+					"atom": "inv:日记",
+					"polarity": "true"
+				},
+				{
+					"atom": "note:n_observation_lock",
+					"polarity": "false"
+				}
+			],
+			"expects": [
+				{
+					"kind": "text",
+					"value": "你翻开从暗格里取出的硬皮日记"
+				},
+				{
+					"kind": "choice",
+					"value": "把日记往下读"
+				},
+				{
+					"kind": "noText",
+					"value": "你继续往下读"
+				}
+			]
+		},
+		{
+			"id": "书房·已读锁（未下地面：无施术链接）",
+			"passage": "书房",
+			"patches": {
+				"era": "present",
+				"pc.inv.日记": true,
+				"pc.ev.notes": {
+					"n_observation_lock": true,
+					"n_below_seen": null
+				}
+			},
+			"covers": [
+				{
+					"atom": "note:n_observation_lock",
+					"polarity": "true"
+				},
+				{
+					"atom": "note:n_below_seen",
+					"polarity": "false"
+				}
+			],
+			"expects": [
+				{
+					"kind": "text",
+					"value": "你继续往下读"
+				},
+				{
+					"kind": "noChoice",
+					"value": "照着守林人家那卷封印术念一遍"
+				},
+				{
+					"kind": "noChoice",
+					"value": "把日记往下读"
+				}
+			]
+		},
+		{
+			"id": "书房·锁＋地面已见（施术链接出现）",
+			"passage": "书房",
+			"patches": {
+				"era": "present",
+				"pc.inv.日记": true,
+				"pc.world.scroll_delivered": false,
+				"pc.ev.notes": {
+					"n_observation_lock": true,
+					"n_below_seen": true
+				}
+			},
+			"covers": [
+				{
+					"atom": "note:n_below_seen",
+					"polarity": "true"
+				}
+			],
+			"expects": [
+				{
+					"kind": "choice",
+					"value": "照着守林人家那卷封印术念一遍"
+				},
+				{
+					"kind": "text",
+					"value": "你继续往下读"
+				}
 			]
 		}
 	]

@@ -129,7 +129,10 @@ const traces = readJson(join(ROOT, 'build/route-traces.json'), { routes: {} });
 const scVisited = new Set(); for (const r of Object.values(traces.routes)) for (const p of r.passages ?? []) scVisited.add(p);
 const scCells = new Set(readJson(join(ROOT, 'build/coverage-scenarios.json'), { cells: [] }).cells);
 const walkerCells = new Set(readJson(join(ROOT, 'build/coverage-walker.json'), { cells: [] }).cells);
-const md = renderReport({ sites, obs, runs, failedRuns, visitedPassages, scVisited, scCells, walkerCells });
+// 门的承诺面（`#640` 的 `matrix.json`）：报告与门是两个口径，这里把「哪些原子已被承诺」标出来
+const matrixPath = join(ROOT, 'stories', slug, 'matrix.json');
+const promised = existsSync(matrixPath) ? (JSON.parse(readFileSync(matrixPath, 'utf8')).promised ?? []) : [];
+const md = renderReport({ sites, obs, runs, failedRuns, visitedPassages, scVisited, scCells, walkerCells, promised });
 mkdirSync(dirname(join(ROOT, OUT)), { recursive: true });
 writeFileSync(join(ROOT, OUT), md);
 const { both, one, none, uniq } = tallyPolarity(sites, obs);

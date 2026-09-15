@@ -8,6 +8,7 @@
 
 ```
 src/               引擎层（与具体故事无关；层归属与加载顺序的**单一权威**：scripts/module-order.mjs）
+  engine/10-const.twee             引擎常量（#660 片二）：Game.Era / Game.Damage 的**唯一落点**（ORDER 排在 10-core 之前）
   engine/30-persist/05-store.twee   localStorage 键构造的唯一落点（引擎/故事两作用域 ＋ 幂等迁移，#462）
   engine/40-sim/21-resolve.twee     机制/选择器：Sg.rules（条件表选择器 ＋ sets/yields/gives 三个授予面）
   engine/50-present/11-scene.twee   呈现层共用件（场景/面板/折叠/结果槽）

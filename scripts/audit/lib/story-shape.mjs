@@ -120,10 +120,10 @@ export const validateStoryMechanics = (m, ctx = {}) => {
 			if (harmOk || addOk) continue;
 			push(`statuses.${id}.onFail[${k}] 效果形态未实现（只认 harm:'damage'+dice ／ addStatus:'random'，#487）`);
 		}
-		// 骰式的**可解析性**：引擎只认 `N` 与 `NdM`（声明面不得大于实现面）
+		// 骰式的**可解析性**：引擎认 `N`／`NdM`／`NdM±K`（`#702` 5e 对齐：伤害骰＋属性调整）
 		for (const [k, e] of (st?.onFail ?? []).entries()) {
-			if (e?.harm === 'damage' && e?.dice !== undefined && !/^\d+(d\d+)?$/.test(String(e.dice))) {
-				push(`statuses.${id}.onFail[${k}].dice=${JSON.stringify(e.dice)} 无法解析（引擎只认 \`N\` 或 \`NdM\`）`);
+			if (e?.harm === 'damage' && e?.dice !== undefined && !/^\d+(d\d+)?([+-]\d+)?$/.test(String(e.dice))) {
+				push(`statuses.${id}.onFail[${k}].dice=${JSON.stringify(e.dice)} 无法解析（引擎认 \`N\`／\`NdM\`／\`NdM±K\`）`);
 			}
 		}
 	}
@@ -176,7 +176,9 @@ export const validateStoryMechanics = (m, ctx = {}) => {
 		if (!(Number.isInteger(e.hp) && e.hp > 0)) push(`enemies.${id}.hp 必须是正整数（实际 ${JSON.stringify(e.hp)}）`);
 		if (!(Number.isInteger(e.ac) && e.ac >= 1)) push(`enemies.${id}.ac 必须是正整数（实际 ${JSON.stringify(e.ac)}）`);
 		const atk = e.attack ?? {};
-		if (typeof atk.site !== 'string' || !atk.site.trim()) push(`enemies.${id}.attack.site 必须声明（它是玩家用来掷对抗的位点）`);
+		// `#702`（5e 对齐）：敌人**掷攻击骰** vs 玩家 AC ⇒ `attack.bonus` 必填；`attack.site` 退为**可选**（旧对抗模型用，保留兼容）
+		if (!(Number.isInteger(atk.bonus) && atk.bonus >= 0)) push(`enemies.${id}.attack.bonus 必须是 >=0 的整数（5e：攻击骰 = d20 + bonus vs 玩家 AC；实际 ${JSON.stringify(atk.bonus)}）`);
+		if (atk.site !== undefined && (typeof atk.site !== 'string' || !atk.site.trim())) push(`enemies.${id}.attack.site 若声明必须是非空字符串（可选：旧对抗模型的位点）`);
 		if (typeof atk.dmg !== 'string' || !/^\d+(d\d+)?([+-]\d+)?$/.test(atk.dmg)) {
 			push(`enemies.${id}.attack.dmg=${JSON.stringify(atk.dmg)} 必须是骰式（N／NdM／NdM+K）——固定数字＝不可测（#705／#702 方向 3）`);
 		}

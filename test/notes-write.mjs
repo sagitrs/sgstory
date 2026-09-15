@@ -8,6 +8,7 @@
 //   ④ **多源护栏**：`flagPath` 是数组而没声明 `setPath` ⇒ **报错**（fail-loud，绝不静默多写一个旗标）。
 //
 // 用法：node test/notes-write.mjs
+import { readFileSync } from 'node:fs';
 import { createContext } from '../scripts/audit/context.mjs';
 
 let bad = 0;
@@ -178,6 +179,26 @@ if (multi) {
 		if (pc.ev.notes) delete pc.ev.notes[single];
 		return Sg.rules.applyYields({ id: 'mix3', scope: 'S', yields: [{ id: single }] }).join() === single;
 	})());
+}
+
+{
+	// `#437` 批三 C-2：词汇宏 `<<notepath "id" "path">>` —— ①宏在产物里 ②参数顺序与底层一致 ③**参数错位 fail-loud**
+	// 产物里能查到该宏（StoryScript 编译后的 widget 表）——引擎文件是唯一源，产物是玩家真拿到的东西
+	case_('`<<notepath>>` 宏在**产物**里（与 `Sg.notes.addPath(id, path)` 同一参数顺序）', (() => {
+		const src = readFileSync(new URL('../dist/stories/mist-forest/index.html', import.meta.url), 'utf8');
+		return /notepath/.test(src);
+	})());
+	case_('🔴 参数错位（把 path 当 id）⇒ fail-loud（未登记笔记 id 必须报，不许静默没写）', (() => {
+		try { Sg.notes.addPath('ev.hall_seen', 'n_hall_hint'); return false; } catch (e) { return /未登记/.test(String(e.message)); }
+	})());
+	case_('正例：宏体是**瘦别名**（`addPath` 直接可用，无分支）——挑多源笔记的某一条 path 直调',
+		(() => {
+			const e = Sg.notes.entry(multi);
+			const p = (Array.isArray(e.flagPath) ? e.flagPath : [e.flagPath])[0];
+			Sg.notes.writePath(pc, p, false);                       // 复位该条 path
+			if (pc.ev.notes) delete pc.ev.notes[multi];
+			return Sg.notes.addPath(multi, p) === true && Sg.notes.readPath(pc, p) === true;
+		})());
 }
 
 if (bad) {

@@ -399,6 +399,16 @@ Macro.add('dragonbar', {
 	<<run Sg.notes.add($args[0])>>
 <</nobr>><</widget>>
 
+/% **路径限定的授予**（`#437` 批三 C-2，`#569` 的形状）：`<<notepath "n_hall_hint" "ev.hall_seen">>`。
+   与 `<<note>>` 的分工：**单源**笔记用 `<<note>>`；**多源 OR** 的笔记（`flagPath` 是数组）必须用本宏
+   ——它显式声明"**写哪一条**"（`world.hall_hint` 还是 `ev.hall_seen`），同名知识的两条获取路径各记各的。
+   为什么做成宏而不是放 `<<run Sg.notes.addPath(...)>>`：点击态域只许**可枚举的词汇宏**（W1，`#624`）——
+   放模块 API 等于把判据从"白名单 token"退化成"是不是 `Sg.*`"（边际判别力下降）。
+   参数顺序与底层 API 一致（`Sg.notes.addPath(id, path, pc)`）；**参数错位**（path 当 id）会 fail-loud（未登记笔记 id ⇒ 抛错）。 %/
+<<widget "notepath">><<nobr>>
+	<<run Sg.notes.addPath($args[0], $args[1])>>
+<</nobr>><</widget>>
+
 /% 拾取道具（物品栏）：<<give "日记">> %/
 <<widget "give">><<nobr>>
 	<<run $pc.inv[$args[0]] = true>>

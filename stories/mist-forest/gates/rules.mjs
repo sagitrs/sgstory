@@ -115,7 +115,7 @@ export const ties = (rows) => {
 // 写宏：SugarCube/本仓会改状态的宏；赋值式：复用 `shared.mjs` 的 `WRITE_PATTERNS` **单一权威**
 //（`<<set $pc.ev.x to>>`／`pc.ev.x =` 都在其中）；`Sg.notes.add()` 复用 `NOTE_WRITE_RE`。
 // 允许：`<<link>>`／`<<goto>>`／`<<if>>`／widget 之类的**纯渲染/导航**（它们不改状态）。
-export const TEXT_WRITE_MACROS = ['set', 'setflag', 'run', 'give', 'damage', 'ending', 'firstTime', 'note'];
+export const TEXT_WRITE_MACROS = ['set', 'setflag', 'run', 'give', 'damage', 'ending', 'firstTime', 'note', 'notepath'];
 /** 一行 `text` 里的状态写形态（空数组＝纯渲染）。 */
 export const textWrites = (text) => {
 	const t = String(text ?? '');
@@ -127,7 +127,7 @@ export const textWrites = (text) => {
 };
 /** 点击态域**允许**的词汇宏（与 L0-W1 同一份口径）。
  *  `damage` **刻意不在内**：带它的即"检定＋后果机制块"（`docs/notes-model.md` 边界 4）⇒ 机制块不搬，让它红当护栏。 */
-export const CLICK_VOCAB_MACROS = ['note', 'give', 'setflag', 'econ', 'flip'];
+export const CLICK_VOCAB_MACROS = ['note', 'notepath', 'give', 'setflag', 'econ', 'flip'];
 /** 分域：`text` → `{ render, clicks }`（点击态域＝`<<link>>…<</link>>` 体内；渲染域＝其余）。 */
 export const splitTextDomains = (text) => {
 	const t = String(text ?? '');
@@ -338,6 +338,12 @@ export const run = (ctx) => {
 		const R = (id, over = {}) => ({ id, scope: 'S', req: ['x'], prio: 10, ...over });
 		const cases = [
 			['正例：单行 ⇒ 无死规则', deadRows([R('only')]).length === 0],
+			// `#437` 批三 C-2：新词汇宏 `<<notepath "id" "path">>` —— 点击态域**允许**（白名单 token）；
+			// 而等价写法的**模块 API**（`<<run Sg.notes.addPath(...)>>`）仍**不许**（W1 不放宽，见 dev 裁定）。
+			['正例（#437 C-2）：点击态域用词汇宏 `<<notepath "n_hall_hint" "ev.hall_seen">>` ⇒ 不报',
+				textWriteProbs('<<link "摘">><<notepath "n_hall_hint" "ev.hall_seen">><</link>>').length === 0],
+			['🔴 反例（#437 C-2）：同一个写的**模块 API** 形态 ⇒ 仍报（点击态只许词汇宏）',
+				textWriteProbs(`<<link "摘">><<run Sg.notes.addPath("n_hall_hint", "ev.hall_seen")>><</link>>`).length === 1],
 			['反例：B 更宽（req⊂）且 prio 更高 ⇒ A 死', deadRows([R('A'), R('B', { req: [], prio: 20 })]).some((d) => d.id === 'A' && d.killedBy === 'B')],
 			['🔴 dev 的反例①：`req(B)=∅` 但 `exclude(B)=[y]` ⇒ **不是**死规则（y 真时 B 不中）', deadRows([R('A'), R('B', { req: [], exclude: ['y'], prio: 20 })]).length === 0],
 			['🔴 dev 的反例②：`any(B)⊆any(A)` 而 A 只保证"任一" ⇒ 不是死规则（A 中 b 而 B 要 c 时）', deadRows([R('A', { req: [], any: ['b', 'c'] }), R('B', { req: [], any: ['c'], prio: 20 })]).length === 0],

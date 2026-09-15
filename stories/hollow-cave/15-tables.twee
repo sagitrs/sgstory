@@ -156,6 +156,10 @@ Object.assign((window.Sg.story ??= {}), {
 	pcDefaults: () => ({}),   // `#660` 片三-3：本故事没有专属 pc 默认数值（形状由引擎给）
 	rules: () => [],
 	checkSite: (name) => window.Game.Checks.sites[name] ?? null,
+	// `#493` 片 A-2：引擎的 `foeState` 接缝**必须由故事声明**（回落已删）。本故事的敌人属性面在 `#705`／
+	// `#702` a2 落地前还没有真实槽位 ⇒ 先给一个**临时对象**（`eff.dmg` 这类写入落在这里即丢弃，行为与
+	// 旧实现一致：旧实现写的是故事 1 的 `pc.dragon.hp`，对本故事本来就是空转）。
+	foeState: () => ({}),
 	checkKnowledge: () => null,
 	combatPool: (id) => window.Game.Combat.pools[id] ?? [],
 	combatAction: (id) => window.Game.Combat.actions[id] ?? null,

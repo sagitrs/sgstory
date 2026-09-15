@@ -85,11 +85,13 @@ Object.assign((window.Game.Combat ??= {}), {
 	},
 	// 对手那一轮 ＋ 收尾（轮次/下一轮牌/清 guard 与 skipFoe/落台账）。**无论 hp 是否归零都要走收尾**
 	// （旧实现里收尾在 `if ($pc.hp gt 0)` 之外）。对手检定未发生时 `check` 为 null。
-	/** `#493` 接缝（片 A-1）：**对手／boss 状态**的取值口。引擎不再在代码里写死 `pc.dragon`：
-	 *  故事声明 `Sg.story.foeState(pc)` 后由它给（引擎不知道故事状态叫什么名字）；
-	 *  **未声明时回落 `pc.dragon`** —— 过渡期与旧实现逐字一致（`test/fight-seq.mjs` 的
-	 *  21 步／40 次检定序列就是这条"零行为变化"的机械证据）。片 A-2（故事侧声明落地后）删掉回落分支。 */
-	foeState(pc) { return window.Sg?.story?.foeState?.(pc) ?? pc?.dragon ?? {}; },
+	/** `#493` 接缝（片 A-2：**回落已删**）：**对手／boss 状态**的取值口——引擎**不知道**故事状态叫什么名字，
+	 *  一律经 `Sg.story.foeState(pc)` 取（缺声明 ⇒ 大声报错，不静默造一个空对象）。 */
+	foeState(pc) {
+		const f = window.Sg?.story?.foeState;
+		if (typeof f !== 'function') throw new Error('Game.Combat.foeState：故事未声明 `Sg.story.foeState(pc)`（结构缺失必须报错，#493／#459）');
+		return f(pc);
+	},
 	resolveFoe(pc, foeSite, isDragon, log) {
 		const T = window.Game, f = pc.ev.fight;
 		let check = null, hurt = 0;
@@ -109,7 +111,7 @@ Object.assign((window.Game.Combat ??= {}), {
 				check = T.Checks.resolve(foeSite, pc, null);
 				if (isDragon) {
 					const F = T.Combat.foeState(pc);                      // `#493`：经接缝取（不再写死 pc.dragon）
-					const raw = T.Combat.dragonDamage(pc.inv, f.round, (F.defeats ?? 0) + 1, F.venom);
+					const raw = T.Combat.foeDamage(pc.inv, f.round, (F.defeats ?? 0) + 1, F.venom);
 					const dmg = Math.max(1, raw - (f.guard ?? 0));
 					if (check.success) {
 						log.foe = { text: '你贴着地滚开了——它那一口咬在你刚才站的地方，石板裂了一层。' };
@@ -264,12 +266,12 @@ Object.assign((window.Game.Combat ??= {}), {
 	// ⚠️ 为什么挂 `Combat` 而不是龙的命名空间：后者在 `STORY_SYMBOLS` 里是**整命名空间**类符号
 	//（它主要是数据：hp/sealAt/entries…）⇒ 引擎侧往它上面挂**机制**会被层间门判（实测命中 1 处）。
 	// 语义上它本来就是"这一回合龙的那一下"＝战斗结算 ⇒ 住 `Combat` 更对；调用方只有本文件一处，已同步。
-	dragonDamage(inv, round, defeats, poisoned) {
-		// `#493` 接缝：这条公式是**故事政策**（基准值/连败封顶/毒液压怒）。故事声明 `Sg.story.battleDamage(...)`
-		// 后由它算；**未声明时回落 `Items.battleDamage`**（过渡期逐字一致）。
+	/** `#493` 片 A-2：改名（`dragonDamage` ⇒ **`foeDamage`**）＋**删回落** —— 这条公式是**故事政策**
+	 *  （基准值／连败封顶／毒液压怒），引擎只经 `Sg.story.battleDamage(...)` 调它（缺声明 ⇒ 大声报错）。 */
+	foeDamage(inv, round, defeats, poisoned) {
 		const f = window.Sg?.story?.battleDamage;
-		if (typeof f === 'function') return f(inv, round, defeats, poisoned);
-		return window.Game.Items.battleDamage(round, inv, defeats, poisoned);
+		if (typeof f !== 'function') throw new Error('Game.Combat.foeDamage：故事未声明 `Sg.story.battleDamage(...)`（结构缺失必须报错，#493／#459）');
+		return f(inv, round, defeats, poisoned);
 	},
 	eligible(poolId, pc) {
 		const held = pc?.inv ?? {};
@@ -302,13 +304,9 @@ Object.assign((window.Game.Combat ??= {}), {
 		const picked = this.pickN(list, 3);                       // #489：走**共用**选择机制
 		// `#493` 接缝：故事可声明"这一手必须给谁"（`Sg.story.combatPrepick(poolId, round, pc, picked)`），
 		// 引擎就不必认识池名与动作名。**未声明时回落旧硬编码分支**（过渡期逐字一致）。
+		// `#493` 片 A-2：**回落已删** —— 池名/动作名不再出现在引擎里（故事声明 `Sg.story.combatPrepick` 决定给哪一手）。
 		const pre = window.Sg?.story?.combatPrepick?.(poolId, round ?? 1, pc, picked) ?? null;
-		if (pre && !picked.includes(pre)) {
-			picked[picked.length - 1] = pre;
-		} else if (poolId === '封印' && (round ?? 1) === 1 && pc?.inv?.['月光花'] && !pc?.dragon?.venom && !picked.includes('封印·涂毒')) {
-			// 备药优先：手上有花、还没涂毒 → 第一轮一定给「涂毒」（免得玩家永远等不到）
-			picked[picked.length - 1] = '封印·涂毒';
-		}
+		if (pre && !picked.includes(pre)) picked[picked.length - 1] = pre;
 		return [...new Set(picked)];
 	},
 	// ── S4（`#489`）：通用事件池 ＋ 线索三选一 ─────────────────────────

@@ -57,6 +57,8 @@ export const SEGMENTS = [
 	{ id: "test-combat-adv-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/combat-adv.mjs --selftest" },
 	{ id: "test-combat-adv-mjs", phase: 'test', cost: 15.6, cmd: "node test/combat-adv.mjs" },
 	{ id: "test-g3-evidence-mjs", phase: 'test', cost: 15.7, cmd: "node test/g3-evidence.mjs" },
+	{ id: "test-fight-compat-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-compat.mjs --selftest" },
+	{ id: "test-fight-compat-mjs", phase: 'test', cost: 12, cmd: "node test/fight-compat.mjs" },
 	{ id: "test-reread-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/reread.mjs --selftest" },
 	{ id: "test-reread-mjs", phase: 'test', cost: 0, cmd: "node test/reread.mjs" },
 	{ id: "test-smoke-mjs", phase: 'test', cost: 7.5, cmd: "node test/smoke.mjs" },

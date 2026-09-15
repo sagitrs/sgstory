@@ -99,6 +99,25 @@ const readBaseline = () => {
 const parsed = readBaseline();
 
 if (update) {
+	// `#678` 交叉验证的教训（dev 提）：重签时**必须打印每项 delta＋来源提示**——
+	// 那次 `#678` 只改 5 个文件、却在重签里顺手把 **fonts 的存量漂移**（+1452B，靠 ±1% 容差一直绿着）也纠正了，
+	// 而 PR 说明里没写 ⇒ 复核者要重算一遍才知道那笔账不是本 PR 的。**看不清账＝不能归因。**
+	// 两个来源提示都用**本地事实**（无网络）：① 基线里没有的新项；② 工作区相对 HEAD 改过的源文件（可能影响产物）。
+	const gitChanged = (() => {
+		try {
+			return execFileSync('git', ['-C', ROOT, 'status', '--porcelain', '--', 'src', 'stories', 'build.mjs', 'scripts/dist-paths.mjs'], { encoding: 'utf8' })
+				.split('\n').map((l) => l.slice(3).trim()).filter(Boolean);
+		} catch { return []; }
+	})();
+	console.log('体积基线重签（逐项 delta）：');
+	for (const [k, v] of Object.entries(rows)) {
+		const b = parsed.rows?.[k];
+		const d = b == null ? '（基线原无此项）' : `${v - b >= 0 ? '+' : ''}${v - b}B`;
+		console.log(`  · ${k}: ${b ?? '—'} → ${v}B  (${d})`);
+	}
+	console.log(gitChanged.length
+		? `  工作区改过的源（可影响产物，逐条自己认账）：${gitChanged.join(' · ')}`
+		: '  工作区无 src/stories 改动 ⇒ **体积变化与本次改动无关**（存量漂移，请在 PR 里写明"顺手纠正"）');
 	// 重签保留容差表（#211：跨环境噪声由容差吸收——丢了 tolerancePct 会退化成 0B 硬 ratchet）
 	writeBaseline({ note: NOTE, rows, ...(parsed.tolerancePct ? { tolerancePct: parsed.tolerancePct } : {}) });
 	console.log('✔ 体积基线已重签');

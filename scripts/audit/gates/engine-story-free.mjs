@@ -97,7 +97,11 @@ export const storyTableMembers = (sources = {}, { seedSrc = '', onSkip = () => {
 	const tables = {};
 	for (const [file, src] of Object.entries(sources ?? {})) {
 		for (const body of scriptBodies(String(src ?? ''))) {
-			if (!/window\.Game\s*=/.test(body)) continue;
+			// `#441` 抽验（guest-1 抓到的洞）：此前只认 `window.Game = Object.assign(…)` **聚合式**声明 ⇒
+			// `20-chargen.twee` 的 `window.Game.Chargen = {…}`（**分表式**）被**静默跳过** ⇒ `Chargen` 不在成员集里，
+			// 成员档/探测档对它全是瞎的（我自己的探针 `not Game.Chargen` 因此**该红没红** ✗）。
+			// ⇒ 两种形态都收；跳过什么由下面的 `undetectedTables()` 单独点名（反沉默）。
+			if (!/window\.Game\s*=|window\.Game\.[A-Za-z_$][\w$]*\s*=/.test(body)) continue;
 			const ctx = { window: { Game: {} } };
 			const seeded = new Set();
 			try {
@@ -114,6 +118,23 @@ export const storyTableMembers = (sources = {}, { seedSrc = '', onSkip = () => {
 		}
 	}
 	return tables;
+};
+
+/** **反沉默**：故事 `[script]` 段里声明过的 `window.Game.<表>`，哪些**没被抽到**（`#441` 抽验发现的洞）。
+ *  为什么单独一条：抽取器是"按形态过滤 + vm 跑"的，**看不懂的形态会被静默跳过**——那种静默正是本仓最贵的失败模式
+ *  （我自己的探针 `not Game.Chargen` 该红没红，就是因为 `Chargen` 从来没进成员集）。 */
+export const undetectedTables = (sources = {}, tables = {}, { seedSrc = '' } = {}) => {
+	const seeded = new Set([...String(seedSrc).matchAll(/^window\.Game\.([A-Za-z_$][\w$]*)/gm)].map((m) => m[1]));
+	const declared = new Map();
+	for (const [file, src] of Object.entries(sources ?? {})) {
+		for (const body of scriptBodies(String(src ?? ''))) {
+			const text = body.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+			for (const m of text.matchAll(/window\.Game\.([A-Za-z_$][\w$]*)\s*[=.]/g)) declared.set(m[1], file);
+		}
+	}
+	return [...declared.entries()]
+		.filter(([t]) => !seeded.has(t) && !(t in (tables ?? {})))
+		.map(([t, file]) => ({ table: t, file, detail: `故事声明了 \`window.Game.${t}\`，但**成员档没抽到它**——抽取器看不见这种声明形态（成员档/探测档对它全是瞎的）` }));
 };
 
 export const storyMemberAliases = (src) => {
@@ -209,6 +230,12 @@ export const run = (ctx) => {
 			['边界（成员档）：引擎自有成员（`Game.Economy.apply`）⇒ 不报', memberTierProblems({ file: 'x', src: 'Game.Economy.apply(pc, "x");', tables: TB }).length === 0],
 			['边界（成员档）：同名的**局部/域内**对象（`pc.events`）⇒ 不报（不裸匹配 `\\.events`）', memberTierProblems({ file: 'x', src: 'const n = pc.events.length;', tables: TB }).length === 0],
 			['🔴 **已知漏**（断言它会漏）：`const { events } = Game.Economy` 之后裸用 ⇒ **0 条**（静态不可判，不做数据流）', memberTierProblems({ file: 'x', src: 'const { events } = Game.Economy;\nuse(events);', tables: TB }).length === 0],
+			// `#441` 抽验抓到的洞：**分表式**声明（`window.Game.Chargen = {…}`）此前被静默跳过 ⇒ 抽不到 ⇒ 门对它是瞎的。
+			['抽取器认**分表式**声明（`window.Game.<表> = {…}`）⇒ 表进成员集', Object.keys(storyTableMembers({ 'x.twee': ':: T [script]\nwindow.Game.Items = { defs: {}, gear: [] };' })).includes('Items')],
+			['🔴 反沉默：声明了 `window.Game.X` 却没抽到 ⇒ `undetectedTables()` **点名**（不许静默跳过）',
+				undetectedTables({ 'x.twee': ':: T [script]\nwindow.Game.Ghost = { a: 1 };' }, {}).length === 1
+				&& undetectedTables({ 'x.twee': ':: T [script]\nwindow.Game.Ghost = { a: 1 };' }, {}).every((x) => x.table === 'Ghost')],
+			['边界：抽到了就不算漏', undetectedTables({ 'x.twee': ':: T [script]\nwindow.Game.Items = { a: 1 };' }, storyTableMembers({ 'x.twee': ':: T [script]\nwindow.Game.Items = { a: 1 };' })).length === 0],
 			['🔴 反例（探测档）：`not Game.Economy` 式**存在性探测** ⇒ 报（`#660` 片三-2 的形状；真实位点是故事表名的 `not …`，那处**字面量**归第一档管）', probeTierProblems({ file: 'x', src: 'if (not Game.Economy) { }', tables: TB }).length === 1],
 			['正例（探测档）：走 `Sg.story.hasChargen()` ⇒ 0 条', probeTierProblems({ file: 'x', src: '<<elseif not Sg.story.hasChargen()>>', tables: TB }).length === 0],
 			['🔴 反例（探测档）：真值用法 `!!Game.Items` ⇒ 报', probeTierProblems({ file: 'x', src: 'const has = !!Game.Items;', tables: TB }).length === 1],
@@ -250,6 +277,8 @@ export const run = (ctx) => {
 		const tables = storyTableMembers(storySources, { seedSrc, onSkip: (x) => skips.push(x) });
 		for (const s2 of skips) console.log(`  · 成员档：段载入跳过（${s2.file}）——${String(s2.why).slice(0, 80)}`);
 		if (!Object.keys(tables).length) { console.log('  ✗ 成员档：**一张表都没抽到**（抽取器坏了？别让门静默变成空判）'); bad++; }
+		// 反沉默（`#441` 抽验）：**声明了却抽不到**的表逐张点名——抽取器看不懂的形态不许静默跳过
+		for (const m of undetectedTables(storySources, tables, { seedSrc })) { console.log(`  ✗ 成员档：${m.detail}（${m.file}）`); bad++; }
 		const engineSrc = allSourceFiles().filter((f) => f.startsWith('src/'));
 		let memberHits = 0, stales = 0;
 		for (const f of engineSrc) {

@@ -118,14 +118,12 @@ t('`Game.Checks.rollSite` / `resolve` 已在 node 里可调用', typeof Game.Che
 	const gear = [];   // 火把在 gear（Gear.advSource）
 	const r = Game.Checks.rollSite('雾之魔物·挥击', { ...pc0, inv, gear }, null);
 	t('③ 道具优势：带「坏哨」⇒ adv=1 ＋ 理由「道具坏哨」', r.adv === 1 && r.advWhy === '道具坏哨', JSON.stringify({ adv: r.adv, advWhy: r.advWhy }));
-	// `#733` 片 2-b：情报优势改由**笔记面**判定 ⇒ 夹具给"已授予"的存储。
-	// ⚠️ 接缝 `Sg.story.checkKnowledge(site)` **不吃 pc**（引擎只传位点名）⇒ `held` 按**当前存档的 pc** 算
-	// ⇒ 合成 pc 的单测必须同时把存储写到 `State.variables.pc`（真实游玩时 `rollSite` 的 pc 就是它 ⇒ 恒等 ⇒ 无行为差异）。
-	const _prevEv = State.variables.pc.ev;
-	State.variables.pc.ev = { ...(_prevEv ?? {}), notes: { n_hall_hint: true } };
+	// `#733` 片 2-b：情报优势由**笔记面**判定。接缝吃 pc（`#741`）⇒ **合成 pc 直接驱动**，不再借当前存档。
+	// 两种形态各验一次（**形式无关**）：① 只有路径旗标（旧档/合成态）⇒ 回落分支；② 只有笔记存储 ⇒ 笔记面分支。
 	const r2 = Game.Checks.rollSite('门厅·翻检', { ...pc0, inv: {}, world: { ...(pc0.world ?? {}), hall_hint: true } }, null);
-	State.variables.pc.ev = _prevEv ?? {};
-	t('③ 情报优势：`world.hall_hint` ⇒ adv=1 ＋ 理由取 knowledgeWhy', r2.adv === 1 && r2.advWhy.startsWith('情报·弯钩钉'), JSON.stringify({ adv: r2.adv, advWhy: r2.advWhy }));
+	t('③ 情报优势（旗标回落）：`world.hall_hint` ⇒ adv=1 ＋ 理由取 knowledgeWhy', r2.adv === 1 && r2.advWhy.startsWith('情报·弯钩钉'), JSON.stringify({ adv: r2.adv, advWhy: r2.advWhy }));
+	const r2b = Game.Checks.rollSite('门厅·翻检', { ...pc0, inv: {}, ev: { notes: { n_hall_hint: true } } }, null);
+	t('③ 情报优势（笔记存储）：`ev.notes.n_hall_hint` ＋ 无旗标 ⇒ adv=1（合成 pc 驱动，`#441-A`）', r2b.adv === 1 && r2b.advWhy.startsWith('情报·弯钩钉'), JSON.stringify({ adv: r2b.adv, advWhy: r2b.advWhy }));
 	const r3 = Game.Checks.rollSite('龙·终击', { ...pc0, inv: {}, gear: [] }, null);
 	t('③ 位点自带 dis：`龙·终击` ⇒ adv=-1 ＋ 理由取 disWhy', r3.adv === -1 && r3.disWhy.includes('硬撼一条龙'), JSON.stringify({ adv: r3.adv, disWhy: r3.disWhy }));
 	const r4 = Game.Checks.rollSite('塔外花田', { ...pc0, inv: {}, gear: [] }, null);

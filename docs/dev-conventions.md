@@ -388,6 +388,8 @@ FCFS **81.3s** vs LPT **84.3s**；②「每个测试段各自 boot JSDOM」不�
   词表住在 `Sg.rules.terms`（与 `ops`／`prefixes`／`effects` 同轴的反沉默面）：行里用了未宣告的取值项 ⇒ `--rules` 判红。
   用途：可负担性判定 `req: [{ gte: ['pc.gold', { price: 'rumor_buy' }] }]`（原本只能在散文里算 ⇒ 那几处进不了表）。
 - **显式根 `pc.`**：键以 `pc.` 开头 ⇒ 从 pc 根走（`pc.gold`／`pc.hp` 这类**顶层字段**；裸键仍是 `ev.`）。只用于**声明键形**；`--state`／D2 只认 `ev.`/`world.` ⇒ `pc.*` 不参与状态契约（与第三命名空间同口径）。
+- **前缀键**（求值在引擎 `Sg.rules.holds()`，**单一权威 `KEY_PREFIX_RE`**）：`inv:<道具>`（持有）· `era:past|present`（时代）· **`gear:<装备>`**（行囊/装备里有它，`#624` 片四）。
+  三者都**不是状态键**（不在 `pc.ev`/`pc.world` 域）⇒ 不参与状态契约与旗标分级；新增前缀两处同步：`Sg.rules.prefixes`（引擎宣告）＋ `KEY_PREFIX_RE`（共享正则）＋ `--reads` 的键形态白名单。
 
 | 形状 | 例 | 语义 |
 |---|---|---|

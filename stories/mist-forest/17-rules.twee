@@ -165,5 +165,12 @@ Object.assign((window.Sg.story ??= {}), {
 		<<setflag "ev.witch_gifted">>
 		<<goto "当时的女巫">>
 	<</link>>` },
+		// `#624` 片四：`gear:` 前缀（行囊/装备）—— 解开火把那两处与洞穴的火光变体。
+		{ id: '酒馆.买火把', scope: '酒馆#买火把', req: [{ gte: ['pc.gold', { price: 'torch_buy' }] }], exclude: ['gear:火把'], prio: 10, text: `	<<link \`"花 " + (-Game.Economy.priceOf("torch_buy", $pc)) + " 金币：买一支火把"\`>>
+		<<econ "torch_buy">><<goto "酒馆">>
+	<</link>>` },
+		{ id: '酒馆.火把已备', scope: '酒馆#火把已备', req: ['gear:火把'], prio: 10, text: `她看了一眼你肩后的火把，把柜台上的油灯往里挪了挪。''"走水没人救。看好火。"''` },
+		{ id: '洞穴.火光.有火把', scope: '洞穴#火光', req: ['gear:火把'], prio: 10, text: `洞穴不深，走十几步就到了底。火把的光在石壁上摊开，照出一地碎石头。` },
+		{ id: '洞穴.火光.无火把', scope: '洞穴#火光', exclude: ['gear:火把'], prio: 10, text: `洞穴不深，走十几步就到了底。洞口漏进来一点灰光，照出一地碎石头。` },
 	],
 });

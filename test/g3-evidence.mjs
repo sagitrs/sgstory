@@ -14,7 +14,9 @@ const hasOption = () => [...w.document.querySelectorAll(CLICKABLE_SEL)].some((a)
 const probe = async (seed) => {
 	w.eval(`(function(){const pc=SugarCube.State.variables.pc;pc.ev=pc.ev||{};
 		delete pc.ev.failure_cause; delete pc.ev.seer_asked; delete pc.ev.coord; delete pc.world.seer_asked;
-		${seed} pc.ev.old_witch=true; SugarCube.State.variables.era='past';})()`);
+		// #437 C-2c-1：造态改走笔记面之后，复位必须同时清存储（否则上一轮的授予会留到下一例，把「不得出现」判成通过）
+		if (pc.ev.notes) { delete pc.ev.notes.n_failure_cause; delete pc.ev.notes.n_old_witch; }
+		${seed} Sg.notes.add('n_old_witch'); SugarCube.State.variables.era='past';})()`);
 	w.SugarCube.Engine.play('老巫女');
 	await settle();
 	for (let i = 0; i < 20 && !hasOption(); i++) { await sleep(100); await settle(); }
@@ -22,9 +24,9 @@ const probe = async (seed) => {
 };
 
 const cases = [
-	['日记 ＋ 问过观星者（无星图）→ 必须出现', 'pc.ev.failure_cause=true; pc.ev.seer_asked=true;', true],
-	['日记 ＋ 星图坐标 → 必须出现', 'pc.ev.failure_cause=true; pc.ev.coord=true;', true],
-	['只有日记 → 不得出现', 'pc.ev.failure_cause=true;', false],
+	['日记 ＋ 问过观星者（无星图）→ 必须出现', "Sg.notes.add('n_failure_cause'); pc.ev.seer_asked=true;", true],
+	['日记 ＋ 星图坐标 → 必须出现', "Sg.notes.add('n_failure_cause'); pc.ev.coord=true;", true],
+	['只有日记 → 不得出现', "Sg.notes.add('n_failure_cause');", false],
 	['只有问过观星者 → 不得出现', 'pc.ev.seer_asked=true;', false],
 	['只有星图坐标 → 不得出现', 'pc.ev.coord=true;', false],
 ];

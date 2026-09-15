@@ -97,7 +97,11 @@ window.Sg.notes = {
 	add(id, pc = State.variables.pc) {
 		const e = this.entry(id);
 		if (!e) throw new Error(`Sg.notes.add：笔记「${id}」未登记（结构缺失必须报错，#434）`);
-		if (this.has(id)) return false;
+		// `#437` C-2c-1b：早退只看**存储**，不看 `has(id)`（＝存储 ∨ 旗标）。
+		// 为什么（`#437` C-2c 的实验法实测）：语料里 `<<firstTime "wq_seen">><<note "n_wq_seen">>` 这种**紧接着**的写法，
+		// `firstTime` 先置旗标 ⇒ `has()` 立刻为真 ⇒ `add()` 早退 ⇒ **存储永远补不上**（`pc.ev.notes` 始终 undefined），
+		// 只是被 `has()` 的旗标兜底掩盖着；一旦按 C-2c-2 删掉兜底，那条知识就会**静默变假**。
+		if (this.stored(id)) return false;
 		if (Array.isArray(e.flagPath)) {
 			if (!e.setPath) throw new Error(`Sg.notes.add：笔记「${id}」的 flagPath 是数组（多源 OR）⇒ 必须显式声明 setPath（该写哪一条）——不许静默多写一个旗标（#434/#435）`);
 			this.writePath(pc, e.setPath, true);
@@ -120,7 +124,8 @@ window.Sg.notes = {
 		if (!e) throw new Error(`Sg.notes.addPath：笔记「${id}」未登记（结构缺失必须报错，#569）`);
 		const ps = Array.isArray(e.flagPath) ? e.flagPath : [e.flagPath];
 		if (!ps.includes(String(path))) throw new Error(`Sg.notes.addPath：路径「${path}」不属于笔记「${id}」的 flagPath（${ps.join('／')}）——写进去读不出来（#569）`);
-		if (this.readPath(pc, path) === true) return false;      // ① 路径级幂等
+		// ① 路径级幂等（**并**要求存储已写：否则旗标已真而存储缺失时同样会把存储漏掉，见 `add()` 的注释）
+		if (this.readPath(pc, path) === true && this.stored(id)) return false;
 		this.writePath(pc, path, true);
 		pc.ev.notes = pc.ev.notes ?? {};
 		pc.ev.notes[id] = true;

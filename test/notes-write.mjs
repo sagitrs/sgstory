@@ -221,6 +221,21 @@ if (multi) {
 		&& noteWriteKeys('<<notepath "n_hall_hint", "ev.hall_seen">>', E2).sort().join() === 'ev.hall_seen,world.hall_hint');
 }
 
+{
+	// `#437` C-2c-1b（**回归**）：**旗标已真但存储缺失** ⇒ `add()` **仍必须补写存储**，不许早退。
+	// 缺陷原状：`add()` 用 `has(id)`（＝存储 ∨ 旗标）早退 ⇒ 语料里 `<<firstTime "wq_seen">><<note "n_wq_seen">>` 这种
+	// **紧接着**的写法，旗标先被置真 ⇒ `add()` 直接返回 false ⇒ **存储永远补不上**（实测 `pc.ev.notes` 始终 undefined，
+	// 只是被兜底掩盖着；C-2c-2 一删兜底，那条知识就会**静默变假**）。
+	if (single) {
+		const path = Sg.notes.entry(single).flagPath;
+		Sg.notes.writePath(pc, path, true);                 // 模拟"旗标已真"（旧档／`<<firstTime>>` 先落旗标）
+		if (pc.ev.notes) delete pc.ev.notes[single];
+		case_('🔴 旗标已真但存储缺失 ⇒ `add()` 仍补写存储（早退判据看**存储**，不看 `has()`）',
+			Sg.notes.add(single) === true && Sg.notes.stored(single) === true);
+		case_('反向：存储与旗标都真 ⇒ `add()` 返回 false（幂等）', Sg.notes.add(single) === false);
+	}
+}
+
 if (bad) {
 	console.error(`\n✗ 笔记写入门未通过（${bad} 项）—— \`Sg.notes.add\` 动的是存档语义，四条性质不许退让（#434）`);
 	process.exit(1);

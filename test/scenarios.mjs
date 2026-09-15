@@ -995,10 +995,11 @@ async function routeClarityB() {
 	const { w } = await newGame(0.99, 0);
 	const play = async (p, set) => { if (set) { w.eval(set); } w.eval(`SugarCube.Engine.play(${JSON.stringify(p)})`); await waitRendered(w, p); };
 	// #311-A：未获警告时，现场给出身体征兆；已获警告时选项体现屏息
-	await play('塔外花田', '(function(){const pc=SugarCube.State.variables.pc;pc.world.goblin_spared=false;pc.world.flower_warned=false;pc.world.flower_mud=false;pc.inv={};SugarCube.State.variables.era="present";})()');
+	// `#437` C-2c-1：造态/复位都走**笔记面**（`Sg.notes.*`）；注意 eval 字符串里不能写行内注释（会吞掉收尾）
+	await play('塔外花田', '(function(){const pc=SugarCube.State.variables.pc;pc.world.goblin_spared=false;pc.world.flower_warned=false;pc.world.flower_mud=false;pc.inv={};if(pc.ev&&pc.ev.notes)delete pc.ev.notes.n_flower_warned;SugarCube.State.variables.era="present";})()');
 	if (!passageText(w).includes('眼皮跟着沉了沉')) throw new Error('#311：未警告的花田缺「靠近有危险」的征兆');
 	if (linksOf(w).some((x) => x.includes('憋住气，伸手去摘'))) throw new Error('#311：未警告时不该预先给出屏息动作');
-	await play('塔外花田', '(function(){SugarCube.State.variables.pc.world.flower_warned=true;})()');
+	await play('塔外花田', '(function(){Sg.notes.addPath("n_flower_warned","world.flower_warned");})()');
 	if (!linksOf(w).some((x) => x.includes('憋住气，伸手去摘最靠里的那一朵'))) throw new Error('#311：已警告时选项未体现屏息');
 	// #311-B：护臂选项写出导致受伤的擦锈动作
 	await play('工坊', null);
@@ -1039,7 +1040,7 @@ async function routeFightAdv() {
 	// 中局注入：卷轴（读术式 good 档）＋ 三处情报（G2 知识旗标）＋ 固定牌面（不靠随机抽牌）
 	w.eval(`(function(){const v=SugarCube.State.variables;const pc=v.pc;
 	 pc.hp=18;pc.max_hp=18;pc.inv["传送术卷轴"]=true;pc.keeper.state="seal";pc.keeper.met=true;
-	 pc.ev.hall_hint=true;pc.ev.study_hint=true;pc.ev.ledger_hint=true;
+	 Sg.notes.addPath('n_hall_hint','ev.hall_seen');Sg.notes.addPath('n_study_hint','ev.study_found');Sg.notes.addPath('n_ledger_hint','world.ledger_hint');   // #437 C-2c-1（注意：模板字面量里不能写反引号）
 	 pc.dragon={hp:60,defeats:0,venom:false,awake:true};
 	 pc.ev.fight={pool:'封印',round:1,offer:['封印·读术式'],act:null,adv:0,guard:0,skipFoe:false,log:null};
 	 v.era="present";})()`);
@@ -1114,7 +1115,8 @@ async function routeInvestment() {
 	await c('顺着注记读一读缺口边上那半幅星轨');
 	if (!passageText(w).includes('情报')) throw new Error('#291 G2：带情报重试未标注优势来源');
 	// G3：跨时代合龙门——单侧证据问不出那一句（反例），两侧齐才出现（正例）
-	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.ev=pc.ev||{};pc.ev.failure_cause=true;delete pc.ev.seer_asked;delete pc.ev.coord;pc.ev.old_witch=true;SugarCube.State.variables.era="past";})()');
+	// `#437` C-2c-1：造态走**笔记面**（`Sg.notes.add`）；复位时同时清存储（同一会话内反例才可信）
+	w.eval('(function(){const pc=SugarCube.State.variables.pc;Sg.notes.add("n_failure_cause");delete pc.ev.seer_asked;delete pc.ev.coord;Sg.notes.add("n_old_witch");if(pc.ev.notes)delete pc.ev.notes.n_seer_asked;SugarCube.State.variables.era="past";})()');
 	w.eval("SugarCube.Engine.play('老巫女')"); await waitRendered(w, '老巫女');
 	if (linksOf(w).some((x) => x.includes('缺的那一句话'))) throw new Error('#291 G3：只带现在侧证据也问得出（门形同虚设）');
 	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.ev.seer_asked=true;})()');
@@ -1147,7 +1149,7 @@ async function routeDeliveredLocks() {
 	if (!linksOf(w).some((x) => x.includes('违背约定'))) throw new Error('#259 M1：接班出口未按盟约态改写');
 	if (!linksOf(w).some((x) => x.includes('折断那半卷手稿'))) throw new Error('#259 M1：焚塔出口未改写');
 	// M2：书房劣化封印禁用＋ack（施术口在 observation_lock 之后）
-	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.ev.observation_lock=true;})()');
+	w.eval('(function(){Sg.notes.add("n_observation_lock");})()');   // `#437` C-2c-1：造态走笔记面
 	w.eval("SugarCube.Engine.play('书房')"); await waitRendered(w, '书房');
 	const study = passageText(w);
 	if (linksOf(w).some((x) => x.includes('照着守林人家那卷封印术念一遍'))) throw new Error('#259 M2：交付后仍可施劣化封印');

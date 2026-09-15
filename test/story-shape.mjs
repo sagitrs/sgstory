@@ -37,8 +37,13 @@ const base = () => ({
 	},
 	statusPenalty: { 'stun@头': { check: -2 } },   // #487：本片只认 check（该部位判定减成）
 	encounters: {
-		short: { waves: [{ pool: 'cave.w1', difficulty: 1 }] },
-		long: { waves: [{ pool: 'cave.w1', difficulty: 1 }, { pool: 'cave.w2', difficulty: 2, reinforce: true }], rewardsScale: 1.5 },
+		short: { waves: [{ pool: 'cave.w1', difficulty: 1, enemies: ['鼠'] }] },
+		long: { waves: [{ pool: 'cave.w1', difficulty: 1, enemies: ['鼠'] }, { pool: 'cave.w2', difficulty: 2, reinforce: true, enemies: ['鼠', '虫'] }], rewardsScale: 1.5 },
+	},
+	// `#705`：有战斗就必须有敌人属性（HP／AC／攻击骰／可落部位）
+	enemies: {
+		鼠: { name: '洞窟鼠', hp: 4, ac: 11, attack: { site: '洞窟·鼠咬', dmg: '1d4+1', parts: ['腿'] }, traits: [], drops: [] },
+		虫: { name: '硬壳甲虫', hp: 9, ac: 14, attack: { site: '洞窟·甲虫冲撞', dmg: '1d6+2', parts: ['躯干'] }, traits: ['硬壳'], drops: [] },
 	},
 	roads: [
 		// #489（S4）：`kind` 必须是六类事件词表之一；每段至少一个 `noCheck:true`；`to` 不许是死档
@@ -115,6 +120,15 @@ case_('⑤ 反例：两条路线索**等价**（只差空白）⇒ 必须抓',
 	run(mutate((m) => { m.roads[0].options[1].hint = ' 碎石间有拖行的痕迹 '; })).problems.some((p) => p.includes('线索**等价**')));
 case_('⑤ 反例：某选项缺 hint ⇒ 必须抓', run(mutate((m) => { delete m.roads[0].options[2].hint; })).problems.some((p) => p.includes('缺 hint')));
 case_('⑤ 反例：选项不足 3 条 ⇒ 必须抓', run(mutate((m) => { m.roads[0].options.pop(); })).problems.some((p) => p.includes('至少 3 个选项')));
+// `#705`：敌人属性面（⑥）
+case_('⑥ 正例（#705）：敌人有 HP／AC／骰式攻击／合法落点 ⇒ 不报', run(base()).problems.length === 0, JSON.stringify(run(base()).problems));
+case_('🔴 ⑥ 反例（#705）：**有 encounters 却没有 enemies** ⇒ 必须抓', run(mutate((m) => { delete m.enemies; })).problems.some((p) => p.includes('enemies')));
+case_('🔴 ⑥ 反例（#705）：`hp` 不是正整数 ⇒ 必须抓', run(mutate((m) => { m.enemies.鼠.hp = 0; })).problems.some((p) => p.includes('hp')));
+case_('🔴 ⑥ 反例（#705）：`ac` 缺失 ⇒ 必须抓', run(mutate((m) => { delete m.enemies.鼠.ac; })).problems.some((p) => p.includes('ac')));
+case_('🔴 ⑥ 反例（#705）：**伤害写成固定数字** ⇒ 必须抓（不可测）', run(mutate((m) => { m.enemies.鼠.attack.dmg = 3; })).problems.some((p) => p.includes('dmg')));
+case_('🔴 ⑥ 反例（#705）：攻击落点不在 hitLocations ⇒ 必须抓', run(mutate((m) => { m.enemies.鼠.attack.parts = ['尾巴']; })).problems.some((p) => p.includes('hitLocations')));
+case_('🔴 ⑥ 反例（#705）：遭遇引用了**未声明**的敌人 ⇒ 必须抓', run(mutate((m) => { m.encounters.short.waves[0].enemies = ['幽灵']; })).problems.some((p) => p.includes('未声明')));
+case_('🔴 ⑥ 反例（#705）：`enemies` 写空数组 ⇒ 必须抓（写了就该真有敌人）', run(mutate((m) => { m.encounters.short.waves[0].enemies = []; })).problems.some((p) => p.includes('非空数组')));
 
 // ── 未启用 = 合法（兼容模式，见 #492）──
 case_('边界：`mechanics()` 返回 null ⇒ `enabled:false` 且**不报错**（未启用新机制 ⇒ 引擎走旧路径）',

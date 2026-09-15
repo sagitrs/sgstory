@@ -7,6 +7,7 @@ on:
 
 permissions:
   contents: read
+  issues: write   # `#630`：夜间游走是**仪器**（report-only）——失败要留痕（开票去重），但不阻塞任何合入
 
 jobs:
   soak:
@@ -24,7 +25,21 @@ jobs:
       - run: npm ci
       - run: pip install fonttools brotli
       - run: node build.mjs
+      # 随机游走的家（report-only）：多种子长测；**失败不阻塞合入**，而是开票留痕（见下一步）
       - run: node test/walker.mjs 30 30 ${{ matrix.seed }}
+      - name: 失败 ⇒ 开票留痕（同一形态不重复开票）
+        if: failure()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          open=$(gh issue list --repo "${{ github.repository }}" --state open --search '"[soak-nightly]" in:title' --json number --jq 'length')
+          if [ "$open" != "0" ]; then echo "已有未关闭的 [soak-nightly] 票（$open 张）⇒ 不重复开"; exit 0; fi
+          gh issue create --repo "${{ github.repository }}" --label bug \
+            --title "[soak-nightly] 随机游走发现异常（seed ${{ matrix.seed }}）" \
+            --body "夜间随机游走（seed \`${{ matrix.seed }}\`）失败：[run](${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+          依伞 #626 的规则：随机游走是**仪器**（report-only），**每个发现必须沉淀**为「矩阵一行」或「覆盖原子一条路线」——否则不开修复票。" 
       - if: failure() || success()
         uses: actions/upload-artifact@v4
         with:

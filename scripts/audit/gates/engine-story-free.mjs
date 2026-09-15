@@ -121,6 +121,29 @@ export const storyMemberAliases = (src) => {
 	for (const m of String(src ?? '').matchAll(/const\s+([A-Za-z_$][\w$]*)\s*=\s*(?:window\.)?Game(?:\.[A-Za-z_$][\w$]*)?\s*[;\n]/g)) out.add(m[1]);
 	return out;
 };
+/** **第三档 · 存在性探测档**（`#660` 片三-2）：引擎不许用「**这张故事表在不在**」的探测去摸故事表。
+ *  规则（只咬**裸表名**；成员访问/调用归**成员档**管）：① 取反 `not Game.X` / `!Game.X`；
+ *  ② 空合并 `Game.X ?? y`（**不含声明式 `??=`**——那是引擎在自己命名空间上挂成员，合法）；③ `null` 比较 `Game.X == null` / `!== null`；
+ *  ④ 真值用法 `Game.X && y` / `Game.X || y` / `Game.X ? a : b`。
+ *  为什么单开一档：`<<elseif not Game.Chargen>>` 既是边界破口（**引擎知道故事的全局名**），又是**最爱藏在条件里**的那种
+ *  （成员档咬不到：它没有 `.成员`）。口径：故事表在不在，**必须问接入契约**（如 `Sg.story.hasChargen()`）——
+ *  引擎只问"有没有"，不把故事全局再拿回去。
+ *  误报控制：表名必须**在自动抽取的故事表集里**；注释已遮（`maskComments`）；**成员/调用**（`!Game.X.m()`）不算表探测。 */
+export const probeTierProblems = ({ file = '?', src = '', tables = {}, allow = {} } = {}) => {
+	const text = maskComments(String(src));
+	const out = [];
+	for (const table of Object.keys(tables ?? {})) {
+		const esc = table.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+		const re = new RegExp(
+			`(?:(?:not\\s+|!\\s*)(?:window\\.)?Game\\.${esc}(?![\\w.(\\[]))` +
+			`|(?:(?:window\\.)?Game\\.${esc}\\s*(?:\\?\\?(?!=)|===?\\s*null|!==?\\s*null|&&|\\|\\||\\?(?![.?])))`, 'g');
+		for (const m of text.matchAll(re)) {
+			const key = `${file}::Game.${table}`;
+			if (!allow[key]) out.push({ file, key, form: m[0].trim(), why: `引擎用【存在性探测】摸故事表 \`Game.${table}\`——故事表在不在要问接入契约（如 \`Sg.story.hasChargen()\`）` });
+		}
+	}
+	return out;
+};
 export const memberTierProblems = ({ file = '?', src = '', tables = {}, allow = {} } = {}) => {
 	const text = maskComments(String(src));
 	const out = [];
@@ -186,6 +209,12 @@ export const run = (ctx) => {
 			['边界（成员档）：引擎自有成员（`Game.Economy.apply`）⇒ 不报', memberTierProblems({ file: 'x', src: 'Game.Economy.apply(pc, "x");', tables: TB }).length === 0],
 			['边界（成员档）：同名的**局部/域内**对象（`pc.events`）⇒ 不报（不裸匹配 `\\.events`）', memberTierProblems({ file: 'x', src: 'const n = pc.events.length;', tables: TB }).length === 0],
 			['🔴 **已知漏**（断言它会漏）：`const { events } = Game.Economy` 之后裸用 ⇒ **0 条**（静态不可判，不做数据流）', memberTierProblems({ file: 'x', src: 'const { events } = Game.Economy;\nuse(events);', tables: TB }).length === 0],
+			['🔴 反例（探测档）：`not Game.Economy` 式**存在性探测** ⇒ 报（`#660` 片三-2 的形状；真实位点是故事表名的 `not …`，那处**字面量**归第一档管）', probeTierProblems({ file: 'x', src: 'if (not Game.Economy) { }', tables: TB }).length === 1],
+			['正例（探测档）：走 `Sg.story.hasChargen()` ⇒ 0 条', probeTierProblems({ file: 'x', src: '<<elseif not Sg.story.hasChargen()>>', tables: TB }).length === 0],
+			['🔴 反例（探测档）：真值用法 `!!Game.Items` ⇒ 报', probeTierProblems({ file: 'x', src: 'const has = !!Game.Items;', tables: TB }).length === 1],
+			['边界（探测档）：**成员/调用** `!Game.Economy.apply(x)` ⇒ 不报（那是成员档的地盘）', probeTierProblems({ file: 'x', src: 'if (!Game.Economy.apply(pc, id)) return;', tables: TB }).length === 0],
+			['边界（探测档）：**注释里**提到 `not Game.Economy` ⇒ 不报（遮注释）', probeTierProblems({ file: 'x', src: '// 老写法：not Game.Economy', tables: TB }).length === 0],
+			['边界（探测档）：`Object.assign((window.Game.Economy ??= {}), …)` 的**声明式** `??=` ⇒ 不报', probeTierProblems({ file: 'x', src: 'Object.assign((window.Game.Economy ??= {}), { apply() {} });', tables: TB }).length === 0],
 		];
 		let selfBad = 0;
 		for (const [label, ok] of cases) { if (!ok) selfBad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
@@ -235,6 +264,21 @@ export const run = (ctx) => {
 				if (!bare.includes(k)) { console.log(`  ✗ 白名单腐烂（成员档）：「${k}」已不再命中——接缝做完就删（理由：${why}）`); bad++; stales++; }
 			}
 		}
+		// ── 第三档 · **存在性探测档**：引擎不许 `not Game.X` / `Game.X ??` 这类"故事表在不在"的探测 ──
+		let probeHits = 0, probeStales = 0;
+		for (const f of engineSrc) {
+			const src = readFileSync(join(ROOT, f), 'utf8');
+			const hits = probeTierProblems({ file: f, src, tables, allow: ALLOW });
+			probeHits += hits.length;
+			for (const h of hits) { console.log(`  ✗ 引擎文件「${h.file}」${h.why}：\`${h.form}\`（#660 片三-2）`); bad++; }
+			for (const [k, why] of Object.entries(ALLOW)) {
+				if (!k.startsWith(`${f}::Game.`)) continue;
+				if (probeTierProblems({ file: f, src, tables, allow: {} }).map((x) => x.key).includes(k)) continue;
+				if (memberTierProblems({ file: f, src, tables, allow: {} }).map((x) => x.key).includes(k)) continue;   // 成员档的键不在这里判
+				console.log(`  ✗ 白名单腐烂（探测档）：「${k}」已不再命中——接缝做完就删（理由：${why}）`); bad++; probeStales++;
+			}
+		}
+		console.log(`  · 探测档：故事表 ${Object.keys(tables).length} 张 · 命中 ${probeHits} 处 · 腐烂 ${probeStales} 处（口径：故事表在不在 ⇒ 问 \`Sg.story.*\`）`);
 		const memberTotal = Object.values(tables).reduce((a, m) => a + m.length, 0);
 		console.log(`  · 成员档：故事成员 ${memberTotal} 项（${Object.keys(tables).length} 张表，**自动抽取**）· 引擎文件 ${engineSrc.length} 个 · 命中 ${memberHits} 处 · 腐烂 ${stales} 处`);
 		console.log('  · 已知漏（静态不可判，**不上数据流分析**）：`const { events } = Game.Economy` 之后裸用；`this.<成员>` 在**没有** `Object.assign(window.Game.X…)` 包着时也判不出（自证里已断言两者会漏）');
@@ -244,7 +288,7 @@ export const run = (ctx) => {
 	for (const [k, why] of Object.entries(ALLOW)) if (!/#\d+/.test(String(why))) { console.log(`  ✗ 白名单「${k}」的理由缺票号（必须写明"为什么放行"并挂票）`); bad++; }
 	// 白名单腐烂（声明了却不再命中）⇒ 报，逼你删
 	// 腐烂检查**只覆盖第一档（字面量档）**：成员档的键指向**引擎源文件**（`src/…`），由上面那块单独查 ✓
-	const stale = Object.keys(ALLOW).filter((k) => !k.startsWith('src/')).filter((k) => {
+	const stale = Object.keys(ALLOW).filter((k) => !k.startsWith('src/')).filter((k) => !/::(?:window\.)?Game\./.test(k)).filter((k) => {
 		const [file, token] = k.split('::');
 		const g = engineGates.find((x) => x.file === file);
 		return !g || !g.src.includes(token);
@@ -253,5 +297,5 @@ export const run = (ctx) => {
 	console.log(`  · 故事 token ${tokens.size} 个（来自 ${storyFiles.length} 个故事文件）· 引擎门 ${engineGates.length} 个（${engineGates.map((g) => g.flags[0]).join(' ')}）· 命中 ${hitsAll} 处 · 白名单 ${Object.keys(ALLOW).length} 条`);
 
 	if (bad) { console.error(`\n✗ 引擎门"无故事字面量"门未通过（${bad} 项）`); process.exit(1); }
-	console.log('✔ 引擎门"无故事字面量"门通过（两档：**字面量档**＝故事 token 不经引擎门；**成员档**＝引擎源文件不直读故事数据成员）· 注释不算 · 白名单带票号＋移除计划且不许腐烂');
+	console.log('✔ 引擎门"无故事字面量"门通过（三档：**字面量档**＝故事 token 不经引擎门；**成员档**＝不直读故事数据成员；**探测档**＝不用 `not Game.X` 式存在性探测摸故事表）· 注释不算 · 白名单带票号＋移除计划且不许腐烂');
 };

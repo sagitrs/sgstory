@@ -1156,6 +1156,8 @@ Object.assign((window.Sg.story ??= {}), {
 	notes: () => window.Game?.Notes?.entries ?? {},
 	// `#660` 片三-1：经济事件表**只经此面**给引擎（引擎不再直读 `Game.Economy.events`）
 	econEvents: () => window.Game.Economy.events,   // `#660` 片三-1（`Economy` 是上一段的局部 const ⇒ 只能经 `window.Game` 取）
+	// `#660` 片三-2：引擎只问「本故事有没有车卡」——**不把 `Game.Chargen` 表本身交给引擎**（那等于把故事全局又交回去）
+	hasChargen: () => !!window.Game.Chargen,
 	// 条件表（阶段 4）：占位；`#435` 落地后改为读它自己的表（名字由 `#435` 定）
 	rules: () => [],
 	// #441-E：引擎需要的**故事数据入口**（结构缺失 ⇒ **报错**，不许静默 0/空 —— 那会让引擎带着错数据跑）

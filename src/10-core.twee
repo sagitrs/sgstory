@@ -135,8 +135,12 @@ window.Game.Rules = {
 window.Game.Pc = {
 	// 取当前 pc（原裸全局 `Game.Pc.now()`，#320 阶段 4 并进来）
 	now() { return State.variables.pc; },
+	// `#660` 片三-3：**形状住引擎、数值走故事** —— 本函数只给**形状**（键名 ＋ **中性值**：0/''/false/[]/{}），
+	// 故事侧用 `Sg.story.pcDefaults()` 叠加它自己的数值（deep-merge 一层，键集合仍由引擎定）。
+	// 为什么：`star.charge = 12`／`keeper.state = 'post'` 是**故事 1 的数值**，写在引擎里等于故事 2/3 也带着
+	// 故事 1 的量跑（`#660` 片三-3 的边界问题）。缺面 ⇒ **显式降级**（只给形状，不报错）；面返回非对象 ⇒ **报错**（结构畸形）。
 	defaults() {
-		return {
+		const shape = {
 			// 车卡
 			name: '', round: 0, picked: [], mode: '',
 			classKey: '', classLabel: '', bgKey: '', bgLabel: '', speciesKey: '', speciesLabel: '',
@@ -149,13 +153,27 @@ window.Game.Pc = {
 			statuses: {},
 			// 世界
 			inv: {},              // 物品栏：{ 名: true }
-			star: { charge: 12, spent: 0, first_free: false },   // 星力隐藏计数（玩家不可见）；first_free：头一次翻转不收费（#219 C1②）
-			keeper: { met: false, trust: 0, state: 'post', key: false },
+			star: { charge: 0, spent: 0, first_free: false },   // 星力隐藏计数（玩家不可见）；first_free：头一次翻转不收费（#219 C1②）
+			//   ⇒ 故事 1 的**上限 12** 由 `Sg.story.pcDefaults()` 给（#660 片三-3）
+			keeper: { met: false, trust: 0, state: '', key: false },   // ⇒ `state` 的初始档（故事 1＝`post`）由故事面给
 			ev: {},               // 证据链
 			soc: { att: {}, tries: {}, read: {} },   // 交涉台账（B2）：态度偏移 / 同一手试过几次 / 读没读过这人
 			dragon: { hp: 0, defeats: 0, awake: false, venom: false },   // 轮次归 B1 动作池：$pc.ev.fight.round
 			world: {},            // 世界旗标
 		};
+		// ── 故事数值叠加（`#660` 片三-3）────────────────────────────────────────────
+		const extra = window.Sg?.story?.pcDefaults?.();
+		if (extra === undefined || extra === null) return shape;        // 缺面 ⇒ **显式降级**（只给形状）
+		if (typeof extra !== 'object' || Array.isArray(extra)) {
+			throw new Error('Sg.story.pcDefaults()：必须返回对象（结构畸形必须报错，#660 片三-3）');
+		}
+		for (const [k, v] of Object.entries(extra)) {
+			const cur = shape[k];
+			// 两边都是对象 ⇒ **一层深合并**（保住形状的其它子键：只给 `charge` 不能把 `spent`/`first_free` 抹掉）
+			if (v && typeof v === 'object' && !Array.isArray(v) && cur && typeof cur === 'object' && !Array.isArray(cur)) Object.assign(cur, v);
+			else shape[k] = Array.isArray(v) ? [...v] : v;
+		}
+		return shape;
 	},
 	has(name) { return !!State.variables.pc?.inv?.[name]; },
 	migrate(pc) {
@@ -314,7 +332,7 @@ Macro.add('dragonbar', {
 });
 
 :: StoryInit
-/% 全局状态初始化（默认形状单一源见 Game.Pc.defaults） %/
+/% 全局状态初始化（**形状**单一源见 `Game.Pc.defaults`；**数值**来自 `Sg.story.pcDefaults()`，见 `#660` 片三-3） %/
 <<set $player_name to "">>
 <<set $pc to Game.Pc.defaults()>>
 <<set $era to Game.Era.PRESENT>>

@@ -156,6 +156,9 @@ export const SEGMENTS = [
 	{ id: "test-itemmatrix-mjs", phase: 'test', cost: 5, cmd: "node test/itemmatrix.mjs" },
 	// #608：**短战斗相位门**（引擎侧 widget 的契约：四相位→分支 · 未结束不结算不推进 · 奖励/失败笔记走声明面）
 	{ id: "test-shortfight-phases-mjs", phase: 'test', cost: 3, cmd: "node test/shortfight-phases.mjs" },
+	// `#660` 片三-3：**pc 默认形状住引擎、数值走故事**（`Game.Pc.defaults()` 摘掉 `Sg.story.pcDefaults()` 后每个值都必须中性；
+	// 缺面 ⇒ 显式降级 · 畸形面 ⇒ fail-loud · `migrate()` 兜底带故事数值 · 三故事键集合一致）
+	{ id: "test-pc-defaults-mjs", phase: 'test', cost: 2, cmd: "node test/pc-defaults.mjs" },
 	// `#572`：**「选中 ⇒ 真跑」门** —— 门的 `run()` 被选中也可能静默早退（九道引擎门里七道就是这样）。
 	// 本段自证 `runSelectedGates()` ＋ 真跑默认故事，断言末行「选中 9 门 · 实跑 9 门」（修前那条汇总行不存在）。
 	{ id: "test-audit-gates-run-mjs", phase: 'test', cost: 0.3, needs: ["scripts-audit-mjs-story2-engine"], cmd: "node test/audit-gates-run.mjs" },
@@ -209,7 +212,9 @@ export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs', 'scripts-audit
 	// #607：门发现面与故事内容无关（清单/归属/顺序表）
 	'test-gate-discovery-mjs',
 	// #608：短战斗相位门判的是**引擎侧契约**（故事只是驱动）
-	'test-shortfight-phases-mjs'];
+	'test-shortfight-phases-mjs',
+	// `#660` 片三-3：pc 默认**形状**住引擎（故事只给数值）⇒ 判的是引擎侧契约
+	'test-pc-defaults-mjs'];
 
 // 段 → 层。`--<flag> --check` 形式的段从 flag 表推；其余：在 `ENGINE_EXTRA` 里 ⇒ engine，否则 story。
 // `declaredStoryFlags`＝**故事清单里声明的门 flag**（`#607` P1 起非空）：它们同样是"故事层"，

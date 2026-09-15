@@ -146,6 +146,7 @@ Object.assign((window.Sg.story ??= {}), {
 	notes: () => window.Game.Notes.entries,
 	econEvents: () => window.Game.Economy.events,   // `#660` 片三-1（本故事的事件表是空数组：引擎侧只做 id 查表）
 	hasChargen: () => false,   // `#660` 片三-2：本故事没有车卡 ⇒ 侧栏退化为最小面
+	pcDefaults: () => ({}),   // `#660` 片三-3：本故事没有专属 pc 默认数值（形状由引擎给）
 	rules: () => [],
 	checkSite: (name) => window.Game.Checks.sites[name] ?? null,
 	checkKnowledge: () => null,

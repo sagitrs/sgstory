@@ -326,7 +326,7 @@ async function routeNeutralGold() {
 	await c('回到守林人');
 	// 问花：护符＝凭据 → 友好 DC7 · 11+0 过（中性骰也问得动——凭据的意义）
 	await c('把话说圆：游说（问花）');
-	if (pc().world.flower_warned !== true) throw new Error('友好态度（护符在场）下游说（DC7）该成功');
+	if (!w.Sg.notes.has('n_flower_warned', pc())) throw new Error('友好态度（护符在场）下游说（DC7）该成功');
 	await c('收下钥匙');
 	await c('把墙上那支哨子摘下来');       // 调查 DC10 · 11+0 勉强过
 	await c('出塔，回到塔外');
@@ -546,10 +546,10 @@ async function routeTrue() {
 	await c('让守林人动手');               // 归位
 	await c('看着它走完');                 // 结局 送星归位
 	if (passageOf(w) !== '结局 送星归位') throw new Error(`金路径未达真结局（停在 ${passageOf(w)}）`);
-	if (pcOf(w).world.flower_warned !== true) throw new Error('守林人未给出花田警告（flower_warned）');
+	if (!w.Sg.notes.has('n_flower_warned', pcOf(w))) throw new Error('守林人未给出花田警告（flower_warned）');
 	if (pcOf(w).world.flower_fed !== true) throw new Error('金路径未拿到并喂下月光花（flower_fed 未置位）');
 	if (passageOf(w) !== '结局 送星归位') throw new Error(`金路径未达真结局（停在 ${passageOf(w)}）`);
-	if (pcOf(w).world.flower_warned !== true) throw new Error('守林人未给出花田警告（flower_warned）');
+	if (!w.Sg.notes.has('n_flower_warned', pcOf(w))) throw new Error('守林人未给出花田警告（flower_warned）');
 	if (pcOf(w).world.flower_fed !== true) throw new Error('金路径未拿到并喂下月光花（flower_fed 未置位）');
 	return { w, c, pc: pcOf(w) };
 }
@@ -615,7 +615,7 @@ async function routeFlowerGoblin() {
 	await c('伸手去摘最靠里的那一朵');     // → 免判定拿花
 	if (pcOf(w).inv['月光花'] !== true) throw new Error('有情报仍未拿到月光花（情报路径误走判定？）');
 	if (pcOf(w).world.flower_sleep) throw new Error('有情报却睡过去了');
-	if (pcOf(w).world.flower_warned !== true) throw new Error('哥布林未记录情报');
+	if (!w.Sg.notes.has('n_flower_warned', pcOf(w))) throw new Error('哥布林未记录情报');
 	return { w };
 }
 
@@ -773,7 +773,7 @@ async function routeSeal() {
 	await c('天文台');
 	await c('顶楼');
 	await c('下楼，打开地下那道门');
-	if (pcOf(w).ev.below_seen !== true) throw new Error('下过地下宴会厅，below_seen 没落账');
+	if (!w.Sg.notes.has('n_below_seen', pcOf(w))) throw new Error('下过地下宴会厅，below_seen 没落账');
 	await c('安静地退出去');
 	await c('先上二楼看看');
 	await c('照着守林人家那卷封印术念一遍');
@@ -1008,7 +1008,7 @@ async function routeClarityB() {
 	await play('塔外花田', '(function(){const pc=SugarCube.State.variables.pc;pc.world.goblin_spared=false;pc.world.flower_warned=false;pc.world.flower_mud=false;pc.inv={};if(pc.ev&&pc.ev.notes)delete pc.ev.notes.n_flower_warned;SugarCube.State.variables.era="present";})()');
 	if (!passageText(w).includes('眼皮跟着沉了沉')) throw new Error('#311：未警告的花田缺「靠近有危险」的征兆');
 	if (linksOf(w).some((x) => x.includes('憋住气，伸手去摘'))) throw new Error('#311：未警告时不该预先给出屏息动作');
-	await play('塔外花田', '(function(){Sg.notes.addPath("n_flower_warned","world.flower_warned");})()');
+	await play('塔外花田', '(function(){Sg.notes.add("n_flower_warned");})()');
 	if (!linksOf(w).some((x) => x.includes('憋住气，伸手去摘最靠里的那一朵'))) throw new Error('#311：已警告时选项未体现屏息');
 	// #311-B：护臂选项写出导致受伤的擦锈动作
 	await play('工坊', null);
@@ -1110,7 +1110,7 @@ async function routeInvestment() {
 	await c('推门进去');                                // 门厅
 	// G2：看钉失败 → 产出情报旗标（失败给信息）＋ 屏上留提示
 	await c('先看清钉子是怎么卡的');
-	if (pcOf(w).world.hall_hint !== true) throw new Error('#291 G2：看钉失败未产出情报旗标');
+	if (!w.Sg.notes.has('n_hall_hint', pcOf(w))) throw new Error('#291 G2：看钉失败未产出情报旗标');
 	if (!passageText(w).includes('弯钩')) throw new Error('#291 G2：失败后屏上没留情报提示');
 	// 情报接进优势通道（下一次同一手自动双骰取高，且检出行标注来源）
 	if (w.Game.Checks.knowledge['门厅·看钉'] !== 'hall_hint') throw new Error('#291 G2：情报未接入位点优势');
@@ -1119,7 +1119,7 @@ async function routeInvestment() {
 	await c('工坊');
 	await c('天文台');
 	await c('顺着注记读一读缺口边上那半幅星轨');
-	if (pcOf(w).world.ledger_hint !== true) throw new Error('#291 G2：典籍失败未产出情报旗标');
+	if (!w.Sg.notes.has('n_ledger_hint', pcOf(w))) throw new Error('#291 G2：典籍失败未产出情报旗标');
 	if (!passageText(w).includes('等分')) throw new Error('#291 G2：失败后屏上没留情报提示');
 	await c('顺着注记读一读缺口边上那半幅星轨');
 	if (!passageText(w).includes('情报')) throw new Error('#291 G2：带情报重试未标注优势来源');
@@ -1132,7 +1132,7 @@ async function routeInvestment() {
 	w.eval("SugarCube.Engine.play('老巫女')"); await waitRendered(w, '老巫女');
 	if (!linksOf(w).some((x) => x.includes('缺的那一句话'))) throw new Error('#291 G3：两侧证据齐了却问不出（门不可达）');
 	await c('缺的那一句话');
-	if (pcOf(w).ev.witch_fire_hint !== true) throw new Error('#291 G3：合龙门未产出只言片语');
+	if (!w.Sg.notes.has('n_witch_fire_hint', pcOf(w))) throw new Error('#291 G3：合龙门未产出只言片语');
 	if (!passageText(w).includes('等一个不在场的人把话说完')) throw new Error('#291 G3：只言片语没落地');
 
 	// G4：表达型选择（立场）必须被记住
@@ -1434,17 +1434,18 @@ async function routeEraBranches() {
 // P1-1 的断链与 "不老的女人" 那桌就藏在这里：段落级覆盖一直是绿的，因为它只看"段落|时代"格。
 async function routeTavernAllTables() {
 	const { w, click: c } = await newGame(0.5, 0);
+	// `#733` 片 2-b：断言改成**形式无关**（钉笔记面，不钉旗标写侧）
 	const tables = [
-		['讲守林人的那一桌', 'tav_keeper'],
-		['上了年纪的村人', 'tav_dragon'],
-		['跑生意的', 'tav_grudge'],
-		['接嘴的那个人', 'tav_ageless'],
-		['背着画板的游客——他在问月光花', 'tav_flower'],
-		['墙上那幅旧画', 'tav_painting'],
+		['讲守林人的那一桌', 'n_tav_keeper'],
+		['上了年纪的村人', 'n_tav_dragon'],
+		['跑生意的', 'n_tav_grudge'],
+		['接嘴的那个人', 'n_tav_ageless'],
+		['背着画板的游客——他在问月光花', 'n_tav_flower'],
+		['墙上那幅旧画', 'n_tav_painting'],
 	];
-	for (const [label, flag] of tables) {
+	for (const [label, id] of tables) {
 		await c(label);
-		if (pcOf(w).ev[flag] !== true) throw new Error(`点了「${label}」却没记下 ${flag}（这一桌的内容没落地？）`);
+		if (!w.Sg.notes.has(id, pcOf(w))) throw new Error(`点了「${label}」却没记下 ${id}（这一桌的内容没落地？）`);
 	}
 	const tavText = passageText(w);
 	for (const key of ['不老的女人', '怨念']) {
@@ -1452,15 +1453,15 @@ async function routeTavernAllTables() {
 	}
 	// 散布的三条（#217）：井台（灯）/ 废哨站（铁门）/ 林缘空地（封印）
 	await c('离店前，去井台打点水');
-	if (pcOf(w).ev.tav_light !== true) throw new Error('井台的灯传闻没记账（tav_light）');
+	if (!w.Sg.notes.has('n_tav_light', pcOf(w))) throw new Error('井台的灯传闻没记账（tav_light）');
 	if (!passageText(w).includes('三百年了，那灯没灭过')) throw new Error('井台的灯传闻没落地');
 	await c('推门出发，走进暮色');
 	await c('辨认木牌');
-	if (pcOf(w).ev.tav_iron !== true) throw new Error('哨站的铁门传闻没记账（tav_iron）');
+	if (!w.Sg.notes.has('n_tav_iron', pcOf(w))) throw new Error('哨站的铁门传闻没记账（tav_iron）');
 	if (!passageText(w).includes('铁门锁着')) throw new Error('哨站的铁门传闻没落地');
 	await c('退回林子');
 	await c('林缘空地有人抽烟斗');
-	if (pcOf(w).ev.tav_seal !== true) throw new Error('老猎人的封印传闻没记账（tav_seal）');
+	if (!w.Sg.notes.has('n_tav_seal', pcOf(w))) throw new Error('老猎人的封印传闻没记账（tav_seal）');
 	if (!passageText(w).includes('按在塔底下')) throw new Error('老猎人的封印传闻没落地');
 	await c('回到林子边缘');
 }
@@ -1469,7 +1470,7 @@ async function routeTavernAsk() {
 	const { w, click: c } = await newGame(0.01, 0);   // d20 恒 1：所有检定必败
 	// 酒馆：一桌一问（问过就消失）
 	await c('离店前，去井台打点水');
-	if (pcOf(w).ev.tav_light !== true) throw new Error('井台的灯传闻没记账（tav_light）');
+	if (!w.Sg.notes.has('n_tav_light', pcOf(w))) throw new Error('井台的灯传闻没记账（tav_light）');
 	await c('回酒馆');
 	// ① 游说失败 → 「这一手」的 DC 递增（2024：不许原地重掷）
 	const dcOf = (site) => w.eval(`Game.Social.dcOf(Game.Social.ask('老板娘·进塔'), '${site}', SugarCube.State.variables.pc)`);
@@ -1477,7 +1478,7 @@ async function routeTavernAsk() {
 	await c('把话说圆：游说（问路）');              // 游说 → 必败
 	const last = pcOf(w).ev.soc_last?.['老板娘·进塔'];
 	if (!last || last.kind !== 'bad') throw new Error('游说失败却没记成失败档');
-	if (pcOf(w).ev.tav_tips) throw new Error('游说失败却拿到了忠告');
+	if (w.Sg.notes.has('n_tav_tips', pcOf(w))) throw new Error('游说失败却拿到了忠告');
 	if (dcOf('酒馆·打听') !== before['酒馆·打听'] + 5) throw new Error(`游说失败后 DC 没涨（${before['酒馆·打听']} → ${dcOf('酒馆·打听')}）`);
 	if (dcOf('老板娘·吓') !== before['老板娘·吓']) throw new Error('重试代价只该压在这一手上，不该牵连别的手段');
 	// ② 换手段＝换属性：恐吓（同一句诉求走魅力另一条路），代价是「得手也记仇」
@@ -1491,7 +1492,7 @@ async function routeTavernAsk() {
 	const said = w.document.querySelector('.soc-said');
 	if (!said || !said.textContent.includes('坐下吧')) throw new Error(`请酒后屏上不是本次回复（soc-said=${(said?.textContent ?? '（无）').slice(0, 40)}）`);
 	if (!w.document.activeElement?.closest('#passages')) throw new Error('请酒后焦点不在正文区（键盘不可续）');
-	if (pcOf(w).ev.tav_tips !== true) throw new Error('请了酒还是没听到忠告');
+	if (!w.Sg.notes.has('n_tav_tips', pcOf(w))) throw new Error('请了酒还是没听到忠告');
 	if (pcOf(w).gold !== gold0 - 3) throw new Error(`请酒没扣钱（${gold0} → ${pcOf(w).gold}）`);
 	if (pcOf(w).soc.att['老板娘'] !== 0) throw new Error('筹码该把态度拉回冷淡以上（shift +1）');
 	if (!w.document.querySelector('#passages').textContent.includes('别在雾里睡觉')) throw new Error('忠告没渲染出来');
@@ -1499,10 +1500,10 @@ async function routeTavernAsk() {
 	await c('在雾里站住，听一听');                  // 察觉 DC10 → 必败 → 什么都没听清
 	// `#437` 批三 C-2b：写侧改走 `Sg.notes`（`<<note "n_forest_heard">>`）之后，**失败不再写 `false`**——
 	// 断言本意是「没记成听清」，而「试过没试过」另由 `ev.forest_listen` 记（同一次点击里写）⇒ 只看有没有记成听清。
-	if (pcOf(w).ev.forest_heard === true) throw new Error('察觉失败却记成听清了');
+	if (w.Sg.notes.has('n_forest_heard', pcOf(w))) throw new Error('察觉失败却记成听清了');
 	await c('去那间亮着灯的小屋');
 	await c('问：雾到底是什么');
-	if (pcOf(w).ev.wq_fog !== true) throw new Error('女巫小屋的提问没记账');
+	if (!w.Sg.notes.has('n_wq_fog', pcOf(w))) throw new Error('女巫小屋的提问没记账');
 	await c('谢过她，往林子深处走');
 	await c('塔门');
 	// 不采花：花田必须给"先别动它"的退路（M9：采摘是动作）
@@ -1517,14 +1518,14 @@ async function routeTavernAsk() {
 async function routeAskForIt() {
 	const { w, click: c } = await newGame(0.99, 0);
 	await c('把话说圆：游说（问路）');            // B2：游说 DC12 → 必成 → 忠告 + 雾气来向
-	if (pcOf(w).ev.tav_tips !== true || pcOf(w).ev.tav_fog !== true) throw new Error('游说成功没拿到忠告/雾气来向');
+	if (!w.Sg.notes.has('n_tav_tips', pcOf(w)) || !w.Sg.notes.has('n_tav_fog', pcOf(w))) throw new Error('游说成功没拿到忠告/雾气来向');
 	if (!w.document.querySelector('#passages').textContent.includes('雾是从塔那边来的')) throw new Error('雾气来向没渲染');
 	await c('问一句女巫小屋怎么走');
 	for (const q of ['问：你们家与那座塔有什么渊源', '问：三百年前那一夜，发生过什么', '问：这护符到底怎么用', '问：塔底下锁着的到底是什么', '问：你就这么看着，什么也不做？', '问：我一个人上去，够吗']) {
 		await c(q);
 	}
-	const wq = pcOf(w).ev;
-	if (!(wq.wq_painting && wq.wq_night && wq.wq_talisman && wq.wq_under && wq.wq_past && wq.wq_alone)) throw new Error('女巫小屋提问未全部记账');
+	const wqIds = ['n_wq_painting', 'n_wq_night', 'n_wq_talisman', 'n_wq_under', 'n_wq_past', 'n_wq_alone'];
+	if (!wqIds.every((id) => w.Sg.notes.has(id, pcOf(w)))) throw new Error('女巫小屋提问未全部记账');
 	const wqText = w.document.querySelector('#passages').textContent;
 	if (!wqText.includes('别拿那幅画比')) throw new Error('女巫小屋的"形似"回指未渲染（#168 P1-14：不再给解释）');
 	if (!wqText.includes('改不了的不是历史')) throw new Error('observation_lock 锚句（女巫小屋侧）未渲染');
@@ -1538,12 +1539,12 @@ async function routeAskForIt() {
 	await c('先上二楼看看');
 	w.eval('Math.random = () => 0.01');             // 以后所有检定必败
 	await c('伸手去摸烤炉后头的暗格');               // 有门道 → 免检（不再掷骰），直接知道暗格在哪
-	if (pcOf(w).ev.study_found !== true) throw new Error('女巫门道没免掉书房的检视（该直接知道暗格位置）');
+	if (!w.Sg.notes.has('n_study_hint', pcOf(w))) throw new Error('女巫门道没免掉书房的检视（该直接知道暗格位置）');
 	await c('把暗格里的东西取出来');                 // M10：取物是另一步
 	if (pcOf(w).inv['日记'] !== true || pcOf(w).inv['传送术卷轴'] !== true) throw new Error('暗格里的东西没拿到');
 	// 没有门道就得掷骰：这里的失败分支留在下一段
 	await c('把日记往下读');
-	if (pcOf(w).ev.observation_lock !== true) throw new Error('"往下读"没记账');
+	if (!w.Sg.notes.has('n_observation_lock', pcOf(w))) throw new Error('"往下读"没记账');
 	if (!w.document.querySelector('#passages').textContent.includes('没人看过它睡得怎么样')) throw new Error('observation_lock 锚句（书房侧）未渲染');
 	return { w };
 }
@@ -1563,7 +1564,7 @@ async function routeStudyKnock() {
 	await c('先上二楼看看');
 	const hp0 = pcOf(w).hp;
 	await c('先敲一敲炉膛后头的墙');
-	if (pcOf(w).ev.study_found !== true) throw new Error('敲墙路没找到暗格');
+	if (!w.Sg.notes.has('n_study_hint', pcOf(w))) throw new Error('敲墙路没找到暗格');
 	if (pcOf(w).hp !== hp0) throw new Error('敲墙路不该掉血（免伤路）');
 	await c('把暗格里的东西取出来');
 	if (pcOf(w).inv['日记'] !== true) throw new Error('敲墙路没拿到日记');
@@ -1586,11 +1587,11 @@ async function routeNoSaveScum() {
 	await c('顺着那条窄路走过去');
 	// 守林人：游说（魅力 8 → 必败）换"察觉"这条路
 	await c('先看清他身上那点不对劲：察觉（问花）');
-	if (pcOf(w).world.flower_warned !== true) throw new Error('察觉路没换来花田警告');
+	if (!w.Sg.notes.has('n_flower_warned', pcOf(w))) throw new Error('察觉路没换来花田警告');
 	await c('收下钥匙');
 	// 门厅：先看清钉子（感知 → 必成），不必赌调查
 	await c('先看清钉子是怎么卡的');
-	if (pcOf(w).ev.hall_seen !== true) throw new Error('察觉路没换来"钉子看清了"');
+	if (!w.Sg.notes.has('n_hall_hint', pcOf(w))) throw new Error('察觉路没换来"钉子看清了"');
 	await c('摘哨子（钉子怎么卡的，你已经看清了）');
 	if (pcOf(w).inv['坏哨'] !== true) throw new Error('看清钉子之后没拿到哨子');
 	// 花田：走"上风处"（生存 → 必成；保留原位点 ID）
@@ -1604,16 +1605,16 @@ async function routeNoSaveScum() {
 	// 书房：调查（智力 8 → 10 < 12 必败）→ #199 新纪律：带伤也拿到（伤＝代价不是空手）
 	const hpBefore = pcOf(w).hp;
 	await c('伸手去摸烤炉后头的暗格');
-	if (pcOf(w).ev.study_found !== true) throw new Error('检定失败也该带伤拿到（#199）');
+	if (!w.Sg.notes.has('n_study_hint', pcOf(w))) throw new Error('检定失败也该带伤拿到（#199）');
 	if (pcOf(w).hp !== hpBefore - 1) throw new Error('带伤路没有付出 1 点代价');
 	await c('把暗格里的东西取出来');
 	if (pcOf(w).inv['日记'] !== true) throw new Error('换路之后没拿到日记');
 	await c('工坊');
 	await c('擦开内侧的锈');        // 察觉 → 必成
-	if (pcOf(w).ev.forge_seen !== true) throw new Error('察觉路没换来护臂来历');
+	if (!w.Sg.notes.has('n_forge_seen', pcOf(w))) throw new Error('察觉路没换来护臂来历');
 	await c('天文台');
 	await c('盯住缺口里那几粒没连上的点');        // 察觉 → 必成（本条路线故意不拿那册书）
-	if (pcOf(w).ev.star_ledger !== true) throw new Error('察觉路没换来天文台的那半幅星轨');
+	if (!w.Sg.notes.has('n_star_ledger', pcOf(w))) throw new Error('察觉路没换来天文台的那半幅星轨');
 	await c('顶楼');
 	await c('下楼，打开地下那道门');
 	await c('翻转护身符：坠入');                  // 先翻到过去（位置决定年代）
@@ -1632,7 +1633,7 @@ async function routeNoSaveScum() {
 	await c('把杖拿回去还她');
 	if (pcOf(w).world.family_favor !== true) throw new Error('还杖没落 family_favor');
 	await c('先看他手里攥着什么：洞悉（看哨）');   // B2：看哨色也要自己开口                   // 洞悉 → 必成
-	if (pcOf(w).ev.witch_grip !== true) throw new Error('洞悉路没看清哨子');
+	if (!w.Sg.notes.has('n_witch_grip', pcOf(w))) throw new Error('洞悉路没看清哨子');
 	await c('开口：把她那支哨换过来（换哨）');   // B2：图与杖齐了 → willing，不掷骰
 	await c('把那支哨收好');                       // → 当时的女巫·换（哨是她的）
 	if (pcOf(w).inv['好哨'] !== true) throw new Error('好哨没换到');

@@ -396,7 +396,7 @@ const main = async () => {
 			const pc = w.SugarCube.State.variables.pc;
 			return {
 				hp: pc.hp, torch: pc.ev.cave_torch ?? 0, key: !!pc.inv['钥匙'],
-				note: pc.ev.cave_echo === true, statuses: Object.keys(pc.statuses ?? {}).length,
+				note: w.Sg.notes.has('n_cave_echo', pc), statuses: Object.keys(pc.statuses ?? {}).length,
 				sword: pc.gearHp?.['旧剑'] ?? 2,                       // 缺项＝满耐久（声明 maxHp 2）
 			};
 		};
@@ -497,7 +497,7 @@ const main = async () => {
 					inv: Object.keys(pc.inv ?? {}),
 					gearHp: Object.keys(pc.gearHp ?? {}).length,
 					statuses: Object.keys(pc.statuses ?? {}).length,
-					note: pc.ev.cave_echo === true,
+					note: w.Sg.notes.has('n_cave_echo', pc),
 					at: null, bornStep: null,
 				};
 				const wake = [...w.document.querySelectorAll('#passages a.link-internal')].find((x) => x.textContent.includes('睁眼'));

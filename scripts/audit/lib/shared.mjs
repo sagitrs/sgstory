@@ -10,7 +10,8 @@ import { maskComments } from './mask.mjs';
 // **隐含约束**：旗标键必须匹配 `[a-z_]\w*`（大写/数字开头会被静默漏检）——用 `keyCharsetViolations` 兜住。
 export const KEY_CHARSET = /^[a-z_]\w*$/;
 export const WRITE_PATTERNS = [
-	{ re: /<<setflag\s+"([a-z_]\w*)"/g, kind: 'world' },                 // 宏式写 world 域
+	{ re: /<<setflag\s+"(ev|world)\.([a-z_]\w*)"/g, kind: 'scoped' },      // `#624` 片三：`<<setflag "ev.x">>`（显式域）
+	{ re: /<<setflag\s+"([a-z_]\w*)"/g, kind: 'world' },                 // 宏式写 world 域（裸键，原语义）
 	{ re: /<<set\s+\$pc\.(ev|world)\.([a-z_]\w*)\s+to\b/g, kind: 'scoped' },
 	{ re: /\bpc\.(ev|world)\.([a-z_]\w*)\s*=[^=]/g, kind: 'scoped' },     // 赋值式（含 `= null`／对象／字符串）
 	{ re: /\bpc\.(ev|world)\[["']([a-z_]\w*)["']\]\s*=[^=]/g, kind: 'scoped' },

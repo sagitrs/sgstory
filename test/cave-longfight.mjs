@@ -67,9 +67,12 @@ console.log('══ 长战斗「点得动、走得掉」门（#598）══');
 for (const [label, random] of [['败路（random=0.5 ⇒ d20=11）', 0.5], ['胜路（random=0.99 ⇒ d20=20）', 0.99]]) {
 	const r = await runFight(random);
 	if (r.stuckAt) { bad++; console.error(`      ✗ ${label}：第 ${r.stuckAt} 击**没有进展**（屏与波次都没变）——"点了没反应"`); continue; }
+	// ⚠️ 判定顺序（`#668` dev 交叉验证的发现）：**结构性判据（死路）先判**，且下面两条**都不 `continue`**——
+	// 曾经把 `#661` 的"句不可见"判在"没离开"之前且 `continue`，于是**死路**会被遮成"句不可见"（triage 被误导）。
+	// 两类是**独立**失效方式：一起报，别让前一条吃掉后一条。
+	if (r.leftTo === '机制·longFight') { bad++; console.error(`      ✗ ${label}：点了 ${r.clicks} 次仍**没离开**长战斗 ⇒ 死路`); }
 	// `#661`：离开后**结果句必须到玩家眼前**（`runFight` 里取的是落点屏文本）
-	if (!/最后一只也塌下去了|你被压在地上/.test(r.endText ?? '')) { bad++; console.error(`      ✗ ${label}：离开后**看不到胜/败句**（\`#661\`）——屏：${String(r.endText).slice(0, 80)}`); continue; }
-	if (r.leftTo === '机制·longFight') { bad++; console.error(`      ✗ ${label}：点了 ${r.clicks} 次仍**没离开**长战斗 ⇒ 死路`); continue; }
+	if (!/最后一只也塌下去了|你被压在地上/.test(r.endText ?? '')) { bad++; console.error(`      ✗ ${label}：离开后**看不到胜/败句**（\`#661\`）——屏：${String(r.endText).slice(0, 80)}`); }
 	console.log(`      ✓ ${label}：${r.clicks} 击后离开 ⇒ ${r.leftTo}（金币 ${r.gold}）`);
 	const isWin = r.gold > 0;
 	if (label.startsWith('胜路') && !isWin) { bad++; console.error(`      ✗ ${label}：打赢了却没拿到金币（${r.gold}）——长战斗奖励没落`); }

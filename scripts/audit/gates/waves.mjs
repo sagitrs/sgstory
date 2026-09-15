@@ -2,7 +2,8 @@
 //
 // **引擎门**（判据来自声明表：`mechanics().encounters[id] = { waves:[…], rewardsScale? }`）：
 //   ① **波次推进/增援**：清完一批（`hits ≥ plan.hits`）才进下一批，且**下一批各自重置计数**；
-//      最后一批清完 ⇒ `cleared`；回合用尽而未清 ⇒ `failed`（已定 ②：短＝1 回合·1 命中；长＝3 回合·3 命中）
+//      最后一批清完 ⇒ `cleared`；回合用尽而未清 ⇒ `failed`（已定 ②：短＝1 回合·1 命中；长＝**5 回合**·3 命中
+//      —— 回合上限 `#599` 由 3 调到 5〔保留"三击"只松压力〕）
 //   ② **奖励随难度单调**：同一遭遇内 `waveRewardScale` 随批号（难度）**严格递增**
 //   ③ **重置语义 ＋ 「不清什么」清单**：`resetRun` 清 `inv`／`gearHp`／`statuses`／hp／波次状态；
 //      `RESET_KEEPS` 声明的面（`ev`／`soc`／`star`／`dragon`／`world` ＋ `Sg.notes`／`Sg.Codex`／`Sg.store`）**不受影响**
@@ -76,7 +77,7 @@ export const run = (ctx) => {
 		{
 			const s = Game.Combat.wavePlan('short'), l = Game.Combat.wavePlan('long');
 			t('① 短＝1 批·1 回合·1 命中（单次判定定胜负）', s.rounds === 1 && s.hits === 1 && s.waves.length === 1 && s.long === false, JSON.stringify(s));
-			t('① 长＝2 批·3 回合·3 命中（增援批更难）', l.rounds === 3 && l.hits === 3 && l.waves.length === 2 && l.long === true && l.waves[1].difficulty > l.waves[0].difficulty, JSON.stringify(l));
+			t('① 长＝2 批·**5 回合**·3 命中（`#599`；增援批更难）', l.rounds === 5 && l.hits === 3 && l.waves.length === 2 && l.long === true && l.waves[1].difficulty > l.waves[0].difficulty, JSON.stringify(l));
 		}
 
 		// ── ① 波次推进 / 增援（真跑引擎）──
@@ -101,8 +102,9 @@ export const run = (ctx) => {
 			const pc = PC();
 			Game.Combat.waveBegin(pc, 'long');
 			let last = null;
-			for (let i = 0; i < 3; i++) last = Game.Combat.waveRecord(pc, false);   // 3 回合全败（无命中）
-			t('① 回合用尽而本批未清 ⇒ `failed`（3 回合上限）', last.phase === 'failed' && pc.ev.fight.wave.rounds === 3 && pc.ev.fight.wave.hits === 0, JSON.stringify(last));
+			const R = Game.Combat.wavePlan('long').rounds;                          // 口径从**声明面**读，别再写死数字
+			for (let i = 0; i < R; i++) last = Game.Combat.waveRecord(pc, false);   // R 回合全败（无命中）
+			t(`① 回合用尽而本批未清 ⇒ \`failed\`（${R} 回合上限）`, last.phase === 'failed' && pc.ev.fight.wave.rounds === R && pc.ev.fight.wave.hits === 0, JSON.stringify(last));
 			const pc2 = PC();
 			Game.Combat.waveBegin(pc2, 'short');
 			const r1 = Game.Combat.waveRecord(pc2, false);
@@ -143,7 +145,8 @@ export const run = (ctx) => {
 				['反例①：未清就 advance（假增援）', good.map((x, i) => (i === 0 ? { ...x, phase: 'advance', pool: 'p2' } : x)), 1],
 				['反例②：已清却报 continue', good.map((x, i) => (i === 2 ? { ...x, phase: 'continue' } : x)), 1],
 				['反例③：增援后没换池', good.map((x, i) => (i === 2 ? { ...x, pool: 'p1' } : x)), 1],
-				['反例④：回合用尽却报 continue', [{ success: false, phase: 'continue', pool: 'p1' }, { success: false, phase: 'continue', pool: 'p1' }, { success: false, phase: 'continue', pool: 'p1' }], 1],
+				// 轨迹长度取**声明面的回合数**（`#599` 把它从 3 调到 5；写死就跟着坏）
+				['反例④：回合用尽却报 continue', Array.from({ length: plan.rounds }, () => ({ success: false, phase: 'continue', pool: 'p1' })), 1],
 			];
 			for (const [label, trace, want] of cases) {
 				const got = traceViolations({ trace, plan });

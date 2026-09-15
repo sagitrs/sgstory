@@ -58,6 +58,23 @@ export const judgeDist = (report) => {
 };
 
 /** 纯函数：实证 vs 闭式的容差判据（3σ，二项分布）。 */
+/** 纯函数（`#599`）：一批在 `rounds` 回合内拿到 **≥ hits 次成功** 的概率（二项尾和）。
+ *  为什么要有它：`#599` 把长战斗回合上限从 3 调到 5 之后，"每批必须全成功"（`p^hits`）**不再是模型**——
+ *  现在允许 5 回合里失败 2 次。闭式必须跟着口径走，否则"实证 vs 闭式"这条判据会拿旧模型判新口径（假红）。
+ *  边界：`hits === rounds` ⇒ 退化成 `p^hits`（旧口径）；`hits <= 0` ⇒ 1；`hits > rounds` ⇒ 0。 */
+export const closedFormClearRate = ({ p, hits, rounds }) => {
+	if (!(rounds >= 1) || !(p >= 0)) return 0;
+	if (hits <= 0) return 1;
+	if (hits > rounds) return 0;
+	let tail = 0;                                  // P(X < hits)，X ~ B(rounds, p)
+	let c = 1;                                     // C(rounds, k)
+	for (let k = 0; k < hits; k++) {
+		if (k > 0) c = c * (rounds - k + 1) / k;
+		tail += c * p ** k * (1 - p) ** (rounds - k);
+	}
+	return Math.min(1, Math.max(0, 1 - tail));
+};
+
 export const within3Sigma = ({ empirical, expected, n }) => {
 	const sigma = Math.sqrt(Math.max(1e-12, expected * (1 - expected) / n));
 	return Math.abs(empirical - expected) <= 3 * sigma;
@@ -70,6 +87,8 @@ export const simLong = ({ Game, pcMake, mech, id, seed, runs = 4000, poolOf }) =
 	Game.Rules.rng.set(asSugarRandom(rng));
 	const roundsHist = {}, lossRunDist = {};
 	let cleared = 0, roundsSum = 0, hurtSum = 0, maxLossRun = 0, lossRun = 0, deaths = 0;
+	// `#599`：**分批**统计每轮成功率 p̂（`resolvePlayer` 真的会把优势/动作池算进去 ⇒ 理论 DC 闭式只是近似）
+	const batch = [{ ok: 0, n: 0 }, { ok: 0, n: 0 }];
 	for (let i = 0; i < runs; i++) {
 		const pc = pcMake();
 		Game.Combat.waveBegin(pc, id);
@@ -80,6 +99,7 @@ export const simLong = ({ Game, pcMake, mech, id, seed, runs = 4000, poolOf }) =
 			const act = pool[Math.floor(rng() * pool.length)];
 			pc.ev.fight.act = act;
 			const r = Game.Combat.resolvePlayer(pc, null, false);
+			batch[wv.idx - 1].n += 1; if (r.check?.success) batch[wv.idx - 1].ok += 1;
 			pc.hp = Math.max(0, pc.hp - (r.hurt ?? 0));          // present（`<<damage>>`）的口径：hurt 在此落 HP
 			hurtSum += r.hurt ?? 0;
 			rounds += 1;
@@ -94,7 +114,7 @@ export const simLong = ({ Game, pcMake, mech, id, seed, runs = 4000, poolOf }) =
 		roundsHist[rounds] = (roundsHist[rounds] ?? 0) + 1;
 	}
 	Game.Rules.rng.reset();
-	return { runs, rate: cleared / runs, roundsMean: roundsSum / runs, hurtMean: hurtSum / runs, deaths, roundsHist, lossRunDist, maxLossRun, seeds: [seed] };
+	return { runs, rate: cleared / runs, roundsMean: roundsSum / runs, hurtMean: hurtSum / runs, deaths, roundsHist, lossRunDist, maxLossRun, seeds: [seed], pHat: batch.map((b) => (b.n ? b.ok / b.n : 0)), batchN: batch.map((b) => b.n) };
 };
 
 export const run = (ctx) => {
@@ -114,6 +134,10 @@ export const run = (ctx) => {
 			['🔴 反例：没报多种子 ⇒ 报（复算口径不明）', judgeDist({ runs: 4000, rate: 0.3, roundsMean: 4, hurtMean: 2, roundsHist: { 3: 1 }, lossRunDist: { 1: 1 }, maxLossRun: 3, seeds: [1] }).length === 1],
 			['闭式：DC12／mod0／无优 ⇒ 9/20（自然 1 必败、20 必成）', Math.abs(closedFormHitRate({ dc: 12, mod: 0 }) - 9 / 20) < 1e-9],
 			['闭式：优势 ≥ 普通（同 DC 同 mod）', closedFormHitRate({ dc: 12, mod: 0, adv: 1 }) >= closedFormHitRate({ dc: 12, mod: 0 })],
+			// `#599`：闭式随口径走（≥hits 次 / rounds 回合）
+			['闭式（#599）：`hits === rounds` ⇒ 退化成 `p^hits`（旧口径等价）', Math.abs(closedFormClearRate({ p: 0.6, hits: 3, rounds: 3 }) - 0.6 ** 3) < 1e-12],
+			['闭式（#599）：放宽回合数 ⇒ 清完率**单调升**（`3/3` < `3/5`）', closedFormClearRate({ p: 0.6, hits: 3, rounds: 5 }) > closedFormClearRate({ p: 0.6, hits: 3, rounds: 3 })],
+			['闭式（#599）：边界 `hits > rounds` ⇒ 0；`hits <= 0` ⇒ 1', closedFormClearRate({ p: 0.6, hits: 4, rounds: 3 }) === 0 && closedFormClearRate({ p: 0.6, hits: 0, rounds: 3 }) === 1],
 			['3σ 判据：实证＝闭式 ⇒ 过；偏 0.1 ⇒ 不过', within3Sigma({ empirical: 0.45, expected: 0.45, n: 4000 }) === true && within3Sigma({ empirical: 0.55, expected: 0.45, n: 4000 }) === false],
 		];
 		let selfBad = 0;
@@ -171,11 +195,19 @@ export const run = (ctx) => {
 			const pShort = closedFormHitRate({ dc: (story.checkSite?.('洞窟·围斗') ?? {}).dc ?? 13, mod: 0 });
 			const plan = Game.Combat.wavePlan('long');
 			const pPerBatch = [1, 2].map((i) => closedFormHitRate({ dc: (story.checkSite?.((poolOf(plan.waves[i - 1].pool)[0] && story.combatAction?.(poolOf(plan.waves[i - 1].pool)[0])?.site) ?? '洞窟·围斗') ?? {}).dc ?? 13, mod: 0 }));
-			const closedClear = (pShort ** plan.hits) * (Math.min(...pPerBatch) ** plan.hits);
-			const modelOk = within3Sigma({ empirical: clearRate, expected: closedClear, n: RUNS * SEEDS.length });
-			console.log(`  ${modelOk ? '✓' : '✗'} 长战斗·口径复算：声明 plan（${plan.waves.length} 批 × 每批 ${plan.hits} 次成功 / 上限 ${plan.rounds} 回合）⇒ 每批必须**全成功** ⇒ 闭式清完率 ≈ ${(closedClear * 100).toFixed(2)}% vs 实证 ${(clearRate * 100).toFixed(2)}%（3σ 内${modelOk ? '' : '**超**'}）`);
+			// `#599`：口径已定 ② 的**普遍形**（`rounds` 回合内 ≥ `hits` 次成功），不再是"每批全成功"
+			const closedClear = closedFormClearRate({ p: pShort, hits: plan.hits, rounds: plan.rounds })
+				* closedFormClearRate({ p: Math.min(...pPerBatch), hits: plan.hits, rounds: plan.rounds });
+			// **判据**用**实证每轮成功率** p̂ 喂组合式：这样查的是"≥hits 次成功 / rounds 回合、两批相乘"的**组合层**对不对
+			// （`#599` 改口径时，旧模型"每批全成功"正是被它抓住的）；理论 DC 闭式只作参考 —— 它忽略优势/动作池，判它会假红。
+			const pHat = runs.map((r) => r.pHat ?? [0, 0]);
+			const pHatMean = [0, 1].map((i) => pHat.reduce((a, x) => a + x[i], 0) / pHat.length);
+			const closedHat = closedFormClearRate({ p: pHatMean[0], hits: plan.hits, rounds: plan.rounds })
+				* closedFormClearRate({ p: pHatMean[1], hits: plan.hits, rounds: plan.rounds });
+			const modelOk = within3Sigma({ empirical: clearRate, expected: closedHat, n: RUNS * SEEDS.length });
+			console.log(`  ${modelOk ? '✓' : '✗'} 长战斗·口径复算：声明 plan（${plan.waves.length} 批 × 每批 ${plan.hits} 次成功 / 上限 ${plan.rounds} 回合）⇒ 每批需 ≥${plan.hits} 次成功（${plan.rounds} 回合内）⇒ 用**实证 p̂**（批次 ${pHatMean.map((x) => (x * 100).toFixed(1) + '%').join(' / ')}）喂组合式 ≈ ${(closedHat * 100).toFixed(2)}% vs 实证清完率 ${(clearRate * 100).toFixed(2)}%（3σ 内${modelOk ? '' : '**超**'}）· 参考：理论 DC 闭式 ≈ ${(closedClear * 100).toFixed(2)}%（忽略优势/动作池 ⇒ 不判）`);
 			if (!modelOk) bad += 1;
-			if (clearRate < 0.05) console.log(`      · ⚠ **平衡观察**（不是门红）：长战斗清完率 ${(clearRate * 100).toFixed(2)}%——由已定 ②「${plan.rounds} 回合上限 ＋ ${plan.hits} 次成功」直接推出（每批必须全成功），若要"打得过"须改这两项之一（本门只报口径，不设阈值）。`);
+			if (clearRate < 0.05) console.log(`      · ⚠ **平衡观察**（不是门红）：长战斗清完率 ${(clearRate * 100).toFixed(2)}%——由已定 ②「${plan.rounds} 回合上限 ＋ ${plan.hits} 次成功」直接推出；若要"更打得过"须改这两项之一（本门只报口径，不设阈值）。`);
 			console.log(`  ${distBad.length ? '✗' : '✓'} 长战斗：清完率 ${(clearRate * 100).toFixed(2)}% · 期望回合 ${roundsMean.toFixed(2)} · 受伤期望 ${hurtMean.toFixed(2)}／局 · **全灭率 ${(deaths * 100).toFixed(2)}%** · 最大连败 ${maxLossRun}（${SEEDS.length} 种子 × ${RUNS} 局）`);
 			console.log(`      · 回合数分布：${Object.entries(hist).sort((a, b) => a[0] - b[0]).map(([k, v]) => `${k}回合 ${(100 * v / (RUNS * SEEDS.length)).toFixed(1)}%`).join(' · ')}`);
 			console.log(`      · 连败分布：${Object.entries(runDist).sort((a, b) => a[0] - b[0]).slice(0, 8).map(([k, v]) => `≥${k} 连败 ${v} 次`).join(' · ')}（**期望值看不见的那一面**）`);

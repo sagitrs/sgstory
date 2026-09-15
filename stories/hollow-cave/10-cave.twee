@@ -22,30 +22,9 @@
 	<</if>>
 <</nobr>><</widget>>
 
-/% 短战斗（S3 已定②：**单次对抗判定**定胜负）——**机制只有这一处**，文案由调用方给：
-   `<<shortFight "位点" "按钮文案" "胜句" "败句" "遭遇 id" "战利品句">>`
+/% 短战斗（S3 已定②）：**机制已上移引擎**（`#608` ⇒ `src/engine/50-present/12-shortfight.twee` 的 `<<shortFight>>`）。
+   本故事只给**实参**（位点／按钮／胜句／败句／遭遇 id／战利品句）＋**尾段**（第 7 实参＝结算后执行的**段落名**，本故事＝`机制·shortFight·尾`）。
    为什么要参数化（`#490` 已定 ⑥）：**旅人交涉谈崩也要走同一套短战斗**——机制不复制，只换文案与位点。 %/
-<<widget "shortFight">><<nobr>>
-	<<set _enc to $args[4] ?? "short">>
-	<<run Game.Combat.waveBegin($pc, _enc)>>
-	<<link $args[1]>>
-		<<sitecheck $args[0]>>
-		<<set _phase to Game.Combat.waveRecord($pc, $last_check.success)>>
-		<<if $last_check.success>>
-			<<print $args[2]>>
-			/% `#600`：奖励（金币 ＋ 掉落）走**声明面**的单一落点 —— 内容不再自己读 `reward.gold`、也不自己掷骰 %/
-			<<set _r to Game.Combat.grantReward($pc, _enc)>>
-			<<if _r.gold gt 0>><<if $args[5]>><<print $args[5]>><</if>><</if>>
-			<<if _r.item>><<give _r.item>><</if>>
-		<<else>>
-			<<print $args[3]>>
-			<<damage `Game.Damage.hurt`>>
-			/% 带伤失败也要有"结果"（`--sitedisc` 判据）：这一下换来的是对它的了解（笔记写点） %/
-			<<note "n_cave_battered">>
-		<</if>>
-		<<caveNext>>
-	<</link>>
-<</nobr>><</widget>>
 
 :: 醒来
 /% payload: 信息 %/
@@ -91,7 +70,13 @@
 /% payload: 张力 %/
 石壁后面窜出来一只东西，没有眼睛，壳是湿的。它先动的。
 
-<<shortFight "洞窟·挥剑" "迎面劈过去" "刃压住了它。它退进石缝里，没再出来。" "它撞在你肋上。" "short" "（它退开的地方，散着几枚旧币。）">>
+<<shortFight "洞窟·挥剑" "迎面劈过去" "刃压住了它。它退进石缝里，没再出来。" "它撞在你肋上。" "short" "（它退开的地方，散着几枚旧币。）" "机制·shortFight·尾">>
+
+:: 机制·shortFight·尾
+/% payload: 信息 %/
+/% 短战斗**结算后**的故事侧动作（`#608`：引擎只 `<<include>>` 这一段，不知道「下一步」是什么）。
+   本段**无正文**——载荷标注按"推进流程/状态"归 `信息`（D5 门要求内容段必须有标注）。 %/
+<<caveNext>>
 
 :: 机制·longFight
 /% payload: 张力 %/
@@ -262,7 +247,7 @@
 	/% 敌对——或**交涉谈崩**（已定 ⑥：交涉失败 ⇒ 旅人转敌对 ⇒ 走短战斗）；两条路共用**同一套**短战斗机制 %/
 	他站了起来，手里的东西不像工具。你没有别的路可绕。
 
-	<<shortFight "洞窟·挥剑" "迎面劈过去" "他退了。你没有追。" "他比你快。" "short" "（他退开时，火堆边留下了几枚旧币。）">>
+	<<shortFight "洞窟·挥剑" "迎面劈过去" "他退了。你没有追。" "他比你快。" "short" "（他退开时，火堆边留下了几枚旧币。）" "机制·shortFight·尾">>
 	<<link "把火把压低，慢慢退开">>
 		他没有跟上来。你绕开了那片火光。
 		<<caveNext>>

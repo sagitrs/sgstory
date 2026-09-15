@@ -583,6 +583,15 @@ Object.assign((window.Game.Combat ??= {}), {
 		}
 		return { gold, item };
 	},
+	/** 遭遇的**失败笔记**（`#608`）：声明面 `encounters[id].failNote`（内容面数据），未声明 ⇒ `null`。
+	 *  与 `encounterReward` 同族：**机制住引擎、数据住故事**——短战斗 widget 落败时按它写笔记。 */
+	encounterFailNote(id) {
+		const enc = this.slotsDecl()?.encounters?.[id];
+		const n = enc?.failNote;
+		if (n == null) return null;
+		if (typeof n !== 'string' || !n) throw new Error(`Game.Combat.encounterFailNote：encounters.${id}.failNote 必须是非空字符串（拿到 ${JSON.stringify(n)}）——结构畸形必须报错（#608）`);
+		return n;
+	},
 	/** 结算一次遭遇奖励：落金币 ＋ 按 `chance` 掷掉落（写 `pc.inv`）。**返回本次真的给了什么**（文案按返回值渲染）。
 	 *  · `rng` 可注入（测试用）；默认走 `Game.Rules.rng.d(100)`（受 `?seed=` 影响 ⇒ 可复算）。
 	 *  · 幂等：道具是 `pc.inv[id] = true`（重复给不报错，与 `<<give>>` 同口径）；金币按次累加。

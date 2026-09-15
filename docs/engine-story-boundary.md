@@ -140,6 +140,16 @@ mechanics: () => ({
 而 `--a11y` 会断言产物新鲜度、旧 `dist` 会让它失败并把**全跑**打断，表现为"27 个开关不符"的假象。）
 `--engine-only` 的语义与顺序不变；搬走的门改由**它所属的故事**选中（点名别的故事的门 ⇒ 明确报错）。
 
+### 短战斗：机制住引擎、文案与实参住故事（`#608`）
+
+| 面 | 落点／契约 |
+|---|---|
+| **机制** | `src/engine/50-present/12-shortfight.twee` 的 `<<shortFight>>`（从 `stories/hollow-cave/10-cave.twee` 上移） |
+| **实参（7）** | ①位点 ②按钮文案 ③胜句 ④败句 ⑤遭遇 id ⑥战利品句 **⑦尾段**（结算后要执行的**故事侧 wiki 片段**，例 `<<caveNext>>`；引擎只在同一次点击的缓冲里跑它，不知道「下一步」是什么；缺省空串＝不执行） |
+| **相位口径** | 分支**只看** `Game.Combat.waveRecord().phase`（`continue`/`advance`/`cleared`/`failed`）：未结束 ⇒ **不结算、不推进**、重渲染本段；`cleared` ⇒ 胜句＋`grantReward`；`failed` ⇒ 败句＋伤＋**声明面的失败笔记**。⚠️ 不许拿 `$last_check.success` 代替相位——它只说"这一击中了" |
+| **声明面** | 奖励 `encounters[*].reward`（`#600`）· **失败笔记 `encounters[*].failNote`**（`#608`，引擎访问器 `Game.Combat.encounterFailNote`） |
+| **门** | `test/shortfight-phases.mjs`（四相位各归其位 · 未结束不结算不推进 · 改声明 ⇒ 行为跟着变）；反例探针：把 widget 改回 `success` 分支 ⇒ 当场红（`#598` 同族的形状） |
+
 ## 3. 兼容模式（**必须显式降级**，`#492`）
 
 - 故事**未**声明新机制 ⇒ `mechanics()` 返回 **`null`**（故事 1 v1 就是这样，注释里写明理由）；

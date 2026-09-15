@@ -80,7 +80,10 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 		mechanismTools: { 锁扣: '撬棍', 机关针: '手套', 石块: '铁撬' },
 	};
 
-	const Economy = { prices: { 干粮: 3 }, events: [] };
+	// 价格表（金本位；**单价只在声明面**，内容里读它 ⇒ 调价不用碰散文）。
+	// `#696`／操作者裁定（2026-09-15）：**金币要有出口** ⇒ 旅人里随机出现商人，卖的都是**洞里真有用**的东西：
+	// 三件降难家什（宝箱机关互斥 ⇒ 各降 3 点）＋ 干粮（便宜、可重复买）＋ 火把油（把耐久补满 ⇒ 火把是本故事的核心资源）。
+	const Economy = { prices: { 干粮: 3, 撬棍: 6, 手套: 6, 铁撬: 6, 火把油: 4 }, events: [] };
 	const Gear = { defs: {} };
 	const Social = { asks: [] };
 	const Truth = { claims: [] };

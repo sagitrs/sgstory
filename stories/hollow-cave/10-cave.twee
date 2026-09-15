@@ -277,6 +277,11 @@
 	/% 态度在**进入这一段时抽定**（玩法规格：50% 敌对／50% 中立）并落进状态 ⇒ 回退/读档不会重抽 %/
 	<<set $pc.ev.cave_att to (Game.Rules.rng.d(100) lte 50 ? "foe" : "neutral")>>
 <</if>>
+<<if not $pc.ev.cave_trade>>
+	/% `#696`（操作者裁定：金币要有出口）：中立旅人里**一半是商人**（摆摊卖洞里有用的东西）。
+	   与态度同纪律：**进入这一段时抽定并落进状态** ⇒ 回退/读档不会重抽。 %/
+	<<set $pc.ev.cave_trade to (Game.Rules.rng.d(2) is 1 ? "merchant" : "plain")>>
+<</if>>
 
 <<if $pc.ev.cave_att is "foe">>
 	/% 敌对——或**交涉谈崩**（已定 ⑥：交涉失败 ⇒ 旅人转敌对 ⇒ 走短战斗）；两条路共用**同一套**短战斗机制 %/
@@ -287,6 +292,36 @@
 		他没有跟上来。你绕开了那片火光。
 		<<caveNext>>
 	<</link>>
+<<elseif $pc.ev.cave_trade is "merchant">>
+	/% 商人（`#696`）：摊开一块布，货按**价格表**报价；一次点击买一件，可以接着买，走不走自己定。
+	   买不起的行**不显示**（与下面"一口价"同一口径：不给"点了才知道买不起"的挫败）。 %/
+	他往旁边挪了挪，给你腾出一块地方，然后把一块布摊开——上面摆着几样东西。
+	"你看得上什么，拿金子换。"他不看你，只看火。
+
+	<<for _g to 0; _g lt ["撬棍", "手套", "铁撬", "干粮"].length; _g++>>
+		<<set _name to ["撬棍", "手套", "铁撬", "干粮"][_g]>>
+		<<set _p to Game.Economy.prices[_name]>>
+		<<if $pc.gold gte _p and not $pc.inv[_name]>>
+			<<capture _name _p>><<link `"买" + _name + "（" + _p + " 金币）"`>>
+				<<set $pc.gold to $pc.gold - _p>>
+				<<give _name>>
+				你把金币推过去。他数了一遍，把<<= _name>>递过来。
+				<<goto `passage()`>>
+			<</link>><</capture>>
+			<br>
+		<</if>>
+	<</for>>
+	<<set _oil to Game.Economy.prices["火把油"]>>
+	<<if $pc.gold gte _oil and ($pc.gearHp["火把"] ?? 2) lt 2>>
+		<<capture _oil>><<link `"给火把添油（" + _oil + " 金币）"`>>
+			<<set $pc.gold to $pc.gold - _oil>>
+			<<set $pc.gearHp["火把"] to 2>>
+			他倒了小半壶油进去，火苗立刻长了一截。
+			<<goto `passage()`>>
+		<</link>><</capture>>
+		<br>
+	<</if>>
+	<<link "谢过他，继续走">><<caveNext>><</link>>
 <<else>>
 	他往旁边挪了挪，给你腾出一块地方。火堆边放着一块干粮。
 

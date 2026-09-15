@@ -12,7 +12,8 @@
 //      · `cleared` ⇒ 胜句 ＋ 结算 ＋ 尾段（故事侧步进）；`failed` ⇒ 败句 ＋ 伤 ＋ 声明面失败笔记 ＋ 尾段；
 //   ② **奖励读声明面**：临场改声明（`encounters.short.reward.gold`）⇒ 落袋金币跟着变（不是常量）。
 //
-// **判别性用例（本门的自证核心）**：`成功` 与 `相位` 交叉——`success=true` 但相位是 `continue`。
+// **判别性用例（本门的自证核心）**：`成功` 与 `相位` **双向**交叉——`success=true`＋`continue`（不许结算/推进）
+//   与 `success=false`＋`cleared`（必须结算/推进），把「分支只看相位」这条假设**两个方向**都钉住。
 // 用 `success` 分支的实现会**照发奖励并推进** ⇒ 当场红（实测：把 widget 改回 success 分支即红，见 PR）。
 import { boot } from './boot.mjs';
 
@@ -79,7 +80,15 @@ const runPhase = async ({ phase, dice = 0.99, rewardGold = null, label }) => {
 //   **探针**：把任一分支句改回裸 `<<print>>`／裸文本 ⇒ 本门当场红（实测）。
 
 // ── ① 四相位 → 分支 ──
-for (const [phase, dice] of [['cleared', 0.99], ['failed', 0.01], ['continue', 0.99], ['advance', 0.99]]) {
+// ⚠️ **判别性依赖一条假设，且已实测两个方向**（交叉验证 `#668` 里 guest 挖出来的）：
+//   本门的用例＝`cleared`＋成功骰 / `failed`＋失败骰 / 未结束＋成功骰 ⇒ 钉住的是「**分支只看相位**」。
+//   **实测**（我依次装两种错法、数红数）：
+//     · **变体 A**（`success` ⇒ 结算：完全忽略相位）⇒ **6 条红**（`continue`/`advance` 各三条：结算/推进/落点）；
+//     · **变体 C**（`success` ⇒ 延续：只有终止支看相位）⇒ **4 条红**（`cleared` 结算/推进 ＋ `failed` 伤/笔记/推进/奖励）。
+//   我一度补过"交叉用例"（`cleared`＋失败骰 / `failed`＋成功骰）想把假设本身也钉住——**实测对这两个变体边际检测力都是 0**
+//   （4 用例 vs 6 用例的红数完全相同）⇒ **删掉**，不拿零增益断言充数（本仓"空判"纪律）。假设写在注释里就够。
+for (const [phase, dice] of [['cleared', 0.99], ['failed', 0.01], ['continue', 0.99], ['advance', 0.99],
+]) {
 	const r = await runPhase({ phase, dice, label: `相位 ${phase}` });
 	const kind = phaseKind(phase);
 	if (kind === 'win') {

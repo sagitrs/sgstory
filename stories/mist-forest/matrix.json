@@ -1,6 +1,6 @@
 {
 	"slug": "mist-forest",
-	"note": "矩阵门（`#640` · 伞 `#626`）的**判据数据** —— 场景 × 道具/线索集合 → 期望。数据住故事侧、门形状住引擎侧（`test/itemmatrix.mjs`），沿用 `#602`/`#607` 的落点纪律。口径：**行键＝该行的完整谓词上下文**（不是一个原子）；期望一律用**渲染后 + 行为面**口径（`#629` 的三条发现）。`delta` 的 `null`＝**键不存在**（`delete` 形态，即「消耗」）。",
+	"note": "矩阵门（`#640` · 伞 `#626`）的**判据数据** —— 场景 × 道具/线索集合 → 期望。数据住故事侧、门形状住引擎侧（`test/itemmatrix.mjs`），沿用 `#602`/`#607` 的落点纪律。口径：**行键＝该行的完整谓词上下文**（不是一个原子）；期望一律用**渲染后 + 行为面**口径（`#629` 的三条发现）。`delta` 的 `null`＝**键不存在**（`delete` 形态，即「消耗」）。 **行的前置态必须复位\"两个面\"**：`pc.ev.notes.<id>`（已授予记录）与 `pc.ev.<flag>`（旗标）——`Sg.notes.has()` 是 OR（`#434`），只清一面会因执行顺序不同而漂移。",
 	"promised": [
 		"inv:传送术卷轴",
 		"inv:完整星图",
@@ -8,7 +8,10 @@
 		"inv:日记",
 		"inv:观星者的书",
 		"note:n_observation_lock",
-		"note:n_below_seen"
+		"note:n_below_seen",
+		"note:n_failure_cause",
+		"note:n_witch_fire_hint",
+		"note:n_old_witch"
 	],
 	"rows": [
 		{
@@ -343,10 +346,10 @@
 			"patches": {
 				"era": "present",
 				"pc.inv.日记": null,
-				"pc.ev.notes": {
-					"n_observation_lock": null,
-					"n_below_seen": null
-				}
+				"pc.ev.notes.n_observation_lock": null,
+				"pc.ev.notes.n_below_seen": null,
+				"pc.ev.observation_lock": null,
+				"pc.ev.below_seen": null
 			},
 			"covers": [
 				{
@@ -379,10 +382,10 @@
 			"patches": {
 				"era": "present",
 				"pc.inv.日记": true,
-				"pc.ev.notes": {
-					"n_observation_lock": null,
-					"n_below_seen": null
-				}
+				"pc.ev.notes.n_observation_lock": null,
+				"pc.ev.notes.n_below_seen": null,
+				"pc.ev.observation_lock": null,
+				"pc.ev.below_seen": null
 			},
 			"covers": [
 				{
@@ -415,10 +418,10 @@
 			"patches": {
 				"era": "present",
 				"pc.inv.日记": true,
-				"pc.ev.notes": {
-					"n_observation_lock": true,
-					"n_below_seen": null
-				}
+				"pc.ev.notes.n_observation_lock": true,
+				"pc.ev.notes.n_below_seen": null,
+				"pc.ev.observation_lock": true,
+				"pc.ev.below_seen": null
 			},
 			"covers": [
 				{
@@ -452,10 +455,10 @@
 				"era": "present",
 				"pc.inv.日记": true,
 				"pc.world.scroll_delivered": false,
-				"pc.ev.notes": {
-					"n_observation_lock": true,
-					"n_below_seen": true
-				}
+				"pc.ev.notes.n_observation_lock": true,
+				"pc.ev.notes.n_below_seen": true,
+				"pc.ev.observation_lock": true,
+				"pc.ev.below_seen": true
 			},
 			"covers": [
 				{
@@ -471,6 +474,190 @@
 				{
 					"kind": "text",
 					"value": "你继续往下读"
+				}
+			]
+		},
+		{
+			"id": "老巫女·有失败因＋有跨代证据（问句在）",
+			"passage": "老巫女",
+			"patches": {
+				"era": "past",
+				"pc.ev.seer_asked": true,
+				"pc.ev.coord": false,
+				"pc.ev.notes.n_failure_cause": true,
+				"pc.ev.notes.n_witch_fire_hint": null,
+				"pc.ev.failure_cause": true,
+				"pc.ev.witch_fire_hint": null
+			},
+			"covers": [
+				{
+					"atom": "note:n_failure_cause",
+					"polarity": "true"
+				},
+				{
+					"atom": "note:n_witch_fire_hint",
+					"polarity": "false"
+				}
+			],
+			"expects": [
+				{
+					"kind": "choice",
+					"value": "缺的那一句话，是谁没说完"
+				},
+				{
+					"kind": "noText",
+					"value": "缺的不是咒"
+				}
+			]
+		},
+		{
+			"id": "老巫女·有失败因但无跨代证据（问句不在）",
+			"passage": "老巫女",
+			"patches": {
+				"era": "past",
+				"pc.ev.seer_asked": false,
+				"pc.ev.coord": false,
+				"pc.ev.notes.n_failure_cause": true,
+				"pc.ev.notes.n_witch_fire_hint": null,
+				"pc.ev.failure_cause": true,
+				"pc.ev.witch_fire_hint": null
+			},
+			"covers": [
+				{
+					"atom": "note:n_failure_cause",
+					"polarity": "true"
+				}
+			],
+			"expects": [
+				{
+					"kind": "noChoice",
+					"value": "缺的那一句话，是谁没说完"
+				}
+			]
+		},
+		{
+			"id": "老巫女·无失败因但坐标已齐（问句不在）",
+			"passage": "老巫女",
+			"patches": {
+				"era": "past",
+				"pc.ev.seer_asked": false,
+				"pc.ev.coord": true,
+				"pc.ev.notes.n_failure_cause": null,
+				"pc.ev.notes.n_witch_fire_hint": null,
+				"pc.ev.failure_cause": null,
+				"pc.ev.witch_fire_hint": null
+			},
+			"covers": [
+				{
+					"atom": "note:n_failure_cause",
+					"polarity": "false"
+				}
+			],
+			"expects": [
+				{
+					"kind": "noChoice",
+					"value": "缺的那一句话，是谁没说完"
+				}
+			]
+		},
+		{
+			"id": "老巫女·已问过（提示已到手）",
+			"passage": "老巫女",
+			"patches": {
+				"era": "past",
+				"pc.ev.seer_asked": true,
+				"pc.ev.coord": false,
+				"pc.ev.notes.n_failure_cause": true,
+				"pc.ev.notes.n_witch_fire_hint": true,
+				"pc.ev.failure_cause": true,
+				"pc.ev.witch_fire_hint": true
+			},
+			"covers": [
+				{
+					"atom": "note:n_witch_fire_hint",
+					"polarity": "true"
+				}
+			],
+			"expects": [
+				{
+					"kind": "text",
+					"value": "缺的不是咒"
+				},
+				{
+					"kind": "text",
+					"value": "是等一个不在场的人把话说完"
+				}
+			]
+		},
+		{
+			"id": "归位·无火中提示、无旧巫女（小雪句）",
+			"passage": "归位",
+			"patches": {
+				"era": "present",
+				"pc.world.flower_fed": true,
+				"pc.ev.notes.n_witch_fire_hint": null,
+				"pc.ev.notes.n_old_witch": null,
+				"pc.ev.witch_fire_hint": null,
+				"pc.ev.old_witch": null
+			},
+			"covers": [
+				{
+					"atom": "note:n_witch_fire_hint",
+					"polarity": "false"
+				},
+				{
+					"atom": "note:n_old_witch",
+					"polarity": "false"
+				}
+			],
+			"expects": [
+				{
+					"kind": "text",
+					"value": "银屑落地，像一场很小的雪"
+				},
+				{
+					"kind": "noText",
+					"value": "厅角那位老人那句话"
+				},
+				{
+					"kind": "noText",
+					"value": "银屑里浮起几点很淡的光"
+				}
+			]
+		},
+		{
+			"id": "归位·有火中提示＋有旧巫女（两处变体都在）",
+			"passage": "归位",
+			"patches": {
+				"era": "present",
+				"pc.world.flower_fed": true,
+				"pc.ev.notes.n_witch_fire_hint": true,
+				"pc.ev.notes.n_old_witch": true,
+				"pc.ev.witch_fire_hint": true,
+				"pc.ev.old_witch": true
+			},
+			"covers": [
+				{
+					"atom": "note:n_witch_fire_hint",
+					"polarity": "true"
+				},
+				{
+					"atom": "note:n_old_witch",
+					"polarity": "true"
+				}
+			],
+			"expects": [
+				{
+					"kind": "text",
+					"value": "厅角那位老人那句话"
+				},
+				{
+					"kind": "text",
+					"value": "银屑里浮起几点很淡的光"
+				},
+				{
+					"kind": "noText",
+					"value": "像一场很小的雪"
 				}
 			]
 		}

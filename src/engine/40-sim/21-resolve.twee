@@ -135,9 +135,17 @@ Object.assign((window.Game.Combat ??= {}), {
 // 而 `<<socresolve>>` 要**在自己的分支里**调它（筹码那一支）⇒ 想让社交回合能在 node 里驱动，
 // 就得把「落帐」抽成 sim 函数；文案格式抽成 `note()`（**单一源**，否则两处各写一份必漂）。
 Object.assign((window.Game.Economy ??= {}), {
+	// `#660` 片三-1：**事件表只经接入契约取**（`Sg.story.econEvents()`）——引擎不再直读故事的 `events` 成员。
+	// 为什么：`events` 是**故事数据**（每个故事一张事件表），引擎直读它＝边界破了（成员档门会咬，见 `--engine-story-free`）。
+	// 结构缺失 **fail-loud**（故事没注册 ⇒ 报错），不静默当空表——`<<econ>>` 静默不生效是最难查的那类故障。
+	econEvents() {
+		const f = window.Sg?.story?.econEvents;
+		if (typeof f !== 'function') throw new Error('Game.Economy：故事未注册 `Sg.story.econEvents()`（接入契约；结构缺失必须报错，#660）');
+		return f() ?? {};
+	},
 	// sim：算价 → 落金币 → 落 gives。返回 `{ delta }`（供 present 渲染文案）
 	apply(pc, id) {
-		const ev = this.events[id];
+		const ev = this.econEvents()[id];
 		const d = this.priceOf(id, pc);
 		pc.gold = pc.gold + d;
 		if (ev?.gives) {

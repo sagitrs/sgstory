@@ -144,6 +144,7 @@ Object.assign(((window.Game.Consequences ??= { provenance: {}, engine: {} }).eng
 });
 Object.assign((window.Sg.story ??= {}), {
 	notes: () => window.Game.Notes.entries,
+	econEvents: () => window.Game.Economy.events,   // `#660` 片三-1（本故事的事件表是空数组：引擎侧只做 id 查表）
 	rules: () => [],
 	checkSite: (name) => window.Game.Checks.sites[name] ?? null,
 	checkKnowledge: () => null,

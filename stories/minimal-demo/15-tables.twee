@@ -44,6 +44,7 @@ Object.assign(((window.Game.Consequences ??= { provenance: {}, engine: {} }).eng
 window.Sg ??= {};
 Object.assign((window.Sg.story ??= {}), {
 	notes: () => ({}),                 // 笔记表：本故事无笔记 ⇒ 空表（合法）
+	econEvents: () => window.Game.Economy.events,   // `#660` 片三-1（空表：本故事没有经济事件）
 	rules: () => [],                   // 条件表：空表（合法）
 	mechanics: () => null,             // 新机制声明表：未启用 ⇒ `null`（调用方必须跳过，不许当空表）
 	checkSite: () => null,             // 位点表

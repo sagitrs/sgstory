@@ -23,7 +23,11 @@ Object.assign((window.Game.Checks ??= {}), {
 		}
 		if (!adv) {
 			const kn = window.Sg.story.checkKnowledge(site);
-			if (kn && pc.world?.[kn.flag]) { adv = 'adv'; why = '情报·' + kn.why; }
+			// `#733` 片 2-b 接缝：故事若一并给出「**是否持有**」（`kn.held`，笔记面判定）⇒ 以它为准；
+			// 未给出时回落旧读法（读裸旗标 `pc.world[kn.flag]`）——翻面（单源停写旗标）之后，
+			// 只靠回落就会**丢掉这条情报优势**（实测 `#291 G2：带情报重试未标注优势来源`）。
+			const held = kn ? (typeof kn.held === 'boolean' ? kn.held : !!pc.world?.[kn.flag]) : false;
+			if (held) { adv = 'adv'; why = '情报·' + kn.why; }
 		}
 		if (!adv && s.dis) { adv = 'dis'; why2 = s.disWhy ?? '这一手本来就悬'; }
 		const opt = {

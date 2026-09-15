@@ -1,6 +1,6 @@
 {
 	"slug": "mist-forest",
-	"note": "矩阵门（`#640` · 伞 `#626`）的**判据数据** —— 场景 × 道具/线索集合 → 期望。数据住故事侧、门形状住引擎侧（`test/itemmatrix.mjs`），沿用 `#602`/`#607` 的落点纪律。口径：**行键＝该行的完整谓词上下文**（不是一个原子）；期望一律用**渲染后 + 行为面**口径（`#629` 的三条发现）。`delta` 的 `null`＝**键不存在**（`delete` 形态，即「消耗」）。 **行的前置态必须复位\"两个面\"**：`pc.ev.notes.<id>`（已授予记录）与 `pc.ev.<flag>`（旗标）——`Sg.notes.has()` 是 OR（`#434`），只清一面会因执行顺序不同而漂移。",
+	"note": "矩阵门（`#640` · 伞 `#626`）的**判据数据** —— 场景 × 道具/线索集合 → 期望。数据住故事侧、门形状住引擎侧（`test/itemmatrix.mjs`），沿用 `#602`/`#607` 的落点纪律。口径：**行键＝该行的完整谓词上下文**（不是一个原子）；期望一律用**渲染后 + 行为面**口径（`#629` 的三条发现）。`delta` 的 `null`＝**键不存在**（`delete` 形态，即「消耗」）。 **行的前置态必须复位\"两个面\"**：`pc.ev.notes.<id>`（已授予记录）与 `pc.ev.<flag>`（旗标）——`Sg.notes.has()` 是 OR（`#434`），只清一面会因执行顺序不同而漂移。 D 批（`#640`）：`女巫小屋` 的七个 `[data-heard=\"wq_*\"]` 折叠块用**结构面**判据（`domCount`）——比散文稳；`塔外花田` 的判定点在**点击之后**（落点＋消耗）。 注：`n_wq_seen` 的旗标被段落自身的 `<<firstTime \"wq_seen\">>` 写入 ⇒ 该行站点的\"假侧\"在原渲染里**恒真**；行以**首访/复查可观测差异**（首访文本＋护符赠送 vs 复查文本）区分两侧——这是\"站点的极性 ≠ 单原子极性\"的又一个实例（`#629` 的发现①）。",
 	"promised": [
 		"inv:传送术卷轴",
 		"inv:完整星图",
@@ -11,7 +11,17 @@
 		"note:n_below_seen",
 		"note:n_failure_cause",
 		"note:n_witch_fire_hint",
-		"note:n_old_witch"
+		"note:n_old_witch",
+		"note:n_wq_seen",
+		"note:n_wq_painting",
+		"note:n_wq_night",
+		"note:n_wq_fog",
+		"note:n_wq_talisman",
+		"note:n_wq_under",
+		"note:n_wq_past",
+		"note:n_wq_alone",
+		"note:n_flower_warned",
+		"note:n_forest_heard"
 	],
 	"rows": [
 		{
@@ -44,7 +54,9 @@
 				{
 					"kind": "text",
 					"value": "缺完整星图"
-				},
+				}
+			],
+			"expectsAfter": [
 				{
 					"kind": "lands",
 					"value": "顶楼"
@@ -81,7 +93,9 @@
 				{
 					"kind": "noText",
 					"value": "缺传送术卷轴"
-				},
+				}
+			],
+			"expectsAfter": [
 				{
 					"kind": "lands",
 					"value": "顶楼"
@@ -118,7 +132,9 @@
 				{
 					"kind": "noText",
 					"value": "缺完整星图"
-				},
+				}
+			],
+			"expectsAfter": [
 				{
 					"kind": "lands",
 					"value": "顶楼"
@@ -151,7 +167,9 @@
 				{
 					"kind": "noText",
 					"value": "缺"
-				},
+				}
+			],
+			"expectsAfter": [
 				{
 					"kind": "lands",
 					"value": "交付"
@@ -188,7 +206,9 @@
 					"kind": "delta",
 					"path": "pc.world.flower_fed",
 					"value": true
-				},
+				}
+			],
+			"expectsAfter": [
 				{
 					"kind": "lands",
 					"value": "宴会·过去"
@@ -229,7 +249,9 @@
 					"kind": "delta",
 					"path": "pc.world.flower_fed",
 					"value": false
-				},
+				}
+			],
+			"expectsAfter": [
 				{
 					"kind": "lands",
 					"value": "宴会·过去"
@@ -658,6 +680,363 @@
 				{
 					"kind": "noText",
 					"value": "像一场很小的雪"
+				}
+			]
+		},
+		{
+			"id": "女巫小屋·首访（无首访文本＋折叠区空）",
+			"passage": "女巫小屋",
+			"patches": {
+				"era": "present",
+				"pc.ev.notes.n_wq_seen": null,
+				"pc.ev.wq_seen": null,
+				"pc.ev.notes.n_wq_painting": null,
+				"pc.ev.wq_painting": null,
+				"pc.ev.notes.n_wq_night": null,
+				"pc.ev.wq_night": null,
+				"pc.ev.notes.n_wq_fog": null,
+				"pc.ev.wq_fog": null,
+				"pc.ev.notes.n_wq_talisman": null,
+				"pc.ev.wq_talisman": null,
+				"pc.ev.notes.n_wq_under": null,
+				"pc.ev.wq_under": null,
+				"pc.ev.notes.n_wq_past": null,
+				"pc.ev.wq_past": null,
+				"pc.ev.notes.n_wq_alone": null,
+				"pc.ev.wq_alone": null
+			},
+			"covers": [
+				{
+					"atom": "note:n_wq_seen",
+					"polarity": "false"
+				},
+				{
+					"atom": "note:n_wq_painting",
+					"polarity": "false"
+				},
+				{
+					"atom": "note:n_wq_night",
+					"polarity": "false"
+				},
+				{
+					"atom": "note:n_wq_fog",
+					"polarity": "false"
+				},
+				{
+					"atom": "note:n_wq_talisman",
+					"polarity": "false"
+				},
+				{
+					"atom": "note:n_wq_under",
+					"polarity": "false"
+				},
+				{
+					"atom": "note:n_wq_past",
+					"polarity": "false"
+				},
+				{
+					"atom": "note:n_wq_alone",
+					"polarity": "false"
+				}
+			],
+			"expects": [
+				{
+					"kind": "text",
+					"value": "你还没开口，她先点了下头"
+				},
+				{
+					"kind": "delta",
+					"path": "pc.inv[\"时光护符\"]",
+					"value": true
+				},
+				{
+					"kind": "domCount",
+					"selector": "[data-heard]",
+					"value": 0
+				},
+				{
+					"kind": "domCount",
+					"selector": "[data-heard=\"wq_painting\"]",
+					"value": 0
+				},
+				{
+					"kind": "domCount",
+					"selector": "[data-heard=\"wq_night\"]",
+					"value": 0
+				},
+				{
+					"kind": "domCount",
+					"selector": "[data-heard=\"wq_fog\"]",
+					"value": 0
+				},
+				{
+					"kind": "domCount",
+					"selector": "[data-heard=\"wq_talisman\"]",
+					"value": 0
+				},
+				{
+					"kind": "domCount",
+					"selector": "[data-heard=\"wq_under\"]",
+					"value": 0
+				},
+				{
+					"kind": "domCount",
+					"selector": "[data-heard=\"wq_past\"]",
+					"value": 0
+				},
+				{
+					"kind": "domCount",
+					"selector": "[data-heard=\"wq_alone\"]",
+					"value": 0
+				}
+			]
+		},
+		{
+			"id": "女巫小屋·复查（七条折叠块都在）",
+			"passage": "女巫小屋",
+			"patches": {
+				"era": "present",
+				"pc.ev.notes.n_wq_seen": true,
+				"pc.ev.wq_seen": true,
+				"pc.ev.notes.n_wq_painting": true,
+				"pc.ev.wq_painting": true,
+				"pc.ev.notes.n_wq_night": true,
+				"pc.ev.wq_night": true,
+				"pc.ev.notes.n_wq_fog": true,
+				"pc.ev.wq_fog": true,
+				"pc.ev.notes.n_wq_talisman": true,
+				"pc.ev.wq_talisman": true,
+				"pc.ev.notes.n_wq_under": true,
+				"pc.ev.wq_under": true,
+				"pc.ev.notes.n_wq_past": true,
+				"pc.ev.wq_past": true,
+				"pc.ev.notes.n_wq_alone": true,
+				"pc.ev.wq_alone": true
+			},
+			"covers": [
+				{
+					"atom": "note:n_wq_seen",
+					"polarity": "true"
+				},
+				{
+					"atom": "note:n_wq_painting",
+					"polarity": "true"
+				},
+				{
+					"atom": "note:n_wq_night",
+					"polarity": "true"
+				},
+				{
+					"atom": "note:n_wq_fog",
+					"polarity": "true"
+				},
+				{
+					"atom": "note:n_wq_talisman",
+					"polarity": "true"
+				},
+				{
+					"atom": "note:n_wq_under",
+					"polarity": "true"
+				},
+				{
+					"atom": "note:n_wq_past",
+					"polarity": "true"
+				},
+				{
+					"atom": "note:n_wq_alone",
+					"polarity": "true"
+				}
+			],
+			"expects": [
+				{
+					"kind": "noText",
+					"value": "你还没开口，她先点了下头"
+				},
+				{
+					"kind": "text",
+					"value": "她搅着炉子上的药"
+				},
+				{
+					"kind": "domCount",
+					"selector": "[data-heard]",
+					"value": 7
+				},
+				{
+					"kind": "domCount",
+					"selector": "[data-heard=\"wq_painting\"]",
+					"value": 1
+				},
+				{
+					"kind": "domCount",
+					"selector": "[data-heard=\"wq_night\"]",
+					"value": 1
+				},
+				{
+					"kind": "domCount",
+					"selector": "[data-heard=\"wq_fog\"]",
+					"value": 1
+				},
+				{
+					"kind": "domCount",
+					"selector": "[data-heard=\"wq_talisman\"]",
+					"value": 1
+				},
+				{
+					"kind": "domCount",
+					"selector": "[data-heard=\"wq_under\"]",
+					"value": 1
+				},
+				{
+					"kind": "domCount",
+					"selector": "[data-heard=\"wq_past\"]",
+					"value": 1
+				},
+				{
+					"kind": "domCount",
+					"selector": "[data-heard=\"wq_alone\"]",
+					"value": 1
+				}
+			]
+		},
+		{
+			"id": "森林边缘·没听出什么",
+			"passage": "森林边缘",
+			"patches": {
+				"era": "present",
+				"pc.ev.forest_listen": true,
+				"pc.ev.notes.n_forest_heard": null,
+				"pc.ev.forest_heard": null
+			},
+			"covers": [
+				{
+					"atom": "note:n_forest_heard",
+					"polarity": "false"
+				}
+			],
+			"expects": [
+				{
+					"kind": "text",
+					"value": "你只听清了自己的心跳"
+				},
+				{
+					"kind": "noText",
+					"value": "雾里浮起一点灯火"
+				}
+			]
+		},
+		{
+			"id": "森林边缘·听出灯火与金币",
+			"passage": "森林边缘",
+			"patches": {
+				"era": "present",
+				"pc.ev.forest_listen": true,
+				"pc.ev.notes.n_forest_heard": true,
+				"pc.ev.forest_heard": true
+			},
+			"covers": [
+				{
+					"atom": "note:n_forest_heard",
+					"polarity": "true"
+				}
+			],
+			"expects": [
+				{
+					"kind": "text",
+					"value": "雾里浮起一点灯火"
+				},
+				{
+					"kind": "noText",
+					"value": "你只听清了自己的心跳"
+				}
+			]
+		},
+		{
+			"id": "塔外花田·未被告警（硬挨花香）",
+			"passage": "塔外花田",
+			"patches": {
+				"era": "present",
+				"pc.world.flower_taken": null,
+				"pc.ev.notes.n_flower_warned": null,
+				"pc.world.flower_warned": null
+			},
+			"covers": [
+				{
+					"atom": "note:n_flower_warned",
+					"polarity": "false"
+				}
+			],
+			"click": {
+				"label": "伸手去摘最靠里的那一朵"
+			},
+			"expects": [
+				{
+					"kind": "noChoice",
+					"value": "憋住气，伸手去摘最靠里的那一朵"
+				}
+			],
+			"random": 0.99,
+			"expectsAfter": [
+				{
+					"kind": "text",
+					"value": "花香先到了"
+				},
+				{
+					"kind": "noText",
+					"value": "你憋住气，把最靠里的那一朵连根带土捧起来"
+				},
+				{
+					"kind": "delta",
+					"path": "pc.inv[\"月光花\"]",
+					"value": true
+				},
+				{
+					"kind": "lands",
+					"value": "塔外花田"
+				}
+			]
+		},
+		{
+			"id": "塔外花田·已被告警（憋住气直接摘）",
+			"passage": "塔外花田",
+			"patches": {
+				"era": "present",
+				"pc.world.flower_taken": null,
+				"pc.ev.notes.n_flower_warned": true,
+				"pc.world.flower_warned": true
+			},
+			"covers": [
+				{
+					"atom": "note:n_flower_warned",
+					"polarity": "true"
+				}
+			],
+			"click": {
+				"label": "伸手去摘最靠里的那一朵"
+			},
+			"expects": [
+				{
+					"kind": "choice",
+					"value": "憋住气，伸手去摘最靠里的那一朵"
+				}
+			],
+			"random": 0.99,
+			"expectsAfter": [
+				{
+					"kind": "text",
+					"value": "你憋住气，把最靠里的那一朵连根带土捧起来"
+				},
+				{
+					"kind": "noText",
+					"value": "花香先到了"
+				},
+				{
+					"kind": "delta",
+					"path": "pc.inv[\"月光花\"]",
+					"value": true
+				},
+				{
+					"kind": "lands",
+					"value": "塔外花田"
 				}
 			]
 		}

@@ -7,6 +7,9 @@
 // **三条判据（`#629` 实测的三条口径，本门强制执行）**：
 //   ① **行键＝谓词上下文**：每行的期望声明在该行**完整谓词**下（不是"某个原子为真"）——`<<if A and B>>` 下只满足 A 时，
 //      行为**不等于**"A 为真的期望"（实测：交付链接仍在、落点仍是本段）；
+//   · 行隔离：每行开始前**恢复车卡后的基线状态**（`restore()`）⇒ 行与行互不污染、与执行顺序无关；
+//   · 两相位：`expects`＝渲染后·点击前；`expectsAfter`＝点击后（有 `click` 的行**必须**在 `expectsAfter` 里给 `lands`）；
+//   · 判据面：`text`/`noText`（散文）· `choice`/`noChoice`（可点项）· `lands`（落点）· `delta`（状态）· `domCount`（**结构**：选择器命中数）；
 //   · 数据口径：`patches` 里 `null`＝**删键**（道具不在行囊里＝键不存在），与 `delta` 期望的 `null` 对称；
 //     行可另给 `random`（数字）＝该行渲染前的 `Math.random` 档位（把 `<<sitecheck>>` 的成败侧稳定构造出来）；
 //   ② **期望用渲染后 + 行为面口径**：`缺''完整星图''` 在屏上是 `<em>` 斜体（`textContent` **不含引号**）；
@@ -39,6 +42,12 @@ export const judgeExpectations = (evidence, expects = []) => {
 			case 'lands': if (String(evidence?.landed ?? '') !== e.value) problems.push(`点击后应落到「${e.value}」，实得「${evidence?.landed ?? '（没点到链接）'}」`); break;
 			// `null` 期望＝「键不存在**或**为 null」——twee 的 `<<run delete ...>>` 是**删键**（实测：消耗后读到 undefined），
 			// 用 JSON 写不出 undefined，故以 `null` 表达"消耗/清空"这一形态（`#640` 实测踩到）
+			// `domCount`：**结构面**判据（选择器命中数）——比文本稳（折叠块/条目带 `data-*` 锚点，`#629` 的口径）
+			case 'domCount': {
+				const got = evidence?.domCounts?.[e.selector];
+				if (got !== e.value) problems.push(`选择器「${e.selector}」命中 ${got ?? '（未采集）'}，应为 ${e.value}`);
+				break;
+			}
 			case 'delta': {
 				const got = delta[e.path];
 				const ok = e.value === null ? (got === undefined || got === null) : JSON.stringify(got) === JSON.stringify(e.value);
@@ -79,6 +88,11 @@ export const judgeMatrixShape = (data, { slug = '?' } = {}) => {
 		if (!r.id || !r.passage || !r.patches || !Array.isArray(r.expects) || !r.expects.length) problems.push(`行「${r.id ?? '?'}」缺字段（需要 id/passage/patches/expects）`);
 		if (!Array.isArray(r.covers) || !r.covers.length) problems.push(`行「${r.id ?? '?'}」缺 \`covers\`（这行覆盖了哪个原子的哪一侧）`);
 		if (r.click && !r.click.label) problems.push(`行「${r.id ?? '?'}」的 \`click\` 缺 \`label\``);
+		if (r.click && !(r.expectsAfter ?? []).some((e) => e.kind === 'lands')) problems.push(`行「${r.id ?? '?'}」点了链接却没有 \`expectsAfter\` 里的 \`lands\`——**点击的后果必须被断言**（落点是最稳的一条）`);
+		// 实测踩过的坑：把骰面档位写进 `patches`（那是**行级**字段）⇒ 门读不到、骰面仍是中性而"看起来配好了"
+		if (r.patches && Object.prototype.hasOwnProperty.call(r.patches, 'random')) {
+			problems.push(`行「${r.id ?? '?'}」把 \`random\` 写进了 \`patches\`——它是**行级**字段（\`{"random": 0.99, "patches": {...}}\`）`);
+		}
 	}
 	return problems;
 };
@@ -100,6 +114,9 @@ export const selftest = () => {
 	t('`delta` 的 `null` 语义：键不存在 ⇒ 命中（**消耗**＝`delete` 的形态）', judgeExpectations({ text: '', choices: [], delta: { 'pc.inv.X': undefined } }, [{ kind: 'delta', path: 'pc.inv.X', value: null }]).length === 0);
 	t('`delta` 的 `null` 语义反例：键还在（值 true）⇒ 必须报', judgeExpectations({ text: '', choices: [], delta: { 'pc.inv.X': true } }, [{ kind: 'delta', path: 'pc.inv.X', value: null }]).length === 1);
 	t('反例：未知期望类型 ⇒ 报（不许静默跳过）', judgeExpectations(ev, [{ kind: 'magic' }]).some((p) => p.includes('未知')));
+	t('结构面：`domCount` 命中 ⇒ 0 问题', judgeExpectations({ domCounts: { '[data-heard="wq_night"]': 1 } }, [{ kind: 'domCount', selector: '[data-heard="wq_night"]', value: 1 }]).length === 0);
+	t('结构面反例：`domCount` 不符 ⇒ 报（点名选择器与实得）', judgeExpectations({ domCounts: { '[data-heard]': 2 } }, [{ kind: 'domCount', selector: '[data-heard]', value: 0 }])[0].includes('[data-heard]'));
+	t('结构面反例：未采集 ⇒ 报（不许当成 0）', judgeExpectations({}, [{ kind: 'domCount', selector: '[x]', value: 0 }]).some((p) => p.includes('未采集')));
 	const known = new Set(['inv:A', 'inv:B']);
 	t('ratchet 正例：两侧齐全 ⇒ 0 问题', checkPromised({ promised: ['inv:A'], knownAtoms: known, rows: [{ id: 'r1', covers: [{ atom: 'inv:A', polarity: 'true' }] }, { id: 'r2', covers: [{ atom: 'inv:A', polarity: 'false' }] }] }).length === 0);
 	t('ratchet 反例：缺一侧 ⇒ 报', checkPromised({ promised: ['inv:A'], knownAtoms: known, rows: [{ id: 'r1', covers: [{ atom: 'inv:A', polarity: 'true' }] }] }).some((p) => p.includes('缺**假**侧')));
@@ -107,6 +124,8 @@ export const selftest = () => {
 	t('ratchet 反例：极性非法 ⇒ 报', checkPromised({ promised: ['inv:A'], knownAtoms: known, rows: [{ id: 'r1', covers: [{ atom: 'inv:A', polarity: 'maybe' }] }] }).some((p) => p.includes('不合法')));
 	t('承诺腐烂：内容里已抽不到该原子 ⇒ 报', checkPromised({ promised: ['inv:A'], knownAtoms: new Set(), rows: [{ id: 'r1', covers: [{ atom: 'inv:A', polarity: 'true' }, { atom: 'inv:A', polarity: 'false' }] }] }).some((p) => p.includes('承诺腐烂')));
 	t('形状：缺 `promised`/`rows`/行字段 ⇒ 逐条报', judgeMatrixShape({ slug: 's', rows: [{ id: 'r' }] }).length >= 3);
+	t('形状反例：有 `click` 却没有 `expectsAfter.lands` ⇒ 报（点击后果必须断言）', judgeMatrixShape({ slug: 's', promised: ['x'], rows: [{ id: 'r', passage: 'p', patches: {}, covers: [{ atom: 'x', polarity: 'true' }], expects: [{ kind: 'text', value: 'x' }], click: { label: 'a' } }] }).some((p) => p.includes('lands')));
+	t('形状反例：`random` 误写进 `patches` ⇒ 报（实测踩过：门读不到、骰面仍是中性）', judgeMatrixShape({ slug: 's', promised: ['x'], rows: [{ id: 'r', passage: 'p', patches: { random: 0.99 }, covers: [{ atom: 'x', polarity: 'true' }], expects: [{ kind: 'text', value: 'x' }] }] }).some((p) => p.includes('行级')));
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项——矩阵门判据没有咬合力（#640）`); process.exit(1); }
 	console.log('\n✔ 自证通过：期望六类（text/noText/choice/noChoice/lands/delta，含未知类型必报）＋ ratchet（两侧/未承诺/非法极性/承诺腐烂）＋ 形状');
 };
@@ -133,9 +152,13 @@ const inject = (w, patches) => w.eval(`(function(){const v=SugarCube.State.varia
 const snap = (w, row) => {
 	const text = (w.document.querySelector('#passages')?.textContent ?? '').replace(/\s+/g, ' ').trim();
 	const choices = [...w.document.querySelectorAll(`${LINKS}, #passages .choice-card a`)].map((a) => (a.textContent ?? '').trim());
-	const delta = {};
-	for (const e of row.expects ?? []) if (e.kind === 'delta') delta[e.path] = w.eval(`(function(){const v=SugarCube.State.variables;return v.${e.path};})()`);
-	return { text, choices, delta };
+	const delta = {}, domCounts = {};
+	// 两个相位的期望一起采集（`expects` ＋ `expectsAfter`）：否则点击后才成立的 delta/domCount 会因**未采集**被判错
+	for (const e of [...(row.expects ?? []), ...(row.expectsAfter ?? [])]) {
+		if (e.kind === 'delta') delta[e.path] = w.eval(`(function(){const v=SugarCube.State.variables;return v.${e.path};})()`);
+		if (e.kind === 'domCount') domCounts[e.selector] = w.document.querySelectorAll(e.selector).length;
+	}
+	return { text, choices, delta, domCounts };
 };
 
 console.log('══ 矩阵门（场景 × 道具/线索集合 → 期望）══  `#640` · 伞 `#626`');
@@ -151,25 +174,45 @@ for (const slug of slugs) {
 	console.log(`  · 故事「${slug}」：行 ${data.rows.length} · 承诺原子 ${data.promised.length}（覆盖检查${coverage.length ? ' **未过**' : '通过'}）`);
 	const { w, close } = await boot({ story: slug, random: () => 0.5 });
 	try {
+		// 车卡（与真机/游走器同一引导路径）——**抓一份基线**，每行开始前恢复：
+		// 行与行之间曾互相污染（实测：前 19 行把角色弄死 ⇒ 后面行的检定侧判定不可用）⇒ 行必须**从零构造**。
+		{
+			const byLabel = (t) => [...w.document.querySelectorAll(`${LINKS}, #passages .choice-card a`)].find((x) => (x.textContent ?? '').trim() === t);
+			for (const label of ['踏上旅途', '快速成型', '出发，前往歪脖子鸭酒馆']) {
+				const a = byLabel(label);
+				if (!a) throw new Error(`引导失败：找不到「${label}」`);
+				a.click(); await sleep(200);
+			}
+		}
+		const BASE = w.eval('JSON.stringify(SugarCube.State.variables)');
+		const restore = () => w.eval(`(function(){const V=SugarCube.State.variables,B=${BASE};for(const k of Object.keys(V))delete V[k];Object.assign(V,B);return 1})()`);
 		for (const row of data.rows) {
+			restore();
 			// 行可指定骰面档位（`<<sitecheck>>`/检定类分支要靠它把某一侧**稳定**构造出来）
+			// `row.random`＝**概率档**（0..1）：只 stub `Math.random`——引擎默认的 `Game.Rules.rng` 实现就是
+			// `(lo,hi) => floor(rand*(hi-lo+1))+lo`（取 `Math.random`）。⚠️ **不要**用 `Game.Rules.rng.set(()=>p)`：
+			// 那个注入面要求**返回整数**（"node 侧先 `rng.set((lo,hi)=>k)` 再驱动"），塞概率会把骰面写成 0.99
+			// ⇒ 检定恒败（`total 3.99`）——实测踩过，写在这里防再造。
 			if (typeof row.random === 'number') w.eval(`Math.random = () => ${row.random}`);
+
 			inject(w, row.patches);
 			w.SugarCube.Engine.play(row.passage);
 			await sleep(220);
+			// **两个相位**：`expects` 判「渲染后、点击前」；`expectsAfter` 判「点击后」（`lands`/后果/消耗都在这里）
 			const ev = snap(w, row);
+			let after = null;
 			if (row.click?.label) {
 				const link = [...w.document.querySelectorAll(`${LINKS}, #passages .choice-card a`)].find((a) => (a.textContent ?? '').includes(row.click.label));
 				if (!link) { bad++; console.error(`  ✗ ${row.id}：找不到要点的链接「${row.click.label}」（现有：${ev.choices.join('｜') || '无'}）`); continue; }
 				link.click(); await sleep(220);
-				ev.landed = String(w.SugarCube.State.passage ?? '');
-				// 落点判定要在点击后重取 delta（点击可能改状态）
-				for (const e of row.expects ?? []) if (e.kind === 'delta') ev.delta[e.path] = w.eval(`(function(){const v=SugarCube.State.variables;return v.${e.path};})()`);
+				// **点击后重取整个快照**（结果文本/选项/结构都会变）——实测踩到：只刷 delta 会让"点击产生的结果"判不到
+				after = snap(w, row);
+				after.landed = String(w.SugarCube.State.passage ?? '');
 			}
-			const problems = judgeExpectations(ev, row.expects);
+			const problems = judgeExpectations(ev, row.expects).concat(judgeExpectations(after ?? ev, row.expectsAfter ?? []));
 			rowsRun++;
 			if (problems.length) { bad += problems.length; console.error(`  ✗ ${row.id}：${problems.join('；')}`); }
-			else console.log(`      ✓ ${row.id}（落点「${ev.landed ?? '—'}」）`);
+			else console.log(`      ✓ ${row.id}（落点「${after?.landed ?? '—'}」）`);
 		}
 	} finally { try { close?.(); } catch { /* 关窗失败不影响结论 */ } }
 }

@@ -188,6 +188,10 @@ window.Game.Pc = {
 				else for (const j of Object.keys(d[k])) if (pc[k][j] === undefined) pc[k][j] = d[k][j];
 			}
 		}
+		// `#437` C-2c-2：旧档的知识面**写一次迁移**（旗标 ⇒ `ev.notes` 真存储）。
+		// 放在最后、幂等：新档没有旗标可迁（返回 0），旧档每次载入都会补齐（补完即 0）。
+		// 结构缺失（故事未注册笔记表）时 `Sg.notes` 自己 fail-loud ⇒ 这里不吞错。
+		window.Sg?.notes?.migrateLegacy?.(pc);
 		return pc;
 	},
 };

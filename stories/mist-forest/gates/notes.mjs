@@ -157,6 +157,27 @@ export const singleReadProblems = ({ entries = {}, sources = {}, baseline = {} }
 	return problems;
 };
 
+/** **单源笔记不得走 `<<notepath>>`／`addPath()`**（`#733` 片 2）：单源笔记的 `flagPath` 只是"历史来源"（供旧档迁移），
+ *  真存储是 `ev.notes` ⇒ 再写那条旗标就是**没人读的影子状态**（读侧 C-2c-2/C-2c-3 已收干净）。
+ *  与 `notepathProblems()` 的"多源必须显式声明"**正好互补**：一个管"多源别偷懒"，一个管"单源别多写"。
+ *  ⚠️ 本判据**先落地**（此时 `add()` 仍在双写旗标 ⇒ 行为不变）；等断言面形式无关后，再翻面停写（片 2-b）。 */
+export const singleWriteProblems = ({ entries = {}, sources = {} } = {}) => {
+	const problems = [];
+	const multi = (id) => Array.isArray(entries?.[id]?.flagPath);
+	for (const [f, src] of Object.entries(sources)) {
+		const text = String(src ?? '').replace(/\/%[\s\S]*?%\//g, '');
+		for (const m of text.matchAll(/<<\s*notepath\s+['"](n_[a-z0-9_]+)['"]\s+['"](?:ev|world)\.[a-z0-9_]+['"]/g)) {
+			if (multi(m[1])) continue;
+			problems.push({ id: m[1], where: f, detail: `**单源**笔记走了 \`<<notepath>>\`（写那条旗标已无读者）⇒ 应改用 \`<<note "${m[1]}">>\`（issue #733 片 2）` });
+		}
+		for (const m of text.matchAll(/Sg\.notes\.addPath\(\s*['"](n_[a-z0-9_]+)['"]/g)) {
+			if (multi(m[1])) continue;
+			problems.push({ id: m[1], where: f, detail: `**单源**笔记走了 \`addPath()\` ⇒ 应改用 \`Sg.notes.add('${m[1]}')\`（issue #733 片 2）` });
+		}
+	}
+	return problems;
+};
+
 export const run = (ctx) => {
 	console.log('\n══ ⓪w 笔记模型门（伞 #422）——形状/对齐 · 接入契约 · 消费可数 ══');
 	const domains = ctx.Game.State?.domains ?? [];
@@ -246,6 +267,20 @@ export const run = (ctx) => {
 			if (!ok) bad++;
 			console.log(`      ${ok ? '✓' : '✗'} 自证·${label}：检出 ${got}（期望 ${want}）`);
 		}
+		// `#733` 片 2：单源笔记不得走 notepath／addPath（与"多源必须显式"互补）
+		const sing = { n_one: { flagPath: 'ev.one' } };
+		const mul = { n_two: { flagPath: ['world.a', 'ev.b'] } };
+		const swp = [
+			['单源写·🔴 单源用 `<<notepath>>` ⇒ 报', singleWriteProblems({ entries: sing, sources: { 'a.twee': '<<notepath "n_one" "ev.one">>' } }).length, 1],
+			['单源写·✅ 单源用 `<<note>>` ⇒ 不报', singleWriteProblems({ entries: sing, sources: { 'a.twee': '<<note "n_one">>' } }).length, 0],
+			['单源写·🔴 单源用 `addPath()` ⇒ 报', singleWriteProblems({ entries: sing, sources: { 'a.twee': "Sg.notes.addPath('n_one', 'ev.one')" } }).length, 1],
+			['单源写·边界：**多源**用 `<<notepath>>`／`addPath()` ⇒ 不报（那是必须的）', singleWriteProblems({ entries: mul, sources: { 'a.twee': '<<notepath "n_two" "ev.b">>' } }).length, 0],
+		];
+		for (const [label, got, want] of swp) {
+			const ok = got === want;
+			if (!ok) bad++;
+			console.log(`      ${ok ? '✓' : '✗'} 自证·${label}：检出 ${got}（期望 ${want}）`);
+		}
 		for (const [label, got, want] of npc) {
 			const ok = got === want;
 			if (!ok) bad++;
@@ -263,6 +298,7 @@ export const run = (ctx) => {
 	const shape = auditShape(entries, domainKeys);
 	const cons = auditConsumption(entries, reads, bk, allText);
 	const nps = notepathProblems({ entries, sources });   // `#437` C-2b′：`<<notepath>>` 的 path/多源判据
+	const swps = singleWriteProblems({ entries, sources });   // `#733` 片 2：单源不得走 notepath／addPath
 	const srps = singleReadProblems({ entries, sources, baseline: SINGLE_READ_BASELINE });   // `#437` C-2c-3
 	// 空状态下不得"已知"（笔记不该一开局就成立）——按 flagPath 求值验证（多源 OR：每条路径都不得为真）
 	const emptyProblems = [];
@@ -312,7 +348,7 @@ export const run = (ctx) => {
 		if (!Array.isArray(ctx.Sg?.story?.rules?.())) contract.push({ id: 'Sg.story.rules', detail: '`Sg.story.rules()` 应返回数组（阶段 4／#435 的占位契约）' });
 	}
 
-	const printed = [...shape, ...emptyProblems, ...contract, ...cons, ...nps, ...srps];
+	const printed = [...shape, ...emptyProblems, ...contract, ...cons, ...nps, ...srps, ...swps];
 	console.log(`  笔记 ${Object.keys(entries).length} 条｜状态契约域键 ${domainKeys.size} 个｜零消费豁免 ${bk.filter((k) => Object.values(entries).some((e) => flagPaths(e).map(keyOf).includes(k))).length} 条`);
 	if (!printed.length) console.log('  ✓ 形状齐全 · flagPath 与域表对齐 · 空状态不为真 · 接入契约成立 · 每条笔记都有消费点 · `<<notepath>>` 的 path 合法且多源已显式声明');
 	for (const p of printed.slice(0, 12)) { console.log(`  ✗ ${p.id}：${p.detail}`); bad++; }

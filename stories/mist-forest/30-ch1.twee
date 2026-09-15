@@ -248,7 +248,7 @@
 
 门边挂着一件旧斗篷，比屋里那件长一截。这屋里住着两个人。
 
-<<firstTime "wq_seen">><<notepath "n_wq_seen" "ev.wq_seen">>
+<<firstTime "wq_seen">><<note "n_wq_seen">>
 <<if _first>>
 	屋里更暖。一个女人背对着你，在炉子前搅着什么。她回头时，你愣了一下——<<if Sg.notes.has('n_tav_painting')>>她的身形与衣着，依稀像酒馆旧画上站在长桌尽头的女人。可画上的脸早已模糊，你无从细比。<<else>>她停下手里的活，抬眼等你开口。<</if>>
 

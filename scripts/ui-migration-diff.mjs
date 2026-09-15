@@ -42,6 +42,14 @@ import { storyText } from './audit/lib/shared.mjs';
 
 /** 纯函数：命令行判据（`#619`）。**静默接受但忽略参数**是本仓"假绿"家族的常客 ⇒ 这里把三条都钉住：
  *  未知参数报错 · `--story` 必须存在 · 非默认故事必须显式给 `--out=`。 */
+/** **覆盖自报**（`#619` 片二，dev 裁定）：本门只对**默认故事**做判定；其他故事「只登记、不判定」。
+ *  为什么必须打印而不是只写手册：读者得能从**输出**看出这份绿是哪一份绿（避免"以为三故事都判过"）。 */
+export const coverageLine = ({ known = [], baselineSlug = DEFAULT_SLUG } = {}) => {
+	const others = known.filter((s) => s !== baselineSlug);
+	const judged = `\`${baselineSlug}\`（有基线：判定）`;
+	return others.length ? `覆盖：${judged}｜${others.map((s) => `\`${s}\`：仅登记（**不判定**）`).join('｜')}` : `覆盖：${judged}`;
+};
+
 export const cliProblems = ({ argv = [], known = [], defaultSlug = 'mist-forest' } = {}) => {
 	const out = [];
 	const KNOWN = ['baseline', 'out', 'check', 'zero', 'selftest', 'story'];
@@ -213,6 +221,8 @@ const main = () => {
 			['🔴 反例（#595 的反面）：行 `scope` 指向**不存在的段落** ⇒ 不归属（本门不吞；由 `--rules` 报）', mergeRowTexts(M({ P: '' }), [{ id: 'r', scope: '不存在', text: 'x' }]).has('不存在') === false, (x) => x === true],
 			// `#619`：`--story` 曾被静默忽略（空门）⇒ 三条命令行判据都要有牙
 			['正例（#619）：默认故事、无参数 ⇒ 不报', cliProblems({ argv: [], known: ['mist-forest', 'hollow-cave'] }), (r) => r.length === 0],
+			['覆盖自报（#619）：默认故事写「判定」、其他故事写「仅登记（不判定）」', coverageLine({ known: ['mist-forest', 'hollow-cave', 'minimal-demo'] }), (r) => r.includes('mist-forest') && r.includes('判定') && r.includes('hollow-cave') && r.includes('仅登记') && r.includes('不判定')],
+			['覆盖自报（#619）：只有一个故事 ⇒ 不写多余的"其他故事"段', coverageLine({ known: ['mist-forest'] }), (r) => !r.includes('仅登记')],
 			['正例（#619）：`--story=hollow-cave --out=…` ⇒ 不报', cliProblems({ argv: ['--story=hollow-cave', '--out=build/x.md'], known: ['mist-forest', 'hollow-cave'] }), (r) => r.length === 0],
 			['🔴 反例（#619）：未知参数（打错一个字母）⇒ 报', cliProblems({ argv: ['--stonry=hollow-cave'], known: ['mist-forest'] }), (r) => r.length === 1],
 			['🔴 反例（#619）：`--story=不存在` ⇒ 报', cliProblems({ argv: ['--story=nope', '--out=x.md'], known: ['mist-forest'] }), (r) => r.length === 1],
@@ -300,7 +310,7 @@ const main = () => {
 	try { baseDesc = execSync(`git log -1 --format=%s ${BASE}`, { encoding: 'utf8' }).trim().slice(0, 60); } catch { /* 取不到就不写 */ }
 
 	const pad = (s, n) => String(s).padEnd(n, ' ');
-	const md = [
+	let md = [
 		`# UI 迁移差异复核（#185 阶段六 / #264）`,
 		'',
 		`> 基线 \`${BASE}\`${baseDesc ? `（${baseDesc}）` : ''} → 工作区。比对口径：**玩家可见正文**（去宏、去 twee 注释、链接只留显示名、空白归一）。`,
@@ -321,8 +331,10 @@ const main = () => {
 		'',
 	].join('\n');
 
+	md = md.replace('# UI 迁移差异复核（#185 阶段六 / #264）', `# UI 迁移差异复核（#185 阶段六 / #264）\n\n> ${coverageLine({ known: storySlugs() })}`);
 	writeFileSync(OUT, md);
 	console.log(`✔ 差异复核（基线 ${BASE}）：变更 ${rows.length} 段（未登记 ${unregistered}）· 删除 ${removed.length} 段 → ${OUT}`);
+	console.log(`  · ${coverageLine({ known: storySlugs() })}`);
 	if (ZERO && rows.length) {
 		// 阶段 2（纯转发）要的是**逐段 0 漂移**：这里**不接受**"已登记"豁免——任何可见正文变化都算漂移。
 		console.error(`✗ --zero：基线 \`${BASE}\` 下有 ${rows.length} 段可见正文漂移（要求逐段 0）：`);

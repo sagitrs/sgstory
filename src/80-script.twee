@@ -123,11 +123,16 @@ window.Sg.notes = {
 		// `firstTime` 先置旗标 ⇒ `has()` 立刻为真 ⇒ `add()` 早退 ⇒ **存储永远补不上**（`pc.ev.notes` 始终 undefined），
 		// 只是被 `has()` 的旗标兜底掩盖着；一旦按 C-2c-2 删掉兜底，那条知识就会**静默变假**。
 		if (this.stored(id)) return false;
+		// `#733` 片 2-b（翻面）**暂缓**：`add()` 单源停写旗标会让 `test/resolve-node.mjs` 的
+		// 「情报优势（合成 pc）」失去驱动手段 —— 接缝 `Sg.story.checkKnowledge(site)` **不吃 pc** ⇒ `held` 只能读页面 pc。
+		// 故事侧已改成 `checkKnowledge(name, pc = 当前 pc)`（**接受** pc）；等引擎把 pc 传下来（1 行）即可翻面。
+		// `#733` 片 2-b（**翻面**）：**单源**笔记不再写旗标 —— 它的 `flagPath` 只是"历史来源"（供 `migrateLegacy()` 迁移旧档），
+		// 真存储是 `ev.notes.<id>`；读侧早只认存储（C-2c-2）、单源读点全转 `has()`（C-2c-3）、声明面词汇改 `note:<id>`（片 1）、
+		// 写点统一 `add()/<<note>>`（片 2-a）、断言面形式无关（`#738`）、情报捷径接缝给 `held`（`#739` ＋ 故事侧）⇒ 旗标已无读者。
+		// **多源**笔记照旧：`flagPath` 是"哪一条路径拿到了"的事实，必须写（`setPath` 护栏不变）。
 		if (Array.isArray(e.flagPath)) {
 			if (!e.setPath) throw new Error(`Sg.notes.add：笔记「${id}」的 flagPath 是数组（多源 OR）⇒ 必须显式声明 setPath（该写哪一条）——不许静默多写一个旗标（#434/#435）`);
 			this.writePath(pc, e.setPath, true);
-		} else {
-			this.writePath(pc, e.flagPath, true);
 		}
 		pc.ev.notes = pc.ev.notes ?? {};
 		pc.ev.notes[id] = true;

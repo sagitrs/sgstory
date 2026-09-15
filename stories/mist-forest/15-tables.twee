@@ -904,23 +904,10 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 	// 「当前有哪些键、谁写、谁读、语义是什么」。本表按场景声明键归属；机检见 `audit --state`。
 	// 口径：键按 `prefix`（前缀）或 `keys`（精确）匹配；**一个键只能命中一个域**（歧义即红）；
 	//       未命中任何域的键即红（新增键必须在此登记，或明确落入某个既有域）。
-	// ── #318③ 常量表（消除剧情里的裸数值与裸字符串）──
-	// 剧情文件里 `<<damage 4>>` / `<<damage 99>>` 这类裸数字无法回答「这个 4 是什么意思」，
-	// 而 99 更是魔法数（处死）。统一走本表；机检见 `audit --literals`。
-	const Damage = {
-		graze: 1,   // 擦伤：磕碰、冻手、划破手背
-		hurt: 2,    // 受伤：肩膀撞墙、炉膛硬来
-		hard: 3,    // 重击：花香按倒、土散去
-		heavy: 4,   // 重伤：魔物抓伤、硬掰下来
-		lethal: 99, // 处死（昏睡/摔死等的判定值）——此前是裸 `<<damage 99>>`
-		// ⚠ 非档位值：**雾影（非龙向）反手的固定反手伤**——原为 `10-core` 的裸 `<<damage 5>>`（#461 抽算时具名）。
-		//   它不在 1/2/3/4/99 的档位梯上，**保持原值**搬过来（零行为变化）；「5 该归哪一档」是内容侧定级，
-		//   见 #461 的 PR 说明——不在这里擅自改平衡。
-		shove: 5,
-	};
-	// 时代常量：**代码路径**（条件/赋值/模板）一律用这两个；数据表的 `era:` 字段保留规范字符串，
-	// 由 `audit --literals` 校验其取值合法（数据侧不做常量替换，避免表内自引用顺序问题）。
-	const Era = { PAST: 'past', PRESENT: 'present' };
+	// ── #318③ 常量表：**已归引擎单源**（`#660` 片一）──
+	// `Damage`（档梯语义）与 `Era`（时代枚举）现在**只住引擎**：`src/10-core.twee` 的 `window.Game.Damage ??=`／`window.Game.Era ??=`。
+	// 本文件按门的口径**只用 `Game.Era.*` 引用**（`--literals`：常量定义只许在声明的载体文件里，本文件不再定义）；
+	// 数据字段（`era:`／`flagEra:`）仍写规范字符串，由 `--literals` 校验取值合法。
 
 	const State = {
 		domains: [
@@ -945,9 +932,9 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 		//    口径：未覆盖的动态写点 ⇒ 红（防悄悄多出一族）；声明了却没有写点 ⇒ 红（反沉默：防僵尸声明）。
 		//    值用 `Era` 常量而非 'past'/'present' 字面量（`--literals` 门只放行 era:/flagEra: 数据字段）。
 		dynamicKeys: [
-			{ prefix: 'tower_gate_', via: 'firstTime', values: [Era.PAST, Era.PRESENT], note: '塔门首遇（复访文案：门缝里的光/门里人声）' },
-			{ prefix: 'forge_',      via: 'firstTime', values: [Era.PAST, Era.PRESENT], note: '工坊首遇（复访文案：炉火还旺/老样子）' },
-			{ prefix: 'cellar_',     via: 'firstTime', values: [Era.PAST, Era.PRESENT], note: '地下宴会厅首遇（复访文案：龙还在睡/宴还在）' },
+			{ prefix: 'tower_gate_', via: 'firstTime', values: [window.Game.Era.PAST, window.Game.Era.PRESENT], note: '塔门首遇（复访文案：门缝里的光/门里人声）' },
+			{ prefix: 'forge_',      via: 'firstTime', values: [window.Game.Era.PAST, window.Game.Era.PRESENT], note: '工坊首遇（复访文案：炉火还旺/老样子）' },
+			{ prefix: 'cellar_',     via: 'firstTime', values: [window.Game.Era.PAST, window.Game.Era.PRESENT], note: '地下宴会厅首遇（复访文案：龙还在睡/宴还在）' },
 		],
 	};
 
@@ -1150,7 +1137,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 		},
 	};
 
-	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences, Investment, State, RuleClaims, Damage, Era, Notes };
+	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences, Investment, State, RuleClaims, Notes };
 })());
 
 :: StoryBindings [script]

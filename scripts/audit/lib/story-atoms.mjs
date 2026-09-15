@@ -19,7 +19,19 @@ export const extractSites = (sources) => {
 				tags = m?.[2] ?? '';
 				return;
 			}
-			if (!/<<(if|elseif)\b/.test(line)) return;
+			if (!/<<(if|elseif)\b/.test(line)) {
+				// **条件表行**（`17-rules.twee`）：`req:`／`any:`／`exclude:` 里引用的原子也要算站点——
+				// 否则"表驱动的条件"对报告与矩阵门的 ratchet **完全隐形**（实测：`note:n_letter_seen` 只在表里出现，
+				// 承诺它会被判"内容里已抽不到"＝假红）。口径：这不是求值，只是**点名**（求真值仍走引擎的 `Sg.rules`）。
+				if (/\b(req|any|exclude)\s*:/.test(line)) {
+					for (const m of line.matchAll(/(?:^|[\s'\["])((?:n_[a-z0-9_]+)|(?:inv:[^'\"]+)|(?:keeper\.[a-z_]+)|era)(?=[\s'\",\]}])/g)) {
+						const tok = m[1];
+						const atom = tok.startsWith('n_') ? `note:${tok}` : tok.startsWith('keeper.') ? `keeper:${tok.slice(7)}` : tok;
+						sites.push({ file, passage, tags, line: i + 1, atom });
+					}
+				}
+				return;
+			}
 			const hit = (atom) => sites.push({ file, passage, tags, line: i + 1, atom });
 			for (const m of line.matchAll(/\$pc\.inv\["([^"]+)"\]/g)) hit(`inv:${m[1]}`);
 			for (const m of line.matchAll(/\$pc\.keeper\.(\w+)/g)) hit(`keeper:${m[1]}`);

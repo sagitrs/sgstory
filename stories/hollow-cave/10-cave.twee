@@ -38,6 +38,25 @@
 	<</if>>
 <</nobr>><</widget>>
 
+/% `#719`（操作者/guest 实测：走到终点只有散文，**没有收获清单**）：这一趟带出来了什么 ——
+   金币／物品／装备（含**耐久**）／身上的伤（hp＋部位异常）／知道的事。取值全走既有单一取值口
+   （`gearDurability`／`statusEntries`／`Sg.notes`）⇒ 不新增状态读取面。 %/
+<<widget "caveSummary">><<nobr>>
+	<<set _gh to Game.Combat.gearDurability($pc)>>
+	<<set _st to Game.Combat.statusEntries($pc)>>
+	<<set _ids to Object.keys($pc.inv ?? {})>>
+	<<set _known to Sg.notes.all()>>
+	<<set _titles to _known.map((id) => Sg.story.notes()?.[id]?.title ?? id)>>
+	<div class="run-summary">
+		''这一趟带出来的''
+		<div>· 金币：<<print $pc.gold ?? 0>> 枚</div>
+		<div>· 物品：<<if _ids.length>><<print _ids.join('、')>><<else>>（空手）<</if>></div>
+		<div>· 装备：<<if _gh.length>><<for _i to 0; _i lt _gh.length; _i++>><<print _gh[_i].name>>　<<print _gh[_i].cur>>/<<print _gh[_i].max>><<if _gh[_i].broken>>（''已损坏''）<</if>><<if _i lt _gh.length - 1>>　｜　<</if>><</for>><<else>>（没有能记耐久的东西）<</if>></div>
+		<div>· 身上：hp <<print $pc.hp>>/<<print $pc.max_hp>><<if _st.length>>　<<for _i to 0; _i lt _st.length; _i++>><<print _st[_i].part>>·<<print _st[_i].label>>（<<print _st[_i].turns>> 回合）<<if _i lt _st.length - 1>>　｜　<</if>><</for>><<else>>（没带伤）<</if>></div>
+		<div>· 知道的事：<<if _titles.length>><<print _titles.join(' · ')>><<else>>（还是什么都不知道）<</if>></div>
+	</div>
+<</nobr>><</widget>>
+
 /% 短战斗（S3 已定②）：**机制已上移引擎**（`#608` ⇒ `src/engine/50-present/12-shortfight.twee` 的 `<<shortFight>>`）。
    本故事只给**实参**（位点／按钮／胜句／败句／遭遇 id／战利品句）＋**尾段**（第 7 实参＝结算后执行的**段落名**，本故事＝`机制·shortFight·尾`）。
    为什么要参数化（`#490` 已定 ⑥）：**旅人交涉谈崩也要走同一套短战斗**——机制不复制，只换文案与位点。 %/
@@ -419,6 +438,8 @@
 很低的地方，居然有人住。
 
 你站在那儿，身上剩着剑、火把，和一路带下来的伤。
+
+<<caveSummary>>
 <<if Sg.notes.has("n_cave_echo")>>空洞里那阵回声你还记着——村子前面那段路，你知道该踩哪一块石头。<</if>>
 <<if Sg.notes.has("n_cave_loot")>>行囊里压着从箱子里拿的干粮，不多，但是真的。<</if>>
 <<if Sg.notes.has("n_cave_help")>>那个火堆边的人给过你半块干粮，没要钱。你欠他一次。<</if>>

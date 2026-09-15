@@ -11,6 +11,7 @@
 //   · **反沉默**：`bookkeeping` 里声明了零消费、实际却有消费点的笔记键 ⇒ 红（声明烂在那里）。
 import { readFileSync, readdirSync } from 'node:fs';
 import { readKeys, ruleRowKeys } from '../../../scripts/audit/lib/shared.mjs';
+   // `#437` C-2c-3：单源读点基线（该故事的数据）
 
 export const flag = 'notes';
 export const flags = ['notes'];
@@ -83,6 +84,24 @@ export const auditConsumption = (entries, reads, bookkeeping, refText) => {
  *  ② **多源笔记（`flagPath` 是数组）必须用 `<<notepath>>` 显式声明写哪一条**（或声明 `setPath`）——
  *     否则 `<<note>>`／`Sg.notes.add()` 会被引擎的护栏拒绝（`add()` 对多源无 `setPath` ⇒ 抛错）。
  *  为什么静态也要报（而不是只靠引擎运行时抛）：运行时抛是"点了才知道"，静态报是"改完就红"。 */
+/** **单源读点的过渡基线**（`#437` C-2c-3）：键 `<文件>::<限定键>`，值＝**移除计划**（C-2c-3 把读点改成 `has(id)` 后逐条删）。
+ *  为什么基线住**门文件**而不是 `stories/<slug>/audit.json`：① 本文件**就是该故事的门**（`stories/mist-forest/gates/**`
+ *  按定义只服务这个故事 ⇒ 不是 `#602` 要禁的"引擎门里硬编码故事 1 的数据"）；
+ *  ② 那份 `audit.json` 由引擎侧的 `loadStoryAudit()` **按键白名单**取（`topicWords`/`styleBlacklist`/`readBaseline`），
+ *  新增键取不到（实测：加了 `singleReadBaseline` 但门拿不到 ⇒ 9 条全报）。**若将来要收编进 `audit.json`，需先扩那个加载器**
+ *  （那是 `scripts/audit/**`＝dev 的文件面，我不动）。
+ *  **纪律**：基线逐条带移除计划，且**腐烂即红**（改好不删 ⇒ 门报"基线腐烂"）。 */
+export const SINGLE_READ_BASELINE = {
+	'stories/mist-forest/15-tables.twee::ev.failure_cause': 'C-2c-3 待搬：图鉴谓词读单源笔记的 path ⇒ 改 `Sg.notes.has(\'n_failure_cause\')`（行为等价）',
+	'stories/mist-forest/15-tables.twee::ev.observation_lock': 'C-2c-3 待搬：图鉴谓词两处（`n_observation_lock` 单源）',
+	'stories/mist-forest/15-tables.twee::world.flower_warned': 'C-2c-3 待搬：图鉴谓词（`n_flower_warned` 单源）',
+	'stories/mist-forest/15-tables.twee::ev.keeper_why': 'C-2c-3 待搬：图鉴谓词（`n_keeper_why` 单源）',
+	'stories/mist-forest/15-tables.twee::ev.letter_seen': 'C-2c-3 待搬：图鉴谓词（`n_letter_seen` 单源）',
+	'stories/mist-forest/15-tables.twee::ev.tav_tips': 'C-2c-3 待搬：NPC `done:` 谓词（`n_tav_tips` 单源）',
+	'stories/mist-forest/15-tables.twee::ev.keeper_told': 'C-2c-3 待搬：NPC `done:` 谓词（`n_keeper_told` 单源）',
+	'stories/mist-forest/15-tables.twee::ev.witch_grip': 'C-2c-3 待搬：NPC `done:` 谓词（`n_witch_grip` 单源）',
+};
+
 export const notepathProblems = ({ entries = {}, sources = {} } = {}) => {
 	const problems = [];
 	const ids = new Set(Object.keys(entries));
@@ -103,6 +122,38 @@ export const notepathProblems = ({ entries = {}, sources = {} } = {}) => {
 			if (!e || flagPaths(e).length <= 1 || e.setPath) continue;   // 未登记/单源/已声明 setPath ⇒ 不归本判据管
 			problems.push({ id, where: f, detail: `多源笔记用了 \`<<note>>\`／\`Sg.notes.add()\`——必须用 \`<<notepath "id" "path">>\` 声明**写哪一条**（或声明 \`setPath\`）` });
 		}
+	}
+	return problems;
+};
+
+/** **单源笔记不得用 `readPath` 读**（`#437` C-2c-3 的判据面）：
+ *  单源笔记的 path 就是它的唯一来源 ⇒ `readPath(pc, path)` ≡ `has(id)`，**后者才是模型里的写法**
+ *  （也让"旗标"从读侧彻底退场 ⇒ 之后才能停写单源旗标）。**多源笔记**（`flagPath` 是数组）相反：
+ *  那里 `readPath` 表达的是"**哪一条路径**拿到了"（例：`ev.hall_seen`"看准了" vs `world.hall_hint`"听人比过"）
+ *  ⇒ 必须保留，不许一刀切。
+ *  基线（`stories/<slug>/audit.json` 的 `singleReadBaseline`）逐条带**移除计划**；修好即从基线删（**腐烂即红**）。 */
+export const singleReadProblems = ({ entries = {}, sources = {}, baseline = {} } = {}) => {
+	const problems = [];
+	const pathInfo = new Map();   // 'ev.x' → { id, multi }
+	for (const [id, e] of Object.entries(entries)) {
+		const ps = Array.isArray(e?.flagPath) ? e.flagPath : (e?.flagPath == null ? [] : [e.flagPath]);
+		for (const p of ps) if (p) pathInfo.set(String(p), { id, multi: Array.isArray(e.flagPath) });
+	}
+	const seen = new Set();
+	for (const [f, src] of Object.entries(sources)) {
+		const text = String(src ?? '').replace(/\/%[\s\S]*?%\//g, '');
+		for (const m of text.matchAll(/Sg\.notes\.readPath\(\s*[^,()]+,\s*['"]((?:ev|world)\.[a-z_]+)['"]/g)) {
+			const info = pathInfo.get(m[1]);
+			if (!info || info.multi) continue;                    // 未登记/多源 ⇒ 不归本判据管
+			const key = `${f}::${m[1]}`;
+			seen.add(key);
+			if (!baseline[key]) problems.push({ id: info.id, where: `${f}｜${m[1]}`, detail: `单源笔记用 \`readPath\` 读 ⇒ 应为 \`Sg.notes.has('${info.id}')\`（path 即唯一来源，两者等价；改用 has 后旗标才能从读侧退场）` });
+		}
+	}
+	// 腐烂：基线里登记了、但**现在已不再命中**（修好了）⇒ 报，逼你删（本仓既有纪律）
+	for (const [key, why] of Object.entries(baseline ?? {})) {
+		if (seen.has(key)) continue;
+		problems.push({ id: key, where: key.split('::')[0], detail: `基线腐烂：「${key.split('::')[1]}」已不再以 \`readPath\` 形式出现（修好了就删基线）——登记理由：${why}` });
 	}
 	return problems;
 };
@@ -179,6 +230,23 @@ export const run = (ctx) => {
 			['notepath·边界：多源**声明了 setPath** ⇒ `<<note>>` 合法（不搞一刀切）', notepathProblems({ entries: { n_hall: { ...multi.n_hall, setPath: 'ev.hall_seen' } }, sources: { 'a.twee': '<<note "n_hall">>' } }).length, 0],
 			['notepath·边界：注释里的 `<<notepath>>` 示例不算（遮注释）', notepathProblems({ entries: single, sources: { 'a.twee': '/% 例：<<notepath "n_one" "ev.wrong">> %/' } }).length, 0],
 		];
+		// `#437` C-2c-3：单源笔记不得用 `readPath` 读（多源保留）
+		const ent = {
+			n_one: { flagPath: 'ev.one' },
+			n_multi: { flagPath: ['world.m1', 'ev.m2'] },
+		};
+		const srp = [
+			['单源读点·正例：`has(id)` ⇒ 不报', singleReadProblems({ entries: ent, sources: { 'a.twee': "Sg.notes.has('n_one')" } }).length, 0],
+			['单源读点·🔴 单源笔记用 `readPath` ⇒ 报（基线外）', singleReadProblems({ entries: ent, sources: { 'a.twee': "Sg.notes.readPath(pc, 'ev.one')" } }).length, 1],
+			['单源读点·✅ 基线内 ⇒ 不报（带移除计划，允许过渡）', singleReadProblems({ entries: ent, sources: { 'a.twee': "Sg.notes.readPath(pc, 'ev.one')" }, baseline: { 'a.twee::ev.one': 'C-2c-3 待搬' } }).length, 0],
+			['单源读点·🔴 基线腐烂（已修好还留着基线）⇒ 报', singleReadProblems({ entries: ent, sources: { 'a.twee': "Sg.notes.has('n_one')" }, baseline: { 'a.twee::ev.one': 'C-2c-3 待搬' } }).length, 1],
+			['单源读点·边界：**多源**笔记用 `readPath` ⇒ **不报**（那是"哪一条路径"的语义，必须保留）', singleReadProblems({ entries: ent, sources: { 'a.twee': "Sg.notes.readPath(pc, 'ev.m2')" } }).length, 0],
+		];
+		for (const [label, got, want] of srp) {
+			const ok = got === want;
+			if (!ok) bad++;
+			console.log(`      ${ok ? '✓' : '✗'} 自证·${label}：检出 ${got}（期望 ${want}）`);
+		}
 		for (const [label, got, want] of npc) {
 			const ok = got === want;
 			if (!ok) bad++;
@@ -196,6 +264,7 @@ export const run = (ctx) => {
 	const shape = auditShape(entries, domainKeys);
 	const cons = auditConsumption(entries, reads, bk, allText);
 	const nps = notepathProblems({ entries, sources });   // `#437` C-2b′：`<<notepath>>` 的 path/多源判据
+	const srps = singleReadProblems({ entries, sources, baseline: SINGLE_READ_BASELINE });   // `#437` C-2c-3
 	// 空状态下不得"已知"（笔记不该一开局就成立）——按 flagPath 求值验证（多源 OR：每条路径都不得为真）
 	const emptyProblems = [];
 	{
@@ -244,7 +313,7 @@ export const run = (ctx) => {
 		if (!Array.isArray(ctx.Sg?.story?.rules?.())) contract.push({ id: 'Sg.story.rules', detail: '`Sg.story.rules()` 应返回数组（阶段 4／#435 的占位契约）' });
 	}
 
-	const printed = [...shape, ...emptyProblems, ...contract, ...cons, ...nps];
+	const printed = [...shape, ...emptyProblems, ...contract, ...cons, ...nps, ...srps];
 	console.log(`  笔记 ${Object.keys(entries).length} 条｜状态契约域键 ${domainKeys.size} 个｜零消费豁免 ${bk.filter((k) => Object.values(entries).some((e) => flagPaths(e).map(keyOf).includes(k))).length} 条`);
 	if (!printed.length) console.log('  ✓ 形状齐全 · flagPath 与域表对齐 · 空状态不为真 · 接入契约成立 · 每条笔记都有消费点 · `<<notepath>>` 的 path 合法且多源已显式声明');
 	for (const p of printed.slice(0, 12)) { console.log(`  ✗ ${p.id}：${p.detail}`); bad++; }

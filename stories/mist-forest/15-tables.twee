@@ -1160,6 +1160,28 @@ Object.assign((window.Sg.story ??= {}), {
 	hasChargen: () => !!window.Game.Chargen,
 	// `#660` 片三-3：**本故事专属的 pc 默认数值**（形状在引擎的 `Game.Pc.defaults()` 里；这里只给数值、只覆盖要改的键）
 	pcDefaults: () => ({ star: { charge: 12 }, keeper: { state: 'post' } }),
+	// ── `#493` 片 A-2：战斗的**故事政策**三处（此前写死在引擎里，引擎经接缝回落） ──────────────
+	// 为什么住故事侧：这三条都是**内容政策**，不是机制 —— 引擎不该认识"封印"这个池名、"月光花"这件道具、
+	// 也不该把 4/6/连败封顶/毒液压怒这些**平衡数值**算在自己身上（`#441` 的边界口径）。
+	// 迁移期：引擎侧仍有**逐字一致**的回落分支（`#493` A-1），所以本片落地**零行为变化**（判据：`fight-seq` 逐字节 ＋ golden）。
+	// ① 「这一手必须给谁」：手上有花、还没涂毒 ⇒ 第一轮一定给「封印·涂毒」（免得玩家永远等不到）
+	combatPrepick: (poolId, round, pc, picked) => (
+		poolId === '封印' && (round ?? 1) === 1 && pc?.inv?.['月光花'] && !(pc?.dragon?.venom) && !(picked ?? []).includes('封印·涂毒')
+			? '封印·涂毒'
+			: null
+	),
+	// ② 对手状态住哪儿：故事 1 的"对手"就是龙（`pc.dragon`）
+	foeState: (pc) => pc?.dragon ?? {},
+	// ③ 它这一下的伤害公式（**故事政策**：基准 4+回合 / 第 3 回合起封顶 6 / 连败 +1 封顶 +2 / 涂毒压怒 ＋ 减伤件）
+	//    ⚠️ 形参顺序与引擎接缝一致：`(inv, round, defeats, poisoned)`
+	battleDamage: (inv, round, defeats, poisoned) => {
+		const held = Object.keys(inv ?? {});
+		const flat = held.reduce((a, k) => a + (window.Sg?.story?.itemEffect?.(k)?.flatDamageReduce ?? 0), 0);
+		const rage = poisoned ? 0 : Math.min(2, defeats ?? 0);
+		const base = round >= 3 ? 6 : 4 + round;
+		const poison = poisoned ? (window.Sg?.story?.poisonReduce?.() ?? 0) : 0;
+		return Math.max(1, base - flat - poison + rage);
+	},
 	// 条件表（阶段 4）：占位；`#435` 落地后改为读它自己的表（名字由 `#435` 定）
 	rules: () => [],
 	// #441-E：引擎需要的**故事数据入口**（结构缺失 ⇒ **报错**，不许静默 0/空 —— 那会让引擎带着错数据跑）

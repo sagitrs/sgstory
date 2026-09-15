@@ -70,6 +70,9 @@ export const selftest = () => {
 	console.log('\n✔ 自证通过：期望五类（text/noText/choice/noChoice/正例）＋ 两态归纳（单态必须为 false）');
 };
 
+// 被 import 时不许执行 CLI（同 `report-polarity-gap.mjs` 的坑）
+const IS_MAIN = process.argv[1] && (await import('node:url')).pathToFileURL(process.argv[1]).href === import.meta.url;
+if (IS_MAIN) {
 const argv = process.argv.slice(2);
 const has = (k) => argv.includes(`--${k}`);
 if (has('selftest')) { selftest(); process.exit(0); }
@@ -181,3 +184,4 @@ const bad = sum.filter((r) => !r.both).length + results.filter((r) => r.problems
 console.log(`   报告：${OUT}`);
 if (bad) { console.error(`\n✗ 原型未达标：${bad} 项（站点两态未构造出 or 期望不符）—— 这正是票面要求**留痕**的负面结果`); process.exit(1); }
 console.log('\n✔ 原型达标：试点段每个站点的**真/假两侧都由真实渲染观测到**（⇒ 未来矩阵门的执行器内核可行）');
+}

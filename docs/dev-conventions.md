@@ -467,6 +467,8 @@ FCFS **81.3s** vs LPT **84.3s**；②「每个测试段各自 boot JSDOM」不�
 | 夜间（`soak-nightly.yml`） | 多种子随机游走照跑，**report-only**：失败**不阻塞合入**，而是**开票留痕**（`[soak-nightly]`，同形态不重复开） |
 | 覆盖口径 | 本就不吃它：`test/coverage.mjs:24`（`#27` 的降级决定）以 scenarios 为输入 |
 | 缺口可见性 | `npm run report:polarity`（`#628`）：条件原子 × 极性的覆盖缺口报告（**抽样观测**：未观测 ≠ 断言不存在） |
+| **规格门（MVP）** | `test/itemmatrix.mjs`（`npm run matrix`，`#640`）：**场景 × 道具/线索集合 → 期望**。数据住故事侧 `stories/<slug>/matrix.json`、门形状住引擎侧；
+  三条判据＝①行键＝**谓词上下文** ②期望用**渲染后＋行为面**口径（`text/noText/choice/noChoice/lands/delta`；`delta` 的 `null`＝键不存在＝消耗） ③**承诺 ratchet**（`promised` 只增不减，每个原子两侧都要有行；承诺的原子在内容里消失即红） |
 
 **硬规则（游走器发现之后）**：每个发现**必须沉淀**为「矩阵一行」（该行的谓词上下文 → 期望）或「覆盖原子的一条路线」，
 否则**不开修复票**——把仪器产物变成规格，才叫修好。

@@ -27,7 +27,8 @@
 		"test:serial": "node scripts/run-tests.mjs --serial",
 		"test:list": "node scripts/run-tests.mjs --list",
 		"report:polarity": "node scripts/report-polarity-gap.mjs",
-		"report:two-state": "node scripts/report-two-state.mjs"
+		"report:two-state": "node scripts/report-two-state.mjs",
+		"matrix": "node test/itemmatrix.mjs"
 	},
 	"devDependencies": {
 		"extwee": "^2.3.7",

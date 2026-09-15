@@ -1,0 +1,85 @@
+{
+	"slug": "mist-forest",
+	"note": "矩阵门（`#640` · 伞 `#626`）的**判据数据** —— 场景 × 道具/线索集合 → 期望。数据住故事侧、门形状住引擎侧（`test/itemmatrix.mjs`），沿用 `#602`/`#607` 的落点纪律。口径：**行键＝该行的完整谓词上下文**（不是一个原子）；期望一律用**渲染后 + 行为面**口径（`#629` 的三条发现）。`delta` 的 `null`＝**键不存在**（`delete` 形态，即「消耗」）。",
+	"promised": [
+		"inv:传送术卷轴",
+		"inv:完整星图",
+		"inv:月光花"
+	],
+	"rows": [
+		{
+			"id": "顶楼·空手（两件都缺）",
+			"passage": "顶楼",
+			"patches": { "pc.keeper.key": true, "pc.ev.delivery_short": true, "pc.inv.传送术卷轴": null, "pc.inv.完整星图": null },
+			"covers": [{ "atom": "inv:传送术卷轴", "polarity": "false" }, { "atom": "inv:完整星图", "polarity": "false" }],
+			"click": { "label": "把卷轴和星图交给他" },
+			"expects": [
+				{ "kind": "text", "value": "缺传送术卷轴" },
+				{ "kind": "text", "value": "缺完整星图" },
+				{ "kind": "lands", "value": "顶楼" }
+			]
+		},
+		{
+			"id": "顶楼·只有卷轴",
+			"passage": "顶楼",
+			"patches": { "pc.keeper.key": true, "pc.ev.delivery_short": true, "pc.inv.传送术卷轴": true, "pc.inv.完整星图": null },
+			"covers": [{ "atom": "inv:传送术卷轴", "polarity": "true" }, { "atom": "inv:完整星图", "polarity": "false" }],
+			"click": { "label": "把卷轴和星图交给他" },
+			"expects": [
+				{ "kind": "text", "value": "缺完整星图" },
+				{ "kind": "noText", "value": "缺传送术卷轴" },
+				{ "kind": "lands", "value": "顶楼" }
+			]
+		},
+		{
+			"id": "顶楼·只有星图",
+			"passage": "顶楼",
+			"patches": { "pc.keeper.key": true, "pc.ev.delivery_short": true, "pc.inv.传送术卷轴": null, "pc.inv.完整星图": true },
+			"covers": [{ "atom": "inv:传送术卷轴", "polarity": "false" }, { "atom": "inv:完整星图", "polarity": "true" }],
+			"click": { "label": "把卷轴和星图交给他" },
+			"expects": [
+				{ "kind": "text", "value": "缺传送术卷轴" },
+				{ "kind": "noText", "value": "缺完整星图" },
+				{ "kind": "lands", "value": "顶楼" }
+			]
+		},
+		{
+			"id": "顶楼·两件齐（交付真支）",
+			"passage": "顶楼",
+			"patches": { "pc.keeper.key": true, "pc.ev.delivery_short": true, "pc.inv.传送术卷轴": true, "pc.inv.完整星图": true },
+			"covers": [{ "atom": "inv:传送术卷轴", "polarity": "true" }, { "atom": "inv:完整星图", "polarity": "true" }],
+			"click": { "label": "把卷轴和星图交给他" },
+			"expects": [
+				{ "kind": "noText", "value": "缺" },
+				{ "kind": "lands", "value": "交付" }
+			]
+		},
+		{
+			"id": "喂花·有花（真支：给出即消耗）",
+			"passage": "喂花",
+			"patches": { "pc.inv.月光花": true, "pc.world.flower_fed": false },
+			"covers": [{ "atom": "inv:月光花", "polarity": "true" }],
+			"click": { "label": "回到宴上" },
+			"expects": [
+				{ "kind": "text", "value": "你把银白的花放在它鼻端" },
+				{ "kind": "delta", "path": "pc.inv[\"月光花\"]", "value": null },
+				{ "kind": "delta", "path": "pc.world.flower_fed", "value": true },
+				{ "kind": "lands", "value": "宴会·过去" }
+			]
+		},
+		{
+			"id": "喂花·没花（假支：只有退路，不消耗）",
+			"passage": "喂花",
+			"patches": { "pc.inv.月光花": null, "pc.world.flower_fed": false },
+			"covers": [{ "atom": "inv:月光花", "polarity": "false" }],
+			"click": { "label": "回到宴上" },
+			"expects": [
+				{ "kind": "text", "value": "你身上没有可用的月光花" },
+				{ "kind": "noText", "value": "你把银白的花放在它鼻端" },
+				{ "kind": "delta", "path": "pc.inv[\"月光花\"]", "value": null },
+				{ "kind": "delta", "path": "pc.world.flower_fed", "value": false },
+				{ "kind": "lands", "value": "宴会·过去" }
+			]
+		}
+	]
+}

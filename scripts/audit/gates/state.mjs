@@ -13,7 +13,7 @@
 //   `<<setflag "k">>` / `<<firstTime "k">>`（动态写入 `$pc.ev[k]` 并动态读回）· `$pc.ev["k"]`
 //   · 表内谓词 `(p) => p.world?.k`。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { qualifiedWriteKeys, keyCharsetViolations, readKeys, noteReadKeys, noteWriteKeys, ruleRowKeys, ruleRowSetKeys, stripJsComments } from '../lib/shared.mjs';
+import { qualifiedWriteKeys, keyCharsetViolations, readKeys, noteReadKeys, noteWriteKeys, ruleRowKeys, ruleRowSetKeys, stripJsComments, notePaths } from '../lib/shared.mjs';
 
 export const flag = 'state';
 export const flags = ['state'];
@@ -158,6 +158,7 @@ export const mergeByBare = (keys) => {
 // 而写入只有 world（setflag）→ 域集合相交，但 **ev 那一支是死的**。
 export const nsMismatch = (keys) => {
 	const out = [];
+
 	for (const [b, m] of mergeByBare(keys)) {
 		const deadReads = [...m.nsR].filter((ns) => !m.nsW.has(ns));
 		if (deadReads.length) {
@@ -170,7 +171,16 @@ export const nsMismatch = (keys) => {
 	return out;
 };
 
-export const check = (keys, domains, bookkeeping = []) => {
+export const check = (keys, domains, bookkeeping = [], notes = {}) => {
+	// `#728`（C-2c-4 口径 (a)）：**单源笔记的 `flagPath` 键从状态图退场** ——
+	// 它们的事实已住 `pc.ev.notes`（C-2c-2 起 `has(id) = stored(id)`），旗标写入正在退场（`add()` 停写）
+	// ⇒ 留在图里只会剩"只有读"的假问题。**多源**笔记的键**不退场**（其 path 是"哪一条拿到了"的语义）。
+	for (const [, paths] of notePaths(notes ?? {})) {
+		if (paths.length !== 1) continue;
+		const q = String(paths[0]);
+		keys.delete(q);
+		keys.delete(q.replace(/^(ev|world)\./, ''));
+	}
 	const problems = [];
 	const match = (b) => domains.filter((d) => (d.keys ?? []).includes(b) || (d.prefix ?? []).some((p) => b.startsWith(p)));
 	for (const [b, m] of mergeByBare(keys)) {
@@ -205,7 +215,9 @@ export const run = (ctx) => {
 		['只有读 → 红', analyze({ 'a.twee': ':: P\n<<if $pc.ev.tav_q>>y<</if>>' }), D, 1, 'check'],
 		// `#608`：**声明面驱动的写点**——引擎侧是变量（`<<note _note>>`），字面 id 只在故事数据表里（`failNote`）
 		['正例（#608）：声明面 `failNote` 的写点 ⇒ 不算「只有读」', analyze({ 'a.twee': `:: T\n\tencounters: { short: { failNote: 'n_tav_x' } },\n:: P\n<<if Sg.notes.has('n_tav_x')>>y<</if>>` }, { notes: { n_tav_x: { flagPath: 'ev.tav_x' } } }), [{ id: 'tavern', prefix: ['tav_'] }], 0, 'check'],
-		['反例（#608）：**没有**声明面写点时，同一个夹具必须报「只有读」——这一条保证上面那条不是空判', analyze({ 'a.twee': `:: P\n<<if Sg.notes.has('n_tav_x')>>y<</if>>` }, { notes: { n_tav_x: { flagPath: 'ev.tav_x' } } }), [{ id: 'tavern', prefix: ['tav_'] }], 1, 'check'],
+		['反例（#608／#728）：**多源**笔记且没有声明面写点 ⇒ 仍必须报「只有读」（保证上面那条不是空判）', { src: { 'a.twee': `:: P\n<<if Sg.notes.has('n_tav_x')>>y<</if>>` }, notes: { n_tav_x: { flagPath: ['ev.tav_x', 'world.tav_x2'] } } }, [{ id: 'tavern', prefix: ['tav_'] }], 1, 'retire'],
+		['正例（#728）：**单源**笔记的 `flagPath` 键只有笔记本读 ⇒ 退场，不报「只有读」', { src: { 'a.twee': `:: P\n<<if Sg.notes.has('n_tav_x')>>y<</if>>` }, notes: { n_tav_x: { flagPath: 'ev.tav_x' } } }, [{ id: 'tavern', prefix: ['tav_'] }], 0, 'retire'],
+		['🔴 反例（#728）：**非笔记**键只有读 ⇒ 照常报（退场只针对单源笔记的 flagPath）', { src: { 'a.twee': `:: P\n<<if $pc.ev.tav_loose>>y<</if>>` }, notes: { n_tav_x: { flagPath: 'ev.tav_x' } } }, [{ id: 'tavern', prefix: ['tav_'] }], 1, 'retire'],
 		['歧义（命中两个域）→ 红', analyze(SELF_GOOD), [{ id: 'a', prefix: ['tav_'] }, { id: 'b', prefix: ['tav_x'] }], 1, 'check'],
 		// #365 类：setflag 写 **world**，条件却读 **ev** → ev 那一支永远不成立
 		['命名空间不一致（写 world / 读 ev）→ 必须报', analyze({ 'a.twee': ':: P\n<<setflag "seer_asked">>\n<<if $pc.ev.seer_asked>>x<</if>>' }), D, 1, 'ns'],
@@ -228,7 +240,8 @@ export const run = (ctx) => {
 			const hit =
 			kind === 'ns' ? nsMismatch(keys).length
 			: kind === 'charset' ? charsetViolations({ 'a.twee': ':: P\npc.ev.BadKey = true' }).length
-			: kind === 'noteRead' ? check(analyze({ 'a.twee': ':: P\n<<set $pc.ev.tav_x to true>>\n<<if Sg.notes.has(\'n_x\')>>y<</if>>' }, { notes: { n_x: { flagPath: 'ev.tav_x' } } }), dm).length
+			: kind === 'retire' ? (() => { const ks = analyze(keys.src, { notes: keys.notes }); return check(ks, dm, [], keys.notes).length; })()
+			: kind === 'noteRead' ? check(analyze({ 'a.twee': ':: P\n<<set $pc.ev.tav_x to true>>\n<<setflag "tav_x2">>\n<<if Sg.notes.has(\'n_x\')>>y<</if>>' }, { notes: { n_x: { flagPath: ['ev.tav_x', 'world.tav_x2'] } } }), dm, [], { n_x: { flagPath: ['ev.tav_x', 'world.tav_x2'] } }).length
 			: kind === 'noteWrite' ? check(analyze({ 'a.twee': ":: P\n<<run Sg.notes.add('n_x')>>" }, { notes: { n_x: { flagPath: 'ev.tav_x' } } }), dm).length
 			: kind === 'ruleSet' ? (() => {
 				const ks = analyze({ 'a.twee': ':: P\n<<if $pc.ev.tav_x>>y<</if>>' }, { notes: {}, rules: [{ id: 'r', scope: 'P', sets: ['ev.tav_x'] }] });
@@ -291,7 +304,7 @@ export const run = (ctx) => {
 		return sites.length > 0 && sites.every(isMechSite);
 	}).map(([k]) => k).map((k) => k.replace(/^(ev|world)\./, '')));
 	const problems = [
-		...check(keys, domains, ctx.Game.State?.bookkeeping ?? []).filter((p) => !(engineOnly.has(p.key) && (p.kind === 'write-only' || p.kind === 'read-only'))),
+		...check(keys, domains, ctx.Game.State?.bookkeeping ?? [], NOTES).filter((p) => !(engineOnly.has(p.key) && (p.kind === 'write-only' || p.kind === 'read-only'))),
 		...([...engineOnly].length ? [] : []),
 		...charsetViolations(sources),
 		...checkDynamic(dynamicSites(sources), declaredDyn),

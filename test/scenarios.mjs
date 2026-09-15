@@ -183,6 +183,14 @@ async function newGame(randomStub, preset = 0) {
 		await sleep(120);
 		mark();
 		if (uncaught.length > before) throw new Error(`点击「${what}」后脚本异常：${uncaught[before].slice(0, 160)}`);
+		// `#647`／操作者实测（2026-09-15，故事 2 的同类缺陷）：**SugarCube 的宏错误不是 JS 未捕获** ——
+		// 它渲染成 DOM 里的 `.error` 元素 ⇒ 只数 `uncaught` 会**漏报**（故事 2 那条 `roadOffer(6)` 红框就是这么漏掉的）。
+		// 故事 1 此前也只看 `uncaught` ⇒ 同一个盲区。这里补上：每次点击后扫 DOM 红框，命中即当路线失败（带原文）。
+		{
+			const errs = [...w.document.querySelectorAll('#passages .error, #passages .error-view, #error')]
+				.map((e) => e.textContent.replace(/\s+/g, ' ').trim()).filter(Boolean);
+			if (errs.length) throw new Error(`点击「${what}」后屏上出现**宏错误红框**：${errs[0].slice(0, 200)}`);
+		}
 		// #407 D9②（通用版）：点一下之后，同一屏上同一组骰面只许出现一遍（#403 是天然反例：
 		// `<<sitecheck>>` 渲染一次、`hallResult` 的复显再写一次 ⇒ 同一颗骰面在一屏上两遍）
 		{

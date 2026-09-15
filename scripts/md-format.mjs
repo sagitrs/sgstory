@@ -23,14 +23,13 @@
 //   F5「入口页体量 ratchet」（`#603` 片二）：`README.md` 行数 ≤ 上限（默认 120，`README_MAX_LINES` 可覆盖）。
 //       —— README 曾长到 270 行/24KB（"什么都有"＝等于没有）：十维密表、整棵目录树、Twee 速查、机制表全塞在入口页。
 //       分层之后必须**防止再长回去**，所以给入口页一条会咬人的上限（不是审美，是可判定的）。
-import { readFileSync, readdirSync, statSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { globSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const SKIP_DIRS = new Set(['.git', 'node_modules', 'dist', 'tmp', '.cache']);
 
 /** 纯函数：分析一段 markdown，返回 `{ fences, odd, headingsInFence, problems }`。 */
 export const analyzeMarkdown = (text, { file = '<mem>' } = {}) => {
@@ -111,17 +110,15 @@ export const checkReadmeBudget = (text, { max = README_MAX_LINES, file = 'README
 	};
 };
 
-/** 走仓库里所有 `*.md`（跳过构建产物与依赖目录）。 */
-export const allMarkdown = (dir = ROOT, out = []) => {
-	for (const name of readdirSync(dir)) {
-		if (SKIP_DIRS.has(name)) continue;
-		const p = join(dir, name);
-		const st = statSync(p);
-		if (st.isDirectory()) allMarkdown(p, out);
-		else if (name.endsWith('.md')) out.push(relative(ROOT, p));
-	}
-	return out;
-};
+/** 仓库里的 `*.md` 清单 = **git 跟踪的那些**（`#617`）。
+ *  为什么不再走文件系统遍历：`build/` 这类 **gitignored 产物/临时目录**下面出现的 `*.md`（例如
+ *  `ui-migration-diff --out=build/…` 的正常产物、或往届临时文件）会被当成"仓内文档"扫描 ⇒
+ *  ① 本地**假红**（实测：`build/_t5.md` 引用了搬走的 `src/70-codex.twee`）② 与并行段**竞态**
+ *  （同一轮 `npm test` 里边写 `build/ui-migration-diff.md` 边扫它）。
+ *  `git ls-files` 从**结构上**排除这类目录 —— 比"记得把每个目录名加进 SKIP_DIRS"可靠。
+ *  另：本门已经依赖 git（F4 的路径存在性也用 `git ls-files`），不多一层新依赖。 */
+export const allMarkdown = () =>
+	execFileSync('git', ['ls-files', '*.md'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
 
 const main = () => {
 	let bad = 0;
@@ -158,7 +155,9 @@ const main = () => {
 		if (r.odd && r.headingsInFence.length) inFenceFiles++;  // 只在**奇偶错位**的文件里才算'被吞'
 		for (const p of r.problems) { bad++; console.error(`  ✗ ${p}`); }
 	}
-	console.log(`      扫描 ${files.length} 个 md：围栏奇数 ${oddFiles} 个 · 有标题被吞 ${inFenceFiles} 个`);
+	const leaked = files.filter((f) => /^(?:build|dist|node_modules|tmp|\.cache)\//.test(f));
+	if (leaked.length) { bad++; console.error(`  ✗ 清单里混进了 gitignored 目录：${leaked.slice(0, 3).join('、')}——本门只许扫 git 跟踪的文档（#617）`); }
+	console.log(`      扫描 ${files.length} 个 md（**git 跟踪**，天然排除 build/ 等 gitignored 目录）：围栏奇数 ${oddFiles} 个 · 有标题被吞 ${inFenceFiles} 个`);
 
 	// ── F4：引用的仓内路径必须存在（`#606` 片一）──
 	const tracked = new Set(execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean));

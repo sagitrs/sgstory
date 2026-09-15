@@ -125,5 +125,13 @@ Object.assign((window.Sg.story ??= {}), {
 		{ id: '女巫小屋.药膏.买', scope: '女巫小屋#买药膏', req: [{ gte: ['pc.gold', { price: 'salve_buy' }] }], prio: 10, text: `	<<link \`"花 " + (-Game.Economy.priceOf("salve_buy", $pc)) + " 金币买一副药膏（当前 " + $pc.salves + " 副）"\`>>
 		<<econ "salve_buy">><<goto "女巫小屋">>
 	<</link>>` },
+		// `#624` 批 2（act handler 里的可迁子集）：守卫是 era/world 的**入口**，link 体内只有点击态词汇宏。
+		{ id: '工坊.问铁匠', scope: '工坊#问铁匠', req: ['era:past'], prio: 10, text: `		<<link "问炉子边那个铁匠：这副甲是给谁打的">>
+			他把锤子往肩上一搭："给守林人家的小子。前年量的臂，人还没来取——你要是见着他，替我说一声。"<<note "n_forge_seen">>
+			<<goto "工坊">>
+		<</link>>` },
+		{ id: '天文台.取书.现在', scope: '天文台#取书', req: ['era:present'], exclude: ['world.book_taken'], prio: 10, text: `		<<link "在书架上找到一册风化了的星象手稿">><<give "观星者的书">><<setflag "book_taken">><<goto "天文台">><</link>>` },
+		{ id: '天文台.取书.过去', scope: '天文台#取书', exclude: ['era:present', 'world.book_taken'], prio: 10, text: `		架子上还是当年那些抄本，纸都还新，没有一册是风化的——''风化要三百年''。` },
+		{ id: '天文台.取书.已取', scope: '天文台#取书', req: ['world.book_taken'], prio: 10, text: `	那一册已经不在架上了。` },
 	],
 });

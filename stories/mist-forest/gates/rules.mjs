@@ -143,14 +143,14 @@ export const textWriteProbs = (text) => {
 	const rh = textWrites(render);
 	if (rh.length) out.push({ domain: '渲染', hits: rh });
 	clicks.forEach((body, i) => {
+		// 先把**白名单内的词汇宏调用**整段剔掉，再看剩下什么：剔除是必需的 —— 有些宏本身也在
+		// `WRITE_PATTERNS` 里（如 `<<setflag "x">>`），不剔就会把**已允许**的写法判成「状态赋值」（本批实测撞到）。
+		let rest = String(body);
+		for (const m of CLICK_VOCAB_MACROS) rest = rest.replace(new RegExp(`<<\\s*${m}\\b[^>]*>>`, 'g'), ' ');
 		const raw = [];
-		for (const m of body.matchAll(/<<\s*([A-Za-z_][\w]*)\b/g)) {
-			const name = m[1];
-			if (CLICK_VOCAB_MACROS.includes(name)) continue;
-			if (TEXT_WRITE_MACROS.includes(name)) raw.push(`<<${name}>>`);
-		}
-		for (const { re } of WRITE_PATTERNS) if (new RegExp(re.source, 'g').test(body)) raw.push('状态赋值');
-		if (NOTE_WRITE_API_RE.test(body)) raw.push('Sg.notes.add()');   // 只咬裸 API；宏形态 `<<note>>` 在白名单里
+		for (const m of rest.matchAll(/<<\s*([A-Za-z_][\w]*)\b/g)) if (TEXT_WRITE_MACROS.includes(m[1])) raw.push(`<<${m[1]}>>`);
+		for (const { re } of WRITE_PATTERNS) if (new RegExp(re.source, 'g').test(rest)) raw.push('状态赋值');
+		if (NOTE_WRITE_API_RE.test(rest)) raw.push('Sg.notes.add()');   // 只咬裸 API；宏形态 `<<note>>` 已在上面被剔掉
 		if (raw.length) out.push({ domain: `点击态#${i + 1}`, hits: [...new Set(raw)] });
 	});
 	return out;

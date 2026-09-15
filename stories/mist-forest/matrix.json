@@ -1,6 +1,6 @@
 {
 	"slug": "mist-forest",
-	"note": "矩阵门（`#640` · 伞 `#626`）的**判据数据** —— 场景 × 道具/线索集合 → 期望。数据住故事侧、门形状住引擎侧（`test/itemmatrix.mjs`），沿用 `#602`/`#607` 的落点纪律。口径：**行键＝该行的完整谓词上下文**（不是一个原子）；期望一律用**渲染后 + 行为面**口径（`#629` 的三条发现）。`delta` 的 `null`＝**键不存在**（`delete` 形态，即「消耗」）。 **行的前置态必须复位\"两个面\"**：`pc.ev.notes.<id>`（已授予记录）与 `pc.ev.<flag>`（旗标）——`Sg.notes.has()` 是 OR（`#434`），只清一面会因执行顺序不同而漂移。 D 批（`#640`）：`女巫小屋` 的七个 `[data-heard=\"wq_*\"]` 折叠块用**结构面**判据（`domCount`）——比散文稳；`塔外花田` 的判定点在**点击之后**（落点＋消耗）。 注：`n_wq_seen` 的旗标被段落自身的 `<<firstTime \"wq_seen\">>` 写入 ⇒ 该行站点的\"假侧\"在原渲染里**恒真**；行以**首访/复查可观测差异**（首访文本＋护符赠送 vs 复查文本）区分两侧——这是\"站点的极性 ≠ 单原子极性\"的又一个实例（`#629` 的发现①）。 E 批（`#640`）：`酒馆` 的六条 `[data-heard=\"tav_*\"]` 沿用**结构面**判据；`洞穴` 的两处旧话变体在同一段里（正文互斥）；`n_tav_painting` 的第二个站点在 `女巫小屋` 首访。",
+	"note": "矩阵门（`#640` · 伞 `#626`）的**判据数据** —— 场景 × 道具/线索集合 → 期望。数据住故事侧、门形状住引擎侧（`test/itemmatrix.mjs`），沿用 `#602`/`#607` 的落点纪律。口径：**行键＝该行的完整谓词上下文**（不是一个原子）；期望一律用**渲染后 + 行为面**口径（`#629` 的三条发现）。`delta` 的 `null`＝**键不存在**（`delete` 形态，即「消耗」）。 **行的前置态必须复位\"两个面\"**：`pc.ev.notes.<id>`（已授予记录）与 `pc.ev.<flag>`（旗标）——`Sg.notes.has()` 是 OR（`#434`），只清一面会因执行顺序不同而漂移。 D 批（`#640`）：`女巫小屋` 的七个 `[data-heard=\"wq_*\"]` 折叠块用**结构面**判据（`domCount`）——比散文稳；`塔外花田` 的判定点在**点击之后**（落点＋消耗）。 注：`n_wq_seen` 的旗标被段落自身的 `<<firstTime \"wq_seen\">>` 写入 ⇒ 该行站点的\"假侧\"在原渲染里**恒真**；行以**首访/复查可观测差异**（首访文本＋护符赠送 vs 复查文本）区分两侧——这是\"站点的极性 ≠ 单原子极性\"的又一个实例（`#629` 的发现①）。 E 批（`#640`）：`酒馆` 的六条 `[data-heard=\"tav_*\"]` 沿用**结构面**判据；`洞穴` 的两处旧话变体在同一段里（正文互斥）；`n_tav_painting` 的第二个站点在 `女巫小屋` 首访。 F 批（`#640`）：道具族用**选项面**（钥匙/护符/好哨）与**文本面**（护臂/坏哨）分别判定；`龙·再冲` 的成功侧用 `random: 0.99`（骰面档）。⚠️ `patches` 路径用**点号**（`pc.inv.钥匙名`）——写成方括号会被当成一个字面键名（实测踩过）。",
 	"promised": [
 		"inv:传送术卷轴",
 		"inv:完整星图",
@@ -30,7 +30,12 @@
 		"note:n_wq_past",
 		"note:n_wq_seen",
 		"note:n_wq_talisman",
-		"note:n_wq_under"
+		"note:n_wq_under",
+		"inv:守林人的钥匙",
+		"inv:时光护符",
+		"inv:好哨",
+		"inv:龙鳞护臂",
+		"inv:坏哨"
 	],
 	"rows": [
 		{
@@ -1374,6 +1379,384 @@
 				{
 					"kind": "noText",
 					"value": "依稀像酒馆旧画上站在长桌尽头的女人"
+				}
+			]
+		},
+		{
+			"id": "门厅·没有钥匙（铁门锁着）",
+			"passage": "门厅",
+			"patches": {
+				"era": "present",
+				"pc.keeper.key": false,
+				"pc.inv.守林人的钥匙": null
+			},
+			"covers": [
+				{
+					"atom": "inv:守林人的钥匙",
+					"polarity": "false"
+				}
+			],
+			"expects": [
+				{
+					"kind": "noChoice",
+					"value": "用钥匙打开铁门"
+				},
+				{
+					"kind": "choice",
+					"value": "铁门锁着。先上二楼看看"
+				}
+			]
+		},
+		{
+			"id": "门厅·持有钥匙（铁门可开）",
+			"passage": "门厅",
+			"patches": {
+				"era": "present",
+				"pc.keeper.key": false,
+				"pc.inv.守林人的钥匙": true
+			},
+			"covers": [
+				{
+					"atom": "inv:守林人的钥匙",
+					"polarity": "true"
+				}
+			],
+			"expects": [
+				{
+					"kind": "choice",
+					"value": "用钥匙打开铁门"
+				},
+				{
+					"kind": "noChoice",
+					"value": "铁门锁着"
+				}
+			]
+		},
+		{
+			"id": "顶楼·只持有钥匙（keeper.key 为假也能进交付区）",
+			"passage": "顶楼",
+			"patches": {
+				"era": "present",
+				"pc.keeper.key": false,
+				"pc.inv.守林人的钥匙": true,
+				"pc.ev.keeper_intro": null
+			},
+			"covers": [
+				{
+					"atom": "inv:守林人的钥匙",
+					"polarity": "true"
+				}
+			],
+			"expects": [
+				{
+					"kind": "text",
+					"value": "打开地下那道门"
+				}
+			]
+		},
+		{
+			"id": "顶楼·既无交接也无钥匙（只有「下楼」）",
+			"passage": "顶楼",
+			"patches": {
+				"era": "present",
+				"pc.keeper.key": false,
+				"pc.inv.守林人的钥匙": null,
+				"pc.ev.keeper_intro": null
+			},
+			"covers": [
+				{
+					"atom": "inv:守林人的钥匙",
+					"polarity": "false"
+				}
+			],
+			"expects": [
+				{
+					"kind": "noText",
+					"value": "打开地下那道门"
+				},
+				{
+					"kind": "choice",
+					"value": "下楼"
+				}
+			]
+		},
+		{
+			"id": "宴·仪式·没有护符（只能回宴上）",
+			"passage": "宴·仪式",
+			"patches": {
+				"era": "past",
+				"pc.inv.时光护符": null
+			},
+			"covers": [
+				{
+					"atom": "inv:时光护符",
+					"polarity": "false"
+				}
+			],
+			"expects": [
+				{
+					"kind": "noChoice",
+					"value": "护符自己会带你回去"
+				}
+			]
+		},
+		{
+			"id": "宴·仪式·有护符（等宴散回去）",
+			"passage": "宴·仪式",
+			"patches": {
+				"era": "past",
+				"pc.inv.时光护符": true
+			},
+			"covers": [
+				{
+					"atom": "inv:时光护符",
+					"polarity": "true"
+				}
+			],
+			"expects": [
+				{
+					"kind": "choice",
+					"value": "等宴散，护符自己会带你回去"
+				}
+			]
+		},
+		{
+			"id": "当时的女巫·没有哨（只有找杖）",
+			"passage": "当时的女巫",
+			"patches": {
+				"era": "past",
+				"pc.inv.好哨": null
+			},
+			"covers": [
+				{
+					"atom": "inv:好哨",
+					"polarity": "false"
+				}
+			],
+			"expects": [
+				{
+					"kind": "noChoice",
+					"value": "把那支哨收好"
+				},
+				{
+					"kind": "choice",
+					"value": "在塔里找那根杖"
+				}
+			]
+		},
+		{
+			"id": "当时的女巫·手里有哨（可收好）",
+			"passage": "当时的女巫",
+			"patches": {
+				"era": "past",
+				"pc.inv.好哨": true
+			},
+			"covers": [
+				{
+					"atom": "inv:好哨",
+					"polarity": "true"
+				}
+			],
+			"expects": [
+				{
+					"kind": "choice",
+					"value": "把那支哨收好"
+				}
+			]
+		},
+		{
+			"id": "工坊·没有护臂（半成品／识货）",
+			"passage": "工坊",
+			"patches": {
+				"era": "present",
+				"pc.inv.龙鳞护臂": null
+			},
+			"covers": [
+				{
+					"atom": "inv:龙鳞护臂",
+					"polarity": "false"
+				}
+			],
+			"expects": [
+				{
+					"kind": "noText",
+					"value": "护臂你已经带上了"
+				},
+				{
+					"kind": "text",
+					"value": "炉膛凉了三百年"
+				}
+			]
+		},
+		{
+			"id": "工坊·已戴上护臂",
+			"passage": "工坊",
+			"patches": {
+				"era": "present",
+				"pc.inv.龙鳞护臂": true
+			},
+			"covers": [
+				{
+					"atom": "inv:龙鳞护臂",
+					"polarity": "true"
+				}
+			],
+			"expects": [
+				{
+					"kind": "text",
+					"value": "护臂你已经带上了"
+				},
+				{
+					"kind": "noText",
+					"value": "那人还没来取"
+				}
+			]
+		},
+		{
+			"id": "雾之魔物·没有坏哨",
+			"passage": "雾之魔物",
+			"patches": {
+				"era": "present",
+				"pc.inv.坏哨": null
+			},
+			"covers": [
+				{
+					"atom": "inv:坏哨",
+					"polarity": "false"
+				}
+			],
+			"expects": [
+				{
+					"kind": "noText",
+					"value": "它认得这个形状"
+				}
+			]
+		},
+		{
+			"id": "雾之魔物·身上有坏哨",
+			"passage": "雾之魔物",
+			"patches": {
+				"era": "present",
+				"pc.inv.坏哨": true
+			},
+			"covers": [
+				{
+					"atom": "inv:坏哨",
+					"polarity": "true"
+				}
+			],
+			"expects": [
+				{
+					"kind": "text",
+					"value": "它认得这个形状"
+				}
+			]
+		},
+		{
+			"id": "龙·再冲·空手（杀死它→坠星之死）",
+			"passage": "龙·再冲",
+			"patches": {
+				"era": "present",
+				"pc.inv.观星者的书": null,
+				"pc.ev.notes.n_failure_cause": null,
+				"pc.ev.failure_cause": null
+			},
+			"random": 0.99,
+			"covers": [
+				{
+					"atom": "inv:观星者的书",
+					"polarity": "false"
+				},
+				{
+					"atom": "note:n_failure_cause",
+					"polarity": "false"
+				}
+			],
+			"click": {
+				"label": "你杀了它"
+			},
+			"expects": [
+				{
+					"kind": "text",
+					"value": "你只有一次机会"
+				},
+				{
+					"kind": "noText",
+					"value": "来历仍留在世上"
+				}
+			],
+			"expectsAfter": [
+				{
+					"kind": "lands",
+					"value": "结局 坠星之死"
+				}
+			]
+		},
+		{
+			"id": "龙·再冲·带着书（来历留在世上→星落）",
+			"passage": "龙·再冲",
+			"patches": {
+				"era": "present",
+				"pc.inv.观星者的书": true,
+				"pc.ev.notes.n_failure_cause": null,
+				"pc.ev.failure_cause": null
+			},
+			"random": 0.99,
+			"covers": [
+				{
+					"atom": "inv:观星者的书",
+					"polarity": "true"
+				}
+			],
+			"click": {
+				"label": "你杀了它"
+			},
+			"expects": [
+				{
+					"kind": "text",
+					"value": "你只有一次机会"
+				},
+				{
+					"kind": "text",
+					"value": "来历仍留在世上"
+				}
+			],
+			"expectsAfter": [
+				{
+					"kind": "lands",
+					"value": "结局 星落"
+				}
+			]
+		},
+		{
+			"id": "龙·再冲·只有失败因（同样 星落）",
+			"passage": "龙·再冲",
+			"patches": {
+				"era": "present",
+				"pc.inv.观星者的书": null,
+				"pc.ev.notes.n_failure_cause": true,
+				"pc.ev.failure_cause": true
+			},
+			"random": 0.99,
+			"covers": [
+				{
+					"atom": "note:n_failure_cause",
+					"polarity": "true"
+				}
+			],
+			"click": {
+				"label": "你杀了它"
+			},
+			"expects": [
+				{
+					"kind": "text",
+					"value": "你只有一次机会"
+				}
+			],
+			"expectsAfter": [
+				{
+					"kind": "lands",
+					"value": "结局 星落"
 				}
 			]
 		}

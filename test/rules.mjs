@@ -687,5 +687,24 @@ for (const file of fixtures) {
 	Sg.notes.has = keepHas;
 }
 
+// ── `#624` 批 2：act handler 里**可迁子集**（守卫是 era／world 的入口）──
+{
+	const Sg = w.Sg;
+	const P = (world = {}) => ({ ev: {}, world, keeper: {}, star: {}, inv: {}, soc: {} });
+	const V = w.SugarCube.State.variables, keep = V.era;
+	const pickId = (scope, pc) => Sg.rules.pick(scope, { pc, chose: new Set() })?.id ?? null;
+	V.era = w.Game.Era.PAST;
+	eq(pickId('工坊#问铁匠', P()), '工坊.问铁匠', '`era:past` ⇒ 选中「问铁匠」入口（原手写 `<<if $era is Game.Era.PAST>>`）');
+	V.era = w.Game.Era.PRESENT;
+	eq(pickId('工坊#问铁匠', P()), null, '现在侧 ⇒ 不选中（与原文一致）');
+	eq(pickId('天文台#取书', P()), '天文台.取书.现在', '取书：现在侧且没拿过 ⇒ 「找手稿」链接行');
+	V.era = w.Game.Era.PAST;
+	eq(pickId('天文台#取书', P()), '天文台.取书.过去', '取书：过去侧 ⇒ 「抄本都还新」那句（与原文 else 同语义）');
+	V.era = w.Game.Era.PRESENT;
+	eq(pickId('天文台#取书', P({ book_taken: true })), '天文台.取书.已取', '取书：已拿过 ⇒ 「已经不在架上了」（`req: [world.book_taken]`）');
+	ok(pickId('天文台#取书', P({ book_taken: true })) !== null, '三行互斥：任一状态都恰好命中一行（不会空屏）');
+	V.era = keep;
+}
+
 console.log(failures ? `\n${failures} 项失败` : '\n规则层测试全部通过');
 process.exit(failures ? 1 : 0);

@@ -10,9 +10,12 @@ const stripBlockComments = (t) => String(t).replace(/\/\*[\s\S]*?\*\//g, '');
 /** `<<give "X">>` 调用点 → `段落::道具` 集合（「道具」＝社交 ok 模板的泛型占位，由 social 条目覆盖 ⇒ 跳过 Game Tables 那条）。
  *  `#435` 前置 0：条件表行的 `gives: ['月光花']` 也是 give 位点（写点已搬到 `<<rules>>` 一处）——
  *  归属段落＝该行 `scope` 的 `#` 前那一截；不收进来 ⇒ 物品授予就从 NPC 动机登记簿里"消失"。 */
-export const giveSitesOf = (passageSrc, rows = []) => {
+export const giveSitesOf = (passageSrc, rows = [], tagsOf = () => []) => {
 	const out = new Set();
 	for (const [name, src0] of passageSrc) {
+		// `[script]` 段（条件表）的源码里也能正则到 `<<give "…">>` —— 那是 **行 `text` 里的字符串**，
+		// 不是该段的写点 ⇒ 跳过（它们的归属由下面按行 `scope` 归属；不跳就会多出 `StoryRules::…` 的假位点）。
+		if ((tagsOf(name) ?? []).includes('script')) continue;
 		const src = stripBlockComments(src0);
 		for (const m of src.matchAll(/<<give "([^"]+)">>/g)) {
 			if (m[1] === '道具' && name === 'Game Tables') continue;
@@ -21,7 +24,12 @@ export const giveSitesOf = (passageSrc, rows = []) => {
 	}
 	for (const r of rows ?? []) {
 		const p = String(r?.scope ?? '').split('#')[0];
-		for (const g of (Array.isArray(r?.gives) ? r.gives : r?.gives ? [r.gives] : [])) if (p) out.add(`${p}::${String(g)}`);
+		if (!p) continue;
+		// `#624` 片一：表行 `text` 里也可以有 `<<give>>`（点击态词汇宏 —— 渲染域不许写，link 体内可以）
+		// ⇒ 这些写点同样要归到该行的归属段落（`scope` 的 `#` 前那段），与 `gives` 声明同一口径；
+		// 不收进来就会把它们算在 `StoryRules` 名下 ⇒ 假红「give 位点未登记」（本批实测撞到）。
+		for (const m of String(r?.text ?? '').matchAll(/<<give "([^"]+)">>/g)) out.add(`${p}::${m[1]}`);
+		for (const g of (Array.isArray(r?.gives) ? r.gives : r?.gives ? [r.gives] : [])) out.add(`${p}::${String(g)}`);
 	}
 	return out;
 };
@@ -70,7 +78,7 @@ if (wantAll || arg('npc')) {
 	// 位点扫描：give 调用点（剥注释；「道具」＝社交 ok 模板的泛型占位，由 social 条目覆盖）
 	// ＋ `#435` 前置 0：表行的 `gives` 声明（按 `scope` 归属）
 	const rules = ctx.window?.Sg?.story?.rules?.() ?? [];
-	const giveSites = giveSitesOf(passageSrc, rules);
+	const giveSites = giveSitesOf(passageSrc, rules, (p) => passageTags?.get(p) ?? []);
 	for (const site of uncoveredGiveSites(giveSites, entries)) {
 		const [p, item] = site.split('::');
 		console.log(`  ✗ give 位点未登记：${p} · ${item}`);

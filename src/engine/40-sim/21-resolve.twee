@@ -524,7 +524,10 @@ Object.assign((window.Game.Combat ??= {}), {
 		const long = waves.length === 2;
 		return {
 			id, waves: waves.map((wv) => ({ pool: wv.pool, difficulty: wv.difficulty, reinforce: !!wv.reinforce })),
-			long, rounds: long ? 3 : 1, hits: long ? 3 : 1,          // 已定 ②：两档只在"回合数"这一维正交
+			// `#599`（2026-09-14 口径定案）：长战斗**回合上限 3 → 5**，保留"需 3 次成功"——
+			// 依据：① 保留"三击"＝长战斗的形，只松压力；② `#600` 必掉钥匙 × 0.74% 清完率自相矛盾；
+			// ③ 候选里这是"保持结构、只改压力"的那档（改命中数＝改形）。两批清完率 ≈ 16.6%。
+			long, rounds: long ? 5 : 1, hits: long ? 3 : 1,          // 两档只在"回合数"这一维正交（短＝1 回合·1 命中）
 			rewardsScale: typeof enc.rewardsScale === 'number' ? enc.rewardsScale : 1,
 		};
 	},

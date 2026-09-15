@@ -669,7 +669,7 @@ window.Sg.rules = {
 	},
 	// **键形前缀的宣告**（`#435` 口径②，dev 的 `--rules` 判据会核对）：行里用了**未宣告**的前缀 ⇒ 红。
 	// 为什么必须在引擎侧宣告：引擎不认的前缀会让条件**永假** ⇒ 行静默死掉，没有任何门看得见（本仓反复踩的那类）。
-	prefixes: ['inv', 'era'],
+	prefixes: ['inv', 'era', 'gear'],   // `#624` 片四：`gear:<道具>`＝行囊/装备里有它（`$pc.gear.includes(…)` 的键形）
 	// **引擎兑现的"面"**（`#435` Q1 拍板，与 `prefixes` 同轴的反沉默面）：行里用到的授予面必须是这里声明过的。
 	// 为什么：被引擎忽略的声明＝**静默空转**——行看起来授予了，实际什么都没发生，而没有任何门看得见。
 	// `yields`/`gives` 早于本机制（老面，不追溯）；`sets` 是新增面 ⇒ 用到就必须在这里宣告。
@@ -702,9 +702,10 @@ window.Sg.rules = {
 	readKey(key, pc) {
 		const k = String(key);
 		if (k.startsWith('n_')) return window.Sg.notes.has(k);
-		const m = /^(inv|era):(.+)$/.exec(k);
+		const m = /^(inv|era|gear):(.+)$/.exec(k);
 		if (m) {
 			if (m[1] === 'inv') return !!(pc?.inv ?? {})[m[2]];                      // 持有物（不在 pc.ev/world 域）
+			if (m[1] === 'gear') return (pc?.gear ?? []).includes(m[2]);             // 行囊/装备（同上；`#624` 片四）
 			const want = window.Game?.Era?.[String(m[2]).toUpperCase()] ?? m[2];     // 时代（`era:present`／`era:past`）
 			return State.variables.era === want;
 		}

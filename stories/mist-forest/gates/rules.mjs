@@ -22,7 +22,7 @@
 //      · **同位点重复调用**：同一段落里同一 `scope` 被调用 ≥2 次 ⇒ 两个位点抢同一行（渲染重复）；
 //      · **归属不符**：`scope` 写成 `段落#位点`（＝声明了归属段落）时，调用点必须**就在那个段落**里。
 //      另：无对应行的调用点 ⇒ 红（`pick()` 返回 null ＝ 正文静默消失，是本门要抓的同一类静默）。
-import { WRITE_PATTERNS, NOTE_WRITE_RE, NOTE_WRITE_API_RE, rowOps, condKeysOf, yieldsList, notePaths } from '../../../scripts/../scripts/audit/lib/shared.mjs';
+import { WRITE_PATTERNS, NOTE_WRITE_RE, NOTE_WRITE_API_RE, KEY_PREFIX_RE, rowOps, condKeysOf, yieldsList, notePaths } from '../../../scripts/../scripts/audit/lib/shared.mjs';
 
 export const flag = 'rules';
 export const flags = ['rules'];
@@ -216,7 +216,7 @@ export const setProblems = (rows, { notes = {}, domains = [] } = {}) => {
 	for (const r of rows ?? []) {
 		for (const k0 of (Array.isArray(r?.sets) ? r.sets : r?.sets ? [r.sets] : [])) {
 			const k = String(k0), bare = k.replace(/^(ev|world)\./, '');
-			if (/^(?:inv|era):/.test(k) || k.startsWith('n_')) { out.push({ id: r.id, key: k, why: '键形非法（`sets` 只写状态键：不写 note id／前缀键）' }); continue; }
+			if (KEY_PREFIX_RE.test(k) || k.startsWith('n_')) { out.push({ id: r.id, key: k, why: '键形非法（`sets` 只写状态键：不写 note id／前缀键）' }); continue; }
 			if (!/^(?:ev|world)\.[a-z_]\w*$/.test(k) && !/^[a-z_]\w*$/.test(k)) { out.push({ id: r.id, key: k, why: '键形非法（写裸键或 `ev.`/`world.` 限定；裸键默认 `ev.`，与 `holds()` 同口径）' }); continue; }
 			const qualified = k.includes('.') ? k : `ev.${k}`;
 			if (flagPaths.has(qualified)) { out.push({ id: r.id, key: k, why: '该键**有笔记** ⇒ 必须走 `yields`（避免同一知识两条写路）' }); continue; }

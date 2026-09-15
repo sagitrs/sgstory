@@ -753,5 +753,33 @@ for (const file of fixtures) {
 	// 战斗退开：守卫是战斗瞬态
 }
 
+// ── `#624` 片四：`gear:` 前缀（行囊/装备）—— 火把两处 ＋ 洞穴火光变体 ──
+{
+	const Sg = w.Sg;
+	const pick = (scope, gear = [], gold = 0) => Sg.rules.pick(scope, { pc: { ev: {}, world: {}, keeper: {}, star: {}, inv: {}, soc: {}, gear, gold }, chose: new Set() })?.id ?? null;
+	const price = -w.Game.Economy.priceOf('torch_buy', { ev: {}, world: {}, gear: [], gold: 100 });
+	eq(pick('酒馆#买火把', [], price - 1), null, `买火把：没买过且钱不够（${price - 1} < ${price}）⇒ 什么都不渲染（与原文一致）`);
+	eq(pick('酒馆#买火把', [], price), '酒馆.买火把', `买火把：钱刚好够（${price} 金）⇒ 出现买入口`);
+	eq(pick('酒馆#买火把', ['火把'], 999), null, '买火把：已经有了 ⇒ 不再出买入口（`exclude: [gear:火把]`）');
+	eq(pick('酒馆#火把已备', ['火把']), '酒馆.火把已备', '火把已备：行囊里有 ⇒ 出「看好火」那句');
+	eq(pick('酒馆#火把已备', []), null, '火把已备：没有 ⇒ 不出（独立 scope）');
+	eq(pick('洞穴#火光', ['火把']), '洞穴.火光.有火把', '洞穴：带火把 ⇒ 火光照出一地碎石头');
+	eq(pick('洞穴#火光', []), '洞穴.火光.无火把', '洞穴：没火把 ⇒ 洞口漏进灰光（两行互斥，不会空屏）');
+	// 真机：洞穴段落按行囊渲染不同那句 + 买火把入口带真实价格
+	// ⚠️ 行囊是**数组**：必须**在页内**赋值（Node 那边造数组塞进去 ⇒ SugarCube 的 clone 不认外部 realm 的 Array，实测 TypeError）
+	w.eval("SugarCube.State.variables.pc.gear = ['火把']");
+	w.SugarCube.Engine.play('洞穴');
+	await sleep(200);
+	ok(/火把的光在石壁上摊开/.test(w.document.querySelector('#passages')?.textContent ?? ''), '真机：行囊有火把 ⇒ 洞穴渲染「火把的光…」');
+	w.eval('SugarCube.State.variables.pc.gear = []');
+	w.SugarCube.Engine.play('洞穴');
+	await sleep(200);
+	ok(/洞口漏进来一点灰光/.test(w.document.querySelector('#passages')?.textContent ?? ''), '真机：行囊没有火把 ⇒ 渲染「洞口漏进来一点灰光」');
+	w.eval("SugarCube.State.variables.pc.gear = ['火把']");
+	w.SugarCube.Engine.play('酒馆');
+	await sleep(250);
+	ok(![...w.document.querySelectorAll('#passages a.link-internal')].some((a) => /买一支火把/.test(a.textContent)), '真机：已有火把 ⇒ 酒馆不出买入口');
+}
+
 console.log(failures ? `\n${failures} 项失败` : '\n规则层测试全部通过');
 process.exit(failures ? 1 : 0);

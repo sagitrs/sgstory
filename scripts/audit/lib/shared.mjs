@@ -9,6 +9,8 @@ import { maskComments } from './mask.mjs';
 // ⇒ 形态只此一处，两处消费方都从这里取。
 // **隐含约束**：旗标键必须匹配 `[a-z_]\w*`（大写/数字开头会被静默漏检）——用 `keyCharsetViolations` 兜住。
 export const KEY_CHARSET = /^[a-z_]\w*$/;
+/** **前缀键**（`inv:`／`era:`／`gear:`，`#624` 片四加最后一个）的**单一权威**：它们不是状态键（持有物/时代/行囊都不在 `pc.ev`/`pc.world` 域）⇒ 不参与状态契约与旗标分级；求值在引擎 `Sg.rules.holds()`。 */
+export const KEY_PREFIX_RE = /^(?:inv|era|gear):/;
 export const WRITE_PATTERNS = [
 	{ re: /<<setflag\s+"(ev|world)\.([a-z_]\w*)"/g, kind: 'scoped' },      // `#624` 片三：`<<setflag "ev.x">>`（显式域）
 	{ re: /<<setflag\s+"([a-z_]\w*)"/g, kind: 'world' },                 // 宏式写 world 域（裸键，原语义）
@@ -147,7 +149,7 @@ export const ruleRowKeys = (row, entries) => {
 	for (const key of [...asListOf(row?.req), ...asListOf(row?.any), ...asListOf(row?.exclude)].flatMap(condKeysOf)) {
 		// `#435`：**前缀键**（`inv:<道具>`／`era:<时代>`）不是状态键（持有物/时代都不在状态契约域里）
 		// ⇒ 不参与"有写有读"；它们的求值在引擎侧 `Sg.rules.holds()`。
-		if (/^(?:inv|era):/.test(key)) continue;
+		if (KEY_PREFIX_RE.test(key)) continue;
 		// `#435` 修正②：**第三命名空间**（`keeper.`/`star.`/`gold.`…）不是 `pc.ev`/`pc.world` 的键
 		// ⇒ 不参与状态契约（`--state`）与旗标分级（D2）。不跳过的话 `keeper.met` 会被当成裸键 `met`
 		// ⇒ `--state` 报"未落入任何域"（= 引入一个今天看不见的假红）。
@@ -181,7 +183,7 @@ export const condTextOf = (cond) => {
 /** 条件表行的 **`sets` 写点**（`#435` Q1：授予家族第三类——状态键写点也搬进表）。与 `ruleRowKeys()` 同命名空间：
  *  裸键默认 `ev.`（与 `Sg.rules.holds()` 同口径）；写世界态请写全 `world.x`；note id／前缀键不是状态键 ⇒ 跳过。 */
 export const ruleRowSetKeys = (row) => (Array.isArray(row?.sets) ? row.sets : row?.sets ? [row.sets] : [])
-	.map(String).filter((k) => !/^(?:inv|era):/.test(k) && !k.startsWith('n_')).map((k) => (k.includes('.') ? k : `ev.${k}`));
+	.map(String).filter((k) => !KEY_PREFIX_RE.test(k) && !k.startsWith('n_')).map((k) => (k.includes('.') ? k : `ev.${k}`));
 
 /** 文本里 `Sg.notes.add('n_x')`（或 `<<note "n_x">>`）引用的笔记 id。 */
 export const noteWriteRefs = (text) => {
@@ -206,7 +208,7 @@ export const ruleRowFlags = (row, entries) => {
 	const paths = notePaths(entries);
 	const out = new Set();
 	for (const key of [...asListOf(row?.req), ...asListOf(row?.any), ...asListOf(row?.exclude)].flatMap(condKeysOf)) {
-		if (/^(?:inv|era):/.test(key)) continue;   // 同 `ruleRowKeys()`：前缀键不是旗标，不参与分级
+		if (KEY_PREFIX_RE.test(key)) continue;   // 同 `ruleRowKeys()`：前缀键不是旗标，不参与分级
 		if (key.includes('.') && !/^(?:ev|world)\./.test(key)) continue;   // 同上：第三命名空间不是旗标
 		if (key.startsWith('n_')) for (const p of (paths.get(key) ?? [])) out.add(p.replace(/^(ev|world)\./, ''));
 		else out.add(key.replace(/^(ev|world)\./, ''));

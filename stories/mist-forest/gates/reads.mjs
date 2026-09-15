@@ -120,7 +120,7 @@ export const tableReadProblems = (rows) => {
 			// `#435` 键形：note id ∕ 裸键（默认 `ev.`）∕ **任意域的状态路径**（`ev.`/`world.`/`keeper.`/`star.`…）∕
 			// 两种**前缀键**（`inv:<道具>`／`era:<时代>`，求值在引擎侧 `Sg.rules.holds()`）。
 			// 修正①（2026-09-14）：原先只放行 `ev|world` 两域 ⇒ **误杀 `keeper.met`/`star.spent`** 这类第三命名空间。
-			if (!/^(n_[a-z0-9_]+|[a-z_]\w*|[a-z_]\w*\.[a-z_]\w*|inv:.+|era:(?:past|present))$/.test(k)) out.push({ id: r.id, field, what: '键形态', detail: k });
+			if (!/^(n_[a-z0-9_]+|[a-z_]\w*|[a-z_]\w*\.[a-z_]\w*|inv:.+|era:(?:past|present)|gear:.+)$/.test(k)) out.push({ id: r.id, field, what: '键形态', detail: k });
 			for (const key of literalReadKeys(k)) out.push({ id: r.id, field, what: '字面状态读', detail: key });
 		}
 		for (const key of literalReadKeys(r.text ?? '')) out.push({ id: r.id, field: 'text', what: '字面状态读', detail: key });
@@ -151,6 +151,7 @@ export const run = (ctx) => {
 			['正例（另票 #491）：对象算子形条件的**键**照常判形态（阈值/算子不进形态判定）', tableReadProblems([{ id: 'A', req: [{ gte: ['star.spent', 3] }, 'n_x'] }]).length === 0],
 			['正例（修正①）：第三命名空间的状态路径 `keeper.met`／`star.spent` 是合法键形', tableReadProblems([{ id: 'A', req: ['keeper.met'], any: ['star.spent'] }]).length === 0],
 			['🔴 反例（修正①的反面）：多段路径 `pc.ev.x` ／ 带 `$` 的 `$pc.ev.x` 仍拦', tableReadProblems([{ id: 'A', req: ['$pc.ev.x'] }]).length > 0 && tableReadProblems([{ id: 'A', req: ['a.b.c'] }]).some((p) => p.what === '键形态')],
+			['正例（`#624` 片四）：`gear:` 是合法前缀键形（行囊/装备）⇒ 不报', tableReadProblems([{ id: 'A', req: ['gear:火把'] }]).length === 0],
 			['🔴 反例：`inv:` 写成运行时读 `$pc.inv[…]` ⇒ 键形态报（`readKeys` 只管 ev/world，故这里靠形态兜住）', tableReadProblems([{ id: 'A', req: ["$pc.inv['日记']"] }]).some((p) => p.what === '键形态')],
 			['正例：知识键在叙事段直读 ⇒ 命中（`know` 索引单一权威）', knowledgeHits(scanReads(segmentsOf(['stories/x.twee'], () => ':: P\n<<if $pc.ev.a>>x<</if>>\n')), new Map([['ev.a', 'n_a']])).length === 1],
 			['边界：非知识键（世界态）不在②的扫描面内（走③报告）', knowledgeHits(scanReads(segmentsOf(['stories/x.twee'], () => ':: P\n<<if $pc.world.b>>x<</if>>\n')), new Map([['ev.a', 'n_a']])).length === 0],

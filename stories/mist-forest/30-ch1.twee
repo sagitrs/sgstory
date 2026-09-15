@@ -121,14 +121,8 @@
 <details class="act-group" name="tavern-acts" open>
 	<summary>柜台：打听与添置<span class="act-n" aria-hidden="true"></span></summary>
 	<<rules "酒馆#打听情报">>
-	<<if not $pc.gear.includes("火把") and $pc.gold gte (-Game.Economy.priceOf("torch_buy", $pc))>>
-	<<link `"花 " + (-Game.Economy.priceOf("torch_buy", $pc)) + " 金币：买一支火把"`>>
-		<<econ "torch_buy">><<goto "酒馆">>
-	<</link>>
-<</if>>
-<<if $pc.gear.includes("火把")>>
-她看了一眼你肩后的火把，把柜台上的油灯往里挪了挪。''"走水没人救。看好火。"''
-<</if>>
+	<<rules "酒馆#买火把">>
+<<rules "酒馆#火把已备">>
 </details>
 <details class="act-group" name="tavern-acts" open>
 	<summary>离开酒馆<span class="act-n" aria-hidden="true"></span></summary>
@@ -204,11 +198,7 @@
 
 :: 洞穴
 /% payload: 信息|选择 %/
-<<if $pc.gear.includes("火把")>>
-洞穴不深，走十几步就到了底。火把的光在石壁上摊开，照出一地碎石头。
-<<else>>
-洞穴不深，走十几步就到了底。洞口漏进来一点灰光，照出一地碎石头。
-<</if>>
+<<rules "洞穴#火光">>
 
 <<if not $pc.world.goblin_gone>>
 一个哥布林缩在角落里，怀里抱着几块发亮的石头。

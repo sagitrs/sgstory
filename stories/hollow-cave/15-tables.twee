@@ -194,6 +194,13 @@ const MECH = {
 		short: { waves: [{ pool: 'cave.w1', difficulty: 1 }], reward: { gold: 3, item: { id: '钥匙', chance: 30 } }, failNote: 'n_cave_battered' },
 		long: { waves: [{ pool: 'cave.w1', difficulty: 1 }, { pool: 'cave.w2', difficulty: 2, reinforce: true }], rewardsScale: 1.5, reward: { gold: 9, item: '钥匙' } },
 	},
+	// `#692`（①，操作者裁定）：路面提示要**显式标出事件类型**（玩家才谈得上"选"）。
+	// 标签住**声明面**（不是写死在段落里）：新增第七类 kind 时，门（`stories/hollow-cave/gates/cave.mjs` 判据⑤）
+	// 会立刻报"没有标签"⇒ 否则玩家只会看到空白/问号前缀，而没有任何门看得见。
+	kindLabels: {
+		shortFight: '短战斗', longFight: '长战斗', chest: '宝箱',
+		cave: '特殊洞窟', trap: '陷阱', traveller: '旅人',
+	},
 	// 五步主线：每步 3 路（段号从 1 计，与 `roadOffer(idx)` 一致）；每步至少一个 `noCheck:true`（不掷骰也有路）
 	roads: [
 		{ from: 0, to: 1, options: [
@@ -233,6 +240,7 @@ const MECH = {
 };
 Object.assign(window.Sg.story, {
 	mechanics: () => MECH,
+	eventKindLabel: (k) => MECH.kindLabels?.[k] ?? null,
 	// 以下两面是 S6 的门要消费的声明（引擎目前不经它们取数 ⇒ 先声明、不假装已接线；见 `#491`）
 	chestDef: (id) => MECH.chest.mechanisms[id] ?? null,
 	lootOf: (rarity) => MECH.chest.loot[rarity] ?? [],

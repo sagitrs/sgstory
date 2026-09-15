@@ -164,13 +164,22 @@ export const ruleRowKeys = (row, entries) => {
 // 与读点（`noteReadKeys`）并列，仍是**单一权威**。为什么需要它：写点从「字面量写旗标」改成
 // 「经 `Sg.notes.add` 写」之后，按**字面量**认写点的门（`--state` 的"有写有读"、D2 的桶分类）
 // 会把该键判成**只有读** ⇒ 假红。（阶段 2 的 5 个消费点就是这个剧本，那次换的是**读**点形状。）
-// 两种**写点形状**（单一权威）：① 模块 API `Sg.notes.add('n_x')`；② 词汇宏 ``<<note "n_x">>``（`#624` 片一新增，
-// 表行与点击态里该用宏）。**新写点形状只改这一处** —— 否则 `--state`／D2／`--sel-gear`／`premise-source`
+// 三种**写点形状**（单一权威）：① 模块 API `Sg.notes.add('n_x')`；② 词汇宏 ``<<note "n_x">>``（`#624` 片一新增，
+// 表行与点击态里该用宏）；③ **路径限定**的 ``<<notepath "n_x" "ev.y">>``／`Sg.notes.addPath('n_x','ev.y')`
+// （`#437` 批三 C-2：多源笔记 `flagPath: [a,b]` 必须声明**写哪一条**，否则整族都算被写＝静默多写）。
+// **新写点形状只改这一处** —— 否则 `--state`／D2／`--sel-gear`／`premise-source`
 // 会集体把它当"只读" ⇒ 幽灵条件假红（阶段 2 的五消费点、`#624` 批 1 都撞过同一剧本）。
-export const NOTE_WRITE_RE = /(?:Sg\.notes\.add\(\s*['"](n_[a-z0-9_]+)['"]|<<\s*note\s+['"](n_[a-z0-9_]+)['"])/g;
-/** 只要**模块 API** 那一种（`Sg.notes.add(`）。判「表里该用宏还是裸 API」时用它（`#624` 片一）：
- *  `NOTE_WRITE_RE` 认两种形状（记账用），而**点击态域里的 `<<note>>` 是允许的**，不许当成裸 API 判红。 */
-export const NOTE_WRITE_API_RE = /Sg\.notes\.add\(/;
+// `#437` C-2b 的这一处是**读侧 `hasIf()` 那次的同构**：读侧堵了、写侧不堵 ⇒ "转一处、写点丢一处"。
+export const NOTE_WRITE_RE = /(?:Sg\.notes\.add(?:Path)?\(\s*['"](n_[a-z0-9_]+)['"]|<<\s*(?:note|notepath)\s+['"](n_[a-z0-9_]+)['"])/g;
+/** **路径限定**写点 ⇒ `[{ id, path }]`（`#437` 批三 C-2）。为什么要单独一条正则：多源笔记要知道
+ *  **写的是哪一条**（`<<note>>` 只能记整族；`noteWriteKeys()` 对限定形**只记声明的那条**）。
+ *  宏参数在 SugarCube 里按**空白**切 ⇒ 写成 `<<notepath "id", "path">>` 会把逗号带进参数；
+ *  那种写法**不被本正则认**（记不进记账 ⇒ 会红）。方向是安全的：它是坏形状，不该被认。 */
+export const NOTE_PATH_WRITE_RE = /(?:Sg\.notes\.addPath\(\s*['"](n_[a-z0-9_]+)['"]\s*,\s*['"]((?:ev|world)\.[a-z0-9_]+)['"]|<<\s*notepath\s+['"](n_[a-z0-9_]+)['"]\s+['"]((?:ev|world)\.[a-z0-9_]+)['"])/g;
+/** 只要**模块 API** 那一种（`Sg.notes.add(`／`Sg.notes.addPath(`）。判「表里该用宏还是裸 API」时用它（`#624` 片一）：
+ *  `NOTE_WRITE_RE` 认三种形状（记账用），而**点击态域里的 `<<note>>`／`<<notepath>>` 是允许的**，不许当成裸 API 判红。
+ *  `addPath` 一并咬（`#437` C-2）：否则"路径限定"的裸 API 形态成了 W1 白名单之外的一条后门。 */
+export const NOTE_WRITE_API_RE = /Sg\.notes\.add(?:Path)?\(/;
 /** **声明面驱动的写点**（`#608`）：短战斗 widget 落败时按 `encounters[*].failNote` 写笔记——
  *  引擎侧是**变量**（`<<note _note>>`），字面 id 只在**故事的数据表**里 ⇒ 静态扫描必须以声明为源，
  *  否则 `--state` 会报「只有读没有写（幽灵条件）」（实测：`cave_battered` 恰好踩中）。 */
@@ -198,11 +207,28 @@ export const noteWriteRefs = (text) => {
 	for (const id of declaredNoteWriteRefs(text)) out.add(id);
 	return [...out];
 };
-/** 经 `Sg.notes.add()` 写到的**限定键**（`ev.x`/`world.x`）。 */
+/** **路径限定**写点的 `[{ id, path }]`（两形状一份口径，`#437` C-2）。 */
+export const notePathWriteRefs = (text) => {
+	const out = [], seen = new Set();
+	for (const m of String(text ?? '').matchAll(NOTE_PATH_WRITE_RE)) {
+		const id = m[1] ?? m[3], path = m[2] ?? m[4];
+		const k = `${id}\u0000${path}`;
+		if (seen.has(k)) continue;
+		seen.add(k);
+		out.push({ id, path });
+	}
+	return out;
+};
+/** 经 `Sg.notes.add()` 写到的**限定键**（`ev.x`/`world.x`）。**限定形只记声明的那一条**（`#437` C-2）：
+ *  多源笔记若把整族都记上，就等于承认"静默多写"——而 `#434` 的护栏恰恰要求 fail-loud。 */
 export const noteWriteKeys = (text, entries) => {
 	const paths = notePaths(entries);
 	const out = new Set();
-	for (const id of noteWriteRefs(text)) for (const p of (paths.get(id) ?? [])) out.add(p);
+	const qualified = notePathWriteRefs(text);
+	const qualifiedIds = new Set(qualified.map((q) => q.id));
+	for (const q of qualified) out.add(q.path);
+	// 未限定形（`<<note>>`／`Sg.notes.add`）仍按整族记 —— 它们**不该**用在多源笔记上（护栏会报）
+	for (const id of noteWriteRefs(text)) if (!qualifiedIds.has(id)) for (const p of (paths.get(id) ?? [])) out.add(p);
 	return [...out];
 };
 /** 同上，返回**裸键**（D2 按裸键判）。 */

@@ -10,6 +10,7 @@
 // 用法：node test/notes-write.mjs
 import { readFileSync } from 'node:fs';
 import { createContext } from '../scripts/audit/context.mjs';
+import { noteWriteRefs, noteWriteKeys, notePathWriteRefs } from '../scripts/audit/lib/shared.mjs';
 
 let bad = 0;
 const case_ = (label, ok, extra = '') => {
@@ -199,6 +200,25 @@ if (multi) {
 			if (pc.ev.notes) delete pc.ev.notes[multi];
 			return Sg.notes.addPath(multi, p) === true && Sg.notes.readPath(pc, p) === true;
 		})());
+}
+
+{
+	// `#437` 批三 C-2b（dev 半边）：**写点识别面**认"路径限定"的新形状（`<<notepath>>`／`Sg.notes.addPath`）。
+	// 为什么锚在这里：`NOTE_WRITE_RE`／`noteWriteKeys` 是写点的**单一权威** —— 多源笔记必须**只记声明的那一条**，
+	// 否则 `--state`／`--consequences`／`--echoes`／`--investment` 会把"静默多写"当成合法（那正是 `#434` 要求 fail-loud 的事）。
+	// 背景：`#676` 引入宏时只改了 W1 白名单，写点识别面没跟上（dev 复核实测 `noteWriteRefs('<<notepath …>>') === []`）。
+	const E2 = { n_hall_hint: { flagPath: ['world.hall_hint', 'ev.hall_seen'] } };   // 多源笔记的真实形状
+	case_('写点识别：`<<notepath "id" "path">>` 的 id **可见**（与 `<<note>>` 同权，不再是盲区）',
+		noteWriteRefs('<<notepath "n_hall_hint" "ev.hall_seen">>').join() === 'n_hall_hint');
+	case_('写点识别：多源笔记走 `<<notepath>>` ⇒ **只记声明的那一条**（不是整族）',
+		noteWriteKeys('<<notepath "n_hall_hint" "ev.hall_seen">>', E2).join() === 'ev.hall_seen');
+	case_('🔴 对照（这正是"多源必须用 `notepath`"的机械理由）：`<<note>>` ⇒ 整族两条都算',
+		noteWriteKeys('<<note "n_hall_hint">>', E2).sort().join() === 'ev.hall_seen,world.hall_hint');
+	case_('写点识别：API 形 `Sg.notes.addPath("id", "path")` 同口径（也只记声明的那一条）',
+		noteWriteKeys('Sg.notes.addPath("n_hall_hint", "world.hall_hint")', E2).join() === 'world.hall_hint');
+	case_('🔴 坏形状不认：`<<notepath "id", "path">>`（逗号会被带进参数 ⇒ 运行期坏）**不算**限定形（于是退回整族＝方向安全：宁可多记）',
+		notePathWriteRefs('<<notepath "n_hall_hint", "ev.hall_seen">>').length === 0
+		&& noteWriteKeys('<<notepath "n_hall_hint", "ev.hall_seen">>', E2).sort().join() === 'ev.hall_seen,world.hall_hint');
 }
 
 if (bad) {

@@ -27,9 +27,5 @@
 			"森林的根里"
 		]
 	},
-	"readBaseline": {
-		"塔外花田|world.flower_warned": "阶段 4 待搬家：`<<link>>` 里的条件文案（花警告）",
-		"门厅|ev.hall_seen": "阶段 4 待搬家：门厅「看钉」位点的手写分支（与 hall_hint 同一条笔记两源）",
-		"书房|ev.study_found": "阶段 4 待搬家：书房暗格位点的手写分支（知识并入 study_hint）"
-	}
+	"readBaseline": {}
 }

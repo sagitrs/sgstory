@@ -5,9 +5,9 @@
 //   3. 未定义宏/widget：拼写错误（<<st>> / <<erashfit>> 类）
 // 警告（不阻断）：静态不可达段落（动态跳转可致误报，仅提示）
 // 用法：node test/integrity.mjs [srcDir=src]
-import { readdirSync, readFileSync } from 'node:fs';
-import { scopedFiles } from '../scripts/module-order.mjs';
-import { DEFAULT_SLUG, readStory } from '../scripts/dist-paths.mjs';
+import { readdirSync, readFileSync, existsSync } from 'node:fs';
+import { scopedFiles, CONST_SECTION } from '../scripts/module-order.mjs';
+import { ROOT, DEFAULT_SLUG, readStory } from '../scripts/dist-paths.mjs';
 // #460／#441-E：**故事作用域** —— 内容面判据只判**默认故事**（宇宙＝引擎 ∪ 该故事清单）。
 // 不收进来 ⇒ 第二个故事一进来就被本故事的判据要求（段落登记是故事 1 的手册、可达性带单故事假设）。
 const STORY_FILES = scopedFiles(readStory(DEFAULT_SLUG));
@@ -195,7 +195,14 @@ if (vocabWarn.length) { console.log(`\n⚠ 词汇纪律警告 ${vocabWarn.length
 // 三拦：①引用键不存在（typo 即 build 断）②表孤儿项（表陈旧告警）③正文硬编码残留
 const gamePassage = [...passages.values()].find((p) => /window\.Game\s*=/.test(p.body));
 const Game = (() => {
-	const ctx = { window: {} };
+	// `window.Game` 在真实加载顺序里先由引擎建出来（我们这里**先给它一个空壳**，再跑常量行）
+	const ctx = { window: { Game: {} } };
+	// `#660` 片一：故事表里的 `Game.Era.*` 是**引擎常量**（单源在 `10-core`），而本门只 vm 载入**表段**（不加载引擎）
+	// ⇒ 先把常量行跑一遍（真实加载顺序就是引擎在前）；跑不出来的话下面会点名（反沉默，别静默 undefined）。
+	const constFiles = CONST_SECTION.files.map((f) => join(ROOT, f));
+	const constSrc = constFiles.filter((f) => existsSync(f)).map((f) => readFileSync(f, 'utf8')).join('\n');
+	for (const m of constSrc.matchAll(/^window\.Game\.[A-Za-z]+ \?\?= .*$/gm)) vm.runInNewContext(m[0], ctx);
+	if (!ctx.window.Game?.Era || !ctx.window.Game?.Damage) errors.push('引擎常量未被载入（CONST_SECTION.files 里应有 `Game.Era ??=`／`Game.Damage ??=` 两行）——数据表会拿到 undefined');
 	vm.runInNewContext(gamePassage.body, ctx);
 	return ctx.window.Game;
 })();

@@ -30,7 +30,11 @@ Object.assign(((window.Game.Consequences ??= { provenance: {}, engine: {} }).eng
 // 口径（与 `21-resolve` 的容器 `??=` 同轴）：**引擎给默认值，故事按需覆盖**——故事里同值覆盖是零行为变化。
 // 时代值：`'past'`／`'present'` 是本仓的**常量词表**（`--literals` 只许它们出现在声明的常量载体里，见 CONST_SECTION）。
 window.Game.Era ??= { PAST: 'past', PRESENT: 'present' };
-// 伤害档位同理：引擎侧 `<<damage>>` 家族／widget 会用 `Game.Damage.*`；故事可覆盖成自己的数值表。
+// 伤害档位：引擎侧 `<<damage>>` 家族／widget 用它；**故事不再各写一份**（`#660` 片一收的单源，见下注释）。
+//   graze=1 擦伤（磕碰、冻手）· hurt=2 受伤（肩膀撞墙）· hard=3 重击（花香按倒、土散去）·
+//   heavy=4 重伤（魔物抓伤、硬掰）· lethal=99 处死（昏睡/摔死的判定值——此前是裸 `<<damage 99>>`）；
+//   shove=5 是**非档位值**（雾影非龙向的固定反手伤，原为裸 `<<damage 5>>`，`#461` 抽算时具名）——
+//   它不在 1/2/3/4/99 的档梯上，**保持原值**（"5 归哪一档"是内容侧定级，见 `#461` PR，不在这里擅自改平衡）。
 window.Game.Damage ??= { graze: 1, hurt: 2, hard: 3, heavy: 4, lethal: 99, shove: 5 };
 // ── 随机源（#441-A 抽纯函数的第一步）：**唯一取值口**，可注入 ──────────────
 // 为什么要有它：`#441` 的四条验收之一是「战斗/交涉/位点判定能**不经浏览器**在 node 里驱动」——

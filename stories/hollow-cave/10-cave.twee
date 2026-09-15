@@ -49,7 +49,11 @@
 洞在这里分开了。三条都不像路，但至少都通着。
 
 <<set _n to ($pc.ev.cave_step ?? 0) + 1>>
-<<set _opts to Game.Combat.roadOffer(_n)>>
+/% 操作者实测（2026-09-15）：走满 5 步后再回岔口 ⇒ 这里**无条件**调 `roadOffer(6)` ⇒
+   SugarCube 红框 `<<set>>: bad evaluation: Game.Combat.roadOffer：本故事没有第 6 段路（可用 1..5，#489）`。
+   口径：**段号越界不是异常，是"这一段路走完了"**，该走退路（往深处走），不该留一条红框给玩家看。 %/
+<<set _roads to Game.Combat.roadsDecl() ?? []>>
+<<set _opts to _n lte _roads.length ? Game.Combat.roadOffer(_n) : []>>
 <<if _opts and _opts.length>>
 	<<for _i to 0; _i lt _opts.length; _i++>>
 		/% `#490`：每条路是一个**实例段落**（`路·<ref>`），六类事件各有一个**机制模板**（`机制·<kind>`）%/
@@ -64,9 +68,13 @@
 		<<capture _tgt _text>><<link _text>><<goto _tgt>><</link>><</capture>>
 		<br>
 	<</for>>
-<<else>>
+<<elseif _roads.length is 0>>
 	/% 声明缺失 ⇒ 不静默：给一条明说的退路 %/
 	路标坏掉了（条件表没读到）。你只能照着一个方向硬走。
+	[[往深处走|地下村落]]
+<<else>>
+	/% 五步走完（`#489` 的段数上限）⇒ 显式退路，文案与"声明缺失"分开（两种原因不该共用一句话） %/
+	该看的都看过了。剩下的只有深处。
 	[[往深处走|地下村落]]
 <</if>>
 

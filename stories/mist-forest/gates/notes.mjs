@@ -91,6 +91,10 @@ export const auditConsumption = (entries, reads, bookkeeping, refText) => {
  *  新增键取不到（实测：加了 `singleReadBaseline` 但门拿不到 ⇒ 9 条全报）。**若将来要收编进 `audit.json`，需先扩那个加载器**
  *  （那是 `scripts/audit/**`＝dev 的文件面，我不动）。
  *  **纪律**：基线逐条带移除计划，且**腐烂即红**（改好不删 ⇒ 门报"基线腐烂"）。 */
+// ⚠️ **这 9 处（8 键）卡在同一件事**（`#437` C-2c-3 实测）：`--consequences` 的分类器
+// （`scripts/audit/lib/shared.mjs`，dev 面）目前只认两种读形状（`p.ev.X`／`Sg.notes.readPath(p,'ev.X')`）
+// ⇒ 改成 `Sg.notes.has(id, pc)` 会让该旗标**丢桶**（实测：转图鉴 5 处 ⇒ `codex×3 → codex×2 · engine?×1`；
+// 再转 NPC 3 处 ⇒ `--echoes` 分级问题 5 → 6）。口径同 `docs/notes-model.md` §4.1：**先让门认新形状，再改内容**。
 export const SINGLE_READ_BASELINE = {
 	'stories/mist-forest/15-tables.twee::ev.failure_cause': 'C-2c-3 待搬：图鉴谓词读单源笔记的 path ⇒ 改 `Sg.notes.has(\'n_failure_cause\')`（行为等价）',
 	'stories/mist-forest/15-tables.twee::ev.observation_lock': 'C-2c-3 待搬：图鉴谓词两处（`n_observation_lock` 单源）',

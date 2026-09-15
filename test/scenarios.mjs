@@ -227,6 +227,19 @@ async function waitLinks(w, timeoutMs = 2000) {
 const passageOf = (w) => w.SugarCube.State.passage;
 // 当前屏上的可读文本（给"不许提前泄底"这类断言用）—— #451：只读与 `State.passage` 对齐的那一段
 const passageText = (w) => alignedText(w).replace(/\s+/g, ' ');
+
+/** `Engine.play()` 之后的**等渲染稳定**（`#647`）：轮询到目标段落**真的渲染出来**为止。
+ *  为什么替掉"固定 `sleep(150)`"：本机渲染窗口 ≈2–3ms，而 CI 2 核＋三十来条路线并发时 DOM 会**晚一拍**——
+ *  固定睡眠会在机器忙时把"DOM 还没换完"报成"游戏坏了"（实测：`#291 I1` 那条路线偶发红）。
+ *  口径与 `click()` 里那段兜底「段落元素偶发晚一拍才换」**同源**；超时仍**抛错**（真坏了要红，而不是静默继续）。 */
+const waitRendered = async (w, passage, tries = 25) => {
+	for (let i = 0; i < tries; i++) {
+		await new Promise((r) => setTimeout(r, 40));
+		const el = [...w.document.querySelectorAll('#passages .passage')].find((e) => e.dataset.passage === passage);
+		if (el && (el.textContent ?? '').trim()) return;
+	}
+	throw new Error(`Engine.play('${passage}') 之后该段落没渲染出来（${tries}×40ms 超时）——机器忙或段落名写错（#647）`);
+};
 // B1：战斗每一轮的面板是随机 3 选 1——测试不去猜哪三张，只管"有牌就打"
 // 直到出现目标链接（战斗的出口）或段落里已经没有链接（已经落到结局）
 async function fightTo(c, w, stops, maxRounds = 12) {
@@ -548,9 +561,9 @@ async function routeTooManyFlips() {
 		await c('翻转护身符：回到');
 		if (!passageText(w).includes('薄了一层')) throw new Error('#291 G1：翻多次后雾的递进描写没出');
 		if (!passageText(w).includes('被抽走了一点点什么')) throw new Error('#291 G1：翻多次后没有代价的现象层提示');
-		w.eval("SugarCube.Engine.play('守林人')"); await sleep(150);
+		w.eval("SugarCube.Engine.play('守林人')"); await waitRendered(w, '守林人');
 		if (!passageText(w).includes('雾薄了')) throw new Error('#291 G1：守林人中途台词没出');
-		w.eval("SugarCube.Engine.play('地下宴会厅')"); await sleep(150);   // 归位到路线原所在段
+		w.eval("SugarCube.Engine.play('地下宴会厅')"); await waitRendered(w, '地下宴会厅');   // 归位到路线原所在段
 	}
 	await c('叫醒它');                    // 唤醒
 	if ([...w.document.querySelectorAll(CLICKABLE)].some((x) => x.textContent.includes('让守林人动手'))) {
@@ -941,7 +954,7 @@ async function routeExitLabels() {
 	const { w, click: c } = await newGame(0.99, 0);
 	// ① 半途的林子：结局出口须写明「结束本次旅程」，普通返回不写
 	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.inv=pc.inv||{};pc.ev=pc.ev||{};pc.world=pc.world||{};pc.keeper=pc.keeper||{};pc.keeper.met=false;SugarCube.State.variables.era="present";SugarCube.Engine.play("半途的林子");})()');
-	await sleep(150);
+	await waitRendered(w, '半途的林子');
 	{
 		const labels = linksOf(w);
 		const ending = labels.find((x) => x.includes('回头'));
@@ -951,13 +964,13 @@ async function routeExitLabels() {
 	}
 	// ② 唤醒：无哨时的出口＝结束；且标签带「结束本次旅程」；点它确到结局
 	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.inv=pc.inv||{};pc.keeper=pc.keeper||{};pc.dragon=pc.dragon||{};pc.dragon.awake=true;delete pc.inv["好哨"];pc.keeper.state="ally";pc.world.flower_fed=false;SugarCube.Engine.play("唤醒");})()');
-	await sleep(150);
+	await waitRendered(w, '唤醒');
 	{
 		const exit = linksOf(w).find((x) => x.includes('退出去'));
 		if (!exit?.includes('结束本次旅程')) throw new Error('#308：唤醒的结局出口没写「结束本次旅程」');
 	}
 	// ③ 归位：缺花时的出口是**返回**（回到唤醒），不得写「结束本次旅程」，且点击后确回唤醒
-	w.eval("SugarCube.Engine.play('归位')"); await sleep(150);
+	w.eval("SugarCube.Engine.play('归位')"); await waitRendered(w, '归位');
 	{
 		const back = linksOf(w).find((x) => x.includes('退开一步'));
 		if (!back) throw new Error('#308：归位缺花出口不见了');
@@ -967,7 +980,7 @@ async function routeExitLabels() {
 	}
 	// ④ #312：唤醒入口标签不得再暗示「准备已齐」
 	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.inv=pc.inv||{};pc.inv["好哨"]=true;pc.keeper.state="ally";SugarCube.Engine.play("地下宴会厅");})()');
-	await sleep(150);
+	await waitRendered(w, '地下宴会厅');
 	{
 		const all = linksOf(w).join('|');
 		if (all.includes('现在可以了')) throw new Error('#312：地下宴会厅仍出现「现在可以了」的暗示');
@@ -980,7 +993,7 @@ async function routeExitLabels() {
 // ── #309／#311／#313：选项指向与措辞（B 批）——每处读得出「我在做什么」──
 async function routeClarityB() {
 	const { w } = await newGame(0.99, 0);
-	const play = async (p, set) => { if (set) { w.eval(set); } w.eval(`SugarCube.Engine.play(${JSON.stringify(p)})`); await sleep(150); };
+	const play = async (p, set) => { if (set) { w.eval(set); } w.eval(`SugarCube.Engine.play(${JSON.stringify(p)})`); await waitRendered(w, p); };
 	// #311-A：未获警告时，现场给出身体征兆；已获警告时选项体现屏息
 	await play('塔外花田', '(function(){const pc=SugarCube.State.variables.pc;pc.world.goblin_spared=false;pc.world.flower_warned=false;pc.world.flower_mud=false;pc.inv={};SugarCube.State.variables.era="present";})()');
 	if (!passageText(w).includes('眼皮跟着沉了沉')) throw new Error('#311：未警告的花田缺「靠近有危险」的征兆');
@@ -1030,7 +1043,7 @@ async function routeFightAdv() {
 	 pc.dragon={hp:60,defeats:0,venom:false,awake:true};
 	 pc.ev.fight={pool:'封印',round:1,offer:['封印·读术式'],act:null,adv:0,guard:0,skipFoe:false,log:null};
 	 v.era="present";})()`);
-	w.SugarCube.Engine.play('封印·并肩'); await sleep(220);
+	w.SugarCube.Engine.play('封印·并肩'); await waitRendered(w, '封印·并肩');
 	await c('听懂他念到哪儿');        // 成功档 adv:1（d20 恒 20）
 	const f1 = w.SugarCube.State.variables.pc.ev.fight;
 	if ((f1.adv ?? 0) < 1) throw new Error('#352：准备动作给的「下一击有优势」在本轮末尾被清零了');
@@ -1058,7 +1071,7 @@ async function routeFlowerBack() {
 	 pc.keeper.state="ally"; pc.keeper.met=true; pc.world.flower_fed=false; pc.star.spent=0;
 	 pc.dragon={hp:60,defeats:0,venom:false,awake:false};
 	 v.era="present";})()`);
-	w.SugarCube.Engine.play('地下宴会厅'); await sleep(220);
+	w.SugarCube.Engine.play('地下宴会厅'); await waitRendered(w, '地下宴会厅');
 	await c('吹响哨子，叫醒它');
 	if (passageOf(w) !== '唤醒') throw new Error(`未到唤醒（${passageOf(w)}）`);
 	if (!linksOf(w).join('|').includes('回去把该带的带上')) throw new Error('#351：唤醒没有「回去补办」的出口（会与归位形成死循环）');
@@ -1102,20 +1115,20 @@ async function routeInvestment() {
 	if (!passageText(w).includes('情报')) throw new Error('#291 G2：带情报重试未标注优势来源');
 	// G3：跨时代合龙门——单侧证据问不出那一句（反例），两侧齐才出现（正例）
 	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.ev=pc.ev||{};pc.ev.failure_cause=true;delete pc.ev.seer_asked;delete pc.ev.coord;pc.ev.old_witch=true;SugarCube.State.variables.era="past";})()');
-	w.eval("SugarCube.Engine.play('老巫女')"); await sleep(150);
+	w.eval("SugarCube.Engine.play('老巫女')"); await waitRendered(w, '老巫女');
 	if (linksOf(w).some((x) => x.includes('缺的那一句话'))) throw new Error('#291 G3：只带现在侧证据也问得出（门形同虚设）');
 	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.ev.seer_asked=true;})()');
-	w.eval("SugarCube.Engine.play('老巫女')"); await sleep(150);
+	w.eval("SugarCube.Engine.play('老巫女')"); await waitRendered(w, '老巫女');
 	if (!linksOf(w).some((x) => x.includes('缺的那一句话'))) throw new Error('#291 G3：两侧证据齐了却问不出（门不可达）');
 	await c('缺的那一句话');
 	if (pcOf(w).ev.witch_fire_hint !== true) throw new Error('#291 G3：合龙门未产出只言片语');
 	if (!passageText(w).includes('等一个不在场的人把话说完')) throw new Error('#291 G3：只言片语没落地');
 
 	// G4：表达型选择（立场）必须被记住
-	w.eval("SugarCube.Engine.play('守林人')"); await sleep(150);
+	w.eval("SugarCube.Engine.play('守林人')"); await waitRendered(w, '守林人');
 	await c('说一句：它不会变成恶龙');
 	if (pcOf(w).ev.keeper_kind !== true) throw new Error('#291 G4：立场选择未写入状态');
-	w.eval("SugarCube.Engine.play('守林人')"); await sleep(150);
+	w.eval("SugarCube.Engine.play('守林人')"); await waitRendered(w, '守林人');
 	if (!passageText(w).includes('你那天那句话')) throw new Error('#291 G4：立场未被守林人回收（说了等于没说）');
 	return { w };
 }
@@ -1124,10 +1137,10 @@ async function routeInvestment() {
 async function routeDeliveredLocks() {
 	const { w } = await newGame(0.99, 0);
 	// 真实路径等价：先首访顶楼（设 firstTime 旗标——交付动作本身也在顶楼发生），再置盟约态
-	w.eval("SugarCube.Engine.play('顶楼')"); await sleep(120);
+	w.eval("SugarCube.Engine.play('顶楼')"); await waitRendered(w, '顶楼');
 	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.world=pc.world||{};pc.world.scroll_delivered=true;pc.keeper=pc.keeper||{};pc.keeper.met=true;pc.keeper.key=true;pc.keeper.state="ally";pc.inv=pc.inv||{};pc.inv["守林人的钥匙"]=true;})()');
 	// M1：顶楼＝人已下去；抢杖收紧；另两出口改写
-	w.eval("SugarCube.Engine.play('顶楼')"); await sleep(150);
+	w.eval("SugarCube.Engine.play('顶楼')"); await waitRendered(w, '顶楼');
 	const top = passageText(w);
 	if (!top.includes('瞭望位空着')) throw new Error('#259 M1：交付后顶楼仍写守林人站在瞭望位');
 	if (linksOf(w).some((x) => x.includes('抢他的杖'))) throw new Error('#259 M1：交付后仍可抢他的杖');
@@ -1135,25 +1148,25 @@ async function routeDeliveredLocks() {
 	if (!linksOf(w).some((x) => x.includes('折断那半卷手稿'))) throw new Error('#259 M1：焚塔出口未改写');
 	// M2：书房劣化封印禁用＋ack（施术口在 observation_lock 之后）
 	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.ev.observation_lock=true;})()');
-	w.eval("SugarCube.Engine.play('书房')"); await sleep(150);
+	w.eval("SugarCube.Engine.play('书房')"); await waitRendered(w, '书房');
 	const study = passageText(w);
 	if (linksOf(w).some((x) => x.includes('照着守林人家那卷封印术念一遍'))) throw new Error('#259 M2：交付后仍可施劣化封印');
 	if (!study.includes('那卷术式在他手上')) throw new Error('#259 M2：缺禁用 ack 文案');
 	// 反例：未交付时抢杖仍在（确认门确是按 scroll_delivered 收的）
 	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.world.scroll_delivered=false;})()');
-	w.eval("SugarCube.Engine.play('顶楼')"); await sleep(150);
+	w.eval("SugarCube.Engine.play('顶楼')"); await waitRendered(w, '顶楼');
 	if (!linksOf(w).some((x) => x.includes('抢他的杖'))) throw new Error('#259 M1：未交付时抢杖被误收');
 	// m4：喂过花再并肩，开场应有互文
 	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.world.flower_fed=true;pc.ev.fight=null;pc.hp=18;pc.max_hp=18;})()');
-	w.eval("SugarCube.Engine.play('封印·并肩')"); await sleep(150);
+	w.eval("SugarCube.Engine.play('封印·并肩')"); await waitRendered(w, '封印·并肩');
 	if (!passageText(w).includes('花让它睡得沉')) throw new Error('#259 m4：喂花后并肩缺互文');
 	// m5：伤过的龙在归位段有 ack
 	w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.dragon=pc.dragon||{};pc.dragon.hp=Game.Dragon.hp-12;pc.dragon.awake=true;})()');
-	w.eval("SugarCube.Engine.play('归位')"); await sleep(150);
+	w.eval("SugarCube.Engine.play('归位')"); await waitRendered(w, '归位');
 	if (!passageText(w).includes('刚结的血口')) throw new Error('#259 m5：伤龙归位缺 ack');
 	// m3：盟约态但手里没有好哨——唤醒处要给出「哨在长桌尽头」的指引
 	w.eval('(function(){const pc=SugarCube.State.variables.pc;delete pc.inv["好哨"];pc.keeper.state="ally";pc.dragon.awake=true;})()');
-	w.eval("SugarCube.Engine.play('唤醒')"); await sleep(150);
+	w.eval("SugarCube.Engine.play('唤醒')"); await waitRendered(w, '唤醒');
 	if (!passageText(w).includes('在长桌尽头那位手里')) throw new Error('#259 m3：无哨唤醒缺指引');
 	return { w };
 }
@@ -1623,7 +1636,7 @@ async function routeWitchHealOnce() {
 	if (pcOf(w).hp !== pcOf(w).max_hp) throw new Error('首次见面没有回满（她该给一次见面礼）');
 	pcOf(w).hp = 1;
 	await w.SugarCube.Engine.play('女巫小屋');
-	await sleep(200);
+	await waitRendered(w, '女巫小屋');
 	if (pcOf(w).hp !== 1) throw new Error(`第二次带伤进门又回满了（${pcOf(w).hp}）——免费无限回血会让药膏与伤害失去意义`);
 	if (uncaught.length) throw new Error(`uncaught：${uncaught[0].slice(0, 160)}`);
 	return { w };

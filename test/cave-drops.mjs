@@ -1,10 +1,12 @@
-// `#600`：**战斗钥匙掉落**的真机回归门 —— 声明面驱动（长战斗必掉 · 短战斗 30%）。
+// `#600`：**战斗钥匙掉落**的真机回归门 —— 声明面驱动（长战斗必掉 · 短战斗 50%）。
+// ⚠️ 50% 来自 **`#696`（2026-09-15 操作者裁定）**："战斗＝宝箱钥匙的主要来源" ⇒ 短战 30% → **50**（长战仍必掉）；
+//    改这条硬编码＝改**裁定**，必须在 PR 里写明依据（本门当初就是为挡"声明变了、裁定没跟"而设）。
 //
-// 为什么需要它：已定 ③（`#489`）要求「钥匙：长战斗必掉、短战斗 30% ⇒ 降为 0」，但交付时**掉落那一半没落地**——
+// 为什么需要它：已定 ③（`#489`）要求「钥匙：长战斗必掉、短战斗 30% ⇒ 降为 0」（`#696` 把短战改到 50%），但交付时**掉落那一半没落地**——
 // 钥匙只有「矿洞」一条来源（随机 1/5 的洞窟 × 玩家是否走那条路）⇒ 宝箱的钥匙路**可达性靠运气**。
 // 而"规则只活在散文里"是本仓反复踩的坑 ⇒ 本门同时钉住**声明面**（`encounters.*.reward.item`）与**行为**：
 //   ① 长战斗清完 ⇒ `inv['钥匙']`（真机点完，不是看代码里写着"必掉"）；
-//   ② 短战斗掉落频率 ≈ 30%（**多种子**复算，3σ 内）——同样不许拿"代码里有 30"当证据；
+//   ② 短战斗掉落频率 ≈ 声明值（当前 50%；**多种子**复算，3σ 内）——不许拿"代码里有这个数"当证据；
 //   ③ 行为**由声明面驱动**：改声明 ⇒ 行为跟着变（把 `chance` 改成 1/100 立刻可验）；
 //   ④ 幂等／与矿洞来源不冲突：同一局重复得钥匙不异常、金币照加。
 import { boot } from './boot.mjs';
@@ -27,9 +29,9 @@ console.log('══ 战斗钥匙掉落门（#600）══');
 // ── 自证（纯函数）：正例在 3σ 内、反例（明显偏）必须判红 ──
 {
 	const N = 8000;
-	ok(rateWithin(Math.round(0.30 * N), N, 0.30), '自证·正例：命中率 = 声明值 ⇒ 在 3σ 内');
-	ok(!rateWithin(Math.round(0.50 * N), N, 0.30), '🔴 自证·反例：命中率 0.50 vs 声明 0.30 ⇒ 判红（门有牙）');
-	ok(!rateWithin(0, 0, 0.30), '自证·边界：样本为 0 ⇒ 判红（不是"通过"）');
+	ok(rateWithin(Math.round(0.50 * N), N, 0.50), '自证·正例：命中率 = 声明值（50%）⇒ 在 3σ 内');
+	ok(!rateWithin(Math.round(0.30 * N), N, 0.50), '🔴 自证·反例：命中率 0.30 vs 声明 0.50 ⇒ 判红（门有牙）');
+	ok(!rateWithin(0, 0, 0.50), '自证·边界：样本为 0 ⇒ 判红（不是"通过"）');
 }
 
 const { w, sleep } = await boot({ story: 'hollow-cave', random: 0.99 });
@@ -40,7 +42,7 @@ const mech = () => w.eval('JSON.stringify(SugarCube.State.variables.Sg?.story?.m
 {
 	const short = w.Game.Combat.encounterReward('short');
 	const long = w.Game.Combat.encounterReward('long');
-	ok(short.item?.id === '钥匙' && short.item?.chance === 30, '短战斗声明：钥匙 30%（`{ id, chance }` 形）', JSON.stringify(short));
+	ok(short.item?.id === '钥匙' && short.item?.chance === 50, '短战斗声明：钥匙 50%（`{ id, chance }` 形；`#696` 裁定 30→50）', JSON.stringify(short));
 	ok(long.item?.id === '钥匙' && long.item?.chance === 100, '长战斗声明：钥匙必掉（字符串形归一化为 chance=100）', JSON.stringify(long));
 	ok(short.gold > 0 && long.gold > 0, '金币仍在同一声明面（`reward.gold` 未被改动）', JSON.stringify({ short: short.gold, long: long.gold }));
 }
@@ -119,4 +121,4 @@ if (bad) {
 	console.error(`\n✗ 钥匙掉落门未通过（${bad} 项）—— 声明面与行为必须一致（#600）`);
 	process.exit(1);
 }
-console.log('\n✔ 钥匙掉落门通过（长战斗必掉 · 短战斗 30% 多种子复算 · 行为由声明面驱动 · 幂等）');
+console.log('\n✔ 钥匙掉落门通过（长战斗必掉 · 短战斗按**声明值**多种子复算 · 行为由声明面驱动 · 幂等）');

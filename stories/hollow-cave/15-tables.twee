@@ -188,10 +188,11 @@ const MECH = {
 	// 短/长战斗＝1 批／2 批（第二批更难且增援）
 	// `#490` 已定 ⑥：抽查「金本位」——金币来源就靠这里（`reward.gold`，S3 契约 §3.2 的声明形状）；
 	// 长战斗（两批、更难）奖励更高 ⇒ 与 `waveRewardScale` 的单调口径同向。
-	// `#600`（已定 ③）：**钥匙掉落**也住在声明面（`reward.item`，与 `gold` 同轴）：长战斗**必掉**、短战斗 **30%**。
+	// `#600`（已定 ③）／`#696`（2026-09-15 裁定）：**钥匙掉落**住在声明面（`reward.item`，与 `gold` 同轴）：长战斗**必掉**、短战斗 **50%**（裁定：战斗＝钥匙主源）。
 	// 形状：`'道具'`（＝必掉）或 `{ id, chance }`；内容侧只渲染，落账在 `Game.Combat.grantReward`（单一落点）。
 	encounters: {
-		short: { waves: [{ pool: 'cave.w1', difficulty: 1 }], reward: { gold: 3, item: { id: '钥匙', chance: 30 } }, failNote: 'n_cave_battered' },
+		// `#696`（操作者裁定）：**战斗＝钥匙主源** ⇒ 短战掉率 30 → **50**（长战仍必掉）。
+		short: { waves: [{ pool: 'cave.w1', difficulty: 1 }], reward: { gold: 3, item: { id: '钥匙', chance: 50 } }, failNote: 'n_cave_battered' },
 		long: { waves: [{ pool: 'cave.w1', difficulty: 1 }, { pool: 'cave.w2', difficulty: 2, reinforce: true }], rewardsScale: 1.5, reward: { gold: 9, item: '钥匙' } },
 	},
 	// `#692`（①，操作者裁定）：路面提示要**显式标出事件类型**（玩家才谈得上"选"）。
@@ -201,6 +202,8 @@ const MECH = {
 		shortFight: '短战斗', longFight: '长战斗', chest: '宝箱',
 		cave: '特殊洞窟', trap: '陷阱', traveller: '旅人',
 	},
+	// `#696`：五洞窟的产出也**声明化**（`#600` 的同族口径）——**钥匙主源是战斗** ⇒ 矿洞掉钥匙是 25% 的小概率，其余给干粮。
+	caveRewards: { 矿洞: { keyChance: 25, fallback: '干粮' } },
 	// 五步主线：每步 3 路（段号从 1 计，与 `roadOffer(idx)` 一致）；每步至少一个 `noCheck:true`（不掷骰也有路）
 	roads: [
 		{ from: 0, to: 1, options: [
@@ -234,6 +237,8 @@ const MECH = {
 		},
 		// `#490` §4.3：**稀有度 → 奖品曲线**（普通给消耗品；珍贵多给一件"通用道具"，那正是降难链的来源）
 		loot: { 普通: ['干粮'], 珍贵: ['干粮', 'TOOL'] },
+		// `#696`：**金币主源＝战斗与宝箱** ⇒ 宝箱产出金币（`#490` §4.3 的「金本位」扩到宝箱这一路）。
+		gold: { 普通: 5, 珍贵: 12 },
 		rarities: { 普通: { dc: 12 }, 珍贵: { dc: 15 } },
 		toolReduce: 3, keyReduce: 'to-zero',
 	},
@@ -241,6 +246,8 @@ const MECH = {
 Object.assign(window.Sg.story, {
 	mechanics: () => MECH,
 	eventKindLabel: (k) => MECH.kindLabels?.[k] ?? null,
+	chestGold: (rarity) => MECH.chest.gold?.[rarity] ?? 0,
+	caveReward: (k) => MECH.caveRewards?.[k] ?? null,
 	// 以下两面是 S6 的门要消费的声明（引擎目前不经它们取数 ⇒ 先声明、不假装已接线；见 `#491`）
 	chestDef: (id) => MECH.chest.mechanisms[id] ?? null,
 	lootOf: (rarity) => MECH.chest.loot[rarity] ?? [],

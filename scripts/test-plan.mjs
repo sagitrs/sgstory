@@ -122,7 +122,10 @@ export const SEGMENTS = [
 	// #762 P0：**故事数据 ↔ 手写版等价**（编辑器转向的第 0 步）——数据与手写 twee 漂移即红
 	{ id: "editor-compile-selftest", phase: 'test', cost: 0, cmd: "node editor/compile-story.mjs --selftest" },
 	{ id: "editor-equiv-selftest", phase: 'test', cost: 0, cmd: "node editor/equiv.mjs --selftest" },
-	{ id: "editor-equiv-minimal-demo", phase: 'test', cost: 0.3, cmd: "node editor/equiv.mjs minimal-demo" },
+	{ id: "editor-equiv-minimal-demo", phase: 'test', cost: 0.3, cmd: "node editor/equiv.mjs minimal-demo --l3=hard" },
+	// `#762` 车道 B：**条件表往返**（61 行）。L3 显式降为报告制（排版差异：手写用模板串、生成用单引号串）——
+	// 权威判据是 L1（行数组深度相等）；降级写在命令行里 ⇒ CI 计划里一眼看得见（K5）。
+	{ id: "editor-equiv-mist-forest-rules", phase: 'test', cost: 0.3, cmd: "node editor/equiv.mjs mist-forest --rules --l3=report" },
 	// #752：**去权威化口径门** —— 注释／文档不许拿「谁定的」充当理由（#748 的清零面 ＋ 防回潮）
 	{ id: "test-attribution-gate-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/attribution-gate.mjs --selftest" },
 	{ id: "test-attribution-gate-mjs", phase: 'test', cost: 0.1, cmd: "node test/attribution-gate.mjs" },

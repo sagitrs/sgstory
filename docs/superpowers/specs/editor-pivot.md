@@ -36,7 +36,9 @@ stories/<slug>/
   00-story.json        ← 清单（已存在！）：slug/title/entry/files/gates  ＋ 新增 contractVersion
   data/
     tables.json        ← 声明面：Checks.sites / Economy / Combat.pools+actions / Gear / Items / Social / Truth / Echoes / State.domains / Notes.entries …
-    events.json        ← 事件（含条件表的行）：本稿的核心新物
+    rules.json         ← **条件表行**（＝现在 `17-rules.twee` 的内容；车道 B 已抽出 61 行，与手写版 L1 深度相等）
+    events.json        ← 编辑器侧的**统一事件模型**（本稿 §2.2）：其"条件表行"子集编译成 `17-rules.twee`，
+                          "`roads` 类事件"子集编译成 `15-tables.twee` 的 roads 行（车道 A 落地）
     contract.json      ← 接入契约的注册（`Sg.story.*` 的 18 个口子；空表/null 是合法数据集）
   passages/            ← 散文（**文本**，不是 JSON）：`<段落名>.twee` 或单文件多段
   15-tables.twee       ← **产物**（生成，禁止手改）

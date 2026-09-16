@@ -59,6 +59,13 @@ export const normalize = (text) => maskComments(String(text))
 	.replace(/,(?=[}\]])/g, '');
 
 /** 纯函数：在一份**空白** vm 里跑脚本，返回它的 `window`。 */
+/** 求值一侧的脚本体，**失败也返回结果**（判据的红要讲人话，不许抛栈 ✗ —— 复核席实测：
+ *  基线被改坏时 `equiv` 吐的是**崩溃栈**，看红的人会误判"是不是环境坏了"）。 */
+export const evalSide = (body, label = '') => {
+	try { return { win: runScript(body) }; }
+	catch (e) { return { err: `${label}求值失败：${String(e?.message ?? e).slice(0, 140)}` }; }
+};
+
 export const runScript = (body) => {
 	// **环境契约**（同一族坑的第三处）：故事段会直接读引擎常量（`window.Game.Era.PRESENT` 等）
 	// ⇒ 沙箱必须**先跑引擎常量**（真加载顺序：`ORDER` 里引擎在前）。少了它，抽出来的/比对的两侧都会静默缺字段。
@@ -159,12 +166,16 @@ const selftest = () => {
 		const d = diffContract(mk({ ok: '1' }), mk({ ok: '2' }));
 		return d.n === 1 && d.text.includes('`a`') && d.text.includes('手写 1 / 生成 2');
 	})());
+	t('求值失败 ⇒ **干净判据**（不抛栈）：语法坏的输入返回 { err } 而不是异常', (() => {
+		const r = evalSide('const x = ;', '测试侧');
+		return !!r.err && !r.win && /求值失败/.test(r.err);
+	})());
 	t('边界：调用抛错也记录（两版行为不同看得出来）',
 		call(() => { throw new Error('boom'); }, []).threw === 'boom' && call((x) => x, [1]).ok === '1');
 	t('边界：没有已声明 id 时实参表仍非空（未知 id 探针恒在）',
 		declaredIds({ Game: {} }).all.length === 0 && probeArgs(declaredIds({ Game: {} })).length >= 3);
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过（7 例：字符串里的注释定界符 3 例 · 函数值 1 例 · 异常 1 例 · 空 id 实参表 1 例）');
+	console.log('\n✔ 自证通过（8 例：字符串里的注释定界符 3 例 · 函数值 1 例 · 异常 1 例 · 空 id 实参表 1 例）');
 };
 
 // ⚠️ **主模块守卫**（实测踩到）：这些脚本**同时是库**（`equiv` 被 `extract` 导入、`compile` 被 `equiv` 起子进程）。
@@ -229,26 +240,32 @@ const main = () => {
 		results.push([hr.length > 0 && Object.keys(hh).length > 0, `判到的面不为空：条件表 ${hr.length} 行 · ${Object.keys(hh).length} 列`]);
 	} else {
 		// ── 表 ＋ 契约（P0 原口径） ──
-		const hWin = runScript(scriptBodies(hand).join('\n'));
-		const gWin = runScript(scriptBodies(gen).join('\n'));
-		const hs = snapshot(hWin), gs = snapshot(gWin);
+		const H = evalSide(scriptBodies(hand).join('\n'), '手写侧（基线）');
+		const G = evalSide(scriptBodies(gen).join('\n'), '生成侧（产物）');
+		if (!H.win || !G.win) {
+			results.push([false, `两侧求值（判据的红要讲人话 ✓）：${[H.err, G.err].filter(Boolean).join('；')}`]);
+		}
+		const hWin = H.win, gWin = G.win;
+		const hs = hWin ? snapshot(hWin) : null, gs = gWin ? snapshot(gWin) : null;
 		// 段数只**报告**（生成物的段划分与手写不要求同形：`Cave Declarations` 那类"局部常量段"会并进契约的 `const`）；
 		// 真正要判的是**契约成员的键集合**（下面那条）＋ 行为。
 		console.log(`  · 段数（只报告）：手写 ${scriptBodies(hand).length} 段 / 生成 ${scriptBodies(gen).length} 段`);
-		const hk = Object.keys(hs.contract).sort(), gk = Object.keys(gs.contract).sort();
-		const onlyHand = hk.filter((k) => !gk.includes(k)), onlyGen = gk.filter((k) => !hk.includes(k));
-		results.push([onlyHand.length === 0 && onlyGen.length === 0,
-			`L1 契约**键集合**一致（手写 ${hk.length} / 生成 ${gk.length}）${onlyHand.length ? `\n    仅手写有：${onlyHand.join('、')}` : ''}${onlyGen.length ? `\n    仅生成有：${onlyGen.join('、')}` : ''}`]);
-		results.push([hs.game === gs.game, `L1 数据容器深度相等（含 State/Notes/Consequences）${hs.game === gs.game ? '' : `\n    手写 ${String(hs.game).slice(0, 220)}\n    生成 ${String(gs.game).slice(0, 220)}`}`]);
-		// 判**行为**，不判**顺序**：成员在源里的先后不是语义（曾因"生成物把某成员排到末尾"而假红 ✗）
-		const cd = diffContract(hs.contract, gs.contract);
-		results.push([Object.keys(hs.contract).length > 0 && cd.n === 0,
-			`L1 契约**多实参**行为相等（${Object.keys(hs.contract).length} 个成员 × ${probeArgs(hs.ids).length} 组实参）${cd.n ? `\n    ${cd.text}` : ''}`]);
-		results.push(l3Line(scriptBodies(hand).map(normalize).join('|'), scriptBodies(gen).map(normalize).join('|'), '词法遮蔽注释 ＋ 去空白/冗余尾逗号后逐字节相同'));
-		results.push([hs.walk.functions === 0 && gs.walk.functions === 0, `数据面是数据：容器内函数值 0 个（手写 ${hs.walk.functions} / 生成 ${gs.walk.functions}）`]);
-		const surface = { '容器键数': Object.keys(JSON.parse(hs.game === 'null' ? '{}' : hs.game)).length, '数据叶子数': hs.walk.leaves, '契约成员数': Object.keys(hs.contract).length, '探针调用次数': hs.probes, '归一字节数': scriptBodies(hand).map(normalize).join('|').length };
-		const empty = Object.entries(surface).filter(([, v]) => !v).map(([k]) => k);
-		results.push([empty.length === 0, `判到的面不为空：${Object.entries(surface).map(([k, v]) => `${k} ${v}`).join(' · ')}${empty.length ? `　✗ 为 0 的：${empty.join('、')}` : ''}`]);
+		if (hs && gs) {
+			const hk = Object.keys(hs.contract).sort(), gk = Object.keys(gs.contract).sort();
+			const onlyHand = hk.filter((k) => !gk.includes(k)), onlyGen = gk.filter((k) => !hk.includes(k));
+			results.push([onlyHand.length === 0 && onlyGen.length === 0,
+				`L1 契约**键集合**一致（手写 ${hk.length} / 生成 ${gk.length}）${onlyHand.length ? `\n    仅手写有：${onlyHand.join('、')}` : ''}${onlyGen.length ? `\n    仅生成有：${onlyGen.join('、')}` : ''}`]);
+			results.push([hs.game === gs.game, `L1 数据容器深度相等（含 State/Notes/Consequences）${hs.game === gs.game ? '' : `\n    手写 ${String(hs.game).slice(0, 220)}\n    生成 ${String(gs.game).slice(0, 220)}`}`]);
+			// 判**行为**，不判**顺序**：成员在源里的先后不是语义（曾因"生成物把某成员排到末尾"而假红 ✗）
+			const cd = diffContract(hs.contract, gs.contract);
+			results.push([Object.keys(hs.contract).length > 0 && cd.n === 0,
+				`L1 契约**多实参**行为相等（${Object.keys(hs.contract).length} 个成员 × ${probeArgs(hs.ids).length} 组实参）${cd.n ? `\n    ${cd.text}` : ''}`]);
+			results.push(l3Line(scriptBodies(hand).map(normalize).join('|'), scriptBodies(gen).map(normalize).join('|'), '词法遮蔽注释 ＋ 去空白/冗余尾逗号后逐字节相同'));
+			results.push([hs.walk.functions === 0 && gs.walk.functions === 0, `数据面是数据：容器内函数值 0 个（手写 ${hs.walk.functions} / 生成 ${gs.walk.functions}）`]);
+			const surface = { '容器键数': Object.keys(JSON.parse(hs.game === 'null' ? '{}' : hs.game)).length, '数据叶子数': hs.walk.leaves, '契约成员数': Object.keys(hs.contract).length, '探针调用次数': hs.probes, '归一字节数': scriptBodies(hand).map(normalize).join('|').length };
+			const empty = Object.entries(surface).filter(([, v]) => !v).map(([k]) => k);
+			results.push([empty.length === 0, `判到的面不为空：${Object.entries(surface).map(([k, v]) => `${k} ${v}`).join(' · ')}${empty.length ? `　✗ 为 0 的：${empty.join('、')}` : ''}`]);
+		}
 	}
 
 	let bad = 0;

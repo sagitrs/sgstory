@@ -585,10 +585,10 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				auto: '你把酒钱推过去。她愣了一下，然后真的坐下了："……你倒是会做人。坐下吧。"' },
 
 			{ id: '守林人·花', tag: '问花', npc: '守林人', q: '塔基墙根那片银白的花是什么', yield: 'note:n_flower_warned',
-				base: (pc) => (pc.inv['时光护符'] ? 'friendly' : 'neutral'),
+				base: { default: 'neutral', cases: [{ req: ['inv:时光护符'], value: 'friendly' }] },
 				sites: ['守林人·交涉', '守林人·指花', '守林人·读'],
 				levers: [
-					{ id: 'journal', name: '把日记摊在桌上', gives: 'adv', need: (pc) => !!pc.inv['日记'], note: '那是我家先人那一辈的字' },
+					{ id: 'journal', name: '把日记摊在桌上', gives: 'adv', need: { req: ['inv:日记'] }, note: '那是我家先人那一辈的字' },
 					{ id: 'read',    name: '看出他靴边那一圈白', gives: 'adv', needRead: true, note: '他每天都要从那片花边上走一趟' },
 				],
 				// 2024「willing」由段落内手写（带日记/书＝他本来就要说：_t>0 → 直给），这里只留掷骰与筹码
@@ -599,10 +599,10 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				auto: '他顺着你的手看过去，沉默了一下："……你看见我靴子了。"' },
 
 			{ id: '守林人·术', tag: '求术', npc: '守林人', q: '用你家那门术式', yield: 'keeper:seal',
-				base: (pc) => (pc.inv['时光护符'] ? 'friendly' : 'neutral'),
+				base: { default: 'neutral', cases: [{ req: ['inv:时光护符'], value: 'friendly' }] },
 				sites: ['守林人·求术', '守林人·引先例', '守林人·读'],
 				levers: [
-					{ id: 'talisman', name: '把脖子上那枚护符亮出来', gives: 'auto', need: (pc) => !!pc.inv['时光护符'], note: '这家人打的星铁，这家人认得' },
+					{ id: 'talisman', name: '把脖子上那枚护符亮出来', gives: 'auto', need: { req: ['inv:时光护符'] }, note: '这家人打的星铁，这家人认得' },
 					{ id: 'read',     name: '看出他一直在练错的那几个字', gives: 'adv', needRead: true, note: '他要的不是赢，是把这一句念完' },
 				],
 				willing: (pc) => (pc.keeper?.trust ?? 0) > 0,
@@ -614,10 +614,10 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				auto: `他先看的是你脖子上那枚护符。"我们家的星铁。"他说——''那你就不是来找麻烦的''。` },
 
 			{ id: '观星者·图', tag: '求图', npc: '观星者', q: '把完整星图给我', yield: '完整星图',
-				base: (pc) => (pc.inv['观星者的书'] ? 'friendly' : 'neutral'),
+				base: { default: 'neutral', cases: [{ req: ['inv:观星者的书'], value: 'friendly' }] },
 				sites: ['观星者·说服', '观星者·洞悉', '观星者·磨'],
 				levers: [
-					{ id: 'book', name: '把风化了的书放回案上', gives: 'auto', need: (pc) => !!pc.inv['观星者的书'], note: '那是他自己写的字' },
+					{ id: 'book', name: '把风化了的书放回案上', gives: 'auto', need: { req: ['inv:观星者的书'] }, note: '那是他自己写的字' },
 					{ id: 'read', name: '看出他停在最后一轨', gives: 'adv', needRead: true, note: '他算不下去了，也没人替他算' },
 				],
 				done: (pc) => !!pc.ev.seer_gave,
@@ -626,7 +626,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				bad: `"空口无凭。"他把图收了回去。（''你要是说不动他，就得拿出他认得的东西来。''）`,
 				auto: '你把那册风化了的书放在案上。他的手停住了。"这是我写的。"他翻了两页，看了很久。' },
 
-			{ id: '女巫·看哨', tag: '看哨', npc: '当时的女巫', q: '那支哨子，给我看看', base: (pc) => (pc.ev?.witch_gifted ? 'friendly' : 'neutral'),   // #249：贺礼＝态度位（非好感线）
+			{ id: '女巫·看哨', tag: '看哨', npc: '当时的女巫', q: '那支哨子，给我看看', base: { default: 'neutral', cases: [{ req: ['ev.witch_gifted'], value: 'friendly' }] },   // #249：贺礼＝态度位（非好感线）
 				yield: 'note:n_witch_grip',
 				sites: ['当时的女巫·辨认', '当时的女巫·开口', '当时的女巫·激'],
 				levers: [
@@ -668,8 +668,36 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				no: '她没看你，只看着厅中央那张空着的位子。' },
 		],
 		ask(id) { return this.asks.find((a) => a.id === id) ?? null; },
+		// ── `#785` 第 2 族：判定的**声明式**求值（判定委托引擎的条件求值器 ⇒ 单一权威）──────────────
+		// 为什么住这里（而不是引擎）：本块整体是"故事 1 的交涉机制" ⇒ 它随 `#785` 的**机制下沉**一并搬进引擎
+		//（引擎侧那份 `Game.Social`（`21-resolve`）已持有 resolveAsk；本片只先把**数据面**去函数化）。
+		condHolds(cd, pc) {
+			if (cd == null) return true;                     // 字段缺席＝恒真（原 `() => true` 的表达 ✓ 不发明 True 词）
+			if (typeof cd !== 'object' || Array.isArray(cd)) {
+				throw new Error(`交涉声明：条件必须是 { req/any/exclude } 对象（拿到 ${typeof cd}）—— 函数式谓词已按 #785 并入声明式`);
+			}
+			return window.Sg.rules.matches(cd, pc, new Set());
+		},
+		// `base` 的条件选值：`{ default, cases: [{ req, value }] }` —— **首个命中者胜**。
+		// 硬化：`cases` 每项**必须**有 `value` 且有 `req`/`any`/`exclude` 之一 ⇒ 缺一即抛
+		//（"没有条件的 case"会静默变成恒真分支 —— 正是 `#785` 要杀掉的那族 ✗）。
+		baseOf(a, pc) {
+			const b = a.base;
+			if (typeof b === 'string') return b;             // 无分支的纯字符串 ⇒ 原样
+			if (b == null || typeof b !== 'object' || Array.isArray(b)) {
+				throw new Error(`交涉声明：ask「${a.id}」的 base 形态非法（应为字符串或 { default, cases }）`);
+			}
+			for (const c of b.cases ?? []) {
+				const cond = c && typeof c === 'object' && ['req', 'any', 'exclude'].some((k) => k in c);
+				if (!cond || !('value' in (c ?? {}))) {
+					throw new Error(`交涉声明：ask「${a.id}」的 cases 项必须**同时**有 req/any/exclude 之一与 value（缺一即抛 —— 否则会静默变成恒真分支）`);
+				}
+				if (this.condHolds({ req: c.req, any: c.any, exclude: c.exclude }, pc)) return c.value;
+			}
+			return b.default ?? 'neutral';
+		},
 		attitude(a, pc) {
-			let att = typeof a.base === 'function' ? a.base(pc ?? {}) : (a.base ?? 'neutral');
+			let att = this.baseOf(a, pc ?? {});   // `#785`：`base` 支持 `{ default, cases }`（条件选值）
 			const n = pc?.soc?.att?.[a.npc] ?? 0;
 			if (n >= 1) att = 'friendly';
 			else if (n <= -1) att = 'hostile';
@@ -695,7 +723,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 		levers(a, pc) { return (a.levers ?? []).filter((lv) => this.leverOpen(a, lv, pc)); },
 		leverOpen(a, lv, pc) {
 			if (lv.needRead && !pc?.soc?.read?.[a.npc]) return false;
-			if (lv.need && !lv.need(pc)) return false;
+			if (lv.need != null && !this.condHolds(lv.need, pc)) return false;   // `#785`：`need` 是声明式条件
 			// 支付门（经济闭环）：带花费的筹码买不起就不亮——金币不许为负（与柜台/药膏同一规矩）
 			if (lv.econ && (pc?.gold ?? 0) < -Economy.priceOf(lv.econ, pc)) return false;
 			return true;
@@ -893,14 +921,15 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 			{ id: 'tavern', where: '酒馆（传闻与打听）', prefix: ['tav_'], keys: ['rumor'], note: '六桌传闻的点亮态与打听结果' },
 			{ id: 'witch-hut', where: '女巫小屋', prefix: ['wq_', 'witch_'], note: '话题、祝福、护符与遗赠情报' },
 			{ id: 'forest', where: '林间与雾之魔物', prefix: ['forest_', 'mist_', 'goblin_'], note: '听见/静听、交手与守卫、哥布林的去向' },
-			{ id: 'keeper', where: '守林人', prefix: ['keeper_'], note: '首遇、劝杀论据、立场、他告诉过你什么' },
+			{ id: 'keeper', where: '守林人', prefix: ['keeper_'], keys: ['keeper.met', 'keeper.trust'], note: '首遇、劝杀论据、立场、他告诉过你什么' },
 			{ id: 'tower', where: '塔内（门厅/书房/工坊/天文台/顶楼/地下）', prefix: ['hall_', 'study_', 'forge_', 'observatory_', 'tower_', 'below_', 'cellar_', 'ledger_', 'errand_'], keys: ['present_done', 'threshold'], note: '各房间的察看与机关态' },
 			{ id: 'flower', where: '塔外花田', prefix: ['flower_'], note: '喂花、泥、警告与昏睡（致死位点）' },
 			{ id: 'observatory', where: '天文台的藏品与手稿', prefix: ['book_'], note: '#359：风化书的取得（场地状态，与背包分开——#358 同族）' },
 			{ id: 'seer', where: '观星者与星图', prefix: ['seer_'], keys: ['coord', 'star_ledger', 'star_short'], note: '问过什么、给过什么、星账与坐标' },
 			{ id: 'banquet', where: '过去的宴会与仪式', prefix: ['banquet_', 'staff_', 'ritual_'], keys: ['family_favor', 'old_witch'], note: '入场、藏杖、仪式所见、人情与老巫女' },
-			{ id: 'dragon', where: '龙与送行/封印', prefix: ['fight_', 'hoard_', 'whistle_', 'scroll_', 'delivery_', 'failure_', 'observation_', 'fog_', 'letter_'], keys: ['ending', 'fight'], note: '战斗台账、龙巢、哨、卷轴交付、真相锚与观测锁' },
+			{ id: 'dragon', where: '龙与送行/封印', prefix: ['fight_', 'hoard_', 'whistle_', 'scroll_', 'delivery_', 'failure_', 'observation_', 'fog_', 'letter_'], keys: ['ending', 'fight', 'dragon.venom', 'dragon.awake'], note: '战斗台账、龙巢、哨、卷轴交付、真相锚与观测锁' },
 			{ id: 'notes', where: '笔记（知识的"已授予"真存储）', keys: ['notes'], note: '#434／#437 批三收口：`pc.ev.notes.<noteId>` 是**唯一真存储**——读侧 `Sg.notes.has(id, pc)` **只认它**（旗标兜底已退场）；旧档（只有旗标）由 `Game.Pc.migrate()` 里的 `Sg.notes.migrateLegacy()` **写一次迁移**补齐。写侧：单源笔记 `Sg.notes.add()`（落存储 ＋ 声明的那条旗标），多源笔记走 `<<notepath "id" "path">>`／`addPath()` **显式声明写哪一条**。单源读点已全部改成 `has()`（门：`singleReadProblems()`，基线空）' },
+			{ id: 'star', where: '星力与翻转预算', keys: ['star.spent'], note: '`pc.star.spent`＝已用掉的付费翻转次数（`#256` 预算判定的输入）' },
 			{ id: 'runtime', where: '运行时/界面态（非剧情状态）', keys: ['last_result', 'last_roll', 'soc', 'soc_last', 'soc_lever', 'settle'], note: '结果槽、骰面快照、交涉面板的瞬态（含 #360 已摆出的优势筹码）' },
 		],
 		// 「仅记账」键：写下来只为登记（出处/复访记账），**没有行为消费者**——消费者就是本表本身。

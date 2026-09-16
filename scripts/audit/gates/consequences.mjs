@@ -13,7 +13,10 @@ if (wantAll || arg('consequences')) {
 	let bad = 0;
 	// #435 阶段 4：把**条件表**注入分类器（node 侧没有 `window` 全局 ⇒ 由这里给；表的来源＝故事契约）
 	const RULES = ctx.window?.Sg?.story?.rules?.() ?? [];
-	const { written, buckets, problems } = classifyNarrativeState({ rules: RULES });
+	// `#785`：**声明式写点**的第二类来源 —— 诉求表（ask 的 `sets`／`yields`）。与 RULES 同样**注入** ✓
+	//（node 侧没有 `window` ⇒ 只能从这里给；表来源＝故事接入契约 ✓）。
+	const ASKS = ctx.window?.Sg?.story?.socialAsks?.() ?? [];
+	const { written, buckets, problems } = classifyNarrativeState({ rules: RULES, asks: ASKS });
 	// 自证 7 例（**合成输入**——这就是给分类器加注入参数的理由）
 	{
 		const mk = (over = {}) => ({
@@ -22,6 +25,7 @@ if (wantAll || arg('consequences')) {
 			Echoes: over.Echoes ?? { list: [], revisit: [] },
 			Consequences: over.Consequences ?? { provenance: {}, engine: {} },
 			rules: over.rules ?? [],   // #435：条件表的注入口（自证要用它，别再被 mk() 吞掉）
+			asks: over.asks ?? [],     // `#785`：诉求表的注入口（同上：自证必须**密闭**，不得吃环境数据 ✗）
 			notes: over.notes,         // #437 C-2c-3：笔记表也要能注入（图鉴读形状的自证要用）
 		});
 		const cases = [

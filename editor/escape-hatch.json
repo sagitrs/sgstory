@@ -1,5 +1,5 @@
 {
 	"note": "K4 逃生舱登记表（`#762` 车道 C）：契约成员里**含任意逻辑**（分类器 C 桶）的必须在此逐条登记（理由＋票号）。清单外出现即红；已不是 C 桶的登记也红（清单只许收缩，收缩留痕）。B 桶（需声明式扩展）与 D 桶（可下沉引擎）都**不算**逃生舱。",
 	"hatches": [],
-	"why_empty": "分类器重分类后（`#772`：新增 D 桶，并把 `template`/`via`/`required`/`forward`/`default` 归入 B）⇒ 三个故事的真逃生舱候选（C 桶）**全为 0** ⇒ 本表为空。**欠账写在理由里**（不是「清单空 ⇒ 没欠账」）：待补 4 个声明式 kind（`template` · `lookup-field.via/required` · `game-ref.default` · `forward`）＋ 待下沉 2 个引擎能力（`combatPrepick` 的前置选牌规则 · `checkKnowledge` 的知识映射）—— 都是排期问题，不是「表达不了」。"
+	"why_empty": "**本表只登记 C 桶**（真逃生舱：含任意逻辑、既不能用声明式 kind 表达、也不是引擎能力）。当前为空：`#775` 落完 B 桶四项欠账（`template` · `game-ref.default` · `forward` · `lookup-field.via/required`）＋ 兜底小 enum 硬化后，三个故事的 B 桶已清零。**剩下的不是逃生舱、是排期欠账**（D 桶：`combatPrepick` 的选牌规则表 · `checkKnowledge` 的知识映射 —— 两者都是「下沉引擎变数据」的活）。⇒ **不要读成「清单空 ⇒ 没欠账」**：B/D 的**实测清单与数量由门打印**（`node editor/k4.mjs` 的『欠账（B 待补 kind）／欠账（D 待下沉引擎）』两行），本文件**不手写数字**（手写必腐烂）。"
 }

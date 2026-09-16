@@ -170,6 +170,24 @@ export const endingSummaryProblems = (endSrc) => {
 	return [];
 };
 
+/** `#726` 的目标词（**本故事自己的数据**，就住故事门里 —— 判据数据按 `#602` 归故事）。 */
+export const GOAL_KEYWORD = '村子';
+
+/** 纯函数⑩：**开场必须给出目标、终点必须回扣同一词**（`#726`）——
+ *  症状：开场只说"前面只有一条路"⇒ 玩家不知道去哪、为什么；而终点 `地下村落` 要到第 5 段才第一次出现。
+ *  为什么值得机检（而不是"文案润色"）：① 三选一的**类型标签 ≠ 目的**（`#692` 只管类型）；
+ *  ② `#696` 的收益引导只有在"玩家有目标"时才成立；③ 成本极低（开场一句 ＋ 终点回扣一句，不新增状态）。 */
+export const goalProblems = (openingSrc, endingSrc, keyword = GOAL_KEYWORD) => {
+	const out = [];
+	const open = String(openingSrc ?? '');
+	const end = String(endingSrc ?? '');
+	if (!open.trim()) out.push({ code: 'goal-opening-missing', why: '取不到开场段落源码（`醒来`）——本判据要求源码，不静默判过' });
+	else if (!open.includes(keyword)) out.push({ code: 'goal-not-stated', why: `开场没有给出目标（缺目标词「${keyword}」）⇒ 玩家不知道去哪、为什么` });
+	if (!end.trim()) out.push({ code: 'goal-ending-missing', why: '取不到终点段落源码（`地下村落`）' });
+	else if (!end.includes(keyword)) out.push({ code: 'goal-not-callback', why: `终点没有回扣目标词「${keyword}」⇒ 走了 5 段才知道自己去哪` });
+	return out;
+};
+
 export const run = (ctx) => {
 	const { arg, wantAll, window: w } = ctx;
 	if (!(wantAll || arg('cave'))) return;
@@ -195,6 +213,11 @@ export const run = (ctx) => {
 			['⑨ 正例（#719）：终点渲染整局结算 ⇒ 不报', endingSummaryProblems('你站在那儿。\n<<caveSummary>>\n<<ending "地下村落" final>>').length === 0],
 			['🔴 ⑨ 反例（#719）：终点删掉结算 ⇒ 报', endingSummaryProblems('你站在那儿。\n<<ending "地下村落" final>>').some((p) => p.code === 'no-summary')],
 			['⑨ 反例（#719）：取不到终点源码 ⇒ 报（不静默判过）', endingSummaryProblems('').length === 1],
+			// `#726`：开场给目标 ＋ 终点回扣同一词（正例 / 🔴 开场缺 / 🔴 终点缺 / 🔴 取不到源码）
+			['⑩ 正例（#726）：开场给出目标、终点回扣 ⇒ 不报', goalProblems('往深处走——村子在山腹里。', '村子到了。').length === 0],
+			['🔴 ⑩ 反例（#726）：开场没给目标 ⇒ 报', goalProblems('前面只有一条路。', '村子到了。').length === 1],
+			['🔴 ⑩ 反例（#726）：终点没回扣 ⇒ 报', goalProblems('往深处走——村子在山腹里。', '你站在那儿。').length === 1],
+			['🔴 ⑩ 反例（#726）：取不到源码 ⇒ 报（不静默判过）', goalProblems('', '').length === 2],
 			// `#600` 奖励声明面：正例／🔴 未登记道具／🔴 形状非法／🔴 内容没接／🔴 内容绕过
 			['④ 正例：掉落道具已登记且内容走单一落点', rewardProblems({ encounters: { short: { reward: { gold: 3, item: { id: '钥匙', chance: 30 } } } } }, { normalize: () => ({ gold: 3, item: { id: '钥匙', chance: 30 } }), hasItem: (x) => x === '钥匙', srcOf: () => '<<set _r to Game.Combat.grantReward($pc, "short")>>' }).length === 0],
 			['🔴 ④ 反例：掉落指向未登记道具 ⇒ 报', rewardProblems({ encounters: { short: { reward: { item: '不存在的钥匙' } } } }, { normalize: () => ({ gold: 0, item: { id: '不存在的钥匙', chance: 100 } }), hasItem: (x) => x === '钥匙', srcOf: () => 'Game.Combat.grantReward(' }).length === 1],
@@ -246,6 +269,8 @@ export const run = (ctx) => {
 		for (const p of chestProblems(mech.chest, { hasSite: (n) => !!story.checkSite?.(n), hasItem: (n) => !!story.itemEffect?.(n), siteOf: (n) => story.checkSite?.(n) })) { console.log(`  ✗ 宝箱声明面：${p.why}`); bad++; }
 		for (const p of rewardProblems(mech, { normalize: (id) => w?.Game?.Combat?.encounterReward(id), hasItem: (n) => !!story.itemEffect?.(n), srcOf: (n) => ctx.passageSrc?.get(n) })) { console.log(`  ✗ 战斗奖励声明面：${p.why}`); bad++; }
 		for (const p of endingSummaryProblems(ctx.passageSrc?.get('地下村落') ?? '')) { console.log(`  ✗ 终点结算：${p.why}`); bad++; }
+		// `#726`：开场目标 ＋ 终点回扣（本故事自己的判据数据 `GOAL_KEYWORD`）
+		for (const p of goalProblems(ctx.passageSrc?.get('醒来') ?? '', ctx.passageSrc?.get('地下村落') ?? '')) { console.log(`  ✗ 目标感（#726）：${p.why}`); bad++; }
 		for (const p of enemySiteProblems(mech, { hasSite: (n) => !!story.checkSite?.(n) })) { console.log(`  ✗ 敌人攻击位点：${p.why}`); bad++; }
 		for (const p of penaltyGradeProblems(ctx.passageSrc?.get('机制·chest') ?? '')) { console.log(`  ✗ 宝箱惩罚分级：${p.why}`); bad++; }
 		for (const p of incomeProblems(mech, { src: ['机制·chest', '机制·cave'].map((n) => ctx.passageSrc?.get(n) ?? '').join('\n') })) { console.log(`  ✗ 收入声明面：${p.why}`); bad++; }

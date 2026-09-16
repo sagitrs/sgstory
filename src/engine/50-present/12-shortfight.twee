@@ -88,7 +88,14 @@
 			<<print $args[2]>>
 			<<goto `passage()`>>
 		<<elseif _phase is "cleared">>
-			<<set $pc.ev.last_result to { p: passage(), era: $era, text: $args[2] }>>
+			/% `#746`（实测：短战斗胜利后落点**看不到胜句**）：原先写 `last_result.p = passage()`＝**战斗段**
+			   ⇒ 落点（岔口）不显示它（长战斗那边早改过同款）。正解：胜句走 `settle`，**落点由 `caveNext` 算**。 %/
+			/% `#746`（实测：短战斗胜利后落点看不到胜句）：**有尾段**（＝故事会在战后导航，如洞窟的
+			   `机制·shortFight·尾` ⇒ `<<caveNext>>`）⇒ 写协议槽 `$pc.ev.settle`（由落点提升为句子）；
+			   **没有尾段**（故事 1：原地显示）⇒ 维持 `last_result`（写 `settle` 会是**孤儿写点**，
+			   `--consequences` 门会报"无正文消费"——它抓得对）。引擎也不得用故事侧 widget
+			   （`test/integrity.mjs` 抓过 `<<caveSay>>`：那是故事 2 的）。 %/
+			<<if _tail>><<set $pc.ev.settle to ($pc.ev.settle ?? "") + $args[2]>><<else>><<set $pc.ev.last_result to { p: passage(), era: $era, text: $args[2] }>><</if>>
 			<<print $args[2]>>
 			<<set _r to Game.Combat.grantReward($pc, _enc)>>
 			<<set $pc.ev.fight to {}>>                       % `#705` 片二-B：清场在**发奖之后**（`grantReward` 要读波次状态；先清 ⇒ 奖励发不出）%
@@ -96,7 +103,8 @@
 			<<if _r.item>><<give _r.item>><</if>>
 			<<if _tail>><<include `_tail`>><</if>>
 		<<else>>
-			<<set $pc.ev.last_result to { p: passage(), era: $era, text: $args[3] }>>
+			/% 同上（败句）：有尾段 ⇒ 写 `settle`（落点能看到）；无尾段 ⇒ 维持 `last_result`。 %/
+			<<if _tail>><<set $pc.ev.settle to ($pc.ev.settle ?? "") + $args[3]>><<else>><<set $pc.ev.last_result to { p: passage(), era: $era, text: $args[3] }>><</if>>
 			<<print $args[3]>>
 			<<damage `Game.Damage.hurt`>>
 			<<if _note>><<note _note>><</if>>

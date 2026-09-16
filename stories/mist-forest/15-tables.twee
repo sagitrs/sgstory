@@ -533,12 +533,9 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				bad:  { text: "你数到第四下，它还在吸气。", hurt: 3 } },
 		},
 		// 这一手走哪一项属性、DC 多少（给玩家看：不同选择＝不同判定）
-		siteInfo(actionId) {
-			const s = Checks.sites[this.actions[actionId]?.site];
-			if (!s) return '';
-			const what = s.skill ? Game.Rules.skillLabel(s.skill) : (s.abil === 'con' ? '体质豁免' : s.abil);
-			return `${what} DC${s.dc}`;
-		},
+		// `siteInfo` 已按 `#785` 接缝 5 **下沉引擎**（`Game.Combat.siteInfo` ✓）——它经**既有契约成员**
+		// `checkSite`／`combatAction` 取数（**不需要新成员** ✓）；语义含"未登记动作 ⇒ 退化成空串" ✓，
+		// 以及"下游退化不得因上游 fail-loud 而改变"（`combatAction` 对未登记会抛 ⇒ 引擎侧吞掉它 ✓）。
 		// offer（每轮三选一）已搬进 sim（#519）。
 	};
 

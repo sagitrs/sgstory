@@ -62,11 +62,19 @@ export const uncoveredYields = (asks, entries) => {
  *  `addPath('n_x', …)`／`<<notepath "n_x" …>>`）——否则"声明了但没人给"就是空头承诺（`--sel` 对经济事件已有同型判据）。 */
 export const unlandedNoteYields = (asks, sources) => {
 	const text = Object.values(sources ?? {}).join('\n');
+	// `#785` 机制片：产出**可以由声明落地**（引擎按 ask 的 `yields` 授予 ✓）⇒ 判据的含义**随之改写**（不是放宽 ✗）：
+	//   「诉求**承诺**的 note（`yield: 'note:X'`）必须真的**授予**：① 本 ask 的 `yields` 里含 `X`（声明式落地 ✓）；
+	//     或 ② 正文/代码里有写点（老的函数式形态 ✓）。二者皆无 ⇒ **承诺没兑现** ⇒ 报 ✓。」
+	// ⇒ 换含义**必须换反例**（自证里两条：承诺有授予 ⇒ 不报；承诺无授予又无写点 ⇒ 报 ✓）。
 	return (asks ?? [])
-		.map((a) => (String(a.yield ?? '').startsWith('note:') ? String(a.yield).slice(5) : null))
+		.map((a) => (String(a.yield ?? '').startsWith('note:') ? { id: String(a.yield).slice(5), a } : null))
 		.filter(Boolean)
-		.filter((id) => !new RegExp(`(?:add|addPath)\\(\\s*['"]${id}['"]|<<\\s*(?:note|notepath)\\s+['"]${id}['"]`).test(text))
-		.map((id) => `note:${id}`);
+		.filter(({ id, a }) => {
+			const declared = [a.yields ?? []].flat().map(String).some((y) => y === id || y === `note:${id}`);
+			if (declared) return false;
+			return !new RegExp(`(?:add|addPath)\\(\\s*['"]${id}['"]|<<\\s*(?:note|notepath)\\s+['"]${id}['"]`).test(text);
+		})
+		.map(({ id }) => `note:${id}`);
 };
 /** 立场旗标：正文里出现（剥注释后）却没登记 ⇒ 报。 */
 export const uncoveredFlagSites = (flagSites, passageSrc, entries) =>
@@ -119,7 +127,10 @@ if (wantAll || arg('npc')) {
 			['泛型占位：`Game Tables` 段的 `<<give "道具">>` 被跳过（由 social 条目覆盖）', giveSitesOf(new Map([['Game Tables', '<<give "道具">>']])).size === 0 && giveSitesOf(new Map([['P', '<<give "道具">>']])).size === 1],
 			['give 覆盖：有 `give:日记` 且同段 ⇒ 不报；换段 ⇒ 报', uncoveredGiveSites(new Set(['P::日记']), [E('give:日记', 'P')]).length === 0 && uncoveredGiveSites(new Set(['P::日记']), [E('give:日记', 'Q')]).length === 1],
 			['yield 四形态（`#733`）：`note:<id>` 也能覆盖', uncoveredYields([{ id: 'q', yield: 'note:n_x' }], [E('note:n_x', 'P')]).length === 0 && uncoveredYields([{ id: 'q', yield: 'note:n_x' }], []).length === 1],
-			['🔴 声明的 note 产出**没有写点** ⇒ `unlandedNoteYields()` 点名（新形状必须能红）', unlandedNoteYields([{ id: 'q', yield: 'note:n_x' }], { 'a.twee': '<<note "n_other">>' }).length === 1],
+						['🔴 承诺 note 但**既无授予也无写点** ⇒ 点名（换含义后的新反例 ✓）', unlandedNoteYields([{ id: 'q', yield: 'note:n_x' }], { 'a.twee': '没写' }).length === 1],
+			['✅ 承诺 note ＋ 本 ask 的 `yields` 里含它（**声明式落地** ✓）⇒ 不报', unlandedNoteYields([{ id: 'q', yield: 'note:n_x', yields: ['n_x'] }], { 'a.twee': '没写' }).length === 0],
+			['🔴 承诺 `note:n_x` 但 `yields` 里是**别的** id（承诺与授予不一致）⇒ 报', unlandedNoteYields([{ id: 'q', yield: 'note:n_x', yields: ['n_y'] }], { 'a.twee': '没写' }).length === 1],
+['🔴 声明的 note 产出**没有写点** ⇒ `unlandedNoteYields()` 点名（新形状必须能红）', unlandedNoteYields([{ id: 'q', yield: 'note:n_x' }], { 'a.twee': '<<note "n_other">>' }).length === 1],
 			['✅ 有写点 ⇒ 不报（`<<note>>`／`add`／`notepath` 三种都认）', unlandedNoteYields([{ id: 'q', yield: 'note:n_x' }], { 'a.twee': "Sg.notes.add('n_x')" }).length === 0 && unlandedNoteYields([{ id: 'q', yield: 'note:n_x' }], { 'a.twee': '<<notepath "n_x" "ev.x">>' }).length === 0],
 			['yield 三形态：social:<id> / flag:<x> / 无冒号 ⇒ give:<y> 任一条都能覆盖', uncoveredYields([{ id: 'q', yield: 'flag:x' }], [E('flag:x', 'P')]).length === 0 && uncoveredYields([{ id: 'q', yield: '日记' }], [E('give:日记', 'P')]).length === 0 && uncoveredYields([{ id: 'q', yield: 'flag:x' }], []).length === 1],
 			['立场旗标：正文出现但未登记 ⇒ 报；登记了 ⇒ 不报', uncoveredFlagSites([['flag:r', /world\.r to true/]], new Map([['P', 'world.r to true']]), []).length === 1 && uncoveredFlagSites([['flag:r', /world\.r to true/]], new Map([['P', 'world.r to true']]), [{ act: 'flag:r' }]).length === 0],

@@ -519,15 +519,15 @@ for (const file of fixtures) {
 	ok(S.levers(S.ask('哥布林·路'), p5).some((lv) => lv.id === 'stones'), '读过它之后 → 筹码出现（读人＝洞悉，换出筹码）');
 	// ⑦ 落账：成功＝apply 真的给东西；失败＝什么也不给
 	const p6 = emptyPc();
-	S.ask('观星者·图').apply(p6);
+	w.Game.Social.applyAskEffect(S.ask('观星者·图'), p6);
 	ok(p6.ev.seer_gave === true, '观星者成功 → seer_gave 落账');
 	const p7 = emptyPc();
-	S.ask('守林人·花').apply(p7);
+	w.Game.Social.applyAskEffect(S.ask('守林人·花'), p7);
 	// `#733` 片 2-b：单源笔记停写旗标 ⇒ 断言改看**存储**（形式无关）
 	ok(p7.ev?.notes?.n_flower_warned === true && p7.ev?.notes?.n_keeper_told === true, '守林人花事成功 → 警告 + 记账（笔记存储）');
 	const p8 = emptyPc();
 	p8.inv['坏哨'] = true;
-	S.ask('女巫·换哨').apply(p8);
+	w.Game.Social.applyAskEffect(S.ask('女巫·换哨'), p8);
 	ok(p8.inv['好哨'] === true && !p8.inv['坏哨'], '换哨成功 → 好哨入手、坏哨交出');
 	// ⑧ 掷骰用的技能必须与位点一致（面板写什么、骰子就掷什么）
 	const res = S.roll(pc, '酒馆·打听', 5, '');

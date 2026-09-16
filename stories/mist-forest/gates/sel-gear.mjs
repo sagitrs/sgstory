@@ -15,7 +15,7 @@ export const gearGranted = (k, srcAll) =>
 export const CLAIM_KINDS = ['gives', 'flag', 'item', 'income'];
 export const claimKindBad = (claim) => !CLAIM_KINDS.includes(claim?.kind);
 /** 纯函数：经济事件"钱花出去有没有落地"（socialSettles 注入 ⇒ 可自证） */
-export const econLandingVerdict = ({ claim, ev, text, socialSettles = () => false, noteFlags = new Set() }) => {
+export const econLandingVerdict = ({ claim, ev, text, socialSettles = () => false, noteFlags = new Set(), declFlags = new Set() }) => {
 	if (!claim) return 'no-claim';
 	if (claimKindBad(claim)) return 'bad-kind';
 	const flagTail = (claim.flag ?? '').replace(/^ev\./, '');
@@ -23,7 +23,7 @@ export const econLandingVerdict = ({ claim, ev, text, socialSettles = () => fals
 	// #434 阶段 3：落旗标的**第三种形状** —— `Sg.notes.add('n_x')`（写的是该笔记 flagPath 的键）。
 	// 口径走单一权威 `noteWriteFlags()`（与 `--state`／D2 同一份），别在这里再写一套字面量。
 	const byNote = noteFlags.has(flagTail);
-	if (claim.kind === 'flag' && !(text.includes(`setflag "${claim.flag}"`) || text.includes(`${flagTail} to true`) || byNote) && !socialSettles(flagTail, null)) return 'no-flag';
+	if (claim.kind === 'flag' && !(text.includes(`setflag "${claim.flag}"`) || text.includes(`${flagTail} to true`) || byNote || declFlags.has(flagTail)) && !socialSettles(flagTail, null)) return 'no-flag';
 	if (claim.kind === 'item' && !text.includes(`give "${claim.item}"`) && !socialSettles(null, claim.item)) return 'no-item';
 	if (claim.kind === 'income' && !(ev.delta > 0)) return 'income-negative';
 	return null;
@@ -83,7 +83,12 @@ if (wantAll || arg('sel') || arg('gear')) {
 			const stub = ctx.Game.Pc.defaults();
 			stub.inv = {}; stub.ev = {}; stub.world = {}; stub.keeper = { met: false, trust: 0, state: 'post', key: false };
 			try {
-				for (const lv2 of u.ask.levers ?? []) if (typeof lv2.need !== 'function' || lv2.need(stub)) u.ask.apply(stub);
+				// `#785`：效果有**三级优先**（契约钩子 ⇒ 函数 ⇒ 声明）⇒ 判定必须走**引擎那条路**；
+				// 直调 `u.ask.apply` 在声明式数据下会**静默不落**（实测：门报「正文没落旗标」）。
+				const applyEffect = ctx.Game?.Social?.applyAskEffect;
+				for (const lv2 of u.ask.levers ?? []) if (typeof lv2.need !== 'function' || lv2.need(stub)) {
+					if (typeof applyEffect === 'function') applyEffect(u.ask, stub); else u.ask.apply?.(stub);
+				}
 			} catch { /* 条件不满足就算了 */ }
 			// `#733` 片 2-b：翻面后 `apply()` **不再写单源旗标** ⇒ 落点判据必须也能看**笔记存储**
 			//（`Sg.notes.add(id, stub)` 会把 `stub.ev.notes[id]` 置真）；旗标那一支保留（多源笔记仍写旗标 ✓）。
@@ -97,6 +102,17 @@ if (wantAll || arg('sel') || arg('gear')) {
 		}
 		return false;
 	};
+	// `#785` 机制片：状态旗标现在可以**由声明落地**（ask 的 `sets`）⇒ 落点判据的**证据集**要含它
+	//（含义不变：旗标终究要落地；只是【落地】多了一种载体）。
+	const declFlags = new Set();
+	for (const a of Game.Social?.asks ?? []) {
+		for (const k of [a.sets ?? []].flat()) declFlags.add(String(k).replace(/^(ev|world)\./, ''));
+		// 声明式**笔记授予**（`yields: ['n_x']`）⇒ 该笔记的 `flagPath` 旗标也是落地证据 ✓（单一权威：`Notes.entries` ✓）
+		for (const y of [a.yields ?? []].flat()) {
+			const e = Game.Notes?.entries?.[String(y).replace(/^note:/, '')];
+			for (const fp of [e?.flagPath ?? []].flat()) declFlags.add(String(fp).replace(/^(ev|world)\./, ''));
+		}
+	}
 	for (const [key, ev] of Object.entries(Game.Economy.events)) {
 		const c = CLAIM[key];
 		const uses = rows.filter(([, line]) => line.includes(`econ "${key}"`));
@@ -111,7 +127,7 @@ if (wantAll || arg('sel') || arg('gear')) {
 			'no-item': `正文没给道具 ${c.item}`,
 			'income-negative': '写成纯收入却是扣钱',
 		};
-		const v = econLandingVerdict({ claim: c, ev, text, socialSettles, noteFlags: new Set(noteWriteFlags(text, Game.Notes?.entries ?? {})) });
+		const v = econLandingVerdict({ claim: c, ev, text, socialSettles, noteFlags: new Set(noteWriteFlags(text, Game.Notes?.entries ?? {})), declFlags });
 		if (v) { console.log(`  ✗ 经济事件「${key}」${CLAIM_MSG[v] ?? v}`); bad++; }
 	}
 	{

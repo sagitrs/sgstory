@@ -26,16 +26,11 @@ window.Sg.Codex = {
 	write(d) { try { window.localStorage.setItem(window.Sg.store.key('story', 'codex.v1'), JSON.stringify(d)); } catch { /* 同上 */ } },
 	// ── 线索判定改成**声明式条件**（`#785` 第 1 族）：判定交给**引擎**的条件求值器（`Sg.rules.matches`，
 	//    单一权威），本文件只做"遍历／计数／渲染"。原来这四支住在 `Game.Codex`（**数据面**）⇒ 数据容器里夹函数 ✗。
-	clueIds(item) { return (window.Game?.Codex?.items?.[item]?.clues ?? []).map((c) => c.id); },
-	satisfied(pc) {
-		const out = {};
-		for (const [item, def] of Object.entries(window.Game?.Codex?.items ?? {})) {
-			out[item] = (def.clues ?? []).filter((c) => window.Sg.rules.matches(c, pc, new Set())).map((c) => c.id);
-		}
-		return out;
-	},
-	isUnlocked(item, store) { const ids = this.clueIds(item); const got = store?.clues?.[item] ?? {}; return ids.length > 0 && ids.every((id) => got[id]); },
-	progress(item, store) { const ids = this.clueIds(item); const got = store?.clues?.[item] ?? {}; return { got: ids.filter((id) => got[id]).length, total: ids.length }; },
+	// `#785` 接缝 6：四支已**下沉引擎**（`Game.Codex.*` 读声明 ✓）⇒ 本文件只**委托** ✓
+	clueIds(item) { return window.Game.Codex.clueIds(item); },
+	satisfied(pc) { return window.Game.Codex.satisfied(pc); },
+	isUnlocked(item, store) { return window.Game.Codex.isUnlocked(item, store); },
+	progress(item, store) { return window.Game.Codex.progress(item, store); },
 	sync() {
 		const pc = State.variables?.pc;
 		if (!pc || !window.Game?.Codex) return;

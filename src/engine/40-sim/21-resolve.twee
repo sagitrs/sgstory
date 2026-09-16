@@ -438,7 +438,8 @@ Object.assign((window.Game.Combat ??= {}), {
 		pc.ev.fight.history = [...(pc.ev.fight.history ?? []), entry].slice(-this.HISTORY_MAX);
 		return entry;
 	},
-	HISTORY_MAX: 6,：d20 原值 ≤ 5 ⇒ `low` 档，其余 ⇒ `most`
+	HISTORY_MAX: 6,
+	statusLowRoll: 5,      // 低骰分档阈值（设计稿 §2.3／§8 D4）：d20 原值 ≤ 5 ⇒ `low` 档，其余 ⇒ `most`
 	statusParts(mech, id) {
 		const st = mech?.statuses?.[id];
 		if (!st) return [];

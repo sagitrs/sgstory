@@ -136,11 +136,19 @@ Object.assign((window.Game.Social ??= {}), {
 		window.Sg.rules.applySets(a);
 	},
 	/** 结果定档：`willing`＝不掷骰 · `unwilling`＝不掷骰（回绝）· 其余掷骰。 */
+	/** `done` 的取值（**hook 优先** ⇒ 数据声明 ✓）：供渲染层问"这一件有没有结果"（`10-core` ✓）。 */
+	askDone(a, pc) {
+		const hook = window.Sg?.story?.socialHooks?.()?.[a.id]?.done;
+		return this.condHolds(hook ?? a.done, pc);
+	},
 	verdict(a, pc) {
 		// ⚠️ **存在性守卫**：`condHolds(null)` 是**恒真**（那是对「字段缺席」的语义 ✓），
 		// 但本方法的原语义是 `a.unwilling?.(pc)` ⇒ **没有这个字段就不回绝** ✓ ⇒ 必须先判有无 ✗（否则一律 `unwilling` ✗）。
-		if (a.unwilling != null && this.condHolds(a.unwilling, pc)) return 'unwilling';
-		if (a.willing != null && this.condHolds(a.willing, pc)) return 'willing';
+		// **hook 优先**（(c) 契约面承载"取反"这类声明式词汇表达不了的 ✓）⇒ 否则数据声明 ✓。
+		const hook = window.Sg?.story?.socialHooks?.()?.[a.id] ?? {};
+		const unw = hook.unwilling ?? a.unwilling, wil = hook.willing ?? a.willing;
+		if (unw != null && this.condHolds(unw, pc)) return 'unwilling';
+		if (wil != null && this.condHolds(wil, pc)) return 'willing';
 		return 'roll';
 	},
 	/** 落账：成功/失败各自的代价（2024 的态度与重试规则）。 */

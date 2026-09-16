@@ -26,6 +26,14 @@
 	<</if>>
 <</nobr>><</widget>>
 
+<<widget "caveEffectHere">><<nobr>>
+	/% `#746` 片2：**就地**显示数字差分（**不**累进 `settle`）。
+	   用在"留在本段"的分支（商人买货、添油、察言）：那句当场就该读到，若也写进 `settle`
+	   会在下一次落点**重复出现** ⇒ 两种形态分开，各自诚实。 %/
+	<<set _d to Game.Pc.diff($args[0], $pc)>>
+	<<if _d.length gt 0>><<print "（" + _d.join(" · ") + "）">><</if>>
+<</nobr>><</widget>>
+
 <<widget "caveNext">><<nobr>>
 	/% `#746`（guest 实测②「异常只有状态行、没有叙事；hp 20→20 没掉血」）：**`tickStatuses()` 的返回值原先被丢掉**
 	   ⇒ 每回合的异常伤害（`hurt`）从未落到 HP、也没句子 ⇒ 异常只在侧栏"存在"却**不影响任何东西**。
@@ -403,9 +411,12 @@
 		<<set _p to Game.Economy.prices[_name]>>
 		<<if $pc.gold gte _p and not $pc.inv[_name]>>
 			<<capture _name _p>><<link `"买" + _name + "（" + _p + " 金币）"`>>
+				<<set _snap to Game.Pc.snap($pc)>>
 				<<set $pc.gold to $pc.gold - _p>>
 				<<give _name>>
 				你把金币推过去。他数了一遍，把<<= _name>>递过来。
+
+				<<caveEffectHere _snap>>
 				<<goto `passage()`>>
 			<</link>><</capture>>
 			<br>
@@ -414,9 +425,12 @@
 	<<set _oil to Game.Economy.prices["火把油"]>>
 	<<if $pc.gold gte _oil and ($pc.gearHp["火把"] ?? 2) lt 2>>
 		<<capture _oil>><<link `"给火把添油（" + _oil + " 金币）"`>>
+			<<set _snap to Game.Pc.snap($pc)>>
 			<<set $pc.gold to $pc.gold - _oil>>
 			<<set $pc.gearHp["火把"] to 2>>
 			他倒了小半壶油进去，火苗立刻长了一截。
+
+			<<caveEffectHere _snap>>
 			<<goto `passage()`>>
 		<</link>><</capture>>
 		<br>
@@ -427,8 +441,10 @@
 
 	<<if not Sg.notes.has("n_cave_trav")>>
 		<<link "先不开口，看他怎么坐">>
+			<<set _snap to Game.Pc.snap($pc)>>
 			<<sitecheck "旅人·察言">>
 			<<if $last_check.success>>
+				<<caveEffectHere _snap>>
 				他把那把东西放在右手边，拇指却一直没离开——不是要动手，是在等你先说话。
 				<<note "n_cave_trav">>
 			<<else>>

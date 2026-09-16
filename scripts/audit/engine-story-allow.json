@@ -3,7 +3,6 @@
 	"allow": {
 		"consequences.mjs::图鉴": "桶名标签：本门的 `codex` 桶（收藏面）——与最小示例的段落名同词纯属巧合（#602）",
 		"waves.mjs::图鉴": "契约描述：`RESET_KEEPS` 的\"不清什么\"清单里含收藏面（引擎侧契约，非故事数据）（#602）",
-		"src/10-core.twee::Game.Combat.siteInfo": "**移除计划：片三-1（Economy 接缝）后随 Combat 片清（#660）**——`<<sitecheck>>` 词汇宏读故事的动作表取位点信息",
 		"src/10-core.twee::Game.Social.ask": "**移除计划：片三-Social（#660）**——`<<socresolve>>` 词汇宏按诉求取面板数据",
 		"src/80-script.twee::Game.Social.ask": "**移除计划：片三-Social（#660）**——`Sg` 侧渲染交涉面板时读诉求",
 		"consequences.mjs::Game Tables": "自证**输入契约**的键名：`classifyNarrativeState` 从 `sources.get('Game Tables')` 取故事表源 ⇒ 门里必须出现它才能给分类器喂表（不是故事数据，是注入口）。与既有 `consequences.mjs::图鉴` 同族；`#437` C-2c-3 的 `Sg.notes.has()` 形状自证需要它。"

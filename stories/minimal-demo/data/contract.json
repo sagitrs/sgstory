@@ -9,7 +9,6 @@
 		{ "name": "rules", "kind": "empty-array", "docs": "条件表：空表（合法）" },
 		{ "name": "mechanics", "kind": "null", "docs": "新机制声明表：未启用 ⇒ null（调用方必须跳过，不许当空表）" },
 		{ "name": "checkSite", "kind": "null", "docs": "位点表" },
-		{ "name": "checkKnowledge", "kind": "null", "docs": "位点→知识映射" },
 		{ "name": "combatPool", "kind": "empty-array", "docs": "战斗池" },
 		{ "name": "combatAction", "kind": "null", "docs": "战斗动作" },
 		{ "name": "actionLabel", "kind": "identity-string", "docs": "动作文案：文案缺失 ⇒ 兜底不报错（与\"结构缺失\"分开）" },

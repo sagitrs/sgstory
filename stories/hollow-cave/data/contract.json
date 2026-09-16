@@ -36,10 +36,6 @@
 			"kind": "empty-object"
 		},
 		{
-			"name": "checkKnowledge",
-			"kind": "null"
-		},
-		{
 			"name": "combatPool",
 			"kind": "lookup",
 			"from": "window.Sg.story.mechanics()?.pools",

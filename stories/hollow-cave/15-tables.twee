@@ -138,7 +138,6 @@ Object.assign((window.Sg.story ??= {}), {
 	// `#702` a2 落地前还没有真实槽位 ⇒ 先给一个**临时对象**（`eff.dmg` 这类写入落在这里即丢弃，行为与
 	// 旧实现一致：旧实现写的是故事 1 的 `pc.dragon.hp`，对本故事本来就是空转）。
 	foeState: () => ({}),
-	checkKnowledge: () => null,
 	combatPool: (id) => window.Sg.story.mechanics()?.pools?.[id] ?? [],
 	// `#736`：**战利品句按实际掉落生成**（掉钥匙就提钥匙）——文案住故事，机制（掉了什么）住引擎。
 	// 签名 `(reward, base)`：`base` 是调用点的静态句式（保留各处的文风差异），这里只补"实际掉了什么"。

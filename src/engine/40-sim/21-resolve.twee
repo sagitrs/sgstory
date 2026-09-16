@@ -24,7 +24,8 @@ Object.assign((window.Game.Checks ??= {}), {
 		if (!adv) {
 			// `#733` 片 2-b：**把 pc 传下去**（接缝原本只传位点名 ⇒ 故事只能按"当前存档 pc"算持有 ⇒
 			// 合成 pc 的单测驱动不了它，违反 `#441-A`「可脱离浏览器驱动」）。故事侧已接受可选 pc。
-			const kn = window.Sg.story.checkKnowledge(site, pc);
+			// `#762` A 线：**下沉后**由引擎组装（故事只声明 `Game.Checks.knowledge*` 两张表）。
+			const kn = window.Sg.notes.knowledgeOf(site, pc);
 			// `#733` 片 2-b 接缝：故事若一并给出「**是否持有**」（`kn.held`，笔记面判定）⇒ 以它为准；
 			// 未给出时回落旧读法（读裸旗标 `pc.world[kn.flag]`）——翻面（单源停写旗标）之后，
 			// 只靠回落就会**丢掉这条情报优势**（实测 `#291 G2：带情报重试未标注优势来源`）。
@@ -308,10 +309,11 @@ Object.assign((window.Game.Combat ??= {}), {
 		let list = this.eligible(poolId, pc).filter((id) => id !== lastUsed);
 		if (list.length < 3) list = this.eligible(poolId, pc);
 		const picked = this.pickN(list, 3);                       // #489：走**共用**选择机制
-		// `#493` 接缝：故事可声明"这一手必须给谁"（`Sg.story.combatPrepick(poolId, round, pc, picked)`），
-		// 引擎就不必认识池名与动作名。**未声明时回落旧硬编码分支**（过渡期逐字一致）。
+		// `#493` 接缝 ⇒ `#762` A 线**下沉**：故事改声明**规则表**（`Sg.story.prepick()`），
+		// 引擎按通用规则求值（池名/动作名仍然不进引擎）。
 		// `#493` 片 A-2：**回落已删** —— 池名/动作名不再出现在引擎里（故事声明 `Sg.story.combatPrepick` 决定给哪一手）。
-		const pre = window.Sg?.story?.combatPrepick?.(poolId, round ?? 1, pc, picked) ?? null;
+		// `#762` A 线：**下沉后**由引擎通用求值（故事只声明规则表）；`prepickDecl()` 为 `null` ⇒ 不干预。
+		const pre = this.prepickFor(poolId, round ?? 1, pc, picked);
 		if (pre && !picked.includes(pre)) picked[picked.length - 1] = pre;
 		return [...new Set(picked)];
 	},
@@ -331,6 +333,27 @@ Object.assign((window.Game.Combat ??= {}), {
 		const roads = this.roadsDecl();
 		if (!roads) return null;                                  // 未启用 ⇒ 调用方不调（与 `roadOffer` 同口径）
 		return roads.flatMap((r) => (r.options ?? []).map((o) => ({ id: `${o.ref}`, kind: o.kind, hint: o.hint, ref: o.ref })));
+	},
+	prepickDecl() { return window.Sg.story.prepick?.() ?? null; },
+	/**
+	 * 「这一手必须给谁」（`#762` A 线：`combatPrepick` 下沉）：故事**只声明规则表**，引擎**通用求值**。
+	 * 规则形状：`{ pool, round?, require?: { item }, forbid?: { flag }, pick, distinctFromPicked? }`
+	 *   · 词汇只用**引擎已知概念**（池名/轮次/物品名/路径旗标/已选项）⇒ 故事词（如具体池名/道具名）只出现在**声明**里；
+	 *   · `forbid.flag` 是 **pc 上的点分路径**（走 `Sg.notes.readPath`，与笔记面同一套读取语义）；
+	 *   · 未声明（`null`）⇒ 返回 `null`（不干预；与 `roadInstances` 同口径）。
+	 */
+	prepickFor(poolId, round, pc, picked) {
+		const rules = this.prepickDecl();
+		if (!rules) return null;
+		for (const r of rules) {
+			if (!r || r.pool !== poolId) continue;
+			if (r.round !== undefined && (round ?? 1) !== r.round) continue;
+			if (r.require?.item && !pc?.inv?.[r.require.item]) continue;
+			if (r.forbid?.flag && window.Sg?.notes?.readPath?.(pc, r.forbid.flag)) continue;
+			if (r.distinctFromPicked && (picked ?? []).includes(r.pick)) continue;
+			return r.pick ?? null;
+		}
+		return null;
 	},
 	/** 一段路的「三选一」：从该段 options 里随机取 3 个（`exclude` ＝ 本段已经出现过的类型不重复）。 */
 	roadOffer(idx, exclude = []) {

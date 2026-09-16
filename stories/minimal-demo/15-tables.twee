@@ -52,7 +52,6 @@ Object.assign((window.Sg.story ??= {}), {
 	rules: () => [],                   // 条件表：空表（合法）
 	mechanics: () => null,             // 新机制声明表：未启用 ⇒ `null`（调用方必须跳过，不许当空表）
 	checkSite: () => null,             // 位点表
-	checkKnowledge: () => null,        // 位点→知识映射
 	combatPool: () => [],              // 战斗池
 	combatAction: () => null,          // 战斗动作
 	actionLabel: (id) => String(id),   // 动作文案：**文案缺失** ⇒ 兜底不报错（与"结构缺失"分开）

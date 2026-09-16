@@ -7,7 +7,8 @@
 //
 // 判据（四条，未启用的故事一律跳过 ⇒ 对故事 1 零影响）：
 //   ① `mechanics().roads[*].options[*].ref` 必须存在，且 `路·<ref>` 段落存在（表→内容）；
-//   ② `Sg.story.eventPool(step)`：`kinds` 覆盖六类词表；`entries` 每个 kind ≥1 个实例，
+//   ② 事件实例清单（`#778` 下沉 ⇒ 由引擎 `Game.Combat.roadInstances()` 从声明的 `roads` 折叠；
+//      本文件持有六类词表 `KINDS`）：每个 kind ≥1 个实例，
 //      且每条实例的 `ref` 也解析得到段落、`hint` 非空（内容→表）；
 //   ③ `Sg.story.chestDef(id)`：三个位点名（`site`/`rareSite`/`toolSite`）都必须是**已登记位点**，
 //      `tool` 必须在 `Game.Items.defs` 里，且 `loot` 的档位非空（稀有度→奖品曲线存在）；
@@ -310,7 +311,18 @@ export const run = (ctx) => {
 	else {
 		const rows = mech.roads.flatMap((r) => r.options ?? []);
 		for (const p of refProblems(rows, hasPassage)) { console.log(`  ✗ 路「${p.kind}」ref=${p.ref}：${p.why}`); bad++; }
-		for (const p of poolProblems(story.eventPool?.(1) ?? null, hasPassage)) { console.log(`  ✗ 事件池：${p.why}`); bad++; }
+			// `#778` 下沉：事件实例清单改由**引擎**从声明的 `roads` 折叠（`Game.Combat.roadInstances()`）；
+		//   六类词表是**故事词汇**（`KINDS` 在本文件），引擎只给实例 ⇒ 池对象在这里拼。
+		const instances = w?.Game?.Combat?.roadInstances?.() ?? null;
+		const groupByKind = (list) => { const out = {}; for (const o of list) (out[o.kind] ??= []).push(o); return out; };
+		const pool = instances ? { kinds: KINDS, entries: groupByKind(instances) } : null;
+		// 过渡期等价断言：故事侧若还留着旧的 `eventPool`，它必须与引擎折叠**逐字段相同** ⇒
+		// 这条就是"下沉没有改行为"的机械证据；故事侧成员一删，它自然失效（见 `#778` 的收缩步骤）。
+		if (story.eventPool) {
+			const a = JSON.stringify(story.eventPool(1)?.entries ?? null), b = JSON.stringify(pool?.entries ?? null);
+			if (a !== b) { console.log(`  ✗ 事件实例清单：引擎折叠与故事旧成员**不一致**（下沉改了行为）\n      故事：${a?.slice(0, 120)}\n      引擎：${b?.slice(0, 120)}`); bad++; }
+		}
+		for (const p of poolProblems(pool, hasPassage)) { console.log(`  ✗ 事件池：${p.why}`); bad++; }
 		for (const p of chestProblems(mech.chest, { hasSite: (n) => !!story.checkSite?.(n), hasItem: (n) => !!story.itemEffect?.(n), siteOf: (n) => story.checkSite?.(n) })) { console.log(`  ✗ 宝箱声明面：${p.why}`); bad++; }
 		for (const p of rewardProblems(mech, { normalize: (id) => w?.Game?.Combat?.encounterReward(id), hasItem: (n) => !!story.itemEffect?.(n), srcOf: (n) => ctx.passageSrc?.get(n) })) { console.log(`  ✗ 战斗奖励声明面：${p.why}`); bad++; }
 		for (const p of endingSummaryProblems(ctx.passageSrc?.get('地下村落') ?? '')) { console.log(`  ✗ 终点结算：${p.why}`); bad++; }
@@ -321,7 +333,7 @@ export const run = (ctx) => {
 		for (const p of enemySiteProblems(mech, { hasSite: (n) => !!story.checkSite?.(n) })) { console.log(`  ✗ 敌人攻击位点：${p.why}`); bad++; }
 		for (const p of penaltyGradeProblems(ctx.passageSrc?.get('机制·chest') ?? '')) { console.log(`  ✗ 宝箱惩罚分级：${p.why}`); bad++; }
 		for (const p of incomeProblems(mech, { src: ['机制·chest', '机制·cave'].map((n) => ctx.passageSrc?.get(n) ?? '').join('\n') })) { console.log(`  ✗ 收入声明面：${p.why}`); bad++; }
-		const kindsSeen = [...new Set([...KINDS, ...rows.map((o) => o.kind).filter(Boolean), ...((story.eventPool?.(1)?.kinds) ?? [])])];
+		const kindsSeen = [...new Set([...KINDS, ...rows.map((o) => o.kind).filter(Boolean)])];
 		for (const p of labelProblems(kindsSeen, (k) => story.eventKindLabel?.(k))) { console.log(`  ✗ 类型标签：${p.why}`); bad++; }
 		const noCheck = (mech.roads ?? []).filter((r) => (r.options ?? []).some((o) => o.noCheck)).length;
 		console.log(`  · 五段三路：${(mech.roads ?? []).length} 段 · ${rows.length} 条路 · 有 \`noCheck\` 的段 ${noCheck} 个 · 实例段落全部解析 ✓`);

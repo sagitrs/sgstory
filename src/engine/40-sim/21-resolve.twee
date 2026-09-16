@@ -122,6 +122,19 @@ Object.assign((window.Game.Social ??= {}), {
 		const opt = { adv: advWhy ? 1 : 0, site, advWhy: advWhy ?? '' };
 		return s.abil ? window.Game.Rules.save(pc, s.abil, dc, opt) : window.Game.Rules.check(pc, s.skill, dc, opt);
 	},
+	/** 诉求落地时的**效果**（`#785`）：三级优先 —— ① **(c) 契约面 hook**（故事声明 `Sg.story.socialHooks()` ✓
+	 *  承载"换物／置枚举／取反"这类声明式词汇表达不了的 ✓）⇒ ② **函数**（过渡期：故事侧旧 `apply` ✓）⇒
+	 *  ③ **声明式**（`yields`/`gives`/`sets` ✓ —— 与规则行**同一套** `applyYields`/`applyGrants`/`applySets` ✓，单一权威）。
+	 *  ⚠️ 三级都要在：少任何一级都会出现「**改了不生效**」✗（本轮活样本：只实现了条件侧双形 ⇒ 数据改 `sets` 后
+	 *  效果静默不落 ✗ —— 静态比对看不出来 ✓）。**退役条件**：故事侧 `apply` 全为声明式／hook 后，第 ② 级自然失效。 */
+	applyAskEffect(a, pc) {
+		const hook = window.Sg?.story?.socialHooks?.()?.[a.id]?.apply;
+		if (typeof hook === 'function') return hook(pc);
+		if (typeof a.apply === 'function') return a.apply(pc);
+		window.Sg.rules.applyYields(a);
+		window.Sg.rules.applyGrants(a);
+		window.Sg.rules.applySets(a);
+	},
 	/** 结果定档：`willing`＝不掷骰 · `unwilling`＝不掷骰（回绝）· 其余掷骰。 */
 	verdict(a, pc) {
 		// ⚠️ **存在性守卫**：`condHolds(null)` 是**恒真**（那是对「字段缺席」的语义 ✓），
@@ -361,7 +374,7 @@ Object.assign((window.Game.Social ??= {}), {
 		let econ = null;
 		const h = String(how ?? '');
 		if (h === 'will') {
-			a.apply(pc);
+			S.applyAskEffect(a, pc);
 			pc.ev.soc_last[a.id] = { kind: 'will', text: a.will };
 		} else if (h.startsWith('lever:')) {
 			const lv = S.levers(a, pc).find((l) => l.id === h.slice(6));
@@ -373,7 +386,7 @@ Object.assign((window.Game.Social ??= {}), {
 				} else {
 					if (lv.econ) econ = { delta: T.Economy.apply(pc, lv.econ).delta };
 					S.shift(pc, a.npc, 1);
-					a.apply(pc);
+					S.applyAskEffect(a, pc);
 					pc.ev.soc_last[a.id] = { kind: 'auto', text: a.auto, notes: ['拿出了筹码：' + lv.name] };
 				}
 			}
@@ -386,7 +399,7 @@ Object.assign((window.Game.Social ??= {}), {
 			pc.ev.soc_lever = null;
 			pc.ev.last_roll = res;
 			if (res.success) {
-				a.apply(pc);
+				S.applyAskEffect(a, pc);
 				pc.ev.soc_last[a.id] = { kind: 'ok', text: a.ok, notes: S.settle(a, pc, site, res.roll === 20 ? 'crit' : 'ok') };
 			} else {
 				pc.ev.soc_last[a.id] = { kind: 'bad', text: a.bad, notes: S.settle(a, pc, site, 'bad') };

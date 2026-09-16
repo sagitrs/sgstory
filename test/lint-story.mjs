@@ -35,10 +35,16 @@ try {
 const r2b = lint('minimal-demo');
 case_('反例后无残留（复跑正例）', r2b.status === 0);
 
-// ③ 反例·未数据化（hollow-cave 尚无 data/）
-const r3 = lint('hollow-cave');
-const out3 = (r3.stdout || '') + (r3.stderr || '');
-case_('反例·未数据化红（非跳过）', r3.status === 1 && out3.includes('未数据化'), `status=${r3.status}`);
+// ③ 反例·未数据化（**临时探针目录**——不绑某故事的数据化进度：hollow-cave 翻面后此档会失去意义）
+import { mkdtempSync, writeFileSync as wf, rmSync as rm } from 'node:fs';
+import { tmpdir } from 'node:os';
+const probe = mkdtempSync(join(tmpdir(), 'lint-story-probe-'));
+try {
+	wf(join(probe, '00-story.json'), JSON.stringify({ slug: 'probe', files: ['10-x.twee'] }));
+	const r3 = spawnSync('node', ['editor/lint-story.mjs', probe], { cwd: ROOT, encoding: 'utf8' });
+	const out3 = (r3.stdout || '') + (r3.stderr || '');
+	case_('反例·未数据化红（非跳过）', r3.status === 1 && out3.includes('未数据化'), `status=${r3.status}`);
+} finally { rm(probe, { recursive: true, force: true }); }
 
 if (bad) { console.error(`\n✗ lint-story 自证门：${bad} 条未过`); process.exit(1); }
 console.log('\n✔ lint-story 自证门通过（正例 1 · 反例 2 · 无残留）');

@@ -22,13 +22,14 @@ const ok = (m) => console.log(`  ✔ ${m}`);
 const fail = (m) => { console.error(`  ✗ ${m}`); process.exit(1); };
 const sh = (cmd, args) => spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8' });
 
-const slug = process.argv[2];
-if (!slug) { console.error('用法：node editor/lint-story.mjs <slug>'); process.exit(2); }
-console.log(`lint-story：${slug}`);
-
-// ── ① 包形状 ──
-const dir = join(ROOT, 'stories', slug);
-if (!existsSync(dir)) fail(`故事目录不存在：stories/${slug}`);
+const arg = process.argv[2];
+if (!arg) { console.error('用法：node editor/lint-story.mjs <slug|目录路径>'); process.exit(2); }
+// `<slug>`＝stories/<slug>；含路径分隔符或已存在的目录 ⇒ 当**目录**（临时探针/仓外包亦可用；CLI 契约向后兼容）
+const asPath = arg.includes('/') || existsSync(arg);
+const dir = asPath ? arg : join(ROOT, 'stories', arg);
+const slug = asPath ? arg.replace(/\/+$/, '').split('/').pop() : arg;
+console.log(`lint-story：${slug}${asPath ? `（路径 ${dir}）` : ''}`);
+if (!existsSync(dir)) fail(`故事目录不存在：${dir}`);
 let manifest = null;
 try { manifest = JSON.parse(readFileSync(join(dir, '00-story.json'), 'utf8')); }
 catch (e) { fail(`00-story.json 不可解析：${e.message}`); }

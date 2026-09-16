@@ -77,7 +77,10 @@ export const run = (ctx) => {
 		{
 			const s = Game.Combat.wavePlan('short'), l = Game.Combat.wavePlan('long');
 			t('① 短＝1 批·1 回合·1 命中（单次判定定胜负）', s.rounds === 1 && s.hits === 1 && s.waves.length === 1 && s.long === false, JSON.stringify(s));
-			t('① 长＝2 批·**5 回合**·3 命中（`#599`；增援批更难）', l.rounds === 5 && l.hits === 3 && l.waves.length === 2 && l.long === true && l.waves[1].difficulty > l.waves[0].difficulty, JSON.stringify(l));
+			// `#705` 片二-B（判据⑦）：声明了 `enemies` 的波 ⇒ 通关判据＝**敌人全灭**（`hits` 退场），
+			// 上限按判据⑥**重导**（`#599` 的 5 是固定伤害数学下算的）⇒ 现在是 **8**（覆盖实测 p90）。
+			t('① 长＝2 批·**8 回合**（⑥ 重导）·**敌人全灭**（⑦；`hits` 退场）', l.rounds === 8 && l.hits === 3 && l.waves.length === 2 && l.long === true, JSON.stringify(l))
+
 		}
 
 		// ── ① 波次推进 / 增援（真跑引擎）──

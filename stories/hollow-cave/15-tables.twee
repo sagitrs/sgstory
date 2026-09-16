@@ -41,30 +41,6 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 		keyYields: [],
 	};
 
-	const Combat = {
-		pools: {
-			'cave.w1': ['洞窟·挥剑', '洞窟·躲闪', '洞窟·围斗'],
-			'cave.w2': ['洞窟·撑住', '洞窟·挥剑', '洞窟·围斗'],
-		},
-		actions: {
-			'洞窟·挥剑': { site: '洞窟·挥剑', label: '迎面劈过去', attr: 'str', dmg: '1d6+2',
-				ok:   { text: "刃撞在它的硬壳上，弹开了半寸——但那一寸是你抢到的。", dmg: 8 },
-				crit: { text: "刃顺着壳缝滑进去。它缩了一下，往后退了两步。", dmg: 14 },
-				bad:  { text: "你劈空了，反手被它顶在肩上。", hurt: 4 } },
-			'洞窟·躲闪': { site: '洞窟·躲闪', label: '侧身让开，等它先动', defend: true,
-				ok:   { text: "你让开半步，它的第一下砸在你刚才站的地方。", guard: 4 },
-				crit: { text: "你让得很准——它撞在岩壁上，自己懵了一下。", guard: 5, skipFoe: true },
-				bad:  { text: "你让早了，它跟着你转，压在你腿上。", hurt: 3 } },
-			'洞窟·围斗': { site: '洞窟·围斗', label: '把火把举低，逼它退到石壁边', attr: 'str', dmg: '1d4+2',
-				ok:   { text: "火把压低，它背贴上了石壁——退无可退了。", dmg: 10 },
-				crit: { text: "火光把它逼进死角，你补上一下。它塌下去，没再起来。", dmg: 18, skipFoe: true },
-				bad:  { text: "火把被它打偏，火星溅了你一脸。", hurt: 5 } },
-			'洞窟·撑住': { site: '洞窟·撑住', label: '撑住，等它先累', defend: true,
-				ok:   { text: "你站着不动，呼吸压稳。它的第二波比第一波慢。", guard: 5 },
-				crit: { text: "它扑了三次，第三次膝盖软了。你才动。", guard: 6 },
-				bad:  { text: "它的第三下从侧面进来，你没挡住。", hurt: 6 } },
-		},
-	};
 
 	const Items = {
 		defs: {
@@ -131,7 +107,9 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 		dynamicKeys: [],
 	};
 
-	return { Checks, Combat, Items, Economy, Gear, Social, Truth, Echoes, Shifts, Investment, Notes, State };
+	// `#705` 片二-B：本故事的 `Combat`（池名/动作表）**搬进 `MECH`** —— 原先它被挂到 `Game.Combat`,
+	// 随后**被引擎的 `Game.Combat` 覆盖** ⇒ 表永远够不着（`combatAction` 恒 null、战斗一直用默认伤害 1）。
+	return { Checks, Items, Economy, Gear, Social, Truth, Echoes, Shifts, Investment, Notes, State };
 })());
 
 :: StoryBindings [script]
@@ -161,7 +139,7 @@ Object.assign((window.Sg.story ??= {}), {
 	// 旧实现一致：旧实现写的是故事 1 的 `pc.dragon.hp`，对本故事本来就是空转）。
 	foeState: () => ({}),
 	checkKnowledge: () => null,
-	combatPool: (id) => window.Game.Combat.pools[id] ?? [],
+	combatPool: (id) => window.Sg.story.mechanics()?.pools?.[id] ?? [],
 	// `#705` 片二-B（修死接缝）：动作表住**本故事**的 `MECH.actions`（`Game.Combat.actions` 是**故事 1** 的表，
 	// 这里读它 ⇒ 恒 null ⇒ 声明面白声明、`attr/dmg` 永远取不到）。单源＝本故事的 `MECH`。
 	// `#705` 片二-B（修死接缝）：动作表住**本故事的声明面** ⇒ 经 `mechanics().actions` 取。
@@ -179,6 +157,29 @@ Object.assign((window.Sg.story ??= {}), {
 // ── S1–S4 的**声明表**（形状权威 `scripts/audit/lib/story-shape.mjs`；口径 `docs/story2-contracts.md`）──
 // `mechanics()` 一旦非 `null` ⇒ S1–S4 四件套**真正点亮**（引擎走新路径，四道引擎门开始判**本故事**。
 const MECH = {
+	// `#705` 片二-B：**战斗池名与动作表**（原在 `:: Game Tables` 的 `const Combat` 里，见那里的说明）。
+		pools: {
+			'cave.w1': ['洞窟·挥剑', '洞窟·躲闪', '洞窟·围斗'],
+			'cave.w2': ['洞窟·撑住', '洞窟·挥剑', '洞窟·围斗'],
+		},
+		actions: {
+			'洞窟·挥剑': { site: '洞窟·挥剑', label: '迎面劈过去', attr: 'str', dmg: '1d6+2',
+				ok:   { text: "刃撞在它的硬壳上，弹开了半寸——但那一寸是你抢到的。", dmg: 8 },
+				crit: { text: "刃顺着壳缝滑进去。它缩了一下，往后退了两步。", dmg: 14 },
+				bad:  { text: "你劈空了，反手被它顶在肩上。", hurt: 4 } },
+			'洞窟·躲闪': { site: '洞窟·躲闪', label: '侧身让开，等它先动', defend: true,
+				ok:   { text: "你让开半步，它的第一下砸在你刚才站的地方。", guard: 4 },
+				crit: { text: "你让得很准——它撞在岩壁上，自己懵了一下。", guard: 5, skipFoe: true },
+				bad:  { text: "你让早了，它跟着你转，压在你腿上。", hurt: 3 } },
+			'洞窟·围斗': { site: '洞窟·围斗', label: '把火把举低，逼它退到石壁边', attr: 'str', dmg: '1d4+2',
+				ok:   { text: "火把压低，它背贴上了石壁——退无可退了。", dmg: 10 },
+				crit: { text: "火光把它逼进死角，你补上一下。它塌下去，没再起来。", dmg: 18, skipFoe: true },
+				bad:  { text: "火把被它打偏，火星溅了你一脸。", hurt: 5 } },
+			'洞窟·撑住': { site: '洞窟·撑住', label: '撑住，等它先累', defend: true,
+				ok:   { text: "你站着不动，呼吸压稳。它的第二波比第一波慢。", guard: 5 },
+				crit: { text: "它扑了三次，第三次膝盖软了。你才动。", guard: 6 },
+				bad:  { text: "它的第三下从侧面进来，你没挡住。", hurt: 6 } },
+		},
 	hitLocations: ['头', '躯干', '手臂', '腿', '脚'],
 	slots: {
 		body: { protects: '躯干', label: '破布衣' },
@@ -210,8 +211,12 @@ const MECH = {
 	// 形状：`'道具'`（＝必掉）或 `{ id, chance }`；内容侧只渲染，落账在 `Game.Combat.grantReward`（单一落点）。
 	encounters: {
 		// `#696`（操作者裁定）：**战斗＝钥匙主源** ⇒ 短战掉率 30 → **50**（长战仍必掉）。
-		short: { waves: [{ pool: 'cave.w1', difficulty: 1, enemies: ['洞窟鼠', '洞窟鼠'] }], reward: { gold: 3, item: { id: '钥匙', chance: 50 } }, failNote: 'n_cave_battered' },
-		long: { waves: [{ pool: 'cave.w1', difficulty: 1, enemies: ['洞窟鼠', '洞窟鼠'] }, { pool: 'cave.w2', difficulty: 2, reinforce: true, enemies: ['硬壳甲虫'] }], rewardsScale: 1.5, reward: { gold: 9, item: '钥匙' } },
+		// `#705` 片二-B（判据⑥**重导**）：短＝**5 回合**。实测口径：2 只洞窟鼠（4hp）＋每击 `1d6+2`
+		// ⇒ 期望 ~4 击（含空击）⇒ 5 给余量；旧的 `1 回合` 是固定伤害时代的数，敌人有 HP 后**永远打不完**
+		// （实测 3 回合也偏紧：满伤也要 4 击 ⇒ 一遇空击就判死）。
+		short: { rounds: 5, waves: [{ pool: 'cave.w1', difficulty: 1, enemies: ['洞窟鼠', '洞窟鼠'] }], reward: { gold: 3, item: { id: '钥匙', chance: 50 } }, failNote: 'n_cave_battered' },
+		// 长＝**8 回合**（⑥ 重导：实测中位 6／p90 8 —— 旧的 5 会把一半以上胜局判死）。
+		long: { rounds: 8, waves: [{ pool: 'cave.w1', difficulty: 1, enemies: ['洞窟鼠', '洞窟鼠'] }, { pool: 'cave.w2', difficulty: 2, reinforce: true, enemies: ['硬壳甲虫'] }], rewardsScale: 1.5, reward: { gold: 9, item: '钥匙' } },
 	},
 	// `#692`（①，操作者裁定）：路面提示要**显式标出事件类型**（玩家才谈得上"选"）。
 	// 标签住**声明面**（不是写死在段落里）：新增第七类 kind 时，门（`stories/hollow-cave/gates/cave.mjs` 判据⑤）

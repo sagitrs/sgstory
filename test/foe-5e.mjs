@@ -146,7 +146,9 @@ ok('前提：`long` 两波都声明了 enemies', E('return [Game.Combat.waveFoeI
 		return { r, maxHp: Sg.story.mechanics().equipment["破布衣"].maxHp };`);
 	ok('③ 有护具的部位：`reduce` 生效（flat 减成）', wear.r.absorb.reduce === 1, JSON.stringify(wear.r.absorb));
 	ok('③ 余量由护具**耐久**吸收（`gearHp` 真被磨）', wear.r.absorb.absorbed > 0 && wear.r.absorb.gearHp === 3 - wear.r.absorb.absorbed, JSON.stringify(wear.r.absorb));
-	ok('③ 护具 AC 也参与 `pcAC`（10 + dex + 声明 ac）', E('return Game.Combat.pcAC(pc)') === ac + 1, `ac=${ac} now=${E('return Game.Combat.pcAC(pc)')}`);
+	ok('③ 护具 AC 也参与 `pcAC`（10 + dex + 声明 ac —— 与**起始配装**无关地成立）',
+		E('return Game.Combat.pcAC(pc)') === E('return 10 + Game.Rules.abilityMod(pc, "dex") + 1'),
+		`现在=${E('return Game.Combat.pcAC(pc)')}（起始 ac=${ac}）`);
 	// 结构畸形必须报错（不是静默算 0）
 	const threwAc = E('Sg.story.mechanics().equipment["破布衣"].ac = "x"; let t = false; try { Game.Combat.pcAC(pc); } catch (e) { t = true; } Sg.story.mechanics().equipment["破布衣"].ac = 1; return t;');
 	ok('③ 护具 `ac` 非数字 ⇒ **报错**（结构畸形不许静默当 0）', threwAc === true);

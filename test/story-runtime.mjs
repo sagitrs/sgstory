@@ -327,7 +327,7 @@ const main = async () => {
 	// ── 判据 ⑥：故事 2 的旅人面（`#490` 已定 ⑥）──
 	{
 		const slug = 'hollow-cave';
-		const runCase = async ({ name, rng, gold = 0, click, judge }) => {
+		const runCase = async ({ name, rng, gold = 0, click, clicks = 1, judge }) => {
 			const { w, close, sleep, settle } = await boot({ story: slug, random: 0.9 });
 			try {
 				w.Game.Rules.rng.set((lo, hi) => rng[hi] ?? 1);
@@ -350,8 +350,14 @@ const main = async () => {
 					problems.push({ code: 'traveller', slug, msg: `${name}：找不到链接「${click}」（可选：${labels.join(' / ')}）` });
 					return;
 				}
-				target.click();
-				await settle(); await sleep(260);
+				// `#705` 片二-B：短战斗不再是"一击定胜负"（敌人有 HP ⇒ 要打到**全灭**）
+				// ⇒ 允许**有界重复点击**同一按钮（每次点击都真的在打；`clicks` 缺省 1 保持旧用例语义）。
+				for (let i = 0; i < (clicks ?? 1); i++) {
+					const t = [...w.document.querySelectorAll('#passages a.link-internal')].find((a) => a.textContent.replace(/\s+/g, '').includes(click));
+					if (!t) break;
+					t.click();
+					await settle(); await sleep(200);
+				}
 				const pc = w.SugarCube.State.variables.pc;
 				const fails = judge({ pc, before, labels, expect });
 				problems.push(...fails.map((msg) => ({ code: 'traveller', slug, msg: `${name}：${msg}` })));
@@ -381,7 +387,7 @@ const main = async () => {
 		});
 		await runCase({
 			name: '敌对＋短战斗胜利 ⇒ 掉金币（金本位的来源）',
-			rng: { 100: 20, 20: 19 }, click: '迎面劈过去',
+			rng: { 100: 20, 20: 19 }, click: '迎面劈过去', clicks: 8,   // 敌人有 HP ⇒ 打到全灭
 			judge: ({ pc, before, expect }) => [
 				...(pc.gold === before.gold + expect.reward ? [] : [`短战斗胜利没掉金币（${before.gold}→${pc.gold}，声明 ${expect.reward}）`]),
 				...(pc.ev.cave_battered ? ['胜利却落了「挨打」笔记'] : []),

@@ -155,7 +155,9 @@ for (const slug of storySlugs()) {
 		continue;
 	}
 	const m = Sg.story.mechanics();
-	const poolNames = () => Object.keys(w.Game?.Combat?.pools ?? {});
+	// `#705` 片二-B：池名住**本故事的声明面** `mechanics().pools`（原先读 `Game.Combat.pools` —— 那是故事表被挂到
+	// `Game.Combat` 又被引擎覆盖后的死引用 ⇒ 恒空 ⇒ 池名校验形同虚设）。
+	const poolNames = () => Object.keys(Sg.story.mechanics()?.pools ?? {});
 	const abilities = Object.keys(w.Game?.Rules?.ABILITIES ?? {});
 	const r = validateStoryMechanics(m, { poolNames, abilities });
 	const ok = r.problems.length === 0;

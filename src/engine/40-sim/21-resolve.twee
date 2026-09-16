@@ -992,7 +992,10 @@ window.Sg.rules = {
 	// 与下面 `holds()` 的分工：`holds` 问"这个键成不成立"，`readKey` 问"这个键是多少"（算子形要比大小／比集合）。
 	readKey(key, pc) {
 		const k = String(key);
-		if (k.startsWith('n_')) return window.Sg.notes.has(k);
+		// ⚠️ **要把传进来的 `pc` 递下去**（原先只写 `has(k)` ⇒ 默认读**当前存档的 pc**）：
+		// 这会让「按合成 pc 求值」的条件**读错档** —— 声明式线索判定（`#785` 第 1 族）正是靠它驱动合成态。
+		// 这条差异是**矩阵式等价校验**（多组 pc 状态）抓出来的：单点校验（默认 pc）会静默通过 ✗。
+		if (k.startsWith('n_')) return window.Sg.notes.has(k, pc);
 		const m = /^(inv|era|gear):(.+)$/.exec(k);
 		if (m) {
 			if (m[1] === 'inv') return !!(pc?.inv ?? {})[m[2]];                      // 持有物（不在 pc.ev/world 域）

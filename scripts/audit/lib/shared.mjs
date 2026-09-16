@@ -52,11 +52,30 @@ export const READ_PATTERNS = [
 //（那份判据管的是"绕过封装层的裸读"）⇒ 两个口径必须分开，否则改一处就假红另一处。
 export const WRAPPED_READ_RE = /Sg\.notes\.readPath\(\s*[^,()]+,\s*['"]([a-z_]+)\.([a-z_]\w*)['"]/g;
 export const wrappedReadKeys = (text) => [...maskComments(text).matchAll(new RegExp(WRAPPED_READ_RE.source, 'g'))].map((m) => `${m[1]}.${m[2]}`);
+// `#785` 第 1 族：**声明式条件**里的键（`req/any/exclude` 数组字面量）——线索判定从"手写谓词"改成
+// 声明式条件后，`!!p.world?.x` 这种直读写法消失 ⇒ 若这里不认，`--state`／`--notes`／后果门会把
+// **真实消费点**判成"无任何桶/未被消费"（假红 ✗）。键形与 `ruleRowKeys()` 同源：`n_*`＝笔记读；
+// `inv:`/`era:`/`gear:`＝前缀键（不在状态域，跳过）；其余点分键＝状态键。
+export const DECL_COND_RE = /\b(?:req|any|exclude)\s*:\s*\[([^\]]*)\]/g;
+export const declCondRefs = (text) => {
+	const line = maskComments(text);
+	const states = [], notes = [];
+	for (const m of line.matchAll(new RegExp(DECL_COND_RE.source, 'g'))) {
+		for (const q of m[1].matchAll(/'([^']+)'/g)) {
+			const k = q[1];
+			if (k.startsWith('n_')) { notes.push(k); continue; }
+			if (/^(inv|era|gear):/.test(k)) continue;                 // 前缀键：不在状态契约域（与 ruleRowKeys 同口径）
+			if (/^[a-z_]\w*(\.[a-z_]\w*)+$/.test(k)) states.push(k);
+		}
+	}
+	return { states, notes };
+};
 // 单行 → 去重后的**限定键**（`ev.x` / `world.x`）——**含**封装层读（"谁读了它"的单一权威）
 export const readKeys = (text) => {
 	// `#580`：注释里的提法**不算读**（`maskComments` 保长度 ⇒ 行内逻辑不受影响）
 	const line = maskComments(text);
 	const out = new Set();
+	for (const k of declCondRefs(line).states) out.add(k);   // `#785`：声明式条件里的状态键
 	for (const re of READ_PATTERNS) {
 		for (const m of line.matchAll(new RegExp(re.source, 'g'))) {
 			const k = `${m[1]}.${m[2]}`;
@@ -86,10 +105,13 @@ export const keyCharsetViolations = (text) =>
 // 必须跟着认这个形状。否则转发的第一步就会把一堆键判成"只有写"⇒ 门红而代码其实等价（假红）。
 // 这就是设计稿那条纪律：**先让门认新形状，再改内容**。
 export const NOTE_REF_RE = /Sg\.notes\.(?:has|entry)\(\s*['"](n_[a-z0-9_]+)['"]|(?:^|[^\w:])note:(n_[a-z0-9_]+)/g;
+// `#785`：声明式条件里的 `n_*` 也是笔记读（`req: ['n_x']`）——笔记消费可数不该因改形状而消失。
 // 文本里引用的笔记 id
 export const noteRefs = (text) => {
 	const out = new Set();
 	for (const m of String(text ?? '').matchAll(NOTE_REF_RE)) out.add(m[1] ?? m[2]);
+	// `#785`：声明式条件里的 `n_*`（`req: ['n_x']`）也是笔记读 —— 消费可数不该因改形状而消失
+	for (const id of declCondRefs(text).notes) out.add(id);
 	return [...out];
 };
 // 笔记表 → id → flagPath（限定键数组）

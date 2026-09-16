@@ -156,7 +156,7 @@ for (const file of fixtures) {
 		const fresh = w.Game.Pc.defaults();
 		for (const [item, def] of Object.entries(C.items)) {
 			ok(def.clues.length >= 2, `图鉴「${item}」线索 ≥2`);
-			ok(def.clues.every((cl) => !cl.test(fresh)), `图鉴「${item}」新档下无白送线索`);
+			ok(def.clues.every((cl) => !w.Sg.rules.matches(cl, fresh, new Set())), `图鉴「${item}」新档下无白送线索`);   // 声明式条件（`#785`）
 		}
 		// 解锁＝线索集齐（半齐不解锁，齐了才解锁）
 		const store = { clues: { 月光花: { own: true, warned: true, fed: true } }, endings: [], finals: [] };

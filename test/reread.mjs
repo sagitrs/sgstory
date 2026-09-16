@@ -43,12 +43,13 @@ const GATE_SRC = /Sg\.Codex\.(?:seenFinal\(\)|read\(\)\.endings)/;
 
 // ── 纯函数（依赖注入：自证时喂夹具，不与真实游戏耦合）────────────────────
 // R1：零状态档下为真的线索
-export const virginLeaks = (items, virginPc) => {
+export const virginLeaks = (items, virginPc, holds = null) => {
 	const out = [];
 	for (const [item, def] of Object.entries(items ?? {})) {
 		for (const c of def.clues ?? []) {
 			let v = false;
-			try { v = !!c.test(virginPc); } catch { v = false; }   // 谓词读不存在的字段＝假，不算泄漏
+			// `#785` 第 1 族：线索谓词已是**声明式条件** ⇒ 判定由调用方注入（引擎的 `Sg.rules.matches`）。
+			try { v = holds ? !!holds(c, virginPc) : false; } catch { v = false; }   // 条件读不存在的字段＝假，不算泄漏
 			if (v) out.push(`${item}:${c.id}`);
 		}
 	}
@@ -100,8 +101,8 @@ const selftest = () => {
 	const items = { 护符: { clues: [{ id: 'a', test: (p) => !!p.inv?.护符 }, { id: 'b', test: (p) => !!p.world?.seen }] } };
 	const virgin = { inv: {}, world: {} };
 
-	t('R1 正例：零状态档下无泄漏', virginLeaks(items, virgin).length === 0);
-	t('R1 反例：`() => true` 的线索必须被抓（否则开局即解锁）', virginLeaks({ X: { clues: [{ id: 'z', test: () => true }] } }, virgin).includes('X:z'));
+	t('R1 正例：零状态档下无泄漏', virginLeaks(items, virgin, (c, pc) => w.Sg.rules.matches(c, pc, new Set())).length === 0);
+	t('R1 反例：无条件线索必须被抓（否则开局即解锁）', virginLeaks({ X: { clues: [{ id: 'z' }] } }, virgin, (c, pc) => w.Sg.rules.matches(c, pc, new Set())).includes('X:z'));
 
 	const api = { isUnlocked: (item, store) => !!store.clues?.[item] };
 	t('R2 正例：空记录下无解锁', blankUnlocks(items, api, { clues: {} }).length === 0);
@@ -141,7 +142,7 @@ const { Game, passageSrc } = createContext();
 const fails = [];
 const show = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) fails.push(msg); };
 
-const leak = virginLeaks(Game.Codex.items, Game.Pc.defaults());
+const leak = virginLeaks(Game.Codex.items, Game.Pc.defaults(), (c, pc) => w.Sg.rules.matches(c, pc, new Set()));
 show(leak.length === 0, `R1 零状态档下图鉴无已解锁线索${leak.length ? `：泄漏 ${leak.join(', ')}` : ''}`);
 
 const blanks = blankUnlocks(Game.Codex.items, Game.Codex, { clues: {}, endings: [], finals: [] });

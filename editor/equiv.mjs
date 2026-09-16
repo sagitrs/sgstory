@@ -21,6 +21,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { maskComments } from '../scripts/audit/lib/mask.mjs';
+import { engineScripts } from './extract-story.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const COMPILER = 'editor/compile-story.mjs';
@@ -59,9 +60,12 @@ export const normalize = (text) => maskComments(String(text))
 
 /** 纯函数：在一份**空白** vm 里跑脚本，返回它的 `window`。 */
 export const runScript = (body) => {
-	const sandbox = { window: {} };
+	// **环境契约**（同一族坑的第三处）：故事段会直接读引擎常量（`window.Game.Era.PRESENT` 等）
+	// ⇒ 沙箱必须**先跑引擎常量**（真加载顺序：`ORDER` 里引擎在前）。少了它，抽出来的/比对的两侧都会静默缺字段。
+	const sandbox = { console: { log() {}, error() {} } };
+	sandbox.window = sandbox;
 	vm.createContext(sandbox);
-	vm.runInContext(String(body), sandbox, { timeout: 5000 });
+	vm.runInContext(engineScripts() + '\n' + String(body), sandbox, { timeout: 5000 });
 	return sandbox.window;
 };
 
@@ -138,9 +142,11 @@ if (isMain && process.argv.includes('--selftest')) { selftest(); process.exit(0)
 
 /** 浏览器语义的沙箱（`window` 就是全局对象 ⇒ `window.Sg = {}` 之后裸 `Sg` 也能解析）。 */
 const sandboxOf = () => {
-	const box = { console: { log() {}, error() {} }, Sg: {}, Game: {} };
+	// 同样先跑引擎常量（`Game.Era`/`Game.Damage` 是引擎政策，不是故事数据）
+	const box = { console: { log() {}, error() {} }, Sg: {} };
 	box.window = box;
 	vm.createContext(box);
+	vm.runInContext(engineScripts(), box, { timeout: 5000 });
 	return box;
 };
 
@@ -193,8 +199,13 @@ const main = () => {
 		const hWin = runScript(scriptBodies(hand).join('\n'));
 		const gWin = runScript(scriptBodies(gen).join('\n'));
 		const hs = snapshot(hWin), gs = snapshot(gWin);
-		results.push([scriptBodies(hand).length === scriptBodies(gen).length && Object.keys(hs.contract).length === Object.keys(gs.contract).length,
-			`L1 段数/成员数一致：[script] 段 ${scriptBodies(hand).length}（手写）vs ${scriptBodies(gen).length}（生成）· 契约成员 ${Object.keys(hs.contract).length}`]);
+		// 段数只**报告**（生成物的段划分与手写不要求同形：`Cave Declarations` 那类"局部常量段"会并进契约的 `const`）；
+		// 真正要判的是**契约成员的键集合**（下面那条）＋ 行为。
+		console.log(`  · 段数（只报告）：手写 ${scriptBodies(hand).length} 段 / 生成 ${scriptBodies(gen).length} 段`);
+		const hk = Object.keys(hs.contract).sort(), gk = Object.keys(gs.contract).sort();
+		const onlyHand = hk.filter((k) => !gk.includes(k)), onlyGen = gk.filter((k) => !hk.includes(k));
+		results.push([onlyHand.length === 0 && onlyGen.length === 0,
+			`L1 契约**键集合**一致（手写 ${hk.length} / 生成 ${gk.length}）${onlyHand.length ? `\n    仅手写有：${onlyHand.join('、')}` : ''}${onlyGen.length ? `\n    仅生成有：${onlyGen.join('、')}` : ''}`]);
 		results.push([hs.game === gs.game, `L1 数据容器深度相等（含 State/Notes/Consequences）${hs.game === gs.game ? '' : `\n    手写 ${String(hs.game).slice(0, 220)}\n    生成 ${String(gs.game).slice(0, 220)}`}`]);
 		results.push([Object.keys(hs.contract).length > 0 && JSON.stringify(hs.contract) === JSON.stringify(gs.contract),
 			`L1 契约**多实参**行为相等（${Object.keys(hs.contract).length} 个成员 × ${probeArgs(hs.ids).length} 组实参）${JSON.stringify(hs.contract) === JSON.stringify(gs.contract) ? '' : '\n    两版行为不同'}`]);

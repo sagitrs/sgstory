@@ -19,6 +19,10 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
  *  ⚠️ 这条也是"环境契约"的一部分：漏了它，抽出来的数据会缺时代字段（而**不报错**）。 */
 export const ENGINE_CONST = 'src/engine/10-const.twee';
 
+/** 引擎常量的 `[script]` 段（单一权威）：**任何**在沙箱里跑故事段的调用方都要先跑它，
+ *  否则故事表里的 `window.Game.Era.PRESENT` 取不到（静默缺字段）。 */
+export const engineScripts = () => scriptBodies(readFileSync(join(ROOT, ENGINE_CONST), 'utf8')).join('\n');
+
 /** 纯函数：在**浏览器语义**的沙箱里跑一段 `[script]`，返回 `{ Sg, Game, diag }`。 */
 /** **环境契约（承重面，最容易腐烂的地方）**：本助手只跑故事的**某一段** `[script]`，而各段之间**互有依赖** ——
  *  `15-tables.twee` 建容器（`window.Sg ??= {}`／`window.Game = …`），`17-rules.twee` 直接用 `window.Sg.story ??= {}`。
@@ -73,9 +77,8 @@ if (isMain && process.argv.includes('--selftest')) { selftest(); process.exit(0)
 
 /** 引擎常量 + 故事各段（真加载顺序）——`--tables` 与 `--section` 共用。 */
 const engineOf = (slug) => {
-	const engine = scriptBodies(readFileSync(join(ROOT, ENGINE_CONST), 'utf8')).join('\n');
 	const text = readFileSync(join(ROOT, `stories/${slug}/${sectionFile('Game Tables')}`), 'utf8');
-	return engine + '\n' + scriptBodies(text).join('\n');
+	return engineScripts() + '\n' + scriptBodies(text).join('\n');
 };
 
 const main = () => {
@@ -87,8 +90,7 @@ const main = () => {
 	const key = argOf('key', 'rules');
 	const out = join(ROOT, argOf('out', tablesMode ? `stories/${slug}/data/tables.json` : `stories/${slug}/data/${key}.json`));
 	const file = join(ROOT, `stories/${slug}/${sectionFile(section)}`);
-	const engine = scriptBodies(readFileSync(join(ROOT, ENGINE_CONST), 'utf8')).join('\n');
-	const scripts = engine + '\n' + scriptBodies(readFileSync(file, 'utf8')).join('\n');
+	const scripts = engineScripts() + '\n' + scriptBodies(readFileSync(file, 'utf8')).join('\n');
 	const { Sg, diag } = runStory(scripts);
 	if (tablesMode) {
 		// `--tables`：导出故事声明的 `Game` 面（**引擎常量 Era/Damage 不算故事数据** ⇒ 剔除）。

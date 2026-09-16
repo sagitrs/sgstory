@@ -192,6 +192,8 @@ export const SEGMENTS = [
 	{ id: "test-foe-5e-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/foe-5e.mjs --selftest" },
 	{ id: "test-foe-5e-mjs", phase: 'test', cost: 8, cmd: "node test/foe-5e.mjs" },
 	// `#701`：**战斗日志门**（可回看的一手一句：有界/保留最近/渲染只读/降级不出现）
+	{ id: "editor-k6-selftest", phase: 'test', cost: 0, cmd: "node editor/k6.mjs --selftest" },
+	{ id: "editor-k6", phase: 'test', cost: 0.2, cmd: "node editor/k6.mjs" },
 	{ id: "test-social-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/social-sink.mjs --selftest" },
 	{ id: "test-social-sink-mjs", phase: 'test', cost: 3, cmd: "node test/social-sink.mjs" },
 	{ id: "test-siteinfo-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/siteinfo-sink.mjs --selftest" },

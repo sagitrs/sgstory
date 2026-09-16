@@ -80,13 +80,20 @@ export const KINDS = {
 		// 形态**都由数据表达**（手写版几种都有）：
 		// ① 默认**不守卫**（`window.Game.Economy.events`）；② `optional: true` ⇒ `?.` 链（中间容器缺失走默认/undefined，不抛框架噪音）；
 		// ③ `required: true` ⇒ **取不到就抛**（结构缺失必须报错）；配 `type` 则按 `typeof` 校验，`error` 是报文（会被转义）。
-		const base = `window.${m.optional === true ? guardChain(m.path) : m.path.replace(/\?\./g, '.')}`;
+		// `required` ⇒ **自动**走 `?.` 守卫链：否则中间容器缺失会抛**框架 TypeError**，而不是我们的报文 —— `required` 的语义就不成立。
+		const base = `window.${m.optional === true || m.required === true ? guardChain(m.path) : m.path.replace(/\?\./g, '.')}`;
 		if (m.required === true) {
 			const TYPES = ['number', 'string', 'boolean', 'object', 'function'];
 			if (m.type !== undefined && !TYPES.includes(m.type)) throw new Error(`game-ref.type 只收 ${TYPES.join('/')}（实得 ${JSON.stringify(m.type)}）—— 不许把任意表达式拼进产物`);
 			if (m.default !== undefined) throw new Error('game-ref：`required` 与 `default` 互斥（取不到就抛，不存在默认值）');
+			// ⚠️ `error` 必须校验：非字符串／函数／空串若放行 ⇒ 会产出 `throw new Error(undefined)`（静态比对看不出来）；
+			// 与 `fallback`/`default` 的小 enum 硬化同一条口径 —— **数据里能塞任意值就是静默垃圾**。
+			if (m.error !== undefined && (typeof m.error !== 'string' || m.error.trim() === '')) {
+				throw new Error(`game-ref.error 必须是非空字符串（实得 ${typeof m.error === 'string' ? '空串' : typeof m.error}）—— 否则会产出 \`throw new Error(undefined)\``);
+			}
 			const cond = m.type ? `typeof v !== '${m.type}'` : 'v === undefined || v === null';
-			const msg = escTemplate(m.error ?? `window.${m.path}：结构缺失（该取值必须守卫）`);
+			// 缺 `error` 时用**命名默认报文**（与 `lookup.required` 对称）；绝不产出 `undefined`。
+			const msg = escTemplate(typeof m.error === 'string' ? m.error : `window.${m.path}：结构缺失（该取值必须守卫）`);
 			return `() => {\n\t\tconst v = ${base};\n\t\tif (${cond}) throw new Error(\`${msg}\`);\n\t\treturn v;\n\t}`;
 		}
 		return m.default === undefined ? `() => ${base}` : `() => ${base} ?? ${literal(m.default)}`;
@@ -314,6 +321,15 @@ const selftest = () => {
 		try { build([{ name: 'x', kind: 'game-ref', path: 'Game.X', required: true, default: 1 }], { game: {} }); return false; }
 		catch (e) { return /互斥/.test(String(e.message)); }
 	})());
+	t('`game-ref.error` 非字符串／函数／空串 ⇒ emit 抛错（否则产 `throw new Error(undefined)`）', (() => {
+		const bad = (e) => { try { build([{ name: 'x', kind: 'game-ref', path: 'Game.X', required: true, error: e }], { game: {} }); return false; } catch { return true; } };
+		return bad(42) && bad(() => 'x') && bad('') && bad(null);
+	})());
+	t('`game-ref`（`required`）缺 `error` ⇒ 用**命名默认报文**（非空，不含 undefined）', (() => {
+		const C = build([{ name: 'dragonMaxHp', kind: 'game-ref', path: 'Game.Dragon.hp', required: true, type: 'number' }], { game: {} });
+		const t = call(C.dragonMaxHp).threw ?? '';
+		return t.includes('结构缺失') && !t.includes('undefined');
+	})());
 	t('`game-ref.type` 只收封闭集（不许把任意表达式拼进产物）', (() => {
 		try { build([{ name: 'x', kind: 'game-ref', path: 'Game.X', required: true, type: "number'); alert(1); ('" }], { game: {} }); return false; }
 		catch (e) { return /只收/.test(String(e.message)); }
@@ -381,7 +397,7 @@ const selftest = () => {
 	t('未知 kind ⇒ emit 抛错（不许静默产出半个函数）', badPath({ kind: 'nope' }));
 
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过（36 例：lookup 5 · lookup-field 6 · bool-exists 2 · state-ref 2 · game-ref 5 · forward 2 · **template 6（含三态）** · 卫生/硬化 7——**全部按行为断言**）');
+	console.log('\n✔ 自证通过（38 例：lookup 5 · lookup-field 6 · bool-exists 2 · state-ref 2 · game-ref 7 · forward 2 · **template 6（含三态）** · 卫生/硬化 7——**全部按行为断言**）');
 };
 
 // ⚠️ **主模块守卫**（实测踩到）：这些脚本**同时是库**（`equiv` 被 `extract` 导入、`compile` 被 `equiv` 起子进程）。

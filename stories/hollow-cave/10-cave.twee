@@ -162,7 +162,8 @@
 <</if>>
 
 <<if $pc.statuses and Object.keys($pc.statuses).length>>
-<div class="sys-note">（身上带着异常：<<= $pc.statuses ? Object.keys($pc.statuses).join("、") : "">>。）</div>
+/% `#706`（症状：异常按"事件步"推进但**没人告诉玩家** ⇒ 无法预期"还剩几回合"）：把单位写在玩家看得到的地方。 %/
+<div class="sys-note">（身上带着异常：<<= $pc.statuses ? Object.keys($pc.statuses).join("、") : "">>。**每走一段结算一次**。）</div>
 <</if>>
 
 :: 机制·shortFight

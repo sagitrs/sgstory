@@ -9,6 +9,41 @@
 // 本文件搬进 `src/engine/**` 后**不再直读故事表**（⚠️ 层间门按字面量匹配，这里曾用别名 `T.Game` 躲过它，
 // 所以"门绿"不等于边界成立；本文件的证据是"真的没有直读"，见 PR）。
 // 命名根：挂 `Game.Checks.*`（数据/规则 ⇒ Game.*，见 docs/dev-conventions.md §7）。
+Object.assign((window.Game.Codex ??= {}), {
+	/** 线索表：**经接入契约取**（故事声明 `Sg.story.codexItems()`）——引擎**不直读**故事的数据容器
+	 *  （那会重新长出 `engine-story-free` 的白名单 ✗；与 `Economy.econEvents()` 同一形状 ✓）。
+	 *  未注册 ⇒ 空表（＝"这个故事没有图鉴"⇒ 四支方法全部退化为空／false，**不静默给假数据** ✓）。 */
+	codexItems() {
+		const f = window.Sg?.story?.codexItems;
+		return typeof f === 'function' ? (f() ?? {}) : {};
+	},
+	/** `#785` 接缝 6：线索判定／计数四支从**故事 UI 文件**搬进引擎（单一权威 ✓）。
+	 *  语义**逐字保留**（原住 `72-codex-ui.twee`）：判定走引擎条件求值器 `Sg.rules.matches(c, pc, new Set())`
+	 *  ——与 `Sg.rules` 同一权威，条件形状（`req`/`any`/`exclude`）由 `#785` 第 1 族定 ✓。 */
+	clueIds(item) {
+		return (this.codexItems()[item]?.clues ?? []).map((c) => c.id);
+	},
+	satisfied(pc) {
+		const out = {};
+		for (const [item, def] of Object.entries(this.codexItems())) {
+			out[item] = (def.clues ?? []).filter((c) => window.Sg.rules.matches(c, pc, new Set())).map((c) => c.id);
+		}
+		return out;
+	},
+	/** 永久已解锁（线索集齐）；`ids.length > 0` 那条是语义（**没有线索的图鉴不算解锁** ✓）。 */
+	isUnlocked(item, store) {
+		const ids = this.clueIds(item);
+		const got = store?.clues?.[item] ?? {};
+		return ids.length > 0 && ids.every((id) => got[id]);
+	},
+	/** 线索进度（x/y）。 */
+	progress(item, store) {
+		const ids = this.clueIds(item);
+		const got = store?.clues?.[item] ?? {};
+		return { got: ids.filter((id) => got[id]).length, total: ids.length };
+	},
+});
+
 Object.assign((window.Game.Checks ??= {}), {
 	// 位点判定的**算**：查位点表 → 推导优势/劣势（道具·行囊·情报·位点自带）→ 掷骰
 	// 纯函数：`pc` 只读、不碰 `State`、不渲染 ⇒ node 侧注入 `Game.Rules.rng` 即可复算成败。

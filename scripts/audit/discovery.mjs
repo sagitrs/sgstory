@@ -33,7 +33,7 @@ export const GATE_ORDER = [
 	'truth', 'investment', 'echoes', 'choices', 'nosl+sel', 'gear+sel', 'interact', 'social', 'combat',
 	'a11y', 'starbudget', 'consequences', 'sitedisc', 'systems', 'text', 'npc', 'dragon', 'checks',
 	'economy', 'items+tokens', 'canon', 'craft', 'state', 'literals', 'rules', 'reads', 'cave', 'notes',
-	'slots', 'status', 'waves', 'roads', 'combat-dist', 'engine-story-free',
+	'slots', 'status', 'waves', 'roads', 'combat-dist', 'settle', 'engine-story-free',
 ];
 
 /** 引擎门：flag ∈ `AUDIT_ENGINE`（`test-plan.mjs` 是层表的单一权威）。 */

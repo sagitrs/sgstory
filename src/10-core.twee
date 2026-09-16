@@ -176,6 +176,49 @@ window.Game.Pc = {
 		return shape;
 	},
 	has(name) { return !!State.variables.pc?.inv?.[name]; },
+	// ── `#746`（操作者：「文字反馈最重要」）：**副作用要能自己说出数字** ──────────────────────
+	// 为什么住引擎：句子由内容面写（文案属故事），但"掉了多少血／上了什么异常／哪件护具掉了几点耐久／
+	//   拿了什么"是**机制算出来的** —— 让作者手写这些数字，一定会漏（实测：失败/惩罚路径普遍没接句子）。
+	// 用法（内容面）：
+	//   <<set _snap to Game.Pc.snap($pc)>>   …做点什么…   <<caveEffect _snap>>
+	// 口径：**纯函数**（不改 pc）· 只报**变化项**（无变化 ⇒ 空串 ⇒ 调用方不打印）· 顺序稳定（便于门与复核）。
+	snap(pc) {
+		return {
+			hp: pc?.hp ?? 0, gold: pc?.gold ?? 0,
+			gearHp: { ...(pc?.gearHp ?? {}) },
+			statuses: JSON.parse(JSON.stringify(pc?.statuses ?? {})),
+			inv: { ...(pc?.inv ?? {}) },
+		};
+	},
+	/** 差分：返回**人话数组**（每项一段），例如 `−3 生命`／`获得异常：手臂·流血（5 回合）`／`耐久 火把 2→1`／`得到 干粮`／`−5 金币`。 */
+	diff(before, pc) {
+		const out = [];
+		const b = before ?? {};
+		const hp0 = b.hp ?? 0, hp1 = pc?.hp ?? 0;
+		if (hp1 !== hp0) out.push(`${hp1 > hp0 ? '+' : '−'}${Math.abs(hp1 - hp0)} 生命（${hp0}→${hp1}）`);
+		const g0 = b.gold ?? 0, g1 = pc?.gold ?? 0;
+		if (g1 !== g0) out.push(`${g1 > g0 ? '+' : '−'}${Math.abs(g1 - g0)} 金币（${g0}→${g1}）`);
+		const bStatus = b.statuses ?? {}, nowStatus = pc?.statuses ?? {};
+		for (const [part, bag] of Object.entries(nowStatus)) {
+			for (const [id, turns] of Object.entries(bag ?? {})) {
+				const was = bStatus?.[part]?.[id];
+				if (was !== turns) out.push(`获得异常：${part}·${id}（${turns} 回合）`);
+			}
+		}
+		for (const [part, bag] of Object.entries(bStatus)) {
+			for (const id of Object.keys(bag ?? {})) if (!nowStatus?.[part]?.[id]) out.push(`解除异常：${part}·${id}`);
+		}
+		const bGear = b.gearHp ?? {}, nowGear = pc?.gearHp ?? {};
+		for (const k of [...new Set([...Object.keys(bGear), ...Object.keys(nowGear)])].sort()) {
+			if ((bGear[k] ?? null) !== (nowGear[k] ?? null)) out.push(`耐久 ${k} ${bGear[k] ?? '?'}→${nowGear[k] ?? '?'}`);
+		}
+		const bInv = b.inv ?? {}, nowInv = pc?.inv ?? {};
+		for (const k of [...new Set([...Object.keys(bInv), ...Object.keys(nowInv)])].sort()) {
+			if (!bInv[k] && nowInv[k]) out.push(`得到 ${k}`);
+			if (bInv[k] && !nowInv[k]) out.push(`失去 ${k}`);
+		}
+		return out;
+	},
 	migrate(pc) {
 		if (!pc || typeof pc !== 'object') return this.defaults();
 		const d = this.defaults();

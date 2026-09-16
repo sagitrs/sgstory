@@ -6,8 +6,41 @@
 :: 洞窟工具 [widget]
 /% 步进：一个事件走完 ⇒ 步数 +1；第 5 步之后 ⇒ 地下村落（终点）。
    异常每步结算一次（S2 的 `tickStatuses`：算＋落都在引擎，这里只调用）。 %/
+<<widget "caveSay">><<nobr>>
+	/% `#746`（操作者：「文字反馈最重要」）：**说一句 ＋ 累进落点文案**。
+	   为什么必须有它：句子写进 `<<link>>` 体只会被随后的导航冲掉（逐击抓屏实测：失败/惩罚路径普遍没接
+	   `settle` ⇒ 玩家"挨了打看不到自己挨了什么"）。作者只写句子，**搬运交给 `<<caveNext>>`**。 %/
+	<<set $pc.ev.settle to ($pc.ev.settle ?? "") + $args[0]>>
+	<<print $args[0]>>
+<</nobr>><</widget>>
+
+<<widget "caveEffect">><<nobr>>
+	/% `#746`：**数字由机制算** —— 把这一步真正发生的差分（生命／金币／异常／耐久／物品）写进落点文案。
+	   用法：`<<set _snap to Game.Pc.snap($pc)>>` …做事… `<<caveEffect _snap>>`；无变化 ⇒ 什么都不印
+	   （作者不可能忘、也编不歪 —— 这正是"数字进句子"的实现方式）。 %/
+	<<set _d to Game.Pc.diff($args[0], $pc)>>
+	<<if _d.length gt 0>>
+		<<set _s to "（" + _d.join(" · ") + "）">>
+		<<set $pc.ev.settle to ($pc.ev.settle ?? "") + _s>>
+		<<print _s>>
+	<</if>>
+<</nobr>><</widget>>
+
 <<widget "caveNext">><<nobr>>
-	<<run Game.Combat.tickStatuses($pc)>>
+	/% `#746`（guest 实测②「异常只有状态行、没有叙事；hp 20→20 没掉血」）：**`tickStatuses()` 的返回值原先被丢掉**
+	   ⇒ 每回合的异常伤害（`hurt`）从未落到 HP、也没句子 ⇒ 异常只在侧栏"存在"却**不影响任何东西**。
+	   现在：算 ＋ 落（走 `<<damage>>`：药膏/死亡政策一处不改）＋ **把发生的异常说清楚**（谁说、扣多少）。 %/
+	<<set _st to Game.Combat.tickStatuses($pc)>>
+	<<if _st and _st.hurt gt 0>>
+		<<set _who to "">>
+		<<for _s range _st.steps>>
+			/% 口径：**只要这一步真的扣了血**（`perRound` 的持续伤害，或分档失败）就点名 ——
+			   注意 `recover` 档也可能带着 `perRound` 扣血（`statusTickApply` 里两件事各自独立）⇒ 不能按 `kind` 过滤。 %/
+			<<if _s.perRound or _s.kind is "fail">><<set _who to _who + (_who is "" ? "" : "、") + _s.part + "·" + _s.id>><</if>>
+		<</for>>
+		<<caveSay "带着的伤还在磨人（" + _who + "）：−" + _st.hurt + " 生命。">>
+		<<damage _st.hurt>>
+	<</if>>
 	<<set $pc.ev.cave_step to ($pc.ev.cave_step ?? 0) + 1>>
 	<<if Game.Combat.runOver($pc)>>
 		/% `#491` 判据 4（`#488` 已定 ⑧）：**仅全灭**触发重置——`resetRun` 清 `inv`／`gearHp`／`statuses`／
@@ -279,6 +312,7 @@
 	''地下湖''。水黑得不像水。你得踩过去。
 	<<if $pc.inv["火把"] and ($pc.ev.cave_torch ?? 0) gt 0>>
 		<<link "举着火把，踩着露出水面的石头过去">>
+			<<set _snap to Game.Pc.snap($pc)>>
 			<<sitecheck "洞窟·地下湖">>
 			<<if $last_check.success>>
 				石头没有滑。你过去了，鞋还干着。
@@ -288,20 +322,25 @@
 	<<set _w to Game.Combat.gearWear($pc, "旧剑")>>
 	<<set $pc.gearHp to Object.assign($pc.gearHp ?? {}, { [_w.gear]: _w.to })>>
 	水下的石头刮过剑鞘。
+	<<caveSay "石头翻了，你半身泡进水里；剑鞘被水下的石头刮过。">>
 				/% `#574`：`applyStatus` **返回**新状态对象（不改入参）⇒ 必须接住赋值，否则异常根本不落（本故事原先两处都丢了返回值）。 %/
 			<<set $pc.statuses to Game.Combat.applyStatus($pc, "bleed", "腿").statuses>>
+
+			<<caveEffect _snap>>
 			<</if>>
 			<<caveNext>>
 		<</link>>
 	<<else>>
 		<<link "摸着黑蹚过去">>
-水到腰。你过去了，但腿上的口子在流血。
+<<set _snap to Game.Pc.snap($pc)>>
+<<caveSay "水到腰。你过去了，但腿上的口子在流血。">>
 			<<damage `Game.Damage.hurt`>>
 			/% `#491` 判据 8：黑水里那一趟也刮了家什（同 ⑦：失败 ⇒ 扣耐久） %/
 			<<set _w to Game.Combat.gearWear($pc, "旧剑")>>
 			<<set $pc.gearHp to Object.assign($pc.gearHp ?? {}, { [_w.gear]: _w.to })>>
 			剑鞘在水里磕出了一道口子。
 			<<set $pc.statuses to Game.Combat.applyStatus($pc, "bleed", "腿").statuses>>
+			<<caveEffect _snap>>
 			<<caveNext>>
 		<</link>>
 	<</if>>
@@ -316,13 +355,16 @@
 脚下那层浮土比别处松。
 
 <<link "侧身扑过去">>
+	<<set _snap to Game.Pc.snap($pc)>>
 	<<sitecheck "陷阱·闪避">>
 	<<if $last_check.success>>
 		你从塌下去的那块地上翻了过去。
 	<<else>>
-		碎石把你带倒。坑底插着削尖的木片。
+		<<caveSay "碎石把你带倒。坑底插着削尖的木片。">>
 		<<damage `Game.Damage.hurt`>>
 		<<set $pc.statuses to Game.Combat.applyStatus($pc, "bleed", "躯干").statuses>>
+
+		<<caveEffect _snap>>
 	<</if>>
 	<<caveNext>>
 <</link>>
@@ -400,9 +442,12 @@
 	<<set _price to Game.Economy.prices["干粮"]>>
 	<<if $pc.gold gte _price>>
 		<<link `"掏出 " + _price + " 枚金币，跟他换一块干粮"`>>
-			你把金币推过去。他数了一遍，把干粮递过来。
+			<<set _snap to Game.Pc.snap($pc)>>
+			<<caveSay "你把金币推过去。他数了一遍，把干粮递过来。">>
 			<<set $pc.gold to $pc.gold - _price>>
 			<<give "干粮">>
+
+			<<caveEffect _snap>>
 			<<caveNext>>
 		<</link>>
 	<<else>>
@@ -412,11 +457,14 @@
 	/% 请求协助：给一件消耗品，代价 v1 简化为「记一次旗标」（经笔记双写 `ev.cave_help`）；一次为限 %/
 	<<if not Sg.notes.has("n_cave_help")>>
 		<<link "开口求他匀一点吃的（交涉）">>
+			<<set _snap to Game.Pc.snap($pc)>>
 			<<sitecheck "旅人·开口">>
 			<<if $last_check.success>>
-				他看了你一会儿，把干粮掰了一半推过来。他没说话，只把火堆拨旺了一点。
+				<<caveSay "他看了你一会儿，把干粮掰了一半推过来。他没说话，只把火堆拨旺了一点。">>
 				<<give "干粮">>
 				<<note "n_cave_help">>
+
+				<<caveEffect _snap>>
 				<<caveNext>>
 			<<else>>
 				他把火堆往自己那边拨了拨，手摸向身后那把东西——话说死了。

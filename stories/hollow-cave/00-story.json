@@ -10,6 +10,7 @@
 	],
 	"gates": [
 		"stories/hollow-cave/gates/cave.mjs",
-		"stories/hollow-cave/gates/combat-dist.mjs"
+		"stories/hollow-cave/gates/combat-dist.mjs",
+		"stories/hollow-cave/gates/settle.mjs"
 	]
 }

@@ -152,6 +152,8 @@ export const SEGMENTS = [
 	{ id: "scripts-md-format-mjs", phase: 'test', cost: 0.1, cmd: "node scripts/md-format.mjs" },
 	// #491 判据 1：**本故事**的战斗分布口径（胜率对闭式 · 期望回合/受伤期望 · 分布面 · 同种子复算）
 	{ id: "scripts-audit-mjs-combat-dist-hollow", phase: 'test', cost: 3, cmd: "node scripts/audit.mjs --combat-dist --check --story hollow-cave" },
+	// `#746`（操作者：「文字反馈最重要」）：**有副作用的分支必须有落点文案**（挨了打必须看得见）
+	{ id: "scripts-audit-mjs-settle-hollow", phase: 'test', cost: 0.5, cmd: "node scripts/audit.mjs --settle --check --story hollow-cave" },
 	// #602：**引擎门不得出现故事专有字面量**（防"假解耦"回潮：故事判据数据住 `stories/<slug>/audit.json`）
 	{ id: "scripts-audit-mjs-engine-story-free", phase: 'test', cost: 0.1, cmd: "node scripts/audit.mjs --engine-story-free --check" },
 	// #607 P0：门的**发现与归属**（引擎门 ∪ 待迁移 ∪ 本故事已声明；顺序表；结构缺失必红）

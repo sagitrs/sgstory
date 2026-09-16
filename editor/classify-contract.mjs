@@ -114,6 +114,15 @@ export const contractMembers = (text) => {
 export const literalValue = (src) => {
 	try {
 		const v = vm.runInContext(`(${String(src)})`, vm.createContext({ console: { log() {} } }), { timeout: 1000 });
+		// ⚠️ **值里含函数 ⇒ 一律不当字面量** ✗：`JSON.parse(JSON.stringify(...))` 会把函数**静默丢掉** ⇒
+		// 判成 `const` 后一旦数据化 ⇒ 函数消失、行为静默改变 ✗（实测：`socialHooks` 这类"字面量＋函数"的成员
+		// 曾被判 A ✓ —— 那是**假 A**）。⇒ 深查一层，含函数就返回 undefined（调用方落 B，诚实 ✓）。
+		const hasFn = (x, d = 0) => {
+			if (typeof x === 'function') return true;
+			if (d > 6 || !x || typeof x !== 'object') return false;
+			return Object.values(x).some((y) => hasFn(y, d + 1));
+		};
+		if (hasFn(v)) return undefined;
 		return JSON.parse(JSON.stringify(v));
 	} catch { return undefined; }
 };
@@ -256,6 +265,7 @@ const selftest = () => {
 		const r = classify("() => { const v = window.Game.X.y; if (!v) throw new Error(`坏 ${v} 的 X`); return v; }");
 		return r.bucket === 'B';
 	})());
+	t('值里含**函数** ⇒ 不当字面量（否则会被静默丢掉 ⇒ 假 A ✗）', literalValue("({ a: 1, f: () => 1 })") === undefined);
 	t('字面量解析：对象/数组字面量 ⇒ 真值（`({a:1})` ⇒ `{a:1}`）', (() => {
 		const r = classify('() => ({ a: 1, b: [2] })');
 		return r.bucket === 'A' && r.spec.value.a === 1 && r.spec.value.b[0] === 2;
@@ -283,7 +293,7 @@ const selftest = () => {
 		return ms.length === 2 && ms[0].name === 'a' && ms[1].name === 'b';
 	})());
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过（26 例：8 个 kind 形状 ＋ A/B/C/D 四桶分界 ＋ 两条捕获组陷阱回归 ＋ 成员切分）');
+	console.log('\n✔ 自证通过（27 例：8 个 kind 形状 ＋ A/B/C/D 四桶分界 ＋ 两条捕获组陷阱回归 ＋ 成员切分）');
 };
 
 const isMain0 = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];

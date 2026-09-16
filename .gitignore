@@ -2,3 +2,6 @@ node_modules/
 build/
 dist/
 .DS_Store
+
+# 工作草稿面（不入仓）：scratch/导出物
+/tmp/

@@ -68,10 +68,10 @@ if (wantAll || arg('social')) {
 			// `#785` 机制片：`apply` 现在有**三种**形态 —— ① 函数（过渡期）② 声明（`yields`/`gives`/`sets`）
 			// ③ 契约钩子（`Sg.story.socialHooks()[askId].apply`）。判据的含义**不变**（成功之后总得拿到东西），
 			// 只是**载体**多了一种 ⇒ 判定要跟上（否则会把声明式落地误报成「没写 apply」）。
-			const hasApply = (x) => typeof x.apply === 'function'
-				|| ['yields', 'gives', 'sets'].some((k) => (Array.isArray(x[k]) ? x[k].length > 0 : x[k] != null))
-				|| (typeof Sg !== 'undefined' && typeof Sg?.story?.socialHooks === 'function' && typeof Sg.story.socialHooks()?.[x.id]?.apply === 'function');
-			if (!hasApply(a)) { console.log(`  ✗ 诉求「${a.id}」没写 apply／yields／钩子——成功之后拿不到任何东西`); bad++; }
+			// 【门问引擎】（不扒内部、跨故事可用）—— `askHasEffect` 的语义＝三级优先里任一
+			//（函数 ｜ 声明 `yields`/`gives`/`sets` ｜ 契约 hook 的 `apply`）。
+			// 注意 `yield`（单数）是【承诺】不是效果（那由 NPC 门单独判），所以它不是【有效果】的依据。
+			if (!Game.Social.askHasEffect(a)) { console.log(`  ✗ 诉求「${a.id}」没写效果（apply／yields／钩子）——成功之后拿不到任何东西`); bad++; }
 			if ((a.levers ?? []).some((l) => l.gives === 'auto') && !a.auto) { console.log(`  ✗ 诉求「${a.id}」有免检筹码却没写 auto 过场文案`); bad++; }
 			const fails = new Set((a.sites ?? []).map((s) => {
 				const d = Game.Checks.sites[s];

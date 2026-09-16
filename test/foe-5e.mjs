@@ -18,6 +18,7 @@
 //
 // 用法：node test/foe-5e.mjs [--selftest]
 
+import { readFileSync } from 'node:fs';
 import { boot } from './boot.mjs';
 
 let bad = 0;
@@ -165,6 +166,23 @@ ok('前提：`long` 两波都声明了 enemies', E('return [Game.Combat.waveFoeI
 	ok('形状：没有实例就 `foeStrike` ⇒ 报错（调用方必须先 `foeSpawn`）', /敌人实例/.test(bad3), bad3);
 }
 
+// ── `#701` 方向③：**对手意图预告**（声明面 `enemies[].attack.parts`；降级必须静默）──────────
+{
+	const renderIntent = () => w.eval("(() => { const d = document.createElement('div'); document.body.appendChild(d); $(d).wiki('<<foeIntent>>'); return d.textContent ?? ''; })()");
+	E("pc.ev.fight = {};");
+	ok('意图：没有敌人实例（未开局/故事 1）⇒ **静默**（空，不报错、不留空行）', String(renderIntent()).trim() === '', String(renderIntent()).slice(0, 60));
+	const intent = E(`Game.Combat.waveBegin(pc, "short"); Game.Combat.foeSpawn(pc, 0);
+		const d = document.createElement('div'); document.body.appendChild(d); $(d).wiki('<<foeIntent>>'); return d.textContent ?? '';`);
+	const parts = E('return Sg.story.mechanics().enemies["洞窟鼠"].attack.parts');
+	ok('意图：开局后预告**部位**（来自声明面 `attack.parts`）', parts.some((p2) => String(intent).includes(p2)), `${JSON.stringify(intent)} vs ${JSON.stringify(parts)}`);
+	ok('意图：只报部位（不泄露命中加值/伤害骰这类 DM 屏后数）', !/\+\d/.test(String(intent)) && !/d\d/.test(String(intent)), String(intent));
+}
+
+{	// 静态：`<<foeIntent>>` 必须从**声明面**取部位（写死部位 ⇒ 声明面与行为脱钩）
+	const src = readFileSync(new URL('../src/engine/50-present/12-shortfight.twee', import.meta.url), 'utf8');
+	const body = src.slice(src.indexOf('<<widget "foeIntent">>'), src.indexOf('<</widget>>', src.indexOf('<<widget "foeIntent">>')));
+	ok('意图：渲染体引用了 `enemyDef`＋`attack.parts`（不是写死部位）', /enemyDef\(/.test(body) && /attack\.parts/.test(body));
+}
 E(FREE);
 close();
 

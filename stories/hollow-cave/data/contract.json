@@ -1,4 +1,5 @@
 {
+	"section": "StoryBindings",
 	"note": "洞窟契约（车道 A 后半）：分类器自动提案（含 mechanics 的局部常量求值）＋ lootText 手写 template spec；成员顺序**跟随源**。",
 	"members": [
 		{

@@ -140,6 +140,15 @@ Object.assign((window.Sg.story ??= {}), {
 	foeState: () => ({}),
 	checkKnowledge: () => null,
 	combatPool: (id) => window.Sg.story.mechanics()?.pools?.[id] ?? [],
+	// `#736`：**战利品句按实际掉落生成**（掉钥匙就提钥匙）——文案住故事，机制（掉了什么）住引擎。
+	// 签名 `(reward, base)`：`base` 是调用点的静态句式（保留各处的文风差异），这里只补"实际掉了什么"。
+	lootText: (r, base) => {
+		const bits = [];
+		if (r?.gold > 0) bits.push(`旧币 ${r.gold} 枚`);
+		if (r?.item) bits.push(`一把${r.item === '钥匙' ? '锈钥匙' : r.item}`);
+		if (!bits.length) return '';
+		return `${base ?? ''}他退开的地方散着${bits.join('，还有')}。`.trim();
+	},
 	// `#705` 片二-B（修死接缝）：动作表住**本故事**的 `MECH.actions`（`Game.Combat.actions` 是**故事 1** 的表，
 	// 这里读它 ⇒ 恒 null ⇒ 声明面白声明、`attr/dmg` 永远取不到）。单源＝本故事的 `MECH`。
 	// `#705` 片二-B（修死接缝）：动作表住**本故事的声明面** ⇒ 经 `mechanics().actions` 取。

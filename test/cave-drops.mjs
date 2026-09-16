@@ -117,6 +117,35 @@ const mech = () => w.eval('JSON.stringify(SugarCube.State.variables.Sg?.story?.m
 	ok(pc.gold === (w.Game.Combat.encounterReward('long').gold) * 2, '金币按次累加（与旧行为一致）', String(pc.gold));
 }
 
+// ── `#736`：短战**掉钥匙**时，战利品句必须提到它（且进 `settle` ⇒ 落点看得到）──
+{
+	const { w: w2, settle: st2, sleep: sl2, close: c2 } = await boot({ story: 'hollow-cave', random: 0.5 });
+	await st2();
+	w2.eval("SugarCube.State.variables.pc = Object.assign(Game.Pc.defaults(), (Sg.story.pcDefaults && Sg.story.pcDefaults()) || {});");
+	// 夹具的骰面让**敌人也暴击**（取最大）⇒ pc 血量要够撑到结算，否则被打倒会 `resetRun`（包被清空 ⇒ 假红）
+	w2.eval('SugarCube.State.variables.pc.hp = 60; SugarCube.State.variables.pc.max_hp = 60;');
+	// 掷骰夹具：d(100) 恒 1 ⇒ 掉落必中（chance=50）；其余骰取最大 ⇒ 打得动、打得死
+	w2.eval('Game.Rules.rng.set(function (lo, hi) { return hi === 100 ? 1 : hi; });');
+	w2.SugarCube.Engine.play('路·1a');
+	await st2(); await sl2(200);
+	let loot = '';
+	for (let i = 0; i < 14; i++) {
+		const a = [...w2.document.querySelectorAll('#passages a.link-internal')].find((x) => !x.textContent.includes('设定集'));
+		if (!a) break;
+		a.click();
+		// **导航前**抓这一手写下的落点句（落点渲染后会被消费掉 ⇒ 事后再读会是空；
+		// 也不能看整屏文本 —— 侧栏会显示背包里的钥匙，那样"提到钥匙"会**假绿**（我第一版就是这么错的））
+		const snap = w2.eval('SugarCube.State.variables.pc?.ev?.last_result?.text ?? ""');
+		if (String(snap).trim()) loot = String(snap);
+		await st2(); await sl2(160);
+	}
+	const inv = w2.eval('JSON.stringify(SugarCube.State.variables.pc?.inv ?? {})');
+	ok(/"钥匙":true/.test(inv), '真机（`#736` 夹具 d100=1）：短战确实掉了钥匙', inv);
+	ok(loot.includes('钥匙'), '真机（`#736`）：**战利品句**提到了钥匙（不是只说「几枚旧币」）', JSON.stringify(loot).slice(0, 170));
+	c2();
+}
+
+
 if (bad) {
 	console.error(`\n✗ 钥匙掉落门未通过（${bad} 项）—— 声明面与行为必须一致（#600）`);
 	process.exit(1);

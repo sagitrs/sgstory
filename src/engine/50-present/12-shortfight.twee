@@ -99,7 +99,20 @@
 			<<print $args[2]>>
 			<<set _r to Game.Combat.grantReward($pc, _enc)>>
 			<<set $pc.ev.fight to {}>>                       % `#705` 片二-B：清场在**发奖之后**（`grantReward` 要读波次状态；先清 ⇒ 奖励发不出）%
-			<<if _r.gold gt 0>><<if $args[5]>><<print $args[5]>><</if>><</if>>
+			/% `#736`（症状：短战掉了**钥匙**，屏上却只有"几枚旧币"——甚至道具掉落时完全无声）：战利品句
+			   按**实际掉落**生成。文案住故事（`Sg.story.lootText(reward, base)`），引擎只负责"有就调用、
+			   无则回落静态实参"（故事 1 未声明 ⇒ 行为逐字不变 ✓）；且**进 `settle`**（有尾段的故事落点才看得到 —
+			   原先直接 `<<print>>`，落点看不到）。 %/
+			<<set _loot to "">>
+			<<if typeof Sg?.story?.lootText === "function">>
+				<<set _loot to Sg.story.lootText(_r, $args[5])>>
+			<<else>>
+				<<if _r.gold gt 0>><<set _loot to $args[5] ?? "">><</if>>
+			<</if>>
+			<<if _loot>>
+				<<if _tail>><<set $pc.ev.settle to ($pc.ev.settle ?? "") + _loot>><</if>>
+				<<print _loot>>
+			<</if>>
 			<<if _r.item>><<give _r.item>><</if>>
 			<<if _tail>><<include `_tail`>><</if>>
 		<<else>>

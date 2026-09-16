@@ -65,7 +65,13 @@ if (wantAll || arg('social')) {
 		if ((a.sites ?? []).length) {
 			if (!a.ok || !a.bad) { console.log(`  ✗ 诉求「${a.id}」有掷骰的路子，却没写成/败两档文案`); bad++; }
 			if (!a.done) { console.log(`  ✗ 诉求「${a.id}」没写 done——面板会一直发同一手`); bad++; }
-			if (!a.apply) { console.log(`  ✗ 诉求「${a.id}」没写 apply——成功之后拿不到任何东西`); bad++; }
+			// `#785` 机制片：`apply` 现在有**三种**形态 —— ① 函数（过渡期）② 声明（`yields`/`gives`/`sets`）
+			// ③ 契约钩子（`Sg.story.socialHooks()[askId].apply`）。判据的含义**不变**（成功之后总得拿到东西），
+			// 只是**载体**多了一种 ⇒ 判定要跟上（否则会把声明式落地误报成「没写 apply」）。
+			const hasApply = (x) => typeof x.apply === 'function'
+				|| ['yields', 'gives', 'sets'].some((k) => (Array.isArray(x[k]) ? x[k].length > 0 : x[k] != null))
+				|| (typeof Sg !== 'undefined' && typeof Sg?.story?.socialHooks === 'function' && typeof Sg.story.socialHooks()?.[x.id]?.apply === 'function');
+			if (!hasApply(a)) { console.log(`  ✗ 诉求「${a.id}」没写 apply／yields／钩子——成功之后拿不到任何东西`); bad++; }
 			if ((a.levers ?? []).some((l) => l.gives === 'auto') && !a.auto) { console.log(`  ✗ 诉求「${a.id}」有免检筹码却没写 auto 过场文案`); bad++; }
 			const fails = new Set((a.sites ?? []).map((s) => {
 				const d = Game.Checks.sites[s];

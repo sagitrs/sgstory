@@ -71,6 +71,33 @@ export const visibilityProblems = (sidebarSrc) => {
 	return out;
 };
 
+/** `#747`（症状：减成靠**手写稀疏表** ⇒ 漏格没人看得见，`麻痹@手臂` 就是洞）：
+ *  **组合穷举** —— 对每个异常的**每一个允许部位**求一遍减成，并检查"只押了部分部位"的形态：
+ *  · 声明了 `perRound.penalty`（`{ value, scope:'part' }`）⇒ 覆盖**全部**允许部位 ⇒ 合规；
+ *  · 只有手写表且**少于**允许部位 ⇒ **报**（要么改声明覆盖全部，要么把剩下的 0 也显式写出来）。
+ *  返回值里带矩阵（`cells`），便于门把"显式 0 与漏格"分开报。 */
+export const penaltyCoverageProblems = (id, st, mech) => {
+	const allowed = st?.parts === '*' ? (mech?.hitLocations ?? []) : (st?.parts ?? []);
+	const derived = st?.perRound?.penalty;
+	// `#747`：报表必须**扣掉 `only`** —— 否则"只压躯干"会被读成"全身 −1"（报表骗人比没有报表更糟）
+	const inOnly = (p) => !derived?.only || derived.only.includes(p);
+	const cells = allowed.map((p) => ({
+		part: p,
+		src: derived ? (inOnly(p) ? 'declared' : 'declared·不在 only') : (mech?.statusPenalty?.[`${id}@${p}`] ? 'table' : 'none'),
+		value: derived ? (inOnly(p) ? derived.value : 0) : (mech?.statusPenalty?.[`${id}@${p}`]?.check ?? 0),
+	}));
+	if (derived) {
+		// `#747`：`only` ＝ 有意只押某几格（必须 ⊆ 允许部位；越界由引擎 fail-loud）⇒ 不算漏格
+		const badOnly = (derived.only ?? []).filter((p2) => !allowed.includes(p2));
+		return { cells, problems: badOnly.length ? [{ id, why: `penalty.only 里的 ${badOnly.join('、')} 不在允许部位（${allowed.join('、')}）内` }] : [] };
+	}
+	const declared = cells.filter((c) => c.src === 'table');
+	if (declared.length && declared.length < allowed.length) {
+		return { cells, problems: [{ id, why: `减成只押在 ${declared.map((c) => c.part).join('、')}，而允许部位是 ${allowed.join('、')} ⇒ **漏格**（${cells.filter((c) => c.src === 'none').map((c) => c.part).join('、')} 没有值）——要么改 \`perRound.penalty\` 覆盖全部允许部位，要么把 0 也显式写出来` }] };
+	}
+	return { cells, problems: [] };
+};
+
 export const run = (ctx) => {
 	const { Game, arg, wantAll } = ctx;
 	const Sg = ctx.window?.Sg;
@@ -208,6 +235,23 @@ export const run = (ctx) => {
 				if (!okk) bad++;
 			}
 		}
+
+		// ── `#747` 自证：组合穷举（**旧形态必红**：只押一个部位 ⇒ 漏格；声明 `perRound.penalty` ⇒ 合规）──
+		{
+			const covCases = [
+				['`#747` 正例：声明 `perRound.penalty` ⇒ 覆盖全部允许部位，不报',
+					penaltyCoverageProblems('麻痹', { parts: ['手腕', '鞋'], perRound: { penalty: { value: -2, scope: 'part' } } }, MECH).problems.length, 0],
+				['🔴 `#747` 反例（**实测的旧形态**）：手写表只押「手腕」而允许部位有「手腕／鞋」⇒ 报漏格',
+					penaltyCoverageProblems('麻痹', { parts: ['手腕', '鞋'] }, MECH).problems.length, 1],
+				['`#747` 边界：`parts: \'*\'` ＋ 手写表只押一个 ⇒ 也算漏格（任意部位＝全部部位）',
+					penaltyCoverageProblems('流血', { parts: '*' }, { hitLocations: ['衣服', '裤子'], statusPenalty: { '流血@衣服': { check: -1 } } }).problems.length, 1],
+			];
+			for (const [label, got, want] of covCases) {
+				const okk = got === want;
+				console.log(`      ${okk ? '✓' : '✗'} 自证·${label}：检出 ${got}（期望 ${want}）`);
+				if (!okk) bad++;
+			}
+		}
 	} finally {
 		Sg.story.mechanics = saved;
 		Game.Rules.rng.reset();
@@ -218,6 +262,19 @@ export const run = (ctx) => {
 	{
 		const sidebar = ctx.passageSrc?.get('StoryCaption') ?? '';
 		for (const p of visibilityProblems(sidebar)) { console.log(`  ✗ 机制可见性：${p.why}`); bad++; }
+	}
+
+	// `#747`：**真实声明面的组合穷举**（矩阵逐格报出来 ＋ 漏格判红）——
+	// 为什么放在最后：前面那段在 `try` 里注过合成 `MECH`，此时已由 `finally` 还回故事自己的声明。
+	{
+		const mech = Sg?.story?.mechanics?.() ?? null;
+		if (mech) {
+			for (const [id, st] of Object.entries(mech.statuses ?? {})) {
+				const { cells, problems } = penaltyCoverageProblems(id, st, mech);
+				console.log(`  · 减成矩阵 ${id}（${st.label ?? id}）：${cells.map((c) => `${c.part} ${c.value}［${c.src}］`).join(' · ')}`);
+				for (const p of problems) { console.log(`  ✗ #747 减成漏格：${p.why}`); bad++; }
+			}
+		}
 	}
 
 	if (process.argv.includes('--check')) {

@@ -64,7 +64,7 @@ export const judgeStoryFree = ({ file = '?', src = '', tokens, allow = {} }) =>
 		.filter((tk) => !allow[`${file}::${tk}`])
 		.map((tk) => ({ file, token: tk }));
 
-/** **第二档 · 成员档**（`#660` 片三-0，dev 裁定）：引擎文件里**按成员名**咬"直读故事数据"。
+/** **第二档 · 成员档**（`#660` 片三-0）：引擎文件里**按成员名**咬"直读故事数据"。
  *
  *  规则（刻意**不做数据流分析**）：引擎源码里出现 `(window.)?Game.<表>.<成员>`，或**一层别名**（`const T = window.Game` 之后 `T.<成员>`）
  *  —— 其中 `<表>`/`<成员>` 来自**故事声明面自动抽取**（见 `storyTableMembers()`）—— 未登记白名单 ⇒ 红。
@@ -97,9 +97,9 @@ export const storyTableMembers = (sources = {}, { seedSrc = '', onSkip = () => {
 	const tables = {};
 	for (const [file, src] of Object.entries(sources ?? {})) {
 		for (const body of scriptBodies(String(src ?? ''))) {
-			// `#441` 抽验（guest-1 抓到的洞）：此前只认 `window.Game = Object.assign(…)` **聚合式**声明 ⇒
+			// `#441` 抽验（曾漏检）：此前只认 `window.Game = Object.assign(…)` **聚合式**声明 ⇒
 			// `20-chargen.twee` 的 `window.Game.Chargen = {…}`（**分表式**）被**静默跳过** ⇒ `Chargen` 不在成员集里，
-			// 成员档/探测档对它全是瞎的（我自己的探针 `not Game.Chargen` 因此**该红没红** ✗）。
+			// 成员档/探测档对它全是瞎的（探针 `not Game.Chargen` 因此**该红没红** ✗）。
 			// ⇒ 两种形态都收；跳过什么由下面的 `undetectedTables()` 单独点名（反沉默）。
 			if (!/window\.Game\s*=|window\.Game\.[A-Za-z_$][\w$]*\s*=/.test(body)) continue;
 			const ctx = { window: { Game: {} } };
@@ -268,7 +268,7 @@ export const run = (ctx) => {
 		hitsAll += hits.length;
 		for (const h of hits) { console.log(`  ✗ 引擎门「${h.file}」出现故事专有字面量「${h.token}」——数据请搬到 \`stories/<slug>/audit.json\` 或该故事自己的表（#602）`); bad++; }
 	}
-	// ── 第二档 · **成员档**（`#660` 片三-0，dev 裁定）：引擎**源码**里不许直读故事数据成员 ──
+	// ── 第二档 · **成员档**（`#660` 片三-0）：引擎**源码**里不许直读故事数据成员 ──
 	//  成员集从**故事声明面自动抽**（`storyTableMembers()` 把故事表段跑一遍取自有键）；
 	//  规则＝「出现故事表成员名（含**一层别名**与**在故事表上挂方法时的 `this.<成员>`**）、且未登记 ⇒ 红」。
 	{

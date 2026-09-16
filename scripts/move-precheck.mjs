@@ -38,7 +38,7 @@ export const aggregatorChecks = (srcText) => {
 	const all = [...String(srcText).matchAll(/return\s*\{([^}]*)\}\s*;/g)];
 	if (!all.length) return { found: false, missing: [] };
 	const m = all[all.length - 1];
-	// guest-1 实测：`return { flag, why: expr }` 里 `why` 是**键**、不是被引用的标识符 ⇒ 键不算、只查值侧。
+	// 实测：`return { flag, why: expr }` 里 `why` 是**键**、不是被引用的标识符 ⇒ 键不算、只查值侧。
 	const returned = m[1].split(',').flatMap((part) => {
 		const t = part.trim(); if (!t) return [];
 		if (t.includes(':')) return [t.slice(t.indexOf(':') + 1).trim()];   // 键值对 ⇒ 只看值

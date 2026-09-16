@@ -44,7 +44,7 @@ const covered = [], forwards = [];
 //避免把合法 forward 误判成 no-op。真正的 no-op（play 静默失败）仍由「输出为空」兜住。
 let lastPlayed = w.SugarCube.State.passage;
 for (const p of content) {
-	// 引用 $era 的段落渲染双时代变体（覆盖 (段落|时代) 状态格——对抗席盲区实测点）
+	// 引用 $era 的段落渲染双时代变体（覆盖 (段落|时代) 状态格——实测盲区）
 	const variants = p.src.includes('$era') ? [null, 'past'] : [null];
 	for (const era of variants) {
 		const before = uncaught.length;

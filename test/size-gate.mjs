@@ -1,7 +1,7 @@
 
 import { defaultStoryHtml, ROOT } from '../scripts/dist-paths.mjs';
 import { relative } from 'node:path';
-// L0.5 产物体积 ratchet（对抗席评估 → #187）：首屏字节预算，只许降不许升。
+// L0.5 产物体积 ratchet（`#187`）：首屏字节预算，只许降不许升。
 // 超基线 → 红；低于基线 → 收紧。重签：node test/size-gate.mjs --update-size（PR 写明理由）。
 //
 // #362（P2）修复：此前**失败时也会写基线**，且写回的是「当前实际值」（含超预算项）→ 自愈放宽：

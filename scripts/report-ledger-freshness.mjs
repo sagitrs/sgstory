@@ -12,7 +12,7 @@
 //
 // ⚠️ 精度优于召回（首轮实测的教训，故收紧两处）：
 //   初版只按「同一行最近的标记」判定 → 真实文档报出 12 处不符，逐条看**大多是假阳性**：
-//   「#291 G3（guest-1 在办）」里的「在办」描述的是**这一行的工作**，不是 #291 的状态；
+//   「#291 G3（在办）」里的「在办」描述的是**这一行的工作**，不是 #291 的状态；
 //   「⏳ Game.Rules.claims（…；#239 类回归防线）」里的 ⏳ 同理。表格行的状态列天然描述行不描述票。
 //   故：
 //     ① **只判定「紧邻」**——引用与标记之间只允许空白/`（）()`/`·` 等分隔符（≤4 字符），
@@ -28,7 +28,7 @@
 //   node scripts/report-ledger-freshness.mjs --json
 //
 // 无 token（GITHUB_TOKEN / GH_TOKEN）时**优雅降级**：打印「跳过（无 token）」并 exit 0——
-// 不把网络依赖塞进主链路（是否接定时 workflow 由 ci 席决定）。
+// 不把网络依赖塞进主链路（是否接定时 workflow 另定）。
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';

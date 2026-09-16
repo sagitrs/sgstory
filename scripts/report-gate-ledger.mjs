@@ -83,7 +83,7 @@ const moduleOfFlag = (flag) => gateMods.find((g) => (g.mod.flags ?? []).includes
 
 // 每个 audit 开关的「自证」：其**门模块**里是否含「自证」字样（本仓既有形态）。
 // #316 第 2 步后门已独立成文件 → 直接看该门所属模块。
-// guest-1 建议③：形态（报告/判定）不应只手写——**从源码派生「有没有判定路径」**，
+// 形态（报告/判定）不应只手写——**从源码派生「有没有判定路径」**，
 // 再与台账声明对账：声明「仅登记」但门里已有判定（bad++/✗/exit(1)/failures.push）＝形态升级未同步 → 红。
 const ASSERT_PAT = /bad\s*\+\+|\(\+\+bad\)|✗|process\.exit\(1\)|failures\.push\(|problems\.push\(/;
 const gateHasAssert = (flag) => {
@@ -133,7 +133,7 @@ export const chainFlags = (testChain) => [...new Set([...testChain.matchAll(/aud
 export const problems = (rows, declared = null, chain = []) => {
 	const out = [];
 	if (declared) {
-		// 幻影门：链上有、audit 声明里没有（guest-1 建议①）
+		// 幻影门：链上有、audit 声明里没有
 		const ghosts = chain.filter((f) => !declared.includes(f));
 		if (ghosts.length) out.push({ id: '(链)', code: 'phantom-flag', msg: `链上跑了 audit 未声明的开关（幻影门）：${ghosts.join(', ')}——多半是改 flag 名后漏改链` });
 	}

@@ -92,7 +92,7 @@ export const chestProblems = (chest, { hasSite, hasItem, siteOf } = {}) => {
 };
 
 /** 纯函数⑤：路面**类型标签**齐备（`#692` ①）——出现的每个 `kind` 都必须有非空标签。
- *  为什么入库：操作者裁定"三选一要显式标类型"；若新增第七类 kind 而不给标签，玩家只会看到空白/问号前缀，
+ *  为什么入库：**三选一要显式标类型**——若新增第七类 kind 而不给标签，玩家只会看到空白/问号前缀，
  *  且**没有任何门**看得见（与 `#688` 那类"全靠肉眼"的缺陷同族）。 */
 export const labelProblems = (kinds, labelOf) => {
 	const out = [];
@@ -103,8 +103,8 @@ export const labelProblems = (kinds, labelOf) => {
 	return out;
 };
 
-/** 纯函数⑥：宝箱**惩罚分级**（`#696`，操作者裁定）——三路代价必须**严格分级**，
- *  否则「没钥匙硬开」的收益会高于「打仗拿钥匙再开」（那正是这条裁定的靶心）。
+/** 纯函数⑥：宝箱**惩罚分级**（`#696`）——三路代价必须**严格分级**，
+ *  否则「没钥匙硬开」的收益会高于「打仗拿钥匙再开」（那正是这条规则的靶心）。
  *  判据（对 `机制·chest` 段源码，与 `#600` 的 reward 对账同族）：
  *   ① **钥匙路必开**：该分支不得出现 `sitecheck`；
  *   ② **道具路失败＝轻**：不得 `applyStatus`（应是轻罚，如 `Game.Damage.graze`）；
@@ -123,7 +123,7 @@ export const penaltyGradeProblems = (src) => {
 	const out = [];
 	if (/<<\s*sitecheck/.test(key)) out.push({ code: 'key-risky', why: '钥匙路出现了 `sitecheck`——钥匙本该**必开**（`keyReduce: to-zero`）' });
 	if (/applyStatus/.test(tool)) out.push({ code: 'tool-too-heavy', why: '道具路失败带了 `applyStatus`——道具路径应是**轻罚**（降难 −3 的代价），重罚留给徒手' });
-	if (!/applyStatus/.test(bare)) out.push({ code: 'bare-too-light', why: '徒手路失败没有严重异常（`applyStatus`）——硬开与"打仗拿钥匙"的代价差不够（操作者裁定）' });
+	if (!/applyStatus/.test(bare)) out.push({ code: 'bare-too-light', why: '徒手路失败没有严重异常（`applyStatus`）——硬开与"打仗拿钥匙"的代价差不够' });
 	return out;
 };
 
@@ -135,7 +135,7 @@ export const incomeProblems = (mech, { src } = {}) => {
 	const gold = mech?.chest?.gold ?? {};
 	for (const r of Object.keys(mech?.chest?.loot ?? {})) {
 		const v = gold[r];
-		if (typeof v !== 'number' || v <= 0) out.push({ code: 'chest-gold-missing', why: `宝箱档「${r}」没有声明金币（\`chest.gold\`）——操作者裁定"金币主源＝战斗与宝箱"` });
+		if (typeof v !== 'number' || v <= 0) out.push({ code: 'chest-gold-missing', why: `宝箱档「${r}」没有声明金币（\`chest.gold\`）——金币主源＝战斗与宝箱` });
 	}
 	const cave = mech?.caveRewards?.矿洞 ?? null;
 	if (!cave) out.push({ code: 'cave-reward-missing', why: '`caveRewards.矿洞` 未声明（五洞窟产出要进声明面）' });
@@ -162,7 +162,7 @@ export const enemySiteProblems = (mech, { hasSite } = {}) => {
 };
 
 /** 纯函数⑨：终点**整局结算**（`#719`）——`地下村落` 必须渲染"这一趟带出来的东西"（`<<caveSummary>>`）。
- *  没有它，玩家走到头只有散文、看不到自己积累了什么（操作者/guest 实测：钥匙/干粮/金币全无结算）。 */
+ *  没有它，玩家走到头只有散文、看不到自己积累了什么（实测：钥匙/干粮/金币全无结算）。 */
 export const endingSummaryProblems = (endSrc) => {
 	const s = String(endSrc ?? '');
 	if (!s.trim()) return [{ code: 'ending-src-missing', why: '取不到终点段落源码（`地下村落`）——本判据要读内容才能判' }];

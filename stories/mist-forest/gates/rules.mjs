@@ -3,7 +3,7 @@
 // 为什么需要它：表驱动的代价是"行的可达性不再肉眼可见"——一条 prio 更低、条件被完全覆盖的行
 // 永不被选中，而它的 `text` 会**静默死掉**。
 //
-// 判据（dev 复核后定稿，2026-09-14）：**反例搜索式可满足性包含** ——
+// 判据（2026-09-14）：**反例搜索式可满足性包含** ——
 //   「A 可选中 ⇒ B 必可选中」不成立 ⟺ 存在一组赋值使 A 命中而 B 不命中。
 //   搜索空间有限且只需看**极小**解：因谓词形如 req⊆／any∩≠∅／exclude∩=∅（单调），
 //   A 的极小可满足赋值只有 `req(A)` 与 `req(A)∪{a}`（a ∈ any(A) \ exclude(A)）两种形态；
@@ -47,9 +47,9 @@ export const rowMatches = (row, state, chose) =>
  *
  *  A 死（被 B 覆盖）⟺ 下面四条**同时**成立 —— 每条都对应一种"反例形态"，任一条不成立就有反例：
  *   ① `req(B) ⊆ req(A)`          否则 B 会缺一个 A 必有的键（S 不含它 ⇒ B 不中）；
- *   ② `exclude(B) ⊆ exclude(A)`  否则 B 会因某个 A 允许为真的键为真而落选（**dev 反例①**：A.req=['x'] vs B.exclude=['y']）；
+ *   ② `exclude(B) ⊆ exclude(A)`  否则 B 会因某个 A 允许为真的键为真而落选（**反例①**：A.req=['x'] vs B.exclude=['y']）；
  *   ③ `any(B)` 被 A 的 **必含键**保证（`any(B)=∅` 或 `∃k ∈ any(B) ∩ req(A)`）
- *                                否则 A 只保证"任一"时可让 B 的择一落空（**dev 反例②**：A.any=['b','c'] vs B.any=['c']）；
+ *                                否则 A 只保证"任一"时可让 B 的择一落空（**反例②**：A.any=['b','c'] vs B.any=['c']）；
  *   ④ `prereq(B) ⊆ prereq(A)`     否则历史可以让 A 有资格而 B 没有。
  *   ⚠️ 不采用"只取极小赋值"的搜索：反例状态可以**多带一个真键**（`{x,y}` ⇒ A 中 B 不中）⇒ 极小化会漏掉反例。
  */
@@ -159,7 +159,7 @@ export const textWriteProbs = (text) => {
 export const textWriteRows = (rows) =>
 	(rows ?? []).filter((r) => r?.id).map((r) => ({ id: r.id, probs: textWriteProbs(r.text) })).filter((x) => x.probs.length);
 
-// ── ③' `text` 里的**分支**只许读「渲染期只读槽」（`#435` 口径，guest 问的"机制内层 `<<if>>`"）─────
+// ── ③' `text` 里的**分支**只许读「渲染期只读槽」（`#435` 口径："机制内层 `<<if>>`"）─────
 // 口径（2026-09-14 拍板）：判定结果 → 两段文案**属渲染**（`<<if $last_check.success>>…<<else>>…`），
 // 不是"数据里夹机制" —— 把"判定面"外置就得让表声明检定/DC/骰，那才是把**机制**复制进表。
 // 所以允许 `<<if>>`，但边界写死、可机检：
@@ -321,7 +321,7 @@ export const scopeProblems = (rows, calls) => {
 };
 
 /** 归属段落必须**真实存在**：`scope` 的 `#` 前那一截（无 `#` 则整个 `scope`）＝该行 `text` 归属的段落。
- *  为什么需要它（guest 建议，2026-09-14）：`段落#位点` 约定把 `scope` 从"备注"变成了**结构**——
+ *  为什么需要它（2026-09-14）：`段落#位点` 约定把 `scope` 从"备注"变成了**结构**——
  *  它决定该行的 `text` 算哪个段落的故事文本（归属面）；scope 打错 ⇒ 归属到一个**不存在的段落**
  *  （其它三条机检都看不出来：无调用点会报"未接管"，但"调用点也对不上"时可能悄悄漂）。 */
 export const unknownScopes = (rows, passages) => {
@@ -339,14 +339,14 @@ export const run = (ctx) => {
 		const cases = [
 			['正例：单行 ⇒ 无死规则', deadRows([R('only')]).length === 0],
 			// `#437` 批三 C-2：新词汇宏 `<<notepath "id" "path">>` —— 点击态域**允许**（白名单 token）；
-			// 而等价写法的**模块 API**（`<<run Sg.notes.addPath(...)>>`）仍**不许**（W1 不放宽，见 dev 裁定）。
+			// 而等价写法的**模块 API**（`<<run Sg.notes.addPath(...)>>`）仍**不许**（W1 不放宽）。
 			['正例（#437 C-2）：点击态域用词汇宏 `<<notepath "n_hall_hint" "ev.hall_seen">>` ⇒ 不报',
 				textWriteProbs('<<link "摘">><<notepath "n_hall_hint" "ev.hall_seen">><</link>>').length === 0],
 			['🔴 反例（#437 C-2）：同一个写的**模块 API** 形态 ⇒ 仍报（点击态只许词汇宏）',
 				textWriteProbs(`<<link "摘">><<run Sg.notes.addPath("n_hall_hint", "ev.hall_seen")>><</link>>`).length === 1],
 			['反例：B 更宽（req⊂）且 prio 更高 ⇒ A 死', deadRows([R('A'), R('B', { req: [], prio: 20 })]).some((d) => d.id === 'A' && d.killedBy === 'B')],
-			['🔴 dev 的反例①：`req(B)=∅` 但 `exclude(B)=[y]` ⇒ **不是**死规则（y 真时 B 不中）', deadRows([R('A'), R('B', { req: [], exclude: ['y'], prio: 20 })]).length === 0],
-			['🔴 dev 的反例②：`any(B)⊆any(A)` 而 A 只保证"任一" ⇒ 不是死规则（A 中 b 而 B 要 c 时）', deadRows([R('A', { req: [], any: ['b', 'c'] }), R('B', { req: [], any: ['c'], prio: 20 })]).length === 0],
+			['🔴 反例①：`req(B)=∅` 但 `exclude(B)=[y]` ⇒ **不是**死规则（y 真时 B 不中）', deadRows([R('A'), R('B', { req: [], exclude: ['y'], prio: 20 })]).length === 0],
+			['🔴 反例②：`any(B)⊆any(A)` 而 A 只保证"任一" ⇒ 不是死规则（A 中 b 而 B 要 c 时）', deadRows([R('A', { req: [], any: ['b', 'c'] }), R('B', { req: [], any: ['c'], prio: 20 })]).length === 0],
 			['边界：同 prio ⇒ 不是死规则（裁决＝表序最前）', deadRows([R('A'), R('B', { req: [], prio: 10 })]).length === 0],
 			['边界：不同 scope ⇒ 互不相干', deadRows([R('A'), R('B', { req: [], prio: 20, scope: 'T' })]).length === 0],
 			// `#624`：对象算子形（数值/枚举）—— 键抽取必须走单一权威，且死规则分析**保守跳过**

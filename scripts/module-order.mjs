@@ -156,7 +156,7 @@ export const STORY_SYMBOLS = [
 	// ⚠️ 残留的过渡味道（记在案，不假装没有）：机制与数据**共用同一个命名空间**（引擎把 `resolve` 挂在故事提供的 `Game.Checks` 上）。
 	//    第 3/4 步（#458/#459）应该把它们分开（机制住在引擎命名空间、数据由故事提供）。
 	'Game.Checks.sites',
-	// #459（guest-1 实测漏检）：情报捷径的两张数据表 —— sim 原来在读（`knowledge`／`knowledgeWhy`），门却不会咬 ✗
+	// #459（实测漏检）：情报捷径的两张数据表 —— sim 原来在读（`knowledge`／`knowledgeWhy`），门却不会咬 ✗
 	'Game.Checks.knowledge', 'Game.Checks.knowledgeWhy',
 	'Game.Economy.events',
 	'Game.Items.defs', 'Game.Items.effects',
@@ -171,7 +171,7 @@ export const STORY_SYMBOLS = [
 	'Game.Notes.entries', 'Game.Chargen',
 ];;
 // 归一化：把"逃逸写法"折成点号路径，再做子串匹配。
-// 起因（guest-1 实测、我复现）：裸子串匹配会**漏检** `Game?.Dragon` / `Game["Notes"]` / `Game . NPC`，
+// 起因（实测并复现）：裸子串匹配会**漏检** `Game?.Dragon` / `Game["Notes"]` / `Game . NPC`，
 // 现网 `10-core.twee:218` 的 `window.Game?.Dragon?.hp` 就是这样漏掉的 ⇒ 第 4 步的"`--strict` 转绿"会**假绿**。
 // 处理的逃逸：可选链 `?.`、方括号字符串/模板访问 `["x"]`/['x']/`x`、点号两侧空白（含换行）。
 // **已知不覆盖**（写清楚，别假装判据是全的）：解构/别名（`const {Dragon} = Game`、`const G = Game; G.Dragon`）、
@@ -187,7 +187,7 @@ export const stripCommentsForLint = (src) => String(src)
 
 export const normalizeSymbolRefs = (src) => {
 	const text = String(src);
-	// #459（guest-1 实测）：**别名会让裸子串匹配变瞎** —— `const T = window.Game` 之后 `T.Checks.sites`
+	// #459（实测）：**别名会让裸子串匹配变瞎** —— `const T = window.Game` 之后 `T.Checks.sites`
 	// 明摆着是故事数据，门却**命中 0** ✗ ⇒「引擎层未引用任何故事符号」这句话对用别名的文件**没有证据力**。
 	// 做法：先把“指向 `window.Game`／`Game` 的**简单别名**”展开（仅此一类；解构/多级别名不展开 = 已知边界）。
 	const aliases = new Set();
@@ -214,7 +214,7 @@ export const checkLayerDirection = (sources, { layers = LAYER_OF, symbols = STOR
 export const LAYER_OF = Object.fromEntries(Object.entries(MODULES).map(([k, v]) => [k, v.layer ?? 'story']));
 
 // ── #441 第 3 步前置：engine 内部 **rank** ＋ 四条「禁止边」（登记模式）────────────
-// 依据：guest-1 的现状测量（engine 侧 1634 行塞在 3 文件 5 种职责里）＋ T 席复核后的口径。
+// 依据：现状测量（engine 侧 1634 行塞在 3 文件 5 种职责里）＋ 复核后的口径。
 // **rank 的真正来源是目录名**（搬家后）：`src/engine/40-sim/**.twee` ⇒ rank 4。
 // 搬家前文件还平铺在 `src/*.twee`，`rankOfPath()` 返回 null ⇒ 此时只能**登记**：
 // 用「签名散布」量出**每个文件目前跨了几种职责**（＝要拆成几个文件）＋ 量出四条禁止边的违反。

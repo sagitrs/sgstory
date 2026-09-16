@@ -12,7 +12,7 @@
 
 ```
               #432 分类复核 ✅ 已出结论（14/14 confirm ＋ 半 A 11 行）
-                        │ 被采纳的条目由 guest-1 统一改表（= 本文件 §3）
+                        │ 被采纳的条目统一改表（= 本文件 §3）
                         ▼
 #428 增量文件机制 ✅ ─┬─► #442 B0 一章补漏 ─┐
   （每批次一文件）    ├─► #429 B1 二章落表 ─┼─► #433 D 阶段2 纯转发（分批，漂移=0）
@@ -54,7 +54,7 @@ Object.assign((window.Game.Notes ??= { entries: {} }).entries, {
 
 1. `[script]` 段里**没有局部 `Game`**（`15-tables` 的 `Game` 在 IIFE 内）⇒ 必须写 **`window.Game`**，并用 `(window.Game.Notes ??= { entries: {} }).entries` 兜底。直接写 `Game` → 全部 audit 门 0.0s 齐红（`ReferenceError: Game is not defined`）。
 2. 时代字段必须 **`window.Game.Era.PRESENT`**——`--literals` 门（#318③）会拦字面量 `'present'`。
-3. 新文件要**同时**进 `scripts/module-order.mjs` 的 `ORDER` 与 `MODULES`，且 **`defines: []`**（只追加键、不定义新全局）——**这一步由 guest-1 统一做**，认领者不必改共同文件。
+3. 新文件要**同时**进 `scripts/module-order.mjs` 的 `ORDER` 与 `MODULES`，且 **`defines: []`**（只追加键、不定义新全局）——**这一步统一做**，认领者不必改共同文件。
 
 - 文件命名：`src/16-notes-<批>.twee`（B0=`ch1`／B1=`ch2`／B2=`ch3`／B3=`cross`）
 - **`flagPath` 是唯一的数据接口**——表里**不得出现字面状态读**（`grant: (p) => !!p.ev.X` 会让 `--consequences` 判成叙事消费；阶段 1 实测红过）
@@ -129,12 +129,12 @@ Object.assign((window.Game.Notes ??= { entries: {} }).entries, {
 | `keeper_kind` | `ev.keeper_kind` | b | 不收 | B2 | 守林人（立场） | **#432-B7**：读点是 NPC 回忆**你说过的话**，写不成「你知道了……」 |
 | `keeper_why` | `ev.keeper_why` | a | 收 | B2 | 守林人·守 |  |
 | `keeper_intro` | `ev.keeper_intro` | c1 | 不收 | B2 | 守林人 | 原作业单未登记 |
-| `seer_asked` | `ev.seer_asked` | b | 不收 | B2 | 观星者 | **半 A 异议（T 席）**：它是**证据旗标**（#365），记的是「问过」这件**事** ⇒ b。半 A 原判 a=知识，经 #432 复核收敛为 b |
-| `seer_asked_star` | `ev.seer_asked_star` | c1 | 不收 | B2 | 观星者·星 | **半 A 异议（T 席）**：c1 交互记账（#365「这一问只给一次」） |
+| `seer_asked` | `ev.seer_asked` | b | 不收 | B2 | 观星者 | **半 A 异议**：它是**证据旗标**（#365），记的是「问过」这件**事** ⇒ b。半 A 原判 a=知识，经 #432 复核收敛为 b |
+| `seer_asked_star` | `ev.seer_asked_star` | c1 | 不收 | B2 | 观星者·星 | **半 A 异议**：c1 交互记账（#365「这一问只给一次」） |
 | `seer_asked_night` | `ev.seer_asked_night` | c1 | 不收 | B2 | 观星者·图 | 同上 |
 | `seer_gave` | `ev.seer_gave` | b | 不收 | B2 | 观星者 | 原作业单未登记；他答应/抄过＝发生过 |
 | `seer_intro` | `ev.seer_intro` | c1 | 不收 | B2 | 观星者 | 原作业单未登记 |
-| `coord` | `—` | — | **不落笔记** | B2 | 观星者·图 | **#432-B11**：`coord ≡ inv["完整星图"]`（两处写点都与 `<<give "完整星图">>` 同行）⇒ **持有物投影**，三类之外。T 席半 A 原判 b，经复核采纳本条 |
+| `coord` | `—` | — | **不落笔记** | B2 | 观星者·图 | **#432-B11**：`coord ≡ inv["完整星图"]`（两处写点都与 `<<give "完整星图">>` 同行）⇒ **持有物投影**，三类之外。半 A 原判 b，经复核采纳本条 |
 | `star_ledger` | `ev.star_ledger` | a | 收 | B2 | 天文台（典籍/光点） |  |
 | `star_short` | `ev.star_short` | c2 | 不收 | B2 | 唤醒（星力不足） | **#432-B3**：§5.1 曾列知识候选 ↔ §1 自认运行时 |
 | `witch_fire_hint` | `ev.witch_fire_hint` | a | 收 | B2 | 老巫女（合龙门） | 前提可溯源由 `premise-source` 门另管（内容问题，与分类无关） |
@@ -208,8 +208,8 @@ PR 里贴两样：**① 本批分类判断表**（每条：知识/世界态/运�
 | 1 | 键数 78 → **93**；补 15 个键的逐键行（`tav_*` 12 实为…／6 个动态键／12 个原无行） | `#432` §A-1／§A-3 |
 | 2 | 口诀 `c` 拆 **`c1` 交互记账 ／ `c2` 瞬态**；新增**边界①**（c＝不改世界结果，不是「同一次渲染内」）与**边界②**（`firstTime` 单列） | `#432` §B ＋ 半 A 元观察 |
 | 3 | **三类之外**：持有物投影（`coord`）不落笔记；推定知识（`below_seen`）标 `derived` | `#432-B11`／`B14` |
-| 4 | 14 条判定异议全部 confirm：`forest_listen`→b、`delivery_short`/`star_short`→c2、`staff_found`/`witch_gifted`/`keeper_kind`→b、`ritual_seen`→c1、`study_found`→拆、`rumor`→收、`fog_thin`→b、`coord`→不落、`hall_seen`→收＋合并、`wq_seen`→收＋标注、`below_seen`→收＋`derived` | `#432`（作者侧）＋ T 席 14/14 confirm |
-| 5 | 半 A 采纳：`seer_asked`→b、`seer_asked_star`/`_night`→c1、`tav_seen`→c1（原判 b，按边界②收敛）、`mist_guard` 拆键命名 | T 席半 A（`#422`） |
+| 4 | 14 条判定异议全部 confirm：`forest_listen`→b、`delivery_short`/`star_short`→c2、`staff_found`/`witch_gifted`/`keeper_kind`→b、`ritual_seen`→c1、`study_found`→拆、`rumor`→收、`fog_thin`→b、`coord`→不落、`hall_seen`→收＋合并、`wq_seen`→收＋标注、`below_seen`→收＋`derived` | `#432`（作者侧）＋ 14/14 confirm |
+| 5 | 半 A 采纳：`seer_asked`→b、`seer_asked_star`/`_night`→c1、`tav_seen`→c1（原判 b，按边界②收敛）、`mist_guard` 拆键命名 | 半 A（`#422`） |
 | 6 | 修正 3 处**来源**错（`ledger_hint` 书房·账册→天文台／`observation_lock` 天文台→书房／`letter_seen` 书房·信→观星者） | `#432` §A-3 |
 | 7 | ~~记入**门盲区**：`--state` 门只看字面量键，6 个动态键隐身~~ → **已修（`#436-c①`）**：改为 `Game.State.dynamicKeys` 声明族 ＋ 展开入键图 ＋「未覆盖／僵尸声明」双向判据；门现报 **93** 键（87＋6） | `#432` §A-2 → `#436` |
 | 8 | 记入**已知基线**：`tav_light`/`tav_iron`/`tav_seal` 是 `bookkeeping`（零消费）却已收成笔记 → `#436` 消费可数门的基线 | `#432` §C |

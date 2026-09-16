@@ -1,6 +1,6 @@
 // `#600`：**战斗钥匙掉落**的真机回归门 —— 声明面驱动（长战斗必掉 · 短战斗 50%）。
-// ⚠️ 50% 来自 **`#696`（2026-09-15 操作者裁定）**："战斗＝宝箱钥匙的主要来源" ⇒ 短战 30% → **50**（长战仍必掉）；
-//    改这条硬编码＝改**裁定**，必须在 PR 里写明依据（本门当初就是为挡"声明变了、裁定没跟"而设）。
+// ⚠️ 50% 来自 **`#696`**："战斗＝宝箱钥匙的主要来源" ⇒ 短战 30% → **50**（长战仍必掉）；
+//    改这条硬编码＝改**这条口径**，必须在 PR 里写明依据（本门当初就是为挡"声明变了、口径没跟"而设）。
 //
 // 为什么需要它：已定 ③（`#489`）要求「钥匙：长战斗必掉、短战斗 30% ⇒ 降为 0」（`#696` 把短战改到 50%），但交付时**掉落那一半没落地**——
 // 钥匙只有「矿洞」一条来源（随机 1/5 的洞窟 × 玩家是否走那条路）⇒ 宝箱的钥匙路**可达性靠运气**。
@@ -42,7 +42,7 @@ const mech = () => w.eval('JSON.stringify(SugarCube.State.variables.Sg?.story?.m
 {
 	const short = w.Game.Combat.encounterReward('short');
 	const long = w.Game.Combat.encounterReward('long');
-	ok(short.item?.id === '钥匙' && short.item?.chance === 50, '短战斗声明：钥匙 50%（`{ id, chance }` 形；`#696` 裁定 30→50）', JSON.stringify(short));
+	ok(short.item?.id === '钥匙' && short.item?.chance === 50, '短战斗声明：钥匙 50%（`{ id, chance }` 形；`#696` 30→50）', JSON.stringify(short));
 	ok(long.item?.id === '钥匙' && long.item?.chance === 100, '长战斗声明：钥匙必掉（字符串形归一化为 chance=100）', JSON.stringify(long));
 	ok(short.gold > 0 && long.gold > 0, '金币仍在同一声明面（`reward.gold` 未被改动）', JSON.stringify({ short: short.gold, long: long.gold }));
 }

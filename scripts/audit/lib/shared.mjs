@@ -332,7 +332,7 @@ export const makeShared = (ctx) => {
 		// （注：`cave_step` 那条**不是**这个原因——它读写都在 `[widget]` 段里，按门口径属引擎面；已单独登记。）
 		const hasIf = (name, src, flag) => {
 			if (new RegExp(`<<(?:if|elseif)[^>]*\\$pc\\.(?:world|ev)\\.${flag}\\b`).test(src)) return true;
-			// `#437` 批三（**口径对齐**，dev 复核后的措辞）：知识键**直读归零**之后，叙事条件改走**封装层**
+			// `#437` 批三（**口径对齐**后的措辞）：知识键**直读归零**之后，叙事条件改走**封装层**
 			//（`<<if Sg.notes.readPath($pc, 'ev.X')>>`）——这一段**仍然消费**了该旗标，不认它就会
 			// "转一处、消费点丢一处"（`--consequences` 判「无任何桶」= 假红；实测 `hall_seen`/`study_found` 就是这样掉出来的）。
 			// **两种读形状同权、同粒度**：上面的字面形态（`<<if … $pc.ev.X`）与这里的封装层形态都是
@@ -408,7 +408,7 @@ export const makeShared = (ctx) => {
 // ── 故事文本源（**唯一权威**，`#435` 前置 0）──────────────────────────────────
 // 为什么要有它：阶段 4 把叙述也搬进条件表之后，「这段话属于哪个段落」不再由"字面写在段落里"决定，
 // 而是由**归属**决定 —— 表行 `scope` 的 `#` 前那一截就是它的段落。若每道门自己拼一次文本面，
-// 就必然各自漂移：guest 实测**一次搬家同时红六道门**（`--truth`/`--echoes`/`--npc`/`--notes`/
+// 就必然各自漂移：实测**一次搬家同时红六道门**（`--truth`/`--echoes`/`--npc`/`--notes`/
 // `--interact`/`--text`），那不是六个 bug，是**一个横切面**（门的文本面窄了）。
 // 单一权威的用途：各门都从 `storyText().text` 取"段落文本"，不再各自 `passageSrc.get(p)`。
 export const MECH_TAGS = ['script', 'widget', 'stylesheet'];

@@ -15,6 +15,7 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { KINDS } from './compile-story.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
@@ -40,43 +41,78 @@ export const maskAll = (src) => {
 	return out.join('');
 };
 
-/** 纯函数：从 `[script]` 文本里取出 `Object.assign((window.Sg.story ??= {}), { … })` 的成员源码。 */
-export const contractMembers = (text) => {
+/** 纯函数：从 `[script]` 文本里取出**全部** `Sg.story` 成员定义的源码（多站点合并）。
+ *
+ *  为什么要扫**多个站点**（实测的漏）：洞窟把契约拆成两处 —— `15-tables.twee` 的 `StoryBindings` 段
+ *  （`Object.assign((window.Sg.story ??= {}), {…})`）＋ `Cave Declarations` 段末尾的
+ *  `Object.assign(window.Sg.story, { mechanics: … })` ⇒ 只扫第一处会**静默漏掉 `mechanics`**（正是本故事最大的那张表）。
+ *  所以：① 两种赋值形态都收；② 其余任何 `Sg.story` 出现（如 `Sg.story.X = …`）**点名报错**，绝不静默跳过。 */
+export const contractSites = (text) => {
 	const src = String(text);
-	const at = src.indexOf('window.Sg.story ??= {}');
-	if (at === -1) return null;
-	const open = src.indexOf('{', src.indexOf(',', at));
-	const masked = maskAll(src);                            // 注释与字符串/模板里的大括号先抹平 ⇒ 配对才准
-	let depth = 0, end = -1;
-	for (let i = open; i < masked.length; i++) {
-		if (masked[i] === '{') depth++;
-		else if (masked[i] === '}') { depth--; if (!depth) { end = i; break; } }
+	const masked = maskAll(src);
+	const out = []; const consumed = [];
+	const re = /Object\.assign\(\s*\(?\s*window\.Sg\.story|Object\.assign\(\s*window\.Sg\.story/g;
+	for (const m of src.matchAll(/Object\.assign\(/g)) {
+		const at = m.index;
+		// 参数表前缀里必须出现 `Sg.story`，且第二个实参是对象字面量
+		const head = masked.slice(at, Math.min(at + 200, masked.length));
+		if (!/Sg\.story/.test(head)) continue;
+		// ⚠️ 第一个 `{` 可能是**初始化器** `??= {}` ⇒ 必须跳过它，从"第二个实参"的那个 `{` 开始配对
+		const skip = /window\.Sg\.story\s*\?\?=\s*\{\s*\}\s*\)|window\.Sg\.story\s*,/.exec(head);
+		const from = skip ? at + skip.index + skip[0].length : at;
+		const open = masked.indexOf('{', from);
+		if (open === -1) continue;
+		let depth = 0, end = -1;
+		for (let i = open; i < masked.length; i++) {
+			if (masked[i] === '{') depth++;
+			else if (masked[i] === '}') { depth--; if (!depth) { end = i; break; } }
+		}
+		if (end === -1) continue;
+		consumed.push([at, end]);
+		out.push({ at, members: membersIn(src.slice(open + 1, end), masked.slice(open + 1, end)) });
 	}
-	if (end === -1) return null;
-	const body = src.slice(open + 1, end);
-	const mbody = masked.slice(open + 1, end);
+	void re;
+	// 反沉默：还有没有被认领的 `Sg.story` 出现？
+	const stray = [];
+	for (const m of src.matchAll(/Sg\.story\s*\.\s*[A-Za-z_$][\w$]*\s*=(?!=)|Sg\.story\s*=/g)) {
+		if (!consumed.some(([a, b]) => m.index >= a && m.index <= b)) stray.push(m[0].trim());
+	}
+	return { sites: out, stray };
+};
+
+/** 纯函数：块体内的成员切分（按深度 0 逗号；成员上方的文档注释剔掉）。 */
+export const membersIn = (body, maskedBody) => {
 	const out = []; let start = 0, d = 0;
-	for (let i = 0; i <= mbody.length; i++) {
-		const c = mbody[i];
+	for (let i = 0; i <= maskedBody.length; i++) {
+		const c = maskedBody[i];
 		if (c === '{' || c === '(' || c === '[') d++;
 		else if (c === '}' || c === ')' || c === ']') d--;
-		else if ((c === ',' && d === 0) || i === mbody.length) {
+		else if ((c === ',' && d === 0) || i === maskedBody.length) {
 			let chunk = body.slice(start, i).trim(); start = i + 1;
-			// 成员上方的文档注释属于**这个**成员 ⇒ 从名字里剔掉（否则注释里的 `：` 会被当成键分隔）
 			chunk = chunk.replace(/^(?:\s*\/\/[^\n]*\n|\s*\/\*[\s\S]*?\*\/\s*|\s*\n)*/g, '').trim();
 			if (!chunk) continue;
-			const ci = chunk.indexOf(':'); const cm = maskAll(chunk).indexOf(':');
-			if (ci === -1 || cm === -1) continue;
+			const ci = chunk.indexOf(':');
+			if (ci === -1) continue;
 			out.push({ name: chunk.slice(0, ci).trim(), src: chunk.slice(ci + 1).trim() });
 		}
 	}
 	return out;
 };
 
+/** 兼容入口：单站点形态（旧调用方）——多站点请用 `contractSites()`。 */
+export const contractMembers = (text) => {
+	const { sites } = contractSites(text);
+	return sites.flatMap((s2) => s2.members);
+};
+
 /** 纯函数：把一个成员的值表达式归类。返回 `{ bucket, kind, spec?, why? }`。 */
 export const classify = (srcIn) => {
 	const s = String(srcIn).replace(/\s+/g, ' ').trim();
-	const A = (kind, spec = {}) => ({ bucket: 'A', kind, spec });
+	const A = (kind, spec = {}) => {
+		// **单一权威**：A 桶＝"编译器真能装下"。KINDS 里没有 ⇒ 分类器自己的口径腐烂了 ⇒ 当场抛错。
+		if (!(kind in KINDS)) throw new Error(`分类器把 kind「${kind}」当 A 桶，但编译器 KINDS 里没有 ⇒ 两边口径已漂移`);
+		return { bucket: 'A', kind, spec };
+	};
 	const B = (kind, spec, why) => ({ bucket: 'B', kind, spec, why });
 	const C = (why) => ({ bucket: 'C', why });
 	if (/^\(\) => null$/.test(s)) return A('null');
@@ -86,7 +122,7 @@ export const classify = (srcIn) => {
 	if (/^\((\w+)\) => String\(\1\)$/.test(s)) return A('identity-string');   // ⚠️ 捕获组要写 `\((\w+)\)`：`\(`/`\)` 是**字面括号**，不是分组
 	if (/^\(\) => window\.[\w$.]+$/.test(s)) return A('game-ref', { path: s.replace(/^\(\) => window\./, '') });
 	const gr = /^\(\) => ([\w$.()?]+) \?\? (.+)$/.exec(s);
-	if (gr && /^(window\.|Sg\.)/.test(gr[1])) return B('game-ref', { path: gr[1].replace(/[?.]+$/, ''), default: gr[2] }, '`game-ref` 需要**默认值**字段（现在没有）');
+	if (gr && /^(window\.|Sg\.)/.test(gr[1])) return A('game-ref', { path: gr[1].replace(/[?.]+$/, ''), default: gr[2], optional: /\?\./.test(gr[1]) });   // `#775` 起 kind 支持默认值`)
 	// `(k) => <来自……>?.[k] ?? <默认>` ／ `(k) => { const v = …; if (!v) throw …; return v; }`
 	const lookup = /^\((\w+)\) => ([\w$.()?]+)\[(\1)\] \?\? (.+)$/.exec(s);
 	if (lookup) return A('lookup', { from: lookup[2].replace(/[?.]+$/, ''), key: lookup[1], default: lookup[4] });
@@ -104,14 +140,18 @@ export const classify = (srcIn) => {
 	if (/=> \(.*\bpoolId\b.*\?.*:.*null\)$/.test(s) || /=> \([\s\S]*includes\(/.test(s)) return D('选牌/前置决策：形状＝「一组条件 ⇒ 选哪个」⇒ 可下沉为**规则表**（引擎解释、故事给数据）', '前置选牌规则表');
 	// 查表后用 Sg.notes.* 组装返回值 ⇒ 知识映射：引擎能力，故事只给映射数据
 	if (/Sg\.notes\./.test(s)) return D('知识映射：查表 ＋ 用 `Sg.notes` 组装 ⇒ 属**引擎能力**，故事只需给映射数据', '知识映射（引擎组装 {flag, why, held}）');
+	// `() => <标识符>`：**引用本段的局部常量**（如 `mechanics: () => MECH`）⇒ 值本身是数据，
+	// 只是不在这一行 ⇒ 归 B（迁移时把 `const MECH = {…}` 的字面量搬进 `data/`，不是写代码）。
+	const localRef = /^\(\) => ([A-Za-z_$][\w$]*)$/.exec(s);
+	if (localRef) return B('const', { ref: localRef[1] }, `引用局部常量 \`${localRef[1]}\` ⇒ 迁迁移时把它的**字面量**搬进 data（值仍是数据，不是逻辑）`);
 	// 模板拼句：`const bits = []; … bits.push(…)` ⇒ 可声明为 `template` kind
 	if (/const (\w+) = \[\];[\s\S]*\1\.push\(/.test(s)) return B('template', { raw: s }, '按条件拼句 ⇒ 可用 **`template` kind** 表达（parts.when/text ＋ join/suffix）');
 	// 派生字段：`const a = <链>(key); … typeof a.<字段> !== 'string' …` ⇒ `lookup-field` ＋ `via`/`required`
 	const derived = /^\((\w+)\) => \{ const (\w+) = ([\w$.()]+)\(\1\); if \(typeof \2\.(\w+) !== 'string' \|\| !\2\.\4\) throw new Error\(.*\); return \2\.\4; \}$/.exec(s);
-	if (derived) return B('lookup-field', { via: derived[3], key: derived[1], field: derived[4], required: true }, '经**成员调用**取字段 ＋ 校验非空 ⇒ `lookup-field` 需要 `via`/`required` 两个字段');
+	if (derived) return A('lookup-field', { via: derived[3], key: derived[1], field: derived[4], required: true });   // `#775` 起 `lookup-field` 支持 `via`/`required`
 	// 参数**转发**（形参序与表函数不同）：声明式可表达，但需要 `kind:'forward'`
 	const fwd = /^\(([\w, ]+)\) => ([\w$.()?]+)\(([^()]*)\)$/.exec(s);
-	if (fwd) return B('forward', { to: fwd[2], args: fwd[3].split(',').map((x) => x.trim()).filter(Boolean) }, '参数转发 ⇒ 需要 `kind:\'forward\'`（含形参序映射）');
+	if (fwd) return A('forward', { to: fwd[2], params: fwd[1].split(',').map((x) => x.trim()).filter(Boolean), args: fwd[3].split(',').map((x) => x.trim()).filter(Boolean) });   // `#775` 起有 `forward`
 	return C('形状不在已知 kind 集合里（含任意逻辑或写法特异）');
 };
 
@@ -127,16 +167,16 @@ const selftest = () => {
 	t('`{ const s = …; if (!s) throw …; return s; }` ⇒ lookup + required（变量名任意）', (() => { const r = classify('(name) => { const s = window.Game?.Checks?.sites?.[name]; if (!s) throw new Error(`x`); return s; }'); return r.kind === 'lookup' && r.spec.required === true; })());
 	t('`(pc) => pc?.dragon ?? {}` ⇒ state-ref', (() => { const r = classify('(pc) => pc?.dragon ?? {}'); return r.kind === 'state-ref' && r.spec.path === 'dragon'; })());
 	t('`() => ({ … })`（括号包裹的对象）⇒ const', kindOf('() => ({ star: { charge: 12 } })') === 'const');
-	t('`() => window.X ?? <默认>` ⇒ **B**（game-ref 缺默认值字段）', classify('() => window.Game?.Notes?.entries ?? {}').bucket === 'B');
-	t('参数转发 ⇒ **B**（需要 `forward`）', classify('(inv, round, defeats, poisoned) => window.Game.Items.battleDamage(round, inv, defeats, poisoned)').bucket === 'B');
+	t('`() => window.X ?? <默认>` ⇒ **A**（`#775` 起 `game-ref` 支持默认值 ＋ `optional`）', (() => { const r = classify('() => window.Game?.Notes?.entries ?? {}'); return r.bucket === 'A' && r.spec.optional === true; })());
+	t('参数转发 ⇒ **A**（`#775` 起有 `forward`，含形参序）', (() => { const r = classify('(inv, round, defeats, poisoned) => window.Game.Items.battleDamage(round, inv, defeats, poisoned)'); return r.bucket === 'A' && r.spec.args[0] === 'round'; })());
 	t('选牌策略 ⇒ **D**（可下沉为规则表）', classify("(poolId, round, pc, picked) => (poolId === '封印' && (picked ?? []).includes('x') ? 'y' : null)").bucket === 'D');
 	t('查表后用 `Sg.notes.*` 组装 ⇒ **D**（引擎能力）', classify('(name, pc) => { const f = window.Game.Checks.knowledge[name]; if (!f) return null; return { flag: f, held: Sg.notes.has(f, pc) }; }').bucket === 'D');
 	t('模板拼句 ⇒ **B**（`template` kind）', (() => { const r = classify('(r, base) => { const bits = []; if (r?.gold > 0) bits.push(base); return bits.join(); }'); return r.bucket === 'B' && r.kind === 'template'; })());
 	t('陷阱回归②：`\\(\\1\\)` 若是**捕获组**会让后面的 `\\2`/`\\4` 整体错位 ⇒ 必须写非捕获 `\\(?:\\1\\)`', (() => {
 		const r = classify("(id) => { const a = window.Sg.story.combatAction(id); if (typeof a.label !== 'string' || !a.label) throw new Error(`x`); return a.label; }");
-		return r.bucket === 'B' && r.spec.field === 'label';
+		return r.bucket === 'A' && r.spec.field === 'label';   // 本例要证的是**捕获组下标**（字段取到 label），分桶随 KINDS 变
 	})());
-	t('派生字段（经成员调用）⇒ **B**（`lookup-field` 加 `via`/`required`）', (() => { const r = classify("(id) => { const a = window.Sg.story.combatAction(id); if (typeof a.label !== 'string' || !a.label) throw new Error(`x`); return a.label; }"); return r.bucket === 'B' && r.kind === 'lookup-field'; })());
+	t('派生字段（经成员调用）⇒ **A**（`#775` 起 `lookup-field` 有 `via`/`required`）', (() => { const r = classify("(id) => { const a = window.Sg.story.combatAction(id); if (typeof a.label !== 'string' || !a.label) throw new Error(`x`); return a.label; }"); return r.bucket === 'A' && r.spec.via === 'window.Sg.story.combatAction'; })());
 	t('选牌条件表达式 ⇒ **D**（不是 C：它能下沉成规则表）', classify("(poolId, round, pc, picked) => (poolId === '封印' && round === 1 ? 'x' : null)").bucket === 'D');
 	t('真表达不了的形状 ⇒ **C**', classify('(x) => { const y = [...x].reverse().map((v) => v * 2); return y; }').bucket === 'C');
 	t('`contractMembers`：能从段落文本里切出成员（注释不算成员）', (() => {
@@ -145,7 +185,7 @@ const selftest = () => {
 		return ms.length === 2 && ms[0].name === 'a' && ms[1].name === 'b';
 	})());
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过（18 例：8 个 kind 形状 ＋ A/B/C/D 四桶分界 ＋ 两条捕获组陷阱回归 ＋ 成员切分）');
+	console.log('\n✔ 自证通过（19 例：8 个 kind 形状 ＋ A/B/C/D 四桶分界 ＋ 两条捕获组陷阱回归 ＋ 成员切分）');
 };
 
 const isMain0 = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
@@ -155,8 +195,11 @@ const main = () => {
 	const slug = process.argv[2];
 	if (!slug) { console.error('用法：node editor/classify-contract.mjs <slug> [--json]'); process.exit(2); }
 	const file = join(ROOT, `stories/${slug}/15-tables.twee`);
-	const members = contractMembers(readFileSync(file, 'utf8'));
-	if (!members || !members.length) { console.error(`✗ ${file} 里找不到 Sg.story 成员（读不到输入不许当"没有故事逻辑"）`); process.exit(1); }
+	const { sites, stray } = contractSites(readFileSync(file, 'utf8'));
+	const members = sites.flatMap((s2) => s2.members);
+	if (!members.length) { console.error(`✗ ${file} 里找不到 Sg.story 成员（读不到输入不许当"没有故事逻辑"）`); process.exit(1); }
+	if (stray.length) { console.error(`✗ ${file} 里还有**未被识别的** Sg.story 写法（${stray.join(' · ')}）—— 多站点合并只认 Object.assign 形态，其余必须点名而不是静默漏掉`); process.exit(1); }
+	console.log(`（站点 ${sites.length} 处：${sites.map((s2) => s2.members.length + ' 名成员').join(' ＋ ')}）`);
 	const rows = members.map((m) => ({ name: m.name, src: m.src, ...classify(m.src) }));
 	const bucket = (b) => rows.filter((r) => r.bucket === b);
 	console.log(`══ 契约分类（${slug}）：${rows.length} 个成员 ══`);

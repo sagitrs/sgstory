@@ -14,6 +14,11 @@ import { scriptBodies } from './equiv.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
+/** **引擎常量文件**：故事表里会直接用它（如 `era: window.Game.Era.PRESENT`）⇒ 沙箱必须**先跑引擎**
+ *  （与真加载顺序一致：`ORDER` 里 `src/engine/10-const.twee` 在故事文件之前）。
+ *  ⚠️ 这条也是"环境契约"的一部分：漏了它，抽出来的数据会缺时代字段（而**不报错**）。 */
+export const ENGINE_CONST = 'src/engine/10-const.twee';
+
 /** 纯函数：在**浏览器语义**的沙箱里跑一段 `[script]`，返回 `{ Sg, Game, diag }`。 */
 /** **环境契约（承重面，最容易腐烂的地方）**：本助手只跑故事的**某一段** `[script]`，而各段之间**互有依赖** ——
  *  `15-tables.twee` 建容器（`window.Sg ??= {}`／`window.Game = …`），`17-rules.twee` 直接用 `window.Sg.story ??= {}`。
@@ -66,16 +71,46 @@ const selftest = () => {
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain && process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 
+/** 引擎常量 + 故事各段（真加载顺序）——`--tables` 与 `--section` 共用。 */
+const engineOf = (slug) => {
+	const engine = scriptBodies(readFileSync(join(ROOT, ENGINE_CONST), 'utf8')).join('\n');
+	const text = readFileSync(join(ROOT, `stories/${slug}/${sectionFile('Game Tables')}`), 'utf8');
+	return engine + '\n' + scriptBodies(text).join('\n');
+};
+
 const main = () => {
 	const slug = process.argv[2];
 	if (!slug) { console.error('用法：node editor/extract-story.mjs <slug> [--section=StoryRules] [--key=rules] [--out=<file>]'); process.exit(2); }
 	const argOf = (n, d) => { const h = process.argv.find((a) => a.startsWith(`--${n}=`)); return h ? h.slice(n.length + 3) : d; };
-	const section = argOf('section', 'StoryRules');
+	const tablesMode = process.argv.includes('--tables');
+	const section = argOf('section', tablesMode ? 'Game Tables' : 'StoryRules');
 	const key = argOf('key', 'rules');
-	const out = join(ROOT, argOf('out', `stories/${slug}/data/${key}.json`));
+	const out = join(ROOT, argOf('out', tablesMode ? `stories/${slug}/data/tables.json` : `stories/${slug}/data/${key}.json`));
 	const file = join(ROOT, `stories/${slug}/${sectionFile(section)}`);
-	const scripts = scriptBodies(readFileSync(file, 'utf8')).join('\n');
+	const engine = scriptBodies(readFileSync(join(ROOT, ENGINE_CONST), 'utf8')).join('\n');
+	const scripts = engine + '\n' + scriptBodies(readFileSync(file, 'utf8')).join('\n');
 	const { Sg, diag } = runStory(scripts);
+	if (tablesMode) {
+		// `--tables`：导出故事声明的 `Game` 面（**引擎常量 Era/Damage 不算故事数据** ⇒ 剔除）。
+		const { Game } = runStory(engineOf(slug));
+		const containers = {}; const fns = [];
+		const walk = (v, p, put) => {
+			if (typeof v === 'function') { fns.push(p); return; }
+			if (Array.isArray(v)) { put(v.map((x, i) => { let keep; walk(x, `${p}[${i}]`, (y) => { keep = y; }); return keep; })); return; }
+			if (v && typeof v === 'object') { const o = {}; for (const [k, x] of Object.entries(v)) walk(x, `${p}.${k}`, (y) => { o[k] = y; }); put(o); return; }
+			put(v);
+		};
+		for (const [k, v] of Object.entries(Game ?? {})) { if (['Era', 'Damage', 'Consequences'].includes(k)) continue; walk(v, `Game.${k}`, (y) => { containers[k] = y; }); }
+		if (fns.length) { console.error(`✗ 故事数据面里出现**函数值**（${fns.length} 处）：${fns.slice(0, 6).join(' · ')}——数据面必须是数据（函数属契约/政策，另走 kind）`); process.exit(1); }
+		const cons = Game?.Consequences?.engine ?? null;
+		const payload = { section, containers, ...(cons ? { merges: [{ target: 'Game.Consequences.engine', default: { provenance: {}, engine: {} }, value: cons }] } : {}) };
+		const text = JSON.stringify(payload, null, '\t') + '\n';
+		mkdirSync(dirname(out), { recursive: true });
+		writeFileSync(out, text, 'utf8');
+		const leaves = (v) => (v && typeof v === 'object' ? Object.values(v).reduce((n, x) => n + leaves(x), 0) : 1);
+		console.log(`✔ ${slug}：导出故事数据面 → ${out.replace(ROOT, '')}（顶层 ${Object.keys(containers).length} 键 · 叶子 ${leaves(containers)}${cons ? ' · 含 Consequences 合并' : ''}）`);
+		return;
+	}
 	const value = Sg?.story?.[key];
 	if (typeof value !== 'function') { console.error(`✗ ${file} 里没有 Sg.story.${key}（拿不到数据）`); process.exit(1); }
 	const data = value();

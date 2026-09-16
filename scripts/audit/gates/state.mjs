@@ -13,7 +13,7 @@
 //   `<<setflag "k">>` / `<<firstTime "k">>`（动态写入 `$pc.ev[k]` 并动态读回）· `$pc.ev["k"]`
 //   · 表内谓词 `(p) => p.world?.k`。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { qualifiedWriteKeys, keyCharsetViolations, readKeys, noteReadKeys, noteWriteKeys, ruleRowKeys, ruleRowSetKeys, stripJsComments, notePaths } from '../lib/shared.mjs';
+import { declWriteKeys, qualifiedWriteKeys, keyCharsetViolations, readKeys, noteReadKeys, noteWriteKeys, ruleRowKeys, ruleRowSetKeys, stripJsComments, notePaths } from '../lib/shared.mjs';
 
 export const flag = 'state';
 export const flags = ['state'];
@@ -93,12 +93,15 @@ export const charsetViolations = (sources) => {
 // 命名空间：`ev.`（事件/证据）与 `world.`（世界态）。**同一个键名在两个域里各有一份**——
 // 只按裸键名归并会漏掉「写 world.X / 读 ev.X」这类失效（#365：观星者写 world.seer_asked、
 // 跨时代门读 ev.seer_asked → 证据支路静默失效）。故写/读都记成 `域.键`。
-export const analyze = (sources, { notes, rules } = {}) => {
+export const analyze = (sources, { notes, rules, asks } = {}) => {
 	const keys = new Map();
 	const bump = (k, kind, site) => {
 		if (!keys.has(k)) keys.set(k, { w: new Set(), r: new Set(), dynamic: false });
 		keys.get(k)[kind].add(site);
 	};
+	// `#785`：**声明式写点**（效果从函数搬进声明后，这是唯一来源 ✓）—— 调用方**注入** `asks`／`rules` ✓，
+	// **不读环境** ✗（会污染自证夹具）；放在行循环**外**：它与行无关，逐行加会把站点点错 ✗。
+	for (const k of declWriteKeys([...(rules ?? []), ...(asks ?? [])], notes)) bump(k, 'w', '数据面（声明）');
 	for (const [f, raw] of Object.entries(sources)) {
 		const t = stripComments(raw);
 		let passage = '?';
@@ -272,7 +275,9 @@ export const run = (ctx) => {
 	for (const f of ctx.SRC_FILES) sources[f] = stripJsComments(readFileSync(f, 'utf8'));
 	const NOTES = ctx.Game.Notes?.entries;
 	const RULES = ctx.window?.Sg?.story?.rules?.() ?? [];
-	const keys = analyze(sources, { notes: NOTES });
+	// `#785`：把**声明面**也传进去（条件行 ＋ 诉求表 ⇒ 写点才看得见 ✓）——经接入契约取，不直读数据容器 ✓。
+	const ASKS = ctx.window?.Sg?.story?.socialAsks?.() ?? [];
+	const keys = analyze(sources, { notes: NOTES, rules: RULES, asks: ASKS });
 	// #435 阶段 4：**条件表行里的键也是读点** —— 手写 `<<if>>` 搬进表之后，源码里就没有这个读点了；
 	// 不补这一步，被引用的旗标会被判「只有写」⇒ 假红（阶段 4 版的"新形状"，排查清单第 1 条 🔴）。
 	// 表侧读写点**对称**注入（`#435`）：`req`/`any`/`exclude` ＝ 读，`sets` ＝ 写。

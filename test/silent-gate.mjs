@@ -1,4 +1,4 @@
-// L0.6 静默吞错门（对抗席评估 → #208A）：src/ 的 catch 必须带理由（中文注释），
+// L0.6 静默吞错门（`#208A`）：src/ 的 catch 必须带理由（中文注释），
 // 空 catch / 无说明吞错即红。合理降级在 catch 内写明原因即可（现有 7 处均合规）。
 // 豁免：行内或块内注释含汉字即视为已说明；确需无声吞错用 // silent-gate: ok <理由>。
 import { readFileSync, readdirSync } from 'node:fs';

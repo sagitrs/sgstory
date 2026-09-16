@@ -165,7 +165,7 @@ export const validateStoryMechanics = (m, ctx = {}) => {
 	}
 
 	// ⑥ 敌人属性面（`#705`）：**有战斗就必须有敌人属性**——没有属性（HP/AC/攻击/落点），
-	//    部位/耐久/异常三套机制永远没机会被触发（操作者原话：「无法测试到上述问题」）。
+	//    部位/耐久/异常三套机制永远没机会被触发（症状：「无法测试到上述问题」）。
 	const enemies = m.enemies ?? {};
 	if (Object.keys(enc).length && !Object.keys(enemies).length) {
 		push('enemies：声明了 `encounters`（有战斗）却没有 `enemies` —— 敌人必须有 HP／AC／攻击（#705）');

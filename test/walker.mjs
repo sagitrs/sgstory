@@ -1,4 +1,4 @@
-// L2 对抗席游走器（M1a-2 换骨后）：种子化随机游走 + 状态不变量 + 位点双支清扫
+// L2 游走器（M1a-2 换骨后）：种子化随机游走 + 状态不变量 + 位点双支清扫
 // 走法：开场 → 快速车卡 → 酒馆起随机游走；tower 模式注入时光护符后从塔门起走
 // 随机源：xorshift32 种子（可复现）；Math.random 档位 hi(0.99)/lo(0.01)/alt(交替)/neutral(0.5)
 // 不变量：hp/max_hp/gold/era/star.spent/keeper.state/dragon.hp/inv 闭集/$pc 形状

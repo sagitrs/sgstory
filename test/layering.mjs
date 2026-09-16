@@ -65,7 +65,7 @@ if (process.argv.includes('--selftest')) {
 		t('剥注释反例：注释外的真实引用仍要抓', checkLayerDirection({ E: 'const x = Game.NPC; // Game.NPC' }, { layers: L, symbols: SY }).length === 1);
 		t('归一化：方括号字符串 a["b"] → a.b', normalizeSymbolRefs('a["b"]') === 'a.b');
 		t('归一化：点号两侧空白/换行 a .\n b → a.b', normalizeSymbolRefs('a .\n b') === 'a.b');
-		t('层拒反例：逃逸写法 Game?.Dragon 必须被抓（第 2 步曾漏检，guest-1 实测）', checkLayerDirection({ E: 'window.Game?.Dragon?.hp' }, { layers: L, symbols: ['Game.Dragon'] }).length === 1);
+		t('层拒反例：逃逸写法 Game?.Dragon 必须被抓（第 2 步曾漏检，实测）', checkLayerDirection({ E: 'window.Game?.Dragon?.hp' }, { layers: L, symbols: ['Game.Dragon'] }).length === 1);
 		t('层拒反例：方括号写法 Game["Notes"] 必须被抓', checkLayerDirection({ E: 'Game["Notes"]' }, { layers: L, symbols: ['Game.Notes'] }).length === 1);
 		t('层拒反例（#459 别名）：`const T = window.Game` 后写 `T.Checks.sites` 也必须被抓', checkLayerDirection({ E: 'const T = window.Game; const x = T.Checks.sites;' }, { layers: L, symbols: ['Game.Checks.sites'] }).length === 1);
 		t('层间正例（#459 别名）：别名只用来读引擎机制 ⇒ 不报', checkLayerDirection({ E: 'const T = window.Game; T.Checks.resolve();' }, { layers: L, symbols: ['Game.Checks.sites'] }).length === 0);

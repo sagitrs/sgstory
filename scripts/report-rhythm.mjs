@@ -1,7 +1,7 @@
 // #295 探索票（报告型）：E4 节奏密度 ＋ C4 路线相异度
 //
 // 数据源：build/route-traces.json（`test/scenarios.mjs` 跑**全部路线**时顺带落盘的轨迹；条数随路线增减，别在注释里写死）。
-// 之所以不塞进 scripts/audit.mjs：那是 D 席在办的活跃文件（#247 的 D8/I1 批次），
+// 之所以不塞进 scripts/audit.mjs：那是（#247 的 D8/I1 批次）正在改的活跃文件，
 // 本脚本刻意独立成新文件，避免双写；也刻意只做「只读报告＋基线 ratchet」，
 // 不做 CI 硬红（探索票口径：先入基线，数字稳定后再谈阈值）。
 //
@@ -223,7 +223,7 @@ function selftest(data, baseline) {
 		const base = evaluate(data, null);
 		const full = Object.keys(data.routes).filter((k) => data.routes[k].ending);
 		// 自适应：吸收「刚好跌破下限」所需的最少单成员家族数——这样**任何合法新增路线**都不会让反例失效
-		// （guest-1 实测：新增一条路线把家族数抬到 19 后，原来固定吸 4 条＝降到 16＝正好等于下限，反例不再咬合）。
+		// （实测：新增一条路线把家族数抬到 19 后，原来固定吸 4 条＝降到 16＝正好等于下限，反例不再咬合）。
 		// 多吸 2 条：复制后若某条的 DF 集变空，它**不参与归并**（等于白吸一条）——CI 实测出现过一次。
 		const need = Math.max(1, base.c4.clusters - THRESHOLDS.clustersMin + 1) + 2;
 		const singles = base.c4.families.filter((f) => f.length === 1).map((f) => f[0]).slice(0, need);

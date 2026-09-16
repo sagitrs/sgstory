@@ -51,7 +51,7 @@ if (single) {
 	// `#733` 片 2-b：**单源不再依赖旗标**（写侧词汇搬到笔记面）⇒ 断言改成**形式无关**：只钉"读侧为真".
 	// （旗标写不写由实现决定：片 2-b 前写、之后不写 ⇒ 两种状态这条都成立。）
 	case_('  读侧为真（形式无关：单源写侧走笔记面）', Sg.notes.has(single) === true);
-	// `#733` 片 2-b 的**不变量**（验收席补）：单源 `add()` **不写旗标** —— 它的 `flagPath` 只是
+	// `#733` 片 2-b 的**不变量**（验收补充）：单源 `add()` **不写旗标** —— 它的 `flagPath` 只是
 	// "历史来源"，真存储是 `ev.notes.<id>`；多源才写 `setPath`（下面 ④ 另验）。没有这条，翻面就可能
 	// 被无声改回去（"旗标写侧"没有任何别的机械证据 ⇒ golden 只证"读者无差异"，不证"没写"）。
 	case_('  `#733` 片 2-b 不变量：单源 `add()` **不写旗标**（路径旗标仍为假）', Sg.notes.readPath(pc, e.flagPath) !== true);
@@ -223,7 +223,7 @@ if (multi) {
 	// `#437` 批三 C-2b（dev 半边）：**写点识别面**认"路径限定"的新形状（`<<notepath>>`／`Sg.notes.addPath`）。
 	// 为什么锚在这里：`NOTE_WRITE_RE`／`noteWriteKeys` 是写点的**单一权威** —— 多源笔记必须**只记声明的那一条**，
 	// 否则 `--state`／`--consequences`／`--echoes`／`--investment` 会把"静默多写"当成合法（那正是 `#434` 要求 fail-loud 的事）。
-	// 背景：`#676` 引入宏时只改了 W1 白名单，写点识别面没跟上（dev 复核实测 `noteWriteRefs('<<notepath …>>') === []`）。
+	// 背景：`#676` 引入宏时只改了 W1 白名单，写点识别面没跟上（复核实测 `noteWriteRefs('<<notepath …>>') === []`）。
 	const E2 = { n_hall_hint: { flagPath: ['world.hall_hint', 'ev.hall_seen'] } };   // 多源笔记的真实形状
 	case_('写点识别：`<<notepath "id" "path">>` 的 id **可见**（与 `<<note>>` 同权，不再是盲区）',
 		noteWriteRefs('<<notepath "n_hall_hint" "ev.hall_seen">>').join() === 'n_hall_hint');

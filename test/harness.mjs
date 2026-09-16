@@ -25,7 +25,7 @@ const CSS_ESC = (v) => String(v).replace(/["\\]/g, '\\$&');
 export function makeSession(w, { settle = async () => {}, sleep = defaultSleep, scope = 'current', wait = 140, tries = 20, waitRaf = false } = {}) {
 	// #484：**等产品自己的时钟**。产品在 `requestAnimationFrame` 回调里做 `hidden=false` ＋ `focus()`（`src/80-script.twee`），
 	// 而测试原先只等**定时器**（`sleep`）—— 高负载下 rAF 晚于定时器 ⇒ 断言读到 `hidden` ⇒ 那 5 条同型假红。
-	// guest-1 逐 tick 实测：**等 1 个 tick 就够**（产品的回调注册在 `:passageend` 内，早于测试的注册 ⇒ FIFO 它先跑），2 个 tick 同样 ✓。
+	// 逐 tick 实测：**等 1 个 tick 就够**（产品的回调注册在 `:passageend` 内，早于测试的注册 ⇒ FIFO 它先跑），2 个 tick 同样 ✓。
 	// 默认 **关**（不动既有脚本行为 ✗）；按需开启。
 	const rafTick = () => new Promise((r) => {
 		if (typeof w.requestAnimationFrame === 'function') w.requestAnimationFrame(() => r());
@@ -76,7 +76,7 @@ export function makeSession(w, { settle = async () => {}, sleep = defaultSleep, 
 			: [...(currentBox()?.querySelectorAll(`[data-choice="${CSS_ESC(key)}"]`) ?? [])];
 		return pool[0] ?? null;
 	};
-	// 三元组（guest-1 复核建议）：派生值 / 作者覆盖 / 兜底文案——便于统计「还有多少点击在靠文案定位」
+	// 三元组：派生值 / 作者覆盖 / 兜底文案——便于统计「还有多少点击在靠文案定位」
 	const keyOf = (el) => ({
 		choice: el?.dataset?.choice ?? null,
 		authored: el?.closest('[data-key]')?.dataset?.key ?? null,

@@ -59,7 +59,7 @@ const MECH = {
 const PC = { gear: ['布衣'], gearHp: {}, abilities: { con: 10 }, skills: [], flags: {}, statuses: { 衣服: { 流血: 2 } } };
 
 /** `#703`：**机制必须可被玩家看见**——S1 的耐久与 S2 的异常若没有任何渲染点，
- *  "机制存在"对玩家等于不存在（操作者反馈③："UI 上看不到装备状态和部位状态"）。
+ *  "机制存在"对玩家等于不存在（反馈③："UI 上看不到装备状态和部位状态"）。
  *  判据（源码级、可反例）：侧栏渲染面（`StoryCaption` 所在文件）必须调用引擎的只读快照入口
  *  `Game.Combat.gearDurability(` 与 `Game.Combat.statusEntries(`。 */
 export const visibilityProblems = (sidebarSrc) => {
@@ -214,7 +214,7 @@ export const run = (ctx) => {
 	}
 
 	// `#703`：**机制必须可被玩家看见**——侧栏（`StoryCaption`）必须渲染装备耐久与部位异常
-	//（两者此前全仓零渲染；操作者反馈③）。判据看的是**渲染面**，不是状态里有没有数据。
+	//（两者此前全仓零渲染；反馈③）。判据看的是**渲染面**，不是状态里有没有数据。
 	{
 		const sidebar = ctx.passageSrc?.get('StoryCaption') ?? '';
 		for (const p of visibilityProblems(sidebar)) { console.log(`  ✗ 机制可见性：${p.why}`); bad++; }

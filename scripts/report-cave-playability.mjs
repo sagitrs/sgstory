@@ -34,8 +34,8 @@ const mulberry32 = (a) => () => {
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const clean = (s) => String(s ?? '').replace(/\s+/g, ' ').trim();
 
-/** 抽 **DOM 错误**（SugarCube 把宏错误渲染成红框，**不进 `uncaught`** —— guest 在 `#710` 实测到：
- *  只数 `uncaught` 会漏报整条红框）。纯函数（吃元素文本数组）⇒ 可自证。 */
+/** 抽 **DOM 错误**（SugarCube 把宏错误渲染成红框，**不进 `uncaught`**；只数 `uncaught` 会漏报整条红框
+ *  —— `#710` 实测）。纯函数（吃元素文本数组）⇒ 可自证。 */
 export const collectDomErrors = (texts = []) => {
 	const out = [];
 	for (const t of texts) {

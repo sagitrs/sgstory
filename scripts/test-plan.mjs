@@ -113,7 +113,7 @@ export const SEGMENTS = [
 	// 报告落 `build/`（gitignored）⇒ CI 不脏树；本地想看文档版就按 README 直接跑脚本（默认写 docs/）。
 	{ id: 'scripts-ui-migration-diff-selftest', phase: 'test', cost: 0, cmd: 'node scripts/ui-migration-diff.mjs --selftest' },
 	{ id: 'scripts-ui-migration-diff-check', phase: 'test', cost: 0.4, cmd: 'node scripts/ui-migration-diff.mjs --check --baseline=origin/main --out=build/ui-migration-diff.md' },
-	// main 侧新增（#360 交涉筹码按类型分派，guest-1）：reb 冲突时按「计划＝单一权威」加在这里
+	// main 侧新增（#360 交涉筹码按类型分派）：reb 冲突时按「计划＝单一权威」加在这里
 	{ id: "test-social-lever-mjs", phase: 'test', cost: 0, cmd: "node test/social-lever.mjs" },
 	{ id: "test-coverage-mjs", phase: 'test', cost: 0, needs: ['test-render-all-mjs', 'test-scenarios-mjs'], cmd: "node test/coverage.mjs" },
 	{ id: "test-size-gate-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/size-gate.mjs --selftest" },
@@ -142,7 +142,7 @@ export const SEGMENTS = [
 	{ id: "scripts-audit-mjs-story2-engine", phase: 'test', cost: 0.2, cmd: "node scripts/audit.mjs --check --story minimal-demo --engine-only" },
 	// #490（S5 片二）：**第三个故事**的**洞窟声明面门**（表↔内容双向对账；故事门，故显式指定 --story）
 	{ id: "scripts-audit-mjs-cave-hollow", phase: 'test', cost: 0.1, cmd: "node scripts/audit.mjs --cave --check --story hollow-cave" },
-	// `#598`（操作者实测的缺陷）：**长战斗「点得动、走得掉」**真机回归 —— 静态门看不见这类运行期死路
+	// `#598`（实测缺陷）：**长战斗「点得动、走得掉」**真机回归 —— 静态门看不见这类运行期死路
 	// （`waveRecord` 返回对象被当字符串比 ⇒ 两条出口不可达；`<<include>>` 不导航 ⇒ 点了没反应）。
 	{ id: "test-cave-longfight-mjs", phase: 'test', cost: 1, cmd: "node test/cave-longfight.mjs" },
 	// `#600`：**战斗钥匙掉落**（长战斗必掉 · 短战斗 30%）—— 声明面驱动 ＋ 真机 ＋ 多种子频率（3σ）。
@@ -165,9 +165,9 @@ export const SEGMENTS = [
 	// #705 片二／#702 a2：**敌人实例 · 5e 核心门**（实例化 · 攻击骰 vs AC · 伤害落部位 · 全灭通关）
 	{ id: "test-foe-5e-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/foe-5e.mjs --selftest" },
 	{ id: "test-foe-5e-mjs", phase: 'test', cost: 8, cmd: "node test/foe-5e.mjs" },
-	// 洞窟「商人」门（`#696` 操作者裁定：金币要有出口 ⇒ 旅人里随机出现商人；报价读声明面 · 买不起不显示 · 火把油）
+	// 洞窟「商人」门（`#696`：金币要有出口 ⇒ 旅人里随机出现商人；报价读声明面 · 买不起不显示 · 火把油）
 	{ id: "test-cave-merchant-mjs", phase: 'test', cost: 1, cmd: "node test/cave-merchant.mjs" },
-	// 洞窟五步主线**末步**门（操作者实测）：走满 5 步再回岔口时**不许**抛 `roadOffer(6)` 红框 ⇒ 越界走退路
+	// 洞窟五步主线**末步**门（实测）：走满 5 步再回岔口时**不许**抛 `roadOffer(6)` 红框 ⇒ 越界走退路
 	{ id: "test-cave-roads-mjs", phase: 'test', cost: 1, cmd: "node test/cave-roads.mjs" },
 	// `#660` 片三-3：**pc 默认形状住引擎、数值走故事**（`Game.Pc.defaults()` 摘掉 `Sg.story.pcDefaults()` 后每个值都必须中性；
 	// 缺面 ⇒ 显式降级 · 畸形面 ⇒ fail-loud · `migrate()` 兜底带故事数值 · 三故事键集合一致）

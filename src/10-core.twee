@@ -22,7 +22,7 @@ Object.assign(((window.Game.Consequences ??= { provenance: {}, engine: {} }).eng
 	// （无名洞窟）会在**叙事段落**读它（`<<if $pc.ev.fight.wave>>`）⇒ D2 会算成 `mechanic` 桶，
 	// 此时再声明为 `engine` 就是“错标”；没有战斗内容的故事（minimal-demo）才是引擎面 ⇒ 由**它自己**登记。
 });
-// ── 加载期常量：**已搬到 `src/engine/10-const.twee`**（`#660` 片二，dev 裁定 Q1）──
+// ── 加载期常量：**已搬到 `src/engine/10-const.twee`**（`#660` 片二 Q1）──
 // `Game.Era`（时代枚举）与 `Game.Damage`（伤害档梯）是**引擎政策**、不是故事数据。
 // 本文件**不再定义**它们（谁是源必须唯一）——只依赖 ORDER 保证那一份先加载（`scripts/module-order.mjs`，
 // 本文件排在 `10-const` **之后**），历史原因与口径写在那一页的头注里。

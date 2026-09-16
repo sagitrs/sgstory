@@ -96,7 +96,7 @@ if (wantAll || arg('text')) {
 	// 词频报告（主题词健康度）
 	// #435 前置 0：【故事文本源】单一权威 —— 内容段落 ∪ 归属到它的表行 `text`。
 	// 为什么必须收进来：表里的 `text` 也是玩家读到的正文；不收 ⇒ 阶段 4 之后「总字」**系统性偏低**
-	//（guest 实测 25998→25967 而 `--zero` 退 0：可见文本没变，只是搬进了表）
+	//（实测 25998→25967 而 `--zero` 退 0：可见文本没变，只是搬进了表）
 	const st = storyText({ passageSrc, passageTags, rows: ctx.window?.Sg?.story?.rules?.() ?? [] });
 	let narrative = '';
 	narrative = buildNarrative(st.text, isInfra);   // #527：跳过 infra 段 ＋ 剥 JS 注释（两件都要）

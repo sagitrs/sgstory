@@ -26,7 +26,7 @@ const MILESTONE_PASSAGES = {     // 首个不可逆点（E4）：花田＝致死
 	龙战: ['龙·战', '封印·并肩'],
 };
 // 段落里的可见文本（去掉标签与多余空白）——n-gram 只吃正文，不吃 markup
-// #451（guest-1 定位）：**只读与 `State.passage` 对齐的那一段**。
+// #451：**只读与 `State.passage` 对齐的那一段**。
 // 原先读**整个 `#passages`** ⇒ SugarCube 过渡期旧段落元素还在容器里 ⇒ 那一瞬容器文本含**新旧两段**
 // ⇒「不许提前泄底」这类断言会命中**上一段**的文字而假红（本机窗口 ≈2–3ms；CI 2 核＋并发下变宽 ⇒ 偶发）。
 // 口径与 `pool()`（:57）和 `boot.mjs` 的 `settle()` 一致 ⇒ **语义不变、脆性消失**；
@@ -183,7 +183,7 @@ async function newGame(randomStub, preset = 0) {
 		await sleep(120);
 		mark();
 		if (uncaught.length > before) throw new Error(`点击「${what}」后脚本异常：${uncaught[before].slice(0, 160)}`);
-		// `#647`／操作者实测（2026-09-15，故事 2 的同类缺陷）：**SugarCube 的宏错误不是 JS 未捕获** ——
+		// `#647`／实测（2026-09-15，故事 2 的同类缺陷）：**SugarCube 的宏错误不是 JS 未捕获** ——
 		// 它渲染成 DOM 里的 `.error` 元素 ⇒ 只数 `uncaught` 会**漏报**（故事 2 那条 `roadOffer(6)` 红框就是这么漏掉的）。
 		// 故事 1 此前也只看 `uncaught` ⇒ 同一个盲区。这里补上：每次点击后扫 DOM 红框，命中即当路线失败（带原文）。
 		{

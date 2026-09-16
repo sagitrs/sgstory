@@ -42,7 +42,7 @@ import { storyText } from './audit/lib/shared.mjs';
 
 /** 纯函数：命令行判据（`#619`）。**静默接受但忽略参数**是本仓"假绿"家族的常客 ⇒ 这里把三条都钉住：
  *  未知参数报错 · `--story` 必须存在 · 非默认故事必须显式给 `--out=`。 */
-/** **覆盖自报**（`#619` 片二，dev 裁定）：本门只对**默认故事**做判定；其他故事「只登记、不判定」。
+/** **覆盖自报**（`#619` 片二）：本门只对**默认故事**做判定；其他故事「只登记、不判定」。
  *  为什么必须打印而不是只写手册：读者得能从**输出**看出这份绿是哪一份绿（避免"以为三故事都判过"）。 */
 export const coverageLine = ({ known = [], baselineSlug = DEFAULT_SLUG } = {}) => {
 	const others = known.filter((s) => s !== baselineSlug);

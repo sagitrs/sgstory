@@ -25,7 +25,7 @@ const FLAGS = [
 	'status',  // #487（S2）：部位×异常机制门（引擎门）
 	'waves',   // #488（S3）：波次与重置门（引擎门）
 	'roads',   // #489（S4）：事件池与三选一门（引擎门）
-	// #436 收编：新增门必须进 golden 保护（否则 unprotected-flag 会报 —— guest-1 的 --notes 就是这样被发现的）
+	// #436 收编：新增门必须进 golden 保护（否则 unprotected-flag 会报 ——`--notes` 就是这样被发现的）
 	'rules',
 	'reads',   // #435 阶段 4：「无字面状态读」门（故事门：输入＝条件表＋故事面源码）
 	'cave',    // #490（S5 片二）：洞窟声明面门（表↔内容双向对账；故事 1 未启用 ⇒ 报告一行）
@@ -109,7 +109,7 @@ export const diffSnapshot = (baseline, current) => {
 	return problems;
 };
 
-// ── 通用断言（#331 假绿家族的机械防线；guest-1 建议的一般化）──────────────
+// ── 通用断言（#331 假绿家族的机械防线）──────────────
 //  FOOTER：脚本收尾行——任何**只有收尾行**的单跑输出都等于「这个开关没真执行」（--sel 曾是此形）。
 export const FOOTER = '（数据源：src/15-tables.twee';
 export const contentLines = (text) => text.split('\n').filter((l) => l.trim() && !l.includes(FOOTER));
@@ -178,7 +178,7 @@ if (argv.includes('--selftest')) { selftest(); process.exit(0); }
 
 if (argv.includes('--update')) {
 	// #534：**写入前先断言 dist 新鲜** —— 否则 dist 过期时 `--a11y` 的 `dist-fresh` 报错文本会被
-	// 当成"新基线"烘进去（实测踩过两次：`#532` 期间我与 guest-1 各一次）。
+	// 当成"新基线"烘进去（实测踩过两次）。
 	// 这一条把「重签」从"能把错误固化下来的入口"改成"要么新鲜、要么当场拒绝"。
 	assertFreshDist({ who: 'audit-golden --update' });
 	const { ownerMap } = await ownersAndFullRuns();

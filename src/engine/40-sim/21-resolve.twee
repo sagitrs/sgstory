@@ -321,6 +321,17 @@ Object.assign((window.Game.Combat ??= {}), {
 	//   · 判据 1）三选一与战斗池走**同一个** `pickN`；2）同段三路线索两两不等价（口径在 lib：`story-shape.mjs`）；
 	//     3）“无判定选项”与“不死档”是**声明属性**（也由 lib 单权威判定，本块只消费）。
 	roadsDecl() { return this.slotsDecl()?.roads ?? null; },
+	/**
+	 * **事件实例清单**（`#778` 下沉）：把声明的 `roads[].options` 折叠成实例数组 —— 纯派生，无玩法语义。
+	 * 形状：`[{ id, kind, hint, ref }]`（`id` ＝ `String(ref)`，与下沉前故事的 `eventPool` 逐字段相同 ⇒ 可字节比对）。
+	 * 为什么不返回 `kinds`／分组：六类词表是**故事词汇**（由故事的门自己持有），引擎只负责"从声明折叠出实例"。
+	 * 为什么不传 `step`：调用方自己有段号，引擎不替它记状态（保持纯函数 ⇒ 可重复调用、可对比）。
+	 */
+	roadInstances() {
+		const roads = this.roadsDecl();
+		if (!roads) return null;                                  // 未启用 ⇒ 调用方不调（与 `roadOffer` 同口径）
+		return roads.flatMap((r) => (r.options ?? []).map((o) => ({ id: `${o.ref}`, kind: o.kind, hint: o.hint, ref: o.ref })));
+	},
 	/** 一段路的「三选一」：从该段 options 里随机取 3 个（`exclude` ＝ 本段已经出现过的类型不重复）。 */
 	roadOffer(idx, exclude = []) {
 		const roads = this.roadsDecl();

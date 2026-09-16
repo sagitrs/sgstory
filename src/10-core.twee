@@ -515,10 +515,25 @@ Macro.add('dragonbar', {
 	<<set _fo to Game.Combat.resolveFoe($pc, $args[0], $args[1], _p.log)>>
 	<<if _fo.check>><<checkres `_fo.check`>><</if>>
 	<<if _fo.hurt>><<damage _fo.hurt>><</if>>
+	/% `#701`（症状：战斗屏只有**最后一手**，翻页/重渲染后旧的就没了）：**点击时**（sim 路径，允许写状态）
+	   把这一手落进 `$pc.ev.fight.history`（有界环形缓冲，上限住引擎 `Game.Combat.HISTORY_MAX`）⇒ 渲染面只读回放。
+	   **不改掷骰序**：只是把已经算完的 `log` 攒起来（`test/fight-seq.mjs` 仍逐字节不变 ⇒ 可机检）。
+	   ⚠ 逻辑住引擎（`Game.Combat.pushLog`）：SugarCube 的 `<<set>>` 吃不下"数组字面量＋方法链"，
+	   而且那种失败只在真机初始化时现形（本节踩过一次）。 %/
+	<<run Game.Combat.pushLog($pc)>>
 <</nobr>><</widget>>
 
 /% 渲染期只读回放上一手（#315 契约：渲染路径不得改状态；#350：S/L 后必须复现同一手） %/
 <<widget "fightlog">><<nobr>>
+	/% `#701`：先回放**战斗日志**（最近 N 手；上限住 `Game.Combat.HISTORY_MAX`），再面上一手。
+	   历史块**独立于** `_L`（重渲染/读档后没有 `_L` 也能回看）；没打过仗（无 `history`）⇒ 整块不出现。 %/
+	<<if $pc.ev.fight.history and $pc.ev.fight.history.length>>
+		<div class="fight-history">''第 <<print $pc.ev.fight.moves>> 回合''（你 → 它）
+			<<for _h range $pc.ev.fight.history>>
+				<div>第 <<print _h.n>> 手：<<print _h.you>><<if _h.foes and _h.foes.length>> ／ <<print _h.foes.join(" ／ ")>><</if>></div>
+			<</for>>
+		</div>
+	<</if>>
 	<<set _L to $pc.ev.fight.log>>
 	<<if _L>>
 		<div class="fight-log">

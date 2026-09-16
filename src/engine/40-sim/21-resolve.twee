@@ -422,7 +422,23 @@ Object.assign((window.Game.Combat ??= {}), {
 	// 顺序（已定 ⑤）：**回合开始 → 异常结算 → 玩家行动 → 敌人行动 → 回合推进**
 	//   ⇒ `fightact` 在 `resolvePlayer` **之前**调一次 `tickStatuses`；本块**只算**，落 HP 仍由 present 的 `<<damage>>`。
 	// `mechanics()` 为 `null` ⇒ 本块一律不被调用（`#492` 显式降级）。
-	statusLowRoll: 5,      // 低骰分档阈值（设计稿 §2.3／§8 D4）：d20 原值 ≤ 5 ⇒ `low` 档，其余 ⇒ `most`
+	statusLowRoll: 5,      // 低骰分档阈值（设计稿 §2.3／§8 D4）
+	/** `#701`：战斗日志的**上限**（环形缓冲）。两条故事路径（故事 1 的 `fightact`／5e 的 `foeRound`）
+	 *  都按它截断 ⇒ "只留最近 N 手"是**声明出来的常数**，不靠各自记得；渲染面只读它（`#315`）。 */
+	/** `#701`：把**已经算完**的 `pc.ev.fight.log` 落一手进 `history`（有界环形缓冲）。
+	 *  为什么住引擎：① 两条故事路径（故事 1 的 `fightact`／5e 的 `foeRound`）共用同一份口径；
+	 *  ② SugarCube 的 `<<set>>` 吃不下"数组字面量＋方法链"（只在真机现形）⇒ 搬进 JS 后可被 node 门直测。
+	 *  **只在点击时（sim）调用** ⇒ 渲染面只读 `history`（`#315`）。 */
+	pushLog(pc) {
+		const L = pc?.ev?.fight?.log;
+		if (!L) return null;
+		pc.ev.fight.moves = (pc.ev.fight.moves ?? 0) + 1;
+		const you = `${L.you?.label ?? ''} ${L.you?.text ?? ''}`.trim();
+		const entry = { n: pc.ev.fight.moves, you, foes: L.foe ? [L.foe.text] : [] };
+		pc.ev.fight.history = [...(pc.ev.fight.history ?? []), entry].slice(-this.HISTORY_MAX);
+		return entry;
+	},
+	HISTORY_MAX: 6,：d20 原值 ≤ 5 ⇒ `low` 档，其余 ⇒ `most`
 	statusParts(mech, id) {
 		const st = mech?.statuses?.[id];
 		if (!st) return [];
@@ -725,6 +741,11 @@ Object.assign((window.Game.Combat ??= {}), {
 				+ `，落 HP ${h.absorb.toHp}`);
 		}
 		if (!pc.ev.fight.wave.foes.length) log.push('—— 这一批清干净了。');
+		// `#701`（症状：战斗屏只有**最后一手**，翻页/重渲染后旧的就没了 ⇒ "第几回合、刚才发生了什么"全不可见）：
+		// 落一手进 `pc.ev.fight.history`（**有界环形缓冲** ⇒ 上限固定可机检；渲染面只读它 ⇒ `#315` 契约）。
+		pc.ev.fight.moves = (pc.ev.fight.moves ?? 0) + 1;
+		const hist = [...(pc.ev.fight.history ?? []), { n: pc.ev.fight.moves, you: log[0], foes: log.slice(1, -1) }];
+		pc.ev.fight.history = hist.slice(-this.HISTORY_MAX);
 		return { log: log.join('｜'), strike, hurt };
 	},
 	/** 敌人 ➜ 玩家（5e）：`d20 + attack.bonus`（＋可选优势）vs **`pc.ac`**（`pcAC()`；未启用 ⇒ 报错）；

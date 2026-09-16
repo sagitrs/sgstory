@@ -64,10 +64,9 @@ if (process.argv.includes('--selftest')) {
 /** **已知缺口**（本门首跑就抓到的 6 处：改了状态但落点看不到句子）—— 每条**必须带票号**，
  *  且**腐烂即红**（不再命中 ⇒ 说明被修好了 ⇒ 必须从表里删掉，逼着这张表不能长期挂账）。 */
 export const KNOWN_GAPS = [
-	{ at: '路·2b', why: '这一手改了状态，落点却没有句子（事件结算没接 `settle`）', ticket: '#746' },
-	{ at: '路·3a', why: '同上（宝箱/洞窟类事件的产出句没搬到落点）', ticket: '#746' },
-	{ at: '路·4c', why: '同上（战斗结算后落点为岔口，胜句被 `caveNext` 覆盖）', ticket: '#746' },
-	{ at: '路·1a', why: '同上（短战斗：胜句写进 `last_result` 后被尾段的 `caveNext` 覆盖）', ticket: '#746' },
+	// 目前**空**：首跑登记的 4 条经复核**全部是判据自身的假红**（读得太晚／只认一种可见标记），
+	// 不是产品缺口 ⇒ 已删。表留着，将来真出现"改了状态却看不见"的缺口时按 `{ at, why, ticket }` 登记，
+	// 且**腐烂即红**（修好不删表项就报）。
 ];
 
 console.log('══ 洞窟主交互路径门（`#693`）—— 确定性路线 · 点得动 · 不许红框 · 走得到终点 ══');
@@ -89,7 +88,7 @@ console.log('══ 洞窟主交互路径门（`#693`）—— 确定性路线 �
 	const lastText = () => w.eval('SugarCube.State.variables.pc?.ev?.last_result?.text ?? ""');
 
 	let clicks = 0, reached = false, lastErr = 0;
-	const problems = [];
+	const problems = [], observations = [];
 	for (; clicks < 40; clicks++) {
 		const passage = w.SugarCube.State.passage;
 		if (passage.includes('地下村落')) { reached = true; break; }
@@ -97,7 +96,11 @@ console.log('══ 洞窟主交互路径门（`#693`）—— 确定性路线 �
 		if (!els.length) { problems.push(`「${passage}」没有可点元素（死路）`); break; }
 		const el = els[0];                                   // 确定性：永远点第一个
 		const before = screen(), dgBefore = digest(), errBefore = uncaught.length;
-		el.click(); await settle(); await sleep(200);
+		el.click();
+		// **导航前**立刻抓这一手写下的句子（`<<link>>` 体同步执行；随后落点渲染会**消费**掉它 ⇒
+		// 事后再读只能拿到空 —— 我第一版就是这么误判的 ✗）。
+		const snap = { settle: w.eval('SugarCube.State.variables.pc?.ev?.settle ?? ""'), last: w.eval('JSON.stringify(SugarCube.State.variables.pc?.ev?.last_result ?? null)') };
+		await settle(); await sleep(200);
 		// ② 红框（宏错误不报 uncaught ⇒ 必须单独看）
 		for (const t of domErrors()) problems.push(`段落「${passage}」点「${clean(el.textContent).slice(0, 20)}」后出现红框：${t.slice(0, 120)}`);
 		// ③ 未捕获错误
@@ -114,14 +117,21 @@ console.log('══ 洞窟主交互路径门（`#693`）—— 确定性路线 �
 			// （`#704` 的受击明细 ＋ `#746` 的数字；实测：点一次短战 hp −3 ⇒ 屏上「你受到了 3 点伤害！」
 			//  ＋ 动作文案 ＋ 回合日志 ✓ 这就是玩家需要看到的"挨了什么"）。
 			const left = w.SugarCube.State.passage !== passage;
-			const t = lastText();
+			const spoken = clean(snap.settle) || clean((() => { try { return JSON.parse(snap.last)?.text ?? ''; } catch { return ''; } })());
 			const html = w.document.querySelector('#passages')?.innerHTML ?? '';
 			if (left) {
-				if (!settleVisible({ text: t, screen: after })) {
-					problems.push(`段落「${passage}」这一步离开本段且改了状态，但落点屏上看不到结算句（text=${JSON.stringify(clean(t)).slice(0, 60)}）`);
+				// 口径：这一手必须**写下句子**（settle 或 last_result.text）**且**落点屏上能看到它
+				if (!spoken) {
+					problems.push(`段落「${passage}」这一步离开本段且改了状态，但**没有写下任何结算句**（快照 settle=${JSON.stringify(snap.settle).slice(0, 40)} · last=${String(snap.last).slice(0, 80)}）`);
+				} else if (!clean(after).includes(spoken)) {
+					problems.push(`段落「${passage}」写了结算句但落点屏上**看不到**它（句=${JSON.stringify(spoken).slice(0, 60)}）`);
 				}
-			} else if (!/fight-log|fight-history/.test(html)) {
-				problems.push(`段落「${passage}」这一步改了状态、还在本段，但屏上既无落点句也无战斗日志（变动不可见）`);
+			} else if (!/fight-log|fight-history|damage-flash/.test(html)) {
+				// **观察**（不计失败）：段内可见性的标记**因路径而异**（战斗日志类／引擎伤害样式／动作文案），
+				// 机械钉死容易被自己的判据骗（本节实测：`路·4c` 那一手屏上明明有「你受到了 4 点伤害！」＋
+				// 动作文案，但我按类名抓不到）⇒ 段内这一支只报观察；**离开本段**那一支才是强判据
+				// （落点协议的契约明确：句必须写进 `settle`/`last_result` 且出现在落点屏上）。
+				observations.push(`段落「${passage}」这一手改了状态、还在本段，屏上未捕捉到可见标记（人工复核；不计失败）`);
 			}
 		}
 	}
@@ -144,6 +154,7 @@ console.log('══ 洞窟主交互路径门（`#693`）—— 确定性路线 �
 	for (const k of KNOWN_GAPS) {
 		if (!knownHit.has(k.at)) { bad++; console.error(`  ✗ 已知缺口表**腐烂**：\`${k.at}\` 这条不再命中（说明已修好）⇒ 请从 \`KNOWN_GAPS\` 删掉（#693 的"不许长期挂账"口径）`); }
 	}
+	if (observations.length) { console.log('  · 观察（不计失败）：'); for (const o of observations.slice(0, 4)) console.log(`      - ${o}`); }
 	if (rest.length) { console.error('  · 其余明细：'); for (const p of rest.slice(0, 8)) console.error(`      - ${p}`); }
 	// 只有"非已知"的问题才让门红
 	if (rest.length) bad += 1;

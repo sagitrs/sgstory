@@ -37,6 +37,11 @@ stories/<slug>/
   data/
     tables.json        ← 声明面：Checks.sites / Economy / Combat.pools+actions / Gear / Items / Social / Truth / Echoes / State.domains / Notes.entries …
     rules.json         ← **条件表行**（＝现在 `17-rules.twee` 的内容；车道 B 已抽出 61 行，与手写版 L1 深度相等）
+                          **字段 ↔ 手写列一一对应**（`equiv --rules` 打印**字段直方图**并断言两版相同）：
+                          `id` 行 id · `scope` 作用域（`段落`／`段落#位点`，是**结构**）· `req` 全部满足 · `any` 至少一个 ·
+                          `exclude` 都不满足 · `prereq` 前置行 id（本故事 0 行用）· `prio` 显式优先级 · `text` 选中时渲染的正文 ·
+                          `yields` 授予笔记 id · `sets` 置真状态键。**当前基线**：`any 2 · exclude 33 · id 61 · prio 61 ·
+                          req 32 · scope 61 · sets 1 · text 61 · yields 1`（61 行 / 9 列）
     events.json        ← 编辑器侧的**统一事件模型**（本稿 §2.2）：其"条件表行"子集编译成 `17-rules.twee`，
                           "`roads` 类事件"子集编译成 `15-tables.twee` 的 roads 行（车道 A 落地）
     contract.json      ← 接入契约的注册（`Sg.story.*` 的 18 个口子；空表/null 是合法数据集）

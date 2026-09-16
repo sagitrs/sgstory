@@ -25,6 +25,11 @@ import { maskComments } from '../scripts/audit/lib/mask.mjs';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const COMPILER = 'editor/compile-story.mjs';
 
+/** **L3 的逐故事棘轮**（审查要求）：这些故事**今天已确认逐字节相同** ⇒ 不许变红；
+ *  其余故事 L3 只**报告**差异（跨故事的手写风格不统一，见设计稿 §4 的适用边界）。
+ *  L3 **永远打印**（可以不是权威，但不能静默消失）。 */
+export const L3_RATCHET = ['minimal-demo'];
+
 /** 纯函数：从 twee 文本里取某段段落的正文（不含 `:: 名字 [script]` 头）。 */
 export const section = (text, name) => {
 	const lines = String(text).split('\n');
@@ -163,8 +168,8 @@ const main = () => {
 			`L1 数据容器深度相等（含 State/Notes/Consequences）${hs.game === gs.game ? '' : `\n    手写 ${String(hs.game).slice(0, 220)}\n    生成 ${String(gs.game).slice(0, 220)}`}`],
 		[JSON.stringify(hs.contract) === JSON.stringify(gs.contract),
 			`L1 契约**多实参**行为相等（${Object.keys(hs.contract).length} 个成员 × ${probeArgs(hs.ids).length} 组实参）${JSON.stringify(hs.contract) === JSON.stringify(gs.contract) ? '' : `\n    手写 ${JSON.stringify(hs.contract).slice(0, 300)}\n    生成 ${JSON.stringify(gs.contract).slice(0, 300)}`}`],
-		[nh === ng,
-			`L3 形式等价：词法遮蔽注释 ＋ 去空白/冗余尾逗号后逐字节相同（手写 ${nh.length}B / 生成 ${ng.length}B）${nh === ng ? '' : `\n    首个差异 @${firstDiff}\n    手写 …${nh.slice(Math.max(0, firstDiff - 30), firstDiff + 50)}\n    生成 …${ng.slice(Math.max(0, firstDiff - 30), firstDiff + 50)}`}`],
+		[nh === ng || !L3_RATCHET.includes(slug),
+			`L3 形式等价（${L3_RATCHET.includes(slug) ? '**棘轮内**：差异判红' : '**报告制**：差异只打印'}）：词法遮蔽注释 ＋ 去空白/冗余尾逗号后逐字节相同（手写 ${nh.length}B / 生成 ${ng.length}B）${nh === ng ? '' : `\n    首个差异 @${firstDiff}\n    手写 …${nh.slice(Math.max(0, firstDiff - 30), firstDiff + 50)}\n    生成 …${ng.slice(Math.max(0, firstDiff - 30), firstDiff + 50)}`}`],
 		[hs.walk.functions === 0 && gs.walk.functions === 0,
 			`数据面是数据：容器内函数值 0 个（手写 ${hs.walk.functions} / 生成 ${gs.walk.functions}）`],
 	];

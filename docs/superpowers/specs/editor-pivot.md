@@ -66,6 +66,13 @@ stories/<slug>/
 }
 ```
 
+**契约成员的 `kind` 封闭集合（v1 ＝ v0 ＋ 车道 A 实测缺口 4 个）**：`empty-object` · `empty-array` · `null` · `const` · `game-ref` ·
+`identity-string` ＋ **`lookup`**（`{from,key,default,optional?,required?,error?}`：查表；`required` 表达契约的 fail-loud）·
+**`lookup-field`**（取字段 ＋ 兜底表达式）· **`bool-exists`**（`!!window.X`）· **`state-ref`**（`pc?.<path> ?? default`）。
+`from` 允许直接写全局根（`window.`／`Sg.`）——手写版两种写法都有，schema 要能表达"哪个根"。
+**逃生舱 `kind:'js'` 的实测清单为空**：洞窟 15 个契约成员全部可用上表表达；故事 1 只有 3 项真逻辑（`combatPrepick`／`checkKnowledge`／`battleDamage`），
+且前两项建议"下沉引擎变规则表数据"（详见 `#762` 的《必须逃生舱的成员清单 · 草案 v0》）。
+
 **与现有两种形状的映射**（适配器就是把统一模型降级成它们）：
 
 | 现有形状 | 由什么生成 |
@@ -105,7 +112,18 @@ stories/<slug>/
 |---|---|---|
 | **L1 结构等价** | 两版各自在 vm 里求值后：数据容器**深度相等**；契约成员**逐个 × 多组实参**（实参表由故事声明的 id 驱动 ＋ 未知 id ⇒ 顺带验 fail-loud）调用结果相等 | `editor/equiv.mjs` |
 | **L2 门等价** | `npm test` 全绿 ＋ **`audit:golden` 零漂移** | 现成 |
-| **L3 产物等价** | 生成的 twee 段与手写段在**词法遮蔽注释**（`scripts/audit/lib/mask.mjs`，不动字符串内容）＋去空白/冗余尾逗号后逐字节相同 | `editor/equiv.mjs`（P0 已落地；尾逗号是**格式**不是语义，不写进 schema） |
+| **L3 形式等价**（**报告制**，见下） | 生成的 twee 段与手写段在**词法遮蔽注释**（`scripts/audit/lib/mask.mjs`，不动字符串内容）＋去空白/冗余尾逗号后逐字节相同 | `editor/equiv.mjs` |
+
+> **L3 的适用边界（车道 A 实测口径修正）**：**不能**把「逐字节」当**跨故事**的权威判据 —— 三份手写文件的风格并不统一
+> （`window.Game?.Checks?.sites?.[name]` vs `window.Game.Checks.sites[name]`、模板串 vs 拼接、抛错形状各异）。
+> 这条很重要：把 L3 当权威会逼着 schema 去复刻**每份手写文件的排版与写法**（＝把历史包袱搬进数据模型），与 D2 相反。
+>
+> **⇒ 迁移某故事时，权威判据是下面这一组（缺一不可）**：
+> 1. **L1 结构/行为**（本文件 §2）；2. **L2 门**：`npm test` 全绿 ＋ **`audit:golden` 零漂移**；
+> 3. **`ui-migration-diff` 零正文漂移** —— **这才是"玩家看到的字"那条线**，而且它覆盖**散文段**（L3 只比 `[script]` 段）；
+> 4. **`fight-seq` 逐字节**（掷骰序不变）；5. **该故事自己的门**（`stories/<slug>/gates/**`）。
+> **L3 降为报告制，但保留"逐故事棘轮"**：已确认逐字节相同的故事（今：`minimal-demo`）**不许变红**，且 L3 **永远打印**
+> ——可以不是权威，但不能静默消失。
 
 **为什么不是"dist 逐字节"**：手写版有大量解释性注释，数据化后注释归文档；L3 剥注释（并归一冗余尾逗号这类纯格式）后相同已足够强，且 L1/L2 兜住语义。
 

@@ -137,6 +137,7 @@ export const SEGMENTS = [
 	// —— L3 让掉的**只有"排版"这一层**（模板串 vs 单引号串）。
 	{ id: "editor-extract-selftest", phase: 'test', cost: 0, cmd: "node editor/extract-story.mjs --selftest" },
 	{ id: "editor-equiv-mist-forest-rules", phase: 'test', cost: 0.3, cmd: "node editor/equiv.mjs mist-forest --rules --l3=report" },
+	{ id: "editor-classify-contract-selftest", phase: 'test', cost: 0, cmd: "node editor/classify-contract.mjs --selftest" },
 	// #752：**去权威化口径门** —— 注释／文档不许拿「谁定的」充当理由（#748 的清零面 ＋ 防回潮）
 	{ id: "test-attribution-gate-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/attribution-gate.mjs --selftest" },
 	{ id: "test-attribution-gate-mjs", phase: 'test', cost: 0.1, cmd: "node test/attribution-gate.mjs" },

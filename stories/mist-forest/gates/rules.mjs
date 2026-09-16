@@ -432,6 +432,12 @@ export const run = (ctx) => {
 		for (const [label, ok] of selectorCases(ctx.window)) { if (!ok) badSel++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
 		bad += badSel;
 	}
+	{
+		// `#762` A 线接缝自证（真代码路径，注入式）：下沉后的 `prepickFor`／`knowledgeOf` —— **含 null 路径**
+		let badSeam = 0;
+		for (const [label, ok] of seamCases(ctx.window)) { if (!ok) badSeam++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
+		bad += badSeam;
+	}
 	const rows = ctx.window?.Sg?.story?.rules?.() ?? [];
 	if (!Array.isArray(rows)) { console.log('  ✗ `Sg.story.rules()` 未返回行数组'); bad++; }
 	else {
@@ -470,6 +476,38 @@ export const run = (ctx) => {
 
 /** 选择器自证：`Sg.rules.pick()` 的真代码路径（临时表 ⇒ 跑完还原）。
  *  为什么值得单独一测：位点约定（`段落#位点`）与 prio 裁决是**表↔引擎的接口**，它们错了不会有别的门叫。 */
+/** `#762` A 线：**下沉后的两个引擎接缝**的自证（真代码路径，注入式，跑完还原）。
+ *  为什么要它：`combatPrepick`／`checkKnowledge` 搬进引擎后，"取不到输入"的**两个态**最容易悄悄变错 ——
+ *  ① 故事**没声明**规则表 ⇒ 引擎必须 `null`（不干预），不是"恰好没命中"；② 知识面"**没有这个知识点**"（`null`）
+ *  与"**有但未持有**"（`{held:false}`）必须仍是两态。 */
+export const seamCases = (w) => {
+	if (!w?.Game?.Combat?.prepickFor || !w?.Sg?.notes?.knowledgeOf) return [['引擎接缝自证：`prepickFor`／`knowledgeOf` 不可用（dist 陈旧？）', false]];
+	const out = [];
+	const saved = w?.Sg?.story?.prepick;
+	try {
+		const pc = { inv: { 月光花: true }, dragon: { venom: false } };
+		w.Sg.story.prepick = () => ([{ pool: '封印', round: 1, require: { item: '月光花' }, forbid: { flag: 'dragon.venom' }, pick: '封印·涂毒', distinctFromPicked: true }]);
+		out.push(['prepick：条件全中 ⇒ 给出手', w.Game.Combat.prepickFor('封印', 1, pc, []) === '封印·涂毒']);
+		out.push(['prepick：没有花（`require.item`）⇒ null', w.Game.Combat.prepickFor('封印', 1, { ...pc, inv: {} }, []) === null]);
+		out.push(['prepick：`forbid.flag` 命中（已涂毒）⇒ null', w.Game.Combat.prepickFor('封印', 1, { ...pc, dragon: { venom: true } }, []) === null]);
+		out.push(['prepick：轮次不符 ⇒ null', w.Game.Combat.prepickFor('封印', 2, pc, []) === null]);
+		out.push(['prepick：池名不符 ⇒ null', w.Game.Combat.prepickFor('别的池', 1, pc, []) === null]);
+		out.push(['prepick：已选过该手（`distinctFromPicked`）⇒ null', w.Game.Combat.prepickFor('封印', 1, pc, ['封印·涂毒']) === null]);
+		w.Sg.story.prepick = () => null;
+		out.push(['**null 路径**：故事没声明规则表 ⇒ 一律不干预（不是"恰好没命中"）', w.Game.Combat.prepickFor('封印', 1, pc, []) === null]);
+		const K = (...a) => w.Sg.notes.knowledgeOf(...a);   // `this` 必须绑在 `Sg.notes` 上（脱开调用会让 `has()` 丢 this）
+		out.push(['knowledgeOf：**没有这个知识点** ⇒ `null`', K('不存在的位点·xyz', { ev: {}, world: {} }) === null]);
+		const kn = K('洞穴·战斗', { ev: {}, world: {} });
+		out.push(['knowledgeOf：**有但未持有** ⇒ `{flag, why, held:false}`（与上一条是两态）', !!kn && kn.held === false && typeof kn.why === 'string' && !!kn.flag]);
+		out.push(['knowledgeOf：旗标路径上有 ⇒ `held:true`', K('洞穴·战斗', { ev: {}, world: { rumor: true } })?.held === true]);
+	} catch (e) {
+		out.push([`引擎接缝自证崩了：${e?.message ?? e}`, false]);
+	} finally {
+		if (w?.Sg?.story) w.Sg.story.prepick = saved;
+	}
+	return out;
+};
+
 export const selectorCases = (w) => {
 	if (!w?.Sg?.rules?.pick || !w?.Sg?.story) return [['选择器自证：`Sg.rules.pick()` 不可用（dist 陈旧？）', false]];
 	const story = w.Sg.story, saved = story.rules, out = [], pc = w.Game?.Pc?.defaults?.() ?? {};

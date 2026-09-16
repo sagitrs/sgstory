@@ -84,6 +84,26 @@ window.Sg.notes = {
 	stored(id, pc = State.variables.pc) { return !!pc?.ev?.notes?.[id]; },
 	entry(id) { return this.table()[id] ?? null; },
 	ids() { return Object.keys(this.table()); },
+	/**
+	 * 位点 → 知识（`#762` A 线：`checkKnowledge` 下沉）。
+	 * 故事仍持有 `Game.Checks.knowledge`（位点→旗标）与 `knowledgeWhy`（旗标→来源）两张**声明表**；
+	 * **组装**（含"是否持有"）住引擎 ⇒ 故事不再需要写这个函数。
+	 * 两态要分清：没有这个知识点 ⇒ `null`；有知识点但**未持有** ⇒ `{ flag, why, held: false }`。
+	 */
+	knowledgeOf(name, pc = State.variables.pc) {
+		const flag = window.Game?.Checks?.knowledge?.[name];
+		if (!flag) return null;
+		const why = window.Game?.Checks?.knowledgeWhy?.[flag] ?? flag;
+		// `flagPath` 反查笔记 id（读侧唯一权威是存储）；找不到就回落读该路径的旗标（合成态/旧档/单测）。
+		const entries = window.Sg?.story?.notes?.() ?? {};
+		const want = 'world.' + flag;
+		const id = Object.keys(entries).find((k) => {
+			const fp = Array.isArray(entries[k]?.flagPath) ? entries[k].flagPath : [entries[k]?.flagPath];
+			return fp.includes(want);
+		});
+		const held = this.has(id ?? '__none__', pc) || !!this.readPath?.(pc, want);
+		return { flag, why, held };
+	},
 	// 读取语义（`#437` C-2c-2 起）：`has(id, pc = 当前存档的 pc) = stored(id, pc)` —— **只认真存储**。
 	// `pc` 参数（`#437` C-2c-3）：图鉴/门里的判据是 `test(p)` 形式，吃的是**传入的 pc**（例如门的"全收集态"合成 pc）——
 	// 不给这个参数，`has()` 会一直读全局存档 ⇒ 判据在合成态上是错的（实测 `--canon` 报「全收集态仍不满足」）。

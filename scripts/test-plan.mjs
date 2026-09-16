@@ -171,6 +171,9 @@ export const SEGMENTS = [
 	// `#701`：**战斗日志门**（可回看的一手一句：有界/保留最近/渲染只读/降级不出现）
 	{ id: "test-fight-history-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-history.mjs --selftest" },
 	{ id: "test-fight-history-mjs", phase: 'test', cost: 4, cmd: "node test/fight-history.mjs" },
+	// `#693`（P1）：**主交互路径门**（确定性路线：点得动 · 无红框 · 到终点 · 产出可见）
+	{ id: "test-cave-route-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/cave-route.mjs --selftest" },
+	{ id: "test-cave-route-mjs", phase: 'test', cost: 6, cmd: "node test/cave-route.mjs" },
 	// 洞窟「商人」门（`#696`：金币要有出口 ⇒ 旅人里随机出现商人；报价读声明面 · 买不起不显示 · 火把油）
 	{ id: "test-cave-merchant-mjs", phase: 'test', cost: 1, cmd: "node test/cave-merchant.mjs" },
 	// 洞窟五步主线**末步**门（实测）：走满 5 步再回岔口时**不许**抛 `roadOffer(6)` 红框 ⇒ 越界走退路

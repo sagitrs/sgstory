@@ -166,7 +166,7 @@ t('`Game.Checks.rollSite` / `resolve` 已在 node 里可调用', typeof Game.Che
 		['ensureOffer', 'chooseAction', 'resolvePlayer', 'resolveFoe'].every((k) => typeof Game.Combat[k] === 'function'));
 	// 起一场雾影战（池名与剧情一致），并在 node 里走完整一轮
 	pc.hp = pc.max_hp = 18;
-	pc.ev.fight = { pool: '雾影', round: 1, offer: [], act: null, adv: 0, guard: 0, skipFoe: false, flee: false, last: null, done: false };
+	pc.ev.fight = { pool: '雾影', round: 1, offer: [], act: null, adv: 0, guard: 0, skipFoe: false, flee: false, done: false };
 	Game.Combat.ensureOffer(pc);
 	t('⑤ `ensureOffer` 抽满这一轮的三张牌', pc.ev.fight.offer.length === 3, JSON.stringify(pc.ev.fight.offer));
 	Game.Combat.chooseAction(pc, 0);
@@ -177,7 +177,8 @@ t('`Game.Checks.rollSite` / `resolve` 已在 node 里可调用', typeof Game.Che
 	t('⑤ `resolvePlayer` 返回骰面（注入 rng=20 ⇒ 天然 20）', p1.check?.roll === 20 && !!p1.log.you.text, JSON.stringify({ roll: p1.check?.roll, label: p1.log.you.label }));
 	t('⑤ 台账含 `rolledWithAdv` 与 `gearName` 两列（旧实现就有的渲染输入）', typeof p1.log.you.rolledWithAdv === 'boolean' && 'gearName' in p1.log.you);
 	t('⑤ `resolvePlayer` **不扣 hp**（hp 由 present 的 `<<damage>>` 落）', pc.hp === hp0, `${pc.hp} vs ${hp0}`);
-	t('⑤ `resolvePlayer` 已写台账 `last` 与清 `act`', !!pc.ev.fight.last && pc.ev.fight.act === null);
+	// `#707`：原断言是 `!!pc.ev.fight.last` —— 而 `last` 由**夹具自己初始化**、引擎从不写它 ⇒ 那条其实什么都没验
+	t('⑤ `resolvePlayer` 清 `act`（台账由调用方在渲染期读 `log`）', pc.ev.fight.act === null);
 	R.rng.set((lo, hi) => lo);   // 恒最小：对手必中
 	pc.ev.fight.skipFoe = false;   // 显式关掉「跳过对手」（`offer[0]` 可能是带 skipFoe 的那一手，那样对手本就不出手）
 	const fo = Game.Combat.resolveFoe(pc, '雾之魔物·挥击', false, p1.log);
@@ -189,7 +190,7 @@ t('`Game.Checks.rollSite` / `resolve` 已在 node 里可调用', typeof Game.Che
 	{
 		const pc2 = JSON.parse(JSON.stringify(ctx.presets[0].pc));
 		pc2.hp = pc2.max_hp = 18;
-		pc2.ev.fight = { pool: '雾影', round: 1, offer: [], act: null, adv: 0, guard: 0, skipFoe: true, flee: false, last: null, done: false };
+		pc2.ev.fight = { pool: '雾影', round: 1, offer: [], act: null, adv: 0, guard: 0, skipFoe: true, flee: false, done: false };
 		const log2 = { you: { label: 'x' }, foe: null };
 		const r2 = Game.Combat.resolveFoe(pc2, '雾之魔物·挥击', false, log2);
 		t('⑤ `skipFoe` 分支：不出手 ⇒ `check` 为 null、无伤、台账写明', r2.check === null && r2.hurt === 0 && String(r2.log.foe?.text).includes('没有出手'), JSON.stringify(r2.log.foe));

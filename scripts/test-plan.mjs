@@ -175,6 +175,9 @@ export const SEGMENTS = [
 	// `#701`：**战斗日志门**（可回看的一手一句：有界/保留最近/渲染只读/降级不出现）
 	{ id: "test-fight-history-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-history.mjs --selftest" },
 	{ id: "test-fight-history-mjs", phase: 'test', cost: 4, cmd: "node test/fight-history.mjs" },
+	// `#707`：**战斗状态字段使用面门**（每个 `$pc.ev.fight.<字段>` 都必须有人用；死字段点名）
+	{ id: "test-fight-fields-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-fields.mjs --selftest" },
+	{ id: "test-fight-fields-mjs", phase: 'test', cost: 1, cmd: "node test/fight-fields.mjs" },
 	// `#693`（P1）：**主交互路径门**（确定性路线：点得动 · 无红框 · 到终点 · 产出可见）
 	{ id: "test-cave-route-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/cave-route.mjs --selftest" },
 	{ id: "test-cave-route-mjs", phase: 'test', cost: 6, cmd: "node test/cave-route.mjs" },

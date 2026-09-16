@@ -1,5 +1,5 @@
 {
-	"note": "洞窟契约（车道 A 后半）：分类器自动提案（含 mechanics 的局部常量求值）＋ lootText 手写 template spec。**eventPool 未含**：真逃生舱候选，正下沉引擎（#778）。",
+	"note": "洞窟契约（车道 A 后半）：分类器自动提案（含 mechanics 的局部常量求值）＋ lootText 手写 template spec；成员顺序**跟随源**。",
 	"members": [
 		{
 			"name": "notes",
@@ -14,7 +14,7 @@
 		{
 			"name": "hasChargen",
 			"kind": "const",
-			"raw": "false"
+			"value": false
 		},
 		{
 			"name": "pcDefaults",
@@ -29,7 +29,7 @@
 			"kind": "lookup",
 			"from": "window.Game.Checks.sites",
 			"key": "name",
-			"default": "null"
+			"default": null
 		},
 		{
 			"name": "foeState",
@@ -44,14 +44,45 @@
 			"kind": "lookup",
 			"from": "window.Sg.story.mechanics()?.pools",
 			"key": "id",
-			"default": "[]"
+			"default": []
+		},
+		{
+			"name": "lootText",
+			"kind": "template",
+			"param": "r",
+			"baseParam": "base",
+			"prefix": "他退开的地方散着",
+			"suffix": "。",
+			"join": "，还有",
+			"trim": true,
+			"empty": "",
+			"parts": [
+				{
+					"when": {
+						"gt": [
+							"gold",
+							0
+						]
+					},
+					"text": "旧币 {gold} 枚"
+				},
+				{
+					"when": {
+						"truthy": "item"
+					},
+					"text": "一把{item}",
+					"map": {
+						"钥匙": "锈钥匙"
+					}
+				}
+			]
 		},
 		{
 			"name": "combatAction",
 			"kind": "lookup",
 			"from": "window.Sg.story.mechanics()?.actions",
 			"key": "id",
-			"default": "null"
+			"default": null
 		},
 		{
 			"name": "actionLabel",
@@ -68,24 +99,24 @@
 			"kind": "lookup",
 			"from": "window.Game.Items.defs",
 			"key": "id",
-			"default": "null"
+			"default": null
 		},
 		{
 			"name": "poisonReduce",
 			"kind": "const",
-			"raw": "0"
+			"value": 0
 		},
 		{
 			"name": "dragonMaxHp",
 			"kind": "const",
-			"raw": "0"
+			"value": 0
 		},
 		{
 			"name": "gearDef",
 			"kind": "lookup",
 			"from": "Sg.story.mechanics()?.equipment",
 			"key": "id",
-			"default": "null"
+			"default": null
 		},
 		{
 			"name": "mechanics",
@@ -629,73 +660,42 @@
 			"kind": "lookup",
 			"from": "MECH.kindLabels",
 			"key": "k",
-			"default": "null"
+			"default": null
 		},
 		{
 			"name": "chestGold",
 			"kind": "lookup",
 			"from": "MECH.chest.gold",
 			"key": "rarity",
-			"default": "0"
+			"default": 0
 		},
 		{
 			"name": "enemyDef",
 			"kind": "lookup",
 			"from": "MECH.enemies",
 			"key": "id",
-			"default": "null"
+			"default": null
 		},
 		{
 			"name": "caveReward",
 			"kind": "lookup",
 			"from": "MECH.caveRewards",
 			"key": "k",
-			"default": "null"
+			"default": null
 		},
 		{
 			"name": "chestDef",
 			"kind": "lookup",
 			"from": "MECH.chest.mechanisms",
 			"key": "id",
-			"default": "null"
+			"default": null
 		},
 		{
 			"name": "lootOf",
 			"kind": "lookup",
 			"from": "MECH.chest.loot",
 			"key": "rarity",
-			"default": "[]"
-		},
-		{
-			"name": "lootText",
-			"kind": "template",
-			"param": "r",
-			"baseParam": "base",
-			"prefix": "他退开的地方散着",
-			"suffix": "。",
-			"join": "，还有",
-			"trim": true,
-			"empty": "",
-			"parts": [
-				{
-					"when": {
-						"gt": [
-							"gold",
-							0
-						]
-					},
-					"text": "旧币 {gold} 枚"
-				},
-				{
-					"when": {
-						"truthy": "item"
-					},
-					"text": "一把{item}",
-					"map": {
-						"钥匙": "锈钥匙"
-					}
-				}
-			]
+			"default": []
 		}
 	]
 }

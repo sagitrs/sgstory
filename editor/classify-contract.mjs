@@ -108,6 +108,15 @@ export const contractMembers = (text) => {
 	return sites.flatMap((s2) => s2.members);
 };
 
+/** 纯函数：把**字面量源码**解析成值（`'false'` ⇒ `false`、`'({a:1})'` ⇒ `{a:1}`）。
+ *  解析不出（含变量／模板串插值等）⇒ `undefined`（调用方落 B，不假装 A）。
+ *  ⚠️ 分类器曾把字面量按 `raw: 源码` 放进 spec，而编译器只认 `value:` ⇒ 静默产出 `() => undefined`（容器比对与 L3 都看不出来，只有**行为**探针抓到）⇒ 现在统一到 `value`，编译器另加 fail-loud。 */
+export const literalValue = (src) => {
+	try {
+		const v = vm.runInContext(`(${String(src)})`, vm.createContext({ console: { log() {} } }), { timeout: 1000 });
+		return JSON.parse(JSON.stringify(v));
+	} catch { return undefined; }
+};
 /** 纯函数：兜底表达式 → 小 enum（与编译器 `fallbackExpr` 的封闭集一致；认不出返回 null）。 */
 export const fbEnum = (expr, key) => {
 	const e = String(expr).trim();
@@ -139,7 +148,13 @@ export const classify = (srcIn) => {
 	if (gr && /^(window\.|Sg\.)/.test(gr[1])) return A('game-ref', { path: gr[1].replace(/[?.]+$/, ''), default: gr[2], optional: /\?\./.test(gr[1]) });   // `#775` 起 kind 支持默认值`)
 	// `(k) => <来自……>?.[k] ?? <默认>` ／ `(k) => { const v = …; if (!v) throw …; return v; }`
 	const lookup = /^\((\w+)\) => ([\w$.()?]+)\[(\1)\] \?\? (.+)$/.exec(s);
-	if (lookup) return A('lookup', { from: lookup[2].replace(/[?.]+$/, ''), key: lookup[1], default: lookup[4] });
+	if (lookup) {
+		// ⚠️ 同族坑（今天第 3 次）：spec 里放的必须是**值**，不是**源码文本** ——
+		// 曾把 `?? null` 的兜底存成字符串 `"null"` ⇒ 产物成了 `?? "null"`（返回字符串！），容器比对与 L3 都看不出来。
+		const d = literalValue(lookup[4]);
+		if (d === undefined && lookup[4].trim() !== 'undefined') return B('lookup', { from: lookup[2].replace(/[?.]+$/, ''), key: lookup[1] }, `兜底 \`${lookup[4]}\` 不是字面量 ⇒ 需人工`);
+		return A('lookup', { from: lookup[2].replace(/[?.]+$/, ''), key: lookup[1], default: d });
+	}
 	const field = /^\((\w+)\) => ([\w$.()?]+)\[(\1)\]\??\.(\w+) \?\? (.+)$/.exec(s);
 	if (field) {
 		// ⚠️ 捕获组下标：m[3] 是回参照捕获（`(\1)` 也是组）⇒ 字段在 m[4]
@@ -151,10 +166,17 @@ export const classify = (srcIn) => {
 	const guarded = /^\((\w+)\) => \{ const (\w+) = ([\w$.()?]+)\[\1\]; if \(!\2\) throw new Error\(.*\); return \2; \}$/.exec(s);
 	if (guarded) return A('lookup', { from: guarded[3].replace(/[?.]+$/, ''), key: guarded[1], required: true });
 	const state = /^\((\w+)\) => \1\?\.([\w$.]+) \?\? (.+)$/.exec(s);
-	if (state) return A('state-ref', { path: state[2], default: state[3] });
+	if (state) {   // 同族坑：兜底也必须是**值**（源码文本会让产物返回字符串）
+		const d = literalValue(state[3]);
+		if (d === undefined && state[3].trim() !== 'undefined') return B('state-ref', { path: state[2] }, `兜底 \`${state[3]}\` 不是字面量 ⇒ 需人工`);
+		return A('state-ref', { path: state[2], default: d });
+	}
 	const paren = /^\(\) => \((.*)\)$/.exec(s);              // `() => ({…})` / `() => ([…])`
-	if (paren && /^[{\[]/.test(paren[1].trim())) return A('const', { raw: paren[1].trim() });
-	if (/^\(\) => (\{.*\}|\[.*\]|null|true|false|-?\d+(\.\d+)?|'[^']*'|`[^`]*`)$/.test(s)) return A('const', { raw: s.replace(/^\(\) => /, '') });
+	if (paren && /^[{\[]/.test(paren[1].trim())) { const v = literalValue(paren[1]); return v === undefined ? B('const', { src: paren[1].trim() }, '字面量解析不出（含变量/插值？）⇒ 需人工') : A('const', { value: v }); }
+	if (/^\(\) => (\{.*\}|\[.*\]|null|true|false|-?\d+(\.\d+)?|'[^']*'|`[^`]*`)$/.test(s)) {
+		const v = literalValue(s.replace(/^\(\) => /, ''));
+		return v === undefined ? B('const', { src: s }, '字面量解析不出 ⇒ 需人工') : A('const', { value: v });
+	}
 	const D = (why, sink) => ({ bucket: 'D', why, sink });
 	// 选牌策略（内容政策）⇒ 可下沉为"前置选牌规则表"（引擎解释规则、故事只给数据）
 	if (/=> \(.*\bpoolId\b.*\?.*:.*null\)$/.test(s) || /=> \([\s\S]*includes\(/.test(s)) return D('选牌/前置决策：形状＝「一组条件 ⇒ 选哪个」⇒ 可下沉为**规则表**（引擎解释、故事给数据）', '前置选牌规则表');
@@ -182,7 +204,15 @@ const selftest = () => {
 	t('`() => null` ⇒ null', kindOf('() => null') === 'null');
 	t('`() => ({}` / `[]` ⇒ empty-*', kindOf('() => ({})') === 'empty-object' && kindOf('() => []') === 'empty-array');
 	t('`(id) => String(id)` ⇒ identity-string（**陷阱回归**：`\(` 是字面括号，捕获组必须写 `\((\w+)\)`）', kindOf('(id) => String(id)') === 'identity-string');
-	t('`(k) => <链>[k] ?? <默认>` ⇒ lookup（含 `?.` 链）', (() => { const r = classify('(id) => window.Game?.Items?.defs?.[id] ?? null'); return r.kind === 'lookup' && r.spec.from === 'window.Game?.Items?.defs' && r.spec.default === 'null'; })());
+	t('`(k) => <链>[k] ?? <默认>` ⇒ lookup（含 `?.` 链）', (() => { const r = classify('(id) => window.Game?.Items?.defs?.[id] ?? null'); return r.kind === 'lookup' && r.spec.from === 'window.Game?.Items?.defs' && r.spec.default === null; })());
+	t('`const` 的 spec 用 **`value`（值）而不是 `raw`（源码）** —— 编译器只认 `value`，写 `raw` 会静默产出 `() => undefined`', (() => {
+		const r = classify('() => false');
+		return r.bucket === 'A' && r.spec.value === false && !('raw' in r.spec);
+	})());
+	t('字面量解析：对象/数组字面量 ⇒ 真值（`({a:1})` ⇒ `{a:1}`）', (() => {
+		const r = classify('() => ({ a: 1, b: [2] })');
+		return r.bucket === 'A' && r.spec.value.a === 1 && r.spec.value.b[0] === 2;
+	})());
 	t('`(k) => <链>[k]?.<字段> ?? <兜底>` ⇒ lookup-field，且兜底翻成**小 enum**（`String(k)` ⇒ string-identity）', (() => { const r = classify("(id) => window.Sg.story.mechanics()?.actions?.[id]?.label ?? String(id)"); return r.kind === 'lookup-field' && r.spec.field === 'label' && r.spec.fallback.kind === 'string-identity'; })());
 	t('兜底是**裸表达式** ⇒ 该成员落 B（编译器已不收，分类器不许假装 A）', classify("(id) => window.Game.Items.defs?.[id]?.x ?? (id + '!')").bucket === 'B');
 	t('`{ const s = …; if (!s) throw …; return s; }` ⇒ lookup + required（变量名任意）', (() => { const r = classify('(name) => { const s = window.Game?.Checks?.sites?.[name]; if (!s) throw new Error(`x`); return s; }'); return r.kind === 'lookup' && r.spec.required === true; })());
@@ -206,7 +236,7 @@ const selftest = () => {
 		return ms.length === 2 && ms[0].name === 'a' && ms[1].name === 'b';
 	})());
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过（20 例：8 个 kind 形状 ＋ A/B/C/D 四桶分界 ＋ 两条捕获组陷阱回归 ＋ 成员切分）');
+	console.log('\n✔ 自证通过（22 例：8 个 kind 形状 ＋ A/B/C/D 四桶分界 ＋ 两条捕获组陷阱回归 ＋ 成员切分）');
 };
 
 const isMain0 = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];

@@ -67,6 +67,9 @@ export const KINDS = {
 	'empty-array': () => '() => []',
 	'null': () => '() => null',
 	'const': (m) => {
+		// ⚠️ **缺 `value` 就抛**：字段名写错（分类器曾用 `raw`）⇒ 静默产出 `() => undefined`，
+		// 而容器比对/L3 都看不出来（只有**行为**探针能抓）⇒ 这一族"静默 undefined"必须在编译期死掉。
+		if (!Object.hasOwn(m, 'value')) throw new Error(`const 缺 \`value\`（实得字段：${Object.keys(m).join('、') || '无'}）⇒ 不许静默产出 undefined`);
 		// ⚠️ **对象字面量必须包括号**：`() => { … }` 会被当成**块体**（`pools: {` 于是成了带引号的标签 ⇒ SyntaxError）。
 		// 这个坑是洞窟端到端（`mechanics` 那张大表）第一次编出来时**当场炸**的 —— 自证里没有对象 const 覆盖到它。
 		const lit = jsLiteral(m.value);
@@ -349,10 +352,14 @@ const selftest = () => {
 		const C = build([{ name: 'mechanics', kind: 'const', value: { pools: { w1: ['a'] }, deep: { x: { y: 1 } } } }]);
 		return call(C.mechanics).ok === '{"pools":{"w1":["a"]},"deep":{"x":{"y":1}}}';
 	})());
+	t('`const` 缺 `value`（字段名写错）⇒ emit 抛错，不许产出 `() => undefined`', (() => {
+		try { build([{ name: 'x', kind: 'const', raw: 'false' }]); return false; }
+		catch (e) { return /缺 `value`/.test(String(e.message)); }
+	})());
 	t('未知 kind ⇒ emit 抛错（不许静默产出半个函数）', badPath({ kind: 'nope' }));
 
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过（32 例：lookup 5 · lookup-field 6 · bool-exists 2 · state-ref 2 · game-ref 2 · forward 2 · **template 6（含三态）** · 卫生/硬化 7——**全部按行为断言**）');
+	console.log('\n✔ 自证通过（33 例：lookup 5 · lookup-field 6 · bool-exists 2 · state-ref 2 · game-ref 2 · forward 2 · **template 6（含三态）** · 卫生/硬化 7——**全部按行为断言**）');
 };
 
 // ⚠️ **主模块守卫**（实测踩到）：这些脚本**同时是库**（`equiv` 被 `extract` 导入、`compile` 被 `equiv` 起子进程）。

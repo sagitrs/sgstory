@@ -185,12 +185,17 @@
 
 ## 4. S4（`#489`）：通用事件池 ＋ 线索三选一 ＋ 宝箱
 
-### 4.1 事件池声明 `Sg.story.eventPool(step)`
+### 4.1 事件实例清单（`#778` 起由**引擎**折叠）
+
+故事侧只声明 `roads`（每条路的 `options[]`：`{kind, hint, ref}`）；实例清单是**纯派生**，由引擎从该声明折叠：
 
 ```
-{ kinds: ['shortFight','longFight','chest','cave','trap','traveller'],
-  entries: { <kind>: [ { id, hint: '<线索文案>', ref: <id> }, … ] } }
+Game.Combat.roadInstances()   // ⇒ [{ id, kind, hint, ref }, …]（**平数组**、不收参数；未启用 ⇒ null）
 ```
+
+- `id` ＝ `String(ref)`，与下沉前 `Sg.story.eventPool(step).entries` 里的条目**逐字段相同** —— 过渡期由洞窟的门做等价断言（留着旧成员就必须折得一样）；
+- 六类**词表**（`shortFight`／`longFight`／`chest`／`cave`／`trap`／`traveller`）是**故事词汇**，留在门侧，不进引擎（引擎只认 `roads` 的形状）；
+- 分组（按 `kind` 归并成 `entries`）由调用方一行完成 ⇒ 引擎不替调用方决定分组口径。
 
 ### 3.3 敌人属性面（`#705` 片一：声明面＋门；机制接线见片二）
 

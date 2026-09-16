@@ -179,6 +179,15 @@ mechanics: () => ({
 3. 跑 `node test/story-shape.mjs`（形状合法）＋ `node test/layering.mjs`（引擎侧不直读故事表）；
 4. 数值／文案**只**放故事包；机制**不**要再写进故事文件（`#512` 已把机制收进引擎侧）。
 
+## 5b. 条件求值的语义（**null-safe**，`#493` 裁定）
+
+声明式条件（`Sg.rules` 的 `holdsCond`／`matches`）在**容器缺失**时返回 `false`，**不抛**：
+
+- `pc.inv` 不存在 ⇒ `req: ['inv:X']` 判**不成立**（不是报错）；`world.*`／`ev.*`／点分键同理；
+- 需要「结构缺失必须报错」的场合，请用**显式**判据（`required` ＋ `error`，见 `lookup`／`game-ref`）；
+- 为什么定成这样：声明式条件要能被**合成 pc** 驱动（`#441-A`）—— 「读不到」与「条件不成立」在**求值层**是同一件事，
+  而「该报错」是**声明侧**的责任（`required`）。旧的手写谓词在同类输入下会抛 `TypeError` ⇒ 那批差异已在 `#786` 里**逐组列出**。
+
 ## 6. 已知边界与残留（如实记录）
 
 - `Game.Dragon`／`Game.Systems`／`Game.Star`／`Game.Consequences` 等是 **`STORY_SYMBOLS` 里的"整命名空间"粒度** ⇒

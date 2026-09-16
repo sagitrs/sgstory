@@ -4,7 +4,9 @@
 // 回答「这份包编译得动吗 · 和手写版等价吗 · 它自己的门全绿吗」——**输出与门同结论**
 // （门一律经 `scripts/audit.mjs` 原调用路径跑，本文件不重实现任何判据）。
 //
-// 用法：node editor/lint-story.mjs <slug>
+// 用法：node editor/lint-story.mjs <slug|目录路径> [--json]
+//   `--json`：**诊断是数据**（`#794` 第①条）——把 findings 以 JSON 打给 stdout（人读面默认不变）：
+//     { slug, dir, ok, findings: [{ step, ok, detail }], steps, gates }
 //   步骤（全部 fail-loud，绝不静默缺测）：
 //     ① 包形状：00-story.json 可解析 · data/tables.json + data/contract.json 在位（schema v0 成员）
 //     ② 编译＋幂等：compile-story 连跑两次，产物逐字节相同（P0 验收判据）
@@ -18,17 +20,29 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const ok = (m) => console.log(`  ✔ ${m}`);
-const fail = (m) => { console.error(`  ✗ ${m}`); process.exit(1); };
+const JSON_OUT = process.argv.includes('--json');
+const findings = [];
+let step = 'shape';   // ① 包形状（首个 finding 归属）
+const say = (m) => { if (!JSON_OUT) console.log(m); };
+const emit = (code) => {
+	if (JSON_OUT) process.stdout.write(JSON.stringify({ slug, dir, ok: code === 0, findings }, null, 1) + '\n');
+	process.exit(code);
+};
+const ok = (m) => { findings.push({ step, ok: true, detail: m }); say(`  ✔ ${m}`); };
+const fail = (m) => {
+	findings.push({ step, ok: false, detail: m });
+	if (!JSON_OUT) console.error(`  ✗ ${m}`);
+	emit(1);
+};
 const sh = (cmd, args) => spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8' });
 
 const arg = process.argv[2];
-if (!arg) { console.error('用法：node editor/lint-story.mjs <slug|目录路径>'); process.exit(2); }
+if (!arg) { console.error('用法：node editor/lint-story.mjs <slug|目录路径> [--json]'); process.exit(2); }
 // `<slug>`＝stories/<slug>；含路径分隔符或已存在的目录 ⇒ 当**目录**（临时探针/仓外包亦可用；CLI 契约向后兼容）
 const asPath = arg.includes('/') || existsSync(arg);
 const dir = asPath ? arg : join(ROOT, 'stories', arg);
 const slug = asPath ? arg.replace(/\/+$/, '').split('/').pop() : arg;
-console.log(`lint-story：${slug}${asPath ? `（路径 ${dir}）` : ''}`);
+say(`lint-story：${slug}${asPath ? `（路径 ${dir}）` : ''}`);
 if (!existsSync(dir)) fail(`故事目录不存在：${dir}`);
 let manifest = null;
 try { manifest = JSON.parse(readFileSync(join(dir, '00-story.json'), 'utf8')); }
@@ -44,6 +58,7 @@ catch (e) { fail(`data/*.json 不可解析：${e.message}`); }
 ok(`包形状（files×${manifest.files.length} · tables/contract 可解析）`);
 
 // ── ② 编译＋幂等 ──
+step = 'compile';
 const gen = join(ROOT, 'build', 'generated', slug);
 rmSync(gen, { recursive: true, force: true });
 let r1 = sh('node', ['editor/compile-story.mjs', slug]);
@@ -59,11 +74,13 @@ rmSync(snap, { recursive: true, force: true });
 ok('编译 ＋ 幂等（两次产物逐字节相同）');
 
 // ── ③ 等价（L1/L3）──
+step = 'equiv';
 const req = sh('node', ['editor/equiv.mjs', slug]);
 if (req.status !== 0) fail(`等价判据未过（L1/L3）：\n${(req.stdout || req.stderr || '').slice(0, 800)}`);
 ok('等价（L1 结构/行为 ＋ L3 剥注释形式）');
 
 // ── ④ 门：本故事自己的门，经 audit 原路径（同结论保证＝同一调用面，零重实现）──
+step = 'gates';
 const { gatesForStory } = await import(join(ROOT, 'scripts/audit/discovery.mjs'));
 const gates = await gatesForStory(slug);
 const flags = [...new Set(gates.flatMap((g) => g.flags ?? []))];
@@ -73,8 +90,10 @@ if (ra.status !== 0) fail(`故事门有红（${flags.length} 面）：\n${(ra.st
 ok(`故事门 ×${flags.length} 面全绿（audit 原路径）`);
 
 // ── ⑤ 形状门（真实契约 ＋ 自证六条）──
+step = 'story-shape';
 const rs = sh('node', ['test/story-shape.mjs']);
 if (rs.status !== 0) fail(`story-shape 门红：\n${(rs.stdout || rs.stderr || '').slice(0, 600)}`);
 ok('story-shape 门');
 
-console.log(`\n✔ lint-story：${slug} 通过（包形状 · 编译幂等 · 等价 · 门 ×${flags.length} · 形状）`);
+say(`\n✔ lint-story：${slug} 通过（包形状 · 编译幂等 · 等价 · 门 ×${flags.length} · 形状）`);
+emit(0);

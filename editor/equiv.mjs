@@ -15,7 +15,7 @@
 //   `'https://b.example/y'` 归一后相同）。`mask.mjs` 是单扫描器按词法遮蔽、**不动字符串内容**。
 //
 // 用法：node editor/equiv.mjs <slug> [--hand=<path>] [--gen=<path>]
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -25,10 +25,10 @@ import { maskComments } from '../scripts/audit/lib/mask.mjs';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const COMPILER = 'editor/compile-story.mjs';
 
-/** **L3 的逐故事棘轮**（审查要求）：这些故事**今天已确认逐字节相同** ⇒ 不许变红；
- *  其余故事 L3 只**报告**差异（跨故事的手写风格不统一，见设计稿 §4 的适用边界）。
- *  L3 **永远打印**（可以不是权威，但不能静默消失）。 */
-export const L3_RATCHET = ['minimal-demo'];
+/** L3 的**档位**：`hard`（默认，差异判红）／`report`（只打印）。
+ *  **为什么用命令行而不是内建白名单**：降级必须**显式**写在调用处 ⇒ CI 计划里一眼看得见（K5「让步留痕」）；
+ *  内建"某些故事默认放行"等于把让步藏进代码。L3 **永远打印**（可以不是权威，但不能静默消失）。 */
+export const L3_MODES = ['hard', 'report'];
 
 /** 纯函数：从 twee 文本里取某段段落的正文（不含 `:: 名字 [script]` 头）。 */
 export const section = (text, name) => {
@@ -130,64 +130,85 @@ const selftest = () => {
 	console.log('\n✔ 自证通过（6 例：字符串里的注释定界符 3 例 · 函数值 1 例 · 异常 1 例 · 空 id 实参表 1 例）');
 };
 
-if (process.argv.includes('--selftest')) { selftest(); process.exit(0); }
+// ⚠️ **主模块守卫**（实测踩到）：这些脚本**同时是库**（`equiv` 被 `extract` 导入、`compile` 被 `equiv` 起子进程）。
+// 没有守卫时，`import` 它们会**执行对端的 CLI**（实测：`node editor/extract-story.mjs --selftest` 打出的是
+// `equiv` 的自证然后退出 ⇒ 自己的自证根本没跑）。守卫＝「只在被当脚本执行时才跑 CLI」。
+const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isMain && process.argv.includes('--selftest')) { selftest(); process.exit(0); }
+
+/** 浏览器语义的沙箱（`window` 就是全局对象 ⇒ `window.Sg = {}` 之后裸 `Sg` 也能解析）。 */
+const sandboxOf = () => {
+	const box = { console: { log() {}, error() {} }, Sg: {}, Game: {} };
+	box.window = box;
+	vm.createContext(box);
+	return box;
+};
 
 const main = () => {
 	const slug = process.argv[2];
-	if (!slug) { console.error('用法：node editor/equiv.mjs <slug> [--hand=…] [--gen=…]'); process.exit(2); }
-	const arg = (name, dflt) => {
-		const hit = process.argv.find((a) => a.startsWith(`--${name}=`));
-		return hit ? join(ROOT, hit.slice(name.length + 3)) : join(ROOT, dflt);
-	};
-	const handPath = arg('hand', `stories/${slug}/15-tables.twee`);
+	if (!slug) { console.error('用法：node editor/equiv.mjs <slug> [--rules] [--l3=hard|report] [--hand=…] [--gen=…]'); process.exit(2); }
+	const argOf = (name, dflt) => { const h = process.argv.find((a) => a.startsWith(`--${name}=`)); return h ? h.slice(name.length + 3) : dflt; };
+	const rulesMode = process.argv.includes('--rules');
+	const l3Mode = argOf('l3', 'hard');
+	if (!L3_MODES.includes(l3Mode)) { console.error(`✗ --l3 只接受 ${L3_MODES.join('|')}（实得 ${l3Mode}）`); process.exit(2); }
+	const handPath = join(ROOT, argOf('hand', rulesMode ? `stories/${slug}/17-rules.twee` : `stories/${slug}/15-tables.twee`));
 	const hand = readFileSync(handPath, 'utf8');
 
-	// ── 自跑编译器两次 ⇒ 幂等 ＋ 拿到生成的产物（不判陈旧件） ──
+	// ── 自跑编译器两次 ⇒ 幂等 ＋ 拿到产物（不判陈旧件） ──
 	const genDir = join(ROOT, 'build/generated', slug);
 	const idemDir = join(ROOT, 'build/generated', `.idem-${slug}`);
 	execFileSync('node', [COMPILER, slug, `--out=${genDir}`], { cwd: ROOT });
 	execFileSync('node', [COMPILER, slug, `--out=${idemDir}`], { cwd: ROOT });
-	const genBytes = readFileSync(join(genDir, '15-tables.twee'));
-	const idemBytes = readFileSync(join(idemDir, '15-tables.twee'));
-	const gen = genBytes.toString('utf8');
-	const overridden = process.argv.some((a) => a.startsWith('--gen='));
-	const genSource = overridden ? readFileSync(arg('gen', ''), 'utf8') : gen;
+	const names = [...new Set([...readdirSync(genDir), ...readdirSync(idemDir)])].sort();
+	const idemOk = names.length > 0 && names.every((n) => readFileSync(join(genDir, n)).equals(readFileSync(join(idemDir, n))));
+	const gen = readFileSync(join(genDir, rulesMode ? '17-rules.twee' : '15-tables.twee'), 'utf8');
 
-	const hBodies = scriptBodies(hand), gBodies = scriptBodies(genSource);
-	const hs = snapshot(runScript(hBodies.join('\n')));
-	const gs = snapshot(runScript(gBodies.join('\n')));
-	const nh = hBodies.map(normalize).join('|');
-	const ng = gBodies.map(normalize).join('|');
-
-	const firstDiff = [...nh].findIndex((c, i) => c !== ng[i]);
-	const results = [
-		[genBytes.equals(idemBytes), `幂等：连编译两次产物逐字节相同（${genBytes.length}B）`],
-		[hBodies.length === gBodies.length && hBodies.length > 0,
-			`L1 段数一致：[script] 段 ${hBodies.length}（手写）vs ${gBodies.length}（生成）`],
-		[hs.game === gs.game,
-			`L1 数据容器深度相等（含 State/Notes/Consequences）${hs.game === gs.game ? '' : `\n    手写 ${String(hs.game).slice(0, 220)}\n    生成 ${String(gs.game).slice(0, 220)}`}`],
-		[JSON.stringify(hs.contract) === JSON.stringify(gs.contract),
-			`L1 契约**多实参**行为相等（${Object.keys(hs.contract).length} 个成员 × ${probeArgs(hs.ids).length} 组实参）${JSON.stringify(hs.contract) === JSON.stringify(gs.contract) ? '' : `\n    手写 ${JSON.stringify(hs.contract).slice(0, 300)}\n    生成 ${JSON.stringify(gs.contract).slice(0, 300)}`}`],
-		[nh === ng || !L3_RATCHET.includes(slug),
-			`L3 形式等价（${L3_RATCHET.includes(slug) ? '**棘轮内**：差异判红' : '**报告制**：差异只打印'}）：词法遮蔽注释 ＋ 去空白/冗余尾逗号后逐字节相同（手写 ${nh.length}B / 生成 ${ng.length}B）${nh === ng ? '' : `\n    首个差异 @${firstDiff}\n    手写 …${nh.slice(Math.max(0, firstDiff - 30), firstDiff + 50)}\n    生成 …${ng.slice(Math.max(0, firstDiff - 30), firstDiff + 50)}`}`],
-		[hs.walk.functions === 0 && gs.walk.functions === 0,
-			`数据面是数据：容器内函数值 0 个（手写 ${hs.walk.functions} / 生成 ${gs.walk.functions}）`],
-	];
-	// ── 面不为空（#557）：任一为 0 ⇒ 判红（"等价"不能建立在空集上） ──
-	const surface = {
-		'容器键数': Object.keys(JSON.parse(hs.game === 'null' ? '{}' : hs.game)).length,
-		'数据叶子数': hs.walk.leaves,
-		'契约成员数': Object.keys(hs.contract).length,
-		'探针调用次数（单版）': hs.probes,
-		'归一字节数': nh.length,
+	const results = [[idemOk, `幂等：连编译两次产物逐字节相同（${names.length} 份：${names.join('、')}）`]];
+	const l3Line = (nh, ng, what) => {
+		const same = nh === ng;
+		const at = [...nh].findIndex((c, i) => c !== ng[i]);
+		return [same || l3Mode === 'report',
+			`L3 形式等价（--l3=${l3Mode}）：${what}（手写 ${nh.length}B / 生成 ${ng.length}B）${same ? '' : `\n    首个差异 @${at}\n    手写 …${nh.slice(Math.max(0, at - 40), at + 60)}\n    生成 …${ng.slice(Math.max(0, at - 40), at + 60)}`}`];
 	};
-	const empty = Object.entries(surface).filter(([, v]) => !v).map(([k]) => k);
-	results.push([empty.length === 0, `判到的面不为空：${Object.entries(surface).map(([k, v]) => `${k} ${v}`).join(' · ')}${empty.length ? `　✗ 为 0 的：${empty.join('、')}` : ''}`]);
+
+	if (rulesMode) {
+		// ── 条件表：L1 = 两版各自求值后**行数组深度相等**（＝列级一致：少抽一个字段也会不等） ──
+		const rowsOf = (text) => { const box = sandboxOf(); vm.runInContext(scriptBodies(text).join('\n'), box, { timeout: 5000 }); return box.Sg.story.rules(); };
+		const hr = rowsOf(hand), gr = rowsOf(gen);
+		/** 字段直方图：把"抽了哪些列"显式打出来（`#557` 那条老账：总体非空拦不住少抽一项）。 */
+		const hist = (rows) => {
+			const h = {};
+			for (const r of rows) for (const k of Object.keys(r)) h[k] = (h[k] ?? 0) + 1;
+			return Object.fromEntries(Object.entries(h).sort(([a], [b]) => (a < b ? -1 : 1)));
+		};
+		const hh = hist(hr), gh = hist(gr);
+		results.push([JSON.stringify(hr) === JSON.stringify(gr),
+			`L1 条件表**深度相等**（手写 ${hr.length} 行 / 生成 ${gr.length} 行）${JSON.stringify(hr) === JSON.stringify(gr) ? '' : '\n    两版不同（见下条字段直方图与 L3 定位）'}`]);
+		results.push([JSON.stringify(hh) === JSON.stringify(gh),
+			`L1 字段直方图一致（每列出现多少次）：${Object.entries(hh).map(([k, v]) => `${k} ${v}`).join(' · ')}`]);
+		results.push(l3Line(normalize(section(hand, 'StoryRules') ?? ''), normalize(section(gen, 'StoryRules') ?? ''), '剥注释/空白/冗余尾逗号后逐字节相同'));
+		results.push([hr.length > 0 && Object.keys(hh).length > 0, `判到的面不为空：条件表 ${hr.length} 行 · ${Object.keys(hh).length} 列`]);
+	} else {
+		// ── 表 ＋ 契约（P0 原口径） ──
+		const hWin = runScript(scriptBodies(hand).join('\n'));
+		const gWin = runScript(scriptBodies(gen).join('\n'));
+		const hs = snapshot(hWin), gs = snapshot(gWin);
+		results.push([scriptBodies(hand).length === scriptBodies(gen).length && Object.keys(hs.contract).length === Object.keys(gs.contract).length,
+			`L1 段数/成员数一致：[script] 段 ${scriptBodies(hand).length}（手写）vs ${scriptBodies(gen).length}（生成）· 契约成员 ${Object.keys(hs.contract).length}`]);
+		results.push([hs.game === gs.game, `L1 数据容器深度相等（含 State/Notes/Consequences）${hs.game === gs.game ? '' : `\n    手写 ${String(hs.game).slice(0, 220)}\n    生成 ${String(gs.game).slice(0, 220)}`}`]);
+		results.push([Object.keys(hs.contract).length > 0 && JSON.stringify(hs.contract) === JSON.stringify(gs.contract),
+			`L1 契约**多实参**行为相等（${Object.keys(hs.contract).length} 个成员 × ${probeArgs(hs.ids).length} 组实参）${JSON.stringify(hs.contract) === JSON.stringify(gs.contract) ? '' : '\n    两版行为不同'}`]);
+		results.push(l3Line(scriptBodies(hand).map(normalize).join('|'), scriptBodies(gen).map(normalize).join('|'), '词法遮蔽注释 ＋ 去空白/冗余尾逗号后逐字节相同'));
+		results.push([hs.walk.functions === 0 && gs.walk.functions === 0, `数据面是数据：容器内函数值 0 个（手写 ${hs.walk.functions} / 生成 ${gs.walk.functions}）`]);
+		const surface = { '容器键数': Object.keys(JSON.parse(hs.game === 'null' ? '{}' : hs.game)).length, '数据叶子数': hs.walk.leaves, '契约成员数': Object.keys(hs.contract).length, '探针调用次数': hs.probes, '归一字节数': scriptBodies(hand).map(normalize).join('|').length };
+		const empty = Object.entries(surface).filter(([, v]) => !v).map(([k]) => k);
+		results.push([empty.length === 0, `判到的面不为空：${Object.entries(surface).map(([k, v]) => `${k} ${v}`).join(' · ')}${empty.length ? `　✗ 为 0 的：${empty.join('、')}` : ''}`]);
+	}
 
 	let bad = 0;
 	for (const [ok, msg] of results) { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) bad++; }
-	console.log(bad ? `\n✗ 等价判据未通过（${bad} 项）` : `\n✔ ${slug}：手写版 ↔ 数据版 等价（幂等 ＋ L1 结构/多实参行为 ＋ L3 形式 ＋ 面非空）`);
+	console.log(bad ? `\n✗ 等价判据未通过（${bad} 项）` : `\n✔ ${slug}${rulesMode ? '（条件表）' : ''}：手写版 ↔ 数据版 等价（幂等 ＋ L1 ＋ L3(--l3=${l3Mode}) ＋ 面非空）`);
 	process.exit(bad ? 1 : 0);
 };
 
-if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main();
+if (isMain) main();

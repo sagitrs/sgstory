@@ -192,6 +192,8 @@ export const SEGMENTS = [
 	{ id: "test-foe-5e-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/foe-5e.mjs --selftest" },
 	{ id: "test-foe-5e-mjs", phase: 'test', cost: 8, cmd: "node test/foe-5e.mjs" },
 	// `#701`：**战斗日志门**（可回看的一手一句：有界/保留最近/渲染只读/降级不出现）
+	{ id: "test-econ-price-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/econ-price.mjs --selftest" },
+	{ id: "test-econ-price-mjs", phase: 'test', cost: 2, cmd: "node test/econ-price.mjs" },
 	{ id: "test-fight-history-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-history.mjs --selftest" },
 	{ id: "test-fight-history-mjs", phase: 'test', cost: 4, cmd: "node test/fight-history.mjs" },
 	// `#707`：**战斗状态字段使用面门**（每个 `$pc.ev.fight.<字段>` 都必须有人用；死字段点名）

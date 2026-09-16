@@ -135,6 +135,13 @@ Object.assign((window.Game.Social ??= {}), {
 		return typeof a?.apply === 'function' || typeof hook === 'function'
 			|| a?.yields != null || a?.gives != null || a?.sets != null;
 	},
+	/** 某 ask 的某个**条件字段**是否有声明（含契约钩子）——门用它判「有愿意／有回绝／已办」；
+	 *  没有它，搬进钩子的条件对门**不可见** ⇒ 门会静默失去咬合力（实测：`--social` 的「有回绝」标记消失 ✗）。 */
+	askHasCondition(a, field) {
+		if (a?.[field] != null) return true;
+		const hook = window.Sg?.story?.socialHooks?.()?.[a?.id];
+		return hook?.[field] != null;
+	},
 	applyAskEffect(a, pc) {
 		const hook = window.Sg?.story?.socialHooks?.()?.[a.id]?.apply;
 		if (typeof hook === 'function') return hook(pc);

@@ -21,6 +21,8 @@ if (wantAll || arg('social')) {
 	console.log('\n══ ⓪l 交涉门（B2）——同一句诉求换手段、态度定 DC、代价因手段而异 ══');
 	let bad = 0;
 	const S = Game.Social;
+	// 字段存在性（**含契约钩子**）：否则搬进钩子的条件对门不可见 ⇒ 门静默失去咬合力。
+	const has = (a, f) => (typeof Game.Social?.askHasCondition === 'function' ? Game.Social.askHasCondition(a, f) : a?.[f] != null);
 	if (!S?.asks?.length) { console.log('  ✗ 交涉表不存在'); bad++; }
 	const apKeys = Object.keys(S?.approaches ?? {});
 	const failKinds = new Set();
@@ -60,11 +62,11 @@ if (wantAll || arg('social')) {
 		// 三档意愿：至少要有回绝（否则"掷骰无用"这一步没被演示过）
 		// `#785` 语义（声明式化后）：**空条件对象 ＝ 恒真；字段缺席 ＝ 恒假** —— 与原先「函数恒真/恒假」逐点一致，
 		// 所以下面这些**存在性检查**（`a.willing ? …` / `a.willing && !a.will` / `a.unwilling && !a.willing`）语义不变 ✓。
-		if (a.unwilling && !a.why) { console.log(`  ✗ 诉求「${a.id}」有 unwilling 分支却没写 why——玩家看不到"为什么掷骰没用"`); bad++; }
-		if (a.willing && !a.will) { console.log(`  ✗ 诉求「${a.id}」有 willing 分支却没写 will——免检的过场文案缺了`); bad++; }
+		if (has(a, 'unwilling') && !a.why) { console.log(`  ✗ 诉求「${a.id}」有 unwilling 分支却没写 why——玩家看不到"为什么掷骰没用"`); bad++; }
+		if (has(a, 'willing') && !a.will) { console.log(`  ✗ 诉求「${a.id}」有 willing 分支却没写 will——免检的过场文案缺了`); bad++; }
 		if ((a.sites ?? []).length) {
 			if (!a.ok || !a.bad) { console.log(`  ✗ 诉求「${a.id}」有掷骰的路子，却没写成/败两档文案`); bad++; }
-			if (!a.done) { console.log(`  ✗ 诉求「${a.id}」没写 done——面板会一直发同一手`); bad++; }
+			if (!has(a, 'done')) { console.log(`  ✗ 诉求「${a.id}」没写 done——面板会一直发同一手`); bad++; }
 			// `#785` 机制片：`apply` 现在有**三种**形态 —— ① 函数（过渡期）② 声明（`yields`/`gives`/`sets`）
 			// ③ 契约钩子（`Sg.story.socialHooks()[askId].apply`）。判据的含义**不变**（成功之后总得拿到东西），
 			// 只是**载体**多了一种 ⇒ 判定要跟上（否则会把声明式落地误报成「没写 apply」）。
@@ -80,7 +82,7 @@ if (wantAll || arg('social')) {
 			}));
 			for (const f of fails) failKinds.add(f);
 		}
-		console.log(`  ${a.sites?.length || a.levers?.length ? '✓' : '·'} ${a.id}（${a.sites?.length ?? 0} 种开口 · ${a.levers?.length ?? 0} 件筹码${a.willing ? ' · 有愿意' : ''}${a.unwilling ? ' · 有回绝' : ''}）${opts.length ? '：' + opts.join(' / ') : ''}`);
+		console.log(`  ${a.sites?.length || a.levers?.length ? '✓' : '·'} ${a.id}（${a.sites?.length ?? 0} 种开口 · ${a.levers?.length ?? 0} 件筹码${has(a, 'willing') ? ' · 有愿意' : ''}${has(a, 'unwilling') ? ' · 有回绝' : ''}）${opts.length ? '：' + opts.join(' / ') : ''}`);
 	}
 	// 代价要因手段而异（2024：不同手段的失败代价不同）
 	for (const k of ['重试代价', '态度代价', '无代价']) if (!failKinds.has(k)) { console.log(`  ✗ 没有任何一手是「${k}」——手段之间没有代价差异`); bad++; }
@@ -100,7 +102,7 @@ if (wantAll || arg('social')) {
 
 	console.log(`  代价差异：${[...failKinds].join(' · ')}（游说/历史＝越问越难 · 欺瞒/恐吓＝态度下降 · 表演/洞悉/察觉＝只丢这一句）`);
 	// 至少一条常驻面板的「unwilling」示范（让玩家看见"掷骰无用"这一步存在）
-	const stubborn = (S.asks ?? []).filter((a) => a.unwilling && !(a.willing));
+	const stubborn = (S.asks ?? []).filter((a) => has(a, 'unwilling') && !has(a, 'willing'));
 	if (!stubborn.length) console.log('  ⚠ 没有任何"始终不肯"的诉求——意愿三档里的 unwilling 只是理论');
 	else console.log(`  回绝示范：${stubborn.map((a) => a.id).join('、')}`);
 	if (process.argv.includes('--check')) {

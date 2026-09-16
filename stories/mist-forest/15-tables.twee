@@ -570,8 +570,8 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 					{ id: 'drink', name: '请她喝一轮', gives: 'auto', econ: 'drink_round', note: '她不缺你这两句话，缺的是一轮酒' },
 					{ id: 'read',  name: '看出她一直在瞟炉子', gives: 'adv', needRead: true, note: '她怕的是火，不是塔' },
 				],
-				done: (pc) => Sg.notes.has('n_tav_tips', pc),
-				apply: (pc) => { Sg.notes.add('n_tav_tips', pc); Sg.notes.add('n_tav_fog', pc); },
+				done: { req: ['n_tav_tips'] },
+				apply: (pc) => { Sg.notes.add('n_tav_tips', pc); Sg.notes.add('n_tav_fog', pc); },   // ⏳ 效果侧声明化**待引擎侧就绪**（其双形只覆盖条件侧 ✗，见 `#785`）
 				ok: '"你要真想进去，"她把杯子放下，"就记住两件事：一是别在雾里睡觉，二是听见有人叫你名字，别应。"',
 				bad: `她把抹布在台面上又擦了一遍，没接你的话。（''她听过了，不想再说。''）`,
 				auto: '你把酒钱推过去。她愣了一下，然后真的坐下了："……你倒是会做人。坐下吧。"' },
@@ -584,7 +584,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 					{ id: 'read',    name: '看出他靴边那一圈白', gives: 'adv', needRead: true, note: '他每天都要从那片花边上走一趟' },
 				],
 				// 2024「willing」由段落内手写（带日记/书＝他本来就要说：_t>0 → 直给），这里只留掷骰与筹码
-								done: (pc) => Sg.notes.has('n_keeper_told', pc),   // #229：保命警告已提为初遇无差别——面板问的是「来历」这层
+								done: { req: ['n_keeper_told'] },   // #229：保命警告已提为初遇无差别——面板问的是「来历」这层
 				apply: (pc) => { Sg.notes.add('n_flower_warned', pc); Sg.notes.add('n_keeper_told', pc); },
 				ok: '"那花会睡人。"他看了一眼炉子，"要摘，先把气含住。我小时候在那儿睡过一下午，醒来天都黑了。"',
 				bad: `"那片花？"他把灯芯剪短了一截，''"你别去碰它。"''他不再说别的。`,
@@ -597,8 +597,8 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 					{ id: 'talisman', name: '把脖子上那枚护符亮出来', gives: 'auto', need: { req: ['inv:时光护符'] }, note: '这家人打的星铁，这家人认得' },
 					{ id: 'read',     name: '看出他一直在练错的那几个字', gives: 'adv', needRead: true, note: '他要的不是赢，是把这一句念完' },
 				],
-				willing: (pc) => (pc.keeper?.trust ?? 0) > 0,
-				done: (pc) => pc.keeper?.state === 'seal',
+				willing: { req: [{ gte: ['keeper.trust', 1] }] },   // 严格 `>` 0 ＋ 整数计数 ⇒ `gte: 1` ✓
+				done: { req: [{ oneOf: ['keeper.state', ['seal']] }] },
 				apply: (pc) => { pc.keeper.state = 'seal'; },
 				ok: '他把手稿收进抽屉，在桌边坐下，示意你也坐。"术式我念得动。"他说，"我练了一辈子。"',
 				bad: '"这门东西不给人看。"他把灯拨正，"你要是不知道自己在求什么，就别求。"',
@@ -612,7 +612,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 					{ id: 'book', name: '把风化了的书放回案上', gives: 'auto', need: { req: ['inv:观星者的书'] }, note: '那是他自己写的字' },
 					{ id: 'read', name: '看出他停在最后一轨', gives: 'adv', needRead: true, note: '他算不下去了，也没人替他算' },
 				],
-				done: (pc) => !!pc.ev.seer_gave,
+				done: { req: ['ev.seer_gave'] },
 				apply: (pc) => { pc.ev.seer_gave = true; },
 				ok: `他把笔放下了。''"空口无凭"''那四个字，他没说。`,
 				bad: `"空口无凭。"他把图收了回去。（''你要是说不动他，就得拿出他认得的东西来。''）`,
@@ -624,7 +624,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				levers: [
 					{ id: 'read', name: '看她握哨的手势', gives: 'adv', needRead: true, note: '那只手一直没松开过' },
 				],
-				done: (pc) => Sg.notes.has('n_witch_grip', pc),
+				done: { req: ['n_witch_grip'] },
 				apply: (pc) => { Sg.notes.add('n_witch_grip', pc); },
 				ok: '你把看出来的东西说出口。她把手翻过来给你看："你眼力不错。"',
 				bad: '她把手合上了。"哨子是我家的。"',
@@ -633,10 +633,10 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 			{ id: '女巫·换哨', tag: '换哨', npc: '当时的女巫', q: '把她那支哨换过来', base: 'neutral',
 				sites: [], levers: [],
 				// 2024「unwilling」：拿不出图、还杖、手里那支哨，说不动她——这一步不是掷骰能过的（#177：交换要真拿着可换的哨）
-				willing: (pc) => !!pc.inv['完整星图'] && !!pc.world.family_favor && !!pc.inv['坏哨'],
+				willing: { req: ['inv:完整星图', 'world.family_favor', 'inv:坏哨'] },
 				unwilling: (pc) => !(pc.inv['完整星图'] && pc.world.family_favor && pc.inv['坏哨']),
 				why: `（她把图、那根杖、你手里那支哨都算在了这一眼里——''哪样没凑齐，说什么都白说''。）`,
-				done: (pc) => !!pc.inv['好哨'],
+				done: { req: ['inv:好哨'] },
 				apply: (pc) => { delete pc.inv['坏哨']; pc.inv['好哨'] = true; },
 				will: '她看了很久，像在核对一件只有她认得的东西，然后把手里那支哨递过来。' },
 
@@ -646,7 +646,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 					{ id: 'coin',   name: '把几枚金币放在石头上', gives: 'auto', econ: 'goblin_bribe', note: '它要的不是路，是能换东西的石头' },
 					{ id: 'stones', name: '把滚到脚边的石头给它捡回去', gives: 'auto', needRead: true, note: '它只是舍不得那些石头' },
 				],
-				done: (pc) => !!pc.world.goblin_spared,
+				done: { req: ['world.goblin_spared'] },
 				apply: (pc) => { pc.world.goblin_spared = true; },
 				ok: '它把石头一块块码回怀里，往旁边挪了挪，让出半条路。',
 				bad: '它尖叫着把石头抱得更紧，牙齿打颤的声音更响了。',
@@ -654,9 +654,8 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 
 			{ id: '老巫女·开口', tag: '搭话', npc: '老巫女', q: '让她多说两句', base: 'neutral',
 				sites: [], levers: [],
-				unwilling: () => true,
+				unwilling: {},                            // 空条件＝恒真 ✓（原 `() => true` 的声明式写法）
 				why: `（她把袖子拢了拢。''这一桌没有你要问的事''——她不说，你也没什么能拿来换的。）`,
-				done: () => false,
 				no: '她没看你，只看着厅中央那张空着的位子。' },
 		],
 		// ── `#785` 机制片：本块**只留数据**（`ATT`／`attAdj`／`approaches`／`asks`）──────────────

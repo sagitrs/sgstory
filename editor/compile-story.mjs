@@ -17,18 +17,53 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
-/** 契约成员的 `kind` → JS 表达式（v0 的封闭集合；新增 kind 必须同时改这里与设计稿 §2.3）。 */
+/** 查表表达式的两种形状：普通取键 / 可选链取键（接缝路径如 `Sg.story.mechanics()` 用后者）。 */
+const access = (from, key, optional) => {
+	// `from` 已经是全局根（`window.` / `Sg.`）时**原样用**——手写版两种写法都有（`window.Sg.story.mechanics()` 与 `Sg.story.mechanics()`），
+	// schema 得能表达"哪个根"，否则生成物与手写版差一个前缀（L3 报差异时要人肉分辨，不值当）。
+	const base = /^(window\.|Sg\.)/.test(from) ? from : `window.${from}`;
+	return optional ? `${base}?.[${key}]` : `${base}[${key}]`;
+};
+
+/** 契约成员的 `kind` → JS 表达式（**封闭集合**；新增 kind 必须同时改这里、`--selftest` 与设计稿 §2.3）。
+ *
+ *  v0 六个 ＋ v1 四个（`#762` 车道 A 实测缺口：故事 1/2 的真实契约都用得上，且都**不需要** `kind:'js'` 逃生舱）：
+ *   · `lookup`        ｜ `{ from, key, default, optional?, required?, error? }` —— 查表；`required` 表达契约的 fail-loud
+ *   · `lookup-field`  ｜ 在 `lookup` 基础上取一个字段，并可给兜底表达式（如 `String(key)`）
+ *   · `bool-exists`   ｜ `{ path }` ⇒ `!!window.<path>`（"这张故事表在不在"）
+ *   · `state-ref`     ｜ `{ path, default, arg? }` ⇒ `<arg>?.<path> ?? <default>`（如 `foeState(pc)` 读 `pc.dragon`）
+ */
 export const KINDS = {
 	'empty-object': () => '() => ({})',
 	'empty-array': () => '() => []',
 	'null': () => '() => null',
-	'const': (m) => `() => ${JSON.stringify(m.value)}`,
+	'const': (m) => `() => ${jsLiteral(m.value)}`,
 	'game-ref': (m) => `() => window.${m.path}`,
 	'identity-string': () => '(id) => String(id)',
+	'lookup': (m) => {
+		const k = m.key ?? 'id';
+		const value = access(m.from, k, m.optional !== false);
+		if (!m.required) return `(${k}) => ${value} ?? ${jsLiteral(m.default ?? null)}`;
+		const msg = String(m.error ?? `Sg.story.${m.name}：${k} 未登记（结构缺失必须报错，#441-E）`).replaceAll('{key}', '${' + k + '}');
+		return `(${k}) => {\n\t\tconst v = ${value};\n\t\tif (!v) throw new Error(\`${msg}\`);\n\t\treturn v;\n\t}`;
+	},
+	'lookup-field': (m) => {
+		const k = m.key ?? 'id';
+		const value = access(m.from, k, m.optional !== false);
+		const field = m.field ? `?.${m.field}` : '';
+		return `(${k}) => ${value}${field} ?? ${m.fallback ?? 'null'}`;
+	},
+	'bool-exists': (m) => `() => !!window.${m.path}`,
+	'state-ref': (m) => {
+		const a = m.arg ?? 'pc';
+		return `(${a}) => ${a}?.${m.path} ?? ${jsLiteral(m.default ?? {})}`;
+	},
 };
 
 /** 纯函数：JS 字符串字面量 —— 一律**单引号**（与仓内既有代码同风格；L3 要剥空白后逐字节相同）。 */
 export const jsString = (v) => `'${String(v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
+
+const jsLiteral = (v) => literal(v, 0);
 
 /** 纯函数：对象键 —— 合法标识符用裸键，其余用单引号串。 */
 export const jsKey = (k) => (/^[A-Za-z_$][\w$]*$/.test(k) ? k : jsString(k));
@@ -88,6 +123,25 @@ export const compile = ({ tables, contract, slug }) => {
 	parts.push('');
 	return parts.join('\n');
 };
+
+const selftest = () => {
+	let bad = 0;
+	const t = (label, ok, got = '') => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} 自证·${label}${ok ? '' : `\n    实得：${got}`}`); };
+	const one = (m) => emitContract({ members: [{ name: m.name ?? 'x', ...m }] });
+	const has = (m, needle) => { const got = one(m); return [got.includes(needle), got]; };
+	t('lookup：默认可选链 ＋ 兜底 null', ...has({ kind: 'lookup', from: 'Game.Checks.sites', key: 'name' }, 'window.Game.Checks.sites?.[name] ?? null'));
+	t('lookup：`Sg.` 根原样保留（不重复加 window.）', ...has({ kind: 'lookup', from: 'Sg.story.mechanics()?.pools', key: 'id', default: [] }, 'Sg.story.mechanics()?.pools?.[id] ?? []'));
+	t('lookup：`optional:false` ⇒ 普通取键', ...has({ kind: 'lookup', from: 'Game.Notes.entries', key: 'k', optional: false }, 'window.Game.Notes.entries[k] ??'));
+	t('lookup：`required:true` ⇒ 显式抛错（契约 fail-loud）', ...has({ kind: 'lookup', from: 'Game.Checks.sites', key: 'name', required: true, name: 'checkSite', error: 'Sg.story.checkSite：位点「{key}」未登记（结构缺失必须报错，#441-E）' }, 'throw new Error(`Sg.story.checkSite：位点「${name}」未登记'));
+	t('lookup-field：取字段 ＋ 兜底表达式', ...has({ kind: 'lookup-field', from: 'Sg.story.mechanics()?.actions', key: 'id', field: 'label', fallback: 'String(id)' }, 'Sg.story.mechanics()?.actions?.[id]?.label ?? String(id)'));
+	t('bool-exists：`!!window.<path>`', ...has({ kind: 'bool-exists', path: 'Game.Chargen' }, '() => !!window.Game.Chargen'));
+	t('state-ref：`<arg>?.<path> ?? default`', ...has({ kind: 'state-ref', path: 'dragon', default: {} }, '(pc) => pc?.dragon ?? {}'));
+	t('未知 kind ⇒ 报错（不许静默产出半个函数）', (() => { try { one({ kind: 'nope' }); return false; } catch { return true; } })());
+	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
+	console.log('\n✔ 自证通过（8 例：lookup 四形态 · lookup-field · bool-exists · state-ref · 未知 kind 报错）');
+};
+
+if (process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 
 const main = () => {
 	const slug = process.argv[2];

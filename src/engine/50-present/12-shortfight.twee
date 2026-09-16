@@ -28,6 +28,28 @@
    而"部件受伤反馈"（`#704`）吃 `absorb`（部位＋护具＋吸收量＋是否损坏）。
 
    用法：`<<foeRound "洞窟·挥剑">>`（调用前该波必须已 `foeSpawn`；无实例 ⇒ 什么都不做，交回旧路径）。 %/
+<<widget "foeIntent">><<nobr>>
+	/% `#701` 方向③（症状：玩家只知道自己能做什么，**不知道对手会往哪儿招呼**）：
+	   从**声明面**读当前波的敌人（`enemies[id].attack.parts`）⇒ 预告"它盯着哪儿"。
+	   口径：只报**部位**（不报命中加值/伤害骰 —— 那是 DM 屏后的数，玩家不该看到；也避免把数值写死在文案里）。
+	   **降级**：没有敌人实例（故事 1／未声明敌人）⇒ **整块不出现**（不留空行）。 %/
+	/% 取数走**可空链**：没仗打（故事 1／尚未开局）时 `$pc.ev.fight` 可能整个不存在 ⇒ 必须静默不出现，
+	   而不是抛 `<<set>>: bad evaluation`（实测踩过一次）。 %/
+	<<set _foes to $pc?.ev?.fight?.wave?.foes ?? []>>
+	<<if _foes.length>>
+		<<set _seen to []>>
+		<<for _f range _foes>>
+			<<set _d to Game.Combat.enemyDef(_f.id)>>
+			<<for _p range (_d.attack and _d.attack.parts) or []>>
+				<<if not _seen.includes(_p)>><<set _seen to _seen.concat([_p])>><</if>>
+			<</for>>
+		<</for>>
+		<<if _seen.length>>
+			<div class="fight-intent">它盯着：<<print _seen.join("、")>>。</div>
+		<</if>>
+	<</if>>
+<</nobr>><</widget>>
+
 <<widget "foeRound">><<nobr>>
 	/% ⚠️ 本 widget 只做**渲染**：机制（掷骰／结算／日志串）全在 `Game.Combat.foeRound()` 里。
 	   为什么这么切（`#705` 片二-B 实测的教训）：SugarCube 的 `<<set>>` 解析器吃不下"长表达式 ＋ 嵌套
@@ -52,6 +74,7 @@
 	<<link $args[1]>>
 		/% `#705` 片二-B：**有敌人实例**（故事声明了 `enemies`）⇒ 5e 攻击骰 ＋ 敌人反击（落部位）；
 		   没有实例 ⇒ 逐字节走旧路径（`sitecheck` ＋ `waveRecord`）⇒ 未声明敌人属性的故事**一行不变**。 %/
+		<<foeIntent>>
 		<<set _foes to $pc.ev.fight.wave.foes>>
 		<<if _foes and _foes.length gt 0>>
 			<<foeRound $args[0]>>

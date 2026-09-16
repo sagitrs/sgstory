@@ -188,6 +188,7 @@
    玩家看到"本轮 4/3、5/3"以为早就该结束。改为从**声明面**取（`wavePlan(enc).rounds`／`.hits`）。 %/
 <<set _pl to Game.Combat.wavePlan(_wv.encounter)>>
 第 <<= _wv.idx>> 批 · 本轮 <<= _wv.rounds + 1>>/<<= _pl.rounds>>（命中 <<= _wv.hits>>/<<= _pl.hits>>）
+<<foeIntent>>
 
 <<link "把火把举低，逼它退到石壁边">>
 	/% `#705` 片二-B：这一手的机制走引擎的 `<<foeRound>>`（5e 攻击骰 ＋ 敌人反击落部位）；`#702` 判据⑦：

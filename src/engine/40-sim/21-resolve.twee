@@ -91,6 +91,22 @@ Object.assign((window.Game.Checks ??= {}), {
 // 两段式而不是一次性：玩家受伤后的 `hp` 决定对手那一轮是否发生，而 `hp` 由 present 的 `<<damage>>` 落，
 // 拆成两段才能让「渲染顺序」与「hp 时序」同时与旧实现逐字一致。
 Object.assign((window.Game.Combat ??= {}), {
+	/** 位点文案（`#785` 接缝 5 下沉）：`<skill/abil> DC<dc>`。
+	 *  数据**全部经接入契约取**（`Sg.story.combatAction(id)` ＋ `Sg.story.checkSite(name)` ✓ —— 两者**本来就有**，
+	 *  所以本接缝**不需要新契约成员** ✓）；标签走引擎 `Game.Rules.skillLabel` ✓。
+	 *  ⚠️ **行为陷阱**：`combatAction` 对**未登记动作会抛**（它自己的 fail-loud ✓），而本方法原实现对未知动作
+	 *  是**退化成空串** ✓ ⇒ 这里必须**吞掉**那个抛（否则把"渲染时给空"变成"渲染时崩" ✗ —— 那是行为变更 ✗）。 */
+	siteInfo(actionId) {
+		let a = null;
+		try { a = window.Sg?.story?.combatAction?.(actionId) ?? null; } catch { return ''; }
+		const s = a?.site ? (window.Sg?.story?.checkSite?.(a.site) ?? null) : null;
+		if (!s) return '';
+		const what = s.skill ? window.Game.Rules.skillLabel(s.skill) : (s.abil === 'con' ? '体质豁免' : s.abil);
+		return `${what} DC${s.dc}`;
+	},
+});
+
+Object.assign((window.Game.Combat ??= {}), {
 	// 面板惰性抽牌（下一页没抽过就抽）——旧实现是 `<<set _f.offer to …>>`（`_f` 是 state 的别名 ⇒ 也是写状态）
 	ensureOffer(pc) {
 		const T = window.Game, f = pc.ev.fight;

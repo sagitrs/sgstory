@@ -138,13 +138,8 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 			forged_scale: { delta: -8, chapter: 2, note: '工坊·打造龙鳞护臂' },
 			dragon_hoard: { delta: 10, chapter: 3, note: '巢边·识货' },
 		},
-		priceOf(key, pc) {
-			const ev = this.events[key];
-			if (!ev) throw new Error(`未知经济事件: ${key}`);
-			if (ev.featDiscount && pc?.flags?.[ev.featDiscount.flag]) return ev.featDiscount.to;
-			if (ev.skillDiscount && pc?.skills?.includes(ev.skillDiscount.skill)) return ev.skillDiscount.to;
-			return ev.delta;
-		},
+			// `priceOf` 已按 `#785` **下沉引擎**（`Game.Economy.priceOf` 读本表 ⇒ 与 `apply()` 同一数据源 ✓）：
+			// 本块**只留数据**（`events` 表 ＋ `note`）—— 故事侧不再有定价逻辑 ✓（语义与报文逐字保留在引擎侧 ✓）。
 	};
 
 	// ── 道具（v16 §5.0：各有用途，不集齐开锁）────────────────

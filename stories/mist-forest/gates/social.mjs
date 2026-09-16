@@ -58,6 +58,8 @@ if (wantAll || arg('social')) {
 			if (leverGivesBad(lv.gives)) { console.log(`  ✗ 诉求「${a.id}」的筹码「${lv.name}」gives=${lv.gives}（只能 auto＝免检 或 adv＝优势）`); bad++; }
 		}
 		// 三档意愿：至少要有回绝（否则"掷骰无用"这一步没被演示过）
+		// `#785` 语义（声明式化后）：**空条件对象 ＝ 恒真；字段缺席 ＝ 恒假** —— 与原先「函数恒真/恒假」逐点一致，
+		// 所以下面这些**存在性检查**（`a.willing ? …` / `a.willing && !a.will` / `a.unwilling && !a.willing`）语义不变 ✓。
 		if (a.unwilling && !a.why) { console.log(`  ✗ 诉求「${a.id}」有 unwilling 分支却没写 why——玩家看不到"为什么掷骰没用"`); bad++; }
 		if (a.willing && !a.will) { console.log(`  ✗ 诉求「${a.id}」有 willing 分支却没写 will——免检的过场文案缺了`); bad++; }
 		if ((a.sites ?? []).length) {

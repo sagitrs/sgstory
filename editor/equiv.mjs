@@ -78,6 +78,18 @@ export const declaredIds = (win) => {
 		...pick(G.Items?.defs), ...pick(G.Gear?.defs), ...pick(G.Economy?.prices),
 		...pick(G.Notes?.entries), ...pick(G.Social?.asks?.[0] ?? {}),
 	];
+	// `#787`：**契约自身内联数据里的键**也要进探针语料 —— 否则"查表成员读一个不存在的根"这类缺陷会**同假**
+	//（两边都 `null`／`''` ⇒ 探测不到 ✗；实测：洞窟六个成员读 `window.MECH`（局部常量）时 L1 曾静默通过 ✗）。
+	// 取法：把**零参**契约成员求值后深挖键（如 `mechanics()` ⇒ `kindLabels`／`caveRewards`／`chest.gold` 的键）。
+	const deepKeys = (v, out = new Set(), depth = 0) => {
+		if (depth > 4 || !v || typeof v !== 'object') return out;
+		for (const [k, x] of Object.entries(v)) { if (typeof k === 'string' && k.length <= 40) out.add(k); deepKeys(x, out, depth + 1); }
+		return out;
+	};
+	for (const [name, fn] of Object.entries(win.Sg?.story ?? {})) {
+		if (typeof fn !== 'function' || fn.length > 0) continue;                 // 只碰零参成员（带参的求值不了）
+		try { for (const k of deepKeys(fn())) list.push(k); } catch { /* 成员自身抛错由别的判据报 */ }
+	}
 	const uniq = [...new Set(list)].filter((s) => s && s !== '__unknown__');
 	return { all: uniq, first: uniq[0] ?? 'x' };
 };

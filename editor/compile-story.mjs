@@ -45,11 +45,21 @@ export const guardChain = (chain) => chain.replace(/\?\./g, '.').split('.').map(
 	return call ? `?.${name}?.()` : `?.${name}`;
 }).join('');
 
-const access = (from, key, optional) => {
+/** 故事数据面能引用的**全局根**（封闭集）。为什么必须封闭：本仓实测 —— 故事文件里的**局部常量**（`const MECH = {…}`）
+ *  被分类器当成可表达的 `lookup.from`（`MECH.kindLabels`）⇒ 编译补 `window.` ⇒ 生成物读 `window.MECH` ⇒ **静默 undefined**
+ *  （六个成员一起变成 `null`/`0`/`[]`，而静态比对与 L3 都看不出来 ✗）。局部常量应走 `fromMember` ＋ `path`（指向同产物里的成员）。 */
+export const GLOBAL_ROOTS = ['Game', 'Sg', 'State', 'window', 'Engine', 'Config'];
+const assertGlobalRoot = (chain, who = '（未知成员）') => {
+	const first = String(chain).replace(/^window\./, '').split(/[.?]/)[0];
+	if (String(chain).startsWith('window.') || GLOBAL_ROOTS.includes(first)) return chain;
+	throw new Error(`成员「${who}」的路径根「${first}」不是全局（\`GLOBAL_ROOTS\` = ${GLOBAL_ROOTS.join('/')}）—— **局部常量不能当全局读**：本仓实测它会被补成 \`window.${first}\` ⇒ 产物静默 undefined。请改用 \`fromMember\`(＋\`path\`) 指向同产物里的声明式成员，或先把字面量内联进 data。`);
+};
+
+const access = (from, key, optional, who = '（未知成员）') => {
 	// `from` 已经是全局根（`window.` / `Sg.`）时**原样用**——手写版两种写法都有（`window.Sg.story.mechanics()` 与 `Sg.story.mechanics()`），
 	// schema 得能表达"哪个根"，否则生成物与手写版差一个前缀（L3 报差异时要人肉分辨，不值当）。
 	assertChain(from, 'lookup.from');
-	const rooted = /^(window\.|Sg\.)/.test(from) ? from : `window.${from}`;
+	const rooted = /^(window\.|Sg\.)/.test(from) ? assertGlobalRoot(from, who) : `window.${assertGlobalRoot(from, who)}`;
 	const base = optional ? guardChain(rooted) : rooted.replace(/\?\./g, '.');
 	return optional ? `${base}?.[${key}]` : `${base}[${key}]`;
 };
@@ -62,10 +72,39 @@ const access = (from, key, optional) => {
  *   · `bool-exists`   ｜ `{ path }` ⇒ `!!window.<path>`（"这张故事表在不在"）
  *   · `state-ref`     ｜ `{ path, default, arg? }` ⇒ `<arg>?.<path> ?? <default>`（如 `foeState(pc)` 读 `pc.dragon`）
  */
+/** **成员相对查表**（`fromMember` ＋ `path`）：指向**同产物里的另一个成员**的值 —— 局部常量的正解。
+ *  为什么需要它（`#785`／`#787` 实测）：故事里 `const MECH = {…}` 是**局部**的，而 `mechanics: () => MECH` 把它放进了契约
+ *  ⇒ 其它成员该写 `MECH.kindLabels[k]` 的地方，必须能表达成"**从我自己的 mechanics 成员里取**" ⇒ `Sg.story.mechanics().kindLabels` ✓
+ *  （`MECH` 在生成物里**不存在** ⇒ 走全局读会静默 undefined ✗）。 */
+const lookupFromMember = (m, k) => {
+	const who = m.fromMember;
+	if (!/^[A-Za-z_$][\w$]*$/.test(who)) throw new Error(`lookup.fromMember 只许是本故事的契约成员名（实得 ${JSON.stringify(who)}）`);
+	const path = m.path ? assertChain(m.path, 'lookup.path') : '';
+	const chain = `Sg.story.${who}()${path ? '.' + path : ''}`;
+	const base = m.optional === false ? chain.replace(/\?\./g, '.') : guardChain(chain);
+	const value = m.key === undefined ? base : `${base}?.[${k}]`;
+	const field = m.field ? `?.${m.field}` : '';
+	if (m.required) {
+		const msg = escTemplate(m.error ?? `Sg.story.${m.name}：${k} 未登记（结构缺失必须报错，#441-E）`).replaceAll('{key}', '${' + k + '}');
+		return `(${k}) => {\n\t\tconst v = ${value}${field};\n\t\tif (!v) throw new Error(\`${msg}\`);\n\t\treturn v;\n\t}`;
+	}
+	// 兜底形态随 kind 走（与各自的非成员路径一致）：`lookup` 用 `default`（字面量）／`lookup-field` 用 `fallback`（小 enum）。
+	// ⚠️ 实测（探针语料扩面后当场抓到）：漏了这条 ⇒ `chestGold` 从 `?? 0` 变成 `?? null` ✗（手写 0 / 生成 null）。
+	const tail = m.fallback !== undefined
+		? ` ?? ${fallbackExpr(m.fallback, k)}`
+		: m.default !== undefined
+			? ` ?? ${jsLiteral(m.default)}`
+			: ' ?? null';
+	return `(${k}) => ${value}${field}${tail}`;
+};
+
 export const KINDS = {
 	'empty-object': () => '() => ({})',
 	'empty-array': () => '() => []',
 	'null': () => '() => null',
+	// ⚠️ **对象/数组 `const` 要保住"同一性"**：手写版是 `() => MECH`（每次返回**同一个**对象 ⇒ 故事/测试**改声明面**时
+	// 实例跟着变）。若就地内联成 `() => ({…})`，每次调用都是**新对象** ⇒ 改声明面不生效 ✗（实测：洞窟翻面后
+	// `test/foe-5e.mjs` 的「改声明 hp ⇒ 实例跟着变」等 3 条断言倒了 ✓ 这是探针**值比较**看不出来的那一类）。
 	'const': (m) => {
 		// ⚠️ **缺 `value` 就抛**：字段名写错（分类器曾用 `raw`）⇒ 静默产出 `() => undefined`，
 		// 而容器比对/L3 都看不出来（只有**行为**探针能抓）⇒ 这一族"静默 undefined"必须在编译期死掉。
@@ -73,6 +112,7 @@ export const KINDS = {
 		// ⚠️ **对象字面量必须包括号**：`() => { … }` 会被当成**块体**（`pools: {` 于是成了带引号的标签 ⇒ SyntaxError）。
 		// 这个坑是洞窟端到端（`mechanics` 那张大表）第一次编出来时**当场炸**的 —— 自证里没有对象 const 覆盖到它。
 		const lit = jsLiteral(m.value);
+		if (m.value !== null && typeof m.value === 'object') return `() => __const_${m.name}`;   // 顶部声明，见 emitContract
 		return `() => ${lit.startsWith('{') ? `(${lit})` : lit}`;
 	},
 	'game-ref': (m) => {
@@ -108,20 +148,22 @@ export const KINDS = {
 	'identity-string': () => '(id) => String(id)',
 	'lookup': (m) => {
 		const k = m.key ?? 'id';
-		const value = access(m.from, k, m.optional !== false);
+		if (m.fromMember) return lookupFromMember(m, k);
+		const value = access(m.from, k, m.optional !== false, m.name);
 		if (!m.required) return `(${k}) => ${value} ?? ${jsLiteral(m.default ?? null)}`;
 		const msg = escTemplate(m.error ?? `Sg.story.${m.name}：${k} 未登记（结构缺失必须报错，#441-E）`).replaceAll('{key}', '${' + k + '}');
 		return `(${k}) => {\n\t\tconst v = ${value};\n\t\tif (!v) throw new Error(\`${msg}\`);\n\t\treturn v;\n\t}`;
 	},
 	'lookup-field': (m) => {
 		const k = m.key ?? 'id';
+		if (m.fromMember) return lookupFromMember(m, k);
 		if (m.via) {
 			// **经成员调用**取字段 ＋ 校验非空（`actionLabel` 的形状）：`via` 只许是本故事的契约成员名
 			if (!/^[A-Za-z_$][\w$]*$/.test(m.via)) throw new Error(`lookup-field.via 只许是本故事的契约成员名（实得 ${JSON.stringify(m.via)}）`);
 			const msg = escTemplate(m.error ?? `Sg.story.${m.name}：动作「{key}」缺 ${m.field}（结构缺失必须报错，#441-E）`).replaceAll('{key}', '${' + k + '}');
 			return `(${k}) => {\n\t\tconst a = window.Sg.story.${m.via}(${k});\n\t\tif (!a || typeof a.${m.field} !== 'string' || !a.${m.field}) throw new Error(\`${msg}\`);\n\t\treturn a.${m.field};\n\t}`;
 		}
-		const value = access(m.from, k, m.optional !== false);
+		const value = access(m.from, k, m.optional !== false, m.name);
 		const field = m.field ? `?.${m.field}` : '';
 		return `(${k}) => ${value}${field} ?? ${fallbackExpr(m.fallback, k)}`;
 	},
@@ -224,12 +266,26 @@ export const emitTables = (d) => {
 
 /** 纯函数：`data/contract.json` → `StoryBindings` 段（不含段头与生成标记）。 */
 export const emitContract = (d) => {
+	// 对象/数组 `const` 成员在**文件顶部**声明一次（`const X = {…};` 的赋值位无"块体 vs 对象"歧义 ✓），
+	// 成员体只 `() => __const_X` ⇒ **每次调用同一个对象** ⇒ 与手写版 `() => MECH` 的同一性语义一致 ✓。
+	// `fromMember` 前置（复核三条条件里的 ①③）：被引用者**必须**是本产物里的一个**声明式成员** ——
+	// 否则引用链要么指向**不存在**的成员（静默 null ✗），要么指进故事已有的函数（把任意逻辑藏进产品 ✗）。
+	const names = new Set(d.members.map((m) => m.name));
+	for (const m of d.members) {
+		if (m.fromMember && !names.has(m.fromMember)) {
+			throw new Error(`成员「${m.name}」的 \`fromMember\` 指向「${m.fromMember}」—— 但它**不在本契约的成员里**（引用必须指向同产物里的**声明式**成员）`);
+		}
+	}
+	// ② 顺序无关：`__const_*` 提升到文件顶部 ＋ 成员引用在**调用时**求值（`Sg.story.X()`）⇒ 不依赖成员定义顺序 ✓。
+	const hoists = d.members
+		.filter((m) => m.kind === 'const' && m.value !== null && typeof m.value === 'object')
+		.map((m) => `const __const_${m.name} = ${jsLiteral(m.value)};`);
 	const rows = d.members.map((m) => {
 		const fn = KINDS[m.kind];
 		if (!fn) throw new Error(`未知的契约 kind：${m.kind}（成员 ${m.name}）——新增 kind 必须同时改 KINDS 与设计稿 §2.3`);
 		return `\t${m.name}: ${fn(m)},`;
 	});
-	return ['window.Sg ??= {};', `Object.assign((window.Sg.story ??= {}), {\n${rows.join('\n')}\n});`].join('\n');
+	return ['window.Sg ??= {};', ...hoists, `Object.assign((window.Sg.story ??= {}), {\n${rows.join('\n')}\n});`].join('\n');
 };
 
 const GENERATED = (src) => `// @generated by editor/compile-story.mjs（源：${src}）——**手改会在下次编译被覆盖**（#762 / K4）`;
@@ -396,6 +452,34 @@ const selftest = () => {
 		const C = build([{ name: 'mechanics', kind: 'const', value: { pools: { w1: ['a'] }, deep: { x: { y: 1 } } } }]);
 		return call(C.mechanics).ok === '{"pools":{"w1":["a"]},"deep":{"x":{"y":1}}}';
 	})());
+	t('`fromMember` 指向**不存在的成员** ⇒ emit 抛错（不许静默 null ✗）', (() => {
+		try { emitContract({ members: [{ name: 'a', kind: 'lookup', fromMember: '不存在', path: 'x', key: 'k' }] }); return false; }
+		catch (e) { return /不在本契约的成员里/.test(String(e.message)); }
+	})());
+	t('局部常量根的报文**点名成员**（免得下一个人 bisect）', (() => {
+		try { emitContract({ members: [{ name: 'eventKindLabel', kind: 'lookup', from: 'MECH.kindLabels', key: 'k' }] }); return false; }
+		catch (e) { return /成员「eventKindLabel」/.test(String(e.message)) && /MECH/.test(String(e.message)); }
+	})());
+	t('对象 `const`：**每次调用返回同一对象**（手写版 `() => MECH` 的语义；值比较看不出来 ⇒ 必须单独钉）', (() => {
+		const C = build([{ name: 'mechanics', kind: 'const', value: { enemies: { 鼠: { hp: 4 } } } }]);
+		const a = C.mechanics(), b = C.mechanics();
+		a.enemies.鼠.hp = 7;
+		return a === b && C.mechanics().enemies.鼠.hp === 7;
+	})());
+	t('`fromMember` ＋ `path`：从**同产物里的成员**取表（局部常量的正解）—— 行为断言', (() => {
+		const C = build([{ name: 'mechanics', kind: 'const', value: { kindLabels: { shortFight: '短战斗' } } },
+		                 { name: 'eventKindLabel', kind: 'lookup', fromMember: 'mechanics', path: 'kindLabels', key: 'k', default: null }]);
+		return call(C.eventKindLabel, 'shortFight').ok === '"短战斗"' && call(C.eventKindLabel, 'x').ok === 'null';
+	})());
+	t('`fromMember`：兜底随 kind 走 —— `lookup.default`（如 `?? 0`）与 `lookup-field.fallback` 都不能丢', (() => {
+		const C = build([{ name: 'mechanics', kind: 'const', value: { chest: { gold: { 普通: 5 } } } },
+		                 { name: 'chestGold', kind: 'lookup', fromMember: 'mechanics', path: 'chest.gold', key: 'rarity', default: 0 }]);
+		return call(C.chestGold, '普通').ok === '5' && call(C.chestGold, '无').ok === '0';
+	})());
+	t('**局部常量根**（`MECH.kindLabels`）⇒ emit 抛错（不许补成 `window.MECH` ⇒ 产物静默 undefined ✗）', (() => {
+		try { build([{ name: 'eventKindLabel', kind: 'lookup', from: 'MECH.kindLabels', key: 'k', default: null }]); return false; }
+		catch (e) { return /不是全局/.test(String(e.message)); }
+	})());
 	t('契约/表**缺 `section`** ⇒ emit 抛错（否则产物出现 `:: undefined [script]` —— 无名段落会让按段名解析的门集体失准）', (() => {
 		try { compileStory({ slug: 'x', tables: { section: undefined, containers: {} } }); return false; } catch (e) { return /section 缺失/.test(String(e.message)); }
 	})());
@@ -406,7 +490,7 @@ const selftest = () => {
 	t('未知 kind ⇒ emit 抛错（不许静默产出半个函数）', badPath({ kind: 'nope' }));
 
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过（39 例：lookup 5 · lookup-field 6 · bool-exists 2 · state-ref 2 · game-ref 7 · forward 2 · **template 6（含三态）** · 卫生/硬化 7——**全部按行为断言**）');
+	console.log('\n✔ 自证通过（45 例：lookup 5 · lookup-field 6 · bool-exists 2 · state-ref 2 · game-ref 7 · 成员相对查表 3 · forward 2 · **template 6（含三态）** · 卫生/硬化 7——**全部按行为断言**）');
 };
 
 // ⚠️ **主模块守卫**（实测踩到）：这些脚本**同时是库**（`equiv` 被 `extract` 导入、`compile` 被 `equiv` 起子进程）。

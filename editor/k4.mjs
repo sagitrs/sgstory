@@ -140,7 +140,13 @@ console.log('══ K4 门（`#762` 车道 C）—— 生成物标记 · 新鲜�
 		const classified = contractMembers(allText).map((m) => ({ name: m.name, src: m.src, bucket: classify(m.src).bucket }));
 		for (const p of escapeHatchProblems(classified, registry, slug)) { console.error(`  ✗ ${slug}【${p.member}】${p.why}`); bad++; }
 		const buckets = classified.reduce((acc, m) => { acc[m.bucket] = (acc[m.bucket] ?? 0) + 1; return acc; }, {});
-		console.log(`  · ${slug}：产物 ${allText.length}B（${Object.keys(a).length} 个）· 标记 ✓ · 幂等 ✓ · 分类 A${buckets.A ?? 0}/B${buckets.B ?? 0}/C${buckets.C ?? 0}`);
+		console.log(`  · ${slug}：产物 ${allText.length}B（${Object.keys(a).length} 个）· 标记 ✓ · 幂等 ✓ · 分类 A${buckets.A ?? 0}/B${buckets.B ?? 0}/C${buckets.C ?? 0}/D${buckets.D ?? 0}`);
+		// **欠账实测打印**（不写进数据文件、不手写数字 ⇒ 不会腐烂）：B ＝ 待补声明式 kind，D ＝ 待下沉引擎能力。
+		// 为什么要打出来：`escape-hatch.json` 只登记 **C**（真逃生舱）；B/D 是"排期欠账"而不是"表达不了"，
+		// 但**不写出来就会被读成"清单空 ⇒ 没欠账"**（这两类只是不进棘轮，不是不存在）。
+		const names = (b) => classified.filter((m) => m.bucket === b).map((m) => m.name).join('、') || '（无）';
+		console.log(`      欠账（B 待补 kind）：${names('B')}`);
+		console.log(`      欠账（D 待下沉引擎）：${names('D')}`);
 	}
 }
 if (bad) {

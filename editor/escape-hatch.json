@@ -1,0 +1,5 @@
+{
+	"note": "K4 逃生舱登记表（`#762` 车道 C）：契约成员里**含任意逻辑**（分类器 C 桶）的必须在此逐条登记（理由＋票号）。清单外出现即红；已不是 C 桶的登记也红（清单只许收缩，收缩留痕）。B 桶（需声明式扩展）与 D 桶（可下沉引擎）都**不算**逃生舱。",
+	"hatches": [],
+	"why_empty": "分类器重分类后（`#772`：新增 D 桶，并把 `template`/`via`/`required`/`forward`/`default` 归入 B）⇒ 三个故事的真逃生舱候选（C 桶）**全为 0** ⇒ 本表为空。**欠账写在理由里**（不是「清单空 ⇒ 没欠账」）：待补 4 个声明式 kind（`template` · `lookup-field.via/required` · `game-ref.default` · `forward`）＋ 待下沉 2 个引擎能力（`combatPrepick` 的前置选牌规则 · `checkKnowledge` 的知识映射）—— 都是排期问题，不是「表达不了」。"
+}

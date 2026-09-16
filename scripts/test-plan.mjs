@@ -123,6 +123,10 @@ export const SEGMENTS = [
 	{ id: "editor-compile-selftest", phase: 'test', cost: 0, cmd: "node editor/compile-story.mjs --selftest" },
 	{ id: "editor-equiv-selftest", phase: 'test', cost: 0, cmd: "node editor/equiv.mjs --selftest" },
 	{ id: "editor-equiv-minimal-demo", phase: 'test', cost: 0.3, cmd: "node editor/equiv.mjs minimal-demo --l3=hard" },
+	// `#762` 车道 C：**K4 门** —— 生成物标记 · 产物新鲜度(幂等) · **逃生舱可枚举**
+	// （清单外出现即红；登记腐烂也红 ⇒ 例外只能收缩留痕，不能随手加）
+	{ id: "editor-k4-selfcheck", phase: 'test', cost: 0, cmd: "node editor/k4.mjs --selfcheck" },
+	{ id: "editor-k4", phase: 'test', cost: 0.3, cmd: "node editor/k4.mjs" },
 	// `#762` 车道 B：**条件表往返**（61 行）。**权威判据是 L1**：两版各自求值后行数组**深度相等**
 	// ＋ **字段直方图一致**（每列出现多少次都打出来 —— `#557` 那条老账：总体非空拦不住「少抽一项」）。
 	// **为什么这一段显式用 `--l3=report`**：手写版用**模板串**写 `text`、生成物用单引号串 —— 纯**排版**差异，

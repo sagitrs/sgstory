@@ -65,7 +65,9 @@ export const declCondRefs = (text) => {
 			const k = q[1];
 			if (k.startsWith('n_')) { notes.push(k); continue; }
 			if (/^(inv|era|gear):/.test(k)) continue;                 // 前缀键：不在状态契约域（与 ruleRowKeys 同口径）
-			if (/^[a-z_]\w*(\.[a-z_]\w*)+$/.test(k)) states.push(k);
+			// 归一化：**显式根 ⇒ 裸键**（与 `mergeByBare()`／`ruleRowKeys()` 同一口径；两处不一致过一次：
+			// 不剥 `pc.` 会把 `pc.gold` 报成未登记的新键、逼出第二种命名形状）。点分**非**根键原样保留。
+			if (/^[a-z_]\w*(\.[a-z_]\w*)+$/.test(k)) states.push(k.replace(/^(?:pc|ev|world)\./, ''));
 		}
 	}
 	return { states, notes };
@@ -384,7 +386,7 @@ export const makeShared = (ctx) => {
 			// 再转 NPC 3 处 ⇒ `--echoes` 分级 5 → 6）。`noteReadKeys` 只认**笔记引用**（不像全量 `readKeys()`
 			// 会把表里字符串文案提到的 `pc.ev.notes` 也算成读点）。
 			.concat(noteReadKeys(tblSrc, noteEntries).map((k) => String(k).replace(/^(ev|world)\./, ''))));
-		// `#785` 第 1 族（D 席收口）：线索判定从"手写谓词"改成**声明式条件**后，消费点住在**数据字符串**里
+		// `#785` 第 1 族（读点收口）：线索判定从"手写谓词"改成**声明式条件**后，消费点住在**数据字符串**里
 		// （`{ id, label, req: ['world.fog_thin'] }`／`req: ['n_x']`）—— 上面三种全是**代码形状**扫描
 		// （`p.ev.X`／`readPath`／`notes.has`）⇒ 一个都看不见它 ⇒ 图鉴桶"转一处、桶丢一处"，
 		// 键被判「只在引擎段落被读」或「无任何桶」（实测 `#786` 9 段红全是这一族）。

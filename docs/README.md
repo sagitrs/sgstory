@@ -53,6 +53,7 @@
 | `docs/repo-map.md` | 84 | 地图 | 目录结构 ＋ 层归属 ＋ 权威落点速查 |
 | `docs/ui-coverage-gaps.md` | 75 | 口径 | 覆盖与未覆盖的判定口径 |
 | `docs/click-time-writes-design.md` | 96 | 设计稿·待评审 | 点击态写侧能否进表（`#624` 普查后的形状；含片一/片二与未决项） |
+| `docs/superpowers/specs/editor-pivot.md` | 146 | **设计稿**（伞 `#761`） | 编辑器转向：故事数据化 ⇒ 编译 ⇒ 校验 ⇒ 发布（schema v0 · 编译器边界 · 等价判据三级 · 分期与不变量 K1–K5） |
 | `docs/benchmark-ledger.md` | 55 | 台账 | ★待收：目前**没有其它文档引用它**（`#606`） |
 | `docs/reviews/visual-review-2026-09-10.md` | 47 | 存档 | 2026-09-10 视觉走查 |
 | `docs/twee-cheatsheet.md` | 41 | 速查 | 本仓在用的 Twee 语法 ＋ 自定义词汇宏 |

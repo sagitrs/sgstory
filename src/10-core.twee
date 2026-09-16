@@ -631,7 +631,7 @@ Macro.add('dragonbar', {
 				<span class="soc-said"><<print _L.text>></span>
 				<<for _n to 0; _n lt (_L.notes ?? []).length; _n++>><span class="soc-cost">（<<print _L.notes[_n]>>）</span><</for>>
 			<</if>>
-			<<if _a.done($pc)>>
+			<<if _S.condHolds(_a.done, $pc)>>
 				<span class="soc-done">（这一件已经有结果了。）</span>
 			<<else>>
 				<<set _v to _S.verdict(_a, $pc)>>

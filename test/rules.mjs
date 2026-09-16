@@ -263,9 +263,9 @@ for (const file of fixtures) {
 		}
 		// 星力软限（canon §3.5/§7；#256 方案 A：budget 6，序表承诺余量）
 		eq(S.budget, 6, '星力预算＝6（#256 方案 A：一次失误仍可通关）');
-		ok(!S.overBudget({ star: { spent: 6 } }), '翻 6 次仍在预算内');
-		ok(S.overBudget({ star: { spent: 7 } }), '翻 7 次超预算 → 真结局降级');
-		ok(!S.overBudget({}), '旧档无 star 不炸');
+		ok(!w.Sg.story.overBudget({ star: { spent: 6 } }), '翻 6 次仍在预算内');
+		ok(w.Sg.story.overBudget({ star: { spent: 7 } }), '翻 7 次超预算 → 真结局降级');
+		ok(!w.Sg.story.overBudget({}), '旧档无 star 不炸');
 		// 序表契约（行为化）：五类可信序都必须满足 budget − spent ≥ floor——
 		// 改 budget / 首翻免费 / 散场回程免费，都必须同步 orders，否则本断言红
 		ok((S.orders ?? []).length >= 5, '软限序表已登记（≥5 类可信序）');

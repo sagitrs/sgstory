@@ -773,7 +773,7 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 			{ id: 'D 一章试验＋忘带花', spent: 5, floor: 1, note: '跟了「试试看」的邀请，又忘了花——一次失误应仍可通关' },
 			{ id: 'E 两次试验＋忘带花', spent: 6, floor: 0, note: '两次失误：允许落在限上（再翻一次即降级）' },
 		],
-		overBudget(pc) { return (pc?.star?.spent ?? 0) > this.budget; },
+		// `overBudget` 已按 `#785` 接缝 7 移到**契约面**（`Sg.story.overBudget` ⇒ (c) 桶，K4 会登记逃生舱）✓
 	};
 
 	const Dragon = {
@@ -1229,4 +1229,8 @@ Object.assign((window.Sg.story ??= {}), {
 		if (typeof a.label !== 'string' || !a.label) throw new Error(`Sg.story.actionLabel：动作「${id}」缺 label（结构缺失必须报错，#441-E）`);
 		return a.label;
 	},
+	// `#785` 接缝 7（(c) 契约面）：**严格 `>` ＋ 运行期预算** ⇒ 声明式表达不了（`ops` 只有 `gte`/`lte` ✓，
+	// 把 `budget+1` 写死会造**第二份真源** ✗）⇒ 留作**故事成员** ✓（K4 的 C 桶会在 `escape-hatch.json` 登记 ✓）。
+	// 语义与原先 `Game.Star.overBudget` **逐字相同**：`pc.star.spent` 与**声明里**的 `Game.Star.budget` 比 ✓。
+	overBudget: (pc) => (pc?.star?.spent ?? 0) > window.Game.Star.budget,
 });

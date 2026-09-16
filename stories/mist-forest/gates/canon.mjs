@@ -301,8 +301,10 @@ if (wantAll || arg('canon')) {
 		if (new Set(ids).size !== ids.length) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}」线索 id 重复`); }
 		for (const c of clues) {
 			let free = false, ok2 = false;
-			try { free = !!c.test(freshPc); } catch (e) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}:${c.id}」线索函数报错：${e.message}`); continue; }
-			try { ok2 = !!c.test(fullPc); } catch { ok2 = false; }
+			// `#785` 第 1 族：线索谓词已改成**声明式条件** ⇒ 判定走**引擎的条件求值器**（单一权威）。
+			const holds = (cd, pc) => !!ctx.window?.Sg?.rules?.matches?.(cd, pc, new Set());
+			try { free = holds(c, freshPc); } catch (e) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}:${c.id}」线索条件求值报错：${e.message ?? e}`); }
+			try { ok2 = holds(c, fullPc); } catch { ok2 = false; }
 			if (free) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}:${c.id}」新档即满足（线索必须挣得到）`); }
 			if (!ok2) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}:${c.id}」在全收集态仍不满足（字段名大概写错了）`); }
 			if (!c.label || !String(c.label).trim()) { codexHit++; bad++; console.log(`  ✗ 图鉴「${name}:${c.id}」缺线索文案`); }

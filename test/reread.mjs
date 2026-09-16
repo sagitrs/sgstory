@@ -43,12 +43,18 @@ const GATE_SRC = /Sg\.Codex\.(?:seenFinal\(\)|read\(\)\.endings)/;
 
 // ── 纯函数（依赖注入：自证时喂夹具，不与真实游戏耦合）────────────────────
 // R1：零状态档下为真的线索
-export const virginLeaks = (items, virginPc) => {
+export const virginLeaks = (items, virginPc, holds = null) => {
 	const out = [];
 	for (const [item, def] of Object.entries(items ?? {})) {
 		for (const c of def.clues ?? []) {
 			let v = false;
-			try { v = !!c.test(virginPc); } catch { v = false; }   // 谓词读不存在的字段＝假，不算泄漏
+			// `#785` 第 1 族：线索判定已**声明式** ⇒ 两条路：
+			//   ① **无任何条件**（没有 `req`/`any`/`exclude`）⇒ 恒真 ⇒ **必泄**（结构判定，**不依赖引擎** ✓
+			//      —— 这正是 A5 门「咬合力」的底线：新形状下「忘写条件」仍必须被抓 ✗）；
+			//   ② 有条件 ⇒ 交给引擎的条件求值器（调用方注入 `holds`；缺注入时不臆断，按不泄计 ✓）。
+			const noConds = !['req', 'any', 'exclude'].some((k) => c && c[k] !== undefined);
+			v = noConds;
+			if (!noConds && holds) { try { v = !!holds(c, virginPc); } catch { v = false; } }
 			if (v) out.push(`${item}:${c.id}`);
 		}
 	}
@@ -97,11 +103,14 @@ export const selfDeclaredMysteryUngated = (pages) =>
 const selftest = () => {
 	let bad = 0;
 	const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
-	const items = { 护符: { clues: [{ id: 'a', test: (p) => !!p.inv?.护符 }, { id: 'b', test: (p) => !!p.world?.seen }] } };
+	// ⚠️ 夹具**仅用于自证「门还咬得住」**：条件形用新形状（`req`），条件求值用这个*只认 `inv:` 与点分键*的最小实现
+	// （真路径走引擎 `Sg.rules.matches` ✓ —— 自证跑在 main 之前，运行时那时还没建 ✓）。
+	const fxHolds = (c, pc) => (c?.req ?? []).every((k) => String(k).startsWith('inv:') ? !!(pc?.inv ?? {})[String(k).slice(4)] : !!pc?.[String(k).split('.')[0]]?.[String(k).split('.')[1]]);
+	const items = { 护符: { clues: [{ id: 'a', req: ['inv:护符'] }, { id: 'b', req: ['world.seen'] }] } };
 	const virgin = { inv: {}, world: {} };
 
-	t('R1 正例：零状态档下无泄漏', virginLeaks(items, virgin).length === 0);
-	t('R1 反例：`() => true` 的线索必须被抓（否则开局即解锁）', virginLeaks({ X: { clues: [{ id: 'z', test: () => true }] } }, virgin).includes('X:z'));
+	t('R1 正例：零状态档下无泄漏', virginLeaks(items, virgin, fxHolds).length === 0);
+	t('R1 反例：**无任何条件**的线索必须被抓（新形状下忘写条件仍要咬得住）', virginLeaks({ X: { clues: [{ id: 'z' }] } }, virgin, fxHolds).includes('X:z'));
 
 	const api = { isUnlocked: (item, store) => !!store.clues?.[item] };
 	t('R2 正例：空记录下无解锁', blankUnlocks(items, api, { clues: {} }).length === 0);
@@ -141,7 +150,7 @@ const { Game, passageSrc } = createContext();
 const fails = [];
 const show = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) fails.push(msg); };
 
-const leak = virginLeaks(Game.Codex.items, Game.Pc.defaults());
+const leak = virginLeaks(Game.Codex.items, Game.Pc.defaults(), (c, pc) => w.Sg.rules.matches(c, pc, new Set()));
 show(leak.length === 0, `R1 零状态档下图鉴无已解锁线索${leak.length ? `：泄漏 ${leak.join(', ')}` : ''}`);
 
 const blanks = blankUnlocks(Game.Codex.items, Game.Codex, { clues: {}, endings: [], finals: [] });

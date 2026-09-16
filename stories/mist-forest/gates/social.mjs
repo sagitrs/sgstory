@@ -46,7 +46,9 @@ if (wantAll || arg('social')) {
 				probe.inv = { 日记: true, 观星者的书: true, 时光护符: true, 完整星图: true };
 				probe.world = { family_favor: true };
 				let okReq = false;
-				try { okReq = !!lv.need(probe); } catch { okReq = false; }
+				// `#785` 第 2 族：`need` 已从函数式谓词改成**声明式条件** ⇒ 判定走故事侧同一把尺
+				//（`S.condHolds` ⇒ 引擎 `Sg.rules.matches`）。
+				try { okReq = !!S.condHolds(lv.need, probe); } catch { okReq = false; }
 				if (!okReq) { console.log(`  ✗ 诉求「${a.id}」的筹码「${lv.name}」条件在任何情况下都不成立`); bad++; }
 			}
 			if (lv.needRead && !(a.sites ?? []).some((s) => S.approaches[Game.Checks.sites[s]?.skill ?? Game.Checks.sites[s]?.abil]?.read)) {

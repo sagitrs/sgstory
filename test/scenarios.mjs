@@ -934,7 +934,7 @@ async function routeBestiary() {
 	}
 	// 坏哨 2/3 锁定（#219 A2：past 金路径不打雾——「带着它，雾里的东西会迟疑」须现在侧相遇才落账）
 	if (w.Sg.Codex.unlocked('坏哨')) throw new Error('坏哨三线索不齐却解锁了（fight 线索应须现在侧相遇）');
-	const whistleIds = w.Game.Codex.clueIds('坏哨');
+	const whistleIds = w.Sg.Codex.clueIds('坏哨');
 	const whistleGot = w.Sg.Codex.read().clues['坏哨'] ?? {};
 	if (whistleIds.filter((id) => whistleGot[id]).length !== 2) throw new Error(`坏哨应为 2/3 进度（实际 ${JSON.stringify(whistleGot)}）`);
 	// 月光花只差"毒液抹刃"（那条在封印战线）→ 必须仍是锁定页

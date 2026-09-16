@@ -10,7 +10,7 @@
 //      这样门在阶段推进时**不需要改判据**）。
 //   · **反沉默**：`bookkeeping` 里声明了零消费、实际却有消费点的笔记键 ⇒ 红（声明烂在那里）。
 import { readFileSync, readdirSync } from 'node:fs';
-import { readKeys, ruleRowKeys } from '../../../scripts/audit/lib/shared.mjs';
+import { readKeys, ruleRowKeys, declCondRefs } from '../../../scripts/audit/lib/shared.mjs';
    // `#437` C-2c-3：单源读点基线（该故事的数据）
 
 export const flag = 'notes';
@@ -56,7 +56,10 @@ export const rowReads = (rows, entries) => {
 
 // ── 纯函数：消费可数（#436 原范围 2）────────────────────────────────────────
 // `reads`：限定键（`ev.x`/`world.x`）→ 读点集合；`refText`：整份源码文本（找 `note:<id>` 引用）
-export const auditConsumption = (entries, reads, bookkeeping, refText) => {
+// `declaredNotes`（可选，`#785` 第 1 族收口）：**声明式条件**（`req: ['n_x']`）里引用的笔记 id ——
+// 线索判定从"手写谓词"改声明式条件后，消费点住在**数据字符串**里 ⇒ 只认 `note:<id>`／`Sg.notes.has(...)`
+// 的旧口径看不见它 ✗（实测 `n_keeper_why` 被判「零消费」）。传的是**权威口径** `declCondRefs()` 的结果 ✓。
+export const auditConsumption = (entries, reads, bookkeeping, refText, declaredNotes = null) => {
 	const problems = [];
 	const bk = new Set(bookkeeping ?? []);
 	const refs = String(refText ?? '');
@@ -67,7 +70,7 @@ export const auditConsumption = (entries, reads, bookkeeping, refText) => {
 		let consumers = 0;
 		for (const p of paths) consumers += (reads.get(p)?.size ?? 0);
 		// 阶段 2/4 形态：笔记 id 被条件/表引用（`note:n_x` 或 `Sg.notes.has('n_x')`）
-		const byId = new RegExp(`(?:note:${id}\\b|Sg\\.notes\\.(?:has|entry)\\(\\s*['"]${id}['"])`).test(refs) ? 1 : 0;
+		const byId = (new RegExp(`(?:note:${id}\\b|Sg\\.notes\\.(?:has|entry)\\(\\s*['"]${id}['"])`).test(refs) || (declaredNotes?.has?.(id) ?? false)) ? 1 : 0;
 		const declaredZero = keys.some((k) => bk.has(k));
 		if (consumers === 0 && !byId && !declaredZero) {
 			problems.push({ id, detail: `**零消费**：没有任何读点消费它（键 ${keys.map((k) => '`' + k + '`').join('/')}）—— 加了线索没人用；若确属「仅记账」请登记进 \`Game.State.bookkeeping\`（带理由）` });
@@ -233,6 +236,7 @@ export const run = (ctx) => {
 			['消费·零读但已声明（bookkeeping 带理由）→ 通过', auditConsumption(good, R({}), ['tav_tips'], '').length, 0],
 			['消费·已声明却真的被读了 → 僵尸豁免红', auditConsumption(good, R({ 'ev.tav_tips': ['a.twee'] }), ['tav_tips'], '').length, 1],
 			['消费·域写错（只有 `world.tav_tips` 的读点）⇒ 仍算零消费（#365 口径）', auditConsumption(good, R({ 'world.tav_tips': ['a.twee'] }), [], '').length, 1],
+			['消费·**声明式条件**里的 note id（`req: [\'n_a\']`，经 `declCondRefs`）也算消费', auditConsumption(good, R({}), [], '', new Set(['n_a'])).length, 0],
 			['消费·笔记 id 被条件引用（`note:n_a`）也算消费', auditConsumption(good, R({}), [], "req: ['note:n_a']").length, 0],
 			// #435 前置 0：表行读点（`ruleRowKeys`）也算消费——否则搬家后笔记会被判"零消费"
 			['消费·表行 `req` 里的 note id 算消费（经 `ruleRowKeys` 展开到 flagPath）', auditConsumption(good, rowReads([{ id: 'R', req: ['n_a'] }], good), [], '').length, 0],
@@ -296,7 +300,7 @@ export const run = (ctx) => {
 	// ── 真实数据 ──
 	const bk = ctx.Game.State?.bookkeeping ?? [];
 	const shape = auditShape(entries, domainKeys);
-	const cons = auditConsumption(entries, reads, bk, allText);
+	const cons = auditConsumption(entries, reads, bk, allText, new Set(declCondRefs(allText).notes));
 	const nps = notepathProblems({ entries, sources });   // `#437` C-2b′：`<<notepath>>` 的 path/多源判据
 	const swps = singleWriteProblems({ entries, sources });   // `#733` 片 2：单源不得走 notepath／addPath
 	const srps = singleReadProblems({ entries, sources, baseline: SINGLE_READ_BASELINE });   // `#437` C-2c-3

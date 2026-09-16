@@ -156,16 +156,16 @@ for (const file of fixtures) {
 		const fresh = w.Game.Pc.defaults();
 		for (const [item, def] of Object.entries(C.items)) {
 			ok(def.clues.length >= 2, `图鉴「${item}」线索 ≥2`);
-			ok(def.clues.every((cl) => !cl.test(fresh)), `图鉴「${item}」新档下无白送线索`);
+			ok(def.clues.every((cl) => !w.Sg.rules.matches(cl, fresh, new Set())), `图鉴「${item}」新档下无白送线索`);   // 声明式条件（`#785`）
 		}
 		// 解锁＝线索集齐（半齐不解锁，齐了才解锁）
 		const store = { clues: { 月光花: { own: true, warned: true, fed: true } }, endings: [], finals: [] };
-		ok(!C.isUnlocked('月光花', store), '月光花 3/4 线索不解锁');
+		ok(!w.Sg.Codex.isUnlocked('月光花', store), '月光花 3/4 线索不解锁');
 		store.clues.月光花.venom = true;
-		ok(C.isUnlocked('月光花', store), '月光花 4/4 线索解锁');
-		eq(C.progress('月光花', { clues: { 月光花: { own: true } } }).got, 1, 'progress 计数');
+		ok(w.Sg.Codex.isUnlocked('月光花', store), '月光花 4/4 线索解锁');
+		eq(w.Sg.Codex.progress('月光花', { clues: { 月光花: { own: true } } }).got, 1, 'progress 计数');
 		// 永久性：store 里没有的页就是锁定页
-		ok(!C.isUnlocked('坏哨', { clues: {} }), '空账本 → 未解锁');
+		ok(!w.Sg.Codex.isUnlocked('坏哨', { clues: {} }), '空账本 → 未解锁');
 	}
 	// ① 位点 DC：改表 → sitecheck 用新 DC
 	w.eval('Game.Checks.sites["洞穴·战斗"].dc = 20');

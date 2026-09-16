@@ -20,10 +20,11 @@
 import { readFileSync, existsSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-// ⚠️ **自证旗标用 `--selfcheck` 而不是 `--selftest`**：`editor/compile-story.mjs` 与 `classify-contract.mjs`
-//   的 `--selftest` 派发**没有 `isMain` 守卫** ⇒ 静态 import 它们时，只要 argv 里带 `--selftest`，
-//   它们会跑**自己的**自证并 `process.exit`，把本门的自证劫持掉（实测：`node editor/k4.mjs --selftest`
-//   打出的是 compile 的 19 例、本门一条没跑）。⇒ 本门换个旗标自保；**守卫缺口已在本 PR 里报给作者**。
+// ⚠️ **自证旗标用 `--selfcheck` 而不是 `--selftest`**：这是**防御性**设计，不是绕坑 —— 本门最初观察到
+//   "`<某门> --selftest` 被 import 的模块劫持"（被测模块的 `--selftest` 派发当时**没有 `isMain` 守卫**，
+//   会跑自己的自证并 `process.exit`）。**该缺口后来已修**：`compile-story.mjs` 在 `#769` 里补了守卫，
+//   `classify-contract.mjs` 在 `#772` 里也守住了（复现：两者同时 import 且 argv 含 `--selftest` ⇒ 无劫持 ✓）。
+//   ⇒ 本门**仍保留独立旗标**：多一层防御不吃亏，且将来任一门再犯这族错时不会连带把本门自证吃掉。
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';

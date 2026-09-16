@@ -1,0 +1,12 @@
+{
+	"slug": "hollow-cave",
+	"why": "行为硬门的基线＝**翻面前 main（`79b8530`）的仓内副本**。**取代** `pre-editor-pivot` tag：该 tag（`e41a123`）早于两处已合入的**正当行为变更**（`#784` 把 `checkKnowledge` 搬进引擎 ⇒ 从故事声明面删除；`#746` 的 `lootText`）⇒ 成员集合不等 ⇒ 拿它当硬门会在**翻面前就已经红**（构造性红 ✗）。「移动靶」的正解是**副本 ＋ 记 SHA**（tag 只是指针，指针不动 ≠ 内容正确）。",
+	"source": "git show 79b8530:stories/hollow-cave/15-tables.twee",
+	"commit": "79b853074be9abe253493645583215f4f4c49c1f",
+	"commitSubject": "feat(#762 D2): prepickFor / knowledgeOf 下沉引擎（引擎↔故事 两处调转）＋ 接缝自证 9 例",
+	"contractMembers": 22,
+	"shielding": "L3 归一化＝词法遮蔽注释 ＋ 去空白/冗余尾逗号（见 editor/equiv.mjs 的 normalize）。本故事的门用 `--l3=report` ⇒ **L3 只报告不判红**（产物与手写件存在形式差异，语义由 L1 逐成员行为兜住）；本基线**不带** @generated 标记",
+	"fileNote": "文件名后缀用 `.txt`：它是**夹具**不是可加载模块 —— `.twee` 会被 `scripts/module-order.mjs` 的「加载顺序登记」扫到（未登记即红 ✗），而夹具不该进加载顺序、也不该被 K4 的产物扫描选中。",
+	"regen": "node editor/compile-story.mjs hollow-cave --out=<dir>；翻面后 tracked 的 stories/hollow-cave/15-tables.twee ＝ 该产物（带 @generated）",
+	"repinRule": "重钉不许静默：改本文件的 commit 字段必须出现在 diff 里 ＋ PR 说明这次为什么重钉。（基线是副本 ⇒ 会过时；数据面任何变更都会让 equiv 变红 —— 那是**好事**；但不许在无关 PR 里顺手 regenerate，否则门退化成『跟随当前状态』＝没有门。）"
+}

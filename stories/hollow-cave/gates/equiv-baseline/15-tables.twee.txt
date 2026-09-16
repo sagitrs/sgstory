@@ -1,0 +1,323 @@
+:: Game Tables [script]
+// ── 故事 2「无名洞窟」的声明面（`#490` S5 雏形）────────────────────────────────
+// 主题＝**战斗系统试验场**（不是内容打磨）：醒来在洞中、身上只剩一把旧剑与一支火把，
+// 走 5 步（每步从六类事件里三选一）到**地下村落**收尾。
+// 本文件只放**数据与声明**：机制全在引擎侧（`#512` 的方向）；取数只经 `Sg.story.*`。
+// 形状权威：`scripts/audit/lib/story-shape.mjs`（S1–S4 的六条机检）；口径：`docs/story2-contracts.md`。
+window.Game = Object.assign(window.Game ?? {}, (() => {
+	const Checks = {
+		// 位点表。形状（引擎侧 `Game.Checks.rollSite`）：**`skill`＝技能名**（中文，经 `Game.Rules.SKILLS` 映射到属性）
+		// ／**`abil`＝属性豁免**（`str`/`dex`/`con`/`int`/`wis`/`cha`）。
+		// `#574`：本表原先写 `skill: 'dex'` 这类**属性键**（`skill` 要的是**技能名**） ⇒ `Rules.check` 找不到技能名 ⇒ **抛「未知技能: dex」**
+		// ⇒ 五步主线的每一次判定都在报错（不落伤害/异常/成败分支，事件变成走过场）。修法＝改用 `abil`（语义不变：属性豁免）。
+		// `yields` 是"这个位点能拿到什么关键产出"——反 S/L 门用）
+		sites: {
+			'洞窟·挥剑': { abil: 'str', dc: 12 },
+			'洞窟·躲闪': { abil: 'dex', dc: 11 },
+			'洞窟·围斗': { abil: 'str', dc: 13 },
+			'洞窟·撑住': { abil: 'con', dc: 12 },
+			// 宝箱（S4 §4.3）：3 机关 × {普通 12 · 珍贵 15 · 借助通用道具 9（−3）}——**降难走声明**，不在内容里改 DC
+			'宝箱·锁扣': { abil: 'dex', dc: 12 },
+			'宝箱·锁扣·珍贵': { abil: 'dex', dc: 15 },
+			'宝箱·锁扣·借助具': { abil: 'dex', dc: 9 },
+			// `#491` 判据 3（已定 ③）：**"稀有度 × 通用道具"这一格也要能表达**——珍贵 DC15 借道具同样**各降 3** ⇒ DC12。
+			// 原先表里只有"借具"一档（＝普通−3），内容也只用它 ⇒ 珍贵拿道具等于白拿（降难没生效）。
+			'宝箱·锁扣·借助具·珍贵': { abil: 'dex', dc: 12 },
+			'宝箱·机关针': { abil: 'con', dc: 12 },
+			'宝箱·机关针·珍贵': { abil: 'con', dc: 15 },
+			'宝箱·机关针·借助具': { abil: 'con', dc: 9 },
+			'宝箱·机关针·借助具·珍贵': { abil: 'con', dc: 12 },
+			'宝箱·石块': { abil: 'str', dc: 12 },
+			'宝箱·石块·珍贵': { abil: 'str', dc: 15 },
+			'宝箱·石块·借助具': { abil: 'str', dc: 9 },
+			'宝箱·石块·借助具·珍贵': { abil: 'str', dc: 12 },
+			'洞窟·矿脉': { abil: 'wis', dc: 11 },
+			'洞窟·地下湖': { abil: 'dex', dc: 13 },
+			'洞窟·蘑菇': { abil: 'int', dc: 11 },
+			'陷阱·闪避': { abil: 'dex', dc: 12 },
+			'旅人·察言': { abil: 'wis', dc: 12 },
+			'旅人·开口': { abil: 'cha', dc: 12 },
+		},
+		keyYields: [],
+	};
+
+
+	const Items = {
+		defs: {
+			旧剑: { label: '缺口的旧剑', note: '刃上有三个缺口，但还压得住。' },
+			火把: { label: '火把', note: '烧到一半。洞里的东西怕它。' },
+			撬棍: { label: '撬棍', note: '撬锁扣正好。' },
+			手套: { label: '厚手套', note: '按住机关针的时候管用。' },
+			铁撬: { label: '铁撬', note: '对付压着宝箱的石块。' },
+			钥匙: { label: '锈钥匙', note: '洞里的锁，它开得开。' },
+			干粮: { label: '干粮', note: '旅人给的一块。' },
+		},
+		// 通用道具 ↔ 宝箱机关（S4 §4.3：各降 3 点难度）
+		mechanismTools: { 锁扣: '撬棍', 机关针: '手套', 石块: '铁撬' },
+	};
+
+	// 价格表（金本位；**单价只在声明面**，内容里读它 ⇒ 调价不用碰散文）。
+	// `#696`（2026-09-15）：**金币要有出口** ⇒ 旅人里随机出现商人，卖的都是**洞里真有用**的东西：
+	// 三件降难家什（宝箱机关互斥 ⇒ 各降 3 点）＋ 干粮（便宜、可重复买）＋ 火把油（把耐久补满 ⇒ 火把是本故事的核心资源）。
+	const Economy = { prices: { 干粮: 3, 撬棍: 6, 手套: 6, 铁撬: 6, 火把油: 4 }, events: [] };
+	const Gear = { defs: {} };
+	const Social = { asks: [] };
+	const Truth = { claims: [] };
+	const Echoes = { list: [], revisit: [] };
+	const Shifts = { anchors: [] };
+	const Investment = { expressive: [], failClueExempt: {}, eraDomain: { past: [], branch: [], flagEra: {}, crossEraGates: [] } };
+	// `#574`：内容里 `Sg.notes.add(...)` 用到的笔记**必须在这里登记**（引擎 fail-loud：未登记即报错）——
+	// 原先 `entries` 为空而内容照写 ⇒ 宝箱／矿洞／空洞三条路在真机上抛错（当时的门没覆盖到这一面）。
+	const Notes = { entries: {
+		n_cave_loot: {
+			title: '箱子里的东西', src: '洞里的箱子', tags: ['宝物'], era: window.Game.Era.PRESENT, flagPath: 'ev.cave_loot',
+			body: '铁皮箱子里只有干粮，和一件能撬东西的家什。有人比你先到过，也没能全部带走。',
+		},
+		n_cave_echo: {
+			title: '石壁的回声', src: '空洞', tags: ['线索'], era: window.Game.Era.PRESENT, flagPath: 'ev.cave_echo',
+			body: '空洞把脚步声送了回来：前面还有多远、哪一段地面下面是空的——听一遍就记住了一半。',
+		},
+		// `#490` 片五：旅人事件面的三条（察言所得／挨过那一下／他帮过你）——笔记＝知识，
+		// 旗标由 `Sg.notes.add` 双写（`flagPath`）⇒ ⑥ 的「记一次旗标」落在这条通道上。
+		n_cave_trav: {
+			title: '火堆边那个人', src: '洞里的旅人', tags: ['旅人'], era: window.Game.Era.PRESENT, flagPath: 'ev.cave_trav',
+			body: '他把那把东西放在右手边，拇指却一直没离开——不是要动手，是在等你先说话。',
+		},
+		n_cave_battered: {
+			title: '它下一口往哪咬', src: '洞里的东西', tags: ['战斗'], era: window.Game.Era.PRESENT, flagPath: 'ev.cave_battered',
+			body: '挨过那一下之后你知道它的脾气了：先往肋上撞，再等你抬手。',
+		},
+		n_cave_help: {
+			title: '他给过你半块干粮', src: '洞里的旅人', tags: ['旅人'], era: window.Game.Era.PRESENT, flagPath: 'ev.cave_help',
+			body: '他没要钱，把干粮掰了一半推过来，只把火堆拨旺了一点。你欠他一次。',
+		},
+	} };
+
+	// 状态契约域（`--state`）：本故事的键 + **引擎保留的运行时槽**（引擎会写它们 ⇒ 故事必须登记）
+	const State = {
+		domains: [
+			{ id: 'cave', prefix: ['cave_', 'chest_'], note: '洞窟进程（步数、事件选择、机关、钥匙）' },
+			// `#574`：`notes` 也是引擎写的槽（`Sg.notes.add` 的「已授予」真存储 `pc.ev.notes`）——引擎运行时胶水
+			// 现在真的进了每个故事的产物 ⇒ 每个故事都要登记它（读写点都在引擎侧 ⇒ 只要求登记域）。
+			{ id: 'runtime', keys: ['last_result', 'last_roll', 'soc', 'soc_last', 'soc_lever', 'fight', 'ending', 'notes', 'settle'], note: '引擎保留的运行时槽（每故事都写）' },
+			{ id: 'gear', prefix: ['gearHp'], note: '装备耐久（S1 机制的状态面）' },
+			{ id: 'cave-status', keys: ['statuses'], note: '部位×异常（S2 机制的状态面）' },
+		],
+		bookkeeping: [],
+		dynamicKeys: [],
+	};
+
+	// `#705` 片二-B：本故事的 `Combat`（池名/动作表）**搬进 `MECH`** —— 原先它被挂到 `Game.Combat`,
+	// 随后**被引擎的 `Game.Combat` 覆盖** ⇒ 表永远够不着（`combatAction` 恒 null、战斗一直用默认伤害 1）。
+	return { Checks, Items, Economy, Gear, Social, Truth, Echoes, Shifts, Investment, Notes, State };
+})());
+
+:: StoryBindings [script]
+// 接入契约（`#436-b`／`#441-E`）：引擎侧每个 `Sg.story.X` 都必须由故事注册（**结构缺失 ⇒ 报错**；
+// 空表／`null` 是**合法数据集**）。清单＝`grep -rho 'Sg\.story\.[a-zA-Z_]*' src/ | sort -u`（`#554` 实测所得）。
+window.Sg ??= {};
+// `#581`：本故事自己的状态键登记（引擎保留槽由**引擎**种默认，见 `src/10-core.twee`）。
+// `cave_step`：洞窟步进（第 5 步之后转入地下村落），由 `:: 洞窟工具 [widget]` 的 `caveNext` 维护——
+// 它读写都在**widget 段**里（D2 门把 widget 算引擎面）⇒ 登记为 `engine` 并写明理由；
+// 若将来步进要影响**叙事文案**（在叙事段读它），把它改成 `provenance` 以外的口径或干脆不声明。
+Object.assign(((window.Game.Consequences ??= { provenance: {}, engine: {} }).engine), {
+	cave_step: '洞窟步进：由 `caveNext` widget 维护（达到 5 步转入地下村落）',
+	// `#691`：本次事件的**结算/产出文案**暂存位——产出点（正文段）写、`caveNext`（`[widget]` 段＝引擎面）读并
+	// 提升成 `last_result{p: 落点}` ⇒ 落点段用 `<<sceneFeedback>>` 显示。**消费方是引擎/呈现层**（留屏协议），
+	// 按门口径属引擎态（与 `last_result` 同族）⇒ 在此登记声明，实况与声明一致即可。
+	settle: '留屏协议的**待提升文案**（`#691`）：正文产出点写、`caveNext` 提升为 `last_result` 后清空',
+});
+Object.assign((window.Sg.story ??= {}), {
+	notes: () => window.Game.Notes.entries,
+	econEvents: () => window.Game.Economy.events,   // `#660` 片三-1（本故事的事件表是空数组：引擎侧只做 id 查表）
+	hasChargen: () => false,   // `#660` 片三-2：本故事没有车卡 ⇒ 侧栏退化为最小面
+	pcDefaults: () => ({}),   // `#660` 片三-3：本故事没有专属 pc 默认数值（形状由引擎给）
+	rules: () => [],
+	checkSite: (name) => window.Game.Checks.sites[name] ?? null,
+	// `#493` 片 A-2：引擎的 `foeState` 接缝**必须由故事声明**（回落已删）。本故事的敌人属性面在 `#705`／
+	// `#702` a2 落地前还没有真实槽位 ⇒ 先给一个**临时对象**（`eff.dmg` 这类写入落在这里即丢弃，行为与
+	// 旧实现一致：旧实现写的是故事 1 的 `pc.dragon.hp`，对本故事本来就是空转）。
+	foeState: () => ({}),
+	combatPool: (id) => window.Sg.story.mechanics()?.pools?.[id] ?? [],
+	// `#736`：**战利品句按实际掉落生成**（掉钥匙就提钥匙）——文案住故事，机制（掉了什么）住引擎。
+	// 签名 `(reward, base)`：`base` 是调用点的静态句式（保留各处的文风差异），这里只补"实际掉了什么"。
+	lootText: (r, base) => {
+		const bits = [];
+		if (r?.gold > 0) bits.push(`旧币 ${r.gold} 枚`);
+		if (r?.item) bits.push(`一把${r.item === '钥匙' ? '锈钥匙' : r.item}`);
+		if (!bits.length) return '';
+		return `${base ?? ''}他退开的地方散着${bits.join('，还有')}。`.trim();
+	},
+	// `#705` 片二-B（修死接缝）：动作表住**本故事**的 `MECH.actions`（`Game.Combat.actions` 是**故事 1** 的表，
+	// 这里读它 ⇒ 恒 null ⇒ 声明面白声明、`attr/dmg` 永远取不到）。单源＝本故事的 `MECH`。
+	// `#705` 片二-B（修死接缝）：动作表住**本故事的声明面** ⇒ 经 `mechanics().actions` 取。
+	// （原先读 `window.Game.Combat.actions` —— 那是**故事 1** 的表 ⇒ 本故事恒 `null`、`attr/dmg` 永远取不到；
+	//  也不能直接写 `MECH`：它是 `:: Cave Declarations` 那个 script passage 里的 `const`，**跨 passage 不可见**。）
+	combatAction: (id) => window.Sg.story.mechanics()?.actions?.[id] ?? null,
+	actionLabel: (id) => window.Sg.story.mechanics()?.actions?.[id]?.label ?? String(id),
+	itemEffect: (id) => window.Game.Items.defs[id] ?? null,
+	poisonReduce: () => 0,
+	dragonMaxHp: () => 0,
+	gearDef: (id) => Sg.story.mechanics()?.equipment?.[id] ?? null,
+});
+
+:: Cave Declarations [script]
+// ── S1–S4 的**声明表**（形状权威 `scripts/audit/lib/story-shape.mjs`；口径 `docs/story2-contracts.md`）──
+// `mechanics()` 一旦非 `null` ⇒ S1–S4 四件套**真正点亮**（引擎走新路径，四道引擎门开始判**本故事**。
+const MECH = {
+	// `#705` 片二-B：**战斗池名与动作表**（原在 `:: Game Tables` 的 `const Combat` 里，见那里的说明）。
+		pools: {
+			'cave.w1': ['洞窟·挥剑', '洞窟·躲闪', '洞窟·围斗'],
+			'cave.w2': ['洞窟·撑住', '洞窟·挥剑', '洞窟·围斗'],
+		},
+		actions: {
+			// `#746` 片2：`ok/crit/bad` 只留**文案** —— 分档里的写死数值（`dmg: 8/14`、`hurt: 4`、`guard: 4`）
+			// 是**旧抽象模型**的遗留：现在伤害/受伤/防御全由 5e 机制算（`attr`＋`dmg` 骰 ＋ `defend`）。
+			'洞窟·挥剑': { site: '洞窟·挥剑', label: '迎面劈过去', attr: 'str', dmg: '1d6+2',
+				ok:   { text: "刃撞在它的硬壳上，弹开了半寸——但那一寸是你抢到的。" },
+				crit: { text: "刃顺着壳缝滑进去。它缩了一下，往后退了两步。" },
+				bad:  { text: "你劈空了，反手被它顶在肩上。" } },
+			'洞窟·躲闪': { site: '洞窟·躲闪', label: '侧身让开，等它先动', defend: true,
+				ok:   { text: "你让开半步，它的第一下砸在你刚才站的地方。" },
+				crit: { text: "你让得很准——它撞在岩壁上，自己懵了一下。" },
+				bad:  { text: "你让早了，它跟着你转，压在你腿上。" } },
+			'洞窟·围斗': { site: '洞窟·围斗', label: '把火把举低，逼它退到石壁边', attr: 'str', dmg: '1d4+2',
+				ok:   { text: "火把压低，它背贴上了石壁——退无可退了。" },
+				crit: { text: "火光把它逼进死角，你补上一下。它塌下去，没再起来。", dmg: 18, skipFoe: true },
+				bad:  { text: "火把被它打偏，火星溅了你一脸。" } },
+			'洞窟·撑住': { site: '洞窟·撑住', label: '撑住，等它先累', defend: true,
+				ok:   { text: "你站着不动，呼吸压稳。它的第二波比第一波慢。" },
+				crit: { text: "它扑了三次，第三次膝盖软了。你才动。" },
+				bad:  { text: "它的第三下从侧面进来，你没挡住。" } },
+		},
+	hitLocations: ['头', '躯干', '手臂', '腿', '脚'],
+	slots: {
+		body: { protects: '躯干', label: '破布衣' },
+		head: { protects: '头', label: '皮帽' },
+		back: { protects: null, label: '背包' },   // 不保护部位：武器挂在这里
+	},
+	equipment: {
+		// `#702` a2（5e）：护具给 **AC**（`pc.ac = 10 + dexMod + Σ ac`）——与减成/耐久各司其职：
+		// AC 决定"打不打得到"，`reduce` 决定"打到了疼多少"，`maxHp` 决定"这层皮还能挡几下"。
+		破布衣: { slot: 'body', maxHp: 3, reduce: { flat: 1 }, ac: 1 },
+		皮帽:   { slot: 'head', maxHp: 2, reduce: { flat: 1 }, ac: 1 },
+		旧剑:   { slot: 'back', maxHp: 2, reduce: { flat: 0 }, weapon: true },
+		火把:   { slot: 'back', maxHp: 2, reduce: { flat: 0 }, weapon: true },
+	},
+	// 异常先 2 种（`#490`：流血任意部位 ＋ 麻痹四肢）——验证「部位×异常」通路
+	statuses: {
+		// `#747`：「只压躯干」原先藏在手写表（`bleed@躯干`）⇒ 现在**显式声明** `penalty.only`（行为不变；
+		// 好处：减成矩阵每一格都能追到出处，「漏格」与「有意只押一格」再也不会混为一谈）。
+		bleed: { label: '流血', parts: '*', turns: 5, perRound: { hp: -1, penalty: { value: -1, scope: 'part', only: ['躯干'] } }, check: { attr: 'con', dc: 12 },
+			onFail: [{ harm: 'damage', dice: '1d4', when: 'most' }, { addStatus: 'random', part: 'random', when: 'low' }] },
+		// `#747`：**减成住声明**（`perRound.penalty`）⇒ 对**每个允许部位**（手臂／腿）都生效。
+		// 原先靠手写表 `paralysis@腿` ⇒ **手臂那一格是洞**（同一异常在不同部位行为不一致，且没人看得见）。
+		paralysis: { label: '麻痹', parts: ['手臂', '腿'], turns: 3, perRound: { penalty: { value: -2, scope: 'part' } }, check: { attr: 'con', dc: 14 },
+			onFail: [{ harm: 'damage', dice: '1', when: 'most' }, { addStatus: 'random', part: 'random', when: 'low' }] },
+	},
+	// `#571`：键形是 **`<statuses 的 id>@<部位>`**（引擎侧 `statusPenaltyFor` 就按 `\`${id}@${part}\`` 取）——
+	// 原先写成中文标签（`麻痹@腿`／`流血@躯干`）⇒ 永远取不到 ⇒ 减成恒为 0（静默空转；门见 `test/story-shape.mjs`）。
+	// `#747`：本故事的减成**全部住声明**（`perRound.penalty`）⇒ 这张手写表**空了**（回落路径仍在，供
+	// 别处「临时压一格」用；故事门 `--status` 会报出矩阵，每格都要有出处）。
+	statusPenalty: {},
+	// 短/长战斗＝1 批／2 批（第二批更难且增援）
+	// `#490` 已定 ⑥：抽查「金本位」——金币来源就靠这里（`reward.gold`，S3 契约 §3.2 的声明形状）；
+	// 长战斗（两批、更难）奖励更高 ⇒ 与 `waveRewardScale` 的单调口径同向。
+	// `#600`（已定 ③）／`#696`：**钥匙掉落**住在声明面（`reward.item`，与 `gold` 同轴）：长战斗**必掉**、短战斗 **50%**（战斗＝钥匙主源）。
+	// 形状：`'道具'`（＝必掉）或 `{ id, chance }`；内容侧只渲染，落账在 `Game.Combat.grantReward`（单一落点）。
+	encounters: {
+		// `#696`（**战斗＝钥匙主源**）⇒ 短战掉率 30 → **50**（长战仍必掉）。
+		// `#705` 片二-B（判据⑥**重导**）：短＝**5 回合**。实测口径：2 只洞窟鼠（4hp）＋每击 `1d6+2`
+		// ⇒ 期望 ~4 击（含空击）⇒ 5 给余量；旧的 `1 回合` 是固定伤害时代的数，敌人有 HP 后**永远打不完**
+		// （实测 3 回合也偏紧：满伤也要 4 击 ⇒ 一遇空击就判死）。
+		short: { rounds: 5, waves: [{ pool: 'cave.w1', difficulty: 1, enemies: ['洞窟鼠', '洞窟鼠'] }], reward: { gold: 3, item: { id: '钥匙', chance: 50 } }, failNote: 'n_cave_battered' },
+		// 长＝**8 回合**（⑥ 重导：实测中位 6／p90 8 —— 旧的 5 会把一半以上胜局判死）。
+		long: { rounds: 8, waves: [{ pool: 'cave.w1', difficulty: 1, enemies: ['洞窟鼠', '洞窟鼠'] }, { pool: 'cave.w2', difficulty: 2, reinforce: true, enemies: ['硬壳甲虫'] }], rewardsScale: 1.5, reward: { gold: 9, item: '钥匙' } },
+	},
+	// `#692`（①）：路面提示要**显式标出事件类型**（玩家才谈得上"选"）。
+	// 标签住**声明面**（不是写死在段落里）：新增第七类 kind 时，门（`stories/hollow-cave/gates/cave.mjs` 判据⑤）
+	// 会立刻报"没有标签"⇒ 否则玩家只会看到空白/问号前缀，而没有任何门看得见。
+	kindLabels: {
+		shortFight: '短战斗', longFight: '长战斗', chest: '宝箱',
+		cave: '特殊洞窟', trap: '陷阱', traveller: '旅人',
+	},
+	// `#705`（片一：**声明面＋门**；机制接线见片二）：敌人**必须有属性**——没有属性（HP/AC/攻击落点），
+	// 部位/耐久/异常三套机制永远没机会被触发（症状：「敌人太简单…无法测试到上述问题」）。
+	// 与「数据住故事、机制住引擎」同口径：这里只声明 [名字/HP/AC/攻击位点与伤害骰/可落部位/特性/掉落]。
+	enemies: {
+		// `#702`（5e 对齐）：敌人**掷攻击骰**（`d20 + bonus`）vs 玩家 AC ⇒ 用 `bonus` 而不是"玩家掷位点"；
+		// 伤害是**骰式**（`NdM±K`）⇒ 会落部位、会被护具吸、被耐久吃（`#704` 的显示面就吃这份数据）。
+		洞窟鼠: { name: '洞窟鼠', hp: 4, ac: 11, attack: { bonus: 3, dmg: '1d4+1', parts: ['腿', '手臂'] }, traits: ['成群'], drops: [] },
+		硬壳甲虫: { name: '硬壳甲虫', hp: 9, ac: 14, attack: { bonus: 4, dmg: '1d6+2', parts: ['躯干'] }, traits: ['硬壳'], drops: [] },
+	},
+	// `#696`：五洞窟的产出也**声明化**（`#600` 的同族口径）——**钥匙主源是战斗** ⇒ 矿洞掉钥匙是 25% 的小概率，其余给干粮。
+	caveRewards: { 矿洞: { keyChance: 25, fallback: '干粮' } },
+	// 五步主线：段号从 1 计（与 `roadOffer(idx)` 一致）；每步至少一个 `noCheck:true`（不掷骰也有路）。
+	// `#718`（实测：**每段恰好 3 条 ⇒ 重开零变体**）：每段声明 **6 条**、**类型互不重复** ⇒
+	// `roadOffer` 从该段 6 条里随机取 3 ⇒ 每段 **C(6,3)=20 种组合**（原先 3 条里取 3 ⇒ 恒 1 种）。
+	// 只**复用**既有 15 个实例段落（`路·<ref>`），不新增内容段落；线索在同段内两两不等价（门判据⑤）。
+	roads: [
+		{ from: 0, to: 1, options: [
+			{ kind: 'shortFight', hint: '碎石间有拖行的痕迹', ref: '1a' },
+			{ kind: 'chest', hint: '岩壁凹处反着一点金属光', ref: '1b', noCheck: true },
+			{ kind: 'trap', hint: '地面浮土比别处松', ref: '1c' },
+			{ kind: 'longFight', hint: '脚印都朝着一个方向，没有回头的', ref: '4b' },
+			{ kind: 'cave', hint: '那边吹过来的风是热的', ref: '2b', noCheck: true },
+			{ kind: 'traveller', hint: '石缝里卡着一小块布', ref: '2c' }] },
+		{ from: 1, to: 2, options: [
+			{ kind: 'longFight', hint: '地上的脚印都朝一个方向', ref: '2a' },
+			{ kind: 'cave', hint: '那边的岩壁潮得能拧出水', ref: '2b', noCheck: true },
+			{ kind: 'traveller', hint: '前面有人在低声哼调子', ref: '2c' },
+			{ kind: 'shortFight', hint: '远处有东西在啃石头', ref: '3c' },
+			{ kind: 'chest', hint: '锁扣露在外面，锈得发红', ref: '3b' },
+			{ kind: 'trap', hint: '头顶有细砂在往下落', ref: '3a', noCheck: true }] },
+		{ from: 2, to: 3, options: [
+			{ kind: 'trap', hint: '头顶的细砂又落下来一层', ref: '3a', noCheck: true },
+			{ kind: 'chest', hint: '半塌的石堆里露着一只箱角', ref: '3b' },
+			{ kind: 'shortFight', hint: '碎石在动，不是风', ref: '3c' },
+			{ kind: 'cave', hint: '滴水声从很低的地方传上来', ref: '4a', noCheck: true },
+			{ kind: 'longFight', hint: '两声脚步，不是一只', ref: '4b' },
+			{ kind: 'traveller', hint: '前面有火光，在动', ref: '4c' }] },
+		{ from: 3, to: 4, options: [
+			{ kind: 'cave', hint: '风里有股湿乎乎的凉意', ref: '4a', noCheck: true },
+			{ kind: 'longFight', hint: '它守在那儿，不让路', ref: '4b' },
+			{ kind: 'traveller', hint: '火光停着不动了，像在等你', ref: '4c' },
+			{ kind: 'chest', hint: '最后一只箱子，压在半塌的碎石下', ref: '5b' },
+			{ kind: 'shortFight', hint: '拖行的痕迹又出现了，比先前深', ref: '1a' },
+			{ kind: 'trap', hint: '脚下的浮土松得反常', ref: '1c' }] },
+		{ from: 4, to: 5, options: [
+			{ kind: 'cave', hint: '洞口那边能看见村子的屋顶', ref: '5a', noCheck: true },
+			{ kind: 'chest', hint: '箱子上落着一层新灰', ref: '5b' },
+			{ kind: 'longFight', hint: '有东西堵在最后一段路上', ref: '5c' },
+			{ kind: 'shortFight', hint: '碎石间的声音越来越近', ref: '1a' },
+			{ kind: 'trap', hint: '细砂从头顶漏下来', ref: '3a', noCheck: true },
+			{ kind: 'traveller', hint: '有人在暗处叫住了你', ref: '4c' }] },
+	],
+	// 宝箱（S4 §4.3）：3 种机关 × 2 档稀有度；通用道具各降 3；钥匙降为 0；也可径直通过
+	chest: {
+		mechanisms: {
+			// `#491` 判据 3：四个位点面 = 普通判定／珍贵判定／普通+道具／珍贵+道具（两档都"各降 3"）；后两者都必须被内容真的用到
+			锁扣: { site: '宝箱·锁扣', rareSite: '宝箱·锁扣·珍贵', toolSite: '宝箱·锁扣·借助具', rareToolSite: '宝箱·锁扣·借助具·珍贵', tool: '撬棍' },
+			机关针: { site: '宝箱·机关针', rareSite: '宝箱·机关针·珍贵', toolSite: '宝箱·机关针·借助具', rareToolSite: '宝箱·机关针·借助具·珍贵', tool: '手套' },
+			石块: { site: '宝箱·石块', rareSite: '宝箱·石块·珍贵', toolSite: '宝箱·石块·借助具', rareToolSite: '宝箱·石块·借助具·珍贵', tool: '铁撬' },
+		},
+		// `#490` §4.3：**稀有度 → 奖品曲线**（普通给消耗品；珍贵多给一件"通用道具"，那正是降难链的来源）
+		loot: { 普通: ['干粮'], 珍贵: ['干粮', 'TOOL'] },
+		// `#696`：**金币主源＝战斗与宝箱** ⇒ 宝箱产出金币（`#490` §4.3 的「金本位」扩到宝箱这一路）。
+		gold: { 普通: 5, 珍贵: 12 },
+		rarities: { 普通: { dc: 12 }, 珍贵: { dc: 15 } },
+		toolReduce: 3, keyReduce: 'to-zero',
+	},
+};
+Object.assign(window.Sg.story, {
+	mechanics: () => MECH,
+	eventKindLabel: (k) => MECH.kindLabels?.[k] ?? null,
+	chestGold: (rarity) => MECH.chest.gold?.[rarity] ?? 0,
+	enemyDef: (id) => MECH.enemies?.[id] ?? null,   // `#705` 片一：取值口先落（引擎侧机制接线见片二）
+	caveReward: (k) => MECH.caveRewards?.[k] ?? null,
+	// 以下两面是 S6 的门要消费的声明（引擎目前不经它们取数 ⇒ 先声明、不假装已接线；见 `#491`）
+	chestDef: (id) => MECH.chest.mechanisms[id] ?? null,
+	lootOf: (rarity) => MECH.chest.loot[rarity] ?? [],
+	// 六类事件的实例清单（`#778` 起**由引擎折叠**：`Game.Combat.roadInstances()` ⇒ `[{id, kind, hint, ref}]`，平数组、不收 step）
+	// ⇒ 故事侧只留上面那份 `roads` 声明；折叠是纯派生（机制住引擎），六类**词表**仍是故事词汇（门侧持有）。
+});

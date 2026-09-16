@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { scriptBodies } from './equiv.mjs';
 import { engineScripts } from './extract-story.mjs';
-import { KINDS } from './compile-story.mjs';
+import { KINDS, GLOBAL_ROOTS } from './compile-story.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
@@ -129,7 +129,7 @@ export const fbEnum = (expr, key) => {
 };
 
 /** 纯函数：把一个成员的值表达式归类。返回 `{ bucket, kind, spec?, why? }`。 */
-export const classify = (srcIn) => {
+export const classify = (srcIn, ctx = {}) => {
 	const s = String(srcIn).replace(/\s+/g, ' ').trim();
 	const A = (kind, spec = {}) => {
 		// **单一权威**：A 桶＝"编译器真能装下"。KINDS 里没有 ⇒ 分类器自己的口径腐烂了 ⇒ 当场抛错。
@@ -155,24 +155,47 @@ export const classify = (srcIn) => {
 		return A('game-ref', { path: guardedRef[2].replace(/^window\./, ''), optional: /\?\./.test(guardedRef[2]), required: true, ...(guardedRef[4] ? { type: guardedRef[4] } : {}), error: err });
 	}
 	// `(k) => <来自……>?.[k] ?? <默认>` ／ `(k) => { const v = …; if (!v) throw …; return v; }`
+	// 根判定（`#787` 实测）：`window.`／`Sg.` 前缀 ＝ 全局；否则首段要么在**全局白名单**、要么是本文件的**局部常量**
+	// ⇒ 后者映射成 `fromMember`（局部常量在产物里**不存在** ⇒ 走全局读会静默 undefined ✗，六个成员一起变 null）。
+	// 认不出的根 ⇒ 返回 null（调用方落 B，**不许**假装 A ✗）。
+	const rooted = (chain) => {
+		const c = String(chain).replace(/[?.]+$/, '');
+		if (/^(window\.|Sg\.)/.test(c)) return { from: c };
+		const root = c.split(/[.?]/)[0];
+		if (GLOBAL_ROOTS.includes(root)) return { from: c };
+		const member = ctx.locals?.get(root);
+		if (member) {
+			const rest = c.split('.').slice(1).join('.');
+			return { fromMember: member, ...(rest ? { path: rest } : {}) };
+		}
+		return null;
+	};
 	const lookup = /^\((\w+)\) => ([\w$.()?]+)\[(\1)\] \?\? (.+)$/.exec(s);
 	if (lookup) {
 		// ⚠️ 同族坑（今天第 3 次）：spec 里放的必须是**值**，不是**源码文本** ——
 		// 曾把 `?? null` 的兜底存成字符串 `"null"` ⇒ 产物成了 `?? "null"`（返回字符串！），容器比对与 L3 都看不出来。
 		const d = literalValue(lookup[4]);
-		if (d === undefined && lookup[4].trim() !== 'undefined') return B('lookup', { from: lookup[2].replace(/[?.]+$/, ''), key: lookup[1] }, `兜底 \`${lookup[4]}\` 不是字面量 ⇒ 需人工`);
-		return A('lookup', { from: lookup[2].replace(/[?.]+$/, ''), key: lookup[1], default: d });
+		const r1 = rooted(lookup[2]);
+		if (!r1) return B('lookup', { from: lookup[2].replace(/[?.]+$/, ''), key: lookup[1] }, `根不是全局也不是本文件的成员常量 ⇒ 需人工（局部常量不能当全局读）`);
+		if (d === undefined && lookup[4].trim() !== 'undefined') return B('lookup', { ...r1, key: lookup[1] }, `兜底 \`${lookup[4]}\` 不是字面量 ⇒ 需人工`);
+		return A('lookup', { ...r1, key: lookup[1], default: d });
 	}
 	const field = /^\((\w+)\) => ([\w$.()?]+)\[(\1)\]\??\.(\w+) \?\? (.+)$/.exec(s);
 	if (field) {
 		// ⚠️ 捕获组下标：m[3] 是回参照捕获（`(\1)` 也是组）⇒ 字段在 m[4]
 		// 兜底必须是**小 enum**（编译器硬化后不再收裸表达式）⇒ 这里把常见三形态翻成 enum，认不出的落 B。
 		const fb = fbEnum(field[5], field[1]);
-		if (!fb) return B('lookup-field', { from: field[2].replace(/[?.]+$/, ''), key: field[1], field: field[4] }, `兜底 \`${field[5]}\` 不是小 enum 里的形态（需要新 kind 或人工）`);
-		return A('lookup-field', { from: field[2].replace(/[?.]+$/, ''), key: field[1], field: field[4], fallback: fb });
+		const r2 = rooted(field[2]);
+		if (!r2) return B('lookup-field', { from: field[2].replace(/[?.]+$/, ''), key: field[1], field: field[4] }, `根不是全局也不是本文件的成员常量 ⇒ 需人工`);
+		if (!fb) return B('lookup-field', { ...r2, key: field[1], field: field[4] }, `兜底 \`${field[5]}\` 不是小 enum 里的形态（需要新 kind 或人工）`);
+		return A('lookup-field', { ...r2, key: field[1], field: field[4], fallback: fb });
 	}
 	const guarded = /^\((\w+)\) => \{ const (\w+) = ([\w$.()?]+)\[\1\]; if \(!\2\) throw new Error\(.*\); return \2; \}$/.exec(s);
-	if (guarded) return A('lookup', { from: guarded[3].replace(/[?.]+$/, ''), key: guarded[1], required: true });
+	if (guarded) {
+		const r3 = rooted(guarded[3]);
+		if (!r3) return B('lookup', { from: guarded[3].replace(/[?.]+$/, ''), key: guarded[1] }, '根不是全局也不是本文件的成员常量 ⇒ 需人工');
+		return A('lookup', { ...r3, key: guarded[1], required: true });
+	}
 	const state = /^\((\w+)\) => \1\?\.([\w$.]+) \?\? (.+)$/.exec(s);
 	if (state) {   // 同族坑：兜底也必须是**值**（源码文本会让产物返回字符串）
 		const d = literalValue(state[3]);
@@ -292,8 +315,14 @@ const main = () => {
 	if (stray.length) { console.error(`✗ ${file} 里还有**未被识别的** Sg.story 写法（${stray.join(' · ')}）—— 多站点合并只认 Object.assign 形态，其余必须点名而不是静默漏掉`); process.exit(1); }
 	console.log(`（站点 ${sites.length} 处：${sites.map((s2) => s2.members.length + ' 名成员').join(' ＋ ')}）`);
 	const fileText = readFileSync(file, 'utf8');
+	// **局部常量 ⇒ 成员名**（`#787`）：`mechanics: () => MECH` 这类成员把局部常量放进了契约 ⇒ 其它成员引用它时才可表达。
+	const locals = new Map();
+	for (const m of members) {
+		const ref = /^\(\) => ([A-Za-z_$][\w$]*)$/.exec(m.src.replace(/\s+/g, ' ').trim());
+		if (ref) locals.set(ref[1], m.name);
+	}
 	const rows = members.map((m) => {
-		const c = classify(m.src);
+		const c = classify(m.src, { locals });
 		if (c.bucket === 'B' && c.kind === 'const' && c.spec?.ref) {
 			const value = resolveLocalConst(fileText, 'Game Tables', c.spec.ref);
 			if (value !== undefined && value !== null) return { name: m.name, src: m.src, bucket: 'A', kind: 'const', spec: { value }, resolvedFrom: c.spec.ref };

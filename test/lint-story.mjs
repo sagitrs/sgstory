@@ -46,5 +46,21 @@ try {
 	case_('反例·未数据化红（非跳过）', r3.status === 1 && out3.includes('未数据化'), `status=${r3.status}`);
 } finally { rm(probe, { recursive: true, force: true }); }
 
+// ④ `--json`：诊断是数据（#794 第①条）——机器可读面
+{
+	const rj = spawnSync('node', ['editor/lint-story.mjs', 'minimal-demo', '--json'], { cwd: ROOT, encoding: 'utf8' });
+	let d = null; try { d = JSON.parse(rj.stdout); } catch {}
+	case_('--json 正例：可解析且 ok=true · 5 步', rj.status === 0 && d?.ok === true && d?.findings?.length === 5,
+		`status=${rj.status} steps=${d?.findings?.length}`);
+	const probe2 = mkdtempSync(join(tmpdir(), 'lint-story-json-'));
+	try {
+		wf(join(probe2, '00-story.json'), JSON.stringify({ slug: 'probe', files: ['x.twee'] }));
+		const rjn = spawnSync('node', ['editor/lint-story.mjs', probe2, '--json'], { cwd: ROOT, encoding: 'utf8' });
+		let dn = null; try { dn = JSON.parse(rjn.stdout); } catch {}
+		case_('--json 反例：ok=false 且失败步留痕', rjn.status === 1 && dn?.ok === false && dn?.findings?.some((f) => !f.ok),
+			`status=${rjn.status}`);
+	} finally { rm(probe2, { recursive: true, force: true }); }
+}
+
 if (bad) { console.error(`\n✗ lint-story 自证门：${bad} 条未过`); process.exit(1); }
 console.log('\n✔ lint-story 自证门通过（正例 1 · 反例 2 · 无残留）');

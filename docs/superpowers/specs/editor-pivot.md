@@ -105,9 +105,11 @@ stories/<slug>/
 |---|---|---|
 | **L1 结构等价** | 编译产物在 vm 里求值后的对象，与手写版**深度相等**（表/注册项逐项） | 新脚本 `editor/equiv.mjs`（`vm` 跑两个版本，`deepEqual`） |
 | **L2 门等价** | `npm test` 全绿 ＋ **`audit:golden` 零漂移** | 现成 |
-| **L3 产物等价** | `dist/stories/<slug>/index.html` 在**剥注释与空白**后逐字节相同 | 新脚本（现成手法：`ui-migration-diff` 的对照形状） |
+| **L3 产物等价** | 生成的 twee 段与手写段在**剥注释、空白与冗余尾逗号**后逐字节相同 | `editor/equiv.mjs`（P0 已落地；尾逗号是**格式**不是语义，不写进 schema） |
 
-**为什么不是"dist 逐字节"**：手写版有大量解释性注释，数据化后注释归文档；L3 剥注释后相同已足够强，且 L1/L2 兜住语义。
+**为什么不是"dist 逐字节"**：手写版有大量解释性注释，数据化后注释归文档；L3 剥注释（并归一冗余尾逗号这类纯格式）后相同已足够强，且 L1/L2 兜住语义。
+
+**P0 实测（`#762`）**：`minimal-demo` 已过 L1 ＋ L3（`editor/compile-story.mjs` ＋ `editor/equiv.mjs`）。过程中**判据当场抓到三处真差异**（漏写 `window.Game =`／`State.domains[0].keys` 缺 `settle`／`Consequences.engine` 缺 `settle`）——这类"数据与手写版漂移"正是 L1 存在的意义。
 
 ## 5. 拦路石与对策
 

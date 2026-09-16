@@ -384,6 +384,18 @@ export const makeShared = (ctx) => {
 			// 再转 NPC 3 处 ⇒ `--echoes` 分级 5 → 6）。`noteReadKeys` 只认**笔记引用**（不像全量 `readKeys()`
 			// 会把表里字符串文案提到的 `pc.ev.notes` 也算成读点）。
 			.concat(noteReadKeys(tblSrc, noteEntries).map((k) => String(k).replace(/^(ev|world)\./, ''))));
+		// `#785` 第 1 族（D 席收口）：线索判定从"手写谓词"改成**声明式条件**后，消费点住在**数据字符串**里
+		// （`{ id, label, req: ['world.fog_thin'] }`／`req: ['n_x']`）—— 上面三种全是**代码形状**扫描
+		// （`p.ev.X`／`readPath`／`notes.has`）⇒ 一个都看不见它 ⇒ 图鉴桶"转一处、桶丢一处"，
+		// 键被判「只在引擎段落被读」或「无任何桶」（实测 `#786` 9 段红全是这一族）。
+		// ⇒ 补第四种来源 `declCondRefs()`（**声明式条件**的文本口径；对象口径另有 `ruleRowFlags()`，
+		// 两者的一致性由本文件自证里的**交叉例**钉住，见下方 `--...` 自证）。
+		const declCond = declCondRefs(tblSrc);
+		const declCondFlags = [
+			...declCond.states.map((k) => k.replace(/^(ev|world)\./, '')),
+			...declCond.notes.flatMap((id) => (notePathsById.get(id) ?? []).map((q) => q.replace(/^(ev|world)\./, ''))),
+		];
+		for (const f of declCondFlags) codexFlags.add(f);
 		const decl = { ...(Consequences?.provenance ?? {}), ...(Consequences?.engine ?? {}) };
 		const prop = { ...(Consequences?.provenance ?? {}) };
 		const buckets = new Map();

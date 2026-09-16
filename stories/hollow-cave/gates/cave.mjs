@@ -170,6 +170,41 @@ export const endingSummaryProblems = (endSrc) => {
 	return [];
 };
 
+/** `#706` 的**结算点声明**：允许调 `tickStatuses` 的 **widget** 名（每处恰好一次）。
+ *  · `caveNext` ＝**本故事**的事件步（唯一单位：一段＝一回合）；
+ *  · `fightact` ＝**引擎**侧的战斗回合点（故事 1 的战斗用它 —— 那是它的**单位**，与本故事的"步"并存但互斥：
+ *    故事 2 的战斗路径走 `<<foeRound>>`，不经 `fightact`，实测一个事件步内只结算一次）。 */
+export const TICK_ALLOWED = ['caveNext', 'fightact'];
+
+/** 纯函数⑪：**状态时钟的调用点必须与声明一致**（`#706`）——
+ *  症状：异常按"步"推进，但调用点散落（战斗内再调一次＝同一异常一个事件步结算两次）；且玩家不知道单位。
+ *  判据（按 **widget** 判，不按段落名 —— widget 名才是声明单元）：
+ *   ① 段落正文里（widget 之外）**不许**直接调 `tickStatuses`；
+ *   ② 声明的 widget 各自**恰好一次**（0 次＝时钟不走，也是坏的）；
+ *   ③ 未声明的 widget 调了 ⇒ 报。 */
+export const tickSiteProblems = (passages, allowed = TICK_ALLOWED) => {
+	const out = [];
+	const tickRe = /Game\.Combat\.tickStatuses\s*\(/g;
+	const widgetRe = /<<widget\s+"([^"]+)">>([\s\S]*?)<\/widget>>/g;
+	const seen = new Set();                                   // 声明点里"真的出现过"的 widget（用于判"时钟不走"）
+	for (const [name, src] of (passages ?? [])) {
+		const text = String(src ?? '');
+		const inner = new Set();
+		for (const m of text.matchAll(widgetRe)) { if (tickRe.test(m[2])) inner.add(m[1]); tickRe.lastIndex = 0; }
+		// ① 段落正文（去掉 widget 体）里不该有 tick
+		const outside = text.replace(widgetRe, '');
+		if (tickRe.test(outside)) out.push({ code: 'tick-outside', why: `段落「${name}」在 widget **之外**调了 \`tickStatuses\` ⇒ 调用点必须收敛进声明的 widget` });
+		for (const w of inner) {
+			const body = [...text.matchAll(widgetRe)].find((m) => m[1] === w)[2];
+			const n = (body.match(tickRe) ?? []).length;
+			if (!allowed.includes(w)) out.push({ code: 'tick-site', why: `widget「${w}」（段落「${name}」）调了 \`tickStatuses\`，它不在声明的结算点（${allowed.join('、')}）里 ⇒ 同一异常可能被结算多次` });
+			else { seen.add(w); if (n !== 1) out.push({ code: 'tick-count', why: `声明的结算点「${w}」调了 ${n} 次（应恰好 1 次）` }); }
+		}
+	}
+	for (const w of allowed) if (!seen.has(w)) out.push({ code: 'tick-missing', why: `声明的结算点「${w}」**没有**调用 \`tickStatuses\` ⇒ 时钟不走（异常永不结算）` });
+	return out;
+};
+
 /** `#726` 的目标词（**本故事自己的数据**，就住故事门里 —— 判据数据按 `#602` 归故事）。 */
 export const GOAL_KEYWORD = '村子';
 
@@ -218,6 +253,16 @@ export const run = (ctx) => {
 			['🔴 ⑩ 反例（#726）：开场没给目标 ⇒ 报', goalProblems('前面只有一条路。', '村子到了。').length === 1],
 			['🔴 ⑩ 反例（#726）：终点没回扣 ⇒ 报', goalProblems('往深处走——村子在山腹里。', '你站在那儿。').length === 1],
 			['🔴 ⑩ 反例（#726）：取不到源码 ⇒ 报（不静默判过）', goalProblems('', '').length === 2],
+			// `#706`：结算点声明（正例 / 🔴 战斗段偷调 / 🔴 声明点没调 / 🔴 调两次）
+			['⑪ 正例（#706）：声明的 widget 调一次、正文不调 ⇒ 不报',
+				tickSiteProblems([['洞窟工具', '<<widget "caveNext">><<run Game.Combat.tickStatuses($pc)>><</widget>>']], ['caveNext']).length === 0],
+			['🔴 ⑪ 反例（#706）：未声明的 widget 也调 ⇒ 报（一步结算两次）',
+				tickSiteProblems([['洞窟工具', '<<widget "caveNext">><<run Game.Combat.tickStatuses($pc)>><</widget>>'], ['机制·shortFight', '<<widget "x">><<run Game.Combat.tickStatuses($pc)>><</widget>>']], ['caveNext']).length === 1],
+			['🔴 ⑪ 反例（#706）：声明点没调 ⇒ 报（时钟不走）', tickSiteProblems([['Widgets', '<<widget "fightact">>no tick<</widget>>']], ['caveNext']).length === 1],
+			['🔴 ⑪ 反例（#706）：调两次 ⇒ 报',
+				tickSiteProblems([['洞窟工具', '<<widget "caveNext">><<run Game.Combat.tickStatuses($pc)>><<run Game.Combat.tickStatuses($pc)>><</widget>>']], ['caveNext']).length === 1],
+			['🔴 ⑪ 反例（#706）：段落正文里直接调 ⇒ 报',
+				tickSiteProblems([['岔口', '<<run Game.Combat.tickStatuses($pc)>>']], ['caveNext']).length === 2],
 			// `#600` 奖励声明面：正例／🔴 未登记道具／🔴 形状非法／🔴 内容没接／🔴 内容绕过
 			['④ 正例：掉落道具已登记且内容走单一落点', rewardProblems({ encounters: { short: { reward: { gold: 3, item: { id: '钥匙', chance: 30 } } } } }, { normalize: () => ({ gold: 3, item: { id: '钥匙', chance: 30 } }), hasItem: (x) => x === '钥匙', srcOf: () => '<<set _r to Game.Combat.grantReward($pc, "short")>>' }).length === 0],
 			['🔴 ④ 反例：掉落指向未登记道具 ⇒ 报', rewardProblems({ encounters: { short: { reward: { item: '不存在的钥匙' } } } }, { normalize: () => ({ gold: 0, item: { id: '不存在的钥匙', chance: 100 } }), hasItem: (x) => x === '钥匙', srcOf: () => 'Game.Combat.grantReward(' }).length === 1],
@@ -269,6 +314,8 @@ export const run = (ctx) => {
 		for (const p of chestProblems(mech.chest, { hasSite: (n) => !!story.checkSite?.(n), hasItem: (n) => !!story.itemEffect?.(n), siteOf: (n) => story.checkSite?.(n) })) { console.log(`  ✗ 宝箱声明面：${p.why}`); bad++; }
 		for (const p of rewardProblems(mech, { normalize: (id) => w?.Game?.Combat?.encounterReward(id), hasItem: (n) => !!story.itemEffect?.(n), srcOf: (n) => ctx.passageSrc?.get(n) })) { console.log(`  ✗ 战斗奖励声明面：${p.why}`); bad++; }
 		for (const p of endingSummaryProblems(ctx.passageSrc?.get('地下村落') ?? '')) { console.log(`  ✗ 终点结算：${p.why}`); bad++; }
+		// `#706`：状态时钟的调用点（唯一结算点＝`caveNext`）
+		for (const p of tickSiteProblems([...(ctx.passageSrc ?? new Map()).entries()])) { console.log(`  ✗ 状态时钟（#706）：${p.why}`); bad++; }
 		// `#726`：开场目标 ＋ 终点回扣（本故事自己的判据数据 `GOAL_KEYWORD`）
 		for (const p of goalProblems(ctx.passageSrc?.get('醒来') ?? '', ctx.passageSrc?.get('地下村落') ?? '')) { console.log(`  ✗ 目标感（#726）：${p.why}`); bad++; }
 		for (const p of enemySiteProblems(mech, { hasSite: (n) => !!story.checkSite?.(n) })) { console.log(`  ✗ 敌人攻击位点：${p.why}`); bad++; }

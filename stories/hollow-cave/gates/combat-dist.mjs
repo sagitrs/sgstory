@@ -81,7 +81,7 @@ export const within3Sigma = ({ empirical, expected, n }) => {
 };
 
 /** 真机 sim：**长战斗**逐回合驱动（`waveBegin`／`resolvePlayer`／`waveRecord`）——受伤按 present 的口径落 HP。 */
-export const simLong = ({ Game, pcMake, mech, id, seed, runs = 4000, poolOf }) => {
+export const simLong = ({ Game, pcMake, mech, id, seed, runs = 4000, poolOf, story = {} }) => {
 	const plan = Game.Combat.wavePlan(id);
 	const rng = mulberry32(seed);
 	Game.Rules.rng.set(asSugarRandom(rng));
@@ -92,29 +92,31 @@ export const simLong = ({ Game, pcMake, mech, id, seed, runs = 4000, poolOf }) =
 	for (let i = 0; i < runs; i++) {
 		const pc = pcMake();
 		Game.Combat.waveBegin(pc, id);
+		Game.Combat.foeSpawn(pc, 0);                             // `#705` 片二-B：**真机 5e**（敌人实例）
 		let rounds = 0, done = false;
 		for (let guard = 0; guard < 64 && !done; guard++) {
 			const wv = pc.ev.fight.wave;
 			const pool = poolOf(plan.waves[wv.idx - 1].pool);
 			const act = pool[Math.floor(rng() * pool.length)];
 			pc.ev.fight.act = act;
-			const r = Game.Combat.resolvePlayer(pc, null, false);
-			batch[wv.idx - 1].n += 1; if (r.check?.success) batch[wv.idx - 1].ok += 1;
-			pc.hp = Math.max(0, pc.hp - (r.hurt ?? 0));          // present（`<<damage>>`）的口径：hurt 在此落 HP
-			hurtSum += r.hurt ?? 0;
+			// 一个回合：玩家攻击（5e 攻击骰 vs 敌 AC）⇒ 还站着的敌人反击（骰式伤害 ⇒ **落部位** ⇒ `slotAbsorbAt`）
+			const r = Game.Combat.foeRound(pc, story.combatAction?.(act) ?? null);
+			batch[wv.idx - 1].n += 1; if (r.strike?.hit) batch[wv.idx - 1].ok += 1;
+			pc.hp = Math.max(0, pc.hp - r.hurt);                 // present（`<<damage>>`）的口径：hurt 在此落 HP
+			hurtSum += r.hurt;
 			rounds += 1;
-			if (r.check?.success) { lossRun = 0; } else { lossRun += 1; if (lossRun > maxLossRun) maxLossRun = lossRun; lossRunDist[lossRun] = (lossRunDist[lossRun] ?? 0) + 1; }
-			const phase = Game.Combat.waveRecord(pc, !!r.check?.success);
-			if (phase.phase === 'advance') continue;
+			if (r.strike?.hit) { lossRun = 0; } else { lossRun += 1; if (lossRun > maxLossRun) maxLossRun = lossRun; lossRunDist[lossRun] = (lossRunDist[lossRun] ?? 0) + 1; }
+			if (pc.hp <= 0) { deaths += 1; done = true; break; }  // 被打倒：**新模型下真的会发生**（旧模型打不还手）
+			const phase = Game.Combat.waveRecord(pc, true);       // 敌人模式：通关判据＝**敌人全灭**（判据⑦）
+			if (phase.phase === 'advance') { Game.Combat.foeSpawn(pc, pc.ev.fight.wave.idx - 1); continue; }
 			if (phase.phase === 'cleared') { cleared += 1; done = true; }
 			else if (phase.phase === 'failed') { done = true; }
-			if (pc.hp <= 0) done = true;                         // 全灭即中止本局
 		}
 		roundsSum += rounds;
 		roundsHist[rounds] = (roundsHist[rounds] ?? 0) + 1;
 	}
 	Game.Rules.rng.reset();
-	return { runs, rate: cleared / runs, roundsMean: roundsSum / runs, hurtMean: hurtSum / runs, deaths, roundsHist, lossRunDist, maxLossRun, seeds: [seed], pHat: batch.map((b) => (b.n ? b.ok / b.n : 0)), batchN: batch.map((b) => b.n) };
+	return { runs, rate: cleared / runs, roundsMean: roundsSum / runs, hurtMean: hurtSum / runs, deaths: deaths / runs, roundsHist, lossRunDist, maxLossRun, seeds: [seed], pHat: batch.map((b) => (b.n ? b.ok / b.n : 0)), batchN: batch.map((b) => b.n) };
 };
 
 export const run = (ctx) => {
@@ -179,7 +181,7 @@ export const run = (ctx) => {
 		{
 			const RUNS = 1500;
 			const runs = [];
-			for (const s of SEEDS) runs.push(simLong({ Game, pcMake, mech, id: 'long', seed: s, runs: RUNS, poolOf }));
+			for (const s of SEEDS) runs.push(simLong({ Game, pcMake, mech, id: 'long', seed: s, runs: RUNS, poolOf, story }));
 			const clearRate = runs.reduce((a, r) => a + r.rate, 0) / runs.length;
 			const roundsMean = runs.reduce((a, r) => a + r.roundsMean, 0) / runs.length;
 			const hurtMean = runs.reduce((a, r) => a + r.hurtMean, 0) / runs.length;
@@ -190,31 +192,40 @@ export const run = (ctx) => {
 			Object.assign(report, { rate: clearRate, roundsMean, hurtMean, deaths, roundsHist: hist, lossRunDist: runDist, maxLossRun, seeds: SEEDS, runs: RUNS * SEEDS.length });
 			const distBad = judgeDist(report);
 			bad += distBad.length;
-			// ②b **模型与实际一致**（把"清完率"从神秘数字变成可复算口径）：按声明的 plan 推闭式——
-			//    每批需 `hits` 次成功且回合上限恰为 `hits` ⇒ **每批必须全成功** ⇒ P(清) = ∏ p_i^hits。
-			const pShort = closedFormHitRate({ dc: (story.checkSite?.('洞窟·围斗') ?? {}).dc ?? 13, mod: 0 });
+			// ②b **模型与实际一致**（判据⑦：`hits` 退场 ⇒ 旧的"二项尾和"闭式**不再描述**这套机制）
+			// 新模型的闭式＝**期望回合**：每回合对一只敌人的期望伤害 ＝ `p_hit × E[伤害骰]`，
+			// 清完一波 ≈ Σ hp / (p_hit × E[伤害骰])（忽略溢出与暴击翻倍）；两波相加。
+			// `p_hit = P(d20 + 属性调整 + 熟练 ≥ 敌 AC)`（天然 20/1 的必中必失体现在 clamp 上）。
 			const plan = Game.Combat.wavePlan('long');
-			const pPerBatch = [1, 2].map((i) => closedFormHitRate({ dc: (story.checkSite?.((poolOf(plan.waves[i - 1].pool)[0] && story.combatAction?.(poolOf(plan.waves[i - 1].pool)[0])?.site) ?? '洞窟·围斗') ?? {}).dc ?? 13, mod: 0 }));
-			// `#599`：口径已定 ② 的**普遍形**（`rounds` 回合内 ≥ `hits` 次成功），不再是"每批全成功"
-			const closedClear = closedFormClearRate({ p: pShort, hits: plan.hits, rounds: plan.rounds })
-				* closedFormClearRate({ p: Math.min(...pPerBatch), hits: plan.hits, rounds: plan.rounds });
-			// **判据**用**实证每轮成功率** p̂ 喂组合式：这样查的是"≥hits 次成功 / rounds 回合、两批相乘"的**组合层**对不对
-			// （`#599` 改口径时，旧模型"每批全成功"正是被它抓住的）；理论 DC 闭式只作参考 —— 它忽略优势/动作池，判它会假红。
-			const pHat = runs.map((r) => r.pHat ?? [0, 0]);
-			const pHatMean = [0, 1].map((i) => pHat.reduce((a, x) => a + x[i], 0) / pHat.length);
-			const closedHat = closedFormClearRate({ p: pHatMean[0], hits: plan.hits, rounds: plan.rounds })
-				* closedFormClearRate({ p: pHatMean[1], hits: plan.hits, rounds: plan.rounds });
-			const modelOk = within3Sigma({ empirical: clearRate, expected: closedHat, n: RUNS * SEEDS.length });
-			console.log(`  ${modelOk ? '✓' : '✗'} 长战斗·口径复算：声明 plan（${plan.waves.length} 批 × 每批 ${plan.hits} 次成功 / 上限 ${plan.rounds} 回合）⇒ 每批需 ≥${plan.hits} 次成功（${plan.rounds} 回合内）⇒ 用**实证 p̂**（批次 ${pHatMean.map((x) => (x * 100).toFixed(1) + '%').join(' / ')}）喂组合式 ≈ ${(closedHat * 100).toFixed(2)}% vs 实证清完率 ${(clearRate * 100).toFixed(2)}%（3σ 内${modelOk ? '' : '**超**'}）· 参考：理论 DC 闭式 ≈ ${(closedClear * 100).toFixed(2)}%（忽略优势/动作池 ⇒ 不判）`);
+			const pc1 = pcMake();
+			const atkMod = Game.Rules.abilityMod(pc1, 'str') + Game.Rules.prof();
+			const E_dice = (expr) => {
+				const m = /^(\d+)(?:d(\d+))?(?:([+-])(\d+))?$/.exec(String(expr ?? ''));
+				if (!m) return 0;
+				const n = Number(m[1]), faces = m[2] ? Number(m[2]) : 0;
+				const flat = m[3] ? (m[3] === '-' ? -1 : 1) * Number(m[4]) : 0;
+				return (faces ? n * (faces + 1) / 2 : n) + flat;
+			};
+			const pHitOf = (ac) => Math.min(0.95, Math.max(0.05, (21 - (ac - atkMod)) / 20));
+			let expectedRounds = 0;
+			for (const wv of plan.waves) {
+				const dmg = E_dice(poolOf(wv.pool).map((a) => story.combatAction?.(a)?.dmg).find(Boolean) ?? '1');
+				for (const eid of (wv.enemies ?? [])) {
+					const def = mech?.enemies?.[eid] ?? {};
+					expectedRounds += (def.hp ?? 1) / Math.max(1e-9, pHitOf(def.ac ?? 10) * dmg);
+				}
+			}
+			const modelOk = Math.abs(roundsMean - expectedRounds) <= Math.max(2.5, expectedRounds * 0.35);
+			console.log(`  ${modelOk ? '✓' : '✗'} 长战斗·口径复算（**新模型**：敌人 HP ⇒ 期望回合 · 判据⑦):闭式 ${expectedRounds.toFixed(2)} 回合 vs 实证 ${roundsMean.toFixed(2)}（容差 ±max(2.5, 35%)）· 上限 ${plan.rounds}`);
 			if (!modelOk) bad += 1;
 			if (clearRate < 0.05) console.log(`      · ⚠ **平衡观察**（不是门红）：长战斗清完率 ${(clearRate * 100).toFixed(2)}%——由已定 ②「${plan.rounds} 回合上限 ＋ ${plan.hits} 次成功」直接推出；若要"更打得过"须改这两项之一（本门只报口径，不设阈值）。`);
 			console.log(`  ${distBad.length ? '✗' : '✓'} 长战斗：清完率 ${(clearRate * 100).toFixed(2)}% · 期望回合 ${roundsMean.toFixed(2)} · 受伤期望 ${hurtMean.toFixed(2)}／局 · **全灭率 ${(deaths * 100).toFixed(2)}%** · 最大连败 ${maxLossRun}（${SEEDS.length} 种子 × ${RUNS} 局）`);
 			console.log(`      · 回合数分布：${Object.entries(hist).sort((a, b) => a[0] - b[0]).map(([k, v]) => `${k}回合 ${(100 * v / (RUNS * SEEDS.length)).toFixed(1)}%`).join(' · ')}`);
 			console.log(`      · 连败分布：${Object.entries(runDist).sort((a, b) => a[0] - b[0]).slice(0, 8).map(([k, v]) => `≥${k} 连败 ${v} 次`).join(' · ')}（**期望值看不见的那一面**）`);
 			for (const p of distBad) { console.log(`  ✗ 分布面：${p.why}`); }
-			// ④ 复算：同种子两次逐字节一致
-			const again = simLong({ Game, pcMake, mech, id: 'long', seed: SEEDS[0], runs: 200, poolOf });
-			const again2 = simLong({ Game, pcMake, mech, id: 'long', seed: SEEDS[0], runs: 200, poolOf });
+			// ④ 复算：同种子两次逐字节一致（`#705` 片二-B：新模型下 `deaths` 也纳入 ⇒ 被打倒的局必须同种子可复现）
+			const again = simLong({ Game, pcMake, mech, id: 'long', seed: SEEDS[0], runs: 200, poolOf, story });
+			const again2 = simLong({ Game, pcMake, mech, id: 'long', seed: SEEDS[0], runs: 200, poolOf, story });   // `story` 必须传：缺它 ⇒ `combatAction` 静默退化（默认伤害 1）⇒ 复算假红
 			const same = JSON.stringify({ ...again, seeds: null }) === JSON.stringify({ ...again2, seeds: null });
 			console.log(`  ${same ? '✓' : '✗'} 复算：同种子两次逐字节一致（seed ${SEEDS[0]} · 200 局）`);
 			if (!same) bad++;

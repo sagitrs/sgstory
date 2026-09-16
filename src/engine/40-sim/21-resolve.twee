@@ -577,7 +577,16 @@ Object.assign((window.Game.Combat ??= {}), {
 			// `#599`（2026-09-14 口径定案）：长战斗**回合上限 3 → 5**，保留"需 3 次成功"——
 			// 依据：① 保留"三击"＝长战斗的形，只松压力；② `#600` 必掉钥匙 × 0.74% 清完率自相矛盾；
 			// ③ 候选里这是"保持结构、只改压力"的那档（改命中数＝改形）。两批清完率 ≈ 16.6%。
-			long, rounds: long ? 5 : 1, hits: long ? 3 : 1,          // 两档只在"回合数"这一维正交（短＝1 回合·1 命中）
+			// `#705` 片二-B（判据⑥**重导**，操作者 2026-09-15 裁定 B 档）：**5 ⇒ 8**。
+			// 为什么必须重导：`#599` 的"3→5"是在**固定伤害**数学下算的；伤害变骰＋AC/HP 之后实测
+			// （400 局×7 档）中位 **6** 回合、p90 **8** ⇒ 沿用 5 会**把一半以上的胜局判死**。
+			// 8 覆盖 p90 ⇒ 不误杀"本该赢"的局。数字来源与各档对照见 PR／`#705` 评论。
+			long, hits: long ? 3 : 1,
+			// `#705` 片二-B（判据⑥，操作者裁定 B 档后**两档都重导**）：回合上限改由**故事声明**
+			// `encounters[id].rounds` 给（平衡是故事数据）；缺省回落旧口径（短 1／长 8）。
+			// 为什么必须让故事可声明：敌人有 HP 之后，"1 回合"的短战斗**永远打不完**（实测：2 只鼠要 ~4 回合，
+			// 1 回合上限 ⇒ 第一回合就判 failed ⇒ 短战斗全败）。数字与实测见 PR／`#705`。
+			rounds: (typeof enc.rounds === 'number' && enc.rounds >= 1) ? enc.rounds : (long ? 8 : 1),
 			rewardsScale: typeof enc.rewardsScale === 'number' ? enc.rewardsScale : 1,
 		};
 	},
@@ -660,6 +669,31 @@ Object.assign((window.Game.Combat ??= {}), {
 		const down = next[i].hp <= 0;
 		const out = down ? next.filter((_, k) => k !== i) : next;
 		return { foe: foe.id, roll, rolls, mod, total, ac: def.ac, hit, crit, dmg: dealt, hp: Math.max(0, next[i].hp), down, foes: out, target: i };
+	},
+	/** `#705` 片二-B：**一个完整回合**（玩家攻击 ⇒ 还站着的敌人反击 ⇒ 落护具耐久）。
+	 *  **机制住引擎、文案住 widget**：这里返回 `{ log, strike, hits, hurt }`（`log` 就是 `#701` 的日志面素材），
+	 *  **HP 的落法不在本函数**（返回 `hurt`，由调用方的 `<<damage>>` 落 ⇒ 死亡/药膏等既有政策一处不改）。
+	 *  为什么不做成纯函数：`foeStrike`/`foeHit` 是纯的（算），这里是"算＋落"的调用方侧（与 `tickStatuses` 同族）。
+	 *  @param {object} actionRef 故事声明的动作（`{ attr, dmg, defend }`；缺项 ⇒ 中性默认） */
+	foeRound(pc, actionRef) {
+		const a = actionRef ?? {};
+		const strike = this.foeStrike(pc, { ability: a.attr ?? 'str', dmg: a.dmg ?? '1' });
+		pc.ev.fight.wave.foes = strike.foes;
+		const log = [strike.hit
+			? `你 ${strike.roll}+${strike.mod}=${strike.total} vs 甲${strike.ac} ⇒ 命中 ${strike.dmg} 点（${strike.foe} 剩 ${strike.hp}）`
+			: `你 ${strike.roll}+${strike.mod}=${strike.total} vs 甲${strike.ac} ⇒ 落空`];
+		let hurt = 0;
+		for (const f of pc.ev.fight.wave.foes) {
+			const h = this.foeHit(pc, f, { adv: a.defend ? -1 : 0 });
+			if (!h.hit) { log.push(`${h.foe} ${h.roll}+${h.bonus}=${h.total} vs 你 甲${h.ac} ⇒ 落空`); continue; }
+			if (h.absorb.gear) pc.gearHp = { ...(pc.gearHp ?? {}), [h.absorb.gear]: h.absorb.gearHp };
+			hurt += h.absorb.toHp;
+			log.push(`${h.foe} ${h.roll}+${h.bonus}=${h.total} vs 你 甲${h.ac} ⇒ 打中${h.part} ${h.raw} 点`
+				+ (h.absorb.gear ? `（${h.absorb.gear} 减 ${h.absorb.reduce}、吸 ${h.absorb.absorbed} ⇒ 耐久 ${h.absorb.gearHp}${h.absorb.broke ? '，**损坏**' : ''}）` : '')
+				+ `，落 HP ${h.absorb.toHp}`);
+		}
+		if (!pc.ev.fight.wave.foes.length) log.push('—— 这一批清干净了。');
+		return { log: log.join('｜'), strike, hurt };
 	},
 	/** 敌人 ➜ 玩家（5e）：`d20 + attack.bonus`（＋可选优势）vs **`pc.ac`**（`pcAC()`；未启用 ⇒ 报错）；
 	 *  命中 ⇒ `rollDice(attack.dmg)` ⇒ 部位取 `attack.parts`（掷一个）⇒ **`slotAbsorbAt`**（减成/耐久/HP 一次算清）。

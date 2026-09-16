@@ -371,6 +371,23 @@ export const makeShared = (ctx) => {
 			// ＋ #434 的笔记写点（`Sg.notes.add('n_x')` ⇒ 该笔记 flagPath 的裸键也算被写）
 			for (const k of [...writeKeys(src), ...noteWriteFlags(src, noteEntries)]) written.add(k);
 		}
+		// `#785`：**声明式写点**也要计入 —— 效果从函数搬进声明后，本集合会漏掉它们 ⇒ `--consequences` 的
+		// 写入旗标计数从 88 降到 82 ✗（**判据看不见**，不是真的少写 ✓；实测 6 个：tav_tips/tav_fog/flower_warned/
+		// seer_gave/goblin_spared/forge_thanks ✓，其中两格来自**规则行** ✗ ⇒ 只补 ask 会漏 ✗）。
+		// 来源两类**都要**（只补 ask 会漏规则行那两格 ✗）；两者都**只吃注入**（`input.…`）——
+		// 与 `rules` 同一约定 ✓：本函数在 node 侧跑，没有 `window` ⇒ 拿环境数据会**污染自证的合成夹具** ✗
+		//（我第一版写成 `?? Game.Social?.asks`，4 条自证当场红 ✗ —— 这正是"注入式"存在的理由 ✓）。
+		// 写形两类**也要**：`sets`（状态键 ✓）＋ `yields`／`yield` 指向的笔记 ⇒ 其 `flagPath` 的裸键 ✓。
+		const declRows = [...(input.rules ?? []), ...(input.asks ?? [])];
+		for (const r of declRows) {
+			for (const k of ruleRowSetKeys(r)) written.add(String(k).replace(/^(ev|world)\./, ''));
+			for (const y of [...asListOf(r?.yields), ...asListOf(r?.yield)]) {
+				const raw = String(y ?? '');
+				const noteId = raw.startsWith('note:') ? raw.slice(5) : (raw.startsWith('n_') ? raw : null);
+				if (!noteId) continue;
+				for (const p of (notePathsById.get(noteId) ?? [])) written.add(String(p).replace(/^(ev|world)\./, ''));
+			}
+		}
 		const E = Echoes;
 		const echoFlags = new Set([...E.list.flatMap((e) => [e.cause.flag, e.cause.token]), ...E.revisit.flatMap((r) => [r.flag, r.inv])].filter(Boolean));
 		const tblSrc = sources.get('Game Tables') ?? '';

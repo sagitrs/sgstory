@@ -50,8 +50,14 @@ const selftest = () => {
 		try { return runStory('window.Sg = {}; window.Sg.probe = 1;').Sg.probe === 1; } catch { return false; }
 	})());
 	t('`console` 被接住（不污染主进程输出），且输出可见', runStory('console.log("x")').diag.includes('x'));
+	t('序列化**稳定**：同一份数据连序列化两次逐字节相同（键序＝插入序，浮点不漂）', (() => {
+		const rows = [{ id: 'a', prio: 0.1 + 0.2, req: ['x'], text: '汉字`与${}' }];
+		const one = JSON.stringify({ section: 's', key: 'k', rows }, null, '\t');
+		const two = JSON.stringify({ section: 's', key: 'k', rows: JSON.parse(JSON.stringify(rows)) }, null, '\t');
+		return one === two;
+	})());
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过（5 例：预置承重 · 空壳不造数据 · 浏览器语义 · console 接住）');
+	console.log('\n✔ 自证通过（6 例：预置承重 · 空壳不造数据 · 浏览器语义 · console 接住 · 序列化稳定）');
 };
 
 // ⚠️ **主模块守卫**（实测踩到）：这些脚本**同时是库**（`equiv` 被 `extract` 导入、`compile` 被 `equiv` 起子进程）。
@@ -74,8 +80,16 @@ const main = () => {
 	if (typeof value !== 'function') { console.error(`✗ ${file} 里没有 Sg.story.${key}（拿不到数据）`); process.exit(1); }
 	const data = value();
 	if (!Array.isArray(data) || !data.length) { console.error(`✗ Sg.story.${key}() 不是非空数组（拿不到数据＝不许当"空了"）`); process.exit(1); }
+	// ── **抽取器自己也要可复现**（审查要求）：产物是**入库的源文件** ⇒ 连抽两次必须逐字节相同。
+	// 不稳定（键序/浮点/时间戳）的症状很烦人：工作区**每次都脏**，而没人知道为什么。
+	const serialize = (rows) => JSON.stringify({ section, key, rows }, null, '\t') + '\n';
+	const again = value();
+	if (serialize(data) !== serialize(again)) {
+		console.error(`✗ 抽取器**不稳定**：连抽两次序列化不同（${serialize(data).length}B vs ${serialize(again).length}B）——产物入库后会让工作区每次都脏`);
+		process.exit(1);
+	}
 	mkdirSync(dirname(out), { recursive: true });
-	writeFileSync(out, JSON.stringify({ section, key, rows: data }, null, '\t') + '\n', 'utf8');
+	writeFileSync(out, serialize(data), 'utf8');
 	console.log(`✔ ${slug}：抽出 ${data.length} 行（section=${section} key=${key}）→ ${out.replace(ROOT, '')}`);
 	for (const d of diag.slice(0, 5)) console.log(`  · 沙箱输出：${d}`);
 };

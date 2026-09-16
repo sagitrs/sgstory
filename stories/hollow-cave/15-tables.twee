@@ -198,14 +198,20 @@ const MECH = {
 	},
 	// 异常先 2 种（`#490`：流血任意部位 ＋ 麻痹四肢）——验证「部位×异常」通路
 	statuses: {
-		bleed: { label: '流血', parts: '*', turns: 5, perRound: { hp: -1 }, check: { attr: 'con', dc: 12 },
+		// `#747`：「只压躯干」原先藏在手写表（`bleed@躯干`）⇒ 现在**显式声明** `penalty.only`（行为不变；
+		// 好处：减成矩阵每一格都能追到出处，「漏格」与「有意只押一格」再也不会混为一谈）。
+		bleed: { label: '流血', parts: '*', turns: 5, perRound: { hp: -1, penalty: { value: -1, scope: 'part', only: ['躯干'] } }, check: { attr: 'con', dc: 12 },
 			onFail: [{ harm: 'damage', dice: '1d4', when: 'most' }, { addStatus: 'random', part: 'random', when: 'low' }] },
-		paralysis: { label: '麻痹', parts: ['手臂', '腿'], turns: 3, check: { attr: 'con', dc: 14 },
+		// `#747`：**减成住声明**（`perRound.penalty`）⇒ 对**每个允许部位**（手臂／腿）都生效。
+		// 原先靠手写表 `paralysis@腿` ⇒ **手臂那一格是洞**（同一异常在不同部位行为不一致，且没人看得见）。
+		paralysis: { label: '麻痹', parts: ['手臂', '腿'], turns: 3, perRound: { penalty: { value: -2, scope: 'part' } }, check: { attr: 'con', dc: 14 },
 			onFail: [{ harm: 'damage', dice: '1', when: 'most' }, { addStatus: 'random', part: 'random', when: 'low' }] },
 	},
 	// `#571`：键形是 **`<statuses 的 id>@<部位>`**（引擎侧 `statusPenaltyFor` 就按 `\`${id}@${part}\`` 取）——
 	// 原先写成中文标签（`麻痹@腿`／`流血@躯干`）⇒ 永远取不到 ⇒ 减成恒为 0（静默空转；门见 `test/story-shape.mjs`）。
-	statusPenalty: { 'paralysis@腿': { check: -2 }, 'bleed@躯干': { check: -1 } },
+	// `#747`：本故事的减成**全部住声明**（`perRound.penalty`）⇒ 这张手写表**空了**（回落路径仍在，供
+	// 别处「临时压一格」用；故事门 `--status` 会报出矩阵，每格都要有出处）。
+	statusPenalty: {},
 	// 短/长战斗＝1 批／2 批（第二批更难且增援）
 	// `#490` 已定 ⑥：抽查「金本位」——金币来源就靠这里（`reward.gold`，S3 契约 §3.2 的声明形状）；
 	// 长战斗（两批、更难）奖励更高 ⇒ 与 `waveRewardScale` 的单调口径同向。

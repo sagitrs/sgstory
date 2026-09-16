@@ -439,8 +439,36 @@ Object.assign((window.Game.Combat ??= {}), {
 	/** 该部位当前的判定减成（`statusPenalty['异常@部位']`；本片只认 `check` 键，其余形态报错）。 */
 	statusPenaltyFor(pc, part, mech = this.slotsDecl()) {
 		let sum = 0;
-		for (const { id } of this.statusInstances(pc)) {
+		const counted = new Set();
+		for (const { part: afflicted, id } of this.statusInstances(pc)) {
+			// `#747`（正典口径：**该部位**相关减成）：只有"查的部位＝异常**所在**的部位"才算 ——
+			// 腿上的麻痹不该罚手臂的判定（旧手写表恰好也是这个效果：查 `paralysis@手臂` 取不到 ⇒ 0 ✓
+			// ⇒ 本改动**不改变**已声明格的行为，只是把口径写清并推广到"声明生成"）。
+			if (afflicted !== part) continue;
 			if (!this.statusParts(mech, id).includes(part)) continue;
+			// `#747`（实测暴露的账）：同一异常在**多个部位**发作时（如手臂＋躯干都流血），
+			// 查询"躯干"会把该异常**按实例重复计**（流血在两处 ⇒ −2）⇒ 同一异常对同一部位**只算一次**。
+			if (counted.has(id)) continue;
+			counted.add(id);
+			// `#747`（症状：减成靠**手写稀疏表** ⇒ 漏格没人看得见，`麻痹@手臂` 就是洞）：
+			// **减成由声明生成** —— `statuses[id].perRound.penalty = { value, scope:'part' }`
+			// ⇒ 对该异常的**每一个允许部位**都生效（组合穷举天然齐全）。
+			const decl = mech.statuses?.[id]?.perRound?.penalty;
+			if (decl) {
+				if (decl.scope !== 'part') throw new Error(`Game.Combat.statusPenaltyFor：perRound.penalty.scope 本片只实现 part（拿到 ${JSON.stringify(decl.scope)}）——声明面不得大于实现面（#747）`);
+				if (typeof decl.value !== 'number') throw new Error(`Game.Combat.statusPenaltyFor：perRound.penalty.value 必须是数字（拿到 ${JSON.stringify(decl.value)}，#747）`);
+				// `#747`：`only` ＝「**只押这几个部位**」的显式声明（可选）。缺省 ⇒ 覆盖该异常的全部允许部位；
+				// 给了就必须是允许部位的**子集**（否则是把减成押到了这个异常根本不能落的地方 ⇒ fail-loud）。
+				if (decl.only !== undefined) {
+					if (!Array.isArray(decl.only) || !decl.only.length) throw new Error(`Game.Combat.statusPenaltyFor：perRound.penalty.only 必须是非空数组（拿到 ${JSON.stringify(decl.only)}，#747）`);
+					const allowedParts = this.statusParts(mech, id);
+					for (const pOnly of decl.only) if (!allowedParts.includes(pOnly)) throw new Error(`Game.Combat.statusPenaltyFor：「${id}」的 penalty.only 里有「${pOnly}」，但它不在允许部位（${allowedParts.join('、')}）里（#747）`);
+					if (!decl.only.includes(part)) continue;     // 该部位不在「押注范围」内 ⇒ 无减成
+				}
+				sum += decl.value;
+				continue;                                  // 声明已覆盖（全部或声明的子集）⇒ 不再查手写表（否则重复计）
+			}
+			// 回落：手写表 `statusPenalty[<id>@<部位>]` —— 只给「就想押在某一个部位」的情形（如流血只压躯干）
 			const pen = mech.statusPenalty?.[`${id}@${part}`];
 			if (!pen) continue;
 			for (const [k, v] of Object.entries(pen)) {

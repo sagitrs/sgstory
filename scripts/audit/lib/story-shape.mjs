@@ -109,8 +109,20 @@ export const validateStoryMechanics = (m, ctx = {}) => {
 		if (st?.perRound !== undefined) {
 			const keys = Object.keys(st.perRound ?? {});
 			if (!keys.length) push(`statuses.${id}.perRound 是空对象（写了等于没写）`);
-			for (const k of keys) if (k !== 'hp') push(`statuses.${id}.perRound.${k} 本片未实现（只认 hp:number，#487）`);
+			for (const k of keys) if (k !== 'hp' && k !== 'penalty') push(`statuses.${id}.perRound.${k} 本片未实现（只认 hp:number 与 penalty，#487／#747）`);
 			if (st.perRound?.hp !== undefined && typeof st.perRound.hp !== 'number') push(`statuses.${id}.perRound.hp 必须是数字`);
+			// `#747`：`perRound.penalty = { value:number, scope:'part', only?:部位[] }` ——
+			// **减成住声明**（对允许部位生成），`only` 是"有意只押这几格"的显式声明。
+			if (st.perRound?.penalty !== undefined) {
+				const pen = st.perRound.penalty ?? {};
+				if (typeof pen.value !== 'number') push(`statuses.${id}.perRound.penalty.value 必须是数字（拿到 ${JSON.stringify(pen.value)}，#747）`);
+				if (pen.scope !== 'part') push(`statuses.${id}.perRound.penalty.scope 本片只实现 'part'（拿到 ${JSON.stringify(pen.scope)}，#747）`);
+				const allowed = st.parts === '*' ? (m.hitLocations ?? []) : (st.parts ?? []);   // 注意：本函数的参数名是 `m`（不是 `mech`）
+				if (pen.only !== undefined) {
+					if (!Array.isArray(pen.only) || !pen.only.length) push(`statuses.${id}.perRound.penalty.only 必须是非空数组（#747）`);
+					else for (const p2 of pen.only) if (!allowed.includes(p2)) push(`statuses.${id}.perRound.penalty.only 里的「${p2}」不在允许部位（${allowed.join('、')}）内（#747）`);
+				}
+			}
 		}
 		// `onFail` 的**效果形态**：只认引擎实现的两种（`harm:'damage'`＋`dice` ／ `addStatus:'random'`＋`part`）
 		for (const [k, e] of (st?.onFail ?? []).entries()) {

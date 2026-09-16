@@ -67,7 +67,20 @@ export const KINDS = {
 	'empty-array': () => '() => []',
 	'null': () => '() => null',
 	'const': (m) => `() => ${jsLiteral(m.value)}`,
-	'game-ref': (m) => `() => window.${assertChain(m.path, 'game-ref.path')}`,
+	'game-ref': (m) => {
+		assertChain(m.path, 'game-ref.path');
+		// 两种形态**都由数据表达**（手写版两种都有）：默认**不守卫**（`window.Game.Economy.events`）；
+		// 要守卫就写 `optional: true`（⇒ `window.Game?.Notes?.entries`，中间容器缺失时走默认值而不是抛框架噪音）。
+		const base = `window.${m.optional === true ? guardChain(m.path) : m.path.replace(/\?\./g, '.')}`;
+		return m.default === undefined ? `() => ${base}` : `() => ${base} ?? ${literal(m.default)}`;
+	},
+	'forward': (m) => {
+		// 参数**转发**（形参序与表函数可以不同）：`params` 是接缝形参、`args` 是转给表函数的**形参名序列**
+		const params = (m.params ?? []).map((x) => assertChain(x, 'forward.params[]'));
+		const args = (m.args ?? params).map((x) => assertChain(x, 'forward.args[]'));
+		if (args.some((x) => !params.includes(x))) throw new Error(`forward.args 只许用 forward.params 里的形参名（实得 ${JSON.stringify(m.args)}）`);
+		return `(${params.join(', ')}) => window.${assertChain(m.to, 'forward.to')}(${args.join(', ')})`;
+	},
 	'identity-string': () => '(id) => String(id)',
 	'lookup': (m) => {
 		const k = m.key ?? 'id';
@@ -78,9 +91,38 @@ export const KINDS = {
 	},
 	'lookup-field': (m) => {
 		const k = m.key ?? 'id';
+		if (m.via) {
+			// **经成员调用**取字段 ＋ 校验非空（`actionLabel` 的形状）：`via` 只许是本故事的契约成员名
+			if (!/^[A-Za-z_$][\w$]*$/.test(m.via)) throw new Error(`lookup-field.via 只许是本故事的契约成员名（实得 ${JSON.stringify(m.via)}）`);
+			const msg = escTemplate(m.error ?? `Sg.story.${m.name}：动作「{key}」缺 ${m.field}（结构缺失必须报错，#441-E）`).replaceAll('{key}', '${' + k + '}');
+			return `(${k}) => {\n\t\tconst a = window.Sg.story.${m.via}(${k});\n\t\tif (!a || typeof a.${m.field} !== 'string' || !a.${m.field}) throw new Error(\`${msg}\`);\n\t\treturn a.${m.field};\n\t}`;
+		}
 		const value = access(m.from, k, m.optional !== false);
 		const field = m.field ? `?.${m.field}` : '';
-		return `(${k}) => ${value}${field} ?? ${m.fallback ?? 'null'}`;
+		return `(${k}) => ${value}${field} ?? ${fallbackExpr(m.fallback, k)}`;
+	},
+	'template': (m) => {
+		// 「按条件拼句」⇒ 声明式（`parts[].when/text` ＋ `join`/`prefix`/`suffix`/`map`）；**不写任意 JS**。
+		// 覆盖的真实形状：洞窟 `lootText`（`#736`：战利品句按实际掉落生成）。
+		const r = assertChain(m.param ?? 'r', 'template.param');
+		const base = m.baseParam ? assertChain(m.baseParam, 'template.baseParam') : null;
+		const when = (w) => {
+			if (w && typeof w === 'object' && Array.isArray(w.gt)) { const [f, n] = w.gt; assertChain(f, 'template.parts[].when.gt'); return `${r}?.${f} > ${literal(n)}`; }
+			if (w && typeof w === 'object' && typeof w.truthy === 'string') { assertChain(w.truthy, 'template.parts[].when.truthy'); return `${r}?.${w.truthy}`; }
+			throw new Error(`template.parts[].when 只接受 {gt:[字段,数]} 或 {truthy:字段}（实得 ${JSON.stringify(w)}）`);
+		};
+		const hole = (f, pt) => {
+			assertChain(f, 'template.parts[].text 里的字段');
+			return pt.map ? `(${literal(pt.map)})[${r}.${f}] ?? ${r}.${f}` : `${r}.${f}`;   // `map` 映射的是**值**（如 `钥匙 ⇒ 锈钥匙`）
+		};
+		const body = (m.parts ?? []).map((pt) => {
+			const text = escTemplate(String(pt.text ?? '')).replace(/\{(\w+)\}/g, (_, f) => '${' + hole(f, pt) + '}');
+			return `\t\tif (${when(pt.when)}) bits.push(\`${text}\`);`;
+		}).join('\n');
+		const baseExpr = base ? '${' + base + " ?? ''}" : '';
+		const joinExpr = '${bits.join(' + jsString(m.join ?? '') + ')}';
+		const tail = m.trim === false ? '' : '.trim()';
+		return `(${[r, base].filter(Boolean).join(', ')}) => {\n\t\tconst bits = [];\n${body}\n\t\tif (!bits.length) return ${jsString(m.empty ?? '')};\n\t\treturn \`${baseExpr}${jsStringInner(m.prefix ?? '')}${joinExpr}${jsStringInner(m.suffix ?? '')}\`${tail};\n\t}`;
 	},
 	'bool-exists': (m) => `() => !!window.${assertChain(m.path, 'bool-exists.path')}`,
 	'state-ref': (m) => {
@@ -90,6 +132,20 @@ export const KINDS = {
 };
 
 /** 纯函数：JS 字符串字面量 —— 一律**单引号**（与仓内既有代码同风格；L3 要剥空白后逐字节相同）。 */
+/** 纯函数：**字符串内容**（不带引号）—— 模板串的字面部分用；转义反引号与 `${`。 */
+export const jsStringInner = (v) => String(v).replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
+
+/** **兜底表达式的小 enum**（硬化：审查指出：`fallback`/`default` 从前是**原样拼进 JS** 的，与 `path`/`from`
+ *  同属注入面、只差一个字段）。只接受：`{kind:'string-identity'}` ⇒ `String(<形参>)` ·
+ *  `{kind:'const', value}` ⇒ 字面量 · `{kind:'null'}` ⇒ `null`。其余**当场抛错**。 */
+export const fallbackExpr = (fb, key) => {
+	if (fb == null || fb === 'null') return 'null';
+	if (typeof fb === 'object' && fb.kind === 'string-identity') return `String(${key})`;
+	if (typeof fb === 'object' && fb.kind === 'const') return literal(fb.value);
+	if (typeof fb === 'object' && fb.kind === 'null') return 'null';
+	throw new Error(`兜底只接受 {kind:'string-identity'|'const'|'null'}，实得 ${JSON.stringify(fb)}——不许把任意 JS 拼进产物`);
+};
+
 export const jsString = (v) => `'${String(v).replace(/\\/g, '\\\\').replace(/'/g, "\\'").replace(/\n/g, '\\n')}'`;
 
 const jsLiteral = (v) => literal(v, 0);
@@ -210,14 +266,14 @@ const selftest = () => {
 	})());
 
 	// ── `lookup-field`：有面有字段 ⇒ 取字段；缺面/缺字段 ⇒ 兜底 ──
-	const A = build([{ name: 'actionLabel', kind: 'lookup-field', from: 'Sg.story.mechanics()?.actions', key: 'id', field: 'label', fallback: 'String(id)' }], { pre: 'window.Sg.story.mechanics = () => ({ actions: { 挥剑: { label: "劈过去", dmg: "1d6" } } });' });
+	const A = build([{ name: 'actionLabel', kind: 'lookup-field', from: 'Sg.story.mechanics()?.actions', key: 'id', field: 'label', fallback: { kind: 'string-identity' } }], { pre: 'window.Sg.story.mechanics = () => ({ actions: { 挥剑: { label: "劈过去", dmg: "1d6" } } });' });
 	t('lookup-field：有面有字段 ⇒ 取字段', call(A.actionLabel, '挥剑').ok === '"劈过去"', JSON.stringify(call(A.actionLabel, '挥剑')));
 	t('lookup-field：有面但缺字段 ⇒ 兜底', call(A.actionLabel, '别动').ok === '"别动"', JSON.stringify(call(A.actionLabel, '别动')));
 	t('lookup-field：**接缝方法本身缺失** ⇒ 兜底（可选调用，不许 `is not a function`）', (() => {
-		const X = build([{ name: 'label', kind: 'lookup-field', from: 'Sg.story.mechanics()?.actions', key: 'id', field: 'label', fallback: 'String(id)' }], {});
+		const X = build([{ name: 'label', kind: 'lookup-field', from: 'Sg.story.mechanics()?.actions', key: 'id', field: 'label', fallback: { kind: 'string-identity' } }], {});
 		return call(X.label, 'z').ok === '"z"';
 	})());
-	t('lookup-field：整块面缺 ⇒ 兜底（不许崩）', call(build([{ name: 'label', kind: 'lookup-field', from: 'Sg.story.mechanics()?.actions', key: 'id', field: 'label', fallback: 'String(id)' }], {}).label, 'z').ok === '"z"');
+	t('lookup-field：整块面缺 ⇒ 兜底（不许崩）', call(build([{ name: 'label', kind: 'lookup-field', from: 'Sg.story.mechanics()?.actions', key: 'id', field: 'label', fallback: { kind: 'string-identity' } }], {}).label, 'z').ok === '"z"');
 
 	// ── `bool-exists` ──
 	const B1 = build([{ name: 'hasChargen', kind: 'bool-exists', path: 'Game.Chargen' }], { game: { Chargen: {} } });
@@ -241,10 +297,53 @@ const selftest = () => {
 		const r = call(E.checkSite, 'k');
 		return (r.threw ?? '').includes('${x}') && (r.threw ?? '').includes('`') && (r.threw ?? '').includes('k');
 	})());
+	// ── v1.1 新增/硬化（`#762` 车道 A 后半）：每条都**跑起来看行为** ──
+	t('`game-ref`：**默认不守卫**（`optional` 由数据决定 —— 手写版两种都有，schema 必须都能表达）', (() => {
+		const U = build([{ name: 'econEvents', kind: 'game-ref', path: 'Game.Economy.events' }], { game: { Economy: { events: [] } } });
+		return call(U.econEvents).ok === '[]';
+	})());
+	t('`game-ref`＋`optional:true`＋默认值：面在 ⇒ 回它；面缺 ⇒ 回 default（不许崩）', (() => {
+		const G = build([{ name: 'notes', kind: 'game-ref', path: 'Game.Notes.entries', default: {}, optional: true }], { game: { Notes: { entries: { a: 1 } } } });
+		const G2 = build([{ name: 'notes', kind: 'game-ref', path: 'Game.Notes.entries', default: {}, optional: true }], { game: {} });
+		return call(G.notes).ok === '{"a":1}' && call(G2.notes).ok === '{}';
+	})());
+	t('`forward`：**形参序与表函数不同**也能转发（参数顺序真的换过来了）', (() => {
+		const game = { Items: { battleDamage: (...a) => JSON.stringify(a) } };
+		const F = build([{ name: 'battleDamage', kind: 'forward', to: 'Game.Items.battleDamage', params: ['inv', 'round', 'defeats', 'poisoned'], args: ['round', 'inv', 'defeats', 'poisoned'] }], { game });
+		return call(F.battleDamage, 'INV', 3, 1, false).ok === JSON.stringify('[3,"INV",1,false]');   // `call` 会再编码一次
+	})());
+	t('`forward`：`args` 用了 `params` 之外的标识符 ⇒ emit 抛错（不许把任意表达式转发出去）', (() => {
+		try { build([{ name: 'x', kind: 'forward', to: 'Game.Items.battleDamage', params: ['a'], args: ['a;alert(1)'] }]); return false; } catch { return true; }
+	})());
+	t('`lookup-field.via`：经成员调用取字段 ⇒ 有则回、缺/非串则**抛**', (() => {
+		const B = build([
+			{ name: 'combatAction', kind: 'lookup', from: 'Game.Combat.actions', key: 'id', default: null },
+			{ name: 'actionLabel', kind: 'lookup-field', via: 'combatAction', key: 'id', field: 'label', required: true, error: 'Sg.story.actionLabel：动作「{key}」缺 label' },
+		], { game: { Combat: { actions: { 挥剑: { label: '劈过去' }, 空手: { label: '' } } } } });
+		return call(B.actionLabel, '挥剑').ok === '"劈过去"' && (call(B.actionLabel, '空手').threw ?? '').includes('空手') && (call(B.actionLabel, '无').threw ?? '').includes('无');
+	})());
+	t('`lookup-field.via`：`via` 不是标识符 ⇒ emit 抛错', (() => {
+		try { build([{ name: 'x', kind: 'lookup-field', via: 'a.b', key: 'id', field: 'label' }]); return false; } catch { return true; }
+	})());
+	// `template`（审查要求的三态：两件都掉 / 只掉钱 / 只掉物 ＋ 都不掉 ⇒ 空串）
+	const TPL = { name: 'lootText', kind: 'template', param: 'r', baseParam: 'base', prefix: '他退开的地方散着', suffix: '。', join: '，还有', trim: true, empty: '',
+		parts: [{ when: { gt: ['gold', 0] }, text: '旧币 {gold} 枚' }, { when: { truthy: 'item' }, text: '一把{item}', map: { 钥匙: '锈钥匙' } }] };
+	const T = build([TPL]);
+	t('`template`：两件都掉 ⇒ 两句都出、用 join 连', call(T.lootText, { gold: 3, item: '钥匙' }, '').ok === JSON.stringify('他退开的地方散着旧币 3 枚，还有一把锈钥匙。'));
+	t('`template`：**只掉钱**', call(T.lootText, { gold: 5, item: null }, '').ok === JSON.stringify('他退开的地方散着旧币 5 枚。'));
+	t('`template`：**只掉物**（且走 `map` 改名）', call(T.lootText, { gold: 0, item: '干粮' }, '').ok === JSON.stringify('他退开的地方散着一把干粮。'));
+	t('`template`：**都不掉 ⇒ 空串**（不拼半句）', call(T.lootText, {}, '').ok === '""');
+	t('`template`：`baseParam` 前置（base 为空值时用空串兜）', call(T.lootText, { gold: 1 }, '它倒了。').ok === JSON.stringify('它倒了。他退开的地方散着旧币 1 枚。'));
+	t('`template`：`when` 形状不认识 ⇒ emit 抛错（不许猜）', (() => {
+		try { build([{ name: 'x', kind: 'template', param: 'r', parts: [{ when: { weird: 1 }, text: 'a' }] }]); return false; } catch { return true; }
+	})());
+	t('兜底硬化：`fallback: "String(id)"`（裸表达式）⇒ emit 抛错', (() => {
+		try { build([{ name: 'x', kind: 'lookup-field', from: 'Game.Items.defs', key: 'id', field: 'label', fallback: 'String(id)' }]); return false; } catch { return true; }
+	})());
 	t('未知 kind ⇒ emit 抛错（不许静默产出半个函数）', badPath({ kind: 'nope' }));
 
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过（19 例：lookup 5 · lookup-field 4 · bool-exists 2 · state-ref 2 · 卫生 5 · 未知 kind 1——**全部按行为断言**）');
+	console.log('\n✔ 自证通过（31 例：lookup 5 · lookup-field 6 · bool-exists 2 · state-ref 2 · game-ref 2 · forward 2 · **template 6（含三态）** · 卫生/硬化 7——**全部按行为断言**）');
 };
 
 // ⚠️ **主模块守卫**（实测踩到）：这些脚本**同时是库**（`equiv` 被 `extract` 导入、`compile` 被 `equiv` 起子进程）。

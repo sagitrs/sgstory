@@ -119,6 +119,9 @@ export const SEGMENTS = [
 	{ id: "test-size-gate-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/size-gate.mjs --selftest" },
 	{ id: "test-size-gate-mjs", phase: 'test', cost: 0, cmd: "node test/size-gate.mjs" },
 	{ id: "test-silent-gate-mjs", phase: 'test', cost: 0, cmd: "node test/silent-gate.mjs" },
+	// #762 P0：**故事数据 ↔ 手写版等价**（编辑器转向的第 0 步）——数据与手写 twee 漂移即红
+	{ id: "editor-equiv-selftest", phase: 'test', cost: 0, cmd: "node editor/equiv.mjs --selftest" },
+	{ id: "editor-equiv-minimal-demo", phase: 'test', cost: 0.3, cmd: "node editor/equiv.mjs minimal-demo" },
 	// #752：**去权威化口径门** —— 注释／文档不许拿「谁定的」充当理由（#748 的清零面 ＋ 防回潮）
 	{ id: "test-attribution-gate-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/attribution-gate.mjs --selftest" },
 	{ id: "test-attribution-gate-mjs", phase: 'test', cost: 0.1, cmd: "node test/attribution-gate.mjs" },

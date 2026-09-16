@@ -21,6 +21,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { maskComments } from '../scripts/audit/lib/mask.mjs';
+import { engineScripts } from './extract-story.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const COMPILER = 'editor/compile-story.mjs';
@@ -59,9 +60,12 @@ export const normalize = (text) => maskComments(String(text))
 
 /** 纯函数：在一份**空白** vm 里跑脚本，返回它的 `window`。 */
 export const runScript = (body) => {
-	const sandbox = { window: {} };
+	// **环境契约**（同一族坑的第三处）：故事段会直接读引擎常量（`window.Game.Era.PRESENT` 等）
+	// ⇒ 沙箱必须**先跑引擎常量**（真加载顺序：`ORDER` 里引擎在前）。少了它，抽出来的/比对的两侧都会静默缺字段。
+	const sandbox = { console: { log() {}, error() {} } };
+	sandbox.window = sandbox;
 	vm.createContext(sandbox);
-	vm.runInContext(String(body), sandbox, { timeout: 5000 });
+	vm.runInContext(engineScripts() + '\n' + String(body), sandbox, { timeout: 5000 });
 	return sandbox.window;
 };
 
@@ -88,6 +92,22 @@ export const probeArgs = (ids) => {
 /** 纯函数：调用一次，记录结果（异常也记 ⇒ 两版行为不同也能看出来）。 */
 export const call = (fn, args) => {
 	try { return { ok: JSON.stringify(fn(...args)) }; } catch (e) { return { threw: String(e && e.message).slice(0, 80) }; }
+};
+
+/** 纯函数：**逐成员**比契约行为，返回人可读差异（"两版行为不同"这种话不许出现——要说清哪个成员、哪组实参）。 */
+export const diffContract = (h, g, limit = 3) => {
+	const out = [];
+	for (const k of Object.keys(h)) {
+		if (!(k in g)) { out.push(`成员 \`${k}\`：生成版**没有**该成员`); continue; }
+		for (let i = 0; i < h[k].length; i++) {
+			const a = JSON.stringify(h[k][i][0]), x = h[k][i][1], y = g[k][i]?.[1];
+			if (JSON.stringify(x) === JSON.stringify(y)) continue;
+			const show = (r) => (r && 'threw' in r ? `抛错「${r.threw}」` : String(r?.ok)).slice(0, 60);
+			out.push(`成员 \`${k}\` 实参 ${a}：手写 ${show(x)} / 生成 ${show(y)}`);
+		}
+	}
+	for (const k of Object.keys(g)) if (!(k in h)) out.push(`成员 \`${k}\`：手写版**没有**该成员`);
+	return { n: out.length, text: out.slice(0, limit).join('\n    ') + (out.length > limit ? `\n    …共 ${out.length} 处` : '') };
 };
 
 /** 纯函数：数据容器里的**叶子数**与**是否混进函数值**（数据面必须是数据）。 */
@@ -122,12 +142,17 @@ const selftest = () => {
 		normalize('const o = { a: 1, // 注释\n};') === normalize('const o = { a: 1 };'));
 	t('边界：数据面混进函数值 ⇒ walk 抓得到（"数据必须是数据"）',
 		walk({ a: 1, b: () => 1 }).functions === 1 && walk({ a: 1 }).functions === 0);
+	t('差异要说清**哪个成员／哪组实参**（不许只说"两版行为不同"）', (() => {
+		const mk = (r) => ({ a: [[['x'], r]] });
+		const d = diffContract(mk({ ok: '1' }), mk({ ok: '2' }));
+		return d.n === 1 && d.text.includes('`a`') && d.text.includes('手写 1 / 生成 2');
+	})());
 	t('边界：调用抛错也记录（两版行为不同看得出来）',
 		call(() => { throw new Error('boom'); }, []).threw === 'boom' && call((x) => x, [1]).ok === '1');
 	t('边界：没有已声明 id 时实参表仍非空（未知 id 探针恒在）',
 		declaredIds({ Game: {} }).all.length === 0 && probeArgs(declaredIds({ Game: {} })).length >= 3);
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过（6 例：字符串里的注释定界符 3 例 · 函数值 1 例 · 异常 1 例 · 空 id 实参表 1 例）');
+	console.log('\n✔ 自证通过（7 例：字符串里的注释定界符 3 例 · 函数值 1 例 · 异常 1 例 · 空 id 实参表 1 例）');
 };
 
 // ⚠️ **主模块守卫**（实测踩到）：这些脚本**同时是库**（`equiv` 被 `extract` 导入、`compile` 被 `equiv` 起子进程）。
@@ -138,9 +163,11 @@ if (isMain && process.argv.includes('--selftest')) { selftest(); process.exit(0)
 
 /** 浏览器语义的沙箱（`window` 就是全局对象 ⇒ `window.Sg = {}` 之后裸 `Sg` 也能解析）。 */
 const sandboxOf = () => {
-	const box = { console: { log() {}, error() {} }, Sg: {}, Game: {} };
+	// 同样先跑引擎常量（`Game.Era`/`Game.Damage` 是引擎政策，不是故事数据）
+	const box = { console: { log() {}, error() {} }, Sg: {} };
 	box.window = box;
 	vm.createContext(box);
+	vm.runInContext(engineScripts(), box, { timeout: 5000 });
 	return box;
 };
 
@@ -193,11 +220,18 @@ const main = () => {
 		const hWin = runScript(scriptBodies(hand).join('\n'));
 		const gWin = runScript(scriptBodies(gen).join('\n'));
 		const hs = snapshot(hWin), gs = snapshot(gWin);
-		results.push([scriptBodies(hand).length === scriptBodies(gen).length && Object.keys(hs.contract).length === Object.keys(gs.contract).length,
-			`L1 段数/成员数一致：[script] 段 ${scriptBodies(hand).length}（手写）vs ${scriptBodies(gen).length}（生成）· 契约成员 ${Object.keys(hs.contract).length}`]);
+		// 段数只**报告**（生成物的段划分与手写不要求同形：`Cave Declarations` 那类"局部常量段"会并进契约的 `const`）；
+		// 真正要判的是**契约成员的键集合**（下面那条）＋ 行为。
+		console.log(`  · 段数（只报告）：手写 ${scriptBodies(hand).length} 段 / 生成 ${scriptBodies(gen).length} 段`);
+		const hk = Object.keys(hs.contract).sort(), gk = Object.keys(gs.contract).sort();
+		const onlyHand = hk.filter((k) => !gk.includes(k)), onlyGen = gk.filter((k) => !hk.includes(k));
+		results.push([onlyHand.length === 0 && onlyGen.length === 0,
+			`L1 契约**键集合**一致（手写 ${hk.length} / 生成 ${gk.length}）${onlyHand.length ? `\n    仅手写有：${onlyHand.join('、')}` : ''}${onlyGen.length ? `\n    仅生成有：${onlyGen.join('、')}` : ''}`]);
 		results.push([hs.game === gs.game, `L1 数据容器深度相等（含 State/Notes/Consequences）${hs.game === gs.game ? '' : `\n    手写 ${String(hs.game).slice(0, 220)}\n    生成 ${String(gs.game).slice(0, 220)}`}`]);
-		results.push([Object.keys(hs.contract).length > 0 && JSON.stringify(hs.contract) === JSON.stringify(gs.contract),
-			`L1 契约**多实参**行为相等（${Object.keys(hs.contract).length} 个成员 × ${probeArgs(hs.ids).length} 组实参）${JSON.stringify(hs.contract) === JSON.stringify(gs.contract) ? '' : '\n    两版行为不同'}`]);
+		// 判**行为**，不判**顺序**：成员在源里的先后不是语义（曾因"生成物把某成员排到末尾"而假红 ✗）
+		const cd = diffContract(hs.contract, gs.contract);
+		results.push([Object.keys(hs.contract).length > 0 && cd.n === 0,
+			`L1 契约**多实参**行为相等（${Object.keys(hs.contract).length} 个成员 × ${probeArgs(hs.ids).length} 组实参）${cd.n ? `\n    ${cd.text}` : ''}`]);
 		results.push(l3Line(scriptBodies(hand).map(normalize).join('|'), scriptBodies(gen).map(normalize).join('|'), '词法遮蔽注释 ＋ 去空白/冗余尾逗号后逐字节相同'));
 		results.push([hs.walk.functions === 0 && gs.walk.functions === 0, `数据面是数据：容器内函数值 0 个（手写 ${hs.walk.functions} / 生成 ${gs.walk.functions}）`]);
 		const surface = { '容器键数': Object.keys(JSON.parse(hs.game === 'null' ? '{}' : hs.game)).length, '数据叶子数': hs.walk.leaves, '契约成员数': Object.keys(hs.contract).length, '探针调用次数': hs.probes, '归一字节数': scriptBodies(hand).map(normalize).join('|').length };

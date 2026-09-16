@@ -15,6 +15,9 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import vm from 'node:vm';
+import { scriptBodies } from './equiv.mjs';
+import { engineScripts } from './extract-story.mjs';
 import { KINDS } from './compile-story.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -105,6 +108,26 @@ export const contractMembers = (text) => {
 	return sites.flatMap((s2) => s2.members);
 };
 
+/** 纯函数：把**字面量源码**解析成值（`'false'` ⇒ `false`、`'({a:1})'` ⇒ `{a:1}`）。
+ *  解析不出（含变量／模板串插值等）⇒ `undefined`（调用方落 B，不假装 A）。
+ *  ⚠️ 分类器曾把字面量按 `raw: 源码` 放进 spec，而编译器只认 `value:` ⇒ 静默产出 `() => undefined`（容器比对与 L3 都看不出来，只有**行为**探针抓到）⇒ 现在统一到 `value`，编译器另加 fail-loud。 */
+export const literalValue = (src) => {
+	try {
+		const v = vm.runInContext(`(${String(src)})`, vm.createContext({ console: { log() {} } }), { timeout: 1000 });
+		return JSON.parse(JSON.stringify(v));
+	} catch { return undefined; }
+};
+/** 纯函数：兜底表达式 → 小 enum（与编译器 `fallbackExpr` 的封闭集一致；认不出返回 null）。 */
+export const fbEnum = (expr, key) => {
+	const e = String(expr).trim();
+	if (e === 'null') return { kind: 'null' };
+	if (e === `String(${key})`) return { kind: 'string-identity' };
+	if (/^-?\d+(\.\d+)?$/.test(e) || /^(true|false)$/.test(e) || /^'[^']*'$/.test(e)) {
+		try { return { kind: 'const', value: JSON.parse(e.replace(/^'([^']*)'$/, '"$1"')) }; } catch { return null; }
+	}
+	return null;
+};
+
 /** 纯函数：把一个成员的值表达式归类。返回 `{ bucket, kind, spec?, why? }`。 */
 export const classify = (srcIn) => {
 	const s = String(srcIn).replace(/\s+/g, ' ').trim();
@@ -125,16 +148,35 @@ export const classify = (srcIn) => {
 	if (gr && /^(window\.|Sg\.)/.test(gr[1])) return A('game-ref', { path: gr[1].replace(/[?.]+$/, ''), default: gr[2], optional: /\?\./.test(gr[1]) });   // `#775` 起 kind 支持默认值`)
 	// `(k) => <来自……>?.[k] ?? <默认>` ／ `(k) => { const v = …; if (!v) throw …; return v; }`
 	const lookup = /^\((\w+)\) => ([\w$.()?]+)\[(\1)\] \?\? (.+)$/.exec(s);
-	if (lookup) return A('lookup', { from: lookup[2].replace(/[?.]+$/, ''), key: lookup[1], default: lookup[4] });
+	if (lookup) {
+		// ⚠️ 同族坑（今天第 3 次）：spec 里放的必须是**值**，不是**源码文本** ——
+		// 曾把 `?? null` 的兜底存成字符串 `"null"` ⇒ 产物成了 `?? "null"`（返回字符串！），容器比对与 L3 都看不出来。
+		const d = literalValue(lookup[4]);
+		if (d === undefined && lookup[4].trim() !== 'undefined') return B('lookup', { from: lookup[2].replace(/[?.]+$/, ''), key: lookup[1] }, `兜底 \`${lookup[4]}\` 不是字面量 ⇒ 需人工`);
+		return A('lookup', { from: lookup[2].replace(/[?.]+$/, ''), key: lookup[1], default: d });
+	}
 	const field = /^\((\w+)\) => ([\w$.()?]+)\[(\1)\]\??\.(\w+) \?\? (.+)$/.exec(s);
-	if (field) return A('lookup-field', { from: field[2].replace(/[?.]+$/, ''), key: field[1], field: field[4], fallback: field[5] });   // ⚠️ 捕获组下标：m[3] 是回参照捕获（`(\1)` 也是组）⇒ 字段在 m[4]
+	if (field) {
+		// ⚠️ 捕获组下标：m[3] 是回参照捕获（`(\1)` 也是组）⇒ 字段在 m[4]
+		// 兜底必须是**小 enum**（编译器硬化后不再收裸表达式）⇒ 这里把常见三形态翻成 enum，认不出的落 B。
+		const fb = fbEnum(field[5], field[1]);
+		if (!fb) return B('lookup-field', { from: field[2].replace(/[?.]+$/, ''), key: field[1], field: field[4] }, `兜底 \`${field[5]}\` 不是小 enum 里的形态（需要新 kind 或人工）`);
+		return A('lookup-field', { from: field[2].replace(/[?.]+$/, ''), key: field[1], field: field[4], fallback: fb });
+	}
 	const guarded = /^\((\w+)\) => \{ const (\w+) = ([\w$.()?]+)\[\1\]; if \(!\2\) throw new Error\(.*\); return \2; \}$/.exec(s);
 	if (guarded) return A('lookup', { from: guarded[3].replace(/[?.]+$/, ''), key: guarded[1], required: true });
 	const state = /^\((\w+)\) => \1\?\.([\w$.]+) \?\? (.+)$/.exec(s);
-	if (state) return A('state-ref', { path: state[2], default: state[3] });
+	if (state) {   // 同族坑：兜底也必须是**值**（源码文本会让产物返回字符串）
+		const d = literalValue(state[3]);
+		if (d === undefined && state[3].trim() !== 'undefined') return B('state-ref', { path: state[2] }, `兜底 \`${state[3]}\` 不是字面量 ⇒ 需人工`);
+		return A('state-ref', { path: state[2], default: d });
+	}
 	const paren = /^\(\) => \((.*)\)$/.exec(s);              // `() => ({…})` / `() => ([…])`
-	if (paren && /^[{\[]/.test(paren[1].trim())) return A('const', { raw: paren[1].trim() });
-	if (/^\(\) => (\{.*\}|\[.*\]|null|true|false|-?\d+(\.\d+)?|'[^']*'|`[^`]*`)$/.test(s)) return A('const', { raw: s.replace(/^\(\) => /, '') });
+	if (paren && /^[{\[]/.test(paren[1].trim())) { const v = literalValue(paren[1]); return v === undefined ? B('const', { src: paren[1].trim() }, '字面量解析不出（含变量/插值？）⇒ 需人工') : A('const', { value: v }); }
+	if (/^\(\) => (\{.*\}|\[.*\]|null|true|false|-?\d+(\.\d+)?|'[^']*'|`[^`]*`)$/.test(s)) {
+		const v = literalValue(s.replace(/^\(\) => /, ''));
+		return v === undefined ? B('const', { src: s }, '字面量解析不出 ⇒ 需人工') : A('const', { value: v });
+	}
 	const D = (why, sink) => ({ bucket: 'D', why, sink });
 	// 选牌策略（内容政策）⇒ 可下沉为"前置选牌规则表"（引擎解释规则、故事只给数据）
 	if (/=> \(.*\bpoolId\b.*\?.*:.*null\)$/.test(s) || /=> \([\s\S]*includes\(/.test(s)) return D('选牌/前置决策：形状＝「一组条件 ⇒ 选哪个」⇒ 可下沉为**规则表**（引擎解释、故事给数据）', '前置选牌规则表');
@@ -162,8 +204,17 @@ const selftest = () => {
 	t('`() => null` ⇒ null', kindOf('() => null') === 'null');
 	t('`() => ({}` / `[]` ⇒ empty-*', kindOf('() => ({})') === 'empty-object' && kindOf('() => []') === 'empty-array');
 	t('`(id) => String(id)` ⇒ identity-string（**陷阱回归**：`\(` 是字面括号，捕获组必须写 `\((\w+)\)`）', kindOf('(id) => String(id)') === 'identity-string');
-	t('`(k) => <链>[k] ?? <默认>` ⇒ lookup（含 `?.` 链）', (() => { const r = classify('(id) => window.Game?.Items?.defs?.[id] ?? null'); return r.kind === 'lookup' && r.spec.from === 'window.Game?.Items?.defs' && r.spec.default === 'null'; })());
-	t('`(k) => <链>[k]?.<字段> ?? <兜底>` ⇒ lookup-field', (() => { const r = classify("(id) => window.Sg.story.mechanics()?.actions?.[id]?.label ?? String(id)"); return r.kind === 'lookup-field' && r.spec.field === 'label'; })());
+	t('`(k) => <链>[k] ?? <默认>` ⇒ lookup（含 `?.` 链）', (() => { const r = classify('(id) => window.Game?.Items?.defs?.[id] ?? null'); return r.kind === 'lookup' && r.spec.from === 'window.Game?.Items?.defs' && r.spec.default === null; })());
+	t('`const` 的 spec 用 **`value`（值）而不是 `raw`（源码）** —— 编译器只认 `value`，写 `raw` 会静默产出 `() => undefined`', (() => {
+		const r = classify('() => false');
+		return r.bucket === 'A' && r.spec.value === false && !('raw' in r.spec);
+	})());
+	t('字面量解析：对象/数组字面量 ⇒ 真值（`({a:1})` ⇒ `{a:1}`）', (() => {
+		const r = classify('() => ({ a: 1, b: [2] })');
+		return r.bucket === 'A' && r.spec.value.a === 1 && r.spec.value.b[0] === 2;
+	})());
+	t('`(k) => <链>[k]?.<字段> ?? <兜底>` ⇒ lookup-field，且兜底翻成**小 enum**（`String(k)` ⇒ string-identity）', (() => { const r = classify("(id) => window.Sg.story.mechanics()?.actions?.[id]?.label ?? String(id)"); return r.kind === 'lookup-field' && r.spec.field === 'label' && r.spec.fallback.kind === 'string-identity'; })());
+	t('兜底是**裸表达式** ⇒ 该成员落 B（编译器已不收，分类器不许假装 A）', classify("(id) => window.Game.Items.defs?.[id]?.x ?? (id + '!')").bucket === 'B');
 	t('`{ const s = …; if (!s) throw …; return s; }` ⇒ lookup + required（变量名任意）', (() => { const r = classify('(name) => { const s = window.Game?.Checks?.sites?.[name]; if (!s) throw new Error(`x`); return s; }'); return r.kind === 'lookup' && r.spec.required === true; })());
 	t('`(pc) => pc?.dragon ?? {}` ⇒ state-ref', (() => { const r = classify('(pc) => pc?.dragon ?? {}'); return r.kind === 'state-ref' && r.spec.path === 'dragon'; })());
 	t('`() => ({ … })`（括号包裹的对象）⇒ const', kindOf('() => ({ star: { charge: 12 } })') === 'const');
@@ -185,11 +236,27 @@ const selftest = () => {
 		return ms.length === 2 && ms[0].name === 'a' && ms[1].name === 'b';
 	})());
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过（19 例：8 个 kind 形状 ＋ A/B/C/D 四桶分界 ＋ 两条捕获组陷阱回归 ＋ 成员切分）');
+	console.log('\n✔ 自证通过（22 例：8 个 kind 形状 ＋ A/B/C/D 四桶分界 ＋ 两条捕获组陷阱回归 ＋ 成员切分）');
 };
 
 const isMain0 = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain0 && process.argv.includes('--selftest')) { selftest(); process.exit(0); }
+
+/** 纯函数：把 `() => <局部常量>` 解析成它的**值**（不手抄）。
+ *  做法：在浏览器语义沙箱里跑该文件的 `[script]` 段 ＋ 追加一行 `window.__probe = <标识符>;` ⇒ 读出来。
+ *  取不到（未定义/非 JSON 化）⇒ 返回 null（调用方保持 B 桶，不假装成功）。 */
+export const resolveLocalConst = (fileText, sectionName, ident) => {
+	const bodies = scriptBodies(fileText);
+	const box = { console: { log() {}, error() {} } };
+	box.window = box;
+	vm.createContext(box);
+	try {
+		vm.runInContext(engineScripts() + '\n' + bodies.join('\n') + `\n;window.__probe = (typeof ${ident} === 'function' ? undefined : ${ident});`, box, { timeout: 5000 });
+	} catch { return null; }
+	const v = box.__probe;
+	if (v === undefined) return null;
+	try { return JSON.parse(JSON.stringify(v)); } catch { return null; }
+};
 
 const main = () => {
 	const slug = process.argv[2];
@@ -200,7 +267,15 @@ const main = () => {
 	if (!members.length) { console.error(`✗ ${file} 里找不到 Sg.story 成员（读不到输入不许当"没有故事逻辑"）`); process.exit(1); }
 	if (stray.length) { console.error(`✗ ${file} 里还有**未被识别的** Sg.story 写法（${stray.join(' · ')}）—— 多站点合并只认 Object.assign 形态，其余必须点名而不是静默漏掉`); process.exit(1); }
 	console.log(`（站点 ${sites.length} 处：${sites.map((s2) => s2.members.length + ' 名成员').join(' ＋ ')}）`);
-	const rows = members.map((m) => ({ name: m.name, src: m.src, ...classify(m.src) }));
+	const fileText = readFileSync(file, 'utf8');
+	const rows = members.map((m) => {
+		const c = classify(m.src);
+		if (c.bucket === 'B' && c.kind === 'const' && c.spec?.ref) {
+			const value = resolveLocalConst(fileText, 'Game Tables', c.spec.ref);
+			if (value !== undefined && value !== null) return { name: m.name, src: m.src, bucket: 'A', kind: 'const', spec: { value }, resolvedFrom: c.spec.ref };
+		}
+		return { name: m.name, src: m.src, ...c };
+	});
 	const bucket = (b) => rows.filter((r) => r.bucket === b);
 	console.log(`══ 契约分类（${slug}）：${rows.length} 个成员 ══`);
 	for (const r of rows) {

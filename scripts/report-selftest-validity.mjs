@@ -14,6 +14,7 @@
 //                且该分支可达 `process.exit(1)`。否则 `selftest-cannot-fail`。
 import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { ROOT } from './dist-paths.mjs';
 
 /** #474：**一个扫描器**做全部字面量遮蔽（注释／字符串／模板／正则），一次词法走完。
@@ -176,90 +177,101 @@ export const selftestExitFindings = (src) => {
 	return [...counters].some((c) => guarded.has(c)) ? [] : [{ kind: 'selftest-cannot-fail', counters: [...counters] }];
 };
 
-// ── main ────────────────────────────────────────────────────────────────
-const scanDirs = [join(ROOT, 'scripts'), join(ROOT, 'test')];
-const files = [];
-for (const d of scanDirs) {
-	const walk = (dir) => {
-		for (const e of readdirSync(dir, { withFileTypes: true })) {
-			const p = join(dir, e.name);
-			if (e.isDirectory()) { if (!/node_modules|lib/.test(e.name)) walk(p); continue; }
-			if (e.name.endsWith('.mjs')) files.push(p);
-		}
+// `#762` 车道 C（顺带修）：本脚本原来**没有 isMain 守卫** ⇒ 被 `editor/**` 的工具当库 `import` 时，
+// 会把它的自检报告先打一遍（契约分类器实测踩到 ⇒ 只能自带遮蔽器绕开）。⇒ 主跑包进 `main()` 并加守卫。
+const main = () => {
+	// ── main ────────────────────────────────────────────────────────────────
+	const scanDirs = [join(ROOT, 'scripts'), join(ROOT, 'test')];
+	const files = [];
+	for (const d of scanDirs) {
+		const walk = (dir) => {
+			for (const e of readdirSync(dir, { withFileTypes: true })) {
+				const p = join(dir, e.name);
+				if (e.isDirectory()) { if (!/node_modules|lib/.test(e.name)) walk(p); continue; }
+				if (e.name.endsWith('.mjs')) files.push(p);
+			}
+		};
+		walk(d);
+	}
+
+	if (process.argv.includes('--selftest')) {
+		let bad = 0;
+		const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
+		t('V1 正例：先声明后自增 → 不报', incrementFindings('let bad = 0;\nbad++;').length === 0);
+		t('V1 反例：声明在使用之后 → tdz-warning（**降为警告**：闭包里合法，静态判不了调用序）', incrementFindings('bad++;\nlet bad = 0;').some((f) => f.kind === 'tdz-warning'));
+		t('V1 精化：模板字面量里的插值**不算赋值**（`kind=${…}` 曾是最大假阳性源）', incrementFindings('const s = `kind=${c.kind}`;').length === 0);
+		t('V1 精化：正则字面量里的内容**不算**（`/<html[^>]*\\slang=/`）', incrementFindings('if (!/<html[^>]*\\slang=/.test(x)) {}').length === 0);
+		t('V1 精化：纯赋值不再判（`hooked = true` 与“自证能否判红”无关）', incrementFindings('hooked = true;').length === 0);
+		t('V1 反例：完全没有声明 → undeclared-increment', incrementFindings('foo++;').some((f) => f.kind === 'undeclared-increment'));
+		t('V1 边界：函数参数 / for-of / 解构 声明也算（不许假阳性）',
+			incrementFindings('const f = (bad) => { bad++; };\nfor (const x of []) { x += 1; }\nlet { y } = o; y++;').length === 0);
+		t('V1 边界：`obj.x++` 与注释/字符串里的 `bad++` 都不算', incrementFindings('obj.x++;\n// bad++\nconst s = "bad++";').length === 0);
+		t('V2 正例：自证 + 计数器进退出码 → 不报', selftestExitFindings('let bad = 0;\nif (!ok) bad++;\nconsole.log("自证·x");\nif (bad) { console.error("x"); process.exit(1); }').length === 0);
+		t('V2 反例：自证 + 计数器**没进**退出码 → selftest-cannot-fail',
+			selftestExitFindings('let bad = 0;\nif (!ok) bad++;\nconsole.log("自证·x");\nif (problems.length) process.exit(1);').some((f) => f.kind === 'selftest-cannot-fail'));
+		t('V2 边界：`自证·` 写在**注释**里 ⇒ 不算（误报过本文件）', selftestExitFindings('// 打印了 自证· 才是自证\nlet bad = 0; bad++;').length === 0);
+		t('V2 边界：退出写成 `process.exit(bad ? 1 : 0)` 也算计入（`test/store-keys.mjs` 的写法）', selftestExitFindings('let bad = 0;\nif (!ok) bad++;\nconsole.log("自证·x");\nprocess.exit(bad ? 1 : 0);').length === 0);
+		t('V2 关键：`自证·` 写在**字符串**里 ⇒ 必须看得见（否则 V2 恒不触发 ⇒ 假干净 ✗）', selftestExitFindings('let bad = 0;\nif (!ok) bad++;\nconsole.log("自证·x");\nif (problems.length) process.exit(1);').some((f) => f.kind === 'selftest-cannot-fail'));
+		t('V2 边界：没有 `自证·` 的文件不适用（不报）', selftestExitFindings('let bad = 0;\nbad++;').length === 0);
+		// #474 修复的回归自证（两个受害者就是被这条击中的）
+		t('V2 回归：**正则里含 backtick** ⇒ 不得吞掉计数器（本文件/store-keys 被误报的根因）',
+			selftestExitFindings('let bad = 0;\nconst re = /`(?:\\\\.|[^`\\\\])*`/g;\nif (!ok) bad++;\nconsole.log("自证·x");\nif (bad) { process.exit(1); }').length === 0);
+		t('扫描器版：模板里含 `/` 也**不误剥**（`report-copy-text.mjs` 的根因）',
+			(() => { const r = stripDiag('let bad = 0;\nconst s = `a/b ${x}`;\nbad++;\n'); return r.unterminated === 0 && /bad\+\+/.test(r.code); })());
+		t('扫描器版：**关键字后的 `/` 是正则**（`return /$^/`）—— 只看前一个字符会误判成除法',
+			(() => { const r = stripDiag('const f = (c) => { if (!c) return /$^/; };\nlet bad = 0;\nbad++;\n'); return r.unterminated === 0 && /bad\+\+/.test(r.code); })());
+		t('扫描器版：除法**不**被当成正则（`const a = b / c;`）',
+			(() => { const r = stripDiag('let bad = 0;\nconst a = b / c;\nbad++;\n'); return r.unterminated === 0 && /bad\+\+/.test(r.code) && /b /.test(r.code); })());
+		t('扫描器版：**未闭合模板**只剥到行尾（绝不吞后文）且报诊断（反沉默）',
+			stripDiag('let bad = 0;\nbad++;\nconst s = `未闭合 ${x};\nbad++;\n').unterminated === 1 && /bad\+\+/.test(stripDiag('let bad = 0;\nbad++;\nconst s = `未闭合 ${x};\nbad++;\n').code));
+		t('扫描器版：模板**跨行**也剥得掉，且**保留换行**（行号不漂）', (() => {
+			const r = stripDiag('const t = `a\n${bad++}\nb`;\nbad++;\n');
+			return r.unterminated === 0 && !/\$\{/.test(r.code) && (r.code.match(/\n/g) || []).length === 4;
+		})());
+		if (bad) { console.error(`\n✗ 自证有效性检测器自证失败 ${bad} 项`); process.exit(1); }
+		console.log('\n✔ 自证有效性检测器自证通过（V1 ×8 ＋ V2 ×10：能判红/不能判红/注释不算/字符串算/正则含 backtick 不误报/模板含斜杠不误剥/关键字后正则/除法不误判/未闭合模板保守剥/跨行模板保留换行）');
+		process.exit(0);
+	}
+
+	const WHITELIST = {
+		// 确有理由的例外（每条必须写清为什么）——**白名单腐烂**同样会报红
 	};
-	walk(d);
-}
 
-if (process.argv.includes('--selftest')) {
-	let bad = 0;
-	const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
-	t('V1 正例：先声明后自增 → 不报', incrementFindings('let bad = 0;\nbad++;').length === 0);
-	t('V1 反例：声明在使用之后 → tdz-warning（**降为警告**：闭包里合法，静态判不了调用序）', incrementFindings('bad++;\nlet bad = 0;').some((f) => f.kind === 'tdz-warning'));
-	t('V1 精化：模板字面量里的插值**不算赋值**（`kind=${…}` 曾是最大假阳性源）', incrementFindings('const s = `kind=${c.kind}`;').length === 0);
-	t('V1 精化：正则字面量里的内容**不算**（`/<html[^>]*\\slang=/`）', incrementFindings('if (!/<html[^>]*\\slang=/.test(x)) {}').length === 0);
-	t('V1 精化：纯赋值不再判（`hooked = true` 与“自证能否判红”无关）', incrementFindings('hooked = true;').length === 0);
-	t('V1 反例：完全没有声明 → undeclared-increment', incrementFindings('foo++;').some((f) => f.kind === 'undeclared-increment'));
-	t('V1 边界：函数参数 / for-of / 解构 声明也算（不许假阳性）',
-		incrementFindings('const f = (bad) => { bad++; };\nfor (const x of []) { x += 1; }\nlet { y } = o; y++;').length === 0);
-	t('V1 边界：`obj.x++` 与注释/字符串里的 `bad++` 都不算', incrementFindings('obj.x++;\n// bad++\nconst s = "bad++";').length === 0);
-	t('V2 正例：自证 + 计数器进退出码 → 不报', selftestExitFindings('let bad = 0;\nif (!ok) bad++;\nconsole.log("自证·x");\nif (bad) { console.error("x"); process.exit(1); }').length === 0);
-	t('V2 反例：自证 + 计数器**没进**退出码 → selftest-cannot-fail',
-		selftestExitFindings('let bad = 0;\nif (!ok) bad++;\nconsole.log("自证·x");\nif (problems.length) process.exit(1);').some((f) => f.kind === 'selftest-cannot-fail'));
-	t('V2 边界：`自证·` 写在**注释**里 ⇒ 不算（误报过本文件）', selftestExitFindings('// 打印了 自证· 才是自证\nlet bad = 0; bad++;').length === 0);
-	t('V2 边界：退出写成 `process.exit(bad ? 1 : 0)` 也算计入（`test/store-keys.mjs` 的写法）', selftestExitFindings('let bad = 0;\nif (!ok) bad++;\nconsole.log("自证·x");\nprocess.exit(bad ? 1 : 0);').length === 0);
-	t('V2 关键：`自证·` 写在**字符串**里 ⇒ 必须看得见（否则 V2 恒不触发 ⇒ 假干净 ✗）', selftestExitFindings('let bad = 0;\nif (!ok) bad++;\nconsole.log("自证·x");\nif (problems.length) process.exit(1);').some((f) => f.kind === 'selftest-cannot-fail'));
-	t('V2 边界：没有 `自证·` 的文件不适用（不报）', selftestExitFindings('let bad = 0;\nbad++;').length === 0);
-	// #474 修复的回归自证（两个受害者就是被这条击中的）
-	t('V2 回归：**正则里含 backtick** ⇒ 不得吞掉计数器（本文件/store-keys 被误报的根因）',
-		selftestExitFindings('let bad = 0;\nconst re = /`(?:\\\\.|[^`\\\\])*`/g;\nif (!ok) bad++;\nconsole.log("自证·x");\nif (bad) { process.exit(1); }').length === 0);
-	t('扫描器版：模板里含 `/` 也**不误剥**（`report-copy-text.mjs` 的根因）',
-		(() => { const r = stripDiag('let bad = 0;\nconst s = `a/b ${x}`;\nbad++;\n'); return r.unterminated === 0 && /bad\+\+/.test(r.code); })());
-	t('扫描器版：**关键字后的 `/` 是正则**（`return /$^/`）—— 只看前一个字符会误判成除法',
-		(() => { const r = stripDiag('const f = (c) => { if (!c) return /$^/; };\nlet bad = 0;\nbad++;\n'); return r.unterminated === 0 && /bad\+\+/.test(r.code); })());
-	t('扫描器版：除法**不**被当成正则（`const a = b / c;`）',
-		(() => { const r = stripDiag('let bad = 0;\nconst a = b / c;\nbad++;\n'); return r.unterminated === 0 && /bad\+\+/.test(r.code) && /b /.test(r.code); })());
-	t('扫描器版：**未闭合模板**只剥到行尾（绝不吞后文）且报诊断（反沉默）',
-		stripDiag('let bad = 0;\nbad++;\nconst s = `未闭合 ${x};\nbad++;\n').unterminated === 1 && /bad\+\+/.test(stripDiag('let bad = 0;\nbad++;\nconst s = `未闭合 ${x};\nbad++;\n').code));
-	t('扫描器版：模板**跨行**也剥得掉，且**保留换行**（行号不漂）', (() => {
-		const r = stripDiag('const t = `a\n${bad++}\nb`;\nbad++;\n');
-		return r.unterminated === 0 && !/\$\{/.test(r.code) && (r.code.match(/\n/g) || []).length === 4;
-	})());
-	if (bad) { console.error(`\n✗ 自证有效性检测器自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证有效性检测器自证通过（V1 ×8 ＋ V2 ×10：能判红/不能判红/注释不算/字符串算/正则含 backtick 不误报/模板含斜杠不误剥/关键字后正则/除法不误判/未闭合模板保守剥/跨行模板保留换行）');
-	process.exit(0);
-}
+	const problems = [];
+	for (const f of files) {
+		const src = readFileSync(f, 'utf8');
+		const rel = f.slice(ROOT.length + 1);
+		// #474：剥离器**自报可疑形态**（未转义 backtick 为奇数 ⇒ 本次跳过了模板剥离）。
+		// 打印出来而不是静默：跳过意味着 V1 可能对该文件有假阳性 —— 那要**看得见**。
+		if (stripDiag(src).unterminated) console.log(`○ [unterminated-template] ${rel}（有 ${stripDiag(src).unterminated} 处未闭合模板 ⇒ 只剥到行尾；若该文件有 V1 报告，先看这里）`);
+		for (const x of incrementFindings(src)) problems.push({ file: rel, ...x });
+		for (const x of selftestExitFindings(src)) problems.push({ file: rel, ...x });
+	}
+	const real = problems.filter((p) => !(WHITELIST[p.file] && WHITELIST[p.file].includes(p.kind)));
+	const warnings = real.filter((p) => p.kind === 'tdz-warning');
+	const fatal = real.filter((p) => p.kind !== 'tdz-warning');
+	for (const w of warnings) console.log(`○ [${w.kind}] ${w.file}:${w.line} → ${w.ident}（声明在其后，但可能是闭包 ⇒ 不计失败）`);
+	const stale = Object.entries(WHITELIST).filter(([file, kinds]) => !problems.some((p) => p.file === file && kinds.includes(p.kind)));
 
-const WHITELIST = {
-	// 确有理由的例外（每条必须写清为什么）——**白名单腐烂**同样会报红
+	if (stale.length) {
+		console.error(`✗ 自证有效性白名单腐烂（条目已不需要）⇒ 删掉它：${stale.map(([f]) => f).join('、')}`);
+		process.exit(1);
+	}
+	if (fatal.length) {
+		console.error(`✗ 自证有效性自检未通过 ${fatal.length} 项：`);
+		for (const p of fatal) {
+			const extra = process.env.SV_DEBUG ? ` ｜ match=${p.match} ｜ 行=${JSON.stringify(p.src)}` : '';
+			console.error(`    [${p.kind}] ${p.file}${p.line ? `:${p.line}` : ''}${p.ident ? ` → ${p.ident}` : ''}${extra}`);
+		}
+		console.error('    （§9 第 1/2 条：打印了 `自证·` ≠ 自证有效 ⇒ 失败要计入退出码，且失败路径不能崩）');
+		process.exit(1);
+	}
+	console.log(`✔ 自证有效性自检通过（扫描 ${files.length} 个 .mjs：无未声明/置后声明的自增量；所有 \`自证·\` 都有记账并进退出码）`);
+
+	// `#762` 车道 C（顺带修）：本脚本原来**没有 isMain 守卫** ⇒ 被 `editor/**` 的工具当库 `import` 时，
+	// 会先把它的自检报告打一遍（契约分类器实测踩到 ⇒ 只能自带一个遮蔽器绕开）。
+
+
 };
 
-const problems = [];
-for (const f of files) {
-	const src = readFileSync(f, 'utf8');
-	const rel = f.slice(ROOT.length + 1);
-	// #474：剥离器**自报可疑形态**（未转义 backtick 为奇数 ⇒ 本次跳过了模板剥离）。
-	// 打印出来而不是静默：跳过意味着 V1 可能对该文件有假阳性 —— 那要**看得见**。
-	if (stripDiag(src).unterminated) console.log(`○ [unterminated-template] ${rel}（有 ${stripDiag(src).unterminated} 处未闭合模板 ⇒ 只剥到行尾；若该文件有 V1 报告，先看这里）`);
-	for (const x of incrementFindings(src)) problems.push({ file: rel, ...x });
-	for (const x of selftestExitFindings(src)) problems.push({ file: rel, ...x });
-}
-const real = problems.filter((p) => !(WHITELIST[p.file] && WHITELIST[p.file].includes(p.kind)));
-const warnings = real.filter((p) => p.kind === 'tdz-warning');
-const fatal = real.filter((p) => p.kind !== 'tdz-warning');
-for (const w of warnings) console.log(`○ [${w.kind}] ${w.file}:${w.line} → ${w.ident}（声明在其后，但可能是闭包 ⇒ 不计失败）`);
-const stale = Object.entries(WHITELIST).filter(([file, kinds]) => !problems.some((p) => p.file === file && kinds.includes(p.kind)));
-
-if (stale.length) {
-	console.error(`✗ 自证有效性白名单腐烂（条目已不需要）⇒ 删掉它：${stale.map(([f]) => f).join('、')}`);
-	process.exit(1);
-}
-if (fatal.length) {
-	console.error(`✗ 自证有效性自检未通过 ${fatal.length} 项：`);
-	for (const p of fatal) {
-		const extra = process.env.SV_DEBUG ? ` ｜ match=${p.match} ｜ 行=${JSON.stringify(p.src)}` : '';
-		console.error(`    [${p.kind}] ${p.file}${p.line ? `:${p.line}` : ''}${p.ident ? ` → ${p.ident}` : ''}${extra}`);
-	}
-	console.error('    （§9 第 1/2 条：打印了 `自证·` ≠ 自证有效 ⇒ 失败要计入退出码，且失败路径不能崩）');
-	process.exit(1);
-}
-console.log(`✔ 自证有效性自检通过（扫描 ${files.length} 个 .mjs：无未声明/置后声明的自增量；所有 \`自证·\` 都有记账并进退出码）`);
+if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main();

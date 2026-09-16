@@ -70,6 +70,20 @@ const hit = (Game, mech, idx, pc = PC, raw = 2) => {
 	try { return Game.Combat.slotAbsorb(pc, raw); } finally { Game.Rules.rng.reset(); }
 };
 
+/** `#704`（症状：`log.foe.slots` 有数据但渲染面从不引用 ⇒ 玩家看不到"打在哪、被哪件吸了多少、哪件快坏了"）：
+ *  判据两条 ——
+ *   ① `<<fightlog>>` 的源码里必须出现 `slots`（渲染面**引用**了这份数据）；
+ *   ② 且必须有**显式的缺席分支**（`<<if … slots>>`）—— 否则未启用槽位的故事会走成"打印 undefined"
+ *      （那是最难抓的假绿：看起来有渲染，实际是空行/问号）。 */
+export const rendererProblems = (src) => {
+	const out = [];
+	const text = String(src ?? '');
+	if (!text) { out.push({ why: '取不到 `fightlog` 源码（不静默判过）' }); return out; }
+	if (!/slots/.test(text)) out.push({ why: '渲染面**没有引用** `log.foe.slots` ⇒ 受击明细玩家看不见（数据在、显示不在）' });
+	if (!/<<if\s+_L\.foe\.slots>>/.test(text)) out.push({ why: '缺少**显式的缺席分支**（`<<if _L.foe.slots>>`）⇒ 未启用槽位的故事会打印空行/`undefined`（假绿）' });
+	return out;
+};
+
 export const run = (ctx) => {
 	const { Game, arg, wantAll } = ctx;
 	const Sg = ctx.window?.Sg;
@@ -177,6 +191,28 @@ export const run = (ctx) => {
 	} finally {
 		Sg.story.mechanics = saved;
 		Game.Rules.rng.reset();
+	}
+
+	// `#704`：渲染面（`fightlog`）必须引用 `slots` ＋ 显式缺席分支
+	{
+		const cases = [
+			['正例：引用 `slots` 且有缺席分支 ⇒ 不报',
+				rendererProblems('<<if _L.foe>><<if _L.foe.slots>><<print _L.foe.slots.part>><</if>><</if>>').length, 0],
+			['🔴 反例：删掉渲染（不引用 `slots`）⇒ 报**两条**（缺引用 ＋ 缺缺席分支）',
+				rendererProblems('<<if _L.foe>><<print _L.foe.text>><</if>>').length, 2],
+			['🔴 反例：引用了但**没有缺席分支** ⇒ 报（未启用槽位的故事会打印空行/undefined）',
+				rendererProblems('<<if _L.foe>><<print _L.foe.slots.part>><</if>>').length, 1],
+			['反例：取不到源码 ⇒ 报（不静默判过）', rendererProblems('').length, 1],
+		];
+		for (const [label, got, want] of cases) {
+			const okk = got === want;
+			console.log(`      ${okk ? '✓' : '✗'} 自证·${label}：检出 ${got}（期望 ${want}）`);
+			if (!okk) bad++;
+		}
+		// 按**widget 定义**定位（不按段落名硬编码 ⇒ 段落改名/搬家不会让这条静默失效）
+		const holders = [...(ctx.passageSrc ?? new Map()).entries()].filter(([, v]) => /<<widget\s+"fightlog">>/.test(v ?? ''));
+		if (!holders.length) { console.log('  ✗ #704 渲染面：找不到 `<<widget "fightlog">>` 的定义（不静默判过）'); bad++; }
+		for (const [name, src] of holders) for (const p2 of rendererProblems(src)) { console.log(`  ✗ #704 渲染面（${name}）：${p2.why}`); bad++; }
 	}
 
 	if (process.argv.includes('--check')) {

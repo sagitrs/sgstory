@@ -679,9 +679,13 @@ Object.assign((window.Game.Combat ??= {}), {
 		const a = actionRef ?? {};
 		const strike = this.foeStrike(pc, { ability: a.attr ?? 'str', dmg: a.dmg ?? '1' });
 		pc.ev.fight.wave.foes = strike.foes;
+		// `#746` 片2（guest 实测①「我方动作没有句子」）：动作**自己声明的文案**（`actions[id].ok/crit/bad`）
+		// 原先短战路径**只印 widget 实参的胜句/败句**（动作文案从未被用过）⇒ 玩家看不到"我这一下打成了什么样"。
+		// 口径：文案是**故事数据**（引擎只按成败档挑一条），数字仍由机制算 ⇒ 句子与数值一起出现。
+		const flavor = strike.crit ? a.crit?.text : strike.hit ? a.ok?.text : a.bad?.text;
 		const log = [strike.hit
-			? `你 ${strike.roll}+${strike.mod}=${strike.total} vs 甲${strike.ac} ⇒ 命中 ${strike.dmg} 点（${strike.foe} 剩 ${strike.hp}）`
-			: `你 ${strike.roll}+${strike.mod}=${strike.total} vs 甲${strike.ac} ⇒ 落空`];
+			? `${flavor ? flavor + ' ' : ''}你 ${strike.roll}+${strike.mod}=${strike.total} vs 甲${strike.ac} ⇒ 命中 ${strike.dmg} 点（${strike.foe} 剩 ${strike.hp}）`
+			: `${flavor ? flavor + ' ' : ''}你 ${strike.roll}+${strike.mod}=${strike.total} vs 甲${strike.ac} ⇒ 落空`];
 		let hurt = 0;
 		for (const f of pc.ev.fight.wave.foes) {
 			const h = this.foeHit(pc, f, { adv: a.defend ? -1 : 0 });

@@ -77,9 +77,18 @@ export const KINDS = {
 	},
 	'game-ref': (m) => {
 		assertChain(m.path, 'game-ref.path');
-		// 两种形态**都由数据表达**（手写版两种都有）：默认**不守卫**（`window.Game.Economy.events`）；
-		// 要守卫就写 `optional: true`（⇒ `window.Game?.Notes?.entries`，中间容器缺失时走默认值而不是抛框架噪音）。
+		// 形态**都由数据表达**（手写版几种都有）：
+		// ① 默认**不守卫**（`window.Game.Economy.events`）；② `optional: true` ⇒ `?.` 链（中间容器缺失走默认/undefined，不抛框架噪音）；
+		// ③ `required: true` ⇒ **取不到就抛**（结构缺失必须报错）；配 `type` 则按 `typeof` 校验，`error` 是报文（会被转义）。
 		const base = `window.${m.optional === true ? guardChain(m.path) : m.path.replace(/\?\./g, '.')}`;
+		if (m.required === true) {
+			const TYPES = ['number', 'string', 'boolean', 'object', 'function'];
+			if (m.type !== undefined && !TYPES.includes(m.type)) throw new Error(`game-ref.type 只收 ${TYPES.join('/')}（实得 ${JSON.stringify(m.type)}）—— 不许把任意表达式拼进产物`);
+			if (m.default !== undefined) throw new Error('game-ref：`required` 与 `default` 互斥（取不到就抛，不存在默认值）');
+			const cond = m.type ? `typeof v !== '${m.type}'` : 'v === undefined || v === null';
+			const msg = escTemplate(m.error ?? `window.${m.path}：结构缺失（该取值必须守卫）`);
+			return `() => {\n\t\tconst v = ${base};\n\t\tif (${cond}) throw new Error(\`${msg}\`);\n\t\treturn v;\n\t}`;
+		}
 		return m.default === undefined ? `() => ${base}` : `() => ${base} ?? ${literal(m.default)}`;
 	},
 	'forward': (m) => {
@@ -296,6 +305,19 @@ const selftest = () => {
 
 	// ── 卫生（审查必修 2）：非法链不许进产物；模板串必须转义 ──
 	const badPath = (m) => { try { build([{ name: 'x', ...m }]); return false; } catch { return true; } };
+	t('`game-ref` ＋ `required`：取到就回值；取不到（类型不对）⇒ **抛**且报文原样', (() => {
+		const C = build([{ name: 'dragonMaxHp', kind: 'game-ref', path: 'Game?.Dragon?.hp', optional: true, required: true, type: 'number', error: 'Sg.story.dragonMaxHp：故事未提供（结构缺失必须报错）' }], { game: { Dragon: { hp: 30 } }, Sg: {} });
+		const bad = build([{ name: 'dragonMaxHp', kind: 'game-ref', path: 'Game?.Dragon?.hp', optional: true, required: true, type: 'number', error: 'Sg.story.dragonMaxHp：故事未提供（结构缺失必须报错）' }], { game: {}, Sg: {} });
+		return call(C.dragonMaxHp).ok === '30' && (call(bad.dragonMaxHp).threw ?? '').includes('结构缺失必须报错');
+	})());
+	t('`game-ref`：`required` 与 `default` 互斥 ⇒ emit 抛错（取不到就抛，不存在默认值）', (() => {
+		try { build([{ name: 'x', kind: 'game-ref', path: 'Game.X', required: true, default: 1 }], { game: {} }); return false; }
+		catch (e) { return /互斥/.test(String(e.message)); }
+	})());
+	t('`game-ref.type` 只收封闭集（不许把任意表达式拼进产物）', (() => {
+		try { build([{ name: 'x', kind: 'game-ref', path: 'Game.X', required: true, type: "number'); alert(1); ('" }], { game: {} }); return false; }
+		catch (e) { return /只收/.test(String(e.message)); }
+	})());
 	t('卫生：`game-ref.path` 里注入 JS ⇒ emit 抛错', badPath({ kind: 'game-ref', path: 'Game.X;alert(1)//' }));
 	t('卫生：`bool-exists.path` 非法 ⇒ emit 抛错', badPath({ kind: 'bool-exists', path: 'Game.X + 1' }));
 	t('卫生：`state-ref.path` 非法 ⇒ emit 抛错', badPath({ kind: 'state-ref', path: 'a[b]' }));
@@ -359,7 +381,7 @@ const selftest = () => {
 	t('未知 kind ⇒ emit 抛错（不许静默产出半个函数）', badPath({ kind: 'nope' }));
 
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过（33 例：lookup 5 · lookup-field 6 · bool-exists 2 · state-ref 2 · game-ref 2 · forward 2 · **template 6（含三态）** · 卫生/硬化 7——**全部按行为断言**）');
+	console.log('\n✔ 自证通过（36 例：lookup 5 · lookup-field 6 · bool-exists 2 · state-ref 2 · game-ref 5 · forward 2 · **template 6（含三态）** · 卫生/硬化 7——**全部按行为断言**）');
 };
 
 // ⚠️ **主模块守卫**（实测踩到）：这些脚本**同时是库**（`equiv` 被 `extract` 导入、`compile` 被 `equiv` 起子进程）。

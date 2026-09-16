@@ -146,6 +146,14 @@ export const classify = (srcIn) => {
 	if (/^\(\) => window\.[\w$.]+$/.test(s)) return A('game-ref', { path: s.replace(/^\(\) => window\./, '') });
 	const gr = /^\(\) => ([\w$.()?]+) \?\? (.+)$/.exec(s);
 	if (gr && /^(window\.|Sg\.)/.test(gr[1])) return A('game-ref', { path: gr[1].replace(/[?.]+$/, ''), default: gr[2], optional: /\?\./.test(gr[1]) });   // `#775` 起 kind 支持默认值`)
+	// 守卫取数（路径形态）：`() => { const v = window.Game?.Dragon?.hp; if (typeof v !== 'number') throw new Error('…'); return v; }`
+	// ⇒ `game-ref` ＋ `required`（＋ `type`）。报文**必须是字面量**（否则落 B：不许把表达式拼进产物）。
+	const guardedRef = /^\(\) => \{ const (\w+) = ((?:window|Sg)\.[\w$.?\[\]'"]+); if \((!\1|typeof \1 !== '(\w+)')\) throw new Error\((.+)\); return \1; \}$/.exec(s);
+	if (guardedRef) {
+		const err = literalValue(guardedRef[5]);
+		if (err === undefined) return B('game-ref', { path: guardedRef[2].replace(/^window\./, '') }, '守卫的报错报文不是字面量 ⇒ 需人工');
+		return A('game-ref', { path: guardedRef[2].replace(/^window\./, ''), optional: /\?\./.test(guardedRef[2]), required: true, ...(guardedRef[4] ? { type: guardedRef[4] } : {}), error: err });
+	}
 	// `(k) => <来自……>?.[k] ?? <默认>` ／ `(k) => { const v = …; if (!v) throw …; return v; }`
 	const lookup = /^\((\w+)\) => ([\w$.()?]+)\[(\1)\] \?\? (.+)$/.exec(s);
 	if (lookup) {
@@ -209,6 +217,18 @@ const selftest = () => {
 		const r = classify('() => false');
 		return r.bucket === 'A' && r.spec.value === false && !('raw' in r.spec);
 	})());
+	t('守卫取数（路径）⇒ `game-ref` ＋ `required`/`type`，**报文取字面量**', (() => {
+		const r = classify("() => { const v = window.Game?.Dragon?.hp; if (typeof v !== 'number') throw new Error('Sg.story.dragonMaxHp：结构缺失必须报错'); return v; }");
+		return r.bucket === 'A' && r.kind === 'game-ref' && r.spec.required === true && r.spec.type === 'number' && r.spec.optional === true && r.spec.error.includes('结构缺失');
+	})());
+	t('守卫取数（`if (!v)` 形态）⇒ `game-ref` ＋ `required`（无 `type`）', (() => {
+		const r = classify("() => { const v = window.Game.Items.poisonReduce; if (!v) throw new Error('缺'); return v; }");
+		return r.bucket === 'A' && r.spec.required === true && !('type' in r.spec);
+	})());
+	t('守卫取数的报文**不是字面量** ⇒ 落 B（不许把表达式拼进产物）', (() => {
+		const r = classify("() => { const v = window.Game.X.y; if (!v) throw new Error(`坏 ${v} 的 X`); return v; }");
+		return r.bucket === 'B';
+	})());
 	t('字面量解析：对象/数组字面量 ⇒ 真值（`({a:1})` ⇒ `{a:1}`）', (() => {
 		const r = classify('() => ({ a: 1, b: [2] })');
 		return r.bucket === 'A' && r.spec.value.a === 1 && r.spec.value.b[0] === 2;
@@ -236,7 +256,7 @@ const selftest = () => {
 		return ms.length === 2 && ms[0].name === 'a' && ms[1].name === 'b';
 	})());
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过（22 例：8 个 kind 形状 ＋ A/B/C/D 四桶分界 ＋ 两条捕获组陷阱回归 ＋ 成员切分）');
+	console.log('\n✔ 自证通过（25 例：8 个 kind 形状 ＋ A/B/C/D 四桶分界 ＋ 两条捕获组陷阱回归 ＋ 成员切分）');
 };
 
 const isMain0 = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];

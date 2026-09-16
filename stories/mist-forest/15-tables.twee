@@ -659,101 +659,9 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 				done: () => false,
 				no: '她没看你，只看着厅中央那张空着的位子。' },
 		],
-		ask(id) { return this.asks.find((a) => a.id === id) ?? null; },
-		// ── `#785` 第 2 族：判定的**声明式**求值（判定委托引擎的条件求值器 ⇒ 单一权威）──────────────
-		// 为什么住这里（而不是引擎）：本块整体是"故事 1 的交涉机制" ⇒ 它随 `#785` 的**机制下沉**一并搬进引擎
-		//（引擎侧那份 `Game.Social`（`21-resolve`）已持有 resolveAsk；本片只先把**数据面**去函数化）。
-		condHolds(cd, pc) {
-			if (cd == null) return true;                     // 字段缺席＝恒真（原 `() => true` 的表达 ✓ 不发明 True 词）
-			if (typeof cd !== 'object' || Array.isArray(cd)) {
-				throw new Error(`交涉声明：条件必须是 { req/any/exclude } 对象（拿到 ${typeof cd}）—— 函数式谓词已按 #785 并入声明式`);
-			}
-			return window.Sg.rules.matches(cd, pc, new Set());
-		},
-		// `base` 的条件选值：`{ default, cases: [{ req, value }] }` —— **首个命中者胜**。
-		// 硬化：`cases` 每项**必须**有 `value` 且有 `req`/`any`/`exclude` 之一 ⇒ 缺一即抛
-		//（"没有条件的 case"会静默变成恒真分支 —— 正是 `#785` 要杀掉的那族 ✗）。
-		baseOf(a, pc) {
-			const b = a.base;
-			if (typeof b === 'string') return b;             // 无分支的纯字符串 ⇒ 原样
-			if (b == null || typeof b !== 'object' || Array.isArray(b)) {
-				throw new Error(`交涉声明：ask「${a.id}」的 base 形态非法（应为字符串或 { default, cases }）`);
-			}
-			for (const c of b.cases ?? []) {
-				const cond = c && typeof c === 'object' && ['req', 'any', 'exclude'].some((k) => k in c);
-				if (!cond || !('value' in (c ?? {}))) {
-					throw new Error(`交涉声明：ask「${a.id}」的 cases 项必须**同时**有 req/any/exclude 之一与 value（缺一即抛 —— 否则会静默变成恒真分支）`);
-				}
-				if (this.condHolds({ req: c.req, any: c.any, exclude: c.exclude }, pc)) return c.value;
-			}
-			return b.default ?? 'neutral';
-		},
-		attitude(a, pc) {
-			let att = this.baseOf(a, pc ?? {});   // `#785`：`base` 支持 `{ default, cases }`（条件选值）
-			const n = pc?.soc?.att?.[a.npc] ?? 0;
-			if (n >= 1) att = 'friendly';
-			else if (n <= -1) att = 'hostile';
-			return att;
-		},
-		shift(pc, npc, n) {
-			if (!pc.soc) pc.soc = { att: {}, tries: {}, read: {} };
-			pc.soc.att[npc] = (pc.soc.att[npc] ?? 0) + n;
-		},
-		tries(a, pc, site) { return pc?.soc?.tries?.[`${a.id}|${site}`] ?? 0; },
-		// DC ＝ 位点基础 DC ＋ 态度修正 ＋ 5 × 同一手已经试过几次（2024：不许原地重掷）
-		dcOf(a, site, pc) {
-			const s = Checks.sites[site] ?? {};
-			return Math.max(5, (s.dc ?? 15) + (this.attAdj[this.attitude(a, pc)] ?? 0) + 5 * this.tries(a, pc, site));
-		},
-		// 手上有哪几张牌：这一问能怎么开口（每张＝一项技能），筹码开没开
-		open(a, pc) {
-			return (a.sites ?? []).map((site) => {
-				const skill = Checks.sites[site]?.skill ?? '';
-				return { site, skill, ap: this.approaches[skill] ?? null, dc: this.dcOf(a, site, pc) };
-			}).filter((o) => o.ap);
-		},
-		levers(a, pc) { return (a.levers ?? []).filter((lv) => this.leverOpen(a, lv, pc)); },
-		leverOpen(a, lv, pc) {
-			if (lv.needRead && !pc?.soc?.read?.[a.npc]) return false;
-			if (lv.need != null && !this.condHolds(lv.need, pc)) return false;   // `#785`：`need` 是声明式条件
-			// 支付门（经济闭环）：带花费的筹码买不起就不亮——金币不许为负（与柜台/药膏同一规矩）
-			if (lv.econ && (pc?.gold ?? 0) < -Economy.priceOf(lv.econ, pc)) return false;
-			return true;
-		},
-		// 掷一次（不渲染）：骰面存进 $pc.ev.last_roll，交给 <<lastcheckFor>> 复显——
-		// 免得"结算处"与"面板处"各印一遍检定框
-		roll(pc, site, dc, advWhy) {
-			const s = Checks.sites[site] ?? {};
-			const opt = { adv: advWhy ? 1 : 0, site, advWhy: advWhy ?? '' };
-			return s.abil ? Game.Rules.save(pc, s.abil, dc, opt) : Game.Rules.check(pc, s.skill, dc, opt);
-		},
-		// 结果定档：willing＝不掷骰 · unwilling＝不掷骰（回绝）· 其余掷骰
-		verdict(a, pc) {
-			if (a.unwilling?.(pc)) return 'unwilling';
-			if (a.willing?.(pc)) return 'willing';
-			return 'roll';
-		},
-		// 落账：成功/失败各自的代价（2024 的态度与重试规则）
-		settle(a, pc, site, kind) {
-			const skill = Checks.sites[site]?.skill ?? '';
-			const ap = this.approaches[skill] ?? {};
-			if (!pc.soc) pc.soc = { att: {}, tries: {}, read: {} };
-			if (kind === 'crit' || kind === 'ok') {
-				if (ap.read) { if (!pc.soc.read) pc.soc.read = {}; pc.soc.read[a.npc] = true; }
-				if (ap.onOk?.att) this.shift(pc, a.npc, ap.onOk.att);
-				return [];
-			}
-			const notes = [];
-			// 重试代价只给「话说死了」的那几手（游说/历史）：这一手越问越难。
-			// 其它手段的代价另算——欺瞒/恐吓＝态度降级（整条轴都变贵），表演/洞悉/察觉＝只是没接上话。
-			if (site && ap.onFail?.retry) {
-				const k = `${a.id}|${site}`;
-				pc.soc.tries[k] = (pc.soc.tries[k] ?? 0) + 1;
-			}
-			if (ap.onFail?.retry) notes.push(`这一手他听过了——再开口，''更难''（DC +5）。`);
-			if (ap.onFail?.att) { this.shift(pc, a.npc, ap.onFail.att); notes.push(`''他记住了。''（态度 下滑）`); }
-			return notes;
-		},
+		// ── `#785` 机制片：本块**只留数据**（`ATT`／`attAdj`／`approaches`／`asks`）──────────────
+		// 方法（`ask`／`condHolds`／`baseOf`／`attitude`／`shift`／`tries`／`dcOf`／`open`／`levers`／`leverOpen`／`roll`／`verdict`／`settle`）
+		// 已整块**下沉引擎**（`Game.Social.*` 经契约读这三张表 ✓）—— 引擎侧取数口：`socialAsks`／`socialAttAdj`／`socialApproaches` ✓。
 	};
 
 	const Star = {
@@ -1138,7 +1046,10 @@ window.Game = Object.assign(window.Game ?? {}, (() => {
 		},
 	};
 
-	return { Checks, Economy, Items, Gear, Combat, Social, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences, Investment, State, RuleClaims, Notes };
+	// `#785` 机制片：`Social` 的方法**已下沉引擎** ⇒ 故事侧**只贡献三张数据表**，且必须**合并**（`??=`）：
+	// 整体替换会把引擎挂上来的方法一起抹掉 ✗。三张表都要留（`asks`／`attAdj`／`approaches`）✓。
+	Object.assign((window.Game.Social ??= {}), { asks: Social.asks, attAdj: Social.attAdj, approaches: Social.approaches, ATT: Social.ATT });   // ⚠️ 四张表都要留（漏 ATT ⇒ `<<socpanel>>` 崩 ✗）
+	return { Checks, Economy, Items, Gear, Combat, Codex, Truth, Echoes, Choices, Systems, Shifts, Star, Dragon, NPC, Consequences, Investment, State, RuleClaims, Notes };
 })());
 
 :: StoryBindings [script]
@@ -1165,6 +1076,7 @@ Object.assign((window.Sg.story ??= {}), {
 	socialAsks: () => window.Game.Social.asks,
 	socialAttAdj: () => window.Game.Social.attAdj,
 	socialApproaches: () => window.Game.Social.approaches,
+	socialAttLabels: () => window.Game.Social.ATT,     // 态度**标签**表（`<<socpanel>>` 直接读 `Game.Social.ATT` ⇒ 故事继续提供 ✓）
 	// `#660` 片三-2：引擎只问「本故事有没有车卡」——**不把 `Game.Chargen` 表本身交给引擎**（那等于把故事全局又交回去）
 	hasChargen: () => !!window.Game.Chargen,
 	// `#660` 片三-3：**本故事专属的 pc 默认数值**（形状在引擎的 `Game.Pc.defaults()` 里；这里只给数值、只覆盖要改的键）

@@ -468,7 +468,7 @@
 	<<setflag "whistle_blown">>
 	它的头低下来，像是认出了谁。
 	<<if $pc.keeper.state is "ally" and $pc.inv["传送术卷轴"] and $pc.inv["完整星图"]>>
-		<<if Game.Star.overBudget($pc)>>
+		<<if Sg.story.overBudget($pc)>>
 			守林人举起杖，念出第一句。杖尖那点微光颤了一下——''没接上去''。
 
 			他又念了一遍，念得慢一点。光还是没接上来。

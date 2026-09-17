@@ -440,6 +440,14 @@ export const lintCommand = async (argv = [], { prog = 'node editor/cli.mjs', sub
  *   ③ `process.argv` ⇒ **形参 `argv`** ✓（整体替换，不混用 `argv[2]` 那种写法 —— 实测混用会把 slug 取成 `--hand=` 的值 ✗）。
  */
 export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' } = {}) => {
+	// ⚠️ `--selfcheck` 是**壳级**选项（自证住在壳里 ✓，六个工具同一口径 ✓）⇒ cli 路到达命令体时
+	//   要**指路**（与 `k6` 的 `--selftest` 处置同形 ✓）：`#847` 量到的"两走法不等价"是**全家一致的设计** ✗
+	//   （extract-story／compile-story／equiv／lint-story／k6 的 cli 路都不提供自证 ✓）⇒ 这里把它做成**显式、可读**，
+	//   而不是让它落进下面那条通用"别传参数"的报文里 ✗。
+	if (argv.includes('--selfcheck')) {
+		console.error('✗ `--selfcheck` 不是本命令的参数（自证只在工具路：`node editor/k4.mjs --selfcheck` ✓）');
+		return 2;
+	}
 	// ⚠️ **本命令不收参数**（门判整个仓 ✓）⇒ 多给了就点名叫停 ✗ —— **不许静默忽略** ✓。
 	//   旧行为是"静默忽略多余参数"（`node editor/k4.mjs minimal-demo` ⇒ 照样跑整门、rc=0 ✗）
 	//   ⇒ 那是"传了却没生效"的典型：调用方以为在限定范围、实际判了全部 ✓。

@@ -21,10 +21,11 @@
 //   ⇒ 本壳只做三件：**转出**判据（纯函数住在 `lib/core/k4criteria.mjs` ✓）· 跑自证 · 转发 argv。
 //   ⇒ 与 `cli.mjs k4` **共用同一具身体** ✓（不是两份实现 ✗）—— 等价性按构造成立 ✓。
 import { fileURLToPath } from 'node:url';
-import { MARKER, hasMarker, markerProblems, freshnessProblems, escapeHatchProblems, contractSourceText, staleTrackedProblems } from './lib/core/k4criteria.mjs';
+import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, contractSourceText, staleTrackedProblems } from './lib/core/k4criteria.mjs';
+import { hasGeneratedMarker } from './lib/core/text.mjs';
 import { k4Command } from './lib/host/commands.mjs';
 import { exitWithRc } from './lib/host/proc.mjs';
-export { MARKER, hasMarker, markerProblems, freshnessProblems, escapeHatchProblems, contractSourceText, staleTrackedProblems };
+export { MARKER, hasGeneratedMarker, markerProblems, freshnessProblems, escapeHatchProblems, contractSourceText, staleTrackedProblems };
 
 // ⚠️ **主模块守卫**（实测踩到）：本文件**同时是库**（判据函数被测试／下游当纯函数 import ✓）。
 //   没有守卫时，`import` 它会**跑完整门**（0.22s ＋ 1592B 输出 ✗），且门红时 `process.exit(1)` 会**劫持导入方** ✗。

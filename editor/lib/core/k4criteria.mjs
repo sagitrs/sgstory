@@ -7,11 +7,14 @@
 // **纯搬运**：本文件的函数体、注释、判据口径与 `editor/k4.mjs` 中同名者**逐字相同** ✓
 // ⇒ 由"旧 main vs 本 head"的**两时点差分**证明输出零变化 ✓（见 PR 证据）。
 
-export const MARKER = '@generated';
-// hasMarker：**行首的注释行**才算标记（不锚定会把「注释里提到这个词」的文件误判成产物）——
+// 标记谓词：**行首的注释行**才算标记（不锚定会把「注释里提到这个词」的文件误判成产物）——
 // 实测踩到：手写逃生舱文件的注释写了「本文件不带该标记」⇒ 被排除出手写源 ⇒ 分类器看不见它的成员 ⇒ 门报「登记腐烂」的假红。
 // （写法上避开：注释里不要写出「星号紧跟斜杠」的字符对 —— 那会提前终结块注释 ✗，实测把整个文件炸成 SyntaxError。）
-export const hasMarker = (text) => /^\s*\/\/\s*@generated\b/m.test(String(text ?? ''));
+// ⚠️ **一处定义** ✓：本文件**不再自带**这份实现 ✗ ⇒ 用 `core/text.mjs` 的 `hasGeneratedMarker` ✓
+//  （此前是两份逐字相同的实现：K4 侧一份、`text.mjs` 一份 ✓）。**去重的依据是"先证同再删"** ✓：
+//   16 例语料（含行内提及／字符串里提及／CRLF／空串/null／多行模板串／三斜杠／块注释／大文件）**零分歧** ✓。
+import { hasGeneratedMarker } from './text.mjs';
+export const MARKER = '@generated';
 
 /** 纯函数①：**带标记**判据 —— 生成物首部必须有 `@generated`（含源路径）。 */
 export const markerProblems = (files) => {
@@ -37,7 +40,7 @@ export const markerProblems = (files) => {
  * `marks === 0` ⇒ 调用方**必须留痕打印**（"尚未翻面"是**状态**，不是"没问题"）。
  */
 export const staleTrackedProblems = (tracked, out) => {
-	const marks = tracked.filter(([path, text]) => path.endsWith('.twee') && hasMarker(text));
+	const marks = tracked.filter(([path, text]) => path.endsWith('.twee') && hasGeneratedMarker(text));
 	const problems = [];
 	for (const [path, text] of marks) {
 		const base = path.split('/').pop();
@@ -57,7 +60,7 @@ export const staleTrackedProblems = (tracked, out) => {
  */
 export const contractSourceText = (files) => {
 	const twee = files.filter(([name]) => name.endsWith('.twee'));
-	const hand = twee.filter(([, text]) => !hasMarker(text));
+	const hand = twee.filter(([, text]) => !hasGeneratedMarker(text));
 	return { text: hand.map(([, t]) => t).join('\n'), handCount: hand.length, markedTwee: twee.length - hand.length, otherCount: files.length - twee.length };
 };
 

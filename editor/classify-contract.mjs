@@ -29,24 +29,9 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 // 纯文本/纯数据部分已搬到 `editor/lib/core/contract.mjs`（转出，老调用方不变 ✓）。
 import { maskAll, contractSites, membersIn, contractMembers } from './lib/core/contract.mjs';
 export { maskAll, contractSites, membersIn, contractMembers };
-/** 纯函数：把**字面量源码**解析成值（`'false'` ⇒ `false`、`'({a:1})'` ⇒ `{a:1}`）。
- *  解析不出（含变量／模板串插值等）⇒ `undefined`（调用方落 B，不假装 A）。
- *  ⚠️ 分类器曾把字面量按 `raw: 源码` 放进 spec，而编译器只认 `value:` ⇒ 静默产出 `() => undefined`（容器比对与 L3 都看不出来，只有**行为**探针抓到）⇒ 现在统一到 `value`，编译器另加 fail-loud。 */
-export const literalValue = (src) => {
-	try {
-		const v = vm.runInContext(`(${String(src)})`, vm.createContext({ console: { log() {} } }), { timeout: 1000 });
-		// ⚠️ **值里含函数 ⇒ 一律不当字面量** ✗：`JSON.parse(JSON.stringify(...))` 会把函数**静默丢掉** ⇒
-		// 判成 `const` 后一旦数据化 ⇒ 函数消失、行为静默改变 ✗（实测：`socialHooks` 这类"字面量＋函数"的成员
-		// 曾被判 A ✓ —— 那是**假 A**）。⇒ 深查一层，含函数就返回 undefined（调用方落 B，诚实 ✓）。
-		const hasFn = (x, d = 0) => {
-			if (typeof x === 'function') return true;
-			if (d > 6 || !x || typeof x !== 'object') return false;
-			return Object.values(x).some((y) => hasFn(y, d + 1));
-		};
-		if (hasFn(v)) return undefined;
-		return JSON.parse(JSON.stringify(v));
-	} catch { return undefined; }
-};
+// 字面量求值是**宿主能力**（用 node:vm ⇒ 浏览器没有）⇒ 已搬到 `editor/lib/host/literals.mjs`（转出 ✓）。
+import { literalValue } from './lib/host/literals.mjs';
+export { literalValue };
 /** 纯函数：兜底表达式 → 小 enum（与编译器 `fallbackExpr` 的封闭集一致；认不出返回 null）。 */
 export const fbEnum = (expr, key) => {
 	const e = String(expr).trim();

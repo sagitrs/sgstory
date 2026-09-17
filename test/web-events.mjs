@@ -11,7 +11,7 @@ import { readFileSync, existsSync } from 'node:fs';
 import { loadPackage } from '../editor/web/loader.mjs';
 import { compileInPage } from '../editor/web/compile.mjs';
 import { savePackage } from '../editor/web/save.mjs';
-import { eventsOf, editEventField, diffFields, editSummary, eventCount } from '../editor/web/events.mjs';
+import { eventsOf, editEventField, editEvent, fieldKindsOf, diffFields, editSummary, eventCount } from '../editor/web/events.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const io = () => ({ readText: (p) => readFileSync(`${ROOT}/${p}`, 'utf8') });
@@ -64,6 +64,34 @@ throwsWith('防卫：事件不存在 ⇒ 抛 ✗', () => editEventField({ pkg, i
 throwsWith('防卫：未知字段 ⇒ 抛 ✗（不许塞新键 ✓）', () => editEventField({ pkg, id: target.id, field: '__newkey__', value: 'x' }), '未知字段');
 throwsWith('防卫：空编辑 ⇒ 抛 ✗（没改到东西不算改过 ✓）', () => editEventField({ pkg, id: target.id, field: 'text', value: target.raw.text }), '没改到东西');
 throwsWith('防卫：包里没有 rows ⇒ 抛 ✗', () => editEventField({ pkg: { data: {} }, id: 'x', field: 'text', value: 'y' }), '没有 rules.json');
+
+// ── P1 余项（`#761`）：**改一个事件的全部字段** ✓（纯件）—— 类型从值导出 ✓、原子性 ✓、类型守卫 ✓
+{
+	const kinds = fieldKindsOf(target.raw);
+	t('字段类型**从值导出** ✓（不从 schema 抄 ✗）',
+		kinds.some((f) => f.name === 'text' && f.kind === 'text') && kinds.some((f) => f.name === 'prio' && f.kind === 'number') && kinds.every((f) => ['text', 'number', 'list', 'raw'].includes(f.kind)));
+
+	// 多字段编辑 ✓：diff **恰好两处**且就是改的那两个 ✓；其余逐字节未动 ✓
+	const two = editEvent({ pkg, id: target.id, fields: { text: `${target.raw.text}【两字段】`, prio: (target.raw.prio ?? 0) + 1 } });
+	const d2 = diffFields(pkg.data, two);
+	t('多字段编辑：差异**恰好两处**且就是 `text` 与 `prio` ✓', d2.length === 2 && d2.map((x) => x.field).sort().join(',') === 'prio,text');
+	t('多字段编辑：**其它行逐字节未动** ✓（没误伤 ✓）',
+		JSON.stringify(two['rules.json'].rows.filter((r) => r.id !== target.id)) === JSON.stringify(pkg.data['rules.json'].rows.filter((r) => r.id !== target.id)));
+	t('多字段编辑：**输入包未被修改** ✓（原包可作对照 ✓）', JSON.stringify(pkg.data) === JSON.stringify(loadPackage({ slug, io: io() }).data));
+
+	// 原子性 ✓：任一字段不过 ⇒ **一个字段也不改** ✓
+	const before = JSON.stringify(pkg.data);
+	let atomicMsg = '';
+	try { editEvent({ pkg, id: target.id, fields: { text: `${target.raw.text}【不该落】`, __nope__: 1 } }); } catch (e) { atomicMsg = String(e.message); }
+	t('原子性：先全验后落 ✓（报错时**一个字段也没改** ✗）', atomicMsg.includes('未知字段') && JSON.stringify(pkg.data) === before);
+
+	// 类型守卫 ✓（list 给非数组 / number 给字符串 ⇒ 抛 ✓）
+	const throwsWith2 = (label, fn, needle) => { let m = ''; try { fn(); } catch (e) { m = String(e.message); } t(label, m.includes(needle)); };
+	const listField = Object.keys(target.raw).find((k) => Array.isArray(target.raw[k]));
+	throwsWith2('类型守卫：list 字段给字符串 ⇒ 抛 ✗', () => editEvent({ pkg, id: target.id, fields: { [listField]: 'not-an-array' } }), '字段类型不合');
+	throwsWith2('类型守卫：prio 给字符串 ⇒ 抛 ✗', () => editEvent({ pkg, id: target.id, fields: { prio: '10' } }), '字段类型不合');
+	throwsWith2('防空编辑：`fields` 为空 ⇒ 抛 ✗', () => editEvent({ pkg, id: target.id, fields: {} }), '没改到东西');
+}
 
 // ── `--selftest`：假包驱动同一判定 ✓
 const selftest = () => {

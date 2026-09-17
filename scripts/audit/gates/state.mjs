@@ -93,7 +93,7 @@ export const charsetViolations = (sources) => {
 // 命名空间：`ev.`（事件/证据）与 `world.`（世界态）。**同一个键名在两个域里各有一份**——
 // 只按裸键名归并会漏掉「写 world.X / 读 ev.X」这类失效（#365：观星者写 world.seer_asked、
 // 跨时代门读 ev.seer_asked → 证据支路静默失效）。故写/读都记成 `域.键`。
-export const analyze = (sources, { notes, rules, asks } = {}) => {
+export const analyze = (sources, { notes, rules, asks, declReads } = {}) => {
 	const keys = new Map();
 	const bump = (k, kind, site) => {
 		if (!keys.has(k)) keys.set(k, { w: new Set(), r: new Set(), dynamic: false });
@@ -131,6 +131,26 @@ export const analyze = (sources, { notes, rules, asks } = {}) => {
 			// ＋ **经笔记的读**（`#433` 阶段 2：`Sg.notes.has('n_x')` 读的是那条笔记的 flagPath 键）
 			for (const k of [...readKeys(line), ...noteReadKeys(line, notes)]) bump(k, 'r', site);
 		}
+	}
+	// 声明式写点（`#787` 翻面）：**条件行**与 **ask** 的 `sets`／`yields` 也是写点。
+	// 此前只算文本形态（`$pc.ev.x = …`／`Sg.notes.add`）⇒ 故事把「谁写了哪个旗标」搬进数据面之后，
+	// 这些写点**静默不可见** ⇒ 报「只有读没有写（幽灵条件）」的**假红** ✗（实测 6 项）。
+	// 帮手 `ruleRowSetKeys`/`ruleRowKeys` 本就在本文件里（自证一直在用）⇒ 这里只是把它接到真路径上。
+	// 声明面**读点**（`#787`）：条件行／诉求表的 `req`（以及 `run` 里 harvest 的 `any`／`req`）。
+	// 写侧由 `declWriteKeys` 单一权威负责（K6 口径）⇒ 这里**只补读**，不再各写一份 ✗。
+	const declSite = '声明面(data/)';
+	for (const row of [...(Array.isArray(rules) ? rules : Object.values(rules ?? {})), ...(asks ?? [])]) {
+		for (const k of ruleRowKeys(row ?? {}, notes ?? {})) bump(k, 'r', declSite);
+	}
+	// 声明面里的 `any`／`req` 条件键也算读 —— 但**只给"有人写的键"补读**：
+	// 否则会把 `inv:时光护符`／笔记 id／嵌套路径也塞进门（实测：未声明 18 条、只有读 21 条的新噪声 ✗）。
+	const bareOf = (x) => String(x).replace(/^(ev|world)\./, '');
+	// 用**键图里那个键本身**去 bump（带上域前缀）—— 不能 bump 裸名：门的命名空间判定靠前缀，
+	// 裸名会被读成"域 = 它自己"⇒ 报 12 条 `fog_thin.fog_thin` 式的**自指假红** ✗（实测）。
+	for (const k of declReads ?? []) {
+		if (!k) continue;
+		const b = bareOf(k);
+		for (const [mk, v] of keys) if (bareOf(mk) === b && v.w.size) { bump(mk, 'r', declSite); break; }
 	}
 	return keys;
 };
@@ -229,6 +249,7 @@ export const run = (ctx) => {
 		['动态写点未声明族 → 红', analyze({ 'a.twee': ':: P\n<<firstTime `"cellar_" + $era`>>' }), D, 1, 'dynamic-undeclared'],
 		['动态写点有声明覆盖 → 不得报', analyze({ 'a.twee': ':: P\n<<firstTime `"cellar_" + $era`>>' }), [{ id: 'tower', prefix: ['cellar_'] }], 0, 'dynamic-covered'],
 		['声明了却没有写点（僵尸声明）→ 红', analyze(SELF_GOOD), D, 1, 'dynamic-stale'],
+		['声明面读点（`#787`）：对**已写键**的 `any`／`req` 引用算读 ⇒ 不报「只有写」；而 `inv:…`／没人写的键必须被**过滤掉**（否则塞出新噪声）', null, D, 0, 'declRead'],
 		['键名不匹配 `[a-z_]\\w*` → 检出，且 `analyze()` **不崩**（#476 遗留地雷）', analyze({ 'a.twee': ':: P\npc.ev.BadKey = true' }), D, 1, 'charset'],
 		// #433 阶段 2：读点换了写法（`Sg.notes.has`）但「读了什么」不该消失
 		['经笔记的读（`Sg.notes.has`）也算读 ⇒ 不再是"只有写"', null, D, 0, 'noteRead'],
@@ -256,6 +277,12 @@ export const run = (ctx) => {
 				for (const k of ruleRowKeys({ req: ['ev.tav_x'] }, {})) (ks.get(k) ?? { r: new Set() }).r.add('条件表:P');
 				return check(ks, dm).length;
 			})()
+			: kind === 'declRead' ? (() => {
+				// `#787` 翻面：`declReads` ＝ 故事数据面 `any`／`req` 里的**候选**。期望：
+				// ① `world.tav_x` 有人写 ⇒ 算读 ⇒ 不报「只有写」；② `inv:时光护符`／`world.lonely`（无人写）⇒ 丢掉 ⇒ 不造「未声明」噪声。
+				const ks = analyze({ 'a.twee': ':: P\n<<set $pc.world.tav_x to true>>' }, { notes: {}, declReads: ['world.tav_x', 'inv:时光护符', 'world.lonely'] });
+				return check(ks, dm).length;
+			})()
 			: kind === 'dynamic-undeclared' ? checkDynamic(dynamicSites({ 's.twee': ':: P\n<<firstTime `"cellar_" + $era`>>' }), []).length
 			: kind === 'dynamic-covered' ? checkDynamic(dynamicSites({ 's.twee': ':: P\n<<firstTime `"cellar_" + $era`>>' }), [{ prefix: 'cellar_', via: 'firstTime', values: ['past'] }]).length
 			: kind === 'dynamic-stale' ? checkDynamic([], [{ prefix: 'gone_', via: 'firstTime', values: ['past'] }]).length
@@ -277,7 +304,25 @@ export const run = (ctx) => {
 	const RULES = ctx.window?.Sg?.story?.rules?.() ?? [];
 	// `#785`：把**声明面**也传进去（条件行 ＋ 诉求表 ⇒ 写点才看得见 ✓）——经接入契约取，不直读数据容器 ✓。
 	const ASKS = ctx.window?.Sg?.story?.socialAsks?.() ?? [];
-	const keys = analyze(sources, { notes: NOTES, rules: RULES, asks: ASKS });
+	// 声明面**读点候选**（`#787` 翻面）：数据容器里处处是条件列表（`any`／`req`）——codex 线索、回声、选择…
+	// 不把它们算读 ⇒ 报「只有写没有读」的假红 ✗（`mist_fought`／`whistle_blown` 就住在 codex 线索里）。
+	// 「只给有人写的键补读」那道收紧在 `analyze` 里做（那里才有键图 ⇒ 否则会塞出「未声明 18 条」式的新噪声 ✗）。
+	const DECL_READS = (() => {
+		const out = new Set();
+		const walk = (v, d = 0) => {
+			if (d > 8 || !v || typeof v !== 'object') return;
+			for (const [k, x] of Object.entries(v)) {
+				if ((k === 'any' || k === 'req') && x && typeof x === 'object') for (const s of Object.values(x)) { if (typeof s === 'string') out.add(s); }
+				else walk(x, d + 1);
+			}
+		};
+		walk(ctx.window?.Game ?? ctx.Game ?? {});
+		// **主路径**：经契约问故事（与其它门同形）——codex 的 `clues[].req` 就在那里。
+		// （通用深挖在本运行时里拿不到（容器枚举方式与沙箱不同）⇒ 不赌它 ✓）
+		try { walk(ctx.window?.Sg?.story?.codexItems?.() ?? {}); } catch { /* 拿不到就靠别的门叫 */ }
+		return [...out];
+	})();
+	const keys = analyze(sources, { notes: NOTES, rules: RULES, asks: ASKS, declReads: DECL_READS });
 	// #435 阶段 4：**条件表行里的键也是读点** —— 手写 `<<if>>` 搬进表之后，源码里就没有这个读点了；
 	// 不补这一步，被引用的旗标会被判「只有写」⇒ 假红（阶段 4 版的"新形状"，排查清单第 1 条 🔴）。
 	// 表侧读写点**对称**注入（`#435`）：`req`/`any`/`exclude` ＝ 读，`sets` ＝ 写。

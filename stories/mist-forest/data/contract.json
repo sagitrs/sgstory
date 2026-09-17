@@ -1,0 +1,179 @@
+{
+	"section": "StoryBindings",
+	"note": "分类器自动提案（`--propose`）：本文件是**生成物**，请勿手改；要改成员形状改故事源或 classifier 的 kind 集合。",
+	"members": [
+		{
+			"name": "notes",
+			"kind": "game-ref",
+			"path": "Game?.Notes?.entries",
+			"default": {},
+			"optional": true
+		},
+		{
+			"name": "econEvents",
+			"kind": "game-ref",
+			"path": "Game.Economy.events"
+		},
+		{
+			"name": "codexItems",
+			"kind": "game-ref",
+			"path": "Game.Codex.items"
+		},
+		{
+			"name": "socialAsks",
+			"kind": "game-ref",
+			"path": "Game.Social.asks"
+		},
+		{
+			"name": "socialAttAdj",
+			"kind": "game-ref",
+			"path": "Game.Social.attAdj"
+		},
+		{
+			"name": "socialApproaches",
+			"kind": "game-ref",
+			"path": "Game.Social.approaches"
+		},
+		{
+			"name": "socialAttLabels",
+			"kind": "game-ref",
+			"path": "Game.Social.ATT"
+		},
+		{
+			"name": "hasChargen",
+			"kind": "bool-exists",
+			"path": "Game.Chargen"
+		},
+		{
+			"name": "pcDefaults",
+			"kind": "const",
+			"value": {
+				"star": {
+					"charge": 12
+				},
+				"keeper": {
+					"state": "post"
+				}
+			}
+		},
+		{
+			"name": "prepick",
+			"kind": "const",
+			"value": [
+				{
+					"pool": "封印",
+					"round": 1,
+					"require": {
+						"item": "月光花"
+					},
+					"forbid": {
+						"flag": "dragon.venom"
+					},
+					"pick": "封印·涂毒",
+					"distinctFromPicked": true
+				}
+			]
+		},
+		{
+			"name": "foeState",
+			"kind": "state-ref",
+			"path": "dragon",
+			"default": {}
+		},
+		{
+			"name": "battleDamage",
+			"kind": "forward",
+			"to": "Game.Items.battleDamage",
+			"params": [
+				"inv",
+				"round",
+				"defeats",
+				"poisoned"
+			],
+			"args": [
+				"round",
+				"inv",
+				"defeats",
+				"poisoned"
+			]
+		},
+		{
+			"name": "rules",
+			"kind": "empty-array"
+		},
+		{
+			"name": "dragonMaxHp",
+			"kind": "game-ref",
+			"path": "Game?.Dragon?.hp",
+			"optional": true,
+			"required": true,
+			"type": "number",
+			"error": "Sg.story.dragonMaxHp：故事未提供 Game.Dragon.hp（结构缺失必须报错，#441-E）"
+		},
+		{
+			"name": "checkSite",
+			"kind": "lookup",
+			"from": "window.Game?.Checks?.sites",
+			"key": "name",
+			"required": true,
+			"error": "Sg.story.checkSite：位点「{key}」未登记（结构缺失必须报错，#441-E）"
+		},
+		{
+			"name": "combatAction",
+			"kind": "lookup",
+			"from": "window.Game?.Combat?.actions",
+			"key": "id",
+			"required": true,
+			"error": "Sg.story.combatAction：动作「{key}」未登记（结构缺失必须报错，#441-E）"
+		},
+		{
+			"name": "mechanics",
+			"kind": "null"
+		},
+		{
+			"name": "itemDef",
+			"kind": "lookup",
+			"from": "window.Game?.Items?.defs",
+			"key": "name",
+			"default": null
+		},
+		{
+			"name": "itemEffect",
+			"kind": "lookup",
+			"from": "window.Game?.Items?.effects",
+			"key": "name",
+			"default": null
+		},
+		{
+			"name": "gearDef",
+			"kind": "lookup",
+			"from": "window.Game?.Gear?.defs",
+			"key": "name",
+			"default": null
+		},
+		{
+			"name": "combatPool",
+			"kind": "lookup",
+			"from": "window.Game?.Combat?.pools",
+			"key": "id",
+			"default": []
+		},
+		{
+			"name": "poisonReduce",
+			"kind": "game-ref",
+			"path": "Game?.Items?.poisonReduce",
+			"optional": true,
+			"required": true,
+			"type": "number",
+			"error": "Sg.story.poisonReduce：故事未提供 Items.poisonReduce（结构缺失必须报错，#441-E）"
+		},
+		{
+			"name": "actionLabel",
+			"kind": "lookup-field",
+			"via": "combatAction",
+			"key": "id",
+			"field": "label",
+			"required": true
+		}
+	]
+}

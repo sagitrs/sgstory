@@ -1,0 +1,21 @@
+:: Game Hooks [script]
+// ── 手写逃生舱文件（`#787` 翻面）────────────────────────────────────────────
+// 为什么存在：本故事契约里有 **2 个成员不可数据化**（分类器实测 ⇒ `socialHooks` 落 **B**、`overBudget` 落 **C**），
+// 它们**不能**进生成物（生成物由 `data/contract.json` 的 23 个 A 成员编译而来）⇒ 按"登记 ＋ 手写"两件套留在这里。
+//
+//  ① `socialHooks`：三处 (c) 桶的**值语义/取反**（各 1 处 ⇒ 按裁定不立词）。落 B 的原因：字面量里含函数
+//     ⇒ 声明式表达不了；引擎**逐字段先问 hook**（`apply`／`done`／`willing`／`unwilling` 四字段同名）。
+//  ② `overBudget`：**严格 `>` ＋ 运行期阈值**（`ops` 只有 `gte`/`lte` ⇒ 把 `budget+1` 写死会造**第二份真源**）。
+//     语义与原先 `Game.Star.overBudget` **逐字相同**：`pc.star.spent` 与声明里的 `Game.Star.budget` 比。
+//
+// ⚠️ 本文件**不带** `@generated` ⇒ K4-④ 的"逐字节等于当场重编产物"那条**不选它** ✓（那是对的：它不是产物）。
+//    守它的是：K4 的逃生舱登记（理由 ＋ 票号 ＋ 退役条件）＋ 行为等价门（它与生成物**一起**对冻结基线比）。
+// 合并语义：`Object.assign((window.Sg.story ??= {}), …)` ⇒ 与 `15-tables.twee`（生成物）**同形**，
+//    两者先后无所谓（成员都是箭头函数，定义期不求值）。
+Object.assign((window.Sg.story ??= {}), {
+	socialHooks: () => ({
+		'守林人·术': { apply: (pc) => { pc.keeper.state = 'seal'; } },
+		'女巫·换哨': { unwilling: (pc) => !(pc.inv['完整星图'] && pc.world.family_favor && pc.inv['坏哨']), apply: (pc) => { delete pc.inv['坏哨']; pc.inv['好哨'] = true; } },
+	}),
+	overBudget: (pc) => (pc?.star?.spent ?? 0) > window.Game.Star.budget,
+});

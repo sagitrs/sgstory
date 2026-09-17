@@ -79,7 +79,7 @@ export const runScript = (body) => {
 /** 纯函数：从数据容器里收集"已声明的 id"，用作实参表（＋一个未知 id ⇒ 顺带验 fail-loud 行为一致）。 */
 export const declaredIds = (win) => {
 	const G = win.Game ?? {};
-	const pick = (o) => Object.keys(o ?? {});
+	const pick = (o) => Object.keys(o ?? {}).sort();   // **排序**：两侧容器键序可能不同（产物按桶分组发射）⇒ 不排会造**实参错位**的假红
 	const list = [
 		...pick(G.Checks?.sites), ...pick(G.Combat?.actions), ...pick(G.Combat?.pools),
 		...pick(G.Items?.defs), ...pick(G.Gear?.defs), ...pick(G.Economy?.prices),
@@ -98,6 +98,9 @@ export const declaredIds = (win) => {
 		try { for (const k of deepKeys(fn())) list.push(k); } catch { /* 成员自身抛错由别的判据报 */ }
 	}
 	const uniq = [...new Set(list)].filter((s) => s && s !== '__unknown__');
+	// **整体排序**：两侧容器键集相同、但**顺序可能不同**（产物按桶分组发射；尾部来自零参成员深挖键 ⇒ `Set` 插入序）
+	// ⇒ 不排会出现"同一探针位两侧收到不同实参"的**假红**（实测：`checkSite` 报 42 处，而生成物代码与手写逐字等价 ✗）。
+	uniq.sort();
 	return { all: uniq, first: uniq[0] ?? 'x' };
 };
 
@@ -146,7 +149,10 @@ export const snapshot = (win) => {
 		const rows = probeArgs(ids).map((args) => { probes++; return [args, call(fn, args)]; });
 		contract[k] = rows;
 	}
-	return { game: JSON.stringify(win.Game ?? null), contract, ids, probes, walk: walk(win.Game ?? {}) };
+	// 容器比较用**规范化 JSON**（对象键**排序**、数组保序）：键序不是数据，而产物是按**桶分组**发射的 ⇒
+	// 直接 `JSON.stringify` 会因键序差异**假红**（同族于下面契约那条"判行为不判顺序"的教训）。数组顺序仍然判（那可能是语义）。
+	const canon = (v) => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v);
+	return { game: JSON.stringify(canon(win.Game ?? null)), contract, ids, probes, walk: walk(win.Game ?? {}) };
 };
 
 const selftest = () => {
@@ -211,7 +217,14 @@ const main = () => {
 	execFileSync('node', [COMPILER, slug, `--out=${idemDir}`], { cwd: ROOT });
 	const names = [...new Set([...readdirSync(genDir), ...readdirSync(idemDir)])].sort();
 	const idemOk = names.length > 0 && names.every((n) => readFileSync(join(genDir, n)).equals(readFileSync(join(idemDir, n))));
-	const gen = readFileSync(join(genDir, rulesMode ? '17-rules.twee' : '15-tables.twee'), 'utf8');
+	const gen0 = readFileSync(join(genDir, rulesMode ? '17-rules.twee' : '15-tables.twee'), 'utf8');
+	// **产物侧 ＝ 生成物 ＋ 登记过的手写逃生舱文件**（`#787` 翻面形状）：非 A 桶成员装不进生成物 ⇒ 它们住手写件，
+	// 而行为门要比的是**整份契约**；手写侧（冻结基线）本来就含它们 ⇒ 只比生成物会得到"少了成员"的**假差** ✗。
+	// 单一真源＝`editor/escape-hatch.json` 的 `hatchFiles`（这里只读它，不另立清单）。
+	const hatchFiles = (() => {
+		try { return JSON.parse(readFileSync(join(ROOT, 'editor', 'escape-hatch.json'), 'utf8')).hatchFiles ?? []; } catch { return []; }
+	})().filter((f) => f.includes(`stories/${slug}/`)).map((f) => join(ROOT, f));
+	const gen = [gen0, ...hatchFiles.map((f) => readFileSync(f, 'utf8'))].join('\n');
 
 	const results = [[idemOk, `幂等：连编译两次产物逐字节相同（${names.length} 份：${names.join('、')}）`]];
 	const l3Line = (nh, ng, what) => {
@@ -255,7 +268,7 @@ const main = () => {
 			const onlyHand = hk.filter((k) => !gk.includes(k)), onlyGen = gk.filter((k) => !hk.includes(k));
 			results.push([onlyHand.length === 0 && onlyGen.length === 0,
 				`L1 契约**键集合**一致（手写 ${hk.length} / 生成 ${gk.length}）${onlyHand.length ? `\n    仅手写有：${onlyHand.join('、')}` : ''}${onlyGen.length ? `\n    仅生成有：${onlyGen.join('、')}` : ''}`]);
-			results.push([hs.game === gs.game, `L1 数据容器深度相等（含 State/Notes/Consequences）${hs.game === gs.game ? '' : `\n    手写 ${String(hs.game).slice(0, 220)}\n    生成 ${String(gs.game).slice(0, 220)}`}`]);
+			results.push([hs.game === gs.game, `L1 数据容器深度相等（含 State/Notes/Consequences；**对象键序不计**，数组序仍判）${hs.game === gs.game ? '' : `\n    手写 ${String(hs.game).slice(0, 220)}\n    生成 ${String(gs.game).slice(0, 220)}`}`]);
 			// 判**行为**，不判**顺序**：成员在源里的先后不是语义（曾因"生成物把某成员排到末尾"而假红 ✗）
 			const cd = diffContract(hs.contract, gs.contract);
 			results.push([Object.keys(hs.contract).length > 0 && cd.n === 0,

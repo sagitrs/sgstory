@@ -137,7 +137,10 @@ export const SEGMENTS = [
 	// 列缺失由 **字段直方图**兜、空表由 **面非空**兜、产物稳定由 **幂等（编译两次逐字节）** 兜
 	// —— L3 让掉的**只有"排版"这一层**（模板串 vs 单引号串）。
 	{ id: "editor-extract-selftest", phase: 'test', cost: 0, cmd: "node editor/extract-story.mjs --selftest" },
-	{ id: "editor-equiv-mist-forest-rules", phase: 'test', cost: 0.3, cmd: "node editor/equiv.mjs mist-forest --rules --l3=report" },
+	{ id: "editor-equiv-mist-forest-rules", phase: 'test', cost: 0.3, cmd: "node editor/equiv.mjs mist-forest --rules --l3=report --hand=stories/mist-forest/gates/equiv-baseline/17-rules.twee.txt" },
+	// `#787` 翻面：**契约面**也从"手写 vs 生成"改成"冻结基线 vs 当前产物"（`--hand`＝翻面前的 main 快照）。
+	// 与本故事另一条（`--rules`）分开：两条各自只比**一个**面，基线也各一份 ⇒ 失败时能直接指名哪一面。
+	{ id: "editor-equiv-mist-forest", phase: 'test', cost: 0.4, cmd: "node editor/equiv.mjs mist-forest --l3=report --hand=stories/mist-forest/gates/equiv-baseline/15-tables.twee.txt" },
 	{ id: "editor-classify-contract-selftest", phase: 'test', cost: 0, cmd: "node editor/classify-contract.mjs --selftest" },
 	// 车道 A 后半：洞窟端到端等价（`--l3=report`：手写风格与生成风格不统一，L3 只当报告；权威判据是 L1＋键集合＋行为）
 	// `#787` 翻面：手写侧**重指向**为冻结基线（翻面前 `main` 的仓内副本 ⇒ 「生成得对不对」仍被判）

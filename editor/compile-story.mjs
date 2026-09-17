@@ -140,6 +140,8 @@ export const KINDS = {
 	},
 	'forward': (m) => {
 		// 参数**转发**（形参序与表函数可以不同）：`params` 是接缝形参、`args` 是转给表函数的**形参名序列**
+		// `to` 是 `window.` **之后**的路径 ⇒ 已带 `window.` 的会生成 `window.window.…`（实测踩到：行为探针比"两侧报错文案"时才暴露，字节面看不到）⇒ fail-loud。
+		if (/^window\??\./.test(String(m.to ?? ''))) throw new Error(`forward.to 已是全链（${JSON.stringify(m.to)}）⇒ 这里只接受 \`window.\` **之后**的路径`);
 		const params = (m.params ?? []).map((x) => assertChain(x, 'forward.params[]'));
 		const args = (m.args ?? params).map((x) => assertChain(x, 'forward.args[]'));
 		if (args.some((x) => !params.includes(x))) throw new Error(`forward.args 只许用 forward.params 里的形参名（实得 ${JSON.stringify(m.args)}）`);
@@ -255,10 +257,12 @@ export const emitRules = (rows) => [
 export const emitTables = (d) => {
 	const one = 'window.Game = Object.assign(window.Game ?? {}, ' + literal(d.containers) + ');';
 	const merges = (d.merges ?? []).map((m) => {
+		// ⚠️ 值可能是**对象**（如 `Game.Consequences.provenance`）：早先这里走 `jsString(v)` ⇒ 对象被写成
+		// `'[object Object]'`（实测：数据面多出一个字符串，行为门才看得见）⇒ 一律用 JSON 字面量 emitter。
 		const segs = m.target.split('.');
 		const leaf = segs.pop();
 		const init = literal(m.default);
-		const body = Object.entries(m.value).map(([k, v]) => `\t${jsKey(k)}: ${jsString(v)},`).join('\n');
+		const body = Object.entries(m.value).map(([k, v]) => `\t${jsKey(k)}: ${literal(v)},`).join('\n');
 		return `Object.assign(((window.${segs.join('.')} ??= ${init}).${leaf}), {\n${body}\n});`;
 	});
 	return [one, ...merges].join('\n');

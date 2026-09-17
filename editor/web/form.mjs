@@ -7,7 +7,56 @@
 //
 // 于是"页面上改的那次"与"测试里改的那次"**按构造是同一条路** ✓（没有第二份实现 ✓）。
 
-import { eventsOf, editEventField, diffFields, editSummary } from './events.mjs';
+import { eventsOf, editEvent, editEventField, fieldKindsOf, diffFields, editSummary } from './events.mjs';
+
+/** **表单的字段区** ✓（P1 余项）：字段与类型**从 `fieldKindsOf` 来** ✗ —— DOM 层不写死任何 schema ✓。
+ *  `list` 字段用**逐行文本框**（一列一项 ✓）＋ `text` 单行 ✓＋ `number` 数字框 ✓；`raw` 不渲染 ✗（不认识就不让改 ✓，并在提示里点名 ✓）。 */
+export const buildEventForm = ({ doc, row, containerId = 'fields' } = {}) => {
+	const box = doc.getElementById(containerId);
+	if (!box) throw new Error(`表单容器 \`#${containerId}\` 不存在 ✗（表单不该静默只剩一半 ✓）`);
+	box.innerHTML = '';
+	const kinds = fieldKindsOf(row);
+	for (const { name, kind } of kinds) {
+		if (kind === 'raw') continue;
+		const wrap = doc.createElement('label');
+		wrap.textContent = `${name}（${kind}）`;
+		const el = kind === 'list' ? doc.createElement('textarea') : doc.createElement('input');
+		if (kind === 'number') el.type = 'number';
+		el.id = `fld-${name}`;
+		el.dataset.kind = kind;
+		el.value = kind === 'list' ? (row[name] ?? []).join('\n') : String(row[name] ?? '');
+		wrap.appendChild(el);
+		box.appendChild(wrap);
+	}
+	return kinds.map((k) => k.name);
+};
+
+/** **从 DOM 自己读回** ✓（P1 余项的读数要求 ✓：提交的值必须是**表里实际填的** ✗，
+ *  而不是某个测试变量的回放 ✓ —— 否则"映射"可能是**常数** ✓）。 */
+export const readFormFields = ({ doc, containerId = 'fields', kinds } = {}) => {
+	const box = doc.getElementById(containerId);
+	if (!box) throw new Error(`表单容器 \`#${containerId}\` 不存在 ✗`);
+	const out = {};
+	for (const el of [...box.querySelectorAll('[data-kind]')]) {
+		const name = el.id.replace(/^fld-/, '');
+		const kind = el.dataset.kind;
+		if (kind === 'list') out[name] = String(el.value ?? '').split('\n').map((s) => s.trim()).filter(Boolean);
+		else if (kind === 'number') out[name] = Number(el.value);
+		else out[name] = String(el.value ?? '');
+	}
+	if (kinds && kinds.length !== Object.keys(out).length) throw new Error(`表单字段数与字段表不一致 ✗（表 ${kinds.length} / 读回 ${Object.keys(out).length}）`);
+	return out;
+};
+
+/** 表单提交 ✓（**唯一编辑路** ✓：读回 ⇒ `editEvent` ✓ —— DOM 层不自己算差异 ✓）。 */
+export const submitEventForm = ({ doc, pkg, id, containerId = 'fields' } = {}) => {
+	const row = (pkg?.data?.['rules.json']?.rows ?? []).find((r) => r.id === id);
+	if (!row) throw new Error(`事件不存在 ✗：${id}`);
+	const fields = readFormFields({ doc, containerId, kinds: fieldKindsOf(row).map((k) => k.name) });
+	const after = editEvent({ pkg, id, fields });
+	return { fields, after, diffs: diffFields(pkg.data, after) };
+};
+
 import { compileInPage } from './compile.mjs';
 import { savePackage, asDownloads, saveSummary } from './save.mjs';
 import { loadPackage } from './loader.mjs';

@@ -11,7 +11,7 @@
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 import { loadPackage } from '../editor/web/loader.mjs';
-import { wireForm } from '../editor/web/form.mjs';
+import { wireForm, buildEventForm, readFormFields, submitEventForm } from '../editor/web/form.mjs';
 import { eventsOf, editEventField, diffFields, editSummary } from '../editor/web/events.mjs';
 import { savePackage } from '../editor/web/save.mjs';
 import { compileInPage } from '../editor/web/compile.mjs';
@@ -23,7 +23,7 @@ const slug = 'mist-forest';
 const HTML = `<!doctype html><html><body>
 <select id="event"></select><select id="field"></select>
 <input id="value"><input id="pick" type="file" multiple>
-<button id="apply"></button><pre id="out"></pre><div id="err"></div>
+<button id="apply"></button><pre id="out"></pre><div id="err"></div><div id="fields"></div>
 </body></html>`;
 
 const dom = new JSDOM(HTML, { pretendToBeVisual: false });
@@ -68,6 +68,40 @@ try {
 	const badEdit = handle.applyEdit();
 	t('反例：未知字段 ⇒ 错误面亮出报文且不产出改动 ✗',
 		badEdit === null && handle.error().includes('未知字段'));
+
+	// ── P1 余项（`#761`）：**DOM 表单的字段级读数** ✓ —— 含复核席两条（都要能假 ✓）
+	t('表单：字段与类型**从 `fieldKindsOf` 来** ✓（DOM 不写死 schema ✗）', (() => {
+		const names = buildEventForm({ doc: dom.window.document, row: events[0].raw });
+		const shown = [...dom.window.document.querySelectorAll('#fields [data-kind]')].map((e) => e.id.replace(/^fld-/, ''));
+		return shown.length === names.length && shown.join(',') === names.join(',') && shown.includes('text') && shown.includes('prio');
+	})());
+	t('表单：**提交值从 DOM 读回** ✓（不是测试变量的回放 ✗）', (() => {
+		const doc = dom.window.document;
+		buildEventForm({ doc, row: target.raw });
+		doc.getElementById('fld-text').value = `${target.raw.text}【表单提交】`;
+		doc.getElementById('fld-prio').value = String((target.raw.prio ?? 0) + 2);
+		const submitted = readFormFields({ doc });
+		return submitted.text.endsWith('【表单提交】') && submitted.prio === (target.raw.prio ?? 0) + 2;
+	})());
+	t('表单：**换一个输入 ⇒ 提交必须不同** ✗（否则映射可能是常数 ✓ —— 与 `#867` 自比自同族）', (() => {
+		const doc = dom.window.document;
+		const first = (() => { buildEventForm({ doc, row: target.raw }); doc.getElementById('fld-text').value = 'AAA'; return readFormFields({ doc }).text; })();
+		const second = (() => { buildEventForm({ doc, row: target.raw }); doc.getElementById('fld-text').value = 'BBB'; return readFormFields({ doc }).text; })();
+		return first === 'AAA' && second === 'BBB' && first !== second;
+	})());
+	t('表单提交：**差异恰好两处**且就是 DOM 里改的那两个 ✓（端到端那条链的前半 ✓）', (() => {
+		const doc = dom.window.document;
+		buildEventForm({ doc, row: target.raw });
+		doc.getElementById('fld-text').value = `${target.raw.text}【两处】`;
+		doc.getElementById('fld-prio').value = String((target.raw.prio ?? 0) + 3);
+		const r = submitEventForm({ doc, pkg, id: target.id });
+		const fields = r.diffs.map((d) => d.field).sort().join(',');
+		return r.diffs.length === 2 && fields === 'prio,text';
+	})());
+	t('表单容器缺失 ⇒ **讲人话地抛** ✗（表单不该静默只剩一半 ✓）', (() => {
+		let m = ''; try { buildEventForm({ doc: new JSDOM('<div></div>').window.document, row: target.raw }); } catch (e) { m = String(e.message); }
+		return m.includes('不存在');
+	})());
 
 	// ── `--selftest`：假包 ＋ 假 document ⇒ 同一判定 ✓
 	const selftest = () => {

@@ -70,8 +70,10 @@ export const editEvent = ({ pkg, id, fields = {} } = {}) => {
 		if (Array.isArray(cur) && !Array.isArray(next)) throw new Error(`字段类型不合 ✗：\`${f}\` 本来是 list，新值不是数组 ✓`);
 		if (typeof cur === 'number' && !(typeof next === 'number' && Number.isFinite(next))) throw new Error(`字段类型不合 ✗：\`${f}\` 本来是 number ✓`);
 		if (typeof cur === 'string' && typeof next !== 'string') throw new Error(`字段类型不合 ✗：\`${f}\` 本来是 text ✓`);
-		if (JSON.stringify(cur) === JSON.stringify(next)) throw new Error(`没改到东西 ✗：\`${id}.${f}\` 本来就是 ${JSON.stringify(next)}（空编辑不许当"改过了" ✗）`);
 	}
+	// ⚠️ 空编辑守卫在**整事件**这一层 ✓（不在逐字段 ⚠️）：真表单会提交**全部**字段 ✓（多数未变 ✓），
+	//   逐字段抛会把"只改了两处"误判成错 ✗（实测：表单提交 ⇒ `…id 本来就是 …` ✗）。
+	if (names.every((f) => JSON.stringify(row[f]) === JSON.stringify(fields[f]))) throw new Error(`没改到东西 ✗：\`${id}\` 一个字段都没变（空编辑不许当"改过了" ✗）`);
 	const rows = rules.rows.map((r) => (i >= 0 && r === rules.rows[i] ? { ...r, ...fields } : r));
 	return { ...pkg.data, [RULES]: { ...rules, rows } };
 };

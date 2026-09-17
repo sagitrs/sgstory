@@ -6,6 +6,7 @@
 //   P1 每个故事的产物存在，且其字体前缀是**两层相对路径**（`../../fonts/`）
 //   P2 故事产物引用的字体文件**真的在** `dist/fonts/` 里（防"前缀改了、文件没搬"）
 //   P3 过渡期根页 `dist/index.html` 用根路径前缀（`fonts/`）且与默认故事页只差前缀
+import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处 ✓
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT, DIST_DIR,  DEFAULT_SLUG, storySlugs, storyHtml, shelfHtml, defaultStoryHtml, FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY, STORY_PAGE_MAX_BYTES, SHELF_PAGE_MAX_BYTES } from '../scripts/dist-paths.mjs';
@@ -153,7 +154,7 @@ if (process.argv.includes('--selftest')) {
 		const { w, uncaught, close } = await boot({ story: slug });
 		try {
 			const era = w.SugarCube?.State?.variables?.era;
-			const text = w.document.querySelector('#passages .passage')?.textContent ?? '';
+			const text = renderedElsOf(w)[0]?.textContent ?? '';
 			const errs = [...uncaught];
 			console.log(`  ${judgeBoot({ slug, era, text, errors: errs }).length ? '✗' : '✓'} 故事「${slug}」启动：\`$era\`=${String(era)} · 起始段 ${text.trim().length} 字${errs.length ? ` · 报错 ${errs.length} 条` : ''}`);
 			problems.push(...judgeBoot({ slug, era, text, errors: errs }));

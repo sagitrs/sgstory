@@ -13,6 +13,7 @@
 //   · `walker.mjs` 的对抗式游走（元素级点击 + `checkErrors()` + 种子流 + 选项卡也在候选里）语义特殊，
 //     点击壳保留它自己的检查逻辑——强行统一会改动「游走器看得到哪些链接」，那是覆盖率的自变量。
 
+import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处 ✓
 import { boot, CLICKABLE, CLICKABLE_SEL } from './boot.mjs';
 
 export { CLICKABLE, LINKS, LINKS_SEL, CLICKABLE_SEL, trailingAfterLast } from './boot.mjs';
@@ -33,7 +34,7 @@ export function makeSession(w, { settle = async () => {}, sleep = defaultSleep, 
 	});
 	const links = () => {
 		if (scope === 'any') return [...w.document.querySelectorAll(CLICKABLE)];
-		const cur = [...w.document.querySelectorAll('#passages .passage')].find((e) => e.dataset.passage === w.SugarCube.State.passage);
+		const cur = [...renderedElsOf(w)].find((e) => e.dataset.passage === w.SugarCube.State.passage);
 		return cur ? [...cur.querySelectorAll(CLICKABLE_SEL)] : [...w.document.querySelectorAll(CLICKABLE)];
 	};
 	// 精确优先，子串兜底（避免「塔」被「守塔的人家」抢先命中；兜底供动态文案用）

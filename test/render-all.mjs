@@ -3,6 +3,7 @@
 //   · 渲染确实发生（State.passage 变化——防 no-op 假绿，Engine.show 曾无声失败）
 //   · 无 uncaught 异常 · 无 .error 渲染元素 · 输出非空
 // 渲染期自动跳转（检定失败→死亡等）记为 forward 信息不算失败，但错误/空输出仍算。
+import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处 ✓
 import { boot, CLICKABLE_SEL, trailingAfterLast } from './boot.mjs';
 import { readFileSync } from 'node:fs';
 const exitsWhitelist = JSON.parse(readFileSync(new URL('./exits-whitelist.json', import.meta.url), 'utf-8'));
@@ -75,7 +76,7 @@ for (const p of content) {
 		// 不许压着成块正文（≥30 字，含收起 details——按最坏展开态算）；结局页 UI 脚注走白名单。
 		// 状态依赖的布局问题由 walker 的同款不变量兜底（夜间 soak 走真实旗标状态；PR 门只跑确定性双支清扫）。
 		{
-			const box = [...w.document.querySelectorAll('#passages .passage')].filter((e) => e.dataset.passage === p.name).pop();
+			const box = [...renderedElsOf(w)].filter((e) => e.dataset.passage === p.name).pop();
 			if (box && shown === p.name) {
 				const cs = [...box.querySelectorAll(CLICKABLE_SEL)];
 				const wl = (kind) => exitsWhitelist.some((e) => e.applyTo === kind && new RegExp(e.passage).test(p.name));
@@ -115,7 +116,7 @@ for (const p of content) {
 		}
 		// #359：跨时代证物——风化书只能在**现在**的天文台取得（过去侧现取＝绕过「带书免检」）
 		if (p.name === '天文台' && era) {
-			const cur = [...w.document.querySelectorAll('#passages .passage')].filter((e) => e.dataset.passage === p.name).pop();
+			const cur = [...renderedElsOf(w)].filter((e) => e.dataset.passage === p.name).pop();
 			const labels = [...(cur?.querySelectorAll('a.link-internal, button.link-internal') ?? [])].map((a) => a.textContent.trim());
 			const has = labels.some((x) => x.includes('在书架上找到一册'));
 			if (era === 'present' && !has) problems.push('#359：现在侧的天文台必须给取书入口');

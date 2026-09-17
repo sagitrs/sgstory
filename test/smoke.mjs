@@ -1,4 +1,5 @@
 // 无头冒烟测试（jsdom，M1a-2 换骨后）：启动 → 快速车卡 → 酒馆 → 森林边缘 → 洞穴 + 侧栏/存档/物品栏
+import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处 ✓
 import { boot } from './boot.mjs';
 import { makeSession } from './harness.mjs';   // #317①：公共 harness（不再自建 links/click/pc）
 
@@ -25,7 +26,7 @@ if (process.env.SG_RAF_DELAY_MS) {
 const { links, clickByLabel: click, pc } = makeSession(w, { settle, sleep, scope: 'any', wait: 350, waitRaf: true });
 
 // ── 开场 ──
-let p = w.document.querySelector('#passages .passage');
+let p = renderedElsOf(w)[0];
 assert(p?.textContent.includes('林子边缘的雾'), '开场段落渲染');
 await click('踏上旅途');
 
@@ -39,7 +40,7 @@ await click('快速成型'); // 第一张卡：铁卫
 
 // ── 角色卡 ──
 assert(w.SugarCube.State.passage === '角色卡', '快速预设后直达角色卡');
-const sheet = w.document.querySelector('#passages .passage').textContent;
+const sheet = renderedElsOf(w)[0].textContent;
 assert(sheet.includes('力量') && sheet.includes('17'), '角色卡显示属性表（力 17）');
 assert(sheet.includes('铁卫'), '角色卡显示职业');
 assert(sheet.includes('无名旅人'), '角色卡显示默认名');
@@ -53,7 +54,7 @@ assert(pc().gear.includes('长剑'), '预设行囊生效（长剑）');
 await click('出发，前往歪脖子鸭酒馆');
 
 // ── 酒馆 ──
-p = w.document.querySelector('#passages .passage');
+p = renderedElsOf(w)[0];
 assert(p.textContent.includes('歪脖子鸭'), '进入酒馆');
 assert(p.textContent.includes('10 枚金币'), '金币插值');
 // M9：打听是动作——检定不再自动发生，先问，才掷骰

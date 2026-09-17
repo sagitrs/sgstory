@@ -13,6 +13,7 @@
 // 接入 npm test 的时机＝#300 修复合入的 PR（届时本门由「证据」转「硬红」）。
 // 站点清单由 test/saveload-inventory.mjs（静态门）保证不漏登记。
 
+import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处 ✓
 import { readFileSync } from 'node:fs';
 import { boot, CLICKABLE_SEL } from './boot.mjs';
 import { newGame as openGame } from './harness.mjs';   // #317①：公共 harness（不再自建 newGame/click）
@@ -157,7 +158,7 @@ for (const site of MANIFEST.sites) {
 	let pick = 0;
 	const { w, settle } = await boot({ random: () => (pick++ % 2 ? 0.01 : 0.99) });
 	const find = (label) => {
-		const cur = [...w.document.querySelectorAll('#passages .passage')].find((e) => e.dataset.passage === w.SugarCube.State.passage);
+		const cur = [...renderedElsOf(w)].find((e) => e.dataset.passage === w.SugarCube.State.passage);
 		const pool = cur ? [cur] : [...w.document.querySelectorAll('#passages')];
 		const links = pool.flatMap((el) => [...el.querySelectorAll(CLICKABLE_SEL)]);
 		return links.find((x) => x.textContent === label) ?? links.find((x) => x.textContent.includes(label));

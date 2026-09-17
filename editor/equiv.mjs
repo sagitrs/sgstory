@@ -18,6 +18,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 // `#794` 第 3 步 ②：跑子进程是**宿主能力** ⇒ 经 `lib/host/proc.mjs`（core 不得 import 这一层 ✓；K6 判据③在盯 ✓）。
 import { runNode } from './lib/host/proc.mjs';
+import { engineScripts } from './lib/host/fs.mjs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
@@ -25,7 +26,7 @@ import { maskComments } from '../scripts/audit/lib/mask.mjs';
 // `#794` 抽取：纯文本助手归 **core**（浏览器安全），引擎常量前缀归 **host**。
 // 为什么必须搬：原先 `equiv` 与 `extract-story` **互相 import**（环 ✗）⇒ 搬完依赖只剩一个方向 `host → core`。
 import { section, scriptBodies, normalize } from './lib/core/text.mjs';
-import { engineScripts } from './lib/host/fs.mjs';
+import { hatchFiles } from './lib/host/hatches.mjs';
 // 转出（老调用方不变 ✓）：自证与其它工具仍从 `editor/equiv.mjs` 取这几个名字。
 export { section, scriptBodies, normalize };
 
@@ -201,11 +202,9 @@ const main = () => {
 	const gen0 = readFileSync(join(genDir, rulesMode ? '17-rules.twee' : '15-tables.twee'), 'utf8');
 	// **产物侧 ＝ 生成物 ＋ 登记过的手写逃生舱文件**（`#787` 翻面形状）：非 A 桶成员装不进生成物 ⇒ 它们住手写件，
 	// 而行为门要比的是**整份契约**；手写侧（冻结基线）本来就含它们 ⇒ 只比生成物会得到"少了成员"的**假差** ✗。
-	// 单一真源＝`editor/escape-hatch.json` 的 `hatchFiles`（这里只读它，不另立清单）。
-	const hatchFiles = (() => {
-		try { return JSON.parse(readFileSync(join(ROOT, 'editor', 'escape-hatch.json'), 'utf8')).hatchFiles ?? []; } catch { return []; }
-	})().filter((f) => f.includes(`stories/${slug}/`)).map((f) => join(ROOT, f));
-	const gen = [gen0, ...hatchFiles.map((f) => readFileSync(f, 'utf8'))].join('\n');
+	// 单一真源＝`editor/escape-hatch.json` 的 `hatchFiles` ✓ —— 读它**共用** `lib/host/hatches.mjs` 的实现 ✓
+	//（本文件原来有一份**内联复制** ✗，已收掉 ✓ —— 避免两个消费者各写一份 ✓）。
+	const gen = [gen0, ...hatchFiles(slug).map((f) => readFileSync(f, 'utf8'))].join('\n');
 
 	const results = [[idemOk, `幂等：连编译两次产物逐字节相同（${names.length} 份：${names.join('、')}）`]];
 	const l3Line = (nh, ng, what) => {

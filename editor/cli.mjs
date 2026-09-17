@@ -10,7 +10,9 @@ import { exitWithRc } from './lib/host/proc.mjs';
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 
 /** 子命令表（一处定义 ✓；每条命令的函数体在 `lib/host/commands.mjs` ✓）。 */
-const COMMANDS = {
+// `#794`／`#845`：**导出注册表本体** ✓ —— 供 CLI 面等价条目**派生**（每加一条命令自动多一组对照 ✓；
+// 手列的话，加第四条时又得有人记得改测试 ✗）。导出**不破坏「一处定义」** ✓（`COMMANDS` 仍只在这里定义一次 ✓ ⇒ K6 ① 不受影响 ✓）。
+export const COMMANDS = {
 	build: (argv, ctx) => buildCommand(argv, ctx),
 	'extract-story': (argv, ctx) => extractCommand(argv, ctx),
 	'classify-contract': (argv, ctx) => classifyCommand(argv, ctx),

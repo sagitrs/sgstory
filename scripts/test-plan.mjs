@@ -23,6 +23,8 @@ export const SEGMENTS = [
 	{ id: "test-integrity-mjs", phase: 'test', cost: 0, cmd: "node test/integrity.mjs" },
 	// `#794` P1①：「故事包 I/O ＝ 唯一写路」的自证（核心在 `editor/lib/core/story.mjs` ✓；含**写侧哨兵**：拒绝型 io ⇒ 写入当场失败 ✓）。
 	{ id: "test-core-story-mjs", phase: 'test', cost: 0, cmd: "node test/core-story.mjs" },
+	// `#794`：**import 副作用门** —— 任何 `editor/**` 模块被 import ⇒ 跑完且只留哨兵 ✓（`exit(0)` 与 import 期输出都必红 ✓）。
+	{ id: "test-import-side-effects-mjs", phase: 'test', cost: 0.6, cmd: "node test/import-side-effects.mjs" },
 	{ id: "scripts-audit-mjs-truth-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --truth --check" },
 	{ id: "scripts-audit-mjs-canon-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --canon --check" },
 	{ id: "scripts-audit-mjs-echoes-check", phase: 'test', cost: 0.1, cmd: "node scripts/audit.mjs --echoes --check" },

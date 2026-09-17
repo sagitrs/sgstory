@@ -437,10 +437,14 @@ export const lintCommand = async (argv = [], { prog = 'node editor/cli.mjs', sub
  *   ③ `process.argv` ⇒ **形参 `argv`** ✓（整体替换，不混用 `argv[2]` 那种写法 —— 实测混用会把 slug 取成 `--hand=` 的值 ✗）。
  */
 export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' } = {}) => {
-	// ⚠️ **本命令不收参数**（门判整个仓 ✓）—— 多余参数按**旧版行为原样忽略** ✓（本票是**纯搬运** ✗ ⇒ 不改行为 ✓）。
-	//   "旧版静默忽略一个没用的参数"确实该改成点名叫停 ✗ ⇒ 但那**另开一小刀** ✓（`#794` 后续票 ✓）：
-	//   它的影响面是"**只影响手工调用**" ✓（仓内 `test-plan` 两条都裸调 ✓、翻面手册也裸调 ✓ ⇒ `npm test` 看不见那处变化 ✗），
-	//   所以它必须**自己露面**（票面点名影响 ＋ 按 `#493` 走归因 ✓），不能混进纯搬运 ✗。
+	// ⚠️ **本命令不收参数**（门判整个仓 ✓）⇒ 多给了就点名叫停 ✗ —— **不许静默忽略** ✓。
+	//   旧行为是"静默忽略多余参数"（`node editor/k4.mjs minimal-demo` ⇒ 照样跑整门、rc=0 ✗）
+	//   ⇒ 那是"传了却没生效"的典型：调用方以为在限定范围、实际判了全部 ✓。
+	//   ⚠️ **它属行为变化**（不是纯搬运 ✓ ⇒ 单独一刀 ✓）：影响面＝**只影响手工调用** ✓
+	//   （仓内 `scripts/test-plan.mjs` 两条都裸调 ✓、`docs/editor-flip-playbook.md` 也裸调 ✓）
+	//   ⇒ **`npm test` 原本看不见它** ✗ ⇒ 本票自带 `test/k4-args.mjs`（让这次变化**自己露面** ✓）。
+	//   拒绝落在**共享命令体**里 ⇒ 两条入口行为一致 ✓（`--selfcheck` 属**壳侧**旗标 ⇒ 那条既有不对称不涉 ✓）。
+	if (argv.length) { console.error(usageOf(prog, sub, '（无参数）')); return 2; }
 	let bad = 0;
 	const ok = (label, cond, extra = '') => {
 		if (cond) console.log(`  ✓ ${label}`);

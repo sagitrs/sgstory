@@ -17,6 +17,10 @@ import { readText, writeText, mkdirp, exists } from './lib/host/fs.mjs';
 import { writeStoryPackage } from './lib/core/story.mjs';
 // `#794`：命令体（解析 → 编译 → 写产物 → 打印）已抽到 host，两条入口共用同一具身体 ✓。
 import { buildCommand } from './lib/host/commands.mjs';
+// `#794`：**一处定义** —— 探针调用器归 `lib/core/probe.mjs`；本自证按「散列实参」写法，
+// 故用**一行适配器**接上：它不定义能力、只委托（同名再定义才会被 K6 1b 点名）。
+import { call as probeCallCore } from './lib/core/probe.mjs';
+const probeCall = (fn, ...args) => probeCallCore(fn, args);
 const NODE_IO = { readText, writeText, mkdirp, exists };
 import { join, dirname, resolve } from 'node:path';
 import vm from 'node:vm';
@@ -47,48 +51,47 @@ const selftest = () => {
 		vm.runInContext(`window.Sg ??= {};\n${src}\n${pre}`, sandbox);
 		return sandbox.window.Sg.story;
 	};
-	const call = (fn, ...args) => { try { return { ok: JSON.stringify(fn(...args)) }; } catch (e) { return { threw: String(e?.message ?? e) }; } };
 
 	// ── `lookup`：命中回值 / 缺键回默认 / `required` 缺键**必抛** ──
 	const game = { Checks: { sites: { 门厅: { dc: 10 } } } };
 	const L = build([{ name: 'checkSite', kind: 'lookup', from: 'Game.Checks.sites', key: 'name', default: null }], { game });
-	t('lookup：键在 ⇒ 回值', call(L.checkSite, '门厅').ok === '{"dc":10}', JSON.stringify(call(L.checkSite, '门厅')));
-	t('lookup：键不在 ⇒ 回 default', call(L.checkSite, '无').ok === 'null', JSON.stringify(call(L.checkSite, '无')));
+	t('lookup：键在 ⇒ 回值', probeCall(L.checkSite, '门厅').ok === '{"dc":10}', JSON.stringify(probeCall(L.checkSite, '门厅')));
+	t('lookup：键不在 ⇒ 回 default', probeCall(L.checkSite, '无').ok === 'null', JSON.stringify(probeCall(L.checkSite, '无')));
 	const R = build([{ name: 'checkSite', kind: 'lookup', from: 'Game.Checks.sites', key: 'name', required: true, error: 'Sg.story.checkSite：位点「{key}」未登记（结构缺失必须报错，#441-E）' }], { game });
-	t('lookup＋required：键在 ⇒ 回值', call(R.checkSite, '门厅').ok === '{"dc":10}', JSON.stringify(call(R.checkSite, '门厅')));
-	t('lookup＋required：键不在 ⇒ **抛错**且报文含键名', (call(R.checkSite, '无').threw ?? '').includes('「无」'), JSON.stringify(call(R.checkSite, '无')));
+	t('lookup＋required：键在 ⇒ 回值', probeCall(R.checkSite, '门厅').ok === '{"dc":10}', JSON.stringify(probeCall(R.checkSite, '门厅')));
+	t('lookup＋required：键不在 ⇒ **抛错**且报文含键名', (probeCall(R.checkSite, '无').threw ?? '').includes('「无」'), JSON.stringify(probeCall(R.checkSite, '无')));
 	t('lookup：`Sg.` 根原样保留 ＋ 接缝路径可取到', (() => {
 		const S = build([{ name: 'pool', kind: 'lookup', from: 'Sg.story.mechanics()?.pools', key: 'id', default: [] }], { pre: 'window.Sg.story.mechanics = () => ({ pools: { w1: ["a"] } });' });
-		return call(S.pool, 'w1').ok === '["a"]' && call(S.pool, '无').ok === '[]';
+		return probeCall(S.pool, 'w1').ok === '["a"]' && probeCall(S.pool, '无').ok === '[]';
 	})());
 
 	// ── `lookup-field`：有面有字段 ⇒ 取字段；缺面/缺字段 ⇒ 兜底 ──
 	const A = build([{ name: 'actionLabel', kind: 'lookup-field', from: 'Sg.story.mechanics()?.actions', key: 'id', field: 'label', fallback: { kind: 'string-identity' } }], { pre: 'window.Sg.story.mechanics = () => ({ actions: { 挥剑: { label: "劈过去", dmg: "1d6" } } });' });
-	t('lookup-field：有面有字段 ⇒ 取字段', call(A.actionLabel, '挥剑').ok === '"劈过去"', JSON.stringify(call(A.actionLabel, '挥剑')));
-	t('lookup-field：有面但缺字段 ⇒ 兜底', call(A.actionLabel, '别动').ok === '"别动"', JSON.stringify(call(A.actionLabel, '别动')));
+	t('lookup-field：有面有字段 ⇒ 取字段', probeCall(A.actionLabel, '挥剑').ok === '"劈过去"', JSON.stringify(probeCall(A.actionLabel, '挥剑')));
+	t('lookup-field：有面但缺字段 ⇒ 兜底', probeCall(A.actionLabel, '别动').ok === '"别动"', JSON.stringify(probeCall(A.actionLabel, '别动')));
 	t('lookup-field：**接缝方法本身缺失** ⇒ 兜底（可选调用，不许 `is not a function`）', (() => {
 		const X = build([{ name: 'label', kind: 'lookup-field', from: 'Sg.story.mechanics()?.actions', key: 'id', field: 'label', fallback: { kind: 'string-identity' } }], {});
-		return call(X.label, 'z').ok === '"z"';
+		return probeCall(X.label, 'z').ok === '"z"';
 	})());
-	t('lookup-field：整块面缺 ⇒ 兜底（不许崩）', call(build([{ name: 'label', kind: 'lookup-field', from: 'Sg.story.mechanics()?.actions', key: 'id', field: 'label', fallback: { kind: 'string-identity' } }], {}).label, 'z').ok === '"z"');
+	t('lookup-field：整块面缺 ⇒ 兜底（不许崩）', probeCall(build([{ name: 'label', kind: 'lookup-field', from: 'Sg.story.mechanics()?.actions', key: 'id', field: 'label', fallback: { kind: 'string-identity' } }], {}).label, 'z').ok === '"z"');
 
 	// ── `bool-exists` ──
 	const B1 = build([{ name: 'hasChargen', kind: 'bool-exists', path: 'Game.Chargen' }], { game: { Chargen: {} } });
 	const B2 = build([{ name: 'hasChargen', kind: 'bool-exists', path: 'Game.Chargen' }], { game: {} });
-	t('bool-exists：表在 ⇒ true', call(B1.hasChargen).ok === 'true', JSON.stringify(call(B1.hasChargen)));
-	t('bool-exists：表不在 ⇒ false', call(B2.hasChargen).ok === 'false', JSON.stringify(call(B2.hasChargen)));
+	t('bool-exists：表在 ⇒ true', probeCall(B1.hasChargen).ok === 'true', JSON.stringify(probeCall(B1.hasChargen)));
+	t('bool-exists：表不在 ⇒ false', probeCall(B2.hasChargen).ok === 'false', JSON.stringify(probeCall(B2.hasChargen)));
 
 	// ── `state-ref` ──
 	const S1 = build([{ name: 'foeState', kind: 'state-ref', path: 'dragon', default: {} }]);
-	t('state-ref：有该子域 ⇒ 回它', call(S1.foeState, { dragon: { hp: 3 } }).ok === '{"hp":3}', JSON.stringify(call(S1.foeState, { dragon: { hp: 3 } })));
-	t('state-ref：没有 ⇒ 回 default（不许崩）', call(S1.foeState, {}).ok === '{}', JSON.stringify(call(S1.foeState, {})));
+	t('state-ref：有该子域 ⇒ 回它', probeCall(S1.foeState, { dragon: { hp: 3 } }).ok === '{"hp":3}', JSON.stringify(probeCall(S1.foeState, { dragon: { hp: 3 } })));
+	t('state-ref：没有 ⇒ 回 default（不许崩）', probeCall(S1.foeState, {}).ok === '{}', JSON.stringify(probeCall(S1.foeState, {})));
 
 	// ── 卫生（审查必修 2）：非法链不许进产物；模板串必须转义 ──
 	const badPath = (m) => { try { build([{ name: 'x', ...m }]); return false; } catch { return true; } };
 	t('`game-ref` ＋ `required`：取到就回值；取不到（类型不对）⇒ **抛**且报文原样', (() => {
 		const C = build([{ name: 'dragonMaxHp', kind: 'game-ref', path: 'Game?.Dragon?.hp', optional: true, required: true, type: 'number', error: 'Sg.story.dragonMaxHp：故事未提供（结构缺失必须报错）' }], { game: { Dragon: { hp: 30 } }, Sg: {} });
 		const bad = build([{ name: 'dragonMaxHp', kind: 'game-ref', path: 'Game?.Dragon?.hp', optional: true, required: true, type: 'number', error: 'Sg.story.dragonMaxHp：故事未提供（结构缺失必须报错）' }], { game: {}, Sg: {} });
-		return call(C.dragonMaxHp).ok === '30' && (call(bad.dragonMaxHp).threw ?? '').includes('结构缺失必须报错');
+		return probeCall(C.dragonMaxHp).ok === '30' && (probeCall(bad.dragonMaxHp).threw ?? '').includes('结构缺失必须报错');
 	})());
 	t('`game-ref`：`required` 与 `default` 互斥 ⇒ emit 抛错（取不到就抛，不存在默认值）', (() => {
 		try { build([{ name: 'x', kind: 'game-ref', path: 'Game.X', required: true, default: 1 }], { game: {} }); return false; }
@@ -100,7 +103,7 @@ const selftest = () => {
 	})());
 	t('`game-ref`（`required`）缺 `error` ⇒ 用**命名默认报文**（非空，不含 undefined）', (() => {
 		const C = build([{ name: 'dragonMaxHp', kind: 'game-ref', path: 'Game.Dragon.hp', required: true, type: 'number' }], { game: {} });
-		const t = call(C.dragonMaxHp).threw ?? '';
+		const t = probeCall(C.dragonMaxHp).threw ?? '';
 		return t.includes('结构缺失') && !t.includes('undefined');
 	})());
 	t('`game-ref.type` 只收封闭集（不许把任意表达式拼进产物）', (() => {
@@ -113,23 +116,23 @@ const selftest = () => {
 	t('卫生：`lookup.from` 非法 ⇒ emit 抛错', badPath({ kind: 'lookup', from: 'Game.X`);alert(1);(`', key: 'id' }));
 	t('卫生：`error` 里的反引号与 `${` 被转义（产物仍能解析，报文原样）', (() => {
 		const E = build([{ name: 'checkSite', kind: 'lookup', from: 'Game.Checks.sites', key: 'name', required: true, error: '坏 ${x} 与 ` 反引号 {key}' }], { game: {} });
-		const r = call(E.checkSite, 'k');
+		const r = probeCall(E.checkSite, 'k');
 		return (r.threw ?? '').includes('${x}') && (r.threw ?? '').includes('`') && (r.threw ?? '').includes('k');
 	})());
 	// ── v1.1 新增/硬化（`#762` 车道 A 后半）：每条都**跑起来看行为** ──
 	t('`game-ref`：**默认不守卫**（`optional` 由数据决定 —— 手写版两种都有，schema 必须都能表达）', (() => {
 		const U = build([{ name: 'econEvents', kind: 'game-ref', path: 'Game.Economy.events' }], { game: { Economy: { events: [] } } });
-		return call(U.econEvents).ok === '[]';
+		return probeCall(U.econEvents).ok === '[]';
 	})());
 	t('`game-ref`＋`optional:true`＋默认值：面在 ⇒ 回它；面缺 ⇒ 回 default（不许崩）', (() => {
 		const G = build([{ name: 'notes', kind: 'game-ref', path: 'Game.Notes.entries', default: {}, optional: true }], { game: { Notes: { entries: { a: 1 } } } });
 		const G2 = build([{ name: 'notes', kind: 'game-ref', path: 'Game.Notes.entries', default: {}, optional: true }], { game: {} });
-		return call(G.notes).ok === '{"a":1}' && call(G2.notes).ok === '{}';
+		return probeCall(G.notes).ok === '{"a":1}' && probeCall(G2.notes).ok === '{}';
 	})());
 	t('`forward`：**形参序与表函数不同**也能转发（参数顺序真的换过来了）', (() => {
 		const game = { Items: { battleDamage: (...a) => JSON.stringify(a) } };
 		const F = build([{ name: 'battleDamage', kind: 'forward', to: 'Game.Items.battleDamage', params: ['inv', 'round', 'defeats', 'poisoned'], args: ['round', 'inv', 'defeats', 'poisoned'] }], { game });
-		return call(F.battleDamage, 'INV', 3, 1, false).ok === JSON.stringify('[3,"INV",1,false]');   // `call` 会再编码一次
+		return probeCall(F.battleDamage, 'INV', 3, 1, false).ok === JSON.stringify('[3,"INV",1,false]');   // `call` 会再编码一次
 	})());
 	t('`forward`：`args` 用了 `params` 之外的标识符 ⇒ emit 抛错（不许把任意表达式转发出去）', (() => {
 		try { build([{ name: 'x', kind: 'forward', to: 'Game.Items.battleDamage', params: ['a'], args: ['a;alert(1)'] }]); return false; } catch { return true; }
@@ -139,7 +142,7 @@ const selftest = () => {
 			{ name: 'combatAction', kind: 'lookup', from: 'Game.Combat.actions', key: 'id', default: null },
 			{ name: 'actionLabel', kind: 'lookup-field', via: 'combatAction', key: 'id', field: 'label', required: true, error: 'Sg.story.actionLabel：动作「{key}」缺 label' },
 		], { game: { Combat: { actions: { 挥剑: { label: '劈过去' }, 空手: { label: '' } } } } });
-		return call(B.actionLabel, '挥剑').ok === '"劈过去"' && (call(B.actionLabel, '空手').threw ?? '').includes('空手') && (call(B.actionLabel, '无').threw ?? '').includes('无');
+		return probeCall(B.actionLabel, '挥剑').ok === '"劈过去"' && (probeCall(B.actionLabel, '空手').threw ?? '').includes('空手') && (probeCall(B.actionLabel, '无').threw ?? '').includes('无');
 	})());
 	t('`lookup-field.via`：`via` 不是标识符 ⇒ emit 抛错', (() => {
 		try { build([{ name: 'x', kind: 'lookup-field', via: 'a.b', key: 'id', field: 'label' }]); return false; } catch { return true; }
@@ -148,11 +151,11 @@ const selftest = () => {
 	const TPL = { name: 'lootText', kind: 'template', param: 'r', baseParam: 'base', prefix: '他退开的地方散着', suffix: '。', join: '，还有', trim: true, empty: '',
 		parts: [{ when: { gt: ['gold', 0] }, text: '旧币 {gold} 枚' }, { when: { truthy: 'item' }, text: '一把{item}', map: { 钥匙: '锈钥匙' } }] };
 	const T = build([TPL]);
-	t('`template`：两件都掉 ⇒ 两句都出、用 join 连', call(T.lootText, { gold: 3, item: '钥匙' }, '').ok === JSON.stringify('他退开的地方散着旧币 3 枚，还有一把锈钥匙。'));
-	t('`template`：**只掉钱**', call(T.lootText, { gold: 5, item: null }, '').ok === JSON.stringify('他退开的地方散着旧币 5 枚。'));
-	t('`template`：**只掉物**（且走 `map` 改名）', call(T.lootText, { gold: 0, item: '干粮' }, '').ok === JSON.stringify('他退开的地方散着一把干粮。'));
-	t('`template`：**都不掉 ⇒ 空串**（不拼半句）', call(T.lootText, {}, '').ok === '""');
-	t('`template`：`baseParam` 前置（base 为空值时用空串兜）', call(T.lootText, { gold: 1 }, '它倒了。').ok === JSON.stringify('它倒了。他退开的地方散着旧币 1 枚。'));
+	t('`template`：两件都掉 ⇒ 两句都出、用 join 连', probeCall(T.lootText, { gold: 3, item: '钥匙' }, '').ok === JSON.stringify('他退开的地方散着旧币 3 枚，还有一把锈钥匙。'));
+	t('`template`：**只掉钱**', probeCall(T.lootText, { gold: 5, item: null }, '').ok === JSON.stringify('他退开的地方散着旧币 5 枚。'));
+	t('`template`：**只掉物**（且走 `map` 改名）', probeCall(T.lootText, { gold: 0, item: '干粮' }, '').ok === JSON.stringify('他退开的地方散着一把干粮。'));
+	t('`template`：**都不掉 ⇒ 空串**（不拼半句）', probeCall(T.lootText, {}, '').ok === '""');
+	t('`template`：`baseParam` 前置（base 为空值时用空串兜）', probeCall(T.lootText, { gold: 1 }, '它倒了。').ok === JSON.stringify('它倒了。他退开的地方散着旧币 1 枚。'));
 	t('`template`：`when` 形状不认识 ⇒ emit 抛错（不许猜）', (() => {
 		try { build([{ name: 'x', kind: 'template', param: 'r', parts: [{ when: { weird: 1 }, text: 'a' }] }]); return false; } catch { return true; }
 	})());
@@ -161,7 +164,7 @@ const selftest = () => {
 	})());
 	t('`const` 的值是**对象字面量** ⇒ 加括号（否则 `() => {…}` 被当块体 ⇒ 产物语法错）', (() => {
 		const C = build([{ name: 'mechanics', kind: 'const', value: { pools: { w1: ['a'] }, deep: { x: { y: 1 } } } }]);
-		return call(C.mechanics).ok === '{"pools":{"w1":["a"]},"deep":{"x":{"y":1}}}';
+		return probeCall(C.mechanics).ok === '{"pools":{"w1":["a"]},"deep":{"x":{"y":1}}}';
 	})());
 	t('`fromMember` 指向**不存在的成员** ⇒ emit 抛错（不许静默 null ✗）', (() => {
 		try { emitContract({ members: [{ name: 'a', kind: 'lookup', fromMember: '不存在', path: 'x', key: 'k' }] }); return false; }
@@ -180,12 +183,12 @@ const selftest = () => {
 	t('`fromMember` ＋ `path`：从**同产物里的成员**取表（局部常量的正解）—— 行为断言', (() => {
 		const C = build([{ name: 'mechanics', kind: 'const', value: { kindLabels: { shortFight: '短战斗' } } },
 		                 { name: 'eventKindLabel', kind: 'lookup', fromMember: 'mechanics', path: 'kindLabels', key: 'k', default: null }]);
-		return call(C.eventKindLabel, 'shortFight').ok === '"短战斗"' && call(C.eventKindLabel, 'x').ok === 'null';
+		return probeCall(C.eventKindLabel, 'shortFight').ok === '"短战斗"' && probeCall(C.eventKindLabel, 'x').ok === 'null';
 	})());
 	t('`fromMember`：兜底随 kind 走 —— `lookup.default`（如 `?? 0`）与 `lookup-field.fallback` 都不能丢', (() => {
 		const C = build([{ name: 'mechanics', kind: 'const', value: { chest: { gold: { 普通: 5 } } } },
 		                 { name: 'chestGold', kind: 'lookup', fromMember: 'mechanics', path: 'chest.gold', key: 'rarity', default: 0 }]);
-		return call(C.chestGold, '普通').ok === '5' && call(C.chestGold, '无').ok === '0';
+		return probeCall(C.chestGold, '普通').ok === '5' && probeCall(C.chestGold, '无').ok === '0';
 	})());
 	t('**局部常量根**（`MECH.kindLabels`）⇒ emit 抛错（不许补成 `window.MECH` ⇒ 产物静默 undefined ✗）', (() => {
 		try { build([{ name: 'eventKindLabel', kind: 'lookup', from: 'MECH.kindLabels', key: 'k', default: null }]); return false; }

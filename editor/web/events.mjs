@@ -42,6 +42,40 @@ export const editEventField = ({ pkg, id, field, value }) => {
 	return { ...pkg.data, [RULES]: { ...rules, rows } };
 };
 
+/** 一个事件行**可改哪些字段 ＋ 各是什么类型** ✓ —— **从值导出** ✗ 不从 schema 抄 ✓
+ *  （数据面就是真源 ✓：`str ⇒ text` ✓、`int ⇒ number` ✓、`list ⇒ list` ✓；不认识的值类型 ⇒ `raw` ＋ 点名 ✓）。 */
+export const fieldKindsOf = (row) => {
+	if (!row || typeof row !== 'object') throw new Error('fieldKindsOf 要一个事件行 ✗');
+	return Object.entries(row).map(([name, v]) => ({
+		name,
+		kind: typeof v === 'string' ? 'text' : typeof v === 'number' ? 'number' : Array.isArray(v) ? 'list' : 'raw',
+	}));
+};
+
+/** **改一个事件的多个字段** ✓（原子 ✓：先全部校验 ⇒ 再一次性落盘 ✓；调用方拿到的不是"改一半" ✗）。
+ *  `fields` ＝ `{ 字段名: 新值 }` ✓。四个防卫与 `editEventField` 同族 ✓ ＋ 两条新的 ✓：
+ *  ① 新值类型要与**原值类型**相容 ✓（`list` 必须数组 ✓、`number` 必须有限数 ✓、`text` 必须字符串 ✓）；
+ *  ② **原子性** ✓：任一项不过 ⇒ **一个字段也不改** ✓（不是"改了几个再抛" ✗）。 */
+export const editEvent = ({ pkg, id, fields = {} } = {}) => {
+	const rules = pkg?.data?.[RULES];
+	if (!rules?.rows) throw new Error(`包里没有 ${RULES} 的 rows ⇒ 改不动事件 ✗（缺文件不许当空数据 ✗）`);
+	const i = rules.rows.findIndex((r) => r.id === id);
+	if (i < 0) throw new Error(`事件不存在 ✗：${id}`);
+	const row = rules.rows[i];
+	const names = Object.keys(fields);
+	if (!names.length) throw new Error('没改到东西 ✗：`fields` 是空的（空编辑不许当"改过了" ✗）');
+	for (const f of names) {                                            // ← 先全部校验 ✓（原子性的前提 ✓）
+		if (!(f in row)) throw new Error(`未知字段 ✗：\`${f}\`（不许给事件塞新键 —— 那会绕过 schema ✓）`);
+		const cur = row[f], next = fields[f];
+		if (Array.isArray(cur) && !Array.isArray(next)) throw new Error(`字段类型不合 ✗：\`${f}\` 本来是 list，新值不是数组 ✓`);
+		if (typeof cur === 'number' && !(typeof next === 'number' && Number.isFinite(next))) throw new Error(`字段类型不合 ✗：\`${f}\` 本来是 number ✓`);
+		if (typeof cur === 'string' && typeof next !== 'string') throw new Error(`字段类型不合 ✗：\`${f}\` 本来是 text ✓`);
+		if (JSON.stringify(cur) === JSON.stringify(next)) throw new Error(`没改到东西 ✗：\`${id}.${f}\` 本来就是 ${JSON.stringify(next)}（空编辑不许当"改过了" ✗）`);
+	}
+	const rows = rules.rows.map((r) => (i >= 0 && r === rules.rows[i] ? { ...r, ...fields } : r));
+	return { ...pkg.data, [RULES]: { ...rules, rows } };
+};
+
 /** 两个 `data` 之间的**精确字段差异** ✓（只报 `rules.json.rows` ✓ —— 本件只知道这一处 ✓）。
  *  返回 `[{ id, field, from, to }]` ✓ ⇒ 空数组＝**没有任何字段变** ✓（那本身就是一条读数 ✓）。 */
 export const diffFields = (before, after) => {

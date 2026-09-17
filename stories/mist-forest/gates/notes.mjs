@@ -16,31 +16,11 @@ import { readKeys, ruleRowKeys, declCondRefs } from '../../../scripts/audit/lib/
 export const flag = 'notes';
 export const flags = ['notes'];
 
-const REQUIRED = ['title', 'src', 'body', 'tags', 'era', 'flagPath'];
-// `flagPath` 可以是字符串或**字符串数组**（多源 OR，`#432-B8/B12`）
-export const flagPaths = (e) => (Array.isArray(e?.flagPath) ? e.flagPath : (e?.flagPath == null ? [] : [e?.flagPath]));
-const keyOf = (p) => String(p ?? '').split('.').pop();
-
-// ── 纯函数：形状与对齐（自证与真实运行**同一份代码**）────────────────────────
-export const auditShape = (entries, domainKeys) => {
-	const problems = [];
-	for (const [id, e] of Object.entries(entries ?? {})) {
-		for (const f of REQUIRED) {
-			const v = e?.[f];
-			const empty = v == null || (typeof v === 'string' && !v.trim()) || (Array.isArray(v) && !v.length);
-			if (empty) problems.push({ id, detail: `缺字段「${f}」` });
-		}
-		if (e?.grant != null && typeof e.grant !== 'function') problems.push({ id, detail: 'grant 必须是函数或省略（省略＝用 flagPath 求值）' });
-		for (const p of flagPaths(e)) {
-			const key = keyOf(p);
-			// 「域.键」形状：域只能是 ev / world（笔记读的是知识与世界态；持有物不进笔记——#432-B11）
-			if (!/^(ev|world)\.[a-z_]\w*$/.test(String(p ?? ''))) problems.push({ id, detail: `flagPath「${p}」不是「域.键」形状（应为 ev.<键> 或 world.<键>）` });
-			else if (!domainKeys.has(key)) problems.push({ id, detail: `flagPath 的键「${key}」未登记在状态契约域（--state）里` });
-		}
-	}
-	return problems;
-};
-
+// 形状与对齐的判定已搬到 core ✓（页面与门跑**同一份** ⇒ 一处实现 ✓）：
+//   `editor/lib/core/stateDiagnose.mjs` 的 `auditShape` ✓（`findings` 形状照 `editor/lib/core/diagnose.mjs` ✓）。
+//   ⚠️ 本文件**不再自带** `REQUIRED`／`keyOf`／`auditShape` 的定义 ✗ ⇒ 只 import ＋ 转出（老调用方不变 ✓）。
+import { auditShape, flagPaths, keyOf } from '../../../editor/lib/core/stateDiagnose.mjs';
+export { flagPaths };
 // ── 纯函数：表行读点（`#435` 前置 0）──────────────────────────────────────
 // 阶段 4 之后，**表行的 `req`/`any`/`exclude` 就是读点**（求值走 `Sg.notes`/`Sg.rules` 封装层）。
 // 不收进来 ⇒ 把条件从段落搬进表之后，那些笔记会被判「**零消费**」（假红：搬家反而把笔记判死）。
@@ -299,7 +279,8 @@ export const run = (ctx) => {
 
 	// ── 真实数据 ──
 	const bk = ctx.Game.State?.bookkeeping ?? [];
-	const shape = auditShape(entries, domainKeys);
+	// `#877`：判定件出 **findings**（同形 ✓）⇒ 这里映回本门的老形状（输出逐字节不变 ✓）
+	const shape = auditShape(entries, domainKeys).map((f) => ({ id: f.target.event, detail: f.detail }));
 	const cons = auditConsumption(entries, reads, bk, allText, new Set(declCondRefs(allText).notes));
 	const nps = notepathProblems({ entries, sources });   // `#437` C-2b′：`<<notepath>>` 的 path/多源判据
 	const swps = singleWriteProblems({ entries, sources });   // `#733` 片 2：单源不得走 notepath／addPath

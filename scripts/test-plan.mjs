@@ -132,6 +132,7 @@ export const SEGMENTS = [
 	// （清单外出现即红；登记腐烂也红 ⇒ 例外只能收缩留痕，不能随手加）
 	{ id: "editor-k4-selfcheck", phase: 'test', cost: 0, cmd: "node editor/k4.mjs --selfcheck" },
 	{ id: "editor-k4", phase: 'test', cost: 0.3, cmd: "node editor/k4.mjs" },
+	{ id: "test-state-diagnose", phase: 'test', cost: 0, cmd: "node test/state-diagnose.mjs" },
 	{ id: "test-k4-args", phase: 'test', cost: 0, cmd: "node test/k4-args.mjs" },
 	// `#762` 车道 B：**条件表往返**（61 行）。**权威判据是 L1**：两版各自求值后行数组**深度相等**
 	// ＋ **字段直方图一致**（每列出现多少次都打出来 —— `#557` 那条老账：总体非空拦不住「少抽一项」）。

@@ -13,6 +13,9 @@ import { pathToFileURL } from 'node:url';
 import { readFileSync } from 'node:fs';
 import { assertFreshDist } from '../scripts/dist-fresh.mjs';
 import { JSDOM, VirtualConsole } from 'jsdom';
+// `#761` P1 六片A：**取渲染文本只有一处** ✓ —— 本文件与页面侧同用 `lib/core/preview.mjs` ✓
+// （原来是这里内联的 `#passages .passage` 选择器 ✓ ⇒ 抽走后**不再有第二份取法** ✗）。
+import { renderedPassages, renderedTextOf } from '../editor/lib/core/preview.mjs';
 
 // `#460`：**多故事真启动门**要一故事一启 ⇒ 产物与起始段都参数化（缺省仍是默认故事，向后兼容）
 const HTML_OF = new Map();
@@ -103,8 +106,8 @@ export async function boot({ random = 0.5, start = true, story = null, entry = n
 	const settle = async (timeoutMs = 3000) => {
 		const t = Date.now();
 		for (;;) {
-			const els = w.document.querySelectorAll('#passages .passage');
-			const domSynced = els.length === 0 || [...els].some((e) => e.dataset.passage === w.SugarCube.State.passage);
+			const names = renderedPassages(w);   // ← 共享件 ✓（唯一取处 ✓）
+			const domSynced = names.length === 0 || names.includes(w.SugarCube.State.passage);
 			const idle = typeof w.SugarCube?.Engine?.isIdle !== 'function' || w.SugarCube.Engine.isIdle();
 			if (idle && domSynced) break;
 			if (Date.now() - t > timeoutMs) break;

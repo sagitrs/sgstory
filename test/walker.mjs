@@ -4,6 +4,7 @@
 // 不变量：hp/max_hp/gold/era/star.spent/keeper.state/dragon.hp/inv 闭集/$pc 形状
 // 双支清扫：逐位点直接 wikify <<sitecheck 位点>> 于 hi/lo 两档 → 每位点成败两支必达
 // 用法：node test/walker.mjs [ch1局数=4] [tower局数=4]
+import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处 ✓
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { mkHist, checkStep } from './invariants.mjs';
 // 统一进 test/boot.mjs（#27 就绪轮询 + 坑11 uncaught 监听 + 退出清理）——
@@ -102,7 +103,7 @@ async function walk(index, mode, stubMode, seed, maxSteps) {
 			// #179 出口在最后（真实状态版，与 render-all 门7 同款规则）：走真实旗标状态——
 			// 「已读折叠区装了几十条传闻」这类状态依赖的布局问题只有这里能兜住。
 			{
-				const box = [...w.document.querySelectorAll('#passages .passage')].filter((e) => e.dataset.passage === p).pop();
+				const box = [...renderedElsOf(w)].filter((e) => e.dataset.passage === p).pop();
 				if (box) {
 					const text = trailingAfterLast(w, box, cands[cands.length - 1]);
 					if (text.length >= 30) fail(`出口不在最后: 「${p}」最后可点之后压着 ${text.length} 字正文`);

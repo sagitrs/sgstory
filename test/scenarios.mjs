@@ -3,6 +3,7 @@
 // 交互覆盖落盘 build/coverage-scenarios.json（coverage.mjs 门禁用）
 //
 // JSDOM 启动 / 就绪轮询 / uncaught 监听 / 退出清理全部走 test/boot.mjs——一处修，全脚本受益。
+import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处 ✓
 import { writeFileSync, mkdirSync } from 'node:fs';
 import * as os from 'node:os';   // `#647`：失败行带 loadavg（分诊用）
 import { AsyncLocalStorage } from 'node:async_hooks';
@@ -32,7 +33,7 @@ const MILESTONE_PASSAGES = {     // 首个不可逆点（E4）：花田＝致死
 // 口径与 `pool()`（:57）和 `boot.mjs` 的 `settle()` 一致 ⇒ **语义不变、脆性消失**；
 // 仅在对齐元素缺位时兜底读容器（那一步本该被 `settle()` 挡住）。
 const alignedText = (w) => {
-	const cur = [...w.document.querySelectorAll('#passages .passage')]
+	const cur = [...renderedElsOf(w)]
 		.find((e) => e.dataset.passage === w.SugarCube.State.passage);
 	return ((cur ?? w.document.querySelector('#passages'))?.textContent ?? '');
 };
@@ -62,7 +63,7 @@ export const duplicateDice = (texts) => {
 // —— `#403` 的重复就落在后者，只看 `.check-result` 会漏）。
 // 口径与 `alignedText` 一致：**别把转场期旧段落里的块算进来**（否则会把转场期上一段的骰面误判成重复）。
 const feedbackTexts = (w) => {
-	const cur = [...w.document.querySelectorAll('#passages .passage')]
+	const cur = [...renderedElsOf(w)]
 		.find((e) => e.dataset.passage === w.SugarCube.State.passage);
 	const mine = (el) => { const p = el.closest('.passage'); return !p || p === cur; };
 	return [...w.document.querySelectorAll('#passages .check-result, #passages .scene-feedback')]
@@ -138,7 +139,7 @@ async function newGame(randomStub, preset = 0) {
 	// 只看"当前这一段"（data-passage 与 State.passage 相符的那个 .passage）：
 	// State 已经变了、旧段落元素还没被换下来时，全局查找会点到上一段的链接。
 	const pool = () => {
-		const cur = [...w.document.querySelectorAll('#passages .passage')]
+		const cur = [...renderedElsOf(w)]
 			.find((e) => e.dataset.passage === w.SugarCube.State.passage);
 		return (cur ? [cur] : [...w.document.querySelectorAll('#passages')]).flatMap((el) => [...el.querySelectorAll(CLICKABLE_SEL)]);
 	};
@@ -226,7 +227,7 @@ const linksOf = (w) => [...w.document.querySelectorAll(CLICKABLE)].map((x) => x.
 async function waitLinks(w, timeoutMs = 2000) {
 	const t0 = Date.now();
 	for (;;) {
-		const cur = [...w.document.querySelectorAll('#passages .passage')]
+		const cur = [...renderedElsOf(w)]
 			.find((e) => e.dataset.passage === w.SugarCube.State.passage);
 		const links = cur ? [...cur.querySelectorAll(CLICKABLE_SEL)] : [];
 		if (links.length || Date.now() - t0 > timeoutMs) return links;
@@ -244,7 +245,7 @@ const passageText = (w) => alignedText(w).replace(/\s+/g, ' ');
 const waitRendered = async (w, passage, tries = 25) => {
 	for (let i = 0; i < tries; i++) {
 		await new Promise((r) => setTimeout(r, 40));
-		const el = [...w.document.querySelectorAll('#passages .passage')].find((e) => e.dataset.passage === passage);
+		const el = [...renderedElsOf(w)].find((e) => e.dataset.passage === passage);
 		if (el && (el.textContent ?? '').trim()) return;
 	}
 	throw new Error(`Engine.play('${passage}') 之后该段落没渲染出来（${tries}×40ms 超时）——机器忙或段落名写错（#647）`);
@@ -1225,7 +1226,7 @@ async function routeEndingFooter() {
 	if (passageOf(w) !== '结局 平凡之路') throw new Error(`没走到章节出口（${passageOf(w)}）`);
 	const foot = w.document.querySelector('#passages .ending-foot');
 	if (!foot) throw new Error('结局页没挂收尾入口（退回上一步 / 读档 / 从头再来）');
-	if (w.document.querySelector('#passages .passage').lastElementChild !== foot) throw new Error('收尾卡没挪到段落末尾');
+	if (renderedElsOf(w)[0].lastElementChild !== foot) throw new Error('收尾卡没挪到段落末尾');
 	if (foot.querySelector('button[data-end-act="undo"]').disabled) throw new Error('刚走了几步就说不能退回上一步');
 	if (!foot.textContent.includes('还没有存档')) throw new Error('没存档时"读档"应说明还没有存档');
 	// 退回上一步 → 回酒馆；存一次档 → 再走到结局 → 读档回存档点

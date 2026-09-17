@@ -538,6 +538,13 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 };
 
 export const k6Command = (argv = [], { prog = 'node editor/k6.mjs', sub = '' } = {}) => {
+	// `#843` 复核实测 ✗：`cli.mjs k6 --selftest` 曾**静默忽略**该参数、照跑整门（rc=0）✗ ——
+	// 而 `equiv`／`k4` 都**拒绝**（rc=2 ✓）⇒ `k6` 是唯一例外 ✗。自证只在**工具路**（壳里 ✓）⇒
+	// 该旗标到达命令体＝走的 cli 路 ⇒ **拒绝 ＋ 指路** ✓（与 `equiv` 的处置同形 ✓）。
+	if (argv.includes('--selftest')) {
+		console.error('✗ `--selftest` 不是本命令的参数（自证只在工具路：`node editor/k6.mjs --selftest` ✓）');
+		return 2;
+	}
 	let bad = 0;
 	// `#794`：这两件原来是**模块级**（门与自证共用 ✓）⇒ 搬到命令体后必须自带一份 ✓
 	// （跨模块无法共用 ✓；语义逐字照抄自证那两行 ✓）。

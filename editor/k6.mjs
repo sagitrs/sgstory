@@ -23,6 +23,15 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 // ③b 需要**遮字符串**（见下）；③a 反而**不能**遮字符串 ⇒ 两个口径，别混 ✓。
 import { maskAll } from './classify-contract.mjs';
 
+// `#794` `k6` 弧：判据（＋助手/常量/`mjsFiles`）已归 `lib/host/k6criteria.mjs` ✓；命令体归 `commands.mjs` ✓。
+// ⇒ 本壳只**转出 ＋ 转发** ✓（老调用方不变 ✓）；自证与它的夹具（`let bad`／`ok`）**留在壳侧** ✓。
+import { definitionsOf, duplicateExportProblems, secondCopyProblems, coreHostProblems, primitiveWriteProblems,
+	outsideQuotes, coreHostGlobalProblems, deleteStoryProblems, shellWriteProblems,
+	stripCommentsForScan, mjsFiles } from './lib/host/k6criteria.mjs';
+export { definitionsOf, duplicateExportProblems, secondCopyProblems, coreHostProblems, primitiveWriteProblems,
+	outsideQuotes, coreHostGlobalProblems, deleteStoryProblems, shellWriteProblems };
+import { k6Command } from './lib/host/commands.mjs';
+
 const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href;
 // ⚠️ **遮蔽器选型**（一个真踩过的坑 ✓）：
 //  · **不能**用 `editor/classify-contract.mjs` 的 `maskAll` ✗ —— 它连**字符串字面量**一起遮 ⇒
@@ -32,203 +41,9 @@ const isMain = process.argv[1] && import.meta.url === pathToFileURL(process.argv
 // ⚠️ **遮蔽必须保留换行** ✓（只把**非换行**字符换成空格 ✓ —— 与 `scripts/audit/lib/mask.mjs` 同口径）：
 //   否则**行号会被吃掉** ✗（实测：块注释跨两行时，其后第 5 行的违规报成 `line=4` ✗ ——
 //   **“行号存在 ≠ 行号正确”** ✓；行注释那条恰好保留了换行 ⇒ 于是那两条 `//` 用例都准 ✗ ⇒ 用例没覆盖块注释这档 ✓）。
-const stripCommentsForScan = (src) => String(src ?? '')
-	.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
-	.replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + ' '.repeat(m.length - p1.length));
-
-const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
-const EDITOR = join(ROOT, 'editor');
-const CORE = join(EDITOR, 'lib', 'core');
-const HOSTS = [join(EDITOR, 'cli.mjs'), join(EDITOR, 'lib', 'host')];
 
 let bad = 0;
 const ok = (label, cond, extra = '') => { if (cond) console.log(`  ✓ ${label}${extra ? ' · ' + extra : ''}`); else { bad++; console.error(`  ✗ ${label}${extra ? ' · ' + extra : ''}`); } };
-
-/** 收集一个目录下的 `.mjs`（不递归进 `node_modules`）。 */
-const mjsFiles = (dir) => {
-	if (!existsSync(dir)) return [];
-	const out = [];
-	for (const name of readdirSync(dir)) {
-		const p = join(dir, name);
-		if (name === 'node_modules' || name.startsWith('.')) continue;
-		if (statSync(p).isDirectory()) out.push(...mjsFiles(p));
-		else if (name.endsWith('.mjs')) out.push(p);
-	}
-	return out;
-};
-
-/** 纯函数①：文件名 → 文本 ⇒ `{ name: [文件…] }`（**定义**处）。
- *  两种粒度分开（第一版把二者混在一起 ⇒ 报了一堆通用局部名 ✗ `main`/`selftest`/`argOf` ✗ = 假阳性）：
- *   · `exported`：**导出名**的定义处 ✓ ——“两个文件导出同名能力”就是两份内核 ✗；
- *   · `any`：**任何**定义处（含非导出）✓ —— 只用于“core 能力不许在 core 之外再出现”✗（抄的人往往不导出 ✓）。 */
-export const definitionsOf = (files) => {
-	const exported = new Map(), any = new Map();
-	const P_EXPORT = [
-		/^\s*export\s+const\s+([A-Za-z_$][\w$]*)\s*=/gm,
-		/^\s*export\s+function\s+([A-Za-z_$][\w$]*)\s*\(/gm,
-		/^\s*export\s+async\s+function\s+([A-Za-z_$][\w$]*)\s*\(/gm,
-		/^\s*export\s+(?:let|var)\s+([A-Za-z_$][\w$]*)\s*=/gm,
-	];
-	const P_ANY = [...P_EXPORT,
-		/^\s*(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:\(|function|async)/gm,
-		/^\s*function\s+([A-Za-z_$][\w$]*)\s*\(/gm,
-	];
-	const push = (map, name, path) => { if (name.length < 3) return; if (!map.has(name)) map.set(name, []); if (!map.get(name).includes(path)) map.get(name).push(path); };
-	for (const [path, text] of files) {
-		for (const re of P_EXPORT) for (const m of String(text).matchAll(re)) push(exported, m[1], path);
-		for (const re of P_ANY) for (const m of String(text).matchAll(re)) push(any, m[1], path);
-	}
-	return { exported, any };
-};
-
-/** 纯函数②：**导出名**在 ≥2 个文件被定义 ⇒ 两份内核（判据①）。 */
-export const duplicateExportProblems = ({ exported }) => {
-	const out = [];
-	for (const [name, paths] of exported) if (paths.length > 1) out.push({ name, paths });
-	return out.sort((a, b) => b.paths.length - a.paths.length || a.name.localeCompare(b.name));
-};
-
-/** 纯函数②b：`coreExports`（内核导出的能力名）若在 `allowedDir` 之外**再被定义**（含非导出副本）⇒ 问题（判据①b）。 */
-export const secondCopyProblems = ({ any }, coreExports, allowedDir) => {
-	const out = [];
-	for (const name of coreExports) {
-		const paths = (any.get(name) ?? []).filter((p) => !p.startsWith(allowedDir));
-		if (paths.length) out.push({ name, paths });
-	}
-	return out.sort((a, b) => a.name.localeCompare(b.name));
-};
-
-/** 纯函数④：**内核不许碰宿主**（`#794` 第 3 步）—— `editor/lib/core/**` 里出现 `node:*`（或裸的宿主模块名）⇒ 问题。
- *  为什么需要它：①②③管的是“有没有**第二份实现**”✗；这一条管的是“内核有没有**偷偷碰宿主**”✗ ——
- *  它是“**浏览器安全**”从**口号**变成**可机检**的那一步 ✓（否则只能靠“我记得别写”✗）。
- *  只扫 `.mjs` 的直接源码（**先遮注释** ⇒ 注释里提 `node:fs` 不算 ✗）。 */
-export const coreHostProblems = (files) => {
-	const HOST_ONLY = ['fs', 'vm', 'child_process', 'path', 'os', 'worker_threads', 'net', 'http', 'https', 'url', 'crypto', 'module', 'process'];
-	const out = [];
-	for (const [path, text] of files) {
-		const t = stripCommentsForScan(text);
-		const specs = [
-			...[...t.matchAll(/\bfrom\s+['"]([^'"]+)['"]/g)].map((m) => [m[1], m.index]),
-			...[...t.matchAll(/\bimport\s+['"]([^'"]+)['"]/g)].map((m) => [m[1], m.index]),
-			// **动态形也要挡** ✗（**函数级实测**才会发现它 ✓ —— 只读代码看不出来 ✓）：`import(` 与 `import (` **都要** —— `\s*\(` 允许中间空白 ✓
-			//（我第一版只写紧接括号 ⇒ 带空格的写法会被漏 ✗，后续修复修正了这点 ✓）。
-			...[...t.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]/g)].map((m) => [m[1], m.index]),
-			...[...t.matchAll(/\brequire\(\s*['"]([^'"]+)['"]/g)].map((m) => [m[1], m.index]),
-		];
-		for (const [s, at] of specs) {
-			const bare = String(s).replace(/^node:/, '');
-			// **豁免面写死** ✓：只被主流程对 `lib/core` 调用 ✓（`lib/host/**` 本来就该碰 fs/vm/child_process ✓）；
-			// 也**不得**把扫描面放宽到 `editor/lib/**` ✗（会误报 `lib/host/literals.mjs` 的 `node:vm` ✓——那是合法的 ✓）。
-			if (String(s).startsWith('node:') || HOST_ONLY.includes(bare)) out.push({ path, token: s, line: t.slice(0, at).split('\n').length });
-		}
-	}
-	return out;
-};
-
-/** L1（`#794`）：**原语写只许出现在 `lib/host/**`** ✓ —— 代替旧口径（"同文件内写调用 ＋ 字面 `stories/`"）。
- *  为什么换：旧口径的**声称**（"壳里不许写故事文件"）**大于它的覆盖** ✗ —— 实测三形：
- *   字面路径＋写＝命中 ✓／**运行期拼路径＋写＝漏** ✗／**host helper 写＋运行期路径＝漏** ✗。
- *  新口径直接**不依赖路径长什么样** ✓：只要在 `lib/host/**` 之外出现原语写 ⇒ 红 ✓（覆盖与声称对齐 ✓）。
- *  与 L2 的分工：L1 ＝**原语级**（谁调了 fs 写 ✓，本函数）；L2 ＝**语义级**（写故事包只许经 `writeStoryPackage` ✓，由 core 的测试用**记录型 io** 验 ✓）。 */
-export const primitiveWriteProblems = (files, hostDir = 'editor/lib/host') => {
-	const out = [];
-	for (const [path, text] of files) {
-		if (String(path).startsWith(hostDir)) continue;          // 宿主层：本来就该写 ✓
-		// ⚠️ **必须遮字符串** ✗：观测对象是"**代码里的调用**" ✓，而字符串里写 `writeFileSync(...)` 只是**片段**
-		//（例如本门自己的自证用例 ✓）⇒ 不遮就会**自咬** ✓（今天实测侥幸没咬——取决于用例字符串当时怎么写 ✓
-		// ⇒ 把"侥幸"换成"口径" ✓）。与 ③b 同一条规则：**遮蔽口径与观测对象匹配** ✓。
-		const t = maskAll(text);
-		for (const m of t.matchAll(/\b(writeFileSync|writeFile|appendFileSync|appendFile|createWriteStream|writevSync)\s*\(/g)) {
-			out.push({ path, token: m[1], line: t.slice(0, m.index).split('\n').length });
-		}
-	}
-	return out;
-};
-
-/** ③b（`#794`）：**内核不许碰宿主全局**（浏览器侧那一半 ✓）—— 与 ③a 对称：
- *   ③a 挡 **Node 侧 import**（`node:*`／裸宿主模块 ✓）；③b 挡 **宿主全局**（**两宿主各自特有**的那些 ✓）。
- *  为什么两边都要：core 的约束是"**两宿主都能跑**" ✗ ⇒ 只挡 Node 侧只挡了一半 ✗（与"只挡静态 import"同族 ✓）。
- *  ⚠️ **不进表**的东西（进了就会误报一片 ⇒ 门会被关掉 ✗）：`JSON`/`Math`/`Promise`/`Object`/`Array` 等**通用**全局 ✓；
- *   还有 **`console`** ✗ —— 它两宿主都有、core 里**可用** ✓；"core 不该拿它当输出通道"是**另一条判据**
- *   （"诊断是数据" ✓）⇒ **别把两个问题绑在一起** ✗。
- *  ⚠️ **必须同时覆盖 `globalThis.<名>`** ✗（只匹配裸标识符会漏它 ✓ —— 与 `#806` 漏动态 import 同族 ✓；
- *   反过来，**属性访问** `io.fetch` ✗ 不该报 ⇒ 裸名那条加负向后顾 ✓）。
- *  报文要**告诉人怎么办** ✓：该能力应由**宿主注入** ✓（`fetch` 尤其典型：WebUI 天然有 ✓、CLI 经 `node:fs` ✓
- *   ⇒ 同一条缝两实现 ✓，如 `evalLiteral` ✓）。 */
-/** 命中是否落在**该行引号之外** ✓ —— 依据是**语义**：**"伸手"不可能发生在字符串里** ✗
- *  （在字符串里写 `window.` 只是**数据**；只有裸写才是**真的去取** ✓）。
- *  为什么不用现成遮蔽器：实测 `maskAll` 在 `emit.mjs`（大量模板串/转义 ✓）上**失准** ✗ ⇒ 残留 5 处假报 ✓；
- *  行内判定的失效模式是"漏报字符串里的假用法" ✓ —— 而那本来就不是用法 ✓ ⇒ 方向安全 ✓。 */
-export const outsideQuotes = (line, col) => {
-	let q = null;
-	for (let i = 0; i < col; i++) {
-		const c = line[i];
-		if (q) { if (c === '\\') i++; else if (c === q) q = null; continue; }
-		if (c === "'" || c === '"' || c === '`') q = c;
-	}
-	return q === null;
-};
-
-export const coreHostGlobalProblems = (files) => {
-	const GLOBALS = ['document', 'window', 'fetch', 'XMLHttpRequest', 'localStorage', 'sessionStorage', 'process', 'Buffer', '__dirname', 'require', 'navigator', 'location', 'alert'];
-	// ⚠️ 只看**用法**（`名(` 调用 ／ `名.` 属性访问 ✓），不看"出现" ✗ —— 因为 core 会**合法地提及**它们：
-	// `classify.mjs` 在字符串与**正则字面量**里提 `window.Sg.story`（它扫源码文本是本职 ✓）。
-	// 实测：只看"出现" ⇒ 35 处误报 ✗；遮字符串后仍 19 处 ✗（`maskAll` 不遮正则 ✗）⇒ 改成看用法的这一刻归零 ✓。
-	const re = new RegExp(String.raw`(?<![.\w$])(?:${GLOBALS.join('|')})\s*[.(]|globalThis\.(?:${GLOBALS.join('|')})\b`, 'g');
-	const out = [];
-	for (const [path, text] of files) {
-		// ⚠️ 遮蔽口径**与 ③a 相反** ✓：③a 看**说明符**（在字符串里 ✓）⇒ **不能**遮字符串；
-		// ③b 看**标识符用法** ⇒ **必须**遮字符串／正则 ✓ —— 否则 `classify.mjs` 在字符串里提 `window.Sg.story`
-		// （它扫源码文本是本职 ✓）会被误报 ✗（实测：35 处全是它 ✓）。⇒ **遮蔽口径必须与判据的观测对象匹配** ✓。
-		const t = maskAll(text);
-		for (const m of t.matchAll(re)) {
-			const line = t.slice(0, m.index).split('\n').length;
-			// ⚠️ 引号判定要跑在**原始行**上 ✓ —— 遮蔽文本里引号已被换成空格 ✗（我第一版就栽在这 ✓）；
-			//    索引可以照用遮蔽文本的 ✓，因为 `maskAll` **保长** ✓（这正是它保长的用处之一 ✓）。
-			const lineText = String(text).split('\n')[line - 1] ?? '';
-			const col = m.index - (t.slice(0, m.index).lastIndexOf('\n') + 1);
-			if (!outsideQuotes(lineText, col)) continue;          // 字符串里的提及不是用法 ✓
-			out.push({ path, token: m[0], line });
-		}
-	}
-	return out;
-};
-
-/** L1′（`#794`）：**删除原语只许删非故事面** —— 与 L1 **分开的一条判据** ✗（不并进 L1）。
- *  为什么不并：L1 的理由是"**故事文件的写**只有一条路" ✓ ⇒ 把删除也做成**路径无关** ✗ 会连
- *  `rmSync(tmpdir())`／`rmSync(build/generated)` 一起咬 ✗ ⇒ 那是**把判据外推到它理由之外** ✗
- *  （＝今天那条规则的第②面：**声称 vs 覆盖** ✓）。
- *  ⇒ L1′ 的判据：**删除原语的参数里出现 `stories/` 才算** ✓（其理由正是"别从壳里删故事文件" ✓）。
- *  ⚠️ **显式边界** ✓：**运行期拼路径的删除不在覆盖内** ✗（`const p = join('stories', …); rmSync(p)` ⇒ 本判据**看不见** ✓）
- *  —— 别假装覆盖 ✓（与本门"引号未闭合 ⇒ 明记边界"同形 ✓）；要收它得做数据流分析（成本高、收益低 ✗）。 */
-export const deleteStoryProblems = (files) => {
-	const out = [];
-	for (const [path, text] of files) {
-		// ⚠️ 遮蔽口径**与 L1 相反** ✓（今天第三个口径 ✓）：L1′ 的观测对象是"**调用参数里的字符串**" ✓
-		// ⇒ **不能**遮字符串 ✗；但又要防"字符串里的**提及**" ✗ ⇒ 用 `outsideQuotes` 判"**调用本身**是否在引号外" ✓
-		// （与 ③b 同一把工具、同样跑在**原始行**上 ✓ —— 因为索引可跨用：遮蔽器**保长** ✓）。
-		// ⇒ 三个口径并排：L1 遮字符串（看代码调用）· L1′ 不遮字符串但查调用位置（看参数）· ③a 不遮（看说明符）✓。
-		const t = stripCommentsForScan(text);
-		for (const m of t.matchAll(/\b(rmSync|unlinkSync|rmdirSync|unlink|rmdir|rm)\s*\(([^)\n]*)/g)) {
-			if (!/stories\//.test(m[2])) continue;
-			const line = t.slice(0, m.index).split('\n').length;
-			const lineText = String(text).split('\n')[line - 1] ?? '';
-			const col = m.index - (t.slice(0, m.index).lastIndexOf('\n') + 1);
-			if (!outsideQuotes(lineText, col)) continue;          // 字符串里的**提及**不是调用 ✓
-			out.push({ path, token: m[1], line });
-		}
-	}
-	return out;
-};
-
-/** 纯函数③：壳文件里对 `stories/**` 的写入 ⇒ 问题（单一写路 ✓）。 */
-export const shellWriteProblems = (files) => {
-	const out = [];
-	for (const [path, text] of files) {
-		if (/writeFileSync|writeFile\(|createWriteStream/.test(text) && /stories\//.test(text)) out.push({ path });
-	}
-	return out;
-};
 
 if (isMain && process.argv.includes('--selftest')) {
 	const cases = [
@@ -283,49 +98,4 @@ if (isMain && process.argv.includes('--selftest')) {
 
 /** 主跑：**只在被直接执行时**跑 ✓ —— 被 `import` 时不许跑门、更不许 `process.exit` ✗
  *  （否则下游"去喂函数"式探针会被劫持 ✓ —— 本门之前正缺这一层 ✓）。 */
-const main = () => {
-	console.log('══ K6 门（`#794` 单一内核）—— 能力只许一处定义 · 壳里不许有内核逻辑 · 单一写路 ══');
-
-	const files = mjsFiles(EDITOR).map((p) => [p.slice(ROOT.length + 1), readFileSync(p, 'utf8')]);
-	ok('取到 `editor/**` 的模块', files.length > 0, `${files.length} 个`);
-
-	const defs = definitionsOf(files);
-	const dups = duplicateExportProblems(defs);
-	if (dups.length) for (const d of dups.slice(0, 8)) console.error(`  ✗ 导出能力「${d.name}」被**多处定义**（两份内核 ✗）：${d.paths.join(' · ')}`);
-	ok('① 导出能力只许一处定义', dups.length === 0, `重复 ${dups.length} 项`);
-
-	const coreStarted = existsSync(CORE);
-	// ③ **内核不许碰宿主**（`#794` 第 3 步）：`lib/core/**` 里出现 `node:*`／裸宿主模块名 ⇒ 红 ✓
-	//（“浏览器安全”只有机检得住 ✓；今天 `core` 是干净的 ⇒ 它是**纯红**判据、不需登记表 ✓）。
-	if (coreStarted) {
-		const coreOnly = mjsFiles(CORE).map((p) => [p.slice(ROOT.length + 1), readFileSync(p, 'utf8')]);
-		const hostHits = coreHostProblems(coreOnly);
-		for (const h of hostHits.slice(0, 8)) console.error(`  ✗ 内核文件「${h.path}:${h.line}」引了宿主能力「${h.token}」⇒ 破坏了浏览器安全 ✗（应经 **注入的宿主能力** 取 ✓）`);
-		ok('③ 内核不碰宿主（`lib/core/**` 无 `node:*`／裸宿主模块）', hostHits.length === 0, `core ${coreOnly.length} 个文件 · 命中 ${hostHits.length}`);
-		// ③b（`#794`）：**浏览器侧那一半** —— 宿主全局（含 `globalThis.<名>` 形 ✗）；通用全局与 `console` **不进表** ✗
-		const globalHits = coreHostGlobalProblems(coreOnly);
-		for (const h of globalHits.slice(0, 8)) console.error(`  ✗ 内核文件「${h.path}:${h.line}」用到宿主全局「${h.token}」⇒ **两宿主都能跑**是 core 的硬约束 ✗（该能力应由**宿主注入** ✓，如 evalLiteral／io ✓）`);
-		ok('③b 内核不碰宿主全局（浏览器侧；`globalThis.<名>` 也挡 ✓；通用全局与 console 不进表 ✓）', globalHits.length === 0, `core ${coreOnly.length} 个文件 · 命中 ${globalHits.length}`);
-	} else console.log('  · `editor/lib/core` **尚未出现** ⇒ 判据③ 暂无对象（留痕 ✓，抽取落地后自动生效 ✓）');
-	// ①b：`lib/core` 出现后 —— core 导出的能力**不许在 core 之外再被定义**（含非导出副本 ✗，抄的人往往不导出 ✓）
-	if (coreStarted) {
-		const coreFiles = mjsFiles(CORE).map((p) => p.slice(ROOT.length + 1));
-		const coreExports = [...defs.exported.keys()].filter((n) => (defs.exported.get(n) ?? []).some((p) => coreFiles.includes(p)));
-		const second = secondCopyProblems(defs, coreExports, 'editor/lib/core');
-		for (const s of second.slice(0, 8)) console.error(`  ✗ 内核能力「${s.name}」在 core 之外**被再定义**（第二份内核 ✗）：${s.paths.join(' · ')}`);
-		ok('①b core 能力不许在 core 之外再定义', second.length === 0, `core 导出 ${coreExports.length} 个 · 副本 ${second.length}`);
-	} else console.log('  · `editor/lib/core` **尚未出现** ⇒ 判据①b 暂无对象（留痕 ✓，抽取落地后自动生效 ✓）');
-	// L1（`#794`）：扫面从"cli ＋ host"扩到**全部 `editor/**`** ✓（旧口径的覆盖小于它的声称 ✗）。
-	const editors = files;   // 判据① 已经读过全部 editor/**/*.mjs ✓（同一次读取，不重扫 ✓）
-	const primWrites = primitiveWriteProblems(editors);
-	if (primWrites.length) for (const w of primWrites.slice(0, 8)) console.error(`  ✗ 「${w.path}:${w.line}」出现原语写「${w.token}(…）」⇒ 原语写只许出现在 lib/host/** ✓（换 import 来源或抽到 host ✓）`);
-	ok('② 原语写只许出现在 `lib/host/**`（L1；扫**全部** `editor/**` ✓ 不依赖路径长什么样 ✓）', primWrites.length === 0, `扫描 ${editors.length} 个文件 · 违规 ${primWrites.length}`);
-	const delHits = deleteStoryProblems(editors);
-	for (const h of delHits.slice(0, 8)) console.error(`  ✗ 「${h.path}:${h.line}」用「${h.token}(…）」删 stories/** ⇒ 故事面删除应经 host 的能力 ✓（边界：运行期拼路径的删除**不在覆盖内** ✗）`);
-	ok('②b 删除原语不许落到 `stories/**`（L1′；与 L1 分开 ✓；边界：运行期拼路径不覆盖 ✓）', delHits.length === 0, `扫描 ${editors.length} 个文件 · 违规 ${delHits.length}`);
-	if (!coreStarted) console.log('  · `editor/lib/core` **尚未出现** ⇒ 内核抽取未开始：本门此刻只跑判据①（②暂无对象）——**这行就是留痕** ✓，抽取落地后自动生效 ✓');
-
-	if (bad) { console.error(`\n✗ K6 门未通过（${bad} 项）—— 防双内核：能力单一定义 · 壳薄 · 单一写路。`); process.exit(1); }
-	console.log('\n✔ K6 门通过（单一内核 · 壳薄 · 单一写路）');
-};
-if (isMain) main();
+if (isMain) process.exit(k6Command(process.argv.slice(2), { prog: 'node editor/k6.mjs', sub: '' }));

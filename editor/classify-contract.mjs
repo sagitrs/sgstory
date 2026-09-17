@@ -138,7 +138,7 @@ if (isMain0 && process.argv.includes('--selftest')) { selftest(); process.exit(0
 import { hatchFiles } from './lib/host/hatches.mjs';
 export { hatchFiles };
 
-/** **行首**的生成标记才算（与 K4 的 `hasMarker` 同口径：注释里提到该词的文件不是产物）。 */
+/** **行首**的生成标记才算（与 `hasMarker`（**已改名** `hasGeneratedMarker` ✓）同口径：注释里提到该词的文件不是产物）。 */
 
 
 // `#794` 第 4 条：命令体已在 `lib/host/commands.mjs` ⇒ 这里只**转发 argv** ✓（等价按构造成立 ✓）。

@@ -22,6 +22,9 @@ import { gatesForStory } from '../../../scripts/audit/discovery.mjs';
 import { hatchFiles } from './hatches.mjs';
 import { hasGeneratedMarker } from '../core/text.mjs';
 const NODE_IO = { readText, writeText, mkdirp, exists };
+import { definitionsOf, duplicateExportProblems, secondCopyProblems, coreHostProblems, primitiveWriteProblems,
+	coreHostGlobalProblems, deleteStoryProblems, shellWriteProblems, mjsFiles, CORE, HOSTS, EDITOR, REPO_ROOT as K6ROOT } from './k6criteria.mjs';
+
 
 // `#794` 第 4 条（K4 命令体）：判据的**纯**部分住 core ✓（纯 ⇒ core、宿主能力 ⇒ host ✓）。
 // ⚠️ **一处定义** ✓：分类器实例**不在本文件重装** ✗ —— `lib/host/classify.mjs` 已经装好（`makeClassify({ evalLiteral: literalValue })` ✓），
@@ -532,4 +535,56 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 	}
 	console.log('\n✔ K4 门通过（标记 · 幂等/新鲜度 · 逃生舱登记双向一致 · 生成物不许独改）');
 	return 0;
+};
+
+export const k6Command = (argv = [], { prog = 'node editor/k6.mjs', sub = '' } = {}) => {
+	let bad = 0;
+	// `#794`：这两件原来是**模块级**（门与自证共用 ✓）⇒ 搬到命令体后必须自带一份 ✓
+	// （跨模块无法共用 ✓；语义逐字照抄自证那两行 ✓）。
+	const ok = (label, cond, extra = '') => { if (cond) console.log(`  ✓ ${label}${extra ? ' · ' + extra : ''}`); else { bad++; console.error(`  ✗ ${label}`); } };   // `#794`：原为模块级（与自证共用 ✓）⇒ 搬成**命令体局部**（跨模块无法共用 ✓）
+	console.log('══ K6 门（`#794` 单一内核）—— 能力只许一处定义 · 壳里不许有内核逻辑 · 单一写路 ══');
+
+	const files = mjsFiles(EDITOR).map((p) => [p.slice(K6ROOT.length + 1), readFileSync(p, 'utf8')]);
+	ok('取到 `editor/**` 的模块', files.length > 0, `${files.length} 个`);
+
+	const defs = definitionsOf(files);
+	const dups = duplicateExportProblems(defs);
+	if (dups.length) for (const d of dups.slice(0, 8)) console.error(`  ✗ 导出能力「${d.name}」被**多处定义**（两份内核 ✗）：${d.paths.join(' · ')}`);
+	ok('① 导出能力只许一处定义', dups.length === 0, `重复 ${dups.length} 项`);
+
+	const coreStarted = existsSync(CORE);
+	// ③ **内核不许碰宿主**（`#794` 第 3 步）：`lib/core/**` 里出现 `node:*`／裸宿主模块名 ⇒ 红 ✓
+	//（“浏览器安全”只有机检得住 ✓；今天 `core` 是干净的 ⇒ 它是**纯红**判据、不需登记表 ✓）。
+	if (coreStarted) {
+		const coreOnly = mjsFiles(CORE).map((p) => [p.slice(K6ROOT.length + 1), readFileSync(p, 'utf8')]);
+		const hostHits = coreHostProblems(coreOnly);
+		for (const h of hostHits.slice(0, 8)) console.error(`  ✗ 内核文件「${h.path}:${h.line}」引了宿主能力「${h.token}」⇒ 破坏了浏览器安全 ✗（应经 **注入的宿主能力** 取 ✓）`);
+		ok('③ 内核不碰宿主（`lib/core/**` 无 `node:*`／裸宿主模块）', hostHits.length === 0, `core ${coreOnly.length} 个文件 · 命中 ${hostHits.length}`);
+		// ③b（`#794`）：**浏览器侧那一半** —— 宿主全局（含 `globalThis.<名>` 形 ✗）；通用全局与 `console` **不进表** ✗
+		const globalHits = coreHostGlobalProblems(coreOnly);
+		for (const h of globalHits.slice(0, 8)) console.error(`  ✗ 内核文件「${h.path}:${h.line}」用到宿主全局「${h.token}」⇒ **两宿主都能跑**是 core 的硬约束 ✗（该能力应由**宿主注入** ✓，如 evalLiteral／io ✓）`);
+		ok('③b 内核不碰宿主全局（浏览器侧；`globalThis.<名>` 也挡 ✓；通用全局与 console 不进表 ✓）', globalHits.length === 0, `core ${coreOnly.length} 个文件 · 命中 ${globalHits.length}`);
+	} else console.log('  · `editor/lib/core` **尚未出现** ⇒ 判据③ 暂无对象（留痕 ✓，抽取落地后自动生效 ✓）');
+	// ①b：`lib/core` 出现后 —— core 导出的能力**不许在 core 之外再被定义**（含非导出副本 ✗，抄的人往往不导出 ✓）
+	if (coreStarted) {
+		const coreFiles = mjsFiles(CORE).map((p) => p.slice(K6ROOT.length + 1));
+		const coreExports = [...defs.exported.keys()].filter((n) => (defs.exported.get(n) ?? []).some((p) => coreFiles.includes(p)));
+		const second = secondCopyProblems(defs, coreExports, 'editor/lib/core');
+		for (const s of second.slice(0, 8)) console.error(`  ✗ 内核能力「${s.name}」在 core 之外**被再定义**（第二份内核 ✗）：${s.paths.join(' · ')}`);
+		ok('①b core 能力不许在 core 之外再定义', second.length === 0, `core 导出 ${coreExports.length} 个 · 副本 ${second.length}`);
+	} else console.log('  · `editor/lib/core` **尚未出现** ⇒ 判据①b 暂无对象（留痕 ✓，抽取落地后自动生效 ✓）');
+	// L1（`#794`）：扫面从"cli ＋ host"扩到**全部 `editor/**`** ✓（旧口径的覆盖小于它的声称 ✗）。
+	const editors = files;   // 判据① 已经读过全部 editor/**/*.mjs ✓（同一次读取，不重扫 ✓）
+	const primWrites = primitiveWriteProblems(editors);
+	if (primWrites.length) for (const w of primWrites.slice(0, 8)) console.error(`  ✗ 「${w.path}:${w.line}」出现原语写「${w.token}(…）」⇒ 原语写只许出现在 lib/host/** ✓（换 import 来源或抽到 host ✓）`);
+	ok('② 原语写只许出现在 `lib/host/**`（L1；扫**全部** `editor/**` ✓ 不依赖路径长什么样 ✓）', primWrites.length === 0, `扫描 ${editors.length} 个文件 · 违规 ${primWrites.length}`);
+	const delHits = deleteStoryProblems(editors);
+	for (const h of delHits.slice(0, 8)) console.error(`  ✗ 「${h.path}:${h.line}」用「${h.token}(…）」删 stories/** ⇒ 故事面删除应经 host 的能力 ✓（边界：运行期拼路径的删除**不在覆盖内** ✗）`);
+	ok('②b 删除原语不许落到 `stories/**`（L1′；与 L1 分开 ✓；边界：运行期拼路径不覆盖 ✓）', delHits.length === 0, `扫描 ${editors.length} 个文件 · 违规 ${delHits.length}`);
+	if (!coreStarted) console.log('  · `editor/lib/core` **尚未出现** ⇒ 内核抽取未开始：本门此刻只跑判据①（②暂无对象）——**这行就是留痕** ✓，抽取落地后自动生效 ✓');
+
+	if (bad) { console.error(`\n✗ K6 门未通过（${bad} 项）—— 防双内核：能力单一定义 · 壳薄 · 单一写路。`); return 1; }
+	console.log('\n✔ K6 门通过（单一内核 · 壳薄 · 单一写路）');
+	return 0;   // `#794`：**命令体必须返回 rc**（原来这部分靠"跑完即 0" 的默认 ✓；搬进命令体后
+	             // 不复存在 ⇒ 返回 `undefined` ✗ ⇒ 被入口的 rc 断言当场点名 ✓ —— 断言是装备 ✓）
 };

@@ -4,7 +4,7 @@
 // ⚠️ **主模块守卫**：本文件同时是库（命令表以后 WebUI/测试可能 import ✓）⇒ 只在被当脚本执行时才跑 CLI ✓。
 //    `isMain` 的声明必须在 **imports 之后、逻辑之前** ✓ —— 放后面会 TDZ ✗（`Cannot access 'isMain' before initialization`，D 踩过 ✓）。
 import { fileURLToPath } from 'node:url';
-import { buildCommand, extractCommand, classifyCommand, equivCommand, lintCommand, k4Command } from './lib/host/commands.mjs';
+import { buildCommand, extractCommand, classifyCommand, equivCommand, lintCommand, k4Command, k6Command } from './lib/host/commands.mjs';
 import { exitWithRc } from './lib/host/proc.mjs';
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
@@ -17,12 +17,14 @@ const COMMANDS = {
 	equiv: (argv, ctx) => equivCommand(argv, ctx),
 	'lint-story': (argv, ctx) => lintCommand(argv, ctx),
 	k4: (argv, ctx) => k4Command(argv, ctx),
+	k6: (argv, ctx) => k6Command(argv, ctx),
 };
 
 const USAGE = [
 	'用法：node editor/cli.mjs <子命令> [参数…]',
 	'子命令：',
 	'  build <slug> [--out=<dir>]   与 `node editor/compile-story.mjs` **同一具身体** ✓',
+	'  k6   与 `node editor/k6.mjs` **同一具身体** ✓（防双内核门）',
 	'  equiv <slug> [--rules] [--l3=hard|report] [--hand=<file>]   与 `node editor/equiv.mjs` **同一具身体** ✓',
 	'  lint-story <slug|目录路径> [--json] [--dist=<file>]   与 `node editor/lint-story.mjs` **同一具身体** ✓',
 	'  classify-contract <slug> [--json]   与 `node editor/classify-contract.mjs` **同一具身体** ✓',

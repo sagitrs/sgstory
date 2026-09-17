@@ -13,7 +13,6 @@ import { packageFiles, writeStoryPackage } from './lib/core/story.mjs';
 const NODE_IO = { readText, writeText, mkdirp };
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import vm from 'node:vm';
 import { scriptBodies } from './lib/core/text.mjs';
 // `#794` 抽取：读文件的事归 **host**（core 必须浏览器安全）⇒ `engineScripts`／`ENGINE_CONST`／`ROOT` 从 host 取，
 // 本文件**只转出**（老调用方 `classify-contract` 与各门不用改 ✓）。

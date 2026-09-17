@@ -15,6 +15,8 @@
 // 写到包外（`build/generated/` ✓、`/tmp/…` ✓）则走宿主 helper ✓ —— 壳里两种都**不出现 `node:fs` 原语** ✓。
 import { readText, writeText, mkdirp, exists } from './lib/host/fs.mjs';
 import { writeStoryPackage } from './lib/core/story.mjs';
+// `#794`：命令体（解析 → 编译 → 写产物 → 打印）已抽到 host，两条入口共用同一具身体 ✓。
+import { buildCommand } from './lib/host/commands.mjs';
 const NODE_IO = { readText, writeText, mkdirp, exists };
 import { join, dirname, resolve } from 'node:path';
 import vm from 'node:vm';
@@ -209,27 +211,8 @@ const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.arg
 if (isMain && process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 
 const main = () => {
-	const slug = process.argv[2];
-	if (!slug) { console.error('用法：node editor/compile-story.mjs <slug> [--out=<dir>]'); process.exit(2); }
-	const outArg = process.argv.find((a) => a.startsWith('--out='));
-	const OUT = outArg ? outArg.slice('--out='.length) : join(ROOT, 'build/generated', slug);
-	const readIf = (f) => { try { return JSON.parse(readText(join(ROOT, 'stories', slug, 'data', f))); } catch { return null; } };
-	const tables = readIf('tables.json');
-	const contract = readIf('contract.json');
-	const rules = readIf('rules.json');
-	if (!tables && !contract && !rules) { console.error(`✗ stories/${slug}/data/ 下没有任何产物源（tables/contract/rules.json 都没有）`); process.exit(1); }
-	const files = compileStory({ tables, contract, rules, slug });
-	// ⚠️ 比**解析后**的路径（`--out=stories/<slug>` 是相对的 ✓ —— 直接拿字符串比会静默走错分支 ✗，而**两个分支写出的是同一份字节** ⇒ 行为对、分支错 = 最难发现的那种 ✓）。
-	if (resolve(OUT) === join(ROOT, 'stories', slug)) {
-		const wrote = writeStoryPackage({ slug, twee: files, io: NODE_IO });
-		for (const p of wrote) console.log(`✔ ${slug}：产物 → ${p.replace(ROOT, '')}（${(files[p.split('/').pop()] ?? '').length} 字节，${(files[p.split('/').pop()] ?? '').split('\n').length - 1} 行）`);
-	} else {
-		mkdirp(OUT);
-		for (const [name, text] of Object.entries(files)) {
-			writeText(join(OUT, name), text);
-			console.log(`✔ ${slug}：${Object.keys(files).length} 份产物 · ${name} ← data/（${text.length} 字节，${text.split('\n').length - 1} 行）`);
-		}
-	}
+	// `#794`：命令体已抽成**共享函数**（`lib/host/commands.mjs` 的 `buildCommand` ✓）——
+	// 本壳只负责"转发自己的 argv ＋ 用自己的程序名渲染用法行" ✓（`sub: ''` ⇒ 用法行与本工具既有输出**逐字同** ✓）。
+	process.exit(buildCommand(process.argv.slice(2), { prog: 'node editor/compile-story.mjs', sub: '' }));
 };
-
 if (isMain) main();

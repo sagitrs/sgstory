@@ -16,7 +16,8 @@ import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { scriptBodies } from './lib/core/text.mjs';
+import { scriptBodies, hasGeneratedMarker } from './lib/core/text.mjs';
+export { hasGeneratedMarker };
 import { engineScripts, readText, writeText, mkdirp, exists } from './lib/host/fs.mjs';
 // `#794` P1①：故事包写入走 **core 的唯一写路**（`writeStoryPackage`）—— 壳里不再出现 `node:fs` 原语 ✗（K6 L1 在盯 ✓）。
 import { packageFiles, writeStoryPackage } from './lib/core/story.mjs';
@@ -40,21 +41,9 @@ import { fbEnum, makeClassify } from './lib/core/classify.mjs';
 const { classify } = makeClassify({ evalLiteral: literalValue });
 export { fbEnum, classify };
 
-/** 纯函数：把 `() => <局部常量>` 解析成它的**值**（不手抄）。
- *  做法：在浏览器语义沙箱里跑该文件的 `[script]` 段 ＋ 追加一行 `window.__probe = <标识符>;` ⇒ 读出来。
- *  取不到（未定义/非 JSON 化）⇒ 返回 null（调用方保持 B 桶，不假装成功）。 */
-export const resolveLocalConst = (fileText, sectionName, ident) => {
-	const bodies = scriptBodies(fileText);
-	const box = { console: { log() {}, error() {} } };
-	box.window = box;
-	vm.createContext(box);
-	try {
-		vm.runInContext(engineScripts() + '\n' + bodies.join('\n') + `\n;window.__probe = (typeof ${ident} === 'function' ? undefined : ${ident});`, box, { timeout: 5000 });
-	} catch { return null; }
-	const v = box.__probe;
-	if (v === undefined) return null;
-	try { return JSON.parse(JSON.stringify(v)); } catch { return null; }
-};
+// `#794`：`resolveLocalConst`（vm 沙箱内“取局部常量值” ✓）已搬到 `editor/lib/host/sandbox.mjs` ✓（与 `runStory` 同窝 ✓）。
+import { resolveLocalConst } from './lib/host/sandbox.mjs';
+export { resolveLocalConst };
 
 const selftest = () => {
 	let bad = 0;
@@ -144,7 +133,6 @@ export const hatchFiles = (slug) => {
 };
 
 /** **行首**的生成标记才算（与 K4 的 `hasMarker` 同口径：注释里提到该词的文件不是产物）。 */
-export const hasGeneratedMarker = (text) => /^\s*\/\/\s*@generated\b/m.test(String(text ?? ''));
 
 const main = () => {
 	const argOf = (name, dflt) => { const h = process.argv.find((a) => a.startsWith(`--${name}=`)); return h ? h.slice(name.length + 3) : dflt; };

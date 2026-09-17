@@ -31,3 +31,8 @@ export const scriptBodies = (text) => {
 export const normalize = (text) => maskComments(String(text))
 	.replace(/\s+/g, '')
 	.replace(/,(?=[}\]])/g, '');
+
+/** 纯函数：文本里是否带**行首**生成标记 ✓ —— 不锚定会把"注释里提到该词"的文件误判成产物 ✗
+ *  （实测踩过：手写逃生舱文件的注释写了"本文件不带该标记" ⇒ 被排除出手写源 ⇒ 门报"登记腐烂"的假红 ✗）。
+ *  ⚠️ **K4 门另有一份同名实现**（`editor/k4.mjs` 的 `hasMarker` ✓）⇒ 两处去重归**门那一侧**的面（已告知 ✓）。 */
+export const hasGeneratedMarker = (text) => /^\s*\/\/\s*@generated\b/m.test(String(text ?? ''));

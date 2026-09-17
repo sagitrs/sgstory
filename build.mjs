@@ -28,24 +28,15 @@ mkdirSync('build', { recursive: true });
 mkdirSync('dist', { recursive: true });
 
 // #319：加载顺序**显式**声明在 scripts/module-order.mjs（不再靠文件名前缀隐含）。
-// 这里只做两件守门：文件必须都在 ORDER 里，ORDER 里的文件必须都存在。
-const files = allSourceFiles();   // #458 切片C：源文件发现走**单一权威**（搬家后＝`src/**` ＋ `stories/**`，路径为键）
+// `#893` 守卫**分两层** ✓：① **引擎件**（`src/**`）必须全在 `ORDER` 里 ✓（它们的先后是**全局**的 ✓）；
+//   ② **故事自己的件**（`stories/<slug>/**`）必须全在**该故事自己的清单**里 ✓ ⇒ 顺序由清单给 ✓
+//   ⇒ **新建故事不必改代码** ✗（原来一律要求 ⊂ ORDER ✗ ⇒ 新故事必改代码 ✗）。
+// 两层的**登记语义都没丢** ✓：新件仍须**显式登记** ✓，只是登记处换成**它自己的清单** ✓。
+const files = allSourceFiles();   // #458 切片C：源文件发现走**单一权威**（搬家后＝`src/**` ＋ `stories/**`）
 if (files.length === 0) {
 	console.error('src/ 下没有找到 .twee 文件');
 	process.exit(1);
 }
-{
-	const unlisted = files.filter((f) => !ORDER.includes(f));
-	const missing = ORDER.filter((f) => !files.includes(f));	if (unlisted.length || missing.length) {
-		if (unlisted.length) console.error(`✗ 以下文件未登记加载顺序（补进 scripts/module-order.mjs 的 ORDER）：${unlisted.join(', ')}`);
-		if (missing.length) console.error(`✗ ORDER 里的文件不存在：${missing.join(', ')}`);
-		process.exit(1);
-	}
-}
-
-// ── #441 第 1 步（切片①③）：**故事清单**是"哪些文件属于这个故事"的权威 ────────
-// 加载顺序仍是 `scripts/module-order.mjs` 的 ORDER（清单不表达顺序，只表达归属）。
-// **引擎层文件**（`layer: 'engine'`）是所有故事共享的前缀；故事层文件必须各自有主。
 const slugs = storySlugs();
 if (slugs.length === 0) {
 	console.error('✗ stories/ 下没有找到故事清单（需 <slug>/00-story.json）');
@@ -53,19 +44,27 @@ if (slugs.length === 0) {
 }
 const engineFiles = engineFilesOf(ORDER, MODULES);
 const stories = slugs.map((slug) => ({ slug, ...readStory(slug) }));
+const engineSet = new Set(engineFiles);
+const owner = new Map();                                  // 故事件 ⇒ 它的故事 ✓
+for (const s of stories) for (const f of (s.files ?? [])) if (!engineSet.has(f)) owner.set(f, s.slug);
+{
+	// ① 引擎件：必须全在 ORDER ✓（原位语义 ✓）
+	const engUnlisted = files.filter((f) => engineSet.has(f) && !ORDER.includes(f));
+	if (engUnlisted.length) { console.error(`✗ 以下**引擎件**未登记加载顺序（补进 scripts/module-order.mjs 的 ORDER）：${engUnlisted.join(', ')}`); process.exit(1); }
+	// ② 故事件：必须全在**它自己的清单**里 ✓（不再是"必须在 ORDER 里" ✗）
+	const storyUnlisted = files.filter((f) => !engineSet.has(f) && !owner.has(f));
+	if (storyUnlisted.length) { console.error(`✗ 以下**故事件**不在任何故事清单里（补进 stories/<slug>/00-story.json 的 files）：${storyUnlisted.join(', ')}`); process.exit(1); }
+	// ③ 反向：ORDER 里的文件必须真实存在 ✓；且 ORDER 里的**非引擎**件仍须被某故事认领 ✓（孤儿）
+	const missing = ORDER.filter((f) => !files.includes(f));
+	if (missing.length) { console.error(`✗ ORDER 里的文件不存在：${missing.join(', ')}`); process.exit(1); }
+	const orphans = ORDER.filter((f) => !engineSet.has(f) && !owner.has(f));
+	if (orphans.length) { console.error(`✗ 这些文件既不是引擎文件（layer: engine）也不属于任何故事清单：${orphans.join(', ')}`); process.exit(1); }
+}
 {
 	for (const s of stories) {
 		const list = s.files ?? [];
 		const notOnDisk = list.filter((f) => !existsSync(f));
 		if (notOnDisk.length) { console.error(`✗ 故事清单 ${s.slug} 列出的文件不存在：${notOnDisk.join(', ')}`); process.exit(1); }
-		const onlyInManifest = list.filter((f) => !ORDER.includes(f));
-		if (onlyInManifest.length) { console.error(`✗ 这些文件在故事清单里但不在 ORDER（无法确定加载顺序）：${onlyInManifest.join(', ')}`); process.exit(1); }
-	}
-	const claimed = new Set(stories.flatMap((s) => s.files ?? []));
-	const orphans = ORDER.filter((f) => !engineFiles.includes(f) && !claimed.has(f));
-	if (orphans.length) {
-		console.error(`✗ 这些文件既不是引擎文件（layer: engine）也不属于任何故事清单：${orphans.join(', ')}`);
-		process.exit(1);
 	}
 }
 

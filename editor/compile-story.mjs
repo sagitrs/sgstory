@@ -11,8 +11,12 @@
 //
 // 为什么先做这件事：UI 不是难点，**schema 立不立得住**才是。本编译器就是那个证伪点——
 //   它若能把手写版**逐 token 复现**（`editor/equiv.mjs` 的 L1/L3），数据化这条路就走得通。
-import { readText, writeText, mkdirp } from './lib/host/fs.mjs';
-import { join, dirname } from 'node:path';
+// `#794` P1①：产物写进**故事包内**时走 core 的唯一写路（`writeStoryPackage` 的 twee 口 ✓）；
+// 写到包外（`build/generated/` ✓、`/tmp/…` ✓）则走宿主 helper ✓ —— 壳里两种都**不出现 `node:fs` 原语** ✓。
+import { readText, writeText, mkdirp, exists } from './lib/host/fs.mjs';
+import { writeStoryPackage } from './lib/core/story.mjs';
+const NODE_IO = { readText, writeText, mkdirp, exists };
+import { join, dirname, resolve } from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 
@@ -215,10 +219,16 @@ const main = () => {
 	const rules = readIf('rules.json');
 	if (!tables && !contract && !rules) { console.error(`✗ stories/${slug}/data/ 下没有任何产物源（tables/contract/rules.json 都没有）`); process.exit(1); }
 	const files = compileStory({ tables, contract, rules, slug });
-	mkdirp(OUT);
-	for (const [name, text] of Object.entries(files)) {
-		writeText(join(OUT, name), text);
-		console.log(`✔ ${slug}：${Object.keys(files).length} 份产物 · ${name} ← data/（${text.length} 字节，${text.split('\n').length - 1} 行）`);
+	// ⚠️ 比**解析后**的路径（`--out=stories/<slug>` 是相对的 ✓ —— 直接拿字符串比会静默走错分支 ✗，而**两个分支写出的是同一份字节** ⇒ 行为对、分支错 = 最难发现的那种 ✓）。
+	if (resolve(OUT) === join(ROOT, 'stories', slug)) {
+		const wrote = writeStoryPackage({ slug, twee: files, io: NODE_IO });
+		for (const p of wrote) console.log(`✔ ${slug}：产物 → ${p.replace(ROOT, '')}（${(files[p.split('/').pop()] ?? '').length} 字节，${(files[p.split('/').pop()] ?? '').split('\n').length - 1} 行）`);
+	} else {
+		mkdirp(OUT);
+		for (const [name, text] of Object.entries(files)) {
+			writeText(join(OUT, name), text);
+			console.log(`✔ ${slug}：${Object.keys(files).length} 份产物 · ${name} ← data/（${text.length} 字节，${text.split('\n').length - 1} 行）`);
+		}
 	}
 };
 

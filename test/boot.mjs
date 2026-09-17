@@ -10,7 +10,8 @@ import { pathToFileURL } from 'node:url';
 //   ① 让事件循环真的能空下来（见下面那段"非零视口"：SugarCube 的视口就绪轮询永不收尾）；
 //   ② boot 出来的每个窗口登记在 live 里，beforeExit / exit / SIGINT / SIGTERM 统一 close。
 // 于是脚本不再需要自己收场，`await boot()` 的脚本跑完就退。
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
+import { isAbsolute } from 'node:path';
 import { assertFreshDist } from '../scripts/dist-fresh.mjs';
 import { JSDOM, VirtualConsole } from 'jsdom';
 // `#761` P1 六片A：**取渲染文本只有一处** ✓ —— 本文件与页面侧同用 `lib/core/preview.mjs` ✓
@@ -21,7 +22,13 @@ import { renderedPassages, renderedTextOf } from '../editor/lib/core/preview.mjs
 const HTML_OF = new Map();
 const htmlOf = (story) => {
 	const key = story ?? DEFAULT_SLUG;
-	if (!HTML_OF.has(key)) HTML_OF.set(key, readFileSync(new URL(pathToFileURL(storyHtml(key)).href), 'utf8'));
+	// ⚠️ **工具契约** ✓（复核席在 H5 配方里撞到的家族实例 ✓ —— `--out`／`--story-out`／`boot({story})` **同族**）：
+	//   `storyHtml()` 会把入参**当相对**（`join(ROOT,'dist',…)` ✓）⇒ 传**绝对路径**会被拼成 `dist/…/home/…` ✗
+	//   ⇒ **静默读到别的文件**（或 ENOENT 报文指错 ✓）。⇒ 这里**绝对路径按绝对处理** ✓（`isAbsolute` ✓）
+	//   且**文件必须存在** ✓（不存在就当场抛且报文点名 ✓ —— 不许静默走默认故事 ✗）。
+	const path = isAbsolute(key) ? key : storyHtml(key);
+	if (!existsSync(path)) throw new Error(`boot({story}) 找不到故事页 ✗：${path}（绝对路径按绝对处理 ✓；相对路径按 dist/ 解析 ✓）`);
+	if (!HTML_OF.has(key)) HTML_OF.set(key, readFileSync(path, 'utf8'));
 	return HTML_OF.get(key);
 };
 const entryOf = (story) => readStory(story ?? DEFAULT_SLUG).entry ?? '开场';

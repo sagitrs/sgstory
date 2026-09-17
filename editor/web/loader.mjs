@@ -76,6 +76,9 @@ export const loadPackage = ({ slug, files, io } = {}) => {
 		tables: data['tables.json'] ?? null,
 		rules: data['rules.json'] ?? null,
 		members,
+		// ⚠️ **原样带上 `data`** ✓：页内编译（`compile.mjs` ✓）要的就是它 ✓ —— 只给"摘要"会让下游
+		// 自己去猜文件 ✓（那就会长成第二份读法 ✗）。
+		data,
 		missing: theIo.misses ?? [],
 	};
 };

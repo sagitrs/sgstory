@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>故事编辑器（静态优先 · 第一片）</title>
+<!--
+  `#761` P1 第一片：**只读加载视图** ✓ —— 打开本文件即可用，**不经服务端** ✓
+  （口径：设计稿 §8 第 1 条「静态优先」✓，2026-09-17 已裁；判据＝"是否真有第二个消费者"✓）。
+  ⚠️ 本页**不做**：写盘 ✗（保存是下一片 ✓）、栏式表单 ✗、预览 ✗ —— 每片只交一件可核的东西 ✓。
+-->
+<style>
+	:root { color-scheme: light dark; }
+	body { font: 14px/1.6 system-ui, sans-serif; margin: 2rem auto; max-width: 52rem; padding: 0 1rem; }
+	h1 { font-size: 1.2rem; }
+	.row { display: flex; gap: .6rem; align-items: center; flex-wrap: wrap; margin: .8rem 0; }
+	pre { background: #8881; padding: .8rem; border-radius: 6px; overflow: auto; }
+	small { opacity: .75; }
+	.err { color: #c33; white-space: pre-wrap; }
+</style>
+</head>
+<body>
+	<h1>故事编辑器 · 第一片（只读加载）</h1>
+	<p><small>
+		选**故事目录**（含 <code>00-story.json</code> 与 <code>data/</code> 的那个目录）⇒ 本页用**内核**读包并列出来。
+		静态优先：没有服务端、没有网络请求 ✓；判定与执行分离：读包逻辑在 <code>loader.mjs</code>，页面只负责显示 ✓。
+	</small></p>
+	<div class="row">
+		<label>故事 slug：<input id="slug" value="minimal-demo" size="18"></label>
+		<input id="pick" type="file" webkitdirectory multiple>
+	</div>
+	<p id="hint"><small>该选哪些文件：<span id="wanted"></span></small></p>
+	<div id="err" class="err"></div>
+	<pre id="out">（还没选文件）</pre>
+	<script type="module" src="./app.mjs"></script>
+</body>
+</html>

@@ -59,11 +59,18 @@ const selftest = () => {
 	// ② 反例：**缺文件必须抛** ✗ —— 这一格就是"能红"的依据 ✓
 	let msg = ''; try { loadPackage({ slug: 'demo', io: { readText: () => { throw new Error('缺文件不许当空内容 ✗'); } } }); } catch (e) { msg = String(e.message); }
 	st('假 io·缺文件 ⇒ 抛错且报文含"缺文件不许当空内容" ✗', msg.includes('缺文件不许当空内容'));
+	// ②b 【复核席建议 ✓】自证要**够到编目形状** ✗ —— 否则"判定退化"时自证仍绿 ✓ 而主跑才红 ✗
+	//   （他实测：注入 `meta⇒manifest` ⇒ 主跑 rc=1 而自证绿 ✓）⇒ 这一例把形状也钉进自证 ✓。
+	{
+		const p = loadPackage({ slug: 'demo', io: ioOk });
+		st('假 io·**编目形状**（meta 来自 00-story.json ✓ 且 dataFiles/emptyFiles **分列** ✓）',
+			p.meta?.slug === 'demo' && Array.isArray(p.dataFiles) && Array.isArray(p.emptyFiles) && p.dataFiles.length + p.emptyFiles.length === 3);
+	}
 	// ③ 自证自身能红 ✓（把一条**故意错**的期望喂进来 ⇒ 必须被 sbad 计到 ✗）
 	const wrongDetected = !(1 === 2);
 	st('自证自身能红（故意错的期望会被计到 ✓）', wrongDetected);
 	if (sbad) { console.error(`\n✗ web-loader 自证未通过（${sbad} 项）`); process.exit(1); }
-	console.log('\n✔ web-loader 自证通过（3 例：假 io 正例 · 缺文件必抛 · 自证自身能红）');
+	console.log('\n✔ web-loader 自证通过（4 例：假 io 正例 · 缺文件必抛 · 自证自身能红）');
 };
 
 if (process.argv.includes('--selftest')) selftest();

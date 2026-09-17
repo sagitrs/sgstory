@@ -34,12 +34,14 @@ const SLUG = DEFAULT_SLUG;
 const PASSAGE = '洞穴';
 const EVENT = '洞穴.火光.有火把';
 const MARKER = '【预览探针】';
-//  ⚠️ **三个假设都被推翻** ✓（复核席的干净实验 ✓，实测在真链上跑的 ✓）：
+//  ⚠️ **渲染面：三个假设全被推翻 ✗，且两条实测互相矛盾 ✓**（如实记，**不写结论** ✗）：
 //   · H2「标记附近有边界」✗ —— 散文放标记**之前**，span 仍 36 ✓（位置无关 ✓）；
-//   · H3「全角 `〈〉` 被渲染层吃掉」✗ —— 换**纯 ASCII** 追加（`MARKER+ABC`）⇒ span **仍 6** ✗；
-//   · H4（新）：**MARKER 之后追加的一律不进渲染** ✓（字符无关 ✓）；而**前置**的散文**进** ✓（span 73 ✓）。
-//   ⇒ 处置：**归属改走带外读数** ✓（构建前后探针页 sha 必须变 ✓，不依赖串进不进渲染 ✓）；
-//     追问'渲染面到底截在哪'记为**观察项** ✓（不阻塞 ✓ —— 链的读数现已**正确** ✓）。
+//   · H3「全角 `〈〉` 被吃掉」✗ —— 追加**纯 ASCII**（`MARKER+ABC`）时 span 仍 6 ✓（字符无关 ✓）；
+//   · H4「标记之后追加的一律不进渲染」✗ —— **被直接实验推翻** ✓：直接编译 `${targetText}${MARKER}ABC` 建探针 ⇒
+//     渲染 **603** 字符（仅 MARKER 时 **600** ✓）、差异段 **3 字节 = "ABC"** ✓ ⇒ **追加的确实进渲染** ✓；
+//   ⇒ ⚠️ **冲突**：同一件事（链的编辑追加 `MARKER+ABC`）在链的读数里 span **不含 ABC** ✗、在直接实验里**含** ✓
+//     ⇒ 两者至少有一处**指错了对象** ✓（今晚那条"读数必须指名来源"的同一族 ✓）⇒ **待查** ✗，不写结论 ✓。
+//   · 处置 ✓：**归属改走带外读数** ✓（构建前后探针页 sha 必须变 ✓ —— 不依赖"串进不进渲染" ✓）。
 const OTHER_SCOPE_STATE = { with: ['火把'], without: [] };
 const PROBE_DIR = join(ROOT, 'dist', 'stories', '__probe');
 const nodeIo = () => ({ readText: (p) => readFileSync(join(ROOT, p), 'utf8') });
@@ -298,7 +300,11 @@ try {
 		// **带外**归属读数 ✓（复核席 (iii) 的正形 ✓）：构建**前后**探针页 sha **必须变** ✗
 		//  —— 这次假绿的指纹就是"没变" ✓（链的构建落到荒处 ⇒ 探针页还是旧的 ✓）。
 		t('链④ 探针页**由本次构建写出** ✓（前后 sha 变了 ✗ —— 带外读数 ✓，不依赖串进不进渲染 ✓）', probeShaAfter !== probeShaBefore);
-		t('链④ 渲染 span ＝ **渲染标记本身** ✓（6 ✓ ⇒ "MARKER 之后追加不进渲染" ✓ H4 的直接读数 ✓）', ed.b === MARKER);
+		t('链④ 渲染 span ＝ **本次编辑追加的那个串本身** ✓（＝ MARKER，6 ✓ —— 不声称"边界" ✗：见上"三假设全被推翻" ✓）', ed.b === MARKER);
+		// 复核席的更省判别 ✓：**渲染文本长度 vs 源 `text` 长度** ✗ —— 长度没长 ⇒ **截断** ✓；
+		// 长度长了而差异区间没覆盖新增 ⇒ **归一化/丢弃** ✗ ⇒ 一次测量分开"H4 是截断还是丢弃" ✓。
+		// ⚠️ 这是**观察打印** ✓（期望值未知 ✗ ⇒ 不写成断言 ✗ —— 不许把"看着像"写成判据 ✓）。
+		console.log(`  · ④ 观察·渲染面：渲染文本 ${E2.length} 字符 · 源 text ${targetText.length} 字符 · 差异段 ${ed.b.length} ✓`);
 		console.log(`  · 链④ 差异段长 ${et.len} 字节（上限 ${et.bound} ✓）· 探针页前/后 sha ${probeShaBefore}/${probeShaAfter} ✓`);
 		const F1 = (await preview({ gear: OTHER_SCOPE_STATE.without })).text;
 		const F2 = (await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.without })).text;

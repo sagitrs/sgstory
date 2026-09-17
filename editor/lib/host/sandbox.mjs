@@ -25,7 +25,8 @@ export const runStory = (scripts, { preset = true } = {}) => {
 	return { Sg: sandbox.Sg, Game: sandbox.Game, diag };
 };
 
-/** 引擎常量 ＋ 故事某一段的脚本体（**读文件** ⇒ 住 host ✓）。命令体与自证共用 ✓。 */
+/** 引擎常量 ＋ 故事某一段的脚本体（**读文件** ⇒ 住 host ✓）。
+ *  **消费者现状**：命令体（`lib/host/commands.mjs`，下一票）✓；**自证目前不消费它** ✗（同 `sectionFile` ✓）。 */
 export const engineOf = (slug, fromPath = null) => {
 	const text = readText(fromPath ?? join(ROOT, `stories/${slug}/${sectionFile('Game Tables')}`));
 	return engineScripts() + '\n' + scriptBodies(text).join('\n');

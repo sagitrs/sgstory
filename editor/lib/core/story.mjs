@@ -16,7 +16,8 @@
 export const DATA_FILES = ['tables.json', 'contract.json', 'rules.json'];
 
 /** 段落名 → 文件名（本仓约定：段落名与文件名不同，靠 `00-story.json` 的 files 列表兜底 ✓）。
- *  纯映射 ⇒ 住 core ✓（命令体与自证共用 ✓）。 */
+ *  纯映射 ⇒ 住 core ✓。**消费者现状**：命令体（`lib/host/commands.mjs`，下一票）✓；
+ *  **自证目前不消费它**（自证只用 `runStory` ✓ —— 实测：插哨兵后自证仍 6/6 全绿）✗ ⇒ 自证覆盖列为下一票验收项 ✓。 */
 export const sectionFile = (name) => {
 	const map = { StoryRules: '17-rules.twee', 'Game Tables': '15-tables.twee', StoryBindings: '15-tables.twee' };
 	return map[name] ?? `${name}.twee`;

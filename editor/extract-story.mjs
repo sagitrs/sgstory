@@ -10,18 +10,18 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { scriptBodies } from './equiv.mjs';
-
-const ROOT = fileURLToPath(new URL('..', import.meta.url));
+import { scriptBodies } from './lib/core/text.mjs';
+// `#794` 抽取：读文件的事归 **host**（core 必须浏览器安全）⇒ `engineScripts`／`ENGINE_CONST`／`ROOT` 从 host 取，
+// 本文件**只转出**（老调用方 `classify-contract` 与各门不用改 ✓）。
+import { engineScripts, ENGINE_CONST, ROOT } from './lib/host/fs.mjs';
+export { engineScripts, ENGINE_CONST, ROOT };
 
 /** **引擎常量文件**：故事表里会直接用它（如 `era: window.Game.Era.PRESENT`）⇒ 沙箱必须**先跑引擎**
  *  （与真加载顺序一致：`ORDER` 里 `src/engine/10-const.twee` 在故事文件之前）。
  *  ⚠️ 这条也是"环境契约"的一部分：漏了它，抽出来的数据会缺时代字段（而**不报错**）。 */
-export const ENGINE_CONST = 'src/engine/10-const.twee';
 
 /** 引擎常量的 `[script]` 段（单一权威）：**任何**在沙箱里跑故事段的调用方都要先跑它，
- *  否则故事表里的 `window.Game.Era.PRESENT` 取不到（静默缺字段）。 */
-export const engineScripts = () => scriptBodies(readFileSync(join(ROOT, ENGINE_CONST), 'utf8')).join('\n');
+ *  否则故事表里的 `window.Game.Era.PRESENT` 取不到（静默缺字段）⇒ 现住 `editor/lib/host/fs.mjs` ✓。 */
 
 /** 纯函数：在**浏览器语义**的沙箱里跑一段 `[script]`，返回 `{ Sg, Game, diag }`。 */
 /** **环境契约（承重面，最容易腐烂的地方）**：本助手只跑故事的**某一段** `[script]`，而各段之间**互有依赖** ——

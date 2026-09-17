@@ -21,7 +21,12 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { maskComments } from '../scripts/audit/lib/mask.mjs';
-import { engineScripts } from './extract-story.mjs';
+// `#794` 抽取：纯文本助手归 **core**（浏览器安全），引擎常量前缀归 **host**。
+// 为什么必须搬：原先 `equiv` 与 `extract-story` **互相 import**（环 ✗）⇒ 搬完依赖只剩一个方向 `host → core`。
+import { section, scriptBodies, normalize } from './lib/core/text.mjs';
+import { engineScripts } from './lib/host/fs.mjs';
+// 转出（老调用方不变 ✓）：自证与其它工具仍从 `editor/equiv.mjs` 取这几个名字。
+export { section, scriptBodies, normalize };
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const COMPILER = 'editor/compile-story.mjs';
@@ -31,32 +36,7 @@ const COMPILER = 'editor/compile-story.mjs';
  *  内建"某些故事默认放行"等于把让步藏进代码。L3 **永远打印**（可以不是权威，但不能静默消失）。 */
 export const L3_MODES = ['hard', 'report'];
 
-/** 纯函数：从 twee 文本里取某段段落的正文（不含 `:: 名字 [script]` 头）。 */
-export const section = (text, name) => {
-	const lines = String(text).split('\n');
-	const start = lines.findIndex((l) => l.trim().startsWith(`:: ${name}`));
-	if (start === -1) return null;
-	const rest = lines.slice(start + 1);
-	const end = rest.findIndex((l) => l.trim().startsWith(':: '));
-	return (end === -1 ? rest : rest.slice(0, end)).join('\n');
-};
-
-/** 纯函数：全部 `[script]` 段的正文（按文件顺序）——L1 要它们一起跑才互可见。 */
-export const scriptBodies = (text) => {
-	const out = [];
-	let cur = null;
-	for (const l of String(text).split('\n')) {
-		if (/^::\s+(.+?)\s+\[script\]\s*$/.test(l.trim())) { cur = []; out.push(cur); continue; }
-		if (/^::\s/.test(l.trim())) { cur = null; continue; }
-		if (cur) cur.push(l);
-	}
-	return out.map((b) => b.join('\n')).filter((b) => b.trim());
-};
-
-/** 纯函数：形式归一 —— 词法遮蔽注释 ⇒ 去空白 ⇒ 去**冗余尾逗号**（纯格式，JS 里无语义）。 */
-export const normalize = (text) => maskComments(String(text))
-	.replace(/\s+/g, '')
-	.replace(/,(?=[}\]])/g, '');
+/** 纯函数：形式归一 —— 已搬到 `editor/lib/core/text.mjs`（本文件只转出，见顶部 import）。 */
 
 /** 纯函数：在一份**空白** vm 里跑脚本，返回它的 `window`。 */
 /** 求值一侧的脚本体，**失败也返回结果**（判据的红要讲人话，不许抛栈 ✗ —— 复核席实测：

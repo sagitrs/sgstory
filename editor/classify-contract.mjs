@@ -16,8 +16,8 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
-import { scriptBodies } from './equiv.mjs';
-import { engineScripts } from './extract-story.mjs';
+import { scriptBodies } from './lib/core/text.mjs';
+import { engineScripts } from './lib/host/fs.mjs';
 import { KINDS, GLOBAL_ROOTS } from './compile-story.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));

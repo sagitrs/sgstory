@@ -7,21 +7,22 @@
 // ⇒ 等价性**按构造成立** ✓（不是"两个实现碰巧一致" ✗ —— 那种迟早漂移 ✓）。
 // 连**参数解析**也在这里 ✓（函数的入参就是原始 `argv` 尾巴 ✓）⇒ 入口层没有第二份解析 ✓
 // （否则"未知标志/缺必填/多给位置参数"三档就会两边不一致 ✓ —— 那正是入口层分叉的藏身处 ✓）。
-import { join, resolve, dirname } from 'node:path';
+import { join, resolve, dirname, relative } from 'node:path';
 import { readText, writeText, mkdirp, exists, ROOT, engineScripts } from './fs.mjs';
 import { scriptBodies } from '../core/text.mjs';
 import { compileStory } from '../core/emit.mjs';
 import { packageFiles, writeStoryPackage, sectionFile } from '../core/story.mjs';
 import { runStory, engineOf } from './sandbox.mjs';
 
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync, rmSync, readdirSync } from 'node:fs';
+import { spawnSync } from 'node:child_process';
+import { gatesForStory } from '../../../scripts/audit/discovery.mjs';
 import { hatchFiles } from './hatches.mjs';
 import { hasGeneratedMarker } from '../core/text.mjs';
 import { classifyContractText } from './classify.mjs';
 const NODE_IO = { readText, writeText, mkdirp, exists };
 // `#794` 弧第 3 票（`equiv` 命令体）：用 vm／读文件／跑子进程 ⇒ **都在 host** ✓。
 import vm from 'node:vm';
-import { readdirSync } from 'node:fs';
 import { maskComments } from '../../../scripts/audit/lib/mask.mjs';
 import { section, normalize } from '../core/text.mjs';
 import { L3_MODES, probeArgs, snapshot, diffContract, bareHandRefusal } from '../core/probe.mjs';
@@ -316,4 +317,107 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 	for (const [ok, msg] of results) { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) bad++; }
 	console.log(bad ? `\n✗ 等价判据未通过（${bad} 项）` : `\n✔ ${slug}${rulesMode ? '（条件表）' : ''}：手写版 ↔ 数据版 等价（幂等 ＋ L1 ＋ L3(--l3=${l3Mode}) ＋ 面非空）`);
 	return bad ? 1 : 0;
+};
+
+export class LintRefuse extends Error {}
+
+/** `lint-story <slug|目录路径> [--json] [--dist=<file>]` ⇒ rc（**async**：`gatesForStory` 本质 async ✓ ——
+ *  它经 `declaredGates` **逐个 `await import()`** 载门模块，ESM 无法同步化 ✓ ⇒ 入口统一 await ✓）。
+ *  与 `node editor/lint-story.mjs` **同一具身体** ✓。 */
+export const lintCommand = async (argv = [], { prog = 'node editor/cli.mjs', sub = 'lint-story' } = {}) => {
+	const arg = argv[0];
+	if (!arg) { console.error(usageOf(prog, sub, `<slug|目录路径> [--json] [--dist=<file>]`)); return 2; }
+	// 命令体局部状态（`#794`：原 6 个**模块级**可变状态收成局部 ⇒ 可重入、并按构造消掉"模块级闭包"隐患 ✓）
+	const JSON_OUT = argv.includes('--json');
+	const DIST = (argv.find((a) => a.startsWith('--dist=')) ?? '').slice('--dist='.length) || join(ROOT, 'dist', 'index.html');
+	const findings = [];
+	let step = 'shape';
+	let slug = '';
+	let dir = '';
+	const say = (m) => { if (!JSON_OUT) console.log(m); };
+	const emitJson = (code) => { if (JSON_OUT) process.stdout.write(JSON.stringify({ slug, dir, ok: code === 0, findings }, null, 1) + '\n'); };
+	const ok = (m) => { findings.push({ step, ok: true, detail: m }); say(`  ✔ ${m}`); };
+	/** **非局部终止符**：`fail` 的契约是「不再往下走」✓ ⇒ 用哨兵异常按构造保真 ✓（逐点 `return` 会沿不同嵌套深度回传、易漏 ✗）。 */
+	const fail = (m) => { findings.push({ step, ok: false, detail: m }); if (!JSON_OUT) console.error(`  ✗ ${m}`); throw new LintRefuse(); };
+	const sh = (cmd, args) => spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8' });
+	try {
+		// `<slug>`＝stories/<slug>；含路径分隔符或已存在的目录 ⇒ 当**目录**（临时探针/仓外包亦可用；CLI 契约向后兼容）
+		const asPath = arg.includes('/') || existsSync(arg);
+		dir = asPath ? arg : join(ROOT, 'stories', arg);
+		slug = asPath ? arg.replace(/\/+$/, '').split('/').pop() : arg;
+		say(`lint-story：${slug}${asPath ? `（路径 ${dir}）` : ''}`);
+		if (!existsSync(dir)) fail(`故事目录不存在：${dir}`);
+		let manifest = null;
+		try { manifest = JSON.parse(readFileSync(join(dir, '00-story.json'), 'utf8')); }
+		catch (e) { fail(`00-story.json 不可解析：${e.message}`); }
+		if (!Array.isArray(manifest?.files) || !manifest.files.length) fail('00-story.json 缺 files（非空数组）');
+		const dataTables = join(dir, 'data', 'tables.json');
+		const dataContract = join(dir, 'data', 'contract.json');
+		if (!existsSync(dataTables) || !existsSync(dataContract)) fail('未数据化（缺 data/tables.json 或 data/contract.json）——lint 的对象是数据包；先走 #762 的数据化往返');
+		try { JSON.parse(readFileSync(dataTables, 'utf8')); JSON.parse(readFileSync(dataContract, 'utf8')); }
+		catch (e) { fail(`data/*.json 不可解析：${e.message}`); }
+		ok(`包形状（files×${manifest.files.length} · tables/contract 可解析）`);
+
+		// ── ② 编译＋幂等 ──
+		step = 'compile';
+		const gen = join(ROOT, 'build', 'generated', slug);
+		rmSync(gen, { recursive: true, force: true });
+		let r1 = sh('node', ['editor/compile-story.mjs', slug]);
+		if (r1.status !== 0) fail(`编译失败（第一次）：\n${(r1.stderr || r1.stdout || '').slice(0, 800)}`);
+		const snap = join(ROOT, 'build', 'generated', `${slug}.lint-snap`);
+		rmSync(snap, { recursive: true, force: true });
+		sh('cp', ['-r', gen, snap]);
+		const r2 = sh('node', ['editor/compile-story.mjs', slug]);
+		if (r2.status !== 0) fail(`编译失败（第二次）：\n${(r2.stderr || r2.stdout || '').slice(0, 800)}`);
+		const diff = sh('diff', ['-r', snap, gen]);
+		if (diff.status !== 0) fail(`编译不幂等（两次产物有差）：\n${(diff.stdout || '').slice(0, 400)}`);
+		rmSync(snap, { recursive: true, force: true });
+		ok('编译 ＋ 幂等（两次产物逐字节相同）');
+
+		// ── ③ 等价（L1/L3）——**必须显式给冻结基线** ──
+		// 裸调 `equiv <slug>` 在已翻面的故事上比的不是等价 ✗（默认 `--hand`＝产物 ⇒ 量到"产物 vs 当场重编产物" ✓
+		// ＝K4-④ 新鲜度面 ✓）⇒ 有基线就显式给 ✓；L3 用 report 档 ✓（默认 hard ⇒ 翻面故事因注释/空白差异假红 ✗）。
+		step = 'equiv';
+		let equivDegraded = false;
+		const baseline = join(dir, 'gates', 'equiv-baseline', '15-tables.twee.txt');
+		if (existsSync(baseline)) {
+			const req = sh('node', ['editor/equiv.mjs', slug, `--hand=${relative(ROOT, baseline)}`, '--l3=report']);
+			if (req.status !== 0) fail(`等价判据未过（L1 权威 ＋ L3 report）：\n${(req.stdout || req.stderr || '').slice(0, 800)}`);
+			ok('等价（L1 结构/多实参行为 vs **冻结基线** ＋ L3 剥注释形式·report 档）');
+		} else {
+			const detail = `降级：无冻结基线（gates/equiv-baseline/15-tables.twee.txt 不存在）⇒ 本步**未查等价** ✗（新鲜度面由 K4 门另行把守，不在本工具步骤内）`;
+			equivDegraded = true;
+			say(`  · ${slug}：${detail} —— 这是**状态**，不是"没问题" ✓`);
+			findings.push({ step, ok: true, detail });
+		}
+
+		// ── ④ 门：本故事自己的门，经 audit 原路径（同结论保证＝同一调用面，零重实现）──
+		const gates = await gatesForStory(slug);
+		const flags = [...new Set(gates.flatMap((g) => g.flags ?? []))];
+		if (!flags.length) fail('本故事没有可跑的门（gatesForStory 为空）——门是 lint 的一部分，缺门＝红');
+		step = 'precondition';
+		const DIST_GATES = ['a11y'];
+		if (flags.some((f) => DIST_GATES.includes(f)) && !existsSync(DIST)) {
+			fail(`前置缺失：${DIST} 不存在 ⇒ 先跑 \`node build.mjs\`（故事门里的 a11y 等需要构建产物；这是环境态，不是判据不通过）`);
+		}
+		step = 'gates';
+		const ra = sh('node', ['scripts/audit.mjs', '--story', slug, '--check', ...flags.map((f) => `--${f}`)]);
+		if (ra.status !== 0) fail(`故事门有红（${flags.length} 面）：\n${(ra.stdout || ra.stderr || '').slice(0, 1200)}`);
+		ok(`故事门 ×${flags.length} 面全绿（audit 原路径）`);
+
+		// ── ⑤ 形状门 ──
+		step = 'story-shape';
+		const rs = sh('node', ['test/story-shape.mjs']);
+		if (rs.status !== 0) fail(`story-shape 门红：\n${(rs.stdout || rs.stderr || '').slice(0, 600)}`);
+		ok('story-shape 门');
+
+		say(`\n✔ lint-story：${slug} 通过（包形状 · 编译幂等 · ${equivDegraded ? '等价**降级**（无冻结基线 ⇒ 未查，见上 ✓）' : '等价'} · 门 ×${flags.length} · 形状）`);
+		emitJson(0);
+		return 0;
+	} catch (e) {
+		// 只吞自己的 `LintRefuse` ✓ —— 真崩溃（TypeError/ReferenceError）**原样抛** ✗（不许洗成"clean rc=1 ＋ JSON"）
+		if (!(e instanceof LintRefuse)) throw e;
+		emitJson(1);
+		return 1;
+	}
 };

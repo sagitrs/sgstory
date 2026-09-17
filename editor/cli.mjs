@@ -4,7 +4,8 @@
 // ⚠️ **主模块守卫**：本文件同时是库（命令表以后 WebUI/测试可能 import ✓）⇒ 只在被当脚本执行时才跑 CLI ✓。
 //    `isMain` 的声明必须在 **imports 之后、逻辑之前** ✓ —— 放后面会 TDZ ✗（`Cannot access 'isMain' before initialization`，D 踩过 ✓）。
 import { fileURLToPath } from 'node:url';
-import { buildCommand, extractCommand, classifyCommand, equivCommand } from './lib/host/commands.mjs';
+import { buildCommand, extractCommand, classifyCommand, equivCommand, lintCommand } from './lib/host/commands.mjs';
+import { exitWithRc } from './lib/host/proc.mjs';
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 
@@ -14,6 +15,7 @@ const COMMANDS = {
 	'extract-story': (argv, ctx) => extractCommand(argv, ctx),
 	'classify-contract': (argv, ctx) => classifyCommand(argv, ctx),
 	equiv: (argv, ctx) => equivCommand(argv, ctx),
+	'lint-story': (argv, ctx) => lintCommand(argv, ctx),
 };
 
 const USAGE = [
@@ -21,11 +23,16 @@ const USAGE = [
 	'子命令：',
 	'  build <slug> [--out=<dir>]   与 `node editor/compile-story.mjs` **同一具身体** ✓',
 	'  equiv <slug> [--rules] [--l3=hard|report] [--hand=<file>]   与 `node editor/equiv.mjs` **同一具身体** ✓',
+	'  lint-story <slug|目录路径> [--json] [--dist=<file>]   与 `node editor/lint-story.mjs` **同一具身体** ✓',
 	'  classify-contract <slug> [--json]   与 `node editor/classify-contract.mjs` **同一具身体** ✓',
 	'  extract-story <slug> [--tables] [--from=<file>] [--out=<file>]   与 `node editor/extract-story.mjs` **同一具身体** ✓',
 ].join('\n');
 
 /** 无子命令 ⇒ **rc≠0**（不是静默成功 ✗）；`--help` ⇒ rc=0；未知子命令 ⇒ **rc≠0 且点名它** ✗（不静默 fallback ✓）。 */
+// **命令体的 rc 契约**（`#794`）：命令体**可以**返回 `number | Promise<number>` ✓（`lint-story` 就是 async ✓ ——
+// `gatesForStory` 经逐个 `await import()` 载门模块 ⇒ ESM 无法同步化 ✓）。
+// 入口**统一**走 `exitWithRc` ✓：thenable ⇒ await 完再退 ✓；**非 number ⇒ 当场抛** ✗（不许静默
+// `process.exit(Promise)` ⇒ rc 变 0 ✗，而**没有任何门会红** ✗）。
 export const runCli = (argv = process.argv.slice(2), { prog = 'node editor/cli.mjs' } = {}) => {
 	const [cmd, ...rest] = argv;
 	if (!cmd) { console.error(USAGE); return 2; }
@@ -35,4 +42,4 @@ export const runCli = (argv = process.argv.slice(2), { prog = 'node editor/cli.m
 	return fn(rest, { prog, sub: cmd });
 };
 
-if (isMain) process.exit(runCli());
+if (isMain) exitWithRc(runCli());

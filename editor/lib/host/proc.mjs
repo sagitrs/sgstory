@@ -14,3 +14,15 @@ export const run = (cmd, args = [], opts = {}) => execFileSync(cmd, args, opts);
 
 /** 跑 `node <脚本> <参数…>`（多个壳都在做同一件事 ⇒ 一处定义 ✓）。 */
 export const runNode = (args = [], opts = {}) => execFileSync('node', args, opts);
+
+/** **命令体的 rc 契约**（`#794`）：命令体**可以**返回 `number | Promise<number>` ✓；入口统一走这里：
+ *  · 同步值 ⇒ 直接退出 ✓；thenable ⇒ await 完再退 ✓（`lint-story` 的命令体是 async ✓ —— 因 `gatesForStory` 本质 async ✓）
+ *  · **非 number ⇒ 当场抛** ✗ —— 不许静默 `process.exit(undefined)`／`exit(Promise)`（那会变成 rc=0 ✗，而**没有任何门会红** ✗）。
+ *  两个消费者：`editor/cli.mjs` 与各工具的壳（`editor/lint-story.mjs`）✓ ⇒ 一处定义 ✓。 */
+export const exitWithRc = (rc) => {
+	const done = (c) => {
+		if (typeof c !== 'number') throw new Error(`命令体 rc 必须是 number（实得 ${typeof c}）—— 不许静默 process.exit(undefined) ✗`);
+		process.exit(c);
+	};
+	return rc && typeof rc.then === 'function' ? rc.then(done) : done(rc);
+};

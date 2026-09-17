@@ -25,6 +25,25 @@ export const runStory = (scripts, { preset = true } = {}) => {
 	return { Sg: sandbox.Sg, Game: sandbox.Game, diag };
 };
 
+/** 纯函数：把 `() => <局部常量>` 解析成它的**值**（不手抄）。
+ *  做法：在浏览器语义沙箱里跑该文件的 `[script]` 段 ＋ 追加一行 `window.__probe = <标识符>;` ⇒ 读出来。
+ *  取不到（未定义/非 JSON 化）⇒ 返回 null（调用方保持 B 桶，不假装成功）。
+ *  住 host ✓（用 `node:vm` ✓）；与 `runStory` 同窝 ✓（两个都是"跑一段脚本、取它的世界" ✓）。
+ *  ⚠️ 夹具注意：若夹具里出现 `Object.assign((window.Sg.story ??= {}), …)`，缺 `window.Sg` 会落 catch ⇒ 返回 null ✓
+ *  （判 B 是**形状问题**，不是本函数坏了 ✓ —— 我一次探针就是这么误标的 ✗）。 */
+export const resolveLocalConst = (fileText, sectionName, ident) => {
+	const bodies = scriptBodies(fileText);
+	const box = { console: { log() {}, error() {} } };
+	box.window = box;
+	vm.createContext(box);
+	try {
+		vm.runInContext(engineScripts() + '\n' + bodies.join('\n') + `\n;window.__probe = (typeof ${ident} === 'function' ? undefined : ${ident});`, box, { timeout: 5000 });
+	} catch { return null; }
+	const v = box.__probe;
+	if (v === undefined) return null;
+	try { return JSON.parse(JSON.stringify(v)); } catch { return null; }
+};
+
 /** 引擎常量 ＋ 故事某一段的脚本体（**读文件** ⇒ 住 host ✓）。
  *  **消费者现状**：命令体（`lib/host/commands.mjs`，下一票）✓；**自证目前不消费它** ✗（同 `sectionFile` ✓）。 */
 export const engineOf = (slug, fromPath = null) => {

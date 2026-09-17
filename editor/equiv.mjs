@@ -18,15 +18,18 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 // `#794` 第 3 步 ②：跑子进程是**宿主能力** ⇒ 经 `lib/host/proc.mjs`（core 不得 import 这一层 ✓；K6 判据③在盯 ✓）。
 import { runNode } from './lib/host/proc.mjs';
-import { engineScripts } from './lib/host/fs.mjs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { maskComments } from '../scripts/audit/lib/mask.mjs';
 // `#794` `equiv` 弧第 1 票：**纯助手**已搬进 `editor/lib/core/probe.mjs`（逐字 ✓）
 // ⇒ 本文件只 **import ＋ 转出**（老调用方与自证都不用改 ✓）。
-import { L3_MODES, declaredIds, probeArgs, call, diffContract, walk } from './lib/core/probe.mjs';
-export { L3_MODES, declaredIds, probeArgs, call, diffContract, walk };
+import { L3_MODES, declaredIds, probeArgs, call, diffContract, walk, snapshot } from './lib/core/probe.mjs';
+export { L3_MODES, declaredIds, probeArgs, call, diffContract, walk, snapshot };
+// `#794` 弧第 2 票：碰 vm 的三个（`sandboxOf`／`runScript`／`evalSide`）搬进 `lib/host/probe.mjs`（逐字 ✓）
+// ⇒ 本文件只 import ＋ 转出（老调用方与自证不改 ✓）；下一票再搬命令体 ✓。
+import { sandboxOf, runScript, evalSide } from './lib/host/probe.mjs';
+export { sandboxOf, runScript, evalSide };
 
 // `#794` 抽取：纯文本助手归 **core**（浏览器安全），引擎常量前缀归 **host**。
 // 为什么必须搬：原先 `equiv` 与 `extract-story` **互相 import**（环 ✗）⇒ 搬完依赖只剩一个方向 `host → core`。
@@ -39,39 +42,6 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const COMPILER = 'editor/compile-story.mjs';
 
 /** 纯函数：形式归一 —— 已搬到 `editor/lib/core/text.mjs`（本文件只转出，见顶部 import）。 */
-
-/** 纯函数：在一份**空白** vm 里跑脚本，返回它的 `window`。 */
-/** 求值一侧的脚本体，**失败也返回结果**（判据的红要讲人话，不许抛栈 ✗ —— 复核席实测：
- *  基线被改坏时 `equiv` 吐的是**崩溃栈**，看红的人会误判"是不是环境坏了"）。 */
-export const evalSide = (body, label = '') => {
-	try { return { win: runScript(body) }; }
-	catch (e) { return { err: `${label}求值失败：${String(e?.message ?? e).slice(0, 140)}` }; }
-};
-
-export const runScript = (body) => {
-	// **环境契约**（同一族坑的第三处）：故事段会直接读引擎常量（`window.Game.Era.PRESENT` 等）
-	// ⇒ 沙箱必须**先跑引擎常量**（真加载顺序：`ORDER` 里引擎在前）。少了它，抽出来的/比对的两侧都会静默缺字段。
-	const sandbox = { console: { log() {}, error() {} } };
-	sandbox.window = sandbox;
-	vm.createContext(sandbox);
-	vm.runInContext(engineScripts() + '\n' + String(body), sandbox, { timeout: 5000 });
-	return sandbox.window;
-};
-
-/** 纯函数：由 `window` 取出可比较的面（数据容器 ＋ 契约的**多实参行为**）。 */
-export const snapshot = (win) => {
-	const ids = declaredIds(win);
-	let probes = 0;
-	const contract = {};
-	for (const [k, fn] of Object.entries(win.Sg?.story ?? {})) {
-		const rows = probeArgs(ids).map((args) => { probes++; return [args, call(fn, args)]; });
-		contract[k] = rows;
-	}
-	// 容器比较用**规范化 JSON**（对象键**排序**、数组保序）：键序不是数据，而产物是按**桶分组**发射的 ⇒
-	// 直接 `JSON.stringify` 会因键序差异**假红**（同族于下面契约那条"判行为不判顺序"的教训）。数组顺序仍然判（那可能是语义）。
-	const canon = (v) => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v);
-	return { game: JSON.stringify(canon(win.Game ?? null)), contract, ids, probes, walk: walk(win.Game ?? {}) };
-};
 
 /** **该不该拒绝"裸跑"**（`#794` 观察项 ✓）—— 纯谓词 ✓（所以自证能驱动它 ✓，无需夹具文件 ✓）。
  *  条件严格写成「**未显式给 `--hand`** ∧ 默认目标**带生成标记**」✓ ⇒ 两个**不误报**面：
@@ -128,16 +98,6 @@ const selftest = () => {
 // `equiv` 的自证然后退出 ⇒ 自己的自证根本没跑）。守卫＝「只在被当脚本执行时才跑 CLI」。
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain && process.argv.includes('--selftest')) { selftest(); process.exit(0); }
-
-/** 浏览器语义的沙箱（`window` 就是全局对象 ⇒ `window.Sg = {}` 之后裸 `Sg` 也能解析）。 */
-const sandboxOf = () => {
-	// 同样先跑引擎常量（`Game.Era`/`Game.Damage` 是引擎政策，不是故事数据）
-	const box = { console: { log() {}, error() {} }, Sg: {} };
-	box.window = box;
-	vm.createContext(box);
-	vm.runInContext(engineScripts(), box, { timeout: 5000 });
-	return box;
-};
 
 const main = () => {
 	const slug = process.argv[2];

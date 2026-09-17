@@ -4,7 +4,9 @@
 // 回答「这份包编译得动吗 · 和手写版等价吗 · 它自己的门全绿吗」——**输出与门同结论**
 // （门一律经 `scripts/audit.mjs` 原调用路径跑，本文件不重实现任何判据）。
 //
-// 用法：node editor/lint-story.mjs <slug|目录路径> [--json]
+// 用法：node editor/lint-story.mjs <slug|目录路径> [--json] [--dist=<index.html 路径>]
+//   `--dist`：构建产物路径（默认 `dist/index.html`）——**前置**：部分故事门（a11y 等）需要 dist ⇒ 缺了要
+//     给**明确前置 finding**（"先去 build"），不许把"环境态缺失"混成"判据不通过"（红要讲人话）。
 //   `--json`：**诊断是数据**（`#794` 第①条）——把 findings 以 JSON 打给 stdout（人读面默认不变）：
 //     { slug, dir, ok, findings: [{ step, ok, detail }], steps, gates }
 //   步骤（全部 fail-loud，绝不静默缺测）：
@@ -21,6 +23,8 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const JSON_OUT = process.argv.includes('--json');
+const DIST = (process.argv.find((a) => a.startsWith('--dist=')) ?? '').slice('--dist='.length)
+	|| new URL('../dist/index.html', import.meta.url).pathname;
 const findings = [];
 let step = 'shape';   // ① 包形状（首个 finding 归属）
 const say = (m) => { if (!JSON_OUT) console.log(m); };
@@ -80,11 +84,17 @@ if (req.status !== 0) fail(`等价判据未过（L1/L3）：\n${(req.stdout || r
 ok('等价（L1 结构/行为 ＋ L3 剥注释形式）');
 
 // ── ④ 门：本故事自己的门，经 audit 原路径（同结论保证＝同一调用面，零重实现）──
-step = 'gates';
 const { gatesForStory } = await import(join(ROOT, 'scripts/audit/discovery.mjs'));
 const gates = await gatesForStory(slug);
 const flags = [...new Set(gates.flatMap((g) => g.flags ?? []))];
 if (!flags.length) fail('本故事没有可跑的门（gatesForStory 为空）——门是 lint 的一部分，缺门＝红');
+// 前置：故事门里有的要读构建产物（a11y 等）⇒ 缺 dist 就**明确说"缺前置"**，不混成门红（红要讲人话）
+step = 'precondition';
+const DIST_GATES = ['a11y'];   // 需要 dist 的门面（新增即在此列）
+if (flags.some((f) => DIST_GATES.includes(f)) && !existsSync(DIST)) {
+	fail(`前置缺失：${DIST} 不存在 ⇒ 先跑 \`node build.mjs\`（故事门里的 a11y 等需要构建产物；这是环境态，不是判据不通过）`);
+}
+step = 'gates';
 const ra = sh('node', ['scripts/audit.mjs', '--story', slug, '--check', ...flags.map((f) => `--${f}`)]);
 if (ra.status !== 0) fail(`故事门有红（${flags.length} 面）：\n${(ra.stdout || ra.stderr || '').slice(0, 1200)}`);
 ok(`故事门 ×${flags.length} 面全绿（audit 原路径）`);

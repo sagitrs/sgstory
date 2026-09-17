@@ -1,6 +1,6 @@
 {
 	"slug": "mist-forest",
-	"why": "行为硬门的基线＝**翻面前 main（`17c2d6e`）的仓内副本**（两份：契约面 ＋ 条件面）。本故事翻面**多一层形状**：契约里有两个**非 A 桶**成员（`socialHooks` = B、`overBudget` = C）⇒ 生成物装不下它们 ⇒ 住**手写** `16-hooks.twee`（登记在 `escape-hatch.json` 的 `hatchFiles`）⇒ 行为门的「产物侧」＝**生成物 ＋ 逃生舱**（只比生成物会得到「少成员」的**假差** ✗），「手写侧」＝本目录这两份快照**之和**。",
+	"why": "行为硬门的基线＝**翻面前 main（`17c2d6e`）的仓内副本**（两份：契约面 ＋ 条件面）。**pin 有效性已复算**：这两个文件在 `17c2d6e` 与本次 rebase 的 base `27d8064` 上**逐字节相同**（sha256 前 16 位分别 `3413560c01438869` / `7206468bb18f6f24`），也与本目录两份 `.txt` 相同 ⇒ 钉的是**内容**、不是指针（别再照「钉旧 tag／旧 SHA」的思路重踩一次 —— 那是已记录的教训）。本故事翻面**多一层形状**：契约里有两个**非 A 桶**成员（`socialHooks` = B、`overBudget` = C）⇒ 生成物装不下它们 ⇒ 住**手写** `16-hooks.twee`（登记在 `escape-hatch.json` 的 `hatchFiles`）⇒ 行为门的「产物侧」＝**生成物 ＋ 逃生舱**（只比生成物会得到「少成员」的**假差** ✗），「手写侧」＝本目录这两份快照**之和**。",
 	"source": "git show 17c2d6e:stories/mist-forest/15-tables.twee > 15-tables.twee.txt；git show 17c2d6e:stories/mist-forest/17-rules.twee > 17-rules.twee.txt",
 	"commit": "17c2d6e",
 	"commitSubject": "chore(#785 机制片 · 收尾): golden 重签（1 个开关）—— `--consequences` 的写入旗标 88 → 82",

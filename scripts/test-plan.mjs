@@ -209,6 +209,8 @@ export const SEGMENTS = [
 	{ id: "test-web-compile-mjs", phase: 'test', cost: 0.3, cmd: "node test/web-compile.mjs" },
 	// `#761` P1 第三片：**写包对拍**（经唯一写路 writeStoryPackage ✓，与 CLI 产物逐字节 ✓）。
 	{ id: "test-web-save-mjs", phase: 'test', cost: 0.3, cmd: "node test/web-save.mjs" },
+	// `#761` P1 第四片：**改一个事件**的字段级读数（差异恰好一处 ✓／写回逐字段一致 ✓／产物只少数行变 ✓）。
+	{ id: "test-web-events-mjs", phase: 'test', cost: 0.3, cmd: "node test/web-events.mjs" },
 	{ id: "test-social-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/social-sink.mjs --selftest" },
 	{ id: "test-social-sink-mjs", phase: 'test', cost: 3, cmd: "node test/social-sink.mjs" },
 	{ id: "test-siteinfo-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/siteinfo-sink.mjs --selftest" },

@@ -19,7 +19,7 @@ export const flags = ['notes'];
 // 形状与对齐的判定已搬到 core ✓（页面与门跑**同一份** ⇒ 一处实现 ✓）：
 //   `editor/lib/core/stateDiagnose.mjs` 的 `auditShape` ✓（`findings` 形状照 `editor/lib/core/diagnose.mjs` ✓）。
 //   ⚠️ 本文件**不再自带** `REQUIRED`／`keyOf`／`auditShape` 的定义 ✗ ⇒ 只 import ＋ 转出（老调用方不变 ✓）。
-import { auditShape, flagPaths, keyOf } from '../../../editor/lib/core/stateDiagnose.mjs';
+import { auditShape, flagPaths, keyOf, notepathProblems, singleReadProblems, singleWriteProblems } from '../../../editor/lib/core/stateDiagnose.mjs';
 export { flagPaths };
 // ── 纯函数：表行读点（`#435` 前置 0）──────────────────────────────────────
 // 阶段 4 之后，**表行的 `req`/`any`/`exclude` 就是读点**（求值走 `Sg.notes`/`Sg.rules` 封装层）。
@@ -84,83 +84,9 @@ export const SINGLE_READ_BASELINE = {
 	// 多源笔记（`ev.hall_seen`／`ev.study_found`）**仍用 `readPath`** —— 那是"哪一条路径拿到了"的语义，必须保留。
 };
 
-export const notepathProblems = ({ entries = {}, sources = {} } = {}) => {
-	const problems = [];
-	const ids = new Set(Object.keys(entries));
-	const NP = /<<\s*notepath\s+['"](n_[a-z0-9_]+)['"]\s+['"]((?:ev|world)\.[a-z0-9_]+)['"]/g;
-	const NOTE = /(?:<<\s*note\s+['"](n_[a-z0-9_]+)['"]|Sg\.notes\.add\(\s*['"](n_[a-z0-9_]+)['"])/g;
-	for (const [f, src] of Object.entries(sources)) {
-		const text = String(src ?? '').replace(/\/%[\s\S]*?%\//g, '');   // 注释里的示例不是代码
-		for (const m of text.matchAll(NP)) {
-			const [, id, path] = m;
-			if (!ids.has(id)) { problems.push({ id, where: f, detail: `\`<<notepath>>\` 的笔记 id「${id}」**未登记**（写进去读不出来）` }); continue; }
-			if (!flagPaths(entries[id]).includes(path)) {
-				problems.push({ id, where: f, detail: `\`<<notepath>>\` 的 path「${path}」**不属于**该笔记的 \`flagPath\`（${flagPaths(entries[id]).join('／')}）——写进去读不出来` });
-			}
-		}
-		for (const m of text.matchAll(NOTE)) {
-			const id = m[1] ?? m[2];
-			const e = entries[id];
-			if (!e || flagPaths(e).length <= 1 || e.setPath) continue;   // 未登记/单源/已声明 setPath ⇒ 不归本判据管
-			problems.push({ id, where: f, detail: `多源笔记用了 \`<<note>>\`／\`Sg.notes.add()\`——必须用 \`<<notepath "id" "path">>\` 声明**写哪一条**（或声明 \`setPath\`）` });
-		}
-	}
-	return problems;
-};
-
-/** **单源笔记不得用 `readPath` 读**（`#437` C-2c-3 的判据面）：
- *  单源笔记的 path 就是它的唯一来源 ⇒ `readPath(pc, path)` ≡ `has(id)`，**后者才是模型里的写法**
- *  （也让"旗标"从读侧彻底退场 ⇒ 之后才能停写单源旗标）。**多源笔记**（`flagPath` 是数组）相反：
- *  那里 `readPath` 表达的是"**哪一条路径**拿到了"（例：`ev.hall_seen`"看准了" vs `world.hall_hint`"听人比过"）
- *  ⇒ 必须保留，不许一刀切。
- *  基线（`stories/<slug>/audit.json` 的 `singleReadBaseline`）逐条带**移除计划**；修好即从基线删（**腐烂即红**）。 */
-export const singleReadProblems = ({ entries = {}, sources = {}, baseline = {} } = {}) => {
-	const problems = [];
-	const pathInfo = new Map();   // 'ev.x' → { id, multi }
-	for (const [id, e] of Object.entries(entries)) {
-		const ps = Array.isArray(e?.flagPath) ? e.flagPath : (e?.flagPath == null ? [] : [e.flagPath]);
-		for (const p of ps) if (p) pathInfo.set(String(p), { id, multi: Array.isArray(e.flagPath) });
-	}
-	const seen = new Set();
-	for (const [f, src] of Object.entries(sources)) {
-		const text = String(src ?? '').replace(/\/%[\s\S]*?%\//g, '');
-		for (const m of text.matchAll(/Sg\.notes\.readPath\(\s*[^,()]+,\s*['"]((?:ev|world)\.[a-z_]+)['"]/g)) {
-			const info = pathInfo.get(m[1]);
-			if (!info || info.multi) continue;                    // 未登记/多源 ⇒ 不归本判据管
-			const key = `${f}::${m[1]}`;
-			seen.add(key);
-			if (!baseline[key]) problems.push({ id: info.id, where: `${f}｜${m[1]}`, detail: `单源笔记用 \`readPath\` 读 ⇒ 应为 \`Sg.notes.has('${info.id}')\`（path 即唯一来源，两者等价；改用 has 后旗标才能从读侧退场）` });
-		}
-	}
-	// 腐烂：基线里登记了、但**现在已不再命中**（修好了）⇒ 报，逼你删（本仓既有纪律）
-	for (const [key, why] of Object.entries(baseline ?? {})) {
-		if (seen.has(key)) continue;
-		problems.push({ id: key, where: key.split('::')[0], detail: `基线腐烂：「${key.split('::')[1]}」已不再以 \`readPath\` 形式出现（修好了就删基线）——登记理由：${why}` });
-	}
-	return problems;
-};
-
-/** **单源笔记不得走 `<<notepath>>`／`addPath()`**（`#733` 片 2）：单源笔记的 `flagPath` 只是"历史来源"（供旧档迁移），
- *  真存储是 `ev.notes` ⇒ 再写那条旗标就是**没人读的影子状态**（读侧 C-2c-2/C-2c-3 已收干净）。
- *  与 `notepathProblems()` 的"多源必须显式声明"**正好互补**：一个管"多源别偷懒"，一个管"单源别多写"。
- *  ⚠️ 本判据**先落地**（此时 `add()` 仍在双写旗标 ⇒ 行为不变）；等断言面形式无关后，再翻面停写（片 2-b）。 */
-export const singleWriteProblems = ({ entries = {}, sources = {} } = {}) => {
-	const problems = [];
-	const multi = (id) => Array.isArray(entries?.[id]?.flagPath);
-	for (const [f, src] of Object.entries(sources)) {
-		const text = String(src ?? '').replace(/\/%[\s\S]*?%\//g, '');
-		for (const m of text.matchAll(/<<\s*notepath\s+['"](n_[a-z0-9_]+)['"]\s+['"](?:ev|world)\.[a-z0-9_]+['"]/g)) {
-			if (multi(m[1])) continue;
-			problems.push({ id: m[1], where: f, detail: `**单源**笔记走了 \`<<notepath>>\`（写那条旗标已无读者）⇒ 应改用 \`<<note "${m[1]}">>\`（issue #733 片 2）` });
-		}
-		for (const m of text.matchAll(/Sg\.notes\.addPath\(\s*['"](n_[a-z0-9_]+)['"]/g)) {
-			if (multi(m[1])) continue;
-			problems.push({ id: m[1], where: f, detail: `**单源**笔记走了 \`addPath()\` ⇒ 应改用 \`Sg.notes.add('${m[1]}')\`（issue #733 片 2）` });
-		}
-	}
-	return problems;
-};
-
+// 源用法三条（`notepathProblems`／`singleReadProblems`／`singleWriteProblems`）已搬到 core ✓
+// （页面与门跑同一份 ⇒ 一处实现 ✓）；本文件不再自带它们 ✗ —— 只 import。
+// ⚠️ 它们在 core 里返回 **findings**（四键同形 ✓）⇒ 本门在消费点映回老形状（输出逐字节不变 ✓）。
 export const run = (ctx) => {
 	console.log('\n══ ⓪w 笔记模型门（伞 #422）——形状/对齐 · 接入契约 · 消费可数 ══');
 	const domains = ctx.Game.State?.domains ?? [];
@@ -282,9 +208,9 @@ export const run = (ctx) => {
 	// `#877`：判定件出 **findings**（同形 ✓）⇒ 这里映回本门的老形状（输出逐字节不变 ✓）
 	const shape = auditShape(entries, domainKeys).map((f) => ({ id: f.target.event, detail: f.detail }));
 	const cons = auditConsumption(entries, reads, bk, allText, new Set(declCondRefs(allText).notes));
-	const nps = notepathProblems({ entries, sources });   // `#437` C-2b′：`<<notepath>>` 的 path/多源判据
-	const swps = singleWriteProblems({ entries, sources });   // `#733` 片 2：单源不得走 notepath／addPath
-	const srps = singleReadProblems({ entries, sources, baseline: SINGLE_READ_BASELINE });   // `#437` C-2c-3
+	const nps = notepathProblems({ entries, sources }).map((f) => ({ id: f.target.event, detail: f.detail }));   // `#437` C-2b′：`<<notepath>>` 的 path/多源判据
+	const swps = singleWriteProblems({ entries, sources }).map((f) => ({ id: f.target.event, detail: f.detail }));   // `#733` 片 2：单源不得走 notepath／addPath
+	const srps = singleReadProblems({ entries, sources, baseline: SINGLE_READ_BASELINE }).map((f) => ({ id: f.target.event, detail: f.detail }));   // `#437` C-2c-3
 	// 空状态下不得"已知"（笔记不该一开局就成立）——按 flagPath 求值验证（多源 OR：每条路径都不得为真）
 	const emptyProblems = [];
 	{

@@ -13,19 +13,26 @@
 //   · "不适用"形 ＝ `level: 'info'`, `step: 'applicable'` ✓；
 //   · 渲染**不在这里重写** ✗ ⇒ 用 `diagnose.mjs` 的 `formatFinding`／`summarize` ✓。
 //   · 差异（**已声明** ✓）：本件 `step` 用 `'shape'` ✓（`diagnose.mjs` 用 `row`／`package`／`applicable` ✓）—— 两者不冲突 ✓，但**是**一个面差异 ✓。
+//   · `step` **取值集合**（契约处写清 ✓ —— `level` 有三值约束 ✓、`step` 本来没有 ⇒ 分叉最容易从这兒漏 ✗）：
+//     `diagnose.mjs` ✓：`row` ／ `package` ／ `applicable`；本件 ✓：`shape`（形状与对齐 ✓）／`source`（源用法 ✓）。
+//     ⇒ 新加 `step` 值必须**先声明** ✓（否则就是未声明的形状分叉 ✗）。`target.field` 同理：本件统一 `'flagPath'` ✓。
 //
 // 本块（#877 第一块）：`auditShape` —— 笔记条的**字段齐全 ＋ 状态契约域对齐** ✓。
 //   ⇒ 它是**自足**的 ✓（只用本文件的常量与局部助手 ✓，不拉 `scripts/**` ✓）⇒ 因此可先落 ✓。
 //
 // ⚠️ **已抽 / 未抽**（件名声称的比现在交付的多 ✗ ⇒ 必须写明，免得下一个人以为漏了 ✓）：
 //   · **已抽** ✓：`auditShape` ✓（＋它的两个局部助手 `flagPaths`／`keyOf` ✓）
-//   · **未抽** ✗（仍住 `stories/mist-forest/gates/notes.mjs` ✓）：`rowReads`／`auditConsumption`／
-//     `notepathProblems`／`singleReadProblems`／`singleWriteProblems` ✓
-//     ⇒ 它们都依赖 `scripts/audit/lib/shared.mjs` 的纯帮手（`ruleRowKeys`／`declCondRefs`／`readKeys`… ✓）
-//       ⇒ 必须等前置切片 `#881`（把纯帮手搬进 core ✓）落地后才可能做**逐字搬运** ✓。
+//     ＋ **源用法三条** ✓：`notepathProblems`／`singleReadProblems`／`singleWriteProblems` ✓
+//     （它们互相依赖 ⇒ 同块搬 ✓；外部依赖只有 `flagPaths` ✓ ⇒ 不需要前置切片 `#881` ✓）
+//   · **未抽** ✗（仍住 `stories/mist-forest/gates/notes.mjs` ✓）：`rowReads`／`auditConsumption` ✓
+//     ⇒ `rowReads` 依赖 `ruleRowKeys`（`scripts/audit/lib/shared.mjs` ✓）⇒ **必须等前置切片 `#881`** ✓
+//       （把纯帮手搬进 core ✓）才可能做**逐字搬运** ✓。
 //   · **未抽·另一门** ✗：`stories/mist-forest/gates/reads.mjs` 的同族六个 ✓（同需 `#881` ✓）。
-//   · **本块不涉及** ✗：`info`／`applicable` 那条路 —— 形状判定对**任何包**都适用 ✓ ⇒ 无"缺面"可言 ✓；
+//   · **不涉及** ✗：`info`／`applicable` 那条路 —— 已抽的判定对**任何包**都适用 ✓ ⇒ 无"缺面"可言 ✓；
 //     "缺面逐行 `info`"要等吃 twee／引擎事实的那几块才出现 ✓。
+//   · **已知形状差（已声明 ✓）** ✗：源用法三条的 `step` 用 `'source'` ✓（平列于 `row`／`package`／`applicable`／`shape` ✓）；
+//     且它们曾经返回的 `where`（命中的源文件 ✓）**不再返回** ✗ —— 因为**无人消费** ✓（门只打 `id`／`detail` ✓）。
+//     将来显示侧若要"去哪看" ⇒ 那是一次**跨片**的形状扩展（`target.where` ✓），归显示侧与复核席 ✓。
 
 const REQUIRED = ['title', 'src', 'body', 'tags', 'era', 'flagPath'];
 // `flagPath` 可以是字符串或**字符串数组**（多源 OR，`#432-B8/B12`）
@@ -60,4 +67,82 @@ export const auditShape = (entries, domainKeys) => {
 	}
 	// **排序键与 `diagnose.mjs` 逐字相同** ✓（⇒ "重叠面逐字节相同"可检 ✓、且不掺外部顺序 ✓）
 	return out.sort((a, b) => `${a.target.event}|${a.target.field}|${a.detail}`.localeCompare(`${b.target.event}|${b.target.field}|${b.detail}`));
+};
+
+/** 内部：造一条**源用法** finding ✓ —— `step: 'source'` ✓（平列于 `row`／`package`／`applicable`／`shape` ✓）。
+ *  `field` 统一用 `'flagPath'` ✓（＝**该去改的那个字段** ✓；精确位置（哪个源文件、哪条路径）在 `detail` 里 ✓）。 */
+const srcFinding = ({ detail, event = null, level = 'error' }) => ({ level, step: 'source', detail, target: { event, field: 'flagPath' } });
+
+const sortFindings = (out) => out.sort((a, b) => `${a.target.event}|${a.target.field}|${a.detail}`.localeCompare(`${b.target.event}|${b.target.field}|${b.detail}`));
+
+/** **`<<notepath>>` 的 id/path 必须与笔记登记一致** ✓（`#437` C-2b′）。
+ *  ⚠️ `detail` 文案与搬家前**逐字相同** ✓；曾经返回的 `where`（源文件名 ✓）**不再返回** ✗（无人消费 ✓，门只打 `event`／`detail` ✓）。 */
+export const notepathProblems = ({ entries = {}, sources = {} } = {}) => {
+	const out = [];
+	const ids = new Set(Object.keys(entries));
+	const NP = /<<\s*notepath\s+['"](n_[a-z0-9_]+)['"]\s+['"]((?:ev|world)\.[a-z0-9_]+)['"]/g;
+	const NOTE = /(?:<<\s*note\s+['"](n_[a-z0-9_]+)['"]|Sg\.notes\.add\(\s*['"](n_[a-z0-9_]+)['"])/g;
+	for (const [f, src] of Object.entries(sources)) {
+		const text = String(src ?? '').replace(/\/%[\s\S]*?%\//g, '');   // 注释里的示例不是代码
+		for (const m of text.matchAll(NP)) {
+			const [, id, path] = m;
+			if (!ids.has(id)) { out.push(srcFinding({ event: id, detail: `\`<<notepath>>\` 的笔记 id「${id}」**未登记**（写进去读不出来）` })); continue; }
+			if (!flagPaths(entries[id]).includes(path)) {
+				out.push(srcFinding({ event: id, detail: `\`<<notepath>>\` 的 path「${path}」**不属于**该笔记的 \`flagPath\`（${flagPaths(entries[id]).join('／')}）——写进去读不出来` }));
+			}
+		}
+		for (const m of text.matchAll(NOTE)) {
+			const id = m[1] ?? m[2];
+			const e = entries[id];
+			if (!e || flagPaths(e).length <= 1 || e.setPath) continue;   // 未登记/单源/已声明 setPath ⇒ 不归本判据管
+			out.push(srcFinding({ event: id, detail: `多源笔记用了 \`<<note>>\`／\`Sg.notes.add()\`——必须用 \`<<notepath "id" "path">>\` 声明**写哪一条**（或声明 \`setPath\`）` }));
+		}
+	}
+	return sortFindings(out);
+};
+
+/** **单源笔记不得用 `readPath` 读**（`#437` C-2c-3 的判据面）—— 理由见 `stories/mist-forest/gates/notes.mjs` 的同名注释 ✓
+ *  （多源笔记相反：那里 `readPath` 表达"**哪一条路径**拿到了" ⇒ 必须保留 ✓）。基线腐烂即红 ✓。 */
+export const singleReadProblems = ({ entries = {}, sources = {}, baseline = {} } = {}) => {
+	const out = [];
+	const pathInfo = new Map();   // 'ev.x' → { id, multi }
+	for (const [id, e] of Object.entries(entries)) {
+		const ps = Array.isArray(e?.flagPath) ? e.flagPath : (e?.flagPath == null ? [] : [e.flagPath]);
+		for (const p of ps) if (p) pathInfo.set(String(p), { id, multi: Array.isArray(e.flagPath) });
+	}
+	const seen = new Set();
+	for (const [f, src] of Object.entries(sources)) {
+		const text = String(src ?? '').replace(/\/%[\s\S]*?%\//g, '');
+		for (const m of text.matchAll(/Sg\.notes\.readPath\(\s*[^,()]+,\s*['"]((?:ev|world)\.[a-z_]+)['"]/g)) {
+			const info = pathInfo.get(m[1]);
+			if (!info || info.multi) continue;                    // 未登记/多源 ⇒ 不归本判据管
+			const key = `${f}::${m[1]}`;
+			seen.add(key);
+			if (!baseline[key]) out.push(srcFinding({ event: info.id, detail: `单源笔记用 \`readPath\` 读 ⇒ 应为 \`Sg.notes.has('${info.id}')\`（path 即唯一来源，两者等价；改用 has 后旗标才能从读侧退场）` }));
+		}
+	}
+	// 腐烂：基线里登记了、但**现在已不再命中**（修好了）⇒ 报，逼你删（本仓既有纪律）
+	for (const [key, why] of Object.entries(baseline ?? {})) {
+		if (seen.has(key)) continue;
+		out.push(srcFinding({ event: key, detail: `基线腐烂：「${key.split('::')[1]}」已不再以 \`readPath\` 形式出现（修好了就删基线）——登记理由：${why}` }));
+	}
+	return sortFindings(out);
+};
+
+/** **单源笔记不得走 `<<notepath>>`／`addPath()`**（`#733` 片 2）—— 理由见门上同名注释 ✓。 */
+export const singleWriteProblems = ({ entries = {}, sources = {} } = {}) => {
+	const out = [];
+	const multi = (id) => Array.isArray(entries?.[id]?.flagPath);
+	for (const [f, src] of Object.entries(sources)) {
+		const text = String(src ?? '').replace(/\/%[\s\S]*?%\//g, '');
+		for (const m of text.matchAll(/<<\s*notepath\s+['"](n_[a-z0-9_]+)['"]\s+['"](?:ev|world)\.[a-z0-9_]+['"]/g)) {
+			if (multi(m[1])) continue;
+			out.push(srcFinding({ event: m[1], detail: `**单源**笔记走了 \`<<notepath>>\`（写那条旗标已无读者）⇒ 应改用 \`<<note "${m[1]}">>\`（issue #733 片 2）` }));
+		}
+		for (const m of text.matchAll(/Sg\.notes\.addPath\(\s*['"](n_[a-z0-9_]+)['"]/g)) {
+			if (multi(m[1])) continue;
+			out.push(srcFinding({ event: m[1], detail: `**单源**笔记走了 \`addPath()\` ⇒ 应改用 \`Sg.notes.add('${m[1]}')\`（issue #733 片 2）` }));
+		}
+	}
+	return sortFindings(out);
 };

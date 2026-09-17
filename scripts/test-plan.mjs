@@ -203,6 +203,8 @@ export const SEGMENTS = [
 	// `#701`：**战斗日志门**（可回看的一手一句：有界/保留最近/渲染只读/降级不出现）
 	{ id: "editor-k6-selftest", phase: 'test', cost: 0, cmd: "node editor/k6.mjs --selftest" },
 	{ id: "editor-k6", phase: 'test', cost: 0.2, cmd: "node editor/k6.mjs" },
+	// `#761` P1 第一片（WebUI 静态加载 ✓）：纯加载件的测例（含 `--selftest` ✓ —— 那格"行为化"有依据 ✓）。
+	{ id: "test-web-loader-mjs", phase: 'test', cost: 0.1, cmd: "node test/web-loader.mjs" },
 	{ id: "test-social-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/social-sink.mjs --selftest" },
 	{ id: "test-social-sink-mjs", phase: 'test', cost: 3, cmd: "node test/social-sink.mjs" },
 	{ id: "test-siteinfo-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/siteinfo-sink.mjs --selftest" },

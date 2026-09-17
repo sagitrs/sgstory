@@ -1,0 +1,65 @@
+// `#877` 件级自证：`editor/lib/core/stateDiagnose.mjs`（形状与对齐）✓
+//
+// 判据（每条都**能是假的** ✗ —— `docs/dev-conventions.md` §9 口径 ✓）：
+//   ① 坏 ⇒ findings **点名** `{event, field}` ✓（不是"有错" ✗）
+//   ② 好 ⇒ **零** ✓（能假的另一半 ✓ —— 否则"永远报错"也会过 ✓）
+//   ③ **顺序稳定** ✓：打乱输入对象的键序 ⇒ 输出**逐字节相同** ✓（排序键与 `diagnose.mjs` 同 ✓）
+//   ④ **不掺环境** ✓（§17 ④）：同一输入，换 `cwd` ＋ 换 `TZ` ⇒ 输出**逐字节相同** ✓
+//      ⚠️ ④ 与 ③ **必须配对** ✓：③ 只证"同环境同结果"（自比自也能过 ✗），④ 才证"换环境也不同" ✓
+//   ⑤ 时延是**数字** ✓（预算 ≤ 50 ms ✓；页面要"编辑即诊断" ⇒ 这条是它的前提 ✓）
+import { auditShape, flagPaths, keyOf } from '../editor/lib/core/stateDiagnose.mjs';
+
+let bad = 0;
+const t = (label, ok, extra = '') => { if (ok) console.log(`      ✓ ${label}`); else { bad++; console.error(`      ✗ ${label}${extra ? '：' + extra : ''}`); } };
+
+const dom = new Set(['keeper_state', 'seen_ruins']); // 状态契约域（模拟 ✓）
+const good = { n_a: { title: 'A', src: 's', body: 'b', tags: ['t'], era: 'now', flagPath: 'world.keeper_state' } };
+const badEntries = {
+	n_dup: { ...good.n_a, body: '' },                       // 缺字段（空串 ✓）
+	n_key: { ...good.n_a, flagPath: 'world.no_such_key' },  // 键未登记
+	n_grant: { ...good.n_a, grant: true },                  // grant 写死非函数
+	n_shape: { ...good.n_a, flagPath: 'table.x' },          // 非「域.键」形状
+};
+
+// ① 坏 ⇒ 点名 {event, field}
+const f1 = auditShape(badEntries, dom);
+t('① 坏包 ⇒ 出 findings', f1.length >= 4, `条数 ${f1.length}`);
+t('① 每条都带 {event, field}', f1.every((f) => f.target && typeof f.target.event === 'string' && typeof f.target.field === 'string'), JSON.stringify(f1.find((f) => !f.target?.field) ?? {}));
+t('① 字段名结构化（不再是"藏在 detail 里" ✗）', f1.some((f) => f.target.field === 'body') && f1.some((f) => f.target.field === 'flagPath') && f1.some((f) => f.target.field === 'grant'), JSON.stringify(f1.map((f) => f.target.field)));
+t('① 四键同形（level/step/detail/target ✓）', f1.every((f) => ['level', 'step', 'detail', 'target'].every((k) => k in f)), JSON.stringify(Object.keys(f1[0] ?? {})));
+
+// ② 好 ⇒ 零
+const f2 = auditShape(good, dom);
+t('② 好包 ⇒ 零 findings', f2.length === 0, `条数 ${f2.length}`);
+
+// ③ 顺序稳定（打乱输入键序 ⇒ 输出同 ✓）
+const shuffled = Object.fromEntries(Object.entries(badEntries).reverse());
+const a3 = JSON.stringify(auditShape(badEntries, dom));
+const b3 = JSON.stringify(auditShape(shuffled, dom));
+t('③ 输入键序打乱 ⇒ 输出逐字节同', a3 === b3, a3 === b3 ? '' : `${a3.slice(0, 60)} ≠ ${b3.slice(0, 60)}`);
+
+// ④ 不掺环境（换 cwd ＋ 换 TZ ⇒ 输出同 ✓）
+const { chdir } = await import('node:process');
+const cwd0 = process.cwd();
+const tz0 = process.env.TZ;
+const a4 = JSON.stringify(auditShape(badEntries, dom));
+chdir('/tmp'); process.env.TZ = 'UTC-7';
+const b4 = JSON.stringify(auditShape(badEntries, dom));
+chdir(cwd0); if (tz0 === undefined) delete process.env.TZ; else process.env.TZ = tz0;
+t('④ 换 cwd ＋ 换 TZ ⇒ 输出逐字节同（不掺环境 ✓）', a4 === b4, a4 === b4 ? '' : '掺了环境 ✗');
+
+// ⑤ 时延是数字
+const N = 500;
+for (let i = 0; i < 20; i++) auditShape(badEntries, dom);
+const t0 = process.hrtime.bigint();
+for (let i = 0; i < N; i++) auditShape(badEntries, dom);
+const ms = Number(process.hrtime.bigint() - t0) / 1e6 / N;
+console.log(`      · 时延：${ms.toFixed(4)} ms/轮（${N} 轮均值 · 预算 50 ms）`);
+t('⑤ 时延 < 预算 50 ms', ms < 50, `${ms.toFixed(4)} ms`);
+
+// 附：转出的两个助手仍可用（门里有第三个消费者 ✓ ⇒ 删本地副本时它差点漏 ✓）
+t('附·`keyOf` 可用（门侧另有消费者 ✓）', keyOf('world.keeper_state') === 'keeper_state');
+t('附·`flagPaths` 仍支持字符串与数组（多源 OR ✓）', JSON.stringify(flagPaths({ flagPath: ['a.b', 'c.d'] })) === '["a.b","c.d"]' && JSON.stringify(flagPaths({ flagPath: 'a.b' })) === '["a.b"]');
+
+if (bad) { console.error(`\n✗ stateDiagnose 件级自证：${bad} 条未过`); process.exit(1); }
+console.log('\n✔ stateDiagnose 件级自证通过（① 坏⇒点名 ② 好⇒零 ③ 顺序稳定 ④ 不掺环境 ⑤ 时延 ＋ 转出助手 2 条）');

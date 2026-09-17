@@ -7,7 +7,7 @@
 //   ④ **不掺环境** ✓（§17 ④）：同一输入，换 `cwd` ＋ 换 `TZ` ⇒ 输出**逐字节相同** ✓
 //      ⚠️ ④ 与 ③ **必须配对** ✓：③ 只证"同环境同结果"（自比自也能过 ✗），④ 才证"换环境也不同" ✓
 //   ⑤ 时延是**数字** ✓（预算 ≤ 50 ms ✓；页面要"编辑即诊断" ⇒ 这条是它的前提 ✓）
-import { auditShape, flagPaths, keyOf, notepathProblems, singleReadProblems, singleWriteProblems } from '../editor/lib/core/stateDiagnose.mjs';
+import { auditShape, flagPaths, keyOf, notepathProblems, singleReadProblems, singleWriteProblems, auditConsumption } from '../editor/lib/core/stateDiagnose.mjs';
 
 let bad = 0;
 const t = (label, ok, extra = '') => { if (ok) console.log(`      ✓ ${label}`); else { bad++; console.error(`      ✗ ${label}${extra ? '：' + extra : ''}`); } };
@@ -72,5 +72,13 @@ const sb = singleWriteProblems({ entries: good, sources: { 'w.twee': '<<notepath
 t('源用法① 单源走 notepath ⇒ 命中（且点名 ✓）', sb.length === 1 && sb[0].target.event === 'n_a', JSON.stringify(sb.map((f) => f.target.event)));
 t('源用法③ 同输入两次 ⇒ 逐字节同', JSON.stringify(notepathProblems({ entries: good, sources: srcBad })) === JSON.stringify(notepathProblems({ entries: good, sources: srcBad })));
 
+// 附2：消费可数（`#877` 第三块 ✓）—— ① 零消费⇒点名 ② 已声明⇒零（能假的另一半 ✓）③ 四键同形
+const reads = new Map([['world.keeper_state', new Set(['a.twee'])]]);
+const c1 = auditConsumption(good, new Map(), [], '');            // 无人读、也未声明 ⇒ 应报「零消费」✓
+t('消费① 零读且未声明 ⇒ 点名 event（且 step/field 受约束）', c1.length === 1 && c1[0].target.event === 'n_a' && c1[0].step === 'consumption' && c1[0].target.field === 'flagPath', JSON.stringify(c1.map((f) => f.target)));
+t('消费① 有读点 ⇒ 零（能假的另一半 ✓）', auditConsumption(good, reads, [], '').length === 0, `条数 ${auditConsumption(good, reads, [], '').length}`);
+t('消费① 零读但已声明（bookkeeping 带理由）⇒ 零 ✓', auditConsumption(good, new Map(), ['keeper_state'], '').length === 0);
+t('消费① 已声明却真被读 ⇒ 僵尸豁免红（反沉默 ✓）', auditConsumption(good, reads, ['keeper_state'], '').length === 1, JSON.stringify(auditConsumption(good, reads, ['keeper_state'], '').map((f) => f.detail?.slice(0, 12))));
+
 if (bad) { console.error(`\n✗ stateDiagnose 件级自证：${bad} 条未过`); process.exit(1); }
-console.log('\n✔ stateDiagnose 件级自证通过（形状块：① 坏⇒点名 ② 好⇒零 ③ 顺序稳定 ④ 不掺环境 ⑤ 时延 ＋ 转出助手 2 条；源用法块：① 点名 ② 零 ③ 确定性）');
+console.log('\n✔ stateDiagnose 件级自证通过（形状块 11 ＋ 源用法块 5 ＋ 消费块 4 ＝ 20 条；每块都带能假的另一半 ✓）');

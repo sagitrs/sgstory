@@ -14,7 +14,7 @@
 //   · 渲染**不在这里重写** ✗ ⇒ 用 `diagnose.mjs` 的 `formatFinding`／`summarize` ✓。
 //   · 差异（**已声明** ✓）：本件 `step` 用 `'shape'` ✓（`diagnose.mjs` 用 `row`／`package`／`applicable` ✓）—— 两者不冲突 ✓，但**是**一个面差异 ✓。
 //   · `step` **取值集合**（契约处写清 ✓ —— `level` 有三值约束 ✓、`step` 本来没有 ⇒ 分叉最容易从这兒漏 ✗）：
-//     `diagnose.mjs` ✓：`row` ／ `package` ／ `applicable`；本件 ✓：`shape`（形状与对齐 ✓）／`source`（源用法 ✓）。
+//     `diagnose.mjs` ✓：`row` ／ `package` ／ `applicable`；本件 ✓：`shape`（形状与对齐 ✓）／`source`（源用法 ✓）／`consumption`（消费可数 ✓）。
 //     ⇒ 新加 `step` 值必须**先声明** ✓（否则就是未声明的形状分叉 ✗）。`target.field` 同理：本件统一 `'flagPath'` ✓。
 //
 // 本块（#877 第一块）：`auditShape` —— 笔记条的**字段齐全 ＋ 状态契约域对齐** ✓。
@@ -23,10 +23,9 @@
 // ⚠️ **已抽 / 未抽**（件名声称的比现在交付的多 ✗ ⇒ 必须写明，免得下一个人以为漏了 ✓）：
 //   · **已抽** ✓：`auditShape` ✓（＋它的两个局部助手 `flagPaths`／`keyOf` ✓）
 //     ＋ **源用法三条** ✓：`notepathProblems`／`singleReadProblems`／`singleWriteProblems` ✓
-//     （它们互相依赖 ⇒ 同块搬 ✓；外部依赖只有 `flagPaths` ✓ ⇒ 不需要前置切片 `#881` ✓）
-//   · **未抽** ✗（仍住 `stories/mist-forest/gates/notes.mjs` ✓）：`rowReads`／`auditConsumption` ✓
-//     ⇒ `rowReads` 依赖 `ruleRowKeys`（`scripts/audit/lib/shared.mjs` ✓）⇒ **必须等前置切片 `#881`** ✓
-//       （把纯帮手搬进 core ✓）才可能做**逐字搬运** ✓。
+//     ＋ **消费可数** ✓：`auditConsumption` ✓（外部依赖只有 `flagPaths`／`keyOf` ✓ 两者已在 core ✓）
+//   · **未抽** ✗（仍住 `stories/mist-forest/gates/notes.mjs` ✓）：`rowReads` ✓
+//     ⇒ 它依赖 `ruleRowKeys`（`scripts/audit/lib/shared.mjs` ✓）⇒ **必须等前置切片 `#881`** ✓。
 //   · **未抽·另一门** ✗：`stories/mist-forest/gates/reads.mjs` 的同族六个 ✓（同需 `#881` ✓）。
 //   · **不涉及** ✗：`info`／`applicable` 那条路 —— 已抽的判定对**任何包**都适用 ✓ ⇒ 无"缺面"可言 ✓；
 //     "缺面逐行 `info`"要等吃 twee／引擎事实的那几块才出现 ✓。
@@ -67,6 +66,37 @@ export const auditShape = (entries, domainKeys) => {
 	}
 	// **排序键与 `diagnose.mjs` 逐字相同** ✓（⇒ "重叠面逐字节相同"可检 ✓、且不掺外部顺序 ✓）
 	return out.sort((a, b) => `${a.target.event}|${a.target.field}|${a.detail}`.localeCompare(`${b.target.event}|${b.target.field}|${b.detail}`));
+};
+
+/** 内部：造一条**消费可数** finding ✓ —— `step: 'consumption'` ✓（与 `shape`／`source` 并列 ✓）。
+ *  `field` 统一用 `'flagPath'` ✓（判的是它那串键有没有读点 ✓；要改的辅助面 `bookkeeping` 写在 `detail` 里 ✓）。 */
+const consFinding = ({ detail, event = null }) => ({ level: 'error', step: 'consumption', detail, target: { event, field: 'flagPath' } });
+
+/** **消费可数**（`#436` 原范围 2）：每条笔记至少要有一个读点 ✓；零读者必须在 `Game.State.bookkeeping` 里
+ *  带理由声明 ✓，而声明了“零消费”却又真的被读 ⇒ **僵尸豁免**（红）✓。
+ *  ⚠️ 外部依赖只有 `flagPaths`／`keyOf` ✓ —— **两者已在 core** ✓ ⇒ 本函数**不需要**前置切片 `#881` ✓。
+ *  ⚠️ `detail` 文案与搬家前**逐字相同** ✓（门输出逐字节不变 ✓）。 */
+export const auditConsumption = (entries, reads, bookkeeping, refText, declaredNotes = null) => {
+	const out = [];
+	const bk = new Set(bookkeeping ?? []);
+	const refs = String(refText ?? '');
+	for (const [id, e] of Object.entries(entries ?? {})) {
+		const paths = flagPaths(e);
+		const keys = paths.map(keyOf);
+		// 读点表按**限定键**（`ev.tav_fog`）建 ⇒ 用 flagPath 原样查（`world.x` 与 `ev.x` 是两个域，不可混——#365）
+		let consumers = 0;
+		for (const p of paths) consumers += (reads.get(p)?.size ?? 0);
+		// 阶段 2/4 形态：笔记 id 被条件/表引用（`note:n_x` 或 `Sg.notes.has('n_x')`）
+		const byId = (new RegExp(`(?:note:${id}\\b|Sg\\.notes\\.(?:has|entry)\\(\\s*['"]${id}['"])`).test(refs) || (declaredNotes?.has?.(id) ?? false)) ? 1 : 0;
+		const declaredZero = keys.some((k) => bk.has(k));
+		if (consumers === 0 && !byId && !declaredZero) {
+			out.push(consFinding({ event: id, detail: `**零消费**：没有任何读点消费它（键 ${keys.map((k) => '`' + k + '`').join('/')}）—— 加了线索没人用；若确属「仅记账」请登记进 \`Game.State.bookkeeping\`（带理由）` }));
+		}
+		if ((consumers > 0 || byId) && declaredZero) {
+			out.push(consFinding({ event: id, detail: `**僵尸豁免**：\`Game.State.bookkeeping\` 把它声明成"零消费"，但实际已有了消费点 ⇒ 请删掉那条声明` }));
+		}
+	}
+	return sortFindings(out);
 };
 
 /** 内部：造一条**源用法** finding ✓ —— `step: 'source'` ✓（平列于 `row`／`package`／`applicable`／`shape` ✓）。

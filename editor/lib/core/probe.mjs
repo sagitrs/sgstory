@@ -74,3 +74,20 @@ export const walk = (v, acc = { leaves: 0, functions: 0 }) => {
 	acc.leaves++;
 	return acc;
 };
+
+// `#794` `equiv` 弧第 2 票：`snapshot(win)` 是**纯**的（只**接收** window ✓，不造窗、不跑 vm ✓）
+// ⇒ 与 `declaredIds(win)` 同类 ✓ 归 core ✓（**逐字**搬 ✓）。
+/** 纯函数：由 `window` 取出可比较的面（数据容器 ＋ 契约的**多实参行为**）。 */
+export const snapshot = (win) => {
+	const ids = declaredIds(win);
+	let probes = 0;
+	const contract = {};
+	for (const [k, fn] of Object.entries(win.Sg?.story ?? {})) {
+		const rows = probeArgs(ids).map((args) => { probes++; return [args, call(fn, args)]; });
+		contract[k] = rows;
+	}
+	// 容器比较用**规范化 JSON**（对象键**排序**、数组保序）：键序不是数据，而产物是按**桶分组**发射的 ⇒
+	// 直接 `JSON.stringify` 会因键序差异**假红**（同族于下面契约那条"判行为不判顺序"的教训）。数组顺序仍然判（那可能是语义）。
+	const canon = (v) => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v);
+	return { game: JSON.stringify(canon(win.Game ?? null)), contract, ids, probes, walk: walk(win.Game ?? {}) };
+};

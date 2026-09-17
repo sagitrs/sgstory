@@ -4,11 +4,25 @@ import { execSync } from 'node:child_process';
 import { join, dirname, relative } from 'node:path';
 import { ORDER, MODULES, engineFiles as engineFilesOf, scopedFiles } from './scripts/module-order.mjs';
 import {
-	ROOT, storySlugs, readStory, storyHtml, shelfHtml,
+	ROOT, storySlugs, readStory, storyHtml, shelfHtml, DEFAULT_SLUG,
 	FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY,
 } from './scripts/dist-paths.mjs';
 
 const SRC = 'src';
+
+// `#761` P1 六片A-2（复核席裁定的 (α1) ✓）：**两个窄口** —— 每个只有一个消费者（A-2 的读数 ✓）。
+//  ① `--with-rules=<file>`：构建时用**指定的那份**规则文本代替该故事的 `17-rules.twee` ✓
+//     ⇒ "改过的故事"由**构建脚本**产出 ✓（我不另写一份合并逻辑 ✗）。
+//  ② `--story-out=<path>`：把该故事页写到**指定路径** ✓ ⇒ **不覆盖真 `dist/`** ✗
+//     —— 复核席指出的危险 ✗：`dist/` 虽被 gitignore ✓ 但**测试读它** ✓ ⇒ 覆盖它就是在"探针污染被测对象" ✓（dist 版 ✓）。
+//  默认（不带旗标）路径**逐字节不变** ✓（纯增口 ✓）。
+const flagOf = (name, dflt) => {
+	const hit = process.argv.find((a) => a.startsWith(`--${name}=`));
+	return hit ? hit.slice(name.length + 3) : dflt;
+};
+const WITH_RULES = flagOf('with-rules', null);
+const STORY_OUT = flagOf('story-out', null);
+if (STORY_OUT && !WITH_RULES) throw new Error('--story-out 只与 --with-rules 配用 ✓（本口只为"改过的故事"的探测存在 ✓）');
 
 mkdirSync('build', { recursive: true });
 mkdirSync('dist', { recursive: true });
@@ -61,7 +75,11 @@ const stories = slugs.map((slug) => ({ slug, ...readStory(slug) }));
 // 但会被原样写进 `dist/stories/<slug>/index.html`（实测默认故事页 ≈ +12KB）并进字体子集。
 // 只剥 twee 块注释：`[script]` 段里的 JS 行注释（`//`）是**代码**，不能动。
 const stripTweeComments = (text) => String(text).replace(/\/%[\s\S]*?%\//g, ' ');
-const mergedOf = (s) => scopedFiles(s).map((f) => stripTweeComments(readFileSync(f, 'utf8')).trimEnd()).join('\n\n') + '\n';
+const mergedOf = (s) => scopedFiles(s).map((f) => {
+	// `--with-rules` ✓：只替换**规则文件那一份** ✓（窄 ✓ —— 不动别的件 ✓）
+	const text = (WITH_RULES && /(^|\/)17-rules\.twee$/.test(f)) ? readFileSync(WITH_RULES, 'utf8') : readFileSync(f, 'utf8');
+	return stripTweeComments(text).trimEnd();
+}).join('\n\n') + '\n';
 const merges = new Map(stories.map((s) => [s.slug, mergedOf(s)]));
 
 // ── 字体子集化（霞鹜文楷 → dist/fonts 外链 + preload）────────────────
@@ -108,8 +126,9 @@ const injectLang = (p) => {
 
 // ── 编译每个故事 → dist/stories/<slug>/index.html ─────────────────────
 for (const s of stories) {
+	if (STORY_OUT && s.slug !== DEFAULT_SLUG) continue;   // 窄口 ✓：只写目标那一份 ✓（其余故事不碰 ✓）
 	writeFileSync('build/game.twee', merges.get(s.slug), 'utf8');
-	const out = storyHtml(s.slug);
+	const out = STORY_OUT ? join(ROOT, STORY_OUT) : storyHtml(s.slug);   // ← 重定向 ⇒ 真 `dist/` 一字不动 ✓
 	mkdirSync(dirname(out), { recursive: true });
 	// 用 extwee 编译：Twee + SugarCube 格式 → 单文件 HTML
 	execSync(`npx extwee -c -i build/game.twee -o ${relative(ROOT, out)} -s vendor/format.js`, { stdio: 'inherit' });

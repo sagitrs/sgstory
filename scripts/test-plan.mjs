@@ -213,6 +213,8 @@ export const SEGMENTS = [
 	// ⚠️ cost 高: 内含**两次构建** ＋ 4 次 boot（~5–8 分钟）✓
 	{ id: "test-web-preview-mjs", phase: 'test', cost: 8, cmd: "node test/web-preview.mjs" },
 	{ id: "test-web-diagnose-mjs", phase: 'test', cost: 1, cmd: "node test/web-diagnose.mjs" },   // P2（`#761`）第一片：实时诊断纯件 ✓（纯函数＋无 io ⇒ 页内可用 ✓）
+	{ id: "test-web-diagnose-view-mjs", phase: 'test', cost: 1, cmd: "node test/web-diagnose-view.mjs" },   // P2（`#761`）第三片：显示层 ＋ 两个 sha ＋ 六条读数 ✓（纯 ✓）
+	{ id: "test-web-diagnose-wire-mjs", phase: 'test', cost: 1, cmd: "node test/web-diagnose-wire.mjs" },   // P2（`#761`）第三片接线：不落盘也能看见 ✓（jsdom ✓）
 	// `#761` P1 第四片：**改一个事件**的字段级读数（差异恰好一处 ✓／写回逐字段一致 ✓／产物只少数行变 ✓）。
 	{ id: "test-web-events-mjs", phase: 'test', cost: 0.3, cmd: "node test/web-events.mjs" },
 	// `#761` P1 第五片：**DOM 接线**（页面路 vs 直接路逐字节同 ✓；jsdom 显式收场 ✓）。

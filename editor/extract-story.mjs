@@ -27,23 +27,9 @@ export { engineScripts, ENGINE_CONST, ROOT };
 /** 引擎常量的 `[script]` 段（单一权威）：**任何**在沙箱里跑故事段的调用方都要先跑它，
  *  否则故事表里的 `window.Game.Era.PRESENT` 取不到（静默缺字段）⇒ 现住 `editor/lib/host/fs.mjs` ✓。 */
 
-/** 纯函数：在**浏览器语义**的沙箱里跑一段 `[script]`，返回 `{ Sg, Game, diag }`。 */
-/** **环境契约（承重面，最容易腐烂的地方）**：本助手只跑故事的**某一段** `[script]`，而各段之间**互有依赖** ——
- *  `15-tables.twee` 建容器（`window.Sg ??= {}`／`window.Game = …`），`17-rules.twee` 直接用 `window.Sg.story ??= {}`。
- *  所以沙箱必须**预置两个空根**：`Sg = {}`、`Game = {}`；**只给空壳、不塞任何内容**（塞了就等于替故事造数据，
- *  "抽出来的"与"手写的"就不再同源）。`preset: false` 只给自证用（用来证明这个预置是**承重**的）。
- *  ⇒ 这份预置面改动时，`--selftest` 会一起变；不要绕过它。 */
-export const runStory = (scripts, { preset = true } = {}) => {
-	const diag = [];
-	// 预置两个根容器：故事的各 `[script]` 段之间**互有依赖**（`15-tables` 建 `window.Sg`／`Game`，
-	// `17-rules` 直接用 `window.Sg.story ??= {}`）——只跑其中一段时必须先给容器，否则 `TypeError: … reading 'story'`。
-	const sandbox = { console: { log: (...a) => diag.push(a.join(' ')), error: (...a) => diag.push(a.join(' ')) } };
-	sandbox.window = sandbox;
-	if (preset) { sandbox.Sg = {}; sandbox.Game = {}; }
-	vm.createContext(sandbox);
-	vm.runInContext(String(scripts), sandbox, { timeout: 5000 });
-	return { Sg: sandbox.Sg, Game: sandbox.Game, diag };
-};
+// `runStory`（vm 沙箱）已抽到 `editor/lib/host/sandbox.mjs` ✓（命令体与自证共用同一具身体 ✓）。
+import { runStory } from './lib/host/sandbox.mjs';
+export { runStory };
 
 const selftest = () => {
 	let bad = 0;

@@ -14,13 +14,20 @@ import { compileStory } from '../core/emit.mjs';
 import { packageFiles, writeStoryPackage, sectionFile } from '../core/story.mjs';
 import { runStory, engineOf } from './sandbox.mjs';
 
-import { readFileSync, existsSync, rmSync, readdirSync } from 'node:fs';
+import { readFileSync, existsSync, rmSync, readdirSync, statSync, mkdtempSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { tmpdir } from 'node:os';
 import { spawnSync } from 'node:child_process';
 import { gatesForStory } from '../../../scripts/audit/discovery.mjs';
 import { hatchFiles } from './hatches.mjs';
 import { hasGeneratedMarker } from '../core/text.mjs';
-import { classifyContractText } from './classify.mjs';
 const NODE_IO = { readText, writeText, mkdirp, exists };
+
+// `#794` 第 4 条（K4 命令体）：判据的**纯**部分住 core ✓（纯 ⇒ core、宿主能力 ⇒ host ✓）。
+// ⚠️ **一处定义** ✓：分类器实例**不在本文件重装** ✗ —— `lib/host/classify.mjs` 已经装好（`makeClassify({ evalLiteral: literalValue })` ✓），
+// 本命令走它导出的缝 `classifyContractText` ✓（那条缝多做 `locals` 上下文与 `const` 的 B→A 解析 ⇒ 该语义风险由**两时点差分**量掉 ✓）。
+import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, contractSourceText, staleTrackedProblems } from '../core/k4criteria.mjs';
+import { classifyContractText } from './classify.mjs';
 // `#794` 弧第 3 票（`equiv` 命令体）：用 vm／读文件／跑子进程 ⇒ **都在 host** ✓。
 import vm from 'node:vm';
 import { maskComments } from '../../../scripts/audit/lib/mask.mjs';
@@ -420,4 +427,105 @@ export const lintCommand = async (argv = [], { prog = 'node editor/cli.mjs', sub
 		emitJson(1);
 		return 1;
 	}
+};
+/**
+ * `#794` 第 4 条：**K4 门的命令体**（从 `editor/k4.mjs` 的 `main` 平移 ✓ 逐字保留输出文案）。
+ * 两条入口共用它：`node editor/k4.mjs`（壳转发 ✓）与 `node editor/cli.mjs k4` ✓。
+ * 平移期的三处形状变更（都属"语义转换"，复核席按该类核 ✓）：
+ *   ① `process.exit(n)` ⇒ `return n;` ✓（命令体返回退出码，由调用方决定怎么退 ✓）；
+ *   ② 分类器懒接线 ⇒ **静态装配** ✓（见文件头注释：降级分支已不可达 ⇒ 删除 ✓）；
+ *   ③ `process.argv` ⇒ **形参 `argv`** ✓（整体替换，不混用 `argv[2]` 那种写法 —— 实测混用会把 slug 取成 `--hand=` 的值 ✗）。
+ */
+export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' } = {}) => {
+	// ⚠️ **本命令不收参数**（门判整个仓 ✓）—— 多余参数按**旧版行为原样忽略** ✓（本票是**纯搬运** ✗ ⇒ 不改行为 ✓）。
+	//   "旧版静默忽略一个没用的参数"确实该改成点名叫停 ✗ ⇒ 但那**另开一小刀** ✓（`#794` 后续票 ✓）：
+	//   它的影响面是"**只影响手工调用**" ✓（仓内 `test-plan` 两条都裸调 ✓、翻面手册也裸调 ✓ ⇒ `npm test` 看不见那处变化 ✗），
+	//   所以它必须**自己露面**（票面点名影响 ＋ 按 `#493` 走归因 ✓），不能混进纯搬运 ✗。
+	let bad = 0;
+	const ok = (label, cond, extra = '') => {
+		if (cond) console.log(`  ✓ ${label}`);
+		else { bad++; console.error(`  ✗ ${label}${extra ? '：' + extra : ''}`); }
+	};
+
+	console.log('══ K4 门（`#762` 车道 C）—— 生成物标记 · 新鲜度 · 逃生舱可枚举 ══');
+	const storiesDir = join(ROOT, 'stories');
+	// 判**所有故事目录**（不是只有 `data/` 的）：③ 逃生舱判据不依赖 `data/` —— 上一版按 `data/` 取故事，
+	// 结果洞窟（缺 `contract.json`）**整段被跳过** ⇒ 它的 C 桶（`eventPool`）根本没人查 ✗。
+	// 这正是 `#777` 修的那族错（"读不到输入却当成没有"）——我自己的门也犯了一次。
+	const slugs = readdirSync(storiesDir).filter((s) => statSync(join(storiesDir, s)).isDirectory() && !s.startsWith('.'));
+	ok('取到故事目录', slugs.length > 0, slugs.join('、'));
+	ok('其中至少一个已数据化（有 `data/` 才算，未数据化的 ①/② 不假装判过）', slugs.some((s) => existsSync(join(storiesDir, s, 'data'))), slugs.filter((s) => existsSync(join(storiesDir, s, 'data'))).join('、'));
+	if (!slugs.length) { console.error('  ✗ 没有可判的故事 —— 不静默判过'); return 1; }
+
+	const registryPath = join(ROOT, 'editor', 'escape-hatch.json');
+	ok('逃生舱登记表存在（`editor/escape-hatch.json`）', existsSync(registryPath), registryPath);
+	const registry = existsSync(registryPath) ? JSON.parse(readFileSync(registryPath, 'utf8')) : { hatches: [] };
+
+	for (const slug of slugs) {
+		const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));
+		const dataDir = join(storiesDir, slug, 'data');
+		const tablesPath = join(dataDir, 'tables.json');
+		const contractPath = join(dataDir, 'contract.json');
+		const dataReady = existsSync(tablesPath) && existsSync(contractPath);
+		if (!dataReady) console.log(`  · ${slug}：data/ 不全（缺 tables/contract）⇒ 只有 ①/② 跳过；**③ 逃生舱判据照跑**（它不依赖 data/）`);
+
+		// ①＋② 标记与新鲜度：**自己跑编译器**两次（不读工作区里可能陈旧的 `build/generated/`）
+		//    ⚠️ 走 CLI 而不是 API：编译器的内部形状会变（`#769` 把 `compile` 改成 `compileStory` 并且改成**写文件**），
+		//    而 CLI（`<slug> --out=<dir>`）是它对外的稳定面 ⇒ 门对内部重构免疫。
+		const runCompile = () => {
+			const dir = mkdtempSync(join(tmpdir(), 'k4-'));
+			execFileSync('node', [join(ROOT, 'editor', 'compile-story.mjs'), slug, `--out=${dir}`], { cwd: ROOT, stdio: 'pipe' });
+			const out = {};
+			for (const f of readdirSync(dir)) out[f] = readFileSync(join(dir, f), 'utf8');
+			rmSync(dir, { recursive: true, force: true });
+			return out;
+		};
+		let fresh = {};
+		if (dataReady) {
+			const a = runCompile(), b = runCompile();
+			fresh = a;
+			for (const p of markerProblems(Object.entries(a).map(([path, text]) => ({ path: `${slug}/${path}`, text })))) { console.error(`  ✗ ${p.path}：${p.why}`); bad++; }
+			for (const p of freshnessProblems(a, b)) { console.error(`  ✗ ${slug} ${p.path}：${p.why}`); bad++; }
+		}
+
+		// ④ **生成物不许独改**（K4-④）：迁移期的"两处真相"守卫 —— 带 `@generated` 的 tracked twee 必须等于当场重编的字节。
+		//    只对**带标记**的文件生效（天然棘轮）；未翻面时**留痕打印**（"尚未翻面"是状态，不是"没问题"）。
+		const trackedFiles = execFileSync('git', ['ls-files', `stories/${slug}`], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n').filter(Boolean)
+			.map((rel) => [rel, readFileSync(join(ROOT, rel), 'utf8')]);
+		const { marks, problems: staleProblems } = staleTrackedProblems(trackedFiles, fresh);
+		if (!marks) console.log(`  · ${slug}：**尚未翻面**（0 个带 \`@generated\` 的 tracked twee）⇒ K4-④ 本次无可判对象（这是**状态**，不是"没问题"）`);
+		else console.log(`  · ${slug}：K4-④ 已翻面文件 ${marks} 个 ⇒ 与当场重编产物逐字节比对`);
+		for (const prob of staleProblems) { console.error(`  ✗ ${prob.path}：${prob.why}`); bad++; }
+
+		// ③ 逃生舱：分类器（**真源**：逐成员分类 —— `classify()` 吃的是**单个成员的源码**）vs 登记表
+		//    ⚠️ 判的是**手写契约源**（见 `contractSourceText`）：已数据化故事的 twee 是**产物**，
+		//    分类产物会得到**假欠账**（实测：发射后的 `template` 被判 B，而它在数据侧是已支持的 kind）。
+		const storyDir = join(storiesDir, slug);
+		const { text: srcText, handCount, markedTwee } = contractSourceText(readdirSync(storyDir).filter((f) => statSync(join(storyDir, f)).isFile()).map((f) => [f, readFileSync(join(storyDir, f), 'utf8')]));
+		// `#794`：分类走 **host 的缝** `classifyContractText` ✓（`lib/host/classify.mjs` 的单一装配点 ✓）。
+		// ⚠️ 两个文本**不能混**（抽缝时踩过 ✗）：`siteText`＝扫站点用、`fileText`＝求值原文用；
+		//    K4 这份 `srcText` 是**手写源**（已排除产物 ✓）⇒ 两者同源即正确 ✓。
+		const classified = classifyContractText({ fileText: srcText, siteText: srcText }).rows.map((m) => ({ name: m.name, src: m.src, bucket: m.bucket }));
+		// 契约已全部由 `data/` 产出（手写侧只剩非契约文件）⇒ 逃生舱由编译器 kind 白名单把关
+		const noHandContract = classified.length === 0;
+		if (noHandContract && markedTwee > 0) console.log(`  · ${slug}：契约**已全部由 data/ 产出**（带标记 twee ${markedTwee} 个，手写侧剩 ${handCount} 个非契约文件）⇒ C 桶结构性为 0`);
+		// **取不到输入就不许判过**（`#777` 那族错：分类器曾只扫首个 `Sg.story` 块 ⇒ 少 8 名成员却“静默地没问题”）。
+		// 手写源非空却一个成员都找不到 ⇒ 只能是我读错了位置（或契约换了写法）⇒ 判红，不静默。
+		if (noHandContract && markedTwee === 0) { console.error(`  ✗ ${slug}：手写契约源非空（${handCount} 文件）却分类出 **0 名成员**、且没有任何带标记的产物 ⇒ 判据失效（不是通过）`); bad++; continue; }
+		for (const p of escapeHatchProblems(classified, registry, slug)) { console.error(`  ✗ ${slug}【${p.member}】${p.why}`); bad++; }
+		const buckets = classified.reduce((acc, m) => { acc[m.bucket] = (acc[m.bucket] ?? 0) + 1; return acc; }, {});
+		console.log(`  · ${slug}：契约源 ${srcText.length}B（手写 twee ${handCount}／带标记 twee ${markedTwee}）· ${dataReady ? '标记 ✓ · 幂等 ✓ · ' : '①/② 跳过（无 data/）· '}分类 A${buckets.A ?? 0}/B${buckets.B ?? 0}/C${buckets.C ?? 0}/D${buckets.D ?? 0}`);
+		// **欠账实测打印**（不写进数据文件、不手写数字 ⇒ 不会腐烂）：B ＝ 待补声明式 kind，D ＝ 待下沉引擎能力。
+		// 为什么要打出来：`escape-hatch.json` 只登记 **C**（真逃生舱）；B/D 是"排期欠账"而不是"表达不了"，
+		// 但**不写出来就会被读成"清单空 ⇒ 没欠账"**（这两类只是不进棘轮，不是不存在）。
+		const names = (b) => classified.filter((m) => m.bucket === b).map((m) => m.name).join('、') || '（无）';
+		console.log(`      欠账（B 待补 kind）：${names('B')}`);
+		console.log(`      欠账（D 待下沉引擎）：${names('D')}`);
+	}
+	if (bad) {
+		console.error(`\n✗ K4 门未通过（${bad} 项）—— 产物必须有标记、必须新鲜、逃生舱必须可枚举。`);
+		return 1;
+	}
+	console.log('\n✔ K4 门通过（标记 · 幂等/新鲜度 · 逃生舱登记双向一致 · 生成物不许独改）');
+	return 0;
 };

@@ -4,7 +4,7 @@
 // ⚠️ **主模块守卫**：本文件同时是库（命令表以后 WebUI/测试可能 import ✓）⇒ 只在被当脚本执行时才跑 CLI ✓。
 //    `isMain` 的声明必须在 **imports 之后、逻辑之前** ✓ —— 放后面会 TDZ ✗（`Cannot access 'isMain' before initialization`，D 踩过 ✓）。
 import { fileURLToPath } from 'node:url';
-import { buildCommand, extractCommand, classifyCommand, equivCommand, lintCommand } from './lib/host/commands.mjs';
+import { buildCommand, extractCommand, classifyCommand, equivCommand, lintCommand, k4Command } from './lib/host/commands.mjs';
 import { exitWithRc } from './lib/host/proc.mjs';
 
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
@@ -16,6 +16,7 @@ const COMMANDS = {
 	'classify-contract': (argv, ctx) => classifyCommand(argv, ctx),
 	equiv: (argv, ctx) => equivCommand(argv, ctx),
 	'lint-story': (argv, ctx) => lintCommand(argv, ctx),
+	k4: (argv, ctx) => k4Command(argv, ctx),
 };
 
 const USAGE = [
@@ -26,6 +27,7 @@ const USAGE = [
 	'  lint-story <slug|目录路径> [--json] [--dist=<file>]   与 `node editor/lint-story.mjs` **同一具身体** ✓',
 	'  classify-contract <slug> [--json]   与 `node editor/classify-contract.mjs` **同一具身体** ✓',
 	'  extract-story <slug> [--tables] [--from=<file>] [--out=<file>]   与 `node editor/extract-story.mjs` **同一具身体** ✓',
+	'  k4（无参数）   与 `node editor/k4.mjs` **同一具身体** ✓（生成物标记 · 新鲜度 · 逃生舱可枚举）',
 ].join('\n');
 
 /** 无子命令 ⇒ **rc≠0**（不是静默成功 ✗）；`--help` ⇒ rc=0；未知子命令 ⇒ **rc≠0 且点名它** ✗（不静默 fallback ✓）。 */

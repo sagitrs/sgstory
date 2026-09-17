@@ -262,6 +262,18 @@ try {
 		rmSync(outDir, { recursive: true, force: true });
 		rmSync(cliOut, { recursive: true, force: true });
 
+		// ── 链③′ **工具契约读数** ✓：`--story-out` 给**绝对路径** ⇒ 必须落到**它指定的地方** ✗
+		//   （能假 ✓：修前一律 `join(ROOT, STORY_OUT)` ⇒ `path.join('/repo','/repo/dist/x')` ＝ `/repo/repo/dist/x` ✗）
+		{
+			const absDir = mkdtempSync(join(tmpdir(), 'sgstory-absout-'));
+			const absOut = join(absDir, 'index.html');
+			writeFileSync(join(tmpDir, 'rules-abs.twee'), pageRulesSameSlug, 'utf8');
+			execFileSync('node', ['build.mjs', `--with-rules=${join(tmpDir, 'rules-abs.twee')}`, `--story-out=${absOut}`], { cwd: ROOT, stdio: 'pipe' });
+			const probeShaBefore = existsSync(join(PROBE_DIR, 'index.html')) ? sha(join(PROBE_DIR, 'index.html')) : '(无)';
+			t('链③′ 绝对 `--story-out` ⇒ 落在**它指定的路径** ✓（不是 `ROOT/<绝对路径>` ✗）', existsSync(absOut) && readFileSync(absOut, 'utf8').length > 1000);
+			t('链③′ 且**没有**污染探针目录 ✓（绝对路径没有"顺便"写进仓 ✓）', (existsSync(join(PROBE_DIR, 'index.html')) ? sha(join(PROBE_DIR, 'index.html')) : '(无)') === probeShaBefore);
+			rmSync(absDir, { recursive: true, force: true });
+		}
 		// ── 链④ 预览：探针页由**构建脚本**从该编译产物产出 ✓ ⇒ 区间法 ＋ 成对"不受影响面" ✓
 		writeFileSync(join(tmpDir, 'rules.twee'), pageRulesSameSlug, 'utf8');
 		//  ⚠️ 原写 `--story-out=${join(PROBE_DIR,'index.html')}`（**绝对** ✗）⇒ `build.mjs` 的 `join(ROOT, STORY_OUT)` 会拼成

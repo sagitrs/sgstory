@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { allSourceFiles } from './scripts/module-order.mjs';
 import { execSync } from 'node:child_process';
-import { join, dirname, relative } from 'node:path';
+import { join, dirname, relative, isAbsolute } from 'node:path';
 import { ORDER, MODULES, engineFiles as engineFilesOf, scopedFiles } from './scripts/module-order.mjs';
 import {
 	ROOT, storySlugs, readStory, storyHtml, shelfHtml, DEFAULT_SLUG,
@@ -128,7 +128,11 @@ const injectLang = (p) => {
 for (const s of stories) {
 	if (STORY_OUT && s.slug !== DEFAULT_SLUG) continue;   // 窄口 ✓：只写目标那一份 ✓（其余故事不碰 ✓）
 	writeFileSync('build/game.twee', merges.get(s.slug), 'utf8');
-	const out = STORY_OUT ? join(ROOT, STORY_OUT) : storyHtml(s.slug);   // ← 重定向 ⇒ 真 `dist/` 一字不动 ✓
+	//  ⚠️ **工具契约** ✓（复核席对 `#874` 的裁定 (a) ✓）：`--story-out` **绝对路径按绝对处理** ✗ ——
+	//   原先一律 `join(ROOT, …)` ✓ ⇒ `path.join('/repo','/repo/dist/x')` ＝ `/repo/repo/dist/x` ✗
+	//   （`join` **不**在绝对段重置 ✓ —— 那是 `resolve` ✓）⇒ 构建落**荒处** ✗、目标文件仍是**旧那份** ✗
+	//   ⇒ 调用方以为写了、其实没写 ✓。修在**工具侧**（只修调用点 ⇒ 下一个调用者再踩 ✗）。
+	const out = STORY_OUT ? (isAbsolute(STORY_OUT) ? STORY_OUT : join(ROOT, STORY_OUT)) : storyHtml(s.slug);
 	mkdirSync(dirname(out), { recursive: true });
 	// 用 extwee 编译：Twee + SugarCube 格式 → 单文件 HTML
 	execSync(`npx extwee -c -i build/game.twee -o ${relative(ROOT, out)} -s vendor/format.js`, { stdio: 'inherit' });

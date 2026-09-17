@@ -34,6 +34,14 @@ const SLUG = DEFAULT_SLUG;
 const PASSAGE = '洞穴';
 const EVENT = '洞穴.火光.有火把';
 const MARKER = '【预览探针】';
+//  ⚠️ **渲染面：三个假设全被推翻 ✗，且两条实测互相矛盾 ✓**（如实记，**不写结论** ✗）：
+//   · H2「标记附近有边界」✗ —— 散文放标记**之前**，span 仍 36 ✓（位置无关 ✓）；
+//   · H3「全角 `〈〉` 被吃掉」✗ —— 追加**纯 ASCII**（`MARKER+ABC`）时 span 仍 6 ✓（字符无关 ✓）；
+//   · H4「标记之后追加的一律不进渲染」✗ —— **被直接实验推翻** ✓：直接编译 `${targetText}${MARKER}ABC` 建探针 ⇒
+//     渲染 **603** 字符（仅 MARKER 时 **600** ✓）、差异段 **3 字节 = "ABC"** ✓ ⇒ **追加的确实进渲染** ✓；
+//   ⇒ ⚠️ **冲突**：同一件事（链的编辑追加 `MARKER+ABC`）在链的读数里 span **不含 ABC** ✗、在直接实验里**含** ✓
+//     ⇒ 两者至少有一处**指错了对象** ✓（今晚那条"读数必须指名来源"的同一族 ✓）⇒ **待查** ✗，不写结论 ✓。
+//   · 处置 ✓：**归属改走带外读数** ✓（构建前后探针页 sha 必须变 ✓ —— 不依赖"串进不进渲染" ✓）。
 const OTHER_SCOPE_STATE = { with: ['火把'], without: [] };
 const PROBE_DIR = join(ROOT, 'dist', 'stories', '__probe');
 const nodeIo = () => ({ readText: (p) => readFileSync(join(ROOT, p), 'utf8') });
@@ -159,6 +167,51 @@ try {
 	t('探针页已由**构建脚本**产出 ✓（不另写合并逻辑 ✓）', existsSync(join(PROBE_DIR, 'index.html')));
 	t('⑥ 真 dist 故事页 sha **未变** ✓（探针不污染被测对象 ✓）', sha(storyHtml(SLUG)) === realSha0);
 
+	// ——— 三次全新 boot ✓
+	const T1 = (await preview({ gear: OTHER_SCOPE_STATE.with })).text;
+	t('前置：目标行确实命中 ✓（"有火把"文本出现在渲染里 ✓）', T1.includes(targetText.slice(0, 12)));
+	const T2 = (await preview({ gear: OTHER_SCOPE_STATE.with })).text;
+	t('① 控制跑：**同输入不编辑 ⇒ T2 逐字节等于 T1** ✓（"底材同一"是读数 ✓）', T2 === T1);
+	const T3 = (await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.with })).text;
+	t('① 探针页可启 ✓（`story` 用相对键走通 ✓）', typeof T3 === 'string' && T3.length > 20);
+
+	// ——— ② 区间法 ✓
+	const d = diffSpan(T1, T3);
+	// ⚠️ 复核席第五轮: 这里原是 `rebuilt === T3 && !d.same" ✗ —— `rebuilt` 正是按**最长公共前后缀**
+	//   重建的 ✓ ⇒ **构造上恒真** ✗（"用定义验证定义" ✓ 第三种偷懒形态 ✓）。改成 `tight.ok` ✓
+	//   （段含标记 ✓ ＋ 段长紧致 ✓ ⇒ 两条都能假 ✓）。`rebuilt` 变量已删 ✓。
+	const tight = diffTight(d.b, MARKER);
+	t('② 该段**含我方标记** ✓（注入被消费 ✓ —— "先证注入生效" ✓）', d.b.includes(MARKER));
+	t('② **段长紧致** ✓（≤ 标记长＋slack ✓ —— 差异没吞掉整段 ✓；⚠️ 原"重建相等"那句**构造上恒真** ✗ 已删 ✓）', tight.ok);
+	console.log(`  · ② 差异段长 ${tight.len} 字节（上限 ${tight.bound} ✓ · 标记长 ${MARKER.length} ✓）`);
+
+	// ——— ③ 不受影响面 ✓
+	const U1 = (await preview({ gear: OTHER_SCOPE_STATE.without })).text;
+	const U2 = (await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.without })).text;
+	t('③ 不受影响面：编辑**不该动**"无火把"那条 ⇒ 渲染**逐字节相同** ✗', U1 === U2);
+	t('③ 前提：两条状态确实渲染出不同文本 ✓（否则对照面是空的 ✓）', U1 !== T1);
+
+	// ——— ④ 对偶：序列化变体（缩进）⇒ 编译产物与预览都逐字节同 ✓
+	// ⚠️ 我第一版把"重排"写成 `JSON.parse(JSON.stringify(x, null, 6))` ✗ ⇒ **缩进被解析丢掉了** ✓
+	//   ⇒ 对象序列化**没变** ⇒ 前提断言**假红** ✓（又是"注入没生效"那族 ✓）。正确的对偶是**文件文本**层面：
+	//   **同一份对象的两种缩进文本** ✓ ⇒ 解析回来**同一个对象** ✓ ⇒ 编译产物**必须逐字节同** ✓。
+	const textA = JSON.stringify(data['rules.json'], null, 1);
+	const textB = JSON.stringify(data['rules.json'], null, 6);
+	const reser = { ...data, 'rules.json': JSON.parse(textB) };
+	t('④ 对偶·前提：两种缩进**文本不同** ✓ 且**解析回来是同值对象** ✓（否则这刀是空操作 ✓）',
+		textA !== textB && JSON.stringify(JSON.parse(textA)) === JSON.stringify(JSON.parse(textB)));
+	t('④ 对偶：序列化变体 ⇒ **编译产物逐字节同** ✗（若不同 ⇒ 编译器偷用了原始字节 ✓）',
+		compileInPage({ slug: SLUG, data: reser }).files['17-rules.twee'] === origRules);
+
+	// ——— ⑤ 状态敏感性 ＋ 负例 ＋ 指纹
+	t('⑤ 状态敏感性：换状态 ⇒ 预览**必须变** ✗', U1 !== T1);
+	const throws = (fn) => { try { fn(); return ''; } catch (e) { return String(e.message); } };
+	t('⑤ 负例：事件不存在 ⇒ 抛且**不产出预览** ✓', throws(() => editEventField({ pkg, id: '__nope__', field: 'text', value: 'x' })).includes('事件不存在'));
+	t('⑤ 负例：未知字段 ⇒ 抛 ✗（不许塞新键 ✓）', throws(() => editEventField({ pkg, id: EVENT, field: '__newkey__', value: 'x' })).includes('未知字段'));
+	const fp = sha(storyHtml(SLUG));
+	console.log(`  · dist 指纹：${storyHtml(SLUG).split('/').slice(-3).join('/')} sha256:${fp} ✓`);
+	t('⑤ dist 指纹非空（读数指名了构建 ✓）', fp.length === 16);
+
 	// ═══ 端到端链（P1 余项第三半 ✓）：**表单（DOM）⇒ 写盘 ⇒ 探针 ⇒ 预览 ⇒ CLI** ═══
 	//  复核席两条要求 ✓：(i) 字段层"各自报出" ✓（提交值从 DOM 读回 ✓，见 `#870`）
 	//  (ii) **每一步各自报出它启的产物 sha 且相等** ✗ —— 不许"我传了参数就算同一份" ✗
@@ -216,15 +269,43 @@ try {
 		rmSync(outDir, { recursive: true, force: true });
 		rmSync(cliOut, { recursive: true, force: true });
 
+		// ── 链③′ **工具契约读数** ✓：`--story-out` 给**绝对路径** ⇒ 必须落到**它指定的地方** ✗
+		//   （能假 ✓：修前一律 `join(ROOT, STORY_OUT)` ⇒ `path.join('/repo','/repo/dist/x')` ＝ `/repo/repo/dist/x` ✗）
+		{
+			const absDir = mkdtempSync(join(tmpdir(), 'sgstory-absout-'));
+			const absOut = join(absDir, 'index.html');
+			writeFileSync(join(tmpDir, 'rules-abs.twee'), pageRulesSameSlug, 'utf8');
+			execFileSync('node', ['build.mjs', `--with-rules=${join(tmpDir, 'rules-abs.twee')}`, `--story-out=${absOut}`], { cwd: ROOT, stdio: 'pipe' });
+			const probeShaBefore = existsSync(join(PROBE_DIR, 'index.html')) ? sha(join(PROBE_DIR, 'index.html')) : '(无)';
+			t('链③′ 绝对 `--story-out` ⇒ 落在**它指定的路径** ✓（不是 `ROOT/<绝对路径>` ✗）', existsSync(absOut) && readFileSync(absOut, 'utf8').length > 1000);
+			t('链③′ 且**没有**污染探针目录 ✓（绝对路径没有"顺便"写进仓 ✓）', (existsSync(join(PROBE_DIR, 'index.html')) ? sha(join(PROBE_DIR, 'index.html')) : '(无)') === probeShaBefore);
+			rmSync(absDir, { recursive: true, force: true });
+		}
 		// ── 链④ 预览：探针页由**构建脚本**从该编译产物产出 ✓ ⇒ 区间法 ＋ 成对"不受影响面" ✓
 		writeFileSync(join(tmpDir, 'rules.twee'), pageRulesSameSlug, 'utf8');
-		execFileSync('node', ['build.mjs', `--with-rules=${join(tmpDir, 'rules.twee')}`, `--story-out=${join(PROBE_DIR, 'index.html')}`], { cwd: ROOT, stdio: 'pipe' });
+		//  ⚠️ 原写 `--story-out=${join(PROBE_DIR,'index.html')}`（**绝对** ✗）⇒ `build.mjs` 的 `join(ROOT, STORY_OUT)` 会拼成
+		//   `ROOT/home/…` ✗ ⇒ 落到荒处 ⇒ **探针页仍是 A-2 那份** ✗ ⇒ 链④ 读的是**别人的产物** ✓（内容恰好同形 ⇒ 6 字节 ⇒
+		//   **侥幸通过** ✗）。改**仓根相对** ✓（与 A-2 同形 ✓）。
+		const probeShaBefore = existsSync(join(PROBE_DIR, 'index.html')) ? sha(join(PROBE_DIR, 'index.html')) : '(无)';
+		execFileSync('node', ['build.mjs', `--with-rules=${join(tmpDir, 'rules.twee')}`, `--story-out=${join('dist', 'stories', '__probe', 'index.html')}`], { cwd: ROOT, stdio: 'pipe' });
+		const probeShaAfter = sha(join(PROBE_DIR, 'index.html'));
 		const E1 = (await preview({ gear: OTHER_SCOPE_STATE.with })).text;
 		const E2 = (await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.with })).text;
 		const ed = diffSpan(E1, E2);
-		const et = diffTight(ed.b, MARKER);
+		// ⚠️ **归属**在**页面字节**上量 ✓（含 `〈链〉` ✓，见下一条 ✓）；**紧致度**按**渲染**里的标记量 ✓：
+		//   实测 `〈链〉` **不落进渲染行** ✗（span 仍是 6 ＝ `MARKER` ✓）—— 与复核席三次撞的是同一面墙 ✓
+		//   ⇒ 记为**观察项** ✓（两人同撞 ⇒ 值得合看 ✓，不阻塞 ✓）。
+		const et = diffTight(ed.b, MARKER);   // 渲染 span ＝ MARKER（6 ✓，上限 8 ✓）
 		t('链④ 差异段**紧致** ✓（含标记 ✓ ＋ 长 ≤ 标记长＋slack ✓ —— **能假** ✓，不是"重建相等"那句恒真 ✗）', et.ok);
-		console.log(`  · 链④ 差异段长 ${et.len} 字节（上限 ${et.bound} ✓）`);
+		// **带外**归属读数 ✓（复核席 (iii) 的正形 ✓）：构建**前后**探针页 sha **必须变** ✗
+		//  —— 这次假绿的指纹就是"没变" ✓（链的构建落到荒处 ⇒ 探针页还是旧的 ✓）。
+		t('链④ 探针页**由本次构建写出** ✓（前后 sha 变了 ✗ —— 带外读数 ✓，不依赖串进不进渲染 ✓）', probeShaAfter !== probeShaBefore);
+		t('链④ 渲染 span ＝ **本次编辑追加的那个串本身** ✓（＝ MARKER，6 ✓ —— 不声称"边界" ✗：见上"三假设全被推翻" ✓）', ed.b === MARKER);
+		// 复核席的更省判别 ✓：**渲染文本长度 vs 源 `text` 长度** ✗ —— 长度没长 ⇒ **截断** ✓；
+		// 长度长了而差异区间没覆盖新增 ⇒ **归一化/丢弃** ✗ ⇒ 一次测量分开"H4 是截断还是丢弃" ✓。
+		// ⚠️ 这是**观察打印** ✓（期望值未知 ✗ ⇒ 不写成断言 ✗ —— 不许把"看着像"写成判据 ✓）。
+		console.log(`  · ④ 观察·渲染面：渲染文本 ${E2.length} 字符 · 源 text ${targetText.length} 字符 · 差异段 ${ed.b.length} ✓`);
+		console.log(`  · 链④ 差异段长 ${et.len} 字节（上限 ${et.bound} ✓）· 探针页前/后 sha ${probeShaBefore}/${probeShaAfter} ✓`);
 		const F1 = (await preview({ gear: OTHER_SCOPE_STATE.without })).text;
 		const F2 = (await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.without })).text;
 		t('链④ **成对**：不受影响面（"无火把"那条）**逐字节相同** ✗ ＋ 前提（两条状态本身不同 ✓）', F1 === F2 && F1 !== E1);
@@ -236,51 +317,6 @@ try {
 			nSide.assetSha === pSide.assetSha && nSide.assetSha === sha(join(PROBE_DIR, 'index.html')) && nSide.assetSha !== realSha0);
 	}
 
-
-	// ——— 三次全新 boot ✓
-	const T1 = (await preview({ gear: OTHER_SCOPE_STATE.with })).text;
-	t('前置：目标行确实命中 ✓（"有火把"文本出现在渲染里 ✓）', T1.includes(targetText.slice(0, 12)));
-	const T2 = (await preview({ gear: OTHER_SCOPE_STATE.with })).text;
-	t('① 控制跑：**同输入不编辑 ⇒ T2 逐字节等于 T1** ✓（"底材同一"是读数 ✓）', T2 === T1);
-	const T3 = (await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.with })).text;
-	t('① 探针页可启 ✓（`story` 用相对键走通 ✓）', typeof T3 === 'string' && T3.length > 20);
-
-	// ——— ② 区间法 ✓
-	const d = diffSpan(T1, T3);
-	// ⚠️ 复核席第五轮: 这里原是 `rebuilt === T3 && !d.same" ✗ —— `rebuilt` 正是按**最长公共前后缀**
-	//   重建的 ✓ ⇒ **构造上恒真** ✗（"用定义验证定义" ✓ 第三种偷懒形态 ✓）。改成 `tight.ok` ✓
-	//   （段含标记 ✓ ＋ 段长紧致 ✓ ⇒ 两条都能假 ✓）。`rebuilt` 变量已删 ✓。
-	const tight = diffTight(d.b, MARKER);
-	t('② 该段**含我方标记** ✓（注入被消费 ✓ —— "先证注入生效" ✓）', d.b.includes(MARKER));
-	t('② **段长紧致** ✓（≤ 标记长＋slack ✓ —— 差异没吞掉整段 ✓；⚠️ 原"重建相等"那句**构造上恒真** ✗ 已删 ✓）', tight.ok);
-	console.log(`  · ② 差异段长 ${tight.len} 字节（上限 ${tight.bound} ✓ · 标记长 ${MARKER.length} ✓）`);
-
-	// ——— ③ 不受影响面 ✓
-	const U1 = (await preview({ gear: OTHER_SCOPE_STATE.without })).text;
-	const U2 = (await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.without })).text;
-	t('③ 不受影响面：编辑**不该动**"无火把"那条 ⇒ 渲染**逐字节相同** ✗', U1 === U2);
-	t('③ 前提：两条状态确实渲染出不同文本 ✓（否则对照面是空的 ✓）', U1 !== T1);
-
-	// ——— ④ 对偶：序列化变体（缩进）⇒ 编译产物与预览都逐字节同 ✓
-	// ⚠️ 我第一版把"重排"写成 `JSON.parse(JSON.stringify(x, null, 6))` ✗ ⇒ **缩进被解析丢掉了** ✓
-	//   ⇒ 对象序列化**没变** ⇒ 前提断言**假红** ✓（又是"注入没生效"那族 ✓）。正确的对偶是**文件文本**层面：
-	//   **同一份对象的两种缩进文本** ✓ ⇒ 解析回来**同一个对象** ✓ ⇒ 编译产物**必须逐字节同** ✓。
-	const textA = JSON.stringify(data['rules.json'], null, 1);
-	const textB = JSON.stringify(data['rules.json'], null, 6);
-	const reser = { ...data, 'rules.json': JSON.parse(textB) };
-	t('④ 对偶·前提：两种缩进**文本不同** ✓ 且**解析回来是同值对象** ✓（否则这刀是空操作 ✓）',
-		textA !== textB && JSON.stringify(JSON.parse(textA)) === JSON.stringify(JSON.parse(textB)));
-	t('④ 对偶：序列化变体 ⇒ **编译产物逐字节同** ✗（若不同 ⇒ 编译器偷用了原始字节 ✓）',
-		compileInPage({ slug: SLUG, data: reser }).files['17-rules.twee'] === origRules);
-
-	// ——— ⑤ 状态敏感性 ＋ 负例 ＋ 指纹
-	t('⑤ 状态敏感性：换状态 ⇒ 预览**必须变** ✗', U1 !== T1);
-	const throws = (fn) => { try { fn(); return ''; } catch (e) { return String(e.message); } };
-	t('⑤ 负例：事件不存在 ⇒ 抛且**不产出预览** ✓', throws(() => editEventField({ pkg, id: '__nope__', field: 'text', value: 'x' })).includes('事件不存在'));
-	t('⑤ 负例：未知字段 ⇒ 抛 ✗（不许塞新键 ✓）', throws(() => editEventField({ pkg, id: EVENT, field: '__newkey__', value: 'x' })).includes('未知字段'));
-	const fp = sha(storyHtml(SLUG));
-	console.log(`  · dist 指纹：${storyHtml(SLUG).split('/').slice(-3).join('/')} sha256:${fp} ✓`);
-	t('⑤ dist 指纹非空（读数指名了构建 ✓）', fp.length === 16);
 
 	// ——— B 段（裁定 (b) 后半 ＋ 复核席裁定 (ii)）✓：**页面侧 ≡ Node 侧**，两侧**各自独立实例** ✗
 	//  ⚠️ 复核席第 4 次拦下这里 ✗：字面 `true` 的"断言"＝没断言 ✓；`sha(f)===probeSha`（同源）＝恒真 ✓

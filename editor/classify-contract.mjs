@@ -122,15 +122,8 @@ const selftest = () => {
 const isMain0 = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain0 && process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 
-/** 手写逃生舱文件（`#787` 翻面）：生成物**装不进**非 A 桶成员 ⇒ 它们住**手写**文件，
- *  登记在 `editor/escape-hatch.json` 的 `hatchFiles`（仓内相对路径）。
- *  分类器与门据此把**完整契约**看全：否则"成员搬出手写文件"会被读成"登记腐烂"的**假红** ✗。
- *  返回值：过滤到该 slug 的绝对路径数组。 */
-export const hatchFiles = (slug) => {
-	const p = join(ROOT, 'editor', 'escape-hatch.json');
-	if (!existsSync(p)) return [];
-	return (JSON.parse(readFileSync(p, 'utf8')).hatchFiles ?? []).filter((f) => !slug || f.includes(`stories/${slug}/`)).map((f) => join(ROOT, f));
-};
+import { hatchFiles } from './lib/host/hatches.mjs';
+export { hatchFiles };
 
 /** **行首**的生成标记才算（与 K4 的 `hasMarker` 同口径：注释里提到该词的文件不是产物）。 */
 

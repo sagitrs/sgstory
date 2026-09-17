@@ -27,8 +27,9 @@ export { engineScripts, ENGINE_CONST, ROOT };
  *  否则故事表里的 `window.Game.Era.PRESENT` 取不到（静默缺字段）⇒ 现住 `editor/lib/host/fs.mjs` ✓。 */
 
 // `runStory`（vm 沙箱）已抽到 `editor/lib/host/sandbox.mjs` ✓（命令体与自证共用同一具身体 ✓）。
-import { runStory } from './lib/host/sandbox.mjs';
-export { runStory };
+import { runStory, engineOf } from './lib/host/sandbox.mjs';
+import { sectionFile } from './lib/core/story.mjs';
+export { runStory, engineOf, sectionFile };
 
 const selftest = () => {
 	let bad = 0;
@@ -64,14 +65,7 @@ const selftest = () => {
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain && process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 
-/** 引擎常量 + 故事各段（真加载顺序）——`--tables` 与 `--section` 共用。
- *  `fromPath` 就是 `--from` 指定的源（默认＝工作区的 `15-tables.twee`）——**翻面后必须传**：
- *  那时工作区那份已是**产物**，再抽就成了"自吃"（实测：把产物里的 `provenance: '[object Object]'` 再抽一遍）。 */
-const engineOf = (slug, fromPath = null) => {
-	const text = readText(fromPath ?? join(ROOT, `stories/${slug}/${sectionFile('Game Tables')}`));
-	return engineScripts() + '\n' + scriptBodies(text).join('\n');
-};
-
+/** `#794`：`engineOf` 已搬到 `editor/lib/host/sandbox.mjs` ✓（读文件 ⇒ 住 host ✓；命令体与自证共用 ✓）。 */
 const main = () => {
 	const slug = process.argv[2];
 	if (!slug) { console.error('用法：node editor/extract-story.mjs <slug> [--section=StoryRules] [--key=rules] [--out=<file>]'); process.exit(2); }
@@ -133,12 +127,6 @@ const main = () => {
 	else { mkdirp(dirname(out)); writeText(out, serialize(data)); }
 	console.log(`✔ ${slug}：抽出 ${data.length} 行（section=${section} key=${key}）→ ${out.replace(ROOT, '')}`);
 	for (const d of diag.slice(0, 5)) console.log(`  · 沙箱输出：${d}`);
-};
-
-/** 段落名 → 文件名（本仓约定：段落名与文件名不同，靠 `00-story.json` 的 files 列表兜底）。 */
-const sectionFile = (name) => {
-	const map = { StoryRules: '17-rules.twee', 'Game Tables': '15-tables.twee', StoryBindings: '15-tables.twee' };
-	return map[name] ?? `${name}.twee`;
 };
 
 if (isMain) main();

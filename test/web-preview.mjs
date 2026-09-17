@@ -34,6 +34,7 @@ const SLUG = DEFAULT_SLUG;
 const PASSAGE = '洞穴';
 const EVENT = '洞穴.火光.有火把';
 const MARKER = '【预览探针】';
+const CHAIN_MARK = `${MARKER}〈链〉`;   // ← 链**自己**的标记 ✓（与 A-2 的区分开 ✗ ⇒ 才能抓"链读到了 A-2 的产物" ✗）
 const OTHER_SCOPE_STATE = { with: ['火把'], without: [] };
 const PROBE_DIR = join(ROOT, 'dist', 'stories', '__probe');
 const nodeIo = () => ({ readText: (p) => readFileSync(join(ROOT, p), 'utf8') });
@@ -159,84 +160,6 @@ try {
 	t('探针页已由**构建脚本**产出 ✓（不另写合并逻辑 ✓）', existsSync(join(PROBE_DIR, 'index.html')));
 	t('⑥ 真 dist 故事页 sha **未变** ✓（探针不污染被测对象 ✓）', sha(storyHtml(SLUG)) === realSha0);
 
-	// ═══ 端到端链（P1 余项第三半 ✓）：**表单（DOM）⇒ 写盘 ⇒ 探针 ⇒ 预览 ⇒ CLI** ═══
-	//  复核席两条要求 ✓：(i) 字段层"各自报出" ✓（提交值从 DOM 读回 ✓，见 `#870`）
-	//  (ii) **每一步各自报出它启的产物 sha 且相等** ✗ —— 不许"我传了参数就算同一份" ✗
-	{
-		const SCRATCH = join('stories', '__e2e');
-		const scratchAbs = join(ROOT, SCRATCH);   // 清理用（落盘是仓根相对 ✓）
-		scratchMade.push(scratchAbs);
-		const tmpDir = mkdtempSync(join(tmpdir(), 'sgstory-e2e-'));
-		mkdirSync(join(scratchAbs, 'data'), { recursive: true });
-
-		// ── 链首：**DOM 表单**提交两处 ✓（提交值必须从 DOM 读回 ✓ —— 不是变量回放 ✗）
-		const JSDOM = (await import('jsdom')).JSDOM;
-		const dom = new JSDOM('<div id="fields"></div>');
-		const { buildEventForm, readFormFields, submitEventForm } = await import('../editor/web/form.mjs');
-		buildEventForm({ doc: dom.window.document, row: data['rules.json'].rows.find((r) => r.id === EVENT) });
-		dom.window.document.getElementById('fld-text').value = `${targetText}${MARKER}`;
-		dom.window.document.getElementById('fld-prio').value = String((data['rules.json'].rows.find((r) => r.id === EVENT).prio ?? 0) + 1);
-		const submitted = readFormFields({ doc: dom.window.document });
-		t('链① 提交值**从 DOM 读回** ✓（表里填的就是提交的 ✗ —— 非变量回放 ✓）',
-			submitted.text === `${targetText}${MARKER}` && typeof submitted.prio === 'number');
-		const formOut = submitEventForm({ doc: dom.window.document, pkg, id: EVENT });
-		t('链① 表单改两处 ⇒ **数据层差异恰好两处** ✓（与 `#869`／`#870` 同形 ✓）',
-			formOut.diffs.length === 2 && formOut.diffs.map((d) => d.field).sort().join(',') === 'prio,text');
-
-		// ── 链② 写盘 ⇒ **从磁盘读回字节** ⇒ 编译 ✓（链的输入是文件，不是内存对象 ✓）
-		const { savePackage } = await import('../editor/web/save.mjs');
-		//  ⚠️ `savePackage` **不收 io** ✗ —— 它用 `collectIo()` 纯收集 ⇒ **返回字节** ✓，落盘由宿主做 ✓
-		const saved = savePackage({ slug: '__e2e', data: formOut.after });
-		for (const [p2, txt] of Object.entries(saved.files)) {          // ← 键是**仓根相对**（`stories/<slug>/data/…` ✓）
-			mkdirSync(dirname(join(ROOT, p2)), { recursive: true });     //   正好是 CLI 读的地方 ✓
-			writeFileSync(join(ROOT, p2), txt, 'utf8');
-		}
-		const diskRules = JSON.parse(readFileSync(join(ROOT, 'stories', '__e2e', 'data', 'rules.json'), 'utf8'));
-		t('链② 写盘件数 ✓ ＋ **磁盘上真有那份 rules.json** ✓（链的输入是文件 ✓）', Object.keys(saved.files).length > 0 && diskRules.rows.length === data['rules.json'].rows.length);
-		// ⚠️ 复核席裁定 (b) ✓：**页内侧也必须读磁盘** ✗ —— 只换 `rules.json` 的话，
-		//   "**写盘 ⇒ 读回**"那一跳**没被走过** ✗（"逐字节同"只证了同一编译器在同样数据上确定 ✓）。
-		//  `loadPackage` 还要**清单** ✓ ⇒ 把真清单原样放进 scratch ✓（编译不吃它 ✓，只用来解析路径 ✓）
-		writeFileSync(join(ROOT, 'stories', '__e2e', '00-story.json'), readFileSync(join(ROOT, 'stories', SLUG, '00-story.json'), 'utf8'), 'utf8');
-		const fromDisk = loadPackage({ slug: '__e2e', io: { readText: (p) => readFileSync(join(ROOT, p), 'utf8') } }).data;
-		const pageRules = compileInPage({ slug: SLUG, data: fromDisk }).files['17-rules.twee'];
-		t('链② **写入路径 == CLI 读的路径** ✓（`stories/<slug>/data/<f>` ✓ —— 不是"我实测过" ✓）',
-			Object.keys(saved.files).sort().join(',') === ['stories/__e2e/data/contract.json', 'stories/__e2e/data/rules.json', 'stories/__e2e/data/tables.json'].sort().join(','));
-		t('链② 从**磁盘字节**编译 ⇒ 规则文本含标记 ✓（注入被消费 ✓ —— "先证注入生效" ✓）', pageRules.includes(MARKER));
-
-		// ── 链③ **CLI 那一跳**：同一个 slug（`__e2e`）两侧 ✓ ⇒ 逐字节比 ✓
-		//  ⚠️ 用**同一 slug** ⇒ 输出里若带 slug 也两侧一致 ✓（不必假设"规则文本与 slug 无关" ✓）
-		const cliOut = mkdtempSync(join(tmpdir(), 'sgstory-cli-'));
-		const outDir = join(ROOT, 'build', 'e2e-cli');
-		execFileSync('node', ['editor/cli.mjs', 'build', '__e2e', `--out=${outDir}`], { cwd: ROOT, stdio: 'pipe' });
-		const cliRules = readFileSync(join(outDir, '17-rules.twee'), 'utf8');
-		const pageRulesSameSlug = compileInPage({ slug: '__e2e', data: fromDisk }).files['17-rules.twee'];
-		t('链③ **CLI 的编译产物与页内编译逐字节相同** ✓（同一编译器的两个入口 ✓）', cliRules === pageRulesSameSlug);
-		t('链③ 两侧各自报出的规则文本 sha 相等 ✓（不是"我传了参数" ✓）',
-			sha2str(cliRules) === sha2str(pageRulesSameSlug) && sha2str(cliRules).length === 16);
-		rmSync(outDir, { recursive: true, force: true });
-		rmSync(cliOut, { recursive: true, force: true });
-
-		// ── 链④ 预览：探针页由**构建脚本**从该编译产物产出 ✓ ⇒ 区间法 ＋ 成对"不受影响面" ✓
-		writeFileSync(join(tmpDir, 'rules.twee'), pageRulesSameSlug, 'utf8');
-		execFileSync('node', ['build.mjs', `--with-rules=${join(tmpDir, 'rules.twee')}`, `--story-out=${join(PROBE_DIR, 'index.html')}`], { cwd: ROOT, stdio: 'pipe' });
-		const E1 = (await preview({ gear: OTHER_SCOPE_STATE.with })).text;
-		const E2 = (await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.with })).text;
-		const ed = diffSpan(E1, E2);
-		const et = diffTight(ed.b, MARKER);
-		t('链④ 差异段**紧致** ✓（含标记 ✓ ＋ 长 ≤ 标记长＋slack ✓ —— **能假** ✓，不是"重建相等"那句恒真 ✗）', et.ok);
-		console.log(`  · 链④ 差异段长 ${et.len} 字节（上限 ${et.bound} ✓）`);
-		const F1 = (await preview({ gear: OTHER_SCOPE_STATE.without })).text;
-		const F2 = (await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.without })).text;
-		t('链④ **成对**：不受影响面（"无火把"那条）**逐字节相同** ✗ ＋ 前提（两条状态本身不同 ✓）', F1 === F2 && F1 !== E1);
-
-		// ── 链⑤ 每一步**各自报出**它启的产物 sha ⇒ 且相等 ✓（B 段那课的正面用法 ✓）
-		const nSide = await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.with });
-		const pSide = await pageSideVia({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.with });
-		t('链⑤ 两侧各自报出的**探针产物 sha 相同** ✓（且 ≠ 真 dist ✓）',
-			nSide.assetSha === pSide.assetSha && nSide.assetSha === sha(join(PROBE_DIR, 'index.html')) && nSide.assetSha !== realSha0);
-	}
-
-
 	// ——— 三次全新 boot ✓
 	const T1 = (await preview({ gear: OTHER_SCOPE_STATE.with })).text;
 	t('前置：目标行确实命中 ✓（"有火把"文本出现在渲染里 ✓）', T1.includes(targetText.slice(0, 12)));
@@ -281,6 +204,92 @@ try {
 	const fp = sha(storyHtml(SLUG));
 	console.log(`  · dist 指纹：${storyHtml(SLUG).split('/').slice(-3).join('/')} sha256:${fp} ✓`);
 	t('⑤ dist 指纹非空（读数指名了构建 ✓）', fp.length === 16);
+
+	// ═══ 端到端链（P1 余项第三半 ✓）：**表单（DOM）⇒ 写盘 ⇒ 探针 ⇒ 预览 ⇒ CLI** ═══
+	//  复核席两条要求 ✓：(i) 字段层"各自报出" ✓（提交值从 DOM 读回 ✓，见 `#870`）
+	//  (ii) **每一步各自报出它启的产物 sha 且相等** ✗ —— 不许"我传了参数就算同一份" ✗
+	{
+		const SCRATCH = join('stories', '__e2e');
+		const scratchAbs = join(ROOT, SCRATCH);   // 清理用（落盘是仓根相对 ✓）
+		scratchMade.push(scratchAbs);
+		const tmpDir = mkdtempSync(join(tmpdir(), 'sgstory-e2e-'));
+		mkdirSync(join(scratchAbs, 'data'), { recursive: true });
+
+		// ── 链首：**DOM 表单**提交两处 ✓（提交值必须从 DOM 读回 ✓ —— 不是变量回放 ✗）
+		const JSDOM = (await import('jsdom')).JSDOM;
+		const dom = new JSDOM('<div id="fields"></div>');
+		const { buildEventForm, readFormFields, submitEventForm } = await import('../editor/web/form.mjs');
+		buildEventForm({ doc: dom.window.document, row: data['rules.json'].rows.find((r) => r.id === EVENT) });
+		dom.window.document.getElementById('fld-text').value = `${targetText}${CHAIN_MARK}`;
+		dom.window.document.getElementById('fld-prio').value = String((data['rules.json'].rows.find((r) => r.id === EVENT).prio ?? 0) + 1);
+		const submitted = readFormFields({ doc: dom.window.document });
+		t('链① 提交值**从 DOM 读回** ✓（表里填的就是提交的 ✗ —— 非变量回放 ✓）',
+			submitted.text === `${targetText}${CHAIN_MARK}` && typeof submitted.prio === 'number');
+		const formOut = submitEventForm({ doc: dom.window.document, pkg, id: EVENT });
+		t('链① 表单改两处 ⇒ **数据层差异恰好两处** ✓（与 `#869`／`#870` 同形 ✓）',
+			formOut.diffs.length === 2 && formOut.diffs.map((d) => d.field).sort().join(',') === 'prio,text');
+
+		// ── 链② 写盘 ⇒ **从磁盘读回字节** ⇒ 编译 ✓（链的输入是文件，不是内存对象 ✓）
+		const { savePackage } = await import('../editor/web/save.mjs');
+		//  ⚠️ `savePackage` **不收 io** ✗ —— 它用 `collectIo()` 纯收集 ⇒ **返回字节** ✓，落盘由宿主做 ✓
+		const saved = savePackage({ slug: '__e2e', data: formOut.after });
+		for (const [p2, txt] of Object.entries(saved.files)) {          // ← 键是**仓根相对**（`stories/<slug>/data/…` ✓）
+			mkdirSync(dirname(join(ROOT, p2)), { recursive: true });     //   正好是 CLI 读的地方 ✓
+			writeFileSync(join(ROOT, p2), txt, 'utf8');
+		}
+		const diskRules = JSON.parse(readFileSync(join(ROOT, 'stories', '__e2e', 'data', 'rules.json'), 'utf8'));
+		t('链② 写盘件数 ✓ ＋ **磁盘上真有那份 rules.json** ✓（链的输入是文件 ✓）', Object.keys(saved.files).length > 0 && diskRules.rows.length === data['rules.json'].rows.length);
+		// ⚠️ 复核席裁定 (b) ✓：**页内侧也必须读磁盘** ✗ —— 只换 `rules.json` 的话，
+		//   "**写盘 ⇒ 读回**"那一跳**没被走过** ✗（"逐字节同"只证了同一编译器在同样数据上确定 ✓）。
+		//  `loadPackage` 还要**清单** ✓ ⇒ 把真清单原样放进 scratch ✓（编译不吃它 ✓，只用来解析路径 ✓）
+		writeFileSync(join(ROOT, 'stories', '__e2e', '00-story.json'), readFileSync(join(ROOT, 'stories', SLUG, '00-story.json'), 'utf8'), 'utf8');
+		const fromDisk = loadPackage({ slug: '__e2e', io: { readText: (p) => readFileSync(join(ROOT, p), 'utf8') } }).data;
+		const pageRules = compileInPage({ slug: SLUG, data: fromDisk }).files['17-rules.twee'];
+		t('链② **写入路径 == CLI 读的路径** ✓（`stories/<slug>/data/<f>` ✓ —— 不是"我实测过" ✓）',
+			Object.keys(saved.files).sort().join(',') === ['stories/__e2e/data/contract.json', 'stories/__e2e/data/rules.json', 'stories/__e2e/data/tables.json'].sort().join(','));
+		t('链② 从**磁盘字节**编译 ⇒ 规则文本含标记 ✓（注入被消费 ✓ —— "先证注入生效" ✓）', pageRules.includes(MARKER));
+
+		// ── 链③ **CLI 那一跳**：同一个 slug（`__e2e`）两侧 ✓ ⇒ 逐字节比 ✓
+		//  ⚠️ 用**同一 slug** ⇒ 输出里若带 slug 也两侧一致 ✓（不必假设"规则文本与 slug 无关" ✓）
+		const cliOut = mkdtempSync(join(tmpdir(), 'sgstory-cli-'));
+		const outDir = join(ROOT, 'build', 'e2e-cli');
+		execFileSync('node', ['editor/cli.mjs', 'build', '__e2e', `--out=${outDir}`], { cwd: ROOT, stdio: 'pipe' });
+		const cliRules = readFileSync(join(outDir, '17-rules.twee'), 'utf8');
+		const pageRulesSameSlug = compileInPage({ slug: '__e2e', data: fromDisk }).files['17-rules.twee'];
+		t('链③ **CLI 的编译产物与页内编译逐字节相同** ✓（同一编译器的两个入口 ✓）', cliRules === pageRulesSameSlug);
+		t('链③ 两侧各自报出的规则文本 sha 相等 ✓（不是"我传了参数" ✓）',
+			sha2str(cliRules) === sha2str(pageRulesSameSlug) && sha2str(cliRules).length === 16);
+		rmSync(outDir, { recursive: true, force: true });
+		rmSync(cliOut, { recursive: true, force: true });
+
+		// ── 链④ 预览：探针页由**构建脚本**从该编译产物产出 ✓ ⇒ 区间法 ＋ 成对"不受影响面" ✓
+		writeFileSync(join(tmpDir, 'rules.twee'), pageRulesSameSlug, 'utf8');
+		//  ⚠️ 原写 `--story-out=${join(PROBE_DIR,'index.html')}`（**绝对** ✗）⇒ `build.mjs` 的 `join(ROOT, STORY_OUT)` 会拼成
+		//   `ROOT/home/…` ✗ ⇒ 落到荒处 ⇒ **探针页仍是 A-2 那份** ✗ ⇒ 链④ 读的是**别人的产物** ✓（内容恰好同形 ⇒ 6 字节 ⇒
+		//   **侥幸通过** ✗）。改**仓根相对** ✓（与 A-2 同形 ✓）。
+		execFileSync('node', ['build.mjs', `--with-rules=${join(tmpDir, 'rules.twee')}`, `--story-out=${join('dist', 'stories', '__probe', 'index.html')}`], { cwd: ROOT, stdio: 'pipe' });
+		const E1 = (await preview({ gear: OTHER_SCOPE_STATE.with })).text;
+		const E2 = (await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.with })).text;
+		const ed = diffSpan(E1, E2);
+		// ⚠️ **归属**在**页面字节**上量 ✓（含 `〈链〉` ✓，见下一条 ✓）；**紧致度**按**渲染**里的标记量 ✓：
+		//   实测 `〈链〉` **不落进渲染行** ✗（span 仍是 6 ＝ `MARKER` ✓）—— 与复核席三次撞的是同一面墙 ✓
+		//   ⇒ 记为**观察项** ✓（两人同撞 ⇒ 值得合看 ✓，不阻塞 ✓）。
+		const et = diffTight(ed.b, MARKER);
+		t('链④ 差异段**紧致** ✓（含标记 ✓ ＋ 长 ≤ 标记长＋slack ✓ —— **能假** ✓，不是"重建相等"那句恒真 ✗）', et.ok);
+		const probeBytes = readFileSync(join(PROBE_DIR, 'index.html'), 'utf8');
+		t('链④ 探针页**确实由链自己的 rules 产出** ✓（含链独有标记 `〈链〉` ✗ —— 抓"读到 A-2 产物" ✗）', probeBytes.includes('〈链〉'));
+		console.log(`  · 链④ 差异段长 ${et.len} 字节（上限 ${et.bound} ✓ · 探针页 ${probeBytes.length} 字节 ✓）`);
+		const F1 = (await preview({ gear: OTHER_SCOPE_STATE.without })).text;
+		const F2 = (await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.without })).text;
+		t('链④ **成对**：不受影响面（"无火把"那条）**逐字节相同** ✗ ＋ 前提（两条状态本身不同 ✓）', F1 === F2 && F1 !== E1);
+
+		// ── 链⑤ 每一步**各自报出**它启的产物 sha ⇒ 且相等 ✓（B 段那课的正面用法 ✓）
+		const nSide = await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.with });
+		const pSide = await pageSideVia({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.with });
+		t('链⑤ 两侧各自报出的**探针产物 sha 相同** ✓（且 ≠ 真 dist ✓）',
+			nSide.assetSha === pSide.assetSha && nSide.assetSha === sha(join(PROBE_DIR, 'index.html')) && nSide.assetSha !== realSha0);
+	}
+
 
 	// ——— B 段（裁定 (b) 后半 ＋ 复核席裁定 (ii)）✓：**页面侧 ≡ Node 侧**，两侧**各自独立实例** ✗
 	//  ⚠️ 复核席第 4 次拦下这里 ✗：字面 `true` 的"断言"＝没断言 ✓；`sha(f)===probeSha`（同源）＝恒真 ✓

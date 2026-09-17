@@ -11,7 +11,8 @@
 //   rc≠0 ⇒ EXIT ✗；rc=0 且有输出 ⇒ SIDE-EFFECT ✗；否则 OK ✓。
 // 反过来，它**不是**安全沙箱的判据 ✓（那是 `lib/host/sandbox.mjs` 顶注的威胁模型的事 ✓）。
 import { execFileSync } from 'node:child_process';
-import { readdirSync, statSync } from 'node:fs';
+import { readdirSync, statSync, mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -41,22 +42,50 @@ export const importOnce = (abs) => {
 	}
 };
 
-const bad = [];
-for (const abs of editorModules()) {
-	const { rc, out, err } = importOnce(abs);
-	const rel = relative(ROOT, abs);
-	// ⚠️ **必须用哨兵形，不能只看 rc=0 ＋ 0 字节** ✗ —— 实测：把 `process.exit(0)` 插进模块顶部时，
-	//    导入方的读数同样是 **rc=0 · 0 字节** ✓ ⇒ 与"干净 import"**无法区分** ✗（我第一版就这样漏过它 ✓）。
-	//    ⇒ 判据改成："import **跑完**了，且**只**留下哨兵" ✓（`exit(0)` ⇒ 哨兵缺失 ⇒ 必红 ✓）。
-	if (rc !== 0) bad.push(`${rel}：**EXIT** ✗（rc=${rc}${err ? ` · stderr ${err.length}B` : ''}）⇒ import 期退出会杀掉导入方`);
-	else if (out !== `${MARK}\n` || err.length) bad.push(`${rel}：**SIDE-EFFECT / 未跑完** ✗（stdout ${JSON.stringify(out.slice(0, 60))} · stderr ${err.length}B）⇒ 期望恰好是哨兵 "${MARK}" ✓`);
-}
+/** 扫一个目录（默认 `editor/**` ✓）：返回不合格项（空数组 ⇒ 通过 ✓）。**纯导出** ⇒ 被测例直接驱动 ✓。 */
+export const checkModules = (dir = join(ROOT, 'editor')) => {
+	const bad = [];
+	for (const abs of editorModules(dir)) {
+		const { rc, out, err } = importOnce(abs);
+		const rel = relative(ROOT, abs);
+		// ⚠️ **必须用哨兵形，不能只看 rc=0 ＋ 0 字节** ✗ —— 实测：把 `process.exit(0)` 插进模块顶部时，
+		//    导入方的读数同样是 **rc=0 · 0 字节** ✓ ⇒ 与"干净 import"**无法区分** ✗（我第一版就这样漏过它 ✓）。
+		//    ⇒ 判据改成："import **跑完**了，且**只**留下哨兵" ✓（`exit(0)` ⇒ 哨兵缺失 ⇒ 必红 ✓）。
+		if (rc !== 0) bad.push(`${rel}：**EXIT** ✗（rc=${rc}${err ? ` · stderr ${err.length}B` : ''}）⇒ import 期退出会杀掉导入方`);
+		else if (out !== `${MARK}\n` || err.length) bad.push(`${rel}：**SIDE-EFFECT / 未跑完** ✗（stdout ${JSON.stringify(out.slice(0, 60))} · stderr ${err.length}B）⇒ 期望恰好是哨兵 "${MARK}" ✓`);
+	}
+	return bad;
+};
 
-if (bad.length) {
-	console.error(`✗ import 副作用门：${bad.length} 个模块不合格（判据：import ⇒ rc=0 且 0 字节输出）`);
-	for (const b of bad) console.error(`  ✗ ${b}`);
-	console.error('  ⇒ 补法：加 `isMain` 守卫（`const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];`');
-	console.error('     放在 **imports 之后、逻辑之前** ✓ —— 放后面会 TDZ ✗）；主跑与 `--selftest` 两条分支都要守 ✓。');
-	process.exit(1);
+/** 自证（**能红** ✓）：造三个临时模块目录，量"干净 ⇒ 绿／`console.log` ⇒ 红／`exit(0)` ⇒ 红" ✓。 */
+export const selftest = () => {
+	let bad = 0;
+	const t = (label, ok) => { console.log(`${ok ? '✓' : '✗'} 自证·${label}`); if (!ok) bad++; };
+	const dir = mkdtempSync(join(tmpdir(), 'impes-'));
+	const put = (into, name, code) => { mkdirSync(join(dir, into), { recursive: true }); writeFileSync(join(dir, into, name), code); };
+	put('clean', 'a.mjs', 'export const a = 1;\n');
+	put('log', 'b.mjs', "console.log('x');\nexport const b = 1;\n");
+	put('exit', 'c.mjs', 'process.exit(0);\n');
+	t('正例：干净模块 ⇒ 0 项（不冤杀 ✓）', checkModules(join(dir, 'clean')).length === 0);
+	t('反例：import 期 `console.log` ⇒ 报（SIDE-EFFECT ✓）', checkModules(join(dir, 'log')).length === 1);
+	t('反例：import 期 `process.exit(0)` ⇒ 报（哨兵缺失 ⇒ 未跑完 ✓ —— 第一版判据在此盲 ✓）', checkModules(join(dir, 'exit')).length === 1);
+	rmSync(dir, { recursive: true, force: true });
+	console.log(bad ? `\n✗ 自证失败 ${bad} 项` : '\n✔ 自证通过（3 例）');
+	return bad;
+};
+
+// ⚠️ **主模块守卫**（本文件也是"库" ✓：将来跑器会逐个 import 各门 ✓）—— 无守卫时 `import` 会**跑完整扫描** ✗
+//    （实测：rc=0 ＋ stdout 99B ✓ ⇒ 与"有副作用"同族 ✓）。守卫放在 **imports 之后、逻辑之前** ✓（放后面 TDZ ✗）。
+const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
+if (isMain && process.argv.includes('--selftest')) process.exit(selftest() ? 1 : 0);
+if (isMain) {
+	const bad = checkModules();
+	if (bad.length) {
+		console.error(`✗ import 副作用门：${bad.length} 个模块不合格（判据：import ⇒ 跑完且只留哨兵）`);
+		for (const b of bad) console.error(`  ✗ ${b}`);
+		console.error('  ⇒ 补法：加 `isMain` 守卫（`const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];`');
+		console.error('     放在 **imports 之后、逻辑之前** ✓ —— 放后面会 TDZ ✗）；主跑与 `--selftest` 两条分支都要守 ✓。');
+		process.exit(1);
+	}
+	console.log(`✔ import 副作用门通过（${editorModules().length} 个模块：import ⇒ 跑完且只留哨兵 ${MARK}）`);
 }
-console.log(`✔ import 副作用门通过（${editorModules().length} 个模块：import ⇒ 跑完且只留哨兵 ${MARK}）`);

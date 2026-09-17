@@ -6,7 +6,8 @@
 // 最后用 `editor/equiv.mjs` 证明"来回一趟没变"。
 //
 // 用法：node editor/extract-story.mjs <slug> [--section=StoryRules] [--key=rules] [--out=<file>]
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+// `#794` 第 3 步 ③：读/写文件走 **host 能力**（core 不得 `node:fs` ✓）；`vm` 仍留本文件（属“沙箱能力” ✓，后一步收）。
+import { readText, writeText, mkdirp } from './lib/host/fs.mjs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
@@ -79,7 +80,7 @@ if (isMain && process.argv.includes('--selftest')) { selftest(); process.exit(0)
  *  `fromPath` 就是 `--from` 指定的源（默认＝工作区的 `15-tables.twee`）——**翻面后必须传**：
  *  那时工作区那份已是**产物**，再抽就成了"自吃"（实测：把产物里的 `provenance: '[object Object]'` 再抽一遍）。 */
 const engineOf = (slug, fromPath = null) => {
-	const text = readFileSync(fromPath ?? join(ROOT, `stories/${slug}/${sectionFile('Game Tables')}`), 'utf8');
+	const text = readText(fromPath ?? join(ROOT, `stories/${slug}/${sectionFile('Game Tables')}`));
 	return engineScripts() + '\n' + scriptBodies(text).join('\n');
 };
 
@@ -92,7 +93,7 @@ const main = () => {
 	const key = argOf('key', 'rules');
 	const out = join(ROOT, argOf('out', tablesMode ? `stories/${slug}/data/tables.json` : `stories/${slug}/data/${key}.json`));
 	const file = join(ROOT, argOf('from', `stories/${slug}/${sectionFile(section)}`));
-	const scripts = engineScripts() + '\n' + scriptBodies(readFileSync(file, 'utf8')).join('\n');
+	const scripts = engineScripts() + '\n' + scriptBodies(readText(file)).join('\n');
 	const { Sg, diag } = runStory(scripts);
 	if (tablesMode) {
 		// `--tables`：导出故事声明的 `Game` 面（**引擎常量 Era/Damage 不算故事数据** ⇒ 剔除）。
@@ -120,8 +121,8 @@ const main = () => {
 			{ target: 'Game.Consequences.engine', default: { provenance: {}, engine: {} }, value: cons.engine },
 		] } : {}) };
 		const text = JSON.stringify(payload, null, '\t') + '\n';
-		mkdirSync(dirname(out), { recursive: true });
-		writeFileSync(out, text, 'utf8');
+		mkdirp(dirname(out));
+		writeText(out, text);
 		const leaves = (v) => (v && typeof v === 'object' ? Object.values(v).reduce((n, x) => n + leaves(x), 0) : 1);
 		console.log(`✔ ${slug}：导出故事数据面 → ${out.replace(ROOT, '')}（顶层 ${Object.keys(containers).length} 键 · 叶子 ${leaves(containers)}${cons ? ' · 含 Consequences 合并' : ''}）`);
 		return;
@@ -138,8 +139,8 @@ const main = () => {
 		console.error(`✗ 抽取器**不稳定**：连抽两次序列化不同（${serialize(data).length}B vs ${serialize(again).length}B）——产物入库后会让工作区每次都脏`);
 		process.exit(1);
 	}
-	mkdirSync(dirname(out), { recursive: true });
-	writeFileSync(out, serialize(data), 'utf8');
+	mkdirp(dirname(out));
+	writeText(out, serialize(data));
 	console.log(`✔ ${slug}：抽出 ${data.length} 行（section=${section} key=${key}）→ ${out.replace(ROOT, '')}`);
 	for (const d of diag.slice(0, 5)) console.log(`  · 沙箱输出：${d}`);
 };

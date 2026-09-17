@@ -11,7 +11,7 @@
 //
 // 为什么先做这件事：UI 不是难点，**schema 立不立得住**才是。本编译器就是那个证伪点——
 //   它若能把手写版**逐 token 复现**（`editor/equiv.mjs` 的 L1/L3），数据化这条路就走得通。
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readText, writeText, mkdirp } from './lib/host/fs.mjs';
 import { join, dirname } from 'node:path';
 import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
@@ -508,15 +508,15 @@ const main = () => {
 	if (!slug) { console.error('用法：node editor/compile-story.mjs <slug> [--out=<dir>]'); process.exit(2); }
 	const outArg = process.argv.find((a) => a.startsWith('--out='));
 	const OUT = outArg ? outArg.slice('--out='.length) : join(ROOT, 'build/generated', slug);
-	const readIf = (f) => { try { return JSON.parse(readFileSync(join(ROOT, 'stories', slug, 'data', f), 'utf8')); } catch { return null; } };
+	const readIf = (f) => { try { return JSON.parse(readText(join(ROOT, 'stories', slug, 'data', f))); } catch { return null; } };
 	const tables = readIf('tables.json');
 	const contract = readIf('contract.json');
 	const rules = readIf('rules.json');
 	if (!tables && !contract && !rules) { console.error(`✗ stories/${slug}/data/ 下没有任何产物源（tables/contract/rules.json 都没有）`); process.exit(1); }
 	const files = compileStory({ tables, contract, rules, slug });
-	mkdirSync(OUT, { recursive: true });
+	mkdirp(OUT);
 	for (const [name, text] of Object.entries(files)) {
-		writeFileSync(join(OUT, name), text, 'utf8');
+		writeText(join(OUT, name), text);
 		console.log(`✔ ${slug}：${Object.keys(files).length} 份产物 · ${name} ← data/（${text.length} 字节，${text.split('\n').length - 1} 行）`);
 	}
 };

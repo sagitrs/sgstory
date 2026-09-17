@@ -12,12 +12,15 @@
 //   C. **真逃生舱候选**（上面都装不下 ⇒ 才考虑 `kind:'js'`，且必须进 `escape-hatch.json` 写理由 ＋ 票号）
 //
 // 用法：node editor/classify-contract.mjs <slug> [--json]      # 默认只报告；`--json` 打印提案数据
-import { readFileSync, writeFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { scriptBodies } from './lib/core/text.mjs';
-import { engineScripts } from './lib/host/fs.mjs';
+import { engineScripts, readText, writeText, mkdirp, exists } from './lib/host/fs.mjs';
+// `#794` P1①：故事包写入走 **core 的唯一写路**（`writeStoryPackage`）—— 壳里不再出现 `node:fs` 原语 ✗（K6 L1 在盯 ✓）。
+import { packageFiles, writeStoryPackage } from './lib/core/story.mjs';
+const NODE_IO = { readText, writeText, mkdirp, exists };
 import { KINDS, GLOBAL_ROOTS } from './compile-story.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -192,14 +195,20 @@ const main = () => {
 			console.error('  生成物只装得下 A 桶 ⇒ 非 A 成员必须移到手写件并在 `editor/escape-hatch.json` 的 `hatchFiles` 登记（否则翻面就是**静默丢成员**）。');
 			process.exit(1);
 		}
-		const out = proposeArg.includes('=') ? proposeArg.split('=')[1] : join(ROOT, `stories/${slug}/data/contract.json`);
+		const out = proposeArg.includes('=') ? proposeArg.split('=')[1] : null;      // 显式路径 ⇒ 包外/自定义（不属"故事文件" ✓）
 		const payload = {
 			section: 'StoryBindings',
 			note: '分类器自动提案（`--propose`）：本文件是**生成物**，请勿手改；要改成员形状改故事源或 classifier 的 kind 集合。',
 			members: aRows.map((r) => ({ name: r.name, kind: r.kind, ...(r.spec ?? {}) })),
 		};
-		writeFileSync(out, JSON.stringify(payload, null, '\t') + '\n');
-		console.log(`✔ 提案已写出：${out}（成员 ${aRows.length} 个 ⇒ 全部 A 桶）`);
+		if (out) {
+			mkdirp(dirname(out));
+			writeText(out, JSON.stringify(payload, null, '\t') + '\n');
+			console.log(`✔ 提案已写出：${out}（成员 ${aRows.length} 个 ⇒ 全部 A 桶）`);
+		} else {
+			const [wrote] = writeStoryPackage({ slug, data: { 'contract.json': payload }, io: NODE_IO });
+			console.log(`✔ 提案已写出：${wrote}（成员 ${aRows.length} 个 ⇒ 全部 A 桶）`);
+		}
 		process.exit(0);
 	}
 	// 非 A 的全部**点名**（不是静默跳过）：B 是"schema 该补"，C 是"要么下沉引擎、要么进逃生舱清单"

@@ -2,7 +2,7 @@
 // 为什么要有这一层：core 必须**浏览器安全**（不得 `node:fs`／`node:child_process`／`node:vm` ✗）
 // ⇒ 凡"读仓库文件／跑编译器／起子进程"的动作，都由本层实现、以**注入**的形式给 core 用。
 // 目标是「一个内核 · 三种宿主」：CLI（Node 实现）· WebUI（iframe 实现）· 测试/门（直接 import）。
-import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { join } from 'node:path';
 import { scriptBodies } from '../core/text.mjs';
@@ -25,3 +25,6 @@ export const writeText = (p, text) => writeFileSync(p, text, 'utf8');
 
 /** 建目录（递归），同上：路径原样、不 catch。 */
 export const mkdirp = (dir) => mkdirSync(dir, { recursive: true });
+
+/** 存在性（`readStoryPackage` 用它区分"文件不在"与"解析失败" ✓）。 */
+export const exists = (p) => existsSync(p);

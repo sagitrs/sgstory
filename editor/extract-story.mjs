@@ -7,7 +7,10 @@
 //
 // 用法：node editor/extract-story.mjs <slug> [--section=StoryRules] [--key=rules] [--out=<file>]
 // `#794` 第 3 步 ③：读/写文件走 **host 能力**（core 不得 `node:fs` ✓）；`vm` 仍留本文件（属“沙箱能力” ✓，后一步收）。
+// `#794` P1①：故事数据/产物的写入走 **core 的唯一写路**（`writeStoryPackage` ✓）；包外路径走宿主 helper ✓。
 import { readText, writeText, mkdirp } from './lib/host/fs.mjs';
+import { packageFiles, writeStoryPackage } from './lib/core/story.mjs';
+const NODE_IO = { readText, writeText, mkdirp };
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
@@ -121,8 +124,9 @@ const main = () => {
 			{ target: 'Game.Consequences.engine', default: { provenance: {}, engine: {} }, value: cons.engine },
 		] } : {}) };
 		const text = JSON.stringify(payload, null, '\t') + '\n';
-		mkdirp(dirname(out));
-		writeText(out, text);
+		const pkgPath = join(ROOT, packageFiles(slug).dataFile('tables.json'));
+		if (out === pkgPath) writeStoryPackage({ slug, data: { 'tables.json': text }, io: NODE_IO });
+		else { mkdirp(dirname(out)); writeText(out, text); }
 		const leaves = (v) => (v && typeof v === 'object' ? Object.values(v).reduce((n, x) => n + leaves(x), 0) : 1);
 		console.log(`✔ ${slug}：导出故事数据面 → ${out.replace(ROOT, '')}（顶层 ${Object.keys(containers).length} 键 · 叶子 ${leaves(containers)}${cons ? ' · 含 Consequences 合并' : ''}）`);
 		return;
@@ -139,8 +143,9 @@ const main = () => {
 		console.error(`✗ 抽取器**不稳定**：连抽两次序列化不同（${serialize(data).length}B vs ${serialize(again).length}B）——产物入库后会让工作区每次都脏`);
 		process.exit(1);
 	}
-	mkdirp(dirname(out));
-	writeText(out, serialize(data));
+	const pkgPath2 = join(ROOT, packageFiles(slug).dataFile(`${key}.json`));
+	if (out === pkgPath2) writeStoryPackage({ slug, data: { [`${key}.json`]: serialize(data) }, io: NODE_IO });
+	else { mkdirp(dirname(out)); writeText(out, serialize(data)); }
 	console.log(`✔ ${slug}：抽出 ${data.length} 行（section=${section} key=${key}）→ ${out.replace(ROOT, '')}`);
 	for (const d of diag.slice(0, 5)) console.log(`  · 沙箱输出：${d}`);
 };

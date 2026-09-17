@@ -19,6 +19,9 @@ export const DATA_FILES = ['tables.json', 'contract.json', 'rules.json'];
 export const packageFiles = (slug) => ({
 	manifest: `stories/${slug}/00-story.json`,
 	dataFile: (name) => `stories/${slug}/data/${name}`,
+	// **生成物 twee 口**（与 `dataFile` 同级 ✓）：产物是"包内文件"的另一类 ✓ ⇒ 走**同一条路** ✓，
+	// 而不给它们开旁路 ✗（否则"唯一写路"又变成"两条路"了 ✓）。
+	tweeFile: (name) => `stories/${slug}/${name}`,
 	data: [...DATA_FILES],
 });
 
@@ -41,17 +44,20 @@ export const readStoryPackage = ({ slug, io } = {}) => {
 	return { slug, meta, data };
 };
 
-/** **故事数据的唯一写路**：所有写者（`extract-story` / `compile-story` / `classify-contract --propose` / 未来的 UI 保存）都走它 ✓。 */
-export const writeStoryPackage = ({ slug, data = {}, io } = {}) => {
+/** **故事数据的唯一写路**：所有写者（`extract-story` / `compile-story` / `classify-contract --propose` / 未来的 UI 保存）都走它 ✓。
+ *  `data` ＝ `data/*.json` 类（键是文件名 ✓）；`twee` ＝ 生成物类（键是包内文件名 ✓）⇒ **两类同一条路** ✓。 */
+export const writeStoryPackage = ({ slug, data = {}, twee = {}, io } = {}) => {
 	need(io, 'writeText', 'writeStoryPackage');
-	const { dataFile } = packageFiles(slug);
+	const { dataFile, tweeFile } = packageFiles(slug);
 	const written = [];
-	for (const name of DATA_FILES) {
-		if (!(name in data) || data[name] === null || data[name] === undefined) continue;
-		const text = typeof data[name] === 'string' ? data[name] : JSON.stringify(data[name], null, '\t') + '\n';
-		io.writeText(dataFile(name), text);
-		written.push(dataFile(name));
-	}
+	const put = (path, value) => {
+		if (value === null || value === undefined) return;
+		const text = typeof value === 'string' ? value : JSON.stringify(value, null, '\t') + '\n';
+		io.writeText(path, text);
+		written.push(path);
+	};
+	for (const [name, value] of Object.entries(data)) put(dataFile(name), value);
+	for (const [name, value] of Object.entries(twee)) put(tweeFile(name), value);
 	return written;
 };
 
@@ -84,7 +90,9 @@ export const selftestStory = () => {
 	const wio = { writeText: (p, text) => wrote.push([p, text]) };
 	writeStoryPackage({ slug, data: { 'tables.json': { a: 1 }, 'contract.json': { members: [] } }, io: wio });
 	t('写：只写"给了的"文件（rules 没给 ⇒ 不写）', wrote.length === 2);
-	t('写：路径落在 stories/<slug>/data/（唯一写路的**落点**可断言 ✓）', wrote.every(([p]) => p.startsWith('stories/demo/data/')));
+	t('写：data 类落点都在 stories/<slug>/data/（唯一写路的**落点**可断言 ✓）', wrote.every(([p]) => p.startsWith('stories/demo/data/')));
+	t('编目：生成物 twee 口与 data 口**同级**（`stories/<slug>/<name>`）', files.tweeFile('15-tables.twee') === 'stories/demo/15-tables.twee');
+	t('写：twee 类与 data 类走**同一条路**（两类一起写 ⇒ 路径都在包内 ✓）', (() => { const w = []; writeStoryPackage({ slug, data: { 'tables.json': {} }, twee: { '15-tables.twee': ':: T\n' }, io: { writeText: (p, t2) => w.push([p, t2]) } }); return w.length === 2 && w.some(([p]) => p.endsWith('data/tables.json')) && w.some(([p]) => p.endsWith('15-tables.twee')); })());
 
 	// 拒绝型 io ⇒ 证明"写确实经这一条路"（Tester 的两-io 法 ✓）
 	let denied = 0;

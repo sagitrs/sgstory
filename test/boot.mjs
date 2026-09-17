@@ -106,8 +106,11 @@ export async function boot({ random = 0.5, start = true, story = null, entry = n
 	const settle = async (timeoutMs = 3000) => {
 		const t = Date.now();
 		for (;;) {
-			const names = renderedPassages(w);   // ← 共享件 ✓（唯一取处 ✓）
-			const domSynced = names.length === 0 || names.includes(w.SugarCube.State.passage);
+			const names = renderedPassages(w);   // ← 共享件 ✓（唯一定义处 ✓）
+			// `#864` 复核 ✗：原来 `names.length === 0 || …` ⇒ **"取不到"被当成"已同步"** ✗ ⇒ 取法改坏也不红 ✓。
+			// ⇒ 只有"**State 本来就没有段落**"时，空 DOM 才算同步 ✓；否则必须**点名匹配** ✓。
+			const want = w.SugarCube?.State?.passage ?? '';
+			const domSynced = want ? names.includes(want) : names.length === 0;
 			const idle = typeof w.SugarCube?.Engine?.isIdle !== 'function' || w.SugarCube.Engine.isIdle();
 			if (idle && domSynced) break;
 			if (Date.now() - t > timeoutMs) break;
@@ -129,8 +132,10 @@ export async function boot({ random = 0.5, start = true, story = null, entry = n
 		await Promise.race([w.SugarCube.Engine.start(), sleep(15000)]);
 		const t1 = Date.now();
 		const entryPassage = entry ?? entryOf(story);
-		while (!w.document.querySelector(`#passages .passage[data-passage="${entryPassage}"]`)) {
-			if (Date.now() - t1 > 15000) throw new Error(`等待超时：起始段渲染（${entryPassage}）`);
+		// `#864` 复核 ✗：这里原来**手写选择器** ⇒ 共享件改坏了它也不动 ✗（实测：变异刀打不出红 ✓）。
+		// ⇒ 改用共享件 ✓：它**超时会抛**（有牙 ✓）且报文点出"当前渲染的是什么" ✓。
+		while (!renderedPassages(w).includes(entryPassage)) {
+			if (Date.now() - t1 > 15000) throw new Error(`等待超时：起始段渲染（${entryPassage}）—— 当前渲染的是 ${renderedPassages(w).join('、') || '（空）'}`);
 			await sleep(50);
 		}
 		await settle();

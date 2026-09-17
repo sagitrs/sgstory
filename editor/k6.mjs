@@ -25,7 +25,12 @@ import { fileURLToPath } from 'node:url';
 //    `from 'node:fs'` 里的说明符被遮掉 ⇒ 本判据**永不触发** ✗（"用错遮蔽器 ⇒ 判据无声失效" ✓）；
 //  · `editor/lib/core/text.mjs` 的 `maskComments` 是**局部**未导出 ✗ ⇒ 这里先用**最小实现**（只挡注释 ✓），
 //    待它导出后换成它 ✓（**已登记为待办**，属"两处实现必漂移"那族 ✓）。
-const stripCommentsForScan = (src) => String(src ?? '').replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+// ⚠️ **遮蔽必须保留换行** ✓（只把**非换行**字符换成空格 ✓ —— 与 `scripts/audit/lib/mask.mjs` 同口径）：
+//   否则**行号会被吃掉** ✗（实测：块注释跨两行时，其后第 5 行的违规报成 `line=4` ✗ ——
+//   **“行号存在 ≠ 行号正确”** ✓；行注释那条恰好保留了换行 ⇒ 于是那两条 `//` 用例都准 ✗ ⇒ 用例没覆盖块注释这档 ✓）。
+const stripCommentsForScan = (src) => String(src ?? '')
+	.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+	.replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + ' '.repeat(m.length - p1.length));
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const EDITOR = join(ROOT, 'editor');
@@ -142,6 +147,9 @@ if (process.argv.includes('--selftest')) {
 		['🔴 反例·core 里裸写 「from vm」（不带 node: 前缀）⇒ 也报', coreHostProblems([['editor/lib/core/a.mjs', "import x from 'vm';\n"]]).length === 1],
 		['正例·core 里只 import 同行模块 ⇒ 不报', coreHostProblems([['editor/lib/core/a.mjs', "import { t } from './text.mjs';\n"]]).length === 0],
 		['边界·**注释里**提 `node:fs` ⇒ 不报（先遮注释 ✓；遮蔽器必须只遮注释 ✗ 不能连字符串一起遮）', coreHostProblems([['editor/lib/core/a.mjs', "// 这里不用 node:fs\nexport const x = 1;\n"]]).length === 0],
+		// “**行号存在 ≠ 行号正确**” ✓（实测抓到过：块注释被换成单个空格 ⇒ 吃掉内部换行 ⇒ 后续行号整体上移 ✗）：
+		['③ 块注释**跨两行** ⇒ 其后违规的行号仍准（遮蔽必须保留换行 ✓）', (coreHostProblems([['editor/lib/core/a.mjs', "/* a\n b */\nconst x = 1;\nconst y = 2;\nimport { f } from 'node:fs';\n"]])[0] ?? {}).line === 5],
+		['③ 行注释在其前 ⇒ 行号也不偏移', (coreHostProblems([['editor/lib/core/a.mjs', "// c\nconst x = 1;\nimport { f } from 'node:fs';\n"]])[0] ?? {}).line === 3],
 	];
 	for (const [label, cond] of cases) { if (cond) console.log(`  ✓ 自证·${label}`); else { bad++; console.error(`  ✗ 自证·${label}`); } }
 	if (bad) { console.error(`\n✗ 自证未通过（${bad} 项）`); process.exit(1); }

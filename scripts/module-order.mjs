@@ -29,6 +29,9 @@ export const ORDER = [
 	'src/engine/50-present/11-scene.twee',     // 场景 widget（actOut / sceneFeedback）
 	'stories/mist-forest/12-widgets.twee',    // 故事 1 的 widget（#460：从引擎 10-core 搬回：hallResult / flip）
 	'stories/mist-forest/15-tables.twee',    // Game.*（加载期需要 Rules / Pc）
+	// 手写逃生舱文件（`#787` 翻面）：契约里两个**非 A 桶**成员（`socialHooks`／`overBudget`）——
+	// **不带** `@generated`（它不是产物），与生成物**同形**地 `Object.assign` 到 `Sg.story`。
+	'stories/mist-forest/16-hooks.twee',
 	// 笔记模型（伞 #422）的增量文件：只往 Game.Notes.entries 追加条目。
 	// 每批一个文件（#428 机制）⇒ 多席并行落表零冲突；新增文件必须在此登记（build 会拒绝未登记的文件）。
 	'stories/mist-forest/16-notes-ch1.twee',      // 笔记增量文件（#442 B0）：一章补漏
@@ -78,6 +81,7 @@ export const MODULES = {
 	'src/10-core.twee': { deps: ['src/engine/10-const.twee'], defines: ['Game.Rules', 'Game.Pc', 'Sg.UI'], layer: 'engine', note: '规则内核与界面基座（常量见 10-const）' },
 	'src/engine/50-present/11-scene.twee': { deps: ['src/10-core.twee'], defines: ['widget:actOut', 'widget:sceneFeedback'], layer: 'engine', note: '场景迁移配方（结果留屏）' },
 	'stories/mist-forest/15-tables.twee': { deps: ['src/10-core.twee'], defines: ['Game'], layer: 'story', note: '声明式数据表' },
+	'stories/mist-forest/16-hooks.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '手写逃生舱（`#787`）：两个非 A 桶契约成员（`socialHooks`／`overBudget`）——不是生成物' },
 	'stories/mist-forest/16-notes-ch1.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#442 B0）：只往 Game.Notes.entries 追加条目' },
 	'stories/mist-forest/16-notes-ch2.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#429 B1）：只往 Game.Notes.entries 追加条目' },
 	'stories/mist-forest/16-notes-ch3.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#430 B2）：只往 Game.Notes.entries 追加条目' },

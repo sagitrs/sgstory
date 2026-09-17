@@ -12,7 +12,7 @@
 //   C. **真逃生舱候选**（上面都装不下 ⇒ 才考虑 `kind:'js'`，且必须进 `escape-hatch.json` 写理由 ＋ 票号）
 //
 // 用法：node editor/classify-contract.mjs <slug> [--json]      # 默认只报告；`--json` 打印提案数据
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
@@ -57,6 +57,9 @@ export const contractSites = (text) => {
 	const re = /Object\.assign\(\s*\(?\s*window\.Sg\.story|Object\.assign\(\s*window\.Sg\.story/g;
 	for (const m of src.matchAll(/Object\.assign\(/g)) {
 		const at = m.index;
+		// **落在注释/字符串里**的同形文本不是站点（注意：头 200 字符的 `Sg.story` 检查会因**越过注释**而误命中
+		//  ⇒ 实测：手写件注释里提一句 `Object.assign((window.Sg.story ??= {}), …)` ⇒ 成员被**数两遍**）。
+		if (masked[at] !== 'O') continue;
 		// 参数表前缀里必须出现 `Sg.story`，且第二个实参是对象字面量
 		const head = masked.slice(at, Math.min(at + 200, masked.length));
 		if (!/Sg\.story/.test(head)) continue;
@@ -154,7 +157,16 @@ export const classify = (srcIn, ctx = {}) => {
 	if (/^\((\w+)\) => String\(\1\)$/.test(s)) return A('identity-string');   // ⚠️ 捕获组要写 `\((\w+)\)`：`\(`/`\)` 是**字面括号**，不是分组
 	if (/^\(\) => window\.[\w$.]+$/.test(s)) return A('game-ref', { path: s.replace(/^\(\) => window\./, '') });
 	const gr = /^\(\) => ([\w$.()?]+) \?\? (.+)$/.exec(s);
-	if (gr && /^(window\.|Sg\.)/.test(gr[1])) return A('game-ref', { path: gr[1].replace(/[?.]+$/, ''), default: gr[2], optional: /\?\./.test(gr[1]) });   // `#775` 起 kind 支持默认值`)
+	if (gr && /^(window\.|Sg\.)/.test(gr[1])) {
+		// 两个同族坑（都在此行实测踩过，产生物才看得见）：
+		// ① `path` 同样是 **`window.` 之后**的路径（生成器写 `window.${path}`）⇒ 不剥就成 `window.window.…`；
+		// ② 默认值必须存**值**而不是源码文本（`{}` 存成字符串 `'{}'` ⇒ `Sg.story.notes()` 返回 **string** ✗，
+		//    下游一堆门（canon/state/rules/notes-write）被带红）。
+		const p = gr[1].replace(/^(window\??\.)/, '').replace(/[?.]+$/, '');
+		const d = literalValue(gr[2]);
+		if (d === undefined && String(gr[2]).trim() !== 'undefined') return B('game-ref', { path: p }, `默认值 \`${gr[2]}\` 不是字面量 ⇒ 需人工`);
+		return A('game-ref', { path: p, default: d, optional: /\?\./.test(gr[1]) });
+	}
 	// 守卫取数（路径形态）：`() => { const v = window.Game?.Dragon?.hp; if (typeof v !== 'number') throw new Error('…'); return v; }`
 	// ⇒ `game-ref` ＋ `required`（＋ `type`）。报文**必须是字面量**（否则落 B：不许把表达式拼进产物）。
 	const guardedRef = /^\(\) => \{ const (\w+) = ((?:window|Sg)\.[\w$.?\[\]'"]+); if \((!\1|typeof \1 !== '(\w+)')\) throw new Error\((.+)\); return \1; \}$/.exec(s);
@@ -199,11 +211,15 @@ export const classify = (srcIn, ctx = {}) => {
 		if (!fb) return B('lookup-field', { ...r2, key: field[1], field: field[4] }, `兜底 \`${field[5]}\` 不是小 enum 里的形态（需要新 kind 或人工）`);
 		return A('lookup-field', { ...r2, key: field[1], field: field[4], fallback: fb });
 	}
-	const guarded = /^\((\w+)\) => \{ const (\w+) = ([\w$.()?]+)\[\1\]; if \(!\2\) throw new Error\(.*\); return \2; \}$/.exec(s);
+	const guarded = /^\((\w+)\) => \{ const (\w+) = ([\w$.()?]+)\[\1\]; if \(!\2\) throw new Error\((`[^`]*)`\); return \2; \}$/.exec(s);
 	if (guarded) {
 		const r3 = rooted(guarded[3]);
 		if (!r3) return B('lookup', { from: guarded[3].replace(/[?.]+$/, ''), key: guarded[1] }, '根不是全局也不是本文件的成员常量 ⇒ 需人工');
-		return A('lookup', { ...r3, key: guarded[1], required: true });
+		// 报错文案要**照源搬**（不是让它走编译器的默认泛化句）：实测行为门比"两侧抛错文案"时暴露过差异。
+		// ⚠️ 用**独立**一条宽容正则从成员源里抓（不在那个大模式里加组：实测会**掉最后一个字**）。
+		const em = /throw new Error\(`([\s\S]*?)`\)/.exec(s);
+		const errTpl = em ? em[1].replaceAll('${' + guarded[1] + '}', '{key}') : null;
+		return A('lookup', { ...r3, key: guarded[1], required: true, ...(errTpl ? { error: errTpl } : {}) });
 	}
 	const state = /^\((\w+)\) => \1\?\.([\w$.]+) \?\? (.+)$/.exec(s);
 	if (state) {   // 同族坑：兜底也必须是**值**（源码文本会让产物返回字符串）
@@ -230,17 +246,32 @@ export const classify = (srcIn, ctx = {}) => {
 	if (/const (\w+) = \[\];[\s\S]*\1\.push\(/.test(s)) return B('template', { raw: s }, '按条件拼句 ⇒ 可用 **`template` kind** 表达（parts.when/text ＋ join/suffix）');
 	// 派生字段：`const a = <链>(key); … typeof a.<字段> !== 'string' …` ⇒ `lookup-field` ＋ `via`/`required`
 	const derived = /^\((\w+)\) => \{ const (\w+) = ([\w$.()]+)\(\1\); if \(typeof \2\.(\w+) !== 'string' \|\| !\2\.\4\) throw new Error\(.*\); return \2\.\4; \}$/.exec(s);
-	if (derived) return A('lookup-field', { via: derived[3], key: derived[1], field: derived[4], required: true });   // `#775` 起 `lookup-field` 支持 `via`/`required`
+	if (derived) {
+		// `via` 在**契约 JSON** 里存的是**成员名**（生成器的 schema：`window.Sg.story.${via}(k)` ⇒ 只许本故事成员的裸名），
+		// 而源里写的是全链（`window.Sg.story.combatAction`）⇒ 这里剥前缀；剥完不像成员名 ⇒ 落 B（不许写出编译器读不了的提案）。
+		const via = derived[3].replace(/^(window\.)?Sg\.story\./, '');
+		if (!/^[A-Za-z_$][\w$]*$/.test(via)) return B('lookup-field', { via: derived[3], key: derived[1], field: derived[4] }, `派生字段的链 \`${derived[3]}\` 不是本故事成员名（生成器只认成员名）⇒ 需人工`);
+		return A('lookup-field', { via, key: derived[1], field: derived[4], required: true });   // `#775` 起 `lookup-field` 支持 `via`/`required`
+	}
 	// 参数**转发**（形参序与表函数不同）：声明式可表达，但需要 `kind:'forward'`
 	const fwd = /^\(([\w, ]+)\) => ([\w$.()?]+)\(([^()]*)\)$/.exec(s);
-	if (fwd) return A('forward', { to: fwd[2], params: fwd[1].split(',').map((x) => x.trim()).filter(Boolean), args: fwd[3].split(',').map((x) => x.trim()).filter(Boolean) });   // `#775` 起有 `forward`
+	if (fwd) {
+		// `forward.to` 是**`window.` 之后的路径**（生成器写 `window.${to}(…)`）⇒ 源里常写成全链 ⇒ 剥前缀；
+		// 不剥会生成 `window.window.…`（实测：行为探针抓到"两侧报错文案不同"才暴露）。
+		const to = fwd[2].replace(/^window\??\./, '');
+		return A('forward', { to, params: fwd[1].split(',').map((x) => x.trim()).filter(Boolean), args: fwd[3].split(',').map((x) => x.trim()).filter(Boolean) });   // `#775` 起有 `forward`
+	}
 	return C('形状不在已知 kind 集合里（含任意逻辑或写法特异）');
 };
 
 const selftest = () => {
 	let bad = 0;
-	const t = (label, ok, got = '') => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} 自证·${label}${ok ? '' : `\n    实得：${got}`}`); };
+	let n = 0;
+	const t = (label, ok, got = '') => { n++; if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} 自证·${label}${ok ? '' : `\n    实得：${got}`}`); };
 	const kindOf = (src) => classify(src).kind ?? classify(src).bucket;
+	t('`forward` 的 `to` 存 **window. 之后的路径**（生成器写 `window.${to}` ⇒ 存全链会生成 `window.window.…`：实测只在**行为探针的报错文案**上暴露）', (() => { const r = classify('(a) => window.Game.Items.f(a)'); return r.bucket === 'A' && r.spec.to === 'Game.Items.f'; })());
+	t('反例：注释里提到 `Object.assign((window.Sg.story ??= {}), …)` ⇒ **不算站点**（否则成员被数两遍）', contractSites("// 合并语义：`Object.assign((window.Sg.story ??= {}), …)` 与生成物同形\nObject.assign((window.Sg.story ??= {}), { a: () => null });").sites.length === 1);
+	t("`game-ref` 的 `path` 存 `window.` 之后的路径、默认值存**值**（`?? {}` ⇒ 对象，不是字符串）", (() => { const r = classify('() => window.Game?.Notes?.entries ?? {}'); return r.bucket === 'A' && r.spec.path === 'Game?.Notes?.entries' && typeof r.spec.default === 'object' && r.spec.default !== null; })());
 	t('`() => null` ⇒ null', kindOf('() => null') === 'null');
 	t('`() => ({}` / `[]` ⇒ empty-*', kindOf('() => ({})') === 'empty-object' && kindOf('() => []') === 'empty-array');
 	t('`(id) => String(id)` ⇒ identity-string（**陷阱回归**：`\(` 是字面括号，捕获组必须写 `\((\w+)\)`）', kindOf('(id) => String(id)') === 'identity-string');
@@ -284,7 +315,8 @@ const selftest = () => {
 		const r = classify("(id) => { const a = window.Sg.story.combatAction(id); if (typeof a.label !== 'string' || !a.label) throw new Error(`x`); return a.label; }");
 		return r.bucket === 'A' && r.spec.field === 'label';   // 本例要证的是**捕获组下标**（字段取到 label），分桶随 KINDS 变
 	})());
-	t('派生字段（经成员调用）⇒ **A**（`#775` 起 `lookup-field` 有 `via`/`required`）', (() => { const r = classify("(id) => { const a = window.Sg.story.combatAction(id); if (typeof a.label !== 'string' || !a.label) throw new Error(`x`); return a.label; }"); return r.bucket === 'A' && r.spec.via === 'window.Sg.story.combatAction'; })());
+	t('派生字段（经成员调用）⇒ **A**（`#775` 起 `lookup-field` 有 `via`/`required`；`via` 存**成员裸名**，因为生成器写 `window.Sg.story.${via}(k)`）', (() => { const r = classify("(id) => { const a = window.Sg.story.combatAction(id); if (typeof a.label !== 'string' || !a.label) throw new Error(`x`); return a.label; }"); return r.bucket === 'A' && r.spec.via === 'combatAction'; })());
+	t('反例：派生字段的链不是成员名 ⇒ **B**（不许提案出生成器读不了的 JSON）', (() => { const r = classify("(id) => { const a = window.Game.Combat.actions[id]; if (typeof a.label !== 'string' || !a.label) throw new Error(`x`); return a.label; }"); return r.bucket !== 'A'; })());
 	t('选牌条件表达式 ⇒ **D**（不是 C：它能下沉成规则表）', classify("(poolId, round, pc, picked) => (poolId === '封印' && round === 1 ? 'x' : null)").bucket === 'D');
 	t('真表达不了的形状 ⇒ **C**', classify('(x) => { const y = [...x].reverse().map((v) => v * 2); return y; }').bucket === 'C');
 	t('`contractMembers`：能从段落文本里切出成员（注释不算成员）', (() => {
@@ -293,7 +325,7 @@ const selftest = () => {
 		return ms.length === 2 && ms[0].name === 'a' && ms[1].name === 'b';
 	})());
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过（27 例：8 个 kind 形状 ＋ A/B/C/D 四桶分界 ＋ 两条捕获组陷阱回归 ＋ 成员切分）');
+	console.log(`\n✔ 自证通过（${n} 例：8 个 kind 形状 ＋ A/B/C/D 四桶分界 ＋ 两条捕获组陷阱回归 ＋ 成员切分）`);
 };
 
 const isMain0 = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
@@ -315,18 +347,40 @@ export const resolveLocalConst = (fileText, sectionName, ident) => {
 	try { return JSON.parse(JSON.stringify(v)); } catch { return null; }
 };
 
+/** 手写逃生舱文件（`#787` 翻面）：生成物**装不进**非 A 桶成员 ⇒ 它们住**手写**文件，
+ *  登记在 `editor/escape-hatch.json` 的 `hatchFiles`（仓内相对路径）。
+ *  分类器与门据此把**完整契约**看全：否则"成员搬出手写文件"会被读成"登记腐烂"的**假红** ✗。
+ *  返回值：过滤到该 slug 的绝对路径数组。 */
+export const hatchFiles = (slug) => {
+	const p = join(ROOT, 'editor', 'escape-hatch.json');
+	if (!existsSync(p)) return [];
+	return (JSON.parse(readFileSync(p, 'utf8')).hatchFiles ?? []).filter((f) => !slug || f.includes(`stories/${slug}/`)).map((f) => join(ROOT, f));
+};
+
+/** **行首**的生成标记才算（与 K4 的 `hasMarker` 同口径：注释里提到该词的文件不是产物）。 */
+export const hasGeneratedMarker = (text) => /^\s*\/\/\s*@generated\b/m.test(String(text ?? ''));
+
 const main = () => {
+	const argOf = (name, dflt) => { const h = process.argv.find((a) => a.startsWith(`--${name}=`)); return h ? h.slice(name.length + 3) : dflt; };
 	const slug = process.argv[2];
 	if (!slug) { console.error('用法：node editor/classify-contract.mjs <slug> [--json]'); process.exit(2); }
-	const file = join(ROOT, `stories/${slug}/15-tables.twee`);
-	const { sites, stray } = contractSites(readFileSync(file, 'utf8'));
+	const file = join(ROOT, argOf('from', `stories/${slug}/15-tables.twee`));
+	// 契约源＝**手写的**数据面文件（`15-tables.twee`）＋ 登记过的手写逃生舱文件。
+	// ⚠️ 已翻面的故事里 `15-tables.twee` 是**产物**（带生成标记）⇒ **不能**分类它：发射后的代码形状会得到
+	// "假欠账"（实测：`template` 那种被判 B）⇒ 那种情况下只剩逃生舱文件是手写源（与 K4 同一口径）。
+	const tableSrc = existsSync(file) && !hasGeneratedMarker(readFileSync(file, 'utf8')) ? readFileSync(file, 'utf8') : '';
+	if (!tableSrc) console.log(`  · ${slug}：\`15-tables.twee\` 已是**产物**（带生成标记）⇒ 契约面已由 \`data/\` 承载；本次只判**手写逃生舱文件** ✓`);
+	const hatchFilesOf = hatchFiles(slug);
+	const hatchTexts = hatchFilesOf.map((f) => readFileSync(f, 'utf8'));
+	const allText = [tableSrc, ...hatchTexts].join('\n');
+	const { sites, stray } = contractSites(allText);
 	const members = sites.flatMap((s2) => s2.members);
 	if (!members.length) { console.error(`✗ ${file} 里找不到 Sg.story 成员（读不到输入不许当"没有故事逻辑"）`); process.exit(1); }
 	if (stray.length) { console.error(`✗ ${file} 里还有**未被识别的** Sg.story 写法（${stray.join(' · ')}）—— 多站点合并只认 Object.assign 形态，其余必须点名而不是静默漏掉`); process.exit(1); }
-	console.log(`（站点 ${sites.length} 处：${sites.map((s2) => s2.members.length + ' 名成员').join(' ＋ ')}）`);
-	const fileText = readFileSync(file, 'utf8');
+	console.log(`（站点 ${sites.length} 处：${sites.map((s2) => s2.members.length + ' 名成员').join(' ＋ ')}${hatchTexts.length ? ` · 含手写逃生舱文件 ${hatchFiles(slug).map((f) => f.split('/').pop()).join('、')}` : ''}）`);
 	// **局部常量 ⇒ 成员名**（`#787`）：`mechanics: () => MECH` 这类成员把局部常量放进了契约 ⇒ 其它成员引用它时才可表达。
 	const locals = new Map();
+	const hatchMembers = new Set(contractMembers(hatchTexts.join('\n')).map((m) => m.name));
 	for (const m of members) {
 		const ref = /^\(\) => ([A-Za-z_$][\w$]*)$/.exec(m.src.replace(/\s+/g, ' ').trim());
 		if (ref) locals.set(ref[1], m.name);
@@ -353,6 +407,28 @@ const main = () => {
 	console.log(`\n  汇总：可直接表达 ${bucket('A').length} · 需声明式扩展 ${bucket('B').length} · 可下沉引擎 ${bucket('D').length} · **真逃生舱候选 ${bucket('C').length}**`);
 	if (bucket('B').length || bucket('D').length) console.log(`  （B＝待补的声明式 kind；D＝待下沉的引擎能力 ⇒ 都**不是**逃生舱）`);
 	if (process.argv.includes('--json')) console.log('\n' + JSON.stringify({ slug, members: rows }, null, '\t'));
+	// `--propose[=<path>]`：把**全部可数据化的成员**写成故事包的 `data/contract.json`（生成物 ⇒ 单一真源）。
+	// 只要还有非 A 成员就 **fail-loud**（点名）—— 提案必须完整，不许悄悄少写一半（那会让产物静默缺成员）。
+	const proposeArg = process.argv.find((a) => a === '--propose' || a.startsWith('--propose='));
+	if (proposeArg && !tableSrc) { console.error(`✗ ${slug} 的 \`15-tables.twee\` 已是**产物** ⇒ 没有什么可提案的（数据面已由 \`data/contract.json\` 承载）`); process.exit(1); }
+	if (proposeArg) {
+		const aRows = rows.filter((r) => !hatchMembers.has(r.name));   // 逃生舱成员不进提案（它们住手写件）
+		const bad = aRows.filter((r) => r.bucket !== 'A');
+		if (bad.length) {
+			console.error(`✗ 无法提案：${bad.length} 个成员不是 A 桶、且**没住进**登记过的手写逃生舱文件 ⇒ ${bad.map((r) => `${r.name}(${r.bucket})`).join(' · ')}`);
+			console.error('  生成物只装得下 A 桶 ⇒ 非 A 成员必须移到手写件并在 `editor/escape-hatch.json` 的 `hatchFiles` 登记（否则翻面就是**静默丢成员**）。');
+			process.exit(1);
+		}
+		const out = proposeArg.includes('=') ? proposeArg.split('=')[1] : join(ROOT, `stories/${slug}/data/contract.json`);
+		const payload = {
+			section: 'StoryBindings',
+			note: '分类器自动提案（`--propose`）：本文件是**生成物**，请勿手改；要改成员形状改故事源或 classifier 的 kind 集合。',
+			members: aRows.map((r) => ({ name: r.name, kind: r.kind, ...(r.spec ?? {}) })),
+		};
+		writeFileSync(out, JSON.stringify(payload, null, '\t') + '\n');
+		console.log(`✔ 提案已写出：${out}（成员 ${aRows.length} 个 ⇒ 全部 A 桶）`);
+		process.exit(0);
+	}
 	// 非 A 的全部**点名**（不是静默跳过）：B 是"schema 该补"，C 是"要么下沉引擎、要么进逃生舱清单"
 	process.exit(bucket('C').length ? 1 : 0);
 };

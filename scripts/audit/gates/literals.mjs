@@ -63,9 +63,14 @@ export const analyze = (sources, opts = CONST_SECTION) => {
 	const problems = [];
 	const hitsByFile = {};
 	const declared = (f) => (opts.files ?? []).some((n) => f === n || f.endsWith(`/${n}`));
+	// `#787` 翻面：**数据段**（由 `deriveDataSections` 从 `@generated` 标记派生：源在同故事 `data/` 下 ✓）
+	// 整份**都是**机器发射的数据 ⇒ 键名由数据定（不是 `era:` 那种手写约定）⇒ 时代字面量**处处合法**。
+	// 不加这条会把产物里一处一处数据键都点成"裸时代字面量"（实测 9 处）。反滥用仍由派生那一步守（源必须在本故事 `data/` 下）。
+	const isData = (f) => (opts.dataSections ?? []).some((n) => f === n || f.endsWith(`/${n}`));
 	for (const [f, src] of Object.entries(sources)) {
 		const base = f.split('/').pop();
 		const isDeclared = declared(f);
+		const inData = isData(f);
 		blankComments(src).forEach((line, i) => {
 			const where = `${base}:${i + 1}`;
 			// ⓪ 反向断言：出现"常量定义"却没在声明里 ⇒ 说明**搬走了但没更新声明**（不许静默变绿）
@@ -77,7 +82,7 @@ export const analyze = (sources, opts = CONST_SECTION) => {
 			if (eraHits.length) {
 				const isTableData = isDeclared && opts.eraDataField.test(line);
 				const isConstDef = isDeclared && opts.eraDecl.test(line);
-				if (!isTableData && !isConstDef) problems.push({ kind: 'bare-era', where, detail: line.trim().slice(0, 80) });
+				if (!inData && !isTableData && !isConstDef) problems.push({ kind: 'bare-era', where, detail: line.trim().slice(0, 80) });
 			}
 			// ② 裸伤害数字：**所有文件都判**（不再按章节文件名限定——改名不再导致静默失效）
 			if (!(opts.damageExemptFiles ?? []).some((n) => f === n || f.endsWith(`/${n}`))) {
@@ -170,7 +175,7 @@ export const run = (ctx) => {
 	const derived = deriveDataSections(Object.entries(sources), CONST_SECTION.files);
 	const problems = [
 		...derived.problems.map((p) => ({ kind: 'generated-misdeclared', where: p.path, detail: p.why })),
-		...analyze(sources, { ...CONST_SECTION, files: derived.files }),
+		...analyze(sources, { ...CONST_SECTION, files: derived.files, dataSections: derived.files }),
 	];
 	const byKind = problems.reduce((a, p) => (a[p.kind] = (a[p.kind] ?? 0) + 1, a), {});
 	console.log(`  裸时代字面量 ${byKind['bare-era'] ?? 0} 处 · 裸伤害数字 ${byKind['bare-damage'] ?? 0} 处`);

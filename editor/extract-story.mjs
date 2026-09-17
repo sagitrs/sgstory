@@ -75,9 +75,11 @@ const selftest = () => {
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain && process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 
-/** 引擎常量 + 故事各段（真加载顺序）——`--tables` 与 `--section` 共用。 */
-const engineOf = (slug) => {
-	const text = readFileSync(join(ROOT, `stories/${slug}/${sectionFile('Game Tables')}`), 'utf8');
+/** 引擎常量 + 故事各段（真加载顺序）——`--tables` 与 `--section` 共用。
+ *  `fromPath` 就是 `--from` 指定的源（默认＝工作区的 `15-tables.twee`）——**翻面后必须传**：
+ *  那时工作区那份已是**产物**，再抽就成了"自吃"（实测：把产物里的 `provenance: '[object Object]'` 再抽一遍）。 */
+const engineOf = (slug, fromPath = null) => {
+	const text = readFileSync(fromPath ?? join(ROOT, `stories/${slug}/${sectionFile('Game Tables')}`), 'utf8');
 	return engineScripts() + '\n' + scriptBodies(text).join('\n');
 };
 
@@ -89,12 +91,12 @@ const main = () => {
 	const section = argOf('section', tablesMode ? 'Game Tables' : 'StoryRules');
 	const key = argOf('key', 'rules');
 	const out = join(ROOT, argOf('out', tablesMode ? `stories/${slug}/data/tables.json` : `stories/${slug}/data/${key}.json`));
-	const file = join(ROOT, `stories/${slug}/${sectionFile(section)}`);
+	const file = join(ROOT, argOf('from', `stories/${slug}/${sectionFile(section)}`));
 	const scripts = engineScripts() + '\n' + scriptBodies(readFileSync(file, 'utf8')).join('\n');
 	const { Sg, diag } = runStory(scripts);
 	if (tablesMode) {
 		// `--tables`：导出故事声明的 `Game` 面（**引擎常量 Era/Damage 不算故事数据** ⇒ 剔除）。
-		const { Game } = runStory(engineOf(slug));
+		const { Game } = runStory(engineOf(slug, argOf('from', null)));
 		const containers = {}; const fns = [];
 		const walk = (v, p, put) => {
 			if (typeof v === 'function') { fns.push(p); return; }
@@ -104,8 +106,19 @@ const main = () => {
 		};
 		for (const [k, v] of Object.entries(Game ?? {})) { if (['Era', 'Damage', 'Consequences'].includes(k)) continue; walk(v, `Game.${k}`, (y) => { containers[k] = y; }); }
 		if (fns.length) { console.error(`✗ 故事数据面里出现**函数值**（${fns.length} 处）：${fns.slice(0, 6).join(' · ')}——数据面必须是数据（函数属契约/政策，另走 kind）`); process.exit(1); }
-		const cons = Game?.Consequences?.engine ?? null;
-		const payload = { section, containers, ...(cons ? { merges: [{ target: 'Game.Consequences.engine', default: { provenance: {}, engine: {} }, value: cons }] } : {}) };
+		// **整块**带走 `Game.Consequences`（旧写法只带 `.engine` ⇒ `provenance`（4 条出处登记）**静默丢** ✗ ——
+		// 这是行为门（容器深度相等）抓到的，字节面／契约面都看不见：类名＝「只搬一个桶，他桶就没了」）。
+		// 新增桶 ⇒ **显式报错**（抽取器不认识就拒绝，不许静默丢 ✗）。
+		const consAll = Game?.Consequences ?? null;
+		if (consAll) {
+			const unknown = Object.keys(consAll).filter((k) => !['provenance', 'engine'].includes(k));
+			if (unknown.length) { console.error(`✗ Game.Consequences 里有抽取器**不认识**的桶：${unknown.join('、')} —— 要么加进来、要么显式说明为何不带（不许静默丢）`); process.exit(1); }
+		}
+		const cons = consAll ? { provenance: consAll.provenance ?? {}, engine: consAll.engine ?? {} } : null;
+		const payload = { section, containers, ...(cons ? { merges: [
+			{ target: 'Game.Consequences.provenance', default: { provenance: {}, engine: {} }, value: cons.provenance },
+			{ target: 'Game.Consequences.engine', default: { provenance: {}, engine: {} }, value: cons.engine },
+		] } : {}) };
 		const text = JSON.stringify(payload, null, '\t') + '\n';
 		mkdirSync(dirname(out), { recursive: true });
 		writeFileSync(out, text, 'utf8');

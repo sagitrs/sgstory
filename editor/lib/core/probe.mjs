@@ -91,3 +91,20 @@ export const snapshot = (win) => {
 	const canon = (v) => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v);
 	return { game: JSON.stringify(canon(win.Game ?? null)), contract, ids, probes, walk: walk(win.Game ?? {}) };
 };
+
+// `#794` `equiv` 弧第 3 票：**裸跑拒绝谓词**（纯 ✓ ⇒ 自证可驱动 ✓）。
+// 归 core 的理由：命令体在 host 侧要用它，而 core 不许 import host ⇒ 只能放这儿 ✓。
+import { hasGeneratedMarker } from './text.mjs';
+
+/** **该不该拒绝"裸跑"**（`#794` 观察项 ✓）—— 纯谓词 ✓（所以自证能驱动它 ✓，无需夹具文件 ✓）。
+ *  条件严格写成「**未显式给 `--hand`** ∧ 默认目标**带生成标记**」✓ ⇒ 两个**不误报**面：
+ *   ① 显式给了 `--hand` ⇒ 照跑 ✓；② **未翻面**故事（默认目标就是手写源 ⇒ **无标记** ✓）⇒ 照跑 ✓。
+ *  为什么必须拒绝 ✓（实测）：翻面后默认 `--hand` 指的是**产物**（带标记 ⇒ 只含 A 桶成员 ✓），
+ *   而生成侧＝产物 **＋ 登记过的手写逃生舱文件** ⇒ 两侧**结构不同** ⇒ 拿一对必然不等的东西跑完，
+ *   再报「手写 23 / 生成 25」✗ —— 看着像**数据错** ✗，其实与数据对错**无关** ✓（是**跑法**问题 ✓）。 */
+export const bareHandRefusal = ({ handGiven = false, defaultExists = true, defaultText = '' } = {}) => {
+	if (handGiven) return null;                       // 显式给了 ⇒ 照跑 ✓
+	if (!defaultExists) return 'missing';             // 默认目标不存在 ⇒ **更不能沉默** ✗（实测：原来会无声地晚失败 ✗）
+	if (hasGeneratedMarker(defaultText)) return 'product';
+	return null;                                      // 未翻面（手写源 ⇒ 无标记）⇒ 照跑 ✓
+};

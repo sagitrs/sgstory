@@ -7,7 +7,7 @@
 //   ④ **不掺环境** ✓（§17 ④）：同一输入，换 `cwd` ＋ 换 `TZ` ⇒ 输出**逐字节相同** ✓
 //      ⚠️ ④ 与 ③ **必须配对** ✓：③ 只证"同环境同结果"（自比自也能过 ✗），④ 才证"换环境也不同" ✓
 //   ⑤ 时延是**数字** ✓（预算 ≤ 50 ms ✓；页面要"编辑即诊断" ⇒ 这条是它的前提 ✓）
-import { auditShape, flagPaths, keyOf } from '../editor/lib/core/stateDiagnose.mjs';
+import { auditShape, flagPaths, keyOf, notepathProblems, singleReadProblems, singleWriteProblems } from '../editor/lib/core/stateDiagnose.mjs';
 
 let bad = 0;
 const t = (label, ok, extra = '') => { if (ok) console.log(`      ✓ ${label}`); else { bad++; console.error(`      ✗ ${label}${extra ? '：' + extra : ''}`); } };
@@ -61,5 +61,16 @@ t('⑤ 时延 < 预算 50 ms', ms < 50, `${ms.toFixed(4)} ms`);
 t('附·`keyOf` 可用（门侧另有消费者 ✓）', keyOf('world.keeper_state') === 'keeper_state');
 t('附·`flagPaths` 仍支持字符串与数组（多源 OR ✓）', JSON.stringify(flagPaths({ flagPath: ['a.b', 'c.d'] })) === '["a.b","c.d"]' && JSON.stringify(flagPaths({ flagPath: 'a.b' })) === '["a.b"]');
 
+// 附：源用法三条（`#877` 第二块 ✓）—— findings 同形 ＋ ① 点名 ＋ ② 好包零 ＋ ③ 确定性
+//   ⚠️ 它们**不再**返回 `where`（源文件名 ✓）：门上**根本不打印它** ✗（只打 `id`／`detail` ✓）⇒ 丢掉不破输出 ✓。
+const srcBad = { 'x.twee': '<<notepath "n_x" "world.keeper_state">>' };   // n_x **未登记** ✓
+const fN = notepathProblems({ entries: good, sources: srcBad });
+t('源用法① 未登记 id ⇒ 命中且点名 event', fN.length >= 1 && fN.some((f) => f.target.event === 'n_x'), JSON.stringify(fN.map((f) => f.target)));
+t('源用法① 四键同形 ＋ step/field 受约束', fN.every((f) => ['level', 'step', 'detail', 'target'].every((k) => k in f) && f.step === 'source' && f.target.field === 'flagPath'), JSON.stringify(fN[0] ?? {}));
+t('源用法② 干净源 ⇒ 零（能假的另一半 ✓）', notepathProblems({ entries: good, sources: { 'ok.twee': '<<note "n_a">>' } }).length === 0);
+const sb = singleWriteProblems({ entries: good, sources: { 'w.twee': '<<notepath "n_a" "world.keeper_state">>' } });   // n_a 单源 ⇒ 命中 ✓
+t('源用法① 单源走 notepath ⇒ 命中（且点名 ✓）', sb.length === 1 && sb[0].target.event === 'n_a', JSON.stringify(sb.map((f) => f.target.event)));
+t('源用法③ 同输入两次 ⇒ 逐字节同', JSON.stringify(notepathProblems({ entries: good, sources: srcBad })) === JSON.stringify(notepathProblems({ entries: good, sources: srcBad })));
+
 if (bad) { console.error(`\n✗ stateDiagnose 件级自证：${bad} 条未过`); process.exit(1); }
-console.log('\n✔ stateDiagnose 件级自证通过（① 坏⇒点名 ② 好⇒零 ③ 顺序稳定 ④ 不掺环境 ⑤ 时延 ＋ 转出助手 2 条）');
+console.log('\n✔ stateDiagnose 件级自证通过（形状块：① 坏⇒点名 ② 好⇒零 ③ 顺序稳定 ④ 不掺环境 ⑤ 时延 ＋ 转出助手 2 条；源用法块：① 点名 ② 零 ③ 确定性）');

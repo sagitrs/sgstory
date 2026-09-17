@@ -6,6 +6,9 @@
 // 或 `loader.mjs` ✓ —— 否则 WebUI 就成了第二个内核（正是 K6 那条机械门要防的 ✓）。
 
 import { loadPackage, summaryLines, wantedPaths } from './loader.mjs';
+import { diagnoseStory } from '../lib/core/diagnose.mjs';
+import { diagnoseLines, renderDiagnosis } from './diagnose-view.mjs';
+import { fingerprintOf } from '../lib/core/fingerprint.mjs';
 
 const $ = (id) => document.getElementById(id);
 
@@ -31,3 +34,12 @@ const boot = () => {
 };
 
 if (typeof document !== 'undefined') boot();
+
+// P2 第三片（`#761`）：**编辑即诊断** ✓ —— 载入包后立刻把诊断写到页面上（**不落盘也能看见** ✗ ✓）。
+//  判定**复用** `lib/core/diagnose.mjs` ✓（页内不重写 ✗）；本函数只做"算事实 ⇒ 交给显示层" ✓。
+export const showDiagnosis = ({ doc, pkg, declared = ['data(包)'], skipped = [] } = {}) => {
+	const findings = diagnoseStory({ data: pkg.data });
+	const packageSha = fingerprintOf(pkg.data);
+	const injectedSha = fingerprintOf({ ...pkg.data, __declared: declared.join('+') });
+	return renderDiagnosis({ doc, containerId: 'out', lines: diagnoseLines({ findings, declared, skipped, packageSha, injectedSha }) });
+};

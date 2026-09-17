@@ -39,16 +39,16 @@ const NO_TOOL_EXEMPT = {};
  *  `source` ＝ 票号（待修 ✗）或"契约（票号 声明）"（有意差异 ✓）—— **两者都必填** ✓（没来源的差异＝把 bug 洗成"已知" ✗）。 */
 const DECLARED_DIFF = {
 	'k4 --selfcheck': {
-		source: '#847（待修 ✗：壳里那段自证要整块搬进命令体）', mode: 'rc',
-		why: '壳级自证只在**工具路**（`k4.mjs` 壳里判 `--selfcheck` ✓）；cli 路把旗标转发进命令体 ⇒ 体不认识 ⇒ 用法错路 ✗',
-		toolRc: 0, cliRc: 2,
+		source: '契约（#847 经 #854 落地 ✓ —— "自证＝壳级选项"是全家设计 ✓）', mode: 'rc',
+		why: 'cli 路对 `--selfcheck` **拒绝并指路**（rc=2 ＋ 报文点名工具路 ✓）—— 与 `k6`／`equiv` 同形 ✓ ⇒ **有意差异** ✗ 不是待修 ✓',
+		toolRc: 0, cliRc: 2, cliErrIncludes: '自证只在工具路',
 	},
 	'k6 --selftest': {
 		source: '契约（#851 声明 ✓）', mode: 'rc',
-		why: '自证只在工具路 ✓；cli 路**拒绝并指路**（rc=2 ✓，与 `equiv`／`k4` 同形 ✓）—— 这是**有意**差异 ✓，不是待修 ✗',
-		toolRc: 0, cliRc: 2,
+		why: 'cli 路对 `--selftest` **拒绝并指路**（rc=2 ＋ 报文点名工具路 ✓）—— 自证只在工具路 ✓ 属**有意差异** ✗',
+		toolRc: 0, cliRc: 2, cliErrIncludes: '自证只在工具路',
 	},
-};
+};;
 
 /** 档表：每档**必须带期望** ✓。 */
 const TIERS = {
@@ -137,6 +137,7 @@ export const judgeSurface = ({ subs, tiers, declared = {}, run = realRun, toolOf
 				else if (div.mode === 'output') { if (outSame) bad.push(`在册差异 ✗ \`${key}\`（${div.source}）**输出已不再分叉** ⇒ 删记录 ✓`); }
 				else if (a.rc === b.rc) bad.push(`在册差异 ✗ \`${key}\`（${div.source}）**已不再分叉**（${a.rc}/${b.rc}）⇒ 删记录 ✓`);
 				else if (a.rc !== div.toolRc || b.rc !== div.cliRc) bad.push(`在册差异 ✗ \`${key}\` 读数变了（${a.rc}/${b.rc}，在册 ${div.toolRc}/${div.cliRc}）⇒ 更新记录 ✓`);
+				else if (div.cliErrIncludes && !b.err.includes(div.cliErrIncludes)) bad.push(`在册差异 ✗ \`${key}\`（${div.source}）cli 路报文**不再含**「${div.cliErrIncludes}」⇒ 契约变了 ⇒ 更新记录 ✓`);
 				continue;
 			}
 			if (a.rc !== tier.expect.rc || b.rc !== tier.expect.rc) { bad.push(`[${sub} ${tier.expect.kind}] rc 期望 ${tier.expect.rc}：工具=${a.rc} cli=${b.rc} ✗`); continue; }
@@ -162,9 +163,10 @@ const selftest = () => {
 	t('反例①期望改错 ⇒ 发现非空（空断言／错期望必须咬住）', R({ tiers: { build: [{ args: [], expect: { rc: 7, kind: 'x' } }] } }, fakeRun({ 'editor/compile-story.mjs': 0, 'editor/cli.mjs build': 0 })).findings.length > 0);
 	t('反例②档表清空 ⇒ 发现非空（覆盖缺口／计数断言）', R({ tiers: { build: [] } }, fakeRun({})).findings.length > 0);
 	t('反例③注册表加幽灵子命令 ⇒ 发现非空（1:1 不变量）', R({ subs: ['build', '__ghost__'] }, fakeRun({ 'editor/compile-story.mjs': 0, 'editor/cli.mjs build': 0 })).findings.length > 0);
-	t('反例④在册差异已不再分叉 ⇒ 发现非空（只许收缩）', R({ declared: { 'build ': { source: '#0', mode: 'rc', toolRc: 0, cliRc: 0 } } }, fakeRun({ 'editor/compile-story.mjs': 0, 'editor/cli.mjs build': 0 })).findings.length > 0);
+	t('反例④在册差异已不再分叉 ⇒ 发现非空（只许收缩）', R({ declared: { 'build': { source: '#0', mode: 'rc', toolRc: 0, cliRc: 0 } } }, fakeRun({ 'editor/compile-story.mjs': 0, 'editor/cli.mjs build': 0 })).findings.length > 0);
+	t('反例⑤在册差异的**指路报文**缺失 ⇒ 发现非空（契约变了必须咬住）', R({ declared: { 'build': { source: '#0', mode: 'rc', toolRc: 0, cliRc: 9, cliErrIncludes: '自证只在工具路' } } }, fakeRun({ 'editor/compile-story.mjs': 0, 'editor/cli.mjs build': 9 })).findings.length > 0);
 	if (bad) { console.error(`\n✗ cli-surface 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ cli-surface 自证通过（5 例：正例 ＋ 期望错／档表空／幽灵命令／在册差异失效 ✓）');
+	console.log('\n✔ cli-surface 自证通过（6 例：正例 ＋ 期望错／档表空／幽灵命令／在册差异失效／指路报文缺失 ✓）');
 	return 0;
 };
 

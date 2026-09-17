@@ -345,16 +345,39 @@ export const orderFiles = (files, order = ORDER) => [...files].sort((a, b) => {
 /** 引擎文件（`MODULES.layer === 'engine'`）——**故事作用域**的一半。 */
 export const engineFiles = (order = ORDER, modules = MODULES) => order.filter((f) => (modules[f]?.layer ?? 'story') === 'engine');
 
-/** **故事作用域**（`#460` / `#441-E`）：一个故事的**分析宇宙** ＝ 引擎文件 ∪ 该故事清单声明的文件，顺序由 `ORDER` 决定。
+/** **一个故事的加载顺序** ✓（`#893`）：**`ORDER` 里有的 ⇒ 按 `ORDER`** ✓（唯一权威 ✓）；
+ *  **`ORDER` 里没有的**（＝新故事自己的件 ✓）⇒ **按它清单的序** ✓（**稳定排序** ✓，两边都不丢 ✓）。
  *
- *  为什么必须是**一处权威**：构建（`build.mjs`）与门（`scripts/audit`）若各算一次，第二个故事一进来就会
- *  出现"产物是 A、而门在判 A＋B"的错位。spike（`feat/460-minimal-demo`）实测的根因就是：
- *  故事门的分析宇宙＝**全部源文件**，于是第二个故事**既污染**第一个故事的指标（同名段落/载荷统计/最薄榜），
- *  **又被**第一个故事的判据要求（段落登记/覆盖宇宙/密度基线）。⇒ 宇宙按故事切，两边共用本函数。
- */
-export const scopedFiles = (story, { order = ORDER, modules = MODULES } = {}) => {
+ *  ⚠️ 两个被读数推翻的版本 ✓（都留在这里，因为"为什么不是那样"才是关键 ✓）：
+ *   ① `[...引擎件, ...故事件]` ✗ ⇒ **顺序变了** ✗：清单**本身是交错的** ✓（`stories/<slug>/00-meta.twee` 后紧跟 `src/engine/…` ✓）；
+ *   ② **完全按清单序** ✗ ⇒ 实测**三个故事的清单序都不等于 `ORDER` 序** ✓（清单的 `files` 只是**成员表** ✓
+ *      —— `scripts/audit/context.mjs` 明写"加载顺序的**唯一权威**是 `ORDER`（不是词典序）" ✓）
+ *      ⇒ 那会**改既有故事的产物** ✗。
+ *  ⇒ 所以本函数**只接管 `ORDER` 管不到的那部分** ✓：既有故事 ⇒ `ORDER` 说了算 ✓（**逐字节不变** ✓）；
+ *     新故事 ⇒ 清单说了算 ✓ ⇒ **只落数据、不必改代码** ✓（P4 判据成立 ✓）。
+ *
+ *  ⚠️ 为什么不是"放宽 `ORDER` 守卫" ✗：`test/layering.mjs` 明写"新增文件不得靠文件名前缀**自动**获得顺序" ✓
+ *  —— 那条守卫**有理由** ✓ ⇒ 这里**换登记处** ✓：新件仍须**显式登记** ✓，登记在**它自己的清单**里 ✓。 */
+export const storyOrder = (story, { order = ORDER, modules = MODULES } = {}) => {
 	const eng = engineFiles(order, modules);
-	return order.filter((f) => eng.includes(f) || (story?.files ?? []).includes(f));
+	const mine = [...(story?.files ?? [])];
+	for (const f of eng) if (!mine.includes(f)) mine.push(f);
+	const pos = new Map(mine.map((f, i) => [f, i]));
+	const rank = (f) => { const i = order.indexOf(f); return i < 0 ? Number.MAX_SAFE_INTEGER : i; };
+	return [...mine].sort((a, b) => (rank(a) - rank(b)) || (pos.get(a) - pos.get(b)));   // 稳定（同 rank 时按清单序 ✓）
 };
+
+
+/** **故事作用域**（`#460` / `#441-E`）：一个故事的**分析宇宙** ＝ 引擎文件 ∪ 该故事清单声明的文件 ✓。
+ *
+ *  为什么必须是**一处权威**：构建（`build.mjs`）与门（`scripts/audit`）若各算一次，第二个故事一进
+ *  出现"产物是 A、而门在判 A＋B"的错位。spike（`feat/460-minimal-demo`）实测的根因就是：
+ *  故事门的分析宇宙＝**全部源文件**，于是第二个故事**既污染**第一个故事的指标（同名段落/载
+ *  又被**第一个故事的判据要求（段落登记/覆盖宇宙/密度基线）。⇒ 宇宙按故事切。
+ *
+ *  ⚠️ `#893` ✓：故事自己的件**按清单顺序** ✓（不再用 `ORDER` 过滤 ✗ —— 否则新建故事不碰代码就排不进顺序 ✗）。
+ */
+export const scopedFiles = (story, { order = ORDER, modules = MODULES } = {}) => storyOrder(story, { order, modules });
+
 
 export const sourcePath = (name, roots = SOURCE_ROOTS) => allSourceFiles(roots).find((f) => f === name || f.endsWith(`/${name}`)) ?? name;

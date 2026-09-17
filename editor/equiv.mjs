@@ -16,7 +16,8 @@
 //
 // 用法：node editor/equiv.mjs <slug> [--hand=<path>] [--gen=<path>]
 import { readFileSync, readdirSync } from 'node:fs';
-import { execFileSync } from 'node:child_process';
+// `#794` 第 3 步 ②：跑子进程是**宿主能力** ⇒ 经 `lib/host/proc.mjs`（core 不得 import 这一层 ✓；K6 判据③在盯 ✓）。
+import { runNode } from './lib/host/proc.mjs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
@@ -193,8 +194,8 @@ const main = () => {
 	// ── 自跑编译器两次 ⇒ 幂等 ＋ 拿到产物（不判陈旧件） ──
 	const genDir = join(ROOT, 'build/generated', slug);
 	const idemDir = join(ROOT, 'build/generated', `.idem-${slug}`);
-	execFileSync('node', [COMPILER, slug, `--out=${genDir}`], { cwd: ROOT });
-	execFileSync('node', [COMPILER, slug, `--out=${idemDir}`], { cwd: ROOT });
+	runNode([COMPILER, slug, `--out=${genDir}`], { cwd: ROOT });
+	runNode([COMPILER, slug, `--out=${idemDir}`], { cwd: ROOT });
 	const names = [...new Set([...readdirSync(genDir), ...readdirSync(idemDir)])].sort();
 	const idemOk = names.length > 0 && names.every((n) => readFileSync(join(genDir, n)).equals(readFileSync(join(idemDir, n))));
 	const gen0 = readFileSync(join(genDir, rulesMode ? '17-rules.twee' : '15-tables.twee'), 'utf8');

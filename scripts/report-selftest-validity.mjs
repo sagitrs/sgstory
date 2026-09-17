@@ -13,6 +13,7 @@
 //   V2「能判红」：文件里出现 `自证·` ⇒ 必须存在**被增量的计数器**出现在某个 `if (…X…)` 里，
 //                且该分支可达 `process.exit(1)`。否则 `selftest-cannot-fail`。
 import { readFileSync, readdirSync } from 'node:fs';
+import { stripJsComments } from './audit/lib/shared.mjs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ROOT } from './dist-paths.mjs';
@@ -90,10 +91,9 @@ export const stripForScan = (src) => stripDiag(src).code;
 
 /** **只剥注释**（保留字符串/模板）——用于判"有没有打印 `自证·`"：它写在**字符串**里要看得见，
  *  写在**注释**里不算（本文件自己就被这条误报过 ✗）。这一条只需行内正则，无错配风险。 */
-export const stripCommentsOnly = (src) =>
-	String(src)
-		.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
-		.replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + ' '.repeat(m.length - p1.length));
+// 去重（形状指纹探针实测查出）：这里原本与 `scripts/audit/lib/shared.mjs` 的 `stripJsComments`
+// **逐字节等价**（同两条 replace）⇒ 改为 import 单一权威 ✓（`stripJsComments` 已是 audit 侧的单一权威，
+// 见 `scripts/audit/gates/state.mjs` 的注释）。**行为零变化**由改前/改后输出逐字节对拍证明 ✓。
 
 const DECL_PATTERNS = [
 	// `let a = 0, b = 1;` 这类**多重声明**要每个都算（此前只取第一个 ⇒ canGuard/hit/odd/italBad 全被误报）
@@ -152,7 +152,7 @@ export const selftestExitFindings = (src) => {
 	const code = stripForScan(raw);
 	// #474：用**只剥注释**的文本判“有没有打印 `自证·`” —— 它写在字符串里（保留 ✓），写在注释里不算（剥掉 ✓）。
 	// （踩坑留档：先前用 `code`（连字符串一起剥）判 ⇒ `console.log("自证·")` 被抹掉 ⇒ V2 恒不触发 ⇒ **假干净** ✗，是自证把它抱回来的。）
-	if (!stripCommentsOnly(raw).includes('自证·')) return [];
+	if (!stripJsComments(raw).includes('自证·')) return [];
 	const counters = new Set([...code.matchAll(/(?<![\w$.])([A-Za-z_$][\w$]*)\s*(?:\+\+|\+=)/g)].map((m) => m[1]));
 	// **实现要点（第三次尝试，前两次都错在这）**：不要解析"语句体"——“从退出点向前找最近的 `if`，
 	// 用字符级配平取出它的条件”既简单又够用；退出点与条件之间隔着 `{`、`console.error(...)` 都不影响。

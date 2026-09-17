@@ -28,6 +28,13 @@ import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
 import { mkdtempSync, rmSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
+
+// ⚠️ **守卫（防 import 副作用）**：被 import 时**只导出判据函数**，不跑门。
+//   为什么必要：`commands.mjs` 起会逐个 import 命令体 ⇒ 若无守卫，**每次 `cli.mjs build` 都会跑一遍 K4 门**
+//   （实测 0.22s ＋ 1592B 输出）⇒ 而且门红时 `process.exit(1)` 会**劫持导入方**。
+//   形状照既有三例（`cli.mjs` / `extract-story.mjs` / `k6.mjs`）：**imports 之后、逻辑之前**（放后面 TDZ —— 踩过）；
+//   主跑与自证**两条分支都要**。自证口径：`node --input-type=module -e "await import('<abs>')"` ⇒ **rc=0 ＋ 0 字节**。
+const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 // **显式降级**：契约分类器（`editor/classify-contract.mjs`，PR `#772`）尚未落地时，逃生舱那条判据**不静默跳过**
 //   —— 打印一行"未接线"，其余判据（标记／新鲜度）照跑 ⇒ 本门可以先合、`#772` 落地后自动生效。
 let classify = null, contractMembers = null;
@@ -125,7 +132,7 @@ export const escapeHatchProblems = (classified, registry, slug = null) => {
 	return out;
 };
 
-if (process.argv.includes('--selfcheck')) {
+if (isMain && process.argv.includes('--selfcheck')) {
 	const cases = [
 		['正例①：生成物带标记 ⇒ 不报', markerProblems([{ path: 'a', text: `:: X [script]\n// ${MARKER} by y（源：z）` }]).length === 0],
 		['🔴 反例①：生成物没标记 ⇒ 报', markerProblems([{ path: 'a', text: ':: X [script]' }]).length === 1],
@@ -153,6 +160,8 @@ if (process.argv.includes('--selfcheck')) {
 	process.exit(0);
 }
 
+if (isMain) {
+// 主跑包一对括号即可 —— 刻意不重排缩进：让本次 diff 只含守卫本身，便于逐字节复核。
 console.log('══ K4 门（`#762` 车道 C）—— 生成物标记 · 新鲜度 · 逃生舱可枚举 ══');
 {
 	const storiesDir = join(ROOT, 'stories');
@@ -233,3 +242,4 @@ if (bad) {
 	process.exit(1);
 }
 console.log('\n✔ K4 门通过（标记 · 幂等/新鲜度 · 逃生舱登记双向一致 · 生成物不许独改）');
+}

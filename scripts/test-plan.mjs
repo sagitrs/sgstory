@@ -212,6 +212,7 @@ export const SEGMENTS = [
 	// `#761` P1 六片A-2：**预览读数**（控制跑 ✓／区间＋标记 ✓／不受影响面 ✓／对偶 ✓／状态敏感性 ✓／不污染 dist ✓）。
 	// ⚠️ cost 高: 内含**两次构建** ＋ 4 次 boot（~5–8 分钟）✓
 	{ id: "test-web-preview-mjs", phase: 'test', cost: 8, cmd: "node test/web-preview.mjs" },
+	{ id: "test-web-diagnose-mjs", phase: 'test', cost: 1, cmd: "node test/web-diagnose.mjs" },   // P2（`#761`）第一片：实时诊断纯件 ✓（纯函数＋无 io ⇒ 页内可用 ✓）
 	// `#761` P1 第四片：**改一个事件**的字段级读数（差异恰好一处 ✓／写回逐字段一致 ✓／产物只少数行变 ✓）。
 	{ id: "test-web-events-mjs", phase: 'test', cost: 0.3, cmd: "node test/web-events.mjs" },
 	// `#761` P1 第五片：**DOM 接线**（页面路 vs 直接路逐字节同 ✓；jsdom 显式收场 ✓）。

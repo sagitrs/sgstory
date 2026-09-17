@@ -19,7 +19,7 @@ export const flags = ['notes'];
 // 形状与对齐的判定已搬到 core ✓（页面与门跑**同一份** ⇒ 一处实现 ✓）：
 //   `editor/lib/core/stateDiagnose.mjs` 的 `auditShape` ✓（`findings` 形状照 `editor/lib/core/diagnose.mjs` ✓）。
 //   ⚠️ 本文件**不再自带** `REQUIRED`／`keyOf`／`auditShape` 的定义 ✗ ⇒ 只 import ＋ 转出（老调用方不变 ✓）。
-import { auditShape, flagPaths, keyOf, notepathProblems, singleReadProblems, singleWriteProblems } from '../../../editor/lib/core/stateDiagnose.mjs';
+import { auditShape, flagPaths, keyOf, notepathProblems, singleReadProblems, singleWriteProblems, auditConsumption } from '../../../editor/lib/core/stateDiagnose.mjs';
 export { flagPaths };
 // ── 纯函数：表行读点（`#435` 前置 0）──────────────────────────────────────
 // 阶段 4 之后，**表行的 `req`/`any`/`exclude` 就是读点**（求值走 `Sg.notes`/`Sg.rules` 封装层）。
@@ -39,45 +39,9 @@ export const rowReads = (rows, entries) => {
 // `declaredNotes`（可选，`#785` 第 1 族收口）：**声明式条件**（`req: ['n_x']`）里引用的笔记 id ——
 // 线索判定从"手写谓词"改声明式条件后，消费点住在**数据字符串**里 ⇒ 只认 `note:<id>`／`Sg.notes.has(...)`
 // 的旧口径看不见它 ✗（实测 `n_keeper_why` 被判「零消费」）。传的是**权威口径** `declCondRefs()` 的结果 ✓。
-export const auditConsumption = (entries, reads, bookkeeping, refText, declaredNotes = null) => {
-	const problems = [];
-	const bk = new Set(bookkeeping ?? []);
-	const refs = String(refText ?? '');
-	for (const [id, e] of Object.entries(entries ?? {})) {
-		const paths = flagPaths(e);
-		const keys = paths.map(keyOf);
-		// 读点表按**限定键**（`ev.tav_fog`）建 ⇒ 用 flagPath 原样查（`world.x` 与 `ev.x` 是两个域，不可混——#365）
-		let consumers = 0;
-		for (const p of paths) consumers += (reads.get(p)?.size ?? 0);
-		// 阶段 2/4 形态：笔记 id 被条件/表引用（`note:n_x` 或 `Sg.notes.has('n_x')`）
-		const byId = (new RegExp(`(?:note:${id}\\b|Sg\\.notes\\.(?:has|entry)\\(\\s*['"]${id}['"])`).test(refs) || (declaredNotes?.has?.(id) ?? false)) ? 1 : 0;
-		const declaredZero = keys.some((k) => bk.has(k));
-		if (consumers === 0 && !byId && !declaredZero) {
-			problems.push({ id, detail: `**零消费**：没有任何读点消费它（键 ${keys.map((k) => '`' + k + '`').join('/')}）—— 加了线索没人用；若确属「仅记账」请登记进 \`Game.State.bookkeeping\`（带理由）` });
-		}
-		if ((consumers > 0 || byId) && declaredZero) {
-			problems.push({ id, detail: `**僵尸豁免**：\`Game.State.bookkeeping\` 把它声明成"零消费"，但实际已有了消费点 ⇒ 请删掉那条声明` });
-		}
-	}
-	return problems;
-};
-
-/** **`<<notepath "id" "path">>` 的两条判据**（`#437` 批三 C-2b′，与引擎 `addPath` 的护栏**同判据**）：
- *  ① **path 必须属于该笔记的 `flagPath`** —— 写进去读不出来的 path 是**静默丢数据**（引擎侧也会抛，这里提前静态报）；
- *  ② **多源笔记（`flagPath` 是数组）必须用 `<<notepath>>` 显式声明写哪一条**（或声明 `setPath`）——
- *     否则 `<<note>>`／`Sg.notes.add()` 会被引擎的护栏拒绝（`add()` 对多源无 `setPath` ⇒ 抛错）。
- *  为什么静态也要报（而不是只靠引擎运行时抛）：运行时抛是"点了才知道"，静态报是"改完就红"。 */
-/** **单源读点的过渡基线**（`#437` C-2c-3）：键 `<文件>::<限定键>`，值＝**移除计划**（C-2c-3 把读点改成 `has(id)` 后逐条删）。
- *  为什么基线住**门文件**而不是 `stories/<slug>/audit.json`：① 本文件**就是该故事的门**（`stories/mist-forest/gates/**`
- *  按定义只服务这个故事 ⇒ 不是 `#602` 要禁的"引擎门里硬编码故事 1 的数据"）；
- *  ② 那份 `audit.json` 由引擎侧的 `loadStoryAudit()` **按键白名单**取（`topicWords`/`styleBlacklist`/`readBaseline`），
- *  新增键取不到（实测：加了 `singleReadBaseline` 但门拿不到 ⇒ 9 条全报）。**若将来要收编进 `audit.json`，需先扩那个加载器**
- *  （那是 `scripts/audit/**`＝dev 的文件面，我不动）。
- *  **纪律**：基线逐条带移除计划，且**腐烂即红**（改好不删 ⇒ 门报"基线腐烂"）。 */
-// ⚠️ **这 9 处（8 键）卡在同一件事**（`#437` C-2c-3 实测）：`--consequences` 的分类器
-// （`scripts/audit/lib/shared.mjs`，dev 面）目前只认两种读形状（`p.ev.X`／`Sg.notes.readPath(p,'ev.X')`）
-// ⇒ 改成 `Sg.notes.has(id, pc)` 会让该旗标**丢桶**（实测：转图鉴 5 处 ⇒ `codex×3 → codex×2 · engine?×1`；
-// 再转 NPC 3 处 ⇒ `--echoes` 分级问题 5 → 6）。口径同 `docs/notes-model.md` §4.1：**先让门认新形状，再改内容**。
+// 消费可数（`auditConsumption`）已搬到 core ✓（页面与门同一份 ✓）；本文件不再自带它 ✗。
+// ⚠️ 它在 core 里返回 **findings** ⇒ 消费点映回老形状（输出逐字节不变 ✓）；
+//   而本门的**自证**直接用它（只断言 `.length` ✓）⇒ 无需改 ✓。
 export const SINGLE_READ_BASELINE = {
 	// ✅ `#437` C-2c-3 完成（2026-09-15，`#720` 的分类器扩面之后）：9 处单源读点全部改成 `Sg.notes.has(id, pc)`，
 	// 基线**清空**（空对象＝"本故事没有单源 `readPath` 读点"）。新增一处 ⇒ 门当场红（判据在 `singleReadProblems()`）。
@@ -207,7 +171,7 @@ export const run = (ctx) => {
 	const bk = ctx.Game.State?.bookkeeping ?? [];
 	// `#877`：判定件出 **findings**（同形 ✓）⇒ 这里映回本门的老形状（输出逐字节不变 ✓）
 	const shape = auditShape(entries, domainKeys).map((f) => ({ id: f.target.event, detail: f.detail }));
-	const cons = auditConsumption(entries, reads, bk, allText, new Set(declCondRefs(allText).notes));
+	const cons = auditConsumption(entries, reads, bk, allText, new Set(declCondRefs(allText).notes)).map((f) => ({ id: f.target.event, detail: f.detail }));
 	const nps = notepathProblems({ entries, sources }).map((f) => ({ id: f.target.event, detail: f.detail }));   // `#437` C-2b′：`<<notepath>>` 的 path/多源判据
 	const swps = singleWriteProblems({ entries, sources }).map((f) => ({ id: f.target.event, detail: f.detail }));   // `#733` 片 2：单源不得走 notepath／addPath
 	const srps = singleReadProblems({ entries, sources, baseline: SINGLE_READ_BASELINE }).map((f) => ({ id: f.target.event, detail: f.detail }));   // `#437` C-2c-3

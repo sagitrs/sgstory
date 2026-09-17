@@ -40,6 +40,22 @@ import { fbEnum, makeClassify } from './lib/core/classify.mjs';
 const { classify } = makeClassify({ evalLiteral: literalValue });
 export { fbEnum, classify };
 
+/** 纯函数：把 `() => <局部常量>` 解析成它的**值**（不手抄）。
+ *  做法：在浏览器语义沙箱里跑该文件的 `[script]` 段 ＋ 追加一行 `window.__probe = <标识符>;` ⇒ 读出来。
+ *  取不到（未定义/非 JSON 化）⇒ 返回 null（调用方保持 B 桶，不假装成功）。 */
+export const resolveLocalConst = (fileText, sectionName, ident) => {
+	const bodies = scriptBodies(fileText);
+	const box = { console: { log() {}, error() {} } };
+	box.window = box;
+	vm.createContext(box);
+	try {
+		vm.runInContext(engineScripts() + '\n' + bodies.join('\n') + `\n;window.__probe = (typeof ${ident} === 'function' ? undefined : ${ident});`, box, { timeout: 5000 });
+	} catch { return null; }
+	const v = box.__probe;
+	if (v === undefined) return null;
+	try { return JSON.parse(JSON.stringify(v)); } catch { return null; }
+};
+
 const selftest = () => {
 	let bad = 0;
 	let n = 0;
@@ -100,28 +116,22 @@ const selftest = () => {
 		const ms = contractMembers(txt);
 		return ms.length === 2 && ms[0].name === 'a' && ms[1].name === 'b';
 	})());
+	// `#787` 回归覆盖（截 2026-09-17）：`main` 里 `resolveLocalConst(fileText, …)` 的 `fileText`
+	// 一度在搬 core 时被切掉 ✗ ⇒ 该路径走到即 `ReferenceError` ✓。本组**覆盖了辅助函数那一半** ✓：
+	// 夹具故意**不含** `Object.assign(window.Sg…)`（那种夹具会因缺 `window.Sg` 落 catch ⇒ 判 B ✓，量不出真因 ✗）。
+	// ⚠️ **仍未被覆盖的一半** ✗：`main` 里 `fileText` 的**作用域**本身（要跑到它得有一份
+	//   "手写契约 ＋ `() => 局部常量`" 的夹具 ⇒ 三个故事翻面后没有活样本 ✓）⇒ 记为待补 ✓，
+	//   此处**明说不假装覆盖** ✓（与复核席"引号未闭合 ⇒ 明记边界"同形 ✓）。
+	t('`resolveLocalConst`：`const MECH = {…}` ⇒ 取出值（`#787` 回归的辅助函数那一半 ✓）', (() => {
+		const v = resolveLocalConst(":: Game Tables [script]\nconst MECH = { a: 1, b: [2] };\n", 'Game Tables', 'MECH');
+		return v && v.a === 1 && Array.isArray(v.b) && v.b[0] === 2;
+	})());
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
 	console.log(`\n✔ 自证通过（${n} 例：8 个 kind 形状 ＋ A/B/C/D 四桶分界 ＋ 两条捕获组陷阱回归 ＋ 成员切分）`);
 };
 
 const isMain0 = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain0 && process.argv.includes('--selftest')) { selftest(); process.exit(0); }
-
-/** 纯函数：把 `() => <局部常量>` 解析成它的**值**（不手抄）。
- *  做法：在浏览器语义沙箱里跑该文件的 `[script]` 段 ＋ 追加一行 `window.__probe = <标识符>;` ⇒ 读出来。
- *  取不到（未定义/非 JSON 化）⇒ 返回 null（调用方保持 B 桶，不假装成功）。 */
-export const resolveLocalConst = (fileText, sectionName, ident) => {
-	const bodies = scriptBodies(fileText);
-	const box = { console: { log() {}, error() {} } };
-	box.window = box;
-	vm.createContext(box);
-	try {
-		vm.runInContext(engineScripts() + '\n' + bodies.join('\n') + `\n;window.__probe = (typeof ${ident} === 'function' ? undefined : ${ident});`, box, { timeout: 5000 });
-	} catch { return null; }
-	const v = box.__probe;
-	if (v === undefined) return null;
-	try { return JSON.parse(JSON.stringify(v)); } catch { return null; }
-};
 
 /** 手写逃生舱文件（`#787` 翻面）：生成物**装不进**非 A 桶成员 ⇒ 它们住**手写**文件，
  *  登记在 `editor/escape-hatch.json` 的 `hatchFiles`（仓内相对路径）。
@@ -144,7 +154,12 @@ const main = () => {
 	// 契约源＝**手写的**数据面文件（`15-tables.twee`）＋ 登记过的手写逃生舱文件。
 	// ⚠️ 已翻面的故事里 `15-tables.twee` 是**产物**（带生成标记）⇒ **不能**分类它：发射后的代码形状会得到
 	// "假欠账"（实测：`template` 那种被判 B）⇒ 那种情况下只剩逃生舱文件是手写源（与 K4 同一口径）。
-	const tableSrc = existsSync(file) && !hasGeneratedMarker(readFileSync(file, 'utf8')) ? readFileSync(file, 'utf8') : '';
+	const fileText = existsSync(file) ? readFileSync(file, 'utf8') : '';   // 数据面文件的**原文** ✓
+	// ⚠️ **重新钉住**（实测回归 ✗）：下面 `resolveLocalConst(fileText, …)` 用它 ✓ —— 我在搬 core 时
+	//   把这行切掉了 ✗ ⇒ 那条路径一旦走到就是 `ReferenceError` ✓；而**没有任何测试走那条路径** ✗
+	//   （只有"手写契约里出现 `() => 局部常量`"才触发 ✓，三个故事都翻面后就没有活样本了 ✓）
+	//   ⇒ 所以它是**静默回归** ✓：靠人量出来 ✓，靠 CI 量不出来 ✗。
+	const tableSrc = existsSync(file) && !hasGeneratedMarker(fileText) ? fileText : '';
 	if (!tableSrc) console.log(`  · ${slug}：\`15-tables.twee\` 已是**产物**（带生成标记）⇒ 契约面已由 \`data/\` 承载；本次只判**手写逃生舱文件** ✓`);
 	const hatchFilesOf = hatchFiles(slug);
 	const hatchTexts = hatchFilesOf.map((f) => readFileSync(f, 'utf8'));

@@ -273,6 +273,29 @@ export const ruleRowFlags = (row, entries) => {
 	return [...out];
 };
 // 旗标（裸键）→ 引用它的笔记 id 数组（`#433`：门按旗标判"谁读了它"时要用）
+/** `#785`：**声明式写点**（效果从函数搬进声明之后的唯一来源 ✓）——
+ *   · `sets`（状态键 ✓；裸键按 `ev.` 补域 ✓）；
+ *   · `yields`／`yield` 指向的**笔记** ⇒ 其 `flagPath` 的键 ✓。
+ *  返回**按域限定**的键（`ev.x`／`world.x` ✓ —— 与读侧同域才可比 ✓）；调用方要裸键自己剥（`consequences` ✓）。
+ *  ⚠️ 只吃**注入的行**（不读环境 ✗ —— 读环境会污染自证夹具，本轮实测过一次 ✗）。
+ *  为何抽成一处：`--consequences`（写点集合）与 `--state`（写/读域匹配）都要它 ⇒ **一处定义** ✓
+ *  （两处各写一份会各自漂移 ✗ —— `declCondRefs` 上刚吃过同款 ✗）。 */
+export const declWriteKeys = (rows, notes) => {
+	const paths = notePaths(notes);
+	const out = [];
+	const push = (k) => { const v = String(k ?? '').trim(); if (v && !out.includes(v)) out.push(v); };
+	for (const r of rows ?? []) {
+		for (const k of (Array.isArray(r?.sets) ? r.sets : (r?.sets ? [r.sets] : []))) push(String(k).includes('.') ? String(k) : `ev.${k}`);
+		for (const y of [...(Array.isArray(r?.yields) ? r.yields : (r?.yields ? [r.yields] : [])), ...(r?.yield != null ? [r.yield] : [])]) {
+			const raw = String(y ?? '');
+			const noteId = raw.startsWith('note:') ? raw.slice(5) : (raw.startsWith('n_') ? raw : null);
+			if (!noteId) continue;
+			for (const p of (paths.get(noteId) ?? [])) push(String(p));
+		}
+	}
+	return out;
+};
+
 export const noteIdsForFlag = (entries) => {
 	const M = new Map();
 	for (const [id, ps] of notePaths(entries)) {
@@ -378,15 +401,9 @@ export const makeShared = (ctx) => {
 		// 与 `rules` 同一约定 ✓：本函数在 node 侧跑，没有 `window` ⇒ 拿环境数据会**污染自证的合成夹具** ✗
 		//（我第一版写成 `?? Game.Social?.asks`，4 条自证当场红 ✗ —— 这正是"注入式"存在的理由 ✓）。
 		// 写形两类**也要**：`sets`（状态键 ✓）＋ `yields`／`yield` 指向的笔记 ⇒ 其 `flagPath` 的裸键 ✓。
-		const declRows = [...(input.rules ?? []), ...(input.asks ?? [])];
-		for (const r of declRows) {
-			for (const k of ruleRowSetKeys(r)) written.add(String(k).replace(/^(ev|world)\./, ''));
-			for (const y of [...asListOf(r?.yields), ...asListOf(r?.yield)]) {
-				const raw = String(y ?? '');
-				const noteId = raw.startsWith('note:') ? raw.slice(5) : (raw.startsWith('n_') ? raw : null);
-				if (!noteId) continue;
-				for (const p of (notePathsById.get(noteId) ?? [])) written.add(String(p).replace(/^(ev|world)\./, ''));
-			}
+		// 写法走**单一权威** `declWriteKeys()`（与 `--state` 门共用 ✓ —— 两处各写一份必漂移 ✗）。
+		for (const k of declWriteKeys([...(input.rules ?? []), ...(input.asks ?? [])], noteEntries)) {
+			written.add(String(k).replace(/^(ev|world)\./, ''));
 		}
 		const E = Echoes;
 		const echoFlags = new Set([...E.list.flatMap((e) => [e.cause.flag, e.cause.token]), ...E.revisit.flatMap((r) => [r.flag, r.inv])].filter(Boolean));

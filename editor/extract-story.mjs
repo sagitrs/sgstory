@@ -74,7 +74,10 @@ if (isMain && process.argv.includes('--selftest')) { selftest(); process.exit(0)
 /** `#794`：`engineOf` 已搬到 `editor/lib/host/sandbox.mjs` ✓（读文件 ⇒ 住 host ✓；命令体与自证共用 ✓）。 */
 const main = () => {
 	// `#794`：命令体已抽成**共享函数**（`lib/host/commands.mjs` 的 `extractCommand` ✓）——
-	// 本壳只负责"转发自己的 argv ＋ 用自己的程序名渲染用法行" ✓（`sub: ''` ⇒ 用法行与本工具既有输出**逐字同** ✓）。
+	// 本壳只负责"转发自己的 argv ＋ 用自己的程序名渲染用法行" ✓。
+	// ⚠️ **用法行不是逐字同** ✗（复核席实测）：除程序名外还**补了两个原文漏写的真实旗标**
+	//   `[--tables] [--from=<file>]` ✓ —— 属**有意的文档补充** ✓，但**仍是面变更** ✓：
+	//   该串无任何测试/金标断言 ⇒ CI 看不见它 ✗ ⇒ 只有"旧 main vs 新 head"的读数能发现 ✓。
 	process.exit(extractCommand(process.argv.slice(2), { prog: 'node editor/extract-story.mjs', sub: '' }));
 };
 

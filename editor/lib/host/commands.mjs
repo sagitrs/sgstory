@@ -18,14 +18,17 @@ const NODE_IO = { readText, writeText, mkdirp, exists };
 
 /** 用法行由**调用方传入的程序名**派生 ✓ —— 于是两条入口的输出只差这一行（且这行是 `argv` 派生的 ✓，
  *  属"唯一允许的差异" ✓）。不读 `process.argv` ✓：那样会让同一个函数在不同入口下行为不同 ✗。 */
-const usageOf = (prog, sub) => (sub ? `用法：${prog} ${sub} <slug> [--out=<dir>]` : `用法：${prog} <slug> [--out=<dir>]`);
+// ⚠️ **尾部由每个命令自带** ✓ —— 抽共享助手时最容易犯的错是"假设某个命令的签名" ✗：
+//   我上一版把 `build` 的 `[--out=<dir>]` 写死在助手里 ⇒ 漏进了 `extract-story` 的用法行 ✗
+//   （且与该行尾部的 `[--out=<file>]` 自相矛盾 ✓）。⇒ 助手只拼前缀 ✓，尾部的"有哪些旗标"归命令自己 ✓。
+const usageOf = (prog, sub, tail) => `用法：${prog}${sub ? ` ${sub}` : ''} ${tail}`;
 
 /** `build <slug> [--out=<dir>]` —— 与 `node editor/compile-story.mjs` **同一具身体** ✓。返回退出码 ✓。 */
 export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'build' } = {}) => {
 	const [slug, ...rest] = argv;
 	// `sub` 让**同一个函数**既能被 `cli.mjs build` 调（用法行含子命令 ✓）也能被原工具调（用法行不含 ✓）——
 	// 于是两条入口的输出**只差这一行**，且这行是**调用方传入的程序名/子命令**派生的 ✓（不读 `process.argv` ✗）。
-	if (!slug) { console.error(usageOf(prog, sub)); return 2; }
+	if (!slug) { console.error(usageOf(prog, sub, '<slug> [--out=<dir>]')); return 2; }
 	const outArg = rest.find((a) => a.startsWith('--out='));
 	const OUT = outArg ? outArg.slice('--out='.length) : join(ROOT, 'build/generated', slug);
 	const readIf = (f) => { try { return JSON.parse(readText(join(ROOT, 'stories', slug, 'data', f))); } catch { return null; } };
@@ -56,7 +59,7 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
  *  `process.argv` ⇒ `argv` ✓、`process.exit(n)` ⇒ `return n` ✓、用法行由 `prog`／`sub` 派生 ✓）。 */
 export const extractCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'extract-story' } = {}) => {
 	const [slug, ...rest] = argv;
-	if (!slug) { console.error(usageOf(prog, sub) + ' [--section=StoryRules] [--key=rules] [--out=<file>] [--tables] [--from=<file>]'); return 2; }
+	if (!slug) { console.error(usageOf(prog, sub, '<slug> [--section=StoryRules] [--key=rules] [--out=<file>] [--tables] [--from=<file>]')); return 2; }
 	const argOf = (n, d) => { const h = rest.find((a) => a.startsWith(`--${n}=`)); return h ? h.slice(n.length + 3) : d; };
 	const tablesMode = rest.includes('--tables');
 	const section = argOf('section', tablesMode ? 'Game Tables' : 'StoryRules');

@@ -128,6 +128,11 @@ const selftest = () => {
 		const r = rows.find((x) => x.name === 'mechanics');
 		return !!r && r.bucket === 'A' && r.spec?.value?.a === 1 && Array.isArray(r.spec.value.b) && r.spec.value.b[0] === 2;
 	})());
+	// `#785`：新规则的**双向**用例 ✓（只对"分支"敏感 —— 光看"非 A"会被骗过 ✗）
+	t('反例·体含函数字面量（per-field hooks）⇒ 必须落 C ✗ 不是 B',
+		classify("() => ({ 'a': { apply: (pc) => pc.x = 1 } })").bucket === 'C');
+	t('对照·体**不含**函数字面量（值引不进来）⇒ 仍落 B ✓（可预见缺口 ✓）',
+		classify('() => ({ a: SOME_LOCAL })').bucket === 'B');
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
 	console.log(`\n✔ 自证通过（${n} 例：8 个 kind 形状 ＋ A/B/C/D 四桶分界 ＋ 两条捕获组陷阱回归 ＋ 成员切分）`);
 };

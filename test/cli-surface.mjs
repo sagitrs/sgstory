@@ -63,6 +63,11 @@ const TIERS = {
 		{ args: ['--bogus'], expect: { rc: 2, kind: '错路·未知开关' } },
 		{ args: ['--selfcheck'], expect: { rc: 0, kind: '自检（**在册差异** #847：cli 侧 rc=2 ✗）' } },
 	],
+	k6: [
+		{ args: [], expect: { rc: 0, kind: '正常（门跑一遍 ✓）' } },
+		{ args: ['--bogus'], expect: { rc: 0, kind: '未知开关被忽略' } },
+		{ args: ['--selftest'], expect: { rc: 0, kind: '自检（**在册差异**：输出分叉 ✗）' } },
+	],
 	'lint-story': [
 		{ args: [], expect: { rc: 2, kind: '用法' } },
 		{ args: ['/tmp/__no_such_dir__'], expect: { rc: 1, kind: '错路·目录不存在' } },
@@ -75,9 +80,14 @@ const TIERS = {
  *  每条必须带**票号 ＋ 理由** ✓（没有票号的差异＝把 bug 洗成"已知" ✗）。 */
 const KNOWN_DIVERGENT = {
 	'k4 --selfcheck': {
-		ticket: '#847',
+		ticket: '#847', mode: 'rc',
 		why: '壳级选项没进命令体（`k4.mjs:40` 在壳里判 `--selfcheck` ⇒ `cli.mjs k4` 转发进体 ⇒ 不认识 ✗）',
 		toolRc: 0, cliRc: 2,
+	},
+	'k6 --selftest': {
+		ticket: '#847（同族：壳级选项未进命令体 ⇒ A 车道一致性小票）', mode: 'output',
+		why: '工具路跑**自证**（`✔ 自证通过（36 例）` ✓），cli 路把 `--selftest` 转发进体 ⇒ 体不认识 ⇒ 跑的是**门本体** ✗（rc 恰好都是 0 ⇒ 只有输出面能看见 ✓）',
+		toolRc: 0, cliRc: 0,
 	},
 };
 
@@ -124,8 +134,11 @@ for (const sub of subs) {
 		const div = KNOWN_DIVERGENT[divKey];
 		if (div) {
 			usedDiv.add(divKey);
+			const outSame = norm(sub, tool, a.out) === norm(sub, tool, b.out) && norm(sub, tool, a.err) === norm(sub, tool, b.err);
 			if (!div.ticket) bad.push(`在册差异 ✗ \`${divKey}\` 缺**票号** ✗（无票号的差异＝把 bug 洗成"已知" ✓）`);
-			else if (a.rc === b.rc) bad.push(`在册差异 ✗ \`${divKey}\`（票 ${div.ticket}）**已不再分叉**（工具=${a.rc} cli=${b.rc}）⇒ 请**删掉这条记录** ✓（只许收缩 ✓）`);
+			else if (div.mode === 'output') {
+				if (outSame) bad.push(`在册差异 ✗ \`${divKey}\`（票 ${div.ticket}）**输出已不再分叉**（rc=${a.rc}/${b.rc}）⇒ 请**删掉这条记录** ✓（只许收缩 ✓）`);
+			} else if (a.rc === b.rc) bad.push(`在册差异 ✗ \`${divKey}\`（票 ${div.ticket}）**已不再分叉**（工具=${a.rc} cli=${b.rc}）⇒ 请**删掉这条记录** ✓（只许收缩 ✓）`);
 			else if (a.rc !== div.toolRc || b.rc !== div.cliRc) bad.push(`在册差异 ✗ \`${divKey}\` 的读数变了（工具=${a.rc} cli=${b.rc}，在册=${div.toolRc}/${div.cliRc}）⇒ 更新或删除记录 ✓`);
 			continue;
 		}

@@ -19,6 +19,8 @@ import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { boot, closeAllWindows } from './boot.mjs';
+import { JSDOM } from 'jsdom';   // `#761` 六片B：**页面侧**薄 sink 的宿主 ✓
+import { paintPreview, shownPreview, previewHint } from '../editor/web/view.mjs';
 import { renderedTextOf, renderedPassages } from '../editor/lib/core/preview.mjs';
 import { loadPackage } from '../editor/web/loader.mjs';
 import { editEventField } from '../editor/web/events.mjs';
@@ -36,6 +38,23 @@ const nodeIo = () => ({ readText: (p) => readFileSync(join(ROOT, p), 'utf8') });
 const sha = (p) => createHash('sha256').update(readFileSync(p)).digest('hex').slice(0, 16);
 
 /** 纯件（本文件内 ✓）：两串的差异区间 ✓ ⇒ "恰好一段连续差异"可断言 ✓（单行文本上同样有效 ✓）。 */
+/** **页面侧那条路** ✓：自己启一份探针页（**独立实例** ✗：不是复用 Node 侧那个 `w` ✓），
+ *  再用 `editor/web/view.mjs`（页面侧薄 sink ✓）把文本画进 DOM 并读回 ✓。
+ *  ⚠️ 复核席两次判过这里 ✗：**两侧各自独立 boot 才算在比两条路** ✓ —— 同一个 `w` 读两遍是**恒等式** ✗。
+ *  返回 `{ text, shown, win, sha, url }` ✓ ⇒ `sha`／`url` 供"两侧指同一份产物"那条**可断言**的读数 ✓。 */
+const pageSideVia = async ({ story, gear = [] } = {}) => {
+	const { w, sleep, settle } = await boot({ random: 0.5, story, entry: '开场' });
+	try {
+		w.eval(`(function(){ const pc = SugarCube.State.variables.pc ?? (SugarCube.State.variables.pc = {}); pc.gear = ${JSON.stringify(gear)}; pc.inv = pc.inv ?? {}; })()`);
+		await w.SugarCube.Engine.play(PASSAGE);
+		await settle();
+		await sleep(40);
+		const dom = new JSDOM('<div id="preview"></div>');
+		const text = paintPreview({ doc: dom.window.document, win: w, passage: PASSAGE });   // ← 页面侧的取法 ✓
+		return { text, shown: shownPreview({ doc: dom.window.document }), hint: previewHint(w), win: w, assetUrl: storyHtml(story ?? DEFAULT_SLUG), assetSha: sha(storyHtml(story ?? DEFAULT_SLUG)) };   // ← 同样报出"它实际启的产物" ✓
+	} finally { try { w.close?.(); } catch { /* 已关 */ } }
+};
+
 export const diffSpan = (a, b) => {
 	const A = String(a ?? ''), B = String(b ?? '');
 	const n = Math.min(A.length, B.length);
@@ -45,7 +64,7 @@ export const diffSpan = (a, b) => {
 };
 
 /** 全新 boot ＋ **在页面里**钉状态（⚠️ 跨 realm 的对象喂给 `State.variables` 会 clone 失败 ✗ ⇒ 必须 `eval` ✓）＋ 取预览 ✓。 */
-const preview = async ({ story = null, gear = [] } = {}) => {
+const preview = async ({ story = null, gear = [], keepWin = false } = {}) => {
 	// ⚠️ 两处实测坑（都当场抓的 ✓）：① 探针 slug 没有 `stories/<slug>/00-story.json` ✗ ⇒ 必须显式 `entry` 绕开 ✓；
 	// ② `entry` 的语义是"**启动后应渲染的段**" ✓（探针的真实起始段是 `开场` ✓）⇒ 传 `'开场'` ✓，再去 play 目标段 ✓。
 	const { w, sleep, settle } = await boot({ random: 0.5, story, entry: '开场' });
@@ -55,8 +74,8 @@ const preview = async ({ story = null, gear = [] } = {}) => {
 		await settle();
 		await sleep(40);
 		if (!renderedPassages(w).includes(PASSAGE)) throw new Error(`取不到段落 ${PASSAGE} ✗：当前 ${renderedPassages(w).join('、') || '（空）'}`);
-		return renderedTextOf(w, { passage: PASSAGE });
-	} finally { try { w.close?.(); } catch { /* 已关 */ } }
+		return { text: renderedTextOf(w, { passage: PASSAGE }), win: w, assetUrl: storyHtml(story ?? DEFAULT_SLUG), assetSha: sha(storyHtml(story ?? DEFAULT_SLUG)) };   // ← 留住 `win` ＋ **它实际启的产物** ✓（B 段要断言"两侧同一份构建" ✗）
+	} finally { if (!keepWin) { try { w.close?.(); } catch { /* 已关 */ } } }
 };
 
 // `--selftest` ✓：**假串**驱动纯件 `diffSpan` ✓（不起引擎、不构建 ⇒ 快 ✓）＋ 自身能红那格常驻 ✓。
@@ -107,11 +126,11 @@ try {
 	t('⑥ 真 dist 故事页 sha **未变** ✓（探针不污染被测对象 ✓）', sha(storyHtml(SLUG)) === realSha0);
 
 	// ——— 三次全新 boot ✓
-	const T1 = await preview({ gear: OTHER_SCOPE_STATE.with });
+	const T1 = (await preview({ gear: OTHER_SCOPE_STATE.with })).text;
 	t('前置：目标行确实命中 ✓（"有火把"文本出现在渲染里 ✓）', T1.includes(targetText.slice(0, 12)));
-	const T2 = await preview({ gear: OTHER_SCOPE_STATE.with });
+	const T2 = (await preview({ gear: OTHER_SCOPE_STATE.with })).text;
 	t('① 控制跑：**同输入不编辑 ⇒ T2 逐字节等于 T1** ✓（"底材同一"是读数 ✓）', T2 === T1);
-	const T3 = await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.with });
+	const T3 = (await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.with })).text;
 	t('① 探针页可启 ✓（`story` 用相对键走通 ✓）', typeof T3 === 'string' && T3.length > 20);
 
 	// ——— ② 区间法 ✓
@@ -121,8 +140,8 @@ try {
 	t('② 该段**含我方标记** ✓（注入被消费 ✓ —— "先证注入生效" ✓）', d.b.includes(MARKER));
 
 	// ——— ③ 不受影响面 ✓
-	const U1 = await preview({ gear: OTHER_SCOPE_STATE.without });
-	const U2 = await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.without });
+	const U1 = (await preview({ gear: OTHER_SCOPE_STATE.without })).text;
+	const U2 = (await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.without })).text;
 	t('③ 不受影响面：编辑**不该动**"无火把"那条 ⇒ 渲染**逐字节相同** ✗', U1 === U2);
 	t('③ 前提：两条状态确实渲染出不同文本 ✓（否则对照面是空的 ✓）', U1 !== T1);
 
@@ -146,6 +165,36 @@ try {
 	const fp = sha(storyHtml(SLUG));
 	console.log(`  · dist 指纹：${storyHtml(SLUG).split('/').slice(-3).join('/')} sha256:${fp} ✓`);
 	t('⑤ dist 指纹非空（读数指名了构建 ✓）', fp.length === 16);
+
+	// ——— B 段（裁定 (b) 后半 ＋ 复核席裁定 (ii)）✓：**页面侧 ≡ Node 侧**，两侧**各自独立实例** ✗
+	//  ⚠️ 复核席第 4 次拦下这里 ✗：字面 `true` 的"断言"＝没断言 ✓；`sha(f)===probeSha`（同源）＝恒真 ✓
+	//  ⇒ 本次三条都补齐：**实例不同** ✓／**两侧产物 sha 相同且 ≠ 真 dist** ✓／**注入两侧都被消费** ✓。
+	{
+		const probeUrl = join(PROBE_DIR, 'index.html');
+		const probeSha = sha(probeUrl);
+		const realSha = sha(storyHtml(SLUG));
+		const nodeSide = await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.with, keepWin: true });   // Node 侧：harness 直读 ✓（自己的实例 ✓）
+		const pageSide = await pageSideVia({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.with });            // 页面侧：另一份实例 ✓
+		try {
+			t('B：**两侧各自独立实例** ✗（不是同一个 `w` 读两遍 ✓）', !!nodeSide.win && !!pageSide.win && nodeSide.win !== pageSide.win);
+			t('B：**页面侧 ≡ Node 侧逐字节同** ✓（两条路 ✓）', pageSide.text === nodeSide.text && pageSide.text.length > 20);
+			t('B：页面侧读回来的**就是页面上显的那串** ✓', pageSide.shown === pageSide.text);
+			t('B：注入在**两侧各自**都被消费 ✓（探针标记两侧都在 ✓）', nodeSide.text.includes(MARKER) && pageSide.text.includes(MARKER));
+			t('B：提示行只报告（**不参与判定** ✓）', pageSide.hint.includes(PASSAGE));
+			// 负例 ✓：页面上**没有目标元素** ⇒ 讲人话地抛 ✗（预览不许静默消失 ✓）
+			let emptyMsg = '';
+			try { paintPreview({ doc: new JSDOM('<div id="other"></div>').window.document, win: nodeSide.win, passage: PASSAGE }); } catch (e) { emptyMsg = String(e.message); }
+			t('B：负例——页面上没有目标元素 ⇒ **讲人话地抛** ✗', emptyMsg.includes('没有目标元素'));
+			// (2) 两侧**各自实际启的产物**（都＝探针页 ✓）sha 相同 ✗ 且 ≠ 真 `dist` ✓
+			//  ⚠️ 我上一版写成 `probeSha === sha(probeUrl)` ✗ ⇒ **还是自比自** ✓（复核席追到 ✓）。
+			//  现在比的是**两侧各自报出的 `assetSha`** ✓ ⇒ 它能抓"**静默回退到默认故事**" ✗（`boot({story})` 有解析/回退路径 ✓）。
+			t('B：两侧**各自实际启的产物 sha 相同** ✗（且等＝探针页 ✓，且 ≠ 真 `dist` ✓）',
+				nodeSide.assetSha === pageSide.assetSha && nodeSide.assetSha === probeSha && probeSha !== realSha);
+			t('B：两侧的产物 URL 也一致 ✓（各自报出，不是同一变量 ⇒ 不是自比自 ✗）',
+				nodeSide.assetUrl === pageSide.assetUrl && nodeSide.assetUrl === probeUrl);
+			console.log(`  · B 产物：Node 侧 ${nodeSide.assetSha} ✓ · 页面侧 ${pageSide.assetSha} ✓（两侧各自报出 ✓）· 真 dist 故事页 ${realSha} ✓（**不**计入 ✓）`);
+		} finally { try { nodeSide.win?.close?.(); } catch { /* 已关 */ } }
+	}
 
 	if (bad) { console.error(`\n✗ web-preview 未通过（${bad} 项）`); rc = 1; }
 	else console.log('\n✔ web-preview 通过（控制跑 ✓ · 区间＋标记 ✓ · 不受影响面 ✓ · 对偶 ✓ · 状态敏感性 ✓ · 负例 ✓ · 指纹 ✓ · 编译层局部性 ✓ · 不污染 ✓）');

@@ -63,7 +63,9 @@ const pageSideVia = async ({ story, gear = [] } = {}) => {
  *  `prefix`／`suffix` 就是按**最长公共前后缀**算的 ✓ ⇒ `rebuilt === B` **永远**成立 ✗（不是读数 ✓）。
  *  能假的两条 ✓：① 段**含标记** ✓（标记是独立事实 ✓）；② 段长**不超过标记长 ＋ slack** ✓
  *  （编辑只在目标段追加标记 ⇒ 段长应与标记长相当 ✓；若差异吞掉整段/整页 ⇒ 这条**为假** ✗）。 */
-export const diffTight = (spanText, marker, slack = 10) => ({
+//  slack ＝ 2 ✓（复核席第五轮: 原 10 **太松** ✗ —— 实测链上差异段长 **6 ＝ 标记长 6** ⇒ **额外 0 字节** ✓；
+//  10 会让"差异吞掉半段"（≤16 ✓）也通过 ✓ ⇒ 比真实宽 2.7 倍 ⇒ 而那正是这条读数**要抓**的形态 ✗）。
+export const diffTight = (spanText, marker, slack = 2) => ({
 	ok: String(spanText ?? '').includes(marker) && String(spanText ?? '').length <= String(marker).length + slack,
 	len: String(spanText ?? '').length,
 	bound: String(marker).length + slack,
@@ -107,10 +109,14 @@ const selftest = () => {
 	//   合成输入 —— **两段不相邻差异** ⇒ "恰好一段"那条**必须为假** ✗（区间法只能过一段 ✓）。
 	{
 		const mk = '【标记】';
-		const tightOK = diffTight(`被改的段${mk}`, mk);            // 段长 = 标记长 + 5 ⇒ 过 ✓
+		const tightOK = diffTight(`${mk}`, mk);                     // 段长 **= 标记长**（与实测同形 ✓）⇒ 过 ✓
+		const tightEdge = diffTight(`${mk}ab`, mk);                 // 段长 = 标记长 + 2 ⇒ 恰在上限 ✓ 过 ✓
+		const tightOver = diffTight(`${mk}abc`, mk);                // 段长 = 标记长 + 3 ⇒ **越界** ✗
 		const tightBad = diffTight(`${mk}${'一大段没该变的内容'.repeat(3)}`, mk);   // 吞掉整段 ⇒ **假** ✗
 		const noMarker = diffTight('完全没含标记的一整页', mk);      // 不含标记 ⇒ **假** ✗
-		t('假串·(a) 紧致度：段长≈标记长 ⇒ **成立** ✓（对照 ✓）', tightOK.ok);
+		t('假串·(a) 紧致度：段长**＝标记长** ⇒ 成立 ✓（与实测同形 ✓）', tightOK.ok);
+		t('假串·(a) 紧致度：段长＝标记长＋2 ⇒ 恰在上限 ⇒ 成立 ✓', tightEdge.ok);
+		t('假串·(a) 紧致度：段长＝标记长＋3 ⇒ **越界 ⇒ 假** ✗', !tightOver.ok);
 		t('假串·(a) 紧致度：差异吞掉整段 ⇒ **为假** ✗（"能假" ✓）', !tightBad.ok);
 		t('假串·(a) 紧致度：段里没有标记 ⇒ **为假** ✗（标记是独立事实 ✓）', !noMarker.ok);
 		//  ⚠️ 并记一条**反例存档** ✓："两串差异是一段连续区间"这个说法**本身不可假** ✗ ——
@@ -241,8 +247,9 @@ try {
 
 	// ——— ② 区间法 ✓
 	const d = diffSpan(T1, T3);
-	const rebuilt = T1.slice(0, d.prefix) + d.b + T1.slice(T1.length - d.suffix);
-	t('② 区间：去掉差异段后两串**逐字节相等** ✓（⇒ 恰好一段连续差异 ✓）', rebuilt === T3 && !d.same);
+	// ⚠️ 复核席第五轮: 这里原是 `rebuilt === T3 && !d.same" ✗ —— `rebuilt` 正是按**最长公共前后缀**
+	//   重建的 ✓ ⇒ **构造上恒真** ✗（"用定义验证定义" ✓ 第三种偷懒形态 ✓）。改成 `tight.ok` ✓
+	//   （段含标记 ✓ ＋ 段长紧致 ✓ ⇒ 两条都能假 ✓）。`rebuilt` 变量已删 ✓。
 	const tight = diffTight(d.b, MARKER);
 	t('② 该段**含我方标记** ✓（注入被消费 ✓ —— "先证注入生效" ✓）', d.b.includes(MARKER));
 	t('② **段长紧致** ✓（≤ 标记长＋slack ✓ —— 差异没吞掉整段 ✓；⚠️ 原"重建相等"那句**构造上恒真** ✗ 已删 ✓）', tight.ok);

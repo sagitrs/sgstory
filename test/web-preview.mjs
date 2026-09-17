@@ -59,6 +59,16 @@ const pageSideVia = async ({ story, gear = [] } = {}) => {
 	for (const d of scratchMade) { try { rmSync(d, { recursive: true, force: true }); } catch { /* 已清 */ } } try { w.close?.(); } catch { /* 已关 */ } }
 };
 
+/** ⚠️ **能假**的"差异段紧致度"读数 ✓ —— 替换掉原来那句**构造上恒真**的"重建相等" ✗：
+ *  `prefix`／`suffix` 就是按**最长公共前后缀**算的 ✓ ⇒ `rebuilt === B` **永远**成立 ✗（不是读数 ✓）。
+ *  能假的两条 ✓：① 段**含标记** ✓（标记是独立事实 ✓）；② 段长**不超过标记长 ＋ slack** ✓
+ *  （编辑只在目标段追加标记 ⇒ 段长应与标记长相当 ✓；若差异吞掉整段/整页 ⇒ 这条**为假** ✗）。 */
+export const diffTight = (spanText, marker, slack = 10) => ({
+	ok: String(spanText ?? '').includes(marker) && String(spanText ?? '').length <= String(marker).length + slack,
+	len: String(spanText ?? '').length,
+	bound: String(marker).length + slack,
+});
+
 export const diffSpan = (a, b) => {
 	const A = String(a ?? ''), B = String(b ?? '');
 	const n = Math.min(A.length, B.length);
@@ -92,7 +102,20 @@ const selftest = () => {
 	t('假串·② 区间：恰好一段 ＋ 前后逐字节同 ✓', d.prefix + d.suffix === a.length && a.slice(0, d.prefix) + d.b + a.slice(a.length - d.suffix) === b);
 	t('假串·② 段内含新增 ✓', d.b === '嗯。' && d.a === '');
 	t('假串·③ 对偶对照：同串 ⇒ same ✓ 且空段 ✓', diffSpan(a, a).same === true && diffSpan(a, a).a === '');
-	t('自证自身能红（故意错的期望会被计到 ✗）', 1 === 2 ? false : true);
+	// ⚠️ 这里原本是 `t('自证自身能红…', 1 === 2 ? false : true)` ✗ —— **恒真** ⇒ 不是断言 ✓
+	//   （正是 §17"断言必须能是假的"那格 ✓，而且是我 `#866` 自己留的 ✗）。改成**真的能假**一例 ✓：
+	//   合成输入 —— **两段不相邻差异** ⇒ "恰好一段"那条**必须为假** ✗（区间法只能过一段 ✓）。
+	{
+		const mk = '【标记】';
+		const tightOK = diffTight(`被改的段${mk}`, mk);            // 段长 = 标记长 + 5 ⇒ 过 ✓
+		const tightBad = diffTight(`${mk}${'一大段没该变的内容'.repeat(3)}`, mk);   // 吞掉整段 ⇒ **假** ✗
+		const noMarker = diffTight('完全没含标记的一整页', mk);      // 不含标记 ⇒ **假** ✗
+		t('假串·(a) 紧致度：段长≈标记长 ⇒ **成立** ✓（对照 ✓）', tightOK.ok);
+		t('假串·(a) 紧致度：差异吞掉整段 ⇒ **为假** ✗（"能假" ✓）', !tightBad.ok);
+		t('假串·(a) 紧致度：段里没有标记 ⇒ **为假** ✗（标记是独立事实 ✓）', !noMarker.ok);
+		//  ⚠️ 并记一条**反例存档** ✓："两串差异是一段连续区间"这个说法**本身不可假** ✗ ——
+		//   任意两串都能写成"公共前缀 ＋ 中段 ＋ 公共后缀" ✓ ⇒ 原句是定义、不是判据 ✗。
+	}
 	if (bad) { console.error(`\n✗ web-preview 自证未通过（${bad} 项）`); process.exit(1); }
 	console.log('\n✔ web-preview 自证通过（3 例：区间 · 段内含新增 · 同串空段）');
 };
@@ -164,8 +187,14 @@ try {
 		}
 		const diskRules = JSON.parse(readFileSync(join(ROOT, 'stories', '__e2e', 'data', 'rules.json'), 'utf8'));
 		t('链② 写盘件数 ✓ ＋ **磁盘上真有那份 rules.json** ✓（链的输入是文件 ✓）', Object.keys(saved.files).length > 0 && diskRules.rows.length === data['rules.json'].rows.length);
-		const fromDisk = { ...data, 'rules.json': diskRules };
+		// ⚠️ 复核席裁定 (b) ✓：**页内侧也必须读磁盘** ✗ —— 只换 `rules.json` 的话，
+		//   "**写盘 ⇒ 读回**"那一跳**没被走过** ✗（"逐字节同"只证了同一编译器在同样数据上确定 ✓）。
+		//  `loadPackage` 还要**清单** ✓ ⇒ 把真清单原样放进 scratch ✓（编译不吃它 ✓，只用来解析路径 ✓）
+		writeFileSync(join(ROOT, 'stories', '__e2e', '00-story.json'), readFileSync(join(ROOT, 'stories', SLUG, '00-story.json'), 'utf8'), 'utf8');
+		const fromDisk = loadPackage({ slug: '__e2e', io: { readText: (p) => readFileSync(join(ROOT, p), 'utf8') } }).data;
 		const pageRules = compileInPage({ slug: SLUG, data: fromDisk }).files['17-rules.twee'];
+		t('链② **写入路径 == CLI 读的路径** ✓（`stories/<slug>/data/<f>` ✓ —— 不是"我实测过" ✓）',
+			Object.keys(saved.files).sort().join(',') === ['stories/__e2e/data/contract.json', 'stories/__e2e/data/rules.json', 'stories/__e2e/data/tables.json'].sort().join(','));
 		t('链② 从**磁盘字节**编译 ⇒ 规则文本含标记 ✓（注入被消费 ✓ —— "先证注入生效" ✓）', pageRules.includes(MARKER));
 
 		// ── 链③ **CLI 那一跳**：同一个 slug（`__e2e`）两侧 ✓ ⇒ 逐字节比 ✓
@@ -187,8 +216,9 @@ try {
 		const E1 = (await preview({ gear: OTHER_SCOPE_STATE.with })).text;
 		const E2 = (await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.with })).text;
 		const ed = diffSpan(E1, E2);
-		t('链④ 区间法：去掉差异段后两串**逐字节相等** ✓ ＋ 该段含标记 ✓',
-			E1.slice(0, ed.prefix) + ed.b + E1.slice(E1.length - ed.suffix) === E2 && ed.b.includes(MARKER));
+		const et = diffTight(ed.b, MARKER);
+		t('链④ 差异段**紧致** ✓（含标记 ✓ ＋ 长 ≤ 标记长＋slack ✓ —— **能假** ✓，不是"重建相等"那句恒真 ✗）', et.ok);
+		console.log(`  · 链④ 差异段长 ${et.len} 字节（上限 ${et.bound} ✓）`);
 		const F1 = (await preview({ gear: OTHER_SCOPE_STATE.without })).text;
 		const F2 = (await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.without })).text;
 		t('链④ **成对**：不受影响面（"无火把"那条）**逐字节相同** ✗ ＋ 前提（两条状态本身不同 ✓）', F1 === F2 && F1 !== E1);
@@ -213,7 +243,10 @@ try {
 	const d = diffSpan(T1, T3);
 	const rebuilt = T1.slice(0, d.prefix) + d.b + T1.slice(T1.length - d.suffix);
 	t('② 区间：去掉差异段后两串**逐字节相等** ✓（⇒ 恰好一段连续差异 ✓）', rebuilt === T3 && !d.same);
+	const tight = diffTight(d.b, MARKER);
 	t('② 该段**含我方标记** ✓（注入被消费 ✓ —— "先证注入生效" ✓）', d.b.includes(MARKER));
+	t('② **段长紧致** ✓（≤ 标记长＋slack ✓ —— 差异没吞掉整段 ✓；⚠️ 原"重建相等"那句**构造上恒真** ✗ 已删 ✓）', tight.ok);
+	console.log(`  · ② 差异段长 ${tight.len} 字节（上限 ${tight.bound} ✓ · 标记长 ${MARKER.length} ✓）`);
 
 	// ——— ③ 不受影响面 ✓
 	const U1 = (await preview({ gear: OTHER_SCOPE_STATE.without })).text;

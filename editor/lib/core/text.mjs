@@ -3,7 +3,7 @@
 // 一类宿主能力；要读文件/起进程/跑沙箱 ⇒ 由 `editor/lib/host/**` 的实现注入（见该目录注释）。
 // 抽出来的直接收益：`equiv` 与 `extract-story` 原先**互相 import**（环 ✗）——
 // 纯文本助手归这里之后，依赖只剩一个方向：`host → core`。
-import { maskComments } from '../../../scripts/audit/lib/mask.mjs';
+import { maskComments } from './mask.mjs';
 
 /** 纯函数：从 twee 文本里取某段段落的正文（不含 `:: 名字 [script]` 头）。 */
 export const section = (text, name) => {

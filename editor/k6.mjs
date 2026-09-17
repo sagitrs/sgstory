@@ -98,4 +98,8 @@ if (isMain && process.argv.includes('--selftest')) {
 
 /** 主跑：**只在被直接执行时**跑 ✓ —— 被 `import` 时不许跑门、更不许 `process.exit` ✗
  *  （否则下游"去喂函数"式探针会被劫持 ✓ —— 本门之前正缺这一层 ✓）。 */
-if (isMain) process.exit(k6Command(process.argv.slice(2), { prog: 'node editor/k6.mjs', sub: '' }));
+// `#794`／`#843` 复核：**壳也要走同一个退出契约** ✓ —— 原来直接 `process.exit(k6Command(…))` ✗，
+// 而命令体返回 `undefined` 时 Node 会**折成 0** ✗（实测：拿掉 `return 0` ⇒ 工具路 rc=0 ✗）
+// ⇒ rc 契约只在 cli 路生效 ✗。改用 `exitWithRc` ✓（与 `k4`／`lint-story` 同形 ✓）。
+import { exitWithRc } from './lib/host/proc.mjs';
+if (isMain) exitWithRc(k6Command(process.argv.slice(2), { prog: 'node editor/k6.mjs', sub: '' }));

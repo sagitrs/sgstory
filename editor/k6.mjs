@@ -20,6 +20,12 @@
 import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+// ⚠️ **遮蔽器选型**（一个真踩过的坑 ✓）：
+//  · **不能**用 `editor/classify-contract.mjs` 的 `maskAll` ✗ —— 它连**字符串字面量**一起遮 ⇒
+//    `from 'node:fs'` 里的说明符被遮掉 ⇒ 本判据**永不触发** ✗（"用错遮蔽器 ⇒ 判据无声失效" ✓）；
+//  · `editor/lib/core/text.mjs` 的 `maskComments` 是**局部**未导出 ✗ ⇒ 这里先用**最小实现**（只挡注释 ✓），
+//    待它导出后换成它 ✓（**已登记为待办**，属"两处实现必漂移"那族 ✓）。
+const stripCommentsForScan = (src) => String(src ?? '').replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const EDITOR = join(ROOT, 'editor');
@@ -83,6 +89,28 @@ export const secondCopyProblems = ({ any }, coreExports, allowedDir) => {
 	return out.sort((a, b) => a.name.localeCompare(b.name));
 };
 
+/** 纯函数④：**内核不许碰宿主**（`#794` 第 3 步）—— `editor/lib/core/**` 里出现 `node:*`（或裸的宿主模块名）⇒ 问题。
+ *  为什么需要它：①②③管的是“有没有**第二份实现**”✗；这一条管的是“内核有没有**偷偷碰宿主**”✗ ——
+ *  它是“**浏览器安全**”从**口号**变成**可机检**的那一步 ✓（否则只能靠“我记得别写”✗）。
+ *  只扫 `.mjs` 的直接源码（**先遮注释** ⇒ 注释里提 `node:fs` 不算 ✗）。 */
+export const coreHostProblems = (files) => {
+	const HOST_ONLY = ['fs', 'vm', 'child_process', 'path', 'os', 'worker_threads', 'net', 'http', 'https', 'url', 'crypto', 'module', 'process'];
+	const out = [];
+	for (const [path, text] of files) {
+		const t = stripCommentsForScan(text);
+		const specs = [
+			...[...t.matchAll(/\bfrom\s+['"]([^'"]+)['"]/g)].map((m) => m[1]),
+			...[...t.matchAll(/\bimport\s+['"]([^'"]+)['"]/g)].map((m) => m[1]),
+			...[...t.matchAll(/\brequire\(\s*['"]([^'"]+)['"]/g)].map((m) => m[1]),
+		];
+		for (const s of specs) {
+			const bare = String(s).replace(/^node:/, '');
+			if (String(s).startsWith('node:') || HOST_ONLY.includes(bare)) out.push({ path, token: s });
+		}
+	}
+	return out;
+};
+
 /** 纯函数③：壳文件里对 `stories/**` 的写入 ⇒ 问题（单一写路 ✓）。 */
 export const shellWriteProblems = (files) => {
 	const out = [];
@@ -102,6 +130,10 @@ if (process.argv.includes('--selftest')) {
 		['边界·core 内部自己定义 ⇒ 不报', secondCopyProblems(definitionsOf([['editor/lib/core/x.mjs', 'export const compile = () => 1;\n']]), ['compile'], 'editor/lib/core').length === 0],
 		['🔴 反例·壳里写 stories/** ⇒ 报（单一写路）', shellWriteProblems([['cli.mjs', "writeFileSync('stories/x/15-tables.twee', t)"]]).length === 1],
 		['边界·壳里只读不写 ⇒ 不报', shellWriteProblems([['cli.mjs', "readFileSync('stories/x/15-tables.twee')"]]).length === 0],
+		['🔴 反例·core 里 import `node:fs` ⇒ 报（内核碰宿主 ✗）', coreHostProblems([['editor/lib/core/a.mjs', "import { readFileSync } from 'node:fs';\n"]]).length === 1],
+		['🔴 反例·core 里裸写 「from fs」（不带 node: 前缀）⇒ 也报', coreHostProblems([['editor/lib/core/a.mjs', "import x from 'vm';\n"]]).length === 1],
+		['正例·core 里只 import 同行模块 ⇒ 不报', coreHostProblems([['editor/lib/core/a.mjs', "import { t } from './text.mjs';\n"]]).length === 0],
+		['边界·**注释里**提 `node:fs` ⇒ 不报（先遮注释 ✓；注意遮蔽器必须只遮注释 ✗ 不能连字符串一起遮）', coreHostProblems([['editor/lib/core/a.mjs', "// 这里不用 node:fs\nexport const x = 1;\n"]]).length === 0],
 	];
 	for (const [label, cond] of cases) { if (cond) console.log(`  ✓ 自证·${label}`); else { bad++; console.error(`  ✗ 自证·${label}`); } }
 	if (bad) { console.error(`\n✗ 自证未通过（${bad} 项）`); process.exit(1); }
@@ -120,6 +152,14 @@ if (dups.length) for (const d of dups.slice(0, 8)) console.error(`  ✗ 导出�
 ok('① 导出能力只许一处定义', dups.length === 0, `重复 ${dups.length} 项`);
 
 const coreStarted = existsSync(CORE);
+// ③ **内核不许碰宿主**（`#794` 第 3 步）：`lib/core/**` 里出现 `node:*`／裸宿主模块名 ⇒ 红 ✓
+//（“浏览器安全”只有机检得住 ✓；今天 `core` 是干净的 ⇒ 它是**纯红**判据、不需登记表 ✓）。
+if (coreStarted) {
+	const coreOnly = mjsFiles(CORE).map((p) => [p.slice(ROOT.length + 1), readFileSync(p, 'utf8')]);
+	const hostHits = coreHostProblems(coreOnly);
+	for (const h of hostHits.slice(0, 8)) console.error(`  ✗ 内核文件「${h.path}」引了宿主能力「${h.token}」⇒ 破坏了浏览器安全 ✗（应经 **注入的宿主能力** 取 ✓）`);
+	ok('③ 内核不碰宿主（`lib/core/**` 无 `node:*`／裸宿主模块）', hostHits.length === 0, `core ${coreOnly.length} 个文件 · 命中 ${hostHits.length}`);
+} else console.log('  · `editor/lib/core` **尚未出现** ⇒ 判据③ 暂无对象（留痕 ✓，抽取落地后自动生效 ✓）');
 // ①b：`lib/core` 出现后 —— core 导出的能力**不许在 core 之外再被定义**（含非导出副本 ✗，抄的人往往不导出 ✓）
 if (coreStarted) {
 	const coreFiles = mjsFiles(CORE).map((p) => p.slice(ROOT.length + 1));

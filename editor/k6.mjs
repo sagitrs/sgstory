@@ -99,13 +99,18 @@ export const coreHostProblems = (files) => {
 	for (const [path, text] of files) {
 		const t = stripCommentsForScan(text);
 		const specs = [
-			...[...t.matchAll(/\bfrom\s+['"]([^'"]+)['"]/g)].map((m) => m[1]),
-			...[...t.matchAll(/\bimport\s+['"]([^'"]+)['"]/g)].map((m) => m[1]),
-			...[...t.matchAll(/\brequire\(\s*['"]([^'"]+)['"]/g)].map((m) => m[1]),
+			...[...t.matchAll(/\bfrom\s+['"]([^'"]+)['"]/g)].map((m) => [m[1], m.index]),
+			...[...t.matchAll(/\bimport\s+['"]([^'"]+)['"]/g)].map((m) => [m[1], m.index]),
+			// **动态形也要挡** ✗（**函数级实测**才会发现它 ✓ —— 只读代码看不出来 ✓）：`import(` 与 `import (` **都要** —— `\s*\(` 允许中间空白 ✓
+			//（我第一版只写紧接括号 ⇒ 带空格的写法会被漏 ✗，后续修复修正了这点 ✓）。
+			...[...t.matchAll(/\bimport\s*\(\s*['"]([^'"]+)['"]/g)].map((m) => [m[1], m.index]),
+			...[...t.matchAll(/\brequire\(\s*['"]([^'"]+)['"]/g)].map((m) => [m[1], m.index]),
 		];
-		for (const s of specs) {
+		for (const [s, at] of specs) {
 			const bare = String(s).replace(/^node:/, '');
-			if (String(s).startsWith('node:') || HOST_ONLY.includes(bare)) out.push({ path, token: s });
+			// **豁免面写死** ✓：只被主流程对 `lib/core` 调用 ✓（`lib/host/**` 本来就该碰 fs/vm/child_process ✓）；
+			// 也**不得**把扫描面放宽到 `editor/lib/**` ✗（会误报 `lib/host/literals.mjs` 的 `node:vm` ✓——那是合法的 ✓）。
+			if (String(s).startsWith('node:') || HOST_ONLY.includes(bare)) out.push({ path, token: s, line: t.slice(0, at).split('\n').length });
 		}
 	}
 	return out;
@@ -131,9 +136,12 @@ if (process.argv.includes('--selftest')) {
 		['🔴 反例·壳里写 stories/** ⇒ 报（单一写路）', shellWriteProblems([['cli.mjs', "writeFileSync('stories/x/15-tables.twee', t)"]]).length === 1],
 		['边界·壳里只读不写 ⇒ 不报', shellWriteProblems([['cli.mjs', "readFileSync('stories/x/15-tables.twee')"]]).length === 0],
 		['🔴 反例·core 里 import `node:fs` ⇒ 报（内核碰宿主 ✗）', coreHostProblems([['editor/lib/core/a.mjs', "import { readFileSync } from 'node:fs';\n"]]).length === 1],
-		['🔴 反例·core 里裸写 「from fs」（不带 node: 前缀）⇒ 也报', coreHostProblems([['editor/lib/core/a.mjs', "import x from 'vm';\n"]]).length === 1],
+		['🔴 反例·core 里 **动态** import ⇒ 报（只挡静态等于只挡一半 ✗）', coreHostProblems([['editor/lib/core/a.mjs', "const fs = await import('node:child_process');\n"]]).length === 1],
+		['🔴 反例·**带空格**的动态形 ⇒ 也必须报（只写紧接括号会漏它 ✗）', coreHostProblems([['editor/lib/core/a.mjs', "const fs = await import ( 'node:fs' );\n"]]).length === 1],
+		['③ 命中必须**点名行号**（判据要点到位 ✓）', (coreHostProblems([['editor/lib/core/a.mjs', "// x\nimport { readFileSync } from 'node:fs';\n"]])[0] ?? {}).line === 2],
+		['🔴 反例·core 里裸写 「from vm」（不带 node: 前缀）⇒ 也报', coreHostProblems([['editor/lib/core/a.mjs', "import x from 'vm';\n"]]).length === 1],
 		['正例·core 里只 import 同行模块 ⇒ 不报', coreHostProblems([['editor/lib/core/a.mjs', "import { t } from './text.mjs';\n"]]).length === 0],
-		['边界·**注释里**提 `node:fs` ⇒ 不报（先遮注释 ✓；注意遮蔽器必须只遮注释 ✗ 不能连字符串一起遮）', coreHostProblems([['editor/lib/core/a.mjs', "// 这里不用 node:fs\nexport const x = 1;\n"]]).length === 0],
+		['边界·**注释里**提 `node:fs` ⇒ 不报（先遮注释 ✓；遮蔽器必须只遮注释 ✗ 不能连字符串一起遮）', coreHostProblems([['editor/lib/core/a.mjs', "// 这里不用 node:fs\nexport const x = 1;\n"]]).length === 0],
 	];
 	for (const [label, cond] of cases) { if (cond) console.log(`  ✓ 自证·${label}`); else { bad++; console.error(`  ✗ 自证·${label}`); } }
 	if (bad) { console.error(`\n✗ 自证未通过（${bad} 项）`); process.exit(1); }
@@ -157,7 +165,7 @@ const coreStarted = existsSync(CORE);
 if (coreStarted) {
 	const coreOnly = mjsFiles(CORE).map((p) => [p.slice(ROOT.length + 1), readFileSync(p, 'utf8')]);
 	const hostHits = coreHostProblems(coreOnly);
-	for (const h of hostHits.slice(0, 8)) console.error(`  ✗ 内核文件「${h.path}」引了宿主能力「${h.token}」⇒ 破坏了浏览器安全 ✗（应经 **注入的宿主能力** 取 ✓）`);
+	for (const h of hostHits.slice(0, 8)) console.error(`  ✗ 内核文件「${h.path}:${h.line}」引了宿主能力「${h.token}」⇒ 破坏了浏览器安全 ✗（应经 **注入的宿主能力** 取 ✓）`);
 	ok('③ 内核不碰宿主（`lib/core/**` 无 `node:*`／裸宿主模块）', hostHits.length === 0, `core ${coreOnly.length} 个文件 · 命中 ${hostHits.length}`);
 } else console.log('  · `editor/lib/core` **尚未出现** ⇒ 判据③ 暂无对象（留痕 ✓，抽取落地后自动生效 ✓）');
 // ①b：`lib/core` 出现后 —— core 导出的能力**不许在 core 之外再被定义**（含非导出副本 ✗，抄的人往往不导出 ✓）

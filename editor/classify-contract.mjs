@@ -45,6 +45,39 @@ export { fbEnum, classify };
 import { resolveLocalConst } from './lib/host/sandbox.mjs';
 export { resolveLocalConst };
 
+/** **成员分类（可单测的缝）** ✓：吃“数据面**原文** ＋ 逃生舱文本” ⇒ 出 `{ sites, stray, members, rows, locals, hatchMembers }` ✓。
+ *  为什么抽出来 ✓：`fileText` 那条路径（`() => <局部常量>` ⇒ `resolveLocalConst(fileText, …)`）在三个故事**都已翻面**后
+ *  **没有活样本** ✗ ⇒ 不抽成函数就**只能靠往仓里塞临时夹具**才能覆盖 ✗（会污染工作区 ✓）。
+ *  抽成函数后：`fileText` 是**形参** ✓ ⇒ 原先那处“变量没定义 ⇒ `ReferenceError`”的形态**结构上不可能**再出现 ✓，
+ *  且该路径可在**不需要任何夹具文件**的前提下被自证驱动 ✓。
+ *  ⚠️ fixture 注意：本函数里 `resolveLocalConst` 会**跑**那段文本 ⇒ 文本自身要把沙箱依赖备好 ✓
+ *  （如 `window.Sg = { story: {} };` ✓）—— 否则 `Object.assign((window.Sg.story ??= …))` 抛错 ⇒ 落 catch ⇒ 判 B ✓（**量不出真因** ✗）。 */
+export const classifyContractText = ({ fileText = '', siteText = null, hatchTexts = [] } = {}) => {
+	// ⚠️ **两个文本不能混**（我上一版混成一个 ⇒ 真回归 ✗，被 ④ 档读数当场抓到 ✓）：
+	//   `siteText`＝**扫站点**用的文本（原来是 `tableSrc` ✓ —— 已翻面故事里它**是空串** ⇒ 只扫手写逃生舱 ✓）；
+	//   `fileText`＝**求值**用的原文（`resolveLocalConst` 要能看到 `const MECH = …` ✓）。
+	//   混用后：翻面故事会把**产物**当手写源扫 ⇒ 成员数 2 → 25 ✗（输出面变化 ⇒ 只有"旧 main vs 新 head"能看见 ✓）。
+	const allText = [siteText ?? fileText, ...hatchTexts].join('\n');
+	const { sites, stray } = contractSites(allText);
+	const members = sites.flatMap((s2) => s2.members);
+	// **局部常量 ⇒ 成员名**（`#787`）：`mechanics: () => MECH` 这类成员把局部常量放进了契约 ⇒ 其它成员引用它时才可表达。
+	const locals = new Map();
+	const hatchMembers = new Set(contractMembers(hatchTexts.join('\n')).map((m) => m.name));
+	for (const m of members) {
+		const ref = /^\(\) => ([A-Za-z_$][\w$]*)$/.exec(m.src.replace(/\s+/g, ' ').trim());
+		if (ref) locals.set(ref[1], m.name);
+	}
+	const rows = members.map((m) => {
+		const c = classify(m.src, { locals });
+		if (c.bucket === 'B' && c.kind === 'const' && c.spec?.ref) {
+			const value = resolveLocalConst(fileText, 'Game Tables', c.spec.ref);
+			if (value !== undefined && value !== null) return { name: m.name, src: m.src, bucket: 'A', kind: 'const', spec: { value }, resolvedFrom: c.spec.ref };
+		}
+		return { name: m.name, src: m.src, ...c };
+	});
+	return { sites, stray, members, rows, locals, hatchMembers };
+};
+
 const selftest = () => {
 	let bad = 0;
 	let n = 0;
@@ -115,6 +148,16 @@ const selftest = () => {
 		const v = resolveLocalConst(":: Game Tables [script]\nconst MECH = { a: 1, b: [2] };\n", 'Game Tables', 'MECH');
 		return v && v.a === 1 && Array.isArray(v.b) && v.b[0] === 2;
 	})());
+	// `#794` 第 32 例（复核席 `#819` 记的验收项 (b) ✓）：**驱动那条缝** ⇒ 覆盖 `fileText` 那条路径。
+	// 为什么只能这样做：三个故事都翻面后，"手写契约 ＋ `() => 局部常量`"**没有活样本** ✗ ⇒
+	// 靠"往仓里塞夹具文件"会污染工作区 ✗ ⇒ 只有把分类体抽成函数（`fileText` 是**形参** ✓）才能无文件覆盖 ✓。
+	// ⚠️ 夹具**自带** `window.Sg = { story: {} };` ✓ —— 否则 `resolveLocalConst` 跑它时 `Object.assign` 抛错 ⇒ 落 catch ⇒ 判 B ✗（**量不出真因** ✗，我踩过 ✓）。
+	t('缝 `classifyContractText`：`mechanics: () => MECH` ⇒ 经 `fileText` 解析后**落 A**（值也取到 ✓）', (() => {
+		const src = [":: Game Tables [script]", "window.Sg = { story: {} };", "const MECH = { a: 1, b: [2] };", "Object.assign(window.Sg.story, { mechanics: () => MECH });", ""].join('\n');
+		const { rows } = classifyContractText({ fileText: src });
+		const r = rows.find((x) => x.name === 'mechanics');
+		return !!r && r.bucket === 'A' && r.spec?.value?.a === 1 && Array.isArray(r.spec.value.b) && r.spec.value.b[0] === 2;
+	})());
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
 	console.log(`\n✔ 自证通过（${n} 例：8 个 kind 形状 ＋ A/B/C/D 四桶分界 ＋ 两条捕获组陷阱回归 ＋ 成员切分）`);
 };
@@ -132,6 +175,9 @@ const main = () => {
 	const slug = process.argv[2];
 	if (!slug) { console.error('用法：node editor/classify-contract.mjs <slug> [--json]'); process.exit(2); }
 	const file = join(ROOT, argOf('from', `stories/${slug}/15-tables.twee`));
+	// `#794`：**输入缺失 ⇒ 单独一条** ✗ —— 实测：不存在的路径原先被报成"里面**找不到 Sg.story 成员**" ✓，
+	// 方向对（不静默 ✓）但**归因错** ✗（读的人会去查契约 ✗，而真因是**文件不在** ✓）⇒ 与 `extract-story` 同口径 ✓。
+	if (!existsSync(file)) { console.error(`✗ 读不到输入：${file}（文件不存在）—— "读不到输入"不许当"没有故事逻辑"`); process.exit(1); }
 	// 契约源＝**手写的**数据面文件（`15-tables.twee`）＋ 登记过的手写逃生舱文件。
 	// ⚠️ 已翻面的故事里 `15-tables.twee` 是**产物**（带生成标记）⇒ **不能**分类它：发射后的代码形状会得到
 	// "假欠账"（实测：`template` 那种被判 B）⇒ 那种情况下只剩逃生舱文件是手写源（与 K4 同一口径）。
@@ -144,27 +190,13 @@ const main = () => {
 	if (!tableSrc) console.log(`  · ${slug}：\`15-tables.twee\` 已是**产物**（带生成标记）⇒ 契约面已由 \`data/\` 承载；本次只判**手写逃生舱文件** ✓`);
 	const hatchFilesOf = hatchFiles(slug);
 	const hatchTexts = hatchFilesOf.map((f) => readFileSync(f, 'utf8'));
-	const allText = [tableSrc, ...hatchTexts].join('\n');
-	const { sites, stray } = contractSites(allText);
-	const members = sites.flatMap((s2) => s2.members);
+	// `#794`：分类体已抽成**可单测的缝** ✓ `classifyContractText({ fileText, hatchTexts })`（见文件中部 ✓）。
+	const { sites, stray, members, rows, hatchMembers } = classifyContractText({ fileText, siteText: tableSrc, hatchTexts });
 	if (!members.length) { console.error(`✗ ${file} 里找不到 Sg.story 成员（读不到输入不许当"没有故事逻辑"）`); process.exit(1); }
 	if (stray.length) { console.error(`✗ ${file} 里还有**未被识别的** Sg.story 写法（${stray.join(' · ')}）—— 多站点合并只认 Object.assign 形态，其余必须点名而不是静默漏掉`); process.exit(1); }
 	console.log(`（站点 ${sites.length} 处：${sites.map((s2) => s2.members.length + ' 名成员').join(' ＋ ')}${hatchTexts.length ? ` · 含手写逃生舱文件 ${hatchFiles(slug).map((f) => f.split('/').pop()).join('、')}` : ''}）`);
 	// **局部常量 ⇒ 成员名**（`#787`）：`mechanics: () => MECH` 这类成员把局部常量放进了契约 ⇒ 其它成员引用它时才可表达。
-	const locals = new Map();
-	const hatchMembers = new Set(contractMembers(hatchTexts.join('\n')).map((m) => m.name));
-	for (const m of members) {
-		const ref = /^\(\) => ([A-Za-z_$][\w$]*)$/.exec(m.src.replace(/\s+/g, ' ').trim());
-		if (ref) locals.set(ref[1], m.name);
-	}
-	const rows = members.map((m) => {
-		const c = classify(m.src, { locals });
-		if (c.bucket === 'B' && c.kind === 'const' && c.spec?.ref) {
-			const value = resolveLocalConst(fileText, 'Game Tables', c.spec.ref);
-			if (value !== undefined && value !== null) return { name: m.name, src: m.src, bucket: 'A', kind: 'const', spec: { value }, resolvedFrom: c.spec.ref };
-		}
-		return { name: m.name, src: m.src, ...c };
-	});
+	// （此段已归入上面那条**可单测的缝** `classifyContractText` ✓ —— 见文件中部 ✓）
 	const bucket = (b) => rows.filter((r) => r.bucket === b);
 	console.log(`══ 契约分类（${slug}）：${rows.length} 个成员 ══`);
 	for (const r of rows) {

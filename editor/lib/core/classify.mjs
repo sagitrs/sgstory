@@ -113,7 +113,15 @@ export const makeClassify = ({ evalLiteral } = {}) => {
 			return A('state-ref', { path: state[2], default: d });
 		}
 		const paren = /^\(\) => \((.*)\)$/.exec(s);              // `() => ({…})` / `() => ([…])`
-		if (paren && /^[{\[]/.test(paren[1].trim())) { const v = literalValue(paren[1]); return v === undefined ? B('const', { src: paren[1].trim() }, '字面量解析不出（含变量/插值？）⇒ 需人工') : A('const', { value: v }); }
+		// `#785`：体里**含函数字面量** ⇒ 那是**任意逻辑** ⇒ 声明式**不可预见** ✗ ⇒ 按四桶定义应落 **C**（"上面都装不下"）
+		//   而不是 **B**（B ＝"形状能看懂、只缺字段/种类，**可预见**" ✗）。实测形态：`() => ({ 'a': { apply: (pc)=>… } })`
+		//   （per-field hooks ＋ 读游戏状态的闭包 ✓）。⇒ 未含函数字面量者（值引不进来／插值）**仍判 B** ✓（那是可预见缺口 ✓）。
+		if (paren && /^[{\[]/.test(paren[1].trim())) {
+			const v = literalValue(paren[1]);
+			if (v !== undefined) return A('const', { value: v });
+			if (/=>|\bfunction\b/.test(paren[1])) return C('per-field hooks / 闭包体（含函数字面量）⇒ 任意逻辑，声明式不可预见 ⇒ 真逃生舱候选');
+			return B('const', { src: s }, '字面量解析不出 ⇒ 需人工');
+		}
 		if (/^\(\) => (\{.*\}|\[.*\]|null|true|false|-?\d+(\.\d+)?|'[^']*'|`[^`]*`)$/.test(s)) {
 			const v = literalValue(s.replace(/^\(\) => /, ''));
 			return v === undefined ? B('const', { src: s }, '字面量解析不出 ⇒ 需人工') : A('const', { value: v });

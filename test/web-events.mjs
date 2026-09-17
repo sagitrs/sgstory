@@ -91,6 +91,8 @@ throwsWith('防卫：包里没有 rows ⇒ 抛 ✗', () => editEventField({ pkg:
 	throwsWith2('类型守卫：list 字段给字符串 ⇒ 抛 ✗', () => editEvent({ pkg, id: target.id, fields: { [listField]: 'not-an-array' } }), '字段类型不合');
 	throwsWith2('类型守卫：prio 给字符串 ⇒ 抛 ✗', () => editEvent({ pkg, id: target.id, fields: { prio: '10' } }), '字段类型不合');
 	throwsWith2('防空编辑：`fields` 为空 ⇒ 抛 ✗', () => editEvent({ pkg, id: target.id, fields: {} }), '没改到东西');
+	const sameAll = Object.fromEntries(Object.entries(target.raw).filter(([k]) => k !== 'id'));
+	throwsWith2('防空编辑：**全部字段给原值** ⇒ 抛 ✗（整事件一层 ✓）', () => editEvent({ pkg, id: target.id, fields: sameAll }), '一个字段都没变');
 }
 
 // ── `--selftest`：假包驱动同一判定 ✓

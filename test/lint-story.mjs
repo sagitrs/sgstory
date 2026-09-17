@@ -62,5 +62,21 @@ try {
 	} finally { rm(probe2, { recursive: true, force: true }); }
 }
 
+// ⑤ 前置 finding：缺 dist 时给"缺前置"而不是"门红"（红要讲人话）
+{
+	const rd = spawnSync('node', ['editor/lint-story.mjs', 'minimal-demo', '--json', '--dist=/nonexistent/dist/index.html'], { cwd: ROOT, encoding: 'utf8' });
+	let dd = null; try { dd = JSON.parse(rd.stdout); } catch {}
+	const pf = dd?.findings?.find((f) => f.step === 'precondition');
+	case_('前置 finding：缺 dist ⇒ step=precondition 且文案含"前置缺失"',
+		rd.status === 1 && !!pf && !pf.ok && /前置缺失/.test(pf.detail), `status=${rd.status} step=${pf?.step}`);
+}
+// ⑥ 有 dist 时不误报前置（默认路径存在 ⇒ 走到真判据）
+{
+	const rg = spawnSync('node', ['editor/lint-story.mjs', 'minimal-demo', '--json'], { cwd: ROOT, encoding: 'utf8' });
+	let dg = null; try { dg = JSON.parse(rg.stdout); } catch {}
+	case_('有 dist ⇒ 无 precondition 失败项', !dg?.findings?.some((f) => f.step === 'precondition' && !f.ok),
+		`findings=${dg?.findings?.length}`);
+}
+
 if (bad) { console.error(`\n✗ lint-story 自证门：${bad} 条未过`); process.exit(1); }
 console.log('\n✔ lint-story 自证门通过（正例 1 · 反例 2 · 无残留）');

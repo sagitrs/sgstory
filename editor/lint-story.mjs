@@ -17,7 +17,7 @@
 //     ⑤ 形状：test/story-shape.mjs（真实契约＋六条自证，仓既有门）
 //   未数据化的故事（无 data/）＝ **红**（理由：未数据化）——不是跳过：lint 的对象就是数据包。
 import { readFileSync, existsSync, rmSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
@@ -89,11 +89,27 @@ const main = async () => {
 	rmSync(snap, { recursive: true, force: true });
 	ok('编译 ＋ 幂等（两次产物逐字节相同）');
 
-	// ── ③ 等价（L1/L3）──
+	// ── ③ 等价（L1/L3）——**必须显式给冻结基线** ──
+	// ⚠️ 裸调 `equiv <slug>` 在**已翻面**的故事上比的不是等价 ✗：默认 `--hand`＝`stories/<slug>/15-tables.twee`
+	//   而它**已是产物**（带 `@generated`）⇒ 量到的是"**产物 vs 当场重编产物**"（＝K4-④ 那条新鲜度面 ✓，
+	//   另有门把守 ✓），却会被读成"等价通过" ✗ —— 即**零信息通过** ✗（实测：两条故事裸跑 rc=0，什么都没查 ✓）。
+	//   ⇒ 有冻结基线就**显式给**（`gates/equiv-baseline/15-tables.twee.txt` ⇒ 真·手写 vs 生成 ✓）；
+	//   L3 用 **report** 档 ✓（`equiv` 默认 `hard` ⇒ 翻面故事会因注入注释/空白差异**假红** ✗ —— 与 CI 那几条
+	//   `--l3=report` 的口径一致 ✓；L1 仍是权威面 ✓）。
 	step = 'equiv';
-	const req = sh('node', ['editor/equiv.mjs', slug]);
-	if (req.status !== 0) fail(`等价判据未过（L1/L3）：\n${(req.stdout || req.stderr || '').slice(0, 800)}`);
-	ok('等价（L1 结构/行为 ＋ L3 剥注释形式）');
+	let equivDegraded = false;   // 收尾那行照实报（"通过"里**不许**把降级说成查过了 ✗ —— 声称与读数对齐）
+	const baseline = join(dir, 'gates', 'equiv-baseline', '15-tables.twee.txt');
+	if (existsSync(baseline)) {
+		const req = sh('node', ['editor/equiv.mjs', slug, `--hand=${relative(ROOT, baseline)}`, '--l3=report']);
+		if (req.status !== 0) fail(`等价判据未过（L1 权威 ＋ L3 report）：\n${(req.stdout || req.stderr || '').slice(0, 800)}`);
+		ok('等价（L1 结构/多实参行为 vs **冻结基线** ＋ L3 剥注释形式·report 档）');
+	} else {
+		// **显式降级**（不许沉默通过 ✗）：没有该模式的冻结基线 ⇒ 本步**不查等价** ✓
+		const detail = `降级：无冻结基线（gates/equiv-baseline/15-tables.twee.txt 不存在）⇒ 本步**未查等价** ✗（新鲜度面由 K4 门另行把守，不在本工具步骤内）`;
+		equivDegraded = true;
+		say(`  · ${slug}：${detail} —— 这是**状态**，不是"没问题" ✓`);
+		findings.push({ step, ok: true, detail });
+	}
 
 	// ── ④ 门：本故事自己的门，经 audit 原路径（同结论保证＝同一调用面，零重实现）──
 	const { gatesForStory } = await import(join(ROOT, 'scripts/audit/discovery.mjs'));
@@ -117,7 +133,7 @@ const main = async () => {
 	if (rs.status !== 0) fail(`story-shape 门红：\n${(rs.stdout || rs.stderr || '').slice(0, 600)}`);
 	ok('story-shape 门');
 
-	say(`\n✔ lint-story：${slug} 通过（包形状 · 编译幂等 · 等价 · 门 ×${flags.length} · 形状）`);
+	say(`\n✔ lint-story：${slug} 通过（包形状 · 编译幂等 · ${equivDegraded ? '等价**降级**（无冻结基线 ⇒ 未查，见上 ✓）' : '等价'} · 门 ×${flags.length} · 形状）`);
 	emit(0);
 };
 

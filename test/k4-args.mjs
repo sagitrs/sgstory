@@ -43,5 +43,19 @@ for (const extra of ['minimal-demo', '--json', 'nosuchstory']) {
 	}
 }
 
+// `#847`：`--selfcheck` 是**壳级**选项（六个工具同一口径 ✓）⇒ cli 路要**指路**（不是通用用法行 ✓）。
+//   ① 工具路：正例对照 ⇒ 必须**照跑自证**（rc=0 ♢ 输出里有自证通过行 ✓）；
+//   ② cli 路：⇒ rc=2 ✓ **且**报文点名"自证只在工具路"（＝可读的指路 ✓，不是一句 usage ✗）。
+{
+	const rTool = run(['editor/k4.mjs', '--selfcheck']);
+	case_('正例·工具路 --selfcheck ⇒ rc=0 且真跑了自证', rTool.status === 0 && /自证通过/.test(rTool.stdout), `rc=${rTool.status}`);
+	const rCli = run(['editor/cli.mjs', 'k4', '--selfcheck']);
+	case_(
+		'反例·cli 路 --selfcheck ⇒ rc=2 且**指路**（点名工具路）',
+		rCli.status === 2 && /自证只在工具路/.test(rCli.stderr),
+		`rc=${rCli.status} 报文=${(rCli.stderr || '').slice(0, 60)}`,
+	);
+}
+
 if (bad) { console.error(`\n✗ k4 参数自证：${bad} 条未过`); process.exit(1); }
-console.log('\n✔ k4 参数自证通过（正例 2 × 裸调 ＋ 反例 6 × 多余参数，两条入口各半）');
+console.log('\n✔ k4 参数自证通过（裸调正例 2 ＋ 多余参数反例 6 ＋ `--selfcheck` 指路 2：工具路正例对照 ＋ cli 路指路）');

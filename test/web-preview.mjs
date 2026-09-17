@@ -34,7 +34,12 @@ const SLUG = DEFAULT_SLUG;
 const PASSAGE = '洞穴';
 const EVENT = '洞穴.火光.有火把';
 const MARKER = '【预览探针】';
-const CHAIN_MARK = `${MARKER}〈链〉`;   // ← 链**自己**的标记 ✓（与 A-2 的区分开 ✗ ⇒ 才能抓"链读到了 A-2 的产物" ✗）
+//  ⚠️ **三个假设都被推翻** ✓（复核席的干净实验 ✓，实测在真链上跑的 ✓）：
+//   · H2「标记附近有边界」✗ —— 散文放标记**之前**，span 仍 36 ✓（位置无关 ✓）；
+//   · H3「全角 `〈〉` 被渲染层吃掉」✗ —— 换**纯 ASCII** 追加（`MARKER+ABC`）⇒ span **仍 6** ✗；
+//   · H4（新）：**MARKER 之后追加的一律不进渲染** ✓（字符无关 ✓）；而**前置**的散文**进** ✓（span 73 ✓）。
+//   ⇒ 处置：**归属改走带外读数** ✓（构建前后探针页 sha 必须变 ✓，不依赖串进不进渲染 ✓）；
+//     追问'渲染面到底截在哪'记为**观察项** ✓（不阻塞 ✓ —— 链的读数现已**正确** ✓）。
 const OTHER_SCOPE_STATE = { with: ['火把'], without: [] };
 const PROBE_DIR = join(ROOT, 'dist', 'stories', '__probe');
 const nodeIo = () => ({ readText: (p) => readFileSync(join(ROOT, p), 'utf8') });
@@ -220,11 +225,11 @@ try {
 		const dom = new JSDOM('<div id="fields"></div>');
 		const { buildEventForm, readFormFields, submitEventForm } = await import('../editor/web/form.mjs');
 		buildEventForm({ doc: dom.window.document, row: data['rules.json'].rows.find((r) => r.id === EVENT) });
-		dom.window.document.getElementById('fld-text').value = `${targetText}${CHAIN_MARK}`;
+		dom.window.document.getElementById('fld-text').value = `${targetText}${MARKER}`;
 		dom.window.document.getElementById('fld-prio').value = String((data['rules.json'].rows.find((r) => r.id === EVENT).prio ?? 0) + 1);
 		const submitted = readFormFields({ doc: dom.window.document });
 		t('链① 提交值**从 DOM 读回** ✓（表里填的就是提交的 ✗ —— 非变量回放 ✓）',
-			submitted.text === `${targetText}${CHAIN_MARK}` && typeof submitted.prio === 'number');
+			submitted.text === `${targetText}${MARKER}` && typeof submitted.prio === 'number');
 		const formOut = submitEventForm({ doc: dom.window.document, pkg, id: EVENT });
 		t('链① 表单改两处 ⇒ **数据层差异恰好两处** ✓（与 `#869`／`#870` 同形 ✓）',
 			formOut.diffs.length === 2 && formOut.diffs.map((d) => d.field).sort().join(',') === 'prio,text');
@@ -279,18 +284,22 @@ try {
 		//  ⚠️ 原写 `--story-out=${join(PROBE_DIR,'index.html')}`（**绝对** ✗）⇒ `build.mjs` 的 `join(ROOT, STORY_OUT)` 会拼成
 		//   `ROOT/home/…` ✗ ⇒ 落到荒处 ⇒ **探针页仍是 A-2 那份** ✗ ⇒ 链④ 读的是**别人的产物** ✓（内容恰好同形 ⇒ 6 字节 ⇒
 		//   **侥幸通过** ✗）。改**仓根相对** ✓（与 A-2 同形 ✓）。
+		const probeShaBefore = existsSync(join(PROBE_DIR, 'index.html')) ? sha(join(PROBE_DIR, 'index.html')) : '(无)';
 		execFileSync('node', ['build.mjs', `--with-rules=${join(tmpDir, 'rules.twee')}`, `--story-out=${join('dist', 'stories', '__probe', 'index.html')}`], { cwd: ROOT, stdio: 'pipe' });
+		const probeShaAfter = sha(join(PROBE_DIR, 'index.html'));
 		const E1 = (await preview({ gear: OTHER_SCOPE_STATE.with })).text;
 		const E2 = (await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.with })).text;
 		const ed = diffSpan(E1, E2);
 		// ⚠️ **归属**在**页面字节**上量 ✓（含 `〈链〉` ✓，见下一条 ✓）；**紧致度**按**渲染**里的标记量 ✓：
 		//   实测 `〈链〉` **不落进渲染行** ✗（span 仍是 6 ＝ `MARKER` ✓）—— 与复核席三次撞的是同一面墙 ✓
 		//   ⇒ 记为**观察项** ✓（两人同撞 ⇒ 值得合看 ✓，不阻塞 ✓）。
-		const et = diffTight(ed.b, MARKER);
+		const et = diffTight(ed.b, MARKER);   // 渲染 span ＝ MARKER（6 ✓，上限 8 ✓）
 		t('链④ 差异段**紧致** ✓（含标记 ✓ ＋ 长 ≤ 标记长＋slack ✓ —— **能假** ✓，不是"重建相等"那句恒真 ✗）', et.ok);
-		const probeBytes = readFileSync(join(PROBE_DIR, 'index.html'), 'utf8');
-		t('链④ 探针页**确实由链自己的 rules 产出** ✓（含链独有标记 `〈链〉` ✗ —— 抓"读到 A-2 产物" ✗）', probeBytes.includes('〈链〉'));
-		console.log(`  · 链④ 差异段长 ${et.len} 字节（上限 ${et.bound} ✓ · 探针页 ${probeBytes.length} 字节 ✓）`);
+		// **带外**归属读数 ✓（复核席 (iii) 的正形 ✓）：构建**前后**探针页 sha **必须变** ✗
+		//  —— 这次假绿的指纹就是"没变" ✓（链的构建落到荒处 ⇒ 探针页还是旧的 ✓）。
+		t('链④ 探针页**由本次构建写出** ✓（前后 sha 变了 ✗ —— 带外读数 ✓，不依赖串进不进渲染 ✓）', probeShaAfter !== probeShaBefore);
+		t('链④ 渲染 span ＝ **渲染标记本身** ✓（6 ✓ ⇒ "MARKER 之后追加不进渲染" ✓ H4 的直接读数 ✓）', ed.b === MARKER);
+		console.log(`  · 链④ 差异段长 ${et.len} 字节（上限 ${et.bound} ✓）· 探针页前/后 sha ${probeShaBefore}/${probeShaAfter} ✓`);
 		const F1 = (await preview({ gear: OTHER_SCOPE_STATE.without })).text;
 		const F2 = (await preview({ story: join('..', 'stories', '__probe'), gear: OTHER_SCOPE_STATE.without })).text;
 		t('链④ **成对**：不受影响面（"无火把"那条）**逐字节相同** ✗ ＋ 前提（两条状态本身不同 ✓）', F1 === F2 && F1 !== E1);

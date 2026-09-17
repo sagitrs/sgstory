@@ -28,6 +28,8 @@ export { engineScripts, ENGINE_CONST, ROOT };
 
 // `runStory`（vm 沙箱）已抽到 `editor/lib/host/sandbox.mjs` ✓（命令体与自证共用同一具身体 ✓）。
 import { runStory, engineOf } from './lib/host/sandbox.mjs';
+// `#794`：命令体（解析 → 抽取 → 写产物 → 打印）已抽到 host，两条入口共用同一具身体 ✓。
+import { extractCommand } from './lib/host/commands.mjs';
 import { sectionFile } from './lib/core/story.mjs';
 export { runStory, engineOf, sectionFile };
 
@@ -55,8 +57,12 @@ const selftest = () => {
 		const two = JSON.stringify({ section: 's', key: 'k', rows: JSON.parse(JSON.stringify(rows)) }, null, '\t');
 		return one === two;
 	})());
+	// `#794`：**自证也是这两个共享帮手的消费者** ✓ —— 复核席要求（"只有自证也是消费者，壳里才不可能留私货" ✓）；
+	// 于是插哨兵时自证必须变红 ✓（实测：本组加上之前，哨兵漏过自证 ⇒ 那条“共用”声称不成立 ✗）。
+	t('共享帮手 `sectionFile`：段落名 → 文件名映射', sectionFile('StoryRules') === '17-rules.twee' && sectionFile('Game Tables') === '15-tables.twee' && sectionFile('Nope') === 'Nope.twee');
+	t('共享帮手 `engineOf`：能读到引擎常量 ＋ 故事段', (() => { try { return engineOf('mist-forest').length > 100; } catch { return false; } })());
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过（6 例：预置承重 · 空壳不造数据 · 浏览器语义 · console 接住 · 序列化稳定）');
+	console.log('\n✔ 自证通过（8 例：预置承重 · 空壳不造数据 · 浏览器语义 · console 接住 · 序列化稳定 ＋ `sectionFile`/`engineOf` 两个共享帮手 ✓）');
 };
 
 // ⚠️ **主模块守卫**（实测踩到）：这些脚本**同时是库**（`equiv` 被 `extract` 导入、`compile` 被 `equiv` 起子进程）。
@@ -67,66 +73,12 @@ if (isMain && process.argv.includes('--selftest')) { selftest(); process.exit(0)
 
 /** `#794`：`engineOf` 已搬到 `editor/lib/host/sandbox.mjs` ✓（读文件 ⇒ 住 host ✓；命令体与自证共用 ✓）。 */
 const main = () => {
-	const slug = process.argv[2];
-	if (!slug) { console.error('用法：node editor/extract-story.mjs <slug> [--section=StoryRules] [--key=rules] [--out=<file>]'); process.exit(2); }
-	const argOf = (n, d) => { const h = process.argv.find((a) => a.startsWith(`--${n}=`)); return h ? h.slice(n.length + 3) : d; };
-	const tablesMode = process.argv.includes('--tables');
-	const section = argOf('section', tablesMode ? 'Game Tables' : 'StoryRules');
-	const key = argOf('key', 'rules');
-	const out = join(ROOT, argOf('out', tablesMode ? `stories/${slug}/data/tables.json` : `stories/${slug}/data/${key}.json`));
-	const file = join(ROOT, argOf('from', `stories/${slug}/${sectionFile(section)}`));
-	const scripts = engineScripts() + '\n' + scriptBodies(readText(file)).join('\n');
-	const { Sg, diag } = runStory(scripts);
-	if (tablesMode) {
-		// `--tables`：导出故事声明的 `Game` 面（**引擎常量 Era/Damage 不算故事数据** ⇒ 剔除）。
-		const { Game } = runStory(engineOf(slug, argOf('from', null)));
-		const containers = {}; const fns = [];
-		const walk = (v, p, put) => {
-			if (typeof v === 'function') { fns.push(p); return; }
-			if (Array.isArray(v)) { put(v.map((x, i) => { let keep; walk(x, `${p}[${i}]`, (y) => { keep = y; }); return keep; })); return; }
-			if (v && typeof v === 'object') { const o = {}; for (const [k, x] of Object.entries(v)) walk(x, `${p}.${k}`, (y) => { o[k] = y; }); put(o); return; }
-			put(v);
-		};
-		for (const [k, v] of Object.entries(Game ?? {})) { if (['Era', 'Damage', 'Consequences'].includes(k)) continue; walk(v, `Game.${k}`, (y) => { containers[k] = y; }); }
-		if (fns.length) { console.error(`✗ 故事数据面里出现**函数值**（${fns.length} 处）：${fns.slice(0, 6).join(' · ')}——数据面必须是数据（函数属契约/政策，另走 kind）`); process.exit(1); }
-		// **整块**带走 `Game.Consequences`（旧写法只带 `.engine` ⇒ `provenance`（4 条出处登记）**静默丢** ✗ ——
-		// 这是行为门（容器深度相等）抓到的，字节面／契约面都看不见：类名＝「只搬一个桶，他桶就没了」）。
-		// 新增桶 ⇒ **显式报错**（抽取器不认识就拒绝，不许静默丢 ✗）。
-		const consAll = Game?.Consequences ?? null;
-		if (consAll) {
-			const unknown = Object.keys(consAll).filter((k) => !['provenance', 'engine'].includes(k));
-			if (unknown.length) { console.error(`✗ Game.Consequences 里有抽取器**不认识**的桶：${unknown.join('、')} —— 要么加进来、要么显式说明为何不带（不许静默丢）`); process.exit(1); }
-		}
-		const cons = consAll ? { provenance: consAll.provenance ?? {}, engine: consAll.engine ?? {} } : null;
-		const payload = { section, containers, ...(cons ? { merges: [
-			{ target: 'Game.Consequences.provenance', default: { provenance: {}, engine: {} }, value: cons.provenance },
-			{ target: 'Game.Consequences.engine', default: { provenance: {}, engine: {} }, value: cons.engine },
-		] } : {}) };
-		const text = JSON.stringify(payload, null, '\t') + '\n';
-		const pkgPath = join(ROOT, packageFiles(slug).dataFile('tables.json'));
-		if (out === pkgPath) writeStoryPackage({ slug, data: { 'tables.json': text }, io: NODE_IO });
-		else { mkdirp(dirname(out)); writeText(out, text); }
-		const leaves = (v) => (v && typeof v === 'object' ? Object.values(v).reduce((n, x) => n + leaves(x), 0) : 1);
-		console.log(`✔ ${slug}：导出故事数据面 → ${out.replace(ROOT, '')}（顶层 ${Object.keys(containers).length} 键 · 叶子 ${leaves(containers)}${cons ? ' · 含 Consequences 合并' : ''}）`);
-		return;
-	}
-	const value = Sg?.story?.[key];
-	if (typeof value !== 'function') { console.error(`✗ ${file} 里没有 Sg.story.${key}（拿不到数据）`); process.exit(1); }
-	const data = value();
-	if (!Array.isArray(data) || !data.length) { console.error(`✗ Sg.story.${key}() 不是非空数组（拿不到数据＝不许当"空了"）`); process.exit(1); }
-	// ── **抽取器自己也要可复现**（审查要求）：产物是**入库的源文件** ⇒ 连抽两次必须逐字节相同。
-	// 不稳定（键序/浮点/时间戳）的症状很烦人：工作区**每次都脏**，而没人知道为什么。
-	const serialize = (rows) => JSON.stringify({ section, key, rows }, null, '\t') + '\n';
-	const again = value();
-	if (serialize(data) !== serialize(again)) {
-		console.error(`✗ 抽取器**不稳定**：连抽两次序列化不同（${serialize(data).length}B vs ${serialize(again).length}B）——产物入库后会让工作区每次都脏`);
-		process.exit(1);
-	}
-	const pkgPath2 = join(ROOT, packageFiles(slug).dataFile(`${key}.json`));
-	if (out === pkgPath2) writeStoryPackage({ slug, data: { [`${key}.json`]: serialize(data) }, io: NODE_IO });
-	else { mkdirp(dirname(out)); writeText(out, serialize(data)); }
-	console.log(`✔ ${slug}：抽出 ${data.length} 行（section=${section} key=${key}）→ ${out.replace(ROOT, '')}`);
-	for (const d of diag.slice(0, 5)) console.log(`  · 沙箱输出：${d}`);
+	// `#794`：命令体已抽成**共享函数**（`lib/host/commands.mjs` 的 `extractCommand` ✓）——
+	// 本壳只负责"转发自己的 argv ＋ 用自己的程序名渲染用法行" ✓。
+	// ⚠️ **用法行不是逐字同** ✗（复核席实测）：除程序名外还**补了两个原文漏写的真实旗标**
+	//   `[--tables] [--from=<file>]` ✓ —— 属**有意的文档补充** ✓，但**仍是面变更** ✓：
+	//   该串无任何测试/金标断言 ⇒ CI 看不见它 ✗ ⇒ 只有"旧 main vs 新 head"的读数能发现 ✓。
+	process.exit(extractCommand(process.argv.slice(2), { prog: 'node editor/extract-story.mjs', sub: '' }));
 };
 
 if (isMain) main();

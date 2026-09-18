@@ -10,7 +10,7 @@
 //      这样门在阶段推进时**不需要改判据**）。
 //   · **反沉默**：`bookkeeping` 里声明了零消费、实际却有消费点的笔记键 ⇒ 红（声明烂在那里）。
 import { readFileSync, readdirSync } from 'node:fs';
-import { readKeys, ruleRowKeys, declCondRefs } from '../../../scripts/audit/lib/shared.mjs';
+import { readKeys, declCondRefs } from '../../../scripts/audit/lib/shared.mjs';
    // `#437` C-2c-3：单源读点基线（该故事的数据）
 
 export const flag = 'notes';
@@ -19,21 +19,8 @@ export const flags = ['notes'];
 // 形状与对齐的判定已搬到 core ✓（页面与门跑**同一份** ⇒ 一处实现 ✓）：
 //   `editor/lib/core/stateDiagnose.mjs` 的 `auditShape` ✓（`findings` 形状照 `editor/lib/core/diagnose.mjs` ✓）。
 //   ⚠️ 本文件**不再自带** `REQUIRED`／`keyOf`／`auditShape` 的定义 ✗ ⇒ 只 import ＋ 转出（老调用方不变 ✓）。
-import { auditShape, flagPaths, keyOf, notepathProblems, singleReadProblems, singleWriteProblems, auditConsumption } from '../../../editor/lib/core/stateDiagnose.mjs';
+import { auditShape, flagPaths, keyOf, notepathProblems, singleReadProblems, singleWriteProblems, auditConsumption, rowReads } from '../../../editor/lib/core/stateDiagnose.mjs';
 export { flagPaths };
-// ── 纯函数：表行读点（`#435` 前置 0）──────────────────────────────────────
-// 阶段 4 之后，**表行的 `req`/`any`/`exclude` 就是读点**（求值走 `Sg.notes`/`Sg.rules` 封装层）。
-// 不收进来 ⇒ 把条件从段落搬进表之后，那些笔记会被判「**零消费**」（假红：搬家反而把笔记判死）。
-// 限定键与域的对应关系走单一权威 `ruleRowKeys()`（它与 `--state` 的"有写有读"同一份）。
-export const rowReads = (rows, entries) => {
-	const M = new Map();
-	for (const r of rows ?? []) for (const k of ruleRowKeys(r, entries)) {
-		if (!M.has(k)) M.set(k, new Set());
-		M.get(k).add(`表行:${r?.id ?? '?'}`);
-	}
-	return M;
-};
-
 // ── 纯函数：消费可数（#436 原范围 2）────────────────────────────────────────
 // `reads`：限定键（`ev.x`/`world.x`）→ 读点集合；`refText`：整份源码文本（找 `note:<id>` 引用）
 // `declaredNotes`（可选，`#785` 第 1 族收口）：**声明式条件**（`req: ['n_x']`）里引用的笔记 id ——

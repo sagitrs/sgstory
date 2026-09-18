@@ -7,7 +7,12 @@
 //
 // ## 判据（三条，缺一不可 ✓）
 //  ① **`state == APPROVED`** ✓（`COMMENTED`／`CHANGES_REQUESTED` 不算 ✗）；
-//  ② 该票**锚在当前 head** ✗（`commit_id == headRefOid` ✓ —— **非纯 rebase 后 head 变了却沿用旧票** 是另一件事 ✓，归 ㉗"先做带 pathspec 的 diff"）；
+//  ② 该票**锚在当前 head** ✗（`commit_id == headRefOid` ✓）。
+//     ⚠️ **本条只答"现在齐不齐"，不答"合入时齐不齐"** ✗：**GitHub 会在 force-push 后把票锚重指到新 head** ✓
+//     （实测：某票 `submitted_at` 早于 force-push 事件，而 `commit_id` 却是 push 后的头 ✓）⇒ ② **抓不到**"换内容却沿用旧票"✗；
+//     那件事归 **㉗**（先做**带 pathspec 的 diff** 证明"验的就是被合的"✓）；本脚本**不假装**能判它 ✗。
+//     另："别的 head ⇒ 要重投"那半句**在纯 rebase 下是错的补救** ✗（纯 rebase 票沿用 ✓，见 `### 双席` #4 ✓）⇒ 故在输出里只作**提示** ✓。
+//     （可选加强 ✗：把 `head_ref_force_pushed` 事件纳入 ⇒ 能判"换内容"⇒ 另开片 ✓，不在本件里夹带 ✗。）
 //  ③ **distinct 席数 ≥ want**（默认 2 ✓）—— **同一席投两次 ≠ 双席** ✗（故按 `user.login` 去重 ✓）。
 //
 // ## 用法（可粘贴 ✓）

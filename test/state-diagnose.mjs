@@ -1,4 +1,4 @@
-// `#877` 件级自证：`editor/lib/core/stateDiagnose.mjs`（形状与对齐）✓
+// `#877` 件级自证：`editor/lib/core/stateDiagnose.mjs`（形状与对齐 ＋ 读侧判定 ＋ 结构）✓
 //
 // 判据（每条都**能是假的** ✗ —— `docs/dev-conventions.md` §9 口径 ✓）：
 //   ① 坏 ⇒ findings **点名** `{event, field}` ✓（不是"有错" ✗）
@@ -7,7 +7,14 @@
 //   ④ **不掺环境** ✓（§17 ④）：同一输入，换 `cwd` ＋ 换 `TZ` ⇒ 输出**逐字节相同** ✓
 //      ⚠️ ④ 与 ③ **必须配对** ✓：③ 只证"同环境同结果"（自比自也能过 ✗），④ 才证"换环境也不同" ✓
 //   ⑤ 时延是**数字** ✓（预算 ≤ 50 ms ✓；页面要"编辑即诊断" ⇒ 这条是它的前提 ✓）
-import { auditShape, flagPaths, keyOf, notepathProblems, singleReadProblems, singleWriteProblems, auditConsumption } from '../editor/lib/core/stateDiagnose.mjs';
+//   ⑥ **逐函数冒烟** ✓（`#877` 第四块的欠账 ✓）：`rowReads` ＋ `reads.mjs` 同族六个**逐个调用** ⇒
+//      被搬函数体内若引用了没搬过来的名字，`ReferenceError` **当场现形** ✗（不是“等哪天门拉到才炸” ✓）。
+//      ⚠️ 为什么需要它 ✗：另两条读数（**闭包不动点**／**悬空引用扫描**）当时住在**仓外** ⇒ 复核席**复现不了** ✓。
+//   ⑦ **结构：core 不得 import `scripts/**`** ✓（分层 ✓ —— `#881` 修掉的正是这一类违规 ✓；零假阳 ✓）。
+import { readdirSync, readFileSync } from 'node:fs';
+import { auditShape, flagPaths, keyOf, notepathProblems, singleReadProblems, singleWriteProblems, auditConsumption,
+	rowReads, scanReads, knowledgeIndex, faceOf, knowledgeHits, baselineProblems, tableReadProblems,
+	STORY_PREFIX, READ_KNOWN } from '../editor/lib/core/stateDiagnose.mjs';
 
 let bad = 0;
 const t = (label, ok, extra = '') => { if (ok) console.log(`      ✓ ${label}`); else { bad++; console.error(`      ✗ ${label}${extra ? '：' + extra : ''}`); } };
@@ -80,5 +87,46 @@ t('消费① 有读点 ⇒ 零（能假的另一半 ✓）', auditConsumption(go
 t('消费① 零读但已声明（bookkeeping 带理由）⇒ 零 ✓', auditConsumption(good, new Map(), ['keeper_state'], '').length === 0);
 t('消费① 已声明却真被读 ⇒ 僵尸豁免红（反沉默 ✓）', auditConsumption(good, reads, ['keeper_state'], '').length === 1, JSON.stringify(auditConsumption(good, reads, ['keeper_state'], '').map((f) => f.detail?.slice(0, 12))));
 
+// 附3：读侧判定（`#877` **第四块** ✓）——① 逐函数**冒烟**（见件头 ⑥ ✓）② 每件都带**能假的另一半** ✓
+//   冒烟形态：**调用**是判据主体 ✗ —— 某个被搬函数去引用一个没搬进 core 的名字 ⇒ 这一行当场红 ✓。
+{
+	const know = knowledgeIndex(good);
+	const hit = { file: 'stories/x.twee', passage: 'P', key: 'world.keeper_state' };
+	const smoke = (label, fn, pred, want) => {
+		let v, err = null;
+		 try { v = fn(); } catch (e) { err = e; }
+		t(`冒烟·${label}`, err === null && pred(v), err ? `抛错 ${err}` : `实得 ${JSON.stringify(v)?.slice(0, 60)}（期望 ${want}）`);
+	};
+	smoke('`rowReads`（表行 ⇒ 读点集合 ✓）', () => [...rowReads([{ id: 'R', req: ['n_a'] }], good)], (v) => v.length === 1 && v[0][1].has('表行:R'), '1 个读点');
+	smoke('`scanReads`（段落 ⇒ 字面读 ✓）', () => scanReads([{ file: 'stories/x.twee', passage: 'P', kind: 'narr', line: 1, src: '<<if $pc.ev.a>>x<</if>>' }]).length, (v) => v === 1, '1');
+	smoke('`knowledgeIndex`（限定键 ⇒ 笔记 id ✓）', () => know.get('world.keeper_state'), (v) => v === 'n_a', 'n_a');
+	smoke('`faceOf`（故事面 vs 机制面 ✓）', () => [faceOf(hit), faceOf({ file: 'src/10-core.twee' })].join('/'), (v) => v === 'story/mech', 'story/mech');
+	smoke('`knowledgeHits`（知识键 ⇒ 命中且带 note ✓）', () => knowledgeHits([hit], know).map((h) => h.note).join('/'), (v) => v === 'n_a', 'n_a');
+	smoke('`baselineProblems`（新增判红 ✓）', () => baselineProblems([{ ...hit, known: false }]).fresh.length, (v) => v === 1, '1');
+	smoke('`tableReadProblems`（干净行 ⇒ 零 ✓）', () => tableReadProblems([{ id: 'A', scope: 'S', req: ['n_a'], text: '纯渲染' }]).length, (v) => v === 0, '0');
+	t('附3·常量仍在（`STORY_PREFIX`／`READ_KNOWN` ✓）', STORY_PREFIX === 'stories/' && typeof READ_KNOWN === 'object' && READ_KNOWN !== null);
+	// 能假的另一半（每件都要 ✓）
+	t('反例·`knowledgeHits`：非知识键 ⇒ 零（不是“见读就报” ✗）', knowledgeHits([{ file: 'stories/x.twee', passage: 'P', key: 'world.not_known' }], know).length === 0);
+	t('反例·`baselineProblems`：基线内 ⇒ 不算新增 ✓', baselineProblems([{ ...hit, known: true }]).fresh.length === 0);
+	t('反例·`tableReadProblems`：`pc.ev.x` ⇒ 报「字面状态读」（能假的另一半 ✓）', tableReadProblems([{ id: 'A', req: ['pc.ev.x'] }]).some((p) => p.what === '字面状态读'));
+	t('反例·`baselineProblems`：基线里修好的条目 ⇒ 只报 `stale`（不静默 ✓）', baselineProblems([], { '旧段|ev.old': '理由' }).stale.length === 1);
+	// ⑥ 的机械面：真的调用了（不是空读数 ✓）——**不用 `eval`** ✗（显式把七个绑定列出来 ✓）
+	const READ_JUDGES = { rowReads, scanReads, knowledgeIndex, faceOf, knowledgeHits, baselineProblems, tableReadProblems };
+	t('冒烟覆盖面：本次**真的**跑过 7 个读侧判定（非空守卫 ✓）',
+		Object.keys(READ_JUDGES).length === 7 && Object.values(READ_JUDGES).every((f) => typeof f === 'function'),
+		`${Object.keys(READ_JUDGES).length} 个绑定 ✓`);
+}
+
+// 附4：**结构判据**（`#877` 第四块的欠账 ✓）：`editor/lib/core/**` **不得 import `scripts/**`** ✗（分层 ✓）。
+//   为什么落在件级 ✗：`#881` 修掉的正是这一类违规（`text.mjs` 当时 import 了 `scripts/audit/lib/mask.mjs` ✓）——
+//   它与“闭包/悬空”同族：**没有常驻判据就会再长回来** ✓。零假阳（只看 import 说明符 ✓）。
+{
+	const CORE = new URL('../editor/lib/core/', import.meta.url);
+	const files = readdirSync(CORE).filter((f) => f.endsWith('.mjs'));
+	const leaks = files.filter((f) => /\bfrom\s+['"][^'"]*scripts\//.test(readFileSync(new URL(f, CORE), 'utf8')));
+	t(`结构·core 不得 import scripts/**（扫 ${files.length} 个 core 件 ✓）`, leaks.length === 0, leaks.join(', '));
+	t('结构·扫面非空（防“没扫到”当绿 ✗）', files.length > 0, `${files.length} 个`);
+}
+
 if (bad) { console.error(`\n✗ stateDiagnose 件级自证：${bad} 条未过`); process.exit(1); }
-console.log('\n✔ stateDiagnose 件级自证通过（形状块 11 ＋ 源用法块 5 ＋ 消费块 4 ＝ 20 条；每块都带能假的另一半 ✓）');
+console.log('\n✔ stateDiagnose 件级自证通过（形状块 11 ＋ 源用法块 5 ＋ 消费块 4 ＋ **读侧块 12** ＋ 结构 2 ＝ 34 条；每块都带能假的另一半 ✓）');

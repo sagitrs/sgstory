@@ -24,14 +24,19 @@
 //   · **已抽** ✓：`auditShape` ✓（＋它的两个局部助手 `flagPaths`／`keyOf` ✓）
 //     ＋ **源用法三条** ✓：`notepathProblems`／`singleReadProblems`／`singleWriteProblems` ✓
 //     ＋ **消费可数** ✓：`auditConsumption` ✓（外部依赖只有 `flagPaths`／`keyOf` ✓ 两者已在 core ✓）
-//   · **未抽** ✗（仍住 `stories/mist-forest/gates/notes.mjs` ✓）：`rowReads` ✓
-//     ⇒ 它依赖 `ruleRowKeys`（`scripts/audit/lib/shared.mjs` ✓）⇒ **必须等前置切片 `#881`** ✓。
-//   · **未抽·另一门** ✗：`stories/mist-forest/gates/reads.mjs` 的同族六个 ✓（同需 `#881` ✓）。
+//     ＋ **表行读点** ✓：`rowReads` ✓（`#877` 第四块 ✓ —— 依赖 `ruleRowKeys` ✓，它随 `#881` 进了 `./audit-shared.mjs` ✓）
+//   · **已抽·另一门** ✓（`#877` 第四块 ✓）：`stories/mist-forest/gates/reads.mjs` 的同族六个 ✓ ——
+//     `scanReads`／`knowledgeIndex`／`faceOf`／`knowledgeHits`／`baselineProblems`／`tableReadProblems` ✓
+//     （＋四个常量 `STORY_PREFIX`／`READ_KNOWN`／`KEYS_OF`／`asList` ✓）。
+//     ⚠️ 该门的 **io 那一半留在门里** ✗（`segmentsOf()` 吃 `readFileSync` 默认值 ✗ · `storyReadBaseline()` 吃 `loadStoryAudit`／`ROOT` ✗）
+//     —— `lib/core/**` **不得碰宿主** ✗（K6 ③ ✓）。
 //   · **不涉及** ✗：`info`／`applicable` 那条路 —— 已抽的判定对**任何包**都适用 ✓ ⇒ 无"缺面"可言 ✓；
 //     "缺面逐行 `info`"要等吃 twee／引擎事实的那几块才出现 ✓。
 //   · **已知形状差（已声明 ✓）** ✗：源用法三条的 `step` 用 `'source'` ✓（平列于 `row`／`package`／`applicable`／`shape` ✓）；
 //     且它们曾经返回的 `where`（命中的源文件 ✓）**不再返回** ✗ —— 因为**无人消费** ✓（门只打 `id`／`detail` ✓）。
 //     将来显示侧若要"去哪看" ⇒ 那是一次**跨片**的形状扩展（`target.where` ✓），归显示侧与复核席 ✓。
+
+import { condKeysOf, literalReadKeys, notePaths, ruleRowKeys } from './audit-shared.mjs';
 
 const REQUIRED = ['title', 'src', 'body', 'tags', 'era', 'flagPath'];
 // `flagPath` 可以是字符串或**字符串数组**（多源 OR，`#432-B8/B12`）
@@ -175,4 +180,84 @@ export const singleWriteProblems = ({ entries = {}, sources = {} } = {}) => {
 		}
 	}
 	return sortFindings(out);
+};
+
+// ── `#877` 第四块：`rowReads` ＋ `reads.mjs` 同族六个（`#435` 阶段 4 的**读侧**判据）─────────────
+// 为什么在这一层 ✓：两门是**子进程门** ⇒ 页面里跑不了 ✗；P2 要的是"**编辑即诊断**、不落盘也能看见" ✓
+//   ⇒ 判定抽 core（纯 ✓ 无 io ✓）、**事实由调用方注入** ✓（照 `#875`／本件前四块的同形契约 ✓）。
+// `#881` 先把两门依赖的纯帮手搬进 `./audit-shared.mjs` ✓ ⇒ 本块才是**真·纯搬运** ✓
+//   （握手两条：两门输出**逐字节不变** ✓ ＋ 两门自证的期望值**逐字不变** ✓）。
+// ⚠️ **io 那一半留在门里** ✗：`segmentsOf()`（吃 `readFileSync` 默认值 ✗）／`storyReadBaseline()`
+//   （吃 `loadStoryAudit`／`ROOT` ✗）—— `lib/core/**` **不得碰宿主** ✗（K6 ③ ✓）。
+
+/** **表行读点**（`#435` 前置 0 ✓）：`req`/`any`/`exclude` ⇒ 限定键 ⇒ 读点集合（`Map`）。
+ *  阶段 4 之后**表行就是读点** ✓（求值走 `Sg.notes`／`Sg.rules` 封装层 ✓）；不收进来 ⇒ 条件从段落搬进表后
+ *  那些笔记会被判「**零消费**」（假红：搬家反而把笔记判死 ✗ —— 实测过 ✓）。
+ *  键与域的对应走**单一权威** `ruleRowKeys()` ✓（与 `--state` 的"有写有读"同一份 ✓）。 */
+export const rowReads = (rows, entries) => {
+	const M = new Map();
+	for (const r of rows ?? []) for (const k of ruleRowKeys(r, entries)) {
+		if (!M.has(k)) M.set(k, new Set());
+		M.get(k).add(`表行:${r?.id ?? '?'}`);
+	}
+	return M;
+};
+
+/** 故事面前缀：`stories/**` ⇒ `'story'` 面；其余 ⇒ `'mech'` 面 ✓。
+ *  （`SOURCE_ROOTS` 是 `['src','stories']` ✓ —— `module-order.mjs` 单一权威 ✓；本件按「故事 vs 机制」分面 ✓。） */
+export const STORY_PREFIX = 'stories/';
+/** 引擎侧**默认空基线** ✓。`#602`：基线属**该故事的数据** ✗ ⇒ 真实基线**由调用方注入** ✓
+ *  （故事侧 `Sg.story.readBaseline()` ✓；门侧经 `loadStoryAudit()` 取 ✓）。 */
+export const READ_KNOWN = {};
+const KEYS_OF = ['req', 'any', 'exclude', 'prereq', 'yields'];
+// 注意**不要**先 `String()`：条件项可能是**对象算子形**（`{ gte: ['star.spent', 3] }`，另票 #491）
+const asList = (x) => (Array.isArray(x) ? x : x == null ? [] : [x]);
+
+/** 段落 → 字面状态读清单（`readKeys` 单一权威）。 */
+export const scanReads = (segments) => {
+	const out = [];
+	for (const s of segments) {
+		s.src.split('\n').forEach((l, i) => {
+			for (const key of literalReadKeys(l)) out.push({ file: s.file, passage: s.passage, kind: s.kind, line: s.line + i, key });
+		});
+	}
+	return out;
+};
+
+/** 知识键索引：限定键 → 笔记 id（走 `notePaths` 单一权威）。 */
+export const knowledgeIndex = (entries) => {
+	const M = new Map();
+	for (const [id, ps] of notePaths(entries)) for (const p of ps) M.set(p, id);
+	return M;
+};
+
+/** 面：故事面（`stories/**`）／机制面（其余）。 */
+export const faceOf = (hit) => (String(hit.file).startsWith(STORY_PREFIX) ? 'story' : 'mech');
+
+/** ② 故事面的知识键直读 —— `[{ …, note, known }]`（`known` ＝ 在基线里）。 */
+export const knowledgeHits = (hits, know, known = READ_KNOWN) =>
+	hits.filter((h) => faceOf(h) === 'story' && know.has(h.key))
+		.map((h) => ({ ...h, note: know.get(h.key), known: `${h.passage}|${h.key}` in known }));
+
+/** ② 基线判据：新增（必须红）／腐烂（只报告）。 */
+export const baselineProblems = (khits, known = READ_KNOWN) => ({
+	fresh: khits.filter((h) => !h.known),
+	stale: Object.keys(known).filter((k) => !khits.some((h) => `${h.passage}|${h.key}` === k)),
+});
+
+/** 条件表行的读侧判据 ⇒ `[{ id, field, what, detail }]`（空＝干净）。 */
+export const tableReadProblems = (rows) => {
+	const out = [];
+	for (const r of rows ?? []) {
+		if (!r?.id) continue;
+		for (const field of KEYS_OF) for (const k of asList(r[field]).flatMap(condKeysOf)) {
+			// `#435` 键形：note id ∕ 裸键（默认 `ev.`）∕ **任意域的状态路径**（`ev.`/`world.`/`keeper.`/`star.`…）∕
+			// 两种**前缀键**（`inv:<道具>`／`era:<时代>`，求值在引擎侧 `Sg.rules.holds()`）。
+			// 修正①（2026-09-14）：原先只放行 `ev|world` 两域 ⇒ **误杀 `keeper.met`/`star.spent`** 这类第三命名空间。
+			if (!/^(n_[a-z0-9_]+|[a-z_]\w*|[a-z_]\w*\.[a-z_]\w*|inv:.+|era:(?:past|present)|gear:.+)$/.test(k)) out.push({ id: r.id, field, what: '键形态', detail: k });
+			for (const key of literalReadKeys(k)) out.push({ id: r.id, field, what: '字面状态读', detail: key });
+		}
+		for (const key of literalReadKeys(r.text ?? '')) out.push({ id: r.id, field: 'text', what: '字面状态读', detail: key });
+	}
+	return out;
 };

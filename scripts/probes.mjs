@@ -59,4 +59,19 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /hasSelfProof/ },
 		why: '量的是「自证」判定**自己**能假 ✓（本列若恒真 ⇒ 整列读数作废 ✗）—— 与 `#899` ③ 同源：**判定也要有能假的另一半** ✓',
 	},
+	{
+		// 车道 D 切片 2（`#215` `18501384`）：**键级图**的运行器自证 ✓
+		id: 'test/event-graph.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/event-graph.mjs',
+		mutation: {
+			// 把"按 `VOCAB.effects` 那几面取授予键"这一路**掐掉**（面名变成空 ✗）⇒ 授予表必空 ⇒ 三处断言必须红 ✓
+			file: 'editor/lib/core/eventGraph.mjs',
+			find: 'for (const face of VOCAB.effects) for (const k of asList(row?.[face]))',
+			replace: 'for (const face of []) for (const k of asList(row?.[face]))',
+		},
+		expect: { rc: 1, stdout: /keysGrantedBy|grantedBy/ },
+		why: '量的是「键级图」的两张表**真的**从数据面算出来 ✓（掐掉授予面 ⇒ `grantedBy` 空 ⇒ 合成反例与真数据反查都红 ✓）—— 不是常数 ✓',
+	},
 ];

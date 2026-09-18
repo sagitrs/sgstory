@@ -233,10 +233,17 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 	//   ⇒ 加**可选指定** `--notes=<产物文件>` ✓（**默认值一字不改** ✗）；判定用**前缀**（`--notes=…` 也要认 ✗）。
 	//   “若要一条命令覆盖该面全部块” 属**另一片** ✗（`--hand` 要从单文件变成块⇒基线映射 ⇒ 不是最小改动 ✓）。
 	const notesTarget = argOf('notes', null);
+	// `#958` 票内复核 MINOR（`[deferred]`，本片承办 ✓）：取值类标志**吃空值** ⇒ 下游会崩成**裸 Node 栈** ✗
+	//   （`--notes=` 空 ⇒ `''` ⇒ `readFileSync('')` ⇒ `EISDIR` ✓；`--hand=` 空 ⇒ `join(ROOT,'')` ＝ 仓根 ⇒ **同型** ✓）。
+	//   ⇒ 照**同一条 `--l3=` 的现成形状**讲人话地拒 ✗（`console.error` ＋ `return 2`，不新造机制 ✓）。
+	//   ⚠️ 跨命令那一族（`--out=`／`--from=`／`--section=`／`--key=` 的空值 ✓）**不夹带** ✗ ⇒ 另开票 ✓。
+	if (notesTarget === '') { console.error('✗ --notes= 只接受产物文件名（实得 （空））—— 例：`--notes=16-notes-ch2.twee`；不给该标志 ⇒ 默认 `16-notes-ch1.twee`'); return 2; }
 	const notesMode = argv.includes('--notes') || notesTarget !== null;
 	const l3Mode = argOf('l3', 'hard');
 	if (!L3_MODES.includes(l3Mode)) { console.error(`✗ --l3 只接受 ${L3_MODES.join('|')}（实得 ${l3Mode}）`); return 2; }
 	const handGiven = argv.some((a) => a.startsWith('--hand='));
+	const handValue = argOf('hand', '');
+	if (handGiven && handValue === '') { console.error('✗ --hand= 只接受基线文件路径（实得 （空））—— 例：`--hand=stories/<slug>/gates/equiv-baseline/<file>.txt`'); return 2; }
 	// ⚠️ **一处定义** ✗：产物名只在这里算一次 ✓ —— 它**同时**驱动 `--hand` 的默认路径与下面取产物那一步 ✓
 	//  （两处各写一份 ternary ⇒ “比的是 ch2、指路指 ch1”的**错位** ✓；复核席 `18505646` 点名过这处 ✗）。
 	const defaultTwee = notesMode ? (notesTarget ?? '16-notes-ch1.twee') : rulesMode ? '17-rules.twee' : '15-tables.twee';

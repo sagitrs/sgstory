@@ -74,6 +74,10 @@ const TIERS = {
 		{ args: ['mist-forest'], expect: { rc: 2, kind: '裸跑拒绝' } },
 		{ args: ['mist-forest', '--l3=report', '--hand=stories/mist-forest/gates/equiv-baseline/15-tables.twee.txt'], expect: { rc: 0, kind: '正常' } },
 		{ args: ['mist-forest', '--l3=weird'], expect: { rc: 2, kind: '错路·档位' } },
+		// `#958` 票内复核 MINOR（`[deferred]`，`#215` 报备 `18508167` 承办 ✓）：**取值类标志吃空值** ⇒ 下游崩成裸 Node 栈 ✗
+		// （`--notes=` 空 ⇒ `readFileSync('')` ⇒ `EISDIR` ✓；`--hand=` 空 ⇒ `join(ROOT,'')` ＝ 仓根 ⇒ 同型 ✓）⇒ 现应为**讲人话地拒** ✓。
+		{ args: ['mist-forest', '--notes=', '--l3=report'], expect: { rc: 2, kind: '错路·空值·notes' } },
+		{ args: ['mist-forest', '--hand=', '--l3=report'], expect: { rc: 2, kind: '错路·空值·hand' } },
 	],
 	'lint-story': [
 		{ args: [], expect: { rc: 2, kind: '用法' } },

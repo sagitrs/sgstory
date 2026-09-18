@@ -14,7 +14,7 @@
 //   ⇒ 用 `finally` 逐处删 ✓，并且**结束时重跑一次 `build.mjs`** ＋ 与开场快照**比 dist 聚合 sha** ✓
 //   ⇒ "本件没污染别人的基线" 是**读数**，不是承诺 ✓（这条能假 ✓：漏清一处 ⇒ sha 变 ⇒ 红 ✓）。
 //
-// 用法：node test/new-story-fixture.mjs（在 `npm test` 链里 ✓，`phase: 'build'`）
+// 用法：**`node build.mjs && node test/new-story-fixture.mjs`** ✓（本段读/比 `dist` 的聚合 sha ✗ ⇒ `dist` 是**前置** ✓；缺 ⇒ 本件**点名**报缺前置 ✗ 不静默 ✗）
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, rmSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
@@ -64,10 +64,17 @@ const cleanup = () => {
 	}
 };
 
-const before = distSha();
+let before;   // 在清场**之后**赋值 ✓（见下 ⇒ 旧版取在清场之前会假红 ✗）
 try {
+	// ── **前置**：`dist` 必须在场 ✓（本件要读/比它的聚合 sha ✗）⇒ 缺则**点名**报缺前置 ✗（旧版会静默拿`空输入 sha` ✗）
+	if (!existsSync(join(ROOT, 'dist'))) {
+		console.error('✗ 缺前置：`dist/` 不在场 —— 先跑 `node build.mjs`（本段要比 dist 的聚合 sha ✗）；'
+			+ '用法：`node build.mjs && node test/new-story-fixture.mjs`');
+		process.exit(1);
+	}
 	// ── 夹具：**起手四件**（core 的既有口 ✓ ⇒ 与页面路同源 ✗）＋ **哨兵**（让 ① 的产物断言有牙 ✓）
 	cleanup();
+	before = distSha();   // ⚠️ 快照取在**清场之后** ✗（旧版取在之前 ⇒ 上次中断的残留在场会**假红一次** ✗）
 	const st = starterPackage({ slug: SLUG, title: '__newci 夹具（#899 ② 注册场景）', ifid: 'c1d2e3f4-5a6b-4c7d-8e9f-0a1b2c3d4e5f' });   // **小写** ⇒ 走归一化 ✓
 	st.data['tables.json'].containers = { [SENTINEL]: { sites: { 哨兵位点: { abil: 'str', dc: 10 } } } };
 	const io = { writeText: (rel, text) => { mkdirSync(dirname(join(ROOT, rel)), { recursive: true }); writeFileSync(join(ROOT, rel), text); } };

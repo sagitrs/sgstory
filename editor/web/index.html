@@ -29,6 +29,13 @@
 		<input id="pick" type="file" webkitdirectory multiple>
 	</div>
 	<p id="hint"><small>该选哪些文件：<span id="wanted"></span></small></p>
+	<!-- `#892`（P4-1）：页内**新建** ✓ —— 起手包只落**内存** ✓（不落盘 ✗）；模板在 core ✓、本行只做接线 ✓。 -->
+	<div class="row">
+		<label>新建 slug：<input id="newslug" value="my-story" size="14"></label>
+		<label>标题：<input id="newtitle" value="我的故事" size="14"></label>
+		<button id="newBtn" type="button">起手（新建空包 · 只落内存）</button>
+	</div>
+	<p><small>新建只产**内存里**的四件（<code>00-meta.twee</code> ＋ <code>data/{tables,contract,rules}.json</code>，IFID 现场生成 ✓）⇒ 可继续编辑；**不落盘** ✓。</small></p>
 	<div id="err" class="err"></div>
 	<pre id="out">（还没选文件）</pre>
 	<script type="module" src="./app.mjs"></script>

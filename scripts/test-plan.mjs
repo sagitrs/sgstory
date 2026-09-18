@@ -220,6 +220,8 @@ export const SEGMENTS = [
 	{ id: "test-web-events-mjs", phase: 'test', cost: 0.3, cmd: "node test/web-events.mjs" },
 	// `#761` P1 第五片：**DOM 接线**（页面路 vs 直接路逐字节同 ✓；jsdom 显式收场 ✓）。
 	{ id: "test-web-form-mjs", phase: 'test', cost: 0.5, cmd: "node test/web-form.mjs" },
+	// `#892`（P4-1）：页内**新建**（起手包落内存 ✓ 不碰 fs ✓ 可接既有表单 ✓）（jsdom ✓）。
+	{ id: "test-web-new-package-mjs", phase: 'test', cost: 0.5, cmd: "node test/web-new-package.mjs" },
 	{ id: "test-social-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/social-sink.mjs --selftest" },
 	{ id: "test-social-sink-mjs", phase: 'test', cost: 3, cmd: "node test/social-sink.mjs" },
 	{ id: "test-siteinfo-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/siteinfo-sink.mjs --selftest" },

@@ -72,6 +72,22 @@ export const writeStoryPackage = ({ slug, data = {}, twee = {}, manifest = null,
 	return written;
 };
 
+/** **IFID 形态的单一权威** ✓（`#892` 复核 **MAJOR** ✓）：`build.mjs` 的 extwee **只收大写 hex** ＋ 变体位 `[89ABab]` ✓。
+ *  实测（A/B，唯一变量＝**大小写** ✓）：小写串 ⇒ `❌ Story IFID is invalid!` ⇒ **rc=1、无 dist 产物** ✗；
+ *  同一串大写 ⇒ rc=0 ＋ 产物存在 ✓。既有三个故事的 IFID **全大写** ✓，仓内**无**归一化处 ✗。
+ *  ⚠️ 所以本件**先归一化到大写再校验** ✗（`crypto.randomUUID()` 出的就是**小写** ✓ ⇒ 页面路不归一化就永远过不了 `build` ✗）。
+ *  与 extwee 那条正则的**同源核对**在测试侧（`test/web-new-package.mjs` 读 `node_modules` 比对 ✓ —— core 不碰 `node_modules` ✗）。 */
+export const IFID_RE = /^[0-9A-F]{8}-[0-9A-F]{4}-[0-9A-F]{4}-[89ABab][0-9A-F]{3}-[0-9A-F]{12}$/;
+
+/** 归一化（大写）＋ 校验 ⇒ 返回大写 IFID ✓；不合法 ⇒ **点名抛错** ✗（不把失败推到 `build.mjs` 远处 ✓）。 */
+export const normalizeIfid = (ifid) => {
+	const s = String(ifid ?? '').trim().toUpperCase();
+	if (!IFID_RE.test(s)) {
+		throw new Error(`IFID 形态不合法（实得 ${JSON.stringify(ifid)} ⇒ 归一化后 ${JSON.stringify(s)}）：必须是 UUIDv4 形态（8-4-4-4-12 ＋ 变体位 [89AB]）—— build.mjs 的 extwee 只收**大写** hex ✗（实测小写 ⇒ Story IFID is invalid! ⇒ rc=1）`);
+	}
+	return s;
+};
+
 /** **起手模板**（`#892` P4-1 ✓）：新建一个故事包所需的**源**（纯数据 ✓ —— 不碰磁盘 ✗）。
  *
  *  `#884` 实测的最小可编译集 ✓（行读数都在票里 ✓）：三件**空骨架**（各带 `section` ✓ —— 段名是**必填** ✗：
@@ -104,7 +120,7 @@ ${title}
 
 :: StoryData
 {
-\t"ifid": "${ifid}",
+\t"ifid": "${normalizeIfid(ifid)}",
 \t"format": "SugarCube",
 \t"format-version": "2.37.3",
 \t"start": "${entry}",
@@ -182,14 +198,14 @@ export const selftestStory = () => {
 	t('`#892` `starterPackage` 缺 ifid ⇒ 点名抛错（不静默生成 ✗）', threw(() => starterPackage({ slug: 'demo', title: '新故事' })));
 	t('`#892` `starterPackage` 缺 slug ⇒ 点名抛错', threw(() => starterPackage({ ifid: 'X' })));
 	// ④ 起手模板：三件骨架**各带 section** ✓（实测：无 section 会被编译器**干净拒** ✗）
-	const st = starterPackage({ slug: 'demo', title: '新故事', ifid: 'IFID-1' });
+	const st = starterPackage({ slug: 'demo', title: '新故事', ifid: 'a1b2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d' });
 	t('`#892` 起手模板：三件 data 骨架**各带 section** ✓ ＋ **各自的合法形状**（tables⇒containers ✓ · rules⇒rows ✓ · contract⇒members ✓）',
 		['tables.json', 'contract.json', 'rules.json'].every((n) => typeof st.data[n]?.section === 'string' && st.data[n].section.length > 0)
 		&& Array.isArray(st.data['tables.json'].containers) === false && typeof st.data['tables.json'].containers === 'object' && !('rows' in st.data['tables.json'])
 		&& Array.isArray(st.data['rules.json'].rows) && Array.isArray(st.data['contract.json'].members));
 	// ⑤ IFID 真的进产物 ⇒ 两条不同 ifid ⇒ `00-meta.twee` **不同** ✓（防"照抄撞 IFID"✗）
 	t('`#892` 两条不同 `ifid` ⇒ `00-meta.twee` 逐字不同 ✓（照抄会撞 ✗）',
-		st.twee['00-meta.twee'] !== starterPackage({ slug: 'demo', title: '新故事', ifid: 'IFID-2' }).twee['00-meta.twee']);
+		st.twee['00-meta.twee'] !== starterPackage({ slug: 'demo', title: '新故事', ifid: 'a1b2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5e' }).twee['00-meta.twee']);
 	t('`#892` `00-meta.twee` 里 `entry` 与 `StoryData.start` **一致** ✓', /"start": "开场"/.test(st.twee['00-meta.twee']));
 	t('`#892` `00-meta.twee` 带 `Sg.storyId = { slug }` ✓（与 `test/store-keys.mjs` 的一致性面 ✓）', /window\.Sg\.storyId = \{ slug: 'demo' \}/.test(st.twee['00-meta.twee']));
 	// ⑥ 清单：入口件**排第一** ✓，且 `files` 只列**真写出去的件** ✓（与 `writeStoryPackage` 同源 ✓）
@@ -201,6 +217,15 @@ export const selftestStory = () => {
 	t('`#892` 清单 `files` ≡ 本次真正写出的**故事件**（清单自身**不进** `files` ✓ —— 与既有故事同形 ✓；**一处真源、两处消费** ✓）',
 		(() => { const written = w3.map(([p]) => p).filter((p) => p !== files.manifest); return new Set(written).size === m2.files.length && m2.files.every((f) => written.includes(f)); })());
 	t('`#892` `manifestFor` 缺入口件 ⇒ 点名抛错（不静默列一份"没写出去的清单" ✗）', threw(() => manifestFor({ slug: 'demo', twee: { '15-tables.twee': '' } })));
+	// ⑦ IFID 形态（**复核 MAJOR** ✓）：`crypto.randomUUID()` 出的是**小写** ✗ ⇒ 归一化 ＋ 校验必须在 core ✓
+	t('`#892` IFID：**小写**输入 ⇒ 产物里是**大写** ✓（实测：小写 ⇒ extwee 拒 ⇒ rc=1 ✗）', (() => {
+		const st2 = starterPackage({ slug: 'demo', title: 'T', ifid: 'a1b2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d' });
+		const line = st2.twee['00-meta.twee'].split('\n').find((l) => l.includes('ifid'));
+		const got = JSON.parse(`{${line.trim().replace(/,$/, '')}}`).ifid;
+		return got === 'A1B2C3D4-5E6F-4A7B-8C9D-0E1F2A3B4C5D' && IFID_RE.test(got);
+	})());
+	t('`#892` IFID：变体位不是 `[89AB]` ⇒ 点名抛错 ✓（能假的另一半 ✗）', threw(() => starterPackage({ slug: 'demo', ifid: 'A1B2C3D4-5E6F-4A7B-0C9D-0E1F2A3B4C5D' })));
+	t('`#892` IFID：随机/空/残缺串 ⇒ 点名抛错 ✓', threw(() => starterPackage({ slug: 'demo', ifid: 'nope' })) && threw(() => starterPackage({ slug: 'demo', ifid: '' })) && threw(() => starterPackage({ slug: 'demo', ifid: 'a1b2c3d4' })));
 
 	console.log(`\n${bad ? '✗' : '✔'} core/story 自证 ${n} 例${bad ? `（${bad} 例失败）` : ' 全部通过'}`);
 	return bad;

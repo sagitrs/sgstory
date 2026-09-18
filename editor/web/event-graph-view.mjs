@@ -8,10 +8,21 @@
 
 import { graphOf, formatGraph } from '../lib/core/eventGraph.mjs';
 
-/** 把图渲染进 `#graph` ✓；返回 `graphOf()` 的输出（**供读数断言** ✓ —— 显示与判定同源 ✓）。 */
+const PLACEHOLDER = '（键级图：未载入 ✓）';
+
+/** **清空**那一格 ✓（`#946`：换包/载入失败时**旧图必须消失** ✗ —— 否则读的人会把**上一个包**的图当成这次的 ✓，
+ *  与 **㉖**「陈旧残留给出假读数」同族 ✗）。 */
+export const clearEventGraph = ({ doc, containerId = 'graph' } = {}) => {
+	const el = doc?.getElementById?.(containerId);
+	if (el) el.textContent = PLACEHOLDER;
+};
+
+/** 把图渲染进 `#graph` ✓；返回 `graphOf()` 的输出（**供读数断言** ✓ —— 显示与判定同源 ✓）。
+ *  ⚠️ **入口先清** ✗（`#946`）：任何一条守卫抛之前，那一格已经**清过** ✓ ⇒ 抛了也不留旧图 ✓。 */
 export const renderEventGraph = ({ doc, pkg, containerId = 'graph' } = {}) => {
 	const el = doc?.getElementById?.(containerId);
 	if (!el) throw new Error(`键级图：容器「#${containerId}」不存在 ✗（图不该静默不显示 ✓）`);
+	clearEventGraph({ doc, containerId });   // `#946`：**清在守卫之前** ✓
 	const rows = pkg?.data?.['rules.json']?.rows;
 	const members = pkg?.data?.['contract.json']?.members;
 	if (!Array.isArray(rows) || !Array.isArray(members)) {

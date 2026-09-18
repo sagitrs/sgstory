@@ -10,7 +10,7 @@ import { diagnoseStory } from '../lib/core/diagnose.mjs';
 import { diagnoseLines, renderDiagnosis } from './diagnose-view.mjs';
 import { fingerprintOf } from '../lib/core/fingerprint.mjs';
 import { starterPackage } from '../lib/core/story.mjs';
-import { renderEventGraph } from './event-graph-view.mjs';   // 车道 D 切片 3（`#215` `18502113`）：键级图显示层 ✓
+import { renderEventGraph, clearEventGraph } from './event-graph-view.mjs';   // 车道 D 切片 3（`#215` `18502113`）：键级图显示层 ✓
 
 const $ = (id, doc = globalThis.document) => doc?.getElementById?.(id);
 
@@ -32,6 +32,7 @@ const boot = () => {
 			// 加载失败 ⇒ **原样报出** ✓（含内核的报文 ✓）—— 不许吞成"（空）" ✗
 			render('（加载失败）');
 			fail(String(e?.message ?? e));
+			clearEventGraph({ doc });   // `#946`：失败时**清掉旧图** ✗（否则并排显示**上一个包**的图 ✓）
 		}
 	});
 	$('slug').addEventListener('change', boot);

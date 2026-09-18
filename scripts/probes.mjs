@@ -117,7 +117,7 @@ export const PROBES = [
 		},
 		expect: { rc: 1, stdout: /brandNewField|全集外/ },
 		why: '量的是「**单向 ⊆ 包络**」那一刀**真的有牙** ✓（把字段级越界检查摘掉 ⇒ `brandNewField` 静默通过 ⇒ 必红且点名 ✓）—— 否则“全集”只是个摆设（随手加字段没人拦 ✗）',
-},
+	},
 	{
 		// 车道 E-B2（`#215` 报备 `18502613`）：**规则行**页内面的「**两侧同判**」自证 ✓
 		id: 'test/web-rule-rows.mjs',
@@ -147,5 +147,20 @@ export const PROBES = [
 		},
 		expect: { rc: 1, stdout: /retired|该删|退出条件/ },
 		why: '量的是「**退出条件真的会被执行**」（＝`escapeHatchProblems` 的“登记腐烂 ⇒ 红”同构）：把它排掉 ⇒ “退出条件已成立而条目还在”静默通过 ⇒ 必红且点名 ✓ —— 否则上限 ＋ 退出条件就是“只增不减”的摆设 ✗',
+	},
+	{
+		// 车道 E-B3（`#215` 报备 `18504078`）：**读侧（`--reads`）**页内面的「① 条件表行级」自证 ✓
+		id: 'test/web-read-faces.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/web-read-faces.mjs',
+		mutation: {
+			// 把页内那一支的 ① 级判定**掐掉**（返回空 ✗）⇒ 注入的字面状态读不被点名 ⇒ 刀那一条必红 ✓
+			file: 'editor/web/read-faces-view.mjs',
+			find: 'const problems = tableReadProblems(rows);',
+			replace: 'const problems = [];',
+		},
+		expect: { rc: 1, stdout: /注入字面状态读/ },
+		why: '量的是「页内**真的在判** ① 条件表行级，而不是把 CLI 的结论抄一遍」（掐掉 core 那一步 ⇒ 注入的字面状态读不被点名 ⇒ 刀必红 ✓）—— 否则“两侧同判”会被写成“两侧都空”✗',
 	},
 ];

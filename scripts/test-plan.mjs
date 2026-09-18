@@ -48,6 +48,8 @@ export const SEGMENTS = [
 	{ id: "test-contract-compat-mjs", phase: 'test', cost: 0.1, cmd: "node test/contract-compat.mjs" },
 	// 车道 E-B2（`#215` 报备 `18502613`）：**规则行**页内面 ✓（读故事源 ＋ `web/**` ✓ —— 不读 `dist` ✗ ⇒ 无前置 ✓；jsdom ＋ `createContext` ⇒ cost 0.4 ✓）。
 	{ id: "test-web-rule-rows-mjs", phase: 'test', cost: 0.4, cmd: "node test/web-rule-rows.mjs" },
+	// 车道 E-B3（`#215` 报备 `18504078`）：**读侧（`--reads`）页内面** ✓ —— 页内只跑 ① 条件表行级 ✗（读故事源 ＋ `web/**` ✓ ⇒ 无前置 ✓；jsdom ＋ `createContext` ⇒ cost 0.4 ✓）。
+	{ id: "test-web-read-faces-mjs", phase: 'test', cost: 0.4, cmd: "node test/web-read-faces.mjs" },
 	// `#794` P1①：「故事包 I/O ＝ 唯一写路」的自证（核心在 `editor/lib/core/story.mjs` ✓；含**写侧哨兵**：拒绝型 io ⇒ 写入当场失败 ✓）。
 	{ id: "test-core-story-mjs", phase: 'test', cost: 0, cmd: "node test/core-story.mjs" },
 	// `#794`：**import 副作用门** —— 任何 `editor/**` 模块被 import ⇒ 跑完且只留哨兵 ✓（`exit(0)` 与 import 期输出都必红 ✓）。

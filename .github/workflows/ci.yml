@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]   # ready_for_review：draft 转 Ready 即触发（否则静默不跑——D 席实测 no checks）
 
 permissions:
   contents: read

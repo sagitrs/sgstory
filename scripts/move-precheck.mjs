@@ -11,7 +11,7 @@
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { ROOT } from './dist-paths.mjs';
-import { ORDER, MODULES, CONST_SECTION, LAYER_OF, allSourceFiles } from './module-order.mjs';
+import { ORDER, MODULES, CONST_SECTION, allSourceFiles, storyManifests, checkRegistration } from './module-order.mjs';
 
 const SRC = join(ROOT, 'src');
 const STORIES = join(ROOT, 'stories');
@@ -19,18 +19,10 @@ const STORIES = join(ROOT, 'stories');
 /** 磁盘上的源文件（相对 `src/`）。 */
 export const diskSources = (dir = SRC) => (existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.twee')).sort() : []);
 
-/** 所有故事的 `files`（裸文件名集合）。 */
-export const storyManifests = (dir = STORIES) => {
-	const out = [];
-	if (!existsSync(dir)) return out;
-	for (const slug of readdirSync(dir)) {
-		const p = join(dir, slug, '00-story.json');
-		if (!existsSync(p)) continue;
-		const j = JSON.parse(readFileSync(p, 'utf8'));
-		out.push({ slug, files: j.files ?? [] });
-	}
-	return out;
-};
+/** 所有故事的 `files` —— **已归单一权威** ✓（`module-order.mjs` 的 `storyManifests()` ✓）。
+ *  `#893` 第三步：`build.mjs`／`test/layering.mjs`／本脚本**三处共用** ✓（各写一份必漂移 ✗）。
+ *  本处不再自定义 ✗，只作**转出**（老调用方不变 ✓；出参字段 `slug`／`files` 逐字相同 ✓）。 */
+export { storyManifests };
 
 /** 聚合返回里的标识符（`15-tables.twee` 的 `return { a, b, Era }`）——与同文件的本地声明对账。
  *  取**最后一个** `return {…};`：文件里其它函数也会 `return {…}`（我第一版取第一个 ⇒ 误报「total」未声明 ✗）。 */
@@ -50,17 +42,12 @@ export const aggregatorChecks = (srcText) => {
 	return { found: true, missing: returned.filter((id) => !declared.has(id) && !assigned.has(id)) };
 };
 
-/** 纯函数：六处自洽性（供自证喂合成输入）。 */
+/** 纯函数：六处自洽性（供自证喂合成输入）。
+ *  `#893` 第三步：`②③④` 按**层**分工 ✓（引擎件 ⇒ `ORDER` ⧸ `MODULES` ✓；故事件 ⇒ **它自己的清单** ✓）——
+ *  走单一权威 `checkRegistration()` ✓；与 `test/layering.mjs` 的**唯一区别**：这里 `requireModules: true` ✗
+ *  （`MODULES` 缺项是"账本不自洽" ✓，属本脚本的六处同步面 ✓）。 */
 export const checkPlaces = ({ srcFiles, order, modules, manifests, constFiles, aggregatorSrc }) => {
-	const out = [];
-	for (const f of srcFiles) if (!order.includes(f)) out.push({ code: 'unlisted-file', msg: `src/${f} 未进 ORDER` });
-	for (const f of order) if (!srcFiles.includes(f)) out.push({ code: 'missing-file', msg: `ORDER 里的 src/${f} 不存在` });
-	for (const f of srcFiles) if (!(f in modules)) out.push({ code: 'missing-modules', msg: `src/${f} 未进 MODULES（漏了会崩）` });
-	const claimed = new Set(manifests.flatMap((m) => m.files));
-	for (const f of srcFiles) {
-		if ((LAYER_OF[f] ?? 'story') === 'engine') continue;   // 引擎文件不必属于某个故事（f 是路径 ✓）
-		if (!claimed.has(f)) out.push({ code: 'unclaimed-file', msg: `src/${f} 既非引擎文件、也不属于任何故事清单` });
-	}
+	const out = [...checkRegistration({ sources: Object.fromEntries(srcFiles.map((f) => [f, ''])), order, modules, manifests, requireModules: true })];
 	for (const f of [...constFiles]) if (!srcFiles.some((x) => x === f || x.endsWith(`/${f}`))) out.push({ code: 'stale-const-decl', msg: `CONST_SECTION.files 里的 ${f} 不存在（搬走了没更新声明）` });
 	if (aggregatorSrc) {
 		const a = aggregatorChecks(aggregatorSrc);
@@ -98,18 +85,20 @@ for (const d of ['scripts', 'test']) if (existsSync(join(ROOT, d))) walk(join(RO
 if (process.argv.includes('--selftest')) {
 	let bad = 0;
 	const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
-	const base = { srcFiles: ['a.twee'], order: ['a.twee'], modules: { 'a.twee': {} }, manifests: [{ slug: 's', files: ['a.twee'] }], constFiles: ['a.twee'], aggregatorSrc: null };
+	const base = { srcFiles: ['src/a.twee'], order: ['src/a.twee'], modules: { 'src/a.twee': { layer: 'engine' } }, manifests: [{ slug: 's', files: [] }], constFiles: ['src/a.twee'], aggregatorSrc: null };
 	t('正例：六处自洽 ⇒ 0 报', checkPlaces(base).length === 0);
-	t('漏 ORDER ⇒ unlisted-file', checkPlaces({ ...base, order: [] }).some((x) => x.code === 'unlisted-file'));
-	t('漏 MODULES ⇒ missing-modules（漏了会崩）', checkPlaces({ ...base, modules: {} }).some((x) => x.code === 'missing-modules'));
-	t('ORDER 里的文件不存在 ⇒ missing-file', checkPlaces({ ...base, order: ['a.twee', 'gone.twee'] }).some((x) => x.code === 'missing-file'));
-	t('故事层文件无人认领 ⇒ unclaimed-file（引擎文件豁免）', checkPlaces({ ...base, manifests: [{ slug: 's', files: [] }] }).some((x) => x.code === 'unclaimed-file'));
+	t('**引擎件**漏 ORDER ⇒ unlisted-file（安全网不撤）', checkPlaces({ ...base, order: [] }).some((x) => x.code === 'unlisted-file'));
+	t('**引擎件**漏 MODULES ⇒ missing-modules', checkPlaces({ ...base, modules: {} }).some((x) => x.code === 'missing-modules'));
+	t('ORDER 里的文件不存在 ⇒ missing-file', checkPlaces({ ...base, order: ['src/a.twee', 'src/gone.twee'] }).some((x) => x.code === 'missing-file'));
+	t('**故事件**无人认领 ⇒ unclaimed-file（引擎件豁免）', checkPlaces({ ...base, srcFiles: ['stories/s/x.twee'], order: [], modules: {}, manifests: [{ slug: 's', files: [] }], constFiles: [] }).some((x) => x.code === 'unclaimed-file'));
+	t('**故事件**不在 ORDER、但在清单里 ⇒ 0 报（#893 新口径：换登记处 ✓）', checkPlaces({ ...base, srcFiles: ['stories/s/a.twee'], order: [], modules: {}, manifests: [{ slug: 's', files: ['stories/s/a.twee'] }], constFiles: [] }).length === 0);
+	t('**引擎件**即使被清单认领，仍必须 ⊂ ORDER ⇒ unlisted-file（安全网不撤）', checkPlaces({ ...base, order: [], manifests: [{ slug: 's', files: ['src/a.twee'] }] }).some((x) => x.code === 'unlisted-file'));
 	t('常量声明指向不存在的文件 ⇒ stale-const-decl', checkPlaces({ ...base, constFiles: ['gone.twee'] }).some((x) => x.code === 'stale-const-decl'));
 	t('聚合 return 引用未声明标识符 ⇒ aggregator-broken（挪常量段常犯）', aggregatorChecks('const Era = {}; return { Era, Gone };').missing.join() === 'Gone');
 	t('聚合 return 里都是已声明的 ⇒ 空', aggregatorChecks('const Era = {}, Damage = {}; return { Era, Damage };').missing.length === 0);
 	t('聚合 return 的对象**键**不算引用（`{ flag, why: obj }` ⇒ 只查 `flag` 与 `obj`）', aggregatorChecks('const flag = 1, obj = {}; return { flag, why: obj };').missing.length === 0);
 	if (bad) { console.error(`\n✗ move-precheck 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ move-precheck 自证通过（六处 × 正反例 ＋ 聚合返回）');
+	console.log('\n✔ move-precheck 自证通过（六处 × 正反例 ＋ 两层登记（#893）＋ 聚合返回）');
 	process.exit(0);
 }
 

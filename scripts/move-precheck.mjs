@@ -94,6 +94,11 @@ if (process.argv.includes('--selftest')) {
 	t('**故事件**不在 ORDER、但在清单里 ⇒ 0 报（#893 新口径：换登记处 ✓）', checkPlaces({ ...base, srcFiles: ['stories/s/a.twee'], order: [], modules: {}, manifests: [{ slug: 's', files: ['stories/s/a.twee'] }], constFiles: [] }).length === 0);
 	t('**引擎件**即使被清单认领，仍必须 ⊂ ORDER ⇒ unlisted-file（安全网不撤）', checkPlaces({ ...base, order: [], manifests: [{ slug: 's', files: ['src/a.twee'] }] }).some((x) => x.code === 'unlisted-file'));
 	t('常量声明指向不存在的文件 ⇒ stale-const-decl', checkPlaces({ ...base, constFiles: ['gone.twee'] }).some((x) => x.code === 'stale-const-decl'));
+	// `#899` ①：清单**显式必需** ✗ —— 不传 ⇒ **点名抛错** ✓（合成输入不得读盘 ✓）
+	t('缺 `manifests` ⇒ 点名抛错（不读盘 ✗）', (() => {
+		try { checkPlaces({ ...base, manifests: undefined }); return false; }
+		catch (e) { return /manifests/.test(String(e.message)); }
+	})());
 	t('聚合 return 引用未声明标识符 ⇒ aggregator-broken（挪常量段常犯）', aggregatorChecks('const Era = {}; return { Era, Gone };').missing.join() === 'Gone');
 	t('聚合 return 里都是已声明的 ⇒ 空', aggregatorChecks('const Era = {}, Damage = {}; return { Era, Damage };').missing.length === 0);
 	t('聚合 return 的对象**键**不算引用（`{ flag, why: obj }` ⇒ 只查 `flag` 与 `obj`）', aggregatorChecks('const flag = 1, obj = {}; return { flag, why: obj };').missing.length === 0);

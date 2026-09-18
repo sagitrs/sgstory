@@ -13,7 +13,7 @@
 //
 // 自证：`node test/layering.mjs --selftest`
 
-import { checkModuleGraph, ORDER, MODULES, readModules, checkLayerDirection, LAYER_OF, STORY_SYMBOLS, normalizeSymbolRefs, checkEngineRanks, rankOfPath } from '../scripts/module-order.mjs';
+import { checkModuleGraph, ORDER, MODULES, readModules, checkLayerDirection, LAYER_OF, STORY_SYMBOLS, normalizeSymbolRefs, checkEngineRanks, rankOfPath, storyManifests } from '../scripts/module-order.mjs';
 import { selftest as distFreshSelftest } from '../scripts/dist-fresh.mjs';
 
 const check = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) failures++; };
@@ -22,7 +22,8 @@ let bad = 0;   // 自证计数器（模块级：t() 在任何作用域调用都�
 const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
 
 if (process.argv.includes('--selftest')) {
-	// ⚠️ 合成输入的用例**显式给 `manifests: []`** ✗ —— 否则 `checkRegistration()` 的默认值会把**真清单**带进来
+	// ⚠️ 合成输入的用例**必须显式给 `manifests`** ✗ —— `#899` ① 后**没有默认值**了 ✓（不给 ⇒ 点名抛错 ✓），
+	//   旧口径则会把**真清单**从盘上带进来
 	// ⇒ 报一堆 `missing-manifest-file`（**实测踩过** ✓：命中 27／28 ⇒ 用例“期望 0”全红 ✗）。
 	const base = { 'src/10-core.twee': 'window.Game.Rules = {};', 'src/15-tables.twee': 'window.Game = {};' };
 	const cases = [
@@ -86,6 +87,11 @@ if (process.argv.includes('--selftest')) {
 		if (!ok) bad++;
 		console.log(`${ok ? '✓' : '✗'} ${name}（命中 ${got}，期望 ${want}）`);
 	}
+	// `#899` ①：合成输入**不得**让清单默认值去读盘 ✗ ⇒ **不传 `manifests` 必须点名抛错** ✓
+	t('缺 `manifests` ⇒ 点名抛错（不读盘 ✗；旧口径会读出真清单 ⇒ 27／28 条误报 ✓）', (() => {
+		try { checkModuleGraph({ 'src/a.twee': '' }, { order: ['src/a.twee'], modules: { 'src/a.twee': { layer: 'engine' } } }); return false; }
+		catch (e) { return /manifests/.test(String(e.message)); }
+	})());
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项——分层 lint 没有咬合力`); process.exit(1); }
 	console.log('\n✔ 自证通过：合规绿 / 前向依赖红 / 未登记红 / 定义漂移红 / 文件缺失红 / 点号 defines 正反例 / 两层登记（#893）正反例');
 	process.exit(0);
@@ -94,7 +100,7 @@ if (process.argv.includes('--selftest')) {
 if (process.argv.includes('--dist-fresh')) { distFreshSelftest(); process.exit(0); }
 
 const sources = readModules();
-const found = checkModuleGraph(sources);
+const found = checkModuleGraph(sources, { manifests: storyManifests() });   // `#899` ①：清单**显式注入** ✓（不靠默认值读盘 ✗）
 
 console.log(`模块图：${ORDER.length} 个模块 · ${ORDER.reduce((n, f) => n + (MODULES[f]?.deps?.length ?? 0), 0)} 条加载期依赖边`);
 for (const f of ORDER) {

@@ -129,6 +129,15 @@ export const storyManifests = (dir = join(ROOT, 'stories')) => {
  *  ⇒ 报成"无人认领"（把真因藏起来 ✗ —— 实测过的误导形）。 */
 export const layerOf = (f, modules = MODULES) => modules[f]?.layer ?? (String(f).startsWith('src/') ? 'engine' : 'story');
 
+/** `#899` ①：故事清单**必须由调用方注入** ✗ —— 见 `checkRegistration()` 的 `manifests` 入参。 */
+export const requireManifests = (manifests, who = 'checkRegistration') => {
+	if (manifests === undefined) {
+		throw new Error(`${who}：缺 \`manifests\`（故事件的**登记处** ⇒ 必须由调用方注入 ✓）—— **合成输入的调用方不得让默认值去读盘** ✗`
+			+ `（实测：夹具故事在场时曾误报 27／28 条 \`missing-manifest-file\` ✗）。真实调用请传 \`storyManifests()\` ✓。`);
+	}
+	return manifests;
+};
+
 /** `#893` 的**两层登记判据**（纯函数 ✓，三处共用 ✓）：返回 `[{ code, msg }]`（空＝过 ✓）。
  *  ① `unlisted-file`  —— **引擎件**必须 ⊂ `ORDER` ✓（引擎件的加载顺序不允许隐含 ✓）
  *  ①b `missing-modules`（仅 `requireModules` 时 ✓）—— **引擎件**必须 ⊂ `MODULES` ✓（`LAYER_OF`／`engineFiles()` 都从它派生 ✓）
@@ -138,10 +147,10 @@ export const layerOf = (f, modules = MODULES) => modules[f]?.layer ?? (String(f)
  *  ④ `missing-manifest-file` —— **清单列出的文件**必须存在 ✓（改名/删除会被抓 ✓）
  *  ⚠️ 边界（写清 ✓）：`ORDER` 对**故事件**是**可选**的 ✓ —— 既有故事件在里面 ⇒ 由 `ORDER` 排序 ✓；
  *     新故事件不在 ⇒ 由**清单序**排序 ✓（见 `storyOrder()` ✓）。引擎件**不得**只靠清单 ✗。 */
-export const checkRegistration = ({ sources, order = ORDER, modules = MODULES, manifests = storyManifests(), requireModules = false } = {}) => {
+export const checkRegistration = ({ sources, order = ORDER, modules = MODULES, manifests, requireModules = false } = {}) => {
 	const out = [];
 	const names = Object.keys(sources);
-	const claimed = new Set(manifests.flatMap((m) => m.files));
+	const claimed = new Set(requireManifests(manifests).flatMap((m) => m.files));   // `#899` ①：**显式必需** ✓（不给默认 ⇒ 不读盘 ✗）
 	const isEngine = (f) => layerOf(f, modules) === 'engine';
 	for (const f of names) {
 		if (isEngine(f)) {
@@ -161,7 +170,7 @@ export const checkRegistration = ({ sources, order = ORDER, modules = MODULES, m
 	return out;
 };
 
-export const checkModuleGraph = (sources, { order = ORDER, modules = MODULES, manifests = storyManifests() } = {}) => {
+export const checkModuleGraph = (sources, { order = ORDER, modules = MODULES, manifests } = {}) => {
 	const failures = [];
 	const names = Object.keys(sources);
 

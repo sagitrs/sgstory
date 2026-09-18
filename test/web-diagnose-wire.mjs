@@ -9,7 +9,7 @@ const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const io = () => ({ readText: (p) => readFileSync(`${ROOT}/${p}`, 'utf8') });
 let bad = 0;
 const t = (label, ok) => { if (ok) console.log(`  ✓ ${label}`); else { bad += 1; console.error(`  ✗ ${label}`); } };
-const dom = new JSDOM('<pre id="out"></pre><pre id="rulediag"></pre><pre id="readfaces"></pre>');   // 车道 E-B2／B-3：`#rulediag`／`#readfaces` 是新增的那两格 ✓（`showDiagnosis` 现在三格都写 ✓）
+const dom = new JSDOM('<pre id="out"></pre><pre id="rulediag"></pre><pre id="readfaces"></pre><pre id="settle"></pre>');   // 车道 E-B2／B-3／D：`#rulediag`／`#readfaces`／`#settle` 是新增的那三格 ✓（`showDiagnosis` 现在四格都写 ✓）
 const doc = dom.window.document;
 const pkg = loadPackage({ slug: 'mist-forest', io: io() });
 

@@ -13,6 +13,7 @@ import { starterPackage } from '../lib/core/story.mjs';
 import { renderEventGraph, clearEventGraph } from './event-graph-view.mjs';   // 车道 D 切片 3（`#215` `18502113`）：键级图显示层 ✓
 import { renderRuleRows } from './rule-rows-view.mjs';   // 车道 E-B2（`#215` 报备 `18502613`）：**规则行**显示层 ✓（判据在 `core/ruleRows.mjs` ✓ —— 页内不重写 ✗）
 import { renderReadFaces } from './read-faces-view.mjs';   // 车道 E-B3（`#215` 报备 `18504078`）：**读侧**（`--reads`）显示层 ✓（判据在 `core/stateDiagnose.mjs` ✓ —— 页内只跑 ① 条件表行级 ✗）
+import { renderSettle } from './settle-view.mjs';        // 车道 D·`#215` 报备 `18504699`：**落点文案**（`--settle`）显示层 ✓（判据在 `core/settleRows.mjs` ✓ —— 与 CLI 同一份 ✓）
 
 const $ = (id, doc = globalThis.document) => doc?.getElementById?.(id);
 
@@ -81,5 +82,6 @@ export const showDiagnosis = ({ doc, pkg, declared = ['data(包)'], skipped = []
 	const n = renderDiagnosis({ doc, containerId: 'out', lines: diagnoseLines({ findings, declared, skipped, packageSha, injectedSha }) });
 	renderRuleRows({ doc, pkg });   // 车道 E-B2：**规则行那一路** ✓（与 `#out` 的故事面／`#graph` 的键级图**各占一格** ✗，不重叠 ✓）
 	renderReadFaces({ doc, pkg });   // 车道 E-B3：**读侧那一路** ✓（同上各占一格 ✗；页内只跑 ① 条件表行级 ＋ 适用面写进读数 ✓）
+	renderSettle({ doc, pkg });      // 车道 D：**落点文案那一路** ✓（同上各占一格 ✗；与 CLI 同一份判据 ＋ 适用面写进读数 ✓）
 	return n;
 };

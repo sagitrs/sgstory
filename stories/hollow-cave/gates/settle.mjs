@@ -1,64 +1,25 @@
-// ⓪ad 洞窟「副作用分支必须有落点文案」门（`#746`）——**故事门**
+// ⓪ad 洞窟「副作用分支必须有落点文案」门（`#746`）——**故事门**（io 那一半 ✓）
 //
-// 为什么需要它（口径「洞窟的**文字反馈**最重要」＋ 逐击抓屏实测）：
-//   留屏协议（`$pc.ev.settle` ＋ `<<caveNext>>` 把它搬到**落点**渲染）**已经存在且正确** ——
-//   问题只是**覆盖不全**：成功/产出路径多半接了 `settle` ✓，**失败/惩罚路径普遍没接**
-//   （把句子直接 `<<print>>` 进 `<<link>>` 体 ⇒ 随后的导航把它冲掉 ✗）⇒ 玩家"挨了打看不到自己挨了什么"。
-//   原文级例：徒手开箱失败（`机制·chest`）与陷阱失败（`机制·trap`）⇒ 落点屏上**空白**。
+// 为什么需要它（口径「洞窟的**文字反馈**最重要」＋ 逐击抓屏实测 ✗）：
+//   留屏协议（`$pc.ev.settle` ＋ `<<caveNext>>` 把它搬到**落点**渲染 ✓）**已经存在且正确** ✓ ——
+//   问题只是**覆盖不全** ✗：成功/产出路径多半接了 `settle` ✓，**失败/惩罚路径普遍没接** ✗
+//   （把句子直接 `<<print>>` 进 `<<link>>` 体 ⇒ 随后的导航把它冲掉 ✗）⇒ 玩家"挨了打看不到自己挨了什么" ✓。
+//   原文级例：徒手开箱失败（`机制·chest`）与陷阱失败（`机制·trap`）⇒ 落点屏上**空白** ✓。
 //
-// 判据（一条）：**只要一个 `<<link>>` 体里有副作用**（伤害／异常／给物／金币／耐久），
-//   就必须同时有**落点文案**（`$pc.ev.settle` 或 `<<caveSay>>`／`<<sceneFeedback>>`）。
+// ⚠️ **判据那一半已上移** ✗：`editor/lib/core/settleRows.mjs` ✓（`#215` 报备 `18504699` ✓）——
+//   因为编辑器页内要**同判** ✓（页内输入 ＝ `pkg.passages` ⇒ `text` ＝ **去注释源文** ✓，与 `context.mjs` 的 `passageSrc` 同口径 ✓）。
+//   ⇒ 本件只留 **io 那一半** ✓（`ctx.passageSrc` ＝ 宿主编译期索引 ✓）＋ 自证 ＋ 报错措辞 ✓；
+//   判定**不另写第二份** ✗（K6 的"能力两处定义"正是防这个 ✗ ⇒ 这里一律 **import ＋ re-export** ✓）。
 //
-// 口径（避免假红）：
-//   · **纯导航** link（无副作用）⇒ 不要求（走到哪算哪，没有"挨了什么"要讲）；
-//   · 副作用宏清单住 `SIDE_EFFECT_RE` —— 新增副作用宏必须**显式登记**（否则门看不见它，
-//     与 `test/fight-compat.mjs` 的"入口家族"同一个教训：家族不全 ⇒ 门假绿）；
-//   · 只判**故事门作用域**（`stories/<slug>/**`）⇒ 对未启用该协议的故事零影响。
-//
-// 自证：`run` 里跑 5 条（正例 3 ＋ 反例 2）。
+// 自证：`run` 里跑 6 条（正例 3 ＋ 反例 2 ＋ 边界 1 ✓；正反例跑**同一份判据** ✓）。
+
+import { settleProblems } from '../../../editor/lib/core/settleRows.mjs';
+
+// 纯判定那几个符号**照旧对外可见** ✓（既有消费者不用改 ✗）—— 但**定义只有一处** ✓（core ✓）。
+export { SIDE_EFFECT_RE, SETTLE_RE, LEAVES_RE, linkBodies, settleProblems } from '../../../editor/lib/core/settleRows.mjs';
 
 export const flag = 'settle';
 export const flags = ['settle'];
-
-/** 副作用宏／写点（新增一类要登记在这里——门看不见的宏＝假绿）。 */
-export const SIDE_EFFECT_RE = /<<(damage|applyStatus|give|note)\b|\$pc\.gold\s*to\s*\$pc\.gold\s*\+|\$pc\.gearHp\s*=/;
-
-/** 落点文案（＝"玩家能在落点屏上读到这次副作用"的证据）。 */
-export const SETTLE_RE = /ev\.settle|ev\.last_result|caveSay|caveEffect|sceneFeedback/;
-
-/** **会离开本段**吗？（`<<caveNext>>`／`<<goto "别的段">>`）——
- *  口径：留在原地的分支（`<<goto \`passage()\`>>`）它的 `<<print>>` 玩家**当场就读得到** ⇒ 不要求搬运；
- *  只有**会离开**的分支才需要把句子写进 `settle`（否则被导航冲掉 —— 这正是 `#746` 的实测形态）。 */
-export const LEAVES_RE = /<<caveNext>>|<<goto\s+(?!`passage\(\)`)/;
-
-/** 纯函数：切出 `<<link …>>…<</link>>` 体（按宏深度配对，支持嵌套）。 */
-export const linkBodies = (src) => {
-	const out = [];
-	const re = /<<link\b[^>]*>>|<<\/link>>/g;
-	let m, depth = 0, start = -1;
-	while ((m = re.exec(src ?? ''))) {
-		if (m[0].startsWith('<<link')) { if (depth === 0) start = m.index; depth += 1; continue; }
-		depth -= 1;
-		if (depth === 0 && start >= 0) { out.push({ text: src.slice(start, m.index + m[0].length), at: start }); start = -1; }
-	}
-	return out;
-};
-
-/** 纯函数：判定 —— 有副作用却没落点文案的 `<<link>>` 体 ⇒ 每条一报。 */
-export const settleProblems = (src, site = '') => {
-	const out = [];
-	for (const b of linkBodies(src)) {
-		if (!SIDE_EFFECT_RE.test(b.text)) continue;             // 纯导航：不管
-		if (!LEAVES_RE.test(b.text)) continue;                  // 留在原地：打印当场可见 ⇒ 不要求搬运
-		if (SETTLE_RE.test(b.text)) continue;                   // 有落点文案 ✓
-		out.push({
-			site,
-			why: '这条分支有**副作用**（伤害／异常／给物／金币／耐久）却没有落点文案 ⇒ 玩家看不到自己挨了什么、拿到了什么',
-			snippet: b.text.replace(/\s+/g, ' ').slice(0, 110),
-		});
-	}
-	return out;
-};
 
 export const run = (ctx) => {
 	const { arg, wantAll, passageSrc } = ctx;

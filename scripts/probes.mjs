@@ -163,4 +163,19 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /注入字面状态读/ },
 		why: '量的是「页内**真的在判** ① 条件表行级，而不是把 CLI 的结论抄一遍」（掐掉 core 那一步 ⇒ 注入的字面状态读不被点名 ⇒ 刀必红 ✓）—— 否则“两侧同判”会被写成“两侧都空”✗',
 	},
+	{
+		// 台账行：`test/web-settle.mjs` ✓（车道 D · `--settle` 页内面 ✓）
+		id: 'test/web-settle.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/web-settle.mjs',
+		mutation: {
+			// 把页内那一支的判定**掐掉**（返回空 ✗）⇒ “非空上的同判”必红 ✓（这一步只动页内 ✗ ⇒ 不会把两侧一起变 ✗）。
+			file: 'editor/web/settle-view.mjs',
+			find: 'for (const prob of settleProblems(p.text, p.name)) problems.push(prob);',
+			replace: 'for (const prob of []) problems.push(prob);',
+		},
+		expect: { rc: 1, stdout: /非空/ },
+		why: '量的是「页内**真的在判**（与 CLI 同一份 core ✓），而不是把结论抄一遍／判空」（掐掉页内那一步 ⇒ “非空上的同判”那条必红 ✓）—— 否则“两侧同判”会被写成“两侧都空”✗',
+	},
 ];

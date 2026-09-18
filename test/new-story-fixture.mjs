@@ -14,7 +14,8 @@
 //   ⇒ 用 `finally` 逐处删 ✓，并且**结束时重跑一次 `build.mjs`** ＋ 与开场快照**比 dist 聚合 sha** ✓
 //   ⇒ "本件没污染别人的基线" 是**读数**，不是承诺 ✓（这条能假 ✓：漏清一处 ⇒ sha 变 ⇒ 红 ✓）。
 //
-// 用法：node test/new-story-fixture.mjs（在 `npm test` 链里 ✓，`phase: 'build'`）
+// 用法（**自含归一** ✓ —— ⑲：前置写进命令 ✓）：`node test/new-story-fixture.mjs`
+//   （它会**先 `node build.mjs` 归一 `dist`** 再取基线 ✓ ⇒ 不依赖"调用者刚跑过 build" ✗；在 `npm test` 链里是 `phase: 'build'` ✓）
 
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync, readdirSync, rmSync, mkdirSync, writeFileSync, statSync } from 'node:fs';
@@ -64,10 +65,16 @@ const cleanup = () => {
 	}
 };
 
+// ⚠️ **开场快照必须在开场 cleanup() 之后取** ✗（复核席实测 ✓）：否则上一次**被中断**留下的残留（同 slug ✓）
+//   会被算进基线 ⇒ 结束时已清 ⇒ sha 不等 ⇒ **假红一次** ✗（紧接着重跑又自愈 ✓ —— 正是 §17 ⑰／⑲ 那族 ✓）。
+cleanup();
+// `#917` ／复核席两条：**基线要先归一到"干净构建态"** ✗ —— 上一次被中断留下的残留（同 slug ✓）**或**任何旧态的 dist ✓
+//   都会被算进基线 ⇒ 结束时是新建的 ⇒ sha 不等 ⇒ **假红** ✓（实测：旧态 dist 时复现过 ✓）。
+const warm = run(['node', 'build.mjs']);   // 归一（CI 里 `build-mjs` 刚跑过 ⇒ 这里是幂等的 ✓）
+t('前置：`dist` 归一到干净构建态（`node build.mjs` rc=0 ✓ —— ⑲：前置写进命令 ✓）', warm.rc === 0, `rc=${warm.rc}`);
 const before = distSha();
 try {
 	// ── 夹具：**起手四件**（core 的既有口 ✓ ⇒ 与页面路同源 ✗）＋ **哨兵**（让 ① 的产物断言有牙 ✓）
-	cleanup();
 	const st = starterPackage({ slug: SLUG, title: '__newci 夹具（#899 ② 注册场景）', ifid: 'c1d2e3f4-5a6b-4c7d-8e9f-0a1b2c3d4e5f' });   // **小写** ⇒ 走归一化 ✓
 	st.data['tables.json'].containers = { [SENTINEL]: { sites: { 哨兵位点: { abil: 'str', dc: 10 } } } };
 	const io = { writeText: (rel, text) => { mkdirSync(dirname(join(ROOT, rel)), { recursive: true }); writeFileSync(join(ROOT, rel), text); } };

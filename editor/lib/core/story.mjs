@@ -11,6 +11,11 @@
 //   readStoryPackage({ slug, io })        —— io: { readText, exists }
 //   writeStoryPackage({ slug, data, io }) —— io: { writeText, mkdirp }；**故事数据的唯一写路**
 //   selftestStory()                       —— 自证：用**假 io** 驱动（含"拒绝型 io"＝写侧哨兵 ✓）
+//
+// 车道 G 切片 1b（`#215` 报备 `18503024`）：**新故事也要声明方言号** ✓ ⇒ 清单由 `manifestFor()` 自己带上 ✓
+//   （⇒ 页面新建的故事与三个既有故事**同形** ✓；不带 ⇒ `test/contract-version.mjs` 会点名"缺号" ✗）。
+//   依赖方向 ✓：`story.mjs → contractVersion.mjs` 单向 ✓（后者**不**反向 import 本件 ⇒ 无环 ✓）。
+import { CURRENT } from './contractVersion.mjs';
 
 /** 数据面文件（与 `data/` 下的产物同名；`rules.json` 可缺 ⇒ `null`）。 */
 export const DATA_FILES = ['tables.json', 'contract.json', 'rules.json'];
@@ -142,7 +147,7 @@ export const manifestFor = ({ slug, title = '未命名故事', subtitle = '', en
 	const names = Object.keys(twee);
 	if (!names.includes('00-meta.twee')) throw new Error('manifestFor：`twee` 里必须含入口件 `00-meta.twee`（它的 `StoryData.start` 与 `entry` 必须一致 ✓）');
 	const order = ['00-meta.twee', ...names.filter((n) => n !== '00-meta.twee')];
-	return { slug, title, subtitle, entry, files: order.map((n) => `stories/${slug}/${n}`), gates };
+	return { slug, title, subtitle, entry, contractVersion: CURRENT, files: order.map((n) => `stories/${slug}/${n}`), gates };
 };
 
 /** 自证：**不碰真磁盘** ✓（假 io 驱动 ⇒ 在 core 里就能证明"写只经这一条路" ✓）。 */

@@ -12,6 +12,7 @@
 //      ⚠️ 为什么需要它 ✗：另两条读数（**闭包不动点**／**悬空引用扫描**）当时住在**仓外** ⇒ 复核席**复现不了** ✓。
 //   ⑦ **结构：core 不得 import `scripts/**`** ✓（分层 ✓ —— `#881` 修掉的正是这一类违规 ✓；零假阳 ✓）。
 import { readdirSync, readFileSync } from 'node:fs';
+import { paragraphsOf } from '../editor/lib/core/text.mjs';   // A 片（`#215` 报备 `18504548` ✓）：分段已上移 core ✓ ⇒ 一并进冒烟面 ✓
 import { auditShape, flagPaths, keyOf, notepathProblems, singleReadProblems, singleWriteProblems, auditConsumption,
 	rowReads, scanReads, knowledgeIndex, faceOf, knowledgeHits, baselineProblems, tableReadProblems,
 	STORY_PREFIX, READ_KNOWN } from '../editor/lib/core/stateDiagnose.mjs';
@@ -103,6 +104,9 @@ t('消费① 已声明却真被读 ⇒ 僵尸豁免红（反沉默 ✓）', audi
 	smoke('`faceOf`（故事面 vs 机制面 ✓）', () => [faceOf(hit), faceOf({ file: 'src/10-core.twee' })].join('/'), (v) => v === 'story/mech', 'story/mech');
 	smoke('`knowledgeHits`（知识键 ⇒ 命中且带 note ✓）', () => knowledgeHits([hit], know).map((h) => h.note).join('/'), (v) => v === 'n_a', 'n_a');
 	smoke('`baselineProblems`（新增判红 ✓）', () => baselineProblems([{ ...hit, known: false }]).fresh.length, (v) => v === 1, '1');
+	smoke('`paragraphsOf`（twee 文本 ⇒ 段落清单 ✓；`body` ＝ 去注释源文 ✓）',
+		() => { const [a, b] = paragraphsOf({ file: 'stories/x.twee', text: ':: P\n<<if $pc.ev.a>>x<</if>>\n/% 注释 %/\n:: Q [script]\n// 示例\n正文\n' }); return [a.file, a.passage, a.kind, b.kind, b.body.includes('%')].join('/'); },
+		(v) => v === 'stories/x.twee/P/narr/mech/false', 'story 形/段落名/kind 两半/去注释 ✓');
 	smoke('`tableReadProblems`（干净行 ⇒ 零 ✓）', () => tableReadProblems([{ id: 'A', scope: 'S', req: ['n_a'], text: '纯渲染' }]).length, (v) => v === 0, '0');
 	t('附3·常量仍在（`STORY_PREFIX`／`READ_KNOWN` ✓）', STORY_PREFIX === 'stories/' && typeof READ_KNOWN === 'object' && READ_KNOWN !== null);
 	// 能假的另一半（每件都要 ✓）
@@ -111,9 +115,9 @@ t('消费① 已声明却真被读 ⇒ 僵尸豁免红（反沉默 ✓）', audi
 	t('反例·`tableReadProblems`：`pc.ev.x` ⇒ 报「字面状态读」（能假的另一半 ✓）', tableReadProblems([{ id: 'A', req: ['pc.ev.x'] }]).some((p) => p.what === '字面状态读'));
 	t('反例·`baselineProblems`：基线里修好的条目 ⇒ 只报 `stale`（不静默 ✓）', baselineProblems([], { '旧段|ev.old': '理由' }).stale.length === 1);
 	// ⑥ 的机械面：真的调用了（不是空读数 ✓）——**不用 `eval`** ✗（显式把七个绑定列出来 ✓）
-	const READ_JUDGES = { rowReads, scanReads, knowledgeIndex, faceOf, knowledgeHits, baselineProblems, tableReadProblems };
-	t('冒烟覆盖面：本次**真的**跑过 7 个读侧判定（非空守卫 ✓）',
-		Object.keys(READ_JUDGES).length === 7 && Object.values(READ_JUDGES).every((f) => typeof f === 'function'),
+	const READ_JUDGES = { rowReads, scanReads, knowledgeIndex, faceOf, knowledgeHits, baselineProblems, tableReadProblems, paragraphsOf };
+	t('冒烟覆盖面：本次**真的**跑过 8 个读侧判定（非空守卫 ✓；A 片 +1 ＝ `paragraphsOf` ✓）',
+		Object.keys(READ_JUDGES).length === 8 && Object.values(READ_JUDGES).every((f) => typeof f === 'function'),
 		`${Object.keys(READ_JUDGES).length} 个绑定 ✓`);
 }
 

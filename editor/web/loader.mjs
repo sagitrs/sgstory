@@ -10,6 +10,7 @@
 //   ⇒ 这正是「一个内核 · 三种宿主」里 *内核浏览器安全* 那条口径的**第一个真实用途** ✓。
 
 import { packageFiles, readStoryPackage, DATA_FILES } from '../lib/core/story.mjs';
+import { paragraphsOf } from '../lib/core/text.mjs';   // 车道 E · A 片（`#215` 报备 `18504548` ✓）：段落切分**复用 core** ✓（页内不写第二份 ✗）
 
 /** 浏览器文件条目（`{ name, webkitRelativePath?, text() }` ⇒ 只读 ✓）判据：包内**相对路径**的
  *  各种写法都要能对上 ✓ —— 目录选择器给的是 `minimal-demo/data/tables.json` ✓（相对于选中目录的**上一级**），
@@ -54,6 +55,26 @@ export const filesToIo = (files = [], { slug } = {}) => {
 	return { readText, misses, paths: [...byPath.keys()] };
 };
 
+/** **包内 twee 源** ✓（车道 E · A 片 ✓ —— `{ sources, passages }` ✓）：**只取用户已选中的** ✗，
+ *  路径**规范成包内形** ✓（`stories/<slug>/…` ✓ —— ⚠️ 必须是这个前缀 ✓，否则 `faceOf()` 会把故事段判成机制面 ✗）。
+ *  · `sources`  ＝ `[{ file, text }]` ✓（**raw 原文** ✓ —— 顺序＝**按 file 排**再看文件内出现序 ✓，可复现 ✓；**同名/跨文件不吞不并** ✗）；
+ *  · `passages` ＝ `[{ name, text, file }]` ✓（`text` ＝ **去注释源文** ✓，与 `scripts/audit/context.mjs` 的
+ *    `passageSrc` **同口径** ✓ —— `--settle` 那类判据吃它 ✓；**文件粒度不够** ✗ ⇒ 由 core 的 `paragraphsOf()` 给段落粒度 ✓）。
+ *  ⚠️ **只读** ✓（不写盘 ✗）；**没选到的文件就当没选到** ✗（不静默补空 ✗）。 */
+export const sourcesOf = ({ files = [], slug } = {}) => {
+	const pick = new Map();
+	for (const f of files ?? []) {
+		const rel = f?.webkitRelativePath ?? f?.name ?? '';
+		const canon = pathCandidates(rel, { slug }).find((k) => k.startsWith(`stories/${slug}/`) && k.endsWith('.twee'));
+		if (canon && !pick.has(canon)) pick.set(canon, f);
+	}
+	const sources = [...pick.entries()]
+		.sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+		.map(([file, f]) => ({ file, text: typeof f?.text === 'function' ? f.text() : String(f?.text ?? '') }));
+	const passages = sources.flatMap(({ file, text }) => paragraphsOf({ file, text }).map((s) => ({ name: s.passage, text: s.body, file })));
+	return { sources, passages };
+};
+
 /** **一片可核**的加载：用户选的文件 ⇒ 故事包摘要（**纯** ✓ —— 不碰 DOM ✓，所以单测不需要 jsdom ✓）。
  *  返回面只给"编辑器要先看见的东西"：包内文件名 ✓、数据面各文件 ✓、契约成员名与 kind ✓（**不**在此判桶 ⇒
  *  分类是内核的事 ✓，本件只搬数据 ✓）。 */
@@ -61,6 +82,7 @@ export const loadPackage = ({ slug, files, io } = {}) => {
 	const theIo = io ?? filesToIo(files, { slug });
 	const pkg = readStoryPackage({ slug, io: theIo });
 	const data = pkg.data ?? {};
+	const src = sourcesOf({ files, slug });
 	const members = (data['contract.json']?.members ?? []).map((m) => ({
 		name: m.name,
 		kind: m.kind,
@@ -79,6 +101,11 @@ export const loadPackage = ({ slug, files, io } = {}) => {
 		// ⚠️ **原样带上 `data`** ✓：页内编译（`compile.mjs` ✓）要的就是它 ✓ —— 只给"摘要"会让下游
 		// 自己去猜文件 ✓（那就会长成第二份读法 ✗）。
 		data,
+		// 车道 E · A 片（`#215` 报备 `18504548` ✓）：**段落源取件面** ✓（两个消费者＝页内读侧 ② 读数 ＋ 发起者的 `--settle` ✓）。
+		//  ⚠️ 只有**给了 files** 这一路取得到 ✗（调用方直接喂 `io` ⇒ 没有文件对象 ⇒ 如实回空 ＋ `sourcesAvailable:false` ✓，不假装 ✓）。
+		sources: src.sources,
+		passages: src.passages,
+		sourcesAvailable: Boolean(files?.length),
 		missing: theIo.misses ?? [],
 	};
 };

@@ -45,6 +45,20 @@ t('边界：三种真实形态都能对上（core 形／**选中故事目录**�
 		pathCandidates('demo/data/tables.json', { slug: 'demo' }).includes('data/tables.json') &&
 		keys.includes('stories/demo/data/tables.json'));
 
+// ── A 片（`#215` 报备 `18504548` ✓）：**段落源取件面** ✓（`sources` ／ `passages`）────────────────
+const withTwee = loadPackage({ slug: 'demo', files: [...pkgOf(), f('demo/00-meta.twee', ':: StoryTitle\n示例\n'), f('demo/12-widgets.twee', ':: 门厅 [widget]\n<<if pc.ev.a>>x<</if>>\n/% <<if pc.ev.b>> %/\n')] });
+t('A 片·正例：`sources` **只取选中的 twee** ✓（路径规范成包内形 ✓ —— `stories/` 前缀是 `faceOf()` 的前提 ✗）',
+	withTwee.sources.length === 2 && withTwee.sources[0].file === 'stories/demo/00-meta.twee' && withTwee.sources.every((x) => x.file.startsWith('stories/demo/')) && withTwee.sourcesAvailable === true);
+t('A 片·正例：`passages` 是**段落粒度** ✓（`{name, text, file}` ✓ —— 文件粒度不够 ✗）',
+	withTwee.passages.length === 2 && withTwee.passages[0].name === 'StoryTitle' && withTwee.passages[1].name === '门厅' && withTwee.passages.every((x) => typeof x.text === 'string' && x.file.startsWith('stories/demo/')));
+t('A 片·正例：`passages[].text` ＝ **去注释源文** ✓（`/% … %/` 整段删除 ⇒ 与 `context.mjs` 的 `passageSrc` 同口径 ✓）',
+	withTwee.passages[1].text.includes('<<if pc.ev.a>>') && !withTwee.passages[1].text.includes('pc.ev.b'));
+t('A 片·正例：顺序**可复现** ✓（按 `file` 排 ✓）', JSON.stringify(withTwee.sources.map((x) => x.file)) === JSON.stringify([...withTwee.sources.map((x) => x.file)].sort()));
+t('A 片·反例：**没选 twee**（只选数据面）⇒ `sources` 空 ＋ `sourcesAvailable` 真 ✓（**不静默补空** ✗ ⇒ 调用方据此写"不适用" ✓）',
+	good.sources.length === 0 && good.passages.length === 0 && good.sourcesAvailable === true);
+t('A 片·反例：**调用方直接喂 `io`** ⇒ 没有文件对象 ⇒ `sourcesAvailable:false` ✓（如实 ✗，不假装 ✓）',
+	loadPackage({ slug: 'demo', io: { readText: () => JSON.stringify({ slug: 'demo' }) } }).sourcesAvailable === false);
+
 // 正例：`wantedPaths` 从内核取编目（不手抄 ✗）
 const w = wantedPaths('demo');
 t('正例：编目来自 core（含 manifest 与三个数据面名）', w[0] === 'stories/demo/00-story.json' && w.includes('stories/demo/data/contract.json'));

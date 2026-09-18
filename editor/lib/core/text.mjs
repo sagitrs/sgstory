@@ -4,6 +4,7 @@
 // 抽出来的直接收益：`equiv` 与 `extract-story` 原先**互相 import**（环 ✗）——
 // 纯文本助手归这里之后，依赖只剩一个方向：`host → core`。
 import { maskComments } from './mask.mjs';
+import { stripJsComments } from './audit-shared.mjs';   // A 片：机制段剥 JS 注释（**单一权威** ✓ —— 与 `--text` 同口径 ✓）
 
 /** 纯函数：从 twee 文本里取某段段落的正文（不含 `:: 名字 [script]` 头）。 */
 export const section = (text, name) => {
@@ -50,3 +51,48 @@ export const normalize = (text) => maskComments(String(text))
 	export const maskTemplates = (text) => String(text ?? '').replace(/`(?:\\[\s\S]|[^\\`])*`/g, (m) => m.replace(/[^\n]/g, ' '));
 
 export const hasGeneratedMarker = (text) => /^\s*\/\/\s*@generated\b/m.test(maskTemplates(text));
+
+// ── 段落切分（车道 E · A 片，`#215` 报备 `18504548` ✓）────────────────────────
+// **纯** ✓（零宿主 ✓）：吃 `{ file, text }`、吐段落清单 ✓ —— 从故事门 `stories/mist-forest/gates/reads.mjs`
+// 的 `segmentsOf()` **逐字上移**分段那半 ✗（io 那半 `readFileSync` **留在门里** ✓ —— 与 `#877` 同款 ✓）。
+// 为什么上移 ✓：页内要跑**同一份**分段（读侧 ② 读数 ＋ 发起者的 `--settle` 要段落源 ✓）
+//   ⇒ 自己不写第二份内核 ✗（K6 ① ✓）。
+//
+// ⚠️ **两个字段的分工**（容易被读混 ✗，写在这里 ✓）：
+//   · `src` ＝ **保行号**的处理（`/% … %/` **挖空成空格** ✓；机制段再剥 JS 注释 ✓）—— 给**逐行找读点**用 ✓
+//     （行号不能漂 ✓ ⇒ 挖空而不是删除 ✓），`scanReads()` 吃的就是它 ✓；
+//   · `body` ＝ **去注释源文**（`/% … %/` **整段删除** ✓）—— 与 `scripts/audit/context.mjs` 的 `passageSrc` **同口径** ✓
+//     （`--settle` 那类"按段落正文判"的判据吃的是这一份 ✓）。
+//   ⚠️ 两种掩码**都保留** ✗、**不合并** ✓：合并＝让某一类消费者拿到错口径的文本 ✗（`segmentsOf` 搬上来之前只有 `src` ✓）。
+//
+// ⚠️ **已知重复**（如实写明 ✗）：`MECH_TAGS` 在 `scripts/audit/lib/shared.mjs` 里**另有一处定义** ✓
+//   （它那边管 `--text` 面 ✓）。本件**不导出**该常量 ✗（导出会与那处撞 K6 ①「能力只许一处定义」✓）；
+//   **统一两处**属另一件事 ✗（会动到 CI 相邻件 ✓）⇒ **不在本片** ✓。
+const MECH_TAGS = ['script', 'widget', 'stylesheet'];
+
+/** **纯** ✓：`:: 段落名 [tags]` 切段 ⇒ `[{ file, passage, tags, kind, layer, line, src, body }]`（**段序 ＝ 文件内出现序** ✓）。 */
+export const paragraphsOf = ({ file, text } = {}, { layer = 'story' } = {}) => {
+	const s = String(text ?? '');
+	const out = [];
+	const heads = [...s.matchAll(/^::\s*([^\n]*)\n/gm)];
+	heads.forEach((m, i) => {
+		const start = m.index + m[0].length;
+		const end = i + 1 < heads.length ? heads[i + 1].index : s.length;
+		const head = m[1];
+		const tags = (head.match(/\[([^\]]*)\]/)?.[1] ?? '').trim().split(/\s+/).filter(Boolean);
+		const kind = tags.some((t) => MECH_TAGS.includes(t)) ? 'mech' : 'narr';
+		const raw = s.slice(start, end);
+		out.push({
+			file, passage: head.replace(/\[[^\]]*\]\s*$/, '').trim(), tags, kind, layer,
+			line: s.slice(0, start).split('\n').length,
+			// 注释**挖空**（不是删除）：示例不是代码，但**行号要留住** ✓；机制段再剥 JS 注释（单一权威 ✓）。
+			src: (() => {
+				const t = raw.replace(/\/%[\s\S]*?%\//g, (c) => c.replace(/[^\n]/g, ' '));
+				return (kind === 'mech' ? stripJsComments(t) : t);
+			})(),
+			// 去注释源文 ✓（与 `context.mjs` 的 `passageSrc` 同口径 ✓ ⇒ `--settle` 那类判据吃它 ✓）。
+			body: raw.replace(/\/%[\s\S]*?%\//g, ''),
+		});
+	});
+	return out;
+};

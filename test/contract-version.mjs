@@ -15,7 +15,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { dialectOf } from '../editor/lib/core/dialect.mjs';
 import { readStoryPackage, manifestFor } from '../editor/lib/core/story.mjs';
-import { CURRENT, DECLARED, checkDialect, judgeContractVersion, unusedDeclared, formatContractVersion } from '../editor/lib/core/contractVersion.mjs';
+import { CURRENT, DECLARED, EXTENSIONS, checkDialect, judgeExtensions, judgeContractVersion, unusedDeclared, formatContractVersion } from '../editor/lib/core/contractVersion.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const io = { readText: (p) => readFileSync(`${ROOT}/${p}`, 'utf8'), exists: (p) => existsSync(`${ROOT}/${p}`) };
@@ -51,6 +51,21 @@ try {
 		has(judgeContractVersion({ slug: 'a', manifest: { contractVersion: CURRENT - 1 } }), (p) => p.kind === 'shape'));
 	t('合成：**号比 `current` 新（改了号却没改全集）⇒ 必红** ✓（㉗：这一刀打的是"全集与号是否同批改"那个面 ✓）',
 		has(judgeContractVersion({ slug: 'a', manifest: { contractVersion: CURRENT + 1 } }), (p) => p.kind === 'stale'));
+
+	// ── (β) 增面登记（经 `18504264` 裁定 ✓）：未登记 ⇒ 红；登记（含形状）⇒ 绿 ✓ ──
+	{
+		const withFace = { files: { 'notes.json': { topKeys: ['entries', 'section'], items: {} } } };
+		t('**(β) ① 未登记的增面 ⇒ 必红且点名** ✗（牙：枚举里没名就拦 ✓ —— 增面≠放宽 ✓）',
+			has(checkDialect(withFace), (p) => p.kind === 'file' && p.name === 'notes.json'));
+		const E = [{ file: 'notes.json', topKeys: ['entries', 'section'], items: {}, reason: 'note 表数据化', ticket: '#1' }];
+		t('**(β) ① 另一半** ✓：**登记后 ⇒ 绿**（同一条两个方向 ✓）', checkDialect(withFace, { extensions: E }).length === 0);
+		t('**(β) ③ 登记面里再出没登记的顶层键 ⇒ 仍红** ✗（⇒ “登记一个面”不会被读成“这个面里什么都行” ✓）',
+			has(checkDialect({ files: { 'notes.json': { topKeys: ['entries', 'section', 'sneaky'], items: {} } } }, { extensions: E }), (p) => p.kind === 'topKey' && p.name === 'sneaky'));
+		t('**(β) ② 登记条目必填** ✓：`file`／`topKeys`／`items`／`reason`／`ticket` 缺一 ⇒ 各点名 ✗',
+			['file', 'topKeys', 'items', 'reason', 'ticket'].every((k) => { const x = [{ ...E[0] }]; delete x[0][k]; return judgeExtensions(x).some((p) => (p.field ?? p.kind) === k || (k === 'file' && p.kind === 'file') || (k === 'topKeys' && p.kind === 'shape') || (k === 'items' && p.kind === 'shape')); }));
+		t('**(β) 真数据：`EXTENSIONS` 今天为空 ⇒ 0 问题** ✓（本片只立机制 ＋ 登记第一个面的地方留好 ✓）',
+			Array.isArray(EXTENSIONS) && EXTENSIONS.length === 0 && judgeExtensions().length === 0);
+	}
 
 	// ── 覆盖边界自证 ✓：**不假装覆盖非数组的嵌套结构** ✗ ────────────────────
 	t('**覆盖边界自证** ✓：`containers` 里塞一个新字段 ⇒ **本件不报** ✗（那是深嵌套对象 ✓，本件包络只量"数组条目的字段" ⇒ **如实不覆盖** ✓，不假装 ✓）',

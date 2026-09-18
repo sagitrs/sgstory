@@ -26,6 +26,15 @@
 //   ⚠️ **早期报备（`#215` 评论 `18503024`）把这个数写成了 27** ✗ ⇒ 已在 `#215` 跟一条**更正**（`18503261`）✓
 //     —— 此处以**实测的 28** 为准 ✓（28 ＝ 共有 4 ＋ 特有 24 ⇒ 三个数自洽 ✓）。
 //
+// ⚠️ **声明四（号口径：(β) “**增面不 ＋1**”，经 `#215` 评论 `18504264` 裁定 ✓）**：
+//   · **改既有一面的形状／语义** ⟹ **破坏性** ⟹ `CURRENT ＋1` ✓（设计稿 L147 的原意 ✓）；
+//   · **新增一面**（`data/` 下多一个文件 ✓）⟹ **加法** ⟹ **不 ＋1** ✓，但**必须在本件的 `EXTENSIONS` 里显式登记** ✗。
+//   **牙在哪** ✓：**未登记的增面 ⇒ 仍然红** ✓（枚举里没名 ⇒ 拦 ✓ ⇒ (β) 只把“加法”从“改号”里分出去 ✗，**不是放宽** ✓）；
+//   且登记时必须**连那一面的形状一起写**（`topKeys`／`items` ✓）⇒ **登记过的面里再出没登记的字段 ⇒ 也红** ✓
+//   （否则“登记一个面”会被读成“这个面里什么都行” ✗）。
+//   **三条配套** ✓（同裁定 ✓）：登记与面**同 PR**（原子 ✓）· 登记**留痕**（写清这一面是什么 ＋ 票号 ✓）·
+//   **若某次增面对旧读者其实破坏性** ⟹ 走 `contractCompat` 的 **`external` 条目** ✓（**不靠 ＋1 遮掩** ✓）。
+//
 // **浏览器安全** ✓：零宿主 import ✓（`core/**` 老规矩 ✓）。**本件不 import `story.mjs`** ✓
 //   （`story.mjs` 反过来 import 本件的 `CURRENT` ✓ ⇒ 避免环 ✓）。
 
@@ -60,15 +69,46 @@ export const DECLARED = Object.freeze({
 	}),
 });
 
+/** **本版已登记的增面** ✓（(β) 的口）：增面**不 ＋1** ✓，但**必须在这里显式登记** ✗。
+ *
+ *  条目形状 ＝ `{ file, topKeys, items, reason, ticket }` ✓ —— **与 `DECLARED` 的同名键同义** ✓（`checkDialect` 把它与 `DECLARED` **一视同仁** ✓ ⇒ **一套机制** ✗，不另造第二套 ✓）；
+ *  `reason`／`ticket` 是**留痕**那两条 ✓（缺一 ⇒ `judgeExtensions()` 点名 ✓）。
+ *  ⚠️ **形状要一起写** ✗：否则“登记了一个面”会被误读成“这个面里什么都行” ✓。 */
+export const EXTENSIONS = Object.freeze([
+	// { file: '<名字>.json', topKeys: ['…'], items: { <条目表>: ['…'] }, reason: '<这一面是什么 ✓>', ticket: '<票号 ✓>' },
+]);
+
+/** **登记条目自身的检查** ✓（镜像 `escapeHatchProblems()` 的“条目必须带理由与票号”那一条 ✓）。 */
+export const judgeExtensions = (extensions = EXTENSIONS) => {
+	const out = [];
+	if (!Array.isArray(extensions)) return [{ at: 'EXTENSIONS', kind: 'shape', detail: '`EXTENSIONS` 不是数组 ✗' }];
+	for (const [i, e] of extensions.entries()) {
+		const at = `EXTENSIONS[${i}]`;
+		if (!e || typeof e !== 'object') { out.push({ at, kind: 'shape', detail: `${at} 不是对象 ✗` }); continue; }
+		if (typeof e.file !== 'string' || !e.file) out.push({ at, kind: 'file', detail: `${at} 缺 \`file\` ✗（登记要指名**哪一面** ✓）` });
+		if (!Array.isArray(e.topKeys)) out.push({ at, kind: 'shape', detail: `${at} 缺 \`topKeys\` ✗（**登记面要连形状一起写** ✓ —— 否则会被误读成“这个面里什么都行” ✗）` });
+		if (!e.items || typeof e.items !== 'object' || Array.isArray(e.items)) out.push({ at, kind: 'shape', detail: `${at} 缺 \`items\`（可为空对象 ✓）✗` });
+		for (const k of ['reason', 'ticket']) if (e[k] === undefined || e[k] === null || e[k] === '') out.push({ at, kind: 'required', field: k, detail: `${at} 缺 \`${k}\` ✗（增面登记必须可追：理由 ＋ 票号 ✓）` });
+	}
+	return out;
+};
+
 /** **越界检查** ✓（**只有一个方向** ✗：故事 ⊆ 全集）：`dialect` ＝ 1a 的 `dialectOf()` 输出 ✓。
  *
  *  返回**逐条**清单 ✗（不合并成一句 ✓ —— 照 `core/diagnose.mjs` 的 findings 同族 ✓）：
  *  `{ file, kind: 'file'|'topKey'|'itemList'|'field', name, list? }`。
- *  **缺的任何东西都不报** ✓（缺 ＝ 合法 ✓）；**只报"全集外"** ✗。 */
-export const checkDialect = (dialect, { declared = DECLARED } = {}) => {
+ *  **缺的任何东西都不报** ✓（缺 ＝ 合法 ✓）；**只报“全集外”** ✗。
+ *  ⚠️ **判据面**（(β) ✓）：`DECLARED` **∪** `EXTENSIONS` ✓ —— **已登记的增面**与 `DECLARED` **同等对待** ✓；
+ *  **没登记的增面** ⇒ `kind: 'file'` 报 ✓（**牙仍在** ✓）。 */
+export const checkDialect = (dialect, { declared = DECLARED, extensions = EXTENSIONS } = {}) => {
 	const out = [];
+	const merged = { ...declared };
+	for (const e of Array.isArray(extensions) ? extensions : []) {
+		if (!e?.file) continue;
+		merged[e.file] = { topKeys: e.topKeys ?? [], items: e.items ?? {} };
+	}
 	for (const [file, shape] of Object.entries(dialect?.files ?? {})) {
-		const d = declared[file];
+		const d = merged[file];
 		if (!d) { out.push({ file, kind: 'file', name: file }); continue; }
 		for (const k of shape.topKeys ?? []) if (!d.topKeys.includes(k)) out.push({ file, kind: 'topKey', name: k });
 		for (const [list, fields] of Object.entries(shape.items ?? {})) {

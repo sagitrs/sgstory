@@ -13,7 +13,7 @@
 //
 // 自证：`node test/layering.mjs --selftest`
 
-import { checkModuleGraph, ORDER, MODULES, readModules, checkLayerDirection, LAYER_OF, STORY_SYMBOLS, normalizeSymbolRefs, checkEngineRanks, rankOfPath, storyManifests } from '../scripts/module-order.mjs';
+import { requireManifests, checkModuleGraph, ORDER, MODULES, readModules, checkLayerDirection, LAYER_OF, STORY_SYMBOLS, normalizeSymbolRefs, checkEngineRanks, rankOfPath, storyManifests } from '../scripts/module-order.mjs';
 import { selftest as distFreshSelftest } from '../scripts/dist-fresh.mjs';
 
 const check = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) failures++; };
@@ -92,8 +92,19 @@ if (process.argv.includes('--selftest')) {
 		try { checkModuleGraph({ 'src/a.twee': '' }, { order: ['src/a.twee'], modules: { 'src/a.twee': { layer: 'engine' } } }); return false; }
 		catch (e) { return /manifests/.test(String(e.message)); }
 	})());
+	// `#930`（`#899` ① 复核留）：**形状**也要挡 ✗ —— 只挡 `undefined` 会让非数组漏到 `flatMap` ⇒ 报文不点名 ✗
+	t('喂 `{}`（非数组）⇒ **点名**抛错（含 `manifests` ✓ ＋"数组"✓；旧口径＝下游 `TypeError` ✗）', (() => {
+		try { requireManifests({}); return false; }
+		catch (e) { const m = String(e.message); return /manifests/.test(m) && /数组/.test(m); }
+	})());
+	t('喂字符串（非数组）⇒ 同样**点名** ✓（不是只认 `{}` 的特判 ✗）', (() => {
+		try { requireManifests('x'); return false; } catch (e) { return /数组/.test(String(e.message)); }
+	})());
+	t('**能假的另一半** ✓：`requireManifests([])` **不抛**（空数组合法 ✓ —— 否则"永远抛"也会过 ✗）', (() => {
+		try { return Array.isArray(requireManifests([])); } catch { return false; }
+	})());
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项——分层 lint 没有咬合力`); process.exit(1); }
-	console.log('\n✔ 自证通过：合规绿 / 前向依赖红 / 未登记红 / 定义漂移红 / 文件缺失红 / 点号 defines 正反例 / 两层登记（#893）正反例');
+	console.log('\n✔ 自证通过：合规绿 / 前向依赖红 / 未登记红 / 定义漂移红 / 文件缺失红 / 点号 defines 正反例 / 两层登记（#893）正反例 / **清单形状（#930）三条（非数组点名 ✗ ＋ [] 不抛 ✓）**');
 	process.exit(0);
 }
 

@@ -133,4 +133,19 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /合成一条死规则/ },
 		why: '量的是「页内**真的在判**，而不是把 CLI 的结论抄一遍」（掐掉 core 那一步 ⇒ 页内主读数不从 0 变 1 ⇒ 刀必红 ✓）—— 否则“两侧同判”会被写成“两侧都空”✗',
 	},
+	{
+		// 车道 G 前半 · 切片 1c（`#215` 报备 `18503697` / 开工报备 `18503987`）：**反向哨兵**（退出条件）真的在守
+		id: 'test/contract-compat.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/contract-compat.mjs',
+		mutation: {
+			// 把“退出条件成立 ⇒ 该删”那一路**让过去** ✗ ⇒ 条目腐烂不再被抓 ⇒ 必红 ✓
+			file: 'editor/lib/core/contractCompat.mjs',
+			find: 'if (retireWhenMet(e?.retireWhen, storyVersions)) {',
+			replace: 'if (false && retireWhenMet(e?.retireWhen, storyVersions)) {',
+		},
+		expect: { rc: 1, stdout: /retired|该删|退出条件/ },
+		why: '量的是「**退出条件真的会被执行**」（＝`escapeHatchProblems` 的“登记腐烂 ⇒ 红”同构）：把它排掉 ⇒ “退出条件已成立而条目还在”静默通过 ⇒ 必红且点名 ✓ —— 否则上限 ＋ 退出条件就是“只增不减”的摆设 ✗',
+	},
 ];

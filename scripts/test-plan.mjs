@@ -44,6 +44,8 @@ export const SEGMENTS = [
 	{ id: "test-dialect-mjs", phase: 'test', cost: 0.1, cmd: "node test/dialect.mjs" },
 	// 车道 G 前半 · 切片 1b（`#215` 报备 `18503024`）：**`contractVersion` ＝ 允许的全集（包络）** ✓（只读 ✓、发现式取故事 ＋ 读真清单 ⇒ cost 0.1 ✓）。
 	{ id: "test-contract-version-mjs", phase: 'test', cost: 0.1, cmd: "node test/contract-version.mjs" },
+	// 车道 G 前半 · 切片 1c（`#215` 报备 `18503697` / 开工报备 `18503987`）：**`N-1` 兼容层三件哨兵** ✓（只读 ✓、读真登记表 ＋ 三故事真号 ⇒ cost 0.1 ✓）。
+	{ id: "test-contract-compat-mjs", phase: 'test', cost: 0.1, cmd: "node test/contract-compat.mjs" },
 	// 车道 E-B2（`#215` 报备 `18502613`）：**规则行**页内面 ✓（读故事源 ＋ `web/**` ✓ —— 不读 `dist` ✗ ⇒ 无前置 ✓；jsdom ＋ `createContext` ⇒ cost 0.4 ✓）。
 	{ id: "test-web-rule-rows-mjs", phase: 'test', cost: 0.4, cmd: "node test/web-rule-rows.mjs" },
 	// `#794` P1①：「故事包 I/O ＝ 唯一写路」的自证（核心在 `editor/lib/core/story.mjs` ✓；含**写侧哨兵**：拒绝型 io ⇒ 写入当场失败 ✓）。

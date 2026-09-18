@@ -24,6 +24,15 @@ export const SEGMENTS = [
 	//   ⚠️ 必须是 `build` 相位 ⇒ **先跑且独占** ✗（它要在仓的 `stories/` 下临时建夹具 ✓）；**且排在 `build-mjs` 之后** ✗
 	//   （开场快照要取"刚 build 过的 dist" ✓，否则拿旧基线 ⇒ 末条 sha 比对**假红** ✓ —— 实测踩过一次 ✓）。
 	{ id: "test-new-story-fixture-mjs", phase: 'build', cost: 8, needs: ['build-mjs'], cmd: "node test/new-story-fixture.mjs" },
+	// `#908` ①：**探针（最小变异 ＋ 必须红）** —— 台账「自证」列从**代理**升级为**直接读数** ✓。
+	//   ⚠️ 同样必须是 `build` 相位 ⇒ **独占** ✗：探针要**临时改一个被测件**（`finally` 还原 ✓）⇒ 与别的段并发会假红 ✓。
+	//   结果写 `build/probe-results.json` ✓（不入仓 ✗）⇒ 台账在 `test` 相位读它 ✓（顺序：build ⇒ test ✓）。
+	{ id: "scripts-probe-gates-mjs-probe-fast", phase: 'build', cost: 25, needs: ['build-mjs'], cmd: "node scripts/probe-gates.mjs --probe=fast" },
+	// 复核留（**MINOR** ✗，实测 ✓）：**id ↔ 台账行**的绑定必须**也进 CI** ✗ —— 否则错 id 的探针在 CI 里**静默被忽略** ✓
+	//   （实测：错 id ⇒ `--check` rc=1 ✓ 而 `--probe=fast` rc=0 ✗）⇒ 这一段就是那把尺子 ✓。
+	{ id: "scripts-probe-gates-mjs-check", phase: 'test', cost: 0, cmd: "node scripts/probe-gates.mjs --check" },
+	// `#908` ①：运行器**自己**能假 ✓（三态判定／注入计数／缺前置分家 ✓）—— 与探针实跑分家 ✓。
+	{ id: "scripts-probe-gates-mjs-selfcheck", phase: 'test', cost: 0, cmd: "node scripts/probe-gates.mjs --selfcheck" },
 	{ id: "test-integrity-mjs", phase: 'test', cost: 0, cmd: "node test/integrity.mjs" },
 	// `#794` P1①：「故事包 I/O ＝ 唯一写路」的自证（核心在 `editor/lib/core/story.mjs` ✓；含**写侧哨兵**：拒绝型 io ⇒ 写入当场失败 ✓）。
 	{ id: "test-core-story-mjs", phase: 'test', cost: 0, cmd: "node test/core-story.mjs" },

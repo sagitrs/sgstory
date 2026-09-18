@@ -1,0 +1,62 @@
+/** 探针清单（`#908` ① ✓）—— **台账「自证」列的下一格** ✓。
+ *
+ * ## 为什么要有它
+ * `docs/gate-ledger.md` 的「自证」列是**抽取式代理** ✗：`hasSelfProof()` 只量「测试件里（注释外）**写没写** `反例/selftest` 那句话」✗
+ * —— 它证明的是"**写了那句话**"✗，**不是**"那个判据真会红"✗。探针化 = 把这一格从**代理**换成**直接读数** ✓。
+ *
+ * ## 一条探针长什么样（形状见 `#908` 评论 `5725279414` ✓ —— **写形状，不写"谁定的"** ✗）
+ * **最小变异 ＋ 必须红** ✓，且**两半都要**：
+ *   ① **正**：变异**前** `cmd` **rc=0** ✓（否则"红"可能来自别的原因 ✗ ⇒ 这条读数不成立 ✓）；
+ *   ② **反**：对 `mutation.file` 做一次**最小**改动（`find` ⇒ `replace` ✓）⇒ `cmd` **rc=1** ✓ **且报文点名** `expect.stdout` ✓；
+ * 变异**备份还原**在 `finally` ✓，并把「**注入确认 N 处**」打出来 ✗（`N=0` ⇒ 探针**没下到刀** ⇒ 红 ✓，不许读成"读数没牙" ✗ —— 同族坑实测栽过一次：正则没命中 ⇒ "注入 0 处" ✓）。
+ *
+ * ## 三条纪律（每条都为"能假"服务 ✓）
+ * - **探针件必须入仓** ✗（不许只活在某个人的 `/tmp` ✓）＋ **可粘贴复跑命令**一起进仓 ✓（`#913` 的活教训：命令没写出来 ⇒ 后人复现不了 ✓）；
+ * - **前置写进命令** ✗：要 `node build.mjs` 就写 `pre` ✓；缺前置 ⇒ 运行器**点名报「缺前置」**✗，**不许报成"探针不咬"**（那是两件事 ✓）；
+ * - **成本分档** ✓：`tier: 'fast'` 进 CI 常规段 ✓、`'full'` 走 `--probe=full`（手动／夜跑 ✓）；台账里写明**本轮覆盖到哪一档** ✓（⑲：适用面 ✓）。
+ *
+ * ## 加一条探针的最短路径 ✓
+ * ```jsonc
+ * { id: '<台账行的 id，逐字 ✓>', tier: 'fast', pre: [], cmd: '<那一行的 cmd ✓>',
+ *   mutation: { file: '<被测件（不是测试件 ✗）>', find: '<唯一真语句 ✓>', replace: '<最小变异 ✓>' },
+ *   expect: { rc: 1, stdout: /<点名那条判据 ✓>/ }, why: '<这条量的是哪个判据 ✓>' }
+ * ```
+ * 自检：`node scripts/probe-gates.mjs --probe=fast` ✓（`--list` 看清单 ✓、`--check` 只做结构校验不跑 ✓）。
+ *
+ * ⚠️ **`build/probe-results.json` 是会被污染的产物** ✗（不入仓 ✓，但同一个工作树里会被**上一次**实跑覆盖 ✓）：
+ *   手动跑过负控（把某条探针改成"不咬"✓）之后，**台账那一格会红** ✓ —— 那不是台账坏了，是记录还留着上次的字 ✓ ⇒ **先重跑探针、再跑台账段** ✓。
+ */
+
+/** @type {{id:string,tier:'fast'|'full',pre:string[],cmd:string,mutation:{file:string,find:string,replace:string},expect:{rc:number,stdout:RegExp},why:string}[]} */
+export const PROBES = [
+	{
+		// 台账行：`test/state-diagnose.mjs` ✓（34 条断言 ✓，是本仓"能假"写得最足的一件 ✓）
+		id: 'test/state-diagnose.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/state-diagnose.mjs',
+		mutation: {
+			// 被测件 ＝ `lib/core/**` ✓（**不是**测试件 ✗）：把「字面状态读」那一路的**产出**掐掉 ✓
+			file: 'editor/lib/core/stateDiagnose.mjs',
+			find: 'for (const key of literalReadKeys(k)) out.push(',
+			replace: 'for (const key of []) out.push(',
+		},
+		expect: { rc: 1, stdout: /字面状态读/ },
+		why: '量的是 `tableReadProblems` 的**读侧判定**真的会红 ✓（`test/state-diagnose.mjs:111` 那条「反例·`tableReadProblems`」✓）—— 掐掉产出 ⇒ 该断言必须红 ✓',
+	},
+	{
+		// 台账行：`scripts/report-gate-ledger.mjs` ✓ —— 探针刀口对着**台账自己** ✓
+		id: 'scripts/report-gate-ledger.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node scripts/report-gate-ledger.mjs --selftest',
+		mutation: {
+			// 把「自证」判定改成**恒真** ✗ ⇒ 它自己那 4 条正反例里，「只在注释里写 ⇒ false」必须红 ✓
+			file: 'scripts/report-gate-ledger.mjs',
+			find: '.test(maskComments(String(src ?? \'\'), { file: \'ledger\', twee: false }))',
+			replace: '.test("") || true)',
+		},
+		expect: { rc: 1, stdout: /hasSelfProof/ },
+		why: '量的是「自证」判定**自己**能假 ✓（本列若恒真 ⇒ 整列读数作废 ✗）—— 与 `#899` ③ 同源：**判定也要有能假的另一半** ✓',
+	},
+];

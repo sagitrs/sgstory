@@ -18,6 +18,7 @@ export const compileInPage = ({ slug, data } = {}) => {
 		tables: pick('tables.json'),
 		contract: pick('contract.json'),
 		rules: pick('rules.json'),
+		notesFace: pick('notes.json'),   // 车道 B · notes 面（`#215` `18504282` ✓）
 		slug,
 	});
 	const names = Object.keys(files).sort();

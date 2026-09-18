@@ -75,7 +75,16 @@ export const DECLARED = Object.freeze({
  *  `reason`／`ticket` 是**留痕**那两条 ✓（缺一 ⇒ `judgeExtensions()` 点名 ✓）。
  *  ⚠️ **形状要一起写** ✗：否则“登记了一个面”会被误读成“这个面里什么都行” ✓。 */
 export const EXTENSIONS = Object.freeze([
-	// { file: '<名字>.json', topKeys: ['…'], items: { <条目表>: ['…'] }, reason: '<这一面是什么 ✓>', ticket: '<票号 ✓>' },
+	// 车道 B · notes 面（`#215` 报备 `18504282` ✓；(β) 经 `18504264` 裁定 ✓）：
+	// **增面不 ＋1** ✓，但形状要一起登记 ✗（否则“登记一个面”会被读成“这个面里什么都行” ✓）。
+	// ⚠️ `blocks[].entries` 是**深嵌套对象** ✗ ⇒ 它的内部形状**不在本包络内** ✓（与 `contract.json` 的 `containers` 同一边界 ✓）。
+	{
+		file: 'notes.json',
+		topKeys: ['blocks', 'eraMap', 'note', 'why_eraMap'],
+		items: { blocks: ['entries', 'file', 'section'] },
+		reason: 'notes 面：把写写 `16-notes-*.twee`（手写表）的数据化 ✓ —— 一块＝一个 `:: <段名> [script]` 输出件 ✓',
+		ticket: 'sgstory#761 / gsvector-process#215',
+	},
 ]);
 
 /** **登记条目自身的检查** ✓（镜像 `escapeHatchProblems()` 的“条目必须带理由与票号”那一条 ✓）。 */

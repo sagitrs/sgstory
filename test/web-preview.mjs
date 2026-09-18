@@ -253,7 +253,7 @@ try {
 		const fromDisk = loadPackage({ slug: '__e2e', io: { readText: (p) => readFileSync(join(ROOT, p), 'utf8') } }).data;
 		const pageRules = compileInPage({ slug: SLUG, data: fromDisk }).files['17-rules.twee'];
 		t('链② **写入路径 == CLI 读的路径** ✓（`stories/<slug>/data/<f>` ✓ —— 不是"我实测过" ✓）',
-			Object.keys(saved.files).sort().join(',') === ['stories/__e2e/data/contract.json', 'stories/__e2e/data/rules.json', 'stories/__e2e/data/tables.json'].sort().join(','));
+			Object.keys(saved.files).sort().join(',') === ['contract.json', 'notes.json', 'rules.json', 'tables.json'].map((f) => `stories/__e2e/data/${f}`).sort().join(','));
 		t('链② 从**磁盘字节**编译 ⇒ 规则文本含标记 ✓（注入被消费 ✓ —— "先证注入生效" ✓）', pageRules.includes(MARKER));
 
 		// ── 链③ **CLI 那一跳**：同一个 slug（`__e2e`）两侧 ✓ ⇒ 逐字节比 ✓

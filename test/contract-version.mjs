@@ -54,17 +54,21 @@ try {
 
 	// ── (β) 增面登记（经 `18504264` 裁定 ✓）：未登记 ⇒ 红；登记（含形状）⇒ 绿 ✓ ──
 	{
-		const withFace = { files: { 'notes.json': { topKeys: ['entries', 'section'], items: {} } } };
+		const withFace = { files: { 'newface.json': { topKeys: ['entries', 'section'], items: {} } } };
 		t('**(β) ① 未登记的增面 ⇒ 必红且点名** ✗（牙：枚举里没名就拦 ✓ —— 增面≠放宽 ✓）',
-			has(checkDialect(withFace), (p) => p.kind === 'file' && p.name === 'notes.json'));
-		const E = [{ file: 'notes.json', topKeys: ['entries', 'section'], items: {}, reason: 'note 表数据化', ticket: '#1' }];
+			has(checkDialect(withFace), (p) => p.kind === 'file' && p.name === 'newface.json'));
+		const E = [{ file: 'newface.json', topKeys: ['entries', 'section'], items: {}, reason: '合成面', ticket: '#1' }];
 		t('**(β) ① 另一半** ✓：**登记后 ⇒ 绿**（同一条两个方向 ✓）', checkDialect(withFace, { extensions: E }).length === 0);
 		t('**(β) ③ 登记面里再出没登记的顶层键 ⇒ 仍红** ✗（⇒ “登记一个面”不会被读成“这个面里什么都行” ✓）',
-			has(checkDialect({ files: { 'notes.json': { topKeys: ['entries', 'section', 'sneaky'], items: {} } } }, { extensions: E }), (p) => p.kind === 'topKey' && p.name === 'sneaky'));
+			has(checkDialect({ files: { 'newface.json': { topKeys: ['entries', 'section', 'sneaky'], items: {} } } }, { extensions: E }), (p) => p.kind === 'topKey' && p.name === 'sneaky'));
 		t('**(β) ② 登记条目必填** ✓：`file`／`topKeys`／`items`／`reason`／`ticket` 缺一 ⇒ 各点名 ✗',
 			['file', 'topKeys', 'items', 'reason', 'ticket'].every((k) => { const x = [{ ...E[0] }]; delete x[0][k]; return judgeExtensions(x).some((p) => (p.field ?? p.kind) === k || (k === 'file' && p.kind === 'file') || (k === 'topKeys' && p.kind === 'shape') || (k === 'items' && p.kind === 'shape')); }));
-		t('**(β) 真数据：`EXTENSIONS` 今天为空 ⇒ 0 问题** ✓（本片只立机制 ＋ 登记第一个面的地方留好 ✓）',
-			Array.isArray(EXTENSIONS) && EXTENSIONS.length === 0 && judgeExtensions().length === 0);
+		t('**(β) 真数据：登记表合规** ✓（条目三条必填齐 ⇒ 0 问题 ✓；本片后 `EXTENSIONS` 非空 —— 车道 B 的 `notes.json` 已登记 ✓）',
+			Array.isArray(EXTENSIONS) && EXTENSIONS.length >= 1 && judgeExtensions().length === 0);
+		t('**(β) 真数据：`notes.json` **已登记** ⇒ 它不算"未登记的增面"** ✓（即 test/dialect 里 mist-forest 的 `present` 4 件能过门的理由 ✓）',
+			EXTENSIONS.some((e) => e.file === 'notes.json') && checkDialect(dialectOf(readStoryPackage({ slug: 'mist-forest', io })), { extensions: EXTENSIONS }).length === 0);
+		t('**(β) 真数据：把登记表清空 ⇒ 同一个包**当场红** ✗**（能假的另一半 ✓ —— 证明过门**靠的真是这张表** ✓）',
+			has(checkDialect(dialectOf(readStoryPackage({ slug: 'mist-forest', io })), { extensions: [] }), (p) => p.kind === 'file' && p.name === 'notes.json'));
 	}
 
 	// ── 覆盖边界自证 ✓：**不假装覆盖非数组的嵌套结构** ✗ ────────────────────

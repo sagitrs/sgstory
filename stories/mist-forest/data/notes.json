@@ -1,0 +1,126 @@
+{
+	"note": "车道 B · notes 面样板（`#215` 报备 `18504282`）：**手写 `16-notes-*.twee` 的数据面** —— 一条＝一个 `:: <段名> [script]` 输出件（`blocks[]` 里一块一件 ✓ “**分文件**”照旧 ✓）。",
+	"eraMap": {
+		"present": "window.Game.Era.PRESENT",
+		"past": "window.Game.Era.PAST"
+	},
+	"why_eraMap": "`era` 在数据面写成**声明式枚举**（`\"present\"`／`\"past\"` ✓）⇒ 由 `emitNotes()` 按本表展开成引擎引用 ✓。**值不在表里 ⇒ 编译期抛**（不许静默产出 `undefined` ✗ —— 与 `const` kind 的“缺 value 就抛”同一条口径 ✓）。",
+	"blocks": [
+		{
+			"file": "16-notes-ch1.twee",
+			"section": "Game Notes 一章补漏",
+			"entries": {
+				"n_tav_dragon": {
+					"title": "那条龙早死了",
+					"src": "酒馆",
+					"tags": [
+						"一章",
+						"酒馆"
+					],
+					"body": "上了年纪的村人说，那条龙早死了——他小时候他爷爷就这么说。要听细节，得去问女巫的后代。",
+					"era": "present",
+					"flagPath": "ev.tav_dragon"
+				},
+				"n_tav_keeper": {
+					"title": "讲守林人的那一桌",
+					"src": "酒馆",
+					"tags": [
+						"一章",
+						"酒馆"
+					],
+					"body": "个子很高，背有点驼；手里那根杖看着像木头，敲在石头上却不出声。他拦过人，不凶，只让人别再往前走。",
+					"era": "present",
+					"flagPath": "ev.tav_keeper"
+				},
+				"n_tav_painting": {
+					"title": "酒馆墙上那幅旧画",
+					"src": "酒馆",
+					"tags": [
+						"一章",
+						"酒馆"
+					],
+					"body": "一场宴：长桌、灯、很多人。画角有一行小字，看不清了；脸都已模糊，只辨得出长桌尽头站着一个女人。",
+					"era": "present",
+					"flagPath": "ev.tav_painting"
+				},
+				"n_wq_alone": {
+					"title": "别想着一个人把它解决掉",
+					"src": "女巫小屋",
+					"tags": [
+						"一章",
+						"女巫"
+					],
+					"body": "她说：别急着动手，先看清楚它是什么。还有——别想着一个人把它解决掉；那东西不是拿刀能解决的事，可有时候也得有人替你按着它。",
+					"era": "present",
+					"flagPath": "ev.wq_alone"
+				},
+				"n_wq_painting": {
+					"title": "别拿那幅画比",
+					"src": "女巫小屋",
+					"tags": [
+						"一章",
+						"女巫"
+					],
+					"body": "有人拿她跟酒馆旧画上的女人比。她说别拿那幅画比，没再说别的——画上那场宴，她家也有人在。",
+					"era": "present",
+					"flagPath": "ev.wq_painting"
+				},
+				"n_wq_past": {
+					"title": "她们家为什么不管",
+					"src": "女巫小屋",
+					"tags": [
+						"一章",
+						"女巫"
+					],
+					"body": "她说：药要备着，塔上的灯要守着。真等它醒了伤人，村里谁受得住。",
+					"era": "present",
+					"flagPath": "ev.wq_past"
+				},
+				"n_wq_talisman": {
+					"title": "它能带你回到三百年前",
+					"src": "女巫小屋",
+					"tags": [
+						"一章",
+						"女巫"
+					],
+					"body": "她说，护符能带你回到三百年前——''就站在你站的地方''。她们守了三百年，等的就是走进来的人。",
+					"era": "present",
+					"flagPath": "ev.wq_talisman"
+				},
+				"n_wq_under": {
+					"title": "改不了的不是历史",
+					"src": "女巫小屋",
+					"tags": [
+						"一章",
+						"女巫"
+					],
+					"body": "问塔底下锁着的是什么，她只说：''别去改过去''。这话她家说了三百年——改不了的不是历史。",
+					"era": "present",
+					"flagPath": "ev.wq_under"
+				},
+				"n_witch_hint": {
+					"title": "女巫画过的那一处",
+					"src": "女巫小屋",
+					"tags": [
+						"一章",
+						"女巫"
+					],
+					"body": "花金币问来的门道：塔里那处暗格在二楼书房，烤炉后头那面墙上——位置分毫不差。",
+					"era": "present",
+					"flagPath": "world.witch_hint"
+				},
+				"n_rumor": {
+					"title": "第三块板子是脆的",
+					"src": "酒馆",
+					"tags": [
+						"一章",
+						"酒馆"
+					],
+					"body": "花钱买来的一句话：洞里的路，第三块板子是脆的——落脚时避开它。",
+					"era": "present",
+					"flagPath": "world.rumor"
+				}
+			}
+		}
+	]
+}

@@ -15,6 +15,11 @@
 //      ⚠️ 「**一个发布周期**」**判不了** ✗（经 `18503703` 明批 ✓）⇒ 落成 `reason ＋ ticket ＋ 删除计划` ✓，
 //      **本件不假装能判它** ✗。
 //
+// ⚠️ **声明二附（`{ external: … }` 的来由 ✗ —— 量出来的，不是想出来的 ✓）**：
+//   1b 要求「**每个故事的号必须 == `CURRENT`**」✗ ⇒ **改号那一刻“三故事已全在新面”立刻成立** ✓
+//   ⇒ 一条**只为“仓外旧包”**登记的条目会被自己的退出条件**当场打红** ✗（＝**写不出一条能留的条目** ✗）
+//   ⇒ 故本件补 `{ external: … }` 这一类 ✓（经 `18504264` 裁「**并进 notes 片**」✓）。
+//
 // ⚠️ **声明三（为什么是"镜像"而不是"新造" ✓ —— 单一权威 ✗）**：
 //   三件式（**清单外出现 ⇒ 红** ／ **登记腐烂 ⇒ 红** ／ **条目带理由＋票号** ✓）取自
 //   `editor/escape-hatch.json` ＋ `lib/core/k4criteria.mjs::escapeHatchProblems()` 的既有形状 ✓
@@ -48,6 +53,17 @@ export const requireCompatVersion = (from, current) => {
 
 const isPlainObject = (v) => Boolean(v) && typeof v === 'object' && !Array.isArray(v);
 
+/** **本件认识的两类谓词** ✓（认得少但**认得准** ✗）：
+ *  `{ storiesAtLeast: n }` ⇒ **可机检**（仓内已全升到新面 ✓）；
+ *  `{ external: '<理由>' }` ⇒ **不可机检**（存留理由是**仓外**还有消费者 ✓）⇒ **永不自动退场** ✓，
+ *  但仍必须带 `ticket`（`judgeCompatEntries` 已强制 ✓）⇒ 机器只拦“**没票号的仓外理由**” ✓。 */
+export const predicateKindOf = (retireWhen) => {
+	if (!isPlainObject(retireWhen)) return null;
+	if (Number.isInteger(retireWhen.storiesAtLeast)) return 'storiesAtLeast';
+	if (typeof retireWhen.external === 'string' && retireWhen.external) return 'external';
+	return null;
+};
+
 /** **条目形式** ✓：三条必填（`reason`／`ticket`／`retireWhen` ✓）＋ `retireWhen` 必须是**本件认识的谓词** ✓。
  *  镜像 `escapeHatchProblems()` 的"登记条目自身必须带理由与票号"那一条 ✓。 */
 export const judgeCompatEntries = (entries = []) => {
@@ -60,16 +76,18 @@ export const judgeCompatEntries = (entries = []) => {
 		for (const k of ['reason', 'ticket', 'retireWhen']) {
 			if (e[k] === undefined || e[k] === null || e[k] === '') out.push({ kind: 'required', at, field: k, detail: `${at} 缺 \`${k}\` ✗（例外必须可追：理由 ＋ 票号 ＋ **退出条件** ✓）` });
 		}
-		if (e.retireWhen !== undefined && e.retireWhen !== null && !isPlainObject(e.retireWhen)) out.push({ kind: 'predicate', at, detail: `${at} 的 \`retireWhen\` 必须是本件认识的谓词对象 ✗（例 \`{ "storiesAtLeast": 2 }\` ✓）` });
-		else if (isPlainObject(e.retireWhen) && !Number.isInteger(e.retireWhen.storiesAtLeast)) out.push({ kind: 'predicate', at, detail: `${at} 的 \`retireWhen\` 谓词不认识 ✗：${JSON.stringify(Object.keys(e.retireWhen))}（本件只认 \`storiesAtLeast\` ✓）` });
+		if (e.retireWhen !== undefined && e.retireWhen !== null && !predicateKindOf(e.retireWhen)) {
+			out.push({ kind: 'predicate', at, detail: `${at} 的 \`retireWhen\` 谓词本件不认识 ✗：${JSON.stringify(e.retireWhen)}（只认 \`{ "storiesAtLeast": n }\` 或 \`{ "external": "<理由>" }\` ✓）` });
+		}
 	}
 	return out;
 };
 
-/** **求值 `retireWhen`** ✓（本件只认一个谓词 ✓ —— 认得少但**认得准** ✗）：
- *  `{ storiesAtLeast: n }` ⇒ **所有故事的 `contractVersion` 都 ≥ n** ✓（读不出号的故事 ⇒ 视为**未达** ✓，不静默算过 ✗）。 */
+/** **求值 `retireWhen`** ✓（只对**可机检**那一类求值 ✗）：
+ *  `{ storiesAtLeast: n }` ⇒ **所有故事的 `contractVersion` 都 ≥ n** ✓（读不出号的故事 ⇒ 视为**未达** ✓，不静默算过 ✗）；
+ *  `{ external: … }` ⇒ **恒 `false`** ✓（**仓外不可机检 ⇒ 永不自动退场** ✓ —— 那一半靠 `ticket` 的人审锚 ✓）。 */
 export const retireWhenMet = (retireWhen, storyVersions = []) => {
-	if (!isPlainObject(retireWhen) || !Number.isInteger(retireWhen.storiesAtLeast)) return false;
+	if (predicateKindOf(retireWhen) !== 'storiesAtLeast') return false;
 	if (!storyVersions.length) return false;
 	return storyVersions.every((v) => Number.isInteger(v) && v >= retireWhen.storiesAtLeast);
 };
@@ -85,7 +103,9 @@ export const retireProblems = ({ entries = [], storyVersions = [], current } = {
 			out.push({ kind: 'retired', at: `entries[${i}]`, detail: `兼容条目 \`from: ${JSON.stringify(e?.from)}\` 的退出条件（\`storiesAtLeast: ${e?.retireWhen?.storiesAtLeast}\`）**已成立** ✗ 而条目还在 ✓ ⇒ **该删了**（仓内已无旧消费者；仓外那半请按 \`ticket\` 的人审锚判 ✓）` });
 		}
 		if (Number.isInteger(current) && Number.isInteger(e?.from) && !compatVersionsFor(current).includes(e.from)) {
-			out.push({ kind: 'out-of-range', at: `entries[${i}]`, detail: `兼容条目 \`from: ${e.from}\` 越出上限 ✗（当前 ${current} ⇒ 可读（无）；**只保 1 代** ✓）—— 要么删条目，要么那是一次真的改号（须走 G-1b 的显式改号流程 ✓）` });
+			const allowed = compatVersionsFor(current);
+			const allowedMsg = allowed.length ? allowed.map(String).join('／') : '（无）';   // `#952` 票内的复核 MINOR：写死的「（无）」在 current ≥ 2 时会**指错对象** ⇒ 改成**算出来的**
+			out.push({ kind: 'out-of-range', at: `entries[${i}]`, detail: `兼容条目 \`from: ${e.from}\` 越出上限 ✗（当前 ${current} ⇒ 可读 ${allowedMsg}；**只保 1 代** ✓）—— 要么删条目，要么那是一次真的改号（须走 G-1b 的显式改号流程 ✓）` });
 		}
 	}
 	return out;

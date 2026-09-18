@@ -13,7 +13,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { readStoryPackage } from '../editor/lib/core/story.mjs';
 import { CURRENT } from '../editor/lib/core/contractVersion.mjs';
-import { COMPAT_LIMIT, compatVersionsFor, requireCompatVersion, judgeCompatEntries, retireWhenMet, retireProblems, formatCompat } from '../editor/lib/core/contractCompat.mjs';
+import { COMPAT_LIMIT, compatVersionsFor, requireCompatVersion, judgeCompatEntries, predicateKindOf, retireWhenMet, retireProblems, formatCompat } from '../editor/lib/core/contractCompat.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const io = { readText: (p) => readFileSync(`${ROOT}/${p}`, 'utf8'), exists: (p) => existsSync(`${ROOT}/${p}`) };
@@ -63,6 +63,24 @@ try {
 	t('③ 反（越出上限）：`from` 不在允许集内 ⇒ **点名** ✗（当前 1 ⇒ 可读（无）✓）',
 		retireProblems({ entries: [{ ...good, from: 5 }], storyVersions: [1], current: CURRENT }).some((p) => p.kind === 'out-of-range'));
 	t('③ **空表 ⇒ 0 条** ✓（合法半边 ✓ —— 否则是假红 ✓）', retireProblems({ entries: [], storyVersions: [1, 1, 1], current: CURRENT }).length === 0);
+
+	// ── `{ external: … }` 谓词（经 `18504264` 裁「并进本片」✓）＋ `#952` MINOR 的报文闭环 ✓ ──
+	{
+		const ext = { ...good, ticket: '#9', retireWhen: { external: '仓外还有旧包（浏览器里存的）' } };
+		t('`external` 正：带 `ticket` ⇒ **条目形式合法** ✓（0 问题 ✓）', judgeCompatEntries([ext]).length === 0);
+		t('`external` 正：**恒不自动退场** ✓（`retireWhenMet` ⇒ false ⇒ **不会被打红** ✗ —— 仓外不可机检 ✓）',
+			retireWhenMet(ext.retireWhen, [1, 1, 1]) === false && retireProblems({ entries: [ext], storyVersions: [1, 1, 1], current: CURRENT }).filter((p) => p.kind === 'retired').length === 0);
+		const noTicket = [{ ...ext }]; delete noTicket[0].ticket;
+		t('`external` **能假的另一半** ✓：去掉 `ticket` ⇒ **必红** ✗（机器只拦“**没票号的仓外理由**” ✓）；补回 ⇒ 绿 ✓',
+			judgeCompatEntries(noTicket).some((p) => p.kind === 'required' && p.field === 'ticket') && judgeCompatEntries([ext]).length === 0);
+		t('`predicateKindOf` 两类认得准 ✓：`storiesAtLeast` ⇒ 可机检／`external` ⇒ 不可机检；其余 ⇒ **null**（不猜 ✓）',
+			predicateKindOf({ storiesAtLeast: 2 }) === 'storiesAtLeast' && predicateKindOf({ external: 'x' }) === 'external' && predicateKindOf({ whatever: 1 }) === null);
+	}
+	// `#952` 票内的复核 MINOR：报文里的可读集必须**算出来**，不得写死「（无）」✗ —— 本断言把它钉住 ✓
+	{
+		const p = retireProblems({ entries: [{ ...good, from: 1, retireWhen: { storiesAtLeast: 99 } }], storyVersions: [3], current: 3 }).find((x) => x.kind === 'out-of-range');
+		t('`#952` MINOR 闭环 ✓：`current ＝ 3` 时报文写 **「可读 2」** ✗（不得写死「（无）」—— 那一支只为将来那个态存在 ✓）', Boolean(p) && /可读 2/.test(p.detail) && !/可读（无）/.test(p.detail));
+	}
 
 	// ── 真数据：登记表 ＋ 三故事的真号 ✓（发现式取故事 ✗ —— 不写死名单 ✓）──
 	const registry = JSON.parse(readFileSync(`${ROOT}/editor/contract-compat.json`, 'utf8'));

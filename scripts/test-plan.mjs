@@ -36,6 +36,8 @@ export const SEGMENTS = [
 	// 车道 E-(A)（`#215`）：页面侧覆盖率 —— **只读** ✓（纯静态扫描 ⇒ 无 `needs`／不需 build ✓）；报告用读数 ✓ 不进任何断言 ✓
 	{ id: "scripts-report-page-coverage-mjs", phase: 'test', cost: 0, cmd: "node scripts/report-page-coverage.mjs" },
 	{ id: "test-integrity-mjs", phase: 'test', cost: 0, cmd: "node test/integrity.mjs" },
+	// 车道 D 切片 2（`#215` 报备 `18501384`）：**事件依赖的键级图** ✓（只读 ✓ ⇒ 无前置 ✓、纯计算 ⇒ cost 0 ✓）。
+	{ id: "test-event-graph-mjs", phase: 'test', cost: 0, cmd: "node test/event-graph.mjs" },
 	// `#794` P1①：「故事包 I/O ＝ 唯一写路」的自证（核心在 `editor/lib/core/story.mjs` ✓；含**写侧哨兵**：拒绝型 io ⇒ 写入当场失败 ✓）。
 	{ id: "test-core-story-mjs", phase: 'test', cost: 0, cmd: "node test/core-story.mjs" },
 	// `#794`：**import 副作用门** —— 任何 `editor/**` 模块被 import ⇒ 跑完且只留哨兵 ✓（`exit(0)` 与 import 期输出都必红 ✓）。

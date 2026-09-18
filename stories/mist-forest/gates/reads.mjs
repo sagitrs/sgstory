@@ -24,7 +24,9 @@ import { readFileSync } from 'node:fs';
 import { LAYER_OF } from '../../../scripts/module-order.mjs';
 import { ROOT } from '../../../scripts/dist-paths.mjs';
 import { loadStoryAudit } from '../../../scripts/../scripts/audit/lib/story-audit.mjs';
-import { literalReadKeys, readKeys, stripJsComments } from '../../../scripts/../scripts/audit/lib/shared.mjs';
+import { literalReadKeys, readKeys } from '../../../scripts/../scripts/audit/lib/shared.mjs';
+// A 片（`#215` 报备 `18504548`）：**分段那半已上移 core** ✓（`paragraphsOf` ✓）—— 本门只留 **io** ✗（与 `#877` 同款 ✓）。
+import { paragraphsOf } from '../../../editor/lib/core/text.mjs';
 // `#877` 第四块 ✓：六个**纯判定** ＋ 两个常量已搬进 core ✓（页面与门跑**同一份** ✓ —— 一处实现 ✓）。
 // ⚠️ 本门只留 **io 那一半** ✗：`storyReadBaseline()`（`loadStoryAudit`／`ROOT` ✓）／`segmentsOf()`（`readFileSync` ✓）
 //    —— `lib/core/**` 不得碰宿主 ✓（K6 ③ ✓）。
@@ -35,40 +37,13 @@ export { STORY_PREFIX, READ_KNOWN, scanReads, knowledgeIndex, faceOf, knowledgeH
 export const flag = 'reads';
 export const flags = ['reads'];
 
-const MECH_TAGS = ['script', 'widget', 'stylesheet'];
-
 /** 形状校验 + 取该故事的基线（未注册/形状不对 ⇒ 报错；空对象是合法数据集）。 */
 export const storyReadBaseline = (ctx) => loadStoryAudit(ctx.storySlug, { root: ROOT }).readBaseline;
 
-// ── 源文件 → 段落清单（**注入式**：`read` 可换成 fixture，便于自证；判据不依赖被测对象）──
-/** `:: 段落名 [tags]` 切段；注释**挖空但保留换行**（行号不漂）。 */
-export const segmentsOf = (files, read = readFileSync) => {
-	const out = [];
-	for (const f of files) {
-		const text = String(read(f, 'utf8'));
-		const heads = [...text.matchAll(/^::\s*([^\n]*)\n/gm)];
-		heads.forEach((m, i) => {
-			const start = m.index + m[0].length;
-			const end = i + 1 < heads.length ? heads[i + 1].index : text.length;
-			const head = m[1];
-			const tags = (head.match(/\[([^\]]*)\]/)?.[1] ?? '').trim().split(/\s+/).filter(Boolean);
-			out.push({
-				file: f, passage: head.replace(/\[[^\]]*\]\s*$/, '').trim(), tags,
-				kind: tags.some((t) => MECH_TAGS.includes(t)) ? 'mech' : 'narr',
-				layer: LAYER_OF[f] ?? 'story',
-				line: text.slice(0, start).split('\n').length,
-				// 注释挖空（不是删除）：`/% … %/` 里的示例不是代码，但行号要留住；
-				// 机制段还要剥 JS 注释（`stripJsComments` 单一权威，与 `--text` 同口径）——否则表里的
-				// 「示例」会被当成真读点（`--text` 就是这么被注释噪声推高的）。
-				src: (() => {
-					const t = text.slice(start, end).replace(/\/%[\s\S]*?%\//g, (c) => c.replace(/[^\n]/g, ' '));
-					return (tags.some((x) => MECH_TAGS.includes(x)) ? stripJsComments(t) : t);
-				})(),
-			});
-		});
-	}
-	return out;
-};
+/** 源文件路径 ⇒ 段落清单 ✓：**io 那半在这里** ✗（读文件 ✓ + 注入 `layer` ✓），**分段在 core** ✓
+ *  （`paragraphsOf` ✓ —— 与页内跑的是**同一份** ✓ ⇒ 不写第二份内核 ✗）。 */
+export const segmentsOf = (files, read = readFileSync) =>
+	files.flatMap((f) => paragraphsOf({ file: f, text: String(read(f, 'utf8')) }, { layer: LAYER_OF[f] ?? 'story' }));
 
 export const run = (ctx) => {
 	const { arg, wantAll } = ctx;

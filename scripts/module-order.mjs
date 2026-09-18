@@ -101,15 +101,72 @@ export const MODULES = {
 
 // ── 判定（纯函数，供 test/layering.mjs 与自证共用）──────────────────────
 // sources: { 文件名: 源码字符串 }
-export const checkModuleGraph = (sources, { order = ORDER, modules = MODULES } = {}) => {
+// ── `#893` 第三步：**两层登记**（引擎件 ⊂ `ORDER`／故事件 ⊂ **它自己的清单**）──────────────
+// 背景 ✓：`#893` 前两步让 `build.mjs` 的守卫分了两层 ✓；而 `test/layering.mjs` 与 `scripts/move-precheck.mjs`
+//   仍按**一层**要求"所有源文件 ⊂ `ORDER`" ✗ ⇒ 一个**数据面完整的新故事**在场时，它们各红 3／6 项 ✗
+//   （实测：`[unlisted-file] ×3` ＋ `[missing-modules] ×3` ✓ —— 而 `build.mjs` 已 rc=0 ✓）。
+// 做法 ✓：**换登记处，不撤守卫** ✗ —— 引擎件的登记处仍是 `ORDER`／`MODULES` ✓（它们的先后是**全局**的 ✓）；
+//   故事件的登记处是**它自己的清单** ✓（`stories/<slug>/00-story.json` 的 `files` ✓ —— 本来就是**有序**的 ✓）。
+//   ⇒ 新件仍须**显式登记** ✓（不是"靠文件名前缀自动获得顺序"✗ —— 那条守卫的理由仍在 ✓）。
+// 单一权威 ✓：`checkRegistration()` 被 `build.mjs`／`test/layering.mjs`／`scripts/move-precheck.mjs` **共用** ✓
+//   （三处各写一份 ⇒ 必然漂移 ✗ —— 本仓已实测过这一族 ✓）。
+
+/** 故事清单（`stories/<slug>/00-story.json`）——**单一权威** ✓（故事件的**登记处** ✓；只扫一层目录 ✓）。 */
+export const storyManifests = (dir = join(ROOT, 'stories')) => {
+	const out = [];
+	if (!existsSync(dir)) return out;
+	for (const slug of readdirSync(dir)) {
+		const p = join(dir, slug, '00-story.json');
+		if (!existsSync(p)) continue;
+		const j = JSON.parse(readFileSync(p, 'utf8'));
+		out.push({ slug, files: j.files ?? [], gates: j.gates ?? [], path: p });
+	}
+	return out;
+};
+
+/** 一条源文件的层 ✓：**引擎件**（`src/**` ✓，或 `MODULES` 里显式声明 `layer: 'engine'` ✓）／**故事件**（其余 ✓）。
+ *  ⚠️ 必须用**路径**兜底（不是"只在 `MODULES` 里查"✗）：引擎件若漏登记 `MODULES`，只查后者会把它**当成故事件** ✗
+ *  ⇒ 报成"无人认领"（把真因藏起来 ✗ —— 实测过的误导形）。 */
+export const layerOf = (f, modules = MODULES) => modules[f]?.layer ?? (String(f).startsWith('src/') ? 'engine' : 'story');
+
+/** `#893` 的**两层登记判据**（纯函数 ✓，三处共用 ✓）：返回 `[{ code, msg }]`（空＝过 ✓）。
+ *  ① `unlisted-file`  —— **引擎件**必须 ⊂ `ORDER` ✓（引擎件的加载顺序不允许隐含 ✓）
+ *  ①b `missing-modules`（仅 `requireModules` 时 ✓）—— **引擎件**必须 ⊂ `MODULES` ✓（`LAYER_OF`／`engineFiles()` 都从它派生 ✓）
+ *  ② `unclaimed-file`  —— **故事件**必须被**某故事清单**认领 ✓（换登记处 ✓，不是撤守卫 ✗）
+ *  ③ `missing-file`    —— `ORDER` 里的文件必须真实存在 ✓（改名/删除会被抓 ✓）
+ *  ③b `orphan-in-order`—— `ORDER` 里的**非引擎**件仍须被某故事认领 ✓（孤儿 ⇒ 建树时没人读它 ✗）
+ *  ④ `missing-manifest-file` —— **清单列出的文件**必须存在 ✓（改名/删除会被抓 ✓）
+ *  ⚠️ 边界（写清 ✓）：`ORDER` 对**故事件**是**可选**的 ✓ —— 既有故事件在里面 ⇒ 由 `ORDER` 排序 ✓；
+ *     新故事件不在 ⇒ 由**清单序**排序 ✓（见 `storyOrder()` ✓）。引擎件**不得**只靠清单 ✗。 */
+export const checkRegistration = ({ sources, order = ORDER, modules = MODULES, manifests = storyManifests(), requireModules = false } = {}) => {
+	const out = [];
+	const names = Object.keys(sources);
+	const claimed = new Set(manifests.flatMap((m) => m.files));
+	const isEngine = (f) => layerOf(f, modules) === 'engine';
+	for (const f of names) {
+		if (isEngine(f)) {
+			if (!order.includes(f)) out.push({ code: 'unlisted-file', msg: `${f} 是**引擎件**却未在 ORDER 里登记（引擎件的加载顺序不允许隐含）` });
+			if (requireModules && !(f in modules)) out.push({ code: 'missing-modules', msg: `${f} 是**引擎件**却未进 MODULES（LAYER_OF／engineFiles() 从它派生）` });
+			continue;
+		}
+		if (!claimed.has(f)) out.push({ code: 'unclaimed-file', msg: `${f} 既非引擎件（src/**）、也不属于任何故事清单的 files` });
+	}
+	for (const m of manifests) for (const f of m.files) {
+		if (!names.includes(f)) out.push({ code: 'missing-manifest-file', msg: `故事清单 ${m.slug} 列出的 ${f} 不存在（改了名或删了文件）` });
+	}
+	for (const f of order) {
+		if (!names.includes(f)) { out.push({ code: 'missing-file', msg: `ORDER 里的 ${f} 不存在（改了名或删了文件）` }); continue; }
+		if (!isEngine(f) && !claimed.has(f)) out.push({ code: 'orphan-in-order', msg: `${f} 在 ORDER 里，但既非引擎件、也不属于任何故事清单` });
+	}
+	return out;
+};
+
+export const checkModuleGraph = (sources, { order = ORDER, modules = MODULES, manifests = storyManifests() } = {}) => {
 	const failures = [];
 	const names = Object.keys(sources);
 
-	// ① 顺序表必须与实际文件一一对应（防「新增文件忘了登记」与「登记了不存在的文件」）
-	const missingInOrder = names.filter((n) => !order.includes(n));
-	for (const n of missingInOrder) failures.push({ code: 'unlisted-file', msg: `src/${n} 未在 scripts/module-order.mjs 的 ORDER 里登记（加载顺序不允许隐含）` });
-	const missingOnDisk = order.filter((n) => !names.includes(n));
-	for (const n of missingOnDisk) failures.push({ code: 'missing-file', msg: `ORDER 里的 src/${n} 不存在（改了名或删了文件）` });
+	// ① `#893` 第三步：**两层登记**（走单一权威 ✓ —— 与 `build.mjs`／`move-precheck.mjs` 同一把尺 ✓）
+	failures.push(...checkRegistration({ sources, order, modules, manifests }));
 
 	// ② 依赖边必须指向**更早**的模块（这是本 lint 的核心）
 	const idx = new Map(order.map((n, i) => [n, i]));
@@ -350,9 +407,12 @@ export const engineFiles = (order = ORDER, modules = MODULES) => order.filter((f
  *
  *  ⚠️ 两个被读数推翻的版本 ✓（都留在这里，因为"为什么不是那样"才是关键 ✓）：
  *   ① `[...引擎件, ...故事件]` ✗ ⇒ **顺序变了** ✗：清单**本身是交错的** ✓（`stories/<slug>/00-meta.twee` 后紧跟 `src/engine/…` ✓）；
- *   ② **完全按清单序** ✗ ⇒ 实测**三个故事的清单序都不等于 `ORDER` 序** ✓（清单的 `files` 只是**成员表** ✓
+ *   ② **完全按清单序** ✗ ⇒ 实测**至少一个故事的清单序不等于 `ORDER` 序** ✗（清单的 `files` 只是**成员表** ✓
  *      —— `scripts/audit/context.mjs` 明写"加载顺序的**唯一权威**是 `ORDER`（不是词典序）" ✓）
  *      ⇒ 那会**改既有故事的产物** ✗。
+ *      ⚠️ **读数更正** ✓（`#895` 复核发现非阻塞项 ✓）：这里原来写的是"**三个**故事的清单序都不等于 `ORDER` 序" ✗ ——
+ *      **与实测不符** ✓：量法＝逐故事比较 `manifest.files` 与 `ORDER` 过滤后的子序列 ⇒ **`hollow-cave` 相等** ✓、
+ *      **`mist-forest` 相等** ✓、**`minimal-demo` 不等** ✗ ⇒ **一个反例就够** ✓（结论不变 ✓，数目已更正 ✓）。
  *  ⇒ 所以本函数**只接管 `ORDER` 管不到的那部分** ✓：既有故事 ⇒ `ORDER` 说了算 ✓（**逐字节不变** ✓）；
  *     新故事 ⇒ 清单说了算 ✓ ⇒ **只落数据、不必改代码** ✓（P4 判据成立 ✓）。
  *

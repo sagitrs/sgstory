@@ -2,7 +2,7 @@ import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 
 import { allSourceFiles } from './scripts/module-order.mjs';
 import { execSync } from 'node:child_process';
 import { join, dirname, relative, isAbsolute } from 'node:path';
-import { ORDER, MODULES, engineFiles as engineFilesOf, scopedFiles } from './scripts/module-order.mjs';
+import { scopedFiles, checkRegistration } from './scripts/module-order.mjs';
 import {
 	ROOT, storySlugs, readStory, storyHtml, shelfHtml, DEFAULT_SLUG,
 	FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY,
@@ -42,29 +42,21 @@ if (slugs.length === 0) {
 	console.error('✗ stories/ 下没有找到故事清单（需 <slug>/00-story.json）');
 	process.exit(1);
 }
-const engineFiles = engineFilesOf(ORDER, MODULES);
 const stories = slugs.map((slug) => ({ slug, ...readStory(slug) }));
-const engineSet = new Set(engineFiles);
-const owner = new Map();                                  // 故事件 ⇒ 它的故事 ✓
-for (const s of stories) for (const f of (s.files ?? [])) if (!engineSet.has(f)) owner.set(f, s.slug);
 {
-	// ① 引擎件：必须全在 ORDER ✓（原位语义 ✓）
-	const engUnlisted = files.filter((f) => engineSet.has(f) && !ORDER.includes(f));
-	if (engUnlisted.length) { console.error(`✗ 以下**引擎件**未登记加载顺序（补进 scripts/module-order.mjs 的 ORDER）：${engUnlisted.join(', ')}`); process.exit(1); }
-	// ② 故事件：必须全在**它自己的清单**里 ✓（不再是"必须在 ORDER 里" ✗）
-	const storyUnlisted = files.filter((f) => !engineSet.has(f) && !owner.has(f));
-	if (storyUnlisted.length) { console.error(`✗ 以下**故事件**不在任何故事清单里（补进 stories/<slug>/00-story.json 的 files）：${storyUnlisted.join(', ')}`); process.exit(1); }
-	// ③ 反向：ORDER 里的文件必须真实存在 ✓；且 ORDER 里的**非引擎**件仍须被某故事认领 ✓（孤儿）
-	const missing = ORDER.filter((f) => !files.includes(f));
-	if (missing.length) { console.error(`✗ ORDER 里的文件不存在：${missing.join(', ')}`); process.exit(1); }
-	const orphans = ORDER.filter((f) => !engineSet.has(f) && !owner.has(f));
-	if (orphans.length) { console.error(`✗ 这些文件既不是引擎文件（layer: engine）也不属于任何故事清单：${orphans.join(', ')}`); process.exit(1); }
-}
-{
-	for (const s of stories) {
-		const list = s.files ?? [];
-		const notOnDisk = list.filter((f) => !existsSync(f));
-		if (notOnDisk.length) { console.error(`✗ 故事清单 ${s.slug} 列出的文件不存在：${notOnDisk.join(', ')}`); process.exit(1); }
+	// `#893` 第三步：两层的**登记判据**走**单一权威** ✓（`checkRegistration()` —— 与 `test/layering.mjs`／
+	// `scripts/move-precheck.mjs` **同一把尺** ✓）。此前这里内联了一份 ✗ ⇒ 三处各写一遍必漂移 ✗
+	// （本仓实测过这一族：同一个"顺序/登记"口径在两处各算一次 ⇒ 改一处、另一处静默失效）。
+	// 判据逐条（✓ 安全网一条不撤 ✗）：**引擎件** ⊂ `ORDER` ✓／**故事件** ⊂ **它自己的清单** ✓／
+	// `ORDER` 里的文件必须存在 ✓／清单列出的文件必须存在 ✓／`ORDER` 里的非引擎孤儿 ✓。
+	const reg = checkRegistration({
+		sources: Object.fromEntries(files.map((f) => [f, ''])),
+		manifests: stories.map((s) => ({ slug: s.slug, files: s.files ?? [] })),
+	});
+	if (reg.length) {
+		for (const p of reg) console.error(`✗ [${p.code}] ${p.msg}`);
+		console.error('✗ 登记不通过：**引擎件**必须进 ORDER／**故事件**必须进它自己的清单（两层的登记语义都没丢）');
+		process.exit(1);
 	}
 }
 

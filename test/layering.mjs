@@ -4,7 +4,9 @@
 // 前向引用在那里合法 → 不做「文本出现即引用」的推断式 lint，避免假阳性）。
 //
 // 四条断言：
-//  ① src/ 里每个 .twee 都在 ORDER 里（新增文件不得靠文件名前缀"自动"获得位置）
+//  ① **两层登记**（`#893` 第三步）：**引擎件**（`src/**`）每个都在 `ORDER` 里 ✓；**故事件**（`stories/<slug>/**`）
+//     每个都在**它自己的清单**（`00-story.json` 的 `files`）里 ✓ —— 两层的**登记语义都没丢** ✓：
+//     新件仍须**显式登记** ✓，只是故事件的登记处换成了清单 ✓（新增文件不得靠文件名前缀"自动"获得位置 ✓）。
 //  ② ORDER 里每个文件都存在（改名/删除会被抓）
 //  ③ 依赖边指向**更早**的模块（加载期拿不到未定义符号的根因）
 //  ④ 模块声明的定义真的在文件里（抓「改了名/挪了位置」）
@@ -20,16 +22,23 @@ let bad = 0;   // 自证计数器（模块级：t() 在任何作用域调用都�
 const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
 
 if (process.argv.includes('--selftest')) {
-	const base = { '10-core.twee': 'window.Game.Rules = {};', '15-tables.twee': 'window.Game = {};' };
+	// ⚠️ 合成输入的用例**显式给 `manifests: []`** ✗ —— 否则 `checkRegistration()` 的默认值会把**真清单**带进来
+	// ⇒ 报一堆 `missing-manifest-file`（**实测踩过** ✓：命中 27／28 ⇒ 用例“期望 0”全红 ✗）。
+	const base = { 'src/10-core.twee': 'window.Game.Rules = {};', 'src/15-tables.twee': 'window.Game = {};' };
 	const cases = [
-		['合规图 → 不得报错', base, { order: ['10-core.twee', '15-tables.twee'], modules: { '10-core.twee': { deps: [], defines: ['Game.Rules'] }, '15-tables.twee': { deps: ['10-core.twee'], defines: ['Game'] } } }, 0],
-		['前向依赖（15 依赖 20，但 20 在后）→ 必须报红', { '10-core.twee': '', '15-tables.twee': '', '20-chargen.twee': '' }, { order: ['10-core.twee', '15-tables.twee', '20-chargen.twee'], modules: { '15-tables.twee': { deps: ['20-chargen.twee'], defines: [] } } }, 1],
-		['新增文件未登记 → 必须报红', { ...base, '12-new.twee': '' }, { order: ['10-core.twee', '15-tables.twee'], modules: {} }, 1],
-		['声明定义但正文里没有（改名/挪走）→ 必须报红', base, { order: ['10-core.twee', '15-tables.twee'], modules: { '10-core.twee': { deps: [], defines: ['Game.Rules', '不存在的符号'] } } }, 1],
-		['ORDER 里的文件不存在 → 必须报红', base, { order: ['10-core.twee', '15-tables.twee', '99-gone.twee'], modules: {} }, 1],
+		['合规图 → 不得报错', base, { order: ['src/10-core.twee', 'src/15-tables.twee'], modules: { 'src/10-core.twee': { deps: [], defines: ['Game.Rules'] }, 'src/15-tables.twee': { deps: ['src/10-core.twee'], defines: ['Game'] } }, manifests: [] }, 0],
+		['前向依赖（15 依赖 20，但 20 在后）→ 必须报红', { 'src/10-core.twee': '', 'src/15-tables.twee': '', 'src/20-chargen.twee': '' }, { order: ['src/10-core.twee', 'src/15-tables.twee', 'src/20-chargen.twee'], modules: { 'src/15-tables.twee': { deps: ['src/20-chargen.twee'], defines: [] } }, manifests: [] }, 1],
+		['**引擎件**未登记 ORDER → 必须报红（安全网不撤）', { ...base, 'src/12-new.twee': '' }, { order: ['src/10-core.twee', 'src/15-tables.twee'], modules: {}, manifests: [] }, 1],
+		['声明定义但正文里没有（改名/挪走）→ 必须报红', base, { order: ['src/10-core.twee', 'src/15-tables.twee'], modules: { 'src/10-core.twee': { deps: [], defines: ['Game.Rules', '不存在的符号'] } }, manifests: [] }, 1],
+		['ORDER 里的文件不存在 → 必须报红', base, { order: ['src/10-core.twee', 'src/15-tables.twee', 'src/99-gone.twee'], modules: {}, manifests: [] }, 1],
 		// #320 阶段 3：defines 支持**点号路径**（`window.Game.Chargen = …` 声明 `Game.Chargen`）
-		['点号 defines：声明与实际相符 → 绿', { '15-tables.twee': 'window.Game = {};', '20-chargen.twee': 'window.Game.Chargen = {};' }, { order: ['15-tables.twee', '20-chargen.twee'], modules: { '20-chargen.twee': { deps: ['15-tables.twee'], defines: ['Game.Chargen'] } } }, 0],
-		['点号 defines：声明的点号路径不存在 → 必须报红', { '15-tables.twee': 'window.Game = {};', '20-chargen.twee': 'window.Game.Other = {};' }, { order: ['15-tables.twee', '20-chargen.twee'], modules: { '20-chargen.twee': { deps: ['15-tables.twee'], defines: ['Game.Chargen'] } } }, 1],
+		['点号 defines：声明与实际相符 → 绿', { 'src/15-tables.twee': 'window.Game = {};', 'src/20-chargen.twee': 'window.Game.Chargen = {};' }, { order: ['src/15-tables.twee', 'src/20-chargen.twee'], modules: { 'src/20-chargen.twee': { deps: ['src/15-tables.twee'], defines: ['Game.Chargen'] } }, manifests: [] }, 0],
+		['点号 defines：声明的点号路径不存在 → 必须报红', { 'src/15-tables.twee': 'window.Game = {};', 'src/20-chargen.twee': 'window.Game.Other = {};' }, { order: ['src/15-tables.twee', 'src/20-chargen.twee'], modules: { 'src/20-chargen.twee': { deps: ['src/15-tables.twee'], defines: ['Game.Chargen'] } }, manifests: [] }, 1],
+		// `#893` 第三步：**两层登记**（故事件换登记处 ✓ —— 但"显式登记"这条守卫不撤 ✓）
+		['故事件不在 ORDER、但在它自己的清单里 → 绿（#893 新口径）', { 'stories/s/a.twee': '' }, { order: [], modules: {}, manifests: [{ slug: 's', files: ['stories/s/a.twee'] }] }, 0],
+		['故事件不在任何清单 → 必须报红（换登记处，不是撤守卫）', { 'stories/s/x.twee': '' }, { order: [], modules: {}, manifests: [] }, 1],
+		['**引擎件**即使被某清单认领，仍必须 ⊂ ORDER → 必须报红（安全网不撤）', { 'src/e.twee': '' }, { order: [], modules: {}, manifests: [{ slug: 's', files: ['src/e.twee'] }] }, 1],
+		['清单列出的文件不存在 → 必须报红（`missing-manifest-file`）', { 'src/e.twee': '' }, { order: ['src/e.twee'], modules: { 'src/e.twee': { layer: 'engine' } }, manifests: [{ slug: 's', files: ['stories/s/gone.twee'] }] }, 1],
 	];
 	// #441 第 3 步前置：rank 派生 + 职责散布 + 四条禁止边（纯函数自证）
 	t('rank 派生：src/engine/40-sim/x.twee → 4', rankOfPath('src/engine/40-sim/x.twee') === 4);
@@ -78,7 +87,7 @@ if (process.argv.includes('--selftest')) {
 		console.log(`${ok ? '✓' : '✗'} ${name}（命中 ${got}，期望 ${want}）`);
 	}
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项——分层 lint 没有咬合力`); process.exit(1); }
-	console.log('\n✔ 自证通过：合规绿 / 前向依赖红 / 未登记红 / 定义漂移红 / 文件缺失红 / 点号 defines 正反例');
+	console.log('\n✔ 自证通过：合规绿 / 前向依赖红 / 未登记红 / 定义漂移红 / 文件缺失红 / 点号 defines 正反例 / 两层登记（#893）正反例');
 	process.exit(0);
 }
 
@@ -93,7 +102,7 @@ for (const f of ORDER) {
 	console.log(`    ${f.padEnd(18)} ← ${(m.deps ?? []).join(', ') || '（无）'}${m.defines?.length ? `　定义：${m.defines.join('/')}` : ''}`);
 }
 check(found.length === 0, found.length === 0
-	? '顺序表与文件一一对应 · 依赖边只指向更早模块 · 声明的定义都在正文里'
+	? '引擎件 ⊂ ORDER／故事件 ⊂ 清单（两层登记） · 依赖边只指向更早模块 · 声明的定义都在正文里'
 	: `分层 lint 未通过 ${found.length} 项`);
 for (const f of found) console.log(`    [${f.code}] ${f.msg}`);
 

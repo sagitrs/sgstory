@@ -103,4 +103,19 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /不是普通对象|畸形/ },
 		why: '量的是「**缺 ⇒ 合法** ✗ 与 **畸形 ⇒ 报** ✓ 真的是两回事」（把畸形静默降成合法空形状 ⇒ `rules.json: []` 那一条当场红 ✓）—— 否则“缺＝合法”会被写成“什么坏形状都合法”✗',
 	},
+	{
+		// 车道 G 前半 · 切片 1b（`#215` 报备 `18503024`）：**包络只剩一个方向的牙** ✓ —— 全集外字段必须报
+		id: 'test/contract-version.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/contract-version.mjs',
+		mutation: {
+			// 把"逐字段查越界"这一路**让过去** ✗ ⇒ 全集外字段静默通过 ⇒ 合成那两条断言必红 ✓
+			file: 'editor/lib/core/contractVersion.mjs',
+			find: "for (const f of fields) if (!df.includes(f)) out.push({ file, kind: 'field', name: f, list });",
+			replace: "for (const f of []) if (!df.includes(f)) out.push({ file, kind: 'field', name: f, list });",
+		},
+		expect: { rc: 1, stdout: /brandNewField|全集外/ },
+		why: '量的是「**单向 ⊆ 包络**」那一刀**真的有牙** ✓（把字段级越界检查摘掉 ⇒ `brandNewField` 静默通过 ⇒ 必红且点名 ✓）—— 否则“全集”只是个摆设（随手加字段没人拦 ✗）',
+	},
 ];

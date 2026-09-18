@@ -3,6 +3,7 @@
 	"title": "迷雾森林",
 	"subtitle": "送星归位",
 	"entry": "开场",
+	"contractVersion": 1,
 	"files": [
 		"stories/mist-forest/00-meta.twee",
 		"src/engine/30-persist/05-store.twee",

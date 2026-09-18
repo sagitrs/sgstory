@@ -3,6 +3,7 @@
 	"title": "无名洞窟",
 	"subtitle": "五步到地下村落",
 	"entry": "醒来",
+	"contractVersion": 1,
 	"files": [
 		"stories/hollow-cave/00-meta.twee",
 		"stories/hollow-cave/15-tables.twee",

@@ -570,6 +570,15 @@ for (const file of fixtures) {
 	const Sg = w.Sg;
 	const OPS = (await import('../scripts/audit/lib/shared.mjs')).OPS;
 	eq(Sg.rules.ops, OPS, '`Sg.rules.ops` 与门侧 `OPS` 是**同一词表**（两侧漂移会被 `--rules` 抓住）');
+	// 车道 D 切片 1（`#215` `18500772`）：**四轴**都要钉在页内可读的镜像上 ✓ ——
+	// 只钉 `ops` ✗ 会让另三轴"改了引擎不改镜像"✗ **静默通过** ✓（本仓"只钉一半"那族 ✓）。
+	{
+		const { VOCAB, VOCAB_AXES } = await import('../editor/lib/core/vocab.mjs');
+		eq(VOCAB_AXES.slice().sort(), ['effects', 'ops', 'prefixes', 'terms'], '镜像声明**四轴齐** ✓（少一轴 ⇒ 页内就有整面选不到 ✗）');
+		for (const axis of VOCAB_AXES) {
+			eq(Sg.rules[axis], VOCAB[axis], `词表轴 \`${axis}\`：**引擎 ↔ 页内镜像逐字同** ✓（只改一边 ⇒ 当场红 ✗ —— 要加一项先改引擎 ✓）`);
+		}
+	}
 	const p = { ev: { seen: true, n: 7 }, world: { done: false }, inv: { 钥匙: true }, star: { spent: 3 }, keeper: { state: 'seal' } };
 	const M = (row) => Sg.rules.matches(row, p, new Set());
 	// 正例 / 反例（gte · lte）

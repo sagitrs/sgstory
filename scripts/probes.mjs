@@ -88,4 +88,19 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /rules\.json|contract\.json/ },
 		why: '量的是「缺数据必须报错」那一格**真的**在守 ✓（掐掉它 ⇒ 页面会画一张**空图** ⇒ 会被读成"没有依赖"✗ ⇒ 两条缺口用例必红 ✓）',
 	},
+	{
+		// 车道 G 前半 · 切片 1a（`#215` 报备 `18502752`）：**方言指纹**的「**缺 vs 畸形**」分家自证 ✓
+		id: 'test/dialect.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/dialect.mjs',
+		mutation: {
+			// 把"在册但不是普通对象"这一路**降级成合法空形状** ✗ ⇒ 畸形在册、数字与断言必红 ✓
+			file: 'editor/lib/core/dialect.mjs',
+			find: 'if (!isPlainObject(obj)) return null;',
+			replace: 'if (!isPlainObject(obj)) return { topKeys: [], items: {} };',
+		},
+		expect: { rc: 1, stdout: /不是普通对象|畸形/ },
+		why: '量的是「**缺 ⇒ 合法** ✗ 与 **畸形 ⇒ 报** ✓ 真的是两回事」（把畸形静默降成合法空形状 ⇒ `rules.json: []` 那一条当场红 ✓）—— 否则“缺＝合法”会被写成“什么坏形状都合法”✗',
+	},
 ];

@@ -60,7 +60,7 @@ SugarCube 序列化的是 **history moment**；同页 `<<replace>>` 修改的是
 ### 规则
 
 1. 加载顺序**显式**声明在 `scripts/module-order.mjs` 的 `ORDER`——**不再靠文件名前缀隐含**；
-2. 新增 `src/*.twee` 必须登记 `ORDER`（`build.mjs` 会拒绝「未登记的文件」与「ORDER 里不存在的文件」）；
+2. **登记分两层**（`#893` 第三步）：**引擎件**（`src/**`）每个都必须登记 `ORDER`（并进 `MODULES`，它们的先后是**全局**的）；**故事件**（`stories/<slug>/**`）每个必须登记**它自己的清单**（`00-story.json` 的 `files`，本就是有序的）。`build.mjs` 会拒绝「**引擎件**未登记 `ORDER`」「**故事件**不在任何清单」「`ORDER`／清单里列出的文件不存在」，以及「`ORDER` 里的非引擎孤儿」。
 3. 跨文件依赖只声明**加载期**真实需要的边（`MODULES[file].deps`），且**只能指向更早的模块**；
 4. `MODULES[file].defines` 声明该文件必须定义的顶层符号（`window.X` / `widget:X`），用于抓改名与挪位置。
 
@@ -78,8 +78,8 @@ SugarCube 序列化的是 **history moment**；同页 `<<replace>>` 修改的是
 
 | 门 | 断言 |
 |---|---|
-| `test/layering.mjs`（在 `npm test` 链里） | ① 文件 ↔ ORDER 一一对应 ② 依赖边只指向更早模块 ③ 声明的定义真的在正文里 |
-| `test/layering.mjs --selftest` | 合规绿 / **前向依赖红** / 未登记红 / 定义漂移红 / 文件缺失红 |
+| `test/layering.mjs`（在 `npm test` 链里） | ① **两层登记**：**引擎件** ↔ `ORDER` ✓／**故事件** ↔ 它自己的清单 ✓（`#893` 第三步：**换登记处，不撤守卫**） ② 依赖边只指向更早模块 ③ 声明的定义真的在正文里 |
+| `test/layering.mjs --selftest` | 合规绿 / **前向依赖红** / **引擎件未登记 `ORDER` 红** / **故事件无人认领红** / **引擎件被清单认领但仍须 ⊂ `ORDER` 红** / 定义漂移红 / 文件缺失红 / 清单列出文件缺失红 |
 
 ---
 

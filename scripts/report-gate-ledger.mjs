@@ -40,14 +40,14 @@ export const REASONS = {
 	'scripts/report-two-state.mjs': { form: '行为化', reason: '**未接线（原型）**：两态**注入**原型（伞 `#626`／本票 `#629`）——证明目标段的每个条件站点**真/假两侧都能由真实渲染观测到**（状态注入 ＋ `Engine.play` 直达；真机口径同 `#491`）。它刻意不是门：门形态等伞票裁决（落点见 `#607`）。谁来跑：`npm run report:two-state`（前置 `npm run build`）；何时跑：矩阵门（依赖本票结论）落码前验证执行器可行性。自证 9 例（期望五类 text/noText/choice/noChoice/lands 各带反例 ＋ 两态归纳单态必 false），`--selftest` 能红。' },
 	'scripts/report-ledger-freshness.mjs': { form: '行为化', reason: '**离线段已入 npm test**（`--ledger --check`：#297 对标台账行级新鲜度——行数栅栏/复核日期在期/触发条件非空/落点引用的门旗标与文件真实存在，7 例自证）；**网络段仍需 token**（#NNN 标记与 GitHub 真实状态一致），不塞主链路，由 `npm run report:freshness:check` 人工/定时跑' },
 	'scripts/report-gate-ledger.mjs': { wired: true, form: '行为化', reason: '本文件自身的自检（台账不腐），已入 npm test' },
-	'scripts/move-precheck.mjs': { wired: true, form: '行为化', reason: '#458 前置：**六处同步**校验（源文件/ORDER/MODULES/故事清单/常量声明/聚合返回）＋单根假设清点；自证 8 例（六处正反例＋聚合返回）' },
+	'scripts/move-precheck.mjs': { wired: true, form: '行为化', reason: '#458 前置：**六处同步**校验（源文件/ORDER/MODULES/故事清单/常量声明/聚合返回）＋单根假设清点；自证 **11** 条断言（**量法**：`node scripts/move-precheck.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝六处正反例 ＋ **两层登记**（引擎件 ⊂ ORDER/MODULES ✓／故事件 ⊂ 清单 ✓）正反例 ＋ 聚合返回。`#893` 第三步：`②③④` 按层分工（引擎侧安全网一律不撤 ✓）' },
 	'scripts/report-selftest-validity.mjs': { wired: true, form: '行为化', reason: '**已入 npm test**（#474 接线）：静态扫描 `自证·` 是否「失败计入退出码」＋ 自增量是否「不崩」（TDZ/未声明）。接线前修掉剥离器**配对错位**（四条正则顺序剥 ⇒ 跨行贪婪吞代码 ⇒ `counters` 空 ⇒ 假阳性；**顺序治不了** ⇒ 改单扫描器按 JS 词法一次遮蔽注释/字符串/模板/正则，未闭合保守剥＋报诊断）。自证 18 例（V1×8＋V2×10），探针：删某门 `process.exit(1)` ⇒ 必报、退 1' },
 	// ── 测试脚本（id 形如 test/<file>）──
 	'test/walker.mjs': { wired: false, reason: '随机游走 soak（npm run soak）：耗时长、种子流非确定，不进 npm test' },
 	'test/browser.mjs': { wired: false, reason: '需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑' },
 	'test/audit-golden.mjs': { wired: true, form: '行为化', reason: '**已入 npm test**（#436 收编）：实测全量 **8.0s**（dragon 7.0s ＋ 其余每个 30–55ms ⇒ 无需子集；此前"24 个开关较慢"的估计不成立）。收编时逐条归因既有漂移（18 个开关：10 纯自证插入／3 含新不变量行／3 数值替换／1 `state`（#483））' },
 	'test/saveload-inventory.mjs': { wired: true, form: '行为化', reason: '自证 6 例（含 widget 间接改状态）' },
-	'test/layering.mjs': { wired: true, form: '行为化', reason: '自证 16 例（模块依赖 / 点号 defines / 层间方向 / engine rank 派生与四条禁止边）' },
+	'test/layering.mjs': { wired: true, form: '行为化', reason: '自证 **33** 条断言（**量法**：`node test/layering.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝模块依赖（`cases` 11 项，含 `#893` 两层登记的三条正反例）/ 点号 defines / 层间方向 / engine rank 派生与四条禁止边' },
 	'test/saveload.mjs': { wired: true, form: '行为化', reason: '**自证按需跑**：`node test/saveload.mjs --selftest`（故障注入＝落档后人为扰动，断言比较器判红）；不塞主链的理由＝自证需完整导航（成本≈主跑 30s，收益不值）' },
 };
 

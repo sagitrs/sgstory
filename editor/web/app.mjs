@@ -10,6 +10,7 @@ import { diagnoseStory } from '../lib/core/diagnose.mjs';
 import { diagnoseLines, renderDiagnosis } from './diagnose-view.mjs';
 import { fingerprintOf } from '../lib/core/fingerprint.mjs';
 import { starterPackage } from '../lib/core/story.mjs';
+import { renderEventGraph } from './event-graph-view.mjs';   // 车道 D 切片 3（`#215` `18502113`）：键级图显示层 ✓
 
 const $ = (id, doc = globalThis.document) => doc?.getElementById?.(id);
 
@@ -24,7 +25,9 @@ const boot = () => {
 		const files = [...($('pick').files ?? [])];
 		if (!files.length) { render('（没选到文件）'); return; }
 		try {
-			render(summaryLines(loadPackage({ slug, files })).join('\n'));
+			const pkg = loadPackage({ slug, files });
+			render(summaryLines(pkg).join('\n'));
+			renderEventGraph({ doc, pkg });   // 键级图 ✓（判定在 core ✓；缺容器/缺数据 ⇒ 抛 ✗）
 		} catch (e) {
 			// 加载失败 ⇒ **原样报出** ✓（含内核的报文 ✓）—— 不许吞成"（空）" ✗
 			render('（加载失败）');

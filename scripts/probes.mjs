@@ -74,4 +74,18 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /keysGrantedBy|grantedBy/ },
 		why: '量的是「键级图」的两张表**真的**从数据面算出来 ✓（掐掉授予面 ⇒ `grantedBy` 空 ⇒ 合成反例与真数据反查都红 ✓）—— 不是常数 ✓',
 	},
+	{
+		// 车道 D 切片 3（`#215` `18502113`）：**显示层**的缺口守卫 ✓ —— 掐掉"缺数据 ⇒ 抛" ✗ ⇒ 空图 + 该用例必红 ✓
+		id: 'test/web-event-graph.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/web-event-graph.mjs',
+		mutation: {
+			file: 'editor/web/event-graph-view.mjs',
+			find: 'if (!Array.isArray(rows) || !Array.isArray(members)) {',
+			replace: 'if (false) {',
+		},
+		expect: { rc: 1, stdout: /rules\.json|contract\.json/ },
+		why: '量的是「缺数据必须报错」那一格**真的**在守 ✓（掐掉它 ⇒ 页面会画一张**空图** ⇒ 会被读成"没有依赖"✗ ⇒ 两条缺口用例必红 ✓）',
+	},
 ];

@@ -11,6 +11,7 @@ import { diagnoseLines, renderDiagnosis } from './diagnose-view.mjs';
 import { fingerprintOf } from '../lib/core/fingerprint.mjs';
 import { starterPackage } from '../lib/core/story.mjs';
 import { renderEventGraph, clearEventGraph } from './event-graph-view.mjs';   // 车道 D 切片 3（`#215` `18502113`）：键级图显示层 ✓
+import { renderRuleRows } from './rule-rows-view.mjs';   // 车道 E-B2（`#215` 报备 `18502613`）：**规则行**显示层 ✓（判据在 `core/ruleRows.mjs` ✓ —— 页内不重写 ✗）
 
 const $ = (id, doc = globalThis.document) => doc?.getElementById?.(id);
 
@@ -76,5 +77,7 @@ export const showDiagnosis = ({ doc, pkg, declared = ['data(包)'], skipped = []
 	const findings = diagnoseStory({ data: pkg.data });
 	const packageSha = fingerprintOf(pkg.data);
 	const injectedSha = fingerprintOf({ ...pkg.data, __declared: declared.join('+') });
-	return renderDiagnosis({ doc, containerId: 'out', lines: diagnoseLines({ findings, declared, skipped, packageSha, injectedSha }) });
+	const n = renderDiagnosis({ doc, containerId: 'out', lines: diagnoseLines({ findings, declared, skipped, packageSha, injectedSha }) });
+	renderRuleRows({ doc, pkg });   // 车道 E-B2：**规则行那一路** ✓（与 `#out` 的故事面／`#graph` 的键级图**各占一格** ✗，不重叠 ✓）
+	return n;
 };

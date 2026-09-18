@@ -117,5 +117,20 @@ export const PROBES = [
 		},
 		expect: { rc: 1, stdout: /brandNewField|全集外/ },
 		why: '量的是「**单向 ⊆ 包络**」那一刀**真的有牙** ✓（把字段级越界检查摘掉 ⇒ `brandNewField` 静默通过 ⇒ 必红且点名 ✓）—— 否则“全集”只是个摆设（随手加字段没人拦 ✗）',
+},
+	{
+		// 车道 E-B2（`#215` 报备 `18502613`）：**规则行**页内面的「**两侧同判**」自证 ✓
+		id: 'test/web-rule-rows.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/web-rule-rows.mjs',
+		mutation: {
+			// 把页内那一支的死规则判定**掐掉**（返回空数组 ✗）⇒ 页内主读数不从 0 变 1 ⇒ 刀那一条必红 ✓
+			file: 'editor/web/rule-rows-view.mjs',
+			find: 'dead: deadRows(rows),',
+			replace: 'dead: [],',
+		},
+		expect: { rc: 1, stdout: /合成一条死规则/ },
+		why: '量的是「页内**真的在判**，而不是把 CLI 的结论抄一遍」（掐掉 core 那一步 ⇒ 页内主读数不从 0 变 1 ⇒ 刀必红 ✓）—— 否则“两侧同判”会被写成“两侧都空”✗',
 	},
 ];

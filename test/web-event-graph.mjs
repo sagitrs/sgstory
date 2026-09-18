@@ -13,7 +13,7 @@
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
 import { loadPackage } from '../editor/web/loader.mjs';
-import { renderEventGraph } from '../editor/web/event-graph-view.mjs';
+import { renderEventGraph, clearEventGraph } from '../editor/web/event-graph-view.mjs';
 import { graphOf } from '../editor/lib/core/eventGraph.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
@@ -48,6 +48,23 @@ try {
 	// ② 缺数据 ⇒ 抛（两半 ✓）
 	t('② 缺 `rules.json` ⇒ **讲人话地抛** ✗（不许画空图 ✓）', (() => { try { renderEventGraph({ doc, pkg: { data: { 'contract.json': { members: [] } } } }); return false; } catch (e) { return /rules\.json/.test(String(e.message)); } })());
 	t('② 缺 `contract.json` ⇒ 同样抛 ✓（能假的另一半 ✓）', (() => { try { renderEventGraph({ doc, pkg: { data: { 'rules.json': { rows: [] } } } }); return false; } catch (e) { return /contract\.json/.test(String(e.message)); } })());
+
+	// `#946`：**旧图不许留** ✗ —— ① 入口先清 ⇒ 守卫抛了也不留旧图 ✓；② `clearEventGraph` 可单独清 ✓
+	t('`#946` ①：先渲染好图，再用**缺数据**触发抛出 ⇒ 那一格**已被清** ✓（不含上一个包的计数 ✓）', (() => {
+		renderEventGraph({ doc, pkg });   // 先摆一张**好图** ✓（前面 ② 的用例抛过 ⇒ 容器已被清 ✓）
+		const before = text();
+		try { renderEventGraph({ doc, pkg: { data: {} } }); } catch { /* 预期抛 ✓ */ }
+		const after = text();
+		return before.startsWith('事件 ') && !after.startsWith('事件 ') && /未载入/.test(after);
+	})());
+	t('`#946` ②：`clearEventGraph` 单独可用 ✓（页面的"载入失败"那一路就是调它 ✓）', (() => {
+		clearEventGraph({ doc });
+		return /未载入/.test(text()) && !text().startsWith('事件 ');
+	})());
+	t('`#946` ③ 能假的另一半 ✓：**重新载入好包 ⇒ 图必须回来** ✓（不是"清完就再也不显示"✗）', (() => {
+		const g3 = renderEventGraph({ doc, pkg });
+		return g3.counts.events > 0 && text().includes(`事件 ${g3.counts.events} ⇒`);
+	})());
 
 	// ③ 容器缺失 ⇒ 抛 ✓
 	t('③ 容器缺失 ⇒ **讲人话地抛** ✗（图不该静默不显示 ✓）', (() => {

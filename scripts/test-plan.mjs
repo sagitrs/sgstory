@@ -20,6 +20,10 @@
 //   └─ scripts/report-rhythm.mjs  读 route-traces.json（连 `--selftest` 也用它做正例）→ needs scenarios
 export const SEGMENTS = [
 	{ id: "build-mjs", phase: 'build', cost: 3, cmd: "node build.mjs" },
+	// `#899` ②：**新故事夹具场景**（①三门绿＋哨兵 ✓ ／ ②③两条安全网全红 ✓ ／ 清场三处＋dist 复原 ✓）。
+	//   ⚠️ 必须是 `build` 相位 ⇒ **先跑且独占** ✗（它要在仓的 `stories/` 下临时建夹具 ✓）；**且排在 `build-mjs` 之后** ✗
+	//   （开场快照要取"刚 build 过的 dist" ✓，否则拿旧基线 ⇒ 末条 sha 比对**假红** ✓ —— 实测踩过一次 ✓）。
+	{ id: "test-new-story-fixture-mjs", phase: 'build', cost: 8, needs: ['build-mjs'], cmd: "node test/new-story-fixture.mjs" },
 	{ id: "test-integrity-mjs", phase: 'test', cost: 0, cmd: "node test/integrity.mjs" },
 	// `#794` P1①：「故事包 I/O ＝ 唯一写路」的自证（核心在 `editor/lib/core/story.mjs` ✓；含**写侧哨兵**：拒绝型 io ⇒ 写入当场失败 ✓）。
 	{ id: "test-core-story-mjs", phase: 'test', cost: 0, cmd: "node test/core-story.mjs" },

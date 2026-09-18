@@ -29,7 +29,7 @@ import { definitionsOf, duplicateExportProblems, secondCopyProblems, coreHostPro
 // `#794` 第 4 条（K4 命令体）：判据的**纯**部分住 core ✓（纯 ⇒ core、宿主能力 ⇒ host ✓）。
 // ⚠️ **一处定义** ✓：分类器实例**不在本文件重装** ✗ —— `lib/host/classify.mjs` 已经装好（`makeClassify({ evalLiteral: literalValue })` ✓），
 // 本命令走它导出的缝 `classifyContractText` ✓（那条缝多做 `locals` 上下文与 `const` 的 B→A 解析 ⇒ 该语义风险由**两时点差分**量掉 ✓）。
-import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, contractSourceText, staleTrackedProblems } from '../core/k4criteria.mjs';
+import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, contractSourceText, staleTrackedProblems } from '../core/k4criteria.mjs';
 import { censusOfStory, censusSummarize, censusProblems } from '../core/hatchCensus.mjs';
 import { classifyContractText } from './classify.mjs';
 // `#794` 弧第 3 票（`equiv` 命令体）：用 vm／读文件／跑子进程 ⇒ **都在 host** ✓。
@@ -587,6 +587,23 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 				const sum = censusSummarize(storyCensus);
 				console.log(`  · ${slug}：**普查** ${sum.members} 名成员（A${sum.counts.A ?? 0}/B${sum.counts.B ?? 0}/C${sum.counts.C ?? 0}/D${sum.counts.D ?? 0}）· 数据面 ${dataMembers.length} 名 · 下沉 ${sum.sinks} 条（锚点读到 ${Object.keys(engineSymbols).length}/${anchorCount}）⇒ **「必须逃生舱」 ${sum.hatches} 条**`);
 			}
+
+		// ③b **不数据化的面**（`refusedFaces`）—— 与 ③ **同构**（清单只许收缩 ✓ ＋ 条目必带理由票号 ✓），
+		//    但**登记对象是"文件/面"** ✗、且**不能**走 `hatches`／`hatchFiles`（前者按契约成员名 ✓，后者会进等价门产物侧 ✓）。
+		{
+			const facesRegistryPath = join(ROOT, 'editor', 'escape-hatch.json');
+			const facesRegistry = existsSync(facesRegistryPath) ? JSON.parse(readFileSync(facesRegistryPath, 'utf8')) : {};
+			// ⚠️ **按故事过滤** ✗（照 `escapeHatchProblems()` 对 `hatches` 的同款口径 ✓）：登记表是**跨故事**的 ✓，
+			//    不过滤 ⇒ 会拿「别的故事的面」当本故事的读数 ⇒ 行文名不副实 ✗；
+			//    **总数**各故事求和即得 ⇒ 「可计数」不受影响 ✓。
+			const allFaces = facesRegistry.refusedFaces ?? [];
+			const faces = allFaces.filter((f) => typeof f?.file === 'string' && f.file.startsWith(`stories/${slug}/`));
+			console.log(`  · ${slug}：**不数据化的面（\`refusedFaces\`）${faces.length} 项**（**全表合计 ${allFaces.length}** ✓） ✓（登记 ≠ 不迁：每条写明**退路 ＋ 重开条件** ✓）`);
+			for (const f of faces) console.log(`      · ${String(f.file)} ⇒ ${String(f.ticket)}`);
+			// ⚠️ `markerOf` 由**宿主注入** ✓（core 的 `refusedFaceProblems` 是纯函数、不碰 fs ✓）
+			const markerOf = (rel) => { try { return hasGeneratedMarker(readFileSync(join(ROOT, rel), 'utf8')); } catch { return false; } };
+			for (const prob of refusedFaceProblems(faces, { markerOf })) { console.error(`  ✗ ${prob.why}`); bad++; }
+		}
 		}
 		// **取不到输入就不许判过**（`#777` 那族错：分类器曾只扫首个 `Sg.story` 块 ⇒ 少 8 名成员却“静默地没问题”）。
 		// 手写源非空却一个成员都找不到 ⇒ 只能是我读错了位置（或契约换了写法）⇒ 判红，不静默。

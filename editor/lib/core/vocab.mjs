@@ -32,3 +32,14 @@ export const vocabOf = (axis) => {
 	}
 	return VOCAB[axis];
 };
+
+
+/** **字段名 ⇒ 轴** 的映射 ✓（车道 D 切片 1b）—— 给"表单该给哪一轴候选"一个**声明** ✓，
+ *  免得 DOM 层现编 `if (name === 'req') …` ✗（那件件头明令"**不新造 schema**" ✗）。
+ *  当前只映**语义最确定**的四个条件行字段 ✓（设计稿 D3 的「何时(`req`／`any`／`exclude`／`prereq`／`prio`)」⇒ 取前四者 ✓ ——
+ *  `prio` 是**序号** ✗ 不是算子面 ⇒ 不映 ✓）；另三轴（`effects`／`prefixes`／`terms`）**已暴露未绑定** ✗ ⇒ 属后续切片 ✓。 */
+export const VOCAB_FIELDS = Object.freeze({ req: 'ops', any: 'ops', exclude: 'ops', prereq: 'ops' });
+
+/** 该字段用哪一轴的候选 ✓；**未映射 ⇒ `null`** ✓（"这个字段没有候选"是**合法状态** ✗ ⇒ 不抛 ✓）。
+ *  ⚠️ 与 `vocabOf()` 分工：`vocabOf` 是"**轴名**不认识"⇒ 抛 ✓（编程错 ✓）；本函数是"字段没有候选"⇒ `null` ✓（正常 ✓）。 */
+export const vocabAxisForField = (name) => VOCAB_FIELDS[name] ?? null;

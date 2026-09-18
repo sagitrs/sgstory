@@ -39,6 +39,27 @@ try {
 	t('接线：字段下拉来自**该事件的原始字段** ✓（不新造 schema ✓）',
 		dom.window.document.getElementById('field').options.length === Object.keys(events[0].raw).length);
 
+	// 车道 D 切片 1b（`#215` 报备 `18501202`）：**候选来自词表镜像** ✓ ——
+	// 逐值等于 `vocabOf(轴)` ✓（不是"非空"✗）；未映射字段**没有** datalist ✓（另一半 ✓）。
+	{
+		const { VOCAB_AXES, vocabOf, vocabAxisForField, VOCAB_FIELDS } = await import('../editor/lib/core/vocab.mjs');
+		const dom0 = new JSDOM('<div id="fields"></div>', { pretendToBeVisual: false });   // 独立 DOM ✓（共享 dom 的 #fields 会被重建 ⇒ 打断后续用例 ✗）
+		const doc0 = dom0.window.document;
+		const row0 = { id: 'x', scope: 'y', req: ['a'], any: [], exclude: [], prereq: [], text: '', prio: 1 };
+		buildEventForm({ doc: doc0, row: row0 });
+		const vals = (id) => [...(doc0.getElementById(id)?.querySelectorAll('option') ?? [])].map((o) => o.value);
+		t('映射字段 `req` ⇒ 有 datalist ✓ 且选项**逐值** ≡ `vocabOf("ops")` ✓',
+			JSON.stringify(vals('dl-req')) === JSON.stringify([...vocabOf('ops')]) && vals('dl-req').length > 0);
+		t('该 textarea **挂上了** 「list=」✗（候选真能弹 ✓，不是摆着 ✓）',
+			doc0.getElementById('fld-req')?.getAttribute('list') === 'dl-req');
+		t('`any`／`exclude`／`prereq` 同样映射 ✓（四字段齐 ✓）', ['any', 'exclude', 'prereq'].every((n) => vals(`dl-${n}`).length === vocabOf('ops').length));
+		t('**未映射字段没有 datalist** ✓（另一半：`text` ✓／`prio` 是序号 ⇒ 也不映 ✓）',
+			!doc0.getElementById('dl-text') && !doc0.getElementById('dl-prio') && Object.keys(VOCAB_FIELDS).every((f) => VOCAB_FIELDS[f] === 'ops'));
+		t('映射声明**不超出四轴** ✓（轴名必须在册 ✓，防手滑写成不存在的轴 ✗）', Object.values(VOCAB_FIELDS).every((a) => VOCAB_AXES.includes(a)));
+		t('`vocabAxisForField` 未映射 ⇒ `null` ✓（不是抛 ✗ —— "没有候选"是合法状态 ✓）', vocabAxisForField('text') === null && vocabAxisForField('req') === 'ops');
+		dom0.window.close();   // jsdom 收场纪律 ✓（显式关 ✓）
+	}
+
 	const target = events.find((e) => typeof e.raw.text === 'string' && e.raw.text.length > 4);
 	const newText = `${target.raw.text}【表单探针】`;
 	// 驱动 UI（就像用户点一样 ✓）

@@ -8,6 +8,7 @@
 // 于是"页面上改的那次"与"测试里改的那次"**按构造是同一条路** ✓（没有第二份实现 ✓）。
 
 import { eventsOf, editEvent, editEventField, fieldKindsOf, diffFields, editSummary } from './events.mjs';
+import { vocabOf, vocabAxisForField } from '../lib/core/vocab.mjs';   // 车道 D 切片 1b：候选＝**词表镜像** ✓（映射声明在 core ✓ —— 本层不写死字段名 ✗）
 
 /** **表单的字段区** ✓（P1 余项）：字段与类型**从 `fieldKindsOf` 来** ✗ —— DOM 层不写死任何 schema ✓。
  *  `list` 字段用**逐行文本框**（一列一项 ✓）＋ `text` 单行 ✓＋ `number` 数字框 ✓；`raw` 不渲染 ✗（不认识就不让改 ✓，并在提示里点名 ✓）。 */
@@ -25,6 +26,16 @@ export const buildEventForm = ({ doc, row, containerId = 'fields' } = {}) => {
 		el.id = `fld-${name}`;
 		el.dataset.kind = kind;
 		el.value = kind === 'list' ? (row[name] ?? []).join('\n') : String(row[name] ?? '');
+		// 被**映射**的 `list` 字段 ⇒ 附 `<datalist>`（选项＝该轴词表 ✓，**逐值来自镜像** ✗ 不是另抄一份 ✓）；未映射 ⇒ 原样 ✗。
+		const axis = kind === 'list' ? vocabAxisForField(name) : null;
+		if (axis) {
+			const dlId = `dl-${name}`;
+			const dl = doc.createElement('datalist');
+			dl.id = dlId;
+			for (const v of vocabOf(axis)) { const opt = doc.createElement('option'); opt.value = v; dl.appendChild(opt); }
+			box.appendChild(dl);
+			el.setAttribute('list', dlId);
+		}
 		wrap.appendChild(el);
 		box.appendChild(wrap);
 	}

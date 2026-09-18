@@ -33,6 +33,8 @@ export const SEGMENTS = [
 	{ id: "scripts-probe-gates-mjs-check", phase: 'test', cost: 0, cmd: "node scripts/probe-gates.mjs --check" },
 	// `#908` ①：运行器**自己**能假 ✓（三态判定／注入计数／缺前置分家 ✓）—— 与探针实跑分家 ✓。
 	{ id: "scripts-probe-gates-mjs-selfcheck", phase: 'test', cost: 0, cmd: "node scripts/probe-gates.mjs --selfcheck" },
+	// 车道 E-(A)（`#215`）：页面侧覆盖率 —— **只读** ✓（纯静态扫描 ⇒ 无 `needs`／不需 build ✓）；报告用读数 ✓ 不进任何断言 ✓
+	{ id: "scripts-report-page-coverage-mjs", phase: 'test', cost: 0, cmd: "node scripts/report-page-coverage.mjs" },
 	{ id: "test-integrity-mjs", phase: 'test', cost: 0, cmd: "node test/integrity.mjs" },
 	// `#794` P1①：「故事包 I/O ＝ 唯一写路」的自证（核心在 `editor/lib/core/story.mjs` ✓；含**写侧哨兵**：拒绝型 io ⇒ 写入当场失败 ✓）。
 	{ id: "test-core-story-mjs", phase: 'test', cost: 0, cmd: "node test/core-story.mjs" },

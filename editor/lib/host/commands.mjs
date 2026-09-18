@@ -229,11 +229,17 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 	const argOf = (name, dflt) => { const h = argv.find((a) => a.startsWith(`--${name}=`)); return h ? h.slice(name.length + 3) : dflt; };
 	const rulesMode = argv.includes('--rules');
 	// 车道 B · notes 面（`#215` 报备 `18504282` ✓）：**第四个面** ✓（与 `--rules` 同款：只换默认产物名与 L1 取数口 ✓）。
-	const notesMode = argv.includes('--notes');
+	// ⚠️ 发起者补（`#215` 报备 `18505730` ✓）：本面是**一个数据文件 → 多份产物** ✗ ⇒ 默认产物名可能**不是** `ch1` ✓
+	//   ⇒ 加**可选指定** `--notes=<产物文件>` ✓（**默认值一字不改** ✗）；判定用**前缀**（`--notes=…` 也要认 ✗）。
+	//   “若要一条命令覆盖该面全部块” 属**另一片** ✗（`--hand` 要从单文件变成块⇒基线映射 ⇒ 不是最小改动 ✓）。
+	const notesTarget = argOf('notes', null);
+	const notesMode = argv.includes('--notes') || notesTarget !== null;
 	const l3Mode = argOf('l3', 'hard');
 	if (!L3_MODES.includes(l3Mode)) { console.error(`✗ --l3 只接受 ${L3_MODES.join('|')}（实得 ${l3Mode}）`); return 2; }
 	const handGiven = argv.some((a) => a.startsWith('--hand='));
-	const defaultTwee = notesMode ? '16-notes-ch1.twee' : rulesMode ? '17-rules.twee' : '15-tables.twee';
+	// ⚠️ **一处定义** ✗：产物名只在这里算一次 ✓ —— 它**同时**驱动 `--hand` 的默认路径与下面取产物那一步 ✓
+	//  （两处各写一份 ternary ⇒ “比的是 ch2、指路指 ch1”的**错位** ✓；复核席 `18505646` 点名过这处 ✗）。
+	const defaultTwee = notesMode ? (notesTarget ?? '16-notes-ch1.twee') : rulesMode ? '17-rules.twee' : '15-tables.twee';
 	const handPath = join(ROOT, argOf('hand', `stories/${slug}/${defaultTwee}`));
 	// `#794` 观察项：**裸跑（未显式给 `--hand`）＋ 默认目标是产物 ⇒ 当场拒绝并指路** ✓（见 `bareHandRefusal` ✓）。
 	// ⚠️ 放在**昂贵比较之前** ✓（复核口径 ✓）：下面要连编译两次 ＋ 逐字节比 ⇒ 跑完再报等于让人白等 ✓。
@@ -265,7 +271,7 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 	runNode([COMPILER, slug, `--out=${idemDir}`], { cwd: ROOT });
 	const names = [...new Set([...readdirSync(genDir), ...readdirSync(idemDir)])].sort();
 	const idemOk = names.length > 0 && names.every((n) => readFileSync(join(genDir, n)).equals(readFileSync(join(idemDir, n))));
-	const gen0 = readFileSync(join(genDir, notesMode ? '16-notes-ch1.twee' : rulesMode ? '17-rules.twee' : '15-tables.twee'), 'utf8');
+	const gen0 = readFileSync(join(genDir, defaultTwee), 'utf8');   // ← **复用上面那一处定义** ✗（不再各写一份 ternary ✓）
 	// **产物侧 ＝ 生成物 ＋ 登记过的手写逃生舱文件**（`#787` 翻面形状）：非 A 桶成员装不进生成物 ⇒ 它们住手写件，
 	// 而行为门要比的是**整份契约**；手写侧（冻结基线）本来就含它们 ⇒ 只比生成物会得到"少了成员"的**假差** ✗。
 	// 单一真源＝`editor/escape-hatch.json` 的 `hatchFiles` ✓ —— 读它**共用** `lib/host/hatches.mjs` 的实现 ✓

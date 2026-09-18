@@ -121,6 +121,206 @@
 					"flagPath": "world.rumor"
 				}
 			}
+		},
+		{
+			"file": "16-notes-ch2.twee",
+			"section": "Game Notes 二章",
+			"entries": {
+				"n_hall_hint": {
+					"title": "那钉子是弯钩",
+					"src": "门厅",
+					"tags": [
+						"二章",
+						"门厅"
+					],
+					"body": "挂哨子的钉身弯成钩：往上提、再往外带，不必硬掰。",
+					"era": "present",
+					"flagPath": [
+						"world.hall_hint",
+						"ev.hall_seen"
+					]
+				},
+				"n_study_hint": {
+					"title": "暗格在炉膛后头那面墙里",
+					"src": "书房",
+					"tags": [
+						"二章",
+						"书房"
+					],
+					"body": "二楼书房烤炉后头那面墙上有一道细缝——那就是暗格。",
+					"era": "present",
+					"flagPath": [
+						"world.study_hint",
+						"ev.study_found"
+					]
+				},
+				"n_ledger_hint": {
+					"title": "那些点是等分的",
+					"src": "天文台",
+					"tags": [
+						"二章",
+						"天文台"
+					],
+					"body": "缺口边上那几粒没连上的点，间距是等分的。",
+					"era": "present",
+					"flagPath": "world.ledger_hint"
+				},
+				"n_failure_cause": {
+					"title": "缺的从来不是咒",
+					"src": "书房",
+					"tags": [
+						"二章",
+						"书房"
+					],
+					"body": "日记最后一页，有行字被描过两遍：''缺的从来不是咒。''这句后面再没有别的字。",
+					"era": "present",
+					"flagPath": "ev.failure_cause"
+				},
+				"n_observation_lock": {
+					"title": "没人看过它睡得怎么样",
+					"src": "书房",
+					"tags": [
+						"二章",
+						"书房"
+					],
+					"body": "日记里还有一句更小的话：''没人看过它睡得怎么样。''",
+					"era": "present",
+					"flagPath": "ev.observation_lock"
+				},
+				"n_forge_seen": {
+					"title": "这甲是照着一个人的手臂打的",
+					"src": "工坊",
+					"tags": [
+						"二章",
+						"工坊"
+					],
+					"body": "架上那副锻到一半的护臂，是照着''守林人的臂''量的尺寸；那人还没来取。",
+					"era": "present",
+					"flagPath": "ev.forge_seen"
+				}
+			}
+		},
+		{
+			"file": "16-notes-ch3.twee",
+			"section": "Game Notes 三章",
+			"entries": {
+				"n_keeper_told": {
+					"title": "他小时候在那儿睡过一下午",
+					"src": "守林人",
+					"tags": [
+						"三章",
+						"守林人"
+					],
+					"body": "他说那片花会睡人，要摘先把气含住——他小时候在那片花边上睡过一下午，醒来天都黑了。",
+					"era": "present",
+					"flagPath": "ev.keeper_told"
+				},
+				"n_keeper_why": {
+					"title": "守的从来不是悔恨",
+					"src": "守林人",
+					"tags": [
+						"三章",
+						"守林人"
+					],
+					"body": "'守的从来不是悔恨'——''是它。''他说：我家看了它三百年，它还在下面。",
+					"era": "present",
+					"flagPath": "ev.keeper_why"
+				},
+				"n_star_ledger": {
+					"title": "有人拿那些点当过一把尺",
+					"src": "天文台",
+					"tags": [
+						"三章",
+						"天文台"
+					],
+					"body": "缺口边那几粒点的间距是等分的——有人拿它们当过一把尺。量的是什么，纸上没写。",
+					"era": "present",
+					"flagPath": "ev.star_ledger"
+				},
+				"n_witch_fire_hint": {
+					"title": "等一个不在场的人把话说完",
+					"src": "老巫女",
+					"tags": [
+						"三章",
+						"宴会"
+					],
+					"body": "老巫女把两边的证据放在一起称了称，才开口：''缺的不是咒，是等一个不在场的人把话说完。''",
+					"era": "past",
+					"flagPath": "ev.witch_fire_hint"
+				},
+				"n_witch_grip": {
+					"title": "她手里那支哨的形制",
+					"src": "当时的女巫",
+					"tags": [
+						"三章",
+						"宴会"
+					],
+					"body": "你看清了她握着的那支哨：形制与守林人挂在门边那支一样。",
+					"era": "past",
+					"flagPath": "ev.witch_grip"
+				},
+				"n_old_witch": {
+					"title": "厅角那位老人",
+					"src": "老巫女",
+					"tags": [
+						"三章",
+						"宴会"
+					],
+					"body": "厅角坐着一位老人，没跟谁说话，也望着厅中央空着的那一块地方，双手收在袖里。",
+					"era": "past",
+					"flagPath": "ev.old_witch"
+				},
+				"n_staff_hint": {
+					"title": "孩子总往桌布底下瞟",
+					"src": "寻杖",
+					"tags": [
+						"三章",
+						"宴会"
+					],
+					"body": "满厅的人都在忙着，倒是那个跑动的孩子，总往长桌尽头的桌布底下瞟。",
+					"era": "past",
+					"flagPath": "world.staff_hint"
+				},
+				"n_letter_seen": {
+					"title": "火漆完好的一封信",
+					"src": "观星者",
+					"tags": [
+						"三章",
+						"宴会"
+					],
+					"body": "案角那封信''火漆完好''，没人拆过。收信人写着''\"观星者\"''。",
+					"era": "past",
+					"flagPath": "ev.letter_seen"
+				},
+				"n_mist_is_guard": {
+					"title": "它不是拦路，是在守一个人",
+					"src": "雾之魔物",
+					"tags": [
+						"三章",
+						"森林"
+					],
+					"body": "你不动，它也不动。看久了能看出来：它不是拦路，是''在守一个人''——它守的是守林人。",
+					"era": "present",
+					"flagPath": "ev.mist_guard"
+				}
+			}
+		},
+		{
+			"file": "16-notes-cross.twee",
+			"section": "Game Notes · 跨章与展示层",
+			"entries": {
+				"n_below_seen": {
+					"title": "地下只有一条龙",
+					"src": "地下宴会厅",
+					"tags": [
+						"三章",
+						"地下"
+					],
+					"body": "塔里只有一道门通往深处，门后面没有别的东西——只有它。",
+					"era": "present",
+					"flagPath": "ev.below_seen"
+				}
+			}
 		}
 	]
 }

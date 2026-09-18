@@ -1,0 +1,14 @@
+:: Game Notes · 跨章与展示层 [script]
+// 笔记模型（伞 #422）的**增量文件**：只往已有表追加，不定义任何别的全局。
+// 本文件是 #428 的机制样板 ＋ B3 批次（#431）的内容；后续批次各建各的文件：
+//   src/16-notes-ch2.twee（B1 #429）／src/16-notes-ch3.twee（B2 #430）
+// 铁律：① 只允许 Object.assign((window.Game.Notes ??= { entries: {} }).entries, {…}) 这一句形状；
+//       ② 条目只声明 flagPath（数据表不得出现字面状态读——见 #435 的那道门）；
+//       ③ 分类按 docs/notes-model-batches.md 的作业单，有异议走 #432。
+Object.assign((window.Game.Notes ??= { entries: {} }).entries, {
+	n_below_seen: {
+		title: '地下只有一条龙', src: '地下宴会厅', tags: ['三章', '地下'],
+		body: '塔里只有一道门通往深处，门后面没有别的东西——只有它。',
+		era: window.Game.Era.PRESENT, flagPath: 'ev.below_seen',
+	},
+});

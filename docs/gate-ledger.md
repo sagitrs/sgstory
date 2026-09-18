@@ -8,7 +8,7 @@
 > 为什么要有这张表：本仓当日集齐四类「空判」——覆盖≠验收 / **反例空判** / **死开关**（#331）/ **原理不可达断言**（#338）。
 > 台账的首要用途不是统计，而是**让「没有自证的门」在表上看得见**。
 
-**严格行为化率（有自证）：99/117 = 84.6%** ｜ **有断言但缺自证：0**（＝下方工作清单）｜ 仅登记：0
+**严格行为化率（有自证）：96/117 = 82.1%** ｜ **有断言但缺自证：0**（＝下方工作清单）｜ 仅登记：0
 
 | 门 | 类型 | 形态 | 自证 | 接线（npm test） | 理由（仅登记/未接线必填） |
 |---|---|---|---|---|---|
@@ -74,7 +74,7 @@
 | `test/core-story.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/coverage.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
 | `test/econ-price.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/fatal-guard.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
+| `test/fatal-guard.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
 | `test/fight-compat.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/fight-fields.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/fight-history.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
@@ -91,10 +91,10 @@
 | `test/layering.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | 自证 **33** 条断言（**量法**：`node test/layering.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝模块依赖（`cases` 11 项，含 `#893` 两层登记的三条正反例）/ 点号 defines / 层间方向 / engine rank 派生与四条禁止边 |
 | `test/lint-story.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/multi-story.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/notes-write.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
+| `test/notes-write.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
 | `test/npc-venue.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/onetime-pickups.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
-| `test/pc-defaults.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
+| `test/pc-defaults.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
 | `test/premise-source.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/properties.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
 | `test/render-all.mjs` | 测试脚本 | 行为化 | — | ✅ |  |

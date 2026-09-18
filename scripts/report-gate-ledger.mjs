@@ -16,6 +16,7 @@
 
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { planChain } from './test-plan.mjs';
+import { maskComments } from '../editor/lib/core/mask.mjs';   // `#899` ③：**同一把刀**（全仓唯一遮蔽器 ✓ —— 不新增第二份 ✗）
 
 const LEDGER = 'docs/gate-ledger.md';
 const PKG = 'package.json';
@@ -119,9 +120,23 @@ const push = (id, kind, wired, selfProof, extra = {}) => {
 	});
 };
 
+/** `#899` ③：`test/**` 那一格的**自证**判定（**先剥注释**再匹配 ✓）。
+ *
+ * 旧口径 ✗：`/负例|反例|selftest/.test(原文)` —— **纯措辞**：注释里写一句就能冒充自证（实测：75 个文件里 **4 个**的
+ *  ✅ 完全靠注释撑着 ✗：`fatal-guard` · `invariants` · `notes-write` · `pc-defaults`）。
+ * 新口径 ✓：同一把刀剥注释（`editor/lib/core/mask.mjs` 的 `maskComments` ✓）后再匹配 ⇒
+ *   ① 注释里的提及**不算**（本仓老纪律：`#459`／`#580` 同族 ✓）；
+ *   ② 判定做成**纯函数** ⇒ 能被 `--selftest` 驱动 ⇒ 这一格**能假** ✗（旧口径没有能假的另一半 ✓）。
+ *
+ * ⚠️ **已知边界（写清楚，不假装它是全的 ✗）**：字符串**仍算**（`t('🔴 反例：…')` 的**标签**照旧计入 ✓）——
+ *   本函数量的是"**信号出现在代码/字符串面**"，**不是**"断言真会红"✗（后者要逐文件变异 ⇒ 不在本片 ✓）。
+ *   ⇒ 这一列**只能说它真正比过的东西** ✓；更强的证据得走探针（另票 ✓）。
+ * **量法（可粘贴复跑 ✓）**：`node scripts/report-gate-ledger.mjs --selftest`（四条正反例 ✓）＋ `--update` 看那一列的变化 ✓。 */
+export const hasSelfProof = (src) => /负例|反例|selftest/.test(maskComments(String(src ?? ''), { file: 'ledger', twee: false }));
+
 for (const f of auditFlags) push(`audit:${f}`, 'audit 开关', testChain.includes(`scripts/audit.mjs --${f} --check`), auditSelfProof(f), { hasAssert: gateHasAssert(f) });
 for (const f of reportScripts) push(`scripts/${f}`, '报告脚本', testChain.includes(`scripts/${f}`), readFileSync(`scripts/${f}`, 'utf8').includes('--selftest'));
-for (const f of testFiles) push(`test/${f}`, '测试脚本', testChain.includes(`test/${f}`), /负例|反例|selftest/.test(readFileSync(`test/${f}`, 'utf8')));
+for (const f of testFiles) push(`test/${f}`, '测试脚本', testChain.includes(`test/${f}`), hasSelfProof(readFileSync(`test/${f}`, 'utf8')));
 
 // ── 判定 ─────────────────────────────────────────────────────────────
 // 链上出现的 audit 开关（用于「幻影门」反向查：链里跑了但 audit 里没有 = 手打字面量漂移/已删除）
@@ -188,6 +203,14 @@ const markdown = (rows) => {
 
 // ── 自证 ─────────────────────────────────────────────────────────────
 const selftest = () => {
+	// `#899` ③：这一格的**取数**也能是假的 ✗ —— 先把「自证」判定本身拿出来量（注释里写算不算 ✓）
+	let hbad = 0;
+	const h = (label, ok) => { if (!ok) hbad++; console.log(`${ok ? '✓' : '✗'} ${label}`); };
+	h('`hasSelfProof`：正文里写「反例」⇒ true ✓', hasSelfProof('t("反例：坏输入 ⇒ 必红", () => 1)') === true);
+	h('`hasSelfProof`：**只在注释里**写「反例/selftest」⇒ false ✗（旧口径在这里会误判 ✅ ✗）', hasSelfProof('// 本文件有 selftest 与反例\nconsole.log("hi");\n') === false);
+	h('`hasSelfProof`：只在块注释里写 ⇒ 同样 false ✗', hasSelfProof('/* selftest */\nconst x = 1;\n') === false);
+	h('`hasSelfProof`：什么都没写 ⇒ false ✓（能假的另一半 ✓）', hasSelfProof('const x = 1;\n') === false);
+	if (hbad) { console.error(`\n✗ 「自证」判定的读数不成立（${hbad} 项）`); process.exit(1); }
 	const cases = [
 		['仅登记无理由 → 必须报', [{ id: 'x', kind: 'k', wired: true, selfProof: false, form: '仅登记', reason: '' }], 1],
 		['未接线无理由 → 必须报', [{ id: 'x', kind: 'k', wired: false, selfProof: true, form: '行为化', reason: '' }], 1],
@@ -205,7 +228,7 @@ const selftest = () => {
 		console.log(`${ok ? '✓' : '✗'} ${name}（命中 ${got}，期望 ${want}）`);
 	}
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过：仅登记无理由红 / 未接线无理由红 / 合规绿 / 有理由的仅登记绿');
+	console.log('\n✔ 自证通过：仅登记无理由红 / 未接线无理由红 / 合规绿 / 有理由的仅登记绿 ＋ `hasSelfProof` 四条正反例（注释不算 ✓）');
 };
 
 const argv = process.argv.slice(2);

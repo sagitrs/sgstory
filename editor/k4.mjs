@@ -80,7 +80,9 @@ if (isMain && process.argv.includes('--selfcheck')) {
 	];
 	for (const [label, cond] of cases) { if (cond) console.log(`  ✓ 自证·${label}`); else { bad++; console.error(`  ✗ 自证·${label}`); } }
 	if (bad) { console.error(`\n✗ 自证未通过（${bad} 项）`); process.exit(1); }
-	console.log('\n✔ 自证通过（32 条：标记 2 ＋ 新鲜度 2 ＋ 逃生舱双向 5 ＋ 手写源口径 3 ＋ 生成物不许独改 5 ＋ `@generated` 谓词边界 1 ＋ 模板串口径 2 ＋ 逃生舱普查 6 ＋ 不数据化的面 6）');
+	// ⚠️ **条数由 `cases` 算出来** ✗ —— 别手写总数（实测：改前手写 `26` 而**实际 28** ✓ ⇒ 手写数会漂 ✓）。
+	//    分段名保留作**描述** ✓，但不再挂小计数字 ✗（小计也得手算 ⇒ 同一个坑 ✓）。
+	console.log(`\n✔ 自证通过（${cases.length} 条：标记 ＋ 新鲜度 ＋ 逃生舱双向 ＋ 手写源口径 ＋ 生成物不许独改 ＋ \`@generated\` 谓词边界 ＋ 模板串口径 ＋ 逃生舱普查 ＋ 不数据化的面）`);
 	process.exit(0);
 }
 

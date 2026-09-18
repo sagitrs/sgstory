@@ -3,6 +3,8 @@
 // 让 `--consequences` 把该键当成每个故事都写了 ⇒ 不声明它的故事假红）。
 import { maskComments } from './mask.mjs';
 import { asListOf, KEY_PREFIX_RE, OPS, WRAPPED_READ_RE, condKeysOf, declCondRefs, notePaths, wrappedReadKeys } from '../../../editor/lib/core/audit-shared.mjs';
+import { WRITE_PATTERNS, rowOps, noteWriteKeys, noteWriteRefs, notePathWriteRefs, NOTE_PATH_WRITE_RE, NOTE_WRITE_RE, declaredNoteWriteRefs, DECLARED_NOTE_WRITE_RE, conditionReadsFlag, noteReadKeys, noteRefs, NOTE_REF_RE } from '../../../editor/lib/core/audit-shared.mjs';
+export { WRITE_PATTERNS, rowOps, noteWriteKeys, noteWriteRefs, notePathWriteRefs, NOTE_PATH_WRITE_RE, NOTE_WRITE_RE, declaredNoteWriteRefs, DECLARED_NOTE_WRITE_RE, conditionReadsFlag, noteReadKeys, noteRefs, NOTE_REF_RE };   // `#215` E-B1：定义已上移 core ⇒ 本处**只转出**（不算定义 ✓）
 export { DECL_COND_RE, KEY_PREFIX_RE, OPS, READ_PATTERNS, WRAPPED_READ_RE, condKeysOf, declCondRefs, literalReadKeys, notePaths, readKeys, ruleRowKeys, stripJsComments, wrappedReadKeys } from '../../../editor/lib/core/audit-shared.mjs';
 
 // ── 写点识别：**单一权威**（#476 复核建议）──────────────────────────────────
@@ -11,15 +13,6 @@ export { DECL_COND_RE, KEY_PREFIX_RE, OPS, READ_PATTERNS, WRAPPED_READ_RE, condK
 // ⇒ 形态只此一处，两处消费方都从这里取。
 // **隐含约束**：旗标键必须匹配 `[a-z_]\w*`（大写/数字开头会被静默漏检）——用 `keyCharsetViolations` 兜住。
 export const KEY_CHARSET = /^[a-z_]\w*$/;
-export const WRITE_PATTERNS = [
-	{ re: /<<setflag\s+"(ev|world)\.([a-z_]\w*)"/g, kind: 'scoped' },      // `#624` 片三：`<<setflag "ev.x">>`（显式域）
-	{ re: /<<setflag\s+"([a-z_]\w*)"/g, kind: 'world' },                 // 宏式写 world 域（裸键，原语义）
-	{ re: /<<set\s+\$pc\.(ev|world)\.([a-z_]\w*)\s+to\b/g, kind: 'scoped' },
-	{ re: /\bpc\.(ev|world)\.([a-z_]\w*)\s*=[^=]/g, kind: 'scoped' },     // 赋值式（含 `= null`／对象／字符串）
-	{ re: /\bpc\.(ev|world)\[["']([a-z_]\w*)["']\]\s*=[^=]/g, kind: 'scoped' },
-	{ re: /<<firstTime\s+"([a-z_]\w*)"\s*>>/g, kind: 'ev' },            // 宏式写 ev 域（读一次再写）
-];
-/** 裸键集合（D2 分类器用）。 */
 export const writeKeys = (text) => {
 	const out = new Set();
 	const masked = maskComments(text);
@@ -38,73 +31,12 @@ export const qualifiedWriteKeys = (text) => {
 export const keyCharsetViolations = (text) =>
 	[...String(text).matchAll(/\bpc\.(?:ev|world)\.([A-Za-z_$][\w$]*)/g)].filter((m) => !KEY_CHARSET.test(m[1])).map((m) => m[1]);
 
-// audit 跨门共享 helper（#316 第 2 步）：被 ≥2 个门使用的定义集中于此，由壳注入 ctx。
-// 清单：build/_shared_list.json（收敛循环自动发现）。
-// ── 笔记引用（`#433` 阶段 2 的读点形状）：`Sg.notes.has('n_x')`／`Sg.notes.entry('n_x')`／`note:n_x` ──
-// 为什么放在这里（与写点/读点并列）：阶段 2 把段落条件从 `<<if $pc.ev.X>>` 改成 `Sg.notes.has('n_X')`，
-// 于是「谁读了旗标 X」这件事**换了写法但不该消失**——依赖它的门（`--state` 的有写有读、D2 的桶分类）
-// 必须跟着认这个形状。否则转发的第一步就会把一堆键判成"只有写"⇒ 门红而代码其实等价（假红）。
-// 这就是设计稿那条纪律：**先让门认新形状，再改内容**。
-export const NOTE_REF_RE = /Sg\.notes\.(?:has|entry)\(\s*['"](n_[a-z0-9_]+)['"]|(?:^|[^\w:])note:(n_[a-z0-9_]+)/g;
-// `#785`：声明式条件里的 `n_*` 也是笔记读（`req: ['n_x']`）——笔记消费可数不该因改形状而消失。
-// 文本里引用的笔记 id
-export const noteRefs = (text) => {
-	const out = new Set();
-	for (const m of String(text ?? '').matchAll(NOTE_REF_RE)) out.add(m[1] ?? m[2]);
-	// `#785`：声明式条件里的 `n_*`（`req: ['n_x']`）也是笔记读 —— 消费可数不该因改形状而消失
-	for (const id of declCondRefs(text).notes) out.add(id);
-	return [...out];
-};
-// 文本里**经笔记**读到的限定键（`ev.x`/`world.x`）
-export const noteReadKeys = (text, entries) => {
-	const paths = notePaths(entries);
-	const out = new Set();
-	for (const id of noteRefs(text)) for (const p of (paths.get(id) ?? [])) out.add(p);
-	return [...out];
-};
-// 文本里**经笔记**读到的裸键（D2 按裸键判）
-/** 行里用到的算子（去重；供「算子必须由引擎宣告」的判据用）。 */
-export const rowOps = (row) => {
-	const out = new Set();
-	for (const field of ['req', 'any', 'exclude']) for (const cond of asListOf(row?.[field])) {
-		if (cond && typeof cond === 'object' && !Array.isArray(cond)) for (const op of Object.keys(cond)) if (OPS.includes(op)) out.add(op);
-	}
-	return [...out];
-};
-/** `yields` 项 → `[{ id, path }]`（`#491` 另票：**多源笔记的路径选择**）——`'n_x'` 或 `{ id:'n_x', path:'world.x' }`。 */
 export const yieldsList = (row) => asListOf(row?.yields).map((y) => (y && typeof y === 'object' && !Array.isArray(y)
 	? { id: String(y.id ?? ''), path: y.path ? String(y.path) : null }
 	: { id: String(y), path: null }));
 
 
-// ── 笔记**写点**（`#434` 阶段 3）：`Sg.notes.add('n_x')` 写的是该笔记 `flagPath` 里的键 ──────────
-// 与读点（`noteReadKeys`）并列，仍是**单一权威**。为什么需要它：写点从「字面量写旗标」改成
-// 「经 `Sg.notes.add` 写」之后，按**字面量**认写点的门（`--state` 的"有写有读"、D2 的桶分类）
-// 会把该键判成**只有读** ⇒ 假红。（阶段 2 的 5 个消费点就是这个剧本，那次换的是**读**点形状。）
-// 三种**写点形状**（单一权威）：① 模块 API `Sg.notes.add('n_x')`；② 词汇宏 ``<<note "n_x">>``（`#624` 片一新增，
-// 表行与点击态里该用宏）；③ **路径限定**的 ``<<notepath "n_x" "ev.y">>``／`Sg.notes.addPath('n_x','ev.y')`
-// （`#437` 批三 C-2：多源笔记 `flagPath: [a,b]` 必须声明**写哪一条**，否则整族都算被写＝静默多写）。
-// **新写点形状只改这一处** —— 否则 `--state`／D2／`--sel-gear`／`premise-source`
-// 会集体把它当"只读" ⇒ 幽灵条件假红（阶段 2 的五消费点、`#624` 批 1 都撞过同一剧本）。
-// `#437` C-2b 的这一处是**读侧 `hasIf()` 那次的同构**：读侧堵了、写侧不堵 ⇒ "转一处、写点丢一处"。
-export const NOTE_WRITE_RE = /(?:Sg\.notes\.add(?:Path)?\(\s*['"](n_[a-z0-9_]+)['"]|<<\s*(?:note|notepath)\s+['"](n_[a-z0-9_]+)['"])/g;
-/** **路径限定**写点 ⇒ `[{ id, path }]`（`#437` 批三 C-2）。为什么要单独一条正则：多源笔记要知道
- *  **写的是哪一条**（`<<note>>` 只能记整族；`noteWriteKeys()` 对限定形**只记声明的那条**）。
- *  宏参数在 SugarCube 里按**空白**切 ⇒ 写成 `<<notepath "id", "path">>` 会把逗号带进参数；
- *  那种写法**不被本正则认**（记不进记账 ⇒ 会红）。方向是安全的：它是坏形状，不该被认。 */
-export const NOTE_PATH_WRITE_RE = /(?:Sg\.notes\.addPath\(\s*['"](n_[a-z0-9_]+)['"]\s*,\s*['"]((?:ev|world)\.[a-z0-9_]+)['"]|<<\s*notepath\s+['"](n_[a-z0-9_]+)['"]\s+['"]((?:ev|world)\.[a-z0-9_]+)['"])/g;
-/** 只要**模块 API** 那一种（`Sg.notes.add(`／`Sg.notes.addPath(`）。判「表里该用宏还是裸 API」时用它（`#624` 片一）：
- *  `NOTE_WRITE_RE` 认三种形状（记账用），而**点击态域里的 `<<note>>`／`<<notepath>>` 是允许的**，不许当成裸 API 判红。
- *  `addPath` 一并咬（`#437` C-2）：否则"路径限定"的裸 API 形态成了 W1 白名单之外的一条后门。 */
 export const NOTE_WRITE_API_RE = /Sg\.notes\.add(?:Path)?\(/;
-/** **声明面驱动的写点**（`#608`）：短战斗 widget 落败时按 `encounters[*].failNote` 写笔记——
- *  引擎侧是**变量**（`<<note _note>>`），字面 id 只在**故事的数据表**里 ⇒ 静态扫描必须以声明为源，
- *  否则 `--state` 会报「只有读没有写（幽灵条件）」（实测：`cave_battered` 恰好踩中）。 */
-export const DECLARED_NOTE_WRITE_RE = /failNote\s*:\s*['"](n_[a-z0-9_]+)['"]/g;
-export const declaredNoteWriteRefs = (text) => [...String(text ?? '').matchAll(DECLARED_NOTE_WRITE_RE)].map((m) => m[1]);
-/** 条件键 → 与段落 `<<if>>` 里**同形**的条件文本（`n_*` ⇒ `Sg.notes.has('n_x')`；其余 ⇒ `$pc.<域>.<键>`，裸键默认 `ev.`）。
- *  为什么必须只有一份（`#435` 前置 0）：表侧条件（行的 `req`/`any`/`exclude`）要过**同一份**判据
- *  （`causeReg()`／`conditionReadsFlag()`），若两处各写一套转换 ⇒ 必然漂移（`--echoes` 与 `--investment` G3 都用它）。 */
 export const condTextOf = (cond) => {
 	// 对象算子形 ⇒ 取它的**键**再合成（阈值/算子不影响"这段文本是否提到该旗标"这一判据）
 	if (cond && typeof cond === 'object' && !Array.isArray(cond)) return condKeysOf(cond).map(condTextOf).join(' ');
@@ -116,39 +48,6 @@ export const condTextOf = (cond) => {
 export const ruleRowSetKeys = (row) => (Array.isArray(row?.sets) ? row.sets : row?.sets ? [row.sets] : [])
 	.map(String).filter((k) => !KEY_PREFIX_RE.test(k) && !k.startsWith('n_')).map((k) => (k.includes('.') ? k : `ev.${k}`));
 
-/** 文本里 `Sg.notes.add('n_x')`（或 `<<note "n_x">>`）引用的笔记 id。 */
-export const noteWriteRefs = (text) => {
-	const out = new Set();
-	for (const m of String(text ?? '').matchAll(NOTE_WRITE_RE)) out.add(m[1] ?? m[2]);   // 两种形状各有自己的捕获组
-	// `#608`：**声明面驱动的写点**（`encounters[*].failNote`）同样算写——引擎侧是变量，字面 id 只在数据里
-	for (const id of declaredNoteWriteRefs(text)) out.add(id);
-	return [...out];
-};
-/** **路径限定**写点的 `[{ id, path }]`（两形状一份口径，`#437` C-2）。 */
-export const notePathWriteRefs = (text) => {
-	const out = [], seen = new Set();
-	for (const m of String(text ?? '').matchAll(NOTE_PATH_WRITE_RE)) {
-		const id = m[1] ?? m[3], path = m[2] ?? m[4];
-		const k = `${id}\u0000${path}`;
-		if (seen.has(k)) continue;
-		seen.add(k);
-		out.push({ id, path });
-	}
-	return out;
-};
-/** 经 `Sg.notes.add()` 写到的**限定键**（`ev.x`/`world.x`）。**限定形只记声明的那一条**（`#437` C-2）：
- *  多源笔记若把整族都记上，就等于承认"静默多写"——而 `#434` 的护栏恰恰要求 fail-loud。 */
-export const noteWriteKeys = (text, entries) => {
-	const paths = notePaths(entries);
-	const out = new Set();
-	const qualified = notePathWriteRefs(text);
-	const qualifiedIds = new Set(qualified.map((q) => q.id));
-	for (const q of qualified) out.add(q.path);
-	// 未限定形（`<<note>>`／`Sg.notes.add`）仍按整族记 —— 它们**不该**用在多源笔记上（护栏会报）
-	for (const id of noteWriteRefs(text)) if (!qualifiedIds.has(id)) for (const p of (paths.get(id) ?? [])) out.add(p);
-	return [...out];
-};
-/** 同上，返回**裸键**（D2 按裸键判）。 */
 export const noteWriteFlags = (text, entries) => noteWriteKeys(text, entries).map((k) => k.replace(/^(ev|world)\./, ''));
 
 // ── 条件表**行**引用的裸键（`#435` 阶段 4）：`req`/`any`/`exclude` 里的键名/笔记 id ────────────
@@ -200,18 +99,6 @@ export const noteIdsForFlag = (entries) => {
 	}
 	return M;
 };
-// **条件文本是否消费了旗标 `flag`**（两种形状，单一权威）：
-//   ① 直接读：`$pc.ev.flag` / `$pc.world['flag']`
-//   ② 经笔记：`Sg.notes.has('n_flag')`（该笔记的 flagPath 含此旗标）
-// `noteIds`：该旗标对应的笔记 id 数组（`noteIdsForFlag()` 的结果，缺省＝只认形状①）
-export const conditionReadsFlag = (text, flag, noteIds = []) => {
-	if (new RegExp(`(?:world|ev)\\s*(?:\\.|\\[)?["']?${flag}\\b`).test(String(text ?? ''))) return true;
-	return noteIds.some((id) => new RegExp(`Sg\\.notes\\.(?:has|entry)\\(\\s*['"]${id}['"]`).test(String(text ?? '')));
-};
-// 条件文本里读到的旗标（**裸键，按出现顺序去重**）——两种形状一次扫完。
-// 为什么强调顺序：报告文本（如 `--investment` G3 的「老巫女（seer_asked、coord、failure_cause）」）
-// 直接印这串旗标 ⇒ 顺序稳定才能让「纯转发」的判据保持逐字一致（否则每转一处就要重签 golden 一行）。
-// 返回**数组**（与 `noteReadKeys()` 一致：Set 会被 `.concat()` 当成单个元素——踩过一次）。
 export const noteReadFlags = (text, entries) => {
 	const paths = notePaths(entries);
 	const ids = [...paths.keys()];

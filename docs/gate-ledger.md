@@ -7,8 +7,14 @@
 > 纪律：**仅登记 / 未接线必须写明理由**（理由写在脚本的 `REASONS` 里，与代码同处一处评审）。
 > 为什么要有这张表：本仓当日集齐四类「空判」——覆盖≠验收 / **反例空判** / **死开关**（#331）/ **原理不可达断言**（#338）。
 > 台账的首要用途不是统计，而是**让「没有自证的门」在表上看得见**。
+>
+> **「自证」这一列量的是什么（口径 ＋ 量法 ＋ 已知边界 ✗）** —— 免得把 `✅` 读成“断言真会红” ✗：
+> · 量的是「**信号出现在代码/字符串面**」✓：先用**全仓唯一遮蔽器**剥注释（`editor/lib/core/mask.mjs` ✓）⇒ **注释里写不算** ✗；
+> · **字符串里的标签算** ✓（`t('🔴 反例：…')` ✓）⇒ 它 **≠** “断言真会红”✗ ⇒ 更强的证据要**探针**（票 `#908` ① ✓）；
+> · **量法（可粘贴复跑 ✓）**：`node scripts/report-gate-ledger.mjs --selftest`（含 4 条 `hasSelfProof` 正反例 ✓）；
+> · **缺自证的几行**（`—` ✓）：补一条**能假的负控制** ✓，或按 `#908` ① 登记探针 ✓ —— 名单见下方「工作清单」（**动态生成** ✗，不写死 ✓）。
 
-**严格行为化率（有自证）：96/118 = 81.4%** ｜ **有断言但缺自证：0**（＝下方工作清单）｜ 仅登记：0
+**严格行为化率（有自证）：96/118 = 81.4%** ｜ **有断言但缺自证：22**（＝下方工作清单）｜ 仅登记：0
 
 | 门 | 类型 | 形态 | 自证 | 接线（npm test） | 理由（仅登记/未接线必填） |
 |---|---|---|---|---|---|
@@ -63,24 +69,24 @@
 | `test/browser.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | 需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑 |
 | `test/cave-drops.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/cave-longfight.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/cave-merchant.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
-| `test/cave-roads.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
+| `test/cave-merchant.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
+| `test/cave-roads.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
 | `test/cave-route.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/choice-keys.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/cli-surface.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/codex-gating.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
+| `test/codex-gating.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
 | `test/codex-sink.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/combat-adv.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/core-story.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/coverage.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
+| `test/coverage.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
 | `test/econ-price.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/fatal-guard.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
+| `test/fatal-guard.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
 | `test/fight-compat.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/fight-fields.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/fight-history.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/fight-seq.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/foe-5e.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/g3-evidence.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
+| `test/g3-evidence.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
 | `test/gate-discovery.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/globals.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/import-side-effects.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
@@ -91,42 +97,70 @@
 | `test/layering.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | 自证 **33** 条断言（**量法**：`node test/layering.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝模块依赖（`cases` 11 项，含 `#893` 两层登记的三条正反例）/ 点号 defines / 层间方向 / engine rank 派生与四条禁止边 |
 | `test/lint-story.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/multi-story.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/new-story-fixture.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
-| `test/notes-write.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
+| `test/new-story-fixture.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
+| `test/notes-write.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
 | `test/npc-venue.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/onetime-pickups.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
-| `test/pc-defaults.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
+| `test/onetime-pickups.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
+| `test/pc-defaults.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
 | `test/premise-source.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/properties.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
-| `test/render-all.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
+| `test/properties.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
+| `test/render-all.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
 | `test/reread.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/resolve-node.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/roll-binding.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
+| `test/roll-binding.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
 | `test/rules-claims.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/rules.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/saveload-inventory.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | 自证 6 例（含 widget 间接改状态） |
 | `test/saveload.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | **自证按需跑**：`node test/saveload.mjs --selftest`（故障注入＝落档后人为扰动，断言比较器判红）；不塞主链的理由＝自证需完整导航（成本≈主跑 30s，收益不值） |
-| `test/saveui.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
+| `test/saveui.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
 | `test/scenarios.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/shortfight-phases.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/silent-gate.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
+| `test/silent-gate.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
 | `test/siteinfo-sink.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/size-gate.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/smoke.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
-| `test/social-lever.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
+| `test/smoke.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
+| `test/social-lever.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
 | `test/social-sink.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/state-diagnose.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/store-keys.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/story-runtime.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/story-shape.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/walker.mjs` | 测试脚本 | 行为化 | — | — | 随机游走 soak（npm run soak）：耗时长、种子流非确定，不进 npm test |
+| `test/walker.mjs` | 测试脚本 | 行为化（缺自证） | — | — | 随机游走 soak（npm run soak）：耗时长、种子流非确定，不进 npm test |
 | `test/web-compile.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/web-diagnose-view.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
-| `test/web-diagnose-wire.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
-| `test/web-diagnose.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
+| `test/web-diagnose-view.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
+| `test/web-diagnose-wire.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
+| `test/web-diagnose.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
 | `test/web-events.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/web-form.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/web-loader.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
-| `test/web-new-package.mjs` | 测试脚本 | 行为化 | — | ✅ |  |
+| `test/web-new-package.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ |  |
 | `test/web-preview.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
 | `test/web-save.mjs` | 测试脚本 | 行为化 | ✅ | ✅ |  |
+
+## F2 工作清单：有断言但**缺自证**（22 项）
+
+> 这些门**在跑、也在断言**，但从没被证明「反例会红」——本仓当日四类空判（覆盖≠验收／反例空判／死开关 #331／原理不可达 #338）都出自这一类。
+> 补法：给该门加一个**合成反例**用例（正例＋反例），并在本脚本的 `REASONS` 里改标 `行为化`。
+
+- `test/cave-merchant.mjs`（测试脚本）
+- `test/cave-roads.mjs`（测试脚本）
+- `test/codex-gating.mjs`（测试脚本）
+- `test/coverage.mjs`（测试脚本）
+- `test/fatal-guard.mjs`（测试脚本）
+- `test/g3-evidence.mjs`（测试脚本）
+- `test/new-story-fixture.mjs`（测试脚本）
+- `test/notes-write.mjs`（测试脚本）
+- `test/onetime-pickups.mjs`（测试脚本）
+- `test/pc-defaults.mjs`（测试脚本）
+- `test/properties.mjs`（测试脚本）
+- `test/render-all.mjs`（测试脚本）
+- `test/roll-binding.mjs`（测试脚本）
+- `test/saveui.mjs`（测试脚本）
+- `test/silent-gate.mjs`（测试脚本）
+- `test/smoke.mjs`（测试脚本）
+- `test/social-lever.mjs`（测试脚本）
+- `test/walker.mjs`（测试脚本）
+- `test/web-diagnose-view.mjs`（测试脚本）
+- `test/web-diagnose-wire.mjs`（测试脚本）
+- `test/web-diagnose.mjs`（测试脚本）
+- `test/web-new-package.mjs`（测试脚本）

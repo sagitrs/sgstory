@@ -102,6 +102,13 @@ const auditSelfProof = (flag) => {
 const reportScripts = readdirSync('scripts').filter((f) => f.startsWith('report-') && f.endsWith('.mjs')).sort();
 const testFiles = readdirSync('test').filter((f) => f.endsWith('.mjs') && !['boot.mjs', 'harness.mjs', 'invariants.mjs'].includes(f)).sort();
 
+/** `#908` ②：**形态**的判定（纯函数 ✓ ⇒ 自证段能驱动它 ✓）。
+ *  ⚠️ **修掉一处自相矛盾** ✗（本票实测 ✓）：旧写法对 `kind === '测试脚本'` **无条件**给 `'行为化'` ✗
+ *  ⇒ `#899` ③ 把「自证」列收紧后，`test/**` 里那三行（`自证 = —` ✓）被标成 `行为化` ✓、**却进不了「缺自证」工作清单** ✗
+ *  ⇒ 生成物**自己的标题行写「有断言但缺自证：0」** ✗、而表里明明有三行 `—` ✗（正是本列“让缺自证的看得见”的反面 ✗）。
+ *  正形 ✓：测试脚本**不再特殊** ✓ —— 有自证才 `行为化` ✓，没自证就落 `行为化（缺自证）`✓（与其它 kind 同口径 ✓）。 */
+export const formOf = ({ kind = '', selfProof = false, form } = {}) => form ?? (selfProof ? '行为化' : kind === '测试脚本' ? '行为化（缺自证）' : '行为化（缺自证）');
+
 const rows = [];
 const push = (id, kind, wired, selfProof, extra = {}) => {
 	const r = REASONS[id] ?? {};
@@ -109,7 +116,7 @@ const push = (id, kind, wired, selfProof, extra = {}) => {
 	//   行为化        ＝有自证（反例真会红）
 	//   行为化（缺自证）＝**有断言但从未证明咬得住** → F2 的**工作清单**（不是违规，是待补）
 	//   仅登记        ＝只出报告不做断言（必须写理由）
-	const form = r.form ?? (selfProof ? '行为化' : kind === '测试脚本' ? '行为化' : '行为化（缺自证）');
+	const form = formOf({ kind, selfProof, form: r.form });
 	rows.push({
 		id, kind,
 		wired: wired ?? r.wired ?? false,
@@ -177,7 +184,16 @@ const summary = (rows) => {
 
 const markdown = (rows) => {
 	const s = summary(rows);
-	const head = `# 门的行为化率台账（F2）
+	// `#908` ②：**「自证」列的图例**（口径 ＋ 量法 ＋ 已知边界 ✓）—— 用单引号数组组装 ✓（**不写进模板字面量** ✗：内层反引号会截断外层模板 ✓ —— 同一族今晚刚栽过一次 ✓）。
+const LEGEND = [
+	'> **「自证」这一列量的是什么（口径 ＋ 量法 ＋ 已知边界 ✗）** —— 免得把 `✅` 读成“断言真会红” ✗：',
+	'> · 量的是「**信号出现在代码/字符串面**」✓：先用**全仓唯一遮蔽器**剥注释（`editor/lib/core/mask.mjs` ✓）⇒ **注释里写不算** ✗；',
+	'> · **字符串里的标签算** ✓（`t(\'🔴 反例：…\')` ✓）⇒ 它 **≠** “断言真会红”✗ ⇒ 更强的证据要**探针**（票 `#908` ① ✓）；',
+	'> · **量法（可粘贴复跑 ✓）**：`node scripts/report-gate-ledger.mjs --selftest`（含 4 条 `hasSelfProof` 正反例 ✓）；',
+	'> · **缺自证的几行**（`—` ✓）：补一条**能假的负控制** ✓，或按 `#908` ① 登记探针 ✓ —— 名单见下方「工作清单」（**动态生成** ✗，不写死 ✓）。',
+].join('\n');
+
+const head = `# 门的行为化率台账（F2）
 
 > **由 \`scripts/report-gate-ledger.mjs\` 生成**（\`npm run report:gates:update\`）——**不要手改**：\`npm run report:gates:check\` 会校验「文件与实况一致」，漂移即红（与 F6 同源纪律）。
 >
@@ -186,6 +202,8 @@ const markdown = (rows) => {
 > 纪律：**仅登记 / 未接线必须写明理由**（理由写在脚本的 \`REASONS\` 里，与代码同处一处评审）。
 > 为什么要有这张表：本仓当日集齐四类「空判」——覆盖≠验收 / **反例空判** / **死开关**（#331）/ **原理不可达断言**（#338）。
 > 台账的首要用途不是统计，而是**让「没有自证的门」在表上看得见**。
+>
+${LEGEND}
 
 **严格行为化率（有自证）：${s.behavioral}/${s.total} = ${s.rate}%** ｜ **有断言但缺自证：${s.assertOnly}**（＝下方工作清单）｜ 仅登记：${s.registry}
 
@@ -210,6 +228,10 @@ const selftest = () => {
 	h('`hasSelfProof`：**只在注释里**写「反例/selftest」⇒ false ✗（旧口径在这里会误判 ✅ ✗）', hasSelfProof('// 本文件有 selftest 与反例\nconsole.log("hi");\n') === false);
 	h('`hasSelfProof`：只在块注释里写 ⇒ 同样 false ✗', hasSelfProof('/* selftest */\nconst x = 1;\n') === false);
 	h('`hasSelfProof`：什么都没写 ⇒ false ✓（能假的另一半 ✓）', hasSelfProof('const x = 1;\n') === false);
+	// `#908` ②：**形态**判定（纯函数 ✓）—— 修掉的正是"测试脚本无条件算行为化"那一处自相矛盾 ✗
+	h('`formOf`：测试脚本 ＋ **无自证** ⇒ \`行为化（缺自证）\` ✓（旧写法会误标 `行为化` ✗ ⇒ 进不了工作清单 ✗）', formOf({ kind: '测试脚本', selfProof: false }) === '行为化（缺自证）');
+	h('`formOf`：测试脚本 ＋ **有自证** ⇒ `行为化` ✓（能假的另一半 ✓）', formOf({ kind: '测试脚本', selfProof: true }) === '行为化');
+	h('`formOf`：显式给了 `form` ⇒ 以它为准 ✓（`REASONS` 里的手写标注不被覆盖 ✓）', formOf({ kind: '测试脚本', selfProof: false, form: '仅登记' }) === '仅登记');
 	if (hbad) { console.error(`\n✗ 「自证」判定的读数不成立（${hbad} 项）`); process.exit(1); }
 	const cases = [
 		['仅登记无理由 → 必须报', [{ id: 'x', kind: 'k', wired: true, selfProof: false, form: '仅登记', reason: '' }], 1],

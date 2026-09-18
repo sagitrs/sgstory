@@ -27,10 +27,12 @@ export const collectIo = () => {
 };
 
 /** 把（可能被改过的）故事包**经唯一写路**写成一组文件 ✓。
- *  `twee` 可选 ✓（给了就写生成物 ✓ —— 由 `compileInPage` 产 ✓，本件**不**自己编译 ✗，免得两份编译 ✓）。 */
-export const savePackage = ({ slug, data = {}, twee = {} } = {}) => {
+ *  `twee` 可选 ✓（给了就写生成物 ✓ —— 由 `compileInPage` 产 ✓，本件**不**自己编译 ✗，免得两份编译 ✓）。
+ *  `#892`：`manifest` 可选 ✓ —— 传了就**一并写清单** ✓（新建的包才能被 CLI 认到 ✓）；
+ *  ⚠️ **纯加法** ✗：不传 ⇒ 既有三份**逐字节不变** ✓（既有编辑流不传 ✓）。 */
+export const savePackage = ({ slug, data = {}, twee = {}, manifest = null } = {}) => {
 	const io = collectIo();
-	const written = writeStoryPackage({ slug, data, twee, io });
+	const written = writeStoryPackage({ slug, data, twee, manifest, io });
 	if (!written.length) throw new Error(`写包**一件都没写出** ✗（${slug}）—— 空产物不许当通过 ✗`);
 	const rel = (p) => String(p).replace(/^.*\/stories\//, 'stories/');
 	return {

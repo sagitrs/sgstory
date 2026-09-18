@@ -17,8 +17,8 @@
 //   依赖方向 ✓：`story.mjs → contractVersion.mjs` 单向 ✓（后者**不**反向 import 本件 ⇒ 无环 ✓）。
 import { CURRENT } from './contractVersion.mjs';
 
-/** 数据面文件（与 `data/` 下的产物同名；`rules.json` 可缺 ⇒ `null`）。 */
-export const DATA_FILES = ['tables.json', 'contract.json', 'rules.json'];
+/** 数据面文件（与 `data/` 下的产物同名；`rules.json`／`notes.json` 可缺 ⇒ `null`）。 */
+export const DATA_FILES = ['tables.json', 'contract.json', 'rules.json', 'notes.json'];
 
 /** 段落名 → 文件名（本仓约定：段落名与文件名不同，靠 `00-story.json` 的 files 列表兜底 ✓）。
  *  纯映射 ⇒ 住 core ✓。**消费者现状**：命令体（`lib/host/commands.mjs`，下一票）✓；
@@ -159,7 +159,7 @@ export const selftestStory = () => {
 	const files = packageFiles(slug);
 	t('编目：清单路径 = stories/<slug>/00-story.json', files.manifest === 'stories/demo/00-story.json');
 	t('编目：数据文件路径 = stories/<slug>/data/<name>', files.dataFile('tables.json') === 'stories/demo/data/tables.json');
-	t('编目：数据面三个文件（rules 可缺 ⇒ 由 null 表达）', files.data.join(',') === 'tables.json,contract.json,rules.json');
+	t('编目：数据面四个文件（rules／notes 可缺 ⇒ 由 null 表达）', files.data.join(',') === DATA_FILES.join(','));   // ⚠️ 断言**绑在 DATA_FILES 上** ✗ —— 不写死名单（车道 B 加 `notes.json` 那回实测：写死 ⇒ 加面即红 ✓）
 
 	// 读：假 io
 	const store = { 'stories/demo/00-story.json': JSON.stringify({ slug, title: '演示' }), 'stories/demo/data/tables.json': JSON.stringify({ a: 1 }) };

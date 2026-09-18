@@ -23,7 +23,10 @@ try {
 
 	// ── 合成用例（能假的两半 ✓：正例 ＋ 反例 ✓）────────────────────────────────
 	const full = { data: { 'contract.json': { section: 's', members: [{ name: 'a', kind: 'k' }, { name: 'b', kind: 'k', path: 'p' }] } } };
-	const d1 = dialectOf(full);
+	// ⚠️ **显式给 `files`** ✗：默认面是 `DATA_FILES`（会随新面增长 ✓）⇒ 用默认面写死数字会让本件变脆 ✓
+	//（车道 B 加 `notes.json` 那回实测：`absent` 2 → 3 ✗ ⇒ 断言红。**断言绑在"面"上，不绑在"面有几个"上** ✓）。
+	const F3 = { files: ['tables.json', 'contract.json', 'rules.json'] };
+	const d1 = dialectOf(full, F3);
 	t('合成：顶层键与 item 字段**逐条对账** ✓（`members[]` ⇒ 并集 `[kind,name,path]` ✓）',
 		JSON.stringify(d1.files['contract.json'].topKeys) === JSON.stringify(['members', 'section'])
 		&& JSON.stringify(d1.files['contract.json'].items.members) === JSON.stringify(['kind', 'name', 'path']));
@@ -57,9 +60,9 @@ try {
 
 	// ── 真数据读数（三故事 ✓；数字与形状都取自真文件 ✓）────────────────────
 	const want = {
-		'mist-forest': { present: 3, absent: 0, topKeys: 9, itemLists: 3, itemFields: 28 },
-		'hollow-cave': { present: 2, absent: 1, topKeys: 6, itemLists: 2, itemFields: 22 },
-		'minimal-demo': { present: 2, absent: 1, topKeys: 7, itemLists: 2, itemFields: 8 },
+		'mist-forest': { present: 4, absent: 0, topKeys: 13, itemLists: 4, itemFields: 31 },
+		'hollow-cave': { present: 2, absent: 2, topKeys: 6, itemLists: 2, itemFields: 22 },
+		'minimal-demo': { present: 2, absent: 2, topKeys: 7, itemLists: 2, itemFields: 8 },
 	};
 	const fps = new Set();
 	for (const slug of Object.keys(want)) {
@@ -75,10 +78,10 @@ try {
 	}
 	t(`三故事**两两不同** ✓（${fps.size} 种形状串 —— 相同就说明这把尺子没分辨力 ✗；用**承重口**而不是 32 位指纹 ✓）`, fps.size === 3);
 	t('`rules.json` **缺席仍合法** ✓：`hollow-cave`／`minimal-demo` 缺它 ⇒ `absent` 各为 1 且**不报** ✓',
-		(h => h.counts.absent === 1 && h.problems.length === 0 && !('rules.json' in h.files))(dialectOf(readStoryPackage({ slug: 'hollow-cave', io }))));
+		(h => h.counts.absent === 2 && h.problems.length === 0 && !('rules.json' in h.files))(dialectOf(readStoryPackage({ slug: 'hollow-cave', io }))));
 
 	t('口径面：本件不碰值域／语义 ✓（`DATA_FILES` 取自 `core/story.mjs` ⇒ 单一权威 ✓）',
-		JSON.stringify(DATA_FILES) === JSON.stringify(['tables.json', 'contract.json', 'rules.json']));
+		JSON.stringify(DATA_FILES) === JSON.stringify(['tables.json', 'contract.json', 'rules.json', 'notes.json']));
 
 	if (bad) { console.error(`\n✗ dialect 未通过（${bad} 项）`); rc = 1; }
 	else console.log('\n✔ dialect 通过：**方言指纹**（形状面 ✗ —— 不含值域／语义／行为 ✗）—— 两张表逐条对账 ＋ 缺/畸形分开 ＋ 刀 ＋ 值变不动 ＋ 三故事读数 ✓');

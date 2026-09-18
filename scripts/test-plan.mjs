@@ -175,6 +175,9 @@ export const SEGMENTS = [
 	// —— L3 让掉的**只有"排版"这一层**（模板串 vs 单引号串）。
 	{ id: "editor-extract-selftest", phase: 'test', cost: 0, cmd: "node editor/extract-story.mjs --selftest" },
 	{ id: "editor-equiv-mist-forest-rules", phase: 'test', cost: 0.3, cmd: "node editor/equiv.mjs mist-forest --rules --l3=report --hand=stories/mist-forest/gates/equiv-baseline/17-rules.twee.txt" },
+	// 车道 B · notes 面样板（`#215` 报备 `18504282`）：**手写 `16-notes-ch1` → 数据面** 的等价门 ✓（同一个 `editor/equiv.mjs` ⇒ **不新增门** ✓）。
+	//   `--l3=report` ✓（与 mist-forest 另两个面同口径 ✓ —— 产物按字面发射器写法，与手写的引号风格有形式差异 ⇒ L3 只报告不判红，语义由 **L1 深度相等 ＋ 字段直方图** 兜住 ✓）。
+	{ id: "editor-equiv-mist-forest-notes", phase: 'test', cost: 0.3, cmd: "node editor/equiv.mjs mist-forest --notes --l3=report --hand=stories/mist-forest/gates/equiv-baseline/16-notes-ch1.twee.txt" },
 	// `#787` 翻面：**契约面**也从"手写 vs 生成"改成"冻结基线 vs 当前产物"（`--hand`＝翻面前的 main 快照）。
 	// 与本故事另一条（`--rules`）分开：两条各自只比**一个**面，基线也各一份 ⇒ 失败时能直接指名哪一面。
 	{ id: "editor-equiv-mist-forest", phase: 'test', cost: 0.4, cmd: "node editor/equiv.mjs mist-forest --l3=report --hand=stories/mist-forest/gates/equiv-baseline/15-tables.twee.txt" },

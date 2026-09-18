@@ -61,8 +61,9 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 	const tables = readIf('tables.json');
 	const contract = readIf('contract.json');
 	const rules = readIf('rules.json');
-	if (!tables && !contract && !rules) { console.error(`✗ stories/${slug}/data/ 下没有任何产物源（tables/contract/rules.json 都没有）`); return 1; }
-	const files = compileStory({ tables, contract, rules, slug });
+	const notesFace = readIf('notes.json');   // 车道 B · notes 面（`#215` `18504282` ✓）：一个数据文件 → 多份产物 ✓
+	if (!tables && !contract && !rules && !notesFace) { console.error(`✗ stories/${slug}/data/ 下没有任何产物源（tables/contract/rules/notes.json 都没有）`); return 1; }
+	const files = compileStory({ tables, contract, rules, notesFace, slug });
 	// ⚠️ 比**解析后**的路径（`--out=stories/<slug>` 是相对的 ✓ —— 直接拿字符串比会静默走错分支 ✗）。
 	if (resolve(OUT) === join(ROOT, 'stories', slug)) {
 		const wrote = writeStoryPackage({ slug, twee: files, io: NODE_IO });
@@ -227,10 +228,12 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 	if (!slug) { console.error('用法：node editor/equiv.mjs <slug> [--rules] [--l3=hard|report] [--hand=…] [--gen=…]'); return 2; }
 	const argOf = (name, dflt) => { const h = argv.find((a) => a.startsWith(`--${name}=`)); return h ? h.slice(name.length + 3) : dflt; };
 	const rulesMode = argv.includes('--rules');
+	// 车道 B · notes 面（`#215` 报备 `18504282` ✓）：**第四个面** ✓（与 `--rules` 同款：只换默认产物名与 L1 取数口 ✓）。
+	const notesMode = argv.includes('--notes');
 	const l3Mode = argOf('l3', 'hard');
 	if (!L3_MODES.includes(l3Mode)) { console.error(`✗ --l3 只接受 ${L3_MODES.join('|')}（实得 ${l3Mode}）`); return 2; }
 	const handGiven = argv.some((a) => a.startsWith('--hand='));
-	const defaultTwee = rulesMode ? '17-rules.twee' : '15-tables.twee';
+	const defaultTwee = notesMode ? '16-notes-ch1.twee' : rulesMode ? '17-rules.twee' : '15-tables.twee';
 	const handPath = join(ROOT, argOf('hand', `stories/${slug}/${defaultTwee}`));
 	// `#794` 观察项：**裸跑（未显式给 `--hand`）＋ 默认目标是产物 ⇒ 当场拒绝并指路** ✓（见 `bareHandRefusal` ✓）。
 	// ⚠️ 放在**昂贵比较之前** ✓（复核口径 ✓）：下面要连编译两次 ＋ 逐字节比 ⇒ 跑完再报等于让人白等 ✓。
@@ -262,7 +265,7 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 	runNode([COMPILER, slug, `--out=${idemDir}`], { cwd: ROOT });
 	const names = [...new Set([...readdirSync(genDir), ...readdirSync(idemDir)])].sort();
 	const idemOk = names.length > 0 && names.every((n) => readFileSync(join(genDir, n)).equals(readFileSync(join(idemDir, n))));
-	const gen0 = readFileSync(join(genDir, rulesMode ? '17-rules.twee' : '15-tables.twee'), 'utf8');
+	const gen0 = readFileSync(join(genDir, notesMode ? '16-notes-ch1.twee' : rulesMode ? '17-rules.twee' : '15-tables.twee'), 'utf8');
 	// **产物侧 ＝ 生成物 ＋ 登记过的手写逃生舱文件**（`#787` 翻面形状）：非 A 桶成员装不进生成物 ⇒ 它们住手写件，
 	// 而行为门要比的是**整份契约**；手写侧（冻结基线）本来就含它们 ⇒ 只比生成物会得到"少了成员"的**假差** ✗。
 	// 单一真源＝`editor/escape-hatch.json` 的 `hatchFiles` ✓ —— 读它**共用** `lib/host/hatches.mjs` 的实现 ✓
@@ -294,6 +297,29 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 			`L1 字段直方图一致（每列出现多少次）：${Object.entries(hh).map(([k, v]) => `${k} ${v}`).join(' · ')}`]);
 		results.push(l3Line(normalize(section(hand, 'StoryRules') ?? ''), normalize(section(gen, 'StoryRules') ?? ''), '剥注释/空白/冗余尾逗号后逐字节相同'));
 		results.push([hr.length > 0 && Object.keys(hh).length > 0, `判到的面不为空：条件表 ${hr.length} 行 · ${Object.keys(hh).length} 列`]);
+	} else if (notesMode) {
+		// ── notes 面（车道 B · `#215` `18504282` ✓）：L1 ＝ 两版各自求值后 `Game.Notes.entries` **深度相等** ──
+		//   ⚠️ 沙箱必须**先跑引擎常量** ✗ —— `era: window.Game.Era.PRESENT` 是引擎政策 ✓（
+		//   `sandboxOf()` 就是干这个的 ✓；少了它就**两侧都缺字段** ⇒ 会得到一个“差不多”的假绿 ✗）。
+		const entriesOf = (text) => { const box = sandboxOf(); vm.runInContext(scriptBodies(text).join('\n'), box, { timeout: 5000 }); return box.Game?.Notes?.entries ?? null; };
+		const sectionName = (text) => (String(text).match(/^::\s*([^\n]*?)\s*(?:\[[^\]]*\])?\s*$/m)?.[1] ?? '').trim();
+		const he = entriesOf(hand), ge = entriesOf(gen);
+		/** 字段直方图（照 `--rules` 那路同款 ✓）：把“**抽了哪些字段**”显式打出来 ✗ ——
+		 *  `#557` 那条老账：**总体非空拦不住少抽一项** ✓。 */
+		const hist = (entries) => {
+			const h = {};
+			for (const e of Object.values(entries ?? {})) for (const k of Object.keys(e ?? {})) h[k] = (h[k] ?? 0) + 1;
+			return Object.fromEntries(Object.entries(h).sort(([a], [b]) => (a < b ? -1 : 1)));
+		};
+		const hh = hist(he), gh = hist(ge);
+		const hn = Object.keys(he ?? {}).length, gn = Object.keys(ge ?? {}).length;
+		results.push([he !== null && ge !== null, `两侧都取到 notes 面（手写 ${hn} 条 / 生成 ${gn} 条）—— 取不到 ⇒ 下面几条都是**假绿** ✗`]);
+		results.push([JSON.stringify(he) === JSON.stringify(ge), `L1 notes **深度相等**（手写 ${hn} 条 / 生成 ${gn} 条）${JSON.stringify(he) === JSON.stringify(ge) ? '' : '\n    两版不同（见下条字段直方图与 L3 定位）'}`]);
+		results.push([JSON.stringify(hh) === JSON.stringify(gh), `L1 字段直方图一致（每个字段出现多少次）：${Object.entries(hh).map(([k, v]) => `${k} ${v}`).join(' · ')}`]);
+		const secName = sectionName(hand);
+		results.push([secName !== '' && secName === sectionName(gen), `段名两侧相同：${JSON.stringify(secName)}（段名不同 ⇒ L3 比的是两个不同的段 ✗，与㉗同族 ✓）`]);
+		results.push(l3Line(normalize(section(hand, secName) ?? ''), normalize(section(gen, secName) ?? ''), '剥注释/空白/冗余尾逗号后逐字节相同'));
+		results.push([hn > 0 && Object.keys(hh).length > 0, `判到的面不为空：笔记 ${hn} 条 · ${Object.keys(hh).length} 个字段`]);
 	} else {
 		// ── 表 ＋ 契约（P0 原口径） ──
 		const H = evalSide(scriptBodies(hand).join('\n'), '手写侧（基线）');

@@ -5,6 +5,7 @@
 // 自证（`--selftest`）**从一开始就能红** ✓（今天 `#848` 的教训 ✓：台账标"行为化"就得有依据 ✗）。
 
 import { loadPackage, filesToIo, pathCandidates, summaryLines, wantedPaths } from '../editor/web/loader.mjs';
+import { DATA_FILES } from '../editor/lib/core/story.mjs';
 
 const f = (rel, obj) => ({ webkitRelativePath: rel, name: rel.split('/').pop(), text: () => (typeof obj === 'string' ? obj : JSON.stringify(obj)) });
 const pkgOf = ({ omit = [], breakJson = false } = {}) => {
@@ -22,8 +23,9 @@ let bad = 0;
 
 // ── 主跑：真判定（正例 ✓ ／两条反例 ✗）
 const good = loadPackage({ slug: 'demo', files: pkgOf() });
-t('正例：选中故事目录 ⇒ 带数据的 2 个文件 ＋ **缺的 rules.json 单列 emptyFiles** ＋ 2 个契约成员',
-		good.dataFiles.length === 2 && good.emptyFiles.length === 1 && good.members.length === 2);
+// ⚠️ 数字**从 `DATA_FILES` 算** ✗，不写死（车道 B 加 `notes.json` 那回实测：写死 ⇒ 加面即红 ✓）。
+t('正例：选中故事目录 ⇒ 带数据的 2 个文件 ＋ **缺的两件单列 emptyFiles** ＋ 2 个契约成员',
+		good.dataFiles.length === 2 && good.emptyFiles.length === DATA_FILES.length - 2 && good.members.length === 2);
 t('正例：成员带 kind（供 UI 显示）', good.members[0].name === 'notes' && good.members[0].kind === 'empty-object');
 t('正例：`meta` 来自 `00-story.json`（不是 `manifest` ✗）', good.meta?.slug === 'demo');
 t('正例：`summaryLines` 可直接渲染（纯 ✓）', summaryLines(good).join('\n').includes('契约成员：2 个'));
@@ -78,7 +80,7 @@ const selftest = () => {
 	{
 		const p = loadPackage({ slug: 'demo', io: ioOk });
 		st('假 io·**编目形状**（meta 来自 00-story.json ✓ 且 dataFiles/emptyFiles **分列** ✓）',
-			p.meta?.slug === 'demo' && Array.isArray(p.dataFiles) && Array.isArray(p.emptyFiles) && p.dataFiles.length + p.emptyFiles.length === 3);
+			p.meta?.slug === 'demo' && Array.isArray(p.dataFiles) && Array.isArray(p.emptyFiles) && p.dataFiles.length + p.emptyFiles.length === DATA_FILES.length);
 	}
 	// ③ 自证自身能红 ✓（把一条**故意错**的期望喂进来 ⇒ 必须被 sbad 计到 ✗）
 	const wrongDetected = !(1 === 2);

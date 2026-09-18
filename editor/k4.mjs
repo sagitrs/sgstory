@@ -21,12 +21,12 @@
 //   ⇒ 本壳只做三件：**转出**判据（纯函数住在 `lib/core/k4criteria.mjs` ✓）· 跑自证 · 转发 argv。
 //   ⇒ 与 `cli.mjs k4` **共用同一具身体** ✓（不是两份实现 ✗）—— 等价性按构造成立 ✓。
 import { fileURLToPath } from 'node:url';
-import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, contractSourceText, staleTrackedProblems } from './lib/core/k4criteria.mjs';
+import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, contractSourceText, staleTrackedProblems } from './lib/core/k4criteria.mjs';
 import { censusProblems, censusOfStory, censusSummarize } from './lib/core/hatchCensus.mjs';
 import { hasGeneratedMarker } from './lib/core/text.mjs';
 import { k4Command } from './lib/host/commands.mjs';
 import { exitWithRc } from './lib/host/proc.mjs';
-export { MARKER, hasGeneratedMarker, markerProblems, freshnessProblems, escapeHatchProblems, contractSourceText, staleTrackedProblems, censusProblems, censusOfStory, censusSummarize };
+export { MARKER, hasGeneratedMarker, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, contractSourceText, staleTrackedProblems, censusProblems, censusOfStory, censusSummarize };
 
 // ⚠️ **主模块守卫**（实测踩到）：本文件**同时是库**（判据函数被测试／下游当纯函数 import ✓）。
 //   没有守卫时，`import` 它会**跑完整门**（0.22s ＋ 1592B 输出 ✗），且门红时 `process.exit(1)` 会**劫持导入方** ✗。
@@ -71,10 +71,16 @@ if (isMain && process.argv.includes('--selfcheck')) {
 		['🔴 反例·普查：**真逃生舱（C）没登记也没下沉** ⇒ 报（必须可枚举 ✗）', censusProblems({ census: { stories: { s: { members: [{ name: 'h', bucket: 'C' }] } } }, slug: 's', registry: { hatches: [] } }).length === 1],
 		['🔴 反例·普查：**登记腐烂**（登记的不是 C 桶）⇒ 报（清单只许收缩 ✓）', censusProblems({ census: { stories: { s: { members: [{ name: 'x', bucket: 'A' }] } } }, slug: 's', dataMembers: ['x'], registry: { hatches: [{ member: 'x', reason: 'r', ticket: '#1' }] } }).length === 1],
 		['边界·普查：**表空** ⇒ 报（空判空过不许当通过 ✗）', censusProblems({ census: { stories: { s: { members: [] } } }, slug: 's' }).length === 1],
+		['正例④：不数据化的面四条字段齐 ⇒ 不报', refusedFaceProblems([{ file: 'a.twee', why: 'w', ticket: '#1', paths: 'p' }]).length === 0],
+		['🔴 反例④：缺 paths（退路）⇒ 报（不迁也要可追 ✓）', refusedFaceProblems([{ file: 'a.twee', why: 'w', ticket: '#1' }]).length === 1],
+		['🔴 反例④：缺 ticket ⇒ 报', refusedFaceProblems([{ file: 'a.twee', why: 'w', paths: 'p' }]).length === 1],
+		['🔴 反例④：**登记腐烂**（该件已带 `@generated` ⇒ 其实已数据化）⇒ 报（清单只许收缩 ✓）', refusedFaceProblems([{ file: 'a.twee', why: 'w', ticket: '#1', paths: 'p' }], { markerOf: (f) => f === 'a.twee' }).length === 1],
+		['边界④：`markerOf` 说没有标记 ⇒ 不报（腐烂判据**只**看真实标记 ✓）', refusedFaceProblems([{ file: 'a.twee', why: 'w', ticket: '#1', paths: 'p' }], { markerOf: () => false }).length === 0],
+		['边界④：空表 ⇒ 不报（"一个都不留"是合法状态 ✓）', refusedFaceProblems([]).length === 0],
 	];
 	for (const [label, cond] of cases) { if (cond) console.log(`  ✓ 自证·${label}`); else { bad++; console.error(`  ✗ 自证·${label}`); } }
 	if (bad) { console.error(`\n✗ 自证未通过（${bad} 项）`); process.exit(1); }
-	console.log('\n✔ 自证通过（26 条：标记 2 ＋ 新鲜度 2 ＋ 逃生舱双向 5 ＋ 手写源口径 3 ＋ 生成物不许独改 5 ＋ `@generated` 谓词边界 1 ＋ 模板串口径 2 ＋ 逃生舱普查 6）');
+	console.log('\n✔ 自证通过（32 条：标记 2 ＋ 新鲜度 2 ＋ 逃生舱双向 5 ＋ 手写源口径 3 ＋ 生成物不许独改 5 ＋ `@generated` 谓词边界 1 ＋ 模板串口径 2 ＋ 逃生舱普查 6 ＋ 不数据化的面 6）');
 	process.exit(0);
 }
 

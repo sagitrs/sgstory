@@ -91,3 +91,28 @@ export const escapeHatchProblems = (classified, registry, slug = null) => {
 	}
 	return out;
 };
+
+/** **"不数据化的面"**（`refusedFaces`）的检查 ✓ —— 与 `escapeHatchProblems()` **同构**（清单只许收缩 ✓ ＋ 条目必带理由票号 ✓）。
+ *
+ *  ⚠️ **为什么单列一族**（`#215` `18508333` 实测 ✓）：既有两个容器**都不能**装它 ——
+ *   · `hatches` 按**契约成员名**登记 C 桶 ✓（本族登记的是**文件/面** ⇒ 拿成员名去登记会**当场判"登记腐烂"** ✗）；
+ *   · `hatchFiles` 会被 `editor/equiv.mjs` **拼进等价门的产物侧** ✓（＝宣称"这些手写件属于生成契约"✗）⇒ 改的是**判据的输入** ✗。
+ *
+ *  `markerOf(rel)` ＝ 宿主注入的"该件**是否已带 `@generated`**"✓（**纯**函数不碰 fs ✗ —— 与 `core/**` 的老口径一致 ✓）。
+ *  判据两条：① 四条字段（`file`／`why`／`ticket`／`paths`）缺一 ⇒ 点名 ✗；
+ *           ② **已带 `@generated`**（＝其实已数据化 ✓）⇒ **红** ✗（**只许收缩** ✓ —— 把条目删掉，那条注释归它的迁移 PR ✓）。 */
+export const refusedFaceProblems = (faces = [], { markerOf = () => false } = {}) => {
+	if (!Array.isArray(faces)) return [{ file: null, why: '`refusedFaces` 不是数组 ✗' }];
+	const out = [];
+	for (const [i, f] of faces.entries()) {
+		const at = `refusedFaces[${i}]`;
+		if (!f || typeof f !== 'object' || Array.isArray(f)) { out.push({ file: null, why: `${at} 不是对象 ✗` }); continue; }
+		for (const k of ['file', 'why', 'ticket', 'paths']) {
+			if (typeof f[k] !== 'string' || !f[k].trim()) out.push({ file: typeof f.file === 'string' ? f.file : null, why: `${at} 缺 \`${k}\` ✗（不迁移的面也要可追：**理由 ＋ 票号 ＋ 那条退路** ✓）` });
+		}
+		if (typeof f.file === 'string' && f.file.trim() && markerOf(f.file)) {
+			out.push({ file: f.file, why: `${at}（\`${f.file}\`）**已经带 \`@generated\`** ✗ ⇒ 它其实**已数据化** ✓ ⇒ **登记腐烂**：删掉这条（清单只许收缩 ✓）` });
+		}
+	}
+	return out;
+};

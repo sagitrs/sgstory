@@ -30,6 +30,7 @@ import { definitionsOf, duplicateExportProblems, secondCopyProblems, coreHostPro
 // ⚠️ **一处定义** ✓：分类器实例**不在本文件重装** ✗ —— `lib/host/classify.mjs` 已经装好（`makeClassify({ evalLiteral: literalValue })` ✓），
 // 本命令走它导出的缝 `classifyContractText` ✓（那条缝多做 `locals` 上下文与 `const` 的 B→A 解析 ⇒ 该语义风险由**两时点差分**量掉 ✓）。
 import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, contractSourceText, staleTrackedProblems } from '../core/k4criteria.mjs';
+import { censusOfStory, censusSummarize, censusProblems } from '../core/hatchCensus.mjs';
 import { classifyContractText } from './classify.mjs';
 // `#794` 弧第 3 票（`equiv` 命令体）：用 vm／读文件／跑子进程 ⇒ **都在 host** ✓。
 import vm from 'node:vm';
@@ -523,7 +524,31 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 		const classified = classifyContractText({ fileText: srcText, siteText: srcText }).rows.map((m) => ({ name: m.name, src: m.src, bucket: m.bucket }));
 		// 契约已全部由 `data/` 产出（手写侧只剩非契约文件）⇒ 逃生舱由编译器 kind 白名单把关
 		const noHandContract = classified.length === 0;
-		if (noHandContract && markedTwee > 0) console.log(`  · ${slug}：契约**已全部由 data/ 产出**（带标记 twee ${markedTwee} 个，手写侧剩 ${handCount} 个非契约文件）⇒ C 桶结构性为 0`);
+		// ⚠️ **空判不许空过**（`#761` 车道 A 实测）：契约全由 `data/` 产出时，上面的分类**没有手写输入** ⇒
+		//    它打出的 `A0/B0/C0/D0` 是「**没判**」而不是「判过」✗（旧文案写「C 桶结构性为 0」＝把"读不到输入"说成了结论 ✗）。
+		//    ⇒ 这一面改由**普查表**承担（`editor/escape-hatch-census.json`：翻面前手写契约的**逐成员去向** ✓）：
+		//    逐条交代「去了数据面／下沉引擎（锚点要在树里真读到 ✓）／必须留逃生舱」⇒ **能假** ✓。
+		if (noHandContract && markedTwee > 0) console.log(`  · ${slug}：契约**已全部由 data/ 产出**（带标记 twee ${markedTwee} 个，手写侧剩 ${handCount} 个非契约文件）⇒ 分类器**无手写输入**（这一面改由普查表判 ✓，下一行）`);
+		{
+			const censusPath = join(ROOT, 'editor/escape-hatch-census.json');
+			const census = existsSync(censusPath) ? JSON.parse(readFileSync(censusPath, 'utf8')) : null;
+			const storyCensus = censusOfStory(census, slug);
+			if (!storyCensus) console.log(`  · ${slug}：**未普查**（\`editor/escape-hatch-census.json\` 里没有本故事的条目）⇒ 「必须逃生舱」清单本次无可判对象（这是**状态**，不是"没问题"）`);
+			else {
+				const contractPath = join(ROOT, `stories/${slug}/data/contract.json`);
+				const dataMembers = existsSync(contractPath) ? (JSON.parse(readFileSync(contractPath, 'utf8')).members ?? []).map((m) => m.name) : [];
+				const engineSymbols = {};
+				let anchorCount = 0;
+				for (const sink of storyCensus.engineSinks ?? []) for (const a of sink.anchors ?? []) {
+					anchorCount++;
+					const f = join(ROOT, a.file);
+					if (existsSync(f) && readFileSync(f, 'utf8').includes(a.symbol)) engineSymbols[a.symbol] = a.file;
+				}
+				for (const p of censusProblems({ census, slug, dataMembers, engineSymbols, registry })) { console.error(`  ✗ ${slug}【普查·${p.code}】${p.why}`); bad++; }
+				const sum = censusSummarize(storyCensus);
+				console.log(`  · ${slug}：**普查** ${sum.members} 名成员（A${sum.counts.A ?? 0}/B${sum.counts.B ?? 0}/C${sum.counts.C ?? 0}/D${sum.counts.D ?? 0}）· 数据面 ${dataMembers.length} 名 · 下沉 ${sum.sinks} 条（锚点读到 ${Object.keys(engineSymbols).length}/${anchorCount}）⇒ **「必须逃生舱」 ${sum.hatches} 条**`);
+			}
+		}
 		// **取不到输入就不许判过**（`#777` 那族错：分类器曾只扫首个 `Sg.story` 块 ⇒ 少 8 名成员却“静默地没问题”）。
 		// 手写源非空却一个成员都找不到 ⇒ 只能是我读错了位置（或契约换了写法）⇒ 判红，不静默。
 		if (noHandContract && markedTwee === 0) { console.error(`  ✗ ${slug}：手写契约源非空（${handCount} 文件）却分类出 **0 名成员**、且没有任何带标记的产物 ⇒ 判据失效（不是通过）`); bad++; continue; }

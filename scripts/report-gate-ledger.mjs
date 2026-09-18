@@ -17,6 +17,9 @@
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { planChain } from './test-plan.mjs';
 import { maskComments } from '../editor/lib/core/mask.mjs';   // `#899` ③：**同一把刀**（全仓唯一遮蔽器 ✓ —— 不新增第二份 ✗）
+import { createHash } from 'node:crypto';
+import { pathToFileURL } from 'node:url';
+import { PROBES } from './probes.mjs';   // `#908` ①：探针清单（**直接读数** ✓ —— 与「自证」那一格的**代理**分家 ✓）
 
 const LEDGER = 'docs/gate-ledger.md';
 const PKG = 'package.json';
@@ -107,7 +110,31 @@ const testFiles = readdirSync('test').filter((f) => f.endsWith('.mjs') && !['boo
  *  ⇒ `#899` ③ 把「自证」列收紧后，`test/**` 里那三行（`自证 = —` ✓）被标成 `行为化` ✓、**却进不了「缺自证」工作清单** ✗
  *  ⇒ 生成物**自己的标题行写「有断言但缺自证：0」** ✗、而表里明明有三行 `—` ✗（正是本列“让缺自证的看得见”的反面 ✗）。
  *  正形 ✓：测试脚本**不再特殊** ✓ —— 有自证才 `行为化` ✓，没自证就落 `行为化（缺自证）`✓（与其它 kind 同口径 ✓）。 */
-export const formOf = ({ kind = '', selfProof = false, form } = {}) => form ?? (selfProof ? '行为化' : kind === '测试脚本' ? '行为化（缺自证）' : '行为化（缺自证）');
+//   ⚠️ `#924` 复核留（非阻塞 ✓）：旧写法两臂**逐字相同** ✗ ⇒ `kind` 已不影响结果 ✓ ⇒ 化简掉它 ✓
+//   （留着死三元 ⇒ 下一个改一行的人会以为两臂不同 ✗ ⇒ 改了等于没改 ✗ —— 与「声称 vs 实际」同族 ✓）。
+export const formOf = ({ selfProof = false, form } = {}) => form ?? (selfProof ? '行为化' : '行为化（缺自证）');
+
+/** `#908` ①：**探针**那一格（**直接读数** ✓，不是"文件在不在"那种代理 ✗）。
+ *
+ * 三态 ✓：`✅`（有探针件 ✓ **且**最近一次实跑**咬住** ✓ **且**被测件**没改过** ✓）／`—`（未探 ✓）／`✗`（探针**不咬** ⇒ 红 ✓）。
+ * 新鲜度是这条读数的命门 ✗：记录里存 `targetSha` ✓ ⇒ 被测件一改，`✅` 自动回落成 `—` ✓（拿旧读数充数 ⇒ 红 ✓）。
+ * **上限只许收缩** ✓：`scripts/probe-budget.json` 里 `maxUnprobed` 是 `—` 的**上限** ✓ ⇒ 加了新门却没探 ⇒ 突破上限 ⇒ 红 ✓
+ *   （要放宽就得改那个数字 ✓ —— 改它是一次**显式决定**，不是顺手 ✓ —— 与本仓 `escape-hatch.json` 同族 ✓）。 */
+export const probeStateOf = ({ entry, record, targetSha, sha = (x) => x } = {}) => {
+	if (!entry) return '—';
+	if (!record) return '—';
+	if (record.ok !== true) return '✗';
+	if (record.targetSha && targetSha && record.targetSha !== sha(targetSha)) return '—';   // 被测件改过 ⇒ 旧读数作废 ✓
+	return '✅';
+};
+
+const PROBE_RECORD = 'build/probe-results.json';
+const sha16 = (s) => createHash('sha256').update(s).digest('hex').slice(0, 16);
+const probeRecords = () => {
+	try { return JSON.parse(readFileSync(PROBE_RECORD, 'utf8')).probes ?? []; } catch { return []; }
+};
+
+const recs = probeRecords();   // `#908` ①：上一次探针实跑的读数 ✓（没有就是空 ⇒ 全列 `—` ✓ 不假装 ✓）
 
 const rows = [];
 const push = (id, kind, wired, selfProof, extra = {}) => {
@@ -119,6 +146,14 @@ const push = (id, kind, wired, selfProof, extra = {}) => {
 	const form = formOf({ kind, selfProof, form: r.form });
 	rows.push({
 		id, kind,
+		// `#908` ①：探针状态（直接读数 ✓）—— 记录在 `build/probe-results.json` ✓（不入仓 ✗）
+		probe: (() => {
+			const entry = PROBES.find((p) => p.id === id);
+			const rec = recs.find((x) => x.id === id);
+			let cur = null;
+			try { cur = entry?.mutation?.file ? readFileSync(entry.mutation.file, 'utf8') : null; } catch { cur = null; }
+			return probeStateOf({ entry, record: rec, targetSha: cur, sha: sha16 });
+		})(),
 		wired: wired ?? r.wired ?? false,
 		selfProof: selfProof ?? false,
 		form,
@@ -179,7 +214,13 @@ const summary = (rows) => {
 	const beh = rows.filter((r) => r.form === '行为化' && r.selfProof).length;
 	const assertOnly = rows.filter((r) => r.form === '行为化（缺自证）').length;
 	const reg = rows.filter((r) => r.form === '仅登记').length;
-	return { total: rows.length, behavioral: beh, assertOnly, registry: reg, rate: +(beh / rows.length * 100).toFixed(1) };
+	// `#908` ①：探针三态计数 ✓（`✅` 是**直接读数** ✓ ⇒ 它不许由"清单里有没有这一条"推出来 ✗）
+	const probeOk = rows.filter((r) => r.probe === '✅').length;
+	const probeNone = rows.filter((r) => r.probe === '—').length;
+	const probeBad = rows.filter((r) => r.probe === '✗').length;
+	let cap = 0;
+	try { cap = JSON.parse(readFileSync('scripts/probe-budget.json', 'utf8')).maxUnprobed ?? 0; } catch { cap = -1; }
+	return { total: rows.length, behavioral: beh, assertOnly, registry: reg, rate: +(beh / rows.length * 100).toFixed(1), probeOk, probeNone, probeBad, probeCap: cap < 0 ? '缺件 ✗' : cap };
 };
 
 const markdown = (rows) => {
@@ -206,11 +247,12 @@ const head = `# 门的行为化率台账（F2）
 ${LEGEND}
 
 **严格行为化率（有自证）：${s.behavioral}/${s.total} = ${s.rate}%** ｜ **有断言但缺自证：${s.assertOnly}**（＝下方工作清单）｜ 仅登记：${s.registry}
+**探针（直接读数 ✓，不是\"文件在不在\"那种代理 ✗）：\`✅\` ${s.probeOk} 项 ｜ \`—\` 未探 ${s.probeNone} 项（**上限 ${s.probeCap}** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ \`✗\` 不咬 ${s.probeBad} 项（**>0 即红** ✓）** —— 档位／清单：\`node scripts/probe-gates.mjs --probe=fast\` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）
 
-| 门 | 类型 | 形态 | 自证 | 接线（npm test） | 理由（仅登记/未接线必填） |
+| 门 | 类型 | 形态 | 自证 | **探针** | 接线（npm test） | 理由（仅登记/未接线必填） |
 |---|---|---|---|---|---|
 `;
-	const body = rows.map((r) => `| \`${r.id}\` | ${r.kind} | ${r.form} | ${r.selfProof ? '✅' : '—'} | ${r.wired ? '✅' : '—'} | ${r.reason || ''} |`).join('\n');
+	const body = rows.map((r) => `| \`${r.id}\` | ${r.kind} | ${r.form} | ${r.selfProof ? '✅' : '—'} | ${r.probe} | ${r.wired ? '✅' : '—'} | ${r.reason || ''} |`).join('\n');
 	const debt = rows.filter((r) => r.form === '行为化（缺自证）');
 	const debtSec = debt.length
 		? `\n## F2 工作清单：有断言但**缺自证**（${debt.length} 项）\n\n> 这些门**在跑、也在断言**，但从没被证明「反例会红」——本仓当日四类空判（覆盖≠验收／反例空判／死开关 #331／原理不可达 #338）都出自这一类。\n> 补法：给该门加一个**合成反例**用例（正例＋反例），并在本脚本的 \`REASONS\` 里改标 \`行为化\`。\n\n`
@@ -232,6 +274,12 @@ const selftest = () => {
 	h('`formOf`：测试脚本 ＋ **无自证** ⇒ \`行为化（缺自证）\` ✓（旧写法会误标 `行为化` ✗ ⇒ 进不了工作清单 ✗）', formOf({ kind: '测试脚本', selfProof: false }) === '行为化（缺自证）');
 	h('`formOf`：测试脚本 ＋ **有自证** ⇒ `行为化` ✓（能假的另一半 ✓）', formOf({ kind: '测试脚本', selfProof: true }) === '行为化');
 	h('`formOf`：显式给了 `form` ⇒ 以它为准 ✓（`REASONS` 里的手写标注不被覆盖 ✓）', formOf({ kind: '测试脚本', selfProof: false, form: '仅登记' }) === '仅登记');
+	// `#908` ①：**探针**那一格（直接读数 ✓）—— 五条，每条都对应一种"假 ✅" ✗
+	h('`probeStateOf`：无探针件 ⇒ `—` ✓', probeStateOf({}) === '—');
+	h('`probeStateOf`：有探针件但**从没跑过** ⇒ `—` ✗（不假装 ✅ ✓）', probeStateOf({ entry: { id: 'x' }, record: null }) === '—');
+	h('`probeStateOf`：跑了但**不咬** ⇒ `✗` ✓（>0 即红 ✓）', probeStateOf({ entry: { id: 'x' }, record: { ok: false } }) === '✗');
+	h('`probeStateOf`：咬住 ＋ 被测件**没改** ⇒ `✅` ✓', probeStateOf({ entry: { id: 'x' }, record: { ok: true, targetSha: 'aa' }, targetSha: 'now', sha: () => 'aa' }) === '✅');
+	h('`probeStateOf`：咬住但**被测件改过** ⇒ 回落 `—` ✗（禁拿旧读数充数 ✓）', probeStateOf({ entry: { id: 'x' }, record: { ok: true, targetSha: 'aa' }, targetSha: 'now', sha: () => 'bb' }) === '—');
 	if (hbad) { console.error(`\n✗ 「自证」判定的读数不成立（${hbad} 项）`); process.exit(1); }
 	const cases = [
 		['仅登记无理由 → 必须报', [{ id: 'x', kind: 'k', wired: true, selfProof: false, form: '仅登记', reason: '' }], 1],
@@ -253,32 +301,49 @@ const selftest = () => {
 	console.log('\n✔ 自证通过：仅登记无理由红 / 未接线无理由红 / 合规绿 / 有理由的仅登记绿 ＋ `hasSelfProof` 四条正反例（注释不算 ✓）');
 };
 
-const argv = process.argv.slice(2);
-if (argv.includes('--selftest')) { selftest(); process.exit(0); }
+export const rowIds = rows.map((r) => r.id);
 
-const md = markdown(rows);
-const s = summary(rows);
-const probs = problems(rows, auditFlags, chainFlags(testChain));
-// 幻影门（反向查）：跑器没被 npm test 调用 → 表里的「已接线」全是假的
-if (!RUNNER_RE.test(testEntry)) {
-	probs.push({ id: 'package.json:test', code: 'phantom-runner', msg: `npm test 没有调用 scripts/run-tests.mjs（当前：${testEntry.slice(0, 80)}）——计划与 CI 实况脱钩，本台账的「已接线」列全部不可信` });
+// ⚠️ **import 门** ✓：本文件被别处 `import` 时**不得跑主路径** ✗（主路径结尾 `process.exit` ✗ ⇒ 会把调用方一起带走 ✓；
+// 探针运行器要读 `rowIds` ✓ —— 第一版就是这么静默失败的 ✓：结构校验拿不到行 id ⇒ 退化成"只做清单自校验"✗）。
+const isMain = process.argv[1] ? import.meta.url === pathToFileURL(process.argv[1]).href : false;
+const main = () => {
+	const argv = process.argv.slice(2);
+	if (argv.includes('--selftest')) { selftest(); process.exit(0); }
+
+	const md = markdown(rows);
+	const s = summary(rows);
+	const probs = problems(rows, auditFlags, chainFlags(testChain));
+	// 幻影门（反向查）：跑器没被 npm test 调用 → 表里的「已接线」全是假的
+	if (!RUNNER_RE.test(testEntry)) {
+		probs.push({ id: 'package.json:test', code: 'phantom-runner', msg: `npm test 没有调用 scripts/run-tests.mjs（当前：${testEntry.slice(0, 80)}）——计划与 CI 实况脱钩，本台账的「已接线」列全部不可信` });
+	}
+
+	// `#908` ①：探针那一格的**两条不变量** ✓ —— 刻意**不是**"有多少条探针"这种只增不读的统计 ✗
+	if (s.probeBad > 0) {
+	const why = rows.filter((r) => r.probe === '✗').map((r) => `【${r.id}】${(recs.find((x) => x.id === r.id)?.reason ?? '记录缺失').slice(0, 70)}`).join(' ｜ ');
+	probs.push({ id: 'scripts/probe-gates.mjs', code: 'probe-not-biting', msg: `有 ${s.probeBad} 行的探针**不咬**（✗ ✓ ⇒ 必须当红处理 ✓，"跑了多少条"不算读数 ✗）：${why}` });
 }
+	if (s.probeCap === '缺件 ✗') probs.push({ id: 'scripts/probe-budget.json', code: 'probe-budget-missing', msg: '缺 `scripts/probe-budget.json` ✗ —— 没有上限，覆盖率就能悄悄下降 ✓' });
+	else if (s.probeNone > s.probeCap) probs.push({ id: 'scripts/probe-budget.json', code: 'probe-coverage-drop', msg: `未探（\`—\`）的行数 ${s.probeNone} > 上限 ${s.probeCap} ⇒ 覆盖率**下降**了 ✗（加新门就得补探针 ✓；真要放宽上限，改那个数字是一次**显式决定** ✓）` });
 
-if (argv.includes('--update')) {
-	writeFileSync(LEDGER, md);
-	console.log(`✔ 台账已生成 ${LEDGER}（${s.total} 项 · 行为化率 ${s.rate}%）`);
-	process.exit(0);
-}
+	if (argv.includes('--update')) {
+		writeFileSync(LEDGER, md);
+		console.log(`✔ 台账已生成 ${LEDGER}（${s.total} 项 · 行为化率 ${s.rate}%）`);
+		process.exit(0);
+	}
 
-let bad = probs.length;
-if (existsSync(LEDGER)) {
-	if (readFileSync(LEDGER, 'utf8') !== md) { console.error('✗ 台账与实况不一致（新增/改名了门但没重新生成）→ 跑 npm run report:gates:update'); bad++; }
-} else { console.error('✗ 台账文件不存在 → 跑 npm run report:gates:update'); bad++; }
+	let bad = probs.length;
+	if (existsSync(LEDGER)) {
+		if (readFileSync(LEDGER, 'utf8') !== md) { console.error('✗ 台账与实况不一致（新增/改名了门但没重新生成）→ 跑 npm run report:gates:update'); bad++; }
+	} else { console.error('✗ 台账文件不存在 → 跑 npm run report:gates:update'); bad++; }
 
-const wiredAudit = rows.filter((r) => r.kind === 'audit 开关' && r.wired).length;
-const chain = chainFlags(testChain);
-console.log(`══ F2 门的行为化率 ══  ${s.total} 项 · 行为化 ${s.behavioral} · 仅登记 ${s.registry} · **行为化率 ${s.rate}%**`);
-console.log(`   集合差：audit 声明 ${auditFlags.length} 门｜链中跑 ${chain.length} 门（已接线 ${wiredAudit}）｜仅登记 ${s.registry}｜未接线 ${rows.filter((r) => !r.wired).length}`);
-for (const p of probs) console.error(`   ✗ [${p.code}] ${p.id}：${p.msg}`);
-if (bad) { console.error(`\n✗ F2 台账未通过（${bad} 项）`); process.exit(1); }
-console.log('✔ 台账与实况一致，且所有「仅登记/未接线」项都写明了理由');
+	const wiredAudit = rows.filter((r) => r.kind === 'audit 开关' && r.wired).length;
+	const chain = chainFlags(testChain);
+	console.log(`══ F2 门的行为化率 ══  ${s.total} 项 · 行为化 ${s.behavioral} · 仅登记 ${s.registry} · **行为化率 ${s.rate}%**`);
+	console.log(`   集合差：audit 声明 ${auditFlags.length} 门｜链中跑 ${chain.length} 门（已接线 ${wiredAudit}）｜仅登记 ${s.registry}｜未接线 ${rows.filter((r) => !r.wired).length}`);
+	for (const p of probs) console.error(`   ✗ [${p.code}] ${p.id}：${p.msg}`);
+	if (bad) { console.error(`\n✗ F2 台账未通过（${bad} 项）`); process.exit(1); }
+	console.log('✔ 台账与实况一致，且所有「仅登记/未接线」项都写明了理由');
+};
+
+if (isMain) main();

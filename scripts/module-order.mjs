@@ -135,6 +135,13 @@ export const requireManifests = (manifests, who = 'checkRegistration') => {
 		throw new Error(`${who}：缺 \`manifests\`（故事件的**登记处** ⇒ 必须由调用方注入 ✓）—— **合成输入的调用方不得让默认值去读盘** ✗`
 			+ `（实测：夹具故事在场时曾误报 27／28 条 \`missing-manifest-file\` ✗）。真实调用请传 \`storyManifests()\` ✓。`);
 	}
+	// `#930`（`#899` ① 复核留）：**形状**也要挡 ✗ —— 只挡 `undefined` 的话，喂 `{}`／字符串会**漏到下游 `flatMap`** ✗
+	//   ⇒ 报的是 `flatMap is not a function` 那类 ⇒ **报文不点名** ✗，而这条守卫的**用途就是"点名报错"** ✓（`#899` ① 的正形 ✓）。
+	if (!Array.isArray(manifests)) {
+		const got = manifests === null ? 'null' : typeof manifests === 'object' ? '对象（非数组）' : typeof manifests;
+		throw new Error(`${who}：\`manifests\` **必须是数组**（收到 ${got} ✗）—— 故事件的**登记处**形状必须显式 ✓；`
+			+ `真实调用请传 \`storyManifests()\` ✓（它返回数组 ✓）。`);
+	}
 	return manifests;
 };
 

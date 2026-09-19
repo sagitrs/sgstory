@@ -77,26 +77,34 @@ const TIERS = {
 		{ args: ['minimal-demo', '--section='], expect: { rc: 2, kind: '错路·空值·section' } },
 		{ args: ['minimal-demo', '--key='], expect: { rc: 2, kind: '错路·空值·key' } },
 		{ args: [], expect: { rc: 2, kind: '用法' } },
-		{ args: ['mist-forest', '--tables', '--from=stories/mist-forest/gates/equiv-baseline/15-tables.twee.txt', `--out=${TMP}/t.json`], expect: { rc: 0, kind: '正常' } },
+		// `#1004` B2 ✓：旧故事已删 ⇒ 本档换到**存活样本** ✓（夹具源＝该故事仓内的 `gates/equiv-baseline/*.twee.txt` ✓）。
+		{ args: ['night-ferry', '--tables', '--from=stories/night-ferry/gates/equiv-baseline/15-tables.twee.txt', `--out=${TMP}/t.json`], expect: { rc: 0, kind: '正常' } },
 		{ args: ['mist-forest', '--section=Bogus Name', `--out=${TMP}/t.json`], expect: { rc: 1, kind: '错路·无段' } },
 	],
 	'classify-contract': [
 		// `#959`：`--from=` 空 ⇒ `join(ROOT,'')` ＝ ROOT ⇒ `existsSync` 为真 ⇒ 会走"找不到成员" ⇒ **归因错** ✗ ⇒ 现应讲人话地拒 ✓
 		{ args: ['minimal-demo', '--from='], expect: { rc: 2, kind: '错路·空值·from' } },
 		{ args: [], expect: { rc: 2, kind: '用法' } },
-		{ args: ['mist-forest'], expect: { rc: 1, kind: '错路·翻面后只剩逃生舱' } },
-		{ args: ['mist-forest', '--from=stories/mist-forest/gates/equiv-baseline/15-tables.twee.txt'], expect: { rc: 1, kind: '夹具源' } },
+		// `#1004` B2 ✓：换到存活样本 ✓，**期望值逐条重测**（不照抄旧样本 ✗）。
+		// ⚠️ 旧两格的 `kind` 与新样本的**实际行为不同** ✗ ⇒ 按实测改准 ✓：
+		//    · 裸跑 ⇒ rc=1 ✓：`night-ferry` 与 `mist-forest` **同为"翻面后"** ✓（`15-tables.twee` 是**产物**（带生成标记）
+		//      ⇒ 本次只判**手写逃生舱文件** ✓ ⇒ 那里找不到 `Sg.story` 成员 ⇒ 报"读不到输入不许当没有故事逻辑"✓）⇒ **旧标签仍正确** ✓。
+		//    · 显式 `--from=<该故事的 equiv 基准件>` ⇒ **实测 rc=0** ✗（分类器拿它作**源** ⇒ 14 个成员全部归类成功 ✓ ——
+		//      与旧样本当时"夹具源 ⇒ 拒 ✓"的行为**不同** ✓）⇒ 标签按实测改成"正常"✓。
+		{ args: ['night-ferry'], expect: { rc: 1, kind: '错路·翻面后只剩逃生舱' } },
+		{ args: ['night-ferry', '--from=stories/night-ferry/gates/equiv-baseline/15-tables.twee.txt'], expect: { rc: 0, kind: '正常（显式 `--from` 给源 ⇒ 照源分类）' } },
 		{ args: ['nosuchstory'], expect: { rc: 1, kind: '错路·读不到输入' } },
 	],
 	equiv: [
 		{ args: [], expect: { rc: 2, kind: '用法' } },
 		{ args: ['mist-forest'], expect: { rc: 2, kind: '裸跑拒绝' } },
-		{ args: ['mist-forest', '--l3=report', '--hand=stories/mist-forest/gates/equiv-baseline/15-tables.twee.txt'], expect: { rc: 0, kind: '正常' } },
-		{ args: ['mist-forest', '--l3=weird'], expect: { rc: 2, kind: '错路·档位' } },
+		// `#1004` B2 ✓：换到存活样本 ✓（该故事的 `gates/equiv-baseline/15-tables.twee.txt` 就是 `--hand` ✓，实测 rc=0 ✓）。
+		{ args: ['night-ferry', '--l3=report', '--hand=stories/night-ferry/gates/equiv-baseline/15-tables.twee.txt'], expect: { rc: 0, kind: '正常' } },
+		{ args: ['night-ferry', '--l3=weird'], expect: { rc: 2, kind: '错路·档位' } },
 		// `#958` 票内复核 MINOR（`[deferred]`，`#215` 报备 `18508167` 承办 ✓）：**取值类标志吃空值** ⇒ 下游崩成裸 Node 栈 ✗
 		// （`--notes=` 空 ⇒ `readFileSync('')` ⇒ `EISDIR` ✓；`--hand=` 空 ⇒ `join(ROOT,'')` ＝ 仓根 ⇒ 同型 ✓）⇒ 现应为**讲人话地拒** ✓。
-		{ args: ['mist-forest', '--notes=', '--l3=report'], expect: { rc: 2, kind: '错路·空值·notes' } },
-		{ args: ['mist-forest', '--hand=', '--l3=report'], expect: { rc: 2, kind: '错路·空值·hand' } },
+		{ args: ['night-ferry', '--notes=', '--l3=report'], expect: { rc: 2, kind: '错路·空值·notes' } },
+		{ args: ['night-ferry', '--hand=', '--l3=report'], expect: { rc: 2, kind: '错路·空值·hand' } },
 	],
 	'lint-story': [
 		{ args: [], expect: { rc: 2, kind: '用法' } },

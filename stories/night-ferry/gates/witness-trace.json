@@ -44,6 +44,7 @@
   }
  ],
  "ending": "结局 沉船",
+ "endingKey": "沉船",
  "fallbacks": 0,
  "replay": "node test/walker.mjs --witness --story=night-ferry --seed=1 --scan=1 --max-steps=60"
 }

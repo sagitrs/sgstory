@@ -112,6 +112,11 @@ export const SEGMENTS = [
 	{ id: "test-npc-venue-mjs", phase: 'test', cost: 0, cmd: "node test/npc-venue.mjs" },
 	{ id: "test-premise-source-mjs", phase: 'test', cost: 0, cmd: "node test/premise-source.mjs" },
 	{ id: "test-choice-keys-mjs", phase: 'test', cost: 9, cmd: "node test/choice-keys.mjs" },
+	// `#1012`：**导航后焦点仍在正文内**（`docs/dev-conventions.md` §6「键盘可续」的可机检版 ✓）——
+	//   契约＝交互后 `activeElement.closest('#passages')` 必真 ✗（不绑具体元素 ✓）；两半都要能假 ✓：
+	//   导航型交互（真会红：修前焦点落 `body` ✓）＋ 反例「程序性导航不许抢焦点」✓。
+	{ id: "test-focus-after-nav-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/focus-after-nav.mjs --selftest" },
+	{ id: "test-focus-after-nav-mjs", phase: 'test', cost: 1, cmd: "node test/focus-after-nav.mjs" },
 	{ id: "test-globals-mjs", phase: 'test', cost: 0, cmd: "node test/globals.mjs" },
 	{ id: "test-scenarios-mjs", phase: 'test', cost: 23.6, cmd: "node test/scenarios.mjs" },
 	// `#215` 裁 (B) ✓：**见证机器**自证 —— `walker --witness` 产出的轨迹够不够当 P4 的"见证"（到 ending ✓／同 seed 逐格可复跑 ✓／两条断言能假 ✓；实测 ≈6s ✓）。
@@ -312,6 +317,7 @@ export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 't
 export const AUDIT_STORY = [];   // #607 P2-B：**故事门已全部搬到故事侧**（`stories/<slug>/gates/`，清单声明）⇒ 工具层不再有故事门
 // 非门段里**与故事内容无关**的那些（构建 / 构建期 lint / 产物守卫）：显式登记，不放宽默认
 export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs', 'scripts-audit-mjs-story2-engine',
+	'test-focus-after-nav-mjs-selftest', 'test-focus-after-nav-mjs',   // `#1012`：引擎侧焦点契约（与故事内容无关 ✓）
 	'test-story-runtime-mjs-selftest', 'test-story-runtime-mjs',
 	'test-layering-mjs-selftest', 'test-layering-mjs', 'test-globals-mjs', 'test-silent-gate-mjs',
 	'test-size-gate-mjs-selftest', 'test-size-gate-mjs',

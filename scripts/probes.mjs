@@ -27,7 +27,8 @@
  *   手动跑过负控（把某条探针改成"不咬"✓）之后，**台账那一格会红** ✓ —— 那不是台账坏了，是记录还留着上次的字 ✓ ⇒ **先重跑探针、再跑台账段** ✓。
  */
 
-/** @type {{id:string,tier:'fast'|'full',pre:string[],cmd:string,mutation:{file:string,find:string,replace:string},expect:{rc:number,stdout:RegExp},why:string}[]} */
+/** @type {{id:string,tier:'fast'|'full',pre:string[],cmd:string,rebuild?:string,   // `#1012`：变异后重建产物（还原之后跑 ✓，失败即红 ✓）
+mutation:{file:string,find:string,replace:string},expect:{rc:number,stdout:RegExp},why:string}[]} */
 export const PROBES = [
 	{
 		// 台账行：`test/state-diagnose.mjs` ✓（34 条断言 ✓，是本仓"能假"写得最足的一件 ✓）
@@ -245,6 +246,29 @@ export const PROBES = [
 		},
 		expect: { rc: 1, stdout: /P6/ },
 		why: '量的是「冒烟作业里的故事页路径**不许硬编码**（⚠️ **现存/已删一律** ✗）＋ **必须从书架页现场取**」（锚点仍在 ＋ 写死一个**现存**故事 ⇒ P6 必红 ✓）—— 该判据是"只在合后跑的门"在 PR 阶段的唯一能见度 ✗',
+	},
+	{
+		// `#1012` ✓：**导航型交互之后焦点仍在正文内**（`test/focus-after-nav.mjs` ✓）—— 契约见
+		//  `docs/dev-conventions.md` §6「键盘可续」（`activeElement.closest('#passages')` ✓，**不绑元素** ✗）。
+		//  ⚠️ 本探针的 `cmd` **自带 `node build.mjs`** ✗（不写 `pre` ✓）：被测面是 `src/**` 的引擎行为 ✓
+		//   ⇒ 变异后**必须重建产物**才能真正生效 ✓；而 `pre` 跑在变异**之前** ✓ ⇒ 写成 `pre` 会得到
+		//   "变异后仍绿" 的**假不咬** ✓（同族的坑：改了源却不重建 ⇒ 量的是上一代产物 ✓）。
+		//  ⚠️ 刀必须换**事件名** ✗：`jQuery.on('ev.ns')` 的 **namespace 不挡事件分发** ✓ ⇒ 只改 namespace
+		//   （如 `sgFocusNav-DISABLED`）那一手**根本没禁掉** ✓ —— 实测踩过：会误判成"本门不咬" ✗。
+		id: 'test/focus-after-nav.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node build.mjs >/dev/null && node test/focus-after-nav.mjs',
+		// ⚠️ **还原之后要重建** ✗（`#1012` 实测）：`cmd` 里那次 `build.mjs` 已经把**变异版**编进 `dist/` ✓
+		//   ⇒ 只还原 `src/**` ⇒ 后续依赖产物的段拿到的是**变异后的游戏** ⇒ 下一段直接红 ✓（自污染相序 ✓）。
+		rebuild: 'node build.mjs >/dev/null',
+		mutation: {
+			file: 'src/80-script.twee',
+			find: "jQuery(document).on(':passageend.sgFocusNav', (ev) => {",
+			replace: "jQuery(document).on(':passageendDISABLED.sgFocusNav', (ev) => {",
+		},
+		expect: { rc: 1, stdout: /焦点跑出正文/ },
+		why: '量的是「**导航型交互之后焦点仍在正文内**」那一手真的在守（禁用 `:passageend.sgFocusNav` ⇒ 导航后 `activeElement` 落 `body` ⇒ 本件必红并点名 ✓）—— 否则「焦点回收」只写在注释里 ✗（`#1012` ✓）',
 	},
 	{
 		// 台账行：`test/repo-shape.mjs`（`#1008` 第二半：**仓根顶层条目**守卫）。

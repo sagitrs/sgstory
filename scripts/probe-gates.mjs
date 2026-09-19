@@ -94,7 +94,14 @@ const probeOne = (p) => {
 	let mutated = { rc: -1, out: '' };
 	try {
 		writeFileSync(target, out);
+		// `#1012`／`#1019`：`rebuild` 的**第一处** —— **变异之后、`cmd` 之前** ✗。
+		//   为什么需要它 ✗：判据对象是**编译产物**的探针（被测面在 `src/**`／`editor/**` ⇒ 产物才是被量的东西 ✓），
+		//   不重建就等于**量的还是上一代产物** ✓ ⇒ "变异后仍绿" 的**假不咬** ✓。
+		//   （⚠️ 不能用 `pre` 表达这一处 ✗：`pre` 的语义是"**变异之前**"✓，现有十五探针依赖它 ✓，不改 ✓。）
+		if (p.rebuild) { const r0 = run(p.rebuild); if (r0.rc !== 0) throw new Error(`rebuild（变异后）失败：${p.rebuild} ⇒ rc=${r0.rc}`); }
 		mutated = run(p.cmd);
+	} catch (e) {
+		mutated = { rc: e.status ?? 1, out: String(e.message ?? e) };
 	} finally {
 		writeFileSync(target, original);
 		// `#1012`：**还原也要还原时间戳** ✗ —— 只写回内容会把 mtime 变新 ✓ ⇒ 全仓的「dist 比 src 新」
@@ -104,12 +111,10 @@ const probeOne = (p) => {
 		utimesSync(target, stamp.atime, stamp.mtime);
 	}
 	const restored = readFileSync(target, 'utf8') === original;
-	// `#1012`／`#1019`：**被测件在 `src/**`（或任何会进产物的面）时，还原只是第一步** ✗ ——
-	//   变异期间 `cmd` 往往已经**重建过产物**（重建才能量到变异 ✓）⇒ 只还原源文件 ⇒ **产物里留着变异版** ✗
-	//   ⇒ 后续依赖产物的段（`assertFreshDist` 一族）拿到的是**变异后的游戏** ✓。
-	//   实测（`#1012`）：不重建 ⇒ 下一段 `test/focus-after-nav.mjs` **当红** ✗
-	//   （探针自己污染相序 ⇒ "正例绿"这条读数在整个套件里不成立 ✗）。
-	//   ⇒ 声明式地补一步 `rebuild`（在**还原之后**跑 ✓，失败即红 ✓）。
+	// `#1012`／`#1019`：`rebuild` 的**第二处** —— **还原被测件之后、收尾** ✗ ——
+	//   变异期间那次重建已把**变异版**编进产物 ⇒ 只还原源文件 ⇒ 后续依赖产物的段（`assertFreshDist` 一族）
+	//   拿到的是**变异后的游戏** ✓（实测 `#1012`：**37 段**全红 ✗，探针**自污染相序** ✓）。
+	//   ⇒ 两处任一失败 ⇒ **红**（并入同一条 verdict ✓，不静默 ✓）。
 	let rebuildErr = '';
 	if (p.rebuild) { const r = run(p.rebuild); if (r.rc !== 0) rebuildErr = `rebuild 失败（${p.rebuild} ⇒ rc=${r.rc}）`; }
 	const v = verdictOf({ preOk: pre.length === 0, baseRc: base.rc, mutatedRc: mutated.rc, hitCount: count, stdout: mutated.out, expect: p.expect });

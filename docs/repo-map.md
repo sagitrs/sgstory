@@ -17,20 +17,15 @@ src/               引擎层（与具体故事无关；层归属与加载顺序�
   80-script.twee StoryScript：存档钩子 + S/L 快捷键（读档要 .then(Engine.show) 才重画）+ 结局页收尾入口
                    + 图鉴跨周目持久化（localStorage）+ 段落起始的状态归一化
 stories/           多故事：**每个故事一个目录**（接入契约 docs/engine-story-boundary.md；引擎只经 Sg.story.* 取数据）
-  mist-forest/    故事 1「迷雾森林」（完整：3 章 + 10 结局 + 5 章节出口）
+  night-ferry/   故事「夜渡」（**第 4 个故事：P4 用编辑器做出** ✓）：渡口 → 河心 → 对岸，两条路线各 6 步、2 个结局
     00-meta.twee   故事元数据：标题、IFID、起始段落
-    15-tables.twee ★ window.Game（位点/经济/道具/行囊/战斗/交涉/图鉴/命题/回声/选择/系统/翻转锚/星力/龙）
-                    + Pc（状态形状与迁移）+ Game.Chargen（车卡三件套）——机制数值单一源（#28）
-    16-notes-*.twee 笔记表（知识模型）增量文件：ch1/ch2/ch3/cross（#429–#431）
-    17-rules.twee  条件表（#435 阶段 4）：行数组（req/any/exclude/prio/yields/gives/sets）——选择器在引擎侧
-    20-chargen.twee Game.Chargen.rounds（3 轮）+ Game.Chargen.presets + 车卡 / 角色卡
-    30-ch1.twee    ★ 序章 + 一章（时间）正文
-    40-ch2.twee    ★ 二章（手段）正文
-    50-ch3.twee    ★ 三章（坐标）正文
-    60-endings.twee ★ 结局（10 个出口）
-    70-codex.twee  ★ 设定集（hub + 三律/守塔的人家/塔/道具/术语/结局/图鉴）
-  minimal-demo/   故事 2：最小示例（#460 接入契约的验证物）
-  hollow-cave/    故事 3「无名洞窟」：雏形（#490 S5）
+    10-ferry.twee  正文（11 段落）＋ 两个 `:: 结局 …`
+    15-tables.twee ★ window.Game（接入契约的声明面；生成物）
+    17-rules.twee  条件表（生成物）
+    gates/         冻结基线（`equiv-baseline/`）＋ **内容面见证轨迹**（`witness-trace.json`／`witness.md`）
+  minimal-demo/   最小示例（#460 接入契约的验证物；**空声明的对照样本**）
+  face-fixture/   ⚠️ **测试夹具（不是内容故事）**：把「仍有真消费者」的接入面接住（段名沿用旧故事、正文全部新写 ✓）
+  ⚠️ 已删（`#1004` B 段）：`mist-forest`（迷雾森林）／`hollow-cave`（无名洞窟）——见 `docs/ui-inventory.md` 的历史清单
 vendor/
   format.js       SugarCube 2.37.3 官方 story format（升级时替换此文件）
 build.mjs         合并 src/*.twee → extwee 编译

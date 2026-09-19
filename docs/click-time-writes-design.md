@@ -11,7 +11,7 @@
 
 - Q1 的原意（"表里写状态 ⇒ A 方案退化"）针对的是**渲染期**：行被选中 ⇒ 渲染 ⇒ 写落地，于是 `yields` 变装饰、与"渲染成功后才授予"的语义打架；
 - **link 体内的写发生在点击时**，渲染期零副作用 ⇒ 与 Q1 **不冲突**；
-- 现有证据：`stories/mist-forest/17-rules.twee` 里**已经有行在渲染 `<<link>>`**（如 `守林人·劝杀.日记`，体内是 `<<sitecheck>>`／`<<goto>>`）⇒ 缺的只是"体内**带写**"这一档。
+- 现有证据：`stories/mist-forest/17-rules.twee` 里**已经有行在渲染 `<<link>>`**（如 `守林人·劝杀.日记`，体内是 `<<sitecheck>>`／`<<goto>>`）⇒ 缺的只是"体内**带写**"这一档。 <!-- path-exempt: 该故事已按 #1004 删除（历史记录，不抹）-->
 
 ## 1. 现场（`#627` 普查，可复算）
 
@@ -27,9 +27,9 @@
 
 | 类 | 例子 | 卡在哪 |
 |---|---|---|
-| **纯笔记型**（无计算操作数） | `stories/mist-forest/30-ch1.twee` 的「酒馆」：`<<if not Sg.notes.has('n_tav_keeper')>><<link "讲守林人的那一桌">><<run Sg.notes.add('n_tav_keeper')>><<goto "酒馆">><</link><</if>>` | 只有边界①（写侧在 link 体内） |
+| **纯笔记型**（无计算操作数） | `stories/mist-forest/30-ch1.twee` 的「酒馆」：`<<if not Sg.notes.has('n_tav_keeper')>><<link "讲守林人的那一桌">><<run Sg.notes.add('n_tav_keeper')>><<goto "酒馆">><</link><</if>>` | 只有边界①（写侧在 link 体内） | <!-- path-exempt: 该故事已按 #1004 删除（历史记录，不抹）-->
 | **可负担性型**（操作数是计算值） | 同文件 `$pc.gold gte (-Game.Economy.priceOf("rumor_buy", $pc))` | 边界① **＋** 需要一个"声明式取值项"（见片二） |
-| **机制块型** | `stories/hollow-cave/10-cave.twee` 的 `机制·chest`／`机制·cave`（含 `<<damage>>`） | 按 `docs/notes-model.md` 边界 4 **不搬** |
+| **机制块型** | `stories/hollow-cave/10-cave.twee` 的 `机制·chest`／`机制·cave`（含 `<<damage>>`） | 按 `docs/notes-model.md` 边界 4 **不搬** | <!-- path-exempt: 该故事已按 #1004 删除（历史记录，不抹）-->
 
 ## 2. 片一：门**分域**（enabler，不动机制）
 
@@ -65,8 +65,8 @@
 | 批 | 位点 | 依赖 |
 |---|---|---|
 | 1 | 「酒馆」7 ＋「女巫小屋」6（纯笔记型） | 片一 |
-| 2 | `stories/mist-forest/40-ch2.twee` 10 处（`inv:`／`era:` 条件 ＋ 写） | 片一 |
-| 3 | `stories/mist-forest/50-ch3.twee` 5 处（`keeper.state` 枚举 ＋ 写） | 片一 ＋ 已有算子（`#624`） |
+| 2 | `stories/mist-forest/40-ch2.twee` 10 处（`inv:`／`era:` 条件 ＋ 写） | 片一 | <!-- path-exempt: 该故事已按 #1004 删除（历史记录，不抹）-->
+| 3 | `stories/mist-forest/50-ch3.twee` 5 处（`keeper.state` 枚举 ＋ 写） | 片一 ＋ 已有算子（`#624`） | <!-- path-exempt: 该故事已按 #1004 删除（历史记录，不抹）-->
 | 4 | 可负担性 4 处 | 片二 |
 | — | 机制块 19 处 **不搬**（边界 4） | — |
 

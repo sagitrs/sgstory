@@ -1,6 +1,6 @@
 # UI 迁移差异复核（#185 阶段六 / #264）
 
-> 覆盖：`mist-forest`（有基线：判定）｜`hollow-cave`：仅登记（**不判定**）｜`minimal-demo`：仅登记（**不判定**）
+> 覆盖（⚠️ `#1004` B 段后）：`night-ferry`（**有基线：判定**）｜`minimal-demo`：仅登记（**不判定**）｜`face-fixture`（测试夹具）：仅登记（**不判定**）｜⚠️ 已删：`mist-forest`／`hollow-cave`
 
 > 基线 `origin/main`（feat(#707): 战斗状态字段使用面门（死字段点名）＋ 删掉真死字段 last） → 工作区。比对口径：**玩家可见正文**（去宏、去 twee 注释、链接只留显示名、空白归一）。
 > 逐段登记的适配与新增见 `docs/ui-inventory.md`；本表只列**正文有变化**的段落。

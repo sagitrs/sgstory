@@ -357,11 +357,13 @@ FCFS **81.3s** vs LPT **84.3s**；②「每个测试段各自 boot JSDOM」不�
 ① **污染**第一个故事的指标（同名段落、载荷统计、最薄段落榜、密度基线）；② **又被**第一个故事的判据要求（段落登记手册、覆盖宇宙、可达性）。
 ⇒ 一次引入就 4 段门红，根因只有一句：**故事门没有故事作用域**。
 
-**现状（三个故事）**：`mist-forest`（故事 1，默认）· `minimal-demo`（第二故事，**接入契约的自检夹具**）·
-`hollow-cave`（第三故事，`#490` S5 雏形：**唯一声明了 S1–S4 四件套的故事** ⇒ 那四道引擎门在这里判真数据）。
+**现状（两个故事 ＋ 一个夹具）**（⚠️ `#1004` B 段后）：`night-ferry`（**真内容故事**，P4 用编辑器做出）·
+`minimal-demo`（**接入契约的自检夹具**）· `face-fixture`（**测试夹具**：把「仍有真消费者」的接入面接住 ✓ ——
+⚠️ 它**不是内容故事** ✗，但它是**工具链默认判据故事**（`DEFAULT_SLUG` ✓，见 `#1004`）。
+⇒ ⚠️ 已删：`mist-forest`（故事 1）／`hollow-cave`（故事 3，**曾唯一声明 S1–S4 四件套**）——那四道引擎门的**真数据样本**随之消失 ✓（这是 B 段收敛的代价 ✗，记在 `#1004`）。
 
 **用法**
-- `node scripts/audit.mjs --story <slug> [--engine-only] --check`；默认故事（`mist-forest`）⇒ 与改前**逐字节相同**（golden 零漂移）；
+- `node scripts/audit.mjs --story <slug> [--engine-only] --check`；默认故事（`face-fixture` ✓ —— `#1004` 起；此前是 `mist-forest`／`minimal-demo` ✗）⇒ 与改前**逐字节相同**（golden 零漂移）；
 - `npm test` 的 `scripts-audit-mjs-story2-engine` 段：拿**最小故事**（`stories/minimal-demo`）跑**引擎门** —— 这是「引擎不知道故事名」的**可执行证据**（产物侧：书架 2 项）。
 
 **引擎保留的运行时槽（接入契约的一部分，`#460` 补齐）**：引擎自己会写这几个键
@@ -376,7 +378,7 @@ FCFS **81.3s** vs LPT **84.3s**；②「每个测试段各自 boot JSDOM」不�
 
 **引擎里的故事 1 片段已搬回（`#460`）**：`hallResult`（门厅取物）与 `flip`（时代翻转）原本住在引擎 `10-core` 的
 `Widgets` 段里 ⇒ 任何第二/第三故事跑 `--state`／`--consequences` 都是**假红**。现搬到
-`stories/mist-forest/12-widgets.twee`；`StoryCaption` 的「📖 设定集」链接改成**存在才渲染**（`<<if Story.has("设定集")>>`），
+`stories/mist-forest/12-widgets.twee`；`StoryCaption` 的「📖 设定集」链接改成**存在才渲染**（`<<if Story.has("设定集")>>`）， <!-- path-exempt: 该故事已按 #1004 删除（历史记录，不抹）-->
 否则它在新故事里是死链。
 
 **第二故事的接入契约（实测清单，不是设计稿）**：引擎侧每一个 `Sg.story.X` 都是一个**必须由故事注册**的口子
@@ -468,7 +470,7 @@ FCFS **81.3s** vs LPT **84.3s**；②「每个测试段各自 boot JSDOM」不�
 ② 让 `scopedFiles` 不再含引擎文件（作用域只剩本故事）⇒ `[域表纪律]` 立刻红（防"门静默退化成只查故事写点"）。
 
 ## 13. 取证方式必须**可复算**（`#557` 的教训）
-`#557` 实测：`ui-migration-diff` 的清单仍写 `src/<name>.twee`，而故事文件已搬到 `stories/mist-forest/`
+`#557` 实测：`ui-migration-diff` 的清单仍写 `src/<name>.twee`，而故事文件已搬到 `stories/mist-forest/` <!-- path-exempt: 该故事已按 #1004 删除（历史记录，不抹）-->
 ⇒ **基线与工作区都解析出 0 段** ⇒ 输出「变更 0 段」并 **退 0**。于是 `#435` 批三引用的「`--zero` 退 0 ✓」**是空跑**。
 ⇒ 结论一句话：**「退 0」本身不是证据**，必须能回答"它解析了什么输入"。
 

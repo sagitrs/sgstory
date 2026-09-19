@@ -5,7 +5,7 @@
 
 ## 1. 故事侧注册什么
 
-`window.Sg.story`（由故事文件注册；故事 1 现落在 `stories/mist-forest/15-tables.twee` 的 `:: StoryBindings`，`)`#441-D`）搬家后随故事包走 `stories/<slug>/**`）。
+`window.Sg.story`（由故事文件注册；故事 1 现落在 `stories/mist-forest/15-tables.twee` 的 `:: StoryBindings`，`)`#441-D`）搬家后随故事包走 `stories/<slug>/**`）。 <!-- path-exempt: 该故事已按 #1004 删除（历史记录，不抹）-->
 
 | provider | 用途 | 缺省语义（**三条不许混**） |
 |---|---|---|
@@ -88,7 +88,7 @@ mechanics: () => ({
 | 面 | 归属 | 证据 | 没有它会怎样 |
 |---|---|---|---|
 | `Sg.save`（存档 API）· `Sg.notes`（数据经 `Sg.story.notes()`）· `Sg.Ending` · 键盘 S/L · 结果留屏/空白归一/`data-choice` 派生 | **引擎运行时胶水**（`src/80-script.twee`，`layer: 'engine'`） | 随引擎进**每个**故事的作用域（`scopedFiles()`） | 点存档/落笔记直接抛错；故事 2 实测：“宝箱与洞窟事件走到就报错” |
-| `Sg.Codex`（图鉴界面） | **故事面**（`stories/mist-forest/72-codex-ui.twee`，`layer: 'story'`） | 它读故事 1 的 `Game.Codex.items` | 引擎侧只能经**可选链**引用（`Sg.Codex?.sync?.()`）⇒ 没有它的故事只是“没有图鉴” |
+| `Sg.Codex`（图鉴界面） | **故事面**（`stories/mist-forest/72-codex-ui.twee`，`layer: 'story'`） | 它读故事 1 的 `Game.Codex.items` | 引擎侧只能经**可选链**引用（`Sg.Codex?.sync?.()`）⇒ 没有它的故事只是“没有图鉴” | <!-- path-exempt: 该故事已按 #1004 删除（历史记录，不抹）-->
 
 **侧栏（`StoryCaption`）的分支口径**：车卡后的完整卡面（车卡故事）· 无车卡的故事给**最小面**（血量/金币/物品/存档）
 · 有车卡但尚未车卡的故事**保持原样**（只有存档按钮——故事 1 零行为变化）。
@@ -144,7 +144,7 @@ mechanics: () => ({
 
 | 面 | 落点／契约 |
 |---|---|
-| **机制** | `src/engine/50-present/12-shortfight.twee` 的 `<<shortFight>>`（从 `stories/hollow-cave/10-cave.twee` 上移） |
+| **机制** | `src/engine/50-present/12-shortfight.twee` 的 `<<shortFight>>`（从 `stories/hollow-cave/10-cave.twee` 上移） | <!-- path-exempt: 该故事已按 #1004 删除（历史记录，不抹）-->
 | **实参（7）** | ①位点 ②按钮文案 ③胜句 ④败句 ⑤遭遇 id ⑥战利品句 **⑦尾段**（结算后要执行的**故事侧 wiki 片段**，例 `<<caveNext>>`；引擎只在同一次点击的缓冲里跑它，不知道「下一步」是什么；缺省空串＝不执行） |
 | **相位口径** | 分支**只看** `Game.Combat.waveRecord().phase`（`continue`/`advance`/`cleared`/`failed`）：未结束 ⇒ **不结算、不推进**、重渲染本段；`cleared` ⇒ 胜句＋`grantReward`；`failed` ⇒ 败句＋伤＋**声明面的失败笔记**。⚠️ 不许拿 `$last_check.success` 代替相位——它只说"这一击中了" |
 | **声明面** | 奖励 `encounters[*].reward`（`#600`）· **失败笔记 `encounters[*].failNote`**（`#608`，引擎访问器 `Game.Combat.encounterFailNote`） |

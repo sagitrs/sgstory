@@ -21,12 +21,12 @@
 //   ⇒ 本壳只做三件：**转出**判据（纯函数住在 `lib/core/k4criteria.mjs` ✓）· 跑自证 · 转发 argv。
 //   ⇒ 与 `cli.mjs k4` **共用同一具身体** ✓（不是两份实现 ✗）—— 等价性按构造成立 ✓。
 import { fileURLToPath } from 'node:url';
-import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, contractSourceText, staleTrackedProblems } from './lib/core/k4criteria.mjs';
+import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, handwrittenClosureProblems, contractSourceText, staleTrackedProblems } from './lib/core/k4criteria.mjs';
 import { censusProblems, censusOfStory, censusSummarize } from './lib/core/hatchCensus.mjs';
 import { hasGeneratedMarker } from './lib/core/text.mjs';
 import { k4Command } from './lib/host/commands.mjs';
 import { exitWithRc } from './lib/host/proc.mjs';
-export { MARKER, hasGeneratedMarker, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, contractSourceText, staleTrackedProblems, censusProblems, censusOfStory, censusSummarize };
+export { MARKER, hasGeneratedMarker, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, handwrittenClosureProblems, contractSourceText, staleTrackedProblems, censusProblems, censusOfStory, censusSummarize };
 
 // ⚠️ **主模块守卫**（实测踩到）：本文件**同时是库**（判据函数被测试／下游当纯函数 import ✓）。
 //   没有守卫时，`import` 它会**跑完整门**（0.22s ＋ 1592B 输出 ✗），且门红时 `process.exit(1)` 会**劫持导入方** ✗。
@@ -77,12 +77,18 @@ if (isMain && process.argv.includes('--selfcheck')) {
 		['🔴 反例④：**登记腐烂**（该件已带 `@generated` ⇒ 其实已数据化）⇒ 报（清单只许收缩 ✓）', refusedFaceProblems([{ file: 'a.twee', why: 'w', ticket: '#1', paths: 'p' }], { markerOf: (f) => f === 'a.twee' }).length === 1],
 		['边界④：`markerOf` 说没有标记 ⇒ 不报（腐烂判据**只**看真实标记 ✓）', refusedFaceProblems([{ file: 'a.twee', why: 'w', ticket: '#1', paths: 'p' }], { markerOf: () => false }).length === 0],
 		['边界④：空表 ⇒ 不报（"一个都不留"是合法状态 ✓）', refusedFaceProblems([]).length === 0],
+		// `#987` 手写面闭合（`手写面 − 三类豁免 ＝ ∅`）：口径＝`hasGeneratedMarker` ✓、豁免**分三类**（⛔ 不合并 ✓）
+		['正例⑤：手写面都有归属（三类任一种）⇒ 不报', handwrittenClosureProblems({ handwritten: ['a.twee', 'b.twee', 'c.twee'], refused: ['a.twee'], prose: ['b.twee'], hatches: ['c.twee'] }).length === 0],
+		['🔴 反例⑤：手写面**没有归属** ⇒ 报（"该登记却没登"不许靠人算 ✗）', handwrittenClosureProblems({ handwritten: ['a.twee'] }).length === 1],
+		['🔴 反例⑤：`proseFaces` **登记腐烂**（已带 `@generated` ⇒ 其实已数据化）⇒ 报（白名单只许收缩 ✓）', handwrittenClosureProblems({ handwritten: [], prose: ['a.twee'], markerOf: () => true }).length === 1],
+		['🔴 反例⑤：`proseFaces` 里的件**不在手写面**（路径写错／已不在）⇒ 报（防呆 ✓）', handwrittenClosureProblems({ handwritten: [], prose: ['a.twee'], markerOf: () => false }).length === 1],
+		['边界⑤：空 ⇒ 不报（⛔ 不写成"数量相等"：并行跑器下临时件会让计数等值随机红 ✗）', handwrittenClosureProblems({}).length === 0],
 	];
 	for (const [label, cond] of cases) { if (cond) console.log(`  ✓ 自证·${label}`); else { bad++; console.error(`  ✗ 自证·${label}`); } }
 	if (bad) { console.error(`\n✗ 自证未通过（${bad} 项）`); process.exit(1); }
 	// ⚠️ **条数由 `cases` 算出来** ✗ —— 别手写总数（实测：改前手写 `26` 而**实际 28** ✓ ⇒ 手写数会漂 ✓）。
 	//    分段名保留作**描述** ✓，但不再挂小计数字 ✗（小计也得手算 ⇒ 同一个坑 ✓）。
-	console.log(`\n✔ 自证通过（${cases.length} 条：标记 ＋ 新鲜度 ＋ 逃生舱双向 ＋ 手写源口径 ＋ 生成物不许独改 ＋ \`@generated\` 谓词边界 ＋ 模板串口径 ＋ 逃生舱普查 ＋ 不数据化的面）`);
+	console.log(`\n✔ 自证通过（${cases.length} 条：标记 ＋ 新鲜度 ＋ 逃生舱双向 ＋ 手写源口径 ＋ 生成物不许独改 ＋ \`@generated\` 谓词边界 ＋ 模板串口径 ＋ 逃生舱普查 ＋ 不数据化的面 ＋ **手写面闭合**）`);
 	process.exit(0);
 }
 

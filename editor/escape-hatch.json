@@ -63,5 +63,14 @@
 			"ticket": "#985",
 			"paths": "**三条路** ✓：(i) **搬回引擎**（`src/**`）✗ —— 件头写明 `#460` **正是把它从引擎搬回故事侧** ✓（引擎不该知道「哨子」是什么 ✓）⇒ **搬回去就是倒退** ✗；(ii) **做成通用 widget 库** ✗ —— 收益不明确 ✓（**第二个消费者**在哪 ✗）；(iii) **本阶段不动 ＋ 登记为欠账** ✓ ← **当下采用** ✓。**重开条件** ✗：当**第二个故事**也需要同一套取物反馈 widget 时 ✓（届时抽成通用件 ✓）"
 		}
-	]
+	],
+	"proseFaces": [
+		"stories/hollow-cave/10-cave.twee",
+		"stories/minimal-demo/10-demo.twee",
+		"stories/mist-forest/30-ch1.twee",
+		"stories/mist-forest/40-ch2.twee",
+		"stories/mist-forest/50-ch3.twee",
+		"stories/mist-forest/60-endings.twee"
+	],
+	"proseFacesWhy": "散文面（**不可数据化** ✗）：设计稿 §3「**结构进 JSON、文本留文本**」✓ ⇒ 正文留文本是**设计**，不是欠账 ✓。⚠️ 与 `refusedFaces`（**可数据化但当下不划算** ✓）**不是同一类** ✗ —— 两条判据**分开** ✓，别合并成一个豁免表 ✗。白名单**只许收缩** ✗：其中某件若**变成 `@generated`**（＝它其实已数据化）⇒ K4 判红并点名 ✓。"
 }

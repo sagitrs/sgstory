@@ -246,4 +246,23 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /P6/ },
 		why: '量的是「冒烟作业里的故事页路径**不许硬编码**（⚠️ **现存/已删一律** ✗）＋ **必须从书架页现场取**」（锚点仍在 ＋ 写死一个**现存**故事 ⇒ P6 必红 ✓）—— 该判据是"只在合后跑的门"在 PR 阶段的唯一能见度 ✗',
 	},
+	{
+		// 台账行：`test/repo-shape.mjs`（`#1008` 第二半：**仓根顶层条目**守卫）。
+		//  刀打在**第 ① 支**（实际有、声明没有 ＝ **新顶层目录**走的那一支），且**不碰测试件**：
+		//  被测件＝白名单**数据**（`scripts/repo-shape.json`）—— 把 `docs` 这条改个名 ⇒ 仓根真实存在的
+		//  `docs/` 立刻成为「未登记的顶层条目」⇒ 与「新顶层目录」走**同一条比较分支**。
+		//  ⚠️ 反向那一支（声明有、实际没有）由 `test/repo-shape.mjs --selftest` 的 ② 组守 ——
+		//  两条一起才覆盖完整形状（只探一支 ＝ 让另一半悄悄腐烂）。
+		id: 'test/repo-shape.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/repo-shape.mjs',
+		mutation: {
+			file: 'scripts/repo-shape.json',
+			find: '"name": "docs",',
+			replace: '"name": "docs-probe-renamed",',
+		},
+		expect: { rc: 1, stdout: /unclaimed-top-level/ },
+		why: '量的是「仓根出现**未登记的顶层条目**时门会红并点名它」（误提交的临时件是**结构错**：`unclaimed-file` 只管源文件、`build.mjs` 只盯 `*.twee` ⇒ 拦不住顶层目录；来历＝#874 的 home/** 与 #1008 本片删掉的 tmp/mf3.json）—— 白名单里把 `docs` 改名 ⇒ 真实存在的 `docs/` 成为未登记项 ⇒ 门必须红并点名',
+	},
 ];

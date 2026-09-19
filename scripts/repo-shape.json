@@ -1,0 +1,26 @@
+{
+	"_why": "仓根顶层条目的**白名单**（`#1008` 第二半）。仓根出现未登记的顶层条目 ⇒ 门红并**点名**。",
+	"_origin": "来历：#874 那次把绝对路径产物顺手带进了提交（`home/sagitrs/tmp/sgstory-absout-N2eeOQ/index.html`，−9292 行才清掉）；`tmp/mf3.json` 是同一族的第二例（无人引用、86KB、内容是已删故事 1 的表 dump），本片一并删掉。",
+	"_rule": "新增顶层条目＝**结构决定** ⇒ 要有人名下的理由（写在这里）＋复核；误提交的临时件应当**删**，不是登记进来。",
+	"_scope": "只判**已入库**（tracked）的顶层条目。未入库的（`node_modules/`、`build/`、`dist/`、本地草稿）一律不看 —— 否则本机每次跑都会假红。",
+	"_where": "判据在 `scripts/repo-shape.mjs`，测试件在 `test/repo-shape.mjs`（含自证），探针在 `scripts/probes.mjs`。",
+	"allow": [
+		{ "name": ".github", "why": "CI 工作流（含只在 push to main 跑的 post-deploy-smoke）" },
+		{ "name": ".gitignore", "why": "忽略规则（`build/`、`dist/`、`/tmp/` 等）" },
+		{ "name": "LICENSE", "why": "代码授权" },
+		{ "name": "LICENSE-CONTENT.md", "why": "内容授权（与代码分开）" },
+		{ "name": "NOTICE", "why": "第三方来源声明" },
+		{ "name": "README.md", "why": "入口文档" },
+		{ "name": "TROUBLESHOOTING.md", "why": "排障手册" },
+		{ "name": "build.mjs", "why": "构建入口（`npm run build` ⇒ dist）" },
+		{ "name": "package-lock.json", "why": "依赖锁定" },
+		{ "name": "package.json", "why": "Node 清单与脚本" },
+		{ "name": "docs", "why": "文档、设计稿、台账与规范" },
+		{ "name": "editor", "why": "编辑器内核与宿主（编译、判据、Web 面）" },
+		{ "name": "scripts", "why": "门、报告、审计与测试跑器" },
+		{ "name": "src", "why": "引擎件（`*.twee`，加载顺序见 module-order）" },
+		{ "name": "stories", "why": "故事包（每故事一个目录 ＋ `00-story.json` 清单）" },
+		{ "name": "test", "why": "测试与自证件" },
+		{ "name": "vendor", "why": "第三方资产（霞鹜文楷字体、Twine 格式件）" }
+	]
+}

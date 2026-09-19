@@ -56,48 +56,13 @@ if (SELFTEST) {
 	                   // 既白花 ~15s（与主跑同价），又把「自证是否通过」和「主跑是否通过」混成一个退出码
 }
 
-// ── 真实运行：jsdom 渲染探针 ────────────────────────────────
-// 车卡：boot（d20 恒 11，中性）＋ 等链接出现再点（固定 sleep 在 2 核 runner 上会假失败）
-const { boot } = await import('./boot.mjs');   // #381 延迟加载：--selftest 不再付 jsdom 启动成本
-const { w, sleep, uncaught } = await boot({ random: 0.5 });
-const waitFor = async (fn, what, tries = 30) => {
-	for (let i = 0; i < tries; i++) { const v = fn(); if (v) return v; await sleep(100); }
-	throw new Error(`等不到「${what}」@ ${w.SugarCube.State.passage}`);
-};
-const clickLabel = async (label) => {
-	const a = await waitFor(() => [...w.document.querySelectorAll('#passages a.link-internal')].find((x) => x.textContent === label), label);
-	a.click(); await sleep(250);
-};
-await clickLabel('踏上旅途');
-await waitFor(() => w.document.querySelector('.choice-card'), '预设卡');
-const card = [...w.document.querySelectorAll('.choice-card')][0];
-const fast = await waitFor(() => [...card.querySelectorAll('a')].find((a) => a.textContent.includes('快速成型')), '快速成型');
-fast.click(); await sleep(300);
-await clickLabel('出发，前往歪脖子鸭酒馆');
-if (typeof w.SugarCube.State.variables.pc?.abilities?.str !== 'number') throw new Error('车卡后状态不完整');
-const snap = JSON.stringify(w.SugarCube.State.variables);
-const setPath = (path, val) => w.eval(`(function(){const v=SugarCube.State.variables;v.${path}=${JSON.stringify(val)}})()`);
-const render = (c) => {
-	w.eval(`(function(){const v=SugarCube.State.variables;for(const k of Object.keys(v))delete v[k];Object.assign(v,${snap});})()`);
-	setPath('era', c.era);
-	for (const [path, val] of Object.entries(c.set ?? {})) setPath(path, val);
-	return { play: c.p, state: c };
-};
-
-console.log('\n══ canon 规则层声称门（Game.Rules.claims）══');
-const claims = w.Game.RuleClaims.claims;
-console.log(`  声称 ${claims.length} 条｜canon 文档 ${DOC}`);
-const texts = new Map();
-for (const c of claims) {
-	render(c);
-	w.SugarCube.Engine.play(c.p);
-	await sleep(200);
-	texts.set(c.id, (w.document.querySelector('#passages')?.textContent ?? '').replace(/\s+/g, ' '));
-}
-const problems = checkClaims(claims, docText, (c) => texts.get(c.id) ?? null);
-if (problems.length) {
-	for (const p of problems) console.error(`  ✗ ${p}`);
-	console.error(`\n✗ canon 规则层声称门：${problems.length} 项`);
-	process.exit(1);
-}
-console.log('✔ 全部声称与正文一致（条文锚在文档中、探针在屏上/越界句不在屏上、无空探针）');
+// ⛔ **退役 ＋ 声明**（`#1004` B2b 复核席 ✓）：本件的**真数据半边**原样是——
+//   `boot()` 起**已删故事** `mist-forest` ⇒ 车卡三链 ⇒ 读 `Game.RuleClaims.claims` ⇒ 逐条渲染探针 ⇒ `checkClaims` 对 canon 文档。
+//   ⚠️ 面已消失 ✗（实测：`grep -rln 'RuleClaims\|rules\.claims' src/ stories/` ⇒ **零消费者** ✓；
+//   面夹具 `face-fixture` 只声明接入契约那些面，**不含 `RuleClaims`** ✓）
+//   ⇒ 无对象 ✓（不是判据坏了 ✓）。
+//   ⚠️ **声明** ✗：**「canon 规则层声称（`Game.RuleClaims.claims` ↔ canon 文档条文）」这一面自此无端到端守护** ✓
+//   ⇒ 日后要动它 ⇒ **先补一个带 `RuleClaims` 的样本** ✓（不为凑绿加样本 ✗）。
+//   ✓ 保留：`checkClaims()` 与 `--selftest` 的**全部合成用例原样在册** ✓（判定机制没丢 ✓，重开时按原形状接回即可 ✓）。
+console.log('\n✔ canon 规则层声称门：⛔ 真数据半边随 `mist-forest` 退役（声明见上 ✗）—— `--selftest` 的合成用例仍全在 ✓');
+process.exit(0);

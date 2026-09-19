@@ -19,6 +19,7 @@
 // ⚠️ jsdom 收场纪律：`pretendToBeVisual` 用 **false** ＋ **显式** `window.close()` ＋ 最后**显式** `process.exit(rc)` ✓。
 
 import { readFileSync, readdirSync } from 'node:fs';
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b：默认故事走单一权威 ✓
 import { JSDOM } from 'jsdom';
 import { loadPackage } from '../editor/web/loader.mjs';
 import { renderReadFaces, storyReadsOf } from '../editor/web/read-faces-view.mjs';
@@ -28,7 +29,9 @@ import { fingerprintOf } from '../editor/lib/core/fingerprint.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const nodeIo = () => ({ readText: (p) => readFileSync(`${ROOT}/${p}`, 'utf8') });
-const slug = 'mist-forest';
+// `#1004` B2b ✓：换到**默认故事**（面夹具 ✓）；下面对路径/来源的断言也一并用 `slug` 表达 ✗（不再写死旧名 ✓）。
+const SLUG = DEFAULT_SLUG;
+const slug = SLUG;
 /** 真文件 → 浏览器 File 形状（A 片取件面吃它 ✓）。 */
 const pickedFiles = ({ withTwee = true } = {}) => {
 	const dir = `${ROOT}/stories/${slug}`;
@@ -65,8 +68,10 @@ try {
 	t('① 真数据：① 级 0 处 ✓（能假的另一半：不是"永远报错" ✓）', page.rows.length > 0 && page.problems.length === 0);
 
 	// ── ② 级：页内只列不判（读数 ✓）──────────────────────────────────────────
-	t('② 真数据：**段落源取到了** ✓（16 件 twee ✓）＋ ② 清单非空 ✓', page.sourceFiles === 16 && page.hits.length > 0);
-	t('② 清单**逐条列出** ✓（`file:line` ＋ 段落名 ＋ 键 ✓，不是只报个数 ✗）', /· stories\/mist-forest\/.*\.twee:\d+ 「.+」\S+/.test(text()));
+	// `#1004` B2b ✓：原写死 `=== 16` ✗（那是已删故事的 twee 件数 ✓）⇒ 改成**派生**（＝本包真取到的件数 ✓）
+	// ＋ 仍要求 ② 清单**非空** ✓（否则这条读数是空的 ✓ —— 面夹具实测 `hits=4` ✓）。
+	t(`② 真数据：**段落源取到了** ✓（${pkg.sources.length} 件 twee ✓）＋ ② 清单非空 ✓`, page.sourceFiles === pkg.sources.length && pkg.sources.length > 0 && page.hits.length > 0);
+	t('② 清单**逐条列出** ✓（`file:line` ＋ 段落名 ＋ 键 ✓，不是只报个数 ✗）', /· stories\/[a-z-]+\/.*\.twee:\d+ 「.+」\S+/.test(text()));
 	t('② **分面计数**在读数里 ✓（叙述／故事机制 ✓）', /② 故事面字面状态读（\*\*读数\*\*/.test(text()) && /叙述 \d+ · 故事机制\/声明 \d+/.test(text()));
 	t('② 页内**不判红**那半写明 ✓（判红要 `Sg.Notes.entries` ＋ 该故事基线 ⇒ 页内拿不到 ✓）', /页内\*\*不判\*\*/.test(text()) && /`Sg\.Notes\.entries`（引擎侧）/.test(text()) && /该故事读基线（宿主 io）/.test(text()));
 	t('② **机制面 `src/**` 不在页内**写明 ✓', /机制面（`src\/\*\*`）不在页内/.test(text()));
@@ -83,7 +88,18 @@ try {
 		const a = storyReadsOf(pkg.sources);
 		const b = storyReadsOf([...pkg.sources].reverse());   // 源顺序打乱 ⇒ 清单应按 `file` 归位（调用方排序 ✓）
 		t('⑦ **顺序可复现** ✓：`sources` 已按 `file` 排 ⇒ 同输入两次逐条相同 ✓', JSON.stringify(a) === JSON.stringify(storyReadsOf(pkg.sources)));
-		t('⑦ 清单里**同名段落跨文件不并** ✗（如实都在 ✓ —— 按 `file` 分列 ✓）', new Set(a.map((h) => h.file)).size >= 2);
+		// `#1004` B2b ✓：原写法拿**真数据**要求"≥2 个不同 file" ✗ —— 而面夹具把内容收在**一个**文件里 ✓
+		// ⇒ 真数据上这条**没有对象** ✗（不是判据坏了 ✓）⇒ 改用**合成两文件**输入 ✓：
+		// 判据本身（同名段落跨文件**不许并成一条**、要按 `file` 分列 ✓）与样本内容无关 ✓。
+		{
+			const two = [
+				{ file: 'a.twee', text: ':: 同名段\n<<if $pc.ev.k1>>甲<</if>>\n' },
+				{ file: 'b.twee', text: ':: 同名段\n<<if $pc.ev.k2>>乙<</if>>\n' },
+			];
+			const h = storyReadsOf(two);
+			t('⑦ 清单里**同名段落跨文件不并** ✗（合成两文件：两条都在 ＋ 各带自己的 `file` ✓）',
+				h.length >= 2 && new Set(h.map((x) => x.file)).size === 2);
+		}
 		void b;
 	}
 
@@ -102,7 +118,7 @@ try {
 		t('④ ① **两侧同判**在合成输入上也成立 ✓', JSON.stringify(r2.problems) === JSON.stringify(tableReadProblems(synth)));
 
 		// ② 的刀：注入一个**源里没有的键** ⇒ 清单必变 ✓
-		const badSource = [{ file: 'stories/mist-forest/zz-probe.twee', text: ':: 探针\n<<if $pc.ev.brand_new_key>>x<</if>>\n' }];
+		const badSource = [{ file: `stories/${slug}/zz-probe.twee`, text: ':: 探针\n<<if $pc.ev.brand_new_key>>x<</if>>\n' }];
 		const r3 = renderReadFaces({ doc, pkg: { data: pkg.data, sources: badSource } });
 		t('④ **② 的刀** ✗：注入源里没有的键 ⇒ ② 清单**必变**且点名 ✓', r3.hits.length === 1 && r3.hits[0].key === 'ev.brand_new_key' && /brand_new_key/.test(text()) && !text().includes('「门厅取物」'));
 	}

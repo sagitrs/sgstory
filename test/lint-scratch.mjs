@@ -111,9 +111,14 @@ for (let round = 1; round <= ROUNDS; round += 1) {
 //   与本件同相并发）跑出瞬时 `.lint-run-*` 就会被读成"自己留了草稿" ⇒ 假红（撞上就红、撞不上就绿）。
 //   同型教训本仓已有：`test/equiv-scratch.mjs`（`#1004`）的 `newScratch = (base) => …filter((n) => !base.includes(n))`
 //   —— 本件首版把 `before` 取了只用来打印，等于**又踩一遍**同一个坑（CI 实证：`现有 1 个；跑前 0 个`）。
+// ⚠️ **只作提示，不作判据**（本片合入后 CI 实证的第二次同类坑 ✗）：`build/generated/` 是**共享目录**，
+//   同相并发的兄弟段（`test-plan` 的 `test-lint-story-mjs`）会**正当地持有**自己的 `.lint-run-*`
+//   ⇒ ⇒ 在**本件窗口内新出现**的那些**无法归因**（可能是兄弟的活草稿，不是本件"没清"）✗
+//   ⇒ 上一版把它当失败判据 ⇒ CI 间歇红（`✗ 跑完不留…（新出现 1 个：.lint-run-ewUcsQ）`）。
+//   ⇒ 要判"本件自己的草稿清没清"，必须先让 scratch **可归因**（例如给中间目录打上本进程的标记）
+//   ⇒ 那是另一件（本件不塞）。此处只打印，读的人自己看基数。
 const freshLeft = scratchLeftIn(GEN).filter((n) => !before.includes(n));
-if (freshLeft.length) failures += 1;
-console.log(`${freshLeft.length === 0 ? '✓' : '✗'} 跑完不留**本次新出现**的草稿目录（新出现 ${freshLeft.length} 个${freshLeft.length ? `：${freshLeft.join('、')}` : ''}；跑前 ${before.length} 个）`);
+console.log(`• 提示（不作判据）：跑完 build/generated/ 里比跑前多 ${freshLeft.length} 个 .lint-run-*（跑前 ${before.length} 个）—— 共享目录里**无法归因**是否有本件没清的（并发兄弟会正当地持有自己的）`);
 
 const oldLeft = oldLocationProblems({ genDir: GEN, slug: SLUG });
 if (oldLeft.length) failures += 1;
@@ -123,4 +128,4 @@ if (failures) {
 	console.error(`✗ lint-story 并发自证未过 ${failures} 项 —— scratch 必须**本次运行唯一**（\`#1024\`）`);
 	process.exit(1);
 }
-console.log(`✔ lint-story 并发：${ROUNDS} 轮 × ${CONC} 进程跑同一 slug 全绿 ＋ 旧落点未被重建 ＋ 不留草稿（scratch 本次运行唯一 ✓）`);
+console.log(`✔ lint-story 并发：${ROUNDS} 轮 × ${CONC} 进程跑同一 slug 全绿 ＋ 旧落点未被重建（scratch 本次运行唯一 ✓）`);

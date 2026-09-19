@@ -12,7 +12,9 @@ import { loadPackage } from '../editor/web/loader.mjs';
 import { compileInPage, compileSummary, assertCompiled } from '../editor/web/compile.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
-const SLUGS = ['minimal-demo', 'hollow-cave', 'mist-forest'];
+// `#1004` B2：旧故事（`mist-forest`／`hollow-cave`）已删 ⇒ 对拍名单＝**仓内现存故事** ✓
+// （本件对拍的是「页内编译 ↔ 仓内产物」这条链 ✓ —— 与故事内容无关 ✗ ⇒ 换样本即可 ✓）
+const SLUGS = ['minimal-demo', 'night-ferry'];
 
 /** 测试侧的 io：从**真仓**读（浏览器侧用的是用户选的文件 ✓ —— 同一件 `readText` 面 ✓）。 */
 const repoIo = (slug) => {
@@ -26,20 +28,24 @@ const repoIo = (slug) => {
 let bad = 0;
 const t = (label, ok) => { if (ok) console.log(`  ✓ ${label}`); else { bad += 1; console.error(`  ✗ ${label}`); } };
 
-// ── 主跑：三故事 × 逐字节对拍（对拍对象＝仓内**产物** ✓，那是 CLI 的结论 ✓）
+// ── 主跑：存故事 × 逐字节对拍（对拍对象＝仓内**产物** ✓，那是 CLI 的结论 ✓）
 let compared = 0;
+const perSlug = new Map();   // `#1004` B2：故事数会变（3 ⇒ 2 ✓）⇒ 判据不押"恰好几件"✗、改押"**每个故事都真的比到了**"✓
 for (const slug of SLUGS) {
 	const io = repoIo(slug);
 	const pkg = loadPackage({ slug, io });
 	const out = assertCompiled(compileInPage({ slug, data: pkg.data }));
+	perSlug.set(slug, 0);
 	for (const name of out.names) {
 		const onDisk = join(ROOT, 'stories', slug, name);
 		if (!existsSync(onDisk)) { t(`${slug}/${name}：产物在仓里存在 ✓`, false); continue; }
 		compared += 1;
+		perSlug.set(slug, perSlug.get(slug) + 1);
 		t(`${slug}/${name}（${out.files[name].length}B）与 CLI 产物**逐字节同** ✓`, readFileSync(onDisk, 'utf8') === out.files[name]);
 	}
 }
-t(`对拍件数 > 0（空对拍＝空读数 ✗）`, compared >= 4);
+t(`对拍件数 > 0（空对拍＝空读数 ✗）`, compared >= 1);
+for (const [slug, n] of perSlug) t(`${slug}：至少比到 1 件（故事被换掉／名单写歪 ⇒ 红 ✗）`, n >= 1);
 
 // 反例：**源被动过** ⇒ 必须与仓内产物**不同** ✗（证明对拍真在比东西 ✓）
 const pkg = loadPackage({ slug: 'minimal-demo', io: repoIo('minimal-demo') });

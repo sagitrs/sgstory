@@ -42,7 +42,9 @@ console.log('══ 门发现与归属门（#607 P0）══');
 	t('反例⑦：故事门偷用引擎 flag ⇒ 报', judgeGateSet({ gates: [g(['waves'], 'stories/a/gates/w.mjs')] }).some((p) => /引擎层/.test(p)));
 	t('反例⑧：未登记执行顺序 ⇒ 报', judgeGateSet({ gates: [g(['brand-new'], 'stories/a/gates/n.mjs')] }).some((p) => /未在 `GATE_ORDER`/.test(p)));
 	t('反例⑨：僵尸顺序键 ⇒ 报', judgeOrderCoverage({ keys: ['truth'] }).some((p) => /已无对应门/.test(p)));
-	t('正例：`sel`/`nosl`/`gear` 这类别名组合不误报（key 排序拼接）', judgeGateSet({ gates: [g(['sel', 'nosl'], 'x'), g(['sel', 'gear'], 'y')] }).length === 0 && gateKey({ flags: ['sel', 'nosl'] }) === 'nosl+sel');
+	// `#1004` B2 ✓：`order` 显式传入 —— 别名门（`nosl+sel` 这类**多 flag 组合**）随旧故事一起没了 ✓，
+	//   仓内现存门都是单 flag ✓ ⇒ 要证"**别名组合不会互相误报**"这条 ✓，就得自备一张顺序表 ✓（本格本来就是合成的 ✓）。
+	t('正例：`sel`/`nosl`/`gear` 这类别名组合不误报（key 排序拼接）', judgeGateSet({ gates: [g(['sel', 'nosl'], 'x'), g(['sel', 'gear'], 'y')], order: ['nosl+sel', 'gear+sel'] }).length === 0 && gateKey({ flags: ['sel', 'nosl'] }) === 'nosl+sel');
 }
 
 // ── A7 归属守卫（纯函数；P0 尚无已声明的门 ⇒ 用合成数据证明它咬得住）──────────
@@ -107,15 +109,23 @@ for (const slug of slugs) perStory[slug] = await gatesForStory(slug);
 // 为什么要有这条：他故事的门只被**它所属的故事**选中，而"他故事的全跑"此前**无路可走**
 // （`--story X` 单独给 ⇒ "没有选中任何门"退 2）⇒ golden 的 `not-in-full-run` 交叉核对无法按归属比。
 // 与 `--engine-only`（`#572`）同源：选择已由 `selected` 定，修饰符不该被当成"必须再点一个门"。
+//
+// `#1004` B2 ✓：旧故事（`mist-forest`／`hollow-cave`）已删 ⇒ 本块换到**存活样本** ✓。
+//   ⛔ 同时 **退役两格 ＋ 声明** ✗（是**对象消失** ✓，不是判据坏了 ✗）：两存活样本的 `00-story.json` 都是 `"gates": []` ✓
+//   ⇒ 仓内**再无"住故事侧的门"** ✗ ⇒ 「该跑含**本故事自己**的门（洞窟声明面／战斗分布口径门）」与
+//   「**不含**别故事的门（作用域没串）」这两格**无对象可量** ✓。
+//   ⇒ 日后有故事声明门 ⇒ 照本件 `perStory` 那半恢复这两格 ✓（本轮**不**拿合成数据"补"它 ✗ ——
+//     合成数据只能证函数 ✓，证不了"真作用域没串" ✗，而那正是这两格的价值 ✓）。
 {
 	const run = (args) => {
 		try { return { code: 0, out: execFileSync('node', ['scripts/audit.mjs', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) }; }
 		catch (e) { return { code: e.status ?? 1, out: `${e.stdout ?? ''}${e.stderr ?? ''}` }; }
 	};
-	const hollow = run(['--story', 'hollow-cave']);
-	t('`--story hollow-cave` 单独给 ⇒ rc=0（本故事作用域全跑）', hollow.code === 0, `rc=${hollow.code}`);
-	t('…且该跑确实含**故事 3 自己的门**（洞窟声明面／战斗分布）', /洞窟声明面|战斗分布口径门/.test(hollow.out));
-	t('…且**不含**故事 1 的门（作用域没串）', !/文字工艺门|canon 门/.test(hollow.out));
+	const scoped = run(['--story', 'minimal-demo']);
+	const engine = run(['--engine-only']);
+	t('`--story minimal-demo` 单独给 ⇒ rc=0（本故事作用域全跑）', scoped.code === 0, `rc=${scoped.code}`);
+	t('…且作用域**真的大于**引擎层（`--story` 确打开了非引擎门，不是静默退化成 `--engine-only`）',
+		!/⓪s 可访问性门/.test(engine.out) && /⓪s 可访问性门/.test(scoped.out));
 	t('`--check` 单独给（既没点故事也没点门）⇒ rc=2（防假绿守卫不变）', run(['--check']).code === 2);
 }
 

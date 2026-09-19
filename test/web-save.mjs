@@ -15,7 +15,9 @@ import { compileInPage } from '../editor/web/compile.mjs';
 import { savePackage, collectIo, asDownloads, saveSummary, expectedDataFiles } from '../editor/web/save.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
-const SLUGS = ['minimal-demo', 'hollow-cave', 'mist-forest'];
+// `#1004` B2：旧故事（`mist-forest`／`hollow-cave`）已删 ⇒ 写包对拍名单＝**仓内现存故事** ✓
+// （对拍的是「唯一写路 ↔ CLI 产物」✓ —— 与故事内容无关 ✗ ⇒ 换样本即可 ✓）
+const SLUGS = ['minimal-demo', 'night-ferry'];
 const rdData = (slug) => {
 	const out = {};
 	for (const p of expectedDataFiles(slug)) {
@@ -29,10 +31,12 @@ let bad = 0;
 const t = (label, ok) => { if (ok) console.log(`  ✓ ${label}`); else { bad += 1; console.error(`  ✗ ${label}`); } };
 
 let compared = 0;
+const perSlug = new Map();   // `#1004` B2：故事数会变（3 ⇒ 2 ✓）⇒ 判据不押"恰好几件"✗、改押"**每个故事都真的比到了**"✓
 for (const slug of SLUGS) {
 	const data = rdData(slug);
 	const twee = compileInPage({ slug, data }).files;
 	const saved = savePackage({ slug, data, twee });
+	perSlug.set(slug, 0);
 
 	// 判据③：与**仓内 artifacts** 逐字节同 ✓（"CLI 结论一致"的前半 ✓）
 	for (const [path, text] of Object.entries(saved.files)) {
@@ -40,6 +44,7 @@ for (const slug of SLUGS) {
 		const abs = join(ROOT, path);
 		if (!existsSync(abs)) continue;
 		compared += 1;
+		perSlug.set(slug, perSlug.get(slug) + 1);
 		t(`${slug}/${path.split('/').pop()}（${text.length}B）与仓内产物**逐字节同** ✓`, readFileSync(abs, 'utf8') === text);
 	}
 
@@ -63,7 +68,8 @@ for (const slug of SLUGS) {
 	});
 	t(`${slug}：数据面 JSON round-trip 一致 ✓`, dataOk);
 }
-t('对拍件数 > 0（空对拍＝空读数 ✗）', compared >= 4);
+t('对拍件数 > 0（空对拍＝空读数 ✗）', compared >= 1);
+for (const [slug, n] of perSlug) t(`${slug}：至少比到 1 件（故事被换掉／名单写歪 ⇒ 红 ✗）`, n >= 1);
 
 // 反例：**空包** ⇒ 必须响亮抛错 ✗（不许"写出 0 件"当通过 ✓）
 let msg = '';

@@ -1,5 +1,5 @@
 
-import { defaultStoryHtml, storyHtml, DEFAULT_SLUG, readStory } from '../scripts/dist-paths.mjs';
+import { defaultStoryHtml, storyHtml, DEFAULT_SLUG, readStory, STORIES_DIR } from '../scripts/dist-paths.mjs';
 import { pathToFileURL } from 'node:url';
 // 共享 JSDOM boot（白盒检视 A9 修复）：#27 的 pollUntil 就绪轮询 + 坑11 的 uncaught 监听
 // 统一进此 helper——修复辐射不再依赖"记得改每个文件"。
@@ -11,7 +11,7 @@ import { pathToFileURL } from 'node:url';
 //   ② boot 出来的每个窗口登记在 live 里，beforeExit / exit / SIGINT / SIGTERM 统一 close。
 // 于是脚本不再需要自己收场，`await boot()` 的脚本跑完就退。
 import { readFileSync, existsSync } from 'node:fs';
-import { isAbsolute } from 'node:path';
+import { isAbsolute, join } from 'node:path';
 import { assertFreshDist } from '../scripts/dist-fresh.mjs';
 import { JSDOM, VirtualConsole } from 'jsdom';
 // `#761` P1 六片A：**取渲染文本只有一处** ✓ —— 本文件与页面侧同用 `lib/core/preview.mjs` ✓
@@ -31,7 +31,23 @@ const htmlOf = (story) => {
 	if (!HTML_OF.has(key)) HTML_OF.set(key, readFileSync(path, 'utf8'));
 	return HTML_OF.get(key);
 };
-const entryOf = (story) => readStory(story ?? DEFAULT_SLUG).entry ?? '开场';
+// ⚠️ **清单读不到 ⇒ 点名** ✗（`#215` 发起者裁 ②(b) ✓：行为不变 ✓、只把话说清 ✓）。
+//   为什么值得写一句 ✗：`storyHtml()` 那步**按绝对路径处理** ✓，但**清单**这步仍是 `stories/<slug>/00-story.json`
+//   ⇒ 传绝对路径会被**当 slug** 拼出一个古怪的路径 ✗ ⇒ 旧行为是裸 ENOENT（看着像"文件没了" ✗，其实是"口径只支持 slug"✓）。
+const entryOf = (story) => {
+	const key = story ?? DEFAULT_SLUG;
+	try {
+		return readStory(key).entry ?? '开场';
+	} catch (cause) {
+		const looked = join(STORIES_DIR, key, '00-story.json');
+		throw new Error(
+			`boot({story}) 读不到故事清单 ✗：story＝「${key}」⇒ 找的是「${looked}」\n` +
+			'  ⚠️ 口径 ✓：**页面**那步收绝对路径 ✓（`storyHtml` 会按绝对处理 ✓），**清单**这步只认 `stories/<slug>/` ✓' +
+			' ⇒ **交互式加载仓外故事包暂不支持** ✗（P4 的内容面就在仓内 ✓；真要用仓外包时另开票 ✓）',
+			{ cause },
+		);
+	}
+};
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 // ── dist 过期守卫：实现已抽到 scripts/dist-fresh.mjs（#319③，测试与 audit 共用一处）──

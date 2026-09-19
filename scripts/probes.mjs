@@ -210,4 +210,21 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /发现了却没进编排/ },
 		why: '量的是「**发现 ≠ 覆盖**」那一步真的在守（让 `missingFromPlan` 恒不报 ⇒ `test/story-ci.mjs` 的“能假”那条必红 ✓）—— 否则“新故事自动被覆盖”只是句口号 ✗',
 	},
+	{
+		// `#215` 裁 (B) ✓：**兜底必须标出来**那一步真的在守 ✗（掐掉 `fallback: true` ⇒ 轨迹里出现
+		//  "既无 `choiceKey`、也没标兜底"的步 ⇒ 自证的那条"按 key 可复跑"必红 ✓）
+		//  ⚠️ 为什么用这一刀 ✗：它正是发起者点名的那一格（"兜底命中时要在 trace 里标出来 ✗，
+		//  免得'按 key 可复跑'被兜底悄悄破掉 ✓"）⇒ **因果相关 ＋ 确定性** ✓（不碰并发面 ✓）。
+		id: 'test/witness-trace.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/witness-trace.mjs',
+		mutation: {
+			file: 'test/walker.mjs',
+			find: "step.fallback = true;",
+			replace: "/* 探针：兜底不再标出 ✓ */ step.choiceLabel = step.choiceLabel;",
+		},
+		expect: { rc: 1, stdout: /兜底/ },
+		why: '量的是「**label 兜底真的被标出来**」（掐掉 `fallback: true` ⇒ 轨迹里那几步既无 key、也没标兜底 ⇒ 自证的"按 key 可复跑"那条必红 ✓）—— 否则"兜底是必要的 ✓ 但要显式"只写在注释里 ✗',
+	},
 ];

@@ -156,6 +156,7 @@ window.Game.Chargen = {
 钉子旁边那圈灰不太对。
 <<sitecheck "门厅·看钉">>
 <<lastcheckFor "门厅·看钉">>
+<<link "把钉子上的灰吹一吹">><<sitecheck "门厅·看钉">><<goto "门厅">><</link>>
 [[回门厅|门厅]]
 
 :: 塔外花田

@@ -15,7 +15,7 @@
 //   node scripts/report-gate-ledger.mjs --selftest # 自证（合成输入，验判定会咬）
 
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
-import { planChain } from './test-plan.mjs';
+import { planChain, testPlan } from './test-plan.mjs';
 import { maskComments } from '../editor/lib/core/mask.mjs';   // `#899` ③：**同一把刀**（全仓唯一遮蔽器 ✓ —— 不新增第二份 ✗）
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
@@ -175,9 +175,37 @@ const push = (id, kind, wired, selfProof, extra = {}) => {
  * **量法（可粘贴复跑 ✓）**：`node scripts/report-gate-ledger.mjs --selftest`（四条正反例 ✓）＋ `--update` 看那一列的变化 ✓。 */
 export const hasSelfProof = (src) => /负例|反例|selftest/.test(maskComments(String(src ?? ''), { file: 'ledger', twee: false }));
 
+/** `#1019` ④ ✓：自证列**从"关键词代理"升级为"**要求接线 + 读到执行**"** ✗。
+ *
+ * 洞（实测 ✓）：`test/repo-shape.mjs` 那类件**写了 `--selftest` 且实现了** ✓，但 `test-plan.mjs` 里**只登记了正跑**、
+ * `--selftest` **零调用点** ✗ ⇒ 旧口径（只看关键词）照样标 `✅` ⇒ **自证在 CI 里从未真跑过**却看上去有。
+ *
+ * 新口径两条**都得满足** ✓：
+ *   ① **实现**：件里确实有"反例/负例/selftest"的**代码/字符串面**信号（剥注释 ✓ —— 保留旧口径的能假那半 ✓）；
+ *   ② **接线**：`test-plan.mjs` 里存在一个段，其 `cmd` 真跑 `test/<f> --selftest`（**逐字匹配命令** ✓，
+ *      不是"有个名字像的 id"✗）⇒ 即"**该自证真的在链上会跑**" ✓。
+ *
+ * ⚠️ **做到哪一步要写清** ✗：本函数验的是「**接线**」（静态、确定、可机判 ✓），它**不验**"最近一次实跑 rc=0" ——
+ *   那需要**跑器落读数文件**（现无此产物 ✓；且落地要考虑它对 `--check` 在干净树上确定性的影响 ⇒ 另议 ✓）。
+ *   ⇒ 这一格**只说它真正比过的东西**（本仓老口径 ✓）。
+ *
+ * **量法（可粘贴复跑 ✓）**：`node scripts/report-gate-ledger.mjs --selftest`（含本函数正反例 ✓）
+ *   ＋ 把某件的 `-selftest` 段从 `test-plan.mjs` 拿掉 ⇒ 该行**当场从 `✅` 变 `—`** ✓（这就是它的能假那一半 ✓）。 */
+export const selfProofWired = (file, src, { plan = testPlan() } = {}) => {
+	if (!hasSelfProof(src)) return false;                       // ① 实现面（剥注释后确有"反例/负例/selftest"的信号 ✓）
+	const code = maskComments(String(src ?? ''), { file, twee: false });
+	// ② **只对"暴露了 `--selftest` 入口"的件**追加接线要求 ✗ ——
+	//   ⚠️ 否则**过严**：多数件把负控制**写在主跑里**（顶层 `t('🔴 反例：…')` ✓ 由主段执行 ⇒ 自证**确实在跑** ✓），
+	//   要求它们也单独接一个 `--selftest` 段 ＝ 逼人加空壳 ✗（实测：一刀切会把 21 行从 ✅ 打成 `—`，
+	//   行为化率 69.8% ⇒ 43.8% ✓ —— 那是**量法错**，不是真相 ✓）。
+	//   ⇒ 真正要守的那一格是 `#1018` 的形状：**件里实现了 `--selftest` 却没接线** ⇒ 那句"自证"在 CI 里从未跑过 ✗。
+	if (!/--selftest/.test(code)) return true;                  // 无 selftest 入口 ⇒ 无接线可要求 ✓
+	return plan.some((seg) => typeof seg?.cmd === 'string' && seg.cmd.includes(`test/${file} --selftest`));
+};
+
 for (const f of auditFlags) push(`audit:${f}`, 'audit 开关', testChain.includes(`scripts/audit.mjs --${f} --check`), auditSelfProof(f), { hasAssert: gateHasAssert(f) });
 for (const f of reportScripts) push(`scripts/${f}`, '报告脚本', testChain.includes(`scripts/${f}`), readFileSync(`scripts/${f}`, 'utf8').includes('--selftest'));
-for (const f of testFiles) push(`test/${f}`, '测试脚本', testChain.includes(`test/${f}`), hasSelfProof(readFileSync(`test/${f}`, 'utf8')));
+for (const f of testFiles) push(`test/${f}`, '测试脚本', testChain.includes(`test/${f}`), selfProofWired(f, readFileSync(`test/${f}`, 'utf8')));
 
 // ── 判定 ─────────────────────────────────────────────────────────────
 // 链上出现的 audit 开关（用于「幻影门」反向查：链里跑了但 audit 里没有 = 手打字面量漂移/已删除）
@@ -269,6 +297,15 @@ const selftest = () => {
 	h('`hasSelfProof`：**只在注释里**写「反例/selftest」⇒ false ✗（旧口径在这里会误判 ✅ ✗）', hasSelfProof('// 本文件有 selftest 与反例\nconsole.log("hi");\n') === false);
 	h('`hasSelfProof`：只在块注释里写 ⇒ 同样 false ✗', hasSelfProof('/* selftest */\nconst x = 1;\n') === false);
 	h('`hasSelfProof`：什么都没写 ⇒ false ✓（能假的另一半 ✓）', hasSelfProof('const x = 1;\n') === false);
+	// `#1019` ④：**接线面**（新口径）—— 两格成对 ✗：写了实现 ＋ **已接线** ⇒ true；写了实现但**未接线** ⇒ false。
+	h('`selfProofWired`：**无 `--selftest` 入口**（负控制写在主跑里）⇒ 不看接线，true ✓',
+		selfProofWired('x.mjs', 't("🔴 反例：…", () => 1)', { plan: [{ cmd: 'node test/x.mjs' }] }) === true);
+	h('`selfProofWired`：**有 `--selftest` 入口 ＋ 已接线** ⇒ true ✓',
+		selfProofWired('x.mjs', 'if (process.argv.includes("--selftest")) {} t("反例：…", () => 1)', { plan: [{ cmd: 'node test/x.mjs --selftest' }] }) === true);
+	h('🔴 `selfProofWired`：**有 `--selftest` 入口但未接线** ⇒ false ✓（`#1018` 那个形状 ✓）',
+		selfProofWired('x.mjs', 'if (process.argv.includes("--selftest")) {} t("反例：…", () => 1)', { plan: [{ cmd: 'node test/x.mjs' }] }) === false);
+	h('`selfProofWired`：没实现 ⇒ false ✓（能假的另一半 ✓）',
+		selfProofWired('x.mjs', 'const a = 1;', { plan: [{ cmd: 'node test/x.mjs --selftest' }] }) === false);
 	// `#908` ②：**形态**判定（纯函数 ✓）—— 修掉的正是"测试脚本无条件算行为化"那一处自相矛盾 ✗
 	h('`formOf`：测试脚本 ＋ **无自证** ⇒ \`行为化（缺自证）\` ✓（旧写法会误标 `行为化` ✗ ⇒ 进不了工作清单 ✗）', formOf({ kind: '测试脚本', selfProof: false }) === '行为化（缺自证）');
 	h('`formOf`：测试脚本 ＋ **有自证** ⇒ `行为化` ✓（能假的另一半 ✓）', formOf({ kind: '测试脚本', selfProof: true }) === '行为化');
@@ -297,7 +334,7 @@ const selftest = () => {
 		console.log(`${ok ? '✓' : '✗'} ${name}（命中 ${got}，期望 ${want}）`);
 	}
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过：仅登记无理由红 / 未接线无理由红 / 合规绿 / 有理由的仅登记绿 ＋ `hasSelfProof` 四条正反例（注释不算 ✓）');
+	console.log('\n✔ 自证通过：仅登记无理由红 / 未接线无理由红 / 合规绿 / 有理由的仅登记绿 ＋ `hasSelfProof` 四条正反例（注释不算 ✓）＋ `#1019` **接线面**四条正反例 ✓');
 };
 
 export const rowIds = rows.map((r) => r.id);

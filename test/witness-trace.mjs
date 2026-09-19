@@ -5,11 +5,13 @@
 //     **② 同一 `seed` ＋ 同一 key 序列 ⇒ 逐格复跑，屏序列逐字相同** ✓、
 //     **③ 断言真的在守**（走不到 ending ⇒ 红并点名 ✓；事件数 < K ⇒ 红并点名 ✓）。
 //   ⚠️ 本件**只读** `build/witness-trace.json`（gitignored ✓）＋ **不并进** audit（报告型 ✓ 同 scenarios 家的口径 ✓）。
-//   📌 **已知输入** ✗（发起者踩过 ✓）：本件**要 jsdom** ✓ ⇒ **新开的 worktree 没有 `node_modules`** ✗
-//     ⇒ 先 `ln -s <主仓>/node_modules node_modules` ✓，否则会 `ERR_MODULE_NOT_FOUND` ✗
-//     （**那不是功能红** ✗ —— 别把它当本片的缺陷 ✓）。
+//   📌 **已知输入（两句 ✓ —— 本仓今晚已踩过同族现象 ✗，先备好省一次误判 ✓）**：
+//     ① **先 `node build.mjs`** ✗（本件读 `dist/` 与 `build/` ✓ —— `boot()` 有 dist 新鲜度守卫 ✓
+//         ⇒ 不在构建相里跑 ⇒ 会红成"产物过期"✗，那不是功能红 ✓）；
+//     ② **软链依赖** ✗：本件**要 jsdom** ✓ ⇒ **新开的 worktree 没有 `node_modules`** ✗ ⇒ 先
+//        `ln -s <主仓>/node_modules node_modules` ✓，否则 `ERR_MODULE_NOT_FOUND` ✗（也不是功能红 ✓）。
 import { execFileSync } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname;
@@ -64,6 +66,37 @@ else if (!/K=99/.test(r4.out)) bad.push(`③ 红得对、但报文没点名事�
 // ⚠️ 另钉一格 ✗：**K 一变大、扫描不能"遇到第一个结局就收工"** ✓ —— 若那样，这条会报"没走到 ending"而不是"太短" ✓
 else if (!/太短/.test(r4.out)) bad.push(`③ 报文没点出"到过结局但**太短**" ✗ ⇒ 扫描多半是"遇到第一个结局就收工"了 ✓\n${r4.out.slice(-300)}`);
 
+// ⑤ `--verify=<trace>` ✗（`#991` 批的**见证面**加法 ✓）：把**冻存轨迹当输入**核验 ✓
+//   为什么单列 ✗：**同 `seed` ⇒ 同 key 序列**只让轨迹"成因可复现" ✓ ⇒ 冻存的 JSON 若没人核 ✗
+//   ⇒ "逐格可复跑"就只是报告里的一句话 ✓（P4 要**可机判** ✗）。
+// ⚠️ 注意 ✗：③ 的负例跑完会把 `build/witness-trace.json` 覆盖成"**没命中**"的那份（`seed: null` ✓、`steps: []` ✓）
+//   ⇒ 所以这里**自己先产出一次** ✓，核验的才是"真轨迹"✓（否则验的是上一格的残留 ✓）。
+const r5prod = witness(['--scan=3', '--max-steps=40', '--min-events=3']);
+if (r5prod.rc !== 0) bad.push(`⑤ 产出真轨迹失败 ✗（rc=${r5prod.rc}）\n${r5prod.out.slice(-300)}`);
+else if (r1.rc === 0 && existsSync(TRACE)) {
+	// ⑤-1 正例 ✓：冻存轨迹**自身**核得过 ✓
+	const rv = witness([`--verify=${TRACE}`]);
+	if (rv.rc !== 0) bad.push(`⑤ --verify 正例应 rc=0 ✗（实际 ${rv.rc}）\n${rv.out.slice(-300)}`);
+	else if (!/逐格一致/.test(rv.out)) bad.push(`⑤ --verify 通过了却没报"逐格一致" ✗\n${rv.out.slice(-200)}`);
+	// ⑤-2 ⚠️ **轨迹刀** ✗：改掉某一步的 `choiceKey`（改成**不存在的 key** ✓）
+	//    ⇒ `--verify` **必须红并点名第几步** ✗ ⇒ 否则"逐格可复跑"是口号不是判据 ✓
+	const t = traceOf();
+	const i = t.steps.findIndex((x) => x.choiceKey);
+	if (i < 0) bad.push('⑤ 轨迹里没有一步带 `choiceKey` ✗ ⇒ 轨迹刀没处下 ✓（口径要求 key 优先 ✓）');
+	else {
+		t.steps[i].choiceKey = '这个-key-不存在';
+		const knife = join(ROOT, 'build', 'witness-trace.tamper.json');
+		writeFileSync(knife, JSON.stringify(t, null, 1));
+		const rk = witness([`--verify=${knife}`]);
+		if (rk.rc === 0) bad.push('⑤ **轨迹刀**：改掉一步的 key 竟仍 rc=0 ✗ ⇒ "逐格可复跑"没在守 ✓');
+		else if (!new RegExp(`第 ${i + 1} 步不符`).test(rk.out)) bad.push(`⑤ 刀红了但**没点名第 ${i + 1} 步** ✗\n${rk.out.slice(-300)}`);
+	}
+	// ⑤-3 边界 ✓：文件不存在 ⇒ 红并**点名该文件** ✓（不许静默 ✓）
+	const rn = witness(['--verify=build/没有这个文件.json']);
+	if (rn.rc === 0) bad.push('⑤ --verify 读不到文件却 rc=0 ✗');
+	else if (!/读不了轨迹文件/.test(rn.out)) bad.push(`⑤ 读不到文件的报文没点名 ✗\n${rn.out.slice(-200)}`);
+}
+
 // ④ ⚠️ **绝对路径 ⇒ 不许静默降级** ✗（本件实测口径 ✓，**不是**宣称它能跑通 ✓）
 //   实测 ✓：`--story=<绝对页面路径>` 走到 `boot()` 的**清单读取**那一步会断（`readStory(<绝对路径>)` 被当 slug ✓
 //   ⇒ 拼成 `stories/<绝对路径>/00-story.json` ✗）。⇒ 本件只钉**一条**：**必须红** ✓ 且**报文里看得见那个路径** ✓
@@ -80,4 +113,4 @@ if (bad.length) {
 	bad.forEach((m) => console.error(`  - ${m}`));
 	process.exit(1);
 }
-console.log('✔ 见证机器：轨迹到 ending ✓ 同 seed 逐格可复跑 ✓ 两条断言能假 ✓ 绝对路径不静默 ✓');
+console.log('✔ 见证机器：轨迹到 ending ✓ 同 seed 逐格可复跑 ✓ **--verify 可机判（含轨迹刀必红）** ✓ 三条断言能假 ✓ 绝对路径不静默 ✓');

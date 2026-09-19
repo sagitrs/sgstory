@@ -5,7 +5,7 @@
 // 双支清扫：逐位点直接 wikify <<sitecheck 位点>> 于 hi/lo 两档 → 每位点成败两支必达
 // 用法：node test/walker.mjs [ch1局数=4] [tower局数=4]
 import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处 ✓
-import { writeFileSync, mkdirSync } from 'node:fs';
+import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { mkHist, checkStep } from './invariants.mjs';
 import { fingerprintOf } from '../editor/lib/core/fingerprint.mjs';   // 见证模式的**状态摘要** ✓（复用 core ✓ 不另造哈希 ✗）
 // 统一进 test/boot.mjs（#27 就绪轮询 + 坑11 uncaught 监听 + 退出清理）——
@@ -186,7 +186,14 @@ async function dualBranchSweep() {
 //     **绝对路径**只在**页面**那步被按绝对处理 ✓，**清单**那步仍只认 slug ✗ ⇒ **交互式加载仓外故事包暂不支持** ✗
 //     （P4 的内容面就在仓内 `stories/<slug>/**` ✓ ⇒ 不是 P4 要件 ✓；真要用仓外包时另开票 ✓）。
 //     ⇒ 报错会**点名**拼出来的那个路径 ✓（`boot.mjs` 的 `entryOf` ✓ —— 不许静默 ✗）。
-const WITNESS = process.argv.includes('--witness');
+//   ⚠️ `--verify=<trace.json>` ✗（`#991` 批的**见证面**加法 ✓）：把**冻存的轨迹**当**输入**去核验 ✗ ——
+//     按它的 `seed` 重跑 ⇒ **逐步比对** `(passage, choiceKey|choiceLabel)` ＋ `ending` ⇒
+//     任一步不符 ⇒ **红 ＋ 点名第几步 ＋ 两边各是什么** ✓。
+//     为什么必须有它 ✗：**同 `seed` ⇒ 同 key 序列**只让轨迹**成因可复现** ✓，但冻存的 JSON 若没人核 ✗
+//     ⇒ "**逐格可复跑**"就只是**报告**里的一句话 ✓（P4 要的是**可机判** ✗）。
+//     ⚠️ 顺序要件 ✗（发起者 ③(iii) ✓）：**本模式先落** ⇒ 再由它**核验**要冻的那条 ✓（否则冻下来的那份仍不可机判 ✗）。
+const VERIFY = (() => { const h = process.argv.find((a) => a.startsWith('--verify=')); return h ? h.slice('--verify='.length) : null; })();
+const WITNESS = process.argv.includes('--witness') || VERIFY !== null;
 if (WITNESS) {
 	const argOf = (n, d) => { const h = process.argv.find((a) => a.startsWith(`--${n}=`)); return h ? h.slice(n.length + 3) : d; };
 	const STORY = argOf('story', process.env.SGSTORY_STORY ?? null);
@@ -197,6 +204,7 @@ if (WITNESS) {
 	// 可点入口 ✓：与既有走法**同一个选择器** ✗（不能只吃 `LINKS` ⇒ 会卡在「车卡」那段的手写 choice-card ✓）
 	const SEL = `${LINKS}, #passages .choice-card a`;
 	const digestOf = (w) => fingerprintOf(w.SugarCube.State.variables?.pc ?? {});
+	const keyOfStep = (x) => (x?.choiceKey ? `key:${x.choiceKey}` : x?.choiceLabel ? `label:${x.choiceLabel}` : '(无 ✗)');
 	// 一条轨迹 ✓：返回 { steps, ending }（`ending` 非空 ⇔ 真走到头 ✓）
 	async function oneWalk(seed) {
 		const rng = makeRng(seed);
@@ -224,6 +232,49 @@ if (WITNESS) {
 		} finally { try { close(); } catch { /* 已关 */ } }
 		return { steps, ending };
 	}
+	// ── `--verify=<trace.json>` ✗：**冻存轨迹的自证模式** ✓ ───────────────────────────
+	if (VERIFY) {
+		const readTrace = () => JSON.parse(readFileSync(VERIFY, 'utf8'));
+		let want;
+		try {
+			want = readTrace();
+		} catch (e) {
+			console.error(`✗ --verify：读不了轨迹文件 ✗ ${VERIFY}（${String(e.message).slice(0, 120)}）`);
+			process.exit(1);
+		}
+		if (!want || !Array.isArray(want.steps) || !Number.isInteger(want.seed)) {
+			console.error(`✗ --verify：轨迹形状不对 ✗（要 { seed, steps:[…], ending } ✓）—— 文件：${VERIFY}`);
+			process.exit(1);
+		}
+		// 故事取谁 ✓：命令行 `--story=` 优先 ✓ ⇒ 否则用轨迹里记的（`(默认 slug)` 是"没指定"的记号 ✗ ⇒ 传 null ✓）
+		const vStory = STORY ?? (want.story && want.story !== '(默认 slug)' ? want.story : null);
+		const got = await oneWalk(want.seed);   // 同一把尺重跑 ✓（`oneWalk` 用 `seed` ＋ `STORY` ✓）
+		const n = Math.max(want.steps.length, got.steps.length);
+		for (let i = 0; i < n; i++) {
+			const a = want.steps[i];
+			const b = got.steps[i];
+			if (!a || !b) {
+				console.error(`\n✗ --verify：**步数不符** ✗ 第 ${i + 1} 步起就分叉了 —— 记录 ${want.steps.length} 步 vs 实跑 ${got.steps.length} 步`);
+				console.error('  ⇒ 冻存的轨迹**不可复跑** ✗（或用例的 `seed`／`maxSteps`／故事与产出时不一致 ✓）');
+				process.exit(1);
+			}
+			if (a.passage !== b.passage || keyOfStep(a) !== keyOfStep(b)) {
+				console.error(`\n✗ --verify：**第 ${i + 1} 步不符** ✗ ⇒ 冻存的轨迹不可复跑 ✓`);
+				console.error(`  记录：passage=「${a.passage}」 ${keyOfStep(a)}`);
+				console.error(`  实跑：passage=「${b.passage}」 ${keyOfStep(b)}`);
+				console.error(`  复跑命令 ✓：${want.replay ?? '(轨迹里没记 ✓)'}`);
+				process.exit(1);
+			}
+		}
+		if ((want.ending ?? null) !== (got.ending ?? null)) {
+			console.error(`✗ --verify：**结局不符** ✗ 记录 ending=「${want.ending ?? '(无)'}」 vs 实跑「${got.ending ?? '(无)'}」`);
+			process.exit(1);
+		}
+		console.log(`✔ --verify：**逐格一致** ✓ ${got.steps.length} 步 · ending=「${got.ending}」· seed=${want.seed}${vStory ? ` · story=${vStory}` : ''}`);
+		console.log(`  核对的是**冻存文件本身** ✓：${VERIFY}（逐步 passage ＋ key/label ＋ ending ✓）`);
+		process.exit(0);
+	}
+
 	// **种子扫描** ✓：取第一条到 `ending` 的种子（全可复现 ✓）
 	let hit = null;
 	const tried = [];

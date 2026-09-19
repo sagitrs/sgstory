@@ -67,6 +67,25 @@ export const analyzeMarkdown = (text, { file = '<mem>' } = {}) => {
 	for (const f of fences) {
 		if (/`/.test(f.info)) problems.push(`${file}：L${f.line} 围栏行的语言串里混进了反引号「${f.info}」`);
 	}
+	// ── F5「表格块被空行打断后又续上」（`#974`）──
+	//   为什么需要 ✗：**GFM 表格在第一个空行处结束** ✓ ⇒ 夹一个空行再续 `|` 行 ⇒ **后面那些行掉出 `<table>`** ✗
+	//   （实测：`#973` 就因此在 §7 表里把 **P4 验收那行**弄出了表格 ✓，而**当时本门 rc=0** ✗ —— 它原先不校验表格 ✓）。
+	//   ⚠️ 判据取**最小行级**形态 ✗：只咬"**表块 ⇒ 空行 ⇒ 又见 `|` 行**" ✓ ⇒ **不必引入渲染器** ✗。
+	for (let i = 0; i < lines.length; i++) {
+		if (!/^\s*\|/.test(lines[i] ?? '')) continue;          // 不是表行 ⇒ 跳过 ✓
+		let j = i;
+		while (j + 1 < lines.length && /^\s*\|/.test(lines[j + 1])) j += 1;   // 走到本表块末 ✓
+		const blank = j + 1;
+		// ⚠️ **先量再判** ✗（本判据第一版就在 **`docs/game-outline.md` 上假阳性** ✓）：两张**并列的表**也是合法的 ✓
+		//   —— 它们靠"空行 ＋ **新表头 ＋ 分隔行**"分家 ✓ ⇒ 所以只有"空行之后又续 `|` 行、**且它不是新表头**"才算破 ✓。
+		const cont = lines[blank + 1] ?? '';
+		const contIsNewTable = /^\s*\|/.test(cont) && /^\s*\|[\s:|-]+\|[\s:|-]*$/.test(lines[blank + 2] ?? '');
+		if ((lines[blank] ?? 'x').trim() === '' && /^\s*\|/.test(cont) && !contIsNewTable) {
+			problems.push(`${file}：L${i + 1}-L${j + 1} 与 L${blank + 2} 本属**同一张表**，却被 L${blank + 1} 的**空行**打断 ✗`
+				+ ' ⇒ **GFM 表格在第一个空行处结束** ⇒ 后面那些行**掉出 `<table>`**（渲染出来还是"像表"✓，所以只有渲染器或本判据看得见）');
+		}
+		i = j;
+	}
 	return { fences, odd: fences.length % 2 !== 0, headingsInFence, problems };
 };
 
@@ -143,6 +162,12 @@ const main = () => {
 		['F4 边界：同名文件全仓都没有（设计稿里"新增"的模块）⇒ 不判红、只登记', checkPathRefs('新增 `scripts/audit/discovery.mjs`', { exists: () => false }).problems.length === 0 && checkPathRefs('新增 `scripts/audit/discovery.mjs`', { exists: () => false }).planned.length === 1],
 		['F4 边界：能通配到的路径 ⇒ 不报', checkPathRefs('见 `src/*.twee`', { exists: () => false, globMatches: () => ['src/10-core.twee'] }).problems.length === 0],
 		['F4 边界：同行豁免标记 ⇒ 不报且留痕', checkPathRefs('原 `src/15-tables.twee` <!-- path-exempt: 搬家前的位置 -->', { exists: () => false }).exemptions.length === 1],
+		['🔴 F5：表块 ⇒ 空行 ⇒ 又见 `|` 行 ⇒ **判红并点名两处行号**（`#973` 的真形态）',
+			analyzeMarkdown('| a |\n| - |\n| b |\n\n| c |\n').problems.some((p) => p.includes('L1-L3') && p.includes('L5') && p.includes('同一张表'))],
+		['F5 正例：**并列两张表**（空行 ＋ **新表头 ＋ 分隔行**）⇒ 不报（`docs/game-outline.md` 的真形态 ⇒ 第一版在此**假阳性** ✗）',
+			analyzeMarkdown('| 甲 | 乙 |\n| - | - |\n| 1 | 2 |\n\n| 丙 | 丁 |\n| - | - |\n| 3 | 4 |\n').problems.length === 0],
+		['F5 正例：表块 ⇒ 空行 ⇒ **普通正文**（正常结束）⇒ 不报',
+			analyzeMarkdown('| a |\n| - |\n\n正文\n').problems.length === 0],
 		['入口页 100 行（≤120）⇒ 不报', checkReadmeBudget(Array(100).fill('x').join('\n'), { max: 120 }).problems.length === 0],
 		['🔴 入口页 200 行 ⇒ 判红并点名行数上限', checkReadmeBudget(Array(200).fill('x').join('\n'), { max: 120 }).problems.some((p) => p.includes('200 行') && p.includes('godfile'))],
 	];

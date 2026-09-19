@@ -19,6 +19,25 @@
 //   建过 `build/generated/` ⇒ 任何"读那个目录"的断言都会 **ENOENT** ✗（`#981` CI 实测 `变异前就红（rc=1）` ✓）。
 //   ⇒ 本件已改成**只断言与因果相关的那一格**（旧形是否存在 ✓，`existsSync` 不要求父目录在 ✓）。
 //   ⚠️ 同一次里还发现**产品侧**同族缺陷 ✗：`mkdtempSync` 在**编译之前**跑 ⇒ 父目录不在就 ENOENT ✓ ⇒ 已补 `mkdirp` ✓。
+//
+// ⚠️⚠️ `#1004` B2b 第 21 步（**干净树修复**，`#1014` 的 CI `scripts-probe-gates-mjs-probe-fast` 实测红 ✗）：
+//   **我把同族的病又埋了一次** ✗ —— 上一段刚治完"旧断言靠巧合站着"，而我在 `3f14e0c` 引入的 `scratchLeft()`
+//   **无守卫** `readdirSync(GEN)` ✓ ⇒ `build/generated` 不在就 ENOENT ⇒ **变异之前就崩** ✗（探针门判"变异前就红"✓）。
+//   **根因仍是巧合依赖** ✗：那个目录从来**没有人 mkdir**（本仓 `grep` 确认 ✓）—— 它原先由**已删的测试件**顺带建出来 ✓；
+//   `test-plan` 那 19 段一删 ⇒ 没人建了 ⇒ 本件旧写法就不再能过 ✗。**本地看不到**（旧残留 `build/generated/` 还在 ✓），
+//   **干净 checkout 必崩** ✗ ⇒ 属"本地绿 ≠ 干净树绿"。
+//   ⇒ **修法＝补齐集合语义**（不是加前置 ✓）：本件要断言的是"**跑完之后本件新留下的草稿 ＝ 空**"✓；
+//     `build/generated` **不存在 ≡ 空集** ✓（"多了什么"在目录不在时平凡为空 ✓ —— 这是**正确读数**，不是放宽 ✓）。
+//   ⇒⚠️ **为什么不选"跑前 `mkdirSync(GEN)`"** ✗（两条，都是本件自己的纪律）：
+//     ① 那是让测试**自己制造被测前置** ✓ —— 与本件上一段治掉的"为了跑自己，先删掉别人的编译产物"**同一族**（镜像版）✗；
+//     ② 它会把"**父目录不在**"这一**真实且已被证实有意义**的状态从被测面里抠掉 ✗ ——
+//        本件上一段刚刚记录过产品侧同形缺陷（`mkdtempSync` 父目录不在 ⇒ ENOENT ⇒ 已补 `mkdirp` ✓）；
+//        预先 mkdir 等于替产品把那个坑填了 ✗。
+//   ⇒ ⚠️ **判据没变软** ✓（这是本步的关键自证，见 `listGen` 处注释）：
+//     探针那一刀（掐掉 `finally` 清理）留下的 `.equiv-run-*` 在**目录存在／不存在两种树态下都照样咬红** ✓。
+//   **自证姿势** ✓：本件必须在**无 `build/`（且无 `dist/`）的干净树**里也绿 —— 复验命令（一次跑完删干净 ✓）：
+//     `git worktree add --detach <tmp> <head> && ln -s <repo>/node_modules <tmp>/ && (cd <tmp> && node test/equiv-scratch.mjs)`
+//     ⇒ **`git worktree remove --force <tmp>` ＋ `git worktree prune`** ✓。
 
 // ⚠️ **本件只写系统临时区 ＋ 仓内 `build/`（git-ignored ✓）** ✗：临时目录建在 `os.tmpdir()` ✓ 并在 `try/finally` 里删 ✓；
 //   **不许往仓根／仓内别处写** ✗（`#959` 刚修过"`--out=` 空 ⇒ 写到仓根"✓）⇒ 跑完 `git status --porcelain` 应为**空** ✓
@@ -47,7 +66,15 @@ const genOf = join(GEN, SLUG);                            // 编译器的默认 
 const genSnap = () => (existsSync(genOf)
 	? readdirSync(genOf).sort().map((n) => `${n}:${readFileSync(join(genOf, n), 'utf8').length}`).join('|')
 	: null);
-const scratchLeft = () => readdirSync(GEN).filter((n) => n.startsWith('.equiv-run-') || n.startsWith('.idem-'));
+// ⚠️ **为什么 `listGen` 的"不存在 ⇒ 空集"不是放水** ✗（本步的关键自证 ✓）：
+//   本条断言的**对象**是「**本件这一次跑**新留下的草稿」✓ —— 它是个**集合差**（后 ∖ 前 ✓）；
+//   目录不存在时两边都是空集 ⇒ 差也为空 ⇒ **结论正确** ✓（"什么也没多出来"本来就成立 ✓）。
+//   **判别力（能假）逐条不变** ✓：
+//     · 探针那一刀（掐掉 `finally` 清理 ✓）⇒ 跑完会**新留** `.equiv-run-*` ✓ ⇒ `newScratch` 非空 ⇒ **红** ✓；
+//       这一刀在**目录存在／不存在两种树态下都成立** ✓（不是只在旧树态能咬 ✓）。
+//     · `rcOk === 0` 那格**独立**成立 ✓ ⇒ "跑没跑过"不由本条兜底（不会"目录不在 ⇒ 全空 ⇒ 假绿"✓）。
+const listGen = () => (existsSync(GEN) ? readdirSync(GEN) : []);
+const scratchLeft = () => listGen().filter((n) => n.startsWith('.equiv-run-') || n.startsWith('.idem-'));
 
 // ⚠️ `#1004` B2b：判据从「**全局**没有草稿」改成「**本件跑完**没有**新**草稿」✗ —— 前者是全局列举式断言 ✓，
 //   别人的残留（并行段／上一次变异跑的残留 ✓）会把它顶红 ✓（本件 :15 的注释早写过这条竞态 ✓，

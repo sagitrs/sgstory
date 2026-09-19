@@ -219,7 +219,11 @@ export const PROBES = [
 		//  免得'按 key 可复跑'被兜底悄悄破掉 ✓"）⇒ **因果相关 ＋ 确定性** ✓（不碰并发面 ✓）。
 		id: 'test/witness-trace.mjs',
 		tier: 'fast',
-		pre: [],
+		// `#1019` ✓：本件的 `cmd` **读产物**（`witness-trace ⇒ test/walker.mjs ⇒ boot.mjs` 的 dist 新鲜度守卫 ✓）
+		//   ⇒ 原 `pre: []` 让"未变异那一跑"在**树上产物陈旧/缺失**时红 ⇒ 被记成「**不咬**」（**病因名报错** ✗，`#1018` 实测的假读数 ✓）。
+		//   ⚠️ 这一条**不能靠静态判据自动抓到**（静态只判入口件的 import ⇒ 见 `cmdNeedsProducts` 的"宁漏不误" ✓）
+		//   ⇒ 靠**运行时那一支**点名 ＋ 本条显式声明 ✓（即本仓纪律：**前置写进命令** ✓）。
+		pre: ['node build.mjs >/dev/null'],
 		cmd: 'node test/witness-trace.mjs',
 		mutation: {
 			file: 'test/walker.mjs',
@@ -310,5 +314,28 @@ export const PROBES = [
 		},
 		expect: { rc: 1, stdout: /旧落点|并发自证未过/ },
 		why: '量的是「`lint-story` 的中间目录**本次运行唯一**」（改回按 slug 固定 ⇒ 两个并发进程互相踩 ⇒ 假红「编译不幂等」；本件用「旧落点没被重建」这条**与并发时序无关**的判据把它钉死 ✓）—— 否则「并发安全」只写在注释里 ✗',
+	},
+	{
+		// `#1019` 第 4 件 ✓：`test/social-lever.mjs`（`#1011` 保覆盖版，接手 `#360` 的交涉筹码分派门）。
+		//  刀＝在 `adv`（优势筹码）分支**补回 `S.applyAskEffect(a, pc)`** ⇒ 正是 `#360` **修复前**的形状
+		//  （UI 标了"更有把握"、实际走免检完成 ✓）⇒ 门必红并点名「优势筹码不得直接完成诉求」✓。
+		//  ⚠️ 选这条断言是因为它**与并发无关**（本仓刚被"共享目录/时序"那类判据咬过两次 ✗）：
+		//   它量的是"这一支有没有完成诉求"，只看状态、不看时序 ✓。
+		//  ⚠️ **必须 `pre` ＋ `rebuild` 两处都给** ✗：被测面在 `src/**`（引擎源）⇒ 判据对象是**编译产物** ✓
+		//   ⇒ `pre` 建基线产物 ✓、`rebuild` 在**变异之后**重编（否则量不到变异 ＝"判据没坏但没量到东西" ✗）
+		//   ＋**还原之后**再跑一次（不留变异版产物 ⇒ 不污染后续段相序 ✓）。
+		//   ➕ 这是 `rebuild` 那两处语义的**第一个真实用例**（`#1026` 落地／本条用上 ✓）。
+		id: 'test/social-lever.mjs',
+		tier: 'fast',
+		pre: ['node build.mjs >/dev/null'],
+		cmd: 'node test/social-lever.mjs',
+		rebuild: 'node build.mjs >/dev/null',
+		mutation: {
+			file: 'src/engine/40-sim/21-resolve.twee',
+			find: "\t\t\t\tif (lv.gives === 'adv') {\n\t\t\t\t\t// #360：优势筹码只把「这一问更有把握」摆出来——**不完成诉求**。\n\t\t\t\t\tpc.ev.soc_lever = lv.id;",
+			replace: "\t\t\t\tif (lv.gives === 'adv') {\n\t\t\t\t\tS.applyAskEffect(a, pc);   // 探针：改回 #360 修复前形状 ✓\n\t\t\t\t\tpc.ev.soc_lever = lv.id;",
+		},
+		expect: { rc: 1, stdout: /优势筹码不得直接完成诉求/ },
+		why: '量的是「**优势筹码只给优势、不完成诉求**」那一支真的在守（把 `applyAskEffect` 补回 `adv` 分支 ⇒ 门必红并点名 ✓）—— 否则 `#360` 那类"UI 标了优势、实际走免检"会静默回来 ✗',
 	},
 ];

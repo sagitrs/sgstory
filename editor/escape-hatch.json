@@ -7,18 +7,6 @@
 	"hatches": [
 		{
 			"member": "overBudget",
-			"slug": "mist-forest",
-			"reason": "它是「**数值比较 vs 声明预算**」的谓词：`(pc?.star?.spent ?? 0) > Game.Star.budget` —— 预算本身已住声明（`Game.Star.budget` ✓，故事侧只搬了判定），但**比较本身**现有条件词汇表达不了：`Sg.rules.ops` 只有 `gte/lte/oneOf`（**没有严格 `>`** ✓），而 `budget` 是**运行期字段** ⇒ 硬写成 `budget+1` 会造**第二份真源** ✗（比「多一处例外」坏得多）。当前**只有这一处**（不足「先数后立」门槛）⇒ **不立词** ⇒ 落**契约面** ✓。**何时该删**：若「值与声明阈值比较」这个概念凑到第三处 ⇒ 应扩**既有**条件词汇（一个 term／算子）并**删除本条** ✓（见 `#785` 的观察项 —— 登记不是失败，是让例外**可枚举** ✓）。",
-			"ticket": "#785"
-		},
-		{
-			"member": "socialHooks",
-			"slug": "mist-forest",
-			"reason": "它是**三处 per-field hooks**（`{ '<askId>': { apply: (pc)=>…, unwilling: (pc)=>… } }` ✓），引擎**逐字段先问 hook**（`apply`／`done`／`willing`／`unwilling` ✓）。**声明式不可预见** ✗：钩子体是**读任意游戏状态的闭包**（如 `!(pc.inv['完整星图'] && pc.world.family_favor && pc.inv['坏哨'])` ✓）⇒ 这不是「现有 kind 缺字段/种类」（**B** ✗），而是「上面都装不下」（**C** ✓）；且**各形状仅 1 处** ⇒ 不足「先数后立」门槛 ⇒ **不立词** ✓。**何时该删**：若引擎将来支持**声明式 per-field hook**（或该形状凑到第三处 ⇒ 扩既有词汇）⇒ **撤回本条** ✓（见 `#785` —— 登记不是失败，是让例外**可枚举** ✓）。",
-			"ticket": "#785"
-		},
-		{
-			"member": "overBudget",
 			"slug": "face-fixture",
 			"reason": "与 `mist-forest` 的那条**同形**（`#1004` B2b 把 `overBudget` 搬进夹具后，它是同一处例外）：`(pc?.star?.spent ?? 0) > Game.Star.budget` —— 值本身住声明面（`Game.Star.budget` ✓），但**严格 `>` 的比较**现有条件词汇表达不了（`Sg.rules.ops` 只有 `gte/lte/oneOf`），而 `budget` 是运行期字段 ⇒ 硬写 `budget+1` 会造第二份真源 ✗。⚠️ **本夹具条目与被删的 `mist-forest` 条目是同一处例外的搬家** ⇒ `mist-forest` 那条随故事删除应当**撤回**（已在本片报给发起者 ✓）。",
 			"ticket": "#1004"

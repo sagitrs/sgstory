@@ -161,8 +161,13 @@ jobs:
           SZ=$(wc -c < /tmp/idx.html)
           test "$SZ" -gt 0 -a "$SZ" -lt 100000 || { echo "✗ 书架页 ${SZ}B 越界（应 >0 且 <1e5，防内嵌资产回潮）"; exit 1; }
           grep -q 'stories/' /tmp/idx.html || { echo "✗ 书架页无故事链接"; exit 1; }
-          STORY="${URL}stories/mist-forest/index.html"
-          curl -sfL "$STORY" -o /tmp/story.html || { echo "✗ 默认故事页不可达：$STORY"; exit 1; }
+          # `#1004` B2b：故事页路径**从书架页现场取**（本作业不 checkout 仓库 ⇒ 读不到 `scripts/dist-paths.mjs` 的 `DEFAULT_SLUG` 常量 ✗）。
+          # 为什么要改：原来写死 `stories/mist-forest/index.html` ✗ ⇒ 故事一改名/删除就**腐烂** ⇒ `curl` 404 ⇒
+          # 本作业红；而它**只在 push to main 跑** ⇒ PR CI 全绿也看不见（实测 `#1014`）✗ ⇒ 取书架页第一条路径＝与线上产物同源、零 drift ✓
+          STORY_PATH=$(grep -oE 'stories/[A-Za-z0-9._-]+/index\.html' /tmp/idx.html | head -1)
+          test -n "$STORY_PATH" || { echo "✗ 书架页取不到故事链接（stories/<slug>/index.html）"; exit 1; }
+          STORY="${URL}${STORY_PATH}"
+          curl -sfL "$STORY" -o /tmp/story.html || { echo "✗ 故事页不可达：$STORY"; exit 1; }
           grep -q 'id="font-face"' /tmp/story.html || { echo "✗ 故事页缺 @font-face 注入"; exit 1; }
           test "$(grep -c 'rel="preload"' /tmp/story.html)" -ge 2 || { echo "✗ 故事页字体 preload 不足 2"; exit 1; }
           SSZ=$(wc -c < /tmp/story.html)

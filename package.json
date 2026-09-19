@@ -29,7 +29,6 @@
 		"test:list": "node scripts/run-tests.mjs --list",
 		"report:polarity": "node scripts/report-polarity-gap.mjs",
 		"report:two-state": "node scripts/report-two-state.mjs",
-		"matrix": "node test/itemmatrix.mjs",
 		"compile:story": "node editor/compile-story.mjs",
 		"equiv:story": "node editor/equiv.mjs"
 	},

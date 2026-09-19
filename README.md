@@ -21,13 +21,16 @@ npm run watch   # 修改 src/ 自动重新编译
 门清单与"每门检什么"见 [`docs/quality-dimensions.md`](docs/quality-dimensions.md)；门的登记/接线见 [`docs/gate-ledger.md`](docs/gate-ledger.md)（生成物）；
 CI 变红时先看 [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)。
 
-## 三个故事
+## 两个故事（＋ 一个测试夹具）
+
+> ⚠️ **B 段（`#1004`）之后**：`stories/mist-forest/`（迷雾森林）与 `stories/hollow-cave/`（无名洞窟）**已按决策删除** ✗。
+> ⇒ 仓内的**真内容故事**只剩下面 ① 一个 ✗（引擎回归的「真内容样本」从 3 降到 1 ✓ —— 这是收敛的**代价**，不是遗漏 ✓）。
 
 | 故事 | 目录 | 状态 |
 |---|---|---|
-| ① **迷雾森林** | `stories/mist-forest/` | 完整：3 章 ＋ 10 个结局 ＋ 5 个章节出口 |
-| ② 最小示例 | `stories/minimal-demo/` | 接入契约的验证物（引擎不知道故事名） |
-| ③ 无名洞窟 | `stories/hollow-cave/` | 雏形：五事件主线（战斗系统试验场） |
+| ① **夜渡** | `stories/night-ferry/` | **第 4 个故事（P4 用编辑器做出 ✓）**：11 段落 · 6 步路线 · 2 个结局 · 见证轨迹已冻存 |
+| ② 最小示例 | `stories/minimal-demo/` | 接入契约的验证物（引擎不知道故事名；**空声明的对照样本**） |
+| — **测试夹具** | `stories/face-fixture/` | ⚠️ **不是内容故事** ✗：把「仍有真消费者」的接入面接住（段名沿用旧故事，正文全部新写 ✓） |
 
 ## 知识模型（一句话版）
 
@@ -61,7 +64,7 @@ CI 变红时先看 [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)。
 ## 编辑器与维护
 
 - **与 Twine 2 配合**：Library → Import 选 `dist/index.html` 可导入可视化编辑；导出 HTML 后用 `npx extwee -d -i 导出的.html -o 反编译.twee` 回到源码。
-- **升级 SugarCube**：换 `vendor/format.js` ＋ 更新故事元数据 `stories/mist-forest/00-meta.twee` 里的 `format-version`。
+- **升级 SugarCube**：换 `vendor/format.js` ＋ 更新**每个故事**的 `00-meta.twee`（如 `stories/night-ferry/00-meta.twee`）里的 `format-version`。
 - **玩家可见正文漂移复核**：`node scripts/ui-migration-diff.mjs`（工作区 vs 基线 → `docs/ui-migration-diff.md`）。
 - **发布**：push 到 main → CI 跑测试 → 构建并自动发布到 GitHub Pages。
 

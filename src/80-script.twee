@@ -42,7 +42,8 @@ jQuery(document).on('keydown.sgSave', (ev) => {
 	if (ev.key === 's' || ev.key === 'S') { ev.preventDefault(); window.Sg.save.quick(); }
 	else if (ev.key === 'l' || ev.key === 'L') { ev.preventDefault(); window.Sg.save.quickLoad(); }
 });
-// ── 道具图鉴（`Sg.Codex`）已搬去 `stories/mist-forest/72-codex-ui.twee`（`#574`）——
+// ── 道具图鉴（`Sg.Codex`）已搬去故事侧（`#574`：当时是 `stories/mist-forest/72-codex-ui.twee`）——
+//    ⚠️ **`#1004` B 段后该故事已删** ✗ ⇒ 这一面现由（测试夹具）`stories/face-fixture/13-codex.twee` 声明 ✓
 //    它读故事 1 的 `Game.Codex`，属**故事面**；本文件其余部分是**引擎运行时胶水**（layer: engine），
 //    对每个故事都成立。引擎侧对它的引用是可选面：见下方 `:passagestart` 的 `Sg.Codex?.sync?.()`。
 

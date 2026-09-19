@@ -49,6 +49,7 @@ export const ORDER = [
 	'src/engine/40-sim/21-resolve.twee',    // 结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）
 	'stories/face-fixture/10-fixture.twee',   // 夹具段落：车卡链 ＋ 每种面各一段（段名沿用旧故事＝消费者钉死了它 ✓）
 	'stories/face-fixture/12-hooks.twee',     // 夹具的手写逃生舱（`overBudget` 等非 A 桶契约成员 ✓）
+	'stories/face-fixture/13-codex.twee',     // 夹具的图鉴面（`Sg.Codex`：故事面，形状照被删的 `mist-forest/72-codex-ui.twee` ✓）
 	'stories/face-fixture/17-rules.twee',     // 夹具条件表（生成物）：`rows` 非空 ⇒ 条件表面
 	'stories/face-fixture/16-notes-ch1.twee', // 夹具 notes 面（生成物）：`Game.Notes.entries` 增量
 	'stories/night-ferry/10-ferry.twee',     // 第四个故事段落：渡口 → 河心 → 对岸（两条路线各 6 步、两个结局）
@@ -82,6 +83,7 @@ export const MODULES = {
 	'stories/face-fixture/15-tables.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '夹具的声明面：引擎**加载期**要用的容器（同 `#998`：必须排在 `21-resolve` 前 ✗）' },
 	'stories/face-fixture/10-fixture.twee': { deps: ['stories/face-fixture/15-tables.twee'], defines: ['Game.Chargen'], layer: 'story', note: '夹具段落：车卡链（`rules.mjs` 钉死 3 轮 × 3 选项 ＋ 3 预设）＋ 每种面各一段' },
 	'stories/face-fixture/12-hooks.twee': { deps: ['stories/face-fixture/15-tables.twee'], defines: [], layer: 'story', note: '夹具的手写逃生舱：`Sg.story.overBudget`（非 A 桶契约成员，照 `mist-forest/16-hooks.twee` 先例）' },
+	'stories/face-fixture/13-codex.twee': { deps: ['stories/face-fixture/15-tables.twee'], defines: ['Sg.Codex'], layer: 'story', note: '夹具的图鉴面（`Sg.Codex`：读 `Game.Codex.items` ⇒ 属故事面，形状照被删的 `mist-forest/72-codex-ui.twee`）' },
 	'stories/face-fixture/17-rules.twee': { deps: ['stories/face-fixture/15-tables.twee'], defines: [], layer: 'story', note: '夹具条件表（生成物）：`rows` 非空（两存活样本都给不了这一格 ✓）' },
 	'stories/face-fixture/16-notes-ch1.twee': { deps: ['stories/face-fixture/15-tables.twee'], defines: [], layer: 'story', note: '夹具 notes 面（生成物）：`Game.Notes.entries` 增量（4 条）' },
 	'src/engine/30-persist/05-store.twee': { deps: [], defines: ['Sg.store'], layer: 'engine', note: '存储缝（#441-B/#462）：localStorage 键构造的唯一落点' },

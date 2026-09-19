@@ -1,0 +1,17 @@
+:: StoryTitle
+夜渡
+
+:: StoryData
+{
+	"ifid": "4FDB2374-A7A6-4181-AFDD-C2E53D79AAE9",
+	"format": "SugarCube",
+	"format-version": "2.37.3",
+	"start": "渡口",
+	"zoom": 1
+}
+
+:: StoryIdentity [script]
+// 故事身份（**单一源**）：`Sg.store` 的故事键命名空间用它（`<slug>.` 前缀 ⇒ 各故事互不串档 ✓）。
+// 与 `stories/<slug>/00-story.json` 的一致性由门 `test/store-keys.mjs` 把住（两处漂移即红 ✓）。
+window.Sg ??= {};
+window.Sg.storyId = { slug: 'night-ferry' };

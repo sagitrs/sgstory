@@ -28,12 +28,16 @@ export const gateKey = (mod) => [...new Set(mod.flags ?? [])].sort().join('+');
 /** **执行顺序表**（计划面：只定**次序**，不含任何判据与数据）。
  *  为什么需要它：搬运会改门的住址，若次序跟着住址走，`--truth` 的输出块就会挪位置 ⇒ golden 漂移，
  *  而"零漂移"正是"搬家不改行为"的**机械证据**。⇒ 次序由本表钉住（与 `test-plan.mjs` 的 `SEGMENTS` 同性质）。
- *  纪律：新增门**必须**在此登记位置（否则 fail-loud）；本表里的键不许"僵尸"（门删了要删键）。 */
+ *  纪律：新增门**必须**在此登记位置（否则 fail-loud）；本表里的键不许"僵尸"（门删了要删键）。
+ *  ⚠️ `#1004` B2 实测 ✗：删掉两个旧故事后，本表里 **24 个键成了僵尸** ✓（它们的门住在
+ *    `stories/<slug>/gates/**` ⇒ 随故事一起没了 ✓）—— 而本表是**最后一个**还在"枚举"这些 flag 的地方 ✓
+ *    ⇒ 于是 `audit.mjs` 的**全跑**仍会为它们产块 ⇒ `golden` 的清单红 ✓（且那些块实际是 **ENOENT 崩栈** ✓）。
+ *    ⇒ 已按本表自己的纪律删键 ✓，**保留的 11 个＝现存门 flag** ✓（`scripts/audit/gates/*.mjs` ∪ 剩下故事的 `gates/` ✓）。
+ *    ⚠️ 判据（可复核 ✓）：`node -e "import('./scripts/audit/discovery.mjs').then(m=>console.log(m.GATE_ORDER))"` ✓
+ *    ⇒ 每个键都必须在现存门模块的 `flag`／`flags` 里找得到 ✓。 */
 export const GATE_ORDER = [
-	'truth', 'investment', 'echoes', 'choices', 'nosl+sel', 'gear+sel', 'interact', 'social', 'combat',
-	'a11y', 'starbudget', 'consequences', 'sitedisc', 'systems', 'text', 'npc', 'dragon', 'checks',
-	'economy', 'items+tokens', 'canon', 'craft', 'state', 'literals', 'rules', 'reads', 'cave', 'notes',
-	'slots', 'status', 'waves', 'roads', 'combat-dist', 'settle', 'engine-story-free',
+	'a11y', 'consequences', 'sitedisc', 'text',
+	'state', 'literals', 'slots', 'status', 'waves', 'roads', 'engine-story-free',
 ];
 
 /** 引擎门：flag ∈ `AUDIT_ENGINE`（`test-plan.mjs` 是层表的单一权威）。 */

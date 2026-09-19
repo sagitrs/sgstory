@@ -178,31 +178,35 @@ t('① 未知 scope ⇒ 报错（不许静默当 engine 处理）', (() => { try
 	t('⑥ `Sg.storyId.slug` 与 `stories/<slug>/00-story.json` 一致（防两处漂移）', ok, manifest);
 }
 
-// ⑦ 跨故事隔离（`#491` 判据 6）：用**两个真实 slug** 实测（不是合成的 `other-story`）
+// ⑦ 跟故事隔离（`#491` 判据 6）：用**两个真实 slug** 实测（不是合成的 `other-story`）
+// `#1004` B2 ✓：两个 slug 换成仓内**现存**的（`minimal-demo` ＋ `night-ferry` ✓）——
+//   本格量的是「两作用域／两 slug 互不污染」✓、**与内容面无关** ✗（`notes` 为空是**合法空集** ✓）⇒ 换样本即可 ✓。
 {
 	const { storyHtml } = await import('../scripts/dist-paths.mjs');
 	const readIfid = (slug) => (readFileSync(storyHtml(slug), 'utf8').match(/ifid="([^"]+)"/) ?? [])[1] ?? null;
-	const A = createContext({ story: 'mist-forest' }), B = createContext({ story: 'hollow-cave' });
+	const A = createContext({ story: 'minimal-demo' }), B = createContext({ story: 'night-ferry' });
 	const obs = {
 		keyA: A.window?.Sg?.store?.key?.('story', 'codex.v1') ?? null,
 		keyB: B.window?.Sg?.store?.key?.('story', 'codex.v1') ?? null,
 		idsA: new Set(Object.keys(A.window?.Sg?.story?.notes?.() ?? {})),
 		idsB: new Set(Object.keys(B.window?.Sg?.story?.notes?.() ?? {})),
-		ifidA: readIfid('mist-forest'), ifidB: readIfid('hollow-cave'),
+		ifidA: readIfid('minimal-demo'), ifidB: readIfid('night-ferry'),
 	};
 	const problems = judgeIsolation(obs);
 	for (const p of problems) { bad++; console.error(`  ✗ ⑦ ${p}`); }
 	console.log(`  ${problems.length ? '✗' : '✓'} ⑦ 跨故事隔离：故事键 ${obs.keyA} ≠ ${obs.keyB} ｜ 笔记 id ${obs.idsA.size} vs ${obs.idsB.size}（重叠 ${[...obs.idsA].filter((k) => obs.idsB.has(k)).length}）｜ IFID ${String(obs.ifidA).slice(0, 8)}… ≠ ${String(obs.ifidB).slice(0, 8)}…`);
 }
 
-// ⑦ 两个消费点都不再持有键字面量（`Sg.UI` engine ／ `Sg.Codex` story）
+// ⑦ 引擎侧消费点不再持有键字面量（`Sg.UI` engine）
 {
 	const core = readFileSync(sourcePath('10-core.twee'), 'utf8');
-	// `#574`：`Sg.Codex`（图鉴界面）从 `src/80-script.twee` 搬回**故事面**（`stories/mist-forest/72-codex-ui.twee`）
-	// —— 判据跟着**定义落点**走（`sourcePath` 按路径后缀匹配 ⇒ 不写死搬家后的前缀）。
-	const codex = readFileSync(sourcePath('72-codex-ui.twee'), 'utf8');
 	t("⑦ `Sg.UI` 走 `Sg.store.key('engine','ui.v1')` 且不再持有键字面量", /Sg\.store\.key\('engine', 'ui\.v1'\)/.test(stripComments(core)) && !/["'`]sgstory\./.test(stripComments(core)));
-	t('⑦ `Sg.Codex` 走 `Sg.store`（键字面量已清零、老键名只在 store 里）', /Sg\.store\.(key|rawWithLegacy)/.test(stripComments(codex)) && !/["'`]sgstory\./.test(stripComments(codex)));
+	// ── ⛔ **退役 ＋ 声明**（`#1004` B2 ✓）：`Sg.Codex` 那一格
+	//   原判据 ✓：`stories/<slug>/72-codex-ui.twee`（《574》从 `src/80-script.twee` 搬回**故事面**的那份）里键字面量已清零 ✓。
+	//   ⛔ **它唯一的存在地随 `mist-forest` 一起被删** ✗（全仓 `find -name '*codex*'` 只剩 `test/codex-gating.mjs` ✓）；
+	//   两存活样本的 `twee`／表里都**没有图鉴面** ✓（`minimal-demo/10-demo.twee` 写的是"本故事没有 · 它确实缺失"✓）。
+	//   ⚠️ **声明** ✗：**故事侧图鉴 UI（`Sg.Codex` 的键字面量）自此无守护** ✓ —— 日后要动它 ⇒
+	//   **先补一个带图鉴面的样本** ✗（**不为凑绿加样本** ✓；本轮**也不**把这一格改写成别的判据 ✗ —— 换判据是另一件事 ✓，归发起者裁 ✓）。
 }
 
 console.log(bad ? `\n✗ 存储缝门：${bad} 项` : '\n✔ 存储缝门通过（作用域 · 隔离 · fail-loud · 幂等迁移 · 单一落点 · 身份一致）');

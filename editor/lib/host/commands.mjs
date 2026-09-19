@@ -503,19 +503,33 @@ export const lintCommand = async (argv = [], { prog = 'node editor/cli.mjs', sub
 
 		// ── ② 编译＋幂等 ──
 		step = 'compile';
-		const gen = join(ROOT, 'build', 'generated', slug);
-		rmSync(gen, { recursive: true, force: true });
-		let r1 = sh('node', ['editor/compile-story.mjs', slug]);
-		if (r1.status !== 0) fail(`编译失败（第一次）：\n${(r1.stderr || r1.stdout || '').slice(0, 800)}`);
-		const snap = join(ROOT, 'build', 'generated', `${slug}.lint-snap`);
-		rmSync(snap, { recursive: true, force: true });
-		sh('cp', ['-r', gen, snap]);
-		const r2 = sh('node', ['editor/compile-story.mjs', slug]);
-		if (r2.status !== 0) fail(`编译失败（第二次）：\n${(r2.stderr || r2.stdout || '').slice(0, 800)}`);
-		const diff = sh('diff', ['-r', snap, gen]);
-		if (diff.status !== 0) fail(`编译不幂等（两次产物有差）：\n${(diff.stdout || '').slice(0, 400)}`);
-		rmSync(snap, { recursive: true, force: true });
-		ok('编译 ＋ 幂等（两次产物逐字节相同）');
+		// `#1024`：scratch 改为**本次运行唯一**（照 `equivCommand` 的 `#976` 先例 ✓）。
+		//   原先 `gen` 与 `<slug>.lint-snap` 都**按 `slug` 固定** ⇒ 两个进程跑同一 slug 时互相
+		//   `rmSync`／`cp`／编译 ⇒ 「两次产物有差」的**假红**（实测 2 进程 × 5 轮 = **5/5 必红** ✓；
+		//   `test-plan` 的 `test` 相位并发 4，`test-story-ci.mjs` 与其兄弟段同时在场 ⇒ CI 间歇红 ✓）。
+		//   ⚠️ 同时把 `diff` 的 **stderr** 纳入载荷，并把「**没比到东西**」与「**有差**」分开报 ✗
+		//   （原先只打 stdout ⇒ 报文常常**没有证据**；`diff -r` 的扫描错误走 stderr）。
+		mkdirp(join(ROOT, 'build', 'generated'));
+		const lintRun = mkdtempSync(join(ROOT, 'build', 'generated', '.lint-run-'));
+		const gen = join(lintRun, 'gen');
+		const snap = join(lintRun, 'snap');
+		try {
+			const r1 = sh('node', ['editor/compile-story.mjs', slug, `--out=${gen}`]);
+			if (r1.status !== 0) fail(`编译失败（第一次）：\n${(r1.stderr || r1.stdout || '').slice(0, 800)}`);
+			const produced = readdirSync(gen);
+			if (produced.length === 0) fail(`第一次编译**没产出任何文件**（${gen}）—— 这是「**没比到东西**」，不是「两次有差」`);
+			sh('cp', ['-r', gen, snap]);
+			const r2 = sh('node', ['editor/compile-story.mjs', slug, `--out=${gen}`]);
+			if (r2.status !== 0) fail(`编译失败（第二次）：\n${(r2.stderr || r2.stdout || '').slice(0, 800)}`);
+			const diff = sh('diff', ['-r', snap, gen]);
+			if (diff.status !== 0) {
+				const payload = `${diff.stdout || ''}${diff.stderr || ''}`.slice(0, 800);
+				fail(`编译不幂等（两次产物有差）：\n${payload || '（两侧都没吐字：先看快照是否为空／是否被并发清掉）'}`);
+			}
+			ok('编译 ＋ 幂等（两次产物逐字节相同）');
+		} finally {
+			rmSync(lintRun, { recursive: true, force: true });   // **含失败路径** ✓（崩一次的残留不该影响下一次 ✓）
+		}
 
 		// ── ③ 等价（L1/L3）——**必须显式给冻结基线** ──
 		// 裸调 `equiv <slug>` 在已翻面的故事上比的不是等价 ✗（默认 `--hand`＝产物 ⇒ 量到"产物 vs 当场重编产物" ✓

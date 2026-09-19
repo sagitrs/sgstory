@@ -232,6 +232,29 @@ export const classifyCommand = (argv = [], { prog = 'node editor/classify-contra
 	return bucket('C').length ? 1 : 0;
 };
 
+/** **幂等读数**（`#976` 第 2 件 ✓）：两目录逐文件比对 ⇒ `{ ok, diffs, line }` ✓。
+ *  ⚠️ **不等时点名"哪个文件 ＋ 首个差异偏移 ＋ 两侧片段"** ✗（照同文件 `l3Line()` 的**已有**形状 ✓ —— 不新造机制 ✓）：
+ *  原先那条报文只说"（6 份）"✗ ⇒ `#973` 那次 CI 红时**没法直接定位** ✓（只能靠"纯文档 PR 进不了编译路径"反推 ✓）。
+ *  ⚠️ **它不证"下次不再红"** ✗ —— 它证的是"**下次红时能立刻定位**"✓（`#976` 票内如实写明 ✓）。
+ *  **纯** ✓（`readFile` 可注入 ⇒ 自证不需真磁盘 ✓，但本件也允许真目录 ✓ —— `test/equiv-scratch.mjs` 两种都用 ✓）。 */
+export const idemReport = ({ genDir, idemDir, names = [], readFile = readFileSync } = {}) => {
+	const diffs = [];
+	for (const n of names) {
+		const a = readFile(join(genDir, n));
+		const b = readFile(join(idemDir, n));
+		if (a.equals(b)) continue;
+		let at = 0;
+		const lim = Math.min(a.length, b.length);
+		while (at < lim && a[at] === b[at]) at += 1;
+		const clip = (buf) => JSON.stringify(buf.slice(Math.max(0, at - 30), at + 30).toString('utf8'));
+		diffs.push({ file: n, at, gen: clip(a), idem: clip(b) });
+	}
+	const ok = names.length > 0 && diffs.length === 0;
+	const line = `幂等：连编译两次产物逐字节相同（${names.length} 份：${names.join('、')}）`
+		+ (ok ? '' : `\n    ✗ **不一样的是**：${diffs.map((d) => `${d.file}（首个差异偏移 @${d.at}）\n        生成 …${d.gen}\n        复编 …${d.idem}`).join('\n    ')}`);
+	return { ok, diffs, line };
+};
+
 export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = '' } = {}) => {
 	const slug = argv[0];   // `#794` 弧第 3 票：入参是**子命令之后**的 argv（不再读环境 ✗）
 	if (!slug) { console.error('用法：node editor/equiv.mjs <slug> [--rules] [--l3=hard|report] [--hand=…] [--gen=…]'); return 2; }
@@ -281,20 +304,36 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 	const hand = readFileSync(handPath, 'utf8');
 
 	// ── 自跑编译器两次 ⇒ 幂等 ＋ 拿到产物（不判陈旧件） ──
-	const genDir = join(ROOT, 'build/generated', slug);
-	const idemDir = join(ROOT, 'build/generated', `.idem-${slug}`);
-	runNode([COMPILER, slug, `--out=${genDir}`], { cwd: ROOT });
-	runNode([COMPILER, slug, `--out=${idemDir}`], { cwd: ROOT });
-	const names = [...new Set([...readdirSync(genDir), ...readdirSync(idemDir)])].sort();
-	const idemOk = names.length > 0 && names.every((n) => readFileSync(join(genDir, n)).equals(readFileSync(join(idemDir, n))));
-	const gen0 = readFileSync(join(genDir, defaultTwee), 'utf8');   // ← **复用上面那一处定义** ✗（不再各写一份 ternary ✓）
-	// **产物侧 ＝ 生成物 ＋ 登记过的手写逃生舱文件**（`#787` 翻面形状）：非 A 桶成员装不进生成物 ⇒ 它们住手写件，
-	// 而行为门要比的是**整份契约**；手写侧（冻结基线）本来就含它们 ⇒ 只比生成物会得到"少了成员"的**假差** ✗。
-	// 单一真源＝`editor/escape-hatch.json` 的 `hatchFiles` ✓ —— 读它**共用** `lib/host/hatches.mjs` 的实现 ✓
-	//（本文件原来有一份**内联复制** ✗，已收掉 ✓ —— 避免两个消费者各写一份 ✓）。
-	const gen = [gen0, ...hatchFiles(slug).map((f) => readFileSync(f, 'utf8'))].join('\n');
+	// `#976`：中间目录**本次运行唯一** ✗ ＋ **用完就清（含失败路径 ✓ `try/finally`）** ✗
+	//   （原先按 `slug` 命名 ⇒ 跨进程共享可变 scratch ✗ ⇒ "读到半写文件／被别人清掉"那类**时序**风险 ✓。
+	//    ⚠️ 本片是**防御性**改动 ✓ —— **不是**修掉 `#973` 那次 CI 红 ✗：那次红的**根因仍未定** ✓，
+	//    我按"共享目录互撞"去复现（串行 5/5 确定 ✓、2 进程×3 轮 / 4 进程×4 轮并发 ⇒ 幂等失败 **0** ✗）
+	//    ⇒ **只排除了一条** ✓，没有找到真因 ✓ —— 见 `#976` 票内更正 ✓）。
+	// ⚠️ **先确保父目录存在** ✗：原来那两处 `--out=` 由**编译器**顺带 `mkdirp` 建出 `build/generated/` ✓；
+	//   本片改用 `mkdtempSync` ⇒ 它在**编译之前**跑 ✓ ⇒ 父目录不在（干净树上正是如此 ✓）会 **ENOENT** ✗
+	//   （`#981` CI 上实测：探针按条目**单独跑** ⇒ 无前序 equiv 段 ⇒ 父目录不在 ⇒ 变异前就红 ✓）。
+	mkdirp(join(ROOT, 'build/generated'));
+	const runDir = mkdtempSync(join(ROOT, 'build/generated', '.equiv-run-'));
+	const genDir = join(runDir, 'gen');
+	const idemDir = join(runDir, 'idem');
+	let idem = { ok: false, line: '' };
+	let gen = '';
+	try {
+		runNode([COMPILER, slug, `--out=${genDir}`], { cwd: ROOT });
+		runNode([COMPILER, slug, `--out=${idemDir}`], { cwd: ROOT });
+		const names = [...new Set([...readdirSync(genDir), ...readdirSync(idemDir)])].sort();
+		idem = idemReport({ genDir, idemDir, names });
+		const gen0 = readFileSync(join(genDir, defaultTwee), 'utf8');   // ← **复用上面那一处定义** ✗（不再各写一份 ternary ✓）
+		// **产物侧 ＝ 生成物 ＋ 登记过的手写逃生舱文件**（`#787` 翻面形状）：非 A 桶成员装不进生成物 ⇒ 它们住手写件，
+		// 而行为门要比的是**整份契约**；手写侧（冻结基线）本来就含它们 ⇒ 只比生成物会得到"少了成员"的**假差** ✗。
+		// 单一真源＝`editor/escape-hatch.json` 的 `hatchFiles` ✓ —— 读它**共用** `lib/host/hatches.mjs` 的实现 ✓
+		//（本文件原来有一份**内联复制** ✗，已收掉 ✓ —— 避免两个消费者各写一份 ✓）。
+		gen = [gen0, ...hatchFiles(slug).map((f) => readFileSync(f, 'utf8'))].join('\n');
+	} finally {
+		rmSync(runDir, { recursive: true, force: true });   // `#976`：**含失败路径** ✗（崩一次的残留不该影响下一次 ✓）
+	}
 
-	const results = [[idemOk, `幂等：连编译两次产物逐字节相同（${names.length} 份：${names.join('、')}）`]];
+	const results = [[idem.ok, idem.line]];
 	const l3Line = (nh, ng, what) => {
 		const same = nh === ng;
 		const at = [...nh].findIndex((c, i) => c !== ng[i]);

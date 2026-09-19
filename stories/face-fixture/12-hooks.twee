@@ -6,3 +6,23 @@ window.Sg ??= {};
 Object.assign((window.Sg.story ??= {}), {
 	overBudget: (pc) => (pc?.star?.spent ?? 0) > (window.Game?.Star?.budget ?? 6),
 });
+
+:: Fixture Widgets [widget]
+<<widget "flip">><<nobr>>
+	/% `#1004` B2b（换样本）：时代翻转的**故事面** widget —— 形状照被删的 `stories/mist-forest/12-widgets.twee`
+	   的 `flip`（首翻免费 → 之后每次耗星力 1 → 回现在留「雾淡」痕迹 ✓）；正文用夹具自己的话 ✗。 %/
+	<<if not $pc.inv["时光护符"]>>
+		<div><span class="era-drained">你身上没有能校进另一段时间的东西。</span></div>
+	<<else>>
+		<<link `($era is Game.Era.PRESENT ? "翻转护符：坠入『过去』" : "翻转护符：回到『现在』")`>>
+			<<if not $pc.star.first_free>>
+				<<set $pc.star.first_free to true>>
+			<<else>>
+				<<set $pc.star.spent to $pc.star.spent + 1>>
+			<</if>>
+			<<set $era to ($era is Game.Era.PRESENT ? Game.Era.PAST : Game.Era.PRESENT)>>
+			<<if $era is Game.Era.PRESENT>><<set $pc.world.fog_thin to true>><</if>>
+			<<goto `passage()`>>
+		<</link>>
+	<</if>>
+<</nobr>><</widget>>

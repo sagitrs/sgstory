@@ -2,31 +2,105 @@
 	"section": "StoryBindings",
 	"note": "面夹具（`#1004` B2b）的接入契约**满配**：形状照被删的 `mist-forest`（引擎与那批测试就是按这个形状写的），值取最小可用。⚠️ 本件是**测试夹具**、不是内容故事：段名沿用旧故事只因消费者钉死了它们，正文全部新写。",
 	"members": [
-		{ "name": "notes", "kind": "game-ref", "path": "Game?.Notes?.entries", "default": {}, "optional": true },
-		{ "name": "econEvents", "kind": "game-ref", "path": "Game.Economy.events" },
-		{ "name": "codexItems", "kind": "game-ref", "path": "Game.Codex.items" },
-		{ "name": "socialAsks", "kind": "game-ref", "path": "Game.Social.asks" },
-		{ "name": "socialAttAdj", "kind": "game-ref", "path": "Game.Social.attAdj" },
-		{ "name": "socialApproaches", "kind": "game-ref", "path": "Game.Social.approaches" },
-		{ "name": "socialAttLabels", "kind": "game-ref", "path": "Game.Social.ATT" },
-		{ "name": "hasChargen", "kind": "bool-exists", "path": "Game.Chargen" },
-		{ "name": "pcDefaults", "kind": "const", "value": { "star": { "charge": 12 }, "keeper": { "state": "post" } } },
+		{
+			"name": "notes",
+			"kind": "game-ref",
+			"path": "Game?.Notes?.entries",
+			"default": {},
+			"optional": true
+		},
+		{
+			"name": "econEvents",
+			"kind": "game-ref",
+			"path": "Game.Economy.events"
+		},
+		{
+			"name": "codexItems",
+			"kind": "game-ref",
+			"path": "Game.Codex.items"
+		},
+		{
+			"name": "socialAsks",
+			"kind": "game-ref",
+			"path": "Game.Social.asks"
+		},
+		{
+			"name": "socialAttAdj",
+			"kind": "game-ref",
+			"path": "Game.Social.attAdj"
+		},
+		{
+			"name": "socialApproaches",
+			"kind": "game-ref",
+			"path": "Game.Social.approaches"
+		},
+		{
+			"name": "socialAttLabels",
+			"kind": "game-ref",
+			"path": "Game.Social.ATT"
+		},
+		{
+			"name": "hasChargen",
+			"kind": "bool-exists",
+			"path": "Game.Chargen"
+		},
+		{
+			"name": "pcDefaults",
+			"kind": "const",
+			"value": {
+				"star": {
+					"charge": 12
+				},
+				"keeper": {
+					"state": "post"
+				}
+			}
+		},
 		{
 			"name": "prepick",
 			"kind": "const",
 			"value": [
-				{ "pool": "封印", "round": 1, "require": { "item": "月光花" }, "pick": "龙·斩击", "distinctFromPicked": true }
+				{
+					"pool": "封印",
+					"round": 1,
+					"require": {
+						"item": "月光花"
+					},
+					"forbid": {
+						"flag": "dragon.venom"
+					},
+					"pick": "封印·涂毒",
+					"distinctFromPicked": true
+				}
 			]
 		},
-		{ "name": "foeState", "kind": "state-ref", "path": "dragon", "default": {} },
+		{
+			"name": "foeState",
+			"kind": "state-ref",
+			"path": "dragon",
+			"default": {}
+		},
 		{
 			"name": "battleDamage",
 			"kind": "forward",
 			"to": "Game.Items.battleDamage",
-			"params": ["inv", "round", "defeats", "poisoned"],
-			"args": ["round", "inv", "defeats", "poisoned"]
+			"params": [
+				"inv",
+				"round",
+				"defeats",
+				"poisoned"
+			],
+			"args": [
+				"round",
+				"inv",
+				"defeats",
+				"poisoned"
+			]
 		},
-		{ "name": "rules", "kind": "empty-array" },
+		{
+			"name": "rules",
+			"kind": "empty-array"
+		},
 		{
 			"name": "dragonMaxHp",
 			"kind": "game-ref",
@@ -52,11 +126,38 @@
 			"required": true,
 			"error": "Sg.story.combatAction：动作「{key}」未登记（结构缺失必须报错，#441-E）"
 		},
-		{ "name": "mechanics", "kind": "null" },
-		{ "name": "itemDef", "kind": "lookup", "from": "window.Game?.Items?.defs", "key": "name", "default": null },
-		{ "name": "itemEffect", "kind": "lookup", "from": "window.Game?.Items?.effects", "key": "name", "default": null },
-		{ "name": "gearDef", "kind": "lookup", "from": "window.Game?.Gear?.defs", "key": "name", "default": null },
-		{ "name": "combatPool", "kind": "lookup", "from": "window.Game?.Combat?.pools", "key": "id", "default": [] },
+		{
+			"name": "mechanics",
+			"kind": "null"
+		},
+		{
+			"name": "itemDef",
+			"kind": "lookup",
+			"from": "window.Game?.Items?.defs",
+			"key": "name",
+			"default": null
+		},
+		{
+			"name": "itemEffect",
+			"kind": "lookup",
+			"from": "window.Game?.Items?.effects",
+			"key": "name",
+			"default": null
+		},
+		{
+			"name": "gearDef",
+			"kind": "lookup",
+			"from": "window.Game?.Gear?.defs",
+			"key": "name",
+			"default": null
+		},
+		{
+			"name": "combatPool",
+			"kind": "lookup",
+			"from": "window.Game?.Combat?.pools",
+			"key": "id",
+			"default": []
+		},
 		{
 			"name": "poisonReduce",
 			"kind": "game-ref",
@@ -66,6 +167,13 @@
 			"type": "number",
 			"error": "Sg.story.poisonReduce：故事未提供 Items.poisonReduce（结构缺失必须报错，#441-E）"
 		},
-		{ "name": "actionLabel", "kind": "lookup-field", "via": "combatAction", "key": "id", "field": "label", "required": true }
+		{
+			"name": "actionLabel",
+			"kind": "lookup-field",
+			"via": "combatAction",
+			"key": "id",
+			"field": "label",
+			"required": true
+		}
 	]
 }

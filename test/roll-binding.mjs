@@ -5,6 +5,12 @@
 // 修法：历史块用 `<<lastcheckFor "森林·察觉">>`（只在最新骰面确实属于该位点时复显）。
 //
 // 判据（本门）：走「听雾 → 洞穴动武 → 回森林边缘」，断言森林侧的听雾块**不含**战斗位点名。
+//
+// ⚠️ `#1004` B2b（**换样本**）：旧的导航与正文锚（`推门出发，走进暮色`／`雾里浮起一点灯火`／
+//   门厅那条七跳路径与 `调查检定`・`翻找过` 计数）都是**旧故事**的内容 ✗ ⇒ 本文按**面夹具**重钉 ✓；
+//   **判据本身不动** ✗（`#361` 历史块绑定 ＋ `#364` 结局消费临时结果 ＋ `#403` 同屏去重）；
+//   夹具侧同步补了三处**面**（不是剧情 ✓）：`森林边缘` 的 `sitecheck` 挪进链接（**渲染期不得改状态** ✓）、
+//   `门厅` 摘哨链接带点击时 `sitecheck`、`塔外花田` 摘过后给可读反馈 ✓。
 // 用法：node test/roll-binding.mjs
 import { newGame } from './harness.mjs';
 
@@ -14,9 +20,9 @@ const s = await newGame({ random: 0.99, session: { wait: 140 } });   // d20 恒 
 const w = s.w;
 const text = () => (w.document.querySelector('#passages')?.textContent ?? '').replace(/\s+/g, ' ');
 try {
-	await s.clickByLabel('推门出发，走进暮色');
+	await s.clickByLabel('森林边缘');                       // 面夹具：`酒馆 → 森林边缘` 直链 ✓
 	await s.clickByLabel('在雾里站住，听一听');
-	if (!text().includes('雾里浮起一点灯火')) throw new Error('听雾结果没出现（前置失败）');
+	if (!text().includes('雾里那点动静响过几次')) throw new Error('听雾正文没出现（前置失败）');
 	// 听雾当场：听雾块应带上**自己那次**骰面（森林·察觉）
 	if (!text().includes('森林·察觉')) { bad++; console.error('  ✗ #361：听雾当场没有复显自己的骰面（修复过度）'); }
 	else console.log('  ✓ 听雾当场复显自己的骰面（森林·察觉）');
@@ -28,7 +34,7 @@ try {
 	if (t.includes('洞穴·战斗')) { bad++; console.error('  ✗ #361：森林侧的听雾正文串入了洞穴战斗的位点名（历史结果没绑定到自己的行动）'); }
 	else console.log('  ✓ 历史听雾块不再串入战斗骰');
 	// 洞穴战斗之后回森林：听雾正文还在，但**不该挂任何骰面**（既不串战斗的，也不伪造自己的）
-	if (!t.includes('雾里浮起一点灯火')) { bad++; console.error('  ✗ #361：听雾正文丢了（历史结果不应被清掉）'); }
+	if (!t.includes('雾里那点动静响过几次')) { bad++; console.error('  ✗ #361：听雾正文丢了（历史结果不应被清掉）'); }
 	else if (t.includes('森林·察觉')) { bad++; console.error('  ✗ #361：森林侧仍挂着过期骰面（应只在当场复显）'); }
 	else console.log('  ✓ 跨段后听雾正文保留、骰面不串台（不留过期骰面）');
 } catch (e) { bad++; console.error(`  ✗ 用例异常：${e.message.slice(0, 140)}`); } finally { w.close?.(); }
@@ -57,12 +63,14 @@ try {
 	const w3 = s3.w;
 	const txt3 = () => (w3.document.querySelector('#passages')?.textContent ?? '').replace(/\s+/g, '');
 	try {
-		for (const l of ['问一句女巫小屋怎么走', '往林子深处走', '继续往塔那边走', '雾里有个影子挡着路', '慢慢放下手', '顺着那条窄路走过去', '收下钥匙']) await s3.clickByLabel(l);
-		w3.SugarCube.Engine.play('门厅'); await sleep(220);
+		await s3.clickByLabel('门厅');                            // 面夹具：`酒馆 → 门厅` 直链 ✓（旧七跳路径已退场）
+		await sleep(220);
 		await s3.clickByLabel('把墙上那支哨子摘下来'); await sleep(300);
 		const hits = (re) => (txt3().match(re) ?? []).length;
-		const d20 = hits(/d20\(/g), 查 = hits(/调查检定/g), 翻 = hits(/翻找过/g);
-		if (d20 !== 1 || 查 !== 1 || 翻 !== 1) { bad++; console.error(`  ✗ #403：门厅取物重复显示（d20×${d20}／调查检定×${查}／翻找过×${翻}；期望各 1）`); }
+		// 计数锚按**面夹具**重钉（旧锚 `调查检定`／`翻找过` 是旧故事的字面结果文案 ✗）：
+		// 夹具的摘哨链接带点击时 `<<sitecheck "门厅·看钉">>`（察觉 ⇒ `察觉检定`），位点名即结果块自身。
+		const d20 = hits(/d20\(/g), 查 = hits(/察觉检定/g), 站 = hits(/门厅·看钉/g);
+		if (d20 !== 1 || 查 !== 1 || 站 !== 1) { bad++; console.error(`  ✗ #403：门厅取物重复显示（d20×${d20}／察觉检定×${查}／门厅·看钉×${站}；期望各 1）`); }
 		else console.log('  ✓ #403：门厅取物——骰面与结果各显示一遍');
 		if (!w3.SugarCube.State.variables.pc.inv['坏哨']) { bad++; console.error('  ✗ #403：去重把状态变更也去掉了（坏哨没进背包）'); }
 		else console.log('  ✓ #403：状态变更照旧（坏哨已入背包）');

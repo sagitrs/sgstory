@@ -15,6 +15,7 @@
 
 import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处 ✓
 import { boot, CLICKABLE, CLICKABLE_SEL } from './boot.mjs';
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b：`story` 的默认值走本仓**单一权威** ✓（不写死 slug ✗）
 
 export { CLICKABLE, LINKS, LINKS_SEL, CLICKABLE_SEL, trailingAfterLast } from './boot.mjs';
 
@@ -97,21 +98,41 @@ export function makeSession(w, { settle = async () => {}, sleep = defaultSleep, 
 	return { w, links, byLabel, byKey, keyOf, clickEl, clickByLabel, clickByKey, tryClickByLabel, passage, text, pc, settle, sleep, rafTick };
 }
 
-// 开一局并把车卡走完（车卡 → 角色卡 → 出发）
-// 各测试原本都以「踏上旅途 → 快速成型（或第 N 张卡）→ 出发，前往歪脖子鸭酒馆」开头。
-export async function newGame({ random = 0.5, preset = 0, startLabel = '出发，前往歪脖子鸭酒馆', session = {} } = {}) {
-	const { w, uncaught, settle, sleep } = await boot({ random: typeof random === 'function' ? random : () => random });
+// 开一局。
+//
+// ⚠️ `#1004` B2b 基建 ✓：原写法把**一整个故事的开场链**写死在这里 ✗
+//   （「踏上旅途 → 快速成型（或第 N 张卡） → 出发，前往歪脖子鸭酒馆」✓ —— 那三条全是 `mist-forest` 的段落 ✓）；
+//   故事一删 ✓，**8 件用 `newGame` 的件全卡在第一步** ✗（报 `找不到链接「踏上旅途」`✓）。
+// ⇒ 改成**问接入契约** ✗（不猜、也不假定每故事都有车卡 ✓）：
+//   · `story` 可传 ✓（默认 `DEFAULT_SLUG` ✓ —— 与本仓其它消费者同一口径 ✓）；
+//   · **有没有车卡**问题由 `Sg.story.hasChargen()` 回答 ✓ —— 这正是**引擎自己**判那一支的方式 ✓
+//     （`src/10-core.twee:707`："车卡是本故事的页面（引擎不知道故事名）"✓）；
+//   · 没车卡的故事 ⇒ **跳过车卡链** ✓（`boot()` 已停在 `00-story.json::entry` ✓ ＝ 与"车卡后"等价的起始态 ✓）；
+//   · 有车卡的故事 ⇒ 走 `chargen` 两步 ✓，两步的文案**可传参** ✓（默认仍是旧链那两句 ✓ ——
+//     夹具故事按裁定 (甲) **沿用旧段名**✓ ⇒ 传参甚至用不上 ✓，但留出口子 ✓）。
+// ⚠️ 控制 ✓：`startLabel` 改成**存在才点** ✗（旧写法是"必须点到"✗）—— 它原本是"车卡终于走完、进正戏"那一步 ✓；
+//   无车卡的故事里没有那一步 ✓，硬点会把"没有车卡"变成一条假红 ✗。⇒ 用 `tryClickByLabel` ✓，
+//   并把"点了没"如实返回 ✓（要严格断言是否进入正戏的件，自己看读数 ✓）。
+export async function newGame({ story = DEFAULT_SLUG, random = 0.5, preset = 0, session = {},
+	chargen = ['踏上旅途', '快速成型'], startLabel = '出发，前往歪脖子鸭酒馆' } = {}) {
+	const { w, uncaught, settle, sleep } = await boot({ story, random: typeof random === 'function' ? random : () => random });
 	const s = makeSession(w, { settle, sleep, ...session });
-	await s.clickByLabel('踏上旅途');
-	if (preset) {
-		// 选第 N 套预设（点第 N 张卡里的「快速成型」；不带 preset 则默认第一张）
-		const cards = [...w.document.querySelectorAll('.choice-card')];
-		if (!cards[preset]) throw new Error(`没有第 ${preset + 1} 张预设卡（共 ${cards.length} 张）`);
-		const a = [...cards[preset].querySelectorAll('a')][0];
-		await s.clickEl(a, { wait: 300 });
-	} else {
-		await s.clickByLabel('快速成型');
+	const hasChargen = !!w.Sg?.story?.hasChargen?.();
+	let charged = false;
+	if (hasChargen) {
+		await s.clickByLabel(chargen[0]);
+		if (preset) {
+			// 选第 N 套预设（点第 N 张卡里的「快速成型」；不带 preset 则默认第一张）
+			const cards = [...w.document.querySelectorAll('.choice-card')];
+			if (!cards[preset]) throw new Error(`没有第 ${preset + 1} 张预设卡（共 ${cards.length} 张）`);
+			const a = [...cards[preset].querySelectorAll('a')][0];
+			await s.clickEl(a, { wait: 300 });
+		} else {
+			await s.clickByLabel(chargen[1]);
+		}
+		charged = true;
 	}
-	if (startLabel) await s.clickByLabel(startLabel);
-	return { ...s, uncaught };
+	// 进正戏那一步：**有才点** ✗（无车卡的故事 `boot()` 已经停在 entry ✓）
+	const started = charged && startLabel ? Boolean(await s.tryClickByLabel(startLabel)) : false;
+	return { ...s, uncaught, charged, started, hasChargen, story };
 }

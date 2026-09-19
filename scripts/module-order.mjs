@@ -45,10 +45,17 @@ export const ORDER = [
 	// 值得另票收紧（per-story ORDER），本票先按既有形状办。
 	'stories/minimal-demo/00-meta.twee',      // StoryTitle / StoryData / StoryIdentity（无依赖）
 	'stories/hollow-cave/00-meta.twee',       // StoryTitle / StoryData / StoryIdentity
+	'stories/night-ferry/00-meta.twee',       // 第四个故事（夜渡）的 StoryTitle / StoryData / StoryIdentity
 	'stories/hollow-cave/15-tables.twee',     // 声明面（S1–S4 的表）＋ StoryBindings：**引擎加载期**要用（必须排在 21-resolve 前）
 	'stories/minimal-demo/15-tables.twee',    // 最小声明面：引擎加载期要用的空容器
+	// ⚠️ `night-ferry`（`#998` 实测 ✗）：**漏登记 ⇒ 它落到末尾 ⇒ 顶层浅合并 `window.Game = Object.assign(…)` 会把
+	//   引擎加载期 assign 进 `Game.Combat` 的方法**一起替换掉** ✗ ⇒ `Game.Combat.slotAbsorb` 消失 ⇒ `slots` 门抛异常 ✓
+	//   ⇒ 这条**不是可选** ✓：**每个故事的 `15-tables.twee` 都必须排在 `21-resolve` 之前** ✓（:43 那句的原意 ✓）。
+	'stories/night-ferry/15-tables.twee',     // 第四个故事的声明面：引擎加载期要用的空容器（**必须排在 21-resolve 前** ✓）
 	'stories/mist-forest/20-chargen.twee',   // Game.Chargen（rounds/presets/API；加载期需要 Rules）
 	'src/engine/40-sim/21-resolve.twee',    // 结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）
+	'stories/night-ferry/10-ferry.twee',     // 第四个故事段落：渡口 → 河心 → 对岸（两条路线各 6 步、两个结局）
+	'stories/night-ferry/17-rules.twee',     // 条件表（生成物）：行数组，选择器在引擎侧
 	'stories/mist-forest/30-ch1.twee',
 	'stories/mist-forest/40-ch2.twee',
 	'stories/mist-forest/50-ch3.twee',
@@ -76,6 +83,11 @@ export const MODULES = {
 	'stories/hollow-cave/15-tables.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '无名洞窟的声明面：S1–S4 声明表（mechanics）＋ StoryBindings（引擎接入契约）' },
 	'stories/hollow-cave/10-cave.twee': { deps: ['stories/hollow-cave/15-tables.twee'], defines: [], layer: 'story', note: '无名洞窟段落：五步三选一主线' },
 	'stories/minimal-demo/10-demo.twee': { deps: ['stories/minimal-demo/15-tables.twee'], defines: [], layer: 'story', note: '最小示例段落 ＋ StoryBindings（引擎接入契约的空表）' },
+	// ── 第四个故事（`night-ferry` · 夜渡，P4 `#991` 用编辑器做出 ✓）──
+	'stories/night-ferry/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '第四个故事的元数据（StoryTitle / StoryData / StoryIdentity）' },
+	'stories/night-ferry/15-tables.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '第四个故事的声明面：引擎**加载期**要用的空容器（`#998` 实测：必须排在 `21-resolve` 前 ✗ —— 否则顶层浅合并会把引擎 assign 的方法替换掉 ✓）' },
+	'stories/night-ferry/10-ferry.twee': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落：渡口 → 河心 → 对岸，两条路线各 6 步、两个「结局…」段落' },
+	'stories/night-ferry/17-rules.twee': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '条件表（生成物）：行数组，选择器在引擎侧' },
 	'src/engine/30-persist/05-store.twee': { deps: [], defines: ['Sg.store'], layer: 'engine', note: '存储缝（#441-B/#462）：localStorage 键构造的唯一落点' },
 	'src/engine/10-const.twee': { deps: [], defines: ['Game.Era', 'Game.Damage'], layer: 'engine', note: '引擎常量（#660 片二）：时代枚举与伤害档梯的**唯一落点**' },
 	'src/10-core.twee': { deps: ['src/engine/10-const.twee'], defines: ['Game.Rules', 'Game.Pc', 'Sg.UI'], layer: 'engine', note: '规则内核与界面基座（常量见 10-const）' },

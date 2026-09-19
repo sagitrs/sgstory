@@ -10,6 +10,10 @@ import { relative } from 'node:path';
 //
 // 判定逻辑抽成纯函数 `judge()`，`--selftest` 用合成输入证明三条不变式（这也是本门的行为化自证）。
 import { statSync, readFileSync, writeFileSync, readdirSync, existsSync, renameSync } from 'node:fs';
+// `#1004` B2b ✓：`--update-size` 的**归因梯**用 `execFileSync`（上面那段 `gitChanged` ✓）—— 但这里**没 import 它** ✗
+//   ⇒ 那一句在 try 里抛 `ReferenceError` ⇒ 被 `catch { return [] }` 吃掉 ⇒ 归因**恒**打「工作区无 src/stories 改动 ⇒ 与本次改动无关」✗
+//   （实测：夹具改动在册的情况下仍这样报 ✓）。那正是 `#678` 注释里那句「**看不清账＝不能归因**」要防的东西 ✗ ⇒ 补上 import ✓。
+import { execFileSync } from 'node:child_process';
 
 export const NOTE = '产物体积预算（字节）。只许降不许升——确需增大请 --update-size 重签并在 PR 写明理由。';
 

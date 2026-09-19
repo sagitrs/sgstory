@@ -61,7 +61,10 @@ else {
 const r3 = witness(['--scan=1', '--max-steps=1']);
 if (r3.rc === 0) bad.push('③ 步数上限 1 ⇒ **应当走不到 ending 而红** ✗（实际 rc=0 ⇒ "必须终于 ending"这条没在守 ✓）');
 else if (!/走到 ending/.test(r3.out)) bad.push(`③ 红得对、但报文没点名"没走到 ending" ✗\n${r3.out.slice(-300)}`);
-const r4 = witness(['--scan=1', '--max-steps=40', '--min-events=99']);
+// ⚠️ `#1004` B2b：**扫描面按样本重钉** ✗ —— 默认故事换成面夹具后，`seed=1` 单跑会在 40 步上限里
+//   一直游走（实测 `ending=(无)` ⇒ 报文落「没走到 ending」✗），那量的是**样本**不是 K 门槛 ✓；
+//   扫 3 个种子（与 ① 同档 ✓）必有一个到得了结局 ⇒ 报文才落在「到过结局、但**都太短**」那一支 ✓。
+const r4 = witness(['--scan=3', '--max-steps=40', '--min-events=99']);
 if (r4.rc === 0) bad.push('③ 事件门槛 99 ⇒ **应当红** ✗（实际 rc=0 ⇒ K 门槛没在守 ✓）');
 // ⚠️ 报文要点名**是哪一种不成立** ✓：`K=99` 时头一个种子**是到得了结局的** ✓ ⇒ 报文该说"**到过结局、但都太短**"✗，
 //   而不是笼统一句"没走到 ending" ✗（那会把"轨迹太短"误读成"故事没有结局"✗ ⇒ 也是本条自证的一格 ✓）。
@@ -72,13 +75,24 @@ else if (!/太短/.test(r4.out)) bad.push(`③ 报文没点出"到过结局但**
 // ⑥ **故事无关** ✗（我这片修掉的正是这里 ✓）：换一个**结局段名不带「结局」前缀**的故事 ⇒ 也必须判得出 ✓
 //   为什么单列一格 ✗：这正是"段落名前缀当主判据"会**瞎**的那一格 ✓ ——
 //   没有这一格，谁把主判据改回前缀 ⇒ 自证**照样全绿** ✗（= 判据没牙 ✓）。
+// ⛔ **退役 ＋ 声明**（`#1004` B2b ✓）：本格原用**已删故事** `hollow-cave` ✓ —— 它的结局段是 `:: 地下村落`
+//   ＋ `<<ending "地下村落" final>>` ✓ ⇒ **段名不带「结局」前缀** ✗ ⇒ 那一格量的正是「判据是不是只认段落名前缀」✓。
+//   面已消失 ✗（实测：剩下三个样本的结局段**全**带「结局」前缀 ✓ —— `face-fixture` 3 条（`结局 平凡之路`／
+//   `结局 送星归位`／`结局 死亡` ✓）· `night-ferry` 2 条（`结局 抵岸`／`结局 沉船` ✓）· `minimal-demo` **无结局** ✗）
+//   ⇒ key 与「结局」前缀恒同时成立 ⇒ 这一格再也分不出「引擎键」与「前缀」✓。
+//   ✓ 处置：**换样本**（`night-ferry` ✓ —— 其冻存见证 `stories/night-ferry/gates/witness-trace.json` 写明
+//     `seed=1` ⇒ 6 步 ⇒ `结局 沉船` / `key=沉船` ✓）＋ **保留「另立结局键」这一格** ✓（`endingKey` 非空 ⇒
+//     改回前缀-only 的实现会在这里红 ✓）。
+//   ⚠️ **声明** ✗：**「段名不带「结局」前缀的结局样本」这一格自此无守护** ✓ ⇒ 日后要复钉它 ⇒ **先给某样本加一个
+//   段名不带「结局」前缀、但由 `<<ending "…">>` 登记的结局** ✓（⚠️ **不为凑绿改样本** ✗ —— 与 `test/rules-claims.mjs`、
+//   `ee67dcd` 那 4 件的退役同款 ✓；⚠️ 改名的路已实测堵死 ✗：`src/80-script.twee:305` 与 `src/10-core.twee:413`
+//   都按「结局」前缀工作 ✓ ⇒ 改段名会连引擎语义一起改 ✓）。
 {
-	const rs = witness(['--story=hollow-cave', '--scan=6', '--max-steps=60', '--min-events=3']);
-	if (rs.rc !== 0) bad.push(`⑥ 换故事（hollow-cave）应 rc=0 ✗（实际 ${rs.rc}）⇒ 判据多半仍是"段落名前缀" ✗\n${rs.out.slice(-300)}`);
+	const rs = witness(['--story=night-ferry', '--seed=1', '--scan=1', '--max-steps=60', '--min-events=3']);
+	if (rs.rc !== 0) bad.push(`⑥ 换故事（night-ferry）应 rc=0 ✗（实际 ${rs.rc}）\n${rs.out.slice(-300)}`);
 	else if (existsSync(TRACE)) {
 		const t6 = traceOf();
-		if (!t6.endingKey) bad.push('⑥ 换故事后没记下 `endingKey` ✗ ⇒ 故事无关的引擎判据没生效 ✓');
-		if (String(t6.ending ?? '').startsWith('结局')) bad.push(`⑥ 预期这个故事的结局段名**不**以「结局」开头 ✗（实际「${t6.ending}」）⇒ 这一格失去了鉴别力 ✓（换个故事再钉 ✓）`);
+		if (!t6.endingKey) bad.push('⑥ 换故事后没记下 `endingKey` ✗ ⇒ 故事无关的引擎判据没生效 ✓（「只认段落名前缀」的实现会落在这里 ✓：前缀-only ⇒ `endingKey=null` ✓）');
 	}
 }
 

@@ -163,37 +163,35 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /注入字面状态读/ },
 		why: '量的是「页内**真的在判** ① 条件表行级，而不是把 CLI 的结论抄一遍」（掐掉 core 那一步 ⇒ 注入的字面状态读不被点名 ⇒ 刀必红 ✓）—— 否则“两侧同判”会被写成“两侧都空”✗',
 	},
-	{
-		// 台账行：`test/web-settle.mjs` ✓（车道 D · `--settle` 页内面 ✓）
-		id: 'test/web-settle.mjs',
-		tier: 'fast',
-		pre: [],
-		cmd: 'node test/web-settle.mjs',
-		mutation: {
-			// 把页内那一支的判定**掐掉**（返回空 ✗）⇒ “非空上的同判”必红 ✓（这一步只动页内 ✗ ⇒ 不会把两侧一起变 ✗）。
-			file: 'editor/web/settle-view.mjs',
-			find: 'for (const prob of settleProblems(p.text, p.name)) problems.push(prob);',
-			replace: 'for (const prob of []) problems.push(prob);',
-		},
-		expect: { rc: 1, stdout: /非空/ },
-		why: '量的是「页内**真的在判**（与 CLI 同一份 core ✓），而不是把结论抄一遍／判空」（掐掉页内那一步 ⇒ “非空上的同判”那条必红 ✓）—— 否则“两侧同判”会被写成“两侧都空”✗',
-	},
+	// ⛔ **退役 ＋ 声明**（`#1004` B2b）：本行探针随 `test/web-settle.mjs` 一起退役 ✓。
+	//   因由：该件的**门侧样本**是 `stories/hollow-cave/gates/settle.mjs` ✓ —— 该故事已删（B2a ✓）
+	//   ⇒ 件本体在 `ee67dcd` 退役 ✓ ⇒ 探针**目标文件已不存在** ⇒ `node scripts/probe-gates.mjs --probe=fast`
+	//   实测「变异前就红（rc=1）⇒ 这次"红"不是变异造成的」✗ ⇒ **setup 层一红即中止整条 `npm test`** ✗。
+	//   ⚠️ 声明 ✗：**「落点文案（`--settle`）页内与 CLI 同判」这一面自此无探针守护** ✓
+	//   （页内件 `editor/web/settle-view.mjs` 与 core `editor/lib/core/settleRows.mjs` 都还在册 ✓，
+	//   缺的是**带 settle 门侧样本的故事** ✓）⇒ 日后要动它 ⇒ **先补一个带 `gates/settle.mjs` 的样本** ✓，
+	//   再把本行按原形状接回 ✓（`checkClaims` 式的判定机制没丢 ✗ —— 与本仓 `test/rules-claims.mjs` 的退役同款 ✓）。
+	//   ⚠️ 台账面不受影响 ✓：`docs/gate-ledger.md` 里**本来就没有这一行** ✗（段表在 `ee67dcd` 已清 ✓）
+	//   ⇒ 本行是**孤儿探针** ✓ ⇒ 删它**不动** `scripts/probe-budget.json` 的 `maxUnprobed` ✓。
 	{
 		// `#976`：**中间目录用完就清**那一步真的在守（掐掉 `finally` 里的清理 ⇒ 残留 ⇒ 集合断言必红 ✓）
+		//  ⚠️ `#1004` B2b 重钉 ✗：本行原来那刀是「把产物目录改回旧形 `build/generated/<slug>`」✓ ——
+		//   测试件在 `3f14e0c` 换样本（`mist-forest` ⇒ `night-ferry`）时把断言改成了**看"跑完多了什么"**
+		//   ✗ ⇒ 那刀落在**没被断言的**那一半上（`<slug>` 非点形 ✓）⇒ 实测**变异后 rc=0 ⇒ 探针不咬** ✓。
+		//   现刀 = 掐掉 `finally` 的 `rmSync` ✓ ⇒ 本件跑完会**新**留下 `.equiv-run-*` ✓ ⇒ ② 必红 ✓
+		//   （测试件同期把判据改成「不留**新**草稿」= baseline 差分 ✓ ⇒ 上一轮变异留下的残留**不会**顶红下一次基线 ✓，
+		//    否则「变异前就红」重演 ✗ —— 这正是本行上一版刀遇到过的坑 ✓）。
 		id: 'test/equiv-scratch.mjs',
 		tier: 'fast',
 		pre: [],
 		cmd: 'node test/equiv-scratch.mjs',
 		mutation: {
-			// 把产物目录**改回旧形** ✗（`build/generated/<slug>` ✓ —— 本片改动前的固定落点 ✓）⇒ "旧形不存在"必红 ✓
-			//  ⚠️ 为什么不用"掐掉清理"那刀 ✗：**本仓跑器是并行的** ⇒ 全局列举式断言会**竞态** ✓（CI 上实测过"变异前就红"✗）
-			//  ⇒ 改下在**与本片因果相关**的那一格（旧形是否被产生 ✓）⇒ **确定性** ✓。
 			file: 'editor/lib/host/commands.mjs',
-			find: "const genDir = join(runDir, 'gen');",
-			replace: "const genDir = join(ROOT, 'build/generated', slug);   // 探针：改回旧形 ✓",
+			find: "rmSync(runDir, { recursive: true, force: true });",
+			replace: "void runDir;   // 探针：掐掉清理 ⇒ 残留 ⇒ 本件 ②/③ 必红 ✓",
 		},
-		expect: { rc: 1, stdout: /旧形不存在/ },
-		why: '量的是「**中间目录真的不再产生旧形**」（把产物目录改回 `build/generated/<slug>` ⇒ 本件的"旧形不存在"断言必红 ✓）—— 否则"唯一 ＋ 清理"只写在注释里 ✗',
+		expect: { rc: 1, stdout: /不留草稿目录/ },
+		why: '量的是「中间目录**真的用完就清**」（掐掉 `finally` 的清理 ⇒ 本件跑完新留 `.equiv-run-*` ⇒ "不留草稿"必红 ✓）—— 否则"唯一 ＋ 清理"只写在注释里 ✗',
 	},
 	{
 		// `#984`（P3-④ 用户故事 CI）：把「**发现到了却没进编排 ⇒ 点名**」那条判据掐掉（恒不报 ✗）

@@ -21,6 +21,7 @@ import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { K_FACES, buildPlan, summarizeRuns, missingFromPlan, finalVerdict } from './lib/core/storyCi.mjs';
+import { storySlugs } from '../scripts/dist-paths.mjs';   // `#1004` B2b ✓：仓内故事名单的**单一权威** ✓（不写死名字 ✗）
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const STORIES = join(ROOT, 'stories');
@@ -46,7 +47,10 @@ if (isMain) {
 			// ⚠️ **不许断言「恰好三个」** ✗（`#989` 的根因 ✓）：本仓跑器是**并行**的 —— 别的段会在运行中往
 			//   `stories/` 放临时故事（`web-preview` 的 `stories/__e2e` ✓、`new-story-fixture` ✓）⇒ 精确等值会**随机红** ✗。
 			//   要断言的是「**真故事都在**」（⊇ ✓），不是「只有它们」（＝ ✗）。
-			['发现口径：三个真故事**都在**（⊇ ✓ —— 不赌「恰好三个」✗）', ['hollow-cave', 'minimal-demo', 'mist-forest'].every((s) => discoverStories().includes(s))],
+			// ⚠️ `#1004` B2b ✓：这一格原来**写死三个 slug**（`hollow-cave`／`minimal-demo`／`mist-forest` ✗）⇒ 故事一删
+			//   ⇒ 判据退化成「**在枚举已删故事**」✗（与 `test/story-ci.mjs` 的 ① 同病 ✓ —— 那边已改用 `storySlugs()` ✓）。
+			//   现在两句都取自 `storySlugs()` ✓ ⇒ 名单再变只跟着走 ✓，而「有没有漏发现」依然被咬住 ✓。
+			['发现口径：仓内现存故事**都在**（⊇ ✓ —— 不赌「恰好几个」✗）', storySlugs().every((s) => discoverStories().includes(s))],
 			['表：每条 K 都指既有命令且带证据 ✓', K_FACES.every((f) => Array.isArray(f.cmd('s')) && typeof f.evidence === 'string' && f.evidence.length > 0)],
 			// ⚠️ 三个数不一样是**对的** ✗：表里 global 有 **5** 条（K2/K3/K4/K5/K6 ✓），但 **K3 是 heavy** ✓
 			//   ⇒ 轻档只跑 4 条（K3 已由既有段 `test-story-runtime-mjs` 跑 ✓、不重复 ✗）、`--full` 才 5 条 ✓。

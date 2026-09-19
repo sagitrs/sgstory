@@ -39,8 +39,12 @@ export const TOKENS = [
 	{ id: '本席', src: '本席' },
 	{ id: '对抗席', src: '对抗席' },
 	{ id: '验收席', src: '验收席' },
-	{ id: 'ci-席', src: 'ci[ \\t\\u3000]?席', flags: 'i' },
-	{ id: '席号', src: '[TDCA][ \\t\\u3000]?席' },
+	// ⚠️ **左边界 `(?<![A-Za-z])`** ✗（`#962` ✓）：不加边界 ⇒ **英文词尾字母 ＋ 空格 ＋「席」** 会被当成席位号 ✓
+	//   （实证：`… **锚当前 head 的 APPROVED 席数 = 2** …` ⇒ 命中「D 席」✗ —— `#961` 的 CI 就是这么红的 ✓）。
+	//   边界**只挡「前面还是字母」**✗：`（T 席补的）`／`由 D 席投`／行首 `T 席` 这些**真命中必须仍然咬** ✓；
+	//   `T　席`（全角空格 ✓）与 `T席`（无空格 ✓）也**必须仍咬** ✗（`?` 与字符类已覆盖 ✓）。
+	{ id: 'ci-席', src: '(?<![A-Za-z])ci[ \\t\\u3000]?席', flags: 'i' },
+	{ id: '席号', src: '(?<![A-Za-z])[TDCA][ \\t\\u3000]?席' },
 	{ id: '伙伴会话', src: '伙伴会话' },
 	{ id: 'guest-1', src: 'guest-1' },
 	{ id: 'guest-归属', src: 'guest[ \\t\\u3000]?(?:的|在|实测|建议|说|问|抓到|抓到的)' },
@@ -132,6 +136,16 @@ const selftest = () => {
 	t('正例③：故事正文 `宴席`／`入席`／`席面` 不咬', judge(F('a.twee', '那顿饭没人撤／没散的席面／送星宴已开席'), {}).findings.length === 0);
 	t('正例④：叙事学词 `作者层`／`作者覆盖` 不咬', judge(F('a.md', '作者层解密；作者覆盖优先'), {}).findings.length === 0);
 	t('正例⑤：单独 `原话` 不咬（故事正文有它）', judge(F('a.twee', '她的原话你记下了'), {}).findings.length === 0);
+	// `#962`：**席位号的左边界** ✗ —— 三条正例（真命中不许松）＋ 两条反例（假阳要收）＋ 三条「别误伤」✓
+	t('正例⑥：`（T 席补的）` 括号紧邻 ⇒ **仍咬** ✗（真命中不许松）', judge(F('a.md', '// 纪律（T 席在 #441 上补的）'), {}).findings.length === 1);
+	t('正例⑦：`由 D 席投` 句中 ⇒ **仍咬** ✗', judge(F('a.md', '// 由 D 席投的票'), {}).findings.length === 1);
+	t('正例⑧：**行首** `T 席…` ⇒ **仍咬** ✗', judge(F('a.md', 'T 席：这条我来'), {}).findings.length === 1);
+	t('正例⑨：全角空格 `T　席` ⇒ **仍咬** ✗（别被左边界误伤）', judge(F('a.md', '（T　席补的）'), {}).findings.length === 1);
+	t('正例⑩：无空格 `T席` ⇒ **仍咬** ✗', judge(F('a.md', '（T席补的）'), {}).findings.length === 1);
+	t('正例⑪：英文词尾 ＋ 空格 ＋「席」`APPROVED 席数` ⇒ **不咬** ✗（`#961` 的真实形态 ✓）', judge(F('a.mjs', '⇒ 锚当前 head 的 APPROVED 席数 = 2'), {}).findings.length === 0);
+	t('正例⑫：`DRAFT 席` ⇒ **不咬** ✗', judge(F('a.md', '草稿（DRAFT 席）'), {}).findings.length === 0);
+	t('正例⑬：同族 `sci席`（`ci` 前还是字母）⇒ **不咬** ✗', judge(F('a.md', '英文 sci席 结尾'), {}).findings.length === 0);
+	t('正例⑭：同族 `ci 席`（前面不是字母）⇒ **仍咬** ✗', judge(F('a.md', '一个 ci 席 单字'), {}).findings.length === 1);
 	// ── 豁免面 ──
 	t('边界①：三个豁免目录整目录不扫', ['docs/archive/x.md', 'docs/reviews/y.md', 'docs/evidence/z.log'].every(isExempt));
 	t('边界②：本门与白名单自身跳过', isExempt('test/attribution-gate.mjs') && isExempt('test/attribution-allow.json'));

@@ -22,10 +22,11 @@ import { readFileSync, readdirSync, existsSync, statSync } from 'node:fs';
 import { join, dirname, resolve, relative } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { gatesForStory } from './audit/discovery.mjs';
+import { DEFAULT_SLUG } from './dist-paths.mjs';   // `#1004` B2b ✓：默认故事**单源**（不再写死 `'mist-forest'` ✗ —— 那已是被删故事 ✓）
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const TARGET_FLAGS = ['rules', 'state', 'reads', 'settle', 'story-shape'];
-const SLUG = 'mist-forest';
+const SLUG = DEFAULT_SLUG;   // `#1004` B2b ✓：报告头的"判哪个故事"取单源（本件只拿它做**报告落点/标题** ✗，不参与扫描面 ✓）
 
 const readFile = (abs) => { try { return readFileSync(abs, 'utf8'); } catch { return null; } };
 const walk = (dir, out = []) => {

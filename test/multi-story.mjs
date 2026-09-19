@@ -17,7 +17,7 @@ export const SHELF_MAX_BYTES = SHELF_PAGE_MAX_BYTES;
 /** **P5**（`#576` 未决①）：部署后冒烟（`.github/workflows/ci.yml`）里的体积上界**必须与常量同值**。
  *  为什么用门而不是让 workflow 读常量：冒烟作业**不 checkout 仓库**（只 curl 线上产物）⇒ 读不到常量；
  *  于是改成「两处数字由门钉住、不等就在 PR 里红」——歧义不再拖到部署之后才发现。 */
-export const ciLiteralProblems = (yaml, { story = STORY_PAGE_MAX_BYTES, shelf = SHELF_PAGE_MAX_BYTES } = {}) => {
+export const ciLiteralProblems = (yaml, { story = STORY_PAGE_MAX_BYTES, shelf = SHELF_PAGE_MAX_BYTES, slugs = storySlugs() } = {}) => {
 	const out = [];
 	const y = String(yaml ?? '');
 	const storyLit = /test\s+"\$SSZ"\s+-lt\s+(\d+)/.exec(y);
@@ -26,6 +26,20 @@ export const ciLiteralProblems = (yaml, { story = STORY_PAGE_MAX_BYTES, shelf = 
 	else if (Number(storyLit[1]) !== story) out.push({ code: 'P5', msg: `ci.yml 故事页上界 ${storyLit[1]} ≠ STORY_PAGE_MAX_BYTES ${story}（两处口径漂了）` });
 	if (!shelfLit) out.push({ code: 'P5', msg: 'ci.yml 里找不到书架页上界断言（test "$SZ" … -lt …）' });
 	else if (Number(shelfLit[1]) !== shelf) out.push({ code: 'P5', msg: `ci.yml 书架页上界 ${shelfLit[1]} ≠ SHELF_PAGE_MAX_BYTES ${shelf}` });
+	// ── **P6**（`#1004` B2b）：冒烟作业里的**故事页路径**不许硬编码 ✗ ────────────────────────────
+	// 为什么需要这一格 ✗：冒烟作业**不 checkout 仓库** ⇒ 读不到 `DEFAULT_SLUG` 常量 ⇒ 只能写字面量 ✗；
+	// 而字面量会随故事**改名/删除**腐烂 ⇒ `curl` 404 ⇒ 该作业红 —— 而它**只在 push to main 跑** ✗
+	// ⇒ **PR CI 全绿也看不见** ✓（实测：删 `mist-forest` 后 `stories/mist-forest/index.html` 必 404 ✓）。
+	// 判据两条（照 P5 的「锚点丢了也报」体例 ✓）：① 出现的 `stories/<slug>/index.html` 字面量必须是**现存故事**；
+	// ② 故事页路径必须**从书架页现场取**（`grep -oE 'stories/…/index.html' /tmp/idx.html`）——与线上产物同源 ✓。
+	// ⚠️ 扫字面量前**先剔注释行** ✗：注释里写旧路径（说明因由）是**要保留的历史** ✓ ⇒ 让它变成假红就是把「留痕」罚了 ✓。
+	const code = y.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
+	const hardcoded = [...new Set([...code.matchAll(/(?<![\w.-])stories\/([A-Za-z0-9._-]+)\/index\.html/g)].map((m) => m[1]))];
+	const dangling = hardcoded.filter((s) => !slugs.includes(s));
+	if (dangling.length)
+		out.push({ code: 'P6', msg: `ci.yml 硬引用故事页 \`stories/${dangling[0]}/index.html\`，但该故事不在仓内（现存：${slugs.join(' / ')}）—— 本作业只在 push to main 跑 ⇒ PR CI 看不见它会 404（改用「从书架页现场取」✓）` });
+	if (!/grep\s+-oE\s+'stories\//.test(code) || !code.includes('/tmp/idx.html'))
+		out.push({ code: 'P6', msg: "ci.yml 里找不到「从书架页现场取故事页路径」的锚点（`STORY_PATH=$(grep -oE 'stories/<slug>/index.html' /tmp/idx.html)`）" });
 	return out;
 };
 
@@ -130,11 +144,19 @@ if (process.argv.includes('--selftest')) {
 	t('P4 正例：故事页在上界内 → 不报', judgeStoryPage({ slug: 'a', bytes: STORY_PAGE_MAX_BYTES - 1 }).length === 0);
 	t('P4 反例：故事页顶到上界（＝部署后冒烟的口径）→ 报红', judgeStoryPage({ slug: 'a', bytes: STORY_PAGE_MAX_BYTES }).some((f) => f.code === 'P4'));
 	// P5（`#576` 未决①）：CI 里的字面量必须与常量同值
-	const CI_OK = 'test "$SSZ" -lt 1000000 || exit 1\ntest "$SZ" -gt 0 -a "$SZ" -lt 100000 || exit 1\n';
+	// ⚠️ 下面这两行 fixture 之前就是**陈的** ✗（实测：故事页上界常量从 `1_000_000` 抬到 `2_000_000` 时没跟着改 ✓，
+	//   而本件的 `--selftest` **不在 `npm test` 的段表里** ⇒ 红了也没人看见 ✓）—— 本片顺手改准 ＋ 去掉两处 `-lt 100000` 的
+	//   子串歧义（`-lt 1000000` 里含 `-lt 100000` ⇒ 原 shelf 反例实际改的是**故事页**那一条 ✓ ⇒ "该红不红" ✗）。
+	const CI_OK = 'test "$SSZ" -lt 2000000 || exit 1\ntest "$SZ" -gt 0 -a "$SZ" -lt 100000 || exit 1\nSTORY_PATH=$(grep -oE \'stories/[A-Za-z0-9._-]+/index\\.html\' /tmp/idx.html | head -1)\n';
 	t('P5 正例：ci.yml 两个上界与常量同值 → 0 问题', ciLiteralProblems(CI_OK).length === 0);
-	t('🔴 P5 反例：ci.yml 故事页上界漂了（999999）→ 报红', ciLiteralProblems(CI_OK.replace('-lt 1000000', '-lt 999999')).some((f) => f.code === 'P5'));
-	t('🔴 P5 反例：ci.yml 书架页上界漂了 → 报红', ciLiteralProblems(CI_OK.replace('-lt 100000', '-lt 200000')).some((f) => f.code === 'P5'));
-	t('🔴 P5 反例：断言被删掉 ⇒ 报「口径锚点丢了」', ciLiteralProblems('echo 无断言').length === 2);
+	t('🔴 P5 反例：ci.yml 故事页上界漂了（1999999）→ 报红', ciLiteralProblems(CI_OK.replace('-lt 2000000', '-lt 1999999')).some((f) => f.code === 'P5'));
+	t('🔴 P5 反例：ci.yml 书架页上界漂了（200000）→ 报红', ciLiteralProblems(CI_OK.replace('"$SZ" -lt 100000', '"$SZ" -lt 200000')).some((f) => f.code === 'P5'));
+	t('🔴 P5 反例：断言被删掉 ⇒ 报「口径锚点丢了」（P5×2 ＋ P6×1）', ciLiteralProblems('echo 无断言').length === 3);
+	// P6（`#1004` B2b）：故事页路径不许硬编码（冒烟作业只在 push to main 跑 ⇒ PR CI 看不见 404）
+	t('🔴 P6 反例：ci.yml 硬引用**已删故事**的故事页 ⇒ 报红', ciLiteralProblems(`${CI_OK}STORY="https://example.test/stories/mist-forest/index.html"\n`).some((f) => f.code === 'P6'));
+	t('P6 正例：无字面量 ＋ 有现场取路径的锚点 ⇒ 不报 P6', !ciLiteralProblems(CI_OK).some((f) => f.code === 'P6'));
+	t('🔴 P6 反例：「从书架页取路径」的锚点被删掉 ⇒ 报红', ciLiteralProblems('test "$SSZ" -lt 2000000 || exit 1\ntest "$SZ" -gt 0 -a "$SZ" -lt 100000 || exit 1\n').some((f) => f.code === 'P6'));
+	t('P6 正例：注释里写旧路径（留痕）**不算**硬引用 ⇒ 不报 P6', !ciLiteralProblems(`${CI_OK}# 历史：原来写死 stories/mist-forest/index.html ✗\n`).some((f) => f.code === 'P6'));
 	const goodPage = `<link href="${FONT_PREFIX_FROM_STORY}LXGWWenKai-Regular.woff2"><style>url('${FONT_PREFIX_FROM_STORY}LXGWWenKai-Medium.woff2')</style>`;
 	t('P1/P2 正例：前缀正确且字体文件存在 → 0 问题', checkStoryFontRefs(goodPage, ['LXGWWenKai-Regular.woff2', 'LXGWWenKai-Medium.woff2']).length === 0);
 	t('P1 反例：故事页用了根路径前缀（深两层会 404）→ 报红', checkStoryFontRefs(goodPage.split(FONT_PREFIX_FROM_STORY).join(FONT_PREFIX_FROM_ROOT), []).some((f) => f.code === 'P1'));

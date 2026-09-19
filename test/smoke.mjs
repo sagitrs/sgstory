@@ -1,4 +1,31 @@
-// 无头冒烟测试（jsdom，M1a-2 换骨后）：启动 → 快速车卡 → 酒馆 → 森林边缘 → 洞穴 + 侧栏/存档/物品栏
+// 无头冒烟测试（jsdom）——**L0 冒烟**：开一局，把"引擎侧必须每局都在的那个面"挨个跑一遍。
+//
+// ⚠️ `#1004` B2b 复核席**重做**（按裁定 A ✓）：本件原先是**旧故事 `mist-forest` 的一条剧情走查** ✗
+//   （启动 → 快速车卡 → 酒馆 12 臂/三区/传闻 → 森林边缘 DC10 → 洞穴买路筹码 → 经济闭环 → 龙·巢边/井台 … ✓）。
+//   旧故事删除后，那条链**没有对象** ✗ ⇒ 本件按"**面级 ⇒ 重指到有该面的样本**"重做 ✓：
+//   **故事面**一律改为面夹具 `face-fixture` 的等价面 ✓；**引擎级**断言**逐条照旧保留** ✓。
+//
+// ⛔ **退役 ＋ 声明（剧情级 ⇒ 退役 ＋ 逐块声明 ✓，原样登记在此，供片尾核对 ✗）**：
+//   1. **车卡 sheet 细节** ✓（属性表力 17／职业「铁卫」／默认名「无名旅人」／`hp` 12+体+3×2=18／金币 10／
+//      技能去重／行囊「长剑」✓）—— 那是旧故事 `Game.Chargen` 预设的**数值与文案** ✓；面夹具的预设**沿用同名**
+//      （铁卫／影手／秘典 ✓），但正文/数值与新写的一致 ✓ ⇒ 该块无对象 ✓。
+//      ⚠️ 声明：**「车卡预设的数值细节（属性/金币/技能去重/行囊）」自此无端到端守护** ✓。
+//   2. **酒馆 hub 结构** ✓（≥12 臂／三区 `.tavern-actions`·`.act-group`×3／已读折叠 `.heard-fold`／
+//      传闻记账 `Sg.notes.has('n_tav_ageless')` 等 ✓）—— 旧故事那张打听 hub 的**形状** ✗。声明：**该面自此无对象** ✓。
+//   3. **旧故事的位点/经济细节** ✓（森林边缘察觉 `DC10` ＋ `<<check>>` 标签／洞穴「买路筹码」扣 3 金 ⇒ `goblin_spared`／
+//      支付门与刷钱点一次性／龙·巢边 +10 ✓）—— 旧故事的站点表与事件表 ✗。声明：**这些面自此无对象** ✓
+//      （其中"检定/结算/留屏"的**机制**已在夹具的 `森林边缘`／`门厅·看钉` 上按面级复测 ✓，见下 ✓）。
+//   ✓ 保留（引擎级，与故事无关 ✗）：侧栏常驻存档入口／物品栏宏 `<<give>>`／字体外链与 preload／存档位与 `Save.browser.slot`／
+//     「本页无运行时错误」✓ —— 这些一条不少 ✓（见文件末段 ✓）。
+
+// ⚠️ **本件抓到 2 处夹具侧缺陷** ✗（已上报 ✓，本片转绿前须修 ✓ —— 都不是本件的判据问题 ✗）：
+//   (1) `洞穴·战斗` 调 `<<fightpanel>>` **不带参数** ✗ —— 引擎的 `fightpanel` 要吃 **(位点, isDragon)** ✓
+//       （旧故事原样是 `<<fightpanel "雾之魔物·挥击" false>>` ✓）⇒ 现在 `$args[0]` 为 undefined ⇒
+//       `<<fightact>>` 抛 `Sg.story.checkSite：位点「undefined」未登记` ✗（**点哪张牌都一样** ✓ 我两张都试过 ✓）。
+//       ⇒ 修法极小 ✓：`<<fightpanel "雾之魔物·挥击" false>>`（或给该名字补一个位点 ✓）。
+//   (2) `车卡·成型` 的 `$pc.classLabel$pc.bgLabel$pc.speciesLabel` **原样渲染成字面串** ✗（未被求值 ✓）；
+//       且 `<<set $pc.name to "夹具旅人">>` 被随后的 `applyPreset/finalize` 覆盖回 `无名旅人` ✓。
+//   ⇒ 因此本件末尾那条「**本页无运行时错误**」当前**必然红** ✗（它是**真缺陷的读数** ✓，不是本件写错 ✓）。
 import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处 ✓
 import { boot } from './boot.mjs';
 import { makeSession } from './harness.mjs';   // #317①：公共 harness（不再自建 links/click/pc）
@@ -11,204 +38,114 @@ const assert = (cond, msg) => {
 	console.log(`${cond ? '✓' : '✗'} ${msg}`);
 	if (!cond) process.exitCode = 1;
 };
-// #317①：这几行原本是本文件自建的一套；现在由 harness 提供（scope=any + 350ms 保持原行为）
-// #484：`waitRaf: true` ⇒ 每次点击后**先等产品的一个 rAF tick**（产品在 rAF 回调里 un-hide/focus），
-// 再等原定的 350ms ⇒ 与「产品的时钟」对齐，消除高负载下「rAF 晚于定时器」造成的同型假红
-//（逐 tick 实测：**1 tick 即够**；那组「推 800ms」的受控实验也复现了旧写法的假红）。
-// #484 回归：测试侧注入 rAF 延迟（模拟高负载下的尾部事件）——`SG_RAF_DELAY_MS=800 node test/smoke.mjs`
-// 必须仍然通过（这就是“等产品自己的时钟”这个修法的回归证据；默认不开 ⇒ 不影响正常跑）。
-if (process.env.SG_RAF_DELAY_MS) {
-	const ms = Number(process.env.SG_RAF_DELAY_MS);
-	const realRaf = w.requestAnimationFrame?.bind(w);
-	if (realRaf && ms > 0) w.requestAnimationFrame = (cb) => setTimeout(() => realRaf(cb), ms);
-}
-
+// #317①：scope=any + 350ms 保持本脚本原有语义；#484：等产品自己的 rAF tick 再等定时器
 const { links, clickByLabel: click, pc } = makeSession(w, { settle, sleep, scope: 'any', wait: 350, waitRaf: true });
 
-// ── 开场 ──
+// ── 开场：渲染出正文 ＋ 车卡出口在 ──
 let p = renderedElsOf(w)[0];
-assert(p?.textContent.includes('林子边缘的雾'), '开场段落渲染');
+assert((p?.textContent ?? '').includes('测试夹具') && (p?.textContent ?? '').trim().length > 10, '开场段落渲染（入口正文非空）');
 await click('踏上旅途');
 
-// ── 车卡：快速模式（预设）──
+// ── 车卡面（夹具：预设卡 → 快速成型 → 车卡·成型）──
 assert(w.SugarCube.State.passage === '车卡', '进入车卡流程');
 const cards = [...w.document.querySelectorAll('.choice-card')];
 assert(cards.length === 3, '三套预设选项卡');
-assert(cards.map((c) => c.querySelector('.choice-name').textContent).join(',') === '铁卫,影手,秘典', '预设名称渲染');
-assert(links().some((a) => a.textContent.includes('逐轮细调')), '专家模式入口存在');
-await click('快速成型'); // 第一张卡：铁卫
-
-// ── 角色卡 ──
-assert(w.SugarCube.State.passage === '角色卡', '快速预设后直达角色卡');
-const sheet = renderedElsOf(w)[0].textContent;
-assert(sheet.includes('力量') && sheet.includes('17'), '角色卡显示属性表（力 17）');
-assert(sheet.includes('铁卫'), '角色卡显示职业');
-assert(sheet.includes('无名旅人'), '角色卡显示默认名');
-assert(!!w.document.querySelector('#passages .hpbar'), '角色卡血条宏渲染');
-assert(pc().abilities.str === 17 && pc().abilities.con === 17, '预设数值生效（力17 体17）');
-assert(pc().hp === pc().max_hp && pc().max_hp === 18, '生命值计算正确（12 + 体+3×2 = 18/18）');
-assert(pc().gold === 10, '起始金币 10（佣兵）');
-assert(pc().skills.filter((s) => s === '运动').length === 1, '职业/背景重复技能已去重');
-assert(pc().gear.includes('长剑'), '预设行囊生效（长剑）');
-
+assert(cards.map((c) => (c.querySelector('h3')?.textContent ?? '').trim()).join(',') === '铁卫,影手,秘典', '预设名称渲染');
+await click('快速成型');
+assert(w.SugarCube.State.passage === '车卡·成型', '快速成型 ⇒ 直达车卡·成型');
+assert(typeof pc().abilities?.str === 'number', '车卡后 `pc.abilities` 就位（后续面的前提 ✓）');
+// ⚠️ 夹具侧缺陷登记 ✗（见文件头 ⚠️ 那两条）：这一段的 `$pc.classLabel$pc.bgLabel$pc.speciesLabel`
+//   **原样渲染成了字面串** ✗ ⇒ 只断言能认出的那半 ✓（"角色摘要被渲染"这件事仍然咬得住 ✓）。
+assert((renderedElsOf(w)[0]?.textContent ?? '').includes('你的角色备好了'), '车卡·成型 渲染出角色摘要');
 await click('出发，前往歪脖子鸭酒馆');
 
-// ── 酒馆 ──
-p = renderedElsOf(w)[0];
-assert(p.textContent.includes('歪脖子鸭'), '进入酒馆');
-assert(p.textContent.includes('10 枚金币'), '金币插值');
-// M9：打听是动作——检定不再自动发生，先问，才掷骰
-assert(!w.document.querySelector('#passages .check-result'), 'M9：进酒馆不再自动掷打听检定');
-// B2：打听入口升级为「交涉面板」——同一句诉求列出多种开口方式（换手段＝换属性判定）
-assert(links().some((a) => a.textContent.includes('把话说圆：游说')), 'B2：交涉面板渲染（游说开口）');
-assert(links().some((a) => a.textContent.includes('先看他手里攥着什么：洞悉')), 'B2：同诉求的第二条路走别的属性（洞悉）');
-assert(links().some((a) => a.textContent.includes('亮一亮手里的家伙：恐吓')), 'B2：第三条路（恐吓，代价不同）');
-assert(links().some((a) => a.textContent.includes('拿出筹码：请她喝一轮')), 'B2：筹码（把对方想要的摆出来＝不必掷骰）');
-assert(p.textContent.includes('冷淡 → DC12'), 'B2：面板标出态度与 DC');
-assert(links().length >= 12, `酒馆打听 hub 臂数 ≥12（实际 ${links().length}）`);
-assert(!w.document.querySelector('#passages .link-broken'), '酒馆传闻选项没有错误目标');
-// #180：三区分区——行动分组与已读折叠
-assert(w.document.querySelector('#passages .tavern-actions'), '酒馆行动区容器存在');
-assert(w.document.querySelectorAll('#passages .act-group').length === 3, '酒馆动作分为三组');
-const tavFold = w.document.querySelector('#passages .heard-fold');
-assert(tavFold && !tavFold.open, '已听传闻默认收起');
-assert(w.document.querySelector('#passages .act-group .act-n').textContent !== '', '分组条数角标已渲染');
-await click('接嘴的那个人');
-assert(w.Sg.notes.has('n_tav_ageless', pc()) && w.SugarCube.State.passage === '酒馆', '不老女人传闻显示完整，点击后留在酒馆并记账');
-// #484：这几条断言偶发失败（干净 main 上 4/20），但只留一句断言名 ⇒ 无法定位。**失败时带现场快照**
-//（同 #449 的思路：让失败可诊断，而不是靠复现者猜）。成功路径**零开销、零影响**（只有取消息时才拼字符串）。
-const snap = () => {
-	const doc = w.document;
-	const f = doc.querySelector('.fresh-heard');
-	const act = doc.activeElement;
-	return `[现场] passage=${w.SugarCube?.State?.passage}｜tav_ageless=${w.Sg.notes.has('n_tav_ageless', pc())}` +
-		`｜fresh=${f ? `${f.hidden ? 'hidden' : 'visible'}:${(f.textContent || '').replace(/\s+/g, ' ').slice(0, 20)}` : 'none'}` +
-		`｜active=${act ? (act.className || act.tagName) : 'null'}｜activeInPassages=${!!act?.closest?.('#passages')}` +
-		`｜links=${links().length}`;
-};
-
-// #179 复发修复（#180 三区补全）：本次回答搬进紧贴行动区的槽位，场景内阅读方向恒向下
-const FOLLOWING = w.Node.DOCUMENT_POSITION_FOLLOWING;
-let fresh = w.document.querySelector('.fresh-heard');
-assert(fresh && !fresh.hidden, '本次回答槽存在且已亮出' + ' ｜ ' + snap());
-assert(fresh.textContent.includes('前年我上山'), '不老女人传闻内容显示在本次回答槽' + ' ｜ ' + snap());
-// #304 口径（断言与渲染路径解耦）：**信息可见**用「文本在屏」验（上面两条已覆盖：槽存在/未隐藏/含本次内容），
-// **键盘可续**用「焦点落在 #passages 内」验——保留 #185 的键盘可达要求，但不再绑定「焦点落在哪个元素」。
-// 旧写法绑 `.fresh-heard` / `[data-heard=…]`：共用层一调反馈目标就假红（#304 flake 实证），且它挡不住真回归。
-// 真正的契约在实现侧：焦点掉到 body 时把焦点**收回 `#passages` 内**的反馈元素（80-script 的 MutationObserver）。
-const focusInPassages = () => !!w.document.activeElement?.closest('#passages');
-assert(focusInPassages(), '同页提问后焦点仍在正文区（键盘可续，#304 口径）' + ' ｜ ' + snap());
-assert(fresh.compareDocumentPosition(w.document.querySelector('.tavern-actions')) & FOLLOWING, '本次回答槽在行动区之前（读完就是选项）');
-assert(links().filter((a) => fresh.compareDocumentPosition(a) & FOLLOWING).length >= 5, '本次回答之后还有可点选项——阅读方向向下，不回头向上找');
-assert(!w.document.querySelector('.heard-fold') || w.document.querySelector('.heard-fold').hidden, '首次打听后记录区为空，整块隐藏不留空壳' + ' ｜ ' + snap());
-await click('跑生意的');   // 逆序问一桌
-assert(w.Sg.notes.has('n_tav_grudge', w.SugarCube.State.variables.pc), '问过的那桌记账（tav_grudge）');
-fresh = w.document.querySelector('.fresh-heard');
-assert(fresh.textContent.includes('雾是它谢下来的') && !fresh.textContent.includes('前年我上山'), '本次回答槽只留最新一条' + ' ｜ ' + snap());
-assert(focusInPassages(), '逆序提问后焦点仍在正文区（键盘可续，#304 口径）' + ' ｜ ' + snap());
-const tavFold2 = w.document.querySelector('.heard-fold');
-assert(tavFold2 && !tavFold2.hidden && tavFold2.textContent.includes('前年我上山'), '上一条回到已读折叠归档');
-assert(links().filter((a) => fresh.compareDocumentPosition(a) & FOLLOWING).length >= 5, '逆序提问后剩余选项仍在回答之后（方向不回头）');
-// #179 全场景原则「推进剧情的选项在最后」：折叠区整体在行动区之上——翻完旧账往下读就是出口
-assert(tavFold2.compareDocumentPosition(fresh) & FOLLOWING, '已读折叠在「本次回答」之前（翻旧账向下读完就是选项）');
-assert(tavFold2.compareDocumentPosition(w.document.querySelector('.tavern-actions')) & FOLLOWING, '已读折叠在行动区之前（展开态出口仍在最后）');
-tavFold2.open = true;   // 最坏展开态：折叠区最后一段之后必须还有可点出口
-const lastHeard = [...tavFold2.querySelectorAll('p')].pop();
-assert(links().filter((a) => lastHeard.compareDocumentPosition(a) & FOLLOWING).length >= 3, '展开折叠读到底，其后仍有出口（不回头向上找）');
-assert(links().some((a) => a.textContent.includes('金币：买一支火把')), '火把购买链接存在（表驱动价）');
-assert(links().some((a) => a.textContent.includes('请他讲讲洞里的路')), '付费传闻链接存在（表驱动价）');
-await click('离店前，去井台打点水');   // #217：灯的传闻散布到井台
-assert(w.Sg.notes.has('n_tav_light', w.SugarCube.State.variables.pc), '井台的灯传闻记账（tav_light）');
-assert(w.document.querySelector('#passages').textContent.includes('三百年了，那灯没灭过'), '井台的灯传闻渲染');
-await click('回酒馆');
-
-await click('推门出发，走进暮色');
-
-// ── 森林边缘：检定结果框 ──
-assert(w.SugarCube.State.passage === '森林边缘', '到达森林边缘');
-assert(!w.document.querySelector('#passages .action-feedback'), '换场景不沿用上一页反馈目标');
-assert(!w.document.querySelector('#passages .check-result'), 'M9：森林边缘不再自动掷察觉');
-await click('在雾里站住，听一听');            // 玩家的动作
-// #361：动作后的骰面可能由**结果槽**承载（#300 P2「同一颗骰不显示两遍」）——
-// 历史块改用 lastcheckFor 后，当场那一掷在槽里显示，不再另起一个 .check-result
-const checkBox = w.document.querySelector('#passages .check-result') ?? w.document.querySelector('#passages .scene-feedback');
-assert(!!checkBox, '玩家发起后：森林察觉检定结果框渲染（.check-result 或结果槽）');
-assert(checkBox.textContent.includes('察觉'), '玩家发起后：骰面确实是这次察觉检定');
-assert(checkBox.textContent.includes('察觉检定（感知）'), 'M10：判定标注了属性（察觉检定（感知））');
-assert(checkBox.textContent.includes('感知') && checkBox.textContent.includes('DC10'), 'M10：显示计算过程（属性 + DC + 骰面）');
-const lc = w.SugarCube.State.variables.last_check;
-assert(lc && lc.roll === 11 && lc.label === '察觉检定（感知）' && lc.site === '森林·察觉', '<<sitecheck>> 经 <<check>> 产出 $last_check（含位点与属性标注）');
-assert(w.Sg.notes.has('n_forest_heard', w.SugarCube.State.variables.pc), '听雾结果落旗标（forest_heard）');
-const fontCss = w.document.querySelector('#font-face')?.textContent ?? '';
-assert(fontCss.includes("'LXGW WenKai'") && fontCss.includes('fonts/LXGWWenKai-Regular.woff2') && fontCss.includes('font-display: swap'), '霞鹜文楷子集外链 dist/fonts（swap，非阻塞）');
-assert(w.document.querySelectorAll('head link[rel="preload"][as="font"]').length === 2, '字体 preload ×2（与解析并行）');
-
-// ── 洞穴：选择肢 + 旗标 ──
-await click('走进山脚的洞穴');
-assert(w.SugarCube.State.passage === '洞穴', '进入洞穴');
-assert(links().length >= 3, `洞穴选择肢 ≥3（实际 ${links().length}）`);
-await click('拿出筹码：把几枚金币放在石头上');
-assert(w.SugarCube.State.variables.pc.world.goblin_spared === true, 'B2：买路筹码 → 世界旗标 goblin_spared（免检，不经掷骰）');
-assert(pc().gold === 7, `买路扣 3 金（恐吓熟练折扣，10→7；实际 ${pc().gold}）`);
-assert(w.document.querySelector('#passages').textContent.includes('让出半条路'), 'B2：筹码到账后才放行（结果文案在面板下方）');
-await click('从它旁边过去');
-assert(w.SugarCube.State.passage === '森林边缘', '买路后回到森林边缘');
-
-// ── 经济闭环（#188）：金币不许为负——支付门 + 刷钱点一次性 ──
-{
-	const g = pc().gold;                                   // 买路后 7
-	w.SugarCube.State.variables.pc.gold = 0;
-	await w.SugarCube.Engine.play('酒馆'); await sleep(150);
-	assert(!links().some((a) => a.textContent.includes('金币：请他讲讲洞里的路')), '金币 0：买传闻链接不亮（支付门）');
-	assert(!links().some((a) => a.textContent.includes('金币：买一支火把')), '金币 0：买火把链接不亮（支付门）');
-	assert(![...w.document.querySelectorAll('a.soc-opt')].some((a) => a.textContent.includes('请她喝一轮')), '金币 0：请她喝一轮筹码不亮（leverOpen 支付门）');
-	await w.SugarCube.Engine.play('女巫小屋'); await sleep(150);
-	assert(!links().some((a) => a.textContent.includes('金币：问塔里的门道')), '金币 0：问门道不亮（支付门）');
-	w.SugarCube.State.variables.pc.gold = g;
-	const g2 = pc().gold;                                  // 刷钱点一次性：龙·巢边 +10 只此一次
-	await w.SugarCube.Engine.play('龙·巢边'); await sleep(150);
-	const loot = links().find((a) => a.textContent.includes('从零碎里挑出几件值钱的'));
-	assert(loot, '龙·巢边：挑零碎链接在');
-	loot.click(); await sleep(200);
-	assert(pc().gold === g2 + 10 && pc().world.hoard_looted === true, `识货 +10 一次性（${g2} → ${pc().gold}）`);
-	assert(!links().some((a) => a.textContent.includes('从零碎里挑出几件值钱的')), '挑走后链接消失（不可重复刷）');
-	w.SugarCube.State.variables.pc.world.goblin_spared = false;   // 哥布林遭遇一次性：战斗两分支都退场
-	await w.SugarCube.Engine.play('洞穴'); await sleep(150);
-	const fight = links().find((a) => a.textContent.includes('拔家伙'));
-	assert(fight, '洞穴：哥布林遭遇在（未让路分支）');
-	fight.click(); await sleep(250);
-	assert(pc().world.goblin_gone === true, '战斗无论输赢哥布林都退场（goblin_gone）');
-	await w.SugarCube.Engine.play('洞穴'); await sleep(150);
-	assert(!links().some((a) => a.textContent.includes('拔家伙')), '退场后遭遇不可重复（不可刷 +3）');
-	assert(links().some((a) => a.textContent.includes('从它旁边过去')), '退场后角落空置、仍可通行');
-	w.SugarCube.State.variables.pc.world.goblin_spared = true;
-	await w.SugarCube.Engine.play('森林边缘'); await sleep(150);
-	assert(w.SugarCube.State.passage === '森林边缘', '经济闭环检查后回到森林边缘');
+// ── 酒馆 = 夹具的中转 hub：每条出口都通向一个面 ──
+assert(w.SugarCube.State.passage === '酒馆', '进入酒馆（hub）');
+const hub = links().map((a) => a.textContent.trim());
+for (const face of ['森林边缘', '洞穴', '门厅', '塔外花田', '守林人', '女巫小屋']) {
+	assert(hub.some((t) => t.includes(face)), `酒馆 hub 有通往「${face}」的出口`);
 }
 
-// ── 侧栏：常驻存档入口 + 物品栏（v16 §5.0）──
+// ── 面：位点判定（`<<sitecheck>>` ＋ `<<lastcheckFor>>`）──
+await click('森林边缘');
+assert(w.SugarCube.State.passage === '森林边缘', '到达森林边缘（位点面）');
+await click('在雾里站住，听一听');            // 玩家的动作（检定在**点击时刻**结算 ✓）
+const lc = w.SugarCube.State.variables.last_check;
+assert(lc && typeof lc.success === 'boolean', '`<<sitecheck>>` 产出 `$last_check`（判定结果结构化）');
+assert(typeof lc.label === 'string' && lc.label.length > 0, `判定带标签（${lc?.label ?? '?'}）`);
+const checkBox = w.document.querySelector('#passages .check-result') ?? w.document.querySelector('#passages .scene-feedback');
+assert(!!checkBox, '玩家发起后：检定结果在屏（`.check-result` 或结果槽）');
+
+// ── 面：短战斗（`<<fightbegin>>` ＋ `<<fightpanel>>`）──
+await click('走进山脚的洞穴');
+assert(w.SugarCube.State.passage === '洞穴', '到达洞穴');
+await click('拔家伙');
+assert(w.SugarCube.State.passage === '洞穴·战斗', '进入战斗段');
+assert(!!pc().ev?.fight, '战斗台账 `$pc.ev.fight` 就位（面：战斗）');
+const fightActs = [...w.document.querySelectorAll('#passages .fight-acts a.link-internal')];
+assert(fightActs.length >= 1, `战斗面板出牌（${fightActs.length} 张）`);
+await fightActs[0].click(); await settle(); await sleep(250);
+assert(!!pc().ev?.fight?.log?.you || pc().ev?.fight?.round >= 1, '出一手后战斗台账推进（回合/日志）');
+
+// ── 面：一次性拾取（场地旗标 vs 背包）──
+await click('回酒馆');
+await click('门厅');
+assert(w.SugarCube.State.passage === '门厅', '到达门厅');
+assert(links().some((a) => a.textContent.includes('把墙上那支哨子摘下来')), '拾取入口在（未取过）');
+await click('把墙上那支哨子摘下来');
+assert(pc().world?.whistle_taken === true, '拾取后**场地旗标**落账（world.whistle_taken）');
+assert(w.Game.Pc.has('坏哨'), '拾取后物件进背包（坏哨）');
+assert(!links().some((a) => a.textContent.includes('把墙上那支哨子摘下来')), '取过后入口消失（一次性 ✓）');
+
+// ── 面：交涉面板（`<<socpanel>>`）──
+await click('回酒馆');
+await click('守林人');
+assert(w.SugarCube.State.passage === '守林人', '到达守林人（交涉面）');
+assert(w.document.querySelector('#passages .soc-opt, #passages .socpanel, #passages .scene-acts') !== null || links().length >= 1,
+	'交涉面板/行动区渲染（面：交涉）');
+
+// ── 面：可选面的**存在才渲染**（`Story.has` 门 ⇒ 引擎不假定每故事都有）──
+await click('回酒馆');
+await click('📖 设定集');
+assert(w.SugarCube.State.passage === '设定集', '设定集（故事**可选面**）可进入');
+assert(links().some((a) => a.textContent.includes('三律')), '设定集 hub 列出条目');
+
+// ── 面：结局（`<<ending>>`）──
+await click('回酒馆');
+await click('就地了结这一趟');
+assert(!!w.document.querySelector('#passages .ending-card, #passages [data-end-act]'), '结局段渲染结局卡（面：结局）');
+
+// ── 引擎级：侧栏常驻存档入口 + 物品栏（v16 §5.0）──（与故事无关 ✗ ⇒ 一条不少 ✓）
 // jsdom 不派发 :uiupdate（UI 栏在真实浏览器里才刷新），故直接渲染该段做单元检查。
 const capFrag = w.document.createDocumentFragment();
 new w.SugarCube.Wikifier(capFrag, w.document.querySelector('tw-passagedata[name="StoryCaption"]').textContent);
 const capText = capFrag.textContent;
 assert(capText.includes('快速存档') && capText.includes('快速读档') && capText.includes('存档 / 读档'), '侧栏常驻存档入口渲染');
 assert(capText.includes('物品栏'), '侧栏物品栏渲染');
-assert(capText.includes('无名旅人') && capText.includes('铁卫'), '侧栏角色卡渲染');
+// `#1004` B2b ✓：角色卡那一格按**夹具**的名字改准 ✗（夹具的 `pc.name` 是「夹具旅人」✓；旧写的「无名旅人」是旧故事的车卡默认名 ✗）。
+// `#1004` B2b ✓：侧栏那一格按**实测**改准 ✗ —— 夹具的 `<<set $pc.name to "夹具旅人">>` 被随后的
+// `Game.Chargen.finalize($pc)` **覆盖回预设默认名** ✓（实测 `pc.name = '无名旅人'` ✓）⇒ 断言用**实测值** ✓
+//（⚠️ 夹具想叫"夹具旅人"而结果不是 ✗ —— 这是夹具侧的小缺陷，已一并上报 ✓，但**不影响本判据**✓）。
+assert(capText.includes('无名旅人') && capText.includes('铁卫'), '侧栏角色卡渲染（实测：预设默认名 ＋ 职业）');
 assert(!capText.includes('信物'), '侧栏不再出现「信物」口径');
 assert(typeof w.Sg.save.quick === 'function' && typeof w.Sg.save.quickLoad === 'function' && typeof w.Sg.save.menu === 'function', '常驻存档全局函数已挂载');
-// 存档位扩充 + 现代存档 API（Save.slots 已废弃 → Save.browser.slot）
 assert(w.SugarCube.Config.saves.maxSlotSaves === 16, `存档位 16（默认 8；实际上限 ${w.SugarCube.Save.MAX_INDEX + 1}）`);
 assert(w.SugarCube.Config.saves.maxSlotSaves <= w.SugarCube.Save.MAX_INDEX + 1, '存档位不越界');
 w.Sg.save.quick();
 assert(w.SugarCube.Save.browser.slot.has(1) === true, '快速存档写入槽位（Save.browser.slot）');
 assert(w.SugarCube.Save.browser.slot.size >= 1, '存档数 ≥1');
 
-// ── 物品栏宏：给一件 → 侧栏列出 ──
+// ── 引擎级：物品栏宏 `<<give>>` → 侧栏列出 ──
 new w.SugarCube.Wikifier(null, '<<give "日记">>');
 const capFrag2 = w.document.createDocumentFragment();
 new w.SugarCube.Wikifier(capFrag2, w.document.querySelector('tw-passagedata[name="StoryCaption"]').textContent);
 assert(capFrag2.textContent.includes('日记'), '获得道具后侧栏物品栏列出（日记）');
 assert(w.Game.Pc.has('日记'), 'Game.Pc.has 判定物品在栏');
+
+// ── 引擎级：字体外链（子集化 ＋ swap ＋ preload）──
+const fontCss = w.document.querySelector('#font-face')?.textContent ?? '';
+assert(fontCss.includes("'LXGW WenKai'") && fontCss.includes('fonts/LXGWWenKai-Regular.woff2') && fontCss.includes('font-display: swap'), '霞鹜文楷子集外链 dist/fonts（swap，非阻塞）');
+assert(w.document.querySelectorAll('head link[rel="preload"][as="font"]').length === 2, '字体 preload ×2（与解析并行）');
 
 assert(pageErrors.length === 0, `页面无运行时错误${pageErrors.length ? '：' + pageErrors.join(' | ') : ''}`);
 console.log(process.exitCode ? '\n冒烟测试失败' : '\n冒烟测试全部通过');

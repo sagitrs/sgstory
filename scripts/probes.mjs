@@ -227,4 +227,23 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /兜底/ },
 		why: '量的是「**label 兜底真的被标出来**」（掐掉 `fallback: true` ⇒ 轨迹里那几步既无 key、也没标兜底 ⇒ 自证的"按 key 可复跑"那条必红 ✓）—— 否则"兜底是必要的 ✓ 但要显式"只写在注释里 ✗',
 	},
+	{
+		// `#1004` B2b ✓：`ci.yml` 的**故事页路径不许硬编码**（`test/multi-story.mjs` 的 **P6** ✓）。
+		//  为什么它值得一条探针 ✗：那两条判据是「**只在合后才跑的门**」（`post-deploy-smoke` 只在 push to main 跑 ✗）
+		//  在 **PR 阶段的唯一能见度** ✓ —— 实测就该作业硬引用已删故事页而 PR CI 全绿 ✓。
+		//  ⚠️ **刀要打在洞里** ✗（复核席给的读数 ✓）：早先那版判据只抓「已删 slug」✓ ⇒ 变异**已删**那一支
+		//  ＝**重复已覆盖的分支**、对洞无感 ✗ ⇒ 本刀＝**锚点仍在** ＋ 另起一行写死一个**【现存】**故事页 ✓
+		//  ⇒ 若判据回退成"只抓已删" ⇒ 这条探针**当场不咬** ✓（这正是它要守的那条线 ✗）。
+		id: 'test/multi-story.mjs',
+		tier: 'fast',
+		pre: ['node build.mjs'],   // 本件读 `dist/` 产物 ⇒ 前置写进命令（缺前置报「缺前置」✗，不报"不咬"✓）
+		cmd: 'node test/multi-story.mjs',
+		mutation: {
+			file: '.github/workflows/ci.yml',
+			find: "STORY_PATH=$(grep -oE 'stories/[A-Za-z0-9._-]+/index\\.html' /tmp/idx.html | head -1)",
+			replace: "STORY_PATH=$(grep -oE 'stories/[A-Za-z0-9._-]+/index\\.html' /tmp/idx.html | head -1)\n          STORY=\"${URL}stories/face-fixture/index.html\"   # 探针：锚点仍在 ＋ 另起一行写死【现存】故事 ⇒ P6 必红 ✓",
+		},
+		expect: { rc: 1, stdout: /P6/ },
+		why: '量的是「冒烟作业里的故事页路径**不许硬编码**（⚠️ **现存/已删一律** ✗）＋ **必须从书架页现场取**」（锚点仍在 ＋ 写死一个**现存**故事 ⇒ P6 必红 ✓）—— 该判据是"只在合后跑的门"在 PR 阶段的唯一能见度 ✗',
+	},
 ];

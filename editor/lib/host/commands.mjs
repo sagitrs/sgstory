@@ -88,6 +88,13 @@ export const extractCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 
 	const [slug, ...rest] = argv;
 	if (!slug) { console.error(usageOf(prog, sub, '<slug> [--section=StoryRules] [--key=rules] [--out=<file>] [--tables] [--from=<file>]')); return 2; }
 	const argOf = (n, d) => { const h = rest.find((a) => a.startsWith(`--${n}=`)); return h ? h.slice(n.length + 3) : d; };
+	// `#959`（`#962` 的同族推广 ✓）：**取值类标志吃空值** ⇒ 下游会崩成裸栈或**写错地方** ✗。
+	//   实测：`--out=` 空 ⇒ `join(ROOT, '')` ＝ **仓根** ✗（写文件落到根 ✓）；`--from=` 空 ⇒ `readText('')` ⇒ 裸栈 ✓。
+	//   ⇒ 照 `--l3=`／`--notes=` 的**现成形状**讲人话地拒 ✗（不新造机制 ✓）；逐个判 ✓，不下沉进 `argOf`（那会顺带改三处调用行为 ✗）。
+	for (const n of ['section', 'key', 'out', 'from']) {
+		const v = argOf(n, null);
+		if (v === '') { console.error(`✗ --${n}= 只接受非空值（实得 （空））—— 例：\`--${n}=<${n === 'out' ? 'file' : n === 'from' ? 'file' : 'name'}>\``); return 2; }
+	}
 	const tablesMode = rest.includes('--tables');
 	const section = argOf('section', tablesMode ? 'Game Tables' : 'StoryRules');
 	const key = argOf('key', 'rules');
@@ -154,6 +161,8 @@ export const classifyCommand = (argv = [], { prog = 'node editor/classify-contra
 	const argOf = (name, dflt) => { const h = argv.find((a) => a.startsWith(`--${name}=`)); return h ? h.slice(name.length + 3) : dflt; };
 	const slug = argv[0];
 	if (!slug) { console.error(usageOf(prog, sub, '<slug> [--json]')); return 2; }
+	// `#959`（同族推广 ✓）：`--from=` 空 ⇒ `join(ROOT, '')` ＝ ROOT ⇒ `existsSync` **为真** ✗ ⇒ 会走"找不到成员" ⇒ **归因错** ✗（真因是文件不在 ✓）。
+	if (argOf('from', null) === '') { console.error('✗ --from= 只接受文件路径（实得 （空））—— 例：`--from=stories/<slug>/15-tables.twee`'); return 2; }
 	const file = join(ROOT, argOf('from', `stories/${slug}/15-tables.twee`));
 	// `#794`：**输入缺失 ⇒ 单独一条** ✗ —— 实测：不存在的路径原先被报成"里面**找不到 Sg.story 成员**" ✓，
 	// 方向对（不静默 ✓）但**归因错** ✗（读的人会去查契约 ✗，而真因是**文件不在** ✓）⇒ 与 `extract-story` 同口径 ✓。

@@ -54,6 +54,7 @@
 | `test/event-graph.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/fatal-guard.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/fight-seq.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
+| `test/focus-after-nav.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/g3-evidence.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/gate-discovery.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/globals.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |

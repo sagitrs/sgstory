@@ -21,7 +21,7 @@
  * `build/probe-results.json`（**不入仓** ✗，与其它 build 产物同 ✓）：每条记 `{ id, ok, target, targetSha, mode }` ✓
  * —— `targetSha` 让台账能判**新鲜度** ✓（被测件改了 ⇒ 台账不再显示 `✅` ✗ ⇒ 不会拿旧读数充数 ✓）。
  */
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, utimesSync } from 'node:fs';   // `#1012`：加 `statSync`／`utimesSync`（还原时保时间戳 ✓）
 import { dirname } from 'node:path';
 import { execSync, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -87,6 +87,7 @@ const probeOne = (p) => {
 	const target = p.mutation?.file ?? '';
 	if (!target || !existsSync(target)) return { id: p.id, ok: false, reason: `探针件缺失/被测件不存在（${target || '未写 file'} ✗）—— 标了 ✅ 却没有探针 ⇒ 红 ✓`, injected: 0, pre };
 	const original = readFileSync(target, 'utf8');
+	const stamp = statSync(target);   // `#1012`：记下原时间戳（还原时一并还原 ✓）
 	const base = pre.length ? { rc: 1, out: '' } : run(p.cmd);
 	const { out, count, applied } = applyMutation(original, p.mutation.find, p.mutation.replace);
 	if (!applied) return { id: p.id, ok: false, reason: verdictOf({ preOk: pre.length === 0, baseRc: base.rc, mutatedRc: -1, hitCount: count }).reason, injected: count, pre };
@@ -96,10 +97,23 @@ const probeOne = (p) => {
 		mutated = run(p.cmd);
 	} finally {
 		writeFileSync(target, original);
+		// `#1012`：**还原也要还原时间戳** ✗ —— 只写回内容会把 mtime 变新 ✓ ⇒ 全仓的「dist 比 src 新」
+		//   新鲜度守卫（`scripts/dist-fresh.mjs` 的 `assertFreshDist` ✓）会因此**假红** ✗。
+		//   实测（本片）：给 `src/80-script.twee` 下的探针一旦跑过 ⇒ 其后 **37 段** boot 类门全红 ✗
+		//   （“dist/index.html 比 src/*.twee 旧”✓）⇒ 探针本身**污染相序** ✗ —— 不是被测件的问题 ✓。
+		utimesSync(target, stamp.atime, stamp.mtime);
 	}
 	const restored = readFileSync(target, 'utf8') === original;
+	// `#1012`／`#1019`：**被测件在 `src/**`（或任何会进产物的面）时，还原只是第一步** ✗ ——
+	//   变异期间 `cmd` 往往已经**重建过产物**（重建才能量到变异 ✓）⇒ 只还原源文件 ⇒ **产物里留着变异版** ✗
+	//   ⇒ 后续依赖产物的段（`assertFreshDist` 一族）拿到的是**变异后的游戏** ✓。
+	//   实测（`#1012`）：不重建 ⇒ 下一段 `test/focus-after-nav.mjs` **当红** ✗
+	//   （探针自己污染相序 ⇒ "正例绿"这条读数在整个套件里不成立 ✗）。
+	//   ⇒ 声明式地补一步 `rebuild`（在**还原之后**跑 ✓，失败即红 ✓）。
+	let rebuildErr = '';
+	if (p.rebuild) { const r = run(p.rebuild); if (r.rc !== 0) rebuildErr = `rebuild 失败（${p.rebuild} ⇒ rc=${r.rc}）`; }
 	const v = verdictOf({ preOk: pre.length === 0, baseRc: base.rc, mutatedRc: mutated.rc, hitCount: count, stdout: mutated.out, expect: p.expect });
-	return { id: p.id, ok: v.ok && restored, reason: restored ? v.reason : '还原失败 ✗（被测件没回到原样 ⇒ 必须红 ✓）', injected: count, pre, target, targetSha: sha(original), mode: p.tier };
+	return { id: p.id, ok: v.ok && restored && !rebuildErr, reason: rebuildErr || (restored ? v.reason : '还原失败 ✗（被测件没回到原样 ⇒ 必须红 ✓）'), injected: count, pre, target, targetSha: sha(original), mode: p.tier };
 };
 
 // ── 结构校验（不跑探针 ✓）────────────────────────────────────────────

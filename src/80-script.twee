@@ -495,6 +495,36 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 				d.querySelector('summary')?.focus({ preventScroll: true });
 			}
 		}, true);
+
+		// `#1012`：**导航型交互**之后把焦点送回正文 ✗ —— 用户从正文里的控件发起跳转时，旧节点一被替换，
+		//   `activeElement` 就落到 `body` 上（实测：`酒馆` 行动区的 `[[就地了结这一趟|结局 平凡之路]]`
+		//   用 `Enter`/点击激活后 `passage` 真变了 ✓ 而焦点在 `body` ✗）⇒ 键盘／读屏用户失去落点 ✓。
+		// ⚠️ 两条**合起来**才动（各挡一半 ✗）：① 焦点**本来就在正文里**（`focusInside` ✓）—— 这一条把
+		//   **程序性导航**（`Engine.play`／页面载入 ✓）挡在外面 ✓（否则会把 Tab 序列的起点挪到正文之后，
+		//   越过「跳到正文」/「跳到行动」那两条跳转链接 ✗）；② 替换之后焦点**确实丢了** ✓（`body`／
+		//   已脱离文档 ✓）—— 已有更精确落点的两种（`#180` 就地反馈定位 ✓／`#185` 子对话返回行动区 ✓）
+		//   各由上两处先处理 ✓，本处只补**没人接的那一类**（导航 + 目标段落里没有那些落点）✓。
+		// ⚠️ 判据口径照 `docs/dev-conventions.md` §6 ✗：契约是「**焦点仍在 `#passages` 内**」✓
+		//   —— 落到**哪一个**元素属实现路径 ✓（此处取段落根＝新内容的**顶部**，符合导航后的阅读顺序 ✓），
+		//   断言不得绑元素 ✓；滚动不动（`preventScroll` ✓）—— 本票只修焦点，改滚动属另一件 ✗。
+		jQuery(document).on(':passageend.sgFocusNav', (ev) => {
+			if (!focusInside) return;                       // 程序性导航：不抢焦点 ✓
+			const hist = State.history;
+			const prev = hist?.[hist.length - 2]?.title;
+			if (prev && prev !== State.passage && prev.startsWith(State.passage + '·')) return;   // 子对话返回：上面那条管 ✓
+			const content = ev.content ?? passages.querySelector('.passage:last-child');
+			if (!content) return;
+			// ⚠️ **必须延到「激活序列」之后** ✗：Chrome 在 `Enter`／点击的**默认动作收尾**时会把焦点放回
+			//   `body`（被激活的节点已被换掉 ✓）⇒ **同步** `focus()` 会被那一下盖掉 ✗ —— 实测：jsdom 里同步
+			//   就绿（无默认动作收尾 ✓）、真机·`Enter` 却仍落 `body` ✓ ⇒ 这一行是本条修法的**关键** ✓。
+			//   （`requestAnimationFrame` 与仓内其余焦点抖动同款 ✓：`#180` 就地反馈／`#185` 返回行动区 ✓。）
+			requestAnimationFrame(() => {
+				const active = document.activeElement;
+				if (active && active !== document.body && passages.contains(active)) return;      // 已有落点：不动 ✓
+				content.setAttribute('tabindex', '-1');
+				content.focus({ preventScroll: true });
+			});
+		});
 	});
 
 	// 行动分组与已读记录的条数角标：纯展示，读当前渲染结果，不写任何状态。

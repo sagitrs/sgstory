@@ -63,7 +63,7 @@ export const REQUIRE_BROWSER = process.env.CI_REQUIRE_BROWSER === '1';
 //   （它的多选一段比旧的故事 2 少一条 ⇒ 这一块从 15 格降到 12 格 ✓）⇒ **实测总数 56** ✓。
 //   ⛔ 这不是"删断言凑绿" ✗：**没有任何一格是被删掉的** ✓ —— 少的是"旧故事特有的那一页"，
 //   且它换掉的那一面（无车卡最小面／多选一可点／200% 不溢出 ✓）**逐条仍在** ✓。
-export const MIN_ASSERTIONS = 56;
+export const MIN_ASSERTIONS = 58;   // `#1012`（2026-09-19）：+1＝新增「导航型交互」断言 ✓、+1＝原先 xfail 的「焦点回收正文」**转正** ✓ ⇒ 只涨 ✓
 
 // 跳过时该退什么码（纯函数，便于自证）
 export const skipVerdict = (requireBrowser) => (requireBrowser
@@ -389,18 +389,39 @@ async function keyboardCase(W, H) {
 		const activated = after.passage !== before.passage || (!before.hasFb && after.hasFb);
 		check(activated,
 			`${vp} 键盘：Enter ⇒ 交互真被激活（passage ${before.passage}→${after.passage} · 反馈 ${before.hasFb}→${after.hasFb}${after.hasFb ? `〔${after.cls}〕` : ''}）`);
-		// ── 半 (ii)：焦点回收正文 —— **显式 xfail，承接票 #1012**（裁定 option 3）─────────────
+		// ── 半 (ii)：焦点回收正文 —— `#1012` 修好后**转正** ✓（用**导航型**样本 ✗）───────────
 		// ⚠️ 这半**此前从未守护** ✗：旧写法 `rawKeyDown` 从不触发默认动作 ⇒ 交互根本没发生，
 		//   `activeElement` 自然还停在原链接上 ⇒ 旧绿是**虚的**（借「按键前就为真的结果在屏」站的）。
-		// 两条实测（都记上，因为它决定了这半**现在能不能做绿**）：
-		//   · **导航型交互**（`a5d4d50` 那条，键投递修好后）：`passage` 真的变了 ✓ 但
-		//     `焦点在正文=false` · `focus=""`（落 `body`）⇒ **“焦点回收正文”确实不成立** ⇒ #1012。
-		//   · **本目标（非导航型）**：按键前焦点已在链接（同在 `#passages` 内）、按键后落在 `scene-feedback`
-		//     （也在 `#passages` 内）⇒ `focusInside` **按键前后均为真** ⇒ 这半在本目标下**无判别力**，
-		//     假设写成 `check(after.focusInside, …)` 就是**又一个假绿**。
-		// ⇒ 故本半一律以 **xfail 记账**（不拿无判别力的绿充数），待 #1012 修复后引入导航样本再转正。
-		xfail(`${vp} 键盘：Enter 后焦点回收正文`,
-			`导航型交互实测：焦点在正文=false · focus=""（落 body）⇒ 声称不成立；本目标（非导航型）：按键前后 focusInside=${before.focusInside}→${after.focusInside} ⇒ 无判别力，不做假绿 · **此前从未守护**（旧投递不触发默认动作）· 承接票 #1012`);
+		// ⚠️ 必须用**导航型**样本 ✗：`女巫小屋` 那类**非导航型**（就地反馈）按键前后焦点都在 `#passages` 内
+		//   ⇒ `focusInside` 两向皆真 ⇒ **无判别力** ✓（写成 `check(after.focusInside)` 就是又一个假绿 ✗）。
+		// 判据照 `docs/dev-conventions.md` §6 ✗：契约＝「**焦点仍在 `#passages` 内**」✓ —— **不绑元素** ✗
+		//   （落 `.passage`／`.scene-acts`／反馈槽 都算过 ✓ —— 那一层是**实现路径** ✓）。
+		// ⚠️ 两向读数（2026-09-19 实测 ✗）：引擎侧那一手**禁用** ⇒ `focusInside=false`（落 `body` ✓
+		//   ＝本格真会红 ✓）；**启用** ⇒ `DIV.passage` ✓ ⇒ 本格**有判别力** ✓。
+		const navTarget = await ev(`(function(){
+			window.__sg.play('酒馆');
+			const cur = '酒馆';
+			const a = [...document.querySelectorAll('#passages .scene-acts a.link-internal')]
+				.find(x => (x.getAttribute('data-passage') ?? '') && x.getAttribute('data-passage') !== cur);
+			if (!a) return null;
+			a.focus();
+			return { label: a.textContent.trim().slice(0, 18), target: a.getAttribute('data-passage'), focused: document.activeElement === a };
+		})()`);
+		if (navTarget && navTarget.focused) {
+			await sleep(300);
+			const navBefore = await ev(FB_PROBE);
+			await ENTER();
+			await sleep(800);
+			const navAfter = await ev(FB_PROBE);
+			// 两半都要能假 ✓：① **真导航**（`passage` 到目标 ✓ —— 否则就不是"导航型"样本了 ✗）；
+			//   ② **焦点仍在正文内** ✓（§6 的契约 ✓）。
+			check(navAfter.passage === navTarget.target,
+				`${vp} 键盘：Enter ⇒ **导航型**交互真发生（${navBefore.passage}→${navAfter.passage}，目标「${navTarget.label}」⇒ ${navTarget.target}）`);
+			check(navAfter.focusInside,
+				`${vp} 键盘：导航后**焦点回收正文**（焦点在正文=${navAfter.focusInside} · focus=${navAfter.focusCls.slice(0, 30)} · 「#1012」✓）`);
+		} else {
+			check(false, `${vp} 键盘：找不到「会换段落」的行动区链接（样本变了？）`);
+		}
 	} else {
 		check(false, `${vp} 键盘：找不到可聚焦的行动链接（状态不对？）`);
 	}

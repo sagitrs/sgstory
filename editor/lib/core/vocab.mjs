@@ -43,3 +43,28 @@ export const VOCAB_FIELDS = Object.freeze({ req: 'ops', any: 'ops', exclude: 'op
 /** 该字段用哪一轴的候选 ✓；**未映射 ⇒ `null`** ✓（"这个字段没有候选"是**合法状态** ✗ ⇒ 不抛 ✓）。
  *  ⚠️ 与 `vocabOf()` 分工：`vocabOf` 是"**轴名**不认识"⇒ 抛 ✓（编程错 ✓）；本函数是"字段没有候选"⇒ `null` ✓（正常 ✓）。 */
 export const vocabAxisForField = (name) => VOCAB_FIELDS[name] ?? null;
+
+/** **领域表** ✓（`#966` ✓）—— 引擎**按名查表**的两张 ✓（`src/10-core.twee:75/76` ✓），与四轴**分家** ✗：
+ *  四轴是**规则行词表** ✓（用了未宣告的 ⇒ 行静默死 ✗）；这两张是**引擎查表** ✓（查不到 ⇒ **默默给 0** ✗ —— `mod(score) { … ((score ?? 10) - 10) … }` ✓，`10-core.twee:82`）。
+ *  ⚠️ **带中文标签** ✓（**不是数组** ✗）：`abilities` 是“值 ⇒ 中文名”✓、`skills` 是“技能 ⇒ 归属属性”✓ —— 页内下拉要显示中文就靠它 ✓。
+ *  ⚠️ **改了引擎表不改本镜像 ⇒ 当场红** ✓（由 `test/rules.mjs` 那组钉法保证 ✓，照四轴同形 ✓）。 */
+export const DOMAIN_TABLES = Object.freeze({
+	abilities: Object.freeze({ str: '力量', dex: '敏捷', con: '体质', int: '智力', wis: '感知', cha: '魅力' }),
+	skills: Object.freeze({ 运动: 'str', 体操: 'dex', 巧手: 'dex', 隐匿: 'dex', 奥秘: 'int', 历史: 'int', 调查: 'int', 自然: 'int', 宗教: 'int', 驯兽: 'wis', 洞悉: 'wis', 医药: 'wis', 察觉: 'wis', 生存: 'wis', 欺瞒: 'cha', 恐吓: 'cha', 表演: 'cha', 游说: 'cha' }),
+});
+
+/** **牙** ✓（`#966` ✓）：包内**检定站点**（`tables.json` 的 `Checks.sites` ✓）出现**表外**的 `abil`／`skill` ⇒ **列出来** ✓。
+ *  ⚠️ **只列不判** ✗（与 `core/**` 老规矩一致 ✓：判红住门 ✓）；**零宿主** ✓ ⇒ 页内也能用 ✓。
+ *  为什么要有它 ✗：`mod(undefined) ⇒ 0` ⇒ **写错一个字母 ⇒ 检定静默 +0** ✓（正是四轴当初要防的那类静默 ✓）。
+ *  ⚠️ 本函数只扫 `Checks.sites` ✗（当前**唯一**出现这两个字段的地方 ✓）—— 将来多一处来源 ⇒ 连同探针一起补 ✓。 */
+export const unknownDomainWords = (data = {}) => {
+	const sites = data?.['tables.json']?.containers?.Checks?.sites ?? null;
+	if (!sites || typeof sites !== 'object') return [];
+	const out = [];
+	for (const [name, site] of Object.entries(sites)) {
+		if (!site || typeof site !== 'object') continue;
+		if (site.abil !== undefined && !Object.prototype.hasOwnProperty.call(DOMAIN_TABLES.abilities, String(site.abil))) out.push({ site: name, field: 'abil', value: String(site.abil) });
+		if (site.skill !== undefined && !Object.prototype.hasOwnProperty.call(DOMAIN_TABLES.skills, String(site.skill))) out.push({ site: name, field: 'skill', value: String(site.skill) });
+	}
+	return out;
+};

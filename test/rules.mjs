@@ -579,6 +579,22 @@ for (const file of fixtures) {
 			eq(Sg.rules[axis], VOCAB[axis], `词表轴 \`${axis}\`：**引擎 ↔ 页内镜像逐字同** ✓（只改一边 ⇒ 当场红 ✗ —— 要加一项先改引擎 ✓）`);
 		}
 	}
+	// `#966`：**领域表也要钉** ✗（照四轴同形 ✓）—— 引擎**按名查**这两张表 ✓，查不到 ⇒ `mod(undefined) ⇒ 0` ⇒ **静默 +0** ✓
+	// （写错一个字母 ⇒ 检定明明在跑、却按 0 修正 ✓）。两表**带中文标签** ✓ ⇒ 钉的是**逐字相等** ✗（不是“键集合相同”✓）。
+	{
+		const { DOMAIN_TABLES, unknownDomainWords } = await import('../editor/lib/core/vocab.mjs');
+		// ⚠️ 两张表挂在 **`Game.Rules`** 上 ✗（不是 `Sg.rules` ✓ —— 四轴才在 `Sg.rules` ✓；本行就是量出来的 ✓）。
+		eq(R.ABILITIES, DOMAIN_TABLES.abilities, '`ABILITIES`：引擎 ↔ 页内镜像**逐字同** ✓（改引擎表不改镜像 ⇒ 当场红 ✗）');
+		eq(R.SKILLS, DOMAIN_TABLES.skills, '`SKILLS`：同上 ✓');
+		// 牙的两半 ✓
+		const sitesOf = (sites) => ({ 'tables.json': { containers: { Checks: { sites } } } });
+		eq(unknownDomainWords(sitesOf({ A: { abil: 'str', dc: 12 }, B: { skill: '运动', dc: 10 } })).length, 0, '牙·反例：表内词 ⇒ **不报** ✓');
+		const bad = unknownDomainWords(sitesOf({ C: { abil: 'strr' }, D: { skill: '走' } }));
+		eq(bad.length, 2, '牙·正例：表外词 ⇒ **逐条报** ✓（不再静默 +0 ✗）');
+		eq(bad.map((x) => `${x.site}.${x.field}=${x.value}`).join(','), 'C.abil=strr,D.skill=走', '牙：**点名到站点 ＋ 字段 ＋ 值** ✓（后人能直接定位 ✗）');
+		eq(unknownDomainWords({}).length, 0, '牙·边界：无数据 ⇒ 空 ✓（**不抛** ✗）');
+		eq(unknownDomainWords(sitesOf({ E: { abil: 'str' } })).length, 0, '牙·边界：只给 `abil` 不给 `skill` ⇒ 不报 ✓');
+	}
 	const p = { ev: { seen: true, n: 7 }, world: { done: false }, inv: { 钥匙: true }, star: { spent: 3 }, keeper: { state: 'seal' } };
 	const M = (row) => Sg.rules.matches(row, p, new Set());
 	// 正例 / 反例（gte · lte）

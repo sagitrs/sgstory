@@ -194,5 +194,18 @@ export const PROBES = [
 		},
 		expect: { rc: 1, stdout: /旧形不存在/ },
 		why: '量的是「**中间目录真的不再产生旧形**」（把产物目录改回 `build/generated/<slug>` ⇒ 本件的"旧形不存在"断言必红 ✓）—— 否则"唯一 ＋ 清理"只写在注释里 ✗',
+		// `#984`（P3-④ 用户故事 CI）：把「**发现到了却没进编排 ⇒ 点名**」那条判据掐掉（恒不报 ✗）
+		//   ⇒ 「新故事不会静默漏掉」就成了空话 ✓ ⇒ 自证里那条**能假**必红并点名 ✓。
+		id: 'test/story-ci.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/story-ci.mjs',
+		mutation: {
+			file: 'editor/lib/core/storyCi.mjs',
+			find: 'stories.filter((s) => !plan.some((p) => p.cmd.includes(s))).map((s) => ({ slug: s,',
+			replace: 'stories.filter(() => false).map((s) => ({ slug: s,',
+		},
+		expect: { rc: 1, stdout: /发现了却没进编排/ },
+		why: '量的是「**发现 ≠ 覆盖**」那一步真的在守（让 `missingFromPlan` 恒不报 ⇒ `test/story-ci.mjs` 的“能假”那条必红 ✓）—— 否则“新故事自动被覆盖”只是句口号 ✗',
 	},
 ];

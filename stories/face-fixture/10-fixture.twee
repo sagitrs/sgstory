@@ -169,11 +169,14 @@ window.Game.Chargen = {
 [[回酒馆|酒馆]]
 
 :: 老巫女
-/% payload: 信息 %/
+/% payload: 选择 %/
 过去侧的老巫女把手拢在袖子里。
 <<note "n_old_witch">>
 <<set $pc.ev.old_witch to true>>
-[[缺的那一句话，是谁没说完|地下宴会厅]]｜[[回酒馆|酒馆]]
+<<if Sg.notes.has('n_failure_cause') and ($pc.ev.seer_asked or $pc.ev.coord)>>
+[[缺的那一句话，是谁没说完|地下宴会厅]]
+<</if>>
+[[回酒馆|酒馆]]
 
 :: 观星者
 /% payload: 信息 %/
@@ -185,9 +188,7 @@ window.Game.Chargen = {
 :: 地下宴会厅
 /% payload: 选择 %/
 厅里点着三百年前的灯。
-<<if $pc.ev.failure_cause and ($pc.ev.seer_asked or $pc.ev.coord)>>
-[[缺的那一句话，是谁没说完|结局 送星归位]]
-<</if>>
+[[把那半句话说出来|结局 送星归位]]
 [[回酒馆|酒馆]]
 
 :: 书房
@@ -240,7 +241,7 @@ window.Game.Chargen = {
 
 :: 设定集·结局
 /% payload: 信息 %/
-<<if Sg.Codex.seenFinal()>>真结局只有一个：把三百年里散开的东西重新凑齐，杖尖指的方向就是它睡的地方。<<else>>你还没走到过结局。这一页现在只写着：雾还在。<<endgame_gate_on>>
+<<if Sg.Codex.seenFinal()>>真结局只有一个：把三百年里散开的东西重新凑齐，杖尖指的方向就是它睡的地方。<<else>>你还没走到过结局。这一页现在只写着：雾还在。
 <</if>>
 <<back "回设定集">>
 

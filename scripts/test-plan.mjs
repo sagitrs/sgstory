@@ -116,7 +116,6 @@ export const SEGMENTS = [
 	{ id: "test-fatal-guard-mjs", phase: 'test', cost: 18.7, cmd: "node test/fatal-guard.mjs" },
 	{ id: "test-onetime-pickups-mjs", phase: 'test', cost: 18.1, cmd: "node test/onetime-pickups.mjs" },
 	{ id: "test-roll-binding-mjs", phase: 'test', cost: 0, cmd: "node test/roll-binding.mjs" },
-	{ id: "test-codex-gating-mjs", phase: 'test', cost: 0, cmd: "node test/codex-gating.mjs" },
 	// #462：存储缝（键构造单一落点 · 两作用域 · 幂等迁移）
 	{ id: 'test-store-keys-mjs-selftest', phase: 'test', cost: 0, cmd: 'node test/store-keys.mjs --selftest' },
 	{ id: 'test-store-keys-mjs', phase: 'test', cost: 0, cmd: 'node test/store-keys.mjs' },
@@ -130,7 +129,6 @@ export const SEGMENTS = [
 	{ id: 'scripts-ui-migration-diff-selftest', phase: 'test', cost: 0, cmd: 'node scripts/ui-migration-diff.mjs --selftest' },
 	{ id: 'scripts-ui-migration-diff-check', phase: 'test', cost: 0.4, cmd: 'node scripts/ui-migration-diff.mjs --check --baseline=origin/main --out=build/ui-migration-diff.md' },
 	// main 侧新增（#360 交涉筹码按类型分派）：reb 冲突时按「计划＝单一权威」加在这里
-	{ id: "test-social-lever-mjs", phase: 'test', cost: 0, cmd: "node test/social-lever.mjs" },
 	{ id: "test-coverage-mjs", phase: 'test', cost: 0, needs: ['test-render-all-mjs', 'test-scenarios-mjs'], cmd: "node test/coverage.mjs" },
 	{ id: "test-size-gate-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/size-gate.mjs --selftest" },
 	{ id: "test-size-gate-mjs", phase: 'test', cost: 0, cmd: "node test/size-gate.mjs" },

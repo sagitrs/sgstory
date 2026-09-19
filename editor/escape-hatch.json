@@ -50,6 +50,12 @@
 			"why": "**车卡模块 ＋ 段落面**（夹具）：照 `mist-forest/20-chargen.twee` 的先例 —— `Chargen Data [script]`（`rounds`／`presets`／`pick`／`finalize`）是**故事侧逻辑**（apply 函数读任意状态），段落是**散文**。⇒ 可数据化的是「声明面」，逻辑与正文当下不划算。",
 			"ticket": "#1004",
 			"paths": "**三条路**：(i) 把 `Chargen` 数据化（`rounds`／`presets` 进 `data/` ＋ 新 kind 装 `apply` 闭包 —— 那是 `escape-hatch.json` 的 C 桶，需先立词）；(ii) 段落正文进 `data/`（设计稿 §3 明写「文本留文本」⇒ **不走**）；(iii) **本阶段不动 ＋ 登记为欠账** ← 采用。**重开条件**：当「车卡面」在第二个故事里再出现一次、或 C 桶「闭包 apply」凑到第三处时，按 `#785` 的口径扩词。"
+		},
+		{
+			"file": "stories/face-fixture/13-codex.twee",
+			"why": "**图鉴界面面**（夹具）：照被删的 `stories/mist-forest/72-codex-ui.twee` 的同一条登记 —— 它读 `Game.Codex.items`（故事数据）并做渲染与存档，是**故事侧界面面**；可数据化的是「条目/线索声明」（已住 `data/tables.json` 的 `Codex.items` ✓），界面本身当下不划算。",
+			"ticket": "#1004",
+			"paths": "**三条路**：(i) 界面数据化（把 `render()` 的 HTML 形状也搬进 `data/` ＋ 新 kind —— 那是 C 桶，需先立词）；(ii) 并进引擎（`Sg.Codex` 对所有故事成立吗？**不成立**：它读故事自己的 `Game.Codex.items`，`#574` 正是为把它留在故事侧才从 `80-script.twee` 搬出来的 ✓）；(iii) **本阶段不动 ＋ 登记为欠账** ← 采用。**重开条件**：当第二个故事也带图鉴面、或 C 桶「渲染闭包」凑到第三处时，按 `#785` 的口径扩词。"
 		}
 	],
 	"proseFaces": [

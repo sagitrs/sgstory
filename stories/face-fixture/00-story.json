@@ -1,0 +1,16 @@
+{
+	"slug": "face-fixture",
+	"title": "面夹具",
+	"subtitle": "测试夹具（非内容故事）：段名沿用旧故事是因为消费者钉死了它们；正文全部新写",
+	"entry": "开场",
+	"contractVersion": 1,
+	"files": [
+		"stories/face-fixture/00-meta.twee",
+		"stories/face-fixture/10-fixture.twee",
+		"stories/face-fixture/12-hooks.twee",
+		"stories/face-fixture/15-tables.twee",
+		"stories/face-fixture/16-notes-ch1.twee",
+		"stories/face-fixture/17-rules.twee"
+	],
+	"gates": []
+}

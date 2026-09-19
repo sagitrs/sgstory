@@ -1,6 +1,8 @@
 {
 	"note": "K4 逃生舱登记表（`#762` 车道 C）：契约成员里**含任意逻辑**（分类器 C 桶）的必须在此逐条登记（理由＋票号）。清单外出现即红；已不是 C 桶的登记也红（清单只许收缩，收缩留痕）。B 桶（需声明式扩展）与 D 桶（可下沉引擎）都**不算**逃生舱。",
-	"hatchFiles": [],
+	"hatchFiles": [
+		"stories/face-fixture/12-hooks.twee"
+	],
 	"hatchFilesWhy": "**手写逃生舱文件**（`#787` 翻面）：生成物只装得下 A 桶成员 ⇒ 非 A 桶（B/C）必须住**手写**文件。这些路径是「完整契约源」的一半：分类器与 K4 判逃生舱时会把它们与数据面文件一起看（否则「成员搬出手写文件」会被误读成**登记腐烂**的假红 ✗）。这些文件**不带**生成标记 ⇒ K4-④ 的逐字节比对不选它们 ✓；守它们的是本条登记 ＋ 行为等价门（与生成物**一起**对冻结基线比）。",
 	"hatches": [
 		{
@@ -14,6 +16,12 @@
 			"slug": "mist-forest",
 			"reason": "它是**三处 per-field hooks**（`{ '<askId>': { apply: (pc)=>…, unwilling: (pc)=>… } }` ✓），引擎**逐字段先问 hook**（`apply`／`done`／`willing`／`unwilling` ✓）。**声明式不可预见** ✗：钩子体是**读任意游戏状态的闭包**（如 `!(pc.inv['完整星图'] && pc.world.family_favor && pc.inv['坏哨'])` ✓）⇒ 这不是「现有 kind 缺字段/种类」（**B** ✗），而是「上面都装不下」（**C** ✓）；且**各形状仅 1 处** ⇒ 不足「先数后立」门槛 ⇒ **不立词** ✓。**何时该删**：若引擎将来支持**声明式 per-field hook**（或该形状凑到第三处 ⇒ 扩既有词汇）⇒ **撤回本条** ✓（见 `#785` —— 登记不是失败，是让例外**可枚举** ✓）。",
 			"ticket": "#785"
+		},
+		{
+			"member": "overBudget",
+			"slug": "face-fixture",
+			"reason": "与 `mist-forest` 的那条**同形**（`#1004` B2b 把 `overBudget` 搬进夹具后，它是同一处例外）：`(pc?.star?.spent ?? 0) > Game.Star.budget` —— 值本身住声明面（`Game.Star.budget` ✓），但**严格 `>` 的比较**现有条件词汇表达不了（`Sg.rules.ops` 只有 `gte/lte/oneOf`），而 `budget` 是运行期字段 ⇒ 硬写 `budget+1` 会造第二份真源 ✗。⚠️ **本夹具条目与被删的 `mist-forest` 条目是同一处例外的搬家** ⇒ `mist-forest` 那条随故事删除应当**撤回**（已在本片报给发起者 ✓）。",
+			"ticket": "#1004"
 		}
 	],
 	"why_empty": "**本表只登记 C 桶**（真逃生舱：含任意逻辑、既不能用声明式 kind 表达、也不是引擎能力）。**当前有登记项（见 `hatches`）**：它记录的是**尚不该立词**的例外（处数不足「先数后立」门槛 ⇒ 落契约面），并写明**何时该删除**（概念凑够处数 ⇒ 扩既有词汇、删本条）✓。**不写数字**：B/D 的实测清单与数量由门打印（`node editor/k4.mjs` 的『欠账（B 待补 kind）／欠账（D 待下沉引擎）』两行），本文件只讲口径（手写数字必腐烂 ✗）。⇒ 不要读成「登记表短 ⇒ 没欠账」：本表只记**必须靠任意逻辑**的那一类。",
@@ -30,6 +38,12 @@
 			"why": "**元数据面**（`night-ferry` ✓，17 行）：与 `stories/mist-forest/00-meta.twee`／`stories/hollow-cave/00-meta.twee` **同类** ✓ —— `StoryTitle`＝散文 1 行 ✓／`StoryData`＝**Twine 格式元数据**（`ifid`／`format*`／`zoom` ✗ 不是故事数据 ✓）／`StoryIdentity`＝1 行且**已被 `store-keys` 门把住** ✓ ⇒ 可数据化内容 ≈ 2–3 行 ✗",
 			"ticket": "#991",
 			"paths": "**三条路** ✓：(i) 三段都数据化 ✗（`StoryData` 是 Twine 参数、`StoryTitle` 是散文 ✓）；(ii) 只数据化 `StoryIdentity` ✓（收益 1 行 ✗ < 新面成本 ✓）；(iii) **本阶段不动 ＋ 登记为欠账** ✓ ← **采用** ✓。**重开条件** ✗：当「手写面清零」成为显式目标、或 `StoryData` 需按故事机检时 ✓"
+		},
+		{
+			"file": "stories/face-fixture/00-meta.twee",
+			"why": "**元数据面**（夹具 ✓）：与 `stories/minimal-demo/00-meta.twee`／`stories/night-ferry/00-meta.twee` **同类** —— `StoryTitle`＝散文 1 行／`StoryData`＝Twine 格式元数据（`ifid`／`format*`／`zoom` 不是故事数据）／`StoryIdentity`＝1 行且已被 `store-keys` 门把住 ⇒ 可数据化内容 ≈ 2–3 行。",
+			"ticket": "#1004",
+			"paths": "**三条路**：(i) 三段都数据化（当下不走：`StoryData` 属 Twine 参数、`StoryTitle` 属散文）；(ii) 只数据化 `StoryIdentity`（收益 1 行 < 新面成本）；(iii) **本阶段不动 ＋ 登记为欠账** ← 采用。**重开条件**：当「手写面清零」成为显式目标、或 `StoryData` 需要按故事机检时。"
 		}
 	],
 	"proseFaces": [

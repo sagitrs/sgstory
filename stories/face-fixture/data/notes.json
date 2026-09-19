@@ -1,0 +1,48 @@
+{
+	"note": "面夹具（`#1004` B2b）的 notes 面：**一个数据文件 → 多份产物**（车位 B · `#215` `18504282`）。夹具只声明「消费得到」的最小集：`n_tav_tips`（交涉产出）· `n_old_witch`（过去侧，`g3-evidence` 直接用这个 id）· `n_failure_cause`（现在侧日记，`g3-evidence` 的合龙门读它）· `n_flower_warned`（守林人产出）。",
+	"eraMap": {
+		"present": "window.Game.Era.PRESENT",
+		"past": "window.Game.Era.PAST"
+	},
+	"why_eraMap": "`era` 在数据面写成**声明式枚举**（`\"present\"`／`\"past\"`）⇒ 由 `emitNotes()` 按本表展开成引擎引用；**值不在表里 ⇒ 编译期抛**（不许静默产出 `undefined`）。",
+	"blocks": [
+		{
+			"file": "16-notes-ch1.twee",
+			"section": "Game Notes 夹具补漏",
+			"entries": {
+				"n_tav_tips": {
+					"title": "柜台那两句提醒",
+					"src": "酒馆",
+					"tags": ["夹具"],
+					"body": "老板娘说过两件事：别在雾里睡觉；听见有人叫你名字，别应。",
+					"era": "present",
+					"flagPath": "ev.tav_tips"
+				},
+				"n_old_witch": {
+					"title": "老巫女没说完的那句话",
+					"src": "老巫女",
+					"tags": ["夹具", "过去"],
+					"body": "她说了一半就停住，像是想起自己不在这儿。",
+					"era": "past",
+					"flagPath": "ev.old_witch"
+				},
+				"n_failure_cause": {
+					"title": "它为什么会睡在这儿",
+					"src": "书房",
+					"tags": ["夹具"],
+					"body": "日记里那半句：它来的时候，是被人叫来的。",
+					"era": "present",
+					"flagPath": "ev.failure_cause"
+				},
+				"n_flower_warned": {
+					"title": "花底下埋着人",
+					"src": "守林人",
+					"tags": ["夹具"],
+					"body": "他说那花底下埋着人。摘一朵，就少一个人。",
+					"era": "present",
+					"flagPath": "ev.flower_warned"
+				}
+			}
+		}
+	]
+}

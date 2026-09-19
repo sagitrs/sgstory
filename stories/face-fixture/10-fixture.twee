@@ -1,0 +1,263 @@
+:: Chargen Data [script]
+// 面夹具（`#1004` B2b）：**车卡面** —— `rules.mjs` 逐条钉死了它的形状（3 轮 × 每轮 3 选项、
+// 每项 name/desc/effect/apply，3 套预设各覆盖全部 3 轮），故这里照形状给**最小可用值**（数值不重要，形状重要）。
+// `harness.newGame` 的三段默认链（`踏上旅途` → `快速成型` → `出发，前往歪脖子鸭酒馆`）也落在这上面。
+window.Game ??= {};
+window.Game.Chargen = {
+	rounds: [
+		{
+			title: '职业', intro: '你凭什么本领走到这里？',
+			options: [
+				{ name: '铁卫', desc: '能扛住冲击，也敢迎面出剑。', effect: '力16 体15｜运动·恐吓｜长剑｜HP 高',
+					apply(pc) { pc.abilities = { str: 16, dex: 12, con: 15, int: 10, wis: 12, cha: 10 }; pc.skills.push('运动', '恐吓'); pc.gear.push('长剑'); pc.classHp = 12; pc.classKey = 'guard'; pc.classLabel = '铁卫'; } },
+				{ name: '影手', desc: '你习惯先看清退路，再决定是否动手。', effect: '敏16 感13｜察觉·游说｜短刃｜HP 中',
+					apply(pc) { pc.abilities = { str: 12, dex: 16, con: 12, int: 12, wis: 13, cha: 12 }; pc.skills.push('察觉', '游说'); pc.gear.push('短刃'); pc.classHp = 10; pc.classKey = 'shadow'; pc.classLabel = '影手'; } },
+				{ name: '秘典', desc: '你不擅长硬碰硬，却能从旧书里找出线索。', effect: '智16 感15｜奥秘·历史｜药膏｜HP 低',
+					apply(pc) { pc.abilities = { str: 8, dex: 12, con: 10, int: 16, wis: 15, cha: 11 }; pc.skills.push('奥秘', '历史'); pc.salves += 1; pc.classHp = 8; pc.classKey = 'sage'; pc.classLabel = '秘典'; } },
+			],
+		},
+		{
+			title: '背景', intro: '你从哪儿来？',
+			options: [
+				{ name: '佣兵', desc: '你在战场上学会自保。', effect: '运动｜金币 +10',
+					apply(pc) { pc.skills.push('运动'); pc.gold += 10; pc.bgKey = 'merc'; pc.bgLabel = '佣兵'; } },
+				{ name: '修行者', desc: '走过许多山林，习惯先听清动静。', effect: '察觉｜金币 +6',
+					apply(pc) { pc.skills.push('察觉'); pc.gold += 6; pc.bgKey = 'wanderer'; pc.bgLabel = '修行者'; } },
+				{ name: '抄书人', desc: '抄过的书多了，学会循着字句查找线索。', effect: '调查｜金币 +8｜学识烙印',
+					apply(pc) { pc.skills.push('调查'); pc.gold += 8; pc.flags.lore = true; pc.bgKey = 'scribe'; pc.bgLabel = '抄书人'; } },
+			],
+		},
+		{
+			title: '种族', intro: '你生来带着什么。',
+			options: [
+				{ name: '人类', desc: '力气与身手都多一分余裕。', effect: '力 +1 敏 +1',
+					apply(pc) { pc.abilities.str += 1; pc.abilities.dex += 1; pc.speciesKey = 'human'; pc.speciesLabel = '人类'; } },
+				{ name: '精灵', desc: '身手轻捷，感官敏锐。', effect: '敏 +2 感 +1',
+					apply(pc) { pc.abilities.dex += 2; pc.abilities.wis += 1; pc.speciesKey = 'elf'; pc.speciesLabel = '精灵'; } },
+				{ name: '矮人', desc: '体魄结实，手上有力。', effect: '体 +2 力 +1',
+					apply(pc) { pc.abilities.con += 2; pc.abilities.str += 1; pc.speciesKey = 'dwarf'; pc.speciesLabel = '矮人'; } },
+			],
+		},
+	],
+	presets: [
+		{ name: '铁卫', desc: '矮人佣兵，擅长迎击与自保。', summary: '力17 体17｜HP 高｜长剑·运动', picks: [0, 0, 2] },
+		{ name: '影手', desc: '精灵修行者，身手轻捷。', summary: '敏18 感14｜HP 中｜短刃·察觉', picks: [1, 1, 1] },
+		{ name: '秘典', desc: '人类抄书人，熟悉旧书与秘闻。', summary: '智16 感15｜HP 低｜药膏·奥秘', picks: [2, 2, 0] },
+	],
+	pick(roundIdx, optIdx) {
+		const pc = State.variables.pc;
+		this.rounds[roundIdx].options[optIdx].apply(pc);
+		pc.skills = [...new Set(pc.skills)];
+		pc.picked.push(`${this.rounds[roundIdx].title}：${this.rounds[roundIdx].options[optIdx].name}`);
+		pc.round += 1;
+		if (pc.round >= this.rounds.length) this.finalize(pc);
+	},
+	finalize(pc) {
+		pc.name = State.variables.player_name || '无名旅人';
+		pc.max_hp = (pc.classHp ?? 8) + Game.Rules.mod(pc.abilities.con) * 2;
+		pc.hp = pc.max_hp;
+	},
+	applyPreset(idx) {
+		const picks = this.presets[idx].picks;
+		for (let r = 0; r < this.rounds.length; r++) this.pick(r, picks[r]);
+	},
+};
+
+:: 开场
+/% payload: 信息 %/
+这是**测试夹具**，不是故事。它把引擎接入契约的每一种面各跑一次，好让测试有输入可用。
+
+[[踏上旅途|车卡]]
+[[看图鉴|图鉴]]
+
+:: 车卡
+/% vocab: exempt 车卡模块 API（Game.Chargen.applyPreset / pick / finalize）与模式标记——点击态无叙事状态 %/
+/% payload: 选择 %/
+<<nobr>>
+<div class="chargen-card">
+	<div class="chargen-progress">创建角色 · 选择方式</div>
+	<div class="choices">
+	<<for _i to 0; _i lt Game.Chargen.presets.length; _i++>>
+		<<capture _i>>
+		<<set _p to Game.Chargen.presets[_i]>>
+		<div class="choice-card" data-key="预设·_p.name">
+			<h3>_p.name</h3>
+			<p>_p.desc</p>
+			<span class="choice-effect">_p.summary</span>
+			<<link "快速成型">><<set $pc.presetIdx to _i>><<goto "车卡·成型">><</link>>
+		</div>
+		<</capture>>
+	<</for>>
+	</div>
+</div>
+<</nobr>>
+
+:: 车卡·成型
+/% vocab: exempt 车卡模块 API（applyPreset / finalize）——此处无玩家可读正文 %/
+/% payload: 选择 %/
+<<run Game.Chargen.applyPreset($pc.presetIdx ?? 0)>>
+<<set $pc.mode to "quick">>
+<<set $pc.name to "夹具旅人">>
+<<if !$pc.finalized>><<run Game.Chargen.finalize($pc)>><<set $pc.finalized to true>><</if>>
+你的角色备好了：$pc.classLabel$pc.bgLabel$pc.speciesLabel。
+
+[[出发，前往歪脖子鸭酒馆|酒馆]]
+[[回上一步|车卡]]
+
+:: 酒馆
+/% payload: 选择 %/
+夹具的中转站：下面每条链接都通向一个**面**。
+
+[[森林边缘]]｜[[洞穴]]｜[[门厅]]｜[[塔外花田]]｜[[守林人]]｜[[女巫小屋]]｜[[地下宴会厅]]｜[[书房]]
+[[问一句女巫小屋怎么走，然后过去|女巫小屋]]
+[[📖 设定集|设定集]]｜[[就地了结这一趟|结局 平凡之路]]
+
+:: 森林边缘
+/% payload: 张力 %/
+雾贴着地面走。
+<<sitecheck "森林·察觉">>
+<<lastcheckFor "森林·察觉">>
+雾里那点动静响了一次，你分得清它从哪边来。
+[[在雾里站住，听一听|森林边缘]]
+[[走进山脚的洞穴|洞穴]]｜[[回酒馆|酒馆]]
+
+:: 洞穴
+/% payload: 选择 %/
+洞口的石头是凉的。
+[[拔家伙|洞穴·战斗]]｜[[往林子深处走|森林边缘]]｜[[回酒馆|酒馆]]
+
+:: 洞穴·战斗
+/% payload: 张力 %/
+<<fightbegin "雾影">>
+<<fightpanel>>
+[[往林子深处走|森林边缘]]｜[[回酒馆|酒馆]]
+
+:: 门厅
+/% payload: 选择 %/
+门厅里只有一根空钉。
+<<if not $pc.world.whistle_taken>>
+[[把墙上那支哨子摘下来|门厅]]<<set $pc.world.whistle_taken to true>><<give "坏哨">>
+<</if>>
+[[看钉|门厅·看钉]]｜[[继续往塔那边走|塔外花田]]｜[[往林子深处走|森林边缘]]｜[[回酒馆|酒馆]]
+
+:: 门厅·看钉
+/% payload: 张力 %/
+钉子旁边那圈灰不太对。
+<<sitecheck "门厅·看钉">>
+<<lastcheckFor "门厅·看钉">>
+[[回门厅|门厅]]
+
+:: 塔外花田
+/% payload: 选择 %/
+墙根那片花是白的。
+<<if not $pc.world.flower_taken>>
+[[伸手去摘最靠里的那一朵|塔外花田]]<<set $pc.world.flower_taken to true>><<give "月光花">>
+<</if>>
+[[塔基墙根那片花|塔外花田]]｜[[回门厅|门厅]]｜[[回酒馆|酒馆]]
+
+:: 守林人
+/% payload: 选择 %/
+他拄着杖站在路口。
+<<socpanel>>
+[[回酒馆|酒馆]]
+
+:: 女巫小屋
+/% payload: 信息 %/
+炉火边只剩一只空凳。
+<<if not $pc.inv["时光护符"]>><<give "时光护符">><</if>>
+<<note "n_tav_tips">>
+[[回酒馆|酒馆]]
+
+:: 老巫女
+/% payload: 信息 %/
+过去侧的老巫女把手拢在袖子里。
+<<note "n_old_witch">>
+<<set $pc.ev.old_witch to true>>
+[[缺的那一句话，是谁没说完|地下宴会厅]]｜[[回酒馆|酒馆]]
+
+:: 观星者
+/% payload: 信息 %/
+他抬头看了一会儿。
+<<set $pc.ev.seer_asked to true>>
+<<set $pc.ev.coord to true>>
+[[回酒馆|酒馆]]
+
+:: 地下宴会厅
+/% payload: 选择 %/
+厅里点着三百年前的灯。
+<<if $pc.ev.failure_cause and ($pc.ev.seer_asked or $pc.ev.coord)>>
+[[缺的那一句话，是谁没说完|结局 送星归位]]
+<</if>>
+[[回酒馆|酒馆]]
+
+:: 书房
+/% payload: 信息 %/
+案上摊着一本翻到一半的日记。
+<<note "n_failure_cause">>
+<<give "日记">>
+[[回酒馆|酒馆]]
+
+:: 岔口
+/% payload: 选择 %/
+两条路，一样黑。
+[[塔门]]｜[[回酒馆|酒馆]]
+
+:: 塔门
+/% payload: 选择 %/
+门是虚掩的。
+<<if $pc.hp lte 0>><<goto "结局 死亡">><</if>>
+[[推门进去|地下宴会厅]]｜[[回酒馆|酒馆]]
+
+:: 封印·并肩
+/% payload: 张力 %/
+<<fightbegin "封印">>
+<<fightpanel>>
+[[收手|酒馆]]
+
+:: 图鉴
+/% payload: 信息 %/
+<div class="codex-hub">
+	<<= window.Sg.Codex?.render?.() ?? '（本故事没有图鉴——引擎不该假定每个故事都有。）'>>
+	<<back "回开场">>
+</div>
+
+:: 设定集
+/% payload: 信息 %/
+<div class="codex-hub">
+	[[设定集·术语]]｜[[设定集·三律]]｜[[设定集·结局]]
+	<<back "回酒馆">>
+</div>
+
+:: 设定集·术语
+/% payload: 信息 %/
+<<if Sg.Codex.seenFinal()>>雾就是它睡着时漏出来的力气。<<else>>还没走到那一步。你只知道雾一年比一年浓。<</if>>
+<<back "回设定集">>
+
+:: 设定集·三律
+/% payload: 信息 %/
+一：走过的路会记住人。二：人记不住的，由道具记住。三：别在雾里睡觉。
+<<back "回设定集">>
+
+:: 设定集·结局
+/% payload: 信息 %/
+<<if Sg.Codex.seenFinal()>>真结局只有一个：把三百年里散开的东西重新凑齐，杖尖指的方向就是它睡的地方。<<else>>你还没走到过结局。这一页现在只写着：雾还在。<<endgame_gate_on>>
+<</if>>
+<<back "回设定集">>
+
+:: 结局 平凡之路
+/% payload: 信息|张力 %/
+<<ending "平凡之路">>
+你把这一趟就地了结，转身往回走。雾还在。
+[[重新开始|开场]]
+
+:: 结局 送星归位
+/% payload: 信息|张力 %/
+<<ending "送星归位" final>>
+你把那半句话补上了。你不知道它有没有听见。
+[[重新开始|开场]]
+
+:: 结局 死亡
+/% payload: 信息|张力 %/
+<<ending "死亡">>
+你没能站起来。
+[[重新开始|开场]]

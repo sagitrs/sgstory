@@ -1,6 +1,41 @@
 {
 	"note": "「就地行动」站点矩阵 + 渲染路径契约数据（#300 §5 → #315 禁止制）。消费者：test/saveload-inventory.mjs（静态：① 就地改状态＝禁止，白名单 inPageMutationsAllowed 逐条理由＋票号；② 检定 key 归宿）与 test/saveload.mjs（行为：就地操作→立即 S/L→状态保值）。新增站点若走 goto 渲染路径无需登记；若确需就地改状态，必须进白名单并说明理由，否则门红。\n\n⚠️ `#1004` B2b 退役登记（复核席）：原 5 条站点条目**全部指向已删故事**（`mist-forest` 的 门厅／塔外花田／封印·并肩 ＋ widget `<<hallResult>>`）⇒ 条目已清空（**机械制保留** ✓：静态禁止制＋白名单＋「间接站点依赖的 widget 必须仍在」三条判据原样在册 ✓，将来任何故事加回这类站点即自动生效 ✓）。⚠️ **声明**：**「就地操作 → 立即 S/L → 状态保值」的站点矩阵面自此无对象** ✓ ⇒ 日后要动它 ⇒ 先补一个带「就地改状态」站点的样本（不为凑绿加样本 ✗）。",
-	"sites": [],
+	"sites": [
+		{
+			"label": "把墙上那支哨子摘下来",
+			"where": "门厅",
+			"nav": "whistle",
+			"mutates": [
+				"give:坏哨",
+				"world:whistle_taken"
+			],
+			"assert": [
+				"inv",
+				"world",
+				"hp",
+				"gold"
+			],
+			"ticket": "#300",
+			"note": "`#1004` B2b 复核席按**裁定 A**（面级 ⇒ 重指到有该面的样本 ✗）把本条目**重指到面夹具** ✓：夹具 `门厅` 的那条就地取物链接与旧故事的**形状同款**（`<<set>>` 场地旗标 ＋ `<<give>>` ＋ `<<goto>>` 回本段 ✓）⇒ 本门的机制因此**重新有了对象** ✓（旧条目的 `behavioralOnly: hallResult` 随 widget 一起消失 ✗ —— 夹具这条是**直写**，不再依赖 widget ✓，所以不需要那一栏 ✓）。"
+		},
+		{
+			"label": "伸手去摘最靠里的那一朵",
+			"where": "塔外花田",
+			"nav": "flower",
+			"mutates": [
+				"give:月光花",
+				"world:flower_taken"
+			],
+			"assert": [
+				"inv",
+				"world",
+				"hp",
+				"gold"
+			],
+			"ticket": "#300",
+			"note": "同上（裁定 A 重指 ✓）：夹具 `塔外花田` 的一次性拾取（`<<set $pc.world.flower_taken>>` ＋ `<<give \"月光花\">>` ＋ `<<goto>>` 回段 ✓）。"
+		}
+	],
 	"sitecheckExemptions": {
 		"森林·察觉": "静态误报：同段 <<replace>> 显示结果，无跨段导航（#300 复核）",
 		"洞穴·战斗": "已修：跨段（洞穴动武→森林边缘）由结果槽带骰面显示，不走 <<lastcheckFor>>（#305/#300）",

@@ -7,6 +7,7 @@
 import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处 ✓
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { mkHist, checkStep } from './invariants.mjs';
+import { fingerprintOf } from '../editor/lib/core/fingerprint.mjs';   // 见证模式的**状态摘要** ✓（复用 core ✓ 不另造哈希 ✗）
 // 统一进 test/boot.mjs（#27 就绪轮询 + 坑11 uncaught 监听 + 退出清理）——
 // 这里不再自己装配 JSDOM：随机源改传函数（种子流），窗口关不关由 boot 统一负责。
 import { boot, LINKS, trailingAfterLast } from './boot.mjs';
@@ -167,6 +168,107 @@ async function dualBranchSweep() {
 	}
 	if (missing.length) failures.push({ index: 'sweep', mode: 'dual-branch', msg: `位点双支未覆盖 ${missing.length}: ${missing.join(', ')}` });
 	return sites.length;
+}
+
+// ── 见证模式（`#215` 裁 (B) ✓）：`--witness` ⇒ 通用种子化走法 ＋ **逐步轨迹** ✗ ─────────────
+//   依据 ✓：P4 验收要「**一条完整轨迹、逐格可复跑**」（起于 S₀ → ≥K 个被 ≺ 授权的事件 → 终于 `ending`）。
+//   为什么用**种子扫描** ✗（发起者裁定 ✓）：随机玩**有可能走不到结局** ⇒ 跑 `seed = S..S+N-1`，
+//     **取第一条「到 `ending` **且** ≥K 事件」的** ✗（两个条件都算 ✓ —— "到了结局但太短"不算见证 ✓；
+//     也不是遇到第一条到结局的就收工 ✗：那样 K 一大就**假红** ✓，而长轨迹明明可能在别的种子上 ✓）。
+//     —— 每条都可复现 ✓、且比手写"定向走法"更可信 ✓（**不走 planner** ✗）。
+//   走法 ✓：从清单 `entry` 起，**按 `data-choice` key** 种子化点击（本仓 `#317②` 口径 ✓ 不用文案）；
+//     ⚠️ 开场／车卡那类**没有派生 key** 的段 ⇒ **label 兜底** ✗（并且**在轨迹里显式标出**
+//     `fallback: true` ✓ —— 免得"按 key 可复跑"被兜底悄悄破掉）。
+//   可复跑 ＝ **同 seed ＋ 同 key 序列** ✓ ⇒ 轨迹里落的正是这两样 ＋ 一行**可直接粘**的复跑命令 ✓。
+//   用法 ✓：`node test/walker.mjs --witness [--story=<slug|绝对路径>] [--seed=S] [--scan=N] [--max-steps=M] [--min-events=K]`
+//     （`--story=` 优先 ✓、env `SGSTORY_STORY` 兜底 ✓）
+//   ⚠️ **口径收窄** ✗（`#215` 发起者裁 ②(a) ✓）：`--story=` 收 **slug** ✓（仓内 `stories/<slug>/` ✓）。
+//     **绝对路径**只在**页面**那步被按绝对处理 ✓，**清单**那步仍只认 slug ✗ ⇒ **交互式加载仓外故事包暂不支持** ✗
+//     （P4 的内容面就在仓内 `stories/<slug>/**` ✓ ⇒ 不是 P4 要件 ✓；真要用仓外包时另开票 ✓）。
+//     ⇒ 报错会**点名**拼出来的那个路径 ✓（`boot.mjs` 的 `entryOf` ✓ —— 不许静默 ✗）。
+const WITNESS = process.argv.includes('--witness');
+if (WITNESS) {
+	const argOf = (n, d) => { const h = process.argv.find((a) => a.startsWith(`--${n}=`)); return h ? h.slice(n.length + 3) : d; };
+	const STORY = argOf('story', process.env.SGSTORY_STORY ?? null);
+	const SEED0 = Number(argOf('seed', 1));
+	const SCAN = Number(argOf('scan', 8));
+	const MAX = Number(argOf('max-steps', 60));
+	const K = Number(argOf('min-events', 3));
+	// 可点入口 ✓：与既有走法**同一个选择器** ✗（不能只吃 `LINKS` ⇒ 会卡在「车卡」那段的手写 choice-card ✓）
+	const SEL = `${LINKS}, #passages .choice-card a`;
+	const digestOf = (w) => fingerprintOf(w.SugarCube.State.variables?.pc ?? {});
+	// 一条轨迹 ✓：返回 { steps, ending }（`ending` 非空 ⇔ 真走到头 ✓）
+	async function oneWalk(seed) {
+		const rng = makeRng(seed);
+		const { w, uncaught, close } = await boot({ random: () => 0.99, ...(STORY ? { story: STORY } : {}) });
+		const steps = [];
+		let ending = null;
+		try {
+			for (let i = 0; i < MAX; i++) {
+				const p = w.SugarCube.State.passage;
+				if (String(p).startsWith('结局')) { ending = p; break; }
+				const cands = [...w.document.querySelectorAll(SEL)];
+				if (!cands.length) break;
+				const keyed = cands.filter((a) => a.dataset.choice);
+				const pool = keyed.length ? keyed : cands;
+				const a = pool[Math.floor(rng() * pool.length)];
+				const step = { passage: p, digest: digestOf(w) };
+				if (a.dataset.choice) step.choiceKey = a.dataset.choice;
+				else { step.choiceLabel = a.textContent.replace(/\s+/g, ' ').trim(); step.fallback = true; }
+				steps.push(step);
+				a.click();
+				await sleep(220);
+				const errs = uncaught.filter(Boolean);
+				if (errs.length) throw new Error(`走查中抛出：${String(errs[errs.length - 1]).slice(0, 200)}`);
+			}
+		} finally { try { close(); } catch { /* 已关 */ } }
+		return { steps, ending };
+	}
+	// **种子扫描** ✓：取第一条到 `ending` 的种子（全可复现 ✓）
+	let hit = null;
+	const tried = [];
+	// 事件数 ✓ ＝ 被 `≺` 授权的步数（带 key ✓ 或带 label ✓ —— 开场链那类兜底也算一步 ✓，与末端 K 判据**同一把尺** ✓）
+	const nEventsOf = (steps) => steps.filter((x) => x.choiceKey || x.choiceLabel).length;
+	for (let sd = SEED0; sd < SEED0 + SCAN; sd++) {
+		const r = await oneWalk(sd);
+		const n = nEventsOf(r.steps);
+		// 两个条件都算 ✓：**到了结局** 且 **事件数 ≥ K** ✗ —— 只看"到没到结局" ⇒ "到了但太短"会被当成见证 ✓（K 一大就假红 ✓）
+		const ok = Boolean(r.ending) && n >= K;
+		tried.push({ seed: sd, steps: r.steps.length, events: n, ending: r.ending, ok });
+		console.log(`  · seed=${sd}：${r.steps.length} 步（事件 ${n}）⇒ ending=${r.ending ?? '(无 ✗)'} ⇒ ${ok ? '**收** ✓' : (r.ending ? `**太短** ✗（< ${K}）` : '**没到结局** ✗')}`);
+		if (ok) { hit = { seed: sd, ...r }; break; }
+	}
+	mkdirSync('build', { recursive: true });
+	const replay = `node test/walker.mjs --witness${STORY ? ` --story=${STORY}` : ''} --seed=${hit?.seed ?? SEED0} --scan=1 --max-steps=${MAX}`;
+	const trace = {
+		story: STORY ?? '(默认 slug)',
+		seed: hit?.seed ?? null,
+		seedTried: tried,
+		maxSteps: MAX,
+		steps: hit?.steps ?? [],
+		ending: hit?.ending ?? null,
+		fallbacks: (hit?.steps ?? []).filter((s) => s.fallback).length,
+		replay,
+	};
+	writeFileSync('build/witness-trace.json', JSON.stringify(trace, null, 1));
+	if (!hit) {
+		const reached = tried.filter((x) => x.ending);
+		const why = reached.length
+			? `**到过结局、但都太短** ✗（其中最长的事件数 ${Math.max(...reached.map((x) => x.events))} < K=${K} ✓）`
+			: '**没有一条走到 ending** ✗';
+		console.error(`\n✗ 见证不成立：扫了 ${SCAN} 个种子（${SEED0}..${SEED0 + SCAN - 1}，每个 ≤${MAX} 步）⇒ ${why}`);
+		console.error('  ⇒ P4 验收要「起于 S₀ → … → **终于 ending**」✓：走不到终点的那条轨迹**不算见证** ✗');
+		console.error('    （可加大 --scan=N 或 --max-steps=M 重试 ✓；若扫到底仍不到 ⇒ **加定向走法要照 ㉛ 再报备一次** ✓）');
+		process.exit(1);
+	}
+	const nEvents = nEventsOf(hit.steps);   // 与扫描**同一把尺** ✓（`hit` 已保证 ≥K ⇒ 这里是"改坏了就红"的兜底 ✓）
+	console.log(`\n见证 ✓：seed=${hit.seed} · ${hit.steps.length} 步（事件 ${nEvents}）· ending=${hit.ending} · label 兜底 ${trace.fallbacks} 处`);
+	console.log(`复跑 ✓：${replay}`);
+	if (nEvents < K) {
+		console.error(`✗ 见证不成立：被 ≺ 授权的事件只有 ${nEvents} 个 < ${K}（K 由发起者在报备里钉死 ✓）`);
+		process.exit(1);
+	}
+	process.exit(0);
 }
 
 // ── 主流程 ───────────────────────────────────────────────

@@ -116,3 +116,38 @@ export const refusedFaceProblems = (faces = [], { markerOf = () => false } = {})
 	}
 	return out;
 };
+
+/**
+ * **手写面闭合**（`#987`）：`手写面 − 登记面 − prose 白名单 − 逃生舱文件 ＝ ∅` ✓。
+ *
+ * 为什么需要它 ✗：`refusedFaceProblems` 只校验**已登记条目** ✓ ⇒ "**有没有该登记却没登的**"只能靠人算 ✓
+ *   （`#985` 之前漏登过 3 件而门**全绿** ✗）。
+ *
+ * ⚠️ **口径必须用 `hasGeneratedMarker`** ✗（不新造 ✓）：它就是"**行首 `// @generated`**" ✓（先遮蔽模板串 ✓）——
+ *   `stories/mist-forest/16-hooks.twee` 第 11 行**在注释里引用**这个标记来声明"本文件不带它" ✓ ⇒
+ *   "grep 到就算生成物"会把它**误判** ✗（实测：那个口径给 9/13，正确口径给 **8/14** ✓）。
+ *
+ * ⚠️ **豁免是三类、语义不同 ⇒ 分开减** ✗（⛔ 不合并成一个"豁免表"）：
+ *   ① `refusedFaces` ＝ **可数据化但当下不划算** ✓（含退路 ＋ 重开条件 ✓）
+ *   ② `proseFaces`   ＝ **不可数据化：散文** ✓（设计稿 §3「文本留文本」✓）
+ *   ③ `hatchFiles`   ＝ **B/C 桶成员的手写逃生舱** ✓（既有机制 ✓：`hatches` 带理由 ＋ 票号 ✓）
+ *
+ * @param {{handwritten?:string[], refused?:string[], prose?:string[], hatches?:string[], markerOf?:(f:string)=>boolean}} o
+ */
+export const handwrittenClosureProblems = ({ handwritten = [], refused = [], prose = [], hatches = [], markerOf = () => false } = {}) => {
+	const out = [];
+	const covered = new Set([...refused, ...prose, ...hatches]);
+	// ① 每件手写面**都要有归属** ✓（逐件点名 ✗ —— ⛔ 不写成"数量相等"：并行跑器下临时件会来 ⇒ 计数等值会随机红 ✓）
+	for (const f of handwritten) {
+		if (!covered.has(f)) out.push({ file: f, why: `手写面 \`${f}\` **没有归属** ✗ ⇒ 三选一：\`refusedFaces\`（可数据化但当下不划算 ✓）／\`proseFaces\`（不可数据化：散文 ✓）／\`hatchFiles\`（B/C 桶逃生舱 ✓）` });
+	}
+	// ② 白名单**只许收缩** ✗：`proseFaces` 里的件若**已成生成物** ⇒ 红（照 `refusedFaceProblems` 的同款口径 ✓）
+	for (const f of prose) {
+		if (!handwritten.includes(f)) {
+			out.push({ file: f, why: markerOf(f)
+				? `\`proseFaces\` 登记腐烂：\`${f}\` **已经带 \`@generated\`** ✗ ⇒ 它其实**已数据化** ✓ ⇒ 删掉这条（白名单**只许收缩** ✓）`
+				: `\`proseFaces\` 里的 \`${f}\` **不在手写面里** ✗ ⇒ 路径写错或文件已不在（防呆 ✓）` });
+		}
+	}
+	return out;
+};

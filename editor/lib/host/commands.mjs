@@ -30,7 +30,7 @@ import { definitionsOf, duplicateExportProblems, secondCopyProblems, coreHostPro
 // `#794` 第 4 条（K4 命令体）：判据的**纯**部分住 core ✓（纯 ⇒ core、宿主能力 ⇒ host ✓）。
 // ⚠️ **一处定义** ✓：分类器实例**不在本文件重装** ✗ —— `lib/host/classify.mjs` 已经装好（`makeClassify({ evalLiteral: literalValue })` ✓），
 // 本命令走它导出的缝 `classifyContractText` ✓（那条缝多做 `locals` 上下文与 `const` 的 B→A 解析 ⇒ 该语义风险由**两时点差分**量掉 ✓）。
-import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, contractSourceText, staleTrackedProblems } from '../core/k4criteria.mjs';
+import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, handwrittenClosureProblems, contractSourceText, staleTrackedProblems } from '../core/k4criteria.mjs';
 import { censusOfStory, censusSummarize, censusProblems } from '../core/hatchCensus.mjs';
 import { classifyContractText } from './classify.mjs';
 // `#794` 弧第 3 票（`equiv` 命令体）：用 vm／读文件／跑子进程 ⇒ **都在 host** ✓。
@@ -678,6 +678,23 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 		const names = (b) => classified.filter((m) => m.bucket === b).map((m) => m.name).join('、') || '（无）';
 		console.log(`      欠账（B 待补 kind）：${names('B')}`);
 		console.log(`      欠账（D 待下沉引擎）：${names('D')}`);
+	}
+
+	// ③c **手写面闭合**（`#987`）：`手写面 − 三类豁免 ＝ ∅` ✓。
+	//   ⚠️ 它是**跨故事**的 ✗（逐故事那块只能看见本故事的登记 ✓）⇒ 放在循环之后 ✓。
+	//   ⚠️ 口径＝`hasGeneratedMarker` ✓（**行首** `// @generated` ＋ 先遮蔽模板串 ✓）—— **不新造** ✗：
+	//     `16-hooks.twee` 第 11 行在注释里**引用**这个标记来声明"本文件不带它" ✓ ⇒ "grep 到就算生成物"会误判 ✗。
+	{
+		const hx = JSON.parse(readFileSync(join(ROOT, 'editor', 'escape-hatch.json'), 'utf8'));
+		const treeTwee = execFileSync('git', ['ls-files', 'stories'], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n')
+			.filter((f) => f.endsWith('.twee'));                       // ⚠️ `.twee.txt`（冻结基线一类）**不算**故事源 ✓
+		const markerOf = (rel) => { try { return hasGeneratedMarker(readFileSync(join(ROOT, rel), 'utf8')); } catch { return false; } };
+		const handwritten = treeTwee.filter((f) => !markerOf(f)).sort();
+		const refused = (hx.refusedFaces ?? []).map((f) => f.file).filter((f) => typeof f === 'string');
+		const prose = (hx.proseFaces ?? []).slice();
+		const hatches = (hx.hatchFiles ?? []).slice();
+		console.log(`  · 手写面闭合：手写 twee ${handwritten.length} 件 − 登记 ${refused.length} − prose ${prose.length} − 逃生舱文件 ${hatches.length} ⇒ 应当为 ∅ ✓`);
+		for (const prob of handwrittenClosureProblems({ handwritten, refused, prose, hatches, markerOf })) { console.error(`  ✗ ${prob.why}`); bad++; }
 	}
 	if (bad) {
 		console.error(`\n✗ K4 门未通过（${bad} 项）—— 产物必须有标记、必须新鲜、逃生舱必须可枚举。`);

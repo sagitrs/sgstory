@@ -27,48 +27,20 @@ async function newGame(randomStub) {
 	return { w: s.w, click: s.clickByLabel, settle: s.settle };
 }
 
-// ── 导航到各站点（与 #300 复现路径一致）──────────────────────────────
+// ⛔ **退役 ＋ 声明**（`#1004` B2b 复核席 ✓，按裁定 A：**剧情级 ⇒ 退役 ＋ 逐块声明** ✗）：
+//   这一段原是"**导航到各站点**"的五个 helper（`hall-direct`／`hall-observe`／`hall-observed`／`sealRound`／`flower` ✓）
+//   ＋ `toSealRound()`／`toHall()` 两条长路线 ✓ —— 它们走的全是**已删故事 `mist-forest` 的具体路线与文案**
+//   （`问一句女巫小屋怎么走` → `往林子深处走` → `继续往塔那边走` → `塔基墙根那片花` / `雾里有个影子挡着路` ✓）。
+//   ⚠️ 面夹具按裁定 (甲) **沿用段名、正文与分支全为新写** ✓ ⇒ 这些**路线**没有对应物 ✗（不是"判据坏了"✓）。
+//   ⚠️ **声明** ✗：**「门厅/花田/封印战的复现路线」这一面自此无对象** ✓ ⇒ 将来若有样本提供同类站点 ⇒
+//   按其真实路线补回 helper 即可 ✓（下面的**机制**全部原样保留 ✓：`MANIFEST.sites` 驱动 ＋ 快照/比对 ＋
+//   "就地操作 ⇒ 立即 S/L ⇒ 逐项保值 ＋ 不得重复发物" ✓ —— 站点清单为空时该循环**零行** ✓，即"无站点可测"**如实为空** ✗ 而不是假装通过 ✓）。
+// ── 导航到各站点（`#1004` B2b ✓：按**裁定 A** 重指到面夹具 ✓ —— 站点与旧故事**形状同款** ✗：
+//   都是在 `门厅`／`塔外花田` 里"就地改状态 ＋ `<<goto>>` 回本段" ✓）─────────────────────
 const NAV = {
-	async 'hall-direct'(c) { await toHall(c); },
-	async 'hall-observe'(c) { await toHall(c); },
-	async 'hall-observed'(c) { await toHall(c); await c('先看清钉子是怎么卡的'); },
-	async sealRound(c, w) { await toSealRound(c, w); },
-	async flower(c) {
-		await c('问一句女巫小屋怎么走');
-		await c('往林子深处走');
-		await c('继续往塔那边走');
-		await c('塔基墙根那片花');
-	},
+	async whistle(c) { await c('门厅'); },        // 酒馆 ⇒ 门厅（站点标签由主循环点 ✓）
+	async flower(c) { await c('塔外花田'); },      // 酒馆 ⇒ 塔外花田 ✓
 };
-// #350：封印战一轮（点击第一张牌）——状态需结盟＋好哨＋卷轴星图，从地下宴会厅进
-async function toSealRound(c, w) {
-	await c('问一句女巫小屋怎么走');
-	await c('往林子深处走');
-	await c('继续往塔那边走');
-	await c('雾里有个影子挡着路');
-	await c('慢慢放下手');
-	await c('顺着那条窄路走过去');
-	await c('收下钥匙');
-	w.eval(`(function(){const v=SugarCube.State.variables;const pc=v.pc;
-	 pc.hp=18; pc.max_hp=18; pc.salves=2;
-	 pc.inv["好哨"]=true; pc.inv["传送术卷轴"]=true; pc.inv["完整星图"]=true;
-	 pc.keeper.state="seal"; pc.keeper.met=true;
-	 pc.dragon={hp:60,defeats:0,venom:false,awake:true};
-	 v.era="present";})()`);
-	w.SugarCube.Engine.play('地下宴会厅'); await sleep(250);
-	await c('叫醒它');
-	await c('和守林人并肩');
-}
-
-async function toHall(c) {
-	await c('问一句女巫小屋怎么走');
-	await c('往林子深处走');
-	await c('继续往塔那边走');
-	await c('雾里有个影子挡着路');
-	await c('慢慢放下手');
-	await c('顺着那条窄路走过去');
-	await c('收下钥匙');
-}
 
 // ── 快照与比对 ──────────────────────────────────────────────────────
 const snapshot = (w) => {
@@ -171,9 +143,11 @@ for (const site of MANIFEST.sites) {
 		a.click(); await settle(); await sleep2(140);
 	};
 	try {
+		// `#1004` B2b ✓：路线按**裁定 A** 重指到"**有这一面的样本**"✗ —— 战斗面在**面夹具** ✓
+		//（`酒馆` → `洞穴` → `拔家伙` → `洞穴·战斗`（`<<fightbegin "雾影">>` ✓）⇒ 与旧故事那条四跳长链等价
+		// 的那一段：**进一场短战斗** ✓）。⚠️ 判据本身一个字没改 ✓（下面仍是"读档不得重放本轮"✓）。
 		await c('踏上旅途'); await c('快速成型'); await c('出发，前往歪脖子鸭酒馆');
-		await c('问一句女巫小屋怎么走'); await c('往林子深处走'); await c('继续往塔那边走'); await c('雾里有个影子挡着路');
-		await c('举起武器，迎上去');
+		await c('洞穴'); await c('拔家伙');
 		await settle(); await sleep2(300);
 		const acts = [...w.document.querySelectorAll(CLICKABLE_SEL)].filter((x) => !x.textContent.includes('设定集'));
 		if (!acts.length) throw new Error('战斗段没有可点行动');

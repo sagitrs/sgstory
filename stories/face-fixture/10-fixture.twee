@@ -132,6 +132,7 @@ window.Game.Chargen = {
 /% payload: 选择 %/
 洞口的石头是凉的。
 [[拔家伙|洞穴·战斗]]
+<<lastcheckFor "洞穴·暗门">>   /% `#1004` B2b：补**复显行**（同 `森林边缘` 写法 ✓）—— 本段的 `<<sitecheck>>` 在下面那条 link 体内 ＋ `<<goto>>` 回本段 ⇒ 没有复显行的话，跨段后检定框会**静默丢失**（`test/saveload-inventory.mjs` 的 orphan-key 门 ✓） %/
 <<link "摸黑找那道暗门">><<sitecheck "洞穴·暗门">><<goto "洞穴">><</link>>
 
 <<rulelist "洞穴#火光">>｜[[往林子深处走|森林边缘]]｜[[回酒馆|酒馆]]
@@ -161,6 +162,7 @@ window.Game.Chargen = {
 :: 塔外花田
 /% payload: 选择 %/
 墙根那片花是白的。
+<<lastcheckFor "塔外花田">>   /% `#1004` B2b：补**复显行**（同上 ✓）—— `<<if>>` **之外**（无条件渲染 ✓）：摘过花之后再进本段也要看得到上一次的检定框 ✓ %/
 <<if not $pc.world.flower_taken>>
 <<link "伸手去摘最靠里的那一朵">><<sitecheck "塔外花田">><<set $pc.world.flower_taken to true>><<give "月光花">><<goto "塔外花田">><</link>>
 <<else>>

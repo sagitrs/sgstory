@@ -50,7 +50,7 @@ export const coverageLine = ({ known = [], baselineSlug = DEFAULT_SLUG } = {}) =
 	return others.length ? `覆盖：${judged}｜${others.map((s) => `\`${s}\`：仅登记（**不判定**）`).join('｜')}` : `覆盖：${judged}`;
 };
 
-export const cliProblems = ({ argv = [], known = [], defaultSlug = 'mist-forest' } = {}) => {
+export const cliProblems = ({ argv = [], known = [], defaultSlug = DEFAULT_SLUG } = {}) => {
 	const out = [];
 	const KNOWN = ['baseline', 'out', 'check', 'zero', 'selftest', 'story'];
 	for (const a of argv) {
@@ -202,6 +202,10 @@ const main = () => {
 	if (argv.includes('--selftest')) {
 		console.log('══ UI 差异复核 · 自证 ══');
 		const M = (o) => new Map(Object.entries(o));
+		// `#1004` B2b ✓：下面 `#619` 那批用例的"故事名单／默认故事"一律**取真值**（单一权威 ✓）——
+		//   不再写死 `mist-forest`／`hollow-cave`（名字一删，用例就退化成"在枚举已删故事"✗，本仓已栽过多次 ✓）。
+		const KNOWN = storySlugs();
+		const OTHER = KNOWN.find((s) => s !== DEFAULT_SLUG) ?? 'nope';
 		const cases = [
 			['正例：正文一致 ⇒ 不算变更', judge(M({ P: "你好''世界''" }), M({ P: '你好世界' }), ''), (r) => r.rows.length === 0 && r.unregistered === 0],
 			['正例：宏/注释变化 ⇒ 不算正文漂移', judge(M({ P: '<<if $x>>你好<</if>' }), M({ P: '/% 注 %/<<if $y>>你好<</if>' }), ''), (r) => r.rows.length === 0],
@@ -220,14 +224,20 @@ const main = () => {
 			['🔴 反例（#595 的口径边界）：**改字**仍然红（多重集变了）', judge(M({ P: '甲。乙。' }), M({ P: '甲。丙。' }), ''), (r) => r.rows.length === 1],
 			['🔴 反例（#595 的反面）：行 `scope` 指向**不存在的段落** ⇒ 不归属（本门不吞；由 `--rules` 报）', mergeRowTexts(M({ P: '' }), [{ id: 'r', scope: '不存在', text: 'x' }]).has('不存在') === false, (x) => x === true],
 			// `#619`：`--story` 曾被静默忽略（空门）⇒ 三条命令行判据都要有牙
-			['正例（#619）：默认故事、无参数 ⇒ 不报', cliProblems({ argv: [], known: ['mist-forest', 'hollow-cave'] }), (r) => r.length === 0],
-			['覆盖自报（#619）：默认故事写「判定」、其他故事写「仅登记（不判定）」', coverageLine({ known: ['mist-forest', 'hollow-cave', 'minimal-demo'] }), (r) => r.includes('mist-forest') && r.includes('判定') && r.includes('hollow-cave') && r.includes('仅登记') && r.includes('不判定')],
-			['覆盖自报（#619）：只有一个故事 ⇒ 不写多余的"其他故事"段', coverageLine({ known: ['mist-forest'] }), (r) => !r.includes('仅登记')],
-			['正例（#619）：`--story=hollow-cave --out=…` ⇒ 不报', cliProblems({ argv: ['--story=hollow-cave', '--out=build/x.md'], known: ['mist-forest', 'hollow-cave'] }), (r) => r.length === 0],
-			['🔴 反例（#619）：未知参数（打错一个字母）⇒ 报', cliProblems({ argv: ['--stonry=hollow-cave'], known: ['mist-forest'] }), (r) => r.length === 1],
-			['🔴 反例（#619）：`--story=不存在` ⇒ 报', cliProblems({ argv: ['--story=nope', '--out=x.md'], known: ['mist-forest'] }), (r) => r.length === 1],
-			['🔴 反例（#619）：非默认故事未给 `--out=` ⇒ 报（别覆盖故事 1 的报告）', cliProblems({ argv: ['--story=hollow-cave'], known: ['mist-forest', 'hollow-cave'] }), (r) => r.length === 1],
-			['🔴 反例（#619）：两个位置参数 ⇒ 报', cliProblems({ argv: ['a', 'b'], known: ['mist-forest'] }), (r) => r.length === 1],
+			// ⚠️ `#1004` B2b ✓：这批用例原来**写死旧故事名**（`mist-forest`／`hollow-cave` ✗）⇒ `DEFAULT_SLUG` 换成面夹具后：
+			//   ① `coverageLine({known:['mist-forest']})` 会把**旧默认**当成"其他故事" ⇒ "只有一个故事"那一格当场红 ✓；
+			//   ② 实现侧的 `cliProblems` 也写死了 `defaultSlug='mist-forest'`（同族 ✗）⇒ 默认故事一换，"正例 ⇒ 不报"反而报 ✓。
+			//   ⇒ 两边一起改取**真名单**（与 `test/story-ci.mjs` 的 ①、`editor/story-ci.mjs` 的壳级自证同一套口径 ✓）：
+			//   名单 ＝ `storySlugs()` ✓、默认 ＝ `DEFAULT_SLUG` ✓ ⇒ 换故事/改默认都只跟着走 ✓，
+			//   而"未知参数／不存在的故事／非默认缺 `--out=`／位置参数过多"四条牙**一处不少** ✓。
+			['正例（#619）：默认故事、无参数 ⇒ 不报', cliProblems({ argv: [], known: KNOWN }), (r) => r.length === 0],
+			['覆盖自报（#619）：默认故事写「判定」、其他故事写「仅登记（不判定）」', coverageLine({ known: KNOWN }), (r) => r.includes(DEFAULT_SLUG) && r.includes('判定') && r.includes(OTHER) && r.includes('仅登记') && r.includes('不判定')],
+			['覆盖自报（#619）：只有一个故事 ⇒ 不写多余的"其他故事"段', coverageLine({ known: [DEFAULT_SLUG] }), (r) => !r.includes('仅登记')],
+			['正例（#619）：`--story=<非默认> --out=…` ⇒ 不报', cliProblems({ argv: [`--story=${OTHER}`, '--out=build/x.md'], known: KNOWN }), (r) => r.length === 0],
+			['🔴 反例（#619）：未知参数（打错一个字母）⇒ 报', cliProblems({ argv: ['--stonry=hollow-cave'], known: KNOWN }), (r) => r.length === 1],
+			['🔴 反例（#619）：`--story=不存在` ⇒ 报', cliProblems({ argv: ['--story=nope', '--out=x.md'], known: KNOWN }), (r) => r.length === 1],
+			['🔴 反例（#619）：非默认故事未给 `--out=` ⇒ 报（别覆盖故事 1 的报告）', cliProblems({ argv: [`--story=${OTHER}`], known: KNOWN }), (r) => r.length === 1],
+			['🔴 反例（#619）：两个位置参数 ⇒ 报', cliProblems({ argv: ['a', 'b'], known: KNOWN }), (r) => r.length === 1],
 		];
 		let bad = 0;
 		for (const [label, got, ok] of cases) {

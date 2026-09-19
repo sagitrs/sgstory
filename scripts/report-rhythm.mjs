@@ -35,10 +35,33 @@ const COMMON_DF = 0.5;
 //   · 五拍/里程碑是**结构带**（拍子被删/不可逆点被推得极远或极近才会出带）。
 // 基线文件保留观测值，只用于**漂移可见**（报告里对照），不参与判定。
 export const THRESHOLDS = {
-	clustersMin: 16,           // 现有 18；历史漂移是 16 → 14（成片并族），16 能抓住这一类
-	minDistinctiveGrams: 50,   // 每条完整路线在 DF 过滤后至少要有这么多**独有** 5-gram（现有最少 117，余量大）
-	beatsMinRoutes: 3,         // 每一拍至少被 3 条路线走到
-	e4: { minClicksFloor: 5, maxClicksCap: 25, minEvFloor: 3 },
+	// ═══ `#1004` B2b（**换样本** ⇒ 阈值**重推**，不是调参 ✗ —— 发起者裁定 5740615725 第 2 条）═══
+	// 为什么重推 ✗：下面三条都是**样本派生**阈值 ✓（本文件自己写着「按现有 18 条路线定的」✓）——
+	//   旧样本（两个内容故事）被**代码级删除** ✓ ⇒ 路线表按存活样本 `night-ferry` 重写 ⇒ 样本**合法地变小** ✓
+	//   ⇒ 若阈值不动 ⇒ 门会去守一个**已经不存在的样本** ✗（那是错的约束，不是严 ✓）。
+	// ⚠️ 重推口径（**可复核** ✓，不是「取实测值 − ε」✗）：
+	//   · `clustersMin` ⇒ **等于新路线表自己的完整路线条数** ✓（「表定几条、地板就是几条」✓ ⇒ 表再被改小，
+		//     同一条地板会跟着约束 ✓；表变大而不改此数 ⇒ 立刻红 ✓）；
+	//   · `minDistinctiveGrams` ⇒ **按新样本重新量出** ✓（量法与读数见下一行注释 ✓）；
+	//   · `beatsMinRoutes` ⇒ 同上取**完整路线条数** ✓（语义落成「每一拍必须被**每一条**完整路线走到」✓）。
+	// 读数（本片实测 ✓，命令：`node test/scenarios.mjs` 后 `node -e` 按 `build/route-traces.json` 重算 DF 过滤 ✓）：
+	//   · 完整路线 **2 条**（每个结局一条 ✓）；家族 **2**（两条互不重文 ⇒ 相似度 0 ✓）；
+	//   · 独有 5-gram：`金路径 抵岸` **384** ／ `沉船` **362** ⇒ **下限 362**（旧样本：实测最少 **117**、地板 **50** ✓）；
+	//   · 首不可逆点：两条路都落在 **第 5 次点击** ✓（`靠岸`／`翻船` ✓）；当时情报旗标 **0** 个（见 `e4.minEvFloor` 的就地申报 ✗）。
+	// ⇒ 旧值为何不适用 ✗：`clustersMin: 16`／`minDistinctiveGrams: 50`／`beatsMinRoutes: 3` 三条都**按旧样本 21 条路线**定的 ✓
+	//   （本文件原注释：「现有 18」「最少 117」「至少被 3 条路线走到」✓）⇒ 2 条路线的样本在数学上**到不了** 16 簇／3 条 ✓。
+	clustersMin: 2,            // ＝本样本完整路线条数（旧：16，按 21 条路线的旧样本定）
+	minDistinctiveGrams: 362,  // ＝本样本实测下限（旧：50；旧样本实测最少 117）
+	beatsMinRoutes: 2,         // ＝本样本完整路线条数（旧：3）——「每一拍必须被每一条完整路线走到」
+	e4: {
+		minClicksFloor: 5,     // ＝本样本实测最少交互数（旧：5，同值 —— 但它现在是**量出来的**，不是沿用的）
+		maxClicksCap: 25,      // 本样本实测最多交互数 5 ⇒ 远在内（旧上限 25 是防「不可逆点被推得极远」⇒ 本样本不适用该病）
+		// ⚠️ **显式申报** ✗（不是静默放宽 ✓）：`night-ferry` 的接入契约**没有情报面** ✓（`pc.ev` 全程为空 ✓、
+		//   它不写 `ev.*`）⇒ 「不可逆点时最少情报」这条子判据在**本样本上没有对象** ✓ ⇒ 地板归 **0** ✓
+		//   （旧样本地板 3 是按故事 1 的八节点证据链定的 ✓）。⇒ 本片在 PR 正文与票上**申报**：E4 的「情报数」
+		//   维度**随样本一起降级为空判** ✗ —— 要恢复它 ⇒ 先补一个带情报旗标的样本（不为凑绿加样本 ✗）。
+		minEvFloor: 0,
+	},
 };
 // 已删的一条断言（记下为什么）：曾想用「跨家族最大相似度 ≤ 0.92」抓成对趋同——
 // 但家族是按 ≥ clusterT(0.9) 聚出来的，**任何越过 0.92 的配对早已并入同族**，该断言原理上不可达。
@@ -47,39 +70,44 @@ export const THRESHOLDS = {
 const TOL = 0.02;          // 报告型 ratchet 的容差（构建噪声/文案微调不该红）
 
 // ── 五拍人工标注（一次性入基线；每拍列出该拍在正文里的落点段落）────────────
-// 标注口径：把整局当成一次「地城流程」（塔＝地城主段，地下宴会厅＝第二个地城），
-// 只要该拍在本作里有可定位落点、且被真实路线走到过，即算齐备。
-// 末尾带 * 的是前缀模式（结局页有 18 个，逐个列没意义）。
+// ⚠️ `#1004` B2b（**换样本**）：旧标注逐条列的是**旧故事**的段落 ✗（村与林／塔内五层／龙战… ✓）
+//   ⇒ 那两个内容故事被代码级删除后，五拍在新样本上**全为 0 条路线走到** ✓（实测读数 ✓）
+//   ⇒ 按存活样本 `night-ferry`（11 段落 · 6 步链 · 2 个结局 ✓）**重标一次** ✓ ——
+//   口径不变 ✓：把整局当成一次「地城流程」，每拍要能定位到该样本的落点段落 ✓、且被真实路线走到 ✓。
+//   ⚠️ 本样本只有 6 步 ⇒ 五拍**落在同一条河上**（渡口 → 船头 → 河心 → 靠岸/翻船 → 结局 ✓）✓。
 const BEATS = [
 	{
 		key: '① 入口与门槛',
-		why: '村与林的门槛：打听准入、守卫（哥布林/雾之魔物）与第一道塔门',
-		passages: ['开场', '酒馆', '女巫小屋', '森林边缘', '林间小径', '洞穴', '废哨站', '村中井台', '林缘空地', '雾之魔物', '雾之魔物·战', '雾之魔物·退', '塔门'],
+		why: '渡口的准入：钱或力气，两条入场路（付钱/撑篙）',
+		passages: ['渡口', '付钱', '撑篙'],
 	},
 	{
 		key: '② 谜题与交涉挑战',
-		why: '拿钥匙/上楼/守林人交涉，以及第三章的双时代调查（寻杖/喂花/观星者）',
-		passages: ['守林人', '守林人·劝杀', '守林人·信', '守林人·送', '守林人·守', '守林人·封印', '门厅', '书房', '工坊', '天文台', '顶楼', '地下宴会厅', '宴会·过去', '当时的女巫', '当时的女巫·换', '老巫女', '老妇人', '观星者', '寻杖', '喂花'],
+		why: '船头的灯与船夫的交代：灯要怎么拿（挂灯/攥灯）',
+		passages: ['船头'],
 	},
 	{
 		key: '③ 诡计与挫折',
-		why: '代价与回退：花田致死位点、劣化封印的岔口、观星者算不出图的僵局',
-		passages: ['塔外花田', '半途的林子', '观星者·图', '观星者·夜', '宴·散场'],
+		why: '河心那一下：水从哪边来（举灯/等浪）',
+		passages: ['河心'],
 	},
 	{
 		key: '④ 高潮',
-		why: '决战拍：封印并肩 / 龙战 / 唤醒',
-		passages: ['封印·并肩', '龙·战', '龙·再冲', '龙·巢边', '唤醒'],
+		why: '浪与船：抵岸拍与翻船拍',
+		passages: ['举灯', '等浪', '靠岸', '翻船'],
 	},
 	{
 		key: '⑤ 奖励与揭示',
-		why: '真相落地与收束：交付、归位、观星者·星，以及全部结局页',
-		passages: ['交付', '归位', '观星者·星', '宴·仪式', '结局*'],
+		why: '两条结局（抵岸/沉船）',
+		passages: ['结局*'],
 	},
 ];
 
-// 首个不可逆点（E4）：与 test/scenarios.mjs 的 MILESTONE_PASSAGES 同口径
-const FIRST_MILESTONES = ['花田', '龙战'];
+// 首个不可逆点（E4）：与 `test/scenarios.mjs` 的 `MILESTONE_PASSAGES` 同口径 ✓
+// ⚠️ `#1004` B2b（换样本）：旧值 `['花田','龙战']` 是**旧故事**的首要不可逆点 ✗ ⇒ 按存活样本 `night-ferry`
+//   重推为它 6 步链上**唯一的不可逆分叉**那两段 ✓（`河心` 之后的「举灯 ⇒ 靠岸 ⇒ 抵岸」与「等浪 ⇒ 翻船 ⇒ 沉船」✓
+//   —— 两条互斥、不可回头 ✓，与 `test/scenarios.mjs` 的 `MILESTONE_PASSAGES` **逐字对齐** ✓）。
+const FIRST_MILESTONES = ['靠岸', '翻船'];
 
 const beatMatch = (beat, passage) => beat.passages.some((pat) => (pat.endsWith('*') ? passage.startsWith(pat.slice(0, -1)) : passage === pat));
 
@@ -168,7 +196,7 @@ function evaluate(data, baseline) {
 	});
 	const hit = perRoute.filter((r) => r.情报数 !== null);
 	const e4 = {
-		milestone: '花田/龙战（先到者）',
+		milestone: `${FIRST_MILESTONES.join('/')}（先到者）`,
 		routesHit: hit.length,
 		minClicks: hit.length ? Math.min(...hit.map((r) => Number(r.首不可逆点.split('@')[1]))) : null,
 		maxClicks: hit.length ? Math.max(...hit.map((r) => Number(r.首不可逆点.split('@')[1]))) : null,
@@ -192,7 +220,7 @@ function evaluate(data, baseline) {
 		const thin = distinctive.filter((d) => d.grams < T.minDistinctiveGrams);
 		if (thin.length) failures.push({ code: 'route-indistinct', msg: `以下完整路线的独有 5-gram 少于 ${T.minDistinctiveGrams}（趋同）：${thin.map((d) => `${d.route}=${d.grams}`).join('、')}` });
 		if (c4.emptyDistinctive.length) failures.push({ code: 'route-indistinct', msg: `以下完整路线在 DF 过滤后**没有任何独有 5-gram**（趋同的极端形态）：${c4.emptyDistinctive.join('、')}` });
-		if (e4.routesHit < 3) failures.push({ code: 'e4-milestone', msg: `走到首个不可逆点的完整路线只有 ${e4.routesHit} 条（< 3）` });
+		if (e4.routesHit < THRESHOLDS.beatsMinRoutes) failures.push({ code: 'e4-milestone', msg: `走到首个不可逆点的完整路线只有 ${e4.routesHit} 条（< ${THRESHOLDS.beatsMinRoutes}）` });
 		if (e4.minClicks !== null && e4.minClicks < T.e4.minClicksFloor) failures.push({ code: 'e4-milestone', msg: `首个不可逆点最早交互数 ${e4.minClicks} < 下限 ${T.e4.minClicksFloor}（铺垫被压掉）` });
 		if (e4.maxClicks !== null && e4.maxClicks > T.e4.maxClicksCap) failures.push({ code: 'e4-milestone', msg: `首个不可逆点最晚交互数 ${e4.maxClicks} > 上限 ${T.e4.maxClicksCap}（不可逆点被推得极远）` });
 		if (e4.minEv !== null && e4.minEv < T.e4.minEvFloor) failures.push({ code: 'e4-milestone', msg: `不可逆点时最少情报 ${e4.minEv} < 下限 ${T.e4.minEvFloor}（信息覆盖退化）` });

@@ -30,15 +30,23 @@ export const ciLiteralProblems = (yaml, { story = STORY_PAGE_MAX_BYTES, shelf = 
 	// 为什么需要这一格 ✗：冒烟作业**不 checkout 仓库** ⇒ 读不到 `DEFAULT_SLUG` 常量 ⇒ 只能写字面量 ✗；
 	// 而字面量会随故事**改名/删除**腐烂 ⇒ `curl` 404 ⇒ 该作业红 —— 而它**只在 push to main 跑** ✗
 	// ⇒ **PR CI 全绿也看不见** ✓（实测：删 `mist-forest` 后 `stories/mist-forest/index.html` 必 404 ✓）。
-	// 判据两条（照 P5 的「锚点丢了也报」体例 ✓）：① 出现的 `stories/<slug>/index.html` 字面量必须是**现存故事**；
-	// ② 故事页路径必须**从书架页现场取**（`grep -oE 'stories/…/index.html' /tmp/idx.html`）——与线上产物同源 ✓。
+	// 判据两条（照 P5 的「锚点丢了也报」体例 ✓）：
+	//   ① **字面量只许出现在「现场取」那个锚点行里** ✗（`grep -oE 'stories/…' /tmp/idx.html` ✓）⇒ 其余**非注释行**出现即红 ✓；
+	//   ② 必须真的存在「从书架页现场取」的锚点 ✓（锚点丢了也报 ✓）。
 	// ⚠️ 扫字面量前**先剔注释行** ✗：注释里写旧路径（说明因由）是**要保留的历史** ✓ ⇒ 让它变成假红就是把「留痕」罚了 ✓。
+	// ⚠️ ⭐ ① 必须是**按行上下文**判的 ✗（复核席实测给的洞 ✓）：早先只判「slug 不在 `storySlugs()` 里」✓ ⇒ ⇒
+	//   **硬编码一个「存在的」故事页被完全放行** ✗ —— 而本判据自己报文里写的目的是「改用『从书架页现场取』」✓
+	//   ⇒ 那个形状**答不了自己声称要答的问题** ✓（下次换默认故事 ⇒ 同一族照旧复发 ✗）⇒ 现改为「**现存/已删一律红**」✓。
 	const code = y.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
-	const hardcoded = [...new Set([...code.matchAll(/(?<![\w.-])stories\/([A-Za-z0-9._-]+)\/index\.html/g)].map((m) => m[1]))];
-	const dangling = hardcoded.filter((s) => !slugs.includes(s));
-	if (dangling.length)
-		out.push({ code: 'P6', msg: `ci.yml 硬引用故事页 \`stories/${dangling[0]}/index.html\`，但该故事不在仓内（现存：${slugs.join(' / ')}）—— 本作业只在 push to main 跑 ⇒ PR CI 看不见它会 404（改用「从书架页现场取」✓）` });
-	if (!/grep\s+-oE\s+'stories\//.test(code) || !code.includes('/tmp/idx.html'))
+	const ANCHOR_LINE = /grep\s+-oE\s+'stories\//;
+	const stray = [];
+	for (const line of code.split('\n')) {
+		if (ANCHOR_LINE.test(line)) continue;   // 锚点行：这里的 `stories/…` 是**模式**（它要发现的就是它）✓
+		for (const m of line.matchAll(/(?<![\w.-])stories\/([A-Za-z0-9._-]+)\/index\.html/g)) stray.push({ slug: m[1], line: line.trim().slice(0, 72) });
+	}
+	if (stray.length)
+		out.push({ code: 'P6', msg: `ci.yml 的**非注释行**里出现故事页字面量 \`stories/${stray[0].slug}/index.html\`（${stray[0].line}…）—— ⚠️ **现存/已删一律红** ✗（现存：${slugs.join(' / ')} ✓）：本作业只在 push to main 跑 ⇒ 硬编码会随故事改名/删除腐烂，而 PR CI 看不见（改用「从书架页现场取」✓）` });
+	if (!ANCHOR_LINE.test(code) || !code.includes('/tmp/idx.html'))
 		out.push({ code: 'P6', msg: "ci.yml 里找不到「从书架页现场取故事页路径」的锚点（`STORY_PATH=$(grep -oE 'stories/<slug>/index.html' /tmp/idx.html)`）" });
 	return out;
 };
@@ -154,6 +162,7 @@ if (process.argv.includes('--selftest')) {
 	t('🔴 P5 反例：断言被删掉 ⇒ 报「口径锚点丢了」（P5×2 ＋ P6×1）', ciLiteralProblems('echo 无断言').length === 3);
 	// P6（`#1004` B2b）：故事页路径不许硬编码（冒烟作业只在 push to main 跑 ⇒ PR CI 看不见 404）
 	t('🔴 P6 反例：ci.yml 硬引用**已删故事**的故事页 ⇒ 报红', ciLiteralProblems(`${CI_OK}STORY="https://example.test/stories/mist-forest/index.html"\n`).some((f) => f.code === 'P6'));
+	t('🔴 P6 反例（⭐ 复核席给的洞）：硬引用**现存故事**（`face-fixture` ✓）的故事页也**必须**报红 —— 且**锚点仍在** ✗', ciLiteralProblems(`${CI_OK}STORY="https://example.test/stories/face-fixture/index.html"\n`).some((f) => f.code === 'P6'));
 	t('P6 正例：无字面量 ＋ 有现场取路径的锚点 ⇒ 不报 P6', !ciLiteralProblems(CI_OK).some((f) => f.code === 'P6'));
 	t('🔴 P6 反例：「从书架页取路径」的锚点被删掉 ⇒ 报红', ciLiteralProblems('test "$SSZ" -lt 2000000 || exit 1\ntest "$SZ" -gt 0 -a "$SZ" -lt 100000 || exit 1\n').some((f) => f.code === 'P6'));
 	t('P6 正例：注释里写旧路径（留痕）**不算**硬引用 ⇒ 不报 P6', !ciLiteralProblems(`${CI_OK}# 历史：原来写死 stories/mist-forest/index.html ✗\n`).some((f) => f.code === 'P6'));

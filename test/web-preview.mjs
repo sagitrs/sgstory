@@ -32,7 +32,9 @@ import { storyHtml, DEFAULT_SLUG } from '../scripts/dist-paths.mjs';
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const SLUG = DEFAULT_SLUG;
 const PASSAGE = '洞穴';
-const EVENT = '洞穴.火光.有火把';
+// `#1004` B2b ✓：换到**默认故事**（面夹具 ✓）里真实存在的规则行 id ✗
+//（原写的 `洞穴.火光.有火把` 是已删故事的事件 ✓ ⇒ `rows.find` 取到 undefined ⇒ 假红 ✓）。
+const EVENT = 'ev.听雾';
 const MARKER = '【预览探针】';
 //  ⚠️ **渲染面：三个假设全被推翻 ✗，且两条实测互相矛盾 ✓**（如实记，**不写结论** ✗）：
 //   · H2「标记附近有边界」✗ —— 散文放标记**之前**，span 仍 36 ✓（位置无关 ✓）；

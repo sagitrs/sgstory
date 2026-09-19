@@ -186,6 +186,12 @@ async function dualBranchSweep() {
 //     **绝对路径**只在**页面**那步被按绝对处理 ✓，**清单**那步仍只认 slug ✗ ⇒ **交互式加载仓外故事包暂不支持** ✗
 //     （P4 的内容面就在仓内 `stories/<slug>/**` ✓ ⇒ 不是 P4 要件 ✓；真要用仓外包时另开票 ✓）。
 //     ⇒ 报错会**点名**拼出来的那个路径 ✓（`boot.mjs` 的 `entryOf` ✓ —— 不许静默 ✗）。
+//   ⚠️ **`ending` 认定** ✗（`#991` 口径要件：K 与 ending 在开工报备里钉死 ✓）：
+//     **以引擎的 `$pc.ev.ending` 为准** ✓（`src/10-core.twee`：`State.variables.pc.ev.ending = key` ✓
+//     —— 引擎侧登记、**故事无关** ✓），段落名以「结局」开头只作**兜底** ✗。
+//     为什么不能让"段落名前缀"当主判据 ✗：它在 `mist-forest` 成立 ✓，但**别的故事不成立** ✗
+//     （实测 `hollow-cave` 的段名是 `路·4a` 一类 ✓）⇒ 拿前缀当主判据 ＝ 把"这个故事的命名习惯"
+//     当成"故事的终结语义" ✗ ⇒ 第 4 个故事很可能**到得了结局却判不出** ✗。
 //   ⚠️ `--verify=<trace.json>` ✗（`#991` 批的**见证面**加法 ✓）：把**冻存的轨迹**当**输入**去核验 ✗ ——
 //     按它的 `seed` 重跑 ⇒ **逐步比对** `(passage, choiceKey|choiceLabel)` ＋ `ending` ⇒
 //     任一步不符 ⇒ **红 ＋ 点名第几步 ＋ 两边各是什么** ✓。
@@ -216,10 +222,13 @@ if (WITNESS) {
 		const { w, uncaught, close } = await boot({ random: () => 0.99, ...(STORY ? { story: STORY } : {}) });
 		const steps = [];
 		let ending = null;
+		let endingKey = null;
 		try {
 			for (let i = 0; i < MAX; i++) {
 				const p = w.SugarCube.State.passage;
-				if (String(p).startsWith('结局')) { ending = p; break; }
+				// 主判据 ＝ **引擎侧的结局登记** ✓（故事无关 ✓）；段落名前缀只兜底 ✗
+				const k = w.SugarCube.State.variables?.pc?.ev?.ending ?? null;
+				if (k || String(p).startsWith('结局')) { ending = p; endingKey = k; break; }
 				const cands = [...w.document.querySelectorAll(SEL)];
 				if (!cands.length) break;
 				const keyed = cands.filter((a) => a.dataset.choice);
@@ -235,7 +244,7 @@ if (WITNESS) {
 				if (errs.length) throw new Error(`走查中抛出：${String(errs[errs.length - 1]).slice(0, 200)}`);
 			}
 		} finally { try { close(); } catch { /* 已关 */ } }
-		return { steps, ending };
+		return { steps, ending, endingKey };
 	}
 	// ── `--verify=<trace.json>` ✗：**冻存轨迹的自证模式** ✓ ───────────────────────────
 	if (VERIFY) {
@@ -271,11 +280,11 @@ if (WITNESS) {
 				process.exit(1);
 			}
 		}
-		if ((want.ending ?? null) !== (got.ending ?? null)) {
-			console.error(`✗ --verify：**结局不符** ✗ 记录 ending=「${want.ending ?? '(无)'}」 vs 实跑「${got.ending ?? '(无)'}」`);
+		if ((want.ending ?? null) !== (got.ending ?? null) || (want.endingKey ?? null) !== (got.endingKey ?? null)) {
+			console.error(`✗ --verify：**结局不符** ✗ 记录 ending=「${want.ending ?? '(无)'}」key=「${want.endingKey ?? '(无)'}」 vs 实跑「${got.ending ?? '(无)'}」key=「${got.endingKey ?? '(无)'}」`);
 			process.exit(1);
 		}
-		console.log(`✔ --verify：**逐格一致** ✓ ${got.steps.length} 步 · ending=「${got.ending}」· seed=${want.seed}${vStory ? ` · story=${vStory}` : ''}`);
+		console.log(`✔ --verify：**逐格一致** ✓ ${got.steps.length} 步 · ending=「${got.ending}」key=「${got.endingKey ?? '(无)'}」· seed=${want.seed}${vStory ? ` · story=${vStory}` : ''}`);
 		console.log(`  核对的是**冻存文件本身** ✓：${VERIFY}（逐步 passage ＋ key/label ＋ ending ✓）`);
 		process.exit(0);
 	}
@@ -303,6 +312,7 @@ if (WITNESS) {
 		maxSteps: MAX,
 		steps: hit?.steps ?? [],
 		ending: hit?.ending ?? null,
+		endingKey: hit?.endingKey ?? null,   // 引擎的 `$pc.ev.ending` ✓（故事无关的终结键 ✓）
 		fallbacks: (hit?.steps ?? []).filter((s) => s.fallback).length,
 		replay,
 	};
@@ -318,7 +328,7 @@ if (WITNESS) {
 		process.exit(1);
 	}
 	const nEvents = nEventsOf(hit.steps);   // 与扫描**同一把尺** ✓（`hit` 已保证 ≥K ⇒ 这里是"改坏了就红"的兜底 ✓）
-	console.log(`\n见证 ✓：seed=${hit.seed} · ${hit.steps.length} 步（事件 ${nEvents}）· ending=${hit.ending} · label 兜底 ${trace.fallbacks} 处`);
+	console.log(`\n见证 ✓：seed=${hit.seed} · ${hit.steps.length} 步（事件 ${nEvents}）· ending=${hit.ending}（key=${hit.endingKey ?? '（引擎未登记 ✗）'}）· label 兜底 ${trace.fallbacks} 处`);
 	console.log(`复跑 ✓：${replay}`);
 	if (nEvents < K) {
 		console.error(`✗ 见证不成立：被 ≺ 授权的事件只有 ${nEvents} 个 < ${K}（K 由发起者在报备里钉死 ✓）`);

@@ -37,6 +37,9 @@ else if (!existsSync(TRACE)) bad.push('① 没产出 build/witness-trace.json �
 else {
 	const t = traceOf();
 	if (!t.ending) bad.push('① 轨迹没有 `ending` ✗（没走到终点的不算见证 ✓）');
+	// ⚠️ **主判据是引擎的 `$pc.ev.ending`** ✗（故事无关 ✓）—— 段落名前缀只兜底 ✓：
+	//   只认前缀 ⇒ 换一个不把结局段叫「结局…」的故事 ⇒ **到得了结局却判不出** ✗（实测 `hollow-cave` ✓）
+	if (!t.endingKey) bad.push('① 轨迹没记下**引擎登记的结局键** `endingKey` ✗ ⇒ 判据退回"段落名像结局"了（换故事会瞎 ✓）');
 	if (!t.steps.length) bad.push('① 轨迹 `steps` 为空 ✗');
 	if (!Number.isInteger(t.seed)) bad.push('① 轨迹没落 `seed` ✗ ⇒ 复跑没有起点 ✓');
 	if (!/--seed=\d+/.test(t.replay ?? '')) bad.push('① 轨迹没印出可直接粘的复跑命令 ✗');
@@ -65,6 +68,19 @@ if (r4.rc === 0) bad.push('③ 事件门槛 99 ⇒ **应当红** ✗（实际 rc
 else if (!/K=99/.test(r4.out)) bad.push(`③ 红得对、但报文没点名事件数 < K=99 ✗\n${r4.out.slice(-300)}`);
 // ⚠️ 另钉一格 ✗：**K 一变大、扫描不能"遇到第一个结局就收工"** ✓ —— 若那样，这条会报"没走到 ending"而不是"太短" ✓
 else if (!/太短/.test(r4.out)) bad.push(`③ 报文没点出"到过结局但**太短**" ✗ ⇒ 扫描多半是"遇到第一个结局就收工"了 ✓\n${r4.out.slice(-300)}`);
+
+// ⑥ **故事无关** ✗（我这片修掉的正是这里 ✓）：换一个**结局段名不带「结局」前缀**的故事 ⇒ 也必须判得出 ✓
+//   为什么单列一格 ✗：这正是"段落名前缀当主判据"会**瞎**的那一格 ✓ ——
+//   没有这一格，谁把主判据改回前缀 ⇒ 自证**照样全绿** ✗（= 判据没牙 ✓）。
+{
+	const rs = witness(['--story=hollow-cave', '--scan=6', '--max-steps=60', '--min-events=3']);
+	if (rs.rc !== 0) bad.push(`⑥ 换故事（hollow-cave）应 rc=0 ✗（实际 ${rs.rc}）⇒ 判据多半仍是"段落名前缀" ✗\n${rs.out.slice(-300)}`);
+	else if (existsSync(TRACE)) {
+		const t6 = traceOf();
+		if (!t6.endingKey) bad.push('⑥ 换故事后没记下 `endingKey` ✗ ⇒ 故事无关的引擎判据没生效 ✓');
+		if (String(t6.ending ?? '').startsWith('结局')) bad.push(`⑥ 预期这个故事的结局段名**不**以「结局」开头 ✗（实际「${t6.ending}」）⇒ 这一格失去了鉴别力 ✓（换个故事再钉 ✓）`);
+	}
+}
 
 // ⑤ `--verify=<trace>` ✗（`#991` 批的**见证面**加法 ✓）：把**冻存轨迹当输入**核验 ✓
 //   为什么单列 ✗：**同 `seed` ⇒ 同 key 序列**只让轨迹"成因可复现" ✓ ⇒ 冻存的 JSON 若没人核 ✗

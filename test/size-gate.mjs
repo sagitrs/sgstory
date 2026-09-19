@@ -17,10 +17,28 @@ import { execFileSync } from 'node:child_process';
 
 export const NOTE = '产物体积预算（字节）。只许降不许升——确需增大请 --update-size 重签并在 PR 写明理由。';
 
+/** 跨环境构建噪声的**容差表**（`#211`）。
+ *
+ * ⚠️ `#1017`：这张表原先**只住在** `test/size-baseline.json` 里 ⇒ 基线一旦被删（而本门自己的
+ *   报错文案**就叫你删**：「删除该文件后跑 `--update-size` 重签」✗）或重签路径抽风，
+ *   **这条设定会跟着一起没**，而重签的人以为自己只是「把基线拉到现状」✗ ⇒
+ *   门从「容差吸收噪声」**静默退化**成 **0B 硬 ratchet**（任何体量抖动都红）。
+ * ⇒ 按本仓「**设定住代码、数值住数据**」的口径（同族：`scripts/dist-paths.mjs` 的
+ *   `STORY_PAGE_MAX_BYTES`／`SHELF_PAGE_MAX_BYTES` ✓），容差表搬进**代码单一权威** ✓；
+ *   基线文件里的同名字段**降级为覆盖口**（可省、可空 ⇒ 一律回落到本表，见 `resolveTol` ✓）。
+ * ⇒ 由此 `--update-size` **只动数值、动不了语义**（它写回的是 `resolveTol(...)` 的解析结果 ✓）。 */
+export const TOLERANCE_PCT = { 'index.html': 0.5, fonts: 2 };
+
+/** 解析生效的容差表：**代码默认为底**，基线里若显式给了就覆盖（向后兼容 ＋ 允许特例）。
+ *  ⚠️ 空对象／缺字段一律**回落**到 `TOLERANCE_PCT` ✗ —— 这正是 `#1017` 的缺陷形状：
+ *   旧写法 `parsed.tolerancePct ? \u2026 : \u2026` 把**空 `{}` 当成"有设定"**（`{}` 为真值 ✓）
+ *   ⇒ 容差被写成空表 ⇒ 门静默变成 0B 硬 ratchet ✗。 */
+export const resolveTol = (parsed) => ({ ...TOLERANCE_PCT, ...((parsed && parsed.tolerancePct) || {}) });
+
 // 纯函数：给 rows 与基线，返回 { failures, lines, shrunken }
 export const judge = (rows, parsed) => {
 	const base = parsed.rows ?? {};
-	const tol = parsed.tolerancePct ?? {};
+	const tol = resolveTol(parsed);   // `#1017`：容差走**解析**（代码默认 ⊕ 基线覆盖），空/缺一律回落
 	let failures = 0;
 	const lines = [];
 	const shrunken = {};
@@ -54,6 +72,23 @@ const selftest = () => {
 		['超容差增长 → 失败',
 			{ 'index.html': 1006, fonts: 2000 }, P,
 			(r) => r.failures === 1 && Object.keys(r.shrunken).length === 0],
+		// ⚠️ `#1017` 的**缺陷形状**（能假的那两格）：容差表**缺席或为空**时，必须**回落到代码默认**，
+		//    不得被当成「没有容差」⇒ 否则门静默变成 0B 硬 ratchet（任何抖动都红）。
+		['⭐ `#1017` 反例：基线里**没有** `tolerancePct` ⇒ 仍按默认容差判（+4 在 0.5% 内 ⇒ 不失败）',
+			{ 'index.html': 1004, fonts: 2000 }, { rows: P.rows },
+			(r) => r.failures === 0 && Object.keys(r.shrunken).length === 0],
+		['⭐ `#1017` 反例：基线里 `tolerancePct` 是**空对象** ⇒ 同样回落（+4 不失败；修前会失败 ✗）',
+			{ 'index.html': 1004, fonts: 2000 }, { rows: P.rows, tolerancePct: {} },
+			(r) => r.failures === 0 && Object.keys(r.shrunken).length === 0],
+		['⭐ `#1017` 另一面（能假的另一半）：基线里**显式**的容差覆盖仍要生效（给 0 ⇒ +4 必失败）',
+			{ 'index.html': 1004, fonts: 2000 }, { rows: P.rows, tolerancePct: { 'index.html': 0, fonts: 2 } },
+			(r) => r.failures === 1],
+		['⭐ `#1017` 解析式：`resolveTol` 空/缺 ⇒ 等于代码默认；显式值 ⇒ 覆盖',
+			{}, {},
+			() => JSON.stringify(resolveTol(undefined)) === JSON.stringify(TOLERANCE_PCT)
+				&& JSON.stringify(resolveTol({ tolerancePct: {} })) === JSON.stringify(TOLERANCE_PCT)
+				&& resolveTol({ tolerancePct: { fonts: 9 } }).fonts === 9
+				&& resolveTol({ tolerancePct: { fonts: 9 } })['index.html'] === TOLERANCE_PCT['index.html']],
 	];
 	let bad = 0;
 	for (const [label, rows, parsed, okFn] of cases) {
@@ -63,7 +98,7 @@ const selftest = () => {
 		console.log(`${ok ? '✓' : '✗'} ${label}（failures=${r.failures} shrunken=${JSON.stringify(r.shrunken)}）`);
 	}
 	if (bad) { console.error(`\n✗ 体积门自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 体积门自证通过：失败不写 / 只收紧实际降低项 / 容差内不动作');
+	console.log('\n✔ 体积门自证通过：失败不写 / 只收紧实际降低项 / 容差内不动作 / 容差缺席与空表**回落默认**（`#1017`）');
 };
 
 if (process.argv.includes('--selftest')) { selftest(); process.exit(0); }
@@ -84,7 +119,9 @@ rows.fonts = readdirSync('dist/fonts').reduce((a, f) => a + statSync(`dist/fonts
 // #411 CI 实测：这条读曾在 CI 上 JSON.parse 崩（基线被写坏/半写）——改成**读重试 + 可诊断报错**，
 // 并且写回时用**原子替换**（见下）→ 并行执行（`--jobs>1`）下不会再有"读到半个文件"。
 const readBaseline = () => {
-	if (!existsSync(BASELINE)) return { rows: {}, tolerancePct: {} };
+	// `#1017`：文件不在 ⇒ 返回**空对象**（不再伪造 `tolerancePct: {}` ✗ —— 那个空表是真值，
+	//   会被重签路径当成"有设定"写回去 ⇒ 容差静默丢失）。
+	if (!existsSync(BASELINE)) return {};
 	for (let i = 0; i < 3; i++) {
 		const raw = readFileSync(BASELINE, 'utf8');
 		try { return JSON.parse(raw); }
@@ -98,7 +135,7 @@ const readBaseline = () => {
 			continue;   // 可能是半写：立刻重读一次
 		}
 	}
-	return { rows: {}, tolerancePct: {} };
+	return {};
 };
 const parsed = readBaseline();
 
@@ -122,8 +159,9 @@ if (update) {
 	console.log(gitChanged.length
 		? `  工作区改过的源（可影响产物，逐条自己认账）：${gitChanged.join(' · ')}`
 		: '  工作区无 src/stories 改动 ⇒ **体积变化与本次改动无关**（存量漂移，请在 PR 里写明"顺手纠正"）');
-	// 重签保留容差表（#211：跨环境噪声由容差吸收——丢了 tolerancePct 会退化成 0B 硬 ratchet）
-	writeBaseline({ note: NOTE, rows, ...(parsed.tolerancePct ? { tolerancePct: parsed.tolerancePct } : {}) });
+	// 重签**只动数值**：容差表写回的是 `resolveTol` 的**解析结果** ✓
+	// ⇒ 即便基线被删／抽风，这条设定也**不会**跟着没（`#211` 的原意 ＋ `#1017` 的修法）。
+	writeBaseline({ note: NOTE, rows, tolerancePct: resolveTol(parsed) });
 	console.log('✔ 体积基线已重签');
 	process.exit(0);
 }

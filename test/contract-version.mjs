@@ -111,8 +111,11 @@ try {
 	console.log(`\n── 量化依据（contract.json::members ✓）──`);
 	console.log(`  并集 ${all.length} · 现存故事共有 ${common.length}（${common.join('、')}）· 故事特有 ${all.length - common.length}`);
 	t(`**并集 ⊆ 全集** ✓（${all.length} 个字段逐条落在 \`DECLARED\` 内 ✓）`, all.every((f) => DECLARED['contract.json'].items.members.includes(f)));
-	t('**现有字段逐字可核** ✓（`docs`／`kind`／`name`／`path`／`value` —— 量化依据落在读数里 ✓ 不只写在票面 ✓）',
-		JSON.stringify(common) === JSON.stringify(['docs', 'kind', 'name', 'path', 'value']));
+	// ⚠️ `#1004` B2b ✓：`face-fixture`（面夹具）进了本件的**发现式**名单 ✓（它现在是 `DEFAULT_SLUG` ✓）
+	//   ⇒ 它的 `contract.json::members` 让并集 5 ⇒ **17** ✓、共有 5 ⇒ **4**（`docs` 不再是共有 ✓ ——
+	//   夹具声明的是**接入面的满配** ✓，不是"照着旧故事的成员表抄"✓）⇒ 数字按**实测**重钉 ✓。
+	t('**现有字段逐字可核** ✓（`kind`／`name`／`path`／`value` —— 量化依据落在读数里 ✓ 不只写在票面 ✓）',
+		JSON.stringify(common) === JSON.stringify(['kind', 'name', 'path', 'value']));
 
 	// ── 反向：**只报不判** ✗（归 G-2 ✓）────────────────────────────────────
 	const unused = unusedDeclared(dialects);

@@ -17,7 +17,14 @@ export const STORIES_DIR = join(ROOT, 'stories');
 export const DIST_DIR = join(ROOT, 'dist');
 
 /** 默认故事：`dist/index.html` 在过渡期仍是它的产物（等价于 storyHtml(DEFAULT_SLUG)）。 */
-export const DEFAULT_SLUG = 'minimal-demo';   // `#1004` B2：`mist-forest` 已随旧故事删除 ⇒ 默认换成**引擎凸烟**故事 ✓（它本就是为“最小声明面/引擎自检”而生的 ✓）
+// ⚠️ `#1004` B2b ✗：`DEFAULT_SLUG` 不是"首页默认"✓（首页＝书架 ✓ `shelfHtml()` ✓），而是**工具链的默认判据故事** ✓
+//   （`audit` 的默认作用域／`dist-fresh` 的产物面／`integrity` 的**故事作用域**／以及**约 15 件"启默认故事"的测试** ✓）。
+//   ⇒ B 段把旧内容故事删掉后 ✓，这些消费者要的是"**仍有真消费者**的接入面都在"✓ ⇒
+//   那正是 `stories/face-fixture`（面夹具 ✓，见 `#1004` B2b 片二 ✓）⇒ 默认**指过去** ✗。
+//   ⚠️ 不选 `minimal-demo` ✗：它是"最小声明面"冒烟故事 ✓ ⇒ 在那里跑内容面判据只会得到**空判** ✓
+//   （实测：15 件"启默认"的件全红在"找不到链接「踏上旅途」"✓）；也不选 `night-ferry` ✗（P4 内容故事 ✓、面不全 ✓）。
+//   ⚠️ 夹具 `00-story.json::subtitle` 已写明"**测试夹具（非内容故事）**" ✓ ⇒ 免得三个月后被读成"漏删的旧故事"✗。
+export const DEFAULT_SLUG = 'face-fixture';
 
 /** 在 stories/ 下发现的故事 slug（按目录名排序，稳定）。 */
 export const storySlugs = () =>

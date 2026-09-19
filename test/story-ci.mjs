@@ -96,6 +96,24 @@ try {
 		t('🔴 0 故事 ⇒ `x/y` 里 x<y（"该做没做"计入分母 ✓）', !!m && Number(m[1]) < Number(m[2]), `line=${lastLine(out0).slice(0, 40)}`);
 	}
 
+	// ③‴ `#999`：`--stories-dir=` 时**逐故事面也必须看那个根** ✗（不然"发现用 A 根、逐故事用 B 根"✓）
+	//    判据取**报文里的路径** ✓ —— `lint-story` 吃目录时会打「（路径 <dir>）」✓ ⇒ 那是**根专属**的证据 ✓
+	//    （⛔ 不赌"它绿"✗：临时根里没有 `dist/` ⇒ 它本来就该红 ✓）。
+	{
+		const rootX = join(probe, 'rootx');
+		mkdirSync(join(rootX, 'broken2', 'data'), { recursive: true });
+		writeFileSync(join(rootX, 'broken2', '00-story.json'), JSON.stringify({ slug: 'broken2', files: ['10-x.twee'] }));
+		writeFileSync(join(rootX, 'broken2', 'data', 'tables.json'), '{ oops');
+		writeFileSync(join(rootX, 'broken2', 'data', 'contract.json'), '{}');
+		const r = cli(['--stories-dir=' + rootX]);
+		const out = `${r.stdout || ''}${r.stderr || ''}`;
+		t('🔴 能假·`--stories-dir` ⇒ 逐故事面**真的在那个根上跑**（报文带 `（路径 <临时根>/<slug>）` ✓）',
+			r.status === 1 && out.includes(`（路径 ${join(rootX, 'broken2')}）`), `status=${r.status} 含路径=${out.includes(join(rootX, 'broken2'))}`);
+		t('纯函数·根在仓外 ⇒ 逐故事面参数是**目录**（默认根仍是 slug ✓ 老行为不变 ✓）',
+			(await import('../editor/lib/core/storyCi.mjs')).buildPlan({ stories: ['a'], root: '/tmp/x' })[0].cmd[1] === '/tmp/x/a'
+			&& (await import('../editor/lib/core/storyCi.mjs')).buildPlan({ stories: ['a'] })[0].cmd[1] === 'a');
+	}
+
 	// ④ 编排不漏 ＋ ⑤ 接口口径（纯函数面，与 CLI 同一份代码 ✓）
 	{
 		const m = await import('../editor/lib/core/storyCi.mjs');

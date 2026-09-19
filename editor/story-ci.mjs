@@ -78,7 +78,10 @@ if (isMain) {
 	//   不往仓内塞夹具 ✓（往 `stories/` 塞会在并发段里被别人看见 ✗，与 `#976` 同类事故 ✓）。
 	const root = (argv.find((a) => a.startsWith('--stories-dir=')) ?? '').slice('--stories-dir='.length) || STORIES;
 	const stories = one && !existsSync(join(root, one)) ? [] : discoverStories(root);
-	const plan = buildPlan({ stories, slug: one, full });
+	// ⚠️ `#999`：**根不是仓内默认**时，逐故事面也必须看那个根 ✗（否则发现用 A 根、逐故事用 B 根 ✓
+	//   ⇒ 拿它当**仓外故事集**入口时会在**仓内**静默地跑 ✓）。⇒ 传**目录**（`lint-story` 支持吃目录 ✓）；
+	//   默认根（仓内）⇒ 传 `null` ⇒ 仍走 slug ⇒ **老行为逐字不变** ✓。
+	const plan = buildPlan({ stories, slug: one, full, root: root === STORIES ? null : root });
 
 	const missing = missingFromPlan({ stories, plan });
 	// ⚠️ **取不到输入就不许判过** ✗（与 `commands.mjs` 同口径 ✓）：发现到 0 个故事时逐故事面会**整批消失** ✓，

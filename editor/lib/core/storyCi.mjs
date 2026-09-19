@@ -48,10 +48,17 @@ export const K_FACES = Object.freeze([
 	},
 ]);
 
-/** 逐故事的编排（`lint-story` **已经是**"包形状 → 编译幂等 → 等价 → 故事门 ×N → 形状"的既有编排 ✓ ⇒ **重用** ✗ 不重造）。 */
-export const storyPlan = ({ stories = [], slug = null } = {}) => {
+/** 逐故事的编排（`lint-story` **已经是**"包形状 → 编译幂等 → 等价 → 故事门 ×N → 形状"的既有编排 ✓ ⇒ **重用** ✗ 不重造）。
+ *  ⚠️ `root`（`#999`）✗：有 `--stories-dir=` 时**逐故事面也必须看那个根** ✗ —— 否则"发现用 A 根、逐故事用 B 根"✓
+ *    ⇒ 拿它当**仓外故事集**入口时会在**仓内**静默地跑逐故事面 ✗（属"**取不到输入却不报**"同族 ✓）。
+ *    ⇒ 口径：**根在仓内（默认）⇒ 传 slug**（老行为逐字不变 ✓）；**根在仓外 ⇒ 传目录** ✗
+ *      （`lint-story` **已支持**吃目录 ✓ —— 与 `--story=<目录>` 那条路**同款** ✓，**不新造** ✗）。
+ */
+export const storyPlan = ({ stories = [], slug = null, root = null } = {}) => {
 	const list = slug ? [slug] : stories;
-	return list.map((s) => ({ k: 'story', name: `逐故事：${s}`, scope: 'story', tier: 'light', cmd: ['editor/lint-story.mjs', s] }));
+	// `root` 为 `null` ⇒ 仓内默认根 ⇒ 传 slug（老行为逐字不变 ✓）；否则传**目录** ✓（宿主只在"根不是仓内默认"时才给 ✓）。
+	const argFor = (s) => (root ? `${String(root).replace(/\/+$/, '')}/${s}` : s);
+	return list.map((s) => ({ k: 'story', name: `逐故事：${s}`, scope: 'story', tier: 'light', cmd: ['editor/lint-story.mjs', argFor(s)] }));
 };
 
 /** 全局面（每轮一次 ✓）。 */
@@ -62,7 +69,7 @@ export const globalPlan = ({ full = false } = {}) =>
  * 总编排 ✓：**逐故事面 ＋ 全局面** ⇒ 一个可执行的命令清单（顺序稳定 ⇒ 读数可复跑 ✓）。
  * ⚠️ `stories` 由**调用方**发现（发现要读盘 ⇒ 那属宿主 ✓，本件保持纯 ✓）。
  */
-export const buildPlan = ({ stories = [], slug = null, full = false } = {}) => [...storyPlan({ stories, slug }), ...globalPlan({ full })];
+export const buildPlan = ({ stories = [], slug = null, full = false, root = null } = {}) => [...storyPlan({ stories, slug, root }), ...globalPlan({ full })];
 
 /**
  * 汇总读数（纯函数 ✓）：`results` = [{ cmd, rc, out, ms }]。
@@ -79,8 +86,12 @@ export const summarizeRuns = (results = []) => {
 };
 
 /** 发现的故事必须**真的**进了编排（**能假** ✗ —— 新故事不许静默漏掉 ✓）。 */
-export const missingFromPlan = ({ stories = [], plan = [] } = {}) =>
-	stories.filter((s) => !plan.some((p) => p.cmd.includes(s))).map((s) => ({ slug: s, why: '发现到了这个故事，但编排里没有任何一条命令跑到它 ⇒ 它**不在 CI 里** ✗' }));
+export const missingFromPlan = ({ stories = [], plan = [] } = {}) => {
+	// ⚠️ 逐故事面的参数**可能是目录**（`#999`：根在仓外时传 `<root>/<slug>` ✓）⇒ 匹配要**认尾段** ✗；
+	//   只比 `=== slug` 会把「传了目录」误判成「没有命令跑到它」⇒ **假红** ✓。
+	const hit = (s) => plan.some((p) => p.cmd.some((a) => a === s || a.endsWith(`/${s}`)));
+	return stories.filter((s) => !hit(s)).map((s) => ({ slug: s, why: '发现到了这个故事，但编排里没有任何一条命令跑到它 ⇒ 它**不在 CI 里** ✗' }));
+};
 
 /**
  * **唯一裁决**（`#989`）：末行的 `✔/✗`、`x/y`、失败清单、**退出码**必须**四处一致** ✓。

@@ -204,8 +204,10 @@ export const PROBES = [
 		cmd: 'node test/story-ci.mjs',
 		mutation: {
 			file: 'editor/lib/core/storyCi.mjs',
-			find: 'stories.filter((s) => !plan.some((p) => p.cmd.includes(s))).map((s) => ({ slug: s,',
-			replace: 'stories.filter(() => false).map((s) => ({ slug: s,',
+			// `#999`：目标行**改了**（`missingFromPlan` 改成认尾段 ✓）⇒ 探针的 `find` 必须跟上 ✗
+			//   （⚠️ 台账的 `— 未探 / ✗ 不咬` 那行**当场**把它标成「不咬」✓ —— 这正是 ratchet 要抓的「门改了、探针没跟」✗）。
+			find: 'const hit = (s) => plan.some((p) => p.cmd.some((a) => a === s || a.endsWith(`/${s}`)));',
+			replace: 'const hit = () => true;   // 探针：恒命中 ⇒ missingFromPlan 恒空 ⇒ “能假”那条必红 ✓',
 		},
 		expect: { rc: 1, stdout: /发现了却没进编排/ },
 		why: '量的是「**发现 ≠ 覆盖**」那一步真的在守（让 `missingFromPlan` 恒不报 ⇒ `test/story-ci.mjs` 的“能假”那条必红 ✓）—— 否则“新故事自动被覆盖”只是句口号 ✗',

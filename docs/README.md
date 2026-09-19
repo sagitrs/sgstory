@@ -26,6 +26,7 @@
 | 质量维度与每门判据 | `docs/quality-dimensions.md` | 手写 |
 | 代码级约定（渲染路径 / 构建顺序 / 命名 / 条件表形状） | `docs/dev-conventions.md` | 手写 |
 | 引擎与故事的边界、故事接入契约 | `docs/engine-story-boundary.md` · `docs/story2-contracts.md` | 手写 |
+| 故事面范围（**必需／可选／不做**，编辑器暴露哪些面） | `docs/story-surface-scope.md` | 手写 |
 | 模块顺序与层归属 | `scripts/module-order.mjs`（代码即权威） | 代码 |
 | 目录 / 文件层说明 | `docs/repo-map.md` | 手写 |
 | 门的登记与接线 | `docs/gate-ledger.md` | **生成物** |
@@ -48,6 +49,7 @@
 | `docs/notes-model-batches.md` | 215 | 记录 | 笔记模型分批迁移的过程记录 |
 | `docs/ui-inventory.md` | 201 | 盘点 | 段落与交互元素清单 |
 | `docs/engine-story-boundary.md` | 130 | 权威 | 两层边界与接入契约 |
+| `docs/story-surface-scope.md` | 97 | 口径 | 必需／可选／不做三栏 ＋ 判定三问 ＋ 与同类格式对照 |
 | `docs/gate-ledger.md` | 92 | **生成物** | `npm run report:gates:update`（**不要手改**） |
 | `docs/rules-table-guide.md` | 118 | 手册 | 表语法实战："这个能不能进表"决策树 ＋ 踩坑清单（`#624` 沉淀） |
 | `docs/repo-map.md` | 84 | 地图 | 目录结构 ＋ 层归属 ＋ 权威落点速查 |

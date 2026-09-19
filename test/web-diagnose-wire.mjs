@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 // P2 第三片（`#761`）**接线**读数 ✓：**不落盘也能看见** ✗ —— 坏包 ⇒ 页面当场点名 ✓；好包 ⇒ 说没问题 ✓
 import { readFileSync } from 'node:fs';
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b ✓：故事名走单一权威 ✓（旧故事已删 ✗）
 import { JSDOM } from 'jsdom';
 import { loadPackage } from '../editor/web/loader.mjs';
 import { showDiagnosis } from '../editor/web/app.mjs';
@@ -11,7 +12,7 @@ let bad = 0;
 const t = (label, ok) => { if (ok) console.log(`  ✓ ${label}`); else { bad += 1; console.error(`  ✗ ${label}`); } };
 const dom = new JSDOM('<pre id="out"></pre><pre id="rulediag"></pre><pre id="readfaces"></pre><pre id="settle"></pre>');   // 车道 E-B2／B-3／D：`#rulediag`／`#readfaces`／`#settle` 是新增的那三格 ✓（`showDiagnosis` 现在四格都写 ✓）
 const doc = dom.window.document;
-const pkg = loadPackage({ slug: 'mist-forest', io: io() });
+const pkg = loadPackage({ slug: DEFAULT_SLUG, io: io() });
 
 // 好包 ⇒ 页面说"没有发现问题" ✓（能假的另一半 ✓）
 t('好包 ⇒ 页面写"没有发现问题" ✓ 且**含声明面与两个 sha** ✓', (() => {

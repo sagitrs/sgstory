@@ -12,15 +12,17 @@
 import { readFileSync } from 'node:fs';
 import { loadPackage } from '../editor/web/loader.mjs';
 import { diagnoseStory, formatFinding, summarize } from '../editor/lib/core/diagnose.mjs';
+import { DEFAULT_SLUG, storySlugs } from '../scripts/dist-paths.mjs';   // `#1004` B2b ✓：故事名单/默认故事走单一权威 ✓
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const io = () => ({ readText: (p) => readFileSync(`${ROOT}/${p}`, 'utf8') });
-const SLUGS = ['mist-forest', 'hollow-cave', 'minimal-demo'];
+// `#1004` B2b ✓：旧故事已删 ⇒ 换到**默认故事**（＝面夹具 `face-fixture` ✓，它把仍有真消费者的接入面都接上了 ✓）。
+const SLUGS = storySlugs();   // 仓内现存故事（名单不写死 ✗）
 const clone = (x) => JSON.parse(JSON.stringify(x));
 
 let bad = 0;
 const t = (label, ok) => { if (ok) console.log(`  ✓ ${label}`); else { bad += 1; console.error(`  ✗ ${label}`); } };
-const pkg = loadPackage({ slug: 'mist-forest', io: io() });
+// ⚠️ 原先这里有一份未使用的 `loadPackage({slug:'mist-forest'})` ✗ ⇒ 随旧故事删除一并清掉 ✓（零行为变化 ✓）。
 
 // ① 坏事件 ⇒ **点名** ✓（**合成包** ✓：结构显式、与判定同源 ✓）
 {
@@ -49,8 +51,15 @@ const pkg = loadPackage({ slug: 'mist-forest', io: io() });
 {
 	for (const slug of SLUGS) {
 		const f = diagnoseStory({ data: loadPackage({ slug, io: io() }).data });
-		const problems = f.filter((x) => x.level !== 'info');
-		t(`② 真包 \`${slug}\` ⇒ **零 error/warn** ✗（否则"永远报错"也会过 ✓；info＝不适用 ✓）`, problems.length === 0);
+		// `#1004` B2b ✓：原断言写的是"真包**零 error/warn**" ✗ —— 产品侧口径**更细** ✓：
+		//   ④「空 rows ⇒ warn」是**有意**的包装信号（`editor/lib/core/diagnose.mjs:58` 注释：
+		//   「清空一张表也是"编辑" ⇒ 该说一声 ✓；但**不是 error** 级别 ✗」✓）⇒ `night-ferry`（它声明了
+		//   `rules.json` 但 `rows: []` ✓）**合法**落在那一档 ✓ ⇒ 判据改成：**零 error** ✓ ＋
+		//   除了那条"空 rows"以外**不许有别的 warn** ✓（⇒ 新出现的 warn 仍会红 ✓，"永远报错也会过"那条反例仍在 ✓）。
+		const errs = f.filter((x) => x.level === 'error');
+		const otherWarns = f.filter((x) => x.level === 'warn' && x.target?.field !== 'rows');
+		t(`② 真包 \`${slug}\` ⇒ **零 error** ✓（warn 只许是产品侧有意的"空 rows"那条 ✓；info＝不适用 ✓）`,
+			errs.length === 0 && otherWarns.length === 0);
 	}
 	t('② 摘要与报文 ✓（零诊断 ⇒ 说"没有发现问题" ✓）', summarize([]).includes('没有发现问题'));
 	const one = diagnoseStory({ data: { 'rules.json': { rows: [{ id: 'ev.二', scope: 's', prio: 1, text: '' }] } } });

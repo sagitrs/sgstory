@@ -9,6 +9,7 @@
 //   ＋ **显式** `window.close()` ＋ 最后**显式** `process.exit(rc)` ✓（不许靠"跑完自然退" ✗）。
 
 import { readFileSync } from 'node:fs';
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b ✓：故事名走单一权威 ✓（旧故事已删 ✗）
 import { JSDOM } from 'jsdom';
 import { loadPackage } from '../editor/web/loader.mjs';
 import { wireForm, buildEventForm, readFormFields, submitEventForm } from '../editor/web/form.mjs';
@@ -18,7 +19,8 @@ import { compileInPage } from '../editor/web/compile.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const nodeIo = () => ({ readText: (p) => readFileSync(`${ROOT}/${p}`, 'utf8') });
-const slug = 'mist-forest';
+// `#1004` B2b ✓：旧故事已删 ⇒ 换到**默认故事**（＝面夹具 `face-fixture` ✓，它把仍有真消费者的接入面都接上了 ✓）。
+const slug = DEFAULT_SLUG;
 
 const HTML = `<!doctype html><html><body>
 <select id="event"></select><select id="field"></select>

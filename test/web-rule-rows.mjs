@@ -16,6 +16,7 @@
 // ⚠️ jsdom 收场纪律（本仓踩过 ✗）：`pretendToBeVisual` 用 **false** ＋ **显式** `window.close()` ＋ 最后**显式** `process.exit(rc)` ✓。
 
 import { readFileSync } from 'node:fs';
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b ✓：故事名走单一权威 ✓（旧故事已删 ✗）
 import { JSDOM } from 'jsdom';
 import { loadPackage } from '../editor/web/loader.mjs';
 import { renderRuleRows, ruleRowFacts } from '../editor/web/rule-rows-view.mjs';
@@ -24,7 +25,8 @@ import { fingerprintOf } from '../editor/lib/core/fingerprint.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const nodeIo = () => ({ readText: (p) => readFileSync(`${ROOT}/${p}`, 'utf8') });
-const slug = 'mist-forest';
+// `#1004` B2b ✓：旧故事已删 ⇒ 换到**默认故事**（＝面夹具 `face-fixture` ✓，它把仍有真消费者的接入面都接上了 ✓）。
+const slug = DEFAULT_SLUG;
 const dom = new JSDOM('<!doctype html><body><pre id="out"></pre><pre id="rulediag"></pre></body>', { pretendToBeVisual: false });
 let rc = 0;
 try {

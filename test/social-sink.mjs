@@ -14,6 +14,7 @@
 // 用法：node test/social-sink.mjs [--selftest]
 
 import { boot } from './boot.mjs';
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b：默认故事走单一权威 ✓
 
 let bad = 0;
 const ok = (label, cond, extra = '') => { if (cond) console.log(`  ✓ ${label}${extra ? ' · ' + extra : ''}`); else { bad++; console.error(`  ✗ ${label}${extra ? ' · ' + extra : ''}`); } };
@@ -45,7 +46,8 @@ if (process.argv.includes('--selftest')) {
 	process.exit(0);
 }
 
-const { w, close } = await boot({ story: 'mist-forest', random: 0.5 });
+// `#1004` B2b ✓：旧故事已删 ⇒ 换到**默认故事**（面夹具 ✓，`Social.asks`／`attAdj`／`approaches` 三张表都满配 ✓）。
+const { w, close } = await boot({ story: DEFAULT_SLUG, random: 0.5 });
 try {
 	const probe = w.eval(`(() => ({
 		hasContract: typeof window.Sg?.story?.social === 'function',

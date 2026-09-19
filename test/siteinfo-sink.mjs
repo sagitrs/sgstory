@@ -10,6 +10,7 @@
 // 用法：node test/siteinfo-sink.mjs [--selftest]
 
 import { boot } from './boot.mjs';
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b：默认故事走单一权威 ✓
 
 let bad = 0;
 const ok = (label, cond, extra = '') => { if (cond) console.log(`  ✓ ${label}${extra ? ' · ' + extra : ''}`); else { bad++; console.error(`  ✗ ${label}${extra ? ' · ' + extra : ''}`); } };
@@ -40,7 +41,9 @@ if (process.argv.includes('--selftest')) {
 	process.exit(0);
 }
 
-const { w, close } = await boot({ story: 'mist-forest', random: 0.5 });
+// `#1004` B2b ✓：旧故事已删 ⇒ 换到**默认故事**（＝`DEFAULT_SLUG`，现为面夹具 `face-fixture` ✓，
+//   位点表／动作表都是它的满配面 ✓）—— 本件量的是"表 ↔ 引擎查询"的**接缝** ✓，与哪个故事无关 ✗。
+const { w, close } = await boot({ story: DEFAULT_SLUG, random: 0.5 });
 try {
 	const data = w.eval('(() => ({ sites: window.Game?.Checks?.sites ?? {}, actions: window.Game?.Combat?.actions ?? {}, has: typeof window.Game.Combat.siteInfo }))()');
 	const ids = Object.keys(data.actions ?? {});

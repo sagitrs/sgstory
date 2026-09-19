@@ -7,8 +7,9 @@
 //   ③ **缺面降级**（必须的反例）：故事**未声明** `Sg.story.pcDefaults` ⇒ 仍返回**完整形状**、**不抛错**。
 //   ④ **结构畸形 ⇒ 报错**：面存在但返回非对象 ⇒ fail-loud（不许静默当空）。
 //   ⑤ **兜底住引擎**：`migrate()` 给旧档补键时**带上故事数值**（旧档读进来不能缺 `star.charge`）。
-//   ⑥ **形状单一源**：三个故事的键集合**完全一致**（故事只能给数值，不能改形状）。
+//   ⑥ **形状单一源**：**仓内各故事**的键集合**完全一致**（故事只能给数值，不能改形状）✓（`#1004` B2b：名单走 `storySlugs()` ✓）。
 import { boot } from './boot.mjs';
+import { DEFAULT_SLUG, storySlugs } from '../scripts/dist-paths.mjs';   // `#1004` B2b：默认故事与名单都走单一权威 ✓
 let failures = 0;
 const eq = (actual, expected, msg) => {
 	const okk = JSON.stringify(actual) === JSON.stringify(expected);
@@ -22,7 +23,9 @@ const isNeutral = (v) => v === null || v === 0 || v === '' || v === false
 	|| (Array.isArray(v) && v.length === 0)
 	|| (typeof v === 'object' && v !== null && !Array.isArray(v) && Object.values(v).every(isNeutral));
 
-const { w } = await boot({ story: 'mist-forest', random: 0.5 });
+// `#1004` B2b ✓：旧故事已删 ⇒ 换到**默认故事**（面夹具 `face-fixture` ✓ —— 它的 `pcDefaults()` 与旧故事**同形同值** ✓：
+//   `star.charge=12`／`keeper.state='post'` ✓ ⇒ 本件 ②⑤ 两格的期望值**不用改** ✓，这正是夹具"接住老消费者"的意思 ✓）。
+const { w } = await boot({ story: DEFAULT_SLUG, random: 0.5 });
 const keysOf = (o) => Object.keys(o).sort().join(',');
 
 // ② 真机（故事 1）：故事数值生效 ＋ 深合并不抹兄弟键
@@ -50,13 +53,13 @@ eq(msgs.length, 3, '④ 结构畸形（`42` / `[]` / 字符串）⇒ 三条都 f
 const mig = w.eval('Game.Pc.migrate({ hp: 3 })');
 eq([mig.hp, mig.star.charge, mig.keeper.state], [3, 12, 'post'], '⑤ `migrate()` 给旧档补键时带上故事数值（旧档不缺 `star.charge`）');
 
-// ⑥ 形状单一源：三个故事键集合一致
-const sets = { 'mist-forest': keysOf(real) };
-for (const story of ['hollow-cave', 'minimal-demo']) {
+// ⑥ 形状单一源：**仓内每个故事**的键集合一致（`#1004` B2b ✓：名单不再写死三个 ✗ ⇒ 走 `storySlugs()` ✓）
+const sets = { [DEFAULT_SLUG]: keysOf(real) };
+for (const story of storySlugs().filter((x) => x !== DEFAULT_SLUG)) {
 	const { w: wi } = await boot({ story, random: 0.5 });
 	sets[story] = keysOf(wi.eval('Game.Pc.defaults()'));
 }
-ok(Object.values(sets).every((k) => k === sets['mist-forest']), `⑥ 三故事键集合一致（形状单一源）：${Object.entries(sets).map(([s, k]) => `${s}=${k.split(',').length} 键`).join(' · ')}`);
+ok(Object.values(sets).every((k) => k === sets[DEFAULT_SLUG]), `⑥ 各故事键集合一致（形状单一源）：${Object.entries(sets).map(([s, k]) => `${s}=${k.split(',').length} 键`).join(' · ')}`);
 
 console.log(failures ? `\n${failures} 项失败` : '\npc 默认形状（形状住引擎 · 数值走故事）全部通过');
 process.exit(failures ? 1 : 0);

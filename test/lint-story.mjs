@@ -4,6 +4,7 @@
 //   ① 正例：minimal-demo 全链绿（包形状 → 编译幂等 → 等价 → 门 ×N → 形状）
 //   ② 反例·数据坏：tables.json 被改成非法 JSON ⇒ 必须红在「包形状」步（fail-loud，不许静默）
 //   ③ 反例·未数据化：hollow-cave（尚无 data/）⇒ 必须红在「未数据化」（不是跳过）
+//   ④ `#975` 领域词表：表外 `abil`／`skill` ⇒ 必须红在「vocab」步并**点名**（表外词会让检定**静默 +0**）
 // 反例的手法：**临时目录副本**（改副本的 00-story.json 指向？不——lint 以 slug 定位 stories/<slug>）⇒
 //   ② 直接改真文件再**即时恢复**（finally），改动窗口内跑 lint；恢复后复跑一次正例自证无残留。
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -35,6 +36,25 @@ try {
 const r2b = lint('minimal-demo');
 case_('反例后无残留（复跑正例）', r2b.status === 0);
 
+// ②′ 反例·领域词表（`#975`）——表外词必须红在 `vocab` 步且**点名到站点・字段・值**
+//   ⚠️ 用 hollow-cave（它有真 `Checks.sites` ✓）；minimal-demo 的 sites 是空对象 ⇒ 假不了 ✗
+const p2 = join(ROOT, 'stories/hollow-cave/data/tables.json');
+const orig2 = readFileSync(p2, 'utf8');
+try {
+	const d2 = JSON.parse(orig2);
+	const sites = d2.containers.Checks.sites;
+	const first = Object.keys(sites)[0];
+	sites[first].abil = 'strr';
+	writeFileSync(p2, JSON.stringify(d2, null, '\t'));
+	const r2c = lint('hollow-cave');
+	const out2c = (r2c.stdout || '') + (r2c.stderr || '');
+	case_('反例·表外 abil 红在 vocab 步并点名', r2c.status === 1 && out2c.includes('领域词表外的值') && out2c.includes('strr'), `status=${r2c.status}`);
+} finally { writeFileSync(p2, orig2); }
+const r2d = lint('hollow-cave');
+case_('反例后无残留（复跑正例）', r2d.status === 0);
+// 反例·表内词（正例控制）：`mist-forest` 的 `skill: '游说'`／`'察觉'` 都在表内 ⇒ 必绿
+case_('正例·表内 skill 放过（mist-forest）', lint('mist-forest').status === 0);
+
 // ③ 反例·未数据化（**临时探针目录**——不绑某故事的数据化进度：hollow-cave 翻面后此档会失去意义）
 import { mkdtempSync, writeFileSync as wf, rmSync as rm } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -50,7 +70,7 @@ try {
 {
 	const rj = spawnSync('node', ['editor/lint-story.mjs', 'minimal-demo', '--json'], { cwd: ROOT, encoding: 'utf8' });
 	let d = null; try { d = JSON.parse(rj.stdout); } catch {}
-	case_('--json 正例：可解析且 ok=true · 5 步', rj.status === 0 && d?.ok === true && d?.findings?.length === 5,
+	case_('--json 正例：可解析且 ok=true · 6 步', rj.status === 0 && d?.ok === true && d?.findings?.length === 6,
 		`status=${rj.status} steps=${d?.findings?.length}`);
 	const probe2 = mkdtempSync(join(tmpdir(), 'lint-story-json-'));
 	try {

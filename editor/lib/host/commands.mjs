@@ -12,6 +12,7 @@ import { readText, writeText, mkdirp, exists, ROOT, engineScripts } from './fs.m
 import { scriptBodies } from '../core/text.mjs';
 import { compileStory } from '../core/emit.mjs';
 import { packageFiles, writeStoryPackage, sectionFile } from '../core/story.mjs';
+import { unknownDomainWords } from '../core/vocab.mjs';
 import { runStory, engineOf } from './sandbox.mjs';
 
 import { readFileSync, existsSync, rmSync, readdirSync, statSync, mkdtempSync } from 'node:fs';
@@ -413,9 +414,21 @@ export const lintCommand = async (argv = [], { prog = 'node editor/cli.mjs', sub
 		const dataTables = join(dir, 'data', 'tables.json');
 		const dataContract = join(dir, 'data', 'contract.json');
 		if (!existsSync(dataTables) || !existsSync(dataContract)) fail('未数据化（缺 data/tables.json 或 data/contract.json）——lint 的对象是数据包；先走 #762 的数据化往返');
-		try { JSON.parse(readFileSync(dataTables, 'utf8')); JSON.parse(readFileSync(dataContract, 'utf8')); }
+		let tablesJson = null;
+		try { tablesJson = JSON.parse(readFileSync(dataTables, 'utf8')); JSON.parse(readFileSync(dataContract, 'utf8')); }
 		catch (e) { fail(`data/*.json 不可解析：${e.message}`); }
 		ok(`包形状（files×${manifest.files.length} · tables/contract 可解析）`);
+
+		// ── ①′ 领域词表（`#975`：`#966` 的**牙**接进本门 ✓）──
+		//   为什么 ✗：`Checks.sites` 里写错一个 `abil`／`skill` 的字母 ⇒ 引擎 `abilityMod` 走
+		//   `abilities?.[ab]` ⇒ `undefined ?? 10` ⇒ **修正值 0** ✓ ⇒ 检定**静默 +0** ✗（`#966` 实测）。
+		//   判据**不重造** ✗：消费 `lib/core/vocab.mjs` 的 `unknownDomainWords` ✓（与 `test/rules.mjs` 同一份函数 ✓）。
+		step = 'vocab';
+		{
+			const bad = unknownDomainWords({ 'tables.json': tablesJson });
+			if (bad.length) fail(`领域词表外的值（表外词会让检定**静默 +0**）：${bad.map((b) => `${b.site}.${b.field}=「${b.value}」`).join('、')}`);
+			ok('领域词表（`Checks.sites` 的 `abil`／`skill` 都在 `Rules.ABILITIES`／`Rules.SKILLS` 内）');
+		}
 
 		// ── ② 编译＋幂等 ──
 		step = 'compile';

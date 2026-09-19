@@ -58,11 +58,12 @@ try {
 		t('**另一半** ✓（辅助）：同一变异 ⇒ `dialectKeyOf` 也**不动** ✓', dialectKeyOf(dialectOf(valueOnly)) === dialectKeyOf(dialectOf(full)));
 	}
 
-	// ── 真数据读数（三故事 ✓；数字与形状都取自真文件 ✓）────────────────────
+	// ── 真数据读数（**仓内现存故事** ✓；数字与形状都取自真文件 ✓）────────────────
+	// `#1004` B2 ✓：旧故事已删 ⇒ 本表换成新样本的**实测值** ✗（照旧“写死数字”✓ ——
+	//   这张表的价值就在“形状一变就红”✓，拿计算值去填就把它变成同义反复了 ✗）。
 	const want = {
-		'mist-forest': { present: 4, absent: 0, topKeys: 13, itemLists: 4, itemFields: 31 },
-		'hollow-cave': { present: 2, absent: 2, topKeys: 6, itemLists: 2, itemFields: 22 },
 		'minimal-demo': { present: 2, absent: 2, topKeys: 7, itemLists: 2, itemFields: 8 },
+		'night-ferry': { present: 3, absent: 1, topKeys: 10, itemLists: 3, itemFields: 8 },
 	};
 	const fps = new Set();
 	for (const slug of Object.keys(want)) {
@@ -76,15 +77,18 @@ try {
 		t(`真数据（${slug}）：**零畸形** ✓（真数据里没有"在册但形状不对"的件 ✓）`, d.problems.length === 0);
 		fps.add(dialectShapeOf(d));
 	}
-	t(`三故事**两两不同** ✓（${fps.size} 种形状串 —— 相同就说明这把尺子没分辨力 ✗；用**承重口**而不是 32 位指纹 ✓）`, fps.size === 3);
-	t('`rules.json` **缺席仍合法** ✓：`hollow-cave`／`minimal-demo` 缺它 ⇒ `absent` 各为 1 且**不报** ✓',
-		(h => h.counts.absent === 2 && h.problems.length === 0 && !('rules.json' in h.files))(dialectOf(readStoryPackage({ slug: 'hollow-cave', io }))));
+	t(`故事**两两不同** ✓（${fps.size} 种形状串 —— 相同就说明这把尺子没分辨力 ✗；用**承重口**而不是 32 位指纹 ✓）`,
+		fps.size === Object.keys(want).length);
+	t('`rules.json` **缺席仍合法** ✓：`minimal-demo` 缺它 ⇒ 不在册且**不报** ✓',
+		(h => h.counts.absent === 2 && h.problems.length === 0 && !('rules.json' in h.files))(dialectOf(readStoryPackage({ slug: 'minimal-demo', io }))));
+	t('`rules.json` **在册但空表** 也合法 ✓：`night-ferry` 有它、`rows` 为 `[]` ⇒ 在册且**不报** ✓（空≠畸形，两者分开 ✓）',
+		(h => 'rules.json' in h.files && h.problems.length === 0)(dialectOf(readStoryPackage({ slug: 'night-ferry', io }))));
 
 	t('口径面：本件不碰值域／语义 ✓（`DATA_FILES` 取自 `core/story.mjs` ⇒ 单一权威 ✓）',
 		JSON.stringify(DATA_FILES) === JSON.stringify(['tables.json', 'contract.json', 'rules.json', 'notes.json']));
 
 	if (bad) { console.error(`\n✗ dialect 未通过（${bad} 项）`); rc = 1; }
-	else console.log('\n✔ dialect 通过：**方言指纹**（形状面 ✗ —— 不含值域／语义／行为 ✗）—— 两张表逐条对账 ＋ 缺/畸形分开 ＋ 刀 ＋ 值变不动 ＋ 三故事读数 ✓');
+	else console.log('\n✔ dialect 通过：**方言指纹**（形状面 ✗ —— 不含值域／语义／行为 ✗）—— 两张表逐条对账 ＋ 缺/畸形分开 ＋ 刀 ＋ 值变不动 ＋ 现存故事读数 ✓');
 } catch (e) {
 	console.error('✗ dialect 异常：', String(e?.message ?? e).slice(0, 200));
 	rc = 1;

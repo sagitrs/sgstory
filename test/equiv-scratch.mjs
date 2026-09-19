@@ -25,15 +25,29 @@
 //   （本件不替全局断言它 ✗ —— 同树可能有别人的改动 ✓；本件断言的是**上面那三格**自己 ✓）。
 
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { idemReport } from '../editor/lib/host/commands.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const GEN = join(ROOT, 'build/generated');
-const SLUG = 'mist-forest';
-const OLD = [join(GEN, SLUG), join(GEN, `.idem-${SLUG}`)];   // 旧形（`#976` 前）✗
+// `#1004` B2 ✓：旧故事已删 ⇒ 换到**存活样本** ✓。
+//   ⚠️ 同时把本件一条**押错对象**的旧断言换掉 ✗（与故事删除无关 ✓，是它本来就站不住 ✓）：
+//     旧写法先**删掉** `build/generated/<slug>` ✓、再断言它"不存在"✓ —— 而那个目录**同时是**
+//     `editor/compile-story.mjs` 的**默认 `--out`** ✓（`commands.mjs:88` ✓）⇒ 换成**存活样本**后，
+//     这条自证就变成"**为了跑自己，先删掉别人的编译产物**"✗（并行段可能正在读它 ✗）；
+//     而且"某个路径在不在"本来就不能证明"equiv 没留草稿"✗（那个目录可能根本不是 equiv 建的 ✓）。
+//     它以前能过 ✓，只是因为 `mist-forest` 被删了、没人再编译它 ✓ —— 那是**靠巧合站着** ✗。
+//   ⇒ 换成**真判据** ✓：不看"某个路径在不在"✗，看"**跑完之后多了/动了什么**"✓
+//     （并排写下：不留 `.equiv-run-*`／`.idem-<slug>` 草稿 ✓ ＋ 不动别人的落点 ✓）。
+const SLUG = 'night-ferry';
+const IDEM_OLD = join(GEN, `.idem-${SLUG}`);            // `#976` 前的固定草稿名（旧形）✗
+const genOf = join(GEN, SLUG);                            // 编译器的默认 `--out`（**别人的**落点 ✗，不是本件的草稿区 ✓）
+const genSnap = () => (existsSync(genOf)
+	? readdirSync(genOf).sort().map((n) => `${n}:${readFileSync(join(genOf, n), 'utf8').length}`).join('|')
+	: null);
+const scratchLeft = () => readdirSync(GEN).filter((n) => n.startsWith('.equiv-run-') || n.startsWith('.idem-'));
 
 let rc = 0;
 const sandbox = mkdtempSync(join(tmpdir(), 'equiv-scratch-'));
@@ -58,21 +72,26 @@ try {
 		t('① 边界：空清单 ⇒ `ok=false`（"没比到东西"不许当通过 ✗）', idemReport({ genDir: A, idemDir: B, names: [] }).ok === false);
 	}
 
-	// ── ② 不残留（真跑 ✓；**仓库侧只看 `build/generated` 条目集合** ✓）─────────
+	// ── ② 不残留（真跑 ✓；看的是"跑完之后多了/动了什么" ✓）──────────────────
 	const run = (args) => {
 		try { execFileSync('node', ['editor/equiv.mjs', ...args], { cwd: ROOT, stdio: 'pipe' }); return 0; }
 		catch (e) { return e?.status ?? 1; }
 	};
-	for (const p of OLD) if (existsSync(p)) rmSync(p, { recursive: true, force: true });   // 先清掉**旧跑留下的**旧形 ✓（否则"存在"不是本次造成的 ✗）
-	const rcOk = run([SLUG, '--notes=16-notes-ch2.twee', '--l3=report', `--hand=stories/${SLUG}/gates/equiv-baseline/16-notes-ch2.twee.txt`]);
+	const beforeGen = genSnap();
+	const beforeScratch = scratchLeft();
+	const rcOk = run([SLUG, '--l3=report', `--hand=stories/${SLUG}/gates/equiv-baseline/15-tables.twee.txt`]);
 	t('② 正常跑 ⇒ rc=0 ✓', rcOk === 0);
-	t('② 跑完 ⇒ **旧形不存在** ✓（`build/generated/<slug>`／`.idem-<slug>` ✓ —— 本片改动前它们是固定落点 ✗）', OLD.every((p) => !existsSync(p)));
+	t('② 跑完 ⇒ **不留草稿目录** ✓（`build/generated/.equiv-run-*`／`.idem-<slug>` 都不许剩下 —— `#976` 前的固定落点就是它们 ✗）',
+		scratchLeft().length === 0 && !existsSync(IDEM_OLD));
+	t('② 跑完 ⇒ **不动别人的落点** ✓（`build/generated/<slug>`（编译器默认 `--out`）跑前跑后逐字节同 ✓）',
+		genSnap() === beforeGen);
 
 	// ── ③ 失败路径也清（**编译之后**才失败 ✓）──────────────────────────────
 	{
-		const rcBad = run([SLUG, '--notes=16-notes-nonexistent-face.twee', '--l3=report', '--hand=stories/mist-forest/gates/equiv-baseline/16-notes-ch1.twee.txt']);
+		const rcBad = run([SLUG, '--notes=16-notes-nonexistent-face.twee', '--l3=report', `--hand=stories/${SLUG}/gates/equiv-baseline/15-tables.twee.txt`]);
 		t('③ 指定一个**不存在的产物名** ⇒ 在**编译之后**失败 ⇒ rc≠0 ✓', rcBad !== 0);
-		t('③ **失败路径也不留旧形** ✓（`try/finally` 即便在抛错那一路也清 ✓）', OLD.every((p) => !existsSync(p)));
+		t('③ **失败路径也不留草稿** ✓（`try/finally` 即便在抛错那一路也清 ✓）',
+			scratchLeft().length === 0 && !existsSync(IDEM_OLD));
 	}
 
 	if (bad) { console.error(`\n✗ equiv-scratch 未通过（${bad} 项）`); rc = 1; }

@@ -6,7 +6,9 @@
 //   进 CI **不必管** ✓：两个相都在 `phase:'build'` 且都在本段之前 ✓。
 //
 // 判据（`docs/dev-conventions.md` §9 口径：正例放过 ＋ 反例抓住，失败计入退出码）：
-//   ① **正例**：真根上 `--list` **⊇ 仓内三故事** ✓（⚠️ **不赌"恰好三个"** ✗ —— 并行段会临时往 `stories/` 放故事 ⇒ 计数等值会**随机红** ✓，`#989` 里就是这么栽的 ✓）
+//   ① **正例**：真根上 `--list` **⊇ 仓内现存故事** ✓（⚠️ **不赌"恰好几个"** ✗ —— 并行段会临时往 `stories/` 放故事 ⇒ 计数等值会**随机红** ✓，`#989` 里就是这么栽的 ✓；
+//      ✓ `#1004` B2 加固：期望集合取自 **`storySlugs()` 本身** ✗（原来写死三个名字 ⇒ 名字一删就变成"判据在枚举已删故事"✓，
+//      与 `GATE_ORDER` 那次同病 ✓）；⇒ 名单再变也只需跟着 `storySlugs()` 走 ✓，"有没有漏发现"依然被咬住 ✓）
 //   ② **能假**（`#984` 加固 (d) ✗）：临时根里放**夹具故事** ⇒ `--list` **必须含它** ✓
 //      （⇒ "新故事自动被覆盖"不是空话 ✓）；无 `00-story.json` 的目录**不算故事** ✓（发现口径 ✓）
 //   ③ **反例**：坏故事（坏 `data/tables.json` ✓）⇒ `story-ci --story=<目录>` **必红** ✓
@@ -18,6 +20,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { storySlugs } from '../scripts/dist-paths.mjs';   // `#1004` B2 ✓：仓内故事名单的**单一权威** ✓（不写死名字 ✗）
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 let bad = 0;
@@ -34,8 +37,9 @@ try {
 		const r = cli(['--list']);
 		const got = (r.stdout || '').trim().split('\n').filter(Boolean);
 		// ⚠️ **⊇ 而不是 ＝** ✗（`#989` 的根因 ✓）：并行段会临时往 `stories/` 放故事（`__e2e` 等 ✓）⇒ 精确等值会**随机红** ✗。
-		t('正例·真根 `--list` ⊇ 仓内三故事（不赌「恰好三个」✗）',
-			r.status === 0 && ['hollow-cave', 'minimal-demo', 'mist-forest'].every((s) => got.includes(s)), `got=${got.join(',')}`);
+		// `#1004` B2 ✓：期望集合 ＝ `storySlugs()` ✓（不再手写三个 slug ✗ —— 那份手写名单已随旧故事失效 ✓）。
+		t('正例·真根 `--list` ⊇ 仓内现存故事（不赌「恰好几个」✗）',
+			r.status === 0 && storySlugs().every((s) => got.includes(s)), `got=${got.join(',')} want⊇${storySlugs().join(',')}`);
 	}
 
 	// ② 能假：夹具故事必须被发现；无 `00-story.json` 的目录不算

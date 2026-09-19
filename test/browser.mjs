@@ -186,6 +186,10 @@ let fails = 0;
 let total = 0;
 // 机器可读锚点：末行汇总印「断言 通过/总数」（CI 守卫看这一行，不必锚死具体条数）
 const check = (cond, msg) => { total++; console.log(`${cond ? '✓' : '✗'} ${msg}`); if (!cond) fails++; };
+// `#1004` B2b 裁定（2026-09-19，option 3 严格形状）：**xfail 通道** —— 已实测不成立的断言**不计失败**，
+// 但**必须逐条打印实测值**、不得静默，并在末尾汇总 ＋ 指向承接票（`#1012`）。
+const xfails = [];
+const xfail = (label, detail) => { xfails.push(`${label} — ${detail}`); console.log(`⚠ xfail ${label} — ${detail}`); };
 const shots = 'build/browser-evidence';
 mkdirSync(shots, { recursive: true });
 const shoot = async (name) => {
@@ -286,7 +290,16 @@ const pressKey = async (key, code, vk) => {
 	await sleep(70);
 };
 const TAB = () => pressKey('Tab', 'Tab', 9);
-const ENTER = () => pressKey('Enter', 'Enter', 13);
+// `#1004` B2b 复核席实测修正（2026-09-19）：原与 TAB 共用 `rawKeyDown` —— CDP 下 `rawKeyDown`+`keyUp`
+// **不产生默认动作**：对 `<a>` 打 Enter 后 `State.passage` 不变、`activeElement` 仍停在原链接
+//（而真 `click()` 会导航/出反馈 ⇒ 证明是**投递方式**不对、不是链接不响应）。
+// ⇒ Enter 改投带 `text` 的 `keyDown`（CDP 语义：带 `text` 才触发默认动作），本条断言自此才有判别力。
+const ENTER = async () => {
+	const base = { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, text: '\r', unmodifiedText: '\r' };
+	await send('Input.dispatchKeyEvent', { type: 'keyDown', ...base });
+	await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
+	await sleep(70);
+};
 const focusInfo = () => ev(`(function(){
 	const a = document.activeElement;
 	if (!a) return null;
@@ -304,10 +317,13 @@ async function keyboardCase(W, H) {
 	await setViewport(W, H);
 	await loadFresh();
 	await ev(HELPERS);
-	// #1004 B2b 按裁定 A 重指: 键盘序列测的是「行动区可 Tab 抵达」这一**机制**（与故事内容无关），
-	// 旧写法从 `门厅` 进（那段的行动区是旧故事专用的 `#hall-act`）⇒ 改从夹具 `酒馆` 进:
-	// 它链接最多，引擎的「末尾那串链接自动包成 .scene-acts」在这里最稳（src/80-script.twee:434）。
-	await enter('酒馆', `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{};`);
+	// `#1004` B2b 按裁定 A 重指: 键盘序列测的是「行动区可 Tab 抵达」这一**机制**（与故事内容无关），
+	// 旧写法从 `门厅` 进（那段的行动区是旧故事专用的 `#hall-act`）⇒ 改从夹具进。
+	// 2026-09-19 复测后改定 `女巫小屋`（`70f4045` 撤回 `门厅·看钉` 那行夹具后重选）：
+	// 夹具里行动区内的宏链接**全是自环/只出面板**（读数：`酒馆` 话题链接点击后 `passage` 不变且无反馈 ✗；
+	// `女巫小屋`「从炉火边拿起那件东西」/ `书房`「把案上那本日记收起来」⇒ **反馈由无到有** ✓）；
+	// `女巫小屋` 行动区最大（16 条）⇒ Tab 面与取件面都最稳 ✓。
+	await enter('女巫小屋', `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{};`);
 	const vp = `${W}x${H}`;
 
 	// 反例自测：往正文里塞一个「关闭的 details ＋ 可聚焦链接」，先证明检查器认得出，
@@ -339,29 +355,52 @@ async function keyboardCase(W, H) {
 	// 键盘触发一次真实交互：把焦点放到**行动区里第一个可聚焦链接**再 Enter
 	// #1004 B2b 按裁定 A 重指: 原写法钉着旧故事的文案（「先看清钉子是怎么卡的」）⇒ 换成
 	// 与故事无关的取法（行动区/正文里第一个可聚焦链接）—— 测的仍是「Enter 能触发交互 ＋ 焦点回收」这一机制。
+	// `#1004` B2b 裁定（2026-09-19 option 3）：谓词须**两条同时成立** ——
+	//   ① 落在引擎包过的行动区里（`closest('.scene-acts')`）；② 是 `<<link>>` 宏链接（`macro-link`）。
+	// 实测依据 ✗：原写法 `querySelectorAll('.scene-acts a, #passages a.link-internal')` 返的是**文档序并集**，
+	// `酒馆` 里 `pool[0]` 是裸 `[[森林边缘]]`（不在行动区）；而**只加** `closest` 谓词仍不够 ——
+	// `酒馆` 的行动区首位是裸 `[[就地了结这一趟]]`（无 `macro-link`）⇒ 仍会选到**不响应**的裸链接 ✗。
+	const FB_PROBE = `(function(){
+		const slot = document.querySelector('#passages .action-feedback, #passages .scene-feedback, #passages .check-result');
+		const echo = [...document.querySelectorAll('#passages *')].find(e => e.children.length === 0 &&
+			(e.textContent.includes('DC') || e.textContent.includes('d20(')));
+		return { hasFb: !!(slot || echo), cls: slot ? slot.className : (echo ? 'echo' : '-'),
+			focusInside: !!document.activeElement?.closest('#passages'),
+			focusCls: String(document.activeElement?.className || ''), passage: SugarCube.State.passage };
+	})()`;
 	const focusedAction = await ev(`(function(){
-		const pool = [...document.querySelectorAll('.scene-acts a, #passages a.link-internal')];
-		const a = pool.find(x => typeof x.focus === 'function');
+		const a = [...document.querySelectorAll('.scene-acts a.macro-link')]
+			.find(x => x.closest('.scene-acts') && typeof x.focus === 'function');
 		if (!a) return false;
 		a.focus();
 		return document.activeElement === a;
 	})()`);
 	if (focusedAction) {
+		const before = await ev(FB_PROBE);
 		await ENTER();
 		await sleep(800);
-		const after = await ev(`(function(){
-			// #1004 B2b 按裁定 A 收口: 判据仍是「Enter 交互真的发生了 ＋ 焦点回收正文」两点，
-			// 但"结果在屏"按**夹具的渲染形状**取 —— 夹具既有点击时结果槽（.check-result/.scene-feedback），
-			// 也有渲染期 <<lastcheckFor>> 的**回显行**（.last-check / 含 DC 的正文）⇒ 两者任一即算"结果在屏"。
-			const slot = document.querySelector('#passages .action-feedback, #passages .scene-feedback, #passages .check-result');
-			// （避免在模板串里写正则转义 —— 用 includes 更稳）
-			const echo = [...document.querySelectorAll('#passages *')].find(e => e.children.length === 0 &&
-				(e.textContent.includes('DC') || e.textContent.includes('d20(')));
-			const inside = !!document.activeElement?.closest('#passages');
-			return { hasFb: !!(slot || echo), focusInside: inside, focusCls: String(document.activeElement?.className || ''), passage: SugarCube.State.passage };
-		})()`);
-		check(after.hasFb && after.focusInside,
-			`${vp} 键盘：Enter 触发交互后结果在屏且焦点回收正文（结果在屏=${after.hasFb} · 焦点在正文=${after.focusInside} · focus=${after.focusCls.slice(0, 40)} · passage=${after.passage}）`);
+		const after = await ev(FB_PROBE);
+		// ── 半 (i)：`Enter` ⇒ **交互真被激活** —— 本片裁定后**真守护** ✓ ─────────────────────
+		// 可观察面二选一：· `passage` 变化 ／ · 反馈节点**由无到有**（`!before.hasFb && after.hasFb`）。
+		// ⚠️ `70f4045` 撤回那行夹具后，夹具里**没有**会导航的行动区宏链接 ⇒ 只能取「反馈由无到有」这一支
+		//   （读数：`酒馆` 话题链接两支皆否 ✗；`女巫小屋`「从炉火边拿起那件东西」后者成立 ✓）。
+		// ⚠️ 必须带 `before` 读数：`门厅·看钉` 那类段的**渲染期** `<<sitecheck>>` 会预置 `check-result`，
+		//   只判 `after.hasFb` 会在**未按键时**即为真 ⇒ 无判别力（本片实测过的假绿，勿回退）。
+		const activated = after.passage !== before.passage || (!before.hasFb && after.hasFb);
+		check(activated,
+			`${vp} 键盘：Enter ⇒ 交互真被激活（passage ${before.passage}→${after.passage} · 反馈 ${before.hasFb}→${after.hasFb}${after.hasFb ? `〔${after.cls}〕` : ''}）`);
+		// ── 半 (ii)：焦点回收正文 —— **显式 xfail，承接票 #1012**（裁定 option 3）─────────────
+		// ⚠️ 这半**此前从未守护** ✗：旧写法 `rawKeyDown` 从不触发默认动作 ⇒ 交互根本没发生，
+		//   `activeElement` 自然还停在原链接上 ⇒ 旧绿是**虚的**（借「按键前就为真的结果在屏」站的）。
+		// 两条实测（都记上，因为它决定了这半**现在能不能做绿**）：
+		//   · **导航型交互**（`a5d4d50` 那条，键投递修好后）：`passage` 真的变了 ✓ 但
+		//     `焦点在正文=false` · `focus=""`（落 `body`）⇒ **“焦点回收正文”确实不成立** ⇒ #1012。
+		//   · **本目标（非导航型）**：按键前焦点已在链接（同在 `#passages` 内）、按键后落在 `scene-feedback`
+		//     （也在 `#passages` 内）⇒ `focusInside` **按键前后均为真** ⇒ 这半在本目标下**无判别力**，
+		//     假设写成 `check(after.focusInside, …)` 就是**又一个假绿**。
+		// ⇒ 故本半一律以 **xfail 记账**（不拿无判别力的绿充数），待 #1012 修复后引入导航样本再转正。
+		xfail(`${vp} 键盘：Enter 后焦点回收正文`,
+			`导航型交互实测：焦点在正文=false · focus=""（落 body）⇒ 声称不成立；本目标（非导航型）：按键前后 focusInside=${before.focusInside}→${after.focusInside} ⇒ 无判别力，不做假绿 · **此前从未守护**（旧投递不触发默认动作）· 承接票 #1012`);
 	} else {
 		check(false, `${vp} 键盘：找不到可聚焦的行动链接（状态不对？）`);
 	}
@@ -505,6 +544,10 @@ for (const [W, H] of VP) {
 console.log('\n── 键盘序列（#284①，真机 Tab/Enter）');
 await keyboardCase(390, 844);
 
+if (xfails.length) {
+	console.log(`\n⚠ xfail ${xfails.length} 条（已实测不成立，**不计失败**，逐条指向承接票）：`);
+	for (const x of xfails) console.log(`   ⚠ ${x}`);
+}
 const summary = `${fails ? '✗' : '✔'} 真实浏览器验收：${fails ? `${fails} 项失败` : '全部通过'}（断言 ${total - fails}/${total} · ${VP.length} 视口 × 4 场景 ＋ 键盘序列 1 例）`;
 console.log(`\n${summary}`);
 console.log(`   截图：${shots}/（${VP.length} 视口 × 4 场景）`);

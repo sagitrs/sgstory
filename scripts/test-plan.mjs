@@ -56,25 +56,10 @@ export const SEGMENTS = [
 	{ id: "test-core-story-mjs", phase: 'test', cost: 0, cmd: "node test/core-story.mjs" },
 	// `#794`：**import 副作用门** —— 任何 `editor/**` 模块被 import ⇒ 跑完且只留哨兵 ✓（`exit(0)` 与 import 期输出都必红 ✓）。
 	{ id: "test-import-side-effects-mjs", phase: 'test', cost: 0.6, cmd: "node test/import-side-effects.mjs" },
-	{ id: "scripts-audit-mjs-truth-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --truth --check" },
-	{ id: "scripts-audit-mjs-canon-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --canon --check" },
-	{ id: "scripts-audit-mjs-echoes-check", phase: 'test', cost: 0.1, cmd: "node scripts/audit.mjs --echoes --check" },
 	{ id: "scripts-audit-mjs-consequences-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --consequences --check" },
-	{ id: "scripts-audit-mjs-starbudget-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --starbudget --check" },
 	{ id: "scripts-audit-mjs-a11y-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --a11y --check" },
-	{ id: "scripts-audit-mjs-choices-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --choices --check" },
-	{ id: "scripts-audit-mjs-interact-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --interact --check" },
-	{ id: "scripts-audit-mjs-nosl-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --nosl --check" },
-	{ id: "scripts-audit-mjs-gear-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --gear --check" },
-	{ id: "scripts-audit-mjs-combat-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --combat --check" },
 	{ id: "scripts-audit-mjs-sitedisc-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --sitedisc --check" },
-	{ id: "scripts-audit-mjs-investment-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --investment --check" },
-	{ id: "scripts-audit-mjs-social-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --social --check" },
-	{ id: "scripts-audit-mjs-systems-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --systems --check" },
 	{ id: "scripts-audit-mjs-text-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --text --check" },
-	{ id: "scripts-audit-mjs-craft-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --craft --check" },
-	{ id: "scripts-audit-mjs-dragon-check", phase: 'test', cost: 6.2, cmd: "node scripts/audit.mjs --dragon --check" },
-	{ id: "scripts-audit-mjs-npc-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --npc --check" },
 	{ id: "scripts-audit-mjs-state-check", phase: 'test', cost: 0.1, cmd: "node scripts/audit.mjs --state --check" },
 	{ id: "scripts-audit-mjs-literals-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --literals --check" },
 	{ id: "test-rules-mjs", phase: 'test', cost: 1.6, cmd: "node test/rules.mjs" },
@@ -143,7 +128,6 @@ export const SEGMENTS = [
 	{ id: 'test-resolve-node-mjs', phase: 'test', cost: 0, cmd: 'node test/resolve-node.mjs' },
 	// #436 原范围 1：笔记模型门已从 `test/notes-model.mjs` **升级为 audit 门**（可单跑 `--notes`），
 	// 一个段替代原来的 `-selftest` ＋ 主跑两段（自证在门内，与其它门一致）。
-	{ id: 'scripts-audit-mjs-notes-check', phase: 'test', cost: 0, cmd: 'node scripts/audit.mjs --notes --check' },
 	// #436 原范围 3：**玩家可见正文漂移**接进计划（`#422-D`／阶段 2 的判据是「漂移＝0」）。
 	// 基线用 `origin/main`（CI 里可达：工作流有 `git fetch origin main --depth=1`；那个 92f3d04
 	// 迁移基线在浅克隆里取不到——脚本现在会**明确报错**而不是把"读不到"当成"没变化"）。
@@ -289,9 +273,7 @@ export const SEGMENTS = [
 	// ⇒ 四道引擎门在这里第一次判**一个真正启用了新机制的故事**（`#486`–`#489` 的出口判据）。
 	// `#572` 同上：临时收窄已收回（`#581`／`#584` 落地后整套引擎门全绿）⇒ 本段跑**整套引擎门**。
 	// #435 阶段 4：条件表门（死规则 = 永不被选中的行）
-	{ id: "scripts-audit-mjs-rules-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --rules --check" },
 	// #435 阶段 4：「无字面状态读」门（：表/内容都经封装层读——票面「数据表不得出现字面状态读」）
-	{ id: "scripts-audit-mjs-reads-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --reads --check" },
 	// #486（S1）：槽位/耐久**机制**门（引擎门——判据来自声明表，不读故事散文）：
 	// 两态语义 · 部位命中分布 · 损坏阈值 · 兼容降级 · 「声明面 ≤ 实现面」
 	{ id: 'scripts-audit-mjs-slots-check', phase: 'test', cost: 0, cmd: 'node scripts/audit.mjs --slots --check' },
@@ -327,14 +309,13 @@ export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 't
 //   P2-B `cave` / `combat-dist` ⇒ `stories/hollow-cave/gates/`（故事 3 的两门）。
 export const AUDIT_STORY = [];   // #607 P2-B：**故事门已全部搬到故事侧**（`stories/<slug>/gates/`，清单声明）⇒ 工具层不再有故事门
 // 非门段里**与故事内容无关**的那些（构建 / 构建期 lint / 产物守卫）：显式登记，不放宽默认
-export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs', 'scripts-audit-mjs-story2-engine', 'scripts-audit-mjs-story3-engine',
+export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs', 'scripts-audit-mjs-story2-engine',
 	'test-story-runtime-mjs-selftest', 'test-story-runtime-mjs',
 	'test-layering-mjs-selftest', 'test-layering-mjs', 'test-globals-mjs', 'test-silent-gate-mjs',
 	'test-size-gate-mjs-selftest', 'test-size-gate-mjs',
 	// #607：门发现面与故事内容无关（清单/归属/顺序表）
 	'test-gate-discovery-mjs',
-	// #608：短战斗相位门判的是**引擎侧契约**（故事只是驱动）
-	'test-shortfight-phases-mjs',
+	// #608：短战斗相位门判的是**引擎侧契约**（故事只是驱动）【`#1004` B2：该测试件已随故事删除 ⇒ 入口一并去掉 ✓】
 	// `#660` 片三-3：pc 默认**形状**住引擎（故事只给数值）⇒ 判的是引擎侧契约
 	'test-pc-defaults-mjs',
 	// 洞窟末步门判的是**故事 2 的内容**（`stories/hollow-cave/10-cave.twee`）⇒ 归 story 层；为免与故事层计数混淆，

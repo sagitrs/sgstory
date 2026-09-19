@@ -17,7 +17,7 @@ export const STORIES_DIR = join(ROOT, 'stories');
 export const DIST_DIR = join(ROOT, 'dist');
 
 /** 默认故事：`dist/index.html` 在过渡期仍是它的产物（等价于 storyHtml(DEFAULT_SLUG)）。 */
-export const DEFAULT_SLUG = 'mist-forest';
+export const DEFAULT_SLUG = 'minimal-demo';   // `#1004` B2：`mist-forest` 已随旧故事删除 ⇒ 默认换成**引擎凸烟**故事 ✓（它本就是为“最小声明面/引擎自检”而生的 ✓）
 
 /** 在 stories/ 下发现的故事 slug（按目录名排序，稳定）。 */
 export const storySlugs = () =>

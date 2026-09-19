@@ -62,6 +62,9 @@ export const MODULES = {
 	// ── 第四个故事（`night-ferry` · 夜渡，P4 `#991` 用编辑器做出 ✓）──
 	'stories/night-ferry/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '第四个故事的元数据（StoryTitle / StoryData / StoryIdentity）' },
 	'stories/night-ferry/15-tables.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '第四个故事的声明面：引擎**加载期**要用的空容器（`#998` 实测：必须排在 `21-resolve` 前 ✗ —— 否则顶层浅合并会把引擎 assign 的方法替换掉 ✓）' },
+	// ⚠️ `#1004` B2：**引擎件**的依赖条目不许随故事删 ✗（它只是 `deps` 里引用过故事表 ✓ ⇒ 改 deps，**不删条目** ✗）——
+	//   否则 ORDER 里还有它、依赖表里没有 ⇒ `move-precheck` 的 `[missing-modules]` 当场红 ✓（实测：B2a 一版就踩了这个 ✓）。
+	'src/engine/40-sim/21-resolve.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'engine', note: '结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）' },
 	'stories/night-ferry/10-ferry.twee': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落：渡口 → 河心 → 对岸，两条路线各 6 步、两个「结局…」段落' },
 	'stories/night-ferry/17-rules.twee': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '条件表（生成物）：行数组，选择器在引擎侧' },
 	'src/engine/30-persist/05-store.twee': { deps: [], defines: ['Sg.store'], layer: 'engine', note: '存储缝（#441-B/#462）：localStorage 键构造的唯一落点' },
@@ -374,7 +377,7 @@ export const CONST_SECTION = {
 	// 允许出现"数据字段里的 era 字面量"与"`const Era = {…}` 定义"的文件（用**路径后缀**匹配，兼容搬家后的新路径）
 	// `#562`：**引擎侧默认常量**（`10-core` 的 `Game.Era ??= {…}`／`Game.Damage ??= {…}`）也是常量载体
 	// ——否则 `--literals` 会把那两行判成"裸时代字面量"（引擎给默认值 ⇒ 必须一起声明，这是"搬家要同步声明"的同一条纪律）
-	files: ['stories/mist-forest/15-tables.twee', 'src/engine/10-const.twee'],
+	files: ['stories/night-ferry/15-tables.twee', 'src/engine/10-const.twee'],   // `#1004` B2：旧故事已删 ⇒ 夹具换到剩下的故事 ✓
 	eraDecl: /const Era = \{|Game\.Era \?\?= \{|Game\.Era = \{/,   // 常量定义行的特征（`#660` 片二：单源用普通赋值）
 	eraDataField: /(flagEra|era:)/,         // 故事表数据字段的特征
 	// 裸伤害数字：**不再按文件名限定章节**。原先只在 `30/40/50/60-ch*.twee` 里判 ⇒ 章节一旦改名

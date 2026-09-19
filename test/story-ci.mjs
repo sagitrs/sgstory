@@ -28,7 +28,9 @@ try {
 	{
 		const r = cli(['--list']);
 		const got = (r.stdout || '').trim().split('\n').filter(Boolean);
-		t('正例·真根 `--list` ＝ 仓内三故事', r.status === 0 && got.join(',') === 'hollow-cave,minimal-demo,mist-forest', `got=${got.join(',')}`);
+		// ⚠️ **⊇ 而不是 ＝** ✗（`#989` 的根因 ✓）：并行段会临时往 `stories/` 放故事（`__e2e` 等 ✓）⇒ 精确等值会**随机红** ✗。
+		t('正例·真根 `--list` ⊇ 仓内三故事（不赌「恰好三个」✗）',
+			r.status === 0 && ['hollow-cave', 'minimal-demo', 'mist-forest'].every((s) => got.includes(s)), `got=${got.join(',')}`);
 	}
 
 	// ② 能假：夹具故事必须被发现；无 `00-story.json` 的目录不算
@@ -67,6 +69,26 @@ try {
 		const r2 = cli(['--stories-dir=' + join(probe, 'no-such-dir')]);
 		const out2 = `${r2.stdout || ''}${r2.stderr || ''}`;
 		t('🔴 反例·目录不存在 ⇒ 同形（rc=1 ＋ 点名「不存在」）', r2.status === 1 && /不存在/.test(out2), `status=${r2.status}`);
+	}
+
+	// ③″ **末行不许反向说谎** ✗：`✔/✗` ＋ `x/y` ＋ 清单 ＋ **rc** 必须四处一致 ✓
+	//    口径＝在**三种调用**上都核一遍（不变量 ✓，与相的顺序无关 ✓）
+	{
+		const lastLine = (out) => (out.trim().split('\n').filter((l) => /用户故事 CI：/.test(l)).pop() ?? '');
+		const cases = [
+			['空根目录（0 故事 ⇒ 必红）', cli(['--stories-dir=' + join(probe, 'empty-root-2')])],
+			['坏故事（逐故事面红）', cli([`--story=${join(probe, 'broken')}`])],
+			['默认档（面上应为绿）', cli([])],
+		];
+		for (const [label, r] of cases) {
+			const out = `${r.stdout || ''}${r.stderr || ''}`;
+			const last = lastLine(out);
+			t(`🔴 末行 ✗ ⟺ rc≠0（${label}）`, (r.status !== 0) === last.startsWith('✗'), `rc=${r.status} last=${last.slice(0, 40)}`);
+		}
+		// 0 故事时**分母要把它算进去** ✗（否则末行又会说成 4/4 ✓）
+		const out0 = `${cases[0][1].stdout || ''}${cases[0][1].stderr || ''}`;
+		const m = /：([0-9]+)\/([0-9]+) 通过/.exec(lastLine(out0));
+		t('🔴 0 故事 ⇒ `x/y` 里 x<y（"该做没做"计入分母 ✓）', !!m && Number(m[1]) < Number(m[2]), `line=${lastLine(out0).slice(0, 40)}`);
 	}
 
 	// ④ 编排不漏 ＋ ⑤ 接口口径（纯函数面，与 CLI 同一份代码 ✓）

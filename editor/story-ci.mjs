@@ -10,7 +10,9 @@
 //
 // ⚠️ 为什么不做成"逐故事跑全套" ✗：实测 K5／K6 是**全局**面、K3 半是引擎级 ✓ ⇒ 照字面做不到
 //   （`#984` 的接口口径 ✓：**全局面每轮一次 ＋ 故事作用域面逐故事** ✓）。
-// ⚠️ **单跑前先跑 `npm run build`／构建相** ✗：逐故事面里有需要构建产物的段（`--probe=fast` 同口径 ✓）；
+// ⚠️ **单跑前先跑构建相** ✗：① 逐故事面里有需要构建产物的段 ⇒ 先 `node build.mjs` ✓；② 全局面 **K5**（台账
+//   `--check`）读的是**探针相**的读数 ⇒ 先 `node scripts/probe-gates.mjs --probe=fast` ✓（否则会用**过期**读数
+//   判红 ✗ —— 那是台账的口径 ✓，不是本件的 bug ✗）。**进 CI 不必管**：两个相都在 `phase:'build'` ✓ 且都在本段之前 ✓。
 //   进 CI 时本段的 `needs` 保证它**排在那两段之后** ✓（它们会往 `stories/` 写临时件 ✗ ⇒ 详见段注释 ✓）。
 // ⚠️ 为什么不重造判据 ✗：逐故事面**直接重用 `editor/lint-story.mjs`**（它已经是"包形状 → 编译幂等 →
 //   等价 → 故事门 ×N → 形状"的既有编排 ✓）；其余面按 `K_FACES` 表指向**既有命令** ✓。
@@ -18,7 +20,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { K_FACES, buildPlan, summarizeRuns, missingFromPlan } from './lib/core/storyCi.mjs';
+import { K_FACES, buildPlan, summarizeRuns, missingFromPlan, finalVerdict } from './lib/core/storyCi.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const STORIES = join(ROOT, 'stories');
@@ -41,7 +43,10 @@ if (isMain) {
 	if (argv.includes('--selftest')) {
 		const cases = [
 			['发现口径：非目录 ⇒ 空（不抛 ✗）', discoverStories(join(ROOT, 'stories/__nope__')).length === 0],
-			['发现口径：真目录 ⇒ 三故事 ✓', JSON.stringify(discoverStories()) === JSON.stringify(['hollow-cave', 'minimal-demo', 'mist-forest'])],
+			// ⚠️ **不许断言「恰好三个」** ✗（`#989` 的根因 ✓）：本仓跑器是**并行**的 —— 别的段会在运行中往
+			//   `stories/` 放临时故事（`web-preview` 的 `stories/__e2e` ✓、`new-story-fixture` ✓）⇒ 精确等值会**随机红** ✗。
+			//   要断言的是「**真故事都在**」（⊇ ✓），不是「只有它们」（＝ ✗）。
+			['发现口径：三个真故事**都在**（⊇ ✓ —— 不赌「恰好三个」✗）', ['hollow-cave', 'minimal-demo', 'mist-forest'].every((s) => discoverStories().includes(s))],
 			['表：每条 K 都指既有命令且带证据 ✓', K_FACES.every((f) => Array.isArray(f.cmd('s')) && typeof f.evidence === 'string' && f.evidence.length > 0)],
 			// ⚠️ 三个数不一样是**对的** ✗：表里 global 有 **5** 条（K2/K3/K4/K5/K6 ✓），但 **K3 是 heavy** ✓
 			//   ⇒ 轻档只跑 4 条（K3 已由既有段 `test-story-runtime-mjs` 跑 ✓、不重复 ✗）、`--full` 才 5 条 ✓。
@@ -94,13 +99,12 @@ if (isMain) {
 		console.log(`  ${tag} [${p.k}] ${p.name}  ${(r.ms / 1000).toFixed(1)}s`);
 		if (r.rc !== 0) console.error(`\n${r.out.slice(-1200)}`);
 	}
-	const s = summarizeRuns(results);
-	if (zeroStories) {
-		const where = existsSync(root) ? `根目录 \`${root}\` 下没有故事` : `根目录 \`${root}\` **不存在**`;
-		console.error(`  ✗ **发现到 0 个故事** ⇒ 逐故事面全部消失，**不许判过** ✗（${where} ✓ —— 口径＝\`<目录>/00-story.json\` ✓；改名／路径写错／工作目录变都会走到这里 ✓）`);
-	}
-	console.log(`\n${s.ok ? '✔' : '✗'} 用户故事 CI：${s.total - s.failed.length}/${s.total} 通过 · 墙钟 ${(s.ms / 1000).toFixed(1)}s${s.ok ? '' : ` · 失败 ${s.failed.map((f) => `\`${f.cmd}\``).join('、')}`}`);
-	process.exit(s.ok && !zeroStories ? 0 : 1);
+	// ⚠️ **唯一裁决** ✓（`#989`）：末行的 `✔/✗`、`x/y`、清单、**退出码**全从这一处长出来 ✓
+	//   —— 原先末行只由 `summarizeRuns` 拼 ✗、rc 另算 ✗ ⇒ 会出现"末行印 ✔ 4/4 通过 而 rc=1"✗。
+	const v = finalVerdict({ results, zeroStories, root, rootExists: existsSync(root) });
+	for (const f of v.failed) if (!f.cmd) console.error(`  ✗ ${f.reason}`);   // 非命令类失败（0 故事 ✓）单独交代原因 ✓
+	console.log(`\n${v.ok ? '✔' : '✗'} 用户故事 CI：${v.passed}/${v.total} 通过 · 墙钟 ${(v.ms / 1000).toFixed(1)}s${v.ok ? '' : ` · 失败 ${v.failed.map((f) => (f.cmd ? `\`${f.cmd}\`` : f.reason)).join('、')}`}`);
+	process.exit(v.ok ? 0 : 1);
 }
 
 export { run };

@@ -81,3 +81,24 @@ export const summarizeRuns = (results = []) => {
 /** 发现的故事必须**真的**进了编排（**能假** ✗ —— 新故事不许静默漏掉 ✓）。 */
 export const missingFromPlan = ({ stories = [], plan = [] } = {}) =>
 	stories.filter((s) => !plan.some((p) => p.cmd.includes(s))).map((s) => ({ slug: s, why: '发现到了这个故事，但编排里没有任何一条命令跑到它 ⇒ 它**不在 CI 里** ✗' }));
+
+/**
+ * **唯一裁决**（`#989`）：末行的 `✔/✗`、`x/y`、失败清单、**退出码**必须**四处一致** ✓。
+ * ⚠️ 为什么单独有它 ✗：原先末行**只由 `summarizeRuns` 拼** ✓，而"0 个故事 ⇒ 不许判过"走的是
+ *   **壳里另一条路** ✗ ⇒ 两者能相反：**末行印 `✔ 4/4 通过` 而 rc=1** ✗（**末行反向说谎** ✓）。
+ *   ⇒ 把它收成**一处**：`ok/total/failed` 由**同一份**算出来 ✓，壳只负责打印 ✓。
+ */
+export const finalVerdict = ({ results = [], zeroStories = false, root = '', rootExists = true } = {}) => {
+	const s = summarizeRuns(results);
+	const extra = zeroStories
+		? [{ cmd: null, rc: 1, reason: `发现到 0 个故事 ⇒ 逐故事面全部消失，**不许判过** ✗（${rootExists ? `\`${root}\` 下没有故事` : `\`${root}\` 不存在`} ✓）` }]
+		: [];
+	const failed = [...s.failed, ...extra];
+	return {
+		ok: failed.length === 0,
+		total: s.total + extra.length,          // ⚠️ 0 故事时"该做没做"的面**计入分母** ✗ —— 否则 x/y 又会说成 4/4 ✓
+		passed: s.total - s.failed.length,
+		failed,
+		ms: s.ms,
+	};
+};

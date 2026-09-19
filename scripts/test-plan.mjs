@@ -253,8 +253,10 @@ export const SEGMENTS = [
 	// ⚠️ **为什么有 `needs`** ✗：本段**发现"活的" `stories/`** ✓（口径＝目录里有 `00-story.json` ✓），
 	//   而另两段会在**运行中往 `stories/` 放临时故事**（`test-web-preview.mjs` 建 `stories/__e2e`；
 	//   `test/lint-story.mjs` 为了反例临时改真 `tables.json` ✓）⇒ 撞上就会读到**半成品** ⇒ 本段红 ✗。
-	//   ⚠️ 实测：首轮全量跑**红过一次**（`test-story-ci-mjs` ✓），随后单跑/全量/定向并发共 **17 轮未复现** ✗
-	//   ⇒ **根因未定**（上面两条是**假设**，不是结论 ✓）⇒ 先加 `needs` 关掉已知窗口 ✓，**不宣称已修** ✗。
+	//   ⚠️ **根因已定** ✓（`#989`）：「**断言「恰好发现三个故事」**」✗ 会被临时故事打红 ✓ —— 全量跑时
+	//   红的那一格正是它 ✓（`--list` 精确等值 ＋ 壳自证里同形那条 ✓）⇒ 已改成 **⊇**（「真故事都在」✓，
+	//   不赌「只有它们」✗）。⚠️ `needs` 仍留 ✓：它是**另一条独立理由** ✗（避免读到**半改的真数据** ✓），
+	//   不是这条红的原因 ✗。
 	{ id: "test-story-ci-mjs", phase: 'test', cost: 18.6, needs: ["test-web-preview-mjs", "test-lint-story-mjs"], cmd: "node editor/story-ci.mjs" },
 	// `#761` P1 第一片（WebUI 静态加载 ✓）：纯加载件的测例（含 `--selftest` ✓ —— 那格"行为化"有依据 ✓）。
 	{ id: "test-web-loader-mjs", phase: 'test', cost: 0.1, cmd: "node test/web-loader.mjs" },

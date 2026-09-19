@@ -119,6 +119,29 @@ else if (r1.rc === 0 && existsSync(TRACE)) {
 		else if (!/没记/.test(rl.out)) bad.push('⑤ 老件核过了、但报文没**点明**它没记引擎键 ✗（那会让人以为"引擎键也比过了"✓）');
 	}
 
+	// ⑦ **故事从冻存件取** ✗（`#1000` 解析了却**没传给重跑** ✗ ⇒ 本片接上 ✓；这格就是它的**回归锁** ✓）：
+	//   不带 `--story=` 时按**冻存件里记的 `story`** 核 ✓（否则会拿别的故事去默认故事上核 ⇒ 报"第 1 步不符"✗ —— **误导** ✓）。
+	{
+		const r7 = witness([`--verify=${TRACE}`]);
+		if (r7.rc !== 0) bad.push(`⑦ 不带 \`--story=\` 核默认故事的轨迹应 rc=0 ✗（实际 ${r7.rc}）\n${r7.out.slice(-300)}`);
+		// ⑦-b ✗：冻存件记的是**别的故事** ⇒ 必须去核**那个**故事（给个不存在的 ⇒ 必红并点名 ✓）——
+		//   若它静默落回默认故事 ⇒ 这条会 rc=0 ⇒ **当场抓住** ✓（`#1000` 的第一版就是这样 ✓）
+		const t7 = traceOf();
+		t7.story = '不存在的故事-verify-probe';
+		const bogus = join(ROOT, 'build', 'witness-trace.bogus-story.json');
+		writeFileSync(bogus, JSON.stringify(t7, null, 1));
+		const rb = witness([`--verify=${bogus}`]);
+		if (rb.rc === 0) bad.push('⑦ 冻存件记了别的故事、却不带 `--story=` ⇒ 竟 rc=0 ✗ ⇒ 故事**没传给重跑**（静默落回默认故事 ✓）');
+		else if (!/不存在的故事-verify-probe/.test(rb.out)) bad.push(`⑦ 红了但报文没点名那个故事 ✗\n${rb.out.slice(-300)}`);
+		// ⑦-c ⚠️：冻存件**完全没有** `story` 键 ⇒ 按默认核 ✓ 但要**点名**"这份没记" ✗（不许静默 ✓）
+		delete t7.story;
+		const nostory = join(ROOT, 'build', 'witness-trace.no-story.json');
+		writeFileSync(nostory, JSON.stringify(t7, null, 1));
+		const rn2 = witness([`--verify=${nostory}`]);
+		if (rn2.rc !== 0) bad.push(`⑦ 没记 \`story\` 的件（默认故事）应仍 rc=0 ✗（实际 ${rn2.rc}）`);
+		else if (!/没记 `story`/.test(rn2.out)) bad.push('⑦ 没记 `story` 的件核过了、却没**点名**这一点 ✗（读者会以为"它记了"✓）');
+	}
+
 	// ⑤-3 边界 ✓：文件不存在 ⇒ 红并**点名该文件** ✓（不许静默 ✓）
 	const rn = witness(['--verify=build/没有这个文件.json']);
 	if (rn.rc === 0) bad.push('⑤ --verify 读不到文件却 rc=0 ✗');
@@ -141,4 +164,4 @@ if (bad.length) {
 	bad.forEach((m) => console.error(`  - ${m}`));
 	process.exit(1);
 }
-console.log('✔ 见证机器：轨迹到 ending ✓ 同 seed 逐格可复跑 ✓ **--verify 可机判（含轨迹刀必红 ＋ 老件向后兼容）** ✓ 三条断言能假 ✓ 绝对路径不静默 ✓');
+console.log('✔ 见证机器：轨迹到 ending ✓ 同 seed 逐格可复跑 ✓ **--verify 可机判（轨迹刀必红 ＋ 老件兼容 ＋ 故事按冻存件取）** ✓ 三条断言能假 ✓ 绝对路径不静默 ✓');

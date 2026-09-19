@@ -198,6 +198,16 @@ async function dualBranchSweep() {
 //     为什么必须有它 ✗：**同 `seed` ⇒ 同 key 序列**只让轨迹**成因可复现** ✓，但冻存的 JSON 若没人核 ✗
 //     ⇒ "**逐格可复跑**"就只是**报告**里的一句话 ✓（P4 要的是**可机判** ✗）。
 //     ⚠️ 顺序要件 ✗（发起者 ③(iii) ✓）：**本模式先落** ⇒ 再由它**核验**要冻的那条 ✓（否则冻下来的那份仍不可机判 ✗）。
+//   ⚠️ **故事从哪来** ✗：**① `--story=`** ✓ ⇒ **② 冻存件里的 `story`** ✓（`(默认 slug)` 是"产出时没指定"的记号 ✗ ⇒ 默认故事 ✓）
+//     ⇒ **③ 都没有** ⇒ 按默认故事核 ✓、但**报文点名**"这份没记 `story`" ✗ —— ⛔ 绝不**静默**落到默认故事 ✗
+//     （为什么写 ✗：不带 `--story=` 去核**别的故事**的冻存件 ⇒ 报"第 1 步不符"✗ ⇒ 读者会以为**轨迹坏了** ✓，
+//     其实是**核错了故事** ✗ —— 所以核了哪个故事必须印出来 ✓）。
+//   ⚠️ **故事从哪来** ✗（复核时踩到的坑 ✓）：过去只认命令行 `--story=` ✗ ⇒ 拿**别的故事**的冻存件、
+//     又忘带 `--story=` ⇒ 它按**默认故事**重跑 ⇒ 报"第 1 步不符（记录 `渡口` vs 实跑 `开场`）"✗
+//     —— **读数没错、但误导**（读者会以为轨迹坏了 ✓，其实是**核了别的故事** ✗）。
+//     ⇒ 现在按这个次序取 ✓：**① `--story=`** ✓ ⇒ **② 冻存件里的 `story`** ✓（`(默认 slug)` 是"产出时没指定"的记号 ✗
+//     ⇒ 按**默认故事**核 ✓）⇒ **③ 都没有** ⇒ 按默认故事核 ✓、但**报文点名**"这份没记 `story`" ✗
+//     —— ⛔ **绝不**对"有 `story` 却说不上来是哪个"的情形**静默**用默认故事 ✗（那正是上面那个坑 ✓）。
 //   ⚠️ **输入归属** ✗（复核席提、发起者要求写进件头 ✓）：轨迹文件**可能落在仓内、`/tmp`、`~` 下** ✓ ⇒
 //     本模式**只保证**"**我读到的这一份**（路径随报文印出 ✓）能被逐步复跑"✗ —— 它**不保证**那个文件
 //     **没被别的任务改写** ✓（同一条路径写两次 ⇒ 后写的胜 ✓）。⇒ 拿它当**验收证据**时 ✗：
@@ -217,9 +227,9 @@ if (WITNESS) {
 	const digestOf = (w) => fingerprintOf(w.SugarCube.State.variables?.pc ?? {});
 	const keyOfStep = (x) => (x?.choiceKey ? `key:${x.choiceKey}` : x?.choiceLabel ? `label:${x.choiceLabel}` : '(无 ✗)');
 	// 一条轨迹 ✓：返回 { steps, ending }（`ending` 非空 ⇔ 真走到头 ✓）
-	async function oneWalk(seed) {
+	async function oneWalk(seed, story = STORY) {   // ⚠️ 显式收故事 ✓：`--verify` 解析出来的那个必须能传下来 ✗
 		const rng = makeRng(seed);
-		const { w, uncaught, close } = await boot({ random: () => 0.99, ...(STORY ? { story: STORY } : {}) });
+		const { w, uncaught, close } = await boot({ random: () => 0.99, ...(story ? { story } : {}) });
 		const steps = [];
 		let ending = null;
 		let endingKey = null;
@@ -261,8 +271,16 @@ if (WITNESS) {
 			process.exit(1);
 		}
 		// 故事取谁 ✓：命令行 `--story=` 优先 ✓ ⇒ 否则用轨迹里记的（`(默认 slug)` 是"没指定"的记号 ✗ ⇒ 传 null ✓）
+		// 故事取谁 ✓（件头三档 ✗）：命令行 `--story=` **优先** ✓ ⇒ 否则用**冻存件里记的** `story` ✓（`(默认 slug)` 是"产出时没指定"的记号 ✗ ⇒ 传 null ⇒ 按默认故事 ✓）
 		const vStory = STORY ?? (want.story && want.story !== '(默认 slug)' ? want.story : null);
-		const got = await oneWalk(want.seed);   // 同一把尺重跑 ✓（`oneWalk` 用 `seed` ＋ `STORY` ✓）
+		// ⚠️ **说清这一次到底核了哪个故事** ✗（复核时踩过的坑 ✓：不带 `--story=` 去核**别的故事**的冻存件 ⇒
+		//   按默认故事重跑 ⇒ 报"第 1 步不符"✗ —— 读数没错但**误导**：读者会以为轨迹坏了 ✓）
+		if (!STORY) {
+			if (vStory) console.log(`  ⓘ 没给 \`--story=\` ⇒ 按**冻存件里记的**故事核 ✓：${vStory}（要核别的故事就显式给 \`--story=\` ✗）`);
+			else if (!('story' in want)) console.log('  ⚠️ 没给 `--story=`，且**这份冻存件没记 `story`** ✗ ⇒ 按**默认故事**核 ✓；若它不是默认故事 ⇒ 请显式 `--story=` ✗（本模式**不会**静默替你猜 ✓）');
+			else console.log('  ⓘ 冻存件产出时用的就是**默认故事** ✓ ⇒ 按默认故事核 ✓');
+		}
+		const got = await oneWalk(want.seed, vStory);   // 同一把尺重跑 ✓（**用解析出来的故事** ✗ —— 不是命令行那个 ✗）
 		const n = Math.max(want.steps.length, got.steps.length);
 		for (let i = 0; i < n; i++) {
 			const a = want.steps[i];

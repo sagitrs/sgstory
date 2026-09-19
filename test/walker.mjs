@@ -280,11 +280,18 @@ if (WITNESS) {
 				process.exit(1);
 			}
 		}
-		if ((want.ending ?? null) !== (got.ending ?? null) || (want.endingKey ?? null) !== (got.endingKey ?? null)) {
+		// ⚠️ **向后兼容** ✗：早先冻存的轨迹**没有 `endingKey`**（本片之前产的 ✓，如 `stories/night-ferry/gates/witness-trace.json` ✓）
+		//   ⇒ 那种件**只比段落名** ✓ 并在报文里**点明**这一份没记引擎键 ✗ ——
+		//   否则它们会**无缘无故变红** ✓（把"老件没记新字段"读成"轨迹不可复跑" ✗）。新产的件一律带 `endingKey` ✓，照旧**全比** ✓。
+		const wantKey = want.endingKey ?? null;
+		const endingMismatch = (want.ending ?? null) !== (got.ending ?? null)
+			|| (wantKey !== null && wantKey !== (got.endingKey ?? null));
+		if (endingMismatch) {
 			console.error(`✗ --verify：**结局不符** ✗ 记录 ending=「${want.ending ?? '(无)'}」key=「${want.endingKey ?? '(无)'}」 vs 实跑「${got.ending ?? '(无)'}」key=「${got.endingKey ?? '(无)'}」`);
 			process.exit(1);
 		}
 		console.log(`✔ --verify：**逐格一致** ✓ ${got.steps.length} 步 · ending=「${got.ending}」key=「${got.endingKey ?? '(无)'}」· seed=${want.seed}${vStory ? ` · story=${vStory}` : ''}`);
+		if (wantKey === null) console.log('  ⚠️ 这份冻存件**没记 `endingKey`** ✗（本片之前产的 ✓）⇒ 本模式**只比了段落名** ✓；要连引擎键一起判 ⇒ 重新产出一次即可 ✓');
 		console.log(`  核对的是**冻存文件本身** ✓：${VERIFY}（逐步 passage ＋ key/label ＋ ending ✓）`);
 		process.exit(0);
 	}

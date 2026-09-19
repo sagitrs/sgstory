@@ -107,6 +107,18 @@ else if (r1.rc === 0 && existsSync(TRACE)) {
 		if (rk.rc === 0) bad.push('⑤ **轨迹刀**：改掉一步的 key 竟仍 rc=0 ✗ ⇒ "逐格可复跑"没在守 ✓');
 		else if (!new RegExp(`第 ${i + 1} 步不符`).test(rk.out)) bad.push(`⑤ 刀红了但**没点名第 ${i + 1} 步** ✗\n${rk.out.slice(-300)}`);
 	}
+	// ⑤-2b ⚠️ **向后兼容** ✗：早先冻存件**没有 `endingKey`**（本片之前产的 ✓）⇒ 必须**仍能核过** ✓
+	//   （否则"老件没记新字段"会被读成"轨迹不可复跑" ✗ —— 而那正是内容面此刻冻着的那一份 ✓）
+	{
+		const t5 = traceOf();
+		delete t5.endingKey;
+		const legacy = join(ROOT, 'build', 'witness-trace.legacy.json');
+		writeFileSync(legacy, JSON.stringify(t5, null, 1));
+		const rl = witness([`--verify=${legacy}`]);
+		if (rl.rc !== 0) bad.push(`⑤ 老件（无 \`endingKey\`）应仍 rc=0 ✗（实际 ${rl.rc}）⇒ 向后兼容没做 ✓\n${rl.out.slice(-300)}`);
+		else if (!/没记/.test(rl.out)) bad.push('⑤ 老件核过了、但报文没**点明**它没记引擎键 ✗（那会让人以为"引擎键也比过了"✓）');
+	}
+
 	// ⑤-3 边界 ✓：文件不存在 ⇒ 红并**点名该文件** ✓（不许静默 ✓）
 	const rn = witness(['--verify=build/没有这个文件.json']);
 	if (rn.rc === 0) bad.push('⑤ --verify 读不到文件却 rc=0 ✗');
@@ -129,4 +141,4 @@ if (bad.length) {
 	bad.forEach((m) => console.error(`  - ${m}`));
 	process.exit(1);
 }
-console.log('✔ 见证机器：轨迹到 ending ✓ 同 seed 逐格可复跑 ✓ **--verify 可机判（含轨迹刀必红）** ✓ 三条断言能假 ✓ 绝对路径不静默 ✓');
+console.log('✔ 见证机器：轨迹到 ending ✓ 同 seed 逐格可复跑 ✓ **--verify 可机判（含轨迹刀必红 ＋ 老件向后兼容）** ✓ 三条断言能假 ✓ 绝对路径不静默 ✓');

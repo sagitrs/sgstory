@@ -59,11 +59,18 @@ const TIERS = {
 		{ args: ['minimal-demo', '--bogus', `--out=${TMP}`], expect: { rc: 0, kind: '未知标志被忽略' } },
 	],
 	'extract-story': [
+		// `#959`（`#962` 的同族推广 ✓）：**取值类标志吃空值** ⇒ `--out=` 空会 `join(ROOT,'')` ＝ **仓根** ✗（写文件落根 ✓）⇒ 现应讲人话地拒 ✓
+		{ args: ['minimal-demo', '--out='], expect: { rc: 2, kind: '错路·空值·out' } },
+		{ args: ['minimal-demo', '--from='], expect: { rc: 2, kind: '错路·空值·from' } },
+		{ args: ['minimal-demo', '--section='], expect: { rc: 2, kind: '错路·空值·section' } },
+		{ args: ['minimal-demo', '--key='], expect: { rc: 2, kind: '错路·空值·key' } },
 		{ args: [], expect: { rc: 2, kind: '用法' } },
 		{ args: ['mist-forest', '--tables', '--from=stories/mist-forest/gates/equiv-baseline/15-tables.twee.txt', `--out=${TMP}/t.json`], expect: { rc: 0, kind: '正常' } },
 		{ args: ['mist-forest', '--section=Bogus Name', `--out=${TMP}/t.json`], expect: { rc: 1, kind: '错路·无段' } },
 	],
 	'classify-contract': [
+		// `#959`：`--from=` 空 ⇒ `join(ROOT,'')` ＝ ROOT ⇒ `existsSync` 为真 ⇒ 会走"找不到成员" ⇒ **归因错** ✗ ⇒ 现应讲人话地拒 ✓
+		{ args: ['minimal-demo', '--from='], expect: { rc: 2, kind: '错路·空值·from' } },
 		{ args: [], expect: { rc: 2, kind: '用法' } },
 		{ args: ['mist-forest'], expect: { rc: 1, kind: '错路·翻面后只剩逃生舱' } },
 		{ args: ['mist-forest', '--from=stories/mist-forest/gates/equiv-baseline/15-tables.twee.txt'], expect: { rc: 1, kind: '夹具源' } },

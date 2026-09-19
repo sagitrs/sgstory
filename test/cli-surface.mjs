@@ -14,7 +14,7 @@
 // ⚠️ **自证必须能红**（`#848` 的教训 ✗）：本文件的 `--selftest` 不是"把真表再念一遍" ✓，而是**用一个可注入的假 runner
 //   驱动 `judgeSurface` 的五个合成用例** ✓ ⇒ 判定逻辑一旦退化，自证**当场红** ✓（并把失败计入退出码 ✓）。
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -51,14 +51,26 @@ const DECLARED_DIFF = {
 };;
 
 /** 档表：每档**必须带期望** ✓。 */
+// `#995` 的守卫**放在别处** ✗：第一版在这里写了两种"扫一遍每个声明标志"的写法 ✓ ⇒ **两种都不行** ✗：
+//   ① **跑一遍**每个标志 ⇒ `extract-story minimal-demo --tables` **默认落点会写回故事自己的 `data/`** ✗
+//      ⇒ **污染 tracked 文件** ⇒ 同一趟里 `k4` 的"生成物必须新鲜"**当场红** ✓（**是 k4 抓到的** ✓ ——
+//      实测：干净 main 上跑本件**不污染** ✓、本片那版**污染** ✓）；
+//   ② **静态比对**"声明表 ↔ 各命令用法串" ⇒ ⚠️ 用文本切片认命令边界这种切法把**邻居命令**的用法串也扫进来了 ✗ ⇒ 报出一堆**假漂移** ✓
+//      （它同时说明"用文本切片去认命令边界"这件事本身不可靠 ✗）。
+//   ⇒ 最终把守卫换成**经验法** ✓：**整套测试**就是尺子 —— 仓内谁给某个命令多塞了标志，
+//      会在本件或 `npm test` 里**当场红并点名** ✓（**量出来**，不靠扫文本 ✓）；本片已实跑过一遍 ✓。
+
 const TIERS = {
 	build: [
 		{ args: [], expect: { rc: 2, kind: '用法' } },
 		{ args: ['minimal-demo', `--out=${TMP}`], expect: { rc: 0, kind: '正常' } },
 		{ args: ['minimal-demo', `--out=${TMP}`, 'extra'], expect: { rc: 0, kind: '多位置被忽略' } },
-		{ args: ['minimal-demo', '--bogus', `--out=${TMP}`], expect: { rc: 0, kind: '未知标志被忽略' } },
+		// `#995`：**翻面** ✗ —— 原先钉的是「**未知标志被忽略**」（rc=0 ✓）⇒ 那会让「标志没生效」被读成「通过」✓
+		//   （实测踩过 ✓）。现在：不认识的标志 ⇒ **讲人话地拒（rc=2 ＋ 点名）** ✓，与「取不到输入不许判过」同族 ✓。
+		{ args: ['minimal-demo', '--bogus', `--out=${TMP}`], expect: { rc: 2, kind: '错路·未知标志' } },
 	],
 	'extract-story': [
+		{ args: ['minimal-demo', '--nope=1'], expect: { rc: 2, kind: '错路·未知标志' } },
 		// `#959`（`#962` 的同族推广 ✓）：**取值类标志吃空值** ⇒ `--out=` 空会 `join(ROOT,'')` ＝ **仓根** ✗（写文件落根 ✓）⇒ 现应讲人话地拒 ✓
 		{ args: ['minimal-demo', '--out='], expect: { rc: 2, kind: '错路·空值·out' } },
 		{ args: ['minimal-demo', '--from='], expect: { rc: 2, kind: '错路·空值·from' } },

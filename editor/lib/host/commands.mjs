@@ -51,7 +51,35 @@ const COMPILER = 'editor/compile-story.mjs';
 const usageOf = (prog, sub, tail) => `用法：${prog}${sub ? ` ${sub}` : ''} ${tail}`;
 
 /** `build <slug> [--out=<dir>]` —— 与 `node editor/compile-story.mjs` **同一具身体** ✓。返回退出码 ✓。 */
+/** 每个子命令**显式**认识的标志（**单一权威** ✓ —— `#995`）。
+ *  ⚠️ 为什么要有它 ✗：未知 `--xxx=` 原先被**静默忽略** ✗ ⇒ 会把"给某个不支持该标志的分支传标志"读成
+ *     **通过**（`rc=0` ✓ —— 实测踩过 ✓）⇒ 与本仓「**取不到输入就不许判过**」同族 ✗。
+ *  ⚠️ `--selftest`／`--selfcheck` **不进表** ✗：它们是**壳级**选项 ✓（壳先吃掉 ⇒ 命令体看不到 ✓）。
+ *  ⚠️ `k4`／`k6` 本就有"**不接受任何参数**"的守卫 ✓ ⇒ 不在此表（它们的拒法更严 ✓）。 */
+export const KNOWN_FLAGS = Object.freeze({
+	build: ['out'],
+	'extract-story': ['section', 'key', 'out', 'from', 'tables'],
+	'classify-contract': ['json', 'from', 'propose'],
+	equiv: ['hand', 'gen', 'l3', 'rules', 'notes'],
+	'lint-story': ['json', 'dist'],
+});
+
+/** 未知 `--xxx` ⇒ **讲人话地拒**（`rc=2` ✓）—— 照 `--l3=`／`--notes=` 的现成拒法 ✓，**不新造机制** ✗。 */
+const rejectUnknownFlags = (argv, sub) => {
+	const known = KNOWN_FLAGS[sub];
+	if (!known) return null;
+	// ⚠️ 只看 `--` 开头 ✓（位置参数 slug／目录不参与 ✓）；布尔标志（`--tables`／`--rules`／`--json`）按**不带 `=`** 认 ✓
+	const bad = argv.filter((a) => typeof a === 'string' && a.startsWith('--') && !known.includes(a.slice(2).split('=')[0]));
+	if (!bad.length) return null;
+	// ⚠️ 报文里**不写 prog／sub** ✗：否则"工具路 ↔ cli 子命令路"两条路的输出不同 ⇒ `cli-surface` 的逐档对照会判"两走法输出不同" ✓
+	//   （那正是它要守的：两走法**只允许 argv 派生项差异** ✓ ⇒ 那就干脆不带那两项 ✓）。
+	console.error(`✗ **不认识的标志** ${bad.join('、')} ✗ —— 本命令只认：${known.map((f) => `--${f}`).join(' / ') || '（无标志）'} ✓`);
+	console.error(`  （⚠️ 本仓口径：**不认识的标志不当"无此参数"静默放过** ✗ —— 那会把"标志没生效"读成"通过" ✓）`);
+	return 2;
+};
+
 export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'build' } = {}) => {
+	{ const bad = rejectUnknownFlags(argv, 'build'); if (bad) return bad; }
 	const [slug, ...rest] = argv;
 	// `sub` 让**同一个函数**既能被 `cli.mjs build` 调（用法行含子命令 ✓）也能被原工具调（用法行不含 ✓）——
 	// 于是两条入口的输出**只差这一行**，且这行是**调用方传入的程序名/子命令**派生的 ✓（不读 `process.argv` ✗）。
@@ -86,6 +114,7 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
  *  与 `node editor/extract-story.mjs` **同一具身体** ✓（体从壳里逐字搬来，只改三件：
  *  `process.argv` ⇒ `argv` ✓、`process.exit(n)` ⇒ `return n` ✓、用法行由 `prog`／`sub` 派生 ✓）。 */
 export const extractCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'extract-story' } = {}) => {
+	{ const bad = rejectUnknownFlags(argv, 'extract-story'); if (bad) return bad; }
 	const [slug, ...rest] = argv;
 	if (!slug) { console.error(usageOf(prog, sub, '<slug> [--section=StoryRules] [--key=rules] [--out=<file>] [--tables] [--from=<file>]')); return 2; }
 	const argOf = (n, d) => { const h = rest.find((a) => a.startsWith(`--${n}=`)); return h ? h.slice(n.length + 3) : d; };
@@ -159,6 +188,7 @@ export const extractCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 
 };
 
 export const classifyCommand = (argv = [], { prog = 'node editor/classify-contract.mjs', sub = '' } = {}) => {
+	{ const bad = rejectUnknownFlags(argv, 'classify-contract'); if (bad) return bad; }
 	const argOf = (name, dflt) => { const h = argv.find((a) => a.startsWith(`--${name}=`)); return h ? h.slice(name.length + 3) : dflt; };
 	const slug = argv[0];
 	if (!slug) { console.error(usageOf(prog, sub, '<slug> [--json]')); return 2; }
@@ -257,6 +287,7 @@ export const idemReport = ({ genDir, idemDir, names = [], readFile = readFileSyn
 };
 
 export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = '' } = {}) => {
+	{ const bad = rejectUnknownFlags(argv, 'equiv'); if (bad) return bad; }
 	const slug = argv[0];   // `#794` 弧第 3 票：入参是**子命令之后**的 argv（不再读环境 ✗）
 	if (!slug) { console.error('用法：node editor/equiv.mjs <slug> [--rules] [--l3=hard|report] [--hand=…] [--gen=…]'); return 2; }
 	const argOf = (name, dflt) => { const h = argv.find((a) => a.startsWith(`--${name}=`)); return h ? h.slice(name.length + 3) : dflt; };
@@ -424,6 +455,7 @@ export class LintRefuse extends Error {}
  *  它经 `declaredGates` **逐个 `await import()`** 载门模块，ESM 无法同步化 ✓ ⇒ 入口统一 await ✓）。
  *  与 `node editor/lint-story.mjs` **同一具身体** ✓。 */
 export const lintCommand = async (argv = [], { prog = 'node editor/cli.mjs', sub = 'lint-story' } = {}) => {
+	{ const bad = rejectUnknownFlags(argv, 'lint-story'); if (bad) return bad; }
 	const arg = argv[0];
 	if (!arg) { console.error(usageOf(prog, sub, `<slug|目录路径> [--json] [--dist=<file>]`)); return 2; }
 	// 命令体局部状态（`#794`：原 6 个**模块级**可变状态收成局部 ⇒ 可重入、并按构造消掉"模块级闭包"隐患 ✓）

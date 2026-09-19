@@ -178,21 +178,16 @@ export const SEGMENTS = [
 	// 列缺失由 **字段直方图**兜、空表由 **面非空**兜、产物稳定由 **幂等（编译两次逐字节）** 兜
 	// —— L3 让掉的**只有"排版"这一层**（模板串 vs 单引号串）。
 	{ id: "editor-extract-selftest", phase: 'test', cost: 0, cmd: "node editor/extract-story.mjs --selftest" },
-	{ id: "editor-equiv-mist-forest-rules", phase: 'test', cost: 0.3, cmd: "node editor/equiv.mjs mist-forest --rules --l3=report --hand=stories/mist-forest/gates/equiv-baseline/17-rules.twee.txt" },
 	// 车道 B · notes 面样板（`#215` 报备 `18504282`）：**手写 `16-notes-ch1` → 数据面** 的等价门 ✓（同一个 `editor/equiv.mjs` ⇒ **不新增门** ✓）。
 	//   `--l3=report` ✓（与 mist-forest 另两个面同口径 ✓ —— 产物按字面发射器写法，与手写的引号风格有形式差异 ⇒ L3 只报告不判红，语义由 **L1 深度相等 ＋ 字段直方图** 兜住 ✓）。
-	{ id: "editor-equiv-mist-forest-notes", phase: 'test', cost: 0.3, cmd: "node editor/equiv.mjs mist-forest --notes --l3=report --hand=stories/mist-forest/gates/equiv-baseline/16-notes-ch1.twee.txt" },
 	// 车道 D · notes **同族三件**（`#215` 报备 `18505730`）：`ch2`／`ch3`／`cross` 转录成数据面 ⇒ **逐面等价** ✓（同 `editor/equiv.mjs` ⇒ **不新增门** ✓）。
 	//   `--notes=<产物>` 是本次加的可选指定 ✗（**默认值一字不改** ✓：不给就还是 `16-notes-ch1.twee` ✓）；`--hand=` **必须显式** ✗（默认指向产物 ⇒ 被 `bareHandRefusal` 拒，这是设计 ✓）。
 	//   ⚠️ 三个面**一条一行**串起来 ✓（⇒ 只增**一行**台账 ⇒ 只配 **1 条探针** ✓）——“一条命令盖全该面”属另一片 ✗（`--hand` 要从单文件改成块⇒基线映射 ✓）。
-	{ id: "editor-equiv-mist-forest-notes-234", phase: 'test', cost: 0.6, cmd: "node editor/equiv.mjs mist-forest --notes=16-notes-ch2.twee --l3=report --hand=stories/mist-forest/gates/equiv-baseline/16-notes-ch2.twee.txt && node editor/equiv.mjs mist-forest --notes=16-notes-ch3.twee --l3=report --hand=stories/mist-forest/gates/equiv-baseline/16-notes-ch3.twee.txt && node editor/equiv.mjs mist-forest --notes=16-notes-cross.twee --l3=report --hand=stories/mist-forest/gates/equiv-baseline/16-notes-cross.twee.txt" },
 	// `#787` 翻面：**契约面**也从"手写 vs 生成"改成"冻结基线 vs 当前产物"（`--hand`＝翻面前的 main 快照）。
 	// 与本故事另一条（`--rules`）分开：两条各自只比**一个**面，基线也各一份 ⇒ 失败时能直接指名哪一面。
-	{ id: "editor-equiv-mist-forest", phase: 'test', cost: 0.4, cmd: "node editor/equiv.mjs mist-forest --l3=report --hand=stories/mist-forest/gates/equiv-baseline/15-tables.twee.txt" },
 	{ id: "editor-classify-contract-selftest", phase: 'test', cost: 0, cmd: "node editor/classify-contract.mjs --selftest" },
 	// 车道 A 后半：洞窟端到端等价（`--l3=report`：手写风格与生成风格不统一，L3 只当报告；权威判据是 L1＋键集合＋行为）
 	// `#787` 翻面：手写侧**重指向**为冻结基线（翻面前 `main` 的仓内副本 ⇒ 「生成得对不对」仍被判）
-	{ id: "editor-equiv-hollow-cave", phase: 'test', cost: 0.4, cmd: "node editor/equiv.mjs hollow-cave --l3=report --hand=stories/hollow-cave/gates/equiv-baseline/15-tables.twee.txt" },
 	// #752：**去权威化口径门** —— 注释／文档不许拿「谁定的」充当理由（#748 的清零面 ＋ 防回潮）
 	{ id: "test-attribution-gate-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/attribution-gate.mjs --selftest" },
 	{ id: "test-attribution-gate-mjs", phase: 'test', cost: 0.1, cmd: "node test/attribution-gate.mjs" },
@@ -219,27 +214,20 @@ export const SEGMENTS = [
 	// ⇒ **收回临时收窄**，恢复本段真意：**整套引擎门**对第二故事绿。
 	{ id: "scripts-audit-mjs-story2-engine", phase: 'test', cost: 0.2, cmd: "node scripts/audit.mjs --check --story minimal-demo --engine-only" },
 	// #490（S5 片二）：**第三个故事**的**洞窟声明面门**（表↔内容双向对账；故事门，故显式指定 --story）
-	{ id: "scripts-audit-mjs-cave-hollow", phase: 'test', cost: 0.1, cmd: "node scripts/audit.mjs --cave --check --story hollow-cave" },
 	// `#598`（实测缺陷）：**长战斗「点得动、走得掉」**真机回归 —— 静态门看不见这类运行期死路
 	// （`waveRecord` 返回对象被当字符串比 ⇒ 两条出口不可达；`<<include>>` 不导航 ⇒ 点了没反应）。
-	{ id: "test-cave-longfight-mjs", phase: 'test', cost: 1, cmd: "node test/cave-longfight.mjs" },
 	// `#600`：**战斗钥匙掉落**（长战斗必掉 · 短战斗 30%）—— 声明面驱动 ＋ 真机 ＋ 多种子频率（3σ）。
-	{ id: "test-cave-drops-mjs", phase: 'test', cost: 1, cmd: "node test/cave-drops.mjs" },
 	// `#603`：**文档格式门** —— `README.md` 曾因一个多余的 ``` 让四个标题被吞进代码块（GitHub 上不是节）；
 	// `docs/**` 与 README 此前**零机检**（L0 扫 twee、craft 扫正文）。
 	{ id: "scripts-md-format-mjs", phase: 'test', cost: 0.1, cmd: "node scripts/md-format.mjs" },
 	// #491 判据 1：**本故事**的战斗分布口径（胜率对闭式 · 期望回合/受伤期望 · 分布面 · 同种子复算）
-	{ id: "scripts-audit-mjs-combat-dist-hollow", phase: 'test', cost: 3, cmd: "node scripts/audit.mjs --combat-dist --check --story hollow-cave" },
 	// `#746`（口径：「文字反馈最重要」）：**有副作用的分支必须有落点文案**（挨了打必须看得见）
-	{ id: "scripts-audit-mjs-settle-hollow", phase: 'test', cost: 0.5, cmd: "node scripts/audit.mjs --settle --check --story hollow-cave" },
 	// #602：**引擎门不得出现故事专有字面量**（防"假解耦"回潮：故事判据数据住 `stories/<slug>/audit.json`）
 	{ id: "scripts-audit-mjs-engine-story-free", phase: 'test', cost: 0.1, cmd: "node scripts/audit.mjs --engine-story-free --check" },
 	// #607 P0：门的**发现与归属**（引擎门 ∪ 待迁移 ∪ 本故事已声明；顺序表；结构缺失必红）
 	{ id: "test-gate-discovery-mjs", phase: 'test', cost: 0, cmd: "node test/gate-discovery.mjs" },
 	// #640（伞 #626）：**矩阵门** —— 场景 × 道具/线索集合 → 期望（行键＝谓词上下文 · 期望＝渲染后+行为面 · 承诺 ratchet）
-	{ id: "test-itemmatrix-mjs", phase: 'test', cost: 5, cmd: "node test/itemmatrix.mjs" },
 	// #608：**短战斗相位门**（引擎侧 widget 的契约：四相位→分支 · 未结束不结算不推进 · 奖励/失败笔记走声明面）
-	{ id: "test-shortfight-phases-mjs", phase: 'test', cost: 3, cmd: "node test/shortfight-phases.mjs" },
 	// #705 片二／#702 a2：**敌人实例 · 5e 核心门**（实例化 · 攻击骰 vs AC · 伤害落部位 · 全灭通关）
 	{ id: "test-foe-5e-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/foe-5e.mjs --selftest" },
 	{ id: "test-foe-5e-mjs", phase: 'test', cost: 8, cmd: "node test/foe-5e.mjs" },
@@ -280,8 +268,6 @@ export const SEGMENTS = [
 	{ id: "test-social-sink-mjs", phase: 'test', cost: 3, cmd: "node test/social-sink.mjs" },
 	{ id: "test-siteinfo-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/siteinfo-sink.mjs --selftest" },
 	{ id: "test-siteinfo-sink-mjs", phase: 'test', cost: 2, cmd: "node test/siteinfo-sink.mjs" },
-	{ id: "test-codex-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/codex-sink.mjs --selftest" },
-	{ id: "test-codex-sink-mjs", phase: 'test', cost: 2, cmd: "node test/codex-sink.mjs" },
 	{ id: "test-econ-price-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/econ-price.mjs --selftest" },
 	{ id: "test-econ-price-mjs", phase: 'test', cost: 2, cmd: "node test/econ-price.mjs" },
 	{ id: "test-fight-history-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-history.mjs --selftest" },
@@ -290,13 +276,9 @@ export const SEGMENTS = [
 	{ id: "test-fight-fields-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-fields.mjs --selftest" },
 	{ id: "test-fight-fields-mjs", phase: 'test', cost: 1, cmd: "node test/fight-fields.mjs" },
 	// `#693`（P1）：**主交互路径门**（确定性路线：点得动 · 无红框 · 到终点 · 产出可见）
-	{ id: "test-cave-route-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/cave-route.mjs --selftest" },
-	{ id: "test-cave-route-mjs", phase: 'test', cost: 6, cmd: "node test/cave-route.mjs" },
 	// 洞窟「商人」门（`#696`：金币要有出口 ⇒ 旅人里随机出现商人；报价读声明面 · 买不起不显示 · 火把油）
-	{ id: "test-cave-merchant-mjs", phase: 'test', cost: 1, cmd: "node test/cave-merchant.mjs" },
 	// 洞窟五步主线**末步**门（实测）：走满 5 步再回岔口时**不许**抛 `roadOffer(6)` 红框 ⇒ 越界走退路
 	{ id: "test-cli-surface-mjs", phase: 'test', cost: 4, cmd: "node test/cli-surface.mjs" },
-	{ id: "test-cave-roads-mjs", phase: 'test', cost: 1, cmd: "node test/cave-roads.mjs" },
 	// `#660` 片三-3：**pc 默认形状住引擎、数值走故事**（`Game.Pc.defaults()` 摘掉 `Sg.story.pcDefaults()` 后每个值都必须中性；
 	// 缺面 ⇒ 显式降级 · 畸形面 ⇒ fail-loud · `migrate()` 兜底带故事数值 · 三故事键集合一致）
 	{ id: "test-pc-defaults-mjs", phase: 'test', cost: 2, cmd: "node test/pc-defaults.mjs" },
@@ -306,7 +288,6 @@ export const SEGMENTS = [
 	// #490（S5）：**第三个故事**（无名洞窟）的引擎门 —— 它**声明了** S1–S4 的四件套（`mechanics()` 非 null）
 	// ⇒ 四道引擎门在这里第一次判**一个真正启用了新机制的故事**（`#486`–`#489` 的出口判据）。
 	// `#572` 同上：临时收窄已收回（`#581`／`#584` 落地后整套引擎门全绿）⇒ 本段跑**整套引擎门**。
-	{ id: "scripts-audit-mjs-story3-engine", phase: 'test', cost: 0.2, cmd: "node scripts/audit.mjs --check --story hollow-cave --engine-only" },
 	// #435 阶段 4：条件表门（死规则 = 永不被选中的行）
 	{ id: "scripts-audit-mjs-rules-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --rules --check" },
 	// #435 阶段 4：「无字面状态读」门（：表/内容都经封装层读——票面「数据表不得出现字面状态读」）

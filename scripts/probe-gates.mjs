@@ -77,11 +77,15 @@ export const verdictOf = ({ preOk = true, preDeclared = true, baseRc, baseOut = 
  * （`assertFreshDist` ⇒ "`dist/index.html` 比 `src/*.twee` 旧"）⇒ **谁 import 它、谁就必须有新鲜产物** ✓
  * —— 这是**代码面**的确定性信号，不是文本启发式 ✓（文本启发式会把 `test/repo-shape.mjs` 这类"只读到 `build/` 三个字"的件误报 ✓）。
  *
- * **传递**（深度 ≤ 2）✓：有的件自己不 import，而是 **spawn** 另一个件（实测 `test/witness-trace.mjs` ⇒ `test/walker.mjs` ⇒ `boot.mjs` ✓）
- * ⇒ 从 `cmd` 的入口件出发，把件内出现的相对 `.mjs` 路径当可达集展开 ✓。
+ * ⚠️ **本函数只判"入口件的直接 import"** ✗（**已经过一轮纠偏** ✓，`#1019` 复核席点名）：
+ *   · **传递型判不出** ✗：件自己不 import、而是 **spawn** 另一个件（实测 `test/witness-trace.mjs` ⇒ `test/walker.mjs` ⇒ `boot.mjs` ✓）⇒ 本函数对它返回 `false` ✓；
+ *   · **spawn 型同理** ✗（同上，同一个形状）。
+ *   ⇒ 这两类**不是遗漏，是有意取舍**（"**宁漏不误**" ✓）：判据一旦靠"件内出现的 `.mjs` 路径"向下展开，
+ *   就会把"**只在表里列路径**"的件也算成读产物 ⇒ 实测把 `scripts/report-gate-ledger.mjs` 那条**纯 selftest** 探针误报 ✓。
+ *   ⇒ 它们由**运行时那一支**决定性地兜住：`verdictOf` 在 `pre` 为空而基线红时报「**基线红 —— 缺前置？**」并给补法 ✓
+ *     （复核席实证：无产物树 ＋ `pre` 置空 ⇒ 报文点名缺前置 ✓）；此外探针可**显式**写 `pre: ['node build.mjs']` ✓。
  *
- * **兜底** ✓：判不出时**不报**（宁漏不误 ✗）＋ 运行时的「基线红（缺前置？）」那一支会把真因**点名** ✓；
- * 探针也可写 `noProducts: '<理由>'` **显式**声明"本件不读产物"✓（本仓既有的"白名单 ＋ 理由"机制同款 ✓）。 */
+ * **兜底** ✓：判不出时**不报**（宁漏不误 ✗）；探针也可写 `noProducts: '<理由>'` **显式**声明"本件不读产物"✓（本仓既有的"白名单 ＋ 理由"机制同款 ✓）。 */
 export const cmdNeedsProducts = (p, { read = (f) => (existsSync(f) ? readFileSync(f, 'utf8') : null) } = {}) => {
 	if (p?.noProducts) return false;                                  // 显式豁免（带理由 ✓）
 	const entry = (String(p?.cmd ?? '').match(/(?:test|editor|scripts)\/[A-Za-z0-9._\/-]+\.mjs/) ?? [])[0];
@@ -89,9 +93,9 @@ export const cmdNeedsProducts = (p, { read = (f) => (existsSync(f) ? readFileSyn
 	const src = read(entry);
 	if (src == null) return false;
 	// **判据是"真的 import/require 了 boot.mjs"** ✗（不是"文本里出现 boot.mjs 四个字"✓ ——
-	//   我第一版就栽在这里：本文件的注释里也写着 `boot.mjs` ⇒ 传递扫描把它自己也判成"读产物" ✗ ⇒
+	//   我第一版就栽在这里：展开扫描会把本文件自己的注释也当成"读产物" ✗ ⇒
 	//   连 `scripts/report-gate-ledger.mjs` 那条**纯 selftest** 探针都被误报成"缺前置"✓）
-	//   ⇒ 先**剥注释**（本仓老纪律 ✓）再只认 import/require 形式 ✓。
+	//   ⇒ 先**剥注释**（本仓老纪律 ✓）再只认 import/require 形式 ✓；**且只看这一个件**（不展开 ✓，见函数头）。
 	const code = maskComments(src, { file: entry, twee: false });
 	return /(?:from\s*|require\(\s*)['"][^'"]*boot\.mjs['"]/.test(code);
 };
@@ -150,7 +154,7 @@ const probeOne = (p) => {
 	const buildish = (c) => /build\.mjs|npm run build/.test(String(c));
 	const preHasBuild = (p.pre ?? []).some(buildish);
 	if (needsProducts && !preHasBuild && !(p.rebuild && buildish(p.rebuild)))
-		return { id: p.id, ok: false, kind: 'missing-pre', reason: `**缺前置** ✗（本探针的 \`cmd\` **读产物**（${(p.rebuild ? 'rebuild／' : '')}传递可达 \`boot.mjs\` ⇒ 要 \`dist/\` 新鲜 ✓），但 \`pre\` 里没有 build 类命令 ⇒ **读数不成立**，与"探针不咬"是两件事 ✓）：把 \`pre: [\'node build.mjs\']\` 写进命令（本仓纪律：**前置写进命令** ✓）`, injected: 0, pre, target, targetSha: sha(readFileSync(target, 'utf8')), mode: p.tier, needsProducts };
+		return { id: p.id, ok: false, kind: 'missing-pre', reason: `**缺前置** ✗（本探针的 \`cmd\` **读产物**：入口件**直接 import 了 boot.mjs** ⇒ 要 \`dist/\` 新鲜 ✓），但 \`pre\` 里没有 build 类命令 ⇒ **读数不成立**，与"探针不咬"是两件事 ✓）：把 \`pre: [\'node build.mjs\']\` 写进命令（本仓纪律：**前置写进命令** ✓）`, injected: 0, pre, target, targetSha: sha(readFileSync(target, 'utf8')), mode: p.tier, needsProducts };
 	const original = readFileSync(target, 'utf8');
 	const stamp = statSync(target);   // `#1012`：记下原时间戳（还原时一并还原 ✓）
 	const base = pre.length ? { rc: 1, out: '' } : run(p.cmd);

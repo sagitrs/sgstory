@@ -62,6 +62,12 @@
 			"why": "**故事专属 `[widget]`**（59 行 ✓，如「门厅取物」✓）：件头写明 `#460` 把它**从引擎搬回故事侧** ✓ ⇒ 属**故事专属 UI／呈现机制** ✗（与已登记的 `72-codex-ui.twee` **同类** ✓）",
 			"ticket": "#985",
 			"paths": "**三条路** ✓：(i) **搬回引擎**（`src/**`）✗ —— 件头写明 `#460` **正是把它从引擎搬回故事侧** ✓（引擎不该知道「哨子」是什么 ✓）⇒ **搬回去就是倒退** ✗；(ii) **做成通用 widget 库** ✗ —— 收益不明确 ✓（**第二个消费者**在哪 ✗）；(iii) **本阶段不动 ＋ 登记为欠账** ✓ ← **当下采用** ✓。**重开条件** ✗：当**第二个故事**也需要同一套取物反馈 widget 时 ✓（届时抽成通用件 ✓）"
+		},
+		{
+			"file": "stories/night-ferry/00-meta.twee",
+			"why": "**元数据面**（`night-ferry` ✓，17 行）：与 `stories/mist-forest/00-meta.twee`／`stories/hollow-cave/00-meta.twee` **同类** ✓ —— `StoryTitle`＝散文 1 行 ✓／`StoryData`＝**Twine 格式元数据**（`ifid`／`format*`／`zoom` ✗ 不是故事数据 ✓）／`StoryIdentity`＝1 行且**已被 `store-keys` 门把住** ✓ ⇒ 可数据化内容 ≈ 2–3 行 ✗",
+			"ticket": "#991",
+			"paths": "**三条路** ✓：(i) 三段都数据化 ✗（`StoryData` 是 Twine 参数、`StoryTitle` 是散文 ✓）；(ii) 只数据化 `StoryIdentity` ✓（收益 1 行 ✗ < 新面成本 ✓）；(iii) **本阶段不动 ＋ 登记为欠账** ✓ ← **采用** ✓。**重开条件** ✗：当「手写面清零」成为显式目标、或 `StoryData` 需按故事机检时 ✓"
 		}
 	],
 	"proseFaces": [
@@ -70,7 +76,8 @@
 		"stories/mist-forest/30-ch1.twee",
 		"stories/mist-forest/40-ch2.twee",
 		"stories/mist-forest/50-ch3.twee",
-		"stories/mist-forest/60-endings.twee"
+		"stories/mist-forest/60-endings.twee",
+		"stories/night-ferry/10-ferry.twee"
 	],
 	"proseFacesWhy": "散文面（**不可数据化** ✗）：设计稿 §3「**结构进 JSON、文本留文本**」✓ ⇒ 正文留文本是**设计**，不是欠账 ✓。⚠️ 与 `refusedFaces`（**可数据化但当下不划算** ✓）**不是同一类** ✗ —— 两条判据**分开** ✓，别合并成一个豁免表 ✗。白名单**只许收缩** ✗：其中某件若**变成 `@generated`**（＝它其实已数据化）⇒ K4 判红并点名 ✓。"
 }

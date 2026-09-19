@@ -1,51 +1,7 @@
 {
-	"truth": {
-		"code": 2,
-		"out": "✗ 未知开关：--truth（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"investment": {
-		"code": 2,
-		"out": "✗ 未知开关：--investment（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"echoes": {
-		"code": 2,
-		"out": "✗ 未知开关：--echoes（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"choices": {
-		"code": 2,
-		"out": "✗ 未知开关：--choices（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"sel": {
-		"code": 2,
-		"out": "✗ 未知开关：--sel（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"nosl": {
-		"code": 2,
-		"out": "✗ 未知开关：--nosl（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"gear": {
-		"code": 2,
-		"out": "✗ 未知开关：--gear（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"interact": {
-		"code": 2,
-		"out": "✗ 未知开关：--interact（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"social": {
-		"code": 2,
-		"out": "✗ 未知开关：--social（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"combat": {
-		"code": 2,
-		"out": "✗ 未知开关：--combat（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
 	"a11y": {
 		"code": 0,
 		"out": "\n══ ⓪s 可访问性门（#272）——对比度 / lang / 装饰语义 ══\n  · 对比度扫描：基准底色 #191722，检查 42 条声明（阈值 正文 ≥4.5 / 装饰 ≥3.0，装饰白名单 1 条带理由）\n      ✓ 自证·黑白对比 = 21:1\n      ✓ 自证·同色对比 = 1:1\n      ✓ 自证·三位 hex 展开（#fff 与 #ffffff 同值）\n      ✓ 自证·低对比声明被抓（合成 CSS）\n      ✓ 自证·装饰白名单：decorFloor 降到 1.0 ⇒ 不再报（证明阈值切换生效）\n      ✓ 自证·同一行 CSS：不在白名单 ⇒ 用 4.5 门槛 ⇒ 报（对照）\n      ✓ 自证·✦ 未包裹 ⇒ 计 1；aria-hidden 包裹 ⇒ 计 0\n      ✓ 自证·.act-n 缺 aria-hidden ⇒ 计 1\n  · 语义：✦ 装饰 glyph 全包裹、.act-n 角标 aria-hidden、<html lang=\"zh-CN\"> 构建期注入\n\n✔ 选中 1 门 · 实跑 1 门\n\n（数据源：src/15-tables.twee —— 改表即改此报告；伞 #21/#22 审计请跑本脚本）\n"
-	},
-	"starbudget": {
-		"code": 2,
-		"out": "✗ 未知开关：--starbudget（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
 	},
 	"consequences": {
 		"code": 0,
@@ -55,45 +11,9 @@
 		"code": 0,
 		"out": "\n══ ⓪p 位点失败纪律（#199）——伤＝代价，不是空手；无解决不许带伤 ══\n      ✓ 自证·正例：带伤失败 + 置旗标：检出 0（期望 0）\n      ✓ 自证·正例：带伤失败 + 给东西：检出 0（期望 0）\n      ✓ 自证·正例：带伤失败 + 退场：检出 0（期望 0）\n      ✓ 自证·反例①：带伤失败却不给结果（可无限磨伤）：检出 1（期望 1）\n      ✓ 自证·正例④：带伤失败但经 `Sg.notes.add` 给知识 ⇒ 通过：检出 0（期望 0）\n      ✓ 自证·正例：无伤的空手失败**不在本门范围**：检出 0（期望 0）\n      ✓ 自证·正例：没有 sitecheck 结构：检出 0（期望 0）\n  带伤失败档 0 处，全部落结果（给东西/置旗标/退场）\n\n✔ 选中 1 门 · 实跑 1 门\n\n（数据源：src/15-tables.twee —— 改表即改此报告；伞 #21/#22 审计请跑本脚本）\n"
 	},
-	"systems": {
-		"code": 2,
-		"out": "✗ 未知开关：--systems（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
 	"text": {
 		"code": 0,
 		"out": "\n══ ⓪e 语言经济（D5/#39）——每段有载荷，无陈词滥调 ══\n      ✓ 自证·正例：内容段有 payload：检出 0（期望 0）\n      ✓ 自证·反例①：内容段缺 payload：检出 1（期望 1）\n      ✓ 自证·正例：infra 段不要求 payload：检出 0（期望 0）\n      ✓ 自证·正例：干净正文无套路句式：检出 0（期望 0）\n      ✓ 自证·反例②：命中套路句式：检出 1（期望 1）\n      ✓ 自证·正例：黑名单外不算：检出 0（期望 0）\n      ✓ 自证·反例③：风格违和词（含行号）：检出 1（期望 1）\n      ✓ 自证·正例：`//` 与 `/* */` 注释不成正文（#486）：检出 4（期望 4）\n      ✓ 自证·正例：`//` 与 `/* */` 注释不成正文（#486）：检出 4（期望 4）\n      ✓ 自证·正例：infra 段（`[script]`）整段不成正文（#527）：检出 2（期望 2）\n      ✓ 自证·反例：内容段仍要计数（防\"把正文一起漏掉\"）：检出 2（期望 2）\n      ✓ 自证·正例：表行 `text` 按 `scope` 归属进段落（总字含表）：检出 2（期望 2）\n      ✓ 自证·正例：多行按**表序**追加（顺序稳定 ⇒ 基线可复算）：检出 2（期望 2）\n      ✓ 自证·边界：`scope` 段落不存在 ⇒ **不归属**（进 `orphans`，由 `--rules` 判红）：检出 1（期望 1）\n      ✓ 自证·边界：行 `text` 为空 ⇒ 不产生归属（不会凭空多一个空行）：检出 1（期望 1）\n      ✓ 自证·边界：`段落#位点` 只取 `#` 前归属（位点名不进段落名）：检出 R（期望 R）\n  载荷标注：5（信息 4 · 张力 0 · 选择 1）\n  主题词密度：**本故事未声明主题词**（`stories/<slug>/audit.json` 的 `text.topicWords` 为空）——本判据对该故事不适用，不再借用其它故事的词表（#602）\n  故事文本源：内容段落 ＋ 表行 `text`（归属到 0 个段落、0 行）\n  风格门：**本故事未声明违和词**（`stories/<slug>/audit.json` 的 `text.styleBlacklist` 为空；空表是合法数据集）——跳过扫描（#602）\n  套路句式门：零命中\n\n✔ 选中 1 门 · 实跑 1 门\n\n（数据源：src/15-tables.twee —— 改表即改此报告；伞 #21/#22 审计请跑本脚本）\n"
-	},
-	"npc": {
-		"code": 2,
-		"out": "✗ 未知开关：--npc（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"dragon": {
-		"code": 2,
-		"out": "✗ 未知开关：--dragon（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"checks": {
-		"code": 2,
-		"out": "✗ 未知开关：--checks（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"economy": {
-		"code": 2,
-		"out": "✗ 未知开关：--economy（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"items": {
-		"code": 2,
-		"out": "✗ 未知开关：--items（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"tokens": {
-		"code": 2,
-		"out": "✗ 未知开关：--tokens（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"canon": {
-		"code": 2,
-		"out": "✗ 未知开关：--canon（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"craft": {
-		"code": 2,
-		"out": "✗ 未知开关：--craft（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
 	},
 	"state": {
 		"code": 0,
@@ -119,32 +39,8 @@
 		"code": 0,
 		"out": "\n══ ⓪aa 事件池与三选一门（S4/#489）——共用选择机制 · 三选一 · 线索可区分 · 频率 ══\n      ✓ ⑤ 未启用 ⇒ `roadOffer` 返回 `null`（调用方跳过）\n      ✓ ⑤ 未启用 ⇒ `roadsDecl` 也是 `null`（不静默当空表）\n      ✓ ① **事件池与战斗池共用 `pickN`**：stub 掉它 ⇒ 两处结果同样变成哨兵值\n      ✓ ② 恰好 3 个、且都来自该段的 `options`\n      ✓ ② 三个选项互不重复（同段不出现同类事件两次）\n      ✓ ② `exclude` 生效（排掉已出现的类型后不再抽到它）\n      ✓ ② 选项不足 3 ⇒ 回退到全部（与战斗池同口径：尽量给满 3）\n      ✓ ② 第 2 段能用（段号从 1 计）\n      ✓ ② 段号越界 ⇒ 大声报错（不静默给空）\n      ✓ ③ 线索两两可区分：合规声明 0 处碰撞\n      ✓ ③ 线索可区分判据**会红**：把两条线索写成同文 ⇒ 必须命中\n      ✓ ③ 「无判定选项」判据：合规段为真、全带判定的段为假\n      ✓ ③ 不死档判据：合规两段 0 处死档\n      ✓ ③ 不死档判据**会红**：抬高终点让一段悬空 ⇒ 必须命中\n      ✓ ④ 每类事件入选比例 ≈ 3/6：最大偏差 66 次 ≤ 3σ（212 次）\n      ✓ ④ 同种子两次 ⇒ 逐类计数一致（可复算）\n      ✓ ④ 每类都被抽到（没有\"永远不出现\"的事件）\n      ✓ 自证·正例：合规三选一不报：检出 0（期望 0）\n      ✓ 自证·反例①：只取到 2 个：检出 1（期望 ≥1）\n      ✓ 自证·反例②：抽到本段没有的类型：检出 1（期望 ≥1）\n      ✓ 自证·反例③：同类型重复：检出 1（期望 ≥1）\n\n✔ 选中 1 门 · 实跑 1 门\n\n（数据源：src/15-tables.twee —— 改表即改此报告；伞 #21/#22 审计请跑本脚本）\n"
 	},
-	"rules": {
-		"code": 2,
-		"out": "✗ 未知开关：--rules（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"reads": {
-		"code": 2,
-		"out": "✗ 未知开关：--reads（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"cave": {
-		"code": 2,
-		"out": "✗ 未知开关：--cave（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"combat-dist": {
-		"code": 2,
-		"out": "✗ 未知开关：--combat-dist（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
-	"settle": {
-		"code": 2,
-		"out": "✗ 未知开关：--settle（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
-	},
 	"engine-story-free": {
 		"code": 0,
 		"out": "\n══ ⓪ad 引擎门\"无故事字面量\"门（`#602`）——声明成引擎门就得真的与故事无关 ══\n      ✓ 自证·① 正例：干净的门源码 ⇒ 0 条\n      ✓ 自证·🔴 ① 反例：门里出现故事段落名 ⇒ 报\n      ✓ 自证·🔴 ① 反例：门里出现故事侧 `Game.<X>` ⇒ 报\n      ✓ 自证·② 正例：只在**注释**里提到 ⇒ 不算（本仓注释大量记述\"当初错在哪\"）\n      ✓ 自证·③ 正例：白名单（带理由＋票号）放行\n      ✓ 自证·边界：无 token（故事都没声明）⇒ 0 条\n      ✓ 自证·正例（成员档）：走 `Sg.story.econEvents()` ⇒ 0 条\n      ✓ 自证·🔴 反例（成员档）：`Game.Economy.events` ⇒ 报\n      ✓ 自证·🔴 反例（成员档）：**一层别名** `T.events` ⇒ 报（头注里「用 `T.Game` 躲过门」的那一幕）\n      ✓ 自证·🔴 反例（成员档·形态 C）：在 `Game.Economy` 上挂的方法里读 `this.events` ⇒ 报（`priceOf` 的真实形态）\n      ✓ 自证·边界（成员档）：引擎自有成员（`Game.Economy.apply`）⇒ 不报\n      ✓ 自证·边界（成员档）：同名的**局部/域内**对象（`pc.events`）⇒ 不报（不裸匹配 `\\.events`）\n      ✓ 自证·🔴 **已知漏**（断言它会漏）：`const { events } = Game.Economy` 之后裸用 ⇒ **0 条**（静态不可判，不做数据流）\n      ✓ 自证·抽取器认**分表式**声明（`window.Game.<表> = {…}`）⇒ 表进成员集\n      ✓ 自证·🔴 反沉默：声明了 `window.Game.X` 却没抽到 ⇒ `undetectedTables()` **点名**（不许静默跳过）\n      ✓ 自证·边界：抽到了就不算漏\n      ✓ 自证·🔴 反例（探测档）：`not Game.Economy` 式**存在性探测** ⇒ 报（`#660` 片三-2 的形状；真实位点是故事表名的 `not …`，那处**字面量**归第一档管）\n      ✓ 自证·正例（探测档）：走 `Sg.story.hasChargen()` ⇒ 0 条\n      ✓ 自证·🔴 反例（探测档）：真值用法 `!!Game.Items` ⇒ 报\n      ✓ 自证·边界（探测档）：**成员/调用** `!Game.Economy.apply(x)` ⇒ 不报（那是成员档的地盘）\n      ✓ 自证·边界（探测档）：**注释里**提到 `not Game.Economy` ⇒ 不报（遮注释）\n      ✓ 自证·边界（探测档）：`Object.assign((window.Game.Economy ??= {}), …)` 的**声明式** `??=` ⇒ 不报\n  · 探测档：故事表 13 张 · 命中 0 处 · 腐烂 0 处（口径：故事表在不在 ⇒ 问 `Sg.story.*`）\n  · 成员档：故事成员 22 项（13 张表，**自动抽取**）· 引擎文件 8 个 · 命中 0 处 · 腐烂 0 处\n  · 已知漏（静态不可判，**不上数据流分析**）：`const { events } = Game.Economy` 之后裸用；`this.<成员>` 在**没有** `Object.assign(window.Game.X…)` 包着时也判不出（自证里已断言两者会漏）\n  · 故事 token 20 个（来自 7 个故事文件）· 引擎门 10 个（consequences engine-story-free literals roads sitedisc slots state status text waves）· 命中 0 处 · 白名单 3 条\n✔ 引擎门\"无故事字面量\"门通过（三档：**字面量档**＝故事 token 不经引擎门；**成员档**＝不直读故事数据成员；**探测档**＝不用 `not Game.X` 式存在性探测摸故事表）· 注释不算 · 白名单带票号＋移除计划且不许腐烂\n\n✔ 选中 1 门 · 实跑 1 门\n\n（数据源：src/15-tables.twee —— 改表即改此报告；伞 #21/#22 审计请跑本脚本）\n"
-	},
-	"notes": {
-		"code": 2,
-		"out": "✗ 未知开关：--notes（可用：a11y check consequences engine-only engine-story-free literals roads sitedisc slots state status story strict text waves）\n"
 	}
 }

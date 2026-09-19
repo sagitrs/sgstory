@@ -17,25 +17,22 @@ import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 
 const GOLDEN = 'test/audit-golden.json';
+// ⚠️ `#1004` B2 ✗：旧故事删后，本表里 **26 个开关成了僵尸** ✓（它们的门住在 `stories/<slug>/gates/**` ✓
+//   ⇒ 随故事一起没了 ✓）—— 与 `GATE_ORDER` 那次同病 ✓（都是"最后一个还在枚举这些 flag 的地方"✓）。
+//   已按本表自己的纪律删键 ✓；**保留的 11 个＝现存门 flag** ✓（与 `scripts/audit/discovery.mjs` 的 `GATE_ORDER` 逐项一致 ✓）。
+//   ⚠️ 删的是**僵尸**（源码里已无 `arg('x')` ✓），不是删判据 ✗ —— `--update` 后的基线**键数应减少且等于现况** ✓。
 const FLAGS = [
-	'truth', 'investment', 'echoes', 'choices', 'sel', 'nosl', 'gear', 'interact', 'social', 'combat',
-	'a11y', 'starbudget', 'consequences', 'sitedisc', 'systems', 'text', 'npc', 'dragon', 'checks',
-	'economy', 'items', 'tokens', 'canon', 'craft', 'state', 'literals',
+	'a11y', 'consequences', 'sitedisc', 'text', 'state', 'literals',
 	'slots',   // #486（S1）：槽位/耐久机制门（引擎门）
 	'status',  // #487（S2）：部位×异常机制门（引擎门）
 	'waves',   // #488（S3）：波次与重置门（引擎门）
 	'roads',   // #489（S4）：事件池与三选一门（引擎门）
-	// #436 收编：新增门必须进 golden 保护（否则 unprotected-flag 会报 ——`--notes` 就是这样被发现的）
-	'rules',
-	'reads',   // #435 阶段 4：「无字面状态读」门（故事门：输入＝条件表＋故事面源码）
-	'cave',    // #490（S5 片二）：洞窟声明面门（表↔内容双向对账；故事 1 未启用 ⇒ 报告一行）
-	'combat-dist',   // #491 判据 1：本故事战斗分布口径（多种子固定 ⇒ 输出可复现，故逐字节保护）
-	'settle',   // `#746`：副作用分支必备落点文案（静态扫描 ⇒ 输出可复现）
 	'engine-story-free',   // #602：引擎门"无故事字面量"（结构不变量）
-	'notes',
 ];
 
 // 归一化：只对不确定输出的开关生效（其余逐字节）
+// ⚠️ `#1004` B2 ✓：特例里的 `dragon`（战斗分布 → 百分比抖动）随旧故事的门一起没了 ✓ ⇒ 现在是**空转**分支 ✓。
+//   保留它 ✗：机制本身是通用的 ✓（日后有数值抖动的门就按 `dragon` 那行加回来 ✓）。
 export const normalize = (flag, text) => (flag === 'dragon' ? text.replace(/[\d.]+%/g, 'N%') : text);
 
 // flag 传 null ＝ 「无参数全跑」（wantAll 只在没有任何 `--` 参数时为真）；`extra` 追加到命令行尾部（`--story` 等）。
@@ -184,7 +181,7 @@ if (argv.includes('--update')) {
 	const { ownerMap } = await ownersAndFullRuns();
 	const snapshot = capture(ownerMap);
 	writeFileSync(GOLDEN, JSON.stringify(snapshot, null, '\t') + '\n');
-	console.log(`✔ 基线已写入 ${GOLDEN}（${FLAGS.length} 个开关；dragon 走结构比对）`);
+	console.log(`✔ 基线已写入 ${GOLDEN}（${FLAGS.length} 个开关）`);
 	for (const f of FLAGS) console.log(`    ${f}: ${snapshot[f].out.split('\n').length} 行 · 退出码 ${snapshot[f].code}`);
 	process.exit(0);
 }
@@ -196,7 +193,7 @@ const current = capture(ownerMap);
 const problems = diffSnapshot(baseline, current)
 	.concat(generalChecks(FLAGS, current, null, await argFlagsFromSource(), { ownerMap, fullRuns }));
 
-console.log(`══ audit golden 比对 ══  ${FLAGS.length} 个开关（dragon 走结构比对：百分数归一为 N%）`);
+console.log(`══ audit golden 比对 ══  ${FLAGS.length} 个开关（数值抖动的开关走结构比对：百分数归一为 N% ✓）`);
 if (!problems.length) {
 	console.log('✔ 全部开关输出与基线逐字节一致（重构未改变行为）');
 	process.exit(0);

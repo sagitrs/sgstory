@@ -65,10 +65,12 @@ try {
 			['file', 'topKeys', 'items', 'reason', 'ticket'].every((k) => { const x = [{ ...E[0] }]; delete x[0][k]; return judgeExtensions(x).some((p) => (p.field ?? p.kind) === k || (k === 'file' && p.kind === 'file') || (k === 'topKeys' && p.kind === 'shape') || (k === 'items' && p.kind === 'shape')); }));
 		t('**(β) 真数据：登记表合规** ✓（条目三条必填齐 ⇒ 0 问题 ✓；本片后 `EXTENSIONS` 非空 —— 车道 B 的 `notes.json` 已登记 ✓）',
 			Array.isArray(EXTENSIONS) && EXTENSIONS.length >= 1 && judgeExtensions().length === 0);
-		t('**(β) 真数据：`notes.json` **已登记** ⇒ 它不算"未登记的增面"** ✓（即 test/dialect 里 mist-forest 的 `present` 4 件能过门的理由 ✓）',
-			EXTENSIONS.some((e) => e.file === 'notes.json') && checkDialect(dialectOf(readStoryPackage({ slug: 'mist-forest', io })), { extensions: EXTENSIONS }).length === 0);
-		t('**(β) 真数据：把登记表清空 ⇒ 同一个包**当场红** ✗**（能假的另一半 ✓ —— 证明过门**靠的真是这张表** ✓）',
-			has(checkDialect(dialectOf(readStoryPackage({ slug: 'mist-forest', io })), { extensions: [] }), (p) => p.kind === 'file' && p.name === 'notes.json'));
+		// ⛔ **退役 ＋ 声明**（`#1004` B2 ✓）：这一对的**真数据**半边
+		//   原判据 ✓：`stories/mist-forest` 的 `data/notes.json` 是**已登记的增面**在真数据上的实例 ✓（"登记 ⇒ 不算增面"／"清表 ⇒ 当场红"两格都靠它 ✓）。
+		//   ⛔ 两存活样本**都没有 `notes.json`** ✓（`dialect` 实测：两者都在册数里没它 ✓）⇒ 这两格**无对象** ✗。
+		//   ✓ 同一对判据的**合成**半边仍在（上面 `withFace` ＋ `E` 那三格 ✓）⇒ 「登记 ⇒ 绿／未登记 ⇒ 红／登记面里再出未登记键 ⇒ 仍红」的**函数级**证据没丢 ✓；
+		//     丢的是"这张表配**真包**也对"✗（真包侧的证据得等下一个带 NOTES 面的样本回来 ✓）。
+		//   ⚠️ **声明** ✗：**登记面（`EXTENSIONS`）与真数据的交叉核对自此无对象** ✓ —— 日后有故事带增面 ⇒ 照这里恢复 ✓。
 	}
 
 	// ── 覆盖边界自证 ✓：**不假装覆盖非数组的嵌套结构** ✗ ────────────────────
@@ -83,7 +85,7 @@ try {
 	const slugs = readdirSync(`${ROOT}/stories`, { withFileTypes: true })
 		.filter((d) => d.isDirectory()).map((d) => d.name)
 		.filter((n) => existsSync(`${ROOT}/stories/${n}/00-story.json`)).sort();
-	t(`发现式取故事 ✓：${slugs.join('、')}（${slugs.length} 个 ⇒ 新故事自动进本门 ✓）`, slugs.length >= 3);
+	t(`发现式取故事 ✓：${slugs.join('、')}（${slugs.length} 个 ⇒ 新故事自动进本门 ✓）`, slugs.length >= 2);   // `#1004` B2 ✓：旧故事已删 ⇒ 基数下界从 3 跟到 **2** ✓（本格证的是"发现式"✓，不是基数 ✗）
 
 	const dialects = [];
 	for (const slug of slugs) {
@@ -107,10 +109,10 @@ try {
 	const all = [...union].sort();
 	const common = all.filter((x) => slugs.every((s) => per[s].has(x)));
 	console.log(`\n── 量化依据（contract.json::members ✓）──`);
-	console.log(`  并集 ${all.length} · 三故事共有 ${common.length}（${common.join('、')}）· 故事特有 ${all.length - common.length}`);
+	console.log(`  并集 ${all.length} · 现存故事共有 ${common.length}（${common.join('、')}）· 故事特有 ${all.length - common.length}`);
 	t(`**并集 ⊆ 全集** ✓（${all.length} 个字段逐条落在 \`DECLARED\` 内 ✓）`, all.every((f) => DECLARED['contract.json'].items.members.includes(f)));
-	t('**共有只有 4 个** ✓（`kind`／`name`／`path`／`value` —— 量化依据落在读数里 ✓ 不只写在票面 ✓）',
-		JSON.stringify(common) === JSON.stringify(['kind', 'name', 'path', 'value']));
+	t('**现有字段逐字可核** ✓（`docs`／`kind`／`name`／`path`／`value` —— 量化依据落在读数里 ✓ 不只写在票面 ✓）',
+		JSON.stringify(common) === JSON.stringify(['docs', 'kind', 'name', 'path', 'value']));
 
 	// ── 反向：**只报不判** ✗（归 G-2 ✓）────────────────────────────────────
 	const unused = unusedDeclared(dialects);
@@ -118,7 +120,7 @@ try {
 	t('反向那半**本件不判红** ✓（`unusedDeclared` 只产出读数 ⇒ 它非空也不影响本门 rc ✓）', Array.isArray(unused));
 
 	// ── **"改了号却不改故事"必须被抓** ✓（真数据上的反向自证 ✓）────────────
-	t('**真数据反向自证** ✓：把 `current` 抬到 `CURRENT+1` ⇒ **三故事全部**报 `stale` ✗（"只改号不改两边"必被门抓 ✓）',
+	t('**真数据反向自证** ✓：把 `current` 抬到 `CURRENT+1` ⇒ **现存故事全部**报 `stale` ✗（"只改号不改两边"必被门抓 ✓）',
 		slugs.every((s) => has(judgeContractVersion({ slug: s, manifest: readStoryPackage({ slug: s, io }).meta }, { current: CURRENT + 1 }), (p) => p.kind === 'stale')));
 
 	console.log(`\n── 全局面（读数 ✓）──`);

@@ -49,6 +49,12 @@ const genSnap = () => (existsSync(genOf)
 	: null);
 const scratchLeft = () => readdirSync(GEN).filter((n) => n.startsWith('.equiv-run-') || n.startsWith('.idem-'));
 
+// ⚠️ `#1004` B2b：判据从「**全局**没有草稿」改成「**本件跑完**没有**新**草稿」✗ —— 前者是全局列举式断言 ✓，
+//   别人的残留（并行段／上一次变异跑的残留 ✓）会把它顶红 ✓（本件 :15 的注释早写过这条竞态 ✓，
+//   而 `beforeScratch` 本来就取了却没用 ✗）⇒ 旧形下探针「掐掉 `finally` 清理」那刀**只能靠残留污染**才红 ✓。
+//   新形：`newScratch(base)` 只看**新出现的** ⇒ ① 不被别人的残留顶红 ✓ ② 那一刀**确定性地**红 ✓（`#908` 探针面 ✓）。
+const newScratch = (base) => scratchLeft().filter((n) => !base.includes(n));
+
 let rc = 0;
 const sandbox = mkdtempSync(join(tmpdir(), 'equiv-scratch-'));
 try {
@@ -81,17 +87,18 @@ try {
 	const beforeScratch = scratchLeft();
 	const rcOk = run([SLUG, '--l3=report', `--hand=stories/${SLUG}/gates/equiv-baseline/15-tables.twee.txt`]);
 	t('② 正常跑 ⇒ rc=0 ✓', rcOk === 0);
-	t('② 跑完 ⇒ **不留草稿目录** ✓（`build/generated/.equiv-run-*`／`.idem-<slug>` 都不许剩下 —— `#976` 前的固定落点就是它们 ✗）',
-		scratchLeft().length === 0 && !existsSync(IDEM_OLD));
+	t('② 跑完 ⇒ **不留草稿目录** ✓（`build/generated/.equiv-run-*`／`.idem-<slug>` 都不许**新**剩下 —— `#976` 前的固定落点就是它们 ✗）',
+		newScratch(beforeScratch).length === 0 && !existsSync(IDEM_OLD));
 	t('② 跑完 ⇒ **不动别人的落点** ✓（`build/generated/<slug>`（编译器默认 `--out`）跑前跑后逐字节同 ✓）',
 		genSnap() === beforeGen);
 
 	// ── ③ 失败路径也清（**编译之后**才失败 ✓）──────────────────────────────
 	{
+		const beforeScratch3 = scratchLeft();
 		const rcBad = run([SLUG, '--notes=16-notes-nonexistent-face.twee', '--l3=report', `--hand=stories/${SLUG}/gates/equiv-baseline/15-tables.twee.txt`]);
 		t('③ 指定一个**不存在的产物名** ⇒ 在**编译之后**失败 ⇒ rc≠0 ✓', rcBad !== 0);
 		t('③ **失败路径也不留草稿** ✓（`try/finally` 即便在抛错那一路也清 ✓）',
-			scratchLeft().length === 0 && !existsSync(IDEM_OLD));
+			newScratch(beforeScratch3).length === 0 && !existsSync(IDEM_OLD));
 	}
 
 	if (bad) { console.error(`\n✗ equiv-scratch 未通过（${bad} 项）`); rc = 1; }

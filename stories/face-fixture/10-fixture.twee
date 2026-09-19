@@ -109,7 +109,7 @@ window.Game.Chargen = {
 夹具的中转站：下面每条链接都通向一个**面**。
 
 [[森林边缘]]｜[[洞穴]]｜[[门厅]]｜[[塔外花田]]｜[[守林人]]｜[[女巫小屋]]｜[[地下宴会厅]]｜[[书房]]
-[[问一句女巫小屋怎么走，然后过去|女巫小屋]]
+<span data-key="问路·女巫小屋">[[问一句女巫小屋怎么走，然后过去|女巫小屋]]</span>
 [[📖 设定集|设定集]]｜[[就地了结这一趟|结局 平凡之路]]
 
 :: 森林边缘
@@ -136,7 +136,7 @@ window.Game.Chargen = {
 /% payload: 选择 %/
 门厅里只有一根空钉。
 <<if not $pc.world.whistle_taken>>
-[[把墙上那支哨子摘下来|门厅]]<<set $pc.world.whistle_taken to true>><<give "坏哨">>
+<<link "把墙上那支哨子摘下来">><<set $pc.world.whistle_taken to true>><<give "坏哨">><<goto "门厅">><</link>>
 <</if>>
 [[看钉|门厅·看钉]]｜[[继续往塔那边走|塔外花田]]｜[[往林子深处走|森林边缘]]｜[[回酒馆|酒馆]]
 
@@ -151,7 +151,7 @@ window.Game.Chargen = {
 /% payload: 选择 %/
 墙根那片花是白的。
 <<if not $pc.world.flower_taken>>
-[[伸手去摘最靠里的那一朵|塔外花田]]<<set $pc.world.flower_taken to true>><<give "月光花">>
+<<link "伸手去摘最靠里的那一朵">><<set $pc.world.flower_taken to true>><<give "月光花">><<goto "塔外花田">><</link>>
 <</if>>
 [[塔基墙根那片花|塔外花田]]｜[[回门厅|门厅]]｜[[回酒馆|酒馆]]
 

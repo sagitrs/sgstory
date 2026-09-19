@@ -54,6 +54,21 @@ try {
 		t('🔴 反例·坏故事 ⇒ rc=1 且点名（不静默 ✗）', r.status === 1 && /不可解析/.test(out), `status=${r.status}`);
 	}
 
+	// ③′ **取不到输入不许判过** ✗（洞是对**本 PR**（`#988`）提的 ✓ —— 谁提的不写 ✗，写**在哪张票里提的** ✓）：
+	//    发现到 0 个故事 ⇒ 必红并点名
+	//    （不然逐故事面整批消失，末行照写「通过」✗ ⇒ 改名／路径写错／工作目录变都会让 CI 照绿 ✗）
+	{
+		const empty = join(probe, 'empty-root');
+		mkdirSync(empty);
+		const r = cli(['--stories-dir=' + empty]);
+		const out = `${r.stdout || ''}${r.stderr || ''}`;
+		t('🔴 反例·空根目录 ⇒ rc=1 且点名「发现到 0 个故事」', r.status === 1 && /发现到 0 个故事/.test(out), `status=${r.status}`);
+		t('反例·空根目录时**全局面照跑**（诊断完整，不整批跳过 ✓）', /\[K2\]|\[K5\]|\[K6\]/.test(out), '全局面没跑');
+		const r2 = cli(['--stories-dir=' + join(probe, 'no-such-dir')]);
+		const out2 = `${r2.stdout || ''}${r2.stderr || ''}`;
+		t('🔴 反例·目录不存在 ⇒ 同形（rc=1 ＋ 点名「不存在」）', r2.status === 1 && /不存在/.test(out2), `status=${r2.status}`);
+	}
+
 	// ④ 编排不漏 ＋ ⑤ 接口口径（纯函数面，与 CLI 同一份代码 ✓）
 	{
 		const m = await import('../editor/lib/core/storyCi.mjs');

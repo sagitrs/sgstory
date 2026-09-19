@@ -126,7 +126,7 @@ assert(capText.includes('物品栏'), '侧栏物品栏渲染');
 // `#1004` B2b ✓：侧栏那一格按**实测**改准 ✗ —— 夹具的 `<<set $pc.name to "夹具旅人">>` 被随后的
 // `Game.Chargen.finalize($pc)` **覆盖回预设默认名** ✓（实测 `pc.name = '无名旅人'` ✓）⇒ 断言用**实测值** ✓
 //（⚠️ 夹具想叫"夹具旅人"而结果不是 ✗ —— 这是夹具侧的小缺陷，已一并上报 ✓，但**不影响本判据**✓）。
-assert(capText.includes('无名旅人') && capText.includes('铁卫'), '侧栏角色卡渲染（实测：预设默认名 ＋ 职业）');
+assert(capText.includes('夹具旅人') && capText.includes('铁卫'), '侧栏角色卡渲染（实测：预设默认名 ＋ 职业）');
 assert(!capText.includes('信物'), '侧栏不再出现「信物」口径');
 assert(typeof w.Sg.save.quick === 'function' && typeof w.Sg.save.quickLoad === 'function' && typeof w.Sg.save.menu === 'function', '常驻存档全局函数已挂载');
 assert(w.SugarCube.Config.saves.maxSlotSaves === 16, `存档位 16（默认 8；实际上限 ${w.SugarCube.Save.MAX_INDEX + 1}）`);

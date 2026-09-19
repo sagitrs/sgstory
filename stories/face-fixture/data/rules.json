@@ -1,0 +1,25 @@
+{
+	"section": "StoryRules",
+	"key": "rules",
+	"note": "面夹具（`#1004` B2b）：条件表**非空**（两存活样本都给不了这一格：`night-ferry` 的 rows 是 `[]`、`minimal-demo` 无该文件）——`web-events`／`web-preview`／`web-form`／`event-graph` 的「条数 > 0」「真数据 rows」就靠它。",
+	"rows": [
+		{
+			"id": "ev.听雾",
+			"scope": "森林边缘",
+			"req": [
+				"n_tav_tips"
+			],
+			"prio": 2,
+			"text": "雾里那点动静又响了一次，你分得清它从哪边来。"
+		},
+		{
+			"id": "ev.换哨",
+			"scope": "门厅",
+			"exclude": [
+				"n_flower_warned"
+			],
+			"prio": 1,
+			"text": "墙上那根钉子的空位，比刚才更亮一点。"
+		}
+	]
+}

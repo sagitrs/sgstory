@@ -1,0 +1,565 @@
+:: Game Tables [script]
+// 面夹具（`#1004` B2b）：**测试夹具（非内容故事）** —— 它把引擎接入契约的每一种面**各声明一次**（最小可用值），供测试当输入用，不是内容。段名沿用旧故事只因**消费者钉死了它们**（`Engine.play('森林边缘')` 这类）；**正文全部新写**。F12 族（`Echoes`／`Shifts`／`Systems`／`Choices`）按裁定**退役**：全仓无行为消费者（grep 读数见票）。
+window.Game = Object.assign(window.Game ?? {}, {
+	Checks: {
+		sites: {
+			'酒馆·打听': {
+				skill: '游说',
+				dc: 12
+			},
+			'森林·察觉': {
+				skill: '察觉',
+				dc: 10
+			},
+			'洞穴·战斗': {
+				skill: '运动',
+				dc: 12,
+				auto: '战斗（玩家已选择动手）'
+			},
+			'门厅·看钉': {
+				skill: '察觉',
+				dc: 11
+			},
+			'守林人·交涉': {
+				skill: '游说',
+				dc: 12
+			},
+			'老巫女·问星': {
+				abil: 'wis',
+				dc: 11
+			}
+		},
+		keyYields: [
+			'日记',
+			'坏哨',
+			'月光花',
+			'flag:family_favor',
+			'note:n_old_witch',
+			'note:n_failure_cause',
+			'keeper:seal'
+		],
+		knowledge: {
+			'门厅·看钉': 'hall_hint',
+			'森林·察觉': 'rumor'
+		}
+	},
+	Combat: {
+		pools: {
+			'雾影': [
+				'雾影·迎上',
+				'雾之魔物·挥击'
+			],
+			'封印': [
+				'龙·斩击',
+				'封印·硬扛'
+			]
+		},
+		actions: {
+			'雾影·迎上': {
+				site: '洞穴·战斗',
+				label: '迎上去',
+				ok: {
+					text: '你抢在它抬手前撞进去，把它顶开半步。',
+					dmg: 8
+				},
+				crit: {
+					text: '你顶得它整个偏过去，雾里空出一大片。',
+					dmg: 14
+				},
+				bad: {
+					text: '你撞上去，像撞进一团湿棉絮。',
+					hurt: 3
+				}
+			},
+			'雾之魔物·挥击': {
+				site: '洞穴·战斗',
+				label: '朝你挥来',
+				ok: {
+					text: '它挥手扫过，你侧身让开大半。',
+					dmg: 0
+				},
+				crit: {
+					text: '这一下结结实实砸在你肩上。',
+					dmg: 0
+				},
+				bad: {
+					text: '它挥空了，雾气被带得打着旋。',
+					dmg: 0
+				}
+			},
+			'龙·斩击': {
+				site: '洞穴·战斗',
+				label: '挥刃压上去',
+				ok: {
+					text: '你劈进去半寸。鳞底下那层是热的。',
+					dmg: 12
+				},
+				crit: {
+					text: '刃顺着鳞缝滑进去，一路到底。',
+					dmg: 21
+				},
+				bad: {
+					text: '刃在鳞上滑开，震得你虎口发麻。',
+					hurt: 2
+				}
+			},
+			'封印·硬扛': {
+				site: '老巫女·问星',
+				label: '把肩顶上去',
+				ok: {
+					text: '你顶住了，只退了一步。',
+					dmg: 0
+				},
+				crit: {
+					text: '你顶住了，还往前逼了半尺。',
+					dmg: 0
+				},
+				bad: {
+					text: '你被推得撞在石壁上。',
+					hurt: 4
+				}
+			}
+		}
+	},
+	Economy: {
+		prices: {
+			drink_round: 5,
+			torch_buy: 10,
+			rumor_buy: 5
+		},
+		events: {
+			drink_round: {
+				delta: -3,
+				chapter: 1,
+				note: '酒馆·请一轮酒（夹具面：经济消费与交涉筹码共用一笔价）'
+			},
+			torch_buy: {
+				delta: -10,
+				gives: {
+					gear: [
+						'火把'
+					]
+				},
+				chapter: 1,
+				note: '酒馆·买火把（黑处位点的行囊优势）'
+			},
+			rumor_buy: {
+				delta: -5,
+				chapter: 1,
+				note: '酒馆·买传闻（条件表行的入口）'
+			}
+		}
+	},
+	Gear: {
+		defs: {
+			'长剑': {
+				from: '车卡预设（铁卫）',
+				damage: 1,
+				note: '基础伤害 +1'
+			},
+			'短刃': {
+				from: '车卡预设（影手）',
+				damage: 1,
+				advSites: [
+					'雾之魔物·挥击'
+				],
+				note: '基础伤害 +1；贴身距离好使'
+			},
+			'火把': {
+				from: '酒馆（10 金）',
+				advSites: [
+					'洞穴·战斗',
+					'门厅·看钉'
+				],
+				note: '黑处看得见：洞穴与「看不清」的位点给优势'
+			}
+		}
+	},
+	Items: {
+		defs: {
+			'月光花': {
+				from: '塔外花田',
+				note: '夹具面：场地一次性的拾取物'
+			},
+			'坏哨': {
+				from: '门厅墙钉',
+				note: '它认得那个形状'
+			},
+			'日记': {
+				from: '书房',
+				note: '记着那半句话'
+			}
+		},
+		effects: {
+			'坏哨': {
+				advSite: '雾之魔物·挥击',
+				advSites: [
+					'龙·斩击'
+				],
+				note: '魔物挥击劣势转优势；封印战里让它迟疑半拍'
+			},
+			'日记': {
+				flatDamageReduce: 2,
+				note: '整场受击 −2'
+			}
+		},
+		poisonReduce: 3
+	},
+	Social: {
+		asks: [
+			{
+				id: '老板娘·进塔',
+				tag: '问路',
+				npc: '老板娘',
+				q: '进塔该注意什么',
+				base: 'neutral',
+				yield: 'note:n_tav_tips',
+				sites: [
+					'酒馆·打听'
+				],
+				levers: [
+					{
+						id: 'drink',
+						name: '请她喝一轮',
+						gives: 'auto',
+						econ: 'drink_round',
+						note: '她不缺你这两句话'
+					},
+					{
+						id: 'read',
+						name: '看出她一直在瞟炉子',
+						gives: 'adv',
+						needRead: true,
+						note: '她怕的是火'
+					}
+				],
+				done: {
+					req: [
+						'n_tav_tips'
+					]
+				},
+				yields: [
+					'n_tav_tips'
+				],
+				ok: '她把杯子放下："记住两件事——别在雾里睡觉；听见有人叫你名字，别应。"',
+				bad: '她把抹布在台面上又擦了一遍，没接你的话。',
+				auto: '你把酒钱推过去。她愣了一下，然后真的坐下了。'
+			},
+			{
+				id: '守林人·花',
+				tag: '问花',
+				npc: '守林人',
+				q: '塔基墙根那片银白的花是什么',
+				base: 'neutral',
+				yield: 'note:n_flower_warned',
+				sites: [
+					'守林人·交涉'
+				],
+				levers: [
+					{
+						id: 'read',
+						name: '看出他一直没往花那边看',
+						gives: 'adv',
+						needRead: true,
+						note: '他不是不想说，是不敢看'
+					}
+				],
+				done: {
+					req: [
+						'n_flower_warned'
+					]
+				},
+				yields: [
+					'n_flower_warned'
+				],
+				ok: '他终于开口："那花底下埋着人。摘一朵，就少一个人。"',
+				bad: '他换了只手拄杖，没看你。',
+				auto: '他叹了口气，把话说了。'
+			}
+		],
+		attAdj: {
+			friendly: -5,
+			neutral: 0,
+			hostile: 5
+		},
+		approaches: {
+			'游说': {
+				label: '说理',
+				note: '把话说清楚'
+			},
+			'恐吓': {
+				label: '施压',
+				note: '让他不敢不说'
+			},
+			'洞悉': {
+				label: '看穿',
+				note: '先看出他在躲什么'
+			}
+		},
+		ATT: {
+			friendly: '友好',
+			neutral: '冷淡',
+			hostile: '敌意'
+		}
+	},
+	Truth: {
+		claims: [
+			{
+				id: 'fog_is_breath',
+				claim: '雾＝它睡着时漏出来的力气（谜底只在 `设定集·术语`，终局后揭开）',
+				sites: [
+					{
+						p: '设定集·术语',
+						anchor: '它睡着时漏出来的力气',
+						via: '设定集·术语（Sg.Codex.seenFinal() 门内——唯一揭开处）',
+						type: 'codex'
+					},
+					{
+						p: '结局 送星归位',
+						anchor: '你不知道',
+						via: '真结局收束（正文只给「不知」）',
+						type: 'prose'
+					}
+				]
+			}
+		]
+	},
+	Codex: {
+		items: {
+			'时光护符': {
+				hint: '女巫小屋——她把它从炉火边递到你手里。',
+				clues: [
+					{
+						id: 'own',
+						label: '来历：星铁打的',
+						req: [
+							'inv:时光护符'
+						]
+					},
+					{
+						id: 'flip',
+						label: '用法：翻转在原处生效',
+						req: [
+							{
+								gte: [
+									'star.spent',
+									1
+								]
+							}
+						]
+					}
+				]
+			},
+			'雾': {
+				hint: '森林边缘——站住听一听。',
+				clues: [
+					{
+						id: 'thin',
+						label: '它每用一次，雾就淡一些',
+						req: [
+							'world.fog_thin'
+						]
+					}
+				]
+			}
+		}
+	},
+	Notes: {
+		entries: {}
+	},
+	Star: {
+		budget: 6,
+		orders: [
+			{
+				id: 'A 完美预备',
+				spent: 2,
+				floor: 2,
+				note: '先把要带的备齐，一次过去全办'
+			},
+			{
+				id: 'B 忘带一件',
+				spent: 3,
+				floor: 1,
+				note: '多一趟往返取东西'
+			},
+			{
+				id: 'C 散场免费回程',
+				spent: 2,
+				floor: 2,
+				note: '首次过去以散场回（不耗星力）'
+			},
+			{
+				id: 'D 一章试验',
+				spent: 4,
+				floor: 0,
+				note: '边走边试，余量薄'
+			},
+			{
+				id: 'E 只走一趟',
+				spent: 1,
+				floor: 4,
+				note: '一次过去办完就回'
+			}
+		]
+	},
+	Dragon: {
+		hp: 60,
+		sealAt: 10,
+		hitBase: 6,
+		sneakHit: 12
+	},
+	Echoes: {
+		list: [],
+		revisit: []
+	},
+	NPC: {
+		entries: {}
+	},
+	Investment: {
+		expressive: [],
+		failClueExempt: {},
+		eraDomain: {
+			past: [
+				'老巫女',
+				'观星者',
+				'女巫小屋'
+			],
+			branch: [],
+			flagEra: {},
+			crossEraGates: [
+				{
+					id: '合龙·那半句',
+					p: '地下宴会厅',
+					label: '缺的那一句话，是谁没说完',
+					pastFlags: [
+						'seer_asked'
+					],
+					presentFlags: [
+						'failure_cause'
+					]
+				}
+			]
+		}
+	},
+	State: {
+		domains: [
+			{
+				id: 'runtime',
+				keys: [
+					'last_result',
+					'last_roll',
+					'soc',
+					'soc_last',
+					'soc_lever',
+					'fight',
+					'ending',
+					'notes',
+					'settle'
+				],
+				note: '引擎保留的运行时槽（每个故事都要登记）'
+			},
+			{
+				id: 'fixture',
+				where: '夹具面',
+				prefix: [
+					'whistle_',
+					'flower_'
+				],
+				note: '夹具自己的状态键（场地状态 `whistle_taken`／`flower_taken` ＋ 证据链键）',
+				keys: [
+					'seer_asked',
+					'coord',
+					'old_witch',
+					'failure_cause',
+					'tav_tips',
+					'flower_warned'
+				]
+			}
+		],
+		bookkeeping: [],
+		dynamicKeys: []
+	}
+});
+Object.assign(((window.Game.Consequences ??= {
+	provenance: {},
+	engine: {}
+}).engine), {
+	fight: '夹具面：`fight` 只在引擎侧（战斗流程）读写',
+	settle: '留屏协议的待提升文案（引擎短战斗 widget 写）',
+});
+
+:: StoryBindings [script]
+// 面夹具（`#1004` B2b）的接入契约**满配**：形状照被删的 `mist-forest`（引擎与那批测试就是按这个形状写的），值取最小可用。⚠️ 本件是**测试夹具**、不是内容故事：段名沿用旧故事只因消费者钉死了它们，正文全部新写。
+window.Sg ??= {};
+const __const_pcDefaults = {
+	star: {
+		charge: 12
+	},
+	keeper: {
+		state: 'post'
+	}
+};
+const __const_prepick = [
+	{
+		pool: '封印',
+		round: 1,
+		require: {
+			item: '月光花'
+		},
+		pick: '龙·斩击',
+		distinctFromPicked: true
+	}
+];
+Object.assign((window.Sg.story ??= {}), {
+	notes: () => window.Game?.Notes?.entries ?? {},
+	econEvents: () => window.Game.Economy.events,
+	codexItems: () => window.Game.Codex.items,
+	socialAsks: () => window.Game.Social.asks,
+	socialAttAdj: () => window.Game.Social.attAdj,
+	socialApproaches: () => window.Game.Social.approaches,
+	socialAttLabels: () => window.Game.Social.ATT,
+	hasChargen: () => !!window.Game.Chargen,
+	pcDefaults: () => __const_pcDefaults,
+	prepick: () => __const_prepick,
+	foeState: (pc) => pc?.dragon ?? {},
+	battleDamage: (inv, round, defeats, poisoned) => window.Game.Items.battleDamage(round, inv, defeats, poisoned),
+	rules: () => [],
+	dragonMaxHp: () => {
+		const v = window.Game?.Dragon?.hp;
+		if (typeof v !== 'number') throw new Error(`Sg.story.dragonMaxHp：故事未提供 Game.Dragon.hp（结构缺失必须报错，#441-E）`);
+		return v;
+	},
+	checkSite: (name) => {
+		const v = window?.Game?.Checks?.sites?.[name];
+		if (!v) throw new Error(`Sg.story.checkSite：位点「${name}」未登记（结构缺失必须报错，#441-E）`);
+		return v;
+	},
+	combatAction: (id) => {
+		const v = window?.Game?.Combat?.actions?.[id];
+		if (!v) throw new Error(`Sg.story.combatAction：动作「${id}」未登记（结构缺失必须报错，#441-E）`);
+		return v;
+	},
+	mechanics: () => null,
+	itemDef: (name) => window?.Game?.Items?.defs?.[name] ?? null,
+	itemEffect: (name) => window?.Game?.Items?.effects?.[name] ?? null,
+	gearDef: (name) => window?.Game?.Gear?.defs?.[name] ?? null,
+	combatPool: (id) => window?.Game?.Combat?.pools?.[id] ?? [],
+	poisonReduce: () => {
+		const v = window.Game?.Items?.poisonReduce;
+		if (typeof v !== 'number') throw new Error(`Sg.story.poisonReduce：故事未提供 Items.poisonReduce（结构缺失必须报错，#441-E）`);
+		return v;
+	},
+	actionLabel: (id) => {
+		const a = window.Sg.story.combatAction(id);
+		if (!a || typeof a.label !== 'string' || !a.label) throw new Error(`Sg.story.actionLabel：动作「${id}」缺 label（结构缺失必须报错，#441-E）`);
+		return a.label;
+	},
+});
+:: StoryHooks [script]
+// 面夹具（`#1004` B2b）的**手写逃生舱**（不是生成物 ⇒ 不带 `@generated`，与生成物同形地 `Object.assign`）：
+// 契约里两个**非 A 桶成员**住在这里（照 `mist-forest/16-hooks.twee` 的先例）。
+// `overBudget`：星力预算的判定 —— `test/rules.mjs` 按 `Sg.story.overBudget({ star: { spent: 7 } })` 直接调它。
+window.Sg ??= {};
+Object.assign((window.Sg.story ??= {}), {
+	overBudget: (pc) => (pc?.star?.spent ?? 0) > (window.Game?.Star?.budget ?? 6),
+});

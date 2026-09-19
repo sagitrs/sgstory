@@ -144,6 +144,11 @@ export const SEGMENTS = [
 	{ id: "test-equiv-scratch-mjs", phase: 'test', cost: 1.0, cmd: "node test/equiv-scratch.mjs" },
 	// `#787` 翻面：手写侧**重指向**为冻结基线（翻面前 `main` 的仓内副本 ⇒ 「生成得对不对」仍被判）
 	{ id: "editor-equiv-minimal-demo", phase: 'test', cost: 0.3, cmd: "node editor/equiv.mjs minimal-demo --l3=hard --hand=stories/minimal-demo/gates/equiv-baseline/15-tables.twee.txt" },
+	// `#1004` B2b：**面夹具**（`face-fixture`）＝接入契约的满配声明面（删掉两个内容故事后，为仍“有消费者”的那些面接上它们 ✓）。
+	//   两段与 `minimal-demo` 同形：① 声明面等价（冻结基线 ✓）；② 引擎门对该故事绿（`--engine-only`）。
+	//   ⚠️ `--l3=report`（而非 `hard`）：夹具的声明面**比两个旧故事宽得多** ⇒ strict 档会把它当成“与手写版形式不一致”的红（基线就是它自己建时的副本 ⇒ report 档才是有意义的那一档）。
+	{ id: "editor-equiv-face-fixture", phase: 'test', cost: 0.3, cmd: "node editor/equiv.mjs face-fixture --l3=report --hand=stories/face-fixture/gates/equiv-baseline/15-tables.twee.txt" },
+	{ id: "scripts-audit-mjs-face-fixture-engine", phase: 'test', cost: 0.3, cmd: "node scripts/audit.mjs --check --story face-fixture --engine-only" },
 	// `#762` 车道 C：**K4 门** —— 生成物标记 · 产物新鲜度(幂等) · **逃生舱可枚举**
 	// （清单外出现即红；登记腐烂也红 ⇒ 例外只能收缩留痕，不能随手加）
 	{ id: "editor-k4-selfcheck", phase: 'test', cost: 0, cmd: "node editor/k4.mjs --selfcheck" },

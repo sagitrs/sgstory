@@ -1,0 +1,8 @@
+:: StoryHooks [script]
+// 面夹具（`#1004` B2b）的**手写逃生舱**（不是生成物 ⇒ 不带 `@generated`，与生成物同形地 `Object.assign`）：
+// 契约里两个**非 A 桶成员**住在这里（照 `mist-forest/16-hooks.twee` 的先例）。
+// `overBudget`：星力预算的判定 —— `test/rules.mjs` 按 `Sg.story.overBudget({ star: { spent: 7 } })` 直接调它。
+window.Sg ??= {};
+Object.assign((window.Sg.story ??= {}), {
+	overBudget: (pc) => (pc?.star?.spent ?? 0) > (window.Game?.Star?.budget ?? 6),
+});

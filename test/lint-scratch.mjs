@@ -3,7 +3,7 @@
 // 为什么要有这一件：原先 `lintCommand` 的两次编译都写**按 slug 固定**的
 // `build/generated/<slug>`，快照也是 `build/generated/<slug>.lint-snap` ⇒ 两个进程同时跑同一 slug 时
 // 互相 `rmSync`／`cp`／编译 ⇒ 报「编译不幂等（两次产物有差）」——而那是**假红**（判据本身没坏）。
-// 实测（本席）：2 进程 × 5 轮 = **5/5 轮必红**；`test-plan` 的 `test` 相位并发 4、
+// 实测（本片）：2 进程 × 5 轮 = **5/5 轮必红**；`test-plan` 的 `test` 相位并发 4、
 // `test-story-ci.mjs` 与其兄弟段同时在场 ⇒ **CI 上就表现为间歇红**（main 同期可能恰好是绿的）。
 //
 // 本件的判据（**能假**：把 scratch 改回按 slug 固定 ⇒ 必红；探针在 `scripts/probes.mjs`）：
@@ -107,8 +107,13 @@ for (let round = 1; round <= ROUNDS; round += 1) {
 	}
 }
 
-if (scratchLeftIn(GEN).length > 0) failures += 1;
-console.log(`${scratchLeftIn(GEN).length === 0 ? '✓' : '✗'} 跑完不留草稿目录（\`.lint-run-*\` 现有 ${scratchLeftIn(GEN).length} 个；跑前 ${before.length} 个）`);
+// ⚠️ **只判「本次新出现的」** ✗ —— 全局列举式断言**天生竞态**：兄弟段（`test-plan` 的 `test-lint-story-mjs`
+//   与本件同相并发）跑出瞬时 `.lint-run-*` 就会被读成"自己留了草稿" ⇒ 假红（撞上就红、撞不上就绿）。
+//   同型教训本仓已有：`test/equiv-scratch.mjs`（`#1004`）的 `newScratch = (base) => …filter((n) => !base.includes(n))`
+//   —— 本件首版把 `before` 取了只用来打印，等于**又踩一遍**同一个坑（CI 实证：`现有 1 个；跑前 0 个`）。
+const freshLeft = scratchLeftIn(GEN).filter((n) => !before.includes(n));
+if (freshLeft.length) failures += 1;
+console.log(`${freshLeft.length === 0 ? '✓' : '✗'} 跑完不留**本次新出现**的草稿目录（新出现 ${freshLeft.length} 个${freshLeft.length ? `：${freshLeft.join('、')}` : ''}；跑前 ${before.length} 个）`);
 
 const oldLeft = oldLocationProblems({ genDir: GEN, slug: SLUG });
 if (oldLeft.length) failures += 1;

@@ -204,7 +204,7 @@
 
 | 段落 | 归属 | 说明 |
 |---|---|---|
-| `短战斗 Widget` | **引擎**（`src/engine/50-present/12-shortfight.twee`） | `#608`：S3 短战斗机制从 `stories/hollow-cave/10-cave.twee` 上移；**无玩家可见正文**（只有 widget 定义与文档注释）⇒ 不进"内容段落"计数，但它在 `ui-migration-diff` 的段落表里是新名字，按该门口径在此登记 |
+| `短战斗 Widget` | **引擎**（`src/engine/50-present/12-shortfight.twee`） | `#608`：S3 短战斗机制从 `stories/hollow-cave/10-cave.twee` 上移；**无玩家可见正文**（只有 widget 定义与文档注释）⇒ 不进"内容段落"计数，但它在 `ui-migration-diff` 的段落表里是新名字，按该门口径在此登记 | <!-- path-exempt: 该故事已按 #1004 删除（历史记录，不抹）-->
 | `敌人回合 Widget` | **引擎**（`src/engine/50-present/12-shortfight.twee`） | `#705` 片二：**一个完整回合**的机制（玩家 5e 攻击骰 ⇒ 敌人反击 ⇒ 骰式伤害**落部位** ⇒ `slotAbsorbAt`）＋ 一行日志（`#701` 的日志面素材）；**无正文**（0 字符） ⇒ 已登记 |
 | `机制·shortFight·尾` | 故事 3（结构段） | `#608`：短战斗结算后的**故事侧**动作（`<<caveNext>>`）；无正文（`payload: 信息`） |
 

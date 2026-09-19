@@ -44,6 +44,12 @@
 			"why": "**元数据面**（夹具 ✓）：与 `stories/minimal-demo/00-meta.twee`／`stories/night-ferry/00-meta.twee` **同类** —— `StoryTitle`＝散文 1 行／`StoryData`＝Twine 格式元数据（`ifid`／`format*`／`zoom` 不是故事数据）／`StoryIdentity`＝1 行且已被 `store-keys` 门把住 ⇒ 可数据化内容 ≈ 2–3 行。",
 			"ticket": "#1004",
 			"paths": "**三条路**：(i) 三段都数据化（当下不走：`StoryData` 属 Twine 参数、`StoryTitle` 属散文）；(ii) 只数据化 `StoryIdentity`（收益 1 行 < 新面成本）；(iii) **本阶段不动 ＋ 登记为欠账** ← 采用。**重开条件**：当「手写面清零」成为显式目标、或 `StoryData` 需要按故事机检时。"
+		},
+		{
+			"file": "stories/face-fixture/10-fixture.twee",
+			"why": "**车卡模块 ＋ 段落面**（夹具）：照 `mist-forest/20-chargen.twee` 的先例 —— `Chargen Data [script]`（`rounds`／`presets`／`pick`／`finalize`）是**故事侧逻辑**（apply 函数读任意状态），段落是**散文**。⇒ 可数据化的是「声明面」，逻辑与正文当下不划算。",
+			"ticket": "#1004",
+			"paths": "**三条路**：(i) 把 `Chargen` 数据化（`rounds`／`presets` 进 `data/` ＋ 新 kind 装 `apply` 闭包 —— 那是 `escape-hatch.json` 的 C 桶，需先立词）；(ii) 段落正文进 `data/`（设计稿 §3 明写「文本留文本」⇒ **不走**）；(iii) **本阶段不动 ＋ 登记为欠账** ← 采用。**重开条件**：当「车卡面」在第二个故事里再出现一次、或 C 桶「闭包 apply」凑到第三处时，按 `#785` 的口径扩词。"
 		}
 	],
 	"proseFaces": [

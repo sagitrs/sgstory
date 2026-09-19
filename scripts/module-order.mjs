@@ -166,6 +166,35 @@ export const requireManifests = (manifests, who = 'checkRegistration') => {
  *  ④ `missing-manifest-file` —— **清单列出的文件**必须存在 ✓（改名/删除会被抓 ✓）
  *  ⚠️ 边界（写清 ✓）：`ORDER` 对**故事件**是**可选**的 ✓ —— 既有故事件在里面 ⇒ 由 `ORDER` 排序 ✓；
  *     新故事件不在 ⇒ 由**清单序**排序 ✓（见 `storyOrder()` ✓）。引擎件**不得**只靠清单 ✗。 */
+/** **故事声明面必须排在消费它的引擎件之前** ✗（`#1002` —— `#998` 实测出来的洞 ✓）。
+ *
+ *  为什么单列一族 ✗：`checkRegistration()` 只管到"引擎件 ⊂ ORDER" ✓ 与"故事件被清单认领" ✓，
+ *  ⚠️ **不要求**故事件**进 ORDER** ✗（`#893` 起故事件改由**自己的清单**登记 ✓）——
+ *  ⇒ 于是"某个故事的 `15-tables.twee` 漏进 ORDER / 排到了 `21-resolve` 之后"**没人管** ✗。
+ *
+ *  代价（`#998` 实测 ✓）：`21-resolve` 加载期做 `Object.assign((window.Game.X ??= {}), {…方法…})` ✓，
+ *  故事表做 `window.Game = Object.assign(window.Game ?? {}, { X: {…} })` ✗（**顶层浅合并 ＝ 替换** ✗）
+ *  ⇒ **谁后跑谁赢** ✓：故事表若排在引擎之后 ⇒ 引擎挂在 `Game.Combat` 上的方法**被抹掉** ✗
+ *  ⇒ 门里 `Game.Combat.slotAbsorb(...)` 抛 TypeError ⇒ **门崩** ✗（后面的故事面**全没跑** ✗）。
+ *
+ *  ⚠️ 判据只钉**两格** ✓（不扩大）：① 该件**在 ORDER 里** ✓；② 它**排在消费侧之前** ✓。
+ *  ③ 名字口径 ✓：故事侧固定 `15-tables.twee` ✓（模块序的表里就是这么排的 ✓）；
+ *  ④ 只在**清单真的列了**它时才判 ✓（没这个面 ⇒ 不管 ✓ —— 本仓口径：手写面各有归属 ✓）。
+ */
+export const storyTablesOrderProblems = ({ order = ORDER, manifests = [], consumer = 'src/engine/40-sim/21-resolve.twee' } = {}) => {
+	const out = [];
+	const at = order.indexOf(consumer);
+	for (const m of requireManifests(manifests)) {
+		for (const f of m.files ?? []) {
+			if (!/\/15-tables\.twee$/.test(f)) continue;
+			const i = order.indexOf(f);
+			if (i < 0) out.push({ code: 'tables-not-in-order', msg: `${m.slug} 的 ${f} **不在 ORDER 里** ✗ ⇒ 它会排在 ${consumer} **之后** ⇒ 故事表**盖掉**引擎挂的方法（\`#998\` 实测：门崩 ✓）` });
+			else if (at >= 0 && i > at) out.push({ code: 'tables-after-consumer', msg: `${m.slug} 的 ${f} 排在 ${consumer} **之后** ✗（ORDER 下标 ${i} > ${at}）⇒ 同上：加载期 assign 的目标被换掉 ✗` });
+		}
+	}
+	return out;
+};
+
 export const checkRegistration = ({ sources, order = ORDER, modules = MODULES, manifests, requireModules = false } = {}) => {
 	const out = [];
 	const names = Object.keys(sources);

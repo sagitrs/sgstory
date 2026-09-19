@@ -11,7 +11,7 @@
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { ROOT } from './dist-paths.mjs';
-import { ORDER, MODULES, CONST_SECTION, allSourceFiles, storyManifests, checkRegistration } from './module-order.mjs';
+import { ORDER, MODULES, CONST_SECTION, allSourceFiles, storyManifests, checkRegistration, storyTablesOrderProblems } from './module-order.mjs';
 
 const SRC = join(ROOT, 'src');
 const STORIES = join(ROOT, 'stories');
@@ -48,6 +48,9 @@ export const aggregatorChecks = (srcText) => {
  *  （`MODULES` 缺项是"账本不自洽" ✓，属本脚本的六处同步面 ✓）。 */
 export const checkPlaces = ({ srcFiles, order, modules, manifests, constFiles, aggregatorSrc }) => {
 	const out = [...checkRegistration({ sources: Object.fromEntries(srcFiles.map((f) => [f, ''])), order, modules, manifests, requireModules: true })];
+	// `#1002`：**故事声明面必须排在消费它的引擎件之前** ✗ —— `checkRegistration()` 管不到这一格 ✓
+	//（`#998` 实测：漏排 ⇒ 故事表盖掉引擎挂在 `Game.*` 上的方法 ⇒ 门 TypeError ⇒ 后面的故事面全没跑 ✗）
+	out.push(...storyTablesOrderProblems({ order, manifests }));
 	for (const f of [...constFiles]) if (!srcFiles.some((x) => x === f || x.endsWith(`/${f}`))) out.push({ code: 'stale-const-decl', msg: `CONST_SECTION.files 里的 ${f} 不存在（搬走了没更新声明）` });
 	if (aggregatorSrc) {
 		const a = aggregatorChecks(aggregatorSrc);
@@ -93,6 +96,14 @@ if (process.argv.includes('--selftest')) {
 	t('**故事件**无人认领 ⇒ unclaimed-file（引擎件豁免）', checkPlaces({ ...base, srcFiles: ['stories/s/x.twee'], order: [], modules: {}, manifests: [{ slug: 's', files: [] }], constFiles: [] }).some((x) => x.code === 'unclaimed-file'));
 	t('**故事件**不在 ORDER、但在清单里 ⇒ 0 报（#893 新口径：换登记处 ✓）', checkPlaces({ ...base, srcFiles: ['stories/s/a.twee'], order: [], modules: {}, manifests: [{ slug: 's', files: ['stories/s/a.twee'] }], constFiles: [] }).length === 0);
 	t('**引擎件**即使被清单认领，仍必须 ⊂ ORDER ⇒ unlisted-file（安全网不撤）', checkPlaces({ ...base, order: [], manifests: [{ slug: 's', files: ['src/a.twee'] }] }).some((x) => x.code === 'unlisted-file'));
+	// `#1002`：**故事声明面必须排在消费它的引擎件之前** ✗（`#998` 实测出来的洞 ✓）
+	const TBL = 'stories/s/15-tables.twee';
+	const CONS = 'src/engine/40-sim/21-resolve.twee';
+	const withStory = { ...base, srcFiles: [TBL], order: [TBL, CONS], modules: { [CONS]: { layer: 'engine' } }, manifests: [{ slug: 's', files: [TBL] }], constFiles: [] };
+	t('正例：故事表排在消费侧**之前** ⇒ 0 报 ✓', checkPlaces(withStory).filter((x) => x.code.startsWith('tables-')).length === 0);
+	t('🔴 反例：故事表**不在 ORDER**（漏登记）⇒ tables-not-in-order ✗', checkPlaces({ ...withStory, order: [CONS] }).some((x) => x.code === 'tables-not-in-order'));
+	t('🔴 反例：故事表排在消费侧**之后** ⇒ tables-after-consumer ✗（`#998` 的形状：故事表盖掉引擎方法 ⇒ 门崩 ✓）', checkPlaces({ ...withStory, order: [CONS, TBL] }).some((x) => x.code === 'tables-after-consumer'));
+	t('边界：清单里**没有** `15-tables` 面 ⇒ 不判（这格管的是那一个面 ✓）', checkPlaces({ ...base, manifests: [{ slug: 's', files: [] }] }).filter((x) => x.code.startsWith('tables-')).length === 0);
 	t('常量声明指向不存在的文件 ⇒ stale-const-decl', checkPlaces({ ...base, constFiles: ['gone.twee'] }).some((x) => x.code === 'stale-const-decl'));
 	// `#899` ①：清单**显式必需** ✗ —— 不传 ⇒ **点名抛错** ✓（合成输入不得读盘 ✓）
 	t('缺 `manifests` ⇒ 点名抛错（不读盘 ✗）', (() => {

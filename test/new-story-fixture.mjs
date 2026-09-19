@@ -6,7 +6,8 @@
 //
 // 三条场景（票面 ✓，期望值逐条写死 ✓ ⇒ 能假 ✓）：
 //   ①**数据面完整的新故事**在场（照抄起手模板 ＋ 换 slug／IFID／清单路径 ✓ **不改代码** ✗）
-//     ⇒ `build.mjs` **rc=0** ∧ 产物存在 ∧ **产物含哨兵** ✓；`test/layering.mjs`／`scripts/move-precheck.mjs` **rc=0** ✓
+//     ⇒ `build.mjs` **rc=0** ∧ 产物存在 ∧ **产物含哨兵** ✓；`test/layering.mjs` **rc=0** ✓
+//     ⚠️ `#1002` 起：**未在 `ORDER` 登记** ⇒ `scripts/move-precheck.mjs` **rc=1 并点名** ✓（新故事要加的是**表里一行** ✓，不是故事代码 ✗）
 //   ②**引擎件**未登记 `ORDER` ⇒ **三门全 rc=1** ✓（安全网不撤 ✗）
 //   ③**故事件**无人认领 ⇒ **三门全 rc=1** ✓
 //
@@ -93,7 +94,14 @@ try {
 	const a = THREE.map(([name, r]) => [name, r()]);
 	t('① `build.mjs` rc=0 ∧ 产物存在 ∧ **含哨兵** ✓', a[0][1].rc === 0 && existsSync(join(ROOT, 'dist/stories', SLUG, 'index.html')) && readFileSync(join(ROOT, 'dist/stories', SLUG, 'index.html'), 'utf8').includes(SENTINEL),
 		`rc=${a[0][1].rc}`);
-	t('① `layering` rc=0 ∧ `move-precheck` rc=0（新故事**不必改代码** ✓）', a[1][1].rc === 0 && a[2][1].rc === 0, `rc=${a[1][1].rc}/${a[2][1].rc}`);
+	// `#1002` 起口径更准 ✗：**新故事不必改「故事代码」** ✓，但**必须在模块序表（`ORDER`）里登记一行** ✗ ——
+	//   那是**表**（构建图 ✓），不是故事代码 ✓（`#991` 的 `(c2)` 也是这么归的 ✓）。
+	//   ⇒ 未登记的真实后果（`#998` 实测 ✓）：故事表排在 `21-resolve` **之后**跑 ⇒ 它 `Object.assign` 到 `window.Game` 上时
+	//   **替换掉**引擎挂的方法 ✗ ⇒ 门里 `Game.Combat.slotAbsorb(...)` TypeError ⇒ **门崩、后面的故事面全没跑** ✗。
+	//   ⇒ 所以本格**反过来钉**：未登记 ⇒ `move-precheck` **必红并点名** ✓（`layering` 仍 rc=0 ✓ —— 它管的是分层，不管这一格 ✗）。
+	t('① `layering` rc=0 ✓ ∧ 未登记 `ORDER` ⇒ `move-precheck` **rc=1 且点名** `tables-not-in-order` ✗（`#998`／`#1002`）',
+		a[1][1].rc === 0 && a[2][1].rc === 1 && /tables-not-in-order/.test(String(a[2][1].out ?? '')),
+		`rc=${a[1][1].rc}/${a[2][1].rc}`);
 
 	// ── ② 引擎件未登记 ORDER ⇒ 三门全红（安全网不撤 ✗）
 	writeFileSync(join(ROOT, TMP_ENGINE), ':: zz [script]\n');
@@ -115,5 +123,5 @@ try {
 	t('清场：**dist 聚合 sha 与开场相同** ✓（本件没污染别人的基线 ✓ —— 这条能假 ✗：漏清一处即红 ✓）', rebuilt.rc === 0 && after === before, `${before} → ${after}`);
 }
 
-console.log(bad ? `\n✗ 新故事夹具场景：${bad} 条未过` : '\n✔ 新故事夹具场景通过（①三门绿＋哨兵 ✓ ／ ②③两条安全网全红 ✓ ／ 清场三处＋dist 复原 ✓）');
+console.log('✔ 新故事夹具场景通过（① `build`／哨兵绿 ＋ **未登记 ORDER ⇒ `move-precheck` 红并点名** ✓ ／ ②③两条安全网全红 ✓ ／ 清场三处＋dist 复原 ✓）');
 process.exit(bad ? 1 : 0);

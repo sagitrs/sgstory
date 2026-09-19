@@ -3,6 +3,7 @@ name: CI
 on:
   push:
     branches: [main]
+  workflow_dispatch: {}   # 手动补跑取证（β2 双证实践实证需求——rerun 仅可重跑既有 run，dispatch 可独立触发含 post-deploy-smoke）
   pull_request:
 
 permissions:
@@ -142,7 +143,7 @@ jobs:
 
   post-deploy-smoke:
     # 线上冒烟（#188）：部署后拉线上产物，断言可达/字体外链/preload/体积预算
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: [deploy]
     runs-on: ubuntu-latest
     timeout-minutes: 10

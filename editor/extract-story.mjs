@@ -17,6 +17,7 @@ import { scriptBodies } from './lib/core/text.mjs';
 // `#794` 抽取：读文件的事归 **host**（core 必须浏览器安全）⇒ `engineScripts`／`ENGINE_CONST`／`ROOT` 从 host 取，
 // 本文件**只转出**（老调用方 `classify-contract` 与各门不用改 ✓）。
 import { engineScripts, ENGINE_CONST, ROOT } from './lib/host/fs.mjs';
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2：自证里的故事名走单一权威 ✓（不写死 slug ✗）
 export { engineScripts, ENGINE_CONST, ROOT };
 
 /** **引擎常量文件**：故事表里会直接用它（如 `era: window.Game.Era.PRESENT`）⇒ 沙箱必须**先跑引擎**
@@ -60,7 +61,9 @@ const selftest = () => {
 	// `#794`：**自证也是这两个共享帮手的消费者** ✓ —— 复核席要求（"只有自证也是消费者，壳里才不可能留私货" ✓）；
 	// 于是插哨兵时自证必须变红 ✓（实测：本组加上之前，哨兵漏过自证 ⇒ 那条“共用”声称不成立 ✗）。
 	t('共享帮手 `sectionFile`：段落名 → 文件名映射', sectionFile('StoryRules') === '17-rules.twee' && sectionFile('Game Tables') === '15-tables.twee' && sectionFile('Nope') === 'Nope.twee');
-	t('共享帮手 `engineOf`：能读到引擎常量 ＋ 故事段', (() => { try { return engineOf('mist-forest').length > 100; } catch { return false; } })());
+	// `#1004` B2 ✓：`engineOf` 的入参原来是写死的 `mist-forest` ✗（该故事已删 ⇒ 本格 ENOENT ⇒ 假红 ✓）
+	// ⇒ 改走**单一权威** `DEFAULT_SLUG` ✓（本格证的是"这个共享帮手能读到引擎常量 ＋ 故事段"✓，不是"某个故事特别"✗）。
+	t('共享帮手 `engineOf`：能读到引擎常量 ＋ 故事段', (() => { try { return engineOf(DEFAULT_SLUG).length > 100; } catch { return false; } })());
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
 	console.log('\n✔ 自证通过（8 例：预置承重 · 空壳不造数据 · 浏览器语义 · console 接住 · 序列化稳定 ＋ `sectionFile`/`engineOf` 两个共享帮手 ✓）');
 };

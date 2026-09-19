@@ -14,8 +14,8 @@
 > · **量法（可粘贴复跑 ✓）**：`node scripts/report-gate-ledger.mjs --selftest`（含 4 条 `hasSelfProof` 正反例 ✓）；
 > · **缺自证的几行**（`—` ✓）：补一条**能假的负控制** ✓，或按 `#908` ① 登记探针 ✓ —— 名单见下方「工作清单」（**动态生成** ✗，不写死 ✓）。
 
-**严格行为化率（有自证）：67/96 = 69.8%** ｜ **有断言但缺自证：29**（＝下方工作清单）｜ 仅登记：0
-**探针（直接读数 ✓，不是"文件在不在"那种代理 ✗）：`✅` 10 项 ｜ `—` 未探 86 项（**上限 117** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ `✗` 不咬 0 项（**>0 即红** ✓）** —— 档位／清单：`node scripts/probe-gates.mjs --probe=fast` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）
+**严格行为化率（有自证）：60/88 = 68.2%** ｜ **有断言但缺自证：28**（＝下方工作清单）｜ 仅登记：0
+**探针（直接读数 ✓，不是"文件在不在"那种代理 ✗）：`✅` 3 项 ｜ `—` 未探 76 项（**上限 117** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ `✗` 不咬 9 项（**>0 即红** ✓）** —— 档位／清单：`node scripts/probe-gates.mjs --probe=fast` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）
 
 | 门 | 类型 | 形态 | 自证 | **探针** | 接线（npm test） | 理由（仅登记/未接线必填） |
 |---|---|---|---|---|---|
@@ -48,19 +48,14 @@
 | `test/codex-gating.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/combat-adv.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/contract-compat.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
-| `test/contract-version.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
+| `test/contract-version.mjs` | 测试脚本 | 行为化（缺自证） | — | ✗ | ✅ |  |
 | `test/core-story.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/coverage.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
-| `test/dialect.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
-| `test/econ-price.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/equiv-scratch.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
-| `test/event-graph.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
+| `test/dialect.mjs` | 测试脚本 | 行为化（缺自证） | — | ✗ | ✅ |  |
+| `test/equiv-scratch.mjs` | 测试脚本 | 行为化（缺自证） | — | ✗ | ✅ |  |
+| `test/event-graph.mjs` | 测试脚本 | 行为化 | ✅ | ✗ | ✅ |  |
 | `test/fatal-guard.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
-| `test/fight-compat.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/fight-fields.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/fight-history.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/fight-seq.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/foe-5e.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/g3-evidence.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/gate-discovery.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/globals.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
@@ -72,7 +67,6 @@
 | `test/lint-story.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/multi-story.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/new-story-fixture.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
-| `test/notes-write.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/npc-venue.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/onetime-pickups.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/pc-defaults.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
@@ -80,7 +74,6 @@
 | `test/properties.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/render-all.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/reread.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/resolve-node.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/roll-binding.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/rules-claims.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/rules.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
@@ -96,7 +89,7 @@
 | `test/social-sink.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/state-diagnose.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/store-keys.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/story-ci.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
+| `test/story-ci.mjs` | 测试脚本 | 行为化 | ✅ | ✗ | ✅ |  |
 | `test/story-runtime.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/story-shape.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/walker.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | 随机游走 soak（npm run soak）：耗时长、种子流非确定，不进 npm test |
@@ -104,19 +97,18 @@
 | `test/web-diagnose-view.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/web-diagnose-wire.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/web-diagnose.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
-| `test/web-event-graph.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
+| `test/web-event-graph.mjs` | 测试脚本 | 行为化（缺自证） | — | ✗ | ✅ |  |
 | `test/web-events.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/web-form.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/web-loader.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/web-new-package.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/web-preview.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/web-read-faces.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
-| `test/web-rule-rows.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
+| `test/web-read-faces.mjs` | 测试脚本 | 行为化（缺自证） | — | ✗ | ✅ |  |
+| `test/web-rule-rows.mjs` | 测试脚本 | 行为化（缺自证） | — | ✗ | ✅ |  |
 | `test/web-save.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/web-settle.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
-| `test/witness-trace.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
+| `test/witness-trace.mjs` | 测试脚本 | 行为化（缺自证） | — | ✗ | ✅ |  |
 
-## F2 工作清单：有断言但**缺自证**（29 项）
+## F2 工作清单：有断言但**缺自证**（28 项）
 
 > 这些门**在跑、也在断言**，但从没被证明「反例会红」——本仓当日四类空判（覆盖≠验收／反例空判／死开关 #331／原理不可达 #338）都出自这一类。
 > 补法：给该门加一个**合成反例**用例（正例＋反例），并在本脚本的 `REASONS` 里改标 `行为化`。
@@ -131,7 +123,6 @@
 - `test/fatal-guard.mjs`（测试脚本）
 - `test/g3-evidence.mjs`（测试脚本）
 - `test/new-story-fixture.mjs`（测试脚本）
-- `test/notes-write.mjs`（测试脚本）
 - `test/onetime-pickups.mjs`（测试脚本）
 - `test/pc-defaults.mjs`（测试脚本）
 - `test/properties.mjs`（测试脚本）

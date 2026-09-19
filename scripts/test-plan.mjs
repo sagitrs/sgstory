@@ -76,8 +76,6 @@ export const SEGMENTS = [
 	{ id: "test-combat-adv-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/combat-adv.mjs --selftest" },
 	{ id: "test-combat-adv-mjs", phase: 'test', cost: 15.6, cmd: "node test/combat-adv.mjs" },
 	{ id: "test-g3-evidence-mjs", phase: 'test', cost: 15.7, cmd: "node test/g3-evidence.mjs" },
-	{ id: "test-fight-compat-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-compat.mjs --selftest" },
-	{ id: "test-fight-compat-mjs", phase: 'test', cost: 12, cmd: "node test/fight-compat.mjs" },
 	{ id: "test-fight-seq-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-seq.mjs --selftest" },
 	{ id: "test-fight-seq-mjs", phase: 'test', cost: 22, cmd: "node test/fight-seq.mjs" },
 	{ id: "test-reread-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/reread.mjs --selftest" },
@@ -214,8 +212,6 @@ export const SEGMENTS = [
 	// #640（伞 #626）：**矩阵门** —— 场景 × 道具/线索集合 → 期望（行键＝谓词上下文 · 期望＝渲染后+行为面 · 承诺 ratchet）
 	// #608：**短战斗相位门**（引擎侧 widget 的契约：四相位→分支 · 未结束不结算不推进 · 奖励/失败笔记走声明面）
 	// #705 片二／#702 a2：**敌人实例 · 5e 核心门**（实例化 · 攻击骰 vs AC · 伤害落部位 · 全灭通关）
-	{ id: "test-foe-5e-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/foe-5e.mjs --selftest" },
-	{ id: "test-foe-5e-mjs", phase: 'test', cost: 8, cmd: "node test/foe-5e.mjs" },
 	// `#701`：**战斗日志门**（可回看的一手一句：有界/保留最近/渲染只读/降级不出现）
 	{ id: "editor-k6-selftest", phase: 'test', cost: 0, cmd: "node editor/k6.mjs --selftest" },
 	{ id: "editor-k6", phase: 'test', cost: 0.2, cmd: "node editor/k6.mjs" },
@@ -253,11 +249,7 @@ export const SEGMENTS = [
 	{ id: "test-social-sink-mjs", phase: 'test', cost: 3, cmd: "node test/social-sink.mjs" },
 	{ id: "test-siteinfo-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/siteinfo-sink.mjs --selftest" },
 	{ id: "test-siteinfo-sink-mjs", phase: 'test', cost: 2, cmd: "node test/siteinfo-sink.mjs" },
-	{ id: "test-fight-history-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-history.mjs --selftest" },
-	{ id: "test-fight-history-mjs", phase: 'test', cost: 4, cmd: "node test/fight-history.mjs" },
 	// `#707`：**战斗状态字段使用面门**（每个 `$pc.ev.fight.<字段>` 都必须有人用；死字段点名）
-	{ id: "test-fight-fields-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-fields.mjs --selftest" },
-	{ id: "test-fight-fields-mjs", phase: 'test', cost: 1, cmd: "node test/fight-fields.mjs" },
 	// `#693`（P1）：**主交互路径门**（确定性路线：点得动 · 无红框 · 到终点 · 产出可见）
 	// 洞窟「商人」门（`#696`：金币要有出口 ⇒ 旅人里随机出现商人；报价读声明面 · 买不起不显示 · 火把油）
 	// 洞窟五步主线**末步**门（实测）：走满 5 步再回岔口时**不许**抛 `roadOffer(6)` 红框 ⇒ 越界走退路

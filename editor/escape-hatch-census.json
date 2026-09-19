@@ -1,52 +1,5 @@
 {
 	"note": "**「必须逃生舱」普查表**（`#761` 车道 A 的产出 ⇒ schema 的真实边界）—— 与登记表 `editor/escape-hatch.json` **配对但不同物** ✗：登记表写「现在是逃生舱的成员」（只许收缩 ✓），本表写「**翻面前手写契约的每一名成员后来去了哪**」（逐条交代 ✓）。为什么要它：故事一旦**全部由 `data/` 产出**，K4 的分类器就没有手写输入 ⇒ 那行 `A0/B0/C0/D0` 是「**没判**」而不是「判过」✗（实测：hollow-cave 曾经就是这样 ✓）⇒ 空判必须补上**能假的**面 ✓。判据见 `editor/lib/core/hatchCensus.mjs`（纯函数 ＋ 自证 ✓）。",
 	"why_counted": "成员名单取**翻面前的原文**（`git show 7e1401a:stories/hollow-cave/15-tables.twee`，25465B ✓ —— `7e1401a` 是翻面提交 `1eebdcb`（`#762` A 后半）的父提交 ✓），桶值取**当场跑出来的分类**（`node editor/classify-contract.mjs hollow-cave` @ `7e1401a`：**可直接表达 21 · 需声明式扩展 2 · 可下沉引擎 0 · 真逃生舱候选 1** ✓）。**不手写数字**：本表面成员逐条列名 ✓，计数由门当场算并打印 ✓（手写数字必腐烂 ✗）。",
-	"stories": {
-		"hollow-cave": {
-			"censusOf": "7e1401a（翻面前）· stories/hollow-cave/15-tables.twee",
-			"members": [
-				{ "name": "notes", "bucket": "A" },
-				{ "name": "econEvents", "bucket": "A" },
-				{ "name": "hasChargen", "bucket": "A" },
-				{ "name": "pcDefaults", "bucket": "A" },
-				{ "name": "rules", "bucket": "A" },
-				{ "name": "checkSite", "bucket": "A" },
-				{ "name": "foeState", "bucket": "A" },
-				{ "name": "checkKnowledge", "bucket": "A" },
-				{ "name": "combatPool", "bucket": "A" },
-				{ "name": "lootText", "bucket": "B" },
-				{ "name": "combatAction", "bucket": "A" },
-				{ "name": "actionLabel", "bucket": "A" },
-				{ "name": "itemEffect", "bucket": "A" },
-				{ "name": "poisonReduce", "bucket": "A" },
-				{ "name": "dragonMaxHp", "bucket": "A" },
-				{ "name": "gearDef", "bucket": "A" },
-				{ "name": "mechanics", "bucket": "B" },
-				{ "name": "eventKindLabel", "bucket": "A" },
-				{ "name": "chestGold", "bucket": "A" },
-				{ "name": "enemyDef", "bucket": "A" },
-				{ "name": "caveReward", "bucket": "A" },
-				{ "name": "chestDef", "bucket": "A" },
-				{ "name": "lootOf", "bucket": "A" },
-				{ "name": "eventPool", "bucket": "C" }
-			],
-			"bucketsWhy": "A＝可直接表达（住 `data/` ✓）；B＝需声明式扩展（**不是**逃生舱 ✓）：`lootText` 由 `template` kind 表达 ✓、`mechanics` 把局部常量的**字面量**搬进 `data/` ✓（值仍是数据、不是逻辑 ✓）；C＝真逃生舱候选（含任意逻辑 ✗）**只有 `eventPool` 一条** ✓。",
-			"engineSinks": [
-				{
-					"member": "eventPool",
-					"ticket": "#778",
-					"what": "「按声明折叠出事件实例清单」由引擎承担（`roadInstances()` ✓）⇒ 故事侧不再需要那段 `flatMap` 逻辑 ✓ ⇒ **C 桶候选清零** ✓（这正是「下沉引擎」这条正路：不是登记成逃生舱，而是让引擎长出这个能力 ✓）。",
-					"anchors": [{ "file": "src/engine/40-sim/21-resolve.twee", "symbol": "roadInstances" }]
-				},
-				{
-					"member": "checkKnowledge",
-					"ticket": "#784",
-					"what": "「位点 ⇒ 知识 ⇒ 旗标」的**判定**搬进引擎（`knowledgeOf()` ✓，两张**声明表**留在 `Game.Checks.knowledge`／`knowledgeWhy` ✓）；故事声明面那一行 `() => null` 随之删除 ✓ ⇒ 它**不在**数据面不是漏搬、是**搬走了** ✓。",
-					"anchors": [{ "file": "src/80-script.twee", "symbol": "knowledgeOf" }]
-				}
-			],
-			"escapeHatches": [],
-			"escapeHatchesWhy": "**空** ✓ —— 24 名成员里唯一的 C 桶候选（`eventPool`）已由 `#778` 下沉引擎 ✓ ⇒ 没有任何成员**必须**留在逃生舱 ⇒ 登记表里也就不该有 hollow-cave 的条目 ✓（有则是登记腐烂 ✓，由本表＋门把它顶回去 ✓）。⇒ 这张清单同时是 **schema v1 的边界读数**：hollow-cave 面所需的条件／查表能力，**数据面 ＋ 引擎能力**已经**够用** ✓。"
-		}
-	}
+	"stories": {}
 }

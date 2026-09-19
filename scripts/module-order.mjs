@@ -22,66 +22,42 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '');
 // 依赖边只写**加载期**真实需要，宁少勿多；声明与实际不符时，`defines` 清单会把它抓出来。
 
 export const ORDER = [
-	'stories/mist-forest/00-meta.twee',      // StoryTitle / StoryData（无依赖）
 	'src/engine/30-persist/05-store.twee',     // 存储缝（#441-B/#462）：localStorage 键构造的唯一落点（引擎/故事两作用域）
 	'src/engine/10-const.twee',   // 引擎常量（#660 片二）：Game.Era / Game.Damage —— **必须排在 10-core 之前**
 	'src/10-core.twee',      // Game.Rules / Game.Pc / Sg.UI ＋ 宏（依赖 10-const 的常量）
 	'src/engine/50-present/11-scene.twee',     // 场景 widget（actOut / sceneFeedback）
-	'stories/mist-forest/12-widgets.twee',    // 故事 1 的 widget（#460：从引擎 10-core 搬回：hallResult / flip）
-	'stories/mist-forest/15-tables.twee',    // Game.*（加载期需要 Rules / Pc）
 	// 手写逃生舱文件（`#787` 翻面）：契约里两个**非 A 桶**成员（`socialHooks`／`overBudget`）——
 	// **不带** `@generated`（它不是产物），与生成物**同形**地 `Object.assign` 到 `Sg.story`。
-	'stories/mist-forest/16-hooks.twee',
 	// 笔记模型（伞 #422）的增量文件：只往 Game.Notes.entries 追加条目。
 	// 每批一个文件（#428 机制）⇒ 多席并行落表零冲突；新增文件必须在此登记（build 会拒绝未登记的文件）。
-	'stories/mist-forest/16-notes-ch1.twee',      // 笔记增量文件（#442 B0）：一章补漏
-	'stories/mist-forest/16-notes-ch2.twee',      // 笔记增量文件（#429 B1）：二章
-	'stories/mist-forest/16-notes-ch3.twee',      // 笔记增量文件（#430 B2）：三章
-	'stories/mist-forest/16-notes-cross.twee',
-	'stories/mist-forest/17-rules.twee',    // 条件表（#435 阶段 4）：只往 Sg.story.rules() 追加行    // 笔记增量文件（#431 B3）：跨章/展示层
 	// ── 第二个故事（#460）：**按与 mist-forest 同构的相对位置交错登记** ──
 	// 为什么要交错而不是追加在末尾：`15-tables` 建的空容器是引擎侧 `21-resolve` **加载期**就要 assign 的对象
 	//（`Object.assign(window.Game.Checks, …)`）⇒ 必须排在它前面。多故事并存下 ORDER 的"全局交错"语义
 	// 值得另票收紧（per-story ORDER），本票先按既有形状办。
 	'stories/minimal-demo/00-meta.twee',      // StoryTitle / StoryData / StoryIdentity（无依赖）
-	'stories/hollow-cave/00-meta.twee',       // StoryTitle / StoryData / StoryIdentity
 	'stories/night-ferry/00-meta.twee',       // 第四个故事（夜渡）的 StoryTitle / StoryData / StoryIdentity
-	'stories/hollow-cave/15-tables.twee',     // 声明面（S1–S4 的表）＋ StoryBindings：**引擎加载期**要用（必须排在 21-resolve 前）
 	'stories/minimal-demo/15-tables.twee',    // 最小声明面：引擎加载期要用的空容器
 	// ⚠️ `night-ferry`（`#998` 实测 ✗）：**漏登记 ⇒ 它落到末尾 ⇒ 顶层浅合并 `window.Game = Object.assign(…)` 会把
 	//   引擎加载期 assign 进 `Game.Combat` 的方法**一起替换掉** ✗ ⇒ `Game.Combat.slotAbsorb` 消失 ⇒ `slots` 门抛异常 ✓
 	//   ⇒ 这条**不是可选** ✓：**每个故事的 `15-tables.twee` 都必须排在 `21-resolve` 之前** ✓（:43 那句的原意 ✓）。
 	'stories/night-ferry/15-tables.twee',     // 第四个故事的声明面：引擎加载期要用的空容器（**必须排在 21-resolve 前** ✓）
-	'stories/mist-forest/20-chargen.twee',   // Game.Chargen（rounds/presets/API；加载期需要 Rules）
 	'src/engine/40-sim/21-resolve.twee',    // 结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）
 	'stories/night-ferry/10-ferry.twee',     // 第四个故事段落：渡口 → 河心 → 对岸（两条路线各 6 步、两个结局）
 	'stories/night-ferry/17-rules.twee',     // 条件表（生成物）：行数组，选择器在引擎侧
-	'stories/mist-forest/30-ch1.twee',
-	'stories/mist-forest/40-ch2.twee',
-	'stories/mist-forest/50-ch3.twee',
-	'stories/mist-forest/60-endings.twee',
-	'stories/mist-forest/70-codex.twee',
-	'stories/mist-forest/72-codex-ui.twee',   // `Sg.Codex`（`#574`：从 80-script 搬回故事侧——它读 `Game.Codex`）
 	'src/80-script.twee',    // 存档 API / Sg.notes / Sg.Ending ＋ 渲染后处理（**引擎层**，`#574` 修正 layer）
 	'src/engine/50-present/12-shortfight.twee',   // 短战斗 widget（#608：从故事侧上移）
 	'src/engine/50-present/90-style.twee',     // 纯 CSS
 	'stories/minimal-demo/10-demo.twee',      // 段落 ＋ StoryBindings（只依赖引擎）
 	// ── 第三个故事（#490 S5「无名洞窟」雏形）：同样按相对位置交错登记 ──
-	'stories/hollow-cave/10-cave.twee',       // 段落：醒来 → 五步三选一 → 地下村落
 	// ── 第二个故事（#460 最小示例）：证明引擎与故事已解耦 ──
 	// 它不共享 mist-forest 的任何文件（那是另一个故事的资产）；引擎文件对所有故事共享 ⇒ 由 `scopedFiles()` 自动带上。
 ];
 
 // 每个模块：加载期依赖 + 必须定义的符号（用于抓「改了名/挪了位置」）
 export const MODULES = {
-	'stories/mist-forest/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '故事元数据（StoryTitle / StoryData）' },
-	'stories/mist-forest/12-widgets.twee': { deps: ['src/10-core.twee'], defines: ['widget:hallResult', 'widget:flip'], layer: 'story', note: '故事 1 的 widget（#460：从引擎 10-core 搬回——引擎不该知道哨子/时代翻转是什么）' },
 	// ── 第二个故事（#460）：layer 'story'，只依赖引擎 ──
 	'stories/minimal-demo/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '第二个故事的元数据（StoryTitle / StoryData / StoryIdentity）' },
 	'stories/minimal-demo/15-tables.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '第二个故事的最小声明面：引擎**加载期**要用的空容器（#460 实测的接入契约）' },
-	'stories/hollow-cave/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '第三个故事（无名洞窟）的元数据' },
-	'stories/hollow-cave/15-tables.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '无名洞窟的声明面：S1–S4 声明表（mechanics）＋ StoryBindings（引擎接入契约）' },
-	'stories/hollow-cave/10-cave.twee': { deps: ['stories/hollow-cave/15-tables.twee'], defines: [], layer: 'story', note: '无名洞窟段落：五步三选一主线' },
 	'stories/minimal-demo/10-demo.twee': { deps: ['stories/minimal-demo/15-tables.twee'], defines: [], layer: 'story', note: '最小示例段落 ＋ StoryBindings（引擎接入契约的空表）' },
 	// ── 第四个故事（`night-ferry` · 夜渡，P4 `#991` 用编辑器做出 ✓）──
 	'stories/night-ferry/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '第四个故事的元数据（StoryTitle / StoryData / StoryIdentity）' },
@@ -92,22 +68,7 @@ export const MODULES = {
 	'src/engine/10-const.twee': { deps: [], defines: ['Game.Era', 'Game.Damage'], layer: 'engine', note: '引擎常量（#660 片二）：时代枚举与伤害档梯的**唯一落点**' },
 	'src/10-core.twee': { deps: ['src/engine/10-const.twee'], defines: ['Game.Rules', 'Game.Pc', 'Sg.UI'], layer: 'engine', note: '规则内核与界面基座（常量见 10-const）' },
 	'src/engine/50-present/11-scene.twee': { deps: ['src/10-core.twee'], defines: ['widget:actOut', 'widget:sceneFeedback'], layer: 'engine', note: '场景迁移配方（结果留屏）' },
-	'stories/mist-forest/15-tables.twee': { deps: ['src/10-core.twee'], defines: ['Game'], layer: 'story', note: '声明式数据表' },
-	'stories/mist-forest/16-hooks.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '手写逃生舱（`#787`）：两个非 A 桶契约成员（`socialHooks`／`overBudget`）——不是生成物' },
-	'stories/mist-forest/16-notes-ch1.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#442 B0）：只往 Game.Notes.entries 追加条目' },
-	'stories/mist-forest/16-notes-ch2.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#429 B1）：只往 Game.Notes.entries 追加条目' },
-	'stories/mist-forest/16-notes-ch3.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#430 B2）：只往 Game.Notes.entries 追加条目' },
-	'stories/mist-forest/16-notes-cross.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '笔记模型增量文件（#431 B3）：只往 Game.Notes.entries 追加条目' },
-	'stories/mist-forest/17-rules.twee': { deps: ['stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '条件表（#435 阶段 4）：行数组，选择器在引擎侧' },
-	'stories/mist-forest/20-chargen.twee': { deps: ['src/10-core.twee', 'stories/mist-forest/15-tables.twee'], defines: ['Game.Chargen'], layer: 'story', note: '车卡（#320 阶段 3 收进 Game 命名空间）' },
-	'src/engine/40-sim/21-resolve.twee': { deps: ['src/10-core.twee', 'stories/mist-forest/15-tables.twee'], defines: [], layer: 'engine', note: '结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）' },
-	'stories/mist-forest/30-ch1.twee': { deps: ['src/10-core.twee', 'src/engine/50-present/11-scene.twee', 'stories/mist-forest/15-tables.twee', 'stories/mist-forest/20-chargen.twee'], defines: [], layer: 'story', note: '第一章（剧情段）' },
-	'stories/mist-forest/40-ch2.twee': { deps: ['src/10-core.twee', 'src/engine/50-present/11-scene.twee', 'stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '第二章（剧情段）' },
-	'stories/mist-forest/50-ch3.twee': { deps: ['src/10-core.twee', 'src/engine/50-present/11-scene.twee', 'stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '第三章（剧情段）' },
-	'stories/mist-forest/60-endings.twee': { deps: ['src/10-core.twee', 'src/engine/50-present/11-scene.twee', 'stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '结局页' },
-	'stories/mist-forest/70-codex.twee': { deps: ['src/10-core.twee', 'stories/mist-forest/15-tables.twee'], defines: [], layer: 'story', note: '设定集' },
 	'src/80-script.twee': { deps: ['src/10-core.twee'], defines: ['Sg.save', 'Sg.notes', 'Sg.Ending'], layer: 'engine', note: "引擎运行时胶水（`#574` 修正 layer）：存档 API（`Sg.save`）· `Sg.notes`（数据经 `Sg.story.notes()`）· 结局收尾 · 结果留屏/空白归一/键盘路径/`data-choice` 派生——对**每个故事**成立 ⇒ 必须随引擎进每个故事的作用域" },
-	'stories/mist-forest/72-codex-ui.twee': { deps: ['src/10-core.twee'], defines: ['Sg.Codex'], layer: 'story', note: '道具图鉴界面（`#574`：从 80-script 搬回故事 1——它直接读 `Game.Codex.items`，是故事面）' },
 	'src/engine/50-present/90-style.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'engine', note: '样式' },
 	'src/engine/50-present/12-shortfight.twee': { deps: ['src/10-core.twee'], defines: ['widget:shortFight'], layer: 'engine', note: '短战斗 widget（#608：S3 机制上移；相位→分支只看 `waveRecord().phase`，奖励/失败笔记走声明面）' },};
 

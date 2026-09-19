@@ -14,47 +14,21 @@
 > · **量法（可粘贴复跑 ✓）**：`node scripts/report-gate-ledger.mjs --selftest`（含 4 条 `hasSelfProof` 正反例 ✓）；
 > · **缺自证的几行**（`—` ✓）：补一条**能假的负控制** ✓，或按 `#908` ① 登记探针 ✓ —— 名单见下方「工作清单」（**动态生成** ✗，不写死 ✓）。
 
-**严格行为化率（有自证）：99/130 = 76.2%** ｜ **有断言但缺自证：31**（＝下方工作清单）｜ 仅登记：0
-**探针（直接读数 ✓，不是"文件在不在"那种代理 ✗）：`✅` 13 项 ｜ `—` 未探 117 项（**上限 117** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ `✗` 不咬 0 项（**>0 即红** ✓）** —— 档位／清单：`node scripts/probe-gates.mjs --probe=fast` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）
+**严格行为化率（有自证）：67/96 = 69.8%** ｜ **有断言但缺自证：29**（＝下方工作清单）｜ 仅登记：0
+**探针（直接读数 ✓，不是"文件在不在"那种代理 ✗）：`✅` 10 项 ｜ `—` 未探 86 项（**上限 117** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ `✗` 不咬 0 项（**>0 即红** ✓）** —— 档位／清单：`node scripts/probe-gates.mjs --probe=fast` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）
 
 | 门 | 类型 | 形态 | 自证 | **探针** | 接线（npm test） | 理由（仅登记/未接线必填） |
 |---|---|---|---|---|---|
 | `audit:a11y` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:canon` | audit 开关 | 行为化 | ✅ | — | ✅ | 禁词/回流扫描：表格解析/§10 行覆盖/守林人代词/§9 双读（含 `allow` 白名单与 `/% %/` 剥注释）/§3.9 传说投放，**自证 6 例**（#342 第 8 波） |
-| `audit:cave` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:checks` | audit 开关 | 行为化 | ✅ | — | — | 检定矩阵：天然位点概率（1/20，劣势平方）＋优势标记阈值＋**单调性不变量**（优势 ≥ 普通），自证 5 例（含浮点边界陷阱留注） |
-| `audit:choices` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:combat` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:combat-dist` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
 | `audit:consequences` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:craft` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:dragon` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:echoes` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:economy` | audit 开关 | 行为化 | ✅ | — | — | 收支时间线：**报表算术即判据**（`delta:null` 不计入／按**章序**累计／序走最低），自证 3 例（#342 第 8 波；此前标「仅登记」，由形态对账查出并改正） |
 | `audit:engine-story-free` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:gear` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:interact` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:investment` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:items` | audit 开关 | 行为化 | ✅ | — | — | 龙战伤害矩阵：**两条不变量**（减伤件更多 ⇒ 伤害不增；败次 0→2 ⇒ 伤害不减）＋自证 3 例（合成 I，不依赖真表） |
 | `audit:literals` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:nosl` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:notes` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:npc` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:reads` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
 | `audit:roads` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:rules` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:sel` | audit 开关 | 行为化 | ✅ | — | — | 接线说明：--sel 只是 --nosl＋--gear 的便捷别名，链上跑的是更具体的两个 flag，故没有单独的 --sel --check（**形态是有判定的门**，此前台账误标「仅登记」，已由形态对账改正） |
-| `audit:settle` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
 | `audit:sitedisc` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
 | `audit:slots` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:social` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:starbudget` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
 | `audit:state` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
 | `audit:status` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
-| `audit:systems` | audit 开关 | 行为化 | ✅ | — | ✅ | 机制×锚句门（**有判定**：机制必须有可感知锚句）——此前台账误标「仅登记」，由形态对账查出并改正；自证待补 |
 | `audit:text` | audit 开关 | 行为化 | ✅ | — | ✅ | 文本载荷门（**有判定**：载荷阈值）——此前台账误标「仅登记」，由形态对账查出并改正；自证待补（密度 ratchet 在 --craft，本门是自己的载荷线） |
-| `audit:tokens` | audit 开关 | 行为化 | ✅ | — | — | 与 --items 同族：伤害矩阵不变量 ＋ 自证（同一次改动） |
-| `audit:truth` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
 | `audit:waves` | audit 开关 | 行为化 | ✅ | — | ✅ |  |
 | `scripts/report-cave-playability.mjs` | 报告脚本 | 行为化 | ✅ | — | — | **未接线（report-only）**：洞窟**玩法巡检**仪器（伞 `#687`）——沿真实「三选一」路线跑 N 局，逐局报「未捕获错误 / 点了没反应 / 静默产出 / 走不到终点」。它**刻意不是门**：它是抽样观测（未观测 ≠ 不存在），定成门就等于拿运气冒充「行为符合预期」（`#626` 口径）；且它读产物、起 JSDOM×N × 60 击，不适合进 PR 门。谁来跑：`node scripts/report-cave-playability.mjs [--runs=N]`（前置 `npm run build`）；何时跑：改洞窟交互/结算后、以及每次玩法缺陷收口前后（它就是 `#687` 三条 P0/P1 的发现工具）。门化的那一半已单独开票：`#693`（主交互路径门：点得动・不抛错・能走到终点）——本仪器在门落地后仍留作探路器。 |
 | `scripts/report-copy-text.mjs` | 报告脚本 | 行为化 | ✅ | — | ✅ |  |
@@ -69,15 +43,9 @@
 | `test/audit-gates-run.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/audit-golden.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | **已入 npm test**（#436 收编）：实测全量 **8.0s**（dragon 7.0s ＋ 其余每个 30–55ms ⇒ 无需子集；此前"24 个开关较慢"的估计不成立）。收编时逐条归因既有漂移（18 个开关：10 纯自证插入／3 含新不变量行／3 数值替换／1 `state`（#483）） |
 | `test/browser.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | 需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑 |
-| `test/cave-drops.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/cave-longfight.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/cave-merchant.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
-| `test/cave-roads.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
-| `test/cave-route.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/choice-keys.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/cli-surface.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/codex-gating.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
-| `test/codex-sink.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/combat-adv.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/contract-compat.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
 | `test/contract-version.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
@@ -85,7 +53,7 @@
 | `test/coverage.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/dialect.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
 | `test/econ-price.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/equiv-scratch.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
+| `test/equiv-scratch.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/event-graph.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/fatal-guard.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/fight-compat.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
@@ -99,7 +67,6 @@
 | `test/import-side-effects.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/integrity.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/invariants.unit.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/itemmatrix.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/k4-args.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/layering.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | 自证 **33** 条断言（**量法**：`node test/layering.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝模块依赖（`cases` 11 项，含 `#893` 两层登记的三条正反例）/ 点号 defines / 层间方向 / engine rank 派生与四条禁止边 |
 | `test/lint-story.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
@@ -121,7 +88,6 @@
 | `test/saveload.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | **自证按需跑**：`node test/saveload.mjs --selftest`（故障注入＝落档后人为扰动，断言比较器判红）；不塞主链的理由＝自证需完整导航（成本≈主跑 30s，收益不值） |
 | `test/saveui.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/scenarios.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/shortfight-phases.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/silent-gate.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/siteinfo-sink.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/size-gate.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
@@ -130,7 +96,7 @@
 | `test/social-sink.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/state-diagnose.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/store-keys.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/story-ci.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
+| `test/story-ci.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/story-runtime.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/story-shape.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/walker.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | 随机游走 soak（npm run soak）：耗时长、种子流非确定，不进 npm test |
@@ -148,16 +114,14 @@
 | `test/web-rule-rows.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
 | `test/web-save.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/web-settle.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
-| `test/witness-trace.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
+| `test/witness-trace.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 
-## F2 工作清单：有断言但**缺自证**（31 项）
+## F2 工作清单：有断言但**缺自证**（29 项）
 
 > 这些门**在跑、也在断言**，但从没被证明「反例会红」——本仓当日四类空判（覆盖≠验收／反例空判／死开关 #331／原理不可达 #338）都出自这一类。
 > 补法：给该门加一个**合成反例**用例（正例＋反例），并在本脚本的 `REASONS` 里改标 `行为化`。
 
 - `scripts/report-page-coverage.mjs`（报告脚本）
-- `test/cave-merchant.mjs`（测试脚本）
-- `test/cave-roads.mjs`（测试脚本）
 - `test/codex-gating.mjs`（测试脚本）
 - `test/contract-compat.mjs`（测试脚本）
 - `test/contract-version.mjs`（测试脚本）

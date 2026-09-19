@@ -1,8 +1,6 @@
 {
 	"note": "K4 逃生舱登记表（`#762` 车道 C）：契约成员里**含任意逻辑**（分类器 C 桶）的必须在此逐条登记（理由＋票号）。清单外出现即红；已不是 C 桶的登记也红（清单只许收缩，收缩留痕）。B 桶（需声明式扩展）与 D 桶（可下沉引擎）都**不算**逃生舱。",
-	"hatchFiles": [
-		"stories/mist-forest/16-hooks.twee"
-	],
+	"hatchFiles": [],
 	"hatchFilesWhy": "**手写逃生舱文件**（`#787` 翻面）：生成物只装得下 A 桶成员 ⇒ 非 A 桶（B/C）必须住**手写**文件。这些路径是「完整契约源」的一半：分类器与 K4 判逃生舱时会把它们与数据面文件一起看（否则「成员搬出手写文件」会被误读成**登记腐烂**的假红 ✗）。这些文件**不带**生成标记 ⇒ K4-④ 的逐字节比对不选它们 ✓；守它们的是本条登记 ＋ 行为等价门（与生成物**一起**对冻结基线比）。",
 	"hatches": [
 		{
@@ -22,46 +20,10 @@
 	"refusedFacesWhy": "**\"不数据化的面\"**（`#215` `18508321` 裁定 ✓）：这些面**不是不会写** ✗，而是**当下不划算／不该由本线做** ✓ —— 登记它们，是让后人看到\"**已知的欠账**\"✗，而不是\"没人在意\"✓。判据两条 ✓：① 条目必带 `file`／`why`／`ticket`／`paths`（`paths` ＝ **退路 ＋ 重开条件** ✓）；② **只许收缩** ✗ —— 登记的件若**已带 `@generated`**（＝其实已数据化 ✓）⇒ **红**（删掉该条，那条注释归它的迁移 PR ✓）。⚠️ **别拿既有两个容器装它** ✗：`hatches` 按**契约成员名**登记 C 桶 ✓（本族登记的是**文件/面** ⇒ 会当场判\"登记腐烂\" ✗）；`hatchFiles` 会被 `editor/equiv.mjs` **拼进等价门的产物侧** ✓（＝宣称\"这些手写件属于生成契约\" ✗）⇒ 那是**改判据的输入** ✗。口径 ✓：本线目标**不是\"手写面清零\"** ✗ —— 是「**可数据化的面必须数据化** ✓；真文本／逻辑面可以留 ✗，但必须**被登记、可计数**」✓（`editor/k4.mjs` 会打印本表条数 ✓）。",
 	"refusedFaces": [
 		{
-			"file": "stories/mist-forest/20-chargen.twee",
-			"why": "**C 桶**（含任意逻辑 ✗）：`:: Chargen Data` 段（67 行）**三段混装** —— 展示元数据 ✓ ＋ **10 个 `apply(pc)`** ✗ ＋ **一段状态机 API**（`pick`／`finalize`／`applyPreset` ＋ `pc.round` 状态机 ＋ `finalize()` 里的 `max_hp = (pc.classHp ?? 8) + Game.Rules.mod(pc.abilities.con) * 2` ✗）⇒ **\"补一个声明式 kind\"不够** ✗。",
-			"ticket": "#963",
-			"paths": "**三条路** ✓：(i) **逻辑下沉引擎**（`Game.Chargen` 的 API ＋ `max_hp` 公式进 `src/**`，数据面只留元数据 ＋ 效果表 ✓）—— 当下不走的理由：**`src/**` 不在本片已授的写面内** ✗ ＋ 会改 `Game.Chargen` **对外形状**（引擎侧门要跟 ✓）＋ 与 P0「**引擎零改动**」不同相位 ✗；(ii) **只数据化展示面**（只搬 `name`／`desc`／`effect` ＋ `presets` ✓，`apply` 与 API 留手写 ✗）—— 当下不走的理由：会产生**\"一半数据一半手写\"的混合件** ✗ ⇒ 那是**新形态**＝**设计决定** ✗；(iii) **本阶段不迁，登记为欠账** ✓ ← **当下采用** ✓。**重开条件** ✓：① 有席位／授权能碰 `src/**` 且愿同步对外形状 ⇒ 走 (i)；② 设计上接受\"混合件\"形态并写出其约定 ⇒ 走 (ii)；③ 出现\"必须数据化\"的第二个消费者（例：编辑器要可视化编辑车卡 ✓）⇒ 重估。"
-		},
-		{
-			"file": "stories/mist-forest/70-codex.twee",
-			"why": "**HTML 散文模板面** ✓（8 段 `设定集…` ＋ `<div>` ＋ `[[链接]]` ＋ `<<back>>` ✓，**函数定义 0** ✓）⇒ 设计稿 §3「**结构进 JSON、文本留文本**」⇒ **不属数据面** ✗。",
-			"ticket": "#963",
-			"paths": "**这不是\"欠账\"，是边界** ✓：可数据化的只有\"哪几个词条、什么顺序\"那一层 ✓（8 段 = 结构 ✓）；**正文是文本** ✗ ⇒ 若硬搬，等于把散文塞进 JSON 再吐回来（**第二份真源** ✗）。**重开条件** ✓：若届时要\"设定集可编排/可排序\"成为真需求 ⇒ 那时只搬**目录结构**（段落名 ＋ 顺序 ✓），**正文仍留文本** ✓。"
-		},
-		{
-			"file": "stories/mist-forest/72-codex-ui.twee",
-			"why": "**故事专属 UI 模块** ✓（`window.Sg.Codex = { blank/read/write/sync/recordEnding/seenFinal/unlocked/render }` ✓ —— **真逻辑** ✗，读 `Game.Codex.items` ✓）。",
-			"ticket": "#963",
-			"paths": "**它已经在\"正确的位置\"** ✓：件头写明 `#574` 把它**从 `src/80-script.twee` 搬出来** ✗（留在引擎文件里会把整份 `80-script` 拖出第二/第三故事的作用域 ✓）⇒ **迁它 ＝ 搬回去** ✗。**重开条件** ✓：若未来出现\"多个故事共享的图鉴 UI\"⇒ 那时是**下沉引擎**的议题（不是数据化议题 ✓），另开票 ✓。"
-		},
-		{
-			"file": "stories/mist-forest/00-meta.twee",
-			"why": "18 行 3 段 ✓，**有效可数据化内容 ≈ 2–3 行** ✗（`StoryTitle` 1 行散文 ✓／`StoryData` 是 **Twine 格式元数据** ✓ 不是故事数据 ✗／`StoryIdentity` 1 行 `Sg.storyId` ✓ 且**已被门 `test/store-keys.mjs` 把住** ✓）⇒ **收益 < 成本** ✓（要新面 ＋ 发射器 ＋ 等价基线 ＋ 门 ✓）。",
-			"ticket": "#963",
-			"paths": "**唯一真正数据形的那一行是 `StoryIdentity`（`{ slug }` ✓），而它已经有门把住** ✓ ⇒ 搬进 JSON 面**不换来任何新保障** ✗。**重开条件** ✓：① 若目标真的改为\"**手写面清零**\"（经裁定 ✗ —— 当前口径**不是**这一条 ✓）；② 或 `00-boot`（`#441-E`）接手同一处注入时顺手收口 ✓。"
-		},
-		{
-			"file": "stories/hollow-cave/00-meta.twee",
-			"why": "**元数据面**（17 行 ✓）：`StoryTitle`＝散文 1 行 ✓／`StoryData`＝**Twine 格式元数据**（`ifid`／`format*`／`zoom` ✗ 不是故事数据 ✓）／`StoryIdentity`＝1 行且**已被 `store-keys` 门把住** ✓ ⇒ **可数据化内容 ≈ 2–3 行** ✗",
-			"ticket": "#985",
-			"paths": "**三条路** ✓：(i) **把三段都数据化**（`StoryTitle` 散文 ＋ `StoryData` 的 ifid/format ✗ ＋ `StoryIdentity` ✓）—— 当下不走的理由：`StoryData` 是 **Twine 格式元数据** ✗（**不是故事数据** ✓：`format`／`format-version`／`zoom` 属 Twine 参数 ✓）、`StoryTitle` 是**散文** ✓（设计稿 §3「文本留文本」✓）、`StoryIdentity` 只 **1 行**且**已被 `store-keys` 门把住** ✓；(ii) **只数据化 `StoryIdentity`** ✓ —— 收益 1 行 ✓ < 新面成本（schema ＋ 发射器 ＋ 等价基线 ＋ 门 ✓）；(iii) **本阶段不动 ＋ 登记为欠账** ✓ ← **当下采用** ✓。**重开条件** ✗：当「手写面清零」成为显式目标、或 `StoryData` 需要按故事机检时 ✓"
-		},
-		{
 			"file": "stories/minimal-demo/00-meta.twee",
 			"why": "**同上**（与 `mist-forest/00-meta.twee`／`hollow-cave/00-meta.twee` **同类** ✓）：有效可数据化内容 ≈ 2–3 行 ✗",
 			"ticket": "#985",
 			"paths": "**三条路** ✓：(i) **把三段都数据化**（`StoryTitle` 散文 ＋ `StoryData` 的 ifid/format ✗ ＋ `StoryIdentity` ✓）—— 当下不走的理由：`StoryData` 是 **Twine 格式元数据** ✗（**不是故事数据** ✓：`format`／`format-version`／`zoom` 属 Twine 参数 ✓）、`StoryTitle` 是**散文** ✓（设计稿 §3「文本留文本」✓）、`StoryIdentity` 只 **1 行**且**已被 `store-keys` 门把住** ✓；(ii) **只数据化 `StoryIdentity`** ✓ —— 收益 1 行 ✓ < 新面成本（schema ＋ 发射器 ＋ 等价基线 ＋ 门 ✓）；(iii) **本阶段不动 ＋ 登记为欠账** ✓ ← **当下采用** ✓。**重开条件** ✗：当「手写面清零」成为显式目标、或 `StoryData` 需要按故事机检时 ✓"
-		},
-		{
-			"file": "stories/mist-forest/12-widgets.twee",
-			"why": "**故事专属 `[widget]`**（59 行 ✓，如「门厅取物」✓）：件头写明 `#460` 把它**从引擎搬回故事侧** ✓ ⇒ 属**故事专属 UI／呈现机制** ✗（与已登记的 `72-codex-ui.twee` **同类** ✓）",
-			"ticket": "#985",
-			"paths": "**三条路** ✓：(i) **搬回引擎**（`src/**`）✗ —— 件头写明 `#460` **正是把它从引擎搬回故事侧** ✓（引擎不该知道「哨子」是什么 ✓）⇒ **搬回去就是倒退** ✗；(ii) **做成通用 widget 库** ✗ —— 收益不明确 ✓（**第二个消费者**在哪 ✗）；(iii) **本阶段不动 ＋ 登记为欠账** ✓ ← **当下采用** ✓。**重开条件** ✗：当**第二个故事**也需要同一套取物反馈 widget 时 ✓（届时抽成通用件 ✓）"
 		},
 		{
 			"file": "stories/night-ferry/00-meta.twee",
@@ -71,12 +33,7 @@
 		}
 	],
 	"proseFaces": [
-		"stories/hollow-cave/10-cave.twee",
 		"stories/minimal-demo/10-demo.twee",
-		"stories/mist-forest/30-ch1.twee",
-		"stories/mist-forest/40-ch2.twee",
-		"stories/mist-forest/50-ch3.twee",
-		"stories/mist-forest/60-endings.twee",
 		"stories/night-ferry/10-ferry.twee"
 	],
 	"proseFacesWhy": "散文面（**不可数据化** ✗）：设计稿 §3「**结构进 JSON、文本留文本**」✓ ⇒ 正文留文本是**设计**，不是欠账 ✓。⚠️ 与 `refusedFaces`（**可数据化但当下不划算** ✓）**不是同一类** ✗ —— 两条判据**分开** ✓，别合并成一个豁免表 ✗。白名单**只许收缩** ✗：其中某件若**变成 `@generated`**（＝它其实已数据化）⇒ K4 判红并点名 ✓。"

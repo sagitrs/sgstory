@@ -10,6 +10,8 @@
 //
 // ⚠️ 为什么不做成"逐故事跑全套" ✗：实测 K5／K6 是**全局**面、K3 半是引擎级 ✓ ⇒ 照字面做不到
 //   （`#984` 的接口口径 ✓：**全局面每轮一次 ＋ 故事作用域面逐故事** ✓）。
+// ⚠️ **单跑前先跑 `npm run build`／构建相** ✗：逐故事面里有需要构建产物的段（`--probe=fast` 同口径 ✓）；
+//   进 CI 时本段的 `needs` 保证它**排在那两段之后** ✓（它们会往 `stories/` 写临时件 ✗ ⇒ 详见段注释 ✓）。
 // ⚠️ 为什么不重造判据 ✗：逐故事面**直接重用 `editor/lint-story.mjs`**（它已经是"包形状 → 编译幂等 →
 //   等价 → 故事门 ×N → 形状"的既有编排 ✓）；其余面按 `K_FACES` 表指向**既有命令** ✓。
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
@@ -74,6 +76,11 @@ if (isMain) {
 	const plan = buildPlan({ stories, slug: one, full });
 
 	const missing = missingFromPlan({ stories, plan });
+	// ⚠️ **取不到输入就不许判过** ✗（与 `commands.mjs` 同口径 ✓）：发现到 0 个故事时逐故事面会**整批消失** ✓，
+	//   若不判红，末行照写「通过」✗ —— 目录改名／路径写错／CI 工作目录变，都会让 CI **照绿** ✗。
+	//   （这是本件自己那条探针的**镜像** ✗：它堵「发现到了却没进编排」✓，这里堵「一个都没发现」✓。）
+	//   口径：全局面**照跑** ✓（不因 0 故事跳过 ⇒ 诊断完整 ✓）；跑完再判红并点名 ✓。
+	const zeroStories = !one && stories.length === 0;
 	console.log(`══ 用户故事 CI（\`#984\`）══ 发现 ${stories.length} 个故事${one ? ` · 只跑 ${one}` : ''}${full ? ' · **--full**（含重面 ✓）' : ' · 轻档 ✓'}`);
 	if (missing.length) {
 		for (const m of missing) console.error(`  ✗ ${m.slug}：${m.why}`);
@@ -88,8 +95,12 @@ if (isMain) {
 		if (r.rc !== 0) console.error(`\n${r.out.slice(-1200)}`);
 	}
 	const s = summarizeRuns(results);
+	if (zeroStories) {
+		const where = existsSync(root) ? `根目录 \`${root}\` 下没有故事` : `根目录 \`${root}\` **不存在**`;
+		console.error(`  ✗ **发现到 0 个故事** ⇒ 逐故事面全部消失，**不许判过** ✗（${where} ✓ —— 口径＝\`<目录>/00-story.json\` ✓；改名／路径写错／工作目录变都会走到这里 ✓）`);
+	}
 	console.log(`\n${s.ok ? '✔' : '✗'} 用户故事 CI：${s.total - s.failed.length}/${s.total} 通过 · 墙钟 ${(s.ms / 1000).toFixed(1)}s${s.ok ? '' : ` · 失败 ${s.failed.map((f) => `\`${f.cmd}\``).join('、')}`}`);
-	process.exit(s.ok ? 0 : 1);
+	process.exit(s.ok && !zeroStories ? 0 : 1);
 }
 
 export { run };

@@ -8,6 +8,7 @@
 // `--selftest` 能红 ✓（假包驱动同一判定 ＋ 自身能红那格常驻 ✓）。
 
 import { readFileSync, existsSync } from 'node:fs';
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b ✓：故事名走单一权威 ✓（旧故事已删 ✗）
 import { loadPackage } from '../editor/web/loader.mjs';
 import { compileInPage } from '../editor/web/compile.mjs';
 import { savePackage } from '../editor/web/save.mjs';
@@ -19,7 +20,8 @@ const io = () => ({ readText: (p) => readFileSync(`${ROOT}/${p}`, 'utf8') });
 let bad = 0;
 const t = (label, ok) => { if (ok) console.log(`  ✓ ${label}`); else { bad += 1; console.error(`  ✗ ${label}`); } };
 
-const slug = 'mist-forest';
+// `#1004` B2b ✓：旧故事已删 ⇒ 换到**默认故事**（＝面夹具 `face-fixture` ✓，它把仍有真消费者的接入面都接上了 ✓）。
+const slug = DEFAULT_SLUG;
 const pkg = loadPackage({ slug, io: io() });
 const events = eventsOf(pkg);
 t('列表：事件来自 `data/rules.json` 的 rows ✓（条数 > 0 ✓）', events.length > 0 && eventCount(pkg) === events.length);

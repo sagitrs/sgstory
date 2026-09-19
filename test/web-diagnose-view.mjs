@@ -8,6 +8,7 @@
 // (v) 页内只跑一部分面 ⇒ **逐面一行 `info`** ✓（不是"部分检查已跳过" ✗）
 // (vi) 判定**复用** core ✓（无本地副本 ✓）＋ **可贴的 grep** ✓
 import { readFileSync, writeFileSync, mkdtempSync, rmSync, existsSync } from 'node:fs';
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b ✓：故事名走单一权威 ✓（旧故事已删 ✗）
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -18,7 +19,8 @@ import { diagnoseLines, findingLines, declaredLine, skippedLines, shaLines } fro
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const io = () => ({ readText: (p) => readFileSync(`${ROOT}/${p}`, 'utf8') });
-const SLUG = 'mist-forest';
+// `#1004` B2b ✓：旧故事已删 ⇒ 换到**默认故事**（＝面夹具 `face-fixture` ✓，它把仍有真消费者的接入面都接上了 ✓）。
+const SLUG = DEFAULT_SLUG;
 let bad = 0;
 const t = (label, ok) => { if (ok) console.log(`  ✓ ${label}`); else { bad += 1; console.error(`  ✗ ${label}`); } };
 

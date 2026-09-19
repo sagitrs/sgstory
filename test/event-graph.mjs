@@ -8,11 +8,13 @@
 //   **不含散文/段落里的写点**（属 `--state` 门 ✓）⇒ 因此本件的说法固定为「**事件声明面里**无人授予」✗，不说"不可达" ✗。
 
 import { readFileSync } from 'node:fs';
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b ✓：故事名走单一权威 ✓（旧故事已删 ✗）
 import { graphOf, formatGraph, keysNeededBy, keysGrantedBy, COND_FIELDS } from '../editor/lib/core/eventGraph.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const readJson = (p) => JSON.parse(readFileSync(`${ROOT}/${p}`, 'utf8'));
-const slug = 'mist-forest';
+// `#1004` B2b ✓：旧故事已删 ⇒ 换到**默认故事**（＝面夹具 `face-fixture` ✓，它把仍有真消费者的接入面都接上了 ✓）。
+const slug = DEFAULT_SLUG;
 const rows = readJson(`stories/${slug}/data/rules.json`).rows;
 const members = readJson(`stories/${slug}/data/contract.json`).members;
 

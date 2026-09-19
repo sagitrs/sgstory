@@ -11,6 +11,7 @@
 // ⚠️ jsdom 收场纪律（本仓踩过 ✗）：`pretendToBeVisual` 用 **false** ＋ **显式** `window.close()` ＋ 最后**显式** `process.exit(rc)` ✓。
 
 import { readFileSync } from 'node:fs';
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b ✓：故事名走单一权威 ✓（旧故事已删 ✗）
 import { JSDOM } from 'jsdom';
 import { loadPackage } from '../editor/web/loader.mjs';
 import { renderEventGraph, clearEventGraph } from '../editor/web/event-graph-view.mjs';
@@ -18,7 +19,8 @@ import { graphOf } from '../editor/lib/core/eventGraph.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const nodeIo = () => ({ readText: (p) => readFileSync(`${ROOT}/${p}`, 'utf8') });
-const slug = 'mist-forest';
+// `#1004` B2b ✓：旧故事已删 ⇒ 换到**默认故事**（＝面夹具 `face-fixture` ✓，它把仍有真消费者的接入面都接上了 ✓）。
+const slug = DEFAULT_SLUG;
 const dom = new JSDOM('<!doctype html><body><pre id="graph"></pre></body>', { pretendToBeVisual: false });
 let rc = 0;
 try {
@@ -38,11 +40,16 @@ try {
 	// ⑤ 适用范围在读数里 ✓
 	t('⑤ 末行**自带适用范围**声明 ✓（"键级图 ✗／不含位置边 ✗／不含散文写点 ✗" ✓）', /本图是\*\*键级\*\*图/.test(text()) && /不含位置边/.test(text()));
 
-	// ④ 刀 ✗：删一个授予 ⇒ 项数必须变 ✓
+	// ④ 刀 ✗：**加一条无人授予的需求** ⇒ 项数必须变 ✓
+	// ⚠️ `#1004` B2b ✓：原写法是"把每行的 `yields` 抹掉" ✗ —— 而**面夹具**声明的规则行里
+	//   **没有 `yields`** ✓ ⇒ 那一刀**砍空了** ✗（`map` 没改动任何一行 ⇒ 项数当然不变 ✓ ⇒ 假红 ✓）。
+	//   ⇒ 按"**刀要砍在样本真有的东西上**"改 ✓：给首行**加一个谁都不授予的 `req`** ✓
+	//   ⇒ `ungrantedItems` **必增 1** ✓（与样本内容无关 ✓，只要有 `rows` 就成立 ✓）。
 	{
-		const rows2 = pkg.data['rules.json'].rows.map((r) => (r.yields ? { ...r, yields: [] } : r));
+		const rows0 = pkg.data['rules.json'].rows;
+		const rows2 = rows0.map((r, i) => (i === 0 ? { ...r, req: [...(r.req ?? []), '__t3_probe_ungranted__'] } : r));
 		const g2 = renderEventGraph({ doc, pkg: { data: { ...pkg.data, 'rules.json': { rows: rows2 } } } });
-		t('④ **刀** ✗：删掉一个授予 ⇒ 页面那格的项数**变了** ✓（不是常数 ✓）', g2.counts.ungrantedItems > g.counts.ungrantedItems);
+		t('④ **刀** ✗：加一条无人授予的需求 ⇒ 页面那格的项数**变了** ✓（不是常数 ✓）', g2.counts.ungrantedItems > g.counts.ungrantedItems);
 	}
 
 	// ② 缺数据 ⇒ 抛（两半 ✓）

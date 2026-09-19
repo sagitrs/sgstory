@@ -55,9 +55,38 @@ const push = (p, target, kind, dynamic = false) => {
 	kindCount[kind] = (kindCount[kind] ?? 0) + 1;
 };
 
+// ── 「可选面」守卫（`#1004` B2 ✓）：引擎对**故事可选面**的合法写法是 `<<if Story.has("X")>>…<</if>>` ✗ ──
+// 为什么必须认它 ✗："故事与引擎的接缝"是**引擎侧契约** ✓（见 `src/10-core.twee:707` 与 `#491` 判据 4：
+//   「设定集是本故事的页面（引擎不知道故事名）⇒ **存在才渲染**；否则侧栏会出现死链」✓ —— 同一句写法
+//   也用在 `<<damage>>` 的「结局 死亡」那一跳 ✓）。⇒ 只要仓里**没有任何故事**提供那个面 ✓，
+//   这些**被守卫的**引用就会被本门当"悬空"报出来 ✗ —— 那是**误报** ✓（运行期它根本不会执行 ✓）。
+// ⇒ 本门先算出「守卫生效区间」✓（按 `<<if>>`／`<<elseif>>`／`<<else>>`／`<</if>>` 配对切分支 ✓），
+//   只有当引用的**位置真的落在**以该目标为守卫的那个分支里 ⇒ 才放过 ✓。
+// ⚠️ 控制 ✓（这条修正**不许**把真悬空一起放过 ✗）：
+//   · 只放过**条件里点名了该目标**的那一支 ✓ —— 同一段里另写一句**没守卫**的 `<<goto "X">>` 仍照报 ✓；
+//   · `<<else>>` 那一支**不带守卫** ✓（"不存在"那一支里再引用它，仍是 bug ✓）。
+const HAS_RX = /Story\.has\(\s*["']([^"']+)["']\s*\)/g;
+const optionGuardSpans = (body) => {
+	const spans = [];
+	const targetsOf = (s) => new Set([...s.matchAll(HAS_RX)].map((m) => m[1]));
+	const stack = [];
+	for (const m of body.matchAll(/<<(if|elseif|else|\/if)\b[^>]*?>>/g)) {
+		const kind = m[1];
+		const top = stack[stack.length - 1];
+		if (kind === 'if') stack.push({ branch: { start: m.index + m[0].length, targets: targetsOf(m[0]) } });
+		else if (kind === 'elseif' && top) { top.branch.end = m.index; spans.push(top.branch); top.branch = { start: m.index + m[0].length, targets: targetsOf(m[0]) }; }
+		else if (kind === 'else' && top) { top.branch.end = m.index; spans.push(top.branch); top.branch = { start: m.index + m[0].length, targets: new Set() }; }
+		else if (kind === '/if' && top) { top.branch.end = m.index; spans.push(top.branch); stack.pop(); }
+	}
+	while (stack.length) { const top = stack.pop(); top.branch.end = body.length; spans.push(top.branch); }
+	return spans.filter((s) => s.targets.size);
+};
+const guardedAt = (spans, pos, target) => spans.some((s) => pos >= s.start && pos < s.end && s.targets.has(target));
+
 for (const p of passages.values()) {
 	const isScript = p.tags.includes('script') || p.name === 'StoryData';
 	const body = p.body.replace(/\/%[\s\S]*?%\//g, ''); // 摘除注释
+	const guards = optionGuardSpans(body);        // `#1004` B2：本次扫描的「可选面守卫」区间 ✓
 	let macroScanText = body.replace(/<<script>>[\s\S]*?<<\/script>>/g, '');
 	if (isScript) macroScanText = ''; // script 段落是纯 JS，宏检查跳过
 
@@ -72,7 +101,7 @@ for (const p of passages.values()) {
 		target = (target ?? '').replace(/\[\$[^\]]*\]\s*$/, '').trim();
 		if (!target) continue;
 		push(p, target, 'link');
-		if (!passages.has(target)) E(p, `悬空链接 ${raw.slice(0, 50)} → 段落「${target}」不存在`);
+		if (!passages.has(target) && !guardedAt(guards, m.index, target)) E(p, `悬空链接 ${raw.slice(0, 50)} → 段落「${target}」不存在`);
 	}
 	// 1b) 未闭合 wiki 链接（#80 线上实锤：[[..|..] 单括号尾静默降级纯文本→玩家卡死）
 	for (const m of body.matchAll(/\[\[[^\]\n]*\](?!\])/g)) {
@@ -91,7 +120,7 @@ for (const p of passages.values()) {
 		if (/^["']/.test(arg)) {
 			const t = arg.slice(1, -1).trim();
 			push(p, t, 'goto');
-			if (!passages.has(t)) E(p, `悬空 goto → 段落「${t}」不存在`);
+			if (!passages.has(t) && !guardedAt(guards, m.index, t)) E(p, `悬空 goto → 段落「${t}」不存在`);
 		} else if (/^`/.test(arg) || /^\$/.test(arg)) {
 			push(p, null, 'goto', true);
 		} else {
@@ -104,7 +133,7 @@ for (const p of passages.values()) {
 		if (/^["']/.test(arg)) {
 			const t = arg.slice(1, -1).trim();
 			push(p, t, 'include');
-			if (!passages.has(t)) E(p, `悬空 include → 段落「${t}」不存在`);
+			if (!passages.has(t) && !guardedAt(guards, m.index, t)) E(p, `悬空 include → 段落「${t}」不存在`);
 		} else if (/^`/.test(arg) || /^\$/.test(arg)) push(p, null, 'include', true);
 		else E(p, `include 裸词参数「${arg}」（同坑11类，需引号或反引号）`);
 	}
@@ -112,13 +141,13 @@ for (const p of passages.values()) {
 		if (/^["']/.test(m[2])) {
 			const t = m[2].slice(1, -1).trim();
 			push(p, t, 'link-arg');
-			if (!passages.has(t)) E(p, `悬空 link/button 目标 → 段落「${t}」不存在`);
+			if (!passages.has(t) && !guardedAt(guards, m.index, t)) E(p, `悬空 link/button 目标 → 段落「${t}」不存在`);
 		} else push(p, null, 'link-arg', true);
 	}
 	for (const m of body.matchAll(/<<actions\s+([^>]*?)>>/g)) {
 		for (const q of m[1].matchAll(/["']([^"']+)["']/g)) {
 			push(p, q[1], 'actions');
-			if (!passages.has(q[1])) E(p, `悬空 actions 项 → 段落「${q[1]}」不存在`);
+			if (!passages.has(q[1]) && !guardedAt(guards, m.index, q[1])) E(p, `悬空 actions 项 → 段落「${q[1]}」不存在`);
 		}
 	}
 	// 4) 未定义宏（闭合标签 <</if>> 不算）
@@ -226,7 +255,10 @@ else {
 		if (/<<\s*set\s+\$pc\.gold\b/.test(body)) errors.push(`[残留] ${p.file}:${p.line} 段落「${p.name}」直改 $pc.gold——经济必须走 <<econ 事件>>`);
 		for (const m of body.matchAll(/<<(check|save)\s+"[^"]+"\s+\d+/g)) errors.push(`[残留] ${p.file}:${p.line} 段落「${p.name}」硬编码 DC（${m[0]}）——检定必须走 <<sitecheck 位点>>`);
 	}
-	console.log(`表：位点 ${Object.keys(Game.Checks.sites).length} · 经济事件 ${Object.keys(Game.Economy.events).length} · 道具 ${Object.keys(Game.Items.effects).length}（引用 位点 ${refKeys.site.size} / 事件 ${refKeys.econ.size}）`);
+	// `#1004` B2 ✓：道具表那格的形状跟**现存契约**走 ✗ —— 旧写法读 `Game.Items.effects` ✓（那是已删故事的**表形状** ✓，
+	//   引擎侧从来只经 `Sg.story.itemEffect(k)` 读道具 ✓ —— `src/engine/40-sim/21-resolve.twee:461` ✓）；
+	//   现存两样本声明的都是 `Items.defs` ✓ ⇒ 按现况读 ＋ 防御式取键 ✓（表缺了也不该把这句**信息行**变成崩栈 ✗）。
+	console.log(`表：位点 ${Object.keys(Game.Checks.sites).length} · 经济事件 ${Object.keys(Game.Economy.events).length} · 道具条目 ${Object.keys(Game.Items.defs ?? {}).length}（引用 位点 ${refKeys.site.size} / 事件 ${refKeys.econ.size}）`);
 }
 
 // ── 可达性（信息性）──────────────────────────────────────
@@ -293,13 +325,15 @@ const NOTE_IDS = (() => {
 	return new Map(Object.entries(entries));
 })();
 
-const CALLBACKS = [
-	{ passage: '洞穴', phrase: '你想起老板娘那句话', flag: 'tav_tips', said: '别在雾里睡觉', saidIn: '酒馆' },
-	{ passage: '女巫小屋', phrase: '她的身形与衣着，依稀像酒馆旧画上', flag: 'tav_painting', said: '旧画', saidIn: '酒馆' },
-	// #168 P1-11：NPC 的口头承诺也得真在某处说过——`scope` 默认 `pc.ev`，守林人这条挂的是 `$pc.keeper.met`
-	{ passage: '塔门', phrase: '守林人说过', flag: 'met', scope: 'pc.keeper', said: '从大门走', saidIn: '守林人' },
-	{ passage: '半途的林子', phrase: '守林人说过', flag: 'met', scope: 'pc.keeper', said: '从大门走', saidIn: '守林人' },
-];
+// ⛔ **表空 ＋ 声明**（`#1004` B2 ✓）：上表原有 4 行**全是 `mist-forest` 的内容** ✓（段落「洞穴」／「女巫小屋」／
+//   「塔门」／「半途的林子」＋ NPC「老板娘」／「守林人」✓）—— 它随故事一起没了 ✓ ⇒ 那 4 行已删 ✓。
+//   ⚠️ **声明** ✗："**NPC 口头承诺 ／ 回指**"这一面在本仓**已无样本** ✓ ⇒ 本门当前**空转** ✓（**不是**"已覆盖"✗）；
+//   机制完整保留 ✓（表结构、`scope`／`saidIn`／`conditionReadsFlag` 那整套 ✓）＋ **表自身的守卫仍在** ✓
+//   （写错段落名／找不到短语／门外引用／承诺无人说过 ⇒ 逐条仍红 ✓）。
+//   ⇒ 日后有故事带这类回指 ⇒ **按原表形状补行** ✓（不为凑绿造样本 ✗）。
+//   ⚠️ 同族两条**一并登记**（不删、也不再有任何对象 ✗）：`PRELUDE_BANS`（开场禁提后文地名，「开场」在 `minimal-demo` 里存在 ✓
+//    但禁令词 `酒馆`／`歪脖子鸭` 已不存在 ✓ ⇒ 空转 ✓）；`ENDGAME_KNOWN`（终局级知识白名单，见 `test/reread.mjs` ✓）。
+const CALLBACKS = [];
 for (const c of CALLBACKS) {
 	const p = passages.get(c.passage);
 	if (!p) { errors.push(`[回指] 表里写的段落「${c.passage}」不存在`); continue; }

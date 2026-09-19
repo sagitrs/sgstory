@@ -178,4 +178,21 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /非空/ },
 		why: '量的是「页内**真的在判**（与 CLI 同一份 core ✓），而不是把结论抄一遍／判空」（掐掉页内那一步 ⇒ “非空上的同判”那条必红 ✓）—— 否则“两侧同判”会被写成“两侧都空”✗',
 	},
+	{
+		// `#976`：**中间目录用完就清**那一步真的在守（掐掉 `finally` 里的清理 ⇒ 残留 ⇒ 集合断言必红 ✓）
+		id: 'test/equiv-scratch.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/equiv-scratch.mjs',
+		mutation: {
+			// 把产物目录**改回旧形** ✗（`build/generated/<slug>` ✓ —— 本片改动前的固定落点 ✓）⇒ "旧形不存在"必红 ✓
+			//  ⚠️ 为什么不用"掐掉清理"那刀 ✗：**本仓跑器是并行的** ⇒ 全局列举式断言会**竞态** ✓（CI 上实测过"变异前就红"✗）
+			//  ⇒ 改下在**与本片因果相关**的那一格（旧形是否被产生 ✓）⇒ **确定性** ✓。
+			file: 'editor/lib/host/commands.mjs',
+			find: "const genDir = join(runDir, 'gen');",
+			replace: "const genDir = join(ROOT, 'build/generated', slug);   // 探针：改回旧形 ✓",
+		},
+		expect: { rc: 1, stdout: /旧形不存在/ },
+		why: '量的是「**中间目录真的不再产生旧形**」（把产物目录改回 `build/generated/<slug>` ⇒ 本件的"旧形不存在"断言必红 ✓）—— 否则"唯一 ＋ 清理"只写在注释里 ✗',
+	},
 ];

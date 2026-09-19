@@ -157,6 +157,8 @@ export const SEGMENTS = [
 	// #762 P0：**故事数据 ↔ 手写版等价**（编辑器转向的第 0 步）——数据与手写 twee 漂移即红
 	{ id: "editor-compile-selftest", phase: 'test', cost: 0, cmd: "node editor/compile-story.mjs --selftest" },
 	{ id: "editor-equiv-selftest", phase: 'test', cost: 0, cmd: "node editor/equiv.mjs --selftest" },
+	// `#976`：**`equiv` 的中间目录与本片自证** ✓ —— 唯一 ＋ 用完就清（含失败路径 ✓）＋ 幂等失败点名（读故事源 ＋ 真跑一次 equiv ⇒ cost 1.0 ✓）。
+	{ id: "test-equiv-scratch-mjs", phase: 'test', cost: 1.0, cmd: "node test/equiv-scratch.mjs" },
 	// `#787` 翻面：手写侧**重指向**为冻结基线（翻面前 `main` 的仓内副本 ⇒ 「生成得对不对」仍被判）
 	{ id: "editor-equiv-minimal-demo", phase: 'test', cost: 0.3, cmd: "node editor/equiv.mjs minimal-demo --l3=hard --hand=stories/minimal-demo/gates/equiv-baseline/15-tables.twee.txt" },
 	// `#762` 车道 C：**K4 门** —— 生成物标记 · 产物新鲜度(幂等) · **逃生舱可枚举**

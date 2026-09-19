@@ -10,11 +10,13 @@
 //   ① **并发**：`CONC` 个进程跑同一 slug，**每一个都必须 rc=0**（三轮）—— 概率型，可能被躲过；
 //   ② **旧落点没被重建**（**确定性**，本件的定盘星）：scratch 既然"本次运行唯一"，
 //      那么按 slug 命名的旧落点就不该被这次运行创建（本件先自己清掉，避免把树上残留读成红）；
-//   ③ **不留草稿**：跑完不许在 `build/generated/` 留下 `.lint-run-*`（含失败路径也在 `finally` 里清）。
+//   ③ （**提示，不作判据**）**草稿基数**：跑完打印 `build/generated/` 里新增的 `.lint-run-*` 数 —— ⚠️ 共享目录**无法归因**
+//      （同相并发的兄弟段会**正当地持有**自己的草稿）✗ ⇒ 它只报基数；要真判"**本件自己**的草稿清没清"，须先让 scratch
+//      **可归因**（给中间目录打本进程标记）⇒ 那是另一件（本片不塞）。
 //
 // 复跑：`node test/lint-scratch.mjs`（前置：`node build.mjs` —— 故事门要读 dist 产物）
 // 自证：`node test/lint-scratch.mjs --selftest`（量的是"本件的两条判据**不是空的**"）
-// 边界：本件只判"并发不互踩 ＋ 旧落点不被重建 ＋ 不留草稿"，**不**重复 `lint-story` 自己的判据。
+// 边界：本件只判"**并发不互踩 ＋ 旧落点不被重建**"，**不**重复 `lint-story` 自己的判据；草稿那一格只报基数（见 ③）。
 
 import { spawn } from 'node:child_process';
 import { readdirSync, existsSync, rmSync, mkdirSync } from 'node:fs';

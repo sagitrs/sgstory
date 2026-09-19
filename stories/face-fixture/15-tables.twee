@@ -28,6 +28,54 @@ window.Game = Object.assign(window.Game ?? {}, {
 			'老巫女·问星': {
 				abil: 'wis',
 				dc: 11
+			},
+			'雾之魔物·挥击': {
+				skill: '运动',
+				dc: 12,
+				auto: '战斗（玩家已选择动手）'
+			},
+			'塔外花田': {
+				abil: 'con',
+				dc: 16,
+				yields: '月光花'
+			},
+			'洞穴·暗门': {
+				skill: '察觉',
+				dc: 20,
+				nat: 20,
+				dis: true,
+				auto: '进入该段落＝玩家已经在摸黑找门（夹具面）',
+				disWhy: '黑里找一道不存在的门，只有运气站在你这边'
+			},
+			'封印·涂毒': {
+				skill: '运动',
+				dc: 12,
+				auto: '战斗（玩家已选择动手）'
+			},
+			'封印·硬扛': {
+				abil: 'con',
+				dc: 13
+			},
+			'雾影·蹲低': {
+				skill: '隐匿',
+				dc: 12
+			},
+			'老板娘·吓': {
+				skill: '恐吓',
+				dc: 12
+			},
+			'老板娘·接话': {
+				skill: '表演',
+				dc: 12
+			},
+			'老板娘·读': {
+				skill: '洞悉',
+				dc: 12
+			},
+			'封印·找旧伤': {
+				skill: '运动',
+				dc: 10,
+				auto: '战斗（玩家已选择动手）'
 			}
 		},
 		keyYields: [
@@ -41,18 +89,27 @@ window.Game = Object.assign(window.Game ?? {}, {
 		],
 		knowledge: {
 			'门厅·看钉': 'hall_hint',
-			'森林·察觉': 'rumor'
+			'森林·察觉': 'rumor',
+			'雾之魔物·挥击': 'rumor'
 		}
 	},
 	Combat: {
 		pools: {
 			'雾影': [
 				'雾影·迎上',
-				'雾之魔物·挥击'
+				'雾之魔物·挥击',
+				'雾影·蹲低'
 			],
 			'封印': [
 				'龙·斩击',
-				'封印·硬扛'
+				'封印·硬扛',
+				'封印·涂毒',
+				'封印·找旧伤'
+			],
+			'龙': [
+				'龙·斩击',
+				'龙·横刀',
+				'龙·后撤'
 			]
 		},
 		actions: {
@@ -105,7 +162,7 @@ window.Game = Object.assign(window.Game ?? {}, {
 				}
 			},
 			'封印·硬扛': {
-				site: '老巫女·问星',
+				site: '封印·硬扛',
 				label: '把肩顶上去',
 				ok: {
 					text: '你顶住了，只退了一步。',
@@ -118,6 +175,94 @@ window.Game = Object.assign(window.Game ?? {}, {
 				bad: {
 					text: '你被推得撞在石壁上。',
 					hurt: 4
+				}
+			},
+			'雾影·蹲低': {
+				site: '雾影·蹲低',
+				label: '贴着石壁蹲低',
+				ok: {
+					text: '你把自己缩到石头影子里，它那一手从头顶过去。',
+					guard: 2
+				},
+				crit: {
+					text: '你几乎没在雾里留下形迹。',
+					guard: 3,
+					skipFoe: true
+				},
+				bad: {
+					text: '你慢半拍，肩上挨了一下。',
+					hurt: 3
+				}
+			},
+			'封印·涂毒': {
+				site: '封印·涂毒',
+				label: '把花汁抹在刃上',
+				need: 'inv:月光花',
+				ok: {
+					text: '汁是凉的，抹过铁面时有一点点响。',
+					venom: true,
+					dmg: 6
+				},
+				crit: {
+					text: '你抹得极匀——它一看见就慢了半拍。',
+					venom: true,
+					dmg: 13
+				},
+				bad: {
+					text: '手一抖，花汁抹歪了。',
+					hurt: 1
+				}
+			},
+			'封印·找旧伤': {
+				site: '封印·找旧伤',
+				label: '照着旧伤找进去',
+				ok: {
+					text: '你按着那道旧口子压下去——它慢了半拍，你抢到了下一手的位置。',
+					dmg: 9,
+					adv: 1
+				},
+				crit: {
+					text: '你正正压在旧伤上，它整个塌了一下，下一手你占住了上风。',
+					dmg: 15,
+					adv: 1
+				},
+				bad: {
+					text: '你扑空了，被它掀了半圈。',
+					hurt: 3
+				}
+			},
+			'龙·横刀': {
+				site: '封印·硬扛',
+				label: '横刀挡一下',
+				ok: {
+					text: '刀背顶住了那一口。',
+					guard: 3
+				},
+				crit: {
+					text: '你顶住了，还顺势把它推偏。',
+					guard: 4,
+					dmg: 4
+				},
+				bad: {
+					text: '刀被撞得几乎脱手。',
+					hurt: 4
+				}
+			},
+			'龙·后撤': {
+				site: '雾影·蹲低',
+				label: '往边上撤半步',
+				ok: {
+					text: '你退开半步，雾合上来把你盖住。',
+					skipFoe: true
+				},
+				crit: {
+					text: '你退得干净，它那一口咬在空处。',
+					skipFoe: true,
+					guard: 2
+				},
+				bad: {
+					text: '你退得不快，被尾梢扫了一下。',
+					hurt: 3
 				}
 			}
 		}
@@ -142,12 +287,20 @@ window.Game = Object.assign(window.Game ?? {}, {
 					]
 				},
 				chapter: 1,
-				note: '酒馆·买火把（黑处位点的行囊优势）'
+				note: '酒馆·买火把（黑处位点的行囊优势）',
+				skillDiscount: {
+					skill: '察觉',
+					to: -5
+				}
 			},
 			rumor_buy: {
 				delta: -5,
 				chapter: 1,
-				note: '酒馆·买传闻（条件表行的入口）'
+				note: '酒馆·买传闻（条件表行的入口）',
+				featDiscount: {
+					flag: 'lore',
+					to: -5
+				}
 			}
 		}
 	},
@@ -189,6 +342,10 @@ window.Game = Object.assign(window.Game ?? {}, {
 			'日记': {
 				from: '书房',
 				note: '记着那半句话'
+			},
+			'时光护符': {
+				from: '女巫小屋',
+				note: '夹具面：翻转的载体（旧故事同名的面）'
 			}
 		},
 		effects: {
@@ -216,7 +373,10 @@ window.Game = Object.assign(window.Game ?? {}, {
 				base: 'neutral',
 				yield: 'note:n_tav_tips',
 				sites: [
-					'酒馆·打听'
+					'酒馆·打听',
+					'老板娘·吓',
+					'老板娘·接话',
+					'老板娘·读'
 				],
 				levers: [
 					{
@@ -236,7 +396,7 @@ window.Game = Object.assign(window.Game ?? {}, {
 				],
 				done: {
 					req: [
-						'n_tav_tips'
+						'note:n_tav_tips'
 					]
 				},
 				yields: [
@@ -267,15 +427,129 @@ window.Game = Object.assign(window.Game ?? {}, {
 				],
 				done: {
 					req: [
-						'n_flower_warned'
+						'note:n_flower_warned'
 					]
 				},
 				yields: [
-					'n_flower_warned'
+					'n_flower_warned',
+					'n_tav_tips'
 				],
 				ok: '他终于开口："那花底下埋着人。摘一朵，就少一个人。"',
 				bad: '他换了只手拄杖，没看你。',
-				auto: '他叹了口气，把话说了。'
+				auto: '他叹了口气，把话说了。',
+				sets: [
+					'world.flower_taken'
+				],
+				unwilling: {
+					exclude: [
+						'inv:坏哨'
+					]
+				}
+			},
+			{
+				id: '老巫女·开口',
+				tag: '搭话',
+				npc: '老巫女',
+				q: '让她多说两句',
+				base: 'neutral',
+				sites: [],
+				levers: [],
+				unwilling: {},
+				why: '（她把袖子拢了拢。「这一桌没有你要问的事」——她不说，你也没什么能拿来换的。）',
+				no: '她没看你，只看着厅中央那张空着的位子。'
+			},
+			{
+				id: '守林人·术',
+				tag: '求术',
+				npc: '守林人',
+				q: '用你家那门术式',
+				base: {
+					default: 'neutral',
+					cases: [
+						{
+							req: [
+								'inv:时光护符'
+							],
+							value: 'friendly'
+						}
+					]
+				},
+				sites: [
+					'守林人·交涉'
+				],
+				levers: [
+					{
+						id: 'talisman',
+						name: '把脖子上那枚护符亮出来',
+						gives: 'auto',
+						need: {
+							req: [
+								'inv:时光护符'
+							]
+						},
+						note: '这家人打的星铁，这家人认得'
+					},
+					{
+						id: 'read',
+						name: '看出他一直在练错的那几个字',
+						gives: 'adv',
+						needRead: true,
+						note: '他要的不是赢，是把这一句念完'
+					}
+				],
+				willing: {
+					req: [
+						{
+							gte: [
+								'keeper.trust',
+								1
+							]
+						}
+					]
+				},
+				done: {
+					req: [
+						{
+							oneOf: [
+								'keeper.state',
+								[
+									'seal'
+								]
+							]
+						}
+					]
+				},
+				ok: '他把手稿收进抽屉，在桌边坐下。',
+				bad: '「这门东西不给人看。」他把灯拨正。',
+				will: '他没等你说完，已经把抽屉拉开了。'
+			},
+			{
+				id: '女巫·换物',
+				tag: '换物',
+				npc: '女巫',
+				q: '把手里那支哨换一样东西',
+				base: 'neutral',
+				sites: [],
+				levers: [],
+				willing: {
+					req: [
+						'inv:坏哨',
+						'inv:月光花',
+						'world.flower_taken'
+					]
+				},
+				why: '（她把哨、花、场地都算在这一眼里——哪样没凑齐，说什么都白说。）',
+				done: {
+					req: [
+						'inv:时光护符'
+					]
+				},
+				gives: [
+					'时光护符'
+				],
+				will: '她看了很久，然后把手里那件东西递过来。',
+				ok: '她把东西递过来。',
+				bad: '她把手缩回去了。'
 			}
 		],
 		attAdj: {
@@ -285,16 +559,37 @@ window.Game = Object.assign(window.Game ?? {}, {
 		},
 		approaches: {
 			'游说': {
-				label: '说理',
-				note: '把话说清楚'
+				verb: '把话说圆',
+				onFail: {
+					retry: 5
+				},
+				note: '话说死了，这一问就更难再开口'
 			},
 			'恐吓': {
-				label: '施压',
-				note: '让他不敢不说'
+				verb: '亮一亮手里的家伙',
+				onFail: {
+					att: -1
+				},
+				onOk: {
+					att: -1
+				},
+				note: '他让了，但他记住了'
+			},
+			'表演': {
+				verb: '讲一段、唱一段',
+				onFail: {},
+				note: '图一乐，不落把柄'
 			},
 			'洞悉': {
-				label: '看穿',
-				note: '先看出他在躲什么'
+				verb: '先看他手里攥着什么',
+				onFail: {},
+				read: true,
+				note: '读人不花代价'
+			},
+			'察觉': {
+				verb: '先看清他身上那点不对劲',
+				onFail: {},
+				note: '线索就在他身上'
 			}
 		},
 		ATT: {
@@ -327,6 +622,82 @@ window.Game = Object.assign(window.Game ?? {}, {
 	},
 	Codex: {
 		items: {
+			'月光花': {
+				hint: '塔外花田——墙根最靠里的那一朵。',
+				clues: [
+					{
+						id: 'own',
+						label: '来历：从花田摘到的',
+						req: [
+							'inv:月光花'
+						]
+					},
+					{
+						id: 'warned',
+						label: '守林人提过：那花底下埋着人',
+						req: [
+							'note:n_flower_warned'
+						]
+					},
+					{
+						id: 'taken',
+						label: '场地：那朵已经摘过了',
+						req: [
+							'world.flower_taken'
+						]
+					},
+					{
+						id: 'spent',
+						label: '用法：它跟星力有关',
+						req: [
+							{
+								gte: [
+									'star.spent',
+									1
+								]
+							}
+						]
+					}
+				]
+			},
+			'坏哨': {
+				hint: '门厅——墙上那根空钉。',
+				clues: [
+					{
+						id: 'own',
+						label: '来历：从门厅的钉子上摘的',
+						req: [
+							'inv:坏哨'
+						]
+					},
+					{
+						id: 'tips',
+						label: '柜台提过：别应叫名字',
+						req: [
+							'note:n_tav_tips'
+						]
+					}
+				]
+			},
+			'日记': {
+				hint: '书房——案上摊着的那本。',
+				clues: [
+					{
+						id: 'own',
+						label: '来历：书房案上取到的',
+						req: [
+							'inv:日记'
+						]
+					},
+					{
+						id: 'cause',
+						label: '内文：它来时是被人叫来的',
+						req: [
+							'note:n_failure_cause'
+						]
+					}
+				]
+			},
 			'时光护符': {
 				hint: '女巫小屋——她把它从炉火边递到你手里。',
 				clues: [
@@ -347,18 +718,6 @@ window.Game = Object.assign(window.Game ?? {}, {
 									1
 								]
 							}
-						]
-					}
-				]
-			},
-			'雾': {
-				hint: '森林边缘——站住听一听。',
-				clues: [
-					{
-						id: 'thin',
-						label: '它每用一次，雾就淡一些',
-						req: [
-							'world.fog_thin'
 						]
 					}
 				]
@@ -464,7 +823,8 @@ window.Game = Object.assign(window.Game ?? {}, {
 				where: '夹具面',
 				prefix: [
 					'whistle_',
-					'flower_'
+					'flower_',
+					'fog_'
 				],
 				note: '夹具自己的状态键（场地状态 `whistle_taken`／`flower_taken` ＋ 证据链键）',
 				keys: [
@@ -475,6 +835,35 @@ window.Game = Object.assign(window.Game ?? {}, {
 					'tav_tips',
 					'flower_warned'
 				]
+			},
+			{
+				id: 'star',
+				where: '星力与翻转预算',
+				keys: [
+					'star.spent'
+				],
+				note: '已用掉的付费翻转次数（`pc.star.spent` ✓ 与旧故事同形）'
+			},
+			{
+				id: 'keeper',
+				where: '守林人',
+				prefix: [
+					'keeper_'
+				],
+				keys: [
+					'keeper.state',
+					'keeper.met',
+					'keeper.trust'
+				],
+				note: '首遇／信任／立场（`pc.keeper.*` ✓ 与旧故事同形）'
+			},
+			{
+				id: 'economy',
+				where: '经济（钱与价格）',
+				keys: [
+					'gold'
+				],
+				note: '`pc.gold` ＝ 金币余额（经济面在写、可负担性行也读 ✓）'
 			}
 		],
 		bookkeeping: [],
@@ -508,7 +897,10 @@ const __const_prepick = [
 		require: {
 			item: '月光花'
 		},
-		pick: '龙·斩击',
+		forbid: {
+			flag: 'dragon.venom'
+		},
+		pick: '封印·涂毒',
 		distinctFromPicked: true
 	}
 ];

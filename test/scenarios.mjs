@@ -369,13 +369,19 @@ async function routeFixtureSweep() {
 		w.SugarCube.Engine.play(name);
 		await waitRendered(w, name).catch(() => {});   // 自动转场（如 `塔门` 的 hp≤0 ✓）容许
 		if (passageOf(w) !== name) { skipped += 1; continue; }   // 该段在本态下自动转场 ⇒ 不点
-		const labels = linkLabels();
-		for (const label of labels) {
+		// `#1004` B2b：**逐轮重取快照**（不是一次取好再逐条点）✗ —— 菜单行是**一次性**的（点一次即写笔记 ⇒
+		// 该行按 `exclude` 不再渲染 ✓），而**点一条会改动 DOM 顺序与行集合** ✗ ⇒ 固定清单会对着"已经不在的行"点空 ✓。
+		// 口径：每轮重放该段 ⇒ 取当前标签 ⇒ 点**第一个还没点过的** ✓（直到没有新标签为止 ✓）。
+		const done = new Set();
+		for (let pass = 0; pass < 30; pass++) {
 			w.SugarCube.Engine.play(name);             // 回原位（上一手可能已经把我们带走了 ✓）
 			await sleep(60);
 			if (passageOf(w) !== name) break;
-			try { await c(label); clicks += 1; } catch { skipped += 1; }
-			if (name.startsWith('结局')) break;        // 结局页点一手（出口）就够 ✓
+			const next = linkLabels().find((l) => !done.has(l));
+			if (!next) break;
+			done.add(next);
+			try { await c(next); clicks += 1; } catch { skipped += 1; }
+			if (name.startsWith('结局') && done.size >= 1) break;   // 结局页点一手（出口）就够 ✓
 		}
 	}
 	console.log(`  · 夹具遍历：点 ${clicks} 手 · 跳过 ${skipped} 处（条件分支/自动转场 ✓）`);

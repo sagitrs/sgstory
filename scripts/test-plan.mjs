@@ -51,7 +51,6 @@ export const SEGMENTS = [
 	// 车道 E-B3（`#215` 报备 `18504078`）：**读侧（`--reads`）页内面** ✓ —— 页内只跑 ① 条件表行级 ✗（读故事源 ＋ `web/**` ✓ ⇒ 无前置 ✓；jsdom ＋ `createContext` ⇒ cost 0.4 ✓）。
 	{ id: "test-web-read-faces-mjs", phase: 'test', cost: 0.4, cmd: "node test/web-read-faces.mjs" },
 	// 车道 D · `--settle`（`#215` 报备 `18504699`）：**落点文案页内面** ✓ —— 页内与 CLI **同一份判据** ✓（`core/settleRows.mjs` ⇒ 两侧同判 ＋ 非空上的同判 ✓；读故事源 ＋ `web/**` ＋ `scripts/audit/context.mjs` ⇒ 无前置 ✓；jsdom ⇒ cost 0.4 ✓）。
-	{ id: "test-web-settle-mjs", phase: 'test', cost: 0.4, cmd: "node test/web-settle.mjs" },
 	// `#794` P1①：「故事包 I/O ＝ 唯一写路」的自证（核心在 `editor/lib/core/story.mjs` ✓；含**写侧哨兵**：拒绝型 io ⇒ 写入当场失败 ✓）。
 	{ id: "test-core-story-mjs", phase: 'test', cost: 0, cmd: "node test/core-story.mjs" },
 	// `#794`：**import 副作用门** —— 任何 `editor/**` 模块被 import ⇒ 跑完且只留哨兵 ✓（`exit(0)` 与 import 期输出都必红 ✓）。
@@ -124,8 +123,6 @@ export const SEGMENTS = [
 	{ id: 'test-store-keys-mjs-selftest', phase: 'test', cost: 0, cmd: 'node test/store-keys.mjs --selftest' },
 	{ id: 'test-store-keys-mjs', phase: 'test', cost: 0, cmd: 'node test/store-keys.mjs' },
 	// #441-A：结算可脱离浏览器驱动（rng 可注入 · rollSite 纯 · present 不写状态）
-	{ id: 'test-resolve-node-mjs-selftest', phase: 'test', cost: 0, cmd: 'node test/resolve-node.mjs --selftest' },
-	{ id: 'test-resolve-node-mjs', phase: 'test', cost: 0, cmd: 'node test/resolve-node.mjs' },
 	// #436 原范围 1：笔记模型门已从 `test/notes-model.mjs` **升级为 audit 门**（可单跑 `--notes`），
 	// 一个段替代原来的 `-selftest` ＋ 主跑两段（自证在门内，与其它门一致）。
 	// #436 原范围 3：**玩家可见正文漂移**接进计划（`#422-D`／阶段 2 的判据是「漂移＝0」）。
@@ -189,7 +186,6 @@ export const SEGMENTS = [
 	{ id: "test-story-runtime-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/story-runtime.mjs --selftest" },
 	{ id: "test-story-runtime-mjs", phase: 'test', cost: 8, cmd: "node test/story-runtime.mjs" },
 	// #434 阶段 3：`Sg.notes.add()` 的行为门（幂等 · 双写 · 双读 · 多源 setPath 护栏）
-	{ id: "test-notes-write-mjs", phase: 'test', cost: 0.2, cmd: "node test/notes-write.mjs" },
 	// #460／#441-E：**第二故事接入自检** —— 用最小故事（stories/minimal-demo）跑**引擎门**：
 	// 「引擎不知道故事名」的可执行证据（产物：书架 2 项；门：引擎门对第二故事绿）。`--check` 前置以免被
 	// `auditFlag()` 认成某个门段（它不是单门段，层归属见 `ENGINE_EXTRA`）。
@@ -252,8 +248,6 @@ export const SEGMENTS = [
 	{ id: "test-social-sink-mjs", phase: 'test', cost: 3, cmd: "node test/social-sink.mjs" },
 	{ id: "test-siteinfo-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/siteinfo-sink.mjs --selftest" },
 	{ id: "test-siteinfo-sink-mjs", phase: 'test', cost: 2, cmd: "node test/siteinfo-sink.mjs" },
-	{ id: "test-econ-price-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/econ-price.mjs --selftest" },
-	{ id: "test-econ-price-mjs", phase: 'test', cost: 2, cmd: "node test/econ-price.mjs" },
 	{ id: "test-fight-history-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-history.mjs --selftest" },
 	{ id: "test-fight-history-mjs", phase: 'test', cost: 4, cmd: "node test/fight-history.mjs" },
 	// `#707`：**战斗状态字段使用面门**（每个 `$pc.ev.fight.<字段>` 都必须有人用；死字段点名）

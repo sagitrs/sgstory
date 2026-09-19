@@ -272,7 +272,7 @@ export const PROBES = [
 		// 台账行：`test/lint-scratch.mjs`（`#1024`：`lint-story` 的 scratch **本次运行唯一**）。
 		//  刀＝把 `lint` 的产物目录**改回按 slug 固定**（`build/generated/<slug>`）—— 正是修复前的形状 ✗。
 		//  ⚠️ 为什么这一刀**确定性**有效：本件的两条判据里有一条是「**旧落点没有被这次运行重建**」，
-		//  它与并发时序无关 ⇒ 变异后必红（本席负控实测 ✓；只靠并发互踩那一轮可能恰好躲过 ✓）。
+		//  它与并发时序无关 ⇒ 变异后必红（本片负控实测 ✓；只靠并发互踩那一轮可能恰好躲过 ✓）。
 		id: 'test/lint-scratch.mjs',
 		tier: 'fast',
 		pre: ['node build.mjs'],   // 该件跑真 `lint-story`，故事门要读 dist 产物 ⇒ 前置写进命令（缺前置报「缺前置」✗，不报「不咬」✓）

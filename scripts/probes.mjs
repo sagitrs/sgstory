@@ -268,4 +268,21 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /unclaimed-top-level/ },
 		why: '量的是「仓根出现**未登记的顶层条目**时门会红并点名它」（误提交的临时件是**结构错**：`unclaimed-file` 只管源文件、`build.mjs` 只盯 `*.twee` ⇒ 拦不住顶层目录；来历＝#874 的 home/** 与 #1008 本片删掉的 tmp/mf3.json）—— 白名单里把 `docs` 改名 ⇒ 真实存在的 `docs/` 成为未登记项 ⇒ 门必须红并点名',
 	},
+	{
+		// 台账行：`test/lint-scratch.mjs`（`#1024`：`lint-story` 的 scratch **本次运行唯一**）。
+		//  刀＝把 `lint` 的产物目录**改回按 slug 固定**（`build/generated/<slug>`）—— 正是修复前的形状 ✗。
+		//  ⚠️ 为什么这一刀**确定性**有效：本件的两条判据里有一条是「**旧落点没有被这次运行重建**」，
+		//  它与并发时序无关 ⇒ 变异后必红（本席负控实测 ✓；只靠并发互踩那一轮可能恰好躲过 ✓）。
+		id: 'test/lint-scratch.mjs',
+		tier: 'fast',
+		pre: ['node build.mjs'],   // 该件跑真 `lint-story`，故事门要读 dist 产物 ⇒ 前置写进命令（缺前置报「缺前置」✗，不报「不咬」✓）
+		cmd: 'node test/lint-scratch.mjs',
+		mutation: {
+			file: 'editor/lib/host/commands.mjs',
+			find: "const gen = join(lintRun, 'gen');",
+			replace: "const gen = join(ROOT, 'build', 'generated', slug);",
+		},
+		expect: { rc: 1, stdout: /旧落点|并发自证未过/ },
+		why: '量的是「`lint-story` 的中间目录**本次运行唯一**」（改回按 slug 固定 ⇒ 两个并发进程互相踩 ⇒ 假红「编译不幂等」；本件用「旧落点没被重建」这条**与并发时序无关**的判据把它钉死 ✓）—— 否则「并发安全」只写在注释里 ✗',
+	},
 ];

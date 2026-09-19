@@ -187,6 +187,12 @@ export const SEGMENTS = [
 	// #459／#482：故事「新机制声明表」的形状门（六条可机检点 · 各带正反自证）
 	{ id: "test-story-shape-mjs", phase: 'test', cost: 0.1, cmd: "node test/story-shape.mjs" },
 	{ id: "test-lint-story-mjs", phase: 'test', cost: 0.5, cmd: "node test/lint-story.mjs" },  // 车道 E（#215）：lint-story 自证门
+	// `#1024`：**并发假红**（`lint-story` 的 scratch 必须本次运行唯一）—— 3 轮 × 3 进程跑同一 slug
+	//   ＋ 两条**确定性**判据（旧落点没被重建 · 不留 `.lint-run-*` 草稿）；前置=dist 产物（故事门要读它）
+	{ id: "test-lint-scratch-mjs", phase: 'test', cost: 2, needs: ['build-mjs'], cmd: "node test/lint-scratch.mjs" },
+	// ⚠️ 自证**必须成对登记**（`#1018` 复核席点名的形状）：本件两条判据能不能被"种出来的反例"点燃，
+	//   只由 `--selftest` 量 ⇒ 不登记它 ＝ 那一半在 CI 里零守护
+	{ id: "test-lint-scratch-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/lint-scratch.mjs --selftest" },
 	// #574：逐故事**运行时契约**门 —— 面存在 / 位点能判 / 笔记可用 / 侧栏可用 / 机制真落
 	// （成因：`Sg.*` 面缺一段、位点写成属性键、`applyStatus` 返回值被丢、`maxHp` 字段名——四件都曾静默通过）
 	{ id: "test-story-runtime-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/story-runtime.mjs --selftest" },

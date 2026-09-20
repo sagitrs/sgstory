@@ -63,6 +63,7 @@
 | `test/integrity.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/invariants.unit.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/k4-args.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
+| `test/k4-references.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/layering.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | 自证 **33** 条断言（**量法**：`node test/layering.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝模块依赖（`cases` 11 项，含 `#893` 两层登记的三条正反例）/ 点号 defines / 层间方向 / engine rank 派生与四条禁止边 |
 | `test/lint-scratch.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/lint-story.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |

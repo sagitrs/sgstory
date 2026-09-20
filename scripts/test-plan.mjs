@@ -164,6 +164,11 @@ export const SEGMENTS = [
 	{ id: "editor-k4", phase: 'test', cost: 0.3, cmd: "node editor/k4.mjs" },
 	{ id: "test-state-diagnose", phase: 'test', cost: 0, cmd: "node test/state-diagnose.mjs" },
 	{ id: "test-k4-args", phase: 'test', cost: 0, cmd: "node test/k4-args.mjs" },
+	// `#1016`：**门面引用完整性**（登记表里指向仓内对象的键必须现存 ✓ —— `hatches[].slug`／`hatchFiles[]`／`refusedFaces[].file`）。
+	// 为什么要单独一段 ✗：这一格要**探针**才能从"写了断言"升级为"真会红"（`#908` ① ✓），而探针的 `id` 必须逐字对上台账行
+	// ⇒ 台账行只从 `test/**`／`scripts/report-*.mjs`／audit 开关来 ✓ ⇒ 本件就是那个行 ✓。**纯件**（不碰 fs／不跑 build ✗）
+	// ⇒ `test` 相位、无 `needs` ✓。
+	{ id: "test-k4-references", phase: 'test', cost: 0, cmd: "node test/k4-references.mjs" },
 	// `#762` 车道 B：**条件表往返**（61 行）。**权威判据是 L1**：两版各自求值后行数组**深度相等**
 	// ＋ **字段直方图一致**（每列出现多少次都打出来 —— `#557` 那条老账：总体非空拦不住「少抽一项」）。
 	// **为什么这一段显式用 `--l3=report`**：手写版用**模板串**写 `text`、生成物用单引号串 —— 纯**排版**差异，
@@ -197,7 +202,12 @@ export const SEGMENTS = [
 	{ id: "test-lint-story-mjs", phase: 'test', cost: 0.5, cmd: "node test/lint-story.mjs" },  // 车道 E（#215）：lint-story 自证门
 	// `#1024`：**并发假红**（`lint-story` 的 scratch 必须本次运行唯一）—— 3 轮 × 3 进程跑同一 slug
 	//   ＋ 两条**确定性**判据（旧落点没被重建 · 不留 `.lint-run-*` 草稿）；前置=dist 产物（故事门要读它）
-	{ id: "test-lint-scratch-mjs", phase: 'test', cost: 2, needs: ['build-mjs'], cmd: "node test/lint-scratch.mjs" },
+	// ⚠️ `#1044`：**还得排在 `test-lint-story-mjs` 之后** ✗ —— 那一段的反例**直接改真文件**
+	//   `stories/minimal-demo/data/tables.json`（写成 `'{ oops'` ⇒ 跑 lint ⇒ `finally` 恢复 ✓），
+	//   而本件 spawn 的正是 `lint-story minimal-demo` ⇒ **同波**就会读到**半成品** ⇒ 假红「data/*.json 不可解析」
+	//   （实测：两段并发 **3/3 红**、各自的输出就是那段注入载荷 ✓；单跑皆绿 ✓）。
+	//   ⇒ 依赖声明＝**单一权威**的排顺手段 ✓（同一个洞在 `test-story-ci-mjs` 上早已用同一条修法 ✓）。
+	{ id: "test-lint-scratch-mjs", phase: 'test', cost: 2, needs: ['build-mjs', 'test-lint-story-mjs'], cmd: "node test/lint-scratch.mjs" },
 	// ⚠️ 自证**必须成对登记**（`#1018` 复核席点名的形状）：本件两条判据能不能被"种出来的反例"点燃，
 	//   只由 `--selftest` 量 ⇒ 不登记它 ＝ 那一半在 CI 里零守护
 	{ id: "test-lint-scratch-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/lint-scratch.mjs --selftest" },

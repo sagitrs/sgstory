@@ -47,6 +47,22 @@ export const PROBES = [
 		why: '量的是 `tableReadProblems` 的**读侧判定**真的会红 ✓（`test/state-diagnose.mjs:111` 那条「反例·`tableReadProblems`」✓）—— 掐掉产出 ⇒ 该断言必须红 ✓',
 	},
 	{
+		// 台账行：`test/k4-references.mjs` ✓（`#1016` 新件 ✓）
+		id: 'test/k4-references.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/k4-references.mjs',
+		mutation: {
+			// 被测件 ＝ `lib/core/**` ✓（**不是**测试件 ✗）：把「引用不合规就收集」那一路**掐掉** ✓
+			// ⚠️ 错的行是**唯一**的：`out.push` 在这个文件里到处都是，所以锚那条带 `r.at`／`r.why` 的整句 ✓。
+			file: 'editor/lib/core/k4criteria.mjs',
+			find: 'if (!r.ok(r.value)) out.push({ at: r.at, value: r.value, why: r.why });',
+			replace: 'if (false) out.push({ at: r.at, value: r.value, why: r.why });',
+		},
+		expect: { rc: 1, stdout: /门面引用/ },
+		why: '量的是「登记表里指向**不存在对象**的引用**真会被点名**」（`#1016` 那族：声明了要做 X、实际没做 ✓）—— 掐掉收集那一路 ⇒ 反例①②③ 必须红且点名 ✓（基线绿＝现行登记表里**没有**坏引用 ✓）',
+	},
+	{
 		// 台账行：`scripts/report-gate-ledger.mjs` ✓ —— 探针刀口对着**台账自己** ✓
 		id: 'scripts/report-gate-ledger.mjs',
 		tier: 'fast',

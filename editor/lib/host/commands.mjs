@@ -30,7 +30,7 @@ import { definitionsOf, duplicateExportProblems, secondCopyProblems, coreHostPro
 // `#794` 第 4 条（K4 命令体）：判据的**纯**部分住 core ✓（纯 ⇒ core、宿主能力 ⇒ host ✓）。
 // ⚠️ **一处定义** ✓：分类器实例**不在本文件重装** ✗ —— `lib/host/classify.mjs` 已经装好（`makeClassify({ evalLiteral: literalValue })` ✓），
 // 本命令走它导出的缝 `classifyContractText` ✓（那条缝多做 `locals` 上下文与 `const` 的 B→A 解析 ⇒ 该语义风险由**两时点差分**量掉 ✓）。
-import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, handwrittenClosureProblems, contractSourceText, staleTrackedProblems } from '../core/k4criteria.mjs';
+import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, handwrittenClosureProblems, contractSourceText, staleTrackedProblems, referenceIntegrityProblems } from '../core/k4criteria.mjs';
 import { censusOfStory, censusSummarize, censusProblems } from '../core/hatchCensus.mjs';
 import { classifyContractText } from './classify.mjs';
 // `#794` 弧第 3 票（`equiv` 命令体）：用 vm／读文件／跑子进程 ⇒ **都在 host** ✓。
@@ -742,11 +742,28 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 		console.log(`  · 手写面闭合：手写 twee ${handwritten.length} 件 − 登记 ${refused.length} − prose ${prose.length} − 逃生舱文件 ${hatches.length} ⇒ 应当为 ∅ ✓`);
 		for (const prob of handwrittenClosureProblems({ handwritten, refused, prose, hatches, markerOf })) { console.error(`  ✗ ${prob.why}`); bad++; }
 	}
+
+	// ③d **门面引用完整性**（`#1016`）：登记表里**指向仓内对象**的键必须**现存** ✓。
+	//   ⚠️ 也是**跨故事**的 ✗：`hatches[]` 按 `slug` 过滤进逐故事扫描 ⇒ **已删故事的 slug 落不进任何一次扫描** ✗
+	//     ⇒ 它**结构性不可见** ✓（`#1004` 实测：留过 2 条 `mist-forest`、而全门 rc=0 ✗）⇒ 必须在这里判 ✓。
+	//   ⚠️ 只咬**字段值**（`hatches[].slug`／`hatchFiles[]`／`refusedFaces[].file` ✓）—— 散文面（`reason`／`why`／`paths` ✗）
+	//     一律不读 ✓（本仓留痕优先："`reason` 里写『与 X 同形』"是**应当允许**的 ✓）。
+	{
+		const hx = JSON.parse(readFileSync(join(ROOT, 'editor', 'escape-hatch.json'), 'utf8'));
+		const refProblems = referenceIntegrityProblems({
+			registry: hx,
+			slugSet: new Set(slugs),
+			existsOf: (rel) => existsSync(join(ROOT, rel)),
+		});
+		const refCount = (hx.hatches ?? []).length + (hx.hatchFiles ?? []).length + (hx.refusedFaces ?? []).length;
+		console.log(`  · 门面引用完整性（\`#1016\`）：\`hatches[].slug\` ＋ \`hatchFiles[]\` ＋ \`refusedFaces[].file\` 共 ${refCount} 条引用 ⇒ 必须指向**现存**对象 ✓（故事集合 ${slugs.length} 个 ✓；\`proseFaces\` 的存在性由上一行判 ✓ 不重复 ✓）`);
+		for (const p of refProblems) { console.error(`  ✗ 【门面引用】\`${p.at}\` = \`${p.value}\`：${p.why}`); bad++; }
+	}
 	if (bad) {
-		console.error(`\n✗ K4 门未通过（${bad} 项）—— 产物必须有标记、必须新鲜、逃生舱必须可枚举。`);
+		console.error(`\n✗ K4 门未通过（${bad} 项）—— 产物必须有标记、必须新鲜、逃生舱必须可枚举、手写面必须有归属、登记表里的引用必须现存。`);
 		return 1;
 	}
-	console.log('\n✔ K4 门通过（标记 · 幂等/新鲜度 · 逃生舱登记双向一致 · 生成物不许独改）');
+	console.log('\n✔ K4 门通过（标记 · 幂等/新鲜度 · 逃生舱登记双向一致 · 生成物不许独改 · 手写面闭合 · 门面引用现存）');
 	return 0;
 };
 

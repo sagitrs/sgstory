@@ -151,3 +151,54 @@ export const handwrittenClosureProblems = ({ handwritten = [], refused = [], pro
 	}
 	return out;
 };
+
+/**
+ * **门面引用完整性**（`#1016`）：登记表里**指向仓内对象**的键必须**现存** ✓ —— 即"**声明了要做 X、实际没做**"的那个缺口。
+ *
+ * 为什么需要它 ✗（`#1004` 审阅期实测 ✓）：`hatches[]` 里留过 2 条 `slug:"mist-forest"`（故事已删 ✓），
+ *   而**所有**门都不咬 —— `escapeHatchProblems` 按**故事**过滤（`h.slug === slug` ✓），已删故事的 slug
+ *   **落不进任何一次**逐故事扫描 ⇒ 它**结构性不可见** ✗ ⇒ ⇒ "条目指向的东西已经没了"能安静留在仓里 ✓。
+ *
+ * 判据（一句话）：`hatches[].slug` ∈ **现存故事集合** ✓、`hatchFiles[]`／`refusedFaces[].file` **存在于工作树** ✓。
+ *
+ * ⚠️ **只咬字段值，绝不读散文字段** ✗（本仓"留痕优先" ✓）：本函数**不碰** `reason`／`why`／`paths`／`note`／
+ *   `refusedFacesWhy` 等任何一个散文面 ⇒ "`reason` 里写『与 `mist-forest` 同形』"（历史留痕 ✓）**不会被罚** ✓ ——
+ *   这条**由构造保证**（不是靠关键词白名单 ✓，见 `test/k4-references.mjs` 的正例③）。
+ *
+ * ⚠️ **`paths` 不属本条** ✗（它**不是路径** ✓）：`refusedFaces[].paths` 是**散文**（"三条路 (i)(ii)(iii)…" ✓，实测现值 ✓）
+ *   ⇒ 对它做存在性判定＝**判了一件它不声称的事** ✗（同族坑："过门 ≠ 达意" ✓）。
+ *
+ * ⚠️ **`proseFaces` 的存在性不重复判** ✗（单一权威 ✓）：它已由 `handwrittenClosureProblems` 覆盖 ✓
+ *   （实测：往 `proseFaces` 注入不存在路径 ⇒ 该判据 rc=1 并点名"路径写错或文件已不在" ✓）⇒ 本函数再判一次只会**重复报** ✗。
+ *
+ * `slugSet`／`existsOf` 由**宿主注入** ✓（`core/**` 不碰 fs ✓，与 `refusedFaceProblems` 的 `markerOf` 同一口径 ✓）。
+ *
+ * @param {{registry?:object, slugSet?:Set<string>|string[]|null, existsOf?:(rel:string)=>boolean}} o
+ */
+export const referenceIntegrityProblems = ({ registry = {}, slugSet = null, existsOf = () => false } = {}) => {
+	const out = [];
+	const has = (v) => typeof v === 'string' && v.trim() !== '';
+	const slugs = slugSet instanceof Set ? slugSet : new Set(slugSet ?? []);
+	// 判据表：一条 ＝ 「位置 · 值 · 该值必须满足什么 · 不满足时怎么说」✓
+	//   ⚠️ 值只从**这三处**取（全是结构键 ✓）—— 散文字段一个都不进表 ✓。
+	const rows = [
+		...((registry.hatches ?? []).map((h, i) => ({
+			at: `hatches[${i}].slug`, value: h?.slug, ok: (v) => slugs.has(v),
+			why: `指向**不存在的故事** \`stories/${h?.slug ?? ''}/\` ✗ ⇒ 条目已无对象可挂（故事被删／改名）⇒ **删掉这条登记**（清单只许收缩 ✓）`,
+		}))),
+		...((registry.hatchFiles ?? []).map((f, i) => ({
+			at: `hatchFiles[${i}]`, value: f, ok: (v) => existsOf(v),
+			why: '指向**不存在的文件** ✗ ⇒ 该手写逃生舱文件已搬走／改名，登记腐烂（`editor/equiv.mjs` 会拿它当等价门的产物侧输入 ✗）',
+		}))),
+		...((registry.refusedFaces ?? []).map((f, i) => ({
+			at: `refusedFaces[${i}].file`, value: f?.file, ok: (v) => existsOf(v),
+			why: '指向**不存在的文件** ✗ ⇒ "不数据化的面"登记腐烂（路径写错或文件已不在）',
+		}))),
+	];
+	for (const r of rows) {
+		// ⚠️ 缺字段／空值**不归本条** ✓（形式约束由各自的判据点名 ✗ —— 如 `refusedFaceProblems` 的四字段 ✓）
+		if (!has(r.value)) continue;
+		if (!r.ok(r.value)) out.push({ at: r.at, value: r.value, why: r.why });
+	}
+	return out;
+};

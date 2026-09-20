@@ -223,10 +223,14 @@ export const SEGMENTS = [
 	//   而本件 spawn 的正是 `lint-story minimal-demo` ⇒ **同波**就会读到**半成品** ⇒ 假红「data/*.json 不可解析」
 	//   （实测：两段并发 **3/3 红**、各自的输出就是那段注入载荷 ✓；单跑皆绿 ✓）。
 	//   ⇒ 依赖声明＝**单一权威**的排顺手段 ✓（同一个洞在 `test-story-ci-mjs` 上早已用同一条修法 ✓）。
+	//   ➕ `#1044` 后半（本 PR）：这条边由 `test/plan-needs.mjs` **在册守护** ✓（删边 ⇒ 门红并点名两端 ✓；探针刀见 `scripts/probes.mjs` ✓）。
 	{ id: "test-lint-scratch-mjs", phase: 'test', cost: 2, needs: ['build-mjs', 'test-lint-story-mjs'], cmd: "node test/lint-scratch.mjs" },
 	// ⚠️ 自证**必须成对登记**（`#1018` 复核席点名的形状）：本件两条判据能不能被"种出来的反例"点燃，
 	//   只由 `--selftest` 量 ⇒ 不登记它 ＝ 那一半在 CI 里零守护
 	{ id: "test-lint-scratch-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/lint-scratch.mjs --selftest" },
+	// `#1044`：**段间产物依赖边守护**——「改真故事文件的段 → 读它的段」的 needs 边必须在册并点名
+	//   （纯静态 ⇒ 无前置 ✓；能假反例在件内 ✓；探针刀＝删那条 needs ⇒ 必红 ✓）。
+	{ id: "test-plan-needs-mjs", phase: 'test', cost: 0, cmd: "node test/plan-needs.mjs" },
 	// #574：逐故事**运行时契约**门 —— 面存在 / 位点能判 / 笔记可用 / 侧栏可用 / 机制真落
 	// （成因：`Sg.*` 面缺一段、位点写成属性键、`applyStatus` 返回值被丢、`maxHp` 字段名——四件都曾静默通过）
 	{ id: "test-story-runtime-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/story-runtime.mjs --selftest" },

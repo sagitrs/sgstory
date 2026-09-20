@@ -45,6 +45,16 @@ export const authorityRows = (text) => {
 		.filter((l) => !/^\|\s*---/.test(l) && !/^\|\s*面\s*\|/.test(l));
 };
 
+/** ⓪ 扫描面非空断言（`#557` 口径：**读不到输入不许当「没命中」** ✗）——节被删/改名/清空 ⇒ 三判据对空集恒真=假绿 ⇒ 必红 ✓。 */
+export const emptyScanProblems = (text) => {
+	const out = [];
+	if (taskTableRows(text).length === 0)
+		out.push('扫描面为空 —— 「## 一、按任务读」节缺失/改名或无表行（#557 口径：读不到输入不许当「没命中」；表被删比留坏链更容易过 ✗）');
+	if (authorityRows(text).length === 0)
+		out.push('扫描面为空 —— 「## 二、权威表」节缺失/改名或无表行（#557 口径：读不到输入不许当「没命中」）');
+	return out;
+};
+
 const firstCell = (row) => {
 	const cells = row.split('|').map((c) => c.trim());
 	return cells[2] ?? '';   // | 我要… | 先读 | … ⇒ cells[0]='' cells[1]=任务 cells[2]=先读
@@ -95,8 +105,24 @@ export const budgetProblems = (text, { sizeOf = (p) => statSync(join(ROOT, p)).s
 		total += b; parts.push(`${(b / 1024).toFixed(1)}KB ${p}`);
 	}
 	const kb = total / 1024;
+	if (paths.size === 0)
+		return [`先读列可计路径为 0 —— 疑似「按任务读」被删/引用被清空（#557 口径：读不到输入不许当「没命中」；「0KB ≤ 150KB」不是通过 ✗）`];
 	if (kb > BUDGET_KB) return [`先读列（除 \`${BUDGET_EXEMPT}\`，单列见 #1080）引用总字节 ${kb.toFixed(1)}KB > 上限 ${BUDGET_KB}KB（#1077 验收②口径）——新增先读文档须给出替代/合并了哪份：\n  ${parts.join('\n  ')}`];
 	return [];
+};
+
+/** 通过时也打印当前值（读数应当可见，不是只在红时才出现——与台账「本轮覆盖到哪一档」同族）。 */
+export const budgetReading = (text, { sizeOf = (p) => statSync(join(ROOT, p)).size, exists = (p) => existsSync(join(ROOT, p)) } = {}) => {
+	const paths = new Set();
+	for (const r of taskTableRows(text)) {
+		for (const m of firstCell(r.line).matchAll(PATH_IN_BACKTICKS)) paths.add(m[1]);
+	}
+	let total = 0;
+	for (const p of paths) {
+		if (p === BUDGET_EXEMPT || !exists(p)) continue;
+		total += sizeOf(p);
+	}
+	return `${(total / 1024).toFixed(1)}KB`;
 };
 
 let bad = 0;
@@ -126,17 +152,26 @@ const selftest = () => {
 	// 边界：path-exempt 行跳过（留痕惯例沿用）
 	const ex = deadLinkProblems(SEC + '| 历史 | `docs/no-such-doc.md` <!-- path-exempt: 历史叙述 --> | — |', { exists });
 	case_('path-exempt 行跳过', ex.length === 0);
+	// ⓪ 扫描面非空三格（阻断项（评审指出）：节被删/清空 ⇒ 必红，不许对空集恒真）
+	case_('反例·「按任务读」整节被删 ⇒ 必红（#557）', emptyScanProblems('## 二、权威表\n| 面 | 唯一权威 |\n|---|---|\n| A | `docs/x.md` |').some((p) => p.includes('按任务读')));
+	case_('反例·有节头但表行清空 ⇒ 必红（#557）', emptyScanProblems('## 一、按任务读\n\n（无表格）\n## 二、权威表\n| 面 | 唯一权威 |\n|---|---|\n| A | `docs/x.md` |').some((p) => p.includes('按任务读')));
+	case_('反例·「权威表」节被删 ⇒ 必红（#557）', emptyScanProblems(SEC + '| 任务 | `docs/a.md` | — |').some((p) => p.includes('权威表')));
+	// ③″ ratchet 输入空 ⇒ 必红（先读列零可计路径）
+	case_('反例·先读列可计路径为 0 ⇒ 必红（#557）', budgetProblems(SEC + '| 任务 | 无路径 | — |', { sizeOf, exists }).length === 1);
+	// 正例控制：两节都在且有行 ⇒ ⓪ 不报
+	case_('正例·两节齐全 ⇒ ⓪ 不报', emptyScanProblems('## 一、按任务读\n| 任务 | `docs/a.md` | — |\n## 二、权威表\n| 面 | 唯一权威 |\n|---|---|\n| A | `docs/x.md` |').length === 0);
 };
 
 const main = () => {
 	const text = readFileSync(README, 'utf8');
-	const problems = [...deadLinkProblems(text), ...staleAuthorityProblems(text), ...budgetProblems(text)];
+	const problems = [...emptyScanProblems(text), ...deadLinkProblems(text), ...staleAuthorityProblems(text), ...budgetProblems(text)];
 	for (const p of problems) { bad++; console.error(`✗ ${p}`); }
-	case_('docs/README.md 必读面三判据全过', problems.length === 0, problems.join('；'));
+	case_('docs/README.md 必读面四判据全过（含扫描面非空）', problems.length === 0, problems.join('；'));
+	if (problems.length === 0) console.log(`      ○ 先读列（除 \`${BUDGET_EXEMPT}\`，单列见 #1080）合计 ${budgetReading(text)} ／ 上限 ${BUDGET_KB}KB —— 读数可见，不是只在红时才出现`);
 };
 
 if (process.argv.includes('--selftest')) selftest();
 else main();
 
-console.log(bad === 0 ? '✔ docs-read-path：读路径门通过（死链 · 权威性 · 体量 ratchet）' : `✗ docs-read-path：${bad} 条问题（见上）`);
+console.log(bad === 0 ? '✔ docs-read-path：读路径门通过（扫描面非空 · 死链 · 权威性 · 体量 ratchet）' : `✗ docs-read-path：${bad} 条问题（见上）`);
 process.exit(bad === 0 ? 0 : 1);

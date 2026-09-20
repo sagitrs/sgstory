@@ -464,7 +464,27 @@ export const PROBES = [
 		},
 		expect: { rc: 1, stdout: /no-such-doc-probe|不存在/ },
 		why: '量的是「按任务读表引用的文档必须存在（死链⇒红点名）」那一手真的在守（插一行死链 ⇒ 门必红并点名行号与路径 ✓）—— 否则必读面死链只活在注释里 ✗（`#1078` ✓）',
+	},
+	{
+		// `#1087`：修 `#1054` 落在 main 上的**探针缺陷** ✓ ——
+		// ⚠️ 原条目**只有 `id` 一行**（缺自己的 `cmd`/`mutation`/`expect`/`why`），且它**在同一个 `{…}` 里**
+		//   ⇒ JS **对象重复键** ⇒ `id` 被后写的覆盖，**其余字段沿用了上一个条目（`docs-read-path`）的** ✗
+		//   ⇒ 实测：`PROBES.find(id==='test/ci-triggers.mjs')` 的 `cmd` 是 `node test/docs-read-path.mjs`、
+		//     `mutation.file` 是 `docs/README.md` ⇒ 它**"咬住"了，但证明的是另一个门** ✗
+		//     （「**探针在册但证明的不是那个门**」✓ —— 与本仓"`✅` 不代表断言真会红"同族）。
+		//   刀：把本门**条件化**那一手掐掉（`if (s.hasPR)` ⇒ `if (true)`）⇒ 无 `pull_request` 面的文件
+		//   （`soak-nightly` 等）会**再次假红** ⇒ 本门必红并点名该文件 ✓。
 		id: 'test/ci-triggers.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/ci-triggers.mjs',
+		mutation: {
+			file: 'test/ci-triggers.mjs',
+			find: '\tif (s.hasPR) {',
+			replace: '\tif (true) {   // 探针：条件化被掐掉 ⇒ 无 pr 面的文件又会假红 ✗',
+		},
+		expect: { rc: 1, stdout: /soak-nightly|viewport-smoke|pull_request\.types/ },
+		why: '量的是「**逐文件适用面写准**（有该面才判）那一手真的在守」（掐掉条件化 ⇒ `soak-nightly.yml` 等无 `pull_request` 面的文件立刻假红并点名文件 ✓）—— 否则扩射程后 8 处假红回归 ✗（`#1087`）',
 	},
 	{
 		// `#1089`（乙′）：**未跟踪扫描面 ⇒ 红** 的**接线**守护 —— ⚠️ 本条的刀**必须打在"门里"** ✗，

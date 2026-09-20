@@ -22,6 +22,13 @@ import { SEGMENTS } from '../scripts/test-plan.mjs';
 /** 在册边表（「谁写 · 谁读 · 为什么」）—— 加一条边 = 一次**显式决定** ✗（不许顺手 ✗）。 */
 export const NEED_EDGES = [
 	{ writer: 'test-lint-story-mjs', reader: 'test-lint-scratch-mjs', why: '#1044：lint-story 的反例临时改真 stories/*/data/tables.json（finally 恢复 ✓）⇒ lint-scratch 同波时 spawn 的 lint-story 读到半成品 JSON ⇒ 假红' },
+	// `#1070`（本票新增两条，同一根因 —— **临时候具存活期** ✗）：`test/web-preview.mjs` 会在运行中向
+	//   `stories/__e2e` 写一份**完整可发现的故事包**（含 `00-story.json` ✓）⇒ 同波的两个**扫目录/逐故事**的
+	//   段会把它当“真故事”读到（半成品）⇒ 假红；`finally` 清 + `needs` 串行化 ⇒ 读侧看不到它 ✓。
+	//   ⚠️ 为何本票才发现 ✗：`#1070` 把 253s 的探针段移出 PR 档 ⇒ **波次重排** ⇒ 两个读侧段与 web-preview 重叠
+	//   ⇒ 缺口由“潜伏”变“必现” ✓（既存缺口，不是本片引入；修法＝本仓既有的单一权威手段 ✓）。
+	{ writer: 'test-web-preview-mjs', reader: 'test-cli-surface-mjs', why: '#1070：本件驱动 `editor/cli.mjs k4`（逐故事 `readdirSync(stories)`）⇒ 同波命中 `web-preview` 的 `stories/__e2e` ⇒ k4 报“手写契约源非空（0 文件）却分类出 0 名成员” ⇒ 假红' },
+	{ writer: 'test-web-preview-mjs', reader: 'test-pc-defaults-mjs', why: '#1070：本件 ⑥ 走 `storySlugs()`（扫 `stories/` 下带 `00-story.json` 的目录）⇒ 同波命中 `stories/__e2e` ⇒ `boot({story:\'__e2e\'})` 找不到故事页 ⇒ 假红' },
 ];
 
 /** 判定（纯函数 ✓）：返回问题列表（空 ＝ 通过）。 */

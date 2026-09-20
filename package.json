@@ -6,7 +6,8 @@
 	"description": "Twine + SugarCube 文字冒险游戏脚手架（Twee 源码 → 单文件 HTML）",
 	"scripts": {
 		"build": "node build.mjs",
-		"test": "node scripts/run-tests.mjs",
+		"test": "node scripts/run-tests.mjs --tier=fast",
+		"test:full": "node scripts/run-tests.mjs --tier=full",
 		"check:deauth": "node test/attribution-gate.mjs",
 		"serve": "python3 -m http.server 8000 --directory dist",
 		"editor": "node scripts/serve-editor.mjs",
@@ -16,7 +17,7 @@
 		"report:freshness": "node scripts/report-ledger-freshness.mjs",
 		"report:gates": "node scripts/report-gate-ledger.mjs",
 		"report:gates:update": "node scripts/report-gate-ledger.mjs --update",
-		"report:gates:check": "node scripts/report-gate-ledger.mjs --selftest && node scripts/report-gate-ledger.mjs",
+		"report:gates:check": "node scripts/report-gate-ledger.mjs --selftest && node scripts/report-gate-ledger.mjs --allow-stale-probe",
 		"audit:golden": "node test/audit-golden.mjs",
 		"audit:golden:update": "node test/audit-golden.mjs --update",
 		"report:freshness:check": "node scripts/report-ledger-freshness.mjs --selftest && node scripts/report-ledger-freshness.mjs --check",

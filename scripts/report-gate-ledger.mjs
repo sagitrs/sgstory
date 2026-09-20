@@ -15,7 +15,7 @@
 //   node scripts/report-gate-ledger.mjs --selftest # 自证（合成输入，验判定会咬）
 
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
-import { planChain, testPlan } from './test-plan.mjs';
+import { planChain, testPlan, tierOf, FULL_REASONS } from './test-plan.mjs';
 import { maskComments } from '../editor/lib/core/mask.mjs';   // `#899` ③：**同一把刀**（全仓唯一遮蔽器 ✓ —— 不新增第二份 ✗）
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
@@ -139,6 +139,30 @@ const sha16 = (s) => createHash('sha256').update(s).digest('hex').slice(0, 16);
 const probeRecords = () => {
 	try { return JSON.parse(readFileSync(PROBE_RECORD, 'utf8')).probes ?? []; } catch { return []; }
 };
+
+/** `#1079`：把**探针面**（唯一依赖 `build/probe-results.json` 的那两部分）从 markdown 里**抹平** ✗。
+ *
+ * 为什么要它（实测 ✓）：台账 markdown 里的**探针列**与**探针计数行**随 `build/probe-results.json` 变，
+ *   而那个文件是 **gitignored**且由 `scripts-probe-gates.mjs --probe=fast` 产出 ⇒ `#1070` 把探针段
+ *   移出 PR 档后，**PR 上必定没有读数** ⇒ 生成的 markdown ≠ 入仓的 ⇒ **逐字节比对全红** ✗
+ *   （而红因**只是**那一列，不是“台账真的陈旧”✗ —— 实测：无读数时 `✗` 行**只有**这一条 ✓）。
+ *
+ * 口径（**只抹平探针面，其余面照旧严格** ✗）：
+ *   · 抹的是：① 每行表格的第 5 格（探针列 ✓）② 摘要里的 `**探针（直接读数…` 那一行 ✓；
+ *   · **不抹**：任何别的格（形态／自证／接线／理由 ✓）、行集合（新增/删段 ✓）、工作清单 ✓
+ *     ⇒ 「新增了门却没重生成台账」**照样红** ✓（这才是这条比对的价值所在 ✓ 不能一起丢掉）。
+ *
+ * ⚠️ **边界（不夸大 ✓）**：本函数不解“探针面本身”的陈旧 ✗（无读数时那一面**本来就没值** ✓ ⇒ 由 full 档
+ *   （有读数）盯 ✓；这是 `#1070` 减负的**显式代价**，已在票面与 `FULL_REASONS` 写明 ✓）。 */
+export const normalizeProbeFace = (md) => String(md ?? '')
+	.split('\n')
+	.map((l) => {
+		// ① 摘要的探针计数行（整行抹平 ✓ —— 它含 ✅/—/✗ 三个计数 ✓）
+		if (l.startsWith('**探针（直接读数')) return '**探针（直接读数 ✓…）：〔本次不参与比对（无读数 `--allow-stale-probe`）〕**';
+		// ② 表格行的第 5 格＝探针列（其前四格 kind/form/selfProof 不含 `|` ⇒ 用定点正则而非切分 ✓）
+		return l.replace(/^(\| `[^`]+` \| [^|]+ \| [^|]+ \| [^|]+ \| )[^|]+( \|)/, '$1〔探针〕$2');
+	})
+	.join('\n');
 
 const recs = probeRecords();   // `#908` ①：上一次探针实跑的读数 ✓（没有就是空 ⇒ 全列 `—` ✓ 不假装 ✓）
 
@@ -296,6 +320,21 @@ const LEGEND = [
 	'> · **缺自证的几行**（`—` ✓）：补一条**能假的负控制** ✓，或按 `#908` ① 登记探针 ✓ —— 名单见下方「工作清单」（**动态生成** ✗，不写死 ✓）。',
 ].join('\n');
 
+// `#1070`：**档位（tier）留痕** —— K5「降频必须留痕」的落地处 ✓。
+//   ⚠️ 这一段必须**随台账生成**（不是手写 ✓）：`full` 段的集合变了 ⇒ 本段跟着变 ⇒ 自证/评审看得见 ✓。
+//   理由来源＝`FULL_REASONS`（与计划同处一处评审 ✓ —— 不在本文件重写一遍 ✗）。
+const TIER_NOTE = (() => {
+	const full = testPlan().filter((s) => tierOf(s) === 'full');
+	if (!full.length) return '**档位（tier）**：全部段均在 **PR 档（fast）** ✓（无 `full` 段 ⇒ 无降频 ✓）。';
+	const lines = full.map((s) => `| \`${s.id}\` | ${s.cost ?? 0}s | ${(FULL_REASONS[s.id] ?? '').replace(/\n/g, ' ')} |`);
+	return [
+		`**档位（tier，\`#1070\`）：PR 档（\`--tier=fast\`）只跑 \`tier:'fast'\` 的段；下列 **${full.length} 段**在 \`full\` 档（\`npm run test:full\`；nightly/main 由 \`#1071\` 接线）。**降频必须留痕** ✓（K5）——理由如下（单一权威＝\`scripts/test-plan.mjs\` 的 \`FULL_REASONS\` ✓）：**`,
+		'| 段 | 实测成本 | 为什么不在 PR 档（理由 ＋ 代价） |',
+		'|---|---|---|',
+		...lines,
+	].join('\n');
+})();
+
 const head = `# 门的行为化率台账（F2）
 
 > **由 \`scripts/report-gate-ledger.mjs\` 生成**（\`npm run report:gates:update\`）——**不要手改**：\`npm run report:gates:check\` 会校验「文件与实况一致」，漂移即红（与 F6 同源纪律）。
@@ -310,6 +349,7 @@ ${LEGEND}
 
 **严格行为化率（有自证）：${s.behavioral}/${s.total} = ${s.rate}%** ｜ **有断言但缺自证：${s.assertOnly}**（＝下方工作清单）｜ 仅登记：${s.registry}
 **探针（直接读数 ✓，不是\"文件在不在\"那种代理 ✗）：\`✅\` ${s.probeOk} 项 ｜ \`—\` 未探 ${s.probeNone} 项（**上限 ${s.probeCap}** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ \`✗\` 不咬 ${s.probeBad} 项（**>0 即红** ✓）** —— 档位／清单：\`node scripts/probe-gates.mjs --probe=fast\` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）
+${TIER_NOTE}
 
 | 门 | 类型 | 形态 | 自证 | **探针** | 接线（npm test） | 理由（仅登记/未接线必填） |
 |---|---|---|---|---|---|
@@ -363,6 +403,22 @@ const selftest = () => {
 	h('`probeStateOf`：跑了但**不咬** ⇒ `✗` ✓（>0 即红 ✓）', probeStateOf({ entry: { id: 'x' }, record: { ok: false } }) === '✗');
 	h('`probeStateOf`：咬住 ＋ 被测件**没改** ⇒ `✅` ✓', probeStateOf({ entry: { id: 'x' }, record: { ok: true, targetSha: 'aa' }, targetSha: 'now', sha: () => 'aa' }) === '✅');
 	h('`probeStateOf`：咬住但**被测件改过** ⇒ 回落 `—` ✗（禁拿旧读数充数 ✓）', probeStateOf({ entry: { id: 'x' }, record: { ok: true, targetSha: 'aa' }, targetSha: 'now', sha: () => 'bb' }) === '—');
+	// `#1079`：探针面抹平（`--allow-stale-probe`）—— 三格：**能假的两个方向**都要有 ✗（不然就是"抹掉一切 ⇒ 永远绿"✓）
+	{
+		const md = [
+			'**探针（直接读数 ✓）：`✅` 21 项 ｜ `—` 未探 73 项 ｜ `✗` 不咬 0 项**',
+			'| `a.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |',
+			'| `b.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |',
+		].join('\n');
+		const norm = normalizeProbeFace(md);
+		h('`normalizeProbeFace`：**摘要的探针计数行**被抹平（✅/—/✗ 计数不再影响比对）', !/`21 项`/.test(norm) && /不参与比对/.test(norm));
+		h('`normalizeProbeFace`：**表格行的探针列**（第 5 格）被抹平（✅ ⇒ 〔探针〕）', norm.includes('| ✅ | 〔探针〕 | ✅ |') && !/〔探针〕 \| — \|/.test(norm));
+		h('🔴 `normalizeProbeFace`：**其余格照旧保留** ✗（自证／接线／形态／理由一字不动 ⇒ 区分度还在 ✓）',
+			norm.includes('| `a.mjs` | 测试脚本 | 行为化 | ✅ |') && norm.includes('|  |') && !/其他/.test(norm));
+		h('🔴 **只抹探针面 ≠ 抹掉一切**：行集合变化（新增/删段）**仍会报** ✓', normalizeProbeFace('| `a.mjs` | x | 行为化 | ✅ | ✅ | ✅ |  |') !== normalizeProbeFace('| `zz.mjs` | x | 行为化 | ✅ | ✅ | ✅ |  |'));
+		h('🔴 **同一行的自证列变化**（`✅`⇒`—`）⇒ 抹平后**仍不等** ✓（这是“新增门没重生成”的价值面，不能一起丢）',
+			normalizeProbeFace('| `a.mjs` | x | 行为化 | ✅ | ✅ | ✅ | r |') !== normalizeProbeFace('| `a.mjs` | x | 行为化（缺自证） | — | ✅ | ✅ | r |'));
+	}
 	if (hbad) { console.error(`\n✗ 「自证」判定的读数不成立（${hbad} 项）`); process.exit(1); }
 	const cases = [
 		['仅登记无理由 → 必须报', [{ id: 'x', kind: 'k', wired: true, selfProof: false, form: '仅登记', reason: '' }], 1],
@@ -417,7 +473,20 @@ const main = () => {
 
 	let bad = probs.length;
 	if (existsSync(LEDGER)) {
-		if (readFileSync(LEDGER, 'utf8') !== md) { console.error('✗ 台账与实况不一致（新增/改名了门但没重新生成）→ 跑 npm run report:gates:update'); bad++; }
+		// `#1079`：**无探针读数时**（PR 档不跑探针段 ✓）那一面**不参与逐字节比对** ✗；
+		//   其余面（行集合・形态・自证・接线・理由・工作清单）**照旧严格** ✓ ⇒ “新增门没重生成”照样红 ✓。
+		//   ⚠️ **必须打印**（不静默 ✓ —— `#557` 口径：读不到输入 ≠ 没命中 ✓）。
+		const ledgerNow = readFileSync(LEDGER, 'utf8');
+		const staleProbe = argv.includes('--allow-stale-probe') && recs.length === 0;
+		if (staleProbe) {
+			console.log(`○ \`--allow-stale-probe\`：**本次无探针读数**（\`${PROBE_RECORD}\` 不存在或为空 ⇒ PR 档不跑探针段 ✓）⇒ **探针面跳过比对** ✗（该列降级 \`—\` ✓），**其余面照旧逐字节严格** ✓；有读数的档（\`npm run test:full\`）仍会当场校验 ✓`);
+		}
+		const [a, b] = staleProbe ? [normalizeProbeFace(ledgerNow), normalizeProbeFace(md)] : [ledgerNow, md];
+		if (a !== b) {
+			// 报文说清**是哪一类**不一致（`#936` 老账：只说“不一致”不点哪一列 ⇒ 读的人要自己找 ✓）
+			console.error(`✗ 台账与实况不一致${staleProbe ? '（**探针面已排除** ⇒ 差异不在探针列 ✓）' : ''}（新增/改名了门但没重新生成）→ 跑 npm run report:gates:update`);
+			bad++;
+		}
 	} else { console.error('✗ 台账文件不存在 → 跑 npm run report:gates:update'); bad++; }
 
 	const wiredAudit = rows.filter((r) => r.kind === 'audit 开关' && r.wired).length;

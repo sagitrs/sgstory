@@ -18,12 +18,14 @@
 //   node scripts/run-tests.mjs --only=scenarios --only=t-reread   # 只跑匹配的段（可多次）
 //   node scripts/run-tests.mjs --engine-only   # **只跑引擎门**（＋构建/构建期 lint/产物守卫）——#436-a
 //   node scripts/run-tests.mjs --story-only    # 只跑故事门（排查"是不是本故事的判据在红"）
+//   node scripts/run-tests.mjs --tier=fast     # **PR 档**（缺省）：不含标 `tier:'full'` 的周期性验证段——`#1070`
+//   node scripts/run-tests.mjs --tier=full     # **全量档**：与 `#1070` 之前的 `npm test` 等价（152 段全跑 ✓）
 //   node scripts/run-tests.mjs --list          # 只列计划
 //   node scripts/run-tests.mjs --selftest      # 跑器自身的自证（不跑真计划）
 
 import { spawn } from 'node:child_process';
 import { cpus } from 'node:os';
-import { testPlan, segmentLayer, validateLayers } from './test-plan.mjs';
+import { testPlan, segmentLayer, validateLayers, tierOf, TIERS, DEFAULT_TIER, validateTiers } from './test-plan.mjs';
 // `#607`：故事清单声明的门 flag（P0 为空集合 ⇒ 层判定与今天**逐字相同**；P1 起门搬家后仍判得出故事层）
 import { declaredGatesAll } from './audit/discovery.mjs';
 // 声明面在**顶层**取（不在 `selftest()` 里取）：`selftest()` 在文件中部就被调用，
@@ -186,6 +188,32 @@ const selftest = async ({ quiet = false } = {}) => {
 		t('引擎门里含 build ＋ 5 道引擎门（--state/--literals/--sitedisc/--text/--consequences）',
 			eng.some((s) => s.phase === 'build') && ['state', 'literals', 'sitedisc', 'text', 'consequences'].every((f) => eng.some((s) => s.cmd.includes(`--${f} --check`))));
 	}
+
+	// `#1070`：**档位（tier）面** —— 两格必须都能假 ✗（这里是运行器自己的自证；
+	//   更硬的变体在探针/人工核里：构造一个只 full 的段 ⇒ fast 档不跑它、full 档必跑它 ✓）
+	{
+		const plan = testPlan();
+		t('tier 结构自洽（档位合法 · fast∪full＝全集 · 每条 full 有理由）', validateTiers(plan).length === 0);
+		const fast = plan.filter((s) => tierOf(s) === 'fast');
+		const full = plan.filter((s) => tierOf(s) === 'full');
+		t('两档并集＝全集（且缺省即 fast ⇒ 不静默漏跑）', fast.length + full.length === plan.length && fast.length > 0);
+		t('磁盘上有 full 段 ⇒ fast 档**不等于**全集（否则减负是假的且看不出来）',
+			full.length === 0 || fast.length < plan.length);
+		// 能假那一半①：造一个只 full 的段 ⇒ **fast 档选择面不含它**
+		const probePlan = [...plan, { id: 'zz-only-full', phase: 'test', cost: 0, tier: 'full', cmd: 'node -e "1"' }];
+		t('🔴 能假：新增一个只 `full` 的段 ⇒ **fast 档选择面不含它**（full 档含它）',
+			!probePlan.filter((s) => tierOf(s) === 'fast').some((s) => s.id === 'zz-only-full')
+			&& probePlan.filter((s) => tierOf(s) === 'full').some((s) => s.id === 'zz-only-full'));
+		// 能假那一半②：去掉一条 full 的理由 ⇒ **必须报**（降频不留痕＝红 ✓）
+		const noReason = plan.map((s) => (s.id === 'test-witness-trace-mjs' ? { ...s, id: 'zz-unreasoned-full', tier: 'full' } : s));
+		t('🔴 能假：`full` 段没写理由 ⇒ 报（`FULL_REASONS` 缺条即红）', validateTiers(noReason).some((p) => /没写理由/.test(p)));
+		// 能假那一半④：**fast 段不得 `needs` 一个 full-only 段**（`#1070` E4）—— 该形态 ⇒ **PR 档全停** ✓
+		t('🔴 能假：fast 段 `needs` 一个 full-only 段 ⇒ 报（否则 PR 档起跑即报“依赖了不存在的段”而全停）',
+			validateTiers([{ id: 'zz-full', cmd: 'node -e "1"', tier: 'full' }, { id: 'zz-fast', cmd: 'node -e "1"', needs: ['zz-full'] }], { reasons: { 'zz-full': 'r' } }).some((p) => /full-only/.test(p)));
+		// 正例（同族的另一半 ✗）：**fast → fast** 的依赖不得报 —— 否则上面那条只是“凡有 needs 就报”✓
+		t('正例：fast 段 `needs` 一个 **fast** 段 ⇒ **不报**（那条只在“前置被移出 PR 档”时成立 ✓）',
+			validateTiers([{ id: 'zz-a', cmd: 'node -e "1"' }, { id: 'zz-b', cmd: 'node -e "1"', needs: ['zz-a'] }]).length === 0);
+	}
 	if (bad) { console.error(`\n✗ 跑器自证失败 ${bad} 项`); process.exit(1); }
 	if (!quiet) console.log('\n✔ 跑器自证通过：成功/失败识别、失败输出不吞、并行真的重叠、setup 红即中止、needs 前置/级联跳过/配错报错');
 	else console.log('✓ 跑器自证通过（成功/失败识别 · 输出不吞 · 并行真重叠 · setup 红即中止 · needs 语义）');
@@ -207,10 +235,29 @@ if (layerWant) {
 	if (layerProblems.length) { console.error(`✗ 门的分层表有问题（--${layerWant}-only 依赖它）：\n  ${layerProblems.join('\n  ')}`); process.exit(2); }
 }
 const layerSel = layerWant ? plan0.filter((s) => segmentLayer(s, declaredStoryFlags) === layerWant) : null;
+
+// ── 档位过滤（`#1070`）：`--tier=fast|full`；**缺省 `fast`** ✗（新增段默认进 PR 档 ⇒ 不静默漏跑 ✓）
+//   与 `--engine-only/--story-only` **正交** ✗（取交集 ✓）—— 两者管的是不同维度（层 vs 频度 ✓）。
+//   ⚠️ **起跑前先校验**（新增段标错 tier／full 段没写理由 ⇒ 当场报，别跑到一半才发现选择面不完整 ✓）。
+const tierWant = (() => {
+	const hit = argv.find((a) => a.startsWith('--tier='));
+	if (!hit) return DEFAULT_TIER;                       // 缺省＝fast ✓
+	const v = hit.slice('--tier='.length);
+	if (!TIERS.includes(v)) { console.error(`✗ --tier 只认 ${TIERS.join('｜')}（当前：${JSON.stringify(v)}）—— 缺省是 ${DEFAULT_TIER}`); process.exit(2); }
+	return v;
+})();
+const tierProblems = validateTiers(plan0);
+if (tierProblems.length) { console.error(`✗ 计划的 tier 面有问题（--tier 依赖它）：\n  ${tierProblems.join('\n  ')}`); process.exit(2); }
+const tierSel = tierWant === 'full' ? plan0 : plan0.filter((s) => tierOf(s) === tierWant);
+const otherTier = plan0.filter((s) => !tierSel.includes(s));
 if (has('list')) {
 	const shown = layerSel ?? plan0;
 	console.log(`计划 ${shown.length} 段${layerWant ? `（--${layerWant}-only 从 ${plan0.length} 段里选出）` : ''}（串行实测合计 ${sec(shown.reduce((a, s) => a + s.cost, 0) * 1000)}）：`);
-	for (const s of shown) console.log(`  ${s.phase === 'build' ? '[build]' : '       '} ${s.id}${s.needs ? `  (needs: ${s.needs.join(', ')})` : ''}  ${s.cmd}`);
+	// `#1070`：档位分布**写在这里** ✗（审计一眼看出“哪些段不在 PR 档”✓）；
+	//   ⚠️ `--list` **不按档过滤** ✗（下面逐段打 `[tier]`）：过滤后的名单看不见“被排除了什么” ⇒ 不好审 ✓
+	const nFast = plan0.filter((s) => tierOf(s) === 'fast').length;
+	console.log(`档位：fast ${nFast} 段 ｜ full ${plan0.length} 段（**full ＝ 全集** ✓ —— 档位是**包含关系**（fast ⊂ full）而不是二分 ✗：跑全量用 \`npm run test:full\`；本列表**不过滤**，逐段标 \`[tier]\` ✓）`);
+	for (const s of shown) console.log(`  ${s.phase === 'build' ? '[build]' : '       '} [${tierOf(s)}] ${s.id}${s.needs ? `  (needs: ${s.needs.join(', ')})` : ''}  ${s.cmd}`);
 	process.exit(0);
 }
 const only = argv.filter((a) => a.startsWith('--only=')).map((a) => a.slice(7));
@@ -227,12 +274,18 @@ const withDeps = (sel) => {
 	return plan0.filter((s) => out.has(s.id));   // 保持计划顺序
 };
 if (layerSel) console.log(`○ --${layerWant}-only：选中 ${layerSel.length}/${plan0.length} 段（另一层 ${plan0.length - layerSel.length} 段不跑）`);
-// `--engine-only` 与 `--only=` 同时给 ⇒ **取交集**（两层过滤正交，不互相覆盖）
+// `#1070`：档位选择面**必须打印** ✗（不得静默少跑 ✓）—— 含“哪些段因为 full 档被跳过”的**逐条留痕** ✓
+if (otherTier.length) {
+	console.log(`○ --tier=${tierWant}：选中 ${tierSel.length}/${plan0.length} 段${tierWant === 'full' ? '（**full ＝ 全集** ✓）' : ''}；**另有 ${otherTier.length} 段属 full 档本次不跑**（跑全量：\`npm run test:full\` ✓）：`);
+	for (const s of otherTier) console.log(`      ○ [${tierOf(s)}] ${s.id}${s.cost ? `  ← ${s.cost}s` : ''}`);
+}
+// `--only=` 与档位／层过滤**取交集**（三个维度正交 ✓）
 const onlySel = only.length ? plan0.filter((s) => only.some((o) => s.id.includes(o) || s.cmd.includes(o))) : null;
-const sel = layerSel && onlySel ? layerSel.filter((s) => onlySel.includes(s)) : (layerSel ?? onlySel ?? plan0);
-const plan = onlySel || layerSel ? withDeps(sel) : plan0;
+const baseSel = layerSel && onlySel ? layerSel.filter((s) => onlySel.includes(s)) : (layerSel ?? onlySel ?? plan0);
+const sel = tierWant === 'full' ? baseSel : baseSel.filter((s) => tierOf(s) === tierWant);
+const plan = (onlySel || layerSel) ? withDeps(sel) : sel;
 
-if (!plan.length) { console.error(`✗ 没有匹配到任何段（${layerWant ? `--${layerWant}-only 的选择为空` : '--only 写错了？'}）——空选择不是绿`); process.exit(2); }
+if (!plan.length) { console.error(`✗ 没有匹配到任何段（${layerWant ? `--${layerWant}-only` : '--only'} 写错了？／tier=${tierWant} 下无段？）——空选择不是绿`); process.exit(2); }
 if ((only.length || layerWant) && !plan.some((s) => s.phase === 'build') && plan0.some((s) => s.phase === 'build')) {
 	console.log(`○ 提示：本次未选中 build 段，dist 可能不是最新的（--only 调试时常见）`);
 }

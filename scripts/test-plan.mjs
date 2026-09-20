@@ -8,16 +8,54 @@
 // 字段：
 //   id    — 稳定标识（--only 用）
 //   phase — `build` 先跑且**独占**（后面所有段都可能读 dist），其余段可并行
-//   cost  — 本机实测秒数（2026-09-12，32 核；仅用于打印串行合计与并行预估，不参与判定）
+//   cost  — 本机实测秒数（仅用于打印串行合计与并行预估，**不参与判定**）
 //   needs — **前序段的产物依赖**（#381 补）：本段要读某段落盘的产物时写它的 id。
 //           调度器保证「前序全部成功」才起跑；前序红了则本段**标 skipped**（不白跑、也不假绿）。
 //   cmd   — 与旧链**逐字一致**，便于对照与回退（`npm run test:serial`）
+//   tier  — **跑哪些段的档位**（`#1070`）：`'fast'`（PR 档，**缺省**）｜`'full'`（全量档，含周期性验证）。
+//
+// ## `tier` 的语义与纪律（`#1070`／父 `#1067`）
+// ① **缺省 ＝ `'fast'`** ✗：新增段**默认进 PR 档** ⇒ **绝不静默漏跑** ✓（要移出 PR 档必须**显式**标 `'full'` ✓
+//    —— 与本仓 `escape-hatch` 同族：**放宽是一次显式决定，不是顺手** ✓）。
+// ② **`fast` 只改「何时跑」，不改任何判据强度** ✗：被标 `full` 的段本身一字不改 ✓（降「跑得频」≠降「判得严」✓）。
+// ③ **每一条 `full` 必须写明理由** ✗（`FULL_REASONS` ✓，与 `REASONS` 同形）⇒ 目标：**后人一眼看出为什么它不在 PR 档** ✓；
+//    没写理由 ⇒ `validateTiers()` 报红 ✓。
+// ④ **`fast ∪ full ＝ 全集`** ✓（`validateTiers()` 断言）⇒ 挡住「标了 tier 却在两档都不跑」的**静默丢弃** ✗。
+// ⑤ **哪个档进了 CI**：`#1070` 起 CI 的 `npm test` ＝ **fast 档**（`package.json` 的 `test` 行显式带 `--tier=fast` ✓）；
+//    **full 档**由 `npm run test:full` 手动跑，nightly／main 由 `#1071` 接线 ✓（**代价留痕**见下 ⑥）。
+// ⑥ **代价（显式写清，不藏）** ✗：被移出 PR 档的段在 **PR 期不再被验证** ⇒ 必须由 full 档（nightly/main）补回 ✓；
+//    本仓已有的两处移出（探针／witness）各自的理由见 `FULL_REASONS` ✓。
 //
 // ⚠️ 产物依赖面（改测试的落盘/读取时同步这里；CI 曾因漏掉它而红过一轮）：
 //   build/coverage-render.json · build/coverage-links.json        ← test/render-all.mjs
 //   build/coverage-scenarios.json · coverage-links-scenarios.json · route-traces.json ← test/scenarios.mjs
 //   ├─ test/coverage.mjs          读上述 4 个覆盖文件 → needs render-all + scenarios
 //   └─ scripts/report-rhythm.mjs  读 route-traces.json（连 `--selftest` 也用它做正例）→ needs scenarios
+/** `tier` 两档（`#1070`）：`fast`＝PR 档（缺省）／`full`＝全量档。
+ *  ⚠️ **两档的并集必须是全集** ✗（`validateTiers()` 断言）—— 否则某段会在两档都不跑而**没人发现** ✓。 */
+export const TIERS = ['fast', 'full'];
+/** 段缺省所在档 ⇒ **`fast`**（新增段默认进 PR 档 ⇒ 不静默漏跑 ✓）。 */
+export const DEFAULT_TIER = 'fast';
+
+/** 段 → 档（**缺省 `fast`** ✓ —— 与 `segmentLayer` 同形：缺省是"保守"那一侧 ✓）。
+ *  ⚠️ 不认识的值（拼错 `'Fast'`／`'full '`）**不静默当缺省** ✗ ⇒ 抛（`validateTiers()` 会在起跑前报 ✓）。 */
+export const tierOf = (seg) => seg?.tier ?? DEFAULT_TIER;
+
+/** 每条 `full` 段的**理由**（`#1070` 纪律③：**没写理由 ⇒ 报红** ✓）。
+ *  与 `report-gate-ledger.mjs` 的 `REASONS` 同形 —— 理由与代码同处一处评审 ✓。 */
+export const FULL_REASONS = {
+	'scripts-probe-gates-mjs-probe-fast':
+		'**探针＝元判据**（量的是"门会不会红"✓）⇒ 属**周期性验证**，不是每次改动都要重跑 ✗。'
+		+ '代价（实测）：**253.3s**（CI 日志 278.2s）＝ 全链串行 743s 的 **37%**（`#1070` 实测）✓。'
+		+ '⚠️ **移出 PR 档 ⇒ PR 期不再验证"门会咬"** ✗ ⇒ **补回面＝`#1071`**（full 档接 nightly ＋ main push，失败**必须红**✓——不是 report-only ✗）✓；'
+		+ '另：台账的探针列**依赖本段产出的** `build/probe-results.json`（gitignored）⇒ 本段不在 PR 档跑时，'
+		+ '台账那一列由 `report-gate-ledger.mjs --allow-stale-probe` **显式降级**（打印"探针面跳过"，不静默 ✓）。',
+	'test-witness-trace-mjs':
+		'**P4 见证件**（`#991` 的验收物：`walker --witness` 的轨迹够不够当见证 ✓）⇒ 属**发布／夜间**面 ✗；'
+		+ '且**成本高**（实测 **86.2s**，CI 日志 91.1s ／ `cost` 字段旧值 **0.4** ＝ **228× 失真** ✗ —— 本次一并改正 ✓）。'
+		+ '⚠️ **移出 PR 档 ⇒ PR 期不再验证"见证可复跑"** ⇒ **补回面＝`#1071`**（full 档接 nightly ＋ main push，失败**必须红**✓——不是 report-only ✗）。',
+};
+
 export const SEGMENTS = [
 	{ id: "build-mjs", phase: 'build', cost: 3, cmd: "node build.mjs" },
 	// `#899` ②：**新故事夹具场景**（①三门绿＋哨兵 ✓ ／ ②③两条安全网全红 ✓ ／ 清场三处＋dist 复原 ✓）。
@@ -27,7 +65,9 @@ export const SEGMENTS = [
 	// `#908` ①：**探针（最小变异 ＋ 必须红）** —— 台账「自证」列从**代理**升级为**直接读数** ✓。
 	//   ⚠️ 同样必须是 `build` 相位 ⇒ **独占** ✗：探针要**临时改一个被测件**（`finally` 还原 ✓）⇒ 与别的段并发会假红 ✓。
 	//   结果写 `build/probe-results.json` ✓（不入仓 ✗）⇒ 台账在 `test` 相位读它 ✓（顺序：build ⇒ test ✓）。
-	{ id: "scripts-probe-gates-mjs-probe-fast", phase: 'build', cost: 25, needs: ['build-mjs'], cmd: "node scripts/probe-gates.mjs --probe=fast" },
+	//   `#1070`：**`tier:'full'`** ✗ —— 理由见 `FULL_REASONS` ✓（元判据・周期性验证・实测 **253.3s** ＝全链 37%。
+	//   `cost` 由旧值 **25** 改正为 **253.3**（旧值是**手写估值** ⇒ 跑器头部“串行合计”失真 2.2× ✓）。
+	{ id: "scripts-probe-gates-mjs-probe-fast", phase: 'build', cost: 253.3, tier: 'full', needs: ['build-mjs'], cmd: "node scripts/probe-gates.mjs --probe=fast" },
 	// 复核留（**MINOR** ✗，实测 ✓）：**id ↔ 台账行**的绑定必须**也进 CI** ✗ —— 否则错 id 的探针在 CI 里**静默被忽略** ✓
 	//   （实测：错 id ⇒ `--check` rc=1 ✓ 而 `--probe=fast` rc=0 ✗）⇒ 这一段就是那把尺子 ✓。
 	{ id: "scripts-probe-gates-mjs-check", phase: 'test', cost: 0, cmd: "node scripts/probe-gates.mjs --check" },
@@ -132,8 +172,10 @@ export const SEGMENTS = [
 	{ id: "test-globals-mjs", phase: 'test', cost: 0, cmd: "node test/globals.mjs" },
 	{ id: "test-scenarios-mjs-selftest", phase: 'test', cost: 0.3, cmd: "node test/scenarios.mjs --selftest" },   // `#1031`：接线（合成输入成对 ✓；主跑 cost 23.6 ⇒ 自证 0.3，量过）
 	{ id: "test-scenarios-mjs", phase: 'test', cost: 23.6, cmd: "node test/scenarios.mjs" },
-	// `#215` 裁 (B) ✓：**见证机器**自证 —— `walker --witness` 产出的轨迹够不够当 P4 的"见证"（到 ending ✓／同 seed 逐格可复跑 ✓／两条断言能假 ✓；实测 ≈6s ✓）。
-	{ id: "test-witness-trace-mjs", phase: 'test', cost: 0.4, cmd: "node test/witness-trace.mjs" },
+	// `#215` 裁 (B) ✓：**见证机器**自证 —— `walker --witness` 产出的轨迹够不够当 P4 的"见证"（到 ending ✓／同 seed 逐格可复跑 ✓／两条断言能假 ✓）。
+	//   `#1070`：**`tier:'full'`** ✗（P4 见证件・发布/夜间面，理由见 `FULL_REASONS` ✓）
+	//   ＋ `cost` 由旧值 **0.4** 改正为 **86.2**（旧值 **228× 失真** ✗ —— 它正是“读数不可信”的源头之一 ✓）。
+	{ id: "test-witness-trace-mjs", phase: 'test', cost: 86.2, tier: 'full', cmd: "node test/witness-trace.mjs" },
 	{ id: "scripts-report-rhythm-mjs-selftest", phase: 'test', cost: 0.2, needs: ['test-scenarios-mjs'], cmd: "node scripts/report-rhythm.mjs --selftest" },
 	{ id: "scripts-report-rhythm-mjs-check", phase: 'test', cost: 0, needs: ['test-scenarios-mjs'], cmd: "node scripts/report-rhythm.mjs --check" },
 	{ id: "test-fatal-guard-mjs", phase: 'test', cost: 18.7, cmd: "node test/fatal-guard.mjs" },
@@ -210,7 +252,9 @@ export const SEGMENTS = [
 	{ id: "scripts-report-ledger-freshness-mjs-selftest", phase: 'test', cost: 0, cmd: "node scripts/report-ledger-freshness.mjs --selftest" },
 	{ id: "scripts-report-ledger-freshness-mjs-ledger-check", phase: 'test', cost: 0, cmd: "node scripts/report-ledger-freshness.mjs --ledger --check" },
 	{ id: "scripts-report-gate-ledger-mjs-selftest", phase: 'test', cost: 0, cmd: "node scripts/report-gate-ledger.mjs --selftest" },
-	{ id: "scripts-report-gate-ledger-mjs", phase: 'test', cost: 0, cmd: "node scripts/report-gate-ledger.mjs" },
+	// `#1079`：带 `--allow-stale-probe` ✓ —— PR 档不跑探针段（`#1070`）⇒ 无 `build/probe-results.json`
+	// ⇒ 台账的**探针面**不参与逐字节比对（**其余面照旧严格** ✓）；**有读数时它不生效** ✓。
+	{ id: "scripts-report-gate-ledger-mjs", phase: 'test', cost: 0, cmd: "node scripts/report-gate-ledger.mjs --allow-stale-probe" },
 	// #474 接线：`自证·` 必须「失败计入退出码」且「不崩」（静态扫描 scripts/ ＋ test/ 共 77 文件，0 致命）
 	{ id: "scripts-report-selftest-validity-mjs", phase: 'test', cost: 0.2, cmd: "node scripts/report-selftest-validity.mjs" },
 	// #459／#482：故事「新机制声明表」的形状门（六条可机检点 · 各带正反自证）
@@ -318,10 +362,19 @@ export const SEGMENTS = [
 	// 洞窟「商人」门（`#696`：金币要有出口 ⇒ 旅人里随机出现商人；报价读声明面 · 买不起不显示 · 火把油）
 	// 洞窟五步主线**末步**门（实测）：走满 5 步再回岔口时**不许**抛 `roadOffer(6)` 红框 ⇒ 越界走退路
 	{ id: "test-cli-surface-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/cli-surface.mjs --selftest" },   // `#1031`：接线（可注入假 runner 驱动 `judgeSurface` 五例 ✓）
-	{ id: "test-cli-surface-mjs", phase: 'test', cost: 4, cmd: "node test/cli-surface.mjs" },
+	// ⚠️ `#1070`：**还得排在 `test-web-preview-mjs` 之后** ✗ —— 本件驱动 `node editor/cli.mjs k4`（真门 ✓），
+	//   而 k4 会 `readdirSync(stories)` 逐故事判 ✓ ⇒ `test/web-preview.mjs` 的临时夹具 `stories/__e2e`
+	//   （带 `00-story.json` ✓）存活期间跑它 ⇒ 产生 `✗ __e2e：手写契约源非空（0 文件）却分类出 0 名成员` ⇒ **假红** ✓
+	//   （实测：起了 `stories/__e2e` 再跑 `editor/cli.mjs k4` ⇒ rc=1 且点名 `__e2e` ✓；清掉 ⇒ rc=0 ✓）。
+	//   依赖声明＝**单一权威**的排顺手段 ✓（同族：`test-story-ci-mjs`／`test-lint-scratch-mjs` 早用同一条修法 ✓）。
+	{ id: "test-cli-surface-mjs", phase: 'test', cost: 4, needs: ['test-web-preview-mjs'], cmd: "node test/cli-surface.mjs" },
 	// `#660` 片三-3：**pc 默认形状住引擎、数值走故事**（`Game.Pc.defaults()` 摘掉 `Sg.story.pcDefaults()` 后每个值都必须中性；
 	// 缺面 ⇒ 显式降级 · 畸形面 ⇒ fail-loud · `migrate()` 兜底带故事数值 · 三故事键集合一致）
-	{ id: "test-pc-defaults-mjs", phase: 'test', cost: 2, cmd: "node test/pc-defaults.mjs" },
+	// ⚠️ `#1070`：**还得排在 `test-web-preview-mjs` 之后** ✗ —— 本件 ⑥ 走 `storySlugs()`（扫 `stories/` 下带
+	//   `00-story.json` 的目录 ✓）⇒ 而 `test/web-preview.mjs` 会在**运行期间**临时建 `stories/__e2e`（带清单 ✓）
+	//   ⇒ 同波命中它 ⇒ `boot({story:'__e2e'})` 找不到故事页 ⇒ **假红** ✓（实测：波次重排后本段与 web-preview 重叠 ⇒ 必红 ✓）。
+	//   依赖声明＝**单一权威**的排顺手段 ✓（同族：`test-cli-surface-mjs`／`test-story-ci-mjs`／`test-lint-scratch-mjs` ✓）。
+	{ id: "test-pc-defaults-mjs", phase: 'test', cost: 2, needs: ['test-web-preview-mjs'], cmd: "node test/pc-defaults.mjs" },
 	// `#572`：**「选中 ⇒ 真跑」门** —— 门的 `run()` 被选中也可能静默早退（九道引擎门里七道就是这样）。
 	// 本段自证 `runSelectedGates()` ＋ 真跑默认故事，断言末行「选中 9 门 · 实跑 9 门」（修前那条汇总行不存在）。
 	{ id: "test-audit-gates-run-mjs", phase: 'test', cost: 0.3, needs: ["scripts-audit-mjs-story2-engine"], cmd: "node test/audit-gates-run.mjs" },
@@ -418,6 +471,53 @@ export const validateLayers = (plan = SEGMENTS, { declaredStoryFlags = [] } = {}
 	// `report-gate-ledger.mjs` 的 F2（「未接线必须写明理由」），这里只管"层表 ↔ 计划"的一致性。
 	for (const f of [...AUDIT_ENGINE, ...AUDIT_STORY]) if (!planFlags.has(f)) problems.push(`僵尸层声明：${f} 在层表里，但计划里没有对应段（删段时请同步层表）`);
 	for (const id of ENGINE_EXTRA) if (!plan.some((s) => s.id === id)) problems.push(`僵尸 ENGINE_EXTRA 条目：${id} 不在计划里`);
+	return problems;
+};
+
+/** 计划校验（`tier` 面；`#1070`）—— 跑器起跑前调用；返回问题清单，空＝通过。
+ *
+ * 四条 **每一条都对应一种“静默”** ✗：
+ *   ① **非法档位**（拼错 `'Fast'`／`'full '`／非字符串）⇒ 红：否则 `tierOf` 把它当缺省 ⇒ 看着跑了、其实归错档 ✓；
+ *   ② **缺档位的段不许当“不存在”** ✗：无 `tier` ⇒ **缺省 fast**（**不是跳过** ✗ —— 这是本机制的头号假绿面）；
+ *   ③ **`fast ∪ full ＝ 全集`** ✓：两档的选择器**逐段覆盖**整个计划 ⇒ 挡住“标了 tier 却在两档都不跑”；
+ *   ④ **每条 `full` 必须有理由** ✗（`FULL_REASONS` ✓）：降频是一次**显式决定**，得留痕 ⇒ 后人不用猜 ✓。
+ *
+ * ⚠️ **`fast` 档不许等于全集** ✗（否则“减负”是假的且**没人看得出来** ✓）—— 这一条只在“确有 full 段”时要求；
+ *   若将来 `full` 段全部回归 fast ⇒ 它自然通过（那时本机制就该撤 ✓ 而不是报假红 ✓）。 */
+export const validateTiers = (plan = SEGMENTS, { reasons = FULL_REASONS } = {}) => {
+	const problems = [];
+	// ① 档位合法
+	for (const s of plan) {
+		if (s.tier === undefined) continue;                       // 缺省合法（＝fast ✓）
+		if (!TIERS.includes(s.tier)) problems.push(`非法 tier：\`${s.id}\` 的 tier=${JSON.stringify(s.tier)}（合法值：${TIERS.join('｜')}）`);
+	}
+	// ② 双档覆盖（**缺省即 fast** ⇒ 无 tier 的段不会被漏掉 ✓）
+	const fastSel = plan.filter((s) => tierOf(s) === 'fast');
+	const fullSel = plan.filter((s) => tierOf(s) === 'full');
+	if (fastSel.length + fullSel.length !== plan.length) {
+		problems.push(`tier 覆盖不齐：fast ${fastSel.length} ＋ full ${fullSel.length} ≠ 全集 ${plan.length}`);
+	}
+	// ③ 并集＝全集（选择器等价写法：显式求并再看是否逐段命中 ✓ —— 不靠“减出来的差” ✗）
+	const union = new Set([...fastSel, ...fullSel].map((s) => s.id));
+	const missing = plan.filter((s) => !union.has(s.id)).map((s) => s.id);
+	if (missing.length) problems.push(`fast ∪ full 未覆盖：${missing.join('、')}（会在两档都不跑 ✗）`);
+	// ④ full 段必须有理由
+	for (const s of fullSel) if (!reasons[s.id]) problems.push(`\`${s.id}\` 标了 tier:'full' 但没写理由（加到 FULL_REASONS ✓ —— 降频必须留痕）`);
+	// ⑤ **fast 段不得 `needs` 一个 full-only 段** ✗（`#1070` E4）—— 两件事叠加就是**死段**：
+	//   本段在 fast 档跑、但它的前置不在 fast 档选择面里 ⇒ 跑器起跑前 `validatePlan` 报“依赖了不存在的段” ⇒
+	//   **整个 PR 档停跑** ✓（不是少跑一段，是**全停** ✗）。
+	//   ⚠️ 本判据的**由来**：实现第一版把 `--tier=full` 当“只跑标 full 的段”⇒ 两段 full 的 `needs:['build-mjs']`
+	//   指向被过滤掉的段 ⇒ 当场报错 ✓；后来把 full 语义改对了（包含关系），但**那个坑本身没人守** ✗
+	//   ⇒ 这一条就是把它固化成机判据 ✓（改写回“只跑 full 段”或给 fast 段加一条指向 full 的 needs ⇒ 必红 ✓）。
+	const byId = new Map(plan.map((s) => [s.id, s]));
+	for (const s of fastSel) {
+		for (const d of s.needs ?? []) {
+			const dep = byId.get(d);
+			if (dep && tierOf(dep) === 'full') {
+				problems.push(`\`${s.id}\` 在 fast 档，但它的 needs \`${d}\` 是 **full-only** 段 ⇒ fast 档选择面里没有它 ⇒ 跑器起跑前报“依赖了不存在的段” ⇒ **PR 档全停** ✗（要么把 \`${d}\` 留在 fast 档，要么给 \`${s.id}\` 补一条不依赖它的路径）`);
+			}
+		}
+	}
 	return problems;
 };
 

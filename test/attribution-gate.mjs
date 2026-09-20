@@ -67,6 +67,26 @@ export const EXEMPT_MARKER = 'deauth-exempt:';
 export const ALLOW_PATH = 'test/attribution-allow.json';
 
 export const isScanned = (path) => SCAN_EXT.some((e) => path.endsWith(e));
+
+/** `#1028`：每个 token 的**替换建议**（报文直接给可复制的写法 ⇒ 省得每次被咬都要自己想 ✗）。
+ *  今晚该门共咬 4 次（`操作者`×2／`本席`×2），每次都要人自己琢磨怎么改 ⇒ 报文应当**自解释**。 */
+export const REPLACEMENT_HINTS = {
+	'操作者': '「实测：…」「依据见下」「口径（含日期，不写谁定的）」',
+	'本席': '「本片实测」「本轮读数」',
+	'复核者': '「复核席」（**活动名**：活动名不咬、角色名词咬）',
+	'评审者': '「评审」（同上：用活动名）',
+	'对抗席': '写明**对抗面**本身（如「反例面」），不写席位',
+	'验收席': '写明**验收面**本身，不写席位',
+	'ci-席': '写明 **CI 面**本身，不写席位',
+	'席号': '用**活动名**（评审／复核／验收）或直接写事实，不写 T/D/C/A 席号',
+	'伙伴会话': '写明**该会话／来源**本身（可引票号或评论号）',
+};
+/** 取某 token 的替换建议（**没有专属建议时给通用建议**，不留空 ✗）。 */
+export const hintFor = (id) => REPLACEMENT_HINTS[id] ?? '写**依据／理由**（或把席位换成活动名）—— 门要的是「为什么」，不是「谁定的」';
+/** `#1028`：**未跟踪**但落在扫描面里的文件 —— 它们不在 `git ls-files` 里 ⇒ 本门**扫不到**。
+ *  ⚠️ 不静默 ✗：主线会把这份清单**打印出来**（含「通过」那一次）⇒ 「没扫」不许表现为「通过」（`#1019` 同族）。 */
+export const untrackedScanned = (paths = []) => paths.filter((x) => isScanned(x) && !isExempt(x));
+
 export const isExempt = (path) => EXEMPT_DIRS.some((d) => String(path).startsWith(d)) || SELF_SKIP.includes(path);
 
 /** 纯函数：一段文本里命中哪些 token（带行号与命中串）。 */
@@ -123,6 +143,9 @@ const selftest = () => {
 	const F = (path, text) => [{ path, text }];
 	// ── 反例：三类归属各一条（真会红） ──
 	t('反例①：括号式裁定 ⇒ 命中', judge(F('a.md', '（操作者裁定：X）'), {}).findings.length === 1);
+	// `#1028`：报文必须**自带替换建议**（否则每次被咬都要人自己想怎么改 ✗）
+	t('`#1028` 报文：每类 token 都给**可复制的替换建议**', hintFor('操作者').includes('实测') && hintFor('本席').includes('本片') && hintFor('席号').includes('活动名') && hintFor('未知x').length > 0);
+	t('`#1028` 未跟踪清单：只收「扫描面 ∩ 非豁免」', untrackedScanned(['a.md', 'b.png', 'docs/archive/c.md', 'test/attribution-gate.mjs', 'd.mjs']).join(',') === 'a.md,d.mjs');
 	t('反例②：`dev` ＋ 归属动词 ⇒ 命中', judge(F('a.md', '// 判据（dev 复核后定稿）'), {}).findings.length === 1);
 	t('反例③：`guest` ＋ 的／实测 ⇒ 命中', judge(F('a.mjs', '// 外加 guest 的逐击抓屏实测'), {}).findings.length === 1);
 	t('反例④：Admin ＋ 方向／指令 ⇒ 命中', judge(F('a.md', '> Admin 方向（2026-09-08）：…'), {}).findings.length === 1);
@@ -171,7 +194,10 @@ const targets = scanTargets();
 const files = targets.map((p) => ({ path: p, text: readFileSync(join(ROOT, p), 'utf8') }));
 const { findings, stale, exemptedLines, scanned } = judge(files, allow);
 
+const untracked = untrackedScanned(execFileSync('git', ['ls-files', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean));
 console.log(`══ 去权威化口径门（#752／#748）══  扫描 ${scanned} 个已跟踪文件（${SCAN_EXT.join(' ')}）`);
+// `#1028`：本门**只扫已跟踪文件** ⇒ 未跟踪的新件是「扫不到的」✗ ⇒ **必须显式打印**（否则 `git add` 之前跑＝假绿）
+if (untracked.length) console.log(`  ⚠️ 本次未扫（未跟踪 ${untracked.length} 件）⇒ 先 \`git add\` 再跑本门，否则是**假绿**：${untracked.slice(0, 8).join('、')}${untracked.length > 8 ? ' …' : ''}`);
 console.log(`  豁免面：${EXEMPT_DIRS.join(' · ')}｜自身跳过：${SELF_SKIP.join(' · ')}`);
 console.log(`  白名单：${Object.keys(allow).length} 条｜单行豁免：${exemptedLines.length} 行`);
 for (const e of exemptedLines) console.log(`  · 留痕：${e.path}:${e.line}「${e.text}」（带 deauth-exempt 标记）`);
@@ -179,7 +205,8 @@ for (const e of exemptedLines) console.log(`  · 留痕：${e.path}:${e.line}「
 const fail = [];
 if (scanned === 0) fail.push('✗ 扫描面为空 —— `git ls-files` 读不到输入（#557 口径：读不到输入不许当「没命中」）');
 for (const k of missingMeta) fail.push(`✗ 白名单 ${k} 缺 reason 或 ticket —— 豁免必须写明理由与票号`);
-for (const f of findings) fail.push(`✗ ${f.path}:${f.line}「${f.token}」（token=${f.id}）—— 去权威化口径：写**理由**，别写「谁定的」`);
+for (const f of findings) fail.push(`✗ ${f.path}:${f.line}「${f.token}」（token=${f.id}）—— 去权威化口径：写**理由**，别写「谁定的」`
+	+ `\n       ⇒ 试改成：${hintFor(f.id)}`);
 for (const s of stale) fail.push(`✗ 白名单腐烂：${s.key} 已不再命中 —— 删掉该条`);
 if (fail.length) { for (const l of fail) console.error(l); console.error('\n✗ 去权威化口径门未通过'); process.exit(1); }
 console.log('✔ 去权威化口径门通过（无角色归属措辞 · 白名单无腐烂）');

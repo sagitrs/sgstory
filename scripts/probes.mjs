@@ -409,4 +409,22 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /V1/ },
 		why: '量的是「**内容故事的正文里不许出现逻辑/表达式宏**」（甲-1 的防退化保证：作者不写 Twee）—— 否则"作者只写 MD＋JSON"这条路线会不知不觉退化回"作者在正文里写代码" ✗',
 	},
+	{
+		// `#1034` ✓：导出那条 —— 刀＝把**成套断言**从导出路里拿掉 ✗（"部分包"就又能当通过了 ✓）。
+		//  ⚠️ 为什么这把刀对 ✓：它正打在**本票的关键读数**上（票面「能假」栏第一条＝**空包／部分包必须报错** ✓）
+		//  ⇒ 删掉断言后，"缺清单"那几格**确定性**变红 ✓（不靠并发/时序 ✓ —— 本仓被那类判据咬过两次 ✗）。
+		//  ⚠️ 不需要 `rebuild`：被测面是 `editor/web/**`（页面路，不进 `dist` 产物 ✓）。
+		//  ⚠️ 被测件不引 `boot.mjs` ⇒ 与 `cmdNeedsProducts` 无关 ⇒ `pre: []` ✓。
+		id: 'test/web-export.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/web-export.mjs',
+		mutation: {
+			file: 'editor/web/save.mjs',
+			find: "\tassertExportComplete({ slug, written: saved.written });",
+			replace: "\t// 探针：把成套断言拿掉 ⇒ 部分包又能当通过 ✗",
+		},
+		expect: { rc: 1, stdout: /缺\*\*清单\*\*|00-story\.json/ },
+		why: '量的是「导出**必须成套**（空包／部分包不许当通过）」那一手在守（拿掉断言 ⇒ 本片③那几格必红并点名缺件 ✓）',
+	},
 ];

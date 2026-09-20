@@ -10,7 +10,7 @@
   ⇒ 正确开法：**`npm run editor`**（起仓根静态服务并打印 URL ✓ —— 根必须是**仓根**，只服务 `editor/web/`
   会当场断那个跨目录 import ✗），然后打开它打印的 `…/editor/web/index.html` ✓。
   本页自带的提示：若用 file:// 打开，页面会**当场**把正确命令打出来 ✓（见下面那段守卫 ✓）。
-  ⚠️ 本页**不做**：**写盘** ✗（保存＝`#1034` ✓）、专栏式表单 ✗、预览 ✗。
+  ⚠️ `#1034` **已接导出** ✓：本页把"内存里的包"经**唯一写路**导成**浏览器下载** ✓（**静态优先** ⇒ 不落盘、无服务端 ✓）；**仍不做**：专栏式表单 ✗、预览 ✗。
 -->
 <style>
 	:root { color-scheme: light dark; }
@@ -49,6 +49,11 @@
 		<button id="newBtn" type="button">起手（新建空包 · 只落内存）</button>
 	</div>
 	<p><small>新建只产**内存里**的四件（<code>00-meta.twee</code> ＋ <code>data/{tables,contract,rules}.json</code>，IFID 现场生成 ✓）⇒ 可继续编辑；**不落盘** ✓。</small></p>
+	<!-- `#1034`：**导出入口** ✓ —— 甲案（导出下载、静态优先、无服务端 ✓）；判定/写路都在内核与 `save.mjs` ✓，本行只接线 ✓。 -->
+	<div class="row">
+		<button id="exportBtn" type="button">导出（下载 · 经唯一写路）</button>
+		<small>导出＝<code>00-meta.twee</code> ＋ <code>data/*.json</code> ＋ <b>页内编译的生成物</b> ＋ <code>00-story.json</code> 清单 ✓；<b>缺件 ⇒ 报错</b>（部分包不许当通过 ✗）。用户故事**不进 git** ✓，请自行保存下载物 ✓。</small>
+	</div>
 	<div id="err" class="err"></div>
 	<pre id="graph">（键级图：载入故事包后显示 ✓）</pre>
 	<pre id="out">（还没选文件）</pre>

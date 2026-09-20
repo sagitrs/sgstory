@@ -75,7 +75,7 @@
 1. **契约成员表**（`data/contract.json`）——每个成员与**运行时读取者或工具链读者**对齐（哪一种是哪一种，要在声明里看得出）；
 2. **`mechanics()` 新机制声明**——"这个面存在且引擎认得"的显式入口（`null` ＝ 未启用）；
 3. **`editor/escape-hatch.json`** 的 `refusedFaces`（本故事**不接**的面）／`proseFaces`（正文面）／`hatches[]`（本故事自己的临时开口）；
-4. **K4** 消费第 3 件 —— ⚠️ 已知缺口见 `#1016`（`hatches[]` 里留**已删 slug** 而 K4 不咬 ＝ declare-but-undone 不被抓）。
+4. **K4** 消费第 3 件 —— ✅ **`#1016` 已补**：K4 现在多一条 **门面引用完整性**判据（`hatches[].slug` 必须 ∈ **现存故事集合** ✓；`hatchFiles[]`／`refusedFaces[].file` 必须**现存** ✓；带成对自证 `test/k4-references.mjs` ＋ 探针咬住 ✓）。⚠️ **留痕**（这一条为什么需要）：补前 `hatches[]` 里留**已删 slug** 是**能安静留在仓里**的 ✗ —— `escapeHatchProblems` 按故事过滤 ⇒ 已删故事的 slug **落不进任何一次扫描**（＝ declare-but-undone 不被抓 ✓，本条的来由 ✓）。
 
 ⇒ **编辑器只暴露"必需面 ＋ 有消费者的可选面"**；不做面**不出现**在编辑器里。
 这样"不做"是写进工具的属性，而不是靠人记（rot 回不来）。

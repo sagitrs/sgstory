@@ -81,6 +81,11 @@ export const SEGMENTS = [
 	// ⚠️ 自证**必须成对登记**：第二支（声明有、实际没有）**只**由 `--selftest` 守
 	// （探针那一刀打在第一支上）⇒ 不登记它 ＝ 让那一半在 CI 里无守护（`#1018` 复核席点名）
 	{ id: "test-repo-shape-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/repo-shape.mjs --selftest" },
+	// `#1078`：**读路径门** —— 「按任务读」死链必红点名行号 · 对象故事已删的文档回流必读面/权威表必红
+	//   （`DELETED_STORY_DOCS` 显式对照表 ⇒ archive 口径有牙）· 先读列（除 dev-conventions，单列 #1080）
+	//   体量 ratchet ≤150KB（口径与数字＝#1077 验收②裁定）。纯读 docs/README.md ⇒ 无前置 ✓。
+	{ id: "test-docs-read-path-mjs", phase: 'test', cost: 0, cmd: "node test/docs-read-path.mjs" },
+	{ id: "test-docs-read-path-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/docs-read-path.mjs --selftest" },
 	// `#1043`：散文正文的**词汇门** —— 内容故事（`audience: content`）的正文只许"散文／链接／payload 标记／
 	//   引擎已宣告的词汇宏"；禁 SugarCube 逻辑/表达式宏与未宣告宏（甲-1 的防退化保证）。内部件豁免（打印计数）。
 	{ id: "test-prose-vocabulary-mjs", phase: 'test', cost: 0.5, cmd: "node test/prose-vocabulary.mjs" },

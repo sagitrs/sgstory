@@ -14,6 +14,7 @@
 | 做质量评审 | `docs/quality-dimensions.md`（§一 方法 · §四 作业模板） | `docs/reviews/`（走查/评审存档，非权威） |
 | 接一个新故事 | `docs/engine-story-boundary.md` | `docs/story2-contracts.md` · `docs/repo-map.md`（§二 层归属） |
 | 想知道表能不能放点击态写 | `docs/click-time-writes-design.md` | `docs/notes-model.md`（§已知边界） |
+| **数据模型**（角色状态 `pc` ＋ 袋外变量／五类分区／结算三条通道） | **`docs/engine/data-model.md`** | `docs/engine/decisions.md`（已裁／待裁台账） |
 | 查历史 / 作废稿（含已删故事 1 的设定·设计·实施三件套，`#1077`） | `docs/archive/README.md` | — |
 
 ## 二、权威表（谁说话算数）
@@ -63,6 +64,9 @@
 | `docs/reviews/design-review.md` | 28 | 存档 | D6 可用性走查（呈现层改动时复审） |
 | `docs/credits.md` | 20 | 参考 | 参考资源 ＋ 第三方鸣谢 |
 | `docs/ui-migration-diff.md` | 16 | **生成物** | `node scripts/ui-migration-diff.mjs` |
+| `docs/engine/README.md` | 42 | **设计稿·待评审** | `docs/engine` 索引：本期（论证层）读序 ＋ 与既有权威的关系 |
+| `docs/engine/data-model.md` | 146 | **设计稿·待评审** | 数据模型：角色状态 `pc` ＋ 袋外变量 · 五类分区 · 结算三条通道（含为何声明面只有三格且必须幂等） |
+| `docs/engine/decisions.md` | 52 | 台账 | 裁定状态栏：已裁（9 条）／本稿主张（待裁 5 条）／待定（7 条） |
 | `docs/archive/` | 13 份 | 作废 | 禁止回流；对照表见 `docs/archive/README.md`（含故事 1 三件套：设定书／设计蓝本／实施图，`#1077`） |
 | `docs/reviews/` | 7 份 | 存档 | 走查/评审流程记录（非权威）；见 `docs/reviews/README.md` |
 

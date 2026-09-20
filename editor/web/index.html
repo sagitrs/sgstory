@@ -4,9 +4,13 @@
 <meta charset="utf-8">
 <title>故事编辑器（静态优先 · 第一片）</title>
 <!--
-  `#761` P1 第一片：**只读加载视图** ✓ —— 打开本文件即可用，**不经服务端** ✓
-  （口径：设计稿 §8 第 1 条「静态优先」✓，2026-09-17 已裁；判据＝"是否真有第二个消费者"✓）。
-  ⚠️ 本页**不做**：写盘 ✗（保存是下一片 ✓）、栏式表单 ✗、预览 ✗ —— 每片只交一件可核的东西 ✓。
+  `#761` P1 第一片：**只读加载视图** ✓（口径：设计稿 §8 第 1 条「静态优先」✓，2026-09-17 已裁）。
+  ⚠️ `#1033` **更正本页自述** ✗：本页是 `<script type="module">`（`app.mjs` 且会跨目录 import
+  `../lib/core/**` ✓）⇒ **必须经 http 打开** —— **file:// 双击会被浏览器拦**（模块脚本的 CORS 限制 ✓）。
+  ⇒ 正确开法：**`npm run editor`**（起仓根静态服务并打印 URL ✓ —— 根必须是**仓根**，只服务 `editor/web/`
+  会当场断那个跨目录 import ✗），然后打开它打印的 `…/editor/web/index.html` ✓。
+  本页自带的提示：若用 file:// 打开，页面会**当场**把正确命令打出来 ✓（见下面那段守卫 ✓）。
+  ⚠️ 本页**不做**：**写盘** ✗（保存＝`#1034` ✓）、专栏式表单 ✗、预览 ✗。
 -->
 <style>
 	:root { color-scheme: light dark; }
@@ -20,6 +24,15 @@
 </head>
 <body>
 	<h1>故事编辑器 · 第一片（只读加载）</h1>
+	<!-- `#1033`：**file:// 守卫** ✗ —— 用内联脚本（不靠模块：模块在 file:// 下根本不会执行 ✓）把正确开法打出来 ✓ -->
+	<div id="fileguard" hidden style="border:1px solid #c33;border-radius:6px;padding:.6rem .8rem;margin:.6rem 0">
+		<b>你现在是用 <code>file://</code> 打开的</b>：模块脚本会被浏览器拦下，页面**不会工作** ✗。
+		请在仓根跑 <code>npm run editor</code>，再打开它打印的地址（形如
+		<code>http://127.0.0.1:8100/editor/web/index.html</code>）✓。
+	</div>
+	<script>
+		if (location.protocol === 'file:') document.getElementById('fileguard').hidden = false;
+	</script>
 	<p><small>
 		选**故事目录**（含 <code>00-story.json</code> 与 <code>data/</code> 的那个目录）⇒ 本页用**内核**读包并列出来。
 		静态优先：没有服务端、没有网络请求 ✓；判定与执行分离：读包逻辑在 <code>loader.mjs</code>，页面只负责显示 ✓。

@@ -76,6 +76,9 @@ export const SEGMENTS = [
 	// 车道 E-(A)（`#215`）：页面侧覆盖率 —— **只读** ✓（纯静态扫描 ⇒ 无 `needs`／不需 build ✓）；报告用读数 ✓ 不进任何断言 ✓
 	{ id: "scripts-report-page-coverage-mjs", phase: 'test', cost: 0, cmd: "node scripts/report-page-coverage.mjs" },
 	{ id: "test-integrity-mjs", phase: 'test', cost: 0, cmd: "node test/integrity.mjs" },
+	// `#791`／`#455`：CI 触发面完整性（draft 转 Ready 静默不跑 ＋ 无 dispatch 无法补跑取证）
+	{ id: "test-ci-triggers-mjs", phase: 'test', cost: 0.1, cmd: "node test/ci-triggers.mjs" },
+	{ id: "test-ci-triggers-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/ci-triggers.mjs --selftest" },
 	// `#1008` 第二半：**仓根形态**（顶层条目 vs 白名单 —— 误提交的临时件属“结构错”，源文件级的守卫拦不住）
 	{ id: "test-repo-shape-mjs", phase: 'test', cost: 0, cmd: "node test/repo-shape.mjs" },
 	// ⚠️ 自证**必须成对登记**：第二支（声明有、实际没有）**只**由 `--selftest` 守

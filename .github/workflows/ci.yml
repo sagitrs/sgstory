@@ -3,7 +3,12 @@ name: CI
 on:
   push:
     branches: [main]
+  # 手动补跑取证（`sgstory#455` · CIE 原作者实证「rerun 只能重跑既有 run」⇒ 独立触发是刚需）
+  workflow_dispatch: {}
   pull_request:
+    # `sgstory#791`：GitHub 对 `pull_request` 的**默认**活动类型是 opened/synchronize/reopened ⇒
+    # **draft 转 Ready 不触发**（实测：no checks ＋ 无 run），而 merge 不拦红 ⇒ 显式补上 `ready_for_review`。
+    types: [opened, synchronize, reopened, ready_for_review]
 
 permissions:
   contents: read
@@ -63,7 +68,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
       # #520：把产物交给 deploy 复用（main push 才传）——deploy 原先自己 checkout＋npm ci＋build（≈20s），
       # 而这两个 job 刚刚都构过同样的 dist。
-      - if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+      - if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
         uses: actions/upload-artifact@v4
         with:
           name: dist
@@ -112,7 +117,8 @@ jobs:
 
   deploy:
     # main 分支推送且测试通过后，自动发布到 GitHub Pages
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # dispatch 走完整链（含 post-deploy-smoke 线上冒烟）⇒ 手动补跑也能取证（`sgstory#455`）
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: [test, realmachine]
     runs-on: ubuntu-latest
     outputs:
@@ -142,7 +148,8 @@ jobs:
 
   post-deploy-smoke:
     # 线上冒烟（#188）：部署后拉线上产物，断言可达/字体外链/preload/体积预算
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    # `sgstory#455`：事件面扩 dispatch ⇒ **手动补跑也走线上冒烟**（rerun 做不到独立触发）
+    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
     needs: [deploy]
     runs-on: ubuntu-latest
     timeout-minutes: 10

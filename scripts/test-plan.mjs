@@ -276,6 +276,8 @@ export const SEGMENTS = [
 	{ id: "test-web-form-mjs", phase: 'test', cost: 0.5, cmd: "node test/web-form.mjs" },
 	// `#892`（P4-1）：页内**新建**（起手包落内存 ✓ 不碰 fs ✓ 可接既有表单 ✓）（jsdom ✓）。
 	{ id: "test-web-new-package-mjs", phase: 'test', cost: 0.5, cmd: "node test/web-new-package.mjs" },
+	// `#1034`：导出下载接线 —— 入口在页面上 ✓、导出物清单与内核编目一致 ✓、空/部分包必报错 ✓、不落盘 ✓
+	{ id: "test-web-export-mjs", phase: 'test', cost: 0.3, cmd: "node test/web-export.mjs" },
 	{ id: "test-social-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/social-sink.mjs --selftest" },
 	{ id: "test-social-sink-mjs", phase: 'test', cost: 3, cmd: "node test/social-sink.mjs" },
 	// `#1011`（保覆盖版）：`#360` 交涉筹码按类型分派（B 段退役件接回；样本＝`face-fixture` 的 `老板娘·进塔`）✓

@@ -266,6 +266,9 @@ export const SEGMENTS = [
 	{ id: "test-social-sink-mjs", phase: 'test', cost: 3, cmd: "node test/social-sink.mjs" },
 	// `#1011`（保覆盖版）：`#360` 交涉筹码按类型分派（B 段退役件接回；样本＝`face-fixture` 的 `老板娘·进塔`）✓
 	{ id: "test-social-lever-mjs", phase: 'test', cost: 3, cmd: "node test/social-lever.mjs" },
+	// `#1020`：条件位/授予位的**键形**必须引擎真能求值（`readKey` 权威；`note:n_*` ⇒ 条件恒假／授予位抛错）✗
+	{ id: "test-cond-keyform-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/cond-keyform.mjs --selftest" },
+	{ id: "test-cond-keyform-mjs", phase: 'test', cost: 0, cmd: "node test/cond-keyform.mjs" },
 	{ id: "test-siteinfo-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/siteinfo-sink.mjs --selftest" },
 	{ id: "test-siteinfo-sink-mjs", phase: 'test', cost: 2, cmd: "node test/siteinfo-sink.mjs" },
 	// `#707`：**战斗状态字段使用面门**（每个 `$pc.ev.fight.<字段>` 都必须有人用；死字段点名）

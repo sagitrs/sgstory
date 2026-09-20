@@ -82,8 +82,8 @@ window.Game = Object.assign(window.Game ?? {}, {
 			'坏哨',
 			'月光花',
 			'flag:family_favor',
-			'note:n_old_witch',
-			'note:n_failure_cause',
+			'n_old_witch',
+			'n_failure_cause',
 			'keeper:seal'
 		],
 		knowledge: {
@@ -370,7 +370,7 @@ window.Game = Object.assign(window.Game ?? {}, {
 				npc: '老板娘',
 				q: '进塔该注意什么',
 				base: 'neutral',
-				yield: 'note:n_tav_tips',
+				yield: 'n_tav_tips',
 				sites: [
 					'酒馆·打听',
 					'老板娘·吓',
@@ -395,7 +395,7 @@ window.Game = Object.assign(window.Game ?? {}, {
 				],
 				done: {
 					req: [
-						'note:n_tav_tips'
+						'n_tav_tips'
 					]
 				},
 				yields: [
@@ -411,7 +411,7 @@ window.Game = Object.assign(window.Game ?? {}, {
 				npc: '守林人',
 				q: '塔基墙根那片银白的花是什么',
 				base: 'neutral',
-				yield: 'note:n_flower_warned',
+				yield: 'n_flower_warned',
 				sites: [
 					'守林人·交涉'
 				],
@@ -426,7 +426,7 @@ window.Game = Object.assign(window.Game ?? {}, {
 				],
 				done: {
 					req: [
-						'note:n_flower_warned'
+						'n_flower_warned'
 					]
 				},
 				yields: [
@@ -635,7 +635,7 @@ window.Game = Object.assign(window.Game ?? {}, {
 						id: 'warned',
 						label: '守林人提过：那花底下埋着人',
 						req: [
-							'note:n_flower_warned'
+							'n_flower_warned'
 						]
 					},
 					{
@@ -673,7 +673,7 @@ window.Game = Object.assign(window.Game ?? {}, {
 						id: 'tips',
 						label: '柜台提过：别应叫名字',
 						req: [
-							'note:n_tav_tips'
+							'n_tav_tips'
 						]
 					}
 				]
@@ -692,7 +692,7 @@ window.Game = Object.assign(window.Game ?? {}, {
 						id: 'cause',
 						label: '内文：它来时是被人叫来的',
 						req: [
-							'note:n_failure_cause'
+							'n_failure_cause'
 						]
 					}
 				]

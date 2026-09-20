@@ -357,4 +357,23 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /跨目录/ },
 		why: '量的是「编辑器入口**真的以仓根为服务根**（＝页面能跑起来）」那一手在守（把根改小 ⇒ `app.mjs` 跨目录 import 的资源取不到 ⇒ 测试件必红并点名"跨目录" ✓）—— 否则"能开"与"看着像能开"会混为一谈 ✗',
 	},
+	{
+		// `#1020` ✓：条件键形门（**条件位/授予位**的键形必须引擎真能求值）。
+		//  刀＝把夹具里一处**授予位**的 `n_tav_tips` 改回 `note:n_tav_tips` ✗ —— 正是修复前的形状 ✓。
+		//  ⚠️ 锚必须**唯一**：`"yield": "n_tav_tips"` 在数据里**恰好 1 处** ✓（裸 `"n_tav_tips"` 有 5 处 ⇒ 会命中多处而报"锚不唯一" ✗，实测 ✓）。
+		//  ⚠️ `pre: []` ✓：本门只读 `stories/*/data/tables.json`（走 `git ls-files` ✓）⇒ **不读产物** ✓
+		//   （`cmdNeedsProducts` 静态判据亦判其不读 ✓ —— 本件的入口件不 import `boot.mjs` ✓）。
+		//  ⚠️ 该刀**与并发/时序无关** ✓（纯数据键形 ⇒ 门必红 ✓）。
+		id: 'test/cond-keyform.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/cond-keyform.mjs',
+		mutation: {
+			file: 'stories/face-fixture/data/tables.json',
+			find: '"yield": "n_tav_tips"',
+			replace: '"yield": "note:n_tav_tips"',
+		},
+		expect: { rc: 1, stdout: /求值不到|note:/ },
+		why: '量的是「条件键形必须引擎真能求值」那一手在守（把一处授予位改回 `note:n_*` ⇒ 门必红并点名 ✓）—— 否则 `note:n_*` 这种"结构性读不到"的键形会静默回到数据里 ✗（`#1020` ✓）',
+	},
 ];

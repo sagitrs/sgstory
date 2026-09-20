@@ -35,6 +35,8 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { asListOf, condKeysOf } from '../editor/lib/core/audit-shared.mjs';
+// `#1089`（裁定乙′）：**未跟踪扫描面 ⇒ 红** 的共用助手（一处定义、三门复用）。
+import { untrackedScannedProblems, isUntrackedExemptLine } from '../scripts/lib/untracked-guard.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '');
 
@@ -198,10 +200,18 @@ const selftest = () => {
 if (process.argv.includes('--selftest')) selftest();
 
 // ── 主跑：判**真实故事数据** ───────────────────────────────────────────────
+let untrackedProblems = [];   // `#1089`：由下面 try 填（取不到 git 时保持空 ⇒ 由 dataFiles() 报）
 // `#1028` 一族：**未跟踪**但落在扫描面里的数据文件 —— 本门扫不到 ⇒ **必须显式打印**（否则 `git add` 前跑＝假绿 ✗）
 try {
 	const others = execFileSync('git', ['ls-files', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
 	const miss = unscannedUntracked({ others });
+	// `#1089`（裁定乙′）：**未跟踪且落在扫描面 ⇒ 红**（此前只提醒 ⇒ 退出码上不存在 ⇒ 假绿）。
+	//   豁免：件内任意一行写 `untracked-exempt: <理由 ＋ 票号>`（缺任一项不生效）＋ **必须留痕**。
+	const exempted = miss.filter((q) => {
+		try { return readFileSync(join(ROOT, q), 'utf8').split('\n').some(isUntrackedExemptLine); } catch { return false; }
+	});
+	if (exempted.length) console.log(`  · 留痕：未跟踪但**已豁免** ${exempted.length} 件（带 \`untracked-exempt:\` 标记）：${exempted.join('、')}`);
+	untrackedProblems = untrackedScannedProblems({ untracked: miss, isScanned: scannedSurface, exempted }).problems;
 	if (miss.length) console.log(`  ⚠️ 本次未扫（未跟踪 ${miss.length} 件）⇒ 先 \`git add\` 再跑本门，否则是**假绿**：${miss.slice(0, 8).join('、')}${miss.length > 8 ? ' …' : ''}`);
 } catch { /* 取不到 git（非工作树）⇒ 上面 dataFiles() 已会红并说明 ✓ */ }
 
@@ -214,6 +224,9 @@ if (discovered.error) {
 const files = discovered.files;
 if (!files.length) { console.error('✗ 找不到任何已入库的 `stories/<slug>/data/tables.json` —— 本门要判真实数据，不做静默跳过 ✗'); process.exit(1); }
 let problems = [];
+// `#1089`：未跟踪 ⇒ 红（**先报**：它是「本门没扫全」的前置问题，优先于内容判据）。
+for (const m of untrackedProblems) console.error(m);
+if (untrackedProblems.length) { console.error('  复跑：node test/cond-keyform.mjs（先 git add 或加豁免标记）'); process.exit(1); }
 for (const rel of files) {
 	let data;
 	try { data = JSON.parse(readFileSync(join(ROOT, rel), 'utf8')); }

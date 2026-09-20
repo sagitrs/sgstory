@@ -280,6 +280,11 @@ export const SEGMENTS = [
 	// `#1044`：**段间产物依赖边守护**——「改真故事文件的段 → 读它的段」的 needs 边必须在册并点名
 	//   （纯静态 ⇒ 无前置 ✓；能假反例在件内 ✓；探针刀＝删那条 needs ⇒ 必红 ✓）。
 	{ id: "test-plan-needs-mjs", phase: 'test', cost: 0, cmd: "node test/plan-needs.mjs" },
+	// `#1089`（乙′）：**未跟踪扫描面 ⇒ 红** 的**守护件**（判据＝`scripts/lib/untracked-guard.mjs` 的纯函数）。
+	//   三格成对：①未跟踪⇒报 ②已跟踪/不在扫描面⇒不报 ③豁免（**理由＋票号**）⇒不报但留痕；
+	//   内含**端到端真 git 三态**（自建夹具 ＋ 自行清场 ⇒ 不依赖仓内既有未跟踪件）。
+	//   ⚠️ 本件只守**判据**；「门有没有真的调它」由 `scripts/probes.mjs` 的刀守（同 `plan-needs` 形态）。
+	{ id: "test-untracked-guard-mjs", phase: 'test', cost: 0, cmd: "node test/untracked-guard.mjs" },
 	// #574：逐故事**运行时契约**门 —— 面存在 / 位点能判 / 笔记可用 / 侧栏可用 / 机制真落
 	// （成因：`Sg.*` 面缺一段、位点写成属性键、`applyStatus` 返回值被丢、`maxHp` 字段名——四件都曾静默通过）
 	{ id: "test-story-runtime-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/story-runtime.mjs --selftest" },

@@ -29,6 +29,8 @@ import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { ROOT } from '../scripts/dist-paths.mjs';
+// `#1089`：**未跟踪扫描面 ⇒ 红** 的共用助手（一处定义、三门复用 ✓ —— 不是每门各写一份 ✗）。
+import { untrackedScannedProblems, isUntrackedExemptLine } from '../scripts/lib/untracked-guard.mjs';
 
 /** 归属 token 词表：只收**明确的角色/席位归属**（宁少勿多）。
  *  为什么存**正则源**而不是 RegExp 对象：带 `g` 的 RegExp 有 `lastIndex` 状态，复用会**漏匹配**（静默）。 */
@@ -199,12 +201,20 @@ const untracked = untrackedScanned(execFileSync('git', ['ls-files', '--others', 
 console.log(`══ 去权威化口径门（#752／#748）══  扫描 ${scanned} 个已跟踪文件（${SCAN_EXT.join(' ')}）`);
 // `#1028`：本门**只扫已跟踪文件** ⇒ 未跟踪的新件是「扫不到的」✗ ⇒ **必须显式打印**（否则 `git add` 之前跑＝假绿）
 if (untracked.length) console.log(`  ⚠️ 本次未扫（未跟踪 ${untracked.length} 件）⇒ 先 \`git add\` 再跑本门，否则是**假绿**：${untracked.slice(0, 8).join('、')}${untracked.length > 8 ? ' …' : ''}`);
+// `#1089`（裁定乙′ ✓）：**未跟踪且落在扫描面 ⇒ 红** ✗ —— 此前只 `console.log` ⇒ **退出码上不存在** ⇒ 假绿 ✓。
+//   豁免：件内任意一行写 `untracked-exempt: <理由 ＋ 票号>`（**理由与票号缺任一项不生效** ✓）＋ **必须留痕** ✓。
+const untrackedExempted = untracked.filter((p2) => {
+	try { return readFileSync(join(ROOT, p2), 'utf8').split('\n').some(isUntrackedExemptLine); } catch { return false; }   // 读不到 ⇒ 不当豁免（保守 ✓）
+});
+if (untrackedExempted.length) console.log(`  · 留痕：未跟踪但**已豁免** ${untrackedExempted.length} 件（带 \`untracked-exempt:\` 标记 ✓）：${untrackedExempted.join('、')}`);
+const untrackedGuard = untrackedScannedProblems({ untracked, isScanned, exempted: untrackedExempted });
 console.log(`  豁免面：${EXEMPT_DIRS.join(' · ')}｜自身跳过：${SELF_SKIP.join(' · ')}`);
 console.log(`  白名单：${Object.keys(allow).length} 条｜单行豁免：${exemptedLines.length} 行`);
 for (const e of exemptedLines) console.log(`  · 留痕：${e.path}:${e.line}「${e.text}」（带 deauth-exempt 标记）`);
 
 const fail = [];
 if (scanned === 0) fail.push('✗ 扫描面为空 —— `git ls-files` 读不到输入（#557 口径：读不到输入不许当「没命中」）');
+for (const m of untrackedGuard.problems) fail.push(m);   // `#1089`：未跟踪 ⇒ 红（不再只提醒 ✓）
 for (const k of missingMeta) fail.push(`✗ 白名单 ${k} 缺 reason 或 ticket —— 豁免必须写明理由与票号`);
 for (const f of findings) fail.push(`✗ ${f.path}:${f.line}「${f.token}」（token=${f.id}）—— 去权威化口径：写**理由**，别写「谁定的」（**解释性引用也一样** —— 引原句、写「谁定的」都要改写或行内标 deauth-exempt ✗）`
 	+ `\n       ⇒ 试改成：${hintFor(f.id)}`);

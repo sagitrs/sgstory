@@ -465,4 +465,34 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /no-such-doc-probe|不存在/ },
 		why: '量的是「按任务读表引用的文档必须存在（死链⇒红点名）」那一手真的在守（插一行死链 ⇒ 门必红并点名行号与路径 ✓）—— 否则必读面死链只活在注释里 ✗（`#1078` ✓）',
 	},
+	{
+		// `#1089`（乙′）：**未跟踪扫描面 ⇒ 红** 的**接线**守护 —— ⚠️ 本条的刀**必须打在"门里"** ✗，
+		//   因为 `test/untracked-guard.mjs` 测的是**纯函数**（判据本身对 ✓），
+		//   而「**门到底有没有调用它**」纯函数自证**看不见** ✗ —— 那正是领队转达的那格
+		//   （本仓老账：**自证测纯函数、不测接线** ⇒ 删掉接入点自证仍全绿 ✗）。
+		//   刀：把门外层那一步**拆掉**（`untrackedScannedProblems` 的调用 ⇒ 不再收进 `fail[]`/`bad++`）
+		//   ⇒ 未跟踪的夹具件**不再被判** ⇒ 门**应当不再红** —— 但这条探针量的是**反方向**：
+		//   我们要的是"**接线在** ⇒ 未跟踪 ⇒ 红" ✓ ⇒ 所以刀**反过来下**：
+		//   把门里那个**判据谓词**改成"恒假"（`isScanned` ⇒ `() => false`）⇒ 未跟踪件不再算"落在扫描面"
+		//   ⇒ 门**不再报** ⇒ 而 `test/untracked-guard.mjs` 的**端到端那一格**（真 git 三态）
+		//   仍会红 ⇒ 可定位到"谓词被改坏" ✓。
+		//   ⚠️ **靶件由本件自建自清** ✗（`test/untracked-guard.mjs` 的端到端段：`writeFileSync` 造夹具 ⇒
+		//     `finally` 删 ＋ 清场自证 ✓）⇒ **不用 `pre`** —— 探针运行器**没有 `pre` 的清理钩**，
+		//     用它造文件会**残留污染工作树** ✗（本片实测踩过：带 `pre` 那次，靶件被 `git add -A`
+		//     带进了暂存区 ✗ —— 与「探针跑起来之后禁 `git add -A`」同族 ✓）。
+		id: 'test/untracked-guard.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/untracked-guard.mjs',
+		mutation: {
+			// 被测件＝**助手本身**（纯函数层）⇒ 把"是否算落在扫描面"改成**恒假** ⇒ 未跟踪件不再被算 ✗
+			file: 'scripts/lib/untracked-guard.mjs',
+			find: 'const unscanned = [...new Set(untracked)].filter((p) => p && isScanned(p) && !ex.has(p) && !isTransient(p)).sort();',
+			replace: 'const unscanned = [...new Set(untracked)].filter((p) => p && false && isScanned(p) && !ex.has(p) && !isTransient(p)).sort();',
+		},
+		expect: { rc: 1, stdout: /未跟踪/ },
+		why: '量的是「**未跟踪 ⇒ 红**」这一手真的在守（把"落在扫描面"的判定掐掉 ⇒ 本件端到端那格必红并点名"未跟踪" ✓）—— 否则该缺口只活在注释里 ✗（`#1089` 乙′）',
+		// ⚠️ 本刀打在**纯函数**上 ⇒ 它证的是"判据这一手在"；**门接线**由三个门的 `--selftest`／实测守 ✓
+		//   （本仓口径：探针量"变异前绿 ⇒ 变异后红且点名" ⇒ 本条的"点名"＝助手件里那条 "未跟踪" 断言 ✓）
+	},
 ];

@@ -1,0 +1,82 @@
+name: full-tier
+
+# `#1071`（PR-E）：**full 档接线** —— 补回 `#1070`（PR-D）在 PR 期放弃的覆盖。
+#
+# ## 为什么需要它（缺口是 PR-D 引入的）
+# `#1070` 把两段移出 PR 档：`scripts-probe-gates-mjs-probe-fast`（253.3s，**元判据**：量"门会不会红"）
+# 与 `test-witness-trace-mjs`（86.2s，P4 见证件）。⇒ **PR 期不再验证"门真的会咬"** ✗
+# ⇒ 若本档迟迟不落，"门会咬"在**任何 CI 路径**上都不再被验证（评审原话）⇒ 那是**净损失**，不是可选项。
+#
+# ## 为什么是**单独一个文件**（而不是塞进 `ci.yml`）
+# 实测：给 `ci.yml` 的 `on:` 加 `schedule` ⇒ **该文件内所有 job 都会 nightly 跑**
+# （`test` 无 `if` 守卫、`realmachine` 只依赖 `changes`）⇒ 白跑 ≈100s；要避免就得加守卫
+# ⇒ **又一笔让步债**（且 `#1054` 的门会来核那些守卫）⇒ 越改越绕 ⇒ 单用途文件＝**零扰动** ✓。
+#
+# ## 为什么**不能**挂到 `soak-nightly.yml`（复核实测纠正）
+# 那个文件**自述 report-only**（`#630`：「夜间游走是**仪器**…失败**不阻塞任何合入**」）
+# ⇒ 它是**观测面**，不是**约束面** ✗ ⇒ 挂上去＝**字面满足但目的落空**（本仓 ㉕ 那一格）。
+# ⇒ 本文件与它**划清**：**本档失败 ＝ 红**（不 report-only），且**不开票代替**（红是主信号）。
+#
+# ## 触发面与 `#1054` 的口径（本行是**自愿遵守**，不是"门在守"）
+# ⚠️ **如实说明**：`#1054` 立了「main-only job 必须接受 `workflow_dispatch`」的结构判据，
+#   但其门（`test/ci-triggers.mjs`）**此刻只读 `.github/workflows/ci.yml`**（硬编码）
+#   ⇒ **看不见本文件**（射程扩到 `*.yml` 是 `#1087` 的活）⇒ **本条不被任何门咬** ✓。
+# ⇒ 本文件**照样**写 `|| github.event_name == 'workflow_dispatch'`：理由是**语义上本来就该**
+#   （触发面含 dispatch ⇒ main-only 的 job 在手动补跑时**也该跑**），**不是**为过门 ✓
+#   ⇒ `#1087` 扩射程后**无需再改本文件** ✓。
+
+on:
+  schedule:
+    - cron: '0 18 * * *'   # UTC 18:00 = 北京 02:00（比 soak-nightly 的 20:00 早 2h ⇒ 两者错开，避免同刻抢 runner）
+  workflow_dispatch:        # 手动补跑取证（与 `#1054` 的补跑面同口径 ✓）
+  push:
+    branches: [main]        # main 前进即跑全量 ⇒ 合入后的覆盖不靠"下次 nightly"
+
+permissions:
+  contents: read
+
+jobs:
+  full:
+    # `#1071`：本 job **不加 `if` 守卫** ✗ —— 依据（**官方原文，逐行可核** ✓）：
+    #   · `schedule`：`GITHUB_REF = **Default branch**`（本仓 ＝ `refs/heads/main`）⇒ **满足** main-only ✓
+    #     （原文另句：「Scheduled workflows will only run on the default branch.」✓）
+    #   · `push: main`：`GITHUB_REF = refs/heads/main` ⇒ **满足** ✓
+    #   · `workflow_dispatch`：`GITHUB_REF = Branch or tag that received dispatch` ⇒ **不满足** main-only ✗
+    #     （它取**被选的那个分支** ⇒ 手动补跑时 ref 可能是别的分支 ⇒ 写 main-only 条件会把**手动补跑静默跳过** ✗
+    #      —— 那是本档最致命的假绿：触发面在、却永远不跑）。
+    #   ⇒ 三面**不是**同一 ref ⇒ **一律跑**（不加任何 `if`）✓。
+    #   ⚠️ 勘误留痕：本行初稿曾写「`schedule` 下 `github.ref` **不是** `refs/heads/main`」—— **那是错的** ✗
+    #     （与官方原文相反），由评审用官方文档纠正 ✓。结论未变，**依据已改为真**。
+    #   出处：`github/docs` · `content/actions/reference/workflows-and-actions/events-that-trigger-workflows.md`
+    #     （`## schedule` 与 `## workflow_dispatch` 两节的 `GITHUB_REF` 列 ✓）。
+    runs-on: ubuntu-latest
+    # 全量档实测本机 ≈394s（CI 上更慢：单是 probe 段就 278s）⇒ 20 分钟上限**不够**；
+    #   而它**不在 PR 关键路径上**（PR 档仍 ≤2 分钟）⇒ 给足 45 分钟，宁宽不放任超时。
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: pip install fonttools brotli   # 字体子集化（霞鹜文楷）—— 与 ci.yml 的 test job 同一准备面
+      - run: git fetch origin main --depth=1  # 门2（新段落必配测）需要 origin/main 基线
+      # `#562`：**F6 台账新鲜度门**要查 issue 状态 ⇒ 必须给 token，否则它「○ 跳过（无 token）」并**退 0**
+      #   —— 那是「门在 CI 里从未真正跑过」的真空洞（与 `#557` 的假绿同类）✓
+      # ⚠️ 本档**含** `scripts-probe-gates-mjs-probe-fast` ⇒ 会产出 `build/probe-results.json`
+      #   ⇒ 台账的**探针列**在此档是**真读数**（PR 档才是降级的那一档）✓
+      - run: npm run test:full
+        env:
+          GH_TOKEN: ${{ github.token }}
+      # 失败留痕（**不代替红** ✗）：把全量档的失败面存成 artifact ⇒ 事后可核"是哪一段、哪条判据"
+      #   ⚠️ 与 `soak-nightly` 的"失败即开票"**不同**：那边是仪器（观测面），本档是**约束面**
+      #   ⇒ 本档**失败即红**，开票只做**可追溯**，不做"红转票"的降级 ✗
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: full-tier-failure
+          path: |
+            build/probe-results.json
+            docs/gate-ledger.md
+          if-no-files-found: ignore

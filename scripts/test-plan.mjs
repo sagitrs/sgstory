@@ -47,13 +47,13 @@ export const FULL_REASONS = {
 	'scripts-probe-gates-mjs-probe-fast':
 		'**探针＝元判据**（量的是"门会不会红"✓）⇒ 属**周期性验证**，不是每次改动都要重跑 ✗。'
 		+ '代价（实测）：**253.3s**（CI 日志 278.2s）＝ 全链串行 743s 的 **37%**（`#1070` 实测）✓。'
-		+ '⚠️ **移出 PR 档 ⇒ PR 期不再验证"门会咬"** ✗ ⇒ **补回面＝`#1071`**（full 档接 nightly ＋ main push，失败**必须红**✓——不是 report-only ✗）✓；'
+		+ '⚠️ **移出 PR 档 ⇒ PR 期不再验证"门会咬"** ✗ ⇒ **已接线**（`#1071`：`.github/workflows/full-tier.yml`，触发面 ＝ nightly ＋ `push: main` ＋ `workflow_dispatch` ✓；**失败即红** ✗不是 report-only ✓）；'
 		+ '另：台账的探针列**依赖本段产出的** `build/probe-results.json`（gitignored）⇒ 本段不在 PR 档跑时，'
 		+ '台账那一列由 `report-gate-ledger.mjs --allow-stale-probe` **显式降级**（打印"探针面跳过"，不静默 ✓）。',
 	'test-witness-trace-mjs':
 		'**P4 见证件**（`#991` 的验收物：`walker --witness` 的轨迹够不够当见证 ✓）⇒ 属**发布／夜间**面 ✗；'
 		+ '且**成本高**（实测 **86.2s**，CI 日志 91.1s ／ `cost` 字段旧值 **0.4** ＝ **228× 失真** ✗ —— 本次一并改正 ✓）。'
-		+ '⚠️ **移出 PR 档 ⇒ PR 期不再验证"见证可复跑"** ⇒ **补回面＝`#1071`**（full 档接 nightly ＋ main push，失败**必须红**✓——不是 report-only ✗）。',
+		+ '⚠️ **移出 PR 档 ⇒ PR 期不再验证"见证可复跑"** ⇒ **已接线**（同上 `full-tier.yml`；**失败即红** ✓）。',
 };
 
 export const SEGMENTS = [

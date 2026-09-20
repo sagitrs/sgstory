@@ -115,6 +115,9 @@ export const SEGMENTS = [
 	// `#1012`：**导航后焦点仍在正文内**（`docs/dev-conventions.md` §6「键盘可续」的可机检版 ✓）——
 	//   契约＝交互后 `activeElement.closest('#passages')` 必真 ✗（不绑具体元素 ✓）；两半都要能假 ✓：
 	//   导航型交互（真会红：修前焦点落 `body` ✓）＋ 反例「程序性导航不许抢焦点」✓。
+	// `#1033`：编辑器 WebUI 的**启动入口**（`npm run editor` —— 能开 ＋ 开起来是活的（模块 MIME／跨目录可达）＋ 入口可发现）
+	{ id: "test-serve-editor-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/serve-editor.mjs --selftest" },
+	{ id: "test-serve-editor-mjs", phase: 'test', cost: 1, cmd: "node test/serve-editor.mjs" },
 	{ id: "test-focus-after-nav-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/focus-after-nav.mjs --selftest" },
 	{ id: "test-focus-after-nav-mjs", phase: 'test', cost: 1, cmd: "node test/focus-after-nav.mjs" },
 	{ id: "test-globals-mjs", phase: 'test', cost: 0, cmd: "node test/globals.mjs" },
@@ -318,6 +321,7 @@ export const AUDIT_STORY = [];   // #607 P2-B：**故事门已全部搬到故事
 // 非门段里**与故事内容无关**的那些（构建 / 构建期 lint / 产物守卫）：显式登记，不放宽默认
 export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs', 'scripts-audit-mjs-story2-engine',
 	'test-focus-after-nav-mjs-selftest', 'test-focus-after-nav-mjs',   // `#1012`：引擎侧焦点契约（与故事内容无关 ✓）
+	'test-serve-editor-mjs-selftest', 'test-serve-editor-mjs',   // `#1033`：编辑器入口（与故事内容无关 ✓）
 	'test-story-runtime-mjs-selftest', 'test-story-runtime-mjs',
 	'test-layering-mjs-selftest', 'test-layering-mjs', 'test-globals-mjs', 'test-silent-gate-mjs',
 	'test-size-gate-mjs-selftest', 'test-size-gate-mjs',

@@ -171,11 +171,20 @@ export const handwrittenClosureProblems = ({ handwritten = [], refused = [], pro
  * ⚠️ **`proseFaces` 的存在性不重复判** ✗（单一权威 ✓）：它已由 `handwrittenClosureProblems` 覆盖 ✓
  *   （实测：往 `proseFaces` 注入不存在路径 ⇒ 该判据 rc=1 并点名"路径写错或文件已不在" ✓）⇒ 本函数再判一次只会**重复报** ✗。
  *
- * `slugSet`／`existsOf` 由**宿主注入** ✓（`core/**` 不碰 fs ✓，与 `refusedFaceProblems` 的 `markerOf` 同一口径 ✓）。
+ * ⚠️ **路径引用要求「已入库 ∩ 存在」** ✗（`#1052`，单条引用的存在性判定）：
+ *   只判 `existsSync` 会把**未 `git add` 的新文件**算成「登记有效」✗ —— 那正是 `#1019`（「没扫」不许表现为
+ *   「通过」）／`#1028`（「`git add` 之前跑 ＝ **假绿**」）**同一族**的形态 ✓  ⇒ 补一条**入库**判定：
+ *   文件**在磁盘上但未入库** ⇒ 报**「未入库」**（与「不存在」**分开报** ✓ —— 二者的修法不同：一个 `git add`、一个改登记）。
+ *   ⚠️ **只咬文件引用** ✗（`hatchFiles[]`／`refusedFaces[].file` ✓）：`hatches[].slug` 判的是**目录**（故事集合 ✓）、
+ *     口径是「故事目录现存」✓ ⇒ 不并入本条（并入＝改判它一件它不声称的事 ✗，同 `paths` 那条边界 ✓）。
+ *   ⚠️ 边界（`#1052` 记）：本门被判对象是**已入库的登记表** ✓ ⇒ **没有「漏扫整片」的面** ✓，
+ *     仅此一格（**单条引用**）⇒ 非阻断级 ✓。
  *
- * @param {{registry?:object, slugSet?:Set<string>|string[]|null, existsOf?:(rel:string)=>boolean}} o
+ * `slugSet`／`existsOf`／`trackedOf` 由**宿主注入** ✓（`core/**` 不碰 fs／不碰 git ✓，与 `refusedFaceProblems` 的 `markerOf` 同一口径 ✓）。
+ *
+ * @param {{registry?:object, slugSet?:Set<string>|string[]|null, existsOf?:(rel:string)=>boolean, trackedOf?:(rel:string)=>boolean}} o
  */
-export const referenceIntegrityProblems = ({ registry = {}, slugSet = null, existsOf = () => false } = {}) => {
+export const referenceIntegrityProblems = ({ registry = {}, slugSet = null, existsOf = () => false, trackedOf = () => true } = {}) => {
 	const out = [];
 	const has = (v) => typeof v === 'string' && v.trim() !== '';
 	const slugs = slugSet instanceof Set ? slugSet : new Set(slugSet ?? []);
@@ -184,21 +193,36 @@ export const referenceIntegrityProblems = ({ registry = {}, slugSet = null, exis
 	const rows = [
 		...((registry.hatches ?? []).map((h, i) => ({
 			at: `hatches[${i}].slug`, value: h?.slug, ok: (v) => slugs.has(v),
+			// ⚠️ `#1052` 的**入库**判定**只管文件类引用** ✗：本条判的是**目录**（故事集合 ✓）⇒ `tracks` 恒真 ✓
+			//   （把它并进来＝改判一件它不声称的事 ✗ —— 同 `paths` 那条边界 ✓）。
+			tracks: () => true, kind: '故事',
 			why: `指向**不存在的故事** \`stories/${h?.slug ?? ''}/\` ✗ ⇒ 条目已无对象可挂（故事被删／改名）⇒ **删掉这条登记**（清单只许收缩 ✓）`,
 		}))),
 		...((registry.hatchFiles ?? []).map((f, i) => ({
 			at: `hatchFiles[${i}]`, value: f, ok: (v) => existsOf(v),
+			tracks: (v) => trackedOf(v), kind: '逃生舱文件',
 			why: '指向**不存在的文件** ✗ ⇒ 该手写逃生舱文件已搬走／改名，登记腐烂（`editor/equiv.mjs` 会拿它当等价门的产物侧输入 ✗）',
 		}))),
 		...((registry.refusedFaces ?? []).map((f, i) => ({
 			at: `refusedFaces[${i}].file`, value: f?.file, ok: (v) => existsOf(v),
+			tracks: (v) => trackedOf(v), kind: '不数据化的面',
 			why: '指向**不存在的文件** ✗ ⇒ "不数据化的面"登记腐烂（路径写错或文件已不在）',
 		}))),
 	];
 	for (const r of rows) {
 		// ⚠️ 缺字段／空值**不归本条** ✓（形式约束由各自的判据点名 ✗ —— 如 `refusedFaceProblems` 的四字段 ✓）
 		if (!has(r.value)) continue;
-		if (!r.ok(r.value)) out.push({ at: r.at, value: r.value, why: r.why });
+		// ① **不在磁盘上** ⇒ 报「不存在」（既有判据 ✓）
+		if (!r.ok(r.value)) { out.push({ at: r.at, value: r.value, why: r.why }); continue; }
+		// ② 在磁盘上但**未入库**（`#1052`）⇒ 报「未入库」✓ —— **分开报**（修法不同：一个是改登记、一个是 `git add` ✓）。
+		//   ⚠️ 顺序不可反 ✗：先判磁盘 ⇒ 一个**被删且未入库**的文件报「不存在」（磁盘口径是真因 ✓），
+		//     而不是报「未入库」（那会说错修法 ✗）。
+		//   ⚠️ `tracks` 缺省为**恒真**（不是缺省为「跳过」 ✗）：缺省跳过 ＝ 新增行会**静默不判入库** ⇒
+		//     回到本片要修的“没扫却看着像过了” ✗。⇒ 现有三行都已显式声明 `tracks` ✓；这条缺省只是防未来
+		//     加行时**当场炸**（实测踩过：`hatches` 漏写 `tracks` 时抛 `TypeError` ✓）⇒ 改成可读的语义：
+		//     “本条不要求入库”（适用于**非文件类**引用：如故事目录集合 ✓）。
+		const tracks = r.tracks ?? (() => true);
+		if (!tracks(r.value)) out.push({ at: r.at, value: r.value, untracked: true, why: `指向**未入库的文件** ✗（${r.kind ?? '文件类引用'}）⇒ 该引用**本次没被真判过**（磁盘上在、git 里不在）—— \`git add\` 之后再跑本门，否则是**假绿**（\`#1028\` 一族 ✓：\`git add\` 之前跑门 ≠ 过门）` });
 	}
 	return out;
 };

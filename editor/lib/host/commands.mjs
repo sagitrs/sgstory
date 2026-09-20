@@ -748,15 +748,29 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 	//     ⇒ 它**结构性不可见** ✓（`#1004` 实测：留过 2 条 `mist-forest`、而全门 rc=0 ✗）⇒ 必须在这里判 ✓。
 	//   ⚠️ 只咬**字段值**（`hatches[].slug`／`hatchFiles[]`／`refusedFaces[].file` ✓）—— 散文面（`reason`／`why`／`paths` ✗）
 	//     一律不读 ✓（本仓留痕优先："`reason` 里写『与 X 同形』"是**应当允许**的 ✓）。
+	//   ⚠️ `#1052`：文件类引用要求「**已入库 ∩ 存在**」✗（只判 `existsSync` ⇒ 未 `git add` 的新文件
+	//     会让登记**看起来有效** ✓ —— `#1019`／`#1028` 同一族）⇒ 注入 `trackedOf`（**宿主**能力 ✓）。
 	{
 		const hx = JSON.parse(readFileSync(join(ROOT, 'editor', 'escape-hatch.json'), 'utf8'));
+		// 入库集合：**取不到就不许判过** ✗（`#557` 口径：读不到输入 ≠ 没命中 ✓ —— 静默跳过＝假绿 ✓）。
+		//   ⚠️ 一次取全表（`git ls-files` 无路径参数 ✓）：本仓规模下 < 1MB ✓，而按条 spawn git 会拖慢门 ✓。
+		let trackedSet = null;
+		try {
+			trackedSet = new Set(execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).split('\n').filter(Boolean));
+		} catch (e) {
+			console.error(`  ✗ 取不到 git 元数据（\`git ls-files\` 失败）—— 本门要求在工作树里跑；不做静默跳过 ✗（\`#1052\`）`);
+			console.error(`      ${String(e?.message ?? e).slice(0, 200)}`);
+			bad++;
+		}
 		const refProblems = referenceIntegrityProblems({
 			registry: hx,
 			slugSet: new Set(slugs),
 			existsOf: (rel) => existsSync(join(ROOT, rel)),
+			trackedOf: (rel) => trackedSet !== null && trackedSet.has(rel),
 		});
 		const refCount = (hx.hatches ?? []).length + (hx.hatchFiles ?? []).length + (hx.refusedFaces ?? []).length;
-		console.log(`  · 门面引用完整性（\`#1016\`）：\`hatches[].slug\` ＋ \`hatchFiles[]\` ＋ \`refusedFaces[].file\` 共 ${refCount} 条引用 ⇒ 必须指向**现存**对象 ✓（故事集合 ${slugs.length} 个 ✓；\`proseFaces\` 的存在性由上一行判 ✓ 不重复 ✓）`);
+		const untracked = refProblems.filter((p) => p.untracked).length;
+		console.log(`  · 门面引用完整性（\`#1016\`＋\`#1052\`）：\`hatches[].slug\` ＋ \`hatchFiles[]\` ＋ \`refusedFaces[].file\` 共 ${refCount} 条引用 ⇒ 必须指向**现存**对象 ✓（故事集合 ${slugs.length} 个 ✓；文件类引用还要求**已入库** ✓，未入库 ${untracked} 条）`);
 		for (const p of refProblems) { console.error(`  ✗ 【门面引用】\`${p.at}\` = \`${p.value}\`：${p.why}`); bad++; }
 	}
 	if (bad) {

@@ -1,5 +1,12 @@
 // `#1016`：**门面引用完整性**的自证 ✓（判据 ＝ `editor/lib/core/k4criteria.mjs` 的 `referenceIntegrityProblems` ✓）。
 //
+// ⚠️ **本件是「纯自证」** ✗（`#1052` 起照录实测留痕 ✓）：正文①～⑥ 的输入是**内部常量**＋**注入面**
+//   （⑦ 节是本片新加的真表读数 ✓）⇒ **不得用「单跑本件 rc=0」证明该门在真场景生效** ✗。
+//   能证明它的是：**`editor/lib/host/commands.mjs` ③d 的真调用**（`existsOf`／`trackedOf` 由**宿主**注入 ✓）
+//   ＋ **探针**（实测：注入 `#1016` 原始缺陷形状 ⇒ 真门 `node editor/cli.mjs k4` rc=1 并点名 ✓；
+//   `#1052` 把探针锚改到**判据循环头** ⇒ 「未入库」那一支也在射程内 ✓）。
+//   ⇒ 合入记录／文档按此表述，免得后来者把本件误当「门本体」✗。
+//
 // 为什么要有这一件 ✗（`#1004` 审阅期实测 ✓，缺口**实复现**过）：
 //   `editor/escape-hatch.json` 的 `hatches[]` 里留过 **2 条** `slug:"mist-forest"`（该故事已删 ✓），
 //   而**逐个门**试过 —— `editor/k4.mjs` / `scripts/audit.mjs` / `editor/story-ci.mjs` / `test/multi-story.mjs` /
@@ -20,8 +27,25 @@
 //   ② 探针要"掐掉判据 ⇒ 本件必红"✓ ⇒ 本件的断言必须**真的经过**那个判据 ✓（不是靠 rc 的旁证 ✓）。
 //
 // 环境：**纯件** ✓（不碰 fs／不跑 build ✗：`slugSet` 与 `existsOf` 都是**注入**的 ✓ —— 与判据本身同一口径 ✓）。
+//   ⚠️ `#1052` 起本件**也**走真表（⑦ 主跑判据）：`git ls-files` ＋ 真 `escape-hatch.json`（**仍只读** ✗ 不写 ✓）。
+//
+// `#1052`：登记表里的**文件类**引用要求「**已入库 ∩ 存在**」✗（只判 `existsSync` ⇒ 未 `git add` 的新文件让
+//   登记"看起来有效" ✓ —— `#1019`「没扫不许表现为通过」／`#1028`「`git add` 前跑是假绿」同一族）✓。
+//   ⚠️ 本节的两条打印件用**具名常量**：探针要能证明「未入库会报」↓ —— 掐掉收集那一路 ⇒ 这两行
+//     **不再出现** ⇒ 命中它们的断言必红 ✓（而只声称不判的**注释**掐掉后照样绿 ✗ ⇒ 那不是能假的一半 ✓）。
 
+import { readFileSync, existsSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+import { dirname, join } from 'node:path';
 import { referenceIntegrityProblems } from '../editor/lib/core/k4criteria.mjs';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+const SELFTEST = process.argv.includes('--selftest');
+
+/** 两条打印件（**分开报** ✓ —— 未入库⇒`git add`、不存在⇒改登记，修法不同 ✓）。 */
+const UNTRACKED_HINT = '未入库';
+const MISSING_HINT = '不存在的文件';
 
 let bad = 0;
 const t = (label, ok, extra = '') => {
@@ -37,7 +61,9 @@ const TRACKED = new Set([
 	'stories/night-ferry/00-meta.twee',
 ]);
 const existsOf = (rel) => TRACKED.has(rel);
-const problemsOf = (registry) => referenceIntegrityProblems({ registry, slugSet: SLUGS, existsOf });
+/** 注入口（`#1052`）：同一份 `TRACKED` 兼作**已入库**集合 ✓（两轴各有一格能假的下半 —— 见 ⑤/⑦）。 */
+const trackedOf = (rel) => TRACKED.has(rel);
+const problemsOf = (registry) => referenceIntegrityProblems({ registry, slugSet: SLUGS, existsOf, trackedOf });
 
 // ── ① `hatches[].slug` ────────────────────────────────────────────────────
 t('正例①：`hatches[].slug` 指向**现存**故事 ⇒ 不报',
@@ -111,8 +137,63 @@ t('边界⑤：`slugSet` 传**数组**也认（与传 Set 同判 ✓ —— 注�
 		`点数 ${p.length} · 位置 ${p.map((x) => x.at).join(',')}`);
 }
 
+// ── ⑦ **主跑判据**（`#1052`）：真登记表里的文件类引用必须「**已入库 ∩ 存在**」✓ ─────────────────
+//   ⚠️ 本节**不是**合成例：真 `escape-hatch.json` ＋ 真 `git ls-files` ＋ 真 `existsSync`（宿主注入 ✓）。
+//   ⚠️ 它**在 `--selftest` 下也跑** ✓（探针跑的就是 `--selftest` ⇒ 不跑则探针不咬 ✗ —— 见顶注 ✓）。
+if (SELFTEST) {
+	const real = JSON.parse(readFileSync(join(ROOT, 'editor/escape-hatch.json'), 'utf8'));
+	const slugsOnDisk = execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
+	const trackedReal = new Set(slugsOnDisk);
+	const realStories = [...new Set([...trackedReal].filter((f) => /^stories\/[^/]+\//.test(f)).map((f) => f.split('/')[1]))];
+	/** 主门口径的原样封装：真存在性 ＋ 真入库（`trackedOf` 可**局部**替换以驱动那一格 ✓）。 */
+	const P = (registry, { trackedOver = (r) => trackedReal.has(r), existsOver = (rel) => existsSync(join(ROOT, rel)) } = {}) =>
+		referenceIntegrityProblems({ registry, slugSet: new Set(realStories), existsOf: existsOver, trackedOf: trackedOver });
+
+	t('真表·干净：真 slugSet ＋ 真 existsOf ＋ 真 trackedOf ⇒ 0 条（**基线绿** ✓ —— 探针要求"变异前绿" ✓）',
+		P(real).length === 0, `点数 ${P(real).length} · ${P(real).map((p) => p.at).join(',')}`);
+
+	{   // 能假格①：**真表 ＋ 真存在性**，只把 `trackedOf` 对这一条说成「未入库」⇒ 必须报且**注明未入库** ✓
+		const f = (real.hatchFiles ?? [])[0];
+		const p = f ? P(real, { trackedOver: (r) => r !== f }) : [];
+		t(`未入库必报（\`hatchFiles[]\`）：真表 ＋ \`trackedOf(\`${f}\`)===false\` ⇒ 报 1 条且含「${UNTRACKED_HINT}」（\`git add\` 之前跑＝**假绿** ✓）`,
+			p.length === 1 && p[0]?.untracked === true && p[0]?.at === 'hatchFiles[0]' && p[0]?.why.includes(UNTRACKED_HINT),
+			`点数 ${p.length}${p[0] ? ' · why=' + p[0].why.slice(0, 40) : ''}`);
+	}
+
+	{   // 能假格②：同上但**面是 `refusedFaces[].file`**（两条路径都要能假 ✓，不能只测一条 ✓）
+		const f = (real.refusedFaces ?? [])[0]?.file;
+		const p = f ? P(real, { trackedOver: (r) => r !== f }) : [];
+		t(`未入库必报（\`refusedFaces[].file\`）：真表 ＋ \`trackedOf(\`${f}\`)===false\` ⇒ 报 1 条且含「${UNTRACKED_HINT}」`,
+			p.length === 1 && p[0]?.untracked === true && p[0]?.at === 'refusedFaces[0].file' && p[0]?.why.includes(UNTRACKED_HINT),
+			`点数 ${p.length}`);
+	}
+
+	{   // 能假格③：**不在磁盘** ⇒ 报「不存在」且**不得**标 `untracked`（两条**分开** ✓：修法不同 ✓）
+		const f = (real.hatchFiles ?? [])[0];
+		const p = f ? P(real, { existsOver: (r) => r !== f }) : [];
+		t(`不存在必报且**不**标未入库：真表 ＋ \`existsOf(\`${f}\`)===false\` ⇒ 报 1 条、含「${MISSING_HINT}」、\`untracked\` 不置位 ✓`,
+			p.length === 1 && p[0]?.untracked !== true && p[0]?.why.includes(MISSING_HINT),
+			`点数 ${p.length}`);
+	}
+
+	t('🔴 顺序不可反：文件**既不在磁盘也不入库** ⇒ 报「不存在」（磁盘口径是真因 ✓），**不是**「未入库」（那会说错修法 ✗）',
+		(() => {
+			const p = referenceIntegrityProblems({
+				registry: { hatchFiles: ['stories/__gone__/h.twee'], refusedFaces: [{ file: 'stories/__gone__/00-meta.twee', why: 'w', ticket: '#1', paths: 'p' }] },
+				slugSet: SLUGS, existsOf: () => false, trackedOf: () => false,
+			});
+			return p.length === 2 && p.every((x) => x.untracked !== true && x.why.includes(MISSING_HINT));
+		})());
+
+	t('边界：**不注入** `trackedOf` ⇒ 行为与 `#1052` 之前逐字相同（不误报已存在文件 ✓ —— 向后兼容 ✓）',
+		referenceIntegrityProblems({ registry: { hatchFiles: ['stories/face-fixture/12-hooks.twee'] }, slugSet: SLUGS, existsOf }).length === 0);
+
+	t('边界：一条坏引用**只报一次** ✗（不重复报"不存在＋未入库"两条 ✓）',
+		referenceIntegrityProblems({ registry: { hatchFiles: ['stories/__gone__/h.twee'] }, slugSet: SLUGS, existsOf: () => false, trackedOf: () => false }).length === 1);
+}
+
 if (bad) {
-	console.error(`\n✗ 门面引用完整性自证：${bad} 条未过（本件是 #1016 的**能假**那一半 ✗ —— 它红了说明判据被改坏或被摘掉 ✓）`);
+	console.error(`\n✗ 门面引用完整性自证：${bad} 条未过（本件是 #1016／#1052 的**能假**那一半 ✗ —— 它红了说明判据被改坏或被摘掉 ✓）`);
 	process.exit(1);
 }
-console.log('\n✔ 门面引用完整性自证通过（`#1016`：hatches[].slug ＋ hatchFiles[] ＋ refusedFaces[].file 三类引用 · 正反例成对 ＋ 留痕不罚 ＋ 不越界判）');
+console.log('\n✔ 门面引用完整性自证通过（`#1016`＋`#1052`：hatches[].slug ＋ hatchFiles[] ＋ refusedFaces[].file 三类引用 · 正反例成对 ＋ 留痕不罚 ＋ 不越界判 ＋ 文件类引用要求「已入库 ∩ 存在」）');

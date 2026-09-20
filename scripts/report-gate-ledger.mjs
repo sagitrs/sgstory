@@ -52,6 +52,13 @@ export const REASONS = {
 	'test/saveload-inventory.mjs': { wired: true, form: '行为化', reason: '自证 6 例（含 widget 间接改状态）' },
 	'test/layering.mjs': { wired: true, form: '行为化', reason: '自证 **33** 条断言（**量法**：`node test/layering.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝模块依赖（`cases` 11 项，含 `#893` 两层登记的三条正反例）/ 点号 defines / 层间方向 / engine rank 派生与四条禁止边' },
 	'test/saveload.mjs': { wired: true, form: '行为化', reason: '**自证按需跑**：`node test/saveload.mjs --selftest`（故障注入＝落档后人为扰动，断言比较器判红）；不塞主链的理由＝自证需完整导航（成本≈主跑 30s，收益不值）' },
+	// `#1056`（**假阳性那一格**）：本件的 `--selftest` **不是入口** ✗ —— 它是**真断言的载荷**
+	//   （`cli(['--selftest'])` 在测壳的旗标面 ✓）⇒ 裸调与 `--selftest` 输出**逐字节相同** ✓。
+	//   处置＝**不接也不删**（`#1031` 的口径 ✓）：硬接一个无意义旗标 ＝ 为凑绿而接线 ✗；删那个字符串 ＝ 拆真断言 ✗。
+	//   ⚠️ 本件**已接**在 `test-plan` 里（裸调段 ＋ `test-story-ci-mjs-selftest` 段跑的是**同一件事** ✓ ——
+	//     那是 `#1031` 留的**成对登记形状**，非本片新增 ✗）；`selftestDispatched` 修掉后这一行
+	//   **不再被要求接线** ✓ ⇒ 台账里它是「行为化 ✅」。
+	'test/story-ci.mjs': { wired: true, form: '行为化', reason: '**自证的归位（`#1056`）**：本件的 `--selftest` **不是入口** ✗ —— 它是**真断言的载荷**（`cli([\'--selftest\'])` 测壳的旗标面 ✓）⇒ 裸调与 `--selftest` 输出逐字节相同 ✓。⇒ **不接也不删**（`#1031` 口径 ✓）：硬接无意义旗标 ＝ 为凑绿而接线 ✗、删字符串 ＝ 拆真断言 ✗。真断言面由**裸调段**（`test-story-ci-mjs`）执行 ✓ —— `test-plan` 里那个 `-selftest` id 跑的就是裸调 ✓。' },
 };
 
 
@@ -175,6 +182,31 @@ const push = (id, kind, wired, selfProof, extra = {}) => {
  * **量法（可粘贴复跑 ✓）**：`node scripts/report-gate-ledger.mjs --selftest`（四条正反例 ✓）＋ `--update` 看那一列的变化 ✓。 */
 export const hasSelfProof = (src) => /负例|反例|selftest/.test(maskComments(String(src ?? ''), { file: 'ledger', twee: false }));
 
+/** `#1056` ✓：**入口**判定 —— 件里是否真有 `--selftest` 的**真派发**（而不是"提到了这个词"✗）。
+ *
+ * 洞（实测 ✓）：`test/story-ci.mjs` 里的 `--selftest` **只是一个真断言的载荷** ——
+ *   `cli(['--selftest'])` 在测**壳的旗标面** ✓ ⇒ 裸调与 `--selftest` **输出逐字节相同** ✗，
+ *   件内没有"看见 `--selftest` 就走另一条分支"这回事 ✓ —— 而**子串**判据（`/--selftest/`）
+ *   把它当成"暴露了入口"✗ ⇒ 再去要求"接线"⇒ 逼人加一个**无意义的旗标**（本仓禁的"为凑绿而接线"✗）。
+ *
+ * ⇒ 判据换成**两个条件的合取** ✓：件里既**提到** `--selftest` ✓ **又**读了命令行（`process.argv` ✓）。
+ *   ⚠️ **合取，不是只看 `process.argv`** ✗（实测踩过 ✓）：`test/integrity.mjs` 读了 argv（`process.argv[2]`）
+ *   但**根本没有 `--selftest`** ✗ ⇒ 只看 argv 会把它的行为化率读数**错误地降级**（无入口却被要求接线 ✗）。
+ *   本仓 37 个提到 `--selftest` 的件里**恰好 1 个**不符（`story-ci.mjs` ✓）—— 实测可复跑：
+ *   `git ls-files test` ＋ 剥注释后同时判 `/--selftest/` 与 `/process\.argv/` ✓。
+ *
+ * ⚠️ **它是什么、不是什么** ✗（不夸大 ✓）：这是一个**入口**的近似判据 ——
+ *   `process.argv` 出现只证明"件**读了**命令行"✓，**不证明**那句自证"真会红"✗（那要**探针** ✓，见 `probeStateOf`），
+ *   也不排除"读了 argv 但分支与 `--selftest` 无关"的写法 ✓。本票拒绝"输出是否不同"那种**代理**（要跑件、要 subprocess ✗），
+ *   取**能机判、清单量（37 件）可逐件复核**的较小口径 ✓ —— 边界写在这里，别读成"已证明派发"✗。
+ *
+ * **量法（可粘贴复跑 ✓）**：`node scripts/report-gate-ledger.mjs --selftest`（四条正反例 ✓）＋
+ *   把某件的 `--selftest` 派发行**原样保留**、只删 `test-plan` 里的接线 ⇒ 该行仍变 `—` ✓（"真未接线"照样抓得住 ✓）。 */
+export const selftestDispatched = (src) => {
+	const code = maskComments(String(src ?? ''), { file: 'ledger', twee: false });
+	return /--selftest/.test(code) && /process\.argv/.test(code);
+};
+
 /** `#1019` ④ ✓：自证列**从"关键词代理"升级为"**要求接线 + 读到执行**"** ✗。
  *
  * 洞（实测 ✓）：`test/repo-shape.mjs` 那类件**写了 `--selftest` 且实现了** ✓，但 `test-plan.mjs` 里**只登记了正跑**、
@@ -194,12 +226,15 @@ export const hasSelfProof = (src) => /负例|反例|selftest/.test(maskComments(
 export const selfProofWired = (file, src, { plan = testPlan() } = {}) => {
 	if (!hasSelfProof(src)) return false;                       // ① 实现面（剥注释后确有"反例/负例/selftest"的信号 ✓）
 	const code = maskComments(String(src ?? ''), { file, twee: false });
-	// ② **只对"暴露了 `--selftest` 入口"的件**追加接线要求 ✗ ——
+	// ② **只对"暴露了 `--selftest` 入口"的件**追加接线要求 ✗（`#1056`：入口 ⇒ 真派发，不是词出现 ✓）——
 	//   ⚠️ 否则**过严**：多数件把负控制**写在主跑里**（顶层 `t('🔴 反例：…')` ✓ 由主段执行 ⇒ 自证**确实在跑** ✓），
 	//   要求它们也单独接一个 `--selftest` 段 ＝ 逼人加空壳 ✗（实测：一刀切会把 21 行从 ✅ 打成 `—`，
 	//   行为化率 69.8% ⇒ 43.8% ✓ —— 那是**量法错**，不是真相 ✓）。
 	//   ⇒ 真正要守的那一格是 `#1018` 的形状：**件里实现了 `--selftest` 却没接线** ⇒ 那句"自证"在 CI 里从未跑过 ✗。
-	if (!/--selftest/.test(code)) return true;                  // 无 selftest 入口 ⇒ 无接线可要求 ✓
+	//   ⚠️ `#1056` 修正：上句的"**实现了**"要用 `selftestDispatched` 判（**真派发** ✓）——
+	//     子串口径会把 `test/story-ci.mjs`（`--selftest` 只是**真断言载荷**）误判成"有入口"✗ ⇒ 假阳性 ✓。
+	//     那一格的合法归位（**不接也不删** ＋ 理由）见 `REASONS['test/story-ci.mjs']` ✓。
+	if (!selftestDispatched(src)) return true;                  // 无 selftest **入口** ⇒ 无接线可要求 ✓
 	return plan.some((seg) => typeof seg?.cmd === 'string' && seg.cmd.includes(`test/${file} --selftest`));
 };
 
@@ -306,6 +341,18 @@ const selftest = () => {
 		selfProofWired('x.mjs', 'if (process.argv.includes("--selftest")) {} t("反例：…", () => 1)', { plan: [{ cmd: 'node test/x.mjs' }] }) === false);
 	h('`selfProofWired`：没实现 ⇒ false ✓（能假的另一半 ✓）',
 		selfProofWired('x.mjs', 'const a = 1;', { plan: [{ cmd: 'node test/x.mjs --selftest' }] }) === false);
+	// `#1056`（假阳性那一格）—— 三条成对：子串不算入口 ✓／真未接线照旧抓得住 ✓／真派发照旧要求接线 ✓
+	h('🔴 `selftestDispatched`：`--selftest` **只作断言载荷**（无 `process.argv`）⇒ false ✓（旧子串口径在这里误判为"有入口"✗）',
+		selftestDispatched('const r = cli(["--selftest"]);\nt("壳级自证通过", r.status === 0);') === false);
+	h('🔴 `selftestDispatched`：读 argv 但件里**根本没有 `--selftest`** ⇒ false ✓（只看 argv 会把无入口的件误降级 ✗）',
+		selftestDispatched('const SRC = process.argv[2] ?? null;\nconsole.log(SRC);') === false);
+	h('🔴 `selfProofWired`：上述件 ⇒ **true 且不看接线** ✓（＝不逼人加无意义旗标 ✗； `story-ci` 那一格的归位 ✓）',
+		selfProofWired('story-ci.mjs', 'const r = cli(["--selftest"]); t("🔴 反例：…", () => 1);', { plan: [{ cmd: 'node test/story-ci.mjs' }] }) === true);
+	h('`selftestDispatched`：**真派发**（`--selftest` ＋ `process.argv` 都在）⇒ true ✓（能假的另一半 ✓）',
+		selftestDispatched('if (process.argv.includes("--selftest")) selftest();') === true);
+	h('`selfProofWired`：真派发 ＋ **未接线** ⇒ 仍 false ✓（`#1056` 没把这一格放宽 ✗ —— 修的是假阳性，不是拆闸门 ✓）',
+		selfProofWired('x.mjs', 'if (process.argv.includes("--selftest")) {} t("反例：…", () => 1)', { plan: [{ cmd: 'node test/x.mjs' }, { cmd: 'node test/x.mjs --selftest' }] }) === true
+		&& selfProofWired('y.mjs', 'if (process.argv.includes("--selftest")) {} t("反例：…", () => 1)', { plan: [{ cmd: 'node test/y.mjs' }] }) === false);
 	// `#908` ②：**形态**判定（纯函数 ✓）—— 修掉的正是"测试脚本无条件算行为化"那一处自相矛盾 ✗
 	h('`formOf`：测试脚本 ＋ **无自证** ⇒ \`行为化（缺自证）\` ✓（旧写法会误标 `行为化` ✗ ⇒ 进不了工作清单 ✗）', formOf({ kind: '测试脚本', selfProof: false }) === '行为化（缺自证）');
 	h('`formOf`：测试脚本 ＋ **有自证** ⇒ `行为化` ✓（能假的另一半 ✓）', formOf({ kind: '测试脚本', selfProof: true }) === '行为化');
@@ -334,7 +381,7 @@ const selftest = () => {
 		console.log(`${ok ? '✓' : '✗'} ${name}（命中 ${got}，期望 ${want}）`);
 	}
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过：仅登记无理由红 / 未接线无理由红 / 合规绿 / 有理由的仅登记绿 ＋ `hasSelfProof` 四条正反例（注释不算 ✓）＋ `#1019` **接线面**四条正反例 ✓');
+	console.log('\n✔ 自证通过：仅登记无理由红 / 未接线无理由红 / 合规绿 / 有理由的仅登记绿 ＋ `hasSelfProof` 四条正反例（注释不算 ✓）＋ `#1019` **接线面**四条正反例 ✓ ＋ `#1056` **入口面**四条（子串不算入口 ✓／真派发照旧要求接线 ✓）');
 };
 
 export const rowIds = rows.map((r) => r.id);

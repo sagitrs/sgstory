@@ -54,13 +54,15 @@ export const PROBES = [
 		cmd: 'node test/k4-references.mjs',
 		mutation: {
 			// 被测件 ＝ `lib/core/**` ✓（**不是**测试件 ✗）：把「引用不合规就收集」那一路**掐掉** ✓
-			// ⚠️ 错的行是**唯一**的：`out.push` 在这个文件里到处都是，所以锚那条带 `r.at`／`r.why` 的整句 ✓。
+			// ⚠️ 锚的选法：`out.push` 在这个文件里到处都是（13 处 ✓）⇒ 不可用它当锚。
+			//   `#1052` 之后体里有**两条**收集支（磁盘不存在 ✗ ／ 已存在但未入库 ✗）⇒ 锤在**体**上
+			//   只能证明其中一条 ✓ —— 锚落在**循环头**才能同时量到两条 ✓（该字符串在本文件内唯一 ✓）。
 			file: 'editor/lib/core/k4criteria.mjs',
-			find: 'if (!r.ok(r.value)) out.push({ at: r.at, value: r.value, why: r.why });',
-			replace: 'if (false) out.push({ at: r.at, value: r.value, why: r.why });',
+			find: 'for (const r of rows) {',
+			replace: 'for (const r of []) {',
 		},
 		expect: { rc: 1, stdout: /门面引用/ },
-		why: '量的是「登记表里指向**不存在对象**的引用**真会被点名**」（`#1016` 那族：声明了要做 X、实际没做 ✓）—— 掐掉收集那一路 ⇒ 反例①②③ 必须红且点名 ✓（基线绿＝现行登记表里**没有**坏引用 ✓）',
+		why: '量的是「登记表里指向**不存在对象**的引用**真会被点名**」（`#1016` 那族：声明了要做 X、实际没做 ✓）—— 空掉判据循环 ⇒ 反例①②③（与 `#1052` 的未入库/不存在两类）必须红且点名 ✓（基线绿＝现行登记表里**没有**坏引用 ✓）。⚠️ 锚用 `for (const r of rows) {` 而非循环体：`#1052` 把体改成**两条**收集支（磁盘 ✗ ／ 未入库 ✗）⇒ 锤在体上只能证明其中一条 ✓ —— 锤在**循环头**才能同时量到两条 ✓（同一文件内该字符串唯一 ✓）。',
 	},
 	{
 		// 台账行：`scripts/report-gate-ledger.mjs` ✓ —— 探针刀口对着**台账自己** ✓
@@ -70,9 +72,12 @@ export const PROBES = [
 		cmd: 'node scripts/report-gate-ledger.mjs --selftest',
 		mutation: {
 			// 把「自证」判定改成**恒真** ✗ ⇒ 它自己那 4 条正反例里，「只在注释里写 ⇒ false」必须红 ✓
+			// ⚠️ 锚必须**唯一** ✗：`#1056` 新增了 `selftestDispatched`（内部也是同一个 `maskComments(...)` 表达式）
+			//   ⇒ 旧锚（只锤 `.test(maskComments(...))` 那半句）变成 **2 处** ⇒ 「锚不唯一」✗。
+			//   ⇒ 带上 `export const hasSelfProof` 头，锚定到**那一条声明** ✓（实测：改后 `--probe=fast` 1 处 ✓）。
 			file: 'scripts/report-gate-ledger.mjs',
-			find: '.test(maskComments(String(src ?? \'\'), { file: \'ledger\', twee: false }))',
-			replace: '.test("") || true)',
+			find: 'export const hasSelfProof = (src) => /负例|反例|selftest/.test(maskComments(String(src ?? \'\'), { file: \'ledger\', twee: false }));',
+			replace: 'export const hasSelfProof = (src) => true || /负例|反例|selftest/.test(maskComments(String(src ?? \'\'), { file: \'ledger\', twee: false }));',
 		},
 		expect: { rc: 1, stdout: /hasSelfProof/ },
 		why: '量的是「自证」判定**自己**能假 ✓（本列若恒真 ⇒ 整列读数作废 ✗）—— 与 `#899` ③ 同源：**判定也要有能假的另一半** ✓',

@@ -176,9 +176,15 @@ export const SEGMENTS = [
 	{ id: "test-k4-args", phase: 'test', cost: 0, cmd: "node test/k4-args.mjs" },
 	// `#1016`：**门面引用完整性**（登记表里指向仓内对象的键必须现存 ✓ —— `hatches[].slug`／`hatchFiles[]`／`refusedFaces[].file`）。
 	// 为什么要单独一段 ✗：这一格要**探针**才能从"写了断言"升级为"真会红"（`#908` ① ✓），而探针的 `id` 必须逐字对上台账行
-	// ⇒ 台账行只从 `test/**`／`scripts/report-*.mjs`／audit 开关来 ✓ ⇒ 本件就是那个行 ✓。**纯件**（不碰 fs／不跑 build ✗）
+	// ⇒ 台账行只从 `test/**`／`scripts/report-*.mjs`／audit 开关来 ✓ ⇒ 本件就是那个行 ✓。
+	// ⚠️ `#1052` 起本件**不再是纯件**（⑦ 节走**真表**：真 `escape-hatch.json` ＋ 真 `git ls-files` ＋ 真 `existsSync` ✓，
+	//   与真门 ③d 同一口径 ✓ —— 仍**只读** ✗ 不写 ✓，所以仍不需 `needs` ✓ 也不需产物 ✓）。
 	// ⇒ `test` 相位、无 `needs` ✓。
 	{ id: "test-k4-references", phase: 'test', cost: 0, cmd: "node test/k4-references.mjs" },
+	// ⚠️ `#1052`：**成对登记**（`#1018` 的形状 ✓）—— ⑦ 节是「未入库／不存在分开报」的**能假**那一半，
+	//   只在 `--selftest` 下跑（探针锤的也是它 ✓）⇒ 不登记它，那一半在 CI 里**零守护** ✗。
+	//   两节都跑 = 裸调是①②～⑥的回归，`--selftest` 多跑⑦的判别性格 ✓。
+	{ id: "test-k4-references-selftest", phase: 'test', cost: 0, cmd: "node test/k4-references.mjs --selftest" },
 	// `#762` 车道 B：**条件表往返**（61 行）。**权威判据是 L1**：两版各自求值后行数组**深度相等**
 	// ＋ **字段直方图一致**（每列出现多少次都打出来 —— `#557` 那条老账：总体非空拦不住「少抽一项」）。
 	// **为什么这一段显式用 `--l3=report`**：手写版用**模板串**写 `text`、生成物用单引号串 —— 纯**排版**差异，

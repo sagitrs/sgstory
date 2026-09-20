@@ -48,6 +48,9 @@ export const SEGMENTS = [
 	// 车道 D 切片 3（`#215` 报备 `18502113`）：**键级图的显示层** ✓（jsdom ✓，无宿主副作用 ✓ ⇒ cost 0.4 ✓）。
 	{ id: "test-web-event-graph-mjs", phase: 'test', cost: 0.4, cmd: "node test/web-event-graph.mjs" },
 	// 车道 D 切片 2（`#215` 报备 `18501384`）：**事件依赖的键级图** ✓（只读 ✓ ⇒ 无前置 ✓、纯计算 ⇒ cost 0 ✓）。
+	// `#1031`：**自证接线**（本件自带 `--selftest` 入口却从未在 CI 里跑过 ⇒ “能假”那半零守护）。
+	//   ⚠️ 接线前提：该 `--selftest` 跑的是**合成输入的成对正反例**（主跑不执行那些例）—— 已逐件实跑 + 看过实现面 ✓。
+	{ id: "test-event-graph-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/event-graph.mjs --selftest" },
 	{ id: "test-event-graph-mjs", phase: 'test', cost: 0, cmd: "node test/event-graph.mjs" },
 	// 车道 G 前半 · 切片 1a（`#215` 报备 `18502752`）：**方言指纹** ✓（只读 ✓ ⇒ 无前置 ✓、纯计算 ＋ 读三故事的真文件 ⇒ cost 0.1 ✓）。
 	{ id: "test-dialect-mjs", phase: 'test', cost: 0.1, cmd: "node test/dialect.mjs" },
@@ -63,6 +66,7 @@ export const SEGMENTS = [
 	// `#794` P1①：「故事包 I/O ＝ 唯一写路」的自证（核心在 `editor/lib/core/story.mjs` ✓；含**写侧哨兵**：拒绝型 io ⇒ 写入当场失败 ✓）。
 	{ id: "test-core-story-mjs", phase: 'test', cost: 0, cmd: "node test/core-story.mjs" },
 	// `#794`：**import 副作用门** —— 任何 `editor/**` 模块被 import ⇒ 跑完且只留哨兵 ✓（`exit(0)` 与 import 期输出都必红 ✓）。
+	{ id: "test-import-side-effects-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/import-side-effects.mjs --selftest" },   // `#1031`：接线（合成模块输入 ⇒ 布尔计入退出码 ✓）
 	{ id: "test-import-side-effects-mjs", phase: 'test', cost: 0.6, cmd: "node test/import-side-effects.mjs" },
 	{ id: "scripts-audit-mjs-consequences-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --consequences --check" },
 	{ id: "scripts-audit-mjs-a11y-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --a11y --check" },
@@ -95,6 +99,7 @@ export const SEGMENTS = [
 	{ id: "test-smoke-mjs-raf-delayed", phase: 'test', cost: 8, cmd: "SG_RAF_DELAY_MS=800 node test/smoke.mjs" },
 	// #441 切片③④：多故事产物 + 书架页 + 故事页字体前缀（纯函数自证 + 真实产物检查）
 	// `#460`／`#566`：**逐故事真启动**（StoryInit 无错 ＋ `$era` 已定义 ＋ 起始段非空）——本段已含此判据
+	{ id: "test-multi-story-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/multi-story.mjs --selftest" },   // `#1031`：接线（S1–S5 正反例，主跑不执行这些合成例 ✓）
 	{ id: "test-multi-story-mjs", phase: 'test', cost: 0.1, cmd: "node test/multi-story.mjs" },
 	// #458 前置：**六处同步**校验（源文件/ORDER/MODULES/故事清单/常量声明/聚合返回）＋单根假设清点
 	{ id: "scripts-move-precheck-mjs", phase: 'test', cost: 0.2, cmd: "node scripts/move-precheck.mjs" },
@@ -125,6 +130,7 @@ export const SEGMENTS = [
 	{ id: "test-focus-after-nav-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/focus-after-nav.mjs --selftest" },
 	{ id: "test-focus-after-nav-mjs", phase: 'test', cost: 1, cmd: "node test/focus-after-nav.mjs" },
 	{ id: "test-globals-mjs", phase: 'test', cost: 0, cmd: "node test/globals.mjs" },
+	{ id: "test-scenarios-mjs-selftest", phase: 'test', cost: 0.3, cmd: "node test/scenarios.mjs --selftest" },   // `#1031`：接线（合成输入成对 ✓；主跑 cost 23.6 ⇒ 自证 0.3，量过）
 	{ id: "test-scenarios-mjs", phase: 'test', cost: 23.6, cmd: "node test/scenarios.mjs" },
 	// `#215` 裁 (B) ✓：**见证机器**自证 —— `walker --witness` 产出的轨迹够不够当 P4 的"见证"（到 ending ✓／同 seed 逐格可复跑 ✓／两条断言能假 ✓；实测 ≈6s ✓）。
 	{ id: "test-witness-trace-mjs", phase: 'test', cost: 0.4, cmd: "node test/witness-trace.mjs" },
@@ -249,6 +255,10 @@ export const SEGMENTS = [
 	// `#984`（P3-④ **用户故事 CI**）：**按故事发现 ⇒ 逐故事跑 K 门** ✓ —— 量到的缺口是"`test-plan` 里故事名
 	//   **写死**" ✗ ⇒ 新故事（用户做的第 4 个）不会自动进 CI ✗。本段跑"发现 → 逐故事 + 全局面每轮一次" ✓；
 	//   自证见 `test/story-ci.mjs`（含**能假**一格：夹具故事必须出现在 `--list` ✓）。
+	// ⚠️ `#1031` 起片实测：本件的 `--selftest` **不是入口** ✗ —— 实测 `node test/story-ci.mjs --selftest` 与**裸调输出逐字节相同**，且件内**无 `process.argv…includes('--selftest')` 派发**（那个字符串是**真断言**：`cli(['--selftest'])` 在测 `cli` 的旗标 ✓）。
+	//   ⇒ 台账 `selfProofWired()` 的子串判据在本行是**假阳性**（它要求 plan 里出现字面量 `test/story-ci.mjs --selftest`）。
+	//   ⇒ **不硬接一个无意义旗标**（票面禁“为凑绿而接线” ✗）、也**不删**件内那个字符串（删了会拆掉一条真断言 ✗）—— 留痕在此，口径修正见 `#1031` 票内。
+	//   本段的 `cmd` **裸调即其自证**（断言每次调用都跑 ✓）。
 	{ id: "test-story-ci-mjs-selftest", phase: 'test', cost: 0.2, cmd: "node test/story-ci.mjs" },
 	// ⚠️ **为什么有 `needs`** ✗：本段**发现"活的" `stories/`** ✓（口径＝目录里有 `00-story.json` ✓），
 	//   而另两段会在**运行中往 `stories/` 放临时故事**（`test-web-preview.mjs` 建 `stories/__e2e`；
@@ -259,20 +269,26 @@ export const SEGMENTS = [
 	//   不是这条红的原因 ✗。
 	{ id: "test-story-ci-mjs", phase: 'test', cost: 18.6, needs: ["test-web-preview-mjs", "test-lint-story-mjs"], cmd: "node editor/story-ci.mjs" },
 	// `#761` P1 第一片（WebUI 静态加载 ✓）：纯加载件的测例（含 `--selftest` ✓ —— 那格"行为化"有依据 ✓）。
+	{ id: "test-web-loader-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/web-loader.mjs --selftest" },   // `#1031`：接线
 	{ id: "test-web-loader-mjs", phase: 'test', cost: 0.1, cmd: "node test/web-loader.mjs" },
 	// `#761` P1 第二片：**页内编译对拍**（三故事 × 产物逐字节 ✓ ＋ 反例：源变则异 · 无源必抛 ✓）。
+	{ id: "test-web-compile-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/web-compile.mjs --selftest" },   // `#1031`：接线
 	{ id: "test-web-compile-mjs", phase: 'test', cost: 0.3, cmd: "node test/web-compile.mjs" },
 	// `#761` P1 第三片：**写包对拍**（经唯一写路 writeStoryPackage ✓，与 CLI 产物逐字节 ✓）。
+	{ id: "test-web-save-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/web-save.mjs --selftest" },   // `#1031`：接线
 	{ id: "test-web-save-mjs", phase: 'test', cost: 0.3, cmd: "node test/web-save.mjs" },
 	// `#761` P1 六片A-2：**预览读数**（控制跑 ✓／区间＋标记 ✓／不受影响面 ✓／对偶 ✓／状态敏感性 ✓／不污染 dist ✓）。
 	// ⚠️ cost 高: 内含**两次构建** ＋ 4 次 boot（~5–8 分钟）✓
+	{ id: "test-web-preview-mjs-selftest", phase: 'test', cost: 0.3, cmd: "node test/web-preview.mjs --selftest" },   // `#1031`：接线（假串驱动纯件 `diffSpan` ✓）
 	{ id: "test-web-preview-mjs", phase: 'test', cost: 8, cmd: "node test/web-preview.mjs" },
 	{ id: "test-web-diagnose-mjs", phase: 'test', cost: 1, cmd: "node test/web-diagnose.mjs" },   // P2（`#761`）第一片：实时诊断纯件 ✓（纯函数＋无 io ⇒ 页内可用 ✓）
 	{ id: "test-web-diagnose-view-mjs", phase: 'test', cost: 1, cmd: "node test/web-diagnose-view.mjs" },   // P2（`#761`）第三片：显示层 ＋ 两个 sha ＋ 六条读数 ✓（纯 ✓）
 	{ id: "test-web-diagnose-wire-mjs", phase: 'test', cost: 1, cmd: "node test/web-diagnose-wire.mjs" },   // P2（`#761`）第三片接线：不落盘也能看见 ✓（jsdom ✓）
 	// `#761` P1 第四片：**改一个事件**的字段级读数（差异恰好一处 ✓／写回逐字段一致 ✓／产物只少数行变 ✓）。
+	{ id: "test-web-events-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/web-events.mjs --selftest" },   // `#1031`：接线
 	{ id: "test-web-events-mjs", phase: 'test', cost: 0.3, cmd: "node test/web-events.mjs" },
 	// `#761` P1 第五片：**DOM 接线**（页面路 vs 直接路逐字节同 ✓；jsdom 显式收场 ✓）。
+	{ id: "test-web-form-mjs-selftest", phase: 'test', cost: 0.4, cmd: "node test/web-form.mjs --selftest" },   // `#1031`：接线
 	{ id: "test-web-form-mjs", phase: 'test', cost: 0.5, cmd: "node test/web-form.mjs" },
 	// `#892`（P4-1）：页内**新建**（起手包落内存 ✓ 不碰 fs ✓ 可接既有表单 ✓）（jsdom ✓）。
 	{ id: "test-web-new-package-mjs", phase: 'test', cost: 0.5, cmd: "node test/web-new-package.mjs" },
@@ -291,6 +307,7 @@ export const SEGMENTS = [
 	// `#693`（P1）：**主交互路径门**（确定性路线：点得动 · 无红框 · 到终点 · 产出可见）
 	// 洞窟「商人」门（`#696`：金币要有出口 ⇒ 旅人里随机出现商人；报价读声明面 · 买不起不显示 · 火把油）
 	// 洞窟五步主线**末步**门（实测）：走满 5 步再回岔口时**不许**抛 `roadOffer(6)` 红框 ⇒ 越界走退路
+	{ id: "test-cli-surface-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/cli-surface.mjs --selftest" },   // `#1031`：接线（可注入假 runner 驱动 `judgeSurface` 五例 ✓）
 	{ id: "test-cli-surface-mjs", phase: 'test', cost: 4, cmd: "node test/cli-surface.mjs" },
 	// `#660` 片三-3：**pc 默认形状住引擎、数值走故事**（`Game.Pc.defaults()` 摘掉 `Sg.story.pcDefaults()` 后每个值都必须中性；
 	// 缺面 ⇒ 显式降级 · 畸形面 ⇒ fail-loud · `migrate()` 兜底带故事数值 · 三故事键集合一致）

@@ -1,6 +1,6 @@
 // canon 规则层声称门（#247「Game.Rules.claims」，实现名 Game.RuleClaims）——行为门：
 //   每条＝一条 canon 条文 × 一条**可执行探针**（渲染某段落 × 某时代 × 某状态 → 断言屏上文本）。
-//   ① 条文侧：docAnchor 必须逐字存在于 docs/lore-canon.md（条文被改写/删除＝红）；
+//   ① 条文侧：docAnchor 必须逐字存在于 docs/archive/lore-canon.md（条文被改写/删除＝红；`#1077` 随文件入档改道）；
 //   ② 正文侧：include 必须全部在屏、exclude 必须全部不在屏（正文与 canon 脱钩＝红）；
 //   ③ 空探针（只有登记没有断言）＝红（防纸面登记）。
 // 溯源：#239 类「正文与 canon 各说各话」——人力走查发现，本门把它变成常设防线。
@@ -11,7 +11,7 @@ import { readFileSync } from 'node:fs';
 // selftest 分支之前，所以只能动态 import。
 
 const SELFTEST = process.argv.includes('--selftest');
-const DOC = 'docs/lore-canon.md';
+const DOC = 'docs/archive/lore-canon.md';   // `#1077`：故事 1 遗产入档——门改守 archive 冻结锚（历史不抹）
 const docText = readFileSync(DOC, 'utf8');
 
 // ── 纯函数检查器（合成反例可注入 render）────────────────────────

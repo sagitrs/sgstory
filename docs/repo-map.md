@@ -71,7 +71,6 @@ scripts/audit.mjs   质量十一门（--truth --canon --echoes --choices --inter
 
 | 想知道 | 权威 |
 |---|---|
-| 设定/正史（正文与它冲突＝P1） | `docs/lore-canon.md` |
 | 知识模型（笔记/世界态/运行时） | `docs/notes-model.md` |
 | 质量维度与每门判据 | `docs/quality-dimensions.md` |
 | 代码级约定（渲染路径/构建顺序/命名/条件表形状） | `docs/dev-conventions.md` |

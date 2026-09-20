@@ -1,7 +1,7 @@
 # 文字冒险游戏质量维度提取手册（给测试/评审）
 
 > **用途**：把「从竞品与理论里提炼质量维度」这件事变成可复用的作业流程——测试按本手册提取维度、写成判据、落成机检门或人工走查项，交回 #247（十维伞）核销。
-> **配套**：`docs/reviews/quality-selfaudit-ch123.md`（#34 八维首轮自检，历史存档）、`docs/reviews/design-review.md`（D6 可用性走查）、`docs/ui-coverage-gaps.md`（覆盖与未覆盖口径）、`docs/impl-map.md`（工程侧变更账）。
+> **配套**：`docs/reviews/quality-selfaudit-ch123.md`（#34 八维首轮自检，历史存档）、`docs/reviews/design-review.md`（D6 可用性走查）、`docs/ui-coverage-gaps.md`（覆盖与未覆盖口径）、`docs/archive/impl-map.md`（工程侧变更账，故事 1 遗产已入档 `#1077`）。
 > **原则**（#247 横切验收）：**门必须行为化**——每条机检要么给「正例（置条件→断言效果）＋反例（清条件→断言效果消失）」，要么显式标注「仅登记/存在性检查」并说明理由。
 
 ## 一、提取方法（三步）

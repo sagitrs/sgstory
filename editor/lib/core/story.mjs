@@ -143,11 +143,14 @@ window.Sg.storyId = { slug: '${slug}' };
  *  入口件（`00-meta.twee` ✓）**永远排第一** ✓（`storyOrder()` 拿不准时按清单序 ✓），其余按 `twee` 的键序 ✓（＝编译输出序 ✓）。
  *  ⚠️ 只列**真的写出去了**的件 ✗（漏列 ⇒ `build.mjs` 拒「故事件不在清单里」✗；多列 ⇒ 拒「清单里的文件不存在」✗）
  *  ⇒ 调用方请把**与 `writeStoryPackage` 同一个 `twee` 对象**传进来 ✓（一处真源、两处消费 ✓）。 */
-export const manifestFor = ({ slug, title = '未命名故事', subtitle = '', entry = '开场', gates = [], twee = {} } = {}) => {
+export const manifestFor = ({ slug, title = '未命名故事', subtitle = '', entry = '开场', gates = [], twee = {}, audience = 'content' } = {}) => {
 	const names = Object.keys(twee);
 	if (!names.includes('00-meta.twee')) throw new Error('manifestFor：`twee` 里必须含入口件 `00-meta.twee`（它的 `StoryData.start` 与 `entry` 必须一致 ✓）');
 	const order = ['00-meta.twee', ...names.filter((n) => n !== '00-meta.twee')];
-	return { slug, title, subtitle, entry, contractVersion: CURRENT, files: order.map((n) => `stories/${slug}/${n}`), gates };
+	// `#1035`：新建的故事**默认上架**（`audience: 'content'`）—— 创建路径就是"给自己/用户新开一个故事" ⇒ 默认发布是**显式决定**；
+	//   仓内**内部件**（引擎自检/测试夹具）由人手显式标 `internal` ✓。
+	//   ⚠️ 字段**总要写进清单**（不靠读侧补默认）；读侧 `audienceOf` 仍 fail-loud ⇒ 手工删掉字段会当场报错 ✓。
+	return { slug, title, subtitle, entry, contractVersion: CURRENT, audience, files: order.map((n) => `stories/${slug}/${n}`), gates };
 };
 
 /** 自证：**不碰真磁盘** ✓（假 io 驱动 ⇒ 在 core 里就能证明"写只经这一条路" ✓）。 */

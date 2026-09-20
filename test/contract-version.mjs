@@ -80,6 +80,7 @@ try {
 	// ── 新故事也声明号 ✓（`manifestFor` 带上 ✓）────────────────────────────
 	t('`manifestFor()` 产出的清单**自带 `contractVersion`** ✓（⇒ 页面新建的故事与既有故事同形 ✓）',
 		manifestFor({ slug: 'x', twee: { '00-meta.twee': '' } }).contractVersion === CURRENT);
+	t('`manifestFor()` 产出的清单**自带 `audience`**（`#1035`）', manifestFor({ slug: 'x', twee: { '00-meta.twee': '' } }).audience === 'content');
 
 	// ── 真数据：**发现式**（不写死名单 ✗）──────────────────────────────────
 	const slugs = readdirSync(`${ROOT}/stories`, { withFileTypes: true })

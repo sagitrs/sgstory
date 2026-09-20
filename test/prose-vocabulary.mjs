@@ -17,6 +17,7 @@
 // ## 边界
 // · **只判内容故事**（`audience: content`）；**内部件豁免**（`audience: internal` —— 它们的存在意义就是
 //   替引擎面跑通，禁宏会把它们掏空），但会**打印豁免计数**（不静默 ✗）。
+// · **代码跨度不判**（行内反引号／围栏块 ⇒ 作者【解释语法】不算写代码 ✗；跨度外裸写**照样必红** ✓）
 // · 只判**散文段落**：`[script]`／`[widget]`／`[stylesheet]` 段落里的宏**不判**（那不是散文）。
 // · `/% … %/` 注释（含本仓大量"当初错在哪"的留痕）**剔除**后再判 —— 留痕优先 ✓。
 // · `00-meta.twee`（元数据，非散文）不判。
@@ -103,6 +104,24 @@ export const stripCommentSpans = (bodyLines) => {
 	return out;
 };
 
+/** 剔除**代码跨度**：行内反引号跨度与围栏块内的内容**不判**（`#1050` 复核补）。
+ *  ⚠️ 为什么**不是放宽**（这条决定它合不合规）：本门已豁免两类"**不是在写散文**"的面 ——
+ *  ① `/% … %/` 注释（**留痕**）、② `[script]`／`[widget]`／`[stylesheet]` 段（**机制**）。
+ *  作者在散文里**解释/引用语法**时写的反引号跨度与它们**同族**：那是"在说这句话"，
+ *  不是"让引擎执行这句话" ⇒ 判它＝**误咬**（实测：不加本豁免 ⇒ 命中 1 处 ✗）。
+ *  ➕ 守卫：**跨度之外裸写的宏照样必红** ✓（自证里成对给：跨度内不报 ／ 同句跨度外必报）⇒ 没开新口子。
+ *  实现取"**成对**反引号"（相邻跨度也正确配对 ✓）；行首三反引号 ⇒ 整块当代码不判 ✗。 */
+export const stripCodeSpans = (bodyLines) => {
+	const out = [];
+	let inFence = false;
+	for (const { text, line } of bodyLines) {
+		if (text.trim().startsWith('```')) { inFence = !inFence; out.push({ text: '', line }); continue; }
+		if (inFence) { out.push({ text: '', line }); continue; }
+		out.push({ text: text.replace(/`[^`]*`/g, ''), line });
+	}
+	return out;
+};
+
 /**
  * 判据（**纯函数**）：给定内容故事的散文文件 → 问题列表。
  * @param {{slug:string, files:{path:string,text:string}[], vocab:Set<string>}} args
@@ -113,7 +132,7 @@ export const proseVocabProblems = ({ slug, files, vocab }) => {
 		for (const p of parsePassages(f.text)) {
 			const isProse = !p.tags.some((t) => ['script', 'widget', 'stylesheet'].includes(t));
 			if (!isProse) continue;
-			for (const { text, line } of stripCommentSpans(p.bodyLines)) {
+			for (const { text, line } of stripCodeSpans(stripCommentSpans(p.bodyLines))) {
 				for (const m of text.matchAll(/<<(-?[A-Za-z=!][A-Za-z0-9_-]*)/g)) {
 					const name = m[1];
 					if (FORBIDDEN_BUILTINS.has(name)) {
@@ -141,6 +160,19 @@ const selftest = () => {
 
 	t('正例：散文＋链接＋词汇宏＋back ⇒ 0 问题',
 		proseVocabProblems({ slug: 'demo', vocab, files: mk('河在夜里不出声。\n[[上船|船头]]\n<<give "坏哨">>\n<<ending "抵岸" final>>\n<<back "回开场">>') }).length === 0);
+	// `#1050` 复核（甲的执行面）：**代码跨度**里的宏不判，**跨度外裸写**必判 —— 成对给，证明没放宽
+	t('`#1050` 代码跨度：反引号里的 `<<set>>`（作者在解释语法）⇒ **不报**', (() => {
+		const r = proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'stories/demo/10-x.twee', text: ':: 开场 [prose]\n用 `<<set $x to 1>>` 表示赋值（举例）。\n' }] });
+		return r.length === 0;
+	})());
+	t('`#1050` 对照：同句里**跨度之外**裸写 `<<set>>` ⇒ **必报**（没放宽 ✓）', (() => {
+		const r = proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'stories/demo/10-x.twee', text: ':: 开场 [prose]\n举例：`x` 而这里是真写 <<set $x to 1>>。\n' }] });
+		return r.length === 1 && r[0].code === 'V1';
+	})());
+	t('`#1050` 围栏代码块里的宏 ⇒ 不报（整块不是散文）', (() => {
+		const r = proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'stories/demo/10-x.twee', text: ':: 开场 [prose]\n```\n<<set $x to 1>>\n```\n' }] });
+		return r.length === 0;
+	})());
 	t('反例：`<<set>>` ⇒ V1 且点名',
 		(proseVocabProblems({ slug: 'demo', vocab, files: mk('<<set $x to 1>>') })[0]?.code) === 'V1');
 	t('反例：`<<if>>` ⇒ V1', (proseVocabProblems({ slug: 'demo', vocab, files: mk('<<if $x>>嗯<</if>>') })[0]?.code) === 'V1');

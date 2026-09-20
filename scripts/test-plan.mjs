@@ -45,6 +45,7 @@ export const SEGMENTS = [
 	//   引擎已宣告的词汇宏"；禁 SugarCube 逻辑/表达式宏与未宣告宏（甲-1 的防退化保证）。内部件豁免（打印计数）。
 	{ id: "test-prose-vocabulary-mjs", phase: 'test', cost: 0.5, cmd: "node test/prose-vocabulary.mjs" },
 	{ id: "test-prose-vocabulary-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/prose-vocabulary.mjs --selftest" },
+	// `#1051`：代码跨度豁免（作者解释语法不算写代码）；成对自证在件内 ✓,
 	// 车道 D 切片 3（`#215` 报备 `18502113`）：**键级图的显示层** ✓（jsdom ✓，无宿主副作用 ✓ ⇒ cost 0.4 ✓）。
 	{ id: "test-web-event-graph-mjs", phase: 'test', cost: 0.4, cmd: "node test/web-event-graph.mjs" },
 	// 车道 D 切片 2（`#215` 报备 `18501384`）：**事件依赖的键级图** ✓（只读 ✓ ⇒ 无前置 ✓、纯计算 ⇒ cost 0 ✓）。

@@ -13,11 +13,19 @@
 //   端到端验证 ✗ —— 后者无法在本仓 CI 内自造（需要真 PR）。⇒ 端到端那一手由**人工一次实测**留痕
 //   （票内记录），本门负责"**别再退化**"这一面（与 `#1052` 同族：结构门 + 人工实证配合 ✓）。
 
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname;
-const CI = join(ROOT, '.github/workflows/ci.yml');
+
+/** `#1087`：**射程 ＝ 全部 `.github/workflows/*.yml`** ✗（不再硬编码 `ci.yml`）。
+ *
+ * 为什么之前是缺陷 ✓：门只读 `ci.yml` ⇒ **新增 workflow 的触发面无人守** ✗（`#1071` 建 `full-tier.yml`
+ *   就是第一个实例 —— 它当时**不在门的扫面里**，故该文件里那处 `|| workflow_dispatch` 是"**自愿遵守**"✗
+ *   而不是"门在守"）。⇒ 射程扩到全部 ✓，**含将来新增者** ✓。
+ * ⚠️ 排序（稳定输出 ＋ 可复现 ✓）：`readdirSync` 的次序不该决定报文次序 ⇒ 排一下 ✓。 */
+export const workflowFiles = ({ dir = join(ROOT, '.github/workflows'), readdirSync: rd = readdirSync } = {}) =>
+	rd(dir).filter((f) => f.endsWith('.yml') || f.endsWith('.yaml')).sort().map((f) => join('.github/workflows', f));
 
 /** `types` 的**两种等价写法都认**（`#1054` 复核 ✗ —— 等价形态造成判据缺口即"假绿"）：行内 `types: [a, b]` 与**多行** `types:\n  - a`。
  *  ⚠️ 为什么必须都认：YAML **等价形态**不许造成判据缺口 —— 否则门会被"换个写法"**安静绕过 ⇒ 假绿** ✗，
@@ -40,7 +48,11 @@ export const parseTypes = (prBlock) => {
 };
 
 /** 结构性摘取（**不引 YAML 解析器** ⇒ 零依赖、纯件、可单测 ✓）：
- *  取 `on:` 段里的触发面 ＋ 每个 job 的 `if:` 事件面。够用且稳定（本仓 workflow 由人维护、形状受控）。 */
+ *  取 `on:` 段里的触发面 ＋ 每个 job 的 `if:` 事件面。够用且稳定（本仓 workflow 由人维护、形状受控）。
+ *
+ * ⚠️ `#1087`：**返回 "该面在不在"** ✗ —— 以前只返回 `prTypes`，于是「**没有 `pull_request` 面**」与
+ *   「**有面但没写 `types`**」**长得一样**（都是 `[]`）⇒ 判据无法区分 ⇒ 扩射程后会**误报** ✗。
+ *   ⇒ 补 `hasPR`／`hasPush` 两个布尔（**"面在不在"是独立事实** ✓）。 */
 export const triggerSurface = (text) => {
 	const lines = String(text).split('\n');
 	const onLines = [];
@@ -52,10 +64,28 @@ export const triggerSurface = (text) => {
 	}
 	const onText = onLines.join('\n');
 	const hasDispatch = /^ {2}workflow_dispatch:/m.test(onText);
-	const prBlock = onText.split(/^ {2}pull_request:/m)[1] ?? '';
-	const prTypes = parseTypes(prBlock);
-	const pushBranches = /^ {2}push:\s*$/m.test(onText) && /branches:\s*\[main\]/.test(onText);
-	return { hasDispatch, prTypes, pushBranches };
+	// `#1087`：**面在不在**——先判它，再取该面的内容（否则"无面"与"空面"分不开 ✗）
+	// ⚠️ **块提取必须用行级扫描** ✗ —— 踩过：`onText.slice(idx).split(/^ {2}\S/m)[0]` 会**在开头就命中**
+	//   （该面的首行自己就以「两空格＋非空」开头）⇒ 第 0 段是**空串** ⇒ 块内容全丢 ✗
+	//   （后果：`ci.yml` 的 `prTypes` 变成 `[]` ⇒ **真判据被误放过** ✗ —— 正是本票最该防的"条件化写成宽松化"）。
+	const blockAfter = (key) => {
+		const lines2 = onText.split('\n');
+		const start = lines2.findIndex((l) => new RegExp(`^ {2}${key}:`).test(l));
+		if (start === -1) return null;                       // 面不在 ⇒ null（与"空块"区分 ✓）
+		const out2 = [lines2[start].replace(/^ {2}/, '')];   // 该行自身（去两空格 ⇒ 便于 parseTypes 匹配 `types:` ✓）
+		for (let i = start + 1; i < lines2.length; i++) {
+			if (/^ {2}\S/.test(lines2[i])) break;            // 下一个顶层触发面 ⇒ 块结束 ✓
+			out2.push(lines2[i]);
+		}
+		return out2.join('\n');
+	};
+	const prBlock = blockAfter('pull_request');
+	const hasPR = prBlock !== null;
+	const prTypes = hasPR ? parseTypes(prBlock) : [];
+	const pushBlock = blockAfter('push');
+	const hasPush = pushBlock !== null;
+	const pushBranches = hasPush && /branches:\s*\[main\]/.test(pushBlock);
+	return { hasDispatch, hasPR, prTypes, hasPush, pushBranches };
 };
 
 /** 每个 job 的 `if:` 里，"main-only" 的 job 是否**都**接受了 `workflow_dispatch`。
@@ -82,27 +112,51 @@ export const mainOnlyJobsMissingDispatch = (text) => {
 	return out;
 };
 
-/** 判据总入口（**纯函数** ⇒ 可喂合成文本单测 ✓）。 */
+/** 判据总入口（**纯函数** ⇒ 可喂合成文本单测 ✓）。
+ *
+ * ⚠️ `#1087` 裁定：**判据条件化**（**同一判据 ＋ 适用面写准**，**不新造** ✗）——
+ *   各条判据**只对它声称的那个面**发言 ✗：
+ *   · `pull_request.types` 那两条 ⇒ **仅当该文件真有 `pull_request` 面**才判 ✓
+ *   · `push.branches` 那条 ⇒ **仅当真有 `push` 面**才判 ✓
+ *   · `workflow_dispatch` 那条 ⇒ 沿用（它对**每个** workflow 都成立 ✓ —— 手动补跑是通用要求）
+ * ⇒ 否则扩射程后会**误报**（`soak-nightly` 等**无 `pull_request` 面**的文件各报 2–3 条 ✗ —— 实测已量：8 处 ✗）。
+ * ⚠️ **边界（不削弱真判据）** ✗：`ci.yml` 那两条**仍然照判** ✓（它真有那两个面 ⇒ 条件为真 ✗ 不被放过 ✓）。 */
 export const triggerProblems = (text) => {
 	const out = [];
 	const s = triggerSurface(text);
 	if (!s.hasDispatch) out.push('✗ 缺 `workflow_dispatch` 触发面 ⇒ 无法独立补跑取证（只能 rerun 既有 run）');
-	if (!s.prTypes.includes('ready_for_review')) out.push(`✗ \`pull_request.types\` 缺 \`ready_for_review\`（现：${JSON.stringify(s.prTypes)}）⇒ draft 转 Ready 会**静默不跑**`);
-	if (!s.prTypes.length) out.push('✗ `pull_request` 无 `types` ⇒ 只有 GitHub 默认活动类型（不含 ready_for_review）');
-	if (!s.pushBranches) out.push('✗ `push.branches` 不是 `[main]`（触发面被改动？）');
+	// `#1087`：**有条件**——该文件**声明了** `pull_request` 面才判它的 `types` ✓
+	if (s.hasPR) {
+		if (!s.prTypes.includes('ready_for_review')) out.push(`✗ \`pull_request.types\` 缺 \`ready_for_review\`（现：${JSON.stringify(s.prTypes)}）⇒ draft 转 Ready 会**静默不跑**`);
+		if (!s.prTypes.length) out.push('✗ `pull_request` 无 `types` ⇒ 只有 GitHub 默认活动类型（不含 ready_for_review）');
+	}
+	// `#1087`：**有条件**——该文件**声明了** `push` 面才判它的 `branches` ✓
+	if (s.hasPush && !s.pushBranches) out.push('✗ `push.branches` 不是 `[main]`（触发面被改动？）');
 	for (const j of mainOnlyJobsMissingDispatch(text)) out.push(`✗ job \`${j.job}\`（第 ${j.line} 行）是 main-only 但**未接受 dispatch** ⇒ 补跑会少跑这一段：\`${j.if}\``);
 	return out;
 };
 
-// ── 主跑（非自证）：判**真文件** ───────────────────────────────
-const problems = triggerProblems(readFileSync(CI, 'utf8'));
-if (problems.length) {
-	for (const l of problems) console.error(l);
-	console.error('\n✗ CI 触发面完整性门未通过（`#791`／`#455`）');
+// ── 主跑（非自证）：判**全部** `.github/workflows/*.yml`（`#1087`：射程扩展 ✓）─────
+const files = workflowFiles();
+let bad = 0;
+const summary = [];
+for (const rel of files) {
+	const text = readFileSync(join(ROOT, rel), 'utf8');
+	const probs = triggerProblems(text);
+	const sf = triggerSurface(text);
+	summary.push(`${rel.replace('.github/workflows/', '')}${sf.hasDispatch ? '' : '（**无 dispatch**）'}`);
+	if (probs.length) {
+		// ⚠️ 报错**点名文件**（多文件下不点名就等于没报 ✗）
+		bad += probs.length;
+		for (const l of probs) console.error(`✗ [${rel}] ${l}`);
+	}
+}
+if (bad) {
+	console.error(`\n✗ CI 触发面完整性门未通过（${files.length} 个 workflow 文件 · ${bad} 问题；\`#791\`／\`#455\`／射程 \`#1087\`）`);
 	process.exit(1);
 }
-const s = triggerSurface(readFileSync(CI, 'utf8'));
-console.log(`✔ CI 触发面完整性门通过（触发面：push[main] ＋ pull_request.types=[${s.prTypes.join(', ')}] ＋ workflow_dispatch；main-only job 均已接受 dispatch）`);
+console.log(`✔ CI 触发面完整性门通过（扫面 ${files.length} 个 workflow：${summary.join(' · ')}）`);
+console.log('  判据（逐文件适用面写准 ✓）：有 `pull_request` 面才判 `types`；有 `push` 面才判 `branches:[main]`；`workflow_dispatch` 每个文件都要求；main-only 的 job/step 必须接受 dispatch');
 
 // ── 自证（合成输入；**成对给**：坏文本必红、好文本必绿）────────────
 if (process.argv.includes('--selftest')) {
@@ -136,6 +190,32 @@ if (process.argv.includes('--selftest')) {
 	})());
 	t('边界⑤：`push.branches` 被改（非 [main]）⇒ 点名', triggerProblems(good.replace('branches: [main]', 'branches: [dev]')).some((x) => x.includes('push.branches')));
 	t('边界⑤：非 main-only 的 job（无 `refs/heads/main`）＋ 无 dispatch ⇒ **不报**（不该管）', triggerProblems(good.replace("if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')", "if: always()")).length === 0);
+	// ── `#1087`：**射程扩展 ＋ 判据条件化** 的成对自证（**本票最容易被搞砸的格** ✗）──
+	//   ⚠️ 风险：把"条件化"写成"**宽松化**" ⇒ 真判据被放过（门形同虚设）。⇒ 三个方向都要能假 ✓。
+	const prOnly = `on:\n  push:\n    branches: [main]\n  workflow_dispatch: {}\njobs:\n  a:\n    runs-on: ubuntu-latest\n`;
+	const withPR = `on:\n  pull_request:\n    types: [opened, ready_for_review]\n  workflow_dispatch: {}\njobs:\n  a:\n    runs-on: ubuntu-latest\n`;
+	t('`#1087` 条件化·① **无 `pull_request` 面** ⇒ **不报** `types`（此前误报 ⇒ 扩射程后 8 处假红 ✓）',
+		triggerProblems(prOnly).length === 0, JSON.stringify(triggerProblems(prOnly)));
+	t('`#1087` 条件化·①b **无 `push` 面** ⇒ **不报** `push.branches`（同族 ✓）',
+		triggerProblems('on:\n  workflow_dispatch: {}\njobs:\n  a:\n    runs-on: ubuntu-latest\n').length === 0);
+	t('🔴 `#1087` 条件化·② **有 `pull_request` 面但缺 `ready_for_review`** ⇒ **必报**（**不许被条件化放过** ✗ —— 这是本票的承重格）',
+		triggerProblems(withPR.replace('ready_for_review', 'labeled')).some((x) => x.includes('ready_for_review')));
+	t('🔴 `#1087` 条件化·②b **有 `push` 面但 `branches` 非 `[main]`** ⇒ **必报**（同 ✓）',
+		triggerProblems(prOnly.replace('branches: [main]', 'branches: [dev]')).some((x) => x.includes('push.branches')));
+	t('`#1087` 条件化·③ 完整形态（有面且有 `ready_for_review`）⇒ 不报 ✓', triggerProblems(withPR).length === 0);
+	t('🔴 `#1087` 面存在性：`triggerSurface` **区分「无面」与「有面但空」** ✗（此前同为 `[]` ⇒ 判不出 ⇒ 根因）',
+		triggerSurface(prOnly).hasPR === false && triggerSurface(withPR).hasPR === true && triggerSurface(withPR).prTypes.length > 0);
+	t('🔴 `#1087` 面存在性：有面**但无 `types`**（空面）⇒ `hasPR=true` 且 `prTypes=[]` ⇒ 仍应报 ✓',
+		triggerSurface('on:\n  pull_request:\njobs:\n  a:\n    runs-on: ubuntu-latest\n').hasPR === true
+		&& triggerProblems('on:\n  workflow_dispatch: {}\n  pull_request:\njobs:\n  a:\n    runs-on: ubuntu-latest\n').some((x) => x.includes('ready_for_review')));
+	// `#1087`：射程 —— 必须**扫到全部** yml（不是只 `ci.yml`）
+	{
+		const fs2 = workflowFiles();
+		t('`#1087` 射程：扫面**含全部 `.yml`**（且 ≥ 2 个 ⇒ 不是只 `ci.yml` ✓）',
+			fs2.length >= 2 && fs2.every((f) => f.endsWith('.yml') || f.endsWith('.yaml')));
+		t('`#1087` 射程：扫面**含 `#1071` 新建的那一个**（它当年正是"门看不见"的实例 ✓）',
+			fs2.some((f) => f.endsWith('full-tier.yml')));
+	}
 	console.log(bad ? `\n✗ 自证失败 ${bad} 项` : `\n✔ 自证通过（${n - bad}/${n}）`);
 	process.exit(bad ? 1 : 0);
 }

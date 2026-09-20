@@ -40,6 +40,8 @@ import { execFileSync } from 'node:child_process';
 import { globSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+// `#1089`（裁定乙′）：**未跟踪扫描面 ⇒ 红** 的共用助手（一处定义、三门复用）。
+import { untrackedScannedProblems, isUntrackedExemptLine } from './lib/untracked-guard.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
@@ -222,6 +224,21 @@ const main = () => {
 	const leaked = files.filter((f) => /^(?:build|dist|node_modules|tmp|\.cache)\//.test(f));
 	if (leaked.length) { bad++; console.error(`  ✗ 清单里混进了 gitignored 目录：${leaked.slice(0, 3).join('、')}——本门只许扫 git 跟踪的文档（#617）`); }
 	console.log(`      扫描 ${files.length} 个 md（**git 跟踪**，天然排除 build/ 等 gitignored 目录）：围栏奇数 ${oddFiles} 个 · 有标题被吞 ${inFenceFiles} 个`);
+
+	// ── `#1089`（裁定乙′）：**未跟踪的 `*.md` ⇒ 红** ✗ —— 本门扫面＝`git ls-files '*.md'` ⇒ 未跟踪的
+	//   `*.md` **连 F6（残留冲突标记）都看不见它** ⇒ 那是**假绿**（`#1019`／`#1028` 同族 ✓）。
+	//   豁免：件内任意一行写 `untracked-exempt: <理由 ＋ 票号>`（**缺任一项不生效** ✓）＋ **必须留痕** ✓。
+	{
+		const others = execFileSync('git', ['ls-files', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
+		const isMd = (p) => p.endsWith('.md');
+		const exempted = others.filter((q) => {
+			if (!isMd(q)) return false;
+			try { return readFileSync(join(ROOT, q), 'utf8').split('\n').some(isUntrackedExemptLine); } catch { return false; }   // 读不到 ⇒ 不当豁免（保守 ✓）
+		});
+		if (exempted.length) console.log(`  · 留痕：未跟踪但**已豁免** ${exempted.length} 件（带 \`untracked-exempt:\` 标记 ✓）：${exempted.join('、')}`);
+		const g = untrackedScannedProblems({ untracked: others, isScanned: isMd, exempted });
+		if (g.problems.length) { bad++; for (const m of g.problems) console.error(`  ${m}`); }
+	}
 
 	// ── F4：引用的仓内路径必须存在（`#606` 片一）──
 	const tracked = new Set(execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean));

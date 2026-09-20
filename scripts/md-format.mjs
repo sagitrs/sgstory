@@ -31,6 +31,8 @@
 //         ② **"同名文件在别处" ⇒ 红**（搬家/改名后引用没跟）：判据＝**全仓有同名文件但引用的那个路径不存在**，
 //            报错会**点名文件与行号**——这是 F4 真正要咬的那一类（`#458`/`#460` 的 14 处陈旧引用就是它）。
 //   F5「入口页体量 ratchet」（`#603` 片二）：`README.md` 行数 ≤ 上限（默认 120，`README_MAX_LINES` 可覆盖）。
+//   F6「残留版本控制冲突标记」（`#1084`，实测缺口）：解 rebase/merge 冲突后没删净的 `<<<<<<< `/`>>>>>>> `（行首带尾随内容）⇒ 红；
+//       裸 `=======` **不单独判**（它是合法 Markdown：setext 标题下划线／分隔线），只在**被 <<< / >>> 夹住**时附报 ✓。
 //       —— README 曾长到 270 行/24KB（"什么都有"＝等于没有）：十维密表、整棵目录树、Twee 速查、机制表全塞在入口页。
 //       分层之后必须**防止再长回去**，所以给入口页一条会咬人的上限（不是审美，是可判定的）。
 import { readFileSync, existsSync } from 'node:fs';
@@ -146,6 +148,28 @@ export const checkReadmeBudget = (text, { max = README_MAX_LINES, file = 'README
  *  （同一轮 `npm test` 里边写 `build/ui-migration-diff.md` 边扫它）。
  *  `git ls-files` 从**结构上**排除这类目录 —— 比"记得把每个目录名加进 SKIP_DIRS"可靠。
  *  另：本门已经依赖 git（F4 的路径存在性也用 `git ls-files`），不多一层新依赖。 */
+/** F6（`#1084`）：残留冲突标记。⚠️ 只咬「行首**带尾随内容**」的 `<<<<<<< `/`>>>>>>> `（git 形态如 `<<<<<<< HEAD`／`>>>>>>> <oid> (msg)`）✓；
+ *  裸 `=======` 不单独判（合法 setext／分隔线 ✗）——只在同文件已因 <<< / >>> 报红时附报「疑似冲突中段」✓。 */
+export const CONFLICT_START_RE = /^<{7} \S/;
+export const CONFLICT_END_RE = /^>{7} \S/;
+export const conflictMarkerProblems = (text, { file = '<mem>' } = {}) => {
+	const lines = String(text).split('\n');
+	const out = [];
+	let hasPair = false;
+	lines.forEach((line, i) => {
+		if (CONFLICT_START_RE.test(line) || CONFLICT_END_RE.test(line)) {
+			hasPair = true;
+			out.push(`${file}：L${i + 1} 残留的版本控制冲突标记「${line.slice(0, 12)}…」⇒ 解冲突后没删净（#1084 实测：游离 >>>>>>> 进过 commit 而三门全绿 ✗）`);
+		}
+	});
+	if (hasPair) {
+		lines.forEach((line, i) => {
+			if (/^={7}\s*$/.test(line)) out.push(`${file}：L${i + 1} 疑似冲突中段「=======」（与上方冲突标记同文件）⇒ 一并删净`);
+		});
+	}
+	return out;
+};
+
 export const allMarkdown = () =>
 	execFileSync('git', ['ls-files', '*.md'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
 
@@ -175,6 +199,11 @@ const main = () => {
 			analyzeMarkdown('| a |\n| - |\n\n正文\n').problems.length === 0],
 		['入口页 100 行（≤120）⇒ 不报', checkReadmeBudget(Array(100).fill('x').join('\n'), { max: 120 }).problems.length === 0],
 		['🔴 入口页 200 行 ⇒ 判红并点名行数上限', checkReadmeBudget(Array(200).fill('x').join('\n'), { max: 120 }).problems.some((p) => p.includes('200 行') && p.includes('godfile'))],
+		['🔴 F6：`>>>>>>> <sha> (msg)` ⇒ 判红（#1084 的实测缺口形态）', conflictMarkerProblems('正文\n>>>>>>> deadbeef (test)\n', { file: 'a.md' }).some((p) => p.includes('L2') && p.includes('冲突标记'))],
+		['🔴 F6：`<<<<<<< HEAD` ⇒ 判红并点名', conflictMarkerProblems('<<<<<<< HEAD\n正文\n', { file: 'a.md' }).some((p) => p.includes('L1') && p.includes('<<<<<<<'))],
+		['F6 正例：裸 `=======`（无冲突对）⇒ **不报**（合法 setext／分隔线）', conflictMarkerProblems('标题\n=======\n\n正文\n---\n', { file: 'a.md' }).length === 0],
+		['F6 正例：行内/缩进的标记不是冲突标记 ⇒ 不报', conflictMarkerProblems('提及 `>>>>>>>` 于句中或缩进 ⇒ 非行首\n', { file: 'a.md' }).length === 0],
+		['🔴 F6：被夹住的 `=======` ⇒ 附报「疑似冲突中段」', conflictMarkerProblems('<<<<<<< HEAD\n甲\n=======\n乙\n>>>>>>> abc (m)\n', { file: 'a.md' }).some((p) => p.includes('L3') && p.includes('冲突中段'))],
 	];
 	for (const [label, ok] of self) {
 		if (ok) console.log(`      ✓ 自证·${label}`);
@@ -188,7 +217,7 @@ const main = () => {
 		const r = analyzeMarkdown(readFileSync(join(ROOT, f), 'utf8'), { file: f });
 		if (r.odd) oddFiles++;
 		if (r.odd && r.headingsInFence.length) inFenceFiles++;  // 只在**奇偶错位**的文件里才算'被吞'
-		for (const p of r.problems) { bad++; console.error(`  ✗ ${p}`); }
+		for (const p of [...r.problems, ...conflictMarkerProblems(readFileSync(join(ROOT, f), "utf8"), { file: f })]) { bad++; console.error(`  ✗ ${p}`); }
 	}
 	const leaked = files.filter((f) => /^(?:build|dist|node_modules|tmp|\.cache)\//.test(f));
 	if (leaked.length) { bad++; console.error(`  ✗ 清单里混进了 gitignored 目录：${leaked.slice(0, 3).join('、')}——本门只许扫 git 跟踪的文档（#617）`); }

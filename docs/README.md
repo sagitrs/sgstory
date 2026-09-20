@@ -74,7 +74,7 @@
 
 - **生成物不要手改**：`docs/baselines.md`（`report:rhythm`）· `docs/gate-ledger.md`（`report:gates:update`）· `docs/ui-migration-diff.md`。
 - **状态标记必须是真的**：文档里 `#NNN`／PR 号旁边的 ✅／⏳ 要与 GitHub 真实状态同类 —— `npm run report:freshness`（`docs/dev-conventions.md` F6 节）。
-- **文档格式有门**：`node scripts/md-format.mjs` —— ① 每个 `*.md` 的围栏必须成对、标题不许落在代码块里（`#603`；`README.md` 曾因一个多余的围栏让四个标题被吞）；② **反引号里的仓内路径必须存在**（`#606` 片一；`src/*.twee` 搬家后曾有 11 处引用未更新，已修）；③ **入口页体量 ratchet**：`README.md` ≤ 120 行（防它再长回 godfile）。
+- **文档格式有门**：`node scripts/md-format.mjs` —— ① 每个 `*.md` 的围栏必须成对、标题不许落在代码块里（`#603`；`README.md` 曾因一个多余的围栏让四个标题被吞）；② **反引号里的仓内路径必须存在**（`#606` 片一；`src/*.twee` 搬家后曾有 11 处引用未更新，已修）；③ **入口页体量 ratchet**：`README.md` ≤ 120 行（防它再长回 godfile）；④ **残留冲突标记必红**（`#1084`）：行首带尾随内容的 `<<<<<<< `/`>>>>>>> ` ⇒ 红并点名（解 rebase/merge 冲突没删净——实测游离 `>>>>>>>` 进过 commit 而三门全绿）；裸 `=======` 是合法 Markdown（setext／分隔线）不单独判，只在被夹住时附报。
 - **要引用已消失的历史路径**：同行写 `<!-- path-exempt: 理由 -->`（门会**留痕打印**豁免，便于收编 —— 别用它掩盖真错误）。
 - **动文档要不要跑全链**：只改文档的 PR 不跑 soak（`docs/dev-conventions.md` §10）。
 - **本页与两个存档目录的分工**：本页管"现役文档 ＋ 两张清单"；`docs/archive/README.md` 管"作废稿与其替代关系"；`docs/reviews/README.md` 管"流程记录（走查/评审）"。

@@ -449,4 +449,20 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /缺 needs 依赖|边表端点/ },
 		why: '量的是「`test-lint-scratch-mjs` 对 `test-lint-story-mjs` 的产物依赖边**真的在册**」（删边 ⇒ 并发跑器不再保证相序 ⇒ 同波读到半成品 ⇒ 假红回归 `#1044` ✓）—— 否则这条边只活在注释里 ✗',
 	},
+	{
+		// `#1078` ✓：读路径门（「按任务读」死链必红点名）。刀＝往真表插一行死链（虚构文档）⇒ 门必红并点名行号与路径 ✓。
+		//  ⚠️ 该刀**与并发/时序无关** ✓（纯读 docs/README.md ⇒ 静态确定性 ✓）。
+		//  ⚠️ `pre: []` ✓：本门只读 docs/README.md（入口件不 import `boot.mjs` ⇒ `cmdNeedsProducts` 判其不读产物 ✓）。
+		id: 'test/docs-read-path.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/docs-read-path.mjs',
+		mutation: {
+			file: 'docs/README.md',
+			find: "| 查历史 / 作废稿（含已删故事 1 的设定·设计·实施三件套，`#1077`） | `docs/archive/README.md` | — |",
+			replace: "| 查历史 / 作废稿（含已删故事 1 的设定·设计·实施三件套，`#1077`） | `docs/archive/README.md` | — |\n| 探针：虚构文档 | `docs/no-such-doc-probe.md` | — |   # 探针：死链 ⇒ 门必红 ✓",
+		},
+		expect: { rc: 1, stdout: /no-such-doc-probe|不存在/ },
+		why: '量的是「按任务读表引用的文档必须存在（死链⇒红点名）」那一手真的在守（插一行死链 ⇒ 门必红并点名行号与路径 ✓）—— 否则必读面死链只活在注释里 ✗（`#1078` ✓）',
+	},
 ];

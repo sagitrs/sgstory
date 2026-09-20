@@ -116,6 +116,13 @@ export const dataFiles = ({ cwd = ROOT } = {}) => {
 	return { files: [...new Set(out.split('\n').map((l) => l.trim()).filter(Boolean))].sort() };
 };
 
+/** `#1028` 一族 ✓：本门**只扫已跟踪**的数据文件（`git ls-files` ✓）⇒ **未跟踪**的新数据文件会被**静默漏扫** ✗
+ *  —— 那就是"`git add` 之前跑门 ＝ **假绿**" ✓（本仓已把该形态标准化：见 `test/attribution-gate.mjs` 的运行时提醒 ✓）。
+ *  ⇒ 本门**同样打印提醒**（缺它 ⇒ 新增故事的数据可能"没被扫过"而门照绿 ✗）。判据（**纯函数** ✓ 供自证）：
+ *   只收「落在**本门扫描面**里（`stories/<slug>/data/*.json` ✓）且**未跟踪**」的那些 ✓。 */
+export const scannedSurface = (rel) => /^stories\/[^/]+\/data\/[^/]+\.json$/.test(String(rel ?? ''));
+export const unscannedUntracked = ({ others = [] } = {}) => others.filter((rel) => scannedSurface(rel));
+
 const selftest = () => {
 	let bad = 0;
 	const t = (msg, ok) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) bad += 1; };
@@ -157,6 +164,13 @@ const selftest = () => {
 	t('② 正例：授予位 `n_*`／`日记`／`flag:x` ⇒ 不报（前缀判据口径 ✓）',
 		keyformProblems({ data: askData({ yields: ['n_a', '日记', 'flag:x'] }) }).length === 0);
 
+	// ⭐ `#1028` 一族：扫描面判据（未跟踪提醒的依据）—— 正反例都要
+	t('⭐ 扫描面：`stories/x/data/tables.json` ⇒ 算扫描面内 ✓', scannedSurface('stories/x/data/tables.json'));
+	t('⭐ 扫描面：`stories/x/data/rules.json` ⇒ 也算（数据面同族 ✓）', scannedSurface('stories/x/data/rules.json'));
+	t('⭐ 扫描面：`stories/x/10-x.twee` ⇒ **不算**（不是本门的判据对象 ✓）', !scannedSurface('stories/x/10-x.twee'));
+	t('⭐ 未跟踪面：只收「扫描面 ∩ 未跟踪」（混入的其它路径被剔 ✓）',
+		unscannedUntracked({ others: ['stories/a/data/tables.json', 'docs/x.md', 'stories/a/10-a.twee'] }).join(',') === 'stories/a/data/tables.json');
+
 	// ⭐ 承重格：**"把坏形规整掉"必须不能让本门静默** —— 若实现复用审计层宽容逻辑（`note:` 剥成 `n_` ✗）就会放过
 	{
 		const data = condData('req', ['note:n_a']);
@@ -184,6 +198,13 @@ const selftest = () => {
 if (process.argv.includes('--selftest')) selftest();
 
 // ── 主跑：判**真实故事数据** ───────────────────────────────────────────────
+// `#1028` 一族：**未跟踪**但落在扫描面里的数据文件 —— 本门扫不到 ⇒ **必须显式打印**（否则 `git add` 前跑＝假绿 ✗）
+try {
+	const others = execFileSync('git', ['ls-files', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
+	const miss = unscannedUntracked({ others });
+	if (miss.length) console.log(`  ⚠️ 本次未扫（未跟踪 ${miss.length} 件）⇒ 先 \`git add\` 再跑本门，否则是**假绿**：${miss.slice(0, 8).join('、')}${miss.length > 8 ? ' …' : ''}`);
+} catch { /* 取不到 git（非工作树）⇒ 上面 dataFiles() 已会红并说明 ✓ */ }
+
 const discovered = dataFiles();
 if (discovered.error) {
 	console.error('✗ 取不到 git 元数据（`git ls-files` 失败）—— 本门要求在工作树里跑；不做静默跳过 ✗');

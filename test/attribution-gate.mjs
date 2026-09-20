@@ -144,6 +144,7 @@ const selftest = () => {
 	// ── 反例：三类归属各一条（真会红） ──
 	t('反例①：括号式裁定 ⇒ 命中', judge(F('a.md', '（操作者裁定：X）'), {}).findings.length === 1);
 	// `#1028`：报文必须**自带替换建议**（否则每次被咬都要人自己想怎么改 ✗）
+	t('`#1028` 反例：**解释性引用**（转述原句）同样命中 ⇒ 不许当豁免', judge(F('a.md', '这段按操作者的原话说：…'), {}).findings.length === 1);
 	t('`#1028` 报文：每类 token 都给**可复制的替换建议**', hintFor('操作者').includes('实测') && hintFor('本席').includes('本片') && hintFor('席号').includes('活动名') && hintFor('未知x').length > 0);
 	t('`#1028` 未跟踪清单：只收「扫描面 ∩ 非豁免」', untrackedScanned(['a.md', 'b.png', 'docs/archive/c.md', 'test/attribution-gate.mjs', 'd.mjs']).join(',') === 'a.md,d.mjs');
 	t('反例②：`dev` ＋ 归属动词 ⇒ 命中', judge(F('a.md', '// 判据（dev 复核后定稿）'), {}).findings.length === 1);
@@ -205,7 +206,7 @@ for (const e of exemptedLines) console.log(`  · 留痕：${e.path}:${e.line}「
 const fail = [];
 if (scanned === 0) fail.push('✗ 扫描面为空 —— `git ls-files` 读不到输入（#557 口径：读不到输入不许当「没命中」）');
 for (const k of missingMeta) fail.push(`✗ 白名单 ${k} 缺 reason 或 ticket —— 豁免必须写明理由与票号`);
-for (const f of findings) fail.push(`✗ ${f.path}:${f.line}「${f.token}」（token=${f.id}）—— 去权威化口径：写**理由**，别写「谁定的」`
+for (const f of findings) fail.push(`✗ ${f.path}:${f.line}「${f.token}」（token=${f.id}）—— 去权威化口径：写**理由**，别写「谁定的」（**解释性引用也一样** —— 引原句、写「谁定的」都要改写或行内标 deauth-exempt ✗）`
 	+ `\n       ⇒ 试改成：${hintFor(f.id)}`);
 for (const s of stale) fail.push(`✗ 白名单腐烂：${s.key} 已不再命中 —— 删掉该条`);
 if (fail.length) { for (const l of fail) console.error(l); console.error('\n✗ 去权威化口径门未通过'); process.exit(1); }

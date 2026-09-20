@@ -30,7 +30,8 @@
 //      —— 依 `#1020` 裁定：**前缀判据即足够机械**，不引入注册表全集 ✓（那会把门绑死在第二份真源上 ✗）。
 //
 // 用法：`node test/cond-keyform.mjs`（判真实故事数据）／`node test/cond-keyform.mjs --selftest`（量本件的判据不是空的 ✓）
-import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { asListOf, condKeysOf } from '../editor/lib/core/audit-shared.mjs';
@@ -93,13 +94,26 @@ export const keyformProblems = ({ data, file = '(data)' }) => {
 	return out;
 };
 
-/** 仓内所有故事的数据文件（**单源**：每个 `stories/<slug>/data/tables.json` ✓）。 */
-export const dataFiles = () => {
-	const dir = join(ROOT, 'stories');
-	if (!existsSync(dir)) return [];
-	return readdirSync(dir)
-		.map((slug) => join('stories', slug, 'data', 'tables.json'))
-		.filter((rel) => existsSync(join(ROOT, rel)));
+/** 待判的数据文件（**只取 git 已跟踪的** ✗ —— 这是本片最要紧的一处**密闭性**设计 ✓）。
+ *
+ * ⚠️⚠️ 为什么不用 `readdirSync('stories')` 扫目录 ✗（**实测踩过**）：
+ *   多个并行测试段会**临时往 `stories/` 放故事**（`test/web-preview.mjs` 建 `stories/__e2e` ✓、
+ *   另有 `new-story-fixture` ✓）⇒ 扫目录会把**别人的半成品/临时件**一起判 ⇒
+ *   ① 计数虚高（CI 实测 **18** vs 本地 **9** ✗ —— 多出的 9 条来自 `stories/__e2e`）；
+ *   ② 更要命的是**判据不再密闭**：结果取决于**别的段跑到哪一步** ⇒ **时序相关 ⇒ 会随机红** ✗。
+ *   ⚠️ 本仓**已有这教训**：`test/story-ci.mjs` 与 `editor/story-ci.mjs` 都写着「⊇ 而不是 ＝ …
+ *   并行段会临时往 `stories/` 放故事（`__e2e` 等）⇒ **精确等值会随机红** ✗」（`#989` 根因 ✓）——
+ *   本门第一版**又踩了一遍同一坑** ✓（我靠"CI 读数 vs 本地读数不一致"抓到的 ✓）。
+ * ⇒ 改用**与 `test/repo-shape.mjs` 同款**的确定性口径：`git ls-files` 取**已入库**的数据文件 ✓；
+ *   取不到 git 元数据 ⇒ **红并说明**，不做静默跳过 ✗（静默跳过＝假绿 ✓，同 `repo-shape` ✓）。 */
+export const dataFiles = ({ cwd = ROOT } = {}) => {
+	let out;
+	try {
+		out = execFileSync('git', ['ls-files', '--', 'stories/*/data/tables.json'], { cwd, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
+	} catch (e) {
+		return { error: String(e?.message ?? e).slice(0, 200) };
+	}
+	return { files: [...new Set(out.split('\n').map((l) => l.trim()).filter(Boolean))].sort() };
 };
 
 const selftest = () => {
@@ -153,6 +167,14 @@ const selftest = () => {
 			keyformProblems({ data }).length === 1);
 	}
 
+	// ⭐ 密闭性格：**只判已入库** ⇒ 并行段的临时故事（`stories/__e2e` 等）不被判
+	{
+		const r = dataFiles();
+		const transient = (r.files ?? []).filter((f) => /stories\/__|new-story-fixture/.test(f));
+		t('⭐ 密闭性格：待判清单里**不含**并行段的临时故事（`stories/__e2e` 等 ✓）', transient.length === 0);
+		t('⭐ 密闭性格：清单**非空**（不是"因为扫不到所以没问题" ✗）', (r.files ?? []).length > 0);
+	}
+
 	console.log(bad === 0
 		? '\n✔ 自证通过：条件位/授予位两支 ＋ 算子形 ＋ 空冒号边界 ＋ 三字段同判 ＋ 「不规整」承重格（判据不是空的 ✓）'
 		: `\n✗ 自证失败 ${bad} 项`);
@@ -162,8 +184,14 @@ const selftest = () => {
 if (process.argv.includes('--selftest')) selftest();
 
 // ── 主跑：判**真实故事数据** ───────────────────────────────────────────────
-let files = dataFiles();
-if (!files.length) { console.error('✗ 找不到任何 `stories/<slug>/data/tables.json` —— 本门要判真实数据，不做静默跳过 ✗'); process.exit(1); }
+const discovered = dataFiles();
+if (discovered.error) {
+	console.error('✗ 取不到 git 元数据（`git ls-files` 失败）—— 本门要求在工作树里跑；不做静默跳过 ✗');
+	console.error(`    ${discovered.error}`);
+	process.exit(1);
+}
+const files = discovered.files;
+if (!files.length) { console.error('✗ 找不到任何已入库的 `stories/<slug>/data/tables.json` —— 本门要判真实数据，不做静默跳过 ✗'); process.exit(1); }
 let problems = [];
 for (const rel of files) {
 	let data;

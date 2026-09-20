@@ -392,4 +392,21 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /求值不到|note:/ },
 		why: '量的是「条件键形必须引擎真能求值」那一手在守（把一处授予位改回 `note:n_*` ⇒ 门必红并点名 ✓）—— 否则 `note:n_*` 这种"结构性读不到"的键形会静默回到数据里 ✗（`#1020` ✓）',
 	},
+	{
+		// 台账行：`test/prose-vocabulary.mjs`（`#1043`：散文词汇门 —— 内容故事正文只许词汇宏）。
+		//  刀＝往**内容故事**（`night-ferry`）的正文里插一句 `<<set>>`（SugarCube 逻辑宏）—— 正是"作者在写代码"的形状 ✗。
+		//  ⚠️ 刀打在**故事件**（不是测试件 ✓）：门读的是 `stories/**` 的正文 ⇒ 变异后 V1 必红。
+		//  ⚠️ 本门**内部件豁免** ⇒ 不能拿夹具当靶子（它对内部件本来就不判 ⇒ 变异无效 ✗）。
+		id: 'test/prose-vocabulary.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/prose-vocabulary.mjs',
+		mutation: {
+			file: 'stories/night-ferry/10-ferry.twee',
+			find: '[[把两枚钱数给他|付钱]]',
+			replace: '<<set $x to 1>>\n[[把两枚钱数给他|付钱]]',
+		},
+		expect: { rc: 1, stdout: /V1/ },
+		why: '量的是「**内容故事的正文里不许出现逻辑/表达式宏**」（甲-1 的防退化保证：作者不写 Twee）—— 否则"作者只写 MD＋JSON"这条路线会不知不觉退化回"作者在正文里写代码" ✗',
+	},
 ];

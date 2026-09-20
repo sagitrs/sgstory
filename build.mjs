@@ -1,10 +1,11 @@
-import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
 import { allSourceFiles } from './scripts/module-order.mjs';
 import { execSync } from 'node:child_process';
 import { join, dirname, relative, isAbsolute } from 'node:path';
 import { scopedFiles, checkRegistration } from './scripts/module-order.mjs';
 import {
 	ROOT, storySlugs, readStory, storyHtml, shelfHtml, DEFAULT_SLUG,
+	audienceOf,
 	FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY,
 } from './scripts/dist-paths.mjs';
 
@@ -115,6 +116,10 @@ const injectLang = (p) => {
 	if (!/<html[^>]*\slang=/.test(html)) writeFileSync(p, html.replace(/<html(?=[\s>])/, '<html lang="zh-CN"'));
 };
 
+// ── 清 `dist/stories/`（`#1015`／`#1035`）：**不 prune 会让已删故事的旧产物留在本地** ✗
+//   ⇒ 本地验证面 ≠ 线上发布面（线上是干净 checkout）⇒ 本步让两者一致。
+//   ⚠️ 只清 `stories/`：`dist/fonts/` 是共享根路径，由字体步骤负责。
+if (!STORY_OUT) rmSync(join(ROOT, 'dist', 'stories'), { recursive: true, force: true });   // ⚠️ 窄口模式（`--story-out`）只写一份 ⇒ 不清，免得把别人的产物删了
 // ── 编译每个故事 → dist/stories/<slug>/index.html ─────────────────────
 for (const s of stories) {
 	if (STORY_OUT && s.slug !== DEFAULT_SLUG) continue;   // 窄口 ✓：只写目标那一份 ✓（其余故事不碰 ✓）
@@ -138,8 +143,8 @@ console.log('  浏览器直接打开即可游玩；也可用 Twine 2 编辑器�
 // β2 起它就是 `dist/index.html`（进站门面）。
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 {
-	const rows = stories
-		.map((s) => `\t\t<li><a href="stories/${s.slug}/index.html">${esc(s.title ?? s.slug)}${s.subtitle ? `<span>${esc(s.subtitle)}</span>` : ''}</a></li>`)
+	const rows = stories.filter((s) => audienceOf(s) === 'content')   // `#1035`：书架只列**内容故事**（内部件仍构建）
+		.map((s) => `\t\t<li><a href="stories/${s.slug}/index.html">${esc(s.title ?? s.slug)}</a></li>`)
 		.join('\n');
 	const shelf = `<!doctype html>
 <html lang="zh-CN">
@@ -172,5 +177,5 @@ ${rows}
 </html>
 `;
 	writeFileSync(shelfHtml(), shelf, 'utf8');
-	console.log(`✔ 书架页：${relative(ROOT, shelfHtml())}（${stories.length} 个故事${stories.length > 1 ? '：' + stories.map((s) => s.slug).join('、') : ''}）`);
+	console.log(`✔ 书架页：${relative(ROOT, shelfHtml())}（**上架** ${stories.filter((x) => audienceOf(x) === 'content').map((x) => x.slug).join('、') || '无'}；内部件不上架 ${stories.filter((x) => audienceOf(x) === 'internal').map((x) => x.slug).join('、') || '无'}）`);
 }

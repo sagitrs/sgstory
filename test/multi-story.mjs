@@ -9,7 +9,7 @@
 import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处 ✓
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROOT, DIST_DIR,  DEFAULT_SLUG, storySlugs, storyHtml, shelfHtml, defaultStoryHtml, FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY, STORY_PAGE_MAX_BYTES, SHELF_PAGE_MAX_BYTES } from '../scripts/dist-paths.mjs';
+import { ROOT, DIST_DIR,  DEFAULT_SLUG, storySlugs, storyHtml, shelfHtml, defaultStoryHtml, FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY, audienceOf, readStory, STORY_PAGE_MAX_BYTES, SHELF_PAGE_MAX_BYTES } from '../scripts/dist-paths.mjs';
 
 // 书架页上界：**单一权威在 `scripts/dist-paths.mjs`**（`#576` 未决①：同一件事曾散成四份口径）
 export const SHELF_MAX_BYTES = SHELF_PAGE_MAX_BYTES;
@@ -65,7 +65,7 @@ export const judgeBoot = ({ slug, era, text, errors = [] }) => {
 };
 
 /** 纯函数：书架页内容 × 已构建故事 → 问题列表（可自证）。 */
-export const checkShelf = (html, builtSlugs, { maxBytes = SHELF_MAX_BYTES, bytes = null } = {}) => {
+export const checkShelf = (html, builtSlugs, { maxBytes = SHELF_MAX_BYTES, bytes = null, internalSlugs = [] } = {}) => {
 	const out = [];
 	for (const slug of builtSlugs) {
 		if (!html.includes(`stories/${slug}/index.html`)) out.push({ code: 'S1', msg: `书架页缺少指向 stories/${slug}/index.html 的链接（加目录却没上书架？）` });
@@ -73,6 +73,10 @@ export const checkShelf = (html, builtSlugs, { maxBytes = SHELF_MAX_BYTES, bytes
 	const linked = [...html.matchAll(/href="stories\/([^/"]+)\/index\.html"/g)].map((m) => m[1]);
 	for (const slug of linked) {
 		if (!builtSlugs.includes(slug)) out.push({ code: 'S2', msg: `书架页指向不存在的故事：stories/${slug}/（链接腐烂）` });
+	}
+	// `#1035`：**内部件不许上书架**（`audience: internal` ⇒ 不进用户面；丢了这条 = 内部件静默泄漏）
+	for (const slug of internalSlugs) {
+		if (html.includes(`stories/${slug}/index.html`)) out.push({ code: 'S5', msg: `书架页列了**内部件** stories/${slug}/（audience: internal ⇒ 不该进用户面）` });
 	}
 	if (bytes != null && bytes > maxBytes) out.push({ code: 'S3', msg: `书架页体积 ${bytes} > 上界 ${maxBytes}（书目页不该内嵌资产）` });
 	return out;
@@ -114,7 +118,9 @@ if (!existsSync(shelfHtml())) {
 	problems.push({ code: 'S0', msg: '缺书架页（先 npm run build）' });
 } else {
 	const shelf = readFileSync(shelfHtml(), 'utf8');
-	problems.push(...checkShelf(shelf, built, { bytes: statSync(shelfHtml()).size }));
+	const builtContent = built.filter((slug) => audienceOf(readStory(slug)) === 'content');
+	const builtInternal = built.filter((slug) => audienceOf(readStory(slug)) === 'internal');
+	problems.push(...checkShelf(shelf, builtContent, { bytes: statSync(shelfHtml()).size, internalSlugs: builtInternal }));
 }
 
 // P3（β2 契约）：`dist/index.html` 是**书架页**——必须有每个已构建故事的链接，
@@ -125,7 +131,11 @@ if (!existsSync(shelfHtml())) {
 	else {
 		const root = readFileSync(rootPath, 'utf8');
 		if (root.includes('id="font-face"')) problems.push({ code: 'P3', msg: 'dist/index.html 是书架页，却带字体注入（id="font-face"）——游戏不该再写回根路径' });
-		for (const slug of built) if (!root.includes(`stories/${slug}/index.html`)) problems.push({ code: 'P3', msg: `根页（书架）缺少指向 stories/${slug}/index.html 的链接` });
+		// `#1035`：书架只该列**内容故事**（内部件仍构建，但不得进用户面）
+		const contentBuilt = built.filter((slug) => audienceOf(readStory(slug)) === 'content');
+		const internalBuilt = built.filter((slug) => audienceOf(readStory(slug)) === 'internal');
+		for (const slug of contentBuilt) if (!root.includes(`stories/${slug}/index.html`)) problems.push({ code: 'P3', msg: `根页（书架）缺少指向 stories/${slug}/index.html 的链接（内容故事必须上架）` });
+		for (const slug of internalBuilt) if (root.includes(`stories/${slug}/index.html`)) problems.push({ code: 'P3', msg: `根页（书架）链到了**内部件** stories/${slug}/（audience: internal ⇒ 不进用户面）` });
 	}
 }
 
@@ -149,6 +159,8 @@ if (process.argv.includes('--selftest')) {
 	t('S4 反例②：起始段渲染为空（产物存在 ≠ 产物能跑）→ 报红', judgeBoot({ slug: 'a', era: 'present', text: '   ', errors: [] }).length === 1);
 	t('S4 反例③：启动有未捕获报错 → 报红', judgeBoot({ slug: 'a', era: 'present', text: '正文', errors: ['Uncaught: boom'] }).some((f) => f.code === 'S4'));
 	t('S3 反例：书架页超过体积上界 → 报红', checkShelf(shelfOK, ['a', 'b'], { bytes: 200_000 }).some((f) => f.code === 'S3'));
+	t('S5 正例（`#1035`）：内部件 z 未上书架 ⇒ 0 问题', checkShelf(shelfOK, ['a', 'b'], { bytes: 900, internalSlugs: ['z'] }).length === 0);
+	t('S5 反例（`#1035`）：书架列了**内部件** z ⇒ 报 S5（内部件不得进用户面）', checkShelf(shelfOK + '<a href="stories/z/index.html">Z</a>', ['a', 'b'], { bytes: 900, internalSlugs: ['z'] }).some((f) => f.code === 'S5'));
 	t('P4 正例：故事页在上界内 → 不报', judgeStoryPage({ slug: 'a', bytes: STORY_PAGE_MAX_BYTES - 1 }).length === 0);
 	t('P4 反例：故事页顶到上界（＝部署后冒烟的口径）→ 报红', judgeStoryPage({ slug: 'a', bytes: STORY_PAGE_MAX_BYTES }).some((f) => f.code === 'P4'));
 	// P5（`#576` 未决①）：CI 里的字面量必须与常量同值

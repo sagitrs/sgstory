@@ -1,6 +1,6 @@
 # 故事 1「迷雾森林」的机制面（数值系统 ＋ 演示机制）
 
-> 来源：`#603` 片二（从入口页 `README.md` 搬出）。**机制的设计蓝本与里程碑**见 `docs/game-outline.md`；
+> 来源：`#603` 片二（从入口页 `README.md` 搬出）。**机制的设计蓝本与里程碑**见 `docs/archive/game-outline.md`（故事 1 遗产，已作废）；
 > **判定口径与门**见 `docs/quality-dimensions.md`；本页是"玩家能碰到的机制速查"。
 
 ## 一、内置的数值系统（D&D SRD 5.2 检定制）

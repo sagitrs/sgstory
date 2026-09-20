@@ -2,7 +2,7 @@
 
 当前 PR 已变基到 `sagitrs/sgstory` 的 `main`，提交 `d95c83a0c48d34a0c8553b75349b11fcfc5e9dfc`（#174）。冲突调和与重新验证见[上游同步复核](rebase-review-2026-09-10.md)，变基后新增内容的再次校对见[文本复审](text-review-after-rebase-2026-09-10.md)。
 
-下文保留原两轮审校记录，其历史基线为 `80d160b467cb01328584d6bf60ff01e70d8ded34`，不作为当前 PR 的基线或测试结果。叙事依据为 `docs/lore-canon.md` v17。
+下文保留原两轮审校记录，其历史基线为 `80d160b467cb01328584d6bf60ff01e70d8ded34`，不作为当前 PR 的基线或测试结果。叙事依据为 `docs/lore-canon.md` v17。 <!-- path-exempt: #1077 历史评审记录保持原文，所引故事1文档已入 docs/archive/ -->
 
 ## 范围
 

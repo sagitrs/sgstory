@@ -7,21 +7,19 @@
 
 | 我要…… | 先读 | 再读 |
 |---|---|---|
-| 写 / 改剧情 | `docs/lore-canon.md`（设定唯一权威） | `docs/game-outline.md` · `docs/twee-cheatsheet.md` · `docs/game-mechanics.md` |
 | 改引擎 / 机制 | `docs/dev-conventions.md` | `docs/repo-map.md` · `docs/engine-story-boundary.md` |
 | 加 / 改门与测试 | `docs/quality-dimensions.md` | `docs/gate-ledger.md` · `docs/ui-coverage-gaps.md` |
+| 要把手写 `<<if>>` 搬进条件表 | **`docs/rules-table-guide.md`**（决策树＋踩坑） | `docs/dev-conventions.md` §11–§12（形状正典） |
+| 写 / 改剧情（现存故事，如 `night-ferry`） | `docs/engine-story-boundary.md`（接入契约） | `stories/night-ferry/`（含 `EDITOR-SESSION.md`）· `docs/twee-cheatsheet.md` |
 | 做质量评审 | `docs/quality-dimensions.md`（§一 方法 · §四 作业模板） | `docs/reviews/`（走查/评审存档，非权威） |
 | 接一个新故事 | `docs/engine-story-boundary.md` | `docs/story2-contracts.md` · `docs/repo-map.md`（§二 层归属） |
-| 查历史 / 作废稿 | `docs/archive/README.md` | — |
 | 想知道表能不能放点击态写 | `docs/click-time-writes-design.md` | `docs/notes-model.md`（§已知边界） |
-| 要把手写 `<<if>>` 搬进条件表 | **`docs/rules-table-guide.md`**（决策树＋踩坑） | `docs/dev-conventions.md` §11–§12（形状正典） |
+| 查历史 / 作废稿（含已删故事 1 的设定·设计·实施三件套，`#1077`） | `docs/archive/README.md` | — |
 
 ## 二、权威表（谁说话算数）
 
 | 面 | 唯一权威 | 形态 |
 |---|---|---|
-| 设定 / 正史（正文与它冲突＝P1 缺陷） | `docs/lore-canon.md` | 手写 |
-| 游戏设计与里程碑蓝本（不具设定权威） | `docs/game-outline.md` | 手写 |
 | 知识模型（笔记 / 世界态 / 运行时） | `docs/notes-model.md` | 手写 |
 | 质量维度与每门判据 | `docs/quality-dimensions.md` | 手写 |
 | 代码级约定（渲染路径 / 构建顺序 / 命名 / 条件表形状） | `docs/dev-conventions.md` | 手写 |
@@ -38,16 +36,13 @@
 
 | 文件 | 行数 | 类别 | 说明 |
 |---|---|---|---|
-| `docs/lore-canon.md` | 729 | 权威 | 设定书；正文／文案不得与之冲突 |
-| `docs/game-outline.md` | 502 | 设计 | 机制与内容蓝本；里程碑表里的门数/路线数是**当时值** |
 | `docs/dev-conventions.md` | 454 | 权威 | 14 条代码级约定，每条都配"会咬人的门" |
-| `docs/baselines.md` | 429 | **生成物** | `npm run report:rhythm`；★待收：一份文件里 7 个 h1（`#606`） |
-| `docs/impl-map.md` | 304 | 实施图 | M1 骨架落地：段落图/状态模型/测试策略 |
+| `docs/baselines.md` | 429 | **生成物** | `npm run report:rhythm`；★待收：一份文件里 7 个 h1（`#606`）；**随样本漂移（含故事 1 读数，`#1077` 降级标注）** |
 | `docs/story2-contracts.md` | 274 | 权威 | 故事 2/3 的接入契约清单 |
 | `docs/quality-dimensions.md` | 273 | 权威 | 维度总表 ＋ 候选池 ＋ 给测试的作业模板 |
 | `docs/notes-model.md` | 217 | 权威 | 三类划分 ＋ 判定口诀 ＋ 迁移五步 |
 | `docs/notes-model-batches.md` | 215 | 记录 | 笔记模型分批迁移的过程记录 |
-| `docs/ui-inventory.md` | 201 | 盘点 | 段落与交互元素清单 |
+| `docs/ui-inventory.md` | 201 | 盘点 | 段落与交互元素清单；**生成物 · 随样本漂移（含故事 1 读数，`#1077` 降级标注）** |
 | `docs/engine-story-boundary.md` | 130 | 权威 | 两层边界与接入契约 |
 | `docs/story-surface-scope.md` | 97 | 口径 | 必需／可选／不做三栏 ＋ 判定三问 ＋ 与同类格式对照 |
 | `docs/gate-ledger.md` | 92 | **生成物** | `npm run report:gates:update`（**不要手改**） |
@@ -68,7 +63,7 @@
 | `docs/reviews/design-review.md` | 28 | 存档 | D6 可用性走查（呈现层改动时复审） |
 | `docs/credits.md` | 20 | 参考 | 参考资源 ＋ 第三方鸣谢 |
 | `docs/ui-migration-diff.md` | 16 | **生成物** | `node scripts/ui-migration-diff.mjs` |
-| `docs/archive/` | 10 份 | 作废 | 禁止回流；对照表见 `docs/archive/README.md` |
+| `docs/archive/` | 13 份 | 作废 | 禁止回流；对照表见 `docs/archive/README.md`（含故事 1 三件套：设定书／设计蓝本／实施图，`#1077`） |
 | `docs/reviews/` | 7 份 | 存档 | 走查/评审流程记录（非权威）；见 `docs/reviews/README.md` |
 
 ## 四、口径与惯例

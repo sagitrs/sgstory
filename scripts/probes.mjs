@@ -432,4 +432,21 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /缺\*\*清单\*\*|00-story\.json/ },
 		why: '量的是「导出**必须成套**（空包／部分包不许当通过）」那一手在守（拿掉断言 ⇒ 本片③那几格必红并点名缺件 ✓）',
 	},
+	{
+		// `#1044` ✓：段间产物依赖边守护门 —— 刀＝把 `test-lint-scratch-mjs` 的 needs 改回缺边形（修复前形状 ✗）。
+		//  ⚠️ 为什么这一刀**确定性**有效：本门是纯静态判定（读 SEGMENTS 的 needs 数组 ✗ 不跑并发 ✗ 不赌时序 ✓）
+		//   ⇒ 删边 ⇒ 判据①当场红并点名两端 ✓（与 `#1024` 探针「旧落点没被重建」同为静态锚 ✓）。
+		//  ⚠️ `pre: []` ✓：本门只读 `scripts/test-plan.mjs` 源（入口件不 import `boot.mjs` ⇒ `cmdNeedsProducts` 判其不读产物 ✓）。
+		id: 'test/plan-needs.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/plan-needs.mjs',
+		mutation: {
+			file: 'scripts/test-plan.mjs',
+			find: "needs: ['build-mjs', 'test-lint-story-mjs'], cmd: \"node test/lint-scratch.mjs\"",
+			replace: "needs: ['build-mjs'], cmd: \"node test/lint-scratch.mjs\"",
+		},
+		expect: { rc: 1, stdout: /缺 needs 依赖|边表端点/ },
+		why: '量的是「`test-lint-scratch-mjs` 对 `test-lint-story-mjs` 的产物依赖边**真的在册**」（删边 ⇒ 并发跑器不再保证相序 ⇒ 同波读到半成品 ⇒ 假红回归 `#1044` ✓）—— 否则这条边只活在注释里 ✗',
+	},
 ];

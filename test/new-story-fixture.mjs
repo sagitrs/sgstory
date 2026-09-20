@@ -88,7 +88,8 @@ try {
 	const comp = run(['node', 'editor/compile-story.mjs', SLUG, `--out=stories/${SLUG}`]);
 	t('夹具：编译进包内 rc=0（`--out=stories/<slug>` ✓）', comp.rc === 0, comp.out.slice(-120));
 	const twee = Object.fromEntries(readdirSync(join(ROOT, 'stories', SLUG)).filter((f) => f.endsWith('.twee')).map((f) => [f, readFileSync(join(ROOT, 'stories', SLUG, f), 'utf8')]));
-	writeStoryPackage({ slug: SLUG, manifest: manifestFor({ slug: SLUG, title: '__newci 夹具', entry: '开场', twee }), io });
+	// `#1035`：这个临时夹具是**内部件** ⇒ 显式标 `internal`（别走默认 `content` 而上架）
+	writeStoryPackage({ slug: SLUG, manifest: manifestFor({ slug: SLUG, title: '__newci 夹具', entry: '开场', twee, audience: 'internal' }), io });
 
 	// ── ① 数据面完整的新故事 ⇒ 三门全绿 ＋ 产物含哨兵
 	const a = THREE.map(([name, r]) => [name, r()]);

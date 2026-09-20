@@ -90,7 +90,7 @@ Game.Notes = {
 // 例：老巫女的合龙门（#291 G3 / #404 已实测过「前提必须可溯源」）
 { id: 'witch_fire', p: '老巫女',
   label: '问她：缺的那一句话，是谁没说完？',
-  req:     ['note:n_failure_cause', { any: ['note:n_seer_asked', 'note:n_coord'] }],
+  req:     ['n_failure_cause', { any: ['n_seer_asked', 'n_coord'] }],
   exclude: [],
   premise: '缺的从来不是咒',              // ← 既有门 test/premise-source.mjs 直接沿用
   yields:  'notes:n_witch_fire_hint' }
@@ -169,7 +169,7 @@ Game.Notes = {
 | **C-2a** | 写侧形状：新词汇宏 **`<<notepath "id" "path">>`**（多源显式声明写哪一条）＋ **§3.1 两种读形状同权同粒度** | ✅ `#676` → `f637ec1` |
 | **C-2b** | **写侧 18 处裸写 → 0**（叙事段/表行）＋ 识别面（`NOTE_WRITE_RE` 认 `notepath`/`addPath`） | ✅ `#678` → `3c9d977`（识别面 `#677` → `51b7f6d`） |
 | **C-2b′** | 故事门静态判 `<<notepath>>`：path ∈ 该笔记 `flagPath` · 多源必须显式声明 | ✅ `#680` → `8cbd90d` |
-| **C-2c-1** | 声明面**凭据授予**改走笔记面（`flag:x` ⇒ `note:n_x`；`ev:x` ⇒ `note:n_x`／`{id,path}`）——**行为不变** | ⏳ 前置面实测 ≈**15 处 / 7 键** |
+| **C-2c-1** | 声明面**凭据授予**改走笔记面（`flag:x` ⇒ `n_x`；`ev:x` ⇒ `n_x`／`{id,path}`）——**行为不变** | ⏳ 前置面实测 ≈**15 处 / 7 键** |
 | **C-2c-2** | **到站**：删 `add()`/`addPath()` 隐式双写 ＋ 删 `has()` 旗标兜底 ＋ `migrate()` 老档迁移（含"不迁移 ⇒ 假"反向探针） | ⏳ |
 | **C-3** | `--state` 域表收敛（`notes` 域文案 · `bookkeeping` 归并 · 失效键/前缀清理） | ⏳ |
 

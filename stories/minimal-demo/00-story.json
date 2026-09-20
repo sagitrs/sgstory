@@ -4,6 +4,7 @@
 	"subtitle": "引擎自检用",
 	"entry": "开场",
 	"contractVersion": 1,
+	"audience": "internal",
 	"files": [
 		"stories/minimal-demo/00-meta.twee",
 		"stories/minimal-demo/10-demo.twee",

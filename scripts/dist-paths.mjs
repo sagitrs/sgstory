@@ -35,6 +35,22 @@ export const storySlugs = () =>
 /** 读一个故事的清单（`stories/<slug>/00-story.json`）。 */
 export const readStory = (slug) => JSON.parse(readFileSync(join(STORIES_DIR, slug, '00-story.json'), 'utf8'));
 
+/** 故事的"受众"（`#1035`）：`content`＝上架（用户面书架）／`internal`＝内部件（引擎自检/测试夹具）。
+ *  ⚠️ **必须显式声明**：缺字段/取值非法 ⇒ **抛错**（fail-loud）——否则"忘记标记"会让内部件**静默上架** ✗。
+ *  为什么不用默认值：默认 `content` 会把内部件默认发布；默认 `internal` 又会让新故事神秘消失 ⇒ 两者都靠猜 ⇒ 一律显式。 */
+export const AUDIENCES = ['content', 'internal'];
+export const audienceOf = (story) => {
+	const a = story && story.audience;
+	if (!AUDIENCES.includes(a)) {
+		throw new Error(`stories/${(story && story.slug) ?? '?'}/00-story.json 的 \`audience\` 必须是 ${AUDIENCES.join('|')}（实得 ${JSON.stringify(a)}）—— 显式声明，免得内部件被静默上架`);
+	}
+	return a;
+};
+/** 上架（用户面）的故事 slug。 */
+export const contentSlugs = () => storySlugs().filter((s) => audienceOf(readStory(s)) === 'content');
+/** 内部件 slug（构建仍要，但不列书架/不进用户面）。 */
+export const internalSlugs = () => storySlugs().filter((s) => audienceOf(readStory(s)) === 'internal');
+
 /** 故事产物：`dist/stories/<slug>/index.html`（**相对 fonts/ 的深度是 2 层**）。 */
 export const storyHtml = (slug = DEFAULT_SLUG) => join(DIST_DIR, 'stories', slug, 'index.html');
 

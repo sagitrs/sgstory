@@ -414,10 +414,11 @@ export const CONST_SECTION = {
 // 搬家时只改本数组（并让 `ORDER`/`MODULES` 的键改成路径）✓。
 // #458 切片C：`src` 覆盖 `src/*.twee`（两个尚未拆分的混合体）**与** `src/engine/**`；`stories` 覆盖故事包。
 export const SOURCE_ROOTS = ['src', 'stories'];
-// `#1114` 片 2b-2a：**散文层源目录** `stories/<slug>/passages/**/*.md` 也进源面 ✓（`md ⇒ twee` 由构建链按**扩展名**分派 ✓）。
-//   ⚠️ 只收 **`passages/` 下**的 md ✗：`stories/` 树里另有非源 md（`EDITOR-SESSION.md` 会话记录、
-//   `gates/witness.md` 门证据 ✓）—— 统一收 `*.md` 会把它们当源 ✗。
-export const isStoryPassageMd = (rel) => rel.endsWith('.md') && /(^|\/)passages\//.test(rel);
+// `#1114` 片 2b-2a：**散文层源目录** `stories/<slug>/passages/` 下的 `.md` 也进源面 ✓（`md ⇒ twee` 由构建链按**扩展名**分派 ✓）。
+//   ⚠️ 谓词**必须锚住故事目录** ✗（评审阻断复现：宽松版 `/(^|\/)passages\//` 会把 `src/passages/probe.md`
+//   也收进来 ✗ —— 而本函数是**源面单一权威**、`dist-fresh` 也读它 ⇒ 误收即源面污染 ✓）。
+//   ⚠️ 本谓词是**唯一一份定义** ✓（另一处 import 它 ✗ —— 两份逐字相同的副本会漂 ✓，已有自证格钉住）。
+export const isStoryPassageMd = (rel) => /^stories\/[^/]+\/passages\/.*\.md$/.test(String(rel));
 export const allSourceFiles = (roots = SOURCE_ROOTS) => {
 	const out = [];
 	const walk = (rel) => {

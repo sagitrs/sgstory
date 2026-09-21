@@ -88,6 +88,9 @@ export const SEGMENTS = [
 	//   （`DELETED_STORY_DOCS` 显式对照表 ⇒ archive 口径有牙）· 先读列（除 dev-conventions，单列 #1080）
 	//   体量 ratchet ≤150KB（口径与数字＝#1077 验收②裁定）。纯读 docs/README.md ⇒ 无前置 ✓。
 	{ id: "test-docs-read-path-mjs", phase: 'test', cost: 0, cmd: "node test/docs-read-path.mjs" },
+	// `#1114` 片1：散文层拼装判据（纯函数注入 ✓ 无前置 ✓——正例/禁则红/悬空点名/取值/逐字/单权威 成对）
+	{ id: "test-passages-assemble-mjs-selftest", phase: 'test', cost: 0.1, inputs: ['*'],   // `#1114` 全跑型（纯函数注入段——无 fs 面 ✓；`#1093` 裁定 5756510512 ① ✓）
+		cmd: "node test/passages-assemble.mjs --selftest" },
 	{ id: "test-docs-read-path-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/docs-read-path.mjs --selftest" },
 	// `#1043`：散文正文的**词汇门** —— 内容故事（`audience: content`）的正文只许"散文／链接／payload 标记／
 	//   引擎已宣告的词汇宏"；禁 SugarCube 逻辑/表达式宏与未宣告宏（甲-1 的防退化保证）。内部件豁免（打印计数）。
@@ -609,7 +612,7 @@ export const SUITE_MEMBERS = {
 		'scripts-md-format-mjs', 'scripts-move-precheck-mjs', 'scripts-move-precheck-mjs-selftest',
 		 'test-ci-triggers-mjs', 'test-ci-triggers-mjs-selftest', 'test-repo-shape-mjs',
 		'test-repo-shape-mjs-selftest', 'test-docs-read-path-mjs', 'test-docs-read-path-mjs-selftest', 'test-attribution-gate-mjs',
-		'test-attribution-gate-mjs-selftest', 'test-untracked-guard-mjs',
+		'test-attribution-gate-mjs-selftest', 'test-untracked-guard-mjs', 'test-passages-assemble-mjs-selftest',
 		'test-plan-needs-mjs', 'test-gate-discovery-mjs', 'test-audit-gates-run-mjs',
 
 		'test-coverage-mjs',

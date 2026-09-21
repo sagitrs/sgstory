@@ -48,9 +48,8 @@ export const ALLOWED_BUILTINS = new Set(['back']);
  * ① contract 成员 ∩ 值语义 kind（const/state-ref/identity-string ✓——容器/空/null/查表默认排除 ✗）
  * ② 引擎派生标签（VALUE_LABELS 常量表 ✓）
  * ⚠️ **单一权威**：#1114 拼装层**消费同一函数**（不许各算一份 ✗——门放行/拼装不认 ⇒ 静默漏值 ✗）。 */
-export const VALUE_KINDS = new Set(['const', 'state-ref', 'identity-string']);   // 排除侧理由：template/lookup/bool-exists/game-ref 等产值但取值语义待逐条显式列入（裁定：「不许整类放开 ✗」——将来正文需 {{某模板名}} ⇒ 逐条加 VALUE_KINDS+理由 ✓）
-export const valueTerms = ({ contract = { members: [] }, labels = [] } = {}) =>
-	new Set([...(contract.members ?? []).filter((m) => VALUE_KINDS.has(m?.kind)).map((m) => m.name), ...labels]);
+import { VALUE_KINDS, valueTerms } from '../editor/lib/core/vocab.mjs';
+export { VALUE_KINDS, valueTerms };
 
 /** `#1048`：从引擎源抽 `VALUE_LABELS` 常量表（对账面 ✓）。**纯函数**。 */
 export const engineLabels = (sources = []) => {

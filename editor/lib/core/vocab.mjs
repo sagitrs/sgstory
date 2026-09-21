@@ -68,3 +68,12 @@ export const unknownDomainWords = (data = {}) => {
 	}
 	return out;
 };
+
+// ── `#1048`→`#1114`：取值词汇命名空间（提升至 core——防 test/ 被编辑器反向依赖 ✗）──────────
+// ⚠️ **单一权威**：门侧（`test/prose-vocabulary.mjs`）与拼装层（`editor/lib/core/passages.mjs`）**都 import 本函数** ✗
+//    （门放行/拼装不认 ⇒ 静默漏值 ✗——裁定 `#1048` 评论 5755635491 §三 ✓）。
+// 两源并集（甲-1 ✓）：① contract 成员 ∩ 值语义 kind（const/state-ref/identity-string ✓）∪ ② 引擎 VALUE_LABELS（10-core 常量表 ✓）。
+export const VALUE_KINDS = Object.freeze(['const', 'state-ref', 'identity-string']);   // 排除侧：template/lookup/bool-exists/game-ref 等产值但语义待逐条显式列入（「不许整类放开 ✗」）
+
+export const valueTerms = ({ contract = { members: [] }, labels = [] } = {}) =>
+	new Set([...(contract.members ?? []).filter((m) => VALUE_KINDS.includes(m?.kind)).map((m) => m.name), ...labels]);

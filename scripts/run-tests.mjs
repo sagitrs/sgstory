@@ -454,7 +454,9 @@ const suiteSel = suiteWant ? plan0.filter((s) => suiteOf(s) === suiteWant) : nul
 		let text = ''; try { text = readFileSync(mm[1], 'utf8'); } catch { continue; }
 		lowerChecked++;
 		const lower = fsArgLiterals(text);
-		if (!lower.length) { lowerBad++; console.error(`✗ [${seg.id}] ①层**抽不到任何面** ⇒ 空键 ⇒ 判据空转（声明的 inputs 无从校验 ✗）`); continue; }
+		const isWildcard = (seg.inputs ?? []).includes('*');   // `#1093` 裁定 ①：显式全跑型 ⇒ 诚实声明 ✓（须带理由注释 ✓）
+		if (!lower.length && !isWildcard) { lowerBad++; console.error(`✗ [${seg.id}] ①层**抽不到任何面** ⇒ 空键 ⇒ 判据空转（声明的 inputs 无从校验 ✗；纯函数段请声明 ['*'] ＋ 理由 ✓）`); continue; }
+		if (!lower.length && isWildcard) console.log(`      ○ [${seg.id}] inputs=['*'] 全跑型 ⇒ ①层不适用 ✓`);
 		for (const x of inputsLowerProblems({ declared: seg.inputs, lower })) { lowerBad++; console.error(`✗ [${seg.id}] ${x}`); }
 	}
 	console.log(`○ ①层（静态下界）：检查 **${lowerChecked}** 个**已声明**段 ⇒ 违规 **${lowerBad}** 条（未声明段不参与 ✓）`);

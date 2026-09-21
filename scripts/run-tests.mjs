@@ -30,6 +30,8 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { cpus } from 'node:os';
 import { testPlan, segmentLayer, validateLayers, tierOf, TIERS, DEFAULT_TIER, validateTiers, SUITES, suiteOf, validateSuites, inputsDeclaredStats, validateInputsRatchet, inputsMatch, validateInputsWildcardReasons } from './test-plan.mjs';
 import { fsArgLiterals, inputsLowerProblems, interLayerProblems, inputsTruthProblems } from './lib/inputs-lower.mjs';   // `#1093` P2-b：①层（静态下界）
+import { wiringProblems } from './lib/gate-wiring.mjs';
+import { wiringCells, WIRING_CELLS_EXPECTED } from './lib/gate-wiring-cells.mjs';   // `#1100`：接线自证格（独立模块 ✓ 宿主只加两行 ✓）   // `#1100`：判据接线核对（门清单派生 ✓）
 import { WRAPPED_READ_APIS, READ_API_BASELINE } from './lib/fs-hook-shim.mjs';
 import * as shimNs from './lib/fs-hook-shim.mjs';   // `#1093` P2-d ⑤：判「清单 ≡ 实际包裹」需要**真导出面** ✓
 import * as FSN from 'node:fs';   // 同上：真 fs 面（用于判某导出是否真被包裹 ✓）
@@ -407,7 +409,15 @@ t('🔴 `inputsDeclaredStats`：**声明了的段**计入 declared、不计入 u
 	//   ⚠️ 四处调用点**全在少走路径**（②层需已声明段／仪表需 `--profile*`）⇒ 断了接线，**CI 与自证都绿** ✗
 	t('🔴 ② 共用助手**接线在位**（`ensureParent` 已 import 且是函数 ⇒ 否则四处调用点起跑即崩 ✗）',
 		typeof ensureParent === 'function' && /from '\.\/lib\/ensure-parent\.mjs'/.test(readFileSync(fileURLToPath(import.meta.url), 'utf8')));
-	if (bad) { console.error(`\n✗ 跑器自证失败 ${bad} 项`); process.exit(1); }
+	// `#1100`：**接线自证格 ＋ 格数守卫** ✗ —— 返回值**必须用**（此前被丢弃 ⇒ `WIRING_CELLS_EXPECTED` 全仓无人使用 ✓）
+	//   原理：防摘**不靠再守一层**，靠「**摘了会改变一个可观的数**」✓（掐掉一格 ⇒ 数变 ⇒ 红 ✓）
+	const nCells = wiringCells(t);
+	if (nCells !== WIRING_CELLS_EXPECTED) {
+		bad++;
+		console.error(`✗ 判据接线：**格数对不上** —— 实跑 ${nCells} vs 期望 ${WIRING_CELLS_EXPECTED} ✗（掐掉/漏写一格 ⇒ 数变 ⇒ 红 ✓）`);
+	} else console.log(`  ○ 判据接线：本组格数 **${nCells} ≡ ${WIRING_CELLS_EXPECTED}** ✓`);
+	if (bad) {
+ console.error(`\n✗ 跑器自证失败 ${bad} 项`); process.exit(1); }
 	if (!quiet) console.log('\n✔ 跑器自证通过：成功/失败识别、失败输出不吞、并行真的重叠、setup 红即中止、needs 前置/级联跳过/配错报错');
 	else console.log('✓ 跑器自证通过（成功/失败识别 · 输出不吞 · 并行真重叠 · setup 红即中止 · needs 语义）');
 	// `#1123` 复核：**返回值必须反映 bad** ✗ —— 原来恒 `return true` ＋ 调用方无条件 `exit(0)`
@@ -468,6 +478,13 @@ const suiteSel = suiteWant ? plan0.filter((s) => suiteOf(s) === suiteWant) : nul
 	console.log(`○ \`inputs\` 声明：已声明 ${declared}/${total} 段 ｜ **未声明 ${undeclared.length}**（未声明 ⇒ 视为「**全跑型**」＝总是跑 ✓ —— **本片不含跳过** ✗）`);
 	if (problems.length) { console.error(`✗ \`inputs\` ratchet 不过：\n  ${problems.join('\n  ')}`); process.exit(2); }
 	const wc = validateInputsWildcardReasons(plan0);   // `#1093` P2-d ④：全通配声明须给机器可读理由 ＋ 票号 ✓（缺任一项不生效 ✗）
+	// `#1100`：**判据「接线」核对** —— 两面 ＝ 门模块侧 ↔ registry 侧 ⇒ **两向相等 ＋ 打印两面与差集** ✓
+	//   ⚠️ 边界：本判据**不是锁** ✗（整体删掉 ⇒ 门内抓不到 ✓）；它给的是**可观测的数**（差集／锚处数 ✓）
+	{
+		const wr = wiringProblems();
+		console.log(`  ${wr.face}`);
+		if (wr.problems.length) { console.error(`✗ 判据接线核对不过（**接线缺失** ≠ 判据异常 ✗）：\n  ${wr.problems.join('\n  ')}`); process.exit(2); }
+	}
 	if (wc.length) { console.error(`✗ \`inputs\` 全通配理由不过：\n  ${wc.join('\n  ')}`); process.exit(2); }
 
 // `#1093` P2-b：**①层（静态下界）** —— 只对**已声明 `inputs`** 的段判 ✓（未声明 ⇒ 全跑型 ⇒ 不该管它 ✗）

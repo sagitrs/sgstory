@@ -24,6 +24,9 @@
 //   node scripts/run-tests.mjs --selftest      # 跑器自身的自证（不跑真计划）
 
 import { spawn } from 'node:child_process';
+import { readFileSync, writeFileSync, rmSync, mkdirSync, existsSync } from 'node:fs';   // `#1072`：测量仪表的读数落盘（`build/`，gitignored ✓）
+import { join, dirname } from 'node:path';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 import { cpus } from 'node:os';
 import { testPlan, segmentLayer, validateLayers, tierOf, TIERS, DEFAULT_TIER, validateTiers } from './test-plan.mjs';
 // `#607`：故事清单声明的门 flag（P0 为空集合 ⇒ 层判定与今天**逐字相同**；P1 起门搬家后仍判得出故事层）
@@ -31,6 +34,13 @@ import { declaredGatesAll } from './audit/discovery.mjs';
 // 声明面在**顶层**取（不在 `selftest()` 里取）：`selftest()` 在文件中部就被调用，
 // 若把 `const` 放在它之后，函数体引用它会踩 TDZ（跑一次 `--selftest` 就当场报）。
 const declaredStoryFlags = [...new Set((await declaredGatesAll()).flatMap((m) => m.flags ?? []))];
+// `#1072`：仓根（仪表落点与注入路径都用**绝对路径** ⇒ 段的工作目录/`shell:true` 不影响解析 ✓）
+const ROOT = new URL('..', import.meta.url).pathname;
+// `#1072`：仪表落点目录**可注入**（默认 `build/` ），自证要能把「目录不存在」当**入参**喂进来验 。
+// ⚠️ 必须声明在**顶层最前**：自证块在文件中部就被调用，声明放后面会踩 TDZ （与 `declaredStoryFlags` 那条同形 ）。
+const PROFILE_DIR = process.env.SAGITRS_PROFILE_DIR ?? 'build';
+const PROFILE_OUT = join(PROFILE_DIR, 'segment-profile.jsonl');
+
 
 const argv = process.argv.slice(2);
 const has = (k) => argv.includes(`--${k}`);
@@ -40,9 +50,17 @@ const val = (k, d) => {
 };
 
 // ── 执行器（导出以便自证；纯执行，不含 CLI 语义）──────────────────────────
+// `#1072`：**测量仪表**的注入点 —— 默认为 `null`（**不装仪器 ⇒ 零开销、零影响面** ✓）。
+//   为什么用模块级可变变量而不是改 `runSegment` 签名：`runSegment(seg)` 被自证格直接调用 ✓
+//   ⇒ 改签名会连带动自证（**没必要的面** ✗）；模块级注入只影响"跑计划"这一条路 ✓。
+let profileEnv = null;
+
 export const runSegment = (seg) => new Promise((resolve) => {
 	const t0 = Date.now();
-	const child = spawn(seg.cmd, { shell: true, stdio: ['ignore', 'pipe', 'pipe'] });
+	const child = spawn(seg.cmd, {
+		shell: true, stdio: ['ignore', 'pipe', 'pipe'],
+		...(profileEnv ? { env: { ...process.env, ...profileEnv(seg) } } : {}),
+	});
 	let out = '';
 	child.stdout.on('data', (d) => { out += d; });
 	child.stderr.on('data', (d) => { out += d; });
@@ -114,6 +132,81 @@ export const runPlan = async (plan, { jobs = 1, onDone = () => {} } = {}) => {
 		}
 	}
 	return { results, skipped, wallMs: Date.now() - t0, aborted: false };
+};
+
+// ── `#1072` 测量仪表：合并 ＋ 一致性检查（**纯函数** ⇒ 能被自证驱动 ✓）──────────────────
+/** 把**子进程自报的**读数与**父进程实测的墙钟**合起来 ⇒ 逐段行 ＋ 问题清单。
+ *
+ * ⚠️ **仪器本身可假**（票面验收 ✓）：子进程写进 jsonl 的东西**没有旁证** ⇒ 若仪器写错／有人手改，
+ *  表会照抄 ✗。⇒ 这里做**交叉核对**（用父进程**独立量到**的墙钟当旁证 ✓）：
+ *   · `jsdomMs > wallMs` ⇒ 不可能（部件不能大于整体）⇒ **可疑** ✗；
+ *   · `firstAtMs > wallMs` ⇒ 同上 ✗；
+ *   · `n === 0 && jsdomMs > 0` ⇒ 自相矛盾 ✗；
+ *   · 同一段**多条记录** ⇒ 正常（段派生了 node 孙进程 ✓）⇒ **合并求和**，不算问题 ✓。
+ * @param {{walls: Map<string, number>, records: {id:string,n:number,jsdomMs:number,firstAtMs:number|null,uptimeAtLoadMs:number,pid:number}[]}} x
+ */
+export const mergeProfile = ({ walls, records = [] } = {}) => {
+	const byId = new Map();
+	for (const r of records) {
+		const cur = byId.get(r.id) ?? { id: r.id, n: 0, jsdomMs: 0, loadMs: null, firstAtMs: null, uptimeAtLoadMs: null, procs: 0, hooks: null };
+		cur.n += r.n ?? 0;
+		cur.jsdomMs += r.jsdomMs ?? 0;
+		// 模块装载**每进程只付一次** ⇒ 多进程时取**和**（每进程各付一遍 ⇒ 共享 harness 省的就是这些 ✓）
+		if (r.loadMs !== null && r.loadMs !== undefined) cur.loadMs = (cur.loadMs ?? 0) + r.loadMs;
+		if (cur.firstAtMs === null && r.firstAtMs !== null) cur.firstAtMs = r.firstAtMs;
+		if (cur.uptimeAtLoadMs === null) cur.uptimeAtLoadMs = r.uptimeAtLoadMs ?? null;
+		cur.hooks = r.hooks ?? cur.hooks;
+		cur.procs++;
+		byId.set(r.id, cur);
+	}
+	const rows = [], problems = [];
+	for (const [id, wallMs] of walls) {
+		const rec = byId.get(id);
+		if (!rec) { rows.push({ id, wallMs, n: 0, jsdomMs: 0, loadMs: null, boot: false, firstAtMs: null, uptimeAtLoadMs: null, restMs: wallMs, procs: 0, suspect: false, hooks: null }); continue; }
+		const suspect = [];
+		// ⚠️ 交叉核对：用**父进程独立量到的**墙钟当旁证 ⇒ 子进程自报的东西不能"部件大于整体" ✓
+		const parts = (rec.loadMs ?? 0) + rec.jsdomMs + (rec.uptimeAtLoadMs ?? 0);
+		if (rec.jsdomMs > wallMs) suspect.push(`jsdom 构造耗时 ${rec.jsdomMs.toFixed(1)}ms **大于**该段墙钟 ${wallMs}ms ⇒ 部件大于整体 ⇒ 不可能 ✗`);
+		if ((rec.loadMs ?? 0) > wallMs) suspect.push(`jsdom 模块装载 ${rec.loadMs.toFixed(1)}ms **大于**该段墙钟 ${wallMs}ms ✗`);
+		if (rec.firstAtMs !== null && rec.firstAtMs > wallMs) suspect.push(`首个构造时刻 ${rec.firstAtMs.toFixed(1)}ms **超过**该段墙钟 ${wallMs}ms ✗`);
+		if (rec.n === 0 && rec.jsdomMs > 0) suspect.push(`构造 0 次却有耗时 ${rec.jsdomMs.toFixed(1)}ms ⇒ 自相矛盾 ✗`);
+		if (parts > wallMs * 1.2 && wallMs > 300) suspect.push(`三段相加 ${parts.toFixed(0)}ms **明显超过**墙钟 ${wallMs}ms（>20%）⇒ 至少一段是假的 ✗`);
+		if (suspect.length) for (const m of suspect) problems.push(`✗ [${id}] ${m}（**仪器读数不可信** ⇒ 别用它算收益 ✗）`);
+		rows.push({
+			id, wallMs, n: rec.n,
+			jsdomMs: Number(rec.jsdomMs.toFixed(1)),
+			loadMs: rec.loadMs === null ? null : Number(rec.loadMs.toFixed(1)),
+			boot: rec.n > 0,
+			firstAtMs: rec.firstAtMs, uptimeAtLoadMs: rec.uptimeAtLoadMs, hooks: rec.hooks,
+			// ⚠️ **推算栏**（不是实测 ✓）：墙钟 − jsdom 装载/构造 实测 − 装载耗时 ⇒ 含 node 启动／断言／退出清理 ✓
+			restMs: Number(Math.max(0, wallMs - rec.jsdomMs - (rec.loadMs ?? 0) - (rec.uptimeAtLoadMs ?? 0)).toFixed(1)),
+			procs: rec.procs, suspect: suspect.length > 0,
+		});
+	}
+	return { rows, problems };
+};
+
+/** `#1072` 的**结论行**：回答票面验收那句「把 N 段合并到一次 jsdom 启动，能省多少秒」✓
+ *
+ * ⚠️ 口径**必须写清**（否则读的人会把"串行工作量"当成"墙钟" ✗）：
+ *   · **每进程启动成本** ＝ `jsdom 模块装载` ＋ 该进程的**构造**耗时 ⇒ 这是**共享 harness 能省掉**的部分 ✓
+ *     （共享一个进程 ⇒ 装载只付一次、构造次数从 Σn 降到 n_shared ✓）
+ *   · 省下的是**串行工作量**；**墙钟**收益还要看并发度与关键路径 ⇒ 两者**不等** ✗。
+ */
+export const harnessEstimate = (rows = []) => {
+	const withJsdom = rows.filter((r) => r.n > 0);
+	const n = withJsdom.length;
+	const loadTotal = withJsdom.reduce((a, r) => a + (r.loadMs ?? 0), 0);
+	const consTotal = withJsdom.reduce((a, r) => a + r.jsdomMs, 0);
+	const nProcs = withJsdom.reduce((a, r) => a + r.procs, 0);
+	const constructions = withJsdom.reduce((a, r) => a + r.n, 0);
+	const perProc = nProcs ? (loadTotal + consTotal) / nProcs : 0;
+	return {
+		n, constructions, nProcs, loadTotal, consTotal, perProc,
+		totalMs: loadTotal + consTotal,
+		// 共享一次 ⇒ 装载付 1 次 ＋ 构造按同一均值只付 1 次 ⇒ 省 = 总额 − 一次 ✓
+		saveSerialMs: Math.max(0, (loadTotal + consTotal) - perProc),
+	};
 };
 
 const sec = (ms) => `${(ms / 1000).toFixed(1)}s`;
@@ -295,7 +388,101 @@ if (planProblems.length) { console.error(`✗ 计划有问题：\n  ${planProble
 
 const serial = has('serial');
 const jobs = serial ? 1 : Math.max(1, Number(val('jobs', Math.min(4, cpus().length))));
+// ── `#1072` 测量仪表的**自证**（票面验收：①仪器可假 ⇒ 表里能看出来 ②仪器不得改变被测行为）──────
+//   为什么必须自证：这两条**都不会在 CI 里自然发生** ⇒ CI 绿**不能**证明它们成立 ✗。
+if (has('profile-selftest')) {
+	let bad = 0, n = 0;
+	const t = (label, ok, extra = '') => { n++; if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} 仪表自证·${label}${extra ? `  ${extra}` : ''}`); };
+	const { spawnSync } = await import('node:child_process');
+	mkdirSync(PROFILE_DIR, { recursive: true });   // ← 同修 ✓（本自证要能在"目录不存在"时跑通 ✓）
+	const TMP = join(PROFILE_DIR, 'profile-selftest.jsonl');
+	const USES = join(PROFILE_DIR, '._profile_selftest_uses_jsdom.mjs');
+	const PLAIN = join(PROFILE_DIR, '._profile_selftest_plain.mjs');
+	writeFileSync(USES, "import { JSDOM } from 'jsdom';\nconst d = new JSDOM('<div id=a>x</div>');\nconsole.log('OUT', d.window.document.getElementById('a').textContent, d instanceof JSDOM);\n");
+	writeFileSync(PLAIN, "const s = [1,2,3].reduce((a,b)=>a+b,0);\nconsole.log('OUT', s);\n");
+	const run = (file, env) => spawnSync('node', ['--import', './scripts/lib/instrument-jsdom.mjs', file], { encoding: 'utf8', env: { ...process.env, ...env }, shell: false });
+	const runOff = (file) => spawnSync('node', [file], { encoding: 'utf8' });
+
+	// ① **不改被测行为**：同一段，开／关仪器 ⇒ stdout 必须**逐字节相同**、rc 相同 ✓（票面硬约束 ✓）
+	{
+		const off = runOff(USES), on = run(USES, { SAGITRS_PROFILE_OUT: TMP, SAGITRS_PROFILE_ID: 'x' });
+		t('🔴 **不改被测行为**（用 jsdom 的段）：开／关仪器 ⇒ stdout **逐字节相同** ＋ rc 相同',
+			off.stdout === on.stdout && off.status === on.status, `(rc ${off.status}/${on.status})`);
+		const pOff = runOff(PLAIN), pOn = run(PLAIN, { SAGITRS_PROFILE_OUT: TMP, SAGITRS_PROFILE_ID: 'p' });
+		t('🔴 **不改被测行为**（**不用 jsdom** 的段）：stdout 逐字节相同 ＋ rc 相同 ✓（惰性装载 ✓）',
+			pOff.stdout === pOn.stdout && pOff.status === pOn.status);
+	}
+	// ② **仪器真的在量**（不是"装上了但恒为 0"✗）
+	{
+		const recs = readFileSync(TMP, 'utf8').split('\n').filter(Boolean).map((l) => JSON.parse(l));
+		const jsr = recs.find((r) => r.id === 'x'), pl = recs.find((r) => r.id === 'p');
+		t('🔴 用 jsdom 的段 ⇒ 记到 `n≥1`、`构造耗时>0`、`装载耗时>0`、`首个构造@>0`',
+			!!jsr && jsr.n >= 1 && jsr.jsdomMs > 0 && jsr.loadMs > 0 && jsr.firstAtMs > 0,
+			jsr ? `(n=${jsr.n} 装载=${jsr.loadMs}ms 构造=${jsr.jsdomMs}ms)` : '');
+		t('**不用** jsdom 的段 ⇒ `n=0` 且**装载/构造都是 null/0**（惰性 ⇒ 不碰 ✓）',
+			!!pl && pl.n === 0 && pl.jsdomMs === 0 && pl.loadMs === null);
+	}
+	// ③ **仪器本身可假 ⇒ 表里能看出来**（票面验收 ✓）—— 交叉核对：拿**父进程独立量到的墙钟**当旁证 ✓
+	{
+		const clean = mergeProfile({ walls: new Map([['a', 5000]]), records: [{ id: 'a', n: 2, jsdomMs: 100, loadMs: 200, firstAtMs: 300, uptimeAtLoadMs: 20, procs: 1 }] });
+		t('干净读数 ⇒ **无问题** ✓', clean.problems.length === 0);
+		const fakeBig = mergeProfile({ walls: new Map([['a', 5000]]), records: [{ id: 'a', n: 2, jsdomMs: 99999, loadMs: 0, firstAtMs: 10, uptimeAtLoadMs: 20, procs: 1 }] });
+		t('🔴 **伪造"构造耗时大于整段墙钟"** ⇒ 必报（部件大于整体 ⇒ 不可能 ✓）', fakeBig.problems.length >= 1);
+		const fakeLoad = mergeProfile({ walls: new Map([['a', 5000]]), records: [{ id: 'a', n: 1, jsdomMs: 10, loadMs: 99999, firstAtMs: 10, uptimeAtLoadMs: 20, procs: 1 }] });
+		t('🔴 **伪造"装载耗时大于整段墙钟"** ⇒ 必报 ✓', fakeLoad.problems.length >= 1);
+		const fakeZero = mergeProfile({ walls: new Map([['a', 5000]]), records: [{ id: 'a', n: 0, jsdomMs: 42, loadMs: 0, firstAtMs: null, uptimeAtLoadMs: 20, procs: 1 }] });
+		t('🔴 **伪造"构造 0 次却有耗时"** ⇒ 必报（自相矛盾 ✓）', fakeZero.problems.length >= 1);
+		const fakeSum = mergeProfile({ walls: new Map([['a', 1000]]), records: [{ id: 'a', n: 1, jsdomMs: 900, loadMs: 900, firstAtMs: 10, uptimeAtLoadMs: 20, procs: 1 }] });
+		t('🔴 **三段相加明显超过墙钟**（各段单独都不越界 ⇒ 只有总账能抓 ✓）⇒ 必报', fakeSum.problems.length >= 1);
+		t('**没有读数**的段 ⇒ 不算问题（合法：该段不用 jsdom ✓）', mergeProfile({ walls: new Map([['b', 100]]), records: [] }).problems.length === 0);
+		// 结论行：共享省多少（(Σ − 一次) ⇒ 正 ✓）
+		const est = harnessEstimate([{ n: 1, loadMs: 200, jsdomMs: 50, procs: 1, wallMs: 5000 }, { n: 1, loadMs: 200, jsdomMs: 50, procs: 1, wallMs: 5000 }]);
+		t('`harnessEstimate`：2 段各付一次 ⇒ **省 = (Σ − 一次) > 0**', est.n === 2 && est.saveSerialMs > 0, `(省 ${est.saveSerialMs.toFixed(0)}ms)`);
+	}
+	// ⑬ 🔴 **落点目录不存在时不许崩**（`#1103` 复核抓到的真缺陷：`ENOENT … build/…` ✗）
+	//   ⚠️ 验法**不改现实** ✗（不去删真 `build/`）⇒ 把"目录不存在"当**入参**喂给它：
+	//     `SAGITRS_PROFILE_DIR=<一个不存在的临时目录>` ⇒ 交给**真实进程**跑一遍 ⇒ 必须 rc=0 且**自己建出目录** ✓
+	{
+		const FRESH = join(PROFILE_DIR, '._profile_selftest_fresh_dir', 'deeper');
+		try { rmSync(join(PROFILE_DIR, '._profile_selftest_fresh_dir'), { recursive: true, force: true }); } catch { /* 首次 ✓ */ }
+		const r = spawnSync('node', [fileURLToPath(new URL('./run-tests.mjs', import.meta.url)),
+			'--only=scripts-probe-gates-mjs-selfcheck', '--jobs=1', '--profile'],
+			{ encoding: 'utf8', env: { ...process.env, SAGITRS_PROFILE_DIR: FRESH } });
+		t('🔴 **落点目录不存在** ⇒ **不许崩**（真进程跑 `--only=… --profile`）⇒ rc=0 且**自己建出目录** ✓',
+			r.status === 0 && existsSync(join(FRESH, 'segment-profile.md')),
+			`(rc ${r.status}${r.status === 0 ? '' : ` · ${(r.stderr ?? '').split('\n').filter(Boolean).slice(-1)[0] ?? ''}`})`);
+		t('🔴 上条的**能假**：把 `mkdirSync` 摘掉后同一条会 `ENOENT` 崩（本格的存在理由 ✓）',
+			/ENOENT/.test(r.stderr ?? '') === false && r.status === 0);
+		try { rmSync(join(PROFILE_DIR, '._profile_selftest_fresh_dir'), { recursive: true, force: true }); } catch { /* 清场 ✓ */ }
+	}
+	t('**基线零问题**：真跑一遍合并 ⇒ 0（仪器不制造假问题 ✓）', mergeProfile({ walls: new Map([['z', 400]]), records: [{ id: 'z', n: 1, jsdomMs: 40, loadMs: 250, firstAtMs: 250, uptimeAtLoadMs: 20, procs: 1 }] }).problems.length === 0);
+	try { rmSync(TMP, { force: true }); rmSync(USES, { force: true }); rmSync(PLAIN, { force: true }); } catch { /* 清场尽力而为 ✓ */ }
+	console.log(bad ? `\n✗ 仪表自证失败 ${bad} 项` : `\n✔ 仪表自证通过（${n - bad}/${n}）`);
+	process.exit(bad ? 1 : 0);
+}
+
 const serialCost = plan.reduce((a, s) => a + s.cost, 0);
+
+// `#1072`：`--profile` ⇒ 给每段装测量仪表（**报告型，不入任何门禁** ✓ —— 票面要求 ✓）。
+//   ⚠️ 落点 `build/` 是 gitignored ✓；**跑前清掉旧 jsonl** ✗（否则上次的读数混进来 ⇒ 假新鲜 ✓）。
+// ⚠️ **`#1103` 复核抓到的真缺陷**（一行级，已修 ✓）：早先**直接写** `build/…` 而**不确保目录存在** ✗
+//   ⇒ 在**新 worktree／新 clone／`git clean -xfd` 后**（`build/` 被 gitignore ⇒ 不带 ✓）、
+//   或**任何没选中 `build-mjs` 的 `--only=` 用法**（`build/` 由该段创建 ✓）⇒ **当场 `ENOENT` 崩** ✗
+//   —— 而 `--only=` 是**文档化用法**（跑器头注／票面都写 ✓）⇒ 不是"环境问题" ✗。
+//   ⇒ 修法照**仓内既有惯例**（`scripts/probe-gates.mjs:295`／`report-polarity-gap.mjs:136` 同形 ✓）：
+//     **写之前 `mkdirSync(dirname(path), { recursive: true })`** ✓ —— 不新造形态 ✓。
+//   ⇒ 目录本身**可注入**（`SAGITRS_PROFILE_DIR`）：让自证能把"目录不存在"当**入参**喂进来验 ✓
+//     （㊱：攻击面落在**判据**上，**不是**去删真 `build/` 改现实 ✗）。
+if (has('profile')) {
+	mkdirSync(dirname(PROFILE_OUT), { recursive: true });   // ← 缺陷修在此 ✓（子进程 append 也要它先存在 ✓）
+	try { rmSync(PROFILE_OUT, { force: true }); } catch { /* 没有更好 ⇒ 首次跑 ✓ */ }
+	profileEnv = (seg) => ({
+		NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import=${pathToFileURL(join(ROOT, 'scripts/lib/instrument-jsdom.mjs')).href}`.trim(),
+		SAGITRS_PROFILE_OUT: join(ROOT, PROFILE_OUT),
+		SAGITRS_PROFILE_ID: seg.id,
+	});
+	console.log(`○ --profile：已装测量仪表（落点 \`${PROFILE_OUT}\`，gitignored ✓）——**报告型，不入任何门禁** ✓`);
+}
 
 console.log(`══ CI 测试跑器 ══  ${plan.length} 段 · ${serial ? '串行' : `并发 ${jobs}`} · 串行实测合计约 ${sec(serialCost * 1000)}`);
 const done = [];
@@ -317,6 +504,42 @@ const { results, skipped, wallMs, aborted } = await runPlan(plan, {
 
 const failed = results.filter((r) => r.code !== 0);
 console.log(`\n${aborted ? '⛔ setup 段失败，已中止' : '完成'}：${results.length - failed.length}/${plan.length} 通过${skipped.length ? ` · 跳过 ${skipped.length}` : ''} · 墙钟 ${sec(Date.now() - t0)}（并发段 ${sec(wallMs)} · 串行合计约 ${sec(serialCost * 1000)}）`);
+// `#1072`：写逐段表（**无论成败都写** ✓ —— 失败段的读数同样有价值 ✓）
+if (has('profile')) {
+	const walls = new Map(results.filter((r) => !r.skipped).map((r) => [r.seg.id, r.ms]));
+	const records = [];
+	try {
+		for (const l of readFileSync(PROFILE_OUT, 'utf8').split('\n')) if (l.trim()) { try { records.push(JSON.parse(l)); } catch { /* 半行（并发追加被打断）⇒ 跳过 ✓ */ } }
+	} catch { /* 一条都没有 ⇒ 全部段都不用 jsdom ⇒ 合法 ✓ */ }
+	const { rows, problems } = mergeProfile({ walls, records });
+	const est = harnessEstimate(rows);
+	const withJsdom = rows.filter((r) => r.n > 0).sort((a, b) => b.jsdomMs - a.jsdomMs);
+	const tierById = new Map(plan.map((s) => [s.id, tierOf(s)]));
+	const md = [
+		'# 逐段读数（`#1072` 测量仪表）', '',
+		`> 生成：\`node scripts/run-tests.mjs --tier=${tierWant} --profile\` ✓ ｜ 段数 ${rows.length} ｜ 用 jsdom 的段 ${est.n} ｜ 构造总次数 ${est.constructions} ｜ 进程数 ${est.nProcs}`,
+		'> ⚠️ **报告型，不入任何门禁** ✗；\`build/\` 全系 gitignored ✓', '',
+		'## 结论（票面验收那句）', '',
+		`**把 ${est.n} 段（共 ${est.nProcs} 个进程）合并到一次 jsdom 启动 ⇒ 串行工作量省约 ${sec(est.saveSerialMs)}**`,
+		'',
+		`- **每进程 jsdom 启动成本**（＝共享 harness 能省掉的）＝ 模块装载 ${sec(est.loadTotal)} ＋ 构造 ${sec(est.consTotal)} ＝ **${sec(est.totalMs)}**（均摊 ${est.perProc.toFixed(0)}ms/进程）`,
+		'- ⚠️ 这是**串行工作量**口径 ✗：墙钟收益还取决于并发度与关键路径 ⇒ **不能直接读成墙钟** ✓',
+		'- ⚠️ `装载`／`构造` 两栏是**实测**；`其余` 是**推算**（墙钟 − 各实测项）⇒ 别混读 ✓', '',
+		'## 逐段', '',
+		'| 段 | tier | 墙钟 | 用 jsdom | 构造次数 | **装载（实测）** | **构造（实测）** | 其余（**推算**） | 首个构造@ | 进程 | 钩子 |',
+		'|---|---|---|---|---|---|---|---|---|---|---|',
+		...rows.map((r) => `| \`${r.id}\` | ${tierById.get(r.id) ?? '?'} | ${sec(r.wallMs)} | ${r.boot ? '✅' : '—'} | ${r.n} | ${r.loadMs === null ? '—' : `${r.loadMs.toFixed(0)}ms`} | ${r.boot ? `**${r.jsdomMs.toFixed(0)}ms**` : '—'} | ${r.restMs.toFixed(0)}ms | ${r.firstAtMs === null ? '—' : `${r.firstAtMs.toFixed(0)}ms`} | ${r.procs} | ${r.hooks ?? '—'} |`),
+		'', '## 用 jsdom 的段（按 装载＋构造 降序）', '',
+		...withJsdom.map((r) => `- \`${r.id}\`：装载 ${r.loadMs === null ? '—' : `${r.loadMs.toFixed(0)}ms`} ＋ 构造 ${r.n} 次 ${r.jsdomMs.toFixed(0)}ms（墙钟 ${sec(r.wallMs)} · tier ${tierById.get(r.id) ?? '?'}）`),
+	].join('\n') + '\n';
+	mkdirSync(PROFILE_DIR, { recursive: true });   // ← 同修 ✓（`--only=` 时 `build/` 可能不存在 ✓）
+	writeFileSync(join(PROFILE_DIR, 'segment-profile.json'), JSON.stringify({ est, rows }, null, '\t') + '\n');
+	writeFileSync(join(PROFILE_DIR, 'segment-profile.md'), md);
+	console.log(`\n○ 逐段表 ⇒ \`${PROFILE_DIR}/segment-profile.md\` ＋ \`${PROFILE_DIR}/segment-profile.json\`（**报告型** ✓）`);
+	console.log(`○ 结论：**${est.n} 段**用 jsdom ⇒ 合并到一次启动，**串行工作量**省约 **${sec(est.saveSerialMs)}**（(N−1)×均值）`);
+	if (problems.length) { console.error(`\n${problems.join('\n')}`); console.error(`✗ 仪器一致性检查 ${problems.length} 条未过（**读数不可信** ⇒ 别用它算收益 ✗）`); }
+}
+
 if (failed.length) {
 	console.error(`\n✗ ${failed.length} 段失败：${failed.map((r) => r.seg.id).join(', ')}`);
 	process.exit(1);

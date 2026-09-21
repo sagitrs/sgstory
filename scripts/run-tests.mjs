@@ -355,6 +355,19 @@ t('🔴 `inputsDeclaredStats`：**声明了的段**计入 declared、不计入 u
 		(() => READ_API_BASELINE.every((a) => WRAPPED_READ_APIS.includes(a)))());
 	t('⚠️ shim **导出它的清单**（不是"注释里说包全了"✗ ⇒ 把漏报从注释面移到判据面 ✓）',
 		(() => Array.isArray(WRAPPED_READ_APIS) && WRAPPED_READ_APIS.length >= READ_API_BASELINE.length));
+	// `#1093` P2-d ③：**没人绕过助手** ✗（复核席要求 ✓ —— 同一教训今晚已在**三处**出现 ✓）
+	//   判据：`scripts/**` 里**直接调 `mkdir` ＋ `Sync(`** 的文件 ⊆ {**助手自身**} ∪ **显式豁免** ✗
+	//   ⚠️ 只数**真代码行**（跳过注释行 ✓ —— 否则注释里提一句就假红 ✗）
+	t('🔴 ③ 没人绕过助手：直接调 `mkdir`＋`Sync(` 的文件 ⊆ {助手} ∪ 豁免（>0 即红 ✗）',
+		(() => {
+			const files = execFileSync('git', ['grep', '-l', 'mkdir' + 'Sync(', '--', 'scripts'], { encoding: 'utf8' }).split('\n').filter(Boolean);
+			const EXEMPT = ['scripts/lib/ensure-parent.mjs', 'scripts/dist-fresh.mjs', 'scripts/report-two-state.mjs'];
+			const real = files.filter((f) => {
+				const src = readFileSync(f, 'utf8');
+				return src.split('\n').some((l) => { const t = l.trim(); return t.includes('mkdir' + 'Sync(') && !t.startsWith('//') && !t.startsWith('*'); });
+			});
+			return real.every((f) => EXEMPT.includes(f));
+		})());
 	if (bad) { console.error(`\n✗ 跑器自证失败 ${bad} 项`); process.exit(1); }
 	if (!quiet) console.log('\n✔ 跑器自证通过：成功/失败识别、失败输出不吞、并行真的重叠、setup 红即中止、needs 前置/级联跳过/配错报错');
 	else console.log('✓ 跑器自证通过（成功/失败识别 · 输出不吞 · 并行真重叠 · setup 红即中止 · needs 语义）');
@@ -447,7 +460,7 @@ if (tierWant === 'full' && !has('no-inputs-runtime')) {
 			try { rmSync(OUTJ, { force: true }); } catch { /* 首次 ✓ */ }
 			// ⚠️ `#1127` 复核阻断②：**跑子进程前必须确保落点父目录存在** ✗ ——
 			//   同文件 `:606` 早写着这条规矩（`#1072` 仪表族 ✓）⇒ 本处漏了 ✓（**干净 checkout ＋ 本块在 `build-mjs` 之前** ⇒ 无 `build/` ⇒ 空转 ✓）
-			mkdirSync(dirname(OUTJ), { recursive: true });
+			ensureParent(OUTJ);   // ← 走共用助手 ✓（复核席要求 ✓）
 			const args = seg.cmd.replace(/^node\s+/, '').split(/\s+/);
 			let rcode = 0;
 			try {
@@ -528,7 +541,7 @@ if (has('profile-selftest')) {
 	let bad = 0, n = 0;
 	const t = (label, ok, extra = '') => { n++; if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} 仪表自证·${label}${extra ? `  ${extra}` : ''}`); };
 	const { spawnSync } = await import('node:child_process');
-	mkdirSync(PROFILE_DIR, { recursive: true });   // ← 同修 ✓（本自证要能在"目录不存在"时跑通 ✓）
+	ensureParent(join(PROFILE_DIR, '_.keep'));   // ← 同修 ✓（本自证要能在"目录不存在"时跑通 ✓）
 	const TMP = join(PROFILE_DIR, 'profile-selftest.jsonl');
 	const USES = join(PROFILE_DIR, '._profile_selftest_uses_jsdom.mjs');
 	const PLAIN = join(PROFILE_DIR, '._profile_selftest_plain.mjs');
@@ -608,7 +621,7 @@ const serialCost = plan.reduce((a, s) => a + s.cost, 0);
 //   ⇒ 目录本身**可注入**（`SAGITRS_PROFILE_DIR`）：让自证能把"目录不存在"当**入参**喂进来验 ✓
 //     （㊱：攻击面落在**判据**上，**不是**去删真 `build/` 改现实 ✗）。
 if (has('profile')) {
-	mkdirSync(dirname(PROFILE_OUT), { recursive: true });   // ← 缺陷修在此 ✓（子进程 append 也要它先存在 ✓）
+	ensureParent(PROFILE_OUT);   // ← 同上 ✓   // ← 缺陷修在此 ✓（子进程 append 也要它先存在 ✓）
 	try { rmSync(PROFILE_OUT, { force: true }); } catch { /* 没有更好 ⇒ 首次跑 ✓ */ }
 	profileEnv = (seg) => ({
 		NODE_OPTIONS: `${process.env.NODE_OPTIONS ?? ''} --import=${pathToFileURL(join(ROOT, 'scripts/lib/instrument-jsdom.mjs')).href}`.trim(),
@@ -666,7 +679,7 @@ if (has('profile')) {
 		'', '## 用 jsdom 的段（按 装载＋构造 降序）', '',
 		...withJsdom.map((r) => `- \`${r.id}\`：装载 ${r.loadMs === null ? '—' : `${r.loadMs.toFixed(0)}ms`} ＋ 构造 ${r.n} 次 ${r.jsdomMs.toFixed(0)}ms（墙钟 ${sec(r.wallMs)} · tier ${tierById.get(r.id) ?? '?'}）`),
 	].join('\n') + '\n';
-	mkdirSync(PROFILE_DIR, { recursive: true });   // ← 同修 ✓（`--only=` 时 `build/` 可能不存在 ✓）
+	ensureParent(join(PROFILE_DIR, '_.keep'));   // ← 同修 ✓（`--only=` 时 `build/` 可能不存在 ✓）
 	writeFileSync(join(PROFILE_DIR, 'segment-profile.json'), JSON.stringify({ est, rows }, null, '\t') + '\n');
 	writeFileSync(join(PROFILE_DIR, 'segment-profile.md'), md);
 	console.log(`\n○ 逐段表 ⇒ \`${PROFILE_DIR}/segment-profile.md\` ＋ \`${PROFILE_DIR}/segment-profile.json\`（**报告型** ✓）`);

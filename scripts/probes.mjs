@@ -147,6 +147,7 @@ export const PROBES = [
 		tier: 'fast',
 		pre: [],
 		cmd: 'node test/web-rule-rows.mjs',
+		rebuild: 'node build.mjs >/dev/null',   // `#1132` 块 1：**本门读产物** ⇒ 判据对象是产物 ⇒ 必须重建（否则量上一代产物＝**假不咬** ✗ `#1012`）
 		mutation: {
 			// 把页内那一支的死规则判定**掐掉**（返回空数组 ✗）⇒ 页内主读数不从 0 变 1 ⇒ 刀那一条必红 ✓
 			file: 'editor/web/rule-rows-view.mjs',
@@ -177,6 +178,7 @@ export const PROBES = [
 		tier: 'fast',
 		pre: [],
 		cmd: 'node test/web-read-faces.mjs',
+		rebuild: 'node build.mjs >/dev/null',   // `#1132` 块 1：**本门读产物** ⇒ 判据对象是产物 ⇒ 必须重建（否则量上一代产物＝**假不咬** ✗ `#1012`）
 		mutation: {
 			// 把页内那一支的 ① 级判定**掐掉**（返回空 ✗）⇒ 注入的字面状态读不被点名 ⇒ 刀那一条必红 ✓
 			file: 'editor/web/read-faces-view.mjs',

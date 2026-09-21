@@ -270,7 +270,12 @@ export const SEGMENTS = [
 	{ id: "scripts-report-selftest-validity-mjs", phase: 'test', cost: 0.2, cmd: "node scripts/report-selftest-validity.mjs" },
 	// #459／#482：故事「新机制声明表」的形状门（六条可机检点 · 各带正反自证）
 	{ id: "test-story-shape-mjs", phase: 'test', cost: 0.1, cmd: "node test/story-shape.mjs" },
-	{ id: "test-lint-story-mjs", phase: 'test', cost: 0.5, cmd: "node test/lint-story.mjs" },  // 车道 E（#215）：lint-story 自证门
+	// `#1130`：**窗口制造者 ⇒ 独占** ✓（`exclusive` ⇒ 不与任何段重叠 ✓；`mutates` ＝ 它动哪些**已入库真源** ⇒ 独占的理由可查 ✓）
+	//   为什么：本段两处 `try/finally` **就地改真源**再恢复 ⇒ 恢复会刷新 mtime ⇒ 窗口期内"源比 dist 新" ⇒
+	//   并行 boot 的段会撞新鲜度守卫（CI 实测 `test-gate-discovery-mjs` 偶发红 ✓）⇒ 故独占 ✓（mtime 回填已在段内 ✓）
+	{ id: "test-lint-story-mjs", phase: 'test', cost: 0.5, exclusive: true,
+		mutates: ['stories/minimal-demo/data/tables.json', 'stories/face-fixture/data/tables.json'],
+		cmd: "node test/lint-story.mjs" },  // 车道 E（#215）：lint-story 自证门
 	// `#1024`：**并发假红**（`lint-story` 的 scratch 必须本次运行唯一）—— 3 轮 × 3 进程跑同一 slug
 	//   ＋ 两条**确定性**判据（旧落点没被重建 · 不留 `.lint-run-*` 草稿）；前置=dist 产物（故事门要读它）
 	// ⚠️ `#1044`：**还得排在 `test-lint-story-mjs` 之后** ✗ —— 那一段的反例**直接改真文件**

@@ -113,6 +113,7 @@ export const runPlan = async (plan, { jobs = 1, onDone = () => {} } = {}) => {
 	const t0 = Date.now();
 	const dead = (s) => (s.needs ?? []).some((d) => status.get(d) === 'fail' || status.get(d) === 'skipped');
 	const ready = (s) => (s.needs ?? []).every((d) => status.get(d) === 'ok');
+	const byId = new Map(plan.map((s) => [s.id, s]));   // `#1130`：`exclusive` 判据要用 ✓
 	// 注意循环条件要带上 `running.size`：段在**启动时**就从 remaining 移走，
 	// 只看 remaining 会在「最后几段还在跑」时提前返回（自证当场抓到的 bug）。
 	while (remaining.length || running.size) {
@@ -127,7 +128,12 @@ export const runPlan = async (plan, { jobs = 1, onDone = () => {} } = {}) => {
 			}
 		}
 		while (running.size < jobs) {
-			const s = remaining.find((x) => ready(x) && !running.has(x.id));
+			// `#1130`：**`exclusive` ＝ 不与任何段重叠** ✓（两侧都拦：独占要**空场**才上；独占在跑 ⇒ 别人不上 ✓）
+			const exclRunning = [...running.keys()].some((id) => byId.get(id)?.exclusive);
+			if (exclRunning) break;
+			const cands = remaining.filter((x) => ready(x) && !running.has(x.id));
+			const s = cands.find((x) => x.exclusive && running.size === 0)
+				?? cands.find((x) => !x.exclusive) ?? null;
 			if (!s) break;
 			remaining.splice(remaining.indexOf(s), 1);
 			running.set(s.id, runSegment(s).then((r) => {

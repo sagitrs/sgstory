@@ -3,7 +3,7 @@ import { allSourceFiles } from './scripts/module-order.mjs';
 import { execSync } from 'node:child_process';
 import { join, dirname, relative, isAbsolute } from 'node:path';
 import { scopedFiles, checkRegistration, isStoryPassageMd } from './scripts/module-order.mjs';
-import { parseFrontMatter, parseMdPassages, assemblePassages, FORBIDDEN_BUILTINS, duplicateProblems } from './editor/lib/core/passages.mjs';
+import { parseFrontMatter, parseMdPassages, parseTweePassages, assemblePassages, FORBIDDEN_BUILTINS, duplicateProblems } from './editor/lib/core/passages.mjs';
 import { valueTerms, engineLabels } from './editor/lib/core/vocab.mjs';
 import {
 	ROOT, storySlugs, readStory, storyHtml, shelfHtml, DEFAULT_SLUG,
@@ -192,14 +192,20 @@ for (const s of stories) {
 	}
 }
 
-// `#1114` 2b-2b：**产物里不得有 `/% … %/` 注释残留** ✗ —— 评审阻断复现：twee 路径剥了、**md 路径漏剥**
-//   ⇒ `/% … %/` 原样进 dist（实测 PRE 0/34 ⇒ POST 23/34，且段 body 变长 ✓）；
-//   `2b-2b-0` 的产物级断言只盯 front-matter 串 ⇒ **这个洞正是在它旁边** ✓ ⇒ 一并纳入 ✓。
+// `#1114` 2b-2b：**产物段 body ≡ 源 md 剥注释后的 body** ✗（防「md 路径漏剥」回归 ✓）。
+//   ⚠️ **不能写成“产物里不含 `/%`”** —— 那是**恒真格**（拼装输出已剥 ⇒ 永不含）✗：
+//   实测（评审要的能假那一半）：往 md 里喂一个 `/% 探针注释 %/` ⇒ 若只查“不含 /%” ⇒ `build rc=0` **不报** ✗。
+//   改为**比对两个量**（产物段 body ↔ 源剥后的 body）⇒ 漏剥时两者不等 ⇒ 必红 ✓。
 for (const s of stories) {
 	const out = merges.get(s.slug) ?? '';
-	if (/\/%/.test(out)) {
-		console.error(`✗ ${s.slug} 的拼装产物里有 **\`/% … %/\` 注释残留** ✗ ⇒ twee 路径与 md 路径**必须同剥**（\`stripTweeComments\` ✓）`);
-		process.exit(1);
+	const got = new Map(parseTweePassages(out).map((p) => [p.name, p.body]));
+	for (const f of scopedFiles(s).filter(isStoryPassageMd)) {
+		const [p0] = parseMdPassages(readFileSync(f, 'utf8'), f);
+		const want = stripTweeComments(p0.body).trimEnd();
+		if ((got.get(p0.name) ?? '').trimEnd() !== want) {
+			console.error(`✗ ${f}（段「${p0.name}」）的**产物 body 与「源剥注释后的 body」不等** ✗ ⇒ md 路径没剥注释（stripTweeComments 漏接 ✓）`);
+			process.exit(1);
+		}
 	}
 }
 

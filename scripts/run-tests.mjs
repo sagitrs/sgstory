@@ -28,9 +28,11 @@ import { readFileSync, writeFileSync, rmSync, mkdirSync, existsSync } from 'node
 import { join, dirname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { cpus } from 'node:os';
-import { testPlan, segmentLayer, validateLayers, tierOf, TIERS, DEFAULT_TIER, validateTiers, SUITES, suiteOf, validateSuites, inputsDeclaredStats, validateInputsRatchet, inputsMatch } from './test-plan.mjs';
+import { testPlan, segmentLayer, validateLayers, tierOf, TIERS, DEFAULT_TIER, validateTiers, SUITES, suiteOf, validateSuites, inputsDeclaredStats, validateInputsRatchet, inputsMatch, validateInputsWildcardReasons } from './test-plan.mjs';
 import { fsArgLiterals, inputsLowerProblems, interLayerProblems, inputsTruthProblems } from './lib/inputs-lower.mjs';   // `#1093` P2-b：①层（静态下界）
 import { WRAPPED_READ_APIS, READ_API_BASELINE } from './lib/fs-hook-shim.mjs';
+import * as shimNs from './lib/fs-hook-shim.mjs';   // `#1093` P2-d ⑤：判「清单 ≡ 实际包裹」需要**真导出面** ✓
+import * as FSN from 'node:fs';   // 同上：真 fs 面（用于判某导出是否真被包裹 ✓）
 import { ensureParent } from './lib/ensure-parent.mjs';   // `#1093` P2-d：写前建父目录（共用助手 ✓ —— **调用点在少走路径上 ⇒ 漏接线 CI 抓不到** ✗ 见下方自证格 ✓）   // `#1093` P2-c：㈠ 面完整性清单 ✓
 import { untrackedScannedProblems, isUntrackedExemptLine } from './lib/untracked-guard.mjs';   // `#1093` P2-d ③：**未跟踪件是 `git grep` 的盲区** ✗ ⇒ 用本仓既有守卫 ✓
 // `#607`：故事清单声明的门 flag（P0 为空集合 ⇒ 层判定与今天**逐字相同**；P1 起门搬家后仍判得出故事层）
@@ -349,12 +351,35 @@ t('🔴 `inputsDeclaredStats`：**声明了的段**计入 declared、不计入 u
 		(() => { const lw = ['src', 'stories']; return inputsLowerProblems({ declared: [], lower: lw }).length === 0
 			&& inputsLowerProblems({ declared: ['src/**', 'stories'], lower: lw }).length === 0
 			&& inputsLowerProblems({ declared: ['src/**'], lower: lw }).length === 1; })());
+	// `#1093` P2-d：**`*` 家族**（全通配 ⇒ 与「未声明」同义 ✗）—— 三个消费者**必须同义** ✓（跨函数对照才照得出 ✗）
+	t('🔴 全通配·①层：`["*"]` ⇒ **恒命中**（静态面也算被覆盖 ✓）',
+		inputsLowerProblems({ declared: ['*'], lower: ['src/anything.mjs'] }).length === 0);
+	t('🔴 全通配·②层：`["*"]` ⇒ **恒命中**（修前**恰好反着** ✗：`base && …` 空 base 判否 ✗ ⇒ 三处不同义 ✓）',
+		inputsTruthProblems({ declared: ['*'], truth: ['src/anything.mjs'] }).length === 0);
+	t('🔴 全通配·选择面：`inputsMatch(["*"])` ⇒ **恒命中**（任意改动面 ⇒ **永不跳过** ✓）',
+		inputsMatch({ declared: ['*'], changed: ['docs/whatever.md'] }) === true);
+	t('🔴 成对（**窄声明必须仍能判否** ✗ —— 否则"恒命中"＝把门焊死 ✓）',
+		inputsMatch({ declared: ['src/**'], changed: ['stories/x.twee'] }) === false
+		&& inputsLowerProblems({ declared: ['src/**'], lower: ['stories/x.twee'] }).length === 1
+		&& inputsTruthProblems({ declared: ['src/**'], truth: ['stories/x.twee'] }).length === 1);
+	t('🔴 ④ 全通配须给**机器可读的理由 ＋ 票号**（缺任一项不生效 ✗）；今日那条真声明**已带** ✓',
+		validateInputsWildcardReasons().length === 0
+		&& validateInputsWildcardReasons([{ id: 'x', inputs: ['*'] }]).length === 1
+		&& validateInputsWildcardReasons([{ id: 'x', inputs: ['*'] }], { reasons: { x: { reason: 'r', voucher: '#1' } } }).length === 0
+		&& validateInputsWildcardReasons([{ id: 'x', inputs: ['*'] }], { reasons: { x: { reason: 'r' } } }).length === 1);
 	t('🔴 `interLayerProblems`：**①（下界）⊆ ②（真值）** 成立 ⇒ 0 ✓；下界含真值没有的 ⇒ **必报** ✓',
 		(() => { const okk = interLayerProblems({ lower: ['src'], truth: ['src/a.twee'] }); const bad2 = interLayerProblems({ lower: ['dist'], truth: ['src/a.twee'] }); return okk.length === 0 && bad2.length === 1; })());
 	// ⚠️ **格必须调用**（`() => …` 传函数 ⇒ **恒真** ✗ —— 实测实测踩过：写漏一对括号 ⇒ 该格永远不红 ✓ 与恒真格同族 ✓）
 	// `#1093` P2-c：②层（运行真值）的面级断言（**格放在检查之前** ✓；只断言跨时间的结构不变量 ✓）
 	t('🔴 ㈠ 面完整性 ratchet：shim 包裹的读 API 清单 **⊇ 基准清单** ✓（后人加新读 API 未包 ⇒ 当场红 ✓）',
 		(() => READ_API_BASELINE.every((a) => WRAPPED_READ_APIS.includes(a)))());
+	t('🔴 ㈡ 面完整性：`WRAPPED_READ_APIS` **≡ 实际被包裹的导出**（两向 ✗ —— 清单多写 ⇒ 谎报覆盖 ✓；少写 ⇒ 漏报 ✓）',
+		(() => {
+			const r = (a) => [...a].sort().join(',');
+			const actual = Object.keys(shimNs).filter((k) => typeof shimNs[k] === 'function'
+				&& typeof FSN[k] === 'function' && shimNs[k] !== FSN[k]);
+			return r(actual) === r(WRAPPED_READ_APIS);
+		})());
 	t('⚠️ shim **导出它的清单**（不是"注释里说包全了"✗ ⇒ 把漏报从注释面移到判据面 ✓）',
 		(() => Array.isArray(WRAPPED_READ_APIS) && WRAPPED_READ_APIS.length >= READ_API_BASELINE.length));
 	// `#1093` P2-d ③：**没人绕过助手** ✗（复核席要求 ✓ —— 同一教训今晚已在**三处**出现 ✓）
@@ -442,6 +467,8 @@ const suiteSel = suiteWant ? plan0.filter((s) => suiteOf(s) === suiteWant) : nul
 	const { undeclared, declared, total } = inputsDeclaredStats(plan0);
 	console.log(`○ \`inputs\` 声明：已声明 ${declared}/${total} 段 ｜ **未声明 ${undeclared.length}**（未声明 ⇒ 视为「**全跑型**」＝总是跑 ✓ —— **本片不含跳过** ✗）`);
 	if (problems.length) { console.error(`✗ \`inputs\` ratchet 不过：\n  ${problems.join('\n  ')}`); process.exit(2); }
+	const wc = validateInputsWildcardReasons(plan0);   // `#1093` P2-d ④：全通配声明须给机器可读理由 ＋ 票号 ✓（缺任一项不生效 ✗）
+	if (wc.length) { console.error(`✗ \`inputs\` 全通配理由不过：\n  ${wc.join('\n  ')}`); process.exit(2); }
 
 // `#1093` P2-b：**①层（静态下界）** —— 只对**已声明 `inputs`** 的段判 ✓（未声明 ⇒ 全跑型 ⇒ 不该管它 ✗）
 //   ⚠️ 抽面**必须锚 fs 实参位** ✗（朴素抽「文件里出现过的路径串」会把**自证夹具**算成读取面 ✓ 实测 9 vs 2 ✓）

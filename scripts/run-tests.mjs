@@ -31,7 +31,9 @@ import { cpus } from 'node:os';
 import { testPlan, segmentLayer, validateLayers, tierOf, TIERS, DEFAULT_TIER, validateTiers, SUITES, suiteOf, validateSuites, inputsDeclaredStats, validateInputsRatchet, inputsMatch, validateInputsWildcardReasons } from './test-plan.mjs';
 import { fsArgLiterals, inputsLowerProblems, interLayerProblems, inputsTruthProblems } from './lib/inputs-lower.mjs';   // `#1093` P2-b：①层（静态下界）
 import { wiringProblems } from './lib/gate-wiring.mjs';
-import { wiringCells, WIRING_CELLS_EXPECTED } from './lib/gate-wiring-cells.mjs';   // `#1100`：接线自证格（独立模块 ✓ 宿主只加两行 ✓）   // `#1100`：判据接线核对（门清单派生 ✓）
+import { wiringCells, WIRING_CELLS_EXPECTED } from './lib/gate-wiring-cells.mjs';
+import { gearDefsCriteriaProblems } from './lib/gear-defs-criteria.mjs';   // `#1115` 件②：Gear.defs 口径门
+import { gearDefsCells, GEAR_DEFS_CELLS_EXPECTED } from './lib/gear-defs-cells.mjs';   // `#1100`：接线自证格（独立模块 ✓ 宿主只加两行 ✓）   // `#1100`：判据接线核对（门清单派生 ✓）
 import { WRAPPED_READ_APIS, READ_API_BASELINE } from './lib/fs-hook-shim.mjs';
 import * as shimNs from './lib/fs-hook-shim.mjs';   // `#1093` P2-d ⑤：判「清单 ≡ 实际包裹」需要**真导出面** ✓
 import * as FSN from 'node:fs';   // 同上：真 fs 面（用于判某导出是否真被包裹 ✓）
@@ -416,6 +418,8 @@ t('🔴 `inputsDeclaredStats`：**声明了的段**计入 declared、不计入 u
 		bad++;
 		console.error(`✗ 判据接线：**格数对不上** —— 实跑 ${nCells} vs 期望 ${WIRING_CELLS_EXPECTED} ✗（掐掉/漏写一格 ⇒ 数变 ⇒ 红 ✓）`);
 	} else console.log(`  ○ 判据接线：本组格数 **${nCells} ≡ ${WIRING_CELLS_EXPECTED}** ✓`);
+	const nGear = gearDefsCells(t);   // `#1115` 件②：口径门自证格（**返回值必须用** ✓）
+	if (nGear !== GEAR_DEFS_CELLS_EXPECTED) { bad++; console.error(`✗ \`Gear.defs\` 口径门：**格数对不上** —— 实跑 ${nGear} vs 期望 ${GEAR_DEFS_CELLS_EXPECTED} ✗`); } else console.log(`  ○ \`Gear.defs\` 口径门：本组格数 **${nGear} ≡ ${GEAR_DEFS_CELLS_EXPECTED}** ✓`);
 	if (bad) {
  console.error(`\n✗ 跑器自证失败 ${bad} 项`); process.exit(1); }
 	if (!quiet) console.log('\n✔ 跑器自证通过：成功/失败识别、失败输出不吞、并行真的重叠、setup 红即中止、needs 前置/级联跳过/配错报错');
@@ -484,6 +488,8 @@ const suiteSel = suiteWant ? plan0.filter((s) => suiteOf(s) === suiteWant) : nul
 		const wr = wiringProblems();
 		console.log(`  ${wr.face}`);
 		if (wr.problems.length) { console.error(`✗ 判据接线核对不过（**接线缺失** ≠ 判据异常 ✗）：\n  ${wr.problems.join('\n  ')}`); process.exit(2); }
+		const gd = gearDefsCriteriaProblems();   // `#1115` 件②：`Gear.defs` 口径门（**对称差** ⇒ 非空即红 ✓）
+		if (gd.length) { console.error(`✗ \`Gear.defs\` 口径门不过：\n  ${gd.join('\n  ')}`); process.exit(2); }
 	}
 	if (wc.length) { console.error(`✗ \`inputs\` 全通配理由不过：\n  ${wc.join('\n  ')}`); process.exit(2); }
 

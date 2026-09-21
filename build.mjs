@@ -90,9 +90,10 @@ const stripTweeComments = (text) => String(text).replace(/\/%[\s\S]*?%\//g, ' ')
 //   段序仍由 `files` 派生 ✓（Q1 裁定：唯一清单与唯一顺序权威 ✓）。
 //   ⚠️ **fail-loud 面＝四类**（与实现一致 ✗ —— 不许“承诺了但不做” ✓）：
 //     ① 禁则（`FORBIDDEN_BUILTINS`）② 悬空引用 ③ **重名段（跟源多重集）** ④ 取值 `{{}}` 未声明面。
-//     ③ 的射程：词汇门的 `D1` 只判**受判（content）故事** ⇒ `face-fixture`／`minimal-demo` 豁免
-//     ⇒ 而 2b-2b 要迁的正是 `face-fixture` ⇒ 两源共存期最现实的那一类（md 与既有 twee 段名相撞、或两个 md 同名）
-//     **恰好落在无覆盖那侧** ✗ ⇒ 必须在**构建路径**自己算（不靠门 ✓）。
+//     ③ 的理由（可复算 ✓）：`build` **单独跑**的地方不止一处（`ci.yml` 的 build 步／`viewport-smoke.yml`／本地），
+//     且实测跟文件同名时 `build` 全静默、**产物静默丢掉后一份**（第二段的正文不在产物里）。
+//     词汇门的 `D1` 虽覆盖**所有故事**的源（其注释明写"不受 audience 豁免"），但只在 **test 段**跑 ⇒
+//     构建自己必须说话，不能靠门兜。判据＝同一函数（`duplicateProblems` ✓），门与 build 不可能漂。
 const ENGINE_LABELS = engineLabels(allSourceFiles(['src']).map((f) => readFileSync(f, 'utf8')));
 const termsOf = (slug) => {
 	const p = `stories/${slug}/data/contract.json`;

@@ -326,7 +326,18 @@ for (const slug of stories) {
 	// ⚠️ **缺 `audience` ⇒ 按 content 判**（不静默放过）：`audience` 由 `#1035` 显式声明引入；
 	//   缺字段时若按"豁免"处理，本门在 `#1035` 落地前会**成为空判**（正是本仓最忌讳的形态 ✗）。
 	const judged = story.audience !== 'internal';
-	if (judged) { judgedSlugs.push(slug); problems = problems.concat(proseVocabProblems({ slug, files, vocab })); allJudgedFiles.push(...files); }
+	// `#1132`：**词表扩展** ✓ —— 受判故事的**本地宏名**（`passages/` 下的 md 里的 `<<widget "name">>`）也算"已声明" ✓。
+	//   为什么：C 形态（UI 渲染移入伴生 `[script]` 段的 `<<widget>>` 定义）会让**散文段**里出现
+	//   故事本地宏名 ⇒ 若词表只抽 `src/**` ⇒ 那些引用会被判 **V2「引擎未宣告」** ✗（受判故事上必红 ✓）。
+	//   ⚠️ **按 slug 现抽** ✓（作用域隔离免费 ✓）：A 故事的本地名不会让 B 故事受益 ✓。
+	//   ⚠️ **枚举走同一已入库面** ✓（`trackedIn` ✓ —— 未跟踪件不得静默供名 ✓，与门其余部分同口径 ✓）
+	//   ⚠️ **并集只喂第三档** ✓（禁则→允许→词表 三档次序不变 ⇒ 声明无法解锁禁则 ✓）。
+	const storyPassageMd = (sl) => trackedIn(`stories/${sl}`).filter((f) => f.endsWith('.md') && isStoryPassageMd(f));
+	const vocabFor = (sl) => {
+		const extra = storyPassageMd(sl).map((f) => readFileSync(join(ROOT, f), 'utf8'));
+		return extra.length ? engineVocab([...vocabFiles.map((f) => readFileSync(join(ROOT, f), 'utf8')), ...extra]) : vocab;
+	};
+	if (judged) { judgedSlugs.push(slug); problems = problems.concat(proseVocabProblems({ slug, files, vocab: vocabFor(slug) })); allJudgedFiles.push(...files); }
 	else exempt.push(slug);
 }
 // `#1051`②：**未跟踪件 ⇒ 提醒**（与 `#1045`／`#1046`／`#1089` 同款 ✓ —— 不静默跳过 ✗）。

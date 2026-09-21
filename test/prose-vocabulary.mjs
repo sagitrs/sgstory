@@ -49,7 +49,7 @@ export const ALLOWED_BUILTINS = new Set(['back']);
 import { VALUE_KINDS, valueTerms } from '../editor/lib/core/vocab.mjs';
 // `#1114` 片 2b-2a：**散文层源**（`passages/*.md`）的 front-matter 解析走**拼装层同一权威** ✓
 //   （不另写一份 YAML 子集 ✗ —— 两处解析器就是两处真相 ✓）。
-import { parseFrontMatter, duplicateProblems } from '../editor/lib/core/passages.mjs';
+import { parseFrontMatter, duplicateProblems, passagesOf, parseTweePassages } from '../editor/lib/core/passages.mjs';
 // `#1114` 片 2b-2a：**源面谓词走单一权威** ✓（评审阻断：本件原先自带一份逐字相同的副本 ⇒ 两份可漂 ✓）。
 //   ⇒ 定义处只在 `scripts/module-order.mjs`（`allSourceFiles()` 也在那儿 ✓）；本件只 **import** ✗。
 import { isStoryPassageMd } from '../scripts/module-order.mjs';
@@ -126,22 +126,8 @@ const sourcesUnder = (dir, acc = []) => {
 	return acc;
 };
 
-/** 解析一份 twee 的段落：`:: 名 [tags] {meta}` ⇒ {name, tags, bodyLines:[{text, line}]}。**纯函数**。 */
-export const parsePassages = (text) => {
-	const lines = String(text).split('\n');
-	const heads = [];
-	for (let i = 0; i < lines.length; i++) {
-		const m = lines[i].match(/^::\s+(.+?)\s*(?:\[([^\]]*)\])?\s*(?:\{.*\})?\s*$/);
-		if (m) heads.push({ i, name: m[1].trim(), tags: (m[2] ?? '').split(/\s+/).filter(Boolean) });
-	}
-	return heads.map((h, k) => ({
-		name: h.name,
-		tags: h.tags,
-		line: h.i + 1,
-		bodyLines: lines.slice(h.i + 1, k + 1 < heads.length ? heads[k + 1].i : lines.length)
-			.map((text, j) => ({ text, line: h.i + 2 + j })),
-	}));
-};
+/** `#1114` 片 2b-2b-0b：twee 段解析**走 core 单一权威** ✓（原先本件自带一份同形实现 ✗ —— 两份口径必漂）。 */
+export const parsePassages = parseTweePassages;
 
 /** 剔除 `/% … %/` 注释跨度（**跨行**也要吃）——但保留 `/% payload: … %/` 标记原样（它是"标记"，不是留痕）。 */
 export const stripCommentSpans = (bodyLines) => {
@@ -172,17 +158,6 @@ export const stripCommentSpans = (bodyLines) => {
 	return out;
 };
 
-/** `#1114` 片 2b-2a：解析一份**散文源**（`passages/*.md`）为一个段落 ✓——front-matter 的 `passage` ⇒ 段名、
- *  `tags` ⇒ tag 面（`scope_of` 其余字段不进本判据面 ✓）。**纯函数**。
- *  ⚠️ front-matter 的解析走拼装层同一权威（`core/passages.mjs` 的 `parseFrontMatter` ✓）——
- *  本门只负责把它**接进同一个判据体** ✓（禁则／允许／词表三档次序一字不动 ✗）。 */
-export const parseMdPassages = (text, path = '') => {
-	const { meta, body } = parseFrontMatter(text);
-	const name = String(meta.passage ?? '').trim() || path;
-	const tags = String(meta.tags ?? '').split(/[\s,]+/).map((t) => t.replace(/^\[|\]$/g, '')).filter(Boolean);
-	return [{ name, tags, line: 1, bodyLines: String(body).split('\n').map((t, j) => ({ text: t, line: j + 1 })) }];
-};
-
 /**
  * 判据（**纯函数**）：给定内容故事的散文文件 → 问题列表。
  * @param {{slug:string, files:{path:string,text:string}[], vocab:Set<string>}} args
@@ -193,7 +168,7 @@ export const proseVocabProblems = ({ slug, files, vocab }) => {
 		// `#1114` 片 2b-2a：**按扩展名分派解析器** ✗——判据体（下两档）**两路共用** ✓。
 		//   ⚠️ 不分派的后果是"**假绿**"：md 进 twee 解析器 ⇒ 解析出空 ⇒ 不报错也不判 ⇒ 看着像扫过了 ✓
 		//   （这正是本片要堵的那个缺口 ✓ —— 与"零命中≠已覆盖"同族 ✓）。
-		const passages = isStoryPassageMd(f.path) ? parseMdPassages(f.text, f.path) : parsePassages(f.text);
+		const passages = passagesOf(f.text, f.path);
 		for (const p of passages) {
 			const isProse = !p.tags.some((t) => ['script', 'widget', 'stylesheet'].includes(t));
 			if (!isProse) continue;
@@ -274,7 +249,7 @@ const selftest = () => {
 	t('🔴 md 源·反例：md 正文的**未宣告宏** ⇒ **V2**（不分派会成“假绿”：twee 解析器把 md 解成空 ⇒ 看着像扫过 ✓）',
 		(proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'stories/demo/passages/0-a.md', text: '---\npassage: 开场\n---\n<<nonexistent>>\n' }] })[0]?.code) === 'V2');
 	t('md 源·front-matter：`passage` ⇒ 段名、`tags` ⇒ tag 面（与拼装层同一权威解析 ✓）',
-		(() => { const p = parseMdPassages('---\npassage: 酒馆\ntags: prose\nscope_of: x\n---\n正文\n', 'p.md')[0]; return p.name === '酒馆' && p.tags.includes('prose') && p.bodyLines[0].text === '正文'; })());
+		(() => { const p = passagesOf('---\npassage: 酒馆\ntags: prose\nscope_of: x\n---\n正文\n', 'stories/x/passages/p.md')[0]; return p.name === '酒馆' && p.tags.includes('prose') && p.bodyLines[0].text === '正文'; })());
 	t('🔴 跟源同名段（md ＋ twee 各写一份）⇒ **报且点名两处** ✗（“改了 md 没改 twee”的静默分叉 ✓）',
 		(() => { const r = duplicateProblems({ passages: [{ name: '开场', path: 'stories/x/passages/0-开场.md' }, { name: '开场', path: 'stories/x/10-fixture.twee' }] }); return r.length === 1 && r[0].includes('0-开场.md') && r[0].includes('10-fixture.twee'); })());
 	t('🔴 枚举·新面：**未登记**的 `passages/*.md` 在树上 ⇒ **报**（旧口径对 md 隐形 ✗）',
@@ -343,7 +318,7 @@ for (const slug of stories) {
 	{
 		const segNames = [];
 		for (const f of files) {
-			const ps = isStoryPassageMd(f.path) ? parseMdPassages(f.text, f.path) : parsePassages(f.text);
+			const ps = passagesOf(f.text, f.path);
 			for (const p of ps) segNames.push({ name: p.name, path: f.path });
 		}
 		for (const m of duplicateProblems({ passages: segNames })) problems.push({ code: 'D1', msg: m });

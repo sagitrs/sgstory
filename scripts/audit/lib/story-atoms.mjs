@@ -3,6 +3,7 @@
 // 为什么要单独成文件：原先这些纯函数长在 `scripts/report-polarity-gap.mjs` 里，而那是**带 CLI 的脚本**
 // ⇒ `import` 它会**顺带执行 CLI**（实测踩到：跑 `test/itemmatrix.mjs --selftest` 打出的是极性报告的自证）。
 // 纪律：**带顶层 CLI 的文件不许被当库导入**——纯逻辑抽到这里，脚本只留 IO 与 CLI。
+import { passagesOf, isStoryPassageMdPath } from '../../../editor/lib/core/passages.mjs';   // `#1114` 2b-2b-0b：切段单一权威
 import { mask } from './mask.mjs';
 
 // ── 纯函数：① 站点抽取 ────────────────────────────────────────────────
@@ -11,9 +12,13 @@ export const extractSites = (sources) => {
 	const sites = [];
 	let passage = '?', tags = '';
 	for (const file of Object.keys(sources).sort()) {
+		// `#1114` 片 2b-2b-0b：**md 源一文件一段**（无 `:: ` 段头）⇒ 段名/tags 走 core 的 `passagesOf()`
+		//   （**唯一分派点** ✓）；twee 仍走下面的逐行状态机（未改动行为 ✓）。
+		const mdSeg = isStoryPassageMdPath(file) ? passagesOf(String(sources[file] ?? ''), file)[0] : null;
 		const text = mask(String(sources[file] ?? ''), { twee: true }).text;
+		if (mdSeg) { passage = mdSeg.name; tags = mdSeg.tags.join(' '); }
 		text.split('\n').forEach((line, i) => {
-			if (/^::\s/.test(line)) {
+			if (!mdSeg && /^::\s/.test(line)) {
 				const m = line.slice(2).match(/^\s*([^\[]+?)\s*(?:\[(.*)\])?$/);
 				passage = (m?.[1] ?? '?').trim();
 				tags = m?.[2] ?? '';

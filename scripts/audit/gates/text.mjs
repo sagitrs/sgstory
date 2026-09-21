@@ -1,4 +1,5 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
+import { passagesOf } from '../../../editor/lib/core/passages.mjs';   // `#1114` 2b-2b-0b：切段单一权威
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { stripJsComments, storyText } from '../lib/shared.mjs';
 // flags=['text']。校验：npm run audit:golden。
@@ -117,9 +118,11 @@ if (wantAll || arg('text')) {
 	else {
 		// 只扫**正文段**：`[script]`/`[widget]`/`[stylesheet]` 是数据/机制（**黑名单本身就声明在那里**，
 		// 扫它们等于让词表命中自己），而风格门本来只管散文（`#602`）。
-		const proseOf = (f) => readFileSync(f, 'utf8').split(/^::\s*/m).slice(1)
-			.filter((part) => !/\[(script|widget|stylesheet)\b/.test(part.slice(0, part.indexOf('\n'))))
-			.map((part) => part.slice(part.indexOf('\n') + 1)).join('\n');
+		// `#1114` 片 2b-2b-0b：切段**不再自写** ✗ —— 走 core 的 `passagesOf()`（**唯一分派点** ✓）。
+		//   （原先 `split(/^::\s*/m)` ⇒ `passages/` 下的 md 被切成 0 段 ⇒ 风格门看不见其正文 ✓）
+		const proseOf = (f) => passagesOf(readFileSync(f, 'utf8'), f)
+			.filter((p) => !p.tags.some((t) => ['script', 'widget', 'stylesheet'].includes(t)))
+			.map((p) => p.body).join('\n');
 		for (const f of judgeBlacklist(SRC_FILES, blacklist, proseOf)) {
 			console.log(`  ✗ 风格违和词「${f.word}」@ ${f.file.split('/').pop()}:${f.line}（本故事声明的黑名单——替换表 docs/archive/westward-unification.md）`);
 			bad++;

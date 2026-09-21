@@ -7,6 +7,7 @@
 // 行为纪律（#316）：本文件只做「搬家」，不改任何加载语义——输出必须与拆分前逐字节一致
 // （验证方式：npm run audit:golden）。
 import { readFileSync, readdirSync } from 'node:fs';
+import { passagesOf } from '../../editor/lib/core/passages.mjs';   // `#1114` 2b-2b-0b：切段**唯一分派点** ✓（md/twee 同入口）
 import { scopedFiles } from '../module-order.mjs';
 import { DEFAULT_SLUG, readStory } from '../dist-paths.mjs';
 import vm from 'node:vm';
@@ -33,19 +34,20 @@ const loadScripts = (srcFiles) => {
 };
 
 // ── 段落索引（锚点检查用）：name → 去注释源文 / 原文 / tags ──
+// `#1114` 片 2b-2b-0b：切段**不再自写** ✗ —— 改走 core 的 `passagesOf()`（**唯一分派点** ✓）。
+//   以前这里 `text.split(/^::\s*/m).slice(1)` ⇒ `passages/` 下的 md（无 `:: ` 段头）切出 **0 段**
+//   ⇒ 在**这一层**就把 md 内容整体丢掉 ✗（实测：加一个 md 段 ⇒ 段落面纹丝不动、rc=0 静默）。
+//   而本函数是 audit 各门的**主入口** ⇒ 下游各门连机会都没有 ✓。
 const indexPassages = (srcFiles) => {
 	const passageSrc = new Map(); // name -> 去注释源文（锚点检查用）
 	const passageRaw = new Map(); // name -> 原文（payload 注释检查用）
 	const passageTags = new Map(); // name -> tags[]
 	for (const f of srcFiles) {
 		const text = readFileSync(f, 'utf8');
-		const parts = text.split(/^::\s*/m);
-		for (const part of parts.slice(1)) {
-			const nl = part.indexOf('\n');
-			const name = part.slice(0, nl).replace(/\[[^\]]*\]\s*$/, '').trim();
-			passageTags.set(name, (part.slice(0, nl).match(/\[([^\]]*)\]/)?.[1] ?? '').trim().split(/\s+/).filter(Boolean));
-			passageRaw.set(name, part.slice(nl + 1));
-			passageSrc.set(name, part.slice(nl + 1).replace(/\/%[\s\S]*?%\//g, ''));
+		for (const p of passagesOf(text, f)) {
+			passageTags.set(p.name, p.tags);
+			passageRaw.set(p.name, p.body);
+			passageSrc.set(p.name, String(p.body).replace(/\/%[\s\S]*?%\//g, ''));
 		}
 	}
 	return { passageSrc, passageRaw, passageTags };

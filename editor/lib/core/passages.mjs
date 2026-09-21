@@ -26,6 +26,7 @@ import { valueTerms } from './vocab.mjs';
  *   ⚠️ **次序不变**：本表是判据的**第一档**（禁则 → 允许 → 词表 ✓）；拼装层同样先查它 ✓。 */
 export const FORBIDDEN_BUILTINS = new Set(['if', 'elseif', 'else', 'set', 'for', 'run', 'capture', '=']);
 
+
 /** front-matter 解析（`---` 围栏 + YAML 子集：key: value 行 ✓——不引全量 YAML 库 ✗ 最小面 ✓）。 */
 export const parseFrontMatter = (text) => {
 	const t = String(text ?? '');
@@ -38,6 +39,47 @@ export const parseFrontMatter = (text) => {
 	}
 	return { meta, body: t.slice(m[0].length) };
 };
+
+/** `#1114` 片 2b-2b-0b：**按扩展名分派**的段落解析入口 ✗ —— 全部消费面（audit 上下文、词汇门、build……）
+ *  都走这里，**不许各自写一份“md/twee 怎么切”** ✓（本仓反复撞的“两处口径”）。
+ *  · `.twee` ⇒ `:: 名 [tags]` 段头切段；
+ *  · `stories/<slug>/passages/` 下的 `.md` ⇒ front-matter ＋ 整文件一段（`passage` ⇒ 段名 ✓）。
+ *  · **分派依据是扩展名，不是文件名里的语义角色** ✓（`#1114` Q1 裁定）。
+ *  ⚠️ 非源 md（会话记录／门证据）**不进面** ✗ —— 谓词与 `scripts/module-order.mjs` 的 `isStoryPassageMd` 同形。
+ *  返回统一形态：`{ name, tags, body, bodyLines:[{text, line}], line }`（两路消费者共用 ✓）。 */
+export const isStoryPassageMdPath = (rel) => /^stories\/[^/]+\/passages\/.*\.md$/.test(String(rel));
+
+/** twee 的段头切段（`:: 名 [tags] {meta}` ⇒ 段对象 ✓）。**纯函数**。 */
+export const parseTweePassages = (text) => {
+	const lines = String(text).split('\n');
+	const heads = [];
+	for (let i = 0; i < lines.length; i++) {
+		const m = lines[i].match(/^::\s+(.+?)\s*(?:\[([^\]]*)\])?\s*(?:\{.*\})?\s*$/);
+		if (m) heads.push({ i, name: m[1].trim(), tags: (m[2] ?? '').split(/\s+/).filter(Boolean) });
+	}
+	return heads.map((h, k) => {
+		const bodyLines = lines.slice(h.i + 1, k + 1 < heads.length ? heads[k + 1].i : lines.length)
+			.map((text, j) => ({ text, line: h.i + 2 + j }));
+		// ⚠️ `body` 必须与原口径（`text.split(/^::\s*/m)` 的 `part.slice(nl+1)`）**逐字相同** ✗
+		//   —— 它含**段尾的那个换行**（原 part 末尾 ✓）⇒ 不补会在“无行为变化”的接线上反而改掉
+		//   `passageRaw`/`passageSrc` 的字面（实测：golden 22 个开关红 ✓）。
+		return { name: h.name, tags: h.tags, line: h.i + 1, body: bodyLines.map((b) => b.text).join('\n') + '\n', bodyLines };
+	});
+};
+
+/** md 散文源（一文件一段 ✓）⇒ 段对象（与 `parseTweePassages` **同形** ✓）。**纯函数**。
+ *  front-matter 解析走本文件的 `parseFrontMatter`（**同一权威** ✗ 不另写 YAML 子集 ✓）。 */
+export const parseMdPassages = (text, path = '') => {
+	const { meta, body } = parseFrontMatter(text);
+	const name = String(meta.passage ?? '').trim() || path;
+	const tags = String(meta.tags ?? '').split(/[\s,]+/).map((t) => t.replace(/^\[|\]$/g, '')).filter(Boolean);
+	const bodyLines = String(body).split('\n').map((t, j) => ({ text: t, line: j + 1 }));
+	return [{ name, tags, line: 1, body: String(body), bodyLines }];
+};
+
+/** **唯一分派点** ✓（`#1114` 片 2b-2b-0b）：给一份源文本与它的路径 ⇒ 段落数组 ✓。 */
+export const passagesOf = (text, path = '') =>
+	isStoryPassageMdPath(path) ? parseMdPassages(text, path) : parseTweePassages(text);
 
 /** 禁则拦截：`FORBIDDEN_BUILTINS` 名出现在 md 正文 ⇒ 报（真源＝`editor/lib/core/passages.mjs` 的 `FORBIDDEN_BUILTINS` ✓ —— `#1114` 2b-2b-0 起 `test/prose-vocabulary.mjs` 与拼装层**同一份** ✓）。 */
 export const forbiddenProblems = ({ name, body, forbidden }) => {

@@ -7,7 +7,7 @@
 // 自证：`node test/passages-assemble.mjs --selftest`
 // ⚠️ 自证结尾 `if (bad) … exit(1)` ✗（#1100 形态硬化 ✓——格红必进退出码 ✓）
 
-import { parseFrontMatter, forbiddenProblems, danglingProblems, valueRefExpand, assemblePassages } from '../editor/lib/core/passages.mjs';
+import { parseFrontMatter, forbiddenProblems, danglingProblems, valueRefExpand, assemblePassages, FORBIDDEN_BUILTINS } from '../editor/lib/core/passages.mjs';
 import { valueTerms, VALUE_KINDS } from '../editor/lib/core/vocab.mjs';
 
 let bad = 0;
@@ -54,6 +54,20 @@ const selftest = () => {
 	// ⑧ valueTerms 单一权威（本件 import core ✓ 不另算 ✗）
 	const vt = valueTerms({ contract: { members: [{ name: 'a', kind: 'const' }, { name: 'b', kind: 'empty-object' }] }, labels: ['classLabel'] });
 	t('valueTerms 并集（core ✓ 本件消费不另算）', vt.has('a') && vt.has('classLabel') && !vt.has('b'));
+
+	// ⑨ `#1114` 片 2b-2b-0：`known` ＝ **合法目标全集**（md 段引用 twee 段 ⇒ 不得误报悬空 ✗）
+	//    反例对：真悬空（两边都没有）⇒ **必须报** ✓（证明不是把所有目标都放过 ✓）
+	const knownSet = new Set(['船头', '新段']);
+	t('构建接线·正例：md 段引用**同故事 twee 段** ⇒ 0 问题（`known` 给出全集 ✓）',
+		assemblePassages({ passages: [{ name: '新段', body: '[[上船|船头]]' }], known: knownSet, forbidden: F, terms: T }).problems.length === 0);
+	t('构建接线·反例（能假的另一半）：真悬空（不在 `known` 且不在本批）⇒ **报且点名**',
+		(() => { const ps = assemblePassages({ passages: [{ name: '新段', body: '[[去哪|不存在段]]' }], known: knownSet, forbidden: F, terms: T }).problems; return ps.some((m) => m.includes('不存在段')); })());
+	t('构建接线·缺省向后兼容：不传 `known` ⇒ 仍按本批段名校验（片1 口径不变 ✓）',
+		assemblePassages({ passages: [{ name: 'a', body: '[[去|b]]' }, { name: 'b', body: 'x' }], forbidden: F, terms: T }).problems.length === 0);
+
+	// ⑩ `#1114` 片 2b-2b-0：**禁则真源走 core**（本件不得复述清单 ✗——两处清单正是本片要根除的 ✓）
+	t('禁则真源：`FORBIDDEN_BUILTINS` 由 core 提供且与拼装层**同一份** ✓',
+		FORBIDDEN_BUILTINS.has('set') && FORBIDDEN_BUILTINS.has('if') && FORBIDDEN_BUILTINS.size >= 8);
 
 	if (bad) { console.error(`\n✗ 拼装层自证失败 ${bad} 项`); process.exit(1); }
 	console.log('\n✔ 拼装层自证通过（正例+禁则红+具名放行+悬空点名+取值展开+逐字保留+front-matter+单一权威）');

@@ -37,8 +37,6 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '');
 const STORIES = join(ROOT, 'stories');
 const SRC = join(ROOT, 'src');
 
-/** SugarCube 内置里**明确禁止**出现在正文的（逻辑/表达式 ⇒ "作者在写代码"）。 */
-export const FORBIDDEN_BUILTINS = new Set(['if', 'elseif', 'else', 'set', 'for', 'run', 'capture', '=']);
 /** 允许的 SugarCube 内置（**少而要有理由**）：`back`＝返回上一段，属呈现动作、非逻辑。 */
 export const ALLOWED_BUILTINS = new Set(['back']);
 
@@ -55,18 +53,12 @@ import { parseFrontMatter, duplicateProblems } from '../editor/lib/core/passages
 // `#1114` 片 2b-2a：**源面谓词走单一权威** ✓（评审阻断：本件原先自带一份逐字相同的副本 ⇒ 两份可漂 ✓）。
 //   ⇒ 定义处只在 `scripts/module-order.mjs`（`allSourceFiles()` 也在那儿 ✓）；本件只 **import** ✗。
 import { isStoryPassageMd } from '../scripts/module-order.mjs';
-export { VALUE_KINDS, valueTerms };
-
-/** `#1048`：从引擎源抽 `VALUE_LABELS` 常量表（对账面 ✓）。**纯函数**。 */
-export const engineLabels = (sources = []) => {
-	const out = new Set();
-	for (const text of sources) {
-		const m = /VALUE_LABELS:\s*Object\.freeze\(\[([^\]]*)\]\)/.exec(String(text));
-		if (m) for (const x of m[1].matchAll(/['"]([A-Za-z0-9_-]+)['"]/g)) out.add(x[1]);
-	}
-	return [...out].sort();
-};
-
+// `#1114` 片 2b-2b-0：**禁则内建**与**引擎标签抽取**也改走单一权威 ✓
+//   —— 原先两者都定义在本件（test 件）⇒ 而拼装层（core）**必须**用同一份 ✗：
+//   若拼装自己复述一份，则“门禁得住、拼装放过去”（或反过来）⇒ **两处清单** ✓（本仓反复撞过 ✓）。
+import { FORBIDDEN_BUILTINS } from '../editor/lib/core/passages.mjs';
+import { engineLabels } from '../editor/lib/core/vocab.mjs';
+export { VALUE_KINDS, valueTerms, FORBIDDEN_BUILTINS, engineLabels };
 /** `#1048`：扫全 `src/**` 的 `*Label` 键形态（⚠️ 今日恰 3 处=真 pc 字段；将来非 pc 的 `fooLabel:` 也会被对账——口径如实 ✗）。对账：未登记 VALUE_LABELS ⇒ 红 ✓。**纯函数**。 */
 export const pcLabelFields = (sources = []) => {
 	const out = new Set();

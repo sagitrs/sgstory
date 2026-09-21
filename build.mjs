@@ -2,7 +2,9 @@ import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync, rmSync
 import { allSourceFiles } from './scripts/module-order.mjs';
 import { execSync } from 'node:child_process';
 import { join, dirname, relative, isAbsolute } from 'node:path';
-import { scopedFiles, checkRegistration } from './scripts/module-order.mjs';
+import { scopedFiles, checkRegistration, isStoryPassageMd } from './scripts/module-order.mjs';
+import { parseFrontMatter, assemblePassages, FORBIDDEN_BUILTINS } from './editor/lib/core/passages.mjs';
+import { valueTerms, engineLabels } from './editor/lib/core/vocab.mjs';
 import {
 	ROOT, storySlugs, readStory, storyHtml, shelfHtml, DEFAULT_SLUG,
 	audienceOf,
@@ -82,12 +84,62 @@ const stories = slugs.map((slug) => ({ slug, ...readStory(slug) }));
 // 但会被原样写进 `dist/stories/<slug>/index.html`（实测默认故事页 ≈ +12KB）并进字体子集。
 // 只剥 twee 块注释：`[script]` 段里的 JS 行注释（`//`）是**代码**，不能动。
 const stripTweeComments = (text) => String(text).replace(/\/%[\s\S]*?%\//g, ' ');
-const mergedOf = (s) => scopedFiles(s).map((f) => {
-	// `--with-rules` ✓：只替换**规则文件那一份** ✓（窄 ✓ —— 不动别的件 ✓）
-	const text = (WITH_RULES && /(^|\/)17-rules\.twee$/.test(f)) ? readFileSync(WITH_RULES, 'utf8') : readFileSync(f, 'utf8');
-	return stripTweeComments(text).trimEnd();
-}).join('\n\n') + '\n';
+
+// `#1114` 片 2b-2b-0：**散文层源接线** —— `passages/` 下的 md 由拼装层转成 twee ✓。
+//   接线点＝**构建链读源那一处**（`#1114` Q3 裁定：拼装是构建链的一步 ✓，不新增“门要读的产物树”✓）；
+//   段序仍由 `files` 派生 ✓（Q1 裁定：唯一清单与唯一顺序权威 ✓）。
+//   ⚠️ **fail-loud** ✗：拼装出问题（禁则/悬空/取值未声明/重名）⇒ **构建直接报错**，
+//   绝不允许“照收原样拼”（那正是本片修掉的静默坏：`build` rc=0 而 `dist` 里躺着 front-matter 原文 ✗）。
+const ENGINE_LABELS = engineLabels(allSourceFiles(['src']).map((f) => readFileSync(f, 'utf8')));
+const termsOf = (slug) => {
+	const p = `stories/${slug}/data/contract.json`;
+	const contract = existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : { members: [] };
+	return valueTerms({ contract, labels: ENGINE_LABELS });
+};
+const SEG_HEAD = /^::\s+(.+?)\s*(?:\[[^\]]*\])?\s*$/gm;
+/** 该故事**合法段名全集**（twee 段名 ∪ md 段名 ✓）——md 段可以引用同故事的 twee 段（两源共存期 ✓）。 */
+const knownNamesOf = (slug, files) => {
+	const names = new Set();
+	for (const f of files) {
+		if (isStoryPassageMd(f)) { const n = String(parseFrontMatter(readFileSync(f, 'utf8')).meta.passage ?? '').trim(); if (n) names.add(n); continue; }
+		for (const m of readFileSync(f, 'utf8').matchAll(SEG_HEAD)) names.add(m[1].trim());
+	}
+	return names;
+};
+const assembleOne = (slug, f, known) => {
+	const { meta, body } = parseFrontMatter(readFileSync(f, 'utf8'));
+	const name = String(meta.passage ?? '').trim();
+	if (!name) { console.error(`✗ ${f}：front-matter 缺 \`passage\`（段名权威在本字段 ✓）`); process.exit(1); }
+	const { twee, problems } = assemblePassages({
+		passages: [{ name, tags: meta.tags ?? '', body, path: f }],
+		known, forbidden: FORBIDDEN_BUILTINS, terms: termsOf(slug),
+	});
+	if (problems.length) { console.error(`✗ 拼装失败：\n  ${problems.join('\n  ')}`); process.exit(1); }
+	return twee.trimEnd();
+};
+const mergedOf = (s) => {
+	const scoped = scopedFiles(s);
+	const known = knownNamesOf(s.slug, scoped);
+	return scoped.map((f) => {
+		// `--with-rules` ✓：只替换**规则文件那一份** ✓（窄 ✓ —— 不动别的件 ✓）
+		if (isStoryPassageMd(f)) return assembleOne(s.slug, f, known);
+		const text = (WITH_RULES && /(^|\/)17-rules\.twee$/.test(f)) ? readFileSync(WITH_RULES, 'utf8') : readFileSync(f, 'utf8');
+		return stripTweeComments(text).trimEnd();
+	}).join('\n\n') + '\n';
+};
 const merges = new Map(stories.map((s) => [s.slug, mergedOf(s)]));
+
+// `#1114` 片 2b-2b-0 第三格：**`files` 里 md 的段名集合 ≡ 拼装产物段名集合**（防“有的段被静默吞掉”✗）。
+//   为什么需要：拼接是“逐件 map＋join” ⇒ 任一环把 md 丢掉（返回空串/未进 scoped）都不会报错 ✗，
+//   而产物里就少一段——那正是“绿≠覆盖”那一族 ✓ ⇒ 用**集合相等**把它变成 fail-loud ✓。
+for (const s of stories) {
+	const scoped = scopedFiles(s);
+	const mdNames = scoped.filter(isStoryPassageMd).map((f) => String(parseFrontMatter(readFileSync(f, 'utf8')).meta.passage ?? '').trim()).filter(Boolean);
+	if (!mdNames.length) continue;
+	const got = new Set([...(merges.get(s.slug) ?? '').matchAll(/^::\s+(.+?)\s*(?:\[[^\]]*\])?\s*$/gm)].map((m) => m[1].trim()));
+	const missing = mdNames.filter((n) => !got.has(n));
+	if (missing.length) { console.error(`✗ 拼装产物缺段：${missing.join('、')}（\`files\` 登记了但产物里没有 ⇒ 静默吞段 ✗）`); process.exit(1); }
+}
 
 // ── 字体子集化（霞鹜文楷 → dist/fonts 外链 + preload）────────────────
 // 收集**所有故事**的文本字符 + ASCII + 常用符号，子集化为 woff2 外链文件：

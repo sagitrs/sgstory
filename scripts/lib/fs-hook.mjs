@@ -5,6 +5,10 @@
 //    （同族：`#1072` 的 jsdom 钩子 ✓ —— 同一手法，不新造 ✗）
 // ⚠️ 只重定向 **ESM** 那一侧：shim 用 `import * as real from 'node:fs'` ✓ ⇒ 不撞本钩子 ✓
 import { registerHooks } from 'node:module';
+// ⚠️ `#1127` 复核阻断（受控实验钉死 ✓）：**必须主动加载 shim** ✗ ——
+//   否则「**不 import fs 的段**」（＝会声明 `['*']` 的**纯函数段** ✓）⇒ **shim 从不装载** ⇒ **无读数** ✗
+//   ⇒ ②层报「**取不到读数**」✗（rc=2 ✓）—— 而「**零读**」与「**取不到读数**」是**两件事** ✗ ⇒ 必须分开 ✓。
+import './fs-hook-shim.mjs';
 const SELF = new URL('./fs-hook-shim.mjs', import.meta.url).href;
 registerHooks({
 	resolve(spec, ctx, next) {

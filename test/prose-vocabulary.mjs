@@ -291,6 +291,23 @@ const trackedIn = (dir) => execFileSync('git', ['ls-files', '--', dir], { cwd: R
 const untrackedIn = (dir) => execFileSync('git', ['ls-files', '--others', '--exclude-standard', '--', dir], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
 const vocabFiles = trackedIn('src').filter((f) => f.endsWith('.twee'));
 const vocab = engineVocab(vocabFiles.map((f) => readFileSync(join(ROOT, f), 'utf8')));const stories = trackedIn('stories').map((f) => /^stories\/([^/]+)\/00-story\.json$/.exec(f)?.[1]).filter(Boolean).sort();
+// `#1133` ⭐ **第二站点**：**产物缺失 ⇒ 报"先跑 `npm run build`"** ✓（不许裸 ENOENT 崩 ✗）
+//   本件按清单读**声明件** ✓，其中含**生成物**（`stories/*/1[567]-*.twee` ⇒ gitignored ✓）
+//   ⇒ 未 build 时它们不在树 ⇒ `readFileSync` 裸 ENOENT ✗ ⇒ 读者读不出"该先 build" ✓
+//   ⚠️ 两态**可区分** ✓：前置缺失 ⇒ **rc=2** ＋ 明确"先跑 build"；判据失败 ⇒ 仍 rc=1 ✓
+{
+	const missing = [];
+	for (const slug of stories) {
+		let mf = [];
+		try { mf = JSON.parse(readFileSync(join(STORIES, slug, '00-story.json'), 'utf8')).files ?? []; } catch { continue; }
+		for (const p of mf) if (/\/1[567]-[^/]*\.twee$/.test(p) && !existsSync(join(ROOT, p))) missing.push(p);
+	}
+	if (missing.length) {
+		console.error(`✗ **前置缺失**（**不是**判据失败）：**生成物**不在树 ⇒ 先跑 \`npm run build\`（\`#1133\`）`);
+		console.error(`   缺：${missing.slice(0, 5).join('、')}${missing.length > 5 ? ' …' : ''}（共 ${missing.length} 件）`);
+		process.exit(2);
+	}
+}
 let problems = [];
 let exempt = [];
 const judgedSlugs = [];

@@ -82,7 +82,10 @@ try {
 	t('① **两侧所判输入是同一份** ✓（sha 逐字节相等 ⇒ 页内判的不是"另一个包" ✓）', page.rowsSha === cliSha);
 	t('① 页内**在读数里报出**所判输入的 sha ✓', text().includes(page.rowsSha) && text().includes(`输入 rows ${page.rows.length} 行`));
 	t('① **① 级结论逐项相等** ✓（`{id, field, what, detail}` ✓）', JSON.stringify(page.problems) === JSON.stringify(cliProblems));
-	t('① 真数据：① 级 0 处 ✓（能假的另一半：不是"永远报错" ✓）', page.rows.length > 0 && page.problems.length === 0);
+	// `#1132` 块 1：**标签分开** ✗ —— 原格把两件事挤在一个标签里（「① 级 0 处」）⇒
+	//   `problems` 非空时也读成"0 处" ⇒ **误导**（本轮排查被它带偏三次 ✓）⇒ 拆两格各报各的数 ✓。
+	t('① 真数据·**叙事读点非 0**', page.rows.length > 0);
+	t('① 真数据·**问题清单为空**（能假的另一半：不是"永远报错" ✓）', page.problems.length === 0);
 
 	// ── ② 级：页内只列不判（读数 ✓）──────────────────────────────────────────
 	// `#1004` B2b ✓：原写死 `=== 16` ✗（那是已删故事的 twee 件数 ✓）⇒ 改成**派生**（＝本包真取到的件数 ✓）

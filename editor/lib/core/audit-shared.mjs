@@ -60,6 +60,11 @@ export const declCondRefs = (text) => {
 			const k = q[1];
 			if (k.startsWith('n_')) { notes.push(k); continue; }
 			if (/^(inv|era|gear):/.test(k)) continue;                 // 前缀键：不在状态契约域（与 ruleRowKeys 同口径）
+			// `#1132` 块 1：**`codex:` 算"读点"** ✓ —— 它在条件行出现＝页面**读了**它（值来自存档面、无写点 ✓
+			//   与 `inv:` 同族）⇒ 进 `states`；⚠️ **只加 `codex:`**（一行 ✓ 乙′）—— 其余前缀行为一字不变 ✓。
+			//   ⚠️ 与 `ruleRowKeys`（状态契约面）的"前缀键跳过"**不是同一件事** ✗：那边判"是不是状态键"，
+			//   这边判"有没有被读" ✓（`codex:` 是"被读但不是状态键"⇒ 两边结论不同是**正当**的 ✓）。
+			if (/^codex:[a-z_]\w*$/.test(k)) { states.push(k); continue; }
 			// 归一化：**显式根 ⇒ 裸键**（与 `mergeByBare()`／`ruleRowKeys()` 同一口径；两处不一致过一次：
 			// 不剥 `pc.` 会把 `pc.gold` 报成未登记的新键、逼出第二种命名形状）。点分**非**根键原样保留。
 			if (/^[a-z_]\w*(\.[a-z_]\w*)+$/.test(k)) states.push(k.replace(/^(?:pc|ev|world)\./, ''));

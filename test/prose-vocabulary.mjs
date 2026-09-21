@@ -52,6 +52,9 @@ import { VALUE_KINDS, valueTerms } from '../editor/lib/core/vocab.mjs';
 // `#1114` 片 2b-2a：**散文层源**（`passages/*.md`）的 front-matter 解析走**拼装层同一权威** ✓
 //   （不另写一份 YAML 子集 ✗ —— 两处解析器就是两处真相 ✓）。
 import { parseFrontMatter, duplicateProblems } from '../editor/lib/core/passages.mjs';
+// `#1114` 片 2b-2a：**源面谓词走单一权威** ✓（评审阻断：本件原先自带一份逐字相同的副本 ⇒ 两份可漂 ✓）。
+//   ⇒ 定义处只在 `scripts/module-order.mjs`（`allSourceFiles()` 也在那儿 ✓）；本件只 **import** ✗。
+import { isStoryPassageMd } from '../scripts/module-order.mjs';
 export { VALUE_KINDS, valueTerms };
 
 /** `#1048`：从引擎源抽 `VALUE_LABELS` 常量表（对账面 ✓）。**纯函数**。 */
@@ -117,9 +120,10 @@ const tweeUnder = (dir, acc = []) => {
 /** `#1114` 片 2b-2a：段落**源**（`.twee` ∪ `stories/<slug>/passages/` 下的 `.md`）的枚举。
  *  为什么要它 ✗：故事面原先只看**顶层 `.twee`**（`readdirSync(<故事目录>)`）⇒ `passages/` 子目录里的 md
  *  会变成「在树上却不在门面上」的**静默盲区** ✓（本仓最忌讳的形态 ✗）。
- *  ⚠️ 仍**只收 `passages/` 下**的 md（与 `scripts/module-order.mjs` 的 `allSourceFiles()` 同口径 ✓）
- *  —— `stories/` 树里的非源 md（会话记录／门证据 ✓）不得被当段落 ✓。 */
-export const isStoryPassageMd = (rel) => rel.endsWith('.md') && /(^|\/)passages\//.test(rel);
+ *  ⚠️ 仍**只收故事目录下 `passages/` 里的 md**（谓词 `isStoryPassageMd` 从 `scripts/module-order.mjs` **import** ✓
+ *  —— “收什么”只在一处决定 ✗；与 `allSourceFiles()` 同口径 ✓）。
+ *  ⇒ 调用点**不必**再按扩展名过滤（本件下游只在“读得进读不进”上分派解析器 ✓）。
+ *  非源 md（故事目录顶层的会话记录／`gates/` 门证据）不进面 ✓。 */
 const sourcesUnder = (dir, acc = []) => {
 	if (!existsSync(dir)) return acc;
 	for (const name of readdirSync(dir, { withFileTypes: true })) {
@@ -283,6 +287,20 @@ const selftest = () => {
 		(() => { const r = duplicateProblems({ passages: [{ name: '开场', path: 'stories/x/passages/0-开场.md' }, { name: '开场', path: 'stories/x/10-fixture.twee' }] }); return r.length === 1 && r[0].includes('0-开场.md') && r[0].includes('10-fixture.twee'); })());
 	t('🔴 枚举·新面：**未登记**的 `passages/*.md` 在树上 ⇒ **报**（旧口径对 md 隐形 ✗）',
 		undeclaredStoryFiles({ declared: [], onDisk: ['stories/x/passages/0-a.md'] }).length === 1);
+	// `#1114` 2b-2a：**谓词单一权威** ＋ **锚住故事目录**（两个格，均为评审阻断项的能假面 ✓）
+	t('🔴 谓词**全仓只有一处定义**（两份逐字相同的副本会漂 ✗ ⇒ 谁再复制一份就必须红 ✓）',
+		// ⚠️ 检查串必须**拆开写** ✗（写成整串会命中它**自己** ⇒ 格恒红 ⇒ 与恒真格同族的自指陷阱 ✓）；
+		//   而“只查本件”不够（副本可能被放到别处）⇒ 扫**两处候选**计数 == 1 ✓。
+		(() => {
+			const DEF = 'export const isStory' + 'PassageMd';
+			const files = ['scripts/module-order.mjs', 'test/prose-vocabulary.mjs'];
+			const n = files.reduce((acc, p) => acc + readFileSync(join(ROOT, p), 'utf8').split(DEF).length - 1, 0);
+			return n === 1 && isStoryPassageMd('stories/x/passages/a.md') === true;
+		})());
+	t('🔴 谓词**锚住故事目录**（三态）：`src/passages/x.md` ⇒ **不得**被当故事段落源 ✗（旧宽口径会误收 ⇒ 源面污染 ✓）',
+		isStoryPassageMd('src/passages/x.md') === false
+		&& isStoryPassageMd('stories/x/notes.md') === false
+		&& isStoryPassageMd('stories/x/passages/a.md') === true);
 	t('🔴 #1048 反例：pc 有 Label 字段但 VALUE_LABELS 未登记 ⇒ 报 V2（对账能假）', pcLabelFields(['x: "", newLabel: ""']).includes('newLabel') && !engineLabels(['VALUE_LABELS: Object.freeze([\'classLabel\'])']).includes('newLabel')),
 	t('枚举·边界：故事目录顶层的**非源** md（如 `README.md`）⇒ 不归本门 ✓（`#1114` 2b-2a：只有 `passages/` 下的 md 是源 ✓）',
 		undeclaredStoryFiles({ declared: [], onDisk: ['stories/x/README.md'] }).length === 0);

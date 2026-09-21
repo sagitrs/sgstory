@@ -18,7 +18,7 @@
 //
 // ⚠️ jsdom 收场纪律：`pretendToBeVisual` 用 **false** ＋ **显式** `window.close()` ＋ 最后**显式** `process.exit(rc)` ✓。
 
-import { readFileSync, readdirSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b：默认故事走单一权威 ✓
 import { JSDOM } from 'jsdom';
 import { loadPackage } from '../editor/web/loader.mjs';
@@ -26,6 +26,7 @@ import { renderReadFaces, storyReadsOf } from '../editor/web/read-faces-view.mjs
 import { tableReadProblems } from '../editor/lib/core/stateDiagnose.mjs';
 import { createContext } from '../scripts/audit/context.mjs';
 import { fingerprintOf } from '../editor/lib/core/fingerprint.mjs';
+import { isStoryPassageMd } from '../scripts/module-order.mjs';   // `#1132` 第 3 块：md 谓词**同一权威** ✓
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const nodeIo = () => ({ readText: (p) => readFileSync(`${ROOT}/${p}`, 'utf8') });
@@ -38,6 +39,13 @@ const pickedFiles = ({ withTwee = true } = {}) => {
 	const mk = (rel, abs) => ({ webkitRelativePath: rel, name: rel.split('/').pop(), text: () => readFileSync(abs, 'utf8') });
 	const out = readdirSync(dir).filter((n) => /\.(twee|json)$/.test(n)).map((n) => mk(`${slug}/${n}`, `${dir}/${n}`));
 	out.push(...readdirSync(`${dir}/data`).map((n) => mk(`${slug}/data/${n}`, `${dir}/data/${n}`)));
+	// `#1132` 第 3 块（接缝）：**段落源必须含 `passages/*.md`** ✗ —— 原先只收**顶层** `.twee|json` ＋ `data/`
+	//   ⇒ `#1144` 合入后 23 个 md 段**不在本门的面内** ✓（而本门仍绿 ⇒ “**盲而不红**”✗ ⇒ 没人知道）。
+	//   ⚠️ 走**同一权威** `isStoryPassageMd`（不另写一份“md 住在哪”的谓词 ✗）。
+	if (existsSync(`${dir}/passages`)) {
+		out.push(...readdirSync(`${dir}/passages`).filter((n) => isStoryPassageMd(`stories/${slug}/passages/${n}`))
+			.map((n) => mk(`${slug}/passages/${n}`, `${dir}/passages/${n}`)));
+	}
 	return withTwee ? out : out.filter((f) => !f.webkitRelativePath.endsWith('.twee'));
 };
 
@@ -49,6 +57,11 @@ try {
 	const doc = dom.window.document;
 	const pkg = loadPackage({ slug, files: pickedFiles() });
 	const text = () => doc.getElementById('readfaces').textContent;
+
+	// `#1132` 第 3 块：**「看得见 md」必须自己成断言** ✗ —— 本门今天**不红**（它的断言是"段落源非空"）
+	//   ⇒ 若无本格，改与不改读数一样 ⇒ 又一个"不误报 ≠ 能假" ✓。成对：掐掉上面的 passages 分支 ⇒ 本格红 ✓。
+	t('🔴 段落源枚举**含 `passages/*.md`**（此前只认顶层 twee/json ⇒ 盲而不红 ✗）',
+		pickedFiles().some((f) => /\/passages\/.*\.md$/.test(f.webkitRelativePath)));
 
 	// ── ① 两侧同判（① 级：页内 ≡ CLI）────────────────────────────────────────
 	const t0 = process.hrtime.bigint();

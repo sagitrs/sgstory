@@ -3,7 +3,7 @@ import { allSourceFiles } from './scripts/module-order.mjs';
 import { execSync } from 'node:child_process';
 import { join, dirname, relative, isAbsolute } from 'node:path';
 import { scopedFiles, checkRegistration, isStoryPassageMd } from './scripts/module-order.mjs';
-import { parseFrontMatter, assemblePassages, FORBIDDEN_BUILTINS } from './editor/lib/core/passages.mjs';
+import { parseFrontMatter, assemblePassages, FORBIDDEN_BUILTINS, duplicateProblems } from './editor/lib/core/passages.mjs';
 import { valueTerms, engineLabels } from './editor/lib/core/vocab.mjs';
 import {
 	ROOT, storySlugs, readStory, storyHtml, shelfHtml, DEFAULT_SLUG,
@@ -88,8 +88,11 @@ const stripTweeComments = (text) => String(text).replace(/\/%[\s\S]*?%\//g, ' ')
 // `#1114` 片 2b-2b-0：**散文层源接线** —— `passages/` 下的 md 由拼装层转成 twee ✓。
 //   接线点＝**构建链读源那一处**（`#1114` Q3 裁定：拼装是构建链的一步 ✓，不新增“门要读的产物树”✓）；
 //   段序仍由 `files` 派生 ✓（Q1 裁定：唯一清单与唯一顺序权威 ✓）。
-//   ⚠️ **fail-loud** ✗：拼装出问题（禁则/悬空/取值未声明/重名）⇒ **构建直接报错**，
-//   绝不允许“照收原样拼”（那正是本片修掉的静默坏：`build` rc=0 而 `dist` 里躺着 front-matter 原文 ✗）。
+//   ⚠️ **fail-loud 面＝四类**（与实现一致 ✗ —— 不许“承诺了但不做” ✓）：
+//     ① 禁则（`FORBIDDEN_BUILTINS`）② 悬空引用 ③ **重名段（跟源多重集）** ④ 取值 `{{}}` 未声明面。
+//     ③ 的射程：词汇门的 `D1` 只判**受判（content）故事** ⇒ `face-fixture`／`minimal-demo` 豁免
+//     ⇒ 而 2b-2b 要迁的正是 `face-fixture` ⇒ 两源共存期最现实的那一类（md 与既有 twee 段名相撞、或两个 md 同名）
+//     **恰好落在无覆盖那侧** ✗ ⇒ 必须在**构建路径**自己算（不靠门 ✓）。
 const ENGINE_LABELS = engineLabels(allSourceFiles(['src']).map((f) => readFileSync(f, 'utf8')));
 const termsOf = (slug) => {
 	const p = `stories/${slug}/data/contract.json`;
@@ -129,6 +132,26 @@ const mergedOf = (s) => {
 };
 const merges = new Map(stories.map((s) => [s.slug, mergedOf(s)]));
 
+// `#1114` 片 2b-2b-0：**跟源同名段（多重集）** ✗ —— 构建路径自己算（不靠词汇门 `D1`）。
+//   为什么必须在这里算：① `assembleOne` 是**逐文件**调用（每次只嗂一个 `{name}`）⇒ 跟文件同名它看不见；
+//   ② 第三格的 `got` 是 **`Set`**（去重）⇒ 两名段同名时 `missing=[]` ⇒ 绿；
+//   ③ 产物级断言查的是 front-matter **残留** ⇒ 同名两段的产物里没有那个串 ⇒ 绿。
+//   ⇒ 三条同时漏 ⇒ 产物里出现两个 `:: X`（一份构建里同名段只会活一个 ⇒ 后一个默默盖掉前一个 ✓）。
+//   口径：**同一函数、同一措辞**（`core/passages.mjs` 的 `duplicateProblems` ✓ ⇒ 与词汇门 `D1` 一致）。
+for (const s of stories) {
+	// 口径：段名直接从**源文件**取（不从产物反推 ✗）⇒ 点名能到**具体文件**（“哪两份源”✓）。
+	const segs = [];
+	for (const f of scopedFiles(s)) {
+		if (isStoryPassageMd(f)) {
+			const n = String(parseFrontMatter(readFileSync(f, 'utf8')).meta.passage ?? '').trim();
+			if (n) segs.push({ name: n, path: f });
+			continue;
+		}
+		for (const m of readFileSync(f, 'utf8').matchAll(/^::\s+(.+?)\s*(?:\[[^\]]*\])?\s*$/gm)) segs.push({ name: m[1].trim(), path: f });
+	}
+	const dup = duplicateProblems({ passages: segs });
+	if (dup.length) { console.error(`✗ 构建期重名（跟源同名段）✗：\n  ${dup.join('\n  ')}`); process.exit(1); }
+}
 // `#1114` 片 2b-2b-0 第三格：**`files` 里 md 的段名集合 ≡ 拼装产物段名集合**（防“有的段被静默吞掉”✗）。
 //   为什么需要：拼接是“逐件 map＋join” ⇒ 任一环把 md 丢掉（返回空串/未进 scoped）都不会报错 ✗，
 //   而产物里就少一段——那正是“绿≠覆盖”那一族 ✓ ⇒ 用**集合相等**把它变成 fail-loud ✓。
@@ -140,6 +163,7 @@ for (const s of stories) {
 	const missing = mdNames.filter((n) => !got.has(n));
 	if (missing.length) { console.error(`✗ 拼装产物缺段：${missing.join('、')}（\`files\` 登记了但产物里没有 ⇒ 静默吞段 ✗）`); process.exit(1); }
 }
+
 
 // `#1114` 片 2b-2b-0 产物级断言：**拼装产物不得含该段的 front-matter 精确串** ✗。
 //   为什么必须有（评审指出：段名集合格**抓不到**这个）：若有人把“照收原样拼”改回来，

@@ -24,7 +24,11 @@ import { valueTerms } from './vocab.mjs';
  * `#1114` 片 2b-2b-0：**本处为单一权威** ✓ —— 原先定义在 `test/prose-vocabulary.mjs` ✗，
  *   而拼装层（`assemblePassages` ✓）**必须**用同一份 ⇒ 否则“门禁得住、拼装放过去” ＝ 两处清单 ✓。
  *   ⚠️ **次序不变**：本表是判据的**第一档**（禁则 → 允许 → 词表 ✓）；拼装层同样先查它 ✓。 */
-export const FORBIDDEN_BUILTINS = new Set(['if', 'elseif', 'else', 'set', 'for', 'run', 'capture', '=']);
+export const FORBIDDEN_BUILTINS = new Set(['if', 'elseif', 'else', 'set', 'for', 'run', 'capture', '=',
+	// `#1132` 块2：**自写代码面**的两个入口 —— 机制段（script/widget 标签）被豁免出禁则扫描 ✗，
+	//   所以"正文里直接写 <<widget …>>／<<script>>"今天谁也拦不到 ✗ ⇒ 补进名单（实测对现状零误红 ✓）。
+	//   ⚠️ 这**不是**完整覆盖：机制标签段本身由 `test/story-codeface.mjs` 的 ratchet 门管 ✓。
+	'widget', 'script']);
 
 
 /** front-matter 解析（`---` 围栏 + YAML 子集：key: value 行 ✓——不引全量 YAML 库 ✗ 最小面 ✓）。 */

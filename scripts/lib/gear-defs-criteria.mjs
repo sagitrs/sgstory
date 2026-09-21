@@ -1,0 +1,72 @@
+// `#1115` 件②：**`Gear.defs` 口径唯一** —— 口径门（**能假** ✓）。
+//
+// ## 病灶（一手勘察 ✓）
+// ```
+// 同一概念（引擎战斗路径用的装备字段）存在**三处**说法，且**没有共同字段集** ✗：
+//   ① 表驱动 `Gear.defs`（`face-fixture`）＝ `{from,damage,advSites,note}`（`docs/engine/json/tables.md:55` ✓）
+//   ② **代码实际读的**（引擎）＝ `{damage, advSites}`（`src/engine/40-sim/21-resolve.twee:450/453/456` ✓）
+//   ③ **文档声明的**（接入契约）＝ `{kind,protects,maxHp,reduce,note}`（`docs/story2-contracts.md` §1.2 ✓）
+// ＋ 一手证据：`stories/face-fixture/15-tables.twee:939` 的 provider 逐字
+//   `gearDef: (name) => window?.Game?.Gear?.defs?.[name] ?? null`
+//   ⇒ **`Sg.story.gearDef` 就是 `Game.Gear.defs` 的直通** ⇒ ∴ ① 与 ③ 是**同一概念的两套口径** ✓（不是同名两概念 ✗）
+// ⇒ 病灶＝**③ 陈旧** ✓：作者照 ③ 写 ⇒ 引擎在 `:456` 读 `e.advSites` ⇒ **读不到** ✓（"按文档写 ⇒ 引擎不认"✓）
+// ```
+// ## 比对（评审席裁定 ✓）
+// ```
+// **主比对 ＝ ②（代码实际读的）↔ ③（文档声明的）** ✓ —— 那正是上面那条路径 ✓
+// ① （表驱动那份）**不参与比对** ✗（它是同一概念的**实现侧** ⇒ 参与会重复报 ✓；其与 ③ 的关系由文档写明 ✓）
+// `note` 等**共有字段不特判** ✓：报**对称差**两列（②独有／③独有 ✓）⇒ 共有自然不进 ✓
+// ```
+// ## 口径（本仓通则 ✓）
+// ```
+// · ② 侧：**锚在实参位**抽（`gearDef(<…>)?.<字段>` ✓ —— 与 `#1093` 的 `fsArgLiterals` 同手法 ✓
+//   不是"文件里出现过 `damage`"✗ —— 那样注释/字符串里的词也算 ✓）
+// · ③ 侧：从文档**表格首列**抽（`` | `字段` | `` ✓）
+// · 一处定义 ＋ 一格进跑器自证 ✓（同 `#1100` 形态 ✓ 不新造 ✗）
+// ```
+import { readFileSync } from 'node:fs';
+import { maskComments } from '../audit/lib/mask.mjs';   // `#1115`：**单一权威**遮蔽器（剥注释 ✓ —— 否则注释里的 `gearDef(...)?.X` 也算读 ✓）
+
+export const ENGINE_FILE = 'src/engine/40-sim/21-resolve.twee';
+export const CONTRACT_DOC = 'docs/story2-contracts.md';
+
+const realRead = (f) => { try { return readFileSync(f, 'utf8'); } catch { return ''; } };
+
+/** ② 侧：**代码实际读的**字段集（锚 `gearDef(...)?.<字段>` ✓）。 */
+export const codeReadFields = (src) => [...new Set([...maskComments(String(src)).matchAll(/gearDef\([^)]*\)\?\.([A-Za-z_$][\w$]*)/g)].map((m) => m[1]))].sort();
+
+/** ③ 侧：**文档声明的**字段集（锚文档**表格首列** ✓；只取 §1.2 那一段 ✓）。 */
+export const docDeclaredFields = (doc) => {
+	const t = String(doc);
+	const at = t.indexOf('### 1.2');
+	if (at < 0) return [];
+	const rest = t.slice(at);
+	const end = rest.indexOf('\n### 1.3');
+	const seg = end < 0 ? rest : rest.slice(0, end);
+	return [...new Set([...seg.matchAll(/^\|\s*`([A-Za-z_$][\w$]*)`/gm)].map((m) => m[1]))].sort();
+};
+
+/** 口径门（**纯函数 ＋ 注入** ✓ ⇒ 自证能喂假事实 ✓）。 */
+export const gearDefsCriteriaProblems = ({ read = realRead, engine = ENGINE_FILE, doc = CONTRACT_DOC } = {}) => {
+	const problems = [];
+	const src = read(engine);
+	const txt = read(doc);
+	if (!src) problems.push(`✗ **读数不成立**：引擎件 \`${engine}\` **读不到** ✗（口径门比不了 ✓）`);
+	if (!txt) problems.push(`✗ **读数不成立**：契约文档 \`${doc}\` **读不到** ✗（口径门比不了 ✓）`);
+	if (problems.length) return problems;
+	const code = codeReadFields(src);
+	const declared = docDeclaredFields(txt);
+	if (!code.length) problems.push(`✗ **读数不成立**：\`${engine}\` 里**抽不到** \`gearDef(...)?.<字段>\` ✗（锚没命中 ⇒ 空转 ✓）`);
+	if (!declared.length) problems.push(`✗ **读数不成立**：\`${doc}\` §1.2 里**抽不到**表格首列字段 ✗（空转 ✓）`);
+	if (problems.length) return problems;
+	const onlyCode = code.filter((f) => !declared.includes(f));
+	const onlyDoc = declared.filter((f) => !code.includes(f));
+	if (onlyCode.length || onlyDoc.length) {
+		problems.push('✗ **`Gear.defs` 口径不一致**（**对称差** ✓）：\n'
+			+ `    · **②代码实际读的独有**：${onlyCode.join('、') || '（无）'}\n`
+			+ `    · **③文档声明的独有**：${onlyDoc.join('、') || '（无）'}\n`
+			+ `    · 共有：${code.filter((f) => declared.includes(f)).join('、') || '（无）'}\n`
+			+ `  ⇒ 作者照 ③ 写 ⇒ 引擎在 \`${engine}\` **读不到** ✓（"按文档写 ⇒ 引擎不认"✓）`);
+	}
+	return problems;
+};

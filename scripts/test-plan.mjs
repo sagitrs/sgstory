@@ -640,6 +640,26 @@ export const suiteOf = (seg) => {
  * （**比不填更坏** ✓）⇒ 基线＝今日 ✓ ⇒ **新加段必须声明** ✓、**老段可渐进** ✓。
  * ＋ **计数必须打印** ✗（ratchet 类判据一律打印当前计数 ✓）。
  */
+/** `#1093` P2-a：**安全默认的机制**（**可单测** ✓ —— 不是靠"注释里写着不跳过"✗）。
+ *
+ * ⚠️ 为什么要有这个**函数**✗：本片最初把这一格写成 `t('…安全默认…', true)` ✗ ⇒ **恒真断言** ✓
+ * ⇒ 复核席实测：**将来有人实现成"未声明 ⇒ 跳过" ⇒ 那格照样绿** ✗（**比没有断言更坏** ✓ —— 看着守住了 ✗）。
+ * ⇒ 修法（采纳复核席建议①②✓）：把安全默认**落成一个选择函数** ✓ ⇒ 自证**注入**即可判它真假 ✓。
+ *
+ * ## 语义（**写死** ✗ —— 复核席前瞻项 ✓）
+ * `declared` 为空数组或未给 ⇒ **视为「全跑型」＝任何改动面都算命中** ✓ ⇒ **永不跳过** ✓。
+ * ⚠️ 即 **`inputs: []` 与"没写 `inputs`"同义** ✗ —— **不表示"无依赖"** ✓（后者会成**假绿面** ✓ 故不取 ✓）。
+ * @param {{declared?: string[], changed?: string[]}} x
+ * @returns {boolean} 该段**是否算被改动面命中**（未声明 ⇒ **恒 true** ✓）
+ */
+export const inputsMatch = ({ declared = [], changed = [] } = {}) => {
+	if (!Array.isArray(declared) || declared.length === 0) return true;      // ← 安全默认：未声明 ⇒ 全跑型 ✓（**不是**"无依赖"✗）
+	return changed.some((f) => declared.some((d) => {
+		const base = String(d).replace(/\*+$/, '');
+		return f === d || (base && f.startsWith(base));
+	}));
+};
+
 export const UNDECLARED_INPUTS_BASELINE = 158;   // 2026-09-21 实测：当时**全部 158 段**都未声明 ✓
 
 export const inputsDeclaredStats = (plan = SEGMENTS) => {
@@ -653,7 +673,7 @@ export const validateInputsRatchet = (plan = SEGMENTS, { baseline = UNDECLARED_I
 	const problems = [];
 	if (st.undeclared.length > baseline) {
 		problems.push(`**未声明 \`inputs\` 的段数增加了**：${baseline} → ${st.undeclared.length}`
-			+ `（**新增段必须声明** ✗；老段可渐进 ✓）—— 新增者：${st.undeclared.slice(-6).join('、')}`);
+			+ `（**新增段必须声明** ✗；老段可渐进 ✓）—— **未声明者（末 6 条）**：${st.undeclared.slice(-6).join('、')}`);
 	}
 	return { problems, stats: st };
 };

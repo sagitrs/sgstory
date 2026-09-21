@@ -143,7 +143,8 @@ export const undeclaredStoryFiles = ({ declared = [], onDisk = [] } = {}) =>
 	onDisk.filter((p) => p.endsWith('.twee') && !declared.includes(p));
 
 /** **元数据件谓词**（`#1051`②：由**文件名字面量**改为**内容谓词** ✗）。判据＝含 `:: StoryData` 段落 ✓
- *  （Twine 的元数据段落，按定义不是散文 ✓；实测全仓只有各故事的 `00-meta.twee` 命中 ✓ 正文件零命中 ✓）。 */
+ *  （Twine 的元数据段落，按定义不是散文 ✓；实测全仓只有各故事的 `00-meta.twee` 命中 ✓ 正文件零命中 ✓）。
+ *  ⚠️ **边界（抓不到什么）**：正文件若含 `:: StoryData` 段 ⇒ 谓词同样命中 ⇒ **整件被当元数据放过** ✗（本仓现无此形态 ⇒ 属潜伏面，结构性替代＝显式清单口径 ✓）。 */
 export const isMetadataTwee = (text) => /^::\s*StoryData/m.test(String(text ?? ''));
 
 const selftest = () => {

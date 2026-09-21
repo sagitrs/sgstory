@@ -187,6 +187,17 @@ if (argv.includes('--update')) {
 }
 
 if (!existsSync(GOLDEN)) { console.error(`✗ 找不到 ${GOLDEN}——先跑 --update 建基线`); process.exit(1); }
+
+// `#1133` ⭐ **前置缺失 ⇒ 报"先跑 npm run build"** ✓（照 `assertFreshDist` 的现成先例 ✓）——
+//   此前未 build 时会报「22 个开关与基线不符」✗ ⇒ **红的原因与它报的原因不是同一个** ⇒ 把排查引到错方向 ✗
+//   ⚠️ 两态**必须可区分** ✓：前置缺失 ⇒ **rc=2** ＋「先跑 build」；真差异 ⇒ **rc=1** ＋ 点名到开关 ✓（脚本层面能判 ✓）
+try {
+	assertFreshDist({ who: 'audit-golden 比对' });
+} catch (e) {
+	console.error(`✗ **前置缺失**（**不是**"与基线不符"）：${e.message}`);
+	console.error('   ⇒ 本门**不下行为结论** —— 先跑 `npm run build` 再重跑本门 ✓（`#1133`）');
+	process.exit(2);
+}
 const baseline = JSON.parse(readFileSync(GOLDEN, 'utf8'));
 const { ownerMap, fullRuns } = await ownersAndFullRuns();
 const current = capture(ownerMap);

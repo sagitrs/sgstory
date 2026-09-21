@@ -75,5 +75,17 @@ export const unknownDomainWords = (data = {}) => {
 // 两源并集（甲-1 ✓）：① contract 成员 ∩ 值语义 kind（const/state-ref/identity-string ✓）∪ ② 引擎 VALUE_LABELS（10-core 常量表 ✓）。
 export const VALUE_KINDS = Object.freeze(['const', 'state-ref', 'identity-string']);   // 排除侧：template/lookup/bool-exists/game-ref 等产值但语义待逐条显式列入（「不许整类放开 ✗」）
 
+/** `#1048`：从引擎源抽 `VALUE_LABELS` 常量表（对账面 ✓）。**纯函数**。
+ * `#1114` 片 2b-2b-0：**本处为单一权威** ✓（原先在 `test/prose-vocabulary.mjs` ✗）——
+ *   拼装层（`build` 接线）与门**必须**用同一份（各算一份 ⇒ 门放行/拼装不认 ⇒ 静默漏值 ✗）。 */
+export const engineLabels = (sources = []) => {
+	const out = new Set();
+	for (const text of sources) {
+		const m = /VALUE_LABELS:\s*Object\.freeze\(\[([^\]]*)\]\)/.exec(String(text));
+		if (m) for (const x of m[1].matchAll(/['"]([A-Za-z0-9_-]+)['"]/g)) out.add(x[1]);
+	}
+	return [...out].sort();
+};
+
 export const valueTerms = ({ contract = { members: [] }, labels = [] } = {}) =>
 	new Set([...(contract.members ?? []).filter((m) => VALUE_KINDS.includes(m?.kind)).map((m) => m.name), ...labels]);

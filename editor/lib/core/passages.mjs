@@ -20,6 +20,12 @@
 
 import { valueTerms } from './vocab.mjs';
 
+/** SugarCube 内置里**明确禁止**出现在正文的（逻辑/表达式 ⇒ "作者在写代码"）。
+ * `#1114` 片 2b-2b-0：**本处为单一权威** ✓ —— 原先定义在 `test/prose-vocabulary.mjs` ✗，
+ *   而拼装层（`assemblePassages` ✓）**必须**用同一份 ⇒ 否则“门禁得住、拼装放过去” ＝ 两处清单 ✓。
+ *   ⚠️ **次序不变**：本表是判据的**第一档**（禁则 → 允许 → 词表 ✓）；拼装层同样先查它 ✓。 */
+export const FORBIDDEN_BUILTINS = new Set(['if', 'elseif', 'else', 'set', 'for', 'run', 'capture', '=']);
+
 /** front-matter 解析（`---` 围栏 + YAML 子集：key: value 行 ✓——不引全量 YAML 库 ✗ 最小面 ✓）。 */
 export const parseFrontMatter = (text) => {
 	const t = String(text ?? '');
@@ -33,7 +39,7 @@ export const parseFrontMatter = (text) => {
 	return { meta, body: t.slice(m[0].length) };
 };
 
-/** 禁则拦截：`FORBIDDEN_BUILTINS` 名出现在 md 正文 ⇒ 报（真源 import ✗ 不复述清单 ✓）。 */
+/** 禁则拦截：`FORBIDDEN_BUILTINS` 名出现在 md 正文 ⇒ 报（真源＝`editor/lib/core/passages.mjs` 的 `FORBIDDEN_BUILTINS` ✓ —— `#1114` 2b-2b-0 起 `test/prose-vocabulary.mjs` 与拼装层**同一份** ✓）。 */
 export const forbiddenProblems = ({ name, body, forbidden }) => {
 	const out = [];
 	for (const m of String(body).matchAll(/<<\s*(\w+)[\s>]/g)) {
@@ -42,13 +48,15 @@ export const forbiddenProblems = ({ name, body, forbidden }) => {
 	return out;
 };
 
-/** 悬空引用：`[[标签|目标]]` 的目标不在段落集合 ⇒ 点名 ✗（票面验收 ③ ✓）。 */
-export const danglingProblems = ({ name, body, passages }) => {
+/** 悬空引用：`[[标签|目标]]` 的目标不在段落集合 ⇒ 点名 ✗（票面验收 ③ ✓）。
+ *  `#1114` 片 2b-2b-0：`known` ＝ **合法目标的全集** ✓——md 段可能引用**同故事的 twee 段**（两源共存期 ✓）
+ *  ⇒ 只拿 `passages` 当合法集会**误报悬空** ✗（缺省仍＝`passages` 的段名，向后兼容 ✓）。 */
+export const danglingProblems = ({ name, body, passages, known }) => {
 	const out = [];
-	const known = new Set(passages.map((p) => p.name));
+	const set = known ?? new Set(passages.map((p) => p.name));
 	for (const m of String(body).matchAll(/\[\[([^\]|]+)\|([^\]]+)\]\]/g)) {
 		const target = m[2].trim();
-		if (!known.has(target)) out.push(`段「${name}」引用 \`[[${m[1]}|${target}]]\` 的目标段落「${target}」不存在（悬空 ⇒ 点名 ✗）`);
+		if (!set.has(target)) out.push(`段「${name}」引用 \`[[${m[1]}|${target}]]\` 的目标段落「${target}」不存在（悬空 ⇒ 点名 ✗）`);
 	}
 	return out;
 };
@@ -80,13 +88,13 @@ export const duplicateProblems = ({ passages = [] } = {}) => {
 };
 
 /** 主拼装：一批 md 段 ⇒ 一份 twee 文本（含 front-matter 元数据行 ✓）。 */
-export const assemblePassages = ({ passages, forbidden = new Set(), terms = new Set() }) => {
+export const assemblePassages = ({ passages, known, forbidden = new Set(), terms = new Set() }) => {
 	const problems = [];
 	// 先校验（悬空须看全集 ⇒ 两遍 ✓）
 	problems.push(...duplicateProblems({ passages }));   // `#1114` 2b-2a：重名段（跨源双写）⇒ 先报 ✗
 	for (const p of passages) {
 		problems.push(...forbiddenProblems({ name: p.name, body: p.body, forbidden }));
-		problems.push(...danglingProblems({ name: p.name, body: p.body, passages }));
+		problems.push(...danglingProblems({ name: p.name, body: p.body, passages, known }));
 	}
 	// 再展开+拼装（逐字保留散文文本 ✗ 只做 {{}} 替换 ✓）
 	const chunks = [];

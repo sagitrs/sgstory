@@ -432,8 +432,8 @@ export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 't
 export const AUDIT_STORY = [];   // #607 P2-B：**故事门已全部搬到故事侧**（`stories/<slug>/gates/`，清单声明）⇒ 工具层不再有故事门
 // 非门段里**与故事内容无关**的那些（构建 / 构建期 lint / 产物守卫）：显式登记，不放宽默认
 export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs', 'scripts-audit-mjs-story2-engine',
-	'test-focus-after-nav-mjs-selftest', 'test-focus-after-nav-mjs',   // `#1012`：引擎侧焦点契约（与故事内容无关 ✓）
-	'test-serve-editor-mjs-selftest', 'test-serve-editor-mjs',   // `#1033`：编辑器入口（与故事内容无关 ✓）
+	'test-focus-after-nav-mjs-selftest', 'test-focus-after-nav-mjs', // `#1012`：引擎侧焦点契约（与故事内容无关 ✓）
+	'test-serve-editor-mjs-selftest', 'test-serve-editor-mjs', // `#1033`：编辑器入口（与故事内容无关 ✓）
 	'test-story-runtime-mjs-selftest', 'test-story-runtime-mjs',
 	'test-layering-mjs-selftest', 'test-layering-mjs', 'test-globals-mjs', 'test-silent-gate-mjs',
 	'test-size-gate-mjs-selftest', 'test-size-gate-mjs',
@@ -555,6 +555,15 @@ export const SUITE_MEMBERS = {
 		'scripts-audit-mjs-text-check', 'scripts-audit-mjs-state-check', 'scripts-audit-mjs-literals-check', 'scripts-audit-mjs-slots-check',
 		'scripts-audit-mjs-status-check', 'scripts-audit-mjs-waves-check', 'scripts-audit-mjs-face-fixture-engine', 'scripts-audit-mjs-story2-engine',
 		'scripts-audit-mjs-engine-story-free', 'scripts-audit-mjs-roads-check',
+		'scripts-report-copy-text-mjs-selftest',
+		'scripts-ui-migration-diff-selftest',
+		'scripts-ui-migration-diff-check',
+		'test-globals-mjs',
+		'test-globals-mjs-selftest',
+		'test-store-keys-mjs',
+		'test-store-keys-mjs-selftest',
+		'test-audit-golden-mjs',
+		'test-audit-golden-mjs-selftest',
 	],
 	'editor': [
 		'editor-compile-selftest', 'editor-equiv-selftest', 'editor-equiv-minimal-demo', 'editor-equiv-face-fixture',
@@ -567,8 +576,14 @@ export const SUITE_MEMBERS = {
 		'test-web-diagnose-mjs', 'test-web-diagnose-view-mjs', 'test-web-diagnose-wire-mjs', 'test-web-events-mjs',
 		'test-web-events-mjs-selftest', 'test-web-form-mjs', 'test-web-form-mjs-selftest', 'test-web-new-package-mjs',
 		'test-web-export-mjs', 'test-web-event-graph-mjs', 'test-web-rule-rows-mjs', 'test-web-read-faces-mjs',
-		'test-browser-mjs-selftest', 'test-globals-mjs', 'test-globals-mjs-selftest', 'test-store-keys-mjs',
-		'test-store-keys-mjs-selftest',
+		'test-browser-mjs-selftest',
+
+		'test-k4-args',
+		'test-k4-references',
+		'test-k4-references-selftest',
+		'test-cli-surface-mjs',
+		'test-cli-surface-mjs-selftest',
+		'test-state-diagnose',
 	],
 	'story-legal': [
 		'test-prose-vocabulary-mjs', 'test-prose-vocabulary-mjs-selftest', 'test-new-story-fixture-mjs', 'test-multi-story-mjs',
@@ -577,23 +592,28 @@ export const SUITE_MEMBERS = {
 		'test-story-ci-mjs-selftest', 'test-saveload-inventory-mjs', 'test-saveload-inventory-mjs-selftest', 'test-rules-claims-mjs',
 		'test-rules-claims-mjs-selftest', 'test-premise-source-mjs', 'test-premise-source-mjs-selftest', 'test-npc-venue-mjs',
 		'test-npc-venue-mjs-selftest', 'test-choice-keys-mjs', 'test-choice-keys-mjs-selftest', 'test-g3-evidence-mjs',
+		'test-cond-keyform-mjs',
+		'test-cond-keyform-mjs-selftest',
+		'scripts-report-rhythm-mjs-selftest',
+		'scripts-report-rhythm-mjs-check',
 	],
 	'story-product': [
 		'test-smoke-mjs', 'test-smoke-mjs-raf-delayed', 'test-size-gate-mjs', 'test-size-gate-mjs-selftest',
-		'test-render-all-mjs', 'test-coverage-mjs', 'test-audit-golden-mjs', 'test-audit-golden-mjs-selftest',
-		'test-witness-trace-mjs', 'build-mjs',
+		'test-render-all-mjs',
+		 'build-mjs',
 	],
 	'infra': [
 		'scripts-probe-gates-mjs-probe-fast', 'scripts-probe-gates-mjs-check', 'scripts-probe-gates-mjs-selfcheck', 'scripts-report-page-coverage-mjs',
-		'scripts-report-copy-text-mjs-selftest', 'scripts-report-rhythm-mjs-selftest', 'scripts-report-rhythm-mjs-check', 'scripts-report-ledger-freshness-mjs-selftest',
+		   'scripts-report-ledger-freshness-mjs-selftest',
 		'scripts-report-ledger-freshness-mjs-ledger-check', 'scripts-report-gate-ledger-mjs-selftest', 'scripts-report-gate-ledger-mjs', 'scripts-report-selftest-validity-mjs',
-		'scripts-md-format-mjs', 'scripts-move-precheck-mjs', 'scripts-move-precheck-mjs-selftest', 'scripts-ui-migration-diff-selftest',
-		'scripts-ui-migration-diff-check', 'test-ci-triggers-mjs', 'test-ci-triggers-mjs-selftest', 'test-repo-shape-mjs',
+		'scripts-md-format-mjs', 'scripts-move-precheck-mjs', 'scripts-move-precheck-mjs-selftest',
+		 'test-ci-triggers-mjs', 'test-ci-triggers-mjs-selftest', 'test-repo-shape-mjs',
 		'test-repo-shape-mjs-selftest', 'test-docs-read-path-mjs', 'test-docs-read-path-mjs-selftest', 'test-attribution-gate-mjs',
-		'test-attribution-gate-mjs-selftest', 'test-cond-keyform-mjs', 'test-cond-keyform-mjs-selftest', 'test-untracked-guard-mjs',
-		'test-plan-needs-mjs', 'test-gate-discovery-mjs', 'test-audit-gates-run-mjs', 'test-k4-args',
-		'test-k4-references', 'test-k4-references-selftest', 'test-state-diagnose', 'test-cli-surface-mjs',
-		'test-cli-surface-mjs-selftest',
+		'test-attribution-gate-mjs-selftest', 'test-untracked-guard-mjs',
+		'test-plan-needs-mjs', 'test-gate-discovery-mjs', 'test-audit-gates-run-mjs',
+
+		'test-coverage-mjs',
+		'test-witness-trace-mjs',
 	],
 };
 

@@ -119,7 +119,9 @@ const assembleOne = (slug, f, known) => {
 	const name = String(p0?.name ?? '').trim();
 	if (!name) { console.error(`✗ ${f}：front-matter 缺 \`passage\`（段名权威在本字段 ✓）`); process.exit(1); }
 	const { twee, problems } = assemblePassages({
-		passages: [{ name, tags: p0.tags ?? [], body: p0.body, path: f }],
+		// ⚠️ `#1114` 2b-2b：**twee 路径剥注释、md 路径也要剥** ✗ —— 否则 `/% … %/` 原样入 dist
+		//   （本函数上方的 `stripTweeComments` 注释就写着这条 ✓）⇒ 实测：PRE 0/34 ⇒ POST 23/34 且 body 变长 ✓。
+		passages: [{ name, tags: p0.tags ?? [], body: stripTweeComments(p0.body), path: f }],
 		known, forbidden: FORBIDDEN_BUILTINS, terms: termsOf(slug),
 	});
 	if (problems.length) { console.error(`✗ 拼装失败：\n  ${problems.join('\n  ')}`); process.exit(1); }
@@ -187,6 +189,17 @@ for (const s of stories) {
 			console.error(`✗ ${f} 的 **front-matter 原文进了拼装产物**（命中：${hit.map((h) => `\`${h}\``).join('、')}）⇒ md 没经过拼装层（被当正文原样拼）✗ —— 这正是本片要根除的“build 绿、产物坏” ✓`);
 			process.exit(1);
 		}
+	}
+}
+
+// `#1114` 2b-2b：**产物里不得有 `/% … %/` 注释残留** ✗ —— 评审阻断复现：twee 路径剥了、**md 路径漏剥**
+//   ⇒ `/% … %/` 原样进 dist（实测 PRE 0/34 ⇒ POST 23/34，且段 body 变长 ✓）；
+//   `2b-2b-0` 的产物级断言只盯 front-matter 串 ⇒ **这个洞正是在它旁边** ✓ ⇒ 一并纳入 ✓。
+for (const s of stories) {
+	const out = merges.get(s.slug) ?? '';
+	if (/\/%/.test(out)) {
+		console.error(`✗ ${s.slug} 的拼装产物里有 **\`/% … %/\` 注释残留** ✗ ⇒ twee 路径与 md 路径**必须同剥**（\`stripTweeComments\` ✓）`);
+		process.exit(1);
 	}
 }
 

@@ -48,6 +48,35 @@ export const ORDER = [
 	'stories/face-fixture/15-tables.twee',    // 夹具的声明面：引擎加载期要用的容器（**必须排在 21-resolve 前** ✓）
 	'src/engine/40-sim/21-resolve.twee',    // 结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）
 	'stories/face-fixture/10-fixture.twee',   // 夹具段落：车卡链 ＋ 每种面各一段（段名沿用旧故事＝消费者钉死了它 ✓）
+	// `#1114` 2b-2b：`10-fixture.twee` 拆成 23 个 md ＋ 3 个 twee（**保段序** ✓）——
+	//   ⚠️ 必须登记在 `ORDER` 里 ✗：`storyOrder` 先按 ORDER 的 rank 排，**不在 ORDER 的故事件 rank=MAX ⇒ 排到最后**
+	//   ⇒ 不登记就会把 12-hooks/13-codex/… 提到段落面之前（实测：产物段序 @4 起整块位移 ✓）。
+	'stories/face-fixture/passages/01-开场.md',
+	'stories/face-fixture/11-fixture-cards.twee',
+	'stories/face-fixture/passages/04-酒馆.md',
+	'stories/face-fixture/passages/05-森林边缘.md',
+	'stories/face-fixture/passages/06-洞穴.md',
+	'stories/face-fixture/passages/07-洞穴·战斗.md',
+	'stories/face-fixture/passages/08-门厅.md',
+	'stories/face-fixture/passages/09-门厅·看钉.md',
+	'stories/face-fixture/passages/10-塔外花田.md',
+	'stories/face-fixture/passages/11-守林人.md',
+	'stories/face-fixture/passages/12-女巫小屋.md',
+	'stories/face-fixture/passages/13-老巫女.md',
+	'stories/face-fixture/passages/14-观星者.md',
+	'stories/face-fixture/passages/15-地下宴会厅.md',
+	'stories/face-fixture/passages/16-书房.md',
+	'stories/face-fixture/passages/17-岔口.md',
+	'stories/face-fixture/passages/18-塔门.md',
+	'stories/face-fixture/passages/19-封印·并肩.md',
+	'stories/face-fixture/passages/20-图鉴.md',
+	'stories/face-fixture/passages/21-设定集.md',
+	'stories/face-fixture/21-fixture-codex-terms.twee',
+	'stories/face-fixture/passages/23-设定集·三律.md',
+	'stories/face-fixture/22-fixture-codex-endings.twee',
+	'stories/face-fixture/passages/25-结局 平凡之路.md',
+	'stories/face-fixture/passages/26-结局 送星归位.md',
+	'stories/face-fixture/passages/27-结局 死亡.md',
 	'stories/face-fixture/12-hooks.twee',     // 夹具的手写逃生舱（`overBudget` 等非 A 桶契约成员 ✓）
 	'stories/face-fixture/13-codex.twee',     // 夹具的图鉴面（`Sg.Codex`：故事面，形状照被删的 `mist-forest/72-codex-ui.twee` ✓）
 	'stories/face-fixture/17-rules.twee',     // 夹具条件表（生成物）：`rows` 非空 ⇒ 条件表面

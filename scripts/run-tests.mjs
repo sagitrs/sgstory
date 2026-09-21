@@ -28,7 +28,7 @@ import { readFileSync, writeFileSync, rmSync, mkdirSync, existsSync } from 'node
 import { join, dirname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { cpus } from 'node:os';
-import { testPlan, segmentLayer, validateLayers, tierOf, TIERS, DEFAULT_TIER, validateTiers, SUITES, suiteOf, validateSuites, inputsDeclaredStats, validateInputsRatchet } from './test-plan.mjs';
+import { testPlan, segmentLayer, validateLayers, tierOf, TIERS, DEFAULT_TIER, validateTiers, SUITES, suiteOf, validateSuites, inputsDeclaredStats, validateInputsRatchet, inputsMatch } from './test-plan.mjs';
 // `#607`：故事清单声明的门 flag（P0 为空集合 ⇒ 层判定与今天**逐字相同**；P1 起门搬家后仍判得出故事层）
 import { declaredGatesAll } from './audit/discovery.mjs';
 // 声明面在**顶层**取（不在 `selftest()` 里取）：`selftest()` 在文件中部就被调用，
@@ -321,8 +321,9 @@ const selftest = async ({ quiet = false } = {}) => {
 	t('`inputsDeclaredStats`：今日全表**都未声明** ⇒ 计数与总数相符 ✓', inputsDeclaredStats().undeclared.length === inputsDeclaredStats().total);
 	t('`validateInputsRatchet` 正例：段数**未增** ⇒ 0 问题 ✓（老段可渐进 ✓）', validateInputsRatchet([{ id: 'a', inputs: ['x'] }, { id: 'b' }], { baseline: 1 }).problems.length === 0);
 	t('🔴 `validateInputsRatchet` 反例：**未声明段数增加** ⇒ 报并**点名新增者** ✓', (() => { const r = validateInputsRatchet([{ id: 'old' }, { id: 'n1' }, { id: 'n2' }], { baseline: 1 }); return r.problems.length === 1 && /n1|n2/.test(r.problems[0]); })());
-	t('🔴 安全默认：**未声明 ⇒ 不算"可跳过"** ✗（本片**不跳过任何段** ✓ —— 今日行为与 main 逐字相同 ✓）', true);
-	if (!quiet) console.log('\n✔ 跑器自证通过：成功/失败识别、失败输出不吞、并行真的重叠、setup 红即中止、needs 前置/级联跳过/配错报错');
+	// ⚠️ `#1123` 复核：**原格是 `t('…安全默认…', true)` ⇒ 恒真断言** ✗（**守着本片唯一能致假绿的方向**✓）
+	//   ⇒ 复核席实测：将来若有人实现成「未声明 ⇒ 跳过」⇒ **那格照样绿** ✗ ⇒ 改为**注入式可假对** ✓
+	t('🔴 安全默认·①：**未声明 ⇒ 恒算命中**（任何改动面都命中 ⇒ **永不跳过** ✓）', inputsMatch({ declared: [], changed: ['docs/x.md'] }) === true);	if (!quiet) console.log('\n✔ 跑器自证通过：成功/失败识别、失败输出不吞、并行真的重叠、setup 红即中止、needs 前置/级联跳过/配错报错');
 	else console.log('✓ 跑器自证通过（成功/失败识别 · 输出不吞 · 并行真重叠 · setup 红即中止 · needs 语义）');
 	return true;
 };

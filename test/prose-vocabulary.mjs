@@ -49,6 +49,9 @@ export const ALLOWED_BUILTINS = new Set(['back']);
  * ② 引擎派生标签（VALUE_LABELS 常量表 ✓）
  * ⚠️ **单一权威**：#1114 拼装层**消费同一函数**（不许各算一份 ✗——门放行/拼装不认 ⇒ 静默漏值 ✗）。 */
 import { VALUE_KINDS, valueTerms } from '../editor/lib/core/vocab.mjs';
+// `#1114` 片 2b-2a：**散文层源**（`passages/*.md`）的 front-matter 解析走**拼装层同一权威** ✓
+//   （不另写一份 YAML 子集 ✗ —— 两处解析器就是两处真相 ✓）。
+import { parseFrontMatter, duplicateProblems } from '../editor/lib/core/passages.mjs';
 export { VALUE_KINDS, valueTerms };
 
 /** `#1048`：从引擎源抽 `VALUE_LABELS` 常量表（对账面 ✓）。**纯函数**。 */
@@ -111,6 +114,22 @@ const tweeUnder = (dir, acc = []) => {
 	return acc;
 };
 
+/** `#1114` 片 2b-2a：段落**源**（`.twee` ∪ `stories/<slug>/passages/` 下的 `.md`）的枚举。
+ *  为什么要它 ✗：故事面原先只看**顶层 `.twee`**（`readdirSync(<故事目录>)`）⇒ `passages/` 子目录里的 md
+ *  会变成「在树上却不在门面上」的**静默盲区** ✓（本仓最忌讳的形态 ✗）。
+ *  ⚠️ 仍**只收 `passages/` 下**的 md（与 `scripts/module-order.mjs` 的 `allSourceFiles()` 同口径 ✓）
+ *  —— `stories/` 树里的非源 md（会话记录／门证据 ✓）不得被当段落 ✓。 */
+export const isStoryPassageMd = (rel) => rel.endsWith('.md') && /(^|\/)passages\//.test(rel);
+const sourcesUnder = (dir, acc = []) => {
+	if (!existsSync(dir)) return acc;
+	for (const name of readdirSync(dir, { withFileTypes: true })) {
+		const p = join(dir, name.name);
+		if (name.isDirectory()) { if (!/^(node_modules|\.)/.test(name.name)) sourcesUnder(p, acc); continue; }
+		if (name.name.endsWith('.twee') || name.name.endsWith('.md')) acc.push(p);
+	}
+	return acc;
+};
+
 /** 解析一份 twee 的段落：`:: 名 [tags] {meta}` ⇒ {name, tags, bodyLines:[{text, line}]}。**纯函数**。 */
 export const parsePassages = (text) => {
 	const lines = String(text).split('\n');
@@ -157,6 +176,17 @@ export const stripCommentSpans = (bodyLines) => {
 	return out;
 };
 
+/** `#1114` 片 2b-2a：解析一份**散文源**（`passages/*.md`）为一个段落 ✓——front-matter 的 `passage` ⇒ 段名、
+ *  `tags` ⇒ tag 面（`scope_of` 其余字段不进本判据面 ✓）。**纯函数**。
+ *  ⚠️ front-matter 的解析走拼装层同一权威（`core/passages.mjs` 的 `parseFrontMatter` ✓）——
+ *  本门只负责把它**接进同一个判据体** ✓（禁则／允许／词表三档次序一字不动 ✗）。 */
+export const parseMdPassages = (text, path = '') => {
+	const { meta, body } = parseFrontMatter(text);
+	const name = String(meta.passage ?? '').trim() || path;
+	const tags = String(meta.tags ?? '').split(/[\s,]+/).map((t) => t.replace(/^\[|\]$/g, '')).filter(Boolean);
+	return [{ name, tags, line: 1, bodyLines: String(body).split('\n').map((t, j) => ({ text: t, line: j + 1 })) }];
+};
+
 /**
  * 判据（**纯函数**）：给定内容故事的散文文件 → 问题列表。
  * @param {{slug:string, files:{path:string,text:string}[], vocab:Set<string>}} args
@@ -164,7 +194,11 @@ export const stripCommentSpans = (bodyLines) => {
 export const proseVocabProblems = ({ slug, files, vocab }) => {
 	const out = [];
 	for (const f of files) {
-		for (const p of parsePassages(f.text)) {
+		// `#1114` 片 2b-2a：**按扩展名分派解析器** ✗——判据体（下两档）**两路共用** ✓。
+		//   ⚠️ 不分派的后果是"**假绿**"：md 进 twee 解析器 ⇒ 解析出空 ⇒ 不报错也不判 ⇒ 看着像扫过了 ✓
+		//   （这正是本片要堵的那个缺口 ✓ —— 与"零命中≠已覆盖"同族 ✓）。
+		const passages = isStoryPassageMd(f.path) ? parseMdPassages(f.text, f.path) : parsePassages(f.text);
+		for (const p of passages) {
 			const isProse = !p.tags.some((t) => ['script', 'widget', 'stylesheet'].includes(t));
 			if (!isProse) continue;
 			for (const { text, line } of stripCommentSpans(p.bodyLines)) {
@@ -188,8 +222,12 @@ export const proseVocabProblems = ({ slug, files, vocab }) => {
 // ── `#1051`②：**可注入纯函数**（㊱：攻击面落在判据上，不落现实 ✗ —— 自证喂入参即可判 ✓）──────────
 /** **在树上却不在清单里**的故事件（`00-story.json` 的 `files` 为准 ✓）。⚠️ 本票的由来：`00-meta2.twee`
  *  这类**下一代名**在旧口径下会被当**正文**判 ✗ ⇒ 这里改成**出声**（报 ✓）而不是静默排除 ✗。 */
+/** `#1114` 片 2b-2a：段落**源**的枚举面 —— `.twee` ∪ `passages/` 下的 `.md` ✓。
+ *  ⚠️ 原先这里硬编码 `.twee` ⇒ 调用方把 md 递进来也会**被本函数静默滤掉** ✗（两处口径各写一遍＝漂移源 ✓）；
+ *  现改为**与 `allSourceFiles()`／本门其余部分同口径**（只额外放行 `passages/` 下的 md ✗）。
+ *  边界不变 ✓：非 `passages/` 的未登记件（如故事目录顶层的 `README.md`）仍**不归本门** ✓。 */
 export const undeclaredStoryFiles = ({ declared = [], onDisk = [] } = {}) =>
-	onDisk.filter((p) => p.endsWith('.twee') && !declared.includes(p));
+	onDisk.filter((p) => (p.endsWith('.twee') || isStoryPassageMd(p)) && !declared.includes(p));
 
 /** **元数据件谓词**（`#1051`②：由**文件名字面量**改为**内容谓词** ✗）。判据＝含 `:: StoryData` 段落 ✓
  *  （Twine 的元数据段落，按定义不是散文 ✓；实测全仓只有各故事的 `00-meta.twee` 命中 ✓ 正文件零命中 ✓）。
@@ -231,8 +269,22 @@ const selftest = () => {
 	t('#1048 正例：已声明取值名 ⇒ 不报', valueRefProblems({ files: [{ path: 'x.twee', text: '见 {{hasChargen}}' }], terms: new Set(['hasChargen']) }).length === 0),
 	t('#1048 边界：注释跨度里的 {{}} ⇒ 剥注释不罚（留痕优先）', valueRefProblems({ files: [{ path: 'x.twee', text: '/* 历史 {{oldName}} */' }], terms: new Set() }).length === 0),
 	t('#1048：valueTerms 并集（值语义 kind ∪ labels）', (() => { const t1 = valueTerms({ contract: { members: [{ name: 'a', kind: 'const' }, { name: 'b', kind: 'empty-object' }] }, labels: ['classLabel'] }); return t1.has('a') && t1.has('classLabel') && !t1.has('b'); })()),
+	// ── `#1114` 片 2b-2a：**散文层源**（`passages/` 下的 `.md`）进判据面 ✓────────────────
+	//   三格能假：禁则红 ✓／具名动作宏不红 ✓／未宣告宏红 ✓；另一格：**跟源同名段**必报 ✓。
+	t('🔴 md 源·反例：md 正文含 `<<set>>` ⇒ **V1**（判据体与 twee 路**共用** ✓）',
+		(proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'stories/demo/passages/0-a.md', text: '---\npassage: 开场\n---\n门是虚掩的。\n<<set $x to 1>>\n' }] })[0]?.code) === 'V1');
+	t('🔴 md 源·正例（能假的另一半）：md 正文的**具名动作宏** ⇒ **不红** ✓',
+		proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'stories/demo/passages/0-a.md', text: '---\npassage: 开场\n---\n正文 <<give "坏哨">> 完。\n' }] }).length === 0);
+	t('🔴 md 源·反例：md 正文的**未宣告宏** ⇒ **V2**（不分派会成“假绿”：twee 解析器把 md 解成空 ⇒ 看着像扫过 ✓）',
+		(proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'stories/demo/passages/0-a.md', text: '---\npassage: 开场\n---\n<<nonexistent>>\n' }] })[0]?.code) === 'V2');
+	t('md 源·front-matter：`passage` ⇒ 段名、`tags` ⇒ tag 面（与拼装层同一权威解析 ✓）',
+		(() => { const p = parseMdPassages('---\npassage: 酒馆\ntags: prose\nscope_of: x\n---\n正文\n', 'p.md')[0]; return p.name === '酒馆' && p.tags.includes('prose') && p.bodyLines[0].text === '正文'; })());
+	t('🔴 跟源同名段（md ＋ twee 各写一份）⇒ **报且点名两处** ✗（“改了 md 没改 twee”的静默分叉 ✓）',
+		(() => { const r = duplicateProblems({ passages: [{ name: '开场', path: 'stories/x/passages/0-开场.md' }, { name: '开场', path: 'stories/x/10-fixture.twee' }] }); return r.length === 1 && r[0].includes('0-开场.md') && r[0].includes('10-fixture.twee'); })());
+	t('🔴 枚举·新面：**未登记**的 `passages/*.md` 在树上 ⇒ **报**（旧口径对 md 隐形 ✗）',
+		undeclaredStoryFiles({ declared: [], onDisk: ['stories/x/passages/0-a.md'] }).length === 1);
 	t('🔴 #1048 反例：pc 有 Label 字段但 VALUE_LABELS 未登记 ⇒ 报 V2（对账能假）', pcLabelFields(['x: "", newLabel: ""']).includes('newLabel') && !engineLabels(['VALUE_LABELS: Object.freeze([\'classLabel\'])']).includes('newLabel')),
-	t('枚举·边界：**非 `.twee`** 的未登记件 ⇒ 不归本门（只判 `.twee` ✓）',
+	t('枚举·边界：故事目录顶层的**非源** md（如 `README.md`）⇒ 不归本门 ✓（`#1114` 2b-2a：只有 `passages/` 下的 md 是源 ✓）',
 		undeclaredStoryFiles({ declared: [], onDisk: ['stories/x/README.md'] }).length === 0);
 	t('🔴 元数据件：含 `:: StoryData` ⇒ **判为元数据**（不判 ✓）', isMetadataTwee(':: StoryTitle\n夜渡\n\n:: StoryData\n{}') === true);
 	t('🔴 元数据件·**能假的另一半**：正经正文（哪怕含宏）⇒ **不是**元数据 ⇒ 照判 ✓',
@@ -253,8 +305,7 @@ if (process.argv.includes('--selftest')) selftest();
 const trackedIn = (dir) => execFileSync('git', ['ls-files', '--', dir], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
 const untrackedIn = (dir) => execFileSync('git', ['ls-files', '--others', '--exclude-standard', '--', dir], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
 const vocabFiles = trackedIn('src').filter((f) => f.endsWith('.twee'));
-const vocab = engineVocab(vocabFiles.map((f) => readFileSync(join(ROOT, f), 'utf8')));
-const stories = trackedIn('stories').map((f) => /^stories\/([^/]+)\/00-story\.json$/.exec(f)?.[1]).filter(Boolean).sort();
+const vocab = engineVocab(vocabFiles.map((f) => readFileSync(join(ROOT, f), 'utf8')));const stories = trackedIn('stories').map((f) => /^stories\/([^/]+)\/00-story\.json$/.exec(f)?.[1]).filter(Boolean).sort();
 let problems = [];
 let exempt = [];
 const judgedSlugs = [];
@@ -262,10 +313,13 @@ const allJudgedFiles = [];
 for (const slug of stories) {
 	const story = JSON.parse(readFileSync(join(STORIES, slug, '00-story.json'), 'utf8'));
 	// `#1051`②：**以清单为准**（单一权威 ✓）——不再用 `readdirSync` 现扫 ✗。
-	const declared = (story.files ?? []).filter((p) => p.endsWith('.twee') && p.startsWith(`stories/${slug}/`));
+	// `#1114` 片 2b-2a：清单里的**散文层源**（`passages/` 下的 `.md`）也算段落源 ✓（原先按 `.twee` 过滤 ⇒ md 隐形 ✗）。
+	const declared = (story.files ?? []).filter((p) => (p.endsWith('.twee') || isStoryPassageMd(p)) && p.startsWith(`stories/${slug}/`));
 	// ⚠️ **在树上却不在清单里 ⇒ 不静默**（本票的由来正是这个：`00-meta2.twee` 这类**下一代名**会被旧口径当**正文**判 ✗）
 	{
-		const onDisk = readdirSync(join(STORIES, slug)).filter((f) => f.endsWith('.twee')).map((f) => `stories/${slug}/${f}`);
+		// `#1114` 片 2b-2a：**递归**枚举（原先只看顶层 `.twee` ⇒ `passages/` 子目录是静默盲区 ✗）；
+		//   仍只算真源（`.twee` ∪ `passages/` 下的 `.md` ✓）—— 非源 md（会话记录／门证据）不进面 ✓。
+		const onDisk = sourcesUnder(`stories/${slug}`).filter((p) => p.endsWith('.twee') || isStoryPassageMd(p));
 		const undeclared = undeclaredStoryFiles({ declared, onDisk });
 		// ⚠️ 必须是 `{code, msg}` 形态 ✗ —— 自测踩过：这条原先 push **裸字符串** ⇒ 汇总处按 `p.code`／`p.msg` 读 ⇒ 打印成 `[undefined] undefined` ⇒ **报文被吞** ✓（“读数答不了你以为它在答的问题”那族 ✓）。
 		for (const p of undeclared) problems.push({ code: 'U2', msg: `\`${p}\` 在树上但**不在 \`00-story.json\` 的 \`files\` 里** ⇒ 不许静默（要么登记、要么删 —— 旧口径会把它当**正文**判 ✗）` });
@@ -274,6 +328,16 @@ for (const slug of stories) {
 		.map((p) => ({ path: p, text: readFileSync(join(ROOT, p), 'utf8') }))
 		.filter((f) => !isMetadataTwee(f.text))            // 元数据件：**内容谓词** ✓ 不靠文件名字面量 ✗
 		.filter((f) => !/^\s*\/\/\s*@generated/m.test(f.text.split('\n').slice(0, 3).join('\n')));   // 生成物不在本门射程
+	// `#1114` 片 2b-2a：**跟源同名段**（同一段在 `passages/*.md` 与 `*.twee` 各写一份）⇒ 红并**点名两处** ✗。
+	//   ⚠️ **不受 audience 豁免**（它不是词法面 ✗ —— 所有故事的源都不该有双份真相 ✓）。
+	{
+		const segNames = [];
+		for (const f of files) {
+			const ps = isStoryPassageMd(f.path) ? parseMdPassages(f.text, f.path) : parsePassages(f.text);
+			for (const p of ps) segNames.push({ name: p.name, path: f.path });
+		}
+		for (const m of duplicateProblems({ passages: segNames })) problems.push({ code: 'D1', msg: m });
+	}
 	// ⚠️ **缺 `audience` ⇒ 按 content 判**（不静默放过）：`audience` 由 `#1035` 显式声明引入；
 	//   缺字段时若按"豁免"处理，本门在 `#1035` 落地前会**成为空判**（正是本仓最忌讳的形态 ✗）。
 	const judged = story.audience !== 'internal';

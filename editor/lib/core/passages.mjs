@@ -63,10 +63,27 @@ export const valueRefExpand = ({ name, body, terms }) => {
 	return { body: out, problems };
 };
 
+/** `#1114` 片 2b-2a：**重名段** —— 同一批源里段名重复 ⇒ 点名 ✗。
+ *  为什么要它（不是形式主义）：散文层成为源之后，**同一段**可能在 `passages/*.md` 和 `*.twee` 里各写一份
+ *  ⇒ 那是「改了 md 没改 twee」的静默分叉 ✓（票面 §四 禁的形态 ✓）；一份构建里同名段只会活一个 ✗。
+ *  口径：只判**名字**（不判内容），报出**两处来源**（可追踪 ✓）。 */
+export const duplicateProblems = ({ passages = [] } = {}) => {
+	const seen = new Map();
+	const out = [];
+	for (const p of passages) {
+		const n = String(p.name ?? '');
+		const where = String(p.path ?? p.source ?? '(未标来源)');
+		if (!seen.has(n)) { seen.set(n, where); continue; }
+		out.push(`段名「${n}」**重复**（\`${seen.get(n)}\` 与 \`${where}\`）⇒ 同一段有两份源 ✗ ⇒ 删一份或改名（\`#1114\` 片 2b-2a：md 与 twee 不得同段共存 ✓）`);
+	}
+	return out;
+};
+
 /** 主拼装：一批 md 段 ⇒ 一份 twee 文本（含 front-matter 元数据行 ✓）。 */
 export const assemblePassages = ({ passages, forbidden = new Set(), terms = new Set() }) => {
 	const problems = [];
 	// 先校验（悬空须看全集 ⇒ 两遍 ✓）
+	problems.push(...duplicateProblems({ passages }));   // `#1114` 2b-2a：重名段（跨源双写）⇒ 先报 ✗
 	for (const p of passages) {
 		problems.push(...forbiddenProblems({ name: p.name, body: p.body, forbidden }));
 		problems.push(...danglingProblems({ name: p.name, body: p.body, passages }));

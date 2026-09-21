@@ -60,8 +60,12 @@ try {
 
 	// `#1132` 第 3 块：**「看得见 md」必须自己成断言** ✗ —— 本门今天**不红**（它的断言是"段落源非空"）
 	//   ⇒ 若无本格，改与不改读数一样 ⇒ 又一个"不误报 ≠ 能假" ✓。成对：掐掉上面的 passages 分支 ⇒ 本格红 ✓。
-	t('🔴 段落源枚举**含 `passages/*.md`**（此前只认顶层 twee/json ⇒ 盲而不红 ✗）',
-		pickedFiles().some((f) => /\/passages\/.*\.md$/.test(f.webkitRelativePath)));
+	// ⚠️ 语义＝「**该故事**若有 `passages/` ⇒ 枚举必须看得见它」✗ —— **不是**「所有故事都必须有 md」
+	//   （后者对无 `passages/` 的故事**假红**；今天不触发只因 `SLUG` 写死 ⇒ 仍是错的语义 ✓ 评审两席各自量出 ✓）。
+	//   成对：有 md ⇒ 真 ✓ ／ 无 md ⇒ **不得因本格变红** ✓（`SLUG` 指向无 passages 的故事即负例 ✓）。
+	const passagesDir = `${ROOT}/stories/${slug}/passages`;
+	t('🔴 段落源枚举**含 `passages/*.md`**（该故事若有 passages/ ⇒ 必须看得见）',
+		!existsSync(passagesDir) || pickedFiles().some((f) => /\/passages\/.*\.md$/.test(f.webkitRelativePath)));
 
 	// ── ① 两侧同判（① 级：页内 ≡ CLI）────────────────────────────────────────
 	const t0 = process.hrtime.bigint();

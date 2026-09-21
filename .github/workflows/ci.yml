@@ -75,6 +75,16 @@ jobs:
           path: dist
           retention-days: 1
 
+      # `#1130`：新鲜度红的**点名清单**（who／when／比 dist 新的源件）—— `if: failure()` ⇒ **PR 红也上传** ✓
+      #   既有那个只在 main push 传 dist ✗ ⇒ PR 上的新鲜度红拿不到名单 ✓ 本步补这个缺口 ✓
+      - if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: freshness-failure
+          path: build/freshness-failure.json
+          if-no-files-found: ignore
+          retention-days: 7
+
   realmachine:
     # `#630`／伞 `#626`：**名字与内容对齐**——这里装的是**确定性**断言（位点双支清扫）＋**真机**浏览器断言，
     # 不再是随机长测（那个已搬进 `soak-nightly.yml`，report-only）。旧名 `soak` 会让人以为门禁里还跑抽样。

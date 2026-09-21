@@ -7,7 +7,7 @@
 // 纪律：**不自动 build**（那会掩盖问题）；过期或缺失 → **大声报错 + 给出修复命令**。
 // 缺失为什么也要报错：此前 audit 的 a11y 门用 `existsSync` 兜住 → dist 不存在时该检查**静默跳过**，
 // 那就是「假绿」的一种（没跑，却看起来通过）。
-import { readdirSync, existsSync, statSync, mkdirSync, writeFileSync, rmSync, utimesSync, appendFileSync } from 'node:fs';
+import { readdirSync, existsSync, statSync, mkdirSync, writeFileSync, rmSync, utimesSync, appendFileSync, readFileSync } from 'node:fs';   // `#1152`：**读回断言用的名字此前漏了** ⇒ ReferenceError 被 catch 吞成假「落盘失败」✗
 import { isTransientFixture } from './lib/untracked-guard.mjs';   // `#1130`：**并行段运行期自造的临时夹具不算真源** ✓（`stories/__e2e` ✓）
 import { allSourceFiles } from './module-order.mjs';
 import { fileURLToPath } from 'node:url';

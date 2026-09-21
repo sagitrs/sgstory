@@ -290,7 +290,8 @@ if (process.argv.includes('--selftest')) selftest();
 const trackedIn = (dir) => execFileSync('git', ['ls-files', '--', dir], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
 const untrackedIn = (dir) => execFileSync('git', ['ls-files', '--others', '--exclude-standard', '--', dir], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
 const vocabFiles = trackedIn('src').filter((f) => f.endsWith('.twee'));
-const vocab = engineVocab(vocabFiles.map((f) => readFileSync(join(ROOT, f), 'utf8')));const stories = trackedIn('stories').map((f) => /^stories\/([^/]+)\/00-story\.json$/.exec(f)?.[1]).filter(Boolean).sort();
+const vocab = engineVocab(vocabFiles.map((f) => readFileSync(join(ROOT, f), 'utf8')));
+const stories = trackedIn('stories').map((f) => /^stories\/([^/]+)\/00-story\.json$/.exec(f)?.[1]).filter(Boolean).sort();
 // `#1133` ⭐ **第二站点**：**产物缺失 ⇒ 报"先跑 `npm run build`"** ✓（不许裸 ENOENT 崩 ✗）
 //   本件按清单读**声明件** ✓，其中含**生成物**（`stories/*/1[567]-*.twee` ⇒ gitignored ✓）
 //   ⇒ 未 build 时它们不在树 ⇒ `readFileSync` 裸 ENOENT ✗ ⇒ 读者读不出"该先 build" ✓

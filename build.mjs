@@ -33,12 +33,27 @@ mkdirSync('dist', { recursive: true });
 //   ② **故事自己的件**（`stories/<slug>/**`）必须全在**该故事自己的清单**里 ✓ ⇒ 顺序由清单给 ✓
 //   ⇒ **新建故事不必改代码** ✗（原来一律要求 ⊂ ORDER ✗ ⇒ 新故事必改代码 ✗）。
 // 两层的**登记语义都没丢** ✓：新件仍须**显式登记** ✓，只是登记处换成**它自己的清单** ✓。
-const files = allSourceFiles();   // #458 切片C：源文件发现走**单一权威**（搬家后＝`src/**` ＋ `stories/**`）
+const slugs = storySlugs();
+const STORIES = 'stories';   // \`#1128\` 产物前置用（编译器 out 路径）
+// `#1128`：**产物前置**——干净树上产物 twee 不存在（移出 git ✓）⇒ 构建前先从源（data/*.json）编译 ✓
+//    （票面约束：`git clean` 后的干净树必须能重建全套产物 ✗——断点补在此 ✓；产物在=幂等跳过 ✓ 已在=不重编 ✗ 保持逐字节稳定 ✓）。
+{
+	const { execFileSync } = await import('node:child_process');
+	for (const slug of slugs.filter((x) => !x.startsWith('__'))) {   // #1128：临时夹具（__ 前缀）不参与产物前置 ✓（它们的产物由造它们的段自己管 ✓）
+		const genNeeded = ['15-tables.twee', '17-rules.twee', '16-notes-ch1.twee'].some((f) => !existsSync(join(STORIES, slug, f)));
+		// 只补缺件（`#1128` 后磁盘上的现存产物由 K4 freshness 门守 ✓——不重编已有 ⇒ 保持与门一致 ✓）
+		// ⚠️ 每故事的产物集不同（minimal-demo 只 15；face-fixture 15/16/17）⇒ 编译器按 data/ 自动产出 ✓
+		if (genNeeded) {
+			execFileSync('node', ['editor/compile-story.mjs', slug, `--out=${join(STORIES, slug)}/`], { stdio: 'pipe' });
+			console.log(`  #1128 产物重建：${slug}（data/ → *.twee ✓）`);
+		}
+	}
+}
+const files = allSourceFiles();   // #458 切片C：源文件发现走**单一权威**（`src/**` ＋ `stories/**`）；`#1128`：**在产物前置之后取** ✓（前置会补出产物 twee ⇒ 清单/ORDER 检查须看补完后的面 ✓——领队裁定 5758307279 ✓）
 if (files.length === 0) {
 	console.error('src/ 下没有找到 .twee 文件');
 	process.exit(1);
 }
-const slugs = storySlugs();
 if (slugs.length === 0) {
 	console.error('✗ stories/ 下没有找到故事清单（需 <slug>/00-story.json）');
 	process.exit(1);

@@ -4,4 +4,8 @@ dist/
 .DS_Store
 
 # 工作草稿面（不入仓）：scratch/导出物
+# #1128 产物不入仓（#1042 乙）：stories 下的编译产物（源=data/*.json，构建链重建 ✓）
+stories/*/15-tables.twee
+stories/*/17-rules.twee
+stories/*/16-notes-*.twee
 /tmp/

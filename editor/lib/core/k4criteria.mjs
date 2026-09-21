@@ -45,7 +45,7 @@ export const staleTrackedProblems = (tracked, out) => {
 	for (const [path, text] of marks) {
 		const base = path.split('/').pop();
 		if (!(base in out)) { problems.push({ path, why: '自带 `@generated` 却**无同名产物**（来源已断：没人再从 `data/` 生成它）' }); continue; }
-		if (text !== out[base]) problems.push({ path, why: '与**当场从 `data/` 重编**的产物**不一致** ⇒ 有人改了 tracked 的生成物而没改 `data/`（两处真相）' });
+		if (text !== out[base]) problems.push({ path, why: '与**当场从 `data/` 重编**的产物**不一致** ⇒ 有人改了磁盘上的生成物而没改 `data/`（两处真相）' });
 	}
 	return { marks: marks.length, problems };
 };

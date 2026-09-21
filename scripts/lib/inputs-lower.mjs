@@ -60,7 +60,11 @@ export const inputsLowerProblems = ({ declared = [], lower = [] } = {}) => {
 	if (!declared.length) return [];                       // 未声明 ⇒ 「全跑型」✓ ⇒ 本层不管它 ✓
 	const problems = [];
 	for (const l of lower) {
-		const hit = declared.some((d) => l === d || l.startsWith(d.replace(/\*+$/, '')) || d === l.split('/')[0] + '/**');
+		const hit = declared.some((d) => {
+			const s0 = String(d);
+			if (s0.replace(/\*+$/, '') === '') return true;   // 全通配（`*`／`**`／`src/**` 除外 ⇒ 去掉 `*` 后为空）⇒ **恒命中** ✗
+			return l === s0 || l.startsWith(s0.replace(/\*+$/, '')) || s0 === l.split('/')[0] + '/**';
+		});
 		if (!hit) problems.push(`**静态读到的面** \`${l}\` **不在声明的 \`inputs\` 里** ✗ ⇒ 该段真读它 ⇒ 声明漏了（\`#1093\` ①层）`);
 	}
 	return problems;
@@ -86,8 +90,10 @@ export const interLayerProblems = ({ lower = [], truth = [] } = {}) => {
 export const inputsTruthProblems = ({ declared = [], truth = [] } = {}) => {
 	if (!declared.length) return [];
 	const hit = (p) => declared.some((d) => {
-		const base = String(d).replace(/\*+$/, '');
-		return p === d || (base && p.startsWith(base));
+		const s0 = String(d);
+		if (s0.replace(/\*+$/, '') === '') return true;   // 全通配 ⇒ **恒命中** ✗（与 ①层 同义 ✓ —— 不许靠 `base && …` 巧合 ✗）
+		const base = s0.replace(/\*+$/, '');
+		return p === s0 || p.startsWith(base);
 	});
 	return truth.filter((p) => !hit(p)).map((p) =>
 		`**运行期真读** \`${p}\` **不在声明的 \`inputs\` 里** ✗ ⇒ 该段真读它（静态层看不见的**动态路径**也算 ✓）⇒ 声明漏了（\`#1093\` ②层）`);

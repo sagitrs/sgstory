@@ -1210,6 +1210,10 @@ window.Sg.rules = {
 			const want = window.Game?.Era?.[String(m[2]).toUpperCase()] ?? m[2];     // 时代（`era:present`／`era:past`）
 			return State.variables.era === want;
 		}
+		// `#1132`：**存档面具名谓词**（`codex:<名>`）——设定集页的可见性是 `Sg.Codex.seenFinal()` 驱动的（**存档面** ✗ 不是 pc 域）
+		//   ⇒ 条件表（走 `readKey`）表达不了 ⇒ 把它接入读取面 ✓。⚠️ `#574`：`Sg.Codex` 是**故事可选面** ⇒ 一律**可选链 ＋ 缺省 false** ✗（无图鉴不得抛 ✓）；具名谓词窄 ⇒ 新谓词需**显式登记** ✓。
+		const cx = /^codex:(.+)$/.exec(k);
+		if (cx) return String(cx[1]) === 'final' ? !!(window.Sg?.Codex?.seenFinal?.()) : false;
 		// `#624` 片二：**显式根** `pc.` ⇒ 从 pc 根走。为什么需要：`pc.gold`／`pc.hp` 这类**顶层字段**原本没有键形可用——
 		// 裸键＝`ev.`、`world.` 是另一个域、第三命名空间又必须带点 ⇒ 可负担性判定（`gold ≥ 价格`）写不出来。
 		if (k.startsWith('pc.')) return window.Sg.notes.readPath(pc, k.slice(3));

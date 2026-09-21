@@ -319,7 +319,13 @@ const selftest = async ({ quiet = false } = {}) => {
 		validateSuites([{ id: 'x' }], { members: { engine: ['x'], editor: ['zombie'] } }).some((p) => /不在计划里/.test(p)));
 	t('`suiteOf`：查得到组 ⇒ 返组名 ✓ ／ 查不到 ⇒ `null` ✗（不猜 ✓）', suiteOf('build-mjs') !== null && suiteOf('no-such-seg') === null);
 	// `#1093` P2-a：`inputs` 声明面（安全默认 ＋ ratchet；成对 ✗）
-	t('`inputsDeclaredStats`：今日全表**都未声明** ⇒ 计数与总数相符 ✓', inputsDeclaredStats().undeclared.length === inputsDeclaredStats().total);
+	// ⚠️ `#1123` 复核（第 4 轮）：原格断言 「今日全表都未声明」（undeclared === total）✗
+//   ⇒ 那是把**今天的快照当不变量** ✗ ⇒ 第一个照设计「老段渐进声明」的人 ⇒ **整跑假红** ✗
+//   ⇒ 改**结构不变量** ✓（任何时间点都真）＋ 用**注入**保住能假 ✓
+t('`inputsDeclaredStats`：**结构不变量** declared ＋ undeclared === total ✓（**不写死今日快照** ✗）',
+	(() => { const x = inputsDeclaredStats(); return x.declared + x.undeclared.length === x.total; })());
+t('🔴 `inputsDeclaredStats`：**声明了的段**计入 declared、不计入 undeclared（注入式 ⇒ 函数数错即红）',
+	(() => { const x = inputsDeclaredStats([{ id: 'a', inputs: ['x'] }, { id: 'b' }]); return x.declared === 1 && x.undeclared.length === 1 && x.total === 2; })());
 	t('`validateInputsRatchet` 正例：段数**未增** ⇒ 0 问题 ✓（老段可渐进 ✓）', validateInputsRatchet([{ id: 'a', inputs: ['x'] }, { id: 'b' }], { baseline: 1 }).problems.length === 0);
 	t('🔴 `validateInputsRatchet` 反例：**未声明段数增加** ⇒ 报并**点名新增者** ✓', (() => { const r = validateInputsRatchet([{ id: 'old' }, { id: 'n1' }, { id: 'n2' }], { baseline: 1 }); return r.problems.length === 1 && /n1|n2/.test(r.problems[0]); })());
 	// ⚠️ `#1123` 复核：**原格是 `t('…安全默认…', true)` ⇒ 恒真断言** ✗（**守着本片唯一能致假绿的方向**✓）

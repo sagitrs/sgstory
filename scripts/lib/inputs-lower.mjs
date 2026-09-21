@@ -81,3 +81,15 @@ export const interLayerProblems = ({ lower = [], truth = [] } = {}) => {
 	}
 	return problems;
 };
+/** **② 层的判据**：`真值 ⊄ 声明的 inputs` ⇒ 红 ✓（**未声明 ⇒ 不管** ✗ ＝ 安全默认 ✓）。
+ *  ⚠️ 与 ① 层的区别：① 是**下界**（只有字面量 ⇒ 必然 ⊆ 真值 ✓）；② 是**真值**（含变量路径 ✓）⇒ 覆盖面更广 ✓。 */
+export const inputsTruthProblems = ({ declared = [], truth = [] } = {}) => {
+	if (!declared.length) return [];
+	const hit = (p) => declared.some((d) => {
+		const base = String(d).replace(/\*+$/, '');
+		return p === d || (base && p.startsWith(base));
+	});
+	return truth.filter((p) => !hit(p)).map((p) =>
+		`**运行期真读** \`${p}\` **不在声明的 \`inputs\` 里** ✗ ⇒ 该段真读它（静态层看不见的**动态路径**也算 ✓）⇒ 声明漏了（\`#1093\` ②层）`);
+};
+

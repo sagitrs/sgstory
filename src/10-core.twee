@@ -1,4 +1,10 @@
 :: Rules [script]
+
+/* `#1048`：**取值词汇 · 引擎派生标签**（可检索载体 ✓ ㊷——与 `pc` 字段集对账的单一权威 ✓）。
+ * ⚠️ 对账判据（能假 ✓）：`pc` 初始化里出现 `xxxLabel` 字段而此处未登记 ⇒ `test/prose-vocabulary.mjs` 红 ✓。 */
+Object.assign(window.Game ??= {}, {
+	VALUE_LABELS: Object.freeze(['classLabel', 'bgLabel', 'speciesLabel']),
+});
 // ── 规则内核（d20 / SRD 5.2 风格）——数值层单一源 ─────────────
 // 设计模式参考（未复制代码）：Another-RPG-Engine (MIT) 修饰栈 / foundryvtt-dnd5e (MIT) 公式组织
 // 规则数值来源：D&D SRD 5.2（CC BY 4.0, © Wizards of the Coast）

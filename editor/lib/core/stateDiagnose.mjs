@@ -254,6 +254,13 @@ export const tableReadProblems = (rows) => {
 			// `#435` 键形：note id ∕ 裸键（默认 `ev.`）∕ **任意域的状态路径**（`ev.`/`world.`/`keeper.`/`star.`…）∕
 			// 两种**前缀键**（`inv:<道具>`／`era:<时代>`，求值在引擎侧 `Sg.rules.holds()`）。
 			// 修正①（2026-09-14）：原先只放行 `ev|world` 两域 ⇒ **误杀 `keeper.met`/`star.spent`** 这类第三命名空间。
+			// ⚠️ `#1156` **实测结论：此处不换 `readKeyFamily`** ✗ —— "**可读**（引擎能否取值）"与"**合法键形**（契约面口径）"
+			//   是**两个概念**：引擎对 `$pc.ev.x`／`nope:zzz` 都能兜底取值（宽 ✓），但契约面**必须拒**它们 ✗。
+			//   证据（`#1156` 的反例读数）：换成族判定后 `test/web-read-faces.mjs` 的 ④ 刀 由 **3 → 2** 项
+			//   （`synth` 里 `A`＝`'$pc.ev.x'` 不再被报 ⇒ 一条真判据被削弱 ✗），而 **`audit-golden` 当时仍绿** ✓
+			//   ⇒ 记账：**"逐字节不变" ≠ "行为不变"**（golden 数据里没有这类键 ⇒ 抓不到 ✗）；**反例才是判据还在的证据** ✓。
+			//   ⇒ 所以此判据**保持原契约口径**（含 `era:` 只认 past/present ✓ 含 `:` 但非已知族 ⇒ 拒 ✓）；`readKeyFamily`
+			//   的用途限于**读点面**（`declCondRefs` ✓）与**成对断言**（锁引擎真源 ✓）—— 不越界到契约面 ✓。
 			if (!/^(n_[a-z0-9_]+|[a-z_]\w*|[a-z_]\w*\.[a-z_]\w*|inv:.+|era:(?:past|present)|gear:.+|codex:.+)$/.test(k)) out.push({ id: r.id, field, what: '键形态', detail: k });   // \`#1132\`：白名单加 \`codex:.+\`（读取面键形 ✓）
 			for (const key of literalReadKeys(k)) { if (/^codex:/.test(key)) continue; out.push({ id: r.id, field, what: '字面状态读', detail: key }); }   // `#1132`：`codex:` 是读取面键形 ⇒ 不算「字面状态读」
 		}

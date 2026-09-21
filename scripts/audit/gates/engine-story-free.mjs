@@ -13,6 +13,7 @@
 //   ③ **白名单要带理由＋票号**，且**腐烂即红**（写进白名单但已不再命中 ⇒ 报，逼你删）。
 //
 // 反例自证：往任一引擎门里塞一个故事词 ⇒ 必须红（本门自己的 `--selftest` 用合成源码演示；PR 里另有真实探针）。
+import { passagesOf } from '../../../editor/lib/core/passages.mjs';   // `#1114` 2b-2b-0b：切段单一权威
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT } from '../../dist-paths.mjs';
@@ -43,10 +44,12 @@ export const loadAllow = ({ root = ROOT } = {}) => {
 /** 纯函数：从故事源码抽"故事专有 token"（段落名 ＋ `Game.<X>`）。 */
 export const storyTokensOf = (sources) => {
 	const out = new Set();
-	for (const src of Object.values(sources ?? {})) {
+	// `#1114` 片 2b-2b-0b：段名抽取也走 core 的 `passagesOf()`（**唯一分派点** ✓）
+	//   —— 原 `matchAll(/^::\s*…/)` 对 md 源（无 `:: ` 段头）抽不到段名 ⇒ 故事专有 token 面漏掉 md 段 ✓。
+	for (const [path, src] of Object.entries(sources ?? {})) {
 		const text = maskComments(String(src ?? ''));
-		for (const m of text.matchAll(/^::\s*([^\n\[]+?)\s*(?:\[[^\]]*\])?\s*$/gm)) {
-			const name = m[1].trim();
+		for (const p of passagesOf(text, path)) {
+			const name = String(p.name ?? '').trim();
 			if (name && !ENGINE_COMMON.has(name)) out.add(name);
 		}
 		for (const m of text.matchAll(/\bGame\.([A-Z][A-Za-z0-9_]*)/g)) {

@@ -445,6 +445,9 @@ if (tierWant === 'full' && !has('no-inputs-runtime')) {
 		let rtBad = 0;
 		for (const seg of declared) {
 			try { rmSync(OUTJ, { force: true }); } catch { /* 首次 ✓ */ }
+			// ⚠️ `#1127` 复核阻断②：**跑子进程前必须确保落点父目录存在** ✗ ——
+			//   同文件 `:606` 早写着这条规矩（`#1072` 仪表族 ✓）⇒ 本处漏了 ✓（**干净 checkout ＋ 本块在 `build-mjs` 之前** ⇒ 无 `build/` ⇒ 空转 ✓）
+			mkdirSync(dirname(OUTJ), { recursive: true });
 			const args = seg.cmd.replace(/^node\s+/, '').split(/\s+/);
 			let rcode = 0;
 			try {

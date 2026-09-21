@@ -44,14 +44,21 @@ export const assertFreshDist = ({ distPath = DIST_PATH, srcDir = SRC_DIR, who = 
 	if (!st.fresh) {
 		// `#1130`：**点名清单落盘**（durable ✓）—— CI 上把它作为 artifact 上传 ⇒ 任何一次新鲜度红都能直接看名单 ✓
 		//   （不在 CI 时也无害：落在 gitignored 的 `build/` ✓；写失败**不得掩盖**原本的报错 ✓）
+		// ⚠️ 判据（协调席 `#1112`）：**报错时写诊断 ⇒ 写失败必须可见** ✗（不许 `catch {}` ✓）；
+		//   且**副作用必须以"看到产物"收尾** ✓（写完读回 ＋ 校验关键字段 ✓ —— "代码在" ≠ "生效了" ✓）
+		const payload = { who, when: new Date().toISOString(), distMtime: new Date(st.distMtime).toISOString(),
+			newer: (st.newer ?? []).map((x) => ({ file: x.f, mtime: new Date(x.m).toISOString() })) };
+		const out = join(ROOT, 'build/freshness-failure.json');
+		let writeNote = '';
 		try {
-			const payload = { who, when: new Date().toISOString(), distMtime: new Date(st.distMtime).toISOString(),
-				newer: (st.newer ?? []).map((x) => ({ file: x.f, mtime: new Date(x.m).toISOString() })) };
-			const out = join(ROOT, 'build/freshness-failure.json');
 			mkdirSync(dirname(out), { recursive: true });   // 写前建父目录（仓内既有惯例 ✓）
 			writeFileSync(out, JSON.stringify(payload, null, '\t'));
-		} catch { /* 落盘失败不影响报错 ✓ */ }
-		throw new Error('dist/index.html 比 src/*.twee 旧——先跑 `npm run build`（否则断言基于旧游戏，结果是假红/假绿）' + (st.newer ?? []).map((x) => `\n    · ${x.f}（${new Date(x.m).toISOString()} > dist ${new Date(st.distMtime).toISOString()}）`).join(''));
+			const back = JSON.parse(readFileSync(out, 'utf8'));   // ← **读回校验**（看到产物才算生效 ✓）
+			if (back?.who !== payload.who || !Array.isArray(back?.newer)) throw new Error('读回校验不过');
+		} catch (e) {
+			writeNote = `\n  ⚠️ **点名清单落盘失败**（${e.message}）⇒ 名单已折进本报错，未丢 ✓（不静默 ✓）`;
+		}
+		throw new Error('dist/index.html 比 src/*.twee 旧——先跑 `npm run build`（否则断言基于旧游戏，结果是假红/假绿）' + (st.newer ?? []).map((x) => `\n    · ${x.f}（${new Date(x.m).toISOString()} > dist ${new Date(st.distMtime).toISOString()}）`).join('') + writeNote);
 	}
 	return st;
 };

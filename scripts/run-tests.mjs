@@ -23,13 +23,14 @@
 //   node scripts/run-tests.mjs --list          # 只列计划
 //   node scripts/run-tests.mjs --selftest      # 跑器自身的自证（不跑真计划）
 
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, rmSync, mkdirSync, existsSync } from 'node:fs';   // `#1072`：测量仪表的读数落盘（`build/`，gitignored ✓）
 import { join, dirname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { cpus } from 'node:os';
 import { testPlan, segmentLayer, validateLayers, tierOf, TIERS, DEFAULT_TIER, validateTiers, SUITES, suiteOf, validateSuites, inputsDeclaredStats, validateInputsRatchet, inputsMatch } from './test-plan.mjs';
-import { fsArgLiterals, inputsLowerProblems, interLayerProblems } from './lib/inputs-lower.mjs';   // `#1093` P2-b：①层（静态下界）
+import { fsArgLiterals, inputsLowerProblems, interLayerProblems, inputsTruthProblems } from './lib/inputs-lower.mjs';   // `#1093` P2-b：①层（静态下界）
+import { WRAPPED_READ_APIS, READ_API_BASELINE } from './lib/fs-hook-shim.mjs';   // `#1093` P2-c：㈠ 面完整性清单 ✓
 // `#607`：故事清单声明的门 flag（P0 为空集合 ⇒ 层判定与今天**逐字相同**；P1 起门搬家后仍判得出故事层）
 import { declaredGatesAll } from './audit/discovery.mjs';
 // 声明面在**顶层**取（不在 `selftest()` 里取）：`selftest()` 在文件中部就被调用，
@@ -330,7 +331,7 @@ t('🔴 `inputsDeclaredStats`：**声明了的段**计入 declared、不计入 u
 	t('`validateInputsRatchet` 正例：段数**未增** ⇒ 0 问题 ✓（老段可渐进 ✓）', validateInputsRatchet([{ id: 'a', inputs: ['x'] }, { id: 'b' }], { baseline: 1 }).problems.length === 0);
 	t('🔴 `validateInputsRatchet` 反例：**未声明段数增加** ⇒ 报并**点名新增者** ✓', (() => { const r = validateInputsRatchet([{ id: 'old' }, { id: 'n1' }, { id: 'n2' }], { baseline: 1 }); return r.problems.length === 1 && /n1|n2/.test(r.problems[0]); })());
 	// ⚠️ `#1123` 复核：**原格是 `t('…安全默认…', true)` ⇒ 恒真断言** ✗（**守着本片唯一能致假绿的方向**✓）
-	//   ⇒ 复核席实测：将来若有人实现成「未声明 ⇒ 跳过」⇒ **那格照样绿** ✗ ⇒ 改为**注入式可假对** ✓
+	//   ⇒ 复核实测：将来若有人实现成「未声明 ⇒ 跳过」⇒ **那格照样绿** ✗ ⇒ 改为**注入式可假对** ✓
 	t('🔴 安全默认·①：**未声明 ⇒ 恒算命中**（任何改动面都命中 ⇒ **永不跳过** ✓）', inputsMatch({ declared: [], changed: ['docs/x.md'] }) === true);
 	// ⚠️ 这里**必须**是 `if (bad)` **之后** ✓ —— 否则「格红」与「打通过」会同屏（`#1123` 复核抓到的缝 ✓）
 	// `#1093` P2-b：①层（静态下界）—— 抽面／判据／层间自洽（成对 ✗；**格只断言跨时间的结构不变量** ✓）
@@ -348,12 +349,18 @@ t('🔴 `inputsDeclaredStats`：**声明了的段**计入 declared、不计入 u
 			&& inputsLowerProblems({ declared: ['src/**'], lower: lw }).length === 1; })());
 	t('🔴 `interLayerProblems`：**①（下界）⊆ ②（真值）** 成立 ⇒ 0 ✓；下界含真值没有的 ⇒ **必报** ✓',
 		(() => { const okk = interLayerProblems({ lower: ['src'], truth: ['src/a.twee'] }); const bad2 = interLayerProblems({ lower: ['dist'], truth: ['src/a.twee'] }); return okk.length === 0 && bad2.length === 1; })());
+	// ⚠️ **格必须调用**（`() => …` 传函数 ⇒ **恒真** ✗ —— 实测实测踩过：写漏一对括号 ⇒ 该格永远不红 ✓ 与恒真格同族 ✓）
+	// `#1093` P2-c：②层（运行真值）的面级断言（**格放在检查之前** ✓；只断言跨时间的结构不变量 ✓）
+	t('🔴 ㈠ 面完整性 ratchet：shim 包裹的读 API 清单 **⊇ 基准清单** ✓（后人加新读 API 未包 ⇒ 当场红 ✓）',
+		(() => READ_API_BASELINE.every((a) => WRAPPED_READ_APIS.includes(a)))());
+	t('⚠️ shim **导出它的清单**（不是"注释里说包全了"✗ ⇒ 把漏报从注释面移到判据面 ✓）',
+		(() => Array.isArray(WRAPPED_READ_APIS) && WRAPPED_READ_APIS.length >= READ_API_BASELINE.length));
 	if (bad) { console.error(`\n✗ 跑器自证失败 ${bad} 项`); process.exit(1); }
 	if (!quiet) console.log('\n✔ 跑器自证通过：成功/失败识别、失败输出不吞、并行真的重叠、setup 红即中止、needs 前置/级联跳过/配错报错');
 	else console.log('✓ 跑器自证通过（成功/失败识别 · 输出不吞 · 并行真重叠 · setup 红即中止 · needs 语义）');
 	// `#1123` 复核：**返回值必须反映 bad** ✗ —— 原来恒 `return true` ＋ 调用方无条件 `exit(0)`
 	//   ⇒ **凡落在最后一个 `if (bad)` 之后的格都不进退出码** ✗（本函数内 `if (bad)` 有 **3 处** ✓）
-	//   ⇒ 结论（复核席改字）：**「格红 ⇒ 非零退出」是格级属性，不是入口级** ✗ ⇒ 以**返回值**兜底 ✓
+	//   ⇒ 结论（复核改字）：**「格红 ⇒ 非零退出」是格级属性，不是入口级** ✗ ⇒ 以**返回值**兜底 ✓
 	return bad === 0;
 };
 
@@ -425,6 +432,38 @@ const suiteSel = suiteWant ? plan0.filter((s) => suiteOf(s) === suiteWant) : nul
 	}
 	console.log(`○ ①层（静态下界）：检查 **${lowerChecked}** 个**已声明**段 ⇒ 违规 **${lowerBad}** 条（未声明段不参与 ✓）`);
 	if (lowerBad) { console.error(`✗ ①层未过 ${lowerBad} 条 ⇒ 声明漏了它真读的面（或抽不到面 ✗）`); process.exit(2); }
+}
+
+// #1093 P2-c：**②层（运行真值）** —— **仅 full 档**跑 ✓（不占 PR 档 ⇒ CI 面不劣化 ✓ 硬线）
+//   ⚠️ 机制＝**解析钩子重定向 `node:fs` → shim** ✓（改模块对象拦不到 ESM 具名导入 ✗ ⇒ 会成"永真门" ✗）
+//   ⚠️ 盲区（如实 ✗）：**非 node 子进程**的读看不见 ⇒ 该类段**只能保持未声明** ✓（＝全跑型 ✓）
+if (tierWant === 'full' && !has('no-inputs-runtime')) {
+	const declared = plan0.filter((s) => Array.isArray(s.inputs) && s.inputs.length);
+	if (!declared.length) console.log('○ ②层（运行真值）：**无已声明段** ⇒ 不跑 ✓（未声明＝全跑型 ✓）');
+	else {
+		const OUTJ = 'build/fs-hook.jsonl';
+		let rtBad = 0;
+		for (const seg of declared) {
+			try { rmSync(OUTJ, { force: true }); } catch { /* 首次 ✓ */ }
+			const args = seg.cmd.replace(/^node\s+/, '').split(/\s+/);
+			let rcode = 0;
+			try {
+				execFileSync('node', args, {
+					env: { ...process.env, NODE_OPTIONS: '--import=' + pathToFileURL(join(ROOT, 'scripts/lib/fs-hook.mjs')).href, SAGITRS_FS_HOOK_OUT: join(ROOT, OUTJ), SAGITRS_FS_HOOK_ID: seg.id }, stdio: 'pipe',
+				});
+			} catch (e) { rcode = e.status ?? 1; }
+			if (rcode !== 0) { rtBad++; console.error(`✗ [${seg.id}] ②层：段自身在钩子下 rc=${rcode}（段坏了 ⇒ 读数不成立 ✗ 照 #1123 的「读数必须真」 ✓）`); continue; }
+			let truth = [];
+			try {
+				for (const ln of readFileSync(OUTJ, 'utf8').split('\n')) if (ln.trim()) truth = truth.concat(JSON.parse(ln).paths ?? []);
+			} catch { console.error(`✗ [${seg.id}] ②层：**取不到读数** ⇒ 不许当"读到 0 条"✗（#557：读不到输入 ≠ 没命中 ✓）`); rtBad++; continue; }
+			for (const x of inputsTruthProblems({ declared: seg.inputs, truth })) { rtBad++; console.error(`✗ [${seg.id}] ${x}`); }
+			const low = fsArgLiterals(readFileSync(seg.cmd.replace(/^node\s+/, '').split(/\s+/)[0], 'utf8'));
+			for (const x of interLayerProblems({ lower: low, truth })) { rtBad++; console.error(`✗ [${seg.id}] ${x}`); }
+		}
+		console.log(`○ ②层（运行真值）：检查 **${declared.length}** 个已声明段 ⇒ 违规 **${rtBad}** 条`);
+		if (rtBad) { console.error(`✗ ②层未过 ${rtBad} 条`); process.exit(2); }
+	}
 }
 }
 if (has('list')) {

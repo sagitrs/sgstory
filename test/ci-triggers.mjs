@@ -27,6 +27,46 @@ const ROOT = new URL('..', import.meta.url).pathname;
 export const workflowFiles = ({ dir = join(ROOT, '.github/workflows'), readdirSync: rd = readdirSync } = {}) =>
 	rd(dir).filter((f) => f.endsWith('.yml') || f.endsWith('.yaml')).sort().map((f) => join('.github/workflows', f));
 
+/** `#1095`：**扫面自身**的断言 —— **扫面非空 ∧ 扫到全部 `.github/workflows/*.yml`** ✓。
+ *
+ * ## 为什么需要（`#1087` 复核期实测的缺口 ✗ —— **缺口在"接线"不在"断言"**）
+ * 把 `workflowFiles()` 的过滤面收窄（实测：只扫 `ci.yml`）后：
+ * ```
+ * 主跑        ⇒ **rc=0 静默通过** ✗   ← 本件要堵的
+ * --selftest  ⇒ rc=1 ✓（自证里那两条射程格会红）
+ * ```
+ * ⇒ **主跑对"射程被收窄"无感** ✗ —— 而**射程正是本门存在的理由** ✓（`#1087` 的立论：
+ *   门只读 `ci.yml` ⇒ 新增 workflow 无人守）。更细的暴露面：**主跑自身没有任何扫面断言** ✗ ⇒
+ *   若有人摘掉 `scripts/test-plan.mjs` 里那条 `-selftest` 段 ⇒ 主跑在任何射程下都 rc=0 ⇒
+ *   自证那一支再也不会在 CI 里跑 ⇒ 门退化成"只判它恰好扫到的那些" ✓（`#1031` 那族：**入口未接线 ⇒ 零守护**）。
+ *
+ * ## ⚠️ 断言**故意不复用** `workflowFiles()` 的谓词
+ * 若"目录实况"也用同一个选择函数算 ⇒ **收窄过滤面时两边一起收窄** ⇒ `missing` 恒为空 ⇒ 抓不到 ✗。
+ * ⇒ `all` 必须由**独立的一手列举**给出（"目录里全部 `.yml`/`.yaml`" ＝ **规格** ✓），
+ *   `scanned` 才是**实现**（`workflowFiles()`）⇒ 两者比 ⇒ 收窄必现形 ✓。
+ * （这处"重复"是**故意的** ✗：规格与实现分家，判据才有分辨力 ✓。）
+ *
+ * @param {{scanned?:string[], all?:string[]}} [x]
+ * @returns {string[]} 问题清单（空 ＝ 通过）
+ */
+export const scanProblems = ({ scanned = [], all = [] } = {}) => {
+	const out = [];
+	if (scanned.length === 0) {
+		out.push('扫面为**空** ⇒ 一个 workflow 都没读到 ⇒ **不是"没问题"，是"没在看"** ✗'
+			+ '（`#557` 口径：**读不到输入 ≠ 没命中** ✓）');
+	}
+	const missing = all.filter((f) => !scanned.includes(f));
+	if (missing.length) {
+		out.push(`扫面**漏了 ${missing.length} 个** \`.github/workflows/\` 里的 workflow：${missing.join('、')} ✗`
+			+ '⇒ 这些文件的触发面**无人守** ✗（射程被收窄 ⇒ 本门退化成"只判它恰好扫到的那些" ✓）');
+	}
+	return out;
+};
+
+/** `#1095`：**目录实况**（一手列举 ⇒ 规格侧 ✓）—— **不复用 `workflowFiles()`**（见其注 ✓）。 */
+export const allWorkflowFiles = ({ dir = join(ROOT, '.github/workflows'), readdirSync: rd = readdirSync } = {}) =>
+	rd(dir).filter((f) => f.endsWith('.yml') || f.endsWith('.yaml')).sort().map((f) => join('.github/workflows', f));
+
 /** `types` 的**两种等价写法都认**（`#1054` 复核 ✗ —— 等价形态造成判据缺口即"假绿"）：行内 `types: [a, b]` 与**多行** `types:\n  - a`。
  *  ⚠️ 为什么必须都认：YAML **等价形态**不许造成判据缺口 —— 否则门会被"换个写法"**安静绕过 ⇒ 假绿** ✗，
  *  而本门存在的理由正是"防退化"（一个自称防退化的门，其口径**不能脆**）。 */
@@ -140,6 +180,17 @@ export const triggerProblems = (text) => {
 const files = workflowFiles();
 let bad = 0;
 const summary = [];
+
+// `#1095`：**先断言扫面自身**（非空 ∧ 扫到全部 ✓）—— 射程被收窄 ⇒ **当场红并点名缺了哪些** ✗，
+//   不许表现为"没问题"（本门的存在理由就是射程 ✓）。
+{
+	const scanProbs = scanProblems({ scanned: files, all: allWorkflowFiles() });
+	if (scanProbs.length) {
+		bad += scanProbs.length;
+		for (const l of scanProbs) console.error(`✗ [扫面自身] ${l}`);
+	}
+}
+
 for (const rel of files) {
 	const text = readFileSync(join(ROOT, rel), 'utf8');
 	const probs = triggerProblems(text);
@@ -216,6 +267,20 @@ if (process.argv.includes('--selftest')) {
 		t('`#1087` 射程：扫面**含 `#1071` 新建的那一个**（它当年正是"门看不见"的实例 ✓）',
 			fs2.some((f) => f.endsWith('full-tier.yml')));
 	}
+	// ── `#1095`：**扫面自身**的断言（成对 ⇒ 三方向都能假 ✓）────────────────────────
+	//   ⚠️ 为什么必须靠自证格：**③"射程被收窄"在 CI 里不会自然发生** ⇒ CI 绿**不能**证明本判据对 ✗
+	//   ⇒ 用纯函数喂夹具钉住（不依赖真树 ✓）。
+	t('`#1095` 扫面·① 完整射程（`scanned` == 目录实况）⇒ **不报** ✓',
+		scanProblems({ scanned: ['a.yml', 'b.yml'], all: ['a.yml', 'b.yml'] }).length === 0);
+	t('🔴 `#1095` 扫面·② **射程被收窄**（实况 2 个、只扫 1 个）⇒ **必报**且**点名缺的那个** ✓',
+		(() => { const r = scanProblems({ scanned: ['a.yml'], all: ['a.yml', 'b.yml'] }); return r.length === 1 && r[0].includes('b.yml'); })());
+	t('🔴 `#1095` 扫面·③ **空扫面** ⇒ **必报**（不是"没问题"✓ —— `#557`：读不到输入 ≠ 没命中）',
+		scanProblems({ scanned: [], all: ['a.yml'] }).length >= 1);
+	t('🔴 `#1095` 扫面·③b 空扫面 **且**目录也空 ⇒ 仍报**空扫面**（不许"两边都空 ⇒ 一致 ⇒ 绿"✗）',
+		scanProblems({ scanned: [], all: [] }).some((x) => x.includes('空')));
+	t('🔴 `#1095` 扫面·④ **基线零违规**：本仓当下（`workflowFiles()` vs 目录实况）⇒ 0 ⇒ 新判据不制造假红 ✓',
+		scanProblems({ scanned: workflowFiles(), all: allWorkflowFiles() }).length === 0);
+
 	console.log(bad ? `\n✗ 自证失败 ${bad} 项` : `\n✔ 自证通过（${n - bad}/${n}）`);
 	process.exit(bad ? 1 : 0);
 }

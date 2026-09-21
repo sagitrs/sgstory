@@ -307,7 +307,8 @@ const selftest = async ({ quiet = false } = {}) => {
 		t('正例：fast 段 `needs` 一个 **fast** 段 ⇒ **不报**（那条只在“前置被移出 PR 档”时成立 ✓）',
 			validateTiers([{ id: 'zz-a', cmd: 'node -e "1"' }, { id: 'zz-b', cmd: 'node -e "1"', needs: ['zz-a'] }]).length === 0);
 	}
-	if (bad) { console.error(`\n✗ 跑器自证失败 ${bad} 项`); process.exit(1); }
+	// ⚠️ **本块必须留在 `if (bad)` 之前** ✓ —— `#1123` 复核实测：格红却**不进退出码**（`bad++` 无人看 ⇒ 红格与
+	//   报文「通过」同屏 ✗）⇒ 那等于「**红了也白红**」✗（比恒真格更隐蔽：它**打红字了** ✓）
 	// `#1093` P1：**完备且不重叠**（成对 ✗ —— 两条都要真咬 ✓）
 	t('`validateSuites` 正例：真计划 ＋ 真表 ⇒ **0 问题** ✓', validateSuites().length === 0);
 	t('🔴 `validateSuites` 反例①：**删一段**（计划里有、表里没有）⇒ 报「未归组」✓',
@@ -323,7 +324,10 @@ const selftest = async ({ quiet = false } = {}) => {
 	t('🔴 `validateInputsRatchet` 反例：**未声明段数增加** ⇒ 报并**点名新增者** ✓', (() => { const r = validateInputsRatchet([{ id: 'old' }, { id: 'n1' }, { id: 'n2' }], { baseline: 1 }); return r.problems.length === 1 && /n1|n2/.test(r.problems[0]); })());
 	// ⚠️ `#1123` 复核：**原格是 `t('…安全默认…', true)` ⇒ 恒真断言** ✗（**守着本片唯一能致假绿的方向**✓）
 	//   ⇒ 复核席实测：将来若有人实现成「未声明 ⇒ 跳过」⇒ **那格照样绿** ✗ ⇒ 改为**注入式可假对** ✓
-	t('🔴 安全默认·①：**未声明 ⇒ 恒算命中**（任何改动面都命中 ⇒ **永不跳过** ✓）', inputsMatch({ declared: [], changed: ['docs/x.md'] }) === true);	if (!quiet) console.log('\n✔ 跑器自证通过：成功/失败识别、失败输出不吞、并行真的重叠、setup 红即中止、needs 前置/级联跳过/配错报错');
+	t('🔴 安全默认·①：**未声明 ⇒ 恒算命中**（任何改动面都命中 ⇒ **永不跳过** ✓）', inputsMatch({ declared: [], changed: ['docs/x.md'] }) === true);
+	// ⚠️ 这里**必须**是 `if (bad)` **之后** ✓ —— 否则「格红」与「打通过」会同屏（`#1123` 复核抓到的缝 ✓）
+	if (bad) { console.error(`\n✗ 跑器自证失败 ${bad} 项`); process.exit(1); }
+	if (!quiet) console.log('\n✔ 跑器自证通过：成功/失败识别、失败输出不吞、并行真的重叠、setup 红即中止、needs 前置/级联跳过/配错报错');
 	else console.log('✓ 跑器自证通过（成功/失败识别 · 输出不吞 · 并行真重叠 · setup 红即中止 · needs 语义）');
 	return true;
 };

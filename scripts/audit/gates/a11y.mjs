@@ -57,6 +57,8 @@ export const run = (ctx) => {
 if (wantAll || arg('a11y')) {
 	console.log('\n══ ⓪s 可访问性门（#272）——对比度 / lang / 装饰语义 ══');
 	let bad = 0;
+	// `#1151`：**自证格**的计数单列（格红＝本门失能；与「判据发现」语义不同 ⇒ 分开记 ✓）
+	let selfBad = 0;
 	// #458（搬家）：CSS 源**不写死单根**——`src/90-style.twee` 已随目录级隔离落到 `src/engine/50-present/`。
 	// 做法：在**源文件权威清单**（`allSourceFiles()` 的产物）里按 basename 找，且必须**唯一命中**
 	// （0 或 >1 ⇒ 大声报错；宁可不跑，也不要静默拿错文件 —— 那就是「假绿」）。
@@ -81,7 +83,7 @@ if (wantAll || arg('a11y')) {
 			['✦ 未包裹 ⇒ 计 1；aria-hidden 包裹 ⇒ 计 0', bareGlyphCount('✦ 裸的') === 1 && bareGlyphCount('<span aria-hidden="true">✦</span>') === 0],
 			['.act-n 缺 aria-hidden ⇒ 计 1', actnMissingAria('<span class="act-n"></span>') === 1 && actnMissingAria('<span class="act-n" aria-hidden="true"></span>') === 0],
 		];
-		for (const [label, ok] of cases) { if (!ok) bad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
+		for (const [label, ok] of cases) { if (!ok) selfBad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
 	}
 	// lang：构建期注入（dist 存在时一并核对产物）
 	const bm = readFileSync('build.mjs', 'utf8');
@@ -101,6 +103,13 @@ if (wantAll || arg('a11y')) {
 	const actnBad = SRC_FILES.reduce((n, f) => n + actnMissingAria(readFileSync(f, 'utf8')), 0);
 	if (actnBad) { console.log(`  ✗ .act-n 角标 ${actnBad} 处缺 aria-hidden`); bad++; }
 	console.log('  · 语义：✦ 装饰 glyph 全包裹、.act-n 角标 aria-hidden、<html lang="zh-CN"> 构建期注入');
+	bad += selfBad;
+	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 格级属性 ✓，**不依赖 `process.argv`** ✗
+	//   ⚠️ 与「判据发现」**分开报** ✓：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」✓
+	if (selfBad) {
+		console.error(`\n✗ 可访问性门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓（\`#1151\`）`);
+		process.exit(1);
+	}
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ 可访问性门：${bad} 项不达标`); process.exit(1); }
 		console.log('\n✔ 可访问性门通过（对比度 AA／lang／装饰语义）');

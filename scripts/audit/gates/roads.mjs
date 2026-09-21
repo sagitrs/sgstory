@@ -39,6 +39,8 @@ export const judgeRoads = (ctx) => {
 	if (!wantAll && !arg('roads')) return;
 	console.log('\n══ ⓪aa 事件池与三选一门（S4/#489）——共用选择机制 · 三选一 · 线索可区分 · 频率 ══');
 	let bad = 0;
+	// `#1151`：**自证格**的计数**单列**（与「判据发现」分开 —— 两者语义不同：格红＝本门失能，发现＝数据/内容问题 ✓）
+	let selfBad = 0;
 	const t = (label, ok, extra = '') => { if (ok) console.log(`      ✓ ${label}`); else { bad++; console.error(`      ✗ ${label}${extra ? '：' + extra : ''}`); } };
 	const saved = Sg.story.mechanics;
 
@@ -137,7 +139,7 @@ export const judgeRoads = (ctx) => {
 				const got = judge(picked, road);
 				const okk = want === 0 ? got.length === 0 : got.length >= want;
 				console.log(`      ${okk ? '✓' : '✗'} 自证·${label}：检出 ${got.length}（期望 ${want === 0 ? 0 : '≥' + want}）`);
-				if (!okk) bad++;
+				if (!okk) selfBad++;   // `#1151`：格红走 selfBad（不再混进 `bad` ✓）
 			}
 		}
 	} finally {
@@ -145,6 +147,13 @@ export const judgeRoads = (ctx) => {
 		Game.Rules.rng.reset();
 	}
 
+	bad += selfBad;
+	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 那是**格级属性** ✓，**不依赖 `process.argv`** ✗
+	//   ⚠️ 与「判据发现」**分开报** ✓：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」✓
+	if (selfBad) {
+		console.error(`\n✗ ⓪aa 事件池与三选一门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓（\`#1151\`）`);
+		process.exit(1);
+	}
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ ⓪aa 事件池与三选一门：${bad} 项`); process.exit(1); }
 		console.log('\n✔ 事件池与三选一门通过（共用选择机制 · 三选一 · 线索可区分/无判定/不死档 · 频率 · 兼容降级）');

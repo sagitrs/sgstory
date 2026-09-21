@@ -63,6 +63,8 @@ export const run = (ctx) => {
 	if (!wantAll && !arg('waves')) return;
 	console.log('\n══ ⓪z 波次与重置门（S3/#488）——增援 · 奖励单调 · 失败重置 ══');
 	let bad = 0;
+	// `#1151`：**自证格**的计数单列（格红＝本门失能；与「判据发现」语义不同 ⇒ 分开记 ✓）
+	let selfBad = 0;
 	const t = (label, ok, extra = '') => { if (ok) console.log(`      ✓ ${label}`); else { bad++; console.error(`      ✗ ${label}${extra ? '：' + extra : ''}`); } };
 	const saved = Sg.story.mechanics;
 
@@ -155,13 +157,20 @@ export const run = (ctx) => {
 				const got = traceViolations({ trace, plan });
 				const okk = want === 0 ? got.length === 0 : got.length >= want;
 				console.log(`      ${okk ? '✓' : '✗'} 自证·${label}：检出 ${got.length}（期望 ${want === 0 ? 0 : '≥' + want}）`);
-				if (!okk) bad++;
+				if (!okk) selfBad++;
 			}
 		}
 	} finally {
 		Sg.story.mechanics = saved;
 	}
 
+	bad += selfBad;
+	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 格级属性 ✓，**不依赖 `process.argv`** ✗
+	//   ⚠️ 与「判据发现」**分开报** ✓：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」✓
+	if (selfBad) {
+		console.error(`\n✗ ⓪z 波次与重置门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓（\`#1151\`）`);
+		process.exit(1);
+	}
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ ⓪z 波次与重置门：${bad} 项`); process.exit(1); }
 		console.log('\n✔ 波次与重置门通过（增援 · 两档定义 · 奖励单调 · 重置语义与「不清什么」· 存档代理 · 兼容降级）');

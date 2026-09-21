@@ -173,7 +173,7 @@ export const conflictMarkerProblems = (text, { file = '<mem>' } = {}) => {
 };
 
 export const allMarkdown = () =>
-	execFileSync('git', ['ls-files', '*.md'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
+	execFileSync('git', ['-c', 'core.quotepath=false', 'ls-files', '*.md'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
 
 const main = () => {
 	let bad = 0;

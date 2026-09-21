@@ -5,6 +5,7 @@
 //   3. 未定义宏/widget：拼写错误（<<st>> / <<erashfit>> 类）
 // 警告（不阻断）：静态不可达段落（动态跳转可致误报，仅提示）
 // 用法：node test/integrity.mjs [srcDir=src]
+import { passagesOf } from '../editor/lib/core/passages.mjs';   // `#1114` 2b-2b：切段单一权威
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { scopedFiles, CONST_SECTION } from '../scripts/module-order.mjs';
 import { ROOT, DEFAULT_SLUG, readStory } from '../scripts/dist-paths.mjs';
@@ -21,19 +22,14 @@ const SRC = process.argv[2] ?? null;   // #458 切片C：默认走**单一权威
 // SugarCube 2.37 内置宏（宁多勿漏——漏一个就是误报）
 const BUILTIN = new Set('set unset if elseif else endif for to step break continue switch case default endswitch while endwhile print nprint run script silent endsilent nobr endnobr include link endlink linkappend endlinkappend linkprepend endlinkprepend linkreplace endlinkreplace button endbutton actions addclass removeclass toggleclass append prepend replace textbox radio checkbox listbox endlistbox option optionsfrom numberbox cycle endcycle list endlist dropdown enddropdown goto back return repeat endrepeat stop timed endtimed next widget endwidget capture endcapture forget remember remove comment endcomment audio createsoundmacro masteraudio playlist done'.split(/\s+/));
 
-// ── 解析段落（先收全部头行，再切相邻头之间的 body——避免越界吞并）──
+// ── 解析段落（`#1114` 2b-2b：切段走 core 的 `passagesOf` —— **单一分派点** ✓，md/twee 同入口 ✓）──
 const passages = new Map(); // name → { file, line, tags, body }
 for (const f of (SRC ? readdirSync(SRC).filter((x) => x.endsWith('.twee')).sort().map((x) => [x, join(SRC, x)]) : allSourceFiles().map((p) => [p.split('/').pop(), p]))) {
-	const lines = readFileSync(f[1], 'utf8').split('\n');
-	const heads = []; // { i, name, tags }
-	for (let i = 0; i < lines.length; i++) {
-		const m = lines[i].match(/^::\s+(.+?)\s*(?:\[([^\]]*)\])?\s*(?:\{.*\})?\s*$/);
-		if (m) heads.push({ i, name: m[1].trim(), tags: (m[2] ?? '').trim().split(/\s+/).filter(Boolean) });
+	// ⚠️ 原先本件自写 `/^::\s+/` 逐行切段 ⇒ `passages/` 下的 md（无 `:: ` 段头）**一段也收不到** ✗
+	//   ⇒ 它们的段名不在 `passages` 里 ⇒ 全文里指向它们的 `[[…]]`/`goto` 全被判「懬空」✗（实测：30 硬错 ✓）。
+	for (const p of passagesOf(readFileSync(f[1], 'utf8'), f[1])) {
+		passages.set(p.name, { file: f, line: p.line, name: p.name, tags: p.tags, body: p.body });
 	}
-	heads.forEach((h, k) => {
-		const end = k + 1 < heads.length ? heads[k + 1].i : lines.length;
-		passages.set(h.name, { file: f, line: h.i + 1, name: h.name, tags: h.tags, body: lines.slice(h.i + 1, end).join('\n') });
-	});
 }
 
 const errors = [], warnings = [];

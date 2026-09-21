@@ -3,7 +3,7 @@ import { allSourceFiles } from './scripts/module-order.mjs';
 import { execSync } from 'node:child_process';
 import { join, dirname, relative, isAbsolute } from 'node:path';
 import { scopedFiles, checkRegistration, isStoryPassageMd } from './scripts/module-order.mjs';
-import { parseFrontMatter, assemblePassages, FORBIDDEN_BUILTINS, duplicateProblems } from './editor/lib/core/passages.mjs';
+import { parseFrontMatter, parseMdPassages, assemblePassages, FORBIDDEN_BUILTINS, duplicateProblems } from './editor/lib/core/passages.mjs';
 import { valueTerms, engineLabels } from './editor/lib/core/vocab.mjs';
 import {
 	ROOT, storySlugs, readStory, storyHtml, shelfHtml, DEFAULT_SLUG,
@@ -111,11 +111,15 @@ const knownNamesOf = (slug, files) => {
 	return names;
 };
 const assembleOne = (slug, f, known) => {
-	const { meta, body } = parseFrontMatter(readFileSync(f, 'utf8'));
-	const name = String(meta.passage ?? '').trim();
+	// ⚠️ `#1114` 2b-2b：tags **必须用 core 解析好的数组** ✗ —— 本处先前直接传 `meta.tags` 原串（`"[]"`）
+	//   ⇒ 拼装层 `p.tags ? \` [${p.tags}]\` : ''` 把它当成真值 ⇒ 产物段头变 `:: 段名 [[]]`
+	//   ⇒ 段名不再等于 `passage` 值 ⇒ 第三格判「拼装产物缺段」✗（实测踩到 ✓）。
+	//   ⇒ 改用 core 的 `parseMdPassages`（**同一权威** ✓）：name/tags/body 都已归位 ✓。
+	const [p0] = parseMdPassages(readFileSync(f, 'utf8'), f);
+	const name = String(p0?.name ?? '').trim();
 	if (!name) { console.error(`✗ ${f}：front-matter 缺 \`passage\`（段名权威在本字段 ✓）`); process.exit(1); }
 	const { twee, problems } = assemblePassages({
-		passages: [{ name, tags: meta.tags ?? '', body, path: f }],
+		passages: [{ name, tags: p0.tags ?? [], body: p0.body, path: f }],
 		known, forbidden: FORBIDDEN_BUILTINS, terms: termsOf(slug),
 	});
 	if (problems.length) { console.error(`✗ 拼装失败：\n  ${problems.join('\n  ')}`); process.exit(1); }

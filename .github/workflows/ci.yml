@@ -81,7 +81,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: freshness-failure
-          path: build/freshness-failure.json
+          path: build/freshness-failure.jsonl
           if-no-files-found: ignore
           retention-days: 7
 

@@ -7,7 +7,7 @@
 // 纪律：**不自动 build**（那会掩盖问题）；过期或缺失 → **大声报错 + 给出修复命令**。
 // 缺失为什么也要报错：此前 audit 的 a11y 门用 `existsSync` 兜住 → dist 不存在时该检查**静默跳过**，
 // 那就是「假绿」的一种（没跑，却看起来通过）。
-import { readdirSync, existsSync, statSync, mkdirSync, writeFileSync, rmSync, utimesSync } from 'node:fs';
+import { readdirSync, existsSync, statSync, mkdirSync, writeFileSync, rmSync, utimesSync, appendFileSync } from 'node:fs';
 import { isTransientFixture } from './lib/untracked-guard.mjs';   // `#1130`：**并行段运行期自造的临时夹具不算真源** ✓（`stories/__e2e` ✓）
 import { allSourceFiles } from './module-order.mjs';
 import { fileURLToPath } from 'node:url';
@@ -48,13 +48,15 @@ export const assertFreshDist = ({ distPath = DIST_PATH, srcDir = SRC_DIR, who = 
 		//   且**副作用必须以"看到产物"收尾** ✓（写完读回 ＋ 校验关键字段 ✓ —— "代码在" ≠ "生效了" ✓）
 		const payload = { who, when: new Date().toISOString(), distMtime: new Date(st.distMtime).toISOString(),
 			newer: (st.newer ?? []).map((x) => ({ file: x.f, mtime: new Date(x.m).toISOString() })) };
-		const out = join(ROOT, 'build/freshness-failure.json');
+		// ⚠️ **追加式**（`#1130` 甲：覆盖写会被本门**自证**的合成记录盖掉 ⇒ 机制在关键时刻误导阅读者 ✗）
+		const out = join(ROOT, 'build/freshness-failure.jsonl');
 		let writeNote = '';
 		try {
 			mkdirSync(dirname(out), { recursive: true });   // 写前建父目录（仓内既有惯例 ✓）
-			writeFileSync(out, JSON.stringify(payload, null, '\t'));
-			const back = JSON.parse(readFileSync(out, 'utf8'));   // ← **读回校验**（看到产物才算生效 ✓）
-			if (back?.who !== payload.who || !Array.isArray(back?.newer)) throw new Error('读回校验不过');
+			const line = JSON.stringify(payload);            // 一行一条（每行自带 who／when ⇒ 可按时间排序 ＋ 区分真凶/合成 ✓）
+			appendFileSync(out, line + '\n');
+			// "看到产物"判据**同样适用于追加** ✓：读回断言**刚写的那行在文件里**（追加失败也要可见 ✗）
+			if (!readFileSync(out, 'utf8').split('\n').includes(line)) throw new Error('追加后读回找不到该行');
 		} catch (e) {
 			writeNote = `\n  ⚠️ **点名清单落盘失败**（${e.message}）⇒ 名单已折进本报错，未丢 ✓（不静默 ✓）`;
 		}

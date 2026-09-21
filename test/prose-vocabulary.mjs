@@ -19,13 +19,18 @@
 //   替引擎面跑通，禁宏会把它们掏空），但会**打印豁免计数**（不静默 ✗）。
 // · 只判**散文段落**：`[script]`／`[widget]`／`[stylesheet]` 段落里的宏**不判**（那不是散文）。
 // · `/% … %/` 注释（含本仓大量"当初错在哪"的留痕）**剔除**后再判 —— 留痕优先 ✓。
-// · `00-meta.twee`（元数据，非散文）不判。
+// · **元数据件不判**（`#1051`②：判据由**文件名字面量**改为**内容谓词** ✗）——判据＝含 `:: StoryData` 段落 ✓
+//   （实测：全仓只有各故事的 `00-meta.twee` 命中 ✓，正文件零命中 ✓ ⇒ 等价且不靠名字 ✓）。
+// · **故事件以 `00-story.json` 的 `files` 为准**（单一权威 ✓）；**在树上却不在清单里** ⇒ **不静默**（报 ✓）。
+// · **未跟踪件** ⇒ 提醒（照 `#1089`／`#1045`／`#1046` 同款 ✓ —— 与另两件的枚举口径同步 ✓）。
 //
 // 用法：`node test/prose-vocabulary.mjs` ｜ 自证：`node test/prose-vocabulary.mjs --selftest`
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { execFileSync } from 'node:child_process';                       // `#1051`②：枚举改走 `git ls-files`（已入库面 ✓）
+import { untrackedScannedProblems, isTransientFixture } from '../scripts/lib/untracked-guard.mjs';   // `#1089` 共用助手（不另造形态 ✓）
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '');
 const STORIES = join(ROOT, 'stories');
@@ -131,6 +136,16 @@ export const proseVocabProblems = ({ slug, files, vocab }) => {
 };
 
 // ── 自证（纯合成输入，不碰真磁盘）────────────────────────────────────────
+// ── `#1051`②：**可注入纯函数**（㊱：攻击面落在判据上，不落现实 ✗ —— 自证喂入参即可判 ✓）──────────
+/** **在树上却不在清单里**的故事件（`00-story.json` 的 `files` 为准 ✓）。⚠️ 本票的由来：`00-meta2.twee`
+ *  这类**下一代名**在旧口径下会被当**正文**判 ✗ ⇒ 这里改成**出声**（报 ✓）而不是静默排除 ✗。 */
+export const undeclaredStoryFiles = ({ declared = [], onDisk = [] } = {}) =>
+	onDisk.filter((p) => p.endsWith('.twee') && !declared.includes(p));
+
+/** **元数据件谓词**（`#1051`②：由**文件名字面量**改为**内容谓词** ✗）。判据＝含 `:: StoryData` 段落 ✓
+ *  （Twine 的元数据段落，按定义不是散文 ✓；实测全仓只有各故事的 `00-meta.twee` 命中 ✓ 正文件零命中 ✓）。 */
+export const isMetadataTwee = (text) => /^::\s*StoryData/m.test(String(text ?? ''));
+
 const selftest = () => {
 	let bad = 0;
 	const t = (label, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} 自证·${label}`); };
@@ -158,6 +173,20 @@ const selftest = () => {
 	t('边界：正文里**没有宏** ⇒ 0 问题', proseVocabProblems({ slug: 'demo', vocab, files: mk('只有散文。') }).length === 0);
 
 	if (bad) { console.error(`\n✗ 词汇门自证失败 ${bad} 项`); process.exit(1); }
+	// `#1051`②：**枚举口径**（成对 ✓ —— 改前/改后行为都要能判）
+	t('🔴 枚举：`00-meta2.twee` 在树上、不在清单 ⇒ **报**（旧口径会把它当**正文**判 ✗）',
+		undeclaredStoryFiles({ declared: ['stories/x/00-meta.twee'], onDisk: ['stories/x/00-meta.twee', 'stories/x/00-meta2.twee'] }).length === 1);
+	t('枚举·正例：全在清单里 ⇒ **不报**（不误咬 ✓）',
+		undeclaredStoryFiles({ declared: ['stories/x/a.twee'], onDisk: ['stories/x/a.twee'] }).length === 0);
+	t('枚举·边界：**非 `.twee`** 的未登记件 ⇒ 不归本门（只判 `.twee` ✓）',
+		undeclaredStoryFiles({ declared: [], onDisk: ['stories/x/README.md'] }).length === 0);
+	t('🔴 元数据件：含 `:: StoryData` ⇒ **判为元数据**（不判 ✓）', isMetadataTwee(':: StoryTitle\n夜渡\n\n:: StoryData\n{}') === true);
+	t('🔴 元数据件·**能假的另一半**：正经正文（哪怕含宏）⇒ **不是**元数据 ⇒ 照判 ✓',
+		isMetadataTwee(':: 渡口\n<<set $x to 1>>\n') === false);
+	t('🔴 未跟踪提醒：落在扫描面且未豁免 ⇒ **出声**（不静默 ✗）',
+		untrackedScannedProblems({ untracked: ['src/99-new.twee'], isScanned: (f) => f.endsWith('.twee') }).problems.length === 1);
+	t('未跟踪·临时夹具 ⇒ **不算"忘了 add"**（并发段运行期自造 ✓ 不误咬 ✓）',
+		untrackedScannedProblems({ untracked: ['stories/x/__e2e.twee'], isScanned: (f) => f.endsWith('.twee') }).problems.length === 0);
 	console.log('\n✔ 自证通过（词汇抽取 ＋ 允许面 ＋ 逻辑/表达式/未宣告三类反例 ＋ 注释/段落豁免）');
 	process.exit(0);
 };
@@ -165,16 +194,29 @@ const selftest = () => {
 if (process.argv.includes('--selftest')) selftest();
 
 // ── 真实树检查 ──────────────────────────────────────────────────────────
-const vocab = engineVocab(tweeUnder(SRC).map((p) => readFileSync(p, 'utf8')));
-const stories = existsSync(STORIES) ? readdirSync(STORIES).filter((d) => existsSync(join(STORIES, d, '00-story.json'))).sort() : [];
+// `#1051`②：**枚举口径统一** —— 与 `#1045`／`#1046`／`#1089` 同款 ✓（取不到 git 元数据 ⇒ **报红，不静默跳过** ✗，照 `repo-shape.mjs:86` ✓）。
+const trackedIn = (dir) => execFileSync('git', ['ls-files', '--', dir], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
+const untrackedIn = (dir) => execFileSync('git', ['ls-files', '--others', '--exclude-standard', '--', dir], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
+const vocabFiles = trackedIn('src').filter((f) => f.endsWith('.twee'));
+const vocab = engineVocab(vocabFiles.map((f) => readFileSync(join(ROOT, f), 'utf8')));
+const stories = trackedIn('stories').map((f) => /^stories\/([^/]+)\/00-story\.json$/.exec(f)?.[1]).filter(Boolean).sort();
 let problems = [];
 let exempt = [];
 const judgedSlugs = [];
 for (const slug of stories) {
 	const story = JSON.parse(readFileSync(join(STORIES, slug, '00-story.json'), 'utf8'));
-	const files = readdirSync(join(STORIES, slug))
-		.filter((f) => f.endsWith('.twee') && f !== '00-meta.twee')
-		.map((f) => ({ path: `stories/${slug}/${f}`, text: readFileSync(join(STORIES, slug, f), 'utf8') }))
+	// `#1051`②：**以清单为准**（单一权威 ✓）——不再用 `readdirSync` 现扫 ✗。
+	const declared = (story.files ?? []).filter((p) => p.endsWith('.twee') && p.startsWith(`stories/${slug}/`));
+	// ⚠️ **在树上却不在清单里 ⇒ 不静默**（本票的由来正是这个：`00-meta2.twee` 这类**下一代名**会被旧口径当**正文**判 ✗）
+	{
+		const onDisk = readdirSync(join(STORIES, slug)).filter((f) => f.endsWith('.twee')).map((f) => `stories/${slug}/${f}`);
+		const undeclared = undeclaredStoryFiles({ declared, onDisk });
+		// ⚠️ 必须是 `{code, msg}` 形态 ✗ —— 自测踩过：这条原先 push **裸字符串** ⇒ 汇总处按 `p.code`／`p.msg` 读 ⇒ 打印成 `[undefined] undefined` ⇒ **报文被吞** ✓（“读数答不了你以为它在答的问题”那族 ✓）。
+		for (const p of undeclared) problems.push({ code: 'U2', msg: `\`${p}\` 在树上但**不在 \`00-story.json\` 的 \`files\` 里** ⇒ 不许静默（要么登记、要么删 —— 旧口径会把它当**正文**判 ✗）` });
+	}
+	const files = declared
+		.map((p) => ({ path: p, text: readFileSync(join(ROOT, p), 'utf8') }))
+		.filter((f) => !isMetadataTwee(f.text))            // 元数据件：**内容谓词** ✓ 不靠文件名字面量 ✗
 		.filter((f) => !/^\s*\/\/\s*@generated/m.test(f.text.split('\n').slice(0, 3).join('\n')));   // 生成物不在本门射程
 	// ⚠️ **缺 `audience` ⇒ 按 content 判**（不静默放过）：`audience` 由 `#1035` 显式声明引入；
 	//   缺字段时若按"豁免"处理，本门在 `#1035` 落地前会**成为空判**（正是本仓最忌讳的形态 ✗）。
@@ -182,6 +224,18 @@ for (const slug of stories) {
 	if (judged) { judgedSlugs.push(slug); problems = problems.concat(proseVocabProblems({ slug, files, vocab })); }
 	else exempt.push(slug);
 }
+// `#1051`②：**未跟踪件 ⇒ 提醒**（与 `#1045`／`#1046`／`#1089` 同款 ✓ —— 不静默跳过 ✗）。
+//   ⚠️ 为什么单列一条：本门的枚举走 `git ls-files`（**已入库面** ✓）⇒ **未跟踪的 `.twee` 会被静默漏掉** ✗
+//   （`src/` 面尤其：那会是"引擎词汇表少抽了宏"⇒ 判据**变松**而**无人知道** ✓）⇒ 必须**出声** ✓。
+{
+	const untracked = [...untrackedIn('src'), ...untrackedIn('stories')].filter((f) => f.endsWith('.twee'));
+	const { unscanned, problems: uProbs } = untrackedScannedProblems({
+		untracked, isScanned: (f) => f.endsWith('.twee'), isTransient: isTransientFixture,
+	});
+	for (const m of uProbs) problems.push({ code: 'U1', msg: m });
+	if (unscanned.length) console.error(`○ 未跟踪（本次未扫，共 ${unscanned.length} 件）：${unscanned.join('、')}`);
+}
+
 // **空判守卫**：一个受判故事都没有 ⇒ 本门什么都没量 ⇒ 必须红（不许"零对象＝通过" ✗）
 if (judgedSlugs.length === 0) {
 	console.error('✗ 散文词汇门是**空判**：没有任何内容故事受判（受判故事数 = 0）—— 检查 `audience` 是否缺失/被误标为 internal');

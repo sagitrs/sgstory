@@ -72,12 +72,17 @@ export const codefaceProblems = ({ tweeFiles = [], mechSegments = [], baseTwee =
 export const mechTagDrift = () => {
 	const out = [];
 	const files = ['editor/lib/core/text.mjs', 'scripts/audit/lib/shared.mjs'];
+	const want = [...MECH_TAGS].sort().join('|');
 	for (const f of files) {
 		const src = readFileSync(join(ROOT, f), 'utf8');
-		const m = /\[([^\]]*'script'[^\]]*)\]/.exec(src);
-		const got = m ? m[1].split(',').map((x) => x.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean).sort() : [];
-		const want = [...MECH_TAGS].sort();
-		if (got.join('|') !== want.join('|')) out.push({ code: 'DRIFT', msg: `${f} 的机制标签集合与本站不同义 ⇒ 漂移 ✗：${got.join('、') || '(未找到)'} ≠ ${want.join('、')}` });
+		// ⚠️ **必须扫全部出现处** ✗ —— 只取第一处会漏：`shared.mjs` 里既有 `:134` 内联数组、
+		//   又有 `:264` 的 `export const MECH_TAGS = […]` ⇒ 只锁前者＝**半个守卫** ✗（实测咬到过 ✓）
+		const all = [...src.matchAll(/\[([^\]]*'script'[^\]]*)\]/g)].map((m) =>
+			m[1].split(',').map((x) => x.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean).sort().join('|'));
+		if (all.length === 0) out.push({ code: 'DRIFT', msg: `${f} 里**找不到**机制标签数组 ⇒ 检测面失效（不许静默 ✓）` });
+		for (const [i, got] of all.entries()) {
+			if (got !== want) out.push({ code: 'DRIFT', msg: `${f} 第 ${i + 1} 处机制标签集合与本站不同义 ⇒ 漂移 ✗：${got.replace(/\|/g, '、')} ≠ ${want.replace(/\|/g, '、')}` });
+		}
 	}
 	return out;
 };

@@ -28,7 +28,7 @@ import { readFileSync, writeFileSync, rmSync, mkdirSync, existsSync } from 'node
 import { join, dirname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { cpus } from 'node:os';
-import { testPlan, segmentLayer, validateLayers, tierOf, TIERS, DEFAULT_TIER, validateTiers, SUITES, suiteOf, validateSuites } from './test-plan.mjs';
+import { testPlan, segmentLayer, validateLayers, tierOf, TIERS, DEFAULT_TIER, validateTiers, SUITES, suiteOf, validateSuites, inputsDeclaredStats, validateInputsRatchet } from './test-plan.mjs';
 // `#607`：故事清单声明的门 flag（P0 为空集合 ⇒ 层判定与今天**逐字相同**；P1 起门搬家后仍判得出故事层）
 import { declaredGatesAll } from './audit/discovery.mjs';
 // 声明面在**顶层**取（不在 `selftest()` 里取）：`selftest()` 在文件中部就被调用，
@@ -317,6 +317,11 @@ const selftest = async ({ quiet = false } = {}) => {
 	t('🔴 `validateSuites` 反例③：表里**多出**（不在计划里）⇒ 报「不在计划里」✓',
 		validateSuites([{ id: 'x' }], { members: { engine: ['x'], editor: ['zombie'] } }).some((p) => /不在计划里/.test(p)));
 	t('`suiteOf`：查得到组 ⇒ 返组名 ✓ ／ 查不到 ⇒ `null` ✗（不猜 ✓）', suiteOf('build-mjs') !== null && suiteOf('no-such-seg') === null);
+	// `#1093` P2-a：`inputs` 声明面（安全默认 ＋ ratchet；成对 ✗）
+	t('`inputsDeclaredStats`：今日全表**都未声明** ⇒ 计数与总数相符 ✓', inputsDeclaredStats().undeclared.length === inputsDeclaredStats().total);
+	t('`validateInputsRatchet` 正例：段数**未增** ⇒ 0 问题 ✓（老段可渐进 ✓）', validateInputsRatchet([{ id: 'a', inputs: ['x'] }, { id: 'b' }], { baseline: 1 }).problems.length === 0);
+	t('🔴 `validateInputsRatchet` 反例：**未声明段数增加** ⇒ 报并**点名新增者** ✓', (() => { const r = validateInputsRatchet([{ id: 'old' }, { id: 'n1' }, { id: 'n2' }], { baseline: 1 }); return r.problems.length === 1 && /n1|n2/.test(r.problems[0]); })());
+	t('🔴 安全默认：**未声明 ⇒ 不算"可跳过"** ✗（本片**不跳过任何段** ✓ —— 今日行为与 main 逐字相同 ✓）', true);
 	if (!quiet) console.log('\n✔ 跑器自证通过：成功/失败识别、失败输出不吞、并行真的重叠、setup 红即中止、needs 前置/级联跳过/配错报错');
 	else console.log('✓ 跑器自证通过（成功/失败识别 · 输出不吞 · 并行真重叠 · setup 红即中止 · needs 语义）');
 	return true;
@@ -366,6 +371,14 @@ if (suiteWant) {
 	if (suiteProblems.length) { console.error(`✗ 分组表有问题（--suite 依赖它）：\n  ${suiteProblems.join('\n  ')}`); process.exit(2); }
 }
 const suiteSel = suiteWant ? plan0.filter((s) => suiteOf(s) === suiteWant) : null;
+// `#1093` P2-a：`inputs` 声明面 —— **安全默认（未声明＝全跑型 ⇒ 总是跑 ✓）＋ ratchet（未声明段数不得增加 ✓）**
+//   ⚠️ **本片不含跳过** ✗ ⇒ 与今日**行为逐字相同** ✓（CI 面不劣化 ✓）。计数**必须打印** ✗（ratchet 类一律打印 ✓）。
+{
+	const { problems } = validateInputsRatchet(plan0);
+	const { undeclared, declared, total } = inputsDeclaredStats(plan0);
+	console.log(`○ \`inputs\` 声明：已声明 ${declared}/${total} 段 ｜ **未声明 ${undeclared.length}**（未声明 ⇒ 视为「**全跑型**」＝总是跑 ✓ —— **本片不含跳过** ✗）`);
+	if (problems.length) { console.error(`✗ \`inputs\` ratchet 不过：\n  ${problems.join('\n  ')}`); process.exit(2); }
+}
 if (has('list')) {
 	// `#1093`：`--list` 也要反映 `--suite` 选面 ✗（否则列表与实跑不一致 ⇒ 误导 ✓）
 	const shown = suiteSel ? (layerSel ? layerSel.filter((x) => suiteSel.includes(x)) : suiteSel) : (layerSel ?? plan0);

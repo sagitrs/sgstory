@@ -628,6 +628,36 @@ export const suiteOf = (seg) => {
  *  ① **未归组**（在计划里、查不到组）⇒ 报 ✓；② **跨组**（同 id 出现在两组）⇒ 报 ✓；
  *  ③ 表里**多出**（不在计划里）⇒ 报 ✓（防「表漂了」✗）。
  *  ⚠️ **纯函数 ＋ 注入**（`plan` 与 `members` 都注入 ⇒ 自证能喂假计划 ✓）—— ㊱：攻击面落在判据上 ✓。 */
+/** `#1093` P2-a：`inputs` **声明面**的**安全默认 ＋ ratchet 计数**（**本片不含跳过** ✗）。
+ *
+ * ## 安全默认（裁定：甲 ✓）
+ * **未声明 `inputs` 的段 ⇒ 视为「全跑型」＝总是跑** ✓（**安全方向** ✓）。
+ * ⚠️ **绝不取"未声明 ⇒ 跳过"** ✗ —— 那就是「**漏跑 ⇒ 假绿**」✗（本票最大风险 ✓）。
+ * ⇒ 今日**全部段都未声明** ⇒ **行为与今日逐字相同** ✓ ⇒ **CI 面不劣化** ✓（落地即安全 ✓）。
+ *
+ * ## ratchet（裁定：**不是**"只许降"✗ ⇒ 而是「**未声明段数不得增加**」✓）
+ * 为什么不是"只许降"✗：那会逼人**为全部段一次填满** ⇒ 变成行政工作量 ⇒ 诱出「**为过门而填的假声明**」✗
+ * （**比不填更坏** ✓）⇒ 基线＝今日 ✓ ⇒ **新加段必须声明** ✓、**老段可渐进** ✓。
+ * ＋ **计数必须打印** ✗（ratchet 类判据一律打印当前计数 ✓）。
+ */
+export const UNDECLARED_INPUTS_BASELINE = 158;   // 2026-09-21 实测：当时**全部 158 段**都未声明 ✓
+
+export const inputsDeclaredStats = (plan = SEGMENTS) => {
+	const undeclared = plan.filter((s) => !Array.isArray(s.inputs) || s.inputs.length === 0).map((s) => s.id);
+	return { undeclared, declared: plan.length - undeclared.length, total: plan.length };
+};
+
+/** ratchet：**未声明段数不得增加** ✓（只比数，不比集合 ✓ —— 集合可换，数不许涨 ✓）。 */
+export const validateInputsRatchet = (plan = SEGMENTS, { baseline = UNDECLARED_INPUTS_BASELINE } = {}) => {
+	const st = inputsDeclaredStats(plan);
+	const problems = [];
+	if (st.undeclared.length > baseline) {
+		problems.push(`**未声明 \`inputs\` 的段数增加了**：${baseline} → ${st.undeclared.length}`
+			+ `（**新增段必须声明** ✗；老段可渐进 ✓）—— 新增者：${st.undeclared.slice(-6).join('、')}`);
+	}
+	return { problems, stats: st };
+};
+
 export const validateSuites = (plan = SEGMENTS, { members = SUITE_MEMBERS } = {}) => {
 	const problems = [];
 	const ids = plan.map((s) => s.id);

@@ -4,7 +4,7 @@ import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 export const flag = 'consequences';
 export const flags = ["consequences"];
 
-export const run = (ctx) => {
+export const judgeConsequences = (ctx) => {
 	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ⓪q D2 选择后果门（#267）：每个被写入旗标必须落一桶 ══
@@ -71,3 +71,7 @@ if (wantAll || arg('consequences')) {
 	}
 }
 };
+
+// `#1100` (甲)：**判据体提成具名导出** ⇒ 锚可指它 ✓（此前判据内联在 `run` 里 ⇒ 掏空 `run` 时
+//   锚检照样绿 ✗）。`run` 只做委派 ⇒ **行为逐字保持** ✓（提取提交不夹带接线或格 ✓）。
+export const run = (ctx) => judgeConsequences(ctx);

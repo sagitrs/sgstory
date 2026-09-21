@@ -33,7 +33,7 @@ const WIDE = { ...MECH, roads: [{ from: 0, to: 1, options: KIND_SET.map((k, i) =
 const FOUR = { ...MECH, roads: [{ from: 0, to: 1, options: [{ kind: 'shortFight', hint: 'a', noCheck: true }, { kind: 'chest', hint: 'b' }, { kind: 'trap', hint: 'c' }, { kind: 'cave', hint: 'd' }] }] };
 const PC = { gear: [], inv: {}, ev: { fight: { pool: 'p1', round: 1 } } };
 
-export const run = (ctx) => {
+export const judgeRoads = (ctx) => {
 	const { Game, arg, wantAll } = ctx;
 	const Sg = ctx.window?.Sg;
 	if (!wantAll && !arg('roads')) return;
@@ -150,3 +150,7 @@ export const run = (ctx) => {
 		console.log('\n✔ 事件池与三选一门通过（共用选择机制 · 三选一 · 线索可区分/无判定/不死档 · 频率 · 兼容降级）');
 	}
 };
+
+// `#1100` (甲)：**判据体提成具名导出** ⇒ 锚可指它 ✓（此前判据内联在 `run` 里 ⇒ 掏空 `run` 时
+//   锚检照样绿 ✗）。`run` 只做委派 ⇒ **行为逐字保持** ✓（提取提交不夹带接线或格 ✓）。
+export const run = (ctx) => judgeRoads(ctx);

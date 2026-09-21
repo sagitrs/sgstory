@@ -32,6 +32,49 @@ const RECORD = 'build/probe-results.json';
 const sha = (s) => createHash('sha256').update(s).digest('hex').slice(0, 16);
 
 // ── 纯函数（能被 `--selfcheck` 驱动 ⇒ 判据本身有能假的另一半 ✓）──────────
+/**
+ * `#1094`：**探针条目自带 `cmd`，且 `cmd` 里的 `.mjs` 文件名 == `id`** ✓（结构对账）。
+ *
+ * ## 为什么需要它（`#1087` 施工期挖出的四层根因，逐层实测 ✓）
+ * ① `#1054` 落在 main 的条目 `id='test/ci-triggers.mjs'` 而 `cmd='node test/docs-read-path.mjs'`
+ *    ⇒ **"咬住"了，但证明的是另一个门** ✗（对 `ci-triggers` 零证明力）；
+ * ② 同一次事故把 **`test/docs-read-path.mjs` 自己那条探针吞掉了** ✗ ——
+ *    该条目**只有 `id` 一行**且在同一个 `{…}` 对象里 ⇒ **JS 对象重复键** ⇒ `id` 被后写的覆盖、
+ *    其余字段沿用上一条 ⇒ **两条并成一条**（main 实测 `PROBES` 25 条、`docs-read-path` 不在其中 ✗）；
+ * ③ 台账↔探针的对账**只做了一半** ✗（`:207` 只做「探针 → 台账」；**台账有行、探针没有** 无判据 ⇒ 静默）；
+ * ④ `:210` 的 **dup 检查拦不住本案** ✗ —— 它盯「**同名多条**」，而本案是「**两条并成一条**」（同名**合并**）
+ *    ⇒ main 上 `dup` 实测 = （无重复）✗ ⇒ **天然看不见**。
+ *
+ * ## 为什么是这一条（裁定：甲′ ✓）
+ * **合并 ⇒ `cmd` 必然 ≠ `id`** ⇒ 一条判据同时咬住①②的"后果"与③④的"看不见" ✓；
+ * 且**不碰 `probe-budget` 的既有设计** ✗ —— 候选①「台账有行 ⇒ 必须有探针」落地会**一次红 62 行**，
+ * 而 `scripts/probe-budget.json` 的设计本身就是「**允许未探（`—`），但有上限**」⇒ 那是**语义冲突**（不是"补另一半"）✗。
+ *
+ * ## 边界（写清，不含糊 ✓）
+ * · **只判"自带 `cmd` 且与 `id` 相符"** ⇒ 对**孤儿探针**（`PROBES` 有条、台账无行）**恒真**（它没有台账行可对 ✗）
+ *   ⇒ 那一格**不归本判据管**：由 `:207`「探针 → 台账」报 ✓（本函数**不重复报**、也不放过 ✓）；
+ * · `cmd` **不含任何 `.mjs` 路径** ⇒ **报**（防"没有 `.mjs` 就跳过"变成后门 ✗）；
+ * · `cmd` **含多个 `.mjs` 路径** ⇒ **报**（含糊 ⇒ 要求写明被测件是哪一个 ✓；本仓现状 = 0 条 ✓）。
+ *
+ * @param {{id:string, cmd?:string}[]} probes
+ * @returns {string[]} 问题清单（空 ＝ 通过）
+ */
+export const probeStructureProblems = (probes = []) => {
+	const out = [];
+	for (const p of probes) {
+		const id = String(p?.id ?? '');
+		const cmd = String(p?.cmd ?? '');
+		const hits = [...cmd.matchAll(/(?:test|scripts|editor)\/[A-Za-z0-9._\/-]+\.mjs/g)].map((m) => m[0]);
+		if (hits.length === 0) { out.push(`✗ 探针 \`${id}\` 的 \`cmd\` 里没有 \`.mjs\` 路径（\`${cmd || '(空)'}\`）⇒ 被测件是哪一件**看不出来** ✗`); continue; }
+		if (hits.length > 1) { out.push(`✗ 探针 \`${id}\` 的 \`cmd\` 含**多个** \`.mjs\` 路径（${hits.join('、')}）⇒ 被测件含糊 ✗（要求恰好一个 ✓）`); continue; }
+		const [file] = hits;
+		if (file !== id) {
+			out.push(`✗ 探针 \`${id}\` 的 \`cmd\` 跑的是**另一个件** \`${file}\` ⇒ 该探针**证明的不是这一行** ✗（同族实测：#1054 落在 main 的条目正是此形态 ⇒ 它"咬住"了但证明的是 ${file} ✓；而 ${file} **自己那条探针被重复键合并吞掉** ✗ —— 两条并一条 ⇒ dup 检查看不见 ✓）`);
+		}
+	}
+	return out;
+};
+
 /** 数命中（**先数再下刀** ✓ —— 文件/行号不是锚 ✗，打歪的刀就是这么来的 ✓）。 */
 export const countHits = (src, find) => {
 	if (!find) return 0;
@@ -121,6 +164,16 @@ const selfcheck = () => {
 	h('`verdictOf`：基线报文命中产物陈旧特征 ⇒ **点名**补 `pre` ✓', /产物陈旧|把 `pre/.test(verdictOf({ preDeclared: false, baseRc: 1, mutatedRc: 1, hitCount: 1, baseOut: 'dist/index.html 比 src/*.twee 旧——先跑 `npm run build`' }).reason));
 	h('`verdictOf`：**声明了**前置却仍红 ⇒ 仍报「变异前就红」（不被前一条吞掉 ✓）', /变异前就红/.test(verdictOf({ preDeclared: true, baseRc: 1, mutatedRc: 1, hitCount: 1 }).reason));
 
+	// `#1094` 结构对账（**三格成对** ✓：正 ⇒ 不报；两个反例 ⇒ 必报）
+	h('`probeStructureProblems`：`cmd` 与 `id` 一致 ⇒ **不报** ✓', probeStructureProblems([{ id: 'test/a.mjs', cmd: 'node test/a.mjs' }]).length === 0);
+	h('🔴 `probeStructureProblems`：`cmd` 跑的是**另一个件** ⇒ **必报**（`#1054` 落在 main 的形态 ✓）',
+		probeStructureProblems([{ id: 'test/ci-triggers.mjs', cmd: 'node test/docs-read-path.mjs' }]).length === 1);
+	h('🔴 `probeStructureProblems`：`cmd` 里**没有** `.mjs` 路径 ⇒ **必报**（防"没有就跳过"变后门 ✗）',
+		probeStructureProblems([{ id: 'test/a.mjs', cmd: 'echo hi' }]).length === 1);
+	h('🔴 `probeStructureProblems`：`cmd` 含**多个** `.mjs` ⇒ **必报**（被测件含糊 ✗）',
+		probeStructureProblems([{ id: 'test/a.mjs', cmd: 'node test/a.mjs && node test/b.mjs' }]).length === 1);
+	h('🔴 `probeStructureProblems`：**基线零违规**（本仓 26 条现状 ⇒ 0 ⇒ 新判据不制造假红 ✓）', probeStructureProblems(PROBES).length === 0);
+
 	// `#1019` 静态判据：`cmdNeedsProducts` —— **假件驱动**（§17 ③ ✓）：注入假的文件读取，不依赖真树 ✓
 	const fakeRead = (m) => (f) => m[f] ?? null;
 	h('`cmdNeedsProducts`：入口件**直引** `boot.mjs` ⇒ true ✓',
@@ -204,10 +257,16 @@ const checkStructure = () => {
 	const ids = rowsOf();
 	if (ids === null) { console.log('⚠ 台账行 id 取不到（生成器未导出 `rowIds` ✗）⇒ 只做清单自校验 ✓'); }
 	else {
-		for (const p of PROBES) if (!ids.includes(p.id)) { bad++; console.error(`✗ 探针 \`${p.id}\` 对不上台账行 ✗（点了名却没人 ⇒ 红 ✓）`); }
+		for (const p of PROBES) if (!ids.includes(p.id)) { bad++; console.error(`✗ **台账里没有这一行**（孤儿探针）：\`${p.id}\` ⇒ 点了名却没人 ✗（红 ✓）`); }
 	}
 	const dup = PROBES.map((p) => p.id).filter((v, i, a) => a.indexOf(v) !== i);
 	if (dup.length) { bad++; console.error(`✗ 同一行挂了多条探针：${dup.join(', ')} ✗`); }
+	// `#1094`：**结构对账** —— 每条探针必须自带 `cmd`，且 `cmd` 里的 `.mjs` 文件名 == `id` ✓
+	//   ⚠️ 它同时咬住「`cmd` 指错件」与「重复键合并把两条并一条」（合并 ⇒ `cmd` 必然 ≠ `id` ✓）——
+	//   而 \`dup\`（上一行）**看不见后者**（它盯"同名多条"，合并后只剩一条 ⇒ 无重复可报 ✓）。
+	//   边界：对**孤儿探针**恒真（无台账行可对 ⇒ 不归本判据管，由上面那条报 ✓）。
+	const struct = probeStructureProblems(PROBES);
+	if (struct.length) { bad += struct.length; for (const m of struct) console.error(m); }
 	if (bad) { console.error(`\n✗ 探针结构校验 ${bad} 条未过`); process.exit(1); }
 	console.log(`✔ 探针结构校验通过（${PROBES.length} 条 ✓：清单 ↔ 台账行对得上 ✓ 无重复 ✓）`);
 };

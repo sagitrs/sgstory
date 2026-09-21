@@ -50,7 +50,7 @@ export const keyReadable = (key) => {
 	const k = String(key ?? '').trim();
 	if (!k) return false;
 	if (k.startsWith('n_')) return true;                       // `Sg.notes.has(k, pc)` ✓
-	if (/^(inv|era|gear):.+$/.test(k)) return true;            // 冒号后必须**非空** ✓
+	if (/^(inv|era|gear|codex):.+$/.test(k)) return true;     // 冒号后必须**非空** ✓（`#1132`：`codex:<名>` 同族 ✓）
 	if (k.startsWith('pc.')) return true;                      // 显式根 ⇒ 从 pc 走 ✓
 	if (k.includes(':')) return false;                         // ⚠️ 其余带冒号的（`note:`／`flag:`／`keeper:`…）⇒ 引擎读不到 ⇒ **恒假** ✗
 	return true;                                               // 不含冒号：有点 ⇒ readPath；无点 ⇒ `ev.<k>` ✓（两种都成立 ✓）
@@ -85,7 +85,7 @@ export const keyformProblems = ({ data, file = '(data)' }) => {
 			if (pos.kind === 'cond') {
 				if (!keyReadable(key))
 					out.push({ file, path: pos.path, field: pos.field, key,
-						msg: `条件键形 \`${key}\` 引擎**求值不到**（\`readKey\` 只认 n_* / inv: / era: / gear: / pc.* / 无冒号键）⇒ 该条件**恒假** ✗` });
+						msg: `条件键形 \`${key}\` 引擎**求值不到**（\`readKey\` 只认 n_* / inv: / era: / gear: / codex: / pc.* / 无冒号键）⇒ 该条件**恒假** ✗` });
 			} else {
 				if (String(key).startsWith('note:'))
 					out.push({ file, path: pos.path, field: pos.field, key,

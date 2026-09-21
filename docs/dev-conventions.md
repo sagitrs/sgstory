@@ -158,7 +158,7 @@ SugarCube 序列化的是 **history moment**；同页 `<<replace>>` 修改的是
 **跑器**（`scripts/run-tests.mjs`）：
 
 ```bash
-npm test                                   # 并行（默认 jobs = min(4, 核数)）
+npm test                                   # 并行（默认 jobs = min(8, 核数)；`#1105` 起 —— 段 84% 在等待）
 npm run test:serial                        # 串行＝旧链行为（排查/对照）
 npm run test:list                          # 列出计划与串行合计
 node scripts/run-tests.mjs --jobs=2 --only=scenarios   # 调试单段

@@ -254,10 +254,12 @@ export const tableReadProblems = (rows) => {
 			// `#435` 键形：note id ∕ 裸键（默认 `ev.`）∕ **任意域的状态路径**（`ev.`/`world.`/`keeper.`/`star.`…）∕
 			// 两种**前缀键**（`inv:<道具>`／`era:<时代>`，求值在引擎侧 `Sg.rules.holds()`）。
 			// 修正①（2026-09-14）：原先只放行 `ev|world` 两域 ⇒ **误杀 `keeper.met`/`star.spent`** 这类第三命名空间。
-			if (!/^(n_[a-z0-9_]+|[a-z_]\w*|[a-z_]\w*\.[a-z_]\w*|inv:.+|era:(?:past|present)|gear:.+)$/.test(k)) out.push({ id: r.id, field, what: '键形态', detail: k });
-			for (const key of literalReadKeys(k)) out.push({ id: r.id, field, what: '字面状态读', detail: key });
+			if (!/^(n_[a-z0-9_]+|[a-z_]\w*|[a-z_]\w*\.[a-z_]\w*|inv:.+|era:(?:past|present)|gear:.+|codex:.+)$/.test(k)) out.push({ id: r.id, field, what: '键形态', detail: k });   // \`#1132\`：白名单加 \`codex:.+\`（读取面键形 ✓）
+			for (const key of literalReadKeys(k)) { if (/^codex:/.test(key)) continue; out.push({ id: r.id, field, what: '字面状态读', detail: key }); }   // `#1132`：`codex:` 是读取面键形 ⇒ 不算「字面状态读」
 		}
-		for (const key of literalReadKeys(r.text ?? '')) out.push({ id: r.id, field: 'text', what: '字面状态读', detail: key });
+		// `#1132`：`text` 面**不该**出现 `codex:`（它住 `req/exclude` 条件字段 ✓）⇒ 此排除为**对称性保险** ✓
+		//   （万一将来有人误写进 text ⇒ 不报 problem 比报好 ✓；评审裁定：留它 ✓ 不删 ✓）。
+		for (const key of literalReadKeys(r.text ?? '')) { if (/^codex:/.test(key)) continue; out.push({ id: r.id, field: 'text', what: '字面状态读', detail: key }); }
 	}
 	return out;
 };

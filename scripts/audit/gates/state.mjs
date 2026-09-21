@@ -183,6 +183,7 @@ export const nsMismatch = (keys) => {
 	const out = [];
 
 	for (const [b, m] of mergeByBare(keys)) {
+		if (isPortalKey(b)) continue;   // `#1132`：读取面键形（`codex:`）无写点 ⇒ 「同域写入」这条对它不适用 ✓（域归属由 `check` 查 ✓）
 		const deadReads = [...m.nsR].filter((ns) => !m.nsW.has(ns));
 		if (deadReads.length) {
 			out.push({
@@ -193,6 +194,13 @@ export const nsMismatch = (keys) => {
 	}
 	return out;
 };
+
+/** `#1132`：**读取面键形**（portal）—— 值来自**运行时面**（存档／持有物／时代／笔记），"写"发生在引擎机制或
+ *  故事数据里，**不在 `pc` 键图里** ⇒ 它们**本来就没有写点** ✗。
+ *  `inv:`／`era:`／`gear:`／`n_` 这一族走的是"根本不进键图"（扫键正则不含 `:`／`n_` 前缀 ⇒ 见 `analyze`）✓；
+ *  而 `codex:` 会被**声明面读点**（条件行的 `req`）bump 进图 ⇒ 必须在此显式豁免"读写参与"✓。
+ *  ⚠️ **豁免只针对读写判定** ✗：**域归属照查** ✓（扩员不许顺手把域门放掉 —— 评审点名的"域侧守卫" ✓）。 */
+export const isPortalKey = (b) => /^codex:/.test(String(b));
 
 export const check = (keys, domains, bookkeeping = [], notes = {}) => {
 	// `#728`（C-2c-4 口径 (a)）：**单源笔记的 `flagPath` 键从状态图退场** ——
@@ -212,7 +220,8 @@ export const check = (keys, domains, bookkeeping = [], notes = {}) => {
 		else if (hits.length > 1) problems.push({ kind: 'ambiguous', key: b, detail: `同时命中 ${hits.map((d) => d.id).join('/')}，归属必须唯一` });
 		// 「仅记账」：消费者就是登记表本身——必须显式声明
 		if (m.wSites.size && !m.rSites.size && !bookkeeping.includes(b)) problems.push({ kind: 'write-only', key: b, detail: `只有写没有读（写于 ${[...m.wSites].join('、')}）；若确属「仅记账」请登记进 Game.State.bookkeeping` });
-		if (m.rSites.size && !m.wSites.size) problems.push({ kind: 'read-only', key: b, detail: `只有读没有写（读于 ${[...m.rSites].slice(0, 3).join('、')}）——幽灵条件/死分支` });
+		// `#1132`：读取面键形（`codex:`）**不参与读写判定** ✗（它本就没有写点 ✓）；域归属上面的 `undeclared/ambiguous` 照查 ✓。
+		if (m.rSites.size && !m.wSites.size && !isPortalKey(b)) problems.push({ kind: 'read-only', key: b, detail: `只有读没有写（读于 ${[...m.rSites].slice(0, 3).join('、')}）——幽灵条件/死分支` });
 	}
 	return problems;
 };
@@ -236,6 +245,16 @@ export const run = (ctx) => {
 		['未声明域 → 红', analyze(SELF_UNDECLARED), D, 1, 'check'],
 		['只有写 → 红', analyze({ 'a.twee': ':: P\n<<set $pc.ev.tav_z to true>>' }), D, 1, 'check'],
 		['只有读 → 红', analyze({ 'a.twee': ':: P\n<<if $pc.ev.tav_q>>y<</if>>' }), D, 1, 'check'],
+		// `#1132`：**读取面键形（`codex:`）** 三格 —— 扩员只跳"读写判定"，**域归属照查** ✓
+		['正例·portal：`codex:final` **有域** ⇒ 不报"只有读"（它本就没有写点 ✓）',
+			analyze({ 'a.twee': ':: P\n<<rules "P">>' }, { notes: {}, rules: [{ id: 'r', scope: 'P', req: ['codex:final'] }] }),
+			[{ id: 'fixture', prefix: [], keys: ['codex:final'] }], 0, 'check'],
+		['🔴 域侧守卫：`codex:xxx` **无域** ⇒ 域缺失仍红 ✗（豁免不得吞掉域门 ✓）',
+			analyze({ 'a.twee': ':: P\n<<rules "P">>' }, { notes: {}, rules: [{ id: 'r', scope: 'P', req: ['codex:xxx'] }] }),
+			[{ id: 'fixture', prefix: [], keys: ['codex:final'] }], 1, 'check'],
+		['🔴 反例：**普通键**只有读且无域 ⇒ 照红（证明 portal 只对 `codex:` 生效 ✓）',
+			analyze({ 'a.twee': ':: P\n<<if $pc.ev.tav_q>>y<</if>>' }, { notes: {}, rules: [] }),
+			[{ id: 'tv', prefix: ['tav_'] }], 1, 'check'],
 		// `#608`：**声明面驱动的写点**——引擎侧是变量（`<<note _note>>`），字面 id 只在故事数据表里（`failNote`）
 		['正例（#608）：声明面 `failNote` 的写点 ⇒ 不算「只有读」', analyze({ 'a.twee': `:: T\n\tencounters: { short: { failNote: 'n_tav_x' } },\n:: P\n<<if Sg.notes.has('n_tav_x')>>y<</if>>` }, { notes: { n_tav_x: { flagPath: 'ev.tav_x' } } }), [{ id: 'tavern', prefix: ['tav_'] }], 0, 'check'],
 		['反例（#608／#728）：**多源**笔记且没有声明面写点 ⇒ 仍必须报「只有读」（保证上面那条不是空判）', { src: { 'a.twee': `:: P\n<<if Sg.notes.has('n_tav_x')>>y<</if>>` }, notes: { n_tav_x: { flagPath: ['ev.tav_x', 'world.tav_x2'] } } }, [{ id: 'tavern', prefix: ['tav_'] }], 1, 'retire'],

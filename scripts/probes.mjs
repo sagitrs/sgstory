@@ -40,7 +40,7 @@ export const PROBES = [
 		mutation: {
 			// 被测件 ＝ `lib/core/**` ✓（**不是**测试件 ✗）：把「字面状态读」那一路的**产出**掐掉 ✓
 			file: 'editor/lib/core/stateDiagnose.mjs',
-			find: 'for (const key of literalReadKeys(k)) out.push(',
+			find: 'for (const key of literalReadKeys(k)) {',
 			replace: 'for (const key of []) out.push(',
 		},
 		expect: { rc: 1, stdout: /字面状态读/ },

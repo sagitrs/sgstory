@@ -827,12 +827,13 @@ window.Game = Object.assign(window.Game ?? {}, {
 				],
 				note: '夹具自己的状态键（场地状态 `whistle_taken`／`flower_taken` ＋ 证据链键）',
 				keys: [
-					'seer_asked',
+					'codex:final',
 					'coord',
-					'old_witch',
 					'failure_cause',
+					'flower_warned',
+					'old_witch',
+					'seer_asked',
 					'tav_tips',
-					'flower_warned'
 				]
 			},
 			{

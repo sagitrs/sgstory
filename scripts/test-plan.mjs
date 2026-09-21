@@ -378,6 +378,11 @@ export const SEGMENTS = [
 	// `#1011`（保覆盖版）：`#360` 交涉筹码按类型分派（B 段退役件接回；样本＝`face-fixture` 的 `老板娘·进塔`）✓
 	{ id: "test-social-lever-mjs", phase: 'test', cost: 3, cmd: "node test/social-lever.mjs" },
 	// `#1020`：条件位/授予位的**键形**必须引擎真能求值（`readKey` 权威；`note:n_*` ⇒ 条件恒假／授予位抛错）✗
+	// `#1132` 块2 片A：**故事侧代码面**（零逃生舱方向的 ratchet 门 ✓）
+	{ id: "test-story-codeface-mjs-selftest", phase: 'test', cost: 0, inputs: ['*'],   // `#1132` 全跑型（合成输入自证；另见理由登记 ✓）
+		cmd: "node test/story-codeface.mjs --selftest" },
+	{ id: "test-story-codeface-mjs", phase: 'test', cost: 0, inputs: ['*'],   // `#1132` 全跑型（读 stories 目录 + 两处机制标签声明件 ⇒ 静默跳过会成假绿面 ✓）
+		cmd: "node test/story-codeface.mjs" },
 	{ id: "test-cond-keyform-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/cond-keyform.mjs --selftest" },
 	{ id: "test-cond-keyform-mjs", phase: 'test', cost: 0, cmd: "node test/cond-keyform.mjs" },
 	{ id: "test-siteinfo-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/siteinfo-sink.mjs --selftest" },
@@ -608,6 +613,7 @@ export const SUITE_MEMBERS = {
 		'test-cond-keyform-mjs-selftest',
 		'scripts-report-rhythm-mjs-selftest',
 		'scripts-report-rhythm-mjs-check',
+		'test-story-codeface-mjs-selftest', 'test-story-codeface-mjs',
 	],
 	'story-product': [
 		'test-smoke-mjs', 'test-smoke-mjs-raf-delayed', 'test-size-gate-mjs', 'test-size-gate-mjs-selftest',
@@ -679,6 +685,14 @@ export const inputsMatch = ({ declared = [], changed = [] } = {}) => {
  *  （同 `FULL_REASONS` 的口径 ✓：降频／不跳过都要留痕 ✓）。
  */
 export const INPUTS_WILDCARD_REASONS = {
+	'test-story-codeface-mjs-selftest': {
+		reason: '本段是**合成输入自证**（纯函数注入）⇒ 与真树文件无关，但为避免"静默跳过=假绿面" ✗ 取全跑型 ✓',
+		voucher: '#1132',
+	},
+	'test-story-codeface-mjs': {
+		reason: '本段读 `stories` 目录下的 twee 清单 ＋ 两处机制标签声明件（漂移检测）⇒ 依赖面跨目录且会随迁移变动 ⇒ 取全跑型 ✓',
+		voucher: '#1132',
+	},
 	'test-passages-assemble-mjs-selftest': {
 		reason: '本段读**自证夹具**（跑起来在 src 侧动态造件）＋ 被判件住的目录不止一个 ⇒ 静态面写不窄 ⇒ 取全通配（＝不参与跳过 ✓）',
 		voucher: '#1114',

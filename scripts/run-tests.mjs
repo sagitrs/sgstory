@@ -30,7 +30,9 @@ import { pathToFileURL, fileURLToPath } from 'node:url';
 import { cpus } from 'node:os';
 import { testPlan, segmentLayer, validateLayers, tierOf, TIERS, DEFAULT_TIER, validateTiers, SUITES, suiteOf, validateSuites, inputsDeclaredStats, validateInputsRatchet, inputsMatch } from './test-plan.mjs';
 import { fsArgLiterals, inputsLowerProblems, interLayerProblems, inputsTruthProblems } from './lib/inputs-lower.mjs';   // `#1093` P2-b：①层（静态下界）
-import { WRAPPED_READ_APIS, READ_API_BASELINE } from './lib/fs-hook-shim.mjs';   // `#1093` P2-c：㈠ 面完整性清单 ✓
+import { WRAPPED_READ_APIS, READ_API_BASELINE } from './lib/fs-hook-shim.mjs';
+import { ensureParent } from './lib/ensure-parent.mjs';   // `#1093` P2-d：写前建父目录（共用助手 ✓ —— **调用点在少走路径上 ⇒ 漏接线 CI 抓不到** ✗ 见下方自证格 ✓）   // `#1093` P2-c：㈠ 面完整性清单 ✓
+import { untrackedScannedProblems, isUntrackedExemptLine } from './lib/untracked-guard.mjs';   // `#1093` P2-d ③：**未跟踪件是 `git grep` 的盲区** ✗ ⇒ 用本仓既有守卫 ✓
 // `#607`：故事清单声明的门 flag（P0 为空集合 ⇒ 层判定与今天**逐字相同**；P1 起门搬家后仍判得出故事层）
 import { declaredGatesAll } from './audit/discovery.mjs';
 // 声明面在**顶层**取（不在 `selftest()` 里取）：`selftest()` 在文件中部就被调用，
@@ -361,13 +363,25 @@ t('🔴 `inputsDeclaredStats`：**声明了的段**计入 declared、不计入 u
 	t('🔴 ③ 没人绕过助手：直接调 `mkdir`＋`Sync(` 的文件 ⊆ {助手} ∪ 豁免（>0 即红 ✗）',
 		(() => {
 			const files = execFileSync('git', ['grep', '-l', 'mkdir' + 'Sync(', '--', 'scripts'], { encoding: 'utf8' }).split('\n').filter(Boolean);
-			const EXEMPT = ['scripts/lib/ensure-parent.mjs', 'scripts/dist-fresh.mjs', 'scripts/report-two-state.mjs'];
-			const real = files.filter((f) => {
-				const src = readFileSync(f, 'utf8');
-				return src.split('\n').some((l) => { const t = l.trim(); return t.includes('mkdir' + 'Sync(') && !t.startsWith('//') && !t.startsWith('*'); });
-			});
-			return real.every((f) => EXEMPT.includes(f));
+			// ⚠️ 豁免必须**各配理由 ＋ 票号** ✗（否则清单会长成**万能逃生门** ✓）；下一条断言会机检它 ✓
+			const EXEMPT = [
+				['scripts/lib/ensure-parent.mjs', '助手自身 ⇒ 唯一允许直接调 mkdir 处', '#1093'],
+				['scripts/dist-fresh.mjs', '建的是具体产物目录、非「写前建父目录」语义 ⇒ 不属该助手射程', '#1072'],
+				['scripts/report-two-state.mjs', '同上：建具体目录、非父目录代理', '#1072'],
+			];
+			if (EXEMPT.some((e) => !e[1] || !/^#\d+$/.test(String(e[2] ?? '')))) return false;   // 理由／票号缺一 ⇒ 红 ✗
+			const hasRealCall = (f) => readFileSync(f, 'utf8').split('\n').some((l) => { const t = l.trim(); return t.includes('mkdir' + 'Sync(') && !t.startsWith('//') && !t.startsWith('*'); });
+			const real = files.filter(hasRealCall);
+			const untracked = execFileSync('git', ['ls-files', '--others', '--exclude-standard', '--', 'scripts'], { encoding: 'utf8' }).split('\n').filter(Boolean);
+						const scanned = untracked.filter(hasRealCall);
+						const exempted = scanned.filter((f) => readFileSync(f, 'utf8').split('\n').some(isUntrackedExemptLine));
+						const guardOk = untrackedScannedProblems({ untracked, isScanned: hasRealCall, exempted }).problems.length === 0;   // 未跟踪 ＋ 被扫到 ＋ 无豁免 ⇒ 红 ✗
+						return real.every((f) => EXEMPT.some((e) => e[0] === f)) && guardOk;
 		})());
+	// `#1093` P2-d ②：**「写了调用、忘了接线」** ✗（＝`#1031`「入口未接线」族 ✓ —— 本仓该族已有格，这条路径漏了 ✓）
+	//   ⚠️ 四处调用点**全在少走路径**（②层需已声明段／仪表需 `--profile*`）⇒ 断了接线，**CI 与自证都绿** ✗
+	t('🔴 ② 共用助手**接线在位**（`ensureParent` 已 import 且是函数 ⇒ 否则四处调用点起跑即崩 ✗）',
+		typeof ensureParent === 'function' && /from '\.\/lib\/ensure-parent\.mjs'/.test(readFileSync(fileURLToPath(import.meta.url), 'utf8')));
 	if (bad) { console.error(`\n✗ 跑器自证失败 ${bad} 项`); process.exit(1); }
 	if (!quiet) console.log('\n✔ 跑器自证通过：成功/失败识别、失败输出不吞、并行真的重叠、setup 红即中止、needs 前置/级联跳过/配错报错');
 	else console.log('✓ 跑器自证通过（成功/失败识别 · 输出不吞 · 并行真重叠 · setup 红即中止 · needs 语义）');

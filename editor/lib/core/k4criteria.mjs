@@ -77,6 +77,33 @@ export const freshnessProblems = (a, b) => {
 
 /** 纯函数③：**逃生舱可枚举**判据（双向）——
  *  `classified` ＝ 分类器输出（`[{name, bucket, src}]`）· `registry.hatches` ＝ 登记表。 */
+/** `#1016`：**declare-but-undone**（措辞判据——「指向现存」由既有 `referenceIntegrityProblems`（`b9406d4`/`#1052`「已入库 ∩ 存在」口径，更强 ✓）承担，本函数**不重复** ✗）。
+ *
+ * 字段值含「应当撤回／待删」等**自述未完成**措辞 ⇒ 红：要么落实、要么把措辞改成完成态 ✗。
+ * 归一化＝剥 `*`（粗体打断）＋ 剥**全部空白**（空格/换行/全角）＋ 剥**零宽字符** ✗（防绕过 ✓）。
+ * **完成标记豁免**（留痕优先 ✓）：reason 同时含完成态标记（如「已处理完毕」「历史记录」「不再使用」）⇒ **不报** ✓。
+ * ⚠️ **抓不到什么**（如实 ✗）：
+ *    · **完成标记豁免可被利用**：真未完成 ＋ 混入完成词（如「待删除…（不再使用旧路径）」）⇒ **不报** ✗（这是**代价**，不是留痕收益 ✓——结构性替代=`state` 字段，另票 ✓）；
+ *    · 只咬简体字面表内形态——**繁体**（撤迴/刪除）、**表外同义词**（如「等着删」）、
+ *    结构性变体（拆成两个字段、改写语气）**不在覆盖内** ✗；结构性替代（`state` 字段）另立票 ✓。
+ * ⚠️ JSON 无注释 ⇒ 「剔注释只咬字段值」天然满足（`reason` 是字段 ✓）——同族口径 `test/multi-story.mjs` P6 ✓。 */
+export const UNDONE_PHRASES = ['应当撤回', '待撤回', '待删除', '待清理', '应当撤销', '待撤销', '须撤回', '应删除'];
+export const DONE_MARKERS = ['已撤回', '已处理', '处理完毕', '已完成', '已删除', '已移除', '不再使用', '历史记录', '曾标记'];
+export const undoneProblems = (registry) => {
+	const out = [];
+	for (const h of registry?.hatches ?? []) {
+		const reasonPlain = (typeof h.reason === 'string' ? h.reason : '').replace(/[*/\s\u200B-\u200D\uFEFF]/g, '');
+		if (DONE_MARKERS.some((d) => reasonPlain.includes(d.replace(/\s/g, '')))) continue;   // 完成标记 ⇒ 留痕 ✓ 不咬
+		for (const ph of UNDONE_PHRASES) {
+			if (reasonPlain.includes(ph.replace(/\s/g, ''))) {
+				out.push({ member: h.member ?? '?', why: `登记 \`reason\` 含**自述未完成**措辞「${ph}」且无完成标记 ⇒ 要么落实、要么改成完成态（\`#1016\`：声明↔落实——只咬简体表内形态，边界见判据注释）` });
+				break;   // 一条 reason 只报首个命中（1 违规 1 项 ✓）
+			}
+		}
+	}
+	return out;
+};
+
 export const escapeHatchProblems = (classified, registry, slug = null) => {
 	const out = [];
 	// **按故事**过滤（登记表是跨故事的 ⇒ 不按 slug 过滤会把别的故事的登记误判成"腐烂"）

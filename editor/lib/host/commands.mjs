@@ -30,7 +30,7 @@ import { definitionsOf, duplicateExportProblems, secondCopyProblems, coreHostPro
 // `#794` 第 4 条（K4 命令体）：判据的**纯**部分住 core ✓（纯 ⇒ core、宿主能力 ⇒ host ✓）。
 // ⚠️ **一处定义** ✓：分类器实例**不在本文件重装** ✗ —— `lib/host/classify.mjs` 已经装好（`makeClassify({ evalLiteral: literalValue })` ✓），
 // 本命令走它导出的缝 `classifyContractText` ✓（那条缝多做 `locals` 上下文与 `const` 的 B→A 解析 ⇒ 该语义风险由**两时点差分**量掉 ✓）。
-import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, handwrittenClosureProblems, contractSourceText, staleTrackedProblems, referenceIntegrityProblems } from '../core/k4criteria.mjs';
+import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, handwrittenClosureProblems, contractSourceText, staleTrackedProblems, referenceIntegrityProblems, undoneProblems } from '../core/k4criteria.mjs';
 import { censusOfStory, censusSummarize, censusProblems } from '../core/hatchCensus.mjs';
 import { classifyContractText } from './classify.mjs';
 // `#794` 弧第 3 票（`equiv` 命令体）：用 vm／读文件／跑子进程 ⇒ **都在 host** ✓。
@@ -622,6 +622,11 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 	const registryPath = join(ROOT, 'editor', 'escape-hatch.json');
 	ok('逃生舱登记表存在（`editor/escape-hatch.json`）', existsSync(registryPath), registryPath);
 	const registry = existsSync(registryPath) ? JSON.parse(readFileSync(registryPath, 'utf8')) : { hatches: [] };
+
+	// `#1016`：**declare-but-undone**（措辞判据）——「指向现存」由上方 referenceIntegrity（#1052 口径）承担 ✓。
+	const undone = undoneProblems(registry);
+	for (const u of undone) { bad++; console.error(`  ✗ [#1016] ${u.member}：${u.why}`); }
+	ok('登记表无自述未完成措辞（#1016：声明↔落实）', undone.length === 0);
 
 	for (const slug of slugs) {
 		const readJson = (p) => JSON.parse(readFileSync(p, 'utf8'));

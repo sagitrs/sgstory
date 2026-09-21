@@ -40,9 +40,11 @@ export const ciLiteralProblems = (yaml, { story = STORY_PAGE_MAX_BYTES, shelf = 
 	const code = y.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
 	const ANCHOR_LINE = /grep\s+-oE\s+'stories\//;
 	const stray = [];
-	for (const line of code.split('\n')) {
-		if (ANCHOR_LINE.test(line)) continue;   // 锚点行：这里的 `stories/…` 是**模式**（它要发现的就是它）✓
-		for (const m of line.matchAll(/(?<![\w.-])stories\/([A-Za-z0-9._-]+)\/index\.html/g)) stray.push({ slug: m[1], line: line.trim().slice(0, 72) });
+	for (const rawLine of code.split('\n')) {
+		// `#1016` 票内补记①：豁免只豁**锚点那段子串**，不是整行 ✗（早先 `continue` 整行 ⇒ 同一行上
+		// 其他字面量被连带放过——「字面量与锚点同一行 ⇒ 0」的漏形态 ✓）；锚点子串剥掉后**余段照扫** ✓。
+		const line = rawLine.replace(/grep\s+-oE\s+'stories\/[^']*'/g, '').replace(/stories\/[A-Za-z0-9._-]+\/index\\\.html/g, (mm) => (ANCHOR_LINE.test(rawLine) ? '' : mm));
+		for (const m of line.matchAll(/(?<![\w.-])stories\/([A-Za-z0-9._-]+)\/index\.html/g)) stray.push({ slug: m[1], line: rawLine.trim().slice(0, 72) });
 	}
 	if (stray.length)
 		out.push({ code: 'P6', msg: `ci.yml 的**非注释行**里出现故事页字面量 \`stories/${stray[0].slug}/index.html\`（${stray[0].line}…）—— ⚠️ **现存/已删一律红** ✗（现存：${slugs.join(' / ')} ✓）：本作业只在 push to main 跑 ⇒ 硬编码会随故事改名/删除腐烂，而 PR CI 看不见（改用「从书架页现场取」✓）` });
@@ -178,6 +180,7 @@ if (process.argv.includes('--selftest')) {
 	t('P6 正例：无字面量 ＋ 有现场取路径的锚点 ⇒ 不报 P6', !ciLiteralProblems(CI_OK).some((f) => f.code === 'P6'));
 	t('🔴 P6 反例：「从书架页取路径」的锚点被删掉 ⇒ 报红', ciLiteralProblems('test "$SSZ" -lt 2000000 || exit 1\ntest "$SZ" -gt 0 -a "$SZ" -lt 100000 || exit 1\n').some((f) => f.code === 'P6'));
 	t('P6 正例：注释里写旧路径（留痕）**不算**硬引用 ⇒ 不报 P6', !ciLiteralProblems(`${CI_OK}# 历史：原来写死 stories/mist-forest/index.html ✗\n`).some((f) => f.code === 'P6'));
+		t('🔴 P6 反例（#1016 补记①）：字面量与锚点**同一行** ⇒ **报**（豁免只豁锚点子串，不豁整行）', ciLiteralProblems(`${CI_OK}          STORY_PATH=$(grep -oE 'stories/[A-Za-z0-9._-]+/index\\.html' /tmp/idx.html | head -1); STORY="$URL/stories/face-fixture/index.html"\n`).some((f) => f.code === 'P6'));
 	const goodPage = `<link href="${FONT_PREFIX_FROM_STORY}LXGWWenKai-Regular.woff2"><style>url('${FONT_PREFIX_FROM_STORY}LXGWWenKai-Medium.woff2')</style>`;
 	t('P1/P2 正例：前缀正确且字体文件存在 → 0 问题', checkStoryFontRefs(goodPage, ['LXGWWenKai-Regular.woff2', 'LXGWWenKai-Medium.woff2']).length === 0);
 	t('P1 反例：故事页用了根路径前缀（深两层会 404）→ 报红', checkStoryFontRefs(goodPage.split(FONT_PREFIX_FROM_STORY).join(FONT_PREFIX_FROM_ROOT), []).some((f) => f.code === 'P1'));

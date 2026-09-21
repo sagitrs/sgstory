@@ -413,6 +413,62 @@
 			],
 			"prio": 1,
 			"text": "洞口漏进来一点灰光。"
+		},
+		{
+			"id": "门厅.哨子",
+			"scope": "门厅",
+			"exclude": [
+				"world.whistle_taken"
+			],
+			"prio": 10,
+			"text": "<<link \"把墙上那支哨子摘下来\">><<sitecheck \"门厅·看钉\">><<setflag \"world.whistle_taken\">><<give \"坏哨\">><<goto \"门厅\">><</link>>"
+		},
+		{
+			"id": "森林边缘.雾薄",
+			"scope": "森林边缘",
+			"req": [
+				"world.fog_thin"
+			],
+			"prio": 10,
+			"text": "雾比上回薄了一层——林子里的声音听得清楚了些。"
+		},
+		{
+			"id": "花田.已摘",
+			"scope": "塔外花田",
+			"req": [
+				"world.flower_taken"
+			],
+			"prio": 10,
+			"text": "墙根那一片里，最靠里的那一朵已经没了——你从这里摘过一朵（已经摘过一朵了）。"
+		},
+		{
+			"id": "花田.摘花",
+			"scope": "塔外花田",
+			"exclude": [
+				"world.flower_taken"
+			],
+			"prio": 10,
+			"text": "<<link \"伸手去摘最靠里的那一朵\">><<sitecheck \"塔外花田\">><<setflag \"world.flower_taken\">><<give \"月光花\">><<goto \"塔外花田\">><</link>>"
+		},
+		{
+			"id": "老巫女.缺口",
+			"scope": "老巫女",
+			"req": [
+				"n_failure_cause",
+				"ev.seer_asked"
+			],
+			"prio": 10,
+			"text": "[[缺的那一句话，是谁没说完|地下宴会厅]]"
+		},
+		{
+			"id": "老巫女.缺口.coord",
+			"scope": "老巫女",
+			"req": [
+				"n_failure_cause",
+				"ev.coord"
+			],
+			"prio": 9,
+			"text": "[[缺的那一句话，是谁没说完|地下宴会厅]]"
 		}
 	]
 }

@@ -11,6 +11,8 @@ export const judgeConsequences = (ctx) => {
 if (wantAll || arg('consequences')) {
 	console.log('\n══ ⓪q 选择后果门（#267）——非任意·非二元·后果可见（机械判据）══');
 	let bad = 0;
+	// `#1151`：**自证格**的计数单列（格红＝本门失能；与「判据发现」语义不同 ⇒ 分开记 ✓）
+	let selfBad = 0;
 	// #435 阶段 4：把**条件表**注入分类器（node 侧没有 `window` 全局 ⇒ 由这里给；表的来源＝故事契约）
 	const RULES = ctx.window?.Sg?.story?.rules?.() ?? [];
 	// `#785`：**声明式写点**的第二类来源 —— 诉求表（ask 的 `sets`／`yields`）。与 RULES 同样**注入** ✓
@@ -56,7 +58,7 @@ if (wantAll || arg('consequences')) {
 			['`Sg.notes.has("n_a")` 也算图鉴读 ⇒ codex 桶（#437 C-2c-3）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['P', '<<setflag "a">>'], ['Game Tables', "Sg.notes.has('n_a')"]], passageTags: [['Game Tables', ['script']]], notes: { n_a: { flagPath: 'ev.a' } } })); return r.buckets.get('a') === 'codex' && r.problems.length === 0; })()],
 			['🔴 没有 `has("n_a")` 这类读 ⇒ **不进** codex 桶（防"有笔记条目就算读"的误判）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['P', '<<setflag "a">>'], ['Game Tables', 'const x = 1;']], notes: { n_a: { flagPath: 'ev.a' } } })); return r.buckets.get('a') !== 'codex'; })()],
 		];
-		for (const [label, ok] of cases) { if (!ok) bad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
+		for (const [label, ok] of cases) { if (!ok) selfBad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
 	}
 	const by = {};
 	for (const b of buckets.values()) by[b] = (by[b] ?? 0) + 1;
@@ -65,6 +67,13 @@ if (wantAll || arg('consequences')) {
 	for (const [k, v] of Object.entries(META)) if (by[k]) console.log(`    ${k.padEnd(11)} ${by[k]} 项 ← ${v}`);
 	if (problems.length) for (const p of problems) console.log(`  ✗ ${p}`);
 	else console.log('  ✓ 每个写入旗标都有归属桶；provenance/engine 声明均带理由且无叙事消费');
+	bad += selfBad;
+	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 格级属性 ✓，**不依赖 `process.argv`** ✗
+	//   ⚠️ 与「判据发现」**分开报** ✓：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」✓
+	if (selfBad) {
+		console.error(`\n✗ 选择后果门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓（\`#1151\`）`);
+		process.exit(1);
+	}
 	if (process.argv.includes('--check')) {
 		if (problems.length + bad) { console.error(`\n✗ 选择后果门：${problems.length} 项未归类/错标${bad ? ` ＋ 自证 ${bad} 项` : ''}`); process.exit(1); }
 		console.log('\n✔ 选择后果门通过（旗标分级齐备、声明与实况一致）');

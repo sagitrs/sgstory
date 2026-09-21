@@ -55,6 +55,8 @@ export const run = (ctx) => {
 if (wantAll || arg('text')) {
 	console.log('\n══ ⓪e 语言经济（D5/#39）——每段有载荷，无陈词滥调 ══');
 	let bad = 0;
+	// `#1151`：**自证格**的计数单列（格红＝本门失能；与「判据发现」语义不同 ⇒ 分开记 ✓）
+	let selfBad = 0;
 	// ── 自证（先证会红，再判真实数据；合成夹具 → 期望检出数）──
 	{
 		const infra = (n) => n === 'StoryInit' || n.startsWith('Story') || n === '脚本段';
@@ -85,7 +87,7 @@ if (wantAll || arg('text')) {
 			const n = Array.isArray(got) ? got.length : got;
 			const ok = n === want;
 			console.log(`      ${ok ? '✓' : '✗'} 自证·${label}：检出 ${n}（期望 ${want}）`);
-			if (!ok) bad++;
+			if (!ok) selfBad++;
 		}
 	}
 	// 载荷门：内容段落须有 payload 标注（信息/张力/选择 ≥1）
@@ -132,6 +134,13 @@ if (wantAll || arg('text')) {
 		const hits = judgeCliche(narrative, CLICHE);
 	if (hits.length) { console.log(`  ✗ 套路句式命中：${hits.join('、')}`); bad += hits.length; }
 	else console.log('  套路句式门：零命中');
+	bad += selfBad;
+	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 格级属性 ✓，**不依赖 `process.argv`** ✗
+	//   ⚠️ 与「判据发现」**分开报** ✓：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」✓
+	if (selfBad) {
+		console.error(`\n✗ D5 文本门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓（\`#1151\`）`);
+		process.exit(1);
+	}
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ D5 文本门：${bad} 项`); process.exit(1); }
 		console.log('\n✔ D5 文本门通过');

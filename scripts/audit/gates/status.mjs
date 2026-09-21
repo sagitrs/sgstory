@@ -104,6 +104,8 @@ export const run = (ctx) => {
 	if (!wantAll && !arg('status')) return;
 	console.log('\n══ ⓪y 部位×异常门（S2/#487）——每回合判定：恢复／恶化／受伤 ══');
 	let bad = 0;
+	// `#1151`：**自证格**的计数单列（格红＝本门失能；与「判据发现」语义不同 ⇒ 分开记 ✓）
+	let selfBad = 0;
 	const t = (label, ok, extra = '') => { if (ok) console.log(`      ✓ ${label}`); else { bad++; console.error(`      ✗ ${label}${extra ? '：' + extra : ''}`); } };
 	const saved = Sg.story.mechanics;
 	// ⚠️ 注入的恒值必须**遵守 `d(n)` 契约**（返回 1..n）——`() => v` 在 `d(2)` 时会给出 2 以上的值，
@@ -218,7 +220,7 @@ export const run = (ctx) => {
 					const got = visibilityProblems(src);
 					const okk = want === 0 ? got.length === 0 : got.length >= want;
 					console.log(`      ${okk ? '✓' : '✗'} 自证·${label}：检出 ${got.length}（期望 ${want === 0 ? 0 : '≥' + want}）`);
-					if (!okk) bad++;
+					if (!okk) selfBad++;
 				}
 			}
 			const cases = [
@@ -232,7 +234,7 @@ export const run = (ctx) => {
 				const got = planViolations(input);
 				const okk = want === 0 ? got.length === 0 : got.length >= want;
 				console.log(`      ${okk ? '✓' : '✗'} 自证·${label}：检出 ${got.length}（期望 ${want === 0 ? 0 : '≥' + want}）`);
-				if (!okk) bad++;
+				if (!okk) selfBad++;
 			}
 		}
 
@@ -249,7 +251,7 @@ export const run = (ctx) => {
 			for (const [label, got, want] of covCases) {
 				const okk = got === want;
 				console.log(`      ${okk ? '✓' : '✗'} 自证·${label}：检出 ${got}（期望 ${want}）`);
-				if (!okk) bad++;
+				if (!okk) selfBad++;
 			}
 		}
 	} finally {
@@ -277,6 +279,13 @@ export const run = (ctx) => {
 		}
 	}
 
+	bad += selfBad;
+	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 格级属性 ✓，**不依赖 `process.argv`** ✗
+	//   ⚠️ 与「判据发现」**分开报** ✓：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」✓
+	if (selfBad) {
+		console.error(`\n✗ ⓪y 部位×异常门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓（\`#1151\`）`);
+		process.exit(1);
+	}
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ ⓪y 部位×异常门：${bad} 项`); process.exit(1); }
 		console.log('\n✔ 部位×异常门通过（被动 · 判定恢复 · 失败分档 · 减成作用域 · 解除 · 兼容降级 · 声明面≤实现面 · 机制可见性 #703）');

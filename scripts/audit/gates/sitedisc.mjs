@@ -25,6 +25,8 @@ export const run = (ctx) => {
 if (wantAll || arg('sitedisc')) {
 	console.log('\n══ ⓪p 位点失败纪律（#199）——伤＝代价，不是空手；无解决不许带伤 ══');
 	let bad = 0;
+	// `#1151`：**自证格**的计数单列（格红＝本门失能；与「判据发现」语义不同 ⇒ 分开记 ✓）
+	let selfBad = 0;
 	let seen = 0;
 	// ── 自证（先证会红，再判真实数据）──
 	{
@@ -43,7 +45,7 @@ if (wantAll || arg('sitedisc')) {
 			const got = judgeFailBranches(src).length;
 			const ok = got === want;
 			console.log(`      ${ok ? '✓' : '✗'} 自证·${label}：检出 ${got}（期望 ${want}）`);
-			if (!ok) bad++;
+			if (!ok) selfBad++;
 		}
 	}
 	for (const [name, src] of passageSrc) {
@@ -55,6 +57,13 @@ if (wantAll || arg('sitedisc')) {
 		}
 	}
 	console.log(`  带伤失败档 ${seen} 处，全部落结果（给东西/置旗标/退场）`);
+	bad += selfBad;
+	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 格级属性 ✓，**不依赖 `process.argv`** ✗
+	//   ⚠️ 与「判据发现」**分开报** ✓：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」✓
+	if (selfBad) {
+		console.error(`\n✗ ⓪p 位点失败纪律门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓（\`#1151\`）`);
+		process.exit(1);
+	}
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ ⓪p 位点失败纪律门：${bad} 项`); process.exit(1); }
 		console.log('\n✔ ⓪p 位点失败纪律门通过（带伤失败必有解，无磨伤死角）');

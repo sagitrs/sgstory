@@ -51,6 +51,21 @@ import { idemReport } from '../editor/lib/host/commands.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const GEN = join(ROOT, 'build/generated');
+
+// `#1105`（⛔ 前置）：⭐ **本件自拥有 scratch 根**（默认 self-hermetic ✓；可注入 ⇒ 供自证 ✓）。
+//
+// ## 为什么必须自拥有（实测 4/4 假红 ✗）
+// 旧写法把断言建在**共享的** `build/generated/` 上做集合差 ⇒ **并行段的活草稿**（`editor-equiv-*` 等
+//   会在**同一父目录**建 `.equiv-run-*` ✓）落在本件窗口内 ⇒ 被算成“**本件新留的草稿**” ✗
+//   ⇒ 与调用方的 `needs` 无关（共享目录**无法归因** ✓）⇒ 确定性复现：注入点 0.05/0.10/0.15/0.20s 四档
+//   **全部 rc=1**，未过项恰是 ② 与 ③ ✓。
+//
+// ## ⚠️ 默认也必须自密闭（组领队补正 ✓）
+// “可注入”**不是**“只有测试时才安全” ✗ —— **不注入时（CI 常态 ✓）本件也用自己的 per-run 根** ✓；
+//   注入只是给自证留口（让它能把注入点**搬到被测的那个根上** ✓ —— 否则自证测的是**旧世界** ✗，
+//   这是 ㊴ 的变体：**自证落点必须跟着被测对象一起移动** ✗）。
+const OWNED_ROOT = process.env.SAGITRS_EQUIV_SCRATCH_ROOT || mkdtempSync(join(tmpdir(), 'equiv-scratch-root-'));
+process.env.SAGITRS_EQUIV_SCRATCH_ROOT = OWNED_ROOT;   // ← 传给它 fork 出来的 `equiv` 子进程 ✓（同一根 ✓）
 // `#1004` B2 ✓：旧故事已删 ⇒ 换到**存活样本** ✓。
 //   ⚠️ 同时把本件一条**押错对象**的旧断言换掉 ✗（与故事删除无关 ✓，是它本来就站不住 ✓）：
 //     旧写法先**删掉** `build/generated/<slug>` ✓、再断言它"不存在"✓ —— 而那个目录**同时是**
@@ -61,7 +76,7 @@ const GEN = join(ROOT, 'build/generated');
 //   ⇒ 换成**真判据** ✓：不看"某个路径在不在"✗，看"**跑完之后多了/动了什么**"✓
 //     （并排写下：不留 `.equiv-run-*`／`.idem-<slug>` 草稿 ✓ ＋ 不动别人的落点 ✓）。
 const SLUG = 'night-ferry';
-const IDEM_OLD = join(GEN, `.idem-${SLUG}`);            // `#976` 前的固定草稿名（旧形）✗
+const IDEM_OLD = join(OWNED_ROOT, `.idem-${SLUG}`);   // `#976` 前的固定草稿名（旧形）✗（**本件自有的根** ✓）
 const genOf = join(GEN, SLUG);                            // 编译器的默认 `--out`（**别人的**落点 ✗，不是本件的草稿区 ✓）
 const genSnap = () => (existsSync(genOf)
 	? readdirSync(genOf).sort().map((n) => `${n}:${readFileSync(join(genOf, n), 'utf8').length}`).join('|')
@@ -73,7 +88,8 @@ const genSnap = () => (existsSync(genOf)
 //     · 探针那一刀（掐掉 `finally` 清理 ✓）⇒ 跑完会**新留** `.equiv-run-*` ✓ ⇒ `newScratch` 非空 ⇒ **红** ✓；
 //       这一刀在**目录存在／不存在两种树态下都成立** ✓（不是只在旧树态能咬 ✓）。
 //     · `rcOk === 0` 那格**独立**成立 ✓ ⇒ "跑没跑过"不由本条兜底（不会"目录不在 ⇒ 全空 ⇒ 假绿"✓）。
-const listGen = () => (existsSync(GEN) ? readdirSync(GEN) : []);
+// ⚠️ **只列举本件自拥有的根** ✓（不再看共享的 `build/generated/` ✗ —— 那正是竞态来源 ✓）。
+const listGen = () => (existsSync(OWNED_ROOT) ? readdirSync(OWNED_ROOT) : []);
 const scratchLeft = () => listGen().filter((n) => n.startsWith('.equiv-run-') || n.startsWith('.idem-'));
 
 // ⚠️ `#1004` B2b：判据从「**全局**没有草稿」改成「**本件跑完**没有**新**草稿」✗ —— 前者是全局列举式断言 ✓，
@@ -128,6 +144,30 @@ try {
 			newScratch(beforeScratch3).length === 0 && !existsSync(IDEM_OLD));
 	}
 
+	// ── ④ `#1105` 自证：**注入点跟着被测对象一起移动**（㊴ 的变体 ✓）──────────────
+	//   ⚠️ 为什么必须成对：修完后判据只读「**本件自拥有的根**」✓ ⇒ 单看 ④a（往共享目录造草稿 ⇒ 不报）
+	//     会**平凡通过** ✗（它测的是旧世界 ✗）⇒ 必须有 ④b 证明"**判据读的确实是我们传的那个根**"✓。
+	{
+		// ④a **旧世界**：往**共享** `build/generated/` 里造"并行段的活草稿" ⇒ **必须不报** ✓
+		//   （这一格在**旧写法**下会红 ✓ —— 即它能把"退回共享目录"这个回归咬住 ✓）
+		const baseA = scratchLeft();
+		const foreign = join(GEN, '.equiv-run-FOREIGN');
+		mkdirSync(GEN, { recursive: true });
+		mkdirSync(foreign, { recursive: true });
+		t('🔴 ④a **共享父目录**里出现"并行段的活草稿" ⇒ **必须不报** ✓（判据已不依赖共享目录 ✓；旧写法下此格必红 ✓）',
+			newScratch(baseA).length === 0);
+		rmSync(foreign, { recursive: true, force: true });
+
+		// ④b **新世界**：往**本件自拥有的根**里造草稿 ⇒ **必须报** ✓
+		//   （证明"注入点跟着被测对象走了"✓ —— 否则 ④a 平凡通过、而真回归无人咬 ✗）
+		const baseB = scratchLeft();
+		const leak = join(OWNED_ROOT, '.equiv-run-LEAK');
+		mkdirSync(leak, { recursive: true });
+		t('🔴 ④b **本件自拥有的根**里出现草稿 ⇒ **必须报** ✓（证明判据读的就是传进去的那个根 ✓）',
+			newScratch(baseB).length === 1);
+		rmSync(leak, { recursive: true, force: true });
+	}
+
 	if (bad) { console.error(`\n✗ equiv-scratch 未通过（${bad} 项）`); rc = 1; }
 	else console.log('\n✔ equiv-scratch 通过：**中间目录唯一 ＋ 用完就清（含失败路径）** ✓ ＋ **幂等失败点名"文件／偏移／两侧片段"** ✓（`#976` ✓；它是**防御性**改动 ✗，不宣称修掉 `#973` 那次红 ✓）');
 } catch (e) {
@@ -135,5 +175,6 @@ try {
 	rc = 1;
 } finally {
 	rmSync(sandbox, { recursive: true, force: true });     // **临时区自己清** ✓（不许留垃圾 ✗）
+	rmSync(OWNED_ROOT, { recursive: true, force: true });   // `#1105`：**自拥有的 scratch 根也自己清** ✓（默认建在 tmpdir ✓）
 }
 process.exit(rc);

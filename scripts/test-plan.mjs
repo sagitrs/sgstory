@@ -656,11 +656,37 @@ export const suiteOf = (seg) => {
  * @returns {boolean} 该段**是否算被改动面命中**（未声明 ⇒ **恒 true** ✓）
  */
 export const inputsMatch = ({ declared = [], changed = [] } = {}) => {
-	if (!Array.isArray(declared) || declared.length === 0) return true;      // ← 安全默认：未声明 ⇒ 全跑型 ✓（**不是**"无依赖"✗）
+	if (!Array.isArray(declared) || declared.length === 0) return true;      // ← 安全默认：未声明 ⇒ 全跑型 ✓（**不是**「无依赖」✗）
+	if (declared.some((d) => String(d).replace(/\*+$/, '') === '')) return true;   // ← **全通配 ⇒ 恒命中** ✗（与「未声明」同口径 ✓）
 	return changed.some((f) => declared.some((d) => {
 		const base = String(d).replace(/\*+$/, '');
 		return f === d || (base && f.startsWith(base));
 	}));
+};
+
+/** `#1093` P2-d ④：**全通配**（`*`／`**`）的 `inputs` ⇒ **必须给出机器可读的理由 ＋ 票号** ✗ —— 不许只写注释 ✓（不可机检 ✗）。
+ *  ⚠️ 口径：判的是「**去掉 `*` 后为空**」✗（`*`、`**` 是；`src/**` 不是 ✓ —— 后者是真面 ✓）。
+ *  为什么 `['*']` 要管 ✗：它**等价「全跑型」** ✓ ⇒ 等于声明「本段不参与跳过」✓ ⇒ 那是**一次显式决定** ✓
+ *  （同 `FULL_REASONS` 的口径 ✓：降频／不跳过都要留痕 ✓）。
+ */
+export const INPUTS_WILDCARD_REASONS = {
+	'test-passages-assemble-mjs-selftest': {
+		reason: '本段读**自证夹具**（跑起来在 src 侧动态造件）＋ 被判件住的目录不止一个 ⇒ 静态面写不窄 ⇒ 取全通配（＝不参与跳过 ✓）',
+		voucher: '#1114',
+	},
+};   // 键＝段 id；值＝{ reason, voucher }（**缺任一项不生效** ✗）
+
+export const validateInputsWildcardReasons = (plan = SEGMENTS, { reasons = INPUTS_WILDCARD_REASONS } = {}) => {
+	const problems = [];
+	for (const s of plan) {
+		if (!Array.isArray(s.inputs) || !s.inputs.length) continue;
+		if (!s.inputs.some((d) => String(d).replace(/\*+$/, '') === '')) continue;
+		const r = reasons[s.id];
+		if (!r || !r.reason || !/^#\d+$/.test(String(r.voucher ?? ''))) {
+			problems.push(`\`${s.id}\` 的 inputs 含**全通配**（去掉 \`*\` 后为空 ⇒ 等价「全跑型」✗）⇒ 须在 \`INPUTS_WILDCARD_REASONS\` 给出**机器可读的理由 ＋ 票号** ✗（缺任一项不生效 ✓）`);
+		}
+	}
+	return problems;
 };
 
 export const UNDECLARED_INPUTS_BASELINE = 158;   // 2026-09-21 实测：当时**全部 158 段**都未声明 ✓

@@ -665,8 +665,14 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 
 		// ④ **生成物不许独改**（K4-④）：迁移期的"两处真相"守卫 —— 带 `@generated` 的 tracked twee 必须等于当场重编的字节。
 		//    只对**带标记**的文件生效（天然棘轮）；未翻面时**留痕打印**（"尚未翻面"是状态，不是"没问题"）。
-		const trackedFiles = execFileSync('git', ['ls-files', `stories/${slug}`], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n').filter(Boolean)
-			.map((rel) => [rel, readFileSync(join(ROOT, rel), 'utf8')]);
+		// `#1128`：被比集合从「git tracked」改为「**磁盘上存在的产物**」✓（产物移出 git 后 tracked 集变空 ⇒ 判据空转 ✗——
+		//    改扫磁盘：数据化故事的 data/*.json 编译出的产物名是确定的（build.mjs 消费面 ✓）⇒ 磁盘有即比 ✗ 磁盘无即建后比 ✓）。
+		//    ⚠️ **空转防护**（领队要求① ✓）：手改磁盘上的产物 ⇒ **红且点名** ✗（不是「文件在不在」代理 ✓）。
+		const genDir = join(storiesDir, slug, 'data');
+		const onDiskFiles = (existsSync(genDir) ? readdirSync(join(storiesDir, slug)) : [])
+			.filter((f) => /^(15-|17-|16-)/.test(f) && f.endsWith('.twee'))
+			.map((f) => [`stories/${slug}/${f}`, readFileSync(join(storiesDir, slug, f), 'utf8')]);
+		const trackedFiles = onDiskFiles;   // #1128 起被比集合=磁盘产物面 ✓（git 面已空——历史口径见 cases/票面 ✓）
 		const { marks, problems: staleProblems } = staleTrackedProblems(trackedFiles, fresh);
 		if (!marks) console.log(`  · ${slug}：**尚未翻面**（0 个带 \`@generated\` 的 tracked twee）⇒ K4-④ 本次无可判对象（这是**状态**，不是"没问题"）`);
 		else console.log(`  · ${slug}：K4-④ 已翻面文件 ${marks} 个 ⇒ 与当场重编产物逐字节比对`);

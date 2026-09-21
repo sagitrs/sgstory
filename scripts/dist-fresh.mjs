@@ -23,7 +23,7 @@ export const distState = ({ distPath = DIST_PATH, srcDir = SRC_DIR } = {}) => {
 	// #458 切片B：默认走**单一权威** `allSourceFiles()`（搬家后同时看 `src/**` 与 `stories/**`，
 	// 否则故事文件改动会被新鲜度守卫**静默漏掉** ✗）；显式传 `srcDir`（自证的合成目录）时按它枚举。
 	const files = srcDir === SRC_DIR
-		? allSourceFiles().map((p) => join(ROOT, p))
+		? allSourceFiles().filter((p) => !/\/1[567]-[^/]*\.twee$/.test(p)).map((p) => join(ROOT, p))   // `#1128`：产物不再是「源」（移出 git 后其 mtime 是运行时态——真源=data/*.json ✓）
 		: readdirSync(srcDir).filter((f) => f.endsWith('.twee')).map((f) => join(srcDir, f));
 	const newestSrc = Math.max(...files.map((f) => statSync(f).mtimeMs));
 	const distMtime = statSync(distPath).mtimeMs;

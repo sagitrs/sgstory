@@ -141,6 +141,26 @@ for (const s of stories) {
 	if (missing.length) { console.error(`✗ 拼装产物缺段：${missing.join('、')}（\`files\` 登记了但产物里没有 ⇒ 静默吞段 ✗）`); process.exit(1); }
 }
 
+// `#1114` 片 2b-2b-0 产物级断言：**拼装产物不得含该段的 front-matter 精确串** ✗。
+//   为什么必须有（评审指出：段名集合格**抓不到**这个）：若有人把“照收原样拼”改回来，
+//   md 原文被当正文拼入 ⇒ **段名仍在**（`:: 段名` 是拼接前的行首？——不：原文里是 `passage: 段名`）
+//   ⇒ 段名集合照样相等 ⇒ 静默通过 ⇒ 刚修好的病无声回归 ✓（“绿 ≠ 覆盖”）。
+//   ⚠️ 判据必须**带具体值** ✗：用 `'passage:'`／`^---$` 这种通用串会命中别的东西（引擎 API／分隔线）
+//   ⇒ 恒真、假读数 ✓（本片自纠过那一次）⇒ 这里用 `passage: <该段名>`（逐个 md 段 ✓）。
+for (const s of stories) {
+	const out = merges.get(s.slug) ?? '';
+	for (const f of scopedFiles(s).filter(isStoryPassageMd)) {
+		const { meta } = parseFrontMatter(readFileSync(f, 'utf8'));
+		const needles = [`passage: ${String(meta.passage ?? '').trim()}`];
+		if (String(meta.tags ?? '').trim()) needles.push(`tags: ${String(meta.tags).trim()}`);
+		const hit = needles.filter((n) => out.includes(n));
+		if (hit.length) {
+			console.error(`✗ ${f} 的 **front-matter 原文进了拼装产物**（命中：${hit.map((h) => `\`${h}\``).join('、')}）⇒ md 没经过拼装层（被当正文原样拼）✗ —— 这正是本片要根除的“build 绿、产物坏” ✓`);
+			process.exit(1);
+		}
+	}
+}
+
 // ── 字体子集化（霞鹜文楷 → dist/fonts 外链 + preload）────────────────
 // 收集**所有故事**的文本字符 + ASCII + 常用符号，子集化为 woff2 外链文件：
 // HTML 首访更小（去 base64 膨胀），复访字体走缓存；dist 目录自包含可离线。

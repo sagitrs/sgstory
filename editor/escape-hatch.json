@@ -8,7 +8,7 @@
 		{
 			"member": "overBudget",
 			"slug": "face-fixture",
-			"reason": "与 `mist-forest` 的那条**同形**（`#1004` B2b 把 `overBudget` 搬进夹具后，它是同一处例外）：`(pc?.star?.spent ?? 0) > Game.Star.budget` —— 值本身住声明面（`Game.Star.budget` ✓），但**严格 `>` 的比较**现有条件词汇表达不了（`Sg.rules.ops` 只有 `gte/lte/oneOf`），而 `budget` 是运行期字段 ⇒ 硬写 `budget+1` 会造第二份真源 ✗。⚠️ **本夹具条目与被删的 `mist-forest` 条目是同一处例外的搬家** ⇒ `mist-forest` 那条随故事删除应当**撤回**（已在本片报给发起者 ✓）。",
+			"reason": "与 `mist-forest` 的那条**同形**（`#1004` B2b 把 `overBudget` 搬进夹具后，它是同一处例外）：`(pc?.star?.spent ?? 0) > Game.Star.budget` —— 值本身住声明面（`Game.Star.budget` ✓），但**严格 `>` 的比较**现有条件词汇表达不了（`Sg.rules.ops` 只有 `gte/lte/oneOf`），而 `budget` 是运行期字段 ⇒ 硬写 `budget+1` 会造第二份真源 ✗。（`mist-forest` 那条已随故事删除**撤回**——`#1004` B 段收尾完成 ✓；本条是其例外的搬家，形态同源。）",
 			"ticket": "#1004"
 		}
 	],

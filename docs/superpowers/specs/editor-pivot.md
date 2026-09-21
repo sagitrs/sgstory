@@ -54,6 +54,11 @@
 
 ### 2.1 故事包目录（一个故事 ＝ 一个文件夹）
 
+> ⚠️ **§2.1 过期指针（`#1085` M11）**：本节的**散文格式／契约口子／`--rules` 判**已被 `docs/engine/` 细化并取代——
+> 散文＝**Markdown ＋ front-matter**（甲-1 裁定，非本节的 `.twee` 形态）；`events.json` 已废弃（条件直接住 `rules.json`）；
+> 「18 个口子」为当时读数（现按 `contract.json` 实件）；`--rules` 判**未实现**（见 `docs/engine/reference-spec.md` §3.0）。
+> **以 `docs/engine/` 为准**；本节技术边界与分期（§4/§5）仍有效。
+
 ```
 stories/<slug>/
   00-story.json        ← 清单（已存在！）：slug/title/entry/files/gates  ＋ 新增 contractVersion

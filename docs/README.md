@@ -15,6 +15,8 @@
 | 接一个新故事 | `docs/engine-story-boundary.md` | `docs/story2-contracts.md` · `docs/repo-map.md`（§二 层归属） |
 | 想知道表能不能放点击态写 | `docs/click-time-writes-design.md` | `docs/notes-model.md`（§已知边界） |
 | **数据模型**（角色状态 `pc` ＋ 袋外变量／五类分区／结算三条通道） | **`docs/engine/data-model.md`** | `docs/engine/decisions.md`（已裁／待裁台账） |
+| **手写一个故事包**（每类 JSON 放什么、字段逐个） | **`docs/engine/json/README.md`**（索引 · 最小集 · 编译链） | `json/` 下八份逐字段手册 · `docs/engine/authoring-model.md`（三层归位） |
+| **写作形态**（MD 放什么／JSON 放什么／条件与计算写在哪） | **`docs/engine/authoring-model.md`** | `docs/engine/reference-spec.md`（判据 J1–J3 · 词汇面） |
 | 查历史 / 作废稿（含已删故事 1 的设定·设计·实施三件套，`#1077`） | `docs/archive/README.md` | — |
 
 ## 二、权威表（谁说话算数）
@@ -67,6 +69,9 @@
 | `docs/engine/README.md` | 42 | **设计稿·待评审** | `docs/engine` 索引：本期（论证层）读序 ＋ 与既有权威的关系 |
 | `docs/engine/data-model.md` | 146 | **设计稿·待评审** | 数据模型：角色状态 `pc` ＋ 袋外变量 · 五类分区 · 结算三条通道（含为何声明面只有三格且必须幂等） |
 | `docs/engine/decisions.md` | 52 | 台账 | 裁定状态栏：已裁（9 条）／本稿主张（待裁 5 条）／待定（7 条） |
+| `docs/engine/authoring-model.md` | 122 | **设计稿·待评审** | 写作模型：MD／JSON／条件与计算三层归位（`#1085` 格式层） |
+| `docs/engine/reference-spec.md` | 124 | **设计稿·待评审** | 条件行参考形状 · 词汇面 · 判据 J1–J3（J3 未实现如实标注） |
+| `docs/engine/json/` 下 9 份 | — | **手册** | 故事包逐文件手写手册（`#1085`；索引见 `docs/engine/json/README.md`） |
 | `docs/archive/` | 13 份 | 作废 | 禁止回流；对照表见 `docs/archive/README.md`（含故事 1 三件套：设定书／设计蓝本／实施图，`#1077`） |
 | `docs/reviews/` | 7 份 | 存档 | 走查/评审流程记录（非权威）；见 `docs/reviews/README.md` |
 

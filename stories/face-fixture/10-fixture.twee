@@ -123,7 +123,7 @@ window.Game.Chargen = {
 :: 森林边缘
 /% payload: 张力 %/
 雾贴着地面走。雾里那点动静响过几次，你分得清它从哪边来。
-<<if $pc.world.fog_thin>>雾比上回薄了一层——林子里的声音听得清楚了些。<</if>>
+<<rules "森林边缘">>
 <<lastcheckFor "森林·察觉">>
 <<link "在雾里站住，听一听">><<sitecheck "森林·察觉">><<goto "森林边缘">><</link>>
 [[走进山脚的洞穴|洞穴]]｜[[回酒馆|酒馆]]
@@ -147,9 +147,7 @@ window.Game.Chargen = {
 :: 门厅
 /% payload: 选择 %/
 门厅里只有一根空钉。
-<<if not $pc.world.whistle_taken>>
-<<link "把墙上那支哨子摘下来">><<sitecheck "门厅·看钉">><<set $pc.world.whistle_taken to true>><<give "坏哨">><<goto "门厅">><</link>>
-<</if>>
+<<rules "门厅">>
 [[看钉|门厅·看钉]]｜[[继续往塔那边走|塔外花田]]｜[[往林子深处走|森林边缘]]｜[[回酒馆|酒馆]]
 
 :: 门厅·看钉
@@ -162,12 +160,8 @@ window.Game.Chargen = {
 :: 塔外花田
 /% payload: 选择 %/
 墙根那片花是白的。
-<<lastcheckFor "塔外花田">>   /% `#1004` B2b：补**复显行**（同上 ✓）—— `<<if>>` **之外**（无条件渲染 ✓）：摘过花之后再进本段也要看得到上一次的检定框 ✓ %/
-<<if not $pc.world.flower_taken>>
-<<link "伸手去摘最靠里的那一朵">><<sitecheck "塔外花田">><<set $pc.world.flower_taken to true>><<give "月光花">><<goto "塔外花田">><</link>>
-<<else>>
-墙根那一片里，最靠里的那一朵已经没了——你从这里摘过一朵（已经摘过一朵了）。
-<</if>>
+<<lastcheckFor "塔外花田">>
+<<rules "塔外花田">>
 [[塔基墙根那片花|塔外花田]]｜[[回门厅|门厅]]｜[[回酒馆|酒馆]]
 
 :: 守林人
@@ -192,16 +186,14 @@ window.Game.Chargen = {
 :: 老巫女
 /% payload: 选择 %/
 过去侧的老巫女把手拢在袖子里。
-<<link "听她把话说完">><<note "n_old_witch">><<set $pc.ev.old_witch to true>><<goto "老巫女">><</link>>
-<<if Sg.notes.has('n_failure_cause') and ($pc.ev.seer_asked or $pc.ev.coord)>>
-[[缺的那一句话，是谁没说完|地下宴会厅]]
-<</if>>
+<<link "听她把话说完">><<note "n_old_witch">><<setflag "ev.old_witch">><<goto "老巫女">><</link>>
+<<rules "老巫女">>
 [[回酒馆|酒馆]]
 
 :: 观星者
 /% payload: 信息 %/
 他抬头看了一会儿。
-<<link "问他图在哪里">><<set $pc.ev.seer_asked to true>><<set $pc.ev.coord to true>><<goto "观星者">><</link>>
+<<link "问他图在哪里">><<setflag "ev.seer_asked">><<setflag "ev.coord">><<goto "观星者">><</link>>
 [[回酒馆|酒馆]]
 
 :: 地下宴会厅
@@ -224,7 +216,6 @@ window.Game.Chargen = {
 :: 塔门
 /% payload: 选择 %/
 门是虚掩的。
-<<if $pc.hp lte 0>><<goto "结局 死亡">><</if>>
 [[推门进去|地下宴会厅]]｜[[回酒馆|酒馆]]
 
 :: 封印·并肩

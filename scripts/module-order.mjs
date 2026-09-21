@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
+import { isTransientFixture } from './lib/untracked-guard.mjs';   // `#1130` ④′：**临时夹具不算**（并行段运行期自造 ✓ 同 untracked-guard 口径 ✓）
 import { join } from 'node:path';
 
 /** 仓库根（`scripts/` 的上一级）——`allSourceFiles()` 用（#458 切片B）。 */
@@ -207,6 +208,8 @@ export const checkModuleGraph = (sources, { order = ORDER, modules = MODULES, ma
 
 	// ① `#893` 第三步：**两层登记**（走单一权威 ✓ —— 与 `build.mjs`／`move-precheck.mjs` 同一把尺 ✓）
 	failures.push(...checkRegistration({ sources, order, modules, manifests }));
+	// `#1130` ④′：**stories 下 json 的角色**（additive ✓ 不动既有判据 ✓）
+	failures.push(...storyJsonRoleProblems());
 
 	// ② 依赖边必须指向**更早**的模块（这是本 lint 的核心）
 	const idx = new Map(order.map((n, i) => [n, i]));
@@ -419,7 +422,43 @@ export const SOURCE_ROOTS = ['src', 'stories'];
 //   也收进来 ✗ —— 而本函数是**源面单一权威**、`dist-fresh` 也读它 ⇒ 误收即源面污染 ✓）。
 //   ⚠️ 本谓词是**唯一一份定义** ✓（另一处 import 它 ✗ —— 两份逐字相同的副本会漂 ✓，已有自证格钉住）。
 export const isStoryPassageMd = (rel) => /^stories\/[^/]+\/passages\/.*\.md$/.test(String(rel));
-export const allSourceFiles = (roots = SOURCE_ROOTS) => {
+/** `#1130`：**故事真源**（`stories/<slug>/data/` 下的 json）—— 是否进**源集合**由参数决定 ✓（见 `allSourceFiles`）。 */
+/** `#1130` ④′：**stories 下 json 的允许角色**（**封闭集** ✓）——
+ *  `00-story.json`（清单 ✓）／`audit.json`（审计声明面 ✓）／`data/` 下（内容真源 ✓）／`gates/` 下（门的夹具与基线 ✓）。
+ *
+ *  ⚠️ 为什么要有这一格 ✗：`checkRegistration` 只遍历**默认源面**（twee ＋ md ✓）⇒ `stories/<x>/*.json` **根本不在它的输入里** ✓
+ *    ⇒ ∴ 本格**自己枚举 json 面** ✓（这是**新谓词面**"json 住在哪"✓ —— 不是第二份**源集合**枚举 ✓，与"同一权威"不冲突 ✓）
+ *  ⚠️ **将来有人加第五类角色 ⇒ 本格会红一次** ✗ ⇒ **那正是设计** ✓：
+ *    白名单是**封闭集** ⇒ 新角色必须**有意识地登记**（改这里的谓词 ＋ 票面写明 ✓）⇒ **误红＝护栏在工作，不是误报** ✓。
+ */
+export const isStoryJsonAllowedRole = (rel) => [isStoryDataJson, (r) => /^stories\/[^/]+\/00-story\.json$/.test(String(r)),
+	(r) => /^stories\/[^/]+\/audit\.json$/.test(String(r)), (r) => /^stories\/[^/]+\/gates\/.*\.json$/.test(String(r))]
+	.some((p) => p(rel));
+
+/** 枚举 `stories/` 下的全部 json（**只看磁盘** ✓ 与 `allSourceFiles` 同风格）。 */
+export const storyJsonFiles = (dir = 'stories') => {
+	const out = [];
+	const walk = (rel) => {
+		let ents = [];
+		try { ents = readdirSync(join(ROOT, rel), { withFileTypes: true }); } catch { return; }
+		for (const e of ents) {
+			const r = `${rel}/${e.name}`;
+			if (e.isDirectory()) { if (!/^(node_modules|\.)/.test(e.name)) walk(r); continue; }
+			if (e.name.endsWith('.json')) out.push(r);
+			// `#1130` ④′：**并行段运行期自造的临时夹具不算** ✗（否则会把别人正在写的夹具读成违规 ⇒ 并发假红 ✓）
+			if (isTransientFixture(r)) out.pop();
+		}
+	};
+	walk(dir);
+	return out.sort();
+};
+
+/** 判据（**纯函数 ＋ 注入** ✓ ⇒ 自证能喂假事实 ✓）。 */
+export const storyJsonRoleProblems = ({ files = storyJsonFiles(), allowed = isStoryJsonAllowedRole } = {}) => files
+	.filter((f) => !allowed(f))
+	.map((f) => ({ code: 'json-unknown-role', msg: `${f} 的 json **不在允许的四种角色里** ✗（只允许 \`00-story.json\`／\`audit.json\`／\`data/\` 下／\`gates/\` 下 ✓）⇒ 新角色须**有意识地登记**（改判据 ＋ 票面写明 ✓）` }));
+export const isStoryDataJson = (rel) => /^stories\/[^/]+\/data\/.*\.json$/.test(String(rel));
+export const allSourceFiles = (roots = SOURCE_ROOTS, { withStoryData = false } = {}) => {
 	const out = [];
 	const walk = (rel) => {
 		const abs = join(ROOT, rel);
@@ -427,7 +466,8 @@ export const allSourceFiles = (roots = SOURCE_ROOTS) => {
 		for (const e of readdirSync(abs, { withFileTypes: true })) {
 			const r = `${rel}/${e.name}`;
 			if (e.isDirectory()) { if (!/^(node_modules|\.)/.test(e.name)) walk(r); continue; }
-			if (e.name.endsWith('.twee') || isStoryPassageMd(r)) out.push(r);
+			const isData = withStoryData && isStoryDataJson(r);   // `#1130`：data json 只在**显式要求**时进面 ✓
+			if (e.name.endsWith('.twee') || isStoryPassageMd(r) || isData) out.push(r);
 		}
 	};
 	for (const r of roots) walk(r);

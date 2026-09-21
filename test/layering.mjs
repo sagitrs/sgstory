@@ -15,6 +15,7 @@
 
 import { requireManifests, checkModuleGraph, ORDER, MODULES, readModules, checkLayerDirection, LAYER_OF, STORY_SYMBOLS, normalizeSymbolRefs, checkEngineRanks, rankOfPath, storyManifests } from '../scripts/module-order.mjs';
 import { selftest as distFreshSelftest } from '../scripts/dist-fresh.mjs';
+import { storyJsonRoleProblems } from '../scripts/module-order.mjs';   // `#1130` ④′：json 角色格
 
 const check = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) failures++; };
 let failures = 0;
@@ -22,6 +23,13 @@ let bad = 0;   // 自证计数器（模块级：t() 在任何作用域调用都�
 const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
 
 if (process.argv.includes('--selftest')) {
+	// `#1130` ④′：**stories 下 json 的角色**（**封闭集** ✓ —— 第五类会红一次 ⇒ 迫使有意识登记 ✓ 误红＝护栏在工作 ✓）
+	t('json 角色·基线：树上 json 全部落在允许的四类里 ⇒ **0 违规** ✓', storyJsonRoleProblems().length === 0);
+	t('json 角色·**能假**：白名单外的 json ⇒ 必报且**点名角色** ✓',
+		(() => { const p = storyJsonRoleProblems({ files: ['stories/x/notes.json'] }); return p.length === 1 && /四种角色/.test(p[0].msg); })());
+	t('json 角色·四类**各自**被允许（`00-story`／`audit`／`data/`／`gates/`）⇒ 逐类 0 违规 ✓',
+		(() => { const ok = ['stories/s/00-story.json', 'stories/s/audit.json', 'stories/s/data/a.json', 'stories/s/gates/b.json'];
+			return storyJsonRoleProblems({ files: ok }).length === 0; })());
 	// ⚠️ 合成输入的用例**必须显式给 `manifests`** ✗ —— `#899` ① 后**没有默认值**了 ✓（不给 ⇒ 点名抛错 ✓），
 	//   旧口径则会把**真清单**从盘上带进来
 	// ⇒ 报一堆 `missing-manifest-file`（**实测踩过** ✓：命中 27／28 ⇒ 用例“期望 0”全红 ✗）。

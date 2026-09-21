@@ -31,6 +31,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';                       // `#1051`②：枚举改走 `git ls-files`（已入库面 ✓）
 import { untrackedScannedProblems, isTransientFixture } from '../scripts/lib/untracked-guard.mjs';   // `#1089` 共用助手（不另造形态 ✓）
+import { maskComments } from '../editor/lib/core/mask.mjs';   // `#1048`：{{}} 判据先剥注释（留痕不罚 ✓）
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '');
 const STORIES = join(ROOT, 'stories');
@@ -42,6 +43,55 @@ export const FORBIDDEN_BUILTINS = new Set(['if', 'elseif', 'else', 'set', 'for',
 export const ALLOWED_BUILTINS = new Set(['back']);
 
 /** 从引擎源码抽"词汇表"（`<<widget "x">>` ∪ `Macro.add('x')`）。**纯函数**（便于自证）。 */
+
+/** `#1048`：**取值词汇命名空间**（裁定甲-1：两源并集 ✓——领队评论 5755635491）。
+ * ① contract 成员 ∩ 值语义 kind（const/state-ref/identity-string ✓——容器/空/null/查表默认排除 ✗）
+ * ② 引擎派生标签（VALUE_LABELS 常量表 ✓）
+ * ⚠️ **单一权威**：#1114 拼装层**消费同一函数**（不许各算一份 ✗——门放行/拼装不认 ⇒ 静默漏值 ✗）。 */
+export const VALUE_KINDS = new Set(['const', 'state-ref', 'identity-string']);   // 排除侧理由：template/lookup/bool-exists/game-ref 等产值但取值语义待逐条显式列入（裁定：「不许整类放开 ✗」——将来正文需 {{某模板名}} ⇒ 逐条加 VALUE_KINDS+理由 ✓）
+export const valueTerms = ({ contract = { members: [] }, labels = [] } = {}) =>
+	new Set([...(contract.members ?? []).filter((m) => VALUE_KINDS.has(m?.kind)).map((m) => m.name), ...labels]);
+
+/** `#1048`：从引擎源抽 `VALUE_LABELS` 常量表（对账面 ✓）。**纯函数**。 */
+export const engineLabels = (sources = []) => {
+	const out = new Set();
+	for (const text of sources) {
+		const m = /VALUE_LABELS:\s*Object\.freeze\(\[([^\]]*)\]\)/.exec(String(text));
+		if (m) for (const x of m[1].matchAll(/['"]([A-Za-z0-9_-]+)['"]/g)) out.add(x[1]);
+	}
+	return [...out].sort();
+};
+
+/** `#1048`：扫全 `src/**` 的 `*Label` 键形态（⚠️ 今日恰 3 处=真 pc 字段；将来非 pc 的 `fooLabel:` 也会被对账——口径如实 ✗）。对账：未登记 VALUE_LABELS ⇒ 红 ✓。**纯函数**。 */
+export const pcLabelFields = (sources = []) => {
+	const out = new Set();
+	for (const text of sources) {
+		for (const m of String(text).matchAll(/(\w+Label)\s*:/g)) out.add(m[1]);
+	}
+	return [...out].sort();
+};
+
+/** `#1048`：{{名字}} 判据 —— 未声明即红＋替换建议（候选最近名 ✓）。**纯函数**。 */
+export const valueRefProblems = ({ files = [], terms = new Set() } = {}) => {
+	const out = [];
+	for (const f of files) {
+		const text = maskComments(f.text ?? '', { file: f.path, twee: false });
+		for (const m of text.matchAll(/\{\{([^{}\s]+)\}\}/g)) {
+			const name = m[1];
+			if (terms.has(name)) continue;
+			// 最近候选（编辑距离粗版：共同前缀最长者）
+			let best = '', bl = -1;
+			for (const t of terms) {
+				let l = 0; while (l < name.length && l < t.length && name[l] === t[l]) l++;
+				if (l > bl) { bl = l; best = t; }
+			}
+			out.push({ code: 'V1', path: f.path, name, hint: best
+				? `未声明的取值名 \`\${${name}}\` —— 最近候选 \`\${${best}}\`（若为此意请改用）；若是容器/状态变更 ⇒ 走具名动作宏或 data/*.json，不放正文（#1036 甲）`
+				: `未声明的取值名 \`\${${name}}\` —— 取值名须在声明面（contract 值语义成员 ∪ VALUE_LABELS；#1048）` });
+		}
+	}
+	return out;
+};
 export const engineVocab = (sources = []) => {
 	const out = new Set();
 	for (const text of sources) {
@@ -173,12 +223,16 @@ const selftest = () => {
 		proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'p.twee', text: ':: W [widget]\n<<widget "z">><<set $x to 1>><</widget>>\n' }] }).length === 0);
 	t('边界：正文里**没有宏** ⇒ 0 问题', proseVocabProblems({ slug: 'demo', vocab, files: mk('只有散文。') }).length === 0);
 
-	if (bad) { console.error(`\n✗ 词汇门自证失败 ${bad} 项`); process.exit(1); }
 	// `#1051`②：**枚举口径**（成对 ✓ —— 改前/改后行为都要能判）
 	t('🔴 枚举：`00-meta2.twee` 在树上、不在清单 ⇒ **报**（旧口径会把它当**正文**判 ✗）',
 		undeclaredStoryFiles({ declared: ['stories/x/00-meta.twee'], onDisk: ['stories/x/00-meta.twee', 'stories/x/00-meta2.twee'] }).length === 1);
 	t('枚举·正例：全在清单里 ⇒ **不报**（不误咬 ✓）',
 		undeclaredStoryFiles({ declared: ['stories/x/a.twee'], onDisk: ['stories/x/a.twee'] }).length === 0);
+	t('🔴 #1048 反例：未声明取值名 {{foo}} ⇒ 报 V1 且含替换建议（最近候选）', valueRefProblems({ files: [{ path: 'x.twee', text: '见 {{foo}}' }], terms: new Set(['hasChargen', 'fooBar']) }).some((x) => x.code === 'V1' && x.hint.includes('fooBar'))),
+	t('#1048 正例：已声明取值名 ⇒ 不报', valueRefProblems({ files: [{ path: 'x.twee', text: '见 {{hasChargen}}' }], terms: new Set(['hasChargen']) }).length === 0),
+	t('#1048 边界：注释跨度里的 {{}} ⇒ 剥注释不罚（留痕优先）', valueRefProblems({ files: [{ path: 'x.twee', text: '/* 历史 {{oldName}} */' }], terms: new Set() }).length === 0),
+	t('#1048：valueTerms 并集（值语义 kind ∪ labels）', (() => { const t1 = valueTerms({ contract: { members: [{ name: 'a', kind: 'const' }, { name: 'b', kind: 'empty-object' }] }, labels: ['classLabel'] }); return t1.has('a') && t1.has('classLabel') && !t1.has('b'); })()),
+	t('🔴 #1048 反例：pc 有 Label 字段但 VALUE_LABELS 未登记 ⇒ 报 V2（对账能假）', pcLabelFields(['x: "", newLabel: ""']).includes('newLabel') && !engineLabels(['VALUE_LABELS: Object.freeze([\'classLabel\'])']).includes('newLabel')),
 	t('枚举·边界：**非 `.twee`** 的未登记件 ⇒ 不归本门（只判 `.twee` ✓）',
 		undeclaredStoryFiles({ declared: [], onDisk: ['stories/x/README.md'] }).length === 0);
 	t('🔴 元数据件：含 `:: StoryData` ⇒ **判为元数据**（不判 ✓）', isMetadataTwee(':: StoryTitle\n夜渡\n\n:: StoryData\n{}') === true);
@@ -188,6 +242,7 @@ const selftest = () => {
 		untrackedScannedProblems({ untracked: ['src/99-new.twee'], isScanned: (f) => f.endsWith('.twee') }).problems.length === 1);
 	t('未跟踪·临时夹具 ⇒ **不算"忘了 add"**（并发段运行期自造 ✓ 不误咬 ✓）',
 		untrackedScannedProblems({ untracked: ['stories/x/__e2e.twee'], isScanned: (f) => f.endsWith('.twee') }).problems.length === 0);
+	if (bad) { console.error(`\n✗ 词汇门自证失败 ${bad} 项`); process.exit(1); }   // `#1124` 评审阻断修：所有格先跑完再判退（格红进退出码 ✓）
 	console.log('\n✔ 自证通过（词汇抽取 ＋ 允许面 ＋ 逻辑/表达式/未宣告三类反例 ＋ 注释/段落豁免）');
 	process.exit(0);
 };
@@ -204,6 +259,7 @@ const stories = trackedIn('stories').map((f) => /^stories\/([^/]+)\/00-story\.js
 let problems = [];
 let exempt = [];
 const judgedSlugs = [];
+const allJudgedFiles = [];
 for (const slug of stories) {
 	const story = JSON.parse(readFileSync(join(STORIES, slug, '00-story.json'), 'utf8'));
 	// `#1051`②：**以清单为准**（单一权威 ✓）——不再用 `readdirSync` 现扫 ✗。
@@ -222,7 +278,7 @@ for (const slug of stories) {
 	// ⚠️ **缺 `audience` ⇒ 按 content 判**（不静默放过）：`audience` 由 `#1035` 显式声明引入；
 	//   缺字段时若按"豁免"处理，本门在 `#1035` 落地前会**成为空判**（正是本仓最忌讳的形态 ✗）。
 	const judged = story.audience !== 'internal';
-	if (judged) { judgedSlugs.push(slug); problems = problems.concat(proseVocabProblems({ slug, files, vocab })); }
+	if (judged) { judgedSlugs.push(slug); problems = problems.concat(proseVocabProblems({ slug, files, vocab })); allJudgedFiles.push(...files); }
 	else exempt.push(slug);
 }
 // `#1051`②：**未跟踪件 ⇒ 提醒**（与 `#1045`／`#1046`／`#1089` 同款 ✓ —— 不静默跳过 ✗）。
@@ -234,6 +290,17 @@ for (const slug of stories) {
 		untracked, isScanned: (f) => f.endsWith('.twee'), isTransient: isTransientFixture,
 	});
 	for (const m of uProbs) problems.push({ code: 'U1', msg: m });
+
+	for (const sl of judgedSlugs) {
+		const contractPath = join(STORIES, sl, 'data', 'contract.json');
+		const contract = existsSync(contractPath) ? JSON.parse(readFileSync(contractPath, 'utf8')) : { members: [] };
+		const labels = engineLabels(vocabFiles.map((f) => readFileSync(join(ROOT, f), 'utf8')));
+		const pcL = pcLabelFields(vocabFiles.map((f) => readFileSync(join(ROOT, f), 'utf8')));
+		for (const l of pcL) if (/Label$/.test(l) && !labels.includes(l))
+			problems.push({ code: 'V2', msg: '引擎 pc 字段 `' + l + '` 是 Label 形态但未登记 VALUE_LABELS（src/10-core.twee 常量表——对账破了）' });
+		const vProbs = valueRefProblems({ files: allJudgedFiles.filter((f) => f.path.startsWith(`stories/${sl}/`)), terms: valueTerms({ contract, labels }) });
+		for (const vp of vProbs) problems.push({ code: vp.code, msg: vp.path + ': ' + vp.hint });
+	}
 	if (unscanned.length) console.error(`○ 未跟踪（本次未扫，共 ${unscanned.length} 件）：${unscanned.join('、')}`);
 }
 

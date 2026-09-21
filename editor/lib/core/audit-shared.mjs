@@ -29,6 +29,30 @@ import { maskComments } from './mask.mjs';
 
 /** **前缀键**（`inv:`／`era:`／`gear:`，`#624` 片四加最后一个）的**单一权威**：它们不是状态键（持有物/时代/行囊都不在 `pc.ev`/`pc.world` 域）⇒ 不参与状态契约与旗标分级；求值在引擎 `Sg.rules.holds()`。 */
 export const KEY_PREFIX_RE = /^(?:inv|era|gear):/;
+
+// `#1156`：**可读键形的单一权威** —— 与引擎 `Sg.rules.readKey`（`src/engine/40-sim/21-resolve.twee`）的
+// 分支族**逐支对应**（真源在引擎 ✓ 本函数是它的**族分类镜像**；两者由**成对断言**锁住 ⇒ 不再各写一份漂移 ✗）。
+// ⚠️ **返回"族名"而不是布尔** ✗：布尔会把族信息压掉 ⇒ 消费者无法保留各自语义 ——
+//   最要紧的一例：`inv:`／`era:`／`gear:` 与 `codex:` **都"可读"**，但前者**不进状态契约**（值在 pc.inv／Era／gear）
+//   而后者**算读点**（存档面谓词 ⇒ `declCondRefs` 收它）⇒ **"可读"与"进哪面"是两个问法** ✓（`#1132` 块 1 的注释所指）。
+// 族名与引擎分支一一对应：
+//   `note`   ← `k.startsWith('n_')`            ⇒ `Sg.notes.has`
+//   `inv`／`era`／`gear` ← `/^(inv|era|gear):(.+)$/`（引擎**一支三族** ⇒ 这里**展开**成三族 ✓）
+//   `codex`  ← `/^codex:(.+)$/`                ⇒ `Sg.Codex.seenFinal()`
+//   `pc`     ← `k.startsWith('pc.')`           ⇒ `readPath(pc, k.slice(3))`（**显式根**）
+//   `dotted` ← 含点（引擎 `k.includes('.')`）   ⇒ `readPath(pc, k)`
+//   `bare`   ← 其余（引擎 `readPath(pc, \`ev.${k}\`)`）⇒ 默认 `ev.` 域
+// 不可读 ⇒ `null`（消费者要布尔时内联 `readKeyFamily(k) !== null` ✓ 不是第二个函数 ✗）。
+export const readKeyFamily = (key) => {
+	const k = String(key);
+	if (k.startsWith('n_')) return 'note';
+	const m = /^(inv|era|gear):(.+)$/.exec(k);
+	if (m) return m[1];                                                    // 一支三族 ⇒ 展开 ✓
+	if (/^codex:[a-z_]\w*$/.test(k)) return 'codex';
+	if (k.startsWith('pc.')) return 'pc';
+	if (k.includes('.')) return 'dotted';
+	return 'bare';
+};
 // ── 读点形态（与写点同一处权威；`#436` 原范围 1）────────────────────────────
 // 三种写法：`$pc.ev.x`（正文/宏）、`pc.ev.x`（裸 JS，如表内函数体）、`p.ev?.x`（表内谓词）。
 // **读点必须排除写行**（同一行里出现 `.ev.x =` / `.ev.x to`）——否则"写了没人读"会被算成读过
@@ -58,13 +82,14 @@ export const declCondRefs = (text) => {
 	for (const m of line.matchAll(new RegExp(DECL_COND_RE.source, 'g'))) {
 		for (const q of m[1].matchAll(/'([^']+)'/g)) {
 			const k = q[1];
-			if (k.startsWith('n_')) { notes.push(k); continue; }
-			if (/^(inv|era|gear):/.test(k)) continue;                 // 前缀键：不在状态契约域（与 ruleRowKeys 同口径）
-			// `#1132` 块 1：**`codex:` 算"读点"** ✓ —— 它在条件行出现＝页面**读了**它（值来自存档面、无写点 ✓
-			//   与 `inv:` 同族）⇒ 进 `states`；⚠️ **只加 `codex:`**（一行 ✓ 乙′）—— 其余前缀行为一字不变 ✓。
-			//   ⚠️ 与 `ruleRowKeys`（状态契约面）的"前缀键跳过"**不是同一件事** ✗：那边判"是不是状态键"，
-			//   这边判"有没有被读" ✓（`codex:` 是"被读但不是状态键"⇒ 两边结论不同是**正当**的 ✓）。
-			if (/^codex:[a-z_]\w*$/.test(k)) { states.push(k); continue; }
+			// `#1156`：**族判定走单一权威** `readKeyFamily` ✓（引擎 `readKey` 的镜像 ⇒ 成对断言锁住 ✓）；
+			//   ⚠️ 各族在此处的**去留语义原样保留** ✗（"可读" ≠ "进状态契约" ✓）：
+			//   `note` ⇒ notes ｜ `inv/era/gear` ⇒ **跳过**（不在状态契约域 ✓ 与 `ruleRowKeys` 同口径）
+			//   ｜ `codex` ⇒ **进 states**（被读但不是状态键 ✓ `#1132` 块 1）｜ `pc/dotted` ⇒ 进 states（剥根 ✓）。
+			const fam = readKeyFamily(k);
+			if (fam === 'note') { notes.push(k); continue; }
+			if (fam === 'inv' || fam === 'era' || fam === 'gear') continue;
+			if (fam === 'codex') { states.push(k); continue; }
 			// 归一化：**显式根 ⇒ 裸键**（与 `mergeByBare()`／`ruleRowKeys()` 同一口径；两处不一致过一次：
 			// 不剥 `pc.` 会把 `pc.gold` 报成未登记的新键、逼出第二种命名形状）。点分**非**根键原样保留。
 			if (/^[a-z_]\w*(\.[a-z_]\w*)+$/.test(k)) states.push(k.replace(/^(?:pc|ev|world)\./, ''));

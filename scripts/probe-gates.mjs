@@ -22,6 +22,7 @@
  * —— `targetSha` 让台账能判**新鲜度** ✓（被测件改了 ⇒ 台账不再显示 `✅` ✗ ⇒ 不会拿旧读数充数 ✓）。
  */
 import { readFileSync, writeFileSync, existsSync, mkdirSync, statSync, utimesSync } from 'node:fs';   // `#1012`：加 `statSync`／`utimesSync`（还原时保时间戳 ✓）
+import { ensureParent } from './lib/ensure-parent.mjs';   // `#1093` P2-d：写前建父目录（共用助手 ✓）
 import { dirname } from 'node:path';
 import { execSync, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
@@ -292,7 +293,7 @@ for (const r of results) {
 // 复核留（**MAJOR** ✗，实测 ✓）：干净树**没有 build/**（它在 .gitignore 里 ✓，唯一创建者是 `build.mjs` ✓）
 //   ⇒ 直接写记录 ⇒ ENOENT ⇒ rc=1 ✗ —— 而 CI 因 `test-plan.mjs` 的 `needs:['build-mjs']` **不受影响** ✗
 //   ⇒ 只在「单跑／新树」暴露 ✓（票面又把它列为**可复跑读数** ✗ ⇒ 照抄必崩 ✓）。正形 ✓：落点**自己建** ✓，不许以 ENOENT 的形式出现 ✗。
-mkdirSync(dirname(RECORD), { recursive: true });
+ensureParent(RECORD);   // `#1093` P2-d：走共用助手 ✓（不新造形态 ✗）
 writeFileSync(RECORD, JSON.stringify({ mode, probes: results }, null, '\t') + '\n');
 const uncovered = PROBES.filter((p) => !selected.includes(p)).map((p) => p.id);
 console.log(`\n读数 ⇒ ${RECORD}（**不入仓** ✗）｜ 本轮未探: ${uncovered.length} 条${uncovered.length ? '＝' + uncovered.join(', ') : ''}`);

@@ -22,6 +22,7 @@
 // 前置：**先 `npm run build`**（`test/boot.mjs` 会断言产物新鲜度——基准旧了，结果是假红/假绿）。
 //   node scripts/report-polarity-gap.mjs --selftest           # 自证（纯函数；反例必须红）
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
+import { ensureParent } from './lib/ensure-parent.mjs';   // `#1093` P2-d：写前建父目录（共用助手 ✓）
 import { dirname, join } from 'node:path';
 import { ROOT, DEFAULT_SLUG } from './dist-paths.mjs';
 import { pathToFileURL } from 'node:url';
@@ -133,7 +134,7 @@ const walkerCells = new Set(readJson(join(ROOT, 'build/coverage-walker.json'), {
 const matrixPath = join(ROOT, 'stories', slug, 'matrix.json');
 const promised = existsSync(matrixPath) ? (JSON.parse(readFileSync(matrixPath, 'utf8')).promised ?? []) : [];
 const md = renderReport({ sites, obs, runs, failedRuns, visitedPassages, scVisited, scCells, walkerCells, promised });
-mkdirSync(dirname(join(ROOT, OUT)), { recursive: true });
+ensureParent(join(ROOT, OUT));   // `#1093` P2-d：走共用助手 ✓（不新造形态 ✗）
 writeFileSync(join(ROOT, OUT), md);
 const { both, one, none, uniq } = tallyPolarity(sites, obs);
 console.log(`   站点 ${uniq.length} ⇒ 两态 ${both.length} · 单态 ${one.length} · 未观测 ${none.length}（观测 ${runs} 局，失败 ${failedRuns}）`);

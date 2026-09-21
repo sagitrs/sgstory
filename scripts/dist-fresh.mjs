@@ -27,7 +27,9 @@ export const distState = ({ distPath = DIST_PATH, srcDir = SRC_DIR } = {}) => {
 		: readdirSync(srcDir).filter((f) => f.endsWith('.twee')).map((f) => join(srcDir, f));
 	const newestSrc = Math.max(...files.map((f) => statSync(f).mtimeMs));
 	const distMtime = statSync(distPath).mtimeMs;
-	return { exists: true, fresh: distMtime >= newestSrc, newestSrc, distMtime };
+	// `#1130`：**点名**比 dist 新的源件 ✓（前 10，按新→旧）——本来只报"旧了"不说是谁 ✗ ⇒ CI 上没法查 ✓
+	const newer = files.map((f) => ({ f, m: statSync(f).mtimeMs })).filter((x) => x.m > distMtime).sort((a, b) => b.m - a.m).slice(0, 10);
+	return { exists: true, fresh: distMtime >= newestSrc, newestSrc, distMtime, newer };
 };
 
 export const assertFreshDist = ({ distPath = DIST_PATH, srcDir = SRC_DIR, who = '本脚本' } = {}) => {
@@ -36,7 +38,7 @@ export const assertFreshDist = ({ distPath = DIST_PATH, srcDir = SRC_DIR, who = 
 		throw new Error(`找不到 dist/index.html——先跑 \`npm run build\`（${who}要检查构建产物；缺产物时静默跳过＝假绿）`);
 	}
 	if (!st.fresh) {
-		throw new Error('dist/index.html 比 src/*.twee 旧——先跑 `npm run build`（否则断言基于旧游戏，结果是假红/假绿）');
+		throw new Error('dist/index.html 比 src/*.twee 旧——先跑 `npm run build`（否则断言基于旧游戏，结果是假红/假绿）' + (st.newer ?? []).map((x) => `\n    · ${x.f}（${new Date(x.m).toISOString()} > dist ${new Date(st.distMtime).toISOString()}）`).join(''));
 	}
 	return st;
 };

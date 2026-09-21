@@ -126,6 +126,31 @@ export const formOf = ({ selfProof = false, form } = {}) => form ?? (selfProof ?
  * 新鲜度是这条读数的命门 ✗：记录里存 `targetSha` ✓ ⇒ 被测件一改，`✅` 自动回落成 `—` ✓（拿旧读数充数 ⇒ 红 ✓）。
  * **上限只许收缩** ✓：`scripts/probe-budget.json` 里 `maxUnprobed` 是 `—` 的**上限** ✓ ⇒ 加了新门却没探 ⇒ 突破上限 ⇒ 红 ✓
  *   （要放宽就得改那个数字 ✓ —— 改它是一次**显式决定**，不是顺手 ✓ —— 与本仓 `escape-hatch.json` 同族 ✓）。 */
+/** `#1097`：**这份读数是否可信地覆盖当前树**（纯函数 ✓ 注入 ⇒ 可单测 ✓）。
+ *
+ * 从实测来：**同一棵树、同一命令，只差一个陈旧本地产物 ⇒ 结论相反** ✗
+ * 原本抹平只在「**无读数**」时生效 ✗ ⇒ **有但陈旧**（③态）没识别 ⇒ 严格比对 ⇒ **假红** ✗。
+ * 三态：① 无读数（PR 档常态）⇒ 抹平 ✓（`#1079` 修的正是它）；② 新鲜且覆盖 ⇒ 严格 ✓；
+ *        ③ **有但陈旧／不覆盖** ⇒ 本函数认出它 ✓。
+ * ## ⚠️ 「缺件」那一支**按记录自称的档位定范围** ✗
+ * `fast` 记录**只要求 fast 档探针全覆盖** ✓ —— 否则将来加一条 `full` 档探针 ⇒
+ * 每台跑过 `fast` 的机器都会判「缺件 ⇒ 陈旧」⇒ **抹平整面探针列** ✗，且**报错原因还是错的** ✗。
+ * ## 两种原因**必须分开报** ✗：`stale`＝有读数但 `targetSha` 不符；`missing`＝本档应有的没记 ✓。
+ * @returns {{stale: string[], missing: string[], required: number}}
+ */
+export const probeFreshnessProblems = ({ probes = [], records = [], mode = null, targetShaOf = () => null, sha = (x) => x } = {}) => {
+	// 本档应覆盖哪些探针（`full` ⇒ 全集；其它 ⇒ 非 `full` 档的那些 ✓）
+	const required = probes.filter((p) => (mode === 'full' ? true : p.tier !== 'full'));
+	const stale = [], missing = [];
+	for (const p of required) {
+		const r = records.find((x) => x.id === p.id);
+		if (!r) { missing.push(p.id); continue; }
+		const cur = (() => { try { return targetShaOf(p); } catch { return null; } })();
+		if (r.targetSha && cur && r.targetSha !== sha(cur)) stale.push(p.id);
+	}
+	return { stale, missing, required: required.length };
+};
+
 export const probeStateOf = ({ entry, record, targetSha, sha = (x) => x } = {}) => {
 	if (!entry) return '—';
 	if (!record) return '—';
@@ -137,7 +162,11 @@ export const probeStateOf = ({ entry, record, targetSha, sha = (x) => x } = {}) 
 const PROBE_RECORD = 'build/probe-results.json';
 const sha16 = (s) => createHash('sha256').update(s).digest('hex').slice(0, 16);
 const probeRecords = () => {
-	try { return JSON.parse(readFileSync(PROBE_RECORD, 'utf8')).probes ?? []; } catch { return []; }
+	try {
+		const j = JSON.parse(readFileSync(PROBE_RECORD, 'utf8'));
+		// `#1097`：**保留 `mode`** ✗ —— 原来只取 `probes` ⇒ 档位信息丢了 ⇒ 没法判「记录是否覆盖本档」 ✓
+		return { mode: j?.mode ?? null, probes: j?.probes ?? [] };
+	} catch { return { mode: null, probes: [] }; }
 };
 
 /** `#1079`：把**探针面**（唯一依赖 `build/probe-results.json` 的那两部分）从 markdown 里**抹平** ✗。
@@ -164,7 +193,7 @@ export const normalizeProbeFace = (md) => String(md ?? '')
 	})
 	.join('\n');
 
-const recs = probeRecords();   // `#908` ①：上一次探针实跑的读数 ✓（没有就是空 ⇒ 全列 `—` ✓ 不假装 ✓）
+const { mode: recMode, probes: recs } = probeRecords();   // `#908` ①：上一次探针实跑的读数 ✓（没有就是空 ⇒ 全列 `—` ✓ 不假装 ✓；`#1097` 连 `mode` 一起取 ✓）
 
 const rows = [];
 const push = (id, kind, wired, selfProof, extra = {}) => {
@@ -398,6 +427,23 @@ const selftest = () => {
 	h('`formOf`：测试脚本 ＋ **有自证** ⇒ `行为化` ✓（能假的另一半 ✓）', formOf({ kind: '测试脚本', selfProof: true }) === '行为化');
 	h('`formOf`：显式给了 `form` ⇒ 以它为准 ✓（`REASONS` 里的手写标注不被覆盖 ✓）', formOf({ kind: '测试脚本', selfProof: false, form: '仅登记' }) === '仅登记');
 	// `#908` ①：**探针**那一格（直接读数 ✓）—— 五条，每条都对应一种"假 ✅" ✗
+	// `#1097`：**三态识别**（纯函数注入 ⇒ 可单测 ✓）—— ①②③ 与**档位范围**各一格 ✓
+	h('`probeFreshnessProblems`：② **新鲜且覆盖** ⇒ `stale`／`missing` 皆空 ✓',
+		(() => { const r = probeFreshnessProblems({ probes: [{ id: 'a', tier: 'fast', mutation: { file: 'f' } }], records: [{ id: 'a', targetSha: 'X' }], mode: 'fast', targetShaOf: () => 'now', sha: () => 'X' }); return r.stale.length === 0 && r.missing.length === 0; })());
+	h('🔴 `probeFreshnessProblems`：③ **陈旧**（`targetSha` 不符）⇒ 记入 `stale` 并**点名** ✓',
+		(() => { const r = probeFreshnessProblems({ probes: [{ id: 'a', tier: 'fast', mutation: { file: 'f' } }], records: [{ id: 'a', targetSha: 'X' }], mode: 'fast', targetShaOf: () => 'now', sha: () => 'Y' }); return r.stale.length === 1 && r.stale[0] === 'a'; })());
+	h('🔴 `probeFreshnessProblems`：③ **缺件**（本档应有、记录里没有）⇒ 记入 `missing` ✓',
+		(() => { const r = probeFreshnessProblems({ probes: [{ id: 'a', tier: 'fast', mutation: { file: 'f' } }], records: [], mode: 'fast' }); return r.missing.length === 1 && r.stale.length === 0; })());
+	// ⚠️ 本格是**潜伏陷阱**的守卫 ✗：将来加一条 `full` 档探针 ⇒ 跑过 `fast` 的机器不许判"缺件"✗，
+	//   否则会**抹平整面探针列** ＋ **报错原因还是错的**（说"陈旧"，真实是"不覆盖档位"✓）。
+	h('🔴 `probeFreshnessProblems`：**档位范围**——`mode=fast` 的记录**不要求** `full` 档探针 ⇒ 缺它**不算缺件** ✓',
+		(() => { const r = probeFreshnessProblems({ probes: [{ id: 'a', tier: 'fast', mutation: { file: 'f' } }, { id: 'b', tier: 'full', mutation: { file: 'g' } }], records: [{ id: 'a', targetSha: 'X' }], mode: 'fast', targetShaOf: () => 'now', sha: () => 'X' }); return r.missing.length === 0 && r.required === 1; })());
+	h('`probeFreshnessProblems`：`mode=full` ⇒ **要求全集** ⇒ 缺 `full` 档那条 ⇒ 记 `missing` ✓（同一条探针、两种档位两种判 ✓）',
+		(() => { const probes = [{ id: 'a', tier: 'fast', mutation: { file: 'f' } }, { id: 'b', tier: 'full', mutation: { file: 'g' } }]; const r = probeFreshnessProblems({ probes, records: [{ id: 'a', targetSha: 'X' }], mode: 'full', targetShaOf: () => 'now', sha: () => 'X' }); return r.missing.length === 1 && r.missing[0] === 'b' && r.required === 2; })());
+	// ⚠️ **边界：只抹"探针面"** ✗ —— 其余面（行集合/形态/自证/接线/理由）**照旧严格** ✓
+	//   ⇒ "新增门没重生成"这类**真**不一致**照样红** ✓（不许因为读数不可信就把整张台账放过 ✗）。
+	h('🔴 `normalizeProbeFace`：**只抹探针列** —— 其余格逐字保留 ✓（"真不一致"照样红 ✓）',
+		(() => { const md = '| `x` | 形态A | 行为化 | ✅ | ✅ | 理由R |\n**探针（直接读数 ✓）：`✅` 26 项**'; const n = normalizeProbeFace(md); return n.includes('形态A') && n.includes('理由R') && n.includes('〔探针〕') && !/26 项/.test(n); })());
 	h('`probeStateOf`：无探针件 ⇒ `—` ✓', probeStateOf({}) === '—');
 	h('`probeStateOf`：有探针件但**从没跑过** ⇒ `—` ✗（不假装 ✅ ✓）', probeStateOf({ entry: { id: 'x' }, record: null }) === '—');
 	h('`probeStateOf`：跑了但**不咬** ⇒ `✗` ✓（>0 即红 ✓）', probeStateOf({ entry: { id: 'x' }, record: { ok: false } }) === '✗');
@@ -477,9 +523,25 @@ const main = () => {
 		//   其余面（行集合・形态・自证・接线・理由・工作清单）**照旧严格** ✓ ⇒ “新增门没重生成”照样红 ✓。
 		//   ⚠️ **必须打印**（不静默 ✓ —— `#557` 口径：读不到输入 ≠ 没命中 ✓）。
 		const ledgerNow = readFileSync(LEDGER, 'utf8');
-		const staleProbe = argv.includes('--allow-stale-probe') && recs.length === 0;
+		// `#1097`：**三态** —— ①无读数 ②新鲜且覆盖 ③**有但陈旧／不覆盖** ✗
+		//   ⚠️ ③ 必须**视作①**（抹平 ＋ 指名打印 ✓）—— 拿旧读数当「现状」⇒ **假红** ✗
+		//   （开发机撞过：同一棵树、同一命令，只差一个陈旧本地产物 ⇒ 结论相反 ✓）
+		const fresh = probeFreshnessProblems({
+			probes: PROBES, records: recs, mode: recMode,
+			targetShaOf: (p) => (p.mutation?.file ? readFileSync(p.mutation.file, 'utf8') : null), sha: sha16,
+		});
+		const incomplete = recs.length > 0 && (fresh.stale.length > 0 || fresh.missing.length > 0);
+		const staleProbe = argv.includes('--allow-stale-probe') && (recs.length === 0 || incomplete);
 		if (staleProbe) {
-			console.log(`○ \`--allow-stale-probe\`：**本次无探针读数**（\`${PROBE_RECORD}\` 不存在或为空 ⇒ PR 档不跑探针段 ✓）⇒ **探针面跳过比对** ✗（该列降级 \`—\` ✓），**其余面照旧逐字节严格** ✓；有读数的档（\`npm run test:full\`）仍会当场校验 ✓`);
+			if (recs.length === 0) {
+				console.log(`○ \`--allow-stale-probe\`：**本次无探针读数**（\`${PROBE_RECORD}\` 不存在或为空 ⇒ PR 档不跑探针段 ✓）⇒ **探针面跳过比对** ✗（该列降级 \`—\` ✓），**其余面照旧逐字节严格** ✓；有读数的档（\`npm run test:full\`）仍会当场校验 ✓`);
+			} else {
+				// ⚠️ 两种原因**分开报** ✗（否则「说陈旧、真因是不覆盖档位」⇒ 误导读者 ✓）
+				const parts = [];
+				if (fresh.stale.length) parts.push(`**读数陈旧**（\`targetSha\` 不符）**${fresh.stale.length}** 条：${fresh.stale.slice(0, 6).join('、')}${fresh.stale.length > 6 ? ' …' : ''}`);
+				if (fresh.missing.length) parts.push(`**记录不覆盖本档**（\`mode=${recMode ?? '?'}\` 应有 ${fresh.required} 条、缺 **${fresh.missing.length}** 条）：${fresh.missing.slice(0, 6).join('、')}${fresh.missing.length > 6 ? ' …' : ''}`);
+				console.log(`○ \`--allow-stale-probe\`：**本地产物不覆盖当前树** ⇒ 视作「无读数」（**探针面跳过比对** ✗、该列降级 \`—\` ✓），**其余面照旧逐字节严格** ✓ —— ${parts.join(' ｜ ')}；要拿真读数请重跑 \`node scripts/probe-gates.mjs --probe=${recMode ?? 'fast'}\` ✓（**别拿上次的 json 当现状** ✗）`);
+			}
 		}
 		const [a, b] = staleProbe ? [normalizeProbeFace(ledgerNow), normalizeProbeFace(md)] : [ledgerNow, md];
 		if (a !== b) {

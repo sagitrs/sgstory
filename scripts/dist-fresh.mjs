@@ -11,7 +11,7 @@ import { readdirSync, existsSync, statSync, mkdirSync, writeFileSync, rmSync, ut
 import { isTransientFixture } from './lib/untracked-guard.mjs';   // `#1130`：**并行段运行期自造的临时夹具不算真源** ✓（`stories/__e2e` ✓）
 import { allSourceFiles } from './module-order.mjs';
 import { fileURLToPath } from 'node:url';
-import { join } from 'node:path';
+import { join, dirname } from 'node:path';   // `#1130`：落盘要建父目录（`dirname` 先前漏 import ⇒ 被 catch 吞掉 ✓）
 import { defaultStoryHtml } from './dist-paths.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -42,6 +42,15 @@ export const assertFreshDist = ({ distPath = DIST_PATH, srcDir = SRC_DIR, who = 
 		throw new Error(`找不到 dist/index.html——先跑 \`npm run build\`（${who}要检查构建产物；缺产物时静默跳过＝假绿）`);
 	}
 	if (!st.fresh) {
+		// `#1130`：**点名清单落盘**（durable ✓）—— CI 上把它作为 artifact 上传 ⇒ 任何一次新鲜度红都能直接看名单 ✓
+		//   （不在 CI 时也无害：落在 gitignored 的 `build/` ✓；写失败**不得掩盖**原本的报错 ✓）
+		try {
+			const payload = { who, when: new Date().toISOString(), distMtime: new Date(st.distMtime).toISOString(),
+				newer: (st.newer ?? []).map((x) => ({ file: x.f, mtime: new Date(x.m).toISOString() })) };
+			const out = join(ROOT, 'build/freshness-failure.json');
+			mkdirSync(dirname(out), { recursive: true });   // 写前建父目录（仓内既有惯例 ✓）
+			writeFileSync(out, JSON.stringify(payload, null, '\t'));
+		} catch { /* 落盘失败不影响报错 ✓ */ }
 		throw new Error('dist/index.html 比 src/*.twee 旧——先跑 `npm run build`（否则断言基于旧游戏，结果是假红/假绿）' + (st.newer ?? []).map((x) => `\n    · ${x.f}（${new Date(x.m).toISOString()} > dist ${new Date(st.distMtime).toISOString()}）`).join(''));
 	}
 	return st;

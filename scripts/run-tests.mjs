@@ -29,6 +29,7 @@ import { join, dirname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { cpus } from 'node:os';
 import { testPlan, segmentLayer, validateLayers, tierOf, TIERS, DEFAULT_TIER, validateTiers, SUITES, suiteOf, validateSuites, inputsDeclaredStats, validateInputsRatchet, inputsMatch } from './test-plan.mjs';
+import { fsArgLiterals, inputsLowerProblems, interLayerProblems } from './lib/inputs-lower.mjs';   // `#1093` P2-b：①层（静态下界）
 // `#607`：故事清单声明的门 flag（P0 为空集合 ⇒ 层判定与今天**逐字相同**；P1 起门搬家后仍判得出故事层）
 import { declaredGatesAll } from './audit/discovery.mjs';
 // 声明面在**顶层**取（不在 `selftest()` 里取）：`selftest()` 在文件中部就被调用，
@@ -324,6 +325,22 @@ const selftest = async ({ quiet = false } = {}) => {
 	// ⚠️ `#1123` 复核：**原格是 `t('…安全默认…', true)` ⇒ 恒真断言** ✗（**守着本片唯一能致假绿的方向**✓）
 	//   ⇒ 复核席实测：将来若有人实现成「未声明 ⇒ 跳过」⇒ **那格照样绿** ✗ ⇒ 改为**注入式可假对** ✓
 	t('🔴 安全默认·①：**未声明 ⇒ 恒算命中**（任何改动面都命中 ⇒ **永不跳过** ✓）', inputsMatch({ declared: [], changed: ['docs/x.md'] }) === true);	if (!quiet) console.log('\n✔ 跑器自证通过：成功/失败识别、失败输出不吞、并行真的重叠、setup 红即中止、needs 前置/级联跳过/配错报错');
+	// `#1093` P2-b：①层（静态下界）—— 抽面／判据／层间自洽（成对 ✗）
+	t('🔴 `fsArgLiterals`：**锚 fs 实参位** ⇒ 抽到实参里的面 ✓，且**不抽**同文件里的裸字号串（自证夹具 ✗）',
+		(() => {
+			const src = ['import { readFileSync } from \'node:fs\';',
+				'const a = readFileSync(join(ROOT, \'src/x.twee\'));',
+				'const b = \'stories/x/a.twee\';'].join('\n');
+			const L = fsArgLiterals(src);
+			return L.includes('src/x.twee') && !L.some((x) => x.startsWith('stories/'));
+		})());
+	t('`inputsLowerProblems`：**未声明 ⇒ 不管** ✗（安全默认 ✓）；声明够 ⇒ 0 ✓；🔴 漏面 ⇒ 报 ✓',
+		(() => { const L = ['src', 'stories']; return inputsLowerProblems({ declared: [], lower: L }).length === 0
+			&& inputsLowerProblems({ declared: ['src/**', 'stories'], lower: L }).length === 0
+			&& inputsLowerProblems({ declared: ['src/**'], lower: L }).length === 1; })());
+	t('🔴 `interLayerProblems`：**①（下界）⊆ ②（真值）** 成立 ⇒ 0 ✓；下界含真值没有的 ⇒ **必报** ✓',
+		(() => { const ok = interLayerProblems({ lower: ['src'], truth: ['src/a.twee'] }); const bad = interLayerProblems({ lower: ['dist'], truth: ['src/a.twee'] }); return ok.length === 0 && bad.length === 1; })());
+	if (!quiet) console.log('\n✔ 跑器自证通过：成功/失败识别、失败输出不吞、并行真的重叠、setup 红即中止、needs 前置/级联跳过/配错报错');
 	else console.log('✓ 跑器自证通过（成功/失败识别 · 输出不吞 · 并行真重叠 · setup 红即中止 · needs 语义）');
 	return true;
 };
@@ -379,6 +396,20 @@ const suiteSel = suiteWant ? plan0.filter((s) => suiteOf(s) === suiteWant) : nul
 	const { undeclared, declared, total } = inputsDeclaredStats(plan0);
 	console.log(`○ \`inputs\` 声明：已声明 ${declared}/${total} 段 ｜ **未声明 ${undeclared.length}**（未声明 ⇒ 视为「**全跑型**」＝总是跑 ✓ —— **本片不含跳过** ✗）`);
 	if (problems.length) { console.error(`✗ \`inputs\` ratchet 不过：\n  ${problems.join('\n  ')}`); process.exit(2); }
+	// `#1093` P2-b：**①层（静态下界）** —— 只对**已声明 `inputs`** 的段判 ✓（**未声明 ⇒ 不管它** ✗ ＝ 安全默认 ✓）
+	//   ⚠️ 抽字面量**必须锚在 fs 实参位** ✗（朴素"文件里出现过的路径串"会把**自证夹具**算成读取面 ✓ 实测 9 vs 2 ✓）
+	let lowerBad = 0, lowerChecked = 0;
+	for (const seg of plan0) {
+		if (!Array.isArray(seg.inputs) || !seg.inputs.length) continue;
+		const m = /^node (\S+)/.exec(seg.cmd);
+		if (!m) continue;
+		let text = ''; try { text = readFileSync(m[1], 'utf8'); } catch { continue; }
+		lowerChecked++;
+		const lower = fsArgLiterals(text);
+		const ps = inputsLowerProblems({ declared: seg.inputs, lower });
+		if (ps.length) { lowerBad += ps.length; for (const x of ps) console.error(`✗ [${seg.id}] ${x}`); }
+	}
+	console.log(`○ ①层（静态下界）：检查了 **${lowerChecked}** 个**已声明**段 ⇒ 违规 **${lowerBad}** 条（未声明段不参与 ✓）`);
 }
 if (has('list')) {
 	// `#1093`：`--list` 也要反映 `--suite` 选面 ✗（否则列表与实跑不一致 ⇒ 误导 ✓）

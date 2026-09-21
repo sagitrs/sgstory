@@ -387,7 +387,11 @@ const planProblems = validatePlan(plan);
 if (planProblems.length) { console.error(`✗ 计划有问题：\n  ${planProblems.join('\n  ')}`); process.exit(2); }
 
 const serial = has('serial');
-const jobs = serial ? 1 : Math.max(1, Number(val('jobs', Math.min(4, cpus().length))));
+// `#1105`：**并发度自适应** —— 原默认 `min(4, cpus)` 太小 ✗：实测段**84% 在等待**（`#1104`：三段
+//   墙钟 79.1s｜CPU 13.7s｜等待 82.6%）⇒ CPU 远未饱和 ⇒ 并发才是瓶颈侧 ✓。
+//   ⚠️ 上限取 **8**（**不硬写 16** ✗ —— CI runner 核数未知 ⇒ 用 `min(8, cpus)` 自适应 ✓）；
+//   `--jobs=` / `--serial` 仍可覆盖 ✓（调试与对照不变 ✓）。
+const jobs = serial ? 1 : Math.max(1, Number(val('jobs', Math.min(8, cpus().length))));
 // ── `#1072` 测量仪表的**自证**（票面验收：①仪器可假 ⇒ 表里能看出来 ②仪器不得改变被测行为）──────
 //   为什么必须自证：这两条**都不会在 CI 里自然发生** ⇒ CI 绿**不能**证明它们成立 ✗。
 if (has('profile-selftest')) {

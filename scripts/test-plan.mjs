@@ -534,6 +534,93 @@ export const validateTiers = (plan = SEGMENTS, { reasons = FULL_REASONS } = {}) 
 	return problems;
 };
 
+export const SUITES = ['engine', 'editor', 'story-legal', 'story-product', 'infra'];
+
+/** `#1093` P1.0：**分组表**（`id -> suite`）—— 口径＝**判据锚的被看护物** ✗（不是目录粗分 ✗）。
+ *  `engine`=判 `src/**` 引擎行为 ｜ `editor`=判 `editor/**`（含页内／浏览器侧）｜ `story-legal`=判 `stories/**` 源数据静态面 ｜
+ *  `story-product`=判 `dist/**`·运行对拍 ｜ `infra`=判**门禁自身**（门／台账／编排／文档格式）。
+ *  ⚠️ **本表是交付物**（P1.0）✗ —— 它决定 P2「按改动跳过」的粒度 ⇒ 改动它须**走评审** ✓。
+ *  ⚠️ 规模**只作嗅探核**（非硬判据 ✗）：本表 engine 42／editor 45／story-legal 24／story-product 10／infra 37；
+ *     票面记载过一次测量（48／51／22／14／23 ✓）但**未落盘** ✗ ⇒ 有差属**已知**，按「嗅探非硬判据」处理 ✓（`#1093` 裁决 ✓）。 */
+export const SUITE_MEMBERS = {
+	'engine': [
+		'test-integrity-mjs', 'test-rules-mjs', 'test-properties-mjs', 'test-invariants-unit-mjs',
+		'test-saveload-mjs', 'test-saveui-mjs', 'test-combat-adv-mjs', 'test-combat-adv-mjs-selftest',
+		'test-fight-seq-mjs', 'test-fight-seq-mjs-selftest', 'test-reread-mjs', 'test-reread-mjs-selftest',
+		'test-fatal-guard-mjs', 'test-onetime-pickups-mjs', 'test-roll-binding-mjs', 'test-scenarios-mjs',
+		'test-scenarios-mjs-selftest', 'test-silent-gate-mjs', 'test-dialect-mjs', 'test-contract-version-mjs',
+		'test-contract-compat-mjs', 'test-pc-defaults-mjs', 'test-social-sink-mjs', 'test-social-sink-mjs-selftest',
+		'test-social-lever-mjs', 'test-siteinfo-sink-mjs', 'test-siteinfo-sink-mjs-selftest', 'test-event-graph-mjs',
+		'test-event-graph-mjs-selftest', 'scripts-audit-mjs-consequences-check', 'scripts-audit-mjs-a11y-check', 'scripts-audit-mjs-sitedisc-check',
+		'scripts-audit-mjs-text-check', 'scripts-audit-mjs-state-check', 'scripts-audit-mjs-literals-check', 'scripts-audit-mjs-slots-check',
+		'scripts-audit-mjs-status-check', 'scripts-audit-mjs-waves-check', 'scripts-audit-mjs-face-fixture-engine', 'scripts-audit-mjs-story2-engine',
+		'scripts-audit-mjs-engine-story-free', 'scripts-audit-mjs-roads-check',
+	],
+	'editor': [
+		'editor-compile-selftest', 'editor-equiv-selftest', 'editor-equiv-minimal-demo', 'editor-equiv-face-fixture',
+		'editor-k4', 'editor-k4-selfcheck', 'editor-k6', 'editor-k6-selftest',
+		'editor-extract-selftest', 'editor-classify-contract-selftest', 'test-equiv-scratch-mjs', 'test-import-side-effects-mjs',
+		'test-import-side-effects-mjs-selftest', 'test-layering-mjs', 'test-layering-mjs-selftest', 'test-core-story-mjs',
+		'test-serve-editor-mjs', 'test-serve-editor-mjs-selftest', 'test-focus-after-nav-mjs', 'test-focus-after-nav-mjs-selftest',
+		'test-web-loader-mjs', 'test-web-loader-mjs-selftest', 'test-web-compile-mjs', 'test-web-compile-mjs-selftest',
+		'test-web-save-mjs', 'test-web-save-mjs-selftest', 'test-web-preview-mjs', 'test-web-preview-mjs-selftest',
+		'test-web-diagnose-mjs', 'test-web-diagnose-view-mjs', 'test-web-diagnose-wire-mjs', 'test-web-events-mjs',
+		'test-web-events-mjs-selftest', 'test-web-form-mjs', 'test-web-form-mjs-selftest', 'test-web-new-package-mjs',
+		'test-web-export-mjs', 'test-web-event-graph-mjs', 'test-web-rule-rows-mjs', 'test-web-read-faces-mjs',
+		'test-browser-mjs-selftest', 'test-globals-mjs', 'test-globals-mjs-selftest', 'test-store-keys-mjs',
+		'test-store-keys-mjs-selftest',
+	],
+	'story-legal': [
+		'test-prose-vocabulary-mjs', 'test-prose-vocabulary-mjs-selftest', 'test-new-story-fixture-mjs', 'test-multi-story-mjs',
+		'test-multi-story-mjs-selftest', 'test-lint-story-mjs', 'test-lint-scratch-mjs', 'test-lint-scratch-mjs-selftest',
+		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs',
+		'test-story-ci-mjs-selftest', 'test-saveload-inventory-mjs', 'test-saveload-inventory-mjs-selftest', 'test-rules-claims-mjs',
+		'test-rules-claims-mjs-selftest', 'test-premise-source-mjs', 'test-premise-source-mjs-selftest', 'test-npc-venue-mjs',
+		'test-npc-venue-mjs-selftest', 'test-choice-keys-mjs', 'test-choice-keys-mjs-selftest', 'test-g3-evidence-mjs',
+	],
+	'story-product': [
+		'test-smoke-mjs', 'test-smoke-mjs-raf-delayed', 'test-size-gate-mjs', 'test-size-gate-mjs-selftest',
+		'test-render-all-mjs', 'test-coverage-mjs', 'test-audit-golden-mjs', 'test-audit-golden-mjs-selftest',
+		'test-witness-trace-mjs', 'build-mjs',
+	],
+	'infra': [
+		'scripts-probe-gates-mjs-probe-fast', 'scripts-probe-gates-mjs-check', 'scripts-probe-gates-mjs-selfcheck', 'scripts-report-page-coverage-mjs',
+		'scripts-report-copy-text-mjs-selftest', 'scripts-report-rhythm-mjs-selftest', 'scripts-report-rhythm-mjs-check', 'scripts-report-ledger-freshness-mjs-selftest',
+		'scripts-report-ledger-freshness-mjs-ledger-check', 'scripts-report-gate-ledger-mjs-selftest', 'scripts-report-gate-ledger-mjs', 'scripts-report-selftest-validity-mjs',
+		'scripts-md-format-mjs', 'scripts-move-precheck-mjs', 'scripts-move-precheck-mjs-selftest', 'scripts-ui-migration-diff-selftest',
+		'scripts-ui-migration-diff-check', 'test-ci-triggers-mjs', 'test-ci-triggers-mjs-selftest', 'test-repo-shape-mjs',
+		'test-repo-shape-mjs-selftest', 'test-docs-read-path-mjs', 'test-docs-read-path-mjs-selftest', 'test-attribution-gate-mjs',
+		'test-attribution-gate-mjs-selftest', 'test-cond-keyform-mjs', 'test-cond-keyform-mjs-selftest', 'test-untracked-guard-mjs',
+		'test-plan-needs-mjs', 'test-gate-discovery-mjs', 'test-audit-gates-run-mjs', 'test-k4-args',
+		'test-k4-references', 'test-k4-references-selftest', 'test-state-diagnose', 'test-cli-surface-mjs',
+		'test-cli-surface-mjs-selftest',
+	],
+};
+
+/** `#1093` P1.1：段的组（查表 ✓；**不在表里 ⇒ `null`** ✗ —— 由 `validateSuites` 报「未归组」 ✓）。 */
+export const suiteOf = (seg) => {
+	const id = typeof seg === 'string' ? seg : seg?.id;
+	for (const [k, ids] of Object.entries(SUITE_MEMBERS)) if (ids.includes(id)) return k;
+	return null;
+};
+
+/** `#1093` P1.1：**完备且不重叠**校验（照 `AUDIT_ENGINE ∪ AUDIT_STORY` 那条「恰好等于」的形态 ✓）。
+ *  ① **未归组**（在计划里、查不到组）⇒ 报 ✓；② **跨组**（同 id 出现在两组）⇒ 报 ✓；
+ *  ③ 表里**多出**（不在计划里）⇒ 报 ✓（防「表漂了」✗）。
+ *  ⚠️ **纯函数 ＋ 注入**（`plan` 与 `members` 都注入 ⇒ 自证能喂假计划 ✓）—— ㊱：攻击面落在判据上 ✓。 */
+export const validateSuites = (plan = SEGMENTS, { members = SUITE_MEMBERS } = {}) => {
+	const problems = [];
+	const ids = plan.map((s) => s.id);
+	const seen = new Map();
+	for (const [k, list] of Object.entries(members)) for (const id of list) {
+		if (!ids.includes(id)) problems.push(`组 ${k} 里的 \`${id}\` **不在计划里**（表漂了 ⇒ 要么补段、要么删条目）`);
+		if (seen.has(id)) problems.push(`\`${id}\` **同时归两组**：${seen.get(id)} 与 ${k}（**不重叠**是本表的前提 ✗）`);
+		else seen.set(id, k);
+	}
+	for (const id of ids) if (!seen.has(id)) problems.push(`\`${id}\` **未归组**（计划里有、表里没有 ⇒ 完备性破了 ✗）`);
+	return problems;
+};
+
 export const testPlan = () => SEGMENTS;
 // **旧格式**：把计划拼回 `&&` 串（对照/调试用）
 export const planChain = () => SEGMENTS.map((s) => s.cmd).join(' && ');

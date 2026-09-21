@@ -28,7 +28,7 @@ import { readFileSync, writeFileSync, rmSync, mkdirSync, existsSync } from 'node
 import { join, dirname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { cpus } from 'node:os';
-import { testPlan, segmentLayer, validateLayers, tierOf, TIERS, DEFAULT_TIER, validateTiers } from './test-plan.mjs';
+import { testPlan, segmentLayer, validateLayers, tierOf, TIERS, DEFAULT_TIER, validateTiers, SUITES, suiteOf, validateSuites } from './test-plan.mjs';
 // `#607`：故事清单声明的门 flag（P0 为空集合 ⇒ 层判定与今天**逐字相同**；P1 起门搬家后仍判得出故事层）
 import { declaredGatesAll } from './audit/discovery.mjs';
 // 声明面在**顶层**取（不在 `selftest()` 里取）：`selftest()` 在文件中部就被调用，
@@ -308,6 +308,15 @@ const selftest = async ({ quiet = false } = {}) => {
 			validateTiers([{ id: 'zz-a', cmd: 'node -e "1"' }, { id: 'zz-b', cmd: 'node -e "1"', needs: ['zz-a'] }]).length === 0);
 	}
 	if (bad) { console.error(`\n✗ 跑器自证失败 ${bad} 项`); process.exit(1); }
+	// `#1093` P1：**完备且不重叠**（成对 ✗ —— 两条都要真咬 ✓）
+	t('`validateSuites` 正例：真计划 ＋ 真表 ⇒ **0 问题** ✓', validateSuites().length === 0);
+	t('🔴 `validateSuites` 反例①：**删一段**（计划里有、表里没有）⇒ 报「未归组」✓',
+		validateSuites([{ id: 'x' }, { id: 'y' }], { members: { engine: ['x'] } }).some((p) => /未归组/.test(p) && p.includes('y')));
+	t('🔴 `validateSuites` 反例②：**同段归两组**（跨组）⇒ 报「同时归两组」✓',
+		validateSuites([{ id: 'x' }], { members: { engine: ['x'], editor: ['x'] } }).some((p) => /同时归两组/.test(p)));
+	t('🔴 `validateSuites` 反例③：表里**多出**（不在计划里）⇒ 报「不在计划里」✓',
+		validateSuites([{ id: 'x' }], { members: { engine: ['x'], editor: ['zombie'] } }).some((p) => /不在计划里/.test(p)));
+	t('`suiteOf`：查得到组 ⇒ 返组名 ✓ ／ 查不到 ⇒ `null` ✗（不猜 ✓）', suiteOf('build-mjs') !== null && suiteOf('no-such-seg') === null);
 	if (!quiet) console.log('\n✔ 跑器自证通过：成功/失败识别、失败输出不吞、并行真的重叠、setup 红即中止、needs 前置/级联跳过/配错报错');
 	else console.log('✓ 跑器自证通过（成功/失败识别 · 输出不吞 · 并行真重叠 · setup 红即中止 · needs 语义）');
 	return true;
@@ -343,8 +352,23 @@ const tierProblems = validateTiers(plan0);
 if (tierProblems.length) { console.error(`✗ 计划的 tier 面有问题（--tier 依赖它）：\n  ${tierProblems.join('\n  ')}`); process.exit(2); }
 const tierSel = tierWant === 'full' ? plan0 : plan0.filter((s) => tierOf(s) === tierWant);
 const otherTier = plan0.filter((s) => !tierSel.includes(s));
+// ── `#1093` P1.1：`--suite=<名>`（**正交**维度 ✓ —— 与 `--tier`／`--only`／`--engine-only` **取交集** ✓）
+//    ⚠️ 起跑前**先校验分组表**（完备且不重叠 ✗）：表漂了 ⇒ **当场报** ✗，不许"跑了一半才发现选择面不完整" ✓
+const suiteWant = (() => {
+	const hit = argv.find((a) => a.startsWith('--suite='));
+	if (!hit) return null;
+	const v = hit.slice('--suite='.length);
+	if (!SUITES.includes(v)) { console.error(`✗ --suite 只认 ${SUITES.join('｜')}（当前：${JSON.stringify(v)}）`); process.exit(2); }
+	return v;
+})();
+if (suiteWant) {
+	const suiteProblems = validateSuites(plan0);
+	if (suiteProblems.length) { console.error(`✗ 分组表有问题（--suite 依赖它）：\n  ${suiteProblems.join('\n  ')}`); process.exit(2); }
+}
+const suiteSel = suiteWant ? plan0.filter((s) => suiteOf(s) === suiteWant) : null;
 if (has('list')) {
-	const shown = layerSel ?? plan0;
+	// `#1093`：`--list` 也要反映 `--suite` 选面 ✗（否则列表与实跑不一致 ⇒ 误导 ✓）
+	const shown = suiteSel ? (layerSel ? layerSel.filter((x) => suiteSel.includes(x)) : suiteSel) : (layerSel ?? plan0);
 	console.log(`计划 ${shown.length} 段${layerWant ? `（--${layerWant}-only 从 ${plan0.length} 段里选出）` : ''}（串行实测合计 ${sec(shown.reduce((a, s) => a + s.cost, 0) * 1000)}）：`);
 	// `#1070`：档位分布**写在这里** ✗（审计一眼看出“哪些段不在 PR 档”✓）；
 	//   ⚠️ `--list` **不按档过滤** ✗（下面逐段打 `[tier]`）：过滤后的名单看不见“被排除了什么” ⇒ 不好审 ✓
@@ -374,9 +398,12 @@ if (otherTier.length) {
 }
 // `--only=` 与档位／层过滤**取交集**（三个维度正交 ✓）
 const onlySel = only.length ? plan0.filter((s) => only.some((o) => s.id.includes(o) || s.cmd.includes(o))) : null;
-const baseSel = layerSel && onlySel ? layerSel.filter((s) => onlySel.includes(s)) : (layerSel ?? onlySel ?? plan0);
+const baseSel0 = layerSel && onlySel ? layerSel.filter((s) => onlySel.includes(s)) : (layerSel ?? onlySel ?? plan0);
+// `#1093`：`--suite` 与上面各维**取交集** ✓（三个维度都正交 ✓）
+const baseSel = suiteSel ? baseSel0.filter((s) => suiteSel.includes(s)) : baseSel0;
 const sel = tierWant === 'full' ? baseSel : baseSel.filter((s) => tierOf(s) === tierWant);
 const plan = (onlySel || layerSel) ? withDeps(sel) : sel;
+if (suiteSel) console.log(`○ --suite=${suiteWant}：选中 ${suiteSel.length}/${plan0.length} 段（**其余 ${plan0.length - suiteSel.length} 段本次不跑** —— 分组表见 \`scripts/test-plan.mjs\` 的 \`SUITE_MEMBERS\` ✓）`);
 
 if (!plan.length) { console.error(`✗ 没有匹配到任何段（${layerWant ? `--${layerWant}-only` : '--only'} 写错了？／tier=${tierWant} 下无段？）——空选择不是绿`); process.exit(2); }
 if ((only.length || layerWant) && !plan.some((s) => s.phase === 'build') && plan0.some((s) => s.phase === 'build')) {

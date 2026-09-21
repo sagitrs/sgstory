@@ -39,7 +39,8 @@
 
 | 文件 | 行数 | 类别 | 说明 |
 |---|---|---|---|
-| `docs/dev-conventions.md` | 454 | 权威 | 14 条代码级约定，每条都配"会咬人的门" |
+| `docs/dev-conventions.md` | 738 | 权威 |
+| `docs/dev-conventions-cases.md` | — | 案例集 | §17 证伪清单的案例与沿革（`#1080` 外移；**非必读面**，按条号检索） | 14 条代码级约定，每条都配"会咬人的门" |
 | `docs/baselines.md` | 429 | **生成物** | `npm run report:rhythm`；★待收：一份文件里 7 个 h1（`#606`）；**随样本漂移（含故事 1 读数，`#1077` 降级标注）** |
 | `docs/story2-contracts.md` | 274 | 权威 | 故事 2/3 的接入契约清单 |
 | `docs/quality-dimensions.md` | 273 | 权威 | 维度总表 ＋ 候选池 ＋ 给测试的作业模板 |

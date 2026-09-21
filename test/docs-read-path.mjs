@@ -28,6 +28,25 @@ export const DELETED_STORY_DOCS = new Set(['lore-canon.md', 'game-outline.md', '
 export const BUDGET_KB = 150;
 export const BUDGET_EXEMPT = 'docs/dev-conventions.md';
 
+/** `#1080`：**§17 瘦身 ratchet** —— `dev-conventions.md` 的 §17（从 `## 17.` 到文件尾）只许降不许升；
+ *  证伪清单表行每条须「一句判定（含粗体）＋ 出处票号」（删判据本体只留案例 ⇒ 结构缺失 ⇒ 红 ✓）。 */
+export const SEC17_BUDGET_KB = 15;
+export const sec17Problems = (text, { byteLen = (t) => Buffer.byteLength(String(t), 'utf8') } = {}) => {
+	const t = String(text);
+	const i = t.indexOf('## 17.');
+	if (i < 0) return ['dev-conventions.md 缺 ## 17. 节（#1080 ratchet 扫描面为空 ⇒ 读不到输入不许当「没命中」）'];
+	const sec = t.slice(i);
+	const kb = byteLen(sec) / 1024;
+	const out = [];
+	if (kb > SEC17_BUDGET_KB) out.push(`dev-conventions §17 体量 ${kb.toFixed(1)}KB > 上限 ${SEC17_BUDGET_KB}KB（#1080：判据留正文、案例外移 dev-conventions-cases.md——只许降不许升）`);
+	for (const line of sec.split('\n')) {
+		if (!/^\| [①-⑳㉑-㊿]/.test(line)) continue;
+		if (!/#\d+/.test(line) && !/早期迁移·无票号/.test(line)) out.push(`证伪清单表行缺出处票号：「${line.slice(0, 30)}…」——每条须「一句判定＋票号」（#1080；确无票号 ⇒ 显式标「早期迁移·无票号」留痕）`);
+		else if (!/\*\*.+\*\*/.test(line.split(' | ').slice(2).join(' '))) out.push(`证伪清单表行缺粗体判定句：「${line.slice(0, 30)}…」（#1080）`);
+	}
+	return out;
+};
+
 const PATH_IN_BACKTICKS = /`((?:docs|stories)\/[A-Za-z0-9_./-]+?\.md)`/g;
 const EXEMPT_MARK = /<!--\s*path-exempt:/;
 
@@ -160,13 +179,23 @@ const selftest = () => {
 	case_('反例·先读列可计路径为 0 ⇒ 必红（#557）', budgetProblems(SEC + '| 任务 | 无路径 | — |', { sizeOf, exists }).length === 1);
 	// 正例控制：两节都在且有行 ⇒ ⓪ 不报
 	case_('正例·两节齐全 ⇒ ⓪ 不报', emptyScanProblems('## 一、按任务读\n| 任务 | `docs/a.md` | — |\n## 二、权威表\n| 面 | 唯一权威 |\n|---|---|\n| A | `docs/x.md` |').length === 0);
+	// #1080：§17 ratchet 自证（能假三向 + 正例 + 扫描面空）
+	case_('反例·§17 超限 ⇒ 红（只许降）', sec17Problems('## 17.\n' + 'x'.repeat(16 * 1024), {}).length === 1);
+	case_('反例·表行删判据本体只留案例（无票号）⇒ 红', sec17Problems('## 17.\n### 证伪清单\n| ① | 某问题 | 案例细节文字 |\n').some((p) => p.includes('缺出处票号')));
+	case_('反例·表行无粗体判定句 ⇒ 红', sec17Problems('## 17.\n### 证伪清单\n| ① | 某问题 | 有票号（#1）但无判定句 |\n').some((p) => p.includes('缺粗体判定句')));
+	case_('正例·§17 合规 ⇒ 不报', sec17Problems('## 17.\n### 证伪清单\n| ① | 问题 | **判定**（`#1`） |\n').length === 0);
+	case_('反例·缺 ## 17. 节 ⇒ 红（#557 扫描面空）', sec17Problems('（无 §17）').length === 1);
 };
 
 const main = () => {
 	const text = readFileSync(README, 'utf8');
 	const problems = [...emptyScanProblems(text), ...deadLinkProblems(text), ...staleAuthorityProblems(text), ...budgetProblems(text)];
+	const dcv = readFileSync(join(ROOT, 'docs/dev-conventions.md'), 'utf8');
+	const sec17 = sec17Problems(dcv);
 	for (const p of problems) { bad++; console.error(`✗ ${p}`); }
+	for (const p of sec17) { bad++; console.error(`✗ ${p}`); }
 	case_('docs/README.md 必读面四判据全过（含扫描面非空）', problems.length === 0, problems.join('；'));
+	case_('dev-conventions §17 ratchet（#1080：≤15KB · 每条判定+票号）', sec17.length === 0, sec17.join('；'));
 	if (problems.length === 0) console.log(`      ○ 先读列（除 \`${BUDGET_EXEMPT}\`，单列见 #1080）合计 ${budgetReading(text)} ／ 上限 ${BUDGET_KB}KB —— 读数可见，不是只在红时才出现`);
 };
 

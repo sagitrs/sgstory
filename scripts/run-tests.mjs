@@ -329,12 +329,15 @@ const selftest = async ({ quiet = false } = {}) => {
 	if (bad) { console.error(`\n✗ 跑器自证失败 ${bad} 项`); process.exit(1); }
 	if (!quiet) console.log('\n✔ 跑器自证通过：成功/失败识别、失败输出不吞、并行真的重叠、setup 红即中止、needs 前置/级联跳过/配错报错');
 	else console.log('✓ 跑器自证通过（成功/失败识别 · 输出不吞 · 并行真重叠 · setup 红即中止 · needs 语义）');
-	return true;
+	// `#1123` 复核：**返回值必须反映 bad** ✗ —— 原来恒 `return true` ＋ 调用方无条件 `exit(0)`
+	//   ⇒ **凡落在最后一个 `if (bad)` 之后的格都不进退出码** ✗（本函数内 `if (bad)` 有 **3 处** ✓）
+	//   ⇒ 结论（复核席改字）：**「格红 ⇒ 非零退出」是格级属性，不是入口级** ✗ ⇒ 以**返回值**兜底 ✓
+	return bad === 0;
 };
 
-if (has('selftest')) { await selftest(); process.exit(0); }
+if (has('selftest')) { process.exit((await selftest()) ? 0 : 1); }   // `#1123`：**按返回值**退出（格红 ⇒ 非零 ✓）
 // 跑器是「CI 绿不绿」的判定者，它自己坏了必须**当场**暴露——所以默认先自证（约 2s，`--no-selftest` 可关）。
-if (!has('no-selftest')) await selftest({ quiet: true });
+if (!has('no-selftest')) { if (!(await selftest({ quiet: true }))) process.exit(1); }   // `#1123`：同上 ✓
 
 // ── CLI ─────────────────────────────────────────────────────────────
 const plan0 = testPlan();

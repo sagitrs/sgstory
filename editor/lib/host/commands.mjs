@@ -345,7 +345,15 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 	//   本片改用 `mkdtempSync` ⇒ 它在**编译之前**跑 ✓ ⇒ 父目录不在（干净树上正是如此 ✓）会 **ENOENT** ✗
 	//   （`#981` CI 上实测：探针按条目**单独跑** ⇒ 无前序 equiv 段 ⇒ 父目录不在 ⇒ 变异前就红 ✓）。
 	mkdirp(join(ROOT, 'build/generated'));
-	const runDir = mkdtempSync(join(ROOT, 'build/generated', '.equiv-run-'));
+	// `#1105`（⛔ 前置）：**scratch 根可注入** ✓ —— 调用方（尤其自证）可把它指向**自己拥有的目录** ✓，
+	//   从而**不必**再列举共享的 `build/generated/` 来判“本件有没有留草稿” ✗。
+	//   ⚠️ 为什么需要：`mkdtempSync` 已让**落点唯一** ✓（`#1024` ✓），但**并发段的活草稿**仍会出现在
+	//   **同一个父目录**里 ⇒ 调用方若在该目录做“集合差”，就会把**别人的活草稿**算成自己的 ✗
+	//   （`test/equiv-scratch.mjs` 实测 4/4 假红 ✓）—— 共享目录**无法归因** ✓。
+	//   ⇒ 默认值**不变**（`build/generated` ✓ 向后兼容）；注入只是给“**自拥有根**”留口 ✓。
+	const scratchRoot = process.env.SAGITRS_EQUIV_SCRATCH_ROOT || join(ROOT, 'build/generated');
+	mkdirp(scratchRoot);
+	const runDir = mkdtempSync(join(scratchRoot, '.equiv-run-'));
 	const genDir = join(runDir, 'gen');
 	const idemDir = join(runDir, 'idem');
 	let idem = { ok: false, line: '' };

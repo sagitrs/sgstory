@@ -64,5 +64,19 @@ case_('边表逐条在册', problems.length === 0, problems.join('；'));
 // 正例控制：没有边要守 ⇒ 必须无问题（防判定对任意输入都报 ✗）
 case_('正例·空边表放过', missingEdges(SEGMENTS, []).length === 0);
 
+// `#1130`：**独占段的理由可查** —— 标了 `exclusive` 的段必须声明 `mutates`（它动哪些**已入库真源**）
+//   为什么（与 `NEED_EDGES` 同口径）：独占是一次**显式决定** ⇒ 理由进数据、不许只写注释（不可机检）
+//   为什么需要独占：窗口制造者（就地改真源再恢复 ⇒ mtime 刷新）与并行 boot 的段撞新鲜度守卫 ⇒ 偶发红
+const exclDeclProblems = (segs) => segs.filter((s) => s.exclusive && (!Array.isArray(s.mutates) || s.mutates.length === 0)).map((s) => s.id);
+{
+	const excl = SEGMENTS.filter((s) => s.exclusive);
+	case_('独占段必须声明 mutates（非空 ⇒ 理由可查）', exclDeclProblems(SEGMENTS).length === 0, exclDeclProblems(SEGMENTS).join('、'));
+	case_('独占段 >=1（今天＝lint-story；若变 0 ⇒ 本机制可能已被摘）', excl.length >= 1, `exclusive 段数=${excl.length}`);
+	case_('反例·独占段缺 mutates ⇒ 必报（能假）', (() => {
+		const mut = SEGMENTS.map((s) => (s.exclusive ? { ...s, mutates: [] } : s));
+		return exclDeclProblems(mut).length === excl.length && excl.length >= 1;
+	})());
+}
+
 console.log(bad === 0 ? '✔ plan-needs：段间产物依赖边全部在册' : `✗ plan-needs：${bad} 条问题（见上）`);
 process.exit(bad === 0 ? 0 : 1);

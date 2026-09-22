@@ -741,6 +741,7 @@ export const INPUTS_WILDCARD_REASONS = {
 	'test-npm-entries-guard-mjs': {
 		reason: '本件端到端跑护栏，而护栏扫描全仓文档与代码里的 `npm run` 引用（跨 docs／scripts／test／.github，且是动态遍历）=> 依赖面跨目录且静态抽面锚不到，取全跑型以免静默跳过成假绿面',
 		voucher: '#1200',
+	},
 	'test-pc-base-mjs': {
 		reason: '读三故事契约与角色状态（跨 stories，且路径由清单给出）=> 依赖面跨目录且静态抽面锚不到，取全跑型以免静默跳过成假绿面',
 		voucher: '#1186',

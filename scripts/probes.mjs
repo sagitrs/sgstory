@@ -31,6 +31,20 @@
 /** @type {{id:string,tier:'fast'|'full',pre:string[],cmd:string,rebuild?:string, // `#1012`：变异后重建产物（还原之后跑，失败即红）
 mutation:{file:string,find:string,replace:string},expect:{rc:number,stdout:RegExp},why:string}[]} */
 export const PROBES = [
+	// `#1189`：量的是「覆盖格真的在守」那一支 —— 刀＝往 `src/` 里插一段合成现场（形态与真的一样，不进表）。
+	{
+		id: 'test/route-registry.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/route-registry.mjs',
+		mutation: {
+			file: 'src/engine/40-sim/32-social.twee',
+			find: "\tapplyAskEffect(a, pc) {",
+			replace: "\tapplyAskEffectFake(a, pc) {\n\t\tconst hook = window.Sg?.story?.socialHooks?.()?.[a.id]?.apply;\n\t},\n\tapplyAskEffect(a, pc) {",
+		},
+		expect: { rc: 1, stdout: /覆盖：每个现场都在表里|反向核/ },
+		why: '量的是「新增多路线行为必须同片带表项」那条出生规则（插一段不带表项的现场 ⇒ 覆盖格或反向核点名）。',
+	},
 	// `#1188`：量的是「有没有默认，就是该不该声明的判据」那一支 —— 刀＝把规格里的一条缺省删掉
 	//（选 `lootText`：它「引擎在读、三故事都没声明」→ 删掉缺省后缺口格必须点名）。
 	{

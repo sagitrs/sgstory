@@ -9,6 +9,7 @@
 		"test": "node scripts/run-tests.mjs --tier=fast",
 		"test:full": "node scripts/run-tests.mjs --tier=full",
 		"check:deauth": "node test/attribution-gate.mjs",
+		"check:npm-entries": "node scripts/check-npm-entries.mjs",
 		"serve": "python3 -m http.server 8000 --directory dist",
 		"editor": "node scripts/serve-editor.mjs",
 		"watch": "node --watch --watch-path=src build.mjs",

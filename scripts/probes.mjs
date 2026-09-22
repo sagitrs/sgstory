@@ -31,6 +31,21 @@
 /** @type {{id:string,tier:'fast'|'full',pre:string[],cmd:string,rebuild?:string, // `#1012`：变异后重建产物（还原之后跑，失败即红）
 mutation:{file:string,find:string,replace:string},expect:{rc:number,stdout:RegExp},why:string}[]} */
 export const PROBES = [
+	// `#1188`：量的是「有没有默认，就是该不该声明的判据」那一支 —— 刀＝把规格里的一条缺省删掉
+	//（选 `lootText`：它「引擎在读、三故事都没声明」→ 删掉缺省后缺口格必须点名）。
+	{
+		id: 'test/contract-defaults.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/contract-defaults.mjs',
+		mutation: {
+			file: 'editor/lib/core/contract-defaults.mjs',
+			find: "	lootText: { kind: 'null', verified: VERIFIED },",
+			replace: "	// 探针：删掉这条缺省（引擎仍在读它、三故事都没声明，缺口格应点名）",
+		},
+		expect: { rc: 1, stdout: /read-without-default|lootText/ },
+		why: '量的是「读了而没声明又没有缺省 ⇒ 报」那一支（删缺省 ⇒ 缺口格当场点名）。',
+	},
 	// `#1186`：量的是「未声明模块的故事零玩法概念」那一支 —— 刀＝把战斗组的在场门从"按契约面"改成
 	// "恒在场"（即让 `dragon` 无条件出现）→ 第二格必须点名。
 	// 不需要 `rebuild`：被测面是引擎那段的门与状态形状。

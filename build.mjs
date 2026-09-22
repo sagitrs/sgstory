@@ -1,9 +1,11 @@
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
 import { allSourceFiles } from './scripts/module-order.mjs';
 import { execSync } from 'node:child_process';
+import vm from 'node:vm';   // `#1176`：生成件脚本段的解析器（只解析不执行）
 import { join, dirname, relative, isAbsolute } from 'node:path';
 import { scopedFiles, checkRegistration, isStoryPassageMd } from './scripts/module-order.mjs';
 import { parseFrontMatter, parseMdPassages, parseTweePassages, assemblePassages, FORBIDDEN_BUILTINS, duplicateProblems } from './editor/lib/core/passages.mjs';
+import { scriptSyntaxProblems } from './editor/lib/core/segment-syntax.mjs';   // `#1176`
 import { valueTerms, engineLabels } from './editor/lib/core/vocab.mjs';
 import {
 	ROOT, storySlugs, readStory, storyHtml, shelfHtml, DEFAULT_SLUG,
@@ -206,6 +208,20 @@ for (const s of stories) {
 			console.error(`✗ ${f}（段「${p0.name}」）的**产物 body 与「源剥注释后的 body」不等** ✗ ⇒ md 路径没剥注释（stripTweeComments 漏接 ✓）`);
 			process.exit(1);
 		}
+	}
+}
+
+// `#1176`：生成件的脚本段必须能解析。编译命令里已在写出前拦一次；此处覆盖**树上已存在的**生成件，
+//   使 `npm run build` 单独跑也拦得住（坏段会让引擎不启动，且症状隐蔽）。
+{
+	const GEN_RE = /^stories\/[^/]+\/1[5678]-[^/]*\.twee$/;
+	const genFiles = files.filter((f) => GEN_RE.test(f));
+	const gsrc = Object.fromEntries(genFiles.map((f) => [f, readFileSync(f, 'utf8')]));
+	const syntax = scriptSyntaxProblems({ files: gsrc, parse: (code) => { new vm.Script(code); } });
+	if (syntax.length) {
+		for (const p of syntax) console.error(`✗ [segment-syntax] ${p.file} 段「${p.passage}」：${p.why}`);
+		console.error('✗ 生成件里有脚本段语法错误 —— 引擎会因此不启动，故构建失败');
+		process.exit(1);
 	}
 }
 

@@ -11,6 +11,7 @@ import { join, resolve, dirname, relative } from 'node:path';
 import { readText, writeText, mkdirp, exists, ROOT, engineScripts } from './fs.mjs';
 import { scriptBodies } from '../core/text.mjs';
 import { compileStory } from '../core/emit.mjs';
+import { scriptSyntaxProblems } from '../core/segment-syntax.mjs';   // `#1176`：生成件脚本段语法检查（纯函数，解析器注入）
 import { packageFiles, writeStoryPackage, sectionFile } from '../core/story.mjs';
 import { unknownDomainWords } from '../core/vocab.mjs';
 import { runStory, engineOf } from './sandbox.mjs';
@@ -94,6 +95,14 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 	const notesFace = readIf('notes.json');   // 车道 B · notes 面（`#215` `18504282` ✓）：一个数据文件 → 多份产物 ✓
 	if (!tables && !contract && !rules && !notesFace) { console.error(`✗ stories/${slug}/data/ 下没有任何产物源（tables/contract/rules/notes.json 都没有）`); return 1; }
 	const files = compileStory({ tables, contract, rules, notesFace, slug, chargen });
+	// `#1176`：生成件的脚本段必须能解析。坏段会让引擎不启动，且症状隐蔽（错误不带 Uncaught 前缀，
+	//   容易被错误过滤漏掉）⇒ 在写出产物之前当场拦下并点名。解析器由宿主注入：core 不许依赖 node:*。
+	const syntax = scriptSyntaxProblems({ files, parse: (code) => { new vm.Script(code); } });
+	if (syntax.length) {
+		for (const p of syntax) console.error(`✗ [segment-syntax] ${p.file} 段「${p.passage}」：${p.why}`);
+		console.error('✗ 生成件里有脚本段语法错误 —— 引擎会因此不启动，故不写出产物');
+		return 1;
+	}
 	// ⚠️ 比**解析后**的路径（`--out=stories/<slug>` 是相对的 ✓ —— 直接拿字符串比会静默走错分支 ✗）。
 	if (resolve(OUT) === join(ROOT, 'stories', slug)) {
 		const wrote = writeStoryPackage({ slug, twee: files, io: NODE_IO });

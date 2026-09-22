@@ -29,7 +29,7 @@ export const WHITELIST = [
 	'stories/face-fixture/16-notes-ch1.twee',
 	'stories/face-fixture/17-rules.twee',
 	'stories/face-fixture/18-chargen.twee',  // 由 data/chargen.json 生成（`#1132` B3 车卡数据面）
-	'stories/face-fixture/00-meta.twee',     // `#1132` B4：由 00-story.json 生成（元数据段）
+	'stories/face-fixture/00-meta.twee',     // `#1132` B4：由 data/meta.json 生成（元数据段；清单里的 title 只是既有消费面，不是本段的源）
 	'stories/minimal-demo/00-meta.twee',
 	'stories/night-ferry/00-meta.twee',
 	'stories/minimal-demo/15-tables.twee',

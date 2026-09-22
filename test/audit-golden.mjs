@@ -13,6 +13,7 @@
 //   ② 收尾行（数据源提示）含路径文本，不参与归一化，作为普通内容比对。
 import { execFileSync } from 'node:child_process';
 import { assertFreshDist } from '../scripts/dist-fresh.mjs';
+import { stripScopeHeader } from '../scripts/audit/lib/shared.mjs';
 import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 
@@ -33,7 +34,11 @@ const FLAGS = [
 // 归一化：只对不确定输出的开关生效（其余逐字节）
 // ⚠️ `#1004` B2 ✓：特例里的 `dragon`（战斗分布 → 百分比抖动）随旧故事的门一起没了 ✓ ⇒ 现在是**空转**分支 ✓。
 //   保留它 ✗：机制本身是通用的 ✓（日后有数值抖动的门就按 `dragon` 那行加回来 ✓）。
-export const normalize = (flag, text) => (flag === 'dragon' ? text.replace(/[\d.]+%/g, 'N%') : text);
+// `#1157`：**剥掉驱动器对象头**（`runSelectedGates` 打印的那一行 ⇔ 与本文件同一落点的 `stripScopeHeader` ✓）。
+export const normalize = (flag, text) => {
+	const stripped = stripScopeHeader(text);
+	return flag === 'dragon' ? stripped.replace(/[\d.]+%/g, 'N%') : stripped;
+};
 
 // flag 传 null ＝ 「无参数全跑」（wantAll 只在没有任何 `--` 参数时为真）；`extra` 追加到命令行尾部（`--story` 等）。
 export const runFlag = (flag, extra = []) => {

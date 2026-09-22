@@ -298,8 +298,24 @@ export const rowsContaining = (rows, passage, anchor) =>
 // 2026-09-14 实测：`--engine-only --check` 时 9 道引擎门里只有 `state`／`literals`（无守卫）真跑，
 // 其余 7 道逐个早退 —— 计划里那两段却把它当成「四道引擎门对第二/第三故事绿」的证据（假绿）。
 // 纯逻辑（`log` 可注入）⇒ 自证与真实运行同一份代码。
+// `#1157`：**剥掉对象头** —— 与"打头"（`runSelectedGates`）**同一落点** ✓（谁打印谁负责剥离的形状 ✓）。
+//   只在**首行**且**形状严格匹配**时剥（`^story=<slug>（…）$` ⇒ 少一个字符都不剥 ✗）
+//   ⇒ 剥后与旧基线**逐字节相同**（`test/audit-golden.json` **零改动** ✓）。
+//   ⚠️ 若写成"剥掉任何含 `story=` 的行" ⇒ 门自己打印的读数也可能被吃掉（＝**把真差异吃掉** ✗）
+//   ⇒ 故用**整行全匹配 ＋ 只剥首次出现的一行** ✓（`test/audit-scope-header.mjs` 第 ③ 格看守 ✓）。
+export const stripScopeHeader = (text) => String(text).replace(/^story=[^\n]*（[^）]*）\n?/, '');
+
 export const runSelectedGates = (gates, ctx, log = console) => {
 	const silent = [];
+	// `#1157`：**对象头**（本票正题）—— 门首行说的是"**查什么**"（⓪u 状态契约门 ✓），驱动器这行说的是
+	//   "**查哪个对象**"（`story=<slug>` ✓）⇒ **两根轴不同 ⇒ 对象头归驱动器**（职责对齐 ✓ 单一落点五面一致 ✓）。
+	//   为什么必须有：`scripts/audit.mjs` 的**默认故事作用域＝`face-fixture`**（`DEFAULT_SLUG` ✓）⇒ 漏传 `--story`
+	//   ⇒ 读数**静默张冠李戴**（实测踩过 ✗ `#1157`）⇒ 默认时必须**明写"默认值 ⚠"** ⇒ 张冠李戴**当场可见** ✓。
+	//   ⚠️ 头进的是**进程 stdout** ⇒ `test/audit-golden.mjs` 的 `normalize` 会**剥掉这一行**再逐字节比对
+	//   （剥后与旧基线一致 ⇒ **基线零改动** ✓）；**头在不在都不影响 golden** ✓（在 ⇒ 剥；不在 ⇒ 没得剥 ✓）
+	//   ⇒ ⇒ **golden 不背对象头的锅，对象头由 `test/audit-scope-header.mjs` 自己背** ✓（职责分离 ✓）。
+	const explicit = (ctx?.argv ?? []).includes('--story');
+	log.log(`story=${ctx?.storySlug ?? '(未知)'}（${explicit ? '--story 显式' : '默认值 ⚠ —— 未传 --story'}）`);
 	for (const g of gates ?? []) {
 		let spoke = false;
 		const orig = log.log;

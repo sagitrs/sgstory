@@ -120,6 +120,9 @@ export const SEGMENTS = [
 	// `#1141`：**md 故事段落对两处面可见**（`ui-migration-diff` 的 parsePassages／`engine-story-free` 的 scriptBodies）⇒ 读 md 源与 core 分派面 ⇒ 全跑型 ✓
 	{ id: "test-md-visible-faces-mjs", phase: 'test', cost: 0.2, cmd: "node test/md-visible-faces.mjs",
 		inputs: ['*'] },   // `#1156`：读码两侧（引擎真源 ＋ core 镜像）——面经常量间接（抽取器看不到字面量 ✗）⇒ 取**全跑型** ✓（宁多跑不漏面 ✓）
+	// `#1157`：**报文自带作用域** —— 跑真入口（`scripts/audit.mjs`）取首行对象头 ⇒ 面＝整个审计驱动器 ⇒ 全跑型 ✓
+	{ id: "test-audit-scope-header-mjs", phase: 'test', cost: 0.4, cmd: "node test/audit-scope-header.mjs",
+		inputs: ['*'] },
 	// 车道 D · `--settle`（`#215` 报备 `18504699`）：**落点文案页内面** ✓ —— 页内与 CLI **同一份判据** ✓（`core/settleRows.mjs` ⇒ 两侧同判 ＋ 非空上的同判 ✓；读故事源 ＋ `web/**` ＋ `scripts/audit/context.mjs` ⇒ 无前置 ✓；jsdom ⇒ cost 0.4 ✓）。
 	// `#794` P1①：「故事包 I/O ＝ 唯一写路」的自证（核心在 `editor/lib/core/story.mjs` ✓；含**写侧哨兵**：拒绝型 io ⇒ 写入当场失败 ✓）。
 	{ id: "test-core-story-mjs", phase: 'test', cost: 0, cmd: "node test/core-story.mjs" },
@@ -606,6 +609,8 @@ export const SUITE_MEMBERS = {
 		'test-web-diagnose-mjs', 'test-web-diagnose-view-mjs', 'test-web-diagnose-wire-mjs', 'test-web-events-mjs',
 		'test-web-events-mjs-selftest', 'test-web-form-mjs', 'test-web-form-mjs-selftest', 'test-web-new-package-mjs',
 		'test-web-export-mjs', 'test-web-event-graph-mjs', 'test-web-rule-rows-mjs', 'test-web-read-faces-mjs', 'test-readkey-family-mjs', 'test-md-visible-faces-mjs', 		'test-browser-mjs-selftest',
+		'test-web-export-mjs', 'test-web-event-graph-mjs', 'test-web-rule-rows-mjs', 'test-web-read-faces-mjs', 'test-readkey-family-mjs', 'test-audit-scope-header-mjs',
+		'test-browser-mjs-selftest',
 
 		'test-k4-args',
 		'test-k4-references',
@@ -724,6 +729,10 @@ export const INPUTS_WILDCARD_REASONS = {
 	'test-md-visible-faces-mjs': {
 		reason: '本段读**故事源面**（`stories/**/passages/*.md` ＋ twee）与 core 分派面 ⇒ 面宽且随内容变 ⇒ 静态面写不窄 ⇒ 取全通配（宁多跑不漏面 ✓）',
 		voucher: '#1141',
+	},
+	'test-audit-scope-header-mjs': {
+		reason: '本段跑**真入口**（`scripts/audit.mjs` 五个面 × 两态 `--story`）取首行对象头 ⇒ 面＝**整个审计驱动器**（含门与产物）⇒ 静态面写不窄 ⇒ 取全通配（宁多跑不漏面 ✓；头的形状一旦走偏必须当场红 ✗）',
+		voucher: '#1157',
 	},
 	'test-readkey-family-mjs': {
 		reason: '本段**读码两侧**（引擎真源 `src/engine/40-sim/21-resolve.twee` ＋ core 镜像 `editor/lib/core/audit-shared.mjs`）；面经**常量间接**（`ENGINE` 常量 ⇒ 抽取器看不到字面量 ✗）⇒ 取全通配（宁多跑不漏面 ✓ 成对断言一旦漂移必须当场红 ✗）',

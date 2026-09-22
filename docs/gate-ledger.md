@@ -69,7 +69,6 @@
 | `test/focus-after-nav.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/g3-evidence.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/gate-discovery.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/gen-segment-syntax.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/globals.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/import-side-effects.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/integrity.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
@@ -80,6 +79,7 @@
 | `test/lint-scratch.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/lint-story.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/md-visible-faces.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
+| `test/meta-source.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/multi-story.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/new-story-fixture.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/npc-venue.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
@@ -149,8 +149,8 @@
 - `test/equiv-scratch.mjs`（测试脚本）
 - `test/fatal-guard.mjs`（测试脚本）
 - `test/g3-evidence.mjs`（测试脚本）
-- `test/gen-segment-syntax.mjs`（测试脚本）
 - `test/md-visible-faces.mjs`（测试脚本）
+- `test/meta-source.mjs`（测试脚本）
 - `test/new-story-fixture.mjs`（测试脚本）
 - `test/onetime-pickups.mjs`（测试脚本）
 - `test/pc-defaults.mjs`（测试脚本）

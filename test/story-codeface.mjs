@@ -26,13 +26,9 @@ export const MECH_TAGS = ['script', 'widget', 'stylesheet'];
 
 // ── 明写基线（**只许降** ✗；改动基线必须是有意识的 ✓）──────────────────────
 /** twee 件数基线（故事目录下的全部 twee）。目标 0 ⇒ 到 0 后本门转硬判 ✓。 */
-export const BASE_TWEE = 6;   // `#1132` B3：删 10-fixture／12-hooks／13-codex 后跟降（原 11）
+export const BASE_TWEE = 1;   // `#1132` B4：三故事元数据段改由编译期生成 ⇒ 故事侧只剩 `face-fixture/11-fixture-cards.twee`（B4 之后另有票收编它）
 /** 机制标签段的**逐条点名清单**（顺序无关 ✓）。**只许缩** ✗ —— 加一条 ⇒ 红 ✓。 */
-export const BASE_MECH = [
-	'face-fixture/00-meta.twee::StoryIdentity',
-	'minimal-demo/00-meta.twee::StoryIdentity',
-	'night-ferry/00-meta.twee::StoryIdentity',
-];
+export const BASE_MECH = [];   // `#1132` B4：三故事元数据段改由编译期生成 ⇒ 最后三条机制标签段退场，到 0 转硬判
 // ──────────────────────────────────────────────────────────────────────────
 
 /** 从段落头行取 `:: 名 [tag …]`（只认行首 ✓；`:: ` 后到 `[` 前是段名 ✓）。 */
@@ -52,12 +48,16 @@ export const codefaceProblems = ({ tweeFiles = [], mechSegments = [], baseTwee =
 			? `故事侧出现 twee ${tweeFiles.length} 件 ⇒ **基线已到 0，此项为硬判** ✗（故事侧不得再有 twee ✓）：${tweeFiles.join('、')}`
 			: `故事侧 twee ${tweeFiles.length} 件 > 基线 ${baseTwee} ⇒ **只许降** ✗（迁移目标为 0 ✓）：${tweeFiles.join('、')}` });
 	}
-	// (D-b) 机制标签段：**只许缩**（当前清单必须是基线的子集 ✓ 且段数不得超出）
+	// (D-b) 机制标签段：ratchet（≤ 基线）／基线到 0 ⇒ **硬判**（照 (D-a) 同款收口 ✓）
 	const allow = new Set(baseMech);
 	const extra = mechSegments.filter((s) => !allow.has(s));
-	const mechOk = extra.length === 0 && mechSegments.length <= baseMech.length;
+	const mechOk = baseMech.length === 0
+		? mechSegments.length === 0
+		: (extra.length === 0 && mechSegments.length <= baseMech.length);
 	if (!mechOk) {
-		out.push({ code: 'B', msg: `故事侧出现**基线之外**的机制标签段 ${extra.length} 处 ⇒ 追定「故事零逃生舱」✗（不得自写 script／widget／stylesheet 段 ✗）：${extra.join('、') || '(段数超出基线但无新增条目 —— 请核基线 ✓)'}` });
+		out.push({ code: 'B', msg: baseMech.length === 0
+			? `故事侧出现机制标签段 ${mechSegments.length} 处 ⇒ **基线已到 0，此项为硬判** ✗（故事侧不得再有机制标签段）：${mechSegments.join('、')}`
+			: `故事侧出现**基线之外**的机制标签段 ${extra.length} 处 ⇒ 追定「故事零逃生舱」✗（不得自写 script／widget／stylesheet 段 ✗）：${extra.join('、') || '(段数超出基线但无新增条目 —— 请核基线 ✓)'}` });
 	}
 	return out;
 };

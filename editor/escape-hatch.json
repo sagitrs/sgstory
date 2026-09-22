@@ -7,24 +7,6 @@
 	"refusedFacesWhy": "**\"不数据化的面\"**（`#215` `18508321` 裁定 ✓）：这些面**不是不会写** ✗，而是**当下不划算／不该由本线做** ✓ —— 登记它们，是让后人看到\"**已知的欠账**\"✗，而不是\"没人在意\"✓。判据两条 ✓：① 条目必带 `file`／`why`／`ticket`／`paths`（`paths` ＝ **退路 ＋ 重开条件** ✓）；② **只许收缩** ✗ —— 登记的件若**已带 `@generated`**（＝其实已数据化 ✓）⇒ **红**（删掉该条，那条注释归它的迁移 PR ✓）。⚠️ **别拿既有两个容器装它** ✗：`hatches` 按**契约成员名**登记 C 桶 ✓（本族登记的是**文件/面** ⇒ 会当场判\"登记腐烂\" ✗）；`hatchFiles` 会被 `editor/equiv.mjs` **拼进等价门的产物侧** ✓（＝宣称\"这些手写件属于生成契约\" ✗）⇒ 那是**改判据的输入** ✗。口径 ✓：本线目标**不是\"手写面清零\"** ✗ —— 是「**可数据化的面必须数据化** ✓；真文本／逻辑面可以留 ✗，但必须**被登记、可计数**」✓（`editor/k4.mjs` 会打印本表条数 ✓）。",
 	"refusedFaces": [
 		{
-			"file": "stories/minimal-demo/00-meta.twee",
-			"why": "**同上**（与 `mist-forest/00-meta.twee`／`hollow-cave/00-meta.twee` **同类** ✓）：有效可数据化内容 ≈ 2–3 行 ✗",
-			"ticket": "#985",
-			"paths": "**三条路** ✓：(i) **把三段都数据化**（`StoryTitle` 散文 ＋ `StoryData` 的 ifid/format ✗ ＋ `StoryIdentity` ✓）—— 当下不走的理由：`StoryData` 是 **Twine 格式元数据** ✗（**不是故事数据** ✓：`format`／`format-version`／`zoom` 属 Twine 参数 ✓）、`StoryTitle` 是**散文** ✓（设计稿 §3「文本留文本」✓）、`StoryIdentity` 只 **1 行**且**已被 `store-keys` 门把住** ✓；(ii) **只数据化 `StoryIdentity`** ✓ —— 收益 1 行 ✓ < 新面成本（schema ＋ 发射器 ＋ 等价基线 ＋ 门 ✓）；(iii) **本阶段不动 ＋ 登记为欠账** ✓ ← **当下采用** ✓。**重开条件** ✗：当「手写面清零」成为显式目标、或 `StoryData` 需要按故事机检时 ✓"
-		},
-		{
-			"file": "stories/night-ferry/00-meta.twee",
-			"why": "**元数据面**（`night-ferry` ✓，17 行）：与 `stories/mist-forest/00-meta.twee`／`stories/hollow-cave/00-meta.twee` **同类** ✓ —— `StoryTitle`＝散文 1 行 ✓／`StoryData`＝**Twine 格式元数据**（`ifid`／`format*`／`zoom` ✗ 不是故事数据 ✓）／`StoryIdentity`＝1 行且**已被 `store-keys` 门把住** ✓ ⇒ 可数据化内容 ≈ 2–3 行 ✗",
-			"ticket": "#991",
-			"paths": "**三条路** ✓：(i) 三段都数据化 ✗（`StoryData` 是 Twine 参数、`StoryTitle` 是散文 ✓）；(ii) 只数据化 `StoryIdentity` ✓（收益 1 行 ✗ < 新面成本 ✓）；(iii) **本阶段不动 ＋ 登记为欠账** ✓ ← **采用** ✓。**重开条件** ✗：当「手写面清零」成为显式目标、或 `StoryData` 需按故事机检时 ✓"
-		},
-		{
-			"file": "stories/face-fixture/00-meta.twee",
-			"why": "**元数据面**（夹具 ✓）：与 `stories/minimal-demo/00-meta.twee`／`stories/night-ferry/00-meta.twee` **同类** —— `StoryTitle`＝散文 1 行／`StoryData`＝Twine 格式元数据（`ifid`／`format*`／`zoom` 不是故事数据）／`StoryIdentity`＝1 行且已被 `store-keys` 门把住 ⇒ 可数据化内容 ≈ 2–3 行。",
-			"ticket": "#1004",
-			"paths": "**三条路**：(i) 三段都数据化（当下不走：`StoryData` 属 Twine 参数、`StoryTitle` 属散文）；(ii) 只数据化 `StoryIdentity`（收益 1 行 < 新面成本）；(iii) **本阶段不动 ＋ 登记为欠账** ← 采用。**重开条件**：当「手写面清零」成为显式目标、或 `StoryData` 需要按故事机检时。"
-		},
-		{
 			"file": "stories/face-fixture/11-fixture-cards.twee",
 			"why": "**车卡模块（可达段）**（夹具）：装 `车卡`／`车卡·成型` 两段 —— 它们是**玩家可达段**（有入边链接 ✓）故不能标 `[widget]`；内容为 `Game.Chargen` 驱动的卡片列表（`<<for>>` 循环 ＋ `<<capture>>`）⇒ **当下不可数据化**（`#1132` 定形态 ✓）。`#1114` 2b-2b 从 `10-fixture.twee` 拆出以**保持原段序**（md 段与这两段交错 ✓）",
 			"ticket": "#1132",

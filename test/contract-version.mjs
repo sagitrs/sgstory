@@ -79,8 +79,8 @@ try {
 
 	// ── 新故事也声明号 ✓（`manifestFor` 带上 ✓）────────────────────────────
 	t('`manifestFor()` 产出的清单**自带 `contractVersion`** ✓（⇒ 页面新建的故事与既有故事同形 ✓）',
-		manifestFor({ slug: 'x', twee: { '00-meta.twee': '' } }).contractVersion === CURRENT);
-	t('`manifestFor()` 产出的清单**自带 `audience`**（`#1035`）', manifestFor({ slug: 'x', twee: { '00-meta.twee': '' } }).audience === 'content');
+		manifestFor({ slug: 'x', twee: { '00-meta.twee': '' }, ifid: 'a1b2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d' }).contractVersion === CURRENT);
+	t('`manifestFor()` 产出的清单**自带 `audience`**（`#1035`）', manifestFor({ slug: 'x', twee: { '00-meta.twee': '' }, ifid: 'a1b2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d' }).audience === 'content');
 
 	// ── 真数据：**发现式**（不写死名单 ✗）──────────────────────────────────
 	const slugs = readdirSync(`${ROOT}/stories`, { withFileTypes: true })

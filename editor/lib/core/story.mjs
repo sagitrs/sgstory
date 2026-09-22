@@ -113,6 +113,9 @@ export const starterPackage = ({ slug, title = '未命名故事', entry = '开�
 			'tables.json': { section: 'Game Tables', containers: {} },
 			'contract.json': { section: 'StoryBindings', members: [] },
 			'rules.json': { section: 'StoryRules', key: 'rules', rows: [] },
+			// `#1132` B4：元数据段（`StoryTitle`／`StoryData`／`StoryIdentity`）改由编译期生成
+			//   ⇒ 其源是这里（`data/meta.json`），`twee` 里的 `00-meta.twee` 只是**初值**（编译时会被覆盖）。
+			'meta.json': { section: 'StoryMeta', title, entry, ifid },
 		},
 		twee: { '00-meta.twee': metaTwee({ slug, title, entry, ifid }) },
 	};
@@ -143,7 +146,7 @@ window.Sg.storyId = { slug: '${slug}' };
  *  入口件（`00-meta.twee` ✓）**永远排第一** ✓（`storyOrder()` 拿不准时按清单序 ✓），其余按 `twee` 的键序 ✓（＝编译输出序 ✓）。
  *  ⚠️ 只列**真的写出去了**的件 ✗（漏列 ⇒ `build.mjs` 拒「故事件不在清单里」✗；多列 ⇒ 拒「清单里的文件不存在」✗）
  *  ⇒ 调用方请把**与 `writeStoryPackage` 同一个 `twee` 对象**传进来 ✓（一处真源、两处消费 ✓）。 */
-export const manifestFor = ({ slug, title = '未命名故事', subtitle = '', entry = '开场', gates = [], twee = {}, audience = 'content' } = {}) => {
+export const manifestFor = ({ slug, title = '未命名故事', subtitle = '', entry = '开场', gates = [], twee = {}, audience = 'content', ifid } = {}) => {
 	const names = Object.keys(twee);
 	if (!names.includes('00-meta.twee')) throw new Error('manifestFor：`twee` 里必须含入口件 `00-meta.twee`（它的 `StoryData.start` 与 `entry` 必须一致 ✓）');
 	const order = ['00-meta.twee', ...names.filter((n) => n !== '00-meta.twee')];

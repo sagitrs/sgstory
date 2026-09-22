@@ -44,7 +44,7 @@ const STORIES = 'stories';   // \`#1128\` 产物前置用（编译器 out 路径
 {
 	const { execFileSync } = await import('node:child_process');
 	for (const slug of slugs.filter((x) => !x.startsWith('__'))) {   // #1128：临时夹具（__ 前缀）不参与产物前置 ✓（它们的产物由造它们的段自己管 ✓）
-		const genNeeded = ['15-tables.twee', '17-rules.twee', '16-notes-ch1.twee', '18-chargen.twee'].some((f) => !existsSync(join(STORIES, slug, f)));
+		const genNeeded = ['15-tables.twee', '17-rules.twee', '16-notes-ch1.twee', '18-chargen.twee', '00-meta.twee'].some((f) => !existsSync(join(STORIES, slug, f)));
 		// 只补缺件（`#1128` 后磁盘上的现存产物由 K4 freshness 门守 ✓——不重编已有 ⇒ 保持与门一致 ✓）
 		// ⚠️ 每故事的产物集不同（minimal-demo 只 15；face-fixture 15/16/17）⇒ 编译器按 data/ 自动产出 ✓
 		if (genNeeded) {

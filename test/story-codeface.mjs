@@ -33,7 +33,6 @@ export const BASE_MECH = [
 	'face-fixture/10-fixture.twee::Chargen Data',
 	'face-fixture/12-hooks.twee::StoryHooks',
 	'face-fixture/12-hooks.twee::Fixture Widgets',
-	'face-fixture/13-codex.twee::CodexUI',
 	'minimal-demo/00-meta.twee::StoryIdentity',
 	'night-ferry/00-meta.twee::StoryIdentity',
 ];

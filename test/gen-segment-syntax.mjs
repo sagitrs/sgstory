@@ -1,7 +1,7 @@
 // `#1176`：生成件脚本段语法检查的读数。
 //
 // 成对口径：坏段必报且点名；同类但加括号的好段不报；另证该格确实依赖真解析器
-// （换一个宽容的 parse 注入 ⇒ 同一段坏文本不报，说明格子不是自己判断的）。
+//（换一个宽容的 parse 注入 → 同一段坏文本不报，说明格子不是自己判断的）。
 import vm from 'node:vm';
 import { scriptSyntaxProblems, scriptSegments } from '../editor/lib/core/segment-syntax.mjs';
 
@@ -15,7 +15,7 @@ const ok = (label, cond, extra = '') => {
 const seg = (name, tags, body) => `:: ${name} [${tags}]\n${body}\n`;
 // 事故形态（2026-09-22）：箭头函数后直接跟对象字面量花括号，被解析成块语句，块内字符串标签非法。
 const BAD = 'Object.assign((window.Sg.story ??= {}), {\n\trules: () => {"x": 1},\n});\n';
-// 同类但把对象字面量包成表达式 ⇒ 合法。
+// 同类但把对象字面量包成表达式 → 合法。
 const GOOD = 'Object.assign((window.Sg.story ??= {}), {\n\trules: () => ({"x": 1}),\n});\n';
 
 // 一、只收脚本段
@@ -39,7 +39,7 @@ const GOOD = 'Object.assign((window.Sg.story ??= {}), {\n\trules: () => ({"x": 1
 	ok('加括号的同形好段不报', p.length === 0, JSON.stringify(p));
 }
 
-// 四、该格确实依赖注入的解析器（换宽容 parse ⇒ 同一坏文本不报）
+// 四、该格确实依赖注入的解析器（换宽容 parse → 同一坏文本不报）
 {
 	const lenient = () => {};
 	const p = scriptSyntaxProblems({ files: { 'x.twee': seg('S', 'script', BAD) }, parse: lenient });

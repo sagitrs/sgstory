@@ -1,26 +1,26 @@
 // 两态注入原型（`#629` · 伞 `#626`）—— **report-* 命名**：为的是进 F2 台账（'未接线（原型）＋理由'逐条可见）—— **证明"每个条件站点两态可构造"**，report/原型级，**不进门禁**。
 //
-// 为什么有它：门禁要从"抽样有没有崩"（游走器＝仪器）换成"**该是什么**"（规格）⇒ 规格的执行器需要能把
+// 为什么有它：门禁要从"抽样有没有崩"（游走器＝仪器）换成"**该是什么**"（规格）→ 规格的执行器需要能把
 // 目标段的每个条件站点**两侧都真实渲染出来**。本脚本就是那个执行器的**最小原型**：状态注入 ＋ 驱动到段 ＋
 // 渲染后取证据（可见选项／屏文本），并把两侧的**可机检期望**并排列出。
 //
 // 口径（与 `#628` 的报告互补，别混用）：
-//   · 证据一律来自**渲染后**（不是"我设了状态就算"）——与 `#491` 的真机口径一致；
-//   · 注入是**受控的最小集**：只改该站点决策相关的键（`inv`／`ev`／`keeper`），其余保持车卡后的自然态；
-//   · **不可构造也是结果**（票面要求）：某站点若必须靠"游玩中间态"才能构造 ⇒ 单独列清单＋原因；
-//   · 本脚本**不进门禁**：它是原型（`#629`），真门形态等伞 `#626` 的裁决（落点见 `#607`：`stories/<slug>/gates/**`）。
+// · 证据一律来自**渲染后**（不是"我设了状态就算"）——与 `#491` 的真机口径一致；
+// · 注入是**受控的最小集**：只改该站点决策相关的键（`inv`／`ev`／`keeper`），其余保持车卡后的自然态；
+// · **不可构造也是结果**（票面要求）：某站点若必须靠"游玩中间态"才能构造 → 单独列清单＋原因；
+// · 本脚本**不进门禁**：它是原型（`#629`），真门形态等伞 `#626` 的裁决（落点见 `#607`：`stories/<slug>/gates/**`）。
 //
 // 用法：
-//   npm run build                                   # 前置：产物新鲜（`test/boot.mjs` 会断言）
-//   node scripts/report-two-state.mjs              # 试点段＝`顶楼`（本次缺口服最集中）
-//   node scripts/report-two-state.mjs --passage=书房
-//   node scripts/report-two-state.mjs --selftest   # 自证（纯函数；反例必须红）
+// npm run build # 前置：产物新鲜（`test/boot.mjs` 会断言）
+// node scripts/report-two-state.mjs # 试点段＝`顶楼`（本次缺口服最集中）
+// node scripts/report-two-state.mjs --passage=书房
+// node scripts/report-two-state.mjs --selftest # 自证（纯函数；反例必须红）
 import { writeFileSync, mkdirSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { ROOT } from './dist-paths.mjs';
 
 // ── 纯函数：期望判定（可自证）────────────────────────────────────────
-/** 一行证据 → 该站点在该极性下的**期望**是否成立。`expect` 形如 `{ kind:'text'|'choice'|'noChoice', value }`。 */
+/** 一行证据 → 该站点在该极性下的**期望**是否成立。`expect` 形如 `{ kind:'text'|'choice'|'noChoice', value}`。 */
 export const judgeExpectations = (evidence, expects = []) => {
 	const problems = [];
 	const text = String(evidence?.text ?? '');
@@ -83,12 +83,12 @@ const OUT = val('out', 'build/two-state.md');
 
 // ── 试点：`顶楼` 的两个交付站点 ＋ 它们的组合用例 ────────────────────────
 // 站点来自 `#628` 的缺口报告：`inv:传送术卷轴`（4 站点·0 双态）· `inv:完整星图`（9 站点·0 双态）。
-// 段内结构（`stories/mist-forest/40-ch2.twee`）：`<<if 卷轴 and 星图>>` ⇒ 交付链接；否则缺件提示。
+// 段内结构（`stories/mist-forest/40-ch2.twee`）：`<<if 卷轴 and 星图>>` → 交付链接；否则缺件提示。
 const PILOT = {
 	顶楼: {
 		// **发现 1（本原型的负面结果，值钱）**：单个原子的两态期望**不成立**——段内是 `<<if 卷轴 and 星图>>`，
-		//   只持有其中一件时"交付链接"仍在，但**落点仍是本段**（它只是把缺件旗标置真再重渲染）。
-		//   ⇒ 期望必须按**合取上下文**（这一行的完整谓词组合）声明，不能按单个原子声明。
+		// 只持有其中一件时"交付链接"仍在，但**落点仍是本段**（它只是把缺件旗标置真再重渲染）。
+		// → 期望必须按**合取上下文**（这一行的完整谓词组合）声明，不能按单个原子声明。
 		// **发现 2**：期望要用**渲染后**口径写——`缺''完整星图''` 在屏上是 `<em>` 斜体，`textContent` 里**没有引号**。
 		// 站点（供"极性覆盖"归纳用；两态期望写在**用例**上）。
 		sites: [
@@ -142,7 +142,7 @@ try {
 		inject(w, c.patches);
 		await render(w, PASSAGE);
 		const ev = snap(w);
-		// 行为面：点「把卷轴和星图交给他」看**落到哪一段**（两侧标签相同 ⇒ 只有落点/副作用能分辨）
+		// 行为面：点「把卷轴和星图交给他」看**落到哪一段**（两侧标签相同 → 只有落点/副作用能分辨）
 		const link = [...w.document.querySelectorAll(LINKS)].find((a) => (a.textContent ?? '').includes('把卷轴和星图交给他'));
 		if (link) { link.click(); await sleep(220); ev.landed = String(w.SugarCube.State.passage ?? ''); }
 		const expects = [...(c.expects ?? []), ...c.sites.flatMap((s) => pilot.sites.find((x) => x.atom === s.atom)?.expects?.[s.polarity] ?? [])];

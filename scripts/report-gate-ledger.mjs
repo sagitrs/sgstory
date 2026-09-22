@@ -3,30 +3,30 @@
 // 背景：本仓常年有几十个常设机检。它们的**风险不是漏测，而是空判**——门在跑、输出很绿，
 // 但断言其实咬不住任何东西（本日实际集齐四类：覆盖≠验收 / 反例空判 / 死开关 #331 /
 // 原理不可达断言 #338）。F2 的判据就是给每个门标出：
-//   形态（行为化 / 仅登记 / 人工走查）· 是否有**自证**（反例真会红）· 是否**接线**（在 npm test 里）
+// 形态（行为化 / 仅登记 / 人工走查）· 是否有**自证**（反例真会红）· 是否**接线**（在 npm test 里）
 // 并要求：**仅登记 / 未接线必须写明理由**，否则本门报红。
 //
 // 台账本身也要防腐：`docs/gate-ledger.md` 由本脚本 **生成**（--update），`--check` 校验
-// 「文件与实况一致」＋「无理由的仅登记/未接线」——文档漂移＝红（与 F6 同源纪律）。
+//「文件与实况一致」＋「无理由的仅登记/未接线」——文档漂移＝红（与 F6 同源纪律）。
 //
 // 用法：
-//   node scripts/report-gate-ledger.mjs            # 打印台账 + 一致性检查
-//   node scripts/report-gate-ledger.mjs --update   # 重新生成 docs/gate-ledger.md
-//   node scripts/report-gate-ledger.mjs --selftest # 自证（合成输入，验判定会咬）
+// node scripts/report-gate-ledger.mjs # 打印台账 + 一致性检查
+// node scripts/report-gate-ledger.mjs --update # 重新生成 docs/gate-ledger.md
+// node scripts/report-gate-ledger.mjs --selftest # 自证（合成输入，验判定会咬）
 
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { planChain, testPlan, tierOf, FULL_REASONS } from './test-plan.mjs';
-import { maskComments } from '../editor/lib/core/mask.mjs';   // `#899` ③：**同一把刀**（全仓唯一遮蔽器 ✓ —— 不新增第二份 ✗）
+import { maskComments } from '../editor/lib/core/mask.mjs';   // `#899` ③：**同一把刀**（全仓唯一遮蔽器 —— 不新增第二份）
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { PROBES } from './probes.mjs';   // `#908` ①：探针清单（**直接读数** ✓ —— 与「自证」那一格的**代理**分家 ✓）
+import { PROBES } from './probes.mjs';   // `#908` ①：探针清单（**直接读数** —— 与「自证」那一格的**代理**分家）
 
 const LEDGER = 'docs/gate-ledger.md';
 const PKG = 'package.json';
 
 // ── 仅登记 / 未接线的理由（必须逐条写明；新增未写理由的项 → 本门红）──────────
-// 「仅登记」＝只出报告、不做断言（允许，但必须说明为什么不设为门）；
-// 「未接线」＝不在 npm test 链里（允许，但必须说明谁来跑、何时跑）。
+//「仅登记」＝只出报告、不做断言（允许，但必须说明为什么不设为门）；
+//「未接线」＝不在 npm test 链里（允许，但必须说明谁来跑、何时跑）。
 export const REASONS = {
 	// ── audit 开关（id 形如 audit:<flag>）──
 	'audit:economy': { form: '行为化', reason: '收支时间线：**报表算术即判据**（`delta:null` 不计入／按**章序**累计／序走最低），自证 3 例（#342 第 8 波；此前标「仅登记」，由形态对账查出并改正）' },
@@ -52,12 +52,12 @@ export const REASONS = {
 	'test/saveload-inventory.mjs': { wired: true, form: '行为化', reason: '自证 6 例（含 widget 间接改状态）' },
 	'test/layering.mjs': { wired: true, form: '行为化', reason: '自证 **33** 条断言（**量法**：`node test/layering.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝模块依赖（`cases` 11 项，含 `#893` 两层登记的三条正反例）/ 点号 defines / 层间方向 / engine rank 派生与四条禁止边' },
 	'test/saveload.mjs': { wired: true, form: '行为化', reason: '**自证按需跑**：`node test/saveload.mjs --selftest`（故障注入＝落档后人为扰动，断言比较器判红）；不塞主链的理由＝自证需完整导航（成本≈主跑 30s，收益不值）' },
-	// `#1056`（**假阳性那一格**）：本件的 `--selftest` **不是入口** ✗ —— 它是**真断言的载荷**
-	//   （`cli(['--selftest'])` 在测壳的旗标面 ✓）⇒ 裸调与 `--selftest` 输出**逐字节相同** ✓。
-	//   处置＝**不接也不删**（`#1031` 的口径 ✓）：硬接一个无意义旗标 ＝ 为凑绿而接线 ✗；删那个字符串 ＝ 拆真断言 ✗。
-	//   ⚠️ 本件**已接**在 `test-plan` 里（裸调段 ＋ `test-story-ci-mjs-selftest` 段跑的是**同一件事** ✓ ——
-	//     那是 `#1031` 留的**成对登记形状**，非本片新增 ✗）；`selftestDispatched` 修掉后这一行
-	//   **不再被要求接线** ✓ ⇒ 台账里它是「行为化 ✅」。
+	// `#1056`（**假阳性那一格**）：本件的 `--selftest` **不是入口** —— 它是**真断言的载荷**
+	//（`cli(['--selftest'])` 在测壳的旗标面）→ 裸调与 `--selftest` 输出**逐字节相同**。
+	// 处置＝**不接也不删**（`#1031` 的口径）：硬接一个无意义旗标 ＝ 为凑绿而接线；删那个字符串 ＝ 拆真断言。
+	//注意：本件**已接**在 `test-plan` 里（裸调段 ＋ `test-story-ci-mjs-selftest` 段跑的是**同一件事** ——
+	// 那是 `#1031` 留的**成对登记形状**，非本片新增）；`selftestDispatched` 修掉后这一行
+	// **不再被要求接线** → 台账里它是「行为化 ✅」。
 	'test/story-ci.mjs': { wired: true, form: '行为化', reason: '**自证的归位（`#1056`）**：本件的 `--selftest` **不是入口** ✗ —— 它是**真断言的载荷**（`cli([\'--selftest\'])` 测壳的旗标面 ✓）⇒ 裸调与 `--selftest` 输出逐字节相同 ✓。⇒ **不接也不删**（`#1031` 口径 ✓）：硬接无意义旗标 ＝ 为凑绿而接线 ✗、删字符串 ＝ 拆真断言 ✗。真断言面由**裸调段**（`test-story-ci-mjs`）执行 ✓ —— `test-plan` 里那个 `-selftest` id 跑的就是裸调 ✓。' },
 };
 
@@ -79,7 +79,7 @@ const auditSrc = [readFileSync('scripts/audit.mjs', 'utf8'), ...Object.values(ga
 // **以注册表为权威声明**（此前用正则扫 arg('x')——新门若只写 flags:['state'] 就会被误判成幻影门）
 const registry = await import('./audit/registry.mjs');
 // `#607` P1：**故事侧声明的门**（`stories/<slug>/gates/**`）同样是门——枚举与「自证/判定路径」检测都要覆盖它们，
-// 否则门一搬走，台账里那几行会**静默消失**（形态检测也读不到源码 ⇒ 误判）。
+// 否则门一搬走，台账里那几行会**静默消失**（形态检测也读不到源码 → 误判）。
 const { declaredGatesAll } = await import('./audit/discovery.mjs');
 const declaredMods = await declaredGatesAll();
 const storyGateSrc = Object.fromEntries(declaredMods.map((m) => [m.file, readFileSync(m.file, 'utf8')]));
@@ -94,7 +94,7 @@ const moduleOfFlag = (flag) => gateMods.find((g) => (g.mod.flags ?? []).includes
 // 每个 audit 开关的「自证」：其**门模块**里是否含「自证」字样（本仓既有形态）。
 // #316 第 2 步后门已独立成文件 → 直接看该门所属模块。
 // 形态（报告/判定）不应只手写——**从源码派生「有没有判定路径」**，
-// 再与台账声明对账：声明「仅登记」但门里已有判定（bad++/✗/exit(1)/failures.push）＝形态升级未同步 → 红。
+// 再与台账声明对账：声明「仅登记」但门里已有判定（bad++/ /exit(1)/failures.push）＝形态升级未同步 → 红。
 const ASSERT_PAT = /bad\s*\+\+|\(\+\+bad\)|✗|process\.exit\(1\)|failures\.push\(|problems\.push\(/;
 const gateHasAssert = (flag) => {
 	const g = moduleOfFlag(flag);
@@ -111,35 +111,35 @@ const auditSelfProof = (flag) => {
 const reportScripts = readdirSync('scripts').filter((f) => f.startsWith('report-') && f.endsWith('.mjs')).sort();
 const testFiles = readdirSync('test').filter((f) => f.endsWith('.mjs') && !['boot.mjs', 'harness.mjs', 'invariants.mjs'].includes(f)).sort();
 
-/** `#908` ②：**形态**的判定（纯函数 ✓ ⇒ 自证段能驱动它 ✓）。
- *  ⚠️ **修掉一处自相矛盾** ✗（本票实测 ✓）：旧写法对 `kind === '测试脚本'` **无条件**给 `'行为化'` ✗
- *  ⇒ `#899` ③ 把「自证」列收紧后，`test/**` 里那三行（`自证 = —` ✓）被标成 `行为化` ✓、**却进不了「缺自证」工作清单** ✗
- *  ⇒ 生成物**自己的标题行写「有断言但缺自证：0」** ✗、而表里明明有三行 `—` ✗（正是本列“让缺自证的看得见”的反面 ✗）。
- *  正形 ✓：测试脚本**不再特殊** ✓ —— 有自证才 `行为化` ✓，没自证就落 `行为化（缺自证）`✓（与其它 kind 同口径 ✓）。 */
-//   ⚠️ `#924` 复核留（非阻塞 ✓）：旧写法两臂**逐字相同** ✗ ⇒ `kind` 已不影响结果 ✓ ⇒ 化简掉它 ✓
-//   （留着死三元 ⇒ 下一个改一行的人会以为两臂不同 ✗ ⇒ 改了等于没改 ✗ —— 与「声称 vs 实际」同族 ✓）。
+/** `#908` ②：**形态**的判定（纯函数 → 自证段能驱动它）。
+ *注意：**修掉一处自相矛盾**（本票实测）：旧写法对 `kind === '测试脚本'` **无条件**给 `'行为化'`
+ * → `#899` ③ 把「自证」列收紧后，`test/**` 里那三行（`自证 = —`）被标成 `行为化`、**却进不了「缺自证」工作清单**
+ * → 生成物**自己的标题行写「有断言但缺自证：0」**、而表里明明有三行 `—`（正是本列“让缺自证的看得见”的反面）。
+ * 正形：测试脚本**不再特殊** —— 有自证才 `行为化`，没自证就落 `行为化（缺自证）`（与其它 kind 同口径）。 */
+//注意：`#924` 复核留（非阻塞）：旧写法两臂**逐字相同** → `kind` 已不影响结果 → 化简掉它
+//（留着死三元 → 下一个改一行的人会以为两臂不同 → 改了等于没改 —— 与「声称 vs 实际」同族）。
 export const formOf = ({ selfProof = false, form } = {}) => form ?? (selfProof ? '行为化' : '行为化（缺自证）');
 
-/** `#908` ①：**探针**那一格（**直接读数** ✓，不是"文件在不在"那种代理 ✗）。
+/** `#908` ①：**探针**那一格（**直接读数**，不是"文件在不在"那种代理）。
  *
- * 三态 ✓：`✅`（有探针件 ✓ **且**最近一次实跑**咬住** ✓ **且**被测件**没改过** ✓）／`—`（未探 ✓）／`✗`（探针**不咬** ⇒ 红 ✓）。
- * 新鲜度是这条读数的命门 ✗：记录里存 `targetSha` ✓ ⇒ 被测件一改，`✅` 自动回落成 `—` ✓（拿旧读数充数 ⇒ 红 ✓）。
- * **上限只许收缩** ✓：`scripts/probe-budget.json` 里 `maxUnprobed` 是 `—` 的**上限** ✓ ⇒ 加了新门却没探 ⇒ 突破上限 ⇒ 红 ✓
- *   （要放宽就得改那个数字 ✓ —— 改它是一次**显式决定**，不是顺手 ✓ —— 与本仓 `escape-hatch.json` 同族 ✓）。 */
-/** `#1097`：**这份读数是否可信地覆盖当前树**（纯函数 ✓ 注入 ⇒ 可单测 ✓）。
+ * 三态：`✅`（有探针件 **且**最近一次实跑**咬住** **且**被测件**没改过**）／`—`（未探）／` `（探针**不咬** → 红）。
+ * 新鲜度是这条读数的命门：记录里存 `targetSha` → 被测件一改，`✅` 自动回落成 `—`（拿旧读数充数 → 红）。
+ * **上限只许收缩**：`scripts/probe-budget.json` 里 `maxUnprobed` 是 `—` 的**上限** → 加了新门却没探 → 突破上限 → 红
+ *（要放宽就得改那个数字 —— 改它是一次**显式决定**，不是顺手 —— 与本仓 `escape-hatch.json` 同族）。 */
+/** `#1097`：**这份读数是否可信地覆盖当前树**（纯函数 注入 → 可单测）。
  *
- * 从实测来：**同一棵树、同一命令，只差一个陈旧本地产物 ⇒ 结论相反** ✗
- * 原本抹平只在「**无读数**」时生效 ✗ ⇒ **有但陈旧**（③态）没识别 ⇒ 严格比对 ⇒ **假红** ✗。
- * 三态：① 无读数（PR 档常态）⇒ 抹平 ✓（`#1079` 修的正是它）；② 新鲜且覆盖 ⇒ 严格 ✓；
- *        ③ **有但陈旧／不覆盖** ⇒ 本函数认出它 ✓。
- * ## ⚠️ 「缺件」那一支**按记录自称的档位定范围** ✗
- * `fast` 记录**只要求 fast 档探针全覆盖** ✓ —— 否则将来加一条 `full` 档探针 ⇒
- * 每台跑过 `fast` 的机器都会判「缺件 ⇒ 陈旧」⇒ **抹平整面探针列** ✗，且**报错原因还是错的** ✗。
- * ## 两种原因**必须分开报** ✗：`stale`＝有读数但 `targetSha` 不符；`missing`＝本档应有的没记 ✓。
+ * 从实测来：**同一棵树、同一命令，只差一个陈旧本地产物 → 结论相反**
+ * 原本抹平只在「**无读数**」时生效 → **有但陈旧**（③态）没识别 → 严格比对 → **假红**。
+ * 三态：① 无读数（PR 档常态）→ 抹平（`#1079` 修的正是它）；② 新鲜且覆盖 → 严格；
+ * ③ **有但陈旧／不覆盖** → 本函数认出它。
+ * ##注意：「缺件」那一支**按记录自称的档位定范围**
+ * `fast` 记录**只要求 fast 档探针全覆盖** —— 否则将来加一条 `full` 档探针 →
+ * 每台跑过 `fast` 的机器都会判「缺件 → 陈旧」→ **抹平整面探针列**，且**报错原因还是错的**。
+ * ## 两种原因**必须分开报**：`stale`＝有读数但 `targetSha` 不符；`missing`＝本档应有的没记。
  * @returns {{stale: string[], missing: string[], required: number}}
  */
 export const probeFreshnessProblems = ({ probes = [], records = [], mode = null, targetShaOf = () => null, sha = (x) => x } = {}) => {
-	// 本档应覆盖哪些探针（`full` ⇒ 全集；其它 ⇒ 非 `full` 档的那些 ✓）
+	// 本档应覆盖哪些探针（`full` → 全集；其它 → 非 `full` 档的那些）
 	const required = probes.filter((p) => (mode === 'full' ? true : p.tier !== 'full'));
 	const stale = [], missing = [];
 	for (const p of required) {
@@ -155,7 +155,7 @@ export const probeStateOf = ({ entry, record, targetSha, sha = (x) => x } = {}) 
 	if (!entry) return '—';
 	if (!record) return '—';
 	if (record.ok !== true) return '✗';
-	if (record.targetSha && targetSha && record.targetSha !== sha(targetSha)) return '—';   // 被测件改过 ⇒ 旧读数作废 ✓
+	if (record.targetSha && targetSha && record.targetSha !== sha(targetSha)) return '—';   // 被测件改过 → 旧读数作废
 	return '✅';
 };
 
@@ -164,48 +164,48 @@ const sha16 = (s) => createHash('sha256').update(s).digest('hex').slice(0, 16);
 const probeRecords = () => {
 	try {
 		const j = JSON.parse(readFileSync(PROBE_RECORD, 'utf8'));
-		// `#1097`：**保留 `mode`** ✗ —— 原来只取 `probes` ⇒ 档位信息丢了 ⇒ 没法判「记录是否覆盖本档」 ✓
+		// `#1097`：**保留 `mode`** —— 原来只取 `probes` → 档位信息丢了 → 没法判「记录是否覆盖本档」
 		return { mode: j?.mode ?? null, probes: j?.probes ?? [] };
 	} catch { return { mode: null, probes: [] }; }
 };
 
-/** `#1079`：把**探针面**（唯一依赖 `build/probe-results.json` 的那两部分）从 markdown 里**抹平** ✗。
+/** `#1079`：把**探针面**（唯一依赖 `build/probe-results.json` 的那两部分）从 markdown 里**抹平**。
  *
- * 为什么要它（实测 ✓）：台账 markdown 里的**探针列**与**探针计数行**随 `build/probe-results.json` 变，
- *   而那个文件是 **gitignored**且由 `scripts-probe-gates.mjs --probe=fast` 产出 ⇒ `#1070` 把探针段
- *   移出 PR 档后，**PR 上必定没有读数** ⇒ 生成的 markdown ≠ 入仓的 ⇒ **逐字节比对全红** ✗
- *   （而红因**只是**那一列，不是“台账真的陈旧”✗ —— 实测：无读数时 `✗` 行**只有**这一条 ✓）。
+ * 为什么要它（实测）：台账 markdown 里的**探针列**与**探针计数行**随 `build/probe-results.json` 变，
+ * 而那个文件是 **gitignored**且由 `scripts-probe-gates.mjs --probe=fast` 产出 → `#1070` 把探针段
+ * 移出 PR 档后，**PR 上必定没有读数** → 生成的 markdown ≠ 入仓的 → **逐字节比对全红**
+ *（而红因**只是**那一列，不是“台账真的陈旧” —— 实测：无读数时 ` ` 行**只有**这一条）。
  *
- * 口径（**只抹平探针面，其余面照旧严格** ✗）：
- *   · 抹的是：① 每行表格的第 5 格（探针列 ✓）② 摘要里的 `**探针（直接读数…` 那一行 ✓；
- *   · **不抹**：任何别的格（形态／自证／接线／理由 ✓）、行集合（新增/删段 ✓）、工作清单 ✓
- *     ⇒ 「新增了门却没重生成台账」**照样红** ✓（这才是这条比对的价值所在 ✓ 不能一起丢掉）。
+ * 口径（**只抹平探针面，其余面照旧严格**）：
+ * · 抹的是：① 每行表格的第 5 格（探针列）② 摘要里的 `**探针（直接读数…` 那一行；
+ * · **不抹**：任何别的格（形态／自证／接线／理由）、行集合（新增/删段）、工作清单
+ * →「新增了门却没重生成台账」**照样红**（这才是这条比对的价值所在 不能一起丢掉）。
  *
- * ⚠️ **边界（不夸大 ✓）**：本函数不解“探针面本身”的陈旧 ✗（无读数时那一面**本来就没值** ✓ ⇒ 由 full 档
- *   （有读数）盯 ✓；这是 `#1070` 减负的**显式代价**，已在票面与 `FULL_REASONS` 写明 ✓）。 */
+ *注意：**边界（不夸大）**：本函数不解“探针面本身”的陈旧（无读数时那一面**本来就没值** → 由 full 档
+ *（有读数）盯；这是 `#1070` 减负的**显式代价**，已在票面与 `FULL_REASONS` 写明）。 */
 export const normalizeProbeFace = (md) => String(md ?? '')
 	.split('\n')
 	.map((l) => {
-		// ① 摘要的探针计数行（整行抹平 ✓ —— 它含 ✅/—/✗ 三个计数 ✓）
+		// ① 摘要的探针计数行（整行抹平 —— 它含 ✅/—/ 三个计数）
 		if (l.startsWith('**探针（直接读数')) return '**探针（直接读数 ✓…）：〔本次不参与比对（无读数 `--allow-stale-probe`）〕**';
-		// ② 表格行的第 5 格＝探针列（其前四格 kind/form/selfProof 不含 `|` ⇒ 用定点正则而非切分 ✓）
+		// ② 表格行的第 5 格＝探针列（其前四格 kind/form/selfProof 不含 `|` → 用定点正则而非切分）
 		return l.replace(/^(\| `[^`]+` \| [^|]+ \| [^|]+ \| [^|]+ \| )[^|]+( \|)/, '$1〔探针〕$2');
 	})
 	.join('\n');
 
-const { mode: recMode, probes: recs } = probeRecords();   // `#908` ①：上一次探针实跑的读数 ✓（没有就是空 ⇒ 全列 `—` ✓ 不假装 ✓；`#1097` 连 `mode` 一起取 ✓）
+const { mode: recMode, probes: recs } = probeRecords();   // `#908` ①：上一次探针实跑的读数（没有就是空 → 全列 `—` 不假装；`#1097` 连 `mode` 一起取）
 
 const rows = [];
 const push = (id, kind, wired, selfProof, extra = {}) => {
 	const r = REASONS[id] ?? {};
 	// 形态三态（永远可归类，不留「未标注」）：
-	//   行为化        ＝有自证（反例真会红）
-	//   行为化（缺自证）＝**有断言但从未证明咬得住** → F2 的**工作清单**（不是违规，是待补）
-	//   仅登记        ＝只出报告不做断言（必须写理由）
+	// 行为化 ＝有自证（反例真会红）
+	// 行为化（缺自证）＝**有断言但从未证明咬得住** → F2 的**工作清单**（不是违规，是待补）
+	// 仅登记 ＝只出报告不做断言（必须写理由）
 	const form = formOf({ kind, selfProof, form: r.form });
 	rows.push({
 		id, kind,
-		// `#908` ①：探针状态（直接读数 ✓）—— 记录在 `build/probe-results.json` ✓（不入仓 ✗）
+		// `#908` ①：探针状态（直接读数）—— 记录在 `build/probe-results.json`（不入仓）
 		probe: (() => {
 			const entry = PROBES.find((p) => p.id === id);
 			const rec = recs.find((x) => x.id === id);
@@ -221,73 +221,73 @@ const push = (id, kind, wired, selfProof, extra = {}) => {
 	});
 };
 
-/** `#899` ③：`test/**` 那一格的**自证**判定（**先剥注释**再匹配 ✓）。
+/** `#899` ③：`test/**` 那一格的**自证**判定（**先剥注释**再匹配）。
  *
- * 旧口径 ✗：`/负例|反例|selftest/.test(原文)` —— **纯措辞**：注释里写一句就能冒充自证（实测：75 个文件里 **4 个**的
- *  ✅ 完全靠注释撑着 ✗：`fatal-guard` · `invariants` · `notes-write` · `pc-defaults`）。
- * 新口径 ✓：同一把刀剥注释（`editor/lib/core/mask.mjs` 的 `maskComments` ✓）后再匹配 ⇒
- *   ① 注释里的提及**不算**（本仓老纪律：`#459`／`#580` 同族 ✓）；
- *   ② 判定做成**纯函数** ⇒ 能被 `--selftest` 驱动 ⇒ 这一格**能假** ✗（旧口径没有能假的另一半 ✓）。
+ * 旧口径：`/负例|反例|selftest/.test(原文)` —— **纯措辞**：注释里写一句就能冒充自证（实测：75 个文件里 **4 个**的
+ * ✅ 完全靠注释撑着：`fatal-guard` · `invariants` · `notes-write` · `pc-defaults`）。
+ * 新口径：同一把刀剥注释（`editor/lib/core/mask.mjs` 的 `maskComments`）后再匹配 →
+ * ① 注释里的提及**不算**（本仓老纪律：`#459`／`#580` 同族）；
+ * ② 判定做成**纯函数** → 能被 `--selftest` 驱动 → 这一格**能假**（旧口径没有能假的另一半）。
  *
- * ⚠️ **已知边界（写清楚，不假装它是全的 ✗）**：字符串**仍算**（`t('🔴 反例：…')` 的**标签**照旧计入 ✓）——
- *   本函数量的是"**信号出现在代码/字符串面**"，**不是**"断言真会红"✗（后者要逐文件变异 ⇒ 不在本片 ✓）。
- *   ⇒ 这一列**只能说它真正比过的东西** ✓；更强的证据得走探针（另票 ✓）。
- * **量法（可粘贴复跑 ✓）**：`node scripts/report-gate-ledger.mjs --selftest`（四条正反例 ✓）＋ `--update` 看那一列的变化 ✓。 */
+ *注意：**已知边界（写清楚，不假装它是全的）**：字符串**仍算**（`t(' 反例：…')` 的**标签**照旧计入）——
+ * 本函数量的是"**信号出现在代码/字符串面**"，**不是**"断言真会红"（后者要逐文件变异 → 不在本片）。
+ * → 这一列**只能说它真正比过的东西**；更强的证据得走探针（另票）。
+ * **量法（可粘贴复跑）**：`node scripts/report-gate-ledger.mjs --selftest`（四条正反例）＋ `--update` 看那一列的变化。 */
 export const hasSelfProof = (src) => /负例|反例|selftest/.test(maskComments(String(src ?? ''), { file: 'ledger', twee: false }));
 
-/** `#1056` ✓：**入口**判定 —— 件里是否真有 `--selftest` 的**真派发**（而不是"提到了这个词"✗）。
+/** `#1056`：**入口**判定 —— 件里是否真有 `--selftest` 的**真派发**（而不是"提到了这个词"）。
  *
- * 洞（实测 ✓）：`test/story-ci.mjs` 里的 `--selftest` **只是一个真断言的载荷** ——
- *   `cli(['--selftest'])` 在测**壳的旗标面** ✓ ⇒ 裸调与 `--selftest` **输出逐字节相同** ✗，
- *   件内没有"看见 `--selftest` 就走另一条分支"这回事 ✓ —— 而**子串**判据（`/--selftest/`）
- *   把它当成"暴露了入口"✗ ⇒ 再去要求"接线"⇒ 逼人加一个**无意义的旗标**（本仓禁的"为凑绿而接线"✗）。
+ * 洞（实测）：`test/story-ci.mjs` 里的 `--selftest` **只是一个真断言的载荷** ——
+ * `cli(['--selftest'])` 在测**壳的旗标面** → 裸调与 `--selftest` **输出逐字节相同**，
+ * 件内没有"看见 `--selftest` 就走另一条分支"这回事 —— 而**子串**判据（`/--selftest/`）
+ * 把它当成"暴露了入口" → 再去要求"接线"→ 逼人加一个**无意义的旗标**（本仓禁的"为凑绿而接线"）。
  *
- * ⇒ 判据换成**两个条件的合取** ✓：件里既**提到** `--selftest` ✓ **又**读了命令行（`process.argv` ✓）。
- *   ⚠️ **合取，不是只看 `process.argv`** ✗（实测踩过 ✓）：`test/integrity.mjs` 读了 argv（`process.argv[2]`）
- *   但**根本没有 `--selftest`** ✗ ⇒ 只看 argv 会把它的行为化率读数**错误地降级**（无入口却被要求接线 ✗）。
- *   本仓 37 个提到 `--selftest` 的件里**恰好 1 个**不符（`story-ci.mjs` ✓）—— 实测可复跑：
- *   `git ls-files test` ＋ 剥注释后同时判 `/--selftest/` 与 `/process\.argv/` ✓。
+ * → 判据换成**两个条件的合取**：件里既**提到** `--selftest` **又**读了命令行（`process.argv`）。
+ *注意：**合取，不是只看 `process.argv`**（实测踩过）：`test/integrity.mjs` 读了 argv（`process.argv[2]`）
+ * 但**根本没有 `--selftest`** → 只看 argv 会把它的行为化率读数**错误地降级**（无入口却被要求接线）。
+ * 本仓 37 个提到 `--selftest` 的件里**恰好 1 个**不符（`story-ci.mjs`）—— 实测可复跑：
+ * `git ls-files test` ＋ 剥注释后同时判 `/--selftest/` 与 `/process\.argv/`。
  *
- * ⚠️ **它是什么、不是什么** ✗（不夸大 ✓）：这是一个**入口**的近似判据 ——
- *   `process.argv` 出现只证明"件**读了**命令行"✓，**不证明**那句自证"真会红"✗（那要**探针** ✓，见 `probeStateOf`），
- *   也不排除"读了 argv 但分支与 `--selftest` 无关"的写法 ✓。本票拒绝"输出是否不同"那种**代理**（要跑件、要 subprocess ✗），
- *   取**能机判、清单量（37 件）可逐件复核**的较小口径 ✓ —— 边界写在这里，别读成"已证明派发"✗。
+ *注意：**它是什么、不是什么**（不夸大）：这是一个**入口**的近似判据 ——
+ * `process.argv` 出现只证明"件**读了**命令行"，**不证明**那句自证"真会红"（那要**探针**，见 `probeStateOf`），
+ * 也不排除"读了 argv 但分支与 `--selftest` 无关"的写法。本票拒绝"输出是否不同"那种**代理**（要跑件、要 subprocess），
+ * 取**能机判、清单量（37 件）可逐件复核**的较小口径 —— 边界写在这里，别读成"已证明派发"。
  *
- * **量法（可粘贴复跑 ✓）**：`node scripts/report-gate-ledger.mjs --selftest`（四条正反例 ✓）＋
- *   把某件的 `--selftest` 派发行**原样保留**、只删 `test-plan` 里的接线 ⇒ 该行仍变 `—` ✓（"真未接线"照样抓得住 ✓）。 */
+ * **量法（可粘贴复跑）**：`node scripts/report-gate-ledger.mjs --selftest`（四条正反例）＋
+ * 把某件的 `--selftest` 派发行**原样保留**、只删 `test-plan` 里的接线 → 该行仍变 `—`（"真未接线"照样抓得住）。 */
 export const selftestDispatched = (src) => {
 	const code = maskComments(String(src ?? ''), { file: 'ledger', twee: false });
 	return /--selftest/.test(code) && /process\.argv/.test(code);
 };
 
-/** `#1019` ④ ✓：自证列**从"关键词代理"升级为"**要求接线 + 读到执行**"** ✗。
+/** `#1019` ④：自证列**从"关键词代理"升级为"**要求接线 + 读到执行**"**。
  *
- * 洞（实测 ✓）：`test/repo-shape.mjs` 那类件**写了 `--selftest` 且实现了** ✓，但 `test-plan.mjs` 里**只登记了正跑**、
- * `--selftest` **零调用点** ✗ ⇒ 旧口径（只看关键词）照样标 `✅` ⇒ **自证在 CI 里从未真跑过**却看上去有。
+ * 洞（实测）：`test/repo-shape.mjs` 那类件**写了 `--selftest` 且实现了**，但 `test-plan.mjs` 里**只登记了正跑**、
+ * `--selftest` **零调用点** → 旧口径（只看关键词）照样标 `✅` → **自证在 CI 里从未真跑过**却看上去有。
  *
- * 新口径两条**都得满足** ✓：
- *   ① **实现**：件里确实有"反例/负例/selftest"的**代码/字符串面**信号（剥注释 ✓ —— 保留旧口径的能假那半 ✓）；
- *   ② **接线**：`test-plan.mjs` 里存在一个段，其 `cmd` 真跑 `test/<f> --selftest`（**逐字匹配命令** ✓，
- *      不是"有个名字像的 id"✗）⇒ 即"**该自证真的在链上会跑**" ✓。
+ * 新口径两条**都得满足**：
+ * ① **实现**：件里确实有"反例/负例/selftest"的**代码/字符串面**信号（剥注释 —— 保留旧口径的能假那半）；
+ * ② **接线**：`test-plan.mjs` 里存在一个段，其 `cmd` 真跑 `test/<f> --selftest`（**逐字匹配命令**，
+ * 不是"有个名字像的 id"）→ 即"**该自证真的在链上会跑**"。
  *
- * ⚠️ **做到哪一步要写清** ✗：本函数验的是「**接线**」（静态、确定、可机判 ✓），它**不验**"最近一次实跑 rc=0" ——
- *   那需要**跑器落读数文件**（现无此产物 ✓；且落地要考虑它对 `--check` 在干净树上确定性的影响 ⇒ 另议 ✓）。
- *   ⇒ 这一格**只说它真正比过的东西**（本仓老口径 ✓）。
+ *注意：**做到哪一步要写清**：本函数验的是「**接线**」（静态、确定、可机判），它**不验**"最近一次实跑 rc=0" ——
+ * 那需要**跑器落读数文件**（现无此产物；且落地要考虑它对 `--check` 在干净树上确定性的影响 → 另议）。
+ * → 这一格**只说它真正比过的东西**（本仓老口径）。
  *
- * **量法（可粘贴复跑 ✓）**：`node scripts/report-gate-ledger.mjs --selftest`（含本函数正反例 ✓）
- *   ＋ 把某件的 `-selftest` 段从 `test-plan.mjs` 拿掉 ⇒ 该行**当场从 `✅` 变 `—`** ✓（这就是它的能假那一半 ✓）。 */
+ * **量法（可粘贴复跑）**：`node scripts/report-gate-ledger.mjs --selftest`（含本函数正反例）
+ * ＋ 把某件的 `-selftest` 段从 `test-plan.mjs` 拿掉 → 该行**当场从 `✅` 变 `—`**（这就是它的能假那一半）。 */
 export const selfProofWired = (file, src, { plan = testPlan() } = {}) => {
-	if (!hasSelfProof(src)) return false;                       // ① 实现面（剥注释后确有"反例/负例/selftest"的信号 ✓）
+	if (!hasSelfProof(src)) return false;                       // ① 实现面（剥注释后确有"反例/负例/selftest"的信号）
 	const code = maskComments(String(src ?? ''), { file, twee: false });
-	// ② **只对"暴露了 `--selftest` 入口"的件**追加接线要求 ✗（`#1056`：入口 ⇒ 真派发，不是词出现 ✓）——
-	//   ⚠️ 否则**过严**：多数件把负控制**写在主跑里**（顶层 `t('🔴 反例：…')` ✓ 由主段执行 ⇒ 自证**确实在跑** ✓），
-	//   要求它们也单独接一个 `--selftest` 段 ＝ 逼人加空壳 ✗（实测：一刀切会把 21 行从 ✅ 打成 `—`，
-	//   行为化率 69.8% ⇒ 43.8% ✓ —— 那是**量法错**，不是真相 ✓）。
-	//   ⇒ 真正要守的那一格是 `#1018` 的形状：**件里实现了 `--selftest` 却没接线** ⇒ 那句"自证"在 CI 里从未跑过 ✗。
-	//   ⚠️ `#1056` 修正：上句的"**实现了**"要用 `selftestDispatched` 判（**真派发** ✓）——
-	//     子串口径会把 `test/story-ci.mjs`（`--selftest` 只是**真断言载荷**）误判成"有入口"✗ ⇒ 假阳性 ✓。
-	//     那一格的合法归位（**不接也不删** ＋ 理由）见 `REASONS['test/story-ci.mjs']` ✓。
-	if (!selftestDispatched(src)) return true;                  // 无 selftest **入口** ⇒ 无接线可要求 ✓
+	// ② **只对"暴露了 `--selftest` 入口"的件**追加接线要求（`#1056`：入口 → 真派发，不是词出现）——
+	//注意：否则**过严**：多数件把负控制**写在主跑里**（顶层 `t(' 反例：…')` 由主段执行 → 自证**确实在跑**），
+	// 要求它们也单独接一个 `--selftest` 段 ＝ 逼人加空壳（实测：一刀切会把 21 行从 ✅ 打成 `—`，
+	// 行为化率 69.8% → 43.8% —— 那是**量法错**，不是真相）。
+	// → 真正要守的那一格是 `#1018` 的形状：**件里实现了 `--selftest` 却没接线** → 那句"自证"在 CI 里从未跑过。
+	//注意：`#1056` 修正：上句的"**实现了**"要用 `selftestDispatched` 判（**真派发**）——
+	// 子串口径会把 `test/story-ci.mjs`（`--selftest` 只是**真断言载荷**）误判成"有入口" → 假阳性。
+	// 那一格的合法归位（**不接也不删** ＋ 理由）见 `REASONS['test/story-ci.mjs']`。
+	if (!selftestDispatched(src)) return true;                  // 无 selftest **入口** → 无接线可要求
 	return plan.some((seg) => typeof seg?.cmd === 'string' && seg.cmd.includes(`test/${file} --selftest`));
 };
 
@@ -329,7 +329,7 @@ const summary = (rows) => {
 	const beh = rows.filter((r) => r.form === '行为化' && r.selfProof).length;
 	const assertOnly = rows.filter((r) => r.form === '行为化（缺自证）').length;
 	const reg = rows.filter((r) => r.form === '仅登记').length;
-	// `#908` ①：探针三态计数 ✓（`✅` 是**直接读数** ✓ ⇒ 它不许由"清单里有没有这一条"推出来 ✗）
+	// `#908` ①：探针三态计数（`✅` 是**直接读数** → 它不许由"清单里有没有这一条"推出来）
 	const probeOk = rows.filter((r) => r.probe === '✅').length;
 	const probeNone = rows.filter((r) => r.probe === '—').length;
 	const probeBad = rows.filter((r) => r.probe === '✗').length;
@@ -340,7 +340,7 @@ const summary = (rows) => {
 
 const markdown = (rows) => {
 	const s = summary(rows);
-	// `#908` ②：**「自证」列的图例**（口径 ＋ 量法 ＋ 已知边界 ✓）—— 用单引号数组组装 ✓（**不写进模板字面量** ✗：内层反引号会截断外层模板 ✓ —— 同一族今晚刚栽过一次 ✓）。
+	// `#908` ②：**「自证」列的图例**（口径 ＋ 量法 ＋ 已知边界）—— 用单引号数组组装（**不写进模板字面量**：内层反引号会截断外层模板 —— 同一族今晚刚栽过一次）。
 const LEGEND = [
 	'> **「自证」这一列量的是什么（口径 ＋ 量法 ＋ 已知边界 ✗）** —— 免得把 `✅` 读成“断言真会红” ✗：',
 	'> · 量的是「**信号出现在代码/字符串面**」✓：先用**全仓唯一遮蔽器**剥注释（`editor/lib/core/mask.mjs` ✓）⇒ **注释里写不算** ✗；',
@@ -349,9 +349,9 @@ const LEGEND = [
 	'> · **缺自证的几行**（`—` ✓）：补一条**能假的负控制** ✓，或按 `#908` ① 登记探针 ✓ —— 名单见下方「工作清单」（**动态生成** ✗，不写死 ✓）。',
 ].join('\n');
 
-// `#1070`：**档位（tier）留痕** —— K5「降频必须留痕」的落地处 ✓。
-//   ⚠️ 这一段必须**随台账生成**（不是手写 ✓）：`full` 段的集合变了 ⇒ 本段跟着变 ⇒ 自证/评审看得见 ✓。
-//   理由来源＝`FULL_REASONS`（与计划同处一处评审 ✓ —— 不在本文件重写一遍 ✗）。
+// `#1070`：**档位（tier）留痕** —— K5「降频必须留痕」的落地处。
+//注意：这一段必须**随台账生成**（不是手写）：`full` 段的集合变了 → 本段跟着变 → 自证/评审看得见。
+// 理由来源＝`FULL_REASONS`（与计划同处一处评审 —— 不在本文件重写一遍）。
 const TIER_NOTE = (() => {
 	const full = testPlan().filter((s) => tierOf(s) === 'full');
 	if (!full.length) return '**档位（tier）**：全部段均在 **PR 档（fast）** ✓（无 `full` 段 ⇒ 无降频 ✓）。';
@@ -394,14 +394,14 @@ ${TIER_NOTE}
 
 // ── 自证 ─────────────────────────────────────────────────────────────
 const selftest = () => {
-	// `#899` ③：这一格的**取数**也能是假的 ✗ —— 先把「自证」判定本身拿出来量（注释里写算不算 ✓）
+	// `#899` ③：这一格的**取数**也能是假的 —— 先把「自证」判定本身拿出来量（注释里写算不算）
 	let hbad = 0;
 	const h = (label, ok) => { if (!ok) hbad++; console.log(`${ok ? '✓' : '✗'} ${label}`); };
 	h('`hasSelfProof`：正文里写「反例」⇒ true ✓', hasSelfProof('t("反例：坏输入 ⇒ 必红", () => 1)') === true);
 	h('`hasSelfProof`：**只在注释里**写「反例/selftest」⇒ false ✗（旧口径在这里会误判 ✅ ✗）', hasSelfProof('// 本文件有 selftest 与反例\nconsole.log("hi");\n') === false);
 	h('`hasSelfProof`：只在块注释里写 ⇒ 同样 false ✗', hasSelfProof('/* selftest */\nconst x = 1;\n') === false);
 	h('`hasSelfProof`：什么都没写 ⇒ false ✓（能假的另一半 ✓）', hasSelfProof('const x = 1;\n') === false);
-	// `#1019` ④：**接线面**（新口径）—— 两格成对 ✗：写了实现 ＋ **已接线** ⇒ true；写了实现但**未接线** ⇒ false。
+	// `#1019` ④：**接线面**（新口径）—— 两格成对：写了实现 ＋ **已接线** → true；写了实现但**未接线** → false。
 	h('`selfProofWired`：**无 `--selftest` 入口**（负控制写在主跑里）⇒ 不看接线，true ✓',
 		selfProofWired('x.mjs', 't("🔴 反例：…", () => 1)', { plan: [{ cmd: 'node test/x.mjs' }] }) === true);
 	h('`selfProofWired`：**有 `--selftest` 入口 ＋ 已接线** ⇒ true ✓',
@@ -410,7 +410,7 @@ const selftest = () => {
 		selfProofWired('x.mjs', 'if (process.argv.includes("--selftest")) {} t("反例：…", () => 1)', { plan: [{ cmd: 'node test/x.mjs' }] }) === false);
 	h('`selfProofWired`：没实现 ⇒ false ✓（能假的另一半 ✓）',
 		selfProofWired('x.mjs', 'const a = 1;', { plan: [{ cmd: 'node test/x.mjs --selftest' }] }) === false);
-	// `#1056`（假阳性那一格）—— 三条成对：子串不算入口 ✓／真未接线照旧抓得住 ✓／真派发照旧要求接线 ✓
+	// `#1056`（假阳性那一格）—— 三条成对：子串不算入口 ／真未接线照旧抓得住 ／真派发照旧要求接线
 	h('🔴 `selftestDispatched`：`--selftest` **只作断言载荷**（无 `process.argv`）⇒ false ✓（旧子串口径在这里误判为"有入口"✗）',
 		selftestDispatched('const r = cli(["--selftest"]);\nt("壳级自证通过", r.status === 0);') === false);
 	h('🔴 `selftestDispatched`：读 argv 但件里**根本没有 `--selftest`** ⇒ false ✓（只看 argv 会把无入口的件误降级 ✗）',
@@ -422,26 +422,26 @@ const selftest = () => {
 	h('`selfProofWired`：真派发 ＋ **未接线** ⇒ 仍 false ✓（`#1056` 没把这一格放宽 ✗ —— 修的是假阳性，不是拆闸门 ✓）',
 		selfProofWired('x.mjs', 'if (process.argv.includes("--selftest")) {} t("反例：…", () => 1)', { plan: [{ cmd: 'node test/x.mjs' }, { cmd: 'node test/x.mjs --selftest' }] }) === true
 		&& selfProofWired('y.mjs', 'if (process.argv.includes("--selftest")) {} t("反例：…", () => 1)', { plan: [{ cmd: 'node test/y.mjs' }] }) === false);
-	// `#908` ②：**形态**判定（纯函数 ✓）—— 修掉的正是"测试脚本无条件算行为化"那一处自相矛盾 ✗
+	// `#908` ②：**形态**判定（纯函数）—— 修掉的正是"测试脚本无条件算行为化"那一处自相矛盾
 	h('`formOf`：测试脚本 ＋ **无自证** ⇒ \`行为化（缺自证）\` ✓（旧写法会误标 `行为化` ✗ ⇒ 进不了工作清单 ✗）', formOf({ kind: '测试脚本', selfProof: false }) === '行为化（缺自证）');
 	h('`formOf`：测试脚本 ＋ **有自证** ⇒ `行为化` ✓（能假的另一半 ✓）', formOf({ kind: '测试脚本', selfProof: true }) === '行为化');
 	h('`formOf`：显式给了 `form` ⇒ 以它为准 ✓（`REASONS` 里的手写标注不被覆盖 ✓）', formOf({ kind: '测试脚本', selfProof: false, form: '仅登记' }) === '仅登记');
-	// `#908` ①：**探针**那一格（直接读数 ✓）—— 五条，每条都对应一种"假 ✅" ✗
-	// `#1097`：**三态识别**（纯函数注入 ⇒ 可单测 ✓）—— ①②③ 与**档位范围**各一格 ✓
+	// `#908` ①：**探针**那一格（直接读数）—— 五条，每条都对应一种"假 ✅"
+	// `#1097`：**三态识别**（纯函数注入 → 可单测）—— ①②③ 与**档位范围**各一格
 	h('`probeFreshnessProblems`：② **新鲜且覆盖** ⇒ `stale`／`missing` 皆空 ✓',
 		(() => { const r = probeFreshnessProblems({ probes: [{ id: 'a', tier: 'fast', mutation: { file: 'f' } }], records: [{ id: 'a', targetSha: 'X' }], mode: 'fast', targetShaOf: () => 'now', sha: () => 'X' }); return r.stale.length === 0 && r.missing.length === 0; })());
 	h('🔴 `probeFreshnessProblems`：③ **陈旧**（`targetSha` 不符）⇒ 记入 `stale` 并**点名** ✓',
 		(() => { const r = probeFreshnessProblems({ probes: [{ id: 'a', tier: 'fast', mutation: { file: 'f' } }], records: [{ id: 'a', targetSha: 'X' }], mode: 'fast', targetShaOf: () => 'now', sha: () => 'Y' }); return r.stale.length === 1 && r.stale[0] === 'a'; })());
 	h('🔴 `probeFreshnessProblems`：③ **缺件**（本档应有、记录里没有）⇒ 记入 `missing` ✓',
 		(() => { const r = probeFreshnessProblems({ probes: [{ id: 'a', tier: 'fast', mutation: { file: 'f' } }], records: [], mode: 'fast' }); return r.missing.length === 1 && r.stale.length === 0; })());
-	// ⚠️ 本格是**潜伏陷阱**的守卫 ✗：将来加一条 `full` 档探针 ⇒ 跑过 `fast` 的机器不许判"缺件"✗，
-	//   否则会**抹平整面探针列** ＋ **报错原因还是错的**（说"陈旧"，真实是"不覆盖档位"✓）。
+	//注意：本格是**潜伏陷阱**的守卫：将来加一条 `full` 档探针 → 跑过 `fast` 的机器不许判"缺件"，
+	// 否则会**抹平整面探针列** ＋ **报错原因还是错的**（说"陈旧"，真实是"不覆盖档位"）。
 	h('🔴 `probeFreshnessProblems`：**档位范围**——`mode=fast` 的记录**不要求** `full` 档探针 ⇒ 缺它**不算缺件** ✓',
 		(() => { const r = probeFreshnessProblems({ probes: [{ id: 'a', tier: 'fast', mutation: { file: 'f' } }, { id: 'b', tier: 'full', mutation: { file: 'g' } }], records: [{ id: 'a', targetSha: 'X' }], mode: 'fast', targetShaOf: () => 'now', sha: () => 'X' }); return r.missing.length === 0 && r.required === 1; })());
 	h('`probeFreshnessProblems`：`mode=full` ⇒ **要求全集** ⇒ 缺 `full` 档那条 ⇒ 记 `missing` ✓（同一条探针、两种档位两种判 ✓）',
 		(() => { const probes = [{ id: 'a', tier: 'fast', mutation: { file: 'f' } }, { id: 'b', tier: 'full', mutation: { file: 'g' } }]; const r = probeFreshnessProblems({ probes, records: [{ id: 'a', targetSha: 'X' }], mode: 'full', targetShaOf: () => 'now', sha: () => 'X' }); return r.missing.length === 1 && r.missing[0] === 'b' && r.required === 2; })());
-	// ⚠️ **边界：只抹"探针面"** ✗ —— 其余面（行集合/形态/自证/接线/理由）**照旧严格** ✓
-	//   ⇒ "新增门没重生成"这类**真**不一致**照样红** ✓（不许因为读数不可信就把整张台账放过 ✗）。
+	//注意：**边界：只抹"探针面"** —— 其余面（行集合/形态/自证/接线/理由）**照旧严格**
+	// → "新增门没重生成"这类**真**不一致**照样红**（不许因为读数不可信就把整张台账放过）。
 	h('🔴 `normalizeProbeFace`：**只抹探针列** —— 其余格逐字保留 ✓（"真不一致"照样红 ✓）',
 		(() => { const md = '| `x` | 形态A | 行为化 | ✅ | ✅ | 理由R |\n**探针（直接读数 ✓）：`✅` 26 项**'; const n = normalizeProbeFace(md); return n.includes('形态A') && n.includes('理由R') && n.includes('〔探针〕') && !/26 项/.test(n); })());
 	h('`probeStateOf`：无探针件 ⇒ `—` ✓', probeStateOf({}) === '—');
@@ -449,7 +449,7 @@ const selftest = () => {
 	h('`probeStateOf`：跑了但**不咬** ⇒ `✗` ✓（>0 即红 ✓）', probeStateOf({ entry: { id: 'x' }, record: { ok: false } }) === '✗');
 	h('`probeStateOf`：咬住 ＋ 被测件**没改** ⇒ `✅` ✓', probeStateOf({ entry: { id: 'x' }, record: { ok: true, targetSha: 'aa' }, targetSha: 'now', sha: () => 'aa' }) === '✅');
 	h('`probeStateOf`：咬住但**被测件改过** ⇒ 回落 `—` ✗（禁拿旧读数充数 ✓）', probeStateOf({ entry: { id: 'x' }, record: { ok: true, targetSha: 'aa' }, targetSha: 'now', sha: () => 'bb' }) === '—');
-	// `#1079`：探针面抹平（`--allow-stale-probe`）—— 三格：**能假的两个方向**都要有 ✗（不然就是"抹掉一切 ⇒ 永远绿"✓）
+	// `#1079`：探针面抹平（`--allow-stale-probe`）—— 三格：**能假的两个方向**都要有（不然就是"抹掉一切 → 永远绿"）
 	{
 		const md = [
 			'**探针（直接读数 ✓）：`✅` 21 项 ｜ `—` 未探 73 项 ｜ `✗` 不咬 0 项**',
@@ -488,8 +488,8 @@ const selftest = () => {
 
 export const rowIds = rows.map((r) => r.id);
 
-// ⚠️ **import 门** ✓：本文件被别处 `import` 时**不得跑主路径** ✗（主路径结尾 `process.exit` ✗ ⇒ 会把调用方一起带走 ✓；
-// 探针运行器要读 `rowIds` ✓ —— 第一版就是这么静默失败的 ✓：结构校验拿不到行 id ⇒ 退化成"只做清单自校验"✗）。
+//注意：**import 门**：本文件被别处 `import` 时**不得跑主路径**（主路径结尾 `process.exit` → 会把调用方一起带走；
+// 探针运行器要读 `rowIds` —— 第一版就是这么静默失败的：结构校验拿不到行 id → 退化成"只做清单自校验"）。
 const isMain = process.argv[1] ? import.meta.url === pathToFileURL(process.argv[1]).href : false;
 const main = () => {
 	const argv = process.argv.slice(2);
@@ -503,7 +503,7 @@ const main = () => {
 		probs.push({ id: 'package.json:test', code: 'phantom-runner', msg: `npm test 没有调用 scripts/run-tests.mjs（当前：${testEntry.slice(0, 80)}）——计划与 CI 实况脱钩，本台账的「已接线」列全部不可信` });
 	}
 
-	// `#908` ①：探针那一格的**两条不变量** ✓ —— 刻意**不是**"有多少条探针"这种只增不读的统计 ✗
+	// `#908` ①：探针那一格的**两条不变量** —— 刻意**不是**"有多少条探针"这种只增不读的统计
 	if (s.probeBad > 0) {
 	const why = rows.filter((r) => r.probe === '✗').map((r) => `【${r.id}】${(recs.find((x) => x.id === r.id)?.reason ?? '记录缺失').slice(0, 70)}`).join(' ｜ ');
 	probs.push({ id: 'scripts/probe-gates.mjs', code: 'probe-not-biting', msg: `有 ${s.probeBad} 行的探针**不咬**（✗ ✓ ⇒ 必须当红处理 ✓，"跑了多少条"不算读数 ✗）：${why}` });
@@ -519,13 +519,13 @@ const main = () => {
 
 	let bad = probs.length;
 	if (existsSync(LEDGER)) {
-		// `#1079`：**无探针读数时**（PR 档不跑探针段 ✓）那一面**不参与逐字节比对** ✗；
-		//   其余面（行集合・形态・自证・接线・理由・工作清单）**照旧严格** ✓ ⇒ “新增门没重生成”照样红 ✓。
-		//   ⚠️ **必须打印**（不静默 ✓ —— `#557` 口径：读不到输入 ≠ 没命中 ✓）。
+		// `#1079`：**无探针读数时**（PR 档不跑探针段）那一面**不参与逐字节比对**；
+		// 其余面（行集合・形态・自证・接线・理由・工作清单）**照旧严格** →“新增门没重生成”照样红。
+		//注意：**必须打印**（不静默 —— `#557` 口径：读不到输入 ≠ 没命中）。
 		const ledgerNow = readFileSync(LEDGER, 'utf8');
-		// `#1097`：**三态** —— ①无读数 ②新鲜且覆盖 ③**有但陈旧／不覆盖** ✗
-		//   ⚠️ ③ 必须**视作①**（抹平 ＋ 指名打印 ✓）—— 拿旧读数当「现状」⇒ **假红** ✗
-		//   （开发机撞过：同一棵树、同一命令，只差一个陈旧本地产物 ⇒ 结论相反 ✓）
+		// `#1097`：**三态** —— ①无读数 ②新鲜且覆盖 ③**有但陈旧／不覆盖**
+		//注意：③ 必须**视作①**（抹平 ＋ 指名打印）—— 拿旧读数当「现状」→ **假红**
+		//（开发机撞过：同一棵树、同一命令，只差一个陈旧本地产物 → 结论相反）
 		const fresh = probeFreshnessProblems({
 			probes: PROBES, records: recs, mode: recMode,
 			targetShaOf: (p) => (p.mutation?.file ? readFileSync(p.mutation.file, 'utf8') : null), sha: sha16,
@@ -536,7 +536,7 @@ const main = () => {
 			if (recs.length === 0) {
 				console.log(`○ \`--allow-stale-probe\`：**本次无探针读数**（\`${PROBE_RECORD}\` 不存在或为空 ⇒ PR 档不跑探针段 ✓）⇒ **探针面跳过比对** ✗（该列降级 \`—\` ✓），**其余面照旧逐字节严格** ✓；有读数的档（\`npm run test:full\`）仍会当场校验 ✓`);
 			} else {
-				// ⚠️ 两种原因**分开报** ✗（否则「说陈旧、真因是不覆盖档位」⇒ 误导读者 ✓）
+				//注意：两种原因**分开报**（否则「说陈旧、真因是不覆盖档位」→ 误导读者）
 				const parts = [];
 				if (fresh.stale.length) parts.push(`**读数陈旧**（\`targetSha\` 不符）**${fresh.stale.length}** 条：${fresh.stale.slice(0, 6).join('、')}${fresh.stale.length > 6 ? ' …' : ''}`);
 				if (fresh.missing.length) parts.push(`**记录不覆盖本档**（\`mode=${recMode ?? '?'}\` 应有 ${fresh.required} 条、缺 **${fresh.missing.length}** 条）：${fresh.missing.slice(0, 6).join('、')}${fresh.missing.length > 6 ? ' …' : ''}`);
@@ -545,7 +545,7 @@ const main = () => {
 		}
 		const [a, b] = staleProbe ? [normalizeProbeFace(ledgerNow), normalizeProbeFace(md)] : [ledgerNow, md];
 		if (a !== b) {
-			// 报文说清**是哪一类**不一致（`#936` 老账：只说“不一致”不点哪一列 ⇒ 读的人要自己找 ✓）
+			// 报文说清**是哪一类**不一致（`#936` 老账：只说“不一致”不点哪一列 → 读的人要自己找）
 			console.error(`✗ 台账与实况不一致${staleProbe ? '（**探针面已排除** ⇒ 差异不在探针列 ✓）' : ''}（新增/改名了门但没重新生成）→ 跑 npm run report:gates:update`);
 			bad++;
 		}

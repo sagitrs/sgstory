@@ -1,9 +1,9 @@
 // L1 全段落渲染冒烟：jsdom 启动一次 → 程序化完成车卡（真实角色状态）→ 快照；
 // 逐段落 Engine.play（含 $era 双变体），断言：
-//   · 渲染确实发生（State.passage 变化——防 no-op 假绿，Engine.show 曾无声失败）
-//   · 无 uncaught 异常 · 无 .error 渲染元素 · 输出非空
+// · 渲染确实发生（State.passage 变化——防 no-op 假绿，Engine.show 曾无声失败）
+// · 无 uncaught 异常 · 无.error 渲染元素 · 输出非空
 // 渲染期自动跳转（检定失败→死亡等）记为 forward 信息不算失败，但错误/空输出仍算。
-import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处 ✓
+import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处
 import { boot, CLICKABLE_SEL, trailingAfterLast } from './boot.mjs';
 import { readFileSync } from 'node:fs';
 const exitsWhitelist = JSON.parse(readFileSync(new URL('./exits-whitelist.json', import.meta.url), 'utf-8'));
@@ -20,7 +20,7 @@ await step('出发，前往歪脖子鸭酒馆');
 if (typeof w.SugarCube.State.variables.pc?.abilities?.str !== 'number') throw new Error('车卡后状态不完整（abilities 缺失）——L1 快照不可用');
 
 // 快照：完整角色 + 世界默认旗标；每次 play 前整备还原。
-// ⚠ State.variables 是 getter-only（descriptor 无 writable）：整体赋值是静默 no-op（坑12，
+//注意：State.variables 是 getter-only（descriptor 无 writable）：整体赋值是静默 no-op（坑12，
 // 曾让本文件的"状态重置"失效——era 变体碰巧靠属性赋值生效才全绿）。
 // 必须逐键 delete + Object.assign 到活对象上。
 const snapshot = JSON.stringify(w.SugarCube.State.variables);
@@ -63,7 +63,7 @@ for (const p of content) {
 		const errs = w.document.querySelectorAll('#passages .error').length;
 		const out = (w.document.querySelector('#passages')?.textContent ?? '').trim();
 		// 断链门（#168 P1-1）：标签里嵌引号这类写法会让 SugarCube 把整段宏体当成"跳到不存在的段落"，
-		// 渲染成 .link-broken。源码层完全看不出来（L0 只查悬空引用/裸 goto），只有这一步能抓。
+		// 渲染成.link-broken。源码层完全看不出来（L0 只查悬空引用/裸 goto），只有这一步能抓。
 		const broken = [...w.document.querySelectorAll('#passages a.link-broken')]
 			.map((a) => `${a.getAttribute('data-passage') ?? '?'}（${a.textContent.slice(0, 20)}）`);
 		if (broken.length) problems.push(`${broken.length} 条断链（link-broken）：${broken.join(' | ')}`);
@@ -90,7 +90,7 @@ for (const p of content) {
 			}
 		}
 		// #407 D9② 同屏去重（次数面）：同一渲染态里**同一块检定结果只许出现一次**。
-		// 判据来自 #403 实锤（门厅取物：`<<sitecheck>>` 渲染一次 + `<<lastcheck>>` 复显一次 ⇒ d20(11) 两遍）——
+		// 判据来自 #403 实锤（门厅取物：`<<sitecheck>>` 渲染一次 + `<<lastcheck>>` 复显一次 → d20(11) 两遍）——
 		// 那是"点一次后的屏"，渲染级只能抓"渲染时就重复"的那一半；点击态那一半由 roll-binding 的 #403 断言持有。
 		{
 			const seen = new Map();

@@ -11,12 +11,12 @@ export const judgeConsequences = (ctx) => {
 if (wantAll || arg('consequences')) {
 	console.log('\n══ ⓪q 选择后果门（#267）——非任意·非二元·后果可见（机械判据）══');
 	let bad = 0;
-	// `#1151`：**自证格**的计数单列（格红＝本门失能；与「判据发现」语义不同 ⇒ 分开记 ✓）
+	// `#1151`：**自证格**的计数单列（格红＝本门失能；与「判据发现」语义不同 → 分开记）
 	let selfBad = 0;
-	// #435 阶段 4：把**条件表**注入分类器（node 侧没有 `window` 全局 ⇒ 由这里给；表的来源＝故事契约）
+	// #435 阶段 4：把**条件表**注入分类器（node 侧没有 `window` 全局 → 由这里给；表的来源＝故事契约）
 	const RULES = ctx.window?.Sg?.story?.rules?.() ?? [];
-	// `#785`：**声明式写点**的第二类来源 —— 诉求表（ask 的 `sets`／`yields`）。与 RULES 同样**注入** ✓
-	//（node 侧没有 `window` ⇒ 只能从这里给；表来源＝故事接入契约 ✓）。
+	// `#785`：**声明式写点**的第二类来源 —— 诉求表（ask 的 `sets`／`yields`）。与 RULES 同样**注入**
+	//（node 侧没有 `window` → 只能从这里给；表来源＝故事接入契约）。
 	const ASKS = ctx.window?.Sg?.story?.socialAsks?.() ?? [];
 	const { written, buckets, problems } = classifyNarrativeState({ rules: RULES, asks: ASKS });
 	// 自证 7 例（**合成输入**——这就是给分类器加注入参数的理由）
@@ -27,7 +27,7 @@ if (wantAll || arg('consequences')) {
 			Echoes: over.Echoes ?? { list: [], revisit: [] },
 			Consequences: over.Consequences ?? { provenance: {}, engine: {} },
 			rules: over.rules ?? [],   // #435：条件表的注入口（自证要用它，别再被 mk() 吞掉）
-			asks: over.asks ?? [],     // `#785`：诉求表的注入口（同上：自证必须**密闭**，不得吃环境数据 ✗）
+			asks: over.asks ?? [],     // `#785`：诉求表的注入口（同上：自证必须**密闭**，不得吃环境数据）
 			notes: over.notes,         // #437 C-2c-3：笔记表也要能注入（图鉴读形状的自证要用）
 		});
 		const cases = [
@@ -52,7 +52,7 @@ if (wantAll || arg('consequences')) {
 			['表行（scope=叙事段）引用该旗标 ⇒ mechanic 桶', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['Q', ''], ['P', '<<setflag "a">>']], passageTags: [['Q', []]], rules: [{ id: 'r', scope: 'Q', req: ['a'], prio: 1 }] })); return r.buckets.get('a') === 'mechanic' && r.problems.length === 0; })()],
 			['表行 scope 是**引擎段**（script 标签）⇒ 不算叙事消费', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['Q', ''], ['S', ''], ['P', '<<setflag "a">>']], passageTags: [['S', ['script']]], rules: [{ id: 'r', scope: 'S', req: ['a'], prio: 1 }] })); return r.buckets.get('a') !== 'mechanic'; })()],
 			['结局段落里读 ⇒ ending 桶（isEnding 边界）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['结局·某', '<<if $pc.ev.a>>x<</if>>']] })); return r.buckets.get('a') === 'ending'; })()],
-			// `#581`：条件形态加宽——`<<elseif>>` 也是**叙事条件读**（原先只认 `<<if>>` ⇒ 该键被判“无任何桶”假红）
+			// `#581`：条件形态加宽——`<<elseif>>` 也是**叙事条件读**（原先只认 `<<if>>` → 该键被判“无任何桶”假红）
 			['`<<elseif $pc.ev.X>>` 也算条件消费（#581）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['Q', '<<if $pc.ev.z>>甲<<elseif $pc.ev.a>>乙<</if>>']] })); return r.buckets.get('a') === 'mechanic' && r.problems.length === 0; })()],
 			// `#437` C-2c-3：读侧兼容层退场后图鉴谓词改走 `Sg.notes.has('n_x')`
 			['`Sg.notes.has("n_a")` 也算图鉴读 ⇒ codex 桶（#437 C-2c-3）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['P', '<<setflag "a">>'], ['Game Tables', "Sg.notes.has('n_a')"]], passageTags: [['Game Tables', ['script']]], notes: { n_a: { flagPath: 'ev.a' } } })); return r.buckets.get('a') === 'codex' && r.problems.length === 0; })()],
@@ -68,8 +68,8 @@ if (wantAll || arg('consequences')) {
 	if (problems.length) for (const p of problems) console.log(`  ✗ ${p}`);
 	else console.log('  ✓ 每个写入旗标都有归属桶；provenance/engine 声明均带理由且无叙事消费');
 	bad += selfBad;
-	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 格级属性 ✓，**不依赖 `process.argv`** ✗
-	//   ⚠️ 与「判据发现」**分开报** ✓：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」✓
+	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 格级属性，**不依赖 `process.argv`**
+	//注意：与「判据发现」**分开报**：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」
 	if (selfBad) {
 		console.error(`\n✗ 选择后果门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓（\`#1151\`）`);
 		process.exit(1);
@@ -81,6 +81,6 @@ if (wantAll || arg('consequences')) {
 }
 };
 
-// `#1100` (甲)：**判据体提成具名导出** ⇒ 锚可指它 ✓（此前判据内联在 `run` 里 ⇒ 掏空 `run` 时
-//   锚检照样绿 ✗）。`run` 只做委派 ⇒ **行为逐字保持** ✓（提取提交不夹带接线或格 ✓）。
+// `#1100` (甲)：**判据体提成具名导出** → 锚可指它（此前判据内联在 `run` 里 → 掏空 `run` 时
+// 锚检照样绿）。`run` 只做委派 → **行为逐字保持**（提取提交不夹带接线或格）。
 export const run = (ctx) => judgeConsequences(ctx);

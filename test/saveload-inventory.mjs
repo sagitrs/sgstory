@@ -6,35 +6,35 @@
 //
 // 三条断言：
 //
-//  ① **禁止「只靠就地 replace 落地的状态变更」**（#315 新；语义精确化见下）：
-//     判定式＝ link 体内**有 <<replace>>** ∧ **改状态**（直接：<<give>>/<<damage>>/<<set $…>>/
-//     <<run $pc…>>；或**间接**：调用了一个自身会改状态的 widget）∧ **没有 <<goto>>**。
-//     · 改状态**后接换段**（<<goto>>）＝**合法**——这正是契约要求的「结算 → 结果留屏 → goto」；
-//       状态随换段进入 history moment，存档不丢。
-//     · 只改临时变量（<<set _x…>>）、纯界面态（展开/折叠/高亮）＝**合法**。
-//     · 确需例外须写进 test/saveload-sites.json 的 `inPageMutationsAllowed`（理由 ＋ 票号）。
-//     间接（widget）覆盖是 #305 复审时由同伴指出的盲区，本版补上。
-//     （#300 票面要求的「不要只对门厅与洞穴打特判」由此升级：不是登记，是禁止。）
+// ① **禁止「只靠就地 replace 落地的状态变更」**（#315 新；语义精确化见下）：
+// 判定式＝ link 体内**有 <<replace>>** ∧ **改状态**（直接：<<give>>/<<damage>>/<<set $…>>/
+// <<run $pc…>>；或**间接**：调用了一个自身会改状态的 widget）∧ **没有 <<goto>>**。
+// · 改状态**后接换段**（<<goto>>）＝**合法**——这正是契约要求的「结算 → 结果留屏 → goto」；
+// 状态随换段进入 history moment，存档不丢。
+// · 只改临时变量（<<set _x…>>）、纯界面态（展开/折叠/高亮）＝**合法**。
+// · 确需例外须写进 test/saveload-sites.json 的 `inPageMutationsAllowed`（理由 ＋ 票号）。
+// 间接（widget）覆盖是 #305 复审时由同伴指出的盲区，本版补上。
+//（#300 票面要求的「不要只对门厅与洞穴打特判」由此升级：不是登记，是禁止。）
 //
-//  ② **检定 key 必须有归宿**：通用 goto 包装会先删掉 .check-result，假定落地段用
-//     <<lastcheckFor>> 复显。因此每个 <<sitecheck "KEY">> 的 KEY 要么出现在某处
-//     <<lastcheckFor>> 的参数里，要么在豁免表里写明理由（含票号）。空豁免＝红灯。
+// ② **检定 key 必须有归宿**：通用 goto 包装会先删掉.check-result，假定落地段用
+// <<lastcheckFor>> 复显。因此每个 <<sitecheck "KEY">> 的 KEY 要么出现在某处
+// <<lastcheckFor>> 的参数里，要么在豁免表里写明理由（含票号）。空豁免＝红灯。
 //
-//  ③ **行为矩阵依赖的 widget 必须仍在**（间接站点：状态变更藏在 widget 体内，
-//     扫描器看不见 link 体内的直接变更）。
+// ③ **行为矩阵依赖的 widget 必须仍在**（间接站点：状态变更藏在 widget 体内，
+// 扫描器看不见 link 体内的直接变更）。
 //
 // 自证：`node test/saveload-inventory.mjs --selftest` —— 用**合成源码**验证
-//   「非法站点 → 红」「合规站点 → 绿」。没有这一步，禁止制就只是纸面承诺。
+//「非法站点 → 红」「合规站点 → 绿」。没有这一步，禁止制就只是纸面承诺。
 //
 // 说明：本文件只做静态检查，因此它保证的是「**规则成立**」，不是「行为已正确」；
-// 「行为正确」由 test/saveload.mjs（存读档保值矩阵）负责。
+//「行为正确」由 test/saveload.mjs（存读档保值矩阵）负责。
 
 import { readFileSync } from 'node:fs';
 import { allSourceFiles } from '../scripts/module-order.mjs';
 
 const MANIFEST = JSON.parse(readFileSync(new URL('./saveload-sites.json', import.meta.url), 'utf8'));
 // #458 切片C：源文件发现走**单一权威**（`src/**` ＋ `stories/**`）——原先只扫 `src/`，
-// 搬家后故事文件住进 `stories/**` ⇒ 扫到 0 个 `<<sitecheck>>` ⇒ 本门**假绿**（实测）。
+// 搬家后故事文件住进 `stories/**` → 扫到 0 个 `<<sitecheck>>` → 本门**假绿**（实测）。
 const SRC_FILES = allSourceFiles();
 const readSrc = () => SRC_FILES.map((p) => readFileSync(new URL(`../${p}`, import.meta.url), 'utf8')).join('\n');
 
@@ -43,7 +43,7 @@ const readSrc = () => SRC_FILES.map((p) => readFileSync(new URL(`../${p}`, impor
 const MUTATORS = ['<<give', '<<damage', '<<set $', '<<run $pc'];
 const bodyMutates = (body) => MUTATORS.some((k) => body.includes(k));
 
-// 「自身会改状态的 widget」——link 体内调用它也算改状态（#305 复审指出的盲区）
+//「自身会改状态的 widget」——link 体内调用它也算改状态（#305 复审指出的盲区）
 export const scanMutatingWidgets = (source) => {
 	const out = new Set();
 	for (const m of source.matchAll(/<<widget "([^"]+)">>([\s\S]*?)<<\/widget>>/g)) {

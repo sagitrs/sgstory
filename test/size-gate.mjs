@@ -10,40 +10,40 @@ import { relative } from 'node:path';
 //
 // 判定逻辑抽成纯函数 `judge()`，`--selftest` 用合成输入证明三条不变式（这也是本门的行为化自证）。
 import { statSync, readFileSync, writeFileSync, readdirSync, existsSync, renameSync } from 'node:fs';
-// `#1004` B2b ✓：`--update-size` 的**归因梯**用 `execFileSync`（上面那段 `gitChanged` ✓）—— 但这里**没 import 它** ✗
-//   ⇒ 那一句在 try 里抛 `ReferenceError` ⇒ 被 `catch { return [] }` 吃掉 ⇒ 归因**恒**打「工作区无 src/stories 改动 ⇒ 与本次改动无关」✗
-//   （实测：夹具改动在册的情况下仍这样报 ✓）。那正是 `#678` 注释里那句「**看不清账＝不能归因**」要防的东西 ✗ ⇒ 补上 import ✓。
+// `#1004` B2b：`--update-size` 的**归因梯**用 `execFileSync`（上面那段 `gitChanged`）—— 但这里**没 import 它**
+// → 那一句在 try 里抛 `ReferenceError` → 被 `catch { return []}` 吃掉 → 归因**恒**打「工作区无 src/stories 改动 → 与本次改动无关」
+//（实测：夹具改动在册的情况下仍这样报）。那正是 `#678` 注释里那句「**看不清账＝不能归因**」要防的东西 → 补上 import。
 import { execFileSync } from 'node:child_process';
 
 export const NOTE = '产物体积预算（字节）。只许降不许升——确需增大请 --update-size 重签并在 PR 写明理由。';
 
 /** 跨环境构建噪声的**容差表**（`#211`）。
  *
- * ⚠️ `#1017`：这张表原先**只住在** `test/size-baseline.json` 里 ⇒ 基线一旦被删（而本门自己的
- *   报错文案**就叫你删**：「删除该文件后跑 `--update-size` 重签」✗）或重签路径抽风，
- *   **这条设定会跟着一起没**，而重签的人以为自己只是「把基线拉到现状」✗ ⇒
- *   门从「容差吸收噪声」**静默退化**成 **0B 硬 ratchet**（任何体量抖动都红）。
- * ⇒ 按本仓「**设定住代码、数值住数据**」的口径（同族：`scripts/dist-paths.mjs` 的
- *   `STORY_PAGE_MAX_BYTES`／`SHELF_PAGE_MAX_BYTES` ✓），容差表搬进**代码单一权威** ✓；
- *   基线文件里的同名字段**降级为覆盖口**（可省、可空 ⇒ 一律回落到本表，见 `resolveTol` ✓）。
- * ⇒ 由此 `--update-size` **只动数值、动不了语义**（它写回的是 `resolveTol(...)` 的解析结果 ✓）。 */
+ *注意：`#1017`：这张表原先**只住在** `test/size-baseline.json` 里 → 基线一旦被删（而本门自己的
+ * 报错文案**就叫你删**：「删除该文件后跑 `--update-size` 重签」）或重签路径抽风，
+ * **这条设定会跟着一起没**，而重签的人以为自己只是「把基线拉到现状」 →
+ * 门从「容差吸收噪声」**静默退化**成 **0B 硬 ratchet**（任何体量抖动都红）。
+ * → 按本仓「**设定住代码、数值住数据**」的口径（同族：`scripts/dist-paths.mjs` 的
+ * `STORY_PAGE_MAX_BYTES`／`SHELF_PAGE_MAX_BYTES`），容差表搬进**代码单一权威**；
+ * 基线文件里的同名字段**降级为覆盖口**（可省、可空 → 一律回落到本表，见 `resolveTol`）。
+ * → 由此 `--update-size` **只动数值、动不了语义**（它写回的是 `resolveTol(...)` 的解析结果）。 */
 export const TOLERANCE_PCT = { 'index.html': 0.5, fonts: 2 };
 
 /** `#1195` 裁定：**绝对余量**的两级线（与百分比容差正交 —— 百分比管"噪声"，绝对余量管"还剩多少可花"）。
- *   · 余量 < `MARGIN_WARN_BYTES` ⇒ **预警行**（不红，但报文里显式可见，逼人安排重签或压瘦）；
- *   · 余量 < `MARGIN_STOP_BYTES` ⇒ **rc=1 逼停**（再拆一块必顶满，必须先处理）。
- *  为什么用绝对字节而不是继续调百分比：本仓近期的增长来自"拆模块每块加一段段头＋文件头"这类**固定量**，
- *  而百分比是随基线放大的 —— 基线越大，同样的百分比放出越多余量，恰好把固定量增长掩盖掉。 */
+ * · 余量 < `MARGIN_WARN_BYTES` → **预警行**（不红，但报文里显式可见，逼人安排重签或压瘦）；
+ * · 余量 < `MARGIN_STOP_BYTES` → **rc=1 逼停**（再拆一块必顶满，必须先处理）。
+ * 为什么用绝对字节而不是继续调百分比：本仓近期的增长来自"拆模块每块加一段段头＋文件头"这类**固定量**，
+ * 而百分比是随基线放大的 —— 基线越大，同样的百分比放出越多余量，恰好把固定量增长掩盖掉。 */
 export const MARGIN_WARN_BYTES = 300;
 export const MARGIN_STOP_BYTES = 150;
 
 /** 解析生效的容差表：**代码默认为底**，基线里若显式给了就覆盖（向后兼容 ＋ 允许特例）。
- *  ⚠️ 空对象／缺字段一律**回落**到 `TOLERANCE_PCT` ✗ —— 这正是 `#1017` 的缺陷形状：
- *   旧写法 `parsed.tolerancePct ? \u2026 : \u2026` 把**空 `{}` 当成"有设定"**（`{}` 为真值 ✓）
- *   ⇒ 容差被写成空表 ⇒ 门静默变成 0B 硬 ratchet ✗。 */
+ *注意：空对象／缺字段一律**回落**到 `TOLERANCE_PCT` —— 这正是 `#1017` 的缺陷形状：
+ * 旧写法 `parsed.tolerancePct? \u2026: \u2026` 把**空 `{}` 当成"有设定"**（`{}` 为真值）
+ * → 容差被写成空表 → 门静默变成 0B 硬 ratchet。 */
 export const resolveTol = (parsed) => ({ ...TOLERANCE_PCT, ...((parsed && parsed.tolerancePct) || {}) });
 
-// 纯函数：给 rows 与基线，返回 { failures, lines, shrunken }
+// 纯函数：给 rows 与基线，返回 { failures, lines, shrunken}
 export const judge = (rows, parsed) => {
 	const base = parsed.rows ?? {};
 	const tol = resolveTol(parsed);   // `#1017`：容差走**解析**（代码默认 ⊕ 基线覆盖），空/缺一律回落
@@ -74,7 +74,7 @@ export const judge = (rows, parsed) => {
 
 const selftest = () => {
 	const P = { rows: { 'index.html': 1000, fonts: 2000 }, tolerancePct: { 'index.html': 0.5, fonts: 1 } };
-	// `#1195`：绝对余量两级线（能假三格）。大基线 1e6、容差 0.5% ⇒ allow=5000 ⇒ 余量按绝对字节判。
+	// `#1195`：绝对余量两级线（能假三格）。大基线 1e6、容差 0.5% → allow=5000 → 余量按绝对字节判。
 	const Q2 = { rows: { 'index.html': 1000000 }, tolerancePct: { 'index.html': 0.5 } };
 	const cases = [
 		['一超预算 + 一缩小 → 必须失败，且**只记录缩小项**、不得写任何超预算值',
@@ -87,15 +87,15 @@ const selftest = () => {
 			{ 'index.html': 1000, fonts: 2000 }, P,
 			(r) => r.failures === 0 && Object.keys(r.shrunken).length === 0],
 		// `#1195`：改用**大基线**（1e6）隔离本条所验之事（容差吸收噪声）——阈值 300B 是绝对值，
-		//   小基线（1000）下容差只有 5B，任何"容差内增长"都同时踩到逼停线 ⇒ 那是另一条语义（见下格）。
+		// 小基线（1000）下容差只有 5B，任何"容差内增长"都同时踩到逼停线 → 那是另一条语义（见下格）。
 		['容差内增长 → 不失败、不收紧（构建噪声）',
 			{ 'index.html': 1000004, fonts: 2000 }, { rows: { 'index.html': 1000000, fonts: 2000 }, tolerancePct: { 'index.html': 0.5, fonts: 1 } },
 			(r) => r.failures === 0 && Object.keys(r.shrunken).length === 0],
 		['超容差增长 → 失败',
 			{ 'index.html': 1006, fonts: 2000 }, P,
 			(r) => r.failures === 1 && Object.keys(r.shrunken).length === 0],
-		// ⚠️ `#1017` 的**缺陷形状**（能假的那两格）：容差表**缺席或为空**时，必须**回落到代码默认**，
-		//    不得被当成「没有容差」⇒ 否则门静默变成 0B 硬 ratchet（任何抖动都红）。
+		//注意：`#1017` 的**缺陷形状**（能假的那两格）：容差表**缺席或为空**时，必须**回落到代码默认**，
+		// 不得被当成「没有容差」→ 否则门静默变成 0B 硬 ratchet（任何抖动都红）。
 		['⭐ `#1017` 反例：基线里**没有** `tolerancePct` ⇒ 仍按默认容差判（+4 在 0.5% 内 ⇒ 不失败）',
 			{ 'index.html': 1000004, fonts: 2000 }, { rows: { 'index.html': 1000000, fonts: 2000 } },
 			(r) => r.failures === 0 && Object.keys(r.shrunken).length === 0],
@@ -153,8 +153,8 @@ rows.fonts = readdirSync('dist/fonts').reduce((a, f) => a + statSync(`dist/fonts
 // #411 CI 实测：这条读曾在 CI 上 JSON.parse 崩（基线被写坏/半写）——改成**读重试 + 可诊断报错**，
 // 并且写回时用**原子替换**（见下）→ 并行执行（`--jobs>1`）下不会再有"读到半个文件"。
 const readBaseline = () => {
-	// `#1017`：文件不在 ⇒ 返回**空对象**（不再伪造 `tolerancePct: {}` ✗ —— 那个空表是真值，
-	//   会被重签路径当成"有设定"写回去 ⇒ 容差静默丢失）。
+	// `#1017`：文件不在 → 返回**空对象**（不再伪造 `tolerancePct: {}` —— 那个空表是真值，
+	// 会被重签路径当成"有设定"写回去 → 容差静默丢失）。
 	if (!existsSync(BASELINE)) return {};
 	for (let i = 0; i < 3; i++) {
 		const raw = readFileSync(BASELINE, 'utf8');
@@ -176,7 +176,7 @@ const parsed = readBaseline();
 if (update) {
 	// `#678` 交叉验证的教训（dev 提）：重签时**必须打印每项 delta＋来源提示**——
 	// 那次 `#678` 只改 5 个文件、却在重签里顺手把 **fonts 的存量漂移**（+1452B，靠 ±1% 容差一直绿着）也纠正了，
-	// 而 PR 说明里没写 ⇒ 得重算一遍才知道那笔账不是本 PR 的。**看不清账＝不能归因。**
+	// 而 PR 说明里没写 → 得重算一遍才知道那笔账不是本 PR 的。**看不清账＝不能归因。**
 	// 两个来源提示都用**本地事实**（无网络）：① 基线里没有的新项；② 工作区相对 HEAD 改过的源文件（可能影响产物）。
 	const gitChanged = (() => {
 		try {
@@ -193,8 +193,8 @@ if (update) {
 	console.log(gitChanged.length
 		? `  工作区改过的源（可影响产物，逐条自己认账）：${gitChanged.join(' · ')}`
 		: '  工作区无 src/stories 改动 ⇒ **体积变化与本次改动无关**（存量漂移，请在 PR 里写明"顺手纠正"）');
-	// 重签**只动数值**：容差表写回的是 `resolveTol` 的**解析结果** ✓
-	// ⇒ 即便基线被删／抽风，这条设定也**不会**跟着没（`#211` 的原意 ＋ `#1017` 的修法）。
+	// 重签**只动数值**：容差表写回的是 `resolveTol` 的**解析结果**
+	// → 即便基线被删／抽风，这条设定也**不会**跟着没（`#211` 的原意 ＋ `#1017` 的修法）。
 	writeBaseline({ note: NOTE, rows, tolerancePct: resolveTol(parsed) });
 	console.log('✔ 体积基线已重签');
 	process.exit(0);

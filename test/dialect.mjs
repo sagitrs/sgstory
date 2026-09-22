@@ -1,13 +1,13 @@
 #!/usr/bin/env node
-// 车道 G 前半 · 切片 1a 读数（`#215` 报备 `18502752`）：**方言指纹** ✓ —— 只读 ✓，不判红 ✗。
+// 车道 G 前半 · 切片 1a 读数（`#215` 报备 `18502752`）：**方言指纹** —— 只读，不判红。
 //
-// 用法：`node test/dialect.mjs`（读数 ＋ 合成用例 ✓）
+// 用法：`node test/dialect.mjs`（读数 ＋ 合成用例）
 //
-// **适用范围** ✗（㉑：不许把"形状"报成"语义"✓）：本件只量 `data/**` 的**形状**
-//   （`{文件 → 顶层键集合}` ∪ `{文件 → item 字段集合}`）✗ —— **不含值域／语义／行为** ✗；
-//   **不是版本号** ✗（算号归 G-1b ✓）；**不是校验器** ✗（只有真畸形才报 ✓）。
+// **适用范围**（㉑：不许把"形状"报成"语义"）：本件只量 `data/**` 的**形状**
+//（`{文件 → 顶层键集合}` ∪ `{文件 → item 字段集合}`） —— **不含值域／语义／行为**；
+// **不是版本号**（算号归 G-1b）；**不是校验器**（只有真畸形才报）。
 //
-// 口径 ✓（发起者 2026-09-18 15:05 裁定）：**缺 ⇒ 合法** ✗（不报）；**畸形 ⇒ 必须报** ✓。
+// 口径（发起者 2026-09-18 15:05 裁定）：**缺 → 合法**（不报）；**畸形 → 必须报**。
 
 import { readFileSync } from 'node:fs';
 import { dialectOf, formatDialect, dialectShapeOf, dialectKeyOf } from '../editor/lib/core/dialect.mjs';
@@ -21,10 +21,10 @@ try {
 	let bad = 0;
 	const t = (label, ok) => { if (ok) console.log(`  ✓ ${label}`); else { bad += 1; console.error(`  ✗ ${label}`); } };
 
-	// ── 合成用例（能假的两半 ✓：正例 ＋ 反例 ✓）────────────────────────────────
+	// ── 合成用例（能假的两半：正例 ＋ 反例）────────────────────────────────
 	const full = { data: { 'contract.json': { section: 's', members: [{ name: 'a', kind: 'k' }, { name: 'b', kind: 'k', path: 'p' }] } } };
-	// ⚠️ **显式给 `files`** ✗：默认面是 `DATA_FILES`（会随新面增长 ✓）⇒ 用默认面写死数字会让本件变脆 ✓
-	//（车道 B 加 `notes.json` 那回实测：`absent` 2 → 3 ✗ ⇒ 断言红。**断言绑在"面"上，不绑在"面有几个"上** ✓）。
+	//注意：**显式给 `files`**：默认面是 `DATA_FILES`（会随新面增长）→ 用默认面写死数字会让本件变脆
+	//（车道 B 加 `notes.json` 那回实测：`absent` 2 → 3 → 断言红。**断言绑在"面"上，不绑在"面有几个"上**）。
 	const F3 = { files: ['tables.json', 'contract.json', 'rules.json'] };
 	const d1 = dialectOf(full, F3);
 	t('合成：顶层键与 item 字段**逐条对账** ✓（`members[]` ⇒ 并集 `[kind,name,path]` ✓）',
@@ -37,20 +37,20 @@ try {
 	t('合成：**合法空表** ⇒ 不报 ✓（`{ rows: [] }` 是"合法的空"，不是畸形 ✓）',
 		dialectOf({ data: { 'rules.json': { section: 's', rows: [] } } }).problems.length === 0);
 
-	// 畸形两半 ✓（发起者要求"缺与畸形分开"✗ ⇒ 这是"畸形"那一半 ✓）
+	// 畸形两半（发起者要求"缺与畸形分开" → 这是"畸形"那一半）
 	t('合成：**畸形①**：在册但**不是普通对象**（`rules.json: []`）⇒ **必须报** ✓（"缺"合法、"畸形"报 ✗ —— 两者分开 ✓）',
 		dialectOf({ data: { 'rules.json': [] } }).problems.some((p) => /不是普通对象/.test(p.detail)));
 	t('合成：**畸形②**：装了 3 项但**没有一项是对象** ⇒ **必须报** ✓（"像条目表"却装不成条目 ✓）',
 		dialectOf({ data: { 'rules.json': { rows: [1, 2, 3] } } }).problems.some((p) => /没有一项是对象/.test(p.detail)));
 
-	// 刀 ✗：形状变了 ⇒ **承重口**（形状串）必变 ✓ ＋ **辅助读数**必变 ✓（证明它**量的是形状**，不是常数 ✓）
+	// 刀：形状变了 → **承重口**（形状串）必变 ＋ **辅助读数**必变（证明它**量的是形状**，不是常数）
 	{
 		const before = dialectShapeOf(dialectOf(full));
 		const mutated = { data: { 'contract.json': { section: 's', members: [{ name: 'a', kind: 'k', extra: 1 }] } } };
 		t('**刀** ✗：往 `members[]` 塞一个字段 ⇒ **形状串必变** ✓（承重口 ✓ —— 不是常数 ✓）', dialectShapeOf(dialectOf(mutated)) !== before);
 		t('**刀** ✗（辅助）：同一变异 ⇒ `dialectKeyOf` 也必变 ✓', dialectKeyOf(dialectOf(mutated)) !== dialectKeyOf(dialectOf(full)));
 	}
-	// 另一半 ✓：**只改值** ⇒ 形状串**不动** ✓（号跟契约走、不跟内容走 ✗ —— 这条正是 G-1b/G-1c 的分界线 ✓）
+	// 另一半：**只改值** → 形状串**不动**（号跟契约走、不跟内容走 —— 这条正是 G-1b/G-1c 的分界线）
 	{
 		const before = dialectShapeOf(dialectOf(full));
 		const valueOnly = { data: { 'contract.json': { section: 's', members: [{ name: 'zzz', kind: 'k2', path: 'q' }] } } };
@@ -58,13 +58,13 @@ try {
 		t('**另一半** ✓（辅助）：同一变异 ⇒ `dialectKeyOf` 也**不动** ✓', dialectKeyOf(dialectOf(valueOnly)) === dialectKeyOf(dialectOf(full)));
 	}
 
-	// ── 真数据读数（**仓内现存故事** ✓；数字与形状都取自真文件 ✓）────────────────
-	// `#1004` B2 ✓：旧故事已删 ⇒ 本表换成新样本的**实测值** ✗（照旧“写死数字”✓ ——
-	//   这张表的价值就在“形状一变就红”✓，拿计算值去填就把它变成同义反复了 ✗）。
+	// ── 真数据读数（**仓内现存故事**；数字与形状都取自真文件）────────────────
+	// `#1004` B2：旧故事已删 → 本表换成新样本的**实测值**（照旧“写死数字” ——
+	// 这张表的价值就在“形状一变就红”，拿计算值去填就把它变成同义反复了）。
 	const want = {
 		'minimal-demo': { present: 2, absent: 2, topKeys: 7, itemLists: 2, itemFields: 8 },
 		// `#1138`：`contract.json` 新增一个成员（`codexItems`，带 `path`），故条目字段由 8 变为 13。
-		//   变化原因明确（加了一个契约成员），不是形状走偏；其余四项（顶层键、在册数、条目表）均未变。
+		// 变化原因明确（加了一个契约成员），不是形状走偏；其余四项（顶层键、在册数、条目表）均未变。
 		'night-ferry': { present: 3, absent: 1, topKeys: 10, itemLists: 3, itemFields: 13 },
 	};
 	const fps = new Set();

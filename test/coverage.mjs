@@ -1,9 +1,9 @@
 // L3 覆盖率 ratchet（#14 / M1c 收紧）：聚合 L1/L2 覆盖落盘，五门禁 + 盲区报告
-//   门1（不回退）：基线格 ⊆ 实际格，缩水即 fail（防覆盖回归；有意缩水请先更新基线并说明）
-//   门2（新内容必配测）：diff 新增段落必须被交互覆盖（scenarios/walker 踩到）或显式豁免（附理由）
-//   门3（无交互盲区）：每个内容段落必须有可点击到达路径
-//   门4（时代双态）：按 $era 分叉的段落，present/past 两态都要被交互踩到
-//   门5（交互≥渲染）：交互格数不得少于渲染格数
+// 门1（不回退）：基线格 ⊆ 实际格，缩水即 fail（防覆盖回归；有意缩水请先更新基线并说明）
+// 门2（新内容必配测）：diff 新增段落必须被交互覆盖（scenarios/walker 踩到）或显式豁免（附理由）
+// 门3（无交互盲区）：每个内容段落必须有可点击到达路径
+// 门4（时代双态）：按 $era 分叉的段落，present/past 两态都要被交互踩到
+// 门5（交互≥渲染）：交互格数不得少于渲染格数
 // 用法：node test/coverage.mjs [--update-baseline]
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { scopedFiles } from '../scripts/module-order.mjs';

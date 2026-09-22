@@ -1,21 +1,21 @@
-// 规则行判据（**纯件** ✓ 零宿主 ✓）—— `#215` 车道 E-B1：从 **故事门** `stories/mist-forest/gates/rules.mjs`
-// **逐字上移** ✓（`#881`／`#794` 先例 ✓），目的：让**页内**能调**同一份**判据 ✓（§17「同一条路」✓）。
+// 规则行判据（**纯件** 零宿主）—— `#215` 车道 E-B1：从 **故事门** `stories/mist-forest/gates/rules.mjs`
+// **逐字上移**（`#881`／`#794` 先例），目的：让**页内**能调**同一份**判据（§17「同一条路」）。
 //
-// 口径 ✓：本次是**纯搬运** ✗ —— 判据一字未改 ✓；既有门的输出**逐字节不变** ✓（实测 `--rules --check` 8876B／md5 两侧同 ✓）；
-//   故事门侧只 **import**（不留定义 ✓ ⇒ K6 ①b 副本 0 ✓）。
-// ⚠️ 本次**唯一一处非逐字改动** ✗：`keys`／`asList`／`norm` 原为故事门里的**未导出**局部件 ✓，
-//   上移后由本件**导出** ✓（故事门侧仍要用 `norm` ⇒ 不留副本 ✓）。
+// 口径：本次是**纯搬运** —— 判据一字未改；既有门的输出**逐字节不变**（实测 `--rules --check` 8876B／md5 两侧同）；
+// 故事门侧只 **import**（不留定义 → K6 ①b 副本 0）。
+//注意：本次**唯一一处非逐字改动**：`keys`／`asList`／`norm` 原为故事门里的**未导出**局部件，
+// 上移后由本件**导出**（故事门侧仍要用 `norm` → 不留副本）。
 import { WRITE_PATTERNS, NOTE_WRITE_RE, condKeysOf, rowOps } from './audit-shared.mjs';
 
 export const keys = (x) => (Array.isArray(x) ? x.map(String) : x ? [String(x)] : []);
 
 export const asList = (x) => (Array.isArray(x) ? x : x ? [x] : []);
 /** 条件项 → 键（**单一权威** `condKeysOf`）：字符串项／对象算子项都取到真键。
- *  `#624` 之前这里是 `keys(x).map(String)` ⇒ 对象形被 `String()` 成 `'[object Object]'`，
- *  于是"死规则/并列 prio"的键推理**对新形状静默失去意义**（不报错、但结论全是噪声）。 */
+ * `#624` 之前这里是 `keys(x).map(String)` → 对象形被 `String()` 成 `'[object Object]'`，
+ * 于是"死规则/并列 prio"的键推理**对新形状静默失去意义**（不报错、但结论全是噪声）。 */
 
 export const norm = (x) => asList(x).flatMap((c) => condKeysOf(c)).map((k) => String(k).replace(/^(ev|world)\./, ''));
-/** 行里是否用了对象算子（`{ gte: … }` 这类）—— 数值/集合语义不参与布尔包含判定，见 `deadRows`。 */
+/** 行里是否用了对象算子（`{ gte: …}` 这类）—— 数值/集合语义不参与布尔包含判定，见 `deadRows`。 */
 
 export const opRows = (rows) => (rows ?? []).filter((r) => r?.id && rowOps(r).length > 0).map((r) => r.id);
 
@@ -27,15 +27,15 @@ export const rowMatches = (row, state, chose) =>
 	!norm(row.exclude).some((k) => state.has(k)) &&
 	keys(row.prereq).every((id) => chose.has(id));
 
-/** 纯函数：返回被判死的行 `[{ id, killedBy }]`（规则式可满足性包含；逐条都可被反例证伪）。
+/** 纯函数：返回被判死的行 `[{ id, killedBy}]`（规则式可满足性包含；逐条都可被反例证伪）。
  *
- *  A 死（被 B 覆盖）⟺ 下面四条**同时**成立 —— 每条都对应一种"反例形态"，任一条不成立就有反例：
- *   ① `req(B) ⊆ req(A)`          否则 B 会缺一个 A 必有的键（S 不含它 ⇒ B 不中）；
- *   ② `exclude(B) ⊆ exclude(A)`  否则 B 会因某个 A 允许为真的键为真而落选（**反例①**：A.req=['x'] vs B.exclude=['y']）；
- *   ③ `any(B)` 被 A 的 **必含键**保证（`any(B)=∅` 或 `∃k ∈ any(B) ∩ req(A)`）
- *                                否则 A 只保证"任一"时可让 B 的择一落空（**反例②**：A.any=['b','c'] vs B.any=['c']）；
- *   ④ `prereq(B) ⊆ prereq(A)`     否则历史可以让 A 有资格而 B 没有。
- *   ⚠️ 不采用"只取极小赋值"的搜索：反例状态可以**多带一个真键**（`{x,y}` ⇒ A 中 B 不中）⇒ 极小化会漏掉反例。
+ * A 死（被 B 覆盖）⟺ 下面四条**同时**成立 —— 每条都对应一种"反例形态"，任一条不成立就有反例：
+ * ① `req(B) ⊆ req(A)` 否则 B 会缺一个 A 必有的键（S 不含它 → B 不中）；
+ * ② `exclude(B) ⊆ exclude(A)` 否则 B 会因某个 A 允许为真的键为真而落选（**反例①**：A.req=['x'] vs B.exclude=['y']）；
+ * ③ `any(B)` 被 A 的 **必含键**保证（`any(B)=∅` 或 `∃k ∈ any(B) ∩ req(A)`）
+ * 否则 A 只保证"任一"时可让 B 的择一落空（**反例②**：A.any=['b','c'] vs B.any=['c']）；
+ * ④ `prereq(B) ⊆ prereq(A)` 否则历史可以让 A 有资格而 B 没有。
+ *注意：不采用"只取极小赋值"的搜索：反例状态可以**多带一个真键**（`{x,y}` → A 中 B 不中）→ 极小化会漏掉反例。
  */
 
 export const deadRows = (rows) => {
@@ -43,7 +43,7 @@ export const deadRows = (rows) => {
 	const out = [];
 	for (const a of list) {
 		const reqA = norm(a.req), exA = norm(a.exclude);
-		// `#624`：**任一侧含对象算子 ⇒ 保守跳过**（不判死也不当被判死）。
+		// `#624`：**任一侧含对象算子 → 保守跳过**（不判死也不当被判死）。
 		// 为什么必须这样：`gte`／`oneOf` 的语义是"数值/集合"的，而下面是**布尔键包含**推理——
 		// 硬套会给出**错误结论**（假红/假绿都不可接受）。宁可不判，也不误判；跳过的行由 `opRows()` 在报告里点名。
 		if (rowOps(a).length) continue;

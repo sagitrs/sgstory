@@ -1,25 +1,25 @@
 // 交涉机制门（`#785` 机制片 · 接缝 1／2／3 合成一片）——**下沉不改契约**
 //
 // `Game.Social` 的 11 支方法（`ask`/`condHolds`/`baseOf`/`attitude`/`shift`/`tries`/`dcOf`/`open`/`levers`/`leverOpen`/`roll`/`verdict`/`settle`）
-// 原住故事表（直读 `Checks.sites` ＋ 自带 `attAdj`/`approaches`）⇒ 下沉为引擎**经接入契约取数**
-// （`Sg.story.social()` ⇒ `{ asks, attAdj, approaches }` ✓ —— **三张表**，不只是 `asks` ✗）。
+// 原住故事表（直读 `Checks.sites` ＋ 自带 `attAdj`/`approaches`）→ 下沉为引擎**经接入契约取数**
+//（`Sg.story.social()` → `{ asks, attAdj, approaches}` —— **三张表**，不只是 `asks`）。
 // 判据（四条）：
-//   ① **取数通路**：引擎取数口（`socialAsks`/`socialAttAdj`/`socialApproaches` ✓ —— **与故事侧同名数据错开** ✗，
-//      否则合并式赋值会把方法覆盖成数据 ✓）在契约成员存在时与声明**同一份**；缺席时给**空**（留痕，不静默 ✗）；
-//   ② **矩阵**：全部 ask × 3 档 pc × 全部 site ⇒ `dcOf`／`open`／`levers`／`verdict` 等于**测试侧独立重算**；
-//   ③ **`verdict` 的缺席语义**：`willing`/`unwilling` **缺席** ⇒ `'roll'`（不是 `'unwilling'` ✗ ——
-//      `condHolds(null)` 是**恒真**，那是"字段缺席"的语义 ✓ ⇒ 本方法必须**先判有无** ✓）；
-//   ④ **`settle` 的代价**：失败档的 `retry` 累加与 `att` 位移、成功档的 `read` 落位 ✓（逐值比）。
+// ① **取数通路**：引擎取数口（`socialAsks`/`socialAttAdj`/`socialApproaches` —— **与故事侧同名数据错开**，
+// 否则合并式赋值会把方法覆盖成数据）在契约成员存在时与声明**同一份**；缺席时给**空**（留痕，不静默）；
+// ② **矩阵**：全部 ask × 3 档 pc × 全部 site → `dcOf`／`open`／`levers`／`verdict` 等于**测试侧独立重算**；
+// ③ **`verdict` 的缺席语义**：`willing`/`unwilling` **缺席** → `'roll'`（不是 `'unwilling'` ——
+// `condHolds(null)` 是**恒真**，那是"字段缺席"的语义 → 本方法必须**先判有无**）；
+// ④ **`settle` 的代价**：失败档的 `retry` 累加与 `att` 位移、成功档的 `read` 落位（逐值比）。
 //
 // 用法：node test/social-sink.mjs [--selftest]
 
 import { boot } from './boot.mjs';
-import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b：默认故事走单一权威 ✓
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b：默认故事走单一权威
 
 let bad = 0;
 const ok = (label, cond, extra = '') => { if (cond) console.log(`  ✓ ${label}${extra ? ' · ' + extra : ''}`); else { bad++; console.error(`  ✗ ${label}${extra ? ' · ' + extra : ''}`); } };
 
-/** 测试侧**独立重算**（只读声明数据 ✓ 不复用引擎分支写法 ✗）。 */
+/** 测试侧**独立重算**（只读声明数据 不复用引擎分支写法）。 */
 export const refDc = (sites, attAdj, asks, a, site, pc) => {
 	const s = sites?.[site] ?? {};
 	const base = (typeof a.base === 'string' ? a.base : (casesPick(a.base, pc) ?? 'neutral'));
@@ -46,7 +46,7 @@ if (process.argv.includes('--selftest')) {
 	process.exit(0);
 }
 
-// `#1004` B2b ✓：旧故事已删 ⇒ 换到**默认故事**（面夹具 ✓，`Social.asks`／`attAdj`／`approaches` 三张表都满配 ✓）。
+// `#1004` B2b：旧故事已删 → 换到**默认故事**（面夹具，`Social.asks`／`attAdj`／`approaches` 三张表都满配）。
 const { w, close } = await boot({ story: DEFAULT_SLUG, random: 0.5 });
 try {
 	const probe = w.eval(`(() => ({

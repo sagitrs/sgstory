@@ -1,17 +1,17 @@
 // ── 自证有效性自检（#474）：`自证·` 必须「失败计入退出码」且「不崩」 ─────────────
 //
 // 背景（`docs/dev-conventions.md` §9 第 1、2 条）：F2 补自证那一轮里，**三次**踩到同一类问题——
-//   · `#470` `⓪q 门`：自证用了 `bad`，但那个文件里**根本没有** `bad` ⇒ 自证一失败会崩，
-//     且 `--check` 只看 `problems.length` ⇒ 就算不崩也不会判红（**自证是摆设**）；
-//   · `#471` `dragon 门`：`let dragonBad = 0` 写在**使用点之后** ⇒ 真出问题时门自己会 TDZ 崩；
-//   · 更早：`items-tokens` 里我用 `globalThis.__itemsSelfBad` 绕过作用域。
+// · `#470` `⓪q 门`：自证用了 `bad`，但那个文件里**根本没有** `bad` → 自证一失败会崩，
+// 且 `--check` 只看 `problems.length` → 就算不崩也不会判红（**自证是摆设**）；
+// · `#471` `dragon 门`：`let dragonBad = 0` 写在**使用点之后** → 真出问题时门自己会 TDZ 崩；
+// · 更早：`items-tokens` 里我用 `globalThis.__itemsSelfBad` 绕过作用域。
 // 这些都是**静态可检**的，不该继续靠人眼。
 //
 // 判据（纯函数，自带自证）：
-//   V1「不崩」：任何 `X++` / `X += …`，其声明必须**在更早的位置**（或来自参数/import/解构/catch/for-of）。
-//                ⇒ `undeclared-increment`（会 ReferenceError）／`tdz-increment`（声明在使用之后）。
-//   V2「能判红」：文件里出现 `自证·` ⇒ 必须存在**被增量的计数器**出现在某个 `if (…X…)` 里，
-//                且该分支可达 `process.exit(1)`。否则 `selftest-cannot-fail`。
+// V1「不崩」：任何 `X++` / `X += …`，其声明必须**在更早的位置**（或来自参数/import/解构/catch/for-of）。
+// → `undeclared-increment`（会 ReferenceError）／`tdz-increment`（声明在使用之后）。
+// V2「能判红」：文件里出现 `自证·` → 必须存在**被增量的计数器**出现在某个 `if (…X…)` 里，
+// 且该分支可达 `process.exit(1)`。否则 `selftest-cannot-fail`。
 import { readFileSync, readdirSync } from 'node:fs';
 import { stripJsComments } from './audit/lib/shared.mjs';
 import { join } from 'node:path';
@@ -20,25 +20,25 @@ import { ROOT } from './dist-paths.mjs';
 
 /** #474：**一个扫描器**做全部字面量遮蔽（注释／字符串／模板／正则），一次词法走完。
  *
- *  为什么不是几条正则：原先用「注释 → 单/双引号串 → 模板 → 正则」四条正则**顺序**剥，每一层都能与
- *  另一层错配（`'` 在模板里、backtick 在正则里、`/` 在模板里…）——错配是**跨行贪婪**的，会把整段代码
- *  抹成空白 ⇒ `counters` 为空 ⇒ V2 判「自证不能判红」（假阳性）；同一次错位也造**假阴性**（把真问题抹掉）。
- *  实测三个受害者：本文件、`test/store-keys.mjs`、`scripts/report-copy-text.mjs`（＋`test/silent-gate.mjs` 的正则）。
- *  **换顺序治不了**（先剥正则 ⇒ 正则吃掉模板的收尾 backtick；先剥模板 ⇒ 模板吃掉正则里的 backtick）。
- *  ⇒ 正解是逐字符扫描：只有**未转义**的定界符才换状态；**保留换行**（行号不漂）；未闭合 ⇒ 保守剥到行尾
- *  并计入 `unterminated`（由调用方**打印诊断**，绝不静默 —— 反沉默）。
+ * 为什么不是几条正则：原先用「注释 → 单/双引号串 → 模板 → 正则」四条正则**顺序**剥，每一层都能与
+ * 另一层错配（`'` 在模板里、backtick 在正则里、`/` 在模板里…）——错配是**跨行贪婪**的，会把整段代码
+ * 抹成空白 → `counters` 为空 → V2 判「自证不能判红」（假阳性）；同一次错位也造**假阴性**（把真问题抹掉）。
+ * 实测三个受害者：本文件、`test/store-keys.mjs`、`scripts/report-copy-text.mjs`（＋`test/silent-gate.mjs` 的正则）。
+ * **换顺序治不了**（先剥正则 → 正则吃掉模板的收尾 backtick；先剥模板 → 模板吃掉正则里的 backtick）。
+ * → 正解是逐字符扫描：只有**未转义**的定界符才换状态；**保留换行**（行号不漂）；未闭合 → 保守剥到行尾
+ * 并计入 `unterminated`（由调用方**打印诊断**，绝不静默 —— 反沉默）。
  *
- *  `/` 是正则还是除法：看**前一个有效字符**（`(`/`=`/`,`/`!`… ⇒ 正则；标识符/`)`/`]` ⇒ 除法）。
- *  这是通行的启发式；真正的分歧点会被 `unterminated` 诊断暴露出来，不会静默错下去。
+ * `/` 是正则还是除法：看**前一个有效字符**（`(`/`=`/`,`/`!`… → 正则；标识符/`)`/`]` → 除法）。
+ * 这是通行的启发式；真正的分歧点会被 `unterminated` 诊断暴露出来，不会静默错下去。
  */
 const REGEX_PREV = new Set([...'(,=:[!&|?{};+-*%~^<>', '\n']);
 export const maskLiterals = (src) => {
 	const text = String(src);
 	let out = '', i = 0, unterminated = 0;
 	const blank = (t) => t.replace(/[^\n]/g, ' ');
-	// ⚠️ 关键：在**已遮蔽的输出流**上回溯，而不是原始文本 —— 否则会撞上**注释里的字**
-	//（本文件 `DECL_PATTERNS` 的注释是中文 ⇒ 行首正则被误判成除法 ⇒ 该行内容没被遮蔽 ⇒ V1 假阳性）。
-	// 另：`/` 前面若是**关键字**（`return /$^/`）同样是正则位置 —— 只看单个字符会把 `return` 的 `n` 当除法 ✗。
+	//注意：关键：在**已遮蔽的输出流**上回溯，而不是原始文本 —— 否则会撞上**注释里的字**
+	//（本文件 `DECL_PATTERNS` 的注释是中文 → 行首正则被误判成除法 → 该行内容没被遮蔽 → V1 假阳性）。
+	// 另：`/` 前面若是**关键字**（`return /$^/`）同样是正则位置 —— 只看单个字符会把 `return` 的 `n` 当除法。
 	const REGEX_PREV_WORDS = new Set(['return', 'typeof', 'instanceof', 'in', 'of', 'new', 'delete', 'void', 'do', 'else', 'yield', 'await', 'case']);
 	const prevIsRegexPos = () => {
 		const m = /([A-Za-z_$][\w$]*)\s*$/.exec(out);
@@ -85,18 +85,18 @@ export const maskLiterals = (src) => {
 	return { code: out, unterminated };
 };
 
-/** 剥离 + **可诊断**（`stripForScan` 是它的薄封装）。`unterminated` ⇒ 未闭合字面量（已保守处理）。 */
+/** 剥离 + **可诊断**（`stripForScan` 是它的薄封装）。`unterminated` → 未闭合字面量（已保守处理）。 */
 export const stripDiag = (src) => maskLiterals(src);
 export const stripForScan = (src) => stripDiag(src).code;
 
 /** **只剥注释**（保留字符串/模板）——用于判"有没有打印 `自证·`"：它写在**字符串**里要看得见，
- *  写在**注释**里不算（本文件自己就被这条误报过 ✗）。这一条只需行内正则，无错配风险。 */
+ * 写在**注释**里不算（本文件自己就被这条误报过）。这一条只需行内正则，无错配风险。 */
 // 去重（形状指纹探针实测查出）：这里原本与 `scripts/audit/lib/shared.mjs` 的 `stripJsComments`
-// **逐字节等价**（同两条 replace）⇒ 改为 import 单一权威 ✓（`stripJsComments` 已是 audit 侧的单一权威，
-// 见 `scripts/audit/gates/state.mjs` 的注释）。**行为零变化**由改前/改后输出逐字节对拍证明 ✓。
+// **逐字节等价**（同两条 replace）→ 改为 import 单一权威（`stripJsComments` 已是 audit 侧的单一权威，
+// 见 `scripts/audit/gates/state.mjs` 的注释）。**行为零变化**由改前/改后输出逐字节对拍证明。
 
 const DECL_PATTERNS = [
-	// `let a = 0, b = 1;` 这类**多重声明**要每个都算（此前只取第一个 ⇒ canGuard/hit/odd/italBad 全被误报）
+	// `let a = 0, b = 1;` 这类**多重声明**要每个都算（此前只取第一个 → canGuard/hit/odd/italBad 全被误报）
 	/\b(?:let|const|var)\s+([^;\n]*)/g,
 	/\b(?:function|class)\s+([A-Za-z_$][\w$]*)/g,
 	/\b(?:let|const|var)\s*\{([^}]*)\}/g,          // 解构对象
@@ -110,7 +110,7 @@ const DECL_PATTERNS = [
 ];
 const idents = (chunk) => String(chunk).match(/[A-Za-z_$][\w$]*/g) ?? [];
 
-/** V1：把未声明/声明在后的自增量找出来（返回 [{ ident, line, kind }]）。 */
+/** V1：把未声明/声明在后的自增量找出来（返回 [{ ident, line, kind}]）。 */
 export const incrementFindings = (src) => {
 	const code = stripForScan(src);
 	const declAt = new Map(); // ident → 最早的声明位置
@@ -118,7 +118,7 @@ export const incrementFindings = (src) => {
 	for (const re of DECL_PATTERNS) {
 		for (const m of code.matchAll(re)) {
 			const chunk = m[1] ?? '';
-			// 逗号分隔的每一段只取**第一个**标识符作为被声明者（避免把右值 `foo(y)` 里的 foo/y 也算成声明 ⇒ 假阴性）
+			// 逗号分隔的每一段只取**第一个**标识符作为被声明者（避免把右值 `foo(y)` 里的 foo/y 也算成声明 → 假阴性）
 			for (const part of chunk.split(',')) {
 				const id = idents(part)[0];
 				if (id && !['in', 'of'].includes(id)) note(id, m.index ?? 0);
@@ -127,7 +127,7 @@ export const incrementFindings = (src) => {
 	}
 	const out = [];
 	// 只认 `x++` 与复合赋值（`+=` `-=` …）＋**裸 `=` 但要排除 HTML 属性/比较**：
-	//   `aria-hidden="true"` / `class="x"` 这类属性曾被误当赋值（188 项假阳性里的主因之一）
+	// `aria-hidden="true"` / `class="x"` 这类属性曾被误当赋值（188 项假阳性里的主因之一）
 	// #474 精化：V1 只判**自增/复合赋值**（`X++`／`X += …`）。纯 `=` 与"自证能否判红"无关，
 	// 而 debug 实测的假阳性（模板插值 `kind=${…}`、正则 `\slang=`、参数默认值 `dir =`、纯赋值 `hooked =`）**全是 `=` 形态**。
 	for (const m of code.matchAll(/(?<![\w$.\-"'])([A-Za-z_$][\w$]*)\s*(?:\+\+|[+\-*/|&^]=)/g)) {
@@ -138,28 +138,28 @@ export const incrementFindings = (src) => {
 		const hit = { ident: id, line: ln, match: JSON.stringify(m[0]), src: (code.split('\n')[ln - 1] ?? '').trim().slice(0, 70) };
 		if (at === undefined) out.push({ ...hit, kind: 'undeclared-increment' });
 		// #474 精化（已知边界，**降为警告**）："声明在增量之后"在**闭包**里是合法的——
-		// `const check = () => { failures++ }` 写在 `let failures = 0` 之前，但**调用在之后** ⇒ 运行时没问题 ✗。
-		// 静态分析判不了调用序 ⇒ 这类只报 `tdz-warning`（打印、不计失败）；`undeclared-increment` 仍计失败。
+		// `const check = () => { failures++}` 写在 `let failures = 0` 之前，但**调用在之后** → 运行时没问题。
+		// 静态分析判不了调用序 → 这类只报 `tdz-warning`（打印、不计失败）；`undeclared-increment` 仍计失败。
 		else if (at > m.index) out.push({ ...hit, kind: 'tdz-warning' });
 	}
 	return out;
 };
 
-/** V2：打印了 `自证·` 却没有"能把失败计入退出码"的计数器 ⇒ [{ kind }]。 */
+/** V2：打印了 `自证·` 却没有"能把失败计入退出码"的计数器 → [{ kind}]。 */
 export const selftestExitFindings = (src) => {
 	const raw = String(src);
 	if (!raw.includes('自证·')) return [];
 	const code = stripForScan(raw);
-	// #474：用**只剥注释**的文本判“有没有打印 `自证·`” —— 它写在字符串里（保留 ✓），写在注释里不算（剥掉 ✓）。
-	// （踩坑留档：先前用 `code`（连字符串一起剥）判 ⇒ `console.log("自证·")` 被抹掉 ⇒ V2 恒不触发 ⇒ **假干净** ✗，是自证把它抱回来的。）
+	// #474：用**只剥注释**的文本判“有没有打印 `自证·`” —— 它写在字符串里（保留），写在注释里不算（剥掉）。
+	//（踩坑留档：先前用 `code`（连字符串一起剥）判 → `console.log("自证·")` 被抹掉 → V2 恒不触发 → **假干净**，是自证把它抱回来的。）
 	if (!stripJsComments(raw).includes('自证·')) return [];
 	const counters = new Set([...code.matchAll(/(?<![\w$.])([A-Za-z_$][\w$]*)\s*(?:\+\+|\+=)/g)].map((m) => m[1]));
 	// **实现要点（第三次尝试，前两次都错在这）**：不要解析"语句体"——“从退出点向前找最近的 `if`，
 	// 用字符级配平取出它的条件”既简单又够用；退出点与条件之间隔着 `{`、`console.error(...)` 都不影响。
 	const guarded = new Set();
 	for (const em of code.matchAll(/process\.exit\(([^)]*)\)/g)) {
-		// #474：退出写成 `process.exit(bad ? 1 : 0)` 也算“计入退出码”（`test/store-keys.mjs` 就是这么写的 ——
-		// 先前只认 `process.exit(1)` ⇒ 把好门误报成“不能判红” ✗）。
+		// #474：退出写成 `process.exit(bad? 1: 0)` 也算“计入退出码”（`test/store-keys.mjs` 就是这么写的 ——
+		// 先前只认 `process.exit(1)` → 把好门误报成“不能判红”）。
 		if (em[1] && em[1].trim() !== '1') {
 			for (const id of idents(em[1])) guarded.add(id);
 			continue;
@@ -173,12 +173,12 @@ export const selftestExitFindings = (src) => {
 		for (; i < code.length; i++) { if (code[i] === '(') depth++; else if (code[i] === ')') { depth--; if (depth === 0) break; } }
 		for (const id of idents(code.slice(paren + 1, i))) guarded.add(id);
 	}
-	// 「自证块里的计数器」＝文件里被增量的计数器；只要**其中任一**进了退出码守卫即可
+	//「自证块里的计数器」＝文件里被增量的计数器；只要**其中任一**进了退出码守卫即可
 	return [...counters].some((c) => guarded.has(c)) ? [] : [{ kind: 'selftest-cannot-fail', counters: [...counters] }];
 };
 
-// `#762` 车道 C（顺带修）：本脚本原来**没有 isMain 守卫** ⇒ 被 `editor/**` 的工具当库 `import` 时，
-// 会把它的自检报告先打一遍（契约分类器实测踩到 ⇒ 只能自带遮蔽器绕开）。⇒ 主跑包进 `main()` 并加守卫。
+// `#762` 车道 C（顺带修）：本脚本原来**没有 isMain 守卫** → 被 `editor/**` 的工具当库 `import` 时，
+// 会把它的自检报告先打一遍（契约分类器实测踩到 → 只能自带遮蔽器绕开）。→ 主跑包进 `main()` 并加守卫。
 const main = () => {
 	// ── main ────────────────────────────────────────────────────────────────
 	const scanDirs = [join(ROOT, 'scripts'), join(ROOT, 'test')];
@@ -241,7 +241,7 @@ const main = () => {
 	for (const f of files) {
 		const src = readFileSync(f, 'utf8');
 		const rel = f.slice(ROOT.length + 1);
-		// #474：剥离器**自报可疑形态**（未转义 backtick 为奇数 ⇒ 本次跳过了模板剥离）。
+		// #474：剥离器**自报可疑形态**（未转义 backtick 为奇数 → 本次跳过了模板剥离）。
 		// 打印出来而不是静默：跳过意味着 V1 可能对该文件有假阳性 —— 那要**看得见**。
 		if (stripDiag(src).unterminated) console.log(`○ [unterminated-template] ${rel}（有 ${stripDiag(src).unterminated} 处未闭合模板 ⇒ 只剥到行尾；若该文件有 V1 报告，先看这里）`);
 		for (const x of incrementFindings(src)) problems.push({ file: rel, ...x });
@@ -268,8 +268,8 @@ const main = () => {
 	}
 	console.log(`✔ 自证有效性自检通过（扫描 ${files.length} 个 .mjs：无未声明/置后声明的自增量；所有 \`自证·\` 都有记账并进退出码）`);
 
-	// `#762` 车道 C（顺带修）：本脚本原来**没有 isMain 守卫** ⇒ 被 `editor/**` 的工具当库 `import` 时，
-	// 会先把它的自检报告打一遍（契约分类器实测踩到 ⇒ 只能自带一个遮蔽器绕开）。
+	// `#762` 车道 C（顺带修）：本脚本原来**没有 isMain 守卫** → 被 `editor/**` 的工具当库 `import` 时，
+	// 会先把它的自检报告打一遍（契约分类器实测踩到 → 只能自带一个遮蔽器绕开）。
 
 
 };

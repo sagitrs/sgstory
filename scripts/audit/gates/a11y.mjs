@@ -18,7 +18,7 @@ export const luminance = (h) => {
 export const contrastRatio = (a, b) => { const [x, y] = [luminance(a), luminance(b)].sort((m, n) => n - m); return (x + 0.05) / (y + 0.05); };
 // AA 门槛：正文 4.5；装饰性白名单 3.0（每条须给理由——仿 #247 的「声明须带理由」）
 export const DECOR_DEFAULT = { '.title-card .engine-credit': '引擎署名（纯装饰，非玩家内容：仅需大字门槛 3.0，提亮到 3.01:1）' };
-/** 纯函数：CSS 文本 → 低对比度声明（`sel { color: #xxxxxx }`），按 body 底色算比值。 */
+/** 纯函数：CSS 文本 → 低对比度声明（`sel { color: #xxxxxx}`），按 body 底色算比值。 */
 export const contrastFindings = (css, { base = '#191722', decor = DECOR_DEFAULT, bodyFloor = 4.5, decorFloor = 3.0 } = {}) => {
 	const out = [];
 	const seen = new Set();
@@ -35,7 +35,7 @@ export const contrastFindings = (css, { base = '#191722', decor = DECOR_DEFAULT,
 	}
 	return { findings: out, checked: seen.size };
 };
-/** 纯函数：`✦` 装饰 glyph 未被 `aria-hidden="true">` 紧邻包裹的处数。 */
+/** 纯函数：` ` 装饰 glyph 未被 `aria-hidden="true">` 紧邻包裹的处数。 */
 export const bareGlyphCount = (text, glyph = '\u2726') => {
 	let n = 0;
 	const t = String(text);
@@ -57,11 +57,11 @@ export const run = (ctx) => {
 if (wantAll || arg('a11y')) {
 	console.log('\n══ ⓪s 可访问性门（#272）——对比度 / lang / 装饰语义 ══');
 	let bad = 0;
-	// `#1151`：**自证格**的计数单列（格红＝本门失能；与「判据发现」语义不同 ⇒ 分开记 ✓）
+	// `#1151`：**自证格**的计数单列（格红＝本门失能；与「判据发现」语义不同 → 分开记）
 	let selfBad = 0;
 	// #458（搬家）：CSS 源**不写死单根**——`src/90-style.twee` 已随目录级隔离落到 `src/engine/50-present/`。
 	// 做法：在**源文件权威清单**（`allSourceFiles()` 的产物）里按 basename 找，且必须**唯一命中**
-	// （0 或 >1 ⇒ 大声报错；宁可不跑，也不要静默拿错文件 —— 那就是「假绿」）。
+	//（0 或 >1 → 大声报错；宁可不跑，也不要静默拿错文件 —— 那就是「假绿」）。
 	const styleSrcs = SRC_FILES.filter((f) => /(^|\/)90-style\.twee$/.test(f));
 	if (styleSrcs.length !== 1) throw new Error(`a11y：源清单里 90-style.twee 命中 ${styleSrcs.length} 个（应为 1）——搬家/改名后请复查本判据`);
 	const css = readFileSync(styleSrcs[0], 'utf8');
@@ -93,7 +93,7 @@ if (wantAll || arg('a11y')) {
 		assertFreshDist({ who: '可访问性门（lang 检查）' });
 		if (!/<html[^>]*\slang="zh-CN"/.test(readFileSync(defaultStoryHtml(), 'utf8'))) { console.log('  ✗ dist/index.html 缺 lang="zh-CN"'); bad++; }
 	}
-	// 装饰 glyph：✦ 必须被 aria-hidden 包裹；.act-n 角标必须 aria-hidden
+	// 装饰 glyph： 必须被 aria-hidden 包裹；.act-n 角标必须 aria-hidden
 	let bare = 0;
 	for (const f of SRC_FILES) {
 		const t = readFileSync(f, 'utf8');
@@ -104,8 +104,8 @@ if (wantAll || arg('a11y')) {
 	if (actnBad) { console.log(`  ✗ .act-n 角标 ${actnBad} 处缺 aria-hidden`); bad++; }
 	console.log('  · 语义：✦ 装饰 glyph 全包裹、.act-n 角标 aria-hidden、<html lang="zh-CN"> 构建期注入');
 	bad += selfBad;
-	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 格级属性 ✓，**不依赖 `process.argv`** ✗
-	//   ⚠️ 与「判据发现」**分开报** ✓：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」✓
+	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 格级属性，**不依赖 `process.argv`**
+	//注意：与「判据发现」**分开报**：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」
 	if (selfBad) {
 		console.error(`\n✗ 可访问性门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓（\`#1151\`）`);
 		process.exit(1);

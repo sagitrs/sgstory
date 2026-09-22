@@ -4,10 +4,10 @@
 // 不变量：hp/max_hp/gold/era/star.spent/keeper.state/dragon.hp/inv 闭集/$pc 形状
 // 双支清扫：逐位点直接 wikify <<sitecheck 位点>> 于 hi/lo 两档 → 每位点成败两支必达
 // 用法：node test/walker.mjs [ch1局数=4] [tower局数=4]
-import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处 ✓
+import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处
 import { writeFileSync, mkdirSync, readFileSync } from 'node:fs';
 import { mkHist, checkStep } from './invariants.mjs';
-import { fingerprintOf } from '../editor/lib/core/fingerprint.mjs';   // 见证模式的**状态摘要** ✓（复用 core ✓ 不另造哈希 ✗）
+import { fingerprintOf } from '../editor/lib/core/fingerprint.mjs';   // 见证模式的**状态摘要**（复用 core 不另造哈希）
 // 统一进 test/boot.mjs（#27 就绪轮询 + 坑11 uncaught 监听 + 退出清理）——
 // 这里不再自己装配 JSDOM：随机源改传函数（种子流），窗口关不关由 boot 统一负责。
 import { boot, LINKS, trailingAfterLast } from './boot.mjs';
@@ -102,7 +102,7 @@ async function walk(index, mode, stubMode, seed, maxSteps) {
 			const cands = clickables();
 			if (!cands.length || String(p).startsWith('结局')) break;
 			// #179 出口在最后（真实状态版，与 render-all 门7 同款规则）：走真实旗标状态——
-			// 「已读折叠区装了几十条传闻」这类状态依赖的布局问题只有这里能兜住。
+			//「已读折叠区装了几十条传闻」这类状态依赖的布局问题只有这里能兜住。
 			{
 				const box = [...renderedElsOf(w)].filter((e) => e.dataset.passage === p).pop();
 				if (box) {
@@ -170,49 +170,49 @@ async function dualBranchSweep() {
 	return sites.length;
 }
 
-// ── 见证模式（`#215` 裁 (B) ✓）：`--witness` ⇒ 通用种子化走法 ＋ **逐步轨迹** ✗ ─────────────
-//   依据 ✓：P4 验收要「**一条完整轨迹、逐格可复跑**」（起于 S₀ → ≥K 个被 ≺ 授权的事件 → 终于 `ending`）。
-//   为什么用**种子扫描** ✗（发起者裁定 ✓）：随机玩**有可能走不到结局** ⇒ 跑 `seed = S..S+N-1`，
-//     **取第一条「到 `ending` **且** ≥K 事件」的** ✗（两个条件都算 ✓ —— "到了结局但太短"不算见证 ✓；
-//     也不是遇到第一条到结局的就收工 ✗：那样 K 一大就**假红** ✓，而长轨迹明明可能在别的种子上 ✓）。
-//     —— 每条都可复现 ✓、且比手写"定向走法"更可信 ✓（**不走 planner** ✗）。
-//   走法 ✓：从清单 `entry` 起，**按 `data-choice` key** 种子化点击（本仓 `#317②` 口径 ✓ 不用文案）；
-//     ⚠️ 开场／车卡那类**没有派生 key** 的段 ⇒ **label 兜底** ✗（并且**在轨迹里显式标出**
-//     `fallback: true` ✓ —— 免得"按 key 可复跑"被兜底悄悄破掉）。
-//   可复跑 ＝ **同 seed ＋ 同 key 序列** ✓ ⇒ 轨迹里落的正是这两样 ＋ 一行**可直接粘**的复跑命令 ✓。
-//   用法 ✓：`node test/walker.mjs --witness [--story=<slug|绝对路径>] [--seed=S] [--scan=N] [--max-steps=M] [--min-events=K]`
-//     （`--story=` 优先 ✓、env `SGSTORY_STORY` 兜底 ✓）
-//   ⚠️ **口径收窄** ✗（`#215` 发起者裁 ②(a) ✓）：`--story=` 收 **slug** ✓（仓内 `stories/<slug>/` ✓）。
-//     **绝对路径**只在**页面**那步被按绝对处理 ✓，**清单**那步仍只认 slug ✗ ⇒ **交互式加载仓外故事包暂不支持** ✗
-//     （P4 的内容面就在仓内 `stories/<slug>/**` ✓ ⇒ 不是 P4 要件 ✓；真要用仓外包时另开票 ✓）。
-//     ⇒ 报错会**点名**拼出来的那个路径 ✓（`boot.mjs` 的 `entryOf` ✓ —— 不许静默 ✗）。
-//   ⚠️ **`ending` 认定** ✗（`#991` 口径要件：K 与 ending 在开工报备里钉死 ✓）：
-//     **以引擎的 `$pc.ev.ending` 为准** ✓（`src/10-core.twee`：`State.variables.pc.ev.ending = key` ✓
-//     —— 引擎侧登记、**故事无关** ✓），段落名以「结局」开头只作**兜底** ✗。
-//     为什么不能让"段落名前缀"当主判据 ✗：它在 `mist-forest` 成立 ✓，但**别的故事不成立** ✗
-//     （实测 `hollow-cave` 的段名是 `路·4a` 一类 ✓）⇒ 拿前缀当主判据 ＝ 把"这个故事的命名习惯"
-//     当成"故事的终结语义" ✗ ⇒ 第 4 个故事很可能**到得了结局却判不出** ✗。
-//   ⚠️ `--verify=<trace.json>` ✗（`#991` 批的**见证面**加法 ✓）：把**冻存的轨迹**当**输入**去核验 ✗ ——
-//     按它的 `seed` 重跑 ⇒ **逐步比对** `(passage, choiceKey|choiceLabel)` ＋ `ending` ⇒
-//     任一步不符 ⇒ **红 ＋ 点名第几步 ＋ 两边各是什么** ✓。
-//     为什么必须有它 ✗：**同 `seed` ⇒ 同 key 序列**只让轨迹**成因可复现** ✓，但冻存的 JSON 若没人核 ✗
-//     ⇒ "**逐格可复跑**"就只是**报告**里的一句话 ✓（P4 要的是**可机判** ✗）。
-//     ⚠️ 顺序要件 ✗（发起者 ③(iii) ✓）：**本模式先落** ⇒ 再由它**核验**要冻的那条 ✓（否则冻下来的那份仍不可机判 ✗）。
-//   ⚠️ **故事从哪来** ✗：**① `--story=`** ✓ ⇒ **② 冻存件里的 `story`** ✓（`(默认 slug)` 是"产出时没指定"的记号 ✗ ⇒ 默认故事 ✓）
-//     ⇒ **③ 都没有** ⇒ 按默认故事核 ✓、但**报文点名**"这份没记 `story`" ✗ —— ⛔ 绝不**静默**落到默认故事 ✗
-//     （为什么写 ✗：不带 `--story=` 去核**别的故事**的冻存件 ⇒ 报"第 1 步不符"✗ ⇒ 读者会以为**轨迹坏了** ✓，
-//     其实是**核错了故事** ✗ —— 所以核了哪个故事必须印出来 ✓）。
-//   ⚠️ **故事从哪来** ✗（复核时踩到的坑 ✓）：过去只认命令行 `--story=` ✗ ⇒ 拿**别的故事**的冻存件、
-//     又忘带 `--story=` ⇒ 它按**默认故事**重跑 ⇒ 报"第 1 步不符（记录 `渡口` vs 实跑 `开场`）"✗
-//     —— **读数没错、但误导**（读者会以为轨迹坏了 ✓，其实是**核了别的故事** ✗）。
-//     ⇒ 现在按这个次序取 ✓：**① `--story=`** ✓ ⇒ **② 冻存件里的 `story`** ✓（`(默认 slug)` 是"产出时没指定"的记号 ✗
-//     ⇒ 按**默认故事**核 ✓）⇒ **③ 都没有** ⇒ 按默认故事核 ✓、但**报文点名**"这份没记 `story`" ✗
-//     —— ⛔ **绝不**对"有 `story` 却说不上来是哪个"的情形**静默**用默认故事 ✗（那正是上面那个坑 ✓）。
-//   ⚠️ **输入归属** ✗（复核席提、发起者要求写进件头 ✓）：轨迹文件**可能落在仓内、`/tmp`、`~` 下** ✓ ⇒
-//     本模式**只保证**"**我读到的这一份**（路径随报文印出 ✓）能被逐步复跑"✗ —— 它**不保证**那个文件
-//     **没被别的任务改写** ✓（同一条路径写两次 ⇒ 后写的胜 ✓）。⇒ 拿它当**验收证据**时 ✗：
-//     **核验与冻存要在同一步、同一份文件上完成** ✓（`--verify=<冻存路径>` ✓，别先冻再指另一个副本 ✓），
-//     且报文里**始终打出被核验的路径** ✓ —— 免得把"**文件被换过**"读成"**故事改了**"✗。
+// ── 见证模式（`#215` 裁 (B)）：`--witness` → 通用种子化走法 ＋ **逐步轨迹** ─────────────
+// 依据：P4 验收要「**一条完整轨迹、逐格可复跑**」（起于 S₀ → ≥K 个被 ≺ 授权的事件 → 终于 `ending`）。
+// 为什么用**种子扫描**（发起者裁定）：随机玩**有可能走不到结局** → 跑 `seed = S..S+N-1`，
+// **取第一条「到 `ending` **且** ≥K 事件」的**（两个条件都算 —— "到了结局但太短"不算见证；
+// 也不是遇到第一条到结局的就收工：那样 K 一大就**假红**，而长轨迹明明可能在别的种子上）。
+// —— 每条都可复现、且比手写"定向走法"更可信（**不走 planner**）。
+// 走法：从清单 `entry` 起，**按 `data-choice` key** 种子化点击（本仓 `#317②` 口径 不用文案）；
+//注意：开场／车卡那类**没有派生 key** 的段 → **label 兜底**（并且**在轨迹里显式标出**
+// `fallback: true` —— 免得"按 key 可复跑"被兜底悄悄破掉）。
+// 可复跑 ＝ **同 seed ＋ 同 key 序列** → 轨迹里落的正是这两样 ＋ 一行**可直接粘**的复跑命令。
+// 用法：`node test/walker.mjs --witness [--story=<slug|绝对路径>] [--seed=S] [--scan=N] [--max-steps=M] [--min-events=K]`
+//（`--story=` 优先、env `SGSTORY_STORY` 兜底）
+//注意：**口径收窄**（`#215` 发起者裁 ②(a)）：`--story=` 收 **slug**（仓内 `stories/<slug>/`）。
+// **绝对路径**只在**页面**那步被按绝对处理，**清单**那步仍只认 slug → **交互式加载仓外故事包暂不支持**
+//（P4 的内容面就在仓内 `stories/<slug>/**` → 不是 P4 要件；真要用仓外包时另开票）。
+// → 报错会**点名**拼出来的那个路径（`boot.mjs` 的 `entryOf` —— 不许静默）。
+//注意：**`ending` 认定**（`#991` 口径要件：K 与 ending 在开工报备里钉死）：
+// **以引擎的 `$pc.ev.ending` 为准**（`src/10-core.twee`：`State.variables.pc.ev.ending = key`
+// —— 引擎侧登记、**故事无关**），段落名以「结局」开头只作**兜底**。
+// 为什么不能让"段落名前缀"当主判据：它在 `mist-forest` 成立，但**别的故事不成立**
+//（实测 `hollow-cave` 的段名是 `路·4a` 一类）→ 拿前缀当主判据 ＝ 把"这个故事的命名习惯"
+// 当成"故事的终结语义" → 第 4 个故事很可能**到得了结局却判不出**。
+//注意：`--verify=<trace.json>`（`#991` 批的**见证面**加法）：把**冻存的轨迹**当**输入**去核验 ——
+// 按它的 `seed` 重跑 → **逐步比对** `(passage, choiceKey|choiceLabel)` ＋ `ending` →
+// 任一步不符 → **红 ＋ 点名第几步 ＋ 两边各是什么**。
+// 为什么必须有它：**同 `seed` → 同 key 序列**只让轨迹**成因可复现**，但冻存的 JSON 若没人核
+// → "**逐格可复跑**"就只是**报告**里的一句话（P4 要的是**可机判**）。
+//注意：顺序要件（发起者 ③(iii)）：**本模式先落** → 再由它**核验**要冻的那条（否则冻下来的那份仍不可机判）。
+//注意：**故事从哪来**：**① `--story=`** → **② 冻存件里的 `story`**（`(默认 slug)` 是"产出时没指定"的记号 → 默认故事）
+// → **③ 都没有** → 按默认故事核、但**报文点名**"这份没记 `story`" —— ⛔ 绝不**静默**落到默认故事
+//（为什么写：不带 `--story=` 去核**别的故事**的冻存件 → 报"第 1 步不符" → 读者会以为**轨迹坏了**，
+// 其实是**核错了故事** —— 所以核了哪个故事必须印出来）。
+//注意：**故事从哪来**（复核时踩到的坑）：过去只认命令行 `--story=` → 拿**别的故事**的冻存件、
+// 又忘带 `--story=` → 它按**默认故事**重跑 → 报"第 1 步不符（记录 `渡口` vs 实跑 `开场`）"
+// —— **读数没错、但误导**（读者会以为轨迹坏了，其实是**核了别的故事**）。
+// → 现在按这个次序取：**① `--story=`** → **② 冻存件里的 `story`**（`(默认 slug)` 是"产出时没指定"的记号
+// → 按**默认故事**核）→ **③ 都没有** → 按默认故事核、但**报文点名**"这份没记 `story`"
+// —— ⛔ **绝不**对"有 `story` 却说不上来是哪个"的情形**静默**用默认故事（那正是上面那个坑）。
+//注意：**输入归属**（复核席提、发起者要求写进件头）：轨迹文件**可能落在仓内、`/tmp`、`~` 下** →
+// 本模式**只保证**"**我读到的这一份**（路径随报文印出）能被逐步复跑" —— 它**不保证**那个文件
+// **没被别的任务改写**（同一条路径写两次 → 后写的胜）。→ 拿它当**验收证据**时：
+// **核验与冻存要在同一步、同一份文件上完成**（`--verify=<冻存路径>`，别先冻再指另一个副本），
+// 且报文里**始终打出被核验的路径** —— 免得把"**文件被换过**"读成"**故事改了**"。
 const VERIFY = (() => { const h = process.argv.find((a) => a.startsWith('--verify=')); return h ? h.slice('--verify='.length) : null; })();
 const WITNESS = process.argv.includes('--witness') || VERIFY !== null;
 if (WITNESS) {
@@ -222,12 +222,12 @@ if (WITNESS) {
 	const SCAN = Number(argOf('scan', 8));
 	const MAX = Number(argOf('max-steps', 60));
 	const K = Number(argOf('min-events', 3));
-	// 可点入口 ✓：与既有走法**同一个选择器** ✗（不能只吃 `LINKS` ⇒ 会卡在「车卡」那段的手写 choice-card ✓）
+	// 可点入口：与既有走法**同一个选择器**（不能只吃 `LINKS` → 会卡在「车卡」那段的手写 choice-card）
 	const SEL = `${LINKS}, #passages .choice-card a`;
 	const digestOf = (w) => fingerprintOf(w.SugarCube.State.variables?.pc ?? {});
 	const keyOfStep = (x) => (x?.choiceKey ? `key:${x.choiceKey}` : x?.choiceLabel ? `label:${x.choiceLabel}` : '(无 ✗)');
-	// 一条轨迹 ✓：返回 { steps, ending }（`ending` 非空 ⇔ 真走到头 ✓）
-	async function oneWalk(seed, story = STORY) {   // ⚠️ 显式收故事 ✓：`--verify` 解析出来的那个必须能传下来 ✗
+	// 一条轨迹：返回 { steps, ending}（`ending` 非空 ⇔ 真走到头）
+	async function oneWalk(seed, story = STORY) {   //注意：显式收故事：`--verify` 解析出来的那个必须能传下来
 		const rng = makeRng(seed);
 		const { w, uncaught, close } = await boot({ random: () => 0.99, ...(story ? { story } : {}) });
 		const steps = [];
@@ -236,7 +236,7 @@ if (WITNESS) {
 		try {
 			for (let i = 0; i < MAX; i++) {
 				const p = w.SugarCube.State.passage;
-				// 主判据 ＝ **引擎侧的结局登记** ✓（故事无关 ✓）；段落名前缀只兜底 ✗
+				// 主判据 ＝ **引擎侧的结局登记**（故事无关）；段落名前缀只兜底
 				const k = w.SugarCube.State.variables?.pc?.ev?.ending ?? null;
 				if (k || String(p).startsWith('结局')) { ending = p; endingKey = k; break; }
 				const cands = [...w.document.querySelectorAll(SEL)];
@@ -256,7 +256,7 @@ if (WITNESS) {
 		} finally { try { close(); } catch { /* 已关 */ } }
 		return { steps, ending, endingKey };
 	}
-	// ── `--verify=<trace.json>` ✗：**冻存轨迹的自证模式** ✓ ───────────────────────────
+	// ── `--verify=<trace.json>`：**冻存轨迹的自证模式** ───────────────────────────
 	if (VERIFY) {
 		const readTrace = () => JSON.parse(readFileSync(VERIFY, 'utf8'));
 		let want;
@@ -270,17 +270,17 @@ if (WITNESS) {
 			console.error(`✗ --verify：轨迹形状不对 ✗（要 { seed, steps:[…], ending } ✓）—— 文件：${VERIFY}`);
 			process.exit(1);
 		}
-		// 故事取谁 ✓：命令行 `--story=` 优先 ✓ ⇒ 否则用轨迹里记的（`(默认 slug)` 是"没指定"的记号 ✗ ⇒ 传 null ✓）
-		// 故事取谁 ✓（件头三档 ✗）：命令行 `--story=` **优先** ✓ ⇒ 否则用**冻存件里记的** `story` ✓（`(默认 slug)` 是"产出时没指定"的记号 ✗ ⇒ 传 null ⇒ 按默认故事 ✓）
+		// 故事取谁：命令行 `--story=` 优先 → 否则用轨迹里记的（`(默认 slug)` 是"没指定"的记号 → 传 null）
+		// 故事取谁（件头三档）：命令行 `--story=` **优先** → 否则用**冻存件里记的** `story`（`(默认 slug)` 是"产出时没指定"的记号 → 传 null → 按默认故事）
 		const vStory = STORY ?? (want.story && want.story !== '(默认 slug)' ? want.story : null);
-		// ⚠️ **说清这一次到底核了哪个故事** ✗（复核时踩过的坑 ✓：不带 `--story=` 去核**别的故事**的冻存件 ⇒
-		//   按默认故事重跑 ⇒ 报"第 1 步不符"✗ —— 读数没错但**误导**：读者会以为轨迹坏了 ✓）
+		//注意：**说清这一次到底核了哪个故事**（复核时踩过的坑：不带 `--story=` 去核**别的故事**的冻存件 →
+		// 按默认故事重跑 → 报"第 1 步不符" —— 读数没错但**误导**：读者会以为轨迹坏了）
 		if (!STORY) {
 			if (vStory) console.log(`  ⓘ 没给 \`--story=\` ⇒ 按**冻存件里记的**故事核 ✓：${vStory}（要核别的故事就显式给 \`--story=\` ✗）`);
 			else if (!('story' in want)) console.log('  ⚠️ 没给 `--story=`，且**这份冻存件没记 `story`** ✗ ⇒ 按**默认故事**核 ✓；若它不是默认故事 ⇒ 请显式 `--story=` ✗（本模式**不会**静默替你猜 ✓）');
 			else console.log('  ⓘ 冻存件产出时用的就是**默认故事** ✓ ⇒ 按默认故事核 ✓');
 		}
-		const got = await oneWalk(want.seed, vStory);   // 同一把尺重跑 ✓（**用解析出来的故事** ✗ —— 不是命令行那个 ✗）
+		const got = await oneWalk(want.seed, vStory);   // 同一把尺重跑（**用解析出来的故事** —— 不是命令行那个）
 		const n = Math.max(want.steps.length, got.steps.length);
 		for (let i = 0; i < n; i++) {
 			const a = want.steps[i];
@@ -298,9 +298,9 @@ if (WITNESS) {
 				process.exit(1);
 			}
 		}
-		// ⚠️ **向后兼容** ✗：早先冻存的轨迹**没有 `endingKey`**（本片之前产的 ✓，如 `stories/night-ferry/gates/witness-trace.json` ✓）
-		//   ⇒ 那种件**只比段落名** ✓ 并在报文里**点明**这一份没记引擎键 ✗ ——
-		//   否则它们会**无缘无故变红** ✓（把"老件没记新字段"读成"轨迹不可复跑" ✗）。新产的件一律带 `endingKey` ✓，照旧**全比** ✓。
+		//注意：**向后兼容**：早先冻存的轨迹**没有 `endingKey`**（本片之前产的，如 `stories/night-ferry/gates/witness-trace.json`）
+		// → 那种件**只比段落名** 并在报文里**点明**这一份没记引擎键 ——
+		// 否则它们会**无缘无故变红**（把"老件没记新字段"读成"轨迹不可复跑"）。新产的件一律带 `endingKey`，照旧**全比**。
 		const wantKey = want.endingKey ?? null;
 		const endingMismatch = (want.ending ?? null) !== (got.ending ?? null)
 			|| (wantKey !== null && wantKey !== (got.endingKey ?? null));
@@ -314,15 +314,15 @@ if (WITNESS) {
 		process.exit(0);
 	}
 
-	// **种子扫描** ✓：取第一条到 `ending` 的种子（全可复现 ✓）
+	// **种子扫描**：取第一条到 `ending` 的种子（全可复现）
 	let hit = null;
 	const tried = [];
-	// 事件数 ✓ ＝ 被 `≺` 授权的步数（带 key ✓ 或带 label ✓ —— 开场链那类兜底也算一步 ✓，与末端 K 判据**同一把尺** ✓）
+	// 事件数 ＝ 被 `≺` 授权的步数（带 key 或带 label —— 开场链那类兜底也算一步，与末端 K 判据**同一把尺**）
 	const nEventsOf = (steps) => steps.filter((x) => x.choiceKey || x.choiceLabel).length;
 	for (let sd = SEED0; sd < SEED0 + SCAN; sd++) {
 		const r = await oneWalk(sd);
 		const n = nEventsOf(r.steps);
-		// 两个条件都算 ✓：**到了结局** 且 **事件数 ≥ K** ✗ —— 只看"到没到结局" ⇒ "到了但太短"会被当成见证 ✓（K 一大就假红 ✓）
+		// 两个条件都算：**到了结局** 且 **事件数 ≥ K** —— 只看"到没到结局" → "到了但太短"会被当成见证（K 一大就假红）
 		const ok = Boolean(r.ending) && n >= K;
 		tried.push({ seed: sd, steps: r.steps.length, events: n, ending: r.ending, ok });
 		console.log(`  · seed=${sd}：${r.steps.length} 步（事件 ${n}）⇒ ending=${r.ending ?? '(无 ✗)'} ⇒ ${ok ? '**收** ✓' : (r.ending ? `**太短** ✗（< ${K}）` : '**没到结局** ✗')}`);
@@ -337,7 +337,7 @@ if (WITNESS) {
 		maxSteps: MAX,
 		steps: hit?.steps ?? [],
 		ending: hit?.ending ?? null,
-		endingKey: hit?.endingKey ?? null,   // 引擎的 `$pc.ev.ending` ✓（故事无关的终结键 ✓）
+		endingKey: hit?.endingKey ?? null,   // 引擎的 `$pc.ev.ending`（故事无关的终结键）
 		fallbacks: (hit?.steps ?? []).filter((s) => s.fallback).length,
 		replay,
 	};
@@ -352,7 +352,7 @@ if (WITNESS) {
 		console.error('    （可加大 --scan=N 或 --max-steps=M 重试 ✓；若扫到底仍不到 ⇒ **加定向走法要照 ㉛ 再报备一次** ✓）');
 		process.exit(1);
 	}
-	const nEvents = nEventsOf(hit.steps);   // 与扫描**同一把尺** ✓（`hit` 已保证 ≥K ⇒ 这里是"改坏了就红"的兜底 ✓）
+	const nEvents = nEventsOf(hit.steps);   // 与扫描**同一把尺**（`hit` 已保证 ≥K → 这里是"改坏了就红"的兜底）
 	console.log(`\n见证 ✓：seed=${hit.seed} · ${hit.steps.length} 步（事件 ${nEvents}）· ending=${hit.ending}（key=${hit.endingKey ?? '（引擎未登记 ✗）'}）· label 兜底 ${trace.fallbacks} 处`);
 	console.log(`复跑 ✓：${replay}`);
 	if (nEvents < K) {

@@ -1,18 +1,18 @@
 // ⓪ad 引擎门"无故事字面量"门（`#602`）——**引擎门**（判它的是"引擎门与故事内容解耦"这条结构不变量）。
 //
 // 为什么要有它：`AUDIT_ENGINE` 声明"判据与故事无关"，但实测出现过**假解耦**——
-//   · `--text` 把**故事 1 的主题词表**与**风格违和词黑名单**写死在门代码里 ⇒ 换故事后① 主题词照打印故事 1 的词
-//     （全 0 照绿＝**空判**）② 风格门拿**别人的黑名单**判你（**假红**）；
-//   · `--reads` 把**故事 1 的已知存量基线**写死在门里 ⇒ 口径错位；
-//   · `--sitedisc` 的自证夹具里用了**真实地名**（无害但是同一种味道）。
-// ⇒ 单靠"这次搬干净"不够：**必须有门咬人**，否则下次谁往引擎门里写一个 `['月光','星']` 无人拦。
+// · `--text` 把**故事 1 的主题词表**与**风格违和词黑名单**写死在门代码里 → 换故事后① 主题词照打印故事 1 的词
+//（全 0 照绿＝**空判**）② 风格门拿**别人的黑名单**判你（**假红**）；
+// · `--reads` 把**故事 1 的已知存量基线**写死在门里 → 口径错位；
+// · `--sitedisc` 的自证夹具里用了**真实地名**（无害但是同一种味道）。
+// → 单靠"这次搬干净"不够：**必须有门咬人**，否则下次谁往引擎门里写一个 `['月光','星']` 无人拦。
 //
 // 判据（三条）：
-//   ① **黑名单来自故事自己**：从 `stories/**/*.twee` 自动抽"故事专有 token"——**段落名** ＋ 故事侧引用的 `Game.<X>`；
-//   ② **只扫代码**：注释里的历史记述不算违规（经 `maskComments` 遮掉——本仓注释里大量记着"当初错在哪"）；
-//   ③ **白名单要带理由＋票号**，且**腐烂即红**（写进白名单但已不再命中 ⇒ 报，逼你删）。
+// ① **黑名单来自故事自己**：从 `stories/**/*.twee` 自动抽"故事专有 token"——**段落名** ＋ 故事侧引用的 `Game.<X>`；
+// ② **只扫代码**：注释里的历史记述不算违规（经 `maskComments` 遮掉——本仓注释里大量记着"当初错在哪"）；
+// ③ **白名单要带理由＋票号**，且**腐烂即红**（写进白名单但已不再命中 → 报，逼你删）。
 //
-// 反例自证：往任一引擎门里塞一个故事词 ⇒ 必须红（本门自己的 `--selftest` 用合成源码演示；PR 里另有真实探针）。
+// 反例自证：往任一引擎门里塞一个故事词 → 必须红（本门自己的 `--selftest` 用合成源码演示；PR 里另有真实探针）。
 import { passagesOf } from '../../../editor/lib/core/passages.mjs';   // `#1114` 2b-2b-0b：切段单一权威
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -33,8 +33,8 @@ export const ENGINE_COMMON = new Set([
 ]);
 
 /** 白名单**数据**（`scripts/audit/engine-story-allow.json`）：键 `<门文件>::<token>` → `理由（#票号）`。
- *  为什么放 JSON 不写在本文件：检查器**自己**也在被扫的门里——把 token 写进代码会被自己命中（实测过一次）。
- *  纪律：理由**必须带票号**；声明了却不再命中 ⇒ 报（逼你删，不留僵尸豁免）。 */
+ * 为什么放 JSON 不写在本文件：检查器**自己**也在被扫的门里——把 token 写进代码会被自己命中（实测过一次）。
+ * 纪律：理由**必须带票号**；声明了却不再命中 → 报（逼你删，不留僵尸豁免）。 */
 export const loadAllow = ({ root = ROOT } = {}) => {
 	const p = join(root, 'scripts/audit/engine-story-allow.json');
 	if (!existsSync(p)) throw new Error('缺 scripts/audit/engine-story-allow.json（白名单是数据，必须显式存在；空对象也要写）');
@@ -44,8 +44,8 @@ export const loadAllow = ({ root = ROOT } = {}) => {
 /** 纯函数：从故事源码抽"故事专有 token"（段落名 ＋ `Game.<X>`）。 */
 export const storyTokensOf = (sources) => {
 	const out = new Set();
-	// `#1114` 片 2b-2b-0b：段名抽取也走 core 的 `passagesOf()`（**唯一分派点** ✓）
-	//   —— 原 `matchAll(/^::\s*…/)` 对 md 源（无 `:: ` 段头）抽不到段名 ⇒ 故事专有 token 面漏掉 md 段 ✓。
+	// `#1114` 片 2b-2b-0b：段名抽取也走 core 的 `passagesOf()`（**唯一分派点**）
+	// —— 原 `matchAll(/^::\s*…/)` 对 md 源（无 `:: ` 段头）抽不到段名 → 故事专有 token 面漏掉 md 段。
 	for (const [path, src] of Object.entries(sources ?? {})) {
 		const text = maskComments(String(src ?? ''));
 		for (const p of passagesOf(text, path)) {
@@ -69,25 +69,25 @@ export const judgeStoryFree = ({ file = '?', src = '', tokens, allow = {} }) =>
 
 /** **第二档 · 成员档**（`#660` 片三-0）：引擎文件里**按成员名**咬"直读故事数据"。
  *
- *  规则（刻意**不做数据流分析**）：引擎源码里出现 `(window.)?Game.<表>.<成员>`，或**一层别名**（`const T = window.Game` 之后 `T.<成员>`）
- *  —— 其中 `<表>`/`<成员>` 来自**故事声明面自动抽取**（见 `storyTableMembers()`）—— 未登记白名单 ⇒ 红。
- *  为什么按成员名：`21-resolve` 的头注记着「层间门按字面量匹配，这里**曾用别名 `T.Game` 躲过它**」⇒ 别名只要成员名对得上就跑不掉。
- *  为什么只做一层别名：**追别名是为了少误报，不是为了抓漏**（dev 口径）；更深的传播交给白名单＋理由登记。
- *  **已知漏（静态不可判，自证里断言它会漏）**：`const { events } = Game.Economy` 之后裸用 `events` —— 不解构分析、不做数据流。
- *  误报控制：只在**接收者是故事表或其一级别名**时匹配（不裸匹配 `\.events`——SugarCube/DOM 上遍地都是）。 */
+ * 规则（刻意**不做数据流分析**）：引擎源码里出现 `(window.)?Game.<表>.<成员>`，或**一层别名**（`const T = window.Game` 之后 `T.<成员>`）
+ * —— 其中 `<表>`/`<成员>` 来自**故事声明面自动抽取**（见 `storyTableMembers()`）—— 未登记白名单 → 红。
+ * 为什么按成员名：`21-resolve` 的头注记着「层间门按字面量匹配，这里**曾用别名 `T.Game` 躲过它**」→ 别名只要成员名对得上就跑不掉。
+ * 为什么只做一层别名：**追别名是为了少误报，不是为了抓漏**（dev 口径）；更深的传播交给白名单＋理由登记。
+ * **已知漏（静态不可判，自证里断言它会漏）**：`const { events} = Game.Economy` 之后裸用 `events` —— 不解构分析、不做数据流。
+ * 误报控制：只在**接收者是故事表或其一级别名**时匹配（不裸匹配 `\.events`——SugarCube/DOM 上遍地都是）。 */
 /** **从故事声明面自动抽取「表 → 成员」**（`#660` 片三-0，dev 口径：成员集要自动抽、别手维护）。
- *  做法：把故事的表段（`window.Game = Object.assign(…)`）在 vm 里跑一遍（与 `test/integrity.mjs` 同法，
- *  先按 `CONST_SECTION` 跑常量行 = 真实加载顺序），再取每个 `Game.<表>` 的**自有键**。
- *  为什么不用正则解析表：表是 JS（IIFE ＋ `Object.assign`），正则会漏；vm 拿到的就是**引擎真会看到的那个对象**。 */
+ * 做法：把故事的表段（`window.Game = Object.assign(…)`）在 vm 里跑一遍（与 `test/integrity.mjs` 同法，
+ * 先按 `CONST_SECTION` 跑常量行 = 真实加载顺序），再取每个 `Game.<表>` 的**自有键**。
+ * 为什么不用正则解析表：表是 JS（IIFE ＋ `Object.assign`），正则会漏；vm 拿到的就是**引擎真会看到的那个对象**。 */
 /** **`[script]` 段的正文**（twee 文件里按 `^:: 名 [tags]` 切块；只取带 `script` 的那种）。
- *  为什么必须切段：故事文件里**一个文件多个段**（如 `15-tables.twee` 有 `Game Tables` ＋ `StoryBindings`），
- *  整文件丢给 vm 会因为 `::` 头不是 JS 而抛错 ⇒ 成员集抽出来是**空的**（我第一版就踩了这个：0 成员）。 */
-/** 取段落里**声明 `[script]`** 的段正文（`#1141`：走 `passagesOf` 单一分派 ✓ —— 原来用 `^::\s*…` 自写切块 ✗
- *  ⇒ **md 源里声明 `[script]` 的段会被切成 0 块 ⇒ 门静默跳过**（＝假绿家族 ✗））。
- *  ⚠️ 参数 `path` 有**默认值**（向后兼容 ✓）：`editor/lib/host/**` 的调用点**不传** ⇒ 行为一字不变 ✓
- *   （那几处只喂 twee 面 ✓）；本门的两处调用点传 `file` ⇒ **md 段也看得见并照常判** ✓。
- *  ⚠️ **不许静默跳过**：md 里真有 `[script]` 段时，这里**返回它的正文** ⇒ 由本门照常判内容 ✓
- *   （**不**报"请移回 twee"✗ —— 终点裁定：引擎面**移入引擎能力**，不回 twee ✓ `#1142`）。 */
+ * 为什么必须切段：故事文件里**一个文件多个段**（如 `15-tables.twee` 有 `Game Tables` ＋ `StoryBindings`），
+ * 整文件丢给 vm 会因为 `::` 头不是 JS 而抛错 → 成员集抽出来是**空的**（我第一版就踩了这个：0 成员）。 */
+/** 取段落里**声明 `[script]`** 的段正文（`#1141`：走 `passagesOf` 单一分派 —— 原来用 `^::\s*…` 自写切块
+ * → **md 源里声明 `[script]` 的段会被切成 0 块 → 门静默跳过**（＝假绿家族））。
+ *注意：参数 `path` 有**默认值**（向后兼容）：`editor/lib/host/**` 的调用点**不传** → 行为一字不变
+ *（那几处只喂 twee 面）；本门的两处调用点传 `file` → **md 段也看得见并照常判**。
+ *注意：**不许静默跳过**：md 里真有 `[script]` 段时，这里**返回它的正文** → 由本门照常判内容
+ *（**不**报"请移回 twee" —— 终点裁定：引擎面**移入引擎能力**，不回 twee `#1142`）。 */
 export const scriptBodies = (fileSrc, path = '') => {
 	const out = [];
 	for (const p of passagesOf(String(fileSrc ?? ''), path)) {
@@ -101,18 +101,18 @@ export const storyTableMembers = (sources = {}, { seedSrc = '', onSkip = () => {
 	const tables = {};
 	for (const [file, src] of Object.entries(sources ?? {})) {
 		for (const body of scriptBodies(String(src ?? ''), file)) {
-			// `#441` 抽验（曾漏检）：此前只认 `window.Game = Object.assign(…)` **聚合式**声明 ⇒
-			// `20-chargen.twee` 的 `window.Game.Chargen = {…}`（**分表式**）被**静默跳过** ⇒ `Chargen` 不在成员集里，
-			// 成员档/探测档对它全是瞎的（探针 `not Game.Chargen` 因此**该红没红** ✗）。
-			// ⇒ 两种形态都收；跳过什么由下面的 `undetectedTables()` 单独点名（反沉默）。
+			// `#441` 抽验（曾漏检）：此前只认 `window.Game = Object.assign(…)` **聚合式**声明 →
+			// `20-chargen.twee` 的 `window.Game.Chargen = {…}`（**分表式**）被**静默跳过** → `Chargen` 不在成员集里，
+			// 成员档/探测档对它全是瞎的（探针 `not Game.Chargen` 因此**该红没红**）。
+			// → 两种形态都收；跳过什么由下面的 `undetectedTables()` 单独点名（反沉默）。
 			if (!/window\.Game\s*=|window\.Game\.[A-Za-z_$][\w$]*\s*=/.test(body)) continue;
 			const ctx = { window: { Game: {} } };
 			const seeded = new Set();
 			try {
 				for (const m of String(seedSrc).matchAll(/^window\.Game\.[A-Za-z]+ \??= .*$/gm)) { vm.runInNewContext(m[0], ctx); seeded.add((/^window\.Game\.([A-Za-z]+)/.exec(m[0]) ?? [])[1]); }
 				vm.runInNewContext(body, ctx);
-			} catch (e) { onSkip({ file, why: e?.message ?? String(e) }); continue; }   // 段里有其它依赖 ⇒ 跳过并留痕
-			// ⚠️ 只收**故事段自己声明/改动的**表：seed 进来的引擎常量（`Era`/`Damage`）不算故事成员
+			} catch (e) { onSkip({ file, why: e?.message ?? String(e) }); continue; }   // 段里有其它依赖 → 跳过并留痕
+			//注意：只收**故事段自己声明/改动的**表：seed 进来的引擎常量（`Era`/`Damage`）不算故事成员
 			//（否则 `<<damage `Game.Damage.hurt`>>` 这种**引擎用自己常量**的地方会被误报——我第一版就踩了）。
 			for (const [table, v] of Object.entries(ctx.window.Game ?? {})) {
 				if (seeded.has(table)) continue;
@@ -125,8 +125,8 @@ export const storyTableMembers = (sources = {}, { seedSrc = '', onSkip = () => {
 };
 
 /** **反沉默**：故事 `[script]` 段里声明过的 `window.Game.<表>`，哪些**没被抽到**（`#441` 抽验发现的洞）。
- *  为什么单独一条：抽取器是"按形态过滤 + vm 跑"的，**看不懂的形态会被静默跳过**——那种静默正是本仓最贵的失败模式
- *  （我自己的探针 `not Game.Chargen` 该红没红，就是因为 `Chargen` 从来没进成员集）。 */
+ * 为什么单独一条：抽取器是"按形态过滤 + vm 跑"的，**看不懂的形态会被静默跳过**——那种静默正是本仓最贵的失败模式
+ *（我自己的探针 `not Game.Chargen` 该红没红，就是因为 `Chargen` 从来没进成员集）。 */
 export const undetectedTables = (sources = {}, tables = {}, { seedSrc = '' } = {}) => {
 	const seeded = new Set([...String(seedSrc).matchAll(/^window\.Game\.([A-Za-z_$][\w$]*)/gm)].map((m) => m[1]));
 	const declared = new Map();
@@ -147,13 +147,13 @@ export const storyMemberAliases = (src) => {
 	return out;
 };
 /** **第三档 · 存在性探测档**（`#660` 片三-2）：引擎不许用「**这张故事表在不在**」的探测去摸故事表。
- *  规则（只咬**裸表名**；成员访问/调用归**成员档**管）：① 取反 `not Game.X` / `!Game.X`；
- *  ② 空合并 `Game.X ?? y`（**不含声明式 `??=`**——那是引擎在自己命名空间上挂成员，合法）；③ `null` 比较 `Game.X == null` / `!== null`；
- *  ④ 真值用法 `Game.X && y` / `Game.X || y` / `Game.X ? a : b`。
- *  为什么单开一档：`<<elseif not Game.Chargen>>` 既是边界破口（**引擎知道故事的全局名**），又是**最爱藏在条件里**的那种
- *  （成员档咬不到：它没有 `.成员`）。口径：故事表在不在，**必须问接入契约**（如 `Sg.story.hasChargen()`）——
- *  引擎只问"有没有"，不把故事全局再拿回去。
- *  误报控制：表名必须**在自动抽取的故事表集里**；注释已遮（`maskComments`）；**成员/调用**（`!Game.X.m()`）不算表探测。 */
+ * 规则（只咬**裸表名**；成员访问/调用归**成员档**管）：① 取反 `not Game.X` / `!Game.X`；
+ * ② 空合并 `Game.X?? y`（**不含声明式 `??=`**——那是引擎在自己命名空间上挂成员，合法）；③ `null` 比较 `Game.X == null` / `!== null`；
+ * ④ 真值用法 `Game.X && y` / `Game.X || y` / `Game.X? a: b`。
+ * 为什么单开一档：`<<elseif not Game.Chargen>>` 既是边界破口（**引擎知道故事的全局名**），又是**最爱藏在条件里**的那种
+ *（成员档咬不到：它没有 `.成员`）。口径：故事表在不在，**必须问接入契约**（如 `Sg.story.hasChargen()`）——
+ * 引擎只问"有没有"，不把故事全局再拿回去。
+ * 误报控制：表名必须**在自动抽取的故事表集里**；注释已遮（`maskComments`）；**成员/调用**（`!Game.X.m()`）不算表探测。 */
 export const probeTierProblems = ({ file = '?', src = '', tables = {}, allow = {} } = {}) => {
 	const text = maskComments(String(src));
 	const out = [];
@@ -180,7 +180,7 @@ export const memberTierProblems = ({ file = '?', src = '', tables = {}, allow = 
 		const key = `${file}::Game.${table}.${member}`;
 		if (!allow[key]) out.push({ file, key, form: full, why: '引擎直读故事数据成员' });
 	}
-	// 形态 B：**一层别名** `const A = window.Game…` ⇒ `A.<成员>`
+	// 形态 B：**一层别名** `const A = window.Game…` → `A.<成员>`
 	const aliases = storyMemberAliases(text);
 	for (const a of aliases) {
 		for (const m of text.matchAll(new RegExp(`\\b${a}\\.([A-Za-z_$][\\w$]*)`, 'g'))) {
@@ -234,7 +234,7 @@ export const run = (ctx) => {
 			['边界（成员档）：引擎自有成员（`Game.Economy.apply`）⇒ 不报', memberTierProblems({ file: 'x', src: 'Game.Economy.apply(pc, "x");', tables: TB }).length === 0],
 			['边界（成员档）：同名的**局部/域内**对象（`pc.events`）⇒ 不报（不裸匹配 `\\.events`）', memberTierProblems({ file: 'x', src: 'const n = pc.events.length;', tables: TB }).length === 0],
 			['🔴 **已知漏**（断言它会漏）：`const { events } = Game.Economy` 之后裸用 ⇒ **0 条**（静态不可判，不做数据流）', memberTierProblems({ file: 'x', src: 'const { events } = Game.Economy;\nuse(events);', tables: TB }).length === 0],
-			// `#441` 抽验抓到的洞：**分表式**声明（`window.Game.Chargen = {…}`）此前被静默跳过 ⇒ 抽不到 ⇒ 门对它是瞎的。
+			// `#441` 抽验抓到的洞：**分表式**声明（`window.Game.Chargen = {…}`）此前被静默跳过 → 抽不到 → 门对它是瞎的。
 			['抽取器认**分表式**声明（`window.Game.<表> = {…}`）⇒ 表进成员集', Object.keys(storyTableMembers({ 'x.twee': ':: T [script]\nwindow.Game.Items = { defs: {}, gear: [] };' })).includes('Items')],
 			['🔴 反沉默：声明了 `window.Game.X` 却没抽到 ⇒ `undetectedTables()` **点名**（不许静默跳过）',
 				undetectedTables({ 'x.twee': ':: T [script]\nwindow.Game.Ghost = { a: 1 };' }, {}).length === 1
@@ -273,8 +273,8 @@ export const run = (ctx) => {
 		for (const h of hits) { console.log(`  ✗ 引擎门「${h.file}」出现故事专有字面量「${h.token}」——数据请搬到 \`stories/<slug>/audit.json\` 或该故事自己的表（#602）`); bad++; }
 	}
 	// ── 第二档 · **成员档**（`#660` 片三-0）：引擎**源码**里不许直读故事数据成员 ──
-	//  成员集从**故事声明面自动抽**（`storyTableMembers()` 把故事表段跑一遍取自有键）；
-	//  规则＝「出现故事表成员名（含**一层别名**与**在故事表上挂方法时的 `this.<成员>`**）、且未登记 ⇒ 红」。
+	// 成员集从**故事声明面自动抽**（`storyTableMembers()` 把故事表段跑一遍取自有键）；
+	// 规则＝「出现故事表成员名（含**一层别名**与**在故事表上挂方法时的 `this.<成员>`**）、且未登记 → 红」。
 	{
 		const seedSrc = (CONST_SECTION.files ?? []).map((f) => { const fp = join(ROOT, f); return existsSync(fp) ? readFileSync(fp, 'utf8') : ''; }).join('\n');
 		const skips = [];
@@ -290,14 +290,14 @@ export const run = (ctx) => {
 			const hits = memberTierProblems({ file: f, src, tables, allow: ALLOW });
 			memberHits += hits.length;
 			for (const h of hits) { console.log(`  ✗ 引擎文件「${h.file}」${h.why}：\`${h.form}\`——请走 \`Sg.story.*\`（#660 片三）`); bad++; }
-			// 白名单腐烂（成员档）：登记了、但**现在不再命中** ⇒ 报（逼你删）
+			// 白名单腐烂（成员档）：登记了、但**现在不再命中** → 报（逼你删）
 			for (const [k, why] of Object.entries(ALLOW)) {
 				if (!k.startsWith(`${f}::`)) continue;
 				const bare = memberTierProblems({ file: f, src, tables, allow: {} }).map((x) => x.key);
 				if (!bare.includes(k)) { console.log(`  ✗ 白名单腐烂（成员档）：「${k}」已不再命中——接缝做完就删（理由：${why}）`); bad++; stales++; }
 			}
 		}
-		// ── 第三档 · **存在性探测档**：引擎不许 `not Game.X` / `Game.X ??` 这类"故事表在不在"的探测 ──
+		// ── 第三档 · **存在性探测档**：引擎不许 `not Game.X` / `Game.X??` 这类"故事表在不在"的探测 ──
 		let probeHits = 0, probeStales = 0;
 		for (const f of engineSrc) {
 			const src = readFileSync(join(ROOT, f), 'utf8');
@@ -317,10 +317,10 @@ export const run = (ctx) => {
 		console.log('  · 已知漏（静态不可判，**不上数据流分析**）：`const { events } = Game.Economy` 之后裸用；`this.<成员>` 在**没有** `Object.assign(window.Game.X…)` 包着时也判不出（自证里已断言两者会漏）');
 	}
 
-	// 白名单**理由必须带票号**（空理由/无票号 ⇒ 红）
+	// 白名单**理由必须带票号**（空理由/无票号 → 红）
 	for (const [k, why] of Object.entries(ALLOW)) if (!/#\d+/.test(String(why))) { console.log(`  ✗ 白名单「${k}」的理由缺票号（必须写明"为什么放行"并挂票）`); bad++; }
-	// 白名单腐烂（声明了却不再命中）⇒ 报，逼你删
-	// 腐烂检查**只覆盖第一档（字面量档）**：成员档的键指向**引擎源文件**（`src/…`），由上面那块单独查 ✓
+	// 白名单腐烂（声明了却不再命中）→ 报，逼你删
+	// 腐烂检查**只覆盖第一档（字面量档）**：成员档的键指向**引擎源文件**（`src/…`），由上面那块单独查
 	const stale = Object.keys(ALLOW).filter((k) => !k.startsWith('src/')).filter((k) => !/::(?:window\.)?Game\./.test(k)).filter((k) => {
 		const [file, token] = k.split('::');
 		const g = engineGates.find((x) => x.file === file);

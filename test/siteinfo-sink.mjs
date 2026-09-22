@@ -1,16 +1,16 @@
 // 位点文案门（`#785` 机制片 · 接缝 5）——**下沉不改契约**
 //
-// `Game.Combat.siteInfo(actionId)` 原住故事表（直读 `Checks.sites` ＋ `this.actions`）⇒ 下沉为引擎
-// **经接入契约取数**（`Sg.story.combatAction(id)` ＋ `Sg.story.checkSite(name)` ✓ —— 两者本来就有 ⇒ 无新成员 ✓）。
+// `Game.Combat.siteInfo(actionId)` 原住故事表（直读 `Checks.sites` ＋ `this.actions`）→ 下沉为引擎
+// **经接入契约取数**（`Sg.story.combatAction(id)` ＋ `Sg.story.checkSite(name)` —— 两者本来就有 → 无新成员）。
 // 判据（三条）：
-//   ① **矩阵**：全部已登记 action × 4 种位点形态（技能／`con` 体质豁免／其它属性／缺位点）逐值等于**测试侧独立重算**；
-//   ② **退化不当崩**（行为陷阱）：**未登记动作** ⇒ `''`（不是抛 ✗ —— `combatAction` 自己会抛 ✓ 由本方法吞掉 ✓）；
-//   ③ **格式**：`<标签> DC<dc>` 逐字符（标签走引擎 `Game.Rules.skillLabel` ✓）。
+// ① **矩阵**：全部已登记 action × 4 种位点形态（技能／`con` 体质豁免／其它属性／缺位点）逐值等于**测试侧独立重算**；
+// ② **退化不当崩**（行为陷阱）：**未登记动作** → `''`（不是抛 —— `combatAction` 自己会抛 由本方法吞掉）；
+// ③ **格式**：`<标签> DC<dc>` 逐字符（标签走引擎 `Game.Rules.skillLabel`）。
 //
 // 用法：node test/siteinfo-sink.mjs [--selftest]
 
 import { boot } from './boot.mjs';
-import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b：默认故事走单一权威 ✓
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b：默认故事走单一权威
 
 let bad = 0;
 const ok = (label, cond, extra = '') => { if (cond) console.log(`  ✓ ${label}${extra ? ' · ' + extra : ''}`); else { bad++; console.error(`  ✗ ${label}${extra ? ' · ' + extra : ''}`); } };
@@ -41,8 +41,8 @@ if (process.argv.includes('--selftest')) {
 	process.exit(0);
 }
 
-// `#1004` B2b ✓：旧故事已删 ⇒ 换到**默认故事**（＝`DEFAULT_SLUG`，现为面夹具 `face-fixture` ✓，
-//   位点表／动作表都是它的满配面 ✓）—— 本件量的是"表 ↔ 引擎查询"的**接缝** ✓，与哪个故事无关 ✗。
+// `#1004` B2b：旧故事已删 → 换到**默认故事**（＝`DEFAULT_SLUG`，现为面夹具 `face-fixture`，
+// 位点表／动作表都是它的满配面）—— 本件量的是"表 ↔ 引擎查询"的**接缝**，与哪个故事无关。
 const { w, close } = await boot({ story: DEFAULT_SLUG, random: 0.5 });
 try {
 	const data = w.eval('(() => ({ sites: window.Game?.Checks?.sites ?? {}, actions: window.Game?.Combat?.actions ?? {}, has: typeof window.Game.Combat.siteInfo }))()');

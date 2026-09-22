@@ -4,14 +4,14 @@
 // 能归类的给出 kind，归不了类的**点名**（不是"静默跳过"——那才是这类工具最会骗人的地方）。
 //
 // 四个桶（**分桶口径写死在注释里，免得 C 变成"我不知道怎么表达"的垃圾桶**）：
-//   A. **可直接表达**（现有 `KINDS` 能装）
-//   B. **需要声明式扩展**（形状能看懂、只是现有 kind 缺字段/缺种类：如 `game-ref` 缺默认值 · `forward` 转发 ·
-//      `template` 模板 · `lookup-field` 的 `required`/`via`）—— **凡是"可预见的声明式扩展"能覆盖的一律进 B**
-//   D. **可下沉引擎（甲案）**（形状是"引擎能力 ＋ 故事数据"：如查表后用 `Sg.notes.has` 组装）
-//      —— 标成一类，是为了让"要不要下沉"成为**显式决定**，而不是分类的副作用
-//   C. **真逃生舱候选**（上面都装不下 ⇒ 才考虑 `kind:'js'`，且必须进 `escape-hatch.json` 写理由 ＋ 票号）
+// A. **可直接表达**（现有 `KINDS` 能装）
+// B. **需要声明式扩展**（形状能看懂、只是现有 kind 缺字段/缺种类：如 `game-ref` 缺默认值 · `forward` 转发 ·
+// `template` 模板 · `lookup-field` 的 `required`/`via`）—— **凡是"可预见的声明式扩展"能覆盖的一律进 B**
+// D. **可下沉引擎（甲案）**（形状是"引擎能力 ＋ 故事数据"：如查表后用 `Sg.notes.has` 组装）
+// —— 标成一类，是为了让"要不要下沉"成为**显式决定**，而不是分类的副作用
+// C. **真逃生舱候选**（上面都装不下 → 才考虑 `kind:'js'`，且必须进 `escape-hatch.json` 写理由 ＋ 票号）
 //
-// 用法：node editor/classify-contract.mjs <slug> [--json]      # 默认只报告；`--json` 打印提案数据
+// 用法：node editor/classify-contract.mjs <slug> [--json] # 默认只报告；`--json` 打印提案数据
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -19,32 +19,32 @@ import vm from 'node:vm';
 import { scriptBodies, hasGeneratedMarker } from './lib/core/text.mjs';
 export { hasGeneratedMarker };
 import { engineScripts, readText, writeText, mkdirp, exists } from './lib/host/fs.mjs';
-// `#794` P1①：故事包写入走 **core 的唯一写路**（`writeStoryPackage`）—— 壳里不再出现 `node:fs` 原语 ✗（K6 L1 在盯 ✓）。
+// `#794` P1①：故事包写入走 **core 的唯一写路**（`writeStoryPackage`）—— 壳里不再出现 `node:fs` 原语（K6 L1 在盯）。
 import { packageFiles, writeStoryPackage } from './lib/core/story.mjs';
 const NODE_IO = { readText, writeText, mkdirp, exists };
 import { KINDS, GLOBAL_ROOTS } from './compile-story.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
-/** **长度保持**的遮蔽器（注释 ＋ 字符串/模板）：把内容换成空格、**保留换行** ⇒ 下标与原文本一一对应。
- *  为什么自带一个而不是 import：① `report-selftest-validity.mjs` **没有主模块守卫** ⇒ `import` 它会执行它的 CLI
- *  （实测：跑我的分类器会先打一遍它的自检报告）；② 本仓 §9.7 的教训是"**单扫描器按词法一次遮蔽**"，
- *  所以这里是**一次词法扫描**，不是几条正则叠着剥。 */
-// 纯文本/纯数据部分已搬到 `editor/lib/core/contract.mjs`（转出，老调用方不变 ✓）。
+/** **长度保持**的遮蔽器（注释 ＋ 字符串/模板）：把内容换成空格、**保留换行** → 下标与原文本一一对应。
+ * 为什么自带一个而不是 import：① `report-selftest-validity.mjs` **没有主模块守卫** → `import` 它会执行它的 CLI
+ *（实测：跑我的分类器会先打一遍它的自检报告）；② 本仓 §9.7 的教训是"**单扫描器按词法一次遮蔽**"，
+ * 所以这里是**一次词法扫描**，不是几条正则叠着剥。 */
+// 纯文本/纯数据部分已搬到 `editor/lib/core/contract.mjs`（转出，老调用方不变）。
 import { maskAll, contractSites, membersIn, contractMembers } from './lib/core/contract.mjs';
 export { maskAll, contractSites, membersIn, contractMembers };
-// 字面量求值是**宿主能力**（用 node:vm ⇒ 浏览器没有）⇒ 已搬到 `editor/lib/host/literals.mjs`（转出 ✓）。
+// 字面量求值是**宿主能力**（用 node:vm → 浏览器没有）→ 已搬到 `editor/lib/host/literals.mjs`（转出）。
 import { literalValue } from './lib/host/literals.mjs';
 export { literalValue };
-// 分类器（`fbEnum` ＋ `classify`）已搬到 `editor/lib/core/classify.mjs`（**工厂**形状：能力由宿主注入 ✓）。
+// 分类器（`fbEnum` ＋ `classify`）已搬到 `editor/lib/core/classify.mjs`（**工厂**形状：能力由宿主注入）。
 import { fbEnum, makeClassify } from './lib/core/classify.mjs';
 const { classify } = makeClassify({ evalLiteral: literalValue });
 export { fbEnum, classify };
 
-// `#794`：`resolveLocalConst`（vm 沙箱内“取局部常量值” ✓）已搬到 `editor/lib/host/sandbox.mjs` ✓（与 `runStory` 同窝 ✓）。
+// `#794`：`resolveLocalConst`（vm 沙箱内“取局部常量值”）已搬到 `editor/lib/host/sandbox.mjs`（与 `runStory` 同窝）。
 import { resolveLocalConst } from './lib/host/sandbox.mjs';
 export { resolveLocalConst };
-// `#794` P1①：缝已搬进 `lib/host/classify.mjs`（它要用 vm ✓）⇒ 壳只**转出**（老调用方不变 ✓）。
+// `#794` P1①：缝已搬进 `lib/host/classify.mjs`（它要用 vm）→ 壳只**转出**（老调用方不变）。
 import { classifyContractText } from './lib/host/classify.mjs';
 export { classifyContractText };
 
@@ -109,26 +109,26 @@ const selftest = () => {
 		return ms.length === 2 && ms[0].name === 'a' && ms[1].name === 'b';
 	})());
 	// `#787` 回归覆盖（截 2026-09-17）：`main` 里 `resolveLocalConst(fileText, …)` 的 `fileText`
-	// 一度在搬 core 时被切掉 ✗ ⇒ 该路径走到即 `ReferenceError` ✓。本组**覆盖了辅助函数那一半** ✓：
-	// 夹具故意**不含** `Object.assign(window.Sg…)`（那种夹具会因缺 `window.Sg` 落 catch ⇒ 判 B ✓，量不出真因 ✗）。
-	// ⚠️ **仍未被覆盖的一半** ✗：`main` 里 `fileText` 的**作用域**本身（要跑到它得有一份
-	//   "手写契约 ＋ `() => 局部常量`" 的夹具 ⇒ 三个故事翻面后没有活样本 ✓）⇒ 记为待补 ✓，
-	//   此处**明说不假装覆盖** ✓（与复核席"引号未闭合 ⇒ 明记边界"同形 ✓）。
+	// 一度在搬 core 时被切掉 → 该路径走到即 `ReferenceError`。本组**覆盖了辅助函数那一半**：
+	// 夹具故意**不含** `Object.assign(window.Sg…)`（那种夹具会因缺 `window.Sg` 落 catch → 判 B，量不出真因）。
+	//注意：**仍未被覆盖的一半**：`main` 里 `fileText` 的**作用域**本身（要跑到它得有一份
+	// "手写契约 ＋ `() => 局部常量`" 的夹具 → 三个故事翻面后没有活样本）→ 记为待补，
+	// 此处**明说不假装覆盖**（与复核席"引号未闭合 → 明记边界"同形）。
 	t('`resolveLocalConst`：`const MECH = {…}` ⇒ 取出值（`#787` 回归的辅助函数那一半 ✓）', (() => {
 		const v = resolveLocalConst(":: Game Tables [script]\nconst MECH = { a: 1, b: [2] };\n", 'Game Tables', 'MECH');
 		return v && v.a === 1 && Array.isArray(v.b) && v.b[0] === 2;
 	})());
-	// `#794` 第 32 例（复核席 `#819` 记的验收项 (b) ✓）：**驱动那条缝** ⇒ 覆盖 `fileText` 那条路径。
-	// 为什么只能这样做：三个故事都翻面后，"手写契约 ＋ `() => 局部常量`"**没有活样本** ✗ ⇒
-	// 靠"往仓里塞夹具文件"会污染工作区 ✗ ⇒ 只有把分类体抽成函数（`fileText` 是**形参** ✓）才能无文件覆盖 ✓。
-	// ⚠️ 夹具**自带** `window.Sg = { story: {} };` ✓ —— 否则 `resolveLocalConst` 跑它时 `Object.assign` 抛错 ⇒ 落 catch ⇒ 判 B ✗（**量不出真因** ✗，我踩过 ✓）。
+	// `#794` 第 32 例（复核席 `#819` 记的验收项 (b)）：**驱动那条缝** → 覆盖 `fileText` 那条路径。
+	// 为什么只能这样做：三个故事都翻面后，"手写契约 ＋ `() => 局部常量`"**没有活样本** →
+	// 靠"往仓里塞夹具文件"会污染工作区 → 只有把分类体抽成函数（`fileText` 是**形参**）才能无文件覆盖。
+	//注意：夹具**自带** `window.Sg = { story: {}};` —— 否则 `resolveLocalConst` 跑它时 `Object.assign` 抛错 → 落 catch → 判 B（**量不出真因**，我踩过）。
 	t('缝 `classifyContractText`：`mechanics: () => MECH` ⇒ 经 `fileText` 解析后**落 A**（值也取到 ✓）', (() => {
 		const src = [":: Game Tables [script]", "window.Sg = { story: {} };", "const MECH = { a: 1, b: [2] };", "Object.assign(window.Sg.story, { mechanics: () => MECH });", ""].join('\n');
 		const { rows } = classifyContractText({ fileText: src });
 		const r = rows.find((x) => x.name === 'mechanics');
 		return !!r && r.bucket === 'A' && r.spec?.value?.a === 1 && Array.isArray(r.spec.value.b) && r.spec.value.b[0] === 2;
 	})());
-	// `#785`：新规则的**双向**用例 ✓（只对"分支"敏感 —— 光看"非 A"会被骗过 ✗）
+	// `#785`：新规则的**双向**用例（只对"分支"敏感 —— 光看"非 A"会被骗过）
 	t('反例·体含函数字面量（per-field hooks）⇒ 必须落 C ✗ 不是 B',
 		classify("() => ({ 'a': { apply: (pc) => pc.x = 1 } })").bucket === 'C');
 	t('对照·体**不含**函数字面量（值引不进来）⇒ 仍落 B ✓（可预见缺口 ✓）',
@@ -143,10 +143,10 @@ if (isMain0 && process.argv.includes('--selftest')) { selftest(); process.exit(0
 import { hatchFiles } from './lib/host/hatches.mjs';
 export { hatchFiles };
 
-/** **行首**的生成标记才算（与 `hasMarker`（**已改名** `hasGeneratedMarker` ✓）同口径：注释里提到该词的文件不是产物）。 */
+/** **行首**的生成标记才算（与 `hasMarker`（**已改名** `hasGeneratedMarker`）同口径：注释里提到该词的文件不是产物）。 */
 
 
-// `#794` 第 4 条：命令体已在 `lib/host/commands.mjs` ⇒ 这里只**转发 argv** ✓（等价按构造成立 ✓）。
+// `#794` 第 4 条：命令体已在 `lib/host/commands.mjs` → 这里只**转发 argv**（等价按构造成立）。
 import { classifyCommand } from './lib/host/commands.mjs';
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain) process.exit(classifyCommand(process.argv.slice(2), { prog: 'node editor/classify-contract.mjs', sub: '' }));

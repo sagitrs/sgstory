@@ -1,16 +1,16 @@
 // #316 拆分的护城河：**25 个开关的输出必须与拆分前逐字节一致**（只搬家、不改行为）。
 //
 // 用法：
-//   node test/audit-golden.mjs            # 与基线比对（不符则 exit 1）
-//   node test/audit-golden.mjs --update   # 写入/更新基线 test/audit-golden.json
-//   node test/audit-golden.mjs --selftest # 自证：比对函数必须咬得住（不跑 audit）
+// node test/audit-golden.mjs # 与基线比对（不符则 exit 1）
+// node test/audit-golden.mjs --update # 写入/更新基线 test/audit-golden.json
+// node test/audit-golden.mjs --selftest # 自证：比对函数必须咬得住（不跑 audit）
 //
 // 两条例外（都显式标注，不静默放宽）：
-//   ① `--dragon`：封印战蒙特卡洛是 20000 局 + Math.random()，**输出天然不确定**（#331 已登记）。
-//      本门对它走「**结构比对**」——把百分数归一为 `N%`，其余逐字节比对；这样
-//      「✓/✗ 判定符号、行数、结论文本」的漂移仍会被抓住，而数值抖动不会把重构验证变成 flaky。
-//      是否给 MC 加固定种子（让门完全确定性）属**行为变更**，留待单独裁决。
-//   ② 收尾行（数据源提示）含路径文本，不参与归一化，作为普通内容比对。
+// ① `--dragon`：封印战蒙特卡洛是 20000 局 + Math.random()，**输出天然不确定**（#331 已登记）。
+// 本门对它走「**结构比对**」——把百分数归一为 `N%`，其余逐字节比对；这样
+//「/ 判定符号、行数、结论文本」的漂移仍会被抓住，而数值抖动不会把重构验证变成 flaky。
+// 是否给 MC 加固定种子（让门完全确定性）属**行为变更**，留待单独裁决。
+// ② 收尾行（数据源提示）含路径文本，不参与归一化，作为普通内容比对。
 import { execFileSync } from 'node:child_process';
 import { assertFreshDist } from '../scripts/dist-fresh.mjs';
 import { stripScopeHeader } from '../scripts/audit/lib/shared.mjs';
@@ -18,10 +18,10 @@ import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';
 import { readFileSync, writeFileSync, existsSync, readdirSync } from 'node:fs';
 
 const GOLDEN = 'test/audit-golden.json';
-// ⚠️ `#1004` B2 ✗：旧故事删后，本表里 **26 个开关成了僵尸** ✓（它们的门住在 `stories/<slug>/gates/**` ✓
-//   ⇒ 随故事一起没了 ✓）—— 与 `GATE_ORDER` 那次同病 ✓（都是"最后一个还在枚举这些 flag 的地方"✓）。
-//   已按本表自己的纪律删键 ✓；**保留的 11 个＝现存门 flag** ✓（与 `scripts/audit/discovery.mjs` 的 `GATE_ORDER` 逐项一致 ✓）。
-//   ⚠️ 删的是**僵尸**（源码里已无 `arg('x')` ✓），不是删判据 ✗ —— `--update` 后的基线**键数应减少且等于现况** ✓。
+//注意：`#1004` B2：旧故事删后，本表里 **26 个开关成了僵尸**（它们的门住在 `stories/<slug>/gates/**`
+// → 随故事一起没了）—— 与 `GATE_ORDER` 那次同病（都是"最后一个还在枚举这些 flag 的地方"）。
+// 已按本表自己的纪律删键；**保留的 11 个＝现存门 flag**（与 `scripts/audit/discovery.mjs` 的 `GATE_ORDER` 逐项一致）。
+//注意：删的是**僵尸**（源码里已无 `arg('x')`），不是删判据 —— `--update` 后的基线**键数应减少且等于现况**。
 const FLAGS = [
 	'a11y', 'consequences', 'sitedisc', 'text', 'state', 'literals',
 	'slots',   // #486（S1）：槽位/耐久机制门（引擎门）
@@ -32,15 +32,15 @@ const FLAGS = [
 ];
 
 // 归一化：只对不确定输出的开关生效（其余逐字节）
-// ⚠️ `#1004` B2 ✓：特例里的 `dragon`（战斗分布 → 百分比抖动）随旧故事的门一起没了 ✓ ⇒ 现在是**空转**分支 ✓。
-//   保留它 ✗：机制本身是通用的 ✓（日后有数值抖动的门就按 `dragon` 那行加回来 ✓）。
-// `#1157`：**剥掉驱动器对象头**（`runSelectedGates` 打印的那一行 ⇔ 与本文件同一落点的 `stripScopeHeader` ✓）。
+//注意：`#1004` B2：特例里的 `dragon`（战斗分布 → 百分比抖动）随旧故事的门一起没了 → 现在是**空转**分支。
+// 保留它：机制本身是通用的（日后有数值抖动的门就按 `dragon` 那行加回来）。
+// `#1157`：**剥掉驱动器对象头**（`runSelectedGates` 打印的那一行 ⇔ 与本文件同一落点的 `stripScopeHeader`）。
 export const normalize = (flag, text) => {
 	const stripped = stripScopeHeader(text);
 	return flag === 'dragon' ? stripped.replace(/[\d.]+%/g, 'N%') : stripped;
 };
 
-// flag 传 null ＝ 「无参数全跑」（wantAll 只在没有任何 `--` 参数时为真）；`extra` 追加到命令行尾部（`--story` 等）。
+// flag 传 null ＝「无参数全跑」（wantAll 只在没有任何 `--` 参数时为真）；`extra` 追加到命令行尾部（`--story` 等）。
 export const runFlag = (flag, extra = []) => {
 	const args = flag === null ? ['scripts/audit.mjs', ...extra] : ['scripts/audit.mjs', `--${flag}`, ...extra];
 	try {
@@ -65,7 +65,7 @@ const argFlagsFromSource = async () => {
 };
 
 // ── `#607` P2-B：**按归属跑** ────────────────────────────────────────────────
-// 门的住址可能在故事侧（`stories/<slug>/gates/`）⇒ 它**只被它所属的故事**选中：单跑不补 `--story <owner>`
+// 门的住址可能在故事侧（`stories/<slug>/gates/`）→ 它**只被它所属的故事**选中：单跑不补 `--story <owner>`
 // 会直接撞上归属守卫（rc=2）。默认故事（`DEFAULT_SLUG`）的门**不补** `--story`——保持既有基线与 CLI 默认语义
 // **逐字可比**（避免无意义的全量重签）。
 export const storyArgs = (flag, { ownerMap = {}, defaultStory = DEFAULT_SLUG } = {}) => {
@@ -112,7 +112,7 @@ export const diffSnapshot = (baseline, current) => {
 };
 
 // ── 通用断言（#331 假绿家族的机械防线）──────────────
-//  FOOTER：脚本收尾行——任何**只有收尾行**的单跑输出都等于「这个开关没真执行」（--sel 曾是此形）。
+// FOOTER：脚本收尾行——任何**只有收尾行**的单跑输出都等于「这个开关没真执行」（--sel 曾是此形）。
 export const FOOTER = '（数据源：src/15-tables.twee';
 export const contentLines = (text) => text.split('\n').filter((l) => l.trim() && !l.includes(FOOTER));
 
@@ -193,9 +193,9 @@ if (argv.includes('--update')) {
 
 if (!existsSync(GOLDEN)) { console.error(`✗ 找不到 ${GOLDEN}——先跑 --update 建基线`); process.exit(1); }
 
-// `#1133` ⭐ **前置缺失 ⇒ 报"先跑 npm run build"** ✓（照 `assertFreshDist` 的现成先例 ✓）——
-//   此前未 build 时会报「22 个开关与基线不符」✗ ⇒ **红的原因与它报的原因不是同一个** ⇒ 把排查引到错方向 ✗
-//   ⚠️ 两态**必须可区分** ✓：前置缺失 ⇒ **rc=2** ＋「先跑 build」；真差异 ⇒ **rc=1** ＋ 点名到开关 ✓（脚本层面能判 ✓）
+// `#1133` ⭐ **前置缺失 → 报"先跑 npm run build"**（照 `assertFreshDist` 的现成先例）——
+// 此前未 build 时会报「22 个开关与基线不符」 → **红的原因与它报的原因不是同一个** → 把排查引到错方向
+//注意：两态**必须可区分**：前置缺失 → **rc=2** ＋「先跑 build」；真差异 → **rc=1** ＋ 点名到开关（脚本层面能判）
 try {
 	assertFreshDist({ who: 'audit-golden 比对' });
 } catch (e) {

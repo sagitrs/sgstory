@@ -1,8 +1,8 @@
 // 故事「新机制声明表」形状门（`#459` 剩余：形状落码 · 伞 `#441`／`#482`）
 //
 // 两道检查：
-//   ① **真实契约**：当前故事（`Sg.story.mechanics()`）必须是「未启用」或「形状合法」——两者都不许是"看着像表其实坏掉"；
-//   ② **自证（形状即判据的六条）**：每一条都给 正例（必须放过）＋ 反例（**必须抓住**）。
+// ① **真实契约**：当前故事（`Sg.story.mechanics()`）必须是「未启用」或「形状合法」——两者都不许是"看着像表其实坏掉"；
+// ② **自证（形状即判据的六条）**：每一条都给 正例（必须放过）＋ 反例（**必须抓住**）。
 // 为什么必须有 ②：`docs/dev-conventions.md` §9 —— 打印了 `自证·` 不等于自证有效，**失败要计入退出码**，
 // 且失败路径不能崩（本文件的 `bad` 计数器声明在**最前**，并进 `process.exit`）。
 //
@@ -141,8 +141,8 @@ case_('词表：分档词表与减成形态是**声明式枚举**（改口径要
 	GRADE_SET.join() === 'most,low' && REDUCE_FORMS.join() === 'flat');   // #486：只列**已实现**的形态
 
 // ── ① 真实契约：**每个注册故事**都必须"未启用"或"形状合法" ──
-// 为什么是每个故事（`#571`）：原先只判默认故事（`createContext({ argv: [] })`）——而默认故事的 `mechanics()`
-// 是 `null`（「未启用」是**合法声明**，见 `#492`）⇒ **第三个故事的真实声明一次都没被形状校验过**，
+// 为什么是每个故事（`#571`）：原先只判默认故事（`createContext({ argv: []})`）——而默认故事的 `mechanics()`
+// 是 `null`（「未启用」是**合法声明**，见 `#492`）→ **第三个故事的真实声明一次都没被形状校验过**，
 // 于是 `statusPenalty` 两处键形错误（中文标签 vs 英文 id）静默通过、异常减成恒为 0（``退 0``不是证据，`#557` §13）。
 // 本片**只改作用域，不改判据**（判据仍是 `validateStoryMechanics`）。
 for (const slug of storySlugs()) {
@@ -156,7 +156,7 @@ for (const slug of storySlugs()) {
 	}
 	const m = Sg.story.mechanics();
 	// `#705` 片二-B：池名住**本故事的声明面** `mechanics().pools`（原先读 `Game.Combat.pools` —— 那是故事表被挂到
-	// `Game.Combat` 又被引擎覆盖后的死引用 ⇒ 恒空 ⇒ 池名校验形同虚设）。
+	// `Game.Combat` 又被引擎覆盖后的死引用 → 恒空 → 池名校验形同虚设）。
 	const poolNames = () => Object.keys(Sg.story.mechanics()?.pools ?? {});
 	const abilities = Object.keys(w.Game?.Rules?.ABILITIES ?? {});
 	const r = validateStoryMechanics(m, { poolNames, abilities });

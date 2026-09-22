@@ -1,37 +1,37 @@
-// `#1114` 片 1：**散文层拼装**（md ⇒ twee）——「作者只写 md+json」的拼装半边 ✓
+// `#1114` 片 1：**散文层拼装**（md → twee）——「作者只写 md+json」的拼装半边
 //
-// ## 定位（票面 §二，不自行发明形态 ✗）
-// 输入：`stories/<slug>/passages/*.md`（一段一文件 ✓ + YAML front-matter ✓）
-// 输出：twee 段落文本（拼进构建链——与手写 twee 同形 ⇒ 下游门不感知来源 ✓）
+// ## 定位（票面 §二，不自行发明形态）
+// 输入：`stories/<slug>/passages/*.md`（一段一文件 + YAML front-matter）
+// 输出：twee 段落文本（拼进构建链——与手写 twee 同形 → 下游门不感知来源）
 //
-// ## 三条硬规则（票面验收 ✓）
-// 1. **散文文本逐字保留** ✗（不许静默改写——拼装层不加不减正文字符 ✓）
-// 2. `[[标签|目标]]` ⇒ twee 链接（**目标须校验存在** ✓——悬空 ⇒ 点名报错 ✗）
-// 3. `{{名字}}` ⇒ 取值展开（**调 core/vocab.mjs 的 `valueTerms`** ✓——单一权威 ✗ 不另算一份 ✗）
+// ## 三条硬规则（票面验收）
+// 1. **散文文本逐字保留**（不许静默改写——拼装层不加不减正文字符）
+// 2. `[[标签|目标]]` → twee 链接（**目标须校验存在** ——悬空 → 点名报错）
+// 3. `{{名字}}` → 取值展开（**调 core/vocab.mjs 的 `valueTerms`** ——单一权威 不另算一份）
 //
-// ## 禁则（票面 §二③ ✓）
-// `FORBIDDEN_BUILTINS`（真源 `test/prose-vocabulary.mjs:35` ✓）⇒ 拼装层**必须拦** ✗；
-// 33 个具名动作宏 ⇒ **允许且不判** ✓（与 `#1109` 词汇门口径一致 ✓）。
+// ## 禁则（票面 §二③）
+// `FORBIDDEN_BUILTINS`（真源 `test/prose-vocabulary.mjs:35`）→ 拼装层**必须拦**；
+// 33 个具名动作宏 → **允许且不判**（与 `#1109` 词汇门口径一致）。
 //
 // ## 段序
-// 仍由 `00-story.json` 的 `files` 派生 ✗（不许另造顺序 ✓——`#1051`② 单一权威 ✓）。
+// 仍由 `00-story.json` 的 `files` 派生（不许另造顺序 ——`#1051`② 单一权威）。
 //
-// 浏览器安全 ✓：零宿主 import ✓（core 老规矩 ✓）。
+// 浏览器安全：零宿主 import（core 老规矩）。
 
 import { valueTerms } from './vocab.mjs';
 
-/** SugarCube 内置里**明确禁止**出现在正文的（逻辑/表达式 ⇒ "作者在写代码"）。
- * `#1114` 片 2b-2b-0：**本处为单一权威** ✓ —— 原先定义在 `test/prose-vocabulary.mjs` ✗，
- *   而拼装层（`assemblePassages` ✓）**必须**用同一份 ⇒ 否则“门禁得住、拼装放过去” ＝ 两处清单 ✓。
- *   ⚠️ **次序不变**：本表是判据的**第一档**（禁则 → 允许 → 词表 ✓）；拼装层同样先查它 ✓。 */
+/** SugarCube 内置里**明确禁止**出现在正文的（逻辑/表达式 → "作者在写代码"）。
+ * `#1114` 片 2b-2b-0：**本处为单一权威** —— 原先定义在 `test/prose-vocabulary.mjs`，
+ * 而拼装层（`assemblePassages`）**必须**用同一份 → 否则“门禁得住、拼装放过去” ＝ 两处清单。
+ *注意：**次序不变**：本表是判据的**第一档**（禁则 → 允许 → 词表）；拼装层同样先查它。 */
 export const FORBIDDEN_BUILTINS = new Set(['if', 'elseif', 'else', 'set', 'for', 'run', 'capture', '=',
-	// `#1132` 块2：**自写代码面**的两个入口 —— 机制段（script/widget 标签）被豁免出禁则扫描 ✗，
-	//   所以"正文里直接写 <<widget …>>／<<script>>"今天谁也拦不到 ✗ ⇒ 补进名单（实测对现状零误红 ✓）。
-	//   ⚠️ 这**不是**完整覆盖：机制标签段本身由 `test/story-codeface.mjs` 的 ratchet 门管 ✓。
+	// `#1132` 块2：**自写代码面**的两个入口 —— 机制段（script/widget 标签）被豁免出禁则扫描，
+	// 所以"正文里直接写 <<widget …>>／<<script>>"今天谁也拦不到 → 补进名单（实测对现状零误红）。
+	//注意：这**不是**完整覆盖：机制标签段本身由 `test/story-codeface.mjs` 的 ratchet 门管。
 	'widget', 'script']);
 
 
-/** front-matter 解析（`---` 围栏 + YAML 子集：key: value 行 ✓——不引全量 YAML 库 ✗ 最小面 ✓）。 */
+/** front-matter 解析（`---` 围栏 + YAML 子集：key: value 行 ——不引全量 YAML 库 最小面）。 */
 export const parseFrontMatter = (text) => {
 	const t = String(text ?? '');
 	const m = /^---\n([\s\S]*?)\n---\n?/.exec(t);
@@ -44,16 +44,16 @@ export const parseFrontMatter = (text) => {
 	return { meta, body: t.slice(m[0].length) };
 };
 
-/** `#1114` 片 2b-2b-0b：**按扩展名分派**的段落解析入口 ✗ —— 全部消费面（audit 上下文、词汇门、build……）
- *  都走这里，**不许各自写一份“md/twee 怎么切”** ✓（本仓反复撞的“两处口径”）。
- *  · `.twee` ⇒ `:: 名 [tags]` 段头切段；
- *  · `stories/<slug>/passages/` 下的 `.md` ⇒ front-matter ＋ 整文件一段（`passage` ⇒ 段名 ✓）。
- *  · **分派依据是扩展名，不是文件名里的语义角色** ✓（`#1114` Q1 裁定）。
- *  ⚠️ 非源 md（会话记录／门证据）**不进面** ✗ —— 谓词与 `scripts/module-order.mjs` 的 `isStoryPassageMd` 同形。
- *  返回统一形态：`{ name, tags, body, bodyLines:[{text, line}], line }`（两路消费者共用 ✓）。 */
+/** `#1114` 片 2b-2b-0b：**按扩展名分派**的段落解析入口 —— 全部消费面（audit 上下文、词汇门、build……）
+ * 都走这里，**不许各自写一份“md/twee 怎么切”**（本仓反复撞的“两处口径”）。
+ * · `.twee` → `:: 名 [tags]` 段头切段；
+ * · `stories/<slug>/passages/` 下的 `.md` → front-matter ＋ 整文件一段（`passage` → 段名）。
+ * · **分派依据是扩展名，不是文件名里的语义角色**（`#1114` Q1 裁定）。
+ *注意：非源 md（会话记录／门证据）**不进面** —— 谓词与 `scripts/module-order.mjs` 的 `isStoryPassageMd` 同形。
+ * 返回统一形态：`{ name, tags, body, bodyLines:[{text, line}], line}`（两路消费者共用）。 */
 export const isStoryPassageMdPath = (rel) => /^stories\/[^/]+\/passages\/.*\.md$/.test(String(rel));
 
-/** twee 的段头切段（`:: 名 [tags] {meta}` ⇒ 段对象 ✓）。**纯函数**。 */
+/** twee 的段头切段（`:: 名 [tags] {meta}` → 段对象）。**纯函数**。 */
 export const parseTweePassages = (text) => {
 	const lines = String(text).split('\n');
 	const heads = [];
@@ -64,15 +64,15 @@ export const parseTweePassages = (text) => {
 	return heads.map((h, k) => {
 		const bodyLines = lines.slice(h.i + 1, k + 1 < heads.length ? heads[k + 1].i : lines.length)
 			.map((text, j) => ({ text, line: h.i + 2 + j }));
-		// ⚠️ `body` 必须与原口径（`text.split(/^::\s*/m)` 的 `part.slice(nl+1)`）**逐字相同** ✗
-		//   —— 它含**段尾的那个换行**（原 part 末尾 ✓）⇒ 不补会在“无行为变化”的接线上反而改掉
-		//   `passageRaw`/`passageSrc` 的字面（实测：golden 22 个开关红 ✓）。
+		//注意：`body` 必须与原口径（`text.split(/^::\s*/m)` 的 `part.slice(nl+1)`）**逐字相同**
+		// —— 它含**段尾的那个换行**（原 part 末尾）→ 不补会在“无行为变化”的接线上反而改掉
+		// `passageRaw`/`passageSrc` 的字面（实测：golden 22 个开关红）。
 		return { name: h.name, tags: h.tags, line: h.i + 1, body: bodyLines.map((b) => b.text).join('\n') + '\n', bodyLines };
 	});
 };
 
-/** md 散文源（一文件一段 ✓）⇒ 段对象（与 `parseTweePassages` **同形** ✓）。**纯函数**。
- *  front-matter 解析走本文件的 `parseFrontMatter`（**同一权威** ✗ 不另写 YAML 子集 ✓）。 */
+/** md 散文源（一文件一段）→ 段对象（与 `parseTweePassages` **同形**）。**纯函数**。
+ * front-matter 解析走本文件的 `parseFrontMatter`（**同一权威** 不另写 YAML 子集）。 */
 export const parseMdPassages = (text, path = '') => {
 	const { meta, body } = parseFrontMatter(text);
 	const name = String(meta.passage ?? '').trim() || path;
@@ -81,11 +81,11 @@ export const parseMdPassages = (text, path = '') => {
 	return [{ name, tags, line: 1, body: String(body), bodyLines }];
 };
 
-/** **唯一分派点** ✓（`#1114` 片 2b-2b-0b）：给一份源文本与它的路径 ⇒ 段落数组 ✓。 */
+/** **唯一分派点**（`#1114` 片 2b-2b-0b）：给一份源文本与它的路径 → 段落数组。 */
 export const passagesOf = (text, path = '') =>
 	isStoryPassageMdPath(path) ? parseMdPassages(text, path) : parseTweePassages(text);
 
-/** 禁则拦截：`FORBIDDEN_BUILTINS` 名出现在 md 正文 ⇒ 报（真源＝`editor/lib/core/passages.mjs` 的 `FORBIDDEN_BUILTINS` ✓ —— `#1114` 2b-2b-0 起 `test/prose-vocabulary.mjs` 与拼装层**同一份** ✓）。 */
+/** 禁则拦截：`FORBIDDEN_BUILTINS` 名出现在 md 正文 → 报（真源＝`editor/lib/core/passages.mjs` 的 `FORBIDDEN_BUILTINS` —— `#1114` 2b-2b-0 起 `test/prose-vocabulary.mjs` 与拼装层**同一份**）。 */
 export const forbiddenProblems = ({ name, body, forbidden }) => {
 	const out = [];
 	for (const m of String(body).matchAll(/<<\s*(\w+)[\s>]/g)) {
@@ -94,9 +94,9 @@ export const forbiddenProblems = ({ name, body, forbidden }) => {
 	return out;
 };
 
-/** 悬空引用：`[[标签|目标]]` 的目标不在段落集合 ⇒ 点名 ✗（票面验收 ③ ✓）。
- *  `#1114` 片 2b-2b-0：`known` ＝ **合法目标的全集** ✓——md 段可能引用**同故事的 twee 段**（两源共存期 ✓）
- *  ⇒ 只拿 `passages` 当合法集会**误报悬空** ✗（缺省仍＝`passages` 的段名，向后兼容 ✓）。 */
+/** 悬空引用：`[[标签|目标]]` 的目标不在段落集合 → 点名（票面验收 ③）。
+ * `#1114` 片 2b-2b-0：`known` ＝ **合法目标的全集** ——md 段可能引用**同故事的 twee 段**（两源共存期）
+ * → 只拿 `passages` 当合法集会**误报悬空**（缺省仍＝`passages` 的段名，向后兼容）。 */
 export const danglingProblems = ({ name, body, passages, known }) => {
 	const out = [];
 	const set = known ?? new Set(passages.map((p) => p.name));
@@ -107,20 +107,20 @@ export const danglingProblems = ({ name, body, passages, known }) => {
 	return out;
 };
 
-/** 取值展开：`{{名}}` ∈ valueTerms ⇒ twee 占位（运行时由 Game 填充 ✓）；∉ ⇒ 报 ✗（#1048 门侧同判 ✓——拼装层前置拦 ✓）。 */
+/** 取值展开：`{{名}}` ∈ valueTerms → twee 占位（运行时由 Game 填充）；∉ → 报（#1048 门侧同判 ——拼装层前置拦）。 */
 export const valueRefExpand = ({ name, body, terms }) => {
 	const problems = [];
 	const out = String(body).replace(/\{\{([^{}\s]+)\}\}/g, (_, n) => {
 		if (!terms.has(n)) { problems.push(`段「${name}」取值 \`{{${n}}}\` 未在声明面（valueTerms——contract 值语义 ∪ VALUE_LABELS ✓）`); return `{{${n}}}`; }
-		return `<<print_${'V'} ${n}>>`;   // 展开为运行时占位（拼装层不改语义 ✓）
+		return `<<print_${'V'} ${n}>>`;   // 展开为运行时占位（拼装层不改语义）
 	});
 	return { body: out, problems };
 };
 
-/** `#1114` 片 2b-2a：**重名段** —— 同一批源里段名重复 ⇒ 点名 ✗。
- *  为什么要它（不是形式主义）：散文层成为源之后，**同一段**可能在 `passages/*.md` 和 `*.twee` 里各写一份
- *  ⇒ 那是「改了 md 没改 twee」的静默分叉 ✓（票面 §四 禁的形态 ✓）；一份构建里同名段只会活一个 ✗。
- *  口径：只判**名字**（不判内容），报出**两处来源**（可追踪 ✓）。 */
+/** `#1114` 片 2b-2a：**重名段** —— 同一批源里段名重复 → 点名。
+ * 为什么要它（不是形式主义）：散文层成为源之后，**同一段**可能在 `passages/*.md` 和 `*.twee` 里各写一份
+ * → 那是「改了 md 没改 twee」的静默分叉（票面 §四 禁的形态）；一份构建里同名段只会活一个。
+ * 口径：只判**名字**（不判内容），报出**两处来源**（可追踪）。 */
 export const duplicateProblems = ({ passages = [] } = {}) => {
 	const seen = new Map();
 	const out = [];
@@ -133,16 +133,16 @@ export const duplicateProblems = ({ passages = [] } = {}) => {
 	return out;
 };
 
-/** 主拼装：一批 md 段 ⇒ 一份 twee 文本（含 front-matter 元数据行 ✓）。 */
+/** 主拼装：一批 md 段 → 一份 twee 文本（含 front-matter 元数据行）。 */
 export const assemblePassages = ({ passages, known, forbidden = new Set(), terms = new Set() }) => {
 	const problems = [];
-	// 先校验（悬空须看全集 ⇒ 两遍 ✓）
-	problems.push(...duplicateProblems({ passages }));   // `#1114` 2b-2a：重名段（跨源双写）⇒ 先报 ✗
+	// 先校验（悬空须看全集 → 两遍）
+	problems.push(...duplicateProblems({ passages }));   // `#1114` 2b-2a：重名段（跨源双写）→ 先报
 	for (const p of passages) {
 		problems.push(...forbiddenProblems({ name: p.name, body: p.body, forbidden }));
 		problems.push(...danglingProblems({ name: p.name, body: p.body, passages, known }));
 	}
-	// 再展开+拼装（逐字保留散文文本 ✗ 只做 {{}} 替换 ✓）
+	// 再展开+拼装（逐字保留散文文本 只做 {{}} 替换）
 	const chunks = [];
 	for (const p of passages) {
 		const { body: expanded, problems: vp } = valueRefExpand({ name: p.name, body: p.body, terms });

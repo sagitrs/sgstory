@@ -1,26 +1,26 @@
 // 用户故事 CI 自证门（`#984`）。
 //
-// ⚠️ **已知输入** ✗（两条都会让人误读成"判据坏了" ✓ —— 今晚共三次栽在这两条上 ✓，登记在 `#987`／`#989`／`#990` 里 ✓）：
-//   ① **先 `node build.mjs`** ✗（逐故事面里有需要构建产物的段 ✓；`editor/story-ci.mjs` 的全局面 **K5** 读的又是**探针相**的读数 ⇒ 单跑前先 `node scripts/probe-gates.mjs --probe=fast` ✓）；
-//   ② **新开 worktree 要 `ln -s <主仓>/node_modules node_modules`** ✗（本仓跑器**会起 jsdom** ✓ ⇒ 没有它会 `ERR_MODULE_NOT_FOUND` ✓）。
-//   进 CI **不必管** ✓：两个相都在 `phase:'build'` 且都在本段之前 ✓。
+//注意：**已知输入**（两条都会让人误读成"判据坏了" —— 今晚共三次栽在这两条上，登记在 `#987`／`#989`／`#990` 里）：
+// ① **先 `node build.mjs`**（逐故事面里有需要构建产物的段；`editor/story-ci.mjs` 的全局面 **K5** 读的又是**探针相**的读数 → 单跑前先 `node scripts/probe-gates.mjs --probe=fast`）；
+// ② **新开 worktree 要 `ln -s <主仓>/node_modules node_modules`**（本仓跑器**会起 jsdom** → 没有它会 `ERR_MODULE_NOT_FOUND`）。
+// 进 CI **不必管**：两个相都在 `phase:'build'` 且都在本段之前。
 //
 // 判据（`docs/dev-conventions.md` §9 口径：正例放过 ＋ 反例抓住，失败计入退出码）：
-//   ① **正例**：真根上 `--list` **⊇ 仓内现存故事** ✓（⚠️ **不赌"恰好几个"** ✗ —— 并行段会临时往 `stories/` 放故事 ⇒ 计数等值会**随机红** ✓，`#989` 里就是这么栽的 ✓；
-//      ✓ `#1004` B2 加固：期望集合取自 **`storySlugs()` 本身** ✗（原来写死三个名字 ⇒ 名字一删就变成"判据在枚举已删故事"✓，
-//      与 `GATE_ORDER` 那次同病 ✓）；⇒ 名单再变也只需跟着 `storySlugs()` 走 ✓，"有没有漏发现"依然被咬住 ✓）
-//   ② **能假**（`#984` 加固 (d) ✗）：临时根里放**夹具故事** ⇒ `--list` **必须含它** ✓
-//      （⇒ "新故事自动被覆盖"不是空话 ✓）；无 `00-story.json` 的目录**不算故事** ✓（发现口径 ✓）
-//   ③ **反例**：坏故事（坏 `data/tables.json` ✓）⇒ `story-ci --story=<目录>` **必红** ✓
-//   ④ **编排不漏** ✓：发现到的每个故事都必须出现在编排里（静默漏掉 ⇒ 点名 ✗）
-//   ⑤ 接口口径 ✓：全局面**每轮一次**（与故事数无关 ✓）· 重面只在 `--full` ✓
-// ⚠️ 夹具一律在 **`os.tmpdir()`** ✗ —— ⛔ **不往 `stories/` 塞**（并发段会看见 ⇒ 与 `#976` 同类事故 ✓）。
+// ① **正例**：真根上 `--list` **⊇ 仓内现存故事**（注意：**不赌"恰好几个"** —— 并行段会临时往 `stories/` 放故事 → 计数等值会**随机红**，`#989` 里就是这么栽的；
+// `#1004` B2 加固：期望集合取自 **`storySlugs()` 本身**（原来写死三个名字 → 名字一删就变成"判据在枚举已删故事"，
+// 与 `GATE_ORDER` 那次同病）；→ 名单再变也只需跟着 `storySlugs()` 走，"有没有漏发现"依然被咬住）
+// ② **能假**（`#984` 加固 (d)）：临时根里放**夹具故事** → `--list` **必须含它**
+//（→ "新故事自动被覆盖"不是空话）；无 `00-story.json` 的目录**不算故事**（发现口径）
+// ③ **反例**：坏故事（坏 `data/tables.json`）→ `story-ci --story=<目录>` **必红**
+// ④ **编排不漏**：发现到的每个故事都必须出现在编排里（静默漏掉 → 点名）
+// ⑤ 接口口径：全局面**每轮一次**（与故事数无关）· 重面只在 `--full`
+//注意：夹具一律在 **`os.tmpdir()`** —— ⛔ **不往 `stories/` 塞**（并发段会看见 → 与 `#976` 同类事故）。
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { storySlugs } from '../scripts/dist-paths.mjs';   // `#1004` B2 ✓：仓内故事名单的**单一权威** ✓（不写死名字 ✗）
+import { storySlugs } from '../scripts/dist-paths.mjs';   // `#1004` B2：仓内故事名单的**单一权威**（不写死名字）
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 let bad = 0;
@@ -36,8 +36,8 @@ try {
 	{
 		const r = cli(['--list']);
 		const got = (r.stdout || '').trim().split('\n').filter(Boolean);
-		// ⚠️ **⊇ 而不是 ＝** ✗（`#989` 的根因 ✓）：并行段会临时往 `stories/` 放故事（`__e2e` 等 ✓）⇒ 精确等值会**随机红** ✗。
-		// `#1004` B2 ✓：期望集合 ＝ `storySlugs()` ✓（不再手写三个 slug ✗ —— 那份手写名单已随旧故事失效 ✓）。
+		//注意：**⊇ 而不是 ＝**（`#989` 的根因）：并行段会临时往 `stories/` 放故事（`__e2e` 等）→ 精确等值会**随机红**。
+		// `#1004` B2：期望集合 ＝ `storySlugs()`（不再手写三个 slug —— 那份手写名单已随旧故事失效）。
 		t('正例·真根 `--list` ⊇ 仓内现存故事（不赌「恰好几个」✗）',
 			r.status === 0 && storySlugs().every((s) => got.includes(s)), `got=${got.join(',')} want⊇${storySlugs().join(',')}`);
 	}
@@ -53,7 +53,7 @@ try {
 		t('发现口径·无 `00-story.json` ⇒ 不算故事（不抛 ✗）', !got.includes('not-a-story'), `got=${got.join(',')}`);
 	}
 
-	// ③ 反例：坏故事 ⇒ 红（`--story=<目录>` 走**仓外故事包**那条路 ✓）
+	// ③ 反例：坏故事 → 红（`--story=<目录>` 走**仓外故事包**那条路）
 	{
 		const b = join(probe, 'broken');
 		mkdirSync(join(b, 'data'), { recursive: true });
@@ -65,9 +65,9 @@ try {
 		t('🔴 反例·坏故事 ⇒ rc=1 且点名（不静默 ✗）', r.status === 1 && /不可解析/.test(out), `status=${r.status}`);
 	}
 
-	// ③′ **取不到输入不许判过** ✗（洞是对**本 PR**（`#988`）提的 ✓ —— 谁提的不写 ✗，写**在哪张票里提的** ✓）：
-	//    发现到 0 个故事 ⇒ 必红并点名
-	//    （不然逐故事面整批消失，末行照写「通过」✗ ⇒ 改名／路径写错／工作目录变都会让 CI 照绿 ✗）
+	// ③′ **取不到输入不许判过**（洞是对**本 PR**（`#988`）提的 —— 谁提的不写，写**在哪张票里提的**）：
+	// 发现到 0 个故事 → 必红并点名
+	//（不然逐故事面整批消失，末行照写「通过」 → 改名／路径写错／工作目录变都会让 CI 照绿）
 	{
 		const empty = join(probe, 'empty-root');
 		mkdirSync(empty);
@@ -80,8 +80,8 @@ try {
 		t('🔴 反例·目录不存在 ⇒ 同形（rc=1 ＋ 点名「不存在」）', r2.status === 1 && /不存在/.test(out2), `status=${r2.status}`);
 	}
 
-	// ③″ **末行不许反向说谎** ✗：`✔/✗` ＋ `x/y` ＋ 清单 ＋ **rc** 必须四处一致 ✓
-	//    口径＝在**三种调用**上都核一遍（不变量 ✓，与相的顺序无关 ✓）
+	// ③″ **末行不许反向说谎**：`✔/ ` ＋ `x/y` ＋ 清单 ＋ **rc** 必须四处一致
+	// 口径＝在**三种调用**上都核一遍（不变量，与相的顺序无关）
 	{
 		const lastLine = (out) => (out.trim().split('\n').filter((l) => /用户故事 CI：/.test(l)).pop() ?? '');
 		const cases = [
@@ -94,15 +94,15 @@ try {
 			const last = lastLine(out);
 			t(`🔴 末行 ✗ ⟺ rc≠0（${label}）`, (r.status !== 0) === last.startsWith('✗'), `rc=${r.status} last=${last.slice(0, 40)}`);
 		}
-		// 0 故事时**分母要把它算进去** ✗（否则末行又会说成 4/4 ✓）
+		// 0 故事时**分母要把它算进去**（否则末行又会说成 4/4）
 		const out0 = `${cases[0][1].stdout || ''}${cases[0][1].stderr || ''}`;
 		const m = /：([0-9]+)\/([0-9]+) 通过/.exec(lastLine(out0));
 		t('🔴 0 故事 ⇒ `x/y` 里 x<y（"该做没做"计入分母 ✓）', !!m && Number(m[1]) < Number(m[2]), `line=${lastLine(out0).slice(0, 40)}`);
 	}
 
-	// ③‴ `#999`：`--stories-dir=` 时**逐故事面也必须看那个根** ✗（不然"发现用 A 根、逐故事用 B 根"✓）
-	//    判据取**报文里的路径** ✓ —— `lint-story` 吃目录时会打「（路径 <dir>）」✓ ⇒ 那是**根专属**的证据 ✓
-	//    （⛔ 不赌"它绿"✗：临时根里没有 `dist/` ⇒ 它本来就该红 ✓）。
+	// ③‴ `#999`：`--stories-dir=` 时**逐故事面也必须看那个根**（不然"发现用 A 根、逐故事用 B 根"）
+	// 判据取**报文里的路径** —— `lint-story` 吃目录时会打「（路径 <dir>）」 → 那是**根专属**的证据
+	//（⛔ 不赌"它绿"：临时根里没有 `dist/` → 它本来就该红）。
 	{
 		const rootX = join(probe, 'rootx');
 		mkdirSync(join(rootX, 'broken2', 'data'), { recursive: true });
@@ -118,7 +118,7 @@ try {
 			&& (await import('../editor/lib/core/storyCi.mjs')).buildPlan({ stories: ['a'] })[0].cmd[1] === 'a');
 	}
 
-	// ④ 编排不漏 ＋ ⑤ 接口口径（纯函数面，与 CLI 同一份代码 ✓）
+	// ④ 编排不漏 ＋ ⑤ 接口口径（纯函数面，与 CLI 同一份代码）
 	{
 		const m = await import('../editor/lib/core/storyCi.mjs');
 		const stories = ['a', 'b'];
@@ -134,7 +134,7 @@ try {
 	}
 } finally { rmSync(probe, { recursive: true, force: true }); }
 
-// 壳级自证也必须过（同一份判据的壳面 ✓）
+// 壳级自证也必须过（同一份判据的壳面）
 {
 	const r = cli(['--selftest']);
 	t('壳级自证通过（`--selftest` rc=0 ✓）', r.status === 0, `status=${r.status}`);

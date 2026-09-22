@@ -1,9 +1,9 @@
 // `#1132` B3：**生命周期等价格**（引擎按 json 建的行为 ↔ 动手前用旧 JS 冻结的基线）。
-//   为什么换口径：B2 比的是「旧故事侧 `apply(pc)` 对新声明式施加器」，而旧路随
-//   `stories/face-fixture/10-fixture.twee` 删除已消失 ⇒ 该前提在树上不再成立。
-//   现口径三层：① 预设生命周期对照冻结基线（无排除面）；② 宏面（姓名与模式由宏接管）；
-//   ③ 注入格（证明①能红）。第②层对照的是**当前宏的契约**，不是基线，因为基线的口径是
-//   `applyPreset` 路径（不含宏的 `mode`／`finalized`／姓名三步）。
+// 为什么换口径：B2 比的是「旧故事侧 `apply(pc)` 对新声明式施加器」，而旧路随
+// `stories/face-fixture/10-fixture.twee` 删除已消失 → 该前提在树上不再成立。
+// 现口径三层：① 预设生命周期对照冻结基线（无排除面）；② 宏面（姓名与模式由宏接管）；
+// ③ 注入格（证明①能红）。第②层对照的是**当前宏的契约**，不是基线，因为基线的口径是
+// `applyPreset` 路径（不含宏的 `mode`／`finalized`／姓名三步）。
 import { readFileSync } from 'node:fs';
 import { boot } from './boot.mjs';
 
@@ -50,7 +50,7 @@ for (const name of names) {
 	ok(`宏面：姓名由数据接管（期望 ${JSON.stringify(expectName)}）`, pc.name === expectName, `现值 ${JSON.stringify(pc.name)}`);
 }
 
-// ③ 注入格：改一位能力值 ⇒ 与基线必不等（证明①的比较能红）
+// ③ 注入格：改一位能力值 → 与基线必不等（证明①的比较能红）
 {
 	const sample = finals.get(names[0]);
 	const key = sample && Object.keys(sample.abilities ?? {})[0];

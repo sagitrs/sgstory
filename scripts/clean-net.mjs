@@ -1,31 +1,31 @@
 #!/usr/bin/env node
-// `#1166` (1)：**安全清残留**（`npm run clean:net`）—— **白名单式** ✗ 不做"自动发现" ✗
+// `#1166` (1)：**安全清残留**（`npm run clean:net`）—— **白名单式** 不做"自动发现"
 //
-// 为什么要它（今日两笔事故的直接产物 ✓）：
-//   · 我为了"清 ignored 残留"跑了一条**算出来的清单**管道（`git status --ignored | grep | awk | xargs rm -f` ✗）
-//     ⇒ 误删了**已跟踪源件** `scripts/test-plan.mjs` ✗（build 立刻 `ERR_MODULE_NOT_FOUND`）
-//   · 教训：**永不从"算出来的清单"批量 rm** ✗ ⇒ 清理必须是**手维护白名单 ＋ 双重核对**
+// 为什么要它（今日两笔事故的直接产物）：
+// · 我为了"清 ignored 残留"跑了一条**算出来的清单**管道（`git status --ignored | grep | awk | xargs rm -f`）
+// → 误删了**已跟踪源件** `scripts/test-plan.mjs`（build 立刻 `ERR_MODULE_NOT_FOUND`）
+// · 教训：**永不从"算出来的清单"批量 rm** → 清理必须是**手维护白名单 ＋ 双重核对**
 //
-// **契约（协调席 2026-09-22 确认 ✓）**：
-//   预检的"脏"＝**跟踪面**不净 ✗ —— **未跟踪件（`??`）既不删、也不挡执行** ✓
-//   理由：保护面只该是"**会丢跟踪改动**"那一面 ✗；未跟踪件本命令**本来就不碰** ✓
-//   ⇒ 需要清的未跟踪/生成物一律**走白名单**（显式 ✓ 手维护 ✓）；不在此列的未跟踪件留在原地 ✓
+// **契约（协调席 2026-09-22 确认）**：
+// 预检的"脏"＝**跟踪面**不净 —— **未跟踪件（`??`）既不删、也不挡执行**
+// 理由：保护面只该是"**会丢跟踪改动**"那一面；未跟踪件本命令**本来就不碰**
+// → 需要清的未跟踪/生成物一律**走白名单**（显式 手维护）；不在此列的未跟踪件留在原地
 //
 // 三条护栏：
-//   ① **预检**：工作树有**未提交的跟踪改动** ⇒ **拒绝执行**并提示 ✗（不静默 ✗）
-//   ② **白名单**：只删下列**逐项列出**的已知生成物 ✓（增删走评审 ✓ 不在代码里"发现" ✗）
-//   ③ **事后核**：删除后 `git status` 里**跟踪件零删除** ✗（否则立刻大声报 ✗）
+// ① **预检**：工作树有**未提交的跟踪改动** → **拒绝执行**并提示（不静默）
+// ② **白名单**：只删下列**逐项列出**的已知生成物（增删走评审 不在代码里"发现"）
+// ③ **事后核**：删除后 `git status` 里**跟踪件零删除**（否则立刻大声报）
 import { execFileSync } from 'node:child_process';
 import { existsSync, rmSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 
-/** **手维护白名单**（已知生成物 ✓ 逐项列出 ✗ 不自动发现）。 */
+/** **手维护白名单**（已知生成物 逐项列出 不自动发现）。 */
 export const WHITELIST = [
-	'build',                                  // 探针/报告产物（gitignored ✓）
-	'dist',                                   // 构建产物（gitignored ✓）
-	'stories/face-fixture/15-tables.twee',    // 由 data/tables.json 生成 ✓
+	'build',                                  // 探针/报告产物（gitignored）
+	'dist',                                   // 构建产物（gitignored）
+	'stories/face-fixture/15-tables.twee',    // 由 data/tables.json 生成
 	'stories/face-fixture/16-notes-ch1.twee',
 	'stories/face-fixture/17-rules.twee',
 	'stories/face-fixture/18-chargen.twee',  // 由 data/chargen.json 生成（`#1132` B3 车卡数据面）
@@ -39,12 +39,12 @@ export const WHITELIST = [
 
 const git = (args) => execFileSync('git', args, { cwd: ROOT, encoding: 'utf8' });
 
-/** **纯函数**：给定 `git status --porcelain` 输出 ⇒ 是否有未提交的**跟踪**改动（`??` 未跟踪不算 ✓）。 */
+/** **纯函数**：给定 `git status --porcelain` 输出 → 是否有未提交的**跟踪**改动（`??` 未跟踪不算）。 */
 export const hasTrackedDirt = (porcelain) => String(porcelain).split('\n')
 	.map((l) => l.trimEnd()).filter(Boolean)
-	.some((l) => !l.startsWith('??') && !l.startsWith('!!'));   // `??` 未跟踪 / `!!` 已忽略 ⇒ 都不算脏 ✓
+	.some((l) => !l.startsWith('??') && !l.startsWith('!!'));   // `??` 未跟踪 / `!!` 已忽略 → 都不算脏
 
-/** **纯函数**：从 `git status --porcelain` 里挑出"被删除的跟踪件"（事后核用 ✓）。 */
+/** **纯函数**：从 `git status --porcelain` 里挑出"被删除的跟踪件"（事后核用）。 */
 export const trackedDeletions = (porcelain) => String(porcelain).split('\n')
 	.filter((l) => /^(?:D |.D|AD)/.test(l)).map((l) => l.slice(3).trim()).filter(Boolean);
 

@@ -1,41 +1,41 @@
 // 等价判据（`#762` P0 · 设计稿 §4 的 L1/L3 实现）：**手写版 ↔ 数据版**必须等价。
 //
 // 一条命令跑完全部 P0 验收（自包含：**自己跑编译器**，不依赖别人先编译好，避免判一份陈旧产物）：
-//   · **幂等**：同一份 data/ 连编译两次 ⇒ 产物逐字节相同；
-//   · **L1 结构/行为等价**：两份 `[script]` 段各自在 `vm` 里跑一遍（同一份空白 `window`），比对
-//     ① 数据容器（`window.Game`）深度相等 ② 接入契约**逐个成员 × 多组实参**的调用结果相等
-//     （函数不能直接比 ⇒ 比行为；实参表**由故事自己声明的 id 驱动** ⇒ 吃参成员不再只验零参）；
-//   · **L3 形式等价**：**按词法遮蔽注释**（`scripts/audit/lib/mask.mjs`，与全仓同一把刀）后，
-//     剥空白与冗余尾逗号，两段逐字节相同；
-//   · **面不为空**（`#557` 口径）：容器键数/叶子数/契约成员数/探针次数/归一字节数任一为 0 ⇒ **判红**
-//     —— 否则"等价"这两个字没有任何证据力（只证明了"两份空东西一样空"）。
+// · **幂等**：同一份 data/ 连编译两次 → 产物逐字节相同；
+// · **L1 结构/行为等价**：两份 `[script]` 段各自在 `vm` 里跑一遍（同一份空白 `window`），比对
+// ① 数据容器（`window.Game`）深度相等 ② 接入契约**逐个成员 × 多组实参**的调用结果相等
+//（函数不能直接比 → 比行为；实参表**由故事自己声明的 id 驱动** → 吃参成员不再只验零参）；
+// · **L3 形式等价**：**按词法遮蔽注释**（`scripts/audit/lib/mask.mjs`，与全仓同一把刀）后，
+// 剥空白与冗余尾逗号，两段逐字节相同；
+// · **面不为空**（`#557` 口径）：容器键数/叶子数/契约成员数/探针次数/归一字节数任一为 0 → **判红**
+// —— 否则"等价"这两个字没有任何证据力（只证明了"两份空东西一样空"）。
 //
-// 为什么注释遮蔽必须走 `maskComments` 而不是自己写正则：字符串里的 `//`（如 URL）会被正则吃掉 ⇒
-//   只要差异**只**落在这种字符串里，L3 就**假绿**（实测：`'https://a.example/x'` 与
-//   `'https://b.example/y'` 归一后相同）。`mask.mjs` 是单扫描器按词法遮蔽、**不动字符串内容**。
+// 为什么注释遮蔽必须走 `maskComments` 而不是自己写正则：字符串里的 `//`（如 URL）会被正则吃掉 →
+// 只要差异**只**落在这种字符串里，L3 就**假绿**（实测：`'https://a.example/x'` 与
+// `'https://b.example/y'` 归一后相同）。`mask.mjs` 是单扫描器按词法遮蔽、**不动字符串内容**。
 //
 // 用法：node editor/equiv.mjs <slug> [--hand=<path>] [--gen=<path>]
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
-// `#794` 第 3 步 ②：跑子进程是**宿主能力** ⇒ 经 `lib/host/proc.mjs`（core 不得 import 这一层 ✓；K6 判据③在盯 ✓）。
+// `#794` 第 3 步 ②：跑子进程是**宿主能力** → 经 `lib/host/proc.mjs`（core 不得 import 这一层；K6 判据③在盯）。
 import { runNode } from './lib/host/proc.mjs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import vm from 'node:vm';
 import { maskComments } from '../scripts/audit/lib/mask.mjs';
-// `#794` `equiv` 弧第 1 票：**纯助手**已搬进 `editor/lib/core/probe.mjs`（逐字 ✓）
-// ⇒ 本文件只 **import ＋ 转出**（老调用方与自证都不用改 ✓）。
+// `#794` `equiv` 弧第 1 票：**纯助手**已搬进 `editor/lib/core/probe.mjs`（逐字）
+// → 本文件只 **import ＋ 转出**（老调用方与自证都不用改）。
 import { L3_MODES, declaredIds, probeArgs, call, diffContract, walk, snapshot, bareHandRefusal } from './lib/core/probe.mjs';
 export { L3_MODES, declaredIds, probeArgs, call, diffContract, walk, snapshot, bareHandRefusal };
-// `#794` 弧第 2 票：碰 vm 的三个（`sandboxOf`／`runScript`／`evalSide`）搬进 `lib/host/probe.mjs`（逐字 ✓）
-// ⇒ 本文件只 import ＋ 转出（老调用方与自证不改 ✓）；下一票再搬命令体 ✓。
+// `#794` 弧第 2 票：碰 vm 的三个（`sandboxOf`／`runScript`／`evalSide`）搬进 `lib/host/probe.mjs`（逐字）
+// → 本文件只 import ＋ 转出（老调用方与自证不改）；下一票再搬命令体。
 import { sandboxOf, runScript, evalSide } from './lib/host/probe.mjs';
 export { sandboxOf, runScript, evalSide };
 
 // `#794` 抽取：纯文本助手归 **core**（浏览器安全），引擎常量前缀归 **host**。
-// 为什么必须搬：原先 `equiv` 与 `extract-story` **互相 import**（环 ✗）⇒ 搬完依赖只剩一个方向 `host → core`。
+// 为什么必须搬：原先 `equiv` 与 `extract-story` **互相 import**（环）→ 搬完依赖只剩一个方向 `host → core`。
 import { section, scriptBodies, normalize, hasGeneratedMarker } from './lib/core/text.mjs';
 import { hatchFiles } from './lib/host/hatches.mjs';
-// 转出（老调用方不变 ✓）：自证与其它工具仍从 `editor/equiv.mjs` 取这几个名字。
+// 转出（老调用方不变）：自证与其它工具仍从 `editor/equiv.mjs` 取这几个名字。
 export { section, scriptBodies, normalize };
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
@@ -46,7 +46,7 @@ const COMPILER = 'editor/compile-story.mjs';
 const selftest = () => {
 	let bad = 0;
 	const t = (label, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} 自证·${label}`); };
-	// 实测到的假绿（审查提出）：字符串里的 `//` 曾被正则吃掉 ⇒ 两份不同的 URL 归一后相同
+	// 实测到的假绿（审查提出）：字符串里的 `//` 曾被正则吃掉 → 两份不同的 URL 归一后相同
 	t('反例：字符串里的 `//` 不许被当注释（`https://a/x` vs `https://b/y` ⇒ 归一后**不同**）',
 		normalize("const u = 'https://a.example/x';") !== normalize("const u = 'https://b.example/y';"));
 	t('边界：字符串里出现注释定界符也原样保留（`/* */` / `<!-- -->` / `/% %/`）',
@@ -80,13 +80,13 @@ const selftest = () => {
 	console.log('\n✔ 自证通过（12 例：裸跑拒绝（产物/不存在）2 例 ＋ 两个不误报面 2 例 ＋ 字符串里的注释定界符 3 例 · 函数值 1 例 · 异常 1 例 · 空 id 实参表 1 例）');
 };
 
-// ⚠️ **主模块守卫**（实测踩到）：这些脚本**同时是库**（`equiv` 被 `extract` 导入、`compile` 被 `equiv` 起子进程）。
+//注意：**主模块守卫**（实测踩到）：这些脚本**同时是库**（`equiv` 被 `extract` 导入、`compile` 被 `equiv` 起子进程）。
 // 没有守卫时，`import` 它们会**执行对端的 CLI**（实测：`node editor/extract-story.mjs --selftest` 打出的是
-// `equiv` 的自证然后退出 ⇒ 自己的自证根本没跑）。守卫＝「只在被当脚本执行时才跑 CLI」。
+// `equiv` 的自证然后退出 → 自己的自证根本没跑）。守卫＝「只在被当脚本执行时才跑 CLI」。
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain && process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 
-// `#794` 弧第 3 票：**命令体**已归 `lib/host/commands.mjs` ⇒ 本壳只**转发自己的 argv** ✓
-// （`sub: ''` ⇒ 用法行报自己的程序名 ✓，与另两壳同形 ✓）。
+// `#794` 弧第 3 票：**命令体**已归 `lib/host/commands.mjs` → 本壳只**转发自己的 argv**
+//（`sub: ''` → 用法行报自己的程序名，与另两壳同形）。
 import { equivCommand } from './lib/host/commands.mjs';
 if (isMain) process.exit(equivCommand(process.argv.slice(2), { prog: 'node editor/equiv.mjs', sub: '' }));

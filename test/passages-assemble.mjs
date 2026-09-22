@@ -1,11 +1,11 @@
 // `#1114` 片 1：**散文层拼装主判据件**——悬空红点名/禁则红/具名放行/取值展开/逐字保留/自证成对。
-// ⚠️ **本片不含接线 ⇒ 无消费者**（`#1114` 复核要求写明 ✗）：11 格全部**注入式驱动纯函数**（合成段落对象手喂 ✓），
-//    **没有任何一格读真 `passages/*.md`** ✗、也没有拼装 CLI 入口（§二「拼装 CLI 入口」属后续片 ✓）
-//    ⇒ 本件证的是「**函数产出的 twee 文本**的判据面」✓——**不是**「拼装链已通」✓（后人勿误读 ✓）。
+//注意：**本片不含接线 → 无消费者**（`#1114` 复核要求写明）：11 格全部**注入式驱动纯函数**（合成段落对象手喂），
+// **没有任何一格读真 `passages/*.md`**、也没有拼装 CLI 入口（§二「拼装 CLI 入口」属后续片）
+// → 本件证的是「**函数产出的 twee 文本**的判据面」 ——**不是**「拼装链已通」（后人勿误读）。
 //
-// 复跑：`node test/passages-assemble.mjs`（无前置 ✓——纯函数注入 ✓ 不碰真文件 ✓ ㊱ ✓）
+// 复跑：`node test/passages-assemble.mjs`（无前置 ——纯函数注入 不碰真文件 ㊱）
 // 自证：`node test/passages-assemble.mjs --selftest`
-// ⚠️ 自证结尾 `if (bad) … exit(1)` ✗（#1100 形态硬化 ✓——格红必进退出码 ✓）
+//注意：自证结尾 `if (bad) … exit(1)`（#1100 形态硬化 ——格红必进退出码）
 
 import { parseFrontMatter, forbiddenProblems, danglingProblems, valueRefExpand, assemblePassages, FORBIDDEN_BUILTINS } from '../editor/lib/core/passages.mjs';
 import { valueTerms, VALUE_KINDS } from '../editor/lib/core/vocab.mjs';
@@ -17,7 +17,7 @@ const selftest = () => {
 	const F = new Set(['set', 'if', 'else', 'elseif', 'for', 'run', 'capture', '=']);
 	const T = new Set(['hasChargen', 'classLabel']);
 
-	// ① 正例：合法段（链接+具名动作+已声明取值）⇒ 0 问题、twee 含展开占位
+	// ① 正例：合法段（链接+具名动作+已声明取值）→ 0 问题、twee 含展开占位
 	const ok = assemblePassages({
 		passages: [
 			{ name: '渡口', body: '你到了。[[上船|船头]] 职业 {{classLabel}}。' },
@@ -26,37 +26,37 @@ const selftest = () => {
 	t('正例：合法段（含具名动作宏）⇒ 0 问题', ok.problems.length === 0);
 	t('正例：twee 含两段+展开占位', ok.twee.includes(':: 渡口') && ok.twee.includes(':: 船头') && !ok.twee.includes('{{classLabel}}'));
 
-	// ② 禁则红（能假 ✓）
+	// ② 禁则红（能假）
 	const fb = assemblePassages({ passages: [{ name: 'x', body: '<<set $a to 1>>' }], forbidden: F, terms: T });
 	t('🔴 禁则 <<set>> ⇒ 红且点名段名', fb.problems.length === 1 && fb.problems[0].includes('x') && fb.problems[0].includes('set'));
 
-	// ③ 具名动作放行（能假的另一半 ✓）
+	// ③ 具名动作放行（能假的另一半）
 	t('具名动作宏 <<setflag>> ⇒ 不红（允许且不判 ✓）', ok.problems.length === 0 && ok.twee.includes('<<setflag'));
 
-	// ④ 悬空引用红点名（能假 ✓）
+	// ④ 悬空引用红点名（能假）
 	const dg = assemblePassages({ passages: [{ name: 'a', body: '[[去|不存在]]' }, { name: 'b', body: 'x' }], forbidden: F, terms: T });
 	t('🔴 悬空 [[去|不存在]] ⇒ 红且点名「a」与目标「不存在」', dg.problems.length === 1 && dg.problems[0].includes('a') && dg.problems[0].includes('不存在'));
 
-	// ⑤ 取值未声明红（能假 ✓）＋已声明展开（正例 ✓）
+	// ⑤ 取值未声明红（能假）＋已声明展开（正例）
 	const vr = valueRefExpand({ name: 'n', body: '{{foo}}', terms: T });
 	t('🔴 {{foo}} 未声明 ⇒ 红', vr.problems.length === 1 && vr.problems[0].includes('foo'));
 	t('{{classLabel}} 已声明 ⇒ 展开非原样', valueRefExpand({ name: 'n', body: '{{classLabel}}', terms: T }).body !== '{{classLabel}}');
 
-	// ⑥ 逐字保留（散文字符不改 ✗）
+	// ⑥ 逐字保留（散文字符不改）
 	const lit = assemblePassages({ passages: [{ name: 'p', body: '逐字保留的散文！？——标点… intact ✓' }], forbidden: F, terms: T });
 	t('散文文本逐字保留（无 {{}}/[[ ]] 不变 ✗）', lit.twee.includes('逐字保留的散文！？——标点… intact ✓'));
 
-	// ⑦ front-matter 解析（结构不变量 ✓——不写死今日快照 ✗）
+	// ⑦ front-matter 解析（结构不变量 ——不写死今日快照）
 	const fm = parseFrontMatter('---\npassage: 渡口\ntags: prose\n---\n正文');
 	t('front-matter：meta 三键+body 剥离', fm.meta.passage === '渡口' && fm.meta.tags === 'prose' && fm.body === '正文');
 	t('front-matter：无围栏 ⇒ meta 空+body 原样', parseFrontMatter('正文').meta.passage === undefined);
 
-	// ⑧ valueTerms 单一权威（本件 import core ✓ 不另算 ✗）
+	// ⑧ valueTerms 单一权威（本件 import core 不另算）
 	const vt = valueTerms({ contract: { members: [{ name: 'a', kind: 'const' }, { name: 'b', kind: 'empty-object' }] }, labels: ['classLabel'] });
 	t('valueTerms 并集（core ✓ 本件消费不另算）', vt.has('a') && vt.has('classLabel') && !vt.has('b'));
 
-	// ⑨ `#1114` 片 2b-2b-0：`known` ＝ **合法目标全集**（md 段引用 twee 段 ⇒ 不得误报悬空 ✗）
-	//    反例对：真悬空（两边都没有）⇒ **必须报** ✓（证明不是把所有目标都放过 ✓）
+	// ⑨ `#1114` 片 2b-2b-0：`known` ＝ **合法目标全集**（md 段引用 twee 段 → 不得误报悬空）
+	// 反例对：真悬空（两边都没有）→ **必须报**（证明不是把所有目标都放过）
 	const knownSet = new Set(['船头', '新段']);
 	t('构建接线·正例：md 段引用**同故事 twee 段** ⇒ 0 问题（`known` 给出全集 ✓）',
 		assemblePassages({ passages: [{ name: '新段', body: '[[上船|船头]]' }], known: knownSet, forbidden: F, terms: T }).problems.length === 0);
@@ -65,7 +65,7 @@ const selftest = () => {
 	t('构建接线·缺省向后兼容：不传 `known` ⇒ 仍按本批段名校验（片1 口径不变 ✓）',
 		assemblePassages({ passages: [{ name: 'a', body: '[[去|b]]' }, { name: 'b', body: 'x' }], forbidden: F, terms: T }).problems.length === 0);
 
-	// ⑩ `#1114` 片 2b-2b-0：**禁则真源走 core**（本件不得复述清单 ✗——两处清单正是本片要根除的 ✓）
+	// ⑩ `#1114` 片 2b-2b-0：**禁则真源走 core**（本件不得复述清单 ——两处清单正是本片要根除的）
 	t('禁则真源：`FORBIDDEN_BUILTINS` 由 core 提供且与拼装层**同一份** ✓',
 		FORBIDDEN_BUILTINS.has('set') && FORBIDDEN_BUILTINS.has('if') && FORBIDDEN_BUILTINS.size >= 8);
 

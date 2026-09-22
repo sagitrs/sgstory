@@ -98,7 +98,12 @@ export const ORDER = [
 	'src/80-script.twee',    // 存档 API / Sg.notes / Sg.Ending ＋ 渲染后处理（**引擎层**，`#574` 修正 layer）
 	'src/engine/50-present/12-shortfight.twee',   // 短战斗 widget（#608：从故事侧上移）
 	'src/engine/50-present/90-style.twee',     // 纯 CSS
-	'stories/minimal-demo/10-demo.twee',      // 段落 ＋ StoryBindings（只依赖引擎）
+	// `#1175`：minimal-demo 5 段叙事迁 md（原段序，逐字无损）
+	'stories/minimal-demo/passages/01-开场.md',
+	'stories/minimal-demo/passages/02-岔路.md',
+	'stories/minimal-demo/passages/03-左路.md',
+	'stories/minimal-demo/passages/04-右路.md',
+	'stories/minimal-demo/passages/05-图鉴.md',
 	// ── 第三个故事（#490 S5「无名洞窟」雏形）：同样按相对位置交错登记 ──
 	// ── 第二个故事（#460 最小示例）：证明引擎与故事已解耦 ──
 	// 它不共享 mist-forest 的任何文件（那是另一个故事的资产）；引擎文件对所有故事共享 ⇒ 由 `scopedFiles()` 自动带上。
@@ -109,7 +114,12 @@ export const MODULES = {
 	// ── 第二个故事（#460）：layer 'story'，只依赖引擎 ──
 	'stories/minimal-demo/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '第二个故事的元数据（StoryTitle / StoryData / StoryIdentity）' },
 	'stories/minimal-demo/15-tables.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '第二个故事的最小声明面：引擎**加载期**要用的空容器（#460 实测的接入契约）' },
-	'stories/minimal-demo/10-demo.twee': { deps: ['stories/minimal-demo/15-tables.twee'], defines: [], layer: 'story', note: '最小示例段落 ＋ StoryBindings（引擎接入契约的空表）' },
+	// `#1175`：minimal-demo 5 段迁 md，依赖表逐件登记（同一条依赖）
+	'stories/minimal-demo/passages/01-开场.md': { deps: ['stories/minimal-demo/15-tables.twee'], defines: [], layer: 'story', note: '最小示例段落（md 形态，原序 1/5）' },
+	'stories/minimal-demo/passages/02-岔路.md': { deps: ['stories/minimal-demo/15-tables.twee'], defines: [], layer: 'story', note: '最小示例段落（md 形态，原序 2/5）' },
+	'stories/minimal-demo/passages/03-左路.md': { deps: ['stories/minimal-demo/15-tables.twee'], defines: [], layer: 'story', note: '最小示例段落（md 形态，原序 3/5）' },
+	'stories/minimal-demo/passages/04-右路.md': { deps: ['stories/minimal-demo/15-tables.twee'], defines: [], layer: 'story', note: '最小示例段落（md 形态，原序 4/5）' },
+	'stories/minimal-demo/passages/05-图鉴.md': { deps: ['stories/minimal-demo/15-tables.twee'], defines: [], layer: 'story', note: '最小示例段落（md 形态，原序 5/5）' },
 	// ── 第四个故事（`night-ferry` · 夜渡，P4 `#991` 用编辑器做出 ✓）──
 	'stories/night-ferry/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '第四个故事的元数据（StoryTitle / StoryData / StoryIdentity）' },
 	'stories/night-ferry/15-tables.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '第四个故事的声明面：引擎**加载期**要用的空容器（`#998` 实测：必须排在 `21-resolve` 前 ✗ —— 否则顶层浅合并会把引擎 assign 的方法替换掉 ✓）' },

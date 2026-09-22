@@ -664,11 +664,14 @@ jQuery(document).on(':passageend.sgChoiceKey', (ev) => {
 //   仅当**故事声明了该面**（`Game.Codex` 在场）时定义：缺席即被依赖的一态（消费者走可选链）⇒
 //   没有该面的故事逐字不变。`#574` 曾把它放故事侧，理由是它读故事数据；现改由契约成员
 //   `codexItems` 读，那条理由不再成立。
-if (window.Game?.Codex?.items) {
+//   为什么**无条件定义**：运行时契约门要求「引擎里定义的面在每个故事的产物里都在」；
+//   没有该面的故事由 `items()`／`render()` 返回空值保持可见行为不变（消费者用 `??` 与可选链）。
+{
 	window.Sg ??= {};
 	window.Sg.Codex = {
 		/** 条目数据：经契约成员 `codexItems` 读（缺席则退回 `this.items()`）。 */
-		items() { const f = window.Sg?.story?.codexItems; return (typeof f === 'function' ? f() : null) ?? window.this.items(); },
+		/** 条目数据：经契约成员 `codexItems` 读。故事没有该面 ⇒ 返回 null（调用点据此走兜底文案）。 */
+		items() { const f = window.Sg?.story?.codexItems; return (typeof f === 'function' ? f() : null) ?? window.Game?.Codex?.items ?? null; },
 		blank() { return { clues: {}, endings: [], finals: [] }; },
 		read() {
 			try {
@@ -704,9 +707,11 @@ if (window.Game?.Codex?.items) {
 		seenFinal() { return this.read().finals.length > 0; },
 		unlocked(item) { return this.isUnlocked(item, this.read()); },
 		render() {
+			const items = this.items();
+			if (!items) return null;   // 没有图鉴面 ⇒ 交回调用点的兜底文案（与改建前可见行为一致）
 			const store = this.read();
 			const hintOn = this.seenFinal();
-			const rows = Object.keys(this.items()).map((item) => {
+			const rows = Object.keys(items).map((item) => {
 				if (this.isUnlocked(item, store)) {
 					const clues = this.items()[item].clues.map((c) => `<li>${c.label}</li>`).join('');
 					return `<div class="codex-entry"><h4>${item}</h4><ul class="codex-clues">${clues}</ul></div>`;
@@ -716,8 +721,8 @@ if (window.Game?.Codex?.items) {
 					: '<p class="codex-hint codex-hint-off">（抵达任意终局后，这一页会给出线索提示；章节结局不计入。）</p>';
 				return `<div class="codex-entry codex-locked"><h4>？？？</h4>${tail}</div>`;
 			}).join('');
-			const got = Object.keys(this.items()).filter((i) => this.isUnlocked(i, store)).length;
-			return `<h3>图鉴</h3><p>每件道具都有几条散落的线索。找齐后即可解锁对应图鉴；重新开始游戏也会保留已解锁的内容。</p><p>已解锁 <b>${got} / ${Object.keys(this.items()).length}</b>；已达成终局 <b>${store.finals.length}</b> 个。</p>${rows}`;
+			const got = Object.keys(items).filter((i) => this.isUnlocked(i, store)).length;
+			return `<h3>图鉴</h3><p>每件道具都有几条散落的线索。找齐后即可解锁对应图鉴；重新开始游戏也会保留已解锁的内容。</p><p>已解锁 <b>${got} / ${Object.keys(items).length}</b>；已达成终局 <b>${store.finals.length}</b> 个。</p>${rows}`;
 		},
 	};
 }

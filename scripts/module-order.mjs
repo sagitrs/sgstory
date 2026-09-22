@@ -149,7 +149,7 @@ export const MODULES = {
 	'src/engine/10-const.twee': { deps: [], defines: ['Game.Era', 'Game.Damage'], layer: 'engine', note: '引擎常量（#660 片二）：时代枚举与伤害档梯的**唯一落点**' },
 	'src/10-core.twee': { deps: ['src/engine/10-const.twee'], defines: ['Game.Rules', 'Game.Pc', 'Sg.UI'], layer: 'engine', note: '规则内核与界面基座（常量见 10-const）' },
 	'src/engine/50-present/11-scene.twee': { deps: ['src/10-core.twee'], defines: ['widget:actOut', 'widget:sceneFeedback'], layer: 'engine', note: '场景迁移配方（结果留屏）' },
-	'src/80-script.twee': { deps: ['src/10-core.twee'], defines: ['Sg.save', 'Sg.notes', 'Sg.Ending'], layer: 'engine', note: "引擎运行时胶水（`#574` 修正 layer）：存档 API（`Sg.save`）· `Sg.notes`（数据经 `Sg.story.notes()`）· 结局收尾 · 结果留屏/空白归一/键盘路径/`data-choice` 派生——对**每个故事**成立 ⇒ 必须随引擎进每个故事的作用域" },
+	'src/80-script.twee': { deps: ['src/10-core.twee'], defines: ['Sg.save', 'Sg.notes', 'Sg.Ending', 'Sg.Codex', 'Game.Chargen'], layer: 'engine', note: "引擎运行时胶水（`#574` 修正 layer）：存档 API（`Sg.save`）· `Sg.notes`（数据经 `Sg.story.notes()`）· 结局收尾 · 结果留屏/空白归一/键盘路径/`data-choice` 派生——对**每个故事**成立 ⇒ 必须随引擎进每个故事的作用域" },
 	'src/engine/50-present/90-style.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'engine', note: '样式' },
 	'src/engine/50-present/12-shortfight.twee': { deps: ['src/10-core.twee'], defines: ['widget:shortFight'], layer: 'engine', note: '短战斗 widget（#608：S3 机制上移；相位→分支只看 `waveRecord().phase`，奖励/失败笔记走声明面）' },};
 

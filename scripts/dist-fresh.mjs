@@ -25,7 +25,7 @@ export const distState = ({ distPath = DIST_PATH, srcDir = SRC_DIR } = {}) => {
 	// 否则故事文件改动会被新鲜度守卫**静默漏掉** ✗）；显式传 `srcDir`（自证的合成目录）时按它枚举。
 	const files = srcDir === SRC_DIR
 		? allSourceFiles(undefined, { withStoryData: true })
-			.filter((p) => !/\/1[567]-[^/]*\.twee$/.test(p))
+			.filter((p) => !/\/1[5678]-[^/]*\.twee$/.test(p))
 			.filter((p) => !isTransientFixture(p))   // `#1130`：**临时夹具不算真源** ✗（CI 实测：`stories/__e2e/data/*.json` 曾把 siteinfo 两段撞红 ✓）
 			.map((p) => join(ROOT, p))   // `#1128`：产物不再是「源」（移出 git 后其 mtime 是运行时态——真源=data/*.json ✓） ＋ `#1130`：**本门显式传 `withStoryData: true`** ✓（只有本门要 data json 在内 ✓）
 		: readdirSync(srcDir).filter((f) => f.endsWith('.twee')).map((f) => join(srcDir, f));

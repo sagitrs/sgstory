@@ -156,6 +156,7 @@ export const SEGMENTS = [
 	// `#1132` B2：施加器每动词一格（set／add／append ＋ 未知动词大声报 ✗）
 	{ id: "test-chargen-apply-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/chargen-apply.mjs" },
 	{ id: "test-gen-segment-syntax-mjs", phase: 'test', cost: 0, inputs: ['*'], cmd: "node test/gen-segment-syntax.mjs" },
+	{ id: "test-meta-source-mjs", phase: 'test', cost: 0, inputs: ['*'], cmd: "node test/meta-source.mjs" },
 	{ id: "test-chargen-equivalence-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/chargen-equivalence.mjs" },
 	// `#1166` 护栏机械化：三条命令的自证段（三件套房式 => 脚本 ＋ `--selftest` ＋ 段 ✓）
 	{ id: "scripts-clean-net-mjs-selftest", phase: 'test', cost: 0, inputs: ['*'], cmd: "node scripts/clean-net.mjs --selftest" },
@@ -604,6 +605,7 @@ export const SUITE_MEMBERS = {
 		'test-chargen-equivalence-mjs',
 		'test-chargen-apply-mjs',
 		'test-gen-segment-syntax-mjs',
+		'test-meta-source-mjs',
 	],
 	'editor': [
 		'editor-compile-selftest', 'editor-equiv-selftest', 'editor-equiv-minimal-demo', 'editor-equiv-face-fixture',
@@ -711,6 +713,10 @@ export const inputsMatch = ({ declared = [], changed = [] } = {}) => {
 export const INPUTS_WILDCARD_REASONS = {
 	'test-rules-mjs': {
 		reason: '读构建产物与故事数据（契约成员、车卡数据、图鉴条目）=> 取全跑型以免静默跳过成假绿面 ✓',
+		voucher: '#1132',
+	},
+	'test-meta-source-mjs': {
+		reason: '读 stories 清单与故事件（元数据源恰一、正文与清单逐字一致）=> 依赖面跨 stories ⇒ 取全跑型以免静默跳过成假绿面',
 		voucher: '#1132',
 	},
 	'test-chargen-apply-mjs': {

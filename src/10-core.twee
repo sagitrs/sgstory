@@ -182,6 +182,14 @@ window.Game.Pc = {
 			dragon: { hp: 0, defeats: 0, awake: false, venom: false },   // 轮次归 B1 动作池：$pc.ev.fight.round
 			world: {},            // 世界旗标
 		};
+		// ── `#1186`：在场模块的状态组（信号＝故事的接入契约面）──
+		// 车卡族：只有 `hasChargen()` 为真的故事才有这 13 个键。缺面／假值 → 键不存在（判据二"零玩法概念"要的）。
+		if (window.Sg?.story?.hasChargen?.() === true) {
+			Object.assign(shape, {
+				classKey: '', classLabel: '', bgKey: '', bgLabel: '', speciesKey: '', speciesLabel: '',
+				abilities: null, skills: [], feats: [], gear: [], hp: 0, max_hp: 0, salves: 0,
+			});
+		}
 		// ── 故事数值叠加（`#660` 片三-3）────────────────────────────────────────────
 		const extra = window.Sg?.story?.pcDefaults?.();
 		if (extra === undefined || extra === null) return shape;        // 缺面 → **显式降级**（只给形状）

@@ -26,12 +26,10 @@ export const MECH_TAGS = ['script', 'widget', 'stylesheet'];
 
 // ── 明写基线（**只许降** ✗；改动基线必须是有意识的 ✓）──────────────────────
 /** twee 件数基线（故事目录下的全部 twee）。目标 0 ⇒ 到 0 后本门转硬判 ✓。 */
-export const BASE_TWEE = 11;
+export const BASE_TWEE = 6;   // `#1132` B3：删 10-fixture／12-hooks／13-codex 后跟降（原 11）
 /** 机制标签段的**逐条点名清单**（顺序无关 ✓）。**只许缩** ✗ —— 加一条 ⇒ 红 ✓。 */
 export const BASE_MECH = [
 	'face-fixture/00-meta.twee::StoryIdentity',
-	'face-fixture/12-hooks.twee::StoryHooks',
-	'face-fixture/12-hooks.twee::Fixture Widgets',
 	'minimal-demo/00-meta.twee::StoryIdentity',
 	'night-ferry/00-meta.twee::StoryIdentity',
 ];

@@ -2,7 +2,7 @@
 
 > **状态**：设计（**落码前请把 §7 未决项定死**）
 > **溯源**：`#602` 方案 1（已合 `c6c5f4c`：判据数据落 `stories/<slug>/audit.json` ＋ 新门 `--engine-story-free`）·
-> `#460`/`#512`（引擎/故事边界）· `#572`/`#583`（「选中 ⇒ 真跑」）
+> `#460`/`#512`（引擎/故事边界）· `#572`/`#583`（「选中 → 真跑」）
 
 ## 0. 一句话
 
@@ -17,11 +17,11 @@
 | 门注册表 | `scripts/audit/registry.mjs:1-71` | 35 行 `import * as g_x from './gates/x.mjs'`（L1-35）＋ `GATES` 数组（L37-71）；注释明写「**数组顺序即执行顺序**」 |
 | 层表 | `scripts/test-plan.mjs:187-190` | `AUDIT_ENGINE`（10）＋ `AUDIT_STORY`（20）＝两个**硬编码字符串数组** |
 | 层校验 | `scripts/test-plan.mjs:214-226` | `validateLayers()`：①两表不相交 ②计划里每个 `--flag --check` 段都被覆盖（多一个红）③层表里每个 flag 必须有段（**僵尸声明**红）④`ENGINE_EXTRA` 不许僵尸 |
-| 门选择 | `scripts/audit.mjs:24-42` | `known`/`selected` 由 `GATES[].flags` 推；`--engine-only` ⇒ 只选 `AUDIT_ENGINE` 里的门；选中为空即 `exit(2)`（`#583` 的通用守卫） |
+| 门选择 | `scripts/audit.mjs:24-42` | `known`/`selected` 由 `GATES[].flags` 推；`--engine-only` → 只选 `AUDIT_ENGINE` 里的门；选中为空即 `exit(2)`（`#583` 的通用守卫） |
 | 故事作用域 | `scripts/audit/context.mjs:63-90` | `scopedFiles(manifest)`＝引擎文件 ∪ 清单 `files`；ctx 带 `storySlug`/`storyManifest` |
 | 故事注册 | `stories/<slug>/00-story.json` | `{slug, title, subtitle, entry, files[]}` |
-| 源文件发现的单一权威 | `scripts/module-order.mjs:311-312` | `allSourceFiles()` 只走 **`.twee`** ⇒ 故事目录下的 `*.mjs` 对 `ORDER`/`MODULES`/清单 `files` **完全隐形**（`move-precheck.mjs:59-62` 的 `unclaimed-file` 用的是同一宇宙）⇒ **搬门不会牵动构建/模块图校验** |
-| 台账 | `scripts/report-gate-ledger.mjs:66-71` | flag 全集＝`registry.GATES.flatMap(g => g.flags)`；理由表按**脚本 id**（`'scripts/audit/gates/x.mjs'`）登记 ⇒ 搬家会改键 |
+| 源文件发现的单一权威 | `scripts/module-order.mjs:311-312` | `allSourceFiles()` 只走 **`.twee`** → 故事目录下的 `*.mjs` 对 `ORDER`/`MODULES`/清单 `files` **完全隐形**（`move-precheck.mjs:59-62` 的 `unclaimed-file` 用的是同一宇宙）→ **搬门不会牵动构建/模块图校验** |
+| 台账 | `scripts/report-gate-ledger.mjs:66-71` | flag 全集＝`registry.GATES.flatMap(g => g.flags)`；理由表按**脚本 id**（`'scripts/audit/gates/x.mjs'`）登记 → 搬家会改键 |
 | 基线 | `test/audit-golden.mjs:19-46` | `FLAGS` 显式清单（默认故事）＋ `argFlagsFromSource()` 反向查「有声明没保护」 |
 
 **三个具体后果**（不是洁癖）：
@@ -86,7 +86,7 @@ export const gatesForStory = (slug) => [...engineGates(), ...storyGates(slug)];
 
 | 情况 | 判据 |
 |---|---|
-| 清单缺 `gates` 键 | 报（「故事必须显式声明它的门；没有门 ⇒ 写 `[]`」）——**空数组合法**（与 `#602` 的空词表同纪律） |
+| 清单缺 `gates` 键 | 报（「故事必须显式声明它的门；没有门 → 写 `[]`」）——**空数组合法**（与 `#602` 的空词表同纪律） |
 | 清单里的路径不存在 | 报（点名路径） |
 | 文件存在但**没被声明** | 报（`stories/<slug>/gates/**` 下的 `*.mjs` 必须全部被声明——反「放了门却没人跑」） |
 | 模块不导出 `run`／`flags` | 报（形状） |
@@ -99,54 +99,54 @@ export const gatesForStory = (slug) => [...engineGates(), ...storyGates(slug)];
 - `AUDIT_STORY`：改为**由各故事清单并集算出**（`storyGateFlags()`），不再是硬编码数组；
 - `validateLayers()` 四条判据**逐条保留**，按新事实更新：①两表不相交（不变）②计划里每个门段被覆盖（不变）
   ③层表里的 flag 必须有段（＝**没接线的门**红，不变）④`ENGINE_EXTRA` 僵尸（不变）；
-- **选择**：`--<flag>` ⇒ 从 `gatesForStory(ctx.storySlug)` 选；`--engine-only` ⇒ 只从 `engineGates()` 选（**不变**）；
+- **选择**：`--<flag>` → 从 `gatesForStory(ctx.storySlug)` 选；`--engine-only` → 只从 `engineGates()` 选（**不变**）；
   `wantAll`（无任何 `--` 参数）＝只跑 `gatesForStory(默认故事)`；
-- **新守卫（本设计的核心反沉默）**：CLI 点名了一个**属于别的故事**的 flag ⇒ **明确报错**
-  （`该门属于故事 X，请用 --story X`），而不是"照跑别人的判据"——今天 `--story hollow-cave --truth` 正是后者。
+- **新守卫（本设计的核心反沉默）**：CLI 点名了一个**属于别的故事**的 flag → **明确报错**
+（`该门属于故事 X，请用 --story X`），而不是"照跑别人的判据"——今天 `--story hollow-cave --truth` 正是后者。
 
 ### 3.4 账本 / 基线 / CI 段
 
 | 面 | 今天 | 设计 |
 |---|---|---|
 | 台账 | 理由表键 `'scripts/audit/gates/x.mjs'` | 键改 `'stories/<slug>/gates/x.mjs'`；`report-gate-ledger.mjs` 的枚举改走 discovery；**理由逐条搬，不丢字** |
-| golden | `FLAGS` 显式清单（默认故事） | **不变**：故事 1 的门搬家后同 flag、同输出 ⇒ **零漂移**就是迁移的机械证据；将来某故事自有门需要基线时再加 `flag@<slug>` 分桶（§7 未决项 2） |
-| CI 段 | `SEGMENTS` 显式（每门一段） | **保持显式**（同今天风格），段 `cmd` 不变 ⇒ CI 零变化；`validateLayers()` 保证「清单里有门、计划里没段」红 |
-| `--engine-story-free`（`#602`） | 扫 `scripts/audit/gates/**` 里 flag ∈ `AUDIT_ENGINE` 的 | 搬迁后**目录里只剩引擎门** ⇒ 这条判据从"按 flag 过滤"升级为**目录事实**；**故事门天然不被扫**（它们合法地含故事词），并把这条写进它的自证 |
+| golden | `FLAGS` 显式清单（默认故事） | **不变**：故事 1 的门搬家后同 flag、同输出 → **零漂移**就是迁移的机械证据；将来某故事自有门需要基线时再加 `flag@<slug>` 分桶（§7 未决项 2） |
+| CI 段 | `SEGMENTS` 显式（每门一段） | **保持显式**（同今天风格），段 `cmd` 不变 → CI 零变化；`validateLayers()` 保证「清单里有门、计划里没段」红 |
+| `--engine-story-free`（`#602`） | 扫 `scripts/audit/gates/**` 里 flag ∈ `AUDIT_ENGINE` 的 | 搬迁后**目录里只剩引擎门** → 这条判据从"按 flag 过滤"升级为**目录事实**；**故事门天然不被扫**（它们合法地含故事词），并把这条写进它的自证 |
 
 ### 3.5 故事门能依赖什么
 
 - **允许**：`scripts/audit/lib/**`（`shared.mjs`／`mask.mjs`／`story-audit.mjs`）、`scripts/dist-paths.mjs`、`scripts/module-order.mjs`；
 - **禁止**：import **另一个故事**的路径（判红）；引擎门 import 故事门（层方向）；
-- 观感问题：`stories/<slug>/gates/x.mjs` → `../../../scripts/audit/lib/shared.mjs` 层级较深 ⇒ §7 未决项 4 讨论是否加门面 `scripts/audit/lib/gate-api.mjs` 收敛 import 面。
+- 观感问题：`stories/<slug>/gates/x.mjs` → `../../../scripts/audit/lib/shared.mjs` 层级较深 → §7 未决项 4 讨论是否加门面 `scripts/audit/lib/gate-api.mjs` 收敛 import 面。
 
 ## 4. 迁移批次（逐门，零行为变化）
 
 - **P0 发现机制＋校验**（**不搬任何门**）：接上后要求 `gatesForStory(DEFAULT_SLUG)` 与今日 `GATES` **集合与顺序逐字相同**
-  ⇒ audit 输出 golden 零漂移，且可随时回退；`registry.mjs` 先不动（选择处改走 `gatesForStory()`）。
+  → audit 输出 golden 零漂移，且可随时回退；`registry.mjs` 先不动（选择处改走 `gatesForStory()`）。
 - **P1 试点 3 门**（低风险故事门，每门一次 commit）：`items-tokens`／`economy`／`notes`——跑 `npm test` ＋ golden 对照。
 - **P2 其余 9 门**：`truth`/`canon`/`echoes`/`starbudget`/`choices`/`combat`/`craft`/`dragon`/`rules`/`reads`/`cave`/`combat-dist`
-  （按 §7 未决项 5 分批 2–3 门，每批一个 PR）。
+（按 §7 未决项 5 分批 2–3 门，每批一个 PR）。
 - **P3 收口**：`scripts/audit/gates/` 只剩引擎门；台账/文档重签（本文件 §3 与 `docs/engine-story-boundary.md` 的归属一节）。
 
 ## 5. 出口判据（可机械判定）
 
-- [ ] **E1** `scripts/audit/gates/**` 里每个文件的 flags **全部** ∈ `AUDIT_ENGINE`（反「故事门又住回工具层」——把 `#602` 的思路从**数据**扩到**门**）；
-- [ ] **E2** 每个故事的 `gates` 声明可被发现，且 `gatesForStory(slug)` ＝ 引擎门 ∪ 该故事门（自证）；
-- [ ] **E3** `--engine-only` 从不选中故事门（自证 ＋ `#583` 的「选中⇒真跑」守卫）；
-- [ ] **E4** 反沉默：①清单漏声明已存在的门文件 ⇒ 红 ②清单指向不存在文件 ⇒ 红 ③两故事同 flag ⇒ 红 ④点名别的故事的门 ⇒ 红；
-- [ ] **E5** 默认故事 `npm run audit:golden` **零漂移**（每一批都要复核）；
-- [ ] **E6** `npm test` 全绿（段不变）＋ 台账与实况一致（F2 新鲜度）；
-- [ ] **E7** 文档：`docs/engine-story-boundary.md` 增「门的归属」一节（落点／清单／校验／反例）。
+- [] **E1** `scripts/audit/gates/**` 里每个文件的 flags **全部** ∈ `AUDIT_ENGINE`（反「故事门又住回工具层」——把 `#602` 的思路从**数据**扩到**门**）；
+- [] **E2** 每个故事的 `gates` 声明可被发现，且 `gatesForStory(slug)` ＝ 引擎门 ∪ 该故事门（自证）；
+- [] **E3** `--engine-only` 从不选中故事门（自证 ＋ `#583` 的「选中→真跑」守卫）；
+- [] **E4** 反沉默：①清单漏声明已存在的门文件 → 红 ②清单指向不存在文件 → 红 ③两故事同 flag → 红 ④点名别的故事的门 → 红；
+- [] **E5** 默认故事 `npm run audit:golden` **零漂移**（每一批都要复核）；
+- [] **E6** `npm test` 全绿（段不变）＋ 台账与实况一致（F2 新鲜度）；
+- [] **E7** 文档：`docs/engine-story-boundary.md` 增「门的归属」一节（落点／清单／校验／反例）。
 
 ## 6. 自证与反例（全部**计入退出码**）
 
 | # | 自证 | 反例（必须红） |
 |---|---|---|
-| 1 | `storyGates()` 对三个故事返回声明集合 | 删清单某条 ⇒ 报「文件未被声明」／「路径不存在」 |
-| 2 | `gatesForStory()` 集合等于今日 `GATES`（P0 的等价证据） | 往清单塞一个不成形的模块 ⇒ 形状报错 |
-| 3 | flag 全局唯一 | 两个故事声明同一 flag ⇒ 红 |
-| 4 | `--engine-only` 只选引擎门 | 把某个故事门 flag 塞进 `AUDIT_ENGINE` ⇒ 层校验/台账红 |
-| 5 | 点名别的故事的门 ⇒ 明确报错 | `--story hollow-cave --truth` ⇒ 必须红（今天会照跑） |
+| 1 | `storyGates()` 对三个故事返回声明集合 | 删清单某条 → 报「文件未被声明」／「路径不存在」 |
+| 2 | `gatesForStory()` 集合等于今日 `GATES`（P0 的等价证据） | 往清单塞一个不成形的模块 → 形状报错 |
+| 3 | flag 全局唯一 | 两个故事声明同一 flag → 红 |
+| 4 | `--engine-only` 只选引擎门 | 把某个故事门 flag 塞进 `AUDIT_ENGINE` → 层校验/台账红 |
+| 5 | 点名别的故事的门 → 明确报错 | `--story hollow-cave --truth` → 必须红（今天会照跑） |
 
 ## 7. 风险与未决项（**落码前请定**）
 

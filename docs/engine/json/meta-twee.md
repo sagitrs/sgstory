@@ -1,7 +1,7 @@
 # `00-meta.twee` —— 入口件
 
 > 实况样本：`stories/night-ferry/00-meta.twee`。生成器：`editor/lib/core/story.mjs` 的 `metaTwee()`。
-> ⚠️ 它是**唯一不生成的手写 `.twee`**：其余 `.twee` 都是产物。
+>注意：它是**唯一不生成的手写 `.twee`**：其余 `.twee` 都是产物。
 
 ## 1. 三个段
 
@@ -26,8 +26,8 @@ window.Sg.storyId = { slug: 'night-ferry' };
 | 段 | 内容 | 校验 |
 |---|---|---|
 | `StoryTitle` | 故事标题（SugarCube 读） | — |
-| `StoryData` | 编译器元数据 | `ifid` **必须 UUIDv4 形态且大写 hex**（小写 ⇒ `Story IFID is invalid!` ⇒ rc=1）· `start` **必须 ≡ 清单 `entry`** |
-| `StoryIdentity` | `Sg.storyId = { slug }` | **必须与清单 `slug` 一致** ⇒ `test/store-keys.mjs` 判红 |
+| `StoryData` | 编译器元数据 | `ifid` **必须 UUIDv4 形态且大写 hex**（小写 → `Story IFID is invalid!` → rc=1）· `start` **必须 ≡ 清单 `entry`** |
+| `StoryIdentity` | `Sg.storyId = { slug}` | **必须与清单 `slug` 一致** → `test/store-keys.mjs` 判红 |
 
 ## 2. 字段表（`StoryData`）
 

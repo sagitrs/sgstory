@@ -24,10 +24,10 @@ stories/<slug>/
 ```
 
 **四件源、其余是产物**：`00-story.json` · `00-meta.twee` · `data/*.json` · `passages/*.md`（＋ `audit.json`／`gates/` 属判据面）。
-**`.twee` 一律是产物**（带 `@generated` 标记 ⇒ K4 判据；手改会在下次编译被覆盖）。
+**`.twee` 一律是产物**（带 `@generated` 标记 → K4 判据；手改会在下次编译被覆盖）。
 
-⚠️ **实测现状（不要按上面这张图照抄）**：`passages/*.md` 的**拼装尚未实现** —— 现有故事（含 `night-ferry`）的散文**仍是 `.twee`**。
-即甲-1 的散文层**未落地**。⇒ 今天手写的"正文"仍写 `.twee`；`passages/*.md` 是**目标形态**（见 `decisions.md` Q1–Q2）。
+注意：**实测现状（不要按上面这张图照抄）**：`passages/*.md` 的**拼装尚未实现** —— 现有故事（含 `night-ferry`）的散文**仍是 `.twee`**。
+即甲-1 的散文层**未落地**。→ 今天手写的"正文"仍写 `.twee`；`passages/*.md` 是**目标形态**（见 `decisions.md` Q1–Q2）。
 
 ## 二、逐文件手册
 
@@ -55,7 +55,7 @@ stories/<slug>/
 { "section": "StoryRules", "key": "rules", "rows": [] }
 ```
 
-⚠️ `00-meta.twee` **必须带新 IFID**（照抄既有故事会撞；`build.mjs` 的 extwee 只收**大写** hex，小写 ⇒ `Story IFID is invalid!` ⇒ rc=1）。
+注意：`00-meta.twee` **必须带新 IFID**（照抄既有故事会撞；`build.mjs` 的 extwee 只收**大写** hex，小写 → `Story IFID is invalid!` → rc=1）。
 
 ## 四、编译链（谁是源、谁消费）
 
@@ -68,18 +68,18 @@ passages/*.md / 10-*.twee ──────────────────
 00-story.json ──→ 加载顺序（module-order）／书架（audience）─────┘
 ```
 
-- 数据面文件名**固定四个**：`tables.json` · `contract.json` · `rules.json` · `notes.json`（后两者**可缺** ⇒ 读作 `null`，**不是**静默空对象）。
-- `notes.json` 是**登记过的 EXTENSION**（`editor/lib/core/contractVersion.mjs` 的 `EXTENSIONS`）：ADD 新面要登记，**改既有面语义 ⇒ `CURRENT + 1`**。
+- 数据面文件名**固定四个**：`tables.json` · `contract.json` · `rules.json` · `notes.json`（后两者**可缺** → 读作 `null`，**不是**静默空对象）。
+- `notes.json` 是**登记过的 EXTENSION**（`editor/lib/core/contractVersion.mjs` 的 `EXTENSIONS`）：ADD 新面要登记，**改既有面语义 → `CURRENT + 1`**。
 
 ## 五、校验链（每个文件被谁咬）
 
 | 文件 | 主要闸门 |
 |---|---|
-| `00-story.json` | `build.mjs`（故事件不在清单里 ⇒ 拒；清单里的文件不存在 ⇒ 拒）· `test/store-keys.mjs`（`slug` 与 `00-meta.twee` 的 `Sg.storyId` 一致）· `audience` **fail-loud**（缺字段／取值非法 ⇒ 报错） |
+| `00-story.json` | `build.mjs`（故事件不在清单里 → 拒；清单里的文件不存在 → 拒）· `test/store-keys.mjs`（`slug` 与 `00-meta.twee` 的 `Sg.storyId` 一致）· `audience` **fail-loud**（缺字段／取值非法 → 报错） |
 | `00-meta.twee` | IFID 形态（UUIDv4，大写 hex）· `StoryData.start` ≡ 清单 `entry` |
 | `data/*.json` | 编译器 `section` 必填 · `scripts/audit/lib/story-shape.mjs`（`mechanics` 形状六条）· `scripts/audit/gates/*.mjs`（各容器） |
-| `data/rules.json` | 🔴 **未实现**：`--rules` 开关不存在（实调 ⇒ 未知开关）；键形判据在 `test/cond-keyform.mjs`；死行判定在编辑器 UI（`ruleRows.mjs`）——详见 `reference-spec.md` §3.0 |
-| 正文 | `test/prose-vocabulary.mjs`（禁逻辑宏 · 未宣告宏 ⇒ 红）· `scripts/md-format.mjs`（围栏／路径／表格） |
+| `data/rules.json` | **未实现**：`--rules` 开关不存在（实调 → 未知开关）；键形判据在 `test/cond-keyform.mjs`；死行判定在编辑器 UI（`ruleRows.mjs`）——详见 `reference-spec.md` §3.0 |
+| 正文 | `test/prose-vocabulary.mjs`（禁逻辑宏 · 未宣告宏 → 红）· `scripts/md-format.mjs`（围栏／路径／表格） |
 | `audit.json` | `scripts/audit/lib/story-audit.mjs`（`text` 对象必填） |
 
 ## 六、手写者的三条纪律

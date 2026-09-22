@@ -8,7 +8,7 @@
 
 ```jsonc
 {
-  "section": "Chargen",     // 必填
+  "section": "StoryChargen",  // 必填（直接决定产物段头 `:: StoryChargen [script]`，抄错则数据与实况不符）
   "rounds":  [ Round, … ],  // 三轮（职业／背景／种族）
   "presets": [ Preset, … ]  // 快速成型预设（整条 picks 序列）
 }

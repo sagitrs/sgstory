@@ -61,13 +61,13 @@ scope_of: []
 
 | 事 | 现状 |
 |---|---|
-| `passages/*.md` 拼装 | ❌ **未实现**（`editor/**` 无 front-matter／passages 解析） |
-| 散文实际所在 | `stories/<slug>/passages/*.md`（**手写**，**不是**产物）——`night-ferry` 的 11 个段落就在 `passages/01-渡口.md` … `11-结局 沉船.md` |
-| `{{名字}}` 取值 | ❌ **未实现**（全仓 `{{` 只出现在 JSDoc 类型注释）；实施票 `#1048` |
-| 禁计算门 | ✅ **已生效** |
-| `10-*.twee` 是"产物"吗 | ⚠️ **取决于故事**：`night-ferry` 是手写；设计目标是"由 `passages/` 拼装的产物" |
+| `passages/*.md` 拼装 | **已实现**（`editor/lib/core/passages.mjs`；`build.mjs` 单一分派点，`.twee` 与 `.md` 同源） |
+| 散文实际所在 | `stories/<slug>/passages/*.md`（**手写，是源**，不是产物）——`night-ferry` 的 11 段在 `passages/01-渡口.md` … `11-结局 沉船.md` |
+| `{{名字}}` 取值 | **已实现**（`passages.mjs` 的取值展开，名取自 `core/vocab.mjs` 的 `valueTerms`；不在声明面则报错） |
+| 禁计算门 | **已生效** |
+| `10-*.twee` 是"产物"吗 | **这个文件不存在了**：叙事段在装配期直接接入，不落中间件；故事目录里带 `@generated` 的产物是 `00-meta.twee` 与 `15`／`16`／`17`／`18-*.twee` |
 
-⇒ **今天手写故事**：正文写 `10-*.twee`（手写，遵守 §3 的允许/禁止）；`passages/*.md` 等 `#1048` 与拼装实现落地后再切。
+⇒ **今天手写故事**：正文写 `passages/*.md`（遵守 §3 的允许与禁止）；`10-*.twee` 已不再出现（来源：`#1114` 片 2b-2b 与片 3、`#1175`）。
 
 ## 6. 格式纪律（`scripts/md-format.mjs` 判）
 

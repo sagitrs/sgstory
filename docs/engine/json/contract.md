@@ -51,15 +51,15 @@
 | **可选缺省** | 明确的 `null`／`[]`（"没有捷径"是合法状态） |
 | **文案缺失** | **兜底**（那是 `copy()` 的事，不是这里的） |
 
-，即 **三类不许合成一个 `?? {}`**。
+⇒ **三类不许合成一个 `?? {}`**。
 
 ## 5. 实况样本（**节选**——完整成员以真件为准）
 
-> 注意 下列为**节选示例**，不是可照抄的最小集：真实故事 `night-ferry`／`minimal-demo` 的完整契约各 **14** 个成员（复算：`python3 -c "import json;print(len(json.load(open('stories/minimal-demo/data/contract.json'))['members']))"`），缺 `notes`／`pcDefaults`／`checkSite` 等会撞 `Sg.story.*` 的「结构缺失 ，即 报错」纪律。写新故事 ，即 完整摘录一份现有故事的 `contract.json` 起步，别按本节选拼。
+> ⚠️ 下列为**节选示例**，不是可照抄的最小集：真实故事 `night-ferry`／`minimal-demo` 的完整契约各 **14** 个成员（复算：`python3 -c "import json;print(len(json.load(open('stories/minimal-demo/data/contract.json'))['members']))"`），缺 `notes`／`pcDefaults`／`checkSite` 等会撞 `Sg.story.*` 的「结构缺失 ⇒ 报错」纪律。写新故事 ⇒ 完整摘录一份现有故事的 `contract.json` 起步，别按本节选拼。
 
 ```jsonc
 { "name": "rules",      "kind": "empty-array",  "docs": "条件表：空表（合法）" }
-{ "name": "mechanics",  "kind": "null",         "docs": "新机制声明表：未启用 ，即 null（调用方必须跳过）" }
+{ "name": "mechanics",  "kind": "null",         "docs": "新机制声明表：未启用 ⇒ null（调用方必须跳过）" }
 { "name": "poisonReduce","kind": "const", "value": 0 }
 { "name": "econEvents", "kind": "game-ref", "path": "Game.Economy.events" }
 { "name": "hasChargen", "kind": "const", "value": false, "docs": "没有车卡（实测 `minimal-demo` 形态；`bool-exists` 判的是 `!!window.X`——别混）" }
@@ -71,6 +71,6 @@
 
 ## 6. 手写注意
 
-- **新故事照最小合法集写**（本故事不新增面 ，即 不新增登记）；有面才登记。
+- **新故事照最小合法集写**（本故事不新增面 ⇒ 不新增登记）；有面才登记。
 - **`null` 与 `empty-*` 语义不同**：`null` ＝"这一面不存在，调用方跳过"；`empty-*` ＝"这一面存在且为空" —— 混用会让调用方的分支写错。
 - 契约的**成员集合**就是 `{{名字}}`（正文取值）的**候选声明面**（见 `decisions.md` 的 **P2**，**待裁**）。

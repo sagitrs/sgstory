@@ -19,7 +19,7 @@ B4 之前：`00-meta.twee` 是**唯一不生成的手写 `.twee`**。B4 之后�
 
 ```jsonc
 {
-  "section": "StoryMeta",                                      // 必填（缺 ，即 编译器干净拒绝）
+  "section": "StoryMeta",                                      // 必填（缺则编译器干净拒绝）
   "title": "夜渡",                                              // → :: StoryTitle
   "entry": "渡口",                                              // → :: StoryData.start
   "ifid": "4FDB2374-A7A6-4181-AFDD-C2E53D79AAE9"               // → :: StoryData.ifid
@@ -28,10 +28,10 @@ B4 之前：`00-meta.twee` 是**唯一不生成的手写 `.twee`**。B4 之后�
 
 | 键 | 型 | 必填 | 去向 | 校验 |
 |---|---|---|---|---|
-| `section` | `string` | ✅ | — | 数据面通用：缺 `section` ，即 编译器拒 |
+| `section` | `string` | ✅ | — | 数据面通用：缺 `section` 则编译器拒绝 |
 | `title` | `string` | — | `:: StoryTitle` | 缺省 `'未命名故事'`；清单 `title` 是次要源 |
-| `entry` | `string` | — | `StoryData.start` | 缺省 `'开场'`；**必须 ≡ 清单 `entry`**（不一致 ，即 起始段找不到） |
-| `ifid` | `string` | — | `StoryData.ifid` | **UUIDv4 形态且大写 hex**（小写 ，即 `Story IFID is invalid!` ，即 rc=1） |
+| `entry` | `string` | — | `StoryData.start` | 缺省 `'开场'`；**必须 ≡ 清单 `entry`**（不一致则起始段找不到） |
+| `ifid` | `string` | — | `StoryData.ifid` | **UUIDv4 形态且大写 hex**（小写则报 `Story IFID is invalid!`，退出码 1） |
 
 `ifid` 在 B4 是**保真搬运**：三故事（`face-fixture`／`minimal-demo`／`night-ferry`）的新值与被删手写件的原值
 **逐字节相同**（`#1183` 复核时用主干历史原文件比对过）。**新故事必须新生成**，照抄既有故事会撞。
@@ -58,9 +58,9 @@ window.Sg.storyId = { slug: 'night-ferry' };
 |---|---|---|
 | `StoryTitle` | 故事标题（SugarCube 读） | — |
 | `StoryData` | 编译器元数据 | `ifid` 形态（大写 hex）· `start` ≡ 清单 `entry` |
-| `StoryIdentity` | `Sg.storyId = { slug }` | **必须与清单 `slug` 一致** ，即 `test/store-keys.mjs` 判红 |
+| `StoryIdentity` | `Sg.storyId = { slug }` | **必须与清单 `slug` 一致** ⇒ `test/store-keys.mjs` 判红 |
 
-`StoryIdentity` 带 `[script]` 标签 ，即 它是**脚本段**，因此在 `#1176` 的段级语法检查面内（实测有牙：往该段注入坏脚本 ，即
+`StoryIdentity` 带 `[script]` 标签，是**脚本段**，因此在 `#1176` 的段级语法检查面内（实测有牙：往该段注入坏脚本，
 构建退出码 1 并点名段名）。格式三常量（`SugarCube`／`2.37.3`／`zoom: 1`）留在 `metaTwee` 里，**不因故事而异**。
 
 ## 3. `StoryData` 字段表
@@ -78,4 +78,4 @@ window.Sg.storyId = { slug: 'night-ferry' };
 - 改**标题**或**起始段**：改 `data/meta.json`（再跑构建），**不要**改产物。
 - **两处一致性是双向的**：`slug`（清单 ↔ `StoryIdentity`）· `start`（清单 `entry` ↔ `StoryData`）。任一处漂移即红。
 - 入口件**必须排在 `files` 首位**（见 [`story-manifest.md`](story-manifest.md) §2）。
-- 删源而留产物 ，即 `#1185` 的守卫在构建期报"产物仍在，但它标记载明的源不在磁盘上"并点名两侧。
+- 删源而留产物时，`#1185` 的守卫在构建期报"产物仍在，但它标记载明的源不在磁盘上"并点名两侧。

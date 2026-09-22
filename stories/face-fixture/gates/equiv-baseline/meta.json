@@ -1,7 +1,7 @@
 {
 	"slug": "face-fixture",
 	"why": "**夹具没有「翻面前手写原件」**（照 `night-ferry` 的 `#991` 先例）：它出生即数据面 ⇒ 基线＝**建夹具时的产物副本**（`15-tables.twee` 去掉 `@generated` 行）。此后 `data/` 的任何变更都会让 `equiv` 红 —— 那是**好事**：红 ⇒ 要么改数据不动契约，要么**显式重钉**。",
-	"source": "stories/face-fixture/15-tables.twee（编译产物，去 `@generated` 行）＋ stories/face-fixture/12-hooks.twee（手写逃生舱 —— `hatchFiles` 会被 `editor/equiv.mjs` 拼进**产物侧** ⇒ 基线侧必须同样含它，否则 L1 键集合 23 vs 24 ✗ 实测）",
+	"source": "stories/face-fixture/15-tables.twee（编译产物，去 `@generated` 行）。注：`#1132` B3 起 `editor/escape-hatch.json` 的 `hatchFiles` 已为空（最后一件 `12-hooks.twee` 的 `flip` widget 已移入引擎 `flipEra`），故基线侧不再拼入手写逃生舱件。",
 	"commit": "（本片提交时回填 ✗）",
 	"commitSubject": "feat(#1004 B2b): 面夹具 `face-fixture` —— 把接入契约的每种面声明一次，供测试当输入",
 	"contractMembers": 0,

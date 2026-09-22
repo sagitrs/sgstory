@@ -608,8 +608,7 @@ export const SUITE_MEMBERS = {
 		'test-web-save-mjs', 'test-web-save-mjs-selftest', 'test-web-preview-mjs', 'test-web-preview-mjs-selftest',
 		'test-web-diagnose-mjs', 'test-web-diagnose-view-mjs', 'test-web-diagnose-wire-mjs', 'test-web-events-mjs',
 		'test-web-events-mjs-selftest', 'test-web-form-mjs', 'test-web-form-mjs-selftest', 'test-web-new-package-mjs',
-		'test-web-export-mjs', 'test-web-event-graph-mjs', 'test-web-rule-rows-mjs', 'test-web-read-faces-mjs', 'test-readkey-family-mjs', 'test-md-visible-faces-mjs', 		'test-browser-mjs-selftest',
-		'test-web-export-mjs', 'test-web-event-graph-mjs', 'test-web-rule-rows-mjs', 'test-web-read-faces-mjs', 'test-readkey-family-mjs', 'test-audit-scope-header-mjs',
+		'test-web-export-mjs', 'test-web-event-graph-mjs', 'test-web-rule-rows-mjs', 'test-web-read-faces-mjs', 'test-readkey-family-mjs', 'test-md-visible-faces-mjs', 'test-audit-scope-header-mjs',
 		'test-browser-mjs-selftest',
 
 		'test-k4-args',

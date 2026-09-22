@@ -15,7 +15,7 @@
 | `checkKnowledge(name)` | 位点 ↔ 情报捷径 | **可选** ⇒ `null`（"没有捷径"是合法状态） |
 | `combatAction(id)` | 战斗动作记录（`.label`/`.site`/`.good`…） | **结构缺失 ⇒ 报错** |
 | `combatPool(id)` | 作战池（动作 id 列表） | 池缺 ⇒ `[]` |
-| `itemDef(name)` / `itemEffect(name)` / `gearDef(name)` | 道具／道具效果／装备表 | 表缺项 ⇒ `null`（对应源码里的可选链） |
+| `itemEffect(name)` / `gearDef(name)` | 道具效果／装备表 | 表缺项 ⇒ `null`（对应源码里的可选链） |
 | `poisonReduce()` | 数值（毒液压制） | **必需数值 ⇒ 报错** |
 | `dragonMaxHp()` | 龙血上限 | **必需数值 ⇒ 报错** |
 | `actionLabel(id)` | 动作名（由 `combatAction()` 派生 ⇒ 单一权威） | 未登记／缺 label ⇒ 报错 |
@@ -174,7 +174,7 @@ mechanics: () => ({
 ## 5. 给新故事接入的最小步骤
 
 1. 建故事包（`stories/<slug>/**`）＋ 清单（`00-story.json` 的 `files` 是归属权威）；
-2. 注册 `Sg.story`：先 `notes()`／`rules()`／`checkSite()`／`combatAction()`／`combatPool()`／`itemDef()`… ，
+2. 注册 `Sg.story`：先 `notes()`／`rules()`／`checkSite()`／`combatAction()`／`combatPool()`／`itemEffect()`… ，
    再按需加 `mechanics()`（**形状一次性定死**，之后只加方法不改形状）；
 3. 跑 `node test/story-shape.mjs`（形状合法）＋ `node test/layering.mjs`（引擎侧不直读故事表）；
 4. 数值／文案**只**放故事包；机制**不**要再写进故事文件（`#512` 已把机制收进引擎侧）。

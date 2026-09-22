@@ -910,7 +910,6 @@ Object.assign((window.Sg.story ??= {}), {
 	socialAsks: () => window.Game.Social.asks,
 	socialAttAdj: () => window.Game.Social.attAdj,
 	socialApproaches: () => window.Game.Social.approaches,
-	socialAttLabels: () => window.Game.Social.ATT,
 	hasChargen: () => !!window.Game.Chargen,
 	pcDefaults: () => __const_pcDefaults,
 	prepick: () => __const_prepick,
@@ -934,7 +933,6 @@ Object.assign((window.Sg.story ??= {}), {
 		return v;
 	},
 	mechanics: () => null,
-	itemDef: (name) => window?.Game?.Items?.defs?.[name] ?? null,
 	itemEffect: (name) => window?.Game?.Items?.effects?.[name] ?? null,
 	gearDef: (name) => window?.Game?.Gear?.defs?.[name] ?? null,
 	combatPool: (id) => window?.Game?.Combat?.pools?.[id] ?? [],

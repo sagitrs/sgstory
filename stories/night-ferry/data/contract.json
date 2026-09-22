@@ -75,6 +75,12 @@
 			"kind": "const",
 			"value": 0,
 			"docs": "龙血上限（本故事无龙）"
+		},
+		{
+			"name": "codexItems",
+			"kind": "game-ref",
+			"path": "Game.Codex.items",
+			"docs": "图鉴条目表（`#1138` 片：给夜渡补最小线索面 ⇒ 引擎 `satisfied(pc)` 驱动已得线索列表 ✓）"
 		}
 	]
 }

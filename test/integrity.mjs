@@ -252,7 +252,7 @@ else {
 		for (const m of body.matchAll(/<<(check|save)\s+"[^"]+"\s+\d+/g)) errors.push(`[残留] ${p.file}:${p.line} 段落「${p.name}」硬编码 DC（${m[0]}）——检定必须走 <<sitecheck 位点>>`);
 	}
 	// `#1004` B2：道具表那格的形状跟**现存契约**走 —— 旧写法读 `Game.Items.effects`（那是已删故事的**表形状**，
-	// 引擎侧从来只经 `Sg.story.itemEffect(k)` 读道具 —— `src/engine/40-sim/21-resolve.twee:461`）；
+	// 引擎侧从来只经 `Sg.story.itemEffect(k)` 读道具 —— `src/engine/40-sim/20-items.twee` 的 `itemEffect`（`#1187` 第四块后；**不写行号**——会随拆分腐烂））；
 	// 现存两样本声明的都是 `Items.defs` → 按现况读 ＋ 防御式取键（表缺了也不该把这句**信息行**变成崩栈）。
 	console.log(`表：位点 ${Object.keys(Game.Checks.sites).length} · 经济事件 ${Object.keys(Game.Economy.events).length} · 道具条目 ${Object.keys(Game.Items.defs ?? {}).length}（引用 位点 ${refKeys.site.size} / 事件 ${refKeys.econ.size}）`);
 }

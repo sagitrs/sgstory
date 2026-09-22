@@ -11,7 +11,7 @@
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { ROOT } from './dist-paths.mjs';
-import { ORDER, MODULES, CONST_SECTION, allSourceFiles, storyManifests, checkRegistration, storyTablesOrderProblems } from './module-order.mjs';
+import { ORDER, MODULES, CONST_SECTION, allSourceFiles, storyManifests, checkRegistration, storyTablesOrderProblems, deriveStoryTableConsumers } from './module-order.mjs';
 
 const SRC = join(ROOT, 'src');
 const STORIES = join(ROOT, 'stories');
@@ -46,11 +46,12 @@ export const aggregatorChecks = (srcText) => {
  * `#893` 第三步：`②③④` 按**层**分工（引擎件 → `ORDER` ⧸ `MODULES`；故事件 → **它自己的清单**）——
  * 走单一权威 `checkRegistration()`；与 `test/layering.mjs` 的**唯一区别**：这里 `requireModules: true`
  *（`MODULES` 缺项是"账本不自洽"，属本脚本的六处同步面）。 */
-export const checkPlaces = ({ srcFiles, order, modules, manifests, constFiles, aggregatorSrc }) => {
+export const checkPlaces = ({ srcFiles, srcContents = null, order, modules, manifests, constFiles, aggregatorSrc }) => {
 	const out = [...checkRegistration({ sources: Object.fromEntries(srcFiles.map((f) => [f, ''])), order, modules, manifests, requireModules: true })];
 	// `#1002`：**故事声明面必须排在消费它的引擎件之前** —— `checkRegistration()` 管不到这一格
 	//（`#998` 实测：漏排 → 故事表盖掉引擎挂在 `Game.*` 上的方法 → 门 TypeError → 后面的故事面全没跑）
-	out.push(...storyTablesOrderProblems({ order, manifests }));
+	// `#1220`：把**内容**喂给派生（原先只传名字加空串 → 派生会扫空）
+	out.push(...storyTablesOrderProblems({ order, manifests, ...(srcContents ? { sources: srcContents } : {}) }));
 	for (const f of [...constFiles]) if (!srcFiles.some((x) => x === f || x.endsWith(`/${f}`))) out.push({ code: 'stale-const-decl', msg: `CONST_SECTION.files 里的 ${f} 不存在（搬走了没更新声明）` });
 	if (aggregatorSrc) {
 		const a = aggregatorChecks(aggregatorSrc);
@@ -62,6 +63,13 @@ export const checkPlaces = ({ srcFiles, order, modules, manifests, constFiles, a
 // ── main ────────────────────────────────────────────────────────────────
 const srcFiles = allSourceFiles();   // #458：dogfooding——自己的校验也走单一权威（**路径视角**，与 ORDER/清单一致）
 const aggregatorPath = srcFiles.includes('15-tables.twee') ? join(SRC, '15-tables.twee') : null;
+// `#1220` 反向核：派生出的消费件数**钉死**（引擎侧增删赋值件时同片更新这个数）——防"扫描抽空 → 判据静默变松"
+const EXPECTED_CONSUMERS = 11;
+const derivedCount = deriveStoryTableConsumers({ sources: Object.fromEntries(srcFiles.map((f) => { try { return [f, readFileSync(f, 'utf8')]; } catch { return [f, '']; } })) }).length;
+if (derivedCount !== EXPECTED_CONSUMERS) {
+	console.error(`✗ 消费侧派生件数 ${derivedCount} ≠ 钉死值 ${EXPECTED_CONSUMERS} ⇒ 引擎侧增删了赋值件：同片更新本数（判据不能静默变松）`);
+	process.exit(1);
+}
 const problems = checkPlaces({
 	srcFiles,
 	order: ORDER,
@@ -104,6 +112,16 @@ if (process.argv.includes('--selftest')) {
 	t('🔴 反例：故事表**不在 ORDER**（漏登记）⇒ tables-not-in-order ✗', checkPlaces({ ...withStory, order: [CONS] }).some((x) => x.code === 'tables-not-in-order'));
 	t('🔴 反例：故事表排在消费侧**之后** ⇒ tables-after-consumer ✗（`#998` 的形状：故事表盖掉引擎方法 ⇒ 门崩 ✓）', checkPlaces({ ...withStory, order: [CONS, TBL] }).some((x) => x.code === 'tables-after-consumer'));
 	t('边界：清单里**没有** `15-tables` 面 ⇒ 不判（这格管的是那一个面 ✓）', checkPlaces({ ...base, manifests: [{ slug: 's', files: [] }] }).filter((x) => x.code.startsWith('tables-')).length === 0);
+	// `#1220`：消费侧改**派生**后的三格（能假／出声／反向核件数）
+	const SOCIAL = 'src/engine/40-sim/32-social.twee';
+	const synthContents = { [SOCIAL]: 'Object.assign((window.Game.Social ??= {}), {' };
+	const derived = { ...withStory, srcFiles: [TBL, SOCIAL], order: [TBL, CONS, SOCIAL], modules: { [CONS]: { layer: 'engine' }, [SOCIAL]: { layer: 'engine' } }, srcContents: synthContents };
+	t('派生正例：表在**全体**消费件（含派生的那件）之前 ⇒ 0 报 ✓',
+		checkPlaces(derived).filter((x) => x.code.startsWith('tables-')).length === 0);
+	t('🔴 派生能假：表排在**派生出的**消费件之后 ⇒ tables-after-consumer ✗',
+		checkPlaces({ ...derived, order: [CONS, SOCIAL, TBL] }).some((x) => x.code === 'tables-after-consumer'));
+	t('🔴 派生不到 ⇒ 出声 consumer-underivable（不静默退回旧默认 ✗）',
+		checkPlaces({ ...derived, srcContents: {} }).some((x) => x.code === 'consumer-underivable'));
 	t('常量声明指向不存在的文件 ⇒ stale-const-decl', checkPlaces({ ...base, constFiles: ['gone.twee'] }).some((x) => x.code === 'stale-const-decl'));
 	// `#899` ①：清单**显式必需** —— 不传 → **点名抛错**（合成输入不得读盘）
 	t('缺 `manifests` ⇒ 点名抛错（不读盘 ✗）', (() => {

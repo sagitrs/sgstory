@@ -30,7 +30,7 @@ import { maskComments } from './mask.mjs';
 /** **前缀键**（`inv:`／`era:`／`gear:`，`#624` 片四加最后一个）的**单一权威**：它们不是状态键（持有物/时代/行囊都不在 `pc.ev`/`pc.world` 域）→ 不参与状态契约与旗标分级；求值在引擎 `Sg.rules.holds()`。 */
 export const KEY_PREFIX_RE = /^(?:inv|era|gear):/;
 
-// `#1156`：**可读键形的单一权威** —— 与引擎 `Sg.rules.readKey`（`src/engine/40-sim/21-resolve.twee`）的
+// `#1156`：**可读键形的单一权威** —— 与引擎 `Sg.rules.readKey`（`src/engine/40-sim/22-rules.twee`，`#1187` 第五块后）的
 // 分支族**逐支对应**（真源在引擎 本函数是它的**族分类镜像**；两者由**成对断言**锁住 → 不再各写一份漂移）。
 //注意：**返回"族名"而不是布尔**：布尔会把族信息压掉 → 消费者无法保留各自语义 ——
 // 最要紧的一例：`inv:`／`era:`／`gear:` 与 `codex:` **都"可读"**，但前者**不进状态契约**（值在 pc.inv／Era／gear）

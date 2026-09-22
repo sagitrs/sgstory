@@ -369,26 +369,6 @@ Object.assign((window.Game.Social ??= {}), {
 //      （会改这两道门的输出与 golden）⇒ 按单变量纪律本片不动，另开票处理"注入 rng ＋ 重签蒙特卡洛基线"。
 //      ⇒ 本片后 sim 仍调 `Game.Combat.offer` 一处（`STORY_SYMBOLS` 不含它 ⇒ 层间判据 0 命中，但架构上仍是"引擎调故事机制"✗）。
 //   ② `Combat.eligible` 已随本片搬入 sim（`offer` 经 `this.eligible` 调用它 ⇒ 运行时同命名空间解析 ✓）。
-Object.assign((window.Game.Items ??= {}), {
-	advAt(site, inv) {
-		return !!window.Game.Items.advSource(site, inv);
-	},
-	advSource(site, inv, gear) {
-		for (const k of Object.keys(inv ?? {})) {
-			const e = window.Sg.story.itemEffect(k);
-			if (e && (e.advSite === site || (e.advSites ?? []).includes(site))) return k;
-		}
-		return window.Game.Gear.advSource(site, gear);   // 行囊也能给优势（A1：火把）
-	},
-	battleDamage(round, inv, defeats, poisoned) {
-		const held = Object.keys(inv ?? {}).filter((k) => window.Sg.story.itemEffect(k)?.flatDamageReduce);
-		const flat = held.reduce((a, k) => a + window.Sg.story.itemEffect(k).flatDamageReduce, 0);
-		const rage = poisoned ? 0 : Math.min(2, defeats ?? 0);   // #236：毒液压怒（它每一下都慢半拍——连败的火也压）；未涂毒＝连败递增封顶 +2
-		const base = round >= 3 ? 6 : 4 + round;
-		const poison = poisoned ? window.Sg.story.poisonReduce() : 0;
-		return Math.max(1, base - flat - poison + rage);
-	},
-});
 Object.assign((window.Game.Combat ??= {}), {
 	// ⚠️ 为什么挂 `Combat` 而不是龙的命名空间：后者在 `STORY_SYMBOLS` 里是**整命名空间**类符号
 	//（它主要是数据：hp/sealAt/entries…）⇒ 引擎侧往它上面挂**机制**会被层间门判（实测命中 1 处）。

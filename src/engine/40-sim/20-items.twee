@@ -1,0 +1,22 @@
+:: Items [script]
+// `#1187`：道具面的算从 `21-resolve.twee` 拆出（`#1184` 流二）；本块逐行照搬，依赖 `Game.Gear` 与契约。
+Object.assign((window.Game.Items ??= {}), {
+	advAt(site, inv) {
+		return !!window.Game.Items.advSource(site, inv);
+	},
+	advSource(site, inv, gear) {
+		for (const k of Object.keys(inv ?? {})) {
+			const e = window.Sg.story.itemEffect(k);
+			if (e && (e.advSite === site || (e.advSites ?? []).includes(site))) return k;
+		}
+		return window.Game.Gear.advSource(site, gear);   // 行囊也能给优势（A1：火把）
+	},
+	battleDamage(round, inv, defeats, poisoned) {
+		const held = Object.keys(inv ?? {}).filter((k) => window.Sg.story.itemEffect(k)?.flatDamageReduce);
+		const flat = held.reduce((a, k) => a + window.Sg.story.itemEffect(k).flatDamageReduce, 0);
+		const rage = poisoned ? 0 : Math.min(2, defeats ?? 0);   // #236：毒液压怒（它每一下都慢半拍——连败的火也压）；未涂毒＝连败递增封顶 +2
+		const base = round >= 3 ? 6 : 4 + round;
+		const poison = poisoned ? window.Sg.story.poisonReduce() : 0;
+		return Math.max(1, base - flat - poison + rage);
+	},
+});

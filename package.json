@@ -32,7 +32,10 @@
 		"report:polarity": "node scripts/report-polarity-gap.mjs",
 		"report:two-state": "node scripts/report-two-state.mjs",
 		"compile:story": "node editor/compile-story.mjs",
-		"equiv:story": "node editor/equiv.mjs"
+		"equiv:story": "node editor/equiv.mjs",
+		"clean:net": "node scripts/clean-net.mjs",
+		"check:precommit": "node scripts/precommit-check.mjs",
+		"lint:new-segment": "node scripts/lint-new-segment.mjs"
 	},
 	"devDependencies": {
 		"extwee": "^2.3.7",

@@ -152,6 +152,10 @@ export const SEGMENTS = [
 	// `#1132` B2：施加器每动词一格（set／add／append ＋ 未知动词大声报 ✗）
 	{ id: "test-chargen-apply-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/chargen-apply.mjs" },
 	{ id: "test-chargen-equivalence-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/chargen-equivalence.mjs" },
+	// `#1166` 护栏机械化：三条命令的自证段（三件套房式 => 脚本 ＋ `--selftest` ＋ 段 ✓）
+	{ id: "scripts-clean-net-mjs-selftest", phase: 'test', cost: 0, inputs: ['*'], cmd: "node scripts/clean-net.mjs --selftest" },
+	{ id: "scripts-precommit-check-mjs-selftest", phase: 'test', cost: 0, inputs: ['*'], cmd: "node scripts/precommit-check.mjs --selftest" },
+	{ id: "scripts-lint-new-segment-mjs-selftest", phase: 'test', cost: 0, inputs: ['*'], cmd: "node scripts/lint-new-segment.mjs --selftest" },
 
 	{ id: "test-g3-evidence-mjs", phase: 'test', cost: 15.7, cmd: "node test/g3-evidence.mjs" },
 	{ id: "test-fight-seq-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-seq.mjs --selftest" },
@@ -644,6 +648,7 @@ export const SUITE_MEMBERS = {
 
 		'test-coverage-mjs',
 		'test-witness-trace-mjs',
+		'scripts-clean-net-mjs-selftest', 'scripts-precommit-check-mjs-selftest', 'scripts-lint-new-segment-mjs-selftest',
 	],
 };
 
@@ -700,6 +705,18 @@ export const INPUTS_WILDCARD_REASONS = {
 	'test-chargen-apply-mjs': {
 		reason: 'boot 起真引擎直接调 Sg.Chargen.apply（不读 stories 目录）⇒ 取全跑型以免静默跳过成假绿面 ✓',
 		voucher: '#1132',
+	},
+	'scripts-clean-net-mjs-selftest': {
+		reason: '纯函数自证（脏判定／事后核）不读外部件 => 取全跑型以免静默跳过成假绿面 ✓',
+		voucher: '#1166',
+	},
+	'scripts-precommit-check-mjs-selftest': {
+		reason: '纯函数自证（三分支态判据）不读外部件 => 取全跑型以免静默跳过成假绿面 ✓',
+		voucher: '#1166',
+	},
+	'scripts-lint-new-segment-mjs-selftest': {
+		reason: '合成计划注入五类缺陷（不读真计划）=> 取全跑型以免静默跳过成假绿面 ✓',
+		voucher: '#1166',
 	},
 	'test-chargen-equivalence-mjs': {
 		reason: 'boot 起真引擎＋读 stories/face-fixture/data/chargen.json（源面）⇒ 依赖面跨目录 ⇒ 取全跑型以免静默跳过成假绿面 ✓',

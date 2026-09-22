@@ -75,6 +75,7 @@
 | `test/layering.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | 自证 **33** 条断言（**量法**：`node test/layering.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝模块依赖（`cases` 11 项，含 `#893` 两层登记的三条正反例）/ 点号 defines / 层间方向 / engine rank 派生与四条禁止边 |
 | `test/lint-scratch.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/lint-story.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
+| `test/md-visible-faces.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/multi-story.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/new-story-fixture.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/npc-venue.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
@@ -141,6 +142,7 @@
 - `test/equiv-scratch.mjs`（测试脚本）
 - `test/fatal-guard.mjs`（测试脚本）
 - `test/g3-evidence.mjs`（测试脚本）
+- `test/md-visible-faces.mjs`（测试脚本）
 - `test/new-story-fixture.mjs`（测试脚本）
 - `test/onetime-pickups.mjs`（测试脚本）
 - `test/pc-defaults.mjs`（测试脚本）

@@ -30,7 +30,8 @@ import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';                       // `#1051`②：枚举改走 `git ls-files`（已入库面 ✓）
-import { untrackedScannedProblems, isTransientFixture } from '../scripts/lib/untracked-guard.mjs';   // `#1089` 共用助手（不另造形态 ✓）
+import { untrackedScannedProblems, isTransientFixture } from '../scripts/lib/untracked-guard.mjs';
+import { isGeneratedFamily } from '../editor/lib/core/generated-family.mjs';   // `#1185`：家族谓词单一权威   // `#1089` 共用助手（不另造形态 ✓）
 import { maskComments } from '../editor/lib/core/mask.mjs';   // `#1048`：{{}} 判据先剥注释（留痕不罚 ✓）
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '');
@@ -293,7 +294,7 @@ const vocabFiles = trackedIn('src').filter((f) => f.endsWith('.twee'));
 const vocab = engineVocab(vocabFiles.map((f) => readFileSync(join(ROOT, f), 'utf8')));
 const stories = trackedIn('stories').map((f) => /^stories\/([^/]+)\/00-story\.json$/.exec(f)?.[1]).filter(Boolean).sort();
 // `#1133` ⭐ **第二站点**：**产物缺失 ⇒ 报"先跑 `npm run build`"** ✓（不许裸 ENOENT 崩 ✗）
-//   本件按清单读**声明件** ✓，其中含**生成物**（`stories/*/1[5678]-*.twee`（`#1132` B3 起含 `18-chargen.twee`）⇒ gitignored ✓）
+//   本件按清单读**声明件** ✓，其中含**生成物**（家族谓词见 `editor/lib/core/generated-family.mjs` ⇒ gitignored ✓）
 //   ⇒ 未 build 时它们不在树 ⇒ `readFileSync` 裸 ENOENT ✗ ⇒ 读者读不出"该先 build" ✓
 //   ⚠️ 两态**可区分** ✓：前置缺失 ⇒ **rc=2** ＋ 明确"先跑 build"；判据失败 ⇒ 仍 rc=1 ✓
 {
@@ -301,7 +302,7 @@ const stories = trackedIn('stories').map((f) => /^stories\/([^/]+)\/00-story\.js
 	for (const slug of stories) {
 		let mf = [];
 		try { mf = JSON.parse(readFileSync(join(STORIES, slug, '00-story.json'), 'utf8')).files ?? []; } catch { continue; }
-		for (const p of mf) if (/\/1[5678]-[^/]*\.twee$/.test(p) && !existsSync(join(ROOT, p))) missing.push(p);
+		for (const p of mf) if (isGeneratedFamily(p) && !existsSync(join(ROOT, p))) missing.push(p);   // `#1185`：谓词走单一权威
 	}
 	if (missing.length) {
 		console.error(`✗ **前置缺失**（**不是**判据失败）：**生成物**不在树 ⇒ 先跑 \`npm run build\`（\`#1133\`）`);

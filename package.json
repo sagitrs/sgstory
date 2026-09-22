@@ -35,7 +35,8 @@
 		"equiv:story": "node editor/equiv.mjs",
 		"clean:net": "node scripts/clean-net.mjs",
 		"check:precommit": "node scripts/precommit-check.mjs",
-		"lint:new-segment": "node scripts/lint-new-segment.mjs"
+		"lint:new-segment": "node scripts/lint-new-segment.mjs",
+		"lint:style": "node scripts/lint-human-face.mjs"
 	},
 	"devDependencies": {
 		"extwee": "^2.3.7",

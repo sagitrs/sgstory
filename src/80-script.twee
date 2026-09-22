@@ -188,6 +188,44 @@ window.Sg.notes = {
    于是"每个结局都有出口"只依赖 <<ending>> 一处（图鉴门已强制所有 结局* 段落都调它）。
    为什么用 button + 委托而不是 <<link>>：这三个动作是导航/存档 API，不是段落跳转，
    而且要能带条件显示（有没有存档、有没有上一步）。 */
+// `#1132` B2：**声明式施加器**（能力进引擎库 ✓ 数据由调用方给 ⇒ 不碰故事全局 ✓）。
+//   动词集＝**封闭三件**（从真实消费者推得，逐条有据 ✓）：
+//     set    ＝赋值（替换，非合并）：顶层／点分路径／整对象
+//     add    ＝数值增（仅 number ⇒ 非 number 当场大声报 ✗ 不静默）
+//     append ＝数组追加
+//   未知动词 ⇒ **大声报** ✗（封闭集的能假面：宁可响，不可静默漏字段）
+window.Sg.Chargen = {
+	VERBS: ['set', 'add', 'append'],
+	apply(pc, patch) {
+		if (!pc || typeof pc !== 'object') throw new Error('Sg.Chargen.apply：pc 缺失');
+		if (!patch || typeof patch !== 'object') throw new Error('Sg.Chargen.apply：patch 缺失');
+		for (const [path, v] of Object.entries(patch)) {
+			if (v !== null && typeof v === 'object' && !Array.isArray(v)) {
+				const verbs = Object.keys(v).filter((k) => this.VERBS.includes(k));
+				if (verbs.length === 0) {
+					throw new Error('Sg.Chargen.apply：载荷 `' + path + '` 没有可识别的动词（只认 '
+						+ this.VERBS.join('／') + '）—— 拿到 ' + JSON.stringify(v));
+				}
+				for (const verb of verbs) {
+					const arg = v[verb];
+					if (verb === 'set') window.Sg.notes.writePath(pc, path, arg);
+					else if (verb === 'append') for (const x of [].concat(arg)) {
+						const cur = window.Sg.notes.readPath(pc, path);
+						window.Sg.notes.writePath(pc, path, [].concat(cur ?? [], x));
+					} else {
+						const cur = window.Sg.notes.readPath(pc, path);
+						if (typeof arg !== 'number') throw new Error('Sg.Chargen.apply：`' + path + '` 的 add 载荷必须是数字，拿到 ' + JSON.stringify(arg));
+						if (typeof cur !== 'number') throw new Error('Sg.Chargen.apply：`' + path + '` 原值不是数字（' + JSON.stringify(cur) + '）⇒ add 不可用');
+						window.Sg.notes.writePath(pc, path, cur + arg);
+					}
+				}
+			} else {
+				window.Sg.notes.writePath(pc, path, v);   // 裸值 ⇒ set ✓
+			}
+		}
+	},
+};
+
 window.Sg.Ending = {
 	foot(key, kind) {
 		const hasSave = Save.browser.slot.has(1);

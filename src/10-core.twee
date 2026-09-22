@@ -139,6 +139,21 @@ window.Game.Rules = {
 
 // ── 角色状态形状：单一默认源 + 旧档迁移（新增字段必须过这里，否则读档即崩）──
 window.Game.Pc = {
+	// `#1186`：**玩法状态组的在场信号表**（单一真相：模块状态组 ← 故事契约面）。
+	//
+	// 口径（`#1184` 流一裁定）：模块的状态组不能按"模块文件有没有加载"来判——引擎各模块在任何故事里都加载，
+	// 按加载判等于没判。在场信号一律取**故事的接入契约面**（"声明即所用"那条既有线，零新机制）。
+	// 键名是契约成员名；`kind` 只用于文档（`fn`＝函数面、`face`＝数据面）。
+	//注意：本片只落这张表与判据（键集合暂不动）；按它收窄基础面、各模块注册状态组是同一片的下一步。
+	groups: {
+		chargen: { keys: ['classKey', 'classLabel', 'bgKey', 'bgLabel', 'speciesKey', 'speciesLabel', 'abilities', 'skills', 'feats', 'gear', 'hp', 'max_hp', 'salves'], present: ['hasChargen'], kind: 'fn' },
+		economy: { keys: ['gold'], present: ['econEvents'], kind: 'fn' },
+		items: { keys: ['inv'], present: ['itemEffect'], kind: 'fn' },
+		gear: { keys: ['gearHp'], present: ['gearDef'], kind: 'fn' },
+		checks: { keys: ['statuses'], present: ['checkSite'], kind: 'fn' },
+		combat: { keys: ['dragon'], present: ['combatPool', 'combatAction'], kind: 'fn' },
+		social: { keys: ['soc'], present: ['socialAsks', 'socialHooks'], kind: 'fn' },
+	},
 	// 取当前 pc（原裸全局 `Game.Pc.now()`，#320 阶段 4 并进来）
 	now() { return State.variables.pc; },
 	// `#660` 片三-3：**形状住引擎、数值走故事** —— 本函数只给**形状**（键名 ＋ **中性值**：0/''/false/[]/{}），

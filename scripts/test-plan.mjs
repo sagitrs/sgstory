@@ -155,6 +155,7 @@ export const SEGMENTS = [
 	// `#1132` B2：等价读数（旧 JS ↔ 新施加器吃 json；序列级 ⇒ 咬到单次格看不见的数据污染 ✗）
 	// `#1132` B2：施加器每动词一格（set／add／append ＋ 未知动词大声报 ✗）
 	{ id: "test-chargen-apply-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/chargen-apply.mjs" },
+	{ id: "test-gen-segment-syntax-mjs", phase: 'test', cost: 0, inputs: ['*'], cmd: "node test/gen-segment-syntax.mjs" },
 	{ id: "test-chargen-equivalence-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/chargen-equivalence.mjs" },
 	// `#1166` 护栏机械化：三条命令的自证段（三件套房式 => 脚本 ＋ `--selftest` ＋ 段 ✓）
 	{ id: "scripts-clean-net-mjs-selftest", phase: 'test', cost: 0, inputs: ['*'], cmd: "node scripts/clean-net.mjs --selftest" },
@@ -602,6 +603,7 @@ export const SUITE_MEMBERS = {
 		'test-chargen-macros-mjs',
 		'test-chargen-equivalence-mjs',
 		'test-chargen-apply-mjs',
+		'test-gen-segment-syntax-mjs',
 	],
 	'editor': [
 		'editor-compile-selftest', 'editor-equiv-selftest', 'editor-equiv-minimal-demo', 'editor-equiv-face-fixture',
@@ -730,6 +732,10 @@ export const INPUTS_WILDCARD_REASONS = {
 	'test-chargen-equivalence-mjs': {
 		reason: 'boot 起真引擎＋读 stories/face-fixture/data/chargen.json（源面）⇒ 依赖面跨目录 ⇒ 取全跑型以免静默跳过成假绿面 ✓',
 		voucher: '#1132',
+	},
+	'test-gen-segment-syntax-mjs': {
+		reason: '纯函数自证（不读 stories；解析器在测试内注入 node:vm）=> 取全跑型以免静默跳过成假绿面',
+		voucher: '#1176',
 	},
 	'test-chargen-macros-mjs': {
 		reason: 'boot 起真引擎＋直接调宏 handler（不读 stories 目录）；取全跑型以免静默跳过成假绿面 ✓',

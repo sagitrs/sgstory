@@ -384,11 +384,8 @@ Macro.add('dragonbar', {
 	},
 });
 
-// `#1132` 块2 S1：**快速成型的一次点击**（`pickPreset`）——
-//   `<<pickPreset "目标段名" $i>>` ⇒ 写 `$pc.presetIdx` ＋ 跳到目标段 ✓
-//   ⚠️ 目标段名由**调用点**给 ⇒ 引擎里**零故事 slug** ✓（不写"车卡·成型"之类 ✓）
-//   ⚠️ `$i` 用 **SugarCube 局部量**（如 `_i`）⇒ 实测定论（T 席）：`this.args[n]` 取到的是**求值后的值** ✓
-//      ⇒ 若调用点忘了 `<<capture>>`／没设该量 ⇒ 拿到 `undefined` ⇒ 必须**大声报** ✗（不许静默跑 ✓）
+// `#1132` B1：快速成型一次点击 ⇒ 写 `$pc.presetIdx` ＋ 跳目标段。段名由调用点给 ⇒ 引擎零故事 slug ✓；
+//   `$i` 是真引擎**求值后**的值 ⇒ 没设即 `undefined` ⇒ 必须大声报 ✗（不许静默跑）。
 Macro.add('pickPreset', {
 	handler() {
 		const dest = String(this.args[0] ?? '');
@@ -403,17 +400,13 @@ Macro.add('pickPreset', {
 			throw new Error('<<pickPreset>> 序号=[' + String(raw) + '] 非数字 ⇒ 会写进烂值（后续 `presets[NaN]` 才炸且报文不知所云 ✗）');
 		}
 		State.variables.pc.presetIdx = n;
-		$(this.output).wiki('<<goto ' + JSON.stringify(dest) + '>>');
+		Engine.play(dest);   // `#1132` B1：用引擎侧程序性导航（同 `80-script.twee` 的既有写法 ✓）
+		//   ⚠️ 别把跳转目标拼进 **wiki 宏串**（拼接出的字面宏会被静态分析当成真边 ⇒ 假悬空报错 ✗ 实测踩过 ✓）
 	},
 });
 
-// `#1132` 块2 S1：**快速成型一次完成**（`applyQuickPreset`）——
-//   语义＝故事侧原「快速成型」段的四行：`applyPreset($pc.presetIdx ?? 0)` ⇒ `mode='quick'`
-//     ⇒ `<<if !$pc.finalized>>` 时 `finalize` ＋ 置 `finalized` ⇒（S2 起）`$pc.name` 取预设数据 `pcName` ✓
-//   ⚠️ S1 只做**结构**（委托既有 `Game.Chargen` 方法 ✓）⇒ **行为与本步之前逐字相同** ✓
-//      `pcName` 的读取与声明式施加器在 **S2** 落（那时数据才进 json ✓）；删旧 JS 前的**等价读数**也在 S2 取 ✓
-//   ⚠️ 加固点 2 **未采** ✗（`State.variables.pc` 未初始化 ⇒ 靠 `StoryInit` 由引擎保证先行 ⇒ 窗口不存在 ✓）
-//      若将来真发现装载序窗口 ⇒ 这里加一句点名报即可（一行的代价 ✓）
+// `#1132` B1：快速成型一次完成（委托既有 `Game.Chargen` 方法 ⇒ 本步行为逐字不变 ✓）。
+//   `pcName` 读取与声明式施加器留 B2（届时数据才进 json）；`pc` 未初始化靠 `StoryInit` 先行保证 ⇒ 不另设守卫。
 Macro.add('applyQuickPreset', {
 	handler() {
 		const Ch = window.Game?.Chargen;

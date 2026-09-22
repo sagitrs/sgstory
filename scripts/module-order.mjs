@@ -48,6 +48,7 @@ export const ORDER = [
 	'stories/face-fixture/00-meta.twee',      // 夹具元数据（StoryTitle / StoryData / StoryIdentity）
 	'stories/face-fixture/15-tables.twee',    // 夹具的声明面：引擎加载期要用的容器（**必须排在 21-resolve 前** ✓）
 	'src/engine/40-sim/10-gear.twee',      // `#1187`：装备面的算（零依赖；Items／Combat 依赖它 ⇒ 必须在前）
+	'src/engine/40-sim/12-economy.twee',   // `#1187`：经济面的算（零依赖；Social／rules 依赖它 ⇒ 必须在前）
 	'src/engine/40-sim/21-resolve.twee',    // 结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）
 	'src/engine/40-sim/30-checks.twee',    // `#1187`：位点判定的「算」（从 21-resolve 拆出；依赖 Items／Rules）
 	// `#1132` B3：车卡数据面（生成物 18-chargen.twee；运行期由 applyQuickPreset 经 Sg.story.chargen() 读）
@@ -128,6 +129,7 @@ export const MODULES = {
 	// ⚠️ `#1004` B2：**引擎件**的依赖条目不许随故事删 ✗（它只是 `deps` 里引用过故事表 ✓ ⇒ 改 deps，**不删条目** ✗）——
 	//   否则 ORDER 里还有它、依赖表里没有 ⇒ `move-precheck` 的 `[missing-modules]` 当场红 ✓（实测：B2a 一版就踩了这个 ✓）。
 	'src/engine/40-sim/21-resolve.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'engine', note: '结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）' },
+	'src/engine/40-sim/12-economy.twee': { deps: [], defines: [], layer: 'engine', note: '经济面的算（`#1187` 拆出；只读契约 `econEvents`，零引擎依赖）' },
 	'src/engine/40-sim/10-gear.twee': { deps: [], defines: [], layer: 'engine', note: '装备面的算（`#1187` 拆出；只读契约 `gearDef`，零引擎依赖）' },
 	'src/engine/40-sim/30-checks.twee': { deps: ['src/10-core.twee', 'src/engine/40-sim/21-resolve.twee'], defines: [], layer: 'engine', note: '位点判定的「算」（`#1187` 拆出；写 Game.Checks 容器，`??=` 形态不入 defines —— 同 21-resolve 的房式；Game.Items／Game.Rules 由前两件提供）' },
 	// `#1132` 片 3：夜渡 11 段迁 md ⇒ 依赖表逐件登记（同一条依赖 ✓ 原段序 ✓）

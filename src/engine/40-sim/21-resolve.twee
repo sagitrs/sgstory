@@ -305,44 +305,6 @@ Object.assign((window.Game.Combat ??= {}), {
 // 为什么要抽：`<<econ>>` 原本把「算价 ＋ 落金币 ＋ 落 gives ＋ 渲染文案」挤在一个 widget 里，
 // 而 `<<socresolve>>` 要**在自己的分支里**调它（筹码那一支）⇒ 想让社交回合能在 node 里驱动，
 // 就得把「落帐」抽成 sim 函数；文案格式抽成 `note()`（**单一源**，否则两处各写一份必漂）。
-Object.assign((window.Game.Economy ??= {}), {
-	// `#660` 片三-1：**事件表只经接入契约取**（`Sg.story.econEvents()`）——引擎不再直读故事的 `events` 成员。
-	// 为什么：`events` 是**故事数据**（每个故事一张事件表），引擎直读它＝边界破了（成员档门会咬，见 `--engine-story-free`）。
-	// 结构缺失 **fail-loud**（故事没注册 ⇒ 报错），不静默当空表——`<<econ>>` 静默不生效是最难查的那类故障。
-	/** 事件价：`delta` 为基准；两个折扣规则（旗标／技能，命中即取 `to`）。
-	 *  `#785` 下沉：本方法原先住在**故事表**（`this.events` 直读）⇒ 改为**引擎读接入契约**
-	 *  （`this.econEvents()`）⇒ 与 `apply()` 同源（单一权威 ✓）；语义**逐字保留**：
-	 *  未知事件 ⇒ throw（报文与原先一字不差）· 判定顺序 ＝ `featDiscount` 先于 `skillDiscount` ✓。
-	 *  ⚠️ `Sg.rules.termValue` 的 `{ price: id }` **硬依赖**「`Game.Economy.priceOf` 是函数、且以
-	 *  `Game.Economy` 为宿主调用」⇒ 名字／宿主／绑定都不许变（调用形如 `E.priceOf(...)`）✓。 */
-	priceOf(key, pc) {
-		const ev = this.econEvents()[key];
-		if (!ev) throw new Error(`未知经济事件: ${key}`);
-		if (ev.featDiscount && pc?.flags?.[ev.featDiscount.flag]) return ev.featDiscount.to;
-		if (ev.skillDiscount && pc?.skills?.includes(ev.skillDiscount.skill)) return ev.skillDiscount.to;
-		return ev.delta;
-	},
-	econEvents() {
-		const f = window.Sg?.story?.econEvents;
-		if (typeof f !== 'function') throw new Error('Game.Economy：故事未注册 `Sg.story.econEvents()`（接入契约；结构缺失必须报错，#660）');
-		return f() ?? {};
-	},
-	// sim：算价 → 落金币 → 落 gives。返回 `{ delta }`（供 present 渲染文案）
-	apply(pc, id) {
-		const ev = this.econEvents()[id];
-		const d = this.priceOf(id, pc);
-		pc.gold = pc.gold + d;
-		if (ev?.gives) {
-			for (const [k, v] of Object.entries(ev.gives)) {
-				if (Array.isArray(v)) pc[k] = [...(pc[k] ?? []), ...v.filter((x) => !(pc[k] ?? []).includes(x))];
-				else pc[k] = (pc[k] ?? 0) + v;
-			}
-		}
-		return { delta: d };
-	},
-	// present：金额文案（`<<econ>>` widget 与 `<<socresolve>>` 共用此一处）
-	note(d) { return `（${d < 0 ? `金币 ${d}` : d > 0 ? `金币 +${d}` : '——'}）`; },
-});
 
 // ── 交涉回合的「算」（#441-A 第三刀）──────────────────────────────────────
 // 现状：`<<socresolve>>` 是「算 ＋ 写」的 sim widget；它**唯一渲染的东西**是筹码那一支里的 `<<econ>>` 文案。

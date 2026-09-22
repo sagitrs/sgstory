@@ -1,13 +1,13 @@
 // ⓪y 部位×异常门（S2／`#487`）：每回合判定（恢复／恶化／受伤）
 //
-// **引擎门**（判据来自声明表，不读故事散文 ⇒ 第二故事能直接跑）：
-//   ① **每回合被动**：`perRound.hp` ⇒ 该部位扣 HP（走 S1 的减成/耐久，同一套）
-//   ② **每回合判定**：逐 (部位 × 异常) 各一次（属性/DC 由声明给，走注入 rng）⇒ 成功**恢复**（剩余 −1，到 0 清）
-//   ③ **失败分档**：低骰（d20 ≤ `statusLowRoll`=5）⇒ `low` 档；其余 ⇒ `most` 档（两档必须穷尽，`#459`）
-//   ④ **减成作用域**：`statusPenalty['异常@部位'].check` ⇒ 该部位判定减成
-//   ⑤ **解除**：`cureStatus(id)` 只清指定 · `clearStatuses()` 清全部（温泉）
-//   ⑥ **兼容降级**：`mechanics()` 为 `null` ⇒ `statusTick`／`tickStatuses` 返回 `null`（调用方跳过 ⇒ 零行为变化）
-//   ⑦ **声明面 ≤ 实现面**：`turns` 缺失／`perRound.hp` 非数字／`statusPenalty` 出现非 `check` 键／骰式非 `NdM` ⇒ 报错
+// **引擎门**（判据来自声明表，不读故事散文 → 第二故事能直接跑）：
+// ① **每回合被动**：`perRound.hp` → 该部位扣 HP（走 S1 的减成/耐久，同一套）
+// ② **每回合判定**：逐 (部位 × 异常) 各一次（属性/DC 由声明给，走注入 rng）→ 成功**恢复**（剩余 −1，到 0 清）
+// ③ **失败分档**：低骰（d20 ≤ `statusLowRoll`=5）→ `low` 档；其余 → `most` 档（两档必须穷尽，`#459`）
+// ④ **减成作用域**：`statusPenalty['异常@部位'].check` → 该部位判定减成
+// ⑤ **解除**：`cureStatus(id)` 只清指定 · `clearStatuses()` 清全部（温泉）
+// ⑥ **兼容降级**：`mechanics()` 为 `null` → `statusTick`／`tickStatuses` 返回 `null`（调用方跳过 → 零行为变化）
+// ⑦ **声明面 ≤ 实现面**：`turns` 缺失／`perRound.hp` 非数字／`statusPenalty` 出现非 `check` 键／骰式非 `NdM` → 报错
 //
 // 用法：`node scripts/audit.mjs --status`（`--check` 为判定态）
 import { mulberry32, asSugarRandom } from '../lib/rng.mjs';
@@ -15,7 +15,7 @@ import { mulberry32, asSugarRandom } from '../lib/rng.mjs';
 export const flag = 'status';
 export const flags = ['status'];
 
-/** 纯函数：给「一回合计划 ＋ 声明」⇒ 违反项。**自证喂合成计划，真实运行喂引擎产物。** */
+/** 纯函数：给「一回合计划 ＋ 声明」→ 违反项。**自证喂合成计划，真实运行喂引擎产物。** */
 export const planViolations = ({ plan, mech, prev }) => {
 	const out = [];
 	if (!plan || !Array.isArray(plan.steps)) return ['计划缺 steps'];
@@ -59,9 +59,9 @@ const MECH = {
 const PC = { gear: ['布衣'], gearHp: {}, abilities: { con: 10 }, skills: [], flags: {}, statuses: { 衣服: { 流血: 2 } } };
 
 /** `#703`：**机制必须可被玩家看见**——S1 的耐久与 S2 的异常若没有任何渲染点，
- *  "机制存在"对玩家等于不存在（反馈③："UI 上看不到装备状态和部位状态"）。
- *  判据（源码级、可反例）：侧栏渲染面（`StoryCaption` 所在文件）必须调用引擎的只读快照入口
- *  `Game.Combat.gearDurability(` 与 `Game.Combat.statusEntries(`。 */
+ * "机制存在"对玩家等于不存在（反馈③："UI 上看不到装备状态和部位状态"）。
+ * 判据（源码级、可反例）：侧栏渲染面（`StoryCaption` 所在文件）必须调用引擎的只读快照入口
+ * `Game.Combat.gearDurability(` 与 `Game.Combat.statusEntries(`。 */
 export const visibilityProblems = (sidebarSrc) => {
 	const src = String(sidebarSrc ?? '');
 	if (!src.trim()) return [{ code: 'sidebar-src-missing', why: '取不到侧栏源码（`src/10-core.twee`）——本判据要读渲染面才能判' }];
@@ -71,11 +71,11 @@ export const visibilityProblems = (sidebarSrc) => {
 	return out;
 };
 
-/** `#747`（症状：减成靠**手写稀疏表** ⇒ 漏格没人看得见，`麻痹@手臂` 就是洞）：
- *  **组合穷举** —— 对每个异常的**每一个允许部位**求一遍减成，并检查"只押了部分部位"的形态：
- *  · 声明了 `perRound.penalty`（`{ value, scope:'part' }`）⇒ 覆盖**全部**允许部位 ⇒ 合规；
- *  · 只有手写表且**少于**允许部位 ⇒ **报**（要么改声明覆盖全部，要么把剩下的 0 也显式写出来）。
- *  返回值里带矩阵（`cells`），便于门把"显式 0 与漏格"分开报。 */
+/** `#747`（症状：减成靠**手写稀疏表** → 漏格没人看得见，`麻痹@手臂` 就是洞）：
+ * **组合穷举** —— 对每个异常的**每一个允许部位**求一遍减成，并检查"只押了部分部位"的形态：
+ * · 声明了 `perRound.penalty`（`{ value, scope:'part'}`）→ 覆盖**全部**允许部位 → 合规；
+ * · 只有手写表且**少于**允许部位 → **报**（要么改声明覆盖全部，要么把剩下的 0 也显式写出来）。
+ * 返回值里带矩阵（`cells`），便于门把"显式 0 与漏格"分开报。 */
 export const penaltyCoverageProblems = (id, st, mech) => {
 	const allowed = st?.parts === '*' ? (mech?.hitLocations ?? []) : (st?.parts ?? []);
 	const derived = st?.perRound?.penalty;
@@ -87,7 +87,7 @@ export const penaltyCoverageProblems = (id, st, mech) => {
 		value: derived ? (inOnly(p) ? derived.value : 0) : (mech?.statusPenalty?.[`${id}@${p}`]?.check ?? 0),
 	}));
 	if (derived) {
-		// `#747`：`only` ＝ 有意只押某几格（必须 ⊆ 允许部位；越界由引擎 fail-loud）⇒ 不算漏格
+		// `#747`：`only` ＝ 有意只押某几格（必须 ⊆ 允许部位；越界由引擎 fail-loud）→ 不算漏格
 		const badOnly = (derived.only ?? []).filter((p2) => !allowed.includes(p2));
 		return { cells, problems: badOnly.length ? [{ id, why: `penalty.only 里的 ${badOnly.join('、')} 不在允许部位（${allowed.join('、')}）内` }] : [] };
 	}
@@ -104,11 +104,11 @@ export const run = (ctx) => {
 	if (!wantAll && !arg('status')) return;
 	console.log('\n══ ⓪y 部位×异常门（S2/#487）——每回合判定：恢复／恶化／受伤 ══');
 	let bad = 0;
-	// `#1151`：**自证格**的计数单列（格红＝本门失能；与「判据发现」语义不同 ⇒ 分开记 ✓）
+	// `#1151`：**自证格**的计数单列（格红＝本门失能；与「判据发现」语义不同 → 分开记）
 	let selfBad = 0;
 	const t = (label, ok, extra = '') => { if (ok) console.log(`      ✓ ${label}`); else { bad++; console.error(`      ✗ ${label}${extra ? '：' + extra : ''}`); } };
 	const saved = Sg.story.mechanics;
-	// ⚠️ 注入的恒值必须**遵守 `d(n)` 契约**（返回 1..n）——`() => v` 在 `d(2)` 时会给出 2 以上的值，
+	//注意：注入的恒值必须**遵守 `d(n)` 契约**（返回 1..n）——`() => v` 在 `d(2)` 时会给出 2 以上的值，
 	// 那是**夹具自身**越界（实测踩到一次）。这里统一夹上界，把"骰面固定"与"取值合法"分开。
 	const rngAt = (Game2, v) => { Game2.Rules.rng.set((lo, hi) => Math.min(hi, Math.max(lo, v))); };
 	const clone = (pc) => JSON.parse(JSON.stringify(pc));
@@ -124,21 +124,21 @@ export const run = (ctx) => {
 		Sg.story.mechanics = () => MECH;
 		{
 			const pc = clone(PC);                       // 衣服 流血 2 回合
-			rngAt(Game, 20);                            // 恒 20 ⇒ 判定必成 ⇒ 走「恢复」分支
+			rngAt(Game, 20);                            // 恒 20 → 判定必成 → 走「恢复」分支
 			const plan = Game.Combat.statusTick(pc);
 			Game.Rules.rng.reset();
 			t('② 必成骰（20）⇒ 恢复：剩余 2 → 1', plan.steps.length === 1 && plan.steps[0].kind === 'recover' && plan.steps[0].turns === 1, JSON.stringify(plan.steps[0]));
 			t('① 计划里带上每回合被动（`perRound: -1`）', plan.steps[0].perRound === -1, JSON.stringify(plan.steps[0].perRound));
 			t('判据自检：合规计划不报违反项', planViolations({ plan, mech: MECH, prev: pc.statuses }).length === 0, planViolations({ plan, mech: MECH, prev: pc.statuses }).join(' / '));
 
-			// 落：被动 −1（无护具部位 ⇒ 全额落 HP）＋ 恢复
+			// 落：被动 −1（无护具部位 → 全额落 HP）＋ 恢复
 			const applied = Game.Combat.statusTickApply(clone(PC), plan);
 			t('① 被动伤害走 S1：衣服有护具（reduce 1）⇒ perRound 1 点被吃住 ⇒ hurt=0', applied.hurt === 0 && applied.statuses.衣服.流血 === 1, JSON.stringify({ hurt: applied.hurt, statuses: applied.statuses }));
-			const pcBare = clone(PC); pcBare.gear = [];    // 无护具 ⇒ 全额落 HP
+			const pcBare = clone(PC); pcBare.gear = [];    // 无护具 → 全额落 HP
 			const applied2 = Game.Combat.statusTickApply(pcBare, plan);
 			t('① 无护具 ⇒ 被动伤害全落 HP（hurt=1）', applied2.hurt === 1, JSON.stringify(applied2.hurt));
 
-			// 到 0 ⇒ 清除
+			// 到 0 → 清除
 			const pc1 = clone(PC); pc1.statuses = { 衣服: { 流血: 1 } };
 			rngAt(Game, 20);
 			const plan1 = Game.Combat.statusTick(pc1);
@@ -146,16 +146,16 @@ export const run = (ctx) => {
 			Game.Rules.rng.reset();
 			t('② 剩余 1 ⇒ 恢复后清除（`statuses` 里不留空壳）', ap1.statuses.衣服 === undefined, JSON.stringify(ap1.statuses));
 
-			// 低骰失败 ⇒ `low` 档 ⇒ 随机他异常（部位合法）
-			rngAt(Game, 3);                              // d20=3 ⇒ 失败且 ≤5 ⇒ low
+			// 低骰失败 → `low` 档 → 随机他异常（部位合法）
+			rngAt(Game, 3);                              // d20=3 → 失败且 ≤5 → low
 			const planLow = Game.Combat.statusTick(clone(PC));
 			Game.Rules.rng.reset();
 			const st = planLow.steps[0];
 			t('③ 低骰（3）⇒ `low` 档 ⇒ 随机他异常（落在声明允许的部位）', st.kind === 'fail' && st.grade === 'low' && st.effect.kind === 'addStatus' && st.effect.id === '麻痹' && ['手腕', '鞋'].includes(st.effect.part), JSON.stringify(st));
 			t('判据自检：合规的 low 步不报', planViolations({ plan: planLow, mech: MECH, prev: PC.statuses }).length === 0, planViolations({ plan: planLow, mech: MECH, prev: PC.statuses }).join(' / '));
 
-			// 高骰失败 ⇒ `most` 档 ⇒ 伤害（经 S1 减成/耐久）
-			rngAt(Game, 8);                              // d20=8 ⇒ 失败但 >5 ⇒ most
+			// 高骰失败 → `most` 档 → 伤害（经 S1 减成/耐久）
+			rngAt(Game, 8);                              // d20=8 → 失败但 >5 → most
 			const planMost = Game.Combat.statusTick(clone(PC));
 			Game.Rules.rng.reset();
 			const sm = planMost.steps[0];
@@ -163,11 +163,11 @@ export const run = (ctx) => {
 			const apMost = Game.Combat.statusTickApply(clone(PC), planMost);
 			t('③ 该伤害同走 S1：衣服护具吸住（hurt ≤ 伤害）', apMost.hurt <= sm.effect.amount, JSON.stringify({ hurt: apMost.hurt, amount: sm.effect.amount }));
 
-			// ④ 减成作用域：手腕有 麻痹 ⇒ 判定 bonus −3
+			// ④ 减成作用域：手腕有 麻痹 → 判定 bonus −3
 			const pcPen = clone(PC); pcPen.statuses = { 手腕: { 麻痹: 2 } };
 			t('④ `statusPenalty[' + "'麻痹@手腕'" + '].check = −3` ⇒ 该部位判定减成 −3', Game.Combat.statusPenaltyFor(pcPen, '手腕') === -3, String(Game.Combat.statusPenaltyFor(pcPen, '手腕')));
 			t('④ 别的部位不受影响（作用域＝该部位）', Game.Combat.statusPenaltyFor(pcPen, '衣服') === 0, String(Game.Combat.statusPenaltyFor(pcPen, '衣服')));
-			rngAt(Game, 12);                             // 12 + 0 = 12 ≥ 12 本应过；带上 −3 ⇒ 9 < 12 ⇒ 失败
+			rngAt(Game, 12);                             // 12 + 0 = 12 ≥ 12 本应过；带上 −3 → 9 < 12 → 失败
 			const planPen = Game.Combat.statusTick(pcPen);
 			Game.Rules.rng.reset();
 			t('④ 减成真的进了判定（12+0 ≥ DC12 本应恢复，−3 后失败）', planPen.steps[0].kind === 'fail' && planPen.steps[0].res.mod === -3, JSON.stringify(planPen.steps[0].res));
@@ -190,7 +190,7 @@ export const run = (ctx) => {
 				['`turns` 缺失', () => { const m = { ...MECH, statuses: { ...MECH.statuses, 流血: { ...MECH.statuses.流血, turns: undefined } } }; return [m, () => Game.Combat.statusTick(clone(PC))]; }],
 				['`perRound.hp` 非数字', () => { const m = { ...MECH, statuses: { ...MECH.statuses, 流血: { ...MECH.statuses.流血, perRound: { hp: 'x' } } } }; return [m, () => Game.Combat.statusTick(clone(PC))]; }],
 				['`statusPenalty` 出现非 `check` 键', () => { const m2 = { ...MECH, statusPenalty: { '麻痹@手腕': { dmg: -1 } } }; return [m2, () => Game.Combat.statusPenaltyFor({ statuses: { 手腕: { 麻痹: 1 } } }, '手腕', m2)]; }],
-				// `#702`：`NdM±K` 现在是**合法**骰式（伤害骰＋属性调整）⇒ 反例改用仍非法的形态
+				// `#702`：`NdM±K` 现在是**合法**骰式（伤害骰＋属性调整）→ 反例改用仍非法的形态
 				['骰式不是 `N`／`NdM`／`NdM±K`', () => [MECH, () => Game.Combat.rollDice('1d4+2d6')]],
 			];
 			for (const [label, mk] of badCases) {
@@ -238,7 +238,7 @@ export const run = (ctx) => {
 			}
 		}
 
-		// ── `#747` 自证：组合穷举（**旧形态必红**：只押一个部位 ⇒ 漏格；声明 `perRound.penalty` ⇒ 合规）──
+		// ── `#747` 自证：组合穷举（**旧形态必红**：只押一个部位 → 漏格；声明 `perRound.penalty` → 合规）──
 		{
 			const covCases = [
 				['`#747` 正例：声明 `perRound.penalty` ⇒ 覆盖全部允许部位，不报',
@@ -280,8 +280,8 @@ export const run = (ctx) => {
 	}
 
 	bad += selfBad;
-	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 格级属性 ✓，**不依赖 `process.argv`** ✗
-	//   ⚠️ 与「判据发现」**分开报** ✓：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」✓
+	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 格级属性，**不依赖 `process.argv`**
+	//注意：与「判据发现」**分开报**：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」
 	if (selfBad) {
 		console.error(`\n✗ ⓪y 部位×异常门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓（\`#1151\`）`);
 		process.exit(1);

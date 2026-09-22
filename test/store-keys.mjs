@@ -2,12 +2,12 @@
 //
 // 为什么需要它：多故事下「少加一次前缀」＝两个故事互相污染存档/图鉴——而这类错**不会报错**，
 // 只会让玩家在某天发现进度串了。所以把口径钉成门：
-//   ① 作用域语义：engine ⇒ 不加前缀（键名与旧档一致，无需迁移）；story ⇒ `sgstory.<slug>.<name>`
-//   ② **隔离**：同一 name 在两个 slug 下必须是**不同键**（正例）＋ 换 slug 后读不到对方的键（反例保护）
-//   ③ 缺身份 **fail-loud**：没有 `Sg.storyId.slug` 却索要 story 键 ⇒ 明确报错（不许静默退化成裸键）
-//   ④ 老键**幂等迁移**：`sgstory.codex.v1` → 新键；跑第二次不变；新键已在场 ⇒ 不覆盖旧值
-//   ⑤ **单一落点**：`src/**` 里 `sgstory.` 字面量只允许出现在 `05-store.twee`
-//   ⑥ **身份一致性**：`Sg.storyId.slug` 必须与 `stories/<slug>/00-story.json` 的 slug 一致（防两处漂移）
+// ① 作用域语义：engine → 不加前缀（键名与旧档一致，无需迁移）；story → `sgstory.<slug>.<name>`
+// ② **隔离**：同一 name 在两个 slug 下必须是**不同键**（正例）＋ 换 slug 后读不到对方的键（反例保护）
+// ③ 缺身份 **fail-loud**：没有 `Sg.storyId.slug` 却索要 story 键 → 明确报错（不许静默退化成裸键）
+// ④ 老键**幂等迁移**：`sgstory.codex.v1` → 新键；跑第二次不变；新键已在场 → 不覆盖旧值
+// ⑤ **单一落点**：`src/**` 里 `sgstory.` 字面量只允许出现在 `05-store.twee`
+// ⑥ **身份一致性**：`Sg.storyId.slug` 必须与 `stories/<slug>/00-story.json` 的 slug 一致（防两处漂移）
 //
 // 用法：node test/store-keys.mjs [--selftest]（**无 jsdom**：直接给 vm 上下文挂一个 localStorage stub）
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
@@ -18,7 +18,7 @@ const SELFTEST = process.argv.includes('--selftest');
 const STORE_FILE = '05-store.twee';
 
 // 纯函数（供自证）：剥注释（`/% … %/` 块 ＋ 行内 `//`（`://` 不算））——注释里**提到**键名不算字面量
-// （本仓已有同款口径：`literals.mjs` 的 `blankComments`）
+//（本仓已有同款口径：`literals.mjs` 的 `blankComments`）
 export const stripComments = (s) =>
 	String(s).replace(/\/%[\s\S]*?%\//g, '').replace(/<!--[\s\S]*?-->/g, '').replace(/(?<!:)\/\/[^\n]*/g, '');
 // 纯函数（供自证）：`{文件: 源码}` → 除 store 外还写着 `sgstory.` 键字面量的文件
@@ -30,7 +30,7 @@ export const findKeyLiterals = (sources, allow = STORE_FILE) =>
 
 // 纯函数（供自证）：**跨故事隔离**（`#491` 判据 6：存档／图鉴／键命名空间）——
 // 三条各自可红：① 故事键（按 slug 前缀）不得相同；② 知识面（笔记 id）不得重叠；
-// ③ 产物 IFID 不得相同（SugarCube 以 IFID 作存档键 ⇒ 同源 localStorage 下 IFID 相同就会互相覆盖存档）。
+// ③ 产物 IFID 不得相同（SugarCube 以 IFID 作存档键 → 同源 localStorage 下 IFID 相同就会互相覆盖存档）。
 export const judgeIsolation = ({ keyA, keyB, idsA, idsB, ifidA, ifidB }) => {
 	const out = [];
 	if (!keyA || !keyB) out.push('故事键取不到（`Sg.store.key` 或 slug 缺失）');
@@ -148,13 +148,13 @@ t('① 未知 scope ⇒ 报错（不许静默当 engine 处理）', (() => { try
 	const snapshot = JSON.stringify(ls.dump());
 	const r2 = Sg.store.migrate({ force: true });
 	t('④ **幂等**：跑第二次不改任何键（结果也报 skipped）', r2.moved.length === 0 && JSON.stringify(ls.dump()) === snapshot, JSON.stringify(r2));
-	// 新键已在场 ⇒ 不许被旧值覆盖
+	// 新键已在场 → 不许被旧值覆盖
 	ls.setItem(oldKey, JSON.stringify({ clues: { 旧: true }, endings: [], finals: [] }));
 	const r3 = Sg.store.migrate({ force: true });
 	const kept = JSON.parse(ls.getItem(newKey));
 	t('④ 新键已在场 ⇒ **不覆盖**（旧值留在旧键、报 skipped）', r3.moved.length === 0 && r3.skipped.includes('codex.v1') && !kept.clues?.旧, JSON.stringify({ r3, kept }));
 	ls.removeItem(oldKey);
-	// 兜底读：迁移尚未发生 + 外部刚种入旧键 ⇒ `rawWithLegacy` 能读到（`test/scenarios.mjs` 就是这种用法）
+	// 兜底读：迁移尚未发生 + 外部刚种入旧键 → `rawWithLegacy` 能读到（`test/scenarios.mjs` 就是这种用法）
 	ls.removeItem(newKey);
 	ls.setItem(oldKey, JSON.stringify({ clues: {}, endings: ['X'], finals: ['X'] }));
 	t('④ `rawWithLegacy` 先迁移再兜底读（老档不丢）', Sg.store.rawWithLegacy('codex.v1') != null && ls.getItem(newKey) != null,
@@ -179,8 +179,8 @@ t('① 未知 scope ⇒ 报错（不许静默当 engine 处理）', (() => { try
 }
 
 // ⑦ 跟故事隔离（`#491` 判据 6）：用**两个真实 slug** 实测（不是合成的 `other-story`）
-// `#1004` B2 ✓：两个 slug 换成仓内**现存**的（`minimal-demo` ＋ `night-ferry` ✓）——
-//   本格量的是「两作用域／两 slug 互不污染」✓、**与内容面无关** ✗（`notes` 为空是**合法空集** ✓）⇒ 换样本即可 ✓。
+// `#1004` B2：两个 slug 换成仓内**现存**的（`minimal-demo` ＋ `night-ferry`）——
+// 本格量的是「两作用域／两 slug 互不污染」、**与内容面无关**（`notes` 为空是**合法空集**）→ 换样本即可。
 {
 	const { storyHtml } = await import('../scripts/dist-paths.mjs');
 	const readIfid = (slug) => (readFileSync(storyHtml(slug), 'utf8').match(/ifid="([^"]+)"/) ?? [])[1] ?? null;
@@ -201,12 +201,12 @@ t('① 未知 scope ⇒ 报错（不许静默当 engine 处理）', (() => { try
 {
 	const core = readFileSync(sourcePath('10-core.twee'), 'utf8');
 	t("⑦ `Sg.UI` 走 `Sg.store.key('engine','ui.v1')` 且不再持有键字面量", /Sg\.store\.key\('engine', 'ui\.v1'\)/.test(stripComments(core)) && !/["'`]sgstory\./.test(stripComments(core)));
-	// ── ⛔ **退役 ＋ 声明**（`#1004` B2 ✓）：`Sg.Codex` 那一格
-	//   原判据 ✓：`stories/<slug>/72-codex-ui.twee`（《574》从 `src/80-script.twee` 搬回**故事面**的那份）里键字面量已清零 ✓。
-	//   ⛔ **它唯一的存在地随 `mist-forest` 一起被删** ✗（全仓 `find -name '*codex*'` 只剩 `test/codex-gating.mjs` ✓）；
-	//   两存活样本的 `twee`／表里都**没有图鉴面** ✓（`minimal-demo/passages/*.md` 写的是"本故事没有 · 它确实缺失"✓）。
-	//   ⚠️ **声明** ✗：**故事侧图鉴 UI（`Sg.Codex` 的键字面量）自此无守护** ✓ —— 日后要动它 ⇒
-	//   **先补一个带图鉴面的样本** ✗（**不为凑绿加样本** ✓；本轮**也不**把这一格改写成别的判据 ✗ —— 换判据是另一件事 ✓，归发起者裁 ✓）。
+	// ── ⛔ **退役 ＋ 声明**（`#1004` B2）：`Sg.Codex` 那一格
+	// 原判据：`stories/<slug>/72-codex-ui.twee`（《574》从 `src/80-script.twee` 搬回**故事面**的那份）里键字面量已清零。
+	// ⛔ **它唯一的存在地随 `mist-forest` 一起被删**（全仓 `find -name '*codex*'` 只剩 `test/codex-gating.mjs`）；
+	// 两存活样本的 `twee`／表里都**没有图鉴面**（`minimal-demo/passages/*.md` 写的是"本故事没有 · 它确实缺失"）。
+	//注意：**声明**：**故事侧图鉴 UI（`Sg.Codex` 的键字面量）自此无守护** —— 日后要动它 →
+	// **先补一个带图鉴面的样本**（**不为凑绿加样本**；本轮**也不**把这一格改写成别的判据 —— 换判据是另一件事，归发起者裁）。
 }
 
 console.log(bad ? `\n✗ 存储缝门：${bad} 项` : '\n✔ 存储缝门通过（作用域 · 隔离 · fail-loud · 幂等迁移 · 单一落点 · 身份一致）');

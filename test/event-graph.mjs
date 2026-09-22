@@ -1,19 +1,19 @@
 #!/usr/bin/env node
-// 车道 D · 切片 2 读数（`#215` 报备 `18501384`）：**事件依赖的「键级图」** ✓ —— 只读 ✓，不判红 ✗。
+// 车道 D · 切片 2 读数（`#215` 报备 `18501384`）：**事件依赖的「键级图」** —— 只读，不判红。
 //
-// 用法：`node test/event-graph.mjs`（读数 ✓）／`--selftest`（合成用例 ✓）
+// 用法：`node test/event-graph.mjs`（读数）／`--selftest`（合成用例）
 //
-// **适用范围** ✗（㉑：不许把"部分"报成"全图"✓）：本件只做**键级**结构 ✓ ——
-//   不含**位置边**（schema 无 `next`／`goto` ✓）；授予面只含**事件声明**（`VOCAB.effects` 那几面 ✓），
-//   **不含散文/段落里的写点**（属 `--state` 门 ✓）⇒ 因此本件的说法固定为「**事件声明面里**无人授予」✗，不说"不可达" ✗。
+// **适用范围**（㉑：不许把"部分"报成"全图"）：本件只做**键级**结构 ——
+// 不含**位置边**（schema 无 `next`／`goto`）；授予面只含**事件声明**（`VOCAB.effects` 那几面），
+// **不含散文/段落里的写点**（属 `--state` 门）→ 因此本件的说法固定为「**事件声明面里**无人授予」，不说"不可达"。
 
 import { readFileSync } from 'node:fs';
-import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b ✓：故事名走单一权威 ✓（旧故事已删 ✗）
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b：故事名走单一权威（旧故事已删）
 import { graphOf, formatGraph, keysNeededBy, keysGrantedBy, COND_FIELDS } from '../editor/lib/core/eventGraph.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const readJson = (p) => JSON.parse(readFileSync(`${ROOT}/${p}`, 'utf8'));
-// `#1004` B2b ✓：旧故事已删 ⇒ 换到**默认故事**（＝面夹具 `face-fixture` ✓，它把仍有真消费者的接入面都接上了 ✓）。
+// `#1004` B2b：旧故事已删 → 换到**默认故事**（＝面夹具 `face-fixture`，它把仍有真消费者的接入面都接上了）。
 const slug = DEFAULT_SLUG;
 const rows = readJson(`stories/${slug}/data/rules.json`).rows;
 const members = readJson(`stories/${slug}/data/contract.json`).members;
@@ -23,7 +23,7 @@ try {
 	let bad = 0;
 	const t = (label, ok) => { if (ok) console.log(`  ✓ ${label}`); else { bad += 1; console.error(`  ✗ ${label}`); } };
 
-	// ── 合成用例（能假的两半 ✓：正例 ＋ 反例 ✓）────────────────────────────────
+	// ── 合成用例（能假的两半：正例 ＋ 反例）────────────────────────────────
 	t('`keysNeededBy`：四个条件面都算 ✓（`req`／`any`／`exclude`／`prereq` ✓，`prio` 不算 ✗）',
 		JSON.stringify(keysNeededBy({ req: ['a'], any: ['b'], exclude: ['c'], prereq: ['d'], prio: 3 })) === JSON.stringify(['a', 'b', 'c', 'd']));
 	t('`keysNeededBy`：**对象算子形**也取到键 ✓（`{ gte: ["star.spent", 3] }` ⇒ `star.spent` ✓）',
@@ -36,12 +36,12 @@ try {
 		t('合成：`needs` 与 `grantedBy` 两张表**逐条对得上** ✓', JSON.stringify(g.needs) === JSON.stringify({ e1: ['k1', 'k2'] }) && JSON.stringify(g.grantedBy) === JSON.stringify({ k1: ['e2'] }));
 		t('合成：`k1` 有授予 ⇒ **不进** `ungranted` ✓（`k2` 无授予 ＋ 落在 `contract.members` 面上且无 default ⇒ 进 ✓）',
 			g.ungranted.length === 1 && g.ungranted[0].key === 'k2' && g.ungranted[0].inContractPaths === true && g.ungranted[0].hasDefault === false);
-		// 刀：把一个授予删掉 ⇒ 那一项**必须**从"有授予"翻到"无授予" ✗（证明这列不是常数 ✓）
+		// 刀：把一个授予删掉 → 那一项**必须**从"有授予"翻到"无授予"（证明这列不是常数）
 		const g2 = graphOf({ rows: [{ id: 'e1', req: ['k1', 'k2'] }, { id: 'e2' }], members: [{ path: 'k2' }, { path: 'k3', default: 0 }] });
 		t('**刀**（合成）✗：删掉 `e2` 的授予 ⇒ `ungranted` 从 1 项变 **2** 项 ✓（不是常数 ✓）', g2.ungranted.length === 2);
 	}
 
-	// ── 真数据读数（`mist-forest` ✓）────────────────────────────────────────
+	// ── 真数据读数（`mist-forest`）────────────────────────────────────────
 	const g = graphOf({ rows, members });
 	console.log(`\n── 真数据（${slug}）✓ ──`);
 	for (const line of formatGraph(g)) console.log(`  ${line}`);

@@ -1,7 +1,7 @@
 // `#794` 内核抽取 · **core 层**：编译器的**发射面**（纯函数：助手层 ＋ 类型表 ＋ 三个 emit ＋ `compileStory`）。
-// 为什么整块搬：`classify`（下一步）要用 `KINDS`／`GLOBAL_ROOTS` ✓，而 `KINDS` 的发射器又依赖这一整套助手
-// （实测：单搬 `KINDS` ⇒ `ReferenceError: assertChain is not defined` ✗）⇒ 助手层与它同生共死 ✓。
-// 本层无宿主依赖：不 import `node:fs`／`child_process`／`vm`（读写产物由**壳**做 ✓，K6 判据③在盯 ✓）。
+// 为什么整块搬：`classify`（下一步）要用 `KINDS`／`GLOBAL_ROOTS`，而 `KINDS` 的发射器又依赖这一整套助手
+//（实测：单搬 `KINDS` → `ReferenceError: assertChain is not defined`）→ 助手层与它同生共死。
+// 本层无宿主依赖：不 import `node:fs`／`child_process`／`vm`（读写产物由**壳**做，K6 判据③在盯）。
 const CHAIN_RE = /^[A-Za-z_$][\w$]*(\??\.[A-Za-z_$][\w$]*|\(\))*$/;
 export const assertChain = (v, what = '路径') => {
 	if (typeof v !== 'string' || !CHAIN_RE.test(v)) {
@@ -14,21 +14,21 @@ export const assertChain = (v, what = '路径') => {
 export const escTemplate = (s) => String(s).replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
 
 /** 查表表达式的两种形状：普通取键 / 可选链取键（接缝路径如 `Sg.story.mechanics()` 用后者）。 */
-/** 把一条链**逐段**加可选链：`Game.Checks.sites` ⇒ `Game?.Checks?.sites`。
- *  为什么必须逐段（实测）：只在**最后一段**加 `?.` 时，中间容器缺失会抛 `TypeError: Cannot read properties of undefined`，
- *  把契约的 fail-loud（"位点未登记"那句）**盖掉** ⇒ 报错信息变成框架噪音。逐段加既稳，也与故事 1 的手写形状一致。 */
+/** 把一条链**逐段**加可选链：`Game.Checks.sites` → `Game?.Checks?.sites`。
+ * 为什么必须逐段（实测）：只在**最后一段**加 `?.` 时，中间容器缺失会抛 `TypeError: Cannot read properties of undefined`，
+ * 把契约的 fail-loud（"位点未登记"那句）**盖掉** → 报错信息变成框架噪音。逐段加既稳，也与故事 1 的手写形状一致。 */
 export const guardChain = (chain) => chain.replace(/\?\./g, '.').split('.').map((seg, i) => {
 	const call = seg.endsWith('()');
 	const name = call ? seg.slice(0, -2) : seg;
 	if (!i) return seg;
 	// 方法段要写成 `?.name?.()`（**可选调用**）：只写 `?.name()` 时，name 缺失会得到 `undefined()`
-	// ⇒ `TypeError: … is not a function`（实测：接缝方法缺失时把契约的 fail-loud 盖成框架噪音）
+	// → `TypeError: … is not a function`（实测：接缝方法缺失时把契约的 fail-loud 盖成框架噪音）
 	return call ? `?.${name}?.()` : `?.${name}`;
 }).join('');
 
 /** 故事数据面能引用的**全局根**（封闭集）。为什么必须封闭：本仓实测 —— 故事文件里的**局部常量**（`const MECH = {…}`）
- *  被分类器当成可表达的 `lookup.from`（`MECH.kindLabels`）⇒ 编译补 `window.` ⇒ 生成物读 `window.MECH` ⇒ **静默 undefined**
- *  （六个成员一起变成 `null`/`0`/`[]`，而静态比对与 L3 都看不出来 ✗）。局部常量应走 `fromMember` ＋ `path`（指向同产物里的成员）。 */
+ * 被分类器当成可表达的 `lookup.from`（`MECH.kindLabels`）→ 编译补 `window.` → 生成物读 `window.MECH` → **静默 undefined**
+ *（六个成员一起变成 `null`/`0`/`[]`，而静态比对与 L3 都看不出来）。局部常量应走 `fromMember` ＋ `path`（指向同产物里的成员）。 */
 export const GLOBAL_ROOTS = ['Game', 'Sg', 'State', 'window', 'Engine', 'Config'];
 const assertGlobalRoot = (chain, who = '（未知成员）') => {
 	const first = String(chain).replace(/^window\./, '').split(/[.?]/)[0];
@@ -47,16 +47,16 @@ const access = (from, key, optional, who = '（未知成员）') => {
 
 /** 契约成员的 `kind` → JS 表达式（**封闭集合**；新增 kind 必须同时改这里、`--selftest` 与设计稿 §2.3）。
  *
- *  v0 六个 ＋ v1 四个（`#762` 车道 A 实测缺口：故事 1/2 的真实契约都用得上，且都**不需要** `kind:'js'` 逃生舱）：
- *   · `lookup`        ｜ `{ from, key, default, optional?, required?, error? }` —— 查表；`required` 表达契约的 fail-loud
- *   · `lookup-field`  ｜ 在 `lookup` 基础上取一个字段，并可给兜底表达式（如 `String(key)`）
- *   · `bool-exists`   ｜ `{ path }` ⇒ `!!window.<path>`（"这张故事表在不在"）
- *   · `state-ref`     ｜ `{ path, default, arg? }` ⇒ `<arg>?.<path> ?? <default>`（如 `foeState(pc)` 读 `pc.dragon`）
+ * v0 六个 ＋ v1 四个（`#762` 车道 A 实测缺口：故事 1/2 的真实契约都用得上，且都**不需要** `kind:'js'` 逃生舱）：
+ * · `lookup` ｜ `{ from, key, default, optional?, required?, error?}` —— 查表；`required` 表达契约的 fail-loud
+ * · `lookup-field` ｜ 在 `lookup` 基础上取一个字段，并可给兜底表达式（如 `String(key)`）
+ * · `bool-exists` ｜ `{ path}` → `!!window.<path>`（"这张故事表在不在"）
+ * · `state-ref` ｜ `{ path, default, arg?}` → `<arg>?.<path>?? <default>`（如 `foeState(pc)` 读 `pc.dragon`）
  */
 /** **成员相对查表**（`fromMember` ＋ `path`）：指向**同产物里的另一个成员**的值 —— 局部常量的正解。
- *  为什么需要它（`#785`／`#787` 实测）：故事里 `const MECH = {…}` 是**局部**的，而 `mechanics: () => MECH` 把它放进了契约
- *  ⇒ 其它成员该写 `MECH.kindLabels[k]` 的地方，必须能表达成"**从我自己的 mechanics 成员里取**" ⇒ `Sg.story.mechanics().kindLabels` ✓
- *  （`MECH` 在生成物里**不存在** ⇒ 走全局读会静默 undefined ✗）。 */
+ * 为什么需要它（`#785`／`#787` 实测）：故事里 `const MECH = {…}` 是**局部**的，而 `mechanics: () => MECH` 把它放进了契约
+ * → 其它成员该写 `MECH.kindLabels[k]` 的地方，必须能表达成"**从我自己的 mechanics 成员里取**" → `Sg.story.mechanics().kindLabels`
+ *（`MECH` 在生成物里**不存在** → 走全局读会静默 undefined）。 */
 const lookupFromMember = (m, k) => {
 	const who = m.fromMember;
 	if (!/^[A-Za-z_$][\w$]*$/.test(who)) throw new Error(`lookup.fromMember 只许是本故事的契约成员名（实得 ${JSON.stringify(who)}）`);
@@ -70,7 +70,7 @@ const lookupFromMember = (m, k) => {
 		return `(${k}) => {\n\t\tconst v = ${value}${field};\n\t\tif (!v) throw new Error(\`${msg}\`);\n\t\treturn v;\n\t}`;
 	}
 	// 兜底形态随 kind 走（与各自的非成员路径一致）：`lookup` 用 `default`（字面量）／`lookup-field` 用 `fallback`（小 enum）。
-	// ⚠️ 实测（探针语料扩面后当场抓到）：漏了这条 ⇒ `chestGold` 从 `?? 0` 变成 `?? null` ✗（手写 0 / 生成 null）。
+	//注意：实测（探针语料扩面后当场抓到）：漏了这条 → `chestGold` 从 `?? 0` 变成 `?? null`（手写 0 / 生成 null）。
 	const tail = m.fallback !== undefined
 		? ` ?? ${fallbackExpr(m.fallback, k)}`
 		: m.default !== undefined
@@ -83,14 +83,14 @@ export const KINDS = {
 	'empty-object': () => '() => ({})',
 	'empty-array': () => '() => []',
 	'null': () => '() => null',
-	// ⚠️ **对象/数组 `const` 要保住"同一性"**：手写版是 `() => MECH`（每次返回**同一个**对象 ⇒ 故事/测试**改声明面**时
-	// 实例跟着变）。若就地内联成 `() => ({…})`，每次调用都是**新对象** ⇒ 改声明面不生效 ✗（实测：洞窟翻面后
-	// `test/foe-5e.mjs` 的「改声明 hp ⇒ 实例跟着变」等 3 条断言倒了 ✓ 这是探针**值比较**看不出来的那一类）。
+	//注意：**对象/数组 `const` 要保住"同一性"**：手写版是 `() => MECH`（每次返回**同一个**对象 → 故事/测试**改声明面**时
+	// 实例跟着变）。若就地内联成 `() => ({…})`，每次调用都是**新对象** → 改声明面不生效（实测：洞窟翻面后
+	// `test/foe-5e.mjs` 的「改声明 hp → 实例跟着变」等 3 条断言倒了 这是探针**值比较**看不出来的那一类）。
 	'const': (m) => {
-		// ⚠️ **缺 `value` 就抛**：字段名写错（分类器曾用 `raw`）⇒ 静默产出 `() => undefined`，
-		// 而容器比对/L3 都看不出来（只有**行为**探针能抓）⇒ 这一族"静默 undefined"必须在编译期死掉。
+		//注意：**缺 `value` 就抛**：字段名写错（分类器曾用 `raw`）→ 静默产出 `() => undefined`，
+		// 而容器比对/L3 都看不出来（只有**行为**探针能抓）→ 这一族"静默 undefined"必须在编译期死掉。
 		if (!Object.hasOwn(m, 'value')) throw new Error(`const 缺 \`value\`（实得字段：${Object.keys(m).join('、') || '无'}）⇒ 不许静默产出 undefined`);
-		// ⚠️ **对象字面量必须包括号**：`() => { … }` 会被当成**块体**（`pools: {` 于是成了带引号的标签 ⇒ SyntaxError）。
+		//注意：**对象字面量必须包括号**：`() => { …}` 会被当成**块体**（`pools: {` 于是成了带引号的标签 → SyntaxError）。
 		// 这个坑是洞窟端到端（`mechanics` 那张大表）第一次编出来时**当场炸**的 —— 自证里没有对象 const 覆盖到它。
 		const lit = jsLiteral(m.value);
 		if (m.value !== null && typeof m.value === 'object') return `() => __const_${m.name}`;   // 顶部声明，见 emitContract
@@ -99,15 +99,15 @@ export const KINDS = {
 	'game-ref': (m) => {
 		assertChain(m.path, 'game-ref.path');
 		// 形态**都由数据表达**（手写版几种都有）：
-		// ① 默认**不守卫**（`window.Game.Economy.events`）；② `optional: true` ⇒ `?.` 链（中间容器缺失走默认/undefined，不抛框架噪音）；
-		// ③ `required: true` ⇒ **取不到就抛**（结构缺失必须报错）；配 `type` 则按 `typeof` 校验，`error` 是报文（会被转义）。
-		// `required` ⇒ **自动**走 `?.` 守卫链：否则中间容器缺失会抛**框架 TypeError**，而不是我们的报文 —— `required` 的语义就不成立。
+		// ① 默认**不守卫**（`window.Game.Economy.events`）；② `optional: true` → `?.` 链（中间容器缺失走默认/undefined，不抛框架噪音）；
+		// ③ `required: true` → **取不到就抛**（结构缺失必须报错）；配 `type` 则按 `typeof` 校验，`error` 是报文（会被转义）。
+		// `required` → **自动**走 `?.` 守卫链：否则中间容器缺失会抛**框架 TypeError**，而不是我们的报文 —— `required` 的语义就不成立。
 		const base = `window.${m.optional === true || m.required === true ? guardChain(m.path) : m.path.replace(/\?\./g, '.')}`;
 		if (m.required === true) {
 			const TYPES = ['number', 'string', 'boolean', 'object', 'function'];
 			if (m.type !== undefined && !TYPES.includes(m.type)) throw new Error(`game-ref.type 只收 ${TYPES.join('/')}（实得 ${JSON.stringify(m.type)}）—— 不许把任意表达式拼进产物`);
 			if (m.default !== undefined) throw new Error('game-ref：`required` 与 `default` 互斥（取不到就抛，不存在默认值）');
-			// ⚠️ `error` 必须校验：非字符串／函数／空串若放行 ⇒ 会产出 `throw new Error(undefined)`（静态比对看不出来）；
+			//注意：`error` 必须校验：非字符串／函数／空串若放行 → 会产出 `throw new Error(undefined)`（静态比对看不出来）；
 			// 与 `fallback`/`default` 的小 enum 硬化同一条口径 —— **数据里能塞任意值就是静默垃圾**。
 			if (m.error !== undefined && (typeof m.error !== 'string' || m.error.trim() === '')) {
 				throw new Error(`game-ref.error 必须是非空字符串（实得 ${typeof m.error === 'string' ? '空串' : typeof m.error}）—— 否则会产出 \`throw new Error(undefined)\``);
@@ -121,7 +121,7 @@ export const KINDS = {
 	},
 	'forward': (m) => {
 		// 参数**转发**（形参序与表函数可以不同）：`params` 是接缝形参、`args` 是转给表函数的**形参名序列**
-		// `to` 是 `window.` **之后**的路径 ⇒ 已带 `window.` 的会生成 `window.window.…`（实测踩到：行为探针比"两侧报错文案"时才暴露，字节面看不到）⇒ fail-loud。
+		// `to` 是 `window.` **之后**的路径 → 已带 `window.` 的会生成 `window.window.…`（实测踩到：行为探针比"两侧报错文案"时才暴露，字节面看不到）→ fail-loud。
 		if (/^window\??\./.test(String(m.to ?? ''))) throw new Error(`forward.to 已是全链（${JSON.stringify(m.to)}）⇒ 这里只接受 \`window.\` **之后**的路径`);
 		const params = (m.params ?? []).map((x) => assertChain(x, 'forward.params[]'));
 		const args = (m.args ?? params).map((x) => assertChain(x, 'forward.args[]'));
@@ -151,7 +151,7 @@ export const KINDS = {
 		return `(${k}) => ${value}${field} ?? ${fallbackExpr(m.fallback, k)}`;
 	},
 	'template': (m) => {
-		// 「按条件拼句」⇒ 声明式（`parts[].when/text` ＋ `join`/`prefix`/`suffix`/`map`）；**不写任意 JS**。
+		//「按条件拼句」→ 声明式（`parts[].when/text` ＋ `join`/`prefix`/`suffix`/`map`）；**不写任意 JS**。
 		// 覆盖的真实形状：洞窟 `lootText`（`#736`：战利品句按实际掉落生成）。
 		const r = assertChain(m.param ?? 'r', 'template.param');
 		const base = m.baseParam ? assertChain(m.baseParam, 'template.baseParam') : null;
@@ -162,7 +162,7 @@ export const KINDS = {
 		};
 		const hole = (f, pt) => {
 			assertChain(f, 'template.parts[].text 里的字段');
-			return pt.map ? `(${literal(pt.map)})[${r}.${f}] ?? ${r}.${f}` : `${r}.${f}`;   // `map` 映射的是**值**（如 `钥匙 ⇒ 锈钥匙`）
+			return pt.map ? `(${literal(pt.map)})[${r}.${f}] ?? ${r}.${f}` : `${r}.${f}`;   // `map` 映射的是**值**（如 `钥匙 → 锈钥匙`）
 		};
 		const body = (m.parts ?? []).map((pt) => {
 			const text = escTemplate(String(pt.text ?? '')).replace(/\{(\w+)\}/g, (_, f) => '${' + hole(f, pt) + '}');
@@ -185,8 +185,8 @@ export const KINDS = {
 export const jsStringInner = (v) => String(v).replace(/\\/g, '\\\\').replace(/`/g, '\\`').replace(/\$\{/g, '\\${');
 
 /** **兜底表达式的小 enum**（硬化：审查指出：`fallback`/`default` 从前是**原样拼进 JS** 的，与 `path`/`from`
- *  同属注入面、只差一个字段）。只接受：`{kind:'string-identity'}` ⇒ `String(<形参>)` ·
- *  `{kind:'const', value}` ⇒ 字面量 · `{kind:'null'}` ⇒ `null`。其余**当场抛错**。 */
+ * 同属注入面、只差一个字段）。只接受：`{kind:'string-identity'}` → `String(<形参>)` ·
+ * `{kind:'const', value}` → 字面量 · `{kind:'null'}` → `null`。其余**当场抛错**。 */
 export const fallbackExpr = (fb, key) => {
 	if (fb == null || fb === 'null') return 'null';
 	if (typeof fb === 'object' && fb.kind === 'string-identity') return `String(${key})`;
@@ -245,8 +245,8 @@ export const emitChargen = (d) => [
 export const emitTables = (d) => {
 	const one = 'window.Game = Object.assign(window.Game ?? {}, ' + literal(d.containers) + ');';
 	const merges = (d.merges ?? []).map((m) => {
-		// ⚠️ 值可能是**对象**（如 `Game.Consequences.provenance`）：早先这里走 `jsString(v)` ⇒ 对象被写成
-		// `'[object Object]'`（实测：数据面多出一个字符串，行为门才看得见）⇒ 一律用 JSON 字面量 emitter。
+		//注意：值可能是**对象**（如 `Game.Consequences.provenance`）：早先这里走 `jsString(v)` → 对象被写成
+		// `'[object Object]'`（实测：数据面多出一个字符串，行为门才看得见）→ 一律用 JSON 字面量 emitter。
 		const segs = m.target.split('.');
 		const leaf = segs.pop();
 		const init = literal(m.default);
@@ -258,17 +258,17 @@ export const emitTables = (d) => {
 
 /** 纯函数：`data/contract.json` → `StoryBindings` 段（不含段头与生成标记）。 */
 export const emitContract = (d) => {
-	// 对象/数组 `const` 成员在**文件顶部**声明一次（`const X = {…};` 的赋值位无"块体 vs 对象"歧义 ✓），
-	// 成员体只 `() => __const_X` ⇒ **每次调用同一个对象** ⇒ 与手写版 `() => MECH` 的同一性语义一致 ✓。
+	// 对象/数组 `const` 成员在**文件顶部**声明一次（`const X = {…};` 的赋值位无"块体 vs 对象"歧义），
+	// 成员体只 `() => __const_X` → **每次调用同一个对象** → 与手写版 `() => MECH` 的同一性语义一致。
 	// `fromMember` 前置（复核三条条件里的 ①③）：被引用者**必须**是本产物里的一个**声明式成员** ——
-	// 否则引用链要么指向**不存在**的成员（静默 null ✗），要么指进故事已有的函数（把任意逻辑藏进产品 ✗）。
+	// 否则引用链要么指向**不存在**的成员（静默 null），要么指进故事已有的函数（把任意逻辑藏进产品）。
 	const names = new Set(d.members.map((m) => m.name));
 	for (const m of d.members) {
 		if (m.fromMember && !names.has(m.fromMember)) {
 			throw new Error(`成员「${m.name}」的 \`fromMember\` 指向「${m.fromMember}」—— 但它**不在本契约的成员里**（引用必须指向同产物里的**声明式**成员）`);
 		}
 	}
-	// ② 顺序无关：`__const_*` 提升到文件顶部 ＋ 成员引用在**调用时**求值（`Sg.story.X()`）⇒ 不依赖成员定义顺序 ✓。
+	// ② 顺序无关：`__const_*` 提升到文件顶部 ＋ 成员引用在**调用时**求值（`Sg.story.X()`）→ 不依赖成员定义顺序。
 	const hoists = d.members
 		.filter((m) => m.kind === 'const' && m.value !== null && typeof m.value === 'object')
 		.map((m) => `const __const_${m.name} = ${jsLiteral(m.value)};`);
@@ -280,16 +280,16 @@ export const emitContract = (d) => {
 	return ['window.Sg ??= {};', ...hoists, `Object.assign((window.Sg.story ??= {}), {\n${rows.join('\n')}\n});`].join('\n');
 };
 
-/** 纯函数：`data/notes.json` 的 **一块** → 该块的 `Object.assign(…)` 主体 ✓（不含段头与生成标记）。
+/** 纯函数：`data/notes.json` 的 **一块** → 该块的 `Object.assign(…)` 主体（不含段头与生成标记）。
  *
- *  形状照**手写期的铁律** ✓（写在 `stories/mist-forest/16-notes-*.twee` 件头 ✓）：
- *  `Object.assign((window.Game.Notes ??= { entries: {} }).entries, {…})` —— **只这一句** ✗（不定义别的全局 ✓）。
+ * 形状照**手写期的铁律**（写在 `stories/mist-forest/16-notes-*.twee` 件头）：
+ * `Object.assign((window.Game.Notes??= { entries: {}}).entries, {…})` —— **只这一句**（不定义别的全局）。
  *
- *  ⚠️ `era` 是**唯一不按字面发射**的字段 ✗：它写成**声明式枚举**（`"present"`／`"past"` ✓），
- *  由块所属的 `notes.json` 的 `eraMap` 展开成引擎引用（`window.Game.Era.PRESENT` ✓）。
- *  **值不在 `eraMap` 里 ⇒ 编译期抛开名该项** ✗ —— 与 `KINDS.const` 的“缺 `value` 就抛”**同一条口径** ✓
- *  （实测过的形状：静默产出 `undefined` 时，容器比对与 L3 **都看不出来** ✗，只有行为探针能抓 ✓）。
- *  **其余字段一律走既有字面发射器** ✓（`inlineLiteral`／`jsKey` ✓ ⇒ 不另写第二份字面引擎 ✗）。 */
+ *注意：`era` 是**唯一不按字面发射**的字段：它写成**声明式枚举**（`"present"`／`"past"`），
+ * 由块所属的 `notes.json` 的 `eraMap` 展开成引擎引用（`window.Game.Era.PRESENT`）。
+ * **值不在 `eraMap` 里 → 编译期抛开名该项** —— 与 `KINDS.const` 的“缺 `value` 就抛”**同一条口径**
+ *（实测过的形状：静默产出 `undefined` 时，容器比对与 L3 **都看不出来**，只有行为探针能抓）。
+ * **其余字段一律走既有字面发射器**（`inlineLiteral`／`jsKey` → 不另写第二份字面引擎）。 */
 export const emitNotes = (block, { eraMap = {} } = {}) => {
 	const entries = block?.entries ?? {};
 	const rows = Object.entries(entries).map(([k, e]) => {
@@ -307,8 +307,8 @@ const GENERATED = (src) => `// @generated by editor/compile-story.mjs（源：${
 /** 纯函数：把各段拼成**产物文件表**（文件名 → 文本）——一个故事可以有多份产物。 */
 export const compileStory = ({ tables, contract, rules, notesFace, slug, chargen }) => {
 	const files = {};
-	// ⚠️ **段名是必填**：缺失会静默产出 `:: undefined [script]` ✗（无名段落会被载入，而门按段名解析 ⇒ 后续判据集体失准；
-	// 实测：洞窟翻面时被 `--story2-engine`／`--cave-hollow` 抓到）。定义放最前（`const` 不提升 ⇒ 首个使用在 tables 那行 ✗）。
+	//注意：**段名是必填**：缺失会静默产出 `:: undefined [script]`（无名段落会被载入，而门按段名解析 → 后续判据集体失准；
+	// 实测：洞窟翻面时被 `--story2-engine`／`--cave-hollow` 抓到）。定义放最前（`const` 不提升 → 首个使用在 tables 那行）。
 	const sec = (x, who) => {
 		if (typeof x !== 'string' || !x.trim()) throw new Error(`${who}.section 缺失或非字符串（实得 ${JSON.stringify(x)}）—— 段名是必填，不许产出 \`:: undefined [script]\``);
 		return x;
@@ -334,14 +334,14 @@ export const compileStory = ({ tables, contract, rules, notesFace, slug, chargen
 	if (rules) {
 		files['17-rules.twee'] = [`:: ${sec(rules.section, 'data/rules.json')} [script]`, notes('rules.json'), emitRules(rules.rows), ''].join('\n');
 	}
-	// 车道 B · notes 面（`#215` 报备 `18504282` ✓）：**一个数据文件 → 多份产物** ✓（照“面”的既有形状 ✓）。
-	// ⚠️ 参数名用 `notesFace` ✗ —— 本函数里已有一个局部 `notes`（生成标记助手 ✓）⇒ 同名会**直接语法错** ✓。
+	// 车道 B · notes 面（`#215` 报备 `18504282`）：**一个数据文件 → 多份产物**（照“面”的既有形状）。
+	//注意：参数名用 `notesFace` —— 本函数里已有一个局部 `notes`（生成标记助手）→ 同名会**直接语法错**。
 	if (notesFace) {
 		for (const b of notesFace.blocks ?? []) {
 			const name = typeof b?.file === 'string' && b.file.trim() ? b.file.trim() : '';
 			if (!name) throw new Error('data/notes.json 的块缺 `file`（非空字符串）—— 块名是必填，不许产出无名产物 ✗');
 			files[name] = [`:: ${sec(b.section, `data/notes.json 的块 \`${name}\``)} [script]`, notes('notes.json'), emitNotes(b, notesFace), ''].join('\n');
-		}
-	}
+}
+}
 	return files;
 };

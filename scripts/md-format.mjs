@@ -1,51 +1,51 @@
 // ── 文档格式门（`#603`）：`*.md` 的围栏必须配对、标题不许落在代码块里 ──────────────
 //
 // 背景（"README 完全不可读"，实测**属实**）：
-//   `README.md` 第 57 行有一个**多余的** ``` （`git blame` ⇒ 初版 `974605d` 就在），
-//   于是从那里起**开/闭角色整体错位一位** —— 后面每个"开围栏"实际在**关闭**、每个"闭围栏"实际在**开启**
-//   ⇒ 四个标题（`## 知识模型`／`## 工程约定`／`## 目录结构`／`## Twee 语法速查`）在 GitHub 上
-//   被渲染成**代码块里的字面量**（不是节！），而本该是代码的目录树／示意图反而被当成普通正文。
-//   人眼在编辑器里看不出来（源码"看着挺整齐"）——**只有渲染才暴露**，所以必须有门。
+// `README.md` 第 57 行有一个**多余的** ```（`git blame` → 初版 `974605d` 就在），
+// 于是从那里起**开/闭角色整体错位一位** —— 后面每个"开围栏"实际在**关闭**、每个"闭围栏"实际在**开启**
+// → 四个标题（`## 知识模型`／`## 工程约定`／`## 目录结构`／`## Twee 语法速查`）在 GitHub 上
+// 被渲染成**代码块里的字面量**（不是节！），而本该是代码的目录树／示意图反而被当成普通正文。
+// 人眼在编辑器里看不出来（源码"看着挺整齐"）——**只有渲染才暴露**，所以必须有门。
 //
 // 为什么此前零机检：L0 `test/integrity.mjs` 扫 `src/*.twee`；`--text --craft` 扫叙事文本；
 // `docs/**` 与 `README.md` 从来没有格式门（全仓 34 个 md，正是这一个破了）。
 //
 // 判据（纯函数，自带自证；**失败计入退出码**）：
-//   F1「围栏配对」：每个 `*.md` 的围栏总数为**偶数**。
-//   F2「标题不在块内」：逐行模拟 GitHub 的围栏状态机（每个围栏行翻转一次），
-//       任何 `#…` 标题出现在**块内** ⇒ 判红，并**点名文件与行号**。
-//   F3「围栏行不被当作正文标签」：围栏行的语言串里不许再混 `` ` ``（防"```` ```js ``` ``"这类的成因复现）。
-//   F5「表格块被空行打断后又续」（`#974`）：一行 `|` 起头 ⇒ 走到表块末 ⇒ 下一行**空行** ⇒ 再下一行**又是 `|` 行、
-//       且其后一行**不是分隔行**（⇒ 不是新表头）** ⇒ 判红并点名两处行号。
-//       ⚠️ **F5 是行级代理** ✗ —— **不保证渲染正确**：它**不咬**「表头缺失／分隔行列数与数据行不齐」（GFM 会让它不成表 ✓、本判据看不见 ✗）
-//       也不咬渲染层的其它问题 ✓；**并列两张正当表**（空行 ＋ 新表头 ＋ 分隔行）⇒ **放行** ✓（＝本判据**第一版**的假阳性形态 ✓，已写成自证里的一条正例 ✓）。
-//       ⇒ 要「表没问题」的**定性** ⇒ 用**渲染器**或人眼 ✓（与 §17 ㉔「**代理 ≠ 直接读数**」同格 ✓）。
-//   F4「引用的仓内路径必须存在」（`#606` 片一）：反引号里写的 `src/`／`stories/`／`scripts/`／`test/`／`docs/`／`vendor/` 路径，
-//       必须真在仓库里（或能通配到）。**为什么需要**：`src/*.twee` 在 `#458`／`#460` 搬到 `stories/<slug>/` 之后，
-//       文档里 **14 处引用从未更新**（`baselines.md`／`notes-model-batches.md`／`impl-map.md`／`engine-story-boundary.md`／`game-outline.md`／`README.md`）——
-//       而 markdown 链接（`[x](path)`）**死链是 0**：坏的**全住在反引号里**、没有门。
-//       历史叙述确需引用已消失的路径时，同行写 `<!-- path-exempt: 理由 -->`（门会**留痕打印**豁免，便于收编）。
-//       **两类边界（照这两句判，别自行推）**：
-//         ① **"尚未创建" ⇒ 放行**（全仓都不存在同名文件＝**设计稿里"新增"的模块**，如当时的 `scripts/audit/discovery.mjs`）——
-//            此时门只**登记**（打印"待创建"），不判红；否则任何前瞻性文档都会被门按住（`#610` 的实测）。
-//         ② **"同名文件在别处" ⇒ 红**（搬家/改名后引用没跟）：判据＝**全仓有同名文件但引用的那个路径不存在**，
-//            报错会**点名文件与行号**——这是 F4 真正要咬的那一类（`#458`/`#460` 的 14 处陈旧引用就是它）。
-//   F5「入口页体量 ratchet」（`#603` 片二）：`README.md` 行数 ≤ 上限（默认 120，`README_MAX_LINES` 可覆盖）。
-//   F6「残留版本控制冲突标记」（`#1084`，实测缺口）：解 rebase/merge 冲突后没删净的 `<<<<<<< `/`>>>>>>> `（行首带尾随内容）⇒ 红；
-//       裸 `=======` **不单独判**（它是合法 Markdown：setext 标题下划线／分隔线），只在**被 <<< / >>> 夹住**时附报 ✓。
-//       —— README 曾长到 270 行/24KB（"什么都有"＝等于没有）：十维密表、整棵目录树、Twee 速查、机制表全塞在入口页。
-//       分层之后必须**防止再长回去**，所以给入口页一条会咬人的上限（不是审美，是可判定的）。
+// F1「围栏配对」：每个 `*.md` 的围栏总数为**偶数**。
+// F2「标题不在块内」：逐行模拟 GitHub 的围栏状态机（每个围栏行翻转一次），
+// 任何 `#…` 标题出现在**块内** → 判红，并**点名文件与行号**。
+// F3「围栏行不被当作正文标签」：围栏行的语言串里不许再混 `` ` ``（防"```` ```js ``` ``"这类的成因复现）。
+// F5「表格块被空行打断后又续」（`#974`）：一行 `|` 起头 → 走到表块末 → 下一行**空行** → 再下一行**又是 `|` 行、
+// 且其后一行**不是分隔行**（→ 不是新表头）** → 判红并点名两处行号。
+//注意：**F5 是行级代理** —— **不保证渲染正确**：它**不咬**「表头缺失／分隔行列数与数据行不齐」（GFM 会让它不成表、本判据看不见）
+// 也不咬渲染层的其它问题；**并列两张正当表**（空行 ＋ 新表头 ＋ 分隔行）→ **放行**（＝本判据**第一版**的假阳性形态，已写成自证里的一条正例）。
+// → 要「表没问题」的**定性** → 用**渲染器**或人眼（与 §17 ㉔「**代理 ≠ 直接读数**」同格）。
+// F4「引用的仓内路径必须存在」（`#606` 片一）：反引号里写的 `src/`／`stories/`／`scripts/`／`test/`／`docs/`／`vendor/` 路径，
+// 必须真在仓库里（或能通配到）。**为什么需要**：`src/*.twee` 在 `#458`／`#460` 搬到 `stories/<slug>/` 之后，
+// 文档里 **14 处引用从未更新**（`baselines.md`／`notes-model-batches.md`／`impl-map.md`／`engine-story-boundary.md`／`game-outline.md`／`README.md`）——
+// 而 markdown 链接（`[x](path)`）**死链是 0**：坏的**全住在反引号里**、没有门。
+// 历史叙述确需引用已消失的路径时，同行写 `<!-- path-exempt: 理由 -->`（门会**留痕打印**豁免，便于收编）。
+// **两类边界（照这两句判，别自行推）**：
+// ① **"尚未创建" → 放行**（全仓都不存在同名文件＝**设计稿里"新增"的模块**，如当时的 `scripts/audit/discovery.mjs`）——
+// 此时门只**登记**（打印"待创建"），不判红；否则任何前瞻性文档都会被门按住（`#610` 的实测）。
+// ② **"同名文件在别处" → 红**（搬家/改名后引用没跟）：判据＝**全仓有同名文件但引用的那个路径不存在**，
+// 报错会**点名文件与行号**——这是 F4 真正要咬的那一类（`#458`/`#460` 的 14 处陈旧引用就是它）。
+// F5「入口页体量 ratchet」（`#603` 片二）：`README.md` 行数 ≤ 上限（默认 120，`README_MAX_LINES` 可覆盖）。
+// F6「残留版本控制冲突标记」（`#1084`，实测缺口）：解 rebase/merge 冲突后没删净的 `<<<<<<< `/`>>>>>>> `（行首带尾随内容）→ 红；
+// 裸 `=======` **不单独判**（它是合法 Markdown：setext 标题下划线／分隔线），只在**被 <<< / >>> 夹住**时附报。
+// —— README 曾长到 270 行/24KB（"什么都有"＝等于没有）：十维密表、整棵目录树、Twee 速查、机制表全塞在入口页。
+// 分层之后必须**防止再长回去**，所以给入口页一条会咬人的上限（不是审美，是可判定的）。
 import { readFileSync, existsSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { globSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-// `#1089`（裁定乙′）：**未跟踪扫描面 ⇒ 红** 的共用助手（一处定义、三门复用）。
+// `#1089`（裁定乙′）：**未跟踪扫描面 → 红** 的共用助手（一处定义、三门复用）。
 import { untrackedScannedProblems, isUntrackedExemptLine } from './lib/untracked-guard.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
-/** 纯函数：分析一段 markdown，返回 `{ fences, odd, headingsInFence, problems }`。 */
+/** 纯函数：分析一段 markdown，返回 `{ fences, odd, headingsInFence, problems}`。 */
 export const analyzeMarkdown = (text, { file = '<mem>' } = {}) => {
 	const lines = String(text).split('\n');
 	const fences = [];                 // 围栏行号（1-based）
@@ -65,8 +65,8 @@ export const analyzeMarkdown = (text, { file = '<mem>' } = {}) => {
 		problems.push(`${file}：围栏总数 **${fences.length}（奇数）** ⇒ 从第一个围栏（L${fences[0]?.line ?? '?'}）起`
 			+ '开/闭角色整体错位一位：后面的「开围栏」其实在关闭、后面的「闭围栏」其实在开启');
 	}
-	// ⚠️ F2 **只在奇偶已错时**当诊断用：正常文件里代码块内的 `#`（bash/python 注释）**不是缺陷**——
-	// 我曾把它无条件当红报（`--truth` 那几行 bash 注释就误报过）⇒ 判据的**唯一**可证伪项是奇偶（F1），
+	//注意：F2 **只在奇偶已错时**当诊断用：正常文件里代码块内的 `#`（bash/python 注释）**不是缺陷**——
+	// 我曾把它无条件当红报（`--truth` 那几行 bash 注释就误报过）→ 判据的**唯一**可证伪项是奇偶（F1），
 	// F2 只是"错位之后，哪些标题被吞了"的点名。成对围栏的文件一律不看 F2。
 	if (fences.length % 2 !== 0) {
 		for (const h of headingsInFence) {
@@ -77,16 +77,16 @@ export const analyzeMarkdown = (text, { file = '<mem>' } = {}) => {
 		if (/`/.test(f.info)) problems.push(`${file}：L${f.line} 围栏行的语言串里混进了反引号「${f.info}」`);
 	}
 	// ── F5「表格块被空行打断后又续上」（`#974`）──
-	//   为什么需要 ✗：**GFM 表格在第一个空行处结束** ✓ ⇒ 夹一个空行再续 `|` 行 ⇒ **后面那些行掉出 `<table>`** ✗
-	//   （实测：`#973` 就因此在 §7 表里把 **P4 验收那行**弄出了表格 ✓，而**当时本门 rc=0** ✗ —— 它原先不校验表格 ✓）。
-	//   ⚠️ 判据取**最小行级**形态 ✗：只咬"**表块 ⇒ 空行 ⇒ 又见 `|` 行**" ✓ ⇒ **不必引入渲染器** ✗。
+	// 为什么需要：**GFM 表格在第一个空行处结束** → 夹一个空行再续 `|` 行 → **后面那些行掉出 `<table>`**
+	//（实测：`#973` 就因此在 §7 表里把 **P4 验收那行**弄出了表格，而**当时本门 rc=0** —— 它原先不校验表格）。
+	//注意：判据取**最小行级**形态：只咬"**表块 → 空行 → 又见 `|` 行**" → **不必引入渲染器**。
 	for (let i = 0; i < lines.length; i++) {
-		if (!/^\s*\|/.test(lines[i] ?? '')) continue;          // 不是表行 ⇒ 跳过 ✓
+		if (!/^\s*\|/.test(lines[i] ?? '')) continue;          // 不是表行 → 跳过
 		let j = i;
-		while (j + 1 < lines.length && /^\s*\|/.test(lines[j + 1])) j += 1;   // 走到本表块末 ✓
+		while (j + 1 < lines.length && /^\s*\|/.test(lines[j + 1])) j += 1;   // 走到本表块末
 		const blank = j + 1;
-		// ⚠️ **先量再判** ✗（本判据第一版就在 **`docs/game-outline.md` 上假阳性** ✓）：两张**并列的表**也是合法的 ✓
-		//   —— 它们靠"空行 ＋ **新表头 ＋ 分隔行**"分家 ✓ ⇒ 所以只有"空行之后又续 `|` 行、**且它不是新表头**"才算破 ✓。
+		//注意：**先量再判**（本判据第一版就在 **`docs/game-outline.md` 上假阳性**）：两张**并列的表**也是合法的
+		// —— 它们靠"空行 ＋ **新表头 ＋ 分隔行**"分家 → 所以只有"空行之后又续 `|` 行、**且它不是新表头**"才算破。
 		const cont = lines[blank + 1] ?? '';
 		const contIsNewTable = /^\s*\|/.test(cont) && /^\s*\|[\s:|-]+\|[\s:|-]*$/.test(lines[blank + 2] ?? '');
 		if ((lines[blank] ?? 'x').trim() === '' && /^\s*\|/.test(cont) && !contIsNewTable) {
@@ -107,10 +107,10 @@ export const PATH_EXEMPT = /<!--\s*path-exempt:\s*([^*]*?)-->/;
  * 纯函数：检查一段 markdown 里引用的仓内路径。
  *
  * **判红口径（关键，`#606` 片一在 CI 上被教育过一次）**：
- *   只把「**同名文件在别处存在**」的路径当陈旧引用判红（＝"文件搬了/改名了，引用没跟"），
- *   因为那正是本门要咬的缺陷类（`src/15-tables.twee` → `stories/mist-forest/…`）。
- *   同名文件在全仓**根本不存在**的引用 ⇒ 视为**尚未创建**（设计稿里"新增 `scripts/audit/discovery.mjs`"这种），
- *   **只登记打印、不判红** —— 否则任何设计稿都会被门挡住（`docs/story-gates-design.md` 实测）。
+ * 只把「**同名文件在别处存在**」的路径当陈旧引用判红（＝"文件搬了/改名了，引用没跟"），
+ * 因为那正是本门要咬的缺陷类（`src/15-tables.twee` → `stories/mist-forest/…`）。
+ * 同名文件在全仓**根本不存在**的引用 → 视为**尚未创建**（设计稿里"新增 `scripts/audit/discovery.mjs`"这种），
+ * **只登记打印、不判红** —— 否则任何设计稿都会被门挡住（`docs/story-gates-design.md` 实测）。
  * `exists`／`globMatches`／`basenameExists` 由调用方注入（自证用假实现）。
  */
 export const checkPathRefs = (text, { file = '<mem>', exists = () => true, globMatches = () => [], basenameExists = () => false } = {}) => {
@@ -144,14 +144,14 @@ export const checkReadmeBudget = (text, { max = README_MAX_LINES, file = 'README
 };
 
 /** 仓库里的 `*.md` 清单 = **git 跟踪的那些**（`#617`）。
- *  为什么不再走文件系统遍历：`build/` 这类 **gitignored 产物/临时目录**下面出现的 `*.md`（例如
- *  `ui-migration-diff --out=build/…` 的正常产物、或往届临时文件）会被当成"仓内文档"扫描 ⇒
- *  ① 本地**假红**（实测：`build/_t5.md` 引用了搬走的 `src/70-codex.twee`）② 与并行段**竞态**
- *  （同一轮 `npm test` 里边写 `build/ui-migration-diff.md` 边扫它）。
- *  `git ls-files` 从**结构上**排除这类目录 —— 比"记得把每个目录名加进 SKIP_DIRS"可靠。
- *  另：本门已经依赖 git（F4 的路径存在性也用 `git ls-files`），不多一层新依赖。 */
-/** F6（`#1084`）：残留冲突标记。⚠️ 只咬「行首**带尾随内容**」的 `<<<<<<< `/`>>>>>>> `（git 形态如 `<<<<<<< HEAD`／`>>>>>>> <oid> (msg)`）✓；
- *  裸 `=======` 不单独判（合法 setext／分隔线 ✗）——只在同文件已因 <<< / >>> 报红时附报「疑似冲突中段」✓。 */
+ * 为什么不再走文件系统遍历：`build/` 这类 **gitignored 产物/临时目录**下面出现的 `*.md`（例如
+ * `ui-migration-diff --out=build/…` 的正常产物、或往届临时文件）会被当成"仓内文档"扫描 →
+ * ① 本地**假红**（实测：`build/_t5.md` 引用了搬走的 `src/70-codex.twee`）② 与并行段**竞态**
+ *（同一轮 `npm test` 里边写 `build/ui-migration-diff.md` 边扫它）。
+ * `git ls-files` 从**结构上**排除这类目录 —— 比"记得把每个目录名加进 SKIP_DIRS"可靠。
+ * 另：本门已经依赖 git（F4 的路径存在性也用 `git ls-files`），不多一层新依赖。 */
+/** F6（`#1084`）：残留冲突标记。注意：只咬「行首**带尾随内容**」的 `<<<<<<< `/`>>>>>>> `（git 形态如 `<<<<<<< HEAD`／`>>>>>>> <oid> (msg)`）；
+ * 裸 `=======` 不单独判（合法 setext／分隔线）——只在同文件已因 <<< / >>> 报红时附报「疑似冲突中段」。 */
 export const CONFLICT_START_RE = /^<{7} \S/;
 export const CONFLICT_END_RE = /^>{7} \S/;
 export const conflictMarkerProblems = (text, { file = '<mem>' } = {}) => {
@@ -179,7 +179,7 @@ const main = () => {
 	let bad = 0;
 	console.log('══ 文档格式门（`*.md` 围栏配对 · 标题不入块，#603）══');
 
-	// ── 自证（纯函数；含 🔴 本票的缺陷形态）──
+	// ── 自证（纯函数；含 本票的缺陷形态）──
 	const self = [
 		['成对围栏 + 标题在块外 ⇒ 无问题', analyzeMarkdown('# 甲\n\n```\ncode\n```\n\n## 乙\ntext\n').problems.length === 0],
 		['🔴 奇数围栏 ⇒ 判红（本票形态）', analyzeMarkdown('# 甲\n\n```\ncode\n').problems.some((p) => p.includes('奇数'))],
@@ -225,15 +225,15 @@ const main = () => {
 	if (leaked.length) { bad++; console.error(`  ✗ 清单里混进了 gitignored 目录：${leaked.slice(0, 3).join('、')}——本门只许扫 git 跟踪的文档（#617）`); }
 	console.log(`      扫描 ${files.length} 个 md（**git 跟踪**，天然排除 build/ 等 gitignored 目录）：围栏奇数 ${oddFiles} 个 · 有标题被吞 ${inFenceFiles} 个`);
 
-	// ── `#1089`（裁定乙′）：**未跟踪的 `*.md` ⇒ 红** ✗ —— 本门扫面＝`git ls-files '*.md'` ⇒ 未跟踪的
-	//   `*.md` **连 F6（残留冲突标记）都看不见它** ⇒ 那是**假绿**（`#1019`／`#1028` 同族 ✓）。
-	//   豁免：件内任意一行写 `untracked-exempt: <理由 ＋ 票号>`（**缺任一项不生效** ✓）＋ **必须留痕** ✓。
+	// ── `#1089`（裁定乙′）：**未跟踪的 `*.md` → 红** —— 本门扫面＝`git ls-files '*.md'` → 未跟踪的
+	// `*.md` **连 F6（残留冲突标记）都看不见它** → 那是**假绿**（`#1019`／`#1028` 同族）。
+	// 豁免：件内任意一行写 `untracked-exempt: <理由 ＋ 票号>`（**缺任一项不生效**）＋ **必须留痕**。
 	{
 		const others = execFileSync('git', ['ls-files', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
 		const isMd = (p) => p.endsWith('.md');
 		const exempted = others.filter((q) => {
 			if (!isMd(q)) return false;
-			try { return readFileSync(join(ROOT, q), 'utf8').split('\n').some(isUntrackedExemptLine); } catch { return false; }   // 读不到 ⇒ 不当豁免（保守 ✓）
+			try { return readFileSync(join(ROOT, q), 'utf8').split('\n').some(isUntrackedExemptLine); } catch { return false; }   // 读不到 → 不当豁免（保守）
 		});
 		if (exempted.length) console.log(`  · 留痕：未跟踪但**已豁免** ${exempted.length} 件（带 \`untracked-exempt:\` 标记 ✓）：${exempted.join('、')}`);
 		const g = untrackedScannedProblems({ untracked: others, isScanned: isMd, exempted });

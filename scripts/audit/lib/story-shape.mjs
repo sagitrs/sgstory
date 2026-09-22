@@ -1,24 +1,24 @@
 // 故事「新机制声明表」的**形状校验**（`#459` 剩余：形状落码 · 伞 `#441`／`#482`）
 //
 // 为什么是它、为什么在这：`#486` 的出口判据要「声明表**由表驱动、可被门读取**」，而 `#482` 又写着
-// 「先立引擎侧的新机制契约，再写故事内容」—— 形状必须先能被**机器读**，否则等于没有契约。
+//「先立引擎侧的新机制契约，再写故事内容」—— 形状必须先能被**机器读**，否则等于没有契约。
 // 这里只做**静态形状校验**（gate-time）；引擎运行时的两条义务在 `docs/engine-story-boundary.md`：
-//   ① provider 结构缺失 ⇒ **报错**（不许静默 0/空）；② 故事未声明新机制 ⇒ **走旧路径**（显式降级，见 `#492`）。
+// ① provider 结构缺失 → **报错**（不许静默 0/空）；② 故事未声明新机制 → **走旧路径**（显式降级，见 `#492`）。
 //
-// 「形状即判据」六条（`#459`）→ 本文件逐条实现：
-//   ① 保护关系：`slots[*].protects` ∈ `hitLocations` ∪ {null}（否则"有装备的槽位永远打不到"⇒ 装备无效）
-//   ② 耐久：`maxHp > 0`；`reduce` 形态必须是**声明过的一种**且只写一种
-//   ③ 异常：`parts` ⊆ `hitLocations`（或 `'*'`）；`check.attr` 在属性表里；`onFail` 的 `when` 分档**穷尽**
-//   ④ 波次：`short.waves` 恰 1 批；`long.waves` 恰 2 批且第二批 `difficulty` 更大、`reinforce:true`
-//   ⑤ 线索：同段各路 `hint` **两两不可等价**（等价 ⇒ 玩家无法区分两条路）
-//   ⑥ 随机源：不在本表里（是引擎代码纪律）——见文档；本校验器只保证"表里没有藏着随机源"。
+//「形状即判据」六条（`#459`）→ 本文件逐条实现：
+// ① 保护关系：`slots[*].protects` ∈ `hitLocations` ∪ {null}（否则"有装备的槽位永远打不到"→ 装备无效）
+// ② 耐久：`maxHp > 0`；`reduce` 形态必须是**声明过的一种**且只写一种
+// ③ 异常：`parts` ⊆ `hitLocations`（或 `'*'`）；`check.attr` 在属性表里；`onFail` 的 `when` 分档**穷尽**
+// ④ 波次：`short.waves` 恰 1 批；`long.waves` 恰 2 批且第二批 `difficulty` 更大、`reinforce:true`
+// ⑤ 线索：同段各路 `hint` **两两不可等价**（等价 → 玩家无法区分两条路）
+// ⑥ 随机源：不在本表里（是引擎代码纪律）——见文档；本校验器只保证"表里没有藏着随机源"。
 
 /** 失败分档词表：**引擎口径的唯一权威**（改这里就是改口径，改完要跑 `test/story-shape.mjs`）。 */
 export const GRADE_SET = ['most', 'low'];
-/** 减成（`reduce`）允许的形态。故事声明"哪一种"，引擎按声明取值 ⇒ 这里就是**枚举权威**。
- *  ⚠️ **声明面不得大于实现面**（`#486` 切片②）：本表只列**引擎真的实现了**的形态 —— 引擎侧
- *  `Game.Combat.slotAbsorb` 目前只落 `flat`（其余形态**大声报错**，不许静默 0 减成）。
- *  将来要实现 `dice`／`percent`：**同一 PR 里**同时改这里 ＋ 引擎实现 ＋ 门的 `violations` 口径（三处同源）。 */
+/** 减成（`reduce`）允许的形态。故事声明"哪一种"，引擎按声明取值 → 这里就是**枚举权威**。
+ *注意：**声明面不得大于实现面**（`#486` 切片②）：本表只列**引擎真的实现了**的形态 —— 引擎侧
+ * `Game.Combat.slotAbsorb` 目前只落 `flat`（其余形态**大声报错**，不许静默 0 减成）。
+ * 将来要实现 `dice`／`percent`：**同一 PR 里**同时改这里 ＋ 引擎实现 ＋ 门的 `violations` 口径（三处同源）。 */
 export const REDUCE_FORMS = ['flat'];
 
 /** 六类事件（已定 ①：每步从这六类里随机三选一）——**词表就是引擎/内容面的口径**。 */
@@ -49,17 +49,17 @@ export const roadHintCollisions = (road) => {
 	return dup;
 };
 
-/** 归一化（判"两两不可等价"时用）：去空白 —— 「碎石间有拖行的痕迹」与同文多空格视为等价。 */
+/** 归一化（判"两两不可等价"时用）：去空白 ——「碎石间有拖行的痕迹」与同文多空格视为等价。 */
 const norm = (s) => String(s ?? '').replace(/\s+/g, '').trim();
 
 /**
  * 校验故事的新机制声明表。
- * @param {object|null|undefined} m  `Sg.story.mechanics()` 的返回（`null` ＝ 未启用新机制）
+ * @param {object|null|undefined} m `Sg.story.mechanics()` 的返回（`null` ＝ 未启用新机制）
  * @param {{poolNames?: () => string[], abilities?: string[]}} ctx
- *   `poolNames`：该故事已登记的作战池名（引擎侧经 `Sg.story.combatPool` 判定）；
- *   `abilities`：属性表键（`Game.Rules.ABILITIES` 的键）。
+ * `poolNames`：该故事已登记的作战池名（引擎侧经 `Sg.story.combatPool` 判定）；
+ * `abilities`：属性表键（`Game.Rules.ABILITIES` 的键）。
  * @returns {{enabled: boolean, problems: string[]}}
- *   `enabled:false` ⇒ 故事声明"未启用" ⇒ **不是错误**（引擎走旧路径）。
+ * `enabled:false` → 故事声明"未启用" → **不是错误**（引擎走旧路径）。
  */
 export const validateStoryMechanics = (m, ctx = {}) => {
 	const problems = [];
@@ -111,7 +111,7 @@ export const validateStoryMechanics = (m, ctx = {}) => {
 			if (!keys.length) push(`statuses.${id}.perRound 是空对象（写了等于没写）`);
 			for (const k of keys) if (k !== 'hp' && k !== 'penalty') push(`statuses.${id}.perRound.${k} 本片未实现（只认 hp:number 与 penalty，#487／#747）`);
 			if (st.perRound?.hp !== undefined && typeof st.perRound.hp !== 'number') push(`statuses.${id}.perRound.hp 必须是数字`);
-			// `#747`：`perRound.penalty = { value:number, scope:'part', only?:部位[] }` ——
+			// `#747`：`perRound.penalty = { value:number, scope:'part', only?:部位[]}` ——
 			// **减成住声明**（对允许部位生成），`only` 是"有意只押这几格"的显式声明。
 			if (st.perRound?.penalty !== undefined) {
 				const pen = st.perRound.penalty ?? {};
@@ -144,7 +144,7 @@ export const validateStoryMechanics = (m, ctx = {}) => {
 		if (!Object.hasOwn(m.statuses ?? {}, statusId)) push(`statusPenalty['${key}'] 引用了未声明的异常 ${JSON.stringify(statusId)}`);
 		if (part && !(hit ?? []).includes(part)) push(`statusPenalty['${key}'] 的部位 ${JSON.stringify(part)} 不在 hitLocations`);
 		if (!pen || typeof pen !== 'object' || !Object.keys(pen).length) push(`statusPenalty['${key}'] 减成是空对象（写了等于没写）`);
-		// #487：本片只实现了 `check:number`（该部位判定减成）——别的键会让引擎当场报错 ⇒ 在形状门先拦
+		// #487：本片只实现了 `check:number`（该部位判定减成）——别的键会让引擎当场报错 → 在形状门先拦
 		for (const [k, v] of Object.entries(pen ?? {})) {
 			if (k !== 'check') push(`statusPenalty['${key}'].${k} 本片未实现（只认 check:number，#487）`);
 			else if (typeof v !== 'number') push(`statusPenalty['${key}'].check 必须是数字`);
@@ -164,7 +164,7 @@ export const validateStoryMechanics = (m, ctx = {}) => {
 			if (lw[1].reinforce !== true) push('encounters.long 第二批必须 reinforce:true（增援）');
 		}
 	}
-	// #488（S3）：`rewardsScale` 可选，但给了必须是正数（奖励曲线要用它乘；负数/0 ⇒ 奖励不随难度增）
+	// #488（S3）：`rewardsScale` 可选，但给了必须是正数（奖励曲线要用它乘；负数/0 → 奖励不随难度增）
 	for (const [id, e] of Object.entries(enc)) {
 		if (e?.rewardsScale !== undefined && !(typeof e.rewardsScale === 'number' && e.rewardsScale > 0)) push(`encounters.${id}.rewardsScale 必须是正数（实际 ${JSON.stringify(e.rewardsScale)}）`);
 	}
@@ -177,7 +177,7 @@ export const validateStoryMechanics = (m, ctx = {}) => {
 	}
 
 	// ⑥ 敌人属性面（`#705`）：**有战斗就必须有敌人属性**——没有属性（HP/AC/攻击/落点），
-	//    部位/耐久/异常三套机制永远没机会被触发（症状：「无法测试到上述问题」）。
+	// 部位/耐久/异常三套机制永远没机会被触发（症状：「无法测试到上述问题」）。
 	const enemies = m.enemies ?? {};
 	if (Object.keys(enc).length && !Object.keys(enemies).length) {
 		push('enemies：声明了 `encounters`（有战斗）却没有 `enemies` —— 敌人必须有 HP／AC／攻击（#705）');
@@ -188,7 +188,7 @@ export const validateStoryMechanics = (m, ctx = {}) => {
 		if (!(Number.isInteger(e.hp) && e.hp > 0)) push(`enemies.${id}.hp 必须是正整数（实际 ${JSON.stringify(e.hp)}）`);
 		if (!(Number.isInteger(e.ac) && e.ac >= 1)) push(`enemies.${id}.ac 必须是正整数（实际 ${JSON.stringify(e.ac)}）`);
 		const atk = e.attack ?? {};
-		// `#702`（5e 对齐）：敌人**掷攻击骰** vs 玩家 AC ⇒ `attack.bonus` 必填；`attack.site` 退为**可选**（旧对抗模型用，保留兼容）
+		// `#702`（5e 对齐）：敌人**掷攻击骰** vs 玩家 AC → `attack.bonus` 必填；`attack.site` 退为**可选**（旧对抗模型用，保留兼容）
 		if (!(Number.isInteger(atk.bonus) && atk.bonus >= 0)) push(`enemies.${id}.attack.bonus 必须是 >=0 的整数（5e：攻击骰 = d20 + bonus vs 玩家 AC；实际 ${JSON.stringify(atk.bonus)}）`);
 		if (atk.site !== undefined && (typeof atk.site !== 'string' || !atk.site.trim())) push(`enemies.${id}.attack.site 若声明必须是非空字符串（可选：旧对抗模型的位点）`);
 		if (typeof atk.dmg !== 'string' || !/^\d+(d\d+)?([+-]\d+)?$/.test(atk.dmg)) {

@@ -1,11 +1,11 @@
 // 规则层单元测试（M1a-2 换骨后）：mod/skillMod/check/save · 车卡 3 轮 · Pc 形状迁移 · 表契约
 //
-// ⚠️ `#1004` B2b（**换样本**）：本文原先钉着**旧故事**的条目/事件名（图鉴 `坏哨,日记,月光花` ＋ 四条线索
-//   `own/warned/fed/venom` ＋ 经济事件 `dragon_hoard` ✓ —— 后两者随故事被代码级删除 ✗）⇒ 现按**面夹具**重钉 ✓：
-//   · 图鉴块：期望改成**夹具自己的 `Items.defs` ⇔ `Codex.items`**（一一对应 ✓，夹具侧已补：`时光护符` 进
-//     `Items.defs`、图鉴四页与四个道具对齐 ✓），半齐/齐了解锁与 `progress` 计数用夹具 `月光花` 的**四条线索** ✓；
-//   · 经济事件：`dragon_hoard` ⇒ 夹具事件 `torch_buy`（并把它改回**夹具声明的 delta** ✓）。
-//   **判据本身不动** ✗（表驱动 · 线索不白送 · 解锁＝集齐 · 事件金额表驱动）。
+//注意：`#1004` B2b（**换样本**）：本文原先钉着**旧故事**的条目/事件名（图鉴 `坏哨,日记,月光花` ＋ 四条线索
+// `own/warned/fed/venom` ＋ 经济事件 `dragon_hoard` —— 后两者随故事被代码级删除）→ 现按**面夹具**重钉：
+// · 图鉴块：期望改成**夹具自己的 `Items.defs` ⇔ `Codex.items`**（一一对应，夹具侧已补：`时光护符` 进
+// `Items.defs`、图鉴四页与四个道具对齐），半齐/齐了解锁与 `progress` 计数用夹具 `月光花` 的**四条线索**；
+// · 经济事件：`dragon_hoard` → 夹具事件 `torch_buy`（并把它改回**夹具声明的 delta**）。
+// **判据本身不动**（表驱动 · 线索不白送 · 解锁＝集齐 · 事件金额表驱动）。
 import { readFileSync, readdirSync } from 'node:fs';
 import { boot } from './boot.mjs';
 let failures = 0;
@@ -123,7 +123,7 @@ ok(!Array.isArray(m2.inv) && typeof m2.inv === 'object', '类型损坏修正（i
 ok(w.Game.Pc.migrate(undefined).name === '', 'undefined → 整体默认');
 w.Game.Pc.migrate(m1);
 eq(m1.gold, 40, '迁移幂等（重复跑不破坏）');
-// #486（S1）：新增 `gearHp`（装备耐久 `{ 具名: 剩余 }`）⇒ 26 → 27。
+// #486（S1）：新增 `gearHp`（装备耐久 `{ 具名: 剩余}`）→ 26 → 27。
 // 这个计数是**防误删**的栅栏：加/删字段都要在这里显式改一次并说明理由（改动即审计线索）。
 eq(Object.keys(w.Game.Pc.defaults()).length, 28, '默认形状字段数守恒（28，防误删；#486 加 gearHp · #487 加 statuses）');
 
@@ -166,7 +166,7 @@ for (const file of fixtures) {
 			ok(def.clues.length >= 2, `图鉴「${item}」线索 ≥2`);
 			ok(def.clues.every((cl) => !w.Sg.rules.matches(cl, fresh, new Set())), `图鉴「${item}」新档下无白送线索`);   // 声明式条件（`#785`）
 		}
-		// 解锁＝线索集齐（半齐不解锁，齐了才解锁）——线索 id 按**夹具** `月光花` 的四条（own/warned/taken/spent ✓）
+		// 解锁＝线索集齐（半齐不解锁，齐了才解锁）——线索 id 按**夹具** `月光花` 的四条（own/warned/taken/spent）
 		const store = { clues: { 月光花: { own: true, warned: true, taken: true } }, endings: [], finals: [] };
 		ok(!w.Game.Codex.isUnlocked('月光花', store), '月光花 3/4 线索不解锁');
 		store.clues.月光花.spent = true;
@@ -182,12 +182,12 @@ for (const file of fixtures) {
 	ok(v.last_check.dc === 20, `位点 DC 表驱动：sitecheck 用表值 20（实际 ${v.last_check?.dc}）`);
 	w.eval('Game.Checks.sites["洞穴·战斗"].dc = 12');
 	// ② 经济事件：改表 → econ 用新金额
-	// 事件 id 按**夹具**（`torch_buy`：夹具声明的 delta = -10 ✓）；这一处只验「金额表驱动」✓
+	// 事件 id 按**夹具**（`torch_buy`：夹具声明的 delta = -10）；这一处只验「金额表驱动」
 	w.eval('Game.Economy.events.torch_buy.delta = 7');
 	v.pc.gold = 10;
 	new w.SugarCube.Wikifier(null, '<<econ "torch_buy">>');
 	ok(v.pc.gold === 17, `经济事件表驱动：econ 用表值 +7（实际 ${v.pc.gold}）`);
-	w.eval('Game.Economy.events.torch_buy.delta = -10');   // 改回**夹具声明值**（-10 ✓）
+	w.eval('Game.Economy.events.torch_buy.delta = -10');   // 改回**夹具声明值**（-10）
 	// ②b 判定标注 + 计算过程（M10）
 	{
 		const R = w.Game.Rules;
@@ -286,8 +286,8 @@ for (const file of fixtures) {
 	eq(I.battleDamage(1, {}, 0), 5, 'battleDamage：空手 R1 = 4+1 = 5');
 	eq(I.battleDamage(2, {}, 0), 6, 'battleDamage：空手 R2 = 4+2 = 6');
 	eq(I.battleDamage(3, {}, 0), 6, 'battleDamage：空手 R3 封顶 6');
-	// `#1004` B2b（换样本）：减伤件名按**面夹具**（夹具只有 `日记` 声明 `flatDamageReduce: 2` ✓）；
-	// 「多件叠加 → 地板 1」这条判据改成**表驱动**形态（把 `日记` 的减伤临时调大 ⇒ 仍必落地板 1 ✓，判据不变 ✗）。
+	// `#1004` B2b（换样本）：减伤件名按**面夹具**（夹具只有 `日记` 声明 `flatDamageReduce: 2`）；
+	//「多件叠加 → 地板 1」这条判据改成**表驱动**形态（把 `日记` 的减伤临时调大 → 仍必落地板 1，判据不变）。
 	eq(I.battleDamage(1, { 日记: true }, 0), 3, 'battleDamage：日记 −2');
 	w.eval('Game.Items.effects.日记.flatDamageReduce = 9');
 	eq(I.battleDamage(1, { 日记: true }, 0), 1, 'battleDamage：减伤压过基档 ⇒ 地板 1');
@@ -320,16 +320,16 @@ for (const file of fixtures) {
 	ok(v.last_check.roll === 3, `sitecheck 无道具：单骰（实际 ${v.last_check.roll}）`);
 	w.eval('Math.random = () => 0.5');
 	// ④c 情报位点优势（M6d）：老猎人的话（world.rumor）→ 洞穴战斗自动双骰取高
-	// `#1004` B2b（换样本）：情报表的行按**面夹具**（夹具声明 `森林·察觉←rumor`／`门厅·看钉←hall_hint` ✓）
+	// `#1004` B2b（换样本）：情报表的行按**面夹具**（夹具声明 `森林·察觉←rumor`／`门厅·看钉←hall_hint`）
 	ok(w.Game.Checks.knowledge?.['森林·察觉'] === 'rumor', 'knowledge 表：森林·察觉 ← rumor（夹具声明）');
 	ok(w.Game.Checks.knowledge?.['门厅·看钉'] === 'hall_hint', 'knowledge 表：门厅·看钉 ← hall_hint（夹具声明）');
 	// knowledge 的 key 必须是已登记位点（表一致性）
 	ok(Object.keys(w.Game.Checks.knowledge).every((k) => k in w.Game.Checks.sites), 'knowledge 的位点均存在于 Checks.sites');
 	const dq3 = [0.12, 0.82];
-	// `#733` 片 2-b：情报优势看笔记面 ⇒ 给存储（`ev.notes`），不再靠 `world.rumor` 旗标
+	// `#733` 片 2-b：情报优势看笔记面 → 给存储（`ev.notes`），不再靠 `world.rumor` 旗标
 	v.pc = w.Game.Pc.defaults(); v.pc.ev.notes = { n_rumor: true };
 	w.eval(`(function(){const q=${JSON.stringify(dq3)};Math.random=()=>q.length?q.shift():0.5;})()`);
-	new w.SugarCube.Wikifier(null, '<<sitecheck "森林·察觉">>');   // 面夹具里带情报表的位点 ✓
+	new w.SugarCube.Wikifier(null, '<<sitecheck "森林·察觉">>');   // 面夹具里带情报表的位点
 	ok(v.last_check.roll === 17, `情报优势：rumor → 双骰取高（实际 ${v.last_check.roll}）`);
 	v.pc.ev.notes = {};
 	w.eval(`(function(){const q=${JSON.stringify(dq3)};Math.random=()=>q.length?q.shift():0.5;})()`);
@@ -337,7 +337,7 @@ for (const file of fixtures) {
 	ok(v.last_check.roll === 3, `无情报：单骰（实际 ${v.last_check.roll}）`);
 	w.eval('Math.random = () => 0.5');
 	// ④c-2 塔基花田（v16 补正 #6）：贸然采花＝较高体质豁免，失败＝死亡结局；有情报＝免判定
-	// `#1004` B2b（换样本）：位点名与技能名按**面夹具**（夹具 `塔外花田`＝体质豁免位点；`守林人·交涉`＝技能位点）✓
+	// `#1004` B2b（换样本）：位点名与技能名按**面夹具**（夹具 `塔外花田`＝体质豁免位点；`守林人·交涉`＝技能位点）
 	const fsite = w.Game.Checks.sites['塔外花田'];
 	ok(fsite?.abil === 'con', '塔外花田：体质豁免（不是技能检定）');
 	ok(fsite?.dc >= 15, `塔外花田：DC 较高（≥15；实际 ${fsite?.dc}）`);
@@ -348,7 +348,7 @@ for (const file of fixtures) {
 	ok(ssite?.dc >= 12 && ssite?.dc <= 15, `技能位点：中等难度（12–15；实际 ${ssite?.dc}）`);
 	w.eval('Math.random = () => 0.5');
 	// ④d 彩蛋击杀（M5b）：<<sitecheck "龙·终击">> 需天然 20 + 劣势 → 1/400 ≈ 0.25%
-	// `#1004` B2b（换样本）：极限位点按**面夹具**（夹具 `洞穴·暗门`：`nat:20` ＋ `dis:true` ✓ 形状逐字同）
+	// `#1004` B2b（换样本）：极限位点按**面夹具**（夹具 `洞穴·暗门`：`nat:20` ＋ `dis:true` 形状逐字同）
 	const ks = w.Game.Checks.sites['洞穴·暗门'];
 	ok(ks?.nat === 20 && ks?.dis === true, '洞穴·暗门：需天然 20 且带劣势（≈0.25%）');
 	v.pc = w.Game.Pc.defaults();
@@ -370,7 +370,7 @@ for (const file of fixtures) {
 	// ⑥ #25 sink 契约：gives 入账 + 烙印/技能折扣表驱动
 	v.pc = w.Game.Pc.defaults();
 	v.pc.gold = 30;
-	// `#1004` B2b（换样本）：事件/折扣/旗标按**面夹具**（夹具 `torch_buy` gives→gear；折扣字段照旧形状声明 ✓）
+	// `#1004` B2b（换样本）：事件/折扣/旗标按**面夹具**（夹具 `torch_buy` gives→gear；折扣字段照旧形状声明）
 	new w.SugarCube.Wikifier(null, '<<econ "torch_buy">>');
 	ok(v.pc.gold === 20 && (v.pc.gear ?? []).includes('火把'), `torch_buy：-10 金且 gives 入账 gear+火把（实际 ${v.pc.gold}/${JSON.stringify(v.pc.gear)}）`);
 	v.pc.flags.lore = true;
@@ -383,7 +383,7 @@ for (const file of fixtures) {
 	ok(w.Game.Economy.priceOf('torch_buy', v.pc) === -10, 'priceOf：未熟练原价 10');
 	v.pc.skills = [];
 	ok(w.Game.Economy.priceOf('torch_buy', v.pc) === -10, 'priceOf：无技能原价 10');
-	// ⑦ setflag 词汇（$pc.world 层）——旗标名按夹具已登记的世界旗标（`whistle_taken` ✓）
+	// ⑦ setflag 词汇（$pc.world 层）——旗标名按夹具已登记的世界旗标（`whistle_taken`）
 	new w.SugarCube.Wikifier(null, '<<setflag "whistle_taken">>');
 	ok(v.pc.world.whistle_taken === true, 'setflag 词汇：世界旗标置真');
 	// ⑧ give 词汇（物品栏）
@@ -394,7 +394,7 @@ for (const file of fixtures) {
 	new w.SugarCube.Wikifier(null, '<<damage 5>>');
 	ok(v.pc.hp === 13 && v.pc.salves === 0, `damage 词汇：5 伤回 4 → 13/14，药膏 1→0（实际 ${v.pc.hp}/${v.pc.salves}）`);
 	// ⑩ flip 词汇：时代翻转 + 隐藏星力 + 雾淡留痕（点击链接驱动）
-	// ⚠ SugarCube 每次导航会克隆 State.variables：点击后必须重新取引用，否则读到旧时刻
+	//注意：SugarCube 每次导航会克隆 State.variables：点击后必须重新取引用，否则读到旧时刻
 	const V = () => w.SugarCube.State.variables;
 	V().pc = w.Game.Pc.defaults(); V().pc.inv['时光护符'] = true; V().era = 'present';
 	const flipHost = w.document.createElement('div');
@@ -514,11 +514,11 @@ for (const file of fixtures) {
 	ok(pc.soc.att['老板娘'] === att1, '表演失败 → 态度不动（代价最低，只是没接上话）');
 	// ⑤ 意愿三档：愿意＝不掷骰直接给；不肯＝掷骰也没用
 	const emptyPc = () => { const p2 = w.Game.Pc.defaults(); p2.inv = {}; p2.ev = {}; p2.world = {}; p2.keeper = { met: false, trust: 0, state: 'post', key: false }; return p2; };
-	// `#1004` B2b（换样本）：诉求/条件按**面夹具**（`女巫·换物`：坏哨＋月光花＋场地已取 ⇒ willing ✓）
+	// `#1004` B2b（换样本）：诉求/条件按**面夹具**（`女巫·换物`：坏哨＋月光花＋场地已取 → willing）
 	const swap = S.ask('女巫·换物');
 	const p3 = emptyPc();
-	// 三档语义（`unwilling` 那一档由下面 `老巫女·开口` 钉住；词表只有 `req/any/exclude` ⇒
-	// 「部分凑齐 ⇒ 走掷骰」是引擎的**正确**档位 ✓ —— 这里按夹具把「不是回绝、也不是白给」钉出来 ✗）
+	// 三档语义（`unwilling` 那一档由下面 `老巫女·开口` 钉住；词表只有 `req/any/exclude` →
+	//「部分凑齐 → 走掷骰」是引擎的**正确**档位 —— 这里按夹具把「不是回绝、也不是白给」钉出来）
 	eq(S.verdict(swap, p3), 'roll', '换物：三样都没凑齐 → 走掷骰（既不回绝、也不白给）');
 	p3.inv['坏哨'] = true; p3.inv['月光花'] = true;
 	eq(S.verdict(swap, p3), 'roll', '换物：手里有东西但场地那一步没做 → 仍走掷骰');
@@ -543,7 +543,7 @@ for (const file of fixtures) {
 	ok(p6.world.flower_taken === true, '诉求成功 → `sets` 状态键落账（夹具声明 `sets: [flower_taken]` ✓）');
 	const p7 = emptyPc();
 	w.Game.Social.applyAskEffect(S.ask('守林人·花'), p7);
-	// `#733` 片 2-b：单源笔记停写旗标 ⇒ 断言改看**存储**（形式无关）
+	// `#733` 片 2-b：单源笔记停写旗标 → 断言改看**存储**（形式无关）
 	ok(p7.ev?.notes?.n_flower_warned === true && p7.ev?.notes?.n_tav_tips === true, '守林人花事成功 → 两条笔记落存储（声明 `yields` ✓）');
 	const p8 = emptyPc();
 	w.Game.Social.applyAskEffect(S.ask('女巫·换物'), p8);
@@ -559,7 +559,7 @@ for (const file of fixtures) {
 
 // ── ⑩ 授予三面**同处**执行（`#435` Q1）：“表＝声明（条件/文本/授予），写点执行恒在 `<<rules>>` 一处”──
 // 为什么要端到端测（这个文件是唯一带真 SugarCube 的 harness）：`notes-write.mjs` 只能证三个 `apply*` 各自对；
-// “三面都接在 `<<rules>>` 上、且连渲两次只落一次”只能在这里证。
+//“三面都接在 `<<rules>>` 上、且连渲两次只落一次”只能在这里证。
 {
 	const Sg = w.Sg;
 	const keep = w.Sg.story.rules;
@@ -583,14 +583,14 @@ for (const file of fixtures) {
 
 // ── `#568` 条件项的**对象算子形**（`gte`／`lte`／`oneOf`）：引擎兑现 ＋ 结构畸形 fail-loud ──
 // 背景：门侧（`#560`）早已能**解析**对象形条件项，而引擎只会按字符串键做真值判断
-// ⇒ `{ gte: ['star.spent', 3] }` 会被当成"某个键"取真值 ⇒ **静默为假**（行为错，且没有任何门看得见）。
+// → `{ gte: ['star.spent', 3]}` 会被当成"某个键"取真值 → **静默为假**（行为错，且没有任何门看得见）。
 // 这一段就是那个缺口的回归门：正例／反例／边界（缺键、类型不可比）／fail-loud 四类。
 {
 	const Sg = w.Sg;
 	const OPS = (await import('../scripts/audit/lib/shared.mjs')).OPS;
 	eq(Sg.rules.ops, OPS, '`Sg.rules.ops` 与门侧 `OPS` 是**同一词表**（两侧漂移会被 `--rules` 抓住）');
-	// 车道 D 切片 1（`#215` `18500772`）：**四轴**都要钉在页内可读的镜像上 ✓ ——
-	// 只钉 `ops` ✗ 会让另三轴"改了引擎不改镜像"✗ **静默通过** ✓（本仓"只钉一半"那族 ✓）。
+	// 车道 D 切片 1（`#215` `18500772`）：**四轴**都要钉在页内可读的镜像上 ——
+	// 只钉 `ops` 会让另三轴"改了引擎不改镜像" **静默通过**（本仓"只钉一半"那族）。
 	{
 		const { VOCAB, VOCAB_AXES } = await import('../editor/lib/core/vocab.mjs');
 		eq(VOCAB_AXES.slice().sort(), ['effects', 'ops', 'prefixes', 'terms'], '镜像声明**四轴齐** ✓（少一轴 ⇒ 页内就有整面选不到 ✗）');
@@ -598,14 +598,14 @@ for (const file of fixtures) {
 			eq(Sg.rules[axis], VOCAB[axis], `词表轴 \`${axis}\`：**引擎 ↔ 页内镜像逐字同** ✓（只改一边 ⇒ 当场红 ✗ —— 要加一项先改引擎 ✓）`);
 		}
 	}
-	// `#966`：**领域表也要钉** ✗（照四轴同形 ✓）—— 引擎**按名查**这两张表 ✓，查不到 ⇒ `mod(undefined) ⇒ 0` ⇒ **静默 +0** ✓
-	// （写错一个字母 ⇒ 检定明明在跑、却按 0 修正 ✓）。两表**带中文标签** ✓ ⇒ 钉的是**逐字相等** ✗（不是“键集合相同”✓）。
+	// `#966`：**领域表也要钉**（照四轴同形）—— 引擎**按名查**这两张表，查不到 → `mod(undefined) → 0` → **静默 +0**
+	//（写错一个字母 → 检定明明在跑、却按 0 修正）。两表**带中文标签** → 钉的是**逐字相等**（不是“键集合相同”）。
 	{
 		const { DOMAIN_TABLES, unknownDomainWords } = await import('../editor/lib/core/vocab.mjs');
-		// ⚠️ 两张表挂在 **`Game.Rules`** 上 ✗（不是 `Sg.rules` ✓ —— 四轴才在 `Sg.rules` ✓；本行就是量出来的 ✓）。
+		//注意：两张表挂在 **`Game.Rules`** 上（不是 `Sg.rules` —— 四轴才在 `Sg.rules`；本行就是量出来的）。
 		eq(R.ABILITIES, DOMAIN_TABLES.abilities, '`ABILITIES`：引擎 ↔ 页内镜像**逐字同** ✓（改引擎表不改镜像 ⇒ 当场红 ✗）');
 		eq(R.SKILLS, DOMAIN_TABLES.skills, '`SKILLS`：同上 ✓');
-		// 牙的两半 ✓
+		// 牙的两半
 		const sitesOf = (sites) => ({ 'tables.json': { containers: { Checks: { sites } } } });
 		eq(unknownDomainWords(sitesOf({ A: { abil: 'str', dc: 12 }, B: { skill: '运动', dc: 10 } })).length, 0, '牙·反例：表内词 ⇒ **不报** ✓');
 		const bad = unknownDomainWords(sitesOf({ C: { abil: 'strr' }, D: { skill: '走' } }));
@@ -625,7 +625,7 @@ for (const file of fixtures) {
 	ok(M({ any: [{ oneOf: ['keeper.state', ['seal', 'open']] }] }), 'oneOf（嵌套数组）：seal ∈ 集合 ⇒ 匹配');
 	ok(M({ any: [{ oneOf: ['keeper.state', 'seal', 'open'] }] }), 'oneOf（平铺）：同上 ⇒ 匹配');
 	ok(!M({ any: [{ oneOf: ['keeper.state', ['open']] }] }), 'oneOf：seal ∉ [open] ⇒ 不匹配');
-	// 边界：缺键 ⇒ 不匹配且不抛（"还没发生"是合法状态，不是结构缺陷）
+	// 边界：缺键 → 不匹配且不抛（"还没发生"是合法状态，不是结构缺陷）
 	ok(!M({ req: [{ gte: ['star.nope', 1] }] }), '边界：键缺失 ⇒ 不匹配且**不抛错**');
 	ok(!M({ req: [{ oneOf: ['ev.nope', [true]] }] }), '边界：`oneOf` 遇缺键 ⇒ 不匹配');
 	ok(!M({ req: [{ gte: ['keeper.state', 1] }] }), '边界：数值算子遇非数值 ⇒ 不匹配（不抛错、不做字符串比）');
@@ -634,7 +634,7 @@ for (const file of fixtures) {
 	ok(!M({ req: [{ gte: ['star.spent', 1] }, 'ev.nope'] }), '混合：字符串键不中 ⇒ 不匹配');
 	ok(!M({ exclude: [{ oneOf: ['keeper.state', ['seal']] }] }), 'exclude 认对象形：命中即排除');
 	ok(M({ req: [{ oneOf: ['inv:钥匙', [true]] }] }), '前缀键：`inv:钥匙` 在对象形里照样求值 ⇒ 匹配');
-	// 结构畸形 ⇒ fail-loud（静默为假正是本票要根除的那类）
+	// 结构畸形 → fail-loud（静默为假正是本票要根除的那类）
 	const throws = (row) => { try { M(row); return false; } catch { return true; } };
 	ok(throws({ req: [{ gt: ['star.spent', 1] }] }), '未宣告算子「gt」⇒ **抛错**（不静默为假）');
 	ok(throws({ req: [{ gte: ['star.spent', 1], lte: ['star.spent', 9] }] }), '一个对象里两个算子 ⇒ 抛错（结构畸形）');
@@ -663,13 +663,13 @@ for (const file of fixtures) {
 
 // ── `#624` 批 1：**菜单进表**（`<<rulelist>>` 渲染全部命中行）──
 // 与 `pick()`（单选）互补：一个作用域 = 一个"还能问哪几个话题"的菜单。
-// 注：话题行的条件键是**笔记 id**（`n_tav_*`）⇒ 走 `Sg.notes.has()`（不是 `pc.ev`），所以这里替换笔记判定做对照。
+// 注：话题行的条件键是**笔记 id**（`n_tav_*`）→ 走 `Sg.notes.has()`（不是 `pc.ev`），所以这里替换笔记判定做对照。
 {
 	const Sg = w.Sg;
 	const P = { ev: {}, world: {}, keeper: {}, star: {}, inv: {}, soc: {} };
 	const keep = Sg.notes.has;
 	const withNotes = (list) => { const set = new Set(list); Sg.notes.has = (id) => set.has(String(id)); };
-	// `#1004` B2b（补面）：笔记 id 按**面夹具**的六条话题（`data/notes.json` ✓ —— 每条菜单行 `exclude` 其中一条 ✓）
+	// `#1004` B2b（补面）：笔记 id 按**面夹具**的六条话题（`data/notes.json` —— 每条菜单行 `exclude` 其中一条）
 	const FIX_NOTES = ['n_tav_tips', 'n_rumor', 'n_hall_hint', 'n_old_witch', 'n_failure_cause', 'n_flower_warned'];
 	const ids = (scope) => Sg.rules.pickAll(scope, { pc: P, chose: new Set() }).map((r) => r.id);
 	withNotes([]);
@@ -684,8 +684,8 @@ for (const file of fixtures) {
 	ok(ids('酒馆#打听').every((id) => id.startsWith('酒馆.t')), '菜单行的 id 归属正确（同 scope）');
 	Sg.notes.has = keep;
 
-	// 真机：渲染段落 ⇒ 数链接；点一条 ⇒ 笔记落下 ＋ 再渲染少一条
-	// `#1004` B2b（补面）：先把**当前档**的笔记清空（前面几块已给活档落过笔记 ⇒ 菜单会因 `exclude` 全空 ⇒ 判据失真 ✗）
+	// 真机：渲染段落 → 数链接；点一条 → 笔记落下 ＋ 再渲染少一条
+	// `#1004` B2b（补面）：先把**当前档**的笔记清空（前面几块已给活档落过笔记 → 菜单会因 `exclude` 全空 → 判据失真）
 	w.eval(`(function(){const pc=SugarCube.State.variables.pc; pc.ev=pc.ev||{}; pc.ev.notes={};})()`);
 	w.SugarCube.Engine.play('酒馆');
 	await sleep(200);
@@ -698,8 +698,8 @@ for (const file of fixtures) {
 	eq(countLinks(), 5, '真机：再渲染 ⇒ 菜单少一条（问过的不再出现）');
 }
 
-// ── `#624` 片二：**取值项**（`{ price: '<econ id>' }`）＋ 可负担性行（批 4）──
-// 形状：`req: [{ gte: ['gold', { price: 'rumor_buy' }] }]` —— 操作数是"随状态变的值"，由引擎经封装层取。
+// ── `#624` 片二：**取值项**（`{ price: '<econ id>'}`）＋ 可负担性行（批 4）──
+// 形状：`req: [{ gte: ['gold', { price: 'rumor_buy'}]}]` —— 操作数是"随状态变的值"，由引擎经封装层取。
 {
 	const Sg = w.Sg;
 	const keepHas = Sg.notes.has, keepTerms = Sg.rules.terms;
@@ -712,15 +712,15 @@ for (const file of fixtures) {
 	eq(pickId(price - 1), '酒馆.情报.else', '反例：少 1 金 ⇒ 落到兜底行（渲染"买不起"原文案）');
 	eq(pickId(price, ['n_rumor']), '酒馆.情报.else', '已买过（n_rumor）⇒ 兜底行（`exclude` 生效）');
 	eq(pickId(999, ['n_rumor']), '酒馆.情报.else', '边界：钱多但也已买过 ⇒ 仍兜底行（条件不看钱）');
-	// 未宣告的取值项 ⇒ fail-loud（静默当字面量会让条件永假）
+	// 未宣告的取值项 → fail-loud（静默当字面量会让条件永假）
 	Sg.rules.terms = [];
 	let threw = false;
 	try { pickId(999); } catch { threw = true; }
 	ok(threw, '🔴 取值项未宣告 ⇒ **抛错**（不静默当真/假）');
 	Sg.rules.terms = keepTerms;
-	// 真机：钱够 ⇒ 看到带价格的买入口；点一次 ⇒ 扣钱 ＋ 落笔记；再渲染 ⇒ 换文案
+	// 真机：钱够 → 看到带价格的买入口；点一次 → 扣钱 ＋ 落笔记；再渲染 → 换文案
 	w.eval('SugarCube.State.variables.pc.gold = 99');
-	// `#1004` B2b（补面）：清掉**当前档**的笔记（上一块点过一次话题 ⇒ `n_rumor` 已在档 ⇒ `exclude` 会把入口藏掉 ✓ 判据失真）
+	// `#1004` B2b（补面）：清掉**当前档**的笔记（上一块点过一次话题 → `n_rumor` 已在档 → `exclude` 会把入口藏掉 判据失真）
 	w.eval(`(function(){const pc=SugarCube.State.variables.pc; pc.ev=pc.ev||{}; pc.ev.notes={};})()`);
 	setNotes([]);
 	Sg.notes.has = keepHas;
@@ -791,7 +791,7 @@ for (const file of fixtures) {
 	const pick = (scope, pc) => Sg.rules.pick(scope, { pc, chose: new Set() });
 	eq(pick('女巫小屋#送花', P({ 月光花: true }))?.id, '女巫小屋.送花', '送花：带着月光花 ⇒ 选中（`req: [inv:月光花]`）');
 	eq(pick('女巫小屋#送花', P({})), null, '送花：没有花 ⇒ 不选中');
-	// 真机：点一次 ⇒ 花被取走（`<<take>>`）＋ ev 旗标置真（`<<setflag "ev.x">>`）
+	// 真机：点一次 → 花被取走（`<<take>>`）＋ ev 旗标置真（`<<setflag "ev.x">>`）
 	const V = w.SugarCube.State.variables;
 	V.pc.inv['月光花'] = true; delete V.pc.ev.old_witch;
 	w.eval('SugarCube.Engine.play("女巫小屋")');
@@ -818,7 +818,7 @@ for (const file of fixtures) {
 	eq(pick('洞穴#火光', ['火把']), '洞穴.火光.有火把', '洞穴：带火把 ⇒ 火光照出一地碎石头');
 	eq(pick('洞穴#火光', []), '洞穴.火光.无火把', '洞穴：没火把 ⇒ 洞口漏进灰光（两行互斥，不会空屏）');
 	// 真机：洞穴段落按行囊渲染不同那句 + 买火把入口带真实价格
-	// ⚠️ 行囊是**数组**：必须**在页内**赋值（Node 那边造数组塞进去 ⇒ SugarCube 的 clone 不认外部 realm 的 Array，实测 TypeError）
+	//注意：行囊是**数组**：必须**在页内**赋值（Node 那边造数组塞进去 → SugarCube 的 clone 不认外部 realm 的 Array，实测 TypeError）
 	w.eval("SugarCube.State.variables.pc.gear = ['火把']");
 	w.SugarCube.Engine.play('洞穴');
 	await sleep(200);

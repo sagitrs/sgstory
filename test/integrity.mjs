@@ -1,8 +1,8 @@
 // L0 静态完整性门：不启动游戏，纯静态扫描 src/*.twee
 // 硬错误（exit 1）——三类机械 bug 在构建期归零：
-//   1. 悬空引用：链接/goto/include/Actions 的目标段落不存在（坑11 线上实锤类）
-//   2. goto 裸词参数：SugarCube 宏参数裸词=字面字符串，不求值（坑11 根因）
-//   3. 未定义宏/widget：拼写错误（<<st>> / <<erashfit>> 类）
+// 1. 悬空引用：链接/goto/include/Actions 的目标段落不存在（坑11 线上实锤类）
+// 2. goto 裸词参数：SugarCube 宏参数裸词=字面字符串，不求值（坑11 根因）
+// 3. 未定义宏/widget：拼写错误（<<st>> / <<erashfit>> 类）
 // 警告（不阻断）：静态不可达段落（动态跳转可致误报，仅提示）
 // 用法：node test/integrity.mjs [srcDir=src]
 import { passagesOf } from '../editor/lib/core/passages.mjs';   // `#1114` 2b-2b：切段单一权威
@@ -10,7 +10,7 @@ import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { scopedFiles, CONST_SECTION } from '../scripts/module-order.mjs';
 import { ROOT, DEFAULT_SLUG, readStory } from '../scripts/dist-paths.mjs';
 // #460／#441-E：**故事作用域** —— 内容面判据只判**默认故事**（宇宙＝引擎 ∪ 该故事清单）。
-// 不收进来 ⇒ 第二个故事一进来就被本故事的判据要求（段落登记是故事 1 的手册、可达性带单故事假设）。
+// 不收进来 → 第二个故事一进来就被本故事的判据要求（段落登记是故事 1 的手册、可达性带单故事假设）。
 const STORY_FILES = scopedFiles(readStory(DEFAULT_SLUG));
 const allSourceFiles = () => STORY_FILES;
 import { join } from 'node:path';
@@ -22,11 +22,11 @@ const SRC = process.argv[2] ?? null;   // #458 切片C：默认走**单一权威
 // SugarCube 2.37 内置宏（宁多勿漏——漏一个就是误报）
 const BUILTIN = new Set('set unset if elseif else endif for to step break continue switch case default endswitch while endwhile print nprint run script silent endsilent nobr endnobr include link endlink linkappend endlinkappend linkprepend endlinkprepend linkreplace endlinkreplace button endbutton actions addclass removeclass toggleclass append prepend replace textbox radio checkbox listbox endlistbox option optionsfrom numberbox cycle endcycle list endlist dropdown enddropdown goto back return repeat endrepeat stop timed endtimed next widget endwidget capture endcapture forget remember remove comment endcomment audio createsoundmacro masteraudio playlist done'.split(/\s+/));
 
-// ── 解析段落（`#1114` 2b-2b：切段走 core 的 `passagesOf` —— **单一分派点** ✓，md/twee 同入口 ✓）──
-const passages = new Map(); // name → { file, line, tags, body }
+// ── 解析段落（`#1114` 2b-2b：切段走 core 的 `passagesOf` —— **单一分派点**，md/twee 同入口）──
+const passages = new Map(); // name → { file, line, tags, body}
 for (const f of (SRC ? readdirSync(SRC).filter((x) => x.endsWith('.twee')).sort().map((x) => [x, join(SRC, x)]) : allSourceFiles().map((p) => [p.split('/').pop(), p]))) {
-	// ⚠️ 原先本件自写 `/^::\s+/` 逐行切段 ⇒ `passages/` 下的 md（无 `:: ` 段头）**一段也收不到** ✗
-	//   ⇒ 它们的段名不在 `passages` 里 ⇒ 全文里指向它们的 `[[…]]`/`goto` 全被判「懬空」✗（实测：30 硬错 ✓）。
+	//注意：原先本件自写 `/^::\s+/` 逐行切段 → `passages/` 下的 md（无 `:: ` 段头）**一段也收不到**
+	// → 它们的段名不在 `passages` 里 → 全文里指向它们的 `[[…]]`/`goto` 全被判「懬空」（实测：30 硬错）。
 	for (const p of passagesOf(readFileSync(f[1], 'utf8'), f[1])) {
 		passages.set(p.name, { file: f, line: p.line, name: p.name, tags: p.tags, body: p.body });
 	}
@@ -44,23 +44,23 @@ for (const p of passages.values()) {
 }
 
 // ── 引用提取与检查 ───────────────────────────────────────
-const edges = []; // { from, target, dynamic, kind }
+const edges = []; // { from, target, dynamic, kind}
 const kindCount = {};
 const push = (p, target, kind, dynamic = false) => {
 	edges.push({ from: p, target, dynamic, kind });
 	kindCount[kind] = (kindCount[kind] ?? 0) + 1;
 };
 
-// ── 「可选面」守卫（`#1004` B2 ✓）：引擎对**故事可选面**的合法写法是 `<<if Story.has("X")>>…<</if>>` ✗ ──
-// 为什么必须认它 ✗："故事与引擎的接缝"是**引擎侧契约** ✓（见 `src/10-core.twee:707` 与 `#491` 判据 4：
-//   「设定集是本故事的页面（引擎不知道故事名）⇒ **存在才渲染**；否则侧栏会出现死链」✓ —— 同一句写法
-//   也用在 `<<damage>>` 的「结局 死亡」那一跳 ✓）。⇒ 只要仓里**没有任何故事**提供那个面 ✓，
-//   这些**被守卫的**引用就会被本门当"悬空"报出来 ✗ —— 那是**误报** ✓（运行期它根本不会执行 ✓）。
-// ⇒ 本门先算出「守卫生效区间」✓（按 `<<if>>`／`<<elseif>>`／`<<else>>`／`<</if>>` 配对切分支 ✓），
-//   只有当引用的**位置真的落在**以该目标为守卫的那个分支里 ⇒ 才放过 ✓。
-// ⚠️ 控制 ✓（这条修正**不许**把真悬空一起放过 ✗）：
-//   · 只放过**条件里点名了该目标**的那一支 ✓ —— 同一段里另写一句**没守卫**的 `<<goto "X">>` 仍照报 ✓；
-//   · `<<else>>` 那一支**不带守卫** ✓（"不存在"那一支里再引用它，仍是 bug ✓）。
+// ──「可选面」守卫（`#1004` B2）：引擎对**故事可选面**的合法写法是 `<<if Story.has("X")>>…<</if>>` ──
+// 为什么必须认它："故事与引擎的接缝"是**引擎侧契约**（见 `src/10-core.twee:707` 与 `#491` 判据 4：
+//「设定集是本故事的页面（引擎不知道故事名）→ **存在才渲染**；否则侧栏会出现死链」 —— 同一句写法
+// 也用在 `<<damage>>` 的「结局 死亡」那一跳）。→ 只要仓里**没有任何故事**提供那个面，
+// 这些**被守卫的**引用就会被本门当"悬空"报出来 —— 那是**误报**（运行期它根本不会执行）。
+// → 本门先算出「守卫生效区间」（按 `<<if>>`／`<<elseif>>`／`<<else>>`／`<</if>>` 配对切分支），
+// 只有当引用的**位置真的落在**以该目标为守卫的那个分支里 → 才放过。
+//注意：控制（这条修正**不许**把真悬空一起放过）：
+// · 只放过**条件里点名了该目标**的那一支 —— 同一段里另写一句**没守卫**的 `<<goto "X">>` 仍照报；
+// · `<<else>>` 那一支**不带守卫**（"不存在"那一支里再引用它，仍是 bug）。
 const HAS_RX = /Story\.has\(\s*["']([^"']+)["']\s*\)/g;
 const optionGuardSpans = (body) => {
 	const spans = [];
@@ -82,7 +82,7 @@ const guardedAt = (spans, pos, target) => spans.some((s) => pos >= s.start && po
 for (const p of passages.values()) {
 	const isScript = p.tags.includes('script') || p.name === 'StoryData';
 	const body = p.body.replace(/\/%[\s\S]*?%\//g, ''); // 摘除注释
-	const guards = optionGuardSpans(body);        // `#1004` B2：本次扫描的「可选面守卫」区间 ✓
+	const guards = optionGuardSpans(body);        // `#1004` B2：本次扫描的「可选面守卫」区间
 	let macroScanText = body.replace(/<<script>>[\s\S]*?<<\/script>>/g, '');
 	if (isScript) macroScanText = ''; // script 段落是纯 JS，宏检查跳过
 
@@ -105,8 +105,8 @@ for (const p of passages.values()) {
 	}
 	// #435 附：**JS 转义串的归一**（本门第一版的假阳就出在这）——
 	// 条件表把文案放在 JS 字符串里（`text: '…<<goto \"塔门\">>…'`），而门扫的是**源码形态**：
-	// 那时的参数看起来是 `\"塔门\"`（既不以引号开头、也不是反引号/`$`）⇒ 被判成"裸词"✗，
-	// 但**运行期**它就是普通字符串参数。⇒ 判据前先折回运行期形态（与 `#508`"别名让层间门变瞎"同类：
+	// 那时的参数看起来是 `\"塔门\"`（既不以引号开头、也不是反引号/`$`）→ 被判成"裸词"，
+	// 但**运行期**它就是普通字符串参数。→ 判据前先折回运行期形态（与 `#508`"别名让层间门变瞎"同类：
 	// 门不能拿源码形态当运行期形态）。
 	// 边界：只在**整体被转义引号包住**时归一（`\"x\"` → `"x"`），避免把普通正文里真写错的 `\"` 一起放过。
 	const unescapeArg = (a) => (/^\\["'][\s\S]*\\["']$/.test(a) ? a.replace(/\\"/g, '"').replace(/\\'/g, "'") : a);
@@ -156,9 +156,9 @@ for (const p of passages.values()) {
 
 // ── 词汇表纪律警告（#29，不阻断；豁免：段落内 /% vocab: exempt W1|W2|W3 理由 %/ 留痕）──
 // 目标：内容限定既定词汇 → 配测负担 O(内容)→O(机制)。三类越界：
-//   W1 link/button 体内裸 set/run/script（点击态代码只有手写路线能测——O(内容) 负担源头）
-//   W2 era 写越界出塔层（set/赋值/erashift 调用；读不禁——结局状态栏展示属合法读）
-//   W3 旗标生命周期（set 从不 use / use 从不 set）
+// W1 link/button 体内裸 set/run/script（点击态代码只有手写路线能测——O(内容) 负担源头）
+// W2 era 写越界出塔层（set/赋值/erashift 调用；读不禁——结局状态栏展示属合法读）
+// W3 旗标生命周期（set 从不 use / use 从不 set）
 const vocabWarn = [];
 const vocabExempts = [];
 // A6→M1：era 写白名单=挂了 <<flip>> 的段落所在文件（v16 补正 #2：翻转不受地点限制）
@@ -223,7 +223,7 @@ const Game = (() => {
 	// `window.Game` 在真实加载顺序里先由引擎建出来（我们这里**先给它一个空壳**，再跑常量行）
 	const ctx = { window: { Game: {} } };
 	// `#660` 片一：故事表里的 `Game.Era.*` 是**引擎常量**（单源在 `10-core`），而本门只 vm 载入**表段**（不加载引擎）
-	// ⇒ 先把常量行跑一遍（真实加载顺序就是引擎在前）；跑不出来的话下面会点名（反沉默，别静默 undefined）。
+	// → 先把常量行跑一遍（真实加载顺序就是引擎在前）；跑不出来的话下面会点名（反沉默，别静默 undefined）。
 	const constFiles = CONST_SECTION.files.map((f) => join(ROOT, f));
 	const constSrc = constFiles.filter((f) => existsSync(f)).map((f) => readFileSync(f, 'utf8')).join('\n');
 	// 常量行两种形状都跑：`window.Game.Era = {…}`（`#660` 片二后的单源）与旧的 `??= {…}`
@@ -251,9 +251,9 @@ else {
 		if (/<<\s*set\s+\$pc\.gold\b/.test(body)) errors.push(`[残留] ${p.file}:${p.line} 段落「${p.name}」直改 $pc.gold——经济必须走 <<econ 事件>>`);
 		for (const m of body.matchAll(/<<(check|save)\s+"[^"]+"\s+\d+/g)) errors.push(`[残留] ${p.file}:${p.line} 段落「${p.name}」硬编码 DC（${m[0]}）——检定必须走 <<sitecheck 位点>>`);
 	}
-	// `#1004` B2 ✓：道具表那格的形状跟**现存契约**走 ✗ —— 旧写法读 `Game.Items.effects` ✓（那是已删故事的**表形状** ✓，
-	//   引擎侧从来只经 `Sg.story.itemEffect(k)` 读道具 ✓ —— `src/engine/40-sim/21-resolve.twee:461` ✓）；
-	//   现存两样本声明的都是 `Items.defs` ✓ ⇒ 按现况读 ＋ 防御式取键 ✓（表缺了也不该把这句**信息行**变成崩栈 ✗）。
+	// `#1004` B2：道具表那格的形状跟**现存契约**走 —— 旧写法读 `Game.Items.effects`（那是已删故事的**表形状**，
+	// 引擎侧从来只经 `Sg.story.itemEffect(k)` 读道具 —— `src/engine/40-sim/21-resolve.twee:461`）；
+	// 现存两样本声明的都是 `Items.defs` → 按现况读 ＋ 防御式取键（表缺了也不该把这句**信息行**变成崩栈）。
 	console.log(`表：位点 ${Object.keys(Game.Checks.sites).length} · 经济事件 ${Object.keys(Game.Economy.events).length} · 道具条目 ${Object.keys(Game.Items.defs ?? {}).length}（引用 位点 ${refKeys.site.size} / 事件 ${refKeys.econ.size}）`);
 }
 
@@ -287,7 +287,7 @@ for (const p of passages.values()) {
 
 // ── 序章白名单：开场在车卡之前，玩家一次门都没进过 ────────────
 // 反例（M16 修）：开场里写着「酒馆里的人说过很多种版本……」——可酒馆是**车卡之后**才第一次进门的地方
-// （`角色卡` 结尾那句「酒馆的门还亮着」才把它摆到眼前）。语义门测不到"把还没经历的地方当已发生"，
+//（`角色卡` 结尾那句「酒馆的门还亮着」才把它摆到眼前）。语义门测不到"把还没经历的地方当已发生"，
 // 但至少把地名钉住：这几段里不许出现后文才到的地方。
 const PRELUDE_BANS = {
 	'开场': ['酒馆', '歪脖子鸭'],
@@ -303,8 +303,8 @@ for (const [name, terms] of Object.entries(PRELUDE_BANS)) {
 
 // ── 回指门：写「你想起某人说过的话」之前，先确认你真听过 ──────
 // 反例（M16 一起修的）：开场写「酒馆里的人说过……」（那时还没进门）；洞穴写
-// 「你想起酒馆里那些人的话」（那桌人从没讲过石头）；女巫小屋写「你在酒馆的旧画上见过」
-// （没看画也照写）。这类"凭空记得"是语义问题，机器只能钉住**已知的几处**：
+//「你想起酒馆里那些人的话」（那桌人从没讲过石头）；女巫小屋写「你在酒馆的旧画上见过」
+//（没看画也照写）。这类"凭空记得"是语义问题，机器只能钉住**已知的几处**：
 // 短语必须落在 `<<if $pc.ev.<flag>>>` 里，否则红。新增此类回指就往表里加一行。
 // 旗标 → 笔记 id：从**笔记表**读（`15-tables.twee` 与增量文件里的 `flagPath`）——供回指门认新形状
 const NOTE_IDS = (() => {
@@ -321,14 +321,14 @@ const NOTE_IDS = (() => {
 	return new Map(Object.entries(entries));
 })();
 
-// ⛔ **表空 ＋ 声明**（`#1004` B2 ✓）：上表原有 4 行**全是 `mist-forest` 的内容** ✓（段落「洞穴」／「女巫小屋」／
-//   「塔门」／「半途的林子」＋ NPC「老板娘」／「守林人」✓）—— 它随故事一起没了 ✓ ⇒ 那 4 行已删 ✓。
-//   ⚠️ **声明** ✗："**NPC 口头承诺 ／ 回指**"这一面在本仓**已无样本** ✓ ⇒ 本门当前**空转** ✓（**不是**"已覆盖"✗）；
-//   机制完整保留 ✓（表结构、`scope`／`saidIn`／`conditionReadsFlag` 那整套 ✓）＋ **表自身的守卫仍在** ✓
-//   （写错段落名／找不到短语／门外引用／承诺无人说过 ⇒ 逐条仍红 ✓）。
-//   ⇒ 日后有故事带这类回指 ⇒ **按原表形状补行** ✓（不为凑绿造样本 ✗）。
-//   ⚠️ 同族两条**一并登记**（不删、也不再有任何对象 ✗）：`PRELUDE_BANS`（开场禁提后文地名，「开场」在 `minimal-demo` 里存在 ✓
-//    但禁令词 `酒馆`／`歪脖子鸭` 已不存在 ✓ ⇒ 空转 ✓）；`ENDGAME_KNOWN`（终局级知识白名单，见 `test/reread.mjs` ✓）。
+// ⛔ **表空 ＋ 声明**（`#1004` B2）：上表原有 4 行**全是 `mist-forest` 的内容**（段落「洞穴」／「女巫小屋」／
+//「塔门」／「半途的林子」＋ NPC「老板娘」／「守林人」）—— 它随故事一起没了 → 那 4 行已删。
+//注意：**声明**："**NPC 口头承诺 ／ 回指**"这一面在本仓**已无样本** → 本门当前**空转**（**不是**"已覆盖"）；
+// 机制完整保留（表结构、`scope`／`saidIn`／`conditionReadsFlag` 那整套）＋ **表自身的守卫仍在**
+//（写错段落名／找不到短语／门外引用／承诺无人说过 → 逐条仍红）。
+// → 日后有故事带这类回指 → **按原表形状补行**（不为凑绿造样本）。
+//注意：同族两条**一并登记**（不删、也不再有任何对象）：`PRELUDE_BANS`（开场禁提后文地名，「开场」在 `minimal-demo` 里存在
+// 但禁令词 `酒馆`／`歪脖子鸭` 已不存在 → 空转）；`ENDGAME_KNOWN`（终局级知识白名单，见 `test/reread.mjs`）。
 const CALLBACKS = [];
 for (const c of CALLBACKS) {
 	const p = passages.get(c.passage);
@@ -337,7 +337,7 @@ for (const c of CALLBACKS) {
 	const idx = body.indexOf(c.phrase);
 	if (idx < 0) { errors.push(`[回指] 「${c.passage}」里找不到短语「${c.phrase}」（改了文案就同步这张表）`); continue; }
 	// 数一下这句话前面有没有"还开着的"条件门（含 not 的不算——那是不许引用）。
-	// #433 阶段 2：条件可写成 `Sg.notes.has('n_x')` ⇒ 走**单一权威** `conditionReadsFlag()`，两种形状都认。
+	// #433 阶段 2：条件可写成 `Sg.notes.has('n_x')` → 走**单一权威** `conditionReadsFlag()`，两种形状都认。
 	let depth = 0;
 	for (const m of body.slice(0, idx).matchAll(/<<if\s+([^>]*)>>|<<\/if>>/g)) {
 		if (m[0].startsWith('<<if')) {
@@ -403,10 +403,10 @@ for (const p of passages.values()) {
 
 // ── 致命伤不被覆盖门（#357）：<<damage>> 之后的同层 <<goto>> 必须包在存活条件里 ──
 // 为什么：#357 实锤——「<<damage heavy>> … <<goto "顶楼">>」在致命伤时，damage 内的
-//   「<<goto 结局 死亡>>」会被随后的普通 goto 覆盖，玩家带着 hp0 继续剧情（更糟的是
-//   :passagestart 的 hp≤0 安全网会把 hp 修回 1，等于复活）。
+//「<<goto 结局 死亡>>」会被随后的普通 goto 覆盖，玩家带着 hp0 继续剧情（更糟的是
+//:passagestart 的 hp≤0 安全网会把 hp 修回 1，等于复活）。
 // 判据（纯函数，便于合成反例）：在同一段落里，`<<damage …>>` 之后**中间没有 <<if/<<else/<</if>**
-//   的第一个 `<<goto "…">>`，若它自己没有处在 `<<if $pc.hp gt 0>>` 里，即判红。
+// 的第一个 `<<goto "…">>`，若它自己没有处在 `<<if $pc.hp gt 0>>` 里，即判红。
 export const scanFatalOverrides = (body) => {
 	const out = [];
 	const rx = /<<damage[^\n>]*>>/g;
@@ -436,7 +436,7 @@ for (const p of passages.values()) {
 }
 
 // ── 段落登记门（#262/#185 阶段四／#264）：每个内容段落必须登记在 docs/ui-inventory.md ──
-// 「新场景自动进入模板及覆盖清单」的静态那一半：新增段落未登记即红（另一半点（渲染/覆盖）在 coverage 门）。
+//「新场景自动进入模板及覆盖清单」的静态那一半：新增段落未登记即红（另一半点（渲染/覆盖）在 coverage 门）。
 {
 	try {
 		const inv = readFileSync(new URL('../docs/ui-inventory.md', import.meta.url), 'utf-8');
@@ -456,7 +456,7 @@ for (const p of passages.values()) {
 	for (const p of passages.values()) {
 		if (p.tags.some((t) => ['script', 'stylesheet'].includes(t))) continue;
 		p.body.split('\n').forEach((line, i) => {
-			// 去掉成对的 //…// 斜体后，行内还残留 // ⇒ 注释泄漏
+			// 去掉成对的 //…// 斜体后，行内还残留 // → 注释泄漏
 			const stripped = line.replace(/\/\/[^/\n]*\/\//g, '');
 			if (/\S\s*\/\//.test(stripped)) {
 				errors.push(`${p.name}:${i + 1} 正文含「//」注释（会渲染成文字）：${line.trim().slice(0, 60)}`);

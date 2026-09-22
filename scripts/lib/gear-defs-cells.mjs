@@ -1,7 +1,7 @@
-// `#1115` 件②：口径门的**自证格**（独立模块 ⇒ 宿主只加 import ＋ 一行调用 ✓）。
+// `#1115` 件②：口径门的**自证格**（独立模块 → 宿主只加 import ＋ 一行调用）。
 import { gearDefsCriteriaProblems, codeReadFields, docDeclaredFields } from './gear-defs-criteria.mjs';
 
-/** 本组**格数**（与期望对齐 ✓ ⇒ 掐一格 ⇒ 数变 ⇒ 红 ✓）。 */
+/** 本组**格数**（与期望对齐 → 掐一格 → 数变 → 红）。 */
 export const GEAR_DEFS_CELLS_EXPECTED = 5;
 
 const ENGINE = 'const g = window.Sg.story.gearDef(k)?.damage ?? 0;\n';

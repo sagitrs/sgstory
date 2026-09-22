@@ -1,7 +1,7 @@
 // #189 规则属性三件套——跨步骤状态不变量（walker 每步挂检；可独立单测/负例验证）。
 // ① 单调：同局内 dragon.defeats / dragon.awake 只进不退（#178：重进不洗状态）
 // ② once-only：一次性旗标置位后永不回落（结算不因重访/重进被吞）
-// ③ 前置蕴含：持有物/状态蕴含其来源（好哨⇒还过杖；卷轴⇒日记；喂花⇒到过宴会厅……）
+// ③ 前置蕴含：持有物/状态蕴含其来源（好哨→还过杖；卷轴→日记；喂花→到过宴会厅……）
 export function mkHist() {
 	return { prev: { dragon: {} }, onceTrue: new Map() };
 }
@@ -17,7 +17,7 @@ const ONCE_TRUE = [
 	['dragon', 'awake'], ['keeper', 'met'], ['keeper', 'key'],
 ];
 
-// 前置蕴含闭集：左侧成立 ⇒ 右侧必须成立（来源链不凭空出现）
+// 前置蕴含闭集：左侧成立 → 右侧必须成立（来源链不凭空出现）
 const IMPLIES = [
 	[['inv', '好哨'], ['world', 'family_favor'], '好哨在手 ⇒ 还过杖（换哨的意愿门）'],
 	[['inv', '好哨'], ['inv', '坏哨', false], '好哨在手 ⇒ 坏哨已交出（交换完成）'],
@@ -52,7 +52,7 @@ export function checkStep(hist, pc) {
 	for (const [lhs, rhs, why] of IMPLIES) {
 		const lhsOk = rhs[2] === false ? get(pc, lhs) === true : get(pc, lhs) === true;
 		if (!lhsOk) continue;
-		const rhsWant = rhs[2] === false ? false : true;    // [scope,key,false] ⇒ 必须为假
+		const rhsWant = rhs[2] === false ? false : true;    // [scope,key,false] → 必须为假
 		const rhsGot = get(pc, rhs) === true;
 		if (rhsGot !== rhsWant) bad.push(`前置蕴含破裂：${why}`);
 	}

@@ -1,19 +1,19 @@
 // #300 §5 行为门（测试基建）：**就地行动 → 立即存读档 → 状态保值**
 //
 // 为什么需要这张门：P1（门厅/花田原地取物后立即 S/L 丢进度）能长期存在，是因为
-//   · test/saveui.mjs 只做 Game.Pc.migrate＋渲染，从不调用真实保存/加载；
-//   · 浏览器用例在「操作后」就停，从不按 S/L。
+// · test/saveui.mjs 只做 Game.Pc.migrate＋渲染，从不调用真实保存/加载；
+// · 浏览器用例在「操作后」就停，从不按 S/L。
 // 于是「操作后状态」与「存档快照」之间的一致性从来没被断言过（#300 §4）。
 //
 // 本门对 test/saveload-sites.json 里每个站点跑：
-//   导航到站点 → 就地操作 → 快照 → Sg.save.quick() → Sg.save.load(1) → 快照 → 逐项比对
+// 导航到站点 → 就地操作 → 快照 → Sg.save.quick() → Sg.save.load(1) → 快照 → 逐项比对
 // 断言项取登记表里的 assert（物品/旗标/HP/金币/检定记录），另加「不得重复发物」。
 //
 // **当前状态：本门在 #300 修复前应当是红的**——那是缺陷基线证据，不是测试写错。
 // 接入 npm test 的时机＝#300 修复合入的 PR（届时本门由「证据」转「硬红」）。
 // 站点清单由 test/saveload-inventory.mjs（静态门）保证不漏登记。
 
-import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处 ✓
+import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处
 import { readFileSync } from 'node:fs';
 import { boot, CLICKABLE_SEL } from './boot.mjs';
 import { newGame as openGame } from './harness.mjs';   // #317①：公共 harness（不再自建 newGame/click）
@@ -27,19 +27,19 @@ async function newGame(randomStub) {
 	return { w: s.w, click: s.clickByLabel, settle: s.settle };
 }
 
-// ⛔ **退役 ＋ 声明**（`#1004` B2b 复核席 ✓，按裁定 A：**剧情级 ⇒ 退役 ＋ 逐块声明** ✗）：
-//   这一段原是"**导航到各站点**"的五个 helper（`hall-direct`／`hall-observe`／`hall-observed`／`sealRound`／`flower` ✓）
-//   ＋ `toSealRound()`／`toHall()` 两条长路线 ✓ —— 它们走的全是**已删故事 `mist-forest` 的具体路线与文案**
-//   （`问一句女巫小屋怎么走` → `往林子深处走` → `继续往塔那边走` → `塔基墙根那片花` / `雾里有个影子挡着路` ✓）。
-//   ⚠️ 面夹具按裁定 (甲) **沿用段名、正文与分支全为新写** ✓ ⇒ 这些**路线**没有对应物 ✗（不是"判据坏了"✓）。
-//   ⚠️ **声明** ✗：**「门厅/花田/封印战的复现路线」这一面自此无对象** ✓ ⇒ 将来若有样本提供同类站点 ⇒
-//   按其真实路线补回 helper 即可 ✓（下面的**机制**全部原样保留 ✓：`MANIFEST.sites` 驱动 ＋ 快照/比对 ＋
-//   "就地操作 ⇒ 立即 S/L ⇒ 逐项保值 ＋ 不得重复发物" ✓ —— 站点清单为空时该循环**零行** ✓，即"无站点可测"**如实为空** ✗ 而不是假装通过 ✓）。
-// ── 导航到各站点（`#1004` B2b ✓：按**裁定 A** 重指到面夹具 ✓ —— 站点与旧故事**形状同款** ✗：
-//   都是在 `门厅`／`塔外花田` 里"就地改状态 ＋ `<<goto>>` 回本段" ✓）─────────────────────
+// ⛔ **退役 ＋ 声明**（`#1004` B2b 复核席，按裁定 A：**剧情级 → 退役 ＋ 逐块声明**）：
+// 这一段原是"**导航到各站点**"的五个 helper（`hall-direct`／`hall-observe`／`hall-observed`／`sealRound`／`flower`）
+// ＋ `toSealRound()`／`toHall()` 两条长路线 —— 它们走的全是**已删故事 `mist-forest` 的具体路线与文案**
+//（`问一句女巫小屋怎么走` → `往林子深处走` → `继续往塔那边走` → `塔基墙根那片花` / `雾里有个影子挡着路`）。
+//注意：面夹具按裁定 (甲) **沿用段名、正文与分支全为新写** → 这些**路线**没有对应物（不是"判据坏了"）。
+//注意：**声明**：**「门厅/花田/封印战的复现路线」这一面自此无对象** → 将来若有样本提供同类站点 →
+// 按其真实路线补回 helper 即可（下面的**机制**全部原样保留：`MANIFEST.sites` 驱动 ＋ 快照/比对 ＋
+// "就地操作 → 立即 S/L → 逐项保值 ＋ 不得重复发物" —— 站点清单为空时该循环**零行**，即"无站点可测"**如实为空** 而不是假装通过）。
+// ── 导航到各站点（`#1004` B2b：按**裁定 A** 重指到面夹具 —— 站点与旧故事**形状同款**：
+// 都是在 `门厅`／`塔外花田` 里"就地改状态 ＋ `<<goto>>` 回本段"）─────────────────────
 const NAV = {
-	async whistle(c) { await c('门厅'); },        // 酒馆 ⇒ 门厅（站点标签由主循环点 ✓）
-	async flower(c) { await c('塔外花田'); },      // 酒馆 ⇒ 塔外花田 ✓
+	async whistle(c) { await c('门厅'); },        // 酒馆 → 门厅（站点标签由主循环点）
+	async flower(c) { await c('塔外花田'); },      // 酒馆 → 塔外花田
 };
 
 // ── 快照与比对 ──────────────────────────────────────────────────────
@@ -124,7 +124,7 @@ for (const site of MANIFEST.sites) {
 // `读档前 d20(20) 大成功 → 读档后 d20(1) 大失败`）。修复把结算搬进点击时刻并**删除了 `<<fightresolve>>`
 // 这个 widget 本身**（现在 src 里已无该名字）→ 所以**一行回退无法复现**该缺陷，红证只能由这段历史提供。
 // 为使「比较器确实有牙」当场可证，本文件带 `--selftest`：正常流程后**注入一次人为扰动**
-// （落档后改 hp），断言比较器判红——即它确实能看见「读档前后状态漂移」。
+//（落档后改 hp），断言比较器判红——即它确实能看见「读档前后状态漂移」。
 {
 	const sleep2 = (ms) => new Promise((r) => setTimeout(r, ms));
 	let pick = 0;
@@ -143,9 +143,9 @@ for (const site of MANIFEST.sites) {
 		a.click(); await settle(); await sleep2(140);
 	};
 	try {
-		// `#1004` B2b ✓：路线按**裁定 A** 重指到"**有这一面的样本**"✗ —— 战斗面在**面夹具** ✓
-		//（`酒馆` → `洞穴` → `拔家伙` → `洞穴·战斗`（`<<fightbegin "雾影">>` ✓）⇒ 与旧故事那条四跳长链等价
-		// 的那一段：**进一场短战斗** ✓）。⚠️ 判据本身一个字没改 ✓（下面仍是"读档不得重放本轮"✓）。
+		// `#1004` B2b：路线按**裁定 A** 重指到"**有这一面的样本**" —— 战斗面在**面夹具**
+		//（`酒馆` → `洞穴` → `拔家伙` → `洞穴·战斗`（`<<fightbegin "雾影">>`）→ 与旧故事那条四跳长链等价
+		// 的那一段：**进一场短战斗**）。注意：判据本身一个字没改（下面仍是"读档不得重放本轮"）。
 		await c('踏上旅途'); await c('快速成型'); await c('出发，前往歪脖子鸭酒馆');
 		await c('洞穴'); await c('拔家伙');
 		await settle(); await sleep2(300);
@@ -181,14 +181,14 @@ for (const site of MANIFEST.sites) {
 }
 
 // ── #533：S1/S2/S3 的**新状态**必须进存档快照（`gearHp` ／ `statuses` ／ `ev.fight.wave`）──────────
-// 为什么单列一块：上面那张表只看 `inv`／`ev`／`hp`／`gold`／检定记录 ⇒ **看不见**这三个新字段，
+// 为什么单列一块：上面那张表只看 `inv`／`ev`／`hp`／`gold`／检定记录 → **看不见**这三个新字段，
 // 于是「读档把耐久重置成满值／异常清空／波次清零」这类**静默修复**不会被任何断言抓到。
 //
-// ⚠️ 三条**实测**的 moment 事实（本块第一版就是被它坑掉的，写下来别再踩）：
-//   ① 直接改活对象（Node 侧或 `w.eval` 直写）**不进存档**；
-//   ② 经**宏**写（`<<set>>`／`<<run>>`，即游戏自己的路径）**且之后有过一次导航**（`<<goto>>`／`Engine.play`）
-//      ⇒ 保值 ✓（存档捕获的是**最后一次导航时刻**的状态——与 `fightact` 注释里的 `#350` 同一条语义）；
-//   ③ 宏写但**不导航** ⇒ 仍然丢 ✗。
+//注意：三条**实测**的 moment 事实（本块第一版就是被它坑掉的，写下来别再踩）：
+// ① 直接改活对象（Node 侧或 `w.eval` 直写）**不进存档**；
+// ② 经**宏**写（`<<set>>`／`<<run>>`，即游戏自己的路径）**且之后有过一次导航**（`<<goto>>`／`Engine.play`）
+// → 保值（存档捕获的是**最后一次导航时刻**的状态——与 `fightact` 注释里的 `#350` 同一条语义）；
+// ③ 宏写但**不导航** → 仍然丢。
 {
 	const { w, settle } = await newGame(0.99);
 	const live = () => w.SugarCube.State.variables.pc;      // 每次现取：读档会换掉整个状态对象图
@@ -200,7 +200,7 @@ for (const site of MANIFEST.sites) {
 	const label = { gearHp: '装备耐久（含损坏态 0）', statuses: '部位×异常', wave: '波次状态' };
 	const write = (sets) => {
 		w.eval(`new window.SugarCube.Wikifier(null, ${JSON.stringify(sets)})`);       // 走宏（＝游戏路径）
-		w.eval('window.SugarCube.Engine.play(window.SugarCube.State.passage)');        // 导航一次 ⇒ 写进 moment
+		w.eval('window.SugarCube.Engine.play(window.SugarCube.State.passage)');        // 导航一次 → 写进 moment
 	};
 	let bad533 = 0;
 	const t = (okk, msg, extra = '') => { if (okk) console.log(`    ✓ ${msg}`); else { bad533++; failures++; console.log(`    ✗ ${msg}${extra ? '：' + extra : ''}`); } };
@@ -222,10 +222,10 @@ for (const site of MANIFEST.sites) {
 		for (const k of lost) console.log(`    丢 ${k}（${label[k]}）：${saved[k]} → ${back[k]}`);
 		t(lost.length === 0, '三个新状态都进存档快照', lost.join(' / '));
 		t(JSON.parse(back.gearHp)?.布衣 === 0, '损坏态保留为 **0**（不是缺项、不是满值）', back.gearHp);
-		// 判据自证（反例）：把**损坏态**改成"满耐久"（最典型的静默修复）⇒ 判据必须报
+		// 判据自证（反例）：把**损坏态**改成"满耐久"（最典型的静默修复）→ 判据必须报
 		const bait = { ...back, gearHp: JSON.stringify({ 布衣: 3, 护胫: 2 }) };
 		t(Object.keys(saved).some((k) => saved[k] !== bait[k]), '自证·反例：把 gearHp 重置成满耐久 ⇒ 判据会报');
-		// 事实钉住（不是期望值）：**宏写但不导航** ⇒ 存档里没有它
+		// 事实钉住（不是期望值）：**宏写但不导航** → 存档里没有它
 		w.eval('new window.SugarCube.Wikifier(null, \'<<set $pc.ev.fight to {"pool":"p1","round":9,"wave":null}>>\')');
 		w.Sg.save.quick();
 		await sleep(250);

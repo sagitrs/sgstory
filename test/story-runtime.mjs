@@ -1,22 +1,22 @@
 // 逐故事的「运行时契约」门（`#574`）——**接入契约的运行时那一半**。
 //
 // 为什么要有它：`#574` 的现场是「故事 2 的**内容**在调用 `Sg.notes.add(...)`，而它的**产物**里连
-// `Sg.notes` 都没有」（`src/80-script.twee` 当时被登记成 `layer:'story'` ⇒ 不进第二/第三个故事的作用域）。
+// `Sg.notes` 都没有」（`src/80-script.twee` 当时被登记成 `layer:'story'` → 不进第二/第三个故事的作用域）。
 // 顺着这条线又挖出三处**同一族**的静默坏掉（都是"声明了/写了，但运行时根本不生效"，而门全绿）：
-//   · `Checks.sites` 的 `skill: 'dex'` 写成了**属性键**（引擎要技能名）⇒ **每次判定都抛「未知技能」**
-//     ⇒ 五步主线无伤害、无异常、无成败分支，事件变成走过场；
-//   · `Game.Combat.applyStatus()` **返回**新状态对象，内容却丢了返回值 ⇒ 异常一条都不落；
-//   · 血量上限写 `maxHp`（引擎字段是 `max_hp`）⇒ 侧栏血条分母 0。
+// · `Checks.sites` 的 `skill: 'dex'` 写成了**属性键**（引擎要技能名）→ **每次判定都抛「未知技能」**
+// → 五步主线无伤害、无异常、无成败分支，事件变成走过场；
+// · `Game.Combat.applyStatus()` **返回**新状态对象，内容却丢了返回值 → 异常一条都不落；
+// · 血量上限写 `maxHp`（引擎字段是 `max_hp`）→ 侧栏血条分母 0。
 // 共性是同一句话：**「内容声称做了什么」与「运行时真的发生了什么」从来没有人对过账**
-// （同族：`#572` 的"选中没跑"、`#557` 的"退 0 不是证据"）。
+//（同族：`#572` 的"选中没跑"、`#557` 的"退 0 不是证据"）。
 //
 // 判据（五条，逐故事）：
-//   ① **面存在**：故事作用域（`scopedFiles()`）里引用的 `Sg.*` 面必须在产物里存在
-//      （`Sg.story.*` 除外＝接入契约口子；`Sg.X?.y` 可选链＝作者显式声明"可能没有"）；
-//   ② **位点能判**：`Game.Checks.sites` 里**每个**位点都要能真的判一次（`Game.Checks.resolve()` 不抛）；
-//   ③ **笔记可用**：内容里 `Sg.notes.add("id")` 用到的每条笔记都必须已登记，且 `add` 真的跑通；
-//   ④ **侧栏可用**：没有车卡的故事必须给最小侧栏（血量/物品）；有车卡的故事在车卡前不得多出它；
-//   ⑤ **机制真落**：故事 2 的真机路（陷阱·失败支）点完 ⇒ hp 降 ＋ 异常真的落 ＋ 结果槽落了 ＋ 零未捕获报错。
+// ① **面存在**：故事作用域（`scopedFiles()`）里引用的 `Sg.*` 面必须在产物里存在
+//（`Sg.story.*` 除外＝接入契约口子；`Sg.X?.y` 可选链＝作者显式声明"可能没有"）；
+// ② **位点能判**：`Game.Checks.sites` 里**每个**位点都要能真的判一次（`Game.Checks.resolve()` 不抛）；
+// ③ **笔记可用**：内容里 `Sg.notes.add("id")` 用到的每条笔记都必须已登记，且 `add` 真的跑通；
+// ④ **侧栏可用**：没有车卡的故事必须给最小侧栏（血量/物品）；有车卡的故事在车卡前不得多出它；
+// ⑤ **机制真落**：故事 2 的真机路（陷阱·失败支）点完 → hp 降 ＋ 异常真的落 ＋ 结果槽落了 ＋ 零未捕获报错。
 //
 // 用法：`node test/story-runtime.mjs`（自证：`--selftest`）
 import { readFileSync } from 'node:fs';
@@ -39,7 +39,7 @@ export const apiUses = (sources) => {
 			.replace(/"[^"\n]*"/g, ' ');
 		for (const m of text.matchAll(/\bSg\.([A-Za-z_$][\w$]*)(?:\.([A-Za-z_$][\w$]*))?(\?)?/g)) {
 			if (m[1] === 'story') continue;        // 接入契约口子：另一套门（`#459`）
-			if (m[3]) continue;                    // 可选链＝作者显式声明"这一面可能没有" ⇒ 本门不管
+			if (m[3]) continue;                    // 可选链＝作者显式声明"这一面可能没有" → 本门不管
 			const path = m[2] ? `Sg.${m[1]}.${m[2]}` : `Sg.${m[1]}`;
 			// 正文里的**文档提及**不算引用：两侧都被反引号夹住（`` `Sg.Codex` ``）。
 			// 只夹一侧的不算（twee 里反引号是宏参数的 JS 表达式分隔符，那是真代码）。
@@ -50,7 +50,7 @@ export const apiUses = (sources) => {
 	return out;
 };
 
-/** 纯函数：`apiUses()` 的产物 × 产物实况（`has(path)`）⇒ 缺失清单。 */
+/** 纯函数：`apiUses()` 的产物 × 产物实况（`has(path)`）→ 缺失清单。 */
 export const missingApis = (uses, has) =>
 	[...uses].filter(([path]) => !has(path)).map(([path, file]) => ({ path, file }));
 
@@ -172,8 +172,8 @@ const main = async () => {
 		t('③ 反例：用而未登记 ⇒ 报一条', judgeNotes(new Map([['n_a', 'a.twee']]), ['n_b']).length === 1);
 		t('③ 正例：都登记了 ⇒ 0 条', judgeNotes(new Map([['n_a', 'a.twee']]), ['n_a']).length === 0);
 
-		// `#1004` B2b ✓：本组是**纯函数**用例（slug 只是标签 ✓）⇒ 换成**存活样本**的名字 ✓
-		//（`minimal-demo`＝无车卡的冒烟故事 ✓；`face-fixture`＝有车卡的面夹具 ✓）。
+		// `#1004` B2b：本组是**纯函数**用例（slug 只是标签）→ 换成**存活样本**的名字
+		//（`minimal-demo`＝无车卡的冒烟故事；`face-fixture`＝有车卡的面夹具）。
 		t('④ 正例：无车卡的故事给了血量＋物品 ⇒ 0 条', judgeCaption({ slug: 'minimal-demo', hasLabel: false, hasChargen: false, hpbar: true, invBlock: true }).length === 0);
 		t('④ 反例：无车卡的故事没有血量 ⇒ 报', judgeCaption({ slug: 'minimal-demo', hasLabel: false, hasChargen: false, hpbar: false, invBlock: false }).length === 2);
 		t('④ 反例：有车卡、未车卡却出现最小面 ⇒ 报（有车卡的故事被改）', judgeCaption({ slug: 'face-fixture', hasLabel: false, hasChargen: true, hpbar: true, invBlock: true }).length === 1);
@@ -210,7 +210,7 @@ const main = async () => {
 	// ── [域表纪律] 域表的**归属**是可机检的（`#660` 片三-4）──────────────────────────────
 	// 纪律：**域表是故事数据**（`Game.State.domains` 住 `stories/<slug>/`）——引擎**不声明域**，
 	// 但它写的每个键必须能在**每个故事**的域表里找到归属（否则 `--state` 会红：`未落入任何域`）。
-	// 这条之所以成立，靠的是**作用域构造**：`scopedFiles(story)` ＝ 引擎文件 ∪ 本故事文件 ⇒ 域表判定天然覆盖引擎写点。
+	// 这条之所以成立，靠的是**作用域构造**：`scopedFiles(story)` ＝ 引擎文件 ∪ 本故事文件 → 域表判定天然覆盖引擎写点。
 	// 本段把这个**机制**钉住（只判结果的话，`scopedFiles` 哪天漏了引擎文件，门会静默变成"只查故事写点"）。
 	{
 		const eng = engineFiles();
@@ -226,7 +226,7 @@ const main = async () => {
 			// 引擎写点必须在**本故事**域表里有归属（空判守卫：引擎写点集必须非空）
 			const domains = createContext({ story: slug, argv: [] }).Game?.State?.domains ?? [];
 			const uncovered = [...engWrites].filter((k) => {
-				const bare = String(k).split('.').pop();   // `ev.last_result` ⇒ `last_result`（域表按**裸键名**匹配）
+				const bare = String(k).split('.').pop();   // `ev.last_result` → `last_result`（域表按**裸键名**匹配）
 				return !domains.some((d) => (d.keys ?? []).includes(bare) || (d.prefix ?? []).some((p) => bare.startsWith(p)));
 			});
 			const okDom = engWrites.size > 0 && uncovered.length === 0;
@@ -254,7 +254,7 @@ const main = async () => {
 			console.log(`  ${found.length ? '✗' : '✓'} ${slug} ①：引用了 ${uses.size} 个 \`Sg.*\` 面，产物里缺失 ${found.length} 个`);
 			for (const f of found) console.log(`      ✗ ${f.msg}`);
 
-			// ② 位点能判（注入 rng ⇒ 逐个 resolve；**这一条抓的是 "skill 写成了属性键" 那类**）
+			// ② 位点能判（注入 rng → 逐个 resolve；**这一条抓的是 "skill 写成了属性键" 那类**）
 			w.Game.Rules.rng.set((lo, hi) => Math.ceil(hi / 2));
 			const sites = Object.keys(w.Game?.Checks?.sites ?? {});
 			const siteBad = [];
@@ -300,15 +300,15 @@ const main = async () => {
 		} finally { close(); }
 	}
 
-	// ⛔ **退役 ＋ 声明**（`#1004` B2b ✓）：判据 **⑤ 真机路（陷阱）／⑥ 旅人面／⑦ 五种洞窟效果／
-	//   ⑧ 失败重置／⑨ 宝箱四路径／⑩ 调试开关** —— 这六条**整块**判的都是**已删故事 `hollow-cave` 的内容链** ✗
-	//   （`Engine.play('路·1c')`／`旅人`／`陷阱`／`宝箱`／`岔口` 的 `mechanics().roads` ✓）。
-	//   ⚠️ 面夹具（`face-fixture`）按裁定**每面只接一次** ✓、**不搬旧剧情** ✗ ⇒ 它没有这六条链 ✓
-	//   ⇒ 这六条**没有对象** ✓（不是判据坏了 ✓）。
-	//   ⚠️ **声明** ✗：**「陷阱／旅人／洞窟五效果／失败重置／宝箱四路径／调试开关（`?seed`／`?pool`）」这六面
-	//   自此无端到端守护** ✓ —— 日后要动它们 ⇒ **先补一个带对应链的样本** ✓（**不为凑绿加样本** ✗）。
-	//   ✓ 保留：上面 ①–④ 仍是**逐故事**跑的（`storySlugs()` ✓ —— 面存在／位点能判／笔记可用／侧栏 ✓）；
-	//     `judgeRealPath` 等**判定函数原样保留** ✓（重开这六条时按原形状接回即可 ✓）。
+	// ⛔ **退役 ＋ 声明**（`#1004` B2b）：判据 **⑤ 真机路（陷阱）／⑥ 旅人面／⑦ 五种洞窟效果／
+	// ⑧ 失败重置／⑨ 宝箱四路径／⑩ 调试开关** —— 这六条**整块**判的都是**已删故事 `hollow-cave` 的内容链**
+	//（`Engine.play('路·1c')`／`旅人`／`陷阱`／`宝箱`／`岔口` 的 `mechanics().roads`）。
+	//注意：面夹具（`face-fixture`）按裁定**每面只接一次**、**不搬旧剧情** → 它没有这六条链
+	// → 这六条**没有对象**（不是判据坏了）。
+	//注意：**声明**：**「陷阱／旅人／洞窟五效果／失败重置／宝箱四路径／调试开关（`?seed`／`?pool`）」这六面
+	// 自此无端到端守护** —— 日后要动它们 → **先补一个带对应链的样本**（**不为凑绿加样本**）。
+	// 保留：上面 ①–④ 仍是**逐故事**跑的（`storySlugs()` —— 面存在／位点能判／笔记可用／侧栏）；
+	// `judgeRealPath` 等**判定函数原样保留**（重开这六条时按原形状接回即可）。
 
 	if (problems.length) {
 		console.error(`\n✗ 逐故事运行时契约门未通过 ${problems.length} 项：`);
@@ -316,7 +316,7 @@ const main = async () => {
 		process.exit(1);
 	}
 	console.log('\n✔ 逐故事运行时契约门通过（面存在 · 位点能判 · 笔记可用 · 侧栏可用）—— ⛔ ⑤–⑩ 六条随 `hollow-cave` 一起退役（声明见上 ✗）');
-	process.exit(0);   // jsdom 的视口轮询会把事件循环吊住（boot.mjs 的注释）⇒ 自己收场
+	process.exit(0);   // jsdom 的视口轮询会把事件循环吊住（boot.mjs 的注释）→ 自己收场
 };
 
 await main();

@@ -6,19 +6,19 @@
 // 给一个零状态档，任何已解锁的东西都是泄底。
 //
 // 判据：
-//   R1 零状态档：新卡（`Game.Pc.defaults()`）下，图鉴**不得有任何线索谓词为真**
-//   R2 空记录：空图鉴记录（`blank()`）下，不得有任何条目 `isUnlocked`
-//   R3 声明落地：`Game.Truth.claims` 里 `type:'codex'` 的站点段落必须真实存在（声明的证据点不许是空头）
-//   R4 谜底门控：`via` 标为「终局后揭开 / 唯一揭开处 / 谜底」的 codex 站点，其页面必须带 `Sg.Codex.seenFinal()`
-//   R5 自称谜底必门控：任何设定集页面若出现「谜底」字样，该页必须带 `seenFinal()` 门（防「新写的谜底忘了加门」）
-//   R6 终局级知识必门控（#408 举一反三）：页面里出现**终局级词**（真结局名/凑齐/普通结局做法）⇒ 该页必须带门。
-//      与 R5 的差别正是 #408 的教训：结局页**从不自称「谜底」**，却比术语页更直接地给出终局配方 ⇒ R5 抓不到。
-//      当前 `设定集·结局` 是**已知缺陷**（#408）：报告但不判失败；修复后转严格并删 `ENDGAME_KNOWN`。
+// R1 零状态档：新卡（`Game.Pc.defaults()`）下，图鉴**不得有任何线索谓词为真**
+// R2 空记录：空图鉴记录（`blank()`）下，不得有任何条目 `isUnlocked`
+// R3 声明落地：`Game.Truth.claims` 里 `type:'codex'` 的站点段落必须真实存在（声明的证据点不许是空头）
+// R4 谜底门控：`via` 标为「终局后揭开 / 唯一揭开处 / 谜底」的 codex 站点，其页面必须带 `Sg.Codex.seenFinal()`
+// R5 自称谜底必门控：任何设定集页面若出现「谜底」字样，该页必须带 `seenFinal()` 门（防「新写的谜底忘了加门」）
+// R6 终局级知识必门控（#408 举一反三）：页面里出现**终局级词**（真结局名/凑齐/普通结局做法）→ 该页必须带门。
+// 与 R5 的差别正是 #408 的教训：结局页**从不自称「谜底」**，却比术语页更直接地给出终局配方 → R5 抓不到。
+// 当前 `设定集·结局` 是**已知缺陷**（#408）：报告但不判失败；修复后转严格并删 `ENDGAME_KNOWN`。
 //
-// ⚠️ R4/R5 的**边界（只登记不判定，理由如下）**：
-//   「哪些知识算谜底」是**设计判断**，无法从代码推出——所以本门只判**已被声明的**谜底
-//   （`Truth.claims` 的 `via` 措辞 ＋ 页面自称「谜底」），不猜未声明的散文。
-//   设计方新增一处「本该门控但从未声明」的谜底，本门**看不见**——这是有意的：宁可漏报也不假报。
+//注意：R4/R5 的**边界（只登记不判定，理由如下）**：
+//「哪些知识算谜底」是**设计判断**，无法从代码推出——所以本门只判**已被声明的**谜底
+//（`Truth.claims` 的 `via` 措辞 ＋ 页面自称「谜底」），不猜未声明的散文。
+// 设计方新增一处「本该门控但从未声明」的谜底，本门**看不见**——这是有意的：宁可漏报也不假报。
 //
 // 自证：`node test/reread.mjs --selftest`（5 条判据各带会红的反例）
 
@@ -28,7 +28,7 @@ const MYSTERY_MARK = /终局后揭开|唯一揭开处|谜底/;
 // 终局级词表（#408）：真结局名 / 真结局目标 / 普通结局的达成做法
 export const ENDGAME_MARK = /送星归位|散开的东西重新凑齐|虚弱到无法打断/;
 // 已知缺陷（报告但不判失败；修复后**删掉本条并转严格**）——本仓约定：缺陷基线引用票号
-export const ENDGAME_KNOWN = {};   // #408 已随 #419 修完（逐条结局门控）⇒ 白名单清空、R6 转严格
+export const ENDGAME_KNOWN = {};   // #408 已随 #419 修完（逐条结局门控）→ 白名单清空、R6 转严格
 export const endgameUngated = (pages, known = ENDGAME_KNOWN, extraGate = () => false) => Object.entries(pages)
 	.filter(([name, src]) => ENDGAME_MARK.test(src ?? '') && !GATE_SRC.test(src ?? '') && !extraGate(name))
 	.map(([name]) => name);
@@ -36,7 +36,7 @@ export const splitEndgame = (ungated, known = ENDGAME_KNOWN) => ({
 	known: ungated.filter((n) => n in known),
 	fresh: ungated.filter((n) => !(n in known)),
 });
-// 「有门控」的两种形态（#408 修完时的教训）：①整页按「走到过终局」门控 seenFinal()；
+//「有门控」的两种形态（#408 修完时的教训）：①整页按「走到过终局」门控 seenFinal()；
 // ②逐条结局门控 read().endings.includes(…)（#419 采用，更细——未走到的那条只给「还没走到」）。
 // 只认前者会对 #419 的修法误报，故两种都认。
 const GATE_SRC = /Sg\.Codex\.(?:seenFinal\(\)|read\(\)\.endings)/;
@@ -48,10 +48,10 @@ export const virginLeaks = (items, virginPc, holds = null) => {
 	for (const [item, def] of Object.entries(items ?? {})) {
 		for (const c of def.clues ?? []) {
 			let v = false;
-			// `#785` 第 1 族：线索判定已**声明式** ⇒ 两条路：
-			//   ① **无任何条件**（没有 `req`/`any`/`exclude`）⇒ 恒真 ⇒ **必泄**（结构判定，**不依赖引擎** ✓
-			//      —— 这正是 A5 门「咬合力」的底线：新形状下「忘写条件」仍必须被抓 ✗）；
-			//   ② 有条件 ⇒ 交给引擎的条件求值器（调用方注入 `holds`；缺注入时不臆断，按不泄计 ✓）。
+			// `#785` 第 1 族：线索判定已**声明式** → 两条路：
+			// ① **无任何条件**（没有 `req`/`any`/`exclude`）→ 恒真 → **必泄**（结构判定，**不依赖引擎**
+			// —— 这正是 A5 门「咬合力」的底线：新形状下「忘写条件」仍必须被抓）；
+			// ② 有条件 → 交给引擎的条件求值器（调用方注入 `holds`；缺注入时不臆断，按不泄计）。
 			const noConds = !['req', 'any', 'exclude'].some((k) => c && c[k] !== undefined);
 			v = noConds;
 			if (!noConds && holds) { try { v = !!holds(c, virginPc); } catch { v = false; } }
@@ -88,9 +88,9 @@ export const ungatedMysterySites = (claims, pageOf, extraGate = () => false) => 
 	const out = [];
 	for (const c of claims ?? []) {
 		for (const s of (c.sites ?? []).filter((s) => s.type === 'codex' && MYSTERY_MARK.test(s.via ?? ''))) {
-			// `#1132` 块 1：门控识别面**扩展**（**不弱化** ✗）—— `GATE_SRC.test(正文源码)` ∨ `extraGate(页)`
-			//   （`extraGate` ＝ "该页 scope 的条件行含 `req: codex:final`" ✓ —— 甲形态把门从正文搬进表 ✓
-			//    语义未变：**两处都没有 ⇒ 照红** ✓ 旧形态的漏门仍被抓 ✓）
+			// `#1132` 块 1：门控识别面**扩展**（**不弱化**）—— `GATE_SRC.test(正文源码)` ∨ `extraGate(页)`
+			//（`extraGate` ＝ "该页 scope 的条件行含 `req: codex:final`" —— 甲形态把门从正文搬进表
+			// 语义未变：**两处都没有 → 照红** 旧形态的漏门仍被抓）
 			if (!GATE_SRC.test(pageOf(s.p) ?? '') && !extraGate(s.p)) out.push(`${c.id} → ${s.p}（via：${s.via}）`);
 		}
 	}
@@ -106,8 +106,8 @@ export const selfDeclaredMysteryUngated = (pages, extraGate = () => false) =>
 const selftest = () => {
 	let bad = 0;
 	const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
-	// ⚠️ 夹具**仅用于自证「门还咬得住」**：条件形用新形状（`req`），条件求值用这个*只认 `inv:` 与点分键*的最小实现
-	// （真路径走引擎 `Sg.rules.matches` ✓ —— 自证跑在 main 之前，运行时那时还没建 ✓）。
+	//注意：夹具**仅用于自证「门还咬得住」**：条件形用新形状（`req`），条件求值用这个*只认 `inv:` 与点分键*的最小实现
+	//（真路径走引擎 `Sg.rules.matches` —— 自证跑在 main 之前，运行时那时还没建）。
 	const fxHolds = (c, pc) => (c?.req ?? []).every((k) => String(k).startsWith('inv:') ? !!(pc?.inv ?? {})[String(k).slice(4)] : !!pc?.[String(k).split('.')[0]]?.[String(k).split('.')[1]]);
 	const items = { 护符: { clues: [{ id: 'a', req: ['inv:护符'] }, { id: 'b', req: ['world.seen'] }] } };
 	const virgin = { inv: {}, world: {} };
@@ -161,13 +161,13 @@ const selftest = () => {
 if (process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 
 // ── 真实运行 ─────────────────────────────────────────────────────────
-// `#1132` 块 1：**顺手修掉一个潜伏地雷** ✗ —— 本文件 `:153` 的回调里引用了**未声明标识符 `w`**
-//   （HEAD 版即如此 ✓），只因 `Game.Codex.items` 为空、那个回调**从未被调用** ⇒ 一直不炸 ✗。
-//   本片新增的 `codexFinalGate` **主动调用** `w.Sg.rules` ⇒ 触发它 ⇒ 故在此把 `w` 变成**真定义** ✓
-//   （`createContext()` 返回 `...ctx`，其中含 `window` ✓）。
+// `#1132` 块 1：**顺手修掉一个潜伏地雷** —— 本文件 `:153` 的回调里引用了**未声明标识符 `w`**
+//（HEAD 版即如此），只因 `Game.Codex.items` 为空、那个回调**从未被调用** → 一直不炸。
+// 本片新增的 `codexFinalGate` **主动调用** `w.Sg.rules` → 触发它 → 故在此把 `w` 变成**真定义**
+//（`createContext()` 返回 `...ctx`，其中含 `window`）。
 const { Game, passageSrc, window: w } = createContext();
-// `#1132` 块 1：**门控识别面的第二处** —— 条件表行（`rules.json` 的 `req: ['codex:final']` ✓）
-//   走**已有单一权威**（`w.Sg.rules.table()` ✓ 不另写"表在哪/字段叫什么" ✗）。
+// `#1132` 块 1：**门控识别面的第二处** —— 条件表行（`rules.json` 的 `req: ['codex:final']`）
+// 走**已有单一权威**（`w.Sg.rules.table()` 不另写"表在哪/字段叫什么"）。
 const codexFinalGate = (p) => (w.Sg.rules?.table?.() ?? [])
 	.filter((r) => String(r.scope ?? '').split('#')[0] === p)
 	.some((r) => (r.req ?? []).includes('codex:final'));

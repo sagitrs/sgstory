@@ -15,12 +15,12 @@ import {
 
 const SRC = 'src';
 
-// `#761` P1 六片A-2（复核席裁定的 (α1) ✓）：**两个窄口** —— 每个只有一个消费者（A-2 的读数 ✓）。
-//  ① `--with-rules=<file>`：构建时用**指定的那份**规则文本代替该故事的 `17-rules.twee` ✓
-//     ⇒ "改过的故事"由**构建脚本**产出 ✓（我不另写一份合并逻辑 ✗）。
-//  ② `--story-out=<path>`：把该故事页写到**指定路径** ✓ ⇒ **不覆盖真 `dist/`** ✗
-//     —— 复核席指出的危险 ✗：`dist/` 虽被 gitignore ✓ 但**测试读它** ✓ ⇒ 覆盖它就是在"探针污染被测对象" ✓（dist 版 ✓）。
-//  默认（不带旗标）路径**逐字节不变** ✓（纯增口 ✓）。
+// `#761` P1 六片A-2（复核席裁定的 (α1)）：**两个窄口** —— 每个只有一个消费者（A-2 的读数）。
+// ① `--with-rules=<file>`：构建时用**指定的那份**规则文本代替该故事的 `17-rules.twee`
+// → "改过的故事"由**构建脚本**产出（我不另写一份合并逻辑）。
+// ② `--story-out=<path>`：把该故事页写到**指定路径** → **不覆盖真 `dist/`**
+// —— 复核席指出的危险：`dist/` 虽被 gitignore 但**测试读它** → 覆盖它就是在"探针污染被测对象"（dist 版）。
+// 默认（不带旗标）路径**逐字节不变**（纯增口）。
 const flagOf = (name, dflt) => {
 	const hit = process.argv.find((a) => a.startsWith(`--${name}=`));
 	return hit ? hit.slice(name.length + 3) : dflt;
@@ -33,27 +33,27 @@ mkdirSync('build', { recursive: true });
 mkdirSync('dist', { recursive: true });
 
 // #319：加载顺序**显式**声明在 scripts/module-order.mjs（不再靠文件名前缀隐含）。
-// `#893` 守卫**分两层** ✓：① **引擎件**（`src/**`）必须全在 `ORDER` 里 ✓（它们的先后是**全局**的 ✓）；
-//   ② **故事自己的件**（`stories/<slug>/**`）必须全在**该故事自己的清单**里 ✓ ⇒ 顺序由清单给 ✓
-//   ⇒ **新建故事不必改代码** ✗（原来一律要求 ⊂ ORDER ✗ ⇒ 新故事必改代码 ✗）。
-// 两层的**登记语义都没丢** ✓：新件仍须**显式登记** ✓，只是登记处换成**它自己的清单** ✓。
+// `#893` 守卫**分两层**：① **引擎件**（`src/**`）必须全在 `ORDER` 里（它们的先后是**全局**的）；
+// ② **故事自己的件**（`stories/<slug>/**`）必须全在**该故事自己的清单**里 → 顺序由清单给
+// → **新建故事不必改代码**（原来一律要求 ⊂ ORDER → 新故事必改代码）。
+// 两层的**登记语义都没丢**：新件仍须**显式登记**，只是登记处换成**它自己的清单**。
 const slugs = storySlugs();
 const STORIES = 'stories';   // \`#1128\` 产物前置用（编译器 out 路径）
-// `#1128`：**产物前置**——干净树上产物 twee 不存在（移出 git ✓）⇒ 构建前先从源（data/*.json）编译 ✓
-//    （票面约束：`git clean` 后的干净树必须能重建全套产物 ✗——断点补在此 ✓；产物在=幂等跳过 ✓ 已在=不重编 ✗ 保持逐字节稳定 ✓）。
+// `#1128`：**产物前置**——干净树上产物 twee 不存在（移出 git）→ 构建前先从源（data/*.json）编译
+//（票面约束：`git clean` 后的干净树必须能重建全套产物 ——断点补在此；产物在=幂等跳过 已在=不重编 保持逐字节稳定）。
 {
 	const { execFileSync } = await import('node:child_process');
-	for (const slug of slugs.filter((x) => !x.startsWith('__'))) {   // #1128：临时夹具（__ 前缀）不参与产物前置 ✓（它们的产物由造它们的段自己管 ✓）
+	for (const slug of slugs.filter((x) => !x.startsWith('__'))) {   // #1128：临时夹具（__ 前缀）不参与产物前置（它们的产物由造它们的段自己管）
 		const genNeeded = ['15-tables.twee', '17-rules.twee', '16-notes-ch1.twee', '18-chargen.twee'].some((f) => !existsSync(join(STORIES, slug, f)));
-		// 只补缺件（`#1128` 后磁盘上的现存产物由 K4 freshness 门守 ✓——不重编已有 ⇒ 保持与门一致 ✓）
-		// ⚠️ 每故事的产物集不同（minimal-demo 只 15；face-fixture 15/16/17）⇒ 编译器按 data/ 自动产出 ✓
+		// 只补缺件（`#1128` 后磁盘上的现存产物由 K4 freshness 门守 ——不重编已有 → 保持与门一致）
+		//注意：每故事的产物集不同（minimal-demo 只 15；face-fixture 15/16/17）→ 编译器按 data/ 自动产出
 		if (genNeeded) {
 			execFileSync('node', ['editor/compile-story.mjs', slug, `--out=${join(STORIES, slug)}/`], { stdio: 'pipe' });
 			console.log(`  #1128 产物重建：${slug}（data/ → *.twee ✓）`);
 		}
 	}
 }
-const files = allSourceFiles();   // #458 切片C：源文件发现走**单一权威**（`src/**` ＋ `stories/**`）；`#1128`：**在产物前置之后取** ✓（前置会补出产物 twee ⇒ 清单/ORDER 检查须看补完后的面 ✓——领队裁定 5758307279 ✓）
+const files = allSourceFiles();   // #458 切片C：源文件发现走**单一权威**（`src/**` ＋ `stories/**`）；`#1128`：**在产物前置之后取**（前置会补出产物 twee → 清单/ORDER 检查须看补完后的面 ——领队裁定 5758307279）
 if (files.length === 0) {
 	console.error('src/ 下没有找到 .twee 文件');
 	process.exit(1);
@@ -64,11 +64,11 @@ if (slugs.length === 0) {
 }
 const stories = slugs.map((slug) => ({ slug, ...readStory(slug) }));
 {
-	// `#893` 第三步：两层的**登记判据**走**单一权威** ✓（`checkRegistration()` —— 与 `test/layering.mjs`／
-	// `scripts/move-precheck.mjs` **同一把尺** ✓）。此前这里内联了一份 ✗ ⇒ 三处各写一遍必漂移 ✗
-	// （本仓实测过这一族：同一个"顺序/登记"口径在两处各算一次 ⇒ 改一处、另一处静默失效）。
-	// 判据逐条（✓ 安全网一条不撤 ✗）：**引擎件** ⊂ `ORDER` ✓／**故事件** ⊂ **它自己的清单** ✓／
-	// `ORDER` 里的文件必须存在 ✓／清单列出的文件必须存在 ✓／`ORDER` 里的非引擎孤儿 ✓。
+	// `#893` 第三步：两层的**登记判据**走**单一权威**（`checkRegistration()` —— 与 `test/layering.mjs`／
+	// `scripts/move-precheck.mjs` **同一把尺**）。此前这里内联了一份 → 三处各写一遍必漂移
+	//（本仓实测过这一族：同一个"顺序/登记"口径在两处各算一次 → 改一处、另一处静默失效）。
+	// 判据逐条（安全网一条不撤）：**引擎件** ⊂ `ORDER` ／**故事件** ⊂ **它自己的清单** ／
+	// `ORDER` 里的文件必须存在 ／清单列出的文件必须存在 ／`ORDER` 里的非引擎孤儿。
 	const reg = checkRegistration({
 		sources: Object.fromEntries(files.map((f) => [f, ''])),
 		manifests: stories.map((s) => ({ slug: s.slug, files: s.files ?? [] })),
@@ -87,15 +87,15 @@ const stories = slugs.map((slug) => ({ slug, ...readStory(slug) }));
 // 只剥 twee 块注释：`[script]` 段里的 JS 行注释（`//`）是**代码**，不能动。
 const stripTweeComments = (text) => String(text).replace(/\/%[\s\S]*?%\//g, ' ');
 
-// `#1114` 片 2b-2b-0：**散文层源接线** —— `passages/` 下的 md 由拼装层转成 twee ✓。
-//   接线点＝**构建链读源那一处**（`#1114` Q3 裁定：拼装是构建链的一步 ✓，不新增“门要读的产物树”✓）；
-//   段序仍由 `files` 派生 ✓（Q1 裁定：唯一清单与唯一顺序权威 ✓）。
-//   ⚠️ **fail-loud 面＝四类**（与实现一致 ✗ —— 不许“承诺了但不做” ✓）：
-//     ① 禁则（`FORBIDDEN_BUILTINS`）② 悬空引用 ③ **重名段（跟源多重集）** ④ 取值 `{{}}` 未声明面。
-//     ③ 的理由（可复算 ✓）：`build` **单独跑**的地方不止一处（`ci.yml` 的 build 步／`viewport-smoke.yml`／本地），
-//     且实测跟文件同名时 `build` 全静默、**产物静默丢掉后一份**（第二段的正文不在产物里）。
-//     词汇门的 `D1` 虽覆盖**所有故事**的源（其注释明写"不受 audience 豁免"），但只在 **test 段**跑 ⇒
-//     构建自己必须说话，不能靠门兜。判据＝同一函数（`duplicateProblems` ✓），门与 build 不可能漂。
+// `#1114` 片 2b-2b-0：**散文层源接线** —— `passages/` 下的 md 由拼装层转成 twee。
+// 接线点＝**构建链读源那一处**（`#1114` Q3 裁定：拼装是构建链的一步，不新增“门要读的产物树”）；
+// 段序仍由 `files` 派生（Q1 裁定：唯一清单与唯一顺序权威）。
+//注意：**fail-loud 面＝四类**（与实现一致 —— 不许“承诺了但不做”）：
+// ① 禁则（`FORBIDDEN_BUILTINS`）② 悬空引用 ③ **重名段（跟源多重集）** ④ 取值 `{{}}` 未声明面。
+// ③ 的理由（可复算）：`build` **单独跑**的地方不止一处（`ci.yml` 的 build 步／`viewport-smoke.yml`／本地），
+// 且实测跟文件同名时 `build` 全静默、**产物静默丢掉后一份**（第二段的正文不在产物里）。
+// 词汇门的 `D1` 虽覆盖**所有故事**的源（其注释明写"不受 audience 豁免"），但只在 **test 段**跑 →
+// 构建自己必须说话，不能靠门兜。判据＝同一函数（`duplicateProblems`），门与 build 不可能漂。
 const ENGINE_LABELS = engineLabels(allSourceFiles(['src']).map((f) => readFileSync(f, 'utf8')));
 const termsOf = (slug) => {
 	const p = `stories/${slug}/data/contract.json`;
@@ -103,7 +103,7 @@ const termsOf = (slug) => {
 	return valueTerms({ contract, labels: ENGINE_LABELS });
 };
 const SEG_HEAD = /^::\s+(.+?)\s*(?:\[[^\]]*\])?\s*$/gm;
-/** 该故事**合法段名全集**（twee 段名 ∪ md 段名 ✓）——md 段可以引用同故事的 twee 段（两源共存期 ✓）。 */
+/** 该故事**合法段名全集**（twee 段名 ∪ md 段名）——md 段可以引用同故事的 twee 段（两源共存期）。 */
 const knownNamesOf = (slug, files) => {
 	const names = new Set();
 	for (const f of files) {
@@ -113,16 +113,16 @@ const knownNamesOf = (slug, files) => {
 	return names;
 };
 const assembleOne = (slug, f, known) => {
-	// ⚠️ `#1114` 2b-2b：tags **必须用 core 解析好的数组** ✗ —— 本处先前直接传 `meta.tags` 原串（`"[]"`）
-	//   ⇒ 拼装层 `p.tags ? \` [${p.tags}]\` : ''` 把它当成真值 ⇒ 产物段头变 `:: 段名 [[]]`
-	//   ⇒ 段名不再等于 `passage` 值 ⇒ 第三格判「拼装产物缺段」✗（实测踩到 ✓）。
-	//   ⇒ 改用 core 的 `parseMdPassages`（**同一权威** ✓）：name/tags/body 都已归位 ✓。
+	//注意：`#1114` 2b-2b：tags **必须用 core 解析好的数组** —— 本处先前直接传 `meta.tags` 原串（`"[]"`）
+	// → 拼装层 `p.tags? \` [${p.tags}]\`: ''` 把它当成真值 → 产物段头变 `:: 段名 [[]]`
+	// → 段名不再等于 `passage` 值 → 第三格判「拼装产物缺段」（实测踩到）。
+	// → 改用 core 的 `parseMdPassages`（**同一权威**）：name/tags/body 都已归位。
 	const [p0] = parseMdPassages(readFileSync(f, 'utf8'), f);
 	const name = String(p0?.name ?? '').trim();
 	if (!name) { console.error(`✗ ${f}：front-matter 缺 \`passage\`（段名权威在本字段 ✓）`); process.exit(1); }
 	const { twee, problems } = assemblePassages({
-		// ⚠️ `#1114` 2b-2b：**twee 路径剥注释、md 路径也要剥** ✗ —— 否则 `/% … %/` 原样入 dist
-		//   （本函数上方的 `stripTweeComments` 注释就写着这条 ✓）⇒ 实测：PRE 0/34 ⇒ POST 23/34 且 body 变长 ✓。
+		//注意：`#1114` 2b-2b：**twee 路径剥注释、md 路径也要剥** —— 否则 `/% … %/` 原样入 dist
+		//（本函数上方的 `stripTweeComments` 注释就写着这条）→ 实测：PRE 0/34 → POST 23/34 且 body 变长。
 		passages: [{ name, tags: p0.tags ?? [], body: stripTweeComments(p0.body), path: f }],
 		known, forbidden: FORBIDDEN_BUILTINS, terms: termsOf(slug),
 	});
@@ -133,7 +133,7 @@ const mergedOf = (s) => {
 	const scoped = scopedFiles(s);
 	const known = knownNamesOf(s.slug, scoped);
 	return scoped.map((f) => {
-		// `--with-rules` ✓：只替换**规则文件那一份** ✓（窄 ✓ —— 不动别的件 ✓）
+		// `--with-rules`：只替换**规则文件那一份**（窄 —— 不动别的件）
 		if (isStoryPassageMd(f)) return assembleOne(s.slug, f, known);
 		const text = (WITH_RULES && /(^|\/)17-rules\.twee$/.test(f)) ? readFileSync(WITH_RULES, 'utf8') : readFileSync(f, 'utf8');
 		return stripTweeComments(text).trimEnd();
@@ -141,14 +141,14 @@ const mergedOf = (s) => {
 };
 const merges = new Map(stories.map((s) => [s.slug, mergedOf(s)]));
 
-// `#1114` 片 2b-2b-0：**跟源同名段（多重集）** ✗ —— 构建路径自己算（不靠词汇门 `D1`）。
-//   为什么必须在这里算：① `assembleOne` 是**逐文件**调用（每次只嗂一个 `{name}`）⇒ 跟文件同名它看不见；
-//   ② 第三格的 `got` 是 **`Set`**（去重）⇒ 两名段同名时 `missing=[]` ⇒ 绿；
-//   ③ 产物级断言查的是 front-matter **残留** ⇒ 同名两段的产物里没有那个串 ⇒ 绿。
-//   ⇒ 三条同时漏 ⇒ 产物里出现两个 `:: X`（一份构建里同名段只会活一个 ⇒ 后一个默默盖掉前一个 ✓）。
-//   口径：**同一函数、同一措辞**（`core/passages.mjs` 的 `duplicateProblems` ✓ ⇒ 与词汇门 `D1` 一致）。
+// `#1114` 片 2b-2b-0：**跟源同名段（多重集）** —— 构建路径自己算（不靠词汇门 `D1`）。
+// 为什么必须在这里算：① `assembleOne` 是**逐文件**调用（每次只嗂一个 `{name}`）→ 跟文件同名它看不见；
+// ② 第三格的 `got` 是 **`Set`**（去重）→ 两名段同名时 `missing=[]` → 绿；
+// ③ 产物级断言查的是 front-matter **残留** → 同名两段的产物里没有那个串 → 绿。
+// → 三条同时漏 → 产物里出现两个 `:: X`（一份构建里同名段只会活一个 → 后一个默默盖掉前一个）。
+// 口径：**同一函数、同一措辞**（`core/passages.mjs` 的 `duplicateProblems` → 与词汇门 `D1` 一致）。
 for (const s of stories) {
-	// 口径：段名直接从**源文件**取（不从产物反推 ✗）⇒ 点名能到**具体文件**（“哪两份源”✓）。
+	// 口径：段名直接从**源文件**取（不从产物反推）→ 点名能到**具体文件**（“哪两份源”）。
 	const segs = [];
 	for (const f of scopedFiles(s)) {
 		if (isStoryPassageMd(f)) {
@@ -161,9 +161,9 @@ for (const s of stories) {
 	const dup = duplicateProblems({ passages: segs });
 	if (dup.length) { console.error(`✗ 构建期重名（跟源同名段）✗：\n  ${dup.join('\n  ')}`); process.exit(1); }
 }
-// `#1114` 片 2b-2b-0 第三格：**`files` 里 md 的段名集合 ≡ 拼装产物段名集合**（防“有的段被静默吞掉”✗）。
-//   为什么需要：拼接是“逐件 map＋join” ⇒ 任一环把 md 丢掉（返回空串/未进 scoped）都不会报错 ✗，
-//   而产物里就少一段——那正是“绿≠覆盖”那一族 ✓ ⇒ 用**集合相等**把它变成 fail-loud ✓。
+// `#1114` 片 2b-2b-0 第三格：**`files` 里 md 的段名集合 ≡ 拼装产物段名集合**（防“有的段被静默吞掉”）。
+// 为什么需要：拼接是“逐件 map＋join” → 任一环把 md 丢掉（返回空串/未进 scoped）都不会报错，
+// 而产物里就少一段——那正是“绿≠覆盖”那一族 → 用**集合相等**把它变成 fail-loud。
 for (const s of stories) {
 	const scoped = scopedFiles(s);
 	const mdNames = scoped.filter(isStoryPassageMd).map((f) => String(parseFrontMatter(readFileSync(f, 'utf8')).meta.passage ?? '').trim()).filter(Boolean);
@@ -174,12 +174,12 @@ for (const s of stories) {
 }
 
 
-// `#1114` 片 2b-2b-0 产物级断言：**拼装产物不得含该段的 front-matter 精确串** ✗。
-//   为什么必须有（评审指出：段名集合格**抓不到**这个）：若有人把“照收原样拼”改回来，
-//   md 原文被当正文拼入 ⇒ **段名仍在**（`:: 段名` 是拼接前的行首？——不：原文里是 `passage: 段名`）
-//   ⇒ 段名集合照样相等 ⇒ 静默通过 ⇒ 刚修好的病无声回归 ✓（“绿 ≠ 覆盖”）。
-//   ⚠️ 判据必须**带具体值** ✗：用 `'passage:'`／`^---$` 这种通用串会命中别的东西（引擎 API／分隔线）
-//   ⇒ 恒真、假读数 ✓（本片自纠过那一次）⇒ 这里用 `passage: <该段名>`（逐个 md 段 ✓）。
+// `#1114` 片 2b-2b-0 产物级断言：**拼装产物不得含该段的 front-matter 精确串**。
+// 为什么必须有（评审指出：段名集合格**抓不到**这个）：若有人把“照收原样拼”改回来，
+// md 原文被当正文拼入 → **段名仍在**（`:: 段名` 是拼接前的行首？——不：原文里是 `passage: 段名`）
+// → 段名集合照样相等 → 静默通过 → 刚修好的病无声回归（“绿 ≠ 覆盖”）。
+//注意：判据必须**带具体值**：用 `'passage:'`／`^---$` 这种通用串会命中别的东西（引擎 API／分隔线）
+// → 恒真、假读数（本片自纠过那一次）→ 这里用 `passage: <该段名>`（逐个 md 段）。
 for (const s of stories) {
 	const out = merges.get(s.slug) ?? '';
 	for (const f of scopedFiles(s).filter(isStoryPassageMd)) {
@@ -195,8 +195,8 @@ for (const s of stories) {
 }
 
 // `#1114` 2b-2b：**产物段 body ≡ 源 md 剥注释后的 body** ✗（防「md 路径漏剥」回归 ✓）。
-//   ⚠️ **不能写成“产物里不含 `/%`”** —— 那是**恒真格**（拼装输出已剥 ⇒ 永不含）✗：
-//   实测（评审要的能假那一半）：往 md 里喂一个 `/% 探针注释 %/` ⇒ 若只查“不含 /%” ⇒ `build rc=0` **不报** ✗。
+//   ⚠️ **不能写成“产物里不含 `/%`”** —— 那是**恒真格**（拼装输出已剥 → 永不含）：
+// 实测（评审要的能假那一半）：往 md 里喂一个 `/% 探针注释 %/` ⇒ 若只查“不含 /%” ⇒ `build rc=0` **不报** ✗。
 //   改为**比对两个量**（产物段 body ↔ 源剥后的 body）⇒ 漏剥时两者不等 ⇒ 必红 ✓。
 for (const s of stories) {
 	const out = merges.get(s.slug) ?? '';
@@ -256,7 +256,7 @@ const injectFonts = (html, prefix) => {
 	const preload = ['Regular', 'Medium']
 		.map((w) => `<link rel="preload" href="${prefix}LXGWWenKai-${w}.woff2" as="font" type="font/woff2" crossorigin>`)
 		.join('\n');
-	// 注意：CSS 里的形式是 `url('fonts/…')`（引号在**前**）——按 `fonts/'` 切是错的（曾漏改 ⇒ 故事页深两层 404）
+	// 注意：CSS 里的形式是 `url('fonts/…')`（引号在**前**）——按 `fonts/'` 切是错的（曾漏改 → 故事页深两层 404）
 	const css = fontCss.replace(/url\('fonts\//g, `url('${prefix}`);
 	return html.replace('</head>', `${preload}\n<style id="font-face" media="all">\n${css}</style>\n</head>`);
 };
@@ -267,18 +267,18 @@ const injectLang = (p) => {
 	if (!/<html[^>]*\slang=/.test(html)) writeFileSync(p, html.replace(/<html(?=[\s>])/, '<html lang="zh-CN"'));
 };
 
-// ── 清 `dist/stories/`（`#1015`／`#1035`）：**不 prune 会让已删故事的旧产物留在本地** ✗
-//   ⇒ 本地验证面 ≠ 线上发布面（线上是干净 checkout）⇒ 本步让两者一致。
-//   ⚠️ 只清 `stories/`：`dist/fonts/` 是共享根路径，由字体步骤负责。
-if (!STORY_OUT) rmSync(join(ROOT, 'dist', 'stories'), { recursive: true, force: true });   // ⚠️ 窄口模式（`--story-out`）只写一份 ⇒ 不清，免得把别人的产物删了
+// ── 清 `dist/stories/`（`#1015`／`#1035`）：**不 prune 会让已删故事的旧产物留在本地**
+// → 本地验证面 ≠ 线上发布面（线上是干净 checkout）→ 本步让两者一致。
+//注意：只清 `stories/`：`dist/fonts/` 是共享根路径，由字体步骤负责。
+if (!STORY_OUT) rmSync(join(ROOT, 'dist', 'stories'), { recursive: true, force: true });   //注意：窄口模式（`--story-out`）只写一份 → 不清，免得把别人的产物删了
 // ── 编译每个故事 → dist/stories/<slug>/index.html ─────────────────────
 for (const s of stories) {
-	if (STORY_OUT && s.slug !== DEFAULT_SLUG) continue;   // 窄口 ✓：只写目标那一份 ✓（其余故事不碰 ✓）
+	if (STORY_OUT && s.slug !== DEFAULT_SLUG) continue;   // 窄口：只写目标那一份（其余故事不碰）
 	writeFileSync('build/game.twee', merges.get(s.slug), 'utf8');
-	//  ⚠️ **工具契约** ✓（复核席对 `#874` 的裁定 (a) ✓）：`--story-out` **绝对路径按绝对处理** ✗ ——
-	//   原先一律 `join(ROOT, …)` ✓ ⇒ `path.join('/repo','/repo/dist/x')` ＝ `/repo/repo/dist/x` ✗
-	//   （`join` **不**在绝对段重置 ✓ —— 那是 `resolve` ✓）⇒ 构建落**荒处** ✗、目标文件仍是**旧那份** ✗
-	//   ⇒ 调用方以为写了、其实没写 ✓。修在**工具侧**（只修调用点 ⇒ 下一个调用者再踩 ✗）。
+	//注意：**工具契约**（复核席对 `#874` 的裁定 (a)）：`--story-out` **绝对路径按绝对处理** ——
+	// 原先一律 `join(ROOT, …)` → `path.join('/repo','/repo/dist/x')` ＝ `/repo/repo/dist/x`
+	//（`join` **不**在绝对段重置 —— 那是 `resolve`）→ 构建落**荒处**、目标文件仍是**旧那份**
+	// → 调用方以为写了、其实没写。修在**工具侧**（只修调用点 → 下一个调用者再踩）。
 	const out = STORY_OUT ? (isAbsolute(STORY_OUT) ? STORY_OUT : join(ROOT, STORY_OUT)) : storyHtml(s.slug);
 	mkdirSync(dirname(out), { recursive: true });
 	// 用 extwee 编译：Twee + SugarCube 格式 → 单文件 HTML
@@ -290,7 +290,7 @@ for (const s of stories) {
 console.log(`\n✔ 编译完成：${stories.length} 个故事（${stories.map((s) => s.slug).join('、')}）→ dist/stories/<slug>/index.html${fontCss ? ' ＋ 字体外链' : ''}`);
 console.log('  浏览器直接打开即可游玩；也可用 Twine 2 编辑器导入继续可视化编辑。');
 
-// ── 书架页（#441 切片④）：**读目录**生成 ⇒ 加故事只需加目录，不手写清单 ──────
+// ── 书架页（#441 切片④）：**读目录**生成 → 加故事只需加目录，不手写清单 ──────
 // β2 起它就是 `dist/index.html`（进站门面）。
 const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 {

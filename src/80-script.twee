@@ -43,15 +43,15 @@ jQuery(document).on('keydown.sgSave', (ev) => {
 	else if (ev.key === 'l' || ev.key === 'L') { ev.preventDefault(); window.Sg.save.quickLoad(); }
 });
 // ── 道具图鉴（`Sg.Codex`）归引擎侧（`#1132` B3 起）（`#574`：当时是 `stories/mist-forest/72-codex-ui.twee`）——
-//    该面原住故事侧：`mist-forest` 于 `#1004` B 段删除后曾由（测试夹具）`stories/face-fixture/13-codex.twee` 声明，
-//    该件又于 `#1132` B3 删除 ⇒ 现由**引擎侧无条件定义**（空面由 `items()`/`render()` 返回空值）✓
-//    它经契约成员 `codexItems` 读故事数据（故事没有该面时 `items()` 返回空值 ⇒ 可见行为不变）；本文件其余部分是**引擎运行时胶水**（layer: engine），
-//    对每个故事都成立。引擎侧对它的引用是可选面：见下方 `:passagestart` 的 `Sg.Codex?.sync?.()`。
+// 该面原住故事侧：`mist-forest` 于 `#1004` B 段删除后曾由（测试夹具）`stories/face-fixture/13-codex.twee` 声明，
+// 该件又于 `#1132` B3 删除 → 现由**引擎侧无条件定义**（空面由 `items()`/`render()` 返回空值）
+// 它经契约成员 `codexItems` 读故事数据（故事没有该面时 `items()` 返回空值 → 可见行为不变）；本文件其余部分是**引擎运行时胶水**（layer: engine），
+// 对每个故事都成立。引擎侧对它的引用是可选面：见下方 `:passagestart` 的 `Sg.Codex?.sync?.()`。
 
 // ── 笔记（伞 #422 阶段 1）：知识的唯一取值口 ──────────────────────────
-//     · `has(id)` 走条目的 `grant`（阶段 1 它读的是现有旗标 → 零行为变化）
-//     · `all()` 返回已知笔记（按声明顺序），`missing(req)` 便于条件表做「缺什么」诊断
-//     · 阶段 3 之后写点搬到 `add()`；在此之前本封装**只读**，不写状态（渲染路径契约）
+// · `has(id)` 走条目的 `grant`（阶段 1 它读的是现有旗标 → 零行为变化）
+// · `all()` 返回已知笔记（按声明顺序），`missing(req)` 便于条件表做「缺什么」诊断
+// · 阶段 3 之后写点搬到 `add()`；在此之前本封装**只读**，不写状态（渲染路径契约）
 window.Sg.notes = {
 	// 单一路径求值器：笔记只声明 flagPath（如 'ev.tav_tips'），求值在此一处完成——
 	// 这样数据表里不出现任何字面旗标读点（否则会被「选择后果」门的消费推导算成叙事消费）。
@@ -64,7 +64,7 @@ window.Sg.notes = {
 		return cur;
 	},
 	// #436-b：表**只经故事注册的入口**取（`Sg.story.notes()`）——本文件将来搬进引擎侧时，
-	// 它不得出现故事符号（`Game.Notes`）；结构缺失（未注册）⇒ **fail-loud**，不静默当空表。
+	// 它不得出现故事符号（`Game.Notes`）；结构缺失（未注册）→ **fail-loud**，不静默当空表。
 	table() {
 		const provide = window.Sg.story?.notes;
 		if (typeof provide !== 'function') throw new Error('Sg.notes：故事未注册 `Sg.story.notes()`（接入契约 #436-b／#441-E）——结构缺失必须报错，不许静默当空表');
@@ -82,15 +82,15 @@ window.Sg.notes = {
 		for (const s of segs.slice(0, -1)) { if (cur[s] == null) cur[s] = {}; cur = cur[s]; }
 		cur[segs[segs.length - 1]] = v;
 	},
-	// 真存储（#434）：`pc.ev.notes` 是「已授予」的**记录**；旧档只有旗标 ⇒ 由 has() 的旗标面兜住
+	// 真存储（#434）：`pc.ev.notes` 是「已授予」的**记录**；旧档只有旗标 → 由 has() 的旗标面兜住
 	stored(id, pc = State.variables.pc) { return !!pc?.ev?.notes?.[id]; },
 	entry(id) { return this.table()[id] ?? null; },
 	ids() { return Object.keys(this.table()); },
 	/**
 	 * 位点 → 知识（`#762` A 线：`checkKnowledge` 下沉）。
 	 * 故事仍持有 `Game.Checks.knowledge`（位点→旗标）与 `knowledgeWhy`（旗标→来源）两张**声明表**；
-	 * **组装**（含"是否持有"）住引擎 ⇒ 故事不再需要写这个函数。
-	 * 两态要分清：没有这个知识点 ⇒ `null`；有知识点但**未持有** ⇒ `{ flag, why, held: false }`。
+	 * **组装**（含"是否持有"）住引擎 → 故事不再需要写这个函数。
+	 * 两态要分清：没有这个知识点 → `null`；有知识点但**未持有** → `{ flag, why, held: false}`。
 	 */
 	knowledgeOf(name, pc = State.variables.pc) {
 		const flag = window.Game?.Checks?.knowledge?.[name];
@@ -108,9 +108,9 @@ window.Sg.notes = {
 	},
 	// 读取语义（`#437` C-2c-2 起）：`has(id, pc = 当前存档的 pc) = stored(id, pc)` —— **只认真存储**。
 	// `pc` 参数（`#437` C-2c-3）：图鉴/门里的判据是 `test(p)` 形式，吃的是**传入的 pc**（例如门的"全收集态"合成 pc）——
-	// 不给这个参数，`has()` 会一直读全局存档 ⇒ 判据在合成态上是错的（实测 `--canon` 报「全收集态仍不满足」）。
+	// 不给这个参数，`has()` 会一直读全局存档 → 判据在合成态上是错的（实测 `--canon` 报「全收集态仍不满足」）。
 	// 兼容层（旗标兜底 `∨ any(readPath(flagPath))`）已随本片退场；旧档的旗标由 `migrateLegacy()` **一次性补进存储**，
-	// 所以"旧档载入不丢知识"这条不变（`Game.Pc.migrate()` 里调用 ⇒ 每次载档幂等补齐）。
+	// 所以"旧档载入不丢知识"这条不变（`Game.Pc.migrate()` 里调用 → 每次载档幂等补齐）。
 	has(id, pc = State.variables.pc) {
 		const e = this.entry(id);
 		if (!e) return false;
@@ -136,18 +136,18 @@ window.Sg.notes = {
 		return n;
 	},
 	// 授予（#434）：**幂等** ＋ 真存储 ＋ **双写**（同时置旗标，票面「旗标降为兼容字段」）。
-	// 多源护栏：`flagPath` 是**数组**时必须显式 `setPath`（写哪一条）⇒ 缺则**报错**，绝不静默多写一个旗标。
+	// 多源护栏：`flagPath` 是**数组**时必须显式 `setPath`（写哪一条）→ 缺则**报错**，绝不静默多写一个旗标。
 	add(id, pc = State.variables.pc) {
 		const e = this.entry(id);
 		if (!e) throw new Error(`Sg.notes.add：笔记「${id}」未登记（结构缺失必须报错，#434）`);
 		// `#437` C-2c-1b：早退只看**存储**，不看 `has(id)`（＝存储 ∨ 旗标）。
 		// 为什么（`#437` C-2c 的实验法实测）：语料里 `<<firstTime "wq_seen">><<note "n_wq_seen">>` 这种**紧接着**的写法，
-		// `firstTime` 先置旗标 ⇒ `has()` 立刻为真 ⇒ `add()` 早退 ⇒ **存储永远补不上**（`pc.ev.notes` 始终 undefined），
+		// `firstTime` 先置旗标 → `has()` 立刻为真 → `add()` 早退 → **存储永远补不上**（`pc.ev.notes` 始终 undefined），
 		// 只是被 `has()` 的旗标兜底掩盖着；一旦按 C-2c-2 删掉兜底，那条知识就会**静默变假**。
 		if (this.stored(id)) return false;
 		// `#733` 片 2-b（**翻面**）：**单源**笔记不再写旗标 —— 它的 `flagPath` 只是"历史来源"（供 `migrateLegacy()` 迁移旧档），
 		// 真存储是 `ev.notes.<id>`；读侧早只认存储（C-2c-2）、单源读点全转 `has()`（C-2c-3）、声明面词汇改 `note:<id>`（片 1）、
-		// 写点统一 `add()/<<note>>`（片 2-a）、断言面形式无关（`#738`）、情报捷径接缝给 `held`（`#739` ＋ 故事侧）、接缝吃 `pc`（`#741`）⇒ 旗标已无读者。
+		// 写点统一 `add()/<<note>>`（片 2-a）、断言面形式无关（`#738`）、情报捷径接缝给 `held`（`#739` ＋ 故事侧）、接缝吃 `pc`（`#741`）→ 旗标已无读者。
 		// **多源**笔记照旧：`flagPath` 是"哪一条路径拿到了"的事实，必须写（`setPath` 护栏不变）。
 		if (Array.isArray(e.flagPath)) {
 			if (!e.setPath) throw new Error(`Sg.notes.add：笔记「${id}」的 flagPath 是数组（多源 OR）⇒ 必须显式声明 setPath（该写哪一条）——不许静默多写一个旗标（#434/#435）`);
@@ -158,12 +158,12 @@ window.Sg.notes = {
 		return true;
 	},
 	all() { return this.ids().filter((id) => this.has(id)); },
-	// **路径限定的授予**（`#569`）：行里声明 `yields: [{ id, path }]` ⇒ 只写**声明的那一条** path。
+	// **路径限定的授予**（`#569`）：行里声明 `yields: [{ id, path}]` → 只写**声明的那一条** path。
 	// 与 `add()` 的三处差别（逐条写清，因为它们是这个 API 存在的理由）：
-	//   ① **路径级幂等**：只看“这条 path 真不真”，**不看** `has(id)`。因为多源笔记里
-	//      “听人比过”（`world.` 那条已真）之后**仍要能**记下“看清了钉子”（`ev.` 那条）——两条 path 各记各的；
-	//   ② `path` 必须属于该笔记的 `flagPath`（否则写进去**读不出来** ⇒ fail-loud；门侧 `yieldPathProblems()` 同判据）；
-	//   ③ `setPath` 护栏**不适用**（本调用就是“显式声明走哪条”本身）——所以 `add()` 对多源笔记的报错路径不受影响。
+	// ① **路径级幂等**：只看“这条 path 真不真”，**不看** `has(id)`。因为多源笔记里
+	//“听人比过”（`world.` 那条已真）之后**仍要能**记下“看清了钉子”（`ev.` 那条）——两条 path 各记各的；
+	// ② `path` 必须属于该笔记的 `flagPath`（否则写进去**读不出来** → fail-loud；门侧 `yieldPathProblems()` 同判据）；
+	// ③ `setPath` 护栏**不适用**（本调用就是“显式声明走哪条”本身）——所以 `add()` 对多源笔记的报错路径不受影响。
 	addPath(id, path, pc = State.variables.pc) {
 		const e = this.entry(id);
 		if (!e) throw new Error(`Sg.notes.addPath：笔记「${id}」未登记（结构缺失必须报错，#569）`);
@@ -185,21 +185,21 @@ window.Sg.notes = {
 
 /* ── 结局页的收尾入口（C1）─────────────────────────────────────────────────
    每个 <<ending>>（终局 10 个 + 章节出口 5 个）都发这张卡：退回上一步 / 读档 / 从头再来。
-   卡片写在 <<ending>> 里（渲染在段落顶部），下面这个 :passagerender 把它挪到段落末尾——
+   卡片写在 <<ending>> 里（渲染在段落顶部），下面这个:passagerender 把它挪到段落末尾——
    于是"每个结局都有出口"只依赖 <<ending>> 一处（图鉴门已强制所有 结局* 段落都调它）。
    为什么用 button + 委托而不是 <<link>>：这三个动作是导航/存档 API，不是段落跳转，
    而且要能带条件显示（有没有存档、有没有上一步）。 */
-// `#1132` B2：**声明式施加器**（能力进引擎库 ✓ 数据由调用方给 ⇒ 不碰故事全局 ✓）。
-//   动词集＝**封闭三件**（从真实消费者推得，逐条有据 ✓）：
-//     set    ＝赋值（替换，非合并）：顶层／点分路径／整对象
-//     add    ＝数值增（仅 number ⇒ 非 number 当场大声报 ✗ 不静默）
-//     append ＝数组追加
-//   未知动词 ⇒ **大声报** ✗（封闭集的能假面：宁可响，不可静默漏字段）
+// `#1132` B2：**声明式施加器**（能力进引擎库 数据由调用方给 → 不碰故事全局）。
+// 动词集＝**封闭三件**（从真实消费者推得，逐条有据）：
+// set ＝赋值（替换，非合并）：顶层／点分路径／整对象
+// add ＝数值增（仅 number → 非 number 当场大声报 不静默）
+// append ＝数组追加
+// 未知动词 → **大声报**（封闭集的能假面：宁可响，不可静默漏字段）
 window.Sg.Chargen = {
 	VERBS: ['set', 'add', 'append'],
-	// `#1132` B2：**写前深拷贝** —— 契约＝「**绝不改写调用方数据**」✓
-	//   实测：`writePath` 按**引用**存对象 ⇒ 若不拷贝，后续 `add` 会把**调用方对象**（＝json 里的
-	//   `patch.abilities.set`）当场改写 ✗ ⇒ 同一预设连用两次 ⇒ 数值翻倍 ✗（序列级读数咬出 ✓）
+	// `#1132` B2：**写前深拷贝** —— 契约＝「**绝不改写调用方数据**」
+	// 实测：`writePath` 按**引用**存对象 → 若不拷贝，后续 `add` 会把**调用方对象**（＝json 里的
+	// `patch.abilities.set`）当场改写 → 同一预设连用两次 → 数值翻倍（序列级读数咬出）
 	_clone(v) { return v !== null && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v; },
 	apply(pc, patch) {
 		if (!pc || typeof pc !== 'object') throw new Error('Sg.Chargen.apply：pc 缺失');
@@ -225,16 +225,16 @@ window.Sg.Chargen = {
 					}
 				}
 			} else {
-				window.Sg.notes.writePath(pc, path, this._clone(v));   // 裸值 ⇒ set ✓（同样克隆 ✓）
+				window.Sg.notes.writePath(pc, path, this._clone(v));   // 裸值 → set（同样克隆）
 			}
 		}
 	},
 };
 
-// `#1132` B3：`overBudget` —— **能力进引擎**（数据来自 `Sg.story.starBudget()` ⇒ `contract.json` 生成件 ✓）。
-//   ⚠️ **不变量**：名字与语义**逐字不变** ✗（`test/rules.mjs` 是它的行为消费者 ⇒ 该测试**零改动仍须绿** ✓ = 旁证格）
-//   ⚠️ **缺失才补**（`Sg.story.overBudget` 已存在 ⇒ 不覆盖 ✓）⇒ 生成的故事声明与引擎默认**两侧共存不打架** ✓
-//   ⚠️ 结构畸形 ⇒ **抛错** ✓（照 `pcDefaults` 的既有纪律 ✓ 不静默取默认值 ✗）
+// `#1132` B3：`overBudget` —— **能力进引擎**（数据来自 `Sg.story.starBudget()` → `contract.json` 生成件）。
+//注意：**不变量**：名字与语义**逐字不变**（`test/rules.mjs` 是它的行为消费者 → 该测试**零改动仍须绿** = 旁证格）
+//注意：**缺失才补**（`Sg.story.overBudget` 已存在 → 不覆盖）→ 生成的故事声明与引擎默认**两侧共存不打架**
+//注意：结构畸形 → **抛错**（照 `pcDefaults` 的既有纪律 不静默取默认值）
 {
 	const S = (window.Sg.story ??= {});
 	if (typeof S.overBudget !== 'function') {
@@ -334,7 +334,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 
 	// #262（#185 阶段四）通用结果留屏：goto 式流程里，链接内的检定/结果文本会随重渲染一起丢。
 	// 包一层 goto——导航前把「本次点击新出现、且不属于旧快照」的反馈文本存进 $pc.ev.last_result
-	// （带段落名）。重渲染时由下列 :passagerender 槽位放回行动区正上方；不进存档语义，只存文本。
+	//（带段落名）。重渲染时由下列:passagerender 槽位放回行动区正上方；不进存档语义，只存文本。
 	const gotoMacro = (typeof Macro !== 'undefined' && typeof Macro.get === 'function') ? Macro.get('goto') : null;
 	if (gotoMacro) {
 		const origGoto = gotoMacro.handler;
@@ -489,8 +489,8 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		jump.textContent = '跳到正文';
 		document.body.insertBefore(jump, document.body.firstChild);
 
-		// #262：没显式声明行动区的段落，自动把「末尾那串链接」识别成行动区并包进 .scene-acts
-		// （整束 ≤6 条纯链接、段落里没有别的行动容器时）——键盘跳转与分组一次覆盖全库。
+		// #262：没显式声明行动区的段落，自动把「末尾那串链接」识别成行动区并包进.scene-acts
+		//（整束 ≤6 条纯链接、段落里没有别的行动容器时）——键盘跳转与分组一次覆盖全库。
 		const autoActs = (content) => {
 			if (content.querySelector('.scene-acts')) return content.querySelector('.scene-acts');
 			if (content.querySelector('.tavern-actions, .soc-ask, details.act-group')) return content.querySelector('.scene-acts');
@@ -529,7 +529,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 			content.insertBefore(skip, content.firstChild);
 		});
 
-		// 替换式交互不触发 :passageend：焦点随旧节点消失时交回本次反馈
+		// 替换式交互不触发:passageend：焦点随旧节点消失时交回本次反馈
 		let focusInside = false;
 		document.addEventListener('focusin', (ev) => { focusInside = passages.contains(ev.target); }, true);
 		new MutationObserver(() => {
@@ -554,31 +554,31 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 			}
 		}, true);
 
-		// `#1012`：**导航型交互**之后把焦点送回正文 ✗ —— 用户从正文里的控件发起跳转时，旧节点一被替换，
-		//   `activeElement` 就落到 `body` 上（实测：`酒馆` 行动区的 `[[就地了结这一趟|结局 平凡之路]]`
-		//   用 `Enter`/点击激活后 `passage` 真变了 ✓ 而焦点在 `body` ✗）⇒ 键盘／读屏用户失去落点 ✓。
-		// ⚠️ 两条**合起来**才动（各挡一半 ✗）：① 焦点**本来就在正文里**（`focusInside` ✓）—— 这一条把
-		//   **程序性导航**（`Engine.play`／页面载入 ✓）挡在外面 ✓（否则会把 Tab 序列的起点挪到正文之后，
-		//   越过「跳到正文」/「跳到行动」那两条跳转链接 ✗）；② 替换之后焦点**确实丢了** ✓（`body`／
-		//   已脱离文档 ✓）—— 已有更精确落点的两种（`#180` 就地反馈定位 ✓／`#185` 子对话返回行动区 ✓）
-		//   各由上两处先处理 ✓，本处只补**没人接的那一类**（导航 + 目标段落里没有那些落点）✓。
-		// ⚠️ 判据口径照 `docs/dev-conventions.md` §6 ✗：契约是「**焦点仍在 `#passages` 内**」✓
-		//   —— 落到**哪一个**元素属实现路径 ✓（此处取段落根＝新内容的**顶部**，符合导航后的阅读顺序 ✓），
-		//   断言不得绑元素 ✓；滚动不动（`preventScroll` ✓）—— 本票只修焦点，改滚动属另一件 ✗。
+		// `#1012`：**导航型交互**之后把焦点送回正文 —— 用户从正文里的控件发起跳转时，旧节点一被替换，
+		// `activeElement` 就落到 `body` 上（实测：`酒馆` 行动区的 `[[就地了结这一趟|结局 平凡之路]]`
+		// 用 `Enter`/点击激活后 `passage` 真变了 而焦点在 `body`）→ 键盘／读屏用户失去落点。
+		//注意：两条**合起来**才动（各挡一半）：① 焦点**本来就在正文里**（`focusInside`）—— 这一条把
+		// **程序性导航**（`Engine.play`／页面载入）挡在外面（否则会把 Tab 序列的起点挪到正文之后，
+		// 越过「跳到正文」/「跳到行动」那两条跳转链接）；② 替换之后焦点**确实丢了**（`body`／
+		// 已脱离文档）—— 已有更精确落点的两种（`#180` 就地反馈定位 ／`#185` 子对话返回行动区）
+		// 各由上两处先处理，本处只补**没人接的那一类**（导航 + 目标段落里没有那些落点）。
+		//注意：判据口径照 `docs/dev-conventions.md` §6：契约是「**焦点仍在 `#passages` 内**」
+		// —— 落到**哪一个**元素属实现路径（此处取段落根＝新内容的**顶部**，符合导航后的阅读顺序），
+		// 断言不得绑元素；滚动不动（`preventScroll`）—— 本票只修焦点，改滚动属另一件。
 		jQuery(document).on(':passageend.sgFocusNav', (ev) => {
-			if (!focusInside) return;                       // 程序性导航：不抢焦点 ✓
+			if (!focusInside) return;                       // 程序性导航：不抢焦点
 			const hist = State.history;
 			const prev = hist?.[hist.length - 2]?.title;
-			if (prev && prev !== State.passage && prev.startsWith(State.passage + '·')) return;   // 子对话返回：上面那条管 ✓
+			if (prev && prev !== State.passage && prev.startsWith(State.passage + '·')) return;   // 子对话返回：上面那条管
 			const content = ev.content ?? passages.querySelector('.passage:last-child');
 			if (!content) return;
-			// ⚠️ **必须延到「激活序列」之后** ✗：Chrome 在 `Enter`／点击的**默认动作收尾**时会把焦点放回
-			//   `body`（被激活的节点已被换掉 ✓）⇒ **同步** `focus()` 会被那一下盖掉 ✗ —— 实测：jsdom 里同步
-			//   就绿（无默认动作收尾 ✓）、真机·`Enter` 却仍落 `body` ✓ ⇒ 这一行是本条修法的**关键** ✓。
-			//   （`requestAnimationFrame` 与仓内其余焦点抖动同款 ✓：`#180` 就地反馈／`#185` 返回行动区 ✓。）
+			//注意：**必须延到「激活序列」之后**：Chrome 在 `Enter`／点击的**默认动作收尾**时会把焦点放回
+			// `body`（被激活的节点已被换掉）→ **同步** `focus()` 会被那一下盖掉 —— 实测：jsdom 里同步
+			// 就绿（无默认动作收尾）、真机·`Enter` 却仍落 `body` → 这一行是本条修法的**关键**。
+			//（`requestAnimationFrame` 与仓内其余焦点抖动同款：`#180` 就地反馈／`#185` 返回行动区。）
 			requestAnimationFrame(() => {
 				const active = document.activeElement;
-				if (active && active !== document.body && passages.contains(active)) return;      // 已有落点：不动 ✓
+				if (active && active !== document.body && passages.contains(active)) return;      // 已有落点：不动
 				content.setAttribute('tabindex', '-1');
 				content.focus({ preventScroll: true });
 			});
@@ -586,7 +586,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 	});
 
 	// 行动分组与已读记录的条数角标：纯展示，读当前渲染结果，不写任何状态。
-	// 「本次回答」搬走条目后要复算一遍（角标减一、空折叠整块藏起），所以抽成函数两处共用。
+	//「本次回答」搬走条目后要复算一遍（角标减一、空折叠整块藏起），所以抽成函数两处共用。
 	const updateBadges = (content) => {
 		content.querySelectorAll('details.act-group, details.heard-fold').forEach((d) => {
 			const badge = d.querySelector('.act-n');
@@ -619,7 +619,7 @@ jQuery(document).on(':passagestart', () => {
 	}
 	// `#574`：图鉴是**故事可选面**（故事 1 有、故事 2／3 没有）——引擎不得直呼其名。
 	// 为什么必须可选：`Sg.Codex` 读 `Game.Codex.items`（故事 1 的数据）；对没有图鉴的故事直接调它会抛错，
-	// 而这里是**引擎的段落开始钩子**（每个故事都跑）⇒ 每个故事都会被炸。
+	// 而这里是**引擎的段落开始钩子**（每个故事都跑）→ 每个故事都会被炸。
 	window.Sg.Codex?.sync?.();
 });
 
@@ -662,16 +662,16 @@ jQuery(document).on(':passageend.sgChoiceKey', (ev) => {
 });
 
 // ── 道具图鉴（`Sg.Codex`）：`#1132` B3 起**归引擎侧**（能力在引擎、条目数据在 json）。────────
-//   仅当**故事声明了该面**（`Game.Codex` 在场）时定义：缺席即被依赖的一态（消费者走可选链）⇒
-//   没有该面的故事逐字不变。`#574` 曾把它放故事侧，理由是它读故事数据；现改由契约成员
-//   `codexItems` 读，那条理由不再成立。
-//   为什么**无条件定义**：运行时契约门要求「引擎里定义的面在每个故事的产物里都在」；
-//   没有该面的故事由 `items()`／`render()` 返回空值保持可见行为不变（消费者用 `??` 与可选链）。
+// 仅当**故事声明了该面**（`Game.Codex` 在场）时定义：缺席即被依赖的一态（消费者走可选链）→
+// 没有该面的故事逐字不变。`#574` 曾把它放故事侧，理由是它读故事数据；现改由契约成员
+// `codexItems` 读，那条理由不再成立。
+// 为什么**无条件定义**：运行时契约门要求「引擎里定义的面在每个故事的产物里都在」；
+// 没有该面的故事由 `items()`／`render()` 返回空值保持可见行为不变（消费者用 `??` 与可选链）。
 {
 	window.Sg ??= {};
 	window.Sg.Codex = {
 		/** 条目数据：经契约成员 `codexItems` 读（缺席则退回 `this.items()`）。 */
-		/** 条目数据：经契约成员 `codexItems` 读。故事没有该面 ⇒ 返回 null（调用点据此走兜底文案）。 */
+		/** 条目数据：经契约成员 `codexItems` 读。故事没有该面 → 返回 null（调用点据此走兜底文案）。 */
 		items() { const f = window.Sg?.story?.codexItems; return (typeof f === 'function' ? f() : null) ?? window.Game?.Codex?.items ?? null; },
 		blank() { return { clues: {}, endings: [], finals: [] }; },
 		read() {
@@ -682,7 +682,7 @@ jQuery(document).on(':passageend.sgChoiceKey', (ev) => {
 				return { clues: d.clues ?? {}, endings: d.endings ?? [], finals: d.finals ?? [] };
 			} catch { return this.blank(); }
 		},
-		write(d) { try { window.localStorage.setItem(window.Sg.store.key('story', 'codex.v1'), JSON.stringify(d)); } catch { /* 隐私模式 ⇒ 静默降级到"本次会话有效"（与 `Sg.store` 同款） */ } },
+		write(d) { try { window.localStorage.setItem(window.Sg.store.key('story', 'codex.v1'), JSON.stringify(d)); } catch { /* 隐私模式 → 静默降级到"本次会话有效"（与 `Sg.store` 同款） */ } },
 		clueIds(item) { return window.Game.Codex.clueIds(item); },
 		satisfied(pc) { return window.Game.Codex.satisfied(pc); },
 		isUnlocked(item, store) { return window.Game.Codex.isUnlocked(item, store); },
@@ -709,7 +709,7 @@ jQuery(document).on(':passageend.sgChoiceKey', (ev) => {
 		unlocked(item) { return this.isUnlocked(item, this.read()); },
 		render() {
 			const items = this.items();
-			if (!items) return null;   // 没有图鉴面 ⇒ 交回调用点的兜底文案（与改建前可见行为一致）
+			if (!items) return null;   // 没有图鉴面 → 交回调用点的兜底文案（与改建前可见行为一致）
 			const store = this.read();
 			const hintOn = this.seenFinal();
 			const rows = Object.keys(items).map((item) => {
@@ -729,9 +729,9 @@ jQuery(document).on(':passageend.sgChoiceKey', (ev) => {
 }
 
 // ── 车卡（`Game.Chargen`）：`#1132` B3 起**由引擎按 json 数据建行为**（原为故事侧 `Chargen Data`）。──
-//   仅在故事声明了车卡数据（契约成员 `chargen` 在场）时定义；没有车卡的故事逐字不变。
-//   行为照原故事侧实现：`pick` 走声明式施加器 `Sg.Chargen.apply`，`finalize` 算血与姓名，
-//   `applyPreset` 按预设的 picks 走一遍（纯数据施加）。姓名接管放在宏里，与 `mode`、`finalized` 同处。
+// 仅在故事声明了车卡数据（契约成员 `chargen` 在场）时定义；没有车卡的故事逐字不变。
+// 行为照原故事侧实现：`pick` 走声明式施加器 `Sg.Chargen.apply`，`finalize` 算血与姓名，
+// `applyPreset` 按预设的 picks 走一遍（纯数据施加）。姓名接管放在宏里，与 `mode`、`finalized` 同处。
 if (typeof window.Sg?.story?.chargen === 'function') {
 	window.Game = window.Game ?? {};
 	window.Game.Chargen = {

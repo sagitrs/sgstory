@@ -1,18 +1,18 @@
 // lint-story 自证门（车道 E · `#762` P0 · D-session `#215`）
 //
 // 三条（`docs/dev-conventions.md` §9 口径：正例必须放过 ＋ 反例必须抓住，失败计入退出码）：
-//   ① 正例：minimal-demo 全链绿（包形状 → 编译幂等 → 等价 → 门 ×N → 形状）
-//   ② 反例·数据坏：tables.json 被改成非法 JSON ⇒ 必须红在「包形状」步（fail-loud，不许静默）
-//   ③ 反例·未数据化：临时探针目录（无 `data/` ⇒ 必须红在「未数据化」，不是跳过 ✓；原写的 `hollow-cave` 已随故事删除 ✓）
-//   ④ `#975` 领域词表：表外 `abil`／`skill` ⇒ 必须红在「vocab」步并**点名**（表外词会让检定**静默 +0**）
-// 反例的手法：**临时目录副本**（改副本的 00-story.json 指向？不——lint 以 slug 定位 stories/<slug>）⇒
-//   ② 直接改真文件再**即时恢复**（finally），改动窗口内跑 lint；恢复后复跑一次正例自证无残留。
+// ① 正例：minimal-demo 全链绿（包形状 → 编译幂等 → 等价 → 门 ×N → 形状）
+// ② 反例·数据坏：tables.json 被改成非法 JSON → 必须红在「包形状」步（fail-loud，不许静默）
+// ③ 反例·未数据化：临时探针目录（无 `data/` → 必须红在「未数据化」，不是跳过；原写的 `hollow-cave` 已随故事删除）
+// ④ `#975` 领域词表：表外 `abil`／`skill` → 必须红在「vocab」步并**点名**（表外词会让检定**静默 +0**）
+// 反例的手法：**临时目录副本**（改副本的 00-story.json 指向？不——lint 以 slug 定位 stories/<slug>）→
+// ② 直接改真文件再**即时恢复**（finally），改动窗口内跑 lint；恢复后复跑一次正例自证无残留。
 import { readFileSync, writeFileSync, statSync, utimesSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { assertFreshDist } from '../scripts/dist-fresh.mjs';   // `#1130`：**夹具不留新鲜度债务**的断言
 import { fileURLToPath } from 'node:url';
-import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b：默认故事走单一权威 ✓
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b：默认故事走单一权威
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 let bad = 0;
@@ -28,7 +28,7 @@ case_('正例·minimal-demo 全链绿', r1.status === 0, r1.status === 0 ? '' : 
 
 // ② 反例·数据坏（改真文件 → 红 → finally 恢复 → 复跑正例自证无残留）
 const p = join(ROOT, 'stories/minimal-demo/data/tables.json');
-	const st1 = statSync(p);   // `#1130`：**记改前 mtime** ✓（写文件会刷新 mtime ⇒ 只恢复内容不够 ✓）
+	const st1 = statSync(p);   // `#1130`：**记改前 mtime**（写文件会刷新 mtime → 只恢复内容不够）
 const orig = readFileSync(p, 'utf8');
 try {
 	writeFileSync(p, '{ oops');
@@ -40,11 +40,11 @@ const r2b = lint('minimal-demo');
 case_('反例后无残留（复跑正例）', r2b.status === 0);
 
 // ②′ 反例·领域词表（`#975`）——表外词必须红在 `vocab` 步且**点名到站点・字段・值**
-//   ⚠️ `#1004` B2b ✓：改用**默认故事**（面夹具 `face-fixture` ✓ —— 它有真 `Checks.sites` 六项 ✓；
-//   旧写的 `hollow-cave` 已随故事删除 ✓；`minimal-demo` 的 sites 是空对象 ⇒ 假不了 ✗）。
+//注意：`#1004` B2b：改用**默认故事**（面夹具 `face-fixture` —— 它有真 `Checks.sites` 六项；
+// 旧写的 `hollow-cave` 已随故事删除；`minimal-demo` 的 sites 是空对象 → 假不了）。
 const VOCAB_SLUG = DEFAULT_SLUG;
 const p2 = join(ROOT, `stories/${VOCAB_SLUG}/data/tables.json`);
-	const st2 = statSync(p2);   // `#1130`：同型第二处 ✓
+	const st2 = statSync(p2);   // `#1130`：同型第二处
 const orig2 = readFileSync(p2, 'utf8');
 try {
 	const d2 = JSON.parse(orig2);
@@ -56,12 +56,12 @@ try {
 	const out2c = (r2c.stdout || '') + (r2c.stderr || '');
 	case_('反例·表外 abil 红在 vocab 步并点名', r2c.status === 1 && out2c.includes('领域词表外的值') && out2c.includes('strr'), `status=${r2c.status}`);
 } finally { writeFileSync(p2, orig2); utimesSync(p2, st2.atime, st2.mtime); }
-	// `#1130`：**夹具不留新鲜度债务** ✓ —— 两处反例都已恢复 ⇒ 此处断言必须过 ✓（修前读数：比 dist 新的源件 = 2 ✓）
+	// `#1130`：**夹具不留新鲜度债务** —— 两处反例都已恢复 → 此处断言必须过（修前读数：比 dist 新的源件 = 2）
 	assertFreshDist({ who: 'lint-story 夹具自证（两个反例恢复后不留新鲜度债务）' });
 const r2d = lint(VOCAB_SLUG);
 case_('反例后无残留（复跑正例）', r2d.status === 0);
-// 反例·表内词（正例控制）✓：夹具首站的 `skill: '游说'`（与 `森林·察觉` 的 `'察觉'` ✓）都在领域词表内 ⇒ 必绿 ✓
-//（`#1004` B2b ✓：原写 `mist-forest` ✓ —— 该故事已删 ✓）
+// 反例·表内词（正例控制）：夹具首站的 `skill: '游说'`（与 `森林·察觉` 的 `'察觉'`）都在领域词表内 → 必绿
+//（`#1004` B2b：原写 `mist-forest` —— 该故事已删）
 case_(`正例·表内 skill 放过（${VOCAB_SLUG}）`, lint(VOCAB_SLUG).status === 0);
 
 // ③ 反例·未数据化（**临时探针目录**——不绑某故事的数据化进度：hollow-cave 翻面后此档会失去意义）
@@ -99,7 +99,7 @@ try {
 	case_('前置 finding：缺 dist ⇒ step=precondition 且文案含"前置缺失"',
 		rd.status === 1 && !!pf && !pf.ok && /前置缺失/.test(pf.detail), `status=${rd.status} step=${pf?.step}`);
 }
-// ⑥ 有 dist 时不误报前置（默认路径存在 ⇒ 走到真判据）
+// ⑥ 有 dist 时不误报前置（默认路径存在 → 走到真判据）
 {
 	const rg = spawnSync('node', ['editor/lint-story.mjs', 'minimal-demo', '--json'], { cwd: ROOT, encoding: 'utf8' });
 	let dg = null; try { dg = JSON.parse(rg.stdout); } catch {}

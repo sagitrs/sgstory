@@ -3,37 +3,37 @@ import { defaultStoryHtml, storyHtml, DEFAULT_SLUG, readStory, STORIES_DIR } fro
 import { pathToFileURL } from 'node:url';
 // 共享 JSDOM boot（白盒检视 A9 修复）：#27 的 pollUntil 就绪轮询 + 坑11 的 uncaught 监听
 // 统一进此 helper——修复辐射不再依赖"记得改每个文件"。
-// 用法：const { w, uncaught } = await boot({ random: 0.5, start: false });
+// 用法：const { w, uncaught} = await boot({ random: 0.5, start: false});
 //
 // 退出清理也收在这一处：以前"跑完不退"要靠每个脚本各自记得 dom.window.close()/process.exit()，
 // 漏一个就变成 CI 上的莫名超时。现在两件事都在本模块里解决——
-//   ① 让事件循环真的能空下来（见下面那段"非零视口"：SugarCube 的视口就绪轮询永不收尾）；
-//   ② boot 出来的每个窗口登记在 live 里，beforeExit / exit / SIGINT / SIGTERM 统一 close。
+// ① 让事件循环真的能空下来（见下面那段"非零视口"：SugarCube 的视口就绪轮询永不收尾）；
+// ② boot 出来的每个窗口登记在 live 里，beforeExit / exit / SIGINT / SIGTERM 统一 close。
 // 于是脚本不再需要自己收场，`await boot()` 的脚本跑完就退。
 import { readFileSync, existsSync } from 'node:fs';
 import { isAbsolute, join } from 'node:path';
 import { assertFreshDist } from '../scripts/dist-fresh.mjs';
 import { JSDOM, VirtualConsole } from 'jsdom';
-// `#761` P1 六片A：**取渲染文本只有一处** ✓ —— 本文件与页面侧同用 `lib/core/preview.mjs` ✓
-// （原来是这里内联的 `#passages .passage` 选择器 ✓ ⇒ 抽走后**不再有第二份取法** ✗）。
+// `#761` P1 六片A：**取渲染文本只有一处** —— 本文件与页面侧同用 `lib/core/preview.mjs`
+//（原来是这里内联的 `#passages.passage` 选择器 → 抽走后**不再有第二份取法**）。
 import { renderedPassages, renderedTextOf } from '../editor/lib/core/preview.mjs';
 
-// `#460`：**多故事真启动门**要一故事一启 ⇒ 产物与起始段都参数化（缺省仍是默认故事，向后兼容）
+// `#460`：**多故事真启动门**要一故事一启 → 产物与起始段都参数化（缺省仍是默认故事，向后兼容）
 const HTML_OF = new Map();
 const htmlOf = (story) => {
 	const key = story ?? DEFAULT_SLUG;
-	// ⚠️ **工具契约** ✓（复核席在 H5 配方里撞到的家族实例 ✓ —— `--out`／`--story-out`／`boot({story})` **同族**）：
-	//   `storyHtml()` 会把入参**当相对**（`join(ROOT,'dist',…)` ✓）⇒ 传**绝对路径**会被拼成 `dist/…/home/…` ✗
-	//   ⇒ **静默读到别的文件**（或 ENOENT 报文指错 ✓）。⇒ 这里**绝对路径按绝对处理** ✓（`isAbsolute` ✓）
-	//   且**文件必须存在** ✓（不存在就当场抛且报文点名 ✓ —— 不许静默走默认故事 ✗）。
+	//注意：**工具契约**（复核席在 H5 配方里撞到的家族实例 —— `--out`／`--story-out`／`boot({story})` **同族**）：
+	// `storyHtml()` 会把入参**当相对**（`join(ROOT,'dist',…)`）→ 传**绝对路径**会被拼成 `dist/…/home/…`
+	// → **静默读到别的文件**（或 ENOENT 报文指错）。→ 这里**绝对路径按绝对处理**（`isAbsolute`）
+	// 且**文件必须存在**（不存在就当场抛且报文点名 —— 不许静默走默认故事）。
 	const path = isAbsolute(key) ? key : storyHtml(key);
 	if (!existsSync(path)) throw new Error(`boot({story}) 找不到故事页 ✗：${path}（绝对路径按绝对处理 ✓；相对路径按 dist/ 解析 ✓）`);
 	if (!HTML_OF.has(key)) HTML_OF.set(key, readFileSync(path, 'utf8'));
 	return HTML_OF.get(key);
 };
-// ⚠️ **清单读不到 ⇒ 点名** ✗（`#215` 发起者裁 ②(b) ✓：行为不变 ✓、只把话说清 ✓）。
-//   为什么值得写一句 ✗：`storyHtml()` 那步**按绝对路径处理** ✓，但**清单**这步仍是 `stories/<slug>/00-story.json`
-//   ⇒ 传绝对路径会被**当 slug** 拼出一个古怪的路径 ✗ ⇒ 旧行为是裸 ENOENT（看着像"文件没了" ✗，其实是"口径只支持 slug"✓）。
+//注意：**清单读不到 → 点名**（`#215` 发起者裁 ②(b)：行为不变、只把话说清）。
+// 为什么值得写一句：`storyHtml()` 那步**按绝对路径处理**，但**清单**这步仍是 `stories/<slug>/00-story.json`
+// → 传绝对路径会被**当 slug** 拼出一个古怪的路径 → 旧行为是裸 ENOENT（看着像"文件没了"，其实是"口径只支持 slug"）。
 const entryOf = (story) => {
 	const key = story ?? DEFAULT_SLUG;
 	try {
@@ -78,7 +78,7 @@ function hookExit() {
 // 可点元素的统一选择器：普通链接 / 交涉面板选项 / 结局页收尾按钮。
 // 一处定义，各测试脚本共用——新增一种控件只改这里（"修复辐射不再依赖记得改每个文件"）。
 // 相对选择器（在某个段落元素里查）——别用字符串 replace 拼绝对选择器，那个坑很深
-// 「出口在最后」走查（#179）：最后一个可点元素之后的全部正文（按文本节点数，含收起 details——
+//「出口在最后」走查（#179）：最后一个可点元素之后的全部正文（按文本节点数，含收起 details——
 // 最坏展开态）。twee 的裸链接 + <br> 布局不包块级元素，元素级兄弟走查会漏掉裸文本节点。
 export const trailingAfterLast = (win, box, last) => {
 	const FOLLOWING = win.Node.DOCUMENT_POSITION_FOLLOWING, INSIDE = win.Node.DOCUMENT_POSITION_CONTAINED_BY;
@@ -122,16 +122,16 @@ export async function boot({ random = 0.5, start = true, story = null, entry = n
 	for (const [prop, val] of [['clientWidth', 1024], ['clientHeight', 768]]) {
 		try { Object.defineProperty(w.document.documentElement, prop, { value: val, configurable: true }); } catch { /* 老 jsdom 无妨 */ }
 	}
-	// 「等到这一翻真的画完」。两个条件都要：
-	//   ① Engine.isIdle()——上一翻还在画的时候点下一翻，SugarCube 会把这次点击**丢掉**；
-	//   ② DOM 跟上了 State——回退 / 读档走的是 State.goTo() + 异步 engineShow()，State.passage
-	//      会先变，段落元素晚一拍才换（并行跑多条路线时尤其明显）。
+	//「等到这一翻真的画完」。两个条件都要：
+	// ① Engine.isIdle()——上一翻还在画的时候点下一翻，SugarCube 会把这次点击**丢掉**；
+	// ② DOM 跟上了 State——回退 / 读档走的是 State.goTo() + 异步 engineShow()，State.passage
+	// 会先变，段落元素晚一拍才换（并行跑多条路线时尤其明显）。
 	const settle = async (timeoutMs = 3000) => {
 		const t = Date.now();
 		for (;;) {
-			const names = renderedPassages(w);   // ← 共享件 ✓（唯一定义处 ✓）
-			// `#864` 复核 ✗：原来 `names.length === 0 || …` ⇒ **"取不到"被当成"已同步"** ✗ ⇒ 取法改坏也不红 ✓。
-			// ⇒ 只有"**State 本来就没有段落**"时，空 DOM 才算同步 ✓；否则必须**点名匹配** ✓。
+			const names = renderedPassages(w);   // ← 共享件（唯一定义处）
+			// `#864` 复核：原来 `names.length === 0 || …` → **"取不到"被当成"已同步"** → 取法改坏也不红。
+			// → 只有"**State 本来就没有段落**"时，空 DOM 才算同步；否则必须**点名匹配**。
 			const want = w.SugarCube?.State?.passage ?? '';
 			const domSynced = want ? names.includes(want) : names.length === 0;
 			const idle = typeof w.SugarCube?.Engine?.isIdle !== 'function' || w.SugarCube.Engine.isIdle();
@@ -155,8 +155,8 @@ export async function boot({ random = 0.5, start = true, story = null, entry = n
 		await Promise.race([w.SugarCube.Engine.start(), sleep(15000)]);
 		const t1 = Date.now();
 		const entryPassage = entry ?? entryOf(story);
-		// `#864` 复核 ✗：这里原来**手写选择器** ⇒ 共享件改坏了它也不动 ✗（实测：变异刀打不出红 ✓）。
-		// ⇒ 改用共享件 ✓：它**超时会抛**（有牙 ✓）且报文点出"当前渲染的是什么" ✓。
+		// `#864` 复核：这里原来**手写选择器** → 共享件改坏了它也不动（实测：变异刀打不出红）。
+		// → 改用共享件：它**超时会抛**（有牙）且报文点出"当前渲染的是什么"。
 		while (!renderedPassages(w).includes(entryPassage)) {
 			if (Date.now() - t1 > 15000) throw new Error(`等待超时：起始段渲染（${entryPassage}）—— 当前渲染的是 ${renderedPassages(w).join('、') || '（空）'}`);
 			await sleep(50);

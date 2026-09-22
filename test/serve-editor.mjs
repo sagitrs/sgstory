@@ -1,15 +1,15 @@
-// `#1033`：编辑器启动入口的门 —— 量三件**用户可感**的事 ✓（不量实现细节 ✗）：
-//   ① **能开** ✗：`npm run editor` 那条路（`scripts/serve-editor.mjs`）起来的服务，**编辑器页**能取到（200 ✓）；
-//   ② **开起来是"活的"** ✗（本票的核心 ✓）：`app.mjs` 必须按 **`text/javascript`** 交付（否则浏览器**拒执行模块** ⇒
-//      "打开了但什么都没发生" ＝ **看着像能开** ✗）；且它跨目录 import 的 `../lib/core/**` 必须**也取得到** ✓
-//      （⚠️ 这一格钉住的是"**静态服务的根必须是仓根**" ✓ —— 只服务 `editor/web/` 会在这里红 ✓）；
-//   ③ **入口可发现** ✗：`package.json` 有 `editor` 脚本 ✓、`index.html` 里**file:// 守卫**与"需 http"的自述都在 ✓
-//      （＝本票的"指路"那半 ✓ —— 免得下次又出现"**在网页版找不到编辑器入口**"那种情形 ✗）。
-// ⚠️ `#1028` 一族的提醒 ✗：**去权威化门只扫已跟踪文件**（`git add` 之前跑它是**假绿** ✓）
-//   ⇒ 本文件改动后请先 `git add` 再跑 `node test/attribution-gate.mjs` ✓（本行原写"**谁定的**"式措辞 ⇒ 被那门咬住 ⇒ 改成只留事实 ✓）。
+// `#1033`：编辑器启动入口的门 —— 量三件**用户可感**的事（不量实现细节）：
+// ① **能开**：`npm run editor` 那条路（`scripts/serve-editor.mjs`）起来的服务，**编辑器页**能取到（200）；
+// ② **开起来是"活的"**（本票的核心）：`app.mjs` 必须按 **`text/javascript`** 交付（否则浏览器**拒执行模块** →
+// "打开了但什么都没发生" ＝ **看着像能开**）；且它跨目录 import 的 `../lib/core/**` 必须**也取得到**
+//（注意：这一格钉住的是"**静态服务的根必须是仓根**" —— 只服务 `editor/web/` 会在这里红）；
+// ③ **入口可发现**：`package.json` 有 `editor` 脚本、`index.html` 里**file:// 守卫**与"需 http"的自述都在
+//（＝本票的"指路"那半 —— 免得下次又出现"**在网页版找不到编辑器入口**"那种情形）。
+//注意：`#1028` 一族的提醒：**去权威化门只扫已跟踪文件**（`git add` 之前跑它是**假绿**）
+// → 本文件改动后请先 `git add` 再跑 `node test/attribution-gate.mjs`（本行原写"**谁定的**"式措辞 → 被那门咬住 → 改成只留事实）。
 //
-// 用法：`node test/serve-editor.mjs`（真起服务，**端口 0** ⇒ 不占 8100 ✓）｜`--selftest`（纯函数正反例 ✓）
-// ⚠️ 越界那格必须用**编码形** ✗：`/../x` 会被 `fetch` 在客户端归一 ⇒ 服务端根本看不见（我第一版踩过 ✓）。
+// 用法：`node test/serve-editor.mjs`（真起服务，**端口 0** → 不占 8100）｜`--selftest`（纯函数正反例）
+//注意：越界那格必须用**编码形**：`/../x` 会被 `fetch` 在客户端归一 → 服务端根本看不见（我第一版踩过）。
 
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -32,7 +32,7 @@ if (process.argv.includes('--selftest')) {
 	process.exit(bad ? 1 : 0);
 }
 
-// ── 默认路：真起服务（端口 0）⇒ 四格 ＋ 两处"指路"面 ──────────────────────────
+// ── 默认路：真起服务（端口 0）→ 四格 ＋ 两处"指路"面 ──────────────────────────
 console.log('══ 编辑器入口门（真起服务 · 端口 0）══');
 {
 	const { server, port } = await startServer({ port: 0 });
@@ -52,7 +52,7 @@ console.log('══ 编辑器入口门（真起服务 · 端口 0）══');
 		const trav = await get('/%2e%2e%2fpackage.json');
 		ok([403, 404].includes(trav.status), `越界路径被拒 ✓（rc=${trav.status}）`);
 	} finally { server.close(); }
-	// 指路面（本票"指路"那半 ✓）：入口被发现得到 ＋ 页面自述与实现一致 ✓
+	// 指路面（本票"指路"那半）：入口被发现得到 ＋ 页面自述与实现一致
 	const pkg = JSON.parse(readFileSync(`${ROOT}/package.json`, 'utf8'));
 	ok(typeof pkg.scripts?.editor === 'string' && /serve-editor\.mjs/.test(pkg.scripts.editor),
 		'`package.json` 有 `editor` 脚本且指向 `scripts/serve-editor.mjs` ✓（入口可发现 ✓）');

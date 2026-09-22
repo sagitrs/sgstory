@@ -1,7 +1,7 @@
 // 故事**条件原子**的纯函数（`#628` 的抽取/计数/渲染；`#640` 的矩阵门也用它）——**无副作用、可导入**。
 //
 // 为什么要单独成文件：原先这些纯函数长在 `scripts/report-polarity-gap.mjs` 里，而那是**带 CLI 的脚本**
-// ⇒ `import` 它会**顺带执行 CLI**（实测踩到：跑 `test/itemmatrix.mjs --selftest` 打出的是极性报告的自证）。
+// → `import` 它会**顺带执行 CLI**（实测踩到：跑 `test/itemmatrix.mjs --selftest` 打出的是极性报告的自证）。
 // 纪律：**带顶层 CLI 的文件不许被当库导入**——纯逻辑抽到这里，脚本只留 IO 与 CLI。
 import { passagesOf, isStoryPassageMdPath } from '../../../editor/lib/core/passages.mjs';   // `#1114` 2b-2b-0b：切段单一权威
 import { mask } from './mask.mjs';
@@ -12,8 +12,8 @@ export const extractSites = (sources) => {
 	const sites = [];
 	let passage = '?', tags = '';
 	for (const file of Object.keys(sources).sort()) {
-		// `#1114` 片 2b-2b-0b：**md 源一文件一段**（无 `:: ` 段头）⇒ 段名/tags 走 core 的 `passagesOf()`
-		//   （**唯一分派点** ✓）；twee 仍走下面的逐行状态机（未改动行为 ✓）。
+		// `#1114` 片 2b-2b-0b：**md 源一文件一段**（无 `:: ` 段头）→ 段名/tags 走 core 的 `passagesOf()`
+		//（**唯一分派点**）；twee 仍走下面的逐行状态机（未改动行为）。
 		const mdSeg = isStoryPassageMdPath(file) ? passagesOf(String(sources[file] ?? ''), file)[0] : null;
 		const text = mask(String(sources[file] ?? ''), { twee: true }).text;
 		if (mdSeg) { passage = mdSeg.name; tags = mdSeg.tags.join(' '); }
@@ -51,7 +51,7 @@ export const siteKey = (s) => `${s.passage}#${s.line}@${s.atom}`;
 export const isRuleSite = (s) => /widget|script/.test(s.tags ?? '');
 
 // ── 纯函数：② 极性计数 ────────────────────────────────────────────────
-/** `obs`：siteKey → `{ t, f }`（真/假观测次数）。返回三档分类（顺序稳定：按段名、行号、原子）。 */
+/** `obs`：siteKey → `{ t, f}`（真/假观测次数）。返回三档分类（顺序稳定：按段名、行号、原子）。 */
 export const tallyPolarity = (sites, obs = new Map()) => {
 	const uniq = [...new Map(sites.map((s) => [siteKey(s), s])).values()]
 		.sort((a, b) => a.passage.localeCompare(b.passage, 'zh') || a.line - b.line || a.atom.localeCompare(b.atom));
@@ -65,7 +65,7 @@ export const tallyPolarity = (sites, obs = new Map()) => {
 	return { uniq, both, one, none };
 };
 
-/** `era` 的极性是两态名（present/past），其它原子是真假 ⇒ 统一成"两侧计数"。 */
+/** `era` 的极性是两态名（present/past），其它原子是真假 → 统一成"两侧计数"。 */
 export const polarityBucket = (atom, value) => {
 	if (atom === 'era') return value === 'past' ? 'f' : value === 'present' ? 't' : null;
 	return value === true ? 't' : value === false ? 'f' : null;

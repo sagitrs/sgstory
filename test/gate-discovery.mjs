@@ -1,16 +1,16 @@
 // `#607` P0 门：**门的发现与归属**（`scripts/audit/discovery.mjs` 的门）。
 //
 // 背景：`#602` 方案 1 把**判据数据**按故事落了；本片（P0）立"门代码"的归属机制且**一门都不搬**
-// ⇒ 出口判据是「**零行为变化**」：`audit:golden` 零漂移（它是机械证据）＋ 这里的结构断言与反例。
+// → 出口判据是「**零行为变化**」：`audit:golden` 零漂移（它是机械证据）＋ 这里的结构断言与反例。
 //
 // 判据（本文件）：
-//   A1 真实仓库的发现面自检为空（清单/越界/未声明文件/重名/顺序表全覆盖）；
-//   A2 **无孤儿门**：registry 里每道门都被至少一个故事的选中面覆盖（不会出现"没人跑的门"）；
-//   A3 **顺序稳定**：任何故事的选中面（含 `engineGates()`）都是 `GATE_ORDER` 的**子序列**——搬家不改输出次序；
-//   A4 已声明的门**只被它所属的故事**选中（P0 尚无声明 ⇒ 平凡真；P1 起这是"归属"的机检）；
-//   A5 引擎门被**所有**故事选中（`--engine-only` 的地基）；
-//   A6 纯函数反例：清单缺键／越界／路径不存在／文件存在但未声明／重复声明／跨故事重名／故事门偷用引擎 flag／
-//      顺序表未登记／僵尸顺序键 ⇒ 逐条**必须报**（`--selftest` 之外的"反例"字样也让台账认出自证形态）。
+// A1 真实仓库的发现面自检为空（清单/越界/未声明文件/重名/顺序表全覆盖）；
+// A2 **无孤儿门**：registry 里每道门都被至少一个故事的选中面覆盖（不会出现"没人跑的门"）；
+// A3 **顺序稳定**：任何故事的选中面（含 `engineGates()`）都是 `GATE_ORDER` 的**子序列**——搬家不改输出次序；
+// A4 已声明的门**只被它所属的故事**选中（P0 尚无声明 → 平凡真；P1 起这是"归属"的机检）；
+// A5 引擎门被**所有**故事选中（`--engine-only` 的地基）；
+// A6 纯函数反例：清单缺键／越界／路径不存在／文件存在但未声明／重复声明／跨故事重名／故事门偷用引擎 flag／
+// 顺序表未登记／僵尸顺序键 → 逐条**必须报**（`--selftest` 之外的"反例"字样也让台账认出自证形态）。
 import { execFileSync } from 'node:child_process';
 import { judgeManifestGates, judgeGateSet, judgeOrderCoverage, judgeFlagOwnership, gateKey, GATE_ORDER,
 	engineGates, pendingGates, declaredGates, declaredGatesAll, gatesForStory, validateDiscovery } from '../scripts/audit/discovery.mjs';
@@ -42,12 +42,12 @@ console.log('══ 门发现与归属门（#607 P0）══');
 	t('反例⑦：故事门偷用引擎 flag ⇒ 报', judgeGateSet({ gates: [g(['waves'], 'stories/a/gates/w.mjs')] }).some((p) => /引擎层/.test(p)));
 	t('反例⑧：未登记执行顺序 ⇒ 报', judgeGateSet({ gates: [g(['brand-new'], 'stories/a/gates/n.mjs')] }).some((p) => /未在 `GATE_ORDER`/.test(p)));
 	t('反例⑨：僵尸顺序键 ⇒ 报', judgeOrderCoverage({ keys: ['truth'] }).some((p) => /已无对应门/.test(p)));
-	// `#1004` B2 ✓：`order` 显式传入 —— 别名门（`nosl+sel` 这类**多 flag 组合**）随旧故事一起没了 ✓，
-	//   仓内现存门都是单 flag ✓ ⇒ 要证"**别名组合不会互相误报**"这条 ✓，就得自备一张顺序表 ✓（本格本来就是合成的 ✓）。
+	// `#1004` B2：`order` 显式传入 —— 别名门（`nosl+sel` 这类**多 flag 组合**）随旧故事一起没了，
+	// 仓内现存门都是单 flag → 要证"**别名组合不会互相误报**"这条，就得自备一张顺序表（本格本来就是合成的）。
 	t('正例：`sel`/`nosl`/`gear` 这类别名组合不误报（key 排序拼接）', judgeGateSet({ gates: [g(['sel', 'nosl'], 'x'), g(['sel', 'gear'], 'y')], order: ['nosl+sel', 'gear+sel'] }).length === 0 && gateKey({ flags: ['sel', 'nosl'] }) === 'nosl+sel');
 }
 
-// ── A7 归属守卫（纯函数；P0 尚无已声明的门 ⇒ 用合成数据证明它咬得住）──────────
+// ── A7 归属守卫（纯函数；P0 尚无已声明的门 → 用合成数据证明它咬得住）──────────
 {
 	const declared = [{ owner: 'a', file: 'stories/a/gates/p.mjs', flags: ['probe'] }];
 	t('反例⑩：点名别的故事的门 ⇒ 报（并指明该用哪个 --story）',
@@ -105,17 +105,17 @@ for (const slug of slugs) perStory[slug] = await gatesForStory(slug);
 	t('A5b `engineGates() ∪ pendingGates()` 恰好等于 registry（无门被落下、无门同时属两层）', union.size === GATES.length && [...eng].every((k) => !pend.has(k)));
 }
 
-// ── A8 CLI 作用域（`#607` P2-B）：`--story <slug>` 单独给 ⇒ **本故事作用域全跑** ────────────
+// ── A8 CLI 作用域（`#607` P2-B）：`--story <slug>` 单独给 → **本故事作用域全跑** ────────────
 // 为什么要有这条：他故事的门只被**它所属的故事**选中，而"他故事的全跑"此前**无路可走**
-// （`--story X` 单独给 ⇒ "没有选中任何门"退 2）⇒ golden 的 `not-in-full-run` 交叉核对无法按归属比。
+//（`--story X` 单独给 → "没有选中任何门"退 2）→ golden 的 `not-in-full-run` 交叉核对无法按归属比。
 // 与 `--engine-only`（`#572`）同源：选择已由 `selected` 定，修饰符不该被当成"必须再点一个门"。
 //
-// `#1004` B2 ✓：旧故事（`mist-forest`／`hollow-cave`）已删 ⇒ 本块换到**存活样本** ✓。
-//   ⛔ 同时 **退役两格 ＋ 声明** ✗（是**对象消失** ✓，不是判据坏了 ✗）：两存活样本的 `00-story.json` 都是 `"gates": []` ✓
-//   ⇒ 仓内**再无"住故事侧的门"** ✗ ⇒ 「该跑含**本故事自己**的门（洞窟声明面／战斗分布口径门）」与
-//   「**不含**别故事的门（作用域没串）」这两格**无对象可量** ✓。
-//   ⇒ 日后有故事声明门 ⇒ 照本件 `perStory` 那半恢复这两格 ✓（本轮**不**拿合成数据"补"它 ✗ ——
-//     合成数据只能证函数 ✓，证不了"真作用域没串" ✗，而那正是这两格的价值 ✓）。
+// `#1004` B2：旧故事（`mist-forest`／`hollow-cave`）已删 → 本块换到**存活样本**。
+// ⛔ 同时 **退役两格 ＋ 声明**（是**对象消失**，不是判据坏了）：两存活样本的 `00-story.json` 都是 `"gates": []`
+// → 仓内**再无"住故事侧的门"** →「该跑含**本故事自己**的门（洞窟声明面／战斗分布口径门）」与
+//「**不含**别故事的门（作用域没串）」这两格**无对象可量**。
+// → 日后有故事声明门 → 照本件 `perStory` 那半恢复这两格（本轮**不**拿合成数据"补"它 ——
+// 合成数据只能证函数，证不了"真作用域没串"，而那正是这两格的价值）。
 {
 	const run = (args) => {
 		try { return { code: 0, out: execFileSync('node', ['scripts/audit.mjs', ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) }; }

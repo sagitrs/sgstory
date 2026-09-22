@@ -1,37 +1,37 @@
 // `#1044`：**段间产物依赖边守护门**（编排层 ratchet）——「会在运行中**改真故事文件**的段」与
-// 「会**读**同一故事文件的段」之间的 `needs` 边必须在册（缺 ⇒ 并发跑器不保证相序 ⇒ 同波互踩 ⇒ 假红）。
+//「会**读**同一故事文件的段」之间的 `needs` 边必须在册（缺 → 并发跑器不保证相序 → 同波互踩 → 假红）。
 //
-// 为什么要有这一件：`test-plan` 的并发跑器**只按 `needs` 排相序** ✗ ⇒ 边缺失 ⇒ 两段可能进同一波 ⇒
-//   读侧读到写侧窗口内的**半成品** ⇒ 假红（`#1044` 实测：`lint-scratch` 与 `lint-story` 同波 ⇒
-//   3 进程 × 3 轮 2/3~3/3 红，载荷正是 `lint-story` 反例注入的 `'{ oops'` ✓）。
-//   同族先例：`test-story-ci-mjs` 的 needs（同因——「另一条独立理由：避免读到半改的真数据 ✓」）。
-//   ⚠️ 本门只守**边在册**这一层（确定性锚 ✓），**不**复现并发互踩（概率型判据本仓已两度否定 ✗
-//   —— `#1027`／`#1029`：无法归因/会抖的判据不许进门 ✓）。
-//   ⚠️ `test-lint-scratch-mjs-selftest` **不需要**这条边 ✓（`--selftest` 走纯函数路径、不 spawn 真
-//   `lint-story` ⇒ 无读窗口 ✓ —— 票面口径 ✓）。
+// 为什么要有这一件：`test-plan` 的并发跑器**只按 `needs` 排相序** → 边缺失 → 两段可能进同一波 →
+// 读侧读到写侧窗口内的**半成品** → 假红（`#1044` 实测：`lint-scratch` 与 `lint-story` 同波 →
+// 3 进程 × 3 轮 2/3~3/3 红，载荷正是 `lint-story` 反例注入的 `'{ oops'`）。
+// 同族先例：`test-story-ci-mjs` 的 needs（同因——「另一条独立理由：避免读到半改的真数据」）。
+//注意：本门只守**边在册**这一层（确定性锚），**不**复现并发互踩（概率型判据本仓已两度否定
+// —— `#1027`／`#1029`：无法归因/会抖的判据不许进门）。
+//注意：`test-lint-scratch-mjs-selftest` **不需要**这条边（`--selftest` 走纯函数路径、不 spawn 真
+// `lint-story` → 无读窗口 —— 票面口径）。
 //
-// 判据（**全部确定性** ✗ 不跑任何并发 ✗ 不赌时序 ✗ —— 纯静态读 SEGMENTS ✓）：
-//   ① 正：`NEED_EDGES` 每条 ⇒ SEGMENTS 里 `reader.needs` 必须含 `writer`，缺失必红并**点名**；
-//   ② 反例控制（本门自己的"能假" ✓）：对**副本**删掉一条在册边 ⇒ 判定函数必须报出它；
-//   ③ 端点在册：边表两端 id 必须都在 SEGMENTS 里（段改名后边表悬空 ⇒ 门必须红，不许假绿 ✗）。
+// 判据（**全部确定性** 不跑任何并发 不赌时序 —— 纯静态读 SEGMENTS）：
+// ① 正：`NEED_EDGES` 每条 → SEGMENTS 里 `reader.needs` 必须含 `writer`，缺失必红并**点名**；
+// ② 反例控制（本门自己的"能假"）：对**副本**删掉一条在册边 → 判定函数必须报出它；
+// ③ 端点在册：边表两端 id 必须都在 SEGMENTS 里（段改名后边表悬空 → 门必须红，不许假绿）。
 //
-// 复跑：`node test/plan-needs.mjs`（**无前置** ✓：只读 `scripts/test-plan.mjs` 源，不读 dist/build 产物 ✓）。
-// 探针：`scripts/probes.mjs` 的 `test/plan-needs.mjs` 条（刀＝删那条 needs ⇒ 本门必红 ✓）。
+// 复跑：`node test/plan-needs.mjs`（**无前置**：只读 `scripts/test-plan.mjs` 源，不读 dist/build 产物）。
+// 探针：`scripts/probes.mjs` 的 `test/plan-needs.mjs` 条（刀＝删那条 needs → 本门必红）。
 import { SEGMENTS } from '../scripts/test-plan.mjs';
 
-/** 在册边表（「谁写 · 谁读 · 为什么」）—— 加一条边 = 一次**显式决定** ✗（不许顺手 ✗）。 */
+/** 在册边表（「谁写 · 谁读 · 为什么」）—— 加一条边 = 一次**显式决定**（不许顺手）。 */
 export const NEED_EDGES = [
 	{ writer: 'test-lint-story-mjs', reader: 'test-lint-scratch-mjs', why: '#1044：lint-story 的反例临时改真 stories/*/data/tables.json（finally 恢复 ✓）⇒ lint-scratch 同波时 spawn 的 lint-story 读到半成品 JSON ⇒ 假红' },
-	// `#1070`（本票新增两条，同一根因 —— **临时候具存活期** ✗）：`test/web-preview.mjs` 会在运行中向
-	//   `stories/__e2e` 写一份**完整可发现的故事包**（含 `00-story.json` ✓）⇒ 同波的两个**扫目录/逐故事**的
-	//   段会把它当“真故事”读到（半成品）⇒ 假红；`finally` 清 + `needs` 串行化 ⇒ 读侧看不到它 ✓。
-	//   ⚠️ 为何本票才发现 ✗：`#1070` 把 253s 的探针段移出 PR 档 ⇒ **波次重排** ⇒ 两个读侧段与 web-preview 重叠
-	//   ⇒ 缺口由“潜伏”变“必现” ✓（既存缺口，不是本片引入；修法＝本仓既有的单一权威手段 ✓）。
+	// `#1070`（本票新增两条，同一根因 —— **临时候具存活期**）：`test/web-preview.mjs` 会在运行中向
+	// `stories/__e2e` 写一份**完整可发现的故事包**（含 `00-story.json`）→ 同波的两个**扫目录/逐故事**的
+	// 段会把它当“真故事”读到（半成品）→ 假红；`finally` 清 + `needs` 串行化 → 读侧看不到它。
+	//注意：为何本票才发现：`#1070` 把 253s 的探针段移出 PR 档 → **波次重排** → 两个读侧段与 web-preview 重叠
+	// → 缺口由“潜伏”变“必现”（既存缺口，不是本片引入；修法＝本仓既有的单一权威手段）。
 	{ writer: 'test-web-preview-mjs', reader: 'test-cli-surface-mjs', why: '#1070：本件驱动 `editor/cli.mjs k4`（逐故事 `readdirSync(stories)`）⇒ 同波命中 `web-preview` 的 `stories/__e2e` ⇒ k4 报“手写契约源非空（0 文件）却分类出 0 名成员” ⇒ 假红' },
 	{ writer: 'test-web-preview-mjs', reader: 'test-pc-defaults-mjs', why: '#1070：本件 ⑥ 走 `storySlugs()`（扫 `stories/` 下带 `00-story.json` 的目录）⇒ 同波命中 `stories/__e2e` ⇒ `boot({story:\'__e2e\'})` 找不到故事页 ⇒ 假红' },
 ];
 
-/** 判定（纯函数 ✓）：返回问题列表（空 ＝ 通过）。 */
+/** 判定（纯函数）：返回问题列表（空 ＝ 通过）。 */
 export const missingEdges = (segments, edges) => {
 	const byId = new Map(segments.map((s) => [s.id, s]));
 	const problems = [];
@@ -54,19 +54,19 @@ const case_ = (label, ok, extra = '') => {
 const problems = missingEdges(SEGMENTS, NEED_EDGES);
 case_('边表逐条在册', problems.length === 0, problems.join('；'));
 
-// ② 反例控制：对**副本**删掉一条在册边 ⇒ 判定必须报出它（否则"全绿"可能只是判定什么都没量 ✗）
+// ② 反例控制：对**副本**删掉一条在册边 → 判定必须报出它（否则"全绿"可能只是判定什么都没量）
 {
 	const first = NEED_EDGES[0];
 	const mutated = SEGMENTS.map((s) => (s.id === first.reader ? { ...s, needs: (s.needs ?? []).filter((n) => n !== first.writer) } : s));
 	const got = missingEdges(mutated, NEED_EDGES);
 	case_('反例·删边必报', got.length === 1 && got[0].includes(first.writer) && got[0].includes(first.reader));
 }
-// 正例控制：没有边要守 ⇒ 必须无问题（防判定对任意输入都报 ✗）
+// 正例控制：没有边要守 → 必须无问题（防判定对任意输入都报）
 case_('正例·空边表放过', missingEdges(SEGMENTS, []).length === 0);
 
 // `#1130`：**独占段的理由可查** —— 标了 `exclusive` 的段必须声明 `mutates`（它动哪些**已入库真源**）
-//   为什么（与 `NEED_EDGES` 同口径）：独占是一次**显式决定** ⇒ 理由进数据、不许只写注释（不可机检）
-//   为什么需要独占：窗口制造者（就地改真源再恢复 ⇒ mtime 刷新）与并行 boot 的段撞新鲜度守卫 ⇒ 偶发红
+// 为什么（与 `NEED_EDGES` 同口径）：独占是一次**显式决定** → 理由进数据、不许只写注释（不可机检）
+// 为什么需要独占：窗口制造者（就地改真源再恢复 → mtime 刷新）与并行 boot 的段撞新鲜度守卫 → 偶发红
 const exclDeclProblems = (segs) => segs.filter((s) => s.exclusive && (!Array.isArray(s.mutates) || s.mutates.length === 0)).map((s) => s.id);
 {
 	const excl = SEGMENTS.filter((s) => s.exclusive);

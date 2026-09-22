@@ -397,7 +397,7 @@ for (const file of fixtures) {
 	const V = () => w.SugarCube.State.variables;
 	V().pc = w.Game.Pc.defaults(); V().pc.inv['时光护符'] = true; V().era = 'present';
 	const flipHost = w.document.createElement('div');
-	new w.SugarCube.Wikifier(flipHost, '<<flip>>');
+	new w.SugarCube.Wikifier(flipHost, '<<flipEra>>');
 	const flipLink = flipHost.querySelector('a.link-internal');
 	ok(!!flipLink && flipLink.textContent.includes('过去'), 'flip 词汇：现在时渲染「坠入过去」链接');
 	flipLink.click();
@@ -405,7 +405,7 @@ for (const file of fixtures) {
 	// #219 C1②：首次翻转不收费（first_free 置位，spent 不动）
 	ok(V().era === 'past' && V().pc.star.spent === 0 && V().pc.star.first_free === true, `flip 词汇：首翻免费——era past / spent 0 / first_free（实际 ${V().era}/${V().pc.star.spent}/${V().pc.star.first_free}）`);
 	const flipHost2 = w.document.createElement('div');
-	new w.SugarCube.Wikifier(flipHost2, '<<flip>>');
+	new w.SugarCube.Wikifier(flipHost2, '<<flipEra>>');
 	const flipLink2 = flipHost2.querySelector('a.link-internal');
 	ok(!!flipLink2 && flipLink2.textContent.includes('现在'), 'flip 词汇：过去时渲染「回到现在」链接');
 	flipLink2.click();

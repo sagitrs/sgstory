@@ -179,6 +179,21 @@
 			"key": "id",
 			"field": "label",
 			"required": true
+		},
+		{
+			"name": "flipItem",
+			"kind": "const",
+			"value": "时光护符"
+		},
+		{
+			"name": "flipStarCost",
+			"kind": "const",
+			"value": 1
+		},
+		{
+			"name": "flipReturnFlag",
+			"kind": "const",
+			"value": "fog_thin"
 		}
 	]
 }

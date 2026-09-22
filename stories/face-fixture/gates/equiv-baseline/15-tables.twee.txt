@@ -948,6 +948,9 @@ Object.assign((window.Sg.story ??= {}), {
 		if (!a || typeof a.label !== 'string' || !a.label) throw new Error(`Sg.story.actionLabel：动作「${id}」缺 label（结构缺失必须报错，#441-E）`);
 		return a.label;
 	},
+	flipItem: () => '时光护符',
+	flipStarCost: () => 1,
+	flipReturnFlag: () => 'fog_thin',
 });
 :: StoryHooks [script]
 

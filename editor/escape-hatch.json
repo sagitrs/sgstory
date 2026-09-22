@@ -53,8 +53,7 @@
 		}
 	],
 	"proseFaces": [
-		"stories/minimal-demo/10-demo.twee",
-		"stories/night-ferry/10-ferry.twee"
+		"stories/minimal-demo/10-demo.twee"
 	],
 	"proseFacesWhy": "散文面（**不可数据化** ✗）：设计稿 §3「**结构进 JSON、文本留文本**」✓ ⇒ 正文留文本是**设计**，不是欠账 ✓。⚠️ 与 `refusedFaces`（**可数据化但当下不划算** ✓）**不是同一类** ✗ —— 两条判据**分开** ✓，别合并成一个豁免表 ✗。白名单**只许收缩** ✗：其中某件若**变成 `@generated`**（＝它其实已数据化）⇒ K4 判红并点名 ✓。"
 }

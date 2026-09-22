@@ -409,7 +409,7 @@ export const PROBES = [
 		pre: [],
 		cmd: 'node test/prose-vocabulary.mjs',
 		mutation: {
-			file: 'stories/night-ferry/10-ferry.twee',
+			file: 'stories/night-ferry/passages/01-渡口.md',   // `#1132` 片 3：夜渡迁 md 后靶子随件走 ✓
 			find: '[[把两枚钱数给他|付钱]]',
 			replace: '<<set $x to 1>>\n[[把两枚钱数给他|付钱]]',
 		},

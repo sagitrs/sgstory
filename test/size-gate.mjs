@@ -29,6 +29,14 @@ export const NOTE = '产物体积预算（字节）。只许降不许升——�
  * ⇒ 由此 `--update-size` **只动数值、动不了语义**（它写回的是 `resolveTol(...)` 的解析结果 ✓）。 */
 export const TOLERANCE_PCT = { 'index.html': 0.5, fonts: 2 };
 
+/** `#1195` 裁定：**绝对余量**的两级线（与百分比容差正交 —— 百分比管"噪声"，绝对余量管"还剩多少可花"）。
+ *   · 余量 < `MARGIN_WARN_BYTES` ⇒ **预警行**（不红，但报文里显式可见，逼人安排重签或压瘦）；
+ *   · 余量 < `MARGIN_STOP_BYTES` ⇒ **rc=1 逼停**（再拆一块必顶满，必须先处理）。
+ *  为什么用绝对字节而不是继续调百分比：本仓近期的增长来自"拆模块每块加一段段头＋文件头"这类**固定量**，
+ *  而百分比是随基线放大的 —— 基线越大，同样的百分比放出越多余量，恰好把固定量增长掩盖掉。 */
+export const MARGIN_WARN_BYTES = 300;
+export const MARGIN_STOP_BYTES = 150;
+
 /** 解析生效的容差表：**代码默认为底**，基线里若显式给了就覆盖（向后兼容 ＋ 允许特例）。
  *  ⚠️ 空对象／缺字段一律**回落**到 `TOLERANCE_PCT` ✗ —— 这正是 `#1017` 的缺陷形状：
  *   旧写法 `parsed.tolerancePct ? \u2026 : \u2026` 把**空 `{}` 当成"有设定"**（`{}` 为真值 ✓）
@@ -47,7 +55,17 @@ export const judge = (rows, parsed) => {
 		if (b == null) { lines.push(`✗ ${k}: 基线缺失（${v}B）——请 --update-size 重签`); failures++; continue; }
 		const allow = Math.ceil(b * ((tol[k] ?? 0) / 100));
 		if (v > b + allow) { lines.push(`✗ ${k}: ${v}B > 基线 ${b}B +容差 ${allow}B。确需增大：node test/size-gate.mjs --update-size 并在 PR 写明理由`); failures++; }
-		else if (v > b) lines.push(`~ ${k}: ${v}B 在容差内（基线 ${b}B +${v - b} ≤ ${allow}B，构建噪声）`);
+		else if (v > b) {
+			const margin = b + allow - v;   // `#1195`：绝对余量（还能长多少才顶满）
+			if (margin < MARGIN_STOP_BYTES) {
+				lines.push(`✗ ${k}: ${v}B 余量仅 ${margin}B < 逼停线 ${MARGIN_STOP_BYTES}B —— 再增必顶满；请先重签基线或压瘦（node test/size-gate.mjs --update-size）`);
+				failures++;
+			} else if (margin < MARGIN_WARN_BYTES) {
+				lines.push(`⚠ ${k}: ${v}B 余量 ${margin}B < 预警线 ${MARGIN_WARN_BYTES}B（**不红**，但请安排重签或压瘦；下一块拆分很可能顶满）`);
+			} else {
+				lines.push(`~ ${k}: ${v}B 在容差内（基线 ${b}B +${v - b} ≤ ${allow}B，构建噪声；余量 ${margin}B）`);
+			}
+		}
 		else if (v < b) { lines.push(`✔ ${k}: ${v}B < 基线 ${b}B（-${b - v}）——收紧`); shrunken[k] = v; }
 		else lines.push(`✓ ${k}: ${v}B = 基线`);
 	}
@@ -56,6 +74,8 @@ export const judge = (rows, parsed) => {
 
 const selftest = () => {
 	const P = { rows: { 'index.html': 1000, fonts: 2000 }, tolerancePct: { 'index.html': 0.5, fonts: 1 } };
+	// `#1195`：绝对余量两级线（能假三格）。大基线 1e6、容差 0.5% ⇒ allow=5000 ⇒ 余量按绝对字节判。
+	const Q2 = { rows: { 'index.html': 1000000 }, tolerancePct: { 'index.html': 0.5 } };
 	const cases = [
 		['一超预算 + 一缩小 → 必须失败，且**只记录缩小项**、不得写任何超预算值',
 			{ 'index.html': 1010, fonts: 1990 }, P,
@@ -66,8 +86,10 @@ const selftest = () => {
 		['全部等于基线 → 不失败也不收紧',
 			{ 'index.html': 1000, fonts: 2000 }, P,
 			(r) => r.failures === 0 && Object.keys(r.shrunken).length === 0],
+		// `#1195`：改用**大基线**（1e6）隔离本条所验之事（容差吸收噪声）——阈值 300B 是绝对值，
+		//   小基线（1000）下容差只有 5B，任何"容差内增长"都同时踩到逼停线 ⇒ 那是另一条语义（见下格）。
 		['容差内增长 → 不失败、不收紧（构建噪声）',
-			{ 'index.html': 1004, fonts: 2000 }, P,
+			{ 'index.html': 1000004, fonts: 2000 }, { rows: { 'index.html': 1000000, fonts: 2000 }, tolerancePct: { 'index.html': 0.5, fonts: 1 } },
 			(r) => r.failures === 0 && Object.keys(r.shrunken).length === 0],
 		['超容差增长 → 失败',
 			{ 'index.html': 1006, fonts: 2000 }, P,
@@ -75,10 +97,10 @@ const selftest = () => {
 		// ⚠️ `#1017` 的**缺陷形状**（能假的那两格）：容差表**缺席或为空**时，必须**回落到代码默认**，
 		//    不得被当成「没有容差」⇒ 否则门静默变成 0B 硬 ratchet（任何抖动都红）。
 		['⭐ `#1017` 反例：基线里**没有** `tolerancePct` ⇒ 仍按默认容差判（+4 在 0.5% 内 ⇒ 不失败）',
-			{ 'index.html': 1004, fonts: 2000 }, { rows: P.rows },
+			{ 'index.html': 1000004, fonts: 2000 }, { rows: { 'index.html': 1000000, fonts: 2000 } },
 			(r) => r.failures === 0 && Object.keys(r.shrunken).length === 0],
 		['⭐ `#1017` 反例：基线里 `tolerancePct` 是**空对象** ⇒ 同样回落（+4 不失败；修前会失败 ✗）',
-			{ 'index.html': 1004, fonts: 2000 }, { rows: P.rows, tolerancePct: {} },
+			{ 'index.html': 1000004, fonts: 2000 }, { rows: { 'index.html': 1000000, fonts: 2000 }, tolerancePct: {} },
 			(r) => r.failures === 0 && Object.keys(r.shrunken).length === 0],
 		['⭐ `#1017` 另一面（能假的另一半）：基线里**显式**的容差覆盖仍要生效（给 0 ⇒ +4 必失败）',
 			{ 'index.html': 1004, fonts: 2000 }, { rows: P.rows, tolerancePct: { 'index.html': 0, fonts: 2 } },
@@ -89,6 +111,18 @@ const selftest = () => {
 				&& JSON.stringify(resolveTol({ tolerancePct: {} })) === JSON.stringify(TOLERANCE_PCT)
 				&& resolveTol({ tolerancePct: { fonts: 9 } }).fonts === 9
 				&& resolveTol({ tolerancePct: { fonts: 9 } })['index.html'] === TOLERANCE_PCT['index.html']],
+		['`#1195` 交互：小基线（1000）下「容差内增长 +4」其容差仅 5B ⇒ 余量 1B ⇒ **逼停**（不因"在容差内"就放过）',
+			{ 'index.html': 1004 }, { rows: { 'index.html': 1000 }, tolerancePct: { 'index.html': 0.5 } },
+			(r) => r.failures === 1 && r.lines.some((l) => l.includes('逼停线'))],
+		['`#1195` 余量 200B < 预警线 ⇒ **不失败但有预警行**',
+			{ 'index.html': 1000000 + 5000 - 200 }, Q2,
+			(r) => r.failures === 0 && r.lines.some((l) => l.includes('预警线'))],
+		['`#1195` 余量 100B < 逼停线 ⇒ **失败**（rc=1）',
+			{ 'index.html': 1000000 + 5000 - 100 }, Q2,
+			(r) => r.failures === 1 && r.lines.some((l) => l.includes('逼停线'))],
+		['`#1195` 余量 400B ⇒ 两级都不触发（**能假的另一边**）',
+			{ 'index.html': 1000000 + 5000 - 400 }, Q2,
+			(r) => r.failures === 0 && !r.lines.some((l) => l.includes('预警线') || l.includes('逼停线'))],
 	];
 	let bad = 0;
 	for (const [label, rows, parsed, okFn] of cases) {

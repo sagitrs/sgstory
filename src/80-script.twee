@@ -45,7 +45,7 @@ jQuery(document).on('keydown.sgSave', (ev) => {
 // ── 道具图鉴（`Sg.Codex`）归引擎侧（`#1132` B3 起）（`#574`：当时是 `stories/mist-forest/72-codex-ui.twee`）——
 //    该面原住故事侧：`mist-forest` 于 `#1004` B 段删除后曾由（测试夹具）`stories/face-fixture/13-codex.twee` 声明，
 //    该件又于 `#1132` B3 删除 ⇒ 现由**引擎侧无条件定义**（空面由 `items()`/`render()` 返回空值）✓
-//    它读故事 1 的 `Game.Codex`，属**故事面**；本文件其余部分是**引擎运行时胶水**（layer: engine），
+//    它经契约成员 `codexItems` 读故事数据（故事没有该面时 `items()` 返回空值 ⇒ 可见行为不变）；本文件其余部分是**引擎运行时胶水**（layer: engine），
 //    对每个故事都成立。引擎侧对它的引用是可选面：见下方 `:passagestart` 的 `Sg.Codex?.sync?.()`。
 
 // ── 笔记（伞 #422 阶段 1）：知识的唯一取值口 ──────────────────────────

@@ -13,7 +13,7 @@
 // `<<setflag "k">>` / `<<firstTime "k">>`（动态写入 `$pc.ev[k]` 并动态读回）· `$pc.ev["k"]`
 // · 表内谓词 `(p) => p.world?.k`。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { declWriteKeys, qualifiedWriteKeys, keyCharsetViolations, readKeys, noteReadKeys, noteWriteKeys, ruleRowKeys, ruleRowSetKeys, stripJsComments, notePaths } from '../lib/shared.mjs';
+import { declWriteKeys, qualifiedWriteKeys, keyCharsetViolations, readKeys, noteReadKeys, noteWriteKeys, ruleRowKeys, ruleRowSetKeys, maskComments, notePaths } from '../lib/shared.mjs';
 
 export const flag = 'state';
 export const flags = ['state'];
@@ -322,11 +322,12 @@ export const run = (ctx) => {
 	}
 
 	// ── 真实数据 ──
-	// 读/写点扫描前先剥 **JS 注释**（`stripJsComments` 单一权威，与 `--text`／`--reads` 同口径）：
+	// 读/写点扫描前先遮 **JS 注释**（`#1208` 分面：本处是**代码面** → 用词法器 `maskComments`。
+	// 散文面的启发式（`stripProseComments`）会吞真代码，**不能**拿来扫源码）：
 	// 注释里的示例（例如引擎侧 `sets: ['world.flower_taken']` 的口径说明）不是写点——不剥就会造**假红**
 	//（`#460` 实测：第二/第三故事因此报"flower_taken 只有写没有读"）。Twee 注释 `/% %/` 另由 `readKeys` 调用处剥。
 	const sources = {};
-	for (const f of ctx.SRC_FILES) sources[f] = stripJsComments(readFileSync(f, 'utf8'));
+	for (const f of ctx.SRC_FILES) sources[f] = maskComments(readFileSync(f, 'utf8'));
 	const NOTES = ctx.Game.Notes?.entries;
 	const RULES = ctx.window?.Sg?.story?.rules?.() ?? [];
 	// `#785`：把**声明面**也传进去（条件行 ＋ 诉求表 → 写点才看得见）——经接入契约取，不直读数据容器。

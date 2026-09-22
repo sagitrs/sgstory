@@ -143,6 +143,8 @@ export const SEGMENTS = [
 	{ id: "test-saveload-mjs", phase: 'test', cost: 30.7, cmd: "node test/saveload.mjs" },
 	{ id: "test-combat-adv-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/combat-adv.mjs --selftest" },
 	{ id: "test-combat-adv-mjs", phase: 'test', cost: 15.6, cmd: "node test/combat-adv.mjs" },
+	// `#1132` 块2 B1：车卡两宏守卫读数（boot 起真引擎 ✓ 前置＝boot 自带的 dist 新鲜度断言 ⇒ 不另声明 needs ✓）
+	{ id: "test-chargen-macros-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/chargen-macros.mjs" },
 	{ id: "test-g3-evidence-mjs", phase: 'test', cost: 15.7, cmd: "node test/g3-evidence.mjs" },
 	{ id: "test-fight-seq-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-seq.mjs --selftest" },
 	{ id: "test-fight-seq-mjs", phase: 'test', cost: 22, cmd: "node test/fight-seq.mjs" },
@@ -581,6 +583,7 @@ export const SUITE_MEMBERS = {
 		'test-store-keys-mjs-selftest',
 		'test-audit-golden-mjs',
 		'test-audit-golden-mjs-selftest',
+		'test-chargen-macros-mjs',
 	],
 	'editor': [
 		'editor-compile-selftest', 'editor-equiv-selftest', 'editor-equiv-minimal-demo', 'editor-equiv-face-fixture',
@@ -685,6 +688,10 @@ export const inputsMatch = ({ declared = [], changed = [] } = {}) => {
  *  （同 `FULL_REASONS` 的口径 ✓：降频／不跳过都要留痕 ✓）。
  */
 export const INPUTS_WILDCARD_REASONS = {
+	'test-chargen-macros-mjs': {
+		reason: 'boot 起真引擎＋直接调宏 handler（不读 stories 目录）；取全跑型以免静默跳过成假绿面 ✓',
+		voucher: '#1132',
+	},
 	'test-story-codeface-mjs-selftest': {
 		reason: '本段是**合成输入自证**（纯函数注入）⇒ 与真树文件无关，但为避免"静默跳过=假绿面" ✗ 取全跑型 ✓',
 		voucher: '#1132',

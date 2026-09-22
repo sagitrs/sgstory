@@ -6,7 +6,7 @@
 	"commitSubject": "feat(#1004 B2b): 面夹具 `face-fixture` —— 把接入契约的每种面声明一次，供测试当输入",
 	"contractMembers": 0,
 	"shielding": "L3 归一化＝词法遮蔽注释 ＋ 去空白/冗余尾逗号（实现见 `editor/equiv.mjs` 的 normalize）；本基线**不带** `@generated` ⇒ 与产物同形态（避免被 K4-④ 逐字节选中）。",
-	"regen": "node editor/compile-story.mjs face-fixture --out=stories/face-fixture ⇒ 得 `15-tables.twee`（带标记）；本文件 ＝ 它去掉标记行 ＋ `12-hooks.twee` 全文。",
+	"regen": "node editor/compile-story.mjs face-fixture --out=stories/face-fixture ⇒ 得 `15-tables.twee`（带标记）；本文件 ＝ 它去掉标记行。注：`#1132` B3 之前还并入 `12-hooks.twee` 全文，该件已随能力移入引擎删除（`hatchFiles` 随之清空）。",
 	"repinRule": "重钉不许静默：改本文件的 `commit` 必须出现在 diff 里 ＋ PR 说明这次为什么重钉。基线是副本 ⇒ 会过时；数据面任何变更都会让 `equiv` 变红 —— 那是**好事**；但不许在无关 PR 里顺手 regenerate。",
 	"fileNote": "文件名后缀用 `.txt`：它是**夹具**不是可加载模块 —— `.twee` 会被 `scripts/module-order.mjs` 的「加载顺序登记」扫到（未登记即红），而夹具不该进加载顺序、也不该被 K4 的产物扫描选中。"
 }

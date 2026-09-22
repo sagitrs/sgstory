@@ -42,14 +42,7 @@
 		{
 			"name": "pcDefaults",
 			"kind": "const",
-			"value": {
-				"star": {
-					"charge": 12
-				},
-				"keeper": {
-					"state": "post"
-				}
-			}
+			"value": {}
 		},
 		{
 			"name": "prepick",
@@ -182,6 +175,24 @@
 			"name": "flipReturnFlag",
 			"kind": "const",
 			"value": "fog_thin"
+		},
+		{
+			"name": "pcShape",
+			"kind": "const",
+			"value": {
+				"star": {
+					"charge": 12,
+					"spent": 0,
+					"first_free": false
+				},
+				"keeper": {
+					"met": false,
+					"trust": 0,
+					"state": "post",
+					"key": false
+				}
+			},
+			"docs": "故事自有的角色状态形状与初值（引擎不再预置这些键）；缺这一名则这些键不存在"
 		}
 	]
 }

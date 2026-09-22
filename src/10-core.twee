@@ -166,9 +166,8 @@ window.Game.Pc = {
 			name: '', round: 0, picked: [], mode: '', flags: {}, ev: {}, world: {},
 			// `#1186`：玩法状态（车卡族与其他六组）**不在这里预置** —— 一律由下面的**在场信号**（故事的接入契约面）贡献；
 			// 缺面即无键（判据二"未声明模块的故事角色状态零玩法概念"要的形状）。
-			// TODO（同片下一步）：`star`／`keeper` 属世界观概念，待"故事声明扩展路径"打通后一并移出。
-			star: { charge: 0, spent: 0, first_free: false },
-			keeper: { met: false, trust: 0, state: '', key: false },
+			// `#1186`：世界观概念（`star`／`keeper` 这类）由**故事自己声明形状与初值**（契约面 `pcShape`）；引擎不预置、
+			// 也**不补兄弟键**（补了等于把形状偷渡回引擎，本票要治的正是这个）。
 		};
 		// ── `#1186`：在场模块的状态组（信号＝故事的接入契约面）──
 		// 车卡族：只有 `hasChargen()` 为真的故事才有这 13 个键。缺面／假值 → 键不存在（判据二"零玩法概念"要的）。
@@ -177,6 +176,13 @@ window.Game.Pc = {
 				classKey: '', classLabel: '', bgKey: '', bgLabel: '', speciesKey: '', speciesLabel: '',
 				abilities: null, skills: [], feats: [], gear: [], hp: 0, max_hp: 0, salves: 0,
 			});
+		}
+		// ── `#1186`：故事自有的状态形状（契约面 `pcShape`：形状与初值一处给，引擎**不补兄弟键**）──
+		if (typeof window.Sg?.story?.pcShape === 'function') {
+			const own = window.Sg.story.pcShape();
+			if (own && typeof own === 'object' && !Array.isArray(own)) {
+				for (const [k, v] of Object.entries(own)) shape[k] = (v && typeof v === 'object' && !Array.isArray(v)) ? { ...v } : v;
+			}
 		}
 		// ── `#1186`：在场模块的状态组（信号＝故事的接入契约面，登记见本对象 `groups`）──
 		// 缺面 → 键不存在（判据二"未声明模块的故事角色状态零玩法概念"要的形状）。

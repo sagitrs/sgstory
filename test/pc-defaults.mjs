@@ -40,10 +40,12 @@ eq([real.star.spent, real.star.first_free], [0, false], '② 深合并一层：`
 eq(real.soc.att, {}, '② 深合并一层：`soc` 的空子表仍是空表');
 
 // ① + ③ 摘掉故事面 → 形状中性 ＋ 不抛错（缺面＝显式降级）
-const bare = w.eval('(() => { const f = Sg.story.pcDefaults; delete Sg.story.pcDefaults; try { return Game.Pc.defaults(); } finally { Sg.story.pcDefaults = f; } })()');
-ok(isNeutral(bare), '① 摘掉故事面后：引擎给的**每个值都中性**（故事 1 的数值没有硬编码回引擎）');
-eq(bare.star.charge, 0, '③ 缺面 ⇒ 显式降级：`star.charge === 0`（不抛错）');
-eq(keysOf(bare), keysOf(real), '③ 缺面 ⇒ **形状不变**（键集合与真机一致，只是值中性）');
+// `#1186`：概念改由故事声明（契约面 `pcShape`）→ "摘故事面"要**两处都摘**（数值面 `pcDefaults` ＋ 形状面 `pcShape`）。
+const bare = w.eval('(() => { const f = Sg.story.pcDefaults, g = Sg.story.pcShape; delete Sg.story.pcDefaults; delete Sg.story.pcShape; try { return Game.Pc.defaults(); } finally { Sg.story.pcDefaults = f; Sg.story.pcShape = g; } })()');
+ok(isNeutral(bare), '① 摘掉两处故事面后：引擎给的**每个值都中性**（故事 1 的数值没有硬编码回引擎）');
+// `#1186`：世界观概念由故事声明 → 两处都摘后这些键**不存在**（不再有"引擎预置的中性值"可断言）。
+ok(!('star' in bare) && !('keeper' in bare), '③ 缺面 ⇒ 概念键不存在（概念随故事声明；引擎不预置）', JSON.stringify({ star: bare.star, keeper: bare.keeper }));
+ok(!keysOf(bare).includes('star') && !keysOf(bare).includes('keeper'), '③ 缺面 ⇒ 键集合里也没有这两个键');
 
 // ④ 面返回非对象 → 报错
 const msgs = [];
@@ -60,7 +62,8 @@ eq([mig.hp, mig.star.charge, mig.keeper.state], [3, 12, 'post'], '⑤ `migrate()
 // ⑥ `#1186`（新口径见票面评论）：每个故事的键集合 ＝ **基础面** ＋ **在场模块的状态组**。
 // 期望值从**声明面数据**算（故事契约 JSON ＋ 归属表 import），与测试宿主无关——这正是既有件第 32 行的取法
 // 范例的延伸（实际值仍用 `w.eval('Game.Pc.defaults()')`）。
-const BASE = [...PC_BASE_KEYS, ...PC_STORY_CONCEPTS].sort();
+// 基础面只取 `PC_BASE_KEYS`；世界观概念**不再恒在**——故事用契约面 `pcShape` 声明时才有（见下方 expectedFor）。
+const BASE = [...PC_BASE_KEYS].sort();
 const contractOf = (slug) => JSON.parse(readFileSync(join(ROOT, 'stories', slug, 'data', 'contract.json'), 'utf8'));
 const facePresent = (members, face, kind) => {
 	const m = members.find((x) => x.name === face);
@@ -73,6 +76,8 @@ const facePresent = (members, face, kind) => {
 const expectedFor = (slug) => {
 	const members = contractOf(slug).members ?? [];
 	const out = new Set(BASE);
+	// 故事自有形状（契约面 `pcShape`）：声明的键进期望，取数走声明面（与宿主无关）
+	for (const k of Object.keys(members.find((m) => m.name === 'pcShape')?.value ?? {})) out.add(k);
 	for (const [group, sig] of Object.entries(PC_GROUP_SIGNALS)) {
 		if (!sig.faces.some((f) => facePresent(members, f, sig.kind))) continue;
 		for (const [k, home] of Object.entries(PC_GAMEPLAY_HOME)) if (home === group) out.add(k);

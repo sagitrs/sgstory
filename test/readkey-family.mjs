@@ -1,5 +1,5 @@
 // `#1156`：**「可读键形」的成对断言** —— 单一权威 `editor/lib/core/audit-shared.mjs` 的 `readKeyFamily`
-// 与**引擎真源** `src/engine/40-sim/21-resolve.twee` 的 `Sg.rules.readKey` **分支族**必须一致。
+// 与**引擎真源**（含 `Sg.rules.readKey`，`#1187` 起为 `src/engine/40-sim/22-rules.twee`；本件按锚派生）**分支族**必须一致。
 // 为什么是断言而不是生成（领队裁 `#1156`）：**权威方向**是「引擎为源、core 为镜像」→ 若生成期从 core
 // 产出引擎分支 → core 变主、引擎变派生（方向反）且生成机器＝新的失败面。跨语言边界（twee 不能 import JS）
 // → 双份**故意存在**，但**不能悄悄漂移**（`#1054` 族既有手法：成对读数）。
@@ -7,8 +7,19 @@
 // ② 能假证明（把引擎侧的族改名 → 格 ① 必须红 → 还原 → 绿）
 import { readFileSync } from 'node:fs';
 import { readKeyFamily } from '../editor/lib/core/audit-shared.mjs';
+import { allSourceFiles } from '../scripts/module-order.mjs';   // `#1187`：引擎件清单（派生用）
 
-const ENGINE = 'src/engine/40-sim/21-resolve.twee';
+// `#1187`：引擎真源**自动派生**（原先硬编 `21-resolve.twee` → 拆模块时本门当场腐烂，
+// 实测：`Sg.rules` 拆到 `22-rules.twee` 后本门报"抽取失败"）。
+// 口径：锚 `readKey(key, pc) {` 落在哪个引擎件就取那件；找不到 → 返回空串，由本门出声（不静默比空）。
+const ENGINE = (() => {
+	for (const f of allSourceFiles(['src'])) {
+		if (!f.endsWith('.twee')) continue;
+		try { if (readFileSync(f, 'utf8').includes('readKey(key, pc) {')) return f; } catch { /* 读不到 → 继续找 */ }
+	}
+	return '';
+})();
+if (!ENGINE) { console.error('✗ 读数不成立：引擎件里**派生不到**锚 `readKey(key, pc) {`（门比不了）'); process.exit(1); }
 let bad = 0;
 const t = (label, ok) => { if (ok) console.log(`  ✓ ${label}`); else { bad += 1; console.error(`  ✗ ${label}`); } };
 

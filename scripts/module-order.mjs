@@ -50,6 +50,7 @@ export const ORDER = [
 	'src/engine/40-sim/10-gear.twee',      // `#1187`：装备面的算（零依赖；Items／Combat 依赖它 → 必须在前）
 	'src/engine/40-sim/12-economy.twee',   // `#1187`：经济面的算（零依赖；Social／rules 依赖它 → 必须在前）
 	'src/engine/40-sim/20-items.twee',     // `#1187`：道具面的算（依赖 Gear；Checks 依赖它 → 必须在前）
+	'src/engine/40-sim/22-rules.twee',     // `#1187`：条件表选择器（`Sg.rules`；依赖 Economy，Codex／Social 依赖它）
 	'src/engine/40-sim/21-resolve.twee',    // 结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）
 	'src/engine/40-sim/30-checks.twee',    // `#1187`：位点判定的「算」（从 21-resolve 拆出；依赖 Items／Rules）
 	// `#1132` B3：车卡数据面（生成物 18-chargen.twee；运行期由 applyQuickPreset 经 Sg.story.chargen() 读）
@@ -131,6 +132,7 @@ export const MODULES = {
 	// 否则 ORDER 里还有它、依赖表里没有 → `move-precheck` 的 `[missing-modules]` 当场红（实测：B2a 一版就踩了这个）。
 	'src/engine/40-sim/21-resolve.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'engine', note: '结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）' },
 	'src/engine/40-sim/12-economy.twee': { deps: [], defines: [], layer: 'engine', note: '经济面的算（`#1187` 拆出；只读契约 `econEvents`，零引擎依赖）' },
+	'src/engine/40-sim/22-rules.twee': { deps: ['src/engine/40-sim/12-economy.twee'], defines: ['Sg.rules'], layer: 'engine', note: '条件表选择器（`#1187` 拆出；`{price: id}` 硬依赖 `Game.Economy.priceOf`）。段名取 `RuleSelector` 以避开 `src/10-core.twee` 已占的 `Rules`（那是 `Game.Rules` 内核，同名不同物）' },
 	'src/engine/40-sim/20-items.twee': { deps: ['src/engine/40-sim/10-gear.twee'], defines: [], layer: 'engine', note: '道具面的算（`#1187` 拆出；依赖 `Game.Gear.advSource` 与契约 `itemEffect`／`poisonReduce`）' },
 	'src/engine/40-sim/10-gear.twee': { deps: [], defines: [], layer: 'engine', note: '装备面的算（`#1187` 拆出；只读契约 `gearDef`，零引擎依赖）' },
 	'src/engine/40-sim/30-checks.twee': { deps: ['src/10-core.twee', 'src/engine/40-sim/20-items.twee'], defines: [], layer: 'engine', note: '位点判定的「算」（`#1187` 拆出；写 Game.Checks 容器，`??=` 形态不入 defines —— 同 21-resolve 的房式；Game.Items／Game.Rules 由前两件提供）' },

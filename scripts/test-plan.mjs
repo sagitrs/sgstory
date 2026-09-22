@@ -148,6 +148,11 @@ export const SEGMENTS = [
 	{ id: "test-combat-adv-mjs", phase: 'test', cost: 15.6, cmd: "node test/combat-adv.mjs" },
 	// `#1132` 块2 B1：车卡两宏守卫读数（boot 起真引擎 ✓ 前置＝boot 自带的 dist 新鲜度断言 ⇒ 不另声明 needs ✓）
 	{ id: "test-chargen-macros-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/chargen-macros.mjs" },
+	// `#1132` B2：等价读数（旧 JS ↔ 新施加器吃 json；序列级 ⇒ 咬到单次格看不见的数据污染 ✗）
+	// `#1132` B2：施加器每动词一格（set／add／append ＋ 未知动词大声报 ✗）
+	{ id: "test-chargen-apply-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/chargen-apply.mjs" },
+	{ id: "test-chargen-equivalence-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/chargen-equivalence.mjs" },
+
 	{ id: "test-g3-evidence-mjs", phase: 'test', cost: 15.7, cmd: "node test/g3-evidence.mjs" },
 	{ id: "test-fight-seq-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-seq.mjs --selftest" },
 	{ id: "test-fight-seq-mjs", phase: 'test', cost: 22, cmd: "node test/fight-seq.mjs" },
@@ -587,6 +592,8 @@ export const SUITE_MEMBERS = {
 		'test-audit-golden-mjs',
 		'test-audit-golden-mjs-selftest',
 		'test-chargen-macros-mjs',
+		'test-chargen-equivalence-mjs',
+		'test-chargen-apply-mjs',
 	],
 	'editor': [
 		'editor-compile-selftest', 'editor-equiv-selftest', 'editor-equiv-minimal-demo', 'editor-equiv-face-fixture',
@@ -690,6 +697,14 @@ export const inputsMatch = ({ declared = [], changed = [] } = {}) => {
  *  （同 `FULL_REASONS` 的口径 ✓：降频／不跳过都要留痕 ✓）。
  */
 export const INPUTS_WILDCARD_REASONS = {
+	'test-chargen-apply-mjs': {
+		reason: 'boot 起真引擎直接调 Sg.Chargen.apply（不读 stories 目录）⇒ 取全跑型以免静默跳过成假绿面 ✓',
+		voucher: '#1132',
+	},
+	'test-chargen-equivalence-mjs': {
+		reason: 'boot 起真引擎＋读 stories/face-fixture/data/chargen.json（源面）⇒ 依赖面跨目录 ⇒ 取全跑型以免静默跳过成假绿面 ✓',
+		voucher: '#1132',
+	},
 	'test-chargen-macros-mjs': {
 		reason: 'boot 起真引擎＋直接调宏 handler（不读 stories 目录）；取全跑型以免静默跳过成假绿面 ✓',
 		voucher: '#1132',

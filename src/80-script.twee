@@ -196,6 +196,10 @@ window.Sg.notes = {
 //   未知动词 ⇒ **大声报** ✗（封闭集的能假面：宁可响，不可静默漏字段）
 window.Sg.Chargen = {
 	VERBS: ['set', 'add', 'append'],
+	// `#1132` B2：**写前深拷贝** —— 契约＝「**绝不改写调用方数据**」✓
+	//   实测：`writePath` 按**引用**存对象 ⇒ 若不拷贝，后续 `add` 会把**调用方对象**（＝json 里的
+	//   `patch.abilities.set`）当场改写 ✗ ⇒ 同一预设连用两次 ⇒ 数值翻倍 ✗（序列级读数咬出 ✓）
+	_clone(v) { return v !== null && typeof v === 'object' ? JSON.parse(JSON.stringify(v)) : v; },
 	apply(pc, patch) {
 		if (!pc || typeof pc !== 'object') throw new Error('Sg.Chargen.apply：pc 缺失');
 		if (!patch || typeof patch !== 'object') throw new Error('Sg.Chargen.apply：patch 缺失');
@@ -208,10 +212,10 @@ window.Sg.Chargen = {
 				}
 				for (const verb of verbs) {
 					const arg = v[verb];
-					if (verb === 'set') window.Sg.notes.writePath(pc, path, arg);
+					if (verb === 'set') window.Sg.notes.writePath(pc, path, this._clone(arg));
 					else if (verb === 'append') for (const x of [].concat(arg)) {
 						const cur = window.Sg.notes.readPath(pc, path);
-						window.Sg.notes.writePath(pc, path, [].concat(cur ?? [], x));
+						window.Sg.notes.writePath(pc, path, this._clone([].concat(cur ?? [], x)));
 					} else {
 						const cur = window.Sg.notes.readPath(pc, path);
 						if (typeof arg !== 'number') throw new Error('Sg.Chargen.apply：`' + path + '` 的 add 载荷必须是数字，拿到 ' + JSON.stringify(arg));
@@ -220,7 +224,7 @@ window.Sg.Chargen = {
 					}
 				}
 			} else {
-				window.Sg.notes.writePath(pc, path, v);   // 裸值 ⇒ set ✓
+				window.Sg.notes.writePath(pc, path, this._clone(v));   // 裸值 ⇒ set ✓（同样克隆 ✓）
 			}
 		}
 	},

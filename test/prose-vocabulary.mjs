@@ -3,36 +3,36 @@
 // ## 为什么需要它（甲-1 的防退化保证）
 // 已裁 **甲-1**：作者只写 MD＋JSON，正文＝Markdown ＋ `[[标签|目标]]`，其余结构出正文。
 // 但**今天**引擎仍要求"机制动作只走词汇宏"（`README.md:62` 的机检纪律）——`<<give>>`／`<<note>>`／
-// `<<sitecheck>>`／`<<rulelist>>`… 这些宏**是写在正文里的**。⇒ 判据**不能**是"正文不许有宏"（那会与既有
+// `<<sitecheck>>`／`<<rulelist>>`… 这些宏**是写在正文里的**。→ 判据**不能**是"正文不许有宏"（那会与既有
 // 纪律冲突、并把面夹具成百处判红）；正确边界是：
-//   · **允许**：散文、`[[…]]` 链接、`/% payload: … %/` 标记、**引擎已宣告的宏**（词汇宏）；
-//   · **禁止**：SugarCube 内置的**逻辑/表达式**宏（`<<if>>`/`<<else>>`/`<<set>>`/`<<for>>`/`<<run>>`/
-//     `<<capture>>`/`<<= …>>`）与**任何引擎未宣告的宏**（含 `<<goto>>`/`<<link>>`：导航该走 `[[…]]`）。
-//     ⇒ 那是"**作者在写代码**"，正是甲-1 要根除的形状。
+// · **允许**：散文、`[[…]]` 链接、`/% payload: … %/` 标记、**引擎已宣告的宏**（词汇宏）；
+// · **禁止**：SugarCube 内置的**逻辑/表达式**宏（`<<if>>`/`<<else>>`/`<<set>>`/`<<for>>`/`<<run>>`/
+// `<<capture>>`/`<<= …>>`）与**任何引擎未宣告的宏**（含 `<<goto>>`/`<<link>>`：导航该走 `[[…]]`）。
+// → 那是"**作者在写代码**"，正是甲-1 要根除的形状。
 //
-// ## 词表的**单一权威**（不另立清单 ✗）
+// ## 词表的**单一权威**（不另立清单）
 // 词表＝**从 `src/**` 现抽**：`<<widget "name">>` ∪ `Macro.add('name')`（`#1043` 实测 33 个）。
-// 引擎加一个宏 ⇒ 门自动认；**永不漂移**（本仓最怕的"两处清单"在这条上不存在）。
+// 引擎加一个宏 → 门自动认；**永不漂移**（本仓最怕的"两处清单"在这条上不存在）。
 //
 // ## 边界
 // · **只判内容故事**（`audience: content`）；**内部件豁免**（`audience: internal` —— 它们的存在意义就是
-//   替引擎面跑通，禁宏会把它们掏空），但会**打印豁免计数**（不静默 ✗）。
+// 替引擎面跑通，禁宏会把它们掏空），但会**打印豁免计数**（不静默）。
 // · 只判**散文段落**：`[script]`／`[widget]`／`[stylesheet]` 段落里的宏**不判**（那不是散文）。
-// · `/% … %/` 注释（含本仓大量"当初错在哪"的留痕）**剔除**后再判 —— 留痕优先 ✓。
-// · **元数据件不判**（`#1051`②：判据由**文件名字面量**改为**内容谓词** ✗）——判据＝含 `:: StoryData` 段落 ✓
-//   （实测：全仓只有各故事的 `00-meta.twee` 命中 ✓，正文件零命中 ✓ ⇒ 等价且不靠名字 ✓）。
-// · **故事件以 `00-story.json` 的 `files` 为准**（单一权威 ✓）；**在树上却不在清单里** ⇒ **不静默**（报 ✓）。
-// · **未跟踪件** ⇒ 提醒（照 `#1089`／`#1045`／`#1046` 同款 ✓ —— 与另两件的枚举口径同步 ✓）。
+// · `/% … %/` 注释（含本仓大量"当初错在哪"的留痕）**剔除**后再判 —— 留痕优先。
+// · **元数据件不判**（`#1051`②：判据由**文件名字面量**改为**内容谓词**）——判据＝含 `:: StoryData` 段落
+//（实测：全仓只有各故事的 `00-meta.twee` 命中，正文件零命中 → 等价且不靠名字）。
+// · **故事件以 `00-story.json` 的 `files` 为准**（单一权威）；**在树上却不在清单里** → **不静默**（报）。
+// · **未跟踪件** → 提醒（照 `#1089`／`#1045`／`#1046` 同款 —— 与另两件的枚举口径同步）。
 //
 // 用法：`node test/prose-vocabulary.mjs` ｜ 自证：`node test/prose-vocabulary.mjs --selftest`
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { execFileSync } from 'node:child_process';                       // `#1051`②：枚举改走 `git ls-files`（已入库面 ✓）
+import { execFileSync } from 'node:child_process';                       // `#1051`②：枚举改走 `git ls-files`（已入库面）
 import { untrackedScannedProblems, isTransientFixture } from '../scripts/lib/untracked-guard.mjs';
-import { isGeneratedFamily } from '../editor/lib/core/generated-family.mjs';   // `#1185`：家族谓词单一权威   // `#1089` 共用助手（不另造形态 ✓）
-import { maskComments } from '../editor/lib/core/mask.mjs';   // `#1048`：{{}} 判据先剥注释（留痕不罚 ✓）
+import { isGeneratedFamily } from '../editor/lib/core/generated-family.mjs';   // `#1185`：家族谓词单一权威 // `#1089` 共用助手（不另造形态）
+import { maskComments } from '../editor/lib/core/mask.mjs';   // `#1048`：{{}} 判据先剥注释（留痕不罚）
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '');
 const STORIES = join(ROOT, 'stories');
@@ -43,24 +43,24 @@ export const ALLOWED_BUILTINS = new Set(['back']);
 
 /** 从引擎源码抽"词汇表"（`<<widget "x">>` ∪ `Macro.add('x')`）。**纯函数**（便于自证）。 */
 
-/** `#1048`：**取值词汇命名空间**（裁定甲-1：两源并集 ✓——领队评论 5755635491）。
- * ① contract 成员 ∩ 值语义 kind（const/state-ref/identity-string ✓——容器/空/null/查表默认排除 ✗）
- * ② 引擎派生标签（VALUE_LABELS 常量表 ✓）
- * ⚠️ **单一权威**：#1114 拼装层**消费同一函数**（不许各算一份 ✗——门放行/拼装不认 ⇒ 静默漏值 ✗）。 */
+/** `#1048`：**取值词汇命名空间**（裁定甲-1：两源并集 ——领队评论 5755635491）。
+ * ① contract 成员 ∩ 值语义 kind（const/state-ref/identity-string ——容器/空/null/查表默认排除）
+ * ② 引擎派生标签（VALUE_LABELS 常量表）
+ *注意：**单一权威**：#1114 拼装层**消费同一函数**（不许各算一份 ——门放行/拼装不认 → 静默漏值）。 */
 import { VALUE_KINDS, valueTerms } from '../editor/lib/core/vocab.mjs';
-// `#1114` 片 2b-2a：**散文层源**（`passages/*.md`）的 front-matter 解析走**拼装层同一权威** ✓
-//   （不另写一份 YAML 子集 ✗ —— 两处解析器就是两处真相 ✓）。
+// `#1114` 片 2b-2a：**散文层源**（`passages/*.md`）的 front-matter 解析走**拼装层同一权威**
+//（不另写一份 YAML 子集 —— 两处解析器就是两处真相）。
 import { parseFrontMatter, duplicateProblems, passagesOf, parseTweePassages } from '../editor/lib/core/passages.mjs';
-// `#1114` 片 2b-2a：**源面谓词走单一权威** ✓（评审阻断：本件原先自带一份逐字相同的副本 ⇒ 两份可漂 ✓）。
-//   ⇒ 定义处只在 `scripts/module-order.mjs`（`allSourceFiles()` 也在那儿 ✓）；本件只 **import** ✗。
+// `#1114` 片 2b-2a：**源面谓词走单一权威**（评审阻断：本件原先自带一份逐字相同的副本 → 两份可漂）。
+// → 定义处只在 `scripts/module-order.mjs`（`allSourceFiles()` 也在那儿）；本件只 **import**。
 import { isStoryPassageMd } from '../scripts/module-order.mjs';
-// `#1114` 片 2b-2b-0：**禁则内建**与**引擎标签抽取**也改走单一权威 ✓
-//   —— 原先两者都定义在本件（test 件）⇒ 而拼装层（core）**必须**用同一份 ✗：
-//   若拼装自己复述一份，则“门禁得住、拼装放过去”（或反过来）⇒ **两处清单** ✓（本仓反复撞过 ✓）。
+// `#1114` 片 2b-2b-0：**禁则内建**与**引擎标签抽取**也改走单一权威
+// —— 原先两者都定义在本件（test 件）→ 而拼装层（core）**必须**用同一份：
+// 若拼装自己复述一份，则“门禁得住、拼装放过去”（或反过来）→ **两处清单**（本仓反复撞过）。
 import { FORBIDDEN_BUILTINS } from '../editor/lib/core/passages.mjs';
 import { engineLabels } from '../editor/lib/core/vocab.mjs';
 export { VALUE_KINDS, valueTerms, FORBIDDEN_BUILTINS, engineLabels };
-/** `#1048`：扫全 `src/**` 的 `*Label` 键形态（⚠️ 今日恰 3 处=真 pc 字段；将来非 pc 的 `fooLabel:` 也会被对账——口径如实 ✗）。对账：未登记 VALUE_LABELS ⇒ 红 ✓。**纯函数**。 */
+/** `#1048`：扫全 `src/**` 的 `*Label` 键形态（注意：今日恰 3 处=真 pc 字段；将来非 pc 的 `fooLabel:` 也会被对账——口径如实）。对账：未登记 VALUE_LABELS → 红。**纯函数**。 */
 export const pcLabelFields = (sources = []) => {
 	const out = new Set();
 	for (const text of sources) {
@@ -69,7 +69,7 @@ export const pcLabelFields = (sources = []) => {
 	return [...out].sort();
 };
 
-/** `#1048`：{{名字}} 判据 —— 未声明即红＋替换建议（候选最近名 ✓）。**纯函数**。 */
+/** `#1048`：{{名字}} 判据 —— 未声明即红＋替换建议（候选最近名）。**纯函数**。 */
 export const valueRefProblems = ({ files = [], terms = new Set() } = {}) => {
 	const out = [];
 	for (const f of files) {
@@ -111,12 +111,12 @@ const tweeUnder = (dir, acc = []) => {
 };
 
 /** `#1114` 片 2b-2a：段落**源**（`.twee` ∪ `stories/<slug>/passages/` 下的 `.md`）的枚举。
- *  为什么要它 ✗：故事面原先只看**顶层 `.twee`**（`readdirSync(<故事目录>)`）⇒ `passages/` 子目录里的 md
- *  会变成「在树上却不在门面上」的**静默盲区** ✓（本仓最忌讳的形态 ✗）。
- *  ⚠️ 仍**只收故事目录下 `passages/` 里的 md**（谓词 `isStoryPassageMd` 从 `scripts/module-order.mjs` **import** ✓
- *  —— “收什么”只在一处决定 ✗；与 `allSourceFiles()` 同口径 ✓）。
- *  ⇒ 调用点**不必**再按扩展名过滤（本件下游只在“读得进读不进”上分派解析器 ✓）。
- *  非源 md（故事目录顶层的会话记录／`gates/` 门证据）不进面 ✓。 */
+ * 为什么要它：故事面原先只看**顶层 `.twee`**（`readdirSync(<故事目录>)`）→ `passages/` 子目录里的 md
+ * 会变成「在树上却不在门面上」的**静默盲区**（本仓最忌讳的形态）。
+ *注意：仍**只收故事目录下 `passages/` 里的 md**（谓词 `isStoryPassageMd` 从 `scripts/module-order.mjs` **import**
+ * ——“收什么”只在一处决定；与 `allSourceFiles()` 同口径）。
+ * → 调用点**不必**再按扩展名过滤（本件下游只在“读得进读不进”上分派解析器）。
+ * 非源 md（故事目录顶层的会话记录／`gates/` 门证据）不进面。 */
 const sourcesUnder = (dir, acc = []) => {
 	if (!existsSync(dir)) return acc;
 	for (const name of readdirSync(dir, { withFileTypes: true })) {
@@ -127,7 +127,7 @@ const sourcesUnder = (dir, acc = []) => {
 	return acc;
 };
 
-/** `#1114` 片 2b-2b-0b：twee 段解析**走 core 单一权威** ✓（原先本件自带一份同形实现 ✗ —— 两份口径必漂）。 */
+/** `#1114` 片 2b-2b-0b：twee 段解析**走 core 单一权威**（原先本件自带一份同形实现 —— 两份口径必漂）。 */
 export const parsePassages = parseTweePassages;
 
 /** 剔除 `/% … %/` 注释跨度（**跨行**也要吃）——但保留 `/% payload: … %/` 标记原样（它是"标记"，不是留痕）。 */
@@ -136,8 +136,8 @@ export const stripCommentSpans = (bodyLines) => {
 	let inComment = false;
 	for (const { text, line } of bodyLines) {
 		let t = text;
-		// payload 标记是单行构造 ⇒ 先摘出来（它内部不可能有宏，直接整体当"已允许"）
-		if (/%\s*payload:/.test(t) && /%\/\s*$/.test(t.trim())) { out.push({ text: '', line }); continue; }
+		// payload 标记是单行构造 → 先摘出来（它内部不可能有宏，直接整体当"已允许"）
+		if (/%\s*payload:/.test(t) && /%\/\s*$/.test(t.trim())) { out.push({ text: '', line}); continue;}
 		let res = '';
 		let i = 0;
 		while (i < t.length) {
@@ -166,9 +166,9 @@ export const stripCommentSpans = (bodyLines) => {
 export const proseVocabProblems = ({ slug, files, vocab }) => {
 	const out = [];
 	for (const f of files) {
-		// `#1114` 片 2b-2a：**按扩展名分派解析器** ✗——判据体（下两档）**两路共用** ✓。
-		//   ⚠️ 不分派的后果是"**假绿**"：md 进 twee 解析器 ⇒ 解析出空 ⇒ 不报错也不判 ⇒ 看着像扫过了 ✓
-		//   （这正是本片要堵的那个缺口 ✓ —— 与"零命中≠已覆盖"同族 ✓）。
+		// `#1114` 片 2b-2a：**按扩展名分派解析器** ——判据体（下两档）**两路共用**。
+		//注意：不分派的后果是"**假绿**"：md 进 twee 解析器 → 解析出空 → 不报错也不判 → 看着像扫过了
+		//（这正是本片要堵的那个缺口 —— 与"零命中≠已覆盖"同族）。
 		const passages = passagesOf(f.text, f.path);
 		for (const p of passages) {
 			const isProse = !p.tags.some((t) => ['script', 'widget', 'stylesheet'].includes(t));
@@ -191,19 +191,19 @@ export const proseVocabProblems = ({ slug, files, vocab }) => {
 };
 
 // ── 自证（纯合成输入，不碰真磁盘）────────────────────────────────────────
-// ── `#1051`②：**可注入纯函数**（㊱：攻击面落在判据上，不落现实 ✗ —— 自证喂入参即可判 ✓）──────────
-/** **在树上却不在清单里**的故事件（`00-story.json` 的 `files` 为准 ✓）。⚠️ 本票的由来：`00-meta2.twee`
- *  这类**下一代名**在旧口径下会被当**正文**判 ✗ ⇒ 这里改成**出声**（报 ✓）而不是静默排除 ✗。 */
-/** `#1114` 片 2b-2a：段落**源**的枚举面 —— `.twee` ∪ `passages/` 下的 `.md` ✓。
- *  ⚠️ 原先这里硬编码 `.twee` ⇒ 调用方把 md 递进来也会**被本函数静默滤掉** ✗（两处口径各写一遍＝漂移源 ✓）；
- *  现改为**与 `allSourceFiles()`／本门其余部分同口径**（只额外放行 `passages/` 下的 md ✗）。
- *  边界不变 ✓：非 `passages/` 的未登记件（如故事目录顶层的 `README.md`）仍**不归本门** ✓。 */
+// ── `#1051`②：**可注入纯函数**（㊱：攻击面落在判据上，不落现实 —— 自证喂入参即可判）──────────
+/** **在树上却不在清单里**的故事件（`00-story.json` 的 `files` 为准）。注意：本票的由来：`00-meta2.twee`
+ * 这类**下一代名**在旧口径下会被当**正文**判 → 这里改成**出声**（报）而不是静默排除。 */
+/** `#1114` 片 2b-2a：段落**源**的枚举面 —— `.twee` ∪ `passages/` 下的 `.md`。
+ *注意：原先这里硬编码 `.twee` → 调用方把 md 递进来也会**被本函数静默滤掉**（两处口径各写一遍＝漂移源）；
+ * 现改为**与 `allSourceFiles()`／本门其余部分同口径**（只额外放行 `passages/` 下的 md）。
+ * 边界不变：非 `passages/` 的未登记件（如故事目录顶层的 `README.md`）仍**不归本门**。 */
 export const undeclaredStoryFiles = ({ declared = [], onDisk = [] } = {}) =>
 	onDisk.filter((p) => (p.endsWith('.twee') || isStoryPassageMd(p)) && !declared.includes(p));
 
-/** **元数据件谓词**（`#1051`②：由**文件名字面量**改为**内容谓词** ✗）。判据＝含 `:: StoryData` 段落 ✓
- *  （Twine 的元数据段落，按定义不是散文 ✓；实测全仓只有各故事的 `00-meta.twee` 命中 ✓ 正文件零命中 ✓）。
- *  ⚠️ **边界（抓不到什么）**：正文件若含 `:: StoryData` 段 ⇒ 谓词同样命中 ⇒ **整件被当元数据放过** ✗（本仓现无此形态 ⇒ 属潜伏面，结构性替代＝显式清单口径 ✓）。 */
+/** **元数据件谓词**（`#1051`②：由**文件名字面量**改为**内容谓词**）。判据＝含 `:: StoryData` 段落
+ *（Twine 的元数据段落，按定义不是散文；实测全仓只有各故事的 `00-meta.twee` 命中 正文件零命中）。
+ *注意：**边界（抓不到什么）**：正文件若含 `:: StoryData` 段 → 谓词同样命中 → **整件被当元数据放过**（本仓现无此形态 → 属潜伏面，结构性替代＝显式清单口径）。 */
 export const isMetadataTwee = (text) => /^::\s*StoryData/m.test(String(text ?? ''));
 
 const selftest = () => {
@@ -232,7 +232,7 @@ const selftest = () => {
 		proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'p.twee', text: ':: W [widget]\n<<widget "z">><<set $x to 1>><</widget>>\n' }] }).length === 0);
 	t('边界：正文里**没有宏** ⇒ 0 问题', proseVocabProblems({ slug: 'demo', vocab, files: mk('只有散文。') }).length === 0);
 
-	// `#1051`②：**枚举口径**（成对 ✓ —— 改前/改后行为都要能判）
+	// `#1051`②：**枚举口径**（成对 —— 改前/改后行为都要能判）
 	t('🔴 枚举：`00-meta2.twee` 在树上、不在清单 ⇒ **报**（旧口径会把它当**正文**判 ✗）',
 		undeclaredStoryFiles({ declared: ['stories/x/00-meta.twee'], onDisk: ['stories/x/00-meta.twee', 'stories/x/00-meta2.twee'] }).length === 1);
 	t('枚举·正例：全在清单里 ⇒ **不报**（不误咬 ✓）',
@@ -241,8 +241,8 @@ const selftest = () => {
 	t('#1048 正例：已声明取值名 ⇒ 不报', valueRefProblems({ files: [{ path: 'x.twee', text: '见 {{hasChargen}}' }], terms: new Set(['hasChargen']) }).length === 0),
 	t('#1048 边界：注释跨度里的 {{}} ⇒ 剥注释不罚（留痕优先）', valueRefProblems({ files: [{ path: 'x.twee', text: '/* 历史 {{oldName}} */' }], terms: new Set() }).length === 0),
 	t('#1048：valueTerms 并集（值语义 kind ∪ labels）', (() => { const t1 = valueTerms({ contract: { members: [{ name: 'a', kind: 'const' }, { name: 'b', kind: 'empty-object' }] }, labels: ['classLabel'] }); return t1.has('a') && t1.has('classLabel') && !t1.has('b'); })()),
-	// ── `#1114` 片 2b-2a：**散文层源**（`passages/` 下的 `.md`）进判据面 ✓────────────────
-	//   三格能假：禁则红 ✓／具名动作宏不红 ✓／未宣告宏红 ✓；另一格：**跟源同名段**必报 ✓。
+	// ── `#1114` 片 2b-2a：**散文层源**（`passages/` 下的 `.md`）进判据面 ────────────────
+	// 三格能假：禁则红 ／具名动作宏不红 ／未宣告宏红；另一格：**跟源同名段**必报。
 	t('🔴 md 源·反例：md 正文含 `<<set>>` ⇒ **V1**（判据体与 twee 路**共用** ✓）',
 		(proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'stories/demo/passages/0-a.md', text: '---\npassage: 开场\n---\n门是虚掩的。\n<<set $x to 1>>\n' }] })[0]?.code) === 'V1');
 	t('🔴 md 源·正例（能假的另一半）：md 正文的**具名动作宏** ⇒ **不红** ✓',
@@ -255,10 +255,10 @@ const selftest = () => {
 		(() => { const r = duplicateProblems({ passages: [{ name: '开场', path: 'stories/x/passages/0-开场.md' }, { name: '开场', path: 'stories/x/10-fixture.twee' }] }); return r.length === 1 && r[0].includes('0-开场.md') && r[0].includes('10-fixture.twee'); })());
 	t('🔴 枚举·新面：**未登记**的 `passages/*.md` 在树上 ⇒ **报**（旧口径对 md 隐形 ✗）',
 		undeclaredStoryFiles({ declared: [], onDisk: ['stories/x/passages/0-a.md'] }).length === 1);
-	// `#1114` 2b-2a：**谓词单一权威** ＋ **锚住故事目录**（两个格，均为评审阻断项的能假面 ✓）
+	// `#1114` 2b-2a：**谓词单一权威** ＋ **锚住故事目录**（两个格，均为评审阻断项的能假面）
 	t('🔴 谓词**全仓只有一处定义**（两份逐字相同的副本会漂 ✗ ⇒ 谁再复制一份就必须红 ✓）',
-		// ⚠️ 检查串必须**拆开写** ✗（写成整串会命中它**自己** ⇒ 格恒红 ⇒ 与恒真格同族的自指陷阱 ✓）；
-		//   而“只查本件”不够（副本可能被放到别处）⇒ 扫**两处候选**计数 == 1 ✓。
+		//注意：检查串必须**拆开写**（写成整串会命中它**自己** → 格恒红 → 与恒真格同族的自指陷阱）；
+		// 而“只查本件”不够（副本可能被放到别处）→ 扫**两处候选**计数 == 1。
 		(() => {
 			const DEF = 'export const isStory' + 'PassageMd';
 			const files = ['scripts/module-order.mjs', 'test/prose-vocabulary.mjs'];
@@ -279,7 +279,7 @@ const selftest = () => {
 		untrackedScannedProblems({ untracked: ['src/99-new.twee'], isScanned: (f) => f.endsWith('.twee') }).problems.length === 1);
 	t('未跟踪·临时夹具 ⇒ **不算"忘了 add"**（并发段运行期自造 ✓ 不误咬 ✓）',
 		untrackedScannedProblems({ untracked: ['stories/x/__e2e.twee'], isScanned: (f) => f.endsWith('.twee') }).problems.length === 0);
-	if (bad) { console.error(`\n✗ 词汇门自证失败 ${bad} 项`); process.exit(1); }   // `#1124` 评审阻断修：所有格先跑完再判退（格红进退出码 ✓）
+	if (bad) { console.error(`\n✗ 词汇门自证失败 ${bad} 项`); process.exit(1); }   // `#1124` 评审阻断修：所有格先跑完再判退（格红进退出码）
 	console.log('\n✔ 自证通过（词汇抽取 ＋ 允许面 ＋ 逻辑/表达式/未宣告三类反例 ＋ 注释/段落豁免）');
 	process.exit(0);
 };
@@ -287,16 +287,16 @@ const selftest = () => {
 if (process.argv.includes('--selftest')) selftest();
 
 // ── 真实树检查 ──────────────────────────────────────────────────────────
-// `#1051`②：**枚举口径统一** —— 与 `#1045`／`#1046`／`#1089` 同款 ✓（取不到 git 元数据 ⇒ **报红，不静默跳过** ✗，照 `repo-shape.mjs:86` ✓）。
+// `#1051`②：**枚举口径统一** —— 与 `#1045`／`#1046`／`#1089` 同款（取不到 git 元数据 → **报红，不静默跳过**，照 `repo-shape.mjs:86`）。
 const trackedIn = (dir) => execFileSync('git', ['ls-files', '--', dir], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
 const untrackedIn = (dir) => execFileSync('git', ['ls-files', '--others', '--exclude-standard', '--', dir], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
 const vocabFiles = trackedIn('src').filter((f) => f.endsWith('.twee'));
 const vocab = engineVocab(vocabFiles.map((f) => readFileSync(join(ROOT, f), 'utf8')));
 const stories = trackedIn('stories').map((f) => /^stories\/([^/]+)\/00-story\.json$/.exec(f)?.[1]).filter(Boolean).sort();
-// `#1133` ⭐ **第二站点**：**产物缺失 ⇒ 报"先跑 `npm run build`"** ✓（不许裸 ENOENT 崩 ✗）
-//   本件按清单读**声明件** ✓，其中含**生成物**（家族谓词见 `editor/lib/core/generated-family.mjs` ⇒ gitignored ✓）
-//   ⇒ 未 build 时它们不在树 ⇒ `readFileSync` 裸 ENOENT ✗ ⇒ 读者读不出"该先 build" ✓
-//   ⚠️ 两态**可区分** ✓：前置缺失 ⇒ **rc=2** ＋ 明确"先跑 build"；判据失败 ⇒ 仍 rc=1 ✓
+// `#1133` ⭐ **第二站点**：**产物缺失 → 报"先跑 `npm run build`"**（不许裸 ENOENT 崩）
+// 本件按清单读**声明件**，其中含**生成物**（家族谓词见 `editor/lib/core/generated-family.mjs` → gitignored）
+// → 未 build 时它们不在树 → `readFileSync` 裸 ENOENT → 读者读不出"该先 build"
+//注意：两态**可区分**：前置缺失 → **rc=2** ＋ 明确"先跑 build"；判据失败 → 仍 rc=1
 {
 	const missing = [];
 	for (const slug of stories) {
@@ -316,24 +316,24 @@ const judgedSlugs = [];
 const allJudgedFiles = [];
 for (const slug of stories) {
 	const story = JSON.parse(readFileSync(join(STORIES, slug, '00-story.json'), 'utf8'));
-	// `#1051`②：**以清单为准**（单一权威 ✓）——不再用 `readdirSync` 现扫 ✗。
-	// `#1114` 片 2b-2a：清单里的**散文层源**（`passages/` 下的 `.md`）也算段落源 ✓（原先按 `.twee` 过滤 ⇒ md 隐形 ✗）。
+	// `#1051`②：**以清单为准**（单一权威）——不再用 `readdirSync` 现扫。
+	// `#1114` 片 2b-2a：清单里的**散文层源**（`passages/` 下的 `.md`）也算段落源（原先按 `.twee` 过滤 → md 隐形）。
 	const declared = (story.files ?? []).filter((p) => (p.endsWith('.twee') || isStoryPassageMd(p)) && p.startsWith(`stories/${slug}/`));
-	// ⚠️ **在树上却不在清单里 ⇒ 不静默**（本票的由来正是这个：`00-meta2.twee` 这类**下一代名**会被旧口径当**正文**判 ✗）
+	//注意：**在树上却不在清单里 → 不静默**（本票的由来正是这个：`00-meta2.twee` 这类**下一代名**会被旧口径当**正文**判）
 	{
-		// `#1114` 片 2b-2a：**递归**枚举（原先只看顶层 `.twee` ⇒ `passages/` 子目录是静默盲区 ✗）；
-		//   仍只算真源（`.twee` ∪ `passages/` 下的 `.md` ✓）—— 非源 md（会话记录／门证据）不进面 ✓。
+		// `#1114` 片 2b-2a：**递归**枚举（原先只看顶层 `.twee` → `passages/` 子目录是静默盲区）；
+		// 仍只算真源（`.twee` ∪ `passages/` 下的 `.md`）—— 非源 md（会话记录／门证据）不进面。
 		const onDisk = sourcesUnder(`stories/${slug}`).filter((p) => p.endsWith('.twee') || isStoryPassageMd(p));
 		const undeclared = undeclaredStoryFiles({ declared, onDisk });
-		// ⚠️ 必须是 `{code, msg}` 形态 ✗ —— 自测踩过：这条原先 push **裸字符串** ⇒ 汇总处按 `p.code`／`p.msg` 读 ⇒ 打印成 `[undefined] undefined` ⇒ **报文被吞** ✓（“读数答不了你以为它在答的问题”那族 ✓）。
+		//注意：必须是 `{code, msg}` 形态 —— 自测踩过：这条原先 push **裸字符串** → 汇总处按 `p.code`／`p.msg` 读 → 打印成 `[undefined] undefined` → **报文被吞**（“读数答不了你以为它在答的问题”那族）。
 		for (const p of undeclared) problems.push({ code: 'U2', msg: `\`${p}\` 在树上但**不在 \`00-story.json\` 的 \`files\` 里** ⇒ 不许静默（要么登记、要么删 —— 旧口径会把它当**正文**判 ✗）` });
 	}
 	const files = declared
 		.map((p) => ({ path: p, text: readFileSync(join(ROOT, p), 'utf8') }))
-		.filter((f) => !isMetadataTwee(f.text))            // 元数据件：**内容谓词** ✓ 不靠文件名字面量 ✗
+		.filter((f) => !isMetadataTwee(f.text))            // 元数据件：**内容谓词** 不靠文件名字面量
 		.filter((f) => !/^\s*\/\/\s*@generated/m.test(f.text.split('\n').slice(0, 3).join('\n')));   // 生成物不在本门射程
-	// `#1114` 片 2b-2a：**跟源同名段**（同一段在 `passages/*.md` 与 `*.twee` 各写一份）⇒ 红并**点名两处** ✗。
-	//   ⚠️ **不受 audience 豁免**（它不是词法面 ✗ —— 所有故事的源都不该有双份真相 ✓）。
+	// `#1114` 片 2b-2a：**跟源同名段**（同一段在 `passages/*.md` 与 `*.twee` 各写一份）→ 红并**点名两处**。
+	//注意：**不受 audience 豁免**（它不是词法面 —— 所有故事的源都不该有双份真相）。
 	{
 		const segNames = [];
 		for (const f of files) {
@@ -342,15 +342,15 @@ for (const slug of stories) {
 		}
 		for (const m of duplicateProblems({ passages: segNames })) problems.push({ code: 'D1', msg: m });
 	}
-	// ⚠️ **缺 `audience` ⇒ 按 content 判**（不静默放过）：`audience` 由 `#1035` 显式声明引入；
-	//   缺字段时若按"豁免"处理，本门在 `#1035` 落地前会**成为空判**（正是本仓最忌讳的形态 ✗）。
+	//注意：**缺 `audience` → 按 content 判**（不静默放过）：`audience` 由 `#1035` 显式声明引入；
+	// 缺字段时若按"豁免"处理，本门在 `#1035` 落地前会**成为空判**（正是本仓最忌讳的形态）。
 	const judged = story.audience !== 'internal';
-	// `#1132`：**词表扩展** ✓ —— 受判故事的**本地宏名**（`passages/` 下的 md 里的 `<<widget "name">>`）也算"已声明" ✓。
-	//   为什么：C 形态（UI 渲染移入伴生 `[script]` 段的 `<<widget>>` 定义）会让**散文段**里出现
-	//   故事本地宏名 ⇒ 若词表只抽 `src/**` ⇒ 那些引用会被判 **V2「引擎未宣告」** ✗（受判故事上必红 ✓）。
-	//   ⚠️ **按 slug 现抽** ✓（作用域隔离免费 ✓）：A 故事的本地名不会让 B 故事受益 ✓。
-	//   ⚠️ **枚举走同一已入库面** ✓（`trackedIn` ✓ —— 未跟踪件不得静默供名 ✓，与门其余部分同口径 ✓）
-	//   ⚠️ **并集只喂第三档** ✓（禁则→允许→词表 三档次序不变 ⇒ 声明无法解锁禁则 ✓）。
+	// `#1132`：**词表扩展** —— 受判故事的**本地宏名**（`passages/` 下的 md 里的 `<<widget "name">>`）也算"已声明"。
+	// 为什么：C 形态（UI 渲染移入伴生 `[script]` 段的 `<<widget>>` 定义）会让**散文段**里出现
+	// 故事本地宏名 → 若词表只抽 `src/**` → 那些引用会被判 **V2「引擎未宣告」**（受判故事上必红）。
+	//注意：**按 slug 现抽**（作用域隔离免费）：A 故事的本地名不会让 B 故事受益。
+	//注意：**枚举走同一已入库面**（`trackedIn` —— 未跟踪件不得静默供名，与门其余部分同口径）
+	//注意：**并集只喂第三档**（禁则→允许→词表 三档次序不变 → 声明无法解锁禁则）。
 	const storyPassageMd = (sl) => trackedIn(`stories/${sl}`).filter((f) => f.endsWith('.md') && isStoryPassageMd(f));
 	const vocabFor = (sl) => {
 		const extra = storyPassageMd(sl).map((f) => readFileSync(join(ROOT, f), 'utf8'));
@@ -359,9 +359,9 @@ for (const slug of stories) {
 	if (judged) { judgedSlugs.push(slug); problems = problems.concat(proseVocabProblems({ slug, files, vocab: vocabFor(slug) })); allJudgedFiles.push(...files); }
 	else exempt.push(slug);
 }
-// `#1051`②：**未跟踪件 ⇒ 提醒**（与 `#1045`／`#1046`／`#1089` 同款 ✓ —— 不静默跳过 ✗）。
-//   ⚠️ 为什么单列一条：本门的枚举走 `git ls-files`（**已入库面** ✓）⇒ **未跟踪的 `.twee` 会被静默漏掉** ✗
-//   （`src/` 面尤其：那会是"引擎词汇表少抽了宏"⇒ 判据**变松**而**无人知道** ✓）⇒ 必须**出声** ✓。
+// `#1051`②：**未跟踪件 → 提醒**（与 `#1045`／`#1046`／`#1089` 同款 —— 不静默跳过）。
+//注意：为什么单列一条：本门的枚举走 `git ls-files`（**已入库面**）→ **未跟踪的 `.twee` 会被静默漏掉**
+//（`src/` 面尤其：那会是"引擎词汇表少抽了宏"→ 判据**变松**而**无人知道**）→ 必须**出声**。
 {
 	const untracked = [...untrackedIn('src'), ...untrackedIn('stories')].filter((f) => f.endsWith('.twee'));
 	const { unscanned, problems: uProbs } = untrackedScannedProblems({
@@ -382,7 +382,7 @@ for (const slug of stories) {
 	if (unscanned.length) console.error(`○ 未跟踪（本次未扫，共 ${unscanned.length} 件）：${unscanned.join('、')}`);
 }
 
-// **空判守卫**：一个受判故事都没有 ⇒ 本门什么都没量 ⇒ 必须红（不许"零对象＝通过" ✗）
+// **空判守卫**：一个受判故事都没有 → 本门什么都没量 → 必须红（不许"零对象＝通过"）
 if (judgedSlugs.length === 0) {
 	console.error('✗ 散文词汇门是**空判**：没有任何内容故事受判（受判故事数 = 0）—— 检查 `audience` 是否缺失/被误标为 internal');
 	process.exit(1);

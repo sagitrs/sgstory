@@ -1,47 +1,47 @@
 #!/usr/bin/env node
-// 车道 E-B3 读数（`#215` 报备 `18504078`）＋ **A 片取件面**（报备 `18504548` ✓，裁 `18504552` ✓）：
-// **读侧（`--reads`）**那一面 —— ① 与 CLI **同判** ✓；② **只列不判** ✗ ＋ **适用面写清** ✓。
+// 车道 E-B3 读数（`#215` 报备 `18504078`）＋ **A 片取件面**（报备 `18504548`，裁 `18504552`）：
+// **读侧（`--reads`）**那一面 —— ① 与 CLI **同判**；② **只列不判** ＋ **适用面写清**。
 //
-// 判据（每条都能假 ✗）：
-//   ① **① 级两侧同判** ✓：页内 `#readfaces` 的 ① 结论 ≡ CLI 侧判据（**同一份** `core/stateDiagnose.mjs` ✓：
-//      门侧 import 证据 ＝ `stories/mist-forest/gates/reads.mjs`（`const probs = tableReadProblems(rows)` ✓）；
-//      页侧 ＝ `web/read-faces-view.mjs` ✓），且**两侧各自报出所判输入的 sha** ✓（页内报页面／CLI 侧报本测试 ✓ ——
-//      门的输出**逐字节冻结**在 `test/audit-golden.json` ✓ ⇒ 不往门里加打印 ✗）。
-//   ② **② 级是"读数"** ✗：页内**逐条列出**故事面字面状态读（含 `kind` ✓）；**判红只在 CLI** ✗（理由：要
-//      `Sg.Notes.entries` ＋ 该故事基线 ⇒ 页内拿不到 ✓）。报/不报的**两半都验** ✓。
-//   ③ **时延是数字** ✓ ＋ 口径写明（**非真浏览器** ✗ —— jsdom；**含 DOM 写入** ⇒ 与 `#877` 纯判定数**不可比** ✗）。
-//   ④ **能假的另一半** ✓：注入字面状态读 ⇒ ① **主读数必变** ✓（0 → 3）；注入**没在源里的键** ⇒ ② **清单必变** ✓；
-//      而**合法键不报** ✓；合成输入上 ① 两侧仍同判 ✓。
-//   ⑤ **缺 vs 畸形分开** ✓：缺 `rules.json` ⇒ **不适用**（不抛 ✗）／在册而 `rows` 不是数组 ⇒ **抛** ✓。
-//   ⑥ **旧读数不留** ✓（`#946` 同族）：抛之前那一格**已清** ✓。
-//   ⑦ **取件面**（A 片 ✓）：**没选到段落源 ⇒ ② 如实"不适用"** ✗（不静默当 0 处 ✓）；**顺序可复现** ✓（按 `file` ✓，同文件内按段序 ✓）。
+// 判据（每条都能假）：
+// ① **① 级两侧同判**：页内 `#readfaces` 的 ① 结论 ≡ CLI 侧判据（**同一份** `core/stateDiagnose.mjs`：
+// 门侧 import 证据 ＝ `stories/mist-forest/gates/reads.mjs`（`const probs = tableReadProblems(rows)`）；
+// 页侧 ＝ `web/read-faces-view.mjs`），且**两侧各自报出所判输入的 sha**（页内报页面／CLI 侧报本测试 ——
+// 门的输出**逐字节冻结**在 `test/audit-golden.json` → 不往门里加打印）。
+// ② **② 级是"读数"**：页内**逐条列出**故事面字面状态读（含 `kind`）；**判红只在 CLI**（理由：要
+// `Sg.Notes.entries` ＋ 该故事基线 → 页内拿不到）。报/不报的**两半都验**。
+// ③ **时延是数字** ＋ 口径写明（**非真浏览器** —— jsdom；**含 DOM 写入** → 与 `#877` 纯判定数**不可比**）。
+// ④ **能假的另一半**：注入字面状态读 → ① **主读数必变**（0 → 3）；注入**没在源里的键** → ② **清单必变**；
+// 而**合法键不报**；合成输入上 ① 两侧仍同判。
+// ⑤ **缺 vs 畸形分开**：缺 `rules.json` → **不适用**（不抛）／在册而 `rows` 不是数组 → **抛**。
+// ⑥ **旧读数不留**（`#946` 同族）：抛之前那一格**已清**。
+// ⑦ **取件面**（A 片）：**没选到段落源 → ② 如实"不适用"**（不静默当 0 处）；**顺序可复现**（按 `file`，同文件内按段序）。
 //
-// ⚠️ jsdom 收场纪律：`pretendToBeVisual` 用 **false** ＋ **显式** `window.close()` ＋ 最后**显式** `process.exit(rc)` ✓。
+//注意：jsdom 收场纪律：`pretendToBeVisual` 用 **false** ＋ **显式** `window.close()` ＋ 最后**显式** `process.exit(rc)`。
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
-import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b：默认故事走单一权威 ✓
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b：默认故事走单一权威
 import { JSDOM } from 'jsdom';
 import { loadPackage } from '../editor/web/loader.mjs';
 import { renderReadFaces, storyReadsOf } from '../editor/web/read-faces-view.mjs';
 import { tableReadProblems } from '../editor/lib/core/stateDiagnose.mjs';
 import { createContext } from '../scripts/audit/context.mjs';
 import { fingerprintOf } from '../editor/lib/core/fingerprint.mjs';
-import { isStoryPassageMd } from '../scripts/module-order.mjs';   // `#1132` 第 3 块：md 谓词**同一权威** ✓
+import { isStoryPassageMd } from '../scripts/module-order.mjs';   // `#1132` 第 3 块：md 谓词**同一权威**
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const nodeIo = () => ({ readText: (p) => readFileSync(`${ROOT}/${p}`, 'utf8') });
-// `#1004` B2b ✓：换到**默认故事**（面夹具 ✓）；下面对路径/来源的断言也一并用 `slug` 表达 ✗（不再写死旧名 ✓）。
+// `#1004` B2b：换到**默认故事**（面夹具）；下面对路径/来源的断言也一并用 `slug` 表达（不再写死旧名）。
 const SLUG = DEFAULT_SLUG;
 const slug = SLUG;
-/** 真文件 → 浏览器 File 形状（A 片取件面吃它 ✓）。 */
+/** 真文件 → 浏览器 File 形状（A 片取件面吃它）。 */
 const pickedFiles = ({ withTwee = true } = {}) => {
 	const dir = `${ROOT}/stories/${slug}`;
 	const mk = (rel, abs) => ({ webkitRelativePath: rel, name: rel.split('/').pop(), text: () => readFileSync(abs, 'utf8') });
 	const out = readdirSync(dir).filter((n) => /\.(twee|json)$/.test(n)).map((n) => mk(`${slug}/${n}`, `${dir}/${n}`));
 	out.push(...readdirSync(`${dir}/data`).map((n) => mk(`${slug}/data/${n}`, `${dir}/data/${n}`)));
-	// `#1132` 第 3 块（接缝）：**段落源必须含 `passages/*.md`** ✗ —— 原先只收**顶层** `.twee|json` ＋ `data/`
-	//   ⇒ `#1144` 合入后 23 个 md 段**不在本门的面内** ✓（而本门仍绿 ⇒ “**盲而不红**”✗ ⇒ 没人知道）。
-	//   ⚠️ 走**同一权威** `isStoryPassageMd`（不另写一份“md 住在哪”的谓词 ✗）。
+	// `#1132` 第 3 块（接缝）：**段落源必须含 `passages/*.md`** —— 原先只收**顶层** `.twee|json` ＋ `data/`
+	// → `#1144` 合入后 23 个 md 段**不在本门的面内**（而本门仍绿 →“**盲而不红**” → 没人知道）。
+	//注意：走**同一权威** `isStoryPassageMd`（不另写一份“md 住在哪”的谓词）。
 	if (existsSync(`${dir}/passages`)) {
 		out.push(...readdirSync(`${dir}/passages`).filter((n) => isStoryPassageMd(`stories/${slug}/passages/${n}`))
 			.map((n) => mk(`${slug}/passages/${n}`, `${dir}/passages/${n}`)));
@@ -58,11 +58,11 @@ try {
 	const pkg = loadPackage({ slug, files: pickedFiles() });
 	const text = () => doc.getElementById('readfaces').textContent;
 
-	// `#1132` 第 3 块：**「看得见 md」必须自己成断言** ✗ —— 本门今天**不红**（它的断言是"段落源非空"）
-	//   ⇒ 若无本格，改与不改读数一样 ⇒ 又一个"不误报 ≠ 能假" ✓。成对：掐掉上面的 passages 分支 ⇒ 本格红 ✓。
-	// ⚠️ 语义＝「**该故事**若有 `passages/` ⇒ 枚举必须看得见它」✗ —— **不是**「所有故事都必须有 md」
-	//   （后者对无 `passages/` 的故事**假红**；今天不触发只因 `SLUG` 写死 ⇒ 仍是错的语义 ✓ 评审两席各自量出 ✓）。
-	//   成对：有 md ⇒ 真 ✓ ／ 无 md ⇒ **不得因本格变红** ✓（`SLUG` 指向无 passages 的故事即负例 ✓）。
+	// `#1132` 第 3 块：**「看得见 md」必须自己成断言** —— 本门今天**不红**（它的断言是"段落源非空"）
+	// → 若无本格，改与不改读数一样 → 又一个"不误报 ≠ 能假"。成对：掐掉上面的 passages 分支 → 本格红。
+	//注意：语义＝「**该故事**若有 `passages/` → 枚举必须看得见它」 —— **不是**「所有故事都必须有 md」
+	//（后者对无 `passages/` 的故事**假红**；今天不触发只因 `SLUG` 写死 → 仍是错的语义 评审两席各自量出）。
+	// 成对：有 md → 真 ／ 无 md → **不得因本格变红**（`SLUG` 指向无 passages 的故事即负例）。
 	const passagesDir = `${ROOT}/stories/${slug}/passages`;
 	t('🔴 段落源枚举**含 `passages/*.md`**（该故事若有 passages/ ⇒ 必须看得见）',
 		!existsSync(passagesDir) || pickedFiles().some((f) => /\/passages\/.*\.md$/.test(f.webkitRelativePath)));
@@ -82,14 +82,14 @@ try {
 	t('① **两侧所判输入是同一份** ✓（sha 逐字节相等 ⇒ 页内判的不是"另一个包" ✓）', page.rowsSha === cliSha);
 	t('① 页内**在读数里报出**所判输入的 sha ✓', text().includes(page.rowsSha) && text().includes(`输入 rows ${page.rows.length} 行`));
 	t('① **① 级结论逐项相等** ✓（`{id, field, what, detail}` ✓）', JSON.stringify(page.problems) === JSON.stringify(cliProblems));
-	// `#1132` 块 1：**标签分开** ✗ —— 原格把两件事挤在一个标签里（「① 级 0 处」）⇒
-	//   `problems` 非空时也读成"0 处" ⇒ **误导**（本轮排查被它带偏三次 ✓）⇒ 拆两格各报各的数 ✓。
+	// `#1132` 块 1：**标签分开** —— 原格把两件事挤在一个标签里（「① 级 0 处」）→
+	// `problems` 非空时也读成"0 处" → **误导**（本轮排查被它带偏三次）→ 拆两格各报各的数。
 	t('① 真数据·**叙事读点非 0**', page.rows.length > 0);
 	t('① 真数据·**问题清单为空**（能假的另一半：不是"永远报错" ✓）', page.problems.length === 0);
 
-	// ── ② 级：页内只列不判（读数 ✓）──────────────────────────────────────────
-	// `#1004` B2b ✓：原写死 `=== 16` ✗（那是已删故事的 twee 件数 ✓）⇒ 改成**派生**（＝本包真取到的件数 ✓）
-	// ＋ 仍要求 ② 清单**非空** ✓（否则这条读数是空的 ✓ —— 面夹具实测 `hits=4` ✓）。
+	// ── ② 级：页内只列不判（读数）──────────────────────────────────────────
+	// `#1004` B2b：原写死 `=== 16`（那是已删故事的 twee 件数）→ 改成**派生**（＝本包真取到的件数）
+	// ＋ 仍要求 ② 清单**非空**（否则这条读数是空的 —— 面夹具实测 `hits=4`）。
 	t(`② 真数据：**段落源取到了** ✓（${pkg.sources.length} 件 twee ✓）＋ ② 清单非空 ✓`, page.sourceFiles === pkg.sources.length && pkg.sources.length > 0 && page.hits.length > 0);
 	t('② 清单**逐条列出** ✓（`file:line` ＋ 段落名 ＋ 键 ✓，不是只报个数 ✗）', /· stories\/[a-z-]+\/.*\.twee:\d+ 「.+」\S+/.test(text()));
 	t('② **分面计数**在读数里 ✓（叙述／故事机制 ✓）', /② 故事面字面状态读（\*\*读数\*\*/.test(text()) && /叙述 \d+ · 故事机制\/声明 \d+/.test(text()));
@@ -98,7 +98,7 @@ try {
 	t('② **"① 同判／②③ 只列不判"** 与 **"① 级 0 处 ≠ 门干净"** 都写明 ✓（㉑ ✓）', /① 同判 ✓／②③ 只列不判 ✗/.test(text()) && /① 级 `0 处` ≠ `--reads` 门干净/.test(text()));
 	t('② **覆盖率代理的边界**写明 ✓（"模块身份级 · 必要不充分" ✓）', /模块身份级代理/.test(text()) && /必要不充分/.test(text()) && text().includes('**不是**"整门都在页内跑"'));
 
-	// ── ⑦ 取件面：没选到段落源 ⇒ ②「不适用」（不静默当 0 ✓）／顺序可复现 ──────
+	// ── ⑦ 取件面：没选到段落源 → ②「不适用」（不静默当 0）／顺序可复现 ──────
 	{
 		const noTwee = loadPackage({ slug, files: pickedFiles({ withTwee: false }) });
 		const r = renderReadFaces({ doc, pkg: noTwee });
@@ -106,11 +106,11 @@ try {
 	}
 	{
 		const a = storyReadsOf(pkg.sources);
-		const b = storyReadsOf([...pkg.sources].reverse());   // 源顺序打乱 ⇒ 清单应按 `file` 归位（调用方排序 ✓）
+		const b = storyReadsOf([...pkg.sources].reverse());   // 源顺序打乱 → 清单应按 `file` 归位（调用方排序）
 		t('⑦ **顺序可复现** ✓：`sources` 已按 `file` 排 ⇒ 同输入两次逐条相同 ✓', JSON.stringify(a) === JSON.stringify(storyReadsOf(pkg.sources)));
-		// `#1004` B2b ✓：原写法拿**真数据**要求"≥2 个不同 file" ✗ —— 而面夹具把内容收在**一个**文件里 ✓
-		// ⇒ 真数据上这条**没有对象** ✗（不是判据坏了 ✓）⇒ 改用**合成两文件**输入 ✓：
-		// 判据本身（同名段落跨文件**不许并成一条**、要按 `file` 分列 ✓）与样本内容无关 ✓。
+		// `#1004` B2b：原写法拿**真数据**要求"≥2 个不同 file" —— 而面夹具把内容收在**一个**文件里
+		// → 真数据上这条**没有对象**（不是判据坏了）→ 改用**合成两文件**输入：
+		// 判据本身（同名段落跨文件**不许并成一条**、要按 `file` 分列）与样本内容无关。
 		{
 			const two = [
 				{ file: 'a.twee', text: ':: 同名段\n<<if $pc.ev.k1>>甲<</if>>\n' },
@@ -123,12 +123,12 @@ try {
 		void b;
 	}
 
-	// ── ④ 能假的另一半（刀 ✗）────────────────────────────────────────────────
+	// ── ④ 能假的另一半（刀）────────────────────────────────────────────────
 	{
 		const synth = [
-			{ id: 'A', scope: 'S', req: ['$pc.ev.x'], text: 'a' },         // 非合法键形 ⇒ 键形态 ＋ 字面状态读 ✓
-			{ id: 'B', scope: 'S', text: '<<set $x to 1>> $pc.ev.y' },     // text 里的字面状态读 ✓
-			{ id: 'C', scope: 'S', req: ['ev.a', 'world.b', 'keeper.met', 'inv:rope', 'era:past', 'n_note1'], text: 'c' },   // 合法键 ⇒ 不该报 ✓
+			{ id: 'A', scope: 'S', req: ['$pc.ev.x'], text: 'a' },         // 非合法键形 → 键形态 ＋ 字面状态读
+			{ id: 'B', scope: 'S', text: '<<set $x to 1>> $pc.ev.y' },     // text 里的字面状态读
+			{ id: 'C', scope: 'S', req: ['ev.a', 'world.b', 'keeper.met', 'inv:rope', 'era:past', 'n_note1'], text: 'c' },   // 合法键 → 不该报
 		];
 		const p2 = { data: { ...pkg.data, 'rules.json': { ...pkg.data['rules.json'], rows: synth } }, sources: pkg.sources };
 		const r2 = renderReadFaces({ doc, pkg: p2 });
@@ -137,13 +137,13 @@ try {
 		t('④ ① **合法键不报** ✓（`ev.`／`world.`／`keeper.`／`inv:`／`era:`／note id ⇒ 0 处 ✓）', !r2.problems.some((p) => p.id === 'C'));
 		t('④ ① **两侧同判**在合成输入上也成立 ✓', JSON.stringify(r2.problems) === JSON.stringify(tableReadProblems(synth)));
 
-		// ② 的刀：注入一个**源里没有的键** ⇒ 清单必变 ✓
+		// ② 的刀：注入一个**源里没有的键** → 清单必变
 		const badSource = [{ file: `stories/${slug}/zz-probe.twee`, text: ':: 探针\n<<if $pc.ev.brand_new_key>>x<</if>>\n' }];
 		const r3 = renderReadFaces({ doc, pkg: { data: pkg.data, sources: badSource } });
 		t('④ **② 的刀** ✗：注入源里没有的键 ⇒ ② 清单**必变**且点名 ✓', r3.hits.length === 1 && r3.hits[0].key === 'ev.brand_new_key' && /brand_new_key/.test(text()) && !text().includes('「门厅取物」'));
 	}
 
-	// ── ⑤ 缺 vs 畸形（两半都验 ✓）─────────────────────────────────────────────
+	// ── ⑤ 缺 vs 畸形（两半都验）─────────────────────────────────────────────
 	t('⑤ **缺** `rules.json` ⇒ **不适用**且**不抛** ✗', (() => {
 		const r = renderReadFaces({ doc, pkg: { data: { 'tables.json': {} } } });
 		return r.applicable === false && /本件不适用/.test(text()) && text().includes('**不是**"条件表干净"') && !/条件表行读点：0 处/.test(text());
@@ -154,7 +154,7 @@ try {
 	})());
 	t('⑥ **旧读数不留** ✓：抛之前那一格**已被清** ✓', /未载入/.test(text()) && !/条件表行读点/.test(text()));
 
-	// ── 容器缺失 ⇒ 抛（view 层约定 ✓）────────────────────────────────────────
+	// ── 容器缺失 → 抛（view 层约定）────────────────────────────────────────
 	t('容器缺失 ⇒ **讲人话地抛** ✗（读数不该静默不显示 ✓）', (() => {
 		try { renderReadFaces({ doc: new JSDOM('<div></div>').window.document, pkg }); return false; }
 		catch (e) { return /#readfaces/.test(String(e.message)); }

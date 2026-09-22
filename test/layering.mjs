@@ -4,12 +4,12 @@
 // 前向引用在那里合法 → 不做「文本出现即引用」的推断式 lint，避免假阳性）。
 //
 // 四条断言：
-//  ① **两层登记**（`#893` 第三步）：**引擎件**（`src/**`）每个都在 `ORDER` 里 ✓；**故事件**（`stories/<slug>/**`）
-//     每个都在**它自己的清单**（`00-story.json` 的 `files`）里 ✓ —— 两层的**登记语义都没丢** ✓：
-//     新件仍须**显式登记** ✓，只是故事件的登记处换成了清单 ✓（新增文件不得靠文件名前缀"自动"获得位置 ✓）。
-//  ② ORDER 里每个文件都存在（改名/删除会被抓）
-//  ③ 依赖边指向**更早**的模块（加载期拿不到未定义符号的根因）
-//  ④ 模块声明的定义真的在文件里（抓「改了名/挪了位置」）
+// ① **两层登记**（`#893` 第三步）：**引擎件**（`src/**`）每个都在 `ORDER` 里；**故事件**（`stories/<slug>/**`）
+// 每个都在**它自己的清单**（`00-story.json` 的 `files`）里 —— 两层的**登记语义都没丢**：
+// 新件仍须**显式登记**，只是故事件的登记处换成了清单（新增文件不得靠文件名前缀"自动"获得位置）。
+// ② ORDER 里每个文件都存在（改名/删除会被抓）
+// ③ 依赖边指向**更早**的模块（加载期拿不到未定义符号的根因）
+// ④ 模块声明的定义真的在文件里（抓「改了名/挪了位置」）
 //
 // 自证：`node test/layering.mjs --selftest`
 
@@ -19,20 +19,20 @@ import { storyJsonRoleProblems } from '../scripts/module-order.mjs';   // `#1130
 
 const check = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) failures++; };
 let failures = 0;
-let bad = 0;   // 自证计数器（模块级：t() 在任何作用域调用都可用；此前它声明在块内 ⇒ t() 抛 ReferenceError）
+let bad = 0;   // 自证计数器（模块级：t() 在任何作用域调用都可用；此前它声明在块内 → t() 抛 ReferenceError）
 const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
 
 if (process.argv.includes('--selftest')) {
-	// `#1130` ④′：**stories 下 json 的角色**（**封闭集** ✓ —— 第五类会红一次 ⇒ 迫使有意识登记 ✓ 误红＝护栏在工作 ✓）
+	// `#1130` ④′：**stories 下 json 的角色**（**封闭集** —— 第五类会红一次 → 迫使有意识登记 误红＝护栏在工作）
 	t('json 角色·基线：树上 json 全部落在允许的四类里 ⇒ **0 违规** ✓', storyJsonRoleProblems().length === 0);
 	t('json 角色·**能假**：白名单外的 json ⇒ 必报且**点名角色** ✓',
 		(() => { const p = storyJsonRoleProblems({ files: ['stories/x/notes.json'] }); return p.length === 1 && /四种角色/.test(p[0].msg); })());
 	t('json 角色·四类**各自**被允许（`00-story`／`audit`／`data/`／`gates/`）⇒ 逐类 0 违规 ✓',
 		(() => { const ok = ['stories/s/00-story.json', 'stories/s/audit.json', 'stories/s/data/a.json', 'stories/s/gates/b.json'];
 			return storyJsonRoleProblems({ files: ok }).length === 0; })());
-	// ⚠️ 合成输入的用例**必须显式给 `manifests`** ✗ —— `#899` ① 后**没有默认值**了 ✓（不给 ⇒ 点名抛错 ✓），
-	//   旧口径则会把**真清单**从盘上带进来
-	// ⇒ 报一堆 `missing-manifest-file`（**实测踩过** ✓：命中 27／28 ⇒ 用例“期望 0”全红 ✗）。
+	//注意：合成输入的用例**必须显式给 `manifests`** —— `#899` ① 后**没有默认值**了（不给 → 点名抛错），
+	// 旧口径则会把**真清单**从盘上带进来
+	// → 报一堆 `missing-manifest-file`（**实测踩过**：命中 27／28 → 用例“期望 0”全红）。
 	const base = { 'src/10-core.twee': 'window.Game.Rules = {};', 'src/15-tables.twee': 'window.Game = {};' };
 	const cases = [
 		['合规图 → 不得报错', base, { order: ['src/10-core.twee', 'src/15-tables.twee'], modules: { 'src/10-core.twee': { deps: [], defines: ['Game.Rules'] }, 'src/15-tables.twee': { deps: ['src/10-core.twee'], defines: ['Game'] } }, manifests: [] }, 0],
@@ -43,7 +43,7 @@ if (process.argv.includes('--selftest')) {
 		// #320 阶段 3：defines 支持**点号路径**（`window.Game.Chargen = …` 声明 `Game.Chargen`）
 		['点号 defines：声明与实际相符 → 绿', { 'src/15-tables.twee': 'window.Game = {};', 'src/20-chargen.twee': 'window.Game.Chargen = {};' }, { order: ['src/15-tables.twee', 'src/20-chargen.twee'], modules: { 'src/20-chargen.twee': { deps: ['src/15-tables.twee'], defines: ['Game.Chargen'] } }, manifests: [] }, 0],
 		['点号 defines：声明的点号路径不存在 → 必须报红', { 'src/15-tables.twee': 'window.Game = {};', 'src/20-chargen.twee': 'window.Game.Other = {};' }, { order: ['src/15-tables.twee', 'src/20-chargen.twee'], modules: { 'src/20-chargen.twee': { deps: ['src/15-tables.twee'], defines: ['Game.Chargen'] } }, manifests: [] }, 1],
-		// `#893` 第三步：**两层登记**（故事件换登记处 ✓ —— 但"显式登记"这条守卫不撤 ✓）
+		// `#893` 第三步：**两层登记**（故事件换登记处 —— 但"显式登记"这条守卫不撤）
 		['故事件不在 ORDER、但在它自己的清单里 → 绿（#893 新口径）', { 'stories/s/a.twee': '' }, { order: [], modules: {}, manifests: [{ slug: 's', files: ['stories/s/a.twee'] }] }, 0],
 		['故事件不在任何清单 → 必须报红（换登记处，不是撤守卫）', { 'stories/s/x.twee': '' }, { order: [], modules: {}, manifests: [] }, 1],
 		['**引擎件**即使被某清单认领，仍必须 ⊂ ORDER → 必须报红（安全网不撤）', { 'src/e.twee': '' }, { order: [], modules: {}, manifests: [{ slug: 's', files: ['src/e.twee'] }] }, 1],
@@ -95,12 +95,12 @@ if (process.argv.includes('--selftest')) {
 		if (!ok) bad++;
 		console.log(`${ok ? '✓' : '✗'} ${name}（命中 ${got}，期望 ${want}）`);
 	}
-	// `#899` ①：合成输入**不得**让清单默认值去读盘 ✗ ⇒ **不传 `manifests` 必须点名抛错** ✓
+	// `#899` ①：合成输入**不得**让清单默认值去读盘 → **不传 `manifests` 必须点名抛错**
 	t('缺 `manifests` ⇒ 点名抛错（不读盘 ✗；旧口径会读出真清单 ⇒ 27／28 条误报 ✓）', (() => {
 		try { checkModuleGraph({ 'src/a.twee': '' }, { order: ['src/a.twee'], modules: { 'src/a.twee': { layer: 'engine' } } }); return false; }
 		catch (e) { return /manifests/.test(String(e.message)); }
 	})());
-	// `#930`（`#899` ① 复核留）：**形状**也要挡 ✗ —— 只挡 `undefined` 会让非数组漏到 `flatMap` ⇒ 报文不点名 ✗
+	// `#930`（`#899` ① 复核留）：**形状**也要挡 —— 只挡 `undefined` 会让非数组漏到 `flatMap` → 报文不点名
 	t('喂 `{}`（非数组）⇒ **点名**抛错（含 `manifests` ✓ ＋"数组"✓；旧口径＝下游 `TypeError` ✗）', (() => {
 		try { requireManifests({}); return false; }
 		catch (e) { const m = String(e.message); return /manifests/.test(m) && /数组/.test(m); }
@@ -119,7 +119,7 @@ if (process.argv.includes('--selftest')) {
 if (process.argv.includes('--dist-fresh')) { distFreshSelftest(); process.exit(0); }
 
 const sources = readModules();
-const found = checkModuleGraph(sources, { manifests: storyManifests() });   // `#899` ①：清单**显式注入** ✓（不靠默认值读盘 ✗）
+const found = checkModuleGraph(sources, { manifests: storyManifests() });   // `#899` ①：清单**显式注入**（不靠默认值读盘）
 
 console.log(`模块图：${ORDER.length} 个模块 · ${ORDER.reduce((n, f) => n + (MODULES[f]?.deps?.length ?? 0), 0)} 条加载期依赖边`);
 for (const f of ORDER) {

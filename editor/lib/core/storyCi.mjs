@@ -1,19 +1,19 @@
 // 用户故事 CI 的**判据（纯函数）**（`#984` · 设计稿 §5 拦路石 #3 的对策 ＝ §7 P3 ④）。
 //
-// 为什么需要它（实测的缺口 ✗，见 `#984` 票面）：`scripts/test-plan.mjs` 里
-//   `editor-equiv-minimal-demo`／`editor-equiv-mist-forest-*`／`scripts-audit-mjs-cave-hollow` …
-//   **全是写死的故事名与命令** ✗ ⇒ **用户做的第 4 个故事不会自动进 CI** ✗。
+// 为什么需要它（实测的缺口，见 `#984` 票面）：`scripts/test-plan.mjs` 里
+// `editor-equiv-minimal-demo`／`editor-equiv-mist-forest-*`／`scripts-audit-mjs-cave-hollow` …
+// **全是写死的故事名与命令** → **用户做的第 4 个故事不会自动进 CI**。
 //
-// ⚠️ **本件是"编排"不是"新判据"** ✗：每条 K 都指向**既有命令** ✓（谁判的、在哪读出来的，逐条写在表里 ✓）。
-// ⚠️ **作用域** ✗（`#984` 的接口口径 ✓ —— 它**不是**可选项，是实测逼出来的唯一分法 ✓）：
-//   · `scope: 'story'` ⇒ 逐故事跑 ✓；· `scope: 'global'` ⇒ 每轮跑一次 ✓
-//   （**K5／K6 是全局** ✓、**K3 半是引擎级** ✓ ⇒ 「逐故事跑全套」**照字面做不到** ✗）。
-// ⚠️ **档** ✗（成本实测 ✓）：`tier: 'light'` ⇒ 进 CI 默认档 ✓；`tier: 'heavy'` ⇒ 只在 `--full` ✓
-//   （⛔ **不许**默认把重门乘故事数 ✗ —— 实测 `test/saveload.mjs` 30.7s／`test/scenarios.mjs` 23.6s ✗）。
+//注意：**本件是"编排"不是"新判据"**：每条 K 都指向**既有命令**（谁判的、在哪读出来的，逐条写在表里）。
+//注意：**作用域**（`#984` 的接口口径 —— 它**不是**可选项，是实测逼出来的唯一分法）：
+// · `scope: 'story'` → 逐故事跑；· `scope: 'global'` → 每轮跑一次
+//（**K5／K6 是全局**、**K3 半是引擎级** →「逐故事跑全套」**照字面做不到**）。
+//注意：**档**（成本实测）：`tier: 'light'` → 进 CI 默认档；`tier: 'heavy'` → 只在 `--full`
+//（⛔ **不许**默认把重门乘故事数 —— 实测 `test/saveload.mjs` 30.7s／`test/scenarios.mjs` 23.6s）。
 
 /**
- * K 面清单（**单一权威** ✓）：每条 = 设计稿 §1 的一条不变量 → **判它的既有命令**。
- * `evidence` 是"我从哪读出来的"（可核 ✓，不是"应该吧"✗）。
+ * K 面清单（**单一权威**）：每条 = 设计稿 §1 的一条不变量 → **判它的既有命令**。
+ * `evidence` 是"我从哪读出来的"（可核，不是"应该吧"）。
  */
 export const K_FACES = Object.freeze([
 	{
@@ -38,9 +38,9 @@ export const K_FACES = Object.freeze([
 	},
 	{
 		k: 'K5', name: '让步留痕（report-only 必须写明理由）', scope: 'global', tier: 'light',
-		// `#1079`：带 `--allow-stale-probe` ✓ —— PR 档不跑探针段（`#1070`）⇒ 无 `build/probe-results.json`
-		// ⇒ 台账的**探针面**不参与逐字节比对（其余面照旧严格 ✓）；**且有读数时它不生效** ✓。
-		//   ⚠️ 不带它会怎样 ✗：`#1079` 实测 —— 无读数 ⇒ `--check` **rc=1** ⇒ K5 必红（**每次 CI**）✓。
+		// `#1079`：带 `--allow-stale-probe` —— PR 档不跑探针段（`#1070`）→ 无 `build/probe-results.json`
+		// → 台账的**探针面**不参与逐字节比对（其余面照旧严格）；**且有读数时它不生效**。
+		//注意：不带它会怎样：`#1079` 实测 —— 无读数 → `--check` **rc=1** → K5 必红（**每次 CI**）。
 		cmd: () => ['scripts/report-gate-ledger.mjs', '--check', '--allow-stale-probe'],
 		evidence: 'docs/gate-ledger.md 头「**仅登记／未接线必须写明理由**（理由写在 `REASONS` 里）」—— §1 的「**可放（转 report-only，不删）**」即让步',
 	},
@@ -51,32 +51,32 @@ export const K_FACES = Object.freeze([
 	},
 ]);
 
-/** 逐故事的编排（`lint-story` **已经是**"包形状 → 编译幂等 → 等价 → 故事门 ×N → 形状"的既有编排 ✓ ⇒ **重用** ✗ 不重造）。
- *  ⚠️ `root`（`#999`）✗：有 `--stories-dir=` 时**逐故事面也必须看那个根** ✗ —— 否则"发现用 A 根、逐故事用 B 根"✓
- *    ⇒ 拿它当**仓外故事集**入口时会在**仓内**静默地跑逐故事面 ✗（属"**取不到输入却不报**"同族 ✓）。
- *    ⇒ 口径：**根在仓内（默认）⇒ 传 slug**（老行为逐字不变 ✓）；**根在仓外 ⇒ 传目录** ✗
- *      （`lint-story` **已支持**吃目录 ✓ —— 与 `--story=<目录>` 那条路**同款** ✓，**不新造** ✗）。
+/** 逐故事的编排（`lint-story` **已经是**"包形状 → 编译幂等 → 等价 → 故事门 ×N → 形状"的既有编排 → **重用** 不重造）。
+ *注意：`root`（`#999`）：有 `--stories-dir=` 时**逐故事面也必须看那个根** —— 否则"发现用 A 根、逐故事用 B 根"
+ * → 拿它当**仓外故事集**入口时会在**仓内**静默地跑逐故事面（属"**取不到输入却不报**"同族）。
+ * → 口径：**根在仓内（默认）→ 传 slug**（老行为逐字不变）；**根在仓外 → 传目录**
+ *（`lint-story` **已支持**吃目录 —— 与 `--story=<目录>` 那条路**同款**，**不新造**）。
  */
 export const storyPlan = ({ stories = [], slug = null, root = null } = {}) => {
 	const list = slug ? [slug] : stories;
-	// `root` 为 `null` ⇒ 仓内默认根 ⇒ 传 slug（老行为逐字不变 ✓）；否则传**目录** ✓（宿主只在"根不是仓内默认"时才给 ✓）。
+	// `root` 为 `null` → 仓内默认根 → 传 slug（老行为逐字不变）；否则传**目录**（宿主只在"根不是仓内默认"时才给）。
 	const argFor = (s) => (root ? `${String(root).replace(/\/+$/, '')}/${s}` : s);
 	return list.map((s) => ({ k: 'story', name: `逐故事：${s}`, scope: 'story', tier: 'light', cmd: ['editor/lint-story.mjs', argFor(s)] }));
 };
 
-/** 全局面（每轮一次 ✓）。 */
+/** 全局面（每轮一次）。 */
 export const globalPlan = ({ full = false } = {}) =>
 	K_FACES.filter((f) => f.scope === 'global' && (full || f.tier === 'light')).map((f) => ({ k: f.k, name: f.name, scope: 'global', tier: f.tier, cmd: f.cmd() }));
 
 /**
- * 总编排 ✓：**逐故事面 ＋ 全局面** ⇒ 一个可执行的命令清单（顺序稳定 ⇒ 读数可复跑 ✓）。
- * ⚠️ `stories` 由**调用方**发现（发现要读盘 ⇒ 那属宿主 ✓，本件保持纯 ✓）。
+ * 总编排：**逐故事面 ＋ 全局面** → 一个可执行的命令清单（顺序稳定 → 读数可复跑）。
+ *注意：`stories` 由**调用方**发现（发现要读盘 → 那属宿主，本件保持纯）。
  */
 export const buildPlan = ({ stories = [], slug = null, full = false, root = null } = {}) => [...storyPlan({ stories, slug, root }), ...globalPlan({ full })];
 
 /**
- * 汇总读数（纯函数 ✓）：`results` = [{ cmd, rc, out, ms }]。
- * 判据：**任一 rc≠0 ⇒ ok=false** ✓（不静默 ✓）；并回**失败清单**（谁、哪条 ✓）。
+ * 汇总读数（纯函数）：`results` = [{ cmd, rc, out, ms}]。
+ * 判据：**任一 rc≠0 → ok=false**（不静默）；并回**失败清单**（谁、哪条）。
  */
 export const summarizeRuns = (results = []) => {
 	const failed = results.filter((r) => r.rc !== 0);
@@ -88,31 +88,31 @@ export const summarizeRuns = (results = []) => {
 	};
 };
 
-/** 发现的故事必须**真的**进了编排（**能假** ✗ —— 新故事不许静默漏掉 ✓）。 */
+/** 发现的故事必须**真的**进了编排（**能假** —— 新故事不许静默漏掉）。 */
 export const missingFromPlan = ({ stories = [], plan = [] } = {}) => {
-	// ⚠️ 逐故事面的参数**可能是目录**（`#999`：根在仓外时传 `<root>/<slug>` ✓）⇒ 匹配要**认尾段** ✗；
-	//   只比 `=== slug` 会把「传了目录」误判成「没有命令跑到它」⇒ **假红** ✓。
+	//注意：逐故事面的参数**可能是目录**（`#999`：根在仓外时传 `<root>/<slug>`）→ 匹配要**认尾段**；
+	// 只比 `=== slug` 会把「传了目录」误判成「没有命令跑到它」→ **假红**。
 	const hit = (s) => plan.some((p) => p.cmd.some((a) => a === s || a.endsWith(`/${s}`)));
 	return stories.filter((s) => !hit(s)).map((s) => ({ slug: s, why: '发现到了这个故事，但编排里没有任何一条命令跑到它 ⇒ 它**不在 CI 里** ✗' }));
 };
 
 /**
- * **唯一裁决**（`#989`）：末行的 `✔/✗`、`x/y`、失败清单、**退出码**必须**四处一致** ✓。
- * ⚠️ 为什么单独有它 ✗：原先末行**只由 `summarizeRuns` 拼** ✓，而"0 个故事 ⇒ 不许判过"走的是
- *   **壳里另一条路** ✗ ⇒ 两者能相反：**末行印 `✔ 4/4 通过` 而 rc=1** ✗（**末行反向说谎** ✓）。
- *   ⇒ 把它收成**一处**：`ok/total/failed` 由**同一份**算出来 ✓，壳只负责打印 ✓。
+ * **唯一裁决**（`#989`）：末行的 `✔/ `、`x/y`、失败清单、**退出码**必须**四处一致**。
+ *注意：为什么单独有它：原先末行**只由 `summarizeRuns` 拼**，而"0 个故事 → 不许判过"走的是
+ * **壳里另一条路** → 两者能相反：**末行印 `✔ 4/4 通过` 而 rc=1**（**末行反向说谎**）。
+ * → 把它收成**一处**：`ok/total/failed` 由**同一份**算出来，壳只负责打印。
  */
 export const finalVerdict = ({ results = [], zeroStories = false, root = '', rootExists = true } = {}) => {
 	const s = summarizeRuns(results);
 	const extra = zeroStories
-		? [{ cmd: null, rc: 1, reason: `发现到 0 个故事 ⇒ 逐故事面全部消失，**不许判过** ✗（${rootExists ? `\`${root}\` 下没有故事` : `\`${root}\` 不存在`} ✓）` }]
-		: [];
-	const failed = [...s.failed, ...extra];
+		? [{ cmd: null, rc: 1, reason: `发现到 0 个故事 ⇒ 逐故事面全部消失，**不许判过** ✗（${rootExists ? `\`${root}\` 下没有故事` : `\`${root}\` 不存在`} ✓）`}]
+: [];
+	const failed = [...s.failed,...extra];
 	return {
 		ok: failed.length === 0,
-		total: s.total + extra.length,          // ⚠️ 0 故事时"该做没做"的面**计入分母** ✗ —— 否则 x/y 又会说成 4/4 ✓
+		total: s.total + extra.length, //注意：0 故事时"该做没做"的面**计入分母** —— 否则 x/y 又会说成 4/4
 		passed: s.total - s.failed.length,
 		failed,
 		ms: s.ms,
-	};
+};
 };

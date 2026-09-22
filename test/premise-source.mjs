@@ -5,19 +5,19 @@
 // 于是选项替玩家问了一个他不可能知道的问题（canon 的意图是让他**拼**出那笔账，不是被选项告知）。
 //
 // 判据：对每条**声明了 `premise`** 的条目，找到**授予它依据键**的段落，断言 premise 词至少出现在其中一个段落里
-//       —— 即"你能问出这句，是因为你在某处读到过这个概念"。
+// —— 即"你能问出这句，是因为你在某处读到过这个概念"。
 //
 // 数据源（`#435` 阶段 4 后为**两源并存**，都判；表行接管后删 `crossEraGates` 那行属阶段 5）：
-//   ① `Game.Investment.eraDomain.crossEraGates`（既有）：依据键＝`pastFlags` ∪ `presentFlags`；
-//   ② **条件表**（`Sg.story.rules()`）：依据键＝`req` ∪ `any`（＝旧 `pastFlags`/`presentFlags` 的角色）。
-//      **"谁授予了这个键"由表自己回答**：某行的 `yields` 含该键（note id 先展开成 `flagPath`）⇒
-//      该行的 `scope`（`段落#位点` 取 `#` 前的段落名）就是授予段落，其 `text` 就是玩家可见文本。
-//      —— 票面口径「数据来源＝表的 `yields`＋`premise`」落在这一条上。
-//      ⚠️ 为什么**不是**用「该行自己的 `yields`」当依据：`yields` 是 A 方案下**本行授予**的键
-//      （`<<rules>>` 渲染成功后落 `Sg.notes.add`）——拿"结果"当"前提"会让老巫女那行用自己的产出
-//      （`n_witch_fire_hint`）当依据 ⇒ 假红。与旧口径一一对应的是 `req`/`any`。
-//   源码写点（`$pc.ev.k to/=`、`Sg.notes.add('n_k')`，走 `shared.mjs` 单一权威）仍是两条源的**兜底**：
-//   段落尚未搬进表时，依据照样可溯源。
+// ① `Game.Investment.eraDomain.crossEraGates`（既有）：依据键＝`pastFlags` ∪ `presentFlags`；
+// ② **条件表**（`Sg.story.rules()`）：依据键＝`req` ∪ `any`（＝旧 `pastFlags`/`presentFlags` 的角色）。
+// **"谁授予了这个键"由表自己回答**：某行的 `yields` 含该键（note id 先展开成 `flagPath`）→
+// 该行的 `scope`（`段落#位点` 取 `#` 前的段落名）就是授予段落，其 `text` 就是玩家可见文本。
+// —— 票面口径「数据来源＝表的 `yields`＋`premise`」落在这一条上。
+//注意：为什么**不是**用「该行自己的 `yields`」当依据：`yields` 是 A 方案下**本行授予**的键
+//（`<<rules>>` 渲染成功后落 `Sg.notes.add`）——拿"结果"当"前提"会让老巫女那行用自己的产出
+//（`n_witch_fire_hint`）当依据 → 假红。与旧口径一一对应的是 `req`/`any`。
+// 源码写点（`$pc.ev.k to/=`、`Sg.notes.add('n_k')`，走 `shared.mjs` 单一权威）仍是两条源的**兜底**：
+// 段落尚未搬进表时，依据照样可溯源。
 //
 // 已知缺陷姿态（本仓约定）：`PREMISE_KNOWN` 里的条目**报告但不判失败**（main 不被卡住）；
 // 修完删掉条目即自动转严格。要**红证**时跑 `--strict`（把已知缺陷也当失败）。
@@ -35,11 +35,11 @@ const norm = (k) => String(k).replace(/^(ev|world)\./, '');
 /** 条目 → **依据键**（两种数据源共用；缺省空数组）。 */
 export const evidenceKeys = (entry) => [
 	...asList(entry?.keys), ...asList(entry?.pastFlags), ...asList(entry?.presentFlags),
-	// `#491` 另票：对象算子形条件（`{ gte: ['star.spent', 3] }`）的**键**同样是依据
+	// `#491` 另票：对象算子形条件（`{ gte: ['star.spent', 3]}`）的**键**同样是依据
 	...[...asList(entry?.req), ...asList(entry?.any)].flatMap(condKeysOf),
 ];
 
-/** 纯函数（自证与真实运行同一份代码）：grantOf(key) → [{ p, src }] */
+/** 纯函数（自证与真实运行同一份代码）：grantOf(key) → [{ p, src}] */
 export const judgePremise = (entry, grantOf) => {
 	if (!entry?.premise) return null;                       // 未声明的条目不判（登记制：声明才管）
 	const keys = evidenceKeys(entry);
@@ -143,7 +143,7 @@ const strict = process.argv.includes('--strict');
 const failed = (e) => !!e.premise && judgePremise(e, grantOf).hit.length === 0;
 // 仍在失败的已知缺陷（**已修好的不算**——否则消息会掩盖状态转变）
 const knownStillFailing = entries.filter((e) => e.id in PREMISE_KNOWN && failed(e));
-// 白名单腐烂：条目已在 KNOWN 里、但现在已经通过 ⇒ 该删条目（与 test/globals.mjs 的 A2 同款）
+// 白名单腐烂：条目已在 KNOWN 里、但现在已经通过 → 该删条目（与 test/globals.mjs 的 A2 同款）
 const stale = entries.filter((e) => e.id in PREMISE_KNOWN && e.premise && !failed(e));
 const freshFails = entries.filter((e) => e.premise && !(e.id in PREMISE_KNOWN) && failed(e));
 

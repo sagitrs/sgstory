@@ -1,8 +1,8 @@
-// `#1100`：判据接线的**自证格**（独立模块 ⇒ 宿主只加 import ＋ 一行调用 ✓）。
+// `#1100`：判据接线的**自证格**（独立模块 → 宿主只加 import ＋ 一行调用）。
 import { wiringProblems, driverProblems } from './gate-wiring.mjs';
 
-/** 本组**格数**（与清单长度对齐 ✓ —— "掐了会改变一个可观的数" ✓）。 */
-export const WIRING_CELLS_EXPECTED = 9;   // 完好态／B′2／R1／R2／不变量／未闭合／驱动层正例＋两向反例 ✓
+/** 本组**格数**（与清单长度对齐 —— "掐了会改变一个可观的数"）。 */
+export const WIRING_CELLS_EXPECTED = 9;   // 完好态／B′2／R1／R2／不变量／未闭合／驱动层正例＋两向反例
 
 const SRC_OK = 'export const flags = ["x"];\nexport const judge = () => {};\nexport const run = (ctx) => judge(ctx);\n';
 const probe = (src, extra = {}) => wiringProblems({ list: () => ['a.mjs'], read: () => src, registry: ['x'], anchors: { x: 'judge' }, ...extra }).problems;

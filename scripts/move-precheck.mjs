@@ -1,13 +1,13 @@
 // ── 搬家的"六处同步"校验（#458）─────────────────────────────────────────────
 // 背景（我实测踩过，写下来免得重踩）：一次"搬家/新增文件"要同时改**六处**，漏哪一处都有代价：
-//   ① 源文件本体            ② `ORDER`（漏 ⇒ build 直接退 1："未登记/不存在"）
-//   ③ `MODULES`（漏 ⇒ **崩**：`MODULES[f].deps` 取 undefined）
-//   ④ `stories/*/00-story.json` 的 `files`（漏 ⇒ 审计**退 1 却没有 ✗ 行**，排查成本很高）
-//   ⑤ `CONST_SECTION.files`（漏 ⇒ 报 `stale-declaration`；这是 #457 特意加的"反沉默"）
-//   ⑥ **聚合返回**（`15-tables.twee` 的 `return { …, Era, … }`：把常量段挪走而不改它 ⇒ `ReferenceError`）
-// ⇒ 本脚本一次跑完六处一致性；`npm test` 里挂着它，以后**新增文件**也会被它兜住。
+// ① 源文件本体 ② `ORDER`（漏 → build 直接退 1："未登记/不存在"）
+// ③ `MODULES`（漏 → **崩**：`MODULES[f].deps` 取 undefined）
+// ④ `stories/*/00-story.json` 的 `files`（漏 → 审计**退 1 却没有 行**，排查成本很高）
+// ⑤ `CONST_SECTION.files`（漏 → 报 `stale-declaration`；这是 #457 特意加的"反沉默"）
+// ⑥ **聚合返回**（`15-tables.twee` 的 `return { …, Era, …}`：把常量段挪走而不改它 → `ReferenceError`）
+// → 本脚本一次跑完六处一致性；`npm test` 里挂着它，以后**新增文件**也会被它兜住。
 //
-// ⚠️ 与 `--literals` 的分工：那边判"常量段里有没有裸字面量"，这边判"**账本之间**是否自洽"。两者互补。
+//注意：与 `--literals` 的分工：那边判"常量段里有没有裸字面量"，这边判"**账本之间**是否自洽"。两者互补。
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import { ROOT } from './dist-paths.mjs';
@@ -19,22 +19,22 @@ const STORIES = join(ROOT, 'stories');
 /** 磁盘上的源文件（相对 `src/`）。 */
 export const diskSources = (dir = SRC) => (existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.twee')).sort() : []);
 
-/** 所有故事的 `files` —— **已归单一权威** ✓（`module-order.mjs` 的 `storyManifests()` ✓）。
- *  `#893` 第三步：`build.mjs`／`test/layering.mjs`／本脚本**三处共用** ✓（各写一份必漂移 ✗）。
- *  本处不再自定义 ✗，只作**转出**（老调用方不变 ✓；出参字段 `slug`／`files` 逐字相同 ✓）。 */
+/** 所有故事的 `files` —— **已归单一权威**（`module-order.mjs` 的 `storyManifests()`）。
+ * `#893` 第三步：`build.mjs`／`test/layering.mjs`／本脚本**三处共用**（各写一份必漂移）。
+ * 本处不再自定义，只作**转出**（老调用方不变；出参字段 `slug`／`files` 逐字相同）。 */
 export { storyManifests };
 
-/** 聚合返回里的标识符（`15-tables.twee` 的 `return { a, b, Era }`）——与同文件的本地声明对账。
- *  取**最后一个** `return {…};`：文件里其它函数也会 `return {…}`（我第一版取第一个 ⇒ 误报「total」未声明 ✗）。 */
+/** 聚合返回里的标识符（`15-tables.twee` 的 `return { a, b, Era}`）——与同文件的本地声明对账。
+ * 取**最后一个** `return {…};`：文件里其它函数也会 `return {…}`（我第一版取第一个 → 误报「total」未声明）。 */
 export const aggregatorChecks = (srcText) => {
 	const all = [...String(srcText).matchAll(/return\s*\{([^}]*)\}\s*;/g)];
 	if (!all.length) return { found: false, missing: [] };
 	const m = all[all.length - 1];
-	// 实测：`return { flag, why: expr }` 里 `why` 是**键**、不是被引用的标识符 ⇒ 键不算、只查值侧。
+	// 实测：`return { flag, why: expr}` 里 `why` 是**键**、不是被引用的标识符 → 键不算、只查值侧。
 	const returned = m[1].split(',').flatMap((part) => {
 		const t = part.trim(); if (!t) return [];
-		if (t.includes(':')) return [t.slice(t.indexOf(':') + 1).trim()];   // 键值对 ⇒ 只看值
-		return [t];                                                          // 简写 ⇒ 自己就是被引用者
+		if (t.includes(':')) return [t.slice(t.indexOf(':') + 1).trim()];   // 键值对 → 只看值
+		return [t];                                                          // 简写 → 自己就是被引用者
 	}).filter(Boolean);
 	const declared = new Set([...String(srcText).matchAll(/\b(?:const|let|var)\s+([A-Za-z_$][\w$]*)/g)].map((x) => x[1]));
 	// 也允许 `import`/函数参数等来源：只报"既没本地声明、也不在文件里出现过赋值"的名字
@@ -43,13 +43,13 @@ export const aggregatorChecks = (srcText) => {
 };
 
 /** 纯函数：六处自洽性（供自证喂合成输入）。
- *  `#893` 第三步：`②③④` 按**层**分工 ✓（引擎件 ⇒ `ORDER` ⧸ `MODULES` ✓；故事件 ⇒ **它自己的清单** ✓）——
- *  走单一权威 `checkRegistration()` ✓；与 `test/layering.mjs` 的**唯一区别**：这里 `requireModules: true` ✗
- *  （`MODULES` 缺项是"账本不自洽" ✓，属本脚本的六处同步面 ✓）。 */
+ * `#893` 第三步：`②③④` 按**层**分工（引擎件 → `ORDER` ⧸ `MODULES`；故事件 → **它自己的清单**）——
+ * 走单一权威 `checkRegistration()`；与 `test/layering.mjs` 的**唯一区别**：这里 `requireModules: true`
+ *（`MODULES` 缺项是"账本不自洽"，属本脚本的六处同步面）。 */
 export const checkPlaces = ({ srcFiles, order, modules, manifests, constFiles, aggregatorSrc }) => {
 	const out = [...checkRegistration({ sources: Object.fromEntries(srcFiles.map((f) => [f, ''])), order, modules, manifests, requireModules: true })];
-	// `#1002`：**故事声明面必须排在消费它的引擎件之前** ✗ —— `checkRegistration()` 管不到这一格 ✓
-	//（`#998` 实测：漏排 ⇒ 故事表盖掉引擎挂在 `Game.*` 上的方法 ⇒ 门 TypeError ⇒ 后面的故事面全没跑 ✗）
+	// `#1002`：**故事声明面必须排在消费它的引擎件之前** —— `checkRegistration()` 管不到这一格
+	//（`#998` 实测：漏排 → 故事表盖掉引擎挂在 `Game.*` 上的方法 → 门 TypeError → 后面的故事面全没跑）
 	out.push(...storyTablesOrderProblems({ order, manifests }));
 	for (const f of [...constFiles]) if (!srcFiles.some((x) => x === f || x.endsWith(`/${f}`))) out.push({ code: 'stale-const-decl', msg: `CONST_SECTION.files 里的 ${f} 不存在（搬走了没更新声明）` });
 	if (aggregatorSrc) {
@@ -96,7 +96,7 @@ if (process.argv.includes('--selftest')) {
 	t('**故事件**无人认领 ⇒ unclaimed-file（引擎件豁免）', checkPlaces({ ...base, srcFiles: ['stories/s/x.twee'], order: [], modules: {}, manifests: [{ slug: 's', files: [] }], constFiles: [] }).some((x) => x.code === 'unclaimed-file'));
 	t('**故事件**不在 ORDER、但在清单里 ⇒ 0 报（#893 新口径：换登记处 ✓）', checkPlaces({ ...base, srcFiles: ['stories/s/a.twee'], order: [], modules: {}, manifests: [{ slug: 's', files: ['stories/s/a.twee'] }], constFiles: [] }).length === 0);
 	t('**引擎件**即使被清单认领，仍必须 ⊂ ORDER ⇒ unlisted-file（安全网不撤）', checkPlaces({ ...base, order: [], manifests: [{ slug: 's', files: ['src/a.twee'] }] }).some((x) => x.code === 'unlisted-file'));
-	// `#1002`：**故事声明面必须排在消费它的引擎件之前** ✗（`#998` 实测出来的洞 ✓）
+	// `#1002`：**故事声明面必须排在消费它的引擎件之前**（`#998` 实测出来的洞）
 	const TBL = 'stories/s/15-tables.twee';
 	const CONS = 'src/engine/40-sim/21-resolve.twee';
 	const withStory = { ...base, srcFiles: [TBL], order: [TBL, CONS], modules: { [CONS]: { layer: 'engine' } }, manifests: [{ slug: 's', files: [TBL] }], constFiles: [] };
@@ -105,7 +105,7 @@ if (process.argv.includes('--selftest')) {
 	t('🔴 反例：故事表排在消费侧**之后** ⇒ tables-after-consumer ✗（`#998` 的形状：故事表盖掉引擎方法 ⇒ 门崩 ✓）', checkPlaces({ ...withStory, order: [CONS, TBL] }).some((x) => x.code === 'tables-after-consumer'));
 	t('边界：清单里**没有** `15-tables` 面 ⇒ 不判（这格管的是那一个面 ✓）', checkPlaces({ ...base, manifests: [{ slug: 's', files: [] }] }).filter((x) => x.code.startsWith('tables-')).length === 0);
 	t('常量声明指向不存在的文件 ⇒ stale-const-decl', checkPlaces({ ...base, constFiles: ['gone.twee'] }).some((x) => x.code === 'stale-const-decl'));
-	// `#899` ①：清单**显式必需** ✗ —— 不传 ⇒ **点名抛错** ✓（合成输入不得读盘 ✓）
+	// `#899` ①：清单**显式必需** —— 不传 → **点名抛错**（合成输入不得读盘）
 	t('缺 `manifests` ⇒ 点名抛错（不读盘 ✗）', (() => {
 		try { checkPlaces({ ...base, manifests: undefined }); return false; }
 		catch (e) { return /manifests/.test(String(e.message)); }

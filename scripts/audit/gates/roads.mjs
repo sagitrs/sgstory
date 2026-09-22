@@ -1,12 +1,12 @@
 // ⓪aa 事件池与三选一门（S4／`#489`）：通用事件池 ＋ 线索三选一
 //
-// **引擎门**（判据来自声明表 `mechanics().roads[i] = { from, to, options:[{kind,hint,noCheck?}] }`）：
-//   ① **共用选择机制**：事件池与战斗池都走 `Game.Combat.pickN` —— stub 掉它，**两处都跟着变** ⇒ 证明不是两套随机
-//   ② 三选一行为：恰好 3 个、都来自该段 `options`、`exclude`（本段已出现的类型）生效
-//   ③ 判据 2/3 的机检入口：线索两两可区分（`roadHintCollisions`）／每段有「无判定选项」（`roadNoCheck`）／
-//      **不死档**（`roadDeadEnds`）——三者都取自 `story-shape.mjs` 的**单权威**，不另写一份
-//   ④ 频率口径：多种子下每类事件的**入选比例 ≈ 均匀**（`3/k`，3σ 容差）＋ 同种子两次**逐项一致**（可复算）
-//   ⑤ 兼容降级：`mechanics()` 为 `null` ⇒ `roadOffer` 返回 `null`（调用方不调 ⇒ 零行为变化）
+// **引擎门**（判据来自声明表 `mechanics().roads[i] = { from, to, options:[{kind,hint,noCheck?}]}`）：
+// ① **共用选择机制**：事件池与战斗池都走 `Game.Combat.pickN` —— stub 掉它，**两处都跟着变** → 证明不是两套随机
+// ② 三选一行为：恰好 3 个、都来自该段 `options`、`exclude`（本段已出现的类型）生效
+// ③ 判据 2/3 的机检入口：线索两两可区分（`roadHintCollisions`）／每段有「无判定选项」（`roadNoCheck`）／
+// **不死档**（`roadDeadEnds`）——三者都取自 `story-shape.mjs` 的**单权威**，不另写一份
+// ④ 频率口径：多种子下每类事件的**入选比例 ≈ 均匀**（`3/k`，3σ 容差）＋ 同种子两次**逐项一致**（可复算）
+// ⑤ 兼容降级：`mechanics()` 为 `null` → `roadOffer` 返回 `null`（调用方不调 → 零行为变化）
 //
 // 用法：`node scripts/audit.mjs --roads`（`--check` 为判定态）
 import { mulberry32, asSugarRandom } from '../lib/rng.mjs';
@@ -39,7 +39,7 @@ export const judgeRoads = (ctx) => {
 	if (!wantAll && !arg('roads')) return;
 	console.log('\n══ ⓪aa 事件池与三选一门（S4/#489）——共用选择机制 · 三选一 · 线索可区分 · 频率 ══');
 	let bad = 0;
-	// `#1151`：**自证格**的计数**单列**（与「判据发现」分开 —— 两者语义不同：格红＝本门失能，发现＝数据/内容问题 ✓）
+	// `#1151`：**自证格**的计数**单列**（与「判据发现」分开 —— 两者语义不同：格红＝本门失能，发现＝数据/内容问题）
 	let selfBad = 0;
 	const t = (label, ok, extra = '') => { if (ok) console.log(`      ✓ ${label}`); else { bad++; console.error(`      ✗ ${label}${extra ? '：' + extra : ''}`); } };
 	const saved = Sg.story.mechanics;
@@ -52,7 +52,7 @@ export const judgeRoads = (ctx) => {
 
 		Sg.story.mechanics = () => MECH;
 
-		// ── ① 共用选择机制（stub `pickN` ⇒ 两处都变）──
+		// ── ① 共用选择机制（stub `pickN` → 两处都变）──
 		{
 			const orig = Game.Combat.pickN;
 			try {
@@ -71,7 +71,7 @@ export const judgeRoads = (ctx) => {
 			const kinds = MECH.roads[0].options.map((o) => o.kind);
 			t('② 恰好 3 个、且都来自该段的 `options`', three.length === 3 && three.every((o) => kinds.includes(o.kind)), JSON.stringify(three.map((o) => o.kind)));
 			t('② 三个选项互不重复（同段不出现同类事件两次）', new Set(three.map((o) => o.kind)).size === 3, JSON.stringify(three.map((o) => o.kind)));
-			// exclude：把已出现的类型排掉 ⇒ 只从剩下的里选（用 4 选项那段：排掉 1 个仍够 3 个）
+			// exclude：把已出现的类型排掉 → 只从剩下的里选（用 4 选项那段：排掉 1 个仍够 3 个）
 			Sg.story.mechanics = () => FOUR;
 			Game.Rules.rng.set(asSugarRandom(mulberry32(7)));
 			let ex = null;
@@ -139,7 +139,7 @@ export const judgeRoads = (ctx) => {
 				const got = judge(picked, road);
 				const okk = want === 0 ? got.length === 0 : got.length >= want;
 				console.log(`      ${okk ? '✓' : '✗'} 自证·${label}：检出 ${got.length}（期望 ${want === 0 ? 0 : '≥' + want}）`);
-				if (!okk) selfBad++;   // `#1151`：格红走 selfBad（不再混进 `bad` ✓）
+				if (!okk) selfBad++;   // `#1151`：格红走 selfBad（不再混进 `bad`）
 			}
 		}
 	} finally {
@@ -148,8 +148,8 @@ export const judgeRoads = (ctx) => {
 	}
 
 	bad += selfBad;
-	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 那是**格级属性** ✓，**不依赖 `process.argv`** ✗
-	//   ⚠️ 与「判据发现」**分开报** ✓：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」✓
+	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 那是**格级属性**，**不依赖 `process.argv`**
+	//注意：与「判据发现」**分开报**：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」
 	if (selfBad) {
 		console.error(`\n✗ ⓪aa 事件池与三选一门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓（\`#1151\`）`);
 		process.exit(1);
@@ -160,6 +160,6 @@ export const judgeRoads = (ctx) => {
 	}
 };
 
-// `#1100` (甲)：**判据体提成具名导出** ⇒ 锚可指它 ✓（此前判据内联在 `run` 里 ⇒ 掏空 `run` 时
-//   锚检照样绿 ✗）。`run` 只做委派 ⇒ **行为逐字保持** ✓（提取提交不夹带接线或格 ✓）。
+// `#1100` (甲)：**判据体提成具名导出** → 锚可指它（此前判据内联在 `run` 里 → 掏空 `run` 时
+// 锚检照样绿）。`run` 只做委派 → **行为逐字保持**（提取提交不夹带接线或格）。
 export const run = (ctx) => judgeRoads(ctx);

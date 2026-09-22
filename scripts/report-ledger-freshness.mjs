@@ -5,27 +5,27 @@
 // `docs/quality-dimensions.md` 的 F7 行写 `⏳ #271`，而 #271 早已 CLOSED（PR #274 已 MERGED）。
 //
 // 判据：
-//   标记「已闭环」系（✅/已闭环/已修/已完成/已合/MERGED）  ⇒ 目标须 closed（issue）或 merged（PR）
-//   标记「在办」系（⏳/待补/待办/在办/进行中/未开工/OPEN/阻塞） ⇒ 目标须 open
-//   无标记 ⇒ **只登记不判定**（避免噪音）
-//   一行内两个标记 + 两个引用时，取**离该引用最近**的那个标记（避免「✅ #315 → ⏳ #318②」互相污染）
+// 标记「已闭环」系（✅/已闭环/已修/已完成/已合/MERGED） → 目标须 closed（issue）或 merged（PR）
+// 标记「在办」系（⏳/待补/待办/在办/进行中/未开工/OPEN/阻塞） → 目标须 open
+// 无标记 → **只登记不判定**（避免噪音）
+// 一行内两个标记 + 两个引用时，取**离该引用最近**的那个标记（避免「✅ #315 → ⏳ #318②」互相污染）
 //
-// ⚠️ 精度优于召回（首轮实测的教训，故收紧两处）：
-//   初版只按「同一行最近的标记」判定 → 真实文档报出 12 处不符，逐条看**大多是假阳性**：
-//   「#291 G3（在办）」里的「在办」描述的是**这一行的工作**，不是 #291 的状态；
-//   「⏳ Game.Rules.claims（…；#239 类回归防线）」里的 ⏳ 同理。表格行的状态列天然描述行不描述票。
-//   故：
-//     ① **只判定「紧邻」**——引用与标记之间只允许空白/`（）()`/`·` 等分隔符（≤4 字符），
-//        跨一个短语就不判（避免把「行状态」当成「票状态」）；**表格列分隔符 `|` 不算紧邻**——
-//        相邻列里的 ✅/待补 描述的是那一列（如「本节状态」），不是所引票的状态；
-//     ② **历史叙述不判**——块引用行（`>`）或含「原标/此前/曾/修正/原本」的行，常是在讲
-//        「这处标记曾经错了」，属**引用历史**而非当前断言；这类行归入「歧义」单列。
+//注意：精度优于召回（首轮实测的教训，故收紧两处）：
+// 初版只按「同一行最近的标记」判定 → 真实文档报出 12 处不符，逐条看**大多是假阳性**：
+//「#291 G3（在办）」里的「在办」描述的是**这一行的工作**，不是 #291 的状态；
+//「⏳ Game.Rules.claims（…；#239 类回归防线）」里的 ⏳ 同理。表格行的状态列天然描述行不描述票。
+// 故：
+// ① **只判定「紧邻」**——引用与标记之间只允许空白/`（）()`/`·` 等分隔符（≤4 字符），
+// 跨一个短语就不判（避免把「行状态」当成「票状态」）；**表格列分隔符 `|` 不算紧邻**——
+// 相邻列里的 ✅/待补 描述的是那一列（如「本节状态」），不是所引票的状态；
+// ② **历史叙述不判**——块引用行（`>`）或含「原标/此前/曾/修正/原本」的行，常是在讲
+//「这处标记曾经错了」，属**引用历史**而非当前断言；这类行归入「歧义」单列。
 //
 // 用法：
-//   node scripts/report-ledger-freshness.mjs            # 报告（只读）
-//   node scripts/report-ledger-freshness.mjs --check    # 有「标记不符」则 exit 1
-//   node scripts/report-ledger-freshness.mjs --selftest # 自证（不联网）
-//   node scripts/report-ledger-freshness.mjs --json
+// node scripts/report-ledger-freshness.mjs # 报告（只读）
+// node scripts/report-ledger-freshness.mjs --check # 有「标记不符」则 exit 1
+// node scripts/report-ledger-freshness.mjs --selftest # 自证（不联网）
+// node scripts/report-ledger-freshness.mjs --json
 //
 // 无 token（GITHUB_TOKEN / GH_TOKEN）时**优雅降级**：打印「跳过（无 token）」并 exit 0——
 // 不把网络依赖塞进主链路（是否接定时 workflow 另定）。
@@ -73,7 +73,7 @@ export const parseRefs = (text, file = '(inline)') => {
 };
 
 // ── 判定（纯函数：给引用列表 + 状态查询函数，返回不符项）────────────────
-// stateOf(n) → { kind:'issue'|'pr', state:'open'|'closed', merged:boolean } | null
+// stateOf(n) → { kind:'issue'|'pr', state:'open'|'closed', merged:boolean} | null
 export const judge = (refs, stateOf) => {
 	const mismatches = [];
 	const unresolved = [];
@@ -95,12 +95,12 @@ export const judge = (refs, stateOf) => {
 // `docs/benchmark-ledger.md` 的「最近复核 / 触发条件」两列一旦留空或过期，这份 12 款竞品的对标
 // 调研就变死档（#291/#295 的落点还在长，死档会让人按过时基准做决定）。
 // 判据只对**表格数据行**（不判散文），逐条可核对：
-//   ① 行数栅栏：竞品 ≥12、外部基准 ≥5、探索票 ≥4（防「悄悄删行」式腐化）
-//   ② 「最近复核」首个日期可解析，且距今 ≤ FRESH_DAYS —— 账本自己声明的触发条件③就是「季度例行」，故取 90 天
-//   ③ 「触发条件」非空（空 / `—` / `-` / `无` 都算缺失）
-//   ④ 「我们的落点」可核对：`--flag` 必须在 audit 注册表内；`docs|test|scripts/*.md|.mjs|.json` 路径必须存在
-//      （仅判**反引号包裹**的旗标与路径：散文里提「双读门」这类中文名无法机检，不猜）
-//   ⑤ 探索表「票」列必须是 `#NNN` 或 `—`（验收条 3：每项有票号或明确归属）
+// ① 行数栅栏：竞品 ≥12、外部基准 ≥5、探索票 ≥4（防「悄悄删行」式腐化）
+// ②「最近复核」首个日期可解析，且距今 ≤ FRESH_DAYS —— 账本自己声明的触发条件③就是「季度例行」，故取 90 天
+// ③「触发条件」非空（空 / `—` / `-` / `无` 都算缺失）
+// ④「我们的落点」可核对：`--flag` 必须在 audit 注册表内；`docs|test|scripts/*.md|.mjs|.json` 路径必须存在
+//（仅判**反引号包裹**的旗标与路径：散文里提「双读门」这类中文名无法机检，不猜）
+// ⑤ 探索表「票」列必须是 `#NNN` 或 `—`（验收条 3：每项有票号或明确归属）
 export const FRESH_DAYS = 90;
 
 // 纯函数：给台账文本 + 依赖（今日 / 已知旗标 / 文件存在性），返回 findings。
@@ -238,7 +238,7 @@ else {
 const LEDGER_PATH = 'docs/benchmark-ledger.md';
 const runLedger = async () => {
 	if (!existsSync(LEDGER_PATH)) { console.error(`   ✗ 缺少 ${LEDGER_PATH}`); return 1; }
-	// `#607` P1：门可能住故事侧（清单声明）⇒ 已知 flag 面走 discovery，别只看工具层注册表
+	// `#607` P1：门可能住故事侧（清单声明）→ 已知 flag 面走 discovery，别只看工具层注册表
 	const { allKnownFlags } = await import('./audit/discovery.mjs');
 	const knownFlags = await allKnownFlags();
 	const { findings, counts } = judgeBenchmarkLedger(readFileSync(LEDGER_PATH, 'utf8'), { knownFlags, fileExists: (p) => existsSync(p) });
@@ -265,7 +265,7 @@ const unique = [...new Set(refs.map((r) => r.ref))];
 
 if (!TOKEN) {
 	console.log(`扫到 ${docs.length} 个文档、${refs.length} 处 #NNN 引用（唯一 ${unique.length} 个）`);
-	// `#562` 反沉默：**CI 里**没有 token ⇒ 红。此前一律"○ 跳过 + exit 0"，于是这道门**在 CI 里从未真正跑过**——
+	// `#562` 反沉默：**CI 里**没有 token → 红。此前一律"○ 跳过 + exit 0"，于是这道门**在 CI 里从未真正跑过**——
 	// 一类"门在链上但恒空转"的假绿（与 `#557`／`dev-conventions §13` 同类：**解析不到输入就该响**）。
 	// 本地开发允许无 token（警告跳过），因为不把网络依赖塞进日常链路；**CI 必须能核验**。
 	if (process.env.CI) {

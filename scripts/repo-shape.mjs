@@ -7,18 +7,18 @@
 // 本片删掉的 `tmp/mf3.json`（无人引用、86KB、内容是已删故事的表 dump）。
 //
 // 判据形状（**能假**）：把**实际**的顶层条目集合与**声明**的集合对表 ——
-//   ① 实际有、声明没有 ⇒ `unclaimed-top-level`（**新顶层目录**走的就是这一支）；
-//   ② 声明有、实际没有 ⇒ `missing-top-level`（删了东西没改声明，同族反向）。
+// ① 实际有、声明没有 → `unclaimed-top-level`（**新顶层目录**走的就是这一支）；
+// ② 声明有、实际没有 → `missing-top-level`（删了东西没改声明，同族反向）。
 // 自证里两支都有正反例；探针（`scripts/probes.mjs`）打在第 ① 支上，且刀**不碰测试件**。
 //
-// ⚠️ **边界**：只判**已入库**（`git ls-files`）的条目 —— 未入库的 `node_modules/`、`build/`、
-//   `dist/`、本地草稿一律不看（否则本机每次跑都假红）。因此"未提交的临时目录"不在本门射程内；
-//   要守住那一面得靠 `.gitignore` 与提交时的自觉，本门只保证"**已经进去了的**能被点名"。
-//   ⚠️ 另一条边界：本门要 git 元数据，**且它只问“脚本所在的那个仓根”** —— `ROOT` 取自本文件位置
-//   （`import.meta.url`）而不是调用方的 cwd ✓。⇒ 那句边界话应读作“**仓根处** git 不可用 ⇒ 红”，
-//   **不是**“调用方 cwd 不是 git 仓”。实测：在 `/tmp/.../nogit`（非 git 仓）里调用它 ⇒ 仍然 rc=0
-//   报那 17 条 ✓（它查的是本仓，不是你的 cwd）。取不到时 **红并说明**，不做静默跳过 ✗
-//   （静默跳过＝假绿，本仓踩过这一族）。
+//注意：**边界**：只判**已入库**（`git ls-files`）的条目 —— 未入库的 `node_modules/`、`build/`、
+// `dist/`、本地草稿一律不看（否则本机每次跑都假红）。因此"未提交的临时目录"不在本门射程内；
+// 要守住那一面得靠 `.gitignore` 与提交时的自觉，本门只保证"**已经进去了的**能被点名"。
+//注意：另一条边界：本门要 git 元数据，**且它只问“脚本所在的那个仓根”** —— `ROOT` 取自本文件位置
+//（`import.meta.url`）而不是调用方的 cwd。→ 那句边界话应读作“**仓根处** git 不可用 → 红”，
+// **不是**“调用方 cwd 不是 git 仓”。实测：在 `/tmp/.../nogit`（非 git 仓）里调用它 → 仍然 rc=0
+// 报那 17 条（它查的是本仓，不是你的 cwd）。取不到时 **红并说明**，不做静默跳过
+//（静默跳过＝假绿，本仓踩过这一族）。
 
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -34,7 +34,7 @@ export const readAllow = (file = ALLOW_FILE) => JSON.parse(readFileSync(file, 'u
 /**
  * 仓根**已入库**的顶层条目。
  * 为什么用 `git ls-files` 而不是 `readdirSync(ROOT)`：后者会把本机的 `node_modules/`、
- * `build/`、`dist/` 一并算进来 ⇒ 每次跑都红（假红）；前者只看"仓库里到底有什么"。
+ * `build/`、`dist/` 一并算进来 → 每次跑都红（假红）；前者只看"仓库里到底有什么"。
  */
 export const trackedTopLevel = ({ cwd = ROOT } = {}) => {
 	const out = execFileSync('git', ['ls-files', '-z'], { cwd, encoding: 'utf8', maxBuffer: 256 * 1024 * 1024 });

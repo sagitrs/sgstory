@@ -1,39 +1,39 @@
 // 去权威化口径门（`#752`，源自 `#748`）：注释／文档里**不许拿「谁定的」充当理由**。
 //
 // 为什么需要它（实测回潮，不是洁癖）：`#748` 一轮去权威化改了 **64 个文件**并合入（`e62d392`）；
-//   **合入后 5 分钟内**主线就回潮 **4 处**（`af13b78` 带进的「（某人：『文字反馈最重要』）」这类写法）。
-//   更要紧的是：这 4 处**连 `#748` 自己都没拦住** —— 那一轮的自查是**人工 `grep`**，作者只在自己
-//   rebase **之前**跑过一次，没对新 base 引入的行重跑 ⇒ 靠人记、靠每轮人工 grep **必漏**。
-//   本仓 `docs/dev-conventions.md` 头条规定「凡约定，必须配一条会咬人的门」，故落成这道门。
+// **合入后 5 分钟内**主线就回潮 **4 处**（`af13b78` 带进的「（某人：『文字反馈最重要』）」这类写法）。
+// 更要紧的是：这 4 处**连 `#748` 自己都没拦住** —— 那一轮的自查是**人工 `grep`**，作者只在自己
+// rebase **之前**跑过一次，没对新 base 引入的行重跑 → 靠人记、靠每轮人工 grep **必漏**。
+// 本仓 `docs/dev-conventions.md` 头条规定「凡约定，必须配一条会咬人的门」，故落成这道门。
 //
 // 判据（**宁少勿多、零假阳性** —— §2 那 5 处假阳性换来的教训）：
-//   文件命中下列 token（`TOKENS`）· 路径不在豁免面 · 行上没有 `deauth-exempt:` 标记 · 且未登记白名单 ⇒ 红。
+// 文件命中下列 token（`TOKENS`）· 路径不在豁免面 · 行上没有 `deauth-exempt:` 标记 · 且未登记白名单 → 红。
 //
 // 故意**不咬**的边界（逐条都是实测过的假阳性源）：
-//   · 裸 `席`：`一席`/`多席` 是**并发单元**（作业批次写法）；`宴席`/`入席`/`散席`/`席面` 是**故事正文**；
-//   · 流程词 `复核`/`评审`/`走查`：是**活动名**不是归属（台账里的「最近复核」列必须保留）；
-//   · 叙事学词 `作者层`/`作者覆盖`/`作者侧`：**叙述人称**术语，与「谁要求的」无关；
-//   · 单独出现的 `原话`：故事正文有「她的原话你记下了」（`stories/mist-forest/30-ch1.twee`）。
+// · 裸 `席`：`一席`/`多席` 是**并发单元**（作业批次写法）；`宴席`/`入席`/`散席`/`席面` 是**故事正文**；
+// · 流程词 `复核`/`评审`/`走查`：是**活动名**不是归属（台账里的「最近复核」列必须保留）；
+// · 叙事学词 `作者层`/`作者覆盖`/`作者侧`：**叙述人称**术语，与「谁要求的」无关；
+// · 单独出现的 `原话`：故事正文有「她的原话你记下了」（`stories/mist-forest/30-ch1.twee`）。
 //
 // 豁免面（改它们＝篡改记录／日志）：`docs/archive/**`（已作废稿）· `docs/reviews/**`（流程记录）·
-//   `docs/evidence/**`（冻结的取证日志，只能重生成不能改）。三者都在各自 README 里写明。
-//   本门与白名单**自身**跳过（里面就是被匹配的字面量）—— 跳过路径**硬编码两条**并在输出里打印。
-//   单行豁免 `deauth-exempt: <理由＋票号>`：给**文档里讲这条规矩本身**用的（例子必须写出坏写法），
-//   **理由与票号少任一项都不算豁免**，且用到的每一行都在输出里留痕。
+// `docs/evidence/**`（冻结的取证日志，只能重生成不能改）。三者都在各自 README 里写明。
+// 本门与白名单**自身**跳过（里面就是被匹配的字面量）—— 跳过路径**硬编码两条**并在输出里打印。
+// 单行豁免 `deauth-exempt: <理由＋票号>`：给**文档里讲这条规矩本身**用的（例子必须写出坏写法），
+// **理由与票号少任一项都不算豁免**，且用到的每一行都在输出里留痕。
 //
 // 白名单 `test/attribution-allow.json`：键 `<路径>::<token id>`，每条必须 `reason` ＋ `ticket`；
-//   **腐烂即红**（不再命中 ⇒ 报，逼你删）；起始**空** —— 这条口径不需要豁免。
+// **腐烂即红**（不再命中 → 报，逼你删）；起始**空** —— 这条口径不需要豁免。
 //
 // 自证：`node test/attribution-gate.mjs --selftest`
 import { readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { ROOT } from '../scripts/dist-paths.mjs';
-// `#1089`：**未跟踪扫描面 ⇒ 红** 的共用助手（一处定义、三门复用 ✓ —— 不是每门各写一份 ✗）。
+// `#1089`：**未跟踪扫描面 → 红** 的共用助手（一处定义、三门复用 —— 不是每门各写一份）。
 import { untrackedScannedProblems, isUntrackedExemptLine } from '../scripts/lib/untracked-guard.mjs';
 
 /** 归属 token 词表：只收**明确的角色/席位归属**（宁少勿多）。
- *  为什么存**正则源**而不是 RegExp 对象：带 `g` 的 RegExp 有 `lastIndex` 状态，复用会**漏匹配**（静默）。 */
+ * 为什么存**正则源**而不是 RegExp 对象：带 `g` 的 RegExp 有 `lastIndex` 状态，复用会**漏匹配**（静默）。 */
 export const TOKENS = [
 	{ id: '操作者', src: '操作者' },
 	{ id: '复核者', src: '复核者' },
@@ -41,10 +41,10 @@ export const TOKENS = [
 	{ id: '本席', src: '本席' },
 	{ id: '对抗席', src: '对抗席' },
 	{ id: '验收席', src: '验收席' },
-	// ⚠️ **左边界 `(?<![A-Za-z])`** ✗（`#962` ✓）：不加边界 ⇒ **英文词尾字母 ＋ 空格 ＋「席」** 会被当成席位号 ✓
-	//   （实证：`… **锚当前 head 的 APPROVED 席数 = 2** …` ⇒ 命中「D 席」✗ —— `#961` 的 CI 就是这么红的 ✓）。
-	//   边界**只挡「前面还是字母」**✗：`（T 席补的）`／`由 D 席投`／行首 `T 席` 这些**真命中必须仍然咬** ✓；
-	//   `T　席`（全角空格 ✓）与 `T席`（无空格 ✓）也**必须仍咬** ✗（`?` 与字符类已覆盖 ✓）。
+	//注意：**左边界 `(?<![A-Za-z])`**（`#962`）：不加边界 → **英文词尾字母 ＋ 空格 ＋「席」** 会被当成席位号
+	//（实证：`… **锚当前 head 的 APPROVED 席数 = 2** …` → 命中「D 席」 —— `#961` 的 CI 就是这么红的）。
+	// 边界**只挡「前面还是字母」**：`（T 席补的）`／`由 D 席投`／行首 `T 席` 这些**真命中必须仍然咬**；
+	// `T　席`（全角空格）与 `T席`（无空格）也**必须仍咬**（`?` 与字符类已覆盖）。
 	{ id: 'ci-席', src: '(?<![A-Za-z])ci[ \\t\\u3000]?席', flags: 'i' },
 	{ id: '席号', src: '(?<![A-Za-z])[TDCA][ \\t\\u3000]?席' },
 	{ id: '伙伴会话', src: '伙伴会话' },
@@ -70,8 +70,8 @@ export const ALLOW_PATH = 'test/attribution-allow.json';
 
 export const isScanned = (path) => SCAN_EXT.some((e) => path.endsWith(e));
 
-/** `#1028`：每个 token 的**替换建议**（报文直接给可复制的写法 ⇒ 省得每次被咬都要自己想 ✗）。
- *  今晚该门共咬 4 次（`操作者`×2／`本席`×2），每次都要人自己琢磨怎么改 ⇒ 报文应当**自解释**。 */
+/** `#1028`：每个 token 的**替换建议**（报文直接给可复制的写法 → 省得每次被咬都要自己想）。
+ * 今晚该门共咬 4 次（`操作者`×2／`本席`×2），每次都要人自己琢磨怎么改 → 报文应当**自解释**。 */
 export const REPLACEMENT_HINTS = {
 	'操作者': '「实测：…」「依据见下」「口径（含日期，不写谁定的）」',
 	'本席': '「本片实测」「本轮读数」',
@@ -83,10 +83,10 @@ export const REPLACEMENT_HINTS = {
 	'席号': '用**活动名**（评审／复核／验收）或直接写事实，不写 T/D/C/A 席号',
 	'伙伴会话': '写明**该会话／来源**本身（可引票号或评论号）',
 };
-/** 取某 token 的替换建议（**没有专属建议时给通用建议**，不留空 ✗）。 */
+/** 取某 token 的替换建议（**没有专属建议时给通用建议**，不留空）。 */
 export const hintFor = (id) => REPLACEMENT_HINTS[id] ?? '写**依据／理由**（或把席位换成活动名）—— 门要的是「为什么」，不是「谁定的」';
-/** `#1028`：**未跟踪**但落在扫描面里的文件 —— 它们不在 `git ls-files` 里 ⇒ 本门**扫不到**。
- *  ⚠️ 不静默 ✗：主线会把这份清单**打印出来**（含「通过」那一次）⇒ 「没扫」不许表现为「通过」（`#1019` 同族）。 */
+/** `#1028`：**未跟踪**但落在扫描面里的文件 —— 它们不在 `git ls-files` 里 → 本门**扫不到**。
+ *注意：不静默：主线会把这份清单**打印出来**（含「通过」那一次）→「没扫」不许表现为「通过」（`#1019` 同族）。 */
 export const untrackedScanned = (paths = []) => paths.filter((x) => isScanned(x) && !isExempt(x));
 
 export const isExempt = (path) => EXEMPT_DIRS.some((d) => String(path).startsWith(d)) || SELF_SKIP.includes(path);
@@ -104,7 +104,7 @@ export const scanText = (text) => {
 };
 
 /** 纯函数：某一行是否带**有用的**单行豁免：`deauth-exempt:` ＋ 非空理由 ＋ **可追溯的票号 `#NNN`**
- *  （与 `scripts/audit/engine-story-allow.json` 的「理由带票号」同口径）—— 少了任一项都不算豁免。 */
+ *（与 `scripts/audit/engine-story-allow.json` 的「理由带票号」同口径）—— 少了任一项都不算豁免。 */
 export const lineExempted = (line) => {
 	const i = String(line).indexOf(EXEMPT_MARKER);
 	if (i === -1) return false;
@@ -112,11 +112,11 @@ export const lineExempted = (line) => {
 	return reason.trim().length > 0 && /#\d+/.test(reason);
 };
 
-/** 纯函数：判定。`files` = `[{ path, text }]`（**已按扫描面/豁免面过滤** —— 便于自证与注入式判据）。
- *  返回 `{ findings, stale, exemptedLines, scanned }`：
- *    findings — 命中且未登记白名单（红）；stale — 白名单条目已不再命中（**腐烂**，也红）；
- *    exemptedLines — 用了单行豁免的行（**留痕**，反沉默）；scanned — 实际扫过的文件数
- *    （为 0 ⇒ 由调用方判红：`#557` 口径「读不到输入 ≠ 没命中」）。 */
+/** 纯函数：判定。`files` = `[{ path, text}]`（**已按扫描面/豁免面过滤** —— 便于自证与注入式判据）。
+ * 返回 `{ findings, stale, exemptedLines, scanned}`：
+ * findings — 命中且未登记白名单（红）；stale — 白名单条目已不再命中（**腐烂**，也红）；
+ * exemptedLines — 用了单行豁免的行（**留痕**，反沉默）；scanned — 实际扫过的文件数
+ *（为 0 → 由调用方判红：`#557` 口径「读不到输入 ≠ 没命中」）。 */
 export const judge = (files, allow = {}) => {
 	const findings = []; const seen = new Set(); const exemptedLines = [];
 	for (const f of files) {
@@ -145,7 +145,7 @@ const selftest = () => {
 	const F = (path, text) => [{ path, text }];
 	// ── 反例：三类归属各一条（真会红） ──
 	t('反例①：括号式裁定 ⇒ 命中', judge(F('a.md', '（操作者裁定：X）'), {}).findings.length === 1);
-	// `#1028`：报文必须**自带替换建议**（否则每次被咬都要人自己想怎么改 ✗）
+	// `#1028`：报文必须**自带替换建议**（否则每次被咬都要人自己想怎么改）
 	t('`#1028` 反例：**解释性引用**（转述原句）同样命中 ⇒ 不许当豁免', judge(F('a.md', '这段按操作者的原话说：…'), {}).findings.length === 1);
 	t('`#1028` 报文：每类 token 都给**可复制的替换建议**', hintFor('操作者').includes('实测') && hintFor('本席').includes('本片') && hintFor('席号').includes('活动名') && hintFor('未知x').length > 0);
 	t('`#1028` 未跟踪清单：只收「扫描面 ∩ 非豁免」', untrackedScanned(['a.md', 'b.png', 'docs/archive/c.md', 'test/attribution-gate.mjs', 'd.mjs']).join(',') === 'a.md,d.mjs');
@@ -162,7 +162,7 @@ const selftest = () => {
 	t('正例③：故事正文 `宴席`／`入席`／`席面` 不咬', judge(F('a.twee', '那顿饭没人撤／没散的席面／送星宴已开席'), {}).findings.length === 0);
 	t('正例④：叙事学词 `作者层`／`作者覆盖` 不咬', judge(F('a.md', '作者层解密；作者覆盖优先'), {}).findings.length === 0);
 	t('正例⑤：单独 `原话` 不咬（故事正文有它）', judge(F('a.twee', '她的原话你记下了'), {}).findings.length === 0);
-	// `#962`：**席位号的左边界** ✗ —— 三条正例（真命中不许松）＋ 两条反例（假阳要收）＋ 三条「别误伤」✓
+	// `#962`：**席位号的左边界** —— 三条正例（真命中不许松）＋ 两条反例（假阳要收）＋ 三条「别误伤」
 	t('正例⑥：`（T 席补的）` 括号紧邻 ⇒ **仍咬** ✗（真命中不许松）', judge(F('a.md', '// 纪律（T 席在 #441 上补的）'), {}).findings.length === 1);
 	t('正例⑦：`由 D 席投` 句中 ⇒ **仍咬** ✗', judge(F('a.md', '// 由 D 席投的票'), {}).findings.length === 1);
 	t('正例⑧：**行首** `T 席…` ⇒ **仍咬** ✗', judge(F('a.md', 'T 席：这条我来'), {}).findings.length === 1);
@@ -199,12 +199,12 @@ const { findings, stale, exemptedLines, scanned } = judge(files, allow);
 
 const untracked = untrackedScanned(execFileSync('git', ['ls-files', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean));
 console.log(`══ 去权威化口径门（#752／#748）══  扫描 ${scanned} 个已跟踪文件（${SCAN_EXT.join(' ')}）`);
-// `#1028`：本门**只扫已跟踪文件** ⇒ 未跟踪的新件是「扫不到的」✗ ⇒ **必须显式打印**（否则 `git add` 之前跑＝假绿）
+// `#1028`：本门**只扫已跟踪文件** → 未跟踪的新件是「扫不到的」 → **必须显式打印**（否则 `git add` 之前跑＝假绿）
 if (untracked.length) console.log(`  ⚠️ 本次未扫（未跟踪 ${untracked.length} 件）⇒ 先 \`git add\` 再跑本门，否则是**假绿**：${untracked.slice(0, 8).join('、')}${untracked.length > 8 ? ' …' : ''}`);
-// `#1089`（裁定乙′ ✓）：**未跟踪且落在扫描面 ⇒ 红** ✗ —— 此前只 `console.log` ⇒ **退出码上不存在** ⇒ 假绿 ✓。
-//   豁免：件内任意一行写 `untracked-exempt: <理由 ＋ 票号>`（**理由与票号缺任一项不生效** ✓）＋ **必须留痕** ✓。
+// `#1089`（裁定乙′）：**未跟踪且落在扫描面 → 红** —— 此前只 `console.log` → **退出码上不存在** → 假绿。
+// 豁免：件内任意一行写 `untracked-exempt: <理由 ＋ 票号>`（**理由与票号缺任一项不生效**）＋ **必须留痕**。
 const untrackedExempted = untracked.filter((p2) => {
-	try { return readFileSync(join(ROOT, p2), 'utf8').split('\n').some(isUntrackedExemptLine); } catch { return false; }   // 读不到 ⇒ 不当豁免（保守 ✓）
+	try { return readFileSync(join(ROOT, p2), 'utf8').split('\n').some(isUntrackedExemptLine); } catch { return false; }   // 读不到 → 不当豁免（保守）
 });
 if (untrackedExempted.length) console.log(`  · 留痕：未跟踪但**已豁免** ${untrackedExempted.length} 件（带 \`untracked-exempt:\` 标记 ✓）：${untrackedExempted.join('、')}`);
 const untrackedGuard = untrackedScannedProblems({ untracked, isScanned, exempted: untrackedExempted });
@@ -214,7 +214,7 @@ for (const e of exemptedLines) console.log(`  · 留痕：${e.path}:${e.line}「
 
 const fail = [];
 if (scanned === 0) fail.push('✗ 扫描面为空 —— `git ls-files` 读不到输入（#557 口径：读不到输入不许当「没命中」）');
-for (const m of untrackedGuard.problems) fail.push(m);   // `#1089`：未跟踪 ⇒ 红（不再只提醒 ✓）
+for (const m of untrackedGuard.problems) fail.push(m);   // `#1089`：未跟踪 → 红（不再只提醒）
 for (const k of missingMeta) fail.push(`✗ 白名单 ${k} 缺 reason 或 ticket —— 豁免必须写明理由与票号`);
 for (const f of findings) fail.push(`✗ ${f.path}:${f.line}「${f.token}」（token=${f.id}）—— 去权威化口径：写**理由**，别写「谁定的」（**解释性引用也一样** —— 引原句、写「谁定的」都要改写或行内标 deauth-exempt ✗）`
 	+ `\n       ⇒ 试改成：${hintFor(f.id)}`);

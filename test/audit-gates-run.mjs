@@ -1,14 +1,14 @@
-// `#572`：**「选中 ⇒ 真跑」门** —— 门被选中了却一行不输出，是本仓最难发现的一类假绿。
+// `#572`：**「选中 → 真跑」门** —— 门被选中了却一行不输出，是本仓最难发现的一类假绿。
 //
 // 背景（本票实测）：`scripts/audit.mjs` 的 `selected` 决定**调用谁**，而每道门的 `run()` 开头还有一道
-// `if (!wantAll && !arg('<自己的flag>')) return;`。`createContext` 里 `wantAll = !argv.some(a => a.startsWith('--'))`
-// ⇒ 只给 `--engine-only --check` 时九道引擎门里**只有不带守卫的 `state`／`literals` 真跑**，其余七道逐个早退，
-// 而计划里那两段却把它当成「四道引擎门对第二/第三故事绿」的证据 ⇒ 假绿（`#557` 同族）。
+// `if (!wantAll &&!arg('<自己的flag>')) return;`。`createContext` 里 `wantAll =!argv.some(a => a.startsWith('--'))`
+// → 只给 `--engine-only --check` 时九道引擎门里**只有不带守卫的 `state`／`literals` 真跑**，其余七道逐个早退，
+// 而计划里那两段却把它当成「四道引擎门对第二/第三故事绿」的证据 → 假绿（`#557` 同族）。
 //
 // 本文件两件事：
-//   ① 自证：`runSelectedGates()`（跑门并记录「有没有输出过」）的正反例 + 边界；
-//   ② 回归：**默认故事**跑 `--engine-only --check` ⇒ 必须真的跑满 9 门并在末行报「选中 N 门 · 实跑 N 门」
-//      （修前那条汇总行根本不会出现 ⇒ 本用例就是它的红证）。
+// ① 自证：`runSelectedGates()`（跑门并记录「有没有输出过」）的正反例 + 边界；
+// ② 回归：**默认故事**跑 `--engine-only --check` → 必须真的跑满 9 门并在末行报「选中 N 门 · 实跑 N 门」
+//（修前那条汇总行根本不会出现 → 本用例就是它的红证）。
 import { spawnSync } from 'node:child_process';
 import { runSelectedGates } from '../scripts/audit/lib/shared.mjs';
 import { AUDIT_ENGINE } from '../scripts/test-plan.mjs';

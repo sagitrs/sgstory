@@ -5,15 +5,15 @@
 // 迁移前后各跑一遍，**逐字节相同**才算"平衡没变"。
 //
 // 口径（读之前先看这三条，否则会误读）：
-//   · **种子＋策略固定**：`boot({ random })` 注入固定 PRNG（`mulberry32`，`--seed=` 可换）；每轮固定取
-//     `offer` 的第 0 张（`policy=first`）或"优先取带优势的那张"（`policy=adv`）——都**与判定结果无关**，
-//     否则"策略随结果变"会把序列对照变成自证；
-//   · **场景固定**：故事 1 的封印战直接 `Engine.play('封印·并肩')` 起手（不给全套通关），并显式播种
-//     `hp/inv/dragon/keeper`（与 `test/combat-adv.mjs` 同一套种子状态 ⇒ 两条门看的是同一场仗）；
-//   · **比对的是"这一手发生了什么"**：`{round, act, roll, total, success, kind, dmg, hurt, adv, skipFoe, hp}`——
-//     对手那一半算在 `hurt`／`skipFoe` 里，够抓"掷骰序/减伤序"的漂移。
+// · **种子＋策略固定**：`boot({ random})` 注入固定 PRNG（`mulberry32`，`--seed=` 可换）；每轮固定取
+// `offer` 的第 0 张（`policy=first`）或"优先取带优势的那张"（`policy=adv`）——都**与判定结果无关**，
+// 否则"策略随结果变"会把序列对照变成自证；
+// · **场景固定**：故事 1 的封印战直接 `Engine.play('封印·并肩')` 起手（不给全套通关），并显式播种
+// `hp/inv/dragon/keeper`（与 `test/combat-adv.mjs` 同一套种子状态 → 两条门看的是同一场仗）；
+// · **比对的是"这一手发生了什么"**：`{round, act, roll, total, success, kind, dmg, hurt, adv, skipFoe, hp}`——
+// 对手那一半算在 `hurt`／`skipFoe` 里，够抓"掷骰序/减伤序"的漂移。
 //
-// 自证：`node test/fight-seq.mjs --selftest`（比对函数必须咬得住：改一个数字 ⇒ 点名步号与字段）
+// 自证：`node test/fight-seq.mjs --selftest`（比对函数必须咬得住：改一个数字 → 点名步号与字段）
 // 基线：`node test/fight-seq.mjs --update`（**只在有意改行为时**跑；PR 里必须逐条归因）
 // 确定性：本门每次跑都会**连跑两遍**并断言两遍逐字节相同（抓"序列里混进了非确定源"这类隐患）。
 
@@ -22,7 +22,7 @@ import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 
 const BASE = 'test/fight-seq-baseline.json';
 
-/** 固定 PRNG（mulberry32）：同种子 ⇒ 同序列。**不依赖 `Math.random`**（sim 有"不得直调"的门）。 */
+/** 固定 PRNG（mulberry32）：同种子 → 同序列。**不依赖 `Math.random`**（sim 有"不得直调"的门）。 */
 export const mulberry32 = (a) => () => {
 	a |= 0; a = (a + 0x6D2B79F5) | 0;
 	let t = Math.imul(a ^ (a >>> 15), 1 | a);
@@ -38,7 +38,7 @@ export const canon = (steps) => JSON.stringify(steps.map((s) => ({
 	checks: s.checks ?? [],
 })));
 
-/** 逐字节比对 ⇒ 第一处不同（步号＋字段）。相同 ⇒ `null`。 */
+/** 逐字节比对 → 第一处不同（步号＋字段）。相同 → `null`。 */
 export const firstDiff = (base, now) => {
 	if (base === now) return null;
 	let b, n;
@@ -77,7 +77,7 @@ const SEED = Number(arg('seed', 20260915));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** 跑一个场景：**同种子、同播种、同策略**。返回该场景的步骤序列。
- *  `sc.inv` 明确列出该场景的道具（不靠上一局残留）——`月光花` 那一支走的是引擎里的“备药优先自动选牌”。 */
+ * `sc.inv` 明确列出该场景的道具（不靠上一局残留）——`月光花` 那一支走的是引擎里的“备药优先自动选牌”。 */
 const runScenario = async ({ passage, policy, inv = ['好哨'], label = null, maxSteps = 8 }) => {
 	const key = `${passage}／${label ?? policy}`;
 	const { w, settle } = await boot({ random: mulberry32(SEED) });
@@ -89,8 +89,8 @@ const runScenario = async ({ passage, policy, inv = ['好哨'], label = null, ma
 		+ 'pc.keeper={state:"ally"};pc.dragon={hp:Game.Dragon.hp,awake:true,defeats:0};pc.ev.failure_cause=true;})()');
 	w.SugarCube.Engine.play(passage);
 	await settle(); await sleep(200);
-	// **掷骰序记录器**（票面判据 2 的要害）：包一层 `Game.Combat` 用的检定入口 ⇒ 每一步里发生的**每一次**检定
-	// （玩家的与对手的）都按发生顺序记下来。为什么必须在 `Checks.resolve` 这一层：`fight.log.you` 不带骰面，
+	// **掷骰序记录器**（票面判据 2 的要害）：包一层 `Game.Combat` 用的检定入口 → 每一步里发生的**每一次**检定
+	//（玩家的与对手的）都按发生顺序记下来。为什么必须在 `Checks.resolve` 这一层：`fight.log.you` 不带骰面，
 	// `$last_check` 只留**最后一次**——两者都抓不到"一次点击里的掷骰序"。
 	w.eval('(function(){ if (!window.__rec) { const orig = Game.Checks.resolve.bind(Game.Checks); window.__checks = [];'
 		+ ' Game.Checks.resolve = function (...a) { const r = orig(...a);'
@@ -134,8 +134,8 @@ const runScenario = async ({ passage, policy, inv = ['好哨'], label = null, ma
 const SCENARIOS = [
 	{ passage: '封印·并肩', policy: 'first', inv: ['好哨'] },
 	{ passage: '封印·并肩', policy: 'adv', inv: ['好哨'] },
-	// 覆盖面：引擎里有一条“备药优先”的**自动选牌**（手上有 `月光花`＋首轮＋未涂毒 ⇒ 换掉最后一张）
-	// ⇒ 不给它一个场景，那段代码改坏了本门也看不见（`#441` 交叉验证抽到的就是这类“覆盖”洞）。
+	// 覆盖面：引擎里有一条“备药优先”的**自动选牌**（手上有 `月光花`＋首轮＋未涂毒 → 换掉最后一张）
+	// → 不给它一个场景，那段代码改坏了本门也看不见（`#441` 交叉验证抽到的就是这类“覆盖”洞）。
 	{ passage: '封印·并肩', policy: 'first', inv: ['好哨', '月光花'], label: '备药优先支' },
 ];
 

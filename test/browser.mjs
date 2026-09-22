@@ -4,16 +4,16 @@ import { defaultStoryHtml, storyRelPath, storyHtml, FONT_PREFIX_FROM_STORY } fro
 //
 // 为什么不用 puppeteer/playwright：本仓只需「导航 + 求值 + 截图 + 视口」四件事，
 // CDP 直连足够，且不新增 devDependency。浏览器用已装好的 Chrome for Testing：
-//   CHROME_PATH=/path/to/chrome  （默认扫描 ~/.cache/puppeteer/chrome/*/chrome-linux64/chrome）
+// CHROME_PATH=/path/to/chrome（默认扫描 ~/.cache/puppeteer/chrome/*/chrome-linux64/chrome）
 // 缺系统库时（容器常见）用 scripts/chrome-deps.sh 免 root 就地解包后：
-//   LD_LIBRARY_PATH=<deps>/usr/lib/x86_64-linux-gnu node test/browser.mjs
+// LD_LIBRARY_PATH=<deps>/usr/lib/x86_64-linux-gnu node test/browser.mjs
 //
 // 覆盖（伞票验收条 3/8 + 条 4/7 的真机复核）：场景 × 关键状态 × 操作前后 × 视口
-//   ① 战斗首屏：行动入口在视口内，首屏无近整屏空白
-//   ② 战斗回合：检定→你→它→下一轮 相邻成块（块间距阈值）
-//   ③ 门厅：观察结果留在屏上且可见（结果留屏真机复核）
-//   ④ 守林人：子对话返回＝短入口＋行动区在视口内（不重放介绍）
-//   ⑤ 视口矩阵 360×667 / 390×844 / 1280×844：无横向溢出；放大文字（200%）仍无溢出
+// ① 战斗首屏：行动入口在视口内，首屏无近整屏空白
+// ② 战斗回合：检定→你→它→下一轮 相邻成块（块间距阈值）
+// ③ 门厅：观察结果留在屏上且可见（结果留屏真机复核）
+// ④ 守林人：子对话返回＝短入口＋行动区在视口内（不重放介绍）
+// ⑤ 视口矩阵 360×667 / 390×844 / 1280×844：无横向溢出；放大文字（200%）仍无溢出
 //
 // 退出码：断言失败＝1；缺浏览器/依赖＝0 并打印跳过原因（CI 友好）。
 import { spawn, spawnSync } from 'node:child_process';
@@ -53,17 +53,17 @@ if (LIBS) childEnv.LD_LIBRARY_PATH = process.env.LD_LIBRARY_PATH ? `${LIBS}:${pr
 // 为什么放在脚本里：CI 里「未找到 Chrome → 打印 skipped → **exit 0**」正是 #363/#385 那类**静默降级**
 // ——绿灯看着有验收，其实一行断言都没跑。此前每个调用方各自内联 grep 守卫（`viewport-smoke.yml` 有、
 // `ci.yml` 曾漏），既重复又会漏。现在把契约下沉：
-//   `CI_REQUIRE_BROWSER=1` ⇒ **跳过即失败**（脚本唯一的真源；调用方只需给这个环境变量）
-//   `MIN_ASSERTIONS`       ⇒ 断言数**下界自 ratchet**：跟着脚本里的断言数走，删除断言即红
-//     （换成 workflow 里的魔数就会腐烂：原来写死 `N -ge 24`，而实际早已 38 —— 删 14 条断言也照样放行）
+// `CI_REQUIRE_BROWSER=1` → **跳过即失败**（脚本唯一的真源；调用方只需给这个环境变量）
+// `MIN_ASSERTIONS` → 断言数**下界自 ratchet**：跟着脚本里的断言数走，删除断言即红
+//（换成 workflow 里的魔数就会腐烂：原来写死 `N -ge 24`，而实际早已 38 —— 删 14 条断言也照样放行）
 export const REQUIRE_BROWSER = process.env.CI_REQUIRE_BROWSER === '1';
-// ⚠️ `#1004` B2b 复核席**下调**：59 ⇒ 56（**写明理由** ✓，这条门本来就允许"同步下调并写明理由" ✓）。
-//   理由 ✓：下界当初有一部分是「**故事 2（`hollow-cave`）三视口 +15**」撑起来的（`#491` 判据 5 ✓）；
-//   该故事已随 B 段删除 ✓ ⇒ 本件那一块按**裁定 A** 重指到同样**无车卡**的冒烟故事 `minimal-demo` ✓
-//   （它的多选一段比旧的故事 2 少一条 ⇒ 这一块从 15 格降到 12 格 ✓）⇒ **实测总数 56** ✓。
-//   ⛔ 这不是"删断言凑绿" ✗：**没有任何一格是被删掉的** ✓ —— 少的是"旧故事特有的那一页"，
-//   且它换掉的那一面（无车卡最小面／多选一可点／200% 不溢出 ✓）**逐条仍在** ✓。
-export const MIN_ASSERTIONS = 58;   // `#1012`（2026-09-19）：+1＝新增「导航型交互」断言 ✓、+1＝原先 xfail 的「焦点回收正文」**转正** ✓ ⇒ 只涨 ✓
+//注意：`#1004` B2b 复核席**下调**：59 → 56（**写明理由**，这条门本来就允许"同步下调并写明理由"）。
+// 理由：下界当初有一部分是「**故事 2（`hollow-cave`）三视口 +15**」撑起来的（`#491` 判据 5）；
+// 该故事已随 B 段删除 → 本件那一块按**裁定 A** 重指到同样**无车卡**的冒烟故事 `minimal-demo`
+//（它的多选一段比旧的故事 2 少一条 → 这一块从 15 格降到 12 格）→ **实测总数 56**。
+// ⛔ 这不是"删断言凑绿"：**没有任何一格是被删掉的** —— 少的是"旧故事特有的那一页"，
+// 且它换掉的那一面（无车卡最小面／多选一可点／200% 不溢出）**逐条仍在**。
+export const MIN_ASSERTIONS = 58;   // `#1012`（2026-09-19）：+1＝新增「导航型交互」断言、+1＝原先 xfail 的「焦点回收正文」**转正** → 只涨
 
 // 跳过时该退什么码（纯函数，便于自证）
 export const skipVerdict = (requireBrowser) => (requireBrowser
@@ -224,9 +224,9 @@ const setViewport = async (w, h) => {
 const loadFresh = async (story = null) => {
 	// 每次重载前清掉自动存档：视口之间不串状态（否则上一轮的旗标/血量会污染判定）
 	await ev('try{localStorage.clear()}catch(e){}');
-	// #441 β2：根路径 `index.html` 已是**书架页** ⇒ 必须按 storyRelPath() 进故事页。
+	// #441 β2：根路径 `index.html` 已是**书架页** → 必须按 storyRelPath() 进故事页。
 	// 这里加一道守卫：万一又跑到别的产物上，**立即 bail**而不是让后面 38 条断言"合理地"全红
-	// （那类失败看起来像布局回归，实际是"测试跑错了产物"——本仓最贵的一种假红）。
+	//（那类失败看起来像布局回归，实际是"测试跑错了产物"——本仓最贵的一种假红）。
 	await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/${storyRelPath(story ?? undefined)}` });
 	for (let i = 0; i < 40; i++) {
 		await sleep(250);
@@ -235,7 +235,7 @@ const loadFresh = async (story = null) => {
 	}
 	// #441 β2 守卫（放在就绪等待**之后**：navigate 后立刻查会误报——页面还没解析完）：
 	// 万一又跑到书架页/别的产物上，**立即 bail**，而不是让后面 38 条断言"合理地"全红
-	// （那类失败看起来像布局回归，实际是"测试跑错了产物"——本仓最贵的一种假红）。
+	//（那类失败看起来像布局回归，实际是"测试跑错了产物"——本仓最贵的一种假红）。
 	{
 		const ok = await ev('!!document.getElementById("font-face") && !!document.getElementById("passages")');
 		if (!ok) bail(`导航到的不是故事页（期望 ${storyRelPath(story ?? undefined)}）——是不是又跑到书架页/别的产物上了？`);
@@ -292,8 +292,8 @@ const pressKey = async (key, code, vk) => {
 const TAB = () => pressKey('Tab', 'Tab', 9);
 // `#1004` B2b 复核席实测修正（2026-09-19）：原与 TAB 共用 `rawKeyDown` —— CDP 下 `rawKeyDown`+`keyUp`
 // **不产生默认动作**：对 `<a>` 打 Enter 后 `State.passage` 不变、`activeElement` 仍停在原链接
-//（而真 `click()` 会导航/出反馈 ⇒ 证明是**投递方式**不对、不是链接不响应）。
-// ⇒ Enter 改投带 `text` 的 `keyDown`（CDP 语义：带 `text` 才触发默认动作），本条断言自此才有判别力。
+//（而真 `click()` 会导航/出反馈 → 证明是**投递方式**不对、不是链接不响应）。
+// → Enter 改投带 `text` 的 `keyDown`（CDP 语义：带 `text` 才触发默认动作），本条断言自此才有判别力。
 const ENTER = async () => {
 	const base = { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, text: '\r', unmodifiedText: '\r' };
 	await send('Input.dispatchKeyEvent', { type: 'keyDown', ...base });
@@ -318,11 +318,11 @@ async function keyboardCase(W, H) {
 	await loadFresh();
 	await ev(HELPERS);
 	// `#1004` B2b 按裁定 A 重指: 键盘序列测的是「行动区可 Tab 抵达」这一**机制**（与故事内容无关），
-	// 旧写法从 `门厅` 进（那段的行动区是旧故事专用的 `#hall-act`）⇒ 改从夹具进。
+	// 旧写法从 `门厅` 进（那段的行动区是旧故事专用的 `#hall-act`）→ 改从夹具进。
 	// 2026-09-19 复测后改定 `女巫小屋`（`70f4045` 撤回 `门厅·看钉` 那行夹具后重选）：
-	// 夹具里行动区内的宏链接**全是自环/只出面板**（读数：`酒馆` 话题链接点击后 `passage` 不变且无反馈 ✗；
-	// `女巫小屋`「从炉火边拿起那件东西」/ `书房`「把案上那本日记收起来」⇒ **反馈由无到有** ✓）；
-	// `女巫小屋` 行动区最大（16 条）⇒ Tab 面与取件面都最稳 ✓。
+	// 夹具里行动区内的宏链接**全是自环/只出面板**（读数：`酒馆` 话题链接点击后 `passage` 不变且无反馈；
+	// `女巫小屋`「从炉火边拿起那件东西」/ `书房`「把案上那本日记收起来」→ **反馈由无到有**）；
+	// `女巫小屋` 行动区最大（16 条）→ Tab 面与取件面都最稳。
 	await enter('女巫小屋', `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{};`);
 	const vp = `${W}x${H}`;
 
@@ -353,13 +353,13 @@ async function keyboardCase(W, H) {
 	check(seq.some((f) => f.inActs), `${vp} 键盘：Tab 能抵达行动区控件`);
 
 	// 键盘触发一次真实交互：把焦点放到**行动区里第一个可聚焦链接**再 Enter
-	// #1004 B2b 按裁定 A 重指: 原写法钉着旧故事的文案（「先看清钉子是怎么卡的」）⇒ 换成
+	// #1004 B2b 按裁定 A 重指: 原写法钉着旧故事的文案（「先看清钉子是怎么卡的」）→ 换成
 	// 与故事无关的取法（行动区/正文里第一个可聚焦链接）—— 测的仍是「Enter 能触发交互 ＋ 焦点回收」这一机制。
 	// `#1004` B2b 裁定（2026-09-19 option 3）：谓词须**两条同时成立** ——
-	//   ① 落在引擎包过的行动区里（`closest('.scene-acts')`）；② 是 `<<link>>` 宏链接（`macro-link`）。
-	// 实测依据 ✗：原写法 `querySelectorAll('.scene-acts a, #passages a.link-internal')` 返的是**文档序并集**，
+	// ① 落在引擎包过的行动区里（`closest('.scene-acts')`）；② 是 `<<link>>` 宏链接（`macro-link`）。
+	// 实测依据：原写法 `querySelectorAll('.scene-acts a, #passages a.link-internal')` 返的是**文档序并集**，
 	// `酒馆` 里 `pool[0]` 是裸 `[[森林边缘]]`（不在行动区）；而**只加** `closest` 谓词仍不够 ——
-	// `酒馆` 的行动区首位是裸 `[[就地了结这一趟]]`（无 `macro-link`）⇒ 仍会选到**不响应**的裸链接 ✗。
+	// `酒馆` 的行动区首位是裸 `[[就地了结这一趟]]`（无 `macro-link`）→ 仍会选到**不响应**的裸链接。
 	const FB_PROBE = `(function(){
 		const slot = document.querySelector('#passages .action-feedback, #passages .scene-feedback, #passages .check-result');
 		const echo = [...document.querySelectorAll('#passages *')].find(e => e.children.length === 0 &&
@@ -380,24 +380,24 @@ async function keyboardCase(W, H) {
 		await ENTER();
 		await sleep(800);
 		const after = await ev(FB_PROBE);
-		// ── 半 (i)：`Enter` ⇒ **交互真被激活** —— 本片裁定后**真守护** ✓ ─────────────────────
+		// ── 半 (i)：`Enter` → **交互真被激活** —— 本片裁定后**真守护** ─────────────────────
 		// 可观察面二选一：· `passage` 变化 ／ · 反馈节点**由无到有**（`!before.hasFb && after.hasFb`）。
-		// ⚠️ `70f4045` 撤回那行夹具后，夹具里**没有**会导航的行动区宏链接 ⇒ 只能取「反馈由无到有」这一支
-		//   （读数：`酒馆` 话题链接两支皆否 ✗；`女巫小屋`「从炉火边拿起那件东西」后者成立 ✓）。
-		// ⚠️ 必须带 `before` 读数：`门厅·看钉` 那类段的**渲染期** `<<sitecheck>>` 会预置 `check-result`，
-		//   只判 `after.hasFb` 会在**未按键时**即为真 ⇒ 无判别力（本片实测过的假绿，勿回退）。
+		//注意：`70f4045` 撤回那行夹具后，夹具里**没有**会导航的行动区宏链接 → 只能取「反馈由无到有」这一支
+		//（读数：`酒馆` 话题链接两支皆否；`女巫小屋`「从炉火边拿起那件东西」后者成立）。
+		//注意：必须带 `before` 读数：`门厅·看钉` 那类段的**渲染期** `<<sitecheck>>` 会预置 `check-result`，
+		// 只判 `after.hasFb` 会在**未按键时**即为真 → 无判别力（本片实测过的假绿，勿回退）。
 		const activated = after.passage !== before.passage || (!before.hasFb && after.hasFb);
 		check(activated,
 			`${vp} 键盘：Enter ⇒ 交互真被激活（passage ${before.passage}→${after.passage} · 反馈 ${before.hasFb}→${after.hasFb}${after.hasFb ? `〔${after.cls}〕` : ''}）`);
-		// ── 半 (ii)：焦点回收正文 —— `#1012` 修好后**转正** ✓（用**导航型**样本 ✗）───────────
-		// ⚠️ 这半**此前从未守护** ✗：旧写法 `rawKeyDown` 从不触发默认动作 ⇒ 交互根本没发生，
-		//   `activeElement` 自然还停在原链接上 ⇒ 旧绿是**虚的**（借「按键前就为真的结果在屏」站的）。
-		// ⚠️ 必须用**导航型**样本 ✗：`女巫小屋` 那类**非导航型**（就地反馈）按键前后焦点都在 `#passages` 内
-		//   ⇒ `focusInside` 两向皆真 ⇒ **无判别力** ✓（写成 `check(after.focusInside)` 就是又一个假绿 ✗）。
-		// 判据照 `docs/dev-conventions.md` §6 ✗：契约＝「**焦点仍在 `#passages` 内**」✓ —— **不绑元素** ✗
-		//   （落 `.passage`／`.scene-acts`／反馈槽 都算过 ✓ —— 那一层是**实现路径** ✓）。
-		// ⚠️ 两向读数（2026-09-19 实测 ✗）：引擎侧那一手**禁用** ⇒ `focusInside=false`（落 `body` ✓
-		//   ＝本格真会红 ✓）；**启用** ⇒ `DIV.passage` ✓ ⇒ 本格**有判别力** ✓。
+		// ── 半 (ii)：焦点回收正文 —— `#1012` 修好后**转正**（用**导航型**样本）───────────
+		//注意：这半**此前从未守护**：旧写法 `rawKeyDown` 从不触发默认动作 → 交互根本没发生，
+		// `activeElement` 自然还停在原链接上 → 旧绿是**虚的**（借「按键前就为真的结果在屏」站的）。
+		//注意：必须用**导航型**样本：`女巫小屋` 那类**非导航型**（就地反馈）按键前后焦点都在 `#passages` 内
+		// → `focusInside` 两向皆真 → **无判别力**（写成 `check(after.focusInside)` 就是又一个假绿）。
+		// 判据照 `docs/dev-conventions.md` §6：契约＝「**焦点仍在 `#passages` 内**」 —— **不绑元素**
+		//（落 `.passage`／`.scene-acts`／反馈槽 都算过 —— 那一层是**实现路径**）。
+		//注意：两向读数（2026-09-19 实测）：引擎侧那一手**禁用** → `focusInside=false`（落 `body`
+		// ＝本格真会红）；**启用** → `DIV.passage` → 本格**有判别力**。
 		const navTarget = await ev(`(function(){
 			window.__sg.play('酒馆');
 			const cur = '酒馆';
@@ -413,8 +413,8 @@ async function keyboardCase(W, H) {
 			await ENTER();
 			await sleep(800);
 			const navAfter = await ev(FB_PROBE);
-			// 两半都要能假 ✓：① **真导航**（`passage` 到目标 ✓ —— 否则就不是"导航型"样本了 ✗）；
-			//   ② **焦点仍在正文内** ✓（§6 的契约 ✓）。
+			// 两半都要能假：① **真导航**（`passage` 到目标 —— 否则就不是"导航型"样本了）；
+			// ② **焦点仍在正文内**（§6 的契约）。
 			check(navAfter.passage === navTarget.target,
 				`${vp} 键盘：Enter ⇒ **导航型**交互真发生（${navBefore.passage}→${navAfter.passage}，目标「${navTarget.label}」⇒ ${navTarget.target}）`);
 			check(navAfter.focusInside,
@@ -445,8 +445,8 @@ for (const [W, H] of VP) {
 
 	// ① 战斗首屏：行动入口在视口内 + 首屏空白
 	await ev(HELPERS);
-	// `#1004` B2b 复核席按**裁定 A** 重指 ✓（面级 ⇒ 重指到有该面的样本 ✗）：旧名 `雾之魔物·战` 是**已删故事**的战斗段 ✗
-	// ⇒ 换到面夹具的战斗段 `洞穴·战斗` ✓（`<<fightbegin "雾影">>` ＋ `<<fightpanel "…" false>>` ✓，战斗面满配 ✓）。
+	// `#1004` B2b 复核席按**裁定 A** 重指（面级 → 重指到有该面的样本）：旧名 `雾之魔物·战` 是**已删故事**的战斗段
+	// → 换到面夹具的战斗段 `洞穴·战斗`（`<<fightbegin "雾影">>` ＋ `<<fightpanel "…" false>>`，战斗面满配）。
 	await enter('洞穴·战斗', `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; delete pc.ev.fight; pc.hp=pc.max_hp;`);
 	{
 		const acts = await ev('window.__sg.rect(".fight-acts a")');
@@ -480,7 +480,7 @@ for (const [W, H] of VP) {
 	await ev(HELPERS);
 	await enter('门厅', `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; delete pc.inv['坏哨']; delete pc.world.whistle_taken;   // #1004 B2b: 夹具的场地旗标是 world.whistle_taken（旧写的 ev.hall_seen 是旧故事的）`);
 	{
-		// `#1004` B2b ✓：入口按夹具改准 ✗（夹具 `门厅` 的观察入口叫 `看钉` ✓；`先看清钉子是怎么卡的` 是旧故事的文案 ✓）
+		// `#1004` B2b：入口按夹具改准（夹具 `门厅` 的观察入口叫 `看钉`；`先看清钉子是怎么卡的` 是旧故事的文案）
 		const clk = await ev('window.__sg.click("看钉")');
 		await sleep(900);
 		if (!clk?.ok) console.log(`   （门厅点击未命中：${JSON.stringify(clk)} passage=${await ev('SugarCube.State.passage')}）`);
@@ -503,13 +503,13 @@ for (const [W, H] of VP) {
 	await ev(HELPERS);
 	await enter('守林人', `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; pc.keeper=pc.keeper||{}; pc.keeper.met=true;`);
 	{
-		// ⛔ **退役 ＋ 声明**（`#1004` B2b ✓，按裁定 A 的"剧情级"半边 ✗）：原两格
-		//   「**不重放首遇介绍**」（认台词「我就是守林人」✓）与「**子对话返回** ⇒ 行动区在视口内」
-		//   （走 `问他：你守的到底是什么` → `回到守林人` ✓）—— 那是**旧故事**的首遇门控 ＋ 子对话层 ✗；
-		//   面夹具的 `守林人` 只是一个 hub（`他拄着杖站在路口。` ＋ `<<socpanel>>` ✓）⇒ 两面**都没有对象** ✓。
-		//   ⚠️ **声明**：**「首遇门控（`keeper_intro`）＋ 子对话返回落点」这两面自此无端到端守护** ✓
-		//   （其**非真机**对偶件 `test/saveui.mjs` 那一格也已同批退役并声明 ✓）。
-		//   ✓ 保留并可机检的那半 ✓：**入口块在视口内**（真机布局下不空屏 ✓）—— 改判夹具的交涉面板/首个可点项 ✓。
+		// ⛔ **退役 ＋ 声明**（`#1004` B2b，按裁定 A 的"剧情级"半边）：原两格
+		//「**不重放首遇介绍**」（认台词「我就是守林人」）与「**子对话返回** → 行动区在视口内」
+		//（走 `问他：你守的到底是什么` → `回到守林人`）—— 那是**旧故事**的首遇门控 ＋ 子对话层；
+		// 面夹具的 `守林人` 只是一个 hub（`他拄着杖站在路口。` ＋ `<<socpanel>>`）→ 两面**都没有对象**。
+		//注意：**声明**：**「首遇门控（`keeper_intro`）＋ 子对话返回落点」这两面自此无端到端守护**
+		//（其**非真机**对偶件 `test/saveui.mjs` 那一格也已同批退役并声明）。
+		// 保留并可机检的那半：**入口块在视口内**（真机布局下不空屏）—— 改判夹具的交涉面板/首个可点项。
 		const acts = await ev('window.__sg.rect(".soc-opt, .socpanel, #passages a.link-internal")');
 		check(!!acts && acts.top < H * 0.8, `${vp} 守林人：首个可点项落在视口内（top=${Math.round(acts?.top ?? -1)}）`);
 		await shoot(`${vp}-keeper-entry`);
@@ -525,9 +525,9 @@ for (const [W, H] of VP) {
 
 // ── `#491` 判据 5：**第三个故事**的真机三视口（本故事自己的一遍；故事 1 的用例不套用）──
 {
-	// `#1004` B2b 复核席按**裁定 A** 重指 ✓：这一块测的是「**无车卡的故事**也要有最小面（血量/物品栏）＋
-	// 多选一可点 ＋ 200% 不溢出」✓ —— `hollow-cave` 已删 ✗ ⇒ 换到同样**无车卡**的冒烟故事 `minimal-demo` ✓
-	//（它的入口是 `开场`、多选一在 `岔路` ✓）。
+	// `#1004` B2b 复核席按**裁定 A** 重指：这一块测的是「**无车卡的故事**也要有最小面（血量/物品栏）＋
+	// 多选一可点 ＋ 200% 不溢出」 —— `hollow-cave` 已删 → 换到同样**无车卡**的冒烟故事 `minimal-demo`
+	//（它的入口是 `开场`、多选一在 `岔路`）。
 	const SB = 'minimal-demo';
 	if (!existsSync(storyHtml(SB))) {
 		console.log(`\n（跳过故事 2 真机：${storyHtml(SB)} 不存在——先 npm run build）`);
@@ -546,7 +546,7 @@ for (const [W, H] of VP) {
 			check(bar.hp, `${vp} 故事2 侧栏给出**血量条**（无车卡的最小面）`);
 			check(bar.inv, `${vp} 故事2 侧栏给出**物品栏**`);
 			// ③ 三选一：真机布局下至少两条路落在视口内（可点性/首屏不空）
-			await ev('window.__sg.play("岔路")');   // `#1004` B2b ✓：`minimal-demo` 的多选一段叫 `岔路` ✗（旧写法 `岔口` 是旧故事的 ✓）
+			await ev('window.__sg.play("岔路")');   // `#1004` B2b：`minimal-demo` 的多选一段叫 `岔路`（旧写法 `岔口` 是旧故事的）
 			await sleep(320);
 			const cards = await ev('window.__sg.blocks("#passages a.link-internal")');
 			const inVp = (cards ?? []).filter((b) => b.bottom <= H + 1).length;

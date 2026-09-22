@@ -1,12 +1,12 @@
 // ── #441 切片③④：多故事产物与书架页的门（可自证）──────────────────────────
 // 判据（纯函数部分可自证；文件系统部分在 main 里跑真实产物）：
-//   S1 书架页里**每个已构建的故事**都必须有一条指向 `stories/<slug>/index.html` 的链接
-//   S2 书架页里**不得**有指向不存在的故事的链接（防"删了故事忘了改书架"＝链接腐烂）
-//   S3 书架页体积上界（书目页是纯目录，塞进内嵌资产就该被拦）
-//   P1 每个故事的产物存在，且其字体前缀是**两层相对路径**（`../../fonts/`）
-//   P2 故事产物引用的字体文件**真的在** `dist/fonts/` 里（防"前缀改了、文件没搬"）
-//   P3 过渡期根页 `dist/index.html` 用根路径前缀（`fonts/`）且与默认故事页只差前缀
-import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处 ✓
+// S1 书架页里**每个已构建的故事**都必须有一条指向 `stories/<slug>/index.html` 的链接
+// S2 书架页里**不得**有指向不存在的故事的链接（防"删了故事忘了改书架"＝链接腐烂）
+// S3 书架页体积上界（书目页是纯目录，塞进内嵌资产就该被拦）
+// P1 每个故事的产物存在，且其字体前缀是**两层相对路径**（`../../fonts/`）
+// P2 故事产物引用的字体文件**真的在** `dist/fonts/` 里（防"前缀改了、文件没搬"）
+// P3 过渡期根页 `dist/index.html` 用根路径前缀（`fonts/`）且与默认故事页只差前缀
+import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处
 import { readFileSync, existsSync, readdirSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { ROOT, DIST_DIR,  DEFAULT_SLUG, storySlugs, storyHtml, shelfHtml, defaultStoryHtml, FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY, audienceOf, readStory, STORY_PAGE_MAX_BYTES, SHELF_PAGE_MAX_BYTES } from '../scripts/dist-paths.mjs';
@@ -15,8 +15,8 @@ import { ROOT, DIST_DIR,  DEFAULT_SLUG, storySlugs, storyHtml, shelfHtml, defaul
 export const SHELF_MAX_BYTES = SHELF_PAGE_MAX_BYTES;
 
 /** **P5**（`#576` 未决①）：部署后冒烟（`.github/workflows/ci.yml`）里的体积上界**必须与常量同值**。
- *  为什么用门而不是让 workflow 读常量：冒烟作业**不 checkout 仓库**（只 curl 线上产物）⇒ 读不到常量；
- *  于是改成「两处数字由门钉住、不等就在 PR 里红」——歧义不再拖到部署之后才发现。 */
+ * 为什么用门而不是让 workflow 读常量：冒烟作业**不 checkout 仓库**（只 curl 线上产物）→ 读不到常量；
+ * 于是改成「两处数字由门钉住、不等就在 PR 里红」——歧义不再拖到部署之后才发现。 */
 export const ciLiteralProblems = (yaml, { story = STORY_PAGE_MAX_BYTES, shelf = SHELF_PAGE_MAX_BYTES, slugs = storySlugs() } = {}) => {
 	const out = [];
 	const y = String(yaml ?? '');
@@ -26,23 +26,23 @@ export const ciLiteralProblems = (yaml, { story = STORY_PAGE_MAX_BYTES, shelf = 
 	else if (Number(storyLit[1]) !== story) out.push({ code: 'P5', msg: `ci.yml 故事页上界 ${storyLit[1]} ≠ STORY_PAGE_MAX_BYTES ${story}（两处口径漂了）` });
 	if (!shelfLit) out.push({ code: 'P5', msg: 'ci.yml 里找不到书架页上界断言（test "$SZ" … -lt …）' });
 	else if (Number(shelfLit[1]) !== shelf) out.push({ code: 'P5', msg: `ci.yml 书架页上界 ${shelfLit[1]} ≠ SHELF_PAGE_MAX_BYTES ${shelf}` });
-	// ── **P6**（`#1004` B2b）：冒烟作业里的**故事页路径**不许硬编码 ✗ ────────────────────────────
-	// 为什么需要这一格 ✗：冒烟作业**不 checkout 仓库** ⇒ 读不到 `DEFAULT_SLUG` 常量 ⇒ 只能写字面量 ✗；
-	// 而字面量会随故事**改名/删除**腐烂 ⇒ `curl` 404 ⇒ 该作业红 —— 而它**只在 push to main 跑** ✗
-	// ⇒ **PR CI 全绿也看不见** ✓（实测：删 `mist-forest` 后 `stories/mist-forest/index.html` 必 404 ✓）。
-	// 判据两条（照 P5 的「锚点丢了也报」体例 ✓）：
-	//   ① **字面量只许出现在「现场取」那个锚点行里** ✗（`grep -oE 'stories/…' /tmp/idx.html` ✓）⇒ 其余**非注释行**出现即红 ✓；
-	//   ② 必须真的存在「从书架页现场取」的锚点 ✓（锚点丢了也报 ✓）。
-	// ⚠️ 扫字面量前**先剔注释行** ✗：注释里写旧路径（说明因由）是**要保留的历史** ✓ ⇒ 让它变成假红就是把「留痕」罚了 ✓。
-	// ⚠️ ⭐ ① 必须是**按行上下文**判的 ✗（复核席实测给的洞 ✓）：早先只判「slug 不在 `storySlugs()` 里」✓ ⇒ ⇒
-	//   **硬编码一个「存在的」故事页被完全放行** ✗ —— 而本判据自己报文里写的目的是「改用『从书架页现场取』」✓
-	//   ⇒ 那个形状**答不了自己声称要答的问题** ✓（下次换默认故事 ⇒ 同一族照旧复发 ✗）⇒ 现改为「**现存/已删一律红**」✓。
+	// ── **P6**（`#1004` B2b）：冒烟作业里的**故事页路径**不许硬编码 ────────────────────────────
+	// 为什么需要这一格：冒烟作业**不 checkout 仓库** → 读不到 `DEFAULT_SLUG` 常量 → 只能写字面量；
+	// 而字面量会随故事**改名/删除**腐烂 → `curl` 404 → 该作业红 —— 而它**只在 push to main 跑**
+	// → **PR CI 全绿也看不见**（实测：删 `mist-forest` 后 `stories/mist-forest/index.html` 必 404）。
+	// 判据两条（照 P5 的「锚点丢了也报」体例）：
+	// ① **字面量只许出现在「现场取」那个锚点行里**（`grep -oE 'stories/…' /tmp/idx.html`）→ 其余**非注释行**出现即红；
+	// ② 必须真的存在「从书架页现场取」的锚点（锚点丢了也报）。
+	//注意：扫字面量前**先剔注释行**：注释里写旧路径（说明因由）是**要保留的历史** → 让它变成假红就是把「留痕」罚了。
+	//注意：⭐ ① 必须是**按行上下文**判的（复核席实测给的洞）：早先只判「slug 不在 `storySlugs()` 里」 → →
+	// **硬编码一个「存在的」故事页被完全放行** —— 而本判据自己报文里写的目的是「改用『从书架页现场取』」
+	// → 那个形状**答不了自己声称要答的问题**（下次换默认故事 → 同一族照旧复发）→ 现改为「**现存/已删一律红**」。
 	const code = y.split('\n').filter((l) => !/^\s*#/.test(l)).join('\n');
 	const ANCHOR_LINE = /grep\s+-oE\s+'stories\//;
 	const stray = [];
 	for (const rawLine of code.split('\n')) {
-		// `#1016` 票内补记①：豁免只豁**锚点那段子串**，不是整行 ✗（早先 `continue` 整行 ⇒ 同一行上
-		// 其他字面量被连带放过——「字面量与锚点同一行 ⇒ 0」的漏形态 ✓）；锚点子串剥掉后**余段照扫** ✓。
+		// `#1016` 票内补记①：豁免只豁**锚点那段子串**，不是整行（早先 `continue` 整行 → 同一行上
+		// 其他字面量被连带放过——「字面量与锚点同一行 → 0」的漏形态）；锚点子串剥掉后**余段照扫**。
 		const line = rawLine.replace(/grep\s+-oE\s+'stories\/[^']*'/g, '').replace(/stories\/[A-Za-z0-9._-]+\/index\\\.html/g, (mm) => (ANCHOR_LINE.test(rawLine) ? '' : mm));
 		for (const m of line.matchAll(/(?<![\w.-])stories\/([A-Za-z0-9._-]+)\/index\.html/g)) stray.push({ slug: m[1], line: rawLine.trim().slice(0, 72) });
 	}
@@ -54,10 +54,10 @@ export const ciLiteralProblems = (yaml, { story = STORY_PAGE_MAX_BYTES, shelf = 
 };
 
 /** 纯函数（`#460`）：**一个故事真的启动起来了吗** —— 判据三条，缺一即红。
- *  为什么要有它：`multi-story` 原先只查"产物存在 / 书架链接 / 字体文件"，而 `test/boot.mjs` 恒读
- *  **默认故事**的产物 ⇒ 新故事**启动即崩也全绿**（实测：`minimal-demo`／`hollow-cave` 的 `$era` 恒 `undefined`，
- *  StoryInit 抛 `Cannot read properties of undefined (reading 'PRESENT')`，SugarCube 允许继续 ⇒ 起始段照样渲染 ⇒ **像"能玩"**）。
- *  ⇒ 这是 `#557` 的同一族："产物存在 ≠ 产物能跑"（`docs/dev-conventions.md` §13 第 1 条：读不到输入就该响）。 */
+ * 为什么要有它：`multi-story` 原先只查"产物存在 / 书架链接 / 字体文件"，而 `test/boot.mjs` 恒读
+ * **默认故事**的产物 → 新故事**启动即崩也全绿**（实测：`minimal-demo`／`hollow-cave` 的 `$era` 恒 `undefined`，
+ * StoryInit 抛 `Cannot read properties of undefined (reading 'PRESENT')`，SugarCube 允许继续 → 起始段照样渲染 → **像"能玩"**）。
+ * → 这是 `#557` 的同一族："产物存在 ≠ 产物能跑"（`docs/dev-conventions.md` §13 第 1 条：读不到输入就该响）。 */
 export const judgeBoot = ({ slug, era, text, errors = [] }) => {
 	const out = [];
 	if (errors.length) out.push({ code: 'S4', msg: `故事「${slug}」启动报错：${String(errors[0]).split('\n')[0].slice(0, 120)}` });
@@ -76,7 +76,7 @@ export const checkShelf = (html, builtSlugs, { maxBytes = SHELF_MAX_BYTES, bytes
 	for (const slug of linked) {
 		if (!builtSlugs.includes(slug)) out.push({ code: 'S2', msg: `书架页指向不存在的故事：stories/${slug}/（链接腐烂）` });
 	}
-	// `#1035`：**内部件不许上书架**（`audience: internal` ⇒ 不进用户面；丢了这条 = 内部件静默泄漏）
+	// `#1035`：**内部件不许上书架**（`audience: internal` → 不进用户面；丢了这条 = 内部件静默泄漏）
 	for (const slug of internalSlugs) {
 		if (html.includes(`stories/${slug}/index.html`)) out.push({ code: 'S5', msg: `书架页列了**内部件** stories/${slug}/（audience: internal ⇒ 不该进用户面）` });
 	}
@@ -98,8 +98,8 @@ export const checkStoryFontRefs = (html, fontFiles, { prefix = FONT_PREFIX_FROM_
 };
 
 /** 纯函数：故事页**硬上界**（`#576`）——与 CI 的 `post-deploy-smoke` 同一口径，但**在 PR 时**就判。
- *  为什么必须有：`size-gate` 的基线 997,937B ＋ 0.5% 容差 ≈ 1,002.9KB，而部署后是 1,000,000B 硬红
- *  ⇒ 中间有一条 ~5KB 宽的窗带：**PR 与 soak 全绿、main 的部署后冒烟红**（`#576` 实测撞上）。 */
+ * 为什么必须有：`size-gate` 的基线 997,937B ＋ 0.5% 容差 ≈ 1,002.9KB，而部署后是 1,000,000B 硬红
+ * → 中间有一条 ~5KB 宽的窗带：**PR 与 soak 全绿、main 的部署后冒烟红**（`#576` 实测撞上）。 */
 export const judgeStoryPage = ({ slug, bytes, max = STORY_PAGE_MAX_BYTES }) =>
 	bytes >= max ? [{ code: 'P4', msg: `故事「${slug}」产物 ${bytes}B ≥ 上界 ${max}B（疑似回胖/内嵌资产；部署后冒烟用的是同一上界）` }] : [];
 
@@ -166,15 +166,15 @@ if (process.argv.includes('--selftest')) {
 	t('P4 正例：故事页在上界内 → 不报', judgeStoryPage({ slug: 'a', bytes: STORY_PAGE_MAX_BYTES - 1 }).length === 0);
 	t('P4 反例：故事页顶到上界（＝部署后冒烟的口径）→ 报红', judgeStoryPage({ slug: 'a', bytes: STORY_PAGE_MAX_BYTES }).some((f) => f.code === 'P4'));
 	// P5（`#576` 未决①）：CI 里的字面量必须与常量同值
-	// ⚠️ 下面这两行 fixture 之前就是**陈的** ✗（实测：故事页上界常量从 `1_000_000` 抬到 `2_000_000` 时没跟着改 ✓，
-	//   而本件的 `--selftest` **不在 `npm test` 的段表里** ⇒ 红了也没人看见 ✓）—— 本片顺手改准 ＋ 去掉两处 `-lt 100000` 的
-	//   子串歧义（`-lt 1000000` 里含 `-lt 100000` ⇒ 原 shelf 反例实际改的是**故事页**那一条 ✓ ⇒ "该红不红" ✗）。
+	//注意：下面这两行 fixture 之前就是**陈的**（实测：故事页上界常量从 `1_000_000` 抬到 `2_000_000` 时没跟着改，
+	// 而本件的 `--selftest` **不在 `npm test` 的段表里** → 红了也没人看见）—— 本片顺手改准 ＋ 去掉两处 `-lt 100000` 的
+	// 子串歧义（`-lt 1000000` 里含 `-lt 100000` → 原 shelf 反例实际改的是**故事页**那一条 → "该红不红"）。
 	const CI_OK = 'test "$SSZ" -lt 2000000 || exit 1\ntest "$SZ" -gt 0 -a "$SZ" -lt 100000 || exit 1\nSTORY_PATH=$(grep -oE \'stories/[A-Za-z0-9._-]+/index\\.html\' /tmp/idx.html | head -1)\n';
 	t('P5 正例：ci.yml 两个上界与常量同值 → 0 问题', ciLiteralProblems(CI_OK).length === 0);
 	t('🔴 P5 反例：ci.yml 故事页上界漂了（1999999）→ 报红', ciLiteralProblems(CI_OK.replace('-lt 2000000', '-lt 1999999')).some((f) => f.code === 'P5'));
 	t('🔴 P5 反例：ci.yml 书架页上界漂了（200000）→ 报红', ciLiteralProblems(CI_OK.replace('"$SZ" -lt 100000', '"$SZ" -lt 200000')).some((f) => f.code === 'P5'));
 	t('🔴 P5 反例：断言被删掉 ⇒ 报「口径锚点丢了」（P5×2 ＋ P6×1）', ciLiteralProblems('echo 无断言').length === 3);
-	// P6（`#1004` B2b）：故事页路径不许硬编码（冒烟作业只在 push to main 跑 ⇒ PR CI 看不见 404）
+	// P6（`#1004` B2b）：故事页路径不许硬编码（冒烟作业只在 push to main 跑 → PR CI 看不见 404）
 	t('🔴 P6 反例：ci.yml 硬引用**已删故事**的故事页 ⇒ 报红', ciLiteralProblems(`${CI_OK}STORY="https://example.test/stories/mist-forest/index.html"\n`).some((f) => f.code === 'P6'));
 	t('🔴 P6 反例（⭐ 复核席给的洞）：硬引用**现存故事**（`face-fixture` ✓）的故事页也**必须**报红 —— 且**锚点仍在** ✗', ciLiteralProblems(`${CI_OK}STORY="https://example.test/stories/face-fixture/index.html"\n`).some((f) => f.code === 'P6'));
 	t('P6 正例：无字面量 ＋ 有现场取路径的锚点 ⇒ 不报 P6', !ciLiteralProblems(CI_OK).some((f) => f.code === 'P6'));

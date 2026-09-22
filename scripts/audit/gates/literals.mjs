@@ -6,10 +6,10 @@
 // 门里不写死文件名——否则搬家时判据会静默失效）。常量本体：`Game.Era`（PAST/PRESENT）、`Game.Damage`。
 //
 // 两条判定（＋合成自证）：
-//   ① 裸时代字面量：`'past'`/`"past"`/`'present'`/`"present"` 只能出现在 `15-tables.twee` 的
-//      **数据字段**（`era:` / `flagEra:`）与 `Game.Era` 定义行；其它位置一律用 `Game.Era.*` → 否则红。
-//   ② 裸伤害数字：剧情文件里 `<<damage <数字>>>` 一律红——必须写成 `<<damage \`Game.Damage.x\`>>`
-//      （注意：SugarCube 宏的**裸词参数会被当字符串**，所以必须用 backtick 表达式，见本仓 integrity 门「坑11」）。
+// ① 裸时代字面量：`'past'`/`"past"`/`'present'`/`"present"` 只能出现在 `15-tables.twee` 的
+// **数据字段**（`era:` / `flagEra:`）与 `Game.Era` 定义行；其它位置一律用 `Game.Era.*` → 否则红。
+// ② 裸伤害数字：剧情文件里 `<<damage <数字>>>` 一律红——必须写成 `<<damage \`Game.Damage.x\`>>`
+//（注意：SugarCube 宏的**裸词参数会被当字符串**，所以必须用 backtick 表达式，见本仓 integrity 门「坑11」）。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { declaredSourceOf } from '../../../editor/lib/core/generated-family.mjs';   // `#1185`：生成标记解析的单一权威
 import { CONST_SECTION } from '../../module-order.mjs';
@@ -19,9 +19,9 @@ export const flags = ['literals'];
 
 
 /** 把注释**挖空**（保留行号）：`/% … %/`（可跨行）、`<!-- … -->`（可跨行）、`//` 行注释。
- *  为什么：注释与文档里常引用示例（`15-tables.twee:1001` 就写着「剧情文件里 `<<damage 4>>` 这类…」）
- *  ——判据若把注释当代码，就会把**文档**判红（更糟的是会诱使人删掉说明）。
- *  边界：`//` 只在**前面不是 `:`** 时才算注释，避免把 `https://…` 当注释截断（自证有例）。 */
+ * 为什么：注释与文档里常引用示例（`15-tables.twee:1001` 就写着「剧情文件里 `<<damage 4>>` 这类…」）
+ * ——判据若把注释当代码，就会把**文档**判红（更糟的是会诱使人删掉说明）。
+ * 边界：`//` 只在**前面不是 `:`** 时才算注释，避免把 `https://…` 当注释截断（自证有例）。 */
 export const blankComments = (text) => {
 	let block = null; // 'twee' | 'html'
 	return String(text).split('\n').map((line) => {
@@ -42,16 +42,16 @@ export const blankComments = (text) => {
 	});
 };
 
-// 纯函数：给 { 文件: 源码 }，返回问题清单（供自证喂合成源码）。
+// 纯函数：给 { 文件: 源码}，返回问题清单（供自证喂合成源码）。
 // #441-C：承载文件从 `opts.files`（声明）来；并做**反向断言** stale-declaration。
-/** `#787` 翻面：**带生成标记、且标记载明的源在本故事 `data/` 下**的文件 ⇒ 数据段（与 `CONST_SECTION.files` 同等地位）。
- *  为什么要**派生**而不是往手写清单里加：清单会腐烂 ✗（"哪个文件是产物"是**文件自己写着**的事实 ✓ —— 与 K4 同一口径）。
- *  反滥用：标记载明的 `源：` 必须落在**同故事**的 `data/` 下，否则 fail-loud —— 不许把任意 `@generated` 当豁免 ✗。 */
+/** `#787` 翻面：**带生成标记、且标记载明的源在本故事 `data/` 下**的文件 → 数据段（与 `CONST_SECTION.files` 同等地位）。
+ * 为什么要**派生**而不是往手写清单里加：清单会腐烂（"哪个文件是产物"是**文件自己写着**的事实 —— 与 K4 同一口径）。
+ * 反滥用：标记载明的 `源：` 必须落在**同故事**的 `data/` 下，否则 fail-loud —— 不许把任意 `@generated` 当豁免。 */
 export const deriveDataSections = (sources, files = []) => {
 	const out = [...files], problems = [];
 	for (const [path, text] of sources ?? []) {
-		// `#1185`：生成标记的解析取**单一权威**（`editor/lib/core/generated-family.mjs` ⇒ 新守卫与本节同判据，
-		//   不各写一份正则；本处此前内联的那份已收掉）。本门仍负责"源是否落在同故事 data/ 下"这一层判断。
+		// `#1185`：生成标记的解析取**单一权威**（`editor/lib/core/generated-family.mjs` → 新守卫与本节同判据，
+		// 不各写一份正则；本处此前内联的那份已收掉）。本门仍负责"源是否落在同故事 data/ 下"这一层判断。
 		const src = declaredSourceOf(text);
 		if (!src) continue;
 		const slug = (String(path).match(/^stories\/([^/]+)\//) ?? [])[1];
@@ -65,8 +65,8 @@ export const analyze = (sources, opts = CONST_SECTION) => {
 	const problems = [];
 	const hitsByFile = {};
 	const declared = (f) => (opts.files ?? []).some((n) => f === n || f.endsWith(`/${n}`));
-	// `#787` 翻面：**数据段**（由 `deriveDataSections` 从 `@generated` 标记派生：源在同故事 `data/` 下 ✓）
-	// 整份**都是**机器发射的数据 ⇒ 键名由数据定（不是 `era:` 那种手写约定）⇒ 时代字面量**处处合法**。
+	// `#787` 翻面：**数据段**（由 `deriveDataSections` 从 `@generated` 标记派生：源在同故事 `data/` 下）
+	// 整份**都是**机器发射的数据 → 键名由数据定（不是 `era:` 那种手写约定）→ 时代字面量**处处合法**。
 	// 不加这条会把产物里一处一处数据键都点成"裸时代字面量"（实测 9 处）。反滥用仍由派生那一步守（源必须在本故事 `data/` 下）。
 	const isData = (f) => (opts.dataSections ?? []).some((n) => f === n || f.endsWith(`/${n}`));
 	for (const [f, src] of Object.entries(sources)) {
@@ -75,7 +75,7 @@ export const analyze = (sources, opts = CONST_SECTION) => {
 		const inData = isData(f);
 		blankComments(src).forEach((line, i) => {
 			const where = `${base}:${i + 1}`;
-			// ⓪ 反向断言：出现"常量定义"却没在声明里 ⇒ 说明**搬走了但没更新声明**（不许静默变绿）
+			// ⓪ 反向断言：出现"常量定义"却没在声明里 → 说明**搬走了但没更新声明**（不许静默变绿）
 			if (opts.eraDecl && opts.eraDecl.test(line) && !isDeclared) {
 				problems.push({ kind: 'stale-declaration', where, detail: `这里有常量定义（${opts.eraDecl}）但文件未被 CONST_SECTION.files 声明——搬家后请更新声明（scripts/module-order.mjs）` });
 			}
@@ -96,7 +96,7 @@ export const analyze = (sources, opts = CONST_SECTION) => {
 			}
 		});
 	}
-	// ⏳ 已知缺陷：按文件计数登记（登记了 ⇒ 转 ⏳ 不计红；登记数 > 实际命中 ⇒ **白名单腐烂** ⇒ 报红）
+	// ⏳ 已知缺陷：按文件计数登记（登记了 → 转 ⏳ 不计红；登记数 > 实际命中 → **白名单腐烂** → 报红）
 	const known = opts.knownBareDamage ?? {};
 	for (const p of problems) {
 		if (p.kind !== 'bare-damage') continue;
@@ -109,7 +109,7 @@ export const analyze = (sources, opts = CONST_SECTION) => {
 	}
 	const analyzedBases = new Set(Object.keys(sources).map((f) => f.split('/').pop()));
 	for (const [file, k] of Object.entries(known)) {
-		if (!analyzedBases.has(file)) continue; // 该文件没进这次分析 ⇒ 没有"腐烂"的证据（别对着合成源自证误报）
+		if (!analyzedBases.has(file)) continue; // 该文件没进这次分析 → 没有"腐烂"的证据（别对着合成源自证误报）
 		const got = hitsByFile[file] ?? 0;
 		if (got < k.count) problems.push({ kind: 'stale-whitelist', where: `${file}`, detail: `已知缺陷登记说这里有 ${k.count} 处裸伤害数字，实际只剩 ${got} 处 ⇒ **修好了就要删登记**（${k.ref}）` });
 	}
@@ -126,7 +126,7 @@ export const run = (ctx) => {
 		['裸时代字面量 → 红', { 'a.twee': ':: P\n<<if $era is "past">>x<</if>>' }, 1],
 		['裸伤害数字（剧情文件）→ 红', { '40-ch2.twee': ':: P\n<<damage 4>>' }, 1],
 		// #458 切片C：fixture 的文件名**取自声明**（`CONST_SECTION.files`），不再写死 `15-tables.twee`——
-		// 否则搬家/改名后 declared() 匹配不上 ⇒ 自证「不红」失败（实测：期望 0 检出 1/2）。
+		// 否则搬家/改名后 declared() 匹配不上 → 自证「不红」失败（实测：期望 0 检出 1/2）。
 		['数据字段里的 era 字面量 → 不红', { [CONST_SECTION.files[0]]: "\t\tp: '某段', era: 'past'," }, 0],
 		['常量定义行 → 不红', { [CONST_SECTION.files[0]]: "const Era = { PAST: 'past', PRESENT: 'present' };" }, 0],
 		// #441-C：搬家支持 + 反沉默（这三例就是本次改造的理由）
@@ -149,7 +149,7 @@ export const run = (ctx) => {
 	];
 	let selfBad = 0;
 	for (const [label, src, expect, opts] of SELF) {
-		// ⏳（known-bare-damage）报告但不判失败 ⇒ 自证比较的是"判红数"
+		// ⏳（known-bare-damage）报告但不判失败 → 自证比较的是"判红数"
 		const hit = analyze(src, opts ?? CONST_SECTION).filter((p) => p.kind !== 'known-bare-damage').length;
 
 		const ok = expect === 0 ? hit === 0 : hit > 0;
@@ -157,10 +157,10 @@ export const run = (ctx) => {
 		console.log(`      ${ok ? '✓' : '✗'} 自证·${label}：检出 ${hit}（期望${expect === 0 ? ' 0' : ' >0'}）`);
 	}
 	bad += selfBad;
-	// `#1149`／`#1150` ⭐ **自证格的红必须进退出码**（格级属性 ✓ —— `#1123` 族 ✓ 与 `state.mjs` 同款 ✓）
-	//   此前：自证格只并进 `bad` ⇒ 而 `bad` **只在 `--check` 下**被检查 ✗（`:189` 那层）
-	//   ⇒ 经**驱动器**跑（`--literals` 不带 `--check`）⇒ **格红而 rc=0** ✗ ⇒ 门自身失能却静默 ✓
-	//   ⚠️ 与"判据发现"分开报 ✓：本条语义是「**本门自身失能**」，不是「故事数据有问题」✓
+	// `#1149`／`#1150` ⭐ **自证格的红必须进退出码**（格级属性 —— `#1123` 族 与 `state.mjs` 同款）
+	// 此前：自证格只并进 `bad` → 而 `bad` **只在 `--check` 下**被检查（`:189` 那层）
+	// → 经**驱动器**跑（`--literals` 不带 `--check`）→ **格红而 rc=0** → 门自身失能却静默
+	//注意：与"判据发现"分开报：本条语义是「**本门自身失能**」，不是「故事数据有问题」
 	if (selfBad) {
 		console.error(`\n✗ 常量与字面量门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓（\`#1150\`）`);
 		process.exit(1);
@@ -181,7 +181,7 @@ export const run = (ctx) => {
 
 	const sources = {};
 	for (const f of ctx.SRC_FILES) sources[f] = readFileSync(f, 'utf8');
-	// `#787` 翻面：产物由**文件自己的标记**认出来（派生，不往手写清单里加 ✗）；误标则 fail-loud。
+	// `#787` 翻面：产物由**文件自己的标记**认出来（派生，不往手写清单里加）；误标则 fail-loud。
 	const derived = deriveDataSections(Object.entries(sources), CONST_SECTION.files);
 	const problems = [
 		...derived.problems.map((p) => ({ kind: 'generated-misdeclared', where: p.path, detail: p.why })),

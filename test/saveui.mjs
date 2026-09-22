@@ -2,10 +2,10 @@
 //
 // 与 test/rules.mjs 的 L4「迁移律」互补：那边只验 pc 形状（补键/保值/修型/幂等）；
 // 这里把每个历史 fixture 的 pc **放进新界面**跑一遍，验四条「界面不撒谎」的律：
-//   ① 不凭空补造历史结果：旧档没有 last_result ⇒ 不出现「本次结果」槽（scene-feedback）
-//   ② 不串反馈：旧档载入后渲染任意段落，不得把别的段落的判定/结果带进来
-//   ③ 不崩：无 uncaught、无 .error 元素，段落有输出
-//   ④ 首遇门控对旧档安全：缺 keeper_intro/tav_seen 等新旗标 ⇒ 走「首遇」支（不崩、不跳支）
+// ① 不凭空补造历史结果：旧档没有 last_result → 不出现「本次结果」槽（scene-feedback）
+// ② 不串反馈：旧档载入后渲染任意段落，不得把别的段落的判定/结果带进来
+// ③ 不崩：无 uncaught、无.error 元素，段落有输出
+// ④ 首遇门控对旧档安全：缺 keeper_intro/tav_seen 等新旗标 → 走「首遇」支（不崩、不跳支）
 import { readdirSync, readFileSync } from 'node:fs';
 import { boot, CLICKABLE } from './boot.mjs';
 import { makeSession } from './harness.mjs';   // #317①：公共 harness
@@ -18,9 +18,9 @@ let fails = 0;
 const check = (cond, msg) => { console.log(`${cond ? '✓' : '✗'} ${msg}`); if (!cond) fails++; };
 
 // 新旧界面都会用到的代表段落：行动区/结果槽/首遇门控/战斗/结局 各有
-// `#1004` B2b 复核席按**裁定 A** 重指 ✓（面级 ⇒ 重指到有该面的样本 ✗）：六个旧场景名里
-// `雾之魔物·战` ⇒ 夹具的 `洞穴·战斗` ✓、`宴·散场` ⇒ 夹具的 `地下宴会厅` ✓（另四个**段名同款** ✓，
-// 夹具按裁定 (甲) 沿用段名 ✓）。⚠️ 判据（矩阵四律：不崩／有输出／无凭空结果槽／无 uncaught ✓）**一字未改** ✗。
+// `#1004` B2b 复核席按**裁定 A** 重指（面级 → 重指到有该面的样本）：六个旧场景名里
+// `雾之魔物·战` → 夹具的 `洞穴·战斗`、`宴·散场` → 夹具的 `地下宴会厅`（另四个**段名同款**，
+// 夹具按裁定 (甲) 沿用段名）。注意：判据（矩阵四律：不崩／有输出／无凭空结果槽／无 uncaught）**一字未改**。
 const SCENES = ['门厅', '守林人', '书房', '洞穴·战斗', '地下宴会厅', '结局 死亡'];
 
 console.log('══ 旧存档 × 新界面 兼容矩阵（#264）══');
@@ -67,12 +67,12 @@ for (const file of fixtures) {
 		} else {
 			check(true, `[${label}] ${name}：退化档（无角色）允许无内容——只要求不崩`);
 		}
-		// ⛔ **退役 ＋ 声明**（`#1004` B2b ✓，按裁定 A 的"剧情级"半边 ✗）：原「首遇门控」那一格
-		//   （旧档没有 `keeper_intro` ⇒ 守林人首屏必须是**完整相认**支 ✓，认的是台词「我就是守林人」✓）
-		//   —— 那是**旧故事侧**的首遇门控逻辑 ＋ 它的台词 ✗ ⇒ 面夹具的 `守林人` 只是一个 hub（`他拄着杖站在路口。` ＋ `<<socpanel>>` ✓），
-		//   **没有**首遇门控这一面 ✓ ⇒ 该格**没有对象** ✓（不是判据坏了 ✓）。
-		//   ⚠️ **声明**：**「老档 × 首遇门控（`keeper_intro` 类）分支」这一面自此无端到端守护** ✓ ⇒ 日后要动它 ⇒ 先补一个带该门控的样本 ✓。
-		//   ✓ 保留（引擎级 ✓、与故事无关 ✗）：`无 undefined/NaN/object 渲染` 那一格照旧对**每个**场景都在跑 ✓（见下 ✓）。
+		// ⛔ **退役 ＋ 声明**（`#1004` B2b，按裁定 A 的"剧情级"半边）：原「首遇门控」那一格
+		//（旧档没有 `keeper_intro` → 守林人首屏必须是**完整相认**支，认的是台词「我就是守林人」）
+		// —— 那是**旧故事侧**的首遇门控逻辑 ＋ 它的台词 → 面夹具的 `守林人` 只是一个 hub（`他拄着杖站在路口。` ＋ `<<socpanel>>`），
+		// **没有**首遇门控这一面 → 该格**没有对象**（不是判据坏了）。
+		//注意：**声明**：**「老档 × 首遇门控（`keeper_intro` 类）分支」这一面自此无端到端守护** → 日后要动它 → 先补一个带该门控的样本。
+		// 保留（引擎级、与故事无关）：`无 undefined/NaN/object 渲染` 那一格照旧对**每个**场景都在跑（见下）。
 		if (!forwarded) {
 			const cruft = out.includes('undefined') || out.includes('NaN') || out.includes('[object');
 			check(!cruft, `[${label}] ${name}：无 undefined/NaN/object 渲染`);
@@ -85,8 +85,8 @@ for (const file of fixtures) {
 	await sleep(150);
 	// #317①：点击走 harness（可选点击：入口不存在时返回 null，不抛）
 	const s1 = makeSession(w, { sleep, wait: 150 });
-	// `#1004` B2b ✓：点击入口与在屏文案按**夹具**改准 ✗（夹具 `门厅` 的观察入口叫 `看钉` ✓、
-	// 结果正文是「钉子旁边那圈灰不太对」✓；旧写的 `先看清钉子`／`看清` 是旧故事的文案 ✓）。
+	// `#1004` B2b：点击入口与在屏文案按**夹具**改准（夹具 `门厅` 的观察入口叫 `看钉`、
+	// 结果正文是「钉子旁边那圈灰不太对」；旧写的 `先看清钉子`／`看清` 是旧故事的文案）。
 	if (await s1.tryClickByLabel('看钉')) {
 		const slots = w.document.querySelectorAll('#passages .scene-feedback').length;
 		const hasText = (w.document.querySelector('#passages')?.textContent ?? '').includes('钉子旁边那圈灰');
@@ -121,10 +121,10 @@ for (const file of fixtures) {
 	w2.eval('SugarCube.Engine.show()');
 	await sleep(250);
 	check(w2.eval("SugarCube.State.variables.pc.inv['坏哨'] === true"), '#300 P1：读档后坏哨须还在（原地行动状态进了 moment）');
-	// `#1004` B2b ✓：**判据不放宽** ✗，只把它**对准夹具里等价的那个可观察面** ✗：
-	//   旧故事用旁白「……翻找过」表达"已取过" ✓；夹具用**条件渲染**表达同一件事 ✓
-	//   （`<<if not $pc.world.whistle_taken>>` 包住那条摘取链接 ✓）⇒ 判据仍是**原来那句**
-	//   「**读档后不回到可摘取**」✓，只是用夹具的等价读数来量 ✓（链接不在了 **且** 旗标在 ✓）。
+	// `#1004` B2b：**判据不放宽**，只把它**对准夹具里等价的那个可观察面**：
+	// 旧故事用旁白「……翻找过」表达"已取过"；夹具用**条件渲染**表达同一件事
+	//（`<<if not $pc.world.whistle_taken>>` 包住那条摘取链接）→ 判据仍是**原来那句**
+	//「**读档后不回到可摘取**」，只是用夹具的等价读数来量（链接不在了 **且** 旗标在）。
 	check(w2.eval("SugarCube.State.variables.pc.world?.whistle_taken === true && !document.querySelector('#passages').textContent.includes('把墙上那支哨子摘下来')"),
 		'#300 P1：读档后门厅处于「已取过」态（不回到可摘取：旗标在 ＋ 摘取入口不再出现）');
 }

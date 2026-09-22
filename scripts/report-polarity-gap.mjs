@@ -6,23 +6,23 @@
 // 供 `#629`（两态注入原型）与后续矩阵门（落点见 `#607`：`stories/<slug>/gates/**` ＋ `audit.json`）定行数。
 //
 // 口径（**必须照着读**，否则会误读报告）：
-//   · **站点**＝注释遮蔽（`mask.mjs`）后 `<<if>>`/`<<elseif>>` 行里的**单个条件原子**
-//     （`$pc.inv["X"]` / `$pc.keeper.X` / `Sg.notes.has('n_x')` / `$era`）；
-//   · **极性**＝该段**被访问时**用 in-page 求值为**真/假**（不猜内部路径，与 `#491` 的真机口径一致）；
-//   · **观测**＝固定种子、定档（`hi/lo/neutral`）的游走（`ch1`/`tower` 两种起手）；`--runs=` 可缩放、`--seeds=` 可换
-//     ⇒ 换了就不是同一份报告（可重复性是"同参数同输出"）；
-//   · **这是抽样观测**：`未观测 ≠ 断言不存在`。报告只说"这一侧此刻没有观测"，不作为"没门/有门"的判决；
-//   · 台账登记：`report-gate-ledger.mjs` 的 `REASONS` 里写明「**未接线（report-only）＋理由**」。
+// · **站点**＝注释遮蔽（`mask.mjs`）后 `<<if>>`/`<<elseif>>` 行里的**单个条件原子**
+//（`$pc.inv["X"]` / `$pc.keeper.X` / `Sg.notes.has('n_x')` / `$era`）；
+// · **极性**＝该段**被访问时**用 in-page 求值为**真/假**（不猜内部路径，与 `#491` 的真机口径一致）；
+// · **观测**＝固定种子、定档（`hi/lo/neutral`）的游走（`ch1`/`tower` 两种起手）；`--runs=` 可缩放、`--seeds=` 可换
+// → 换了就不是同一份报告（可重复性是"同参数同输出"）；
+// · **这是抽样观测**：`未观测 ≠ 断言不存在`。报告只说"这一侧此刻没有观测"，不作为"没门/有门"的判决；
+// · 台账登记：`report-gate-ledger.mjs` 的 `REASONS` 里写明「**未接线（report-only）＋理由**」。
 //
 // 用法：
-//   node scripts/report-polarity-gap.mjs                      # 默认 12 局（18 站点档：2 seeds × 3 档 × 2 起手）
-//   node scripts/report-polarity-gap.mjs --runs=18 --seeds=3  # 缩放
-//   node scripts/report-polarity-gap.mjs --story=hollow-cave --out=build/x.md
+// node scripts/report-polarity-gap.mjs # 默认 12 局（18 站点档：2 seeds × 3 档 × 2 起手）
+// node scripts/report-polarity-gap.mjs --runs=18 --seeds=3 # 缩放
+// node scripts/report-polarity-gap.mjs --story=hollow-cave --out=build/x.md
 //
 // 前置：**先 `npm run build`**（`test/boot.mjs` 会断言产物新鲜度——基准旧了，结果是假红/假绿）。
-//   node scripts/report-polarity-gap.mjs --selftest           # 自证（纯函数；反例必须红）
+// node scripts/report-polarity-gap.mjs --selftest # 自证（纯函数；反例必须红）
 import { readFileSync, writeFileSync, existsSync, readdirSync, mkdirSync } from 'node:fs';
-import { ensureParent } from './lib/ensure-parent.mjs';   // `#1093` P2-d：写前建父目录（共用助手 ✓）
+import { ensureParent } from './lib/ensure-parent.mjs';   // `#1093` P2-d：写前建父目录（共用助手）
 import { dirname, join } from 'node:path';
 import { ROOT, DEFAULT_SLUG } from './dist-paths.mjs';
 import { pathToFileURL } from 'node:url';
@@ -134,7 +134,7 @@ const walkerCells = new Set(readJson(join(ROOT, 'build/coverage-walker.json'), {
 const matrixPath = join(ROOT, 'stories', slug, 'matrix.json');
 const promised = existsSync(matrixPath) ? (JSON.parse(readFileSync(matrixPath, 'utf8')).promised ?? []) : [];
 const md = renderReport({ sites, obs, runs, failedRuns, visitedPassages, scVisited, scCells, walkerCells, promised });
-ensureParent(join(ROOT, OUT));   // `#1093` P2-d：走共用助手 ✓（不新造形态 ✗）
+ensureParent(join(ROOT, OUT));   // `#1093` P2-d：走共用助手（不新造形态）
 writeFileSync(join(ROOT, OUT), md);
 const { both, one, none, uniq } = tallyPolarity(sites, obs);
 console.log(`   站点 ${uniq.length} ⇒ 两态 ${both.length} · 单态 ${one.length} · 未观测 ${none.length}（观测 ${runs} 局，失败 ${failedRuns}）`);

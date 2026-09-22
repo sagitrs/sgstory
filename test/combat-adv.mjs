@@ -4,18 +4,18 @@
 // 紧接着 `<<set _f.adv to 0>>` —— 刚记上就被清零，于是 UI 显示「下一击有优势」而下一手仍单骰（#352）。
 // 此前的门只测「同轮内」的战斗效果，**跨回合状态**没有覆盖。
 //
-// ⚠️ 这道门的第一版**测错了字段**（记在这里，因为它比「不会变红」更危险）：
-//   它读 `pc.ev.last_roll.rolls`——那是**交涉路径**的字段，靠 `<<snapshot>>` 写入，而战斗段落不调
-//   `<<snapshot>>` → 读到的是陈旧值，恒为 `0` → 那道门**永远不可能变绿**：修复合入后照样报「单骰」，
-//   差一点就把「已修好」误判成「没修好」。现在改用 #352 修复**引入的语义字段** `_f.log.you.rolledWithAdv`
-//   （＝「这一手是在结转优势下掷的」），并用真产物探针证明它会红会绿。
+//注意：这道门的第一版**测错了字段**（记在这里，因为它比「不会变红」更危险）：
+// 它读 `pc.ev.last_roll.rolls`——那是**交涉路径**的字段，靠 `<<snapshot>>` 写入，而战斗段落不调
+// `<<snapshot>>` → 读到的是陈旧值，恒为 `0` → 那道门**永远不可能变绿**：修复合入后照样报「单骰」，
+// 差一点就把「已修好」误判成「没修好」。现在改用 #352 修复**引入的语义字段** `_f.log.you.rolledWithAdv`
+//（＝「这一手是在结转优势下掷的」），并用真产物探针证明它会红会绿。
 //
 // 自证：`node test/combat-adv.mjs --selftest`（正例 1 + 反例 3）
 // 真产物探针（已实测）：把 `src/10-core.twee` 回合推进块里重新加回 `<<set _f.adv to 0>>` → 本门红。
 
 import { boot, CLICKABLE_SEL } from './boot.mjs';
 
-// 判定（纯函数，便于自证）：obs = [{ label, advBefore, rolledWithAdv }]
+// 判定（纯函数，便于自证）：obs = [{ label, advBefore, rolledWithAdv}]
 export const judge = (obs) => {
 	const carried = obs.filter((o) => o.advBefore > 0);
 	if (!carried.length) return { verdict: 'uncalibrated', msg: `未能在 ${obs.length} 手里触发「下一击有优势」——本用例需校准（不计为通过）` };

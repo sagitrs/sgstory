@@ -1,26 +1,26 @@
 #!/usr/bin/env node
-// `#1012`：**导航型交互之后，焦点仍在正文内** ✗ —— `docs/dev-conventions.md` §6「键盘可续」那条契约的**可机检**版 ✓
+// `#1012`：**导航型交互之后，焦点仍在正文内** —— `docs/dev-conventions.md` §6「键盘可续」那条契约的**可机检**版
 //
-// 契约 ✓（**不绑元素** ✗，照 §6 的口径）：交互之后 `document.activeElement.closest('#passages')` 必真 ✓
-// —— 焦点落到 `body` 就是回归（键盘／读屏用户失去落点 ✓）。实测（`#1012` 修前 ✓）：**导航型**交互
-// （`酒馆` 行动区的 `[[就地了结这一趟|结局 平凡之路]]`）`passage` 真变了 ✓ 而 `activeElement` ＝ `body` ✗。
+// 契约（**不绑元素**，照 §6 的口径）：交互之后 `document.activeElement.closest('#passages')` 必真
+// —— 焦点落到 `body` 就是回归（键盘／读屏用户失去落点）。实测（`#1012` 修前）：**导航型**交互
+//（`酒馆` 行动区的 `[[就地了结这一趟|结局 平凡之路]]`）`passage` 真变了 而 `activeElement` ＝ `body`。
 //
-// 两半都要能假 ✓（照 §6 的「实测咬合力」要求 ✓ —— 只关掉「丢焦回收」不该红 ✓，那是安全网 ✓）：
-//   ① **导航型交互** ✗：行动区里的**段落链接**被激活 ⇒ `passage` 真变了 ✓ **且**焦点仍在正文内 ✓
-//      （⚠️ 修前：`passage` 变了但焦点在 `body` ⇒ 这一格**真会红** ✓ —— 不是空判 ✓）；
-//   ② **反例·程序性导航不许抢焦点** ✗：`Engine.play()`（页面载入／车卡引导／工具调用 ✓）**不得**移动焦点 ✓
-//      —— 否则 Tab 序列的起点会被挪到正文之后、越过「跳到正文」/「跳到行动」✓（`#284①` 守的正是它 ✓）。
-//   ⚠️ 本件**不**绑「焦点落在哪个元素」✗（`.fresh-heard`／`.scene-acts`／段落根 都是实现路径 ✓，
-//     共用层一改就假红 ✓ —— §6 明文）；
-//   ⚠️ 本件也**不**判「信息在屏」✗（那是 §6 的另一维 ✓，别把两件事写进一条断言 ✓）。
+// 两半都要能假（照 §6 的「实测咬合力」要求 —— 只关掉「丢焦回收」不该红，那是安全网）：
+// ① **导航型交互**：行动区里的**段落链接**被激活 → `passage` 真变了 **且**焦点仍在正文内
+//（注意：修前：`passage` 变了但焦点在 `body` → 这一格**真会红** —— 不是空判）；
+// ② **反例·程序性导航不许抢焦点**：`Engine.play()`（页面载入／车卡引导／工具调用）**不得**移动焦点
+// —— 否则 Tab 序列的起点会被挪到正文之后、越过「跳到正文」/「跳到行动」（`#284①` 守的正是它）。
+//注意：本件**不**绑「焦点落在哪个元素」（`.fresh-heard`／`.scene-acts`／段落根 都是实现路径，
+// 共用层一改就假红 —— §6 明文）；
+//注意：本件也**不**判「信息在屏」（那是 §6 的另一维，别把两件事写进一条断言）。
 //
-// 用法：`node test/focus-after-nav.mjs [--selftest]`｜前置：**先 `node build.mjs`**（读 `dist/` 产物 ✓，
-//   `boot()` 自带新鲜度守卫 ✓）。
+// 用法：`node test/focus-after-nav.mjs [--selftest]`｜前置：**先 `node build.mjs`**（读 `dist/` 产物，
+// `boot()` 自带新鲜度守卫）。
 
 import { boot } from './boot.mjs';
 
-/** 纯函数：把**一次交互的读数**判成两半（合成用例可注入 ⇒ 这就是本件的 `--selftest` 面 ✓）。
- *  `kind`：`'nav'`（导航型交互）／`'programmatic'`（程序性导航，反例那一半 ✓）。 */
+/** 纯函数：把**一次交互的读数**判成两半（合成用例可注入 → 这就是本件的 `--selftest` 面）。
+ * `kind`：`'nav'`（导航型交互）／`'programmatic'`（程序性导航，反例那一半）。 */
 export const judgeInteraction = ({ kind, passageBefore, passageAfter, focusInsideBefore, focusInsideAfter }) => {
 	const problems = [];
 	const navigated = passageBefore !== passageAfter;
@@ -78,10 +78,10 @@ const clickText = async (t) => {
 let bad = 0;
 const fail = (msg) => { bad++; console.error(`✗ ${msg}`); };
 
-// 车卡引导 ⇒ 进正戏（这一串本身就是**程序性导航**＋点击链 ✓）
+// 车卡引导 → 进正戏（这一串本身就是**程序性导航**＋点击链）
 for (const t of ['踏上旅途', '快速成型', '出发，前往歪脖子鸭酒馆']) await clickText(t);
 
-// ── ② 反例那一半先测：此刻焦点**不在**正文（页面载入后落 body ✓）⇒ `Engine.play` 不许把它挪进去 ──
+// ── ② 反例那一半先测：此刻焦点**不在**正文（页面载入后落 body）→ `Engine.play` 不许把它挪进去 ──
 {
 	const before = state();
 	w.SugarCube.Engine.play('酒馆');
@@ -92,7 +92,7 @@ for (const t of ['踏上旅途', '快速成型', '出发，前往歪脖子鸭酒
 	for (const p of problems) fail(p);
 }
 
-// ── ① 导航型交互：行动区里**会换段落**的那条链接（按 `data-passage` 现取 ✓，不写死文案 ✗）──
+// ── ① 导航型交互：行动区里**会换段落**的那条链接（按 `data-passage` 现取，不写死文案）──
 {
 	const cur = w.SugarCube.State.passage;
 	const a = [...doc.querySelectorAll('#passages .scene-acts a.link-internal')]

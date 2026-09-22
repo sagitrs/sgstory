@@ -1,39 +1,39 @@
 :: 短战斗 Widget [widget]
-/% `#608`（S3 上移）：短战斗的**机制**从 `stories/hollow-cave/10-cave.twee` 搬进引擎（⚠️ **`#1004` B 段后该故事已删** ✗；这里是**历史出处**，机制本身在引擎 ✓）——
+/% `#608`（S3 上移）：短战斗的**机制**从 `stories/hollow-cave/10-cave.twee` 搬进引擎（注意：**`#1004` B 段后该故事已删**；这里是**历史出处**，机制本身在引擎）——
    故事只留**文案与实参**（正是 `#512` 的方向：机制住引擎、数据/文案住故事）。
 
    实参（7 个）：
-     ① 位点（`<<sitecheck>>` 的 key）  ② 按钮文案  ③ 胜句  ④ 败句  ⑤ 遭遇 id（声明面）  ⑥ 战利品句  ⑦ 尾段名
+     ① 位点（`<<sitecheck>>` 的 key） ② 按钮文案 ③ 胜句 ④ 败句 ⑤ 遭遇 id（声明面） ⑥ 战利品句 ⑦ 尾段名
 
    **相位口径**（`#598`／`#600` 的教训，本 widget 的核心）：
-     `Game.Combat.waveRecord()` 返回**对象** `{ phase, wave, plan, advance }`，分支**只看 `.phase`**：
-       · `continue`／`advance` ⇒ **不结算、不推进**：印胜句后**重渲染本段**（本回合已记账，局面留待下一击）；
-       · `cleared` ⇒ 胜句 ＋ `grantReward`（**声明面**结算：金币/掉落都从 `encounters[*].reward` 来）；
-       · `failed`  ⇒ 败句 ＋ `<<damage>>` ＋ **声明面的失败笔记**（`encounters[*].failNote`）。
-   **留屏（`#661`）**：三分支都先声明 `$pc.ev.last_result = { p, era, text }` **再**印/导航 —— 让结果句跟着玩家走到下一段
+     `Game.Combat.waveRecord()` 返回**对象** `{ phase, wave, plan, advance}`，分支**只看 `.phase`**：
+       · `continue`／`advance` → **不结算、不推进**：印胜句后**重渲染本段**（本回合已记账，局面留待下一击）；
+       · `cleared` → 胜句 ＋ `grantReward`（**声明面**结算：金币/掉落都从 `encounters[*].reward` 来）；
+       · `failed` → 败句 ＋ `<<damage>>` ＋ **声明面的失败笔记**（`encounters[*].failNote`）。
+   **留屏（`#661`）**：三分支都先声明 `$pc.ev.last_result = { p, era, text}` **再**印/导航 —— 让结果句跟着玩家走到下一段
    （等价于 `#262` 配方①的 `<<actOut>>`，但**不能直接用它**：同段重渲染语境里 `this.output` 为 null，实测报 `bad evaluation`）。
-     ⚠️ 不许拿 `waveRecord()` 的返回值与字符串比、也不许用 `$last_check.success` 代替相位——
+     注意：不许拿 `waveRecord()` 的返回值与字符串比、也不许用 `$last_check.success` 代替相位——
         `success` 只是"这一击中了"，**不是**"打完了"（短档 `hits=1` 时两者恰好同构，换个声明就会错）。
 
    尾段（第 7 实参）：结算后要执行的**故事侧段落名**（例：本故事的五步步进，那一段里是 `<<caveNext>>`）。
-   引擎不知道「下一步是什么」 ⇒ 只 `<<include>>` 这一段；缺省空串 ⇒ 不执行（显式降级）。
-   （试过"尾段＝wiki 片段 + `$(this.output).wiki()`"的写法：**不驱动导航**（步数不动）⇒ 实测否决。） %/
+   引擎不知道「下一步是什么」 → 只 `<<include>>` 这一段；缺省空串 → 不执行（显式降级）。
+   （试过"尾段＝wiki 片段 + `$(this.output).wiki()`"的写法：**不驱动导航**（步数不动）→ 实测否决。） %/
 :: 敌人回合 Widget [widget]
 /% `#705` 片二-B（`#702` a2）：**一个完整回合**的机制 —— 玩家攻击（5e 攻击骰 vs `foe.ac`）
-   ⇒ 还站着的敌人**反击**（`d20 + attack.bonus` vs `pc.ac` ⇒ 骰式伤害 ⇒ **落部位** ⇒ `slotAbsorbAt`）
-   ⇒ 把 HP/护具耐久**落**到 `$pc`（HP 走 `<<damage>>`，护具耐久直接写 `$pc.gearHp`）。
+   → 还站着的敌人**反击**（`d20 + attack.bonus` vs `pc.ac` → 骰式伤害 → **落部位** → `slotAbsorbAt`）
+   → 把 HP/护具耐久**落**到 `$pc`（HP 走 `<<damage>>`，护具耐久直接写 `$pc.gearHp`）。
 
-   为什么住引擎：**掷骰与结算顺序**是机制（故事只给"动作 id ⇒ attr/dmg/defend"这一层数据）；
+   为什么住引擎：**掷骰与结算顺序**是机制（故事只给"动作 id → attr/dmg/defend"这一层数据）；
    为什么印日志：`#701` 的日志面就吃这一行（出目／AC／部位／减成／耐久／落 HP 全在里面），
    而"部件受伤反馈"（`#704`）吃 `absorb`（部位＋护具＋吸收量＋是否损坏）。
 
-   用法：`<<foeRound "洞窟·挥剑">>`（调用前该波必须已 `foeSpawn`；无实例 ⇒ 什么都不做，交回旧路径）。 %/
+   用法：`<<foeRound "洞窟·挥剑">>`（调用前该波必须已 `foeSpawn`；无实例 → 什么都不做，交回旧路径）。 %/
 <<widget "foeIntent">><<nobr>>
 	/% `#701` 方向③（症状：玩家只知道自己能做什么，**不知道对手会往哪儿招呼**）：
-	   从**声明面**读当前波的敌人（`enemies[id].attack.parts`）⇒ 预告"它盯着哪儿"。
+	   从**声明面**读当前波的敌人（`enemies[id].attack.parts`）→ 预告"它盯着哪儿"。
 	   口径：只报**部位**（不报命中加值/伤害骰 —— 那是 DM 屏后的数，玩家不该看到；也避免把数值写死在文案里）。
-	   **降级**：没有敌人实例（故事 1／未声明敌人）⇒ **整块不出现**（不留空行）。 %/
-	/% 取数走**可空链**：没仗打（故事 1／尚未开局）时 `$pc.ev.fight` 可能整个不存在 ⇒ 必须静默不出现，
+	   **降级**：没有敌人实例（故事 1／未声明敌人）→ **整块不出现**（不留空行）。 %/
+	/% 取数走**可空链**：没仗打（故事 1／尚未开局）时 `$pc.ev.fight` 可能整个不存在 → 必须静默不出现，
 	   而不是抛 `<<set>>: bad evaluation`（实测踩过一次）。 %/
 	<<set _foes to $pc?.ev?.fight?.wave?.foes ?? []>>
 	<<if _foes.length>>
@@ -51,7 +51,7 @@
 <</nobr>><</widget>>
 
 <<widget "foeRound">><<nobr>>
-	/% ⚠️ 本 widget 只做**渲染**：机制（掷骰／结算／日志串）全在 `Game.Combat.foeRound()` 里。
+	/%注意：本 widget 只做**渲染**：机制（掷骰／结算／日志串）全在 `Game.Combat.foeRound()` 里。
 	   为什么这么切（`#705` 片二-B 实测的教训）：SugarCube 的 `<<set>>` 解析器吃不下"长表达式 ＋ 嵌套
 	   三元 ＋ 计算键对象 ＋ 数组字面量"的组合（报 `bad evaluation: Cannot read properties of undefined`），
 	   而且那种失败**只在真机点开时才现形**。搬进 JS 后同一份逻辑还能被 node 门（`test/foe-5e.mjs`）直接测。 %/
@@ -65,15 +65,15 @@
 	<<set _tail to $args[6] ?? "">>
 	<<set _note to Game.Combat.encounterFailNote(_enc)>>
 	/% `#705` 片二-B：**进行中的遭遇不许重开** —— 原先每次渲染都无条件 `waveBegin`（＋`foeSpawn`），
-	   于是玩家一点，段落重渲染 ⇒ 回合数归 0、敌人回满血（实测：点了 6 次 hp 一路掉、敌人纹丝不动）。
+	   于是玩家一点，段落重渲染 → 回合数归 0、敌人回满血（实测：点了 6 次 hp 一路掉、敌人纹丝不动）。
 	   口径与故事 2 的长战斗段一致：**只有"没有波次"或"换了遭遇"才开新局**。 %/
 	<<if not $pc.ev.fight or not $pc.ev.fight.wave or $pc.ev.fight.wave.encounter isnot _enc>>
 		<<run Game.Combat.waveBegin($pc, _enc)>>
 		<<run Game.Combat.foeSpawn($pc, 0)>>
 	<</if>>
 	<<link $args[1]>>
-		/% `#705` 片二-B：**有敌人实例**（故事声明了 `enemies`）⇒ 5e 攻击骰 ＋ 敌人反击（落部位）；
-		   没有实例 ⇒ 逐字节走旧路径（`sitecheck` ＋ `waveRecord`）⇒ 未声明敌人属性的故事**一行不变**。 %/
+		/% `#705` 片二-B：**有敌人实例**（故事声明了 `enemies`）→ 5e 攻击骰 ＋ 敌人反击（落部位）；
+		   没有实例 → 逐字节走旧路径（`sitecheck` ＋ `waveRecord`）→ 未声明敌人属性的故事**一行不变**。 %/
 		<<foeIntent>>
 		<<set _foes to $pc.ev.fight.wave.foes>>
 		<<if _foes and _foes.length gt 0>>
@@ -89,19 +89,19 @@
 			<<goto `passage()`>>
 		<<elseif _phase is "cleared">>
 			/% `#746`（实测：短战斗胜利后落点**看不到胜句**）：原先写 `last_result.p = passage()`＝**战斗段**
-			   ⇒ 落点（岔口）不显示它（长战斗那边早改过同款）。正解：胜句走 `settle`，**落点由 `caveNext` 算**。 %/
+			   → 落点（岔口）不显示它（长战斗那边早改过同款）。正解：胜句走 `settle`，**落点由 `caveNext` 算**。 %/
 			/% `#746`（实测：短战斗胜利后落点看不到胜句）：**有尾段**（＝故事会在战后导航，如洞窟的
-			   `机制·shortFight·尾` ⇒ `<<caveNext>>`）⇒ 写协议槽 `$pc.ev.settle`（由落点提升为句子）；
-			   **没有尾段**（故事 1：原地显示）⇒ 维持 `last_result`（写 `settle` 会是**孤儿写点**，
+			   `机制·shortFight·尾` → `<<caveNext>>`）→ 写协议槽 `$pc.ev.settle`（由落点提升为句子）；
+			   **没有尾段**（故事 1：原地显示）→ 维持 `last_result`（写 `settle` 会是**孤儿写点**，
 			   `--consequences` 门会报"无正文消费"——它抓得对）。引擎也不得用故事侧 widget
-			   （`test/integrity.mjs` 抓过 `<<caveSay>>`：那是故事 2 的）。 %/
+（`test/integrity.mjs` 抓过 `<<caveSay>>`：那是故事 2 的）。 %/
 			<<if _tail>><<set $pc.ev.settle to ($pc.ev.settle ?? "") + $args[2]>><<else>><<set $pc.ev.last_result to { p: passage(), era: $era, text: $args[2] }>><</if>>
 			<<print $args[2]>>
 			<<set _r to Game.Combat.grantReward($pc, _enc)>>
 			<<set $pc.ev.fight to {}>>                       % `#705` 片二-B：清场在**发奖之后**（`grantReward` 要读波次状态；先清 ⇒ 奖励发不出）%
 			/% `#736`（症状：短战掉了**钥匙**，屏上却只有"几枚旧币"——甚至道具掉落时完全无声）：战利品句
 			   按**实际掉落**生成。文案住故事（`Sg.story.lootText(reward, base)`），引擎只负责"有就调用、
-			   无则回落静态实参"（故事 1 未声明 ⇒ 行为逐字不变 ✓）；且**进 `settle`**（有尾段的故事落点才看得到 —
+			   无则回落静态实参"（故事 1 未声明 → 行为逐字不变）；且**进 `settle`**（有尾段的故事落点才看得到 —
 			   原先直接 `<<print>>`，落点看不到）。 %/
 			<<set _loot to "">>
 			<<if typeof Sg?.story?.lootText === "function">>
@@ -116,7 +116,7 @@
 			<<if _r.item>><<give _r.item>><</if>>
 			<<if _tail>><<include `_tail`>><</if>>
 		<<else>>
-			/% 同上（败句）：有尾段 ⇒ 写 `settle`（落点能看到）；无尾段 ⇒ 维持 `last_result`。 %/
+			/% 同上（败句）：有尾段 → 写 `settle`（落点能看到）；无尾段 → 维持 `last_result`。 %/
 			<<if _tail>><<set $pc.ev.settle to ($pc.ev.settle ?? "") + $args[3]>><<else>><<set $pc.ev.last_result to { p: passage(), era: $era, text: $args[3] }>><</if>>
 			<<print $args[3]>>
 			<<damage `Game.Damage.hurt`>>

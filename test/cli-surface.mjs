@@ -1,24 +1,24 @@
-// `#845`：**cli-surface 等价**常驻条目 —— 「工具路 ↔ `cli.mjs` 子命令路」逐档对照 ✓
+// `#845`：**cli-surface 等价**常驻条目 ——「工具路 ↔ `cli.mjs` 子命令路」逐档对照
 //
-// 为什么常驻：`#794` 的"命令体搬进 `lib/host/commands.mjs`"这类重构还会再来 ⇒ 每次都要重跑同一把尺 ✗
-//   ⇒ 一次固化、多次复用 ✓（本条目**从注册表派生** ⇒ 新注册的命令会**红着提醒补档** ✓，不会静默漏 ✓）。
+// 为什么常驻：`#794` 的"命令体搬进 `lib/host/commands.mjs`"这类重构还会再来 → 每次都要重跑同一把尺
+// → 一次固化、多次复用（本条目**从注册表派生** → 新注册的命令会**红着提醒补档**，不会静默漏）。
 //
-// 三条判据形态（缺一即是沉默面 ✗）：
-//   ① **每档带期望**（只有 args 的行＝"跑完即通过"＝空断言 ✗）；
-//   ② **计数断言**（每子命令实际执行档数 > 0 ∧ 全局"实际 == 表总" ⇒ 表被写空/注释掉 ⇒ 当场红 ✗）；
-//   ③ **1:1 不变量**（注册表 ↔ `editor/<tool>.mjs`；豁免须带票号 ✓，且**豁免目标已不存在 ⇒ 红** ✗）。
+// 三条判据形态（缺一即是沉默面）：
+// ① **每档带期望**（只有 args 的行＝"跑完即通过"＝空断言）；
+// ② **计数断言**（每子命令实际执行档数 > 0 ∧ 全局"实际 == 表总" → 表被写空/注释掉 → 当场红）；
+// ③ **1:1 不变量**（注册表 ↔ `editor/<tool>.mjs`；豁免须带票号，且**豁免目标已不存在 → 红**）。
 //
-// 归一化口径 ✓：**只遮 argv 派生项**（程序名／子命令 ✓）；其余任何字节差都算咬住 ✓；
-//   **错路 message＋rc 硬判、栈帧 report-only** ✓（否则随 node 版本假红 ✗）。
+// 归一化口径：**只遮 argv 派生项**（程序名／子命令）；其余任何字节差都算咬住；
+// **错路 message＋rc 硬判、栈帧 report-only**（否则随 node 版本假红）。
 //
-// ⚠️ **自证必须能红**（`#848` 的教训 ✗）：本文件的 `--selftest` 不是"把真表再念一遍" ✓，而是**用一个可注入的假 runner
-//   驱动 `judgeSurface` 的五个合成用例** ✓ ⇒ 判定逻辑一旦退化，自证**当场红** ✓（并把失败计入退出码 ✓）。
+//注意：**自证必须能红**（`#848` 的教训）：本文件的 `--selftest` 不是"把真表再念一遍"，而是**用一个可注入的假 runner
+// 驱动 `judgeSurface` 的五个合成用例** → 判定逻辑一旦退化，自证**当场红**（并把失败计入退出码）。
 import { execFileSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-// ⚠️ **前置**（`#845`/`#850`）：`cli.mjs` 必须导出 `COMMANDS` ⇒ 未导出 ⇒ 明确前置报文 ＋ rc=2 ✓（不静默跳过 ✗）
+//注意：**前置**（`#845`/`#850`）：`cli.mjs` 必须导出 `COMMANDS` → 未导出 → 明确前置报文 ＋ rc=2（不静默跳过）
 const cli = await import('../editor/cli.mjs').catch((e) => ({ __err: e }));
 const COMMANDS = cli?.COMMANDS;
 if (!COMMANDS || !Object.keys(COMMANDS).length) {
@@ -27,16 +27,16 @@ if (!COMMANDS || !Object.keys(COMMANDS).length) {
 	process.exit(2);
 }
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-const TMP = 'build/__cli_surface_tmp';   // 仓内临时落点（`build/` 不被跟踪 ✓）
+const TMP = 'build/__cli_surface_tmp';   // 仓内临时落点（`build/` 不被跟踪）
 
-/** 子命令 → 工具文件（**别名表**：`build` 的工具叫 `compile-story` ✓）。 */
+/** 子命令 → 工具文件（**别名表**：`build` 的工具叫 `compile-story`）。 */
 const TOOL_OF = { build: 'compile-story' };
-/** 注册表里允许**没有**同名工具的子命令：须带**票号 ＋ 理由** ✓（目标已不存在 ⇒ 红 ✗）。 */
+/** 注册表里允许**没有**同名工具的子命令：须带**票号 ＋ 理由**（目标已不存在 → 红）。 */
 const NO_TOOL_EXEMPT = {};
 
-/** **在册差异**（"只许收缩 ＋ 收缩留痕" ✓）：`{ source, mode: 'rc'|'output', why, toolRc?, cliRc? }`。
- *  语义：这条差异**必须仍在** —— 一旦消失或读数变了 ⇒ **红** ✗ ⇒ 更新/删除记录 ✓。
- *  `source` ＝ 票号（待修 ✗）或"契约（票号 声明）"（有意差异 ✓）—— **两者都必填** ✓（没来源的差异＝把 bug 洗成"已知" ✗）。 */
+/** **在册差异**（"只许收缩 ＋ 收缩留痕"）：`{ source, mode: 'rc'|'output', why, toolRc?, cliRc?}`。
+ * 语义：这条差异**必须仍在** —— 一旦消失或读数变了 → **红** → 更新/删除记录。
+ * `source` ＝ 票号（待修）或"契约（票号 声明）"（有意差异）—— **两者都必填**（没来源的差异＝把 bug 洗成"已知"）。 */
 const DECLARED_DIFF = {
 	'k4 --selfcheck': {
 		source: '契约（#847 经 #854 落地 ✓ —— "自证＝壳级选项"是全家设计 ✓）', mode: 'rc',
@@ -50,47 +50,47 @@ const DECLARED_DIFF = {
 	},
 };;
 
-/** 档表：每档**必须带期望** ✓。 */
-// `#995` 的守卫**放在别处** ✗：第一版在这里写了两种"扫一遍每个声明标志"的写法 ✓ ⇒ **两种都不行** ✗：
-//   ① **跑一遍**每个标志 ⇒ `extract-story minimal-demo --tables` **默认落点会写回故事自己的 `data/`** ✗
-//      ⇒ **污染 tracked 文件** ⇒ 同一趟里 `k4` 的"生成物必须新鲜"**当场红** ✓（**是 k4 抓到的** ✓ ——
-//      实测：干净 main 上跑本件**不污染** ✓、本片那版**污染** ✓）；
-//   ② **静态比对**"声明表 ↔ 各命令用法串" ⇒ ⚠️ 用文本切片认命令边界这种切法把**邻居命令**的用法串也扫进来了 ✗ ⇒ 报出一堆**假漂移** ✓
-//      （它同时说明"用文本切片去认命令边界"这件事本身不可靠 ✗）。
-//   ⇒ 最终把守卫换成**经验法** ✓：**整套测试**就是尺子 —— 仓内谁给某个命令多塞了标志，
-//      会在本件或 `npm test` 里**当场红并点名** ✓（**量出来**，不靠扫文本 ✓）；本片已实跑过一遍 ✓。
+/** 档表：每档**必须带期望**。 */
+// `#995` 的守卫**放在别处**：第一版在这里写了两种"扫一遍每个声明标志"的写法 → **两种都不行**：
+// ① **跑一遍**每个标志 → `extract-story minimal-demo --tables` **默认落点会写回故事自己的 `data/`**
+// → **污染 tracked 文件** → 同一趟里 `k4` 的"生成物必须新鲜"**当场红**（**是 k4 抓到的** ——
+// 实测：干净 main 上跑本件**不污染**、本片那版**污染**）；
+// ② **静态比对**"声明表 ↔ 各命令用法串" →注意：用文本切片认命令边界这种切法把**邻居命令**的用法串也扫进来了 → 报出一堆**假漂移**
+//（它同时说明"用文本切片去认命令边界"这件事本身不可靠）。
+// → 最终把守卫换成**经验法**：**整套测试**就是尺子 —— 仓内谁给某个命令多塞了标志，
+// 会在本件或 `npm test` 里**当场红并点名**（**量出来**，不靠扫文本）；本片已实跑过一遍。
 
 const TIERS = {
 	build: [
 		{ args: [], expect: { rc: 2, kind: '用法' } },
 		{ args: ['minimal-demo', `--out=${TMP}`], expect: { rc: 0, kind: '正常' } },
 		{ args: ['minimal-demo', `--out=${TMP}`, 'extra'], expect: { rc: 0, kind: '多位置被忽略' } },
-		// `#995`：**翻面** ✗ —— 原先钉的是「**未知标志被忽略**」（rc=0 ✓）⇒ 那会让「标志没生效」被读成「通过」✓
-		//   （实测踩过 ✓）。现在：不认识的标志 ⇒ **讲人话地拒（rc=2 ＋ 点名）** ✓，与「取不到输入不许判过」同族 ✓。
+		// `#995`：**翻面** —— 原先钉的是「**未知标志被忽略**」（rc=0）→ 那会让「标志没生效」被读成「通过」
+		//（实测踩过）。现在：不认识的标志 → **讲人话地拒（rc=2 ＋ 点名）**，与「取不到输入不许判过」同族。
 		{ args: ['minimal-demo', '--bogus', `--out=${TMP}`], expect: { rc: 2, kind: '错路·未知标志' } },
 	],
 	'extract-story': [
 		{ args: ['minimal-demo', '--nope=1'], expect: { rc: 2, kind: '错路·未知标志' } },
-		// `#959`（`#962` 的同族推广 ✓）：**取值类标志吃空值** ⇒ `--out=` 空会 `join(ROOT,'')` ＝ **仓根** ✗（写文件落根 ✓）⇒ 现应讲人话地拒 ✓
+		// `#959`（`#962` 的同族推广）：**取值类标志吃空值** → `--out=` 空会 `join(ROOT,'')` ＝ **仓根**（写文件落根）→ 现应讲人话地拒
 		{ args: ['minimal-demo', '--out='], expect: { rc: 2, kind: '错路·空值·out' } },
 		{ args: ['minimal-demo', '--from='], expect: { rc: 2, kind: '错路·空值·from' } },
 		{ args: ['minimal-demo', '--section='], expect: { rc: 2, kind: '错路·空值·section' } },
 		{ args: ['minimal-demo', '--key='], expect: { rc: 2, kind: '错路·空值·key' } },
 		{ args: [], expect: { rc: 2, kind: '用法' } },
-		// `#1004` B2 ✓：旧故事已删 ⇒ 本档换到**存活样本** ✓（夹具源＝该故事仓内的 `gates/equiv-baseline/*.twee.txt` ✓）。
+		// `#1004` B2：旧故事已删 → 本档换到**存活样本**（夹具源＝该故事仓内的 `gates/equiv-baseline/*.twee.txt`）。
 		{ args: ['night-ferry', '--tables', '--from=stories/night-ferry/gates/equiv-baseline/15-tables.twee.txt', `--out=${TMP}/t.json`], expect: { rc: 0, kind: '正常' } },
 		{ args: ['mist-forest', '--section=Bogus Name', `--out=${TMP}/t.json`], expect: { rc: 1, kind: '错路·无段' } },
 	],
 	'classify-contract': [
-		// `#959`：`--from=` 空 ⇒ `join(ROOT,'')` ＝ ROOT ⇒ `existsSync` 为真 ⇒ 会走"找不到成员" ⇒ **归因错** ✗ ⇒ 现应讲人话地拒 ✓
+		// `#959`：`--from=` 空 → `join(ROOT,'')` ＝ ROOT → `existsSync` 为真 → 会走"找不到成员" → **归因错** → 现应讲人话地拒
 		{ args: ['minimal-demo', '--from='], expect: { rc: 2, kind: '错路·空值·from' } },
 		{ args: [], expect: { rc: 2, kind: '用法' } },
-		// `#1004` B2 ✓：换到存活样本 ✓，**期望值逐条重测**（不照抄旧样本 ✗）。
-		// ⚠️ 旧两格的 `kind` 与新样本的**实际行为不同** ✗ ⇒ 按实测改准 ✓：
-		//    · 裸跑 ⇒ rc=1 ✓：`night-ferry` 与 `mist-forest` **同为"翻面后"** ✓（`15-tables.twee` 是**产物**（带生成标记）
-		//      ⇒ 本次只判**手写逃生舱文件** ✓ ⇒ 那里找不到 `Sg.story` 成员 ⇒ 报"读不到输入不许当没有故事逻辑"✓）⇒ **旧标签仍正确** ✓。
-		//    · 显式 `--from=<该故事的 equiv 基准件>` ⇒ **实测 rc=0** ✗（分类器拿它作**源** ⇒ 14 个成员全部归类成功 ✓ ——
-		//      与旧样本当时"夹具源 ⇒ 拒 ✓"的行为**不同** ✓）⇒ 标签按实测改成"正常"✓。
+		// `#1004` B2：换到存活样本，**期望值逐条重测**（不照抄旧样本）。
+		//注意：旧两格的 `kind` 与新样本的**实际行为不同** → 按实测改准：
+		// · 裸跑 → rc=1：`night-ferry` 与 `mist-forest` **同为"翻面后"**（`15-tables.twee` 是**产物**（带生成标记）
+		// → 本次只判**手写逃生舱文件** → 那里找不到 `Sg.story` 成员 → 报"读不到输入不许当没有故事逻辑"）→ **旧标签仍正确**。
+		// · 显式 `--from=<该故事的 equiv 基准件>` → **实测 rc=0**（分类器拿它作**源** → 14 个成员全部归类成功 ——
+		// 与旧样本当时"夹具源 → 拒 "的行为**不同**）→ 标签按实测改成"正常"。
 		{ args: ['night-ferry'], expect: { rc: 1, kind: '错路·翻面后只剩逃生舱' } },
 		{ args: ['night-ferry', '--from=stories/night-ferry/gates/equiv-baseline/15-tables.twee.txt'], expect: { rc: 0, kind: '正常（显式 `--from` 给源 ⇒ 照源分类）' } },
 		{ args: ['nosuchstory'], expect: { rc: 1, kind: '错路·读不到输入' } },
@@ -98,11 +98,11 @@ const TIERS = {
 	equiv: [
 		{ args: [], expect: { rc: 2, kind: '用法' } },
 		{ args: ['mist-forest'], expect: { rc: 2, kind: '裸跑拒绝' } },
-		// `#1004` B2 ✓：换到存活样本 ✓（该故事的 `gates/equiv-baseline/15-tables.twee.txt` 就是 `--hand` ✓，实测 rc=0 ✓）。
+		// `#1004` B2：换到存活样本（该故事的 `gates/equiv-baseline/15-tables.twee.txt` 就是 `--hand`，实测 rc=0）。
 		{ args: ['night-ferry', '--l3=report', '--hand=stories/night-ferry/gates/equiv-baseline/15-tables.twee.txt'], expect: { rc: 0, kind: '正常' } },
 		{ args: ['night-ferry', '--l3=weird'], expect: { rc: 2, kind: '错路·档位' } },
-		// `#958` 票内复核 MINOR（`[deferred]`，`#215` 报备 `18508167` 承办 ✓）：**取值类标志吃空值** ⇒ 下游崩成裸 Node 栈 ✗
-		// （`--notes=` 空 ⇒ `readFileSync('')` ⇒ `EISDIR` ✓；`--hand=` 空 ⇒ `join(ROOT,'')` ＝ 仓根 ⇒ 同型 ✓）⇒ 现应为**讲人话地拒** ✓。
+		// `#958` 票内复核 MINOR（`[deferred]`，`#215` 报备 `18508167` 承办）：**取值类标志吃空值** → 下游崩成裸 Node 栈
+		//（`--notes=` 空 → `readFileSync('')` → `EISDIR`；`--hand=` 空 → `join(ROOT,'')` ＝ 仓根 → 同型）→ 现应为**讲人话地拒**。
 		{ args: ['night-ferry', '--notes=', '--l3=report'], expect: { rc: 2, kind: '错路·空值·notes' } },
 		{ args: ['night-ferry', '--hand=', '--l3=report'], expect: { rc: 2, kind: '错路·空值·hand' } },
 	],
@@ -123,7 +123,7 @@ const TIERS = {
 	],
 };
 
-/** 归一化：只遮 argv 派生项 ✓；错路去掉栈帧行 ✓。 */
+/** 归一化：只遮 argv 派生项；错路去掉栈帧行。 */
 export const makeNorm = (sub, tool) => (text) => text
 	.replace(new RegExp(`node editor/(cli\\.mjs ${sub.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}|${tool}\\.mjs)`, 'g'), 'PROG')
 	.split('\n').filter((l) => !/^\s+at /.test(l)).join('\n');
@@ -133,8 +133,8 @@ const realRun = (argv) => {
 	catch (e) { return { rc: e.status ?? 'null', out: String(e.stdout ?? ''), err: String(e.stderr ?? '') }; }
 };
 
-/** **纯判定**（主跑与自证**同用一处** ✓ ⇒ 自证才能真打到它 ✓）。
- *  `run(argv)` 可注入 ✓（自证用假 runner ⇒ 无需真起进程 ✓）。返回发现列表（空＝合格 ✓）。 */
+/** **纯判定**（主跑与自证**同用一处** → 自证才能真打到它）。
+ * `run(argv)` 可注入（自证用假 runner → 无需真起进程）。返回发现列表（空＝合格）。 */
 export const judgeSurface = ({ subs, tiers, declared = {}, run = realRun, toolOf = TOOL_OF, tmp = TMP } = {}) => {
 	const bad = [];
 	const used = new Set();
@@ -182,8 +182,8 @@ export const judgeSurface = ({ subs, tiers, declared = {}, run = realRun, toolOf
 	return { findings: bad, executed, total };
 };
 
-/** **自证**（`--selftest`）：用**假 runner** 驱动 `judgeSurface` 的五个合成用例 ✓ —— 判定退化 ⇒ 当场红 ✓。
- *  ⚠️ 这里刻意用**自增量计数器 `bad` ＋ `if (bad)` 进退出码** ✓（`scripts/report-selftest-validity.mjs` 的 V2 判据 ✓）。 */
+/** **自证**（`--selftest`）：用**假 runner** 驱动 `judgeSurface` 的五个合成用例 —— 判定退化 → 当场红。
+ *注意：这里刻意用**自增量计数器 `bad` ＋ `if (bad)` 进退出码**（`scripts/report-selftest-validity.mjs` 的 V2 判据）。 */
 const selftest = () => {
 	let bad = 0;
 	const t = (label, ok, got = '') => { console.log(`${ok ? '✓' : '✗'} 自证·${label}${ok ? '' : `\n    实得：${got}`}`); if (!ok) bad += 1; };

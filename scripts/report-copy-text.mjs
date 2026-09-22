@@ -2,21 +2,21 @@
 //
 // 为什么需要它：`#459` 要让引擎文案走 `Sg.story.copy()`（故事可覆盖、引擎有默认值兜底）。
 // 在那之前必须能回答"**搬完了吗**"——而 `#441` 上为这个数字争过一次（手工数得 68＝`10-core` 49／`80-script` 19；
-// 我 grep 得 99／23）。差的是**规则**不是算术 ⇒ 规则写死在这里，数字才敢当基线用。
+// 我 grep 得 99／23）。差的是**规则**不是算术 → 规则写死在这里，数字才敢当基线用。
 //
 // 规则（**声明式**，改规则＝改这里，别在票面上手数）：
-//   R1 单位＝**字符串字面量的一次出现**（`'…'` / `"…"` / `` `…` ``），**不去重**（同一句话写两遍＝2 处）；
-//   R2 只算**含 CJK**（U+4E00–U+9FFF）的字面量；
-//   R3 **注释不算**（复用 `literals` 门的剥注释规则：`/% … %/`、`<!-- … -->`、`//`（`://` 除外））
-//      —— 复用同一份实现，避免"两个门各写一套注释规则"然后漂移；
-//   R4 `<<link "中文">>` 这类**宏参数里的字符串算**（它是玩家真正读到的文案）；
-//   R5 **跨行字面量不计**（按行扫描）——本仓引擎侧现无此类；脚本会输出"引号不闭合行"的告警让人复核。
+// R1 单位＝**字符串字面量的一次出现**（`'…'` / `"…"` / `` `…` ``），**不去重**（同一句话写两遍＝2 处）；
+// R2 只算**含 CJK**（U+4E00–U+9FFF）的字面量；
+// R3 **注释不算**（复用 `literals` 门的剥注释规则：`/% … %/`、`<!-- … -->`、`//`（`://` 除外））
+// —— 复用同一份实现，避免"两个门各写一套注释规则"然后漂移；
+// R4 `<<link "中文">>` 这类**宏参数里的字符串算**（它是玩家真正读到的文案）；
+// R5 **跨行字面量不计**（按行扫描）——本仓引擎侧现无此类；脚本会输出"引号不闭合行"的告警让人复核。
 //
 // 用法：
-//   node scripts/report-copy-text.mjs              # 引擎层（layer: engine）逐文件计数 + 合计
-//   node scripts/report-copy-text.mjs --scope all  # 全部源文件
-//   node scripts/report-copy-text.mjs --json        # 机器可读（含每个字面量的行号与内容）
-//   node scripts/report-copy-text.mjs --selftest    # 规则自证（边界例）
+// node scripts/report-copy-text.mjs # 引擎层（layer: engine）逐文件计数 + 合计
+// node scripts/report-copy-text.mjs --scope all # 全部源文件
+// node scripts/report-copy-text.mjs --json # 机器可读（含每个字面量的行号与内容）
+// node scripts/report-copy-text.mjs --selftest # 规则自证（边界例）
 import { readFileSync } from 'node:fs';
 import { ORDER, LAYER_OF } from './module-order.mjs';
 import { blankComments } from './audit/gates/literals.mjs';

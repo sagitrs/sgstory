@@ -1,14 +1,14 @@
 // ⓪z 波次与重置门（S3／`#488`）：波次推进（增援）· 奖励单调 · 失败重置语义
 //
-// **引擎门**（判据来自声明表：`mechanics().encounters[id] = { waves:[…], rewardsScale? }`）：
-//   ① **波次推进/增援**：清完一批（`hits ≥ plan.hits`）才进下一批，且**下一批各自重置计数**；
-//      最后一批清完 ⇒ `cleared`；回合用尽而未清 ⇒ `failed`（已定 ②：短＝1 回合·1 命中；长＝**5 回合**·3 命中
-//      —— 回合上限 `#599` 由 3 调到 5〔保留"三击"只松压力〕）
-//   ② **奖励随难度单调**：同一遭遇内 `waveRewardScale` 随批号（难度）**严格递增**
-//   ③ **重置语义 ＋ 「不清什么」清单**：`resetRun` 清 `inv`／`gearHp`／`statuses`／hp／波次状态；
-//      `RESET_KEEPS` 声明的面（`ev`／`soc`／`star`／`dragon`／`world` ＋ `Sg.notes`／`Sg.Codex`／`Sg.store`）**不受影响**
-//   ④ **与存档相容**：`resetRun` 后 **pc 序列化往返** ⇒ 清过的仍为空、保留面同值（轻量代理；真存档矩阵并入 `#533`）
-//   ⑤ **兼容降级**：`mechanics()` 为 `null` ⇒ 所有入口返回 `null`（调用方不调 ⇒ 零行为变化）
+// **引擎门**（判据来自声明表：`mechanics().encounters[id] = { waves:[…], rewardsScale?}`）：
+// ① **波次推进/增援**：清完一批（`hits ≥ plan.hits`）才进下一批，且**下一批各自重置计数**；
+// 最后一批清完 → `cleared`；回合用尽而未清 → `failed`（已定 ②：短＝1 回合·1 命中；长＝**5 回合**·3 命中
+// —— 回合上限 `#599` 由 3 调到 5〔保留"三击"只松压力〕）
+// ② **奖励随难度单调**：同一遭遇内 `waveRewardScale` 随批号（难度）**严格递增**
+// ③ **重置语义 ＋「不清什么」清单**：`resetRun` 清 `inv`／`gearHp`／`statuses`／hp／波次状态；
+// `RESET_KEEPS` 声明的面（`ev`／`soc`／`star`／`dragon`／`world` ＋ `Sg.notes`／`Sg.Codex`／`Sg.store`）**不受影响**
+// ④ **与存档相容**：`resetRun` 后 **pc 序列化往返** → 清过的仍为空、保留面同值（轻量代理；真存档矩阵并入 `#533`）
+// ⑤ **兼容降级**：`mechanics()` 为 `null` → 所有入口返回 `null`（调用方不调 → 零行为变化）
 //
 // 用法：`node scripts/audit.mjs --waves`（`--check` 为判定态）
 
@@ -63,7 +63,7 @@ export const run = (ctx) => {
 	if (!wantAll && !arg('waves')) return;
 	console.log('\n══ ⓪z 波次与重置门（S3/#488）——增援 · 奖励单调 · 失败重置 ══');
 	let bad = 0;
-	// `#1151`：**自证格**的计数单列（格红＝本门失能；与「判据发现」语义不同 ⇒ 分开记 ✓）
+	// `#1151`：**自证格**的计数单列（格红＝本门失能；与「判据发现」语义不同 → 分开记）
 	let selfBad = 0;
 	const t = (label, ok, extra = '') => { if (ok) console.log(`      ✓ ${label}`); else { bad++; console.error(`      ✗ ${label}${extra ? '：' + extra : ''}`); } };
 	const saved = Sg.story.mechanics;
@@ -79,8 +79,8 @@ export const run = (ctx) => {
 		{
 			const s = Game.Combat.wavePlan('short'), l = Game.Combat.wavePlan('long');
 			t('① 短＝1 批·1 回合·1 命中（单次判定定胜负）', s.rounds === 1 && s.hits === 1 && s.waves.length === 1 && s.long === false, JSON.stringify(s));
-			// `#705` 片二-B（判据⑦）：声明了 `enemies` 的波 ⇒ 通关判据＝**敌人全灭**（`hits` 退场），
-			// 上限按判据⑥**重导**（`#599` 的 5 是固定伤害数学下算的）⇒ 现在是 **8**（覆盖实测 p90）。
+			// `#705` 片二-B（判据⑦）：声明了 `enemies` 的波 → 通关判据＝**敌人全灭**（`hits` 退场），
+			// 上限按判据⑥**重导**（`#599` 的 5 是固定伤害数学下算的）→ 现在是 **8**（覆盖实测 p90）。
 			t('① 长＝2 批·**8 回合**（⑥ 重导）·**敌人全灭**（⑦；`hits` 退场）', l.rounds === 8 && l.hits === 3 && l.waves.length === 2 && l.long === true, JSON.stringify(l))
 
 		}
@@ -91,9 +91,9 @@ export const run = (ctx) => {
 			const started = Game.Combat.waveBegin(pc, 'long');
 			t('① `waveBegin` 开局：写 `pc.ev.fight.wave`（不新增顶层键）＋ 返回第一批的池', pc.ev.fight.wave.idx === 1 && started.pool === 'p1' && Object.keys(pc).includes('ev'), JSON.stringify(pc.ev.fight.wave));
 			const trace = [];
-			// 合法轨迹：第一批 3 次命中 ⇒ `advance`（换池）；第二批 3 次命中 ⇒ `cleared`。
-			// （初版夹具写 [true,false,true,true] ⇒ 第 3 回合恰好用尽而本批未清 ⇒ 引擎已判 `failed`，
-			//   我却继续调 `waveRecord` ⇒ 判据自检当场抓到"已结束还在推进"。夹具自身要合法。）
+			// 合法轨迹：第一批 3 次命中 → `advance`（换池）；第二批 3 次命中 → `cleared`。
+			//（初版夹具写 [true,false,true,true] → 第 3 回合恰好用尽而本批未清 → 引擎已判 `failed`，
+			// 我却继续调 `waveRecord` → 判据自检当场抓到"已结束还在推进"。夹具自身要合法。）
 			for (const okk of [true, true, true, true, true, true]) { const r = Game.Combat.waveRecord(pc, okk); trace.push({ success: okk, phase: r.phase, pool: r.pool }); }
 			const adv = trace[2], last = trace[5];
 			t('① **清完一批才增援**：第 3 次命中 ⇒ `advance` 且换池到 `p2`', adv.phase === 'advance' && adv.pool === 'p2', JSON.stringify(adv));
@@ -102,7 +102,7 @@ export const run = (ctx) => {
 			t('① 最后一批清完 ⇒ `cleared`', last.phase === 'cleared', JSON.stringify(last));
 		}
 
-		// ── ① 回合用尽 ⇒ 判负 ──
+		// ── ① 回合用尽 → 判负 ──
 		{
 			const pc = PC();
 			Game.Combat.waveBegin(pc, 'long');
@@ -123,7 +123,7 @@ export const run = (ctx) => {
 			t('② 乘数取声明的 `rewardsScale`（1.5 × difficulty）', Math.abs(a - 1.5) < 1e-9 && Math.abs(b - 3) < 1e-9, JSON.stringify({ a, b }));
 		}
 
-		// ── ③ 重置语义 ＋ 「不清什么」清单 ──
+		// ── ③ 重置语义 ＋「不清什么」清单 ──
 		{
 			const pc = PC();
 			const keepOf = (p) => ({ ...p.ev, fight: undefined });   // 保留面：`ev` 的**其它**键（`fight` 是瞬态，本就该清）
@@ -165,8 +165,8 @@ export const run = (ctx) => {
 	}
 
 	bad += selfBad;
-	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 格级属性 ✓，**不依赖 `process.argv`** ✗
-	//   ⚠️ 与「判据发现」**分开报** ✓：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」✓
+	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 格级属性，**不依赖 `process.argv`**
+	//注意：与「判据发现」**分开报**：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」
 	if (selfBad) {
 		console.error(`\n✗ ⓪z 波次与重置门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓（\`#1151\`）`);
 		process.exit(1);

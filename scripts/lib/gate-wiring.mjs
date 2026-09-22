@@ -2,30 +2,30 @@
 //
 // ## 现象（`#1100` §一 实测）
 // ```
-// `scripts/probe-gates.mjs` 里 `probeStructureProblems(PROBES)` 换成 `[]` ⇒ `--check` 与 `--selfcheck` **都 rc=0** ✗
-// ⇒ **判据在、接线被摘、无人报** ✓ ⇒ 之后违规**全链路漏报** ✓
+// `scripts/probe-gates.mjs` 里 `probeStructureProblems(PROBES)` 换成 `[]` → `--check` 与 `--selfcheck` **都 rc=0**
+// → **判据在、接线被摘、无人报** → 之后违规**全链路漏报**
 // ```
-// ## 口径（评审席定稿：**乙′ ＋ 派生覆盖面** ✓）
+// ## 口径（评审席定稿：**乙′ ＋ 派生覆盖面**）
 // ```
-// B′1 集合 ＝ 门模块侧（`scripts/audit/gates/*.mjs` 的 `flags`）↔ registry 侧（`GATES` 并集）⇒ **两向相等 ＋ 打印两面与差集** ✓
-// B′3 锚 ＝ **逐门具名判据体**（`GATE_ANCHORS` 显式表 ✓；**不指 `run`** ✗）
-// R1  锚符号在目标文件里**恰 1 处定义** ✓（0 ⇒ 判据体被删／≥2 ⇒ 锚不唯一 ⇒ 读数不可信 ✓）
-// R2  锚符号**必须在同模块 `run` 那一段里被调用** ✗（判 `sym(` 调用形态 ✓，不是"名字出现过"✗）
+// B′1 集合 ＝ 门模块侧（`scripts/audit/gates/*.mjs` 的 `flags`）↔ registry 侧（`GATES` 并集）→ **两向相等 ＋ 打印两面与差集**
+// B′3 锚 ＝ **逐门具名判据体**（`GATE_ANCHORS` 显式表；**不指 `run`**）
+// R1 锚符号在目标文件里**恰 1 处定义**（0 → 判据体被删／≥2 → 锚不唯一 → 读数不可信）
+// R2 锚符号**必须在同模块 `run` 那一段里被调用**（判 `sym(` 调用形态，不是"名字出现过"）
 // ```
-// ## ⚠️ 边界（**不得宣称"不可摘"** ✗）
+// ##注意：边界（**不得宣称"不可摘"**）
 // ```
-// · 本判据**不是锁** ✗：把"派生 ＋ 核对"整体删掉 ⇒ 门内抓不到 ✓
-// · 它给的是**可观测的数**：两面差集／锚处数／字形读数 ✓
-// · **唯一的外部可见性** ＝ **台账 diff**（`REASONS` 纪律 ✓）
-// · ⚠️ R2 的字面量挖空**连 `${…}` 一起挖** ✗ —— 若有人把**真代码**写进模板字面量，本判据会**假红** ✓
-//   （门模块里不会这么写 ⇒ 接受 ✓；写在这里是为了**别让读者以为它无懈可击** ✓）
+// · 本判据**不是锁**：把"派生 ＋ 核对"整体删掉 → 门内抓不到
+// · 它给的是**可观测的数**：两面差集／锚处数／字形读数
+// · **唯一的外部可见性** ＝ **台账 diff**（`REASONS` 纪律）
+// ·注意：R2 的字面量挖空**连 `${…}` 一起挖** —— 若有人把**真代码**写进模板字面量，本判据会**假红**
+//（门模块里不会这么写 → 接受；写在这里是为了**别让读者以为它无懈可击**）
 // ```
 import { readFileSync, readdirSync } from 'node:fs';
-import { GATES } from '../audit/registry.mjs';   //  B′1：registry 侧那面（单一权威 ✓）
-import { mask } from '../audit/lib/mask.mjs';   // `#1100`：**单一权威**词法遮蔽器（`export *` 自 `editor/lib/core/mask.mjs` ✓）
+import { GATES } from '../audit/registry.mjs';   // B′1：registry 侧那面（单一权威）
+import { mask } from '../audit/lib/mask.mjs';   // `#1100`：**单一权威**词法遮蔽器（`export *` 自 `editor/lib/core/mask.mjs`）
 
 export const GATE_DIR = 'scripts/audit/gates';
-/** `#1100` (甲)：**逐门锚 ＝ 该门的具名判据体**（不指 `run` ✗）。 */
+/** `#1100` (甲)：**逐门锚 ＝ 该门的具名判据体**（不指 `run`）。 */
 export const GATE_ANCHORS = {
 	a11y: 'contrastFindings',
 	consequences: 'judgeConsequences',
@@ -42,14 +42,14 @@ export const GATE_ANCHORS = {
 
 const realRead = (f) => { try { return readFileSync(f, 'utf8'); } catch { return ''; } };
 
-/** 从某门模块源码里抽 `export const flags = [...]`（**门自己声明 ✓**）。 */
+/** 从某门模块源码里抽 `export const flags = [...]`（**门自己声明 **）。 */
 export const moduleFlags = (src) => [...String(src).matchAll(/export const flags\s*=\s*\[([^\]]*)\]/g)]
 	.flatMap((m) => m[1].split(',').map((s) => s.trim().replace(/^["']|["']$/g, '')).filter(Boolean));
 
-/** registry 侧的门 flag 集合（**另一面** ✓）。 */
+/** registry 侧的门 flag 集合（**另一面**）。 */
 export const registryFlags = () => [...new Set(GATES.flatMap((g) => g.flags ?? []))].sort();
 
-/** **词法区段**：`export const run` 到**下一个顶层 `export `**（或文件尾）✓ —— 不解析 JS ✓（配平那条路已废 ✗）。 */
+/** **词法区段**：`export const run` 到**下一个顶层 `export `**（或文件尾） —— 不解析 JS（配平那条路已废）。 */
 export const runRegionOf = (code) => {
 	const t = String(code);
 	const at = t.indexOf('export const run');
@@ -58,7 +58,7 @@ export const runRegionOf = (code) => {
 	return next < 0 ? t.slice(at) : t.slice(at, next);
 };
 
-/** **跨行字面量整段挖空**（保持长度与换行 ⇒ 行列稳定 ✓）。⚠️ `${…}` 一并挖 ✓（边界见文件头 ✓）。 */
+/** **跨行字面量整段挖空**（保持长度与换行 → 行列稳定）。注意：`${…}` 一并挖（边界见文件头）。 */
 export const blankLiterals = (code) => {
 	const t = String(code);
 	let out = '';
@@ -77,9 +77,9 @@ export const blankLiterals = (code) => {
 	return out;
 };
 
-/** **按行**挖空字面量（每行独立扫描 ⇒ **绝不跨行吞后段** ✗）。
- *  ⚠️ 边界（如实 ✓）：跨行模板／字符串的**后续行不挖** ⇒ 若有人把 `sym(` 写进跨行模板正文，本判据会**假过** ✓
- *  （而"跨行整段挖"会在遇到正则里的撇号时吞掉整段 ⇒ 造成**假红** ✓ —— 两者都写在这里，供后人取择 ✓）。 */
+/** **按行**挖空字面量（每行独立扫描 → **绝不跨行吞后段**）。
+ *注意：边界（如实）：跨行模板／字符串的**后续行不挖** → 若有人把 `sym(` 写进跨行模板正文，本判据会**假过**
+ *（而"跨行整段挖"会在遇到正则里的撇号时吞掉整段 → 造成**假红** —— 两者都写在这里，供后人取择）。 */
 export const blankLiteralsLinewise = (code) => String(code).split('\n').map((line) => {
 	let out = ''; let q = null;
 	for (let i = 0; i < line.length; i++) {
@@ -92,13 +92,13 @@ export const blankLiteralsLinewise = (code) => String(code).split('\n').map((lin
 }).join('\n');
 
 
-/** `#1100` **驱动层**（三层判别力的中间一层 ✓）：**注册表 ⇒ 被驱动** 这条链必须成立 ✗。
- *  ⚠️ 一手事实（本仓实形 ✓）：驱动器 ＝ `scripts/audit/lib/shared.mjs` 的 `runSelectedGates` ⇒ 循环体调 **`g.run(ctx)`** ✓；
- *  枚举源 ＝ `scripts/audit/discovery.mjs` ⇒ 它必须从**注册表 `GATES`** 取 ✓（唯一枚举源 ✓）。
- *  抓的是**这条链**，不是某个具体写法 ✓（换写法 ⇒ 改这里的锚 ✓，但"链断必红"不变 ✓）。 */
+/** `#1100` **驱动层**（三层判别力的中间一层）：**注册表 → 被驱动** 这条链必须成立。
+ *注意：一手事实（本仓实形）：驱动器 ＝ `scripts/audit/lib/shared.mjs` 的 `runSelectedGates` → 循环体调 **`g.run(ctx)`**；
+ * 枚举源 ＝ `scripts/audit/discovery.mjs` → 它必须从**注册表 `GATES`** 取（唯一枚举源）。
+ * 抓的是**这条链**，不是某个具体写法（换写法 → 改这里的锚，但"链断必红"不变）。 */
 export const DRIVER_CHAIN = { driver: 'scripts/audit/lib/shared.mjs', call: 'g.run(', source: 'scripts/audit/discovery.mjs', registry: 'GATES' };
 
-/** 驱动层判据（**纯函数 ＋ 注入** ✓ ⇒ 自证能喂假事实 ✓）。 */
+/** 驱动层判据（**纯函数 ＋ 注入** → 自证能喂假事实）。 */
 export const driverProblems = ({ read = realRead, chain = DRIVER_CHAIN } = {}) => {
 	const problems = [];
 	const d = read(chain.driver);
@@ -110,7 +110,7 @@ export const driverProblems = ({ read = realRead, chain = DRIVER_CHAIN } = {}) =
 	return problems;
 };
 
-/** 核对（**纯函数 ＋ 全部注入** ✓ ⇒ 自证能喂假事实 ✓）。 */
+/** 核对（**纯函数 ＋ 全部注入** → 自证能喂假事实）。 */
 export const wiringProblems = ({ read = realRead, list = () => readdirSync(GATE_DIR), dir = GATE_DIR, registry = registryFlags(), anchors = GATE_ANCHORS } = {}) => {
 	const problems = [];
 	const files = list().filter((f) => f.endsWith('.mjs')).sort();
@@ -121,7 +121,7 @@ export const wiringProblems = ({ read = realRead, list = () => readdirSync(GATE_
 		if (!src) { problems.push(`✗ **接线缺失**：门模块 \`${path}\` **读不到** ✗（被删/改名 ⇒ 接线面失守）`); continue; }
 		const fl = moduleFlags(src);
 		const fl0 = fl[0];
-		// 前置（验收第 3 条 ✓）：**词法读数不成立**与**接线缺失**分开报 ✗
+		// 前置（验收第 3 条）：**词法读数不成立**与**接线缺失**分开报
 		const { text: maskedText, unclosed } = mask(src);
 		if (Array.isArray(unclosed) && unclosed.length) {
 			problems.push(`✗ **读数不成立**（不是接线缺失 ✗）：\`${path}\` 的词法遮蔽报告未闭合 ${unclosed.length} 处 ⇒ 本门的接线读数不成立 ✓`);
@@ -131,7 +131,7 @@ export const wiringProblems = ({ read = realRead, list = () => readdirSync(GATE_
 		const sym = anchors[fl0] ?? '';
 		if (!sym) problems.push(`✗ **接线缺失**：\`${path}\` 的 flag \`${fl0}\` **没在 \`GATE_ANCHORS\` 登记锚** ✗`);
 		else {
-			// ⚠️ 必须带**标识符边界** ✗ —— 否则 `judgeConsequencesX` 因以 `judgeConsequences` 开头而被数成 1 处（实测踩过 ✓）
+			//注意：必须带**标识符边界** —— 否则 `judgeConsequencesX` 因以 `judgeConsequences` 开头而被数成 1 处（实测踩过）
 			const n = [...src.matchAll(new RegExp('export const ' + sym + '\\b', 'g'))].length;
 			if (n !== 1) problems.push(`✗ **接线缺失**：\`${path}\` 的锚 \`export const ${sym}\` 出现 **${n}** 处（须恰 1 ⇒ 0＝判据体被删 ✓／≥2＝锚不唯一 ⇒ 读数不可信 ✓）`);
 			const region = (() => { const r = runRegionOf(maskedText); return r === null ? null : blankLiteralsLinewise(r); })();
@@ -142,7 +142,7 @@ export const wiringProblems = ({ read = realRead, list = () => readdirSync(GATE_
 		}
 		fromModules.push(...fl);
 	}
-	problems.push(...driverProblems({ read }));   // `#1100` 驱动层：注册表 ⇒ 被驱动 ✓（接进主核对 ⇒ 对**真的**驱动器跑一次 ✓）
+	problems.push(...driverProblems({ read }));   // `#1100` 驱动层：注册表 → 被驱动（接进主核对 → 对**真的**驱动器跑一次）
 	const a = [...new Set(fromModules)].sort();
 	const b = [...registry];
 	const onlyA = a.filter((x) => !b.includes(x));

@@ -1,14 +1,14 @@
 #!/usr/bin/env node
-// `#1166` (2)：**提交前三分支态预检**（`npm run check:precommit`）—— 把"人记的纪律"变成命令 ✗
+// `#1166` (2)：**提交前三分支态预检**（`npm run check:precommit`）—— 把"人记的纪律"变成命令
 //
-// 为什么要它（我的一次事故 ✓）：我**口头断言**"已回分支 X、回前核过基线"✗ 而实际从未 checkout
-//   ⇒ 提交落在**别的分支**上（`pr1164` 的 detached 树上 ✓）⇒ 靠事后 `git diff --stat` 才发现 ✗
-//   ⇒ 教训：**"我以为我在某分支上"不是状态** ✗ ⇒ 提交前必须**打印并检查**三分支态 ✓
+// 为什么要它（我的一次事故）：我**口头断言**"已回分支 X、回前核过基线" 而实际从未 checkout
+// → 提交落在**别的分支**上（`pr1164` 的 detached 树上）→ 靠事后 `git diff --stat` 才发现
+// → 教训：**"我以为我在某分支上"不是状态** → 提交前必须**打印并检查**三分支态
 //
-// 三条（打印 ＋ 判据 ✓ 不是只打印 ✗）：
-//   ① 当前分支：**detached HEAD** ⇒ 红 ✗（正是那次事故的形态 ✓）
-//   ② 与 origin/main 的关系：HEAD **等于** origin/main ⇒ 提示"在 main 上直接提交吗？"✗
-//   ③ 本地 `origin/main` 是否**落后**（可 fetch 到更远端？）⇒ 提示**基线可能陈旧** ✗（"先 fetch 再核基线"✓）
+// 三条（打印 ＋ 判据 不是只打印）：
+// ① 当前分支：**detached HEAD** → 红（正是那次事故的形态）
+// ② 与 origin/main 的关系：HEAD **等于** origin/main → 提示"在 main 上直接提交吗？"
+// ③ 本地 `origin/main` 是否**落后**（可 fetch 到更远端？）→ 提示**基线可能陈旧**（"先 fetch 再核基线"）
 import { execFileSync } from 'node:child_process';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
@@ -17,12 +17,12 @@ const git = (args, opts = {}) => {
 	catch { return ''; }
 };
 
-/** **纯函数**：三态判据 ⇒ 问题清单（空＝绿 ✓）。 */
+/** **纯函数**：三态判据 → 问题清单（空＝绿）。 */
 export const precommitProblems = ({ branch, head, mainTip }) => {
 	const out = [];
 	if (!branch) out.push({ code: 'DETACHED', msg: 'HEAD 处于 **detached**（不在任何分支上）✗ —— 正是"提交落错分支"那次事故的形态；先 `git switch -c <分支>` 或 `git switch <分支>` ✓' });
-	// ⚠️ 修正（实测假阳性 ✗）：**新分支尚未提交**时 `head === mainTip` 是**正常**的 ⇒ 不是问题 ✓
-	//   "直接在 main 上提交"应由**分支名**判定 ✓（`main`＝主干名 ✓ 不靠"与 main 同头"推断 ✗）
+	//注意：修正（实测假阳性）：**新分支尚未提交**时 `head === mainTip` 是**正常**的 → 不是问题
+	// "直接在 main 上提交"应由**分支名**判定（`main`＝主干名 不靠"与 main 同头"推断）
 	if (branch === 'main') out.push({ code: 'ON-MAIN', msg: '当前分支＝**`main`** ⇒ 你要**直接在主干上提交**吗？✗（新工作应开分支 ✓ 从 main 出分支再提交 ✓）' });
 	return out;
 };

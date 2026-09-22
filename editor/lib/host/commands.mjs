@@ -1,12 +1,12 @@
 // `#794` 抽取的最后一个信封：**命令体**（一个命令一个函数：`解析 → 干活 → 打印`）。
 //
-// 为什么住 host ✓：命令体要读/写文件（宿主能力 ✓）；但它**调 core**（编译 `compileStory` ✓、
-// 唯一写路 `writeStoryPackage` ✓）⇒ core 本身仍零宿主依赖 ✓（K6 ③ 在盯 ✓）。
+// 为什么住 host：命令体要读/写文件（宿主能力）；但它**调 core**（编译 `compileStory`、
+// 唯一写路 `writeStoryPackage`）→ core 本身仍零宿主依赖（K6 ③ 在盯）。
 //
-// **两条入口共用同一具身体** ✓：`editor/cli.mjs <子命令>` 与 `node editor/<工具>.mjs …` 都调这里的同一个函数 ✓
-// ⇒ 等价性**按构造成立** ✓（不是"两个实现碰巧一致" ✗ —— 那种迟早漂移 ✓）。
-// 连**参数解析**也在这里 ✓（函数的入参就是原始 `argv` 尾巴 ✓）⇒ 入口层没有第二份解析 ✓
-// （否则"未知标志/缺必填/多给位置参数"三档就会两边不一致 ✓ —— 那正是入口层分叉的藏身处 ✓）。
+// **两条入口共用同一具身体**：`editor/cli.mjs <子命令>` 与 `node editor/<工具>.mjs …` 都调这里的同一个函数
+// → 等价性**按构造成立**（不是"两个实现碰巧一致" —— 那种迟早漂移）。
+// 连**参数解析**也在这里（函数的入参就是原始 `argv` 尾巴）→ 入口层没有第二份解析
+//（否则"未知标志/缺必填/多给位置参数"三档就会两边不一致 —— 那正是入口层分叉的藏身处）。
 import { join, resolve, dirname, relative } from 'node:path';
 import { readText, writeText, mkdirp, exists, ROOT, engineScripts } from './fs.mjs';
 import { scriptBodies } from '../core/text.mjs';
@@ -28,13 +28,13 @@ import { definitionsOf, duplicateExportProblems, secondCopyProblems, coreHostPro
 	coreHostGlobalProblems, deleteStoryProblems, shellWriteProblems, mjsFiles, CORE, HOSTS, EDITOR, REPO_ROOT as K6ROOT } from './k6criteria.mjs';
 
 
-// `#794` 第 4 条（K4 命令体）：判据的**纯**部分住 core ✓（纯 ⇒ core、宿主能力 ⇒ host ✓）。
-// ⚠️ **一处定义** ✓：分类器实例**不在本文件重装** ✗ —— `lib/host/classify.mjs` 已经装好（`makeClassify({ evalLiteral: literalValue })` ✓），
-// 本命令走它导出的缝 `classifyContractText` ✓（那条缝多做 `locals` 上下文与 `const` 的 B→A 解析 ⇒ 该语义风险由**两时点差分**量掉 ✓）。
+// `#794` 第 4 条（K4 命令体）：判据的**纯**部分住 core（纯 → core、宿主能力 → host）。
+//注意：**一处定义**：分类器实例**不在本文件重装** —— `lib/host/classify.mjs` 已经装好（`makeClassify({ evalLiteral: literalValue})`），
+// 本命令走它导出的缝 `classifyContractText`（那条缝多做 `locals` 上下文与 `const` 的 B→A 解析 → 该语义风险由**两时点差分**量掉）。
 import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, handwrittenClosureProblems, contractSourceText, staleTrackedProblems, referenceIntegrityProblems, undoneProblems } from '../core/k4criteria.mjs';
 import { censusOfStory, censusSummarize, censusProblems } from '../core/hatchCensus.mjs';
 import { classifyContractText } from './classify.mjs';
-// `#794` 弧第 3 票（`equiv` 命令体）：用 vm／读文件／跑子进程 ⇒ **都在 host** ✓。
+// `#794` 弧第 3 票（`equiv` 命令体）：用 vm／读文件／跑子进程 → **都在 host**。
 import vm from 'node:vm';
 import { maskComments } from '../../../scripts/audit/lib/mask.mjs';
 import { section, normalize } from '../core/text.mjs';
@@ -44,19 +44,19 @@ import { runNode } from './proc.mjs';
 const COMPILER = 'editor/compile-story.mjs';
 
 
-/** 用法行由**调用方传入的程序名**派生 ✓ —— 于是两条入口的输出只差这一行（且这行是 `argv` 派生的 ✓，
- *  属"唯一允许的差异" ✓）。不读 `process.argv` ✓：那样会让同一个函数在不同入口下行为不同 ✗。 */
-// ⚠️ **尾部由每个命令自带** ✓ —— 抽共享助手时最容易犯的错是"假设某个命令的签名" ✗：
-//   我上一版把 `build` 的 `[--out=<dir>]` 写死在助手里 ⇒ 漏进了 `extract-story` 的用法行 ✗
-//   （且与该行尾部的 `[--out=<file>]` 自相矛盾 ✓）。⇒ 助手只拼前缀 ✓，尾部的"有哪些旗标"归命令自己 ✓。
+/** 用法行由**调用方传入的程序名**派生 —— 于是两条入口的输出只差这一行（且这行是 `argv` 派生的，
+ * 属"唯一允许的差异"）。不读 `process.argv`：那样会让同一个函数在不同入口下行为不同。 */
+//注意：**尾部由每个命令自带** —— 抽共享助手时最容易犯的错是"假设某个命令的签名"：
+// 我上一版把 `build` 的 `[--out=<dir>]` 写死在助手里 → 漏进了 `extract-story` 的用法行
+//（且与该行尾部的 `[--out=<file>]` 自相矛盾）。→ 助手只拼前缀，尾部的"有哪些旗标"归命令自己。
 const usageOf = (prog, sub, tail) => `用法：${prog}${sub ? ` ${sub}` : ''} ${tail}`;
 
-/** `build <slug> [--out=<dir>]` —— 与 `node editor/compile-story.mjs` **同一具身体** ✓。返回退出码 ✓。 */
-/** 每个子命令**显式**认识的标志（**单一权威** ✓ —— `#995`）。
- *  ⚠️ 为什么要有它 ✗：未知 `--xxx=` 原先被**静默忽略** ✗ ⇒ 会把"给某个不支持该标志的分支传标志"读成
- *     **通过**（`rc=0` ✓ —— 实测踩过 ✓）⇒ 与本仓「**取不到输入就不许判过**」同族 ✗。
- *  ⚠️ `--selftest`／`--selfcheck` **不进表** ✗：它们是**壳级**选项 ✓（壳先吃掉 ⇒ 命令体看不到 ✓）。
- *  ⚠️ `k4`／`k6` 本就有"**不接受任何参数**"的守卫 ✓ ⇒ 不在此表（它们的拒法更严 ✓）。 */
+/** `build <slug> [--out=<dir>]` —— 与 `node editor/compile-story.mjs` **同一具身体**。返回退出码。 */
+/** 每个子命令**显式**认识的标志（**单一权威** —— `#995`）。
+ *注意：为什么要有它：未知 `--xxx=` 原先被**静默忽略** → 会把"给某个不支持该标志的分支传标志"读成
+ * **通过**（`rc=0` —— 实测踩过）→ 与本仓「**取不到输入就不许判过**」同族。
+ *注意：`--selftest`／`--selfcheck` **不进表**：它们是**壳级**选项（壳先吃掉 → 命令体看不到）。
+ *注意：`k4`／`k6` 本就有"**不接受任何参数**"的守卫 → 不在此表（它们的拒法更严）。 */
 export const KNOWN_FLAGS = Object.freeze({
 	build: ['out'],
 	'extract-story': ['section', 'key', 'out', 'from', 'tables'],
@@ -65,15 +65,15 @@ export const KNOWN_FLAGS = Object.freeze({
 	'lint-story': ['json', 'dist'],
 });
 
-/** 未知 `--xxx` ⇒ **讲人话地拒**（`rc=2` ✓）—— 照 `--l3=`／`--notes=` 的现成拒法 ✓，**不新造机制** ✗。 */
+/** 未知 `--xxx` → **讲人话地拒**（`rc=2`）—— 照 `--l3=`／`--notes=` 的现成拒法，**不新造机制**。 */
 const rejectUnknownFlags = (argv, sub) => {
 	const known = KNOWN_FLAGS[sub];
 	if (!known) return null;
-	// ⚠️ 只看 `--` 开头 ✓（位置参数 slug／目录不参与 ✓）；布尔标志（`--tables`／`--rules`／`--json`）按**不带 `=`** 认 ✓
+	//注意：只看 `--` 开头（位置参数 slug／目录不参与）；布尔标志（`--tables`／`--rules`／`--json`）按**不带 `=`** 认
 	const bad = argv.filter((a) => typeof a === 'string' && a.startsWith('--') && !known.includes(a.slice(2).split('=')[0]));
 	if (!bad.length) return null;
-	// ⚠️ 报文里**不写 prog／sub** ✗：否则"工具路 ↔ cli 子命令路"两条路的输出不同 ⇒ `cli-surface` 的逐档对照会判"两走法输出不同" ✓
-	//   （那正是它要守的：两走法**只允许 argv 派生项差异** ✓ ⇒ 那就干脆不带那两项 ✓）。
+	//注意：报文里**不写 prog／sub**：否则"工具路 ↔ cli 子命令路"两条路的输出不同 → `cli-surface` 的逐档对照会判"两走法输出不同"
+	//（那正是它要守的：两走法**只允许 argv 派生项差异** → 那就干脆不带那两项）。
 	console.error(`✗ **不认识的标志** ${bad.join('、')} ✗ —— 本命令只认：${known.map((f) => `--${f}`).join(' / ') || '（无标志）'} ✓`);
 	console.error(`  （⚠️ 本仓口径：**不认识的标志不当"无此参数"静默放过** ✗ —— 那会把"标志没生效"读成"通过" ✓）`);
 	return 2;
@@ -82,8 +82,8 @@ const rejectUnknownFlags = (argv, sub) => {
 export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'build' } = {}) => {
 	{ const bad = rejectUnknownFlags(argv, 'build'); if (bad) return bad; }
 	const [slug, ...rest] = argv;
-	// `sub` 让**同一个函数**既能被 `cli.mjs build` 调（用法行含子命令 ✓）也能被原工具调（用法行不含 ✓）——
-	// 于是两条入口的输出**只差这一行**，且这行是**调用方传入的程序名/子命令**派生的 ✓（不读 `process.argv` ✗）。
+	// `sub` 让**同一个函数**既能被 `cli.mjs build` 调（用法行含子命令）也能被原工具调（用法行不含）——
+	// 于是两条入口的输出**只差这一行**，且这行是**调用方传入的程序名/子命令**派生的（不读 `process.argv`）。
 	if (!slug) { console.error(usageOf(prog, sub, '<slug> [--out=<dir>]')); return 2; }
 	const outArg = rest.find((a) => a.startsWith('--out='));
 	const OUT = outArg ? outArg.slice('--out='.length) : join(ROOT, 'build/generated', slug);
@@ -92,22 +92,22 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 	const contract = readIf('contract.json');
 	const rules = readIf('rules.json');
 	const chargen = readIf('chargen.json');
-	const meta = readIf('meta.json');   // `#1132` B4：元数据段（title／entry／ifid）   // `#1132` B3：车卡数据（运行期由 `<<applyQuickPreset>>` 经 `Sg.story.chargen()` 读）
-	const notesFace = readIf('notes.json');   // 车道 B · notes 面（`#215` `18504282` ✓）：一个数据文件 → 多份产物 ✓
+	const meta = readIf('meta.json');   // `#1132` B4：元数据段（title／entry／ifid） // `#1132` B3：车卡数据（运行期由 `<<applyQuickPreset>>` 经 `Sg.story.chargen()` 读）
+	const notesFace = readIf('notes.json');   // 车道 B · notes 面（`#215` `18504282`）：一个数据文件 → 多份产物
 	if (!tables && !contract && !rules && !notesFace) { console.error(`✗ stories/${slug}/data/ 下没有任何产物源（tables/contract/rules/notes.json 都没有）`); return 1; }
 	// `#1132` B4：元数据段的**次要**数据源（`title`／`entry`；主源是 `data/meta.json`）。清单可缺 ——
-	//   新建故事时先编译、后写清单（脚手架的既有次序）⇒ 此处不许硬抛，缺则从数据面取。
+	// 新建故事时先编译、后写清单（脚手架的既有次序）→ 此处不许硬抛，缺则从数据面取。
 	const story = (() => { try { return JSON.parse(readText(join(ROOT, 'stories', slug, '00-story.json'))); } catch { return null; } })();
 	const files = compileStory({ tables, contract, rules, notesFace, slug, chargen, story, meta, metaTwee });
 	// `#1176`：生成件的脚本段必须能解析。坏段会让引擎不启动，且症状隐蔽（错误不带 Uncaught 前缀，
-	//   容易被错误过滤漏掉）⇒ 在写出产物之前当场拦下并点名。解析器由宿主注入：core 不许依赖 node:*。
+	// 容易被错误过滤漏掉）→ 在写出产物之前当场拦下并点名。解析器由宿主注入：core 不许依赖 node:*。
 	const syntax = scriptSyntaxProblems({ files, parse: (code) => { new vm.Script(code); } });
 	if (syntax.length) {
 		for (const p of syntax) console.error(`✗ [segment-syntax] ${p.file} 段「${p.passage}」：${p.why}`);
 		console.error('✗ 生成件里有脚本段语法错误 —— 引擎会因此不启动，故不写出产物');
 		return 1;
 	}
-	// ⚠️ 比**解析后**的路径（`--out=stories/<slug>` 是相对的 ✓ —— 直接拿字符串比会静默走错分支 ✗）。
+	//注意：比**解析后**的路径（`--out=stories/<slug>` 是相对的 —— 直接拿字符串比会静默走错分支）。
 	if (resolve(OUT) === join(ROOT, 'stories', slug)) {
 		const wrote = writeStoryPackage({ slug, twee: files, io: NODE_IO });
 		for (const p of wrote) {
@@ -125,16 +125,16 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 };
 
 /** `extract-story <slug> [--section=…] [--key=…] [--tables] [--from=…] [--out=…]` ——
- *  与 `node editor/extract-story.mjs` **同一具身体** ✓（体从壳里逐字搬来，只改三件：
- *  `process.argv` ⇒ `argv` ✓、`process.exit(n)` ⇒ `return n` ✓、用法行由 `prog`／`sub` 派生 ✓）。 */
+ * 与 `node editor/extract-story.mjs` **同一具身体**（体从壳里逐字搬来，只改三件：
+ * `process.argv` → `argv`、`process.exit(n)` → `return n`、用法行由 `prog`／`sub` 派生）。 */
 export const extractCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'extract-story' } = {}) => {
 	{ const bad = rejectUnknownFlags(argv, 'extract-story'); if (bad) return bad; }
 	const [slug, ...rest] = argv;
 	if (!slug) { console.error(usageOf(prog, sub, '<slug> [--section=StoryRules] [--key=rules] [--out=<file>] [--tables] [--from=<file>]')); return 2; }
 	const argOf = (n, d) => { const h = rest.find((a) => a.startsWith(`--${n}=`)); return h ? h.slice(n.length + 3) : d; };
-	// `#959`（`#962` 的同族推广 ✓）：**取值类标志吃空值** ⇒ 下游会崩成裸栈或**写错地方** ✗。
-	//   实测：`--out=` 空 ⇒ `join(ROOT, '')` ＝ **仓根** ✗（写文件落到根 ✓）；`--from=` 空 ⇒ `readText('')` ⇒ 裸栈 ✓。
-	//   ⇒ 照 `--l3=`／`--notes=` 的**现成形状**讲人话地拒 ✗（不新造机制 ✓）；逐个判 ✓，不下沉进 `argOf`（那会顺带改三处调用行为 ✗）。
+	// `#959`（`#962` 的同族推广）：**取值类标志吃空值** → 下游会崩成裸栈或**写错地方**。
+	// 实测：`--out=` 空 → `join(ROOT, '')` ＝ **仓根**（写文件落到根）；`--from=` 空 → `readText('')` → 裸栈。
+	// → 照 `--l3=`／`--notes=` 的**现成形状**讲人话地拒（不新造机制）；逐个判，不下沉进 `argOf`（那会顺带改三处调用行为）。
 	for (const n of ['section', 'key', 'out', 'from']) {
 		const v = argOf(n, null);
 		if (v === '') { console.error(`✗ --${n}= 只接受非空值（实得 （空））—— 例：\`--${n}=<${n === 'out' ? 'file' : n === 'from' ? 'file' : 'name'}>\``); return 2; }
@@ -147,11 +147,11 @@ export const extractCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 
 	const scripts = engineScripts() + '\n' + scriptBodies(readText(file)).join('\n');
 	const { Sg, diag } = runStory(scripts);
 	if (tablesMode) {
-		// `--tables`：导出故事声明的 `Game` 面（**引擎常量 Era/Damage 不算故事数据** ⇒ 剔除）。
+		// `--tables`：导出故事声明的 `Game` 面（**引擎常量 Era/Damage 不算故事数据** → 剔除）。
 		const { Game } = runStory(engineOf(slug, argOf('from', null)));
 		const containers = {}; const fns = [];
 		// 本函数与 `lib/core/probe.mjs` 的 `walk`（叶子/函数计数器）同义不同物
-		// （这是带**路径**的树遍历变换器）=> 按「一名一物」改名（不豁免，免得门变松）。
+		//（这是带**路径**的树遍历变换器）=> 按「一名一物」改名（不豁免，免得门变松）。
 		const walkGame = (v, p, put) => {
 			if (typeof v === 'function') { fns.push(p); return; }
 			if (Array.isArray(v)) { put(v.map((x, i) => { let keep; walkGame(x, `${p}[${i}]`, (y) => { keep = y; }); return keep; })); return; }
@@ -160,9 +160,9 @@ export const extractCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 
 		};
 		for (const [k, v] of Object.entries(Game ?? {})) { if (['Era', 'Damage', 'Consequences'].includes(k)) continue; walkGame(v, `Game.${k}`, (y) => { containers[k] = y; }); }
 		if (fns.length) { console.error(`✗ 故事数据面里出现**函数值**（${fns.length} 处）：${fns.slice(0, 6).join(' · ')}——数据面必须是数据（函数属契约/政策，另走 kind）`); return 1; }
-		// **整块**带走 `Game.Consequences`（旧写法只带 `.engine` ⇒ `provenance`（4 条出处登记）**静默丢** ✗ ——
+		// **整块**带走 `Game.Consequences`（旧写法只带 `.engine` → `provenance`（4 条出处登记）**静默丢** ——
 		// 这是行为门（容器深度相等）抓到的，字节面／契约面都看不见：类名＝「只搬一个桶，他桶就没了」）。
-		// 新增桶 ⇒ **显式报错**（抽取器不认识就拒绝，不许静默丢 ✗）。
+		// 新增桶 → **显式报错**（抽取器不认识就拒绝，不许静默丢）。
 		const consAll = Game?.Consequences ?? null;
 		if (consAll) {
 			const unknown = Object.keys(consAll).filter((k) => !['provenance', 'engine'].includes(k));
@@ -185,7 +185,7 @@ export const extractCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 
 	if (typeof value !== 'function') { console.error(`✗ ${file} 里没有 Sg.story.${key}（拿不到数据）`); return 1; }
 	const data = value();
 	if (!Array.isArray(data) || !data.length) { console.error(`✗ Sg.story.${key}() 不是非空数组（拿不到数据＝不许当"空了"）`); return 1; }
-	// ── **抽取器自己也要可复现**（审查要求）：产物是**入库的源文件** ⇒ 连抽两次必须逐字节相同。
+	// ── **抽取器自己也要可复现**（审查要求）：产物是**入库的源文件** → 连抽两次必须逐字节相同。
 	// 不稳定（键序/浮点/时间戳）的症状很烦人：工作区**每次都脏**，而没人知道为什么。
 	const serialize = (rows) => JSON.stringify({ section, key, rows }, null, '\t') + '\n';
 	const again = value();
@@ -206,31 +206,31 @@ export const classifyCommand = (argv = [], { prog = 'node editor/classify-contra
 	const argOf = (name, dflt) => { const h = argv.find((a) => a.startsWith(`--${name}=`)); return h ? h.slice(name.length + 3) : dflt; };
 	const slug = argv[0];
 	if (!slug) { console.error(usageOf(prog, sub, '<slug> [--json]')); return 2; }
-	// `#959`（同族推广 ✓）：`--from=` 空 ⇒ `join(ROOT, '')` ＝ ROOT ⇒ `existsSync` **为真** ✗ ⇒ 会走"找不到成员" ⇒ **归因错** ✗（真因是文件不在 ✓）。
+	// `#959`（同族推广）：`--from=` 空 → `join(ROOT, '')` ＝ ROOT → `existsSync` **为真** → 会走"找不到成员" → **归因错**（真因是文件不在）。
 	if (argOf('from', null) === '') { console.error('✗ --from= 只接受文件路径（实得 （空））—— 例：`--from=stories/<slug>/15-tables.twee`'); return 2; }
 	const file = join(ROOT, argOf('from', `stories/${slug}/15-tables.twee`));
-	// `#794`：**输入缺失 ⇒ 单独一条** ✗ —— 实测：不存在的路径原先被报成"里面**找不到 Sg.story 成员**" ✓，
-	// 方向对（不静默 ✓）但**归因错** ✗（读的人会去查契约 ✗，而真因是**文件不在** ✓）⇒ 与 `extract-story` 同口径 ✓。
+	// `#794`：**输入缺失 → 单独一条** —— 实测：不存在的路径原先被报成"里面**找不到 Sg.story 成员**"，
+	// 方向对（不静默）但**归因错**（读的人会去查契约，而真因是**文件不在**）→ 与 `extract-story` 同口径。
 	if (!existsSync(file)) { console.error(`✗ 读不到输入：${file}（文件不存在）—— "读不到输入"不许当"没有故事逻辑"`); return 1; }
 	// 契约源＝**手写的**数据面文件（`15-tables.twee`）＋ 登记过的手写逃生舱文件。
-	// ⚠️ 已翻面的故事里 `15-tables.twee` 是**产物**（带生成标记）⇒ **不能**分类它：发射后的代码形状会得到
-	// "假欠账"（实测：`template` 那种被判 B）⇒ 那种情况下只剩逃生舱文件是手写源（与 K4 同一口径）。
-	const fileText = existsSync(file) ? readFileSync(file, 'utf8') : '';   // 数据面文件的**原文** ✓
-	// ⚠️ **重新钉住**（实测回归 ✗）：下面 `resolveLocalConst(fileText, …)` 用它 ✓ —— 我在搬 core 时
-	//   把这行切掉了 ✗ ⇒ 那条路径一旦走到就是 `ReferenceError` ✓；而**没有任何测试走那条路径** ✗
-	//   （只有"手写契约里出现 `() => 局部常量`"才触发 ✓，三个故事都翻面后就没有活样本了 ✓）
-	//   ⇒ 所以它是**静默回归** ✓：靠人量出来 ✓，靠 CI 量不出来 ✗。
+	//注意：已翻面的故事里 `15-tables.twee` 是**产物**（带生成标记）→ **不能**分类它：发射后的代码形状会得到
+	// "假欠账"（实测：`template` 那种被判 B）→ 那种情况下只剩逃生舱文件是手写源（与 K4 同一口径）。
+	const fileText = existsSync(file) ? readFileSync(file, 'utf8') : '';   // 数据面文件的**原文**
+	//注意：**重新钉住**（实测回归）：下面 `resolveLocalConst(fileText, …)` 用它 —— 我在搬 core 时
+	// 把这行切掉了 → 那条路径一旦走到就是 `ReferenceError`；而**没有任何测试走那条路径**
+	//（只有"手写契约里出现 `() => 局部常量`"才触发，三个故事都翻面后就没有活样本了）
+	// → 所以它是**静默回归**：靠人量出来，靠 CI 量不出来。
 	const tableSrc = existsSync(file) && !hasGeneratedMarker(fileText) ? fileText : '';
 	if (!tableSrc) console.log(`  · ${slug}：\`15-tables.twee\` 已是**产物**（带生成标记）⇒ 契约面已由 \`data/\` 承载；本次只判**手写逃生舱文件** ✓`);
 	const hatchFilesOf = hatchFiles(slug);
 	const hatchTexts = hatchFilesOf.map((f) => readFileSync(f, 'utf8'));
-	// `#794`：分类体已抽成**可单测的缝** ✓ `classifyContractText({ fileText, hatchTexts })`（见文件中部 ✓）。
+	// `#794`：分类体已抽成**可单测的缝** `classifyContractText({ fileText, hatchTexts})`（见文件中部）。
 	const { sites, stray, members, rows, hatchMembers } = classifyContractText({ fileText, siteText: tableSrc, hatchTexts });
 	if (!members.length) { console.error(`✗ ${file} 里找不到 Sg.story 成员（读不到输入不许当"没有故事逻辑"）`); return 1; }
 	if (stray.length) { console.error(`✗ ${file} 里还有**未被识别的** Sg.story 写法（${stray.join(' · ')}）—— 多站点合并只认 Object.assign 形态，其余必须点名而不是静默漏掉`); return 1; }
 	console.log(`（站点 ${sites.length} 处：${sites.map((s2) => s2.members.length + ' 名成员').join(' ＋ ')}${hatchTexts.length ? ` · 含手写逃生舱文件 ${hatchFiles(slug).map((f) => f.split('/').pop()).join('、')}` : ''}）`);
-	// **局部常量 ⇒ 成员名**（`#787`）：`mechanics: () => MECH` 这类成员把局部常量放进了契约 ⇒ 其它成员引用它时才可表达。
-	// （此段已归入上面那条**可单测的缝** `classifyContractText` ✓ —— 见文件中部 ✓）
+	// **局部常量 → 成员名**（`#787`）：`mechanics: () => MECH` 这类成员把局部常量放进了契约 → 其它成员引用它时才可表达。
+	//（此段已归入上面那条**可单测的缝** `classifyContractText` —— 见文件中部）
 	const bucket = (b) => rows.filter((r) => r.bucket === b);
 	console.log(`══ 契约分类（${slug}）：${rows.length} 个成员 ══`);
 	for (const r of rows) {
@@ -245,7 +245,7 @@ export const classifyCommand = (argv = [], { prog = 'node editor/classify-contra
 	console.log(`\n  汇总：可直接表达 ${bucket('A').length} · 需声明式扩展 ${bucket('B').length} · 可下沉引擎 ${bucket('D').length} · **真逃生舱候选 ${bucket('C').length}**`);
 	if (bucket('B').length || bucket('D').length) console.log(`  （B＝待补的声明式 kind；D＝待下沉的引擎能力 ⇒ 都**不是**逃生舱）`);
 	if (argv.includes('--json')) console.log('\n' + JSON.stringify({ slug, members: rows }, null, '\t'));
-	// `--propose[=<path>]`：把**全部可数据化的成员**写成故事包的 `data/contract.json`（生成物 ⇒ 单一真源）。
+	// `--propose[=<path>]`：把**全部可数据化的成员**写成故事包的 `data/contract.json`（生成物 → 单一真源）。
 	// 只要还有非 A 成员就 **fail-loud**（点名）—— 提案必须完整，不许悄悄少写一半（那会让产物静默缺成员）。
 	const proposeArg = argv.find((a) => a === '--propose' || a.startsWith('--propose='));
 	if (proposeArg && !tableSrc) { console.error(`✗ ${slug} 的 \`15-tables.twee\` 已是**产物** ⇒ 没有什么可提案的（数据面已由 \`data/contract.json\` 承载）`); return 1; }
@@ -257,7 +257,7 @@ export const classifyCommand = (argv = [], { prog = 'node editor/classify-contra
 			console.error('  生成物只装得下 A 桶 ⇒ 非 A 成员必须移到手写件并在 `editor/escape-hatch.json` 的 `hatchFiles` 登记（否则翻面就是**静默丢成员**）。');
 			return 1;
 		}
-		const out = proposeArg.includes('=') ? proposeArg.split('=')[1] : null;      // 显式路径 ⇒ 包外/自定义（不属"故事文件" ✓）
+		const out = proposeArg.includes('=') ? proposeArg.split('=')[1] : null;      // 显式路径 → 包外/自定义（不属"故事文件"）
 		const payload = {
 			section: 'StoryBindings',
 			note: '分类器自动提案（`--propose`）：本文件是**生成物**，请勿手改；要改成员形状改故事源或 classifier 的 kind 集合。',
@@ -277,11 +277,11 @@ export const classifyCommand = (argv = [], { prog = 'node editor/classify-contra
 	return bucket('C').length ? 1 : 0;
 };
 
-/** **幂等读数**（`#976` 第 2 件 ✓）：两目录逐文件比对 ⇒ `{ ok, diffs, line }` ✓。
- *  ⚠️ **不等时点名"哪个文件 ＋ 首个差异偏移 ＋ 两侧片段"** ✗（照同文件 `l3Line()` 的**已有**形状 ✓ —— 不新造机制 ✓）：
- *  原先那条报文只说"（6 份）"✗ ⇒ `#973` 那次 CI 红时**没法直接定位** ✓（只能靠"纯文档 PR 进不了编译路径"反推 ✓）。
- *  ⚠️ **它不证"下次不再红"** ✗ —— 它证的是"**下次红时能立刻定位**"✓（`#976` 票内如实写明 ✓）。
- *  **纯** ✓（`readFile` 可注入 ⇒ 自证不需真磁盘 ✓，但本件也允许真目录 ✓ —— `test/equiv-scratch.mjs` 两种都用 ✓）。 */
+/** **幂等读数**（`#976` 第 2 件）：两目录逐文件比对 → `{ ok, diffs, line}`。
+ *注意：**不等时点名"哪个文件 ＋ 首个差异偏移 ＋ 两侧片段"**（照同文件 `l3Line()` 的**已有**形状 —— 不新造机制）：
+ * 原先那条报文只说"（6 份）" → `#973` 那次 CI 红时**没法直接定位**（只能靠"纯文档 PR 进不了编译路径"反推）。
+ *注意：**它不证"下次不再红"** —— 它证的是"**下次红时能立刻定位**"（`#976` 票内如实写明）。
+ * **纯**（`readFile` 可注入 → 自证不需真磁盘，但本件也允许真目录 —— `test/equiv-scratch.mjs` 两种都用）。 */
 export const idemReport = ({ genDir, idemDir, names = [], readFile = readFileSync } = {}) => {
 	const diffs = [];
 	for (const n of names) {
@@ -302,19 +302,19 @@ export const idemReport = ({ genDir, idemDir, names = [], readFile = readFileSyn
 
 export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = '' } = {}) => {
 	{ const bad = rejectUnknownFlags(argv, 'equiv'); if (bad) return bad; }
-	const slug = argv[0];   // `#794` 弧第 3 票：入参是**子命令之后**的 argv（不再读环境 ✗）
+	const slug = argv[0];   // `#794` 弧第 3 票：入参是**子命令之后**的 argv（不再读环境）
 	if (!slug) { console.error('用法：node editor/equiv.mjs <slug> [--rules] [--l3=hard|report] [--hand=…] [--gen=…]'); return 2; }
 	const argOf = (name, dflt) => { const h = argv.find((a) => a.startsWith(`--${name}=`)); return h ? h.slice(name.length + 3) : dflt; };
 	const rulesMode = argv.includes('--rules');
-	// 车道 B · notes 面（`#215` 报备 `18504282` ✓）：**第四个面** ✓（与 `--rules` 同款：只换默认产物名与 L1 取数口 ✓）。
-	// ⚠️ 发起者补（`#215` 报备 `18505730` ✓）：本面是**一个数据文件 → 多份产物** ✗ ⇒ 默认产物名可能**不是** `ch1` ✓
-	//   ⇒ 加**可选指定** `--notes=<产物文件>` ✓（**默认值一字不改** ✗）；判定用**前缀**（`--notes=…` 也要认 ✗）。
-	//   “若要一条命令覆盖该面全部块” 属**另一片** ✗（`--hand` 要从单文件变成块⇒基线映射 ⇒ 不是最小改动 ✓）。
+	// 车道 B · notes 面（`#215` 报备 `18504282`）：**第四个面**（与 `--rules` 同款：只换默认产物名与 L1 取数口）。
+	//注意：发起者补（`#215` 报备 `18505730`）：本面是**一个数据文件 → 多份产物** → 默认产物名可能**不是** `ch1`
+	// → 加**可选指定** `--notes=<产物文件>`（**默认值一字不改**）；判定用**前缀**（`--notes=…` 也要认）。
+	//“若要一条命令覆盖该面全部块” 属**另一片**（`--hand` 要从单文件变成块→基线映射 → 不是最小改动）。
 	const notesTarget = argOf('notes', null);
-	// `#958` 票内复核 MINOR（`[deferred]`，本片承办 ✓）：取值类标志**吃空值** ⇒ 下游会崩成**裸 Node 栈** ✗
-	//   （`--notes=` 空 ⇒ `''` ⇒ `readFileSync('')` ⇒ `EISDIR` ✓；`--hand=` 空 ⇒ `join(ROOT,'')` ＝ 仓根 ⇒ **同型** ✓）。
-	//   ⇒ 照**同一条 `--l3=` 的现成形状**讲人话地拒 ✗（`console.error` ＋ `return 2`，不新造机制 ✓）。
-	//   ⚠️ 跨命令那一族（`--out=`／`--from=`／`--section=`／`--key=` 的空值 ✓）**不夹带** ✗ ⇒ 另开票 ✓。
+	// `#958` 票内复核 MINOR（`[deferred]`，本片承办）：取值类标志**吃空值** → 下游会崩成**裸 Node 栈**
+	//（`--notes=` 空 → `''` → `readFileSync('')` → `EISDIR`；`--hand=` 空 → `join(ROOT,'')` ＝ 仓根 → **同型**）。
+	// → 照**同一条 `--l3=` 的现成形状**讲人话地拒（`console.error` ＋ `return 2`，不新造机制）。
+	//注意：跨命令那一族（`--out=`／`--from=`／`--section=`／`--key=` 的空值）**不夹带** → 另开票。
 	if (notesTarget === '') { console.error('✗ --notes= 只接受产物文件名（实得 （空））—— 例：`--notes=16-notes-ch2.twee`；不给该标志 ⇒ 默认 `16-notes-ch1.twee`'); return 2; }
 	const notesMode = argv.includes('--notes') || notesTarget !== null;
 	const l3Mode = argOf('l3', 'hard');
@@ -322,12 +322,12 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 	const handGiven = argv.some((a) => a.startsWith('--hand='));
 	const handValue = argOf('hand', '');
 	if (handGiven && handValue === '') { console.error('✗ --hand= 只接受基线文件路径（实得 （空））—— 例：`--hand=stories/<slug>/gates/equiv-baseline/<file>.txt`'); return 2; }
-	// ⚠️ **一处定义** ✗：产物名只在这里算一次 ✓ —— 它**同时**驱动 `--hand` 的默认路径与下面取产物那一步 ✓
-	//  （两处各写一份 ternary ⇒ “比的是 ch2、指路指 ch1”的**错位** ✓；复核席 `18505646` 点名过这处 ✗）。
+	//注意：**一处定义**：产物名只在这里算一次 —— 它**同时**驱动 `--hand` 的默认路径与下面取产物那一步
+	//（两处各写一份 ternary →“比的是 ch2、指路指 ch1”的**错位**；复核席 `18505646` 点名过这处）。
 	const defaultTwee = notesMode ? (notesTarget ?? '16-notes-ch1.twee') : rulesMode ? '17-rules.twee' : '15-tables.twee';
 	const handPath = join(ROOT, argOf('hand', `stories/${slug}/${defaultTwee}`));
-	// `#794` 观察项：**裸跑（未显式给 `--hand`）＋ 默认目标是产物 ⇒ 当场拒绝并指路** ✓（见 `bareHandRefusal` ✓）。
-	// ⚠️ 放在**昂贵比较之前** ✓（复核口径 ✓）：下面要连编译两次 ＋ 逐字节比 ⇒ 跑完再报等于让人白等 ✓。
+	// `#794` 观察项：**裸跑（未显式给 `--hand`）＋ 默认目标是产物 → 当场拒绝并指路**（见 `bareHandRefusal`）。
+	//注意：放在**昂贵比较之前**（复核口径）：下面要连编译两次 ＋ 逐字节比 → 跑完再报等于让人白等。
 	const defaultExists = existsSync(handPath);
 	const refusal = bareHandRefusal({ handGiven, defaultExists, defaultText: defaultExists ? readFileSync(handPath, 'utf8') : '' });
 	if (refusal) {
@@ -349,22 +349,22 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 	}
 	const hand = readFileSync(handPath, 'utf8');
 
-	// ── 自跑编译器两次 ⇒ 幂等 ＋ 拿到产物（不判陈旧件） ──
-	// `#976`：中间目录**本次运行唯一** ✗ ＋ **用完就清（含失败路径 ✓ `try/finally`）** ✗
-	//   （原先按 `slug` 命名 ⇒ 跨进程共享可变 scratch ✗ ⇒ "读到半写文件／被别人清掉"那类**时序**风险 ✓。
-	//    ⚠️ 本片是**防御性**改动 ✓ —— **不是**修掉 `#973` 那次 CI 红 ✗：那次红的**根因仍未定** ✓，
-	//    我按"共享目录互撞"去复现（串行 5/5 确定 ✓、2 进程×3 轮 / 4 进程×4 轮并发 ⇒ 幂等失败 **0** ✗）
-	//    ⇒ **只排除了一条** ✓，没有找到真因 ✓ —— 见 `#976` 票内更正 ✓）。
-	// ⚠️ **先确保父目录存在** ✗：原来那两处 `--out=` 由**编译器**顺带 `mkdirp` 建出 `build/generated/` ✓；
-	//   本片改用 `mkdtempSync` ⇒ 它在**编译之前**跑 ✓ ⇒ 父目录不在（干净树上正是如此 ✓）会 **ENOENT** ✗
-	//   （`#981` CI 上实测：探针按条目**单独跑** ⇒ 无前序 equiv 段 ⇒ 父目录不在 ⇒ 变异前就红 ✓）。
+	// ── 自跑编译器两次 → 幂等 ＋ 拿到产物（不判陈旧件） ──
+	// `#976`：中间目录**本次运行唯一** ＋ **用完就清（含失败路径 `try/finally`）**
+	//（原先按 `slug` 命名 → 跨进程共享可变 scratch → "读到半写文件／被别人清掉"那类**时序**风险。
+	//注意：本片是**防御性**改动 —— **不是**修掉 `#973` 那次 CI 红：那次红的**根因仍未定**，
+	// 我按"共享目录互撞"去复现（串行 5/5 确定、2 进程×3 轮 / 4 进程×4 轮并发 → 幂等失败 **0**）
+	// → **只排除了一条**，没有找到真因 —— 见 `#976` 票内更正）。
+	//注意：**先确保父目录存在**：原来那两处 `--out=` 由**编译器**顺带 `mkdirp` 建出 `build/generated/`；
+	// 本片改用 `mkdtempSync` → 它在**编译之前**跑 → 父目录不在（干净树上正是如此）会 **ENOENT**
+	//（`#981` CI 上实测：探针按条目**单独跑** → 无前序 equiv 段 → 父目录不在 → 变异前就红）。
 	mkdirp(join(ROOT, 'build/generated'));
-	// `#1105`（⛔ 前置）：**scratch 根可注入** ✓ —— 调用方（尤其自证）可把它指向**自己拥有的目录** ✓，
-	//   从而**不必**再列举共享的 `build/generated/` 来判“本件有没有留草稿” ✗。
-	//   ⚠️ 为什么需要：`mkdtempSync` 已让**落点唯一** ✓（`#1024` ✓），但**并发段的活草稿**仍会出现在
-	//   **同一个父目录**里 ⇒ 调用方若在该目录做“集合差”，就会把**别人的活草稿**算成自己的 ✗
-	//   （`test/equiv-scratch.mjs` 实测 4/4 假红 ✓）—— 共享目录**无法归因** ✓。
-	//   ⇒ 默认值**不变**（`build/generated` ✓ 向后兼容）；注入只是给“**自拥有根**”留口 ✓。
+	// `#1105`（⛔ 前置）：**scratch 根可注入** —— 调用方（尤其自证）可把它指向**自己拥有的目录**，
+	// 从而**不必**再列举共享的 `build/generated/` 来判“本件有没有留草稿”。
+	//注意：为什么需要：`mkdtempSync` 已让**落点唯一**（`#1024`），但**并发段的活草稿**仍会出现在
+	// **同一个父目录**里 → 调用方若在该目录做“集合差”，就会把**别人的活草稿**算成自己的
+	//（`test/equiv-scratch.mjs` 实测 4/4 假红）—— 共享目录**无法归因**。
+	// → 默认值**不变**（`build/generated` 向后兼容）；注入只是给“**自拥有根**”留口。
 	const scratchRoot = process.env.SAGITRS_EQUIV_SCRATCH_ROOT || join(ROOT, 'build/generated');
 	mkdirp(scratchRoot);
 	const runDir = mkdtempSync(join(scratchRoot, '.equiv-run-'));
@@ -377,14 +377,14 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 		runNode([COMPILER, slug, `--out=${idemDir}`], { cwd: ROOT });
 		const names = [...new Set([...readdirSync(genDir), ...readdirSync(idemDir)])].sort();
 		idem = idemReport({ genDir, idemDir, names });
-		const gen0 = readFileSync(join(genDir, defaultTwee), 'utf8');   // ← **复用上面那一处定义** ✗（不再各写一份 ternary ✓）
-		// **产物侧 ＝ 生成物 ＋ 登记过的手写逃生舱文件**（`#787` 翻面形状）：非 A 桶成员装不进生成物 ⇒ 它们住手写件，
-		// 而行为门要比的是**整份契约**；手写侧（冻结基线）本来就含它们 ⇒ 只比生成物会得到"少了成员"的**假差** ✗。
-		// 单一真源＝`editor/escape-hatch.json` 的 `hatchFiles` ✓ —— 读它**共用** `lib/host/hatches.mjs` 的实现 ✓
-		//（本文件原来有一份**内联复制** ✗，已收掉 ✓ —— 避免两个消费者各写一份 ✓）。
+		const gen0 = readFileSync(join(genDir, defaultTwee), 'utf8');   // ← **复用上面那一处定义**（不再各写一份 ternary）
+		// **产物侧 ＝ 生成物 ＋ 登记过的手写逃生舱文件**（`#787` 翻面形状）：非 A 桶成员装不进生成物 → 它们住手写件，
+		// 而行为门要比的是**整份契约**；手写侧（冻结基线）本来就含它们 → 只比生成物会得到"少了成员"的**假差**。
+		// 单一真源＝`editor/escape-hatch.json` 的 `hatchFiles` —— 读它**共用** `lib/host/hatches.mjs` 的实现
+		//（本文件原来有一份**内联复制**，已收掉 —— 避免两个消费者各写一份）。
 		gen = [gen0, ...hatchFiles(slug).map((f) => readFileSync(f, 'utf8'))].join('\n');
 	} finally {
-		rmSync(runDir, { recursive: true, force: true });   // `#976`：**含失败路径** ✗（崩一次的残留不该影响下一次 ✓）
+		rmSync(runDir, { recursive: true, force: true });   // `#976`：**含失败路径**（崩一次的残留不该影响下一次）
 	}
 
 	const results = [[idem.ok, idem.line]];
@@ -413,14 +413,14 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 		results.push(l3Line(normalize(section(hand, 'StoryRules') ?? ''), normalize(section(gen, 'StoryRules') ?? ''), '剥注释/空白/冗余尾逗号后逐字节相同'));
 		results.push([hr.length > 0 && Object.keys(hh).length > 0, `判到的面不为空：条件表 ${hr.length} 行 · ${Object.keys(hh).length} 列`]);
 	} else if (notesMode) {
-		// ── notes 面（车道 B · `#215` `18504282` ✓）：L1 ＝ 两版各自求值后 `Game.Notes.entries` **深度相等** ──
-		//   ⚠️ 沙箱必须**先跑引擎常量** ✗ —— `era: window.Game.Era.PRESENT` 是引擎政策 ✓（
-		//   `sandboxOf()` 就是干这个的 ✓；少了它就**两侧都缺字段** ⇒ 会得到一个“差不多”的假绿 ✗）。
+		// ── notes 面（车道 B · `#215` `18504282`）：L1 ＝ 两版各自求值后 `Game.Notes.entries` **深度相等** ──
+		//注意：沙箱必须**先跑引擎常量** —— `era: window.Game.Era.PRESENT` 是引擎政策（
+		// `sandboxOf()` 就是干这个的；少了它就**两侧都缺字段** → 会得到一个“差不多”的假绿）。
 		const entriesOf = (text) => { const box = sandboxOf(); vm.runInContext(scriptBodies(text).join('\n'), box, { timeout: 5000 }); return box.Game?.Notes?.entries ?? null; };
 		const sectionName = (text) => (String(text).match(/^::\s*([^\n]*?)\s*(?:\[[^\]]*\])?\s*$/m)?.[1] ?? '').trim();
 		const he = entriesOf(hand), ge = entriesOf(gen);
-		/** 字段直方图（照 `--rules` 那路同款 ✓）：把“**抽了哪些字段**”显式打出来 ✗ ——
-		 *  `#557` 那条老账：**总体非空拦不住少抽一项** ✓。 */
+		/** 字段直方图（照 `--rules` 那路同款）：把“**抽了哪些字段**”显式打出来 ——
+		 * `#557` 那条老账：**总体非空拦不住少抽一项**。 */
 		const hist = (entries) => {
 			const h = {};
 			for (const e of Object.values(entries ?? {})) for (const k of Object.keys(e ?? {})) h[k] = (h[k] ?? 0) + 1;
@@ -453,7 +453,7 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 			results.push([onlyHand.length === 0 && onlyGen.length === 0,
 				`L1 契约**键集合**一致（手写 ${hk.length} / 生成 ${gk.length}）${onlyHand.length ? `\n    仅手写有：${onlyHand.join('、')}` : ''}${onlyGen.length ? `\n    仅生成有：${onlyGen.join('、')}` : ''}`]);
 			results.push([hs.game === gs.game, `L1 数据容器深度相等（含 State/Notes/Consequences；**对象键序不计**，数组序仍判）${hs.game === gs.game ? '' : `\n    手写 ${String(hs.game).slice(0, 220)}\n    生成 ${String(gs.game).slice(0, 220)}`}`]);
-			// 判**行为**，不判**顺序**：成员在源里的先后不是语义（曾因"生成物把某成员排到末尾"而假红 ✗）
+			// 判**行为**，不判**顺序**：成员在源里的先后不是语义（曾因"生成物把某成员排到末尾"而假红）
 			const cd = diffContract(hs.contract, gs.contract);
 			results.push([Object.keys(hs.contract).length > 0 && cd.n === 0,
 				`L1 契约**多实参**行为相等（${Object.keys(hs.contract).length} 个成员 × ${probeArgs(hs.ids).length} 组实参）${cd.n ? `\n    ${cd.text}` : ''}`]);
@@ -473,14 +473,14 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 
 export class LintRefuse extends Error {}
 
-/** `lint-story <slug|目录路径> [--json] [--dist=<file>]` ⇒ rc（**async**：`gatesForStory` 本质 async ✓ ——
- *  它经 `declaredGates` **逐个 `await import()`** 载门模块，ESM 无法同步化 ✓ ⇒ 入口统一 await ✓）。
- *  与 `node editor/lint-story.mjs` **同一具身体** ✓。 */
+/** `lint-story <slug|目录路径> [--json] [--dist=<file>]` → rc（**async**：`gatesForStory` 本质 async ——
+ * 它经 `declaredGates` **逐个 `await import()`** 载门模块，ESM 无法同步化 → 入口统一 await）。
+ * 与 `node editor/lint-story.mjs` **同一具身体**。 */
 export const lintCommand = async (argv = [], { prog = 'node editor/cli.mjs', sub = 'lint-story' } = {}) => {
 	{ const bad = rejectUnknownFlags(argv, 'lint-story'); if (bad) return bad; }
 	const arg = argv[0];
 	if (!arg) { console.error(usageOf(prog, sub, `<slug|目录路径> [--json] [--dist=<file>]`)); return 2; }
-	// 命令体局部状态（`#794`：原 6 个**模块级**可变状态收成局部 ⇒ 可重入、并按构造消掉"模块级闭包"隐患 ✓）
+	// 命令体局部状态（`#794`：原 6 个**模块级**可变状态收成局部 → 可重入、并按构造消掉"模块级闭包"隐患）
 	const JSON_OUT = argv.includes('--json');
 	const DIST = (argv.find((a) => a.startsWith('--dist=')) ?? '').slice('--dist='.length) || join(ROOT, 'dist', 'index.html');
 	const findings = [];
@@ -490,11 +490,11 @@ export const lintCommand = async (argv = [], { prog = 'node editor/cli.mjs', sub
 	const say = (m) => { if (!JSON_OUT) console.log(m); };
 	const emitJson = (code) => { if (JSON_OUT) process.stdout.write(JSON.stringify({ slug, dir, ok: code === 0, findings }, null, 1) + '\n'); };
 	const ok = (m) => { findings.push({ step, ok: true, detail: m }); say(`  ✔ ${m}`); };
-	/** **非局部终止符**：`fail` 的契约是「不再往下走」✓ ⇒ 用哨兵异常按构造保真 ✓（逐点 `return` 会沿不同嵌套深度回传、易漏 ✗）。 */
+	/** **非局部终止符**：`fail` 的契约是「不再往下走」 → 用哨兵异常按构造保真（逐点 `return` 会沿不同嵌套深度回传、易漏）。 */
 	const fail = (m) => { findings.push({ step, ok: false, detail: m }); if (!JSON_OUT) console.error(`  ✗ ${m}`); throw new LintRefuse(); };
 	const sh = (cmd, args) => spawnSync(cmd, args, { cwd: ROOT, encoding: 'utf8' });
 	try {
-		// `<slug>`＝stories/<slug>；含路径分隔符或已存在的目录 ⇒ 当**目录**（临时探针/仓外包亦可用；CLI 契约向后兼容）
+		// `<slug>`＝stories/<slug>；含路径分隔符或已存在的目录 → 当**目录**（临时探针/仓外包亦可用；CLI 契约向后兼容）
 		const asPath = arg.includes('/') || existsSync(arg);
 		dir = asPath ? arg : join(ROOT, 'stories', arg);
 		slug = asPath ? arg.replace(/\/+$/, '').split('/').pop() : arg;
@@ -512,10 +512,10 @@ export const lintCommand = async (argv = [], { prog = 'node editor/cli.mjs', sub
 		catch (e) { fail(`data/*.json 不可解析：${e.message}`); }
 		ok(`包形状（files×${manifest.files.length} · tables/contract 可解析）`);
 
-		// ── ①′ 领域词表（`#975`：`#966` 的**牙**接进本门 ✓）──
-		//   为什么 ✗：`Checks.sites` 里写错一个 `abil`／`skill` 的字母 ⇒ 引擎 `abilityMod` 走
-		//   `abilities?.[ab]` ⇒ `undefined ?? 10` ⇒ **修正值 0** ✓ ⇒ 检定**静默 +0** ✗（`#966` 实测）。
-		//   判据**不重造** ✗：消费 `lib/core/vocab.mjs` 的 `unknownDomainWords` ✓（与 `test/rules.mjs` 同一份函数 ✓）。
+		// ── ①′ 领域词表（`#975`：`#966` 的**牙**接进本门）──
+		// 为什么：`Checks.sites` 里写错一个 `abil`／`skill` 的字母 → 引擎 `abilityMod` 走
+		// `abilities?.[ab]` → `undefined?? 10` → **修正值 0** → 检定**静默 +0**（`#966` 实测）。
+		// 判据**不重造**：消费 `lib/core/vocab.mjs` 的 `unknownDomainWords`（与 `test/rules.mjs` 同一份函数）。
 		step = 'vocab';
 		{
 			const bad = unknownDomainWords({ 'tables.json': tablesJson });
@@ -525,12 +525,12 @@ export const lintCommand = async (argv = [], { prog = 'node editor/cli.mjs', sub
 
 		// ── ② 编译＋幂等 ──
 		step = 'compile';
-		// `#1024`：scratch 改为**本次运行唯一**（照 `equivCommand` 的 `#976` 先例 ✓）。
-		//   原先 `gen` 与 `<slug>.lint-snap` 都**按 `slug` 固定** ⇒ 两个进程跑同一 slug 时互相
-		//   `rmSync`／`cp`／编译 ⇒ 「两次产物有差」的**假红**（实测 2 进程 × 5 轮 = **5/5 必红** ✓；
-		//   `test-plan` 的 `test` 相位并发 4，`test-story-ci.mjs` 与其兄弟段同时在场 ⇒ CI 间歇红 ✓）。
-		//   ⚠️ 同时把 `diff` 的 **stderr** 纳入载荷，并把「**没比到东西**」与「**有差**」分开报 ✗
-		//   （原先只打 stdout ⇒ 报文常常**没有证据**；`diff -r` 的扫描错误走 stderr）。
+		// `#1024`：scratch 改为**本次运行唯一**（照 `equivCommand` 的 `#976` 先例）。
+		// 原先 `gen` 与 `<slug>.lint-snap` 都**按 `slug` 固定** → 两个进程跑同一 slug 时互相
+		// `rmSync`／`cp`／编译 →「两次产物有差」的**假红**（实测 2 进程 × 5 轮 = **5/5 必红**；
+		// `test-plan` 的 `test` 相位并发 4，`test-story-ci.mjs` 与其兄弟段同时在场 → CI 间歇红）。
+		//注意：同时把 `diff` 的 **stderr** 纳入载荷，并把「**没比到东西**」与「**有差**」分开报
+		//（原先只打 stdout → 报文常常**没有证据**；`diff -r` 的扫描错误走 stderr）。
 		mkdirp(join(ROOT, 'build', 'generated'));
 		const lintRun = mkdtempSync(join(ROOT, 'build', 'generated', '.lint-run-'));
 		const gen = join(lintRun, 'gen');
@@ -550,12 +550,12 @@ export const lintCommand = async (argv = [], { prog = 'node editor/cli.mjs', sub
 			}
 			ok('编译 ＋ 幂等（两次产物逐字节相同）');
 		} finally {
-			rmSync(lintRun, { recursive: true, force: true });   // **含失败路径** ✓（崩一次的残留不该影响下一次 ✓）
+			rmSync(lintRun, { recursive: true, force: true });   // **含失败路径**（崩一次的残留不该影响下一次）
 		}
 
 		// ── ③ 等价（L1/L3）——**必须显式给冻结基线** ──
-		// 裸调 `equiv <slug>` 在已翻面的故事上比的不是等价 ✗（默认 `--hand`＝产物 ⇒ 量到"产物 vs 当场重编产物" ✓
-		// ＝K4-④ 新鲜度面 ✓）⇒ 有基线就显式给 ✓；L3 用 report 档 ✓（默认 hard ⇒ 翻面故事因注释/空白差异假红 ✗）。
+		// 裸调 `equiv <slug>` 在已翻面的故事上比的不是等价（默认 `--hand`＝产物 → 量到"产物 vs 当场重编产物"
+		// ＝K4-④ 新鲜度面）→ 有基线就显式给；L3 用 report 档（默认 hard → 翻面故事因注释/空白差异假红）。
 		step = 'equiv';
 		let equivDegraded = false;
 		const baseline = join(dir, 'gates', 'equiv-baseline', '15-tables.twee.txt');
@@ -594,36 +594,36 @@ export const lintCommand = async (argv = [], { prog = 'node editor/cli.mjs', sub
 		emitJson(0);
 		return 0;
 	} catch (e) {
-		// 只吞自己的 `LintRefuse` ✓ —— 真崩溃（TypeError/ReferenceError）**原样抛** ✗（不许洗成"clean rc=1 ＋ JSON"）
+		// 只吞自己的 `LintRefuse` —— 真崩溃（TypeError/ReferenceError）**原样抛**（不许洗成"clean rc=1 ＋ JSON"）
 		if (!(e instanceof LintRefuse)) throw e;
 		emitJson(1);
 		return 1;
 	}
 };
 /**
- * `#794` 第 4 条：**K4 门的命令体**（从 `editor/k4.mjs` 的 `main` 平移 ✓ 逐字保留输出文案）。
- * 两条入口共用它：`node editor/k4.mjs`（壳转发 ✓）与 `node editor/cli.mjs k4` ✓。
- * 平移期的三处形状变更（都属"语义转换"，复核席按该类核 ✓）：
- *   ① `process.exit(n)` ⇒ `return n;` ✓（命令体返回退出码，由调用方决定怎么退 ✓）；
- *   ② 分类器懒接线 ⇒ **静态装配** ✓（见文件头注释：降级分支已不可达 ⇒ 删除 ✓）；
- *   ③ `process.argv` ⇒ **形参 `argv`** ✓（整体替换，不混用 `argv[2]` 那种写法 —— 实测混用会把 slug 取成 `--hand=` 的值 ✗）。
+ * `#794` 第 4 条：**K4 门的命令体**（从 `editor/k4.mjs` 的 `main` 平移 逐字保留输出文案）。
+ * 两条入口共用它：`node editor/k4.mjs`（壳转发）与 `node editor/cli.mjs k4`。
+ * 平移期的三处形状变更（都属"语义转换"，复核席按该类核）：
+ * ① `process.exit(n)` → `return n;`（命令体返回退出码，由调用方决定怎么退）；
+ * ② 分类器懒接线 → **静态装配**（见文件头注释：降级分支已不可达 → 删除）；
+ * ③ `process.argv` → **形参 `argv`**（整体替换，不混用 `argv[2]` 那种写法 —— 实测混用会把 slug 取成 `--hand=` 的值）。
  */
 export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' } = {}) => {
-	// ⚠️ `--selfcheck` 是**壳级**选项（自证住在壳里 ✓，六个工具同一口径 ✓）⇒ cli 路到达命令体时
-	//   要**指路**（与 `k6` 的 `--selftest` 处置同形 ✓）：`#847` 量到的"两走法不等价"是**全家一致的设计** ✗
-	//   （extract-story／compile-story／equiv／lint-story／k6 的 cli 路都不提供自证 ✓）⇒ 这里把它做成**显式、可读**，
-	//   而不是让它落进下面那条通用"别传参数"的报文里 ✗。
+	//注意：`--selfcheck` 是**壳级**选项（自证住在壳里，六个工具同一口径）→ cli 路到达命令体时
+	// 要**指路**（与 `k6` 的 `--selftest` 处置同形）：`#847` 量到的"两走法不等价"是**全家一致的设计**
+	//（extract-story／compile-story／equiv／lint-story／k6 的 cli 路都不提供自证）→ 这里把它做成**显式、可读**，
+	// 而不是让它落进下面那条通用"别传参数"的报文里。
 	if (argv.includes('--selfcheck')) {
 		console.error('✗ `--selfcheck` 不是本命令的参数（自证只在工具路：`node editor/k4.mjs --selfcheck` ✓）');
 		return 2;
 	}
-	// ⚠️ **本命令不收参数**（门判整个仓 ✓）⇒ 多给了就点名叫停 ✗ —— **不许静默忽略** ✓。
-	//   旧行为是"静默忽略多余参数"（`node editor/k4.mjs minimal-demo` ⇒ 照样跑整门、rc=0 ✗）
-	//   ⇒ 那是"传了却没生效"的典型：调用方以为在限定范围、实际判了全部 ✓。
-	//   ⚠️ **它属行为变化**（不是纯搬运 ✓ ⇒ 单独一刀 ✓）：影响面＝**只影响手工调用** ✓
-	//   （仓内 `scripts/test-plan.mjs` 两条都裸调 ✓、`docs/editor-flip-playbook.md` 也裸调 ✓）
-	//   ⇒ **`npm test` 原本看不见它** ✗ ⇒ 本票自带 `test/k4-args.mjs`（让这次变化**自己露面** ✓）。
-	//   拒绝落在**共享命令体**里 ⇒ 两条入口行为一致 ✓（`--selfcheck` 属**壳侧**旗标 ⇒ 那条既有不对称不涉 ✓）。
+	//注意：**本命令不收参数**（门判整个仓）→ 多给了就点名叫停 —— **不许静默忽略**。
+	// 旧行为是"静默忽略多余参数"（`node editor/k4.mjs minimal-demo` → 照样跑整门、rc=0）
+	// → 那是"传了却没生效"的典型：调用方以为在限定范围、实际判了全部。
+	//注意：**它属行为变化**（不是纯搬运 → 单独一刀）：影响面＝**只影响手工调用**
+	//（仓内 `scripts/test-plan.mjs` 两条都裸调、`docs/editor-flip-playbook.md` 也裸调）
+	// → **`npm test` 原本看不见它** → 本票自带 `test/k4-args.mjs`（让这次变化**自己露面**）。
+	// 拒绝落在**共享命令体**里 → 两条入口行为一致（`--selfcheck` 属**壳侧**旗标 → 那条既有不对称不涉）。
 	if (argv.length) { console.error(usageOf(prog, sub, '（无参数）')); return 2; }
 	let bad = 0;
 	const ok = (label, cond, extra = '') => {
@@ -634,7 +634,7 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 	console.log('══ K4 门（`#762` 车道 C）—— 生成物标记 · 新鲜度 · 逃生舱可枚举 ══');
 	const storiesDir = join(ROOT, 'stories');
 	// 判**所有故事目录**（不是只有 `data/` 的）：③ 逃生舱判据不依赖 `data/` —— 上一版按 `data/` 取故事，
-	// 结果洞窟（缺 `contract.json`）**整段被跳过** ⇒ 它的 C 桶（`eventPool`）根本没人查 ✗。
+	// 结果洞窟（缺 `contract.json`）**整段被跳过** → 它的 C 桶（`eventPool`）根本没人查。
 	// 这正是 `#777` 修的那族错（"读不到输入却当成没有"）——我自己的门也犯了一次。
 	const slugs = readdirSync(storiesDir).filter((s) => statSync(join(storiesDir, s)).isDirectory() && !s.startsWith('.'));
 	ok('取到故事目录', slugs.length > 0, slugs.join('、'));
@@ -645,7 +645,7 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 	ok('逃生舱登记表存在（`editor/escape-hatch.json`）', existsSync(registryPath), registryPath);
 	const registry = existsSync(registryPath) ? JSON.parse(readFileSync(registryPath, 'utf8')) : { hatches: [] };
 
-	// `#1016`：**declare-but-undone**（措辞判据）——「指向现存」由上方 referenceIntegrity（#1052 口径）承担 ✓。
+	// `#1016`：**declare-but-undone**（措辞判据）——「指向现存」由上方 referenceIntegrity（#1052 口径）承担。
 	const undone = undoneProblems(registry);
 	for (const u of undone) { bad++; console.error(`  ✗ [#1016] ${u.member}：${u.why}`); }
 	ok('登记表无自述未完成措辞（#1016：声明↔落实）', undone.length === 0);
@@ -659,8 +659,8 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 		if (!dataReady) console.log(`  · ${slug}：data/ 不全（缺 tables/contract）⇒ 只有 ①/② 跳过；**③ 逃生舱判据照跑**（它不依赖 data/）`);
 
 		// ①＋② 标记与新鲜度：**自己跑编译器**两次（不读工作区里可能陈旧的 `build/generated/`）
-		//    ⚠️ 走 CLI 而不是 API：编译器的内部形状会变（`#769` 把 `compile` 改成 `compileStory` 并且改成**写文件**），
-		//    而 CLI（`<slug> --out=<dir>`）是它对外的稳定面 ⇒ 门对内部重构免疫。
+		//注意：走 CLI 而不是 API：编译器的内部形状会变（`#769` 把 `compile` 改成 `compileStory` 并且改成**写文件**），
+		// 而 CLI（`<slug> --out=<dir>`）是它对外的稳定面 → 门对内部重构免疫。
 		const runCompile = () => {
 			const dir = mkdtempSync(join(tmpdir(), 'k4-'));
 			execFileSync('node', [join(ROOT, 'editor', 'compile-story.mjs'), slug, `--out=${dir}`], { cwd: ROOT, stdio: 'pipe' });
@@ -678,35 +678,35 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 		}
 
 		// ④ **生成物不许独改**（K4-④）：迁移期的"两处真相"守卫 —— 带 `@generated` 的 tracked twee 必须等于当场重编的字节。
-		//    只对**带标记**的文件生效（天然棘轮）；未翻面时**留痕打印**（"尚未翻面"是状态，不是"没问题"）。
-		// `#1128`：被比集合从「git tracked」改为「**磁盘上存在的产物**」✓（产物移出 git 后 tracked 集变空 ⇒ 判据空转 ✗——
-		//    改扫磁盘：数据化故事的 data/*.json 编译出的产物名是确定的（build.mjs 消费面 ✓）⇒ 磁盘有即比 ✗ 磁盘无即建后比 ✓）。
-		//    ⚠️ **空转防护**（领队要求① ✓）：手改磁盘上的产物 ⇒ **红且点名** ✗（不是「文件在不在」代理 ✓）。
+		// 只对**带标记**的文件生效（天然棘轮）；未翻面时**留痕打印**（"尚未翻面"是状态，不是"没问题"）。
+		// `#1128`：被比集合从「git tracked」改为「**磁盘上存在的产物**」（产物移出 git 后 tracked 集变空 → 判据空转 ——
+		// 改扫磁盘：数据化故事的 data/*.json 编译出的产物名是确定的（build.mjs 消费面）→ 磁盘有即比 磁盘无即建后比）。
+		//注意：**空转防护**（领队要求①）：手改磁盘上的产物 → **红且点名**（不是「文件在不在」代理）。
 		const genDir = join(storiesDir, slug, 'data');
 		const onDiskFiles = (existsSync(genDir) ? readdirSync(join(storiesDir, slug)) : [])
 			.filter((f) => /^(15-|17-|16-)/.test(f) && f.endsWith('.twee'))
 			.map((f) => [`stories/${slug}/${f}`, readFileSync(join(storiesDir, slug, f), 'utf8')]);
-		const trackedFiles = onDiskFiles;   // #1128 起被比集合=磁盘产物面 ✓（git 面已空——历史口径见 cases/票面 ✓）
+		const trackedFiles = onDiskFiles;   // #1128 起被比集合=磁盘产物面（git 面已空——历史口径见 cases/票面）
 		const { marks, problems: staleProblems } = staleTrackedProblems(trackedFiles, fresh);
 		if (!marks) console.log(`  · ${slug}：**尚未翻面**（0 个带 \`@generated\` 的 tracked twee）⇒ K4-④ 本次无可判对象（这是**状态**，不是"没问题"）`);
 		else console.log(`  · ${slug}：K4-④ 已翻面文件 ${marks} 个 ⇒ 与当场重编产物逐字节比对`);
 		for (const prob of staleProblems) { console.error(`  ✗ ${prob.path}：${prob.why}`); bad++; }
 
 		// ③ 逃生舱：分类器（**真源**：逐成员分类 —— `classify()` 吃的是**单个成员的源码**）vs 登记表
-		//    ⚠️ 判的是**手写契约源**（见 `contractSourceText`）：已数据化故事的 twee 是**产物**，
-		//    分类产物会得到**假欠账**（实测：发射后的 `template` 被判 B，而它在数据侧是已支持的 kind）。
+		//注意：判的是**手写契约源**（见 `contractSourceText`）：已数据化故事的 twee 是**产物**，
+		// 分类产物会得到**假欠账**（实测：发射后的 `template` 被判 B，而它在数据侧是已支持的 kind）。
 		const storyDir = join(storiesDir, slug);
 		const { text: srcText, handCount, markedTwee } = contractSourceText(readdirSync(storyDir).filter((f) => statSync(join(storyDir, f)).isFile()).map((f) => [f, readFileSync(join(storyDir, f), 'utf8')]));
-		// `#794`：分类走 **host 的缝** `classifyContractText` ✓（`lib/host/classify.mjs` 的单一装配点 ✓）。
-		// ⚠️ 两个文本**不能混**（抽缝时踩过 ✗）：`siteText`＝扫站点用、`fileText`＝求值原文用；
-		//    K4 这份 `srcText` 是**手写源**（已排除产物 ✓）⇒ 两者同源即正确 ✓。
+		// `#794`：分类走 **host 的缝** `classifyContractText`（`lib/host/classify.mjs` 的单一装配点）。
+		//注意：两个文本**不能混**（抽缝时踩过）：`siteText`＝扫站点用、`fileText`＝求值原文用；
+		// K4 这份 `srcText` 是**手写源**（已排除产物）→ 两者同源即正确。
 		const classified = classifyContractText({ fileText: srcText, siteText: srcText }).rows.map((m) => ({ name: m.name, src: m.src, bucket: m.bucket }));
-		// 契约已全部由 `data/` 产出（手写侧只剩非契约文件）⇒ 逃生舱由编译器 kind 白名单把关
+		// 契约已全部由 `data/` 产出（手写侧只剩非契约文件）→ 逃生舱由编译器 kind 白名单把关
 		const noHandContract = classified.length === 0;
-		// ⚠️ **空判不许空过**（`#761` 车道 A 实测）：契约全由 `data/` 产出时，上面的分类**没有手写输入** ⇒
-		//    它打出的 `A0/B0/C0/D0` 是「**没判**」而不是「判过」✗（旧文案写「C 桶结构性为 0」＝把"读不到输入"说成了结论 ✗）。
-		//    ⇒ 这一面改由**普查表**承担（`editor/escape-hatch-census.json`：翻面前手写契约的**逐成员去向** ✓）：
-		//    逐条交代「去了数据面／下沉引擎（锚点要在树里真读到 ✓）／必须留逃生舱」⇒ **能假** ✓。
+		//注意：**空判不许空过**（`#761` 车道 A 实测）：契约全由 `data/` 产出时，上面的分类**没有手写输入** →
+		// 它打出的 `A0/B0/C0/D0` 是「**没判**」而不是「判过」（旧文案写「C 桶结构性为 0」＝把"读不到输入"说成了结论）。
+		// → 这一面改由**普查表**承担（`editor/escape-hatch-census.json`：翻面前手写契约的**逐成员去向**）：
+		// 逐条交代「去了数据面／下沉引擎（锚点要在树里真读到）／必须留逃生舱」→ **能假**。
 		if (noHandContract && markedTwee > 0) console.log(`  · ${slug}：契约**已全部由 data/ 产出**（带标记 twee ${markedTwee} 个，手写侧剩 ${handCount} 个非契约文件）⇒ 分类器**无手写输入**（这一面改由普查表判 ✓，下一行）`);
 		{
 			const censusPath = join(ROOT, 'editor/escape-hatch-census.json');
@@ -728,45 +728,45 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 				console.log(`  · ${slug}：**普查** ${sum.members} 名成员（A${sum.counts.A ?? 0}/B${sum.counts.B ?? 0}/C${sum.counts.C ?? 0}/D${sum.counts.D ?? 0}）· 数据面 ${dataMembers.length} 名 · 下沉 ${sum.sinks} 条（锚点读到 ${Object.keys(engineSymbols).length}/${anchorCount}）⇒ **「必须逃生舱」 ${sum.hatches} 条**`);
 			}
 
-		// ③b **不数据化的面**（`refusedFaces`）—— 与 ③ **同构**（清单只许收缩 ✓ ＋ 条目必带理由票号 ✓），
-		//    但**登记对象是"文件/面"** ✗、且**不能**走 `hatches`／`hatchFiles`（前者按契约成员名 ✓，后者会进等价门产物侧 ✓）。
+		// ③b **不数据化的面**（`refusedFaces`）—— 与 ③ **同构**（清单只许收缩 ＋ 条目必带理由票号），
+		// 但**登记对象是"文件/面"**、且**不能**走 `hatches`／`hatchFiles`（前者按契约成员名，后者会进等价门产物侧）。
 		{
 			const facesRegistryPath = join(ROOT, 'editor', 'escape-hatch.json');
 			const facesRegistry = existsSync(facesRegistryPath) ? JSON.parse(readFileSync(facesRegistryPath, 'utf8')) : {};
-			// ⚠️ **按故事过滤** ✗（照 `escapeHatchProblems()` 对 `hatches` 的同款口径 ✓）：登记表是**跨故事**的 ✓，
-			//    不过滤 ⇒ 会拿「别的故事的面」当本故事的读数 ⇒ 行文名不副实 ✗；
-			//    **总数**各故事求和即得 ⇒ 「可计数」不受影响 ✓。
+			//注意：**按故事过滤**（照 `escapeHatchProblems()` 对 `hatches` 的同款口径）：登记表是**跨故事**的，
+			// 不过滤 → 会拿「别的故事的面」当本故事的读数 → 行文名不副实；
+			// **总数**各故事求和即得 →「可计数」不受影响。
 			const allFaces = facesRegistry.refusedFaces ?? [];
 			const faces = allFaces.filter((f) => typeof f?.file === 'string' && f.file.startsWith(`stories/${slug}/`));
 			console.log(`  · ${slug}：**不数据化的面（\`refusedFaces\`）${faces.length} 项**（**全表合计 ${allFaces.length}** ✓） ✓（登记 ≠ 不迁：每条写明**退路 ＋ 重开条件** ✓）`);
 			for (const f of faces) console.log(`      · ${String(f.file)} ⇒ ${String(f.ticket)}`);
-			// ⚠️ `markerOf` 由**宿主注入** ✓（core 的 `refusedFaceProblems` 是纯函数、不碰 fs ✓）
+			//注意：`markerOf` 由**宿主注入**（core 的 `refusedFaceProblems` 是纯函数、不碰 fs）
 			const markerOf = (rel) => { try { return hasGeneratedMarker(readFileSync(join(ROOT, rel), 'utf8')); } catch { return false; } };
 			for (const prob of refusedFaceProblems(faces, { markerOf })) { console.error(`  ✗ ${prob.why}`); bad++; }
 		}
 		}
-		// **取不到输入就不许判过**（`#777` 那族错：分类器曾只扫首个 `Sg.story` 块 ⇒ 少 8 名成员却“静默地没问题”）。
-		// 手写源非空却一个成员都找不到 ⇒ 只能是我读错了位置（或契约换了写法）⇒ 判红，不静默。
+		// **取不到输入就不许判过**（`#777` 那族错：分类器曾只扫首个 `Sg.story` 块 → 少 8 名成员却“静默地没问题”）。
+		// 手写源非空却一个成员都找不到 → 只能是我读错了位置（或契约换了写法）→ 判红，不静默。
 		if (noHandContract && markedTwee === 0) { console.error(`  ✗ ${slug}：手写契约源非空（${handCount} 文件）却分类出 **0 名成员**、且没有任何带标记的产物 ⇒ 判据失效（不是通过）`); bad++; continue; }
 		for (const p of escapeHatchProblems(classified, registry, slug)) { console.error(`  ✗ ${slug}【${p.member}】${p.why}`); bad++; }
 		const buckets = classified.reduce((acc, m) => { acc[m.bucket] = (acc[m.bucket] ?? 0) + 1; return acc; }, {});
 		console.log(`  · ${slug}：契约源 ${srcText.length}B（手写 twee ${handCount}／带标记 twee ${markedTwee}）· ${dataReady ? '标记 ✓ · 幂等 ✓ · ' : '①/② 跳过（无 data/）· '}分类 A${buckets.A ?? 0}/B${buckets.B ?? 0}/C${buckets.C ?? 0}/D${buckets.D ?? 0}`);
-		// **欠账实测打印**（不写进数据文件、不手写数字 ⇒ 不会腐烂）：B ＝ 待补声明式 kind，D ＝ 待下沉引擎能力。
+		// **欠账实测打印**（不写进数据文件、不手写数字 → 不会腐烂）：B ＝ 待补声明式 kind，D ＝ 待下沉引擎能力。
 		// 为什么要打出来：`escape-hatch.json` 只登记 **C**（真逃生舱）；B/D 是"排期欠账"而不是"表达不了"，
-		// 但**不写出来就会被读成"清单空 ⇒ 没欠账"**（这两类只是不进棘轮，不是不存在）。
+		// 但**不写出来就会被读成"清单空 → 没欠账"**（这两类只是不进棘轮，不是不存在）。
 		const names = (b) => classified.filter((m) => m.bucket === b).map((m) => m.name).join('、') || '（无）';
 		console.log(`      欠账（B 待补 kind）：${names('B')}`);
 		console.log(`      欠账（D 待下沉引擎）：${names('D')}`);
 	}
 
-	// ③c **手写面闭合**（`#987`）：`手写面 − 三类豁免 ＝ ∅` ✓。
-	//   ⚠️ 它是**跨故事**的 ✗（逐故事那块只能看见本故事的登记 ✓）⇒ 放在循环之后 ✓。
-	//   ⚠️ 口径＝`hasGeneratedMarker` ✓（**行首** `// @generated` ＋ 先遮蔽模板串 ✓）—— **不新造** ✗：
-	//     `16-hooks.twee` 第 11 行在注释里**引用**这个标记来声明"本文件不带它" ✓ ⇒ "grep 到就算生成物"会误判 ✗。
+	// ③c **手写面闭合**（`#987`）：`手写面 − 三类豁免 ＝ ∅`。
+	//注意：它是**跨故事**的（逐故事那块只能看见本故事的登记）→ 放在循环之后。
+	//注意：口径＝`hasGeneratedMarker`（**行首** `// @generated` ＋ 先遮蔽模板串）—— **不新造**：
+	// `16-hooks.twee` 第 11 行在注释里**引用**这个标记来声明"本文件不带它" → "grep 到就算生成物"会误判。
 	{
 		const hx = JSON.parse(readFileSync(join(ROOT, 'editor', 'escape-hatch.json'), 'utf8'));
 		const treeTwee = execFileSync('git', ['ls-files', 'stories'], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n')
-			.filter((f) => f.endsWith('.twee'));                       // ⚠️ `.twee.txt`（冻结基线一类）**不算**故事源 ✓
+			.filter((f) => f.endsWith('.twee'));                       //注意：`.twee.txt`（冻结基线一类）**不算**故事源
 		const markerOf = (rel) => { try { return hasGeneratedMarker(readFileSync(join(ROOT, rel), 'utf8')); } catch { return false; } };
 		const handwritten = treeTwee.filter((f) => !markerOf(f)).sort();
 		const refused = (hx.refusedFaces ?? []).map((f) => f.file).filter((f) => typeof f === 'string');
@@ -776,17 +776,17 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 		for (const prob of handwrittenClosureProblems({ handwritten, refused, prose, hatches, markerOf })) { console.error(`  ✗ ${prob.why}`); bad++; }
 	}
 
-	// ③d **门面引用完整性**（`#1016`）：登记表里**指向仓内对象**的键必须**现存** ✓。
-	//   ⚠️ 也是**跨故事**的 ✗：`hatches[]` 按 `slug` 过滤进逐故事扫描 ⇒ **已删故事的 slug 落不进任何一次扫描** ✗
-	//     ⇒ 它**结构性不可见** ✓（`#1004` 实测：留过 2 条 `mist-forest`、而全门 rc=0 ✗）⇒ 必须在这里判 ✓。
-	//   ⚠️ 只咬**字段值**（`hatches[].slug`／`hatchFiles[]`／`refusedFaces[].file` ✓）—— 散文面（`reason`／`why`／`paths` ✗）
-	//     一律不读 ✓（本仓留痕优先："`reason` 里写『与 X 同形』"是**应当允许**的 ✓）。
-	//   ⚠️ `#1052`：文件类引用要求「**已入库 ∩ 存在**」✗（只判 `existsSync` ⇒ 未 `git add` 的新文件
-	//     会让登记**看起来有效** ✓ —— `#1019`／`#1028` 同一族）⇒ 注入 `trackedOf`（**宿主**能力 ✓）。
+	// ③d **门面引用完整性**（`#1016`）：登记表里**指向仓内对象**的键必须**现存**。
+	//注意：也是**跨故事**的：`hatches[]` 按 `slug` 过滤进逐故事扫描 → **已删故事的 slug 落不进任何一次扫描**
+	// → 它**结构性不可见**（`#1004` 实测：留过 2 条 `mist-forest`、而全门 rc=0）→ 必须在这里判。
+	//注意：只咬**字段值**（`hatches[].slug`／`hatchFiles[]`／`refusedFaces[].file`）—— 散文面（`reason`／`why`／`paths`）
+	// 一律不读（本仓留痕优先："`reason` 里写『与 X 同形』"是**应当允许**的）。
+	//注意：`#1052`：文件类引用要求「**已入库 ∩ 存在**」（只判 `existsSync` → 未 `git add` 的新文件
+	// 会让登记**看起来有效** —— `#1019`／`#1028` 同一族）→ 注入 `trackedOf`（**宿主**能力）。
 	{
 		const hx = JSON.parse(readFileSync(join(ROOT, 'editor', 'escape-hatch.json'), 'utf8'));
-		// 入库集合：**取不到就不许判过** ✗（`#557` 口径：读不到输入 ≠ 没命中 ✓ —— 静默跳过＝假绿 ✓）。
-		//   ⚠️ 一次取全表（`git ls-files` 无路径参数 ✓）：本仓规模下 < 1MB ✓，而按条 spawn git 会拖慢门 ✓。
+		// 入库集合：**取不到就不许判过**（`#557` 口径：读不到输入 ≠ 没命中 —— 静默跳过＝假绿）。
+		//注意：一次取全表（`git ls-files` 无路径参数）：本仓规模下 < 1MB，而按条 spawn git 会拖慢门。
 		let trackedSet = null;
 		try {
 			trackedSet = new Set(execFileSync('git', ['ls-files'], { cwd: ROOT, encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 }).split('\n').filter(Boolean));
@@ -815,17 +815,17 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 };
 
 export const k6Command = (argv = [], { prog = 'node editor/k6.mjs', sub = '' } = {}) => {
-	// `#843` 复核实测 ✗：`cli.mjs k6 --selftest` 曾**静默忽略**该参数、照跑整门（rc=0）✗ ——
-	// 而 `equiv`／`k4` 都**拒绝**（rc=2 ✓）⇒ `k6` 是唯一例外 ✗。自证只在**工具路**（壳里 ✓）⇒
-	// 该旗标到达命令体＝走的 cli 路 ⇒ **拒绝 ＋ 指路** ✓（与 `equiv` 的处置同形 ✓）。
+	// `#843` 复核实测：`cli.mjs k6 --selftest` 曾**静默忽略**该参数、照跑整门（rc=0） ——
+	// 而 `equiv`／`k4` 都**拒绝**（rc=2）→ `k6` 是唯一例外。自证只在**工具路**（壳里）→
+	// 该旗标到达命令体＝走的 cli 路 → **拒绝 ＋ 指路**（与 `equiv` 的处置同形）。
 	if (argv.includes('--selftest')) {
 		console.error('✗ `--selftest` 不是本命令的参数（自证只在工具路：`node editor/k6.mjs --selftest` ✓）');
 		return 2;
 	}
 	let bad = 0;
-	// `#794`：这两件原来是**模块级**（门与自证共用 ✓）⇒ 搬到命令体后必须自带一份 ✓
-	// （跨模块无法共用 ✓；语义逐字照抄自证那两行 ✓）。
-	const ok = (label, cond, extra = '') => { if (cond) console.log(`  ✓ ${label}${extra ? ' · ' + extra : ''}`); else { bad++; console.error(`  ✗ ${label}`); } };   // `#794`：原为模块级（与自证共用 ✓）⇒ 搬成**命令体局部**（跨模块无法共用 ✓）
+	// `#794`：这两件原来是**模块级**（门与自证共用）→ 搬到命令体后必须自带一份
+	//（跨模块无法共用；语义逐字照抄自证那两行）。
+	const ok = (label, cond, extra = '') => { if (cond) console.log(`  ✓ ${label}${extra ? ' · ' + extra : ''}`); else { bad++; console.error(`  ✗ ${label}`); } };   // `#794`：原为模块级（与自证共用）→ 搬成**命令体局部**（跨模块无法共用）
 	console.log('══ K6 门（`#794` 单一内核）—— 能力只许一处定义 · 壳里不许有内核逻辑 · 单一写路 ══');
 
 	const files = mjsFiles(EDITOR).map((p) => [p.slice(K6ROOT.length + 1), readFileSync(p, 'utf8')]);
@@ -837,19 +837,19 @@ export const k6Command = (argv = [], { prog = 'node editor/k6.mjs', sub = '' } =
 	ok('① 导出能力只许一处定义', dups.length === 0, `重复 ${dups.length} 项`);
 
 	const coreStarted = existsSync(CORE);
-	// ③ **内核不许碰宿主**（`#794` 第 3 步）：`lib/core/**` 里出现 `node:*`／裸宿主模块名 ⇒ 红 ✓
-	//（“浏览器安全”只有机检得住 ✓；今天 `core` 是干净的 ⇒ 它是**纯红**判据、不需登记表 ✓）。
+	// ③ **内核不许碰宿主**（`#794` 第 3 步）：`lib/core/**` 里出现 `node:*`／裸宿主模块名 → 红
+	//（“浏览器安全”只有机检得住；今天 `core` 是干净的 → 它是**纯红**判据、不需登记表）。
 	if (coreStarted) {
 		const coreOnly = mjsFiles(CORE).map((p) => [p.slice(K6ROOT.length + 1), readFileSync(p, 'utf8')]);
 		const hostHits = coreHostProblems(coreOnly);
 		for (const h of hostHits.slice(0, 8)) console.error(`  ✗ 内核文件「${h.path}:${h.line}」引了宿主能力「${h.token}」⇒ 破坏了浏览器安全 ✗（应经 **注入的宿主能力** 取 ✓）`);
 		ok('③ 内核不碰宿主（`lib/core/**` 无 `node:*`／裸宿主模块）', hostHits.length === 0, `core ${coreOnly.length} 个文件 · 命中 ${hostHits.length}`);
-		// ③b（`#794`）：**浏览器侧那一半** —— 宿主全局（含 `globalThis.<名>` 形 ✗）；通用全局与 `console` **不进表** ✗
+		// ③b（`#794`）：**浏览器侧那一半** —— 宿主全局（含 `globalThis.<名>` 形）；通用全局与 `console` **不进表**
 		const globalHits = coreHostGlobalProblems(coreOnly);
 		for (const h of globalHits.slice(0, 8)) console.error(`  ✗ 内核文件「${h.path}:${h.line}」用到宿主全局「${h.token}」⇒ **两宿主都能跑**是 core 的硬约束 ✗（该能力应由**宿主注入** ✓，如 evalLiteral／io ✓）`);
 		ok('③b 内核不碰宿主全局（浏览器侧；`globalThis.<名>` 也挡 ✓；通用全局与 console 不进表 ✓）', globalHits.length === 0, `core ${coreOnly.length} 个文件 · 命中 ${globalHits.length}`);
 	} else console.log('  · `editor/lib/core` **尚未出现** ⇒ 判据③ 暂无对象（留痕 ✓，抽取落地后自动生效 ✓）');
-	// ①b：`lib/core` 出现后 —— core 导出的能力**不许在 core 之外再被定义**（含非导出副本 ✗，抄的人往往不导出 ✓）
+	// ①b：`lib/core` 出现后 —— core 导出的能力**不许在 core 之外再被定义**（含非导出副本，抄的人往往不导出）
 	if (coreStarted) {
 		const coreFiles = mjsFiles(CORE).map((p) => p.slice(K6ROOT.length + 1));
 		const coreExports = [...defs.exported.keys()].filter((n) => (defs.exported.get(n) ?? []).some((p) => coreFiles.includes(p)));
@@ -857,8 +857,8 @@ export const k6Command = (argv = [], { prog = 'node editor/k6.mjs', sub = '' } =
 		for (const s of second.slice(0, 8)) console.error(`  ✗ 内核能力「${s.name}」在 core 之外**被再定义**（第二份内核 ✗）：${s.paths.join(' · ')}`);
 		ok('①b core 能力不许在 core 之外再定义', second.length === 0, `core 导出 ${coreExports.length} 个 · 副本 ${second.length}`);
 	} else console.log('  · `editor/lib/core` **尚未出现** ⇒ 判据①b 暂无对象（留痕 ✓，抽取落地后自动生效 ✓）');
-	// L1（`#794`）：扫面从"cli ＋ host"扩到**全部 `editor/**`** ✓（旧口径的覆盖小于它的声称 ✗）。
-	const editors = files;   // 判据① 已经读过全部 editor/**/*.mjs ✓（同一次读取，不重扫 ✓）
+	// L1（`#794`）：扫面从"cli ＋ host"扩到**全部 `editor/**`**（旧口径的覆盖小于它的声称）。
+	const editors = files;   // 判据① 已经读过全部 editor/**/*.mjs（同一次读取，不重扫）
 	const primWrites = primitiveWriteProblems(editors);
 	if (primWrites.length) for (const w of primWrites.slice(0, 8)) console.error(`  ✗ 「${w.path}:${w.line}」出现原语写「${w.token}(…）」⇒ 原语写只许出现在 lib/host/** ✓（换 import 来源或抽到 host ✓）`);
 	ok('② 原语写只许出现在 `lib/host/**`（L1；扫**全部** `editor/**` ✓ 不依赖路径长什么样 ✓）', primWrites.length === 0, `扫描 ${editors.length} 个文件 · 违规 ${primWrites.length}`);
@@ -869,6 +869,6 @@ export const k6Command = (argv = [], { prog = 'node editor/k6.mjs', sub = '' } =
 
 	if (bad) { console.error(`\n✗ K6 门未通过（${bad} 项）—— 防双内核：能力单一定义 · 壳薄 · 单一写路。`); return 1; }
 	console.log('\n✔ K6 门通过（单一内核 · 壳薄 · 单一写路）');
-	return 0;   // `#794`：**命令体必须返回 rc**（原来这部分靠"跑完即 0" 的默认 ✓；搬进命令体后
-	             // 不复存在 ⇒ 返回 `undefined` ✗ ⇒ 被入口的 rc 断言当场点名 ✓ —— 断言是装备 ✓）
+	return 0;   // `#794`：**命令体必须返回 rc**（原来这部分靠"跑完即 0" 的默认；搬进命令体后
+	             // 不复存在 → 返回 `undefined` → 被入口的 rc 断言当场点名 —— 断言是装备）
 };

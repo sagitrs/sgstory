@@ -1,6 +1,6 @@
 // `#1185`：生成物家族"产物必有源"守卫的读数。
 //
-// 成对口径（票面验收第 1 条）：删一个数据源而**不删产物** ⇒ 红；**恢复**或**一并删** ⇒ 绿。
+// 成对口径（票面验收第 1 条）：删一个数据源而**不删产物** → 红；**恢复**或**一并删** → 绿。
 // 另证：家族成员全过（现有家族）、非家族件不受影响、无标记的家族成员单独报（`no-marker`）。
 import { readFileSync, existsSync } from 'node:fs';
 import { isGeneratedFamily, declaredSourceOf, generatedFamilyProblems } from '../editor/lib/core/generated-family.mjs';

@@ -17,8 +17,8 @@ const check = (cond, msg) => { if (!cond) { bad++; console.error(`  ✗ ${msg}`)
 	const s = await newGame({ random: 0.99, session: { wait: 140 } });   // d20 恒 20 → 检定必成
 	const w = s.w;
 	try {
-		// `#1004` B2b（换样本）：导航改走**面夹具**（`酒馆 → 塔外花田`，夹具的 `酒馆` 直链花田 ✓）——
-		// 旧导航（`问一句女巫小屋怎么走`／`往林子深处走`／`继续往塔那边走`）是**旧故事**的路径 ✗。
+		// `#1004` B2b（换样本）：导航改走**面夹具**（`酒馆 → 塔外花田`，夹具的 `酒馆` 直链花田）——
+		// 旧导航（`问一句女巫小屋怎么走`／`往林子深处走`／`继续往塔那边走`）是**旧故事**的路径。
 		await s.clickByLabel('塔外花田');
 		await s.clickByLabel('伸手去摘最靠里的那一朵');
 		const pc = w.SugarCube.State.variables.pc;

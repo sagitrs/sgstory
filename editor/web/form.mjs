@@ -1,17 +1,17 @@
-// WebUI（`#761` P1 第五片）：**DOM 接线** —— 把页面上的那次编辑接到**同一份**纯逻辑上 ✓。
+// WebUI（`#761` P1 第五片）：**DOM 接线** —— 把页面上的那次编辑接到**同一份**纯逻辑上。
 //
-// 复核席给的三条"不许"（本件逐条遵守 ✓）：
-//   ① **不自己算 diff** ✗ —— 显示什么**逐字**来自 `diffFields` ✓（DOM 层只搬运 ✓）；
-//   ② **不引入新写路** ✗ —— 下载清单**只**从 `save.mjs` 来 ✓（⇒ 写仍唯一经 `writeStoryPackage` ✓）；
-//   ③ **不新造 schema** ✗ —— 事件列表与字段**都从数据面来** ✓（`eventsOf` ✓）。
+// 复核席给的三条"不许"（本件逐条遵守）：
+// ① **不自己算 diff** —— 显示什么**逐字**来自 `diffFields`（DOM 层只搬运）；
+// ② **不引入新写路** —— 下载清单**只**从 `save.mjs` 来（→ 写仍唯一经 `writeStoryPackage`）；
+// ③ **不新造 schema** —— 事件列表与字段**都从数据面来**（`eventsOf`）。
 //
-// 于是"页面上改的那次"与"测试里改的那次"**按构造是同一条路** ✓（没有第二份实现 ✓）。
+// 于是"页面上改的那次"与"测试里改的那次"**按构造是同一条路**（没有第二份实现）。
 
 import { eventsOf, editEvent, editEventField, fieldKindsOf, diffFields, editSummary } from './events.mjs';
-import { vocabOf, vocabAxisForField } from '../lib/core/vocab.mjs';   // 车道 D 切片 1b：候选＝**词表镜像** ✓（映射声明在 core ✓ —— 本层不写死字段名 ✗）
+import { vocabOf, vocabAxisForField } from '../lib/core/vocab.mjs';   // 车道 D 切片 1b：候选＝**词表镜像**（映射声明在 core —— 本层不写死字段名）
 
-/** **表单的字段区** ✓（P1 余项）：字段与类型**从 `fieldKindsOf` 来** ✗ —— DOM 层不写死任何 schema ✓。
- *  `list` 字段用**逐行文本框**（一列一项 ✓）＋ `text` 单行 ✓＋ `number` 数字框 ✓；`raw` 不渲染 ✗（不认识就不让改 ✓，并在提示里点名 ✓）。 */
+/** **表单的字段区**（P1 余项）：字段与类型**从 `fieldKindsOf` 来** —— DOM 层不写死任何 schema。
+ * `list` 字段用**逐行文本框**（一列一项）＋ `text` 单行 ＋ `number` 数字框；`raw` 不渲染（不认识就不让改，并在提示里点名）。 */
 export const buildEventForm = ({ doc, row, containerId = 'fields' } = {}) => {
 	const box = doc.getElementById(containerId);
 	if (!box) throw new Error(`表单容器 \`#${containerId}\` 不存在 ✗（表单不该静默只剩一半 ✓）`);
@@ -26,7 +26,7 @@ export const buildEventForm = ({ doc, row, containerId = 'fields' } = {}) => {
 		el.id = `fld-${name}`;
 		el.dataset.kind = kind;
 		el.value = kind === 'list' ? (row[name] ?? []).join('\n') : String(row[name] ?? '');
-		// 被**映射**的 `list` 字段 ⇒ 附 `<datalist>`（选项＝该轴词表 ✓，**逐值来自镜像** ✗ 不是另抄一份 ✓）；未映射 ⇒ 原样 ✗。
+		// 被**映射**的 `list` 字段 → 附 `<datalist>`（选项＝该轴词表，**逐值来自镜像** 不是另抄一份）；未映射 → 原样。
 		const axis = kind === 'list' ? vocabAxisForField(name) : null;
 		if (axis) {
 			const dlId = `dl-${name}`;
@@ -42,8 +42,8 @@ export const buildEventForm = ({ doc, row, containerId = 'fields' } = {}) => {
 	return kinds.map((k) => k.name);
 };
 
-/** **从 DOM 自己读回** ✓（P1 余项的读数要求 ✓：提交的值必须是**表里实际填的** ✗，
- *  而不是某个测试变量的回放 ✓ —— 否则"映射"可能是**常数** ✓）。 */
+/** **从 DOM 自己读回**（P1 余项的读数要求：提交的值必须是**表里实际填的**，
+ * 而不是某个测试变量的回放 —— 否则"映射"可能是**常数**）。 */
 export const readFormFields = ({ doc, containerId = 'fields', kinds } = {}) => {
 	const box = doc.getElementById(containerId);
 	if (!box) throw new Error(`表单容器 \`#${containerId}\` 不存在 ✗`);
@@ -59,7 +59,7 @@ export const readFormFields = ({ doc, containerId = 'fields', kinds } = {}) => {
 	return out;
 };
 
-/** 表单提交 ✓（**唯一编辑路** ✓：读回 ⇒ `editEvent` ✓ —— DOM 层不自己算差异 ✓）。 */
+/** 表单提交（**唯一编辑路**：读回 → `editEvent` —— DOM 层不自己算差异）。 */
 export const submitEventForm = ({ doc, pkg, id, containerId = 'fields' } = {}) => {
 	const row = (pkg?.data?.['rules.json']?.rows ?? []).find((r) => r.id === id);
 	if (!row) throw new Error(`事件不存在 ✗：${id}`);
@@ -72,8 +72,8 @@ import { compileInPage } from './compile.mjs';
 import { savePackage, asDownloads, saveSummary } from './save.mjs';
 import { loadPackage } from './loader.mjs';
 
-/** 把表单接上 ✓。返回**可控句柄** ✓（测试驱动它，不必戳 DOM 细节 ✓）。
- *  `doc` ＝ 一个 `document`（浏览器里是 `window.document` ✓，测试里是 jsdom 的 ✓）⇒ 本件**不碰**全局 ✓。 */
+/** 把表单接上。返回**可控句柄**（测试驱动它，不必戳 DOM 细节）。
+ * `doc` ＝ 一个 `document`（浏览器里是 `window.document`，测试里是 jsdom 的）→ 本件**不碰**全局。 */
 export const wireForm = ({ doc, slug, io } = {}) => {
 	const $ = (id) => doc.getElementById(id);
 	const out = $('out');
@@ -85,7 +85,7 @@ export const wireForm = ({ doc, slug, io } = {}) => {
 	const fail = (msg) => { if (err) err.textContent = String(msg ?? ''); };
 	const clear = () => { fail(''); lastEdit = null; };
 
-	/** 载入（与 `app.mjs` 同一条读路 ✓）。 */
+	/** 载入（与 `app.mjs` 同一条读路）。 */
 	const load = (loaded) => {
 		pkg = loaded;
 		clear();
@@ -115,7 +115,7 @@ export const wireForm = ({ doc, slug, io } = {}) => {
 		return events;
 	};
 
-	/** ⚠️ **全部**编辑动作都走这一处 ✓（DOM 只是它的输入与输出 ✓）。 */
+	/**注意：**全部**编辑动作都走这一处（DOM 只是它的输入与输出）。 */
 	const applyEdit = () => {
 		clear();
 		if (!pkg) { fail('还没载入故事包 ✗'); return null; }
@@ -126,7 +126,7 @@ export const wireForm = ({ doc, slug, io } = {}) => {
 			const after = editEventField({ pkg, id, field, value });
 			const diffs = diffFields(pkg.data, after);
 			lastEdit = { before: pkg.data, after, diffs, id, field, value };
-			// ① 显示**逐字**来自 `diffFields` ✓（DOM 层不加工 ✓；附一行 JSON 供测试读同一份 ✓）
+			// ① 显示**逐字**来自 `diffFields`（DOM 层不加工；附一行 JSON 供测试读同一份）
 			show(`${editSummary(diffs).join('\n')}\n@@JSON@@${JSON.stringify(diffs)}`);
 			return lastEdit;
 		} catch (e) {
@@ -135,7 +135,7 @@ export const wireForm = ({ doc, slug, io } = {}) => {
 		}
 	};
 
-	/** 写盘 ＋ 下载清单 ✓（**唯一写路** ✓ —— 本件不碰 fs，也不另写一份 ✓）。 */
+	/** 写盘 ＋ 下载清单（**唯一写路** —— 本件不碰 fs，也不另写一份）。 */
 	const downloadsFor = () => {
 		if (!lastEdit) return null;
 		const saved = savePackage({ slug, data: lastEdit.after, twee: compileInPage({ slug, data: lastEdit.after }).files });

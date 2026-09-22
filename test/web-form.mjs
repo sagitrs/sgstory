@@ -1,15 +1,15 @@
-// `#761` P1 第五片：**DOM 接线**的读数 ✓ —— "页面上那次编辑"与"我测过的那次编辑"**逐字节同一条路** ✓。
+// `#761` P1 第五片：**DOM 接线**的读数 —— "页面上那次编辑"与"我测过的那次编辑"**逐字节同一条路**。
 //
-// 复核席给的两条验收读数（本文件逐条量 ✓）：
-//   ① 页面上**显示**的差异，**逐字**等于 `diffFields` 的输出 ✓（⇒ DOM 层没有自己算一份 diff ✗）；
-//   ② 页面这条路产出的 `data`（经 `save.mjs` 写出的那些文件）与"直接在测试里调一次
-//      `editEventField` ＋ `savePackage`"**逐字节相同** ✓（⇒ 没有第二份实现 ✓）。
+// 复核席给的两条验收读数（本文件逐条量）：
+// ① 页面上**显示**的差异，**逐字**等于 `diffFields` 的输出（→ DOM 层没有自己算一份 diff）；
+// ② 页面这条路产出的 `data`（经 `save.mjs` 写出的那些文件）与"直接在测试里调一次
+// `editEventField` ＋ `savePackage`"**逐字节相同**（→ 没有第二份实现）。
 //
-// ⚠️ jsdom 收场纪律（本仓踩过 ✗）：`pretendToBeVisual` 会**吊住事件循环** ⇒ 用 **false** ✓
-//   ＋ **显式** `window.close()` ＋ 最后**显式** `process.exit(rc)` ✓（不许靠"跑完自然退" ✗）。
+//注意：jsdom 收场纪律（本仓踩过）：`pretendToBeVisual` 会**吊住事件循环** → 用 **false**
+// ＋ **显式** `window.close()` ＋ 最后**显式** `process.exit(rc)`（不许靠"跑完自然退"）。
 
 import { readFileSync } from 'node:fs';
-import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b ✓：故事名走单一权威 ✓（旧故事已删 ✗）
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1004` B2b：故事名走单一权威（旧故事已删）
 import { JSDOM } from 'jsdom';
 import { loadPackage } from '../editor/web/loader.mjs';
 import { wireForm, buildEventForm, readFormFields, submitEventForm } from '../editor/web/form.mjs';
@@ -19,7 +19,7 @@ import { compileInPage } from '../editor/web/compile.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const nodeIo = () => ({ readText: (p) => readFileSync(`${ROOT}/${p}`, 'utf8') });
-// `#1004` B2b ✓：旧故事已删 ⇒ 换到**默认故事**（＝面夹具 `face-fixture` ✓，它把仍有真消费者的接入面都接上了 ✓）。
+// `#1004` B2b：旧故事已删 → 换到**默认故事**（＝面夹具 `face-fixture`，它把仍有真消费者的接入面都接上了）。
 const slug = DEFAULT_SLUG;
 
 const HTML = `<!doctype html><html><body>
@@ -41,11 +41,11 @@ try {
 	t('接线：字段下拉来自**该事件的原始字段** ✓（不新造 schema ✓）',
 		dom.window.document.getElementById('field').options.length === Object.keys(events[0].raw).length);
 
-	// 车道 D 切片 1b（`#215` 报备 `18501202`）：**候选来自词表镜像** ✓ ——
-	// 逐值等于 `vocabOf(轴)` ✓（不是"非空"✗）；未映射字段**没有** datalist ✓（另一半 ✓）。
+	// 车道 D 切片 1b（`#215` 报备 `18501202`）：**候选来自词表镜像** ——
+	// 逐值等于 `vocabOf(轴)`（不是"非空"）；未映射字段**没有** datalist（另一半）。
 	{
 		const { VOCAB_AXES, vocabOf, vocabAxisForField, VOCAB_FIELDS } = await import('../editor/lib/core/vocab.mjs');
-		const dom0 = new JSDOM('<div id="fields"></div>', { pretendToBeVisual: false });   // 独立 DOM ✓（共享 dom 的 #fields 会被重建 ⇒ 打断后续用例 ✗）
+		const dom0 = new JSDOM('<div id="fields"></div>', { pretendToBeVisual: false });   // 独立 DOM（共享 dom 的 #fields 会被重建 → 打断后续用例）
 		const doc0 = dom0.window.document;
 		const row0 = { id: 'x', scope: 'y', req: ['a'], any: [], exclude: [], prereq: [], text: '', prio: 1 };
 		buildEventForm({ doc: doc0, row: row0 });
@@ -59,25 +59,25 @@ try {
 			!doc0.getElementById('dl-text') && !doc0.getElementById('dl-prio') && Object.keys(VOCAB_FIELDS).every((f) => VOCAB_FIELDS[f] === 'ops'));
 		t('映射声明**不超出四轴** ✓（轴名必须在册 ✓，防手滑写成不存在的轴 ✗）', Object.values(VOCAB_FIELDS).every((a) => VOCAB_AXES.includes(a)));
 		t('`vocabAxisForField` 未映射 ⇒ `null` ✓（不是抛 ✗ —— "没有候选"是合法状态 ✓）', vocabAxisForField('text') === null && vocabAxisForField('req') === 'ops');
-		dom0.window.close();   // jsdom 收场纪律 ✓（显式关 ✓）
+		dom0.window.close();   // jsdom 收场纪律（显式关）
 	}
 
 	const target = events.find((e) => typeof e.raw.text === 'string' && e.raw.text.length > 4);
 	const newText = `${target.raw.text}【表单探针】`;
-	// 驱动 UI（就像用户点一样 ✓）
+	// 驱动 UI（就像用户点一样）
 	dom.window.document.getElementById('event').value = target.id;
 	dom.window.document.getElementById('field').value = 'text';
 	dom.window.document.getElementById('value').value = newText;
 	const edit = handle.applyEdit();
 	t('接线：点一次"应用" ⇒ 走了 `editEventField` ✓（不是另一条路 ✓）', !!edit && edit.after['rules.json'].rows.find((r) => r.id === target.id).text === newText);
 
-	// 读数①：显示**逐字**等于 `diffFields` ✓
+	// 读数①：显示**逐字**等于 `diffFields`
 	const expectDiffs = diffFields(pkg.data, edit.after);
 	const expectLines = editSummary(expectDiffs).join('\n');
 	t('读数①：页面显示的差异**逐字**等于 `diffFields` 的输出 ✓（DOM 没自己算 diff ✗）',
 		handle.shown().startsWith(expectLines) && handle.shown().includes(`@@JSON@@${JSON.stringify(expectDiffs)}`));
 
-	// 读数②：页面这条路 vs 测试里直接那条路 ⇒ 写出的文件**逐字节相同** ✓
+	// 读数②：页面这条路 vs 测试里直接那条路 → 写出的文件**逐字节相同**
 	const viaDom = handle.downloadsFor();
 	const directAfter = editEventField({ pkg, id: target.id, field: 'text', value: newText });
 	const viaDirect = savePackage({ slug, data: directAfter, twee: compileInPage({ slug, data: directAfter }).files });
@@ -86,13 +86,13 @@ try {
 	t('读数②：页面那条路与"直接调一次"写出的文件**逐字节相同** ✓（⇒ 没有第二份实现 ✓）', sameBody);
 	t('读数②：下载清单来自 `save.mjs` ✓（不新增写路 ✓）', viaDom.items.length === Object.keys(viaDom.saved.files).length && viaDom.lines.join('\n').includes('写出：'));
 
-	// 反例：非法编辑 ⇒ **错误面**亮出内核报文 ✗（不是静默 ✓）
+	// 反例：非法编辑 → **错误面**亮出内核报文（不是静默）
 	dom.window.document.getElementById('field').value = '__newkey__';
 	const badEdit = handle.applyEdit();
 	t('反例：未知字段 ⇒ 错误面亮出报文且不产出改动 ✗',
 		badEdit === null && handle.error().includes('未知字段'));
 
-	// ── P1 余项（`#761`）：**DOM 表单的字段级读数** ✓ —— 含复核席两条（都要能假 ✓）
+	// ── P1 余项（`#761`）：**DOM 表单的字段级读数** —— 含复核席两条（都要能假）
 	t('表单：字段与类型**从 `fieldKindsOf` 来** ✓（DOM 不写死 schema ✗）', (() => {
 		const names = buildEventForm({ doc: dom.window.document, row: events[0].raw });
 		const shown = [...dom.window.document.querySelectorAll('#fields [data-kind]')].map((e) => e.id.replace(/^fld-/, ''));
@@ -126,7 +126,7 @@ try {
 		return m.includes('不存在');
 	})());
 
-	// ── `--selftest`：假包 ＋ 假 document ⇒ 同一判定 ✓
+	// ── `--selftest`：假包 ＋ 假 document → 同一判定
 	const selftest = () => {
 		let sbad = 0;
 		const st = (label, ok) => { if (!ok) sbad += 1; console.log(`${ok ? '✓' : '✗'} 自证·${label}`); };

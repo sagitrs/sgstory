@@ -1,13 +1,13 @@
-// `#892`（P4-1）：页内**新建**的读数 ✓ —— "起手包只落**内存**"这句话要能被量 ✗。
+// `#892`（P4-1）：页内**新建**的读数 —— "起手包只落**内存**"这句话要能被量。
 //
-// 三条判据（都能是假的 ✓ —— 与 `#892` 票面的 ④ 对齐 ✓）：
-//   ① **入口真在页面上** ✓ ＋ 点出来的包是**五件**（`00-meta.twee` ＋ `data/{tables,contract,rules,meta}.json` ✓）；
-//   ② **没落盘** ✓：整条页面路**不碰 fs** ✗（本件用 jsdom ⇒ 本来也没有 fs ✓ ⇒ 额外作**结构性断言**：
-//      `editor/web/app.mjs` 与 `save.mjs` 的源里不得出现 `node:fs` ✗ —— 这条能假：加一句 import 就会红 ✓）；
-//   ③ **可继续编辑** ✓：把**既有**表单句柄接上去 ⇒ 断言它拿到的 `data` 与 `starterPackage()` 的**逐字节同** ✓
-//      （⇒ 没有第二份起手逻辑 ✗）。
+// 三条判据（都能是假的 —— 与 `#892` 票面的 ④ 对齐）：
+// ① **入口真在页面上** ＋ 点出来的包是**五件**（`00-meta.twee` ＋ `data/{tables,contract,rules,meta}.json`）；
+// ② **没落盘**：整条页面路**不碰 fs**（本件用 jsdom → 本来也没有 fs → 额外作**结构性断言**：
+// `editor/web/app.mjs` 与 `save.mjs` 的源里不得出现 `node:fs` —— 这条能假：加一句 import 就会红）；
+// ③ **可继续编辑**：把**既有**表单句柄接上去 → 断言它拿到的 `data` 与 `starterPackage()` 的**逐字节同**
+//（→ 没有第二份起手逻辑）。
 //
-// ⚠️ jsdom 收场纪律（本仓踩过 ✗）：`pretendToBeVisual: false` ＋ 显式 `window.close()` ＋ 显式 `process.exit` ✓。
+//注意：jsdom 收场纪律（本仓踩过）：`pretendToBeVisual: false` ＋ 显式 `window.close()` ＋ 显式 `process.exit`。
 
 import { readFileSync } from 'node:fs';
 import { JSDOM } from 'jsdom';
@@ -28,7 +28,7 @@ const { starterPackage, IFID_RE } = await import('../editor/lib/core/story.mjs')
 t('① 页面上真的有「新建」入口（`#newBtn` ＋ 两个输入 ✓）',
 	!!window.document.getElementById('newBtn') && !!window.document.getElementById('newslug') && !!window.document.getElementById('newtitle'));
 
-// 注入夹具 IFID（core 不碰随机源 ✓ ⇒ 本地可复算 ✓）
+// 注入夹具 IFID（core 不碰随机源 → 本地可复算）
 const pkg = newPackage({ doc: window.document, ifidOf: () => 'a1b2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d' });
 t('① 点一下 ⇒ 内存里的**五件**（00-meta ＋ 四件 data ✓）',
 	!!pkg && Object.keys(pkg.data).length === 4 && Object.keys(pkg.twee).join() === '00-meta.twee'
@@ -39,17 +39,17 @@ t('① 夹具 IFID（**小写**输入）真的以**大写**进了产物 ✓（�
 t('① 产物里的 IFID 满足 **extwee 自己的那条正则**（同源核对：读 node_modules ✓ ⇒ 若 extwee 换标准即红 ✗）', (() => {
 	const src = readFileSync(new URL('../node_modules/extwee/src/Twine2HTML/compile.js', import.meta.url), 'utf8');
 	const m = /if \(story\.IFID\.match\(\/(.+?)\/\)/.exec(src);
-	if (!m) return false;                                   // 找不到 extwee 的判据 ⇒ 宁可红 ✗（不静默跳过 ✓）
+	if (!m) return false;                                   // 找不到 extwee 的判据 → 宁可红（不静默跳过）
 	const extwee = new RegExp(m[1]);
 	const got = /"ifid": "([^"]+)"/.exec(pkg.twee['00-meta.twee'])?.[1] ?? '';
-	return extwee.test(got) && extwee.source === IFID_RE.source;   // 双侧：**我们的**产物被 extwee 收 ✓ ＋ 两条正则同源 ✓
+	return extwee.test(got) && extwee.source === IFID_RE.source;   // 双侧：**我们的**产物被 extwee 收 ＋ 两条正则同源
 })());
 t('① 非法 IFID（`nope`）⇒ 页面**报错**且不返回包（fail-loud ✓，不把失败推到 build 远处 ✗）', (() => {
 	const r = newPackage({ doc: window.document, ifidOf: () => 'nope' });
 	return r === null && /IFID/.test(window.document.getElementById('err').textContent);
 })());
 t('① 缺 slug ⇒ 返回 null ＋ 页面上有话（不静默兜默认 ✗）', (() => {
-	const revert = window.document.getElementById('newslug').value;      // ⚠️ 用完**还原** ✓（本件自己踩过：不还原 ⇒ 后面几条全 null ✗）
+	const revert = window.document.getElementById('newslug').value;      //注意：用完**还原**（本件自己踩过：不还原 → 后面几条全 null）
 	window.document.getElementById('newslug').value = '';
 	const r = newPackage({ doc: window.document, ifidOf: () => 'X' });
 	const spoke = /\S/.test(window.document.getElementById('err').textContent);
@@ -73,7 +73,7 @@ t('③ 「可继续编辑」✓：既有表单句柄被接到**同一份** data 
 	seen.length === 1 && JSON.stringify(seen[0]) === JSON.stringify({ slug: pkg2.slug, data: st.data }));
 t('③ 内存里那枚包与返回值同一枚（供后续片消费 ✓）', currentNewPackage() === pkg2);
 
-// ④ `save.mjs` 的**清单口**（`#892` 判据②在**页面保存路**上的落点 ✓）：传 ⇒ 写清单 ✓；不传 ⇒ **一件不多一件不少** ✓
+// ④ `save.mjs` 的**清单口**（`#892` 判据②在**页面保存路**上的落点）：传 → 写清单；不传 → **一件不多一件不少**
 {
 	const { savePackage } = await import('../editor/web/save.mjs');
 	const { manifestFor } = await import('../editor/lib/core/story.mjs');

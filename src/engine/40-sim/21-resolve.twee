@@ -1,25 +1,25 @@
 :: Resolve [script]
 // ── 结算（sim，伞 #441 的 `40-sim` rank 落点）──────────────────────────────
 // 为什么单独一个文件（#441-A）：把「算」从 widget 里剥出来——
-//   · `rollSite`：**纯函数**，不写状态、不渲染 ⇒ 可在 **node** 里直接驱动（不经浏览器）
-//   · `resolve` ：薄封装，多一步「写结果槽 `$last_check`」（段落分支读它）＝ sim 侧
+// · `rollSite`：**纯函数**，不写状态、不渲染 → 可在 **node** 里直接驱动（不经浏览器）
+// · `resolve`：薄封装，多一步「写结果槽 `$last_check`」（段落分支读它）＝ sim 侧
 // 现状只有位点检定一条；战斗（`fightact`）与交涉（`socresolve`）在 #441-A 的后续批次按同一形状接上。
 // 依赖：`10-core.twee`（Game.Rules / Game.Rules.rng）＋ `15-tables.twee`（**只经 `Sg.story` 取故事数据**）。
 // #459 切片三：位点表／情报捷径／战斗动作表已改走 `Sg.story.checkSite/checkKnowledge/combatAction`——
-// 本文件搬进 `src/engine/**` 后**不再直读故事表**（⚠️ 层间门按字面量匹配，这里曾用别名 `T.Game` 躲过它，
+// 本文件搬进 `src/engine/**` 后**不再直读故事表**（注意：层间门按字面量匹配，这里曾用别名 `T.Game` 躲过它，
 // 所以"门绿"不等于边界成立；本文件的证据是"真的没有直读"，见 PR）。
-// 命名根：挂 `Game.Checks.*`（数据/规则 ⇒ Game.*，见 docs/dev-conventions.md §7）。
+// 命名根：挂 `Game.Checks.*`（数据/规则 → Game.*，见 docs/dev-conventions.md §7）。
 Object.assign((window.Game.Codex ??= {}), {
 	/** 线索表：**经接入契约取**（故事声明 `Sg.story.codexItems()`）——引擎**不直读**故事的数据容器
-	 *  （那会重新长出 `engine-story-free` 的白名单 ✗；与 `Economy.econEvents()` 同一形状 ✓）。
-	 *  未注册 ⇒ 空表（＝"这个故事没有图鉴"⇒ 四支方法全部退化为空／false，**不静默给假数据** ✓）。 */
+	 *（那会重新长出 `engine-story-free` 的白名单；与 `Economy.econEvents()` 同一形状）。
+	 * 未注册 → 空表（＝"这个故事没有图鉴"→ 四支方法全部退化为空／false，**不静默给假数据**）。 */
 	codexItems() {
 		const f = window.Sg?.story?.codexItems;
 		return typeof f === 'function' ? (f() ?? {}) : {};
 	},
-	/** `#785` 接缝 6：线索判定／计数四支从**故事 UI 文件**搬进引擎（单一权威 ✓）。
-	 *  语义**逐字保留**（原住 `72-codex-ui.twee`）：判定走引擎条件求值器 `Sg.rules.matches(c, pc, new Set())`
-	 *  ——与 `Sg.rules` 同一权威，条件形状（`req`/`any`/`exclude`）由 `#785` 第 1 族定 ✓。 */
+	/** `#785` 接缝 6：线索判定／计数四支从**故事 UI 文件**搬进引擎（单一权威）。
+	 * 语义**逐字保留**（原住 `72-codex-ui.twee`）：判定走引擎条件求值器 `Sg.rules.matches(c, pc, new Set())`
+	 * ——与 `Sg.rules` 同一权威，条件形状（`req`/`any`/`exclude`）由 `#785` 第 1 族定。 */
 	clueIds(item) {
 		return (this.codexItems()[item]?.clues ?? []).map((c) => c.id);
 	},
@@ -30,7 +30,7 @@ Object.assign((window.Game.Codex ??= {}), {
 		}
 		return out;
 	},
-	/** 永久已解锁（线索集齐）；`ids.length > 0` 那条是语义（**没有线索的图鉴不算解锁** ✓）。 */
+	/** 永久已解锁（线索集齐）；`ids.length > 0` 那条是语义（**没有线索的图鉴不算解锁**）。 */
 	isUnlocked(item, store) {
 		const ids = this.clueIds(item);
 		const got = store?.clues?.[item] ?? {};
@@ -46,22 +46,22 @@ Object.assign((window.Game.Codex ??= {}), {
 
 Object.assign((window.Game.Social ??= {}), {
 	/** `#785` 接缝 1／2／3（合成一片）：**交涉机制下沉** —— 故事侧只留**声明数据**。
-	 *  取数**经接入契约**（`Sg.story.social()` ⇒ `{ asks, attAdj, approaches }` ✓）：引擎**不直读**
-	 *  `Game.Social.asks`（那会长回 `engine-story-free` 白名单 ✗，与接缝 5/6 同一条纪律 ✓）。
-	 *  条件侧走引擎 `Sg.rules.matches`（单一权威 ✓）；效果侧走声明（`yields/gives/sets` ✓）。
-	 *  ⚠️ **过渡期双形**（**会退役**）：`done`/`willing`/`unwilling`/`apply` 现为**函数**（故事侧），
-	 *  批改后为**声明式**（条件对象／效果）⇒ 引擎两条都认：
-	 *    `typeof x === 'function' ? x(pc) : Sg.rules.matches(x, pc, new Set())`
-	 *  **退役条件**：故事侧那批函数删掉之后，`typeof` 分支永不再命中 ⇒ 可整段删（与观察项同规矩 ✓）。 */
-	// 取数口：**三条单路径成员**（故事侧 `Sg.story.socialAsks/socialAttAdj/socialApproaches` ✓）——
-	// 为什么不是"一个返回对象的成员"✗：对象的**字面量解析不出** ⇒ 分类器只能判 **B**（排期欠债 ✗），
-	// 而三条单路径判 `game-ref` ⇒ **A 桶** ✓ ⇒ 将来数据化时可直接落 `data/`（P0 的终点 ✓）。
+	 * 取数**经接入契约**（`Sg.story.social()` → `{ asks, attAdj, approaches}`）：引擎**不直读**
+	 * `Game.Social.asks`（那会长回 `engine-story-free` 白名单，与接缝 5/6 同一条纪律）。
+	 * 条件侧走引擎 `Sg.rules.matches`（单一权威）；效果侧走声明（`yields/gives/sets`）。
+	 *注意：**过渡期双形**（**会退役**）：`done`/`willing`/`unwilling`/`apply` 现为**函数**（故事侧），
+	 * 批改后为**声明式**（条件对象／效果）→ 引擎两条都认：
+	 * `typeof x === 'function'? x(pc): Sg.rules.matches(x, pc, new Set())`
+	 * **退役条件**：故事侧那批函数删掉之后，`typeof` 分支永不再命中 → 可整段删（与观察项同规矩）。 */
+	// 取数口：**三条单路径成员**（故事侧 `Sg.story.socialAsks/socialAttAdj/socialApproaches`）——
+	// 为什么不是"一个返回对象的成员"：对象的**字面量解析不出** → 分类器只能判 **B**（排期欠债），
+	// 而三条单路径判 `game-ref` → **A 桶** → 将来数据化时可直接落 `data/`（P0 的终点）。
 	socialAsks() { return window.Sg?.story?.socialAsks?.() ?? []; },
 	socialAttAdj() { return window.Sg?.story?.socialAttAdj?.() ?? { friendly: -5, neutral: 0, hostile: 5 }; },
 	socialApproaches() { return window.Sg?.story?.socialApproaches?.() ?? {}; },
 	ask(id) { return this.socialAsks().find((a) => a.id === id) ?? null; },
-	/** 条件：对象/字符串 ⇒ 引擎条件求值器；**函数**（过渡期）⇒ 直调。
-	 *  硬化（照搬故事侧，**逐字保留**）：条件必须是 `{req/any/exclude}` 对象；传函数 ⇒ 抛（点名并入声明式）。 */
+	/** 条件：对象/字符串 → 引擎条件求值器；**函数**（过渡期）→ 直调。
+	 * 硬化（照搬故事侧，**逐字保留**）：条件必须是 `{req/any/exclude}` 对象；传函数 → 抛（点名并入声明式）。 */
 	condHolds(cd, pc) {
 		if (cd == null) return true;
 		if (typeof cd === 'function') return !!cd(pc);
@@ -70,8 +70,8 @@ Object.assign((window.Game.Social ??= {}), {
 		}
 		return window.Sg.rules.matches(cd, pc, new Set());
 	},
-	/** `base` 的条件选值：`{ default, cases: [{ req, value }] }` —— **首个命中者胜**。
-	 *  硬化**逐字保留**：`cases` 每项**必须同时**有 `req/any/exclude` 之一**与** `value` ⇒ 缺一即抛。 */
+	/** `base` 的条件选值：`{ default, cases: [{ req, value}]}` —— **首个命中者胜**。
+	 * 硬化**逐字保留**：`cases` 每项**必须同时**有 `req/any/exclude` 之一**与** `value` → 缺一即抛。 */
 	baseOf(a, pc) {
 		const b = a.base;
 		if (typeof b === 'string') return b;
@@ -122,21 +122,21 @@ Object.assign((window.Game.Social ??= {}), {
 		const opt = { adv: advWhy ? 1 : 0, site, advWhy: advWhy ?? '' };
 		return s.abil ? window.Game.Rules.save(pc, s.abil, dc, opt) : window.Game.Rules.check(pc, s.skill, dc, opt);
 	},
-	/** 诉求落地时的**效果**（`#785`）：三级优先 —— ① **(c) 契约面 hook**（故事声明 `Sg.story.socialHooks()` ✓
-	 *  承载"换物／置枚举／取反"这类声明式词汇表达不了的 ✓）⇒ ② **函数**（过渡期：故事侧旧 `apply` ✓）⇒
-	 *  ③ **声明式**（`yields`/`gives`/`sets` ✓ —— 与规则行**同一套** `applyYields`/`applyGrants`/`applySets` ✓，单一权威）。
-	 *  ⚠️ 三级都要在：少任何一级都会出现「**改了不生效**」✗（本轮活样本：只实现了条件侧双形 ⇒ 数据改 `sets` 后
-	 *  效果静默不落 ✗ —— 静态比对看不出来 ✓）。**退役条件**：故事侧 `apply` 全为声明式／hook 后，第 ② 级自然失效。 */
-	/** `#785`：**该 ask 有没有效果**（＝三级优先里任一）—— 门/测试**问引擎**，不自己扒内部（跨故事可用 ✓）。
-	 *  ⚠️ 只认“真的能落地”的形态：函数 `apply` ／ 声明式 `yields`/`gives`/`sets` ／ 契约 hook 的 `apply` ✓
-	 *  （`yield`（单数）是**承诺**不是效果 ✓ —— 那由 D7 NPC 门单独判 ✓）。 */
+	/** 诉求落地时的**效果**（`#785`）：三级优先 —— ① **(c) 契约面 hook**（故事声明 `Sg.story.socialHooks()`
+	 * 承载"换物／置枚举／取反"这类声明式词汇表达不了的）→ ② **函数**（过渡期：故事侧旧 `apply`）→
+	 * ③ **声明式**（`yields`/`gives`/`sets` —— 与规则行**同一套** `applyYields`/`applyGrants`/`applySets`，单一权威）。
+	 *注意：三级都要在：少任何一级都会出现「**改了不生效**」（本轮活样本：只实现了条件侧双形 → 数据改 `sets` 后
+	 * 效果静默不落 —— 静态比对看不出来）。**退役条件**：故事侧 `apply` 全为声明式／hook 后，第 ② 级自然失效。 */
+	/** `#785`：**该 ask 有没有效果**（＝三级优先里任一）—— 门/测试**问引擎**，不自己扒内部（跨故事可用）。
+	 *注意：只认“真的能落地”的形态：函数 `apply` ／ 声明式 `yields`/`gives`/`sets` ／ 契约 hook 的 `apply`
+	 *（`yield`（单数）是**承诺**不是效果 —— 那由 D7 NPC 门单独判）。 */
 	askHasEffect(a) {
 		const hook = window.Sg?.story?.socialHooks?.()?.[a.id]?.apply;
 		return typeof a?.apply === 'function' || typeof hook === 'function'
 			|| a?.yields != null || a?.gives != null || a?.sets != null;
 	},
 	/** 某 ask 的某个**条件字段**是否有声明（含契约钩子）——门用它判「有愿意／有回绝／已办」；
-	 *  没有它，搬进钩子的条件对门**不可见** ⇒ 门会静默失去咬合力（实测：`--social` 的「有回绝」标记消失 ✗）。 */
+	 * 没有它，搬进钩子的条件对门**不可见** → 门会静默失去咬合力（实测：`--social` 的「有回绝」标记消失）。 */
 	askHasCondition(a, field) {
 		if (a?.[field] != null) return true;
 		const hook = window.Sg?.story?.socialHooks?.()?.[a?.id];
@@ -151,15 +151,15 @@ Object.assign((window.Game.Social ??= {}), {
 		window.Sg.rules.applySets(a, pc);
 	},
 	/** 结果定档：`willing`＝不掷骰 · `unwilling`＝不掷骰（回绝）· 其余掷骰。 */
-	/** `done` 的取值（**hook 优先** ⇒ 数据声明 ✓）：供渲染层问"这一件有没有结果"（`10-core` ✓）。 */
+	/** `done` 的取值（**hook 优先** → 数据声明）：供渲染层问"这一件有没有结果"（`10-core`）。 */
 	askDone(a, pc) {
 		const hook = window.Sg?.story?.socialHooks?.()?.[a.id]?.done;
 		return this.condHolds(hook ?? a.done, pc);
 	},
 	verdict(a, pc) {
-		// ⚠️ **存在性守卫**：`condHolds(null)` 是**恒真**（那是对「字段缺席」的语义 ✓），
-		// 但本方法的原语义是 `a.unwilling?.(pc)` ⇒ **没有这个字段就不回绝** ✓ ⇒ 必须先判有无 ✗（否则一律 `unwilling` ✗）。
-		// **hook 优先**（(c) 契约面承载"取反"这类声明式词汇表达不了的 ✓）⇒ 否则数据声明 ✓。
+		//注意：**存在性守卫**：`condHolds(null)` 是**恒真**（那是对「字段缺席」的语义），
+		// 但本方法的原语义是 `a.unwilling?.(pc)` → **没有这个字段就不回绝** → 必须先判有无（否则一律 `unwilling`）。
+		// **hook 优先**（(c) 契约面承载"取反"这类声明式词汇表达不了的）→ 否则数据声明。
 		const hook = window.Sg?.story?.socialHooks?.()?.[a.id] ?? {};
 		const unw = hook.unwilling ?? a.unwilling, wil = hook.willing ?? a.willing;
 		if (unw != null && this.condHolds(unw, pc)) return 'unwilling';
@@ -190,17 +190,17 @@ Object.assign((window.Game.Social ??= {}), {
 // ── 战斗回合的「算」（#441-A 第二刀）──────────────────────────────────────
 // 现状问题：`<<fightpanel>>` 的 link 体里 `<<set $pc.ev.fight.act>>` ＋ `<<fightact>>` ——
 // **点一下既算又画**（`#441` 点名要拆的那处）。现在拆成两段：
-//   · `pick`／`ensureOffer`：面板点击的落点（state 写在 sim 侧，面板只调）
-//   · `resolvePlayer`／`resolveFoe`：两段式结算（保留原本的**渲染顺序**：玩家骰面 → 玩家受伤闪光 →
-//     对手骰面 → 挨打闪光；`<<damage>>` 仍由 present 调，它是结算词汇宏）
+// · `pick`／`ensureOffer`：面板点击的落点（state 写在 sim 侧，面板只调）
+// · `resolvePlayer`／`resolveFoe`：两段式结算（保留原本的**渲染顺序**：玩家骰面 → 玩家受伤闪光 →
+// 对手骰面 → 挨打闪光；`<<damage>>` 仍由 present 调，它是结算词汇宏）
 // 两段式而不是一次性：玩家受伤后的 `hp` 决定对手那一轮是否发生，而 `hp` 由 present 的 `<<damage>>` 落，
 // 拆成两段才能让「渲染顺序」与「hp 时序」同时与旧实现逐字一致。
 Object.assign((window.Game.Combat ??= {}), {
 	/** 位点文案（`#785` 接缝 5 下沉）：`<skill/abil> DC<dc>`。
-	 *  数据**全部经接入契约取**（`Sg.story.combatAction(id)` ＋ `Sg.story.checkSite(name)` ✓ —— 两者**本来就有**，
-	 *  所以本接缝**不需要新契约成员** ✓）；标签走引擎 `Game.Rules.skillLabel` ✓。
-	 *  ⚠️ **行为陷阱**：`combatAction` 对**未登记动作会抛**（它自己的 fail-loud ✓），而本方法原实现对未知动作
-	 *  是**退化成空串** ✓ ⇒ 这里必须**吞掉**那个抛（否则把"渲染时给空"变成"渲染时崩" ✗ —— 那是行为变更 ✗）。 */
+	 * 数据**全部经接入契约取**（`Sg.story.combatAction(id)` ＋ `Sg.story.checkSite(name)` —— 两者**本来就有**，
+	 * 所以本接缝**不需要新契约成员**）；标签走引擎 `Game.Rules.skillLabel`。
+	 *注意：**行为陷阱**：`combatAction` 对**未登记动作会抛**（它自己的 fail-loud），而本方法原实现对未知动作
+	 * 是**退化成空串** → 这里必须**吞掉**那个抛（否则把"渲染时给空"变成"渲染时崩" —— 那是行为变更）。 */
 	siteInfo(actionId) {
 		let a = null;
 		try { a = window.Sg?.story?.combatAction?.(actionId) ?? null; } catch { return ''; }
@@ -212,16 +212,16 @@ Object.assign((window.Game.Combat ??= {}), {
 });
 
 Object.assign((window.Game.Combat ??= {}), {
-	// 面板惰性抽牌（下一页没抽过就抽）——旧实现是 `<<set _f.offer to …>>`（`_f` 是 state 的别名 ⇒ 也是写状态）
+	// 面板惰性抽牌（下一页没抽过就抽）——旧实现是 `<<set _f.offer to …>>`（`_f` 是 state 的别名 → 也是写状态）
 	ensureOffer(pc) {
 		const T = window.Game, f = pc.ev.fight;
 		if (f && f.offer.length === 0) f.offer = T.Combat.offer(f.pool, f.round, pc, f.last?.act);
 	},
 	// 点下第 idx 张牌：只写「这一手是什么」，结算留给 `resolvePlayer`
 	// 命名注意：**不能叫 `pick`**——`Game.Combat.pick(actionId, res)` 已被「动作档位求值」占用
-	//（`playerEff` 在用它）；同名会被本 Object.assign 覆盖 ⇒ 2026-09-13 实测踩过（回合结算当场炸）。
+	//（`playerEff` 在用它）；同名会被本 Object.assign 覆盖 → 2026-09-13 实测踩过（回合结算当场炸）。
 	chooseAction(pc, idx) { pc.ev.fight.act = pc.ev.fight.offer[idx]; },
-	// 玩家这一手：掷骰（写 `$last_check`）→ 结算 → 写台账。返回 `{ check, hurt, log }`
+	// 玩家这一手：掷骰（写 `$last_check`）→ 结算 → 写台账。返回 `{ check, hurt, log}`
 	// `hurt` 由 present 的 `<<damage>>` 落（不在此处扣 hp）——保住旧的渲染/时序完全一致。
 	resolvePlayer(pc, foeSite, isDragon) {
 		const T = window.Game, f = pc.ev.fight;
@@ -247,9 +247,9 @@ Object.assign((window.Game.Combat ??= {}), {
 		return { check, hurt: eff.hurt ?? 0, log };
 	},
 	// 对手那一轮 ＋ 收尾（轮次/下一轮牌/清 guard 与 skipFoe/落台账）。**无论 hp 是否归零都要走收尾**
-	// （旧实现里收尾在 `if ($pc.hp gt 0)` 之外）。对手检定未发生时 `check` 为 null。
+	//（旧实现里收尾在 `if ($pc.hp gt 0)` 之外）。对手检定未发生时 `check` 为 null。
 	/** `#493` 接缝（片 A-2：**回落已删**）：**对手／boss 状态**的取值口——引擎**不知道**故事状态叫什么名字，
-	 *  一律经 `Sg.story.foeState(pc)` 取（缺声明 ⇒ 大声报错，不静默造一个空对象）。 */
+	 * 一律经 `Sg.story.foeState(pc)` 取（缺声明 → 大声报错，不静默造一个空对象）。 */
 	foeState(pc) {
 		const f = window.Sg?.story?.foeState;
 		if (typeof f !== 'function') throw new Error('Game.Combat.foeState：故事未声明 `Sg.story.foeState(pc)`（结构缺失必须报错，#493／#459）');
@@ -258,8 +258,8 @@ Object.assign((window.Game.Combat ??= {}), {
 	resolveFoe(pc, foeSite, isDragon, log) {
 		const T = window.Game, f = pc.ev.fight;
 		let check = null, hurt = 0;
-		// #486（S1）：受击再过一道「掷部位 ⇒ 护具吸伤/耐久 ⇒ 溢出落 HP」。
-		// `mechanics()` 未启用时 `slotAbsorb` 返回 `null` ⇒ **原样返回**（显式降级，零行为变化）。
+		// #486（S1）：受击再过一道「掷部位 → 护具吸伤/耐久 → 溢出落 HP」。
+		// `mechanics()` 未启用时 `slotAbsorb` 返回 `null` → **原样返回**（显式降级，零行为变化）。
 		const mitigate = (raw) => {
 			const plan = T.Combat.slotAbsorb(pc, raw);
 			if (!plan) return raw;
@@ -303,16 +303,16 @@ Object.assign((window.Game.Combat ??= {}), {
 
 // ── 经济事件的「落帐」与文案（#441-A 第三刀）──────────────────────────────
 // 为什么要抽：`<<econ>>` 原本把「算价 ＋ 落金币 ＋ 落 gives ＋ 渲染文案」挤在一个 widget 里，
-// 而 `<<socresolve>>` 要**在自己的分支里**调它（筹码那一支）⇒ 想让社交回合能在 node 里驱动，
+// 而 `<<socresolve>>` 要**在自己的分支里**调它（筹码那一支）→ 想让社交回合能在 node 里驱动，
 // 就得把「落帐」抽成 sim 函数；文案格式抽成 `note()`（**单一源**，否则两处各写一份必漂）。
 
 // ── 交涉回合的「算」（#441-A 第三刀）──────────────────────────────────────
 // 现状：`<<socresolve>>` 是「算 ＋ 写」的 sim widget；它**唯一渲染的东西**是筹码那一支里的 `<<econ>>` 文案。
-// 抽出后：状态写点全在 sim；widget 只剩「调 sim ＋ 渲染那一句文案」⇒ `test/social-lever.mjs` 可以不经浏览器驱动。
-// ⚠️ 顺序敏感：`econ` 原本在 `shift`／`apply` **之前**（`priceOf` 可能吃 `apply` 落的旗标折扣）——
-//    本实现**保持原顺序**（econ 先落、`apply` 后调），别为了「看起来整齐」把它挪位。
+// 抽出后：状态写点全在 sim；widget 只剩「调 sim ＋ 渲染那一句文案」→ `test/social-lever.mjs` 可以不经浏览器驱动。
+//注意：顺序敏感：`econ` 原本在 `shift`／`apply` **之前**（`priceOf` 可能吃 `apply` 落的旗标折扣）——
+// 本实现**保持原顺序**（econ 先落、`apply` 后调），别为了「看起来整齐」把它挪位。
 Object.assign((window.Game.Social ??= {}), {
-	// 返回 `{ econ: { delta } | null }`；`null`＝这次点击不该结算（`$pc.ev.soc` 与 ask 不匹配）
+	// 返回 `{ econ: { delta} | null}`；`null`＝这次点击不该结算（`$pc.ev.soc` 与 ask 不匹配）
 	resolveAsk(pc, askId, how) {
 		const T = window.Game, S = T.Social;
 		const a = S.ask(askId);
@@ -358,23 +358,23 @@ Object.assign((window.Game.Social ??= {}), {
 });
 
 // ── #512：机制从故事文件（`15-tables.twee`）搬进 sim ────────────────────────────────
-// 为什么搬：这些是**机制**（取数/结算），却住在故事文件里 ⇒ 引擎侧只能"往上"调故事实现（层间方向反了）。
-// 搬法：**公开面一字不动**（同名同命名空间 ⇒ 调用方无感），只把**数据读取**改走 `Sg.story.*`。
+// 为什么搬：这些是**机制**（取数/结算），却住在故事文件里 → 引擎侧只能"往上"调故事实现（层间方向反了）。
+// 搬法：**公开面一字不动**（同名同命名空间 → 调用方无感），只把**数据读取**改走 `Sg.story.*`。
 // 零行为变化由 `audit:golden`（逐字节）＋ `npm test`＋`soak` 兜住；`Sg.story` 的缺省语义与原文逐条对齐
-// （`?? null` 对应 `this.defs[k]?.x`；`?? []` 对应 `this.pools[...] ?? []`；只有必需数值 fail-loud）。
-// ⚠️ 两个**有意留在故事侧**的（本片不搬，另票）：
-//   ① `Combat.offer` —— 它用 `Math.random()`，而 sim 有既有的门「不得直调 `Math.random()`」
-//      （`test/resolve-node.mjs` ④ 实测会咬）。改成 `Game.Rules.rng.d(n)-1`（同公式）在**浏览器/jsdom** 下等价，
-//      但会让 `--combat`／`--dragon` 的蒙特卡洛在 node 侧从"真随机"变成"必须先注入 rng" ⇒ 那是**另一个自变量**
-//      （会改这两道门的输出与 golden）⇒ 按单变量纪律本片不动，另开票处理"注入 rng ＋ 重签蒙特卡洛基线"。
-//      ⇒ 本片后 sim 仍调 `Game.Combat.offer` 一处（`STORY_SYMBOLS` 不含它 ⇒ 层间判据 0 命中，但架构上仍是"引擎调故事机制"✗）。
-//   ② `Combat.eligible` 已随本片搬入 sim（`offer` 经 `this.eligible` 调用它 ⇒ 运行时同命名空间解析 ✓）。
+//（`?? null` 对应 `this.defs[k]?.x`；`?? []` 对应 `this.pools[...]?? []`；只有必需数值 fail-loud）。
+//注意：两个**有意留在故事侧**的（本片不搬，另票）：
+// ① `Combat.offer` —— 它用 `Math.random()`，而 sim 有既有的门「不得直调 `Math.random()`」
+//（`test/resolve-node.mjs` ④ 实测会咬）。改成 `Game.Rules.rng.d(n)-1`（同公式）在**浏览器/jsdom** 下等价，
+// 但会让 `--combat`／`--dragon` 的蒙特卡洛在 node 侧从"真随机"变成"必须先注入 rng" → 那是**另一个自变量**
+//（会改这两道门的输出与 golden）→ 按单变量纪律本片不动，另开票处理"注入 rng ＋ 重签蒙特卡洛基线"。
+// → 本片后 sim 仍调 `Game.Combat.offer` 一处（`STORY_SYMBOLS` 不含它 → 层间判据 0 命中，但架构上仍是"引擎调故事机制"）。
+// ② `Combat.eligible` 已随本片搬入 sim（`offer` 经 `this.eligible` 调用它 → 运行时同命名空间解析）。
 Object.assign((window.Game.Combat ??= {}), {
-	// ⚠️ 为什么挂 `Combat` 而不是龙的命名空间：后者在 `STORY_SYMBOLS` 里是**整命名空间**类符号
-	//（它主要是数据：hp/sealAt/entries…）⇒ 引擎侧往它上面挂**机制**会被层间门判（实测命中 1 处）。
-	// 语义上它本来就是"这一回合龙的那一下"＝战斗结算 ⇒ 住 `Combat` 更对；调用方只有本文件一处，已同步。
-	/** `#493` 片 A-2：改名（`dragonDamage` ⇒ **`foeDamage`**）＋**删回落** —— 这条公式是**故事政策**
-	 *  （基准值／连败封顶／毒液压怒），引擎只经 `Sg.story.battleDamage(...)` 调它（缺声明 ⇒ 大声报错）。 */
+	//注意：为什么挂 `Combat` 而不是龙的命名空间：后者在 `STORY_SYMBOLS` 里是**整命名空间**类符号
+	//（它主要是数据：hp/sealAt/entries…）→ 引擎侧往它上面挂**机制**会被层间门判（实测命中 1 处）。
+	// 语义上它本来就是"这一回合龙的那一下"＝战斗结算 → 住 `Combat` 更对；调用方只有本文件一处，已同步。
+	/** `#493` 片 A-2：改名（`dragonDamage` → **`foeDamage`**）＋**删回落** —— 这条公式是**故事政策**
+	 *（基准值／连败封顶／毒液压怒），引擎只经 `Sg.story.battleDamage(...)` 调它（缺声明 → 大声报错）。 */
 	foeDamage(inv, round, defeats, poisoned) {
 		const f = window.Sg?.story?.battleDamage;
 		if (typeof f !== 'function') throw new Error('Game.Combat.foeDamage：故事未声明 `Sg.story.battleDamage(...)`（结构缺失必须报错，#493／#459）');
@@ -390,7 +390,7 @@ Object.assign((window.Game.Combat ??= {}), {
 			return true;
 		});
 	},
-	// #519：从故事文件搬来（原用 `Math.random`）⇒ 改走可注入的 `Game.Rules.rng`；node 侧调用点须先注入。
+	// #519：从故事文件搬来（原用 `Math.random`）→ 改走可注入的 `Game.Rules.rng`；node 侧调用点须先注入。
 	// 每轮给 3 个：排除条件不满足的、以及上一轮刚用过的
 	// **共用**的「随机 n 选 1」（`#489` 判据 1：事件池与战斗池**同一套**选择机制——不另写一份随机）。
 	// 纯函数（拷贝后 splice，不改入参）；走**可注入** rng。抽出来的理由：第二处（事件池）要用它，
@@ -398,7 +398,7 @@ Object.assign((window.Game.Combat ??= {}), {
 	pickN(list, n) {
 		const poolCopy = [...list];
 		const picked = [];
-		const rng = window.Game.Rules.rng;                        // 唯一随机入口（node 未注入 ⇒ 大声报错）
+		const rng = window.Game.Rules.rng;                        // 唯一随机入口（node 未注入 → 大声报错）
 		while (picked.length < n && poolCopy.length) {
 			const i = Math.min(poolCopy.length - 1, rng.d(poolCopy.length) - 1);
 			picked.push(poolCopy.splice(i, 1)[0]);
@@ -409,38 +409,38 @@ Object.assign((window.Game.Combat ??= {}), {
 		let list = this.eligible(poolId, pc).filter((id) => id !== lastUsed);
 		if (list.length < 3) list = this.eligible(poolId, pc);
 		const picked = this.pickN(list, 3);                       // #489：走**共用**选择机制
-		// `#493` 接缝 ⇒ `#762` A 线**下沉**：故事改声明**规则表**（`Sg.story.prepick()`），
+		// `#493` 接缝 → `#762` A 线**下沉**：故事改声明**规则表**（`Sg.story.prepick()`），
 		// 引擎按通用规则求值（池名/动作名仍然不进引擎）。
 		// `#493` 片 A-2：**回落已删** —— 池名/动作名不再出现在引擎里（故事声明 `Sg.story.combatPrepick` 决定给哪一手）。
-		// `#762` A 线：**下沉后**由引擎通用求值（故事只声明规则表）；`prepickDecl()` 为 `null` ⇒ 不干预。
+		// `#762` A 线：**下沉后**由引擎通用求值（故事只声明规则表）；`prepickDecl()` 为 `null` → 不干预。
 		const pre = this.prepickFor(poolId, round ?? 1, pc, picked);
 		if (pre && !picked.includes(pre)) picked[picked.length - 1] = pre;
 		return [...new Set(picked)];
 	},
 	// ── S4（`#489`）：通用事件池 ＋ 线索三选一 ─────────────────────────
-	// 契约（声明面）：`mechanics().roads[i] = { from:number, to:number, options:[{kind,hint,noCheck?}] }`
-	//   · 三选一只定**事件类型**（已定 ①）；事件**内部那一次判定**由内容面接线（S5）；
-	//   · 判据 1）三选一与战斗池走**同一个** `pickN`；2）同段三路线索两两不等价（口径在 lib：`story-shape.mjs`）；
-	//     3）“无判定选项”与“不死档”是**声明属性**（也由 lib 单权威判定，本块只消费）。
+	// 契约（声明面）：`mechanics().roads[i] = { from:number, to:number, options:[{kind,hint,noCheck?}]}`
+	// · 三选一只定**事件类型**（已定 ①）；事件**内部那一次判定**由内容面接线（S5）；
+	// · 判据 1）三选一与战斗池走**同一个** `pickN`；2）同段三路线索两两不等价（口径在 lib：`story-shape.mjs`）；
+	// 3）“无判定选项”与“不死档”是**声明属性**（也由 lib 单权威判定，本块只消费）。
 	roadsDecl() { return this.slotsDecl()?.roads ?? null; },
 	/**
 	 * **事件实例清单**（`#778` 下沉）：把声明的 `roads[].options` 折叠成实例数组 —— 纯派生，无玩法语义。
-	 * 形状：`[{ id, kind, hint, ref }]`（`id` ＝ `String(ref)`，与下沉前故事的 `eventPool` 逐字段相同 ⇒ 可字节比对）。
+	 * 形状：`[{ id, kind, hint, ref}]`（`id` ＝ `String(ref)`，与下沉前故事的 `eventPool` 逐字段相同 → 可字节比对）。
 	 * 为什么不返回 `kinds`／分组：六类词表是**故事词汇**（由故事的门自己持有），引擎只负责"从声明折叠出实例"。
-	 * 为什么不传 `step`：调用方自己有段号，引擎不替它记状态（保持纯函数 ⇒ 可重复调用、可对比）。
+	 * 为什么不传 `step`：调用方自己有段号，引擎不替它记状态（保持纯函数 → 可重复调用、可对比）。
 	 */
 	roadInstances() {
 		const roads = this.roadsDecl();
-		if (!roads) return null;                                  // 未启用 ⇒ 调用方不调（与 `roadOffer` 同口径）
+		if (!roads) return null;                                  // 未启用 → 调用方不调（与 `roadOffer` 同口径）
 		return roads.flatMap((r) => (r.options ?? []).map((o) => ({ id: `${o.ref}`, kind: o.kind, hint: o.hint, ref: o.ref })));
 	},
 	prepickDecl() { return window.Sg.story.prepick?.() ?? null; },
 	/**
-	 * 「这一手必须给谁」（`#762` A 线：`combatPrepick` 下沉）：故事**只声明规则表**，引擎**通用求值**。
-	 * 规则形状：`{ pool, round?, require?: { item }, forbid?: { flag }, pick, distinctFromPicked? }`
-	 *   · 词汇只用**引擎已知概念**（池名/轮次/物品名/路径旗标/已选项）⇒ 故事词（如具体池名/道具名）只出现在**声明**里；
-	 *   · `forbid.flag` 是 **pc 上的点分路径**（走 `Sg.notes.readPath`，与笔记面同一套读取语义）；
-	 *   · 未声明（`null`）⇒ 返回 `null`（不干预；与 `roadInstances` 同口径）。
+	 *「这一手必须给谁」（`#762` A 线：`combatPrepick` 下沉）：故事**只声明规则表**，引擎**通用求值**。
+	 * 规则形状：`{ pool, round?, require?: { item}, forbid?: { flag}, pick, distinctFromPicked?}`
+	 * · 词汇只用**引擎已知概念**（池名/轮次/物品名/路径旗标/已选项）→ 故事词（如具体池名/道具名）只出现在**声明**里；
+	 * · `forbid.flag` 是 **pc 上的点分路径**（走 `Sg.notes.readPath`，与笔记面同一套读取语义）；
+	 * · 未声明（`null`）→ 返回 `null`（不干预；与 `roadInstances` 同口径）。
 	 */
 	prepickFor(poolId, round, pc, picked) {
 		const rules = this.prepickDecl();
@@ -458,7 +458,7 @@ Object.assign((window.Game.Combat ??= {}), {
 	/** 一段路的「三选一」：从该段 options 里随机取 3 个（`exclude` ＝ 本段已经出现过的类型不重复）。 */
 	roadOffer(idx, exclude = []) {
 		const roads = this.roadsDecl();
-		if (!roads) return null;                                  // 未启用 ⇒ 调用方不调（显式降级）
+		if (!roads) return null;                                  // 未启用 → 调用方不调（显式降级）
 		const road = roads[idx - 1];                              // 段号**从 1 计**（与声明里的 from/to 一致）
 		if (!road) throw new Error(`Game.Combat.roadOffer：本故事没有第 ${idx} 段路（可用 1..${roads.length}，#489）`);
 		let all = road.options ?? [];
@@ -476,8 +476,8 @@ Object.assign((window.Game.Combat ??= {}), {
 	// ── S1（`#486`）：部位 · 耐久 · 保护关系 ───────────────────────────────
 	// 契约：**故事只声明**（`Sg.story.mechanics()`：`hitLocations` / `slots[*].protects` /
 	// `equipment[*].{slot,maxHp,reduce}`——形状权威＝`scripts/audit/lib/story-shape.mjs`，`#459`），
-	// **机制全在引擎**（本块）。`mechanics()` 为 `null` ⇒ 本块**一律不被调用** ⇒ 旧路径不变（#492 显式降级）。
-	// 状态：`pc.gearHp = { 具名: 剩余耐久 }`（缺项＝满耐久；0 ⇒ 损坏）。
+	// **机制全在引擎**（本块）。`mechanics()` 为 `null` → 本块**一律不被调用** → 旧路径不变（#492 显式降级）。
+	// 状态：`pc.gearHp = { 具名: 剩余耐久}`（缺项＝满耐久；0 → 损坏）。
 	slotsDecl() { return window.Sg.story.mechanics?.() ?? null; },
 	gearHpOf(pc, mech, gearName) {
 		const max = mech?.equipment?.[gearName]?.maxHp ?? 0;
@@ -485,7 +485,7 @@ Object.assign((window.Game.Combat ??= {}), {
 		return typeof cur === 'number' ? cur : max;
 	},
 	/** `#703`：侧栏（`StoryCaption`）用的**只读快照**——装备耐久与部位异常此前**全仓零渲染**（数据早就在状态里）。
-	 *  只算不写（渲染路径不得改状态，`#315` 契约）；未启用新机制的故事（故事 1／最小示例）⇒ 空列表 ⇒ 侧栏整块不出现。 */
+	 * 只算不写（渲染路径不得改状态，`#315` 契约）；未启用新机制的故事（故事 1／最小示例）→ 空列表 → 侧栏整块不出现。 */
 	gearDurability(pc) {
 		const mech = this.slotsDecl();
 		if (!mech) return [];
@@ -505,12 +505,12 @@ Object.assign((window.Game.Combat ??= {}), {
 		return out;
 	},
 
-	// 受击（指定部位）：该部位有护具就按声明减成（本片只落 `flat`）⇒ 余量由该件**耐久吸收**，
-	// 溢出量落 HP；耐久 ≤ 0 ⇒ **损坏**（`reduce` 归 0 且不再吸伤）。**纯函数**：只返回计划，不写 `pc`。
-	// （S2 需要「指定部位」的形态：异常结算的"该部位受伤"不该另掷一个部位 ⇒ 抽出本方法。）
+	// 受击（指定部位）：该部位有护具就按声明减成（本片只落 `flat`）→ 余量由该件**耐久吸收**，
+	// 溢出量落 HP；耐久 ≤ 0 → **损坏**（`reduce` 归 0 且不再吸伤）。**纯函数**：只返回计划，不写 `pc`。
+	//（S2 需要「指定部位」的形态：异常结算的"该部位受伤"不该另掷一个部位 → 抽出本方法。）
 	slotAbsorbAt(pc, part, hurt) {
 		const mech = this.slotsDecl();
-		if (!mech) return null;                                   // 未启用 ⇒ 调用方走旧路径
+		if (!mech) return null;                                   // 未启用 → 调用方走旧路径
 		const worn = (pc?.gear ?? []).filter((g) => g && mech.equipment?.[g]);
 		const gearName = worn.find((g) => (mech.slots?.[mech.equipment[g].slot]?.protects ?? null) === part) ?? null;
 		if (!gearName) return { part, gear: null, reduce: 0, absorbed: 0, toHp: hurt, gearHp: null, broke: false };
@@ -530,7 +530,7 @@ Object.assign((window.Game.Combat ??= {}), {
 		const mech = this.slotsDecl();
 		if (!mech) return null;
 		const parts = mech.hitLocations ?? [];
-		const rng = window.Game.Rules.rng;                        // 唯一随机入口（node 未注入 ⇒ 大声报错）
+		const rng = window.Game.Rules.rng;                        // 唯一随机入口（node 未注入 → 大声报错）
 		const part = parts[Math.min(parts.length - 1, rng.d(parts.length) - 1)];
 		return this.slotAbsorbAt(pc, part, hurt);
 	},
@@ -550,19 +550,19 @@ Object.assign((window.Game.Combat ??= {}), {
 	},
 	// ── S2（`#487`）：部位 × 异常（每回合判定：恢复／恶化／受伤） ───────────────
 	// 契约（声明面；形状权威＝`scripts/audit/lib/story-shape.mjs`）：
-	//   `mechanics().statuses[id] = { parts:'*'|[部位…], turns:n, check:{attr,dc}, onFail:[{when,…}] }`
-	//   `mechanics().statusPenalty['status@part'] = { check:n }`   ← 作用域：**该部位相关判定**
-	// 状态：`pc.statuses = { 部位: { 异常: 剩余回合 } }`（缺项／0 ⇒ 不生效）
+	// `mechanics().statuses[id] = { parts:'*'|[部位…], turns:n, check:{attr,dc}, onFail:[{when,…}]}`
+	// `mechanics().statusPenalty['status@part'] = { check:n}` ← 作用域：**该部位相关判定**
+	// 状态：`pc.statuses = { 部位: { 异常: 剩余回合}}`（缺项／0 → 不生效）
 	// 顺序（已定 ⑤）：**回合开始 → 异常结算 → 玩家行动 → 敌人行动 → 回合推进**
-	//   ⇒ `fightact` 在 `resolvePlayer` **之前**调一次 `tickStatuses`；本块**只算**，落 HP 仍由 present 的 `<<damage>>`。
-	// `mechanics()` 为 `null` ⇒ 本块一律不被调用（`#492` 显式降级）。
+	// → `fightact` 在 `resolvePlayer` **之前**调一次 `tickStatuses`；本块**只算**，落 HP 仍由 present 的 `<<damage>>`。
+	// `mechanics()` 为 `null` → 本块一律不被调用（`#492` 显式降级）。
 	statusLowRoll: 5,      // 低骰分档阈值（设计稿 §2.3／§8 D4）
 	/** `#701`：战斗日志的**上限**（环形缓冲）。两条故事路径（故事 1 的 `fightact`／5e 的 `foeRound`）
-	 *  都按它截断 ⇒ "只留最近 N 手"是**声明出来的常数**，不靠各自记得；渲染面只读它（`#315`）。 */
+	 * 都按它截断 → "只留最近 N 手"是**声明出来的常数**，不靠各自记得；渲染面只读它（`#315`）。 */
 	/** `#701`：把**已经算完**的 `pc.ev.fight.log` 落一手进 `history`（有界环形缓冲）。
-	 *  为什么住引擎：① 两条故事路径（故事 1 的 `fightact`／5e 的 `foeRound`）共用同一份口径；
-	 *  ② SugarCube 的 `<<set>>` 吃不下"数组字面量＋方法链"（只在真机现形）⇒ 搬进 JS 后可被 node 门直测。
-	 *  **只在点击时（sim）调用** ⇒ 渲染面只读 `history`（`#315`）。 */
+	 * 为什么住引擎：① 两条故事路径（故事 1 的 `fightact`／5e 的 `foeRound`）共用同一份口径；
+	 * ② SugarCube 的 `<<set>>` 吃不下"数组字面量＋方法链"（只在真机现形）→ 搬进 JS 后可被 node 门直测。
+	 * **只在点击时（sim）调用** → 渲染面只读 `history`（`#315`）。 */
 	pushLog(pc) {
 		const L = pc?.ev?.fight?.log;
 		if (!L) return null;
@@ -573,13 +573,13 @@ Object.assign((window.Game.Combat ??= {}), {
 		return entry;
 	},
 	HISTORY_MAX: 6,
-	statusLowRoll: 5,      // 低骰分档阈值（设计稿 §2.3／§8 D4）：d20 原值 ≤ 5 ⇒ `low` 档，其余 ⇒ `most`
+	statusLowRoll: 5,      // 低骰分档阈值（设计稿 §2.3／§8 D4）：d20 原值 ≤ 5 → `low` 档，其余 → `most`
 	statusParts(mech, id) {
 		const st = mech?.statuses?.[id];
 		if (!st) return [];
 		return st.parts === '*' ? (mech.hitLocations ?? []) : (st.parts ?? []);
 	},
-	/** 枚举生效中的 `{ 部位, 异常, 剩余回合 }`。 */
+	/** 枚举生效中的 `{ 部位, 异常, 剩余回合}`。 */
 	statusInstances(pc) {
 		const out = [];
 		for (const [part, bag] of Object.entries(pc?.statuses ?? {})) {
@@ -593,31 +593,31 @@ Object.assign((window.Game.Combat ??= {}), {
 		const counted = new Set();
 		for (const { part: afflicted, id } of this.statusInstances(pc)) {
 			// `#747`（正典口径：**该部位**相关减成）：只有"查的部位＝异常**所在**的部位"才算 ——
-			// 腿上的麻痹不该罚手臂的判定（旧手写表恰好也是这个效果：查 `paralysis@手臂` 取不到 ⇒ 0 ✓
-			// ⇒ 本改动**不改变**已声明格的行为，只是把口径写清并推广到"声明生成"）。
+			// 腿上的麻痹不该罚手臂的判定（旧手写表恰好也是这个效果：查 `paralysis@手臂` 取不到 → 0
+			// → 本改动**不改变**已声明格的行为，只是把口径写清并推广到"声明生成"）。
 			if (afflicted !== part) continue;
 			if (!this.statusParts(mech, id).includes(part)) continue;
 			// `#747`（实测暴露的账）：同一异常在**多个部位**发作时（如手臂＋躯干都流血），
-			// 查询"躯干"会把该异常**按实例重复计**（流血在两处 ⇒ −2）⇒ 同一异常对同一部位**只算一次**。
+			// 查询"躯干"会把该异常**按实例重复计**（流血在两处 → −2）→ 同一异常对同一部位**只算一次**。
 			if (counted.has(id)) continue;
 			counted.add(id);
-			// `#747`（症状：减成靠**手写稀疏表** ⇒ 漏格没人看得见，`麻痹@手臂` 就是洞）：
-			// **减成由声明生成** —— `statuses[id].perRound.penalty = { value, scope:'part' }`
-			// ⇒ 对该异常的**每一个允许部位**都生效（组合穷举天然齐全）。
+			// `#747`（症状：减成靠**手写稀疏表** → 漏格没人看得见，`麻痹@手臂` 就是洞）：
+			// **减成由声明生成** —— `statuses[id].perRound.penalty = { value, scope:'part'}`
+			// → 对该异常的**每一个允许部位**都生效（组合穷举天然齐全）。
 			const decl = mech.statuses?.[id]?.perRound?.penalty;
 			if (decl) {
 				if (decl.scope !== 'part') throw new Error(`Game.Combat.statusPenaltyFor：perRound.penalty.scope 本片只实现 part（拿到 ${JSON.stringify(decl.scope)}）——声明面不得大于实现面（#747）`);
 				if (typeof decl.value !== 'number') throw new Error(`Game.Combat.statusPenaltyFor：perRound.penalty.value 必须是数字（拿到 ${JSON.stringify(decl.value)}，#747）`);
-				// `#747`：`only` ＝「**只押这几个部位**」的显式声明（可选）。缺省 ⇒ 覆盖该异常的全部允许部位；
-				// 给了就必须是允许部位的**子集**（否则是把减成押到了这个异常根本不能落的地方 ⇒ fail-loud）。
+				// `#747`：`only` ＝「**只押这几个部位**」的显式声明（可选）。缺省 → 覆盖该异常的全部允许部位；
+				// 给了就必须是允许部位的**子集**（否则是把减成押到了这个异常根本不能落的地方 → fail-loud）。
 				if (decl.only !== undefined) {
 					if (!Array.isArray(decl.only) || !decl.only.length) throw new Error(`Game.Combat.statusPenaltyFor：perRound.penalty.only 必须是非空数组（拿到 ${JSON.stringify(decl.only)}，#747）`);
 					const allowedParts = this.statusParts(mech, id);
 					for (const pOnly of decl.only) if (!allowedParts.includes(pOnly)) throw new Error(`Game.Combat.statusPenaltyFor：「${id}」的 penalty.only 里有「${pOnly}」，但它不在允许部位（${allowedParts.join('、')}）里（#747）`);
-					if (!decl.only.includes(part)) continue;     // 该部位不在「押注范围」内 ⇒ 无减成
+					if (!decl.only.includes(part)) continue;     // 该部位不在「押注范围」内 → 无减成
 				}
 				sum += decl.value;
-				continue;                                  // 声明已覆盖（全部或声明的子集）⇒ 不再查手写表（否则重复计）
+				continue;                                  // 声明已覆盖（全部或声明的子集）→ 不再查手写表（否则重复计）
 			}
 			// 回落：手写表 `statusPenalty[<id>@<部位>]` —— 只给「就想押在某一个部位」的情形（如流血只压躯干）
 			const pen = mech.statusPenalty?.[`${id}@${part}`];
@@ -630,7 +630,7 @@ Object.assign((window.Game.Combat ??= {}), {
 		return sum;
 	},
 	/** 骰式：**纯整数**（`N`，固定伤害）· **`NdM`** · **`NdM±K`**（`#702` 5e 对齐新增：伤害骰 ＋ 属性调整，如 `1d8+3`）。
-	 *  其余形态（`1d4+2d6`、`abc`…）**报错**：声明面不得大于实现面（#487／#702）。 */
+	 * 其余形态（`1d4+2d6`、`abc`…）**报错**：声明面不得大于实现面（#487／#702）。 */
 	rollDice(expr) {
 		const m = /^(\d+)(?:d(\d+))?(?:([+-])(\d+))?$/.exec(String(expr ?? ''));
 		if (!m) throw new Error(`Game.Combat.rollDice：只认 \`N\`／\`NdM\`／\`NdM±K\`（收到 ${JSON.stringify(expr)}）——声明面不得大于实现面（#487／#702）`);
@@ -642,7 +642,7 @@ Object.assign((window.Game.Combat ??= {}), {
 		for (let i = 0; i < n; i++) sum += rng.d(Number(m[2]));
 		return sum + flat;
 	},
-	/** `onFail` 一档的**效果**（本片只认两种；随机目标在**算**里就落定 ⇒ 计划完整、可复算）。 */
+	/** `onFail` 一档的**效果**（本片只认两种；随机目标在**算**里就落定 → 计划完整、可复算）。 */
 	statusEffect(entry, mech, excludeId) {
 		if (entry?.harm === 'damage') return { kind: 'damage', amount: this.rollDice(entry.dice ?? '1') };
 		if (entry?.addStatus === 'random') {
@@ -657,10 +657,10 @@ Object.assign((window.Game.Combat ??= {}), {
 		throw new Error(`Game.Combat.statusTick：onFail 效果形态未实现（本片只认 harm:'damage'+dice ／ addStatus:'random'）——声明面不得大于实现面（#487）`);
 	},
 	/** **纯函数**：一回合的异常结算计划（不写 `pc`）。逐 (部位 × 异常) 各判定一次：
-	 *  每回合被动（`perRound.hp`）⇒ 该部位扣 HP（走 S1 的减成/耐久）→ 判定 ⇒ 成功恢复（−1，到 0 清）／失败按分档出效果。 */
+	 * 每回合被动（`perRound.hp`）→ 该部位扣 HP（走 S1 的减成/耐久）→ 判定 → 成功恢复（−1，到 0 清）／失败按分档出效果。 */
 	statusTick(pc) {
 		const mech = this.slotsDecl();
-		if (!mech) return null;                                   // 未启用 ⇒ 调用方不调（显式降级）
+		if (!mech) return null;                                   // 未启用 → 调用方不调（显式降级）
 		const statuses = mech.statuses ?? {};
 		const steps = [];
 		for (const { part, id, turns } of this.statusInstances(pc)) {
@@ -727,7 +727,7 @@ Object.assign((window.Game.Combat ??= {}), {
 	/** 温泉（已定 ⑤：清全部——与 S1 的 `repairAll` 同一处场景，一起用）。 */
 	clearStatuses() { return { statuses: {} }; },
 	/** 回合开始「算 ＋ 落」一步到位：写 `pc.statuses`，返回本回合因异常落 HP 的量
-	 *（present 用 `<<damage>>` 落，与其他伤害同一处）。未启用 ⇒ 返回 `null`（调用方跳过）。 */
+	 *（present 用 `<<damage>>` 落，与其他伤害同一处）。未启用 → 返回 `null`（调用方跳过）。 */
 	tickStatuses(pc) {
 		const plan = this.statusTick(pc);
 		if (!plan) return null;
@@ -736,40 +736,40 @@ Object.assign((window.Game.Combat ??= {}), {
 		return { hurt: applied.hurt, hits: applied.hits, steps: plan.steps };
 	},
 	// ── S3（`#488`）：波次战斗 ＋ 失败重置 ─────────────────────────────
-	// 契约（声明面，`#459` 已声明）：`mechanics().encounters[id] = { waves:[{pool,difficulty,reinforce?}], rewardsScale? }`
-	//   · 短＝乘 1 批、长＝乘 2 批（第二批 difficulty 更大 ＋ `reinforce:true`）——形状门在校验；
-	//   · **已定 ②的常数就是引擎口径**：短＝单次判定定胜负（1 回合·1 命中即可）；
-	//     长＝**3 回合上限 ＋ 3 次成功**（每批各自计）；回合用尽未倒 ⇒ 判负。
-	// 状态：`pc.ev.fight.wave = { encounter, idx, hits, rounds }`（**不新增顶层键** ⇒ 不牵动 `--state` 域表）。
-	// `mechanics()` 为 `null` ⇒ 本块一律不被调用（`#492` 显式降级）。
+	// 契约（声明面，`#459` 已声明）：`mechanics().encounters[id] = { waves:[{pool,difficulty,reinforce?}], rewardsScale?}`
+	// · 短＝乘 1 批、长＝乘 2 批（第二批 difficulty 更大 ＋ `reinforce:true`）——形状门在校验；
+	// · **已定 ②的常数就是引擎口径**：短＝单次判定定胜负（1 回合·1 命中即可）；
+	// 长＝**3 回合上限 ＋ 3 次成功**（每批各自计）；回合用尽未倒 → 判负。
+	// 状态：`pc.ev.fight.wave = { encounter, idx, hits, rounds}`（**不新增顶层键** → 不牵动 `--state` 域表）。
+	// `mechanics()` 为 `null` → 本块一律不被调用（`#492` 显式降级）。
 	wavePlan(id) {
 		const mech = this.slotsDecl();
-		if (!mech) return null;                                  // 未启用 ⇒ 调用方不调
+		if (!mech) return null;                                  // 未启用 → 调用方不调
 		const enc = mech.encounters?.[id];
 		if (!enc) throw new Error(`Game.Combat.wavePlan：遭遇「${id}」未声明（结构缺失必须报错，#488）`);
 		const waves = enc.waves ?? [];
 		if (waves.length !== 1 && waves.length !== 2) throw new Error(`Game.Combat.wavePlan：遭遇「${id}」的批数必须是 1（短）或 2（长）——实际 ${waves.length}（#488）`);
 		const long = waves.length === 2;
 		return {
-			// `#705` 片二：波里**声明的 `enemies`** 必须带出来（原先被这条 map 丢掉 ⇒ 运行时永远看不到敌人）。
+			// `#705` 片二：波里**声明的 `enemies`** 必须带出来（原先被这条 map 丢掉 → 运行时永远看不到敌人）。
 			id, waves: waves.map((wv) => ({ pool: wv.pool, difficulty: wv.difficulty, reinforce: !!wv.reinforce, enemies: Array.isArray(wv.enemies) ? [...wv.enemies] : undefined })),
 			// `#599`（2026-09-14 口径定案）：长战斗**回合上限 3 → 5**，保留"需 3 次成功"——
 			// 依据：① 保留"三击"＝长战斗的形，只松压力；② `#600` 必掉钥匙 × 0.74% 清完率自相矛盾；
 			// ③ 候选里这是"保持结构、只改压力"的那档（改命中数＝改形）。两批清完率 ≈ 16.6%。
-			// `#705` 片二-B（判据⑥**重导**）：**5 ⇒ 8**。
+			// `#705` 片二-B（判据⑥**重导**）：**5 → 8**。
 			// 为什么必须重导：`#599` 的"3→5"是在**固定伤害**数学下算的；伤害变骰＋AC/HP 之后实测
-			// （400 局×7 档）中位 **6** 回合、p90 **8** ⇒ 沿用 5 会**把一半以上的胜局判死**。
-			// 8 覆盖 p90 ⇒ 不误杀"本该赢"的局。数字来源与各档对照见 PR／`#705` 评论。
+			//（400 局×7 档）中位 **6** 回合、p90 **8** → 沿用 5 会**把一半以上的胜局判死**。
+			// 8 覆盖 p90 → 不误杀"本该赢"的局。数字来源与各档对照见 PR／`#705` 评论。
 			long, hits: long ? 3 : 1,
 			// `#705` 片二-B（判据⑥，两档都重导）：回合上限改由**故事声明**
 			// `encounters[id].rounds` 给（平衡是故事数据）；缺省回落旧口径（短 1／长 8）。
 			// 为什么必须让故事可声明：敌人有 HP 之后，"1 回合"的短战斗**永远打不完**（实测：2 只鼠要 ~4 回合，
-			// 1 回合上限 ⇒ 第一回合就判 failed ⇒ 短战斗全败）。数字与实测见 PR／`#705`。
+			// 1 回合上限 → 第一回合就判 failed → 短战斗全败）。数字与实测见 PR／`#705`。
 			rounds: (typeof enc.rounds === 'number' && enc.rounds >= 1) ? enc.rounds : (long ? 8 : 1),
 			rewardsScale: typeof enc.rewardsScale === 'number' ? enc.rewardsScale : 1,
 		};
 	},
-	/** 开始一场带波次的遭遇（写 `pc.ev.fight.wave`；`#705` 片二起：声明了 `enemies` 的波同时**实例化敌人**）；返回本批的 `{ pool }` 供战斗 UI 用。 */
+	/** 开始一场带波次的遭遇（写 `pc.ev.fight.wave`；`#705` 片二起：声明了 `enemies` 的波同时**实例化敌人**）；返回本批的 `{ pool}` 供战斗 UI 用。 */
 	waveBegin(pc, id) {
 		const plan = this.wavePlan(id);
 		if (!plan) return null;
@@ -777,13 +777,13 @@ Object.assign((window.Game.Combat ??= {}), {
 		return { pool: plan.waves[0].pool, plan };
 	},
 	// ── `#705` 片二／`#702` a2（5e 对齐）：**敌人实例**（HP 会掉、归零退场）＋ 攻击骰 vs AC ─────────
-	// **opt-in 唯一开关**：`encounters[id].waves[i].enemies` 声明了 ⇒ 该波走本模式；未声明 ⇒ 旧二元模式。
-	// **单一权威**：属性/骰式只住**声明面**（`enemies[id] = { hp, ac, attack:{ bonus, dmg, parts } }`）；
-	//   实例只存**可变**状态 `{ id, hp }`（改声明 ⇒ 真机行为跟着变——判据面就吃这条）。
+	// **opt-in 唯一开关**：`encounters[id].waves[i].enemies` 声明了 → 该波走本模式；未声明 → 旧二元模式。
+	// **单一权威**：属性/骰式只住**声明面**（`enemies[id] = { hp, ac, attack:{ bonus, dmg, parts}}`）；
+	// 实例只存**可变**状态 `{ id, hp}`（改声明 → 真机行为跟着变——判据面就吃这条）。
 	// 数学（5e）：玩家 `d20 + 属性调整 + 熟练` vs `foe.ac`；敌人 `d20 + attack.bonus` vs **`pc.ac`**；
-	//   伤害都是骰式（`NdM±K`，`rollDice`）；敌人的伤害**落部位**（`attack.parts`）⇒ `slotAbsorbAt`。
-	/** 玩家 AC（5e）：`10 + dexMod + Σ 护具.ac`。未启用部位机制 ⇒ `null`（调用方走旧路径）。
-	 *  护具未声明 `ac` ⇒ 记 0（背包/武器）；声明了但非数字 ⇒ 报错（结构畸形必须报错）。 */
+	// 伤害都是骰式（`NdM±K`，`rollDice`）；敌人的伤害**落部位**（`attack.parts`）→ `slotAbsorbAt`。
+	/** 玩家 AC（5e）：`10 + dexMod + Σ 护具.ac`。未启用部位机制 → `null`（调用方走旧路径）。
+	 * 护具未声明 `ac` → 记 0（背包/武器）；声明了但非数字 → 报错（结构畸形必须报错）。 */
 	pcAC(pc) {
 		const mech = this.slotsDecl();
 		if (!mech) return null;
@@ -796,26 +796,26 @@ Object.assign((window.Game.Combat ??= {}), {
 		}
 		return ac;
 	},
-	/** 敌人声明（单一权威）。未声明 ⇒ **报错**：结构缺失必须报错（`#705`）。 */
+	/** 敌人声明（单一权威）。未声明 → **报错**：结构缺失必须报错（`#705`）。 */
 	enemyDef(id) {
 		const def = this.slotsDecl()?.enemies?.[id];
 		if (!def) throw new Error(`Game.Combat.enemyDef：敌人「${id}」未声明（结构缺失必须报错，#705）`);
 		return def;
 	},
-	/** 该【波】声明的敌人 id 列表；未声明 `enemies` ⇒ `null`（＝旧二元模式）。 */
+	/** 该【波】声明的敌人 id 列表；未声明 `enemies` → `null`（＝旧二元模式）。 */
 	waveFoeIds(id, waveIdx = 0) {
 		const plan = this.wavePlan(id);
 		if (!plan) return null;
 		const wv = plan.waves[Math.min(plan.waves.length - 1, Math.max(0, waveIdx))];
 		return Array.isArray(wv.enemies) && wv.enemies.length ? wv.enemies : null;
 	},
-	/** 敌人满 HP（从声明面读；非正数 ⇒ 报错）。 */
+	/** 敌人满 HP（从声明面读；非正数 → 报错）。 */
 	enemyMaxHp(id) {
 		const d = this.enemyDef(id);
 		if (typeof d.hp !== 'number' || d.hp <= 0) throw new Error(`Game.Combat：敌人「${id}」的 \`hp\` 必须是正数（拿到 ${JSON.stringify(d.hp)}，#705）`);
 		return d.hp;
 	},
-	/** 实例化当前波（`waveBegin`／增援时调）：写 `pc.ev.fight.wave.foes`；未声明 `enemies` ⇒ `null`（不写键）。 */
+	/** 实例化当前波（`waveBegin`／增援时调）：写 `pc.ev.fight.wave.foes`；未声明 `enemies` → `null`（不写键）。 */
 	foeSpawn(pc, waveIdx = 0) {
 		const w = pc?.ev?.fight?.wave;
 		if (!w) throw new Error('Game.Combat.foeSpawn：尚未 `waveBegin`（没有波次状态）——调用方先开局（#705）');
@@ -825,7 +825,7 @@ Object.assign((window.Game.Combat ??= {}), {
 		return w.foes;
 	},
 	/** 玩家 ➜ 敌人（5e）：`d20 + 属性调整 + 熟练` vs `foe.ac`（天然 20 必中／天然 1 必失）。
-	 *  **纯**：返回**新的** `foes` 列表（调用方写 `pc.ev.fight.wave.foes`）＋ 这一击的记录（`#701` 的日志面吃它）。 */
+	 * **纯**：返回**新的** `foes` 列表（调用方写 `pc.ev.fight.wave.foes`）＋ 这一击的记录（`#701` 的日志面吃它）。 */
 	foeStrike(pc, { ability = 'str', dmg = '1', adv = 0, target = 0 } = {}) {
 		const w = pc?.ev?.fight?.wave;
 		const foes = w?.foes;
@@ -849,18 +849,18 @@ Object.assign((window.Game.Combat ??= {}), {
 		const out = down ? next.filter((_, k) => k !== i) : next;
 		return { foe: foe.id, roll, rolls, mod, total, ac: def.ac, hit, crit, dmg: dealt, hp: Math.max(0, next[i].hp), down, foes: out, target: i };
 	},
-	/** `#705` 片二-B：**一个完整回合**（玩家攻击 ⇒ 还站着的敌人反击 ⇒ 落护具耐久）。
-	 *  **机制住引擎、文案住 widget**：这里返回 `{ log, strike, hits, hurt }`（`log` 就是 `#701` 的日志面素材），
-	 *  **HP 的落法不在本函数**（返回 `hurt`，由调用方的 `<<damage>>` 落 ⇒ 死亡/药膏等既有政策一处不改）。
-	 *  为什么不做成纯函数：`foeStrike`/`foeHit` 是纯的（算），这里是"算＋落"的调用方侧（与 `tickStatuses` 同族）。
-	 *  @param {object} actionRef 故事声明的动作（`{ attr, dmg, defend }`；缺项 ⇒ 中性默认） */
+	/** `#705` 片二-B：**一个完整回合**（玩家攻击 → 还站着的敌人反击 → 落护具耐久）。
+	 * **机制住引擎、文案住 widget**：这里返回 `{ log, strike, hits, hurt}`（`log` 就是 `#701` 的日志面素材），
+	 * **HP 的落法不在本函数**（返回 `hurt`，由调用方的 `<<damage>>` 落 → 死亡/药膏等既有政策一处不改）。
+	 * 为什么不做成纯函数：`foeStrike`/`foeHit` 是纯的（算），这里是"算＋落"的调用方侧（与 `tickStatuses` 同族）。
+	 * @param {object} actionRef 故事声明的动作（`{ attr, dmg, defend}`；缺项 → 中性默认） */
 	foeRound(pc, actionRef) {
 		const a = actionRef ?? {};
 		const strike = this.foeStrike(pc, { ability: a.attr ?? 'str', dmg: a.dmg ?? '1' });
 		pc.ev.fight.wave.foes = strike.foes;
 		// `#746` 片2（实测①「我方动作没有句子」）：动作**自己声明的文案**（`actions[id].ok/crit/bad`）
-		// 原先短战路径**只印 widget 实参的胜句/败句**（动作文案从未被用过）⇒ 玩家看不到"我这一下打成了什么样"。
-		// 口径：文案是**故事数据**（引擎只按成败档挑一条），数字仍由机制算 ⇒ 句子与数值一起出现。
+		// 原先短战路径**只印 widget 实参的胜句/败句**（动作文案从未被用过）→ 玩家看不到"我这一下打成了什么样"。
+		// 口径：文案是**故事数据**（引擎只按成败档挑一条），数字仍由机制算 → 句子与数值一起出现。
 		const flavor = strike.crit ? a.crit?.text : strike.hit ? a.ok?.text : a.bad?.text;
 		const log = [strike.hit
 			? `${flavor ? flavor + ' ' : ''}你 ${strike.roll}+${strike.mod}=${strike.total} vs 甲${strike.ac} ⇒ 命中 ${strike.dmg} 点（${strike.foe} 剩 ${strike.hp}）`
@@ -876,16 +876,16 @@ Object.assign((window.Game.Combat ??= {}), {
 				+ `，落 HP ${h.absorb.toHp}`);
 		}
 		if (!pc.ev.fight.wave.foes.length) log.push('—— 这一批清干净了。');
-		// `#701`（症状：战斗屏只有**最后一手**，翻页/重渲染后旧的就没了 ⇒ "第几回合、刚才发生了什么"全不可见）：
-		// 落一手进 `pc.ev.fight.history`（**有界环形缓冲** ⇒ 上限固定可机检；渲染面只读它 ⇒ `#315` 契约）。
+		// `#701`（症状：战斗屏只有**最后一手**，翻页/重渲染后旧的就没了 → "第几回合、刚才发生了什么"全不可见）：
+		// 落一手进 `pc.ev.fight.history`（**有界环形缓冲** → 上限固定可机检；渲染面只读它 → `#315` 契约）。
 		pc.ev.fight.moves = (pc.ev.fight.moves ?? 0) + 1;
 		const hist = [...(pc.ev.fight.history ?? []), { n: pc.ev.fight.moves, you: log[0], foes: log.slice(1, -1) }];
 		pc.ev.fight.history = hist.slice(-this.HISTORY_MAX);
 		return { log: log.join('｜'), strike, hurt };
 	},
-	/** 敌人 ➜ 玩家（5e）：`d20 + attack.bonus`（＋可选优势）vs **`pc.ac`**（`pcAC()`；未启用 ⇒ 报错）；
-	 *  命中 ⇒ `rollDice(attack.dmg)` ⇒ 部位取 `attack.parts`（掷一个）⇒ **`slotAbsorbAt`**（减成/耐久/HP 一次算清）。
-	 *  **纯**：返回计划（`hp`/`gearHp` 由调用方落），与 `slotAbsorbAt` 同口径。 */
+	/** 敌人 ➜ 玩家（5e）：`d20 + attack.bonus`（＋可选优势）vs **`pc.ac`**（`pcAC()`；未启用 → 报错）；
+	 * 命中 → `rollDice(attack.dmg)` → 部位取 `attack.parts`（掷一个）→ **`slotAbsorbAt`**（减成/耐久/HP 一次算清）。
+	 * **纯**：返回计划（`hp`/`gearHp` 由调用方落），与 `slotAbsorbAt` 同口径。 */
 	foeHit(pc, foeOrId, { adv = 0 } = {}) {
 		const id = typeof foeOrId === 'string' ? foeOrId : foeOrId?.id;
 		const def = this.enemyDef(id);
@@ -910,8 +910,8 @@ Object.assign((window.Game.Combat ??= {}), {
 		if (!w) throw new Error('Game.Combat.waveRecord：尚未 `waveBegin`（没有波次状态）——调用方先开局（#488）');
 		const plan = this.wavePlan(w.encounter);
 		w.rounds += 1;
-		// `#705` 片二（`#702` a2）：声明了本波的 `enemies` ⇒ 通关判据＝**敌人全灭**（`hits` 退场，见判据⑦）；
-		// 未声明 ⇒ 逐字节走旧的二元口径 ⇒ 故事 1 不受影响（`fight-seq` 基线不变）。
+		// `#705` 片二（`#702` a2）：声明了本波的 `enemies` → 通关判据＝**敌人全灭**（`hits` 退场，见判据⑦）；
+		// 未声明 → 逐字节走旧的二元口径 → 故事 1 不受影响（`fight-seq` 基线不变）。
 		if (Array.isArray(w.foes)) {                       // `#705` 片二：**实例在场**才算敌人模式（声明只说"能开"）
 			if ((w.foes ?? []).length === 0) {
 				if (w.idx >= plan.waves.length) return { phase: 'cleared', plan, wave: w, advance: false };
@@ -938,13 +938,13 @@ Object.assign((window.Game.Combat ??= {}), {
 		const wv = plan.waves[Math.min(plan.waves.length - 1, Math.max(0, waveIdx - 1))];
 		return plan.rewardsScale * wv.difficulty;                    // 线性：同一遭遇内随难度严格递增
 	},
-	/** 遭遇奖励的**归一化形状**（`#600`）：`reward = { gold, item }`，`item` 允许 `'道具'`（＝必掉）或 `{ id, chance }`。
-	 *  为什么要有这个面：掉落规则以前只活在散文里（内容里各拄一遍 "读 reward.gold"），表里的声明与行为对不上也没人看得见。
-	 *  ⇒ 现在**声明是单一权威**：内容只渲染、门按它判、掉落按它掷。
-	 *  结构问题 **fail-loud**（未登记的道具属故事面，由 `--waves` 对账；这里只管形状），因为静默当"不掉"正是本仓反复踩的那类。 */
+	/** 遭遇奖励的**归一化形状**（`#600`）：`reward = { gold, item}`，`item` 允许 `'道具'`（＝必掉）或 `{ id, chance}`。
+	 * 为什么要有这个面：掉落规则以前只活在散文里（内容里各拄一遍 "读 reward.gold"），表里的声明与行为对不上也没人看得见。
+	 * → 现在**声明是单一权威**：内容只渲染、门按它判、掉落按它掷。
+	 * 结构问题 **fail-loud**（未登记的道具属故事面，由 `--waves` 对账；这里只管形状），因为静默当"不掉"正是本仓反复踩的那类。 */
 	/** 参数：
 	 * @param {string} id 遭遇 id
-	 * @returns {{ gold: number, item: { id: string, chance: number } | null }}
+	 * @returns {{ gold: number, item: { id: string, chance: number} | null}}
 	 */
 	encounterReward(id) {
 		const enc = this.slotsDecl()?.encounters?.[id];
@@ -961,8 +961,8 @@ Object.assign((window.Game.Combat ??= {}), {
 		}
 		return { gold, item };
 	},
-	/** 遭遇的**失败笔记**（`#608`）：声明面 `encounters[id].failNote`（内容面数据），未声明 ⇒ `null`。
-	 *  与 `encounterReward` 同族：**机制住引擎、数据住故事**——短战斗 widget 落败时按它写笔记。 */
+	/** 遭遇的**失败笔记**（`#608`）：声明面 `encounters[id].failNote`（内容面数据），未声明 → `null`。
+	 * 与 `encounterReward` 同族：**机制住引擎、数据住故事**——短战斗 widget 落败时按它写笔记。 */
 	encounterFailNote(id) {
 		const enc = this.slotsDecl()?.encounters?.[id];
 		const n = enc?.failNote;
@@ -971,9 +971,9 @@ Object.assign((window.Game.Combat ??= {}), {
 		return n;
 	},
 	/** 结算一次遭遇奖励：落金币 ＋ 按 `chance` 掷掉落（写 `pc.inv`）。**返回本次真的给了什么**（文案按返回值渲染）。
-	 *  · `rng` 可注入（测试用）；默认走 `Game.Rules.rng.d(100)`（受 `?seed=` 影响 ⇒ 可复算）。
-	 *  · 幂等：道具是 `pc.inv[id] = true`（重复给不报错，与 `<<give>>` 同口径）；金币按次累加。
-	 *  · 单一落点：内容不许再自己读 `reward.gold`／自己掷骰（`--waves` 有"声明 ↔ 内容对账"断言）。 */
+	 * · `rng` 可注入（测试用）；默认走 `Game.Rules.rng.d(100)`（受 `?seed=` 影响 → 可复算）。
+	 * · 幂等：道具是 `pc.inv[id] = true`（重复给不报错，与 `<<give>>` 同口径）；金币按次累加。
+	 * · 单一落点：内容不许再自己读 `reward.gold`／自己掷骰（`--waves` 有"声明 ↔ 内容对账"断言）。 */
 	grantReward(pc, id, { rng } = {}) {
 		const { gold, item } = this.encounterReward(id);
 		if (gold > 0) pc.gold = (pc.gold ?? 0) + gold;
@@ -987,7 +987,7 @@ Object.assign((window.Game.Combat ??= {}), {
 	/** 全灭判定（已定 ⑧：`reset` 只在**全灭**时触发；单步失败＝**带伤继续**）。 */
 	runOver(pc) { return (pc?.hp ?? 1) <= 0; },
 	/** 失败重置（已定 ⑧）：回出生点 ＋ **道具清零** ＋ 耐久/异常一并清；**保留**笔记/图鉴/已解锁。
-	 *  返回被重置的字段清单（供门/UI 逐条核销）——`RESET_KEEPS` 是「**不清什么**」的显式声明。 */
+	 * 返回被重置的字段清单（供门/UI 逐条核销）——`RESET_KEEPS` 是「**不清什么**」的显式声明。 */
 	resetRun(pc) {
 		const before = {
 			inv: Object.keys(pc?.inv ?? {}).length,
@@ -1001,7 +1001,7 @@ Object.assign((window.Game.Combat ??= {}), {
 		if (pc.ev) pc.ev.fight = null;                     // 瞬态战斗状态整块清（“回出生点”语义）
 		return { reset: ['inv', 'gearHp', 'statuses', 'hp', 'ev.fight'], before, keeps: [...Game.Combat.RESET_KEEPS] };
 	},
-	/** 「**不清什么**」的显式声明（已定 ⑧）：清单本身就是判据面——门会逐项断言它们不受 `resetRun` 影响。 */
+	/**「**不清什么**」的显式声明（已定 ⑧）：清单本身就是判据面——门会逐项断言它们不受 `resetRun` 影响。 */
 	RESET_KEEPS: ['ev', 'soc', 'star', 'dragon', 'world', 'Sg.notes', 'Sg.Codex', 'Sg.store'],
 	pick(actionId, res) {
 		const a = window.Sg.story.combatAction(actionId);
@@ -1039,10 +1039,10 @@ Object.assign((window.Game.Combat ??= {}), {
 	},
 });
 
-// 注（`#460`）：本文件里的 `Object.assign((window.Game.X ??= {}), …)` 是**引擎自建容器**——
-//   原先写的是 `Object.assign(window.Game.X, …)`，那些容器**只有故事 1 的 `15-tables.twee` 会建**
-//   ⇒ 一个"只有引擎 ＋ 自己的段落"的故事在**加载期**就崩（`TypeError: Cannot convert undefined or null to object`）。
-//   引擎不该依赖故事提供容器（`#512` 的方向）：`??=` 自建，故事只往里填数据。
+// 注（`#460`）：本文件里的 `Object.assign((window.Game.X??= {}), …)` 是**引擎自建容器**——
+// 原先写的是 `Object.assign(window.Game.X, …)`，那些容器**只有故事 1 的 `15-tables.twee` 会建**
+// → 一个"只有引擎 ＋ 自己的段落"的故事在**加载期**就崩（`TypeError: Cannot convert undefined or null to object`）。
+// 引擎不该依赖故事提供容器（`#512` 的方向）：`??=` 自建，故事只往里填数据。
 
 // ── 条件表选择器（伞 #422 阶段 4／`#435`）——**引擎侧**机制，只经 `Sg.story.rules()` 取表 ──────────
 // 归属（`#441` 结合面）：选择器与死规则门属**引擎层**（与故事内容无关）；表属**故事层**。
@@ -1050,7 +1050,7 @@ Object.assign((window.Game.Combat ??= {}), {
 // 不做"声明越靠前越优先"的隐式假设（那会让重排表变成行为变更）。
 window.Sg ??= {};
 window.Sg.rules = {
-	// 表**只经故事注册的入口**取；结构缺失/畸形 ⇒ fail-loud（与 `Sg.notes.table()` 同一纪律）
+	// 表**只经故事注册的入口**取；结构缺失/畸形 → fail-loud（与 `Sg.notes.table()` 同一纪律）
 	table() {
 		const provide = window.Sg.story?.rules;
 		if (typeof provide !== 'function') throw new Error('Sg.rules：故事未注册 `Sg.story.rules()`（接入契约 #436-b／#441-E）——结构缺失必须报错');
@@ -1058,43 +1058,43 @@ window.Sg.rules = {
 		if (!Array.isArray(t)) throw new Error('Sg.rules：`Sg.story.rules()` 必须返回**行数组**（拿到 ' + (t === null ? 'null' : typeof t) + '）');
 		return t;
 	},
-	// **键形前缀的宣告**（`#435` 口径②，dev 的 `--rules` 判据会核对）：行里用了**未宣告**的前缀 ⇒ 红。
-	// 为什么必须在引擎侧宣告：引擎不认的前缀会让条件**永假** ⇒ 行静默死掉，没有任何门看得见（本仓反复踩的那类）。
+	// **键形前缀的宣告**（`#435` 口径②，dev 的 `--rules` 判据会核对）：行里用了**未宣告**的前缀 → 红。
+	// 为什么必须在引擎侧宣告：引擎不认的前缀会让条件**永假** → 行静默死掉，没有任何门看得见（本仓反复踩的那类）。
 	prefixes: ['inv', 'era', 'gear'],   // `#624` 片四：`gear:<道具>`＝行囊/装备里有它（`$pc.gear.includes(…)` 的键形）
 	// **引擎兑现的"面"**（`#435` Q1 拍板，与 `prefixes` 同轴的反沉默面）：行里用到的授予面必须是这里声明过的。
 	// 为什么：被引擎忽略的声明＝**静默空转**——行看起来授予了，实际什么都没发生，而没有任何门看得见。
-	// `yields`/`gives` 早于本机制（老面，不追溯）；`sets` 是新增面 ⇒ 用到就必须在这里宣告。
+	// `yields`/`gives` 早于本机制（老面，不追溯）；`sets` 是新增面 → 用到就必须在这里宣告。
 	effects: ['yields', 'gives', 'sets'],
-	// **条件项的"对象算子"词表**（`#568`，与 `prefixes`／`effects` 同轴）：行里用了未宣告的算子 ⇒ `--rules` 判红。
-	// 为什么必须由引擎宣告：引擎不认的算子会让条件**永假** ⇒ 行静默死掉（本仓反复踩的那类）。
+	// **条件项的"对象算子"词表**（`#568`，与 `prefixes`／`effects` 同轴）：行里用了未宣告的算子 → `--rules` 判红。
+	// 为什么必须由引擎宣告：引擎不认的算子会让条件**永假** → 行静默死掉（本仓反复踩的那类）。
 	// 词表与门侧同一份口径（`scripts/audit/lib/shared.mjs` 的 `OPS`）；两侧漂移会被 `--rules` 当场抓住。
 	ops: ['gte', 'lte', 'oneOf'],
 	// **取值项**（`#624` 片二，与 `ops` 同轴的反沉默面）：条件里可以写"随状态变的值"，当前只有
-	// `{ price: '<econ 事件 id>' }`（＝该事件**当前要花多少钱**，正数）。为什么要有它：可负担性判定
-	// （`gold ≥ 价格`）原本只能在散文里算 ⇒ 那几处进不了表。用到的取值项必须在这里宣告（门核对）。
+	// `{ price: '<econ 事件 id>'}`（＝该事件**当前要花多少钱**，正数）。为什么要有它：可负担性判定
+	//（`gold ≥ 价格`）原本只能在散文里算 → 那几处进不了表。用到的取值项必须在这里宣告（门核对）。
 	terms: ['price'],
-	// 取值项 → 数：`{ price: id }` ⇒ `-Game.Economy.priceOf(id, pc)`（事件价是**负增量**，取正数＝要花的钱）；
-	// 字面量原样返回。**未宣告/畸形 ⇒ fail-loud**（静默当字面量会让条件永假，正是本仓反复踩的那类）。
+	// 取值项 → 数：`{ price: id}` → `-Game.Economy.priceOf(id, pc)`（事件价是**负增量**，取正数＝要花的钱）；
+	// 字面量原样返回。**未宣告/畸形 → fail-loud**（静默当字面量会让条件永假，正是本仓反复踩的那类）。
 	termValue(t, pc) {
 		if (!t || typeof t !== 'object' || Array.isArray(t)) return t;
 		const names = Object.keys(t);
 		const bad = names.length !== 1 || !this.terms.includes(names[0]);
 		if (bad) throw new Error(`Sg.rules：取值项 ${JSON.stringify(t)} 非法（\`Sg.rules.terms\` = ${JSON.stringify(this.terms)}）——未宣告或畸形必须报错（#624）`);
 		if (names[0] === 'price') {
-			// ⚠️ **必须绑到 `Game.Economy` 上调用**（`priceOf` 里用 `this.events`）：把函数取出来再调会丢 `this`（实测 TypeError）。
+			//注意：**必须绑到 `Game.Economy` 上调用**（`priceOf` 里用 `this.events`）：把函数取出来再调会丢 `this`（实测 TypeError）。
 			const E = window.Game?.Economy;
 			if (typeof E?.priceOf !== 'function') throw new Error('Sg.rules：取值项「price」需要引擎经济面 `Game.Economy.priceOf`（当前未注册）');
 			return -E.priceOf(t.price, pc);
 		}
 		return t;
 	},
-	// 一个"键"的**值**（不是真假）：`n_*` ⇒ 笔记真假；`inv:`／`era:` ⇒ 持有／时代；其余按 `readPath` 走（裸键＝`ev.`）。
+	// 一个"键"的**值**（不是真假）：`n_*` → 笔记真假；`inv:`／`era:` → 持有／时代；其余按 `readPath` 走（裸键＝`ev.`）。
 	// 与下面 `holds()` 的分工：`holds` 问"这个键成不成立"，`readKey` 问"这个键是多少"（算子形要比大小／比集合）。
 	readKey(key, pc) {
 		const k = String(key);
-		// ⚠️ **要把传进来的 `pc` 递下去**（原先只写 `has(k)` ⇒ 默认读**当前存档的 pc**）：
+		//注意：**要把传进来的 `pc` 递下去**（原先只写 `has(k)` → 默认读**当前存档的 pc**）：
 		// 这会让「按合成 pc 求值」的条件**读错档** —— 声明式线索判定（`#785` 第 1 族）正是靠它驱动合成态。
-		// 这条差异是**矩阵式等价校验**（多组 pc 状态）抓出来的：单点校验（默认 pc）会静默通过 ✗。
+		// 这条差异是**矩阵式等价校验**（多组 pc 状态）抓出来的：单点校验（默认 pc）会静默通过。
 		if (k.startsWith('n_')) return window.Sg.notes.has(k, pc);
 		const m = /^(inv|era|gear):(.+)$/.exec(k);
 		if (m) {
@@ -1103,20 +1103,20 @@ window.Sg.rules = {
 			const want = window.Game?.Era?.[String(m[2]).toUpperCase()] ?? m[2];     // 时代（`era:present`／`era:past`）
 			return State.variables.era === want;
 		}
-		// `#1132`：**存档面具名谓词**（`codex:<名>`）——设定集页的可见性是 `Sg.Codex.seenFinal()` 驱动的（**存档面** ✗ 不是 pc 域）
-		//   ⇒ 条件表（走 `readKey`）表达不了 ⇒ 把它接入读取面 ✓。⚠️ `#574`：`Sg.Codex` 是**故事可选面** ⇒ 一律**可选链 ＋ 缺省 false** ✗（无图鉴不得抛 ✓）；具名谓词窄 ⇒ 新谓词需**显式登记** ✓。
+		// `#1132`：**存档面具名谓词**（`codex:<名>`）——设定集页的可见性是 `Sg.Codex.seenFinal()` 驱动的（**存档面** 不是 pc 域）
+		// → 条件表（走 `readKey`）表达不了 → 把它接入读取面。注意：`#574`：`Sg.Codex` 是**故事可选面** → 一律**可选链 ＋ 缺省 false**（无图鉴不得抛）；具名谓词窄 → 新谓词需**显式登记**。
 		const cx = /^codex:(.+)$/.exec(k);
 		if (cx) return String(cx[1]) === 'final' ? !!(window.Sg?.Codex?.seenFinal?.()) : false;
-		// `#624` 片二：**显式根** `pc.` ⇒ 从 pc 根走。为什么需要：`pc.gold`／`pc.hp` 这类**顶层字段**原本没有键形可用——
-		// 裸键＝`ev.`、`world.` 是另一个域、第三命名空间又必须带点 ⇒ 可负担性判定（`gold ≥ 价格`）写不出来。
+		// `#624` 片二：**显式根** `pc.` → 从 pc 根走。为什么需要：`pc.gold`／`pc.hp` 这类**顶层字段**原本没有键形可用——
+		// 裸键＝`ev.`、`world.` 是另一个域、第三命名空间又必须带点 → 可负担性判定（`gold ≥ 价格`）写不出来。
 		if (k.startsWith('pc.')) return window.Sg.notes.readPath(pc, k.slice(3));
 		return window.Sg.notes.readPath(pc, k.includes('.') ? k : `ev.${k}`);
 	},
 	// 一个"键名"是否成不成立（真值）—— 逐字沿用旧口径，现在是 `readKey` 的 `!!` 投影（一处实现、两个问法）。
 	holds(key, pc) { return !!this.readKey(key, pc); },
-	// 单个**条件项**是否满足（`#568`）：字符串 ⇒ 沿用 `holds()`；对象 ⇒ 按算子比较。
-	// 结构问题一律 **fail-loud**（畸形／未宣告算子 ⇒ 抛错）——静默为假正是本票要根除的那类；
-	// 而**取值失败**（键缺失、类型不可比）⇒ 只**不匹配**（false）："还没发生"是合法状态，不是结构缺陷。
+	// 单个**条件项**是否满足（`#568`）：字符串 → 沿用 `holds()`；对象 → 按算子比较。
+	// 结构问题一律 **fail-loud**（畸形／未宣告算子 → 抛错）——静默为假正是本票要根除的那类；
+	// 而**取值失败**（键缺失、类型不可比）→ 只**不匹配**（false）："还没发生"是合法状态，不是结构缺陷。
 	holdsCond(cond, pc) {
 		if (cond == null || typeof cond !== 'object' || Array.isArray(cond)) return this.holds(cond, pc);
 		const names = Object.keys(cond);
@@ -1129,16 +1129,16 @@ window.Sg.rules = {
 		// **先解析操作数**（取值项）：结构问题必须 fail-loud，不能因为键恰好缺失就把它静默跳过。
 		const want = op === 'oneOf' ? null : this.termValue(rest[0], pc);
 		const got = this.readKey(key, pc);
-		if (got === undefined || got === null) return false;                        // 键缺失 ⇒ 不匹配
+		if (got === undefined || got === null) return false;                        // 键缺失 → 不匹配
 		if (op === 'oneOf') {
 			const allowed = rest.length === 1 && Array.isArray(rest[0]) ? rest[0] : rest;   // `['k', ['a','b']]` 或 `['k','a','b']`
 			return allowed.includes(got);
 		}
-		if (typeof got !== 'number' || typeof want !== 'number') return false;     // 数值算子遇非数值 ⇒ 不匹配（不硬比、不抛）
+		if (typeof got !== 'number' || typeof want !== 'number') return false;     // 数值算子遇非数值 → 不匹配（不硬比、不抛）
 		return op === 'gte' ? got >= want : got <= want;
 	},
 	// 行是否满足（`req` 全中 ∧ `any` 至少一（空＝不要求）∧ `exclude` 全不中 ∧ `prereq` 已选中过）
-	// 三个字段走**同一**抽取（字符串／对象形都认）；`prereq` 是**行 id**，不是条件项 ⇒ 不走 `holdsCond`。
+	// 三个字段走**同一**抽取（字符串／对象形都认）；`prereq` 是**行 id**，不是条件项 → 不走 `holdsCond`。
 	matches(row, pc, chose = new Set()) {
 		const items = (x) => (Array.isArray(x) ? x : x ? [x] : []);
 		if (!items(row.req).every((c) => this.holdsCond(c, pc))) return false;
@@ -1156,8 +1156,8 @@ window.Sg.rules = {
 			.sort((a, b) => (b.prio ?? 0) - (a.prio ?? 0) || idx.get(a) - idx.get(b))[0] ?? null;
 	},
 	// **菜单**：同一作用域**所有**命中的行（按 `prio` 降序、同 prio 按表序）——与 `pick()` 的"单选"分工见 `<<rulelist>>`。
-	// 为什么需要它（`#624` 批 1 勘察）：`pick()` 是 first-match wins ⇒ 一个作用域只渲染一行；
-	// 而"一次能问六个话题"这种**菜单**天然是一组**同时可用**的行 ⇒ 表机制必须有"渲染全部命中行"的入口。
+	// 为什么需要它（`#624` 批 1 勘察）：`pick()` 是 first-match wins → 一个作用域只渲染一行；
+	// 而"一次能问六个话题"这种**菜单**天然是一组**同时可用**的行 → 表机制必须有"渲染全部命中行"的入口。
 	pickAll(scope, { pc = State.variables.pc, chose = new Set() } = {}) {
 		const rows = this.table().filter((r) => r && r.scope === scope);
 		const idx = new Map(rows.map((r, i) => [r, i]));
@@ -1165,13 +1165,13 @@ window.Sg.rules = {
 			.sort((a, b) => (b.prio ?? 0) - (a.prio ?? 0) || idx.get(a) - idx.get(b));
 	},
 	// 授予：把行声明的 `yields` 落到 `Sg.notes.add`（**A 方案**：`text` 只渲染，授予由调用侧统一做）。
-	// 返回**本次真正新授予**的 id（幂等 ⇒ 第二次调用返回 `[]`）——这个返回值就是"连渲两次只落一次"的取证面。
+	// 返回**本次真正新授予**的 id（幂等 → 第二次调用返回 `[]`）——这个返回值就是"连渲两次只落一次"的取证面。
 	applyYields(row, pc = State.variables.pc) {
 		const list = Array.isArray(row?.yields) ? row.yields : row?.yields ? [row.yields] : [];
 		const granted = [];
 		for (const y of list) {
-			// `#569`：**混合形状** —— `'n_x'`（老）与 `{ id, path }`（多源笔记的路径限定授予）。
-			// `{ id }` 不带 `path` ⇒ 当老形状走（门侧 `yieldPathProblems()` 也不参与 path 判定）。
+			// `#569`：**混合形状** —— `'n_x'`（老）与 `{ id, path}`（多源笔记的路径限定授予）。
+			// `{ id}` 不带 `path` → 当老形状走（门侧 `yieldPathProblems()` 也不参与 path 判定）。
 			if (y && typeof y === 'object') {
 				const id = String(y.id);
 				const hit = y.path == null ? window.Sg.notes.add(id, pc) : window.Sg.notes.addPath(id, String(y.path), pc);
@@ -1182,8 +1182,8 @@ window.Sg.rules = {
 	},
 	// **物品**面（`#435`：dev 定的"写点面分两类"）——行里声明 `gives: ['月光花']`，由 `<<rules>>`
 	// 渲染成功后统一落（与 `yields` 同处、同幂等面）。**可见文案不在这里生成**：`<<give>>` 的
-	// 「获得【…】」提示改为写在行的 `text` 里（逐字不变 ⇒ `--zero` 仍为 0），否则提示会被追加到
-	// 渲染结果的**末尾**而与原位不同 ⇒ 文本漂移 ✗。口径一句话：**表＝声明（条件／文本／授予），
+	//「获得【…】」提示改为写在行的 `text` 里（逐字不变 → `--zero` 仍为 0），否则提示会被追加到
+	// 渲染结果的**末尾**而与原位不同 → 文本漂移。口径一句话：**表＝声明（条件／文本／授予），
 	// 写点执行恒在 `<<rules>>` 一处**。
 	applyGrants(row, pc = State.variables.pc) {
 		const items = Array.isArray(row?.gives) ? row.gives : row?.gives ? [row.gives] : [];
@@ -1216,7 +1216,7 @@ window.Sg.rules = {
 // `<<rules "作用域">>`：选中 → **先渲染** `text` → **渲染成功后再落** `yields`／`gives`／`sets`。
 // 为什么必须"渲染后"（dev 定稿的规则①）：授予要与"这一行真的被选中且渲染成功"绑定 —— 渲染若抛错就不该记账，
 // 否则声明与实际写点必然漂移（本仓反复撞过的那类）。规则②（幂等/重渲染安全）由各面自己的幂等保证：
-// `Sg.notes.add` 连调两次只落一次、`applyGrants`/`applySets` 也只在"真的新落下"时才计入 ⇒
+// `Sg.notes.add` 连调两次只落一次、`applyGrants`/`applySets` 也只在"真的新落下"时才计入 →
 // 结果留屏重放、SugarCube 重渲染都安全。三面同处（**写点恒在 `<<rules>>` 一处**），顺序无关。
 Macro.add('rules', {
 	handler() {

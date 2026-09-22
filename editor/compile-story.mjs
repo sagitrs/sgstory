@@ -1,21 +1,21 @@
-// 故事编译器（`#762` P0 · 伞 `#761` 的 D2）：**故事 JSON 包 ⇒ twee**
+// 故事编译器（`#762` P0 · 伞 `#761` 的 D2）：**故事 JSON 包 → twee**
 //
 // 谁是源、谁是产物：
-//   `stories/<slug>/data/*.json` 是**源**；生成的 twee 是**产物**（带 `@generated` 标记 ⇒ K4 判据）。
+// `stories/<slug>/data/*.json` 是**源**；生成的 twee 是**产物**（带 `@generated` 标记 → K4 判据）。
 // 本文件是 P0 的最小实现：只生成**声明面**（`Game Tables`）与**接入契约**（`StoryBindings`）两段；
-//   条件表（`17-rules.twee`）与散文段落留到下一步（设计稿 §3 的边界：结构进 JSON、文本留文本）。
+// 条件表（`17-rules.twee`）与散文段落留到下一步（设计稿 §3 的边界：结构进 JSON、文本留文本）。
 //
 // 用法：
-//   node editor/compile-story.mjs <slug> [--out=<dir>]     # 默认写到 build/generated/<slug>/
-//   幂等：同一份 data/ 连跑两次，产物逐字节相同（P0 验收判据之一）。
+// node editor/compile-story.mjs <slug> [--out=<dir>] # 默认写到 build/generated/<slug>/
+// 幂等：同一份 data/ 连跑两次，产物逐字节相同（P0 验收判据之一）。
 //
 // 为什么先做这件事：UI 不是难点，**schema 立不立得住**才是。本编译器就是那个证伪点——
-//   它若能把手写版**逐 token 复现**（`editor/equiv.mjs` 的 L1/L3），数据化这条路就走得通。
-// `#794` P1①：产物写进**故事包内**时走 core 的唯一写路（`writeStoryPackage` 的 twee 口 ✓）；
-// 写到包外（`build/generated/` ✓、`/tmp/…` ✓）则走宿主 helper ✓ —— 壳里两种都**不出现 `node:fs` 原语** ✓。
+// 它若能把手写版**逐 token 复现**（`editor/equiv.mjs` 的 L1/L3），数据化这条路就走得通。
+// `#794` P1①：产物写进**故事包内**时走 core 的唯一写路（`writeStoryPackage` 的 twee 口）；
+// 写到包外（`build/generated/`、`/tmp/…`）则走宿主 helper —— 壳里两种都**不出现 `node:fs` 原语**。
 import { readText, writeText, mkdirp, exists } from './lib/host/fs.mjs';
 import { writeStoryPackage } from './lib/core/story.mjs';
-// `#794`：命令体（解析 → 编译 → 写产物 → 打印）已抽到 host，两条入口共用同一具身体 ✓。
+// `#794`：命令体（解析 → 编译 → 写产物 → 打印）已抽到 host，两条入口共用同一具身体。
 import { buildCommand } from './lib/host/commands.mjs';
 // `#794`：**一处定义** —— 探针调用器归 `lib/core/probe.mjs`；本自证按「散列实参」写法，
 // 故用**一行适配器**接上：它不定义能力、只委托（同名再定义才会被 K6 1b 点名）。
@@ -29,21 +29,21 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 
 /** 标识符链白名单：`Sg.story.mechanics()?.pools` / `Game.Checks.sites` 这类**只由标识符、`.`、`?.`、`()` 组成**的串。
- *  为什么必须校验（实测的绕法）：这些字段是**原样拼进产物**的 —— 数据里写 `a;alert(1)//` 就能把任意 JS 注进去。
- *  ⇒ 不合格**当场抛错**（fail-loud），绝不放行。 */
-// 发射面（助手层 ＋ 类型表 ＋ emit×3 ＋ `compileStory`）已搬到 `editor/lib/core/emit.mjs` ✓（纯函数、无宿主依赖）。
+ * 为什么必须校验（实测的绕法）：这些字段是**原样拼进产物**的 —— 数据里写 `a;alert(1)//` 就能把任意 JS 注进去。
+ * → 不合格**当场抛错**（fail-loud），绝不放行。 */
+// 发射面（助手层 ＋ 类型表 ＋ emit×3 ＋ `compileStory`）已搬到 `editor/lib/core/emit.mjs`（纯函数、无宿主依赖）。
 import { assertChain, escTemplate, guardChain, GLOBAL_ROOTS, KINDS, jsStringInner, fallbackExpr, jsString, jsKey, literal, inlineLiteral, emitRules, emitTables, emitContract, compileStory } from './lib/core/emit.mjs';
 export { assertChain, escTemplate, guardChain, GLOBAL_ROOTS, KINDS, jsStringInner, fallbackExpr, jsString, jsKey, literal, inlineLiteral, emitRules, emitTables, emitContract, compileStory };
 
 const selftest = () => {
 	let bad = 0;
 	const t = (label, ok, got = '') => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} 自证·${label}${ok ? '' : `\n    实得：${got}`}`); };
-	/** emit ⇒ 丢进 vm ⇒ **断言行为**。
-	 *  为什么不能只断言"产物文本包含某串"（审查实测的绕法）：把 `if (!v) throw …` 改成 `if (false) throw …`
-	 *  —— 语义废掉、文本仍在 ⇒ 文本式自证照旧全绿 ＝ **摆设**。所以这里一律**跑起来看行为**。 */
+	/** emit → 丢进 vm → **断言行为**。
+	 * 为什么不能只断言"产物文本包含某串"（审查实测的绕法）：把 `if (!v) throw …` 改成 `if (false) throw …`
+	 * —— 语义废掉、文本仍在 → 文本式自证照旧全绿 ＝ **摆设**。所以这里一律**跑起来看行为**。 */
 	const build = (members, { game = {}, pre = '' } = {}) => {
 		const src = emitContract({ members: members.map((m, i) => ({ name: m.name ?? `f${i}`, ...m })) });
-		// 沙箱要**像浏览器**：`window` 就是全局对象 ⇒ `window.Sg = {}` 之后裸 `Sg` 也能解析
+		// 沙箱要**像浏览器**：`window` 就是全局对象 → `window.Sg = {}` 之后裸 `Sg` 也能解析
 		//（生成物里两种根都合法：`window.Sg.story.mechanics()` 与 `Sg.story.mechanics()`）
 		const sandbox = { Game: game };
 		sandbox.window = sandbox;
@@ -65,7 +65,7 @@ const selftest = () => {
 		return probeCall(S.pool, 'w1').ok === '["a"]' && probeCall(S.pool, '无').ok === '[]';
 	})());
 
-	// ── `lookup-field`：有面有字段 ⇒ 取字段；缺面/缺字段 ⇒ 兜底 ──
+	// ── `lookup-field`：有面有字段 → 取字段；缺面/缺字段 → 兜底 ──
 	const A = build([{ name: 'actionLabel', kind: 'lookup-field', from: 'Sg.story.mechanics()?.actions', key: 'id', field: 'label', fallback: { kind: 'string-identity' } }], { pre: 'window.Sg.story.mechanics = () => ({ actions: { 挥剑: { label: "劈过去", dmg: "1d6" } } });' });
 	t('lookup-field：有面有字段 ⇒ 取字段', probeCall(A.actionLabel, '挥剑').ok === '"劈过去"', JSON.stringify(probeCall(A.actionLabel, '挥剑')));
 	t('lookup-field：有面但缺字段 ⇒ 兜底', probeCall(A.actionLabel, '别动').ok === '"别动"', JSON.stringify(probeCall(A.actionLabel, '别动')));
@@ -147,7 +147,7 @@ const selftest = () => {
 	t('`lookup-field.via`：`via` 不是标识符 ⇒ emit 抛错', (() => {
 		try { build([{ name: 'x', kind: 'lookup-field', via: 'a.b', key: 'id', field: 'label' }]); return false; } catch { return true; }
 	})());
-	// `template`（审查要求的三态：两件都掉 / 只掉钱 / 只掉物 ＋ 都不掉 ⇒ 空串）
+	// `template`（审查要求的三态：两件都掉 / 只掉钱 / 只掉物 ＋ 都不掉 → 空串）
 	const TPL = { name: 'lootText', kind: 'template', param: 'r', baseParam: 'base', prefix: '他退开的地方散着', suffix: '。', join: '，还有', trim: true, empty: '',
 		parts: [{ when: { gt: ['gold', 0] }, text: '旧币 {gold} 枚' }, { when: { truthy: 'item' }, text: '一把{item}', map: { 钥匙: '锈钥匙' } }] };
 	const T = build([TPL]);
@@ -207,15 +207,15 @@ const selftest = () => {
 	console.log('\n✔ 自证通过（45 例：lookup 5 · lookup-field 6 · bool-exists 2 · state-ref 2 · game-ref 7 · 成员相对查表 3 · forward 2 · **template 6（含三态）** · 卫生/硬化 7——**全部按行为断言**）');
 };
 
-// ⚠️ **主模块守卫**（实测踩到）：这些脚本**同时是库**（`equiv` 被 `extract` 导入、`compile` 被 `equiv` 起子进程）。
+//注意：**主模块守卫**（实测踩到）：这些脚本**同时是库**（`equiv` 被 `extract` 导入、`compile` 被 `equiv` 起子进程）。
 // 没有守卫时，`import` 它们会**执行对端的 CLI**（实测：`node editor/extract-story.mjs --selftest` 打出的是
-// `equiv` 的自证然后退出 ⇒ 自己的自证根本没跑）。守卫＝「只在被当脚本执行时才跑 CLI」。
+// `equiv` 的自证然后退出 → 自己的自证根本没跑）。守卫＝「只在被当脚本执行时才跑 CLI」。
 const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1];
 if (isMain && process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 
 const main = () => {
-	// `#794`：命令体已抽成**共享函数**（`lib/host/commands.mjs` 的 `buildCommand` ✓）——
-	// 本壳只负责"转发自己的 argv ＋ 用自己的程序名渲染用法行" ✓（`sub: ''` ⇒ 用法行与本工具既有输出**逐字同** ✓）。
+	// `#794`：命令体已抽成**共享函数**（`lib/host/commands.mjs` 的 `buildCommand`）——
+	// 本壳只负责"转发自己的 argv ＋ 用自己的程序名渲染用法行"（`sub: ''` → 用法行与本工具既有输出**逐字同**）。
 	process.exit(buildCommand(process.argv.slice(2), { prog: 'node editor/compile-story.mjs', sub: '' }));
 };
 if (isMain) main();

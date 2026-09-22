@@ -43,6 +43,20 @@ export const PC_GAMEPLAY_HOME = {
 	soc: 'social',
 };
 
+/**
+ * 各状态组的**在场信号**（＝故事接入契约面）。`kind` 决定怎么判在场：`fn` ＝ 调用后为真；`data` ＝ 非空。
+ * 与引擎里 `Game.Pc.groups` 同源（引擎那份是运行期用，本份是构建期/判据面用；两者由判据件交叉核对）。
+ */
+export const PC_GROUP_SIGNALS = {
+	chargen: { faces: ['hasChargen'], kind: 'fn' },
+	economy: { faces: ['econEvents'], kind: 'data' },
+	items: { faces: ['itemEffect'], kind: 'data' },
+	gear: { faces: ['gearDef'], kind: 'data' },
+	checks: { faces: ['checkSite'], kind: 'data' },
+	combat: { faces: ['combatPool', 'combatAction'], kind: 'data' },
+	social: { faces: ['socialAsks', 'socialHooks'], kind: 'data' },
+};
+
 /** 世界观概念（走"故事声明扩展"那条路径，不归任何通用模块）。 */
 export const PC_STORY_CONCEPTS = ['star', 'keeper'];
 

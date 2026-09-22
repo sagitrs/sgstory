@@ -230,6 +230,21 @@ window.Sg.Chargen = {
 	},
 };
 
+// `#1132` B3：`overBudget` —— **能力进引擎**（数据来自 `Sg.story.starBudget()` ⇒ `contract.json` 生成件 ✓）。
+//   ⚠️ **不变量**：名字与语义**逐字不变** ✗（`test/rules.mjs` 是它的行为消费者 ⇒ 该测试**零改动仍须绿** ✓ = 旁证格）
+//   ⚠️ **缺失才补**（`Sg.story.overBudget` 已存在 ⇒ 不覆盖 ✓）⇒ 生成的故事声明与引擎默认**两侧共存不打架** ✓
+//   ⚠️ 结构畸形 ⇒ **抛错** ✓（照 `pcDefaults` 的既有纪律 ✓ 不静默取默认值 ✗）
+{
+	const S = (window.Sg.story ??= {});
+	if (typeof S.overBudget !== 'function') {
+		S.overBudget = (pc) => {
+			const b = typeof S.starBudget === 'function' ? S.starBudget() : null;
+			if (!Number.isFinite(b)) throw new Error('Sg.story.starBudget()：必须返回有限数字（结构畸形必须报错，#1132 B3）');
+			return (pc?.star?.spent ?? 0) > b;
+		};
+	}
+}
+
 window.Sg.Ending = {
 	foot(key, kind) {
 		const hasSave = Save.browser.slot.has(1);

@@ -215,8 +215,8 @@ for (const s of stories) {
 // `#1176`：生成件的脚本段必须能解析。编译命令里已在写出前拦一次；此处覆盖**树上已存在的**生成件，
 //   使 `npm run build` 单独跑也拦得住（坏段会让引擎不启动，且症状隐蔽）。
 {
-	const GEN_RE = /^stories\/[^/]+\/1[5678]-[^/]*\.twee$/;
-	const genFiles = files.filter((f) => GEN_RE.test(f));
+	// `#1185`：家族谓词取单一权威（含 `00-meta.twee` —— 它有 `StoryIdentity [script]` 段，同样该被查）
+	const genFiles = files.filter((f) => isGeneratedFamily(f));
 	const gsrc = Object.fromEntries(genFiles.map((f) => [f, readFileSync(f, 'utf8')]));
 	const syntax = scriptSyntaxProblems({ files: gsrc, parse: (code) => { new vm.Script(code); } });
 	if (syntax.length) {

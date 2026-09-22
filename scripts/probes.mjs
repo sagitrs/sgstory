@@ -354,7 +354,9 @@ export const PROBES = [
 		cmd: 'node test/social-lever.mjs',
 		rebuild: 'node build.mjs >/dev/null',
 		mutation: {
-			file: 'src/engine/40-sim/21-resolve.twee',
+			// `#1187` 第五块（social 拆分）：变异目标随代码搬家 —— 这段 `lv.gives === 'adv'` 已在 `32-social.twee` 里。
+			//注意：这是本系列**第三次**撞到"门/探针按文件名硬编 → 拆模块即腐烂"（前两次：gear-defs、readkey-family）。
+			file: 'src/engine/40-sim/32-social.twee',
 			find: "\t\t\t\tif (lv.gives === 'adv') {\n\t\t\t\t\t// #360：优势筹码只把「这一问更有把握」摆出来——**不完成诉求**。\n\t\t\t\t\tpc.ev.soc_lever = lv.id;",
 			replace: "\t\t\t\tif (lv.gives === 'adv') {\n\t\t\t\t\tS.applyAskEffect(a, pc);   // 探针：改回 #360 修复前形状 ✓\n\t\t\t\t\tpc.ev.soc_lever = lv.id;",
 		},

@@ -1,0 +1,190 @@
+:: Social [script]
+// `#1187`：交涉面的算从 `21-resolve.twee` 拆出（`#1184` 流二）；本块逐行照搬，依赖 `Game.Economy` 与 `Sg.rules`。
+Object.assign((window.Game.Social ??= {}), {
+	/** `#785` 接缝 1／2／3（合成一片）：**交涉机制下沉** —— 故事侧只留**声明数据**。
+	 * 取数**经接入契约**（`Sg.story.social()` → `{ asks, attAdj, approaches}`）：引擎**不直读**
+	 * `Game.Social.asks`（那会长回 `engine-story-free` 白名单，与接缝 5/6 同一条纪律）。
+	 * 条件侧走引擎 `Sg.rules.matches`（单一权威）；效果侧走声明（`yields/gives/sets`）。
+	 *注意：**过渡期双形**（**会退役**）：`done`/`willing`/`unwilling`/`apply` 现为**函数**（故事侧），
+	 * 批改后为**声明式**（条件对象／效果）→ 引擎两条都认：
+	 * `typeof x === 'function'? x(pc): Sg.rules.matches(x, pc, new Set())`
+	 * **退役条件**：故事侧那批函数删掉之后，`typeof` 分支永不再命中 → 可整段删（与观察项同规矩）。 */
+	// 取数口：**三条单路径成员**（故事侧 `Sg.story.socialAsks/socialAttAdj/socialApproaches`）——
+	// 为什么不是"一个返回对象的成员"：对象的**字面量解析不出** → 分类器只能判 **B**（排期欠债），
+	// 而三条单路径判 `game-ref` → **A 桶** → 将来数据化时可直接落 `data/`（P0 的终点）。
+	socialAsks() { return window.Sg?.story?.socialAsks?.() ?? []; },
+	socialAttAdj() { return window.Sg?.story?.socialAttAdj?.() ?? { friendly: -5, neutral: 0, hostile: 5 }; },
+	socialApproaches() { return window.Sg?.story?.socialApproaches?.() ?? {}; },
+	ask(id) { return this.socialAsks().find((a) => a.id === id) ?? null; },
+	/** 条件：对象/字符串 → 引擎条件求值器；**函数**（过渡期）→ 直调。
+	 * 硬化（照搬故事侧，**逐字保留**）：条件必须是 `{req/any/exclude}` 对象；传函数 → 抛（点名并入声明式）。 */
+	condHolds(cd, pc) {
+		if (cd == null) return true;
+		if (typeof cd === 'function') return !!cd(pc);
+		if (typeof cd !== 'object' || Array.isArray(cd)) {
+			throw new Error(`交涉声明：条件必须是 { req/any/exclude } 对象（拿到 ${typeof cd}）—— 函数式谓词已按 #785 并入声明式`);
+		}
+		return window.Sg.rules.matches(cd, pc, new Set());
+	},
+	/** `base` 的条件选值：`{ default, cases: [{ req, value}]}` —— **首个命中者胜**。
+	 * 硬化**逐字保留**：`cases` 每项**必须同时**有 `req/any/exclude` 之一**与** `value` → 缺一即抛。 */
+	baseOf(a, pc) {
+		const b = a.base;
+		if (typeof b === 'string') return b;
+		if (b == null || typeof b !== 'object' || Array.isArray(b)) {
+			throw new Error(`交涉声明：ask「${a.id}」的 base 形态非法（应为字符串或 { default, cases }）`);
+		}
+		for (const c of b.cases ?? []) {
+			const cond = c && typeof c === 'object' && ['req', 'any', 'exclude'].some((k) => k in c);
+			if (!cond || !('value' in (c ?? {}))) {
+				throw new Error(`交涉声明：ask「${a.id}」的 cases 项必须**同时**有 req/any/exclude 之一与 value（缺一即抛 —— 否则会静默变成恒真分支）`);
+			}
+			if (this.condHolds({ req: c.req, any: c.any, exclude: c.exclude }, pc)) return c.value;
+		}
+		return b.default ?? 'neutral';
+	},
+	attitude(a, pc) {
+		let att = this.baseOf(a, pc ?? {});
+		const n = pc?.soc?.att?.[a.npc] ?? 0;
+		if (n >= 1) att = 'friendly';
+		else if (n <= -1) att = 'hostile';
+		return att;
+	},
+	shift(pc, npc, n) {
+		if (!pc.soc) pc.soc = { att: {}, tries: {}, read: {} };
+		pc.soc.att[npc] = (pc.soc.att[npc] ?? 0) + n;
+	},
+	tries(a, pc, site) { return pc?.soc?.tries?.[`${a.id}|${site}`] ?? 0; },
+	/** DC ＝ 位点基础 DC ＋ 态度修正 ＋ 5 × 同一手已试次数（2024：不许原地重掷）。 */
+	dcOf(a, site, pc) {
+		const s = window.Sg?.story?.checkSite?.(site) ?? {};
+		return Math.max(5, (s.dc ?? 15) + (this.socialAttAdj()[this.attitude(a, pc)] ?? 0) + 5 * this.tries(a, pc, site));
+	},
+	open(a, pc) {
+		return (a.sites ?? []).map((site) => {
+			const skill = (window.Sg?.story?.checkSite?.(site) ?? {}).skill ?? '';
+			return { site, skill, ap: this.socialApproaches()[skill] ?? null, dc: this.dcOf(a, site, pc) };
+		}).filter((o) => o.ap);
+	},
+	levers(a, pc) { return (a.levers ?? []).filter((lv) => this.leverOpen(a, lv, pc)); },
+	leverOpen(a, lv, pc) {
+		if (lv.needRead && !pc?.soc?.read?.[a.npc]) return false;
+		if (lv.need != null && !this.condHolds(lv.need, pc)) return false;
+		if (lv.econ && (pc?.gold ?? 0) < -window.Game.Economy.priceOf(lv.econ, pc)) return false;
+		return true;
+	},
+	roll(pc, site, dc, advWhy) {
+		const s = window.Sg?.story?.checkSite?.(site) ?? {};
+		const opt = { adv: advWhy ? 1 : 0, site, advWhy: advWhy ?? '' };
+		return s.abil ? window.Game.Rules.save(pc, s.abil, dc, opt) : window.Game.Rules.check(pc, s.skill, dc, opt);
+	},
+	/** 诉求落地时的**效果**（`#785`）：三级优先 —— ① **(c) 契约面 hook**（故事声明 `Sg.story.socialHooks()`
+	 * 承载"换物／置枚举／取反"这类声明式词汇表达不了的）→ ② **函数**（过渡期：故事侧旧 `apply`）→
+	 * ③ **声明式**（`yields`/`gives`/`sets` —— 与规则行**同一套** `applyYields`/`applyGrants`/`applySets`，单一权威）。
+	 *注意：三级都要在：少任何一级都会出现「**改了不生效**」（本轮活样本：只实现了条件侧双形 → 数据改 `sets` 后
+	 * 效果静默不落 —— 静态比对看不出来）。**退役条件**：故事侧 `apply` 全为声明式／hook 后，第 ② 级自然失效。 */
+	/** `#785`：**该 ask 有没有效果**（＝三级优先里任一）—— 门/测试**问引擎**，不自己扒内部（跨故事可用）。
+	 *注意：只认“真的能落地”的形态：函数 `apply` ／ 声明式 `yields`/`gives`/`sets` ／ 契约 hook 的 `apply`
+	 *（`yield`（单数）是**承诺**不是效果 —— 那由 D7 NPC 门单独判）。 */
+	askHasEffect(a) {
+		const hook = window.Sg?.story?.socialHooks?.()?.[a.id]?.apply;
+		return typeof a?.apply === 'function' || typeof hook === 'function'
+			|| a?.yields != null || a?.gives != null || a?.sets != null;
+	},
+	/** 某 ask 的某个**条件字段**是否有声明（含契约钩子）——门用它判「有愿意／有回绝／已办」；
+	 * 没有它，搬进钩子的条件对门**不可见** → 门会静默失去咬合力（实测：`--social` 的「有回绝」标记消失）。 */
+	askHasCondition(a, field) {
+		if (a?.[field] != null) return true;
+		const hook = window.Sg?.story?.socialHooks?.()?.[a?.id];
+		return hook?.[field] != null;
+	},
+	applyAskEffect(a, pc) {
+		const hook = window.Sg?.story?.socialHooks?.()?.[a.id]?.apply;
+		if (typeof hook === 'function') return hook(pc);
+		if (typeof a.apply === 'function') return a.apply(pc);
+		window.Sg.rules.applyYields(a, pc);
+		window.Sg.rules.applyGrants(a, pc);
+		window.Sg.rules.applySets(a, pc);
+	},
+	/** 结果定档：`willing`＝不掷骰 · `unwilling`＝不掷骰（回绝）· 其余掷骰。 */
+	/** `done` 的取值（**hook 优先** → 数据声明）：供渲染层问"这一件有没有结果"（`10-core`）。 */
+	askDone(a, pc) {
+		const hook = window.Sg?.story?.socialHooks?.()?.[a.id]?.done;
+		return this.condHolds(hook ?? a.done, pc);
+	},
+	verdict(a, pc) {
+		//注意：**存在性守卫**：`condHolds(null)` 是**恒真**（那是对「字段缺席」的语义），
+		// 但本方法的原语义是 `a.unwilling?.(pc)` → **没有这个字段就不回绝** → 必须先判有无（否则一律 `unwilling`）。
+		// **hook 优先**（(c) 契约面承载"取反"这类声明式词汇表达不了的）→ 否则数据声明。
+		const hook = window.Sg?.story?.socialHooks?.()?.[a.id] ?? {};
+		const unw = hook.unwilling ?? a.unwilling, wil = hook.willing ?? a.willing;
+		if (unw != null && this.condHolds(unw, pc)) return 'unwilling';
+		if (wil != null && this.condHolds(wil, pc)) return 'willing';
+		return 'roll';
+	},
+	/** 落账：成功/失败各自的代价（2024 的态度与重试规则）。 */
+	settle(a, pc, site, kind) {
+		const skill = (window.Sg?.story?.checkSite?.(site) ?? {}).skill ?? '';
+		const ap = this.socialApproaches()[skill] ?? {};
+		if (!pc.soc) pc.soc = { att: {}, tries: {}, read: {} };
+		if (kind === 'crit' || kind === 'ok') {
+			if (ap.read) { if (!pc.soc.read) pc.soc.read = {}; pc.soc.read[a.npc] = true; }
+			if (ap.onOk?.att) this.shift(pc, a.npc, ap.onOk.att);
+			return [];
+		}
+		const notes = [];
+		if (site && ap.onFail?.retry) {
+			const k = `${a.id}|${site}`;
+			pc.soc.tries[k] = (pc.soc.tries[k] ?? 0) + 1;
+		}
+		if (ap.onFail?.retry) notes.push(`这一手他听过了——再开口，''更难''（DC +5）。`);
+		if (ap.onFail?.att) { this.shift(pc, a.npc, ap.onFail.att); notes.push(`''他记住了。''（态度 下滑）`); }
+		return notes;
+	},
+});
+
+Object.assign((window.Game.Social ??= {}), {
+	// 返回 `{ econ: { delta} | null}`；`null`＝这次点击不该结算（`$pc.ev.soc` 与 ask 不匹配）
+	resolveAsk(pc, askId, how) {
+		const T = window.Game, S = T.Social;
+		const a = S.ask(askId);
+		if (!a || !pc.ev.soc || pc.ev.soc.id !== a.id) return null;
+		if (!pc.ev.soc_last) pc.ev.soc_last = {};
+		let econ = null;
+		const h = String(how ?? '');
+		if (h === 'will') {
+			S.applyAskEffect(a, pc);
+			pc.ev.soc_last[a.id] = { kind: 'will', text: a.will };
+		} else if (h.startsWith('lever:')) {
+			const lv = S.levers(a, pc).find((l) => l.id === h.slice(6));
+			if (lv) {
+				if (lv.gives === 'adv') {
+					// #360：优势筹码只把「这一问更有把握」摆出来——**不完成诉求**。
+					pc.ev.soc_lever = lv.id;
+					pc.ev.soc_last[a.id] = { kind: 'lever', text: '你把筹码摆了出来：' + lv.name + '。他看了一眼，没有立刻接话。', notes: ['下一掷有优势（' + lv.note + '）'] };
+				} else {
+					if (lv.econ) econ = { delta: T.Economy.apply(pc, lv.econ).delta };
+					S.shift(pc, a.npc, 1);
+					S.applyAskEffect(a, pc);
+					pc.ev.soc_last[a.id] = { kind: 'auto', text: a.auto, notes: ['拿出了筹码：' + lv.name] };
+				}
+			}
+		} else if (h.startsWith('site:')) {
+			const site = h.slice(5);
+			const dc = S.dcOf(a, site, pc);
+			let lv = S.levers(a, pc).find((l) => l.id === pc.ev.soc_lever);
+			if (!lv) lv = S.levers(a, pc).find((l) => l.gives === 'adv' && !l.econ);
+			const res = S.roll(pc, site, dc, lv?.note ?? '');
+			pc.ev.soc_lever = null;
+			pc.ev.last_roll = res;
+			if (res.success) {
+				S.applyAskEffect(a, pc);
+				pc.ev.soc_last[a.id] = { kind: 'ok', text: a.ok, notes: S.settle(a, pc, site, res.roll === 20 ? 'crit' : 'ok') };
+			} else {
+				pc.ev.soc_last[a.id] = { kind: 'bad', text: a.bad, notes: S.settle(a, pc, site, 'bad') };
+			}
+		}
+		pc.ev.soc = null;
+		return { econ };
+	},
+});

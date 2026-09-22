@@ -63,6 +63,22 @@ export const PROBES = [
 			expect: { rc: 1, stdout: /旧写法吞真代码|权威遮蔽器不吞/ },
 			why: '量的是「剥注按出现序扫，行注释里的记号不吞真代码」那一支真的在守（改回"先剥块注释"的病历写法 ⇒ 能红格当场点名 ✓）。',
 		},
+	// `#1200`：量的是「差集护栏真的在守」那一支 —— 刀＝往一个扫描面内的件里插一行
+	// 引用不存在脚本的注释（引用出现在注释里也算引用，这正是文档面的常态）。
+	// 不需要 `rebuild`：被测面是脚本自身的扫描行为。
+	{
+		id: 'test/npm-entries-guard.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/npm-entries-guard.mjs',
+		mutation: {
+			file: 'docs/dev-conventions.md',
+			find: "# 工程约定（Dev Conventions）",
+			replace: "# 工程约定（Dev Conventions）\n\n（探针：这里引用 `npm run probe-missing-entry`，不存在，应被点名）",
+		},
+		expect: { rc: 1, stdout: /probe-missing-entry/ },
+		why: '量的是「引用不存在脚本会被点名」那一支（插一行假引用 ⇒ 护栏 rc=1 并印出现场）。',
+	},
 	{
 		// 台账行：`test/state-diagnose.mjs`（34 条断言，是本仓"能假"写得最足的一件）
 		id: 'test/state-diagnose.mjs',

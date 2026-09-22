@@ -5,7 +5,8 @@ import vm from 'node:vm';   // `#1176`：生成件脚本段的解析器（只解
 import { join, dirname, relative, isAbsolute } from 'node:path';
 import { scopedFiles, checkRegistration, isStoryPassageMd } from './scripts/module-order.mjs';
 import { parseFrontMatter, parseMdPassages, parseTweePassages, assemblePassages, FORBIDDEN_BUILTINS, duplicateProblems } from './editor/lib/core/passages.mjs';
-import { scriptSyntaxProblems } from './editor/lib/core/segment-syntax.mjs';   // `#1176`
+import { scriptSyntaxProblems } from './editor/lib/core/segment-syntax.mjs';
+import { generatedFamilyProblems, isGeneratedFamily } from './editor/lib/core/generated-family.mjs';   // `#1185`   // `#1176`
 import { valueTerms, engineLabels } from './editor/lib/core/vocab.mjs';
 import {
 	ROOT, storySlugs, readStory, storyHtml, shelfHtml, DEFAULT_SLUG,
@@ -221,6 +222,19 @@ for (const s of stories) {
 	if (syntax.length) {
 		for (const p of syntax) console.error(`✗ [segment-syntax] ${p.file} 段「${p.passage}」：${p.why}`);
 		console.error('✗ 生成件里有脚本段语法错误 —— 引擎会因此不启动，故构建失败');
+		process.exit(1);
+	}
+}
+
+// `#1185`：生成物家族的"产物必有源"守卫 —— 源删而产物残留 ⇒ 大声报并点名两侧。
+//   为什么放在构建期：残留产物会被继续打进包，读者以为源还在；构建是唯一每个故事都必经的关口。
+{
+	const famSrc = Object.fromEntries(
+		files.filter((f) => isGeneratedFamily(f)).map((f) => [f, readFileSync(f, 'utf8')]));
+	const famProblems = generatedFamilyProblems({ files: famSrc, exists: (rel) => existsSync(join(ROOT, rel)) });
+	if (famProblems.length) {
+		for (const p of famProblems) console.error(`✗ [generated-family] ${p.path}：${p.why}`);
+		console.error('✗ 生成物家族有"产物在而源不在"的成员 —— 请一并删产物或恢复源');
 		process.exit(1);
 	}
 }

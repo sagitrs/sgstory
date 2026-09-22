@@ -25,7 +25,6 @@
 /% vocab: exempt 车卡模块 API（applyPreset / finalize）——此处无玩家可读正文 %/
 /% payload: 选择 %/
 <<applyQuickPreset>>
-<<set $pc.name to "夹具旅人">>
 你的角色备好了：<<= $pc.classLabel ?? ''>><<= $pc.bgLabel ?? ''>><<= $pc.speciesLabel ?? ''>>。
 
 [[出发，前往歪脖子鸭酒馆|酒馆]]

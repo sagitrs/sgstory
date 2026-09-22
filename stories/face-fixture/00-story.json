@@ -7,7 +7,6 @@
 	"audience": "internal",
 	"files": [
 		"stories/face-fixture/00-meta.twee",
-		"stories/face-fixture/10-fixture.twee",
 		"stories/face-fixture/passages/01-开场.md",
 		"stories/face-fixture/11-fixture-cards.twee",
 		"stories/face-fixture/passages/04-酒馆.md",

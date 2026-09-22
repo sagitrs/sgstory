@@ -721,3 +721,36 @@ if (window.Game?.Codex?.items) {
 		},
 	};
 }
+
+// ── 车卡（`Game.Chargen`）：`#1132` B3 起**由引擎按 json 数据建行为**（原为故事侧 `Chargen Data`）。──
+//   仅在故事声明了车卡数据（契约成员 `chargen` 在场）时定义；没有车卡的故事逐字不变。
+//   行为照原故事侧实现：`pick` 走声明式施加器 `Sg.Chargen.apply`，`finalize` 算血与姓名，
+//   `applyPreset` 按预设的 picks 走一遍（纯数据施加）。姓名接管放在宏里，与 `mode`、`finalized` 同处。
+if (typeof window.Sg?.story?.chargen === 'function') {
+	window.Game = window.Game ?? {};
+	window.Game.Chargen = {
+		get rounds() { return window.Sg.story.chargen().rounds; },
+		get presets() { return window.Sg.story.chargen().presets; },
+		pick(roundIdx, optIdx) {
+			const pc = State.variables.pc;
+			const R = this.rounds[roundIdx];
+			const O = R.options[optIdx];
+			window.Sg.Chargen.apply(pc, O.patch ?? {});
+			pc.skills = [...new Set(pc.skills)];
+			pc.picked.push(`${R.title}：${O.name}`);
+			pc.round += 1;
+			if (pc.round >= this.rounds.length) this.finalize(pc);
+		},
+		finalize(pc) {
+			pc.name = State.variables.player_name || '无名旅人';
+			pc.max_hp = (pc.classHp ?? 8) + Game.Rules.mod(pc.abilities.con) * 2;
+			pc.hp = pc.max_hp;
+			pc.finalized = true;   // 幂等标记：任何调用方走完都留下它（宏的守卫因此仍有意义，也不会重复收尾）
+		},
+		applyPreset(idx) {
+			const P = this.presets[idx];
+			const picks = P.picks;
+			for (let r = 0; r < this.rounds.length; r++) this.pick(r, picks[r]);
+		},
+	};
+}

@@ -3,6 +3,7 @@
 // 豁免：行内或块内注释含汉字即视为已说明；确需无声吞错用 // silent-gate: ok <理由>。
 import { readFileSync, readdirSync } from 'node:fs';
 import { allSourceFiles } from '../scripts/module-order.mjs';
+import { maskComments } from '../editor/lib/core/mask.mjs';   // `#1206`：剥注单一权威（单次词法扫描）
 
 const files = allSourceFiles();   // #458 切片B：单一权威
 const CJK = /\p{Script=Han}/u;
@@ -13,7 +14,9 @@ for (const f of files) {
 	for (const m of text.matchAll(re)) {
 		const body = m[1];
 		const line = text.slice(0, m.index).split('\n').length;
-		const codeOnly = body.replace(/\/\*[\s\S]*?\*\//g, '').replace(/\/\/[^\n]*/g, '').trim();
+		// `#1206`：改用 core 的单一权威遮蔽器（保长、按出现序做词法扫描）——
+		// 原先两条正则会在 `//` 行含 `/*` 时把夹在中间的真代码吞掉（假阴性：有逻辑的 catch 被误判为空）。
+		const codeOnly = maskComments(body).trim();
 		if (codeOnly) continue; // 有实际处理逻辑的 catch 不算吞错
 		const comment = (body.match(/\/\*([\s\S]*?)\*\//)?.[1] ?? '') + (body.match(/\/\/([^\n]*)/)?.[1] ?? '');
 		const marker = /silent-gate:\s*ok/.test(m[0]);

@@ -132,7 +132,11 @@ export const undetectedTables = (sources = {}, tables = {}, { seedSrc = '' } = {
 	const declared = new Map();
 	for (const [file, src] of Object.entries(sources ?? {})) {
 		for (const body of scriptBodies(String(src ?? ''), file)) {
-			const text = body.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+			// `#1206`：输入是 `script` 段体（**纯代码**）→ 用本件已 import 的权威遮蔽器 `maskComments`
+			//（经 `scripts/audit/lib/mask.mjs` 转出 core 的那一份单次词法扫描）。
+			// 原先两条正则会把 `//` 行里 `/*` 与后面 `*/` 之间的真代码吞掉 —— 实测本仓
+			// `21-resolve.twee:9` 就命中（其后紧跟的 2 行被吞），而该件正是本门的被测对象。
+			const text = maskComments(body);
 			for (const m of text.matchAll(/window\.Game\.([A-Za-z_$][\w$]*)\s*[=.]/g)) declared.set(m[1], file);
 		}
 	}

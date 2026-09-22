@@ -47,6 +47,22 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /不把散文启发式拿来扫代码|用 maskComments/ },
 		why: '量的是「按输入面分派实现」那一支真的在守（把代码面改回散文启发式 ⇒ 接线格当场点名 ✓）。',
 	},
+		// `#1206`：量的是「剥注单一权威**按出现序做词法扫描**」那一支真的在守 —— 刀＝把权威
+		// 换回病历写法（先剥块注释、不先剥行注释）→ `//` 行里的 `/*` 会与后面的 `*/` 配对，
+		// 把夹在中间的真代码吞掉 → 能红格必须点名（本格 ① 两格就是为此写的）。
+		//注意：不需要 `rebuild`：被测面是**门自己读源码时的遮蔽口径**（不编译进产物）。
+		{
+			id: 'test/comment-mask.mjs',
+			tier: 'fast',
+			cmd: 'node test/comment-mask.mjs',
+			mutation: {
+				file: 'editor/lib/core/mask.mjs',
+				find: "export const maskComments = (src, opts) => mask(src, opts).text;",
+				replace: "export const maskComments = (src) => String(src ?? '').replace(/\\/\\*[\\s\\S]*?\\*\\//g, '').replace(/^\\s*\\/\\/.*$/gm, '');   // 探针：改回病历写法",
+			},
+			expect: { rc: 1, stdout: /旧写法吞真代码|权威遮蔽器不吞/ },
+			why: '量的是「剥注按出现序扫，行注释里的记号不吞真代码」那一支真的在守（改回"先剥块注释"的病历写法 ⇒ 能红格当场点名 ✓）。',
+		},
 	{
 		// 台账行：`test/state-diagnose.mjs`（34 条断言，是本仓"能假"写得最足的一件）
 		id: 'test/state-diagnose.mjs',

@@ -239,6 +239,7 @@ export const SEGMENTS = [
 	{ id: "test-size-gate-mjs", phase: 'test', cost: 0, cmd: "node test/size-gate.mjs" },
 	{ id: "test-silent-gate-mjs", phase: 'test', cost: 0, cmd: "node test/silent-gate.mjs" },
 	{ id: "test-comment-face-split-mjs", phase: 'test', cost: 0, cmd: "node test/comment-face-split.mjs" },   // `#1208`：剥注分面接线
+	{ id: "test-comment-mask-mjs", phase: 'test', cost: 0, inputs: ['*'], cmd: "node test/comment-mask.mjs" },   // `#1206`：剥注单一权威的能红格（全跑型：读码两侧，见理由登记）
 	// #762 P0：**故事数据 ↔ 手写版等价**（编辑器转向的第 0 步）——数据与手写 twee 漂移即红
 	{ id: "editor-compile-selftest", phase: 'test', cost: 0, cmd: "node editor/compile-story.mjs --selftest" },
 	{ id: "editor-equiv-selftest", phase: 'test', cost: 0, cmd: "node editor/equiv.mjs --selftest" },
@@ -480,6 +481,7 @@ export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs', 'scripts-audit
 	'test-story-runtime-mjs-selftest', 'test-story-runtime-mjs',
 	'test-layering-mjs-selftest', 'test-layering-mjs', 'test-globals-mjs', 'test-silent-gate-mjs',
 	'test-comment-face-split-mjs',   // `#1208`：剥注分面接线（与故事内容无关）
+	'test-comment-mask-mjs',   // `#1206`：剥注权威的能红格（与故事内容无关）
 	'test-size-gate-mjs-selftest', 'test-size-gate-mjs',
 	// #607：门发现面与故事内容无关（清单/归属/顺序表）
 	'test-gate-discovery-mjs',
@@ -592,7 +594,7 @@ export const SUITE_MEMBERS = {
 		'test-saveload-mjs', 'test-saveui-mjs', 'test-combat-adv-mjs', 'test-combat-adv-mjs-selftest',
 		'test-fight-seq-mjs', 'test-fight-seq-mjs-selftest', 'test-reread-mjs', 'test-reread-mjs-selftest',
 		'test-fatal-guard-mjs', 'test-onetime-pickups-mjs', 'test-roll-binding-mjs', 'test-scenarios-mjs',
-		'test-scenarios-mjs-selftest', 'test-silent-gate-mjs', 'test-comment-face-split-mjs', 'test-dialect-mjs', 'test-contract-version-mjs',
+		'test-scenarios-mjs-selftest', 'test-silent-gate-mjs', 'test-comment-face-split-mjs', 'test-comment-mask-mjs', 'test-dialect-mjs', 'test-contract-version-mjs',
 		'test-contract-compat-mjs', 'test-pc-defaults-mjs', 'test-social-sink-mjs', 'test-social-sink-mjs-selftest',
 		'test-social-lever-mjs', 'test-siteinfo-sink-mjs', 'test-siteinfo-sink-mjs-selftest', 'test-event-graph-mjs',
 		'test-event-graph-mjs-selftest', 'scripts-audit-mjs-consequences-check', 'scripts-audit-mjs-a11y-check', 'scripts-audit-mjs-sitedisc-check',
@@ -720,6 +722,10 @@ export const inputsMatch = ({ declared = [], changed = [] } = {}) => {
  *（同 `FULL_REASONS` 的口径：降频／不跳过都要留痕）。
  */
 export const INPUTS_WILDCARD_REASONS = {
+	'test-comment-mask-mjs': {
+		reason: '读码两侧（剥注权威 `editor/lib/core/mask.mjs` ＋ 反例夹具）⇒ 面跨 `editor/**` 与 `test/**` ⇒ 取全跑型以免静默跳过成假绿面',
+		voucher: '#1206',
+	},
 	'test-rules-mjs': {
 		reason: '读构建产物与故事数据（契约成员、车卡数据、图鉴条目）=> 取全跑型以免静默跳过成假绿面 ✓',
 		voucher: '#1132',

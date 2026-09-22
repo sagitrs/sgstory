@@ -8,10 +8,12 @@ import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { maskAll } from '../core/contract.mjs';
+import { maskComments } from '../core/mask.mjs';
 
-export const stripCommentsForScan = (src) => String(src ?? '')
-	.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
-	.replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + ' '.repeat(m.length - p1.length));
+// `#1206`：实现收敛到 `../core/mask.mjs`（已有单一权威，`#580` 的单次词法扫描）——
+// 本件的输入是 `.mjs` 的**直接源码**（纯代码）→ 走词法器；原先的两条正则会在
+// `//` 行含 `/*` 时把夹在中间的真代码吞掉（假阴性）。**句柄名保留**（消费者不动）。
+export const stripCommentsForScan = (src) => maskComments(src);
 
 // 路径常量与两件助手：**命令体（host）与壳都要用** → 一并转出（原来它们是模块级私有）。
 //注意：**搬进 `editor/lib/host/` 后，原来的相对算术会静默变**：原文件在 `editor/` → `dirname(...) + '..'` ＝**仓根**；

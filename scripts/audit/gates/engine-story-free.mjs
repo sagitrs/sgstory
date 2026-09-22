@@ -82,24 +82,25 @@ export const judgeStoryFree = ({ file = '?', src = '', tokens, allow = {} }) =>
 /** **`[script]` 段的正文**（twee 文件里按 `^:: 名 [tags]` 切块；只取带 `script` 的那种）。
  *  为什么必须切段：故事文件里**一个文件多个段**（如 `15-tables.twee` 有 `Game Tables` ＋ `StoryBindings`），
  *  整文件丢给 vm 会因为 `::` 头不是 JS 而抛错 ⇒ 成员集抽出来是**空的**（我第一版就踩了这个：0 成员）。 */
-/** 逐行解析（**别用 lookahead 正则**：`\s*$` 在 `m` 模式下会在线尾提前命中 ⇒ 拿到空正文，我第一版就这么坏的）。 */
-export const scriptBodies = (fileSrc) => {
+/** 取段落里**声明 `[script]`** 的段正文（`#1141`：走 `passagesOf` 单一分派 ✓ —— 原来用 `^::\s*…` 自写切块 ✗
+ *  ⇒ **md 源里声明 `[script]` 的段会被切成 0 块 ⇒ 门静默跳过**（＝假绿家族 ✗））。
+ *  ⚠️ 参数 `path` 有**默认值**（向后兼容 ✓）：`editor/lib/host/**` 的调用点**不传** ⇒ 行为一字不变 ✓
+ *   （那几处只喂 twee 面 ✓）；本门的两处调用点传 `file` ⇒ **md 段也看得见并照常判** ✓。
+ *  ⚠️ **不许静默跳过**：md 里真有 `[script]` 段时，这里**返回它的正文** ⇒ 由本门照常判内容 ✓
+ *   （**不**报"请移回 twee"✗ —— 终点裁定：引擎面**移入引擎能力**，不回 twee ✓ `#1142`）。 */
+export const scriptBodies = (fileSrc, path = '') => {
 	const out = [];
-	let tags = null, buf = [];
-	const flush = () => { if (tags && /\bscript\b/.test(tags)) out.push(buf.join('\n')); buf = []; };
-	for (const line of String(fileSrc ?? '').split('\n')) {
-		const h = /^::\s*[^\[]*(\[[^\]]*\])?\s*$/.exec(line);
-		if (h) { flush(); tags = h[1] ?? ''; continue; }
-		if (tags !== null) buf.push(line);
+	for (const p of passagesOf(String(fileSrc ?? ''), path)) {
+		const tags = Array.isArray(p.tags) ? p.tags.join(' ') : String(p.tags ?? '');
+		if (/\bscript\b/.test(tags)) out.push(String(p.body ?? ''));
 	}
-	flush();
 	return out;
 };
 
 export const storyTableMembers = (sources = {}, { seedSrc = '', onSkip = () => {} } = {}) => {
 	const tables = {};
 	for (const [file, src] of Object.entries(sources ?? {})) {
-		for (const body of scriptBodies(String(src ?? ''))) {
+		for (const body of scriptBodies(String(src ?? ''), file)) {
 			// `#441` 抽验（曾漏检）：此前只认 `window.Game = Object.assign(…)` **聚合式**声明 ⇒
 			// `20-chargen.twee` 的 `window.Game.Chargen = {…}`（**分表式**）被**静默跳过** ⇒ `Chargen` 不在成员集里，
 			// 成员档/探测档对它全是瞎的（探针 `not Game.Chargen` 因此**该红没红** ✗）。
@@ -130,7 +131,7 @@ export const undetectedTables = (sources = {}, tables = {}, { seedSrc = '' } = {
 	const seeded = new Set([...String(seedSrc).matchAll(/^window\.Game\.([A-Za-z_$][\w$]*)/gm)].map((m) => m[1]));
 	const declared = new Map();
 	for (const [file, src] of Object.entries(sources ?? {})) {
-		for (const body of scriptBodies(String(src ?? ''))) {
+		for (const body of scriptBodies(String(src ?? ''), file)) {
 			const text = body.replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
 			for (const m of text.matchAll(/window\.Game\.([A-Za-z_$][\w$]*)\s*[=.]/g)) declared.set(m[1], file);
 		}

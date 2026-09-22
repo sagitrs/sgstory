@@ -36,7 +36,8 @@ import { pathToFileURL } from 'node:url';
 import { execSync } from 'node:child_process';
 import { writeFileSync, readFileSync } from 'node:fs';
 import vm from 'node:vm';
-import { MODULES, scopedFiles } from './module-order.mjs';
+import { MODULES, scopedFiles, isStoryPassageMd } from './module-order.mjs';
+import { passagesOf } from '../editor/lib/core/passages.mjs';
 import { DEFAULT_SLUG, readStory, storySlugs } from './dist-paths.mjs';
 import { storyText } from './audit/lib/shared.mjs';
 
@@ -127,7 +128,12 @@ export const inputProblems = ({ curSize = 0, baseSize = 0, unreadable = 0, total
 
 // ── 清单同源（防线③）：工作区侧取 `MODULES`，基线侧取**基线树里实际存在的** `*.twee` ──
 // 两侧取并集，是为了“本 PR 删了一个正文文件”这类情形也能被看见（只取工作区清单会把基线侧一起漏掉）。
-export const sourceFiles = (baseFiles = [], modules = {}) => [...new Set([...Object.keys(modules), ...baseFiles])].filter((f) => f.endsWith('.twee')).sort();
+export const sourceFiles = (baseFiles = [], modules = {}) =>
+	[...new Set([...Object.keys(modules), ...baseFiles])]
+		// `#1141`：**面必须认 md 故事段落** ✗ —— 原来只留 `.twee` ⇒ 故事转 md 后**整段对本面不可见**
+		//   （静默漏 ✗）。谓词走 `module-order.mjs` 的 `isStoryPassageMd`（**单一权威** ✓ 不自写第二份口径 ✗）。
+		.filter((f) => f.endsWith('.twee') || isStoryPassageMd(f))
+		.sort();
 /** `#460` **故事作用域**（与本仓其它故事门同一条口径）：本门是**迁移取证**门 ——
  *  它证明"纯转发没改可见文本"，判的是**默认故事**的正文面。把新故事（第二/第三个）的正文也算进来
  *  ⇒ 任何"新增内容"的 PR 都会被判成"未登记漂移"（实测：新增 `路·*` 76 段 ⇒ 红），而那不是本门要防的东西。
@@ -166,16 +172,15 @@ export const rowsFromSources = (sources) => {
  *  这就是本票的修法：“文本搬进表”在玩家眼里**没变**，所以不能算漂移。 */
 export const mergeRowTexts = (passageMap, rows) => storyText({ passageSrc: passageMap, passageTags: new Map(), rows }).text;
 
-export const parsePassages = (twee) => {
+// `#1141`：**走单一分派点**（`editor/lib/core/passages.mjs` 的 `passagesOf` ✓ —— `.twee` ⇒ twee 解析、
+//   `passages/*.md` ⇒ md 解析）。原来这里**自写一份切段方言**（`twee.split(/^:: …/)` ✗）⇒ md 段落看不见 ✗。
+//   跳过口径原样保留（`script`／`stylesheet` 标签段 ＋ `Story*` 元段 ⇒ 不进正文面 ✓；md 段无标签 ⇒ 全进 ✓）。
+export const parsePassages = (text, path = '') => {
 	const out = new Map();
-	const parts = twee.split(/^:: (.+?)(?:\s*\[(.*?)\])?$/m);
-	// parts: [前言, name, tags, body, name, tags, body, ...]
-	for (let i = 1; i < parts.length; i += 3) {
-		const name = parts[i].trim();
-		const tags = parts[i + 1] ?? '';
-		const body = parts[i + 2] ?? '';
-		if (tags.includes('script') || tags.includes('stylesheet') || name.startsWith('Story')) continue;
-		out.set(name, body);
+	for (const p of passagesOf(text, path)) {
+		const tags = Array.isArray(p.tags) ? p.tags.join(' ') : String(p.tags ?? '');
+		if (/\bscript\b|\bstylesheet\b/.test(tags) || String(p.name).startsWith('Story')) continue;
+		out.set(p.name, p.body);
 	}
 	return out;
 };
@@ -281,7 +286,7 @@ const main = () => {
 		let t = '';
 		try { t = readFileSync(f, 'utf8'); } catch { continue; }
 		curSrc.set(f, t);
-		for (const [k, v] of parsePassages(t)) curRaw.set(k, v);
+		for (const [k, v] of parsePassages(t, f)) curRaw.set(k, v);
 	}
 	const curRows = rowsFromSources(curSrc);
 	// `#595`：把表行 `text` 按 `scope` 归属并入段落（与 `--text`／`--echoes` 等同权威）——“搬进表”不算漂移。
@@ -294,7 +299,7 @@ const main = () => {
 		try {
 			const t = execSync(`git show ${BASE}:${f}`, { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
 			baseSrc.set(f, t);
-			for (const [k, v] of parsePassages(t)) baseRaw.set(k, v);
+			for (const [k, v] of parsePassages(t, f)) baseRaw.set(k, v);
 		} catch { baseUnreadable++; /* 基线上没有这个文件（新增文件）或工作区已删——见防线② */ }
 	}
 	const baseRows = rowsFromSources(baseSrc);

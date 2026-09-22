@@ -115,8 +115,9 @@ try {
 	//注意：`#1004` B2b：`face-fixture`（面夹具）进了本件的**发现式**名单（它现在是 `DEFAULT_SLUG`）
 	// → 它的 `contract.json::members` 让并集 5 → **17**、共有 5 → **4**（`docs` 不再是共有 ——
 	// 夹具声明的是**接入面的满配**，不是"照着旧故事的成员表抄"）→ 数字按**实测**重钉。
-	t('**现有字段逐字可核** ✓（`kind`／`name`／`path`／`value` —— 量化依据落在读数里 ✓ 不只写在票面 ✓）',
-		JSON.stringify(common) === JSON.stringify(['kind', 'name', 'path', 'value']));
+	// `#1186`：新增契约成员 `pcShape`（形状面）后，共有字段由 4 变 **5**（`docs` 也成了三故事共有）→ 按实测重钉。
+	t('**现有字段逐字可核** ✓（`docs`／`kind`／`name`／`path`／`value` —— 量化依据落在读数里 ✓ 不只写在票面 ✓）',
+		JSON.stringify(common) === JSON.stringify(['docs', 'kind', 'name', 'path', 'value']));
 
 	// ── 反向：**只报不判**（归 G-2）────────────────────────────────────
 	const unused = unusedDeclared(dialects);

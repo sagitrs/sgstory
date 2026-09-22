@@ -57,7 +57,7 @@ export const PC_GROUP_SIGNALS = {
 	social: { faces: ['socialAsks', 'socialHooks'], kind: 'data' },
 };
 
-/** 世界观概念（走"故事声明扩展"那条路径，不归任何通用模块）。 */
+/** 世界观概念：由**故事自己声明形状与初值**（契约面 `pcShape`），**不恒在基础面**、也不归任何通用模块。 */
 export const PC_STORY_CONCEPTS = ['star', 'keeper'];
 
 /** 玩法概念名表（判据二用它判"未声明模块的故事零玩法概念"）：与上面两张表**同源**。 */

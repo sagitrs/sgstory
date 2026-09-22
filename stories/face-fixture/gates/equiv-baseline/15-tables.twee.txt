@@ -833,7 +833,7 @@ window.Game = Object.assign(window.Game ?? {}, {
 					'flower_warned',
 					'old_witch',
 					'seer_asked',
-					'tav_tips',
+					'tav_tips'
 				]
 			},
 			{
@@ -881,14 +881,7 @@ Object.assign(((window.Game.Consequences ??= {
 :: StoryBindings [script]
 // 面夹具（`#1004` B2b）的接入契约**满配**：形状照被删的 `mist-forest`（引擎与那批测试就是按这个形状写的），值取最小可用。⚠️ 本件是**测试夹具**、不是内容故事：段名沿用旧故事只因消费者钉死了它们，正文全部新写。
 window.Sg ??= {};
-const __const_pcDefaults = {
-	star: {
-		charge: 12
-	},
-	keeper: {
-		state: 'post'
-	}
-};
+const __const_pcDefaults = {};
 const __const_prepick = [
 	{
 		pool: '封印',
@@ -903,6 +896,19 @@ const __const_prepick = [
 		distinctFromPicked: true
 	}
 ];
+const __const_pcShape = {
+	star: {
+		charge: 12,
+		spent: 0,
+		first_free: false
+	},
+	keeper: {
+		met: false,
+		trust: 0,
+		state: 'post',
+		key: false
+	}
+};
 Object.assign((window.Sg.story ??= {}), {
 	notes: () => window.Game?.Notes?.entries ?? {},
 	econEvents: () => window.Game.Economy.events,
@@ -949,4 +955,5 @@ Object.assign((window.Sg.story ??= {}), {
 	flipItem: () => '时光护符',
 	flipStarCost: () => 1,
 	flipReturnFlag: () => 'fog_thin',
+	pcShape: () => __const_pcShape,
 });

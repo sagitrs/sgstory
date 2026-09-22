@@ -1,0 +1,777 @@
+:: Combat [script]
+// `#1187`：战斗面的算从 `21-resolve.twee` 拆出（`#1184` 流二）；三块正文逐行照搬，读 `Game.Gear`／`Game.Rules`。
+Object.assign((window.Game.Combat ??= {}), {
+	/** 位点文案（`#785` 接缝 5 下沉）：`<skill/abil> DC<dc>`。
+	 * 数据**全部经接入契约取**（`Sg.story.combatAction(id)` ＋ `Sg.story.checkSite(name)` —— 两者**本来就有**，
+	 * 所以本接缝**不需要新契约成员**）；标签走引擎 `Game.Rules.skillLabel`。
+	 *注意：**行为陷阱**：`combatAction` 对**未登记动作会抛**（它自己的 fail-loud），而本方法原实现对未知动作
+	 * 是**退化成空串** → 这里必须**吞掉**那个抛（否则把"渲染时给空"变成"渲染时崩" —— 那是行为变更）。 */
+	siteInfo(actionId) {
+		let a = null;
+		try { a = window.Sg?.story?.combatAction?.(actionId) ?? null; } catch { return ''; }
+		const s = a?.site ? (window.Sg?.story?.checkSite?.(a.site) ?? null) : null;
+		if (!s) return '';
+		const what = s.skill ? window.Game.Rules.skillLabel(s.skill) : (s.abil === 'con' ? '体质豁免' : s.abil);
+		return `${what} DC${s.dc}`;
+	},
+});
+
+Object.assign((window.Game.Combat ??= {}), {
+	// 面板惰性抽牌（下一页没抽过就抽）——旧实现是 `<<set _f.offer to …>>`（`_f` 是 state 的别名 → 也是写状态）
+	ensureOffer(pc) {
+		const T = window.Game, f = pc.ev.fight;
+		if (f && f.offer.length === 0) f.offer = T.Combat.offer(f.pool, f.round, pc, f.last?.act);
+	},
+	// 点下第 idx 张牌：只写「这一手是什么」，结算留给 `resolvePlayer`
+	// 命名注意：**不能叫 `pick`**——`Game.Combat.pick(actionId, res)` 已被「动作档位求值」占用
+	//（`playerEff` 在用它）；同名会被本 Object.assign 覆盖 → 2026-09-13 实测踩过（回合结算当场炸）。
+	chooseAction(pc, idx) { pc.ev.fight.act = pc.ev.fight.offer[idx]; },
+	// 玩家这一手：掷骰（写 `$last_check`）→ 结算 → 写台账。返回 `{ check, hurt, log}`
+	// `hurt` 由 present 的 `<<damage>>` 落（不在此处扣 hp）——保住旧的渲染/时序完全一致。
+	resolvePlayer(pc, foeSite, isDragon) {
+		const T = window.Game, f = pc.ev.fight;
+		const a = window.Sg.story.combatAction(f.act);   // #459 切片三：故事数据经契约
+		const check = T.Checks.resolve(a.site, pc, f.adv ? 'adv' : null);
+		const hadAdv = (f.adv ?? 0) > 0;
+		// #352：优势在**被这一手消费后**才清零（旧实现放在本轮末尾清零 → 准备动作的「下一击有优势」当场作废）
+		f.adv = 0;
+		const r = T.Combat.playerEff(f.act, check, pc);
+		const eff = r.eff ?? {};
+		f.last = { act: f.act, kind: r.kind, text: eff.text, dmg: eff.dmg ?? 0, hurt: eff.hurt ?? 0, adv: eff.adv ?? 0, guard: eff.guard ?? 0 };
+		const log = {
+			you: {
+				label: a.label, kind: r.kind, text: eff.text, dmg: eff.dmg ?? 0,
+				gearBonus: r.gearBonus ?? 0, gearName: T.Gear.damageSource(pc.gear),
+				adv: eff.adv ?? 0, guard: eff.guard ?? 0, hurt: eff.hurt ?? 0,
+				skipFoe: eff.skipFoe ?? false, goodNote: r.goodNote ?? '', rolledWithAdv: hadAdv,
+			},
+			foe: null,
+		};
+		T.Combat.applyEffect(pc, eff, f);
+		f.act = null;
+		return { check, hurt: eff.hurt ?? 0, log };
+	},
+	// 对手那一轮 ＋ 收尾（轮次/下一轮牌/清 guard 与 skipFoe/落台账）。**无论 hp 是否归零都要走收尾**
+	//（旧实现里收尾在 `if ($pc.hp gt 0)` 之外）。对手检定未发生时 `check` 为 null。
+	/** `#493` 接缝（片 A-2：**回落已删**）：**对手／boss 状态**的取值口——引擎**不知道**故事状态叫什么名字，
+	 * 一律经 `Sg.story.foeState(pc)` 取（缺声明 → 大声报错，不静默造一个空对象）。 */
+	foeState(pc) {
+		const f = window.Sg?.story?.foeState;
+		if (typeof f !== 'function') throw new Error('Game.Combat.foeState：故事未声明 `Sg.story.foeState(pc)`（结构缺失必须报错，#493／#459）');
+		return f(pc);
+	},
+	resolveFoe(pc, foeSite, isDragon, log) {
+		const T = window.Game, f = pc.ev.fight;
+		let check = null, hurt = 0;
+		// #486（S1）：受击再过一道「掷部位 → 护具吸伤/耐久 → 溢出落 HP」。
+		// `mechanics()` 未启用时 `slotAbsorb` 返回 `null` → **原样返回**（显式降级，零行为变化）。
+		const mitigate = (raw) => {
+			const plan = T.Combat.slotAbsorb(pc, raw);
+			if (!plan) return raw;
+			if (plan.gear) pc.gearHp = { ...(pc.gearHp ?? {}), [plan.gear]: plan.gearHp };
+			log.foe = { ...(log.foe ?? {}), slots: plan };   // 台账留证：打了哪个部位、被哪件吸了多少
+			return plan.toHp;
+		};
+		if (pc.hp > 0) {
+			if (f.skipFoe) {
+				log.foe = { text: '这一轮它没有出手。' };
+			} else {
+				check = T.Checks.resolve(foeSite, pc, null);
+				if (isDragon) {
+					const F = T.Combat.foeState(pc);                      // `#493`：经接缝取（不再写死 pc.dragon）
+					const raw = T.Combat.foeDamage(pc.inv, f.round, (F.defeats ?? 0) + 1, F.venom);
+					const dmg = Math.max(1, raw - (f.guard ?? 0));
+					if (check.success) {
+						log.foe = { text: '你贴着地滚开了——它那一口咬在你刚才站的地方，石板裂了一层。' };
+					} else {
+						F.defeats = (F.defeats ?? 0) + 1;
+						log.foe = { text: '它回手了——这一下你没能全躲开。' };
+						hurt = mitigate(dmg);
+					}
+				} else if (check.success) {
+					log.foe = { text: '它扑了个空，散在你刚才站的地方——没有追。' };
+				} else {
+					log.foe = { text: '它把你掀翻在地，又停住了。像在等你先动手。' };
+					hurt = mitigate(T.Damage.shove);   // 原裸 `<<damage 5>>`；具名后仍同值（非档位值，见 15-tables 注）
+				}
+			}
+		}
+		f.round = (f.round ?? 1) + 1;
+		// #350：下一轮的牌也在**点击时**抽定（渲染时抽＝读档重抽，玩家看到的选项会变）
+		f.offer = T.Combat.offer(f.pool, f.round, pc, f.last?.act);
+		f.guard = 0;
+		f.skipFoe = false;
+		f.log = log;
+		return { check, hurt, log };
+	},
+});
+
+Object.assign((window.Game.Combat ??= {}), {
+	//注意：为什么挂 `Combat` 而不是龙的命名空间：后者在 `STORY_SYMBOLS` 里是**整命名空间**类符号
+	//（它主要是数据：hp/sealAt/entries…）→ 引擎侧往它上面挂**机制**会被层间门判（实测命中 1 处）。
+	// 语义上它本来就是"这一回合龙的那一下"＝战斗结算 → 住 `Combat` 更对；调用方只有本文件一处，已同步。
+	/** `#493` 片 A-2：改名（`dragonDamage` → **`foeDamage`**）＋**删回落** —— 这条公式是**故事政策**
+	 *（基准值／连败封顶／毒液压怒），引擎只经 `Sg.story.battleDamage(...)` 调它（缺声明 → 大声报错）。 */
+	foeDamage(inv, round, defeats, poisoned) {
+		const f = window.Sg?.story?.battleDamage;
+		if (typeof f !== 'function') throw new Error('Game.Combat.foeDamage：故事未声明 `Sg.story.battleDamage(...)`（结构缺失必须报错，#493／#459）');
+		return f(inv, round, defeats, poisoned);
+	},
+	eligible(poolId, pc) {
+		const held = pc?.inv ?? {};
+		return window.Sg.story.combatPool(poolId).filter((id) => {
+			const need = window.Sg.story.combatAction(id)?.need;
+			if (!need) return true;
+			if (need.startsWith('inv:')) return !!held[need.slice(4)];
+			if (need.startsWith('invAny:')) return need.slice(7).split('|').some((k) => held[k]);   // #250
+			return true;
+		});
+	},
+	// #519：从故事文件搬来（原用 `Math.random`）→ 改走可注入的 `Game.Rules.rng`；node 侧调用点须先注入。
+	// 每轮给 3 个：排除条件不满足的、以及上一轮刚用过的
+	// **共用**的「随机 n 选 1」（`#489` 判据 1：事件池与战斗池**同一套**选择机制——不另写一份随机）。
+	// 纯函数（拷贝后 splice，不改入参）；走**可注入** rng。抽出来的理由：第二处（事件池）要用它，
+	// 而「两处各写一份随机」正是本仓反复撞过的那类分散口径。
+	pickN(list, n) {
+		const poolCopy = [...list];
+		const picked = [];
+		const rng = window.Game.Rules.rng;                        // 唯一随机入口（node 未注入 → 大声报错）
+		while (picked.length < n && poolCopy.length) {
+			const i = Math.min(poolCopy.length - 1, rng.d(poolCopy.length) - 1);
+			picked.push(poolCopy.splice(i, 1)[0]);
+		}
+		return picked;
+	},
+	offer(poolId, round, pc, lastUsed) {
+		let list = this.eligible(poolId, pc).filter((id) => id !== lastUsed);
+		if (list.length < 3) list = this.eligible(poolId, pc);
+		const picked = this.pickN(list, 3);                       // #489：走**共用**选择机制
+		// `#493` 接缝 → `#762` A 线**下沉**：故事改声明**规则表**（`Sg.story.prepick()`），
+		// 引擎按通用规则求值（池名/动作名仍然不进引擎）。
+		// `#493` 片 A-2：**回落已删** —— 池名/动作名不再出现在引擎里（故事声明 `Sg.story.combatPrepick` 决定给哪一手）。
+		// `#762` A 线：**下沉后**由引擎通用求值（故事只声明规则表）；`prepickDecl()` 为 `null` → 不干预。
+		const pre = this.prepickFor(poolId, round ?? 1, pc, picked);
+		if (pre && !picked.includes(pre)) picked[picked.length - 1] = pre;
+		return [...new Set(picked)];
+	},
+	// ── S4（`#489`）：通用事件池 ＋ 线索三选一 ─────────────────────────
+	// 契约（声明面）：`mechanics().roads[i] = { from:number, to:number, options:[{kind,hint,noCheck?}]}`
+	// · 三选一只定**事件类型**（已定 ①）；事件**内部那一次判定**由内容面接线（S5）；
+	// · 判据 1）三选一与战斗池走**同一个** `pickN`；2）同段三路线索两两不等价（口径在 lib：`story-shape.mjs`）；
+	// 3）“无判定选项”与“不死档”是**声明属性**（也由 lib 单权威判定，本块只消费）。
+	roadsDecl() { return this.slotsDecl()?.roads ?? null; },
+	/**
+	 * **事件实例清单**（`#778` 下沉）：把声明的 `roads[].options` 折叠成实例数组 —— 纯派生，无玩法语义。
+	 * 形状：`[{ id, kind, hint, ref}]`（`id` ＝ `String(ref)`，与下沉前故事的 `eventPool` 逐字段相同 → 可字节比对）。
+	 * 为什么不返回 `kinds`／分组：六类词表是**故事词汇**（由故事的门自己持有），引擎只负责"从声明折叠出实例"。
+	 * 为什么不传 `step`：调用方自己有段号，引擎不替它记状态（保持纯函数 → 可重复调用、可对比）。
+	 */
+	roadInstances() {
+		const roads = this.roadsDecl();
+		if (!roads) return null;                                  // 未启用 → 调用方不调（与 `roadOffer` 同口径）
+		return roads.flatMap((r) => (r.options ?? []).map((o) => ({ id: `${o.ref}`, kind: o.kind, hint: o.hint, ref: o.ref })));
+	},
+	prepickDecl() { return window.Sg.story.prepick?.() ?? null; },
+	/**
+	 *「这一手必须给谁」（`#762` A 线：`combatPrepick` 下沉）：故事**只声明规则表**，引擎**通用求值**。
+	 * 规则形状：`{ pool, round?, require?: { item}, forbid?: { flag}, pick, distinctFromPicked?}`
+	 * · 词汇只用**引擎已知概念**（池名/轮次/物品名/路径旗标/已选项）→ 故事词（如具体池名/道具名）只出现在**声明**里；
+	 * · `forbid.flag` 是 **pc 上的点分路径**（走 `Sg.notes.readPath`，与笔记面同一套读取语义）；
+	 * · 未声明（`null`）→ 返回 `null`（不干预；与 `roadInstances` 同口径）。
+	 */
+	prepickFor(poolId, round, pc, picked) {
+		const rules = this.prepickDecl();
+		if (!rules) return null;
+		for (const r of rules) {
+			if (!r || r.pool !== poolId) continue;
+			if (r.round !== undefined && (round ?? 1) !== r.round) continue;
+			if (r.require?.item && !pc?.inv?.[r.require.item]) continue;
+			if (r.forbid?.flag && window.Sg?.notes?.readPath?.(pc, r.forbid.flag)) continue;
+			if (r.distinctFromPicked && (picked ?? []).includes(r.pick)) continue;
+			return r.pick ?? null;
+		}
+		return null;
+	},
+	/** 一段路的「三选一」：从该段 options 里随机取 3 个（`exclude` ＝ 本段已经出现过的类型不重复）。 */
+	roadOffer(idx, exclude = []) {
+		const roads = this.roadsDecl();
+		if (!roads) return null;                                  // 未启用 → 调用方不调（显式降级）
+		const road = roads[idx - 1];                              // 段号**从 1 计**（与声明里的 from/to 一致）
+		if (!road) throw new Error(`Game.Combat.roadOffer：本故事没有第 ${idx} 段路（可用 1..${roads.length}，#489）`);
+		let all = road.options ?? [];
+		// `#491` 判据 10（已定 ⑩）：`?pool=a,b` 只从这些**事件类型**里出（**调试开关**，不进玩家 UI）；
+		// 命中即**照用**（不足 3 条也照用：调试开关的意图就是"只让我要的那几类出现"——放宽"三选一"是**有意**的，
+		// 它只在 URL 带 `?pool=` 时发生，玩家侧不可见）；一条都没命中（写错类型名）才回退全量，避免把路走成死档。
+		const wanted = window.Game?.Rules?.debug?.pool;
+		if (Array.isArray(wanted) && wanted.length) {
+			const only = all.filter((o) => wanted.includes(o?.kind));
+			if (only.length) all = only;
+		}
+		const filtered = all.filter((o) => !exclude.includes(o?.kind));
+		return this.pickN(filtered.length >= 3 ? filtered : all, 3);   // 与战斗池同一套选择机制
+	},
+	// ── S1（`#486`）：部位 · 耐久 · 保护关系 ───────────────────────────────
+	// 契约：**故事只声明**（`Sg.story.mechanics()`：`hitLocations` / `slots[*].protects` /
+	// `equipment[*].{slot,maxHp,reduce}`——形状权威＝`scripts/audit/lib/story-shape.mjs`，`#459`），
+	// **机制全在引擎**（本块）。`mechanics()` 为 `null` → 本块**一律不被调用** → 旧路径不变（#492 显式降级）。
+	// 状态：`pc.gearHp = { 具名: 剩余耐久}`（缺项＝满耐久；0 → 损坏）。
+	slotsDecl() { return window.Sg.story.mechanics?.() ?? null; },
+	gearHpOf(pc, mech, gearName) {
+		const max = mech?.equipment?.[gearName]?.maxHp ?? 0;
+		const cur = pc?.gearHp?.[gearName];
+		return typeof cur === 'number' ? cur : max;
+	},
+	/** `#703`：侧栏（`StoryCaption`）用的**只读快照**——装备耐久与部位异常此前**全仓零渲染**（数据早就在状态里）。
+	 * 只算不写（渲染路径不得改状态，`#315` 契约）；未启用新机制的故事（故事 1／最小示例）→ 空列表 → 侧栏整块不出现。 */
+	gearDurability(pc) {
+		const mech = this.slotsDecl();
+		if (!mech) return [];
+		return (pc?.gear ?? []).filter((g) => mech.equipment?.[g]).map((g) => {
+			const max = mech.equipment[g].maxHp ?? 0;
+			const cur = this.gearHpOf(pc, mech, g);
+			return { name: g, cur, max, broken: cur <= 0 };
+		});
+	},
+	statusEntries(pc) {
+		const mech = this.slotsDecl();
+		if (!mech) return [];
+		const out = [];
+		for (const [part, map] of Object.entries(pc?.statuses ?? {})) {
+			for (const [id, turns] of Object.entries(map ?? {})) out.push({ part, id, label: mech.statuses?.[id]?.label ?? id, turns });
+		}
+		return out;
+	},
+
+	// 受击（指定部位）：该部位有护具就按声明减成（本片只落 `flat`）→ 余量由该件**耐久吸收**，
+	// 溢出量落 HP；耐久 ≤ 0 → **损坏**（`reduce` 归 0 且不再吸伤）。**纯函数**：只返回计划，不写 `pc`。
+	//（S2 需要「指定部位」的形态：异常结算的"该部位受伤"不该另掷一个部位 → 抽出本方法。）
+	slotAbsorbAt(pc, part, hurt) {
+		const mech = this.slotsDecl();
+		if (!mech) return null;                                   // 未启用 → 调用方走旧路径
+		const worn = (pc?.gear ?? []).filter((g) => g && mech.equipment?.[g]);
+		const gearName = worn.find((g) => (mech.slots?.[mech.equipment[g].slot]?.protects ?? null) === part) ?? null;
+		if (!gearName) return { part, gear: null, reduce: 0, absorbed: 0, toHp: hurt, gearHp: null, broke: false };
+		const def = mech.equipment[gearName];
+		const form = Object.keys(def.reduce ?? {})[0];
+		if (form !== 'flat') throw new Error(`Game.Combat.slotAbsorb：减成形态「${form}」本片未实现（已实现：flat）——声明面不得大于实现面（#486）`);
+		const hp0 = this.gearHpOf(pc, mech, gearName);
+		if (hp0 <= 0) return { part, gear: gearName, reduce: 0, absorbed: 0, toHp: hurt, gearHp: 0, broke: true };   // 已损坏：不吸伤、不减成
+		const reduce = def.reduce.flat ?? 0;
+		const after = Math.max(0, hurt - reduce);
+		const absorbed = Math.min(hp0, after);
+		const hp1 = hp0 - absorbed;
+		return { part, gear: gearName, reduce, absorbed, toHp: after - absorbed, gearHp: hp1, broke: hp1 <= 0 };
+	},
+	// 受击（掷部位，走**可注入** rng）：掷出部位后交给 `slotAbsorbAt`。
+	slotAbsorb(pc, hurt) {
+		const mech = this.slotsDecl();
+		if (!mech) return null;
+		const parts = mech.hitLocations ?? [];
+		const rng = window.Game.Rules.rng;                        // 唯一随机入口（node 未注入 → 大声报错）
+		const part = parts[Math.min(parts.length - 1, rng.d(parts.length) - 1)];
+		return this.slotAbsorbAt(pc, part, hurt);
+	},
+	// 判定失败的耐久扣减（S1 已定 ④：**掷骰** −1 或 −2）；返回计划，不写 `pc`。
+	gearWear(pc, gearName) {
+		const mech = this.slotsDecl();
+		if (!mech || !mech.equipment?.[gearName]) return null;
+		const loss = window.Game.Rules.rng.d(2);                   // 1..2（已定 ④：不设"直接损坏"档）
+		const from = this.gearHpOf(pc, mech, gearName);
+		return { gear: gearName, loss, from, to: Math.max(0, from - loss) };
+	},
+	// 温泉（S1 已定 ④：v1 唯一修复点）——返回"满耐久表"；调用方写 `pc.gearHp`。
+	repairAll(pc) {
+		const mech = this.slotsDecl();
+		if (!mech) return null;
+		return Object.fromEntries(Object.entries(mech.equipment ?? {}).map(([n, d]) => [n, d.maxHp]));
+	},
+	// ── S2（`#487`）：部位 × 异常（每回合判定：恢复／恶化／受伤） ───────────────
+	// 契约（声明面；形状权威＝`scripts/audit/lib/story-shape.mjs`）：
+	// `mechanics().statuses[id] = { parts:'*'|[部位…], turns:n, check:{attr,dc}, onFail:[{when,…}]}`
+	// `mechanics().statusPenalty['status@part'] = { check:n}` ← 作用域：**该部位相关判定**
+	// 状态：`pc.statuses = { 部位: { 异常: 剩余回合}}`（缺项／0 → 不生效）
+	// 顺序（已定 ⑤）：**回合开始 → 异常结算 → 玩家行动 → 敌人行动 → 回合推进**
+	// → `fightact` 在 `resolvePlayer` **之前**调一次 `tickStatuses`；本块**只算**，落 HP 仍由 present 的 `<<damage>>`。
+	// `mechanics()` 为 `null` → 本块一律不被调用（`#492` 显式降级）。
+	statusLowRoll: 5,      // 低骰分档阈值（设计稿 §2.3／§8 D4）
+	/** `#701`：战斗日志的**上限**（环形缓冲）。两条故事路径（故事 1 的 `fightact`／5e 的 `foeRound`）
+	 * 都按它截断 → "只留最近 N 手"是**声明出来的常数**，不靠各自记得；渲染面只读它（`#315`）。 */
+	/** `#701`：把**已经算完**的 `pc.ev.fight.log` 落一手进 `history`（有界环形缓冲）。
+	 * 为什么住引擎：① 两条故事路径（故事 1 的 `fightact`／5e 的 `foeRound`）共用同一份口径；
+	 * ② SugarCube 的 `<<set>>` 吃不下"数组字面量＋方法链"（只在真机现形）→ 搬进 JS 后可被 node 门直测。
+	 * **只在点击时（sim）调用** → 渲染面只读 `history`（`#315`）。 */
+	pushLog(pc) {
+		const L = pc?.ev?.fight?.log;
+		if (!L) return null;
+		pc.ev.fight.moves = (pc.ev.fight.moves ?? 0) + 1;
+		const you = `${L.you?.label ?? ''} ${L.you?.text ?? ''}`.trim();
+		const entry = { n: pc.ev.fight.moves, you, foes: L.foe ? [L.foe.text] : [] };
+		pc.ev.fight.history = [...(pc.ev.fight.history ?? []), entry].slice(-this.HISTORY_MAX);
+		return entry;
+	},
+	HISTORY_MAX: 6,
+	statusLowRoll: 5,      // 低骰分档阈值（设计稿 §2.3／§8 D4）：d20 原值 ≤ 5 → `low` 档，其余 → `most`
+	statusParts(mech, id) {
+		const st = mech?.statuses?.[id];
+		if (!st) return [];
+		return st.parts === '*' ? (mech.hitLocations ?? []) : (st.parts ?? []);
+	},
+	/** 枚举生效中的 `{ 部位, 异常, 剩余回合}`。 */
+	statusInstances(pc) {
+		const out = [];
+		for (const [part, bag] of Object.entries(pc?.statuses ?? {})) {
+			for (const [id, turns] of Object.entries(bag ?? {})) if (turns > 0) out.push({ part, id, turns });
+		}
+		return out;
+	},
+	/** 该部位当前的判定减成（`statusPenalty['异常@部位']`；本片只认 `check` 键，其余形态报错）。 */
+	statusPenaltyFor(pc, part, mech = this.slotsDecl()) {
+		let sum = 0;
+		const counted = new Set();
+		for (const { part: afflicted, id } of this.statusInstances(pc)) {
+			// `#747`（正典口径：**该部位**相关减成）：只有"查的部位＝异常**所在**的部位"才算 ——
+			// 腿上的麻痹不该罚手臂的判定（旧手写表恰好也是这个效果：查 `paralysis@手臂` 取不到 → 0
+			// → 本改动**不改变**已声明格的行为，只是把口径写清并推广到"声明生成"）。
+			if (afflicted !== part) continue;
+			if (!this.statusParts(mech, id).includes(part)) continue;
+			// `#747`（实测暴露的账）：同一异常在**多个部位**发作时（如手臂＋躯干都流血），
+			// 查询"躯干"会把该异常**按实例重复计**（流血在两处 → −2）→ 同一异常对同一部位**只算一次**。
+			if (counted.has(id)) continue;
+			counted.add(id);
+			// `#747`（症状：减成靠**手写稀疏表** → 漏格没人看得见，`麻痹@手臂` 就是洞）：
+			// **减成由声明生成** —— `statuses[id].perRound.penalty = { value, scope:'part'}`
+			// → 对该异常的**每一个允许部位**都生效（组合穷举天然齐全）。
+			const decl = mech.statuses?.[id]?.perRound?.penalty;
+			if (decl) {
+				if (decl.scope !== 'part') throw new Error(`Game.Combat.statusPenaltyFor：perRound.penalty.scope 本片只实现 part（拿到 ${JSON.stringify(decl.scope)}）——声明面不得大于实现面（#747）`);
+				if (typeof decl.value !== 'number') throw new Error(`Game.Combat.statusPenaltyFor：perRound.penalty.value 必须是数字（拿到 ${JSON.stringify(decl.value)}，#747）`);
+				// `#747`：`only` ＝「**只押这几个部位**」的显式声明（可选）。缺省 → 覆盖该异常的全部允许部位；
+				// 给了就必须是允许部位的**子集**（否则是把减成押到了这个异常根本不能落的地方 → fail-loud）。
+				if (decl.only !== undefined) {
+					if (!Array.isArray(decl.only) || !decl.only.length) throw new Error(`Game.Combat.statusPenaltyFor：perRound.penalty.only 必须是非空数组（拿到 ${JSON.stringify(decl.only)}，#747）`);
+					const allowedParts = this.statusParts(mech, id);
+					for (const pOnly of decl.only) if (!allowedParts.includes(pOnly)) throw new Error(`Game.Combat.statusPenaltyFor：「${id}」的 penalty.only 里有「${pOnly}」，但它不在允许部位（${allowedParts.join('、')}）里（#747）`);
+					if (!decl.only.includes(part)) continue;     // 该部位不在「押注范围」内 → 无减成
+				}
+				sum += decl.value;
+				continue;                                  // 声明已覆盖（全部或声明的子集）→ 不再查手写表（否则重复计）
+			}
+			// 回落：手写表 `statusPenalty[<id>@<部位>]` —— 只给「就想押在某一个部位」的情形（如流血只压躯干）
+			const pen = mech.statusPenalty?.[`${id}@${part}`];
+			if (!pen) continue;
+			for (const [k, v] of Object.entries(pen)) {
+				if (k !== 'check' || typeof v !== 'number') throw new Error(`Game.Combat.statusPenaltyFor：statusPenalty['${id}@${part}'] 的键「${k}」本片未实现（只认 check:number）——声明面不得大于实现面（#487）`);
+				sum += v;
+			}
+		}
+		return sum;
+	},
+	/** 骰式：**纯整数**（`N`，固定伤害）· **`NdM`** · **`NdM±K`**（`#702` 5e 对齐新增：伤害骰 ＋ 属性调整，如 `1d8+3`）。
+	 * 其余形态（`1d4+2d6`、`abc`…）**报错**：声明面不得大于实现面（#487／#702）。 */
+	rollDice(expr) {
+		const m = /^(\d+)(?:d(\d+))?(?:([+-])(\d+))?$/.exec(String(expr ?? ''));
+		if (!m) throw new Error(`Game.Combat.rollDice：只认 \`N\`／\`NdM\`／\`NdM±K\`（收到 ${JSON.stringify(expr)}）——声明面不得大于实现面（#487／#702）`);
+		const n = Number(m[1]);
+		const flat = m[3] ? (m[3] === '-' ? -1 : 1) * Number(m[4]) : 0;   // 属性调整
+		if (!m[2]) return n + flat;                                      // 纯整数（可带调整）
+		const rng = window.Game.Rules.rng;
+		let sum = 0;
+		for (let i = 0; i < n; i++) sum += rng.d(Number(m[2]));
+		return sum + flat;
+	},
+	/** `onFail` 一档的**效果**（本片只认两种；随机目标在**算**里就落定 → 计划完整、可复算）。 */
+	statusEffect(entry, mech, excludeId) {
+		if (entry?.harm === 'damage') return { kind: 'damage', amount: this.rollDice(entry.dice ?? '1') };
+		if (entry?.addStatus === 'random') {
+			const ids = Object.keys(mech.statuses ?? {}).filter((x) => x !== excludeId);
+			if (!ids.length) return { kind: 'none' };
+			const rng = window.Game.Rules.rng;
+			const id = ids[Math.min(ids.length - 1, rng.d(ids.length) - 1)];
+			const parts = this.statusParts(mech, id);
+			const part = entry.part === 'random' ? parts[Math.min(parts.length - 1, rng.d(parts.length) - 1)] : entry.part;
+			return { kind: 'addStatus', id, part, turns: mech.statuses[id].turns };
+		}
+		throw new Error(`Game.Combat.statusTick：onFail 效果形态未实现（本片只认 harm:'damage'+dice ／ addStatus:'random'）——声明面不得大于实现面（#487）`);
+	},
+	/** **纯函数**：一回合的异常结算计划（不写 `pc`）。逐 (部位 × 异常) 各判定一次：
+	 * 每回合被动（`perRound.hp`）→ 该部位扣 HP（走 S1 的减成/耐久）→ 判定 → 成功恢复（−1，到 0 清）／失败按分档出效果。 */
+	statusTick(pc) {
+		const mech = this.slotsDecl();
+		if (!mech) return null;                                   // 未启用 → 调用方不调（显式降级）
+		const statuses = mech.statuses ?? {};
+		const steps = [];
+		for (const { part, id, turns } of this.statusInstances(pc)) {
+			const st = statuses[id];
+			if (!st) throw new Error(`Game.Combat.statusTick：状态「${id}」不在声明表里（结构缺失必须报错，#487）`);
+			if (!(typeof st.turns === 'number' && st.turns > 0)) throw new Error(`Game.Combat.statusTick：状态「${id}」缺 \`turns\`（正数）——持续回合必须可声明（#487）`);
+			const per = st.perRound?.hp;
+			if (per !== undefined && typeof per !== 'number') throw new Error(`Game.Combat.statusTick：状态「${id}」的 \`perRound.hp\` 必须是数字（#487）`);
+			const res = window.Game.Rules.save(pc, st.check.attr, st.check.dc, { bonus: this.statusPenaltyFor(pc, part, mech) });
+			const step = { part, id, res, perRound: typeof per === 'number' ? per : 0 };
+			if (res.success) { step.kind = 'recover'; step.turns = turns - 1; steps.push(step); continue; }
+			const grade = res.roll <= this.statusLowRoll ? 'low' : 'most';
+			const entry = (st.onFail ?? []).find((x) => x.when === grade);
+			if (!entry) throw new Error(`Game.Combat.statusTick：状态「${id}」缺「${grade}」档（分档必须穷尽，#459）`);
+			step.kind = 'fail'; step.grade = grade; step.effect = this.statusEffect(entry, mech, id);
+			steps.push(step);
+		}
+		return { steps };
+	},
+	/** 把计划**落**成新状态 ＋ 本回合要落 HP 的伤害（新状态返回，**不直接改调用方对象**）。 */
+	statusTickApply(pc, plan) {
+		if (!plan) return null;
+		const mech = this.slotsDecl();
+		const next = {};
+		for (const [part, bag] of Object.entries(pc?.statuses ?? {})) next[part] = { ...bag };
+		const drop = (part, id) => { if (next[part]) { delete next[part][id]; if (!Object.keys(next[part]).length) delete next[part]; } };
+		const put = (part, id, turns) => { next[part] = { ...(next[part] ?? {}), [id]: turns }; };
+		let hurt = 0;
+		const hits = [];
+		for (const s of plan.steps) {
+			if (s.perRound) {
+				const at = this.slotAbsorbAt(pc, s.part, Math.abs(s.perRound));   // 每回合被动也走 S1 的减成/耐久
+				if (at?.gear) pc.gearHp = { ...(pc.gearHp ?? {}), [at.gear]: at.gearHp };
+				hits.push({ part: s.part, from: s.id, ...at });
+				hurt += at ? at.toHp : Math.abs(s.perRound);
+			}
+			if (s.kind === 'recover') { if (s.turns > 0) put(s.part, s.id, s.turns); else drop(s.part, s.id); continue; }
+			if (s.effect?.kind === 'damage') {
+				const at = this.slotAbsorbAt(pc, s.part, s.effect.amount);
+				if (at?.gear) pc.gearHp = { ...(pc.gearHp ?? {}), [at.gear]: at.gearHp };
+				hits.push({ part: s.part, from: s.id, ...at });
+				hurt += at ? at.toHp : s.effect.amount;
+			} else if (s.effect?.kind === 'addStatus') {
+				put(s.effect.part, s.effect.id, s.effect.turns);
+			}
+		}
+		return { statuses: next, hurt, hits };
+	},
+	/** 施加一个异常（内容面/失败分档用）：部位必须在声明允许范围内，否则报错。 */
+	applyStatus(pc, id, part) {
+		const mech = this.slotsDecl();
+		if (!mech) return null;
+		const st = mech.statuses?.[id];
+		if (!st) throw new Error(`Game.Combat.applyStatus：状态「${id}」未声明（结构缺失必须报错，#487）`);
+		if (!this.statusParts(mech, id).includes(part)) throw new Error(`Game.Combat.applyStatus：「${id}」不允许落在「${part}」（仅限部位是声明的一部分，#487）`);
+		return { statuses: { ...(pc?.statuses ?? {}), [part]: { ...(pc.statuses?.[part] ?? {}), [id]: st.turns } } };
+	},
+	/** 解除（消耗品路径）：按异常 id 清（`S5` 的消耗品调它；物品↔异常映射属故事数据）。 */
+	cureStatus(pc, id) {
+		const next = {};
+		for (const [part, bag] of Object.entries(pc?.statuses ?? {})) { const b = { ...bag }; delete b[id]; if (Object.keys(b).length) next[part] = b; }
+		return { statuses: next };
+	},
+	/** 温泉（已定 ⑤：清全部——与 S1 的 `repairAll` 同一处场景，一起用）。 */
+	clearStatuses() { return { statuses: {} }; },
+	/** 回合开始「算 ＋ 落」一步到位：写 `pc.statuses`，返回本回合因异常落 HP 的量
+	 *（present 用 `<<damage>>` 落，与其他伤害同一处）。未启用 → 返回 `null`（调用方跳过）。 */
+	tickStatuses(pc) {
+		const plan = this.statusTick(pc);
+		if (!plan) return null;
+		const applied = this.statusTickApply(pc, plan);
+		pc.statuses = applied.statuses;
+		return { hurt: applied.hurt, hits: applied.hits, steps: plan.steps };
+	},
+	// ── S3（`#488`）：波次战斗 ＋ 失败重置 ─────────────────────────────
+	// 契约（声明面，`#459` 已声明）：`mechanics().encounters[id] = { waves:[{pool,difficulty,reinforce?}], rewardsScale?}`
+	// · 短＝乘 1 批、长＝乘 2 批（第二批 difficulty 更大 ＋ `reinforce:true`）——形状门在校验；
+	// · **已定 ②的常数就是引擎口径**：短＝单次判定定胜负（1 回合·1 命中即可）；
+	// 长＝**3 回合上限 ＋ 3 次成功**（每批各自计）；回合用尽未倒 → 判负。
+	// 状态：`pc.ev.fight.wave = { encounter, idx, hits, rounds}`（**不新增顶层键** → 不牵动 `--state` 域表）。
+	// `mechanics()` 为 `null` → 本块一律不被调用（`#492` 显式降级）。
+	wavePlan(id) {
+		const mech = this.slotsDecl();
+		if (!mech) return null;                                  // 未启用 → 调用方不调
+		const enc = mech.encounters?.[id];
+		if (!enc) throw new Error(`Game.Combat.wavePlan：遭遇「${id}」未声明（结构缺失必须报错，#488）`);
+		const waves = enc.waves ?? [];
+		if (waves.length !== 1 && waves.length !== 2) throw new Error(`Game.Combat.wavePlan：遭遇「${id}」的批数必须是 1（短）或 2（长）——实际 ${waves.length}（#488）`);
+		const long = waves.length === 2;
+		return {
+			// `#705` 片二：波里**声明的 `enemies`** 必须带出来（原先被这条 map 丢掉 → 运行时永远看不到敌人）。
+			id, waves: waves.map((wv) => ({ pool: wv.pool, difficulty: wv.difficulty, reinforce: !!wv.reinforce, enemies: Array.isArray(wv.enemies) ? [...wv.enemies] : undefined })),
+			// `#599`（2026-09-14 口径定案）：长战斗**回合上限 3 → 5**，保留"需 3 次成功"——
+			// 依据：① 保留"三击"＝长战斗的形，只松压力；② `#600` 必掉钥匙 × 0.74% 清完率自相矛盾；
+			// ③ 候选里这是"保持结构、只改压力"的那档（改命中数＝改形）。两批清完率 ≈ 16.6%。
+			// `#705` 片二-B（判据⑥**重导**）：**5 → 8**。
+			// 为什么必须重导：`#599` 的"3→5"是在**固定伤害**数学下算的；伤害变骰＋AC/HP 之后实测
+			//（400 局×7 档）中位 **6** 回合、p90 **8** → 沿用 5 会**把一半以上的胜局判死**。
+			// 8 覆盖 p90 → 不误杀"本该赢"的局。数字来源与各档对照见 PR／`#705` 评论。
+			long, hits: long ? 3 : 1,
+			// `#705` 片二-B（判据⑥，两档都重导）：回合上限改由**故事声明**
+			// `encounters[id].rounds` 给（平衡是故事数据）；缺省回落旧口径（短 1／长 8）。
+			// 为什么必须让故事可声明：敌人有 HP 之后，"1 回合"的短战斗**永远打不完**（实测：2 只鼠要 ~4 回合，
+			// 1 回合上限 → 第一回合就判 failed → 短战斗全败）。数字与实测见 PR／`#705`。
+			rounds: (typeof enc.rounds === 'number' && enc.rounds >= 1) ? enc.rounds : (long ? 8 : 1),
+			rewardsScale: typeof enc.rewardsScale === 'number' ? enc.rewardsScale : 1,
+		};
+	},
+	/** 开始一场带波次的遭遇（写 `pc.ev.fight.wave`；`#705` 片二起：声明了 `enemies` 的波同时**实例化敌人**）；返回本批的 `{ pool}` 供战斗 UI 用。 */
+	waveBegin(pc, id) {
+		const plan = this.wavePlan(id);
+		if (!plan) return null;
+		pc.ev.fight = { ...(pc.ev.fight ?? {}), wave: { encounter: id, idx: 1, hits: 0, rounds: 0 } };
+		return { pool: plan.waves[0].pool, plan };
+	},
+	// ── `#705` 片二／`#702` a2（5e 对齐）：**敌人实例**（HP 会掉、归零退场）＋ 攻击骰 vs AC ─────────
+	// **opt-in 唯一开关**：`encounters[id].waves[i].enemies` 声明了 → 该波走本模式；未声明 → 旧二元模式。
+	// **单一权威**：属性/骰式只住**声明面**（`enemies[id] = { hp, ac, attack:{ bonus, dmg, parts}}`）；
+	// 实例只存**可变**状态 `{ id, hp}`（改声明 → 真机行为跟着变——判据面就吃这条）。
+	// 数学（5e）：玩家 `d20 + 属性调整 + 熟练` vs `foe.ac`；敌人 `d20 + attack.bonus` vs **`pc.ac`**；
+	// 伤害都是骰式（`NdM±K`，`rollDice`）；敌人的伤害**落部位**（`attack.parts`）→ `slotAbsorbAt`。
+	/** 玩家 AC（5e）：`10 + dexMod + Σ 护具.ac`。未启用部位机制 → `null`（调用方走旧路径）。
+	 * 护具未声明 `ac` → 记 0（背包/武器）；声明了但非数字 → 报错（结构畸形必须报错）。 */
+	pcAC(pc) {
+		const mech = this.slotsDecl();
+		if (!mech) return null;
+		let ac = 10 + window.Game.Rules.abilityMod(pc, 'dex');
+		for (const g of pc?.gear ?? []) {
+			const def = mech.equipment?.[g];
+			if (!def || def.ac === undefined) continue;
+			if (typeof def.ac !== 'number') throw new Error(`Game.Combat.pcAC：护具「${g}」的 \`ac\` 必须是数字（#702）`);
+			ac += def.ac;
+		}
+		return ac;
+	},
+	/** 敌人声明（单一权威）。未声明 → **报错**：结构缺失必须报错（`#705`）。 */
+	enemyDef(id) {
+		const def = this.slotsDecl()?.enemies?.[id];
+		if (!def) throw new Error(`Game.Combat.enemyDef：敌人「${id}」未声明（结构缺失必须报错，#705）`);
+		return def;
+	},
+	/** 该【波】声明的敌人 id 列表；未声明 `enemies` → `null`（＝旧二元模式）。 */
+	waveFoeIds(id, waveIdx = 0) {
+		const plan = this.wavePlan(id);
+		if (!plan) return null;
+		const wv = plan.waves[Math.min(plan.waves.length - 1, Math.max(0, waveIdx))];
+		return Array.isArray(wv.enemies) && wv.enemies.length ? wv.enemies : null;
+	},
+	/** 敌人满 HP（从声明面读；非正数 → 报错）。 */
+	enemyMaxHp(id) {
+		const d = this.enemyDef(id);
+		if (typeof d.hp !== 'number' || d.hp <= 0) throw new Error(`Game.Combat：敌人「${id}」的 \`hp\` 必须是正数（拿到 ${JSON.stringify(d.hp)}，#705）`);
+		return d.hp;
+	},
+	/** 实例化当前波（`waveBegin`／增援时调）：写 `pc.ev.fight.wave.foes`；未声明 `enemies` → `null`（不写键）。 */
+	foeSpawn(pc, waveIdx = 0) {
+		const w = pc?.ev?.fight?.wave;
+		if (!w) throw new Error('Game.Combat.foeSpawn：尚未 `waveBegin`（没有波次状态）——调用方先开局（#705）');
+		const ids = this.waveFoeIds(w.encounter, waveIdx);
+		if (!ids) return null;
+		w.foes = ids.map((id) => ({ id, hp: this.enemyMaxHp(id) }));
+		return w.foes;
+	},
+	/** 玩家 ➜ 敌人（5e）：`d20 + 属性调整 + 熟练` vs `foe.ac`（天然 20 必中／天然 1 必失）。
+	 * **纯**：返回**新的** `foes` 列表（调用方写 `pc.ev.fight.wave.foes`）＋ 这一击的记录（`#701` 的日志面吃它）。 */
+	foeStrike(pc, { ability = 'str', dmg = '1', adv = 0, target = 0 } = {}) {
+		const w = pc?.ev?.fight?.wave;
+		const foes = w?.foes;
+		if (!Array.isArray(foes) || !foes.length) throw new Error('Game.Combat.foeStrike：当前波没有敌人实例（先 `foeSpawn`，#705）');
+		const i = Math.min(foes.length - 1, Math.max(0, target));
+		const foe = foes[i];
+		const def = this.enemyDef(foe.id);
+		if (typeof def.ac !== 'number') throw new Error(`Game.Combat.foeStrike：敌人「${foe.id}」的 \`ac\` 必须是数字（#702）`);
+		const { roll, rolls } = window.Game.Rules.roll(adv);
+		const mod = window.Game.Rules.abilityMod(pc, ability) + window.Game.Rules.prof();
+		const total = roll + mod;
+		const crit = roll === 20, fumble = roll === 1;
+		const hit = crit || (!fumble && total >= def.ac);
+		let dealt = 0;
+		const next = foes.map((f) => ({ ...f }));
+		if (hit) {
+			dealt = this.rollDice(dmg) * (crit ? 2 : 1);           // 5e：暴击＝伤害骰翻倍
+			next[i].hp = next[i].hp - dealt;
+		}
+		const down = next[i].hp <= 0;
+		const out = down ? next.filter((_, k) => k !== i) : next;
+		return { foe: foe.id, roll, rolls, mod, total, ac: def.ac, hit, crit, dmg: dealt, hp: Math.max(0, next[i].hp), down, foes: out, target: i };
+	},
+	/** `#705` 片二-B：**一个完整回合**（玩家攻击 → 还站着的敌人反击 → 落护具耐久）。
+	 * **机制住引擎、文案住 widget**：这里返回 `{ log, strike, hits, hurt}`（`log` 就是 `#701` 的日志面素材），
+	 * **HP 的落法不在本函数**（返回 `hurt`，由调用方的 `<<damage>>` 落 → 死亡/药膏等既有政策一处不改）。
+	 * 为什么不做成纯函数：`foeStrike`/`foeHit` 是纯的（算），这里是"算＋落"的调用方侧（与 `tickStatuses` 同族）。
+	 * @param {object} actionRef 故事声明的动作（`{ attr, dmg, defend}`；缺项 → 中性默认） */
+	foeRound(pc, actionRef) {
+		const a = actionRef ?? {};
+		const strike = this.foeStrike(pc, { ability: a.attr ?? 'str', dmg: a.dmg ?? '1' });
+		pc.ev.fight.wave.foes = strike.foes;
+		// `#746` 片2（实测①「我方动作没有句子」）：动作**自己声明的文案**（`actions[id].ok/crit/bad`）
+		// 原先短战路径**只印 widget 实参的胜句/败句**（动作文案从未被用过）→ 玩家看不到"我这一下打成了什么样"。
+		// 口径：文案是**故事数据**（引擎只按成败档挑一条），数字仍由机制算 → 句子与数值一起出现。
+		const flavor = strike.crit ? a.crit?.text : strike.hit ? a.ok?.text : a.bad?.text;
+		const log = [strike.hit
+			? `${flavor ? flavor + ' ' : ''}你 ${strike.roll}+${strike.mod}=${strike.total} vs 甲${strike.ac} ⇒ 命中 ${strike.dmg} 点（${strike.foe} 剩 ${strike.hp}）`
+			: `${flavor ? flavor + ' ' : ''}你 ${strike.roll}+${strike.mod}=${strike.total} vs 甲${strike.ac} ⇒ 落空`];
+		let hurt = 0;
+		for (const f of pc.ev.fight.wave.foes) {
+			const h = this.foeHit(pc, f, { adv: a.defend ? -1 : 0 });
+			if (!h.hit) { log.push(`${h.foe} ${h.roll}+${h.bonus}=${h.total} vs 你 甲${h.ac} ⇒ 落空`); continue; }
+			if (h.absorb.gear) pc.gearHp = { ...(pc.gearHp ?? {}), [h.absorb.gear]: h.absorb.gearHp };
+			hurt += h.absorb.toHp;
+			log.push(`${h.foe} ${h.roll}+${h.bonus}=${h.total} vs 你 甲${h.ac} ⇒ 打中${h.part} ${h.raw} 点`
+				+ (h.absorb.gear ? `（${h.absorb.gear} 减 ${h.absorb.reduce}、吸 ${h.absorb.absorbed} ⇒ 耐久 ${h.absorb.gearHp}${h.absorb.broke ? '，**损坏**' : ''}）` : '')
+				+ `，落 HP ${h.absorb.toHp}`);
+		}
+		if (!pc.ev.fight.wave.foes.length) log.push('—— 这一批清干净了。');
+		// `#701`（症状：战斗屏只有**最后一手**，翻页/重渲染后旧的就没了 → "第几回合、刚才发生了什么"全不可见）：
+		// 落一手进 `pc.ev.fight.history`（**有界环形缓冲** → 上限固定可机检；渲染面只读它 → `#315` 契约）。
+		pc.ev.fight.moves = (pc.ev.fight.moves ?? 0) + 1;
+		const hist = [...(pc.ev.fight.history ?? []), { n: pc.ev.fight.moves, you: log[0], foes: log.slice(1, -1) }];
+		pc.ev.fight.history = hist.slice(-this.HISTORY_MAX);
+		return { log: log.join('｜'), strike, hurt };
+	},
+	/** 敌人 ➜ 玩家（5e）：`d20 + attack.bonus`（＋可选优势）vs **`pc.ac`**（`pcAC()`；未启用 → 报错）；
+	 * 命中 → `rollDice(attack.dmg)` → 部位取 `attack.parts`（掷一个）→ **`slotAbsorbAt`**（减成/耐久/HP 一次算清）。
+	 * **纯**：返回计划（`hp`/`gearHp` 由调用方落），与 `slotAbsorbAt` 同口径。 */
+	foeHit(pc, foeOrId, { adv = 0 } = {}) {
+		const id = typeof foeOrId === 'string' ? foeOrId : foeOrId?.id;
+		const def = this.enemyDef(id);
+		const ac = this.pcAC(pc);
+		if (ac === null) throw new Error('Game.Combat.foeHit：未启用部位机制（`mechanics()` 为 null）⇒ 敌人攻击不落部位（#705）');
+		const atk = def.attack ?? {};
+		if (typeof atk.bonus !== 'number') throw new Error(`Game.Combat.foeHit：敌人「${id}」的 \`attack.bonus\` 必须是数字（拿到 ${JSON.stringify(atk.bonus)}，#702）`);
+		const parts = Array.isArray(atk.parts) && atk.parts.length ? atk.parts : (this.slotsDecl()?.hitLocations ?? []);
+		if (!parts.length) throw new Error(`Game.Combat.foeHit：敌人「${id}」没有可落部位（\`attack.parts\` 空且没有 \`hitLocations\`，#705）`);
+		const { roll, rolls } = window.Game.Rules.roll(adv);
+		const total = roll + atk.bonus;
+		const crit = roll === 20, fumble = roll === 1;
+		const hit = crit || (!fumble && total >= ac);
+		const part = parts[Math.min(parts.length - 1, window.Game.Rules.rng.d(parts.length) - 1)];
+		const raw = hit ? this.rollDice(atk.dmg) * (crit ? 2 : 1) : 0;
+		const absorb = hit ? this.slotAbsorbAt(pc, part, raw) : null;
+		return { foe: id, roll, rolls, bonus: atk.bonus, total, ac, hit, crit, part, raw, absorb };
+	},
+	/** 记一次「本回合的命中/成败」；返回推进后的相位：`continue`／`advance`（增援）／`cleared`／`failed`。 */
+	waveRecord(pc, success) {
+		const w = pc?.ev?.fight?.wave;
+		if (!w) throw new Error('Game.Combat.waveRecord：尚未 `waveBegin`（没有波次状态）——调用方先开局（#488）');
+		const plan = this.wavePlan(w.encounter);
+		w.rounds += 1;
+		// `#705` 片二（`#702` a2）：声明了本波的 `enemies` → 通关判据＝**敌人全灭**（`hits` 退场，见判据⑦）；
+		// 未声明 → 逐字节走旧的二元口径 → 故事 1 不受影响（`fight-seq` 基线不变）。
+		if (Array.isArray(w.foes)) {                       // `#705` 片二：**实例在场**才算敌人模式（声明只说"能开"）
+			if ((w.foes ?? []).length === 0) {
+				if (w.idx >= plan.waves.length) return { phase: 'cleared', plan, wave: w, advance: false };
+				w.idx += 1; w.hits = 0; w.rounds = 0;
+				this.foeSpawn(pc, w.idx - 1);                      // 增援：新一批**实例化**（HP 满）
+				return { phase: 'advance', plan, wave: w, advance: true, pool: plan.waves[w.idx - 1].pool };
+			}
+			if (w.rounds >= plan.rounds) return { phase: 'failed', plan, wave: w, advance: false };
+			return { phase: 'continue', plan, wave: w, advance: false };
+		}
+		if (success) w.hits += 1;
+		if (w.hits >= plan.hits) {
+			if (w.idx >= plan.waves.length) return { phase: 'cleared', plan, wave: w, advance: false };
+			w.idx += 1; w.hits = 0; w.rounds = 0;                  // **增援**：清完一批才进下一批，且下一批各自重置计数
+			return { phase: 'advance', plan, wave: w, advance: true, pool: plan.waves[w.idx - 1].pool };
+		}
+		if (w.rounds >= plan.rounds) return { phase: 'failed', plan, wave: w, advance: false };
+		return { phase: 'continue', plan, wave: w, advance: false };
+	},
+	/** 奖励曲线：难度越高奖励越大（**单调**可机检）——只给倍数，具体金币/道具属内容面（S5）。 */
+	waveRewardScale(id, waveIdx = 1) {
+		const plan = this.wavePlan(id);
+		if (!plan) return null;
+		const wv = plan.waves[Math.min(plan.waves.length - 1, Math.max(0, waveIdx - 1))];
+		return plan.rewardsScale * wv.difficulty;                    // 线性：同一遭遇内随难度严格递增
+	},
+	/** 遭遇奖励的**归一化形状**（`#600`）：`reward = { gold, item}`，`item` 允许 `'道具'`（＝必掉）或 `{ id, chance}`。
+	 * 为什么要有这个面：掉落规则以前只活在散文里（内容里各拄一遍 "读 reward.gold"），表里的声明与行为对不上也没人看得见。
+	 * → 现在**声明是单一权威**：内容只渲染、门按它判、掉落按它掷。
+	 * 结构问题 **fail-loud**（未登记的道具属故事面，由 `--waves` 对账；这里只管形状），因为静默当"不掉"正是本仓反复踩的那类。 */
+	/** 参数：
+	 * @param {string} id 遭遇 id
+	 * @returns {{ gold: number, item: { id: string, chance: number} | null}}
+	 */
+	encounterReward(id) {
+		const enc = this.slotsDecl()?.encounters?.[id];
+		if (!enc) return { gold: 0, item: null };
+		const r = enc.reward ?? {};
+		const gold = typeof r.gold === 'number' && r.gold > 0 ? r.gold : 0;
+		let item = null;
+		if (r.item != null) {
+			const o = typeof r.item === 'string' ? { id: r.item, chance: 100 } : r.item;
+			if (typeof o?.id !== 'string' || !o.id) throw new Error(`Game.Combat.encounterReward：encounters.${id}.reward.item 必须是道具名或 { id, chance }（拿到 ${JSON.stringify(r.item)}）——结构畸形必须报错（#600）`);
+			const chance = o.chance ?? 100;
+			if (!(typeof chance === 'number' && chance >= 1 && chance <= 100)) throw new Error(`Game.Combat.encounterReward：encounters.${id}.reward.item.chance 必须在 1..100（拿到 ${JSON.stringify(o.chance)}）——结构畸形必须报错（#600）`);
+			item = { id: o.id, chance };
+		}
+		return { gold, item };
+	},
+	/** 遭遇的**失败笔记**（`#608`）：声明面 `encounters[id].failNote`（内容面数据），未声明 → `null`。
+	 * 与 `encounterReward` 同族：**机制住引擎、数据住故事**——短战斗 widget 落败时按它写笔记。 */
+	encounterFailNote(id) {
+		const enc = this.slotsDecl()?.encounters?.[id];
+		const n = enc?.failNote;
+		if (n == null) return null;
+		if (typeof n !== 'string' || !n) throw new Error(`Game.Combat.encounterFailNote：encounters.${id}.failNote 必须是非空字符串（拿到 ${JSON.stringify(n)}）——结构畸形必须报错（#608）`);
+		return n;
+	},
+	/** 结算一次遭遇奖励：落金币 ＋ 按 `chance` 掷掉落（写 `pc.inv`）。**返回本次真的给了什么**（文案按返回值渲染）。
+	 * · `rng` 可注入（测试用）；默认走 `Game.Rules.rng.d(100)`（受 `?seed=` 影响 → 可复算）。
+	 * · 幂等：道具是 `pc.inv[id] = true`（重复给不报错，与 `<<give>>` 同口径）；金币按次累加。
+	 * · 单一落点：内容不许再自己读 `reward.gold`／自己掷骰（`--waves` 有"声明 ↔ 内容对账"断言）。 */
+	grantReward(pc, id, { rng } = {}) {
+		const { gold, item } = this.encounterReward(id);
+		if (gold > 0) pc.gold = (pc.gold ?? 0) + gold;
+		let got = null;
+		if (item) {
+			const roll = rng ? rng(1, 100) : window.Game.Rules.rng.d(100);
+			if (roll <= item.chance) { pc.inv = pc.inv ?? {}; pc.inv[item.id] = true; got = item.id; }
+		}
+		return { gold, item: got };
+	},
+	/** 全灭判定（已定 ⑧：`reset` 只在**全灭**时触发；单步失败＝**带伤继续**）。 */
+	runOver(pc) { return (pc?.hp ?? 1) <= 0; },
+	/** 失败重置（已定 ⑧）：回出生点 ＋ **道具清零** ＋ 耐久/异常一并清；**保留**笔记/图鉴/已解锁。
+	 * 返回被重置的字段清单（供门/UI 逐条核销）——`RESET_KEEPS` 是「**不清什么**」的显式声明。 */
+	resetRun(pc) {
+		const before = {
+			inv: Object.keys(pc?.inv ?? {}).length,
+			gearHp: Object.keys(pc?.gearHp ?? {}).length,
+			statuses: Object.keys(pc?.statuses ?? {}).length,
+		};
+		pc.inv = {};
+		pc.gearHp = {};
+		pc.statuses = {};
+		pc.hp = pc.max_hp ?? pc.hp;
+		if (pc.ev) pc.ev.fight = null;                     // 瞬态战斗状态整块清（“回出生点”语义）
+		return { reset: ['inv', 'gearHp', 'statuses', 'hp', 'ev.fight'], before, keeps: [...Game.Combat.RESET_KEEPS] };
+	},
+	/**「**不清什么**」的显式声明（已定 ⑧）：清单本身就是判据面——门会逐项断言它们不受 `resetRun` 影响。 */
+	RESET_KEEPS: ['ev', 'soc', 'star', 'dragon', 'world', 'Sg.notes', 'Sg.Codex', 'Sg.store'],
+	pick(actionId, res) {
+		const a = window.Sg.story.combatAction(actionId);
+		const kind = res?.roll === 20 ? 'crit' : res?.success ? 'ok' : 'bad';
+		return { kind, eff: a[kind] ?? {} };
+	},
+	playerEff(actionId, res, pc) {
+		const r = window.Game.Combat.pick(actionId, res);
+		const bonus = window.Game.Gear.damageBonus(pc?.gear);
+		if (bonus && r.eff.dmg) {
+			r.eff = { ...r.eff, dmg: r.eff.dmg + bonus };
+			r.gearBonus = bonus;
+		}
+		// #250：好档升级（好哨＝原版玩具哨／持卷跟读）——克隆合并，不动动作表单源
+		const g = window.Sg.story.combatAction(actionId)?.good;
+		if (g && (!g.need || (g.need.startsWith('inv:') ? !!pc?.inv?.[g.need.slice(4)] : true))) {
+			r.eff = {
+				...r.eff,
+				dmg: r.eff.dmg ? r.eff.dmg + (g.dmg ?? 0) : r.eff.dmg,
+				skipFoe: g.skipFoe || r.eff.skipFoe,
+			};
+			r.goodNote = g.note;
+		}
+		return r;
+	},
+	applyEffect(pc, eff, fight) {
+		const F = this.foeState(pc);                                   // `#493`：经接缝（不再写死 pc.dragon）
+		if (eff.dmg) F.hp = Math.max(0, (F.hp ?? 0) - eff.dmg);
+		if (eff.adv) fight.adv = (fight.adv ?? 0) + eff.adv;
+		if (eff.guard) fight.guard = (fight.guard ?? 0) + eff.guard;
+		if (eff.skipFoe) fight.skipFoe = true;
+		if (eff.flee) fight.flee = true;
+		if (eff.venom) F.venom = true;
+		if (eff.flag) pc.ev[eff.flag] = true;
+	},
+});

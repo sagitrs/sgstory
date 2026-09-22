@@ -82,7 +82,18 @@ export const ORDER = [
 	'stories/face-fixture/13-codex.twee',     // 夹具的图鉴面（`Sg.Codex`：故事面，形状照被删的 `mist-forest/72-codex-ui.twee` ✓）
 	'stories/face-fixture/17-rules.twee',     // 夹具条件表（生成物）：`rows` 非空 ⇒ 条件表面
 	'stories/face-fixture/16-notes-ch1.twee', // 夹具 notes 面（生成物）：`Game.Notes.entries` 增量
-	'stories/night-ferry/10-ferry.twee',     // 第四个故事段落：渡口 → 河心 → 对岸（两条路线各 6 步、两个结局）
+	// `#1132` 片 3：夜渡 11 段叙事迁 md（**原段序** ✓ 逐字无损 ✓；`00-meta.twee` **不动** ⇒ 等片 B 同闸同批 ✓）
+	'stories/night-ferry/passages/01-渡口.md',
+	'stories/night-ferry/passages/02-付钱.md',
+	'stories/night-ferry/passages/03-撑篙.md',
+	'stories/night-ferry/passages/04-船头.md',
+	'stories/night-ferry/passages/05-河心.md',
+	'stories/night-ferry/passages/06-举灯.md',
+	'stories/night-ferry/passages/07-等浪.md',
+	'stories/night-ferry/passages/08-靠岸.md',
+	'stories/night-ferry/passages/09-翻船.md',
+	'stories/night-ferry/passages/10-结局 抵岸.md',
+	'stories/night-ferry/passages/11-结局 沉船.md',
 	'stories/night-ferry/17-rules.twee',     // 条件表（生成物）：行数组，选择器在引擎侧
 	'src/80-script.twee',    // 存档 API / Sg.notes / Sg.Ending ＋ 渲染后处理（**引擎层**，`#574` 修正 layer）
 	'src/engine/50-present/12-shortfight.twee',   // 短战斗 widget（#608：从故事侧上移）
@@ -105,7 +116,18 @@ export const MODULES = {
 	// ⚠️ `#1004` B2：**引擎件**的依赖条目不许随故事删 ✗（它只是 `deps` 里引用过故事表 ✓ ⇒ 改 deps，**不删条目** ✗）——
 	//   否则 ORDER 里还有它、依赖表里没有 ⇒ `move-precheck` 的 `[missing-modules]` 当场红 ✓（实测：B2a 一版就踩了这个 ✓）。
 	'src/engine/40-sim/21-resolve.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'engine', note: '结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）' },
-	'stories/night-ferry/10-ferry.twee': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落：渡口 → 河心 → 对岸，两条路线各 6 步、两个「结局…」段落' },
+	// `#1132` 片 3：夜渡 11 段迁 md ⇒ 依赖表逐件登记（同一条依赖 ✓ 原段序 ✓）
+	'stories/night-ferry/passages/01-渡口.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 1/11）' },
+	'stories/night-ferry/passages/02-付钱.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 2/11）' },
+	'stories/night-ferry/passages/03-撑篙.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 3/11）' },
+	'stories/night-ferry/passages/04-船头.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 4/11）' },
+	'stories/night-ferry/passages/05-河心.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 5/11）' },
+	'stories/night-ferry/passages/06-举灯.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 6/11）' },
+	'stories/night-ferry/passages/07-等浪.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 7/11）' },
+	'stories/night-ferry/passages/08-靠岸.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 8/11）' },
+	'stories/night-ferry/passages/09-翻船.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 9/11）' },
+	'stories/night-ferry/passages/10-结局 抵岸.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 10/11）' },
+	'stories/night-ferry/passages/11-结局 沉船.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 11/11）' },
 	'stories/night-ferry/17-rules.twee': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '条件表（生成物）：行数组，选择器在引擎侧' },
 	// ── 面夹具（`face-fixture`，`#1004` B2b）：**测试夹具（非内容故事）** ✓ ──
 	//   它把接入契约的每种面声明一次，供测试当输入（段名沿用旧故事只因消费者钉死了它们 ✓；正文全部新写 ✗）。

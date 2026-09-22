@@ -176,7 +176,11 @@ export const ruleRowKeys = (row, entries) => {
 // 它跑在**散文**上（`--text` 的"总字"），而散文里有 `''强调''`／单个撇号；词法器的"未闭合字符串剥到行尾"
 // 会把散文吃掉（实测 −1 字 → golden 漂移）。散文面用启发式、代码面用词法器，**这是有意的分工**。
 // 真正需要词法器的是**写点/读点提取**（`writeKeys`／`qualifiedWriteKeys`／`readKeys`／D2 的 `stripped`）——见上。
-export const stripJsComments = (text) => String(text)
+// `#1208`：**散文面专用**启发式（原名 `stripJsComments`，名不副实 → 改名 —— 它同时被代码面调用过，
+// 而代码面的正解是 `./mask.mjs` 的单次词法扫描；一个句柄服务两种输入面正是 `#1206` 那类假阴性的温床）。
+//注意：**不要**拿它扫代码：`//` 行里含 `/*` 时它会吞掉夹在中间的真代码（充要条件见 `test/comment-mask.mjs`）。
+// 为什么散文面仍用它：词法器的"未闭合引号"分支会把散文吃掉（实测总字 −1 → 金标漂移）。
+export const stripProseComments = (text) => String(text)
 	.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
 	.replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + ' '.repeat(m.length - p1.length));
 

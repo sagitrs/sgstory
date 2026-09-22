@@ -31,6 +31,22 @@
 /** @type {{id:string,tier:'fast'|'full',pre:string[],cmd:string,rebuild?:string, // `#1012`：变异后重建产物（还原之后跑，失败即红）
 mutation:{file:string,find:string,replace:string},expect:{rc:number,stdout:RegExp},why:string}[]} */
 export const PROBES = [
+	// `#1208`：量的是「代码面**真的**用的是词法器」那一支在守 —— 刀＝把 `state.mjs` 的代码面调用点
+	// 换回散文启发式（这正是分面要防的"拿启发式扫代码"）→ 分面接线格必须点名。
+	//注意：不需要 `rebuild`（被测面是门读源码时的接线，不编译进产物）。
+	{
+		id: 'test/comment-face-split.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/comment-face-split.mjs',
+		mutation: {
+			file: 'scripts/audit/gates/state.mjs',
+			find: "sources[f] = maskComments(readFileSync(f, 'utf8'));",
+			replace: "sources[f] = stripProseComments(readFileSync(f, 'utf8'));   // 探针：拿散文启发式扫代码",
+		},
+		expect: { rc: 1, stdout: /不把散文启发式拿来扫代码|用 maskComments/ },
+		why: '量的是「按输入面分派实现」那一支真的在守（把代码面改回散文启发式 ⇒ 接线格当场点名 ✓）。',
+	},
 	{
 		// 台账行：`test/state-diagnose.mjs`（34 条断言，是本仓"能假"写得最足的一件）
 		id: 'test/state-diagnose.mjs',

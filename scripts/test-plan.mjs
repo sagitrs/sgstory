@@ -135,7 +135,8 @@ export const SEGMENTS = [
 	{ id: "scripts-audit-mjs-text-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --text --check" },
 	{ id: "scripts-audit-mjs-state-check", phase: 'test', cost: 0.1, cmd: "node scripts/audit.mjs --state --check" },
 	{ id: "scripts-audit-mjs-literals-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --literals --check" },
-	{ id: "test-rules-mjs", phase: 'test', cost: 1.6, cmd: "node test/rules.mjs" },
+	{ id: "test-rules-mjs", phase: 'test', cost: 1.6, inputs: ['*'],   // `#1132` B3：读构建产物 ＋ 故事数据（契约成员、车卡数据、图鉴条目）
+		cmd: "node test/rules.mjs" },
 	{ id: "test-properties-mjs", phase: 'test', cost: 5.6, cmd: "node test/properties.mjs" },
 	{ id: "test-invariants-unit-mjs", phase: 'test', cost: 0, cmd: "node test/invariants.unit.mjs" },
 	{ id: "test-render-all-mjs", phase: 'test', cost: 8.9, cmd: "node test/render-all.mjs" },

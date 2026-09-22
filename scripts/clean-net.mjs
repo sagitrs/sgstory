@@ -28,6 +28,7 @@ export const WHITELIST = [
 	'stories/face-fixture/15-tables.twee',    // 由 data/tables.json 生成 ✓
 	'stories/face-fixture/16-notes-ch1.twee',
 	'stories/face-fixture/17-rules.twee',
+	'stories/face-fixture/18-chargen.twee',  // 由 data/chargen.json 生成（`#1132` B3 车卡数据面）
 	'stories/minimal-demo/15-tables.twee',
 	'stories/night-ferry/15-tables.twee',
 	'stories/night-ferry/17-rules.twee',

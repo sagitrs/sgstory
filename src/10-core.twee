@@ -384,6 +384,52 @@ Macro.add('dragonbar', {
 	},
 });
 
+// `#1132` 块2 S1：**快速成型的一次点击**（`pickPreset`）——
+//   `<<pickPreset "目标段名" $i>>` ⇒ 写 `$pc.presetIdx` ＋ 跳到目标段 ✓
+//   ⚠️ 目标段名由**调用点**给 ⇒ 引擎里**零故事 slug** ✓（不写"车卡·成型"之类 ✓）
+//   ⚠️ `$i` 用 **SugarCube 局部量**（如 `_i`）⇒ 实测定论（T 席）：`this.args[n]` 取到的是**求值后的值** ✓
+//      ⇒ 若调用点忘了 `<<capture>>`／没设该量 ⇒ 拿到 `undefined` ⇒ 必须**大声报** ✗（不许静默跑 ✓）
+Macro.add('pickPreset', {
+	handler() {
+		const dest = String(this.args[0] ?? '');
+		const raw = this.args[1];
+		const missing = dest === '' || raw === undefined || raw === null || raw === '';
+		if (missing) {
+			throw new Error('<<pickPreset>> 用法：<<pickPreset "目标段名" 序号>> —— 本次拿到 目标段名=['
+				+ dest + ']／序号=[' + String(raw) + ']（序号未设 ⇒ 调用点没 capture 局部量 ⇒ 会静默跑错 ✗）');
+		}
+		const n = Number(raw);   // `#1132` S1 加固①：调用点可能传文本 ⇒ `Number('abc')` = NaN ⇒ **静默烂值** ✗
+		if (!Number.isFinite(n)) {
+			throw new Error('<<pickPreset>> 序号=[' + String(raw) + '] 非数字 ⇒ 会写进烂值（后续 `presets[NaN]` 才炸且报文不知所云 ✗）');
+		}
+		State.variables.pc.presetIdx = n;
+		$(this.output).wiki('<<goto ' + JSON.stringify(dest) + '>>');
+	},
+});
+
+// `#1132` 块2 S1：**快速成型一次完成**（`applyQuickPreset`）——
+//   语义＝故事侧原「快速成型」段的四行：`applyPreset($pc.presetIdx ?? 0)` ⇒ `mode='quick'`
+//     ⇒ `<<if !$pc.finalized>>` 时 `finalize` ＋ 置 `finalized` ⇒（S2 起）`$pc.name` 取预设数据 `pcName` ✓
+//   ⚠️ S1 只做**结构**（委托既有 `Game.Chargen` 方法 ✓）⇒ **行为与本步之前逐字相同** ✓
+//      `pcName` 的读取与声明式施加器在 **S2** 落（那时数据才进 json ✓）；删旧 JS 前的**等价读数**也在 S2 取 ✓
+//   ⚠️ 加固点 2 **未采** ✗（`State.variables.pc` 未初始化 ⇒ 靠 `StoryInit` 由引擎保证先行 ⇒ 窗口不存在 ✓）
+//      若将来真发现装载序窗口 ⇒ 这里加一句点名报即可（一行的代价 ✓）
+Macro.add('applyQuickPreset', {
+	handler() {
+		const Ch = window.Game?.Chargen;
+		const pc = State.variables.pc;
+		if (!Ch || typeof Ch.applyPreset !== 'function') {
+			throw new Error('<<applyQuickPreset>> 前置缺失：故事的 `Game.Chargen` 未接入（本宏需要其 applyPreset／finalize ✓）');
+		}
+		Ch.applyPreset(pc.presetIdx ?? 0);
+		pc.mode = 'quick';
+		if (!pc.finalized) {
+			Ch.finalize(pc);
+			pc.finalized = true;
+		}
+	},
+});
+
 :: StoryInit
 /% 全局状态初始化（**形状**单一源见 `Game.Pc.defaults`；**数值**来自 `Sg.story.pcDefaults()`，见 `#660` 片三-3） %/
 <<set $player_name to "">>

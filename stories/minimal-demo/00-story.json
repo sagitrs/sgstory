@@ -7,7 +7,11 @@
 	"audience": "internal",
 	"files": [
 		"stories/minimal-demo/00-meta.twee",
-		"stories/minimal-demo/10-demo.twee",
+		"stories/minimal-demo/passages/01-开场.md",
+		"stories/minimal-demo/passages/02-岔路.md",
+		"stories/minimal-demo/passages/03-左路.md",
+		"stories/minimal-demo/passages/04-右路.md",
+		"stories/minimal-demo/passages/05-图鉴.md",
 		"stories/minimal-demo/15-tables.twee"
 	],
 	"gates": []

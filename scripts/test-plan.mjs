@@ -168,6 +168,7 @@ export const SEGMENTS = [
 	{ id: "scripts-lint-human-face-mjs-selftest", phase: 'test', cost: 0.4, inputs: ['*'], cmd: "node scripts/lint-human-face.mjs --selftest" },
 	{ id: "scripts-lint-human-face-mjs-check", phase: 'test', cost: 0.4, inputs: ['*'], cmd: "node scripts/lint-human-face.mjs" },
 	{ id: "test-npm-entries-guard-mjs", phase: 'test', cost: 0.4, inputs: ['*'], cmd: "node test/npm-entries-guard.mjs" },   // `#1200`：npm 入口差集护栏的判据面（端到端能红 + 接线）
+	{ id: "test-pc-base-mjs", phase: 'test', cost: 0.3, inputs: ['*'], cmd: "node test/pc-base.mjs" },   // `#1186`：角色状态基础面判据（基础面清单／零玩法概念／默认值来源）
 
 	{ id: "test-g3-evidence-mjs", phase: 'test', cost: 15.7, cmd: "node test/g3-evidence.mjs" },
 	{ id: "test-fight-seq-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-seq.mjs --selftest" },
@@ -481,6 +482,7 @@ export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs', 'scripts-audit
 	'test-serve-editor-mjs-selftest', 'test-serve-editor-mjs', // `#1033`：编辑器入口（与故事内容无关）
 	'test-story-runtime-mjs-selftest', 'test-story-runtime-mjs',
 	'test-layering-mjs-selftest', 'test-layering-mjs', 'test-globals-mjs', 'test-silent-gate-mjs',
+	'test-pc-base-mjs',   // `#1186`：角色状态基础面判据（与故事内容无关）
 	'test-comment-face-split-mjs',   // `#1208`：剥注分面接线（与故事内容无关）
 	'test-comment-mask-mjs',   // `#1206`：剥注权威的能红格（与故事内容无关）
 	'test-npm-entries-guard-mjs',   // `#1200`：npm 入口差集护栏判据（与故事内容无关）
@@ -596,7 +598,7 @@ export const SUITE_MEMBERS = {
 		'test-saveload-mjs', 'test-saveui-mjs', 'test-combat-adv-mjs', 'test-combat-adv-mjs-selftest',
 		'test-fight-seq-mjs', 'test-fight-seq-mjs-selftest', 'test-reread-mjs', 'test-reread-mjs-selftest',
 		'test-fatal-guard-mjs', 'test-onetime-pickups-mjs', 'test-roll-binding-mjs', 'test-scenarios-mjs',
-		'test-scenarios-mjs-selftest', 'test-silent-gate-mjs', 'test-comment-face-split-mjs', 'test-comment-mask-mjs', 'test-dialect-mjs', 'test-contract-version-mjs', 'test-npm-entries-guard-mjs',
+		'test-scenarios-mjs-selftest', 'test-silent-gate-mjs', 'test-comment-face-split-mjs', 'test-comment-mask-mjs', 'test-dialect-mjs', 'test-contract-version-mjs', 'test-npm-entries-guard-mjs', 'test-pc-base-mjs',
 		'test-contract-compat-mjs', 'test-pc-defaults-mjs', 'test-social-sink-mjs', 'test-social-sink-mjs-selftest',
 		'test-social-lever-mjs', 'test-siteinfo-sink-mjs', 'test-siteinfo-sink-mjs-selftest', 'test-event-graph-mjs',
 		'test-event-graph-mjs-selftest', 'scripts-audit-mjs-consequences-check', 'scripts-audit-mjs-a11y-check', 'scripts-audit-mjs-sitedisc-check',
@@ -739,6 +741,9 @@ export const INPUTS_WILDCARD_REASONS = {
 	'test-npm-entries-guard-mjs': {
 		reason: '本件端到端跑护栏，而护栏扫描全仓文档与代码里的 `npm run` 引用（跨 docs／scripts／test／.github，且是动态遍历）=> 依赖面跨目录且静态抽面锚不到，取全跑型以免静默跳过成假绿面',
 		voucher: '#1200',
+	'test-pc-base-mjs': {
+		reason: '读三故事契约与角色状态（跨 stories，且路径由清单给出）=> 依赖面跨目录且静态抽面锚不到，取全跑型以免静默跳过成假绿面',
+		voucher: '#1186',
 	},
 	'test-generated-family-mjs': {
 		reason: '读生成物家族成员与它们声明的源（跨 stories 与 data 面）=> 依赖面跨目录 ⇒ 取全跑型以免静默跳过成假绿面',

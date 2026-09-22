@@ -31,6 +31,24 @@
 /** @type {{id:string,tier:'fast'|'full',pre:string[],cmd:string,rebuild?:string, // `#1012`：变异后重建产物（还原之后跑，失败即红）
 mutation:{file:string,find:string,replace:string},expect:{rc:number,stdout:RegExp},why:string}[]} */
 export const PROBES = [
+	// `#1186`：量的是「未声明模块的故事零玩法概念」那一支 —— 刀＝把战斗组的在场门从"按契约面"改成
+	// "恒在场"（即让 `dragon` 无条件出现）→ 第二格必须点名。
+	// 不需要 `rebuild`：被测面是引擎那段的门与状态形状。
+	{
+		id: 'test/pc-base.mjs',
+		tier: 'fast',
+		// 本判据读**构建产物**（`boot` 起真产物）→ 与 `test/social-lever.mjs` 那条同形：`pre` 建基线、`rebuild` 在变异后重编。
+		pre: ['node build.mjs >/dev/null'],
+		rebuild: 'node build.mjs >/dev/null',
+		cmd: 'node test/pc-base.mjs',
+		mutation: {
+			file: 'src/10-core.twee',
+			find: "\t\tif (window.Sg?.story?.hasChargen?.() === true) {",
+			replace: "\t\tif (true) {   // 探针：车卡族改回无条件（无车卡的故事应零玩法概念，此时必红）",
+		},
+		expect: { rc: 1, stdout: /零玩法概念|未声明/ },
+		why: '量的是「玩法状态随模块走」那一支（改回无条件 ⇒ 第二格当场点名）。',
+	},
 	// `#1208`：量的是「代码面**真的**用的是词法器」那一支在守 —— 刀＝把 `state.mjs` 的代码面调用点
 	// 换回散文启发式（这正是分面要防的"拿启发式扫代码"）→ 分面接线格必须点名。
 	//注意：不需要 `rebuild`（被测面是门读源码时的接线，不编译进产物）。

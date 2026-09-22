@@ -35,7 +35,7 @@
 | `lookup` | `from`, `key` | 查表：`{from, key, default?, optional?, required?, error?}` |
 | `lookup-field` | `from`/`via`, `key`, `field`, `fallback?`, `required?` | 取字段 ＋ 兜底 |
 | `bool-exists` | `path` | `!!window.X` |
-| `state-ref` | `path`, `default?` | `pc?.<path> ?? default` |
+| `state-ref` | `path`, `default?` | `pc?.<path>?? default` |
 | `forward` | — | 转发到引擎侧实现（`face-fixture` 的 `battleDamage` 在用） |
 | `template` | — | 模板发射（**编译器有、故事未用**） |
 
@@ -51,11 +51,11 @@
 | **可选缺省** | 明确的 `null`／`[]`（"没有捷径"是合法状态） |
 | **文案缺失** | **兜底**（那是 `copy()` 的事，不是这里的） |
 
-⇒ **三类不许合成一个 `?? {}`**。
+→ **三类不许合成一个 `?? {}`**。
 
 ## 5. 实况样本（**节选**——完整成员以真件为准）
 
-> ⚠️ 下列为**节选示例**，不是可照抄的最小集：真实故事 `night-ferry`／`minimal-demo` 的完整契约各 **14** 个成员（复算：`python3 -c "import json;print(len(json.load(open('stories/minimal-demo/data/contract.json'))['members']))"`），缺 `notes`／`pcDefaults`／`checkSite` 等会撞 `Sg.story.*` 的「结构缺失 ⇒ 报错」纪律。写新故事 ⇒ 完整摘录一份现有故事的 `contract.json` 起步，别按本节选拼。
+>注意：下列为**节选示例**，不是可照抄的最小集：真实故事 `night-ferry`／`minimal-demo` 的完整契约各 **14** 个成员（复算：`python3 -c "import json;print(len(json.load(open('stories/minimal-demo/data/contract.json'))['members']))"`），缺 `notes`／`pcDefaults`／`checkSite` 等会撞 `Sg.story.*` 的「结构缺失 → 报错」纪律。写新故事 → 完整摘录一份现有故事的 `contract.json` 起步，别按本节选拼。
 
 ```jsonc
 { "name": "rules",      "kind": "empty-array",  "docs": "条件表：空表（合法）" }
@@ -71,6 +71,6 @@
 
 ## 6. 手写注意
 
-- **新故事照最小合法集写**（本故事不新增面 ⇒ 不新增登记）；有面才登记。
+- **新故事照最小合法集写**（本故事不新增面 → 不新增登记）；有面才登记。
 - **`null` 与 `empty-*` 语义不同**：`null` ＝"这一面不存在，调用方跳过"；`empty-*` ＝"这一面存在且为空" —— 混用会让调用方的分支写错。
 - 契约的**成员集合**就是 `{{名字}}`（正文取值）的**候选声明面**（见 `decisions.md` 的 **P2**，**待裁**）。

@@ -41,7 +41,7 @@
 |---|---|---|---|
 | `docs/dev-conventions.md` | 738 | 权威 |
 | `docs/dev-conventions-cases.md` | — | 案例集 | §17 证伪清单的案例与沿革（`#1080` 外移；**非必读面**，按条号检索） | 14 条代码级约定，每条都配"会咬人的门" |
-| `docs/baselines.md` | 429 | **生成物** | `npm run report:rhythm`；★待收：一份文件里 7 个 h1（`#606`）；**随样本漂移（含故事 1 读数，`#1077` 降级标注）** |
+| `docs/baselines.md` | 429 | **生成物** | `npm run report:rhythm`； 待收：一份文件里 7 个 h1（`#606`）；**随样本漂移（含故事 1 读数，`#1077` 降级标注）** |
 | `docs/story2-contracts.md` | 274 | 权威 | 故事 2/3 的接入契约清单 |
 | `docs/quality-dimensions.md` | 273 | 权威 | 维度总表 ＋ 候选池 ＋ 给测试的作业模板 |
 | `docs/notes-model.md` | 217 | 权威 | 三类划分 ＋ 判定口诀 ＋ 迁移五步 |
@@ -54,9 +54,9 @@
 | `docs/repo-map.md` | 84 | 地图 | 目录结构 ＋ 层归属 ＋ 权威落点速查 |
 | `docs/ui-coverage-gaps.md` | 75 | 口径 | 覆盖与未覆盖的判定口径 |
 | `docs/click-time-writes-design.md` | 96 | 设计稿·待评审 | 点击态写侧能否进表（`#624` 普查后的形状；含片一/片二与未决项） |
-| `docs/editor-flip-playbook.md` | 97 | 手册（`#787`） | **翻面七步**：冻基线 ⇒ 门重指向 ⇒ 产物 ⇒ 双向反例 ⇒ 重签 ⇒ 合入；含六个已踩的坑与三条纪律 |
-| `docs/superpowers/specs/editor-pivot.md` | 146 | **设计稿**（伞 `#761`） | 编辑器转向：故事数据化 ⇒ 编译 ⇒ 校验 ⇒ 发布（schema v0 · 编译器边界 · 等价判据三级 · 分期与不变量 K1–K5） |
-| `docs/benchmark-ledger.md` | 55 | 台账 | ★待收：目前**没有其它文档引用它**（`#606`） |
+| `docs/editor-flip-playbook.md` | 97 | 手册（`#787`） | **翻面七步**：冻基线 → 门重指向 → 产物 → 双向反例 → 重签 → 合入；含六个已踩的坑与三条纪律 |
+| `docs/superpowers/specs/editor-pivot.md` | 146 | **设计稿**（伞 `#761`） | 编辑器转向：故事数据化 → 编译 → 校验 → 发布（schema v0 · 编译器边界 · 等价判据三级 · 分期与不变量 K1–K5） |
+| `docs/benchmark-ledger.md` | 55 | 台账 | 待收：目前**没有其它文档引用它**（`#606`） |
 | `docs/reviews/visual-review-2026-09-10.md` | 47 | 存档 | 2026-09-10 视觉走查 |
 | `docs/twee-cheatsheet.md` | 41 | 速查 | 本仓在用的 Twee 语法 ＋ 自定义词汇宏 |
 | `docs/reviews/text-review-2026-09-10.md` | 41 | 存档 | 文本走查（另一份 `…after-rebase…` 是重基后的复跑） |
@@ -80,7 +80,7 @@
 
 - **生成物不要手改**：`docs/baselines.md`（`report:rhythm`）· `docs/gate-ledger.md`（`report:gates:update`）· `docs/ui-migration-diff.md`。
 - **状态标记必须是真的**：文档里 `#NNN`／PR 号旁边的 ✅／⏳ 要与 GitHub 真实状态同类 —— `npm run report:freshness`（`docs/dev-conventions.md` F6 节）。
-- **文档格式有门**：`node scripts/md-format.mjs` —— ① 每个 `*.md` 的围栏必须成对、标题不许落在代码块里（`#603`；`README.md` 曾因一个多余的围栏让四个标题被吞）；② **反引号里的仓内路径必须存在**（`#606` 片一；`src/*.twee` 搬家后曾有 11 处引用未更新，已修）；③ **入口页体量 ratchet**：`README.md` ≤ 120 行（防它再长回 godfile）；④ **残留冲突标记必红**（`#1084`）：行首带尾随内容的 `<<<<<<< `/`>>>>>>> ` ⇒ 红并点名（解 rebase/merge 冲突没删净——实测游离 `>>>>>>>` 进过 commit 而三门全绿）；裸 `=======` 是合法 Markdown（setext／分隔线）不单独判，只在被夹住时附报。
+- **文档格式有门**：`node scripts/md-format.mjs` —— ① 每个 `*.md` 的围栏必须成对、标题不许落在代码块里（`#603`；`README.md` 曾因一个多余的围栏让四个标题被吞）；② **反引号里的仓内路径必须存在**（`#606` 片一；`src/*.twee` 搬家后曾有 11 处引用未更新，已修）；③ **入口页体量 ratchet**：`README.md` ≤ 120 行（防它再长回 godfile）；④ **残留冲突标记必红**（`#1084`）：行首带尾随内容的 `<<<<<<< `/`>>>>>>> ` → 红并点名（解 rebase/merge 冲突没删净——实测游离 `>>>>>>>` 进过 commit 而三门全绿）；裸 `=======` 是合法 Markdown（setext／分隔线）不单独判，只在被夹住时附报。
 - **要引用已消失的历史路径**：同行写 `<!-- path-exempt: 理由 -->`（门会**留痕打印**豁免，便于收编 —— 别用它掩盖真错误）。
 - **动文档要不要跑全链**：只改文档的 PR 不跑 soak（`docs/dev-conventions.md` §10）。
 - **本页与两个存档目录的分工**：本页管"现役文档 ＋ 两张清单"；`docs/archive/README.md` 管"作废稿与其替代关系"；`docs/reviews/README.md` 管"流程记录（走查/评审）"。

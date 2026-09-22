@@ -58,7 +58,7 @@ window.Sg.storyId = { slug: 'night-ferry' };
 |---|---|---|
 | `StoryTitle` | 故事标题（SugarCube 读） | — |
 | `StoryData` | 编译器元数据 | `ifid` 形态（大写 hex）· `start` ≡ 清单 `entry` |
-| `StoryIdentity` | `Sg.storyId = { slug }` | **必须与清单 `slug` 一致** ⇒ `test/store-keys.mjs` 判红 |
+| `StoryIdentity` | `Sg.storyId = { slug}` | **必须与清单 `slug` 一致** → `test/store-keys.mjs` 判红 |
 
 `StoryIdentity` 带 `[script]` 标签，是**脚本段**，因此在 `#1176` 的段级语法检查面内（实测有牙：往该段注入坏脚本，
 构建退出码 1 并点名段名）。格式三常量（`SugarCube`／`2.37.3`／`zoom: 1`）留在 `metaTwee` 里，**不因故事而异**。

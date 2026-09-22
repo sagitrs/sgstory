@@ -37,9 +37,9 @@
 
 | 动词 | 形 | 语义 |
 |---|---|---|
-| `set` | `{ set: 值 }` | 替换（或整个对象赋值，如 `abilities.set = {…}`） |
-| `add` | `{ add: 数 }` | 数值增量 |
-| `append` | `{ append: […] }` | 数组追加 |
+| `set` | `{ set: 值}` | 替换（或整个对象赋值，如 `abilities.set = {…}`） |
+| `add` | `{ add: 数}` | 数值增量 |
+| `append` | `{ append: […]}` | 数组追加 |
 
 键路径用点号（`abilities.str`／`flags.lore`）；键可以是契约里的状态键。示例：
 

@@ -30,7 +30,7 @@ stories/<slug>/
 **源**：`00-story.json` · `data/*.json`（六件：`tables`／`contract`／`meta` **必填**，`rules`／`notes`／`chargen` 可缺）· `passages/*.md`（＋ `audit.json`／`gates/` 属判据面）；**故事目录里其余的 `.twee` 是产物**。
 注意 **`00-meta.twee` 自 `#1132` B4 起是产物**（源 `data/meta.json`；此前它是唯一的手写 `.twee`），见 §3。
 **这些 `.twee` 都在段落头之后那行带 `@generated` 标记**（即 K4 判据；手改会在下次编译被覆盖）；**例外是手写的 `11-fixture-cards.twee`**（夹具专属，待 `#1177` 收编）。
-**`meta.json` 缺的后果**：构建红。清单 `files` 与 `ORDER` 都列了入口件 `00-meta.twee`，而生成链在缺 `meta.json` 时**不产**该件（实测：移走它再 `npm run build` ⇒ 退出码 1，报 `missing-file`）。
+**`meta.json` 缺的后果**：构建红。清单 `files` 与 `ORDER` 都列了入口件 `00-meta.twee`，而生成链在缺 `meta.json` 时**不产**该件（实测：移走它再 `npm run build` → 退出码 1，报 `missing-file`）。
 
 **散文层已落地**（来源：`#1114` 片 2b-2b／片 3 与 `#1175`）：三故事（`face-fixture`／`night-ferry`／`minimal-demo`）的叙事段**全部**在 `passages/*.md`；拼装由 `build.mjs` 走 `editor/lib/core/passages.mjs` 的单一分派点（`.twee` 与 `.md` 同源）。因此今天手写的"正文"写 `passages/*.md`，**不再写 `.twee`**；也**没有** `10-*.twee` 这种"拼装产物"（叙事段在装配期直接接入，不落中间件）。
 
@@ -61,7 +61,7 @@ stories/<slug>/
 { "section": "StoryRules", "key": "rules", "rows": [] }
 ```
 
-⚠️ `00-meta.twee` **必须带新 IFID**（照抄既有故事会撞；`build.mjs` 的 extwee 只收**大写** hex，小写 ⇒ `Story IFID is invalid!` ⇒ rc=1）。
+注意：`00-meta.twee` **必须带新 IFID**（照抄既有故事会撞；`build.mjs` 的 extwee 只收**大写** hex，小写 → `Story IFID is invalid!` → rc=1）。
 
 ## 四、编译链（谁是源、谁消费）
 
@@ -77,17 +77,17 @@ passages/*.md ──────────────────────
 ```
 
 - 数据面文件名**固定六个**：`tables.json` · `contract.json` · `meta.json`（**必填**）· `rules.json` · `notes.json` · `chargen.json`（**可缺**）。缺 `rules.json`／`notes.json` 时读作 `null`，**不是**静默空对象；缺 `meta.json` 则构建红（见上文）。
-- `notes.json` 是**登记过的 EXTENSION**（`editor/lib/core/contractVersion.mjs` 的 `EXTENSIONS`）：ADD 新面要登记，**改既有面语义 ⇒ `CURRENT + 1`**。
+- `notes.json` 是**登记过的 EXTENSION**（`editor/lib/core/contractVersion.mjs` 的 `EXTENSIONS`）：ADD 新面要登记，**改既有面语义 → `CURRENT + 1`**。
 
 ## 五、校验链（每个文件被谁咬）
 
 | 文件 | 主要闸门 |
 |---|---|
-| `00-story.json` | `build.mjs`（故事件不在清单里 ⇒ 拒；清单里的文件不存在 ⇒ 拒）· `test/store-keys.mjs`（`slug` 与 `00-meta.twee` 的 `Sg.storyId` 一致）· `audience` **fail-loud**（缺字段／取值非法 ⇒ 报错） |
+| `00-story.json` | `build.mjs`（故事件不在清单里 → 拒；清单里的文件不存在 → 拒）· `test/store-keys.mjs`（`slug` 与 `00-meta.twee` 的 `Sg.storyId` 一致）· `audience` **fail-loud**（缺字段／取值非法 → 报错） |
 | `00-meta.twee` | IFID 形态（UUIDv4，大写 hex）· `StoryData.start` ≡ 清单 `entry` |
 | `data/*.json` | 编译器 `section` 必填 · `scripts/audit/lib/story-shape.mjs`（`mechanics` 形状六条）· `scripts/audit/gates/*.mjs`（各容器） |
-| `data/rules.json` | 🔴 **未实现**：`--rules` 开关不存在（实调 ⇒ 未知开关）；键形判据在 `test/cond-keyform.mjs`；死行判定在编辑器 UI（`ruleRows.mjs`）——详见 `reference-spec.md` §3.0 |
-| 正文 | `test/prose-vocabulary.mjs`（禁逻辑宏 · 未宣告宏 ⇒ 红）· `scripts/md-format.mjs`（围栏／路径／表格） |
+| `data/rules.json` | **未实现**：`--rules` 开关不存在（实调 → 未知开关）；键形判据在 `test/cond-keyform.mjs`；死行判定在编辑器 UI（`ruleRows.mjs`）——详见 `reference-spec.md` §3.0 |
+| 正文 | `test/prose-vocabulary.mjs`（禁逻辑宏 · 未宣告宏 → 红）· `scripts/md-format.mjs`（围栏／路径／表格） |
 | `audit.json` | `scripts/audit/lib/story-audit.mjs`（`text` 对象必填） |
 
 ## 六、手写者的三条纪律

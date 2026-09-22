@@ -28,7 +28,7 @@
 ```
 
 **并行度**
-- **B 组四张（#442／#429／#430／#431）各自独占一个新建文件** ⇒ 可同时开工，零冲突；
+- **B 组四张（#442／#429／#430／#431）各自独占一个新建文件** → 可同时开工，零冲突；
 - **必须串行**：#434（动存档语义，同时间一席）→ #435（依赖 #433/#434）→ #437；
 - **横切**：#436 可在阶段 3 期间并行（`scripts/audit/**`、台账、计划）。
 
@@ -36,7 +36,7 @@
 
 ---
 
-## 2. 增量文件机制（#428 ✓ 已合入）
+## 2. 增量文件机制（#428 已合入）
 
 条目按批次放进**独立增量文件**，靠加载顺序在 `Game.Notes` 上追加：
 
@@ -52,12 +52,12 @@ Object.assign((window.Game.Notes ??= { entries: {} }).entries, {
 
 ### 动手前先读（三条实测踩出来的，照抄可省一轮）
 
-1. `[script]` 段里**没有局部 `Game`**（`15-tables` 的 `Game` 在 IIFE 内）⇒ 必须写 **`window.Game`**，并用 `(window.Game.Notes ??= { entries: {} }).entries` 兜底。直接写 `Game` → 全部 audit 门 0.0s 齐红（`ReferenceError: Game is not defined`）。
+1. `[script]` 段里**没有局部 `Game`**（`15-tables` 的 `Game` 在 IIFE 内）→ 必须写 **`window.Game`**，并用 `(window.Game.Notes??= { entries: {}}).entries` 兜底。直接写 `Game` → 全部 audit 门 0.0s 齐红（`ReferenceError: Game is not defined`）。
 2. 时代字段必须 **`window.Game.Era.PRESENT`**——`--literals` 门（#318③）会拦字面量 `'present'`。
 3. 新文件要**同时**进 `scripts/module-order.mjs` 的 `ORDER` 与 `MODULES`，且 **`defines: []`**（只追加键、不定义新全局）——**这一步统一做**，认领者不必改共同文件。
 
 - 文件命名：`src/16-notes-<批>.twee`（B0=`ch1`／B1=`ch2`／B2=`ch3`／B3=`cross`）
-- **`flagPath` 是唯一的数据接口**——表里**不得出现字面状态读**（`grant: (p) => !!p.ev.X` 会让 `--consequences` 判成叙事消费；阶段 1 实测红过）
+- **`flagPath` 是唯一的数据接口**——表里**不得出现字面状态读**（`grant: (p) =>!!p.ev.X` 会让 `--consequences` 判成叙事消费；阶段 1 实测红过）
 
 ---
 
@@ -65,7 +65,7 @@ Object.assign((window.Game.Notes ??= { entries: {} }).entries, {
 
 ### 3.0 判定基准
 
-口诀 **a / b / c1 / c2 / d** 与两条边界、三类之外的两种形态 ⇒ 唯一权威在 `docs/notes-model.md` §1。本表只写**结果**，不重复判据。
+口诀 **a / b / c1 / c2 / d** 与两条边界、三类之外的两种形态 → 唯一权威在 `docs/notes-model.md` §1。本表只写**结果**，不重复判据。
 
 **对账（`#432` §A-1）**：`pc.ev` / `pc.world` 静态键 **64 ＋ 23 ＝ 87**（`--state` 门可见）＋ 6 个**动态键**（`` <<firstTime `"tower_gate_" + $era`>> `` 这类模板写法，门**看不见**）＝ **93**。旧版「78」少了 15 个键。
 
@@ -73,28 +73,28 @@ Object.assign((window.Game.Notes ??= { entries: {} }).entries, {
 
 | 键 | flagPath | 口诀 | 结论 | 批次 | 来源（写点） | 备注 / 反例 |
 |---|---|---|---|---|---|---|
-| `tav_tips` | `ev.tav_tips` | a | 收 | 已落#426 | 酒馆·老板娘（5金买/社交） |  |
+| `tav_tips` | `ev.tav_tips` | a | 收 | 已落#426 | 酒馆·老板娘（5金买/社交） | |
 | `tav_fog` | `ev.tav_fog` | a | 收 | 已落#426 | 酒馆·老板娘 | 与 tav_tips 同一 apply 同授 |
 | `tav_light` | `ev.tav_light` | a | 收 | 已落#426 | 井台 | `bookkeeping` 键——**零行为消费**，#436 消费门的已知基线 |
 | `tav_iron` | `ev.tav_iron` | a | 收 | 已落#426 | 废哨站 | 同上 |
 | `tav_seal` | `ev.tav_seal` | a | 收 | 已落#426 | 林缘空地 | 同上 |
-| `tav_grudge` | `ev.tav_grudge` | a | 收 | 已落#426 | 酒馆 |  |
-| `tav_ageless` | `ev.tav_ageless` | a | 收 | 已落#426 | 酒馆 |  |
-| `tav_flower` | `ev.tav_flower` | a | 收 | 已落#426 | 酒馆 |  |
+| `tav_grudge` | `ev.tav_grudge` | a | 收 | 已落#426 | 酒馆 | |
+| `tav_ageless` | `ev.tav_ageless` | a | 收 | 已落#426 | 酒馆 | |
+| `tav_flower` | `ev.tav_flower` | a | 收 | 已落#426 | 酒馆 | |
 | `tav_dragon` | `ev.tav_dragon` | a | 收 | **B0** | 酒馆·上了年纪的村人 | §5「`tav_*`（8 键）」漏计的第 9 键 |
 | `tav_keeper` | `ev.tav_keeper` | a | 收 | **B0** | 酒馆·讲守林人的那一桌 | 漏计第 10 键 |
 | `tav_painting` | `ev.tav_painting` | a | 收 | **B0** | 酒馆·墙上那幅旧画 | 漏计第 11 键；有回声（看画→女巫小屋） |
 | `tav_seen` | `ev.tav_seen` | c1 | 不收 | **B0** | 酒馆 | `<<firstTime>>` 首遇记账（边界②） |
 | `wq_seen` | `ev.wq_seen` | a＋firstTime | 收 | 已落#426 | 女巫小屋 | **d 轻**：`<<if _first>>` 块同时含首遇叙述＋身世知识＋`<<give "时光护符">>`；表内须标注 firstTime（边界②） |
-| `wq_night` | `ev.wq_night` | a | 收 | 已落#426 | 女巫小屋 |  |
-| `wq_fog` | `ev.wq_fog` | a | 收 | 已落#426 | 女巫小屋 |  |
+| `wq_night` | `ev.wq_night` | a | 收 | 已落#426 | 女巫小屋 | |
+| `wq_fog` | `ev.wq_fog` | a | 收 | 已落#426 | 女巫小屋 | |
 | `wq_alone` | `ev.wq_alone` | a | 收 | **B0** | 女巫小屋 | §5「`wq_*`（7 键）」漏计的键 |
 | `wq_painting` | `ev.wq_painting` | a | 收 | **B0** | 女巫小屋 | 同上 |
 | `wq_past` | `ev.wq_past` | a | 收 | **B0** | 女巫小屋 | 同上 |
 | `wq_talisman` | `ev.wq_talisman` | a | 收 | **B0** | 女巫小屋 | 同上 |
 | `wq_under` | `ev.wq_under` | a | 收 | **B0** | 女巫小屋 | 同上 |
 | `wq_blessed` | `ev.wq_blessed` | b | 不收 | **B0** | 女巫小屋 | 一次疗伤/祝福＝发生过 |
-| `forest_heard` | `ev.forest_heard` | a | 收 | 已落#426 | 森林边缘 |  |
+| `forest_heard` | `ev.forest_heard` | a | 收 | 已落#426 | 森林边缘 | |
 | `forest_listen` | `ev.forest_listen` | b | 不收 | **B0** | 森林边缘 | **#432-B1**：§5.1 曾列知识候选 ↔ §1 自认世界态，文档内矛盾 |
 | `witch_hint` | `world.witch_hint` | a | 收 | **B0** | 女巫小屋（8金买） | 原作业单未登记 |
 | `rumor` | `world.rumor` | a | 收 | **B0** | 酒馆·老猎人（5金买） | **#432-B9**：§3.3 曾判「不收，改由 `n_tav_*` 覆盖」——不成立（全仓无 `tav_*` 承载此知识） |
@@ -102,17 +102,17 @@ Object.assign((window.Game.Notes ??= { entries: {} }).entries, {
 | `goblin_spared` | `world.goblin_spared` | b | 不收 | **B0** | 洞穴 | 原作业单未登记 |
 | `goblin_gone` | `world.goblin_gone` | b | 不收 | **B0** | 洞穴 | 原作业单未登记 |
 | `flower_fed` | `world.flower_fed` | b | 不收 | B2 | 喂花 | 世界态：把花喂给它＝发生过（不是知识） |
-| `hall_hint` | `world.hall_hint` | a | 收 | B1 | 门厅（听人比过） |  |
-| `hall_seen` | `ev.hall_seen` | a | 收 | B1 | 门厅（看钉成功） | **#432-B12**：与 `hall_hint` 是**同一知识两条路径** ⇒ 合并为一条笔记、两源 OR |
-| `study_hint` | `world.study_hint` | a | 收 | B1 | 书房（敲墙/断代失败） |  |
+| `hall_hint` | `world.hall_hint` | a | 收 | B1 | 门厅（听人比过） | |
+| `hall_seen` | `ev.hall_seen` | a | 收 | B1 | 门厅（看钉成功） | **#432-B12**：与 `hall_hint` 是**同一知识两条路径** → 合并为一条笔记、两源 OR |
+| `study_hint` | `world.study_hint` | a | 收 | B1 | 书房（敲墙/断代失败） | |
 | `study_found` | `ev.study_found` | d | **拆** | B1 | 书房 | **#432-B8**：①「知道暗格在哪」＝知识（并入 `study_hint` 那条笔记，两源 OR）②「取出匣子」＝世界态（不落笔记） |
 | `ledger_hint` | `world.ledger_hint` | a | 收 | B1 | 天文台（典籍/光点失败） | 来源修正：原写「书房·账册」 |
-| `failure_cause` | `ev.failure_cause` | a | 收 | B1 | 书房·日记 |  |
+| `failure_cause` | `ev.failure_cause` | a | 收 | B1 | 书房·日记 | |
 | `observation_lock` | `ev.observation_lock` | a | 收 | B1 | 书房·日记（往下读） | 来源修正：原写「天文台」 |
-| `forge_seen` | `ev.forge_seen` | a | 收 | B1 | 工坊（识货/记号/铁匠） |  |
-| `book_taken` | `world.book_taken` | b | 不收 | B1 | 天文台 |  |
+| `forge_seen` | `ev.forge_seen` | a | 收 | B1 | 工坊（识货/记号/铁匠） | |
+| `book_taken` | `world.book_taken` | b | 不收 | B1 | 天文台 | |
 | `delivery_short` | `ev.delivery_short` | c2 | 不收 | B1 | 顶楼 | **#432-B2**：§5.1 曾列知识候选 ↔ §1/§5.3 自认运行时，文档内矛盾 |
-| `errand_done` | `ev.errand_done` | c1 | 不收 | B1 | 书房（过去·指错抄） |  |
+| `errand_done` | `ev.errand_done` | c1 | 不收 | B1 | 书房（过去·指错抄） | |
 | `present_done` | `world.present_done` | b | 不收 | B1 | 门厅 | 原作业单未登记 |
 | `whistle_taken` | `world.whistle_taken` | b | 不收 | B1 | 门厅 | 原作业单未登记 |
 | `flower_taken` | `world.flower_taken` | b | 不收 | B1 | 塔外花田 | 原作业单未登记 |
@@ -125,53 +125,53 @@ Object.assign((window.Game.Notes ??= { entries: {} }).entries, {
 | `tower_gate_past` | `ev.tower_gate_past` | c1 | 不收 | B1 | 塔门 | 同上 |
 | `forge_present` | `ev.forge_present` | c1 | 不收 | B1 | 工坊 | **动态键**（#432-A2） |
 | `forge_past` | `ev.forge_past` | c1 | 不收 | B1 | 工坊 | **动态键**（#432-A2） |
-| `keeper_told` | `ev.keeper_told` | a | 收 | B2 | 守林人（问来历） |  |
+| `keeper_told` | `ev.keeper_told` | a | 收 | B2 | 守林人（问来历） | |
 | `keeper_kind` | `ev.keeper_kind` | b | 不收 | B2 | 守林人（立场） | **#432-B7**：读点是 NPC 回忆**你说过的话**，写不成「你知道了……」 |
-| `keeper_why` | `ev.keeper_why` | a | 收 | B2 | 守林人·守 |  |
+| `keeper_why` | `ev.keeper_why` | a | 收 | B2 | 守林人·守 | |
 | `keeper_intro` | `ev.keeper_intro` | c1 | 不收 | B2 | 守林人 | 原作业单未登记 |
-| `seer_asked` | `ev.seer_asked` | b | 不收 | B2 | 观星者 | **半 A 异议**：它是**证据旗标**（#365），记的是「问过」这件**事** ⇒ b。半 A 原判 a=知识，经 #432 复核收敛为 b |
+| `seer_asked` | `ev.seer_asked` | b | 不收 | B2 | 观星者 | **半 A 异议**：它是**证据旗标**（#365），记的是「问过」这件**事** → b。半 A 原判 a=知识，经 #432 复核收敛为 b |
 | `seer_asked_star` | `ev.seer_asked_star` | c1 | 不收 | B2 | 观星者·星 | **半 A 异议**：c1 交互记账（#365「这一问只给一次」） |
 | `seer_asked_night` | `ev.seer_asked_night` | c1 | 不收 | B2 | 观星者·图 | 同上 |
 | `seer_gave` | `ev.seer_gave` | b | 不收 | B2 | 观星者 | 原作业单未登记；他答应/抄过＝发生过 |
 | `seer_intro` | `ev.seer_intro` | c1 | 不收 | B2 | 观星者 | 原作业单未登记 |
-| `coord` | `—` | — | **不落笔记** | B2 | 观星者·图 | **#432-B11**：`coord ≡ inv["完整星图"]`（两处写点都与 `<<give "完整星图">>` 同行）⇒ **持有物投影**，三类之外。半 A 原判 b，经复核采纳本条 |
-| `star_ledger` | `ev.star_ledger` | a | 收 | B2 | 天文台（典籍/光点） |  |
+| `coord` | `—` | — | **不落笔记** | B2 | 观星者·图 | **#432-B11**：`coord ≡ inv["完整星图"]`（两处写点都与 `<<give "完整星图">>` 同行）→ **持有物投影**，三类之外。半 A 原判 b，经复核采纳本条 |
+| `star_ledger` | `ev.star_ledger` | a | 收 | B2 | 天文台（典籍/光点） | |
 | `star_short` | `ev.star_short` | c2 | 不收 | B2 | 唤醒（星力不足） | **#432-B3**：§5.1 曾列知识候选 ↔ §1 自认运行时 |
 | `witch_fire_hint` | `ev.witch_fire_hint` | a | 收 | B2 | 老巫女（合龙门） | 前提可溯源由 `premise-source` 门另管（内容问题，与分类无关） |
 | `witch_gifted` | `ev.witch_gifted` | b | 不收 | B2 | 当时的女巫（赠花） | **#432-B5**：写点与 `delete inv["月光花"]` 同行 |
 | `witch_grip` | `ev.witch_grip` | a | 收 | B2 | 当时的女巫（看哨） | 原作业单未登记 |
 | `witch_intro` | `ev.witch_intro` | c1 | 不收 | B2 | 当时的女巫 | 原作业单未登记 |
-| `old_witch` | `ev.old_witch` | a | 收 | B2 | 老巫女 |  |
+| `old_witch` | `ev.old_witch` | a | 收 | B2 | 老巫女 | |
 | `ritual_seen` | `ev.ritual_seen` | c1 | 不收 | B2 | 宴·仪式 | **#432-B6**：唯一行为读点是复访去重、写点无条件置位 |
 | `mist_guard` | `ev.mist_guard` | d | **拆** | B2 | 雾之魔物·退 | **#432-B15 ＋ 半 A**：知识＝`n_mist_is_guard`（「雾中的形是守卫」）／世界态＝`world.mist_yielded`（「雾让过路」） |
 | `banquet_intro` | `ev.banquet_intro` | c1 | 不收 | B2 | 宴会·过去 | 原作业单未登记 |
 | `banquet_over` | `world.banquet_over` | b | 不收 | B2 | 宴·散场 | `bookkeeping`（复访文案由 `ritual_seen` 驱动） |
 | `staff_found` | `ev.staff_found` | b | 不收 | B2 | 寻杖 | **#432-B4**：§5.1 曾列知识候选 ↔ §3.1 判 b，文档内矛盾 |
-| `staff_hint` | `world.staff_hint` | a | 收 | B2 | 寻杖（问孩子/看人失败） |  |
-| `family_favor` | `world.family_favor` | b | 不收 | B2 | 寻杖 |  |
+| `staff_hint` | `world.staff_hint` | a | 收 | B2 | 寻杖（问孩子/看人失败） | |
+| `family_favor` | `world.family_favor` | b | 不收 | B2 | 寻杖 | |
 | `letter_seen` | `ev.letter_seen` | a | 收 | B2 | 观星者（夹着的信） | **批次修正**：原作业单列 B1，来源写「书房·信」；实际写点在 `50-ch3.twee:观星者` |
 | `scroll_delivered` | `world.scroll_delivered` | b | 不收 | B2 | 交付 | 原作业单未登记 |
 | `hoard_looted` | `world.hoard_looted` | b | 不收 | B2 | 龙·巢边 | 原作业单未登记 |
 | `whistle_blown` | `world.whistle_blown` | b | 不收 | B2 | 唤醒 | 原作业单未登记 |
-| `fog_thin` | `world.fog_thin` | b | 不收 | B2 | flip widget / 宴·散场 | **#432-B10**：跨翻转持久＋被 flip 复位 ⇒ 不在「同一次交互内」；§5.2 世界态 ／ §3.3 c 两处口径曾不一致 |
+| `fog_thin` | `world.fog_thin` | b | 不收 | B2 | flip widget / 宴·散场 | **#432-B10**：跨翻转持久＋被 flip 复位 → 不在「同一次交互内」；§5.2 世界态 ／ §3.3 c 两处口径曾不一致 |
 | `ending` | `ev.ending` | b | 不收 | B2 | `<<ending>>` 宏（10 处） | 原作业单未登记 |
-| `threshold` | `ev.threshold` | c2 | 不收 | B2 | 地下宴会厅 |  |
-| `below_seen` | `ev.below_seen` | a（derived） | 收 | 已落#439 | 地下宴会厅 | **#432-B14**：知识由世界态蕴含（「下过地下即见过它」）⇒ 表内标 `derived` |
+| `threshold` | `ev.threshold` | c2 | 不收 | B2 | 地下宴会厅 | |
+| `below_seen` | `ev.below_seen` | a（derived） | 收 | 已落#439 | 地下宴会厅 | **#432-B14**：知识由世界态蕴含（「下过地下即见过它」）→ 表内标 `derived` |
 | `cellar_present` | `ev.cellar_present` | c1 | 不收 | B2 | 地下宴会厅 | **动态键**（#432-A2）；且**若被 `--state` 门看见即红**（`cellar_` 不在任何域前缀里） |
 | `cellar_past` | `ev.cellar_past` | c1 | 不收 | B2 | 地下宴会厅 | 同上 |
 | `fight` | `ev.fight` | c2 | 不收 | B3 | 战斗 widget | 战斗台账 |
-| `last_result` | `ev.last_result` | c2 | 不收 | B3 | 结果槽 widget |  |
-| `last_roll` | `ev.last_roll` | c2 | 不收 | B3 | 骰面快照 |  |
-| `soc` | `ev.soc` | c2 | 不收 | B3 | 交涉 widget |  |
-| `soc_last` | `ev.soc_last` | c2 | 不收 | B3 | 交涉回显 |  |
-| `soc_lever` | `ev.soc_lever` | c2 | 不收 | B3 | 优势筹码 |  |
+| `last_result` | `ev.last_result` | c2 | 不收 | B3 | 结果槽 widget | |
+| `last_roll` | `ev.last_roll` | c2 | 不收 | B3 | 骰面快照 | |
+| `soc` | `ev.soc` | c2 | 不收 | B3 | 交涉 widget | |
+| `soc_last` | `ev.soc_last` | c2 | 不收 | B3 | 交涉回显 | |
+| `soc_lever` | `ev.soc_lever` | c2 | 不收 | B3 | 优势筹码 | |
 | `flower_warned` | `world.flower_warned` | a | 收 | 已落#426 | 守林人／塔外花田 | 跨章（一章末—二章）保命知识 |
 
 > **口径说明**
 > - **「不收」不是遗漏**——它们按口诀归世界态/运行时，本就不该进笔记；写在这里是为了让认领者**不必自己重判**。
-> - **同源合并**：`hall_hint`／`hall_seen` 是同一知识的两条获取路径（看钉成功 vs 失败听人比过）⇒ **一条笔记、两源 OR**（`#432-B12`）；`study_hint`／`study_found` 的知识面同理（`#432-B8`）。
+> - **同源合并**：`hall_hint`／`hall_seen` 是同一知识的两条获取路径（看钉成功 vs 失败听人比过）→ **一条笔记、两源 OR**（`#432-B12`）；`study_hint`／`study_found` 的知识面同理（`#432-B8`）。
 > - **拆键对照**：`study_found` → 知识并入「暗格位置」那条笔记 ＋ 世界态「已取出」（不收）；`mist_guard` → `n_mist_is_guard`（知识，收）＋ `world.mist_yielded`（世界态，不收）。
-> - **`derived`**：`below_seen` 的知识由世界态蕴含 ⇒ 收，但表内标 `derived`（`#432-B14`）。
+> - **`derived`**：`below_seen` 的知识由世界态蕴含 → 收，但表内标 `derived`（`#432-B14`）。
 > - **`firstTime` 单列**：`tav_seen`／`wq_seen`／`*_intro`／`tower_gate_*`／`forge_*`／`cellar_*` 默认 `c1`；**承载了知识的必须在表里另外声明**（`wq_seen` 另给笔记；`tower_top_intro` 那句由 `keeper_why` 承载）。
 > - **批次列**：`B0`/`B1`/`B2`/`B3` ＝ 待落；`已落#426`/`已落#439` ＝ 已在 main。
 

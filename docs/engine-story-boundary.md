@@ -9,20 +9,20 @@
 
 | provider | 用途 | 缺省语义（**三条不许混**） |
 |---|---|---|
-| `notes()` | 笔记表 | 表是数据集 ⇒ 缺表返回空表 |
+| `notes()` | 笔记表 | 表是数据集 → 缺表返回空表 |
 | `rules()` | 条件表（阶段 4 选择器的输入） | 同上（占位） |
-| `checkSite(name)` | 位点表（`abil`/`skill`/`dc`/`dis`/`nat`） | **结构缺失 ⇒ 报错** |
-| `checkKnowledge(name)` | 位点 ↔ 情报捷径 | **可选** ⇒ `null`（"没有捷径"是合法状态） |
-| `combatAction(id)` | 战斗动作记录（`.label`/`.site`/`.good`…） | **结构缺失 ⇒ 报错** |
-| `combatPool(id)` | 作战池（动作 id 列表） | 池缺 ⇒ `[]` |
-| `itemEffect(name)` / `gearDef(name)` | 道具效果／装备表 | 表缺项 ⇒ `null`（对应源码里的可选链） |
-| `poisonReduce()` | 数值（毒液压制） | **必需数值 ⇒ 报错** |
-| `dragonMaxHp()` | 龙血上限 | **必需数值 ⇒ 报错** |
-| `actionLabel(id)` | 动作名（由 `combatAction()` 派生 ⇒ 单一权威） | 未登记／缺 label ⇒ 报错 |
-| `mechanics()` | **新机制声明表**（本文件第 2 节） | **未启用 ⇒ `null`**（合法，见第 3 节） |
+| `checkSite(name)` | 位点表（`abil`/`skill`/`dc`/`dis`/`nat`） | **结构缺失 → 报错** |
+| `checkKnowledge(name)` | 位点 ↔ 情报捷径 | **可选** → `null`（"没有捷径"是合法状态） |
+| `combatAction(id)` | 战斗动作记录（`.label`/`.site`/`.good`…） | **结构缺失 → 报错** |
+| `combatPool(id)` | 作战池（动作 id 列表） | 池缺 → `[]` |
+| `itemEffect(name)` / `gearDef(name)` | 道具效果／装备表 | 表缺项 → `null`（对应源码里的可选链） |
+| `poisonReduce()` | 数值（毒液压制） | **必需数值 → 报错** |
+| `dragonMaxHp()` | 龙血上限 | **必需数值 → 报错** |
+| `actionLabel(id)` | 动作名（由 `combatAction()` 派生 → 单一权威） | 未登记／缺 label → 报错 |
+| `mechanics()` | **新机制声明表**（本文件第 2 节） | **未启用 → `null`**（合法，见第 3 节） |
 
-**纪律**（`#459` 定）：**结构缺失 ⇒ 报错**（未注册却来取数据必须炸，不许静默 0/空）；**可选缺省 ⇒ 明确的 `null`／`[]`**；
-**文案缺失 ⇒ 兜底**（那是 `copy()` 的事，不是这里的）。三类不许合成一个 `?? {}`。
+**纪律**（`#459` 定）：**结构缺失 → 报错**（未注册却来取数据必须炸，不许静默 0/空）；**可选缺省 → 明确的 `null`／`[]`**；
+**文案缺失 → 兜底**（那是 `copy()` 的事，不是这里的）。三类不许合成一个 `?? {}`。
 
 ## 2. 新机制声明表（`mechanics()`）
 
@@ -53,18 +53,18 @@ mechanics: () => ({
 
 | # | 判据 | 为什么 |
 |---|---|---|
-| ① | `slots[*].protects` ∈ `hitLocations` ∪ {`null`}；`slots[*].label` 非空；`hitLocations` 无重复 | 否则"有装备的槽位**永远打不到**"⇒ 装备白做 |
-| ② | `equipment[*].slot` ∈ 已声明槽位；`maxHp > 0`；`reduce` 形态是 `flat`／`dice`／`percent` **之一且只写一种** | 耐久上限为 0 ⇒ 一碰就碎；两种形态并存 ⇒ 引擎无法判定按哪种结算 |
-| ③ | `statuses[*].parts` ⊆ `hitLocations`（或 `'*'`）；`check.attr` 在属性表；`check.dc > 0`；`onFail[*].when` **分档穷尽**（`most`／`low`）；`statusPenalty` 只引用已声明异常 | 「判了却没效果」正是分档不穷尽的典型后果 |
+| ① | `slots[*].protects` ∈ `hitLocations` ∪ {`null`}；`slots[*].label` 非空；`hitLocations` 无重复 | 否则"有装备的槽位**永远打不到**"→ 装备白做 |
+| ② | `equipment[*].slot` ∈ 已声明槽位；`maxHp > 0`；`reduce` 形态是 `flat`／`dice`／`percent` **之一且只写一种** | 耐久上限为 0 → 一碰就碎；两种形态并存 → 引擎无法判定按哪种结算 |
+| ③ | `statuses[*].parts` ⊆ `hitLocations`（或 `'*'`）；`check.attr` 在属性表；`check.dc > 0`；`onFail[*].when` **分档穷尽**（`most`／`low`）；`statusPenalty` 只引用已声明异常 |「判了却没效果」正是分档不穷尽的典型后果 |
 | ④ | `encounters.short.waves` 恰 **1** 批；`long.waves` 恰 **2** 批，且第二批 `difficulty` **更大**、`reinforce: true`；每个 `pool` 必须是已登记作战池 | 这就是"**短／长战斗**"的可机检定义（两者之差**只**在批次数） |
-| ⑤ | 同段各路 `options[*].hint` **两两不可等价**（去空白后不等）；≥3 个选项；每条有 `kind` | 线索是玩家区分两路的**唯一**手段；等价 ⇒ 玩家在赌运气 |
+| ⑤ | 同段各路 `options[*].hint` **两两不可等价**（去空白后不等）；≥3 个选项；每条有 `kind` | 线索是玩家区分两路的**唯一**手段；等价 → 玩家在赌运气 |
 | ⑥ | **表里不得藏随机源**；引擎代码侧纪律：判定／波次／掉落一律走可注入的 `Game.Rules.rng`（sim 侧**不得直调 `Math.random()`**） | 分布口径要能被钉住、被复算 |
 
 **实现与门**：校验器 `scripts/audit/lib/story-shape.mjs`（纯函数，导出 `validateStoryMechanics()` ＋ 两张词表 `GRADE_SET`／`REDUCE_FORMS` ——
 改口径只动这两处）；门 `test/story-shape.mjs`（**真实契约** ＋ 六条各带**正反自证**，失败计入退出码），已挂进 `npm test`。
 
 **真实契约的作用域＝每个注册故事**（`storySlugs()` 逐个判，`#571`）：原先只判默认故事，而默认故事声明的是
-「未启用」（**合法**，见 §3）⇒ 第三个故事的真实声明**一次都没被形状校验过**——`statusPenalty` 两处键形错误
+「未启用」（**合法**，见 §3）→ 第三个故事的真实声明**一次都没被形状校验过**——`statusPenalty` 两处键形错误
 （`麻痹@腿`／`流血@躯干` 用的是中文标签，而引擎按 `statuses` 的 id 取值）就是这样漏过去的：声明仍在、**减成恒为 0**、
 不报错也不告警（`退 0` 不是证据，`docs/dev-conventions.md` §13）。
 
@@ -74,12 +74,12 @@ mechanics: () => ({
 
 | 写什么 | 含义 | 引擎怎么判 |
 |---|---|---|
-| `{ skill: '隐匿', dc: 12 }` | **技能检定**（技能名走 `Game.Rules.SKILLS` 映射到属性；中文技能名） | `Rules.check(pc, skill, dc, …)` |
-| `{ abil: 'dex', dc: 12 }` | **属性豁免**（`str/dex/con/int/wis/cha`） | `Rules.save(pc, abil, dc, …)` |
+| `{ skill: '隐匿', dc: 12}` | **技能检定**（技能名走 `Game.Rules.SKILLS` 映射到属性；中文技能名） | `Rules.check(pc, skill, dc, …)` |
+| `{ abil: 'dex', dc: 12}` | **属性豁免**（`str/dex/con/int/wis/cha`） | `Rules.save(pc, abil, dc, …)` |
 
-⚠️ **`skill: 'dex'` 是错的**（属性键不是技能名）：`Rules.check` 会抛「未知技能: dex」⇒
+注意：**`skill: 'dex'` 是错的**（属性键不是技能名）：`Rules.check` 会抛「未知技能: dex」→
 **每一次判定都在报错**，事件变成走过场（不落伤害/异常/成败分支）。第三个故事实测踩过这个坑
-（18 个位点全写成了属性键，而**没有任何门跑过一次真实判定**）⇒ 现在由 `test/story-runtime.mjs` 判据 ② 逐个位点真判一次。
+（18 个位点全写成了属性键，而**没有任何门跑过一次真实判定**）→ 现在由 `test/story-runtime.mjs` 判据 ② 逐个位点真判一次。
 
 ## 2b. 运行时面：每个故事**都有**什么 ／ **可以有**什么（`#574`）
 
@@ -88,7 +88,7 @@ mechanics: () => ({
 | 面 | 归属 | 证据 | 没有它会怎样 |
 |---|---|---|---|
 | `Sg.save`（存档 API）· `Sg.notes`（数据经 `Sg.story.notes()`）· `Sg.Ending` · 键盘 S/L · 结果留屏/空白归一/`data-choice` 派生 | **引擎运行时胶水**（`src/80-script.twee`，`layer: 'engine'`） | 随引擎进**每个**故事的作用域（`scopedFiles()`） | 点存档/落笔记直接抛错；故事 2 实测：“宝箱与洞窟事件走到就报错” |
-| `Sg.Codex`（图鉴界面） | **故事面**（`stories/mist-forest/72-codex-ui.twee`，`layer: 'story'`） | 它读故事 1 的 `Game.Codex.items` | 引擎侧只能经**可选链**引用（`Sg.Codex?.sync?.()`）⇒ 没有它的故事只是“没有图鉴” | <!-- path-exempt: 该故事已按 #1004 删除（历史记录，不抹）-->
+| `Sg.Codex`（图鉴界面） | **故事面**（`stories/mist-forest/72-codex-ui.twee`，`layer: 'story'`） | 它读故事 1 的 `Game.Codex.items` | 引擎侧只能经**可选链**引用（`Sg.Codex?.sync?.()`）→ 没有它的故事只是“没有图鉴” | <!-- path-exempt: 该故事已按 #1004 删除（历史记录，不抹）-->
 
 **侧栏（`StoryCaption`）的分支口径**：车卡后的完整卡面（车卡故事）· 无车卡的故事给**最小面**（血量/金币/物品/存档）
 · 有车卡但尚未车卡的故事**保持原样**（只有存档按钮——故事 1 零行为变化）。
@@ -100,13 +100,13 @@ mechanics: () => ({
 
 | 判据数据 | 落点 | 为什么不是故事表 |
 |---|---|---|
-| `--text` 的主题词表 / 风格违和词黑名单 | `stories/<slug>/audit.json` 的 `text` | 那是**判据数据**，游戏运行时不需要；写进 `15-tables.twee`（`[script]` 段）会被**构建进产物**，而 `--canon` 有一档正当口径「**shipped 文本**不得含回流词」⇒ 正面冲突（实测：`信物` 一进 `Game Tables`，`--canon` 就红） |
+| `--text` 的主题词表 / 风格违和词黑名单 | `stories/<slug>/audit.json` 的 `text` | 那是**判据数据**，游戏运行时不需要；写进 `15-tables.twee`（`[script]` 段）会被**构建进产物**，而 `--canon` 有一档正当口径「**shipped 文本**不得含回流词」→ 正面冲突（实测：`信物` 一进 `Game Tables`，`--canon` 就红） |
 | `--reads` 的"已知存量"基线 | 同文件的 `readBaseline` | 同上（且它只是"哪些裸读还在待搬家清单里"，与运行时无关） |
 
 **门**：`--engine-story-free`（本仓新增，`#602`）——黑名单**自动**从 `stories/**/*.twee` 抽（段落名 ＋ `Game.<X>`），
 **只扫代码**（注释经 `mask.mjs` 遮掉：本仓注释大量记述"当初错在哪"，那不是违规），白名单放
-`scripts/audit/engine-story-allow.json`（**理由必须带票号**；声明了却不再命中 ⇒ 红）。反例自证：往任一引擎门塞一个故事词 ⇒ 必红。
-`test/story-runtime.mjs` 载入器侧：`scripts/audit/lib/story-audit.mjs` 的 `loadStoryAudit(slug)`（**缺文件/畸形 ⇒ 报错**；空表是合法数据集）。
+`scripts/audit/engine-story-allow.json`（**理由必须带票号**；声明了却不再命中 → 红）。反例自证：往任一引擎门塞一个故事词 → 必红。
+`test/story-runtime.mjs` 载入器侧：`scripts/audit/lib/story-audit.mjs` 的 `loadStoryAudit(slug)`（**缺文件/畸形 → 报错**；空表是合法数据集）。
 
 **门**：`test/story-runtime.mjs`（逐故事五条：① 引用到的 `Sg.*` 面必须在产物里存在（可选链＝显式可选面）
 ② 声明的每个位点都要能真的判一次 ③ 内容用到的笔记必须已登记且 `add` 跑得通 ④ 侧栏可用 ⑤
@@ -119,18 +119,18 @@ mechanics: () => ({
 
 `#602` 方案 1 管**判据数据**；这一节管**门代码**。今天的状况：34 道门全部登记在 `scripts/audit/registry.mjs` 的
 `GATES` 里，其中 12 道判的是**故事 1 的内容**——而"这道门属于哪个故事"此前只存在于 `test-plan.mjs` 的
-`AUDIT_STORY` 字符串数组里（它只说"是故事门"，**说不出"是谁的门"**）⇒ `--story hollow-cave --truth` 会
+`AUDIT_STORY` 字符串数组里（它只说"是故事门"，**说不出"是谁的门"**）→ `--story hollow-cave --truth` 会
 **照跑故事 1 的门**（拿别人的判据判你）。设计稿：`docs/story-gates-design.md`。
 
 | 面 | 落点／机制（**P0 接线 · P1 试点 3 门已搬**） |
 |---|---|
-| 故事门的**住址** | `stories/<slug>/gates/*.mjs`。**故事门已全部住故事侧**：故事 1（21 门：P1 3 ＋ P2-A① 9 ＋ P2-A② 9）＋ 故事 3（`cave`／`combat-dist`，P2-B）⇒ 工具层 `scripts/audit/gates/**` 只剩**引擎门**（10）＋ `a11y`。**`a11y` 概念上是引擎门**（判产物可访问性、读 `dist/`）⇒ 不是迁移对象，留在工具层（层声明待接线后补） |
+| 故事门的**住址** | `stories/<slug>/gates/*.mjs`。**故事门已全部住故事侧**：故事 1（21 门：P1 3 ＋ P2-A① 9 ＋ P2-A② 9）＋ 故事 3（`cave`／`combat-dist`，P2-B）→ 工具层 `scripts/audit/gates/**` 只剩**引擎门**（10）＋ `a11y`。**`a11y` 概念上是引擎门**（判产物可访问性、读 `dist/`）→ 不是迁移对象，留在工具层（层声明待接线后补） |
 | **声明** | `stories/<slug>/00-story.json` 的 `gates: [...]`（路径；顺序即本故事内次序）。**空数组是合法声明**（"本故事暂无自有门"），但**键必须存在** |
 | **发现** | `scripts/audit/discovery.mjs`：`engineGates()`（registry 里 flag ∈ `AUDIT_ENGINE`）∪ `pendingGates()`（**待迁移**：registry 里其余的门，搬完一批删一批）∪ `declaredGates(slug)`（清单声明）＝ `gatesForStory(slug)` |
-| **执行顺序** | `GATE_ORDER`（计划面，只定次序）：搬家只改**住址**、不改输出次序 ⇒ `audit:golden` 零漂移可比对 |
-| **作用域全跑** | `--story <slug>` **单独给**（一个门开关都没点）⇒「本故事作用域全跑」（`#607` P2-B 起的 CLI 语义）。此前它退 2「没有选中任何门」⇒ **他故事的全跑无路可走**，`audit-golden` 的 `not-in-full-run` 交叉核对无法按归属比；`--check`／`--strict` 单独给仍退 2（防假绿守卫不变） |
-| **基线按归属跑** | `test/audit-golden.mjs`：他故事的门单跑**自动补 `--story <owner>`**（默认故事的门不补 ⇒ 基线逐字可比）；`not-in-full-run` 交叉核对按**该门所属故事**的全跑比。P2-B 为此**带归因重签**了 `cave`／`combat-dist` 两条（重签范围经 diff 核对：36 键不变、只这两条变） |
-| **fail-loud** | 清单缺 `gates` 键／路径越界／文件不存在／`gates/` 下有**未声明**的文件／形状不对／**跨故事或跨层重名**／故事门偷用引擎 flag／顺序表未登记或僵尸键 ⇒ 逐条报错（每次 audit 调用都跑 `validateDiscovery()`） |
+| **执行顺序** | `GATE_ORDER`（计划面，只定次序）：搬家只改**住址**、不改输出次序 → `audit:golden` 零漂移可比对 |
+| **作用域全跑** | `--story <slug>` **单独给**（一个门开关都没点）→「本故事作用域全跑」（`#607` P2-B 起的 CLI 语义）。此前它退 2「没有选中任何门」→ **他故事的全跑无路可走**，`audit-golden` 的 `not-in-full-run` 交叉核对无法按归属比；`--check`／`--strict` 单独给仍退 2（防假绿守卫不变） |
+| **基线按归属跑** | `test/audit-golden.mjs`：他故事的门单跑**自动补 `--story <owner>`**（默认故事的门不补 → 基线逐字可比）；`not-in-full-run` 交叉核对按**该门所属故事**的全跑比。P2-B 为此**带归因重签**了 `cave`／`combat-dist` 两条（重签范围经 diff 核对：36 键不变、只这两条变） |
+| **fail-loud** | 清单缺 `gates` 键／路径越界／文件不存在／`gates/` 下有**未声明**的文件／形状不对／**跨故事或跨层重名**／故事门偷用引擎 flag／顺序表未登记或僵尸键 → 逐条报错（每次 audit 调用都跑 `validateDiscovery()`） |
 | **机器证据** | `test/gate-discovery.mjs`（23 条断言：无孤儿门 · 顺序稳定 · 声明只属本故事 · 引擎门被所有故事选中 · 十条反例）＋ `test-plan.mjs` 的层表接线（`declaredStoryFlags`）＋ `audit:golden`（**搬门后仍零漂移**） |
 | **台账面** | `scripts/report-gate-ledger.mjs` 的枚举与「自证/判定路径」检测**同时覆盖故事侧的门**（否则门一搬走，台账那几行会静默消失）；`test/audit-golden.mjs` 的"未保护开关"检查同理（用 `allKnownFlags()`） |
 
@@ -138,7 +138,7 @@ mechanics: () => ({
 `audit:golden` **逐字节零漂移**收口——这就是"搬家只改住址、不改行为"的机械证据。
 （踩坑记录：搬完文件后跑 `npm run audit:golden` **必须先 `npm run build`**——`git mv` 刷新了 mtime，
 而 `--a11y` 会断言产物新鲜度、旧 `dist` 会让它失败并把**全跑**打断，表现为"27 个开关不符"的假象。）
-`--engine-only` 的语义与顺序不变；搬走的门改由**它所属的故事**选中（点名别的故事的门 ⇒ 明确报错）。
+`--engine-only` 的语义与顺序不变；搬走的门改由**它所属的故事**选中（点名别的故事的门 → 明确报错）。
 
 ### 短战斗：机制住引擎、文案与实参住故事（`#608`）
 
@@ -146,35 +146,35 @@ mechanics: () => ({
 |---|---|
 | **机制** | `src/engine/50-present/12-shortfight.twee` 的 `<<shortFight>>`（从 `stories/hollow-cave/10-cave.twee` 上移） | <!-- path-exempt: 该故事已按 #1004 删除（历史记录，不抹）-->
 | **实参（7）** | ①位点 ②按钮文案 ③胜句 ④败句 ⑤遭遇 id ⑥战利品句 **⑦尾段**（结算后要执行的**故事侧 wiki 片段**，例 `<<caveNext>>`；引擎只在同一次点击的缓冲里跑它，不知道「下一步」是什么；缺省空串＝不执行） |
-| **相位口径** | 分支**只看** `Game.Combat.waveRecord().phase`（`continue`/`advance`/`cleared`/`failed`）：未结束 ⇒ **不结算、不推进**、重渲染本段；`cleared` ⇒ 胜句＋`grantReward`；`failed` ⇒ 败句＋伤＋**声明面的失败笔记**。⚠️ 不许拿 `$last_check.success` 代替相位——它只说"这一击中了" |
+| **相位口径** | 分支**只看** `Game.Combat.waveRecord().phase`（`continue`/`advance`/`cleared`/`failed`）：未结束 → **不结算、不推进**、重渲染本段；`cleared` → 胜句＋`grantReward`；`failed` → 败句＋伤＋**声明面的失败笔记**。注意：不许拿 `$last_check.success` 代替相位——它只说"这一击中了" |
 | **声明面** | 奖励 `encounters[*].reward`（`#600`）· **失败笔记 `encounters[*].failNote`**（`#608`，引擎访问器 `Game.Combat.encounterFailNote`） |
-| **门** | `test/shortfight-phases.mjs`（四相位各归其位 · 未结束不结算不推进 · 改声明 ⇒ 行为跟着变）；反例探针：把 widget 改回 `success` 分支 ⇒ 当场红（`#598` 同族的形状） |
+| **门** | `test/shortfight-phases.mjs`（四相位各归其位 · 未结束不结算不推进 · 改声明 → 行为跟着变）；反例探针：把 widget 改回 `success` 分支 → 当场红（`#598` 同族的形状） |
 
 ## 3. 兼容模式（**必须显式降级**，`#492`）
 
-- 故事**未**声明新机制 ⇒ `mechanics()` 返回 **`null`**（故事 1 v1 就是这样，注释里写明理由）；
-- 引擎遇到 `null` ⇒ **走旧路径**（故事 1 的现有战斗数值一动不动）；
-- ⚠️ 引擎**不得**把"未声明"当成"0 减成／空槽位"—— 那会**悄悄改掉故事 1 的平衡**（这正是 `#492` 要防的事）。
+- 故事**未**声明新机制 → `mechanics()` 返回 **`null`**（故事 1 v1 就是这样，注释里写明理由）；
+- 引擎遇到 `null` → **走旧路径**（故事 1 的现有战斗数值一动不动）；
+-注意：引擎**不得**把"未声明"当成"0 减成／空槽位"—— 那会**悄悄改掉故事 1 的平衡**（这正是 `#492` 要防的事）。
   即：**降级是显式的**；"新机制在场但故事没声明"与"新机制不在场"必须走同一条旧路径。
 - **机械证据（`#492` S7 落地）**：
-  - 门：`test/fight-compat.mjs` —— 未启用 ⇒ `Game.Combat.slotAbsorb()` 必须返回 **`null`**（**不是** `{reduce:0,…}` 这样的 0-plan：
+  - 门：`test/fight-compat.mjs` —— 未启用 → `Game.Combat.slotAbsorb()` 必须返回 **`null`**（**不是** `{reduce:0,…}` 这样的 0-plan：
     那种形态当前数值一样，但故事 1 从此**参与** slot 数学，将来任何 slot 侧改动都会默默作用到它身上）；
-    已启用的故事（`hollow-cave`）⇒ 必须返回计划（防"声明了却没生效"）。含 `--selftest` 正/反例与 **0-plan 反例**；
+    已启用的故事（`hollow-cave`）→ 必须返回计划（防"声明了却没生效"）。含 `--selftest` 正/反例与 **0-plan 反例**；
   - **旧口径数值锚点**（故事 1，`#493` 迁移前要对上的三行）：第 1 回合受击 `5` → 持 1 件 `flatDamageReduce` 道具（日记／龙鳞护臂）`3` → 2 件 `1`（触下限 1）；
   - 对照面**逐字节冻结**：`audit:golden` 覆盖 36 个开关（含 `dragon`／`gear`／`items`／`combat-dist`／`slots`／`status`）
-    ⇒ 数字真变了必红，因此"未归因的数值变化"无处可藏（`#492` 判据 2/3）。
+    → 数字真变了必红，因此"未归因的数值变化"无处可藏（`#492` 判据 2/3）。
 
 ## 4. 与层间判据的关系（`#458` 的出口判据）
 
-- 引擎文件不得直读故事表：`test/layering.mjs --strict` ⇒ `STORY_SYMBOLS` 0 命中；
-- ⚠️ **`--strict` 绿是必要不充分**：别名（`const T = window.Game`）已由 PR #508 解析，但**解构别名**（`const { Checks } = Game`）、
-  **动态键**（`Game[k]`）、**拼接表名**仍逃得掉 ⇒ 关键处要**逐文件复核跨层调用面**；
-- 引擎侧的**机制**已经就位（`#512` 把 11 个机制搬进 sim，数据全走 `Sg.story`）⇒ 新故事只需**声明数据**。
+- 引擎文件不得直读故事表：`test/layering.mjs --strict` → `STORY_SYMBOLS` 0 命中；
+-注意：**`--strict` 绿是必要不充分**：别名（`const T = window.Game`）已由 PR #508 解析，但**解构别名**（`const { Checks} = Game`）、
+  **动态键**（`Game[k]`）、**拼接表名**仍逃得掉 → 关键处要**逐文件复核跨层调用面**；
+- 引擎侧的**机制**已经就位（`#512` 把 11 个机制搬进 sim，数据全走 `Sg.story`）→ 新故事只需**声明数据**。
 
 ## 5. 给新故事接入的最小步骤
 
 1. 建故事包（`stories/<slug>/**`）＋ 清单（`00-story.json` 的 `files` 是归属权威）；
-2. 注册 `Sg.story`：先 `notes()`／`rules()`／`checkSite()`／`combatAction()`／`combatPool()`／`itemEffect()`… ，
+2. 注册 `Sg.story`：先 `notes()`／`rules()`／`checkSite()`／`combatAction()`／`combatPool()`／`itemEffect()`…，
    再按需加 `mechanics()`（**形状一次性定死**，之后只加方法不改形状）；
 3. 跑 `node test/story-shape.mjs`（形状合法）＋ `node test/layering.mjs`（引擎侧不直读故事表）；
 4. 数值／文案**只**放故事包；机制**不**要再写进故事文件（`#512` 已把机制收进引擎侧）。
@@ -183,14 +183,14 @@ mechanics: () => ({
 
 声明式条件（`Sg.rules` 的 `holdsCond`／`matches`）在**容器缺失**时返回 `false`，**不抛**：
 
-- `pc.inv` 不存在 ⇒ `req: ['inv:X']` 判**不成立**（不是报错）；`world.*`／`ev.*`／点分键同理；
+- `pc.inv` 不存在 → `req: ['inv:X']` 判**不成立**（不是报错）；`world.*`／`ev.*`／点分键同理；
 - 需要「结构缺失必须报错」的场合，请用**显式**判据（`required` ＋ `error`，见 `lookup`／`game-ref`）；
-- 为什么定成这样：声明式条件要能被**合成 pc** 驱动（`#441-A`）—— 「读不到」与「条件不成立」在**求值层**是同一件事，
-  而「该报错」是**声明侧**的责任（`required`）。旧的手写谓词在同类输入下会抛 `TypeError` ⇒ 那批差异已在 `#786` 里**逐组列出**。
+- 为什么定成这样：声明式条件要能被**合成 pc** 驱动（`#441-A`）——「读不到」与「条件不成立」在**求值层**是同一件事，
+  而「该报错」是**声明侧**的责任（`required`）。旧的手写谓词在同类输入下会抛 `TypeError` → 那批差异已在 `#786` 里**逐组列出**。
 
 ## 6. 已知边界与残留（如实记录）
 
-- `Game.Dragon`／`Game.Systems`／`Game.Star`／`Game.Consequences` 等是 **`STORY_SYMBOLS` 里的"整命名空间"粒度** ⇒
+- `Game.Dragon`／`Game.Systems`／`Game.Star`／`Game.Consequences` 等是 **`STORY_SYMBOLS` 里的"整命名空间"粒度** →
   引擎侧**往它们上面挂机制**会被层间门判（`#512` 因此把 `dragonDamage` 改挂 `Game.Combat`）；
-- `Combat.offer` 仍住在故事文件（它用 `Math.random()`，而 sim 有"不得直调"的门）⇒ **`#519`** 处理（搬入 ＋ 注入 rng ＋ 重签蒙特卡洛基线）；
-- `copy()`（文案兜底，fail-soft）尚未落码 ⇒ 属 `#459` 剩余。
+- `Combat.offer` 仍住在故事文件（它用 `Math.random()`，而 sim 有"不得直调"的门）→ **`#519`** 处理（搬入 ＋ 注入 rng ＋ 重签蒙特卡洛基线）；
+- `copy()`（文案兜底，fail-soft）尚未落码 → 属 `#459` 剩余。

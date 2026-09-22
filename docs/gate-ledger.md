@@ -14,8 +14,8 @@
 > · **量法（可粘贴复跑 ✓）**：`node scripts/report-gate-ledger.mjs --selftest`（含 4 条 `hasSelfProof` 正反例 ✓）；
 > · **缺自证的几行**（`—` ✓）：补一条**能假的负控制** ✓，或按 `#908` ① 登记探针 ✓ —— 名单见下方「工作清单」（**动态生成** ✗，不写死 ✓）。
 
-**严格行为化率（有自证）：71/103 = 68.9%** ｜ **有断言但缺自证：31**（＝下方工作清单）｜ 仅登记：0
-**探针（直接读数 ✓，不是"文件在不在"那种代理 ✗）：`✅` 26 项 ｜ `—` 未探 77 项（**上限 117** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ `✗` 不咬 0 项（**>0 即红** ✓）** —— 档位／清单：`node scripts/probe-gates.mjs --probe=fast` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）
+**严格行为化率（有自证）：71/104 = 68.3%** ｜ **有断言但缺自证：32**（＝下方工作清单）｜ 仅登记：0
+**探针（直接读数 ✓，不是"文件在不在"那种代理 ✗）：`✅` 25 项 ｜ `—` 未探 79 项（**上限 117** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ `✗` 不咬 0 项（**>0 即红** ✓）** —— 档位／清单：`node scripts/probe-gates.mjs --probe=fast` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）
 **档位（tier，`#1070`）：PR 档（`--tier=fast`）只跑 `tier:'fast'` 的段；下列 **2 段**在 `full` 档（`npm run test:full`；nightly/main 由 `#1071` 接线）。**降频必须留痕** ✓（K5）——理由如下（单一权威＝`scripts/test-plan.mjs` 的 `FULL_REASONS` ✓）：**
 | 段 | 实测成本 | 为什么不在 PR 档（理由 ＋ 代价） |
 |---|---|---|
@@ -47,6 +47,8 @@
 | `test/audit-gates-run.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/audit-golden.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | **已入 npm test**（#436 收编）：实测全量 **8.0s**（dragon 7.0s ＋ 其余每个 30–55ms ⇒ 无需子集；此前"24 个开关较慢"的估计不成立）。收编时逐条归因既有漂移（18 个开关：10 纯自证插入／3 含新不变量行／3 数值替换／1 `state`（#483）） |
 | `test/browser.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | 需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑 |
+| `test/chargen-apply.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
+| `test/chargen-equivalence.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/chargen-macros.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/choice-keys.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/ci-triggers.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
@@ -75,14 +77,13 @@
 | `test/layering.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | 自证 **33** 条断言（**量法**：`node test/layering.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝模块依赖（`cases` 11 项，含 `#893` 两层登记的三条正反例）/ 点号 defines / 层间方向 / engine rank 派生与四条禁止边 |
 | `test/lint-scratch.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/lint-story.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/md-visible-faces.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/multi-story.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/new-story-fixture.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/npc-venue.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/onetime-pickups.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/passages-assemble.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/pc-defaults.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
-| `test/plan-needs.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
+| `test/plan-needs.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/premise-source.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/properties.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/prose-vocabulary.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
@@ -128,12 +129,14 @@
 | `test/web-save.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/witness-trace.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
 
-## F2 工作清单：有断言但**缺自证**（31 项）
+## F2 工作清单：有断言但**缺自证**（32 项）
 
 > 这些门**在跑、也在断言**，但从没被证明「反例会红」——本仓当日四类空判（覆盖≠验收／反例空判／死开关 #331／原理不可达 #338）都出自这一类。
 > 补法：给该门加一个**合成反例**用例（正例＋反例），并在本脚本的 `REASONS` 里改标 `行为化`。
 
 - `scripts/report-page-coverage.mjs`（报告脚本）
+- `test/chargen-apply.mjs`（测试脚本）
+- `test/chargen-equivalence.mjs`（测试脚本）
 - `test/chargen-macros.mjs`（测试脚本）
 - `test/contract-compat.mjs`（测试脚本）
 - `test/contract-version.mjs`（测试脚本）
@@ -142,7 +145,6 @@
 - `test/equiv-scratch.mjs`（测试脚本）
 - `test/fatal-guard.mjs`（测试脚本）
 - `test/g3-evidence.mjs`（测试脚本）
-- `test/md-visible-faces.mjs`（测试脚本）
 - `test/new-story-fixture.mjs`（测试脚本）
 - `test/onetime-pickups.mjs`（测试脚本）
 - `test/pc-defaults.mjs`（测试脚本）

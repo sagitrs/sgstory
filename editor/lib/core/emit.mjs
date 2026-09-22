@@ -234,10 +234,10 @@ export const emitRules = (rows) => [
 	'});',
 ].join('\n');
 
-/** 纯函数：`data/chargen.json` → `StoryChargen` 段（**原样 JSON 内联** ✓ 生成物 ✓ 无新增语义 ✓）。 */
+/** 纯函数：`data/chargen.json` 转成 `StoryChargen` 段（原样 JSON 内联，生成物，不带新增语义）。 */
 export const emitChargen = (d) => [
 	'Object.assign((window.Sg.story ??= {}), {',
-		'chargen: () => ' + JSON.stringify({ rounds: d.rounds, presets: d.presets }) + ',',
+		'chargen: () => (' + JSON.stringify({ rounds: d.rounds, presets: d.presets }) + '),',
 	'});',
 ].join('\n');
 

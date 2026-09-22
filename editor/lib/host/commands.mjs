@@ -90,7 +90,7 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 	const tables = readIf('tables.json');
 	const contract = readIf('contract.json');
 	const rules = readIf('rules.json');
-	const chargen = readIf('chargen.json');   // `#1132` B3：车卡数据（运行期由 `<<applyQuickPreset>>` 经 `Sg.story.chargen()` 读 ✓）
+	const chargen = readIf('chargen.json');   // `#1132` B3：车卡数据（运行期由 `<<applyQuickPreset>>` 经 `Sg.story.chargen()` 读）
 	const notesFace = readIf('notes.json');   // 车道 B · notes 面（`#215` `18504282` ✓）：一个数据文件 → 多份产物 ✓
 	if (!tables && !contract && !rules && !notesFace) { console.error(`✗ stories/${slug}/data/ 下没有任何产物源（tables/contract/rules/notes.json 都没有）`); return 1; }
 	const files = compileStory({ tables, contract, rules, notesFace, slug, chargen });

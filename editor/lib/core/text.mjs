@@ -4,7 +4,7 @@
 // 抽出来的直接收益：`equiv` 与 `extract-story` 原先**互相 import**（环 ✗）——
 // 纯文本助手归这里之后，依赖只剩一个方向：`host → core`。
 import { maskComments } from './mask.mjs';
-import { stripJsComments } from './audit-shared.mjs';   // A 片：机制段剥 JS 注释（**单一权威** ✓ —— 与 `--text` 同口径 ✓）
+// `#1208` 分面：**机制段＝代码面** ⇒ 走 `mask.mjs` 的词法器；散文面（`--text` 总字）用启发式。
 
 /** 纯函数：从 twee 文本里取某段段落的正文（不含 `:: 名字 [script]` 头）。 */
 export const section = (text, name) => {
@@ -88,7 +88,7 @@ export const paragraphsOf = ({ file, text } = {}, { layer = 'story' } = {}) => {
 			// 注释**挖空**（不是删除）：示例不是代码，但**行号要留住** ✓；机制段再剥 JS 注释（单一权威 ✓）。
 			src: (() => {
 				const t = raw.replace(/\/%[\s\S]*?%\//g, (c) => c.replace(/[^\n]/g, ' '));
-				return (kind === 'mech' ? stripJsComments(t) : t);
+				return (kind === 'mech' ? maskComments(t) : t);   // `#1208`：代码面 ⇒ 词法器（原来借散文面启发式）
 			})(),
 			// 去注释源文 ✓（与 `context.mjs` 的 `passageSrc` 同口径 ✓ ⇒ `--settle` 那类判据吃它 ✓）。
 			body: raw.replace(/\/%[\s\S]*?%\//g, ''),

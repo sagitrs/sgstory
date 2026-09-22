@@ -13,7 +13,7 @@
 //   V2「能判红」：文件里出现 `自证·` ⇒ 必须存在**被增量的计数器**出现在某个 `if (…X…)` 里，
 //                且该分支可达 `process.exit(1)`。否则 `selftest-cannot-fail`。
 import { readFileSync, readdirSync } from 'node:fs';
-import { stripJsComments } from './audit/lib/shared.mjs';
+import { maskComments } from './audit/lib/shared.mjs';   // `#1208`：本处是**代码面**（判 `自证·` 在不在代码里）
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { ROOT } from './dist-paths.mjs';
@@ -152,7 +152,7 @@ export const selftestExitFindings = (src) => {
 	const code = stripForScan(raw);
 	// #474：用**只剥注释**的文本判“有没有打印 `自证·`” —— 它写在字符串里（保留 ✓），写在注释里不算（剥掉 ✓）。
 	// （踩坑留档：先前用 `code`（连字符串一起剥）判 ⇒ `console.log("自证·")` 被抹掉 ⇒ V2 恒不触发 ⇒ **假干净** ✗，是自证把它抱回来的。）
-	if (!stripJsComments(raw).includes('自证·')) return [];
+	if (!maskComments(raw).includes('自证·')) return [];   // `#1208`：词法器**保留字符串** ⇒ 正合该判据本意（写在字符串里算在、写在注释里不算）
 	const counters = new Set([...code.matchAll(/(?<![\w$.])([A-Za-z_$][\w$]*)\s*(?:\+\+|\+=)/g)].map((m) => m[1]));
 	// **实现要点（第三次尝试，前两次都错在这）**：不要解析"语句体"——“从退出点向前找最近的 `if`，
 	// 用字符级配平取出它的条件”既简单又够用；退出点与条件之间隔着 `{`、`console.error(...)` 都不影响。

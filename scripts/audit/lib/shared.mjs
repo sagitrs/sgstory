@@ -2,10 +2,11 @@
 // 否则注释里的示例会变成"真的写了/真的读了"（实测：引擎 JS 注释里的 `<<setflag "flower_taken">>`
 // 让 `--consequences` 把该键当成每个故事都写了 ⇒ 不声明它的故事假红）。
 import { maskComments } from './mask.mjs';
+export { maskComments };   // `#1208`：代码面正解经 hub 转出（审计门一律用它）
 import { asListOf, KEY_PREFIX_RE, OPS, WRAPPED_READ_RE, condKeysOf, declCondRefs, notePaths, wrappedReadKeys } from '../../../editor/lib/core/audit-shared.mjs';
 import { WRITE_PATTERNS, rowOps, noteWriteKeys, noteWriteRefs, notePathWriteRefs, NOTE_PATH_WRITE_RE, NOTE_WRITE_RE, declaredNoteWriteRefs, DECLARED_NOTE_WRITE_RE, conditionReadsFlag, noteReadKeys, noteRefs, NOTE_REF_RE } from '../../../editor/lib/core/audit-shared.mjs';
 export { WRITE_PATTERNS, rowOps, noteWriteKeys, noteWriteRefs, notePathWriteRefs, NOTE_PATH_WRITE_RE, NOTE_WRITE_RE, declaredNoteWriteRefs, DECLARED_NOTE_WRITE_RE, conditionReadsFlag, noteReadKeys, noteRefs, NOTE_REF_RE };   // `#215` E-B1：定义已上移 core ⇒ 本处**只转出**（不算定义 ✓）
-export { DECL_COND_RE, KEY_PREFIX_RE, OPS, READ_PATTERNS, WRAPPED_READ_RE, condKeysOf, declCondRefs, literalReadKeys, notePaths, readKeys, ruleRowKeys, stripJsComments, wrappedReadKeys } from '../../../editor/lib/core/audit-shared.mjs';
+export { DECL_COND_RE, KEY_PREFIX_RE, OPS, READ_PATTERNS, WRAPPED_READ_RE, condKeysOf, declCondRefs, literalReadKeys, notePaths, readKeys, ruleRowKeys, stripProseComments, wrappedReadKeys } from '../../../editor/lib/core/audit-shared.mjs';
 
 // ── 写点识别：**单一权威**（#476 复核建议）──────────────────────────────────
 // 此前 `shared.mjs`（D2 分类器）与 `gates/state.mjs` 各写一份字面量 ⇒ **漂移过一次**：

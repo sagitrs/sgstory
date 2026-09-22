@@ -1,7 +1,7 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { passagesOf } from '../../../editor/lib/core/passages.mjs';   // `#1114` 2b-2b-0b：切段单一权威
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { stripJsComments, storyText } from '../lib/shared.mjs';
+import { stripProseComments, storyText } from '../lib/shared.mjs';   // `#1208`：本处是**散文面**（总字）
 // flags=['text']。校验：npm run audit:golden。
 import { ROOT } from '../../dist-paths.mjs';
 import { loadStoryAudit } from '../lib/story-audit.mjs';
@@ -19,7 +19,7 @@ export const buildNarrative = (entries, isInfra) => {
 	let out = '';
 	for (const [name, src] of entries) {
 		if (isInfra(name)) continue;
-		out += stripJsComments(src).replace(/\/%[\s\S]*?%\//g, '').replace(/<<[^>]*>>/g, '').replace(/\[\[[^\]]*\]\]/g, '').replace(/[\s''/]/g, '');
+		out += stripProseComments(src).replace(/\/%[\s\S]*?%\//g, '').replace(/<<[^>]*>>/g, '').replace(/\[\[[^\]]*\]\]/g, '').replace(/[\s''/]/g, '');
 	}
 	return out;
 };
@@ -72,8 +72,8 @@ if (wantAll || arg('text')) {
 			['反例②：命中套路句式', judgeCliche('心跳如潮水', ['如潮水', '不由得']), 1],
 			['正例：黑名单外不算', judgeBlacklist(['a.twee'], ['星官'], readOf), 0],
 			['反例③：风格违和词（含行号）', judgeBlacklist(['a.twee'], ['青梧'], readOf), 1],
-			['正例：`//` 与 `/* */` 注释不成正文（#486）', stripJsComments('正文// 注释\n/* 块\n注释 */更多').replace(/[\s''/]/g, '').length, '正文更多'.length],
-			['正例：`//` 与 `/* */` 注释不成正文（#486）', stripJsComments('正文// 注释\n/* 块\n注释 */更多').replace(/[\s''/]/g, '').length, '正文更多'.length],
+			['正例：`//` 与 `/* */` 注释不成正文（#486）', stripProseComments('正文// 注释\n/* 块\n注释 */更多').replace(/[\s''/]/g, '').length, '正文更多'.length],
+			['正例：`//` 与 `/* */` 注释不成正文（#486）', stripProseComments('正文// 注释\n/* 块\n注释 */更多').replace(/[\s''/]/g, '').length, '正文更多'.length],
 			['正例：infra 段（`[script]`）整段不成正文（#527）', buildNarrative([['X', 'const a = 1'], ['P', '正文']], (n) => n === 'X').length, '正文'.length],
 			['反例：内容段仍要计数（防"把正文一起漏掉"）', buildNarrative([['P', '正文']], () => false).length, '正文'.length],
 			// #435 前置 0：故事文本源（内容段落 ∪ 归属到它的表行 `text`）——本门「总字」的口径

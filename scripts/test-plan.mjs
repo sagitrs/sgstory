@@ -234,6 +234,7 @@ export const SEGMENTS = [
 	{ id: "test-size-gate-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/size-gate.mjs --selftest" },
 	{ id: "test-size-gate-mjs", phase: 'test', cost: 0, cmd: "node test/size-gate.mjs" },
 	{ id: "test-silent-gate-mjs", phase: 'test', cost: 0, cmd: "node test/silent-gate.mjs" },
+	{ id: "test-comment-face-split-mjs", phase: 'test', cost: 0, cmd: "node test/comment-face-split.mjs" },   // `#1208`：剥注分面接线
 	// #762 P0：**故事数据 ↔ 手写版等价**（编辑器转向的第 0 步）——数据与手写 twee 漂移即红
 	{ id: "editor-compile-selftest", phase: 'test', cost: 0, cmd: "node editor/compile-story.mjs --selftest" },
 	{ id: "editor-equiv-selftest", phase: 'test', cost: 0, cmd: "node editor/equiv.mjs --selftest" },
@@ -474,6 +475,7 @@ export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs', 'scripts-audit
 	'test-serve-editor-mjs-selftest', 'test-serve-editor-mjs', // `#1033`：编辑器入口（与故事内容无关 ✓）
 	'test-story-runtime-mjs-selftest', 'test-story-runtime-mjs',
 	'test-layering-mjs-selftest', 'test-layering-mjs', 'test-globals-mjs', 'test-silent-gate-mjs',
+	'test-comment-face-split-mjs',   // `#1208`：剥注分面接线（与故事内容无关）
 	'test-size-gate-mjs-selftest', 'test-size-gate-mjs',
 	// #607：门发现面与故事内容无关（清单/归属/顺序表）
 	'test-gate-discovery-mjs',
@@ -586,7 +588,7 @@ export const SUITE_MEMBERS = {
 		'test-saveload-mjs', 'test-saveui-mjs', 'test-combat-adv-mjs', 'test-combat-adv-mjs-selftest',
 		'test-fight-seq-mjs', 'test-fight-seq-mjs-selftest', 'test-reread-mjs', 'test-reread-mjs-selftest',
 		'test-fatal-guard-mjs', 'test-onetime-pickups-mjs', 'test-roll-binding-mjs', 'test-scenarios-mjs',
-		'test-scenarios-mjs-selftest', 'test-silent-gate-mjs', 'test-dialect-mjs', 'test-contract-version-mjs',
+		'test-scenarios-mjs-selftest', 'test-silent-gate-mjs', 'test-comment-face-split-mjs', 'test-dialect-mjs', 'test-contract-version-mjs',
 		'test-contract-compat-mjs', 'test-pc-defaults-mjs', 'test-social-sink-mjs', 'test-social-sink-mjs-selftest',
 		'test-social-lever-mjs', 'test-siteinfo-sink-mjs', 'test-siteinfo-sink-mjs-selftest', 'test-event-graph-mjs',
 		'test-event-graph-mjs-selftest', 'scripts-audit-mjs-consequences-check', 'scripts-audit-mjs-a11y-check', 'scripts-audit-mjs-sitedisc-check',

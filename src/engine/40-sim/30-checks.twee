@@ -1,0 +1,41 @@
+:: Checks [script]
+// `#1187`：位点判定的「算」从 `21-resolve.twee` 拆出（`#1184` 流二）。本块逐行照搬，内容未改。
+//   只写 `Game.Checks`；读 `Game.Items`／`Game.Rules`，依赖已在 `MODULES` 的 `deps` 登记。
+
+Object.assign((window.Game.Checks ??= {}), {
+	// 位点判定的**算**：查位点表 → 推导优势/劣势（道具·行囊·情报·位点自带）→ 掷骰
+	// 纯函数：`pc` 只读、不碰 `State`、不渲染 ⇒ node 侧注入 `Game.Rules.rng` 即可复算成败。
+	rollSite(site, pc, advArg) {
+		const T = window.Game;
+		// #459 切片三：故事**数据**经接入契约取（`Sg.story.checkSite`；未登记由它 fail-loud 报错）
+		const s = window.Sg.story.checkSite(site);
+		let adv = advArg, why = '', why2 = '';
+		if (!adv) {
+			const item = T.Items.advSource(site, pc.inv, pc.gear);
+			if (item) { adv = 'adv'; why = (T.Items.advAt(site, { [item]: true }) ? '道具' : '行囊') + item; }
+		}
+		if (!adv) {
+			// `#733` 片 2-b：**把 pc 传下去**（接缝原本只传位点名 ⇒ 故事只能按"当前存档 pc"算持有 ⇒
+			// 合成 pc 的单测驱动不了它，违反 `#441-A`「可脱离浏览器驱动」）。故事侧已接受可选 pc。
+			// `#762` A 线：**下沉后**由引擎组装（故事只声明 `Game.Checks.knowledge*` 两张表）。
+			const kn = window.Sg.notes.knowledgeOf(site, pc);
+			// `#733` 片 2-b 接缝：故事若一并给出「**是否持有**」（`kn.held`，笔记面判定）⇒ 以它为准；
+			// 未给出时回落旧读法（读裸旗标 `pc.world[kn.flag]`）——翻面（单源停写旗标）之后，
+			// 只靠回落就会**丢掉这条情报优势**（实测 `#291 G2：带情报重试未标注优势来源`）。
+			const held = kn ? (typeof kn.held === 'boolean' ? kn.held : !!pc.world?.[kn.flag]) : false;
+			if (held) { adv = 'adv'; why = '情报·' + kn.why; }
+		}
+		if (!adv && s.dis) { adv = 'dis'; why2 = s.disWhy ?? '这一手本来就悬'; }
+		const opt = {
+			adv: adv === 'adv' ? 1 : adv === 'dis' ? -1 : 0,
+			bonus: 0, nat: s.nat ?? 0, site, advWhy: why, disWhy: why2,
+		};
+		return s.abil ? T.Rules.save(pc, s.abil, s.dc, opt) : T.Rules.check(pc, s.skill, s.dc, opt);
+	},
+	// sim 侧入口：算完把结果写进**结果槽**（`$last_check`——段落分支与 `<<snapshot>>` 读它）
+	resolve(site, pc, advArg) {
+		const res = this.rollSite(site, pc, advArg);
+		State.variables.last_check = res;
+		return res;
+	},
+});

@@ -109,8 +109,8 @@ MD 的 `[](…)` 是**资源地址**（渲染成 `href`），语义不等价；�
 
 `stories/night-ferry/` 现况（`audience: content`，唯一上架故事）：
 
-- `00-story.json` · `10-ferry.twee`（11 段落）· `15-tables.twee` · `17-rules.twee` · `data/{tables,rules,contract}.json`
-- ⚠️ **无 `passages/`**：散文仍在 `.twee`（`10-ferry.twee`）⇒ 甲-1 的散文层**尚未落地**。
+- `00-story.json` · `passages/*.md`（11 段落）· `00-meta.twee` · `15-tables.twee` · `17-rules.twee` · `data/{tables,rules,contract}.json`
+- 散文层**已落地**：`night-ferry` 的 11 段在 `passages/*.md`（`#1132` 片 3 ✓ 与 `face-fixture` 同形）；`00-meta.twee` 仍在 twee（等编译期生成 meta 的能力 ⇒ 与 `face-fixture` 同闸同批）。
 - ⚠️ `data/rules.json` 的 `rows: []` ⇒ **条件面在真内容上从未被使用过**。
 - 条件面的真数据只在**内部夹具** `stories/face-fixture/data/rules.json`（**39 行**，字段实测 `any/exclude/id/prio/req/scope/text`）。
 

@@ -36,7 +36,7 @@
   "audience": "content",
   "files": [
     "stories/night-ferry/00-meta.twee",
-    "stories/night-ferry/10-ferry.twee",
+    "stories/night-ferry/passages/01-渡口.md",
     "stories/night-ferry/15-tables.twee",
     "stories/night-ferry/17-rules.twee"
   ],

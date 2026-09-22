@@ -407,17 +407,6 @@ Object.assign((window.Game.Social ??= {}), {
 //      （会改这两道门的输出与 golden）⇒ 按单变量纪律本片不动，另开票处理"注入 rng ＋ 重签蒙特卡洛基线"。
 //      ⇒ 本片后 sim 仍调 `Game.Combat.offer` 一处（`STORY_SYMBOLS` 不含它 ⇒ 层间判据 0 命中，但架构上仍是"引擎调故事机制"✗）。
 //   ② `Combat.eligible` 已随本片搬入 sim（`offer` 经 `this.eligible` 调用它 ⇒ 运行时同命名空间解析 ✓）。
-Object.assign((window.Game.Gear ??= {}), {
-	damageBonus(gear) {
-		return (gear ?? []).reduce((a, k) => a + (window.Sg.story.gearDef(k)?.damage ?? 0), 0);
-	},
-	damageSource(gear) {
-		return (gear ?? []).find((k) => (window.Sg.story.gearDef(k)?.damage ?? 0) > 0) ?? '';
-	},
-	advSource(site, gear) {
-		return (gear ?? []).find((k) => (window.Sg.story.gearDef(k)?.advSites ?? []).includes(site)) ?? '';
-	},
-});
 Object.assign((window.Game.Items ??= {}), {
 	advAt(site, inv) {
 		return !!window.Game.Items.advSource(site, inv);

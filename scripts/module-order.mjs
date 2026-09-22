@@ -48,6 +48,9 @@ export const ORDER = [
 	'stories/face-fixture/00-meta.twee',      // 夹具元数据（StoryTitle / StoryData / StoryIdentity）
 	'stories/face-fixture/15-tables.twee',    // 夹具的声明面：引擎加载期要用的容器（**必须排在 21-resolve 前** ✓）
 	'src/engine/40-sim/21-resolve.twee',    // 结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）
+	// `#1132` B3：车卡数据面（生成物 18-chargen.twee；运行期由 applyQuickPreset 经 Sg.story.chargen() 读）
+	//   排在 15-tables（声明面）之后、消费者（11-fixture-cards.twee）之前：与本块按依赖交错的既有房式一致
+	'stories/face-fixture/18-chargen.twee',
 	'stories/face-fixture/10-fixture.twee',   // 夹具段落：车卡链 ＋ 每种面各一段（段名沿用旧故事＝消费者钉死了它 ✓）
 	// `#1114` 2b-2b：`10-fixture.twee` 拆成 23 个 md ＋ 3 个 twee（**保段序** ✓）——
 	//   ⚠️ 必须登记在 `ORDER` 里 ✗：`storyOrder` 先按 ORDER 的 rank 排，**不在 ORDER 的故事件 rank=MAX ⇒ 排到最后**

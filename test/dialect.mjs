@@ -63,7 +63,9 @@ try {
 	//   这张表的价值就在“形状一变就红”✓，拿计算值去填就把它变成同义反复了 ✗）。
 	const want = {
 		'minimal-demo': { present: 2, absent: 2, topKeys: 7, itemLists: 2, itemFields: 8 },
-		'night-ferry': { present: 3, absent: 1, topKeys: 10, itemLists: 3, itemFields: 8 },
+		// `#1138`：`contract.json` 新增一个成员（`codexItems`，带 `path`）⇒ **条目字段 8→13** ✓
+		//   （变化原因明确：加了契约成员 ⇒ 不是"形状走偏" ✗；其余四项不变 ✓ 顶层键/在册数/条目表都没动 ✓）
+		'night-ferry': { present: 3, absent: 1, topKeys: 10, itemLists: 3, itemFields: 13 },
 	};
 	const fps = new Set();
 	for (const slug of Object.keys(want)) {

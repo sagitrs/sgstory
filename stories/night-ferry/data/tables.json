@@ -68,6 +68,13 @@
 						"settle"
 					],
 					"note": "引擎保留的运行时槽（每个故事都要登记）"
+				},
+				{
+					"id": "ferry",
+					"keys": [
+						"ferryman_asked"
+					],
+					"note": "夜渡的故事键（`#1138` 片：最小线索面 ✓ 与 face-fixture 的 `fixture` 同形 ✓）"
 				}
 			],
 			"bookkeeping": [],
@@ -75,6 +82,22 @@
 		},
 		"Notes": {
 			"entries": {}
+		},
+		"Codex": {
+			"items": {
+				"河渡": {
+					"hint": "摆渡的老人不收钱也肯渡人——他说这条河认得每一盏灯。",
+					"clues": [
+						{
+							"id": "asked",
+							"label": "问过：他为什么撑不到对岸",
+							"req": [
+								"ev.ferryman_asked"
+							]
+						}
+					]
+				}
+			}
 		}
 	},
 	"merges": [

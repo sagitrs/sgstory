@@ -51,7 +51,6 @@ export const ORDER = [
 	// `#1132` B3：车卡数据面（生成物 18-chargen.twee；运行期由 applyQuickPreset 经 Sg.story.chargen() 读）
 	//   排在 15-tables（声明面）之后、消费者（11-fixture-cards.twee）之前：与本块按依赖交错的既有房式一致
 	'stories/face-fixture/18-chargen.twee',
-	'stories/face-fixture/10-fixture.twee',   // 夹具段落：车卡链 ＋ 每种面各一段（段名沿用旧故事＝消费者钉死了它 ✓）
 	// `#1114` 2b-2b：`10-fixture.twee` 拆成 23 个 md ＋ 3 个 twee（**保段序** ✓）——
 	//   ⚠️ 必须登记在 `ORDER` 里 ✗：`storyOrder` 先按 ORDER 的 rank 排，**不在 ORDER 的故事件 rank=MAX ⇒ 排到最后**
 	//   ⇒ 不登记就会把 12-hooks/13-codex/… 提到段落面之前（实测：产物段序 @4 起整块位移 ✓）。
@@ -145,7 +144,6 @@ export const MODULES = {
 	//   它把接入契约的每种面声明一次，供测试当输入（段名沿用旧故事只因消费者钉死了它们 ✓；正文全部新写 ✗）。
 	'stories/face-fixture/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '夹具的元数据（StoryTitle / StoryData / StoryIdentity）' },
 	'stories/face-fixture/15-tables.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '夹具的声明面：引擎**加载期**要用的容器（同 `#998`：必须排在 `21-resolve` 前 ✗）' },
-	'stories/face-fixture/10-fixture.twee': { deps: ['stories/face-fixture/15-tables.twee'], defines: ['Game.Chargen'], layer: 'story', note: '夹具段落：车卡链（`rules.mjs` 钉死 3 轮 × 3 选项 ＋ 3 预设）＋ 每种面各一段' },
 	'stories/face-fixture/12-hooks.twee': { deps: ['stories/face-fixture/15-tables.twee'], defines: [], layer: 'story', note: '夹具的手写逃生舱：`Sg.story.overBudget`（非 A 桶契约成员，照 `mist-forest/16-hooks.twee` 先例）' },
 	'stories/face-fixture/17-rules.twee': { deps: ['stories/face-fixture/15-tables.twee'], defines: [], layer: 'story', note: '夹具条件表（生成物）：`rows` 非空（两存活样本都给不了这一格 ✓）' },
 	'stories/face-fixture/16-notes-ch1.twee': { deps: ['stories/face-fixture/15-tables.twee'], defines: [], layer: 'story', note: '夹具 notes 面（生成物）：`Game.Notes.entries` 增量（4 条）' },

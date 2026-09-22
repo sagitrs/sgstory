@@ -30,7 +30,6 @@ export const BASE_TWEE = 11;
 /** 机制标签段的**逐条点名清单**（顺序无关 ✓）。**只许缩** ✗ —— 加一条 ⇒ 红 ✓。 */
 export const BASE_MECH = [
 	'face-fixture/00-meta.twee::StoryIdentity',
-	'face-fixture/10-fixture.twee::Chargen Data',
 	'face-fixture/12-hooks.twee::StoryHooks',
 	'face-fixture/12-hooks.twee::Fixture Widgets',
 	'minimal-demo/00-meta.twee::StoryIdentity',

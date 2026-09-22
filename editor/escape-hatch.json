@@ -27,12 +27,6 @@
 			"paths": "**三条路**：(i) 三段都数据化（当下不走：`StoryData` 属 Twine 参数、`StoryTitle` 属散文）；(ii) 只数据化 `StoryIdentity`（收益 1 行 < 新面成本）；(iii) **本阶段不动 ＋ 登记为欠账** ← 采用。**重开条件**：当「手写面清零」成为显式目标、或 `StoryData` 需要按故事机检时。"
 		},
 		{
-			"file": "stories/face-fixture/10-fixture.twee",
-			"why": "**车卡模块（`Chargen Data [script]`）**（夹具）：`#1114` 片 2b-2b 迁移后本件**只剩首段**（`Chargen Data [script]` ⇒ `rounds`／`presets` 等模块数据 ＋ `applyPreset`／`pick`／`finalize` 的调用面）；其余 23 段已迁 `passages/*.md`（散文源 ✓），4 段（车卡／车卡·成型／设定集×2）待 `#1132` 形态落地后另处 ✓",
-			"ticket": "#1004",
-			"paths": "**三条路**：(i) 把 `Chargen` 数据化（`rounds`／`presets` 进 `data/` ＋ 新 kind 装 `apply` 闭包 —— 那是 `escape-hatch.json` 的 C 桶，需先立词）；(ii) 段落正文进 `data/`（设计稿 §3 明写「文本留文本」⇒ **不走**）；(iii) **本阶段不动 ＋ 登记为欠账** ← 采用。**重开条件**：当「车卡面」在第二个故事里再出现一次、或 C 桶「闭包 apply」凑到第三处时，按 `#785` 的口径扩词。"
-		},
-		{
 			"file": "stories/face-fixture/11-fixture-cards.twee",
 			"why": "**车卡模块（可达段）**（夹具）：装 `车卡`／`车卡·成型` 两段 —— 它们是**玩家可达段**（有入边链接 ✓）故不能标 `[widget]`；内容为 `Game.Chargen` 驱动的卡片列表（`<<for>>` 循环 ＋ `<<capture>>`）⇒ **当下不可数据化**（`#1132` 定形态 ✓）。`#1114` 2b-2b 从 `10-fixture.twee` 拆出以**保持原段序**（md 段与这两段交错 ✓）",
 			"ticket": "#1132",

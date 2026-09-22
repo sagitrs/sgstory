@@ -65,7 +65,8 @@ ok(nat1.roll === 1 && !nat1.success, '自然 1 → 无视加值必然失败');
 const rounds = w.Game.Chargen.rounds;
 eq(rounds.length, 3, '车卡共 3 轮（职业/背景/种族）');
 ok(rounds.every((r) => r.options.length === 3), '每轮恰好 3 个选项');
-ok(rounds.every((r) => r.options.every((o) => typeof o.apply === 'function')), '所有选项都有 apply 函数');
+ok(rounds.every((r) => r.options.every((o) => o.patch && typeof o.patch === 'object')), '所有选项都带声明式 patch（施加器在引擎侧）');
+ok(typeof w.Sg?.Chargen?.apply === 'function', '引擎侧施加器 Sg.Chargen.apply 在场');
 ok(rounds.every((r) => r.options.every((o) => o.name && o.desc && o.effect)), '选项均有名称/描述/效果三件套');
 
 const v = w.SugarCube.State.variables;

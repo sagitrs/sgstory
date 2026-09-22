@@ -420,6 +420,9 @@ Macro.add('applyQuickPreset', {
 			Ch.finalize(pc);
 			pc.finalized = true;
 		}
+		// `#1132` B3：姓名由数据接管（原故事侧那一行 `$pc.name` 已删）——与 `mode`／`finalized` 同处，属宏的职责。
+		const P = Ch.presets?.[pc.presetIdx ?? 0];
+		if (P?.pcName) pc.name = P.pcName;
 	},
 });
 

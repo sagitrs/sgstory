@@ -80,7 +80,6 @@ export const ORDER = [
 	'stories/face-fixture/passages/25-结局 平凡之路.md',
 	'stories/face-fixture/passages/26-结局 送星归位.md',
 	'stories/face-fixture/passages/27-结局 死亡.md',
-	'stories/face-fixture/12-hooks.twee',     // 夹具的手写逃生舱（`overBudget` 等非 A 桶契约成员 ✓）
 	'stories/face-fixture/17-rules.twee',     // 夹具条件表（生成物）：`rows` 非空 ⇒ 条件表面
 	'stories/face-fixture/16-notes-ch1.twee', // 夹具 notes 面（生成物）：`Game.Notes.entries` 增量
 	// `#1132` 片 3：夜渡 11 段叙事迁 md（**原段序** ✓ 逐字无损 ✓；`00-meta.twee` **不动** ⇒ 等片 B 同闸同批 ✓）
@@ -144,7 +143,6 @@ export const MODULES = {
 	//   它把接入契约的每种面声明一次，供测试当输入（段名沿用旧故事只因消费者钉死了它们 ✓；正文全部新写 ✗）。
 	'stories/face-fixture/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '夹具的元数据（StoryTitle / StoryData / StoryIdentity）' },
 	'stories/face-fixture/15-tables.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '夹具的声明面：引擎**加载期**要用的容器（同 `#998`：必须排在 `21-resolve` 前 ✗）' },
-	'stories/face-fixture/12-hooks.twee': { deps: ['stories/face-fixture/15-tables.twee'], defines: [], layer: 'story', note: '夹具的手写逃生舱：`Sg.story.overBudget`（非 A 桶契约成员，照 `mist-forest/16-hooks.twee` 先例）' },
 	'stories/face-fixture/17-rules.twee': { deps: ['stories/face-fixture/15-tables.twee'], defines: [], layer: 'story', note: '夹具条件表（生成物）：`rows` 非空（两存活样本都给不了这一格 ✓）' },
 	'stories/face-fixture/16-notes-ch1.twee': { deps: ['stories/face-fixture/15-tables.twee'], defines: [], layer: 'story', note: '夹具 notes 面（生成物）：`Game.Notes.entries` 增量（4 条）' },
 	'src/engine/30-persist/05-store.twee': { deps: [], defines: ['Sg.store'], layer: 'engine', note: '存储缝（#441-B/#462）：localStorage 键构造的唯一落点' },

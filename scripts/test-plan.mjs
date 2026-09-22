@@ -707,6 +707,10 @@ export const inputsMatch = ({ declared = [], changed = [] } = {}) => {
  *  （同 `FULL_REASONS` 的口径 ✓：降频／不跳过都要留痕 ✓）。
  */
 export const INPUTS_WILDCARD_REASONS = {
+	'test-rules-mjs': {
+		reason: '读构建产物与故事数据（契约成员、车卡数据、图鉴条目）=> 取全跑型以免静默跳过成假绿面 ✓',
+		voucher: '#1132',
+	},
 	'test-chargen-apply-mjs': {
 		reason: 'boot 起真引擎直接调 Sg.Chargen.apply（不读 stories 目录）⇒ 取全跑型以免静默跳过成假绿面 ✓',
 		voucher: '#1132',

@@ -12,7 +12,7 @@
 			<h3>_p.name</h3>
 			<p>_p.desc</p>
 			<span class="choice-effect">_p.summary</span>
-			<<link "快速成型">><<set $pc.presetIdx to _i>><<goto "车卡·成型">><</link>>
+			<<link "快速成型">><<pickPreset "车卡·成型" _i>><</link>>
 		</div>
 		<</capture>>
 	<</for>>
@@ -24,9 +24,7 @@
 :: 车卡·成型
 /% vocab: exempt 车卡模块 API（applyPreset / finalize）——此处无玩家可读正文 %/
 /% payload: 选择 %/
-<<run Game.Chargen.applyPreset($pc.presetIdx ?? 0)>>
-<<set $pc.mode to "quick">>
-<<if !$pc.finalized>><<run Game.Chargen.finalize($pc)>><<set $pc.finalized to true>><</if>>
+<<applyQuickPreset>>
 <<set $pc.name to "夹具旅人">>
 你的角色备好了：<<= $pc.classLabel ?? ''>><<= $pc.bgLabel ?? ''>><<= $pc.speciesLabel ?? ''>>。
 

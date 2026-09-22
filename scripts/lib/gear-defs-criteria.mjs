@@ -25,9 +25,20 @@
 // · 一处定义 ＋ 一格进跑器自证 ✓（同 `#1100` 形态 ✓ 不新造 ✗）
 // ```
 import { readFileSync } from 'node:fs';
-import { maskComments } from '../audit/lib/mask.mjs';   // `#1115`：**单一权威**遮蔽器（剥注释 ✓ —— 否则注释里的 `gearDef(...)?.X` 也算读 ✓）
+import { maskComments } from '../audit/lib/mask.mjs';
+import { allSourceFiles } from '../module-order.mjs';   // `#1187`：引擎件清单（派生用）   // `#1115`：**单一权威**遮蔽器（剥注释 ✓ —— 否则注释里的 `gearDef(...)?.X` 也算读 ✓）
 
-export const ENGINE_FILE = 'src/engine/40-sim/21-resolve.twee';
+// `#1187`：引擎侧文件**自动派生**（原先硬编 `21-resolve.twee` ⇒ 拆模块时该门当场腐烂）。
+//   口径：锚 `gearDef(...)?.<字段>` 落在哪个引擎件，就取那件。**惰性求值**（定义在 realRead 之后才可用；
+//   即时求值会因 TDZ 报错而被吞成静默兜底 —— 那正是"静默降级"）。找不到 ⇒ 返回 null，由判据出声。
+export const engineFilesOf = () => allSourceFiles(['src'])
+	.filter((f) => f.endsWith('.twee'))
+	.filter((f) => /gearDef\([^)]*\)\?\./.test(maskComments(realRead(f))));
+// 兼容既有引用点（值形状不变）：求值推迟到首次访问；多件时逐件点名。
+export const ENGINE_FILE = {
+	toString: () => { const fs = engineFilesOf(); return fs.length ? fs.join(' ＋ ') : '(未派生)'; },
+	valueOf: () => engineFilesOf(),
+};
 export const CONTRACT_DOC = 'docs/story2-contracts.md';
 
 const realRead = (f) => { try { return readFileSync(f, 'utf8'); } catch { return ''; } };
@@ -47,16 +58,21 @@ export const docDeclaredFields = (doc) => {
 };
 
 /** 口径门（**纯函数 ＋ 注入** ✓ ⇒ 自证能喂假事实 ✓）。 */
-export const gearDefsCriteriaProblems = ({ read = realRead, engine = ENGINE_FILE, doc = CONTRACT_DOC } = {}) => {
+export const gearDefsCriteriaProblems = ({ read = realRead, engine = null, doc = CONTRACT_DOC } = {}) => {
 	const problems = [];
-	const src = read(engine);
+	// `#1187`：引擎件按锚**派生全集**（不再硬编单文件；若拆分后多个件都读该面，只取首件会漏字段）。
+	//   派生不到 ⇒ 出声，不静默比空。
+	const enginePaths = engine ? (Array.isArray(engine) ? engine : [engine]) : engineFilesOf();
+	if (!enginePaths.length) return [`✗ **读数不成立**：引擎件里**派生不到**锚 \`gearDef(...)?.<字段>\` ✗（口径门比不了；请核锚是否被改名或挪出 \`src/**\`）`];
+	const enginePath = enginePaths.join(' ＋ ');
+	const src = enginePaths.map((f) => read(f)).join('\n');
 	const txt = read(doc);
-	if (!src) problems.push(`✗ **读数不成立**：引擎件 \`${engine}\` **读不到** ✗（口径门比不了 ✓）`);
+	if (!src) problems.push(`✗ **读数不成立**：引擎件 \`${enginePath}\` **读不到** ✗（口径门比不了 ✓）`);
 	if (!txt) problems.push(`✗ **读数不成立**：契约文档 \`${doc}\` **读不到** ✗（口径门比不了 ✓）`);
 	if (problems.length) return problems;
 	const code = codeReadFields(src);
 	const declared = docDeclaredFields(txt);
-	if (!code.length) problems.push(`✗ **读数不成立**：\`${engine}\` 里**抽不到** \`gearDef(...)?.<字段>\` ✗（锚没命中 ⇒ 空转 ✓）`);
+	if (!code.length) problems.push(`✗ **读数不成立**：\`${enginePath}\` 里**抽不到** \`gearDef(...)?.<字段>\` ✗（锚没命中 ⇒ 空转 ✓）`);
 	if (!declared.length) problems.push(`✗ **读数不成立**：\`${doc}\` §1.2 里**抽不到**表格首列字段 ✗（空转 ✓）`);
 	if (problems.length) return problems;
 	const onlyCode = code.filter((f) => !declared.includes(f));
@@ -66,7 +82,7 @@ export const gearDefsCriteriaProblems = ({ read = realRead, engine = ENGINE_FILE
 			+ `    · **②代码实际读的独有**：${onlyCode.join('、') || '（无）'}\n`
 			+ `    · **③文档声明的独有**：${onlyDoc.join('、') || '（无）'}\n`
 			+ `    · 共有：${code.filter((f) => declared.includes(f)).join('、') || '（无）'}\n`
-			+ `  ⇒ 作者照 ③ 写 ⇒ 引擎在 \`${engine}\` **读不到** ✓（"按文档写 ⇒ 引擎不认"✓）`);
+			+ `  ⇒ 作者照 ③ 写 ⇒ 引擎在 \`${enginePath}\` **读不到** ✓（"按文档写 ⇒ 引擎不认"✓）`);
 	}
 	return problems;
 };

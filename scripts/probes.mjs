@@ -31,6 +31,19 @@
 /** @type {{id:string,tier:'fast'|'full',pre:string[],cmd:string,rebuild?:string, // `#1012`：变异后重建产物（还原之后跑，失败即红）
 mutation:{file:string,find:string,replace:string},expect:{rc:number,stdout:RegExp},why:string}[]} */
 export const PROBES = [
+	{
+		id: 'test/gen-needed.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/gen-needed.mjs',
+		mutation: {
+			file: 'scripts/lib/gen-needed.mjs',
+			find: "const missing = products.filter((f) => !exists(f));",
+			replace: "const missing = products;   // 探针：改回恒真形态（不看在否）",
+		},
+		expect: { rc: 1, stdout: /只产子集且产物齐备/ },
+		why: '量的是「缺件才编」那一支（改回"忽略 exists"的恒真写法 ⇒ 第一格当场点名）。',
+	},
 	// `#1189`：量的是「覆盖格真的在守」那一支 —— 刀＝往 `src/` 里插一段合成现场（形态与真的一样，不进表）。
 	{
 		id: 'test/route-registry.mjs',

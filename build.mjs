@@ -1,5 +1,6 @@
 import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
 import { allSourceFiles } from './scripts/module-order.mjs';
+import { genNeeds } from './scripts/lib/gen-needed.mjs';   // `#1192`：该不该重编这份故事的产物
 import { execSync } from 'node:child_process';
 import vm from 'node:vm';   // `#1176`：生成件脚本段的解析器（只解析不执行）
 import { join, dirname, relative, isAbsolute } from 'node:path';
@@ -44,13 +45,24 @@ const STORIES = 'stories';   // \`#1128\` 产物前置用（编译器 out 路径
 //（票面约束：`git clean` 后的干净树必须能重建全套产物 ——断点补在此；产物在=幂等跳过 已在=不重编 保持逐字节稳定）。
 {
 	const { execFileSync } = await import('node:child_process');
-	for (const slug of slugs.filter((x) => !x.startsWith('__'))) {   // #1128：临时夹具（__ 前缀）不参与产物前置（它们的产物由造它们的段自己管）
-		const genNeeded = ['15-tables.twee', '17-rules.twee', '16-notes-ch1.twee', '18-chargen.twee', '00-meta.twee'].some((f) => !existsSync(join(STORIES, slug, f)));
-		// 只补缺件（`#1128` 后磁盘上的现存产物由 K4 freshness 门守 ——不重编已有 → 保持与门一致）
-		//注意：每故事的产物集不同（minimal-demo 只 15；face-fixture 15/16/17）→ 编译器按 data/ 自动产出
-		if (genNeeded) {
+	for (const slug of slugs.filter((x) => !x.startsWith('__'))) {   // #1128：临时夹具（__ 前缀）不参与产物前置
+		// `#1192`：判据从"固定五名清单"改成**按该故事清单声明的产物集**（manifest 驱动，缺哪件补哪件）。
+		// 旧写法对只产子集的故事恒真，于是每次构建都全量重编；后果不只是浪费，更隐蔽的一层是**注入与陈旧会被
+		// 静默覆盖**（守卫类判据在这些故事上试牙会得到假绿或读成"没牙"）。判据本体在 `scripts/lib/gen-needed.mjs`。
+		const manifest = join(STORIES, slug, '00-story.json');
+		let declared = [];
+		try { declared = JSON.parse(readFileSync(manifest, 'utf8')).files ?? []; } catch { declared = []; }
+		const dataDir = join(STORIES, slug, 'data');
+		const dataFiles = existsSync(dataDir) ? readdirSync(dataDir).filter((f) => f.endsWith('.json')) : [];
+		const need = genNeeds({
+			declared,
+			family: (f) => isGeneratedFamily(f),
+			exists: (f) => existsSync(f),   // 清单里的 `files` 是相对仓根的路径
+			dataFiles,
+		});
+		if (need.needed.length) {
 			execFileSync('node', ['editor/compile-story.mjs', slug, `--out=${join(STORIES, slug)}/`], { stdio: 'pipe' });
-			console.log(`  #1128 产物重建：${slug}（data/ → *.twee ✓）`);
+			console.log(`  #1128 产物重建：${slug}（${need.why}）`);
 		}
 	}
 }

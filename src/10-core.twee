@@ -715,6 +715,26 @@ Macro.add('applyQuickPreset', {
 		（空）
 	<</if>>
 <</nobr>><</widget>>
+<<widget "flipEra">><<nobr>>
+	/% `#1132` B3：时代翻转的引擎能力（原为故事侧 widget）。三项数据经契约读，宏内不写故事字面量。 %/
+	<<set _flipItem to Sg.story.flipItem()>>
+	<<set _flipCost to Sg.story.flipStarCost()>>
+	<<set _flipFlag to Sg.story.flipReturnFlag()>>
+	<<if not $pc.inv[_flipItem]>>
+		<div><span class="era-drained">你身上没有能校进另一段时间的东西。</span></div>
+	<<else>>
+		<<link `($era is Game.Era.PRESENT ? "翻转护符：坠入『过去』" : "翻转护符：回到『现在』")`>>
+			<<if not $pc.star.first_free>>
+				<<set $pc.star.first_free to true>>
+			<<else>>
+				<<set $pc.star.spent to $pc.star.spent + _flipCost>>
+			<</if>>
+			<<set $era to ($era is Game.Era.PRESENT ? Game.Era.PAST : Game.Era.PRESENT)>>
+			<<if $era is Game.Era.PRESENT>><<set $pc.world[_flipFlag] to true>><</if>>
+			<<goto `passage()`>>
+		<</link>>
+	<</if>>
+<</nobr>><</widget>>
 
 :: StoryCaption
 /% 侧边栏：常驻存档入口（v16 §5.0）+ 实时角色卡 + 物品栏 %/
@@ -746,7 +766,7 @@ $pc.speciesLabel $pc.classLabel
 ''物品栏''
 <div class="inv-list"><<inventory>></div>
 </div>
-<<if $pc.inv["时光护符"]>>
+<<if $pc.inv[Sg.story.flipItem()]>>
 ⌛ <<if $era is Game.Era.PAST>>过去<<else>>现在<</if>>
 <</if>>
 /% #460：设定集是本故事的页面（引擎不知道故事名）⇒ **存在才渲染**；否则第二/第三故事侧栏会出现死链 %/

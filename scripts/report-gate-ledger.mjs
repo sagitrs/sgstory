@@ -512,6 +512,20 @@ const main = () => {
 	else if (s.probeNone > s.probeCap) probs.push({ id: 'scripts/probe-budget.json', code: 'probe-coverage-drop', msg: `未探（\`—\`）的行数 ${s.probeNone} > 上限 ${s.probeCap} ⇒ 覆盖率**下降**了 ✗（加新门就得补探针 ✓；真要放宽上限，改那个数字是一次**显式决定** ✓）` });
 
 	if (argv.includes('--update')) {
+		// `#1174` RC③：**探针读数缺失时拒绝生成** ——
+		// 为什么必须拒（实测踩过两次）：探针列与探针计数行取自 build/probe-results.json（gitignored，
+		// 由 probe-gates.mjs --probe=fast 产出）；该文件不存在时上面读到的是空集，
+		// 生成出的台账会把"未探"写成满额、把覆盖数写成 0，看起来像覆盖率暴跌，
+		// 而真相只是没跑探针。那是"读数缺失被当成读数"（本仓反复踩的那族）。
+		// 故缺读数时不写盘并提示怎么拿读数；有读数时照常写并如实入账。
+		const rec = probeRecords();
+		if (!rec.probes.length) {
+			console.error('× 拒绝生成台账：探针读数缺失（build/probe-results.json 不存在或为空）');
+			console.error('   原因：探针列与探针计数行取自该文件；缺读数时生成会把"未探"写成满额，看起来像覆盖率暴跌。');
+			console.error('   修：先跑 node scripts/probe-gates.mjs --probe=fast 拿到读数，再 npm run report:gates:update。');
+			console.error('   例外：确实要在无读数状态下看其余面，可加 --allow-missing-probe（该列将标注"无读数"）。');
+			if (!argv.includes('--allow-missing-probe')) process.exit(2);
+		}
 		writeFileSync(LEDGER, md);
 		console.log(`✔ 台账已生成 ${LEDGER}（${s.total} 项 · 行为化率 ${s.rate}%）`);
 		process.exit(0);

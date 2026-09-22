@@ -163,6 +163,10 @@ export const SEGMENTS = [
 	{ id: "scripts-clean-net-mjs-selftest", phase: 'test', cost: 0, inputs: ['*'], cmd: "node scripts/clean-net.mjs --selftest" },
 	{ id: "scripts-precommit-check-mjs-selftest", phase: 'test', cost: 0, inputs: ['*'], cmd: "node scripts/precommit-check.mjs --selftest" },
 	{ id: "scripts-lint-new-segment-mjs-selftest", phase: 'test', cost: 0, inputs: ['*'], cmd: "node scripts/lint-new-segment.mjs --selftest" },
+	// `#1174`：**人类面行文检查**（`lint:style`）—— 检索注释面与文档面的装饰记号。两段成对：自证段量判据函数本身，
+	//   门态段逐件扫描全仓。自证**必须成对登记**：判据能不能被"种出来的反例"点燃只由 `--selftest` 量，不登记它 ＝ 那一半零守护。
+	{ id: "scripts-lint-human-face-mjs-selftest", phase: 'test', cost: 0.4, inputs: ['*'], cmd: "node scripts/lint-human-face.mjs --selftest" },
+	{ id: "scripts-lint-human-face-mjs-check", phase: 'test', cost: 0.4, inputs: ['*'], cmd: "node scripts/lint-human-face.mjs" },
 
 	{ id: "test-g3-evidence-mjs", phase: 'test', cost: 15.7, cmd: "node test/g3-evidence.mjs" },
 	{ id: "test-fight-seq-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-seq.mjs --selftest" },
@@ -660,6 +664,7 @@ export const SUITE_MEMBERS = {
 		'test-coverage-mjs',
 		'test-witness-trace-mjs',
 		'scripts-clean-net-mjs-selftest', 'scripts-precommit-check-mjs-selftest', 'scripts-lint-new-segment-mjs-selftest',
+		'scripts-lint-human-face-mjs-selftest', 'scripts-lint-human-face-mjs-check',
 	],
 };
 
@@ -736,6 +741,14 @@ export const INPUTS_WILDCARD_REASONS = {
 	'scripts-precommit-check-mjs-selftest': {
 		reason: '纯函数自证（三分支态判据）不读外部件 => 取全跑型以免静默跳过成假绿面 ✓',
 		voucher: '#1166',
+	},
+	'scripts-lint-human-face-mjs-check': {
+		reason: '本段是门的主体：逐件扫描全仓人类面（注释与文档）→ 面即整个仓库 ⇒ 取全跑型（否则存量记号会静默溜过）',
+		voucher: '#1174',
+	},
+	'scripts-lint-human-face-mjs-selftest': {
+		reason: '本段验判据函数自身（mask 定位 · 模板串不误判 · 代码区不动 · V3 全量机械验证）⇒ 取全跑型以免静默跳过成假绿面',
+		voucher: '#1174',
 	},
 	'scripts-lint-new-segment-mjs-selftest': {
 		reason: '合成计划注入五类缺陷（不读真计划）=> 取全跑型以免静默跳过成假绿面 ✓',

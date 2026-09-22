@@ -62,7 +62,7 @@ scope_of: []
 | 事 | 现状 |
 |---|---|
 | `passages/*.md` 拼装 | ❌ **未实现**（`editor/**` 无 front-matter／passages 解析） |
-| 散文实际所在 | `stories/<slug>/10-*.twee`（**手写**，**不是**产物）——`night-ferry` 的 11 个段落就在 `10-ferry.twee` |
+| 散文实际所在 | `stories/<slug>/passages/*.md`（**手写**，**不是**产物）——`night-ferry` 的 11 个段落就在 `passages/01-渡口.md` … `11-结局 沉船.md` |
 | `{{名字}}` 取值 | ❌ **未实现**（全仓 `{{` 只出现在 JSDoc 类型注释）；实施票 `#1048` |
 | 禁计算门 | ✅ **已生效** |
 | `10-*.twee` 是"产物"吗 | ⚠️ **取决于故事**：`night-ferry` 是手写；设计目标是"由 `passages/` 拼装的产物" |

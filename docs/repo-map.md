@@ -19,7 +19,7 @@ src/               引擎层（与具体故事无关；层归属与加载顺序�
 stories/           多故事：**每个故事一个目录**（接入契约 docs/engine-story-boundary.md；引擎只经 Sg.story.* 取数据）
   night-ferry/   故事「夜渡」（**第 4 个故事：P4 用编辑器做出** ✓）：渡口 → 河心 → 对岸，两条路线各 6 步、2 个结局
     00-meta.twee   故事元数据：标题、IFID、起始段落
-    10-ferry.twee  正文（11 段落）＋ 两个 `:: 结局 …`
+    passages/*.md  正文（11 段落：渡口 → … → 结局 沉船）＋ 两个结局段
     15-tables.twee ★ window.Game（接入契约的声明面；生成物）
     17-rules.twee  条件表（生成物）
     gates/         冻结基线（`equiv-baseline/`）＋ **内容面见证轨迹**（`witness-trace.json`／`witness.md`）

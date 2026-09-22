@@ -4,7 +4,7 @@
 // 那 5 处**条件**恒假（死条件：连着笔记已授予也不成立），4 处**授予位**若被执行还会**抛错**
 //（`Sg.notes.add('note:…')` →「笔记「…」未登记（结构缺失必须报错,#434）」）→ 只因**无消费者**才没炸。
 //
-// 键形权威（**单一权威 **）：`src/engine/40-sim/21-resolve.twee` 的 `readKey`（`#624` 片二）——
+// 键形权威（**单一权威 **）：`src/engine/40-sim/22-rules.twee` 的 `readKey`（`#1187` 第五块把这一族拆到该件）（`#624` 片二）——
 // 它能求值的键形只有这几类（逐条照它枚举，不另立一份"可读清单"）：
 // · `n_*` → `Sg.notes.has(k, pc)`
 // · `inv:` / `era:` / `gear:`（冒号后非空）→ 持有物／时代／行囊
@@ -44,7 +44,7 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '');
 export const COND_FIELDS = ['req', 'any', 'exclude'];
 export const GRANT_FIELDS = ['yields', 'yield', 'keyYields'];
 
-/** `readKey`（`21-resolve.twee:1205-1216`）**真能求值**的键形吗？—— **纯函数**，判据只此一处。
+/** `readKey`（`22-rules.twee` 的 `readKey`（`#1187` 第五块后；**不写行号** —— 会随拆分腐烂））**真能求值**的键形吗？—— **纯函数**，判据只此一处。
  *注意：与审计层**故意不同**：这里**不剥任何前缀**（剥了就看不见本缺陷）。 */
 export const keyReadable = (key) => {
 	const k = String(key ?? '').trim();
@@ -234,7 +234,7 @@ for (const rel of files) {
 	problems = problems.concat(keyformProblems({ data, file: rel }));
 }
 if (problems.length) {
-	console.error(`✗ 条件键形门未通过 ${problems.length} 项（判据权威＝\`src/engine/40-sim/21-resolve.twee\` 的 \`readKey\`）：`);
+	console.error(`✗ 条件键形门未通过 ${problems.length} 项（判据权威＝\`src/engine/40-sim/22-rules.twee\` 的 \`readKey\`）：`);
 	for (const p of problems) console.error(`    [${p.kind ?? ''}${p.field}] ${p.file} ⇒ ${p.path}\n        · ${p.key}：${p.msg}`);
 	console.error('  复跑：node test/cond-keyform.mjs');
 	process.exit(1);

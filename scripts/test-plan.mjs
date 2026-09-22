@@ -801,7 +801,7 @@ export const INPUTS_WILDCARD_REASONS = {
 		voucher: '#1157',
 	},
 	'test-readkey-family-mjs': {
-		reason: '本段**读码两侧**（引擎真源 `src/engine/40-sim/21-resolve.twee` ＋ core 镜像 `editor/lib/core/audit-shared.mjs`）；面经**常量间接**（`ENGINE` 常量 ⇒ 抽取器看不到字面量 ✗）⇒ 取全通配（宁多跑不漏面 ✓ 成对断言一旦漂移必须当场红 ✗）',
+		reason: '本段**读码两侧**（引擎真源 `src/engine/40-sim/22-rules.twee`（`#1187` 第五块后）＋ core 镜像 `editor/lib/core/audit-shared.mjs`）；面经**常量间接**（`ENGINE` 常量 ⇒ 抽取器看不到字面量 ✗）⇒ 取全通配（宁多跑不漏面 ✓ 成对断言一旦漂移必须当场红 ✗）',
 		voucher: '#1156',
 	},
 };   // 键＝段 id；值＝{ reason, voucher}（**缺任一项不生效**）

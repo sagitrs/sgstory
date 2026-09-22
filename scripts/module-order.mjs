@@ -239,15 +239,43 @@ export const requireManifests = (manifests, who = 'checkRegistration') => {
  * ③ 名字口径：故事侧固定 `15-tables.twee`（模块序的表里就是这么排的）；
  * ④ 只在**清单真的列了**它时才判（没这个面 → 不管 —— 本仓口径：手写面各有归属）。
  */
-export const storyTablesOrderProblems = ({ order = ORDER, manifests = [], consumer = 'src/engine/40-sim/21-resolve.twee' } = {}) => {
+/**
+ * `#1220`：**消费侧由形态派生**（不再硬编单个文件名）。
+ *
+ * 为什么：判据的本意是"故事表必须排在**会覆盖 `Game.*` 的赋值件**之前"（谁后跑谁赢 → 引擎方法被抹掉）。
+ * 原先硬编 `21-resolve` 一件 → `#1187` 把七个模块拆出去之后，实际赋值件有七件，判据只挡住其中一件：
+ * **不是不咬，是咬错时代**（今天绿只因恰好没人在其间插队）。
+ *
+ * 认两种形态（`10-core` 走第二种）：`Object.assign((window.Game.X??= {}), {` 与 `window.Game.X = {`。
+ */
+export const ASSIGN_ON_GAME_RE = /Object\.assign\(\(window\.Game\.[A-Za-z_$][\w$]*\s*\?\?=\s*\{\}\)|window\.Game\.[A-Za-z_$][\w$]*\s*=\s*\{/;
+export const deriveStoryTableConsumers = ({ sources = {} } = {}) =>
+	Object.entries(sources)
+		.filter(([f, t]) => f.startsWith('src/') && ASSIGN_ON_GAME_RE.test(String(t ?? '')))
+		.map(([f]) => f)
+		.sort();
+
+export const storyTablesOrderProblems = ({ order = ORDER, manifests = [], consumer, sources } = {}) => {
 	const out = [];
-	const at = order.indexOf(consumer);
+	// `#1220`：消费侧分派 —— 传字符串＝旧行为（向后兼容）；未传但给了 `sources` → 派生；**派生不到 → 出声**
+	//（不静默退回旧默认：退回等于继续咬错时代）。
+	let consumers = [];
+	if (typeof consumer === 'string') consumers = [consumer];
+	else if (sources) {
+		consumers = deriveStoryTableConsumers({ sources });
+		if (!consumers.length) {
+			return [{ code: 'consumer-underivable', msg: '消费侧派生**一件都没找到**（`src/**` 里没有 `window.Game.X` 赋值形态）⇒ 判据空转：请检查扫描内容是否传入（调用面没跟上判据面）' }];
+		}
+	} else consumers = ['src/engine/40-sim/21-resolve.twee'];   // 老调用（未给 sources）：保留旧默认
+	const idx = consumers.map((c) => order.indexOf(c)).filter((i) => i >= 0);
+	const at = idx.length ? Math.min(...idx) : -1;
+	const where = consumers.length === 1 ? consumers[0] : `${consumers[0]} 等 ${consumers.length} 件`;
 	for (const m of requireManifests(manifests)) {
 		for (const f of m.files ?? []) {
 			if (!/\/15-tables\.twee$/.test(f)) continue;
 			const i = order.indexOf(f);
-			if (i < 0) out.push({ code: 'tables-not-in-order', msg: `${m.slug} 的 ${f} **不在 ORDER 里** ✗ ⇒ 它会排在 ${consumer} **之后** ⇒ 故事表**盖掉**引擎挂的方法（\`#998\` 实测：门崩 ✓）` });
-			else if (at >= 0 && i > at) out.push({ code: 'tables-after-consumer', msg: `${m.slug} 的 ${f} 排在 ${consumer} **之后** ✗（ORDER 下标 ${i} > ${at}）⇒ 同上：加载期 assign 的目标被换掉 ✗` });
+			if (i < 0) out.push({ code: 'tables-not-in-order', msg: `${m.slug} 的 ${f} **不在 ORDER 里** ✗ ⇒ 它会排在 ${where} **之后** ⇒ 故事表**盖掉**引擎挂的方法（\`#998\` 实测：门崩 ✓）` });
+			else if (at >= 0 && i > at) out.push({ code: 'tables-after-consumer', msg: `${m.slug} 的 ${f} 排在 ${where} **之后** ✗（ORDER 下标 ${i} > ${at}）⇒ 同上：加载期 assign 的目标被换掉 ✗` });
 		}
 	}
 	return out;

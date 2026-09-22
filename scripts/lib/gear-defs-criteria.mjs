@@ -4,7 +4,7 @@
 // ```
 // 同一概念（引擎战斗路径用的装备字段）存在**三处**说法，且**没有共同字段集**：
 // ① 表驱动 `Gear.defs`（`face-fixture`）＝ `{from,damage,advSites,note}`（`docs/engine/json/tables.md:55`）
-// ② **代码实际读的**（引擎）＝ `{damage, advSites}`（`src/engine/40-sim/21-resolve.twee:450/453/456`）
+// ② **代码实际读的**（引擎）＝ `{damage, advSites}`（`src/engine/40-sim/10-gear.twee` 的 `gearDef`（`#1187` 第二块后；**不写行号** —— 行号会随拆分腐烂））
 // ③ **文档声明的**（接入契约）＝ `{kind,protects,maxHp,reduce,note}`（`docs/story2-contracts.md` §1.2）
 // ＋ 一手证据：`stories/face-fixture/15-tables.twee:939` 的 provider 逐字
 // `gearDef: (name) => window?.Game?.Gear?.defs?.[name]?? null`

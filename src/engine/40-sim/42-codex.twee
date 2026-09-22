@@ -1,0 +1,36 @@
+:: Codex [script]
+// `#1187`：图鉴面的算从 `21-resolve.twee` 拆出（`#1184` 流二）；正文逐行照搬，读 `Sg.rules`（条件求值单一权威）。
+Object.assign((window.Game.Codex ??= {}), {
+	/** 线索表：**经接入契约取**（故事声明 `Sg.story.codexItems()`）——引擎**不直读**故事的数据容器
+	 *（那会重新长出 `engine-story-free` 的白名单；与 `Economy.econEvents()` 同一形状）。
+	 * 未注册 → 空表（＝"这个故事没有图鉴"→ 四支方法全部退化为空／false，**不静默给假数据**）。 */
+	codexItems() {
+		const f = window.Sg?.story?.codexItems;
+		return typeof f === 'function' ? (f() ?? {}) : {};
+	},
+	/** `#785` 接缝 6：线索判定／计数四支从**故事 UI 文件**搬进引擎（单一权威）。
+	 * 语义**逐字保留**（原住 `72-codex-ui.twee`）：判定走引擎条件求值器 `Sg.rules.matches(c, pc, new Set())`
+	 * ——与 `Sg.rules` 同一权威，条件形状（`req`/`any`/`exclude`）由 `#785` 第 1 族定。 */
+	clueIds(item) {
+		return (this.codexItems()[item]?.clues ?? []).map((c) => c.id);
+	},
+	satisfied(pc) {
+		const out = {};
+		for (const [item, def] of Object.entries(this.codexItems())) {
+			out[item] = (def.clues ?? []).filter((c) => window.Sg.rules.matches(c, pc, new Set())).map((c) => c.id);
+		}
+		return out;
+	},
+	/** 永久已解锁（线索集齐）；`ids.length > 0` 那条是语义（**没有线索的图鉴不算解锁**）。 */
+	isUnlocked(item, store) {
+		const ids = this.clueIds(item);
+		const got = store?.clues?.[item] ?? {};
+		return ids.length > 0 && ids.every((id) => got[id]);
+	},
+	/** 线索进度（x/y）。 */
+	progress(item, store) {
+		const ids = this.clueIds(item);
+		const got = store?.clues?.[item] ?? {};
+		return { got: ids.filter((id) => got[id]).length, total: ids.length };
+	},
+});

@@ -52,6 +52,7 @@ export const ORDER = [
 	'src/engine/40-sim/20-items.twee',     // `#1187`：道具面的算（依赖 Gear；Checks 依赖它 → 必须在前）
 	'src/engine/40-sim/22-rules.twee',     // `#1187`：条件表选择器（`Sg.rules`；依赖 Economy，Codex／Social 依赖它）
 	'src/engine/40-sim/32-social.twee',    // `#1187`：交涉面的算（依赖 Economy／rules，Codex 依赖它）
+	'src/engine/40-sim/42-codex.twee',     // `#1187`：图鉴面的算（读 Sg.rules → 必须排在 rules 之后）
 	'src/engine/40-sim/21-resolve.twee',    // 结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）
 	'src/engine/40-sim/30-checks.twee',    // `#1187`：位点判定的「算」（从 21-resolve 拆出；依赖 Items／Rules）
 	// `#1132` B3：车卡数据面（生成物 18-chargen.twee；运行期由 applyQuickPreset 经 Sg.story.chargen() 读）
@@ -137,6 +138,7 @@ export const MODULES = {
 	'src/engine/40-sim/32-social.twee': { deps: ['src/10-core.twee', 'src/engine/40-sim/12-economy.twee', 'src/engine/40-sim/22-rules.twee'], defines: [], layer: 'engine', note: '交涉面的算（`#1187` 拆出；读 `Game.Economy.priceOf`／`Sg.rules.matches`／`Game.Rules` 内核 —— 三条依赖按读面如实登记）' },
 	'src/engine/40-sim/20-items.twee': { deps: ['src/engine/40-sim/10-gear.twee'], defines: [], layer: 'engine', note: '道具面的算（`#1187` 拆出；依赖 `Game.Gear.advSource` 与契约 `itemEffect`／`poisonReduce`）' },
 	'src/engine/40-sim/10-gear.twee': { deps: [], defines: [], layer: 'engine', note: '装备面的算（`#1187` 拆出；只读契约 `gearDef`，零引擎依赖）' },
+	'src/engine/40-sim/42-codex.twee': { deps: ['src/engine/40-sim/22-rules.twee'], defines: [], layer: 'engine', note: '图鉴面的算（`#1187` 拆出）。读面 `Sg.rules`（条件求值单一权威）＋ `Sg.story`（运行期故事数据）⇒ 只登记前者的提供者（加载序）；`Sg.Codex`（住 `src/80-script.twee`，ORDER 更后）是**运行时耦合**、不登记。' },
 	'src/engine/40-sim/30-checks.twee': { deps: ['src/10-core.twee', 'src/engine/40-sim/20-items.twee'], defines: [], layer: 'engine', note: '位点判定的「算」（`#1187` 拆出；写 Game.Checks 容器，`??=` 形态不入 defines —— 同 21-resolve 的房式；Game.Items／Game.Rules 由前两件提供）' },
 	// `#1132` 片 3：夜渡 11 段迁 md → 依赖表逐件登记（同一条依赖 原段序）
 	'stories/night-ferry/passages/01-渡口.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 1/11）' },

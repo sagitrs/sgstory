@@ -162,25 +162,13 @@ window.Game.Pc = {
 	// 故事 1 的量跑（`#660` 片三-3 的边界问题）。缺面 → **显式降级**（只给形状，不报错）；面返回非对象 → **报错**（结构畸形）。
 	defaults() {
 		const shape = {
-			// 车卡
-			name: '', round: 0, picked: [], mode: '',
-			classKey: '', classLabel: '', bgKey: '', bgLabel: '', speciesKey: '', speciesLabel: '',
-			abilities: null, skills: [], feats: [], gear: [], flags: {},
-			hp: 0, max_hp: 0, gold: 0, salves: 0,
-			// #486（S1）：**装备耐久** `{ 具名: 剩余}`——未启用部位/耐久的故事恒为空对象（`slotAbsorb` 不被调用）。
-			// 缺项＝满耐久（`maxHp` 由故事声明）；`migrate()` 会给旧档补上这个键。
-			gearHp: {},
-			// #487（S2）：**部位 × 异常** —— `{ 部位: { 异常: 剩余回合}}`（未启用该机制的故事恒为空对象）。
-			statuses: {},
-			// 世界
-			inv: {},              // 物品栏：{ 名: true}
-			star: { charge: 0, spent: 0, first_free: false },   // 星力隐藏计数（玩家不可见）；first_free：头一次翻转不收费（#219 C1②）
-			// → 故事 1 的**上限 12** 由 `Sg.story.pcDefaults()` 给（#660 片三-3）
-			keeper: { met: false, trust: 0, state: '', key: false },   // → `state` 的初始档（故事 1＝`post`）由故事面给
-			ev: {},               // 证据链
-			soc: { att: {}, tries: {}, read: {} },   // 交涉台账（B2）：态度偏移 / 同一手试过几次 / 读没读过这人
-			dragon: { hp: 0, defeats: 0, awake: false, venom: false },   // 轮次归 B1 动作池：$pc.ev.fight.round
-			world: {},            // 世界旗标
+			// 基础面（与玩法机制无关；显式清单的单一真相在 `editor/lib/core/pc-state-map.mjs` 的 `PC_BASE_KEYS`）
+			name: '', round: 0, picked: [], mode: '', flags: {}, ev: {}, world: {},
+			// `#1186`：玩法状态（车卡族与其他六组）**不在这里预置** —— 一律由下面的**在场信号**（故事的接入契约面）贡献；
+			// 缺面即无键（判据二"未声明模块的故事角色状态零玩法概念"要的形状）。
+			// TODO（同片下一步）：`star`／`keeper` 属世界观概念，待"故事声明扩展路径"打通后一并移出。
+			star: { charge: 0, spent: 0, first_free: false },
+			keeper: { met: false, trust: 0, state: '', key: false },
 		};
 		// ── `#1186`：在场模块的状态组（信号＝故事的接入契约面）──
 		// 车卡族：只有 `hasChargen()` 为真的故事才有这 13 个键。缺面／假值 → 键不存在（判据二"零玩法概念"要的）。
@@ -190,6 +178,15 @@ window.Game.Pc = {
 				abilities: null, skills: [], feats: [], gear: [], hp: 0, max_hp: 0, salves: 0,
 			});
 		}
+		// ── `#1186`：在场模块的状态组（信号＝故事的接入契约面，登记见本对象 `groups`）──
+		// 缺面 → 键不存在（判据二"未声明模块的故事角色状态零玩法概念"要的形状）。
+		const face = (k) => window.Sg?.story?.[k] != null;
+		if (face('econEvents')) shape.gold = 0;
+		if (face('itemEffect')) shape.inv = {};
+		if (face('gearDef')) shape.gearHp = {};
+		if (face('checkSite')) shape.statuses = {};
+		if (face('combatPool') || face('combatAction')) shape.dragon = { hp: 0, defeats: 0, awake: false, venom: false };
+		if (face('socialAsks') || face('socialHooks')) shape.soc = { att: {}, tries: {}, read: {} };
 		// ── 故事数值叠加（`#660` 片三-3）────────────────────────────────────────────
 		const extra = window.Sg?.story?.pcDefaults?.();
 		if (extra === undefined || extra === null) return shape;        // 缺面 → **显式降级**（只给形状）

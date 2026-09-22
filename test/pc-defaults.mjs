@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 // `#660` 片三-3：`Game.Pc.defaults()` —— **形状住引擎、数值走故事**（`Sg.story.pcDefaults()`）
 //
 // 判据（每条对应一处失效方式）：
@@ -10,6 +12,7 @@
 // ⑥ **形状单一源**：**仓内各故事**的键集合**完全一致**（故事只能给数值，不能改形状）（`#1004` B2b：名单走 `storySlugs()`）。
 import { boot } from './boot.mjs';
 import { DEFAULT_SLUG, storySlugs } from '../scripts/dist-paths.mjs';   // `#1004` B2b：默认故事与名单都走单一权威
+import { PC_BASE_KEYS, PC_STORY_CONCEPTS, PC_GAMEPLAY_HOME, PC_GROUP_SIGNALS } from '../editor/lib/core/pc-state-map.mjs';   // `#1186`：声明面单一真相
 let failures = 0;
 const eq = (actual, expected, msg) => {
 	const okk = JSON.stringify(actual) === JSON.stringify(expected);
@@ -29,6 +32,7 @@ const { w } = await boot({ story: DEFAULT_SLUG, random: 0.5 });
 const keysOf = (o) => Object.keys(o).sort().join(',');
 
 // ② 真机（故事 1）：故事数值生效 ＋ 深合并不抹兄弟键
+const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const real = w.eval('Game.Pc.defaults()');
 eq(real.star.charge, 12, '② 真机：`star.charge === 12`（故事面给的数值）');
 eq(real.keeper.state, 'post', '② 真机：`keeper.state === "post"`（故事面给的数值）');
@@ -53,13 +57,36 @@ eq(msgs.length, 3, '④ 结构畸形（`42` / `[]` / 字符串）⇒ 三条都 f
 const mig = w.eval('Game.Pc.migrate({ hp: 3 })');
 eq([mig.hp, mig.star.charge, mig.keeper.state], [3, 12, 'post'], '⑤ `migrate()` 给旧档补键时带上故事数值（旧档不缺 `star.charge`）');
 
-// ⑥ 形状单一源：**仓内每个故事**的键集合一致（`#1004` B2b：名单不再写死三个 → 走 `storySlugs()`）
-const sets = { [DEFAULT_SLUG]: keysOf(real) };
-for (const story of storySlugs().filter((x) => x !== DEFAULT_SLUG)) {
+// ⑥ `#1186`（新口径见票面评论）：每个故事的键集合 ＝ **基础面** ＋ **在场模块的状态组**。
+// 期望值从**声明面数据**算（故事契约 JSON ＋ 归属表 import），与测试宿主无关——这正是既有件第 32 行的取法
+// 范例的延伸（实际值仍用 `w.eval('Game.Pc.defaults()')`）。
+const BASE = [...PC_BASE_KEYS, ...PC_STORY_CONCEPTS].sort();
+const contractOf = (slug) => JSON.parse(readFileSync(join(ROOT, 'stories', slug, 'data', 'contract.json'), 'utf8'));
+const facePresent = (members, face, kind) => {
+	const m = members.find((x) => x.name === face);
+	if (!m) return false;
+	// 函数面要求"调用后为真"→ 数据侧能表达的是它的值（本仓写成 kind:'const' ＋ value:false/true）
+	if (kind === 'fn') return m.kind === 'const' ? m.value === true : true;
+	if (m.kind === 'const') return m.value != null;
+	return true;   // 声明了非 const 形态（game-ref／lookup 等）→ 视为在场
+};
+const expectedFor = (slug) => {
+	const members = contractOf(slug).members ?? [];
+	const out = new Set(BASE);
+	for (const [group, sig] of Object.entries(PC_GROUP_SIGNALS)) {
+		if (!sig.faces.some((f) => facePresent(members, f, sig.kind))) continue;
+		for (const [k, home] of Object.entries(PC_GAMEPLAY_HOME)) if (home === group) out.add(k);
+	}
+	return [...out].sort().join(' ');
+};
+const mismatches = [];
+for (const story of [DEFAULT_SLUG, ...storySlugs().filter((x) => x !== DEFAULT_SLUG)]) {
 	const { w: wi } = await boot({ story, random: 0.5 });
-	sets[story] = keysOf(wi.eval('Game.Pc.defaults()'));
+	const got = Object.keys(wi.eval('Game.Pc.defaults()')).sort().join(' ');
+	const exp = expectedFor(story);
+	if (got !== exp) mismatches.push(`${story}（实得 ${got.split(' ').length} 键／期望 ${exp.split(' ').length} 键）`);
 }
-ok(Object.values(sets).every((k) => k === sets[DEFAULT_SLUG]), `⑥ 各故事键集合一致（形状单一源）：${Object.entries(sets).map(([s, k]) => `${s}=${k.split(',').length} 键`).join(' · ')}`);
+ok(mismatches.length === 0, `⑥ 各故事键集合 ＝ 基础面 ＋ 在场模块的组：${mismatches.join(' / ')}`);
 
 console.log(failures ? `\n${failures} 项失败` : '\npc 默认形状（形状住引擎 · 数值走故事）全部通过');
 process.exit(failures ? 1 : 0);

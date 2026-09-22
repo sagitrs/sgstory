@@ -1,0 +1,245 @@
+{
+	"rounds": [
+		{
+			"title": "职业",
+			"intro": "你凭什么本领走到这里？",
+			"options": [
+				{
+					"name": "铁卫",
+					"desc": "能扛住冲击，也敢迎面出剑。",
+					"effect": "力16 体15｜运动·恐吓｜长剑｜HP 高",
+					"patch": {
+						"abilities": {
+							"set": {
+								"str": 16,
+								"dex": 12,
+								"con": 15,
+								"int": 10,
+								"wis": 12,
+								"cha": 10
+							}
+						},
+						"skills": {
+							"append": [
+								"运动",
+								"恐吓"
+							]
+						},
+						"gear": {
+							"append": [
+								"长剑"
+							]
+						},
+						"classHp": 12,
+						"classKey": "guard",
+						"classLabel": "铁卫"
+					}
+				},
+				{
+					"name": "影手",
+					"desc": "你习惯先看清退路，再决定是否动手。",
+					"effect": "敏16 感13｜察觉·游说｜短刃｜HP 中",
+					"patch": {
+						"abilities": {
+							"set": {
+								"str": 12,
+								"dex": 16,
+								"con": 12,
+								"int": 12,
+								"wis": 13,
+								"cha": 12
+							}
+						},
+						"skills": {
+							"append": [
+								"察觉",
+								"游说"
+							]
+						},
+						"gear": {
+							"append": [
+								"短刃"
+							]
+						},
+						"classHp": 10,
+						"classKey": "shadow",
+						"classLabel": "影手"
+					}
+				},
+				{
+					"name": "秘典",
+					"desc": "你不擅长硬碰硬，却能从旧书里找出线索。",
+					"effect": "智16 感15｜奥秘·历史｜药膏｜HP 低",
+					"patch": {
+						"abilities": {
+							"set": {
+								"str": 8,
+								"dex": 12,
+								"con": 10,
+								"int": 16,
+								"wis": 15,
+								"cha": 11
+							}
+						},
+						"skills": {
+							"append": [
+								"奥秘",
+								"历史"
+							]
+						},
+						"salves": {
+							"add": 1
+						},
+						"classHp": 8,
+						"classKey": "sage",
+						"classLabel": "秘典"
+					}
+				}
+			]
+		},
+		{
+			"title": "背景",
+			"intro": "你从哪儿来？",
+			"options": [
+				{
+					"name": "佣兵",
+					"desc": "你在战场上学会自保。",
+					"effect": "运动｜金币 +10",
+					"patch": {
+						"skills": {
+							"append": [
+								"运动"
+							]
+						},
+						"gold": {
+							"add": 10
+						},
+						"bgKey": "merc",
+						"bgLabel": "佣兵"
+					}
+				},
+				{
+					"name": "修行者",
+					"desc": "走过许多山林，习惯先听清动静。",
+					"effect": "察觉｜金币 +6",
+					"patch": {
+						"skills": {
+							"append": [
+								"察觉"
+							]
+						},
+						"gold": {
+							"add": 6
+						},
+						"bgKey": "wanderer",
+						"bgLabel": "修行者"
+					}
+				},
+				{
+					"name": "抄书人",
+					"desc": "抄过的书多了，学会循着字句查找线索。",
+					"effect": "调查｜金币 +8｜学识烙印",
+					"patch": {
+						"skills": {
+							"append": [
+								"调查"
+							]
+						},
+						"gold": {
+							"add": 8
+						},
+						"flags.lore": true,
+						"bgKey": "scribe",
+						"bgLabel": "抄书人"
+					}
+				}
+			]
+		},
+		{
+			"title": "种族",
+			"intro": "你生来带着什么。",
+			"options": [
+				{
+					"name": "人类",
+					"desc": "力气与身手都多一分余裕。",
+					"effect": "力 +1 敏 +1",
+					"patch": {
+						"abilities.str": {
+							"add": 1
+						},
+						"abilities.dex": {
+							"add": 1
+						},
+						"speciesKey": "human",
+						"speciesLabel": "人类"
+					}
+				},
+				{
+					"name": "精灵",
+					"desc": "身手轻捷，感官敏锐。",
+					"effect": "敏 +2 感 +1",
+					"patch": {
+						"abilities.dex": {
+							"add": 2
+						},
+						"abilities.wis": {
+							"add": 1
+						},
+						"speciesKey": "elf",
+						"speciesLabel": "精灵"
+					}
+				},
+				{
+					"name": "矮人",
+					"desc": "体魄结实，手上有力。",
+					"effect": "体 +2 力 +1",
+					"patch": {
+						"abilities.con": {
+							"add": 2
+						},
+						"abilities.str": {
+							"add": 1
+						},
+						"speciesKey": "dwarf",
+						"speciesLabel": "矮人"
+					}
+				}
+			]
+		}
+	],
+	"presets": [
+		{
+			"name": "铁卫",
+			"pcName": "夹具旅人",
+			"desc": "矮人佣兵，擅长迎击与自保。",
+			"summary": "力17 体17｜HP 高｜长剑·运动",
+			"picks": [
+				0,
+				0,
+				2
+			]
+		},
+		{
+			"name": "影手",
+			"pcName": "夹具旅人",
+			"desc": "精灵修行者，身手轻捷。",
+			"summary": "敏18 感14｜HP 中｜短刃·察觉",
+			"picks": [
+				1,
+				1,
+				1
+			]
+		},
+		{
+			"name": "秘典",
+			"pcName": "夹具旅人",
+			"desc": "人类抄书人，熟悉旧书与秘闻。",
+			"summary": "智16 感15｜HP 低｜药膏·奥秘",
+			"picks": [
+				2,
+				2,
+				0
+			]
+		}
+	]
+}

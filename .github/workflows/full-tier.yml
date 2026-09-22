@@ -61,6 +61,11 @@ jobs:
           cache: npm
       - run: npm ci
       - run: pip install fonttools brotli   # 字体子集化（霞鹜文楷）—— 与 ci.yml 的 test job 同一准备面
+      # `#1224`：**本档必须自建 dist** —— `test:full` 不自建产物，而 B1 起新增的九个带 `inputs` 声明的段
+      #   全是 jsdom 型（要 `dist/stories/**`）⇒ 缺这一步它们在 CI 上 rc=1（实测：无 build 复现九段红，
+      #   补 build 后同树全绿）。原先绿是因为那批段还没落。`ci.yml` 的 test job 另备了 dist（同备面），
+      #   `soak-nightly` 自带 `node build.mjs`、`viewport-smoke` 另有 `npm run build` ⇒ 只有本档缺 ✓
+      - run: npm run build
       - run: git fetch origin main --depth=1  # 门2（新段落必配测）需要 origin/main 基线
       # `#562`：**F6 台账新鲜度门**要查 issue 状态 ⇒ 必须给 token，否则它「○ 跳过（无 token）」并**退 0**
       #   —— 那是「门在 CI 里从未真正跑过」的真空洞（与 `#557` 的假绿同类）✓

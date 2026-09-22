@@ -35,11 +35,6 @@
 			"path": "Game.Social.approaches"
 		},
 		{
-			"name": "socialAttLabels",
-			"kind": "game-ref",
-			"path": "Game.Social.ATT"
-		},
-		{
 			"name": "hasChargen",
 			"kind": "bool-exists",
 			"path": "Game.Chargen"
@@ -134,13 +129,6 @@
 		{
 			"name": "mechanics",
 			"kind": "null"
-		},
-		{
-			"name": "itemDef",
-			"kind": "lookup",
-			"from": "window.Game?.Items?.defs",
-			"key": "name",
-			"default": null
 		},
 		{
 			"name": "itemEffect",

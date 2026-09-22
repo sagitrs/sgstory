@@ -153,8 +153,11 @@ if (SELFTEST) {
 		P(real).length === 0, `点数 ${P(real).length} · ${P(real).map((p) => p.at).join(',')}`);
 
 	{   // 能假格①：**真表 ＋ 真存在性**，只把 `trackedOf` 对这一条说成「未入库」⇒ 必须报且**注明未入库** ✓
-		const f = (real.hatchFiles ?? [])[0];
-		const p = f ? P(real, { trackedOver: (r) => r !== f }) : [];
+		// `#1132` B3：真表 `hatchFiles` 已清空（最后的逃生舱件移入引擎）⇒ 本格夹具改为**合成登记**，
+		//   取一件**真实存在且已入库**的路径，既保住"能假"性质，也不依赖真表里有条目。
+		const reg2 = { ...real, hatchFiles: ['stories/face-fixture/11-fixture-cards.twee'], refusedFaces: [], hatches: [] };
+		const f = reg2.hatchFiles[0];
+		const p = P(reg2, { trackedOver: (r) => r !== f });
 		t(`未入库必报（\`hatchFiles[]\`）：真表 ＋ \`trackedOf(\`${f}\`)===false\` ⇒ 报 1 条且含「${UNTRACKED_HINT}」（\`git add\` 之前跑＝**假绿** ✓）`,
 			p.length === 1 && p[0]?.untracked === true && p[0]?.at === 'hatchFiles[0]' && p[0]?.why.includes(UNTRACKED_HINT),
 			`点数 ${p.length}${p[0] ? ' · why=' + p[0].why.slice(0, 40) : ''}`);
@@ -169,8 +172,9 @@ if (SELFTEST) {
 	}
 
 	{   // 能假格③：**不在磁盘** ⇒ 报「不存在」且**不得**标 `untracked`（两条**分开** ✓：修法不同 ✓）
-		const f = (real.hatchFiles ?? [])[0];
-		const p = f ? P(real, { existsOver: (r) => r !== f }) : [];
+		const reg3 = { ...real, hatchFiles: ['stories/face-fixture/11-fixture-cards.twee'], refusedFaces: [], hatches: [] };   // 同上：真表已空
+		const f = reg3.hatchFiles[0];
+		const p = P(reg3, { existsOver: (r) => r !== f });
 		t(`不存在必报且**不**标未入库：真表 ＋ \`existsOf(\`${f}\`)===false\` ⇒ 报 1 条、含「${MISSING_HINT}」、\`untracked\` 不置位 ✓`,
 			p.length === 1 && p[0]?.untracked !== true && p[0]?.why.includes(MISSING_HINT),
 			`点数 ${p.length}`);

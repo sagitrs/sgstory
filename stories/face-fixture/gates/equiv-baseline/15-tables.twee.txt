@@ -941,4 +941,19 @@ Object.assign((window.Sg.story ??= {}), {
 	pcShape: () => __const_pcShape,
 	rules: () => [],
 	mechanics: () => null,
+	checkSite: (name) => {
+		const v = window?.Game?.Checks?.sites?.[name];
+		if (!v) throw new Error(`Sg.story.checkSite：位点「${name}」未登记（结构缺失必须报错，#441-E）`);
+		return v;
+	},
+	dragonMaxHp: () => {
+		const v = window.Game?.Dragon?.hp;
+		if (typeof v !== 'number') throw new Error(`Sg.story.dragonMaxHp：故事未提供 Game.Dragon.hp（结构缺失必须报错，#441-E）`);
+		return v;
+	},
+	poisonReduce: () => {
+		const v = window.Game?.Items?.poisonReduce;
+		if (typeof v !== 'number') throw new Error(`Sg.story.poisonReduce：故事未提供 Items.poisonReduce（结构缺失必须报错，#441-E）`);
+		return v;
+	},
 });

@@ -53,7 +53,7 @@ window.Sg.rules = {
 			if (m[1] === 'inv') return !!(pc?.inv ?? {})[m[2]];                      // 持有物（不在 pc.ev/world 域）
 			if (m[1] === 'gear') return (pc?.gear ?? []).includes(m[2]);             // 行囊/装备（同上；`#624` 片四）
 			// `#1223`：时代＝**条件维度**，值由故事给（`ev.era`）；引擎不再持有枚举。
-			const want = String(m[2]);／`era:past`）
+			const want = String(m[2]);
 			return window.Sg.notes.readPath(pc, 'ev.era') === want;
 		}
 		// `#1132`：**存档面具名谓词**（`codex:<名>`）——设定集页的可见性是 `Sg.Codex.seenFinal()` 驱动的（**存档面** 不是 pc 域）

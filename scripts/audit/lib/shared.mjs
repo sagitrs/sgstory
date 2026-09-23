@@ -132,7 +132,9 @@ export const makeShared = (ctx) => {
 	function classifyNarrativeState(input = {}) {
 		const sources = input.passageSrc ?? passageSrc;
 		const tags = input.passageTags ?? passageTags;
-		const Echoes = input.Echoes ?? Game.Echoes;
+		// `#1261` 零故事模式：`Game.Echoes` 可能不存在（故事面缺席）⇒ 退化为空回声表，
+		// 让门「无样本可判」而不是崩（`E.list` 是下游的硬读点）。
+		const Echoes = input.Echoes ?? Game.Echoes ?? { list: [], revisit: [] };
 		const Consequences = input.Consequences ?? Game.Consequences;
 		// 注释（/% … %/）里的示例不是代码——先剥离，免得把文档里的 <<firstTime "X">> 当成真写入
 		// `#580`：写点面来自**共享遮蔽**（原先只剥 `/% %/` → `//` JS 注释里的示例会泄漏成真实写点）

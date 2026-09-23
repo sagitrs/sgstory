@@ -735,7 +735,7 @@ window.Sg.capability = (group) => {
 					<span class="soc-no"><<print _a.why ?? "（这件事没得谈。）">></span>
 				<<else>>
 					<<set _att to _S.attitude(_a, $pc)>>
-					<div class="soc-opts">
+					<div class="panel">
 					<<if _v is "willing">>
 						<<print `<a class="soc-opt" role="link" tabindex="0" data-ask="${_a.id}" data-how="will">开口：${_a.q}（${_a.tag}）</a>`>>
 						<span class="soc-meta">（对方本来就要说<<if Sg.UI.showDetail()>>——不必掷骰<</if>>）</span>

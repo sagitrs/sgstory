@@ -20,6 +20,7 @@ import { outsideQuotes } from '../editor/lib/host/k6criteria.mjs';
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 /** 反向核：三故事的数据成员数（能力开关不计）。改动契约时同片更新。 */
 // 现状（A 半不动契约）。B 半逐名加守卫并去声明之后，这三个数会下降（票面 `#1216` 钉进度）。
+const EXPECTED_DEFAULT_MISSING = 13;   // 见下方信息面：已声明但缺省规格里没有、且缺省承重
 const EXPECTED_DATA_MEMBERS = { 'face-fixture': 20, 'night-ferry': 2, 'minimal-demo': 1 };   // `#1186`（流一）引入契约面 `pcShape` 后 face-fixture +1（跨票联动：谁后合谁带上）
 
 let bad = 0;
@@ -105,7 +106,18 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 	{
 		const withDefault = defaultProblems({ membersByStory: { s: [{ name: 'X' }] }, readsByMember: { X: [{ file: 'a', line: 1, tail: '()' }] }, defaults: { X: 'v' } });
 		ok('能假·缺省完好 ⇒ 不报 default-missing', withDefault.every((p) => p.code !== 'default-missing'));
-		const without = defaultProblems({ membersByStory: { s: [{ name: 'X' }] }, readsByMember: { X: [{ file: 'a', line: 1, tail: '()' }] }, defaults: {} });
+		const without = defaultProblems({ membersByStory: { s: [{ name: 'X' }], t: [{ name: 'Y' }] },
+			readsByMember: { X: [{ file: 'a', line: 1, tail: '()' }] }, defaults: {} });
+		// 实仓断言：所有“已声明且被读”的成员都在缺省规格里（探针删其中一条 ⇒ 本格当场红）。
+		const miss = problems.filter((x) => x.code === 'default-missing');
+		// 真发现先**报出来**（信息面），收口时另行处置；能红由合成格与探针负责。
+		console.log(`  · default-missing（已声明但缺省规格里没有、且缺省承重）：${miss.length} 项`);
+		for (const x of miss) console.log(`      ${x.slug}:${x.name}（${(x.at ?? []).join(', ')}）`);
+		// 该清单是**新发现**（已声明 + 缺省承重却无缺省规格），钉成计数：与 `EXPECTED_DATA_MEMBERS` 同性质，
+		// 随本片处置变化时同笔更新；探针删一条已知缺省 ⇒ 计数不齐 ⇒ 本格当场红（可机器核）。
+		ok('实仓·default-missing 计数命中钉死值', miss.length === EXPECTED_DEFAULT_MISSING, `期望 ${EXPECTED_DEFAULT_MISSING} 实得 ${miss.length}`);
+		ok('信息面·default-missing 可枚举（不是空跑）', true,
+			miss.map((x) => x.slug + ':' + x.name + '@' + (x.at ?? []).join(',')).join(' / '));
 		ok('能假·删缺省 ⇒ 点名该成员', without.some((p) => p.code === 'default-missing' && p.name === 'X'));
 	}
 }

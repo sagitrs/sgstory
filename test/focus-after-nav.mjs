@@ -10,7 +10,7 @@
 //（注意：修前：`passage` 变了但焦点在 `body` → 这一格**真会红** —— 不是空判）；
 // ② **反例·程序性导航不许抢焦点**：`Engine.play()`（页面载入／车卡引导／工具调用）**不得**移动焦点
 // —— 否则 Tab 序列的起点会被挪到正文之后、越过「跳到正文」/「跳到行动」（`#284①` 守的正是它）。
-//注意：本件**不**绑「焦点落在哪个元素」（`.fresh-heard`／`.scene-acts`／段落根 都是实现路径，
+//注意：本件**不**绑「焦点落在哪个元素」（`.fresh-heard`／`.acts`／段落根 都是实现路径，
 // 共用层一改就假红 —— §6 明文）；
 //注意：本件也**不**判「信息在屏」（那是 §6 的另一维，别把两件事写进一条断言）。
 //
@@ -95,7 +95,7 @@ for (const t of ['踏上旅途', '快速成型', '出发，前往歪脖子鸭酒
 // ── ① 导航型交互：行动区里**会换段落**的那条链接（按 `data-passage` 现取，不写死文案）──
 {
 	const cur = w.SugarCube.State.passage;
-	const a = [...doc.querySelectorAll('#passages .scene-acts a.link-internal')]
+	const a = [...doc.querySelectorAll('#passages .acts a.link-internal')]
 		.find((x) => (x.getAttribute('data-passage') ?? '') && x.getAttribute('data-passage') !== cur);
 	if (!a) fail(`行动区里找不到「会换段落」的链接 ✗（样本变了？当前段 ${cur}）`);
 	else {

@@ -111,7 +111,7 @@ for (const p of content) {
 			const hiddenFocus = [...w.document.querySelectorAll('#passages details:not([open]) a, #passages details:not([open]) [tabindex], #passages details:not([open]) button')]
 				.filter((el) => el.tabIndex >= 0);
 			if (hiddenFocus.length) problems.push(`关闭折叠区含 ${hiddenFocus.length} 个可聚焦控件（Tab 顺序污染）`);
-			const acts = w.document.querySelector('#passages .scene-acts');
+			const acts = w.document.querySelector('#passages .acts');
 			if (acts && shown === p.name && !w.document.querySelector('#passages .skip-acts')) problems.push('行动区缺「跳到行动」跳转链接');
 		}
 		// #359：跨时代证物——风化书只能在**现在**的天文台取得（过去侧现取＝绕过「带书免检」）

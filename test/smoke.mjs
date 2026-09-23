@@ -10,7 +10,7 @@
 // 技能去重／行囊「长剑」）—— 那是旧故事 `Game.Chargen` 预设的**数值与文案**；面夹具的预设**沿用同名**
 //（铁卫／影手／秘典），但正文/数值与新写的一致 → 该块无对象。
 //注意：声明：**「车卡预设的数值细节（属性/金币/技能去重/行囊）」自此无端到端守护**。
-// 2. **酒馆 hub 结构**（≥12 臂／三区 `.tavern-actions`·`.act-group`×3／已读折叠 `.heard-fold`／
+// 2. **酒馆 hub 结构**（≥12 臂／三区 `.act-group`×3／已读折叠 `.heard-fold`／
 // 传闻记账 `Sg.notes.has('n_tav_ageless')` 等）—— 旧故事那张打听 hub 的**形状**。声明：**该面自此无对象**。
 // 3. **旧故事的位点/经济细节**（森林边缘察觉 `DC10` ＋ `<<check>>` 标签／洞穴「买路筹码」扣 3 金 → `goblin_spared`／
 // 支付门与刷钱点一次性／龙·巢边 +10）—— 旧故事的站点表与事件表。声明：**这些面自此无对象**
@@ -82,7 +82,7 @@ assert(w.SugarCube.State.passage === '洞穴', '到达洞穴');
 await click('拔家伙');
 assert(w.SugarCube.State.passage === '洞穴·战斗', '进入战斗段');
 assert(!!pc().ev?.fight, '战斗台账 `$pc.ev.fight` 就位（面：战斗）');
-const fightActs = [...w.document.querySelectorAll('#passages .fight-acts a.link-internal')];
+const fightActs = [...w.document.querySelectorAll('#passages .acts a.link-internal')];
 assert(fightActs.length >= 1, `战斗面板出牌（${fightActs.length} 张）`);
 await fightActs[0].click(); await settle(); await sleep(250);
 assert(!!pc().ev?.fight?.log?.you || pc().ev?.fight?.round >= 1, '出一手后战斗台账推进（回合/日志）');
@@ -101,7 +101,7 @@ assert(!links().some((a) => a.textContent.includes('把墙上那支哨子摘下�
 await click('回酒馆');
 await click('守林人');
 assert(w.SugarCube.State.passage === '守林人', '到达守林人（交涉面）');
-assert(w.document.querySelector('#passages .soc-opt, #passages .socpanel, #passages .scene-acts') !== null || links().length >= 1,
+assert(w.document.querySelector('#passages .soc-opt, #passages .socpanel, #passages .acts') !== null || links().length >= 1,
 	'交涉面板/行动区渲染（面：交涉）');
 
 // ── 面：可选面的**存在才渲染**（`Story.has` 门 → 引擎不假定每故事都有）──
@@ -113,7 +113,7 @@ assert(links().some((a) => a.textContent.includes('三律')), '设定集 hub 列
 // ── 面：结局（`<<ending>>`）──
 await click('回酒馆');
 await click('就地了结这一趟');
-assert(!!w.document.querySelector('#passages .ending-card, #passages [data-end-act]'), '结局段渲染结局卡（面：结局）');
+assert(!!w.document.querySelector('#passages [data-end-act]'), '结局段渲染结局卡（面：结局）');
 
 // ── 引擎级：侧栏常驻存档入口 + 物品栏（v16 §5.0）──（与故事无关 → 一条不少）
 // jsdom 不派发:uiupdate（UI 栏在真实浏览器里才刷新），故直接渲染该段做单元检查。

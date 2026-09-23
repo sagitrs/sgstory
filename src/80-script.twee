@@ -261,14 +261,14 @@ window.Sg.Ending = {
 		const loadLabel = hasSave ? '读档' : '读档（还没有存档）';
 		const undoAttr = canUndo ? '' : ' disabled';
 		return (
-			`<div class="ending-foot" data-ending="${key}" data-kind="${kind}">` +
-			`<p class="ending-foot-lead">这段旅程到此结束。你可以返回之前的选择，或开始新的旅程：</p>` +
-			`<div class="ending-acts">` +
+			`<div class="foot" data-ending="${key}" data-kind="${kind}">` +
+			`<p class="foot-lead">这段旅程到此结束。你可以返回之前的选择，或开始新的旅程：</p>` +
+			`<div class="acts acts-wrap">` +
 			`<button type="button" class="end-act" data-end-act="undo"${undoAttr}>↶ 退回上一步</button>` +
 			`<button type="button" class="end-act" data-end-act="load">${loadLabel}</button>` +
 			`<button type="button" class="end-act" data-end-act="restart">↻ 从头再来</button>` +
 			`</div>` +
-			`<p class="ending-foot-hint">（随时按 <b>S</b> 存档、<b>L</b> 读档；也可以从侧栏开存档菜单。` +
+			`<p class="foot-hint">（随时按 <b>S</b> 存档、<b>L</b> 读档；也可以从侧栏开存档菜单。` +
 			`从头再来会重置当前进度，请先保存想保留的旅程；<b>已解锁的图鉴仍会保留</b>。）</p>` +
 			`</div>`
 		);
@@ -299,14 +299,14 @@ jQuery(document).on('click.sgEndAct', '#passages button[data-end-act]', function
 // 卡片挪到段落末尾（:passagerender 的 ev.content 就是这个段落元素）
 jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 	const $content = jQuery(ev.content);
-	const $foot = $content.find('.ending-foot');
+	const $foot = $content.find('.foot');
 	if ($foot.length) $content.append($foot);
 });
 
 // 同页选项会重绘整个段落，而 SugarCube 默认回到页顶。
 // 只用点击前后的公开 DOM 找本次反馈；不把滚动目标写进存档或剧情状态。
 (() => {
-	const feedbackSelector = '.scene-feedback, .tavern-heard p, .check-result, .soc-said, .damage-flash, .fight-log, .gain, .econ-note';
+	const feedbackSelector = '.scene-feedback, .check-result, .soc-said, .damage-flash, .fight-log, .gain, .econ-note';
 	const textOf = (el) => el.textContent.trim();
 	let pending = null;
 	let action = 0;
@@ -381,7 +381,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		const div = document.createElement('div');
 		div.className = 'scene-feedback';
 		jQuery(div).wiki(String(r.text));
-		const anchor = content.querySelector('.scene-acts, .tavern-actions, .soc-ask, .fight-acts, details.act-group');
+		const anchor = content.querySelector('.acts, .soc-ask, details.act-group');
 		if (anchor) { anchor.parentNode.insertBefore(div, anchor); return; }
 		// 没有显式行动容器：插在段落「首个链接簇」之前——结果与行动相邻，且不改变出口在末
 		const kids = [...content.childNodes];
@@ -438,7 +438,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		const hist = State.history;
 		const prev = hist?.[hist.length - 2]?.title;
 		if (!prev || prev === State.passage || !prev.startsWith(State.passage + '·')) return;
-		const acts = ev.content.querySelector('.scene-acts, .tavern-actions');
+		const acts = ev.content.querySelector('.acts');
 		if (!acts) return;
 		requestAnimationFrame(() => {
 			acts.setAttribute('tabindex', '-1');
@@ -454,7 +454,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 	// ① 块容器直接子级里的 <br>（行动区、折叠区、交涉面板、战斗区、结局卡）
 	// ② 块级元素紧邻的 <br>（</div><br>、<br><div>）
 	// ③ 连续空行封顶：run ≥3 个 <br> 归一成 2（作者的单段空行＝2 个，保留）
-	const BLOCK_ZONES = '.scene-acts, .tavern-actions, .tavern-tables, .tavern-heard, .soc-ask, .soc-panel, .fight-acts, .fight-log, details, #hall-act, .ending-card, #keeper-acts';
+	const BLOCK_ZONES = '.acts, .soc-ask, .fight-log, details';
 	const normalizeBlank = (content) => {
 		if (!content) return;
 		content.querySelectorAll(BLOCK_ZONES).forEach((z) => {
@@ -497,11 +497,11 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		jump.textContent = '跳到正文';
 		document.body.insertBefore(jump, document.body.firstChild);
 
-		// #262：没显式声明行动区的段落，自动把「末尾那串链接」识别成行动区并包进.scene-acts
+		// #262：没显式声明行动区的段落，自动把「末尾那串链接」识别成行动区并包进 .acts
 		//（整束 ≤6 条纯链接、段落里没有别的行动容器时）——键盘跳转与分组一次覆盖全库。
 		const autoActs = (content) => {
-			if (content.querySelector('.scene-acts')) return content.querySelector('.scene-acts');
-			if (content.querySelector('.tavern-actions, .soc-ask, details.act-group')) return content.querySelector('.scene-acts');
+			if (content.querySelector('.acts')) return content.querySelector('.acts');
+			if (content.querySelector('.soc-ask, details.act-group')) return content.querySelector('.acts');
 			const kids = [...content.childNodes];
 			let idx = kids.length, links = 0;
 			while (idx > 0) {
@@ -512,8 +512,8 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 			}
 			if (links < 2) return null;
 			const div = document.createElement('div');
-			div.className = 'scene-acts';
-			div.id = 'scene-acts';
+			div.className = 'acts';
+			div.id = 'acts';
 			content.insertBefore(div, kids[idx] ?? null);
 			while (div.nextSibling && div.nextSibling.nodeName !== '#text') {
 				if (div.nextSibling.nodeType === 3 || div.nextSibling.nodeName === 'BR') div.appendChild(div.nextSibling);
@@ -526,9 +526,9 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 
 		jQuery(document).on(':passageend.sgKeyboard', (ev) => {
 			const content = ev.content;
-			const acts = autoActs(content) ?? content.querySelector('.tavern-actions');
+			const acts = autoActs(content);
 			if (!acts) return;
-			if (!acts.id) acts.id = 'scene-acts';
+			if (!acts.id) acts.id = 'acts';
 			if (content.querySelector('.skip-acts')) return;
 			const skip = document.createElement('a');
 			skip.className = 'skip-link skip-acts';
@@ -545,7 +545,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 			const active = document.activeElement;
 			if (active && active !== document.body) { focusInside = passages.contains(active); return; }
 			focusInside = false;
-			const fb = passages.querySelector('.fresh-heard:not([hidden]), .check-result, .damage-flash, .gain:not(:empty), .scene-acts');
+			const fb = passages.querySelector('.fresh-heard:not([hidden]), .check-result, .damage-flash, .gain:not(:empty), .acts');
 			if (!fb) return;
 			normalizeBlank(passages);
 			fb.setAttribute('tabindex', '-1');
@@ -599,10 +599,10 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		content.querySelectorAll('details.act-group, details.heard-fold').forEach((d) => {
 			const badge = d.querySelector('.act-n');
 			if (!badge) return;
-			const scope = d.querySelector('.tavern-tables, .tavern-heard') ?? d;
-			const n = scope.matches('.tavern-heard')
-				? scope.querySelectorAll('[data-heard]').length
-				: scope.querySelectorAll('a').length;
+			// 原作用域是两个故事侧块名（已随 `#1227` 类四删除，见票面清单）；
+			// 现按"折叠块自身"计数：有转述条目就数条目，否则数链接。
+			const heard = d.querySelectorAll('[data-heard]').length;
+			const n = heard > 0 ? heard : d.querySelectorAll('a').length;
 			badge.textContent = String(n);
 			badge.hidden = n === 0;
 			if (d instanceof HTMLDetailsElement && d.classList.contains('heard-fold')) d.hidden = n === 0;

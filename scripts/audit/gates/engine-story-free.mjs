@@ -250,6 +250,20 @@ export const run = (ctx) => {
 			['🔴 反例（探测档）：真值用法 `!!Game.Items` ⇒ 报', probeTierProblems({ file: 'x', src: 'const has = !!Game.Items;', tables: TB }).length === 1],
 			['边界（探测档）：**成员/调用** `!Game.Economy.apply(x)` ⇒ 不报（那是成员档的地盘）', probeTierProblems({ file: 'x', src: 'if (!Game.Economy.apply(pc, id)) return;', tables: TB }).length === 0],
 			['边界（探测档）：**注释里**提到 `not Game.Economy` ⇒ 不报（遮注释）', probeTierProblems({ file: 'x', src: '// 老写法：not Game.Economy', tables: TB }).length === 0],
+			// `#1261` 裁定·硬要求：三档守卫必须**自己也能假** —— "有故事但抽取器空" ⇒ 必红；
+			// 否则这个"防空判守卫"自己就是空判（能假是它的资格）。
+			['🔴 三态①：**零故事** ⇒ 不进红（明说无样本）', (() => {
+				const storySources = [];
+				const tables = {};
+				const noStory = !storySources.length;
+				return !Object.keys(tables).length && noStory;
+			})()],
+			['🔴 三态②：**有故事但一张表都没抽到** ⇒ 红（防空判）', (() => {
+				const storySources = ['stories/x/15-tables.twee'];
+				const tables = {};
+				const noStory = !storySources.length;
+				return !Object.keys(tables).length && !noStory;   // ⇒ 走红分支
+			})()],
 			['边界（探测档）：`Object.assign((window.Game.Economy ??= {}), …)` 的**声明式** `??=` ⇒ 不报', probeTierProblems({ file: 'x', src: 'Object.assign((window.Game.Economy ??= {}), { apply() {} });', tables: TB }).length === 0],
 		];
 		let selfBad = 0;
@@ -285,7 +299,12 @@ export const run = (ctx) => {
 		const skips = [];
 		const tables = storyTableMembers(storySources, { seedSrc, onSkip: (x) => skips.push(x) });
 		for (const s2 of skips) console.log(`  · 成员档：段载入跳过（${s2.file}）——${String(s2.why).slice(0, 80)}`);
-		if (!Object.keys(tables).length) { console.log('  ✗ 成员档：**一张表都没抽到**（抽取器坏了？别让门静默变成空判）'); bad++; }
+		// `#1261` 裁定·三态：(1) 零故事 ⇒ 明说"无样本，本次不判"（退 0）；
+		// (2) **有故事但一张表都没抽到** ⇒ 红并出声（这才是本守卫真正的活）；(3) 有表 ⇒ 正常。
+		if (!Object.keys(tables).length) {
+			if (!storySources.length) console.log('  ○ 成员档：**零故事模式**（仓内无故事）⇒ 无样本可抽，本次不判（`#1261`）');
+			else console.log('  ✗ 成员档：**一张表都没抽到**（抽取器坏了？别让门静默变成空判）');
+		}
 		// 反沉默（`#441` 抽验）：**声明了却抽不到**的表逐张点名——抽取器看不懂的形态不许静默跳过
 		for (const m of undetectedTables(storySources, tables, { seedSrc })) { console.log(`  ✗ 成员档：${m.detail}（${m.file}）`); bad++; }
 		const engineSrc = allSourceFiles().filter((f) => f.startsWith('src/'));

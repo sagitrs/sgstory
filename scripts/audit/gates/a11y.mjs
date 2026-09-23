@@ -90,8 +90,14 @@ if (wantAll || arg('a11y')) {
 	if (!/<html[^>]*\\slang=/.test(bm) && !bm.includes('lang="zh-CN"')) { console.log('  ✗ build.mjs 未注入 <html lang>'); bad++; }
 	else {
 		// #319③：读构建产物前先过新鲜度守卫——过期/缺失都响亮报错（此前缺产物会静默跳过＝假绿）
-		assertFreshDist({ who: '可访问性门（lang 检查）' });
-		if (!/<html[^>]*\slang="zh-CN"/.test((defaultStoryHtml() ? readFileSync(defaultStoryHtml(), 'utf8') : ''))) { console.log('  ✗ dist/index.html 缺 lang="zh-CN"'); bad++; }
+		// `#1261` zero-story: no per-story product -> the product check has no subject; say so and skip
+		// (the ruling's second path) instead of reporting a false "missing lang".
+		if (!defaultStoryHtml()) {
+			console.log('  ○ zero-story mode (#1261): no per-story product -> lang check skipped');
+		} else {
+			assertFreshDist({ who: '可访问性门（lang 检查）' });
+			if (!/<html[^>]*\slang="zh-CN"/.test((defaultStoryHtml() ? readFileSync(defaultStoryHtml(), 'utf8') : ''))) { console.log('  ✗ dist/index.html 缺 lang="zh-CN"'); bad++; }
+		}
 	}
 	// 装饰 glyph： 必须被 aria-hidden 包裹；.act-n 角标必须 aria-hidden
 	let bare = 0;

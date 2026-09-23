@@ -1,62 +1,86 @@
 :: Game Tables [script]
-// ── 第二个故事的**最小声明面**（`#460`）：本文件是「引擎接入契约」的**可执行清单** ─────────────
-//
-// 为什么它会存在（是本票实测挖出来的，不是设计出来的）：
-//   引擎侧 `21-resolve` 在**加载期**就 `Object.assign(window.Game.Checks, {…})`（还有 Combat／Economy／
-//   Gear／Items／Social）——而那些容器原先**只有故事 1 的 `15-tables.twee` 会建**。
-//   ⇒ 一个"只有引擎 ＋ 自己的段落"的故事在加载期就崩（`TypeError: Cannot convert undefined or null to object`）。
-//   这正是 `#512` 要清的"反向依赖"的一个实例：**引擎依赖故事提供容器**。
-//   本文件先用最小容器把契约补上（引擎侧改成 `??=` 自建属另一票）；它同时是第二故事接入的**样板**。
-//
-// 纪律（`#436-b`／`#441-E`）：**结构缺失 ⇒ 报错**，所以空表要**显式**给（空表是合法数据集，不是缺失）。
+// 第二个故事的最小声明面（`#460`）：本文件是「引擎接入契约」的可执行清单。
 window.Game = Object.assign(window.Game ?? {}, {
-	Checks: { sites: {}, keyYields: [] },
-	Combat: { pools: {}, actions: {} },
-	Economy: { prices: {}, events: [] },
-	Gear: { defs: {} },
-	Items: { defs: {} },
-	Social: { asks: [] },
-	Truth: { claims: [] },
-	Echoes: { list: [], revisit: [] },
-	Shifts: { anchors: [] },
-	Investment: { expressive: [], failClueExempt: {}, eraDomain: { past: [], branch: [], flagEra: {}, crossEraGates: [] } },
-	// 接入契约：**引擎保留的运行时槽**由引擎写（`last_result`/`last_roll`/`soc*`/`fight`）⇒ 故事必须登记，
-	// 否则 `--state` 会判"未落入任何域"（`#460`：这条纪律写进 `docs/dev-conventions.md` §12 的契约清单）。
-	State: { domains: [{ id: 'runtime', keys: ['last_result', 'last_roll', 'soc', 'soc_last', 'soc_lever', 'fight', 'ending', 'notes', 'settle'], note: '引擎保留的运行时槽（每个故事都要登记）' }], bookkeeping: [], dynamicKeys: [] },
-	Notes: { entries: {} },
+	Checks: {
+		sites: {},
+		keyYields: []
+	},
+	Combat: {
+		pools: {},
+		actions: {}
+	},
+	Economy: {
+		prices: {},
+		events: []
+	},
+	Gear: {
+		defs: {}
+	},
+	Items: {
+		defs: {}
+	},
+	Social: {
+		asks: []
+	},
+	Truth: {
+		claims: []
+	},
+	Echoes: {
+		list: [],
+		revisit: []
+	},
+	Shifts: {
+		anchors: []
+	},
+	Investment: {
+		expressive: [],
+		failClueExempt: {},
+		eraDomain: {
+			past: [],
+			branch: [],
+			flagEra: {},
+			crossEraGates: []
+		}
+	},
+	State: {
+		domains: [
+			{
+				id: 'runtime',
+				keys: [
+					'last_result',
+					'last_roll',
+					'soc',
+					'soc_last',
+					'soc_lever',
+					'fight',
+					'ending',
+					'notes',
+					'settle'
+				],
+				note: '引擎保留的运行时槽（每个故事都要登记）'
+			}
+		],
+		bookkeeping: [],
+		dynamicKeys: []
+	},
+	Notes: {
+		entries: {}
+	}
 });
-// `#581`：本故事**没有战斗内容** ⇒ 引擎写的 `fight`（战斗台账）在本故事里只在**引擎段落**被读
-// ⇒ 按 D2 门口径登记为 `engine`（带理由）。引擎侧默认**不含** `fight`（有战斗内容的故事会在**叙事段**读它，
-// 那边属 `mechanic`，声明成 engine 会被判“错标”）⇒ 这一条只能本故事自己说。
-// 记法：**merge**（`Object.assign` 到 `.engine`）—— 若在上面那个对象字面量里直接给 `Consequences:`，
-// 会**整块覆盖**掉引擎种的默认（`ending`／`last_roll`／…）⇒ 反而报“无任何桶”。
-Object.assign(((window.Game.Consequences ??= { provenance: {}, engine: {} }).engine), {
+Object.assign(((window.Game.Consequences ??= {
+	provenance: {},
+	engine: {}
+}).engine), {
 	fight: '本故事无战斗内容：`fight` 只在引擎侧（战斗流程）读写',
-	// `#746`：引擎 `<<shortFight>>` 在**有尾段**时写它（登记的是引擎侧写点；本故事不用战斗 ⇒ 不消费，仅登记）
 	settle: '留屏协议的待提升文案（引擎短战斗 widget 写；有尾段的故事由落点提升显示）',
 });
 
 :: StoryBindings [script]
-// 接入契约（`#436-b`／`#441-E`）的**完整面**：引擎侧的取数口**只**经 `Sg.story.*`，纪律是
-// 「**结构缺失 ⇒ 报错**」（未注册却来取数必须炸——不静默降级）；所以第二故事必须把**全部**口子显式注册，
-// 空表/`null` 是**合法数据集**（本故事无机制 ⇒ 多数返回 `null`＝"未启用"，调用方跳过）。
-//
-// 本清单是**实测得出**的（`grep -rho "Sg\.story\.[a-zA-Z_]*" src/ | sort -u`）——引擎里每一个 `Sg.story.X`
-// 就是一个必须注册的口子。这正是「第二故事接入」缺的那张清单：引擎知道故事名越少，这张表越短。
+// 接入契约的完整面：引擎侧取数口只经 Sg.story.*，纪律是「结构缺失 ⇒ 报错」。空表/null 是合法数据集。
 window.Sg ??= {};
 Object.assign((window.Sg.story ??= {}), {
-	notes: () => ({}),                 // 笔记表：本故事无笔记 ⇒ 空表（合法）
-	econEvents: () => window.Game.Economy.events,   // `#660` 片三-1（空表：本故事没有经济事件）
-	hasChargen: () => false,   // `#660` 片三-2（同上：没有车卡）
-	pcDefaults: () => ({}),   // `#660` 片三-3（同上：没有专属数值）
-	rules: () => [],                   // 条件表：空表（合法）
-	mechanics: () => null,             // 新机制声明表：未启用 ⇒ `null`（调用方必须跳过，不许当空表）
-	checkSite: () => null,             // 位点表
-	combatPool: () => [],              // 战斗池
-	combatAction: () => null,          // 战斗动作
-	actionLabel: (id) => String(id),   // 动作文案：**文案缺失** ⇒ 兜底不报错（与"结构缺失"分开）
-	gearDef: () => null,               // 装备声明
-	itemEffect: () => null,            // 道具效果
-	poisonReduce: () => 0,             // 毒液减成
-	dragonMaxHp: () => 0,              // 龙血上限（本故事无龙）
+	econEvents: () => window.Game.Economy.events,
+	rules: () => [],
+	notes: () => ({}),
+	pcDefaults: () => ({}),
 });

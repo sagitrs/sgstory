@@ -401,7 +401,7 @@ Macro.add('dragonbar', {
 	skipArgs: true,
 	handler() {
 		const pc = Game.Pc.now();
-		const hp = Math.max(0, pc.dragon?.hp ?? 0), max = Sg.story.dragonMaxHp();   // #441-E：故事数据经契约取（引擎不再直读 Game.Dragon）
+		const hp = Math.max(0, pc.dragon?.hp ?? 0), max = (Sg.story.dragonMaxHp?.() ?? 0);   // #441-E：故事数据经契约取（引擎不再直读 Game.Dragon）
 		const pct = Math.round((hp / max) * 100);
 		jQuery(this.output).append(
 			`<div class="hpbar"><div class="hpbar-fill" style="width:${pct}%;background:#7a4a8f"></div>` +

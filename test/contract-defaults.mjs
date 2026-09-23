@@ -20,7 +20,7 @@ import { outsideQuotes } from '../editor/lib/host/k6criteria.mjs';
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 /** 反向核：三故事的数据成员数（能力开关不计）。改动契约时同片更新。 */
 // 现状（A 半不动契约）。B 半逐名加守卫并去声明之后，这三个数会下降（票面 `#1216` 钉进度）。
-const EXPECTED_DATA_MEMBERS = { 'face-fixture': 24, 'night-ferry': 13, 'minimal-demo': 12 };   // `#1186`（流一）引入契约面 `pcShape` 后 face-fixture +1（跨票联动：谁后合谁带上）
+const EXPECTED_DATA_MEMBERS = { 'face-fixture': 22, 'minimal-demo': 10, 'night-ferry': 11 };   // `#1186`（流一）引入契约面 `pcShape` 后 face-fixture +1（跨票联动：谁后合谁带上）
 
 let bad = 0;
 const ok = (name, cond, detail = '') => {

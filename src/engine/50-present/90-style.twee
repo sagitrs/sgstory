@@ -113,30 +113,6 @@ body {
 	letter-spacing: 0.05em;
 }
 
-/* 结局画面 */
-.ending-card {
-	border: 1px solid #4a4358;
-	border-radius: 10px;
-	padding: 1.2em 1.6em;
-	margin: 1.5em 0;
-	background: rgba(20, 18, 28, 0.7);
-	box-shadow: 0 0 32px rgba(0, 0, 0, 0.5) inset;
-}
-.ending-card h2 {
-	text-align: center;
-	letter-spacing: 0.15em;
-	margin-top: 0;
-}
-.ending-card table {
-	margin: 0 auto;
-	border-spacing: 1em 0.3em;
-	font-size: 0.95em;
-}
-.ending-card td:first-child {
-	color: #8b8497;
-	padding-right: 0.5em;
-	text-align: right;
-}
 
 /* ── 车卡流程 ── */
 .chargen-card {
@@ -278,8 +254,6 @@ body {
 	.charsheet h2 { font-size: 1.1em; letter-spacing: 0.05em; }
 	.ability-table { font-size: 0.85em; }
 	.act-group { padding: 0.35em 0.5em; }
-	.ending-card { padding: 0.8em 0.9em; margin: 1em 0; }
-	.ending-card table { font-size: 0.85em; border-spacing: 0.6em 0.2em; }
 	.check-result { font-size: 0.85em; padding: 0.4em 0.6em; }
 	.hpbar-text { font-size: 0.8em; }
 	.choice-card { padding: 0.6em 0.7em; }
@@ -362,9 +336,7 @@ body {
 .soc-said { display: block; margin-top: 0.3em; }
 .soc-cost { display: block; color: #a3785e; font-size: 0.9em; }
 .soc-no, .soc-done { color: #8b806b; font-style: italic; }
-.tavern-tables a { display: block; width: fit-content; max-width: 100%; margin: 0.4em 0; }
 /* ── #180 同页交互分区：行动分组 + 已读折叠（#179）── */
-.tavern-actions { display: flex; flex-direction: column; gap: 0.55em; margin-top: 1em; }
 .act-group {
 	border: 1px solid rgba(169, 192, 218, 0.25);
 	border-radius: 10px;
@@ -381,7 +353,9 @@ body {
 .heard-item { margin: 0.55em 0; }
 .action-feedback:focus-visible { outline: 1px solid #a9c0da; outline-offset: 0.3em; }
 /* ── #185 阶段二：T-场景行动区（通用）＋ T-战斗回合连续（检定→你→它→下一轮，紧凑成块）── */
-.scene-acts { display: flex; flex-direction: column; gap: 0.55em; margin-top: 1em; }
+.acts { display: flex; flex-direction: column; gap: 0.55em; margin-top: 1em; }
+/* 结局页的行动区是同一角色的**横排变体**：用修饰类避免同一选择器两条定义。 */
+.acts-wrap { display: flex; flex-wrap: wrap; gap: 0.6em; }
 /* #261 键盘：跳转链接聚焦才现 */
 .skip-link {
 	position: absolute; left: -9999px; top: 0; z-index: 90;
@@ -396,12 +370,9 @@ body {
 	background: rgba(20, 24, 34, 0.5); border-radius: 0 8px 8px 0;
 }
 .scene-feedback:empty { display: none; }
-#hall-act .check-result, #hall-act .damage-flash, #hall-act .gain { display: inline-block; margin: 0.15em 0; }
-.scene-acts > a { display: block; width: fit-content; max-width: 100%; margin: 0.3em 0; }
+.acts > a { display: block; width: fit-content; max-width: 100%; margin: 0.3em 0; }
 .fight-log { margin: 0.45em 0; }
-.fight-acts { margin-top: 1em; }
-.fight-acts a { display: block; width: fit-content; max-width: 100%; margin: 0.4em 0; }
-.fight-acts .fight-meta { color: #8b806b; }
+.acts .meta { color: #8b806b; }
 
 @media (prefers-reduced-motion: reduce) {
 	.passage { animation: none; transition: none; }
@@ -409,16 +380,16 @@ body {
 	.choice-card:hover { transform: none; }
 }
 /* ── 结局页收尾卡（C1）── */
-.ending-foot {
+.foot {
 	margin: 2em 0 1em;
 	padding: 1em 1.1em;
 	border: 1px solid rgba(200, 180, 255, 0.28);
 	border-radius: 8px;
 	background: rgba(24, 20, 40, 0.55);
 }
-.ending-foot-lead { margin: 0 0 0.7em; opacity: 0.85; }
-.ending-acts { display: flex; flex-wrap: wrap; gap: 0.6em; }
-.ending-acts .end-act {
+.foot-lead { margin: 0 0 0.7em; opacity: 0.85; }
+
+.acts .end-act {
 	font: inherit;
 	cursor: pointer;
 	padding: 0.45em 0.9em;
@@ -427,9 +398,9 @@ body {
 	border: 1px solid rgba(200, 180, 255, 0.35);
 	border-radius: 6px;
 }
-.ending-acts .end-act:hover:not([disabled]) { background: rgba(86, 72, 130, 0.85); }
-.ending-acts .end-act[disabled] { opacity: 0.45; cursor: not-allowed; }
-.ending-foot-hint { margin: 0.7em 0 0; font-size: 0.88em; opacity: 0.7; line-height: 1.5; }
+.acts .end-act:hover:not([disabled]) { background: rgba(86, 72, 130, 0.85); }
+.acts .end-act[disabled] { opacity: 0.45; cursor: not-allowed; }
+.foot-hint { margin: 0.7em 0 0; font-size: 0.88em; opacity: 0.7; line-height: 1.5; }
 
 /* ── 系统提示 vs 叙事（#168 P2-5）：机制提示统一小字侧排，跟故事里的括号分开 ── */
 .sys-note {

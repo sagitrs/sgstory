@@ -398,8 +398,8 @@ async function routeEndingFooter() {
 	for (const name of endings) {
 		w.SugarCube.Engine.play(name);
 		await waitRendered(w, name);
-		const foot = w.document.querySelector('#passages .ending-foot');
-		if (!foot) { problems.push(`「${name}」没有收尾卡（.ending-foot）`); continue; }
+		const foot = w.document.querySelector('#passages .foot');
+		if (!foot) { problems.push(`「${name}」没有收尾卡（.foot）`); continue; }
 		const acts = [...foot.querySelectorAll('a, button')].map((x) => x.textContent.replace(/\s+/g, ' ').trim());
 		for (const want of ['退回上一步', '读档', '从头再来']) {
 			if (!acts.some((x) => x.includes(want))) problems.push(`「${name}」收尾卡缺出口「${want}」（实得：${acts.join(' / ')}）`);

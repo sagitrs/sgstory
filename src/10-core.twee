@@ -636,7 +636,7 @@ window.Sg.capability = (group) => {
 		<div class="fight-log">
 			''你：<<print _L.you.label>>''　<<if _L.you.kind is "crit">><span class="fight-crit">''大成功''</span><</if>>
 			<<print _L.you.text>>
-			<div class="fight-meta"><<if _L.you.dmg>>打掉 <<print _L.you.dmg>> 点<</if>><<if _L.you.gearBonus>>（<<print _L.you.gearName>> +<<print _L.you.gearBonus>>）<</if>><<if _L.you.dmg>>　<</if>><<if _L.you.adv>>下一击有优势　<</if>><<if _L.you.guard>>这一轮少挨 <<print _L.you.guard>>　<</if>><<if _L.you.hurt>>自己挨了 <<print _L.you.hurt>>　<</if>><<if _L.you.skipFoe>>它这一轮没能出手　<</if>><<if _L.you.goodNote>>（<<print _L.you.goodNote>>）<</if>><<if _L.you.kind is "bad">>''没能得手''<</if>></div>
+			<div class="meta"><<if _L.you.dmg>>打掉 <<print _L.you.dmg>> 点<</if>><<if _L.you.gearBonus>>（<<print _L.you.gearName>> +<<print _L.you.gearBonus>>）<</if>><<if _L.you.dmg>>　<</if>><<if _L.you.adv>>下一击有优势　<</if>><<if _L.you.guard>>这一轮少挨 <<print _L.you.guard>>　<</if>><<if _L.you.hurt>>自己挨了 <<print _L.you.hurt>>　<</if>><<if _L.you.skipFoe>>它这一轮没能出手　<</if>><<if _L.you.goodNote>>（<<print _L.you.goodNote>>）<</if>><<if _L.you.kind is "bad">>''没能得手''<</if>></div>
 		</div>
 		<<if _L.foe>><div class="fight-log">''它：''<<print _L.foe.text>>
 			/% `#704`（症状：`log.foe.slots` 有数据但渲染面**从不引用** → 玩家看不到"打在哪、被哪件吸了多少、哪件快坏了"）：
@@ -649,7 +649,7 @@ window.Sg.capability = (group) => {
 				<<for _g range Game.Combat.gearDurability($pc)>>
 					<<if _g.name is _s.gear>><<set _max to _g.max>><</if>>
 				<</for>>
-				<div class="fight-meta">〔<<print _s.part>>〕<<if _s.gear>>护具 ''<<print _s.gear>>'' 吸 <<print _s.absorbed>><<if _s.reduce>>（减 <<print _s.reduce>>）<</if>><<if _max gt 0>>　余 <<print _s.gearHp>>/<<print _max>><</if>><<if _s.broke>>　''碎了''<</if>><<else>>没有护具挡下<</if>>　→ 落 HP <<print _s.toHp>></div>
+				<div class="meta">〔<<print _s.part>>〕<<if _s.gear>>护具 ''<<print _s.gear>>'' 吸 <<print _s.absorbed>><<if _s.reduce>>（减 <<print _s.reduce>>）<</if>><<if _max gt 0>>　余 <<print _s.gearHp>>/<<print _max>><</if>><<if _s.broke>>　''碎了''<</if>><<else>>没有护具挡下<</if>>　→ 落 HP <<print _s.toHp>></div>
 			<</if>>
 		</div><</if>>
 	<</if>>
@@ -661,7 +661,7 @@ window.Sg.capability = (group) => {
 <<widget "fightpanel">><<nobr>>
 	<<run Game.Combat.ensureOffer($pc)>>
 	<<set _f to $pc.ev.fight>>
-	<div class="fight-acts">
+	<div class="acts">
 		''这一轮你能做的：''
 		<<if _f.offer.length gt 0>>
 			<<link `Sg.story.actionLabel?.(_f.offer[0]) ?? _f.offer[0]`>>
@@ -671,7 +671,7 @@ window.Sg.capability = (group) => {
 				/% #350/#357：结算在点击时完成；**死透就不再归位**——<<damage>> 已跳「结局 死亡」，再 goto 会把它覆盖掉。用**存活条件**判，不依赖 widget 里的 passage() %/
 				<<if $pc.hp gt 0>><<goto `_orig`>><</if>>
 			<</link>>
-			<span class="fight-meta">（<<print Game.Combat.siteInfo(_f.offer[0])>>）</span>
+			<span class="meta">（<<print Game.Combat.siteInfo(_f.offer[0])>>）</span>
 		<</if>>
 		<<if _f.offer.length gt 1>>
 			<<link `Sg.story.actionLabel?.(_f.offer[1]) ?? _f.offer[1]`>>
@@ -681,7 +681,7 @@ window.Sg.capability = (group) => {
 				<<fightact $args[0]>>
 				<<if $pc.hp gt 0>><<goto `_orig`>><</if>>
 			<</link>>
-			<span class="fight-meta">（<<print Game.Combat.siteInfo(_f.offer[1])>>）</span>
+			<span class="meta">（<<print Game.Combat.siteInfo(_f.offer[1])>>）</span>
 		<</if>>
 		<<if _f.offer.length gt 2>>
 			<<link `Sg.story.actionLabel?.(_f.offer[2]) ?? _f.offer[2]`>>
@@ -691,7 +691,7 @@ window.Sg.capability = (group) => {
 				<<fightact $args[0]>>
 				<<if $pc.hp gt 0>><<goto `_orig`>><</if>>
 			<</link>>
-			<span class="fight-meta">（<<print Game.Combat.siteInfo(_f.offer[2])>>）</span>
+			<span class="meta">（<<print Game.Combat.siteInfo(_f.offer[2])>>）</span>
 		<</if>>
 	</div>
 <</nobr>><</widget>>

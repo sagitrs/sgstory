@@ -84,7 +84,7 @@ for (const site of MANIFEST.sites) {
 		const beforeAction = snapshot(w);
 		if (site.clickNthAction) {
 			// 战斗牌是随机抽的，按序号点（第 N 张），比按标签稳
-			const acts = [...w.document.querySelectorAll('#passages .fight-acts a.link-internal')];
+			const acts = [...w.document.querySelectorAll('#passages .acts a.link-internal')];
 			const el = acts[site.clickNthAction - 1];
 			if (!el) throw new Error(`战斗面板第 ${site.clickNthAction} 张牌不存在`);
 			el.click(); await sleep(300);

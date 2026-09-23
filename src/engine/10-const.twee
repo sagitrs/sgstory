@@ -14,7 +14,7 @@
 window.Game ??= {};
 
 // 时代值：`'past'`／`'present'` 是本仓的**常量词表**（`--literals` 只许它们出现在声明的常量载体里）。
-window.Game.Era = { PAST: 'past', PRESENT: 'present' };
+// `#1223`：`window.Game.Era` 已删（时代＝条件维度，值由故事给；正确形态随 `#1163` 落地）。
 
 // 伤害档梯（引擎侧 `<<damage>>` 家族／widget 用它）：
 // graze=1 擦伤（磕碰、冻手、划破手背）· hurt=2 受伤（肩膀撞墙、炉膛硬来）· hard=3 重击（花香按倒、土散去）·

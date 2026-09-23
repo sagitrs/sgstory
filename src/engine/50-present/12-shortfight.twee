@@ -84,7 +84,7 @@
 			<<set _phase to (Game.Combat.waveRecord($pc, $last_check.success) ?? {}).phase>>
 		<</if>>
 		<<if _phase is "continue" or _phase is "advance">>
-			<<set $pc.ev.last_result to { p: passage(), era: $era, text: $args[2] }>>
+			<<set $pc.ev.last_result to { p: passage(), text: $args[2] }>>
 			<<print $args[2]>>
 			<<goto `passage()`>>
 		<<elseif _phase is "cleared">>
@@ -95,7 +95,7 @@
 			   **没有尾段**（故事 1：原地显示）→ 维持 `last_result`（写 `settle` 会是**孤儿写点**，
 			   `--consequences` 门会报"无正文消费"——它抓得对）。引擎也不得用故事侧 widget
 （`test/integrity.mjs` 抓过 `<<caveSay>>`：那是故事 2 的）。 %/
-			<<if _tail>><<set $pc.ev.settle to ($pc.ev.settle ?? "") + $args[2]>><<else>><<set $pc.ev.last_result to { p: passage(), era: $era, text: $args[2] }>><</if>>
+			<<if _tail>><<set $pc.ev.settle to ($pc.ev.settle ?? "") + $args[2]>><<else>><<set $pc.ev.last_result to { p: passage(), text: $args[2] }>><</if>>
 			<<print $args[2]>>
 			<<set _r to Game.Combat.grantReward($pc, _enc)>>
 			<<set $pc.ev.fight to {}>>                       % `#705` 片二-B：清场在**发奖之后**（`grantReward` 要读波次状态；先清 ⇒ 奖励发不出）%
@@ -120,7 +120,7 @@
 			<<if _tail>><<set $pc.ev.settle to ($pc.ev.settle ?? "") + $args[3]>><<else>><<set $pc.ev.last_result to { p: passage(), era: $era, text: $args[3] }>><</if>>
 			<<print $args[3]>>
 			<<damage `Game.Damage.hurt`>>
-			<<if _note>><<note _note>><</if>>
+			<<if _note>>/% `#1223`：`<<note>>` 已退役 ⇒ 写通用状态面（canonical `ev.notes.<id>`） %/<<run Sg.notes.writePath($pc, "ev.notes." + _note, true)>><</if>>
 			<<set $pc.ev.fight to {}>>                       % 失败也清场（无奖励依赖，顺序无关）%
 			<<if _tail>><<include `_tail`>><</if>>
 		<</if>>

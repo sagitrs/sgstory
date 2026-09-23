@@ -3,9 +3,9 @@
 // 让 `--consequences` 把该键当成每个故事都写了 → 不声明它的故事假红）。
 import { maskComments } from './mask.mjs';
 export { maskComments };   // `#1208`：代码面正解经 hub 转出（审计门一律用它）
-import { asListOf, KEY_PREFIX_RE, OPS, WRAPPED_READ_RE, condKeysOf, declCondRefs, notePaths, wrappedReadKeys } from '../../../editor/lib/core/audit-shared.mjs';
+import { asListOf, KEY_PREFIX_RE, OPS, WRAPPED_READ_RE, condKeysOf, declCondRefs, notePaths, noteReadRefs, bareKey, wrappedReadKeys } from '../../../editor/lib/core/audit-shared.mjs';
 import { WRITE_PATTERNS, rowOps, noteWriteKeys, noteWriteRefs, notePathWriteRefs, NOTE_PATH_WRITE_RE, NOTE_WRITE_RE, declaredNoteWriteRefs, DECLARED_NOTE_WRITE_RE, conditionReadsFlag, noteReadKeys, noteRefs, NOTE_REF_RE } from '../../../editor/lib/core/audit-shared.mjs';
-export { WRITE_PATTERNS, rowOps, noteWriteKeys, noteWriteRefs, notePathWriteRefs, NOTE_PATH_WRITE_RE, NOTE_WRITE_RE, declaredNoteWriteRefs, DECLARED_NOTE_WRITE_RE, conditionReadsFlag, noteReadKeys, noteRefs, NOTE_REF_RE };   // `#215` E-B1：定义已上移 core → 本处**只转出**（不算定义）
+export { WRITE_PATTERNS, rowOps, noteWriteKeys, noteWriteRefs, notePathWriteRefs, bareKey, NOTE_PATH_WRITE_RE, NOTE_WRITE_RE, declaredNoteWriteRefs, DECLARED_NOTE_WRITE_RE, conditionReadsFlag, noteReadKeys, noteRefs, NOTE_REF_RE };   // `#215` E-B1：定义已上移 core → 本处**只转出**（不算定义）
 export { DECL_COND_RE, KEY_PREFIX_RE, OPS, READ_PATTERNS, WRAPPED_READ_RE, condKeysOf, declCondRefs, literalReadKeys, notePaths, readKeys, ruleRowKeys, stripProseComments, wrappedReadKeys } from '../../../editor/lib/core/audit-shared.mjs';
 
 // ── 写点识别：**单一权威**（#476 复核建议）──────────────────────────────────
@@ -60,7 +60,11 @@ export const ruleRowFlags = (row, entries) => {
 	for (const key of [...asListOf(row?.req), ...asListOf(row?.any), ...asListOf(row?.exclude)].flatMap(condKeysOf)) {
 		if (KEY_PREFIX_RE.test(key)) continue;   // 同 `ruleRowKeys()`：前缀键不是旗标，不参与分级
 		if (key.includes('.') && !/^(?:ev|world)\./.test(key)) continue;   // 同上：第三命名空间不是旗标
-		if (key.startsWith('n_')) for (const p of (paths.get(key) ?? [])) out.add(p.replace(/^(ev|world)\./, ''));
+		// `#1223` 重建：`n_x` 折到 canonical `ev.notes.n_x`（与写侧同键 -> 两侧可直比、无需注册表）
+		// `#1223` rebuild: same rule on both sides -- strip the prefix before the bucket test, so emit the
+		// **bare** key `notes.<key>` here (emitting `ev.notes.<key>` would not match `written`, and the
+		// consumer would then be misread as engine-passage-only).
+		if (key.startsWith('n_')) out.add(`notes.${key}`);
 		else out.add(key.replace(/^(ev|world)\./, ''));
 	}
 	return [...out];
@@ -83,7 +87,8 @@ export const declWriteKeys = (rows, notes) => {
 			const raw = String(y ?? '');
 			const noteId = raw.startsWith('note:') ? raw.slice(5) : (raw.startsWith('n_') ? raw : null);
 			if (!noteId) continue;
-			for (const p of (paths.get(noteId) ?? [])) push(String(p));
+			// `#1223` 重建：声明式写点同样折 canonical（不再经 flagPath 注册表）
+			push(`ev.notes.${noteId}`);
 		}
 	}
 	return out;
@@ -138,13 +143,10 @@ export const makeShared = (ctx) => {
 		// ① 直接读 `<<if … $pc.ev.flag>>`；② 经笔记读 `<<if Sg.notes.has('n_flag')>>`（该笔记的 flagPath 含此旗标）
 		const noteEntries = input.notes ?? Game.Notes?.entries ?? {};
 		const notePathsById = notePaths(noteEntries);
-		const flagsByNote = new Map();
-		for (const [id, ps] of notePathsById) for (const p of ps) {
-			const f = p.replace(/^(ev|world)\./, '');
-			if (!flagsByNote.has(f)) flagsByNote.set(f, []);
-			flagsByNote.get(f).push(id);
-		}
-		const refsByPassage = new Map([...stripped.entries()].map(([n, src]) => [n, new Set(noteRefs(src))]));
+		// `#1223` rebuild: `flagsByNote` (registry -> flagPath bare keys) **retired**;
+		// consumption is judged by the canonical id (see `noteIdOfKey` below).
+
+		const refsByPassage = new Map([...stripped.entries()].map(([n, src]) => [n, new Set(noteReadRefs(src))]));
 		// #435 阶段 4：**条件表行**里的键也算「正文条件消费」——按行的 `scope`（＝哪一段）判它是不是叙事段落。
 		// 否则条件一搬进表，D2 就看不见这个读点（键被判「只在引擎段落被读」→ 假红）。
 		// 表的来源：优先**注入**（node 侧没有 `window` 全局 → 不能在这里直读 `Sg.story`），退回 `Game.Rules.entries`
@@ -167,7 +169,17 @@ export const makeShared = (ctx) => {
 			// **段落级**判定（段落**任何位置**出现即算，纯装饰性读也算）→ 要收紧就**两形状一起收**
 			//（只收封装层那条 = 口径又劈叉，等于把假红挪到另一侧）。接收者不限于 `$pc`（同 `WRAPPED_READ_RE`）。
 			if (new RegExp(`Sg\\.notes\\.readPath\\(\\s*[^,()]+,\\s*['"](?:ev|world)\\.${flag}['"]`).test(src)) return true;
-			return (flagsByNote.get(flag) ?? []).some((id) => refsByPassage.get(name)?.has(id));
+			// `#1223` rebuild: note-family keys are judged by the canonical id only.
+			// The passage side records **note ids** (via `Sg.notes.has('n_x')` / `<<note>>`), which is the same
+			// source as the write-side canonical `ev.notes.<id>` (bare form `notes.<id>`) -> compare ids directly,
+			// **no longer through `flagsByNote`** (which folded the registry back to flagPath bare keys).
+			const noteIdOfKey = (k) => {
+				const t = String(k ?? '');
+				if (t.startsWith('notes.')) return t.slice('notes.'.length);
+				return t.startsWith('n_') ? t : null;
+			};
+			const noteId = noteIdOfKey(flag);
+			return !!noteId && !!refsByPassage.get(name)?.has(noteId);
 		};
 		const written = new Set();
 		for (const src of stripped.values()) {

@@ -213,7 +213,14 @@ export const noteWriteKeys = (text, entries) => {
 	const qualifiedIds = new Set(qualified.map((q) => q.id));
 	for (const q of qualified) out.add(q.path);
 	// 未限定形（`<<note>>`／`Sg.notes.add`）仍按整族记 —— 它们**不该**用在多源笔记上（护栏会报）
-	for (const id of noteWriteRefs(text)) if (!qualifiedIds.has(id)) for (const p of (paths.get(id) ?? [])) out.add(p);
+	// `#1223` 重建：**未限定形折到 canonical `ev.notes.<id>`**（原折 `flagPath` 裸键 -> 与消费侧断开）。
+	// 限定形（`notepath`／`addPath`）**仍只记声明的那一条**（`#434` 护栏，多源必须显式给 setPath）。
+	// `#1223` rebuild: **every** write ref records the canonical key (qualified or not);
+	// a qualified ref (`notepath` / `addPath`) **additionally** records the declared path only.
+	for (const id of noteWriteRefs(text)) {
+		out.add(`ev.notes.${id}`);
+		if (qualifiedIds.has(id)) continue;
+	}
 	return [...out];
 };
 /** 同上，返回**裸键**（D2 按裸键判）。 */
@@ -284,10 +291,18 @@ export const conditionReadsFlag = (text, flag, noteIds = []) => {
 // 直接印这串旗标 → 顺序稳定才能让「纯转发」的判据保持逐字一致（否则每转一处就要重签 golden 一行）。
 // 返回**数组**（与 `noteReadKeys()` 一致：Set 会被 `.concat()` 当成单个元素——踩过一次）。
 // 文本里**经笔记**读到的限定键（`ev.x`/`world.x`）
+/** #1223: the ONE prefix normalization shared by both gates (consequences / state).
+ * Both sides must call it before any set comparison; do not keep a copy per gate
+ * (this session already bit once because there were two copies).
+ */
+export const bareKey = (k) => String(k ?? '').replace(/^(ev|world)\./, '');
+
 export const noteReadKeys = (text, entries) => {
-	const paths = notePaths(entries);
+	// #1223 rebuild: the READ side must use the same canonical key as the WRITE side (ev.notes.<id>).
+	// Folding to the note flagPath paths here was the mismatch that flipped the #608 positive
+	// selftest (write = canonical, read = flagPath).
 	const out = new Set();
-	for (const id of noteRefs(text)) for (const p of (paths.get(id) ?? [])) out.add(p);
+	for (const id of noteRefs(text)) out.add(`ev.notes.${id}`);
 	return [...out];
 };
 // 文本里**经笔记**读到的裸键（D2 按裸键判）
@@ -301,6 +316,16 @@ export const noteRefs = (text) => {
 	for (const id of declCondRefs(text).notes) out.add(id);
 	return [...out];
 };
+
+/** `#1223`：**只含读**的 refs —— 供"谁消费了它"使用（声明形 `note:x` 不计）。
+ * 两条读路径都要在（**形态**分，不按键名）：`Sg.notes.has/entry('n_x')` ＋ 声明式条件 `req: ['n_x']`。
+ */
+export const noteReadRefs = (text) => {
+	const out = new Set();
+	for (const m of String(text ?? '').matchAll(NOTE_READ_RE)) out.add(m[1]);
+	for (const id of declCondRefs(text).notes) out.add(id);
+	return [...out];
+};
 // 文本里**经笔记**读到的限定键（`ev.x`/`world.x`）
 // audit 跨门共享 helper（#316 第 2 步）：被 ≥2 个门使用的定义集中于此，由壳注入 ctx。
 // 清单：build/_shared_list.json（收敛循环自动发现）。
@@ -309,6 +334,12 @@ export const noteRefs = (text) => {
 // 于是「谁读了旗标 X」这件事**换了写法但不该消失**——依赖它的门（`--state` 的有写有读、D2 的桶分类）
 // 必须跟着认这个形状。否则转发的第一步就会把一堆键判成"只有写"→ 门红而代码其实等价（假红）。
 // 这就是设计稿那条纪律：**先让门认新形状，再改内容**。
+// `#1223` rebuild: **declaration is not consumption** -- split the two halves by FORM (never by key name).
+// read half: `Sg.notes.has('n_x')` / `entry('n_x')` => a real read.
+// decl half: `note:n_x` (a write-side declaration, e.g. in `yields`) => **NOT** a read.
+export const NOTE_READ_RE = /Sg\.notes\.(?:has|entry)\(\s*['"](n_[a-z0-9_]+)['"]/g;
+export const NOTE_DECL_RE = /(?:^|[^\w:])note:(n_[a-z0-9_]+)/g;
+// kept for the write-side callers (write refs accept both forms); consumption must use `noteReadRefs`.
 export const NOTE_REF_RE = /Sg\.notes\.(?:has|entry)\(\s*['"](n_[a-z0-9_]+)['"]|(?:^|[^\w:])note:(n_[a-z0-9_]+)/g;
 // `#785`：声明式条件里的 `n_*` 也是笔记读（`req: ['n_x']`）——笔记消费可数不该因改形状而消失。
 // 文本里引用的笔记 id

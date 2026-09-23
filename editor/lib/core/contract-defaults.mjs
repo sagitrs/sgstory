@@ -147,7 +147,12 @@ export const defaultProblems = ({ membersByStory = {}, readsByMember = {}, defau
 	// 这是“已声明成员的缺省”这一新语义：旧语义“任意名的缺省”随读点按域收窄已失效）。
 	for (const [slug, members] of Object.entries(membersByStory)) {
 		for (const m of members) {
-			if ((readsByMember[m.name] ?? []).length && !(m.name in defaults)) {
+			// 收紧：只在"缺省**承重**"时点名 —— 即**并非每个有契约的故事都声明它**。
+			// 若三故事都声明（如 `econEvents`，`kind: game-ref`，缺它时引擎 fail-loud），
+			// 则缺省规格里没有它是**正当机制**（必给成员），不是缺口。
+			const declarers = Object.values(membersByStory).filter((list) => (list ?? []).some((x) => x.name === m.name)).length;
+			const storyCount = Object.values(membersByStory).filter((list) => (list ?? []).length > 0).length;
+			if ((readsByMember[m.name] ?? []).length && !(m.name in defaults) && declarers < storyCount) {
 				out.push({ slug, code: 'default-missing', name: m.name,
 					at: (readsByMember[m.name] ?? []).map((r) => r.file + ':' + r.line),
 					why: '已声明且被引擎读，但缺省规格里没有它（读者要先加守卫，或把它补进缺省规格）' });

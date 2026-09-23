@@ -117,7 +117,9 @@ try {
 	// 夹具声明的是**接入面的满配**，不是"照着旧故事的成员表抄"）→ 数字按**实测**重钉。
 	// `#1186`：新增契约成员 `pcShape`（形状面）后，共有字段由 4 变 **5**（`docs` 也成了三故事共有）→ 按实测重钉。
 	t('**现有字段逐字可核** ✓（`docs`／`kind`／`name`／`path`／`value` —— 量化依据落在读数里 ✓ 不只写在票面 ✓）',
-		JSON.stringify(common) === JSON.stringify(['docs', 'kind', 'name', 'path', 'value']));
+		// `#1216` B 半：三故事的**带 `value` 的 const 族成员**（`poisonReduce`／`dragonMaxHp` 等）已去声明
+		// ⇒ `value` 不再是三故事共有；共有字段由 5 变 **4** ⇒ 按**实测**重钉（本件既有先例 ✓）。
+		JSON.stringify(common) === JSON.stringify(['docs', 'kind', 'name', 'path']));
 
 	// ── 反向：**只报不判**（归 G-2）────────────────────────────────────
 	const unused = unusedDeclared(dialects);

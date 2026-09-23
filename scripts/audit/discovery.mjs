@@ -107,6 +107,8 @@ const existingGateFiles = (slug, root = ROOT) => {
 
 /** 读清单 + 校验 + **动态载入**（有问题即抛，不静默）。 */
 export const declaredGates = async (slug, { root = ROOT } = {}) => {
+	// `#1261` 零故事模式：无 slug ⇒ 无故事门可发现（引擎门仍由 engineGates() 提供）。
+	if (!slug) return [];
 	const manifest = readStory(slug);
 	const files = existingGateFiles(slug, root);
 	const problems = judgeManifestGates({ slug, manifest, existingFiles: files, exists: (p) => existsSync(join(root, p)) });

@@ -36,7 +36,11 @@ export const storySlugs = () =>
 export const DEFAULT_SLUG = storySlugs()[0] ?? null;
 
 /** 读一个故事的清单（`stories/<slug>/00-story.json`）。 */
-export const readStory = (slug) => JSON.parse(readFileSync(join(STORIES_DIR, slug, '00-story.json'), 'utf8'));
+export const readStory = (slug) => {
+	// `#1261`：零故事模式（仓内无故事）下 slug 可能为 null —— 给**点名**的错，不用 TypeError 崩。
+	if (!slug) throw new Error('readStory: no story in repo (zero-story mode); caller must skip or pass a slug (`#1261`)');
+	return JSON.parse(readFileSync(join(STORIES_DIR, slug, '00-story.json'), 'utf8'));
+};
 
 /** 故事的"受众"（`#1035`）：`content`＝上架（用户面书架）／`internal`＝内部件（引擎自检/测试夹具）。
  *注意：**必须显式声明**：缺字段/取值非法 → **抛错**（fail-loud）——否则"忘记标记"会让内部件**静默上架**。

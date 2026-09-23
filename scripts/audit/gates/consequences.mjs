@@ -18,7 +18,12 @@ if (wantAll || arg('consequences')) {
 	// `#785`：**声明式写点**的第二类来源 —— 诉求表（ask 的 `sets`／`yields`）。与 RULES 同样**注入**
 	//（node 侧没有 `window` → 只能从这里给；表来源＝故事接入契约）。
 	const ASKS = ctx.window?.Sg?.story?.socialAsks?.() ?? [];
-	const { written, buckets, problems } = classifyNarrativeState({ rules: RULES, asks: ASKS });
+	// `#1261` 零故事模式：`Echoes`（回声表）随故事面消失 ⇒ 给**空表默认**，
+	// 否则分类器读 `Echoes.list` 会崩（门在零故事下应「无样本可判」而非崩）。
+	const { written, buckets, problems } = classifyNarrativeState({
+		rules: RULES, asks: ASKS,
+		Echoes: ctx.window?.Sg?.story?.echoes?.() ?? { list: [], revisit: [] },
+	});
 	// 自证 7 例（**合成输入**——这就是给分类器加注入参数的理由）
 	{
 		const mk = (over = {}) => ({

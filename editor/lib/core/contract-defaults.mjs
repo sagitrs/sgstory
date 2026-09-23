@@ -42,6 +42,8 @@ const VERIFIED = '2026-09-22';
  * 缺省规格：成员名 → `{ kind, value?, verified}`。
  * `kind` 与契约 `kind` 同词表（见 `emit.mjs` 的 `KINDS`）。
  */
+// 同理，`foeState`／`battleDamage` **也保持必给**：读点缺席时当场 `throw`（结构缺失必须 fail-loud，
+// 不是『省略即可』的可选成员）⇒ 表里不给缺省，理由同上。
 // 为什么表里没有 `starBudget`：它 **保持必给**（`#1216` B 半 Operator 裁）——
 // 缺席时引擎在 `overBudget` 里 `!Number.isFinite(b)` 抛错，那是『缺了不成立』的正当语义；
 // 补个数值缺省反而会让『预算无限』静默成立（危险缺省）。同理见 `CAPABILITY_GROUPS`（能力组不按单个缺省判）。
@@ -64,13 +66,12 @@ export const DEFAULTS = {
 	poisonReduce: { kind: 'const', value: 0, verified: VERIFIED },
 	dragonMaxHp: { kind: 'const', value: 0, verified: VERIFIED },
 	actionLabel: { kind: 'identity-string', verified: VERIFIED },
-	pcShape: { kind: 'null', verified: VERIFIED },
-	battleDamage: { kind: 'null', verified: VERIFIED },
-	foeState: { kind: 'null', verified: VERIFIED },
+	pcShape: { kind: 'empty-object', verified: VERIFIED },
 	prepick: { kind: 'null', verified: VERIFIED },
-	socialApproaches: { kind: 'null', verified: VERIFIED },
-	socialAttAdj: { kind: 'null', verified: VERIFIED },
-	socialAsks: { kind: 'null', verified: VERIFIED },
+	socialApproaches: { kind: 'empty-object', verified: VERIFIED },
+	// 省略 `socialAttAdj` 时引擎给的是**中性表**（不是空表）⇒ 按省略后的可观测行为写 `const` 带值。
+	socialAttAdj: { kind: 'const', value: { friendly: -5, neutral: 0, hostile: 5 }, verified: VERIFIED },
+	socialAsks: { kind: 'empty-array', verified: VERIFIED },
 	codexItems: { kind: 'null', verified: VERIFIED },
 	// 能力开关（缺席即"没有车卡"）
 	hasChargen: { kind: 'const', value: false, verified: VERIFIED },

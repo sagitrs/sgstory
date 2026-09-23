@@ -14,12 +14,6 @@
 			"docs": "空表：本故事没有经济事件"
 		},
 		{
-			"name": "hasChargen",
-			"kind": "const",
-			"value": false,
-			"docs": "同上：没有车卡"
-		},
-		{
 			"name": "pcDefaults",
 			"kind": "empty-object",
 			"docs": "同上：没有专属数值"

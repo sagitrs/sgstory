@@ -800,7 +800,7 @@ $pc.speciesLabel $pc.classLabel
 <</if>>
 /% #460：设定集是本故事的页面（引擎不知道故事名）→ **存在才渲染**；否则第二/第三故事侧栏会出现死链 %/
 <<if Story.has("设定集")>>[[📖 设定集|设定集]]<</if>>
-<<elseif not Sg.story.hasChargen()>>
+<<elseif not Sg.story.hasChargen?.()>>
 /% `#574`：**没有车卡的故事**（第二/第三个）——侧栏退化为最小面：血量·金币·物品·存档。
    为什么另起一段而不是共用上面那段：那段以车卡产物（`name`／`speciesLabel`／`classLabel`／`salves`／
    `gear`）为前提，没有车卡的故事里那些字段永远是空；而"能看见血量的战斗试验场"是本故事的前提。

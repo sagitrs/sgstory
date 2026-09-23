@@ -735,8 +735,8 @@ jQuery(document).on(':passageend.sgChoiceKey', (ev) => {
 if (typeof window.Sg?.story?.chargen === 'function') {
 	window.Game = window.Game ?? {};
 	window.Game.Chargen = {
-		get rounds() { return window.Sg.story.chargen().rounds; },
-		get presets() { return window.Sg.story.chargen().presets; },
+		get rounds() { return window.Sg.story.chargen?.()?.rounds; },
+		get presets() { return window.Sg.story.chargen?.()?.presets; },
 		pick(roundIdx, optIdx) {
 			const pc = State.variables.pc;
 			const R = this.rounds[roundIdx];

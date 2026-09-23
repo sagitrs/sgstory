@@ -566,10 +566,13 @@ window.Sg.capability = (group) => {
 <<widget "setflag">>
 	/% `#624` 片三：裸键写 `world`（原语义）；**带点路径**（`ev.x`／`world.x`）走 `Sg.notes.writePath`
 	   —— 点击态里"置某个 ev 旗标"原先只能裸 `<<set $pc.ev.x to true>>`（表行 `text` 里不许）。 %/
-	<<if $args[0].includes('.')>>
+	<<if $args[0] and $args[0].includes('.')>>
 		<<run Sg.notes.writePath($pc, $args[0], true)>>
-	<<else>>
+	<<elseif $args[0]>>
 		<<run $pc.world[$args[0]] = true>>
+	<<else>>
+		/% 空参/缺参：不落 `$pc.world['']` 脏键，交给写侧统一出声路径（没有目的地不等于缺数据，#1247） %/
+		<<run Sg.notes.writePath($pc, $args[0], true)>>
 	<</if>>
 <</widget>>
 

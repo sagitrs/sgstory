@@ -125,5 +125,59 @@ const BLOCK_GUARDS = {
 	ok('④ 能假：合成长无守卫的区块 ⇒ 判据点名', violated.length === 1);
 }
 
+// `#1247`：路径读写器的**形态三类**。
+// 口径：**读是查询**（缺项即无数据，按默认）；**写是命令**（没有目的地不等于缺数据）。
+// 所以"缺项即静默"**只对读侧成立**：写侧的缺项与结构畸形**同归出声**。
+// 三类：(1) 缺项（undefined／键不存在）(2) 结构畸形（非字符串／空串／空段 a..b）(3) 多源数组（读 OR／写出声）
+{
+	const { w: w2, close } = await boot({ story: DEFAULT_SLUG, random: 0.5 });
+	const Sg = w2.Sg;
+	const SC = w2.SugarCube ?? w2;
+	const pc = (SC.State?.variables ?? w2.State?.variables)?.pc;
+	const threw = (fn) => { try { fn(); return null; } catch (e) { return e; } };
+
+	// 正向：先证"合法的真能过"（免得整段只有反例，成恒真式）
+	const box = { ev: { a: true }, world: { b: false } };
+	ok('门 · 正向：合法路径写，真写到', (() => { Sg.notes.writePath(box, 'ev.c', 7); return box.ev.c === 7; })());
+	ok('门 · 正向：合法路径读，读到值', Sg.notes.readPath(box, 'ev.c') === 7);
+
+	// (3) 多源数组：读取 OR（出处 `#432-B8/B12`）
+	ok('门 · (3) 多源读，OR（任一真即真）', Sg.notes.readPath(box, ['ev.a', 'world.b']) === true);
+	ok('门 · (3) 多源读，OR（全假即假；`some` 返回布尔）', Sg.notes.readPath(box, ['world.b', 'ev.z']) === false);
+
+	// (1) 缺项：读侧**静默**
+	ok('门 · (1) 读侧缺项（undefined），不抛且 undefined', threw(() => Sg.notes.readPath(pc, undefined)) === null
+		&& Sg.notes.readPath(pc, undefined) === undefined);
+	ok('门 · (1) 读侧键不存在，静默 undefined', Sg.notes.readPath(box, 'ev.__不存在__') === undefined);
+
+	// (2) 结构畸形：读侧**出声**
+	for (const badv of ['', 'ev.', '.x', 'a..b', 5]) {
+		ok(`门 · (2) 畸形读（${JSON.stringify(badv)}），抛`, !!threw(() => Sg.notes.readPath(box, badv)));
+	}
+
+	// (1)(2) 写侧：缺项与畸形**同归出声**（与读侧的**不对称**，写死在格名里）
+	ok('门 · (1) 写侧缺项（undefined），抛（没有目的地不等于缺数据）', !!threw(() => Sg.notes.writePath(box, undefined, 1)));
+	for (const badv of ['', 'ev.', 'a..b', 5]) {
+		ok(`门 · (2) 畸形写（${JSON.stringify(badv)}），抛`, !!threw(() => Sg.notes.writePath(box, badv, 1)));
+	}
+
+	// (3) 写侧数组：出声（歧义目的地；多源必须显式给 setPath，见 `#434`）
+	ok('门 · (3) 写侧多源数组，抛', !!threw(() => Sg.notes.writePath(box, ['ev.a', 'ev.b'], 1)));
+
+	// 反向格：修 (2) 的出声**不得**改坏 (1) 的读侧静默（两处各钉一次）
+	ok('门 · 反向：读侧缺项仍静默（未被 (2) 出声波及）', threw(() => Sg.notes.readPath(box, undefined)) === null);
+	ok('门 · 反向：读侧键缺失仍静默（同上）', Sg.notes.readPath(box, 'world.__缺失__') === undefined);
+
+	// 面 2：`<<setflag>>` 空参**不落脏键**（走写侧出声，而非 `$pc.world[''] = true`）
+	ok('门 · 面 2：空参不写脏键', (() => {
+		const before = pc?.world ? Object.keys(pc.world).length : 0;
+		try { new SC.Wikifier(null, '<<setflag>>'); } catch { /* 出声即可，键不落 */ }
+		const after = pc?.world ? Object.keys(pc.world).length : 0;
+		return !pc?.world?.hasOwnProperty?.('') && after === before;
+	})());
+
+	if (typeof close === 'function') close();
+}
+
 console.log(bad === 0 ? '\n✔ 角色状态基础面判据通过' : `\n✗ ${bad} 格未过`);
 process.exit(bad === 0 ? 0 : 1);

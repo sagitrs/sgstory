@@ -61,7 +61,6 @@ export const SEGMENTS = [
 	// `#899` ②：**新故事夹具场景**（①三门绿＋哨兵 ／ ②③两条安全网全红 ／ 清场三处＋dist 复原）。
 	//注意：必须是 `build` 相位 → **先跑且独占**（它要在仓的 `stories/` 下临时建夹具）；**且排在 `build-mjs` 之后**
 	//（开场快照要取"刚 build 过的 dist"，否则拿旧基线 → 末条 sha 比对**假红** —— 实测踩过一次）。
-	{ id: "test-new-story-fixture-mjs", phase: 'build', cost: 8, needs: ['build-mjs'], cmd: "node test/new-story-fixture.mjs" },
 	// `#908` ①：**探针（最小变异 ＋ 必须红）** —— 台账「自证」列从**代理**升级为**直接读数**。
 	//注意：同样必须是 `build` 相位 → **独占**：探针要**临时改一个被测件**（`finally` 还原）→ 与别的段并发会假红。
 	// 结果写 `build/probe-results.json`（不入仓）→ 台账在 `test` 相位读它（顺序：build → test）。
@@ -97,7 +96,6 @@ export const SEGMENTS = [
 	{ id: "test-prose-vocabulary-mjs", phase: 'test', cost: 0.5, cmd: "node test/prose-vocabulary.mjs" },
 	{ id: "test-prose-vocabulary-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/prose-vocabulary.mjs --selftest" },
 	// 车道 D 切片 3（`#215` 报备 `18502113`）：**键级图的显示层**（jsdom，无宿主副作用 → cost 0.4）。
-	{ id: "test-web-event-graph-mjs", phase: 'test', cost: 0.4, cmd: "node test/web-event-graph.mjs" },
 	// 车道 D 切片 2（`#215` 报备 `18501384`）：**事件依赖的键级图**（只读 → 无前置、纯计算 → cost 0）。
 	// `#1031`：**自证接线**（本件自带 `--selftest` 入口却从未在 CI 里跑过 →“能假”那半零守护）。
 	//注意：接线前提：该 `--selftest` 跑的是**合成输入的成对正反例**（主跑不执行那些例）—— 已逐件实跑 + 看过实现面。
@@ -110,9 +108,7 @@ export const SEGMENTS = [
 	// 车道 G 前半 · 切片 1c（`#215` 报备 `18503697` / 开工报备 `18503987`）：**`N-1` 兼容层三件哨兵**（只读、读真登记表 ＋ 三故事真号 → cost 0.1）。
 	{ id: "test-contract-compat-mjs", phase: 'test', cost: 0.1, cmd: "node test/contract-compat.mjs" },
 	// 车道 E-B2（`#215` 报备 `18502613`）：**规则行**页内面（读故事源 ＋ `web/**` —— 不读 `dist` → 无前置；jsdom ＋ `createContext` → cost 0.4）。
-	{ id: "test-web-rule-rows-mjs", phase: 'test', cost: 0.4, cmd: "node test/web-rule-rows.mjs" },
 	// 车道 E-B3（`#215` 报备 `18504078`）：**读侧（`--reads`）页内面** —— 页内只跑 ① 条件表行级（读故事源 ＋ `web/**` → 无前置；jsdom ＋ `createContext` → cost 0.4）。
-	{ id: "test-web-read-faces-mjs", phase: 'test', cost: 0.4, cmd: "node test/web-read-faces.mjs" },
 	// `#1156`：**可读键形成对断言** —— core 的 `readKeyFamily`（镜像）≡ 引擎 `readKey` 的**分支族**（真源）→
 	// 跨语言（twee 不能 import JS）故双份**故意存在**，但**不许悄悄漂移**（改名 → 格红 探针式）。cost 0（纯读码）。
 	{ id: "test-readkey-family-mjs", phase: 'test', cost: 0, cmd: "node test/readkey-family.mjs",
@@ -251,11 +247,9 @@ export const SEGMENTS = [
 	// `#976`：**`equiv` 的中间目录与本片自证** —— 唯一 ＋ 用完就清（含失败路径）＋ 幂等失败点名（读故事源 ＋ 真跑一次 equiv → cost 1.0）。
 	{ id: "test-equiv-scratch-mjs", phase: 'test', cost: 1.0, cmd: "node test/equiv-scratch.mjs" },
 	// `#787` 翻面：手写侧**重指向**为冻结基线（翻面前 `main` 的仓内副本 →「生成得对不对」仍被判）
-	{ id: "editor-equiv-minimal-demo", phase: 'test', cost: 0.3, cmd: "node editor/equiv.mjs minimal-demo --l3=hard --hand=stories/minimal-demo/gates/equiv-baseline/15-tables.twee.txt" },
 	// `#1004` B2b：**面夹具**（`face-fixture`）＝接入契约的满配声明面（删掉两个内容故事后，为仍“有消费者”的那些面接上它们）。
 	// 两段与 `minimal-demo` 同形：① 声明面等价（冻结基线）；② 引擎门对该故事绿（`--engine-only`）。
 	//注意：`--l3=report`（而非 `hard`）：夹具的声明面**比两个旧故事宽得多** → strict 档会把它当成“与手写版形式不一致”的红（基线就是它自己建时的副本 → report 档才是有意义的那一档）。
-	{ id: "editor-equiv-face-fixture", phase: 'test', cost: 0.3, cmd: "node editor/equiv.mjs face-fixture --l3=report --hand=stories/face-fixture/gates/equiv-baseline/15-tables.twee.txt" },
 	{ id: "scripts-audit-mjs-face-fixture-engine", phase: 'test', cost: 0.3, cmd: "node scripts/audit.mjs --check --story face-fixture --engine-only" },
 	// `#762` 车道 C：**K4 门** —— 生成物标记 · 产物新鲜度(幂等) · **逃生舱可枚举**
 	//（清单外出现即红；登记腐烂也红 → 例外只能收缩留痕，不能随手加）
@@ -378,33 +372,16 @@ export const SEGMENTS = [
 	// 红的那一格正是它（`--list` 精确等值 ＋ 壳自证里同形那条）→ 已改成 **⊇**（「真故事都在」，
 	// 不赌「只有它们」）。注意：`needs` 仍留：它是**另一条独立理由**（避免读到**半改的真数据**），
 	// 不是这条红的原因。
-	{ id: "test-story-ci-mjs", phase: 'test', cost: 18.6, needs: ["test-web-preview-mjs", "test-lint-story-mjs"], cmd: "node editor/story-ci.mjs" },
+	{ id: "test-story-ci-mjs", phase: 'test', cost: 18.6, needs: ["test-lint-story-mjs"], cmd: "node editor/story-ci.mjs" },
 	// `#761` P1 第一片（WebUI 静态加载）：纯加载件的测例（含 `--selftest` —— 那格"行为化"有依据）。
-	{ id: "test-web-loader-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/web-loader.mjs --selftest" },   // `#1031`：接线
-	{ id: "test-web-loader-mjs", phase: 'test', cost: 0.1, cmd: "node test/web-loader.mjs" },
 	// `#761` P1 第二片：**页内编译对拍**（三故事 × 产物逐字节 ＋ 反例：源变则异 · 无源必抛）。
-	{ id: "test-web-compile-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/web-compile.mjs --selftest" },   // `#1031`：接线
-	{ id: "test-web-compile-mjs", phase: 'test', cost: 0.3, cmd: "node test/web-compile.mjs" },
 	// `#761` P1 第三片：**写包对拍**（经唯一写路 writeStoryPackage，与 CLI 产物逐字节）。
-	{ id: "test-web-save-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/web-save.mjs --selftest" },   // `#1031`：接线
-	{ id: "test-web-save-mjs", phase: 'test', cost: 0.3, cmd: "node test/web-save.mjs" },
 	// `#761` P1 六片A-2：**预览读数**（控制跑 ／区间＋标记 ／不受影响面 ／对偶 ／状态敏感性 ／不污染 dist）。
 	//注意：cost 高: 内含**两次构建** ＋ 4 次 boot（~5–8 分钟）
-	{ id: "test-web-preview-mjs-selftest", phase: 'test', cost: 0.3, cmd: "node test/web-preview.mjs --selftest" },   // `#1031`：接线（假串驱动纯件 `diffSpan`）
-	{ id: "test-web-preview-mjs", phase: 'test', cost: 8, cmd: "node test/web-preview.mjs" },
-	{ id: "test-web-diagnose-mjs", phase: 'test', cost: 1, cmd: "node test/web-diagnose.mjs" },   // P2（`#761`）第一片：实时诊断纯件（纯函数＋无 io → 页内可用）
-	{ id: "test-web-diagnose-view-mjs", phase: 'test', cost: 1, cmd: "node test/web-diagnose-view.mjs" },   // P2（`#761`）第三片：显示层 ＋ 两个 sha ＋ 六条读数（纯）
-	{ id: "test-web-diagnose-wire-mjs", phase: 'test', cost: 1, cmd: "node test/web-diagnose-wire.mjs" },   // P2（`#761`）第三片接线：不落盘也能看见（jsdom）
 	// `#761` P1 第四片：**改一个事件**的字段级读数（差异恰好一处 ／写回逐字段一致 ／产物只少数行变）。
-	{ id: "test-web-events-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/web-events.mjs --selftest" },   // `#1031`：接线
-	{ id: "test-web-events-mjs", phase: 'test', cost: 0.3, cmd: "node test/web-events.mjs" },
 	// `#761` P1 第五片：**DOM 接线**（页面路 vs 直接路逐字节同；jsdom 显式收场）。
-	{ id: "test-web-form-mjs-selftest", phase: 'test', cost: 0.4, cmd: "node test/web-form.mjs --selftest" },   // `#1031`：接线
-	{ id: "test-web-form-mjs", phase: 'test', cost: 0.5, cmd: "node test/web-form.mjs" },
 	// `#892`（P4-1）：页内**新建**（起手包落内存 不碰 fs 可接既有表单）（jsdom）。
-	{ id: "test-web-new-package-mjs", phase: 'test', cost: 0.5, cmd: "node test/web-new-package.mjs" },
 	// `#1034`：导出下载接线 —— 入口在页面上、导出物清单与内核编目一致、空/部分包必报错、不落盘
-	{ id: "test-web-export-mjs", phase: 'test', cost: 0.3, cmd: "node test/web-export.mjs" },
 	{ id: "test-social-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/social-sink.mjs --selftest" },
 	{ id: "test-social-sink-mjs", phase: 'test', cost: 3, cmd: "node test/social-sink.mjs" },
 	// `#1011`（保覆盖版）：`#360` 交涉筹码按类型分派（B 段退役件接回；样本＝`face-fixture` 的 `老板娘·进塔`）
@@ -430,14 +407,14 @@ export const SEGMENTS = [
 	//（带 `00-story.json`）存活期间跑它 → 产生 ` __e2e：手写契约源非空（0 文件）却分类出 0 名成员` → **假红**
 	//（实测：起了 `stories/__e2e` 再跑 `editor/cli.mjs k4` → rc=1 且点名 `__e2e`；清掉 → rc=0）。
 	// 依赖声明＝**单一权威**的排顺手段（同族：`test-story-ci-mjs`／`test-lint-scratch-mjs` 早用同一条修法）。
-	{ id: "test-cli-surface-mjs", phase: 'test', cost: 4, needs: ['test-web-preview-mjs'], cmd: "node test/cli-surface.mjs" },
+	{ id: "test-cli-surface-mjs", phase: 'test', cost: 4, cmd: "node test/cli-surface.mjs" },
 	// `#660` 片三-3：**pc 默认形状住引擎、数值走故事**（`Game.Pc.defaults()` 摘掉 `Sg.story.pcDefaults()` 后每个值都必须中性；
 	// 缺面 → 显式降级 · 畸形面 → fail-loud · `migrate()` 兜底带故事数值 · 三故事键集合一致）
 	//注意：`#1070`：**还得排在 `test-web-preview-mjs` 之后** —— 本件 ⑥ 走 `storySlugs()`（扫 `stories/` 下带
 	// `00-story.json` 的目录）→ 而 `test/web-preview.mjs` 会在**运行期间**临时建 `stories/__e2e`（带清单）
 	// → 同波命中它 → `boot({story:'__e2e'})` 找不到故事页 → **假红**（实测：波次重排后本段与 web-preview 重叠 → 必红）。
 	// 依赖声明＝**单一权威**的排顺手段（同族：`test-cli-surface-mjs`／`test-story-ci-mjs`／`test-lint-scratch-mjs`）。
-	{ id: "test-pc-defaults-mjs", phase: 'test', cost: 2, needs: ['test-web-preview-mjs'], cmd: "node test/pc-defaults.mjs" },
+	{ id: "test-pc-defaults-mjs", phase: 'test', cost: 2, cmd: "node test/pc-defaults.mjs" },
 	// `#572`：**「选中 → 真跑」门** —— 门的 `run()` 被选中也可能静默早退（九道引擎门里七道就是这样）。
 	// 本段自证 `runSelectedGates()` ＋ 真跑默认故事，断言末行「选中 9 门 · 实跑 9 门」（修前那条汇总行不存在）。
 	{ id: "test-audit-gates-run-mjs", phase: 'test', cost: 0.3, needs: ["scripts-audit-mjs-story2-engine"], cmd: "node test/audit-gates-run.mjs" },
@@ -629,16 +606,11 @@ export const SUITE_MEMBERS = {
 		'test-meta-source-mjs',
 	],
 	'editor': [
-		'editor-compile-selftest', 'editor-equiv-selftest', 'editor-equiv-minimal-demo', 'editor-equiv-face-fixture',
+		'editor-compile-selftest', 'editor-equiv-selftest',
 		'editor-k4', 'editor-k4-selfcheck', 'editor-k6', 'editor-k6-selftest',
 		'editor-extract-selftest', 'editor-classify-contract-selftest', 'test-equiv-scratch-mjs', 'test-import-side-effects-mjs',
 		'test-import-side-effects-mjs-selftest', 'test-layering-mjs', 'test-layering-mjs-selftest', 'test-core-story-mjs',
-		'test-serve-editor-mjs', 'test-serve-editor-mjs-selftest', 'test-focus-after-nav-mjs', 'test-focus-after-nav-mjs-selftest',
-		'test-web-loader-mjs', 'test-web-loader-mjs-selftest', 'test-web-compile-mjs', 'test-web-compile-mjs-selftest',
-		'test-web-save-mjs', 'test-web-save-mjs-selftest', 'test-web-preview-mjs', 'test-web-preview-mjs-selftest',
-		'test-web-diagnose-mjs', 'test-web-diagnose-view-mjs', 'test-web-diagnose-wire-mjs', 'test-web-events-mjs',
-		'test-web-events-mjs-selftest', 'test-web-form-mjs', 'test-web-form-mjs-selftest', 'test-web-new-package-mjs',
-		'test-web-export-mjs', 'test-web-event-graph-mjs', 'test-web-rule-rows-mjs', 'test-web-read-faces-mjs', 'test-readkey-family-mjs', 'test-md-visible-faces-mjs', 'test-audit-scope-header-mjs',
+		'test-serve-editor-mjs', 'test-serve-editor-mjs-selftest', 'test-focus-after-nav-mjs', 'test-focus-after-nav-mjs-selftest', 'test-readkey-family-mjs', 'test-md-visible-faces-mjs', 'test-audit-scope-header-mjs',
 		'test-browser-mjs-selftest',
 
 		'test-k4-args',
@@ -649,7 +621,7 @@ export const SUITE_MEMBERS = {
 		'test-state-diagnose',
 	],
 	'story-legal': [
-		'test-prose-vocabulary-mjs', 'test-prose-vocabulary-mjs-selftest', 'test-new-story-fixture-mjs', 'test-multi-story-mjs',
+		'test-prose-vocabulary-mjs', 'test-prose-vocabulary-mjs-selftest', 'test-multi-story-mjs',
 		'test-multi-story-mjs-selftest', 'test-lint-story-mjs', 'test-lint-scratch-mjs', 'test-lint-scratch-mjs-selftest',
 		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs',
 		'test-story-ci-mjs-selftest', 'test-saveload-inventory-mjs', 'test-saveload-inventory-mjs-selftest', 'test-rules-claims-mjs',

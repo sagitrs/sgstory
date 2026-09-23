@@ -473,6 +473,7 @@ window.Sg.capability = (group) => {
 };
 
 :: StoryInit
+<<set $era to Game.Era.PRESENT>>
 /% 全局状态初始化（**形状**单一源见 `Game.Pc.defaults`；**数值**来自 `Sg.story.pcDefaults()`，见 `#660` 片三-3） %/
 <<set $player_name to "">>
 <<set $pc to Game.Pc.defaults()>>
@@ -765,7 +766,16 @@ window.Sg.capability = (group) => {
 	<<if not $pc.inv[_flipItem]>>
 		<div><span class="era-drained">你身上没有能校进另一段时间的东西。</span></div>
 	<<else>>
-		/% `#1223`：翻转护符（= 时光护符）已删 —— 正确形态＝故事侧 JSON ＋ 通用条件域，随 `#1163`（books · M3）落地。 %/
+		<<link `($era is Game.Era.PRESENT ? "翻转护符：坠入『过去』" : "翻转护符：回到『现在』")`>>
+			/% `#1227` 类二：**首翻免费与两个键名都是故事数据**
+（`Game.Star.flipPolicy = { firstFree, key, freeKey, spentKey}` —— 顶层键 `key` 与内层两个键名 `freeKey`／`spentKey`
+			   都由故事给）；引擎**不写死任何故事键名字面**，**缺项即出声**（不静默取默认当键名）。
+			   本句由判据「引擎侧出现故事键名 → 红」管着（见 `test/contract-defaults.mjs` 的同名格）。 %/
+			<<run Game.Star.chargeFlip($pc, _flipCost)>>
+			<<set $era to ($era is Game.Era.PRESENT ? Game.Era.PAST : Game.Era.PRESENT)>>
+			<<if $era is Game.Era.PRESENT>><<set $pc.world[_flipFlag] to true>><</if>>
+			<<goto `passage()`>>
+		<</link>>
 	<</if>>
 	<</if>>
 <</nobr>><</widget>>
@@ -820,3 +830,4 @@ $pc.speciesLabel $pc.classLabel
 /% 设定集同样是"存在才渲染"（本故事没有它 → 不出现死链） %/
 <<if Story.has("设定集")>>[[📖 设定集|设定集]]<</if>>
 <</if>>
+⌛ <<if $era is Game.Era.PAST>>过去<<else>>现在<</if>>

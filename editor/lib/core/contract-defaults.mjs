@@ -138,8 +138,9 @@ export const defaultProblems = ({ membersByStory = {}, readsByMember = {}, defau
 		for (const m of members) {
 			if (!equalsDefault(m, defaults)) continue;
 			const sites = readsByMember[m.name] ?? [];
-			const unguarded = sites.filter((s) => !isGuardedRead(s.tail));
-			if (sites.length && unguarded.length === 0) out.push({ slug, code: 'redundant-declaration', name: m.name, why: `值等于缺省，${sites.length} 处读点全带守卫` });
+			const unguarded = sites.filter((s) => !isGuardedRead(s.tail, s.before));
+			if (sites.length && unguarded.length === 0) out.push({ slug, code: 'redundant-declaration', name: m.name,
+				why: `值等于缺省，${sites.length} 处读点全带守卫` });
 		}
 	}
 	// 三、读了而没声明、又没有缺省 → 缺口
@@ -151,8 +152,9 @@ export const defaultProblems = ({ membersByStory = {}, readsByMember = {}, defau
 	for (const [slug, members] of Object.entries(membersByStory)) {
 		for (const m of members) {
 			if (!equalsDefault(m, defaults)) continue;
-			const unguarded = (readsByMember[m.name] ?? []).filter((s) => !isGuardedRead(s.tail));
-			if (unguarded.length) out.push({ slug, code: 'needs-guard-first', name: m.name, why: `${unguarded.length} 处无守卫（先加守卫再谈去声明）` });
+			const unguarded = (readsByMember[m.name] ?? []).filter((s) => !isGuardedRead(s.tail, s.before));
+			if (unguarded.length) out.push({ slug, code: 'needs-guard-first', name: m.name,
+				at: unguarded.map((r) => r.file + ':' + r.line), why: `${unguarded.length} 处无守卫（先加守卫再谈去声明）` });
 		}
 	}
 	return out;

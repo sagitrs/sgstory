@@ -88,6 +88,7 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 	const needs = problems.filter((p) => p.code === 'needs-guard-first');
 	console.log(`  · B 半工作清单（值等于缺省但读点无守卫，先加守卫再去声明）：${needs.length} 项`);
 	for (const p of needs) console.log(`      ${p.slug}:${p.name}（${p.why}）`);
+		for (const p of needs) console.log(`        点位：${(p.at ?? []).join(' ｜ ')}`);
 	const redundant = problems.filter((p) => p.code === 'redundant-declaration');
 	console.log(`  · 该去但前提未满足（去声明会撞 L1／等价面，见票面 #1216）：${redundant.length} 项`);
 	for (const p of redundant) console.log(`      ${p.slug}:${p.name}（${p.why}）`);

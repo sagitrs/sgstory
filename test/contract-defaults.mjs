@@ -12,7 +12,7 @@
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems } from '../editor/lib/core/contract-defaults.mjs';
+import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems , contractReadDomain } from '../editor/lib/core/contract-defaults.mjs';
 import { storySlugs } from '../scripts/dist-paths.mjs';
 import { maskComments } from '../editor/lib/core/mask.mjs';
 import { outsideQuotes } from '../editor/lib/host/k6criteria.mjs';
@@ -37,6 +37,8 @@ for (const slug of storySlugs().filter((s) => !s.startsWith('__'))) {
 	membersByStory[slug] = JSON.parse(readFileSync(p, 'utf8')).members ?? [];
 }
 const readsByMember = {};
+// 判据的**域**：只采集"某故事声明过的契约成员"的读点（域的定义在权威件 `contractReadDomain`）。
+const readDomain = contractReadDomain(membersByStory);
 const walk = (rel) => {
 	const abs = join(ROOT, rel);
 	for (const e of readdirSync(abs, { withFileTypes: true })) {
@@ -52,6 +54,7 @@ const walk = (rel) => {
 				if (!outsideQuotes(lines[i], m.index)) continue;
 				const tail = lines[i].slice(m.index + m[0].length);
 				(readsByMember[m[1]] ??= []).push({ file: r, line: i + 1, tail, before: m[0] });
+				if (!readDomain.has(m[1])) continue;
 			}
 		}
 	}

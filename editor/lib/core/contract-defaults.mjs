@@ -19,17 +19,17 @@
 /** 能力开关（**仅此一名**，判据件钉住）：它回答"这个故事有没有这一面"，不是数据成员。 */
 /**
  * **必给成员**：引擎读点**没有良性缺省**——缺了当场 `throw`（结构缺失必须 fail-loud）。
- * ⇒ 这些成员的声明**必须留**（"去声明"的前提是"读点全带良性守卫"；抛错不是良性守卫）。
- * ⇒ 也不进 `default-missing`（那不是"缺省没写"，而是"本来就该由故事给"）。
+ * → 这些成员的声明**必须留**（"去声明"的前提是"读点全带良性守卫"；抛错不是良性守卫）。
+ * → 也不进 `default-missing`（那不是"缺省没写"，而是"本来就该由故事给"）。
  */
-/** **面夹具**：它的本职是"每种接入面**各声明一次**"（满配）⇒ **不参与"去声明"**。
+/** **面夹具**：它的本职是"每种接入面**各声明一次**"（满配）→ **不参与"去声明"**。
  * 为什么单列：夹具一旦按"成员可选"去声明，就会把"某面可以被省略"这件事**示范错**，
  * 且以它为样本的门（`social-lever`／`Gear.defs` 口径门等）会当场失去样本前提。 */
 export const FIXTURE_SLUG = 'face-fixture';
 
 export const REQUIRED_MEMBERS = new Set(['rules', 'notes', 'pcDefaults', 'starBudget', 'foeState', 'battleDamage',
 	// `mechanics`：**故事侧必须显式声明**（未启用也要声明，`#492`；`story-shape` 门当场核）——
-	// 它**有**缺省（`null`）⇒ 不属 `default-missing`，但**声明不可去**（去声明会撞 story-shape 门）。
+	// 它**有**缺省（`null`）→ 不属 `default-missing`，但**声明不可去**（去声明会撞 story-shape 门）。
 	'mechanics']);
 
 export const CAPABILITY_MEMBERS = new Set(['hasChargen']);
@@ -38,21 +38,21 @@ export const CAPABILITY_MEMBERS = new Set(['hasChargen']);
  * **能力组**：若干成员合起来才是"一个能力"，不是若干独立值。
  *
  * 为什么单立：`flipItem`／`flipStarCost`／`flipReturnFlag` 是"时代翻转"这一个能力的三个参数。
- * - **整组在场性门控**：全缺 ⇒ 能力关（不崩、不渲染翻转件）；部分缺 ⇒ 出声点名缺哪几个（半声明是作者错，别静默）；
+ * - **整组在场性门控**：全缺 → 能力关（不崩、不渲染翻转件）；部分缺 → 出声点名缺哪几个（半声明是作者错，别静默）；
  * - **不给数值缺省**：`flipStarCost` 缺省成 0 会让"翻转免费"静默成立 —— 危险缺省，宁可让能力整体不在；
  * - 因此它们**不进 `default-missing`**（那不是"缺省没写"，而是"能力不在"）。
  * 口径一句话：**"缺席＝这个能力不在"是一件事；"缺席＝某个值取零"是另一件事**——前者门控，后者缺省，别混。
  */
 /**
  * **能力组从引擎面派生**（`#1216` B 半 Operator 裁：同一份清单不许写两处）。
- * 引擎在 `src/10-core.twee` 的 script 段声明 `Sg.capabilityGroups = { … }`；本函数从那里读出。
- * 派生不到 ⇒ 返回 `null`（调用方**必须出声**，不许静默当空）。
+ * 引擎在 `src/10-core.twee` 的 script 段声明 `Sg.capabilityGroups = { …}`；本函数从那里读出。
+ * 派生不到 → 返回 `null`（调用方**必须出声**，不许静默当空）。
  */
 export const deriveCapabilityGroups = (coreSource) => {
 	const m = String(coreSource ?? '').match(/Sg\.capabilityGroups\s*=\s*(\{[^}]*\})/);
 	if (!m) return null;
 	try {
-		// 直接返回**组对象**（`{ flip: [ … ] }`）——调用方要的就是它，别再包一层。
+		// 直接返回**组对象**（`{ flip: [ …]}`）——调用方要的就是它，别再包一层。
 		return JSON.parse(m[1].replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":').replace(/'/g, '"'));
 	} catch { return null; }
 };
@@ -74,7 +74,7 @@ const VERIFIED = '2026-09-22';
  * `kind` 与契约 `kind` 同词表（见 `emit.mjs` 的 `KINDS`）。
  */
 // 同理，`foeState`／`battleDamage` **也保持必给**：读点缺席时当场 `throw`（结构缺失必须 fail-loud，
-// 不是『省略即可』的可选成员）⇒ 表里不给缺省，理由同上。
+// 不是『省略即可』的可选成员）→ 表里不给缺省，理由同上。
 // 为什么表里没有 `starBudget`：它 **保持必给**（`#1216` B 半 Operator 裁）——
 // 缺席时引擎在 `overBudget` 里 `!Number.isFinite(b)` 抛错，那是『缺了不成立』的正当语义；
 // 补个数值缺省反而会让『预算无限』静默成立（危险缺省）。同理见 `CAPABILITY_GROUPS`（能力组不按单个缺省判）。
@@ -100,7 +100,7 @@ export const DEFAULTS = {
 	pcShape: { kind: 'empty-object', verified: VERIFIED },
 	prepick: { kind: 'null', verified: VERIFIED },
 	socialApproaches: { kind: 'empty-object', verified: VERIFIED },
-	// 省略 `socialAttAdj` 时引擎给的是**中性表**（不是空表）⇒ 按省略后的可观测行为写 `const` 带值。
+	// 省略 `socialAttAdj` 时引擎给的是**中性表**（不是空表）→ 按省略后的可观测行为写 `const` 带值。
 	socialAttAdj: { kind: 'const', value: { friendly: -5, neutral: 0, hostile: 5 }, verified: VERIFIED },
 	socialAsks: { kind: 'empty-array', verified: VERIFIED },
 	codexItems: { kind: 'null', verified: VERIFIED },
@@ -145,23 +145,23 @@ export const READ_FORMS = [
 	},
 ];
 
-/** 从源码文本派生"契约别名"（`X = Sg.story`）⇒ 供别名形态使用。派生不到就返回空集。 */
+/** 从源码文本派生"契约别名"（`X = Sg.story`）→ 供别名形态使用。派生不到就返回空集。 */
 export const deriveContractAliases = (src) => {
 	const out = new Set();
-	// 别名赋值有多种写法：`X = Sg.story`／`X = window.Sg.story`／`X = (window.Sg.story ??= {})`（本仓实测三种都有）。
+	// 别名赋值有多种写法：`X = Sg.story`／`X = window.Sg.story`／`X = (window.Sg.story??= {})`（本仓实测三种都有）。
 	const re = /(?:const|let|var)?\s*([A-Za-z_$][\w$]*)\s*=\s*\(?\s*(?:window\s*\.\s*)?Sg\s*\??\.\s*story\b/g;
 	let m;
 	while ((m = re.exec(src)) !== null) out.add(m[1]);
 	return out;
 };
 
-/** 是否为**反引号表达式**（twee 的 `` `…` `` 是表达式插值，不是字符串 ⇒ 不能按 JS 字符串跳过）。 */
+/** 是否为**反引号表达式**（twee 的 `` `…` `` 是表达式插值，不是字符串 → 不能按 JS 字符串跳过）。 */
 export const isTweeFile = (path) => /\.twee$/.test(String(path ?? ''));
 
 export const isGuardedRead = (tail, before = '') => {
 	const s = String(tail ?? '');
 	const b = String(before ?? '');
-	// 守卫可能落在**名字之前**（`Sg.story?.rules`）⇒ 只看 tail 会漏判"已守卫"（`#1216` B 半实测）。
+	// 守卫可能落在**名字之前**（`Sg.story?.rules`）→ 只看 tail 会漏判"已守卫"（`#1216` B 半实测）。
 	return b.includes('?.') || s.startsWith('?.') || /^\s*\?\?/.test(s);
 };
 
@@ -172,7 +172,7 @@ export const isGuardedRead = (tail, before = '') => {
  * 引擎在契约对象上自加的属性（如 `overBudget`）与 JS 自身的方法（`includes`／`join`）**从来不在域内**，
  * 因此它们不是"被过滤掉的特例"，而是**本就不属于本判据**。
  *
- * 声明面取故事自己的 `data/contract.json`（声明处本身）⇒ 不另手列清单、不造第二份真相。
+ * 声明面取故事自己的 `data/contract.json`（声明处本身）→ 不另手列清单、不造第二份真相。
  */
 export const contractReadDomain = (membersByStory = {}) => {
 	const out = new Set();
@@ -190,12 +190,50 @@ export const contractReadDomain = (membersByStory = {}) => {
  *
  * 口径（Lab 裁定）：**"缺席＝能力不在"是门控；"缺席＝值取零"是缺省**。二者不可混。
  */
+/**
+ * **满配夹具的"该有的面"钉死**（Lab 裁：能力组口径在**单成员组**上会失效）。
+ *
+ * 为什么单立：能力组口径是"全缺 → 能力关、部分缺 → 出声"。`checks` 组只有 `checkSite` **一个**成员
+ *（`10-core` 的 `groups.present: ['checkSite']`）→ "整组全缺"会被判成"能力不在"而**放过**
+ * → 正是本片要修的那件事**原样复发**。→ 夹具侧不按组判，按**钉死集合**判：缺任何一面即红（哪怕整组缺）。
+ *
+ * `EXCEPTIONS`＝已知**合法**缺席（逐名附理由）；新增例外必须在此写明，不许静默扩大。
+ */
+export const FIXTURE_FACE_EXPECTED = [
+	'actionLabel', 'checkSite', 'combatAction', 'combatPool', 'gearDef', 'hasChargen',
+	'itemEffect', 'mechanics', 'notes', 'pcDefaults', 'rules',
+];   // Lab 裁：满配夹具的钉死面＝**11 名**，缺任一面即红（不依赖组成员数；`checkSite` 在列 → 本片缺陷当场被咬）
+export const FIXTURE_FACE_EXCEPTIONS = {
+	// 类一：**引擎在读、夹具未声明**（中间态靠读点守卫兜；面回位或随票删除，两种都可能）
+	chargen: { why: '引擎在读、夹具未声明（故事侧车卡面；夹具不启用车卡，由 `hasChargen` 能力开关表达）', removal: '夹具将来启用（或引入）车卡面时' },
+	lootText: { why: '引擎在读、夹具未声明（掉落文案面；夹具的战斗语料不产掉落）', removal: '夹具将来产掉落时' },
+	// 类二：**规格有缺省、引擎当前不读** → 属"可去声明"候选
+	socialHooks: { why: '规格有缺省、引擎当前不读（hook 口子空置）⇒ 可去声明', removal: '引擎引入 hook 读点时（或随声明一起删）' },
+	// 类三：**已裁过渡性缺席**（Lab 裁：随 `#1227` 类一删面）
+	dragonMaxHp: { why: '已裁过渡性缺席（龙伴生数值面，随 `#1227` 类一删）', removal: '`#1227` 类一落地、`Game.Dragon` 删除后，本行可移除' },
+	poisonReduce: { why: '已裁过渡性缺席（毒减伤面，随 `#1227` 类一删）', removal: '`#1227` 类一落地、`Game.Items.poisonReduce` 删除后，本行可移除' },
+};
+
+/** 例外表与钉死集合**互斥**（例外名不得同时出现在钉死集合里；否则是自相矛盾，出声）。 */
+export const fixtureFaceExceptionConflicts = () => Object.keys(FIXTURE_FACE_EXCEPTIONS)
+	.filter((n) => FIXTURE_FACE_EXPECTED.includes(n));
+
+/** 夹具缺面 → 点名（含"整组全缺"的情形；普通故事不吃这条）。 */
+export const fixtureFaceProblems = ({ slug, members = [] }) => {
+	if (slug !== 'face-fixture') return [];
+	const have = new Set(members.map((m) => m.name));
+	return FIXTURE_FACE_EXPECTED
+		.filter((n) => !have.has(n))
+		.map((n) => ({ slug, code: 'fixture-face-missing', name: n,
+			why: '满配夹具缺该面（夹具本职＝每种接入面各声明一次）' }));
+};
+
 export const requiredSilenced = ({ membersByStory = {}, defaults = DEFAULTS } = {}) => {
 	const out = [];
 	for (const [slug, members] of Object.entries(membersByStory)) {
 		for (const m of members ?? []) {
 			if (!m.required) continue;
-			if (!(m.name in defaults)) continue;      // 没缺省 ⇒ 缺失天然出声 ✓
+			if (!(m.name in defaults)) continue;      // 没缺省 → 缺失天然出声
 			out.push({ slug, code: 'required-silenced', name: m.name,
 				why: '`required: true` 要求"结构缺失必须出声"，但缺省规格给了良性缺省 ⇒ 静默取空（该成员须出声或立能力组）' });
 		}
@@ -210,13 +248,13 @@ export const dataMemberCount = (members = []) => members.filter((m) => !CAPABILI
  * `readsByMember`：成员名 → 读点数组（每项 `{ file, line, tail}`，`tail` 是成员名之后的原文）。
  */
 export const defaultProblems = ({ membersByStory = {}, readsByMember = {}, defaults = DEFAULTS, capabilityGroups = null } = {}) => {
-	// 能力组成员由**组助手**读取（`Sg.story[n]()` 是动态取，形态扫描看不见）⇒ 按"已被读"算，且不按单个缺省判。
+	// 能力组成员由**组助手**读取（`Sg.story[n]()` 是动态取，形态扫描看不见）→ 按"已被读"算，且不按单个缺省判。
 	const inCapabilityGroup = (n) => capabilityGroupOf(n, capabilityGroups) !== null;
 	const out = [];
 	for (const [slug, members] of Object.entries(membersByStory)) {
 		const declared = new Set(members.map((m) => m.name));
 		// 一、死声明：声明了但引擎从不读
-		// 能力组成员由组助手读取（动态取，形态扫描看不见）⇒ 不算死声明。
+		// 能力组成员由组助手读取（动态取，形态扫描看不见）→ 不算死声明。
 		for (const n of declared) if (!inCapabilityGroup(n) && !(n in readsByMember)) out.push({ slug, code: 'dead-declaration', name: n });
 		// 二、冗余声明：值等于缺省，且读点全带守卫（去声明的前提）
 		for (const m of members) {

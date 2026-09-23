@@ -62,6 +62,43 @@ export const equalsDefault = (member, defaults = DEFAULTS) => {
  * 纯函数：读点是不是**带守卫**的形态。
  * 只认可选链（`?.(`／`?.[`）与空值合并（`??`）——twee 里的 `not X()` 是**取反**不是守卫（缺席照样崩）。
  */
+/**
+ * 引擎消费面的**读点形态**（一处定义，别处引用）。
+ *
+ * 为什么集中在这里：读点识别的**形态**会随写法增长（故事经接入契约取数有几种写法），
+ * 每处各写一份正则就会"一份改、一份烂"（本仓已多次同族）。因此形态与"适用件类型"在此登记，
+ * 判据件与将来的读者都引用本表。
+ *
+ * 字段：`name` 形态名 · `kind` 适用件类型（`all`／后缀数组） · `re` 正则 · `note` 为何这样取。
+ */
+export const READ_FORMS = [
+	{
+		name: 'sg-story',
+		kind: 'all',
+		re: /Sg\s*\??\.\s*story\s*\??\.\s*([A-Za-z_$][\w$]*)/g,
+		note: '基本形态 `Sg.story.<名>`（`??.` 表示守卫可选，仍算读点）',
+	},
+	{
+		name: 'alias',
+		kind: 'all',
+		re: null,
+		note: '别名形态：先由 `alias = Sg.story` 派生出本地别名，再取 `alias.<名>`（不硬编具体别名，避免"按名字记"）',
+	},
+];
+
+/** 从源码文本派生"契约别名"（`X = Sg.story`）⇒ 供别名形态使用。派生不到就返回空集。 */
+export const deriveContractAliases = (src) => {
+	const out = new Set();
+	// 别名赋值有多种写法：`X = Sg.story`／`X = window.Sg.story`／`X = (window.Sg.story ??= {})`（本仓实测三种都有）。
+	const re = /(?:const|let|var)?\s*([A-Za-z_$][\w$]*)\s*=\s*\(?\s*(?:window\s*\.\s*)?Sg\s*\??\.\s*story\b/g;
+	let m;
+	while ((m = re.exec(src)) !== null) out.add(m[1]);
+	return out;
+};
+
+/** 是否为**反引号表达式**（twee 的 `` `…` `` 是表达式插值，不是字符串 ⇒ 不能按 JS 字符串跳过）。 */
+export const isTweeFile = (path) => /\.twee$/.test(String(path ?? ''));
+
 export const isGuardedRead = (tail, before = '') => {
 	const s = String(tail ?? '');
 	const b = String(before ?? '');

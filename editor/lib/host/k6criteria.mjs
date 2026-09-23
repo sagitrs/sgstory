@@ -147,6 +147,7 @@ export const outsideQuotes = (line, col, { backtickIsQuote = true } = {}) => {
 	for (let i = 0; i < col; i++) {
 		const c = line[i];
 		if (q) { if (c === '\\') i++; else if (c === q) q = null; continue; }
+		// twee 件里反引号包的是**表达式插值**（真读点）⇒ 调用方可传 `backtickIsQuote:false`。
 		if (c === "'" || c === '"' || (c === '`' && backtickIsQuote)) q = c;
 	}
 	return q === null;

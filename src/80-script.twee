@@ -242,9 +242,13 @@ window.Sg.Chargen = {
 			const b = typeof S.starBudget === 'function' ? S.starBudget() : null;
 			if (!Number.isFinite(b)) throw new Error('Sg.story.starBudget()：必须返回有限数字（结构畸形必须报错，#1132 B3）');
 			// `#1227` 类二：**引擎不指定故事用哪个键记"已用掉的次数"** —— 由故事数据给出键名
-			//（`Game.Star.flipPolicy.key`，默认 `star`）；缺数据即按 0 计（＝只按预算上限判超支）。
-			const key = window.Game?.Star?.flipPolicy?.key ?? 'star';
-			const spent = pc?.[key]?.spent ?? 0;
+			//（`Game.Star.flipPolicy` 的 `key`／`spentKey`）；**缺项即出声**（不再静默按 0 计）。
+			// `#1227` 类二（补）：键名只能来自故事数据（原先这里留了 `?? 'star'` 的故事键名字面）。
+			//注意：**不启用翻转的故事没有 `flipPolicy`** 这里**不得出声**（否则一算预算就抛 该类故事全红）；
+			// 缺政策即按"已用 0"计（只按预算上限判超支）——**出声留在 `chargeFlip`**（那里才有"翻转在用"的前提）。
+			const _fp = window.Sg?.story?.flipPolicy?.();   // `#660`：经契约缝取，不直读 Game.*
+			if (!_fp || typeof _fp.key !== 'string' || !_fp.key || typeof _fp.spentKey !== 'string' || !_fp.spentKey) return false;   // 无政策／缺项 → 本判不适用（不动状态、不索引空键）
+			const spent = pc?.[_fp.key]?.[_fp.spentKey] ?? 0;
 			return spent > b;
 		};
 	}

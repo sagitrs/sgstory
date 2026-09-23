@@ -779,8 +779,10 @@ window.Sg.capability = (group) => {
 		<div><span class="era-drained">你身上没有能校进另一段时间的东西。</span></div>
 	<<else>>
 		<<link `($era is Game.Era.PRESENT ? "翻转护符：坠入『过去』" : "翻转护符：回到『现在』")`>>
-			/% `#1227` 类二：**首翻免费是故事数据**（`Game.Star.flipPolicy = { firstFree, key}`，`key` 指出记在哪个
-			   状态键上），引擎只按数据记 —— 不再写死 `pc.star.first_free` / `pc.star.spent` 这两个故事键名。 %/
+			/% `#1227` 类二：**首翻免费与两个键名都是故事数据**
+（`Game.Star.flipPolicy = { firstFree, key, freeKey, spentKey}` —— 顶层键 `key` 与内层两个键名 `freeKey`／`spentKey`
+			   都由故事给）；引擎**不写死任何故事键名字面**，**缺项即出声**（不静默取默认当键名）。
+			   本句由判据「引擎侧出现故事键名 → 红」管着（见 `test/contract-defaults.mjs` 的同名格）。 %/
 			<<run Game.Star.chargeFlip($pc, _flipCost)>>
 			<<set $era to ($era is Game.Era.PRESENT ? Game.Era.PAST : Game.Era.PRESENT)>>
 			<<if $era is Game.Era.PRESENT>><<set $pc.world[_flipFlag] to true>><</if>>

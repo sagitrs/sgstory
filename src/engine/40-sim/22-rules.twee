@@ -1,7 +1,7 @@
 :: RuleSelector [script]
 // `#1187`：条件表选择器从 `21-resolve.twee` 拆出（`#1184` 流二）；本块逐行照搬，依赖 `Game.Economy`。
 window.Sg.rules = {
-	// 表**只经故事注册的入口**取；结构缺失/畸形 → fail-loud（与 `Sg.notes.table()` 同一纪律）
+	// 表**只经故事注册的入口**取（`#1223` 后：表本身随笔记概念退役，剩余入口＝条件域声明）（与 `Sg.notes.table()` 同一纪律）
 	table() {
 		const provide = window.Sg.story?.rules;
 		if (typeof provide !== 'function') throw new Error('Sg.rules：故事未注册 `Sg.story.rules()`（接入契约 #436-b／#441-E）——结构缺失必须报错');
@@ -117,7 +117,7 @@ window.Sg.rules = {
 		return rows.filter((r) => this.matches(r, pc, chose))
 			.sort((a, b) => (b.prio ?? 0) - (a.prio ?? 0) || idx.get(a) - idx.get(b));
 	},
-	// 授予：把行声明的 `yields` 落到 `Sg.notes.add`（**A 方案**：`text` 只渲染，授予由调用侧统一做）。
+	// 授予：把行声明的 `yields` 落成 `ev.notes.<id>` 写入（**A 方案**：`text` 只渲染，授予由调用侧统一做）。
 	// 返回**本次真正新授予**的 id（幂等 → 第二次调用返回 `[]`）——这个返回值就是"连渲两次只落一次"的取证面。
 	applyYields(row, pc = State.variables.pc) {
 		const list = Array.isArray(row?.yields) ? row.yields : row?.yields ? [row.yields] : [];

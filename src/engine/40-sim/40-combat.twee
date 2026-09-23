@@ -30,7 +30,7 @@ Object.assign((window.Game.Combat ??= {}), {
 	// `hurt` 由 present 的 `<<damage>>` 落（不在此处扣 hp）——保住旧的渲染/时序完全一致。
 	resolvePlayer(pc, foeSite, isDragon) {
 		const T = window.Game, f = pc.ev.fight;
-		const a = window.Sg.story.combatAction(f.act);   // #459 切片三：故事数据经契约
+		const a = window.Sg.story.combatAction?.(f.act) ?? null;   // 缺面即 null（与缺省同义）   // #459 切片三：故事数据经契约
 		const check = T.Checks.resolve(a.site, pc, f.adv ? 'adv' : null);
 		const hadAdv = (f.adv ?? 0) > 0;
 		// #352：优势在**被这一手消费后**才清零（旧实现放在本轮末尾清零 → 准备动作的「下一击有优势」当场作废）
@@ -119,8 +119,8 @@ Object.assign((window.Game.Combat ??= {}), {
 	},
 	eligible(poolId, pc) {
 		const held = pc?.inv ?? {};
-		return window.Sg.story.combatPool(poolId).filter((id) => {
-			const need = window.Sg.story.combatAction(id)?.need;
+		return (window.Sg.story.combatPool?.(poolId) ?? []).filter((id) => {   // 缺面即空池（与缺省同义）
+			const need = (window.Sg.story.combatAction?.(id) ?? null)?.need;
 			if (!need) return true;
 			if (need.startsWith('inv:')) return !!held[need.slice(4)];
 			if (need.startsWith('invAny:')) return need.slice(7).split('|').some((k) => held[k]);   // #250
@@ -741,7 +741,7 @@ Object.assign((window.Game.Combat ??= {}), {
 	/**「**不清什么**」的显式声明（已定 ⑧）：清单本身就是判据面——门会逐项断言它们不受 `resetRun` 影响。 */
 	RESET_KEEPS: ['ev', 'soc', 'star', 'dragon', 'world', 'Sg.notes', 'Sg.Codex', 'Sg.store'],
 	pick(actionId, res) {
-		const a = window.Sg.story.combatAction(actionId);
+		const a = window.Sg.story.combatAction?.(actionId) ?? null;
 		const kind = res?.roll === 20 ? 'crit' : res?.success ? 'ok' : 'bad';
 		return { kind, eff: a[kind] ?? {} };
 	},
@@ -753,7 +753,7 @@ Object.assign((window.Game.Combat ??= {}), {
 			r.gearBonus = bonus;
 		}
 		// #250：好档升级（好哨＝原版玩具哨／持卷跟读）——克隆合并，不动动作表单源
-		const g = window.Sg.story.combatAction(actionId)?.good;
+		const g = (window.Sg.story.combatAction?.(actionId) ?? null)?.good;
 		if (g && (!g.need || (g.need.startsWith('inv:') ? !!pc?.inv?.[g.need.slice(4)] : true))) {
 			r.eff = {
 				...r.eff,

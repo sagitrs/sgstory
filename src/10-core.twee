@@ -642,7 +642,7 @@ Macro.add('applyQuickPreset', {
 	<div class="fight-acts">
 		''这一轮你能做的：''
 		<<if _f.offer.length gt 0>>
-			<<link `Sg.story.actionLabel(_f.offer[0])`>>
+			<<link `Sg.story.actionLabel?.(_f.offer[0]) ?? _f.offer[0]`>>
 				<<set _orig to passage()>>
 				<<run Game.Combat.chooseAction($pc, 0)>>
 				<<fightact $args[0] $args[1]>>
@@ -652,7 +652,7 @@ Macro.add('applyQuickPreset', {
 			<span class="fight-meta">（<<print Game.Combat.siteInfo(_f.offer[0])>>）</span>
 		<</if>>
 		<<if _f.offer.length gt 1>>
-			<<link `Sg.story.actionLabel(_f.offer[1])`>>
+			<<link `Sg.story.actionLabel?.(_f.offer[1]) ?? _f.offer[1]`>>
 				<<set _orig to passage()>>
 				/% #350/#357：结算在点击时完成；**死透就不再归位**——<<damage>> 已跳「结局 死亡」，再 goto 会把它覆盖掉。用**存活条件**判，不依赖 widget 里的 passage() %/
 				<<run Game.Combat.chooseAction($pc, 1)>>
@@ -662,7 +662,7 @@ Macro.add('applyQuickPreset', {
 			<span class="fight-meta">（<<print Game.Combat.siteInfo(_f.offer[1])>>）</span>
 		<</if>>
 		<<if _f.offer.length gt 2>>
-			<<link `Sg.story.actionLabel(_f.offer[2])`>>
+			<<link `Sg.story.actionLabel?.(_f.offer[2]) ?? _f.offer[2]`>>
 				<<set _orig to passage()>>
 				/% #350/#357：结算在点击时完成；**死透就不再归位**——<<damage>> 已跳「结局 死亡」，再 goto 会把它覆盖掉。用**存活条件**判，不依赖 widget 里的 passage() %/
 				<<run Game.Combat.chooseAction($pc, 2)>>

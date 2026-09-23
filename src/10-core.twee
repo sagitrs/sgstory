@@ -23,7 +23,7 @@ Object.assign(((window.Game.Consequences ??= { provenance: {}, engine: {} }).eng
 	soc: '交涉台账：渲染期结算后清空',
 	soc_lever: '交涉优势筹码：随下一次手段掷骰消费后清空',
 	soc_last: '交涉回显：面板展示用',
-	notes: '笔记「已授予」真存储（`Sg.notes.has` 的存储面）',
+	notes: '笔记「已授予」真存储（`ev.notes.<id>` 命名空间，经 `Sg.notes.readPath` 读）',
 	// 注：`fight`（战斗台账）**故意不在引擎默认里** —— 它是**故事相关**的：有战斗内容的故事
 	//（无名洞窟）会在**叙事段落**读它（`<<if $pc.ev.fight.wave>>`）→ D2 会算成 `mechanic` 桶，
 	// 此时再声明为 `engine` 就是“错标”；没有战斗内容的故事（minimal-demo）才是引擎面 → 由**它自己**登记。

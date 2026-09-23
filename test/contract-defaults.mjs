@@ -214,9 +214,8 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 		walker('src');
 		const removable = exceptionRemovableProblems({ engine: eng, fixtureMembers: membersByStory['face-fixture'] ?? [] });
 		ok('实仓·例外表无「已可清理」项（谓词为真即红并点名）', removable.length === 0, removable.map((x) => x.row).join('、'));
-		ok('能假·命中引擎读点 ⇒ 该例外判为可清',
-			exceptionRemovableProblems({ engine: 'const x = Sg.story.socialHooks;', fixtureMembers: [] },
-			).some((x) => x.row === 'socialHooks') || EXCEPTION_REMOVAL_CHECKS.socialHooks.kind !== 'engineReads');
+		// 注：`engineReads` 分支**实现有、当前无样本**（三行例外现均为 `fixtureDeclares`） 不写"不可能红"的格；
+		// 若将来出现 `engineReads` 行，再按"命中该读点  判为可清"补格（写法见 `exceptionRemovableProblems`）。
 		ok('能假·夹具声明该面 ⇒ 该例外判为可清',
 			exceptionRemovableProblems({ engine: '', fixtureMembers: [{ name: 'lootText' }] }).some((x) => x.row === 'lootText'));
 		ok('反向核·谓词全假 ⇒ 不报', exceptionRemovableProblems({ engine: '', fixtureMembers: [] }).length === 0);

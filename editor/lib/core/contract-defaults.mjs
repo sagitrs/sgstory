@@ -98,6 +98,8 @@ export const DEFAULTS = {
 	dragonMaxHp: { kind: 'const', value: 0, verified: VERIFIED },
 	actionLabel: { kind: 'identity-string', verified: VERIFIED },
 	pcShape: { kind: 'empty-object', verified: VERIFIED },
+	// `#1227` 片一：翻转政策的缺省＝**没有政策**（引擎按『该故事不启用翻转』处理 无操作，不写状态）
+	flipPolicy: { kind: 'null', verified: VERIFIED },
 	prepick: { kind: 'null', verified: VERIFIED },
 	socialApproaches: { kind: 'empty-object', verified: VERIFIED },
 	// 省略 `socialAttAdj` 时引擎给的是**中性表**（不是空表）→ 按省略后的可观测行为写 `const` 带值。
@@ -201,7 +203,7 @@ export const contractReadDomain = (membersByStory = {}) => {
  */
 export const FIXTURE_FACE_EXPECTED = [
 	'actionLabel', 'checkSite', 'combatAction', 'combatPool', 'gearDef', 'hasChargen',
-	'itemEffect', 'mechanics', 'notes', 'pcDefaults', 'rules',
+	'flipPolicy', 'itemEffect', 'mechanics', 'notes', 'pcDefaults', 'rules',
 ];   // Lab 裁：满配夹具的钉死面＝**11 名**，缺任一面即红（不依赖组成员数；`checkSite` 在列 → 本片缺陷当场被咬）
 export const FIXTURE_FACE_EXCEPTIONS = {
 	// 类一：**引擎在读、夹具未声明**（中间态靠读点守卫兜；面回位或随票删除，两种都可能）
@@ -224,6 +226,34 @@ export const fixtureFaceProblems = ({ slug, members = [] }) => {
 		.filter((n) => !have.has(n))
 		.map((n) => ({ slug, code: 'fixture-face-missing', name: n,
 			why: '满配夹具缺该面（夹具本职＝每种接入面各声明一次）' }));
+};
+
+/**
+ * **引擎侧"故事键名字面"判据**（`#1227` 类一/类二去故事化的验收面）。
+ *
+ * 口径（`#1227` 评审定）：判的是"**键名字面量出现在属性位置**"——
+ * 点写（`.k`／`?.k`）、下标写（`['k']`／`["k"]`）、以及赋值左侧；**不是**"任何出现该词"。
+ * → 局部变量巧合叫 `spent`（如 `const spent = …` / `return spent > b`）**不得报**（那是角色端，不是键名端）。
+ *
+ * 为什么要判两层：片一的机制把**外层对象名**数据化（`const st = pc[key]`）→ 若判据的锚建在"带前缀"的
+ * 形态上（`star.spent`），那么外层一被抽走，判据恰好在那一点变瞎（实测过的假绿：判据的锚建在会被数据化的外层名上  外层一抽走它就瞎）→ 因此锚必须建在
+ * **内层键名本身**上，且两种写法都覆盖。
+ */
+export const STORY_KEY_NAMES = ['first_free', 'spent', 'poisonReduce', 'dragonMaxHp'];
+
+/** 剥注释后的源码文本 → 命中的「属性位置键名字面」逐条（`line` 为 1 起行号）。 */
+export const storyKeyLiteralProblems = ({ src = '', names = STORY_KEY_NAMES } = {}) => {
+	const out = [];
+	String(src ?? '').split('\n').forEach((line, i) => {
+		for (const n of names) {
+			const esc = n.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			// 点写：`.name` / `?.name`；下标写：`['name']` / `["name"]`
+			const re = new RegExp('(?:\\.|\\?\\.)' + esc + '(?![\\w])|\\[\\s*[\'"]' + esc + '[\'"]\\s*\\]', 'g');
+			let m;
+			while ((m = re.exec(line)) !== null) out.push({ name: n, line: i + 1, form: m[0].trim().startsWith('[') ? 'subscript' : 'dotted', at: m[0].trim() });
+		}
+	});
+	return out;
 };
 
 export const requiredSilenced = ({ membersByStory = {}, defaults = DEFAULTS } = {}) => {

@@ -92,12 +92,19 @@ Macro.add('rulelist', {
 // 引擎不指定键名、不写死"首翻免费"，只按数据办。
 Object.assign((window.Game.Star ??= {}), {
 	chargeFlip(pc, cost) {
-		const pol = window.Game?.Star?.flipPolicy ?? {};
-		const key = pol.key ?? 'star';
+		// `#1227` 类二（补）：**顶层键与内层键名都来自故事数据** —— 引擎不留任何故事键名字面。
+		// 缺席语义分两层（与本仓"能力组"同口径）：**政策整块缺席 该故事不启用翻转 无操作**（不写任何状态、不报错）；
+		// **政策存在但缺项 出声**（作者错，不许静默按默认名写）。
+		// `#660`：故事数据（翻转政策）**只经接入契约取** —— 引擎不直读 `Game.*`。
+		const pol = window.Sg?.story?.flipPolicy?.();
+		if (!pol) return cost;
+		const missing = ['key', 'freeKey', 'spentKey'].filter((k) => typeof pol[k] !== 'string' || !pol[k]);
+		if (missing.length) throw new Error(`Sg.story.flipPolicy() 缺项：${missing.join('、')}（故事必须显式给键名，引擎不猜）`);
+		const key = pol.key;
 		if (!pc[key] || typeof pc[key] !== 'object') pc[key] = {};
 		const st = pc[key];
-		if (pol.firstFree && !st.first_free) { st.first_free = true; return 0; }
-		st.spent = (st.spent ?? 0) + cost;
+		if (pol.firstFree && !st[pol.freeKey]) { st[pol.freeKey] = true; return 0; }
+		st[pol.spentKey] = (st[pol.spentKey] ?? 0) + cost;
 		return cost;
 	},
 });

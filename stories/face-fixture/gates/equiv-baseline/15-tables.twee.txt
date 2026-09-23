@@ -378,8 +378,7 @@ window.Game = Object.assign(window.Game ?? {}, {
 				flatDamageReduce: 2,
 				note: '整场受击 −2'
 			}
-		},
-		poisonReduce: 3
+		}
 	},
 	Social: {
 		asks: [
@@ -781,7 +780,9 @@ window.Game = Object.assign(window.Game ?? {}, {
 		],
 		flipPolicy: {
 			firstFree: true,
-			key: 'star'
+			key: 'star',
+			freeKey: 'first_free',
+			spentKey: 'spent'
 		}
 	},
 	Dragon: {
@@ -969,4 +970,5 @@ Object.assign((window.Sg.story ??= {}), {
 		if (!v) throw new Error(`Sg.story.checkSite：位点「${name}」未登记（结构缺失必须报错，#441-E）`);
 		return v;
 	},
+	flipPolicy: () => window.Game.Star.flipPolicy,
 });

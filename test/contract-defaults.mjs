@@ -12,7 +12,7 @@
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems, READ_FORMS, deriveContractAliases, isTweeFile, contractReadDomain, deriveCapabilityGroups, requiredSilenced, fixtureFaceProblems, FIXTURE_FACE_EXPECTED, FIXTURE_FACE_EXCEPTIONS, fixtureFaceExceptionConflicts } from '../editor/lib/core/contract-defaults.mjs';
+import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems, READ_FORMS, deriveContractAliases, isTweeFile, contractReadDomain, deriveCapabilityGroups, requiredSilenced, fixtureFaceProblems, FIXTURE_FACE_EXPECTED, FIXTURE_FACE_EXCEPTIONS, fixtureFaceExceptionConflicts , storyKeyLiteralProblems, STORY_KEY_NAMES } from '../editor/lib/core/contract-defaults.mjs';
 import { storySlugs } from '../scripts/dist-paths.mjs';
 import { maskComments } from '../editor/lib/core/mask.mjs';
 import { outsideQuotes } from '../editor/lib/host/k6criteria.mjs';
@@ -21,7 +21,7 @@ const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 /** 反向核：三故事的数据成员数（能力开关不计）。改动契约时同片更新。 */
 // 现状（A 半不动契约）。B 半逐名加守卫并去声明之后，这三个数会下降（票面 `#1216` 钉进度）。
 const EXPECTED_DEFAULT_MISSING = 0;   // 仅剩 starBudget（保持必给，见缺省表旁理由） // 见下方信息面：已声明但缺省规格里没有、且缺省承重
-const EXPECTED_DATA_MEMBERS = { 'face-fixture': 23, 'night-ferry': 6, 'minimal-demo': 5 };   // `#1216` B 半：夹具回 checkSite；dragonMaxHp／poisonReduce 有意缺席（随 #1227 类一删） // `#1186`（流一）引入契约面 `pcShape` 后 face-fixture +1（跨票联动：谁后合谁带上）
+const EXPECTED_DATA_MEMBERS = { 'face-fixture': 24, 'night-ferry': 6, 'minimal-demo': 5 };   // `#1227` 片一：夹具加 flipPolicy 契约成员 // `#1216` B 半：夹具回 checkSite；dragonMaxHp／poisonReduce 有意缺席（随 #1227 类一删） // `#1186`（流一）引入契约面 `pcShape` 后 face-fixture +1（跨票联动：谁后合谁带上）
 
 let bad = 0;
 const ok = (name, cond, detail = '') => {
@@ -183,6 +183,25 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 	}
 		ok('例外表与钉死集合互斥（例外名不得在钉死集合内）', fixtureFaceExceptionConflicts().length === 0, fixtureFaceExceptionConflicts().join('、'));
 		ok('例外表每行都写了移除触发（自清理）', Object.values(FIXTURE_FACE_EXCEPTIONS).every((x) => typeof x.removal === 'string' && x.removal.length > 0));
+	// ── 引擎侧「故事键名字面」判据（`#1227` 类一/类二）──
+	{
+		const { readFileSync, readdirSync } = await import('node:fs');
+		const { join } = await import('node:path');
+		const { maskComments } = await import('../editor/lib/core/mask.mjs');
+		const walk = (rel) => { let s = ''; for (const e of readdirSync(join(ROOT, rel), { withFileTypes: true })) { const r = rel + '/' + e.name;
+			if (e.isDirectory()) { if (!/^(node_modules|dist|build|\.)/.test(e.name)) s += walk(r); continue; }
+			if (r.endsWith('.twee')) s += maskComments(readFileSync(join(ROOT, r), 'utf8')) + '\n'; } return s; };
+		const found = storyKeyLiteralProblems({ src: walk('src') });
+		ok('实仓·引擎侧故事键名字面 0 命中（点写／下标写都在扫描面内）', found.length === 0,
+			found.map((x) => x.name + '@' + x.line + '(' + x.form + ')').join('、'));
+		// 能假：点写形态（`pc.star.spent`）
+		ok('能假·点写键名 ⇒ 命中', storyKeyLiteralProblems({ src: 'const x = pc.star.spent;' }).length === 1);
+		// 能假：**下标写**形态（`pc['star']['spent']`）—— **本仓现无下标写样本**，故用它把这一支管起来（否则它会成为下一个覆盖不到的一端）
+		ok('能假·下标写键名 ⇒ 命中', storyKeyLiteralProblems({ src: "const x = pc['star']['spent'] ?? 0;" }).length === 1);
+		// 反向核：局部变量巧合叫 spent（键名端 vs 角色端）**不得报**
+		ok('反向核·局部变量名 spent 不得报', storyKeyLiteralProblems({ src: 'const spent = pc?.a?.b ?? 0; return spent > b;' }).length === 0);
+		ok('反向核·名字表非空（不空转）', STORY_KEY_NAMES.length > 0);
+	}
 	ok('规格里 equalsDefault 只认同形态或同值', equalsDefault({ name: 'mechanics', kind: 'null' }) && equalsDefault({ name: 'poisonReduce', kind: 'const', value: 0 }) && !equalsDefault({ name: 'poisonReduce', kind: 'const', value: 1 }));
 }
 

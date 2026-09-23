@@ -7,8 +7,7 @@
 			"kind": "game-ref",
 			"path": "Game?.Notes?.entries",
 			"default": {},
-			"optional": true
-		,
+			"optional": true,
 			"docs": "笔记表：本故事无笔记 ⇒ 空表（合法）"
 		},
 		{
@@ -44,8 +43,7 @@
 		{
 			"name": "pcDefaults",
 			"kind": "const",
-			"value": {}
-		,
+			"value": {},
 			"docs": "同上：没有专属数值"
 		},
 		{
@@ -166,8 +164,7 @@
 		},
 		{
 			"name": "rules",
-			"kind": "empty-array"
-		,
+			"kind": "empty-array",
 			"docs": "条件表：空表（合法）"
 		},
 		{
@@ -181,12 +178,12 @@
 			"key": "name",
 			"required": true,
 			"error": "Sg.story.checkSite：位点「{key}」未登记（结构缺失必须报错，#441-E）"
+		},
+		{
+			"name": "flipPolicy",
+			"kind": "game-ref",
+			"path": "Game.Star.flipPolicy",
+			"docs": "时代翻转的计费政策（键名与首翻免费都由故事给）：`{ firstFree, key, freeKey, spentKey }`"
 		}
-
-
-
-
-
-
 	]
 }

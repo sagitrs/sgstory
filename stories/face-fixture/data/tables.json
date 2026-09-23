@@ -379,8 +379,7 @@
 					"flatDamageReduce": 2,
 					"note": "整场受击 −2"
 				}
-			},
-			"poisonReduce": 3
+			}
 		},
 		"Social": {
 			"asks": [
@@ -782,7 +781,9 @@
 			],
 			"flipPolicy": {
 				"firstFree": true,
-				"key": "star"
+				"key": "star",
+				"freeKey": "first_free",
+				"spentKey": "spent"
 			}
 		},
 		"Dragon": {

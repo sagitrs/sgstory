@@ -608,6 +608,25 @@ export const PROBES = [
 		why: '量的是「**逐文件适用面写准**（有该面才判）那一手真的在守」（掐掉条件化  `soak-nightly.yml` 等无 `pull_request` 面的文件立刻假红并点名文件 ）—— 否则扩射程后 8 处假红回归 （`#1087`）',
 	},
 	{
+		// `#1223` 步一：把"缺席容忍"的**能假**入仓 —— 复核环节的变异是一次性的，入仓的格才是下次算数的。
+		// 刀：把 `table()` 的"未注册 则 空表"改回 `throw` 则 缺席态下 缺席三态与缺 id 四格必红（实测 4 格）。
+		// 反面（畸形并进静默 则 3 格红）不另立条目：探针 id 与判据件一一对应（同 id 重复会被跑器点名）。
+		//注意：判据件 `boot` **真产物** 则 必须给 `rebuild`（变异序即变异则重建则跑、还原则重建则跑；
+		// 不重建时"还原后仍红"是假象 —— 本片实测踩过，已入册）。
+		id: 'test/notes-absence.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/notes-absence.mjs',
+		rebuild: 'node build.mjs >/dev/null',
+		mutation: {
+			file: 'src/80-script.twee',
+			find: "if (typeof provide !== 'function') return {};",
+			replace: "if (typeof provide !== 'function') throw new Error('探针变异：未注册即抛');",
+		},
+		expect: { rc: 1, stdout: /4 格未过/ },
+		why: '量的是「整块缺席 ⇒ 无操作」这一手真在守：把"未注册 ⇒ 空表"掐掉（改回抛）⇒ 缺席态的静默格必红并点名 4 格；否则"缺席与故障同形"的缺口只活在复核环节那一次运行里（`#1223` 步一）。',
+	},
+	{
 		// `#1089`（乙′）：**未跟踪扫描面 → 红** 的**接线**守护 ——注意：本条的刀**必须打在"门里"**，
 		// 因为 `test/untracked-guard.mjs` 测的是**纯函数**（判据本身对），
 		// 而「**门到底有没有调用它**」纯函数自证**看不见** —— 那正是领队转达的那格

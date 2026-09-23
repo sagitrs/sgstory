@@ -8,7 +8,8 @@ Object.assign((window.Game.Checks ??= {}), {
 	rollSite(site, pc, advArg) {
 		const T = window.Game;
 		// #459 切片三：故事**数据**经接入契约取（`Sg.story.checkSite`；未登记由它 fail-loud 报错）
-		const s = window.Sg.story.checkSite(site);
+		// 缺面即 null（与契约缺省同义）：值等于缺省 ⇒ 声明可去（`#1216` B 半）。
+		const s = window.Sg.story.checkSite?.(site) ?? null;
 		let adv = advArg, why = '', why2 = '';
 		if (!adv) {
 			const item = T.Items.advSource(site, pc.inv, pc.gear);

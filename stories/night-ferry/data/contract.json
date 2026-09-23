@@ -24,11 +24,6 @@
 			"docs": "条件表：空表（合法）"
 		},
 		{
-			"name": "checkSite",
-			"kind": "null",
-			"docs": "位点表"
-		},
-		{
 			"name": "combatPool",
 			"kind": "empty-array",
 			"docs": "战斗池"

@@ -95,14 +95,6 @@
 			"kind": "empty-array"
 		},
 		{
-			"name": "checkSite",
-			"kind": "lookup",
-			"from": "window.Game?.Checks?.sites",
-			"key": "name",
-			"required": true,
-			"error": "Sg.story.checkSite：位点「{key}」未登记（结构缺失必须报错，#441-E）"
-		},
-		{
 			"name": "combatAction",
 			"kind": "lookup",
 			"from": "window.Game?.Combat?.actions",

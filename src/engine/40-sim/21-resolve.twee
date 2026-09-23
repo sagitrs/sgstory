@@ -86,3 +86,18 @@ Macro.add('rulelist', {
 		}
 	},
 });
+
+// `#1227` 类二：**时代翻转的计费机制**（原先写死在 `10-core` 的 `flipEra` 里直接读写 `pc.star.*`）。
+// 政策是**故事数据**：`Game.Star.flipPolicy = { firstFree: true, key: 'star'}` —— `key` 指出记在哪个状态键上。
+// 引擎不指定键名、不写死"首翻免费"，只按数据办。
+Object.assign((window.Game.Star ??= {}), {
+	chargeFlip(pc, cost) {
+		const pol = window.Game?.Star?.flipPolicy ?? {};
+		const key = pol.key ?? 'star';
+		if (!pc[key] || typeof pc[key] !== 'object') pc[key] = {};
+		const st = pc[key];
+		if (pol.firstFree && !st.first_free) { st.first_free = true; return 0; }
+		st.spent = (st.spent ?? 0) + cost;
+		return cost;
+	},
+});

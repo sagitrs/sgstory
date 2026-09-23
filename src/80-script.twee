@@ -241,7 +241,11 @@ window.Sg.Chargen = {
 		S.overBudget = (pc) => {
 			const b = typeof S.starBudget === 'function' ? S.starBudget() : null;
 			if (!Number.isFinite(b)) throw new Error('Sg.story.starBudget()：必须返回有限数字（结构畸形必须报错，#1132 B3）');
-			return (pc?.star?.spent ?? 0) > b;
+			// `#1227` 类二：**引擎不指定故事用哪个键记"已用掉的次数"** —— 由故事数据给出键名
+			//（`Game.Star.flipPolicy.key`，默认 `star`）；缺数据即按 0 计（＝只按预算上限判超支）。
+			const key = window.Game?.Star?.flipPolicy?.key ?? 'star';
+			const spent = pc?.[key]?.spent ?? 0;
+			return spent > b;
 		};
 	}
 }

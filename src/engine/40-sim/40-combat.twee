@@ -28,7 +28,7 @@ Object.assign((window.Game.Combat ??= {}), {
 	chooseAction(pc, idx) { pc.ev.fight.act = pc.ev.fight.offer[idx]; },
 	// 玩家这一手：掷骰（写 `$last_check`）→ 结算 → 写台账。返回 `{ check, hurt, log}`
 	// `hurt` 由 present 的 `<<damage>>` 落（不在此处扣 hp）——保住旧的渲染/时序完全一致。
-	resolvePlayer(pc, foeSite, isDragon) {
+	resolvePlayer(pc, foeSite) {
 		const T = window.Game, f = pc.ev.fight;
 		const a = window.Sg.story.combatAction?.(f.act) ?? null;   // 缺面即 null（与缺省同义） // #459 切片三：故事数据经契约
 		const check = T.Checks.resolve(a.site, pc, f.adv ? 'adv' : null);
@@ -60,7 +60,27 @@ Object.assign((window.Game.Combat ??= {}), {
 		if (typeof f !== 'function') throw new Error('Game.Combat.foeState：故事未声明 `Sg.story.foeState(pc)`（结构缺失必须报错，#493／#459）');
 		return f(pc);
 	},
-	resolveFoe(pc, foeSite, isDragon, log) {
+	/** `#1227` 类一：**对手状态面在不在**（不是取它）——决定走「具名对手结算」还是「一击式压迫」。
+	 * 与 `foeState` 分开：一个是"该在的必须在"（`applyEffect`／`foeDamage` 那两处用，缺面即大声报错），
+	 * 一个是"在不在"（本处用，缺面是**正当**的：故事没有具名对手这回事）。 */
+	/** `#1227` 类一：**这一场是不是"具名对手"** —— 由故事数据给（`Combat.poolsNamed` 列出池 id），
+	 * 引擎不据此知道对手叫什么，只知道"这一场要按对手结算"。 */
+	poolIsNamed(poolId) {
+		const list = window.Game?.Combat?.poolsNamed;
+		return Array.isArray(list) ? list.includes(poolId) : false;
+	},
+	/** `#1227` 类一：**对手状态形状**（键名全部由故事数据给）—— 引擎不预置 `dragon` 这类故事键，
+	 * 只把故事表里声明的对手容器折成一份形状。缺表 → 空形状（＝这个故事没有具名对手）。 */
+	foeShape() {
+		const src = window.Game?.Combat?.foeStateShape;
+		if (!src || typeof src !== 'object') return {};
+		const out = {};
+		for (const [k, v] of Object.entries(src)) {
+			out[k] = (v && typeof v === 'object' && !Array.isArray(v)) ? { ...v } : v;
+		}
+		return out;
+	},
+	resolveFoe(pc, foeSite, log) {
 		const T = window.Game, f = pc.ev.fight;
 		let check = null, hurt = 0;
 		// #486（S1）：受击再过一道「掷部位 → 护具吸伤/耐久 → 溢出落 HP」。
@@ -77,9 +97,14 @@ Object.assign((window.Game.Combat ??= {}), {
 				log.foe = { text: '这一轮它没有出手。' };
 			} else {
 				check = T.Checks.resolve(foeSite, pc, null);
-				if (isDragon) {
-					const F = T.Combat.foeState(pc);                      // `#493`：经接缝取（不再写死 pc.dragon）
-					const raw = T.Combat.foeDamage(pc.inv, f.round, (F.defeats ?? 0) + 1, F.venom);
+				// `#1227` 类一：**引擎不再知道"龙"是特殊敌人** —— 由 `foeState` 接缝的存在性决定走哪条：
+				// 故事给了对手状态面 → 走「有血量/连败/涂毒的具名对手结算」；没给 → 走「一击式压迫」回落。
+				//（原形参 `isDragon` 是故事侧传进来的布尔，等于把"哪个故事有龙"写进引擎调用约定。）
+				// `#1227` 类一：走哪条由**这一场的遭遇配置**（`f.namedFoe`，来自故事数据）决定，
+				// 不再由故事段把 `isDragon` 布尔传进来（那是把"哪个故事有龙"写进引擎调用约定）。
+				const F = f.namedFoe ? T.Combat.foeState(pc) : null;
+				if (F) {
+					const raw = T.Combat.foeDamage(pc.inv, f.round, (F.defeats ?? 0) + 1, F);
 					const dmg = Math.max(1, raw - (f.guard ?? 0));
 					if (check.success) {
 						log.foe = { text: '你贴着地滚开了——它那一口咬在你刚才站的地方，石板裂了一层。' };
@@ -107,15 +132,16 @@ Object.assign((window.Game.Combat ??= {}), {
 });
 
 Object.assign((window.Game.Combat ??= {}), {
-	//注意：为什么挂 `Combat` 而不是龙的命名空间：后者在 `STORY_SYMBOLS` 里是**整命名空间**类符号
+	//注意：为什么挂 `Combat` 而不是故事自己的命名空间：后者在 `STORY_SYMBOLS` 里是**整命名空间**类符号
 	//（它主要是数据：hp/sealAt/entries…）→ 引擎侧往它上面挂**机制**会被层间门判（实测命中 1 处）。
 	// 语义上它本来就是"这一回合龙的那一下"＝战斗结算 → 住 `Combat` 更对；调用方只有本文件一处，已同步。
 	/** `#493` 片 A-2：改名（`dragonDamage` → **`foeDamage`**）＋**删回落** —— 这条公式是**故事政策**
-	 *（基准值／连败封顶／毒液压怒），引擎只经 `Sg.story.battleDamage(...)` 调它（缺声明 → 大声报错）。 */
-	foeDamage(inv, round, defeats, poisoned) {
+	 *（基准值／连败封顶／异常状态对策），引擎只经 `Sg.story.battleDamage(...)` 调它（缺声明 → 大声报错）。
+	 * `#1227` 类一：第 4 实参由「毒布尔」改成**对手状态本体** —— 故事侧自己对状态取名、自己判语义。 */
+	foeDamage(inv, round, defeats, foe) {
 		const f = window.Sg?.story?.battleDamage;
 		if (typeof f !== 'function') throw new Error('Game.Combat.foeDamage：故事未声明 `Sg.story.battleDamage(...)`（结构缺失必须报错，#493／#459）');
-		return f(inv, round, defeats, poisoned);
+		return f(inv, round, defeats, foe);
 	},
 	eligible(poolId, pc) {
 		const held = pc?.inv ?? {};
@@ -739,7 +765,10 @@ Object.assign((window.Game.Combat ??= {}), {
 		return { reset: ['inv', 'gearHp', 'statuses', 'hp', 'ev.fight'], before, keeps: [...Game.Combat.RESET_KEEPS] };
 	},
 	/**「**不清什么**」的显式声明（已定 ⑧）：清单本身就是判据面——门会逐项断言它们不受 `resetRun` 影响。 */
-	RESET_KEEPS: ['ev', 'soc', 'star', 'dragon', 'world', 'Sg.notes', 'Sg.Codex', 'Sg.store'],
+	// `#1227` 类二：**不再写死故事状态键** —— `RESET_KEEPS` 只保留引擎自有的机制面（`ev`／`soc`／`world`
+	// 是引擎的状态分组名）与三个命名空间；故事自有的键（旧写作 `star`／`dragon`）由故事经 `pcShape` 声明，
+	// 引擎**不列举**它们（列举等于引擎知道故事的状态键叫什么）。
+	RESET_KEEPS: ['ev', 'soc', 'world', 'Sg.notes', 'Sg.Codex', 'Sg.store'],
 	pick(actionId, res) {
 		const a = window.Sg.story.combatAction?.(actionId) ?? null;
 		const kind = res?.roll === 20 ? 'crit' : res?.success ? 'ok' : 'bad';
@@ -765,13 +794,16 @@ Object.assign((window.Game.Combat ??= {}), {
 		return r;
 	},
 	applyEffect(pc, eff, fight) {
-		const F = this.foeState(pc);                                   // `#493`：经接缝（不再写死 pc.dragon）
+		const F = this.foeState(pc);                                   // `#493`：经接缝（不再写死故事状态键）
 		if (eff.dmg) F.hp = Math.max(0, (F.hp ?? 0) - eff.dmg);
 		if (eff.adv) fight.adv = (fight.adv ?? 0) + eff.adv;
 		if (eff.guard) fight.guard = (fight.guard ?? 0) + eff.guard;
 		if (eff.skipFoe) fight.skipFoe = true;
 		if (eff.flee) fight.flee = true;
-		if (eff.venom) F.venom = true;
+		// `#1227` 类一：效果里的**具名对策**（如 `venom`）落位方式由**故事数据**给
+		//（`Game.Combat.foePolicies.effectFlags` 把"效果名 → 对手状态位"映出来），引擎不写死效果名。
+		const flags = window.Game?.Combat?.foePolicies?.effectFlags ?? {};
+		for (const [effName, foeKey] of Object.entries(flags)) if (eff[effName]) F[foeKey] = true;
 		if (eff.flag) pc.ev[eff.flag] = true;
 	},
 });

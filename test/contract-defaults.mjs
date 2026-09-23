@@ -15,6 +15,7 @@ import { join } from 'node:path';
 import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems } from '../editor/lib/core/contract-defaults.mjs';
 import { storySlugs } from '../scripts/dist-paths.mjs';
 import { maskComments } from '../editor/lib/core/mask.mjs';
+import { outsideQuotes } from '../editor/lib/host/k6criteria.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 /** 反向核：三故事的数据成员数（能力开关不计）。改动契约时同片更新。 */
@@ -47,8 +48,10 @@ const walk = (rel) => {
 			const re = /Sg\s*\??\.\s*story\s*\??\.\s*([A-Za-z_$][\w$]*)/g;
 			let m;
 			while ((m = re.exec(lines[i])) !== null) {
+				// 字符串字面量里的**提名**不是读点（错误消息文案里常见），用现成助手跳过。
+				if (!outsideQuotes(lines[i], m.index)) continue;
 				const tail = lines[i].slice(m.index + m[0].length);
-				(readsByMember[m[1]] ??= []).push({ file: r, line: i + 1, tail });
+				(readsByMember[m[1]] ??= []).push({ file: r, line: i + 1, tail, before: m[0] });
 			}
 		}
 	}

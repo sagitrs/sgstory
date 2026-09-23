@@ -114,7 +114,7 @@
 				"n_tav_tips"
 			],
 			"prio": 2,
-			"text": "<<link \"柜台上的第 1 桌话题\">><<note \"n_tav_tips\">><<goto \"酒馆\">><</link>>"
+			"text": "<<link \"柜台上的第 1 桌话题\">><<setflag \"ev.notes.n_tav_tips\">><<goto \"酒馆\">><</link>>"
 		},
 		{
 			"id": "酒馆.t2",
@@ -123,7 +123,7 @@
 				"n_rumor"
 			],
 			"prio": 2,
-			"text": "<<link \"柜台上的第 2 桌话题\">><<note \"n_rumor\">><<goto \"酒馆\">><</link>>"
+			"text": "<<link \"柜台上的第 2 桌话题\">><<setflag \"ev.notes.n_rumor\">><<goto \"酒馆\">><</link>>"
 		},
 		{
 			"id": "酒馆.t3",
@@ -132,7 +132,7 @@
 				"n_hall_hint"
 			],
 			"prio": 2,
-			"text": "<<link \"柜台上的第 3 桌话题\">><<note \"n_hall_hint\">><<goto \"酒馆\">><</link>>"
+			"text": "<<link \"柜台上的第 3 桌话题\">><<setflag \"ev.notes.n_hall_hint\">><<goto \"酒馆\">><</link>>"
 		},
 		{
 			"id": "酒馆.t4",
@@ -141,7 +141,7 @@
 				"n_old_witch"
 			],
 			"prio": 2,
-			"text": "<<link \"柜台上的第 4 桌话题\">><<note \"n_old_witch\">><<goto \"酒馆\">><</link>>"
+			"text": "<<link \"柜台上的第 4 桌话题\">><<setflag \"ev.notes.n_old_witch\">><<goto \"酒馆\">><</link>>"
 		},
 		{
 			"id": "酒馆.t5",
@@ -150,7 +150,7 @@
 				"n_failure_cause"
 			],
 			"prio": 2,
-			"text": "<<link \"柜台上的第 5 桌话题\">><<note \"n_failure_cause\">><<goto \"酒馆\">><</link>>"
+			"text": "<<link \"柜台上的第 5 桌话题\">><<setflag \"ev.notes.n_failure_cause\">><<goto \"酒馆\">><</link>>"
 		},
 		{
 			"id": "酒馆.t6",
@@ -159,7 +159,7 @@
 				"n_flower_warned"
 			],
 			"prio": 2,
-			"text": "<<link \"柜台上的第 6 桌话题\">><<note \"n_flower_warned\">><<goto \"酒馆\">><</link>>"
+			"text": "<<link \"柜台上的第 6 桌话题\">><<setflag \"ev.notes.n_flower_warned\">><<goto \"酒馆\">><</link>>"
 		},
 		{
 			"id": "女巫小屋.w1",
@@ -168,7 +168,7 @@
 				"n_hut_1"
 			],
 			"prio": 2,
-			"text": "<<link \"炉边的第 1 个话题\">><<note \"n_hut_1\">><<goto \"女巫小屋\">><</link>>"
+			"text": "<<link \"炉边的第 1 个话题\">><<setflag \"ev.notes.n_hut_1\">><<goto \"女巫小屋\">><</link>>"
 		},
 		{
 			"id": "女巫小屋.w2",
@@ -177,7 +177,7 @@
 				"n_hut_2"
 			],
 			"prio": 2,
-			"text": "<<link \"炉边的第 2 个话题\">><<note \"n_hut_2\">><<goto \"女巫小屋\">><</link>>"
+			"text": "<<link \"炉边的第 2 个话题\">><<setflag \"ev.notes.n_hut_2\">><<goto \"女巫小屋\">><</link>>"
 		},
 		{
 			"id": "女巫小屋.w3",
@@ -186,7 +186,7 @@
 				"n_hut_3"
 			],
 			"prio": 2,
-			"text": "<<link \"炉边的第 3 个话题\">><<note \"n_hut_3\">><<goto \"女巫小屋\">><</link>>"
+			"text": "<<link \"炉边的第 3 个话题\">><<setflag \"ev.notes.n_hut_3\">><<goto \"女巫小屋\">><</link>>"
 		},
 		{
 			"id": "女巫小屋.w4",
@@ -195,7 +195,7 @@
 				"n_hut_4"
 			],
 			"prio": 2,
-			"text": "<<link \"炉边的第 4 个话题\">><<note \"n_hut_4\">><<goto \"女巫小屋\">><</link>>"
+			"text": "<<link \"炉边的第 4 个话题\">><<setflag \"ev.notes.n_hut_4\">><<goto \"女巫小屋\">><</link>>"
 		},
 		{
 			"id": "女巫小屋.w5",
@@ -204,7 +204,7 @@
 				"n_hut_5"
 			],
 			"prio": 2,
-			"text": "<<link \"炉边的第 5 个话题\">><<note \"n_hut_5\">><<goto \"女巫小屋\">><</link>>"
+			"text": "<<link \"炉边的第 5 个话题\">><<setflag \"ev.notes.n_hut_5\">><<goto \"女巫小屋\">><</link>>"
 		},
 		{
 			"id": "女巫小屋.w6",
@@ -213,13 +213,13 @@
 				"n_hut_6"
 			],
 			"prio": 2,
-			"text": "<<link \"炉边的第 6 个话题\">><<note \"n_hut_6\">><<goto \"女巫小屋\">><</link>>"
+			"text": "<<link \"炉边的第 6 个话题\">><<setflag \"ev.notes.n_hut_6\">><<goto \"女巫小屋\">><</link>>"
 		},
 		{
 			"id": "女巫小屋.w7",
 			"scope": "女巫小屋#打听",
 			"prio": 1,
-			"text": "<<link \"炉边的第 7 个话题\">><<note \"n_hut_7\">><<goto \"女巫小屋\">><</link>>",
+			"text": "<<link \"炉边的第 7 个话题\">><<setflag \"ev.notes.n_hut_7\">><<goto \"女巫小屋\">><</link>>",
 			"exclude": [
 				"n_hut_7"
 			]
@@ -241,7 +241,7 @@
 				"n_rumor"
 			],
 			"prio": 3,
-			"text": "<<link `\"花 \" + (-Game.Economy.priceOf(\"rumor_buy\", $pc)) + \" 金币：请他讲讲洞里的路\"`>><<econ \"rumor_buy\">><<note \"n_rumor\">><<goto \"酒馆\">><</link>>"
+			"text": "<<link `\"花 \" + (-Game.Economy.priceOf(\"rumor_buy\", $pc)) + \" 金币：请他讲讲洞里的路\"`>><<econ \"rumor_buy\">><<setflag \"ev.notes.n_rumor\">><<goto \"酒馆\">><</link>>"
 		},
 		{
 			"id": "酒馆.情报.else",
@@ -348,7 +348,7 @@
 				"n_rumor"
 			],
 			"prio": 3,
-			"text": "<<link \"把那封信拆开\">><<note \"n_rumor\">><<goto \"观星者\">><</link>>"
+			"text": "<<link \"把那封信拆开\">><<setflag \"ev.notes.n_rumor\">><<goto \"观星者\">><</link>>"
 		},
 		{
 			"id": "观星者.信已读",

@@ -19,6 +19,22 @@
 /** 能力开关（**仅此一名**，判据件钉住）：它回答"这个故事有没有这一面"，不是数据成员。 */
 export const CAPABILITY_MEMBERS = new Set(['hasChargen']);
 
+/**
+ * **能力组**：若干成员合起来才是"一个能力"，不是若干独立值。
+ *
+ * 为什么单立：`flipItem`／`flipStarCost`／`flipReturnFlag` 是"时代翻转"这一个能力的三个参数。
+ * - **整组在场性门控**：全缺 ⇒ 能力关（不崩、不渲染翻转件）；部分缺 ⇒ 出声点名缺哪几个（半声明是作者错，别静默）；
+ * - **不给数值缺省**：`flipStarCost` 缺省成 0 会让"翻转免费"静默成立 —— 危险缺省，宁可让能力整体不在；
+ * - 因此它们**不进 `default-missing`**（那不是"缺省没写"，而是"能力不在"）。
+ * 口径一句话：**"缺席＝这个能力不在"是一件事；"缺席＝某个值取零"是另一件事**——前者门控，后者缺省，别混。
+ */
+export const CAPABILITY_GROUPS = {
+	flip: ['flipItem', 'flipStarCost', 'flipReturnFlag'],
+};
+
+/** 该成员是否属于某个能力组（属组的成员不按"单个缺省"判）。 */
+export const capabilityGroupOf = (name) => Object.entries(CAPABILITY_GROUPS).find(([, ns]) => ns.includes(name))?.[0] ?? null;
+
 /** 记一次核验的日期（本条规格逐条带"最后一核验"；改动或复核时更新）。 */
 const VERIFIED = '2026-09-22';
 
@@ -26,6 +42,9 @@ const VERIFIED = '2026-09-22';
  * 缺省规格：成员名 → `{ kind, value?, verified}`。
  * `kind` 与契约 `kind` 同词表（见 `emit.mjs` 的 `KINDS`）。
  */
+// 为什么表里没有 `starBudget`：它 **保持必给**（`#1216` B 半 Operator 裁）——
+// 缺席时引擎在 `overBudget` 里 `!Number.isFinite(b)` 抛错，那是『缺了不成立』的正当语义；
+// 补个数值缺省反而会让『预算无限』静默成立（危险缺省）。同理见 `CAPABILITY_GROUPS`（能力组不按单个缺省判）。
 export const DEFAULTS = {
 	// 这一面不存在
 	mechanics: { kind: 'null', verified: VERIFIED },
@@ -45,6 +64,14 @@ export const DEFAULTS = {
 	poisonReduce: { kind: 'const', value: 0, verified: VERIFIED },
 	dragonMaxHp: { kind: 'const', value: 0, verified: VERIFIED },
 	actionLabel: { kind: 'identity-string', verified: VERIFIED },
+	pcShape: { kind: 'null', verified: VERIFIED },
+	battleDamage: { kind: 'null', verified: VERIFIED },
+	foeState: { kind: 'null', verified: VERIFIED },
+	prepick: { kind: 'null', verified: VERIFIED },
+	socialApproaches: { kind: 'null', verified: VERIFIED },
+	socialAttAdj: { kind: 'null', verified: VERIFIED },
+	socialAsks: { kind: 'null', verified: VERIFIED },
+	codexItems: { kind: 'null', verified: VERIFIED },
 	// 能力开关（缺席即"没有车卡"）
 	hasChargen: { kind: 'const', value: false, verified: VERIFIED },
 };
@@ -152,6 +179,7 @@ export const defaultProblems = ({ membersByStory = {}, readsByMember = {}, defau
 			// 则缺省规格里没有它是**正当机制**（必给成员），不是缺口。
 			const declarers = Object.values(membersByStory).filter((list) => (list ?? []).some((x) => x.name === m.name)).length;
 			const storyCount = Object.values(membersByStory).filter((list) => (list ?? []).length > 0).length;
+			if (capabilityGroupOf(m.name)) continue;   // 能力组不按『单个缺省』判（见 CAPABILITY_GROUPS）
 			if ((readsByMember[m.name] ?? []).length && !(m.name in defaults) && declarers < storyCount) {
 				out.push({ slug, code: 'default-missing', name: m.name,
 					at: (readsByMember[m.name] ?? []).map((r) => r.file + ':' + r.line),

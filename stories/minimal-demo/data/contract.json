@@ -2,19 +2,74 @@
 	"section": "StoryBindings",
 	"note": "接入契约的完整面：引擎侧取数口只经 Sg.story.*，纪律是「结构缺失 ⇒ 报错」。空表/null 是合法数据集。",
 	"members": [
-		{ "name": "notes", "kind": "empty-object", "docs": "笔记表：本故事无笔记 ⇒ 空表（合法）" },
-		{ "name": "econEvents", "kind": "game-ref", "path": "Game.Economy.events", "docs": "空表：本故事没有经济事件" },
-		{ "name": "hasChargen", "kind": "const", "value": false, "docs": "同上：没有车卡" },
-		{ "name": "pcDefaults", "kind": "empty-object", "docs": "同上：没有专属数值" },
-		{ "name": "rules", "kind": "empty-array", "docs": "条件表：空表（合法）" },
-		{ "name": "mechanics", "kind": "null", "docs": "新机制声明表：未启用 ⇒ null（调用方必须跳过，不许当空表）" },
-		{ "name": "checkSite", "kind": "null", "docs": "位点表" },
-		{ "name": "combatPool", "kind": "empty-array", "docs": "战斗池" },
-		{ "name": "combatAction", "kind": "null", "docs": "战斗动作" },
-		{ "name": "actionLabel", "kind": "identity-string", "docs": "动作文案：文案缺失 ⇒ 兜底不报错（与\"结构缺失\"分开）" },
-		{ "name": "gearDef", "kind": "null", "docs": "装备声明" },
-		{ "name": "itemEffect", "kind": "null", "docs": "道具效果" },
-		{ "name": "poisonReduce", "kind": "const", "value": 0, "docs": "毒液减成" },
-		{ "name": "dragonMaxHp", "kind": "const", "value": 0, "docs": "龙血上限（本故事无龙）" }
+		{
+			"name": "notes",
+			"kind": "empty-object",
+			"docs": "笔记表：本故事无笔记 ⇒ 空表（合法）"
+		},
+		{
+			"name": "econEvents",
+			"kind": "game-ref",
+			"path": "Game.Economy.events",
+			"docs": "空表：本故事没有经济事件"
+		},
+		{
+			"name": "hasChargen",
+			"kind": "const",
+			"value": false,
+			"docs": "同上：没有车卡"
+		},
+		{
+			"name": "pcDefaults",
+			"kind": "empty-object",
+			"docs": "同上：没有专属数值"
+		},
+		{
+			"name": "rules",
+			"kind": "empty-array",
+			"docs": "条件表：空表（合法）"
+		},
+		{
+			"name": "checkSite",
+			"kind": "null",
+			"docs": "位点表"
+		},
+		{
+			"name": "combatPool",
+			"kind": "empty-array",
+			"docs": "战斗池"
+		},
+		{
+			"name": "combatAction",
+			"kind": "null",
+			"docs": "战斗动作"
+		},
+		{
+			"name": "actionLabel",
+			"kind": "identity-string",
+			"docs": "动作文案：文案缺失 ⇒ 兜底不报错（与\"结构缺失\"分开）"
+		},
+		{
+			"name": "gearDef",
+			"kind": "null",
+			"docs": "装备声明"
+		},
+		{
+			"name": "itemEffect",
+			"kind": "null",
+			"docs": "道具效果"
+		},
+		{
+			"name": "poisonReduce",
+			"kind": "const",
+			"value": 0,
+			"docs": "毒液减成"
+		},
+		{
+			"name": "dragonMaxHp",
+			"kind": "const",
+			"value": 0,
+			"docs": "龙血上限（本故事无龙）"
+		}
 	]
 }

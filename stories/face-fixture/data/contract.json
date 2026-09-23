@@ -120,10 +120,6 @@
 			"error": "Sg.story.combatAction：动作「{key}」未登记（结构缺失必须报错，#441-E）"
 		},
 		{
-			"name": "mechanics",
-			"kind": "null"
-		},
-		{
 			"name": "itemEffect",
 			"kind": "lookup",
 			"from": "window.Game?.Items?.effects",

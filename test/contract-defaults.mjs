@@ -92,7 +92,10 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 	const redundant = problems.filter((p) => p.code === 'redundant-declaration');
 	console.log(`  · 该去但前提未满足（去声明会撞 L1／等价面，见票面 #1216）：${redundant.length} 项`);
 	for (const p of redundant) console.log(`      ${p.slug}:${p.name}（${p.why}）`);
-	ok('信息面·该去的声明可枚举（不是空跑）', redundant.length + needs.length > 0);
+	// 两张清单做完后本就该空 ⇒ 非空校验改用合成输入（能假：给一条“值等于缺省且全守卫”的声明必须列出来）。
+		const syntheticRedundant = defaultProblems({ membersByStory: { 's': [{ name: 'rules', kind: 'empty-array' }] },
+			readsByMember: { rules: [{ file: 'x.twee', line: 1, tail: '?.(a) ?? []', before: 'Sg.story.rules' }] }, defaults: DEFAULTS });
+		ok('能假·该去的声明可枚举（合成一条冗余声明必须列出）', syntheticRedundant.some((x) => x.code === 'redundant-declaration'));
 	// B 半做完后真实清单**本就该空**（空＝做完 ✓）⇒ 非空校验改用**合成输入**（能假：给一个未守卫的读点必须列出来 ✓）。
 		const synthetic = defaultProblems({ membersByStory: { 's': [{ name: 'rules', kind: 'empty-array' }] },
 			readsByMember: { rules: [{ file: 'x.twee', line: 1, tail: '(a)', before: 'Sg.story.rules' }] }, defaults: DEFAULTS });

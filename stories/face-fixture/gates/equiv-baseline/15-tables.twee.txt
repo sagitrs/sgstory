@@ -268,13 +268,12 @@ window.Game = Object.assign(window.Game ?? {}, {
 		},
 		foePolicies: {
 			streakCap: 2,
-			venom: {
-				damageAdjust: -3,
-				suppressStreak: true
-			},
 			effectFlags: {
 				venom: 'venom'
-			}
+			},
+			flag: 'venom',
+			flagAdjust: -3,
+			suppressStreak: true
 		},
 		foeStateShape: {
 			dragon: {

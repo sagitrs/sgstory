@@ -497,7 +497,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		jump.textContent = '跳到正文';
 		document.body.insertBefore(jump, document.body.firstChild);
 
-		// #262：没显式声明行动区的段落，自动把「末尾那串链接」识别成行动区并包进 .acts
+		// #262：没显式声明行动区的段落，自动把「末尾那串链接」识别成行动区并包进.acts
 		//（整束 ≤6 条纯链接、段落里没有别的行动容器时）——键盘跳转与分组一次覆盖全库。
 		const autoActs = (content) => {
 			if (content.querySelector('.acts')) return content.querySelector('.acts');

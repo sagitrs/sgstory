@@ -455,21 +455,21 @@ Macro.add('applyQuickPreset', {
 // `#1216` B 半 Operator 裁：**能力组**——若干成员合起来才是『一个能力』，不是若干独立值。
 // 口径一句话：『缺席＝这个能力不在』是一件事；『缺席＝某个值取零』是另一件事（前者门控、后者缺省，别混）。
 // 判据件从**本表**派生组员（一处定义、别处引用），不另写一份。
-Sg.capabilityGroups = { flip: ['flipItem', 'flipStarCost', 'flipReturnFlag'] };
+window.Sg.capabilityGroups = { flip: ['flipItem', 'flipStarCost', 'flipReturnFlag'] };
 /**
  * 能力组门控（单点入口，两处读点共用）：
  * - 全缺 ⇒ 能力关（不崩、不渲染）；
  * - **部分缺 ⇒ 出声**点名缺哪几个（半声明是作者错，别静默）；
  * - 全在 ⇒ 给参数。**不给数值缺省**（`flipStarCost` 缺省 0 会让『翻转免费』静默成立＝危险缺省）。
  */
-Sg.capability = (group) => {
-	const names = Sg.capabilityGroups?.[group];
+window.Sg.capability = (group) => {
+	const names = window.Sg.capabilityGroups?.[group];
 	if (!names) return { ok: false, reason: 'unknown' };
-	const have = names.filter((n) => typeof Sg.story?.[n] === 'function');
+	const have = names.filter((n) => typeof window.Sg.story?.[n] === 'function');
 	if (have.length === 0) return { ok: false, reason: 'off' };
 	if (have.length < names.length) return { ok: false, reason: 'partial', missing: names.filter((n) => !have.includes(n)) };
 	const out = { ok: true };
-	for (const n of names) out[n.replace(/^flip/, '').toLowerCase()] = Sg.story[n]();
+	for (const n of names) out[n.replace(/^flip/, '').toLowerCase()] = window.Sg.story[n]();
 	return out;
 };
 

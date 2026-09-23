@@ -22,7 +22,15 @@
  * ⇒ 这些成员的声明**必须留**（"去声明"的前提是"读点全带良性守卫"；抛错不是良性守卫）。
  * ⇒ 也不进 `default-missing`（那不是"缺省没写"，而是"本来就该由故事给"）。
  */
-export const REQUIRED_MEMBERS = new Set(['rules', 'notes', 'pcDefaults', 'starBudget', 'foeState', 'battleDamage']);
+/** **面夹具**：它的本职是"每种接入面**各声明一次**"（满配）⇒ **不参与"去声明"**。
+ * 为什么单列：夹具一旦按"成员可选"去声明，就会把"某面可以被省略"这件事**示范错**，
+ * 且以它为样本的门（`social-lever`／`Gear.defs` 口径门等）会当场失去样本前提。 */
+export const FIXTURE_SLUG = 'face-fixture';
+
+export const REQUIRED_MEMBERS = new Set(['rules', 'notes', 'pcDefaults', 'starBudget', 'foeState', 'battleDamage',
+	// `mechanics`：**故事侧必须显式声明**（未启用也要声明，`#492`；`story-shape` 门当场核）——
+	// 它**有**缺省（`null`）⇒ 不属 `default-missing`，但**声明不可去**（去声明会撞 story-shape 门）。
+	'mechanics']);
 
 export const CAPABILITY_MEMBERS = new Set(['hasChargen']);
 

@@ -12,7 +12,7 @@
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems, READ_FORMS, deriveContractAliases, isTweeFile, contractReadDomain, deriveCapabilityGroups, requiredSilenced, fixtureFaceProblems, FIXTURE_FACE_EXPECTED, FIXTURE_FACE_EXCEPTIONS, fixtureFaceExceptionConflicts , storyKeyLiteralProblems, STORY_KEY_NAMES } from '../editor/lib/core/contract-defaults.mjs';
+import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems, READ_FORMS, deriveContractAliases, isTweeFile, contractReadDomain, deriveCapabilityGroups, requiredSilenced, fixtureFaceProblems, FIXTURE_FACE_EXPECTED, FIXTURE_FACE_EXCEPTIONS, fixtureFaceExceptionConflicts , storyKeyLiteralProblems, STORY_KEY_NAMES , exceptionRemovableProblems, EXCEPTION_REMOVAL_CHECKS } from '../editor/lib/core/contract-defaults.mjs';
 import { storySlugs } from '../scripts/dist-paths.mjs';
 import { maskComments } from '../editor/lib/core/mask.mjs';
 import { outsideQuotes } from '../editor/lib/host/k6criteria.mjs';
@@ -201,6 +201,25 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 		// 反向核：局部变量巧合叫 spent（键名端 vs 角色端）**不得报**
 		ok('反向核·局部变量名 spent 不得报', storyKeyLiteralProblems({ src: 'const spent = pc?.a?.b ?? 0; return spent > b;' }).length === 0);
 		ok('反向核·名字表非空（不空转）', STORY_KEY_NAMES.length > 0);
+	}
+	// ── 例外表的「何时该清」（谓词门；`#1237` 引入 removal 机制的正主）──
+	{
+		const { readFileSync: rf, readdirSync: rd } = await import('node:fs');
+		const { join: jn } = await import('node:path');
+		const { maskComments: mc } = await import('../editor/lib/core/mask.mjs');
+		let eng = '';
+		const walker = (rel) => { for (const e of rd(jn(ROOT, rel), { withFileTypes: true })) { const r = rel + '/' + e.name;
+			if (e.isDirectory()) { if (!/^(node_modules|dist|build|\.)/.test(e.name)) walker(r); continue; }
+			if (r.endsWith('.twee')) eng += mc(rf(jn(ROOT, r), 'utf8')) + '\n'; } };
+		walker('src');
+		const removable = exceptionRemovableProblems({ engine: eng, fixtureMembers: membersByStory['face-fixture'] ?? [] });
+		ok('实仓·例外表无「已可清理」项（谓词为真即红并点名）', removable.length === 0, removable.map((x) => x.row).join('、'));
+		ok('能假·命中引擎读点 ⇒ 该例外判为可清',
+			exceptionRemovableProblems({ engine: 'const x = Sg.story.socialHooks;', fixtureMembers: [] },
+			).some((x) => x.row === 'socialHooks') || EXCEPTION_REMOVAL_CHECKS.socialHooks.kind !== 'engineReads');
+		ok('能假·夹具声明该面 ⇒ 该例外判为可清',
+			exceptionRemovableProblems({ engine: '', fixtureMembers: [{ name: 'lootText' }] }).some((x) => x.row === 'lootText'));
+		ok('反向核·谓词全假 ⇒ 不报', exceptionRemovableProblems({ engine: '', fixtureMembers: [] }).length === 0);
 	}
 	ok('规格里 equalsDefault 只认同形态或同值', equalsDefault({ name: 'mechanics', kind: 'null' }) && equalsDefault({ name: 'poisonReduce', kind: 'const', value: 0 }) && !equalsDefault({ name: 'poisonReduce', kind: 'const', value: 1 }));
 }

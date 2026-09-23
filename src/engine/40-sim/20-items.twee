@@ -22,12 +22,16 @@ Object.assign((window.Game.Items ??= {}), {
 		// 一律经 `foeDamageAdjust(foe, ctx)` 返回**相对 `base - flat` 的总修正**。
 		// 旧写法把 `Math.min(2, defeats)`（连败 +2）与 `poisoned`（压怒/减伤）两处故事政策烙进这条通用公式。
 		// `#1227` 类一：连败递增与异常状态对策都是**故事政策数据**（`Game.Combat.foePolicies`），
-		// 引擎只按数据算 —— 不再把 `poisoned` 布尔与 `Sg.story.poisonReduce()` 两个故事概念写进公式。
+		// 引擎只按数据算 —— 不再把 `poisoned` 布尔与 `Sg.story.poisonReduce()` 两个故事概念写进公式；
+		// 连**状态字段名**本身也由政策给（`P.flag`），引擎不写死 `venom` 这类故事数据字段名。
 		const P = window.Game?.Combat?.foePolicies ?? {};
 		let adjust = 0;
-		const venom = foe && typeof foe === 'object' ? foe.venom : false;
-		if (venom && P.venom && typeof P.venom.damageAdjust === 'number') adjust += P.venom.damageAdjust;
-		if (!(venom && P.venom?.suppressStreak)) adjust += Math.min(P.streakCap ?? 0, defeats ?? 0);
+		// `#1227` 类一（补）：**故事数据里的字段名由政策给**（引擎不写死 `venom` 这类字段名）；
+		// schema 名（`flag`／`flagAdjust`／`suppressStreak`／`streakCap`）由引擎定义 —— 引擎可以知道。
+		const flag = typeof P.flag === 'string' ? P.flag : '';
+		const on = !!(flag && foe && typeof foe === 'object' && foe[flag]);
+		if (on && typeof P.flagAdjust === 'number') adjust += P.flagAdjust;
+		if (!(on && P.suppressStreak)) adjust += Math.min(P.streakCap ?? 0, defeats ?? 0);
 		return Math.max(1, base - flat + adjust);
 	},
 });

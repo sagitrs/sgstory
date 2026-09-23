@@ -205,12 +205,40 @@ export const FIXTURE_FACE_EXPECTED = [
 	'actionLabel', 'checkSite', 'combatAction', 'combatPool', 'gearDef', 'hasChargen',
 	'flipPolicy', 'itemEffect', 'mechanics', 'notes', 'pcDefaults', 'rules',
 ];   // Lab 裁：满配夹具的钉死面＝**11 名**，缺任一面即红（不依赖组成员数；`checkSite` 在列 → 本片缺陷当场被咬）
+/** 例外行的**可机核谓词**：命中即为真 → 该例外**已可清理**（判据会红并点名）。
+ * 谓词只从**小词表**取（`engineReads`／`fixtureDeclares`），不许自由书写 —— 否则又成了"靠人记"。
+ * 与散文理由的分工：**谓词管"何时该清"；散文理由管"为何留着"**。 */
+export const EXCEPTION_REMOVAL_CHECKS = {
+	chargen: { kind: 'fixtureDeclares', name: 'chargen', note: '夹具一旦声明该面，本行即应清' },
+	lootText: { kind: 'fixtureDeclares', name: 'lootText', note: '夹具一旦声明该面，本行即应清' },
+	// 实测引擎**在读值**（`32-social.twee` 五处真调用）→ 与 chargen／lootText 同类：夹具一旦声明该面，本行即应清
+	socialHooks: { kind: 'fixtureDeclares', name: 'socialHooks', note: '夹具一旦声明该面，本行即应清' },
+};
+
+/** 求值：返回**已可清理**的例外行（空＝都还该留着）。 */
+export const exceptionRemovableProblems = ({ engine = '', fixtureMembers = [] } = {}) => {
+	const out = [];
+	for (const [row, chk] of Object.entries(EXCEPTION_REMOVAL_CHECKS)) {
+		if (!(row in FIXTURE_FACE_EXCEPTIONS)) continue;          // 行已在 → 只查现存行
+		const name = chk.name;
+		// 注意：**在场门不算"读值"** —— `present: ['X']` 与 `face('X')` 是"该面在不在"的判断（门控），
+		// 不是"取该面的值"。判"引擎是否在读该面"前先把这两类形态剔掉（`#1227` 评审点过：`combatAction` 的读点也是门本身）。
+		const gateStripped = String(engine)
+			.replace(/present\s*:\s*\[[^\]]*\]/g, '')
+			.replace(/face\s*\(\s*'[^']*'\s*\)/g, '');
+		const true_ = chk.kind === 'fixtureDeclares'
+			? fixtureMembers.some((m) => m?.name === name)
+			: new RegExp('Sg\\s*\\??\\.\\s*story\\s*\\??\\.\\s*' + name + '\\b').test(gateStripped);
+		if (true_) out.push({ row, code: 'exception-removable', why: chk.note });
+	}
+	return out;
+};
+
 export const FIXTURE_FACE_EXCEPTIONS = {
 	// 类一：**引擎在读、夹具未声明**（中间态靠读点守卫兜；面回位或随票删除，两种都可能）
 	chargen: { why: '引擎在读、夹具未声明（故事侧车卡面；夹具不启用车卡，由 `hasChargen` 能力开关表达）', removal: '夹具将来启用（或引入）车卡面时' },
 	lootText: { why: '引擎在读、夹具未声明（掉落文案面；夹具的战斗语料不产掉落）', removal: '夹具将来产掉落时' },
-	// 类二：**规格有缺省、引擎当前不读** → 属"可去声明"候选
-	socialHooks: { why: '规格有缺省、引擎当前不读（hook 口子空置）⇒ 可去声明', removal: '引擎引入 hook 读点时（或随声明一起删）' },
+	socialHooks: { why: '引擎在读、夹具未声明（hook 口子空置）', removal: '引擎引入 hook 读点时（或随声明一起删）' },
 	// 类三：**已裁过渡性缺席**（Lab 裁：随 `#1227` 类一删面）
 };
 
@@ -236,10 +264,12 @@ export const fixtureFaceProblems = ({ slug, members = [] }) => {
  * → 局部变量巧合叫 `spent`（如 `const spent = …` / `return spent > b`）**不得报**（那是角色端，不是键名端）。
  *
  * 为什么要判两层：片一的机制把**外层对象名**数据化（`const st = pc[key]`）→ 若判据的锚建在"带前缀"的
- * 形态上（`star.spent`），那么外层一被抽走，判据恰好在那一点变瞎（实测过的假绿：判据的锚建在会被数据化的外层名上  外层一抽走它就瞎）→ 因此锚必须建在
+ * 形态上（`star.spent`），那么外层一被抽走，判据恰好在那一点变瞎（实测过的假绿：判据的锚建在会被数据化的外层名上 外层一抽走它就瞎）→ 因此锚必须建在
  * **内层键名本身**上，且两种写法都覆盖。
  */
-export const STORY_KEY_NAMES = ['first_free', 'spent', 'poisonReduce', 'dragonMaxHp'];
+export const STORY_KEY_NAMES = ['first_free', 'spent', 'poisonReduce', 'dragonMaxHp',
+	// 类一补：**故事侧状态字段名**（引擎不得在属性位置写死它们）
+	'venom'];
 
 /** 剥注释后的源码文本 → 命中的「属性位置键名字面」逐条（`line` 为 1 起行号）。 */
 export const storyKeyLiteralProblems = ({ src = '', names = STORY_KEY_NAMES } = {}) => {

@@ -387,7 +387,7 @@ export const PROBES = [
 	// 为什么退役：本片把结局段容器 `.ending-acts` 改名 `.acts` 后，`.acts` 在**多出 7 段**出现 
 	// 焦点有**两处互补机制**（`80-script.twee` 的 `:passageend.sgFocusNav` 与 `:passageend.sgBackToActs`）
 	// **单点变异不再能让该判据红**（禁其一，另一处仍把焦点留在 `#passages` 内） 变异"不咬"属**机制性**，非腐烂。
-	// 红能力由谁承担：`test/focus-after-nav.mjs --selftest` 的**合成反例**（"导航型但焦点丢到 body" 等三例  必红）。
+	// 红能力由谁承担：`test/focus-after-nav.mjs --selftest` 的**合成反例**（"导航型但焦点丢到 body" 等三例 必红）。
 	// 何时可接回：若将来只剩一处焦点机制（另一处删除/改名），可按原形状（变异 `sgFocusNav` 那行）接回本条目。
 	/* 原条目（保留原文，便于接回）：
 		{
@@ -410,10 +410,10 @@ export const PROBES = [
 				file: 'src/80-script.twee',
 				find: "jQuery(document).on(':passageend.sgFocusNav', (ev) => {",
 				replace: "jQuery(document).on(':passageendDISABLED.sgFocusNav', (ev) => {",
-			},
-			expect: { rc: 1, stdout: /焦点跑出正文/ },
-			why: '量的是「**导航型交互之后焦点仍在正文内**」那一手真的在守（禁用 `:passageend.sgFocusNav`  导航后 `activeElement` 落 `body`  本件必红并点名 ）—— 否则「焦点回收」只写在注释里 （`#1012` ）',
-		},
+},
+			expect: { rc: 1, stdout: /焦点跑出正文/},
+			why: '量的是「**导航型交互之后焦点仍在正文内**」那一手真的在守（禁用 `:passageend.sgFocusNav` 导航后 `activeElement` 落 `body` 本件必红并点名）—— 否则「焦点回收」只写在注释里（`#1012`）',
+},
 	*/
 
 	{

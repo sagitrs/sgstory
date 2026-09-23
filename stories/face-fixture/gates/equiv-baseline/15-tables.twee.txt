@@ -922,31 +922,14 @@ Object.assign((window.Sg.story ??= {}), {
 	starBudget: () => 6,
 	foeState: (pc) => pc?.dragon ?? {},
 	battleDamage: (inv, round, defeats, poisoned) => window.Game.Items.battleDamage(round, inv, defeats, poisoned),
-	rules: () => [],
-	dragonMaxHp: () => {
-		const v = window.Game?.Dragon?.hp;
-		if (typeof v !== 'number') throw new Error(`Sg.story.dragonMaxHp：故事未提供 Game.Dragon.hp（结构缺失必须报错，#441-E）`);
-		return v;
-	},
-	checkSite: (name) => {
-		const v = window?.Game?.Checks?.sites?.[name];
-		if (!v) throw new Error(`Sg.story.checkSite：位点「${name}」未登记（结构缺失必须报错，#441-E）`);
-		return v;
-	},
 	combatAction: (id) => {
 		const v = window?.Game?.Combat?.actions?.[id];
 		if (!v) throw new Error(`Sg.story.combatAction：动作「${id}」未登记（结构缺失必须报错，#441-E）`);
 		return v;
 	},
-	mechanics: () => null,
 	itemEffect: (name) => window?.Game?.Items?.effects?.[name] ?? null,
 	gearDef: (name) => window?.Game?.Gear?.defs?.[name] ?? null,
 	combatPool: (id) => window?.Game?.Combat?.pools?.[id] ?? [],
-	poisonReduce: () => {
-		const v = window.Game?.Items?.poisonReduce;
-		if (typeof v !== 'number') throw new Error(`Sg.story.poisonReduce：故事未提供 Items.poisonReduce（结构缺失必须报错，#441-E）`);
-		return v;
-	},
 	actionLabel: (id) => {
 		const a = window.Sg.story.combatAction(id);
 		if (!a || typeof a.label !== 'string' || !a.label) throw new Error(`Sg.story.actionLabel：动作「${id}」缺 label（结构缺失必须报错，#441-E）`);
@@ -956,4 +939,5 @@ Object.assign((window.Sg.story ??= {}), {
 	flipStarCost: () => 1,
 	flipReturnFlag: () => 'fog_thin',
 	pcShape: () => __const_pcShape,
+	rules: () => [],
 });

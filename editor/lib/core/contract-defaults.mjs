@@ -181,6 +181,28 @@ export const contractReadDomain = (membersByStory = {}) => {
 };
 
 /** 纯函数：数据成员数（不含能力开关）。正文里的"成员数"一律用这个。 */
+/**
+ * **通则**：合同里 `required: true` 的成员**不得被静默缺省**。
+ *
+ * 语义冲突：`required` 的含义是"结构缺失**必须出声**"（合同常自带 `error` 文案）；
+ * 而缺省规格给它一个**良性缺省**（`null`／`empty-*`）就把"该出声"变成了"静默取空"——
+ * 故事少声明一个面，引擎不报错、直接按空跑（本轮 `checkSite` 正是如此：位点整批被过滤而无报错）。
+ *
+ * 口径（Lab 裁定）：**"缺席＝能力不在"是门控；"缺席＝值取零"是缺省**。二者不可混。
+ */
+export const requiredSilenced = ({ membersByStory = {}, defaults = DEFAULTS } = {}) => {
+	const out = [];
+	for (const [slug, members] of Object.entries(membersByStory)) {
+		for (const m of members ?? []) {
+			if (!m.required) continue;
+			if (!(m.name in defaults)) continue;      // 没缺省 ⇒ 缺失天然出声 ✓
+			out.push({ slug, code: 'required-silenced', name: m.name,
+				why: '`required: true` 要求"结构缺失必须出声"，但缺省规格给了良性缺省 ⇒ 静默取空（该成员须出声或立能力组）' });
+		}
+	}
+	return out;
+};
+
 export const dataMemberCount = (members = []) => members.filter((m) => !CAPABILITY_MEMBERS.has(m.name)).length;
 
 /**

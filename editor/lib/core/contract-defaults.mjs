@@ -143,6 +143,17 @@ export const defaultProblems = ({ membersByStory = {}, readsByMember = {}, defau
 				why: `值等于缺省，${sites.length} 处读点全带守卫` });
 		}
 	}
+	// 二·补：已声明 ＋ 被读 ＋ 缺省规格里没有它 → 点名（读者必须先补缺省或加守卫；
+	// 这是“已声明成员的缺省”这一新语义：旧语义“任意名的缺省”随读点按域收窄已失效）。
+	for (const [slug, members] of Object.entries(membersByStory)) {
+		for (const m of members) {
+			if ((readsByMember[m.name] ?? []).length && !(m.name in defaults)) {
+				out.push({ slug, code: 'default-missing', name: m.name,
+					at: (readsByMember[m.name] ?? []).map((r) => r.file + ':' + r.line),
+					why: '已声明且被引擎读，但缺省规格里没有它（读者要先加守卫，或把它补进缺省规格）' });
+			}
+		}
+	}
 	// 三、读了而没声明、又没有缺省 → 缺口
 	const anyDeclared = new Set(Object.values(membersByStory).flat().map((m) => m.name));
 	for (const n of Object.keys(readsByMember)) {

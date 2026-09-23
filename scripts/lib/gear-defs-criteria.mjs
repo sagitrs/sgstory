@@ -33,7 +33,7 @@ import { allSourceFiles } from '../module-order.mjs';   // `#1187`：引擎件�
 // 即时求值会因 TDZ 报错而被吞成静默兜底 —— 那正是"静默降级"）。找不到 → 返回 null，由判据出声。
 export const engineFilesOf = () => allSourceFiles(['src'])
 	.filter((f) => f.endsWith('.twee'))
-	.filter((f) => /gearDef\([^)]*\)\?\./.test(maskComments(realRead(f))));
+	.filter((f) => hasGearDefRead(realRead(f)));
 // 兼容既有引用点（值形状不变）：求值推迟到首次访问；多件时逐件点名。
 export const ENGINE_FILE = {
 	toString: () => { const fs = engineFilesOf(); return fs.length ? fs.join(' ＋ ') : '(未派生)'; },
@@ -43,8 +43,14 @@ export const CONTRACT_DOC = 'docs/story2-contracts.md';
 
 const realRead = (f) => { try { return readFileSync(f, 'utf8'); } catch { return ''; } };
 
+// ── 锚：**一处定义**（原先 :36 与 :47 各写一份 ⇒ 必腐；`#1216` B 半给 `gearDef` 读点加了守卫后
+// 形态变为 `gearDef?.(k)?.<字段>`，两份副本同时失配 ⇒ 门报"派生不到锚"。）
+// 一并用 **RegExp(…source)** 复制（避免 `g` 标志共享 lastIndex 的经典坑）。
+const GEARDEF_READ_RE = /gearDef\??\.?\([^)]*\)\??\.([A-Za-z_$][\w$]*)/;
+const hasGearDefRead = (src) => GEARDEF_READ_RE.test(maskComments(String(src)));
+
 /** ② 侧：**代码实际读的**字段集（锚 `gearDef(...)?.<字段>`）。 */
-export const codeReadFields = (src) => [...new Set([...maskComments(String(src)).matchAll(/gearDef\([^)]*\)\?\.([A-Za-z_$][\w$]*)/g)].map((m) => m[1]))].sort();
+export const codeReadFields = (src) => [...new Set([...maskComments(String(src)).matchAll(new RegExp(GEARDEF_READ_RE.source, 'g'))].map((m) => m[1]))].sort();
 
 /** ③ 侧：**文档声明的**字段集（锚文档**表格首列**；只取 §1.2 那一段）。 */
 export const docDeclaredFields = (doc) => {

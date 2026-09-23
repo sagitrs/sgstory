@@ -2,12 +2,12 @@
 // `#1187`：装备面的算从 `21-resolve.twee` 拆出（`#1184` 流二）；本块逐行照搬，只读契约 `gearDef`。
 Object.assign((window.Game.Gear ??= {}), {
 	damageBonus(gear) {
-		return (gear ?? []).reduce((a, k) => a + (window.Sg.story.gearDef(k)?.damage ?? 0), 0);
+		return (gear ?? []).reduce((a, k) => a + (window.Sg.story.gearDef?.(k)?.damage ?? 0), 0);
 	},
 	damageSource(gear) {
-		return (gear ?? []).find((k) => (window.Sg.story.gearDef(k)?.damage ?? 0) > 0) ?? '';
+		return (gear ?? []).find((k) => (window.Sg.story.gearDef?.(k)?.damage ?? 0) > 0) ?? '';
 	},
 	advSource(site, gear) {
-		return (gear ?? []).find((k) => (window.Sg.story.gearDef(k)?.advSites ?? []).includes(site)) ?? '';
+		return (gear ?? []).find((k) => (window.Sg.story.gearDef?.(k)?.advSites ?? []).includes(site)) ?? '';
 	},
 });

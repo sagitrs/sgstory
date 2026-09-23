@@ -55,7 +55,7 @@
 	   为什么这么切（`#705` 片二-B 实测的教训）：SugarCube 的 `<<set>>` 解析器吃不下"长表达式 ＋ 嵌套
 	   三元 ＋ 计算键对象 ＋ 数组字面量"的组合（报 `bad evaluation: Cannot read properties of undefined`），
 	   而且那种失败**只在真机点开时才现形**。搬进 JS 后同一份逻辑还能被 node 门（`test/foe-5e.mjs`）直接测。 %/
-	<<set _r to Game.Combat.foeRound($pc, Sg.story.combatAction($args[0]))>>
+	<<set _r to Game.Combat.foeRound($pc, Sg.story.combatAction?.($args[0]) ?? null)>>
 	<<if _r.hurt gt 0>><<damage _r.hurt>><</if>>
 	<span class="fight-log"><<= _r.log>></span>
 <</nobr>><</widget>>

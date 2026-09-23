@@ -91,10 +91,6 @@
 			]
 		},
 		{
-			"name": "rules",
-			"kind": "empty-array"
-		},
-		{
 			"name": "combatAction",
 			"kind": "lookup",
 			"from": "window.Game?.Combat?.actions",

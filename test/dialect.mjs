@@ -62,10 +62,12 @@ try {
 	// `#1004` B2：旧故事已删 → 本表换成新样本的**实测值**（照旧“写死数字” ——
 	// 这张表的价值就在“形状一变就红”，拿计算值去填就把它变成同义反复了）。
 	const want = {
-		'minimal-demo': { present: 2, absent: 2, topKeys: 7, itemLists: 2, itemFields: 8 },
+				// `#1216` B 半：去声明的成员里有带 `value` 的 const 族 ⇒ 条目字段**并集不再含 `value`**，
+		// 故 8→**7**（同源见 `contract-version` 的共有字段 5→4）。按**实测**重钉（本件既有先例 ✓）。
+		'minimal-demo': { present: 2, absent: 2, topKeys: 7, itemLists: 2, itemFields: 7 },
 		// `#1138`：`contract.json` 新增一个成员（`codexItems`，带 `path`），故条目字段由 8 变为 13。
 		// 变化原因明确（加了一个契约成员），不是形状走偏；其余四项（顶层键、在册数、条目表）均未变。
-		'night-ferry': { present: 3, absent: 1, topKeys: 10, itemLists: 3, itemFields: 13 },
+				'night-ferry': { present: 3, absent: 1, topKeys: 10, itemLists: 3, itemFields: 12 },
 	};
 	const fps = new Set();
 	for (const slug of Object.keys(want)) {

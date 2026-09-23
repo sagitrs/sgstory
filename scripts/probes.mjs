@@ -383,30 +383,39 @@ export const PROBES = [
 		expect: { rc: 1, stdout: /P6/ },
 		why: '量的是「冒烟作业里的故事页路径**不许硬编码**（⚠️ **现存/已删一律** ✗）＋ **必须从书架页现场取**」（锚点仍在 ＋ 写死一个**现存**故事 ⇒ P6 必红 ✓）—— 该判据是"只在合后跑的门"在 PR 阶段的唯一能见度 ✗',
 	},
-	{
-		// `#1012`：**导航型交互之后焦点仍在正文内**（`test/focus-after-nav.mjs`）—— 契约见
-		// `docs/dev-conventions.md` §6「键盘可续」（`activeElement.closest('#passages')`，**不绑元素**）。
-		//注意：被测面是 `src/**` 的**引擎行为** → 本门读的是**产物**：`pre` 只建基线，
-		// 真正让变异生效的是 `rebuild` 的**第一处**（变异之后、`cmd` 之前）—— 写成 `pre` 会得到
-		// "变异后仍绿" 的**假不咬**（改了源却不重建 → 量的是上一代产物）。
-		//注意：刀必须换**事件名**：`jQuery.on('ev.ns')` 的 **namespace 不挡事件分发** → 只改 namespace
-		//（如 `sgFocusNav-DISABLED`）那一手**根本没禁掉** —— 实测踩过：会误判成"本门不咬"。
-		id: 'test/focus-after-nav.mjs',
-		tier: 'fast',
-		// `pre` ＝**变异之前**建一次基线产物（本门读 `dist/` → 没产物会"凭空红"× 不是"不咬"）。
-		pre: ['node build.mjs >/dev/null'],
-		cmd: 'node test/focus-after-nav.mjs',
-		// `rebuild` **跑两处**（`#1012` 实测／`#1019` 口径）：**变异后**（不然量的是上一代产物）
-		// ＋ **还原后**（不然 `dist/` 里留着变异版 → 后续 **37 段** boot 类门全红 → 探针自污染相序）。
-		rebuild: 'node build.mjs >/dev/null',
-		mutation: {
-			file: 'src/80-script.twee',
-			find: "jQuery(document).on(':passageend.sgFocusNav', (ev) => {",
-			replace: "jQuery(document).on(':passageendDISABLED.sgFocusNav', (ev) => {",
+	// ⛔ **退役 ＋ 声明**（`#1226` 探针身份门的首个实测样本；形态照 `#1004` B2b）：
+	// 为什么退役：本片把结局段容器 `.ending-acts` 改名 `.acts` 后，`.acts` 在**多出 7 段**出现 
+	// 焦点有**两处互补机制**（`80-script.twee` 的 `:passageend.sgFocusNav` 与 `:passageend.sgBackToActs`）
+	// **单点变异不再能让该判据红**（禁其一，另一处仍把焦点留在 `#passages` 内） 变异"不咬"属**机制性**，非腐烂。
+	// 红能力由谁承担：`test/focus-after-nav.mjs --selftest` 的**合成反例**（"导航型但焦点丢到 body" 等三例  必红）。
+	// 何时可接回：若将来只剩一处焦点机制（另一处删除/改名），可按原形状（变异 `sgFocusNav` 那行）接回本条目。
+	/* 原条目（保留原文，便于接回）：
+		{
+			// `#1012`：**导航型交互之后焦点仍在正文内**（`test/focus-after-nav.mjs`）—— 契约见
+			// `docs/dev-conventions.md` §6「键盘可续」（`activeElement.closest('#passages')`，**不绑元素**）。
+			//注意：被测面是 `src/**` 的**引擎行为** → 本门读的是**产物**：`pre` 只建基线，
+			// 真正让变异生效的是 `rebuild` 的**第一处**（变异之后、`cmd` 之前）—— 写成 `pre` 会得到
+			// "变异后仍绿" 的**假不咬**（改了源却不重建 → 量的是上一代产物）。
+			//注意：刀必须换**事件名**：`jQuery.on('ev.ns')` 的 **namespace 不挡事件分发** → 只改 namespace
+			//（如 `sgFocusNav-DISABLED`）那一手**根本没禁掉** —— 实测踩过：会误判成"本门不咬"。
+			id: 'test/focus-after-nav.mjs',
+			tier: 'fast',
+			// `pre` ＝**变异之前**建一次基线产物（本门读 `dist/` → 没产物会"凭空红"× 不是"不咬"）。
+			pre: ['node build.mjs >/dev/null'],
+			cmd: 'node test/focus-after-nav.mjs',
+			// `rebuild` **跑两处**（`#1012` 实测／`#1019` 口径）：**变异后**（不然量的是上一代产物）
+			// ＋ **还原后**（不然 `dist/` 里留着变异版 → 后续 **37 段** boot 类门全红 → 探针自污染相序）。
+			rebuild: 'node build.mjs >/dev/null',
+			mutation: {
+				file: 'src/80-script.twee',
+				find: "jQuery(document).on(':passageend.sgFocusNav', (ev) => {",
+				replace: "jQuery(document).on(':passageendDISABLED.sgFocusNav', (ev) => {",
+			},
+			expect: { rc: 1, stdout: /焦点跑出正文/ },
+			why: '量的是「**导航型交互之后焦点仍在正文内**」那一手真的在守（禁用 `:passageend.sgFocusNav`  导航后 `activeElement` 落 `body`  本件必红并点名 ）—— 否则「焦点回收」只写在注释里 （`#1012` ）',
 		},
-		expect: { rc: 1, stdout: /焦点跑出正文/ },
-		why: '量的是「**导航型交互之后焦点仍在正文内**」那一手真的在守（禁用 `:passageend.sgFocusNav`  导航后 `activeElement` 落 `body`  本件必红并点名 ）—— 否则「焦点回收」只写在注释里 （`#1012` ）',
-	},
+	*/
+
 	{
 		// 台账行：`test/repo-shape.mjs`（`#1008` 第二半：**仓根顶层条目**守卫）。
 		// 刀打在**第 ① 支**（实际有、声明没有 ＝ **新顶层目录**走的那一支），且**不碰测试件**：

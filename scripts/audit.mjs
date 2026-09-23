@@ -85,5 +85,5 @@ if (silent.length) {
 }
 console.log(`\n✔ 选中 ${selN} 门 · 实跑 ${ran} 门`);
 
-console.log('\n（数据源：src/15-tables.twee —— 改表即改此报告；伞 #21/#22 审计请跑本脚本）');
+console.log('\n（数据源：stories/<slug>/data/tables.json —— 改表即改此报告；伞 #21/#22 审计请跑本脚本）');
 

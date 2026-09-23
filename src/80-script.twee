@@ -88,16 +88,6 @@ window.Sg.notes = {
 	},
 	// #436-b：表**只经故事注册的入口**取（`Sg.story.notes()`）——本文件将来搬进引擎侧时，
 	// 它不得出现故事符号（`Game.Notes`）；结构缺失（未注册）→ **fail-loud**，不静默当空表。
-	table() {
-		const provide = window.Sg.story?.notes;
-		// `#1223`：**整块能力缺席 → 无操作**（数据面溶解后故事不再注册 → 返回空表，不抛）；
-		// 与『注册了但畸形』两分：后者仍是作者错 → 保留下面的出声（能力组同口径）。
-		if (typeof provide !== 'function') return {};
-		const t = provide();
-		// 结构**畸形**同样报错：`null`／非对象／数组都不是「笔记表」。空对象 `{}` 是合法空表（那是数据缺失，不是结构缺失）。
-		if (t == null || typeof t !== 'object' || Array.isArray(t)) throw new Error('Sg.notes：`Sg.story.notes()` 未返回笔记表（拿到 ' + (t === null ? 'null' : Array.isArray(t) ? 'array' : typeof t) + '）——结构畸形必须报错');
-		return t;
-	},
 	// 写入器（与 readPath 对称）：`'ev.x'`／`'world.x'`。
 	// #434 阶段 3：**机制住在引擎侧**（读侧 `has()` 也是在这求值、数据由 `Sg.story.notes()` 给）
 	// —— 故事侧**不新增 provider**，表里的 `flagPath` **就是**写回声明（形状定稿见 Discussion #513）。
@@ -115,105 +105,27 @@ window.Sg.notes = {
 	},
 	// 真存储（#434）：`pc.ev.notes` 是「已授予」的**记录**；旧档只有旗标 → 由 has() 的旗标面兜住
 	stored(id, pc = State.variables.pc) { return !!pc?.ev?.notes?.[id]; },
-	entry(id) { return this.table()[id] ?? null; },
-	ids() { return Object.keys(this.table()); },
 	/**
 	 * 位点 → 知识（`#762` A 线：`checkKnowledge` 下沉）。
 	 * 故事仍持有 `Game.Checks.knowledge`（位点→旗标）与 `knowledgeWhy`（旗标→来源）两张**声明表**；
 	 * **组装**（含"是否持有"）住引擎 → 故事不再需要写这个函数。
 	 * 两态要分清：没有这个知识点 → `null`；有知识点但**未持有** → `{ flag, why, held: false}`。
 	 */
-	knowledgeOf(name, pc = State.variables.pc) {
-		const flag = window.Game?.Checks?.knowledge?.[name];
-		if (!flag) return null;
-		const why = window.Game?.Checks?.knowledgeWhy?.[flag] ?? flag;
-		// `flagPath` 反查笔记 id（读侧唯一权威是存储）；找不到就回落读该路径的旗标（合成态/旧档/单测）。
-		const entries = window.Sg?.story?.notes?.() ?? {};
-		const want = 'world.' + flag;
-		const id = Object.keys(entries).find((k) => {
-			const fp = Array.isArray(entries[k]?.flagPath) ? entries[k].flagPath : [entries[k]?.flagPath];
-			return fp.includes(want);
-		});
-		const held = this.has(id ?? '__none__', pc) || !!this.readPath?.(pc, want);
-		return { flag, why, held };
-	},
 	// 读取语义（`#437` C-2c-2 起）：`has(id, pc = 当前存档的 pc) = stored(id, pc)` —— **只认真存储**。
 	// `pc` 参数（`#437` C-2c-3）：图鉴/门里的判据是 `test(p)` 形式，吃的是**传入的 pc**（例如门的"全收集态"合成 pc）——
 	// 不给这个参数，`has()` 会一直读全局存档 → 判据在合成态上是错的（实测 `--canon` 报「全收集态仍不满足」）。
 	// 兼容层（旗标兜底 `∨ any(readPath(flagPath))`）已随本片退场；旧档的旗标由 `migrateLegacy()` **一次性补进存储**，
 	// 所以"旧档载入不丢知识"这条不变（`Game.Pc.migrate()` 里调用 → 每次载档幂等补齐）。
-	has(id, pc = State.variables.pc) {
-		const e = this.entry(id);
-		if (!e) return false;
-		return this.stored(id, pc);
-	},
-	// **旧档迁移**（`#437` C-2c-2）：把"只有旗标、没有 `ev.notes`"的存档补成存储态。
-	// 为什么必须单独一条（而不是留在 `has()` 里兜底）：兜底是**读侧的兼容层**——它让"旗标"与"存储"两份状态
-	// 长期并行存在（谁写谁忘都能蒙对）；改成**写一次迁移**之后，`has()` 只认一份真源，模型才闭合。
-	// 幂等：已 stored 的跳过；返回补写条数（0 = 无需迁移）。
-	migrateLegacy(pc = State.variables.pc) {
-		if (!pc || typeof pc !== 'object') return 0;
-		let n = 0;
-		for (const id of this.ids()) {
-			if (this.stored(id, pc)) continue;
-			const e = this.entry(id);
-			const v = typeof e?.grant === 'function' ? e.grant(pc) : this.readPath(pc, e?.flagPath);
-			if (!v) continue;
-			pc.ev = pc.ev ?? {};
-			pc.ev.notes = pc.ev.notes ?? {};
-			pc.ev.notes[id] = true;
-			n++;
-		}
-		return n;
-	},
+	// `#1223`/`#1251`：`migrateLegacy()` 已随 `notes` 概念退场（旧档旗标不再迁移，取乙）。
+
 	// 授予（#434）：**幂等** ＋ 真存储 ＋ **双写**（同时置旗标，票面「旗标降为兼容字段」）。
 	// 多源护栏：`flagPath` 是**数组**时必须显式 `setPath`（写哪一条）→ 缺则**报错**，绝不静默多写一个旗标。
-	add(id, pc = State.variables.pc) {
-		// `#1223`：**整块能力缺席**（表为空）→ 无操作；表非空但缺该 id → 仍是作者错 → 出声。
-		if (Object.keys(this.table()).length === 0) return false;
-		const e = this.entry(id);
-		if (!e) throw new Error(`Sg.notes.add：笔记「${id}」未登记（结构缺失必须报错，#434）`);
-		// `#437` C-2c-1b：早退只看**存储**，不看 `has(id)`（＝存储 ∨ 旗标）。
-		// 为什么（`#437` C-2c 的实验法实测）：语料里 `<<firstTime "wq_seen">><<note "n_wq_seen">>` 这种**紧接着**的写法，
-		// `firstTime` 先置旗标 → `has()` 立刻为真 → `add()` 早退 → **存储永远补不上**（`pc.ev.notes` 始终 undefined），
-		// 只是被 `has()` 的旗标兜底掩盖着；一旦按 C-2c-2 删掉兜底，那条知识就会**静默变假**。
-		if (this.stored(id)) return false;
-		// `#733` 片 2-b（**翻面**）：**单源**笔记不再写旗标 —— 它的 `flagPath` 只是"历史来源"（供 `migrateLegacy()` 迁移旧档），
-		// 真存储是 `ev.notes.<id>`；读侧早只认存储（C-2c-2）、单源读点全转 `has()`（C-2c-3）、声明面词汇改 `note:<id>`（片 1）、
-		// 写点统一 `add()/<<note>>`（片 2-a）、断言面形式无关（`#738`）、情报捷径接缝给 `held`（`#739` ＋ 故事侧）、接缝吃 `pc`（`#741`）→ 旗标已无读者。
-		// **多源**笔记照旧：`flagPath` 是"哪一条路径拿到了"的事实，必须写（`setPath` 护栏不变）。
-		if (Array.isArray(e.flagPath)) {
-			if (!e.setPath) throw new Error(`Sg.notes.add：笔记「${id}」的 flagPath 是数组（多源 OR）⇒ 必须显式声明 setPath（该写哪一条）——不许静默多写一个旗标（#434/#435）`);
-			this.writePath(pc, e.setPath, true);
-		}
-		pc.ev.notes = pc.ev.notes ?? {};
-		pc.ev.notes[id] = true;
-		return true;
-	},
-	all() { return this.ids().filter((id) => this.has(id)); },
 	// **路径限定的授予**（`#569`）：行里声明 `yields: [{ id, path}]` → 只写**声明的那一条** path。
 	// 与 `add()` 的三处差别（逐条写清，因为它们是这个 API 存在的理由）：
 	// ① **路径级幂等**：只看“这条 path 真不真”，**不看** `has(id)`。因为多源笔记里
 	//“听人比过”（`world.` 那条已真）之后**仍要能**记下“看清了钉子”（`ev.` 那条）——两条 path 各记各的；
 	// ② `path` 必须属于该笔记的 `flagPath`（否则写进去**读不出来** → fail-loud；门侧 `yieldPathProblems()` 同判据）；
 	// ③ `setPath` 护栏**不适用**（本调用就是“显式声明走哪条”本身）——所以 `add()` 对多源笔记的报错路径不受影响。
-	addPath(id, path, pc = State.variables.pc) {
-		if (Object.keys(this.table()).length === 0) return false;   // 同上：整块缺席 → 无操作
-		const e = this.entry(id);
-		if (!e) throw new Error(`Sg.notes.addPath：笔记「${id}」未登记（结构缺失必须报错，#569）`);
-		const ps = Array.isArray(e.flagPath) ? e.flagPath : [e.flagPath];
-		if (!ps.includes(String(path))) throw new Error(`Sg.notes.addPath：路径「${path}」不属于笔记「${id}」的 flagPath（${ps.join('／')}）——写进去读不出来（#569）`);
-		// ① 路径级幂等（**并**要求存储已写：否则旗标已真而存储缺失时同样会把存储漏掉，见 `add()` 的注释）
-		if (this.readPath(pc, path) === true && this.stored(id)) return false;
-		this.writePath(pc, path, true);
-		pc.ev.notes = pc.ev.notes ?? {};
-		pc.ev.notes[id] = true;
-		return true;
-	},
-	missing(req = []) {
-		const need = req.flatMap((r) => (typeof r === 'string' ? [r] : (r?.any ?? [])));
-		return need.filter((id) => !this.has(id));
-	},
 };
 
 
@@ -360,7 +272,6 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 			root: content,
 			textBefore: content.textContent,
 			passage: State.passage,
-			era: State.variables.era,
 			scrollY: window.scrollY,
 			panel: panel ? [...content.querySelectorAll('.soc-ask')].indexOf(panel) : -1,
 			seen: new Set([...content.querySelectorAll(feedbackSelector)].map(textOf)),
@@ -390,7 +301,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 					const hasCheck = frag.find('.check-result').length > 0;
 					const fresh = frag.text().replace(/\s+/g, ' ').trim();
 					if (fresh && fresh.length < 400) {
-						State.variables.pc.ev.last_result = { p: State.passage, era: State.variables.era, text: fresh, hasCheck };
+						State.variables.pc.ev.last_result = { p: State.passage, text: fresh, hasCheck };
 					}
 				}
 			} catch (e) { /* 捕获失败不影响导航 */ }
@@ -399,7 +310,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 	}
 	jQuery(document).on(':passagerender.sgResult', (ev) => {
 		const r = State.variables.pc?.ev?.last_result;
-		if (!r || (r.era && r.era !== State.variables.era) || !r.text) return;
+		if (!r || !r.text) return;
 		// #300 裁决（2026-09-12）：**结局页不显示本次结果槽**——结局以自身叙述为准；
 		// 落点是结局页的那些掷（顶楼·夺杖→讨伐、龙·终击→星落/坠星之死）在豁免表登记理由。
 		if (String(State.passage ?? '').startsWith('结局')) {
@@ -428,7 +339,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 	jQuery(document).on(':passageend.sgFeedback', (ev) => {
 		const previous = pending;
 		pending = null;
-		if (!previous || previous.passage !== State.passage || previous.era !== State.variables.era) return;
+		if (!previous || previous.passage !== State.passage) return;
 		const content = ev.content;
 		const panel = previous.panel < 0 ? null : content.querySelectorAll('.soc-ask')[previous.panel];
 		const fresh = (elements) => [...elements].find((el) => textOf(el) && !previous.seen.has(textOf(el)));

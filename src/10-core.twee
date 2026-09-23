@@ -271,7 +271,7 @@ window.Game.Pc = {
 		// `#437` C-2c-2：旧档的知识面**写一次迁移**（旗标 → `ev.notes` 真存储）。
 		// 放在最后、幂等：新档没有旗标可迁（返回 0），旧档每次载入都会补齐（补完即 0）。
 		// 结构缺失（故事未注册笔记表）时 `Sg.notes` 自己 fail-loud → 这里不吞错。
-		window.Sg?.notes?.migrateLegacy?.(pc);
+		// `#1223`/`#1251`：旧档迁移随 `notes` 概念退场，调用点同笔删除。
 		return pc;
 	},
 };
@@ -476,7 +476,6 @@ window.Sg.capability = (group) => {
 /% 全局状态初始化（**形状**单一源见 `Game.Pc.defaults`；**数值**来自 `Sg.story.pcDefaults()`，见 `#660` 片三-3） %/
 <<set $player_name to "">>
 <<set $pc to Game.Pc.defaults()>>
-<<set $era to Game.Era.PRESENT>>
 
 :: Widgets [widget]
 /% 受伤 + 药膏自动生效 + 死亡判定。用法：<<damage N>>。
@@ -530,25 +529,10 @@ window.Sg.capability = (group) => {
 
 /% 时代切回现在（不耗星力：时间自己走完的场合专用——宴散/仪式终） %/
 <<widget "eraPresent">>
-	<<set $era to Game.Era.PRESENT>>
 <</widget>>
 
-/% #624 片一：落一条**笔记**（幂等；与 `<<give>>` 同族的词汇宏）。
-   为什么要有它：点击态（link 体内）与表行 `text` 里**只该出现词汇宏**，不该出现裸 `<<run Sg.notes.add(…)>>`
-   （W1 的允许表里本来也没有裸模块 API）→ 表内表外同一种写法。不打印任何东西（知识到手的文案由内容自己写）。 %/
-<<widget "note">><<nobr>>
-	<<run Sg.notes.add($args[0])>>
-<</nobr>><</widget>>
-
-/% **路径限定的授予**（`#437` 批三 C-2，`#569` 的形状）：`<<notepath "n_hall_hint" "ev.hall_seen">>`。
-   与 `<<note>>` 的分工：**单源**笔记用 `<<note>>`；**多源 OR** 的笔记（`flagPath` 是数组）必须用本宏
-   ——它显式声明"**写哪一条**"（`world.hall_hint` 还是 `ev.hall_seen`），同名知识的两条获取路径各记各的。
-   为什么做成宏而不是放 `<<run Sg.notes.addPath(...)>>`：点击态域只许**可枚举的词汇宏**（W1，`#624`）——
-   放模块 API 等于把判据从"白名单 token"退化成"是不是 `Sg.*`"（边际判别力下降）。
-   参数顺序与底层 API 一致（`Sg.notes.addPath(id, path, pc)`）；**参数错位**（path 当 id）会 fail-loud（未登记笔记 id → 抛错）。 %/
-<<widget "notepath">><<nobr>>
-	<<run Sg.notes.addPath($args[0], $args[1])>>
-<</nobr>><</widget>>
+/% `#1223`：`<<note>>` 与 `<<notepath>>` **已随笔记概念退役**（内容面改用 `<<setflag "ev.notes.<id>">>`，
+   状态即 `ev.notes` 命名空间；二者的守卫随之退役 —— 见本笔下架表）。 %/
 
 /% 拾取道具（物品栏）：<<give "日记">> %/
 <<widget "give">><<nobr>>
@@ -781,16 +765,7 @@ window.Sg.capability = (group) => {
 	<<if not $pc.inv[_flipItem]>>
 		<div><span class="era-drained">你身上没有能校进另一段时间的东西。</span></div>
 	<<else>>
-		<<link `($era is Game.Era.PRESENT ? "翻转护符：坠入『过去』" : "翻转护符：回到『现在』")`>>
-			/% `#1227` 类二：**首翻免费与两个键名都是故事数据**
-（`Game.Star.flipPolicy = { firstFree, key, freeKey, spentKey}` —— 顶层键 `key` 与内层两个键名 `freeKey`／`spentKey`
-			   都由故事给）；引擎**不写死任何故事键名字面**，**缺项即出声**（不静默取默认当键名）。
-			   本句由判据「引擎侧出现故事键名 → 红」管着（见 `test/contract-defaults.mjs` 的同名格）。 %/
-			<<run Game.Star.chargeFlip($pc, _flipCost)>>
-			<<set $era to ($era is Game.Era.PRESENT ? Game.Era.PAST : Game.Era.PRESENT)>>
-			<<if $era is Game.Era.PRESENT>><<set $pc.world[_flipFlag] to true>><</if>>
-			<<goto `passage()`>>
-		<</link>>
+		/% `#1223`：翻转护符（= 时光护符）已删 —— 正确形态＝故事侧 JSON ＋ 通用条件域，随 `#1163`（books · M3）落地。 %/
 	<</if>>
 	<</if>>
 <</nobr>><</widget>>
@@ -826,7 +801,6 @@ $pc.speciesLabel $pc.classLabel
 <div class="inv-list"><<inventory>></div>
 </div>
 <<set _flipCap to Sg.capability('flip')>><<if _flipCap.ok and $pc.inv[_flipCap.item]>>
-⌛ <<if $era is Game.Era.PAST>>过去<<else>>现在<</if>>
 <</if>>
 /% #460：设定集是本故事的页面（引擎不知道故事名）→ **存在才渲染**；否则第二/第三故事侧栏会出现死链 %/
 <<if Story.has("设定集")>>[[📖 设定集|设定集]]<</if>>

@@ -794,7 +794,7 @@ for (const file of fixtures) {
 	eq(pick('女巫小屋#送花', P({})), null, '送花：没有花 ⇒ 不选中');
 	// 真机：点一次 → 花被取走（`<<take>>`）＋ ev 旗标置真（`<<setflag "ev.x">>`）
 	const V = w.SugarCube.State.variables;
-	V.pc.inv['月光花'] = true; delete V.pc.ev.old_witch;
+	V.pc.inv['月光花'] = true;
 	w.eval('SugarCube.Engine.play("女巫小屋")');
 	await sleep(250);
 	const link = () => [...w.document.querySelectorAll('#passages a.link-internal')].find((a) => /把那朵月光花送给她/.test(a.textContent));
@@ -802,7 +802,7 @@ for (const file of fixtures) {
 	link().click();
 	await sleep(300);
 	ok(w.eval("SugarCube.State.variables.pc.inv['月光花'] === undefined"), '真机：点一次 ⇒ `<<take "月光花">>` 把花取走（inv 里没了）');
-	ok(w.eval('SugarCube.State.variables.pc.ev.old_witch === true'), '真机：`<<setflag "ev.old_witch">>` 把 **ev** 旗标置真（原来只能裸 `<<set>>`）');
+	// `#1223`/`#1251`：旧契约证人（`ev.old_witch` 旗标写）随**旗标层**退役 —— 该写点无读者，删它不改玩家可见行为。
 	// 战斗退开：守卫是战斗瞬态
 }
 

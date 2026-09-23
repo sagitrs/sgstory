@@ -228,7 +228,9 @@ const Game = (() => {
 	const constSrc = constFiles.filter((f) => existsSync(f)).map((f) => readFileSync(f, 'utf8')).join('\n');
 	// 常量行两种形状都跑：`window.Game.Era = {…}`（`#660` 片二后的单源）与旧的 `??= {…}`
 	for (const m of constSrc.matchAll(/^window\.Game\.[A-Za-z]+ \??= .*$/gm)) vm.runInNewContext(m[0], ctx);
-	if (!ctx.window.Game?.Era || !ctx.window.Game?.Damage) errors.push('引擎常量未被载入（CONST_SECTION.files 里应有 `Game.Era ??=`／`Game.Damage ??=` 两行）——数据表会拿到 undefined');
+	// `#1223`/`#1142` 转向二：`Game.Era`（时代枚举）已随「时代＝条件维度」删除，本格只检仍由引擎持有的政策常量。
+	// 留痕：删的是 `Game.Era`；正确形态＝故事侧 JSON 加通用条件域，随 `#1163`（books · M3）落地。
+	if (!ctx.window.Game?.Damage) errors.push('引擎常量未被载入（CONST_SECTION.files 里应有 `Game.Damage ??=`）——数据表会拿到 undefined');
 	vm.runInNewContext(gamePassage.body, ctx);
 	return ctx.window.Game;
 })();

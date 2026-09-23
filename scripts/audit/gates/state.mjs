@@ -1,7 +1,7 @@
 // ⓪u 状态契约门（#318①/#318②）：`pc.ev` / `pc.world` 的键必须落在 `Game.State.domains` 的某个域里。
 //
 // 为什么：这些键是自由名字空间（81 个，散在 9 个 src 文件里写），此前没有任何一处能回答
-//「当前有哪些键、谁写、谁读、语义是什么」。契约表在 `src/15-tables.twee` 的 `Game.State`。
+//「当前有哪些键、谁写、谁读、语义是什么」。契约表在 `stories/<slug>/data/tables.json`（经 `editor/compile-story.mjs` 生成 `stories/<slug>/15-tables.twee`） 的 `Game.State`。
 //
 // 四条判定（附合成自证，跑本门时会先自证再判真实数据）：
 // ① 未声明域：键匹配不到任何域 → 红（新增键必须登记，或落入既有域）
@@ -13,7 +13,7 @@
 // `<<setflag "k">>` / `<<firstTime "k">>`（动态写入 `$pc.ev[k]` 并动态读回）· `$pc.ev["k"]`
 // · 表内谓词 `(p) => p.world?.k`。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
-import { declWriteKeys, qualifiedWriteKeys, keyCharsetViolations, readKeys, noteReadKeys, noteWriteKeys, ruleRowKeys, ruleRowSetKeys, maskComments, notePaths } from '../lib/shared.mjs';
+import { bareKey, declWriteKeys, qualifiedWriteKeys, keyCharsetViolations, readKeys, noteReadKeys, noteWriteKeys, ruleRowKeys, ruleRowSetKeys, maskComments, notePaths } from '../lib/shared.mjs';
 
 export const flag = 'state';
 export const flags = ['state'];
@@ -144,7 +144,7 @@ export const analyze = (sources, { notes, rules, asks, declReads } = {}) => {
 	}
 	// 声明面里的 `any`／`req` 条件键也算读 —— 但**只给"有人写的键"补读**：
 	// 否则会把 `inv:时光护符`／笔记 id／嵌套路径也塞进门（实测：未声明 18 条、只有读 21 条的新噪声）。
-	const bareOf = (x) => String(x).replace(/^(ev|world)\./, '');
+	const bareOf = bareKey;   // #1223: shared normalization (one definition, both gates)
 	// 用**键图里那个键本身**去 bump（带上域前缀）—— 不能 bump 裸名：门的命名空间判定靠前缀，
 	// 裸名会被读成"域 = 它自己"→ 报 12 条 `fog_thin.fog_thin` 式的**自指假红**（实测）。
 	for (const k of declReads ?? []) {
@@ -157,7 +157,7 @@ export const analyze = (sources, { notes, rules, asks, declReads } = {}) => {
 
 // 纯函数：给键图 + 域表，返回问题清单
 // 裸键名（去掉 `域.` 前缀）——域归属按裸键名匹配 Game.State.domains
-const bare = (k) => k.replace(/^(ev|world)\./, '');
+const bare = bareKey;   // #1223: shared normalization (same)
 const NS_OF = (k) => k.split('.')[0];
 
 // 合并视图：裸键名 → { w:Set(域), r:Set(域), wSites:Set, rSites:Set}

@@ -46,8 +46,13 @@ if (wantAll || arg('consequences')) {
 		['反例保护：`pc.ev.a == 1`（比较，不是赋值）**不算写入**',
 			(() => { const r = classifyNarrativeState({ passageSrc: new Map([['P', 'if (pc.ev.a == 1) {}']]), passageTags: new Map() }); return !r.written.has('a'); })()],
 		['`/% %/` 注释里的 `<<firstTime "b">>` **不算写入**（剥注释边界）', (() => { const r = classifyNarrativeState({ passageSrc: new Map([['P', '/% <<firstTime "b">> %/']]), passageTags: new Map() }); return !r.written.has('b'); })()],
-			// #434 阶段 3：经 `Sg.notes.add('n_a')` 写的旗标**也要算写入**（写点换了形状）
-			['经 `Sg.notes.add` 写的旗标算写入（裸键 a）', (() => { const r = classifyNarrativeState({ passageSrc: new Map([['P', "Sg.notes.add('n_a')"]]), passageTags: new Map(), notes: { n_a: { flagPath: 'ev.a' } } }); return r.written.has('a'); })()],
+			// `#434` 阶段 3 起：经 `Sg.notes.add('n_a')` 写的也要算写入（写点换了形状）；
+			// `#1223` 重建：折到 canonical `ev.notes.<id>`（裸键 notes.<id>）
+			['经 `Sg.notes.add` 写的记录算写入（canonical `notes.<id>`；单源不记 flagPath 裸键）', (() => { const r = classifyNarrativeState({ passageSrc: new Map([['P', "Sg.notes.add('n_a')"]]), passageTags: new Map(), notes: { n_a: { flagPath: 'ev.a' } } }); return r.written.has('notes.n_a'); })()],
+			// `#1223` rebuild, multi-source branch: a multi-source note must use `<<notepath id path>>`
+			// (`#434` guardrail) -> records the canonical key **and** the declared `setPath` key.
+			// Single-source-only testing would let "record multi-source as not-written" slip through.
+			['multi-source (`<<notepath>>` + `setPath`) records canonical + setPath', (() => { const r = classifyNarrativeState({ passageSrc: new Map([['P', '<<notepath "n_m" "ev.m_a">>']]), passageTags: new Map(), notes: { n_m: { flagPath: ['ev.m_a', 'world.m_b'], setPath: 'ev.m_a' } } }); return r.written.has('notes.n_m') && r.written.has('m_a'); })()],
 			// #435 阶段 4：条件表行里的键算「正文条件消费」（按行 `scope` 归属）；scope 是引擎段则不算
 			['表行（scope=叙事段）引用该旗标 ⇒ mechanic 桶', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['Q', ''], ['P', '<<setflag "a">>']], passageTags: [['Q', []]], rules: [{ id: 'r', scope: 'Q', req: ['a'], prio: 1 }] })); return r.buckets.get('a') === 'mechanic' && r.problems.length === 0; })()],
 			['表行 scope 是**引擎段**（script 标签）⇒ 不算叙事消费', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['Q', ''], ['S', ''], ['P', '<<setflag "a">>']], passageTags: [['S', ['script']]], rules: [{ id: 'r', scope: 'S', req: ['a'], prio: 1 }] })); return r.buckets.get('a') !== 'mechanic'; })()],

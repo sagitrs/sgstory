@@ -11,13 +11,23 @@ Object.assign((window.Game.Items ??= {}), {
 		}
 		return window.Game.Gear.advSource(site, gear);   // 行囊也能给优势（A1：火把）
 	},
-	battleDamage(round, inv, defeats, poisoned) {
+	/** `#1227` 类一：本函数**不再认识"中毒"** —— 第 4 实参是**对手状态本体**，异常状态对伤害的影响
+	 * 由故事侧的政策决定（引擎给机制：基准值 ＋ 减伤件 ＋ 封顶；故事给数值与状态语义）。
+	 * 旧写法把 `poisoned` 布尔与 `Sg.story.poisonReduce()` 两个故事概念烙进这条通用公式。 */
+	battleDamage(round, inv, defeats, foe) {
 		const held = Object.keys(inv ?? {}).filter((k) => window.Sg.story.itemEffect?.(k)?.flatDamageReduce);
 		const flat = held.reduce((a, k) => a + (window.Sg.story.itemEffect?.(k)?.flatDamageReduce ?? 0), 0);
-		const rage = poisoned ? 0 : Math.min(2, defeats ?? 0);   // #236：毒液压怒（它每一下都慢半拍——连败的火也压）；未涂毒＝连败递增封顶 +2
 		const base = round >= 3 ? 6 : 4 + round;
-		// 缺面即 0（与契约缺省同义）：值等于缺省 → 声明可去（`#1216` B 半）。
-		const poison = poisoned ? (window.Sg.story.poisonReduce?.() ?? 0) : 0;
-		return Math.max(1, base - flat - poison + rage);
+		// 引擎给**机制**（基准档 ＋ 减伤件 ＋ 地板 1）；**故事政策**（连败递增、异常状态压怒与减伤）
+		// 一律经 `foeDamageAdjust(foe, ctx)` 返回**相对 `base - flat` 的总修正**。
+		// 旧写法把 `Math.min(2, defeats)`（连败 +2）与 `poisoned`（压怒/减伤）两处故事政策烙进这条通用公式。
+		// `#1227` 类一：连败递增与异常状态对策都是**故事政策数据**（`Game.Combat.foePolicies`），
+		// 引擎只按数据算 —— 不再把 `poisoned` 布尔与 `Sg.story.poisonReduce()` 两个故事概念写进公式。
+		const P = window.Game?.Combat?.foePolicies ?? {};
+		let adjust = 0;
+		const venom = foe && typeof foe === 'object' ? foe.venom : false;
+		if (venom && P.venom && typeof P.venom.damageAdjust === 'number') adjust += P.venom.damageAdjust;
+		if (!(venom && P.venom?.suppressStreak)) adjust += Math.min(P.streakCap ?? 0, defeats ?? 0);
+		return Math.max(1, base - flat + adjust);
 	},
 });

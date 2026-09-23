@@ -93,6 +93,7 @@ window.Game = Object.assign(window.Game ?? {}, {
 		}
 	},
 	Combat: {
+		poolsNamed: [],
 		pools: {
 			'雾影': [
 				'雾影·迎上',
@@ -263,6 +264,24 @@ window.Game = Object.assign(window.Game ?? {}, {
 					text: '你退得不快，被尾梢扫了一下。',
 					hurt: 3
 				}
+			}
+		},
+		foePolicies: {
+			streakCap: 2,
+			venom: {
+				damageAdjust: -3,
+				suppressStreak: true
+			},
+			effectFlags: {
+				venom: 'venom'
+			}
+		},
+		foeStateShape: {
+			dragon: {
+				hp: 0,
+				defeats: 0,
+				awake: false,
+				venom: false
 			}
 		}
 	},
@@ -759,7 +778,11 @@ window.Game = Object.assign(window.Game ?? {}, {
 				floor: 4,
 				note: '一次过去办完就回'
 			}
-		]
+		],
+		flipPolicy: {
+			firstFree: true,
+			key: 'star'
+		}
 	},
 	Dragon: {
 		hp: 60,

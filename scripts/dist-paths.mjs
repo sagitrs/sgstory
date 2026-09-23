@@ -68,7 +68,8 @@ export const storyHtml = (slug = DEFAULT_SLUG) => {
 export const shelfHtml = () => join(DIST_DIR, 'index.html');
 
 /** 默认故事的产物（消费者要"游戏本体"时用它；**不是** `dist/index.html`——那是书架页）。 */
-export const defaultStoryHtml = () => storyHtml(DEFAULT_SLUG);
+// `#1261` zero-story: no default story -> return null (callers must tolerate).
+export const defaultStoryHtml = () => (DEFAULT_SLUG ? storyHtml(DEFAULT_SLUG) : null);
 
 /** 故事产物**相对 dist 根**的路径（服务器/URL 用；#363 的验收服务器与 ci 的线上冒烟都按这个形状取）。 */
 export const storyRelPath = (slug = DEFAULT_SLUG) => {

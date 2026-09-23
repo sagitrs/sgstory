@@ -62,9 +62,11 @@ export const equalsDefault = (member, defaults = DEFAULTS) => {
  * 纯函数：读点是不是**带守卫**的形态。
  * 只认可选链（`?.(`／`?.[`）与空值合并（`??`）——twee 里的 `not X()` 是**取反**不是守卫（缺席照样崩）。
  */
-export const isGuardedRead = (tail) => {
+export const isGuardedRead = (tail, before = '') => {
 	const s = String(tail ?? '');
-	return s.startsWith('?.') || /^\s*\?\?/.test(s);
+	const b = String(before ?? '');
+	// 守卫可能落在**名字之前**（`Sg.story?.rules`）⇒ 只看 tail 会漏判"已守卫"（`#1216` B 半实测）。
+	return b.includes('?.') || s.startsWith('?.') || /^\s*\?\?/.test(s);
 };
 
 /** 纯函数：数据成员数（不含能力开关）。正文里的"成员数"一律用这个。 */

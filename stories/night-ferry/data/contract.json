@@ -54,18 +54,6 @@
 			"docs": "道具效果"
 		},
 		{
-			"name": "poisonReduce",
-			"kind": "const",
-			"value": 0,
-			"docs": "毒液减成"
-		},
-		{
-			"name": "dragonMaxHp",
-			"kind": "const",
-			"value": 0,
-			"docs": "龙血上限（本故事无龙）"
-		},
-		{
 			"name": "codexItems",
 			"kind": "game-ref",
 			"path": "Game.Codex.items",

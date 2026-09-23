@@ -52,15 +52,38 @@ jQuery(document).on('keydown.sgSave', (ev) => {
 // · `has(id)` 走条目的 `grant`（阶段 1 它读的是现有旗标 → 零行为变化）
 // · `all()` 返回已知笔记（按声明顺序），`missing(req)` 便于条件表做「缺什么」诊断
 // · 阶段 3 之后写点搬到 `add()`；在此之前本封装**只读**，不写状态（渲染路径契约）
+// `#1247`：路径形态的**单一判据**（读/写共用）。
+// **读是查询**（缺项即无数据，按默认处理）；**写是命令**（没有目的地不等于缺数据）。
+// 所以"缺项即静默"**只对读侧成立**：写侧的缺项与结构畸形**同归出声**。
+// 形态三类：(1) 缺项（undefined／null）(2) 结构畸形（非字符串／空串／空段 a..b）(3) 多源数组（读 OR／写出声）。
+const pathShapeProblem = (path, who) => {
+	// 前缀分开拼：避免形态扫描器把这个模板读成 `Sg.notes.<名字>`（否则报"引用了不存在的成员"）
+	const tag = 'Sg.' + 'notes.' + who;
+	if (typeof path !== 'string') {
+		const got = path === undefined ? 'undefined' : (path === null ? 'null' : typeof path);
+		throw new Error(`${tag}：路径必须是字符串（拿到 ${got}）—— 写侧没有目的地不等于缺数据（#1247）`);
+	}
+	if (path === '' || path.split('.').some((seg) => seg === '')) {
+		throw new Error(`${tag}：路径结构畸形（空串或空段：${JSON.stringify(path)}）（#1247）`);
+	}
+	return path.split('.');
+};
+
 window.Sg.notes = {
 	// 单一路径求值器：笔记只声明 flagPath（如 'ev.tav_tips'），求值在此一处完成——
 	// 这样数据表里不出现任何字面旗标读点（否则会被「选择后果」门的消费推导算成叙事消费）。
 	// 多源 OR（#432-B8/B12）：flagPath 允许给**字符串数组** —— 同一知识的几条获取路径取 any
 	//（例：`world.hall_hint`（看钉失败听人比过）∨ `ev.hall_seen`（看钉成功看准了））。
 	readPath(pc, path) {
+		// (3) 多源数组：OR（`#432-B8/B12`）
 		if (Array.isArray(path)) return path.some((q) => this.readPath(pc, q));
+		// (1) 缺项：**静默**（查询语义：读者遇缺即"未持有"）
+		//     引擎自身调用面依赖这一条：`migrateLegacy` 以 `e?.flagPath` 读**可选**路径
+		if (path == null) return undefined;
+		// (2) 结构畸形：**出声**（作者错，与"缺席三形态"同族）
+		const segs = pathShapeProblem(path, 'readPath');
 		let cur = pc;
-		for (const seg of String(path ?? '').split('.')) { if (cur == null) return undefined; cur = cur[seg]; }
+		for (const seg of segs) { if (cur == null) return undefined; cur = cur[seg]; }   // (1) 键缺失：静默
 		return cur;
 	},
 	// #436-b：表**只经故事注册的入口**取（`Sg.story.notes()`）——本文件将来搬进引擎侧时，
@@ -79,7 +102,13 @@ window.Sg.notes = {
 	// #434 阶段 3：**机制住在引擎侧**（读侧 `has()` 也是在这求值、数据由 `Sg.story.notes()` 给）
 	// —— 故事侧**不新增 provider**，表里的 `flagPath` **就是**写回声明（形状定稿见 Discussion #513）。
 	writePath(pc, path, v) {
-		const segs = String(path ?? '').split('.');
+		// (3) 写侧**不接受多源数组**：多源笔记必须显式给 `setPath`（见 `add()` 的 `#434` 护栏）；
+		//     数组在这里是"歧义目的地"，与结构畸形同族，因此**出声**（不静默写 `pc['a,b']`）
+		if (Array.isArray(path)) {
+			throw new Error('Sg.notes.writePath：写侧不接受多源数组（多源笔记必须显式给 setPath，见 add() 的 #434 护栏）（#1247）');
+		}
+		// (1) 缺项 ＋ (2) 结构畸形：**出声**（写是命令：没有目的地不等于缺数据）
+		const segs = pathShapeProblem(path, 'writePath');
 		let cur = pc;
 		for (const s of segs.slice(0, -1)) { if (cur[s] == null) cur[s] = {}; cur = cur[s]; }
 		cur[segs[segs.length - 1]] = v;

@@ -409,6 +409,7 @@ export const SEGMENTS = [
 	{ id: "test-social-sink-mjs", phase: 'test', cost: 3, cmd: "node test/social-sink.mjs" },
 	// `#1011`（保覆盖版）：`#360` 交涉筹码按类型分派（B 段退役件接回；样本＝`face-fixture` 的 `老板娘·进塔`）
 	{ id: "test-social-lever-mjs", phase: 'test', cost: 3, cmd: "node test/social-lever.mjs" },
+	{ id: "test-notes-absence-mjs", phase: 'test', cost: 2, inputs: ['*'], cmd: "node test/notes-absence.mjs" },   // `#1223`：缺席容忍的运行期判据（需 boot 故事取 Sg.notes，故全跑型）
 	// `#1020`：条件位/授予位的**键形**必须引擎真能求值（`readKey` 权威；`note:n_*` → 条件恒假／授予位抛错）
 	// `#1132` 块2 片A：**故事侧代码面**（零逃生舱方向的 ratchet 门）
 	{ id: "test-story-codeface-mjs-selftest", phase: 'test', cost: 0, inputs: ['*'],   // `#1132` 全跑型（合成输入自证；另见理由登记）
@@ -606,7 +607,7 @@ export const SUITE_MEMBERS = {
 		'test-fatal-guard-mjs', 'test-onetime-pickups-mjs', 'test-roll-binding-mjs', 'test-scenarios-mjs',
 		'test-scenarios-mjs-selftest', 'test-silent-gate-mjs', 'test-gen-needed-mjs', 'test-route-registry-mjs', 'test-contract-defaults-mjs', 'test-comment-face-split-mjs', 'test-comment-mask-mjs', 'test-dialect-mjs', 'test-contract-version-mjs', 'test-npm-entries-guard-mjs', 'test-pc-base-mjs',
 		'test-contract-compat-mjs', 'test-pc-defaults-mjs', 'test-social-sink-mjs', 'test-social-sink-mjs-selftest',
-		'test-social-lever-mjs', 'test-siteinfo-sink-mjs', 'test-siteinfo-sink-mjs-selftest', 'test-event-graph-mjs',
+		'test-social-lever-mjs', 'test-notes-absence-mjs', 'test-siteinfo-sink-mjs', 'test-siteinfo-sink-mjs-selftest', 'test-event-graph-mjs',
 		'test-event-graph-mjs-selftest', 'scripts-audit-mjs-consequences-check', 'scripts-audit-mjs-a11y-check', 'scripts-audit-mjs-sitedisc-check',
 		'scripts-audit-mjs-text-check', 'scripts-audit-mjs-state-check', 'scripts-audit-mjs-literals-check', 'scripts-audit-mjs-slots-check',
 		'scripts-audit-mjs-status-check', 'scripts-audit-mjs-waves-check', 'scripts-audit-mjs-face-fixture-engine', 'scripts-audit-mjs-story2-engine',
@@ -732,6 +733,10 @@ export const inputsMatch = ({ declared = [], changed = [] } = {}) => {
  *（同 `FULL_REASONS` 的口径：降频／不跳过都要留痕）。
  */
 export const INPUTS_WILDCARD_REASONS = {
+	'test-notes-absence-mjs': {
+		reason: '运行期判据：需 boot 故事取 Sg.notes（缺席与畸形两态都要真跑）=> 取全跑型以免静默跳过成假绿',
+		voucher: '#1223',
+	},
 	'test-comment-mask-mjs': {
 		reason: '读码两侧（剥注权威 `editor/lib/core/mask.mjs` ＋ 反例夹具）⇒ 面跨 `editor/**` 与 `test/**` ⇒ 取全跑型以免静默跳过成假绿面',
 		voucher: '#1206',

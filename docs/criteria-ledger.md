@@ -181,7 +181,7 @@ for p in 1 2 3 4; do
   gh api "repos/sagitrs/sgstory/issues/1112/comments?per_page=100&page=$p" \
     --jq '.[] | "===COMMENT===\n" + .body'
 done > /home/sagitrs/tmp/c1218-src/all.md
-grep -c '^===COMMENT===' /home/sagitrs/tmp/c1218-src/all.md   # 断言：136（＝本表分母）
+grep -c '^===COMMENT===' /home/sagitrs/tmp/c1218-src/all.md   # 断言：148（＝本表分母）
 ```
 
 **验收口径**：终稿条数 ＝＝ 源在**声明时点**（2026-09-23T03:18:58Z）的条数（写成"与现存评论一致"会随源增长永远追不上）。源在该时点之后若继续增长，**属新增批次**，按同法再补一批并同步时点与分母。

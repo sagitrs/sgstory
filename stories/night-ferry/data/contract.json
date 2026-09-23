@@ -30,11 +30,6 @@
 			"docs": "条件表：空表（合法）"
 		},
 		{
-			"name": "mechanics",
-			"kind": "null",
-			"docs": "新机制声明表：未启用 ⇒ null（调用方必须跳过，不许当空表）"
-		},
-		{
 			"name": "checkSite",
 			"kind": "null",
 			"docs": "位点表"

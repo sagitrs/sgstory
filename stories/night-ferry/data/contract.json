@@ -28,6 +28,11 @@
 			"name": "pcDefaults",
 			"kind": "empty-object",
 			"docs": "同上：没有专属数值"
+		},
+		{
+			"name": "mechanics",
+			"kind": "null",
+			"docs": "新机制声明表：未启用 ⇒ null（调用方必须跳过，不许当空表）"
 		}
 	]
 }

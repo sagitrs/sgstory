@@ -940,4 +940,5 @@ Object.assign((window.Sg.story ??= {}), {
 	flipReturnFlag: () => 'fog_thin',
 	pcShape: () => __const_pcShape,
 	rules: () => [],
+	mechanics: () => null,
 });

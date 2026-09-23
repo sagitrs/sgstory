@@ -169,6 +169,11 @@
 			"kind": "empty-array"
 		,
 			"docs": "条件表：空表（合法）"
+		},
+		{
+			"name": "mechanics",
+			"kind": "null"
 		}
+
 	]
 }

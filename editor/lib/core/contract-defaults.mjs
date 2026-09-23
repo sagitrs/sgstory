@@ -210,8 +210,6 @@ export const FIXTURE_FACE_EXCEPTIONS = {
 	// 类二：**规格有缺省、引擎当前不读** → 属"可去声明"候选
 	socialHooks: { why: '规格有缺省、引擎当前不读（hook 口子空置）⇒ 可去声明', removal: '引擎引入 hook 读点时（或随声明一起删）' },
 	// 类三：**已裁过渡性缺席**（Lab 裁：随 `#1227` 类一删面）
-	dragonMaxHp: { why: '已裁过渡性缺席（龙伴生数值面，随 `#1227` 类一删）', removal: '`#1227` 类一落地、`Game.Dragon` 删除后，本行可移除' },
-	poisonReduce: { why: '已裁过渡性缺席（毒减伤面，随 `#1227` 类一删）', removal: '`#1227` 类一落地、`Game.Items.poisonReduce` 删除后，本行可移除' },
 };
 
 /** 例外表与钉死集合**互斥**（例外名不得同时出现在钉死集合里；否则是自相矛盾，出声）。 */

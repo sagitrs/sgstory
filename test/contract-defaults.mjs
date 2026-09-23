@@ -12,7 +12,7 @@
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems, READ_FORMS, deriveContractAliases, isTweeFile, contractReadDomain, deriveCapabilityGroups } from '../editor/lib/core/contract-defaults.mjs';
+import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems, READ_FORMS, deriveContractAliases, isTweeFile, contractReadDomain, deriveCapabilityGroups, requiredSilenced } from '../editor/lib/core/contract-defaults.mjs';
 import { storySlugs } from '../scripts/dist-paths.mjs';
 import { maskComments } from '../editor/lib/core/mask.mjs';
 import { outsideQuotes } from '../editor/lib/host/k6criteria.mjs';
@@ -21,7 +21,7 @@ const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 /** 反向核：三故事的数据成员数（能力开关不计）。改动契约时同片更新。 */
 // 现状（A 半不动契约）。B 半逐名加守卫并去声明之后，这三个数会下降（票面 `#1216` 钉进度）。
 const EXPECTED_DEFAULT_MISSING = 0;   // 仅剩 starBudget（保持必给，见缺省表旁理由）   // 见下方信息面：已声明但缺省规格里没有、且缺省承重
-const EXPECTED_DATA_MEMBERS = { 'face-fixture': 21, 'night-ferry': 5, 'minimal-demo': 4 };   // `#1186`（流一）引入契约面 `pcShape` 后 face-fixture +1（跨票联动：谁后合谁带上）
+const EXPECTED_DATA_MEMBERS = { 'face-fixture': 23, 'night-ferry': 6, 'minimal-demo': 5 };   // `#1216` B 半：夹具回 checkSite；dragonMaxHp／poisonReduce 有意缺席（随 #1227 类一删）   // `#1186`（流一）引入契约面 `pcShape` 后 face-fixture +1（跨票联动：谁后合谁带上）
 
 let bad = 0;
 const ok = (name, cond, detail = '') => {
@@ -155,6 +155,16 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 	// 规格自身的完整性
 	const missingDate = Object.entries(DEFAULTS).filter(([, d]) => !d.verified);
 	ok('规格每条缺省都带"最后一核验"', missingDate.length === 0, missingDate.map(([n]) => n).join(' / '));
+	// ── 通则：`required: true` 的成员**不得被静默缺省** ──
+	{
+		const synth = requiredSilenced({ membersByStory: { s: [{ name: 'X', required: true }] }, defaults: { X: 'v' } });
+		ok('能假·required 成员被静默缺省 ⇒ 点名', synth.some((x) => x.code === 'required-silenced' && x.name === 'X'));
+		const synthOk = requiredSilenced({ membersByStory: { s: [{ name: 'X' }] }, defaults: { X: 'v' } });
+		ok('能假·非 required 不点名', synthOk.every((x) => x.code !== 'required-silenced'));
+		const silenced = requiredSilenced({ membersByStory, defaults: DEFAULTS });
+		console.log(`  · required 但被静默缺省（待『#1227』口径处置）：${silenced.length} 项`);
+		for (const x of silenced) console.log(`      ${x.slug}:${x.name}（${x.why}）`);
+	}
 	ok('规格里 equalsDefault 只认同形态或同值', equalsDefault({ name: 'mechanics', kind: 'null' }) && equalsDefault({ name: 'poisonReduce', kind: 'const', value: 0 }) && !equalsDefault({ name: 'poisonReduce', kind: 'const', value: 1 }));
 }
 

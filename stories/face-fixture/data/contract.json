@@ -181,24 +181,6 @@
 			"key": "name",
 			"required": true,
 			"error": "Sg.story.checkSite：位点「{key}」未登记（结构缺失必须报错，#441-E）"
-		},
-		{
-			"name": "dragonMaxHp",
-			"kind": "game-ref",
-			"path": "Game?.Dragon?.hp",
-			"optional": true,
-			"required": true,
-			"type": "number",
-			"error": "Sg.story.dragonMaxHp：故事未提供 Game.Dragon.hp（结构缺失必须报错，#441-E）"
-		},
-		{
-			"name": "poisonReduce",
-			"kind": "game-ref",
-			"path": "Game?.Items?.poisonReduce",
-			"optional": true,
-			"required": true,
-			"type": "number",
-			"error": "Sg.story.poisonReduce：故事未提供 Items.poisonReduce（结构缺失必须报错，#441-E）"
 		}
 
 	]

@@ -12,7 +12,7 @@
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems , contractReadDomain } from '../editor/lib/core/contract-defaults.mjs';
+import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems, READ_FORMS, deriveContractAliases, isTweeFile, contractReadDomain } from '../editor/lib/core/contract-defaults.mjs';
 import { storySlugs } from '../scripts/dist-paths.mjs';
 import { maskComments } from '../editor/lib/core/mask.mjs';
 import { outsideQuotes } from '../editor/lib/host/k6criteria.mjs';
@@ -20,7 +20,7 @@ import { outsideQuotes } from '../editor/lib/host/k6criteria.mjs';
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 /** 反向核：三故事的数据成员数（能力开关不计）。改动契约时同片更新。 */
 // 现状（A 半不动契约）。B 半逐名加守卫并去声明之后，这三个数会下降（票面 `#1216` 钉进度）。
-const EXPECTED_DATA_MEMBERS = { 'face-fixture': 24, 'night-ferry': 13, 'minimal-demo': 12 };   // `#1216` B 半：每去一名声明 → 三故事钉值各下移 1（本行随逐名推进同步）
+const EXPECTED_DATA_MEMBERS = { 'face-fixture': 24, 'night-ferry': 13, 'minimal-demo': 12 };   // `#1186`（流一）引入契约面 `pcShape` 后 face-fixture +1（跨票联动：谁后合谁带上）
 
 let bad = 0;
 const ok = (name, cond, detail = '') => {
@@ -37,7 +37,7 @@ for (const slug of storySlugs().filter((s) => !s.startsWith('__'))) {
 	membersByStory[slug] = JSON.parse(readFileSync(p, 'utf8')).members ?? [];
 }
 const readsByMember = {};
-// 判据的**域**：只采集"某故事声明过的契约成员"的读点（域的定义在权威件 `contractReadDomain`）。
+// 判据的**域**：只采集"某故事声明过的契约成员"的读点（域的定义在权威件 `contractReadDomain` 里）。
 const readDomain = contractReadDomain(membersByStory);
 const walk = (rel) => {
 	const abs = join(ROOT, rel);
@@ -45,16 +45,27 @@ const walk = (rel) => {
 		const r = `${rel}/${e.name}`;
 		if (e.isDirectory()) { if (!/^(node_modules|dist|build|\.)/.test(e.name)) walk(r); continue; }
 		if (!r.endsWith('.twee')) continue;
-		const lines = maskComments(readFileSync(join(ROOT, r), 'utf8')).split('\n');
+		const srcText = readFileSync(join(ROOT, r), 'utf8');
+		const lines = maskComments(srcText).split('\n');
+		const isTwee = isTweeFile(r);
 		for (let i = 0; i < lines.length; i++) {
-			const re = /Sg\s*\??\.\s*story\s*\??\.\s*([A-Za-z_$][\w$]*)/g;
-			let m;
-			while ((m = re.exec(lines[i])) !== null) {
-				// 字符串字面量里的**提名**不是读点（错误消息文案里常见），用现成助手跳过。
-				if (!outsideQuotes(lines[i], m.index)) continue;
-				const tail = lines[i].slice(m.index + m[0].length);
-				(readsByMember[m[1]] ??= []).push({ file: r, line: i + 1, tail, before: m[0] });
-				if (!readDomain.has(m[1])) continue;
+			// 读点**形态**取权威表（一处定义、别处引用）。别名形态按 `X = Sg.story` **派生**，不硬编具体别名。
+			const specs = [{ re: new RegExp(READ_FORMS[0].re.source, 'g'), beforeOf: (m) => m[0] }];
+			// 别名形态对**所有件**都成立（twee 件里的 JS 块同样会 `const S = Sg.story`）⇒ 不按件类型收窄。
+			for (const a of deriveContractAliases(srcText)) {
+				const esc = a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+				specs.push({ re: new RegExp(esc + '\\s*\\??\\.\\s*([A-Za-z_$][\\w$]*)', 'g'), beforeOf: (m) => m[0] });
+			}
+			for (const spec of specs) {
+				spec.re.lastIndex = 0;
+				let m;
+				while ((m = spec.re.exec(lines[i])) !== null) {
+					// JS 件里字符串字面量中的**提名**不是读点（错误消息文案常见）；twee 件的 `` `…` `` 是**表达式插值** ⇒ 不跳。
+					if (!outsideQuotes(lines[i], m.index, { backtickIsQuote: !isTwee })) continue;
+					const tail = lines[i].slice(m.index + m[0].length);
+					if (!readDomain.has(m[1])) continue;
+					(readsByMember[m[1]] ??= []).push({ file: r, line: i + 1, tail, before: spec.beforeOf(m) });
+				}
 			}
 		}
 	}

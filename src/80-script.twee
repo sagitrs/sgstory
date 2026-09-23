@@ -67,7 +67,9 @@ window.Sg.notes = {
 	// 它不得出现故事符号（`Game.Notes`）；结构缺失（未注册）→ **fail-loud**，不静默当空表。
 	table() {
 		const provide = window.Sg.story?.notes;
-		if (typeof provide !== 'function') throw new Error('Sg.notes：故事未注册 `Sg.story.notes()`（接入契约 #436-b／#441-E）——结构缺失必须报错，不许静默当空表');
+		// `#1223`：**整块能力缺席 → 无操作**（数据面溶解后故事不再注册 → 返回空表，不抛）；
+		// 与『注册了但畸形』两分：后者仍是作者错 → 保留下面的出声（能力组同口径）。
+		if (typeof provide !== 'function') return {};
 		const t = provide();
 		// 结构**畸形**同样报错：`null`／非对象／数组都不是「笔记表」。空对象 `{}` 是合法空表（那是数据缺失，不是结构缺失）。
 		if (t == null || typeof t !== 'object' || Array.isArray(t)) throw new Error('Sg.notes：`Sg.story.notes()` 未返回笔记表（拿到 ' + (t === null ? 'null' : Array.isArray(t) ? 'array' : typeof t) + '）——结构畸形必须报错');
@@ -138,6 +140,8 @@ window.Sg.notes = {
 	// 授予（#434）：**幂等** ＋ 真存储 ＋ **双写**（同时置旗标，票面「旗标降为兼容字段」）。
 	// 多源护栏：`flagPath` 是**数组**时必须显式 `setPath`（写哪一条）→ 缺则**报错**，绝不静默多写一个旗标。
 	add(id, pc = State.variables.pc) {
+		// `#1223`：**整块能力缺席**（表为空）→ 无操作；表非空但缺该 id → 仍是作者错 → 出声。
+		if (Object.keys(this.table()).length === 0) return false;
 		const e = this.entry(id);
 		if (!e) throw new Error(`Sg.notes.add：笔记「${id}」未登记（结构缺失必须报错，#434）`);
 		// `#437` C-2c-1b：早退只看**存储**，不看 `has(id)`（＝存储 ∨ 旗标）。
@@ -165,6 +169,7 @@ window.Sg.notes = {
 	// ② `path` 必须属于该笔记的 `flagPath`（否则写进去**读不出来** → fail-loud；门侧 `yieldPathProblems()` 同判据）；
 	// ③ `setPath` 护栏**不适用**（本调用就是“显式声明走哪条”本身）——所以 `add()` 对多源笔记的报错路径不受影响。
 	addPath(id, path, pc = State.variables.pc) {
+		if (Object.keys(this.table()).length === 0) return false;   // 同上：整块缺席 → 无操作
 		const e = this.entry(id);
 		if (!e) throw new Error(`Sg.notes.addPath：笔记「${id}」未登记（结构缺失必须报错，#569）`);
 		const ps = Array.isArray(e.flagPath) ? e.flagPath : [e.flagPath];

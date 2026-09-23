@@ -13,6 +13,12 @@
 // node scripts/report-gate-ledger.mjs # 打印台账 + 一致性检查
 // node scripts/report-gate-ledger.mjs --update # 重新生成 docs/gate-ledger.md
 // node scripts/report-gate-ledger.mjs --selftest # 自证（合成输入，验判定会咬）
+//
+// 退出码（`#1242` ① 起细分）：
+//   0 = 判得了，且一致
+//   1 = 判得了，但**不一致**（报文点名首个不同行号／列／两侧值）
+//   2 = **判不了**（探针读数不足：整体缺失／陈旧／不覆盖本档）——**不是失败，是判不了**；
+//       报文列明缺哪一类，并声明「本次不作结构判定」；显式 `--allow-stale-probe` 时走既有降级
 
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { planChain, testPlan, tierOf, FULL_REASONS } from './test-plan.mjs';
@@ -366,7 +372,7 @@ const TIER_NOTE = (() => {
 
 const head = `# 门的行为化率台账（F2）
 
-> **由 \`scripts/report-gate-ledger.mjs\` 生成**（\`npm run report:gates:update\`）——**不要手改**：\`npm run report:gates:check\` 会校验「文件与实况一致」，漂移即红（与 F6 同源纪律）。
+> **由 \`scripts/report-gate-ledger.mjs\` 生成**（\`npm run report:gates:update\`）——**不要手改**：\`npm run report:gates:check\` 会校验「文件与实况一致」，漂移即红（与 F6 同源纪律）。（校验退出码：0＝一致／1＝不一致（点名首处差异）／2＝判不了（读数不足，本次不作结构判定））
 >
 > 判据（#247 F2）：常设机检分三种形态——
 > **行为化**＝有**正例＋反例自证**（反例真会红）；**仅登记**＝只出报告、不做断言；**人工走查**＝需人判断。
@@ -393,6 +399,48 @@ ${TIER_NOTE}
 };
 
 // ── 自证 ─────────────────────────────────────────────────────────────
+/** `#1242` (1) ：把 `--check` 的"**判不了**（前置不足）"与"**判了，不一致**"分开。
+ *
+ * 症状（已两次）：无读数/读数陈旧时，`--check` 落到逐字节比对 因此 报成"台账与实况不一致" 因此
+ * 读的人先怀疑结构，其实**读数不在册**。因此 两态两码：**2＝判不了**、**1＝判了，不一致**。
+ * 显式给了 `--allow-stale-probe` 因此 视作"探针面排除、其余面照旧严格"（既有语义，不改）。
+ */
+export const checkStateProblems = ({ recs = [], fresh = {}, allowStale = false } = {}) => {
+	if (allowStale) return null;
+	const stale = fresh.stale ?? [];
+	const missing = fresh.missing ?? [];
+	const noReadings = recs.length === 0;
+	const incomplete = recs.length > 0 && (stale.length > 0 || missing.length > 0);
+	if (!noReadings && !incomplete) return null;              // 读数在册且新 因此 可判结构
+	const brief = (xs) => `${xs.slice(0, 8).join('、')}${xs.length > 8 ? ' …' : ''}`;
+	const lines = [];
+	if (noReadings) lines.push('探针读数**整体缺失**（`build/probe-results.json` 不存在或为空）');
+	if (stale.length) lines.push(`读数**陈旧**（\`targetSha\` 不符）**${stale.length}** 条：${brief(stale)}`);
+	if (missing.length) lines.push(`**记录不覆盖本档**（应有 ${fresh.required ?? '?'} 条、缺 **${missing.length}** 条）：${brief(missing)}`);
+	return { kind: 'no-readings', noReadings, stale, missing, lines };
+};
+
+/** `#1242` (1) ：结构不一致时**点名**（首个不同行号 ＋ 表格列名 ＋ 两侧值），别只说"不一致"。 */
+export const ledgerDiff = (a = '', b = '') => {
+	const A = String(a).split('\n');
+	const B = String(b).split('\n');
+	const n = Math.max(A.length, B.length);
+	const cells = (row) => String(row ?? '').split('|');
+	for (let i = 0; i < n; i++) {
+		if ((A[i] ?? '') === (B[i] ?? '')) continue;
+		const ca = cells(A[i]);
+		const cb = cells(B[i]);
+		let cell = null;
+		for (let c = 0; c < Math.max(ca.length, cb.length); c++) if ((ca[c] ?? '') !== (cb[c] ?? '')) { cell = c; break; }
+		let column = null;
+		if (cell !== null) {
+			for (let h = i; h >= 0; h--) if (/^\|\s*-{2,}/.test(A[h] ?? '')) { column = (cells(A[h - 1])[cell] ?? '').trim() || null; break; }
+		}
+		return { line: i + 1, cell, column, expected: A[i] ?? '(缺行)', actual: B[i] ?? '(缺行)' };
+	}
+	return null;
+};
+
 const selftest = () => {
 	// `#899` ③：这一格的**取数**也能是假的 —— 先把「自证」判定本身拿出来量（注释里写算不算）
 	let hbad = 0;
@@ -482,6 +530,30 @@ const selftest = () => {
 		if (!ok) bad++;
 		console.log(`${ok ? '✓' : '✗'} ${name}（命中 ${got}，期望 ${want}）`);
 	}
+	// `#1242` (1) ：**判不了 vs 判了不一致** 的能假格（三态 + 一条反向）
+	{
+		const cases2 = [
+			['读数整体缺失 因此 判不了（缺读数类）', () => checkStateProblems({ recs: [], fresh: {} }),
+				(r) => r && r.kind === 'no-readings' && r.noReadings === true && r.lines.some((l) => /整体缺失/.test(l))],
+			['读数陈旧 因此 判不了（点名陈旧条数）', () => checkStateProblems({ recs: [{ id: 'a' }], fresh: { stale: ['a', 'b'], missing: [], required: 2 } }),
+				(r) => r && r.stale.length === 2 && r.lines.some((l) => /陈旧/.test(l))],
+			['记录不覆盖本档 因此 判不了（点名缺条数）', () => checkStateProblems({ recs: [{ id: 'a' }], fresh: { stale: [], missing: ['b'], required: 2 } }),
+				(r) => r && r.missing.length === 1 && r.lines.some((l) => /不覆盖本档/.test(l))],
+			['读数在册且新 因此 可判（不得报缺读数）', () => checkStateProblems({ recs: [{ id: 'a' }], fresh: { stale: [], missing: [], required: 1 } }),
+				(r) => r === null],
+			['显式 --allow-stale-probe 因此 走既有降级（不得报缺读数）', () => checkStateProblems({ recs: [], fresh: {}, allowStale: true }),
+				(r) => r === null],
+			['结构不一致 因此 点名行号与两侧值', () => ledgerDiff('a\n| x | 1 |\n', 'a\n| x | 2 |\n'),
+				(r) => r && r.line === 2 && r.expected.includes('1') && r.actual.includes('2')],
+			['两侧一致 因此 不得报差异', () => ledgerDiff('a\nb\n', 'a\nb\n'), (r) => r === null],
+		];
+		for (const [name, run, want] of cases2) {
+			const got = run();
+			const okk = want(got);
+			if (!okk) bad++;
+			console.log(`${okk ? '' : ''} ${name}`);
+		}
+	}
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
 	console.log('\n✔ 自证通过：仅登记无理由红 / 未接线无理由红 / 合规绿 / 有理由的仅登记绿 ＋ `hasSelfProof` 四条正反例（注释不算 ✓）＋ `#1019` **接线面**四条正反例 ✓ ＋ `#1056` **入口面**四条（子串不算入口 ✓／真派发照旧要求接线 ✓）');
 };
@@ -557,10 +629,27 @@ const main = () => {
 				console.log(`○ \`--allow-stale-probe\`：**本地产物不覆盖当前树** ⇒ 视作「无读数」（**探针面跳过比对** ✗、该列降级 \`—\` ✓），**其余面照旧逐字节严格** ✓ —— ${parts.join(' ｜ ')}；要拿真读数请重跑 \`node scripts/probe-gates.mjs --probe=${recMode ?? 'fast'}\` ✓（**别拿上次的 json 当现状** ✗）`);
 			}
 		}
+		// `#1242` (1) ：**先判"判不了"**（读数不在册/陈旧）因此 不与"结构不一致"混为一谈。
+		// 退出码语义：**2＝判不了（前置不足）／1＝判了，不一致**。显式 `--allow-stale-probe` 时跳过本段。
+		const stateProblems = checkStateProblems({ recs, fresh, allowStale: argv.includes('--allow-stale-probe') });
+		if (stateProblems) {
+			console.error(' 判不了：**探针读数不足** 因此 本次**不作结构判定**');
+			for (const l of stateProblems.lines) console.error(`   · ${l}`);
+			console.error('   修：先 `node scripts/probe-gates.mjs --probe=fast` 拿读数，再 `npm run report:gates:check`；');
+			console.error('       PR 档可加 `--allow-stale-probe`（探针面显式排除、其余面照旧严格）。');
+			console.error('   因此 读数补齐后再判结构（本次结构面**未判**）。');
+			process.exit(2);
+		}
 		const [a, b] = staleProbe ? [normalizeProbeFace(ledgerNow), normalizeProbeFace(md)] : [ledgerNow, md];
 		if (a !== b) {
 			// 报文说清**是哪一类**不一致（`#936` 老账：只说“不一致”不点哪一列 → 读的人要自己找）
-			console.error(`✗ 台账与实况不一致${staleProbe ? '（**探针面已排除** ⇒ 差异不在探针列 ✓）' : ''}（新增/改名了门但没重新生成）→ 跑 npm run report:gates:update`);
+			const d = ledgerDiff(a, b);
+			console.error(` 台账与实况不一致${staleProbe ? '（**探针面已排除** 因此 差异不在探针列 ）' : ''}（新增 ${rows.length} 项）`);
+			if (d) {
+				console.error(`   首个不同：**第 ${d.line} 行**${d.column ? `（列「${d.column}」）` : (d.cell !== null ? `（第 ${d.cell} 列）` : '')}`);
+				console.error(`     台账：${d.expected}`);
+				console.error(`     实况：${d.actual}`);
+			}
 			bad++;
 		}
 	} else { console.error('✗ 台账文件不存在 → 跑 npm run report:gates:update'); bad++; }

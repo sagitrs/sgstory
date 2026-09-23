@@ -40,7 +40,8 @@ export const K_FACES = Object.freeze([
 		k: 'K5', name: '让步留痕（report-only 必须写明理由）', scope: 'global', tier: 'light',
 		// `#1079`：带 `--allow-stale-probe` —— PR 档不跑探针段（`#1070`）→ 无 `build/probe-results.json`
 		// → 台账的**探针面**不参与逐字节比对（其余面照旧严格）；**且有读数时它不生效**。
-		//注意：不带它会怎样：`#1079` 实测 —— 无读数 → `--check` **rc=1** → K5 必红（**每次 CI**）。
+		//注意：不带它会怎样：`#1079` 实测 ，， 无读数 → `--check` 红 → K5 必红（**每次 CI**）；
+		// `#1242` (1)  之后**语义细分**：该情形退 **rc=2（判不了：前置不足）**；**rc=1 只表示「判了，结构不一致」**。
 		cmd: () => ['scripts/report-gate-ledger.mjs', '--check', '--allow-stale-probe'],
 		evidence: 'docs/gate-ledger.md 头「**仅登记／未接线必须写明理由**（理由写在 `REASONS` 里）」—— §1 的「**可放（转 report-only，不删）**」即让步',
 	},

@@ -1,6 +1,6 @@
 # 门的行为化率台账（F2）
 
-> **由 `scripts/report-gate-ledger.mjs` 生成**（`npm run report:gates:update`）——**不要手改**：`npm run report:gates:check` 会校验「文件与实况一致」，漂移即红（与 F6 同源纪律）。
+> **由 `scripts/report-gate-ledger.mjs` 生成**（`npm run report:gates:update`）——**不要手改**：`npm run report:gates:check` 会校验「文件与实况一致」，漂移即红（与 F6 同源纪律）。（校验退出码：0＝一致／1＝不一致（点名首处差异）／2＝判不了（读数不足，本次不作结构判定））
 >
 > 判据（#247 F2）：常设机检分三种形态——
 > **行为化**＝有**正例＋反例自证**（反例真会红）；**仅登记**＝只出报告、不做断言；**人工走查**＝需人判断。

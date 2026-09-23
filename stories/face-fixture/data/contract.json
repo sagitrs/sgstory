@@ -8,6 +8,8 @@
 			"path": "Game?.Notes?.entries",
 			"default": {},
 			"optional": true
+		,
+			"docs": "笔记表：本故事无笔记 ⇒ 空表（合法）"
 		},
 		{
 			"name": "econEvents",
@@ -43,6 +45,8 @@
 			"name": "pcDefaults",
 			"kind": "const",
 			"value": {}
+		,
+			"docs": "同上：没有专属数值"
 		},
 		{
 			"name": "prepick",
@@ -163,6 +167,8 @@
 		{
 			"name": "rules",
 			"kind": "empty-array"
+		,
+			"docs": "条件表：空表（合法）"
 		}
 	]
 }

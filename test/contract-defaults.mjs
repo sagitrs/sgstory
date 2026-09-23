@@ -12,7 +12,7 @@
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems, READ_FORMS, deriveContractAliases, isTweeFile, contractReadDomain } from '../editor/lib/core/contract-defaults.mjs';
+import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems, READ_FORMS, deriveContractAliases, isTweeFile, contractReadDomain, deriveCapabilityGroups } from '../editor/lib/core/contract-defaults.mjs';
 import { storySlugs } from '../scripts/dist-paths.mjs';
 import { maskComments } from '../editor/lib/core/mask.mjs';
 import { outsideQuotes } from '../editor/lib/host/k6criteria.mjs';
@@ -37,6 +37,10 @@ for (const slug of storySlugs().filter((s) => !s.startsWith('__'))) {
 	if (!existsSync(p)) continue;
 	membersByStory[slug] = JSON.parse(readFileSync(p, 'utf8')).members ?? [];
 }
+// 能力组从**引擎面**派生（`src/10-core.twee` 的 `Sg.capabilityGroups`）——一处定义、别处引用。
+const CORE_SRC = readFileSync(join(ROOT, 'src/10-core.twee'), 'utf8');
+const capabilityGroups = deriveCapabilityGroups(CORE_SRC);
+ok('派生·能力组表可从引擎面读出（派生不到 ⇒ 本格红，不许静默当空）', capabilityGroups !== null);
 const readsByMember = {};
 // 判据的**域**：只采集"某故事声明过的契约成员"的读点（域的定义在权威件 `contractReadDomain` 里）。
 const readDomain = contractReadDomain(membersByStory);
@@ -73,7 +77,7 @@ const walk = (rel) => {
 };
 walk('src');
 const readNames = Object.keys(readsByMember);
-const problems = defaultProblems({ membersByStory, readsByMember, defaults: DEFAULTS });
+const problems = defaultProblems({ membersByStory, readsByMember, defaults: DEFAULTS, capabilityGroups });
 
 // ── 失败面 ──
 // 失败面只留两条：死声明、读了而没声明又无缺省。
@@ -132,7 +136,10 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 {
 	const wrong = Object.entries(EXPECTED_DATA_MEMBERS).filter(([slug, n]) => dataMemberCount(membersByStory[slug] ?? []) !== n);
 	ok('反向核·三故事数据成员数命中钉死值', wrong.length === 0, wrong.map(([s, n]) => `${s} 期望 ${n} 实得 ${dataMemberCount(membersByStory[s] ?? [])}`).join(' / '));
-	ok('反向核·引擎读点规模（成员名 ≥ 20）', readNames.length >= 20, `实得 ${readNames.length}`);
+	// 能力组成员由**组助手**动态读取（形态扫描看不见）⇒ 与死声明同一口径，计入规模数。
+	const groupMembers = new Set(Object.values(capabilityGroups ?? {}).flat());
+	const readNamesAll = [...new Set([...readNames, ...[...groupMembers].filter((n) => Object.values(membersByStory).some((l) => (l ?? []).some((m) => m.name === n)))])];
+	ok('反向核·引擎读点规模（成员名 ≥ 20）', readNamesAll.length >= 20, `实得 ${readNamesAll.length}`);
 }
 
 // ── 守卫判据的能红对（合成输入）──

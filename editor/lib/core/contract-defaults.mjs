@@ -28,12 +28,28 @@ export const CAPABILITY_MEMBERS = new Set(['hasChargen']);
  * - 因此它们**不进 `default-missing`**（那不是"缺省没写"，而是"能力不在"）。
  * 口径一句话：**"缺席＝这个能力不在"是一件事；"缺席＝某个值取零"是另一件事**——前者门控，后者缺省，别混。
  */
-export const CAPABILITY_GROUPS = {
-	flip: ['flipItem', 'flipStarCost', 'flipReturnFlag'],
+/**
+ * **能力组从引擎面派生**（`#1216` B 半 Operator 裁：同一份清单不许写两处）。
+ * 引擎在 `src/10-core.twee` 的 script 段声明 `Sg.capabilityGroups = { … }`；本函数从那里读出。
+ * 派生不到 ⇒ 返回 `null`（调用方**必须出声**，不许静默当空）。
+ */
+export const deriveCapabilityGroups = (coreSource) => {
+	const m = String(coreSource ?? '').match(/Sg\.capabilityGroups\s*=\s*(\{[^}]*\})/);
+	if (!m) return null;
+	try {
+		// 直接返回**组对象**（`{ flip: [ … ] }`）——调用方要的就是它，别再包一层。
+		return JSON.parse(m[1].replace(/([{,]\s*)([A-Za-z_$][\w$]*)\s*:/g, '$1"$2":').replace(/'/g, '"'));
+	} catch { return null; }
+};
+
+/** 该成员是否属于某个能力组（按**派生**结果判；派生不到则返回 null，调用方出声）。 */
+export const capabilityGroupOf = (name, groups) => {
+	if (!groups) return null;
+	return Object.entries(groups).find(([, ns]) => ns.includes(name))?.[0] ?? null;
 };
 
 /** 该成员是否属于某个能力组（属组的成员不按"单个缺省"判）。 */
-export const capabilityGroupOf = (name) => Object.entries(CAPABILITY_GROUPS).find(([, ns]) => ns.includes(name))?.[0] ?? null;
+
 
 /** 记一次核验的日期（本条规格逐条带"最后一核验"；改动或复核时更新）。 */
 const VERIFIED = '2026-09-22';
@@ -156,12 +172,15 @@ export const dataMemberCount = (members = []) => members.filter((m) => !CAPABILI
  * 纯函数：本节口径的缺口清单（空＝绿）。
  * `readsByMember`：成员名 → 读点数组（每项 `{ file, line, tail}`，`tail` 是成员名之后的原文）。
  */
-export const defaultProblems = ({ membersByStory = {}, readsByMember = {}, defaults = DEFAULTS } = {}) => {
+export const defaultProblems = ({ membersByStory = {}, readsByMember = {}, defaults = DEFAULTS, capabilityGroups = null } = {}) => {
+	// 能力组成员由**组助手**读取（`Sg.story[n]()` 是动态取，形态扫描看不见）⇒ 按"已被读"算，且不按单个缺省判。
+	const inCapabilityGroup = (n) => capabilityGroupOf(n, capabilityGroups) !== null;
 	const out = [];
 	for (const [slug, members] of Object.entries(membersByStory)) {
 		const declared = new Set(members.map((m) => m.name));
 		// 一、死声明：声明了但引擎从不读
-		for (const n of declared) if (!(n in readsByMember)) out.push({ slug, code: 'dead-declaration', name: n });
+		// 能力组成员由组助手读取（动态取，形态扫描看不见）⇒ 不算死声明。
+		for (const n of declared) if (!inCapabilityGroup(n) && !(n in readsByMember)) out.push({ slug, code: 'dead-declaration', name: n });
 		// 二、冗余声明：值等于缺省，且读点全带守卫（去声明的前提）
 		for (const m of members) {
 			if (!equalsDefault(m, defaults)) continue;
@@ -180,7 +199,7 @@ export const defaultProblems = ({ membersByStory = {}, readsByMember = {}, defau
 			// 则缺省规格里没有它是**正当机制**（必给成员），不是缺口。
 			const declarers = Object.values(membersByStory).filter((list) => (list ?? []).some((x) => x.name === m.name)).length;
 			const storyCount = Object.values(membersByStory).filter((list) => (list ?? []).length > 0).length;
-			if (capabilityGroupOf(m.name)) continue;   // 能力组不按『单个缺省』判（见 CAPABILITY_GROUPS）
+			if (inCapabilityGroup(m.name)) continue;   // 能力组不按『单个缺省』判（见 CAPABILITY_GROUPS）
 			if ((readsByMember[m.name] ?? []).length && !(m.name in defaults) && declarers < storyCount) {
 				out.push({ slug, code: 'default-missing', name: m.name,
 					at: (readsByMember[m.name] ?? []).map((r) => r.file + ':' + r.line),

@@ -106,6 +106,9 @@ if (wantAll || arg('text')) {
 	// `#602`：**主题词表属该故事的数据**（经 `Sg.story.text()` 取）——原先硬编码在本门里 →
 	// 换故事后本行还在打印**故事 1 的词**（全 0 照绿＝空判，实测 `--story hollow-cave` 输出 `雾×0 星×0 …`）。
 	// 数据住**该故事目录**（`stories/<slug>/audit.json`，不进产物）；缺文件/畸形 → 抛错（`loadStoryAudit` 负责）
+	// `#1261` zero-story: no stories/<slug>/audit.json to read (this gate's data lives in the story dir).
+	// The gate has no sample here, so say so and skip instead of joining null into a path.
+	if (!ctx.storySlug) { console.log('  #1261 zero-story mode: no story text face -> text gate skipped'); return; }
 	const auditData = loadStoryAudit(ctx.storySlug, { root: ROOT });
 	const words = auditData.topicWords;
 	if (!words.length) console.log('  主题词密度：**本故事未声明主题词**（`stories/<slug>/audit.json` 的 `text.topicWords` 为空）——本判据对该故事不适用，不再借用其它故事的词表（#602）');

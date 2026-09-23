@@ -42,6 +42,9 @@ export const distState = ({ distPath = DIST_PATH, srcDir = SRC_DIR } = {}) => {
 
 export const assertFreshDist = ({ distPath = DIST_PATH, srcDir = SRC_DIR, who = '本脚本' } = {}) => {
 	const st = distState({ distPath, srcDir });
+	// `#1261` zero-story: no per-story product exists at all -> this assertion has no subject.
+	// Return an explicit marker instead of throwing 'run build' (which would be misleading).
+	if (st.noStory) return { skipped: true, reason: 'zero-story mode (#1261)' };
 	if (!st.exists) {
 		throw new Error(`找不到 dist/index.html——先跑 \`npm run build\`（${who}要检查构建产物；缺产物时静默跳过＝假绿）`);
 	}

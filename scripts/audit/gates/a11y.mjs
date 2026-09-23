@@ -91,7 +91,7 @@ if (wantAll || arg('a11y')) {
 	else {
 		// #319③：读构建产物前先过新鲜度守卫——过期/缺失都响亮报错（此前缺产物会静默跳过＝假绿）
 		assertFreshDist({ who: '可访问性门（lang 检查）' });
-		if (!/<html[^>]*\slang="zh-CN"/.test(readFileSync(defaultStoryHtml(), 'utf8'))) { console.log('  ✗ dist/index.html 缺 lang="zh-CN"'); bad++; }
+		if (!/<html[^>]*\slang="zh-CN"/.test((defaultStoryHtml() ? readFileSync(defaultStoryHtml(), 'utf8') : ''))) { console.log('  ✗ dist/index.html 缺 lang="zh-CN"'); bad++; }
 	}
 	// 装饰 glyph： 必须被 aria-hidden 包裹；.act-n 角标必须 aria-hidden
 	let bare = 0;

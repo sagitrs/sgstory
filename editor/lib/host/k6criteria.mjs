@@ -142,12 +142,12 @@ export const primitiveWriteProblems = (files, hostDir = 'editor/lib/host') => {
  *（在字符串里写 `window.` 只是**数据**；只有裸写才是**真的去取**）。
  * 为什么不用现成遮蔽器：实测 `maskAll` 在 `emit.mjs`（大量模板串/转义）上**失准** → 残留 5 处假报；
  * 行内判定的失效模式是"漏报字符串里的假用法" —— 而那本来就不是用法 → 方向安全。 */
-export const outsideQuotes = (line, col) => {
+export const outsideQuotes = (line, col, { backtickIsQuote = true } = {}) => {
 	let q = null;
 	for (let i = 0; i < col; i++) {
 		const c = line[i];
 		if (q) { if (c === '\\') i++; else if (c === q) q = null; continue; }
-		if (c === "'" || c === '"' || c === '`') q = c;
+		if (c === "'" || c === '"' || (c === '`' && backtickIsQuote)) q = c;
 	}
 	return q === null;
 };

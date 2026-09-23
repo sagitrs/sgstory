@@ -10,7 +10,7 @@
 | 新名 | 角色（一句） | 收编的旧名 |
 |---|---|---|
 | **`.acts`** | 动作区：一段／一区块里**可点项**的容器 | `.scene-acts`（动态构造，类与 id 同名）／`.fight-acts`／`.ending-acts` |
-| **`.acts-wrap`** | `.acts` 的**横排变体**（结局页那一处用） | （原 `.ending-acts` 的布局部分） |
+| **`.acts-wrap`** | `.acts` 的**横排变体**（结局页那一处用） |（原 `.ending-acts` 的布局部分） |
 | **`.foot`** | 脚注区：一块收尾提示区；**两变体** `.foot-hint`／`.foot-lead` 属同角色，不另立 | `.ending-foot`／`.ending-foot-hint`／`.ending-foot-lead` |
 | **`.panel`** | 面板：**成组容器**（含"容器与项共用词根"那类）；**项不另立名** | `.soc-opts`（容器） |
 | **`.meta`** | 元信息／次要信息**文字**（**文字角色，非容器**） | `.fight-meta` |
@@ -40,7 +40,7 @@
 
 | 成因 | 成员 | 性质 | 处置 |
 |---|---|---|---|
-| **调用点漏参** | `.soc-ask`／`.soc-cost`／`.soc-done`／`.soc-meta`／`.soc-no`／`.soc-opt`／`.soc-said`／`.soc-opts`（`socpanel` 一族） | **缺陷**：`<<socpanel>>` 未传实参 ⇒ `Game.Social.ask(undefined)` 恒 `null` ⇒ widget 内 `<<if _a>>` 永不成立 | 修＝补实参（见 `#1239`，并入 M1a 夹具化那批），属**行为变更**须显式声明 |
+| **调用点漏参** | `.soc-ask`／`.soc-cost`／`.soc-done`／`.soc-meta`／`.soc-no`／`.soc-opt`／`.soc-said`／`.soc-opts`（`socpanel` 一族） | **缺陷**：`<<socpanel>>` 未传实参 → `Game.Social.ask(undefined)` 恒 `null` → widget 内 `<<if _a>>` 永不成立 | 修＝补实参（见 `#1239`，并入 M1a 夹具化那批），属**行为变更**须显式声明 |
 | **真·数据门** | `.fight-log`／`.scene-feedback` | 能力在、当前语料不可达（`<<if $pc.ev.fight.history and ….length>>` 等） | 保留待消费者 |
 
 
@@ -60,8 +60,8 @@
 ### 附：本片改名带来的一处**非可见面**变化（须显式声明）
 
 结局段容器由 `.ending-acts` 改为 `.acts` 后，**落进了** `autoActs()` 的选择器
-（`if (querySelector('.acts'))`）⇒ 43 段里有 **7 段** 的 `textContent` 不同：**多插 7 条"跳到行动"无障碍跳转链接**
+（`if (querySelector('.acts'))`）→ 43 段里有 **7 段** 的 `textContent` 不同：**多插 7 条"跳到行动"无障碍跳转链接**
 （`position:absolute;left:-9999px`，**视觉隐藏**，方向是**改善**）。
 
-⇒ 这**不是玩家可见面变更**，但**是 DOM／`textContent` 变化**。
-⇒ 任何人拿"可见文本逐字节相同"做对照时，**这 7 段会被读成差异** —— 那是本笔已知差异，不是回归。
+→ 这**不是玩家可见面变更**，但**是 DOM／`textContent` 变化**。
+→ 任何人拿"可见文本逐字节相同"做对照时，**这 7 段会被读成差异** —— 那是本笔已知差异，不是回归。

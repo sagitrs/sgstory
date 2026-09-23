@@ -69,6 +69,21 @@ export const isGuardedRead = (tail, before = '') => {
 	return b.includes('?.') || s.startsWith('?.') || /^\s*\?\?/.test(s);
 };
 
+/**
+ * 本判据的**域**：某故事声明过的契约成员名。
+ *
+ * 为什么要有这个域：判据问的是"**这条声明**有没有运行时消费者"，域里只该有**契约成员**——
+ * 引擎在契约对象上自加的属性（如 `overBudget`）与 JS 自身的方法（`includes`／`join`）**从来不在域内**，
+ * 因此它们不是"被过滤掉的特例"，而是**本就不属于本判据**。
+ *
+ * 声明面取故事自己的 `data/contract.json`（声明处本身）⇒ 不另手列清单、不造第二份真相。
+ */
+export const contractReadDomain = (membersByStory = {}) => {
+	const out = new Set();
+	for (const list of Object.values(membersByStory)) for (const m of list ?? []) out.add(m.name);
+	return out;
+};
+
 /** 纯函数：数据成员数（不含能力开关）。正文里的"成员数"一律用这个。 */
 export const dataMemberCount = (members = []) => members.filter((m) => !CAPABILITY_MEMBERS.has(m.name)).length;
 

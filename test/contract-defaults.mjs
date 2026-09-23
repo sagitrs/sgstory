@@ -20,8 +20,8 @@ import { outsideQuotes } from '../editor/lib/host/k6criteria.mjs';
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 /** 反向核：三故事的数据成员数（能力开关不计）。改动契约时同片更新。 */
 // 现状（A 半不动契约）。B 半逐名加守卫并去声明之后，这三个数会下降（票面 `#1216` 钉进度）。
-const EXPECTED_DEFAULT_MISSING = 3;   // 仅剩 starBudget（保持必给，见缺省表旁理由）   // 见下方信息面：已声明但缺省规格里没有、且缺省承重
-const EXPECTED_DATA_MEMBERS = { 'face-fixture': 20, 'night-ferry': 2, 'minimal-demo': 1 };   // `#1186`（流一）引入契约面 `pcShape` 后 face-fixture +1（跨票联动：谁后合谁带上）
+const EXPECTED_DEFAULT_MISSING = 0;   // 仅剩 starBudget（保持必给，见缺省表旁理由）   // 见下方信息面：已声明但缺省规格里没有、且缺省承重
+const EXPECTED_DATA_MEMBERS = { 'face-fixture': 21, 'night-ferry': 5, 'minimal-demo': 4 };   // `#1186`（流一）引入契约面 `pcShape` 后 face-fixture +1（跨票联动：谁后合谁带上）
 
 let bad = 0;
 const ok = (name, cond, detail = '') => {
@@ -98,8 +98,9 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 	console.log(`  · 该去但前提未满足（去声明会撞 L1／等价面，见票面 #1216）：${redundant.length} 项`);
 	for (const p of redundant) console.log(`      ${p.slug}:${p.name}（${p.why}）`);
 	// 两张清单做完后本就该空 ⇒ 非空校验改用合成输入（能假：给一条“值等于缺省且全守卫”的声明必须列出来）。
-		const syntheticRedundant = defaultProblems({ membersByStory: { 's': [{ name: 'rules', kind: 'empty-array' }] },
-			readsByMember: { rules: [{ file: 'x.twee', line: 1, tail: '?.(a) ?? []', before: 'Sg.story.rules' }] }, defaults: DEFAULTS });
+		// 用**非必给**成员（必给成员的声明不可去，会被正确跳过 ⇒ 拿它测不出『该去』这一支）。
+		const syntheticRedundant = defaultProblems({ membersByStory: { 's': [{ name: 'combatPool', kind: 'empty-array' }] },
+			readsByMember: { combatPool: [{ file: 'x.twee', line: 1, tail: '?.(a) ?? []', before: 'Sg.story.combatPool' }] }, defaults: DEFAULTS });
 		ok('能假·该去的声明可枚举（合成一条冗余声明必须列出）', syntheticRedundant.some((x) => x.code === 'redundant-declaration'));
 	// B 半做完后真实清单**本就该空**（空＝做完 ✓）⇒ 非空校验改用**合成输入**（能假：给一个未守卫的读点必须列出来 ✓）。
 		const synthetic = defaultProblems({ membersByStory: { 's': [{ name: 'rules', kind: 'empty-array' }] },

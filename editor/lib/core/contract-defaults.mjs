@@ -17,6 +17,13 @@
 // 由另一张票跟踪，清单写在票面。
 
 /** 能力开关（**仅此一名**，判据件钉住）：它回答"这个故事有没有这一面"，不是数据成员。 */
+/**
+ * **必给成员**：引擎读点**没有良性缺省**——缺了当场 `throw`（结构缺失必须 fail-loud）。
+ * ⇒ 这些成员的声明**必须留**（"去声明"的前提是"读点全带良性守卫"；抛错不是良性守卫）。
+ * ⇒ 也不进 `default-missing`（那不是"缺省没写"，而是"本来就该由故事给"）。
+ */
+export const REQUIRED_MEMBERS = new Set(['rules', 'notes', 'pcDefaults', 'starBudget', 'foeState', 'battleDamage']);
+
 export const CAPABILITY_MEMBERS = new Set(['hasChargen']);
 
 /**
@@ -186,6 +193,7 @@ export const defaultProblems = ({ membersByStory = {}, readsByMember = {}, defau
 			if (!equalsDefault(m, defaults)) continue;
 			const sites = readsByMember[m.name] ?? [];
 			const unguarded = sites.filter((s) => !isGuardedRead(s.tail, s.before));
+			if (REQUIRED_MEMBERS.has(m.name)) continue;   // 必给成员的声明不可去（读点是 fail-loud）
 			if (sites.length && unguarded.length === 0) out.push({ slug, code: 'redundant-declaration', name: m.name,
 				why: `值等于缺省，${sites.length} 处读点全带守卫` });
 		}
@@ -199,7 +207,7 @@ export const defaultProblems = ({ membersByStory = {}, readsByMember = {}, defau
 			// 则缺省规格里没有它是**正当机制**（必给成员），不是缺口。
 			const declarers = Object.values(membersByStory).filter((list) => (list ?? []).some((x) => x.name === m.name)).length;
 			const storyCount = Object.values(membersByStory).filter((list) => (list ?? []).length > 0).length;
-			if (inCapabilityGroup(m.name)) continue;   // 能力组不按『单个缺省』判（见 CAPABILITY_GROUPS）
+			if (inCapabilityGroup(m.name) || REQUIRED_MEMBERS.has(m.name)) continue;   // 能力组不按『单个缺省』判（见 CAPABILITY_GROUPS）
 			if ((readsByMember[m.name] ?? []).length && !(m.name in defaults) && declarers < storyCount) {
 				out.push({ slug, code: 'default-missing', name: m.name,
 					at: (readsByMember[m.name] ?? []).map((r) => r.file + ':' + r.line),

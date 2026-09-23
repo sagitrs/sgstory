@@ -7,6 +7,9 @@
 			"kind": "game-ref",
 			"path": "Game.Economy.events",
 			"docs": "空表：本故事没有经济事件"
-		}
+		},
+		{ "name": "rules", "kind": "empty-array", "docs": "条件表：空表（合法）" },
+		{ "name": "notes", "kind": "empty-object", "docs": "笔记表：本故事无笔记 ⇒ 空表（合法）" },
+		{ "name": "pcDefaults", "kind": "empty-object", "docs": "同上：没有专属数值" }
 	]
 }

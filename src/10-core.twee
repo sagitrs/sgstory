@@ -458,9 +458,9 @@ Macro.add('applyQuickPreset', {
 window.Sg.capabilityGroups = { flip: ['flipItem', 'flipStarCost', 'flipReturnFlag'] };
 /**
  * 能力组门控（单点入口，两处读点共用）：
- * - 全缺 ⇒ 能力关（不崩、不渲染）；
- * - **部分缺 ⇒ 出声**点名缺哪几个（半声明是作者错，别静默）；
- * - 全在 ⇒ 给参数。**不给数值缺省**（`flipStarCost` 缺省 0 会让『翻转免费』静默成立＝危险缺省）。
+ * - 全缺 → 能力关（不崩、不渲染）；
+ * - **部分缺 → 出声**点名缺哪几个（半声明是作者错，别静默）；
+ * - 全在 → 给参数。**不给数值缺省**（`flipStarCost` 缺省 0 会让『翻转免费』静默成立＝危险缺省）。
  */
 window.Sg.capability = (group) => {
 	const names = window.Sg.capabilityGroups?.[group];
@@ -469,7 +469,10 @@ window.Sg.capability = (group) => {
 	if (have.length === 0) return { ok: false, reason: 'off' };
 	if (have.length < names.length) return { ok: false, reason: 'partial', missing: names.filter((n) => !have.includes(n)) };
 	const out = { ok: true };
-	for (const n of names) out[n.replace(/^flip/, '').toLowerCase()] = window.Sg.story[n]();
+	// 键名**显式映射**（原先用 `n.replace(/^flip/,'')` 机械推导 → `flipStarCost` 成了 `starcost`，
+	// 调用方要的 `cost` 取到 undefined → `spent` 变 NaN。名字映射要写死，别推导。）
+	const KEYS = { flipItem: 'item', flipStarCost: 'cost', flipReturnFlag: 'flag' };
+	for (const n of names) out[KEYS[n] ?? n] = window.Sg.story[n]();
 	return out;
 };
 
@@ -767,7 +770,7 @@ window.Sg.capability = (group) => {
 <</nobr>><</widget>>
 <<widget "flipEra">><<nobr>>
 	/% `#1132` B3＋`#1216` B 半：时代翻转是**能力组**（三名一起才是这个能力）。
-	   全缺 ⇒ 能力关（不渲染）；部分缺 ⇒ 出声点名；不给数值缺省。 %/
+	   全缺 → 能力关（不渲染）；部分缺 → 出声点名；不给数值缺省。 %/
 	<<set _flipCap to Sg.capability('flip')>>
 	<<if _flipCap.reason is 'off'>>
 	<<elseif _flipCap.reason is 'partial'>>

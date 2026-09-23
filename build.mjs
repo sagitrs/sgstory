@@ -72,7 +72,7 @@ if (files.length === 0) {
 	process.exit(1);
 }
 if (slugs.length === 0) {
-	console.error('✗ stories/ 下没有找到故事清单（需 <slug>/00-story.json）');
+	console.error(' stories/ 下没有找到故事清单（需 <slug>/00-story.json）');
 	process.exit(1);
 }
 const stories = slugs.map((slug) => ({ slug, ...readStory(slug) }));
@@ -87,8 +87,8 @@ const stories = slugs.map((slug) => ({ slug, ...readStory(slug) }));
 		manifests: stories.map((s) => ({ slug: s.slug, files: s.files ?? [] })),
 	});
 	if (reg.length) {
-		for (const p of reg) console.error(`✗ [${p.code}] ${p.msg}`);
-		console.error('✗ 登记不通过：**引擎件**必须进 ORDER／**故事件**必须进它自己的清单（两层的登记语义都没丢）');
+		for (const p of reg) console.error(` [${p.code}] ${p.msg}`);
+		console.error(' 登记不通过：**引擎件**必须进 ORDER／**故事件**必须进它自己的清单（两层的登记语义都没丢）');
 		process.exit(1);
 	}
 }
@@ -207,10 +207,10 @@ for (const s of stories) {
 	}
 }
 
-// `#1114` 2b-2b：**产物段 body ≡ 源 md 剥注释后的 body** ✗（防「md 路径漏剥」回归 ✓）。
-//   ⚠️ **不能写成“产物里不含 `/%`”** —— 那是**恒真格**（拼装输出已剥 → 永不含）：
-// 实测（评审要的能假那一半）：往 md 里喂一个 `/% 探针注释 %/` ⇒ 若只查“不含 /%” ⇒ `build rc=0` **不报** ✗。
-//   改为**比对两个量**（产物段 body ↔ 源剥后的 body）⇒ 漏剥时两者不等 ⇒ 必红 ✓。
+// `#1114` 2b-2b：**产物段 body ≡ 源 md 剥注释后的 body** （防「md 路径漏剥」回归 ）。
+//    **不能写成“产物里不含 `/%`”** —— 那是**恒真格**（拼装输出已剥 → 永不含）：
+// 实测（评审要的能假那一半）：往 md 里喂一个 `/% 探针注释 %/`  若只查“不含 /%”  `build rc=0` **不报** 。
+//   改为**比对两个量**（产物段 body ↔ 源剥后的 body） 漏剥时两者不等  必红 。
 for (const s of stories) {
 	const out = merges.get(s.slug) ?? '';
 	const got = new Map(parseTweePassages(out).map((p) => [p.name, p.body]));
@@ -238,7 +238,7 @@ for (const s of stories) {
 	}
 }
 
-// `#1185`：生成物家族的"产物必有源"守卫 —— 源删而产物残留 ⇒ 大声报并点名两侧。
+// `#1185`：生成物家族的"产物必有源"守卫 —— 源删而产物残留  大声报并点名两侧。
 //   为什么放在构建期：残留产物会被继续打进包，读者以为源还在；构建是唯一每个故事都必经的关口。
 {
 	const famSrc = Object.fromEntries(

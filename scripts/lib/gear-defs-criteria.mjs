@@ -43,8 +43,8 @@ export const CONTRACT_DOC = 'docs/story2-contracts.md';
 
 const realRead = (f) => { try { return readFileSync(f, 'utf8'); } catch { return ''; } };
 
-// ── 锚：**一处定义**（原先 :36 与 :47 各写一份 ⇒ 必腐；`#1216` B 半给 `gearDef` 读点加了守卫后
-// 形态变为 `gearDef?.(k)?.<字段>`，两份副本同时失配 ⇒ 门报"派生不到锚"。）
+// ── 锚：**一处定义**（原先:36 与:47 各写一份 → 必腐；`#1216` B 半给 `gearDef` 读点加了守卫后
+// 形态变为 `gearDef?.(k)?.<字段>`，两份副本同时失配 → 门报"派生不到锚"。）
 // 一并用 **RegExp(…source)** 复制（避免 `g` 标志共享 lastIndex 的经典坑）。
 const GEARDEF_READ_RE = /gearDef\??\.?\([^)]*\)\??\.([A-Za-z_$][\w$]*)/;
 const hasGearDefRead = (src) => GEARDEF_READ_RE.test(maskComments(String(src)));
@@ -73,22 +73,22 @@ export const gearDefsCriteriaProblems = ({ read = realRead, engine = null, doc =
 	const enginePath = enginePaths.join(' ＋ ');
 	const src = enginePaths.map((f) => read(f)).join('\n');
 	const txt = read(doc);
-	if (!src) problems.push(`✗ **读数不成立**：引擎件 \`${enginePath}\` **读不到** ✗（口径门比不了 ✓）`);
-	if (!txt) problems.push(`✗ **读数不成立**：契约文档 \`${doc}\` **读不到** ✗（口径门比不了 ✓）`);
+	if (!src) problems.push(` **读数不成立**：引擎件 \`${enginePath}\` **读不到** （口径门比不了 ）`);
+	if (!txt) problems.push(` **读数不成立**：契约文档 \`${doc}\` **读不到** （口径门比不了 ）`);
 	if (problems.length) return problems;
 	const code = codeReadFields(src);
 	const declared = docDeclaredFields(txt);
-	if (!code.length) problems.push(`✗ **读数不成立**：\`${enginePath}\` 里**抽不到** \`gearDef(...)?.<字段>\` ✗（锚没命中 ⇒ 空转 ✓）`);
-	if (!declared.length) problems.push(`✗ **读数不成立**：\`${doc}\` §1.2 里**抽不到**表格首列字段 ✗（空转 ✓）`);
+	if (!code.length) problems.push(` **读数不成立**：\`${enginePath}\` 里**抽不到** \`gearDef(...)?.<字段>\` （锚没命中  空转 ）`);
+	if (!declared.length) problems.push(` **读数不成立**：\`${doc}\` §1.2 里**抽不到**表格首列字段 （空转 ）`);
 	if (problems.length) return problems;
 	const onlyCode = code.filter((f) => !declared.includes(f));
 	const onlyDoc = declared.filter((f) => !code.includes(f));
 	if (onlyCode.length || onlyDoc.length) {
-		problems.push('✗ **`Gear.defs` 口径不一致**（**对称差** ✓）：\n'
+		problems.push(' **`Gear.defs` 口径不一致**（**对称差** ）：\n'
 			+ `    · **②代码实际读的独有**：${onlyCode.join('、') || '（无）'}\n`
 			+ `    · **③文档声明的独有**：${onlyDoc.join('、') || '（无）'}\n`
 			+ `    · 共有：${code.filter((f) => declared.includes(f)).join('、') || '（无）'}\n`
-			+ `  ⇒ 作者照 ③ 写 ⇒ 引擎在 \`${enginePath}\` **读不到** ✓（"按文档写 ⇒ 引擎不认"✓）`);
+			+ `   作者照 ③ 写  引擎在 \`${enginePath}\` **读不到** （"按文档写  引擎不认"）`);
 	}
 	return problems;
 };

@@ -152,7 +152,7 @@ export const PROBES = [
 			replace: 'for (const key of []) out.push(',
 		},
 		expect: { rc: 1, stdout: /字面状态读/ },
-		why: '量的是 `tableReadProblems` 的**读侧判定**真的会红 ✓（`test/state-diagnose.mjs:111` 那条「反例·`tableReadProblems`」✓）—— 掐掉产出 ⇒ 该断言必须红 ✓',
+		why: '量的是 `tableReadProblems` 的**读侧判定**真的会红 （`test/state-diagnose.mjs:111` 那条「反例·`tableReadProblems`」）—— 掐掉产出  该断言必须红 ',
 	},
 	{
 		// 台账行：`test/k4-references.mjs`（`#1016` 新件）
@@ -170,7 +170,7 @@ export const PROBES = [
 			replace: 'for (const r of []) {',
 		},
 		expect: { rc: 1, stdout: /门面引用/ },
-		why: '量的是「登记表里指向**不存在对象**的引用**真会被点名**」（`#1016` 那族：声明了要做 X、实际没做 ✓）—— 空掉判据循环 ⇒ 反例①②③（与 `#1052` 的未入库/不存在两类）必须红且点名 ✓（基线绿＝现行登记表里**没有**坏引用 ✓）。⚠️ 锚用 `for (const r of rows) {` 而非循环体：`#1052` 把体改成**两条**收集支（磁盘 ✗ ／ 未入库 ✗）⇒ 锤在体上只能证明其中一条 ✓ —— 锤在**循环头**才能同时量到两条 ✓（同一文件内该字符串唯一 ✓）。',
+		why: '量的是「登记表里指向**不存在对象**的引用**真会被点名**」（`#1016` 那族：声明了要做 X、实际没做 ）—— 空掉判据循环  反例①②③（与 `#1052` 的未入库/不存在两类）必须红且点名 （基线绿＝现行登记表里**没有**坏引用 ）。 锚用 `for (const r of rows) {` 而非循环体：`#1052` 把体改成**两条**收集支（磁盘  ／ 未入库 ） 锤在体上只能证明其中一条  —— 锤在**循环头**才能同时量到两条 （同一文件内该字符串唯一 ）。',
 	},
 	{
 		// 台账行：`scripts/report-gate-ledger.mjs` —— 探针刀口对着**台账自己**
@@ -188,7 +188,7 @@ export const PROBES = [
 			replace: 'export const hasSelfProof = (src) => true || /负例|反例|selftest/.test(maskComments(String(src ?? \'\'), { file: \'ledger\', twee: false }));',
 		},
 		expect: { rc: 1, stdout: /hasSelfProof/ },
-		why: '量的是「自证」判定**自己**能假 ✓（本列若恒真 ⇒ 整列读数作废 ✗）—— 与 `#899` ③ 同源：**判定也要有能假的另一半** ✓',
+		why: '量的是「自证」判定**自己**能假 （本列若恒真  整列读数作废 ）—— 与 `#899` ③ 同源：**判定也要有能假的另一半** ',
 	},
 	{
 		// 车道 D 切片 2（`#215` `18501384`）：**键级图**的运行器自证
@@ -203,7 +203,7 @@ export const PROBES = [
 			replace: 'for (const face of []) for (const k of asList(row?.[face]))',
 		},
 		expect: { rc: 1, stdout: /keysGrantedBy|grantedBy/ },
-		why: '量的是「键级图」的两张表**真的**从数据面算出来 ✓（掐掉授予面 ⇒ `grantedBy` 空 ⇒ 合成反例与真数据反查都红 ✓）—— 不是常数 ✓',
+		why: '量的是「键级图」的两张表**真的**从数据面算出来 （掐掉授予面  `grantedBy` 空  合成反例与真数据反查都红 ）—— 不是常数 ',
 	},
 	{
 		// 车道 D 切片 3（`#215` `18502113`）：**显示层**的缺口守卫 —— 掐掉"缺数据 → 抛" → 空图 + 该用例必红
@@ -217,7 +217,7 @@ export const PROBES = [
 			replace: 'if (false) {',
 		},
 		expect: { rc: 1, stdout: /rules\.json|contract\.json/ },
-		why: '量的是「缺数据必须报错」那一格**真的**在守 ✓（掐掉它 ⇒ 页面会画一张**空图** ⇒ 会被读成"没有依赖"✗ ⇒ 两条缺口用例必红 ✓）',
+		why: '量的是「缺数据必须报错」那一格**真的**在守 （掐掉它  页面会画一张**空图**  会被读成"没有依赖"  两条缺口用例必红 ）',
 	},
 	{
 		// 车道 G 前半 · 切片 1a（`#215` 报备 `18502752`）：**方言指纹**的「**缺 vs 畸形**」分家自证
@@ -232,7 +232,7 @@ export const PROBES = [
 			replace: 'if (!isPlainObject(obj)) return { topKeys: [], items: {} };',
 		},
 		expect: { rc: 1, stdout: /不是普通对象|畸形/ },
-		why: '量的是「**缺 ⇒ 合法** ✗ 与 **畸形 ⇒ 报** ✓ 真的是两回事」（把畸形静默降成合法空形状 ⇒ `rules.json: []` 那一条当场红 ✓）—— 否则“缺＝合法”会被写成“什么坏形状都合法”✗',
+		why: '量的是「**缺  合法**  与 **畸形  报**  真的是两回事」（把畸形静默降成合法空形状  `rules.json: []` 那一条当场红 ）—— 否则“缺＝合法”会被写成“什么坏形状都合法”',
 	},
 	{
 		// 车道 G 前半 · 切片 1b（`#215` 报备 `18503024`）：**包络只剩一个方向的牙** —— 全集外字段必须报
@@ -247,7 +247,7 @@ export const PROBES = [
 			replace: "for (const f of []) if (!df.includes(f)) out.push({ file, kind: 'field', name: f, list });",
 		},
 		expect: { rc: 1, stdout: /brandNewField|全集外/ },
-		why: '量的是「**单向 ⊆ 包络**」那一刀**真的有牙** ✓（把字段级越界检查摘掉 ⇒ `brandNewField` 静默通过 ⇒ 必红且点名 ✓）—— 否则“全集”只是个摆设（随手加字段没人拦 ✗）',
+		why: '量的是「**单向 ⊆ 包络**」那一刀**真的有牙** （把字段级越界检查摘掉  `brandNewField` 静默通过  必红且点名 ）—— 否则“全集”只是个摆设（随手加字段没人拦 ）',
 	},
 	{
 		// 车道 E-B2（`#215` 报备 `18502613`）：**规则行**页内面的「**两侧同判**」自证
@@ -263,7 +263,7 @@ export const PROBES = [
 			replace: 'dead: [],',
 		},
 		expect: { rc: 1, stdout: /合成一条死规则/ },
-		why: '量的是「页内**真的在判**，而不是把 CLI 的结论抄一遍」（掐掉 core 那一步 ⇒ 页内主读数不从 0 变 1 ⇒ 刀必红 ✓）—— 否则“两侧同判”会被写成“两侧都空”✗',
+		why: '量的是「页内**真的在判**，而不是把 CLI 的结论抄一遍」（掐掉 core 那一步  页内主读数不从 0 变 1  刀必红 ）—— 否则“两侧同判”会被写成“两侧都空”',
 	},
 	{
 		// 车道 G 前半 · 切片 1c（`#215` 报备 `18503697` / 开工报备 `18503987`）：**反向哨兵**（退出条件）真的在守
@@ -278,7 +278,7 @@ export const PROBES = [
 			replace: 'if (false && retireWhenMet(e?.retireWhen, storyVersions)) {',
 		},
 		expect: { rc: 1, stdout: /retired|该删|退出条件/ },
-		why: '量的是「**退出条件真的会被执行**」（＝`escapeHatchProblems` 的“登记腐烂 ⇒ 红”同构）：把它排掉 ⇒ “退出条件已成立而条目还在”静默通过 ⇒ 必红且点名 ✓ —— 否则上限 ＋ 退出条件就是“只增不减”的摆设 ✗',
+		why: '量的是「**退出条件真的会被执行**」（＝`escapeHatchProblems` 的“登记腐烂  红”同构）：把它排掉  “退出条件已成立而条目还在”静默通过  必红且点名  —— 否则上限 ＋ 退出条件就是“只增不减”的摆设 ',
 	},
 	{
 		// 车道 E-B3（`#215` 报备 `18504078`）：**读侧（`--reads`）**页内面的「① 条件表行级」自证
@@ -294,7 +294,7 @@ export const PROBES = [
 			replace: 'const problems = [];',
 		},
 		expect: { rc: 1, stdout: /注入字面状态读/ },
-		why: '量的是「页内**真的在判** ① 条件表行级，而不是把 CLI 的结论抄一遍」（掐掉 core 那一步 ⇒ 注入的字面状态读不被点名 ⇒ 刀必红 ✓）—— 否则“两侧同判”会被写成“两侧都空”✗',
+		why: '量的是「页内**真的在判** ① 条件表行级，而不是把 CLI 的结论抄一遍」（掐掉 core 那一步  注入的字面状态读不被点名  刀必红 ）—— 否则“两侧同判”会被写成“两侧都空”',
 	},
 	// ⛔ **退役 ＋ 声明**（`#1004` B2b）：本行探针随 `test/web-settle.mjs` 一起退役。
 	// 因由：该件的**门侧样本**是 `stories/hollow-cave/gates/settle.mjs` —— 该故事已删（B2a）
@@ -321,10 +321,10 @@ export const PROBES = [
 		mutation: {
 			file: 'editor/lib/host/commands.mjs',
 			find: "rmSync(runDir, { recursive: true, force: true });",
-			replace: "void runDir;   // 探针：掐掉清理 ⇒ 残留 ⇒ 本件 ②/③ 必红 ✓",
+			replace: "void runDir;   // 探针：掐掉清理  残留  本件 ②/③ 必红 ",
 		},
 		expect: { rc: 1, stdout: /不留草稿目录/ },
-		why: '量的是「中间目录**真的用完就清**」（掐掉 `finally` 的清理 ⇒ 本件跑完新留 `.equiv-run-*` ⇒ "不留草稿"必红 ✓）—— 否则"唯一 ＋ 清理"只写在注释里 ✗',
+		why: '量的是「中间目录**真的用完就清**」（掐掉 `finally` 的清理  本件跑完新留 `.equiv-run-*`  "不留草稿"必红 ）—— 否则"唯一 ＋ 清理"只写在注释里 ',
 	},
 	{
 		// `#984`（P3-④ 用户故事 CI）：把「**发现到了却没进编排 → 点名**」那条判据掐掉（恒不报）
@@ -338,10 +338,10 @@ export const PROBES = [
 			// `#999`：目标行**改了**（`missingFromPlan` 改成认尾段）→ 探针的 `find` 必须跟上
 			//（注意：台账的 `— 未探 / 不咬` 那行**当场**把它标成「不咬」 —— 这正是 ratchet 要抓的「门改了、探针没跟」）。
 			find: 'const hit = (s) => plan.some((p) => p.cmd.some((a) => a === s || a.endsWith(`/${s}`)));',
-			replace: 'const hit = () => true;   // 探针：恒命中 ⇒ missingFromPlan 恒空 ⇒ “能假”那条必红 ✓',
+			replace: 'const hit = () => true;   // 探针：恒命中  missingFromPlan 恒空  “能假”那条必红 ',
 		},
 		expect: { rc: 1, stdout: /发现了却没进编排/ },
-		why: '量的是「**发现 ≠ 覆盖**」那一步真的在守（让 `missingFromPlan` 恒不报 ⇒ `test/story-ci.mjs` 的“能假”那条必红 ✓）—— 否则“新故事自动被覆盖”只是句口号 ✗',
+		why: '量的是「**发现 ≠ 覆盖**」那一步真的在守（让 `missingFromPlan` 恒不报  `test/story-ci.mjs` 的“能假”那条必红 ）—— 否则“新故事自动被覆盖”只是句口号 ',
 	},
 	{
 		// `#215` 裁 (B)：**兜底必须标出来**那一步真的在守（掐掉 `fallback: true` → 轨迹里出现
@@ -359,7 +359,7 @@ export const PROBES = [
 		mutation: {
 			file: 'test/walker.mjs',
 			find: "step.fallback = true;",
-			replace: "/* 探针：兜底不再标出 ✓ */ step.choiceLabel = step.choiceLabel;",
+			replace: "/* 探针：兜底不再标出  */ step.choiceLabel = step.choiceLabel;",
 		},
 		expect: { rc: 1, stdout: /兜底/ },
 		why: '量的是「**label 兜底真的被标出来**」（掐掉 `fallback: true` ⇒ 轨迹里那几步既无 key、也没标兜底 ⇒ 自证的"按 key 可复跑"那条必红 ✓）—— 否则"兜底是必要的 ✓ 但要显式"只写在注释里 ✗',
@@ -405,7 +405,7 @@ export const PROBES = [
 			replace: "jQuery(document).on(':passageendDISABLED.sgFocusNav', (ev) => {",
 		},
 		expect: { rc: 1, stdout: /焦点跑出正文/ },
-		why: '量的是「**导航型交互之后焦点仍在正文内**」那一手真的在守（禁用 `:passageend.sgFocusNav` ⇒ 导航后 `activeElement` 落 `body` ⇒ 本件必红并点名 ✓）—— 否则「焦点回收」只写在注释里 ✗（`#1012` ✓）',
+		why: '量的是「**导航型交互之后焦点仍在正文内**」那一手真的在守（禁用 `:passageend.sgFocusNav`  导航后 `activeElement` 落 `body`  本件必红并点名 ）—— 否则「焦点回收」只写在注释里 （`#1012` ）',
 	},
 	{
 		// 台账行：`test/repo-shape.mjs`（`#1008` 第二半：**仓根顶层条目**守卫）。
@@ -427,7 +427,7 @@ export const PROBES = [
 			replace: '"name": "docs-probe-renamed",',
 		},
 		expect: { rc: 1, stdout: /unclaimed-top-level/ },
-		why: '量的是「仓根出现**未登记的顶层条目**时门会红并点名它」（误提交的临时件是**结构错**：`unclaimed-file` 只管源文件、`build.mjs` 只盯 `*.twee` ⇒ 拦不住顶层目录；来历＝#874 的 home/** 与 #1008 本片删掉的 tmp/mf3.json）—— 白名单里把 `docs` 改名 ⇒ 真实存在的 `docs/` 成为未登记项 ⇒ 门必须红并点名',
+		why: '量的是「仓根出现**未登记的顶层条目**时门会红并点名它」（误提交的临时件是**结构错**：`unclaimed-file` 只管源文件、`build.mjs` 只盯 `*.twee`  拦不住顶层目录；来历＝#874 的 home/** 与 #1008 本片删掉的 tmp/mf3.json）—— 白名单里把 `docs` 改名  真实存在的 `docs/` 成为未登记项  门必须红并点名',
 	},
 	{
 		// 台账行：`test/lint-scratch.mjs`（`#1024`：`lint-story` 的 scratch **本次运行唯一**）。
@@ -444,7 +444,7 @@ export const PROBES = [
 			replace: "const gen = join(ROOT, 'build', 'generated', slug);",
 		},
 		expect: { rc: 1, stdout: /旧落点|并发自证未过/ },
-		why: '量的是「`lint-story` 的中间目录**本次运行唯一**」（改回按 slug 固定 ⇒ 两个并发进程互相踩 ⇒ 假红「编译不幂等」；本件用「旧落点没被重建」这条**与并发时序无关**的判据把它钉死 ✓）—— 否则「并发安全」只写在注释里 ✗',
+		why: '量的是「`lint-story` 的中间目录**本次运行唯一**」（改回按 slug 固定  两个并发进程互相踩  假红「编译不幂等」；本件用「旧落点没被重建」这条**与并发时序无关**的判据把它钉死 ）—— 否则「并发安全」只写在注释里 ',
 	},
 	{
 		// `#1019` 第 4 件：`test/social-lever.mjs`（`#1011` 保覆盖版，接手 `#360` 的交涉筹码分派门）。
@@ -466,10 +466,10 @@ export const PROBES = [
 			//注意：这是本系列**第三次**撞到"门/探针按文件名硬编 → 拆模块即腐烂"（前两次：gear-defs、readkey-family）。
 			file: 'src/engine/40-sim/32-social.twee',
 			find: "\t\t\t\tif (lv.gives === 'adv') {\n\t\t\t\t\t// #360：优势筹码只把「这一问更有把握」摆出来——**不完成诉求**。\n\t\t\t\t\tpc.ev.soc_lever = lv.id;",
-			replace: "\t\t\t\tif (lv.gives === 'adv') {\n\t\t\t\t\tS.applyAskEffect(a, pc);   // 探针：改回 #360 修复前形状 ✓\n\t\t\t\t\tpc.ev.soc_lever = lv.id;",
+			replace: "\t\t\t\tif (lv.gives === 'adv') {\n\t\t\t\t\tS.applyAskEffect(a, pc);   // 探针：改回 #360 修复前形状 \n\t\t\t\t\tpc.ev.soc_lever = lv.id;",
 		},
 		expect: { rc: 1, stdout: /优势筹码不得直接完成诉求/ },
-		why: '量的是「**优势筹码只给优势、不完成诉求**」那一支真的在守（把 `applyAskEffect` 补回 `adv` 分支 ⇒ 门必红并点名 ✓）—— 否则 `#360` 那类"UI 标了优势、实际走免检"会静默回来 ✗',
+		why: '量的是「**优势筹码只给优势、不完成诉求**」那一支真的在守（把 `applyAskEffect` 补回 `adv` 分支  门必红并点名 ）—— 否则 `#360` 那类"UI 标了优势、实际走免检"会静默回来 ',
 	},
 	{
 		// `#1033`：编辑器入口那条 —— 刀＝把**服务根**从"仓根"改成 `editor/web`。
@@ -485,10 +485,10 @@ export const PROBES = [
 		mutation: {
 			file: 'scripts/serve-editor.mjs',
 			find: "export const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\\/$/, '');",
-			replace: "export const ROOT = fileURLToPath(new URL('../editor/web', import.meta.url)).replace(/\\/$/, '');   // 探针：把服务根改小 ⇒ 跨目录那格必红 ✓",
+			replace: "export const ROOT = fileURLToPath(new URL('../editor/web', import.meta.url)).replace(/\\/$/, '');   // 探针：把服务根改小  跨目录那格必红 ",
 		},
 		expect: { rc: 1, stdout: /跨目录/ },
-		why: '量的是「编辑器入口**真的以仓根为服务根**（＝页面能跑起来）」那一手在守（把根改小 ⇒ `app.mjs` 跨目录 import 的资源取不到 ⇒ 测试件必红并点名"跨目录" ✓）—— 否则"能开"与"看着像能开"会混为一谈 ✗',
+		why: '量的是「编辑器入口**真的以仓根为服务根**（＝页面能跑起来）」那一手在守（把根改小  `app.mjs` 跨目录 import 的资源取不到  测试件必红并点名"跨目录" ）—— 否则"能开"与"看着像能开"会混为一谈 ',
 	},
 	{
 		// `#1020`：条件键形门（**条件位/授予位**的键形必须引擎真能求值）。
@@ -524,7 +524,7 @@ export const PROBES = [
 			replace: '<<set $x to 1>>\n[[把两枚钱数给他|付钱]]',
 		},
 		expect: { rc: 1, stdout: /V1/ },
-		why: '量的是「**内容故事的正文里不许出现逻辑/表达式宏**」（甲-1 的防退化保证：作者不写 Twee）—— 否则"作者只写 MD＋JSON"这条路线会不知不觉退化回"作者在正文里写代码" ✗',
+		why: '量的是「**内容故事的正文里不许出现逻辑/表达式宏**」（甲-1 的防退化保证：作者不写 Twee）—— 否则"作者只写 MD＋JSON"这条路线会不知不觉退化回"作者在正文里写代码" ',
 	},
 	{
 		// `#1034`：导出那条 —— 刀＝把**成套断言**从导出路里拿掉（"部分包"就又能当通过了）。
@@ -539,10 +539,10 @@ export const PROBES = [
 		mutation: {
 			file: 'editor/web/save.mjs',
 			find: "\tassertExportComplete({ slug, written: saved.written });",
-			replace: "\t// 探针：把成套断言拿掉 ⇒ 部分包又能当通过 ✗",
+			replace: "\t// 探针：把成套断言拿掉  部分包又能当通过 ",
 		},
 		expect: { rc: 1, stdout: /缺\*\*清单\*\*|00-story\.json/ },
-		why: '量的是「导出**必须成套**（空包／部分包不许当通过）」那一手在守（拿掉断言 ⇒ 本片③那几格必红并点名缺件 ✓）',
+		why: '量的是「导出**必须成套**（空包／部分包不许当通过）」那一手在守（拿掉断言  本片③那几格必红并点名缺件 ）',
 	},
 	{
 		// `#1044`：段间产物依赖边守护门 —— 刀＝把 `test-lint-scratch-mjs` 的 needs 改回缺边形（修复前形状）。
@@ -559,7 +559,7 @@ export const PROBES = [
 			replace: "needs: ['build-mjs'], cmd: \"node test/lint-scratch.mjs\"",
 		},
 		expect: { rc: 1, stdout: /缺 needs 依赖|边表端点/ },
-		why: '量的是「`test-lint-scratch-mjs` 对 `test-lint-story-mjs` 的产物依赖边**真的在册**」（删边 ⇒ 并发跑器不再保证相序 ⇒ 同波读到半成品 ⇒ 假红回归 `#1044` ✓）—— 否则这条边只活在注释里 ✗',
+		why: '量的是「`test-lint-scratch-mjs` 对 `test-lint-story-mjs` 的产物依赖边**真的在册**」（删边  并发跑器不再保证相序  同波读到半成品  假红回归 `#1044` ）—— 否则这条边只活在注释里 ',
 	},
 	{
 		// `#1078`：读路径门（「按任务读」死链必红点名）。刀＝往真表插一行死链（虚构文档）→ 门必红并点名行号与路径。
@@ -572,10 +572,10 @@ export const PROBES = [
 		mutation: {
 			file: 'docs/README.md',
 			find: "| 查历史 / 作废稿（含已删故事 1 的设定·设计·实施三件套，`#1077`） | `docs/archive/README.md` | — |",
-			replace: "| 查历史 / 作废稿（含已删故事 1 的设定·设计·实施三件套，`#1077`） | `docs/archive/README.md` | — |\n| 探针：虚构文档 | `docs/no-such-doc-probe.md` | — |   # 探针：死链 ⇒ 门必红 ✓",
+			replace: "| 查历史 / 作废稿（含已删故事 1 的设定·设计·实施三件套，`#1077`） | `docs/archive/README.md` | — |\n| 探针：虚构文档 | `docs/no-such-doc-probe.md` | — |   # 探针：死链  门必红 ",
 		},
 		expect: { rc: 1, stdout: /no-such-doc-probe|不存在/ },
-		why: '量的是「按任务读表引用的文档必须存在（死链⇒红点名）」那一手真的在守（插一行死链 ⇒ 门必红并点名行号与路径 ✓）—— 否则必读面死链只活在注释里 ✗（`#1078` ✓）',
+		why: '量的是「按任务读表引用的文档必须存在（死链红点名）」那一手真的在守（插一行死链  门必红并点名行号与路径 ）—— 否则必读面死链只活在注释里 （`#1078` ）',
 	},
 	{
 		// `#1087`：修 `#1054` 落在 main 上的**探针缺陷** ——
@@ -593,10 +593,10 @@ export const PROBES = [
 		mutation: {
 			file: 'test/ci-triggers.mjs',
 			find: '\tif (s.hasPR) {',
-			replace: '\tif (true) {   // 探针：条件化被掐掉 ⇒ 无 pr 面的文件又会假红 ✗',
+			replace: '\tif (true) {   // 探针：条件化被掐掉  无 pr 面的文件又会假红 ',
 		},
 		expect: { rc: 1, stdout: /soak-nightly|viewport-smoke|pull_request\.types/ },
-		why: '量的是「**逐文件适用面写准**（有该面才判）那一手真的在守」（掐掉条件化 ⇒ `soak-nightly.yml` 等无 `pull_request` 面的文件立刻假红并点名文件 ✓）—— 否则扩射程后 8 处假红回归 ✗（`#1087`）',
+		why: '量的是「**逐文件适用面写准**（有该面才判）那一手真的在守」（掐掉条件化  `soak-nightly.yml` 等无 `pull_request` 面的文件立刻假红并点名文件 ）—— 否则扩射程后 8 处假红回归 （`#1087`）',
 	},
 	{
 		// `#1089`（乙′）：**未跟踪扫描面 → 红** 的**接线**守护 ——注意：本条的刀**必须打在"门里"**，
@@ -624,7 +624,7 @@ export const PROBES = [
 			replace: 'const unscanned = [...new Set(untracked)].filter((p) => p && false && isScanned(p) && !ex.has(p) && !isTransient(p)).sort();',
 		},
 		expect: { rc: 1, stdout: /未跟踪/ },
-		why: '量的是「**未跟踪 ⇒ 红**」这一手真的在守（把"落在扫描面"的判定掐掉 ⇒ 本件端到端那格必红并点名"未跟踪" ✓）—— 否则该缺口只活在注释里 ✗（`#1089` 乙′）',
+		why: '量的是「**未跟踪  红**」这一手真的在守（把"落在扫描面"的判定掐掉  本件端到端那格必红并点名"未跟踪" ）—— 否则该缺口只活在注释里 （`#1089` 乙′）',
 		//注意：本刀打在**纯函数**上 → 它证的是"判据这一手在"；**门接线**由三个门的 `--selftest`／实测守
 		//（本仓口径：探针量"变异前绿 → 变异后红且点名" → 本条的"点名"＝助手件里那条 "未跟踪" 断言）
 	},

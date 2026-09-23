@@ -30,7 +30,7 @@ Object.assign((window.Game.Combat ??= {}), {
 	// `hurt` 由 present 的 `<<damage>>` 落（不在此处扣 hp）——保住旧的渲染/时序完全一致。
 	resolvePlayer(pc, foeSite, isDragon) {
 		const T = window.Game, f = pc.ev.fight;
-		const a = window.Sg.story.combatAction?.(f.act) ?? null;   // 缺面即 null（与缺省同义）   // #459 切片三：故事数据经契约
+		const a = window.Sg.story.combatAction?.(f.act) ?? null;   // 缺面即 null（与缺省同义） // #459 切片三：故事数据经契约
 		const check = T.Checks.resolve(a.site, pc, f.adv ? 'adv' : null);
 		const hadAdv = (f.adv ?? 0) > 0;
 		// #352：优势在**被这一手消费后**才清零（旧实现放在本轮末尾清零 → 准备动作的「下一击有优势」当场作废）

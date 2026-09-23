@@ -23,7 +23,7 @@ const HERE = dirname(fileURLToPath(import.meta.url));   // editor/lib/host
 export const REPO_ROOT = join(HERE, '..', '..', '..');   // 仓根（**不叫 `ROOT`**：`fs.mjs` 已导出 `ROOT`（且**带尾斜杠**）→
 // 同名会让 K6 ① 报"两份内核"，而两者语义确实不同（一个带尾斜杠）→ **一名一物**。）
 export const EDITOR = join(REPO_ROOT, 'editor');
-if (!existsSync(join(EDITOR, 'cli.mjs'))) throw new Error(`k6 判据模块算错了根路径 ✗：EDITOR=${EDITOR}（模块位置变了 ⇒ 相对算术要改 ✓）`);
+if (!existsSync(join(EDITOR, 'cli.mjs'))) throw new Error(`k6 判据模块算错了根路径 ：EDITOR=${EDITOR}（模块位置变了  相对算术要改 ）`);
 export const CORE = join(EDITOR, 'lib', 'core');
 export const HOSTS = [join(EDITOR, 'cli.mjs'), join(EDITOR, 'lib', 'host')];
 
@@ -147,7 +147,7 @@ export const outsideQuotes = (line, col, { backtickIsQuote = true } = {}) => {
 	for (let i = 0; i < col; i++) {
 		const c = line[i];
 		if (q) { if (c === '\\') i++; else if (c === q) q = null; continue; }
-		// twee 件里反引号包的是**表达式插值**（真读点）⇒ 调用方可传 `backtickIsQuote:false`。
+		// twee 件里反引号包的是**表达式插值**（真读点）→ 调用方可传 `backtickIsQuote:false`。
 		if (c === "'" || c === '"' || (c === '`' && backtickIsQuote)) q = c;
 	}
 	return q === null;

@@ -12,7 +12,7 @@
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems, READ_FORMS, deriveContractAliases, isTweeFile, contractReadDomain, deriveCapabilityGroups, requiredSilenced } from '../editor/lib/core/contract-defaults.mjs';
+import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems, READ_FORMS, deriveContractAliases, isTweeFile, contractReadDomain, deriveCapabilityGroups, requiredSilenced, fixtureFaceProblems, FIXTURE_FACE_EXPECTED, FIXTURE_FACE_EXCEPTIONS, fixtureFaceExceptionConflicts } from '../editor/lib/core/contract-defaults.mjs';
 import { storySlugs } from '../scripts/dist-paths.mjs';
 import { maskComments } from '../editor/lib/core/mask.mjs';
 import { outsideQuotes } from '../editor/lib/host/k6criteria.mjs';
@@ -20,8 +20,8 @@ import { outsideQuotes } from '../editor/lib/host/k6criteria.mjs';
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 /** 反向核：三故事的数据成员数（能力开关不计）。改动契约时同片更新。 */
 // 现状（A 半不动契约）。B 半逐名加守卫并去声明之后，这三个数会下降（票面 `#1216` 钉进度）。
-const EXPECTED_DEFAULT_MISSING = 0;   // 仅剩 starBudget（保持必给，见缺省表旁理由）   // 见下方信息面：已声明但缺省规格里没有、且缺省承重
-const EXPECTED_DATA_MEMBERS = { 'face-fixture': 23, 'night-ferry': 6, 'minimal-demo': 5 };   // `#1216` B 半：夹具回 checkSite；dragonMaxHp／poisonReduce 有意缺席（随 #1227 类一删）   // `#1186`（流一）引入契约面 `pcShape` 后 face-fixture +1（跨票联动：谁后合谁带上）
+const EXPECTED_DEFAULT_MISSING = 0;   // 仅剩 starBudget（保持必给，见缺省表旁理由） // 见下方信息面：已声明但缺省规格里没有、且缺省承重
+const EXPECTED_DATA_MEMBERS = { 'face-fixture': 23, 'night-ferry': 6, 'minimal-demo': 5 };   // `#1216` B 半：夹具回 checkSite；dragonMaxHp／poisonReduce 有意缺席（随 #1227 类一删） // `#1186`（流一）引入契约面 `pcShape` 后 face-fixture +1（跨票联动：谁后合谁带上）
 
 let bad = 0;
 const ok = (name, cond, detail = '') => {
@@ -56,7 +56,7 @@ const walk = (rel) => {
 		for (let i = 0; i < lines.length; i++) {
 			// 读点**形态**取权威表（一处定义、别处引用）。别名形态按 `X = Sg.story` **派生**，不硬编具体别名。
 			const specs = [{ re: new RegExp(READ_FORMS[0].re.source, 'g'), beforeOf: (m) => m[0] }];
-			// 别名形态对**所有件**都成立（twee 件里的 JS 块同样会 `const S = Sg.story`）⇒ 不按件类型收窄。
+			// 别名形态对**所有件**都成立（twee 件里的 JS 块同样会 `const S = Sg.story`） 不按件类型收窄。
 			for (const a of deriveContractAliases(srcText)) {
 				const esc = a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 				specs.push({ re: new RegExp(esc + '\\s*\\??\\.\\s*([A-Za-z_$][\\w$]*)', 'g'), beforeOf: (m) => m[0] });
@@ -65,7 +65,7 @@ const walk = (rel) => {
 				spec.re.lastIndex = 0;
 				let m;
 				while ((m = spec.re.exec(lines[i])) !== null) {
-					// JS 件里字符串字面量中的**提名**不是读点（错误消息文案常见）；twee 件的 `` `…` `` 是**表达式插值** ⇒ 不跳。
+					// JS 件里字符串字面量中的**提名**不是读点（错误消息文案常见）；twee 件的 `` `…` `` 是**表达式插值** 不跳。
 					if (!outsideQuotes(lines[i], m.index, { backtickIsQuote: !isTwee })) continue;
 					const tail = lines[i].slice(m.index + m[0].length);
 					if (!readDomain.has(m[1])) continue;
@@ -97,29 +97,29 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 	const redundant = problems.filter((p) => p.code === 'redundant-declaration');
 	console.log(`  · 该去但前提未满足（去声明会撞 L1／等价面，见票面 #1216）：${redundant.length} 项`);
 	for (const p of redundant) console.log(`      ${p.slug}:${p.name}（${p.why}）`);
-	// 两张清单做完后本就该空 ⇒ 非空校验改用合成输入（能假：给一条“值等于缺省且全守卫”的声明必须列出来）。
-		// 用**非必给**成员（必给成员的声明不可去，会被正确跳过 ⇒ 拿它测不出『该去』这一支）。
+	// 两张清单做完后本就该空 非空校验改用合成输入（能假：给一条“值等于缺省且全守卫”的声明必须列出来）。
+		// 用**非必给**成员（必给成员的声明不可去，会被正确跳过 拿它测不出『该去』这一支）。
 		const syntheticRedundant = defaultProblems({ membersByStory: { 's': [{ name: 'combatPool', kind: 'empty-array' }] },
 			readsByMember: { combatPool: [{ file: 'x.twee', line: 1, tail: '?.(a) ?? []', before: 'Sg.story.combatPool' }] }, defaults: DEFAULTS });
 		ok('能假·该去的声明可枚举（合成一条冗余声明必须列出）', syntheticRedundant.some((x) => x.code === 'redundant-declaration'));
-	// B 半做完后真实清单**本就该空**（空＝做完 ✓）⇒ 非空校验改用**合成输入**（能假：给一个未守卫的读点必须列出来 ✓）。
+	// B 半做完后真实清单**本就该空**（空＝做完） 非空校验改用**合成输入**（能假：给一个未守卫的读点必须列出来）。
 		const synthetic = defaultProblems({ membersByStory: { 's': [{ name: 'rules', kind: 'empty-array' }] },
 			readsByMember: { rules: [{ file: 'x.twee', line: 1, tail: '(a)', before: 'Sg.story.rules' }] }, defaults: DEFAULTS });
 		ok('能假·B 半清单可枚举（合成一个未守卫读点必须列出）', synthetic.some((x) => x.code === 'needs-guard-first'));
 	// `#1216` B 半收口：探针的新靶子落在“已声明成员的缺省”上（旧靶子 `lootText`
-	// 本就没被任何故事声明 ⇒ 按域收窄后不在域内 ⇒ 不咬是必然，不是弱化）。
+	// 本就没被任何故事声明 按域收窄后不在域内 不咬是必然，不是弱化）。
 	{
 		const withDefault = defaultProblems({ membersByStory: { s: [{ name: 'X' }] }, readsByMember: { X: [{ file: 'a', line: 1, tail: '()' }] }, defaults: { X: 'v' } });
 		ok('能假·缺省完好 ⇒ 不报 default-missing', withDefault.every((p) => p.code !== 'default-missing'));
 		const without = defaultProblems({ membersByStory: { s: [{ name: 'X' }], t: [{ name: 'Y' }] },
 			readsByMember: { X: [{ file: 'a', line: 1, tail: '()' }] }, defaults: {} });
-		// 实仓断言：所有“已声明且被读”的成员都在缺省规格里（探针删其中一条 ⇒ 本格当场红）。
+		// 实仓断言：所有“已声明且被读”的成员都在缺省规格里（探针删其中一条 本格当场红）。
 		const miss = problems.filter((x) => x.code === 'default-missing');
 		// 真发现先**报出来**（信息面），收口时另行处置；能红由合成格与探针负责。
 		console.log(`  · default-missing（已声明但缺省规格里没有、且缺省承重）：${miss.length} 项`);
 		for (const x of miss) console.log(`      ${x.slug}:${x.name}（${(x.at ?? []).join(', ')}）`);
 		// 该清单是**新发现**（已声明 + 缺省承重却无缺省规格），钉成计数：与 `EXPECTED_DATA_MEMBERS` 同性质，
-		// 随本片处置变化时同笔更新；探针删一条已知缺省 ⇒ 计数不齐 ⇒ 本格当场红（可机器核）。
+		// 随本片处置变化时同笔更新；探针删一条已知缺省 计数不齐 本格当场红（可机器核）。
 		ok('实仓·default-missing 计数命中钉死值', miss.length === EXPECTED_DEFAULT_MISSING, `期望 ${EXPECTED_DEFAULT_MISSING} 实得 ${miss.length}`);
 		ok('信息面·default-missing 可枚举（不是空跑）', true,
 			miss.map((x) => x.slug + ':' + x.name + '@' + (x.at ?? []).join(',')).join(' / '));
@@ -137,7 +137,7 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 {
 	const wrong = Object.entries(EXPECTED_DATA_MEMBERS).filter(([slug, n]) => dataMemberCount(membersByStory[slug] ?? []) !== n);
 	ok('反向核·三故事数据成员数命中钉死值', wrong.length === 0, wrong.map(([s, n]) => `${s} 期望 ${n} 实得 ${dataMemberCount(membersByStory[s] ?? [])}`).join(' / '));
-	// 能力组成员由**组助手**动态读取（形态扫描看不见）⇒ 与死声明同一口径，计入规模数。
+	// 能力组成员由**组助手**动态读取（形态扫描看不见） 与死声明同一口径，计入规模数。
 	const groupMembers = new Set(Object.values(capabilityGroups ?? {}).flat());
 	const readNamesAll = [...new Set([...readNames, ...[...groupMembers].filter((n) => Object.values(membersByStory).some((l) => (l ?? []).some((m) => m.name === n)))])];
 	ok('反向核·引擎读点规模（成员名 ≥ 20）', readNamesAll.length >= 20, `实得 ${readNamesAll.length}`);
@@ -165,6 +165,24 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 		console.log(`  · required 但被静默缺省（待『#1227』口径处置）：${silenced.length} 项`);
 		for (const x of silenced) console.log(`      ${x.slug}:${x.name}（${x.why}）`);
 	}
+	// ── 满配夹具的『该有的面』钉死（能力组在单成员组上会失效 夹具侧按集合判）──
+	{
+		// 能假①：夹具**整组全缺**（拿掉 checkSite 那一个成员） 必须点名（这条正是本片缺陷的复发路径）。
+		const missOne = fixtureFaceProblems({ slug: 'face-fixture', members: FIXTURE_FACE_EXPECTED.filter((n) => n !== 'checkSite').map((n) => ({ name: n })) });
+		ok('能假·夹具缺 checkSite（整组全缺）⇒ 点名', missOne.some((x) => x.code === 'fixture-face-missing' && x.name === 'checkSite'));
+		// 能假②：**普通故事**整组缺 本条**不报**（允许判『能力关』）。
+		const normal = fixtureFaceProblems({ slug: 'minimal-demo', members: [] });
+		ok('能假·普通故事整组缺 ⇒ 本条不报（判能力关）', normal.length === 0);
+		// 实仓：夹具应报 0（现已回位 checkSite 且三名合法缺席在例外表）。
+		const fx = membersByStory['face-fixture'] ?? [];
+		const fxMiss = fixtureFaceProblems({ slug: 'face-fixture', members: fx });
+		// 实仓**断言**（不是信息面）：夹具缺任一面即红 —— 这正是本片缺陷的『判据件层』，
+		// 因为『契约层』（生成物里抛）在**整面缺席**时不可能触发（函数根本不存在）。
+		ok('实仓·夹具缺面 0（整面缺席也在此咬住）', fxMiss.length === 0, fxMiss.map((x) => x.name).join('、'));
+		for (const x of fxMiss) console.log(`      ${x.name}（${x.why}）`);
+	}
+		ok('例外表与钉死集合互斥（例外名不得在钉死集合内）', fixtureFaceExceptionConflicts().length === 0, fixtureFaceExceptionConflicts().join('、'));
+		ok('例外表每行都写了移除触发（自清理）', Object.values(FIXTURE_FACE_EXCEPTIONS).every((x) => typeof x.removal === 'string' && x.removal.length > 0));
 	ok('规格里 equalsDefault 只认同形态或同值', equalsDefault({ name: 'mechanics', kind: 'null' }) && equalsDefault({ name: 'poisonReduce', kind: 'const', value: 0 }) && !equalsDefault({ name: 'poisonReduce', kind: 'const', value: 1 }));
 }
 

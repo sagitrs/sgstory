@@ -295,7 +295,10 @@ for (const file of fixtures) {
 	eq(I.battleDamage(1, {}, 2), 7, 'battleDamage：败次 +2 封顶');
 	eq(I.battleDamage(2, { 日记: true }, 5), 6, 'battleDamage：多败次封顶 +2（5 败 → +2）');
 	// #236：毒液既 −3 也压怒（poisoned=true → rage 归零，连败的火也压熄）
-	eq(I.battleDamage(2, {}, 3, true), 3, 'battleDamage：涂毒＝−3 且压怒（6−3+0，连败 3 次不吃 rage）');
+	// `#1216` B 半中间态：`face-fixture` 的 `poisonReduce` **有意缺席**（随 `#1227` 类一删面）
+	// 毒减伤不再落（原 −3 来自该面） 期望由 3 改 6；「压怒」部分仍在（连败 3 次不吃 rage 6+0）。
+	// 面删掉后（`#1227`）本用例连同本行一并移除。
+	eq(I.battleDamage(2, {}, 3, true), 6, 'battleDamage：涂毒压怒（6+0，连败 3 次不吃 rage；毒减伤面已随 #1227 类一出待删）');
 	eq(I.battleDamage(2, {}, 3, false), 8, 'battleDamage：未涂毒＝连败 3 次吃满 rage（6+2）');
 	w.eval('Game.Items.effects.日记.flatDamageReduce = 3');
 	eq(I.battleDamage(1, { 日记: true }, 0), 2, `battleDamage 表驱动：日记减伤改 3 → R1 = max(1,5-3)=2（实际 ${I.battleDamage(1, { 日记: true }, 0)}）`);

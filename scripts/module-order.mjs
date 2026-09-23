@@ -35,18 +35,12 @@ export const ORDER = [
 	// 为什么要交错而不是追加在末尾：`15-tables` 建的空容器是引擎侧 `21-resolve` **加载期**就要 assign 的对象
 	//（`Object.assign(window.Game.Checks, …)`）→ 必须排在它前面。多故事并存下 ORDER 的"全局交错"语义
 	// 值得另票收紧（per-story ORDER），本票先按既有形状办。
-	'stories/minimal-demo/00-meta.twee',      // StoryTitle / StoryData / StoryIdentity（无依赖）
-	'stories/night-ferry/00-meta.twee',       // 第四个故事（夜渡）的 StoryTitle / StoryData / StoryIdentity
-	'stories/minimal-demo/15-tables.twee',    // 最小声明面：引擎加载期要用的空容器
 	//注意：`night-ferry`（`#998` 实测）：**漏登记 → 它落到末尾 → 顶层浅合并 `window.Game = Object.assign(…)` 会把
 	// 引擎加载期 assign 进 `Game.Combat` 的方法**一起替换掉** → `Game.Combat.slotAbsorb` 消失 → `slots` 门抛异常
 	// → 这条**不是可选**：**每个故事的 `15-tables.twee` 都必须排在 `21-resolve` 之前**（:43 那句的原意）。
-	'stories/night-ferry/15-tables.twee',     // 第四个故事的声明面：引擎加载期要用的空容器（**必须排在 21-resolve 前**）
 	// ── 面夹具（`face-fixture`，`#1004` B2b）：**测试夹具（非内容故事）** ──
 	// 它的 `15-tables.twee` 同样**必须排在 `21-resolve` 前**（同 `night-ferry` 的 `#998` 实测：否则顶层浅合并
 	// 会把引擎 assign 进 `Game.*` 的方法一起替换掉 → 门抛异常）。
-	'stories/face-fixture/00-meta.twee',      // 夹具元数据（StoryTitle / StoryData / StoryIdentity）
-	'stories/face-fixture/15-tables.twee',    // 夹具的声明面：引擎加载期要用的容器（**必须排在 21-resolve 前**）
 	'src/engine/40-sim/10-gear.twee',      // `#1187`：装备面的算（零依赖；Items／Combat 依赖它 → 必须在前）
 	'src/engine/40-sim/12-economy.twee',   // `#1187`：经济面的算（零依赖；Social／rules 依赖它 → 必须在前）
 	'src/engine/40-sim/20-items.twee',     // `#1187`：道具面的算（依赖 Gear；Checks 依赖它 → 必须在前）
@@ -58,60 +52,14 @@ export const ORDER = [
 	'src/engine/40-sim/30-checks.twee',    // `#1187`：位点判定的「算」（从 21-resolve 拆出；依赖 Items／Rules）
 	// `#1132` B3：车卡数据面（生成物 18-chargen.twee；运行期由 applyQuickPreset 经 Sg.story.chargen() 读）
 	// 排在 15-tables（声明面）之后、消费者（11-fixture-cards.twee）之前：与本块按依赖交错的既有房式一致
-	'stories/face-fixture/18-chargen.twee',
 	// `#1114` 2b-2b：`10-fixture.twee` 拆成 23 个 md ＋ 3 个 twee（**保段序**）——
 	//注意：必须登记在 `ORDER` 里：`storyOrder` 先按 ORDER 的 rank 排，**不在 ORDER 的故事件 rank=MAX → 排到最后**
 	// → 不登记就会把 12-hooks/13-codex/… 提到段落面之前（实测：产物段序 @4 起整块位移）。
-	'stories/face-fixture/passages/01-开场.md',
-	'stories/face-fixture/11-fixture-cards.twee',
-	'stories/face-fixture/passages/04-酒馆.md',
-	'stories/face-fixture/passages/05-森林边缘.md',
-	'stories/face-fixture/passages/06-洞穴.md',
-	'stories/face-fixture/passages/07-洞穴·战斗.md',
-	'stories/face-fixture/passages/08-门厅.md',
-	'stories/face-fixture/passages/09-门厅·看钉.md',
-	'stories/face-fixture/passages/10-塔外花田.md',
-	'stories/face-fixture/passages/11-守林人.md',
-	'stories/face-fixture/passages/12-女巫小屋.md',
-	'stories/face-fixture/passages/13-老巫女.md',
-	'stories/face-fixture/passages/14-观星者.md',
-	'stories/face-fixture/passages/15-地下宴会厅.md',
-	'stories/face-fixture/passages/16-书房.md',
-	'stories/face-fixture/passages/17-岔口.md',
-	'stories/face-fixture/passages/18-塔门.md',
-	'stories/face-fixture/passages/19-封印·并肩.md',
-	'stories/face-fixture/passages/20-图鉴.md',
-	'stories/face-fixture/passages/21-设定集.md',
-	'stories/face-fixture/passages/22-设定集·术语.md',
-	'stories/face-fixture/passages/23-设定集·三律.md',
-	'stories/face-fixture/passages/24-设定集·结局.md',
-	'stories/face-fixture/passages/25-结局 平凡之路.md',
-	'stories/face-fixture/passages/26-结局 送星归位.md',
-	'stories/face-fixture/passages/27-结局 死亡.md',
-	'stories/face-fixture/17-rules.twee',     // 夹具条件表（生成物）：`rows` 非空 → 条件表面
-	'stories/face-fixture/16-notes-ch1.twee', // 夹具 notes 面（生成物）：`Game.Notes.entries` 增量
 	// `#1132` 片 3：夜渡 11 段叙事迁 md（**原段序** 逐字无损；`00-meta.twee` **不动** → 等片 B 同闸同批）
-	'stories/night-ferry/passages/01-渡口.md',
-	'stories/night-ferry/passages/02-付钱.md',
-	'stories/night-ferry/passages/03-撑篙.md',
-	'stories/night-ferry/passages/04-船头.md',
-	'stories/night-ferry/passages/05-河心.md',
-	'stories/night-ferry/passages/06-举灯.md',
-	'stories/night-ferry/passages/07-等浪.md',
-	'stories/night-ferry/passages/08-靠岸.md',
-	'stories/night-ferry/passages/09-翻船.md',
-	'stories/night-ferry/passages/10-结局 抵岸.md',
-	'stories/night-ferry/passages/11-结局 沉船.md',
-	'stories/night-ferry/17-rules.twee',     // 条件表（生成物）：行数组，选择器在引擎侧
 	'src/80-script.twee',    // 存档 API / Sg.notes / Sg.Ending ＋ 渲染后处理（**引擎层**，`#574` 修正 layer）
 	'src/engine/50-present/12-shortfight.twee',   // 短战斗 widget（#608：从故事侧上移）
 	'src/engine/50-present/90-style.twee',     // 纯 CSS
 	// `#1175`：minimal-demo 5 段叙事迁 md（原段序，逐字无损）
-	'stories/minimal-demo/passages/01-开场.md',
-	'stories/minimal-demo/passages/02-岔路.md',
-	'stories/minimal-demo/passages/03-左路.md',
-	'stories/minimal-demo/passages/04-右路.md',
-	'stories/minimal-demo/passages/05-图鉴.md',
 	// ── 第三个故事（#490 S5「无名洞窟」雏形）：同样按相对位置交错登记 ──
 	// ── 第二个故事（#460 最小示例）：证明引擎与故事已解耦 ──
 	// 它不共享 mist-forest 的任何文件（那是另一个故事的资产）；引擎文件对所有故事共享 → 由 `scopedFiles()` 自动带上。
@@ -120,17 +68,8 @@ export const ORDER = [
 // 每个模块：加载期依赖 + 必须定义的符号（用于抓「改了名/挪了位置」）
 export const MODULES = {
 	// ── 第二个故事（#460）：layer 'story'，只依赖引擎 ──
-	'stories/minimal-demo/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '第二个故事的元数据（StoryTitle / StoryData / StoryIdentity）' },
-	'stories/minimal-demo/15-tables.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '第二个故事的最小声明面：引擎**加载期**要用的空容器（#460 实测的接入契约）' },
 	// `#1175`：minimal-demo 5 段迁 md，依赖表逐件登记（同一条依赖）
-	'stories/minimal-demo/passages/01-开场.md': { deps: ['stories/minimal-demo/15-tables.twee'], defines: [], layer: 'story', note: '最小示例段落（md 形态，原序 1/5）' },
-	'stories/minimal-demo/passages/02-岔路.md': { deps: ['stories/minimal-demo/15-tables.twee'], defines: [], layer: 'story', note: '最小示例段落（md 形态，原序 2/5）' },
-	'stories/minimal-demo/passages/03-左路.md': { deps: ['stories/minimal-demo/15-tables.twee'], defines: [], layer: 'story', note: '最小示例段落（md 形态，原序 3/5）' },
-	'stories/minimal-demo/passages/04-右路.md': { deps: ['stories/minimal-demo/15-tables.twee'], defines: [], layer: 'story', note: '最小示例段落（md 形态，原序 4/5）' },
-	'stories/minimal-demo/passages/05-图鉴.md': { deps: ['stories/minimal-demo/15-tables.twee'], defines: [], layer: 'story', note: '最小示例段落（md 形态，原序 5/5）' },
 	// ── 第四个故事（`night-ferry` · 夜渡，P4 `#991` 用编辑器做出）──
-	'stories/night-ferry/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '第四个故事的元数据（StoryTitle / StoryData / StoryIdentity）' },
-	'stories/night-ferry/15-tables.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '第四个故事的声明面：引擎**加载期**要用的空容器（`#998` 实测：必须排在 `21-resolve` 前 ✗ —— 否则顶层浅合并会把引擎 assign 的方法替换掉 ✓）' },
 	//注意：`#1004` B2：**引擎件**的依赖条目不许随故事删（它只是 `deps` 里引用过故事表 → 改 deps，**不删条目**）——
 	// 否则 ORDER 里还有它、依赖表里没有 → `move-precheck` 的 `[missing-modules]` 当场红（实测：B2a 一版就踩了这个）。
 	'src/engine/40-sim/21-resolve.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'engine', note: '结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）' },
@@ -143,24 +82,8 @@ export const MODULES = {
 	'src/engine/40-sim/42-codex.twee': { deps: ['src/engine/40-sim/22-rules.twee'], defines: [], layer: 'engine', note: '图鉴面的算（`#1187` 拆出）。读面 `Sg.rules`（条件求值单一权威）＋ `Sg.story`（运行期故事数据）⇒ 只登记前者的提供者（加载序）；`Sg.Codex`（住 `src/80-script.twee`，ORDER 更后）是**运行时耦合**、不登记。' },
 	'src/engine/40-sim/30-checks.twee': { deps: ['src/10-core.twee', 'src/engine/40-sim/20-items.twee'], defines: [], layer: 'engine', note: '位点判定的「算」（`#1187` 拆出；写 Game.Checks 容器，`??=` 形态不入 defines —— 同 21-resolve 的房式；Game.Items／Game.Rules 由前两件提供）' },
 	// `#1132` 片 3：夜渡 11 段迁 md → 依赖表逐件登记（同一条依赖 原段序）
-	'stories/night-ferry/passages/01-渡口.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 1/11）' },
-	'stories/night-ferry/passages/02-付钱.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 2/11）' },
-	'stories/night-ferry/passages/03-撑篙.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 3/11）' },
-	'stories/night-ferry/passages/04-船头.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 4/11）' },
-	'stories/night-ferry/passages/05-河心.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 5/11）' },
-	'stories/night-ferry/passages/06-举灯.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 6/11）' },
-	'stories/night-ferry/passages/07-等浪.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 7/11）' },
-	'stories/night-ferry/passages/08-靠岸.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 8/11）' },
-	'stories/night-ferry/passages/09-翻船.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 9/11）' },
-	'stories/night-ferry/passages/10-结局 抵岸.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 10/11）' },
-	'stories/night-ferry/passages/11-结局 沉船.md': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '夜渡段落（md 形态；原序 11/11）' },
-	'stories/night-ferry/17-rules.twee': { deps: ['stories/night-ferry/15-tables.twee'], defines: [], layer: 'story', note: '条件表（生成物）：行数组，选择器在引擎侧' },
 	// ── 面夹具（`face-fixture`，`#1004` B2b）：**测试夹具（非内容故事）** ──
 	// 它把接入契约的每种面声明一次，供测试当输入（段名沿用旧故事只因消费者钉死了它们；正文全部新写）。
-	'stories/face-fixture/00-meta.twee': { deps: [], defines: [], layer: 'story', note: '夹具的元数据（StoryTitle / StoryData / StoryIdentity）' },
-	'stories/face-fixture/15-tables.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'story', note: '夹具的声明面：引擎**加载期**要用的容器（同 `#998`：必须排在 `21-resolve` 前 ✗）' },
-	'stories/face-fixture/17-rules.twee': { deps: ['stories/face-fixture/15-tables.twee'], defines: [], layer: 'story', note: '夹具条件表（生成物）：`rows` 非空（两存活样本都给不了这一格 ✓）' },
-	'stories/face-fixture/16-notes-ch1.twee': { deps: ['stories/face-fixture/15-tables.twee'], defines: [], layer: 'story', note: '夹具 notes 面（生成物）：`Game.Notes.entries` 增量（4 条）' },
 	'src/engine/30-persist/05-store.twee': { deps: [], defines: ['Sg.store'], layer: 'engine', note: '存储缝（#441-B/#462）：localStorage 键构造的唯一落点' },
 	'src/engine/10-const.twee': { deps: [], defines: ['Game.Era', 'Game.Damage'], layer: 'engine', note: '引擎常量（#660 片二）：时代枚举与伤害档梯的**唯一落点**' },
 	'src/10-core.twee': { deps: ['src/engine/10-const.twee'], defines: ['Game.Rules', 'Game.Pc', 'Sg.UI'], layer: 'engine', note: '规则内核与界面基座（常量见 10-const）' },

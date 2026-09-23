@@ -206,20 +206,6 @@ export const PROBES = [
 		why: '量的是「键级图」的两张表**真的**从数据面算出来 （掐掉授予面  `grantedBy` 空  合成反例与真数据反查都红 ）—— 不是常数 ',
 	},
 	{
-		// 车道 D 切片 3（`#215` `18502113`）：**显示层**的缺口守卫 —— 掐掉"缺数据 → 抛" → 空图 + 该用例必红
-		id: 'test/web-event-graph.mjs',
-		tier: 'fast',
-		pre: [],
-		cmd: 'node test/web-event-graph.mjs',
-		mutation: {
-			file: 'editor/web/event-graph-view.mjs',
-			find: 'if (!Array.isArray(rows) || !Array.isArray(members)) {',
-			replace: 'if (false) {',
-		},
-		expect: { rc: 1, stdout: /rules\.json|contract\.json/ },
-		why: '量的是「缺数据必须报错」那一格**真的**在守 （掐掉它  页面会画一张**空图**  会被读成"没有依赖"  两条缺口用例必红 ）',
-	},
-	{
 		// 车道 G 前半 · 切片 1a（`#215` 报备 `18502752`）：**方言指纹**的「**缺 vs 畸形**」分家自证
 		id: 'test/dialect.mjs',
 		tier: 'fast',
@@ -250,22 +236,6 @@ export const PROBES = [
 		why: '量的是「**单向 ⊆ 包络**」那一刀**真的有牙** （把字段级越界检查摘掉  `brandNewField` 静默通过  必红且点名 ）—— 否则“全集”只是个摆设（随手加字段没人拦 ）',
 	},
 	{
-		// 车道 E-B2（`#215` 报备 `18502613`）：**规则行**页内面的「**两侧同判**」自证
-		id: 'test/web-rule-rows.mjs',
-		tier: 'fast',
-		pre: [],
-		cmd: 'node test/web-rule-rows.mjs',
-		rebuild: 'node build.mjs >/dev/null',   // `#1132` 块 1：**本门读产物** → 判据对象是产物 → 必须重建（否则量上一代产物＝**假不咬** `#1012`）
-		mutation: {
-			// 把页内那一支的死规则判定**掐掉**（返回空数组）→ 页内主读数不从 0 变 1 → 刀那一条必红
-			file: 'editor/web/rule-rows-view.mjs',
-			find: 'dead: deadRows(rows),',
-			replace: 'dead: [],',
-		},
-		expect: { rc: 1, stdout: /合成一条死规则/ },
-		why: '量的是「页内**真的在判**，而不是把 CLI 的结论抄一遍」（掐掉 core 那一步  页内主读数不从 0 变 1  刀必红 ）—— 否则“两侧同判”会被写成“两侧都空”',
-	},
-	{
 		// 车道 G 前半 · 切片 1c（`#215` 报备 `18503697` / 开工报备 `18503987`）：**反向哨兵**（退出条件）真的在守
 		id: 'test/contract-compat.mjs',
 		tier: 'fast',
@@ -279,22 +249,6 @@ export const PROBES = [
 		},
 		expect: { rc: 1, stdout: /retired|该删|退出条件/ },
 		why: '量的是「**退出条件真的会被执行**」（＝`escapeHatchProblems` 的“登记腐烂  红”同构）：把它排掉  “退出条件已成立而条目还在”静默通过  必红且点名  —— 否则上限 ＋ 退出条件就是“只增不减”的摆设 ',
-	},
-	{
-		// 车道 E-B3（`#215` 报备 `18504078`）：**读侧（`--reads`）**页内面的「① 条件表行级」自证
-		id: 'test/web-read-faces.mjs',
-		tier: 'fast',
-		pre: [],
-		cmd: 'node test/web-read-faces.mjs',
-		rebuild: 'node build.mjs >/dev/null',   // `#1132` 块 1：**本门读产物** → 判据对象是产物 → 必须重建（否则量上一代产物＝**假不咬** `#1012`）
-		mutation: {
-			// 把页内那一支的 ① 级判定**掐掉**（返回空）→ 注入的字面状态读不被点名 → 刀那一条必红
-			file: 'editor/web/read-faces-view.mjs',
-			find: 'const problems = tableReadProblems(rows);',
-			replace: 'const problems = [];',
-		},
-		expect: { rc: 1, stdout: /注入字面状态读/ },
-		why: '量的是「页内**真的在判** ① 条件表行级，而不是把 CLI 的结论抄一遍」（掐掉 core 那一步  注入的字面状态读不被点名  刀必红 ）—— 否则“两侧同判”会被写成“两侧都空”',
 	},
 	// ⛔ **退役 ＋ 声明**（`#1004` B2b）：本行探针随 `test/web-settle.mjs` 一起退役。
 	// 因由：该件的**门侧样本**是 `stories/hollow-cave/gates/settle.mjs` —— 该故事已删（B2a）
@@ -536,24 +490,6 @@ export const PROBES = [
 		why: '量的是「**内容故事的正文里不许出现逻辑/表达式宏**」（甲-1 的防退化保证：作者不写 Twee）—— 否则"作者只写 MD＋JSON"这条路线会不知不觉退化回"作者在正文里写代码" ',
 	},
 	{
-		// `#1034`：导出那条 —— 刀＝把**成套断言**从导出路里拿掉（"部分包"就又能当通过了）。
-		//注意：为什么这把刀对：它正打在**本票的关键读数**上（票面「能假」栏第一条＝**空包／部分包必须报错**）
-		// → 删掉断言后，"缺清单"那几格**确定性**变红（不靠并发/时序 —— 本仓被那类判据咬过两次）。
-		//注意：不需要 `rebuild`：被测面是 `editor/web/**`（页面路，不进 `dist` 产物）。
-		//注意：被测件不引 `boot.mjs` → 与 `cmdNeedsProducts` 无关 → `pre: []`。
-		id: 'test/web-export.mjs',
-		tier: 'fast',
-		pre: [],
-		cmd: 'node test/web-export.mjs',
-		mutation: {
-			file: 'editor/web/save.mjs',
-			find: "\tassertExportComplete({ slug, written: saved.written });",
-			replace: "\t// 探针：把成套断言拿掉  部分包又能当通过 ",
-		},
-		expect: { rc: 1, stdout: /缺\*\*清单\*\*|00-story\.json/ },
-		why: '量的是「导出**必须成套**（空包／部分包不许当通过）」那一手在守（拿掉断言  本片③那几格必红并点名缺件 ）',
-	},
-	{
 		// `#1044`：段间产物依赖边守护门 —— 刀＝把 `test-lint-scratch-mjs` 的 needs 改回缺边形（修复前形状）。
 		//注意：为什么这一刀**确定性**有效：本门是纯静态判定（读 SEGMENTS 的 needs 数组 不跑并发 不赌时序）
 		// → 删边 → 判据①当场红并点名两端（与 `#1024` 探针「旧落点没被重建」同为静态锚）。
@@ -657,3 +593,10 @@ export const PROBES = [
 		//（本仓口径：探针量"变异前绿 → 变异后红且点名" → 本条的"点名"＝助手件里那条 "未跟踪" 断言）
 	},
 ];
+
+// `#1261` 大裁剪（WebUI 产品线下架）：以下探针的靶已随 `#1260` 删除而退役，
+// 其判据同笔下架（留痕见下架表：对象｜为什么｜何时重建）：
+//   - test/web-event-graph.mjs
+//   - test/web-rule-rows.mjs
+//   - test/web-read-faces.mjs
+//   - test/web-export.mjs

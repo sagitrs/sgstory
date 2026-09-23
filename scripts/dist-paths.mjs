@@ -24,13 +24,16 @@ export const DIST_DIR = join(ROOT, 'dist');
 //注意：不选 `minimal-demo`：它是"最小声明面"冒烟故事 → 在那里跑内容面判据只会得到**空判**
 //（实测：15 件"启默认"的件全红在"找不到链接「踏上旅途」"）；也不选 `night-ferry`（P4 内容故事、面不全）。
 //注意：夹具 `00-story.json::subtitle` 已写明"**测试夹具（非内容故事）**" → 免得三个月后被读成"漏删的旧故事"。
-export const DEFAULT_SLUG = 'face-fixture';
+// `#1261` 大裁剪：仓内不再带 demo 故事，默认故事改为运行时取第一个故事，无则 null。
 
 /** 在 stories/ 下发现的故事 slug（按目录名排序，稳定）。 */
 export const storySlugs = () =>
 	(existsSync(STORIES_DIR) ? readdirSync(STORIES_DIR) : [])
 		.filter((d) => existsSync(join(STORIES_DIR, d, '00-story.json')))
 		.sort();
+
+// 需要具体 slug 的消费者请显式传参；旧值 face-fixture 已随 demo 删除（故事随 `#1163` 在 books 仓落地）。
+export const DEFAULT_SLUG = storySlugs()[0] ?? null;
 
 /** 读一个故事的清单（`stories/<slug>/00-story.json`）。 */
 export const readStory = (slug) => JSON.parse(readFileSync(join(STORIES_DIR, slug, '00-story.json'), 'utf8'));
@@ -52,7 +55,10 @@ export const contentSlugs = () => storySlugs().filter((s) => audienceOf(readStor
 export const internalSlugs = () => storySlugs().filter((s) => audienceOf(readStory(s)) === 'internal');
 
 /** 故事产物：`dist/stories/<slug>/index.html`（**相对 fonts/ 的深度是 2 层**）。 */
-export const storyHtml = (slug = DEFAULT_SLUG) => join(DIST_DIR, 'stories', slug, 'index.html');
+export const storyHtml = (slug = DEFAULT_SLUG) => {
+	if (!slug) throw new Error('storyHtml: no story in repo (zero-story mode) -- pass slug explicitly (`#1261`)');
+	return join(DIST_DIR, 'stories', slug, 'index.html');
+};
 
 /** 书架页：**`dist/index.html`**（β2 起首页＝书架；这是"多故事"对外的门面）。 */
 export const shelfHtml = () => join(DIST_DIR, 'index.html');
@@ -61,7 +67,10 @@ export const shelfHtml = () => join(DIST_DIR, 'index.html');
 export const defaultStoryHtml = () => storyHtml(DEFAULT_SLUG);
 
 /** 故事产物**相对 dist 根**的路径（服务器/URL 用；#363 的验收服务器与 ci 的线上冒烟都按这个形状取）。 */
-export const storyRelPath = (slug = DEFAULT_SLUG) => `stories/${slug}/index.html`;
+export const storyRelPath = (slug = DEFAULT_SLUG) => {
+	if (!slug) throw new Error('storyRelPath: zero-story mode -- pass slug explicitly (`#1261`)');
+	return `stories/${slug}/index.html`;
+};
 
 /** 字体目录是**共享根路径**（`dist/fonts/`）：故事页用 `../../fonts/`，根页用 `fonts/`。 */
 export const FONT_PREFIX_FROM_ROOT = 'fonts/';

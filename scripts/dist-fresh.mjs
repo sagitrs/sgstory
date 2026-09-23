@@ -17,10 +17,13 @@ import { defaultStoryHtml } from './dist-paths.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 // 单一权威（#441 切片 β1）：不要在这里再写一份 `dist/index.html`
-export const DIST_PATH = defaultStoryHtml();
+// `#1261` 零故事模式：仓内无故事时没有逐故事产物 ⇒ DIST_PATH 为 null，
+// 依赖它的消费者（拿产物做断言的件）必须自行跳过；这里不再自动抛错（那是导入期副作用 ✗）。
+export const DIST_PATH = (() => { try { return defaultStoryHtml(); } catch { return null; } })();
 export const SRC_DIR = join(ROOT, 'src');
 
 export const distState = ({ distPath = DIST_PATH, srcDir = SRC_DIR } = {}) => {
+	if (!distPath) return { exists: false, fresh: false, noStory: true };   // `#1261` 零故事：无逐故事产物
 	if (!existsSync(distPath)) return { exists: false, fresh: false };
 	// #458 切片B：默认走**单一权威** `allSourceFiles()`（搬家后同时看 `src/**` 与 `stories/**`，
 	// 否则故事文件改动会被新鲜度守卫**静默漏掉**）；显式传 `srcDir`（自证的合成目录）时按它枚举。

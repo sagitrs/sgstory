@@ -71,10 +71,10 @@ if (files.length === 0) {
 	console.error('src/ 下没有找到 .twee 文件');
 	process.exit(1);
 }
-if (slugs.length === 0) {
-	console.error(' stories/ 下没有找到故事清单（需 <slug>/00-story.json）');
-	process.exit(1);
-}
+// `#1261` 大裁剪：**零故事是合法状态**（仓内不再带 demo 故事；故事内容随 `#1163` 在 books 仓落地）。
+// 此时只构建**引擎产物**（`dist/engine.html`），并跳过一切故事面（书架/逐故事产物）。
+const engineOnly = slugs.length === 0;
+if (engineOnly) console.log('  #1261 零故事模式：只产出引擎产物（dist/engine.html），跳过故事面');
 const stories = slugs.map((slug) => ({ slug, ...readStory(slug) }));
 {
 	// `#893` 第三步：两层的**登记判据**走**单一权威**（`checkRegistration()` —— 与 `test/layering.mjs`／

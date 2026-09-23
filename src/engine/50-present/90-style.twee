@@ -330,8 +330,8 @@ body {
 	border-left: 3px solid #7c6a4f;
 	background: rgba(124, 106, 79, 0.08);
 }
-.soc-ask > .soc-opts { display: block; margin-top: 0.35em; }
-.soc-ask .soc-opts a { display: block; width: fit-content; max-width: 100%; margin-top: 0.6em; }
+.soc-ask > .panel { display: block; margin-top: 0.35em; }
+.soc-ask .panel a { display: block; width: fit-content; max-width: 100%; margin-top: 0.6em; }
 .soc-meta { display: block; color: #8b806b; font-size: 0.86em; overflow-wrap: anywhere; }
 .soc-said { display: block; margin-top: 0.3em; }
 .soc-cost { display: block; color: #a3785e; font-size: 0.9em; }

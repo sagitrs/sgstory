@@ -15,7 +15,7 @@
 > · **缺自证的几行**（`—` ✓）：补一条**能假的负控制** ✓，或按 `#908` ① 登记探针 ✓ —— 名单见下方「工作清单」（**动态生成** ✗，不写死 ✓）。
 
 **严格行为化率（有自证）：73/116 = 62.9%** ｜ **有断言但缺自证：42**（＝下方工作清单）｜ 仅登记：0
-**探针（直接读数 ✓，不是"文件在不在"那种代理 ✗）：`✅` 32 项 ｜ `—` 未探 84 项（**上限 117** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ `✗` 不咬 0 项（**>0 即红** ✓）** —— 档位／清单：`node scripts/probe-gates.mjs --probe=fast` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）
+**探针（直接读数 ✓，不是"文件在不在"那种代理 ✗）：`✅` 27 项 ｜ `—` 未探 83 项（**上限 117** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ `✗` 不咬 6 项（**>0 即红** ✓）** —— 档位／清单：`node scripts/probe-gates.mjs --probe=fast` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）
 **档位（tier，`#1070`）：PR 档（`--tier=fast`）只跑 `tier:'fast'` 的段；下列 **2 段**在 `full` 档（`npm run test:full`；nightly/main 由 `#1071` 接线）。**降频必须留痕** ✓（K5）——理由如下（单一权威＝`scripts/test-plan.mjs` 的 `FULL_REASONS` ✓）：**
 | 段 | 实测成本 | 为什么不在 PR 档（理由 ＋ 代价） |
 |---|---|---|
@@ -59,20 +59,20 @@
 | `test/comment-mask.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
 | `test/cond-keyform.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/contract-compat.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
-| `test/contract-defaults.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
-| `test/contract-version.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
+| `test/contract-defaults.mjs` | 测试脚本 | 行为化（缺自证） | — | ✗ | ✅ |  |
+| `test/contract-version.mjs` | 测试脚本 | 行为化（缺自证） | — | ✗ | ✅ |  |
 | `test/core-story.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/coverage.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
-| `test/dialect.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
+| `test/dialect.mjs` | 测试脚本 | 行为化（缺自证） | — | ✗ | ✅ |  |
 | `test/docs-read-path.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
-| `test/equiv-scratch.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
+| `test/equiv-scratch.mjs` | 测试脚本 | 行为化（缺自证） | — | ✗ | ✅ |  |
 | `test/event-graph.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/fatal-guard.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/fight-seq.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/focus-after-nav.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/g3-evidence.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/gate-discovery.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/gen-needed.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
+| `test/gen-needed.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
 | `test/gen-segment-syntax.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/generated-family.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/globals.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
@@ -82,7 +82,7 @@
 | `test/k4-args.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/k4-references.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/layering.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | 自证 **33** 条断言（**量法**：`node test/layering.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝模块依赖（`cases` 11 项，含 `#893` 两层登记的三条正反例）/ 点号 defines / 层间方向 / engine rank 派生与四条禁止边 |
-| `test/lint-scratch.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
+| `test/lint-scratch.mjs` | 测试脚本 | 行为化 | ✅ | ✗ | ✅ |  |
 | `test/lint-story.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
 | `test/md-visible-faces.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/meta-source.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
@@ -92,7 +92,7 @@
 | `test/npm-entries-guard.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/onetime-pickups.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/passages-assemble.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |
-| `test/pc-base.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ |  |
+| `test/pc-base.mjs` | 测试脚本 | 行为化（缺自证） | — | ✗ | ✅ |  |
 | `test/pc-defaults.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ |  |
 | `test/plan-needs.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |
 | `test/premise-source.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |

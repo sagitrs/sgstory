@@ -67,11 +67,11 @@ export const PROBES = [
 		cmd: 'node test/contract-defaults.mjs',
 		mutation: {
 			file: 'editor/lib/core/contract-defaults.mjs',
-			find: "	lootText: { kind: 'null', verified: VERIFIED },",
+			find: "	combatAction: { kind: 'null', verified: VERIFIED },",
 			replace: "	// 探针：删掉这条缺省（引擎仍在读它、三故事都没声明，缺口格应点名）",
 		},
-		expect: { rc: 1, stdout: /read-without-default|lootText/ },
-		why: '量的是「读了而没声明又没有缺省 ⇒ 报」那一支（删缺省 ⇒ 缺口格当场点名）。',
+		expect: { rc: 1, stdout: /default-missing|combatAction/ },
+		why: '量的是「**已声明成员的缺省**被用」那一支（B 半收口后：读点按域收窄 ⇒ 旧靶子“任意名的缺省”已失效；删该成员缺省 ⇒ 判据件当场点名该成员）。',
 	},
 	// `#1186`：量的是「未声明模块的故事零玩法概念」那一支 —— 刀＝把战斗组的在场门从"按契约面"改成
 	// "恒在场"（即让 `dragon` 无条件出现）→ 第二格必须点名。

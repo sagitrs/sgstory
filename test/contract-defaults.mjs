@@ -100,6 +100,14 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 		const synthetic = defaultProblems({ membersByStory: { 's': [{ name: 'rules', kind: 'empty-array' }] },
 			readsByMember: { rules: [{ file: 'x.twee', line: 1, tail: '(a)', before: 'Sg.story.rules' }] }, defaults: DEFAULTS });
 		ok('能假·B 半清单可枚举（合成一个未守卫读点必须列出）', synthetic.some((x) => x.code === 'needs-guard-first'));
+	// `#1216` B 半收口：探针的新靶子落在“已声明成员的缺省”上（旧靶子 `lootText`
+	// 本就没被任何故事声明 ⇒ 按域收窄后不在域内 ⇒ 不咬是必然，不是弱化）。
+	{
+		const withDefault = defaultProblems({ membersByStory: { s: [{ name: 'X' }] }, readsByMember: { X: [{ file: 'a', line: 1, tail: '()' }] }, defaults: { X: 'v' } });
+		ok('能假·缺省完好 ⇒ 不报 default-missing', withDefault.every((p) => p.code !== 'default-missing'));
+		const without = defaultProblems({ membersByStory: { s: [{ name: 'X' }] }, readsByMember: { X: [{ file: 'a', line: 1, tail: '()' }] }, defaults: {} });
+		ok('能假·删缺省 ⇒ 点名该成员', without.some((p) => p.code === 'default-missing' && p.name === 'X'));
+	}
 }
 
 // ── 能力开关 ──

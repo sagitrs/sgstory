@@ -31,7 +31,9 @@ export const engineFamiliesOf = (src = readFileSync(ENGINE, 'utf8')) => {
 	const body = src.slice(start, end < 0 ? undefined : end);
 	const fam = new Set();
 	// ① `n_` 笔记族
-	if (/if \(k\.startsWith\('n_'\)\) return window\.Sg\.notes\.has\(k, pc\);/.test(body)) fam.add('note');
+	// `#1223` 后引擎把 `n_` 族改成读**通用状态面**（`readPath(pc, \`ev.notes.${k}\`) === true`）⇒
+	// 旧锚（`Sg.notes.has(k, pc)`）**已腐烂**（本段在挂起清单里 ⇒ 链上看不见，本笔顺手修）。
+	if (/if \(k\.startsWith\('n_'\)\) return window\.Sg\.notes\.readPath\(pc, `ev\.notes\.\$\{k\}`\) === true;/.test(body)) fam.add('note');
 	// ② 前缀键族（引擎**一支三族** → 抽取面**展开**成三族 领队细化）
 	const m = /const m = \/\^\(inv\|era\|gear\):\(\.\+\)\$\/\.exec\(k\);/.exec(body);
 	if (m) { fam.add('inv'); fam.add('era'); fam.add('gear'); }
@@ -42,8 +44,12 @@ export const engineFamiliesOf = (src = readFileSync(ENGINE, 'utf8')) => {
 	// ⑦ `chk:` 站点结果族（`#1275` 案 A：`chk:<站点>.<字段>`，值域＝**本次点击的运行时结果**表）
 	// 两种等价形态都认（避免"谁定形态、谁来凑锚"的反向依赖）：**正则单元**（与 `inv|era|gear`／`codex` 同款）
 	// ／**分支头**。任一句**整句**在 ⇒ 该族在 —— 两支都认能扛"加 else／换解析"这类重构，仍抓得住"族改名"。
-	if (/const ck = \/\^chk:\(\.\+\)\\\.\(\[a-z\]\+\)\$\/\.exec\(k\);/.test(body)
-		|| /(?:^|\s)(?:else\s+)?if \(k\.startsWith\('chk:'\)\) \{/.test(body)) fam.add('chk');
+	// 锚**按引擎真实形态**定（不是让引擎来配锚）：引擎现写作
+	//   `if (typeof key === 'string' && key.startsWith('chk:')) {` —— 接收者名是 `key`、且带前置条件，
+	// 故分支头锚**不锁接收者名与前置条件**（`[^)]*`），只要求「`if ( … .startsWith('chk:') ) {`」这个**整句**；
+	// 另一种等价形态（正则单元，与 `inv|era|gear`／`codex` 同款）也认。
+	if (/if \([^)]*\.startsWith\('chk:'\)\)\s*\{/.test(body)
+		|| /const ck = \/\^chk:\(\.\+\)\\\.\(\[a-z\]\+\)\$\/\.exec\(k\);/.test(body)) fam.add('chk');
 	// ⑤ 点分 ／ ⑥ 裸键（引擎同一 return 里的三元 → 两支）
 	if (/return window\.Sg\.notes\.readPath\(pc, k\.includes\('\.'\) \? k : `ev\.\$\{k\}`\);/.test(body)) { fam.add('dotted'); fam.add('bare'); }
 	return fam;

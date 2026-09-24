@@ -4,35 +4,54 @@
 > 上游：`docs/engine/data-model.md`（数据是什么）· `docs/engine/authoring-model.md`（往哪儿写）· `docs/engine/reference-spec.md`（条件行规格）。
 > **本文档只写"字段与校验"**；"为什么这样设计"在上游那三份。
 
-## 一、一个故事包的全貌
+## 一、一个故事包的全貌（★这一节**只是你要写的那些件**）
+
+> **口径（`#1322`，2026-09-24 裁定）**：**「包」＝ 作者维护的输入**。
+> **生成物**（`00-meta.twee`／`15-tables.twee`／`16-notes-*.twee`／`17-rules.twee`／`18-chargen.twee`）
+> **不在这一节里** —— 它们是**编译链的中间件**，不是你要维护的东西 ⇒ 见下面「一·补 故事文件编译链」。
 
 ```
 stories/<slug>/
   00-story.json      ← 清单（manifest）           → 手册 §2
   data/
-    tables.json      ← 声明面（容器**由故事声明**；`face-fixture` 全集 15）｜**必填** → 手册 §4
-    contract.json    ← 接入契约（`face-fixture` **25** 个成员）｜**必填** → 手册 §7
+    tables.json      ← 声明面（容器**由故事声明**）｜**必填** → 手册 §4
+    contract.json    ← 接入契约｜**必填** → 手册 §7
     meta.json        ← 元信息源（入口件的源）｜**必填** → 手册 §3
     rules.json       ← 条件表（可缺）              → 手册 §5
     notes.json       ← 笔记表（可缺，EXTENSIONS）  → 手册 §6
     chargen.json     ← 车卡数据集（可缺）          → 手册 §10
   passages/          ← 散文（MD，一段一文件；**叙事段的源**） → 手册 §8
-  audit.json         ← 故事自己的判据数据          → 手册 §9
-  gates/             ← 故事自己的门与见证件        → 手册 §9
-  00-meta.twee       ← **产物**（源 `data/meta.json`；入口件，列 `files` 首位）
-  15-tables.twee     ← **产物**（源 `data/tables.json`）
-  16-notes-*.twee    ← **产物**（源 `data/notes.json`；按故事可有可无）
-  17-rules.twee      ← **产物**（源 `data/rules.json`）
-  18-chargen.twee    ← **产物**（源 `data/chargen.json`）
-  11-fixture-cards.twee ← **手写**（夹具专属，待 `#1177` 收编）
+  audit.json         ← 故事自己的判据数据（可选） → 手册 §9
+  gates/             ← 故事自己的门与见证件（可选） → 手册 §9
 ```
 
-**源**：`00-story.json` · `data/*.json`（六件：`tables`／`contract`／`meta` **必填**，`rules`／`notes`／`chargen` 可缺）· `passages/*.md`（＋ `audit.json`／`gates/` 属判据面）；**故事目录里其余的 `.twee` 是产物**。
-注意 **`00-meta.twee` 自 `#1132` B4 起是产物**（源 `data/meta.json`；此前它是唯一的手写 `.twee`），见 §3。
-**这些 `.twee` 都在段落头之后那行带 `@generated` 标记**（即 K4 判据；手改会在下次编译被覆盖）；**例外是手写的 `11-fixture-cards.twee`**（夹具专属，待 `#1177` 收编）。
-**`meta.json` 缺的后果**：构建红。清单 `files` 与 `ORDER` 都列了入口件 `00-meta.twee`，而生成链在缺 `meta.json` 时**不产**该件（实测：移走它再 `npm run build` → 退出码 1，报 `missing-file`）。
+**源**：`00-story.json` · `data/*.json`（六件：`tables`／`contract`／`meta` **必填**，`rules`／`notes`／`chargen` 可缺）· `passages/*.md`（＋可选 `audit.json`／`gates/`）。
+**`meta.json` 缺的后果**：构建红 —— 清单 `files` 与 `ORDER` 都列了入口件 `00-meta.twee`，而生成链在缺 `meta.json` 时**不产出**它 ⇒ 这也是为什么清单里**必须列生成物**（见「一·补」第 3 条）。
+**散文层已落地**（来源：`#1114` 片 2b-2b／片 3 与 `#1175`）：叙事段不再经过手写 `.twee`。
 
-**散文层已落地**（来源：`#1114` 片 2b-2b／片 3 与 `#1175`）：三故事（`face-fixture`／`night-ferry`／`minimal-demo`）的叙事段**全部**在 `passages/*.md`；拼装由 `build.mjs` 走 `editor/lib/core/passages.mjs` 的单一分派点（`.twee` 与 `.md` 同源）。因此今天手写的"正文"写 `passages/*.md`，**不再写 `.twee`**；也**没有** `10-*.twee` 这种"拼装产物"（叙事段在装配期直接接入，不落中间件）。
+### 一·补、故事文件**编译链**（生成物：不是你要维护的）
+
+```
+  你的输入                     引擎产物（中间件，带 `@generated`）        发布产物
+  ─────────                   ───────────────────────────────        ─────────
+  data/meta.json       ──▶    00-meta.twee       （入口件）        ┐
+  data/tables.json     ──▶    15-tables.twee                       │
+  data/notes.json      ──▶    16-notes-*.twee    （可无）          ├─▶ build.mjs
+  data/rules.json      ──▶    17-rules.twee                        │      ──▶ 单文件 HTML（+ dist/）
+  data/chargen.json    ──▶    18-chargen.twee    （可无）          │
+  passages/*.md        ──▶    （装配期直接接入，不落中间件）      ┘
+```
+
+四条要记住的事实：
+
+1. **`@generated` 标记**：生成物在段落头之后那一行带它（即 K4 判据）⇒ **手改会在下次编译被覆盖** ✗。
+   （`00-meta.twee` 自 `#1132` B4 起也是产物，源 `data/meta.json`；此前它是唯一的手写 `.twee`。夹具专属的 `11-*.twee` 之类仍是手写，待 `#1177` 收编。）
+2. **不要手改生成物**：改它们＝**改错了层** —— 要改的是它们的**源**（`data/*.json`／`passages/*.md`），然后重编。
+3. **清单 `files` 为什么要列生成物**：那是**编译契约**的要求（入口件必须在清单里，`ORDER` 与模块序靠它）——
+   **不是"你要手写它们"**。⇒ 在清单里看到 `.twee` 不要慌：那是**声明**，不是**任务**。
+4. **生成物不入仓**（`.gitignore`，名单来源＝引擎的生成物家族谓词）⇒ 于是 **本地看得到它们、`git status` 却看不到**。
+   ⇒ 复算前**先清**（否则 build「按件在」**复用旧产物** ⇒ 会得到**假读数**）；
+   夹具 `test/fixtures/m3-chk-e2e/run.sh` 就是为这件事写的（**清三层** ⇒ build ⇒ 跑用例）。
 
 ## 二、逐文件手册
 

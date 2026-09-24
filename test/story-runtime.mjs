@@ -19,7 +19,7 @@
 // ⑤ **机制真落**：故事 2 的真机路（陷阱·失败支）点完 → hp 降 ＋ 异常真的落 ＋ 结果槽落了 ＋ 零未捕获报错。
 //
 // 用法：`node test/story-runtime.mjs`（自证：`--selftest`）
-import { readFileSync } from 'node:fs';
+import { readFileSync, existsSync } from 'node:fs';   // `#1282`：本笔新增 existsSync 用途（漏 import 会 ReferenceError 崩）
 import { absPath } from '../scripts/dist-paths.mjs';   // `#1267` A 类
 import { join } from 'node:path';
 import { scopedFiles, engineFiles } from '../scripts/module-order.mjs';
@@ -83,10 +83,23 @@ export const noteIdsUsed = (sources) => {
  * · 成员**在、有条目** → 键集 → 逐条对照（某条拿不到 → 红 ＋ 点名该条）
  *   不用 `Sg.notes.stored(pc)` 键集冒充声明面 —— 那是**运行时已存**那一侧；特征＝"两面分离的样本上不红"。
  */
-export const declaredNoteIds = (member) => {
-	if (member === undefined) return null;                       // (a) 面不存在 → 未判
-	const entries = member?.entries ?? member?.value ?? {};      // (b) 零条 → {} ；(c) 有条目 → 键集
-	return [...new Set(Object.keys(entries ?? {}))].sort();
+/** `#1282`（复核裁定）：**声明面＝该故事的契约成员 `notes` 的“已解析”取值**。
+ * 三态（同一路径三分支）：
+ *  · 成员**不存在** → `null` → 调用方**明说“本项未判”、不计红**（与 `domains`／`size-gate` 同口径）
+ *  · 成员**在**（真形态：`kind:'game-ref'` ＋ `path:'Game.Notes.entries'`，或 `kind:'empty-object'`）
+ *    → 取**已解析表**的键集（零条 → `[]` → **判了且无错**）
+ *   为什么不用 `contract.members[].entries`：**真格式没有 `entries` 字段**（抽查 30 个历史
+ *   `contract.json` → 含 `entries` 的 0 个）→ 那样写是"用自造形状自证"，且会把真声明读成零条（假红）。
+ *   也不用 `Sg.notes.stored(pc)`：那是**运行时已存**那一侧（特征＝"两面分离的样本上不红"）。
+ * @param member 契约成员（`undefined` → 未声明）
+ * @param resolved 取**已解析表**的函数（默认空表；注入用）
+ */
+export const declaredNoteIds = (member, resolved = () => ({})) => {
+	if (member === undefined) return null;                    // (a) 面不存在 → 未判
+	// (e) `kind:'null'` 按本轮词汇 ＝ **面不存在** → **必须与 `undefined` 同归"未判"**（  不得静默当零条）。
+	if (member?.kind === 'null') return null;
+	const table = resolved() ?? {};
+	return [...new Set(Object.keys(table))].sort();          // (b) 零条 → [] ／ (c) 有条目 → 键集
 };
 
 export const judgeNotes = (used, declared) =>
@@ -311,13 +324,21 @@ const main = async () => {
 			//   不用 `w.Sg.notes.stored(pc)` 冒充（那是运行时已存那一侧，会把判据写空）。
 			// 三态（与 `domains` 同口径）：面不存在 → **未判不计红**；面在 → 进判据（缺条目 → 红点名）。
 			// `#1282`：声明面＝**该故事的契约成员 `notes`**（读该故事 `data/contract.json` 的 `members`）。
+			// `#1282`（忠实还原，两席独立查出）：声明面＝**故事声明的笔记表** —— 读「**该成员在否／是否 kind:'null'**」
+			// （未声明／null → 未判）＋ **已解析表键集**（`Sg.story.notes()`，统一解析 game-ref／empty-object／内联）。
+			// 读盘面随根；已解析面走引擎的 `Sg.story.notes()`（三种真形态统一解析）。
 			const contractPath = absPath(`stories/${slug}/data/contract.json`);
 			const contractMembers = existsSync(contractPath) ? (JSON.parse(readFileSync(contractPath, 'utf8')).members ?? []) : [];
-			const declared = declaredNoteIds(contractMembers.find((m) => m?.name === 'notes'));
+			const declared = declaredNoteIds(
+				contractMembers.find((m) => m?.name === 'notes'),
+				() => w.Sg?.story?.notes?.(),
+			);
+			// `#1282`：声明面三态 —— (a) 未声明 → **未判不计红**；(b)/(c) 面在 → 进判据（零条／有条目）。
+			let noteFound = [];
 			if (declared === null) {
-				console.log(`  #1282 [笔记可用] ${slug}：未声明 \`data/notes.json\` ⇒ **本项未判**（不计红；声明后即参与判定）`);
+				console.log(`  #1282 [笔记可用] ${slug}：未声明契约成员 \`notes\` ⇒ **本项未判**（不计红；声明后即参与判定）`);
 			} else {
-				const noteFound = judgeNotes(used, declared);
+				noteFound = judgeNotes(used, declared);
 				problems.push(...noteFound.map((f) => ({ ...f, slug })));
 			}
 			let noteBroken = 0;

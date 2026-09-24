@@ -1,0 +1,9 @@
+{
+	"version": 1,
+	"story": "pilot-new",
+	"domains": {
+		"story": { "keys": ["门厅.看过", "靴子.看过"] },
+		"runtime": { "keys": ["ev.last_roll", "ev.last_result"] },
+		"inventory": {}
+	}
+}

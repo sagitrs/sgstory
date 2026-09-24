@@ -1,0 +1,16 @@
+{
+	"门厅": {
+		"params": {
+			"提醒": { "type": "string", "required": false, "default": "钥匙在靴里" }
+		},
+		"links": [
+			{ "label": "翻一翻靴子", "to": "靴子" },
+			{ "id": "门厅.推门", "label": "推门进去", "to": "里屋", "cond": { "req": ["inv:黄铜钥匙"] } }
+		],
+		"present": "菜单",
+		"prio": 2,
+		"prereq": []
+	},
+	"靴子": { "links": [], "present": "菜单", "prio": 1, "prereq": [] },
+	"里屋": { "links": [], "present": "菜单", "prio": 1, "prereq": [] }
+}

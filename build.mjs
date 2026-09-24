@@ -281,7 +281,12 @@ if (fontOK && existsSync('vendor/fonts/LXGWWenKai-Medium.ttf')) {
 	writeFileSync('build/font-chars.txt', [...chars].join(''), 'utf8');
 	try {
 		console.log('🔤 生成字体子集（LXGW WenKai → dist/fonts）…');
-		execSync('python3 scripts/subset_font.py build/font-chars.txt build/fontface.css dist/fonts', { stdio: 'inherit' });
+		// `#1267` 尾件⑤：字体产物落点必须**随根**（原来硬编仓内相对 `dist/fonts`
+		// ⇒ 外根下把字体写进**引擎仓**、而故事页却在 `<外根>/dist/stories/…` 引 `../../fonts/`
+		// ⇒ `test/multi-story` 的 P2 报"引用的字体文件不在 dist/fonts 里" ✗）。
+		const fontOutDir = join(DIST_DIR, 'fonts');
+		mkdirSync(fontOutDir, { recursive: true });
+		execSync(`python3 scripts/subset_font.py build/font-chars.txt build/fontface.css ${JSON.stringify(fontOutDir)}`, { stdio: 'inherit' });
 		fontCss = readFileSync('build/fontface.css', 'utf8');
 	} catch (e) {
 		console.warn('⚠️  字体子集化失败（缺 fonttools/brotli?），使用系统字体回退：' + e.message.split('\n')[0]);

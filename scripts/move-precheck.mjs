@@ -47,12 +47,13 @@ export const aggregatorChecks = (srcText) => {
  * `#893` 第三步：`②③④` 按**层**分工（引擎件 → `ORDER` ⧸ `MODULES`；故事件 → **它自己的清单**）——
  * 走单一权威 `checkRegistration()`；与 `test/layering.mjs` 的**唯一区别**：这里 `requireModules: true`
  *（`MODULES` 缺项是"账本不自洽"，属本脚本的六处同步面）。 */
-export const checkPlaces = ({ srcFiles, srcContents = null, order, modules, manifests, constFiles, aggregatorSrc }) => {
+export const checkPlaces = ({ srcFiles, srcContents = null, order, modules, manifests, constFiles, aggregatorSrc, consumer }) => {
 	const out = [...checkRegistration({ sources: Object.fromEntries(srcFiles.map((f) => [f, ''])), order, modules, manifests, requireModules: true })];
 	// `#1002`：**故事声明面必须排在消费它的引擎件之前** —— `checkRegistration()` 管不到这一格
 	//（`#998` 实测：漏排 → 故事表盖掉引擎挂在 `Game.*` 上的方法 → 门 TypeError → 后面的故事面全没跑）
 	// `#1220`：把**内容**喂给派生（原先只传名字加空串 → 派生会扫空）
-	out.push(...storyTablesOrderProblems({ order, manifests, ...(srcContents ? { sources: srcContents } : {}) }));
+	// `#1267` ③：透传 `consumer`（调用方可显式指定消费点 → 才能构造"**同层**消费点在表之前"的能假格）。
+	out.push(...storyTablesOrderProblems({ order, manifests, ...(consumer ? { consumer } : {}), ...(srcContents ? { sources: srcContents } : {}) }));
 	for (const f of [...constFiles]) if (!srcFiles.some((x) => x === f || x.endsWith(`/${f}`))) out.push({ code: 'stale-const-decl', msg: `CONST_SECTION.files 里的 ${f} 不存在（搬走了没更新声明）` });
 	if (aggregatorSrc) {
 		const a = aggregatorChecks(aggregatorSrc);
@@ -110,8 +111,24 @@ if (process.argv.includes('--selftest')) {
 	const CONS = 'src/engine/40-sim/21-resolve.twee';
 	const withStory = { ...base, srcFiles: [TBL], order: [TBL, CONS], modules: { [CONS]: { layer: 'engine' } }, manifests: [{ slug: 's', files: [TBL] }], constFiles: [] };
 	t('正例：故事表排在消费侧**之前** ⇒ 0 报 ✓', checkPlaces(withStory).filter((x) => x.code.startsWith('tables-')).length === 0);
-	t('🔴 反例：故事表**不在 ORDER**（漏登记）⇒ tables-not-in-order ✗', checkPlaces({ ...withStory, order: [CONS] }).some((x) => x.code === 'tables-not-in-order'));
-	t('🔴 反例：故事表排在消费侧**之后** ⇒ tables-after-consumer ✗（`#998` 的形状：故事表盖掉引擎方法 ⇒ 门崩 ✓）', checkPlaces({ ...withStory, order: [CONS, TBL] }).some((x) => x.code === 'tables-after-consumer'));
+	// `#1267` 尾件③（裁定甲）：生效加载序 = 引擎 ORDER ∪ 该故事清单 → **清单里的件必在序中**，
+	// 故原"不在 ORDER → tables-not-in-order"失去对象（`#893` 起故事件登记在自己的清单）。
+	// 新语义下该 code 管的是"**既不在 ORDER、也不在该故事清单**"→ 用"清单里没有这张表"表达。
+	t('🔴 反例：该故事清单里没有这张表（且不在 ORDER）⇒ 不判该面（本格管的就是一个面 ✓）',
+		checkPlaces({ ...withStory, manifests: [{ slug: 's', files: ['stories/s/10-x.twee'] }] })
+			.filter((x) => x.code.startsWith('tables-')).length === 0);
+	// `#1267` ③（裁定甲）：**跨层不再要求先后** —— 引擎消费者按生效序在故事件之前，而现有实测
+	// 证明消费者工作在"故事表按清单序后到"之下（**前提已显式写出**，见 `module-order.mjs` 的
+	// `storyTablesOrderProblems` 注释）→ 本格改为**验跨层不报**。
+	t('跨层（引擎消费点 vs 故事表）⇒ **不再要求先后**、0 报（前提：消费者容忍后到的故事表）',
+		checkPlaces({ ...withStory, order: [CONS, TBL] }).filter((x) => x.code.startsWith('tables-')).length === 0);
+	//   **能假格（同层）**：同故事里消费件排在表**之前**（生效序里）→ **必须红**。
+	t('🔴 能假（同层）：同故事的消费件排在表之前 ⇒ tables-after-consumer ✗',
+		// 同层场景：**两者都不在 ORDER**（引擎 ORDER 只管引擎件）→ 生效序由**清单序**决定 →
+		// 消费件在清单里排前面 → 表在后 → 必须红。
+		checkPlaces({ ...withStory, srcFiles: ['stories/s/10-cons.twee', TBL], order: [CONS],
+			manifests: [{ slug: 's', files: ['stories/s/10-cons.twee', TBL] }],
+			consumer: 'stories/s/10-cons.twee' }).some((x) => x.code === 'tables-after-consumer'));
 	t('边界：清单里**没有** `15-tables` 面 ⇒ 不判（这格管的是那一个面 ✓）', checkPlaces({ ...base, manifests: [{ slug: 's', files: [] }] }).filter((x) => x.code.startsWith('tables-')).length === 0);
 	// `#1220`：消费侧改**派生**后的三格（能假／出声／反向核件数）
 	const SOCIAL = 'src/engine/40-sim/32-social.twee';
@@ -119,8 +136,10 @@ if (process.argv.includes('--selftest')) {
 	const derived = { ...withStory, srcFiles: [TBL, SOCIAL], order: [TBL, CONS, SOCIAL], modules: { [CONS]: { layer: 'engine' }, [SOCIAL]: { layer: 'engine' } }, srcContents: synthContents };
 	t('派生正例：表在**全体**消费件（含派生的那件）之前 ⇒ 0 报 ✓',
 		checkPlaces(derived).filter((x) => x.code.startsWith('tables-')).length === 0);
-	t('🔴 派生能假：表排在**派生出的**消费件之后 ⇒ tables-after-consumer ✗',
-		checkPlaces({ ...derived, order: [CONS, SOCIAL, TBL] }).some((x) => x.code === 'tables-after-consumer'));
+	// `#1267` ③：同上 —— 派生的消费件也在**引擎层** → 跨层不要求先后。
+	// 该格保留"派生面仍能被算出来"的意义（改验：派生的消费件在生效序里靠后 → 仍 0 报）。
+	t('派生跨层：表排在派生的消费件之后 ⇒ 0 报（跨层不要求先后；前提同上）',
+		checkPlaces({ ...derived, order: [CONS, SOCIAL, TBL] }).filter((x) => x.code.startsWith('tables-')).length === 0);
 	t('🔴 派生不到 ⇒ 出声 consumer-underivable（不静默退回旧默认 ✗）',
 		checkPlaces({ ...derived, srcContents: {} }).some((x) => x.code === 'consumer-underivable'));
 	t('常量声明指向不存在的文件 ⇒ stale-const-decl', checkPlaces({ ...base, constFiles: ['gone.twee'] }).some((x) => x.code === 'stale-const-decl'));

@@ -34,7 +34,7 @@ body:
     id: falsifiable
     attributes:
       label: 能假样本（今天必红，能力落地后转绿）
-      description: 一条故事侧用例（`cases/<slug>/<name>.json`）或最小复现命令与读数。
+      description: 这个功能**在引擎侧**怎么被证明是坏的：**引擎自己的测试／判据格**（夹具驱动、零故事态也能跑）或最小复现命令与读数。故事侧读数只作**动机与证据**（写在这里也行），**不作判据**。
     validations:
       required: true
   - type: textarea
@@ -47,8 +47,8 @@ body:
   - type: textarea
     id: accept
     attributes:
-      label: 验收判据（引擎侧功能级判据）
-      description: 这个功能在引擎侧怎么判：判据格／测试（能红能绿），以及把实现退回时必须再红的那个读数。故事里用在哪只是背景，不作为验收。
+      label: 验收判据（引擎侧看护格）
+      description: 这个功能在引擎侧怎么判：判据格（能红能绿，输入取自引擎自己的夹具，零故事态也能跑），以及把实现退回时必须再红的那个读数。故事里用在哪只是动机背景，不作为验收；用户写的故事不是测试用例。
     validations:
       required: true
   - type: input

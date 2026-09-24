@@ -131,6 +131,15 @@ if (SELF_RENDER) {
 		const d = JSON.parse(readFileSync(RULES, 'utf8'));
 		const s = JSON.stringify(d).replace(/chk:里屋·察觉\.success/g, 'chk:不存在的站点.success');
 		writeFileSync(RULES, s);
+		// input-layer assertion: prove the fixture SOURCE really changed before judging the product
+		// (manual negative experiment already proved: source change -> 17-rules.twee regenerated -> product updates;
+		//  so if this is red, the fault is in this cell's patch step, not in the build)
+		{
+			const srcTxt = readFileSync(RULES, 'utf8');
+			t('③ 前置·输入层：夹具 data/rules.json 已是「不存在的站点」', srcTxt.includes('不存在的站点'));
+			console.log('      输入层：源件里「不存在的站点」×%d｜「里屋·察觉」×%d',
+				(srcTxt.match(/不存在的站点/g) ?? []).length, (srcTxt.match(/里屋·察觉/g) ?? []).length);
+		}
 		negRun = runRunner();
 		neg = await readSource();
 	} finally {

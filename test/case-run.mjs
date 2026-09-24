@@ -111,9 +111,24 @@ t('⑯b 反向：`unknown`（离线）仍 ⇒ rc=0（不据此判红）', classi
 }
 
 // ── `#1287`（复核）：**呈现层**自证（判定对 ≠ 呈现对）────────────────────
-t('⑲ ★ **五态人读标签都非空**（新增状态漏接呈现位 ⇒ 行首 `undefined`）', (() => {
-	const keys = ['green', 'expected-gap', 'unattributed', 'invalid-attribution', 'stale-attribution'];
-	return keys.every((k) => typeof VERDICT_LABELS[k] === 'string' && VERDICT_LABELS[k].trim() !== '');
+// `#1315` 甲-2（裁定）：原格只断言「五个标签常量都非空」＝**判内部结构**（换实现方式就会红而无缺陷）⇒
+// 换成**行为格**：五个判决态**各自都要能在人读输出里看得见**。
+// ★ 期望用**契约词**（五态口径：绿／预期缺口／未归因／归因无效／陈旧归因），✗ **不抄实现的标签常量**
+//   —— 否则就是“期望照抄实现”（实现换字，格跟着换 ⇒ 契约漂移）。
+// 两处呈现位都看：(a) **人读汇总行**（造一条只含该态的汇总 ⇒ 行里必须出现该态的契约词）
+//               (b) **单例标记**（`VERDICT_LABELS[k]` 非空 —— 它挂在每例那一行上）
+t('⑲ ★ **五态都在人读输出里出现**（行为口径：不是“常量非空”，而是“渲染出来看得见”）', (() => {
+	const CTR = { green: '绿', 'expected-gap': '预期缺口', unattributed: '未归因',
+		'invalid-attribution': '归因无效', 'stale-attribution': '陈旧归因' };
+	const bucket = { green: 'green', 'expected-gap': 'expectedGap', unattributed: 'unattributed',
+		'invalid-attribution': 'invalidAttribution', 'stale-attribution': 'stale' };
+	return Object.entries(bucket).every(([k, b]) => {
+		const sum = { total: 1, green: 0, expectedGap: 0, unattributed: 0, invalidAttribution: 0, stale: 0, exit: 0 };
+		sum[b] = 1;
+		const line = summaryLine(sum, 0, '');
+		const marker = VERDICT_LABELS[k];
+		return line.includes(CTR[k]) && typeof marker === 'string' && marker.trim() !== '';
+	});
 })());
 t('⑳ ★ **人读汇总各桶之和 ＝ total**（且含「归因无效」桶）', (() => {
 	const sum = { total: 1, green: 0, expectedGap: 0, unattributed: 0, invalidAttribution: 1, stale: 0, exit: 1 };

@@ -38,12 +38,24 @@ export const judgeRoads = (ctx) => {
 	// `#1269`：**能力面就绪守卫** —— 故事未声明该能力面时，自证格里的裸调
 	// `Game.Combat.*` 会抛 TypeError（不点名缺什么）。缺面 → **点名并跳过自证**
 	//（判据本体不动：缺面时那部分本就无样本可判；补齐声明后自证照跑）。
-	const __faceReady = (() => { try { return typeof Game?.Combat?.['roadOffer'] === 'function'; } catch { return false; } })();
-	if (!__faceReady) {
+	const { Game, arg, wantAll } = ctx;
+	// `#1269`（两席 RC 修）：能力面就绪**走权威 `requireCombatFace`**（不许各处再内联一份），
+	// 且**检测必须在解构之后** —— 此前"检测在前" → 函数体内对后置 const 求 typeof 抛 TDZ
+	// → 被自己的 try/catch 吞 → 一律 false → **本门自证被整门吞掉**（rc=0、零判定  ）。
+	const __fn = requireCombatFace(Game, 'roadOffer');
+	// **两态能假格（常驻）**：就绪与缺席必须给出不同判定；否则等于"门在跑但零判定"。
+	{
+		const readyInj = requireCombatFace({ Combat: { 'roadOffer': () => null } }, 'roadOffer') !== null;
+		const absentInj = requireCombatFace({ Combat: {} }, 'roadOffer') === null;
+		if (!(readyInj && absentInj)) {
+			console.error(`  ✗ 守卫两态不可分（就绪=${readyInj}／缺席=${absentInj}）⇒ 本门可能在"零判定"下报绿（#1269）`);
+			return 1;
+		}
+	}
+	if (!__fn) {
 		console.log('  #1269 缺少能力面声明（Sg.story.mechanics() 未启用／未列出）⇒ 本门自证跳过（判据本体不变）');
 		return 0;
 	}
-	const { Game, arg, wantAll } = ctx;
 	const Sg = ctx.window?.Sg;
 	if (!wantAll && !arg('roads')) return;
 	console.log('\n══ ⓪aa 事件池与三选一门（S4/#489）——共用选择机制 · 三选一 · 线索可区分 · 频率 ══');

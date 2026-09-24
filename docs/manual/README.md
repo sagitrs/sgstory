@@ -28,7 +28,7 @@
 | 2 | 最小可跑故事 | 从零到"能玩"：目录 → 一段散文 → `00-story.json` → `build` → 跑一遍 | [步骤] |
 | 3 | **[散文面](03-prose.md)** | 能写什么／禁什么；**可用宏清单（从引擎派生）**；payload 标记 | [锚]＋[步骤] |
 | 4 | 段落图与选项 | 边＝`[[标签\|目标]]`；结局段；执行器四张面（`visible`／`absent`／`edges`／`state`） | [步骤] |
-| 5 | **条件行与规则表** ★先写 | 行字段（`id`／`scope`／`prio`／`req`／`any`／`exclude`／`prereq`）；单选 `<<rules>>` vs 菜单 `<<rulelist>>`；键族（`inv:`／`era:`／`gear:`／`chk:`）；算子 | [锚]＋[步骤] |
+| 5 | **[条件行与规则表](05-rules.md)** ★先写 | 行字段（`id`／`scope`／`prio`／`req`／`any`／`exclude`／`prereq`）；单选 `<<rules>>` vs 菜单 `<<rulelist>>`；键族（`inv:`／`era:`／`gear:`／`chk:`）；算子 | [锚]＋[步骤] |
 | 6 | 状态与写点 | `sets`／`yields`／`gives`；状态树；**域表纪律** | [锚] |
 | 7 | **位点检定与结果维** ★先写 | `<<sitecheck>>`／`<<snapshot>>`／`<<lastcheck>>`；`Checks.sites`；**`chk:<站点>.<字段>`**；未检定即引用 ⇒ fail-loud | [锚]＋[步骤] |
 | 8 | 笔记与图鉴 | `data/notes.json` ＋ `yields` 授予；图鉴 `Codex.items`；呈现面待 `#1308` | [锚] |

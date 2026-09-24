@@ -12,7 +12,7 @@ import { valueTerms, engineLabels } from './editor/lib/core/vocab.mjs';
 import {
 	ROOT, storySlugs, readStory, storyHtml, shelfHtml, DEFAULT_SLUG,
 	resolveStoryRel, absPath,   // `#1267` 符号名 → 真实路径
-	DIST_DIR, STORIES_DIR,   // `#1267` 故事根口（产物随根 ⇒ 跑仓外故事不在引擎仓拉屎）
+	DIST_DIR, STORIES_DIR,   // `#1267` 故事根口（产物随根 → 跑仓外故事不在引擎仓拉屎）
 	audienceOf,
 	FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY,
 } from './scripts/dist-paths.mjs';
@@ -59,7 +59,7 @@ const STORIES = STORIES_DIR;   // \`#1128\` 产物前置用（编译器 out 路�
 		const need = genNeeds({
 			declared,
 			family: (f) => isGeneratedFamily(f),
-			exists: (f) => existsSync(resolveStoryRel(f)),   // `#1267`：清单 `files` 是**符号名**（`stories/…`）⇒ 判存在也过换算
+			exists: (f) => existsSync(resolveStoryRel(f)),   // `#1267`：清单 `files` 是**符号名**（`stories/…`）→ 判存在也过换算
 			dataFiles,
 		});
 		if (need.needed.length) {
@@ -150,8 +150,8 @@ const mergedOf = (s) => {
 	return scoped.map((f) => {
 		// `--with-rules`：只替换**规则文件那一份**（窄 —— 不动别的件）
 		if (isStoryPassageMd(f)) return assembleOne(s.slug, f, known);
-		// `#1267`：清单里的路径是**符号名**（`stories/…`）⇒ 真读盘前必须过 `resolveStoryRel`
-		//（仓内＝恒等 ✓；仓外 ⇒ 指到真实故事根）。
+		// `#1267`：清单里的路径是**符号名**（`stories/…`）→ 真读盘前必须过 `resolveStoryRel`
+		//（仓内＝恒等  ；仓外 → 指到真实故事根）。
 		const text = (WITH_RULES && /(^|\/)17-rules\.twee$/.test(f)) ? readFileSync(WITH_RULES, 'utf8') : readFileSync(resolveStoryRel(f), 'utf8');
 		return stripTweeComments(text).trimEnd();
 	}).join('\n\n') + '\n';

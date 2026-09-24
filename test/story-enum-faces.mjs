@@ -1,13 +1,13 @@
 // `#1257` 判据：**故事枚举两个面必须一致**（`storySlugs()` ↔ `storyJsonFiles()`）。
 //
-// 背景：两面对"目录软链"的口径相反 ⇒ 同一棵树上给出不同的故事集合 ⇒ 下游
+// 背景：两面对"目录软链"的口径相反 → 同一棵树上给出不同的故事集合 → 下游
 // `checkRegistration` 会判"ORDER 里的 `stories/<slug>/…` 不存在"（而 `existsSync` 为真）——
 // 一条自相矛盾的假红（`#1256` 出仓断点试验实测）。
 //
 // 它在什么输入下会红：
-//   ① 有人把 `storyJsonFiles()` 的递归判据改回 `e.isDirectory()`（不跟随软链）⇒ 第 2、3 格红；
-//   ② 有人把 `storySlugs()` 改成"不跟随软链"而**没同步**另一面 ⇒ 第 1 格红；
-//   ③ 有人让"整体软链故事根"失效 ⇒ 第 3 格红。
+//   ① 有人把 `storyJsonFiles()` 的递归判据改回 `e.isDirectory()`（不跟随软链）→ 第 2、3 格红；
+//   ② 有人把 `storySlugs()` 改成"不跟随软链"而**没同步**另一面 → 第 1 格红；
+//   ③ 有人让"整体软链故事根"失效 → 第 3 格红。
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -53,12 +53,12 @@ try {
 	t('① 目录软链的故事：`storySlugs()` 看得见（跟随软链）', slugSet.has('link-s'), JSON.stringify(f.slugs));
 	t('① 目录软链的故事：`storyJsonFiles()` **也**看得见（同口径）', f.jsons.some((p) => p.includes('link-s/')), JSON.stringify(f.jsons));
 
-	// ② ★ 判据本体：**两面给出的故事集合必须相同**
+	// ②   判据本体：**两面给出的故事集合必须相同**
 	t('② 两面故事集合**相等**（`storySlugs()` ↔ `storyJsonFiles()`）',
 		slugSet.size === fromJson.size && [...slugSet].every((s) => fromJson.has(s)),
 		`slugs=${JSON.stringify([...slugSet])} json=${JSON.stringify([...fromJson])}`);
 
-	// ③ 整体根为软链（`SG_STORIES_DIR` 本身是软链 ⇒ 两面仍一致）
+	// ③ 整体根为软链（`SG_STORIES_DIR` 本身是软链 → 两面仍一致）
 	const whole = join(base, 'root-link');
 	symlinkSync(root, whole);
 	const g = facesOf(whole);

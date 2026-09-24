@@ -2,14 +2,14 @@
 //
 // 守护的对象：**引擎能编译并跑仓外的故事根**（伞终点的前置能力），且：
 //   · 仓内默认行为**不变**（向后兼容）；
-//   · 指错根时 **fail-loud**（点名声明的实际值）—— 否则"指错了根"会被下游读成"没有故事"（静默假绿 ✗）；
+//   · 指错根时 **fail-loud**（点名声明的实际值）—— 否则"指错了根"会被下游读成"没有故事"（静默假绿  ）；
 //   · **产物随根**：跑仓外故事不在引擎仓里留东西（"不拉屎"）。
 //
 // 它在什么输入下会红：
-//   ① 有人把 `STORIES_DIR` 改回硬编码 `join(ROOT,'stories')` ⇒ 第 1、2 格红；
-//   ② 有人把校验的 fail-loud 改成静默返回默认 ⇒ 第 3、4 格红；
-//   ③ 有人把 `resolveStoryRel`/`absPath` 的换算去掉 ⇒ 第 5 格红；
-//   ④ 有人让产物写回仓内 ⇒ 第 6 格红。
+//   ① 有人把 `STORIES_DIR` 改回硬编码 `join(ROOT,'stories')` → 第 1、2 格红；
+//   ② 有人把校验的 fail-loud 改成静默返回默认 → 第 3、4 格红；
+//   ③ 有人把 `resolveStoryRel`/`absPath` 的换算去掉 → 第 5 格红；
+//   ④ 有人让产物写回仓内 → 第 6 格红。
 import { spawnSync } from 'node:child_process';
 import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -19,7 +19,7 @@ const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 let bad = 0, n = 0;
 const t = (label, ok, extra = '') => { n++; if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${label}${ok || !extra ? '' : ` —— ${extra}`}`); };
 
-/** 用子进程取"设了 SG_STORIES_DIR 时的行为"（该口在模块加载期求值 ⇒ 必须换进程）。 */
+/** 用子进程取"设了 SG_STORIES_DIR 时的行为"（该口在模块加载期求值 → 必须换进程）。 */
 const runNode = (code, env) => spawnSync('node', ['--input-type=module', '-e', code], {
 	cwd: ROOT, encoding: 'utf8', env: { ...process.env, ...env },
 });
@@ -49,15 +49,15 @@ try {
 	const r1 = JSON.parse(d1.stdout.trim().split('\n').pop());
 	t('① 不设 `SG_STORIES_DIR` ⇒ 用仓内默认 `stories/`（向后兼容）', /\/stories$/.test(r1.dir), r1.dir);
 
-    // ── ② 设了 ⇒ 用声明的根（绝对/相对都行） ────────────────────────────────────
+    // ── ② 设了 → 用声明的根（绝对/相对都行） ────────────────────────────────────
 	const d2 = runNode("import('./scripts/dist-paths.mjs').then(m=>console.log(m.STORIES_DIR))", { SG_STORIES_DIR: outside });
 	t('② 设 `SG_STORIES_DIR` ⇒ 故事根＝声明的目录', d2.stdout.trim().endsWith(outside.split('/').pop()), d2.stdout.trim());
 
-	// ── ③ 指向**不存在的目录** ⇒ 出声（且点名实际值） ─────────────────────────────
+	// ── ③ 指向**不存在的目录** → 出声（且点名实际值） ─────────────────────────────
 	const d3 = runNode("import('./scripts/dist-paths.mjs').catch(e=>console.log('ERR:'+e.message))", { SG_STORIES_DIR: '/nonexistent-root-xyz' });
 	t('③ 指向不存在的目录 ⇒ **fail-loud**（不静默退回默认）', /ERR:/.test(d3.stdout) && /nonexistent-root-xyz/.test(d3.stdout), d3.stdout.trim().slice(0, 90));
 
-	// ── ④ 指向**没有清单的目录** ⇒ 出声（否则下游读成"没有故事"＝静默假绿 ✗） ─────
+	// ── ④ 指向**没有清单的目录** → 出声（否则下游读成"没有故事"＝静默假绿  ） ─────
 	const empty = mkdtempSync(join(tmpdir(), 'sg-empty-'));
 	const d4 = runNode("import('./scripts/dist-paths.mjs').catch(e=>console.log('ERR:'+e.message))", { SG_STORIES_DIR: empty });
 	t('④ 指向无 `<slug>/00-story.json` 的目录 ⇒ **fail-loud**', /ERR:/.test(d4.stdout) && /00-story\.json/.test(d4.stdout), d4.stdout.trim().slice(0, 90));
@@ -84,7 +84,7 @@ try {
 	const d7 = spawnSync('node', ['build.mjs'], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, SG_STORIES_DIR: outside } });
 	const after = readdirSync(ROOT).sort().join(',');
 	t('⑦ 仓外故事**编译通过**（rc=0）', d7.status === 0, (d7.stderr || d7.stdout || '').trim().split('\n').slice(-2).join(' / ').slice(0, 120));
-	// 产物目录＝**故事根的兄弟**（`<root>/../dist`）⇒ 仓外故事根 ⇒ 产物在 books 仓，不在引擎仓。
+	// 产物目录＝**故事根的兄弟**（`<root>/../dist`）→ 仓外故事根 → 产物在 books 仓，不在引擎仓。
 	const outDist = join(dirname(outside), 'dist', 'stories', 's1', 'index.html');
 	t('⑦ 产物落**仓外**（`dist/` 是故事根的兄弟；不写引擎仓 `stories/`）',
 		existsSync(outDist) && !existsSync(join(ROOT, 'stories', 's1')),

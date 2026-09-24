@@ -16,7 +16,7 @@ export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 
 // ── `#1267`（伞 `#1266`）**故事根口**（甲案）：引擎接受"故事根目录" ────────────────────────
 // 口名：环境变量 `SG_STORIES_DIR`（**唯一口**；不做 CLI，理由：全仓有 69 处按 `stories/` 拼路径，
-// 逐处加参数＝69 处改动 ✗，env ＋ 一处常量＝1 处改、下游自动跟随 ✓）。
+// 逐处加参数＝69 处改动  ，env ＋ 一处常量＝1 处改、下游自动跟随  ）。
 // 默认：仓内 `stories/`（**向后兼容** —— 不设该变量时行为与改前逐字相同）。
 // 校验：**fail-loud 且点名实际值** —— ① 目录存在且为目录；② 至少一个 `<slug>/00-story.json`
 //（否则静默空跑会把"故事根指错了"读成"没有故事"）。
@@ -35,29 +35,29 @@ export const STORIES_DIR = (() => {
 })();
 
 // `#1267`：产物目录＝**故事根的兄弟**（`<故事根>/../dist`）。
-// 仓内时 `STORIES_DIR = ROOT/stories` ⇒ `DIST_DIR = ROOT/dist`（**逐字符不变** ✓）；
-// 仓外时 ⇒ 产物落仓外（books 仓的 dist）⇒ 跑仓外故事不在引擎仓留东西。
+// 仓内时 `STORIES_DIR = ROOT/stories` → `DIST_DIR = ROOT/dist`（**逐字符不变**  ）；
+// 仓外时 → 产物落仓外（books 仓的 dist）→ 跑仓外故事不在引擎仓留东西。
 export const DIST_DIR = join(dirname(STORIES_DIR), 'dist');
 
 /** `#1267`：把**符号名/相对路径**换成**绝对落盘路径**（读盘/判存在处一律用它）。
- * 为什么单列一个口：`join(ROOT, abs)` 不会重置（Node 的 `join` 语义）⇒ 直接拼会把绝对路径拼坏。 */
+ * 为什么单列一个口：`join(ROOT, abs)` 不会重置（Node 的 `join` 语义）→ 直接拼会把绝对路径拼坏。 */
 export const absPath = (rel) => {
 	const r = resolveStoryRel(rel);
 	return isAbsolute(r) ? r : join(ROOT, r);
 };
 
-/** 仓内默认故事根（**向后兼容的基准**）：`STORIES_DIR` 与它相同时，所有换算都是恒等 ⇒ 行为逐字符不变。 */
+/** 仓内默认故事根（**向后兼容的基准**）：`STORIES_DIR` 与它相同时，所有换算都是恒等 → 行为逐字符不变。 */
 const DEFAULT_STORIES_DIR = join(ROOT, 'stories');
 
 /** `#1267`：清单 `files[]` 里的 **`stories/` 前缀＝"故事根"的符号名**（不是硬编码的仓内目录）。
- * 故事在仓内 ⇒ 与前缀逐字符相等（恒等，旧行为）；故事在仓外 ⇒ 把前缀换成实际故事根。
+ * 故事在仓内 → 与前缀逐字符相等（恒等，旧行为）；故事在仓外 → 把前缀换成实际故事根。
  * 为什么用符号化而不是改写法：既有故事清单（含夹具/自证里造的）一律写 `stories/<slug>/…`
- * ⇒ 改写法会波及所有既有清单 ✗；换算收在**一处**（本函数）⇒ 下游自动跟随。 */
+ * → 改写法会波及所有既有清单  ；换算收在**一处**（本函数）→ 下游自动跟随。 */
 export const resolveStoryRel = (rel) => {
 	const r = String(rel);
 	if (STORIES_DIR === DEFAULT_STORIES_DIR) return r;                 // 恒等（向后兼容，逐字符不变）
-	// 统一产出 **ROOT 相对**路径：与 `allSourceFiles()` 的输出同基 ⇒ 两侧字符串可直接比较
-	//（否则"发现面是相对路径、清单面是绝对路径" ⇒ 登记判据误报缺失）。
+	// 统一产出 **ROOT 相对**路径：与 `allSourceFiles()` 的输出同基 → 两侧字符串可直接比较
+	//（否则"发现面是相对路径、清单面是绝对路径" → 登记判据误报缺失）。
 	// 产出**真实落盘路径**（仅落盘/读盘处用它）；**判据面/名字比较一律用符号名**（`stories/…`）
 	if (r === 'stories') return STORIES_DIR;
 	if (r.startsWith('stories/')) return join(STORIES_DIR, r.slice('stories/'.length));
@@ -88,7 +88,7 @@ export const readStory = (slug) => {
 	// `#1261`：零故事模式（仓内无故事）下 slug 可能为 null —— 给**点名**的错，不用 TypeError 崩。
 	if (!slug) throw new Error('readStory: no story in repo (zero-story mode); caller must skip or pass a slug (`#1261`)');
 	// `#1267`：`files[]` **保持符号名**（`stories/<slug>/…`）—— 判据面（登记/作用域/名字比较）
-	// 一律用符号名 ⇒ 仓内仓外**同形**；只有真读盘处才经 `resolveStoryRel()` 换算。
+	// 一律用符号名 → 仓内仓外**同形**；只有真读盘处才经 `resolveStoryRel()` 换算。
 	return JSON.parse(readFileSync(join(STORIES_DIR, slug, '00-story.json'), 'utf8'));
 };
 

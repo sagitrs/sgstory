@@ -677,7 +677,7 @@ export const inputsMatch = ({ declared = [], changed = [] } = {}) => {
  */
 export const INPUTS_WILDCARD_REASONS = {
 	// `#1267`（伞 `#1266`）：故事根口判据——它**故意**要覆盖"仓内/仓外两态、多个入口（build／module-order／
-	// dist-paths）"，任何单面通配都不足以表达"口是否处处生效" ⇒ 取全跑型。
+	// dist-paths）"，任何单面通配都不足以表达"口是否处处生效" → 取全跑型。
 	'test-story-root-mjs': {
 		reason: '本件按**故事根两态**（仓内默认／仓外 `SG_STORIES_DIR`）跨入口核同一件事（`dist-paths`／`module-order`／`build`）⇒ 依赖面跨 `scripts/**`／`editor/**`／`build.mjs` ⇒ 取全跑型以免漏面成假绿',
 		voucher: '#1267',

@@ -27,18 +27,19 @@ const runNode = (code, env) => spawnSync('node', ['--input-type=module', '-e', c
 // ── 夹具：一个最小的"仓外故事根"（清单 ＋ data ＋ 一个 md 段） ─────────────────
 const mkStoryRoot = () => {
 	const dir = mkdtempSync(join(tmpdir(), 'sg-root-'));
-	mkdirSync(join(dir, 's1', 'data'), { recursive: true });
-	mkdirSync(join(dir, 's1', 'passages'), { recursive: true });
-	writeFileSync(join(dir, 's1', '00-story.json'), JSON.stringify({
+	mkdirSync(join(dir, 'stories', 's1', 'data'), { recursive: true });
+	mkdirSync(join(dir, 'stories', 's1', 'passages'), { recursive: true });
+	writeFileSync(join(dir, 'stories', 's1', '00-story.json'), JSON.stringify({
 		slug: 's1', title: '仓外夹具', audience: 'internal', entry: '开场', gates: [],
 		files: ['stories/s1/00-meta.twee', 'stories/s1/15-tables.twee', 'stories/s1/17-rules.twee', 'stories/s1/passages/01-开场.md'],
 	}));
-	writeFileSync(join(dir, 's1', 'data', 'meta.json'), JSON.stringify({ slug: 's1', title: '仓外夹具', entry: '开场', ifid: '9E1B2C3D-4A5B-6C7D-8E9F-0A1B2C3D4E5F' }));
-	writeFileSync(join(dir, 's1', 'data', 'tables.json'), JSON.stringify({ section: 'Game Tables', note: '夹具', containers: {}, merges: [] }));
-	writeFileSync(join(dir, 's1', 'data', 'rules.json'), JSON.stringify({ section: 'StoryRules', note: '夹具', rows: [] }));
-	writeFileSync(join(dir, 's1', 'data', 'contract.json'), JSON.stringify({ section: 'StoryBindings', note: '夹具', members: [] }));
-	writeFileSync(join(dir, 's1', 'passages', '01-开场.md'), '---\npassage: 开场\n---\n\n开场文本。\n');
-	return dir;
+	writeFileSync(join(dir, 'stories', 's1', 'data', 'meta.json'), JSON.stringify({ slug: 's1', title: '仓外夹具', entry: '开场', ifid: '9E1B2C3D-4A5B-6C7D-8E9F-0A1B2C3D4E5F' }));
+	writeFileSync(join(dir, 'stories', 's1', 'data', 'tables.json'), JSON.stringify({ section: 'Game Tables', note: '夹具', containers: {}, merges: [] }));
+	writeFileSync(join(dir, 'stories', 's1', 'data', 'rules.json'), JSON.stringify({ section: 'StoryRules', note: '夹具', rows: [] }));
+	writeFileSync(join(dir, 'stories', 's1', 'data', 'contract.json'), JSON.stringify({ section: 'StoryBindings', note: '夹具', members: [] }));
+	writeFileSync(join(dir, 'stories', 's1', 'passages', '01-开场.md'), '---\npassage: 开场\n---\n\n开场文本。\n');
+	// `#1288`（复核真根因）：**故事根＝<dir>/stories** → `DIST_DIR = <dir>/dist`（**每跑独立**，不再落公共 <TMPDIR>/dist）。
+	return join(dir, 'stories');
 };
 
 const outside = mkStoryRoot();
@@ -80,18 +81,36 @@ try {
 	t('⑥ 源发现只看**新根**（不含仓内 `stories/` 的任何件）', r6.length > 0 && r6.every((f) => f.startsWith('stories/s1/')), JSON.stringify(r6));
 
 	// ── ⑦ 编译：仓外故事能构建，且**产物落仓外**（引擎仓不留东西） ────────────────
-	const before = readdirSync(ROOT).sort().join(',');
-	const d7 = spawnSync('node', ['build.mjs'], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, SG_STORIES_DIR: outside } });
-	const after = readdirSync(ROOT).sort().join(',');
+	// `#1289`（复核 ④，  本票偶发红的真因）：第 ⑦ 格「顶层目录集合不变」原先把 `build/`／`dist/`
+	// 也算进去，而**子进程构建会正常创建它们** → 该格结果取决于『跑之前它们在不在』
+	//（实测：删掉 `build` 再跑 → 必红；先建 → 11/11）—— **与病因（仓外故事根）无关**。
+	// 修：**比较时排除构建产物目录**（它们本来就该被建；断言的本意是「不往仓里拉屎」= 故事面/源码面不被写）。
+	//   不用 `mkdirSync(ROOT/build)`：那会给②层引入一个**静态 fs 字面量**（失败路径走不到 → ①②层门红）。
+	const topLevelOf = () => readdirSync(ROOT).sort().filter((x) => x !== 'build' && x !== 'dist').join(',');
+	const before = topLevelOf();
+	const d7 = spawnSync(process.execPath, ['build.mjs'], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, SG_STORIES_DIR: outside } });
+	const after = topLevelOf();
 	// `#1288`（复核）：该格偶发红（零链 68/69，红段本格），而**失败时子进程的错行被截断**
 	// → 只剩 " / Node.js v22.23.2" → **归因不可做**。修：失败时**把退出码 ＋ 子进程 stderr 全量打出来**
 	//（诊断不是判据；判据仍是 rc=0）。
 	const d7detail = (() => {
 		if (d7.status === 0) return '';
-		const err = String(d7.stderr ?? '').trim() || '(空 stderr)';
+		// `#1289`（复核）：**打全量** —— 诊断的可见性**不得依赖与病因无关的量**（例：stderr 长度）。
+		// node 的错行常在前段、堆栈/字节转储在后段 → 取尾部会**恰好漏掉真错行**
+		//（实测：stderr 总长 3012 时 `Error:` 行**不在**末 1200 字窗口里）。`t()` 的 extra **只在失败时输出**
+		// → 正常路径零附加输出 → 全量是**免费**的。另补 `d7.error.message`（spawn 自身失败时 status=null、stderr 可能空）。
+		const errFull = String(d7.stderr ?? '');
+		const outFull = String(d7.stdout ?? '');
+		const errLine = errFull.split('\n').find((l) => /Error|error:/.test(l)) ?? '(未在 stderr 里找到 Error 行)';
+		const err = errFull || '(空 stderr)';
 		const out = String(d7.stdout ?? '').trim();
-		return `status=${d7.status} signal=${d7.signal ?? '-'}\n--- 子进程 stderr ---\n${err.slice(-1200)}\n--- 子进程 stdout（末 400 字）---\n${out.slice(-400)}`;
+		return `status=${d7.status} signal=${d7.signal ?? '-'} spawnError=${d7.error ? d7.error.message : '-'}`
+			+ `\n--- 真错行（提到最前）---\n${errLine.trim()}`
+			+ `\n--- 子进程 stderr（全量 ${errFull.length} 字）---\n${err.trim()}`
+			+ `\n--- 子进程 stdout（全量 ${outFull.length} 字）---\n${outFull.trim()}`;
 	})();
+	// `#1289`（复核 ⑤）：失败时**另起一行原样打印**（别塞 `t(...)` 的 extra —— 便于 CI 日志直读）。
+	if (d7.status !== 0) console.error(`[⑦ 诊断] 仓外构建失败：\n${d7detail}\n`);
 	t('⑦ 仓外故事**编译通过**（rc=0）', d7.status === 0, d7detail);
 	// 产物目录＝**故事根的兄弟**（`<root>/../dist`）→ 仓外故事根 → 产物在 books 仓，不在引擎仓。
 	const outDist = join(dirname(outside), 'dist', 'stories', 's1', 'index.html');

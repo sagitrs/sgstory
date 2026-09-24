@@ -38,12 +38,12 @@ stories/<slug>/
 
 | # | 文件 | 内容 | 必填 |
 |---|---|---|---|
-| §2 | [`story-manifest.md`](story-manifest.md) | `00-story.json`：`slug`／`title`／`entry`／`files`／`audience`／`contractVersion`／`gates` | ✅ |
-| §3 | [`meta-twee.md`](meta-twee.md) | `00-meta.twee`（**B4 起是产物**，源 `data/meta.json`）：IFID ＋ `StoryData.start` ＋ `StoryIdentity` | ✅ |
-| §4 | [`tables.md`](tables.md) | `data/tables.json`：**容器由故事声明**（下列 15 个＝`face-fixture` 的全集；`night-ferry`／`minimal-demo` 各 12 个，**含手册旧版漏记的 `Shifts`**、无 `Codex`/`NPC`/`Star`/`Dragon`） | ✅（可空） |
+| §2 | [`story-manifest.md`](story-manifest.md) | `00-story.json`：`slug`／`title`／`entry`／`files`／`audience`／`contractVersion`／`gates` |  |
+| §3 | [`meta-twee.md`](meta-twee.md) | `00-meta.twee`（**B4 起是产物**，源 `data/meta.json`）：IFID ＋ `StoryData.start` ＋ `StoryIdentity` |  |
+| §4 | [`tables.md`](tables.md) | `data/tables.json`：**容器由故事声明**（下列 15 个＝`face-fixture` 的全集；`night-ferry`／`minimal-demo` 各 12 个，**含手册旧版漏记的 `Shifts`**、无 `Codex`/`NPC`/`Star`/`Dragon`） | （可空） |
 | §5 | [`rules.md`](rules.md) | `data/rules.json`：条件行 `rows[]` | 可缺 |
 | §6 | [`notes.md`](notes.md) | `data/notes.json`：笔记表（`blocks[]` ＋ `eraMap`） | 可缺 |
-| §7 | [`contract.md`](contract.md) | `data/contract.json`：`members[]` ＋ `kind` 封闭集 | ✅ |
+| §7 | [`contract.md`](contract.md) | `data/contract.json`：`members[]` ＋ `kind` 封闭集 |  |
 | §8 | [`prose.md`](prose.md) | `passages/*.md`：front-matter ＋ 内联白名单 | — |
 | §9 | [`audit-json.md`](audit-json.md) | `audit.json` ＋ `gates/`（见证轨迹 · 等价基线） | 建议 |
 | §10 | [`chargen.md`](chargen.md) | `data/chargen.json`：`rounds[]` ＋ `presets[]`（声明式 `patch`，动词三枚） | 可缺 |
@@ -53,7 +53,7 @@ stories/<slug>/
 三件**空骨架**（各**必须带 `section`** —— 缺 `section` 编译器**干净拒绝**）＋ 入口件：
 
 ```jsonc
-// data/tables.json     注意：是 containers（写 rows ⇒ undefined ⇒ 静默产出空赋值 ✗）
+// data/tables.json     注意：是 containers（写 rows → undefined → 静默产出空赋值 ✗）
 { "section": "Game Tables", "containers": {} }
 // data/contract.json
 { "section": "StoryBindings", "members": [] }
@@ -95,3 +95,50 @@ passages/*.md ──────────────────────
 1. **不手改产物**：`15-/17-/16-*.twee` 带 `@generated` 标记，改了下一次编译就没了（K4 门会咬）。
 2. **未声明即红是常态**：键前缀（`inv:`／`era:`／`gear:`）· 算子（`gte`／`lte`／`oneOf`）· 效果面（`yields`／`gives`／`sets`）· 宏名 —— 都要在**引擎宣告面**里；不在就是**永假／静默**，本仓一律判红。
 3. **数值不进声明面**：条件行只有 `yields`（笔记）／`gives`（道具）／`sets`（**只置真**）三格。伤害／金钱／异常／耐久写在正文的**具名动作宏**里（`<<damage>>`／`<<econ>>` …）—— 原因见 `data-model.md` §5.1（幂等性）。
+
+## 七、作者面自检清单（**写故事时会出声的检查** · 逐条带判据）
+
+> **怎么用**：写一个故事时**按本表自检**，比"撞错再回查"省一轮。
+> **口径**：每条＝**一句可判定的话** ＋ **判据（源码 `件:行`）** ＋ **为什么** ＋ **作者怎么写才不撞**。
+> **本笔覆盖**：下列 **11 条**（能核到源码的）；**未列**的检查面（如 `slots`／`status`／`waves`／`roads`／`sitedisc`／`consequences` 等**依赖战斗/位点数据齐全**的门）**本笔不铺** —— 它们要故事先有对应数据面，作者的撞法与其形状强相关，宜随那些面单独成文。
+
+### 1. 清单（`00-story.json`）
+
+| # | 可判定的话 | 判据 | 为什么 | 怎么写才不撞 |
+|---|---|---|---|---|
+| 1.1 | `files` **只列"包内件"**（`stories/<slug>/…`）；列不存在的件 → 拒 | `scripts/module-order.mjs:220-222`（`missing-manifest-file`） | 清单是**所有权声明**，不是"目录快照" | 列**磁盘上真在**的件；**生成物也要列**（见 1.2） |
+| 1.2 | **生成物必须列进 `files`**（尽管它们不入仓） | 同上 ＋ `scripts/module-order.mjs:214-218`（`unclaimed-file`：非引擎件须被某故事清单认领）＋ 源发现面收 `*.twee`（`:497`） | 生成物**会进源集**；源集里的非引擎件**必须有人认领** → 不入仓 ≠ 不进清单 | 把 `00-meta.twee`／`15-tables.twee`／`17-rules.twee`／`18-chargen.twee` 写进 `files`（名单权威＝`editor/lib/core/generated-family.mjs` 的 `isGeneratedFamily()`） |
+| 1.3 | **`data/*.json` 不进 `files`**（由 `data/` 面自动发现） | 源发现面 `allSourceFiles()` 默认**不收** `data/*.json`（`scripts/module-order.mjs:488`，`withStoryData` 默认 `false`；判定 `isStoryDataJson` `:487`） | 数据面是**整面声明**；逐件列会让"清单 vs 目录"两份真源并存 | **别列**。当前撞上去的报文**与事实不符**（会说"不存在"）—— 正修：`#1271` |
+| 1.4 | 清单**缺 `gates` 键** → 发现器报错（**空数组 `[]` 合法**） | `scripts/audit/discovery.mjs:58` | 门归属**必须显式**：不声明 ≠ 没有门 | 显式写 `"gates": []` 或列出该故事自己的门 |
+| 1.5 | `audience` **必须显式**（`content`／`internal`） | `scripts/dist-paths.mjs` 的 `audienceOf()`（取值非法即抛） | 免得内部件被**静默上架** | 显式声明 |
+
+### 2. 数据面（`data/*.json`）
+
+| # | 可判定的话 | 判据 | 为什么 | 怎么写才不撞 |
+|---|---|---|---|---|
+| 2.1 | **`audit.json` 必写（空表也要显式写）** | `scripts/audit/lib/story-audit.mjs:40`（缺件**抛错点名**）；字段型错逐项点名 `:25-32` | `#602`：不给空表 ＝ **借用别的故事的判据** | 写 `{"text":{"topicWords":[],"styleBlacklist":[]},"readBaseline":{}}`（**空数组合法**） |
+| 2.2 | 条件行 `req`／`any`／`exclude` 的**键形必须已宣告**（前缀 `inv:`／`era:`／`gear:`，算子 `gte`/`lte`/`oneOf`） | `test/cond-keyform.mjs`（键形判据）＋ `docs/engine/authoring-model.md` §3.1（`Sg.rules.*` 是真源） | **未宣告 → 抛错**（不是静默为假）：引擎不认的前缀/算子会让条件**永假** → 行**静默死掉** | 只用真源里列出的前缀与算子（`docs/engine/json/rules.md`） |
+| 2.3 | **数值不进声明面**：条件行只有 `yields`（笔记）／`gives`（道具）／`sets`（只置真） | `docs/engine/json/README.md` §六-3 ＋ `scripts/audit/gates/literals.mjs:80,94`（`bare-era`／`bare-damage`：裸常量/裸伤害数字） | 伤害/金钱是**计算**，住引擎能力库；写进数据面就是"故事夹带计算" | 常量走 `CONST_SECTION` 声明；伤害写 ``<<damage `Game.Damage.x`>>`` |
+| 2.4 | 生成物里的**源标记**必须指向**本故事 `data/`** | `scripts/audit/gates/literals.mjs:55`（`@generated` 的 `源"…"不在本故事 data/ 下` → 红） | 生成物必须**由本故事的源**产出（防"从别处拷来的产物"） | 别手改产物（`docs/engine/json/README.md` §六-1） |
+
+### 3. 散文（`passages/*.md`）
+
+| # | 可判定的话 | 判据 | 为什么 | 怎么写才不撞 |
+|---|---|---|---|---|
+| 3.1 | 每个**内容段落**必须有 `payload:` 标注，且值 ∈ `信息`／`张力`／`选择`（可组合） | `scripts/audit/gates/text.mjs:31`（正则**就是**那三个值的权威） | 载荷门用**载荷类型**读段落功能；无标注读不了 | `/% payload: 信息 %/`／`/% payload: 张力|信息 %/`；**别写别的词**（写错词与忘写照**同一个错**） |
+| 3.2 | 正文**禁原始计算**（`<<set>>`／`<<if>>`／`<<for>>`／`<<run>>`／`<<= … >>` 等）；**具名动作**宏允许 | `test/prose-vocabulary.mjs` 的 `FORBIDDEN_BUILTINS` | 散文只**引用**、不**计算**（结构出正文） | 用 33 个宣告面宏（`<<give>>`／`<<setflag>>`／`<<goto>>` 等）；取值用 `{{名字}}`（**本段入参**；引擎/世界态取值面另见 `#1236`） |
+| 3.3 | 内联只许**两种引用形状**：`[[标签|目标]]`、`{{名字}}` | `docs/engine/authoring-model.md` §1（`#1036` 裁定） | MD 原生链接是**资源地址**、语义不等价 | 链接一律 `[[…]]` |
+
+### 4. 状态面（`pc.ev`／`pc.world`）
+
+| # | 可判定的话 | 判据 | 为什么 | 怎么写才不撞 |
+|---|---|---|---|---|
+| 4.1 | 写进 `pc.ev`／`pc.world` 的键**必须落在 `Game.State.domains` 的某个域里** | `scripts/audit/gates/state.mjs:1`（域表归属） | 域表是**键的归属登记**；不在域表＝没人管 | 在 `data/tables.json` 的 `State.domains` 里登记键 |
+| 4.2 | **只有写**（写了没人读）→ 红；**只有读**（读了没人写）→ 红 | `scripts/audit/gates/state.mjs:9,10` | 无消费者的状态＝白写；死分支＝幽灵条件 | 每个键**读写成对**；条件行的键算**读**、`sets` 算**写** |
+
+> **本笔未覆盖**（如实列，不铺）：`slots`／`status`／`waves`／`roads`（战斗/路径数据面）｜`sitedisc`（位点失败纪律）｜`consequences`（选择后果桶）｜`a11y`（产物可访问性）｜`engine-story-free`（引擎侧，非作者面）—— 这些要么需故事先备对应数据面，要么判的是产物/引擎面。
+
+### 附：本笔核出的**缺陷候选**（一行清单，报协调层）
+
+- **1.3 的报文与事实不符**：清单列 `data/*.json`（文件真在）→ 报 `missing-manifest-file`"不存在（改了名或删了文件）"→ **判据用错面**。**已开票 `#1271`**（本清单与它同源）。
+- （其余各条**未见**"报文与事实不符"或"应当可选却报错"；`1.4` 的"缺键即报"与 `2.1` 的"缺件即抛"**都是有意的显式化要求**，不是缺陷。）

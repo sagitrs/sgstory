@@ -224,7 +224,7 @@ export const SEGMENTS = [
 	// `#1012`：**导航后焦点仍在正文内**（`docs/dev-conventions.md` §6「键盘可续」的可机检版）——
 	// 契约＝交互后 `activeElement.closest('#passages')` 必真（不绑具体元素）；两半都要能假：
 	// 导航型交互（真会红：修前焦点落 `body`）＋ 反例「程序性导航不许抢焦点」。
-	// `#1033`：编辑器 WebUI 的**启动入口**（`npm run editor` —— 能开 ＋ 开起来是活的（模块 MIME／跨目录可达）＋ 入口可发现）
+	// `#1261`：编辑器 WebUI 的启动入口段（及其 `#1033` 说明）已随大裁剪下架 ⇒ 该段与其注释同删（段引用不存在件的悬空引用）。
 	{ id: "test-globals-mjs", phase: 'test', cost: 0, cmd: "node test/globals.mjs" },
 	// `#215` 裁 (B)：**见证机器**自证 —— `walker --witness` 产出的轨迹够不够当 P4 的"见证"（到 ending ／同 seed 逐格可复跑 ／两条断言能假）。
 	// `#1070`：**`tier:'full'`**（P4 见证件・发布/夜间面，理由见 `FULL_REASONS`）

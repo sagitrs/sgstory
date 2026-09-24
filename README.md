@@ -16,7 +16,6 @@ npm run soak    # 加量长测（游走器 20+20 局）
 npm run browser # 真浏览器验收（零依赖 CDP，3 视口 × 4 场景 = 24 项）；容器缺系统库时 npm run browser:setup 免 root 就地解包
 npm run audit   # 表驱动审计：每个门都能单独跑（--truth --canon --echoes … --text）；加 --check 是 CI 判定态
 npm run watch   # 修改 src/ 自动重新编译
-npm run editor  # 打开**故事编辑器（WebUI）**：起本地静态服务并打印 URL（默认 8100，占用则顺延）
 ```
 
 门清单与"每门检什么"见 [`docs/quality-dimensions.md`](docs/quality-dimensions.md)；门的登记/接线见 [`docs/gate-ledger.md`](docs/gate-ledger.md)（生成物）；
@@ -66,10 +65,12 @@ CI 变红时先看 [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)。
 
 ## 编辑器与维护
 
-### 打开故事编辑器（WebUI）：`npm run editor`
+### （已下架）故事编辑器（WebUI）
+
+> 编辑器入口脚本已随 `#1261` 大裁剪下架（`package.json` 里已无该脚本）；本节只留作历史说明，**✗ 不要照它敲命令**。
 
 ```bash
-npm run editor   # 起本地静态服务 ⇒ 打印形如 http://127.0.0.1:8100/editor/web/index.html 的 URL
+# 该入口已随 `#1261` 下架（脚本不存在）；要看故事直接构建后用浏览器打开产物
 ```
 
 - **为什么必须起服务、不能双击打开**：编辑器页面用 `<script type="module">` 加载 `app.mjs`，而浏览器的模块加载不允许 `file://`；且 `editor/web/app.mjs` 会**跨目录** import `../lib/core/**` ⇒ 服务根**必须是仓根**（只服务 `editor/web/` 会当场断 import）。端口被占用时该命令会**顺延**并打印实际端口。

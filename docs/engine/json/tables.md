@@ -3,7 +3,7 @@
 > 复算：`python3 -c "import json;print(sorted(json.load(open('stories/face-fixture/data/tables.json'))['containers']))"`（15 个）；同法 `night-ferry` → 12 个（含 `Shifts`）。
 >注意：**不是封闭集**：`night-ferry` 另有 `Shifts` 容器（本表未逐字段——按「容器由故事声明」口径，写故事时按需声明）；`night-ferry`／`minimal-demo` 各 12 个容器、无 `Codex`/`NPC`/`Star`/`Dragon`。照本表**全集照抄**会得到与两个既有故事都不同形的包。
 
-> 实况样本：`stories/face-fixture/data/tables.json`（最全）· `stories/minimal-demo/data/tables.json`（最小）。
+> 实况样本：某故事的 `tables.json`（最全／最小各一；原举例 `face-fixture`／`minimal-demo` 已随 `#1261` 下架）。
 > 编译：`editor/compile-story.mjs` → `15-tables.twee`（产物）。形状校验：`scripts/audit/lib/story-shape.mjs`（**六条**，见 §17）。
 >注意：**编译器的键名是 `containers`**（写成 `rows` → `undefined` → **静默**产出一句空赋值）。
 

@@ -1,6 +1,6 @@
 # `00-story.json` —— 故事清单（manifest）
 
-> 实况样本：`stories/night-ferry/00-story.json`。生成器：`editor/lib/core/story.mjs` 的 `manifestFor()`／`starterPackage()`。
+> 实况样本：任一故事的 `00-story.json`（原举例 `night-ferry` 已随 `#1261` 下架）。生成器：`editor/lib/core/story.mjs` 的 `manifestFor()`／`starterPackage()`。
 > 消费方：`build.mjs`（认故事 · 加载顺序 · 书架）· `scripts/module-order.mjs`（`files`／`gates`）· `test/store-keys.mjs`。
 
 ## 1. 字段表

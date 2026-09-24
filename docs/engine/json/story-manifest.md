@@ -13,12 +13,12 @@
 | `entry` | `string` |  | `'开场'` | **起始段的段落名**。必须与 `00-meta.twee` 的 `StoryData.start` **一致**（不一致 → 启始段找不到） |
 | `contractVersion` | `number` |  | `CURRENT`（＝ 1） | 契约版本；判据是"**必须等于 `CURRENT`**"（读 `N-1` 的兼容层是 `G-1c`，未落地） |
 | `audience` | `'content' \| 'internal'` |  | `'content'` | **上架与否**：`content` → 进书架；`internal` → 仍构建、**不列书架**。注意：**字段总要写**（读侧不补默认）；**缺字段或取值非法 → 构建直接报错**（fail-loud，防内部件被静默上架） |
-| `files` | `string[]` |  | — | 包内**件名**列表（`stories/<slug>/…`）。注意：**只能列真的存在的件**：漏列 → `build.mjs` 拒"故事件不在清单里"；多列 → 拒"清单里的文件不存在" |
+| `files` | `string[]` |  | — | **整故事面的件名**列表（`stories/<slug>/…`；**含生成物** ⇒ 见 §2·(2)：那是**声明所有权**，✗ 不是"你要写它们"）。注意：**只能列真的存在的件**：漏列 → `build.mjs` 拒"故事件不在清单里"；多列 → 拒"清单里的文件不存在" |
 | `gates` | `string[]` | **（缺键 → 发现器报错**，`scripts/audit/discovery.mjs:58`；**空数组 `[]` 合法**＝显式声明"本故事无自己的门"——`night-ferry` 即 `gates: []` 但 `gates/` 目录非空，见 `audit-json.md` §2） | `[]` | 该故事自己的门（`stories/<slug>/gates/**`） |
 
 ## 2. `files` 的顺序语义
 
-`files` **不只是清单，也是加载顺序**（`stories/<slug>/**` 的顺序由它给 → 新故事**不必改引擎的 `ORDER`**）。
+`files` **不只是清单，也是加载顺序**（★它**含生成物**——列 `.twee` 不等于你要手写它们，见 §2·(2)）（`stories/<slug>/**` 的顺序由它给 → 新故事**不必改引擎的 `ORDER`**）。
 
 - **入口件 `00-meta.twee` 永远排第一**（`manifestFor()` 强制）；注意 它自 `#1132` B4 起是**产物**（源 `data/meta.json`），但**位置语义不变**（仍列 `files` 首位）；
 - 其余按**编译输出序**（＝ `twee` 键序）；

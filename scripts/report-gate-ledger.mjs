@@ -356,6 +356,17 @@ const summary = (rows) => {
 	return { total: rows.length, behavioral: beh, assertOnly, registry: reg, rate: +(beh / rows.length * 100).toFixed(1), probeOk, probeNone, probeBad, probeCap: cap < 0 ? '缺件 ✗' : cap };
 };
 
+// `#1261` 甲（台账侧）：**临时下架**列 —— 从 SUSPENDED 读（含段 id -> 文件路径映射）；
+// 台账里**看得见**「对象在、样本暂缺」这一状态（不是只写在代码注释里）。
+const suspCellOf = (rowId) => {
+	for (const [id, m] of Object.entries(SUSPENDED)) {
+		const guess = id.replace(/-mjs(-selftest)?$/, '.mjs')
+			.replace(/^test-/, 'test/').replace(/^scripts-/, 'scripts/').replace(/^editor-/, 'editor/');
+		if (id === rowId || guess === rowId) return `**临时下架**：${m.why}（until ${m.until}）`;
+	}
+	return '—';
+};
+
 const markdown = (rows) => {
 	const s = summary(rows);
 	// `#908` ②：**「自证」列的图例**（口径 ＋ 量法 ＋ 已知边界）—— 用单引号数组组装（**不写进模板字面量**：内层反引号会截断外层模板 —— 同一族今晚刚栽过一次）。
@@ -398,10 +409,10 @@ ${LEGEND}
 **探针（直接读数 ✓，不是\"文件在不在\"那种代理 ✗）：\`✅\` ${s.probeOk} 项 ｜ \`—\` 未探 ${s.probeNone} 项（**上限 ${s.probeCap}** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ \`✗\` 不咬 ${s.probeBad} 项（**>0 即红** ✓）** —— 档位／清单：\`node scripts/probe-gates.mjs --probe=fast\` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）${s.probeOk === 0 && s.probeNone > 0 ? '〔**本次无读数**：生成时 \`build/probe-results.json\` 缺失，经 \`--allow-missing-probe\` 显式逃生 ⇒ **本行与探针列都不是覆盖读数**，不可据此判断探针面 ✗〕' : ''}
 ${TIER_NOTE}
 
-| 门 | 类型 | 形态 | 自证 | **探针** | 接线（npm test） | 理由（仅登记/未接线必填） |
-|---|---|---|---|---|---|
+| 门 | 类型 | 形态 | 自证 | **探针** | 接线（npm test） | **临时下架** | 理由（仅登记/未接线必填） |
+|---|---|---|---|---|---|---|---|
 `;
-	const body = rows.map((r) => `| \`${r.id}\` | ${r.kind} | ${r.form} | ${r.selfProof ? '✅' : '—'} | ${r.probe} | ${r.wired ? '✅' : '—'} | ${r.reason || ''} |`).join('\n');
+	const body = rows.map((r) => `| \`${r.id}\` | ${r.kind} | ${r.form} | ${r.selfProof ? '✅' : '—'} | ${r.probe} | ${r.wired ? '✅' : '—'} | ${suspCellOf(r.id)} | ${r.reason || ''} |`).join('\n');
 	const debt = rows.filter((r) => r.form === '行为化（缺自证）');
 	const debtSec = debt.length
 		? `\n## F2 工作清单：有断言但**缺自证**（${debt.length} 项）\n\n> 这些门**在跑、也在断言**，但从没被证明「反例会红」——本仓当日四类空判（覆盖≠验收／反例空判／死开关 #331／原理不可达 #338）都出自这一类。\n> 补法：给该门加一个**合成反例**用例（正例＋反例），并在本脚本的 \`REASONS\` 里改标 \`行为化\`。\n\n`

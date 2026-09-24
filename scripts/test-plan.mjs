@@ -54,6 +54,9 @@ export const FULL_REASONS = {
 };
 
 export const SEGMENTS = [
+	// `#1261` 复核：`test-attribution-gate` 守**人类面去权威化纪律**（对象活过 M1b → 保留，非下架）
+	{ id: "test-attribution-gate-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/attribution-gate.mjs --selftest" },
+	{ id: "test-attribution-gate-mjs", phase: 'test', cost: 0.1, cmd: "node test/attribution-gate.mjs" },
 	// `#1261` 甲：恢复并挂起（对象＝通用机制，样本暂缺）
 	{ id: "test-dialect-mjs", phase: 'test', cost: 0.1, cmd: "node test/dialect.mjs" },
 	// `#1261` 甲：恢复并挂起（对象＝通用机制，样本暂缺）
@@ -613,6 +616,7 @@ export const SUITE_MEMBERS = {
 		'test-coverage-mjs',
 		'test-gate-discovery-mjs',
 		'test-plan-needs-mjs',
+		'test-attribution-gate-mjs-selftest', 'test-attribution-gate-mjs',
 	],
 };
 

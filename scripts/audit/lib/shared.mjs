@@ -14,6 +14,29 @@ export { DECL_COND_RE, KEY_PREFIX_RE, OPS, READ_PATTERNS, WRAPPED_READ_RE, condK
 // → 形态只此一处，两处消费方都从这里取。
 // **隐含约束**：旗标键必须匹配 `[a-z_]\w*`（大写/数字开头会被静默漏检）——用 `keyCharsetViolations` 兜住。
 export const KEY_CHARSET = /^[a-z_]\w*$/;
+
+/** `#1269`：**回声表的规范化（一处权威）** —— 两个数组桶都可选空。
+ * 为什么单列：门侧多处要读 `E.list`／`E.revisit`（`flatMap`），若各自 `?? []` 会漂移；
+ * 本票的崩正来自「声明了退化、但只兜了外层」。 */
+export const normalizeEchoes = (raw) => ({
+	...(raw ?? {}),
+	list: Array.isArray(raw?.list) ? raw.list : [],
+	revisit: Array.isArray(raw?.revisit) ? raw.revisit : [],
+});
+
+/** `#1269`（第 2-6 处）：**能力面的就绪守卫（一处权威）**。
+ * 背景：故事未声明 `mechanics`（或对应能力面）时，门里裸调 `Game.Combat.<方法>` 会抛
+ * `TypeError: ... is not a function` —— **不点名缺什么**（读报文的人会去修门，而真因是故事盘）。
+ * 用法：门在调用前 `requireCombatFace(Game, 'slotAbsorb', 'scripts/audit/gates/slots.mjs:70')`
+ * → 就绪返回该函数；未就绪**抛点名错**（调用点 ＋ 缺的声明面）。 */
+export const requireCombatFace = (game, method, where) => {
+	const fn = game?.Combat?.[method];
+	if (typeof fn !== 'function') {
+		throw new Error(`缺少 \`Game.Combat.${method}\` 声明面（调用点 ${where}）：本故事未声明该能力面`
+			+ `（\`Sg.story.mechanics()\` 未启用或未列出 \`${method}\`）—— 请先声明，或按可选空集处理（#1269）`);
+	}
+	return fn;
+};
 export const writeKeys = (text) => {
 	const out = new Set();
 	const masked = maskComments(text);
@@ -134,7 +157,16 @@ export const makeShared = (ctx) => {
 		const tags = input.passageTags ?? passageTags;
 		// `#1261` 零故事模式：`Game.Echoes` 可能不存在（故事面缺席）→ 退化为空回声表，
 		// 让门「无样本可判」而不是崩（`E.list` 是下游的硬读点）。
-		const Echoes = input.Echoes ?? Game.Echoes ?? { list: [], revisit: [] };
+		// `#1269`（第 1 处）：**半兜底**修成**整兜底** —— 原写法只兜 `Echoes` 本身（对象缺席），
+		// 但 `list`／`revisit` 任一缺席时下游 `E.list.flatMap(...)` 仍崩（实测：最小合法故事上
+		// `TypeError: Cannot read properties of undefined (reading 'flatMap')`，且**不点名缺什么**）。
+		// 判据：**回声表按"两个数组桶都可选空"规范化**（一处权威，供本文件与各门共用）。
+		const rawEchoes = input.Echoes ?? Game.Echoes;
+		const Echoes = {
+			...rawEchoes,
+			list: Array.isArray(rawEchoes?.list) ? rawEchoes.list : [],
+			revisit: Array.isArray(rawEchoes?.revisit) ? rawEchoes.revisit : [],
+		};
 		const Consequences = input.Consequences ?? Game.Consequences;
 		// 注释（/% … %/）里的示例不是代码——先剥离，免得把文档里的 <<firstTime "X">> 当成真写入
 		// `#580`：写点面来自**共享遮蔽**（原先只剥 `/% %/` → `//` JS 注释里的示例会泄漏成真实写点）

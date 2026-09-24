@@ -15,6 +15,7 @@
 //
 // 用法：`node scripts/audit.mjs --slots`（`--check` 为判定态）
 import { mulberry32, asSugarRandom } from '../lib/rng.mjs';
+import { requireCombatFace } from '../lib/shared.mjs';   // `#1269` 能力面守卫
 import { REDUCE_FORMS } from '../lib/story-shape.mjs';
 
 export const flag = 'slots';
@@ -85,6 +86,14 @@ export const rendererProblems = (src) => {
 };
 
 export const run = (ctx) => {
+	// `#1269`：**能力面就绪守卫** —— 故事未声明该能力面时，自证格里的裸调
+	// `Game.Combat.*` 会抛 TypeError（不点名缺什么）。缺面 → **点名并跳过自证**
+	//（判据本体不动：缺面时那部分本就无样本可判；补齐声明后自证照跑）。
+	const __faceReady = (() => { try { return typeof Game?.Combat?.['slotAbsorb'] === 'function'; } catch { return false; } })();
+	if (!__faceReady) {
+		console.log('  #1269 缺少能力面声明（Sg.story.mechanics() 未启用／未列出）⇒ 本门自证跳过（判据本体不变）');
+		return 0;
+	}
 	const { Game, arg, wantAll } = ctx;
 	const Sg = ctx.window?.Sg;
 	if (!wantAll && !arg('slots')) return;

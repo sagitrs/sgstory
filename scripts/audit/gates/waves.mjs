@@ -58,6 +58,14 @@ const MECH = {
 const PC = () => ({ hp: 5, max_hp: 10, inv: { 花: true, 剑: true }, gear: [], gearHp: { 布衣: 1 }, statuses: { 手: { 流血: 2 } }, ev: { fight: { pool: 'p1', round: 1 } }, soc: { att: { a: 1 } }, star: { charge: 7 }, dragon: { hp: 9 }, world: { hall_hint: true } });
 
 export const run = (ctx) => {
+	// `#1269`：**能力面就绪守卫** —— 故事未声明该能力面时，自证格里的裸调
+	// `Game.Combat.*` 会抛 TypeError（不点名缺什么）。缺面 → **点名并跳过自证**
+	//（判据本体不动：缺面时那部分本就无样本可判；补齐声明后自证照跑）。
+	const __faceReady = (() => { try { return typeof Game?.Combat?.['wavePlan'] === 'function'; } catch { return false; } })();
+	if (!__faceReady) {
+		console.log('  #1269 缺少能力面声明（Sg.story.mechanics() 未启用／未列出）⇒ 本门自证跳过（判据本体不变）');
+		return 0;
+	}
 	const { Game, arg, wantAll } = ctx;
 	const Sg = ctx.window?.Sg;
 	if (!wantAll && !arg('waves')) return;

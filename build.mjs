@@ -113,8 +113,16 @@ const stripTweeComments = (text) => String(text).replace(/\/%[\s\S]*?%\//g, ' ')
 // 构建自己必须说话，不能靠门兜。判据＝同一函数（`duplicateProblems`），门与 build 不可能漂。
 const ENGINE_LABELS = engineLabels(allSourceFiles(['src']).map((f) => readFileSync(f, 'utf8')));
 const termsOf = (slug) => {
-	const p = `stories/${slug}/data/contract.json`;
-	const contract = existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : { members: [] };
+	// `#1269` A 类（第 1 处）：原写**裸相对路径**（cwd＝引擎仓根）→ 零故事／外根下
+	// `existsSync` 恒假 → 静默走 `{ members: [] }` → **词汇面判据静默变松**（不报错、也不说
+	// "未判"，但一个契约成员都不判）—— 比崩更险：崩会拦人，静默空判让人以为判过了。
+	// 三态分开：**读到 → 判** ／ **读不到 → 出声** ／ **确实为空 → 可空集**。
+	const p = absPath(`stories/${slug}/data/contract.json`);
+	if (!existsSync(p)) {
+		throw new Error(`读不到契约件 ${p}（故事 ${slug}）⇒ 词汇面**未判**：请先跑 build 或检查故事根`
+			+ `（原实现会静默退化为空契约 ⇒ 判据变松而无人知道；#1269）`);
+	}
+	const contract = JSON.parse(readFileSync(p, 'utf8'));
 	return valueTerms({ contract, labels: ENGINE_LABELS });
 };
 const SEG_HEAD = /^::\s+(.+?)\s*(?:\[[^\]]*\])?\s*$/gm;

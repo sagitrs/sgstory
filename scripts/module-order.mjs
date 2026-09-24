@@ -180,6 +180,20 @@ export const deriveStoryTableConsumers = ({ sources = {} } = {}) =>
 		.map(([f]) => f)
 		.sort();
 
+/** `#1267` 尾件③（裁定：取甲）：本判据此前要求 `<slug>/15-tables.twee` **∈ ORDER** ——
+ * 那是 `#893` **之前**的口径（当时故事件也登记在 ORDER）。`#893` 起故事件由**它自己的清单**
+ * 登记（`module-order.mjs` 的 `checkRegistration` 注释原话：**不要求**故事件进 ORDER）→
+ * 旧要求对**任何**故事都不成立（仓内也一样），外根下更是恒红。
+ *
+ * **生效加载序（本判据的判法）**＝引擎 `ORDER` ∪ **该故事自己的清单序**，且**复用** `storyOrder()`
+ * （构建的同一权威 —— 不另写一份排序，否则又是"同概念两处实现"）。
+ *
+ *   **显式前提（不得默默假设）**：引擎侧的消费者（`src/**` 里 `window.Game.X = …` 的件）按生效
+ * 加载序**排在故事件之前**；据现有实测（外根下 `build` rc=0、可编译、链 64/69 且其余红项均有裁定），
+ * 消费者**工作在"故事表按清单序后到"之下** → 本判据对**跨层**（引擎消费者 vs 故事表）**不再要求先后**；
+ * 只对**同层**（该故事自己的件之间）要求"表必须先于其消费点"。
+ * 若将来发现某消费者**必须在故事表之后立刻求值**，那条**应当另立判据**（而不是让本判据默默变绿）。
+ */
 export const storyTablesOrderProblems = ({ order = ORDER, manifests = [], consumer, sources } = {}) => {
 	const out = [];
 	// `#1220`：消费侧分派 —— 传字符串＝旧行为（向后兼容）；未传但给了 `sources` → 派生；**派生不到 → 出声**
@@ -196,11 +210,19 @@ export const storyTablesOrderProblems = ({ order = ORDER, manifests = [], consum
 	const at = idx.length ? Math.min(...idx) : -1;
 	const where = consumers.length === 1 ? consumers[0] : `${consumers[0]} 等 ${consumers.length} 件`;
 	for (const m of requireManifests(manifests)) {
+		// 生效加载序：**复用构建的同一权威** `storyOrder()`（引擎 ORDER ∪ 该故事清单序）。
+		const eff = storyOrder({ files: m.files ?? [] }, { order, modules: MODULES });
+		const pos = new Map(eff.map((f, i) => [f, i]));
 		for (const f of m.files ?? []) {
 			if (!/\/15-tables\.twee$/.test(f)) continue;
-			const i = order.indexOf(f);
-			if (i < 0) out.push({ code: 'tables-not-in-order', msg: `${m.slug} 的 ${f} **不在 ORDER 里** ✗ ⇒ 它会排在 ${where} **之后** ⇒ 故事表**盖掉**引擎挂的方法（\`#998\` 实测：门崩 ✓）` });
-			else if (at >= 0 && i > at) out.push({ code: 'tables-after-consumer', msg: `${m.slug} 的 ${f} 排在 ${where} **之后** ✗（ORDER 下标 ${i} > ${at}）⇒ 同上：加载期 assign 的目标被换掉 ✗` });
+			const i = pos.has(f) ? pos.get(f) : -1;
+			if (i < 0) out.push({ code: 'tables-not-in-order', msg: `${m.slug} 的 ${f} **不在生效加载序里** ✗（既不在 ORDER、也不在该故事清单）` });
+			// **同层**才要求先后：消费点若也在**该故事清单**里，表必须先于它。
+			else {
+				const sameLayer = consumers.filter((c) => (m.files ?? []).includes(c)).map((c) => pos.get(c)).filter((x) => x !== undefined);
+				const at2 = sameLayer.length ? Math.min(...sameLayer) : -1;
+				if (at2 >= 0 && i > at2) out.push({ code: 'tables-after-consumer', msg: `${m.slug} 的 ${f} 排在**同故事的** ${where} **之后** ✗（生效序 ${i} > ${at2}）—— 消费侧会在表就位前读到 \`undefined\`` });
+			}
 		}
 	}
 	return out;

@@ -75,6 +75,19 @@ const isMain = process.argv[1] && fileURLToPath(import.meta.url) === process.arg
 
 if (isMain) {
 	const argv = process.argv.slice(2);
+	// `#1267` 尾件（复核）：**两口不一致的守卫提升到所有路径之前** —— 原先它只在主路/`--list` 上，
+	// 而 `--selftest` 在它之前就 `process.exit` → 带两个不同根跑 `--selftest` 会读到 rc=0
+	//（实测：复核席就这样读到 "没有报错"）→ 与裁定「两口同时给出且不同根 → **任何路径**都报错退出」
+	// 不符。本守卫调 `mergeStoriesRoots()`（纯函数），因此在自证之前执行也能用合成事实自证。
+	{
+		const m0 = mergeStoriesRoots({
+			envDir: process.env.SG_STORIES_DIR || null,
+			cliDir: (argv.find((a) => a.startsWith('--stories-dir=')) ?? '').slice('--stories-dir='.length) || null,
+			base: ROOT,
+			repoDefault: STORIES,
+		});
+		if (m0.problem) { console.error(`✗ ${m0.problem}`); process.exit(1); }
+	}
 	// ── 壳级自证（与 `editor/k4.mjs` 同口径：只在工具路）──
 	if (argv.includes('--selftest')) {
 		const cases = [

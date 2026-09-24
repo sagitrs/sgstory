@@ -65,6 +65,8 @@ export const discoverCases = (casesDir, { slug = null, id = null } = {}) => {
 export const classifyCase = ({ passed, ticket = null, ticketState = null } = {}) => {
 	if (passed) return { verdict: 'green', exit: 0 };
 	if (!ticket) return { verdict: 'unattributed', exit: 1 };
+	// `#1287`（裁定）：归因票**不存在** → 归因无效（rc≠0）—— "指向空票＝归因不存在"。
+	if (ticketState === 'missing') return { verdict: 'invalid-attribution', exit: 1 };
 	if (ticketState === 'closed') return { verdict: 'stale-attribution', exit: 1 };
 	return { verdict: 'expected-gap', exit: 0 };   // 有归因且票未关（含 'unknown'：离线降级 → 不据此判红）
 };
@@ -77,6 +79,7 @@ export const summarize = (resultList = []) => {
 		green: by('green'),
 		expectedGap: by('expected-gap'),
 		unattributed: by('unattributed'),
+		invalidAttribution: by('invalid-attribution'),
 		stale: by('stale-attribution'),
 		exit: resultList.some((r) => (r.exit ?? 0) !== 0) ? 1 : 0,
 	};
@@ -136,7 +139,13 @@ const ticketStateOf = async (ticket) => {
 		const n = String(ticket).replace(/^#/, '');
 		const st = execFileSync('gh', ['issue', 'view', n, '--json', 'state', '--jq', '.state'], { encoding: 'utf8', timeout: 20000 }).trim();
 		return st === 'CLOSED' ? 'closed' : 'open';
-	} catch { return 'unknown'; }
+	} catch (e) {
+		// `#1287`（裁定）：**在线但票号不存在 → 不许落 unknown**（`unknown` 只留给"离线／真核不到"）。
+		// 归因指向空票 → **归因不存在**（与 `#1279` 的「`until` 票号必须可解析」同款）。
+		const msg = String(e?.stderr ?? e?.message ?? '');
+		if (/Could not resolve|not found|no such issue/i.test(msg)) return 'missing';
+		return 'unknown';
+	}
 };
 
 export const runCase = async (c) => {
@@ -172,11 +181,26 @@ const main = async () => {
 	//   两条硬要求：① 打印解析出的 cases 根（实际值）；② "根不存在"与"存在但零用例"**必须分开**
 	say(`用例根（解析值）：${casesDir}`);
 	say(`故事根（生效值）：${STORIES_DIR}`);
+	// `#1287`（复核）：**打印生效过滤器** —— 否则 CI 里拼错会静默绿、人无法反推"我到底跑了什么"。
+	say(`过滤器（生效值）：slug=${args.slug ?? '（未给）'} ／ case=${args.id ?? '（未给）'}`);
 	if (!existsSync(casesDir)) {
 		console.error(`✗ 用例根不存在：${casesDir}（**出声**，不静默 rc=0 —— 否则路径写错会被当"没用例"假绿）`);
 		process.exit(1);
 	}
 	const found = discoverCases(casesDir, args);
+	// `#1287`（裁定）：**"过滤器没命中"与"根里本就没用例"必须分开** ——
+	// 前者是**可能拼错**（与"根不存在 → 出声"同一原则）→ 出声 ＋ 报"根里有 N 条"。
+	if (!found.length && (args.slug || args.id)) {
+		const total = discoverCases(casesDir).length;
+		if (total > 0) {
+			const avail = discoverCases(casesDir).map((x) => `${x.slug}/${x.id}`).sort();
+			say(`✗ 过滤器未命中：--slug=${args.slug ?? '（未给）'} --case=${args.id ?? '（未给）'} 在根内 ${total} 条用例里一条都没选中`);
+			say(`  可用用例（slug/id）：${avail.join('、')}`);
+			say('  （与"根内本就没有用例"是两种状态：那种是合法 rc=0；这种是**过滤器拼错** ⇒ 出声）');
+			if (args.json) console.log(JSON.stringify({ casesDir, storiesDir: STORIES_DIR, summary: { total: 0, green: 0, expectedGap: 0, unattributed: 0, invalidAttribution: 0, stale: 0, exit: 1 }, results: [] }));
+			process.exit(1);
+		}
+	}
 	if (!found.length) {
 		say('○ 零用例：该用例根下没有匹配的用例 ⇒ 本次未跑（rc=0，已明说）');
 		if (args.json) console.log(JSON.stringify({ casesDir, storiesDir: STORIES_DIR, summary: { total: 0, green: 0, expectedGap: 0, unattributed: 0, stale: 0, exit: 0 }, results: [] }));
@@ -184,7 +208,19 @@ const main = async () => {
 	}
 	const results = [];
 	for (const f of found) {
-		const c = JSON.parse(readFileSync(f.path, 'utf8'));
+		// `#1287`（复核阻断）：**读 ＋ 解析也进逐例 try** —— 坏用例文件原先让整跑 rc=2 停住
+		// （`drive()` 已兜，但这里漏一格，且更坏：其余用例根本不跑）。
+		let c;
+		try {
+			c = JSON.parse(readFileSync(f.path, 'utf8'));
+		} catch (e) {
+			const r = { id: f.id, slug: f.slug, verdict: 'unattributed', exit: 1, ticket: null, ticketState: null,
+				problems: [{ kind: 'bad-case-file', want: `该用例文件不是合法 JSON：${f.path}（${String(e.message).slice(0, 120)}）` }] };
+			results.push(r);
+			say(`✗ 未归因 ${r.id}`);
+			for (const pp of r.problems) say(`    ✗ ${pp.kind}: ${pp.want}`);
+			continue;                                  // 其余用例**照跑**
+		}
 		const r = await runCase(c);
 		results.push(r);
 		const tag = { green: '✔', 'expected-gap': '○ 预期缺口', unattributed: '✗ 未归因', 'stale-attribution': '✗ 陈旧归因' }[r.verdict];
@@ -193,11 +229,18 @@ const main = async () => {
 	}
 	const sum = summarize(results);
 	// **汇总行每次都要打**（哪怕全绿）
-	say(`用例 ${sum.total} 条：绿 ${sum.green} ｜ 预期缺口 ${sum.expectedGap}（${results.filter((r) => r.verdict === 'expected-gap').map((r) => r.ticket).join(',') || '—'}）｜ 未归因 ${sum.unattributed} ｜ 陈旧归因 ${sum.stale} ⇒ rc=${sum.exit}`);
-	if (results.some((r) => r.ticketState === 'unknown')) say('  · 提示：有归因票的**状态未能核实**（无 GH_TOKEN 或查询失败）⇒ 按"未关"处理，不据此判红');
+	// `#1287`（复核 ⑥）：token 缺失时**单列"未核实 N 条"**（定义须在汇总行之前 → 否则 TDZ）。
+	const unverified = results.filter((r) => r.ticketState === 'unknown').length;
+	say(`用例 ${sum.total} 条：绿 ${sum.green} ｜ 预期缺口 ${sum.expectedGap}（${results.filter((r) => r.verdict === 'expected-gap').map((r) => r.ticket).join(',') || '—'}）｜ 未归因 ${sum.unattributed} ｜ 陈旧归因 ${sum.stale} ｜ 未核实 ${unverified} ⇒ rc=${sum.exit}`);
+	// `#1287`（复核 ⑥）：**token 缺失不许无声** —— 无 token 时"归因票已关"会被降级成"未关" → rc=0
+	// （真问题被吞）。三态语义不变（离线降级 rc=0 是对的），**只是把"降级"打出来 ＋ 单列计数**。
+	if (unverified) {
+		say(`⚠ 归因票状态**未核实** ${unverified} 条（无 GH_TOKEN 或查询失败）⇒ 「陈旧归因」这道保护**本次未生效**；`);
+		say('  CI 跑本工具**必须带 token**（否则"票已关却仍红"会被当成"未关" ⇒ 静默 rc=0）。');
+	}
 	// `#1267`（预审 ④）：`--json` **实现**（CI／接续器要用；不许 usage 有而实现无）。
 	if (args.json) {
-		console.log(JSON.stringify({
+		console.log(JSON.stringify({ unverified,
 			casesDir, storiesDir: STORIES_DIR, summary: sum,
 			results: results.map((r) => ({
 				id: r.id, slug: r.slug, verdict: r.verdict, exit: r.exit, ticket: r.ticket, ticketState: r.ticketState,

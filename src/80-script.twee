@@ -555,6 +555,8 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 	};
 	jQuery(document).on(':passagerender.sgBlank', (ev) => normalizeBlank(ev.content));
 	jQuery(document).on(':passagerender.sgZones', (ev) => updateBadges(ev.content));
+	// `#1308`：图鉴常驻面板 —— 在**内容写入之后**挂（✗ 不在 `:passagestart`：那里挂会被重写冲掉）
+	jQuery(document).on(':passagerender.sgCodex', () => window.Sg.Codex?.mount?.());
 })();
 
 // 安全网：每个段落开始前归一化 $pc 形状（旧档缺字段/类型错误都会被补齐，
@@ -574,6 +576,9 @@ jQuery(document).on(':passagestart', () => {
 	// 为什么必须可选：`Sg.Codex` 读 `Game.Codex.items`（故事 1 的数据）；对没有图鉴的故事直接调它会抛错，
 	// 而这里是**引擎的段落开始钩子**（每个故事都跑）→ 每个故事都会被炸。
 	window.Sg.Codex?.sync?.();
+	// `#1308`：图鉴**呈现口**的挂载**不放在这里** —— `:passagestart` 之后 SugarCube 会**重写** `#passages`
+	// 的内容 ⇒ 此处挂上的面板会被冲掉（实测：手调 `mount()` 面板在，钩子里挂则不在 ✗）。
+	// ⇒ 改挂在 `:passagerender`（内容已写入之后），见下方 `sgCodex` 处理器。
 });
 
 /* ── 交涉面板（B2）的选项点击 ───────────────────────────────────────────────
@@ -623,6 +628,37 @@ jQuery(document).on(':passageend.sgChoiceKey', (ev) => {
 {
 	window.Sg ??= {};
 	window.Sg.Codex = {
+		/** `#1308`：图鉴面板的 HTML（契约 §11.1）。**面板恒在**；条目为空 ⇒ 空态文案。 */
+		html() {
+			const items = this.items() ?? {};
+			const names = Object.keys(items);
+			const pc = State.variables?.pc;
+			const sat = (() => { try { return this.satisfied(pc) ?? {}; } catch { return {}; } })();
+			const rows = names.map((n) => {
+				const it = items[n] ?? {};
+				// 线索：`req: []`（无条件）或已满足 ⇒ 显示；未满足的不剧透（与关卡设计一致）。
+				const clues = (it.clues ?? []).filter((c) => {
+					const req = Array.isArray(c?.req) ? c.req : [];
+					if (req.length === 0) return true;
+					const got = sat?.[c?.id];
+					return got === true || got === 1;
+				}).map((c) => `<li>${c.label}</li>`).join('');
+				return `<li><b>${n}</b>${it.hint ? ` — ${it.hint}` : ''}${clues ? `<ul>${clues}</ul>` : ''}</li>`;
+			}).join('');
+			const body = rows ? `<ul>${rows}</ul>` : '<p class="codex-empty">图鉴还没有条目</p>';
+			return `<div id="codex-panel"><h3>图鉴</h3>${body}</div>`;
+		},
+		/** `#1308`：把面板挂（或重挂）到常驻位置。幂等：同 id 先移除再插。 */
+		mount() {
+			if (typeof document === 'undefined') return;
+			const old = document.getElementById('codex-panel');
+			if (old) old.remove();
+			const anchor = document.getElementById('passages') ?? document.body;
+			if (!anchor) return;
+			const wrap = document.createElement('div');
+			wrap.innerHTML = this.html();
+			if (wrap.firstElementChild) anchor.appendChild(wrap.firstElementChild);
+		},
 		/** 条目数据：经契约成员 `codexItems` 读（缺席则退回 `this.items()`）。 */
 		/** 条目数据：经契约成员 `codexItems` 读。故事没有该面 → 返回 null（调用点据此走兜底文案）。 */
 		items() { const f = window.Sg?.story?.codexItems; return (typeof f === 'function' ? f() : null) ?? window.Game?.Codex?.items ?? null; },

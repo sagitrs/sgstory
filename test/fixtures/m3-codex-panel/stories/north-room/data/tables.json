@@ -1,0 +1,84 @@
+{
+  "section": "Game Tables",
+  "note": "北屋（`north-room`）：新格式最小故事（M1 样本）的引擎接入契约清单 —— 照最小合法集，本故事不新增面。",
+  "containers": {
+    "Checks": {
+      "sites": {
+        "里屋·察觉": {
+          "skill": "察觉",
+          "dc": 10
+        }
+      },
+      "keyYields": []
+    },
+    "Combat": {
+      "pools": {},
+      "actions": {}
+    },
+    "Economy": {
+      "prices": {},
+      "events": []
+    },
+    "Gear": {
+      "defs": {}
+    },
+    "Items": {
+      "defs": {
+        "黄铜钥匙": {
+          "label": "黄铜钥匙",
+          "note": "一小片冰凉，齿口磨得发亮。"
+        },
+        "半截蜡烛": {
+          "label": "半截蜡烛",
+          "note": "烧过一半，芯是黑的。"
+        }
+      }
+    },
+    "Truth": {
+      "facts": {}
+    },
+    "Codex": {
+      "items": {
+        "黄铜钥匙": {
+          "hint": "门厅那把钥匙",
+          "clues": [
+            {
+              "id": "c_key_1",
+              "label": "钥匙柄上刻着「北」",
+              "req": []
+            }
+          ]
+        }
+      }
+    },
+    "Echoes": {
+      "rows": []
+    },
+    "State": {
+      "domains": [
+        {
+          "id": "runtime",
+          "keys": [
+            "last_result",
+            "last_roll",
+            "soc",
+            "soc_last",
+            "soc_lever",
+            "fight",
+            "ending",
+            "notes",
+            "settle"
+          ],
+          "note": "引擎保留的运行时槽（每个故事都要登记）—— 形态照历史既有故事（minimal-demo）的同一域"
+        },
+        {
+          "id": "ev",
+          "note": "事件旗标域（本故事只用一个：钥匙已取）",
+          "keys": [
+            "key_taken"
+          ]
+        }
+      ]
+    }
+  }
+}

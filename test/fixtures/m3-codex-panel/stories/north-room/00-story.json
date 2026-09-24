@@ -1,0 +1,20 @@
+{
+	"slug": "north-room",
+	"title": "北屋",
+	"subtitle": "新格式最小故事（M1 样本 · 与迷雾森林无关）",
+	"entry": "门厅",
+	"contractVersion": 1,
+	"audience": "content",
+	"files": [
+		"stories/north-room/00-meta.twee",
+		"stories/north-room/passages/01-门厅.md",
+		"stories/north-room/passages/02-靴子.md",
+		"stories/north-room/passages/03-里屋.md",
+		"stories/north-room/passages/04-字条.md",
+		"stories/north-room/passages/05-结局 收好.md",
+		"stories/north-room/passages/06-结局 原样.md",
+		"stories/north-room/15-tables.twee",
+		"stories/north-room/17-rules.twee"
+	],
+	"gates": []
+}

@@ -27,8 +27,9 @@
 //   V3（补充）：按 mask 的注释区间比对代码区逐字相同（与本工具同源，仅作补充）。
 //
 // 用法：node scripts/lint-human-face.mjs [--stat|--fix [--only=comment|docs]|--selftest]
-import { readFileSync, writeFileSync, readdirSync, statSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, statSync, mkdtempSync, rmSync } from 'node:fs';
 import { join, relative } from 'node:path';
+import { tmpdir } from 'node:os';   // `#1301`：自证格的临时夹具目录
 import { mask } from '../editor/lib/core/mask.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
@@ -117,8 +118,15 @@ export const cleanSource = (src, file = '') => {
 		let res = '', prev = 0;
 		for (const [a, b] of spans) {
 			const seg = ln.slice(a, b);
+			// `#1301`：**修面收敛到检查面** —— 只改**含记号**的注释区段，其余区段**逐字保留**。
+			// 为什么：原先无条件 `cleanLine(seg)`，会把「**检查面不报**」的改动也写盘。实测（干净树）：
+			// `--fix` 报「25 件、96 处」并**真的改了 25 件**（多为空白归一化，如 `（仓内＝恒等  ；` ⇒ 单空格），
+			// 而同一棵树 `lint:style` 检查面 **rc=0** ⇒ 报「清理 N 处」与检查面不符，且 `--fix` 会
+			// **静默改写与记号无关的文案**（本票要核的「同病」就在这里）。
+			const marks = seg.match(MARK_RE) ?? [];
+			if (!marks.length) { res += ln.slice(prev, b); prev = b; continue; }
 			const cleaned = cleanLine(seg);
-			spots += (seg.match(MARK_RE) ?? []).length || (cleaned !== seg ? 1 : 0);
+			spots += marks.length;
 			res += ln.slice(prev, a) + cleaned;
 			prev = b;
 		}
@@ -170,16 +178,16 @@ export const scanText = (face, text, rel = '') => {
 		.reduce((k, [a, b]) => k + (ln.slice(a, b).match(MARK_RE) ?? []).length, 0), 0);
 };
 
-export const scan = (face) => {
+export const scan = (face, dir = ROOT) => {
 	const hits = [];
 	const stats = { comment: 0, docs: 0, codeMarks: 0 };
-	for (const file of listFiles(face)) {
+	for (const file of listFiles(face, dir)) {
 		const rel = relative(ROOT, file);
 		const text = readFileSync(file, 'utf8');
 		if (face === 'docs') {
 			for (const { line, text: ln } of docBodyLines(text)) {
 				const marks = ln.match(MARK_RE);
-				if (marks) { hits.push({ file: rel, line, marks }); stats.docs += marks.length; }
+				if (marks && marks.length) { hits.push({ file: rel, line, marks }); stats.docs += marks.length; }
 			}
 			continue;
 		}
@@ -191,7 +199,7 @@ export const scan = (face) => {
 			for (const [a, b] of spans) {
 				const seg = ln.slice(a, b);
 				const marks = seg.match(MARK_RE) ?? [];
-				if (marks) { hits.push({ file: rel, line: i + 1, marks }); stats.comment += marks.length; }
+				if (marks.length) { hits.push({ file: rel, line: i + 1, marks }); stats.comment += marks.length; }
 				code = code.slice(0, a + shift) + ' '.repeat(b - a) + code.slice(b + shift);
 			}
 			stats.codeMarks += (code.match(MARK_RE) ?? []).length;
@@ -220,9 +228,11 @@ export const fixFace = (face, write = true) => {
 			out = text.split('\n').map((ln) => {
 				if (ln.trim().startsWith('```')) { fence = !fence; return ln; }
 				if (fence) return ln;
+				// `#1301`：同 comment 面 —— 只改**含记号**的行（其余逐字保留，修面＝检查面）
+				const marks = ln.match(MARK_RE) ?? [];
+				if (!marks.length) return ln;
 				const cleaned = cleanLine(ln);
-				if (cleaned === ln) return ln;
-				n += (ln.match(MARK_RE) ?? []).length || 1;
+				n += marks.length;
 				return cleaned;
 			}).join('\n');
 		} else {
@@ -291,6 +301,24 @@ const main = () => {
 			console.log(`        （逐件验证 ${checked} 件）`);
 			return true;
 		})());
+		// `#1301`：**报文必须点名真凶件:行**。真因＝`seg.match(MARK_RE) ?? []` 让 `if (marks)` 对**空数组**恒真
+		// ⇒ 每行注释都推一条**空记号** hit（实测 9222 条 vs 真命中 1 处）⇒ 报告取前 12 条 ⇒ 被**首个文件**的空 hit 占满
+		// ⇒ 件错、行错、条数与首行不符。下列格用**临时夹具**判定名面（能假：把 `marks.length` 退回 `marks` ⇒ ①红）。
+		(() => {
+			const tmp = mkdtempSync(join(tmpdir(), 'lf-1301-'));
+			try {
+				writeFileSync(join(tmp, 'A-probe.mjs'), '// 真凶件：这里有一个记号 \u21D2 完\nconst a = 1;\n');
+				writeFileSync(join(tmp, 'B-clean.mjs'), '// 干净件（无记号）\nconst b = 2;\n');
+				const r = scan('comment', tmp);
+				t('`#1301` ① 命中的行**只来自真凶件**（干净件的注释行不得产生空 hit）',
+					r.hits.length === 1 && r.hits[0].file.endsWith('A-probe.mjs') && r.hits[0].line === 1);
+				t('`#1301` ② 命中条目**带记号**（不许出现 `marks: []` 的空条目）',
+					r.hits.every((h) => Array.isArray(h.marks) && h.marks.length > 0) && r.stats.comment === 1);
+				// 交叉核：首行"处数"与列出条目**同一来源**（stats 与 hits 不再各行其是）
+				t('`#1301` ③ `stats` 与 `hits` **同一来源**（记号总数 ＝ 各命中条目记号数之和）',
+					r.stats.comment === r.hits.reduce((n, h) => n + h.marks.length, 0));
+			} finally { rmSync(tmp, { recursive: true, force: true }); }
+		})();
 		if (bad) { console.error(`\n✗ lint:style 自证未通过（${bad} 项）`); process.exit(1); }
 		console.log('\n✔ lint:style 自证通过（mask 定位、代码区与模板串不动、豁免有名有目）');
 		process.exit(0);

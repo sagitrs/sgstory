@@ -6,9 +6,11 @@
 //   ② 有人把「陈旲归因」当普通缺口（rc=0）→ 第 5 格红；
 //   ③ 有人把「根不存在」也静默 rc=0 → 入口那格红（本件只测纯函数；入口两态见 §实测）。
 import {
-	classifyCase, summarize, expectViolations, parseArgs, resolveCasesDir, discoverCases,
+	classifyCase, summarize, expectViolations, parseArgs, resolveCasesDir, discoverCases, runtimeProblems,
 } from '../scripts/case-run.mjs';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { execFileSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -71,6 +73,22 @@ t('⑩ ★ `expect.edges` 是**对象**（真形状 `{from,label,to}`）⇒ 按 
 	t('⑫ ★ `--case=` **精确匹配**（`c1` 不连带 `c10`）', discoverCases(d, { slug: 's1', id: 'c1' }).length === 1);
 	rmSync(d, { recursive: true, force: true });
 }
+
+// ── `#1267`（预审二轮）新增三格：uncaught 两向 ＋ `--json` 整段可解析 ＋ 真入口 spawn ──
+const ROOT = fileURLToPath(new URL('..', import.meta.url));
+t('⑬ ★ `runtimeProblems`：`uncaught` 非空 ⇒ **判红并点名**（页面坏了不许判绿）', (() => {
+	const r = runtimeProblems({ uncaught: ['boom: TypeError'] });
+	return r.length === 1 && r[0].kind === 'uncaught' && r[0].want.includes('boom');
+})());
+t('⑬b 反向：`uncaught` 空 ⇒ 不因此报（防该格恒真）', runtimeProblems({ uncaught: [] }).length === 0 && runtimeProblems({}).length === 0);
+t('⑭ ★ `--json` 的 **stdout 整段可解析**（不是"末行可解析"）', (() => {
+	const out = execFileSync('node', ['scripts/case-run.mjs', '--json'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+	try { const j = JSON.parse(out.trim()); return j && j.summary && Array.isArray(j.results); } catch { return false; }
+})());
+t('⑮ ★ **真入口**（无参跑 CLI）⇒ rc=0 ＋ 明说"零用例"', (() => {
+	const r = execFileSync('node', ['scripts/case-run.mjs'], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+	return /零用例/.test(r);
+})());
 
 console.log(bad ? `\n✗ case-run：${bad}/${n} 例失败` : `\n✔ case-run：${n} 例全部通过`);
 process.exit(bad ? 1 : 0);

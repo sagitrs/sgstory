@@ -296,6 +296,10 @@ export const SEGMENTS = [
 	{ id: "scripts-report-selftest-validity-mjs", phase: 'test', cost: 0.2, cmd: "node scripts/report-selftest-validity.mjs" },
 	// #459／#482：故事「新机制声明表」的形状门（六条可机检点 · 各带正反自证）
 	{ id: "test-story-shape-mjs", phase: 'test', cost: 0.1, cmd: "node test/story-shape.mjs" },
+	// `#1267`（伞 `#1266`）：**故事根口**判据（守护"引擎能编译并跑仓外故事根"＋"仓内恒等"＋"不拉屎"）
+	{ id: "test-story-root-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/story-root.mjs" },
+	// `#1257`：**故事枚举两面一致**（`storySlugs()` ↔ `storyJsonFiles()`；含目录软链口径）
+	{ id: "test-story-enum-faces-mjs", phase: 'test', cost: 0.4, inputs: ['*'], cmd: "node test/story-enum-faces.mjs" },
 	// `#1130`：**窗口制造者 → 独占**（`exclusive` → 不与任何段重叠；`mutates` ＝ 它动哪些**已入库真源** → 独占的理由可查）
 	// 为什么：本段两处 `try/finally` **就地改真源**再恢复 → 恢复会刷新 mtime → 窗口期内"源比 dist 新" →
 	// 并行 boot 的段会撞新鲜度守卫（CI 实测 `test-gate-discovery-mjs` 偶发红）→ 故独占（mtime 回填已在段内）
@@ -589,6 +593,8 @@ export const SUITE_MEMBERS = {
 	'story-legal': ['test-multi-story-mjs',
 		'test-multi-story-mjs-selftest',
 		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs',
+		// `#1267`／`#1257`：故事根口与两面一致性（归 `infra` 语义——判的是**工具链口径**，非故事内容）
+		'test-story-root-mjs', 'test-story-enum-faces-mjs',
 		'test-story-ci-mjs-selftest', 'test-rules-claims-mjs',
 		'test-rules-claims-mjs-selftest', 'test-premise-source-mjs', 'test-premise-source-mjs-selftest', 'test-npc-venue-mjs',
 		'test-npc-venue-mjs-selftest',
@@ -669,7 +675,19 @@ export const inputsMatch = ({ declared = [], changed = [] } = {}) => {
  * 为什么 `['*']` 要管：它**等价「全跑型」** → 等于声明「本段不参与跳过」 → 那是**一次显式决定**
  *（同 `FULL_REASONS` 的口径：降频／不跳过都要留痕）。
  */
-export const INPUTS_WILDCARD_REASONS = {	'test-comment-mask-mjs': {
+export const INPUTS_WILDCARD_REASONS = {
+	// `#1267`（伞 `#1266`）：故事根口判据——它**故意**要覆盖"仓内/仓外两态、多个入口（build／module-order／
+	// dist-paths）"，任何单面通配都不足以表达"口是否处处生效" ⇒ 取全跑型。
+	'test-story-root-mjs': {
+		reason: '本件按**故事根两态**（仓内默认／仓外 `SG_STORIES_DIR`）跨入口核同一件事（`dist-paths`／`module-order`／`build`）⇒ 依赖面跨 `scripts/**`／`editor/**`／`build.mjs` ⇒ 取全跑型以免漏面成假绿',
+		voucher: '#1267',
+	},
+	// `#1257`：两面一致性——输入是"故事根的树形态"（含目录软链），跨 `dist-paths` 与 `module-order` 两面。
+	'test-story-enum-faces-mjs': {
+		reason: '本件比较**两个枚举面**在同一棵树上的一致性（`storySlugs()` ↔ `storyJsonFiles()`，含目录软链形态）⇒ 两面分住 `scripts/dist-paths.mjs` 与 `scripts/module-order.mjs` ⇒ 取全跑型',
+		voucher: '#1257',
+	},
+	'test-comment-mask-mjs': {
 		reason: '读码两侧（剥注权威 `editor/lib/core/mask.mjs` ＋ 反例夹具）⇒ 面跨 `editor/**` 与 `test/**` ⇒ 取全跑型以免静默跳过成假绿面',
 		voucher: '#1206',
 	},

@@ -10,11 +10,12 @@
 //注意：与 `--literals` 的分工：那边判"常量段里有没有裸字面量"，这边判"**账本之间**是否自洽"。两者互补。
 import { readdirSync, readFileSync, existsSync } from 'node:fs';
 import { join, relative } from 'node:path';
-import { ROOT } from './dist-paths.mjs';
+import { ROOT, STORIES_DIR } from './dist-paths.mjs';
 import { ORDER, MODULES, CONST_SECTION, allSourceFiles, storyManifests, checkRegistration, storyTablesOrderProblems, deriveStoryTableConsumers } from './module-order.mjs';
 
 const SRC = join(ROOT, 'src');
-const STORIES = join(ROOT, 'stories');
+// `#1267` 故事根口：与构建/audit 同根（受 `SG_STORIES_DIR` 控制）。
+const STORIES = STORIES_DIR;
 
 /** 磁盘上的源文件（相对 `src/`）。 */
 export const diskSources = (dir = SRC) => (existsSync(dir) ? readdirSync(dir).filter((f) => f.endsWith('.twee')).sort() : []);

@@ -15,9 +15,9 @@
 // · **fail-loud**：清单缺键／路径不存在／越界／文件存在但未声明／形状不对／跨故事重名／故事门偷用引擎 flag
 // → 逐条报错（空数组是**合法**声明：与 `#602` 的空词表同纪律）。
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { ROOT, storySlugs, readStory } from '../dist-paths.mjs';
+import { ROOT, STORIES_DIR, storySlugs, readStory } from '../dist-paths.mjs';
 import { GATES } from './registry.mjs';
 import { AUDIT_ENGINE } from '../test-plan.mjs';
 
@@ -98,11 +98,12 @@ export const judgeOrderCoverage = ({ order = GATE_ORDER, keys = [] } = {}) => {
 
 // ── IO 层 ────────────────────────────────────────────────────────────
 
-const gatesDirOf = (slug, root = ROOT) => join(root, 'stories', slug, 'gates');
+// `#1267` 故事根口：`root` 参数保留（自证用），默认故事根走 `STORIES_DIR`（受 SG_STORIES_DIR 控制）。
+const gatesDirOf = (slug, root = null) => join(root ?? STORIES_DIR, slug, 'gates');
 const existingGateFiles = (slug, root = ROOT) => {
 	const dir = gatesDirOf(slug, root);
 	if (!existsSync(dir)) return [];
-	return readdirSync(dir).filter((f) => f.endsWith('.mjs')).map((f) => `stories/${slug}/gates/${f}`).sort();
+	return readdirSync(dir).filter((f) => f.endsWith('.mjs')).map((f) => `${relative(ROOT, join(dir, f))}`).sort();
 };
 
 /** 读清单 + 校验 + **动态载入**（有问题即抛，不静默）。 */

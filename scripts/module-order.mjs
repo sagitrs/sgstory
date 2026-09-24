@@ -1,7 +1,8 @@
-import { readdirSync, readFileSync, existsSync } from 'node:fs';
+import { STORIES_DIR, resolveStoryRel, absPath } from './dist-paths.mjs';
+import { readdirSync, readFileSync, existsSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { isTransientFixture } from './lib/untracked-guard.mjs';   // `#1130` ④′：**临时夹具不算**（并行段运行期自造 同 untracked-guard 口径）
-import { join } from 'node:path';
+import { join, isAbsolute, relative } from 'node:path';
 
 /** 仓库根（`scripts/` 的上一级）——`allSourceFiles()` 用（#458 切片B）。 */
 const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '');
@@ -105,7 +106,8 @@ export const MODULES = {
 //（三处各写一份 → 必然漂移 —— 本仓已实测过这一族）。
 
 /** 故事清单（`stories/<slug>/00-story.json`）——**单一权威**（故事件的**登记处**；只扫一层目录）。 */
-export const storyManifests = (dir = join(ROOT, 'stories')) => {
+// `#1267` 故事根口：默认走 `STORIES_DIR`（受 `SG_STORIES_DIR` 控制）⇒ 与构建/audit 同根。
+export const storyManifests = (dir = STORIES_DIR) => {
 	const out = [];
 	if (!existsSync(dir)) return out;
 	for (const slug of readdirSync(dir)) {
@@ -443,6 +445,7 @@ export const CONST_SECTION = {
 // 做法：把发现收到这里。**今天 `SOURCE_ROOTS` 只有 `src`** → 返回值与既有写法**逐字符相同**（零行为变化）；
 // 搬家时只改本数组（并让 `ORDER`/`MODULES` 的键改成路径）。
 // #458 切片C：`src` 覆盖 `src/*.twee`（两个尚未拆分的混合体）**与** `src/engine/**`；`stories` 覆盖故事包。
+// `#1267`：故事根随 `SG_STORIES_DIR` ⇒ `SOURCE_ROOTS` 也走口（否则源发现仍读旧根 ⇒ 假绿）。
 export const SOURCE_ROOTS = ['src', 'stories'];
 // `#1114` 片 2b-2a：**散文层源目录** `stories/<slug>/passages/` 下的 `.md` 也进源面（`md → twee` 由构建链按**扩展名**分派）。
 //注意：谓词**必须锚住故事目录**（评审阻断复现：宽松版 `/(^|\/)passages\//` 会把 `src/passages/probe.md`
@@ -465,12 +468,17 @@ export const isStoryJsonAllowedRole = (rel) => [isStoryDataJson, (r) => /^storie
 /** 枚举 `stories/` 下的全部 json（**只看磁盘** 与 `allSourceFiles` 同风格）。 */
 export const storyJsonFiles = (dir = 'stories') => {
 	const out = [];
+	// `#1257`：**目录软链也要跟随** —— 本面的口径必须与 `storySlugs()`（`dist-paths.mjs`，
+	// 用 `existsSync` ⇒ 跟随软链）一致。此前 `e.isDirectory()` 对软链返回 false（Dirent 不改写）
+	// ⇒ 同一棵树上两面给出**不同的故事集合** ⇒ 下游 `checkRegistration` 判"ORDER 里的件不存在"
+	//（而 `existsSync` 为真）这类自相矛盾的红。
+	const isDirEntry = (e, abs) => e.isDirectory() || (e.isSymbolicLink() && statSync(abs).isDirectory());
 	const walk = (rel) => {
 		let ents = [];
-		try { ents = readdirSync(join(ROOT, rel), { withFileTypes: true }); } catch { return; }
+		try { ents = readdirSync(absPath(rel), { withFileTypes: true }); } catch { return; }
 		for (const e of ents) {
 			const r = `${rel}/${e.name}`;
-			if (e.isDirectory()) { if (!/^(node_modules|\.)/.test(e.name)) walk(r); continue; }
+			if (isDirEntry(e, absPath(r))) { if (!/^(node_modules|\.)/.test(e.name)) walk(r); continue; }
 			if (e.name.endsWith('.json')) out.push(r);
 			// `#1130` ④′：**并行段运行期自造的临时夹具不算**（否则会把别人正在写的夹具读成违规 → 并发假红）
 			if (isTransientFixture(r)) out.pop();
@@ -488,7 +496,10 @@ export const isStoryDataJson = (rel) => /^stories\/[^/]+\/data\/.*\.json$/.test(
 export const allSourceFiles = (roots = SOURCE_ROOTS, { withStoryData = false } = {}) => {
 	const out = [];
 	const walk = (rel) => {
-		const abs = join(ROOT, rel);
+		// `#1267`：`rel` 是**符号名**（`stories/…`）；读盘时换算到真实故事根，**输出仍为符号名**
+		// ⇒ 判据面（登记/作用域）仓内仓外同形；依赖 `stories/` 前缀的谓词（`isStoryPassageMd` 等）不受影响。
+		const real = resolveStoryRel(rel);
+		const abs = isAbsolute(real) ? real : join(ROOT, real);
 		if (!existsSync(abs)) return;
 		for (const e of readdirSync(abs, { withFileTypes: true })) {
 			const r = `${rel}/${e.name}`;

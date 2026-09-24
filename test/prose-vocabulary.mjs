@@ -389,6 +389,12 @@ for (const slug of stories) {
 	if (unscanned.length) console.error(`○ 未跟踪（本次未扫，共 ${unscanned.length} 件）：${unscanned.join('、')}`);
 }
 
+// `#1295`：**零故事态**与"有故事但零受判"必须分开 —— 前者是前提不成立（明说未判、不计红），
+// 后者是配置错（仍红，见下方守卫）。
+if (storySlugs().length === 0) {
+	console.log('○ 零故事：仓内无故事 → 散文词汇门本项未判（不计红；接故事根后即参与判定）');
+	process.exit(0);
+}
 // **空判守卫**：一个受判故事都没有 → 本门什么都没量 → 必须红（不许"零对象＝通过"）
 if (judgedSlugs.length === 0) {
 	console.error('✗ 散文词汇门是**空判**：没有任何内容故事受判（受判故事数 = 0）—— 检查 `audience` 是否缺失/被误标为 internal');

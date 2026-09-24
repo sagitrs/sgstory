@@ -3,6 +3,16 @@
 // 为什么用 boot：`this.args` 的取值语义（求值后的值 vs 字面文本）只有**真引擎**能定（实测即在 boot 里做的）
 // → 守卫的"未设 → 大声报"也必须在同一环境取，否则测的是另一套语义
 import { boot } from './boot.mjs';
+import { storySlugs } from '../scripts/dist-paths.mjs';   // `#1295` 零故事守卫
+
+// `#1295`：零故事态**优雅跳过** —— 本段要真引擎（故事页），而仓内零故事时没有可启动的故事页
+// （`DEFAULT_SLUG === null`）。按"零故事时代"口径：前提不成立就**明说未判 ＋ 不计红**，
+// 不许裸 TypeError／恒红；接上故事根后本段即参与判定。
+if (storySlugs().length === 0) {
+	console.log('○ 零故事：仓内无故事 → 本项未判（不计红；接故事根后即参与判定）');
+	process.exit(0);
+}
+
 
 const { w } = await boot({ random: 0.5 });
 const Macro = w.SugarCube.Macro;   // 既有用例口径：引擎内建挂在 w.SugarCube.*

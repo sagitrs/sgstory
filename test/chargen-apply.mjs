@@ -2,6 +2,16 @@
 // 动词集是从真实消费者推得的**封闭三件**（set／add／append）→ 每件各一格 ＋ 未知动词大声报一格
 // 路径读写走 Sg.notes.writePath／readPath（引擎既有权威）；故必须真引擎 → 不能纯函数注入
 import { boot } from './boot.mjs';
+import { storySlugs } from '../scripts/dist-paths.mjs';   // `#1295` 零故事守卫
+
+// `#1295`：零故事态**优雅跳过** —— 本段要真引擎（故事页），而仓内零故事时没有可启动的故事页
+// （`DEFAULT_SLUG === null`）。按"零故事时代"口径：前提不成立就**明说未判 ＋ 不计红**，
+// 不许裸 TypeError／恒红；接上故事根后本段即参与判定。
+if (storySlugs().length === 0) {
+	console.log('○ 零故事：仓内无故事 → 本项未判（不计红；接故事根后即参与判定）');
+	process.exit(0);
+}
+
 
 const { w } = await boot({ random: 0.5 });
 const Sg = w.SugarCube.Sg ?? w.Sg ?? w.window.Sg;

@@ -63,7 +63,13 @@ const selftest = () => {
 	t('共享帮手 `sectionFile`：段落名 → 文件名映射', sectionFile('StoryRules') === '17-rules.twee' && sectionFile('Game Tables') === '15-tables.twee' && sectionFile('Nope') === 'Nope.twee');
 	// `#1004` B2：`engineOf` 的入参原来是写死的 `mist-forest`（该故事已删 → 本格 ENOENT → 假红）
 	// → 改走**单一权威** `DEFAULT_SLUG`（本格证的是"这个共享帮手能读到引擎常量 ＋ 故事段"，不是"某个故事特别"）。
+	// `#1295`：零故事态**优雅跳过** —— 本格证的是"共享帮手能读到引擎常量 ＋ 故事段"，
+	// 仓内无故事时**没有故事段可读** → 本格未判（不计红；接故事根后即参与判定）。
+	if (DEFAULT_SLUG === null) {
+		console.log('○ 零故事：仓内无故事 → 自证格「engineOf 能读到故事段」未判（不计红）');
+	} else {
 	t('共享帮手 `engineOf`：能读到引擎常量 ＋ 故事段', (() => { try { return engineOf(DEFAULT_SLUG).length > 100; } catch { return false; } })());
+	}
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
 	console.log('\n✔ 自证通过（8 例：预置承重 · 空壳不造数据 · 浏览器语义 · console 接住 · 序列化稳定 ＋ `sectionFile`/`engineOf` 两个共享帮手 ✓）');
 };

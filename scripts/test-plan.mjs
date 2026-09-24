@@ -820,8 +820,10 @@ export const SUSPENDED = {
 	'scripts-audit-mjs-consequences-check': { why: '选择后果门：样本需故事条件面（对象＝引擎门）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'scripts-audit-mjs-state-check': { why: '状态契约门：样本需故事状态面（对象＝引擎门）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'test-gen-needed-mjs': { why: '生成件清单：反向核需 ≥3 个真故事', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
-	'test-npm-entries-guard-mjs': { why: 'npm 入口差集：取样脚本随 WebUI 下架 ⇒ 待改取样', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
-	'scripts-md-format-mjs': { why: 'md 格式门：文档里引用了已下架件（应改述，非下架）', until: '#1163（books 回填样本已到位 ⇒ 复核后即可摘条目）' },
+	// `#1333`（撤挂）：上面两条已摘 —— 它们的 `why` 均已失效（`why` 会过期，故在此写明"何时失效"）：
+	//   · `scripts-md-format-mjs`：`why` 写的是"文档里引用了已下架件（**应改述**，非下架）" ⇒ A 批（`#1329`）把那些引用改述到当前事实 ⇒ 门 **rc=0**
+	//   · `test-npm-entries-guard-mjs`：`why` 写的是"取样脚本随 WebUI 下架 ⇒ 待改取样" ⇒ 同批（`#1329` 的 npm 入口那 8 处）修后 ⇒ 门 **rc=0**
+	//   两态实跑（零故事根／外根 books）：均 rc=0 ✓（读数写在 `#1333`）
 	// `#1315`：`test-audit-gates-run-mjs` **已撤挂** —— 它的 CLI 半段改成**未判**口径
 	// （零故事 ⇒ 出声"未判"、不算红），机制面仍由同段的**纯函数格**看着护 ⇒ 不再需要挂起。
 	'test-story-ci-mjs': { why: '用户故事 CI：K4/K5 面依赖故事与产物', until: '#1279（M1 尾件回填复验：测试件接新根后）' },

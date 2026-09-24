@@ -69,7 +69,7 @@
 | `test/layering.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — | 自证 **33** 条断言（**量法**：`node test/layering.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝模块依赖（`cases` 11 项，含 `#893` 两层登记的三条正反例）/ 点号 defines / 层间方向 / engine rank 派生与四条禁止边 |
 | `test/multi-story.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | — |  |
 | `test/npc-venue.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/npm-entries-guard.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | **临时下架**：npm 入口差集：取样脚本随 WebUI 下架 ⇒ 待改取样（until #1279（M1 尾件回填复验：本轮未定，下轮复跑）） |  |
+| `test/npm-entries-guard.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
 | `test/ns-merge.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
 | `test/onetime-pickups.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | **临时下架**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：测试件接新根后）） |  |
 | `test/passages-assemble.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |

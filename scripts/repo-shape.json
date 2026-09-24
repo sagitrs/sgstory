@@ -5,6 +5,7 @@
 	"_scope": "只判**已入库**（tracked）的顶层条目。未入库的（`node_modules/`、`build/`、`dist/`、本地草稿）一律不看 —— 否则本机每次跑都会假红。",
 	"_where": "判据在 `scripts/repo-shape.mjs`，测试件在 `test/repo-shape.mjs`（含自证），探针在 `scripts/probes.mjs`。",
 	"allow": [
+		{ "name": "cases", "why": "`#1267` M1 用例执行器的**默认用例根**（`--cases=` 可显式指别处）；空目录只含 README ⇒ 零用例时工具明说 rc=0" },
 		{ "name": ".github", "why": "CI 工作流（含只在 push to main 跑的 post-deploy-smoke）" },
 		{ "name": ".gitignore", "why": "忽略规则（`build/`、`dist/`、`/tmp/` 等）" },
 		{ "name": "LICENSE", "why": "代码授权" },

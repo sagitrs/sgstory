@@ -7,6 +7,7 @@
 	"scripts": {
 		"build": "node build.mjs",
 		"test": "node scripts/run-tests.mjs --tier=fast",
+		"case-run": "node scripts/case-run.mjs",
 		"test:full": "node scripts/run-tests.mjs --tier=full",
 		"check:deauth": "node test/attribution-gate.mjs",
 		"check:npm-entries": "node scripts/check-npm-entries.mjs",

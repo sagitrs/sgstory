@@ -46,6 +46,7 @@
 | `test/chk-source.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
 | `test/choice-keys.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | **临时下架**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：测试件接新根后）） |  |
 | `test/ci-triggers.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | — |  |
+| `test/codex-panel.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
 | `test/combat-adv.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | **临时下架**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：测试件接新根后）） |  |
 | `test/comment-face-split.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | — |  |
 | `test/comment-mask.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | **临时下架**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：本轮未定，下轮复跑）） |  |
@@ -112,6 +113,7 @@
 - `test/chargen-macros.mjs`（测试脚本）
 - `test/chk-source.mjs`（测试脚本）
 - `test/choice-keys.mjs`（测试脚本）
+- `test/codex-panel.mjs`（测试脚本）
 - `test/combat-adv.mjs`（测试脚本）
 - `test/comment-mask.mjs`（测试脚本）
 - `test/contract-compat.mjs`（测试脚本）

@@ -105,6 +105,22 @@ export const expectViolations = ({ expect = {}, seen = {} } = {}) => {
 
 /** `#1267`（预审 ⑤）：**页面未捕获异常 → 该例的判据问题**（纯函数 → 能假）。
  * 为什么单列：`uncaught` 是「页面坏了」的唯一信号；收集了却无人消费 → 页面抛错仍可能判绿（假绿）。 */
+/** `#1287`（复核）：**五态的人读标签（呈现位之一）**。导出成常量 → 自证可守呈现层
+ *（"判定对" ≠ "呈现对"：新增状态若漏了这里，行首会打出 `undefined`，而 JSON 里却是对的）。 */
+export const VERDICT_LABELS = {
+	green: '✔',
+	'expected-gap': '○ 预期缺口',
+	unattributed: '✗ 未归因',
+	'invalid-attribution': '✗ 归因无效',
+	'stale-attribution': '✗ 陈旧归因',
+};
+
+/** `#1287`（复核）：**人读汇总行的渲染（纯函数 → 可自证"各桶之和 ＝ total"与"五态都在"）。 */
+export const summaryLine = (sum, unverified = 0, tickets = '') =>
+	`用例 ${sum.total} 条：绿 ${sum.green} ｜ 预期缺口 ${sum.expectedGap}（${tickets || '—'}）`
+	+ ` ｜ 未归因 ${sum.unattributed} ｜ 归因无效 ${sum.invalidAttribution ?? 0} ｜ 陈旧归因 ${sum.stale}`
+	+ ` ｜ 未核实 ${unverified} ⇒ rc=${sum.exit}`;
+
 export const runtimeProblems = (seen) => (seen?.uncaught ?? []).map((u) => ({ kind: 'uncaught', want: String(u).slice(0, 200) }));
 
 // ── 驱动面（jsdom；只在真跑时用 → 动态 import，缺依赖时给明说而不是崩）──────
@@ -223,15 +239,17 @@ const main = async () => {
 		}
 		const r = await runCase(c);
 		results.push(r);
-		const tag = { green: '✔', 'expected-gap': '○ 预期缺口', unattributed: '✗ 未归因', 'stale-attribution': '✗ 陈旧归因' }[r.verdict];
-		say(`${tag} ${r.id}${r.ticket ? ` ${r.ticket}` : ''}${r.verdict === 'stale-attribution' ? '（归因票已关但用例仍红 ⇒ 复查并补 closed_by）' : ''}`);
+		const tag = VERDICT_LABELS[r.verdict] ?? `（未知态 ${r.verdict}）`;   // `#1287`：新增状态必须接全"呈现位"
+		say(`${tag} ${r.id}${r.ticket ? ` ${r.ticket}` : ''}`
+			+ (r.verdict === 'stale-attribution' ? '（归因票已关但用例仍红 ⇒ 复查并补 closed_by）' : '')
+			+ (r.verdict === 'invalid-attribution' ? '（票号不存在 ⇒ 归因指向空票 ⇒ 归因无效）' : ''));
 		for (const p of r.problems) say(`    ✗ ${p.kind}: ${p.want}${p.got !== undefined ? `（实得 ${p.got}）` : ''}`);
 	}
 	const sum = summarize(results);
 	// **汇总行每次都要打**（哪怕全绿）
 	// `#1287`（复核 ⑥）：token 缺失时**单列"未核实 N 条"**（定义须在汇总行之前 → 否则 TDZ）。
 	const unverified = results.filter((r) => r.ticketState === 'unknown').length;
-	say(`用例 ${sum.total} 条：绿 ${sum.green} ｜ 预期缺口 ${sum.expectedGap}（${results.filter((r) => r.verdict === 'expected-gap').map((r) => r.ticket).join(',') || '—'}）｜ 未归因 ${sum.unattributed} ｜ 陈旧归因 ${sum.stale} ｜ 未核实 ${unverified} ⇒ rc=${sum.exit}`);
+	say(summaryLine(sum, unverified, results.filter((r) => r.verdict === 'expected-gap').map((r) => r.ticket).join(',')));   // `#1287`：与 JSON 同口径 → 闭合
 	// `#1287`（复核 ⑥）：**token 缺失不许无声** —— 无 token 时"归因票已关"会被降级成"未关" → rc=0
 	// （真问题被吞）。三态语义不变（离线降级 rc=0 是对的），**只是把"降级"打出来 ＋ 单列计数**。
 	if (unverified) {

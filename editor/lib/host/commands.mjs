@@ -316,6 +316,10 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 	// → 照**同一条 `--l3=` 的现成形状**讲人话地拒（`console.error` ＋ `return 2`，不新造机制）。
 	//注意：跨命令那一族（`--out=`／`--from=`／`--section=`／`--key=` 的空值）**不夹带** → 另开票。
 	if (notesTarget === '') { console.error('✗ --notes= 只接受产物文件名（实得 （空））—— 例：`--notes=16-notes-ch2.twee`；不给该标志 ⇒ 默认 `16-notes-ch1.twee`'); return 2; }
+	// `#1261` 遗留（**已登记，未硬删**）：`--notes=` 模式驱动的 `16-notes-*.twee` 生成族随
+	// "笔记概念溶解"退役 → 本模式属"该模式的对象已删"。按成本闸**不硬删**（涉 compileStory 签名
+	// 与默认产物名两处联动），改为**登记待清**：见 `#1265` 下架台账（重建触发＝`#1163` 定稿后
+	// 按新口径决定"notes 面是否还需要产物"）。
 	const notesMode = argv.includes('--notes') || notesTarget !== null;
 	const l3Mode = argOf('l3', 'hard');
 	if (!L3_MODES.includes(l3Mode)) { console.error(`✗ --l3 只接受 ${L3_MODES.join('|')}（实得 ${l3Mode}）`); return 2; }

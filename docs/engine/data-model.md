@@ -67,7 +67,7 @@
 
 **登记纪律**（`--state` 门）：`pc.ev`／`pc.world` 的每个键**必须落在 `Game.State.domains` 的某个域里**，未登记 → 红。
 域表落点是故事的 `stories/<slug>/data/tables.json` 的 `containers.State`：`domains`（`{id, keys[], prefix[], where, note}`）· `bookkeeping[]`（**只写不读**的记账键，须显式登记）· `dynamicKeys[]`（前缀／`via` 动态族）。
-最小合法集 ＝ 只有 `runtime` 一个域（复算：`stories/minimal-demo/data/tables.json` 的 `containers.State.domains` 长度 ＝ **1**）。
+最小合法集 ＝ 只有 `runtime` 一个域（复算：任一最小故事的 `tables.json` 里 `containers.State.domains` 长度 ＝ **1**；原举例 `minimal-demo` 已随 `#1261` 下架）。
 
 ## 4. 结算的本质：引擎**已经**把它形式化了
 

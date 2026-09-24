@@ -1,7 +1,7 @@
 # `audit.json` 与 `gates/` —— 故事自己的判据面
 
 > 落点纪律：**判据数据不该进产物**（`stories/<slug>/audit.json`，不写进 `15-tables.twee`）。
-> 加载器：`scripts/audit/lib/story-audit.mjs`。实况样本：`stories/night-ferry/audit.json` · `stories/night-ferry/gates/`。
+> 加载器：`scripts/audit/lib/story-audit.mjs`。实况样本：任一故事的 `audit.json` 与其旁的 `gates/`（原举例 `night-ferry` 已随 `#1261` 下架）。
 
 ## 1. `audit.json`
 

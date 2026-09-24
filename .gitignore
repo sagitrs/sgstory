@@ -13,3 +13,5 @@ stories/*/16-notes-*.twee
 /tmp/
 # `#1132` B4：元数据段生成物（与 15/16/17/18 同类）
 stories/*/00-meta.twee
+test/fixtures/**/stories/*/1[5678]-*.twee
+test/fixtures/**/stories/*/00-meta.twee

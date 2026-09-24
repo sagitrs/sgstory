@@ -11,6 +11,7 @@ import { readdirSync, existsSync, statSync, mkdirSync, writeFileSync, rmSync, ut
 import { isTransientFixture } from './lib/untracked-guard.mjs';
 import { isGeneratedFamily } from '../editor/lib/core/generated-family.mjs';   // `#1185`：家族谓词单一权威 // `#1130`：**并行段运行期自造的临时夹具不算真源**（`stories/__e2e`）
 import { allSourceFiles } from './module-order.mjs';
+import { absPath } from './dist-paths.mjs';   // `#1282`：符号名 → 真实落盘路径
 import { fileURLToPath } from 'node:url';
 import { join, dirname } from 'node:path';   // `#1130`：落盘要建父目录（`dirname` 先前漏 import → 被 catch 吞掉）
 import { defaultStoryHtml } from './dist-paths.mjs';
@@ -31,7 +32,10 @@ export const distState = ({ distPath = DIST_PATH, srcDir = SRC_DIR } = {}) => {
 		? allSourceFiles(undefined, { withStoryData: true })
 			.filter((p) => !isGeneratedFamily(p))   // `#1185`：生成物家族谓词取**单一权威**（15/16/17/18 ＋ 00-meta）
 			.filter((p) => !isTransientFixture(p))   // `#1130`：**临时夹具不算真源**（CI 实测：`stories/__e2e/data/*.json` 曾把 siteinfo 两段撞红）
-			.map((p) => join(ROOT, p))   // `#1128`：产物不再是「源」（移出 git 后其 mtime 是运行时态——真源=data/*.json） ＋ `#1130`：**本门显式传 `withStoryData: true`**（只有本门要 data json 在内）
+			// `#1282`（M1 尾件 ①）：**源件也必须过 `absPath`** —— 清单给的是符号名（`stories/…`），
+			// 故事根在仓外时 `join(ROOT, p)` 会指到**仓内**的同一相对名 → ENOENT（实测：21 段
+			// 「走仓内根」的红都源于此）。仓内时 `absPath` 恒等 → 行为逐字符不变。
+			.map((p) => absPath(p))
 		: readdirSync(srcDir).filter((f) => f.endsWith('.twee')).map((f) => join(srcDir, f));
 	const newestSrc = Math.max(...files.map((f) => statSync(f).mtimeMs));
 	const distMtime = statSync(distPath).mtimeMs;

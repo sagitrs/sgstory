@@ -28,6 +28,7 @@
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { STORIES_DIR } from '../scripts/dist-paths.mjs';   // `#1282`
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';                       // `#1051`②：枚举改走 `git ls-files`（已入库面）
 import { untrackedScannedProblems, isTransientFixture } from '../scripts/lib/untracked-guard.mjs';
@@ -35,7 +36,8 @@ import { isGeneratedFamily } from '../editor/lib/core/generated-family.mjs';   /
 import { maskComments } from '../editor/lib/core/mask.mjs';   // `#1048`：{{}} 判据先剥注释（留痕不罚）
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '');
-const STORIES = join(ROOT, 'stories');
+// `#1282` 尾件①：故事根走口（仓内恒等）。
+const STORIES = STORIES_DIR;
 const SRC = join(ROOT, 'src');
 
 /** 允许的 SugarCube 内置（**少而要有理由**）：`back`＝返回上一段，属呈现动作、非逻辑。 */

@@ -1,3 +1,4 @@
+import { absPath } from '../scripts/dist-paths.mjs';   // `#1282`
 // `#1192`：构建期"该不该重编产物"判据的钉子（判据本体在 `scripts/lib/gen-needed.mjs`）。
 //
 // 要钉住的回归：旧写法是**固定五名清单**配 `.some((f) =>!existsSync(...))`，对只产子集的故事**恒真**
@@ -57,10 +58,10 @@ const fam = (f) => /(^|\/)(1[5678]-[a-z0-9-]+\.twee|00-meta\.twee)$/.test(f);
 {
 	let checked = 0;
 	for (const slug of storySlugs().filter((s) => !s.startsWith('__'))) {
-		const mf = join(ROOT, 'stories', slug, '00-story.json');
+		const mf = absPath(`stories/${slug}/00-story.json`);   // `#1282` 尾件①
 		if (!existsSync(mf)) continue;
 		const declared = JSON.parse(readFileSync(mf, 'utf8')).files ?? [];
-		const dataDir = join(ROOT, 'stories', slug, 'data');
+		const dataDir = absPath(`stories/${slug}/data`);
 		const dataFiles = existsSync(dataDir) ? ['x.json'] : [];
 		const r = genNeeds({ declared, family: isGeneratedFamily, exists: () => true, dataFiles });
 		ok(`⑤ ${slug}：产物齐备 ⇒ 不需要重编`, r.needed.length === 0, JSON.stringify(r));

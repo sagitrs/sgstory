@@ -72,6 +72,23 @@ export const noteIdsUsed = (sources) => {
 };
 
 /** 纯函数：判据 ③ —— 用到的笔记必须都登记了。 */
+/** `#1282`（裁定）：**声明面**＝该故事 `data/notes.json` 的块 `entries` **键集**（单一权威）。
+ * 为什么不是 `Sg.notes.stored(pc)`：那是**运行时已存**那一侧 —— 拿它冒充声明面正是本残留的成因
+ * （判据会被写成空：凡是"已存"就自动"已声明"）。`stored` 只可作**对照**，不入本判据。
+ * 返回：`null` → **声明面不存在**（调用方应"明说未判、不计红"）；数组 → 声明到的 id（可为空数组）。
+ */
+/** `#1282`（裁定，三态**同一路径上的三个分支**、可注入 → 能假）：**声明面＝该故事的契约成员 `notes`**。
+ * · 成员**不存在** → `null` → 调用方**明说"本项未判"、不计红**（与 `domains`／`size-gate` 同口径）
+ * · 成员**在、显式零条**（`kind:'empty-object'` → 值 `{}`）→ `[]` → **判了且无错**（"判过、零条"；  不得打"未判"）
+ * · 成员**在、有条目** → 键集 → 逐条对照（某条拿不到 → 红 ＋ 点名该条）
+ *   不用 `Sg.notes.stored(pc)` 键集冒充声明面 —— 那是**运行时已存**那一侧；特征＝"两面分离的样本上不红"。
+ */
+export const declaredNoteIds = (member) => {
+	if (member === undefined) return null;                       // (a) 面不存在 → 未判
+	const entries = member?.entries ?? member?.value ?? {};      // (b) 零条 → {} ；(c) 有条目 → 键集
+	return [...new Set(Object.keys(entries ?? {}))].sort();
+};
+
 export const judgeNotes = (used, declared) =>
 	[...used].filter(([id]) => !declared.includes(id)).map(([id, file]) => ({
 		code: 'note-undeclared',
@@ -290,9 +307,19 @@ const main = async () => {
 
 			// ③ 笔记可用：内容用到的每条笔记都必须登记，且 add 真的跑通
 			const used = noteIdsUsed(sources);
-			const declared = w.Sg.notes.ids();
-			const noteFound = judgeNotes(used, declared);
-			problems.push(...noteFound.map((f) => ({ ...f, slug })));
+			// `#1282`（裁定）：**声明面为权威** —— 取该故事 `data/notes.json` 的块 `entries` 键集；
+			//   不用 `w.Sg.notes.stored(pc)` 冒充（那是运行时已存那一侧，会把判据写空）。
+			// 三态（与 `domains` 同口径）：面不存在 → **未判不计红**；面在 → 进判据（缺条目 → 红点名）。
+			// `#1282`：声明面＝**该故事的契约成员 `notes`**（读该故事 `data/contract.json` 的 `members`）。
+			const contractPath = absPath(`stories/${slug}/data/contract.json`);
+			const contractMembers = existsSync(contractPath) ? (JSON.parse(readFileSync(contractPath, 'utf8')).members ?? []) : [];
+			const declared = declaredNoteIds(contractMembers.find((m) => m?.name === 'notes'));
+			if (declared === null) {
+				console.log(`  #1282 [笔记可用] ${slug}：未声明 \`data/notes.json\` ⇒ **本项未判**（不计红；声明后即参与判定）`);
+			} else {
+				const noteFound = judgeNotes(used, declared);
+				problems.push(...noteFound.map((f) => ({ ...f, slug })));
+			}
 			let noteBroken = 0;
 			for (const [id] of used) {
 				if (noteFound.some((f) => f.msg.includes(`"${id}"`))) continue;   // 未登记的交给上面那条报

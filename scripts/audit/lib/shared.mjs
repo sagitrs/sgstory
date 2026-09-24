@@ -27,15 +27,13 @@ export const normalizeEchoes = (raw) => ({
 /** `#1269`（第 2-6 处）：**能力面的就绪守卫（一处权威）**。
  * 背景：故事未声明 `mechanics`（或对应能力面）时，门里裸调 `Game.Combat.<方法>` 会抛
  * `TypeError: ... is not a function` —— **不点名缺什么**（读报文的人会去修门，而真因是故事盘）。
- * 用法：门在调用前 `requireCombatFace(Game, 'slotAbsorb', 'scripts/audit/gates/slots.mjs:70')`
- * → 就绪返回该函数；未就绪**抛点名错**（调用点 ＋ 缺的声明面）。 */
-export const requireCombatFace = (game, method, where) => {
+ * 返回：就绪 → 该函数；缺面 → **null**（调用方据此**显式**决定"点名报告"或"跳过并明说"）。
+ * 为什么不抛：**抛错会把两种语义混成一种** —— "该报缺声明"与"该说无样本可判"在不同调用点不同
+ * （门自证＝无样本可判；判据本体＝该点名）。也不许各门自行内联判断（同概念两处实现即缺陷）。
+ */
+export const requireCombatFace = (game, method) => {
 	const fn = game?.Combat?.[method];
-	if (typeof fn !== 'function') {
-		throw new Error(`缺少 \`Game.Combat.${method}\` 声明面（调用点 ${where}）：本故事未声明该能力面`
-			+ `（\`Sg.story.mechanics()\` 未启用或未列出 \`${method}\`）—— 请先声明，或按可选空集处理（#1269）`);
-	}
-	return fn;
+	return typeof fn === 'function' ? fn : null;
 };
 export const writeKeys = (text) => {
 	const out = new Set();

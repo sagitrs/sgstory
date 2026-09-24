@@ -12,7 +12,8 @@
 import { spawnSync } from 'node:child_process';
 import { runSelectedGates } from '../scripts/audit/lib/shared.mjs';
 import { AUDIT_ENGINE } from '../scripts/test-plan.mjs';
-import { storySlugs } from '../scripts/dist-paths.mjs';   // `#1315`：零故事态判「未判」用
+import { storySlugs, STORIES_DIR, ROOT } from '../scripts/dist-paths.mjs';   // `#1315`：零故事态／外根判「未判」
+import { join } from 'node:path';
 
 let bad = 0;
 const case_ = (label, ok, extra = '') => {
@@ -55,8 +56,13 @@ console.log('══ 「选中 ⇒ 真跑」门（#572）══');
 // 而它的**前提**是「仓内有一份默认故事」。零故事态（`#1265` 后是常态）⇒ **前提不成立** ⇒
 // **出声说"未判"**（不算红、不算绿）—— ✗ 不再把整段挂起：**挂起 ＝ 判据不可见**（`#1267` 尾件那条教训），
 // 而机械面向上的**纯函数格（上面那批）仍在跑**，机制面并不失去看护。
-if (storySlugs().length === 0) {
-	console.log('  ○ 未判：仓内零故事（无默认故事）⇒ 「选中 ⇒ 真跑」的 **CLI 半段**未判'
+// `#1321` 复核（写作者 RC ＋ 协调席裁定）：**外根也要未判** —— 本格量的三项是「**某个故事根下审计是否全绿**」
+// ⇒ 属**故事侧健康读数**；按 Operator 口径（引擎能力不以故事为前提／用户的故事不是测试用例）
+// ⇒ **它不是引擎能力的判据** ⇒ 外根（如 books）时同样只出声「未判」（照 `test/size-gate.mjs` 的 `EXTERNAL` 先例）。
+const EXTERNAL = STORIES_DIR !== join(ROOT, 'stories');
+if (storySlugs().length === 0 || EXTERNAL) {
+	const why = storySlugs().length === 0 ? '仓内零故事（无默认故事）' : ('外根模式（故事根＝' + STORIES_DIR + '）');
+	console.log('  ○ 未判：' + why + '⇒ 「选中 ⇒ 真跑」的 **CLI 半段**未判'
 		+ '（对象在：`scripts/audit.mjs`；前提不成立：没有默认故事可跑）；纯函数格已跑，机制面仍有着护。');
 } else {
 	const r = spawnSync(process.execPath, ['scripts/audit.mjs', '--engine-only', '--check'], { encoding: 'utf8', timeout: 240_000 });

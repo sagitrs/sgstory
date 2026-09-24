@@ -190,10 +190,13 @@ export const SEGMENTS = [
 	{ id: "scripts-clean-net-mjs-selftest", phase: 'test', cost: 0, inputs: ['*'], cmd: "node scripts/clean-net.mjs --selftest" },
 	{ id: "scripts-precommit-check-mjs-selftest", phase: 'test', cost: 0, inputs: ['*'], cmd: "node scripts/precommit-check.mjs --selftest" },
 	{ id: "scripts-lint-new-segment-mjs-selftest", phase: 'test', cost: 0, inputs: ['*'], cmd: "node scripts/lint-new-segment.mjs --selftest" },
-	// `#1174`：**人类面行文检查**（`lint:style`）—— 检索注释面与文档面的装饰记号。两段成对：自证段量判据函数本身，
-	// 门态段逐件扫描全仓。自证**必须成对登记**：判据能不能被"种出来的反例"点燃只由 `--selftest` 量，不登记它 ＝ 那一半零守护。
-	{ id: "scripts-lint-human-face-mjs-selftest", phase: 'test', cost: 0.4, inputs: ['*'], cmd: "node scripts/lint-human-face.mjs --selftest" },
-	{ id: "scripts-lint-human-face-mjs-check", phase: 'test', cost: 0.4, inputs: ['*'], cmd: "node scripts/lint-human-face.mjs" },
+	// `#1314`（Operator 指示）：**「违规符号检测规范」已撤销** —— 原 `lint:style` 两段
+	// （`scripts-lint-human-face-mjs-check`／`-selftest`）连同 `scripts/lint-human-face.mjs` 一并摘除。
+	// 理由（Operator 原话）：**「这个替换完全是掩耳盗铃…绕过有何意义？」**
+	// ⇒ 能被无成本绕过的规范应当撤掉，而不是逼人换字（症状＝『换个词就过』＋『门内外两套风格』）
+	// ⇒ 属**判据与目的脱钩**。
+	// 历史为过门做的记号清理**不回滚**（无害）；此后记号自由使用（不再有门在拦）。
+
 	{ id: "test-gen-needed-mjs", phase: 'test', cost: 0.3, inputs: ['*'], cmd: "node test/gen-needed.mjs" },   // `#1192`：构建期重编判据（按故事清单声明的产物集）
 	{ id: "test-route-registry-mjs", phase: 'test', cost: 0.3, inputs: ['*'], cmd: "node test/route-registry.mjs" },   // `#1189`：实现路线表判据（覆盖／完读／腐烂／反向核）
 	{ id: "test-npm-entries-guard-mjs", phase: 'test', cost: 0.4, inputs: ['*'], cmd: "node test/npm-entries-guard.mjs" },   // `#1200`：npm 入口差集护栏的判据面（端到端能红 + 接线）
@@ -624,7 +627,6 @@ export const SUITE_MEMBERS = {
 		'test-repo-shape-mjs-selftest', 'test-docs-read-path-mjs', 'test-docs-read-path-mjs-selftest','test-untracked-guard-mjs', 'test-passages-assemble-mjs-selftest','test-audit-gates-run-mjs',
 
 		'scripts-clean-net-mjs-selftest', 'scripts-precommit-check-mjs-selftest', 'scripts-lint-new-segment-mjs-selftest',
-		'scripts-lint-human-face-mjs-selftest', 'scripts-lint-human-face-mjs-check',
 		'test-coverage-mjs',
 		'test-gate-discovery-mjs',
 		'test-plan-needs-mjs',
@@ -721,14 +723,6 @@ export const INPUTS_WILDCARD_REASONS = {
 	'scripts-precommit-check-mjs-selftest': {
 		reason: '纯函数自证（三分支态判据）不读外部件 => 取全跑型以免静默跳过成假绿面 ✓',
 		voucher: '#1166',
-	},
-	'scripts-lint-human-face-mjs-check': {
-		reason: '本段是门的主体：逐件扫描全仓人类面（注释与文档）→ 面即整个仓库 ⇒ 取全跑型（否则存量记号会静默溜过）',
-		voucher: '#1174',
-	},
-	'scripts-lint-human-face-mjs-selftest': {
-		reason: '本段验判据函数自身（mask 定位 · 模板串不误判 · 代码区不动 · V3 全量机械验证）⇒ 取全跑型以免静默跳过成假绿面',
-		voucher: '#1174',
 	},
 	'scripts-lint-new-segment-mjs-selftest': {
 		reason: '合成计划注入五类缺陷（不读真计划）=> 取全跑型以免静默跳过成假绿面 ✓',

@@ -61,8 +61,9 @@ const readSource = async () => {
 	const sv = w.SugarCube?.State?.variables ?? {};
 	const got = sv.checks?.[SITE];
 	const body = w.document?.body?.innerHTML ?? '';
+	const NEW = '桌上那点灰';   // `#1347` 甲·变体 A：只改呈现侧的 label（条件 `req` 保持不动）
 	try { w.close(); } catch { /* 已关 */ }
-	return { checks: sv.checks, got, rendered: body.includes('桌上那点光') };
+	return { checks: sv.checks, got, rendered: body.includes('桌上那点光'), renderedNew: body.includes(NEW) };
 };
 
 if (!existsSync(RUNNER)) {
@@ -77,7 +78,7 @@ if (READ_ONLY) {
 	if (!existsSync(RUNNER)) { console.log(JSON.stringify({ atSite: 'no-runner' })); process.exit(0); }
 	const r = await readSource();
 	console.log(JSON.stringify({ atSite: r.got ?? null, keys: r.checks ? Object.keys(r.checks) : null,
-		rendered: r.rendered === true }));
+		rendered: r.rendered === true, renderedNew: r.renderedNew === true }));
 	process.exit(0);
 }
 
@@ -124,48 +125,54 @@ if (SELF) {
 
 // ── ③ 能假·渲染面 ────────────────────────────────────────
 if (SELF_RENDER) {
-	console.log('  ── 能假·渲染面：**写入保留**，只让条件行不命中（`req` 指到一个不存在的站点）──');
+	// `#1347` 甲·**变体 A**：**条件保持为真**（`req` 一字不动）⇒ 只动**呈现侧**（那一行的 label）。
+	// 为什么：旧构造"改 `req` ⇒ 条件不命中"**同时动了写入与渲染两条腿** ✗ ⇒ 两格互相掩盖、也证明不了"渲染面跟着输入变"。
+	// 变体 A 给出**更强**的读数：写入仍在 ✓ ＋ **渲染出的文本＝新 label** ✓ ＋ 旧 label 不再出现 ✓ ⇒ 两条腿各自独立。
+	// ★ `rc` **不当代理**：变体 A 下用例可能因"它断言的是旧 label"而失败 ⇒ rc 只用来问"**负态跑起来了没有**"。
+	console.log('  ── 能假·渲染面（变体 A）：条件不动、只改那一行呈现侧 label ──');
 	copyFileSync(RULES, BAK(RULES));
 	let neg = null, negRun = null;
 	try {
+		// ★ 结构性写法：**parse ⇒ 改值 ⇒ 写回**（✗ 不对 `JSON.stringify` 的文本做替换）
 		const d = JSON.parse(readFileSync(RULES, 'utf8'));
-		const s = JSON.stringify(d).replace(/chk:里屋·察觉\.success/g, 'chk:不存在的站点.success');
-		writeFileSync(RULES, s);
-		// input-layer assertion: prove the fixture SOURCE really changed before judging the product
-		// (manual negative experiment already proved: source change -> 17-rules.twee regenerated -> product updates;
-		//  so if this is red, the fault is in this cell's patch step, not in the build)
+		const rows = Array.isArray(d?.rows) ? d.rows : [];
+		const row = rows.find((r) => Array.isArray(r?.req) && r.req.some((k) => String(k).startsWith('chk:')));
+		if (!row) throw new Error('夹具里找不到含 `chk:` 的条件行');
+		row.text = String(row.text).replace('桌上那点光', '桌上那点灰');
+		writeFileSync(RULES, JSON.stringify(d, null, 2) + '\n');
 		{
 			const srcTxt = readFileSync(RULES, 'utf8');
-			t('③ 前置·输入层：夹具 data/rules.json 已是「不存在的站点」', srcTxt.includes('不存在的站点'));
-			console.log('      输入层：源件里「不存在的站点」×%d｜「里屋·察觉」×%d',
-				(srcTxt.match(/不存在的站点/g) ?? []).length, (srcTxt.match(/里屋·察觉/g) ?? []).length);
+			t('③ 前置·输入层：源件里呈现侧已改（新 label 在）', srcTxt.includes('桌上那点灰'));
+			t('③ 前置·输入层：**条件一字未动**（`req` 仍是 `chk:里屋·察觉.success`）', srcTxt.includes('chk:里屋·察觉.success'));
 		}
 		negRun = runRunner();
-		neg = await readSource();
+		const runOut = String(negRun.out ?? '');
+		t('③ 前置：负态**跑起来了**（runner 输出里有用例汇总行）', /用例\s*\d+\s*条/.test(runOut),
+			runOut.slice(-80).replace(/\n/g, ' '));
+		{
+			const page = join(FX, 'dist/stories/north-room/index.html');
+			const html = existsSync(page) ? readFileSync(page, 'utf8') : '';
+			const line = (html.match(/req: \[[^\]]*\]/g) ?? []).slice(0, 2).join(' ｜ ');
+			console.log('      产物层：规则行的 req 现形＝%s', line || '（未匹配到）');
+			t('③ 前置·产物层：产物里呈现侧已改（新 label 在）', html.includes('桌上那点灰'));
+			t('③ 前置·产物层：产物里条件仍是原样（证明只动了一条腿）', html.includes('chk:里屋·察觉.success'));
+		}
+		// 负态读数走**子进程**（同进程二次 boot 会命中缓存 ⇒ 假读数）
+		const childNeg = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--read-only'],
+			{ cwd: ROOT, encoding: 'utf8', timeout: 300000, env: { ...process.env, SG_STORIES_DIR: STORIES } });
+		try { neg = JSON.parse(String(childNeg.stdout ?? '').trim().split('\n').pop()); }
+		catch { neg = { rendered: 'parse-failed:' + String(childNeg.stdout ?? '').slice(0, 80) }; }
 	} finally {
 		copyFileSync(BAK(RULES), RULES);
 		rmSync(BAK(RULES), { force: true });
 		runRunner();
 	}
-	// ★ `#1315` 常设检视（小修）：原写法 `rendered === false || negRun.status !== 0` 会把"**runner 崩了**"
-	//   读成"**过了**" ✗ —— 而本格的负态里 runner 非 0 是**另一回事**（条件行不命中 ⇒ 用例本就该红），
-	//   它**证明不了**渲染面。⇒ 丢 `||`：只认 `rendered === false`。
-	if (negRun?.status === 0) {
-		// runner 在"条件行不命中"的负态下**仍 rc=0** ⇒ 说明负态根本没生效（或改动没进构建）⇒ **未判**、出声点名
-		t('③ 前置：负态下 runner 应因"那行不渲染"而失败（rc≠0）', false, `runnerRc=${negRun?.status}`);
-	} else {
-		// ★ 前置断言（同 ② 那条"写入行 3→2"）：**先验负态补丁真进了构建**——产物里该规则行现在应指向
-		//   `chk:不存在的站点` ⇒ 只有这样，"那行没渲染"才是渲染面的证据（✗ 否则读的是没变的产物）。
-		{
-			const page = join(FX, 'dist/stories/north-room/index.html');
-			const patched = existsSync(page) && readFileSync(page, 'utf8').includes('不存在的站点');
-			t('③ 前置：产物里那条规则行已换成 `chk:不存在的站点`（证明补丁进了构建）', patched);
-		}
-		t('③ 能假·渲染面：条件行不命中 ⇒ 那行**不渲染**（呈现面能咬）', neg?.rendered === false,
-			`rendered=${neg?.rendered} runnerRc=${negRun?.status}`);
-	}
-	t('③ 且此时**写入仍在**（键在场 ⇒ 与 ② 分得开：写入与渲染各有看护）', !!neg?.checks?.[SITE] || !!neg?.got,
-		`keys=${JSON.stringify(Object.keys(neg?.checks ?? {}))}`);
+	// 两条腿各自独立：
+	t('③ 能假·渲染面：**渲染出的文本＝新 label**（呈现面真跟着输入变）', neg?.renderedNew === true,
+		`renderedNew=${neg?.renderedNew} renderedOld=${neg?.rendered}`);
+	t('③ 能假·渲染面：**旧 label 不再出现**', neg?.rendered === false, `renderedOld=${neg?.rendered}`);
+	t('③ 且此时**写入仍在**（键在场 ⇒ 与"渲染"分得开：写入与渲染各有看护）', !!neg?.keys?.length,
+		`keys=${JSON.stringify(neg?.keys ?? null)}`);
 }
 
 if (bad) { console.error(`✗ chk-source：${bad} 格红`); process.exit(1); }

@@ -20,16 +20,14 @@
 import { SEGMENTS } from '../scripts/test-plan.mjs';
 
 /** 在册边表（「谁写 · 谁读 · 为什么」）—— 加一条边 = 一次**显式决定**（不许顺手）。 */
-export const NEED_EDGES = [
-	{ writer: 'test-lint-story-mjs', reader: 'test-lint-scratch-mjs', why: '#1044：lint-story 的反例临时改真 stories/*/data/tables.json（finally 恢复 ✓）⇒ lint-scratch 同波时 spawn 的 lint-story 读到半成品 JSON ⇒ 假红' },
-	// `#1070`（本票新增两条，同一根因 —— **临时候具存活期**）：`test/web-preview.mjs` 会在运行中向
-	// `stories/__e2e` 写一份**完整可发现的故事包**（含 `00-story.json`）→ 同波的两个**扫目录/逐故事**的
-	// 段会把它当“真故事”读到（半成品）→ 假红；`finally` 清 + `needs` 串行化 → 读侧看不到它。
-	//注意：为何本票才发现：`#1070` 把 253s 的探针段移出 PR 档 → **波次重排** → 两个读侧段与 web-preview 重叠
-	// → 缺口由“潜伏”变“必现”（既存缺口，不是本片引入；修法＝本仓既有的单一权威手段）。
-	{ writer: 'test-web-preview-mjs', reader: 'test-cli-surface-mjs', why: '#1070：本件驱动 `editor/cli.mjs k4`（逐故事 `readdirSync(stories)`）⇒ 同波命中 `web-preview` 的 `stories/__e2e` ⇒ k4 报“手写契约源非空（0 文件）却分类出 0 名成员” ⇒ 假红' },
-	{ writer: 'test-web-preview-mjs', reader: 'test-pc-defaults-mjs', why: '#1070：本件 ⑥ 走 `storySlugs()`（扫 `stories/` 下带 `00-story.json` 的目录）⇒ 同波命中 `stories/__e2e` ⇒ `boot({story:\'__e2e\'})` 找不到故事页 ⇒ 假红' },
-];
+export const NEED_EDGES = [];
+/** `#1315`：本表**当前为空**，且这必须由本条登记解释（不是"顺手删干净"式的静默）——
+ *  原三条边的**两端段都已随 `#1261` 大裁剪下架**：
+ *    · `test-lint-story-mjs` -> `test-lint-scratch-mjs`（`#1044`：反例临时改真 `stories/<slug>/data/tables.json`）
+ *    · `test-web-preview-mjs` -> `test-cli-surface-mjs` ／ `test-pc-defaults-mjs`（`#1070`：临时候具 `stories/__e2e`）
+ *  => 今天**不存在"写侧临时候具 -> 读侧同波读到半成品"这一类冲突**（写侧段本身已不存在）。
+ *  加边规则不变（两端必须先在 `SEGMENTS` 在册）；将来恢复同类段时**必须同时恢复对应边**。 */
+export const EMPTY_EDGES_REASON = '#1315：三条边的两端段均已随 `#1261` 下架 => 当前无边（空表由本条解释，非静默）';
 
 /** 判定（纯函数）：返回问题列表（空 ＝ 通过）。 */
 export const missingEdges = (segments, edges) => {
@@ -53,13 +51,20 @@ const case_ = (label, ok, extra = '') => {
 // ①③：在册边逐条核验（needs 含 writer · 端点都在册）
 const problems = missingEdges(SEGMENTS, NEED_EDGES);
 case_('边表逐条在册', problems.length === 0, problems.join('；'));
+case_('边表为空时必须有登记理由（空 != 静默：表空本身就是一次显式决定）',
+	NEED_EDGES.length > 0 || EMPTY_EDGES_REASON.trim().length > 0);
 
 // ② 反例控制：对**副本**删掉一条在册边 → 判定必须报出它（否则"全绿"可能只是判定什么都没量）
+// `#1315`：本格改为**自带样本** —— 旧写法取 `NEED_EDGES[0]`，空表时是 `undefined` => 直接崩（且"能假"依赖当天数据）。
+// 自带样本让"删边必报"永远能被点燃（不依赖现网有没有边）。
 {
-	const first = NEED_EDGES[0];
-	const mutated = SEGMENTS.map((s) => (s.id === first.reader ? { ...s, needs: (s.needs ?? []).filter((n) => n !== first.writer) } : s));
-	const got = missingEdges(mutated, NEED_EDGES);
-	case_('反例·删边必报', got.length === 1 && got[0].includes(first.writer) && got[0].includes(first.reader));
+	const segs = [{ id: 'w', needs: [] }, { id: 'r', needs: ['w'] }];
+	const edges = [{ writer: 'w', reader: 'r', why: '(自证自带样本)' }];
+	const before = missingEdges(segs, edges).length === 0;
+	const cut = segs.map((s) => (s.id === 'r' ? { ...s, needs: [] } : s));
+	const got = missingEdges(cut, edges);
+	case_('反例·删边必报（自带样本：删前不报 / 删后必报且点名两端）',
+		before && got.length === 1 && got[0].includes('w') && got[0].includes('r'), got.join('；'));
 }
 // 正例控制：没有边要守 → 必须无问题（防判定对任意输入都报）
 case_('正例·空边表放过', missingEdges(SEGMENTS, []).length === 0);
@@ -68,13 +73,19 @@ case_('正例·空边表放过', missingEdges(SEGMENTS, []).length === 0);
 // 为什么（与 `NEED_EDGES` 同口径）：独占是一次**显式决定** → 理由进数据、不许只写注释（不可机检）
 // 为什么需要独占：窗口制造者（就地改真源再恢复 → mtime 刷新）与并行 boot 的段撞新鲜度守卫 → 偶发红
 const exclDeclProblems = (segs) => segs.filter((s) => s.exclusive && (!Array.isArray(s.mutates) || s.mutates.length === 0)).map((s) => s.id);
+/** `#1315`：**"独占段数 = 0"必须被显式登记**（两种零不同形）—— 原格写"≥1（今天=lint-story）"，
+ *  而那个段已随 `#1261` 下架 => 格变红；若只是把格删掉，机制被静默摘除时也没人知道。
+ *  => 改成：`≥1` **或** 本条登记在场 => 表空/机制无人用时**必须有人写下理由**。 */
+export const NO_EXCLUSIVE_TODAY = '#1315：原独占段（`test-lint-story-mjs`，就地改真 `stories/*/data/tables.json`）已随 `#1261` 下架 => 当前无段会动已入库真源 => 独占机制暂无人使用（登记以备复核；将来有段动真源 => 必须标 `exclusive` + 非空 `mutates`）';
 {
 	const excl = SEGMENTS.filter((s) => s.exclusive);
 	case_('独占段必须声明 mutates（非空 ⇒ 理由可查）', exclDeclProblems(SEGMENTS).length === 0, exclDeclProblems(SEGMENTS).join('、'));
-	case_('独占段 >=1（今天＝lint-story；若变 0 ⇒ 本机制可能已被摘）', excl.length >= 1, `exclusive 段数=${excl.length}`);
-	case_('反例·独占段缺 mutates ⇒ 必报（能假）', (() => {
-		const mut = SEGMENTS.map((s) => (s.exclusive ? { ...s, mutates: [] } : s));
-		return exclDeclProblems(mut).length === excl.length && excl.length >= 1;
+	case_('独占段 >=1 或已登记「今天没有」（0 必须被解释 => 机制不会被静默摘除）', excl.length >= 1 || NO_EXCLUSIVE_TODAY.trim().length > 0, `exclusive 段数=${excl.length}`);
+	// `#1315`：旧写法对**现有** exclusive 段做空 mutates 副本 => 今天 0 个 => 恒等于 `0===0 && false` => 必红且**判不到东西**。
+	// 改为**注入**一个合成独占段（自带样本）=> 无论现网有几个 exclusive 段，本格都能被点燃。
+	case_('反例·独占段缺 mutates => 必报（自带样本：注入一个缺 mutates 的独占段）', (() => {
+		const mut = [...SEGMENTS, { id: '__probe-exclusive__', phase: 'test', cost: 0, exclusive: true, mutates: [], cmd: 'true' }];
+		return exclDeclProblems(mut).includes('__probe-exclusive__');
 	})());
 }
 

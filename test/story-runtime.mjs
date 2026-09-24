@@ -224,7 +224,17 @@ const main = async () => {
 			console.log(`${okScope ? '✓' : '✗'} [域表纪律] 故事作用域 ⊇ 引擎文件（${slug}：引擎 ${inScope} 个 ＋ 本故事 ${files.length - inScope} 个）⇒ 域表判定覆盖引擎写点`);
 			if (!okScope) bad2++;
 			// 引擎写点必须在**本故事**域表里有归属（空判守卫：引擎写点集必须非空）
-			const domains = createContext({ story: slug, argv: [] }).Game?.State?.domains ?? [];
+			// `#1269`（裁定：与本轮同族 —— 「假设已声明 → 崩，而不是点名／容忍」）：
+			// `domains` 非数组（或未声明）时，原先 `domains.some(...)` 抛 `TypeError: domains.some is not a function`
+			// → **不点名缺什么**。改为：**容忍缺席 ＋ 点名**「缺 `Game.State.domains` 声明（数组形态）」。
+			// 能假格：声明为非空域表且覆盖 → 绿（判据未写空）；非数组 → 点名并计红。
+			const rawDomains = createContext({ story: slug, argv: [] }).Game?.State?.domains;
+			const domains = Array.isArray(rawDomains) ? rawDomains : null;
+			if (domains === null) {
+				console.error(`✗ [域表纪律] 缺 \`Game.State.domains\` 声明（应为数组，实得 ${typeof rawDomains}）⇒ 本项**未判**（#1269 同族）`);
+				bad2++;
+				continue;
+			}
 			const uncovered = [...engWrites].filter((k) => {
 				const bare = String(k).split('.').pop();   // `ev.last_result` → `last_result`（域表按**裸键名**匹配）
 				return !domains.some((d) => (d.keys ?? []).includes(bare) || (d.prefix ?? []).some((p) => bare.startsWith(p)));

@@ -101,8 +101,8 @@ export const PROBES = [
 		cmd: 'node test/comment-face-split.mjs',
 		mutation: {
 			file: 'scripts/audit/gates/state.mjs',
-			// `#1269` A 类：靶同步 —— 被测语句已改走 `absPath(f)`（符号名 ⇒ 真身），
-			// 探针靶必须跟着改（否则"注入确认 0 处"＝**刀没下到真语句**，读数不成立 ✗）。
+			// `#1269` A 类：靶同步 —— 被测语句已改走 `absPath(f)`（符号名 → 真身），
+			// 探针靶必须跟着改（否则"注入确认 0 处"＝**刀没下到真语句**，读数不成立  ）。
 			find: "sources[f] = maskComments(readFileSync(absPath(f), 'utf8'));",
 			replace: "sources[f] = stripProseComments(readFileSync(absPath(f), 'utf8'));   // 探针：拿散文启发式扫代码",
 		},

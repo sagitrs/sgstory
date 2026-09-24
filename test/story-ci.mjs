@@ -28,7 +28,12 @@ const t = (label, ok, extra = '') => {
 	if (ok) console.log(`      ✓ 自证·${label}`);
 	else { bad++; console.error(`      ✗ 自证·${label}${extra ? '：' + extra : ''}`); }
 };
-const cli = (args) => spawnSync('node', ['editor/story-ci.mjs', ...args], { cwd: ROOT, encoding: 'utf8' });
+// `#1267` 尾件（复核裁定 1）：**本件的自证跟"根两态"改** —— `#1267` 之后
+// `SG_STORIES_DIR` 优先、`--stories-dir=` 仅在 **env 未设**时生效 → 本件的夹具格
+// 若只传 CLI，在外根（env 已设）下会被忽略（格就失效）。修法：**两态都用显式 env 表达根**
+// （`env` 里设 `SG_STORIES_DIR` → 与构建/其余门同口径；CLI 仍可作补充）。
+const cli = (args, env = {}) => spawnSync('node', ['editor/story-ci.mjs', ...args],
+	{ cwd: ROOT, encoding: 'utf8', env: { ...process.env, ...env } });
 const probe = mkdtempSync(join(tmpdir(), 'story-ci-'));
 
 try {
@@ -47,7 +52,7 @@ try {
 		mkdirSync(join(probe, 'fixture-story'));
 		writeFileSync(join(probe, 'fixture-story', '00-story.json'), JSON.stringify({ slug: 'fixture-story', files: ['10-x.twee'] }));
 		mkdirSync(join(probe, 'not-a-story'));
-		const r = cli(['--list', `--stories-dir=${probe}`]);
+		const r = cli(['--list'], { SG_STORIES_DIR: probe });   // `#1267`：显式 env（CLI 在 env 已设时被忽略）
 		const got = (r.stdout || '').trim().split('\n').filter(Boolean);
 		t('🔴 能假·夹具故事**必须**出现在 `--list` 里', r.status === 0 && got.includes('fixture-story'), `got=${got.join(',')}`);
 		t('发现口径·无 `00-story.json` ⇒ 不算故事（不抛 ✗）', !got.includes('not-a-story'), `got=${got.join(',')}`);
@@ -71,13 +76,23 @@ try {
 	{
 		const empty = join(probe, 'empty-root');
 		mkdirSync(empty);
-		const r = cli(['--stories-dir=' + empty]);
+		const r = cli([], { SG_STORIES_DIR: empty });   // `#1267`：显式 env（CLI 在 env 已设时被忽略）
 		const out = `${r.stdout || ''}${r.stderr || ''}`;
-		t('🔴 反例·空根目录 ⇒ rc=1 且点名「发现到 0 个故事」', r.status === 1 && /发现到 0 个故事/.test(out), `status=${r.status}`);
-		t('反例·空根目录时**全局面照跑**（诊断完整，不整批跳过 ✓）', /\[K2\]|\[K5\]|\[K6\]/.test(out), '全局面没跑');
-		const r2 = cli(['--stories-dir=' + join(probe, 'no-such-dir')]);
+		// `#1267`：空根现在由 `SG_STORIES_DIR` 的 **fail-loud 校验**在加载期点名
+		//（"下没有任何 `<slug>/00-story.json`"）—— 与"story-ci 自己发现到 0 个故事"同义，
+		// 都是"不许静默判过" 。断言改为**认这两种点名声**（不绑死某一处文案）。
+		t('🔴 反例·空根目录 ⇒ rc=1 且点名（0 故事／校验点名声）',
+			r.status === 1 && /发现到 0 个故事|没有任何 .?<slug>\/00-story\.json.?/.test(out), `status=${r.status}`);
+		// `#1267`：根校验失败属**前置不成立** → 不跑全局面是**对的**（与"取不到输入不许判过"同族）；
+		// 原断言建立在"根能起来、只是 0 个故事"的旧假设上 → 按新语义改为：
+		// **要么全局面照跑（旧语义），要么在加载期点名并退出（新语义：前置缺失不假装跑全局面）**。
+		t('反例·空根目录：全局面照跑 **或** 前置缺失点名退出（两种都不静默判过 ✓）',
+			/(\[K2\]|\[K5\]|\[K6\])/.test(out) || /没有任何 `?<slug>\/00-story\.json`?|指向的不是目录/.test(out),
+			`out=${out.slice(-80)}`);
+		const r2 = cli([], { SG_STORIES_DIR: join(probe, 'no-such-dir') });   // `#1267`：同上
 		const out2 = `${r2.stdout || ''}${r2.stderr || ''}`;
-		t('🔴 反例·目录不存在 ⇒ 同形（rc=1 ＋ 点名「不存在」）', r2.status === 1 && /不存在/.test(out2), `status=${r2.status}`);
+		t('🔴 反例·目录不存在 ⇒ 同形（rc=1 ＋ 点名）',
+			r2.status === 1 && /不存在|指向的不是目录/.test(out2), `status=${r2.status}`);
 	}
 
 	// ③″ **末行不许反向说谎**：`✔/ ` ＋ `x/y` ＋ 清单 ＋ **rc** 必须四处一致
@@ -85,19 +100,25 @@ try {
 	{
 		const lastLine = (out) => (out.trim().split('\n').filter((l) => /用户故事 CI：/.test(l)).pop() ?? '');
 		const cases = [
-			['空根目录（0 故事 ⇒ 必红）', cli(['--stories-dir=' + join(probe, 'empty-root-2')])],
+			['空根目录（0 故事 ⇒ 必红）', cli([], { SG_STORIES_DIR: join(probe, 'empty-root-2') })],   // `#1267`：同上
 			['坏故事（逐故事面红）', cli([`--story=${join(probe, 'broken')}`])],
 			['默认档（面上应为绿）', cli([])],
 		];
 		for (const [label, r] of cases) {
 			const out = `${r.stdout || ''}${r.stderr || ''}`;
 			const last = lastLine(out);
-			t(`🔴 末行 ✗ ⟺ rc≠0（${label}）`, (r.status !== 0) === last.startsWith('✗'), `rc=${r.status} last=${last.slice(0, 40)}`);
+			// `#1267`：空根在新语义下可能**加载期点名即退**（无末行）→ 末行不变量只在"本件真的跑起来了"时适用；
+			// **前置缺失 → rc≠0 ＋ 点名**同样合格（不静默判过）。
+			t(`🔴 末行 ✗ ⟺ rc≠0（${label}；或前置缺失点名）`,
+				last ? ((r.status !== 0) === last.startsWith('✗')) : r.status !== 0,
+				`rc=${r.status} last=${last.slice(0, 60)}`);
 		}
 		// 0 故事时**分母要把它算进去**（否则末行又会说成 4/4）
 		const out0 = `${cases[0][1].stdout || ''}${cases[0][1].stderr || ''}`;
 		const m = /：([0-9]+)\/([0-9]+) 通过/.exec(lastLine(out0));
-		t('🔴 0 故事 ⇒ `x/y` 里 x<y（"该做没做"计入分母 ✓）', !!m && Number(m[1]) < Number(m[2]), `line=${lastLine(out0).slice(0, 40)}`);
+		t('🔴 0 故事 ⇒ `x/y` 里 x<y，或前置缺失被点名（两种都不静默判过 ✓）',
+			(!!m && Number(m[1]) < Number(m[2])) || /没有任何 .?<slug>\/00-story\.json.?|指向的不是目录/.test(out0),
+			`line=${lastLine(out0)}`);
 	}
 
 	// ③‴ `#999`：`--stories-dir=` 时**逐故事面也必须看那个根**（不然"发现用 A 根、逐故事用 B 根"）
@@ -109,10 +130,16 @@ try {
 		writeFileSync(join(rootX, 'broken2', '00-story.json'), JSON.stringify({ slug: 'broken2', files: ['10-x.twee'] }));
 		writeFileSync(join(rootX, 'broken2', 'data', 'tables.json'), '{ oops');
 		writeFileSync(join(rootX, 'broken2', 'data', 'contract.json'), '{}');
-		const r = cli(['--stories-dir=' + rootX]);
+		// `#1267`：本格验的是"**逐故事面真的在那个根上跑**"（`#999` 旧病的反面）。
+	// 根以 **env** 表达（`#1267` 后 `SG_STORIES_DIR` 优先）→ 断言的"报文含路径"依旧成立。
+	const r = cli([], { SG_STORIES_DIR: rootX });
 		const out = `${r.stdout || ''}${r.stderr || ''}`;
-		t('🔴 能假·`--stories-dir` ⇒ 逐故事面**真的在那个根上跑**（报文带 `（路径 <临时根>/<slug>）` ✓）',
-			r.status === 1 && out.includes(`（路径 ${join(rootX, 'broken2')}）`), `status=${r.status} 含路径=${out.includes(join(rootX, 'broken2'))}`);
+		// `#1267`：本格的**断言口径已更新** —— 修法改为"根以 env 表达"后，逐故事面按 slug
+		// 就能在**生效根**下找到 `broken2` → 报文不再带 `（路径 …）`（那是"根在仓外时传目录"那条
+		// 旧路的措辞）。**判据改验"它真的在生效根上跑且抓住了那个坏故事"**：
+		// rc=1 ＋ 点名 `broken2` ＋ 报"data/*.json 不可解析"（＝坏故事的专属症状，证明判到的是**它**）。
+		t('🔴 能假·逐故事面**真的在那个根上跑**（rc=1 ＋ 点名 broken2 ＋ 坏故事症状）',
+			r.status === 1 && out.includes('broken2') && /不可解析/.test(out), `status=${r.status}`);
 		t('纯函数·根在仓外 ⇒ 逐故事面参数是**目录**（默认根仍是 slug ✓ 老行为不变 ✓）',
 			(await import('../editor/lib/core/storyCi.mjs')).buildPlan({ stories: ['a'], root: '/tmp/x' })[0].cmd[1] === '/tmp/x/a'
 			&& (await import('../editor/lib/core/storyCi.mjs')).buildPlan({ stories: ['a'] })[0].cmd[1] === 'a');

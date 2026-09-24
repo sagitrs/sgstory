@@ -761,6 +761,14 @@ export const INPUTS_WILDCARD_REASONS = {
 		reason: 'boot 起真引擎＋直接调宏 handler（不读 stories 目录）；取全跑型以免静默跳过成假绿面 ✓',
 		voucher: '#1132',
 	},
+	'test-codex-panel-mjs': {
+		reason: '读引擎产物与渲染 DOM（跨夹具/引擎两目录）=> 取全跑型以免静默跳过成假绿面 ✓',
+		voucher: '#1308',
+	},
+	'test-codex-panel-mjs-selftest': {
+		reason: '同上 ＋ 临时改夹具声明并还原（cp bak）=> 全跑型 ✓',
+		voucher: '#1308',
+	},
 	'test-contract-defaults-mjs': {
 		reason: '扫 `src/**` 的全部契约读点并读三故事的契约数据（跨目录、路径由清单给出）=> 依赖面跨目录且静态抽面锚不到，取全跑型以免静默跳过成假绿面',
 		voucher: '#1188',

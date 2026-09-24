@@ -42,7 +42,6 @@ export const EXEMPT = {
 	'docs/archive/': '历史归档（性质同历史提交信息不翻搅，保锚与审计）',
 	'15-tables.twee': '生成物（由 data/tables.json 生成）',
 	'17-rules.twee': '生成物（由 data/rules.json 生成）',
-	'16-notes-ch1.twee': '生成物（由 data/notes.json 生成）',
 	'00-meta.twee': '元信息源件（本票不动，等 B4 的元数据能力）',
 	'lint-human-face.mjs': '本工具自身（含示例字面量，自我改写风险高）',
 };

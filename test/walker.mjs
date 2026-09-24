@@ -11,6 +11,7 @@ import { fingerprintOf } from '../editor/lib/core/fingerprint.mjs';   // 见证�
 // 统一进 test/boot.mjs（#27 就绪轮询 + 坑11 uncaught 监听 + 退出清理）——
 // 这里不再自己装配 JSDOM：随机源改传函数（种子流），窗口关不关由 boot 统一负责。
 import { boot, LINKS, trailingAfterLast } from './boot.mjs';
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1261`：零故事判定（与同批门同口径）
 
 const N_CH1 = Number(process.argv[2] ?? 4);
 const N_TOWER = Number(process.argv[3] ?? 4);
@@ -27,6 +28,14 @@ const visitedCells = new Set();
 const rollObs = new Map();
 
 // 薄壳：stubMode 决定 Math.random 的档位；rng 是点击用的种子流（与掷骰随机源分开）
+// `#1261` 零故事模式（CI 面可见）：walker 的对象＝**故事内容**（开场/车卡/酒馆/塔门的随机游走
+// 与位点双支清扫）-> 仓内无故事时**没有可清扫对象** -> 明说并退 0（不是静默跳过：CI 日志可见此行）。
+// 状态＝「临时下架」：对象仍在（引擎面判据的样本宿主），随 `#1163`（books 回填样本）恢复。
+// CI 面可见：本行会出现在 `ci.yml` 的 realmachine 日志里（不是静默跳过）。
+if (!DEFAULT_SLUG) {
+	console.log('  #1261 零故事模式：walker 无故事内容可清扫 ⇒ 跳过（状态＝临时下架，until #1163）');
+	process.exit(0);
+}
 async function walkerBoot(stubMode, seed) {
 	const rng = makeRng(seed);
 	let flip = false;

@@ -124,7 +124,7 @@ stories/<slug>/
 | 算子 | `Sg.rules.ops`：`gte` / `lte` / `oneOf` | 对象算子的下拉 |
 | 效果面 | `Sg.rules.effects` | `do.effects` 的可选项 |
 | 取值项 | `Sg.rules.terms`：`{price:'econ_id'}` | 可负担性条件的下拉 |
-| 机制块 | 词汇宏清单（`docs/twee-cheatsheet.md`） |「做什么」的可选块 |
+| 机制块 | 词汇宏清单（`docs/manual/03-prose.md`） |「做什么」的可选块 |
 
 → **编辑器不做自己的词汇表**：`Sg.rules.*` 就是 enum，UI 与 `--rules` 门同源（否则必然漂移）。
 

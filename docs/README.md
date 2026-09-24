@@ -10,7 +10,7 @@
 | 改引擎 / 机制 | `docs/dev-conventions.md` | `docs/repo-map.md` · `docs/engine-story-boundary.md` |
 | 加 / 改门与测试 | `docs/quality-dimensions.md` | `docs/gate-ledger.md` · `docs/ui-coverage-gaps.md` |
 | 要把手写 `<<if>>` 搬进条件表 | **`docs/rules-table-guide.md`**（决策树＋踩坑） | `docs/dev-conventions.md` §11–§12（形状正典） |
-| 写 / 改剧情（现存故事，如 `night-ferry`） | `docs/engine-story-boundary.md`（接入契约） | `stories/night-ferry/`（含 `EDITOR-SESSION.md`）· `docs/twee-cheatsheet.md` |
+| 写 / 改剧情（现存故事，如 `night-ferry`） | `docs/engine-story-boundary.md`（接入契约） | `stories/night-ferry/`（含 `EDITOR-SESSION.md`）· `docs/manual/03-prose.md` |
 | 做质量评审 | `docs/quality-dimensions.md`（§一 方法 · §四 作业模板） | `docs/reviews/`（走查/评审存档，非权威） |
 | 接一个新故事 | `docs/engine-story-boundary.md` | `docs/story2-contracts.md` · `docs/repo-map.md`（§二 层归属） |
 | **故事写到某处，引擎还没有这个能力** | **`docs/process/story-engine-loop.md`**（需求到能力的五步循环） | `.github/ISSUE_TEMPLATE/engine-capability.yml`（需求模板）· `#1306`（需求台账） |
@@ -59,7 +59,8 @@
 | `docs/superpowers/specs/editor-pivot.md` | 146 | **设计稿**（伞 `#761`） | 编辑器转向：故事数据化 → 编译 → 校验 → 发布（schema v0 · 编译器边界 · 等价判据三级 · 分期与不变量 K1–K5） |
 | `docs/benchmark-ledger.md` | 55 | 台账 | 待收：目前**没有其它文档引用它**（`#606`） |
 | `docs/reviews/visual-review-2026-09-10.md` | 47 | 存档 | 2026-09-10 视觉走查 |
-| `docs/twee-cheatsheet.md` | 41 | 速查 | 本仓在用的 Twee 语法 ＋ 自定义词汇宏 |
+| `docs/manual/README.md` | 63 | 手册 | 引擎功能手册目录与**准入条**（按功能组织）|
+| `docs/manual/03-prose.md` | 66 | 手册 | §3 散文面：能写什么／禁什么＋**可用宏清单（从引擎派生）** |
 | `docs/reviews/text-review-2026-09-10.md` | 41 | 存档 | 文本走查（另一份 `…after-rebase…` 是重基后的复跑） |
 | `docs/reviews/quality-selfaudit-ch123.md` | 38 | 存档 | 1–3 章八维自检（流程记录，非设定稿） |
 | `docs/game-mechanics.md` | 31 | 速查 | 数值系统 ＋ 演示机制（故事 1 机制面） |

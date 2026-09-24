@@ -243,7 +243,20 @@ export const emitChargen = (d) => [
 
 /** 纯函数：`data/tables.json` → `Game Tables` 段（不含段头与生成标记）。 */
 export const emitTables = (d) => {
-	const one = 'window.Game = Object.assign(window.Game ?? {}, ' + literal(d.containers) + ');';
+	// `#1296`（甲案：**逐容器合并**）：原先这里是
+	//   `window.Game = Object.assign(window.Game ?? {}, <全部容器>);`
+	//，因此**顶层浅合并，因此同名容器被整块替换**：故事侧只要声明了与引擎同名的容器（如 `Game.Checks`），
+	//   引擎 sim 面就**整体失效**（实测波及 8 个命名空间：`Checks`／`Items`／`Economy`／`Gear`／`Star`／
+	//   `Social`／`Combat`／`Codex`，因此`Checks.resolve`／`Items.advAt`／`Economy.priceOf` 等**全 undefined**），
+	//   而**仓内零故事**时（`#1265` 后）这条链永远跑不出病，因此**"故事跑得通、引擎面是死的"**，长期没被发现。
+	//，因此改为**逐容器**：先保底建 `Game`，再对每个容器 `Object.assign` **合并进同名容器**（引擎成员保留）。
+	// 非对象值（数组／标量）走**直接赋值**（合并语义对它们无意义；保持数据面原样）。
+	const one = [
+		'window.Game = window.Game ?? {};',
+		...Object.entries(d.containers).map(([k, v]) => (v && typeof v === 'object' && !Array.isArray(v)
+			? `Object.assign((window.Game.${jsKey(k)} ??= {}), ${literal(v)});`
+			: `window.Game.${jsKey(k)} = ${literal(v)};`)),
+	].join('\n');
 	const merges = (d.merges ?? []).map((m) => {
 		//注意：值可能是**对象**（如 `Game.Consequences.provenance`）：早先这里走 `jsString(v)` → 对象被写成
 		// `'[object Object]'`（实测：数据面多出一个字符串，行为门才看得见）→ 一律用 JSON 字面量 emitter。

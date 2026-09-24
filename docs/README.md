@@ -55,8 +55,8 @@
 | `docs/repo-map.md` | 84 | 地图 | 目录结构 ＋ 层归属 ＋ 权威落点速查 |
 | `docs/ui-coverage-gaps.md` | 75 | 口径 | 覆盖与未覆盖的判定口径 |
 | `docs/archive/click-time-writes-design.md` | 96 | 设计稿·待评审 | 点击态写侧能否进表（`#624` 普查后的形状；含片一/片二与未决项） |
-| `docs/editor-flip-playbook.md` | 97 | 手册（`#787`） | **翻面七步**：冻基线 → 门重指向 → 产物 → 双向反例 → 重签 → 合入；含六个已踩的坑与三条纪律 |
-| `docs/superpowers/specs/editor-pivot.md` | 146 | **设计稿**（伞 `#761`） | 编辑器转向：故事数据化 → 编译 → 校验 → 发布（schema v0 · 编译器边界 · 等价判据三级 · 分期与不变量 K1–K5） |
+| `docs/editor-flip-playbook.md` | 102 | **史料·编辑器线已砍**（`#1325`） | 翻面七步（冻基线 → 门重指向 → 产物 → 双向反例 → 重签）——**✗ 不要再照它执行翻面**；手法仍有参照价值 |已踩的坑与三条纪律 |
+| `docs/superpowers/specs/editor-pivot.md` | 220 | **史料·编辑器线已砍**（`#1325`） | 编辑器转向的技术形状（schema v0 · 编译器边界 · 等价判据 · 分期）——**✗ 不要照它落码**；其 §2.1 约定仍以 `docs/engine/**` 为准 |译器边界 · 等价判据三级 · 分期与不变量 K1–K5） |
 | `docs/benchmark-ledger.md` | 55 | 台账 | 待收：目前**没有其它文档引用它**（`#606`） |
 | `docs/reviews/visual-review-2026-09-10.md` | 47 | 存档 | 2026-09-10 视觉走查 |
 | `docs/manual/README.md` | 63 | 手册 | 引擎功能手册目录与**准入条**（按功能组织）|

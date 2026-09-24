@@ -52,8 +52,8 @@ export const readKeyFamily = (key) => {
 	if (/^codex:[a-z_]\w*$/.test(k)) return 'codex';
 	if (k.startsWith('pc.')) return 'pc';
 	// `#1275`（案 A）：`chk:<站点>.<字段>` ＝ **运行时结果维**。
-	// 为什么单独一支：`chk:` key 里带 `.`（`chk:书房·敲墙.success`）⇒ 不加这一支会**落到 `dotted`**（族判定错）。
-	// 与 `KEY_PREFIX_RE` 是**两个面**：那个管"可读前缀合法性"，这个管"族归属" ⇒ 加族必须**两处同改**
+	// 为什么单独一支：`chk:` key 里带 `.`（`chk:书房·敲墙.success`）→ 不加这一支会**落到 `dotted`**（族判定错）。
+	// 与 `KEY_PREFIX_RE` 是**两个面**：那个管"可读前缀合法性"，这个管"族归属" → 加族必须**两处同改**
 	// （成对断言 `test/readkey-family.mjs` 锁住"core 族集合 ≡ 引擎族集合"）。
 	if (/^chk:(.+)\.([a-z]+)$/.test(k)) return 'chk';
 	if (k.includes('.')) return 'dotted';

@@ -44,9 +44,9 @@ window.Sg.rules = {
 	readKey(key, pc) {
 		// `#1275`（C1/C5，案 A）：`chk:<站点>.success` —— 「**本次点击的运行时结果**」这一维。
 		// 与 `inv:`／`era:`／`gear:` **同构**（前缀族＝引擎 schema；站点名＝故事数据）。
-		// ★ 取值面＝**按站点名索引的本次结果表**（`State.variables.checks`，由既有写入点落 —— 不新开写路）。
-		// ★ **引用了一个本次尚未产生结果的站点 ⇒ fail-loud 点名** —— 这条把"同段先判后写"这个坑
-		//   变成**可判读数**（而不是静默当 false ⇒ 恒假/恒真的假面）。
+		//   取值面＝**按站点名索引的本次结果表**（`State.variables.checks`，由既有写入点落 —— 不新开写路）。
+		//   **引用了一个本次尚未产生结果的站点 → fail-loud 点名** —— 这条把"同段先判后写"这个坑
+		//   变成**可判读数**（而不是静默当 false → 恒假/恒真的假面）。
 		if (typeof key === 'string' && key.startsWith('chk:')) {
 			const spec = key.slice(4);
 			const dot = spec.lastIndexOf('.');

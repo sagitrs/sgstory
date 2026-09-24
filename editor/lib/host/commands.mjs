@@ -11,7 +11,7 @@ import { join, resolve, dirname, relative } from 'node:path';
 import { readText, writeText, mkdirp, exists, ROOT, engineScripts } from './fs.mjs';
 // `#1267` 故事根口：本件是「故事包 I/O」的宿主，所有 stories/... 路径都走 STORIES_DIR，
 // 否则会出现「编译器读新根、lint/写回仍读旧根」的假绿。
-import { STORIES_DIR } from '../../../scripts/dist-paths.mjs';
+import { STORIES_DIR, absPath } from '../../../scripts/dist-paths.mjs';   // `#1267`：absPath 用于把符号名换成真实落盘路径
 // `#1267` 故事根口：core 的 `packageFiles` 要的是**目录前缀**（相对仓根）——
 // 仓内时 'stories'（逐字符不变），仓外时给绝对路径 → 编译/lint/写回同根。
 const BASE = relative(ROOT, STORIES_DIR) || STORIES_DIR;
@@ -148,10 +148,10 @@ export const extractCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 
 	const tablesMode = rest.includes('--tables');
 	const section = argOf('section', tablesMode ? 'Game Tables' : 'StoryRules');
 	const key = argOf('key', 'rules');
-	// `#1282` 尾件①/1c：默认值用**符号名**，拼根只用一处（`absPath`）——原写法把 `STORIES_DIR`
+	// `#1267` 尾件①/1c：默认值用**符号名**，拼根只用一处（`absPath`）——原写法把 `STORIES_DIR`
 	// 又塞进 `join(ROOT, …)` → 仓内得 `/repo/repo/stories/…`、外根得 `<repo>/<abs>/…`（两向都错  ）。
 	const out = absPath(argOf('out', tablesMode ? `stories/${slug}/data/tables.json` : `stories/${slug}/data/${key}.json`));
-	const file = absPath(argOf('from', `stories/${slug}/${sectionFile(section)}`));   // `#1282`：同上
+	const file = absPath(argOf('from', `stories/${slug}/${sectionFile(section)}`));   // `#1267`：同上
 	const scripts = engineScripts() + '\n' + scriptBodies(readText(file)).join('\n');
 	const { Sg, diag } = runStory(scripts);
 	if (tablesMode) {
@@ -216,7 +216,7 @@ export const classifyCommand = (argv = [], { prog = 'node editor/classify-contra
 	if (!slug) { console.error(usageOf(prog, sub, '<slug> [--json]')); return 2; }
 	// `#959`（同族推广）：`--from=` 空 → `join(ROOT, '')` ＝ ROOT → `existsSync` **为真** → 会走"找不到成员" → **归因错**（真因是文件不在）。
 	if (argOf('from', null) === '') { console.error('✗ --from= 只接受文件路径（实得 （空））—— 例：`--from=stories/<slug>/15-tables.twee`'); return 2; }
-	const file = absPath(argOf('from', `stories/${slug}/15-tables.twee`));   // `#1282`：同上
+	const file = absPath(argOf('from', `stories/${slug}/15-tables.twee`));   // `#1267`：同上
 	// `#794`：**输入缺失 → 单独一条** —— 实测：不存在的路径原先被报成"里面**找不到 Sg.story 成员**"，
 	// 方向对（不静默）但**归因错**（读的人会去查契约，而真因是**文件不在**）→ 与 `extract-story` 同口径。
 	if (!existsSync(file)) { console.error(`✗ 读不到输入：${file}（文件不存在）—— "读不到输入"不许当"没有故事逻辑"`); return 1; }
@@ -337,7 +337,7 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 	//注意：**一处定义**：产物名只在这里算一次 —— 它**同时**驱动 `--hand` 的默认路径与下面取产物那一步
 	//（两处各写一份 ternary →“比的是 ch2、指路指 ch1”的**错位**；复核席 `18505646` 点名过这处）。
 	const defaultTwee = notesMode ? (notesTarget ?? '16-notes-ch1.twee') : rulesMode ? '17-rules.twee' : '15-tables.twee';
-	const handPath = absPath(argOf('hand', `stories/${slug}/${defaultTwee}`));   // `#1282`：同上
+	const handPath = absPath(argOf('hand', `stories/${slug}/${defaultTwee}`));   // `#1267`：同上
 	// `#794` 观察项：**裸跑（未显式给 `--hand`）＋ 默认目标是产物 → 当场拒绝并指路**（见 `bareHandRefusal`）。
 	//注意：放在**昂贵比较之前**（复核口径）：下面要连编译两次 ＋ 逐字节比 → 跑完再报等于让人白等。
 	const defaultExists = existsSync(handPath);
@@ -648,13 +648,13 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 	// 判**所有故事目录**（不是只有 `data/` 的）：③ 逃生舱判据不依赖 `data/` —— 上一版按 `data/` 取故事，
 	// 结果洞窟（缺 `contract.json`）**整段被跳过** → 它的 C 桶（`eventPool`）根本没人查。
 	// 这正是 `#777` 修的那族错（"读不到输入却当成没有"）——我自己的门也犯了一次。
-	// `#1282` tail item 5: zero-story mode -- the story root itself may not exist
+	// `#1267` tail item 5: zero-story mode -- the story root itself may not exist
 	// (repo has no `stories/`) -- previously readdirSync threw ENOENT outright, so this
 	// gate could not run at all in zero-story mode (that is why `#1276` had to clean
 	// the refusedFaces entry by hand). Same family as "gates that read products":
 	// zero story => say so explicitly and skip (not a silent pass, not a crash).
 	if (!existsSync(storiesDir)) {
-		console.log(`  #1282 零故事模式：故事根 ${storiesDir} 不存在 ⇒ 本门跳过（样本随 #1163 回填）`);
+		console.log(`  #1267 零故事模式：故事根 ${storiesDir} 不存在 ⇒ 本门跳过（样本随 #1163 回填）`);
 		return 0;
 	}
 	const slugs = readdirSync(storiesDir).filter((s) => statSync(join(storiesDir, s)).isDirectory() && !s.startsWith('.'));
@@ -735,7 +735,7 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 			const storyCensus = censusOfStory(census, slug);
 			if (!storyCensus) console.log(`  · ${slug}：**未普查**（\`editor/escape-hatch-census.json\` 里没有本故事的条目）⇒ 「必须逃生舱」清单本次无可判对象（这是**状态**，不是"没问题"）`);
 			else {
-				// `#1282` 尾件 1c：此处原为**双重拼接**（把已解析的故事根又塞进 join(ROOT, …)）——
+				// `#1267` 尾件 1c：此处原为**双重拼接**（把已解析的故事根又塞进 join(ROOT, …)）——
 				// 仓内会变成 `/repo/repo/stories/…`、外根会变成 `/repo/books/stories/…` → 数学上必错。
 				// 本函数的正确写法是「根已经解析过一次」（同函数 `:645` 的 `storiesDir = STORIES_DIR`）：
 				const contractPath = join(STORIES_DIR, slug, 'data', 'contract.json');

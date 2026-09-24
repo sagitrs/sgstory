@@ -12,7 +12,7 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
-import { absPath } from '../scripts/dist-paths.mjs';   // `#1282`
+import { absPath } from '../scripts/dist-paths.mjs';   // `#1267`
 import { boot } from './boot.mjs';
 import { DEFAULT_SLUG, storySlugs } from '../scripts/dist-paths.mjs';
 import { PC_BASE_KEYS, PC_STORY_CONCEPTS, PC_GAMEPLAY_HOME, PC_GROUP_SIGNALS, PC_GAMEPLAY_CONCEPTS } from '../editor/lib/core/pc-state-map.mjs';
@@ -20,7 +20,7 @@ import { allSourceFiles } from '../scripts/module-order.mjs';   // `#1186`：扫
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 /** 反向核：三故事的键数与基础面规模（改契约或改基础面时同片更新）。 */
-// `#1282` 尾件②：期望表只对**生效根下存在**的样本生效（枚举面走 storySlugs()）；
+// `#1267` 尾件②：期望表只对**生效根下存在**的样本生效（枚举面走 storySlugs()）；
 // 样本缺席 → 明说未判（不静默判红／判绿）。
 const HAVE = new Set(storySlugs());
 const EXPECTED_KEYS = { 'face-fixture': 28, 'night-ferry': 8, 'minimal-demo': 8 };   // `#1216` B 半：补回夹具三名（checkSite/dragonMaxHp/poisonReduce）后随契约面更新 // `#1216` B 半：随契约面去声明而变（`rules`／`notes`／`pcDefaults` 为必给、已恢复） // `#1186`：世界观概念改由故事声明后，无概念的两故事少两键
@@ -33,7 +33,7 @@ const ok = (name, cond, detail = '') => {
 	console.error(`✗ ${name}${detail ? ` —— ${detail}` : ''}`);
 };
 
-// `#1282` 尾件①：故事根下的路径经 `absPath`（仓内恒等 → 行为不变）。
+// `#1267` 尾件①：故事根下的路径经 `absPath`（仓内恒等 → 行为不变）。
 const contractOf = (slug) => JSON.parse(readFileSync(absPath(`stories/${slug}/data/contract.json`), 'utf8'));
 const slugs = [DEFAULT_SLUG, ...storySlugs().filter((s) => s !== DEFAULT_SLUG)];
 const stateOf = {};

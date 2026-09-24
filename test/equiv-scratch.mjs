@@ -75,9 +75,9 @@ process.env.SAGITRS_EQUIV_SCRATCH_ROOT = OWNED_ROOT;   // ← 传给它 fork 出
 // 它以前能过，只是因为 `mist-forest` 被删了、没人再编译它 —— 那是**靠巧合站着**。
 // → 换成**真判据**：不看"某个路径在不在"，看"**跑完之后多了/动了什么**"
 //（并排写下：不留 `.equiv-run-*`／`.idem-<slug>` 草稿 ＋ 不动别人的落点）。
-// `#1282` 尾件②：故事名由**样本给出**（生效根下第一个），不再钉已删名。
+// `#1267` 尾件②：故事名由**样本给出**（生效根下第一个），不再钉已删名。
 const SLUG = storySlugs()[0] ?? null;
-if (!SLUG) { console.log('  · 生效根下没有故事 ⇒ 本件未判（`#1282` 尾件②）'); process.exit(0); }
+if (!SLUG) { console.log('  · 生效根下没有故事 ⇒ 本件未判（`#1267` 尾件②）'); process.exit(0); }
 const IDEM_OLD = join(OWNED_ROOT, `.idem-${SLUG}`);   // `#976` 前的固定草稿名（旧形）（**本件自有的根**）
 const genOf = join(GEN, SLUG);                            // 编译器的默认 `--out`（**别人的**落点，不是本件的草稿区）
 const genSnap = () => (existsSync(genOf)

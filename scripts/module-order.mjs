@@ -146,7 +146,8 @@ export const requireManifests = (manifests, who = 'checkRegistration') => {
  * ② `unclaimed-file` —— **故事件**必须被**某故事清单**认领（换登记处，不是撤守卫）
  * ③ `missing-file` —— `ORDER` 里的文件必须真实存在（改名/删除会被抓）
  * ③b `orphan-in-order`—— `ORDER` 里的**非引擎**件仍须被某故事认领（孤儿 → 建树时没人读它）
- * ④ `missing-manifest-file` —— **清单列出的文件**必须存在（改名/删除会被抓）
+ * ④ `missing-manifest-file`（**缺件**）／`manifest-should-not-list`（**不应列入清单**）——
+ *     `#1271` 起**按磁盘事实分两支**（存在但不属自动发现面 → 报"不应列入"；不存在 → 报"缺件"）
  *注意：边界（写清）：`ORDER` 对**故事件**是**可选**的 —— 既有故事件在里面 → 由 `ORDER` 排序；
  * 新故事件不在 → 由**清单序**排序（见 `storyOrder()`）。引擎件**不得**只靠清单。 */
 /** **故事声明面必须排在消费它的引擎件之前**（`#1002` —— `#998` 实测出来的洞）。
@@ -232,7 +233,7 @@ export const storyTablesOrderProblems = ({ order = ORDER, manifests = [], consum
 	return out;
 };
 
-export const checkRegistration = ({ sources, order = ORDER, modules = MODULES, manifests, requireModules = false } = {}) => {
+export const checkRegistration = ({ sources, order = ORDER, modules = MODULES, manifests, requireModules = false, exists = null } = {}) => {
 	const out = [];
 	const names = Object.keys(sources);
 	const claimed = new Set(requireManifests(manifests).flatMap((m) => m.files));   // `#899` ①：**显式必需**（不给默认 → 不读盘）
@@ -246,7 +247,17 @@ export const checkRegistration = ({ sources, order = ORDER, modules = MODULES, m
 		if (!claimed.has(f)) out.push({ code: 'unclaimed-file', msg: `${f} 既非引擎件（src/**）、也不属于任何故事清单的 files` });
 	}
 	for (const m of manifests) for (const f of m.files) {
-		if (!names.includes(f)) out.push({ code: 'missing-manifest-file', msg: `故事清单 ${m.slug} 列出的 ${f} 不存在（改了名或删了文件）` });
+		if (!names.includes(f)) {
+			// `#1271`（裁定）：**报文必须与事实相符** —— 原先一律报「不存在（改了名或删了文件）」，
+			// 但**文件其实就在那儿**（只是不属"自动发现面"，例如 `data/*.json` 由 `data/` 面自动发现）
+			// → 报文与事实不符（实测：夹具故事在场时曾误报 27／28 条）。→ **两支分流**：
+			//   · **磁盘上存在**（只是不属自动发现面）→「**不应列入清单**：该件由 `data/` 面自动发现」
+			//   · **磁盘上不存在** →「**缺件（改名或删除）**」—— **这条真守卫保留**（不许为改文案而放松）
+			const onDisk = exists ? exists(f) : existsSync(absPath(f));
+			out.push(onDisk
+				? { code: 'manifest-should-not-list', msg: `故事清单 ${m.slug} 列了 ${f}，但它**不应列入清单**（磁盘上存在，且由 \`data/\` 面自动发现）⇒ 请从 \`files\` 里删掉这一条` }
+				: { code: 'missing-manifest-file', msg: `故事清单 ${m.slug} 列出的 ${f} **缺件（改名或删除）**` });
+		}
 	}
 	for (const f of order) {
 		if (!names.includes(f)) { out.push({ code: 'missing-file', msg: `ORDER 里的 ${f} 不存在（改了名或删了文件）` }); continue; }

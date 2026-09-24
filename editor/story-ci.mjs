@@ -17,7 +17,7 @@
 //注意：为什么不重造判据：逐故事面**直接重用 `editor/lint-story.mjs`**（它已经是"包形状 → 编译幂等 →
 // 等价 → 故事门 ×N → 形状"的既有编排）；其余面按 `K_FACES` 表指向**既有命令**。
 import { existsSync, readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { STORIES_DIR } from '../scripts/dist-paths.mjs';   // `#1267` 故事根口
@@ -25,18 +25,49 @@ import { K_FACES, buildPlan, summarizeRuns, missingFromPlan, finalVerdict } from
 import { storySlugs } from '../scripts/dist-paths.mjs';   // `#1004` B2b：仓内故事名单的**单一权威**（不写死名字）
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-// `#1267` 故事根口：默认取 `STORIES_DIR`（受 `SG_STORIES_DIR` 控制）→ 与构建/audit 同根；
-// 显式的 `--stories-dir=` 仍优先（本件原有能力）。
+// `#1267` 故事根口：**`SG_STORIES_DIR` 是全仓唯一口**（build／audit／门 全走它）。
+// `--stories-dir=`（本件历史 CLI 口，`#999` 引入）**降级为"仅在 env 未设时生效"**；
+// 两口**同时给出且不同根 → 报错退出并点名两根**（见 `mergeStoriesRoots()`）。
 const STORIES = process.env.SG_STORIES_DIR ? STORIES_DIR : join(ROOT, 'stories');
+
+/** 故事根的**两口合并**（纯函数，因此能喂假事实自证）。
+ * 口 A 是 `SG_STORIES_DIR`（全仓唯一口，build/audit/门 全走它）；
+ * 口 B 是 `--stories-dir=`（本件的历史 CLI 口，`#999` 引入，本笔保留且**显式优先**）。
+ * 两口**同时给出且指向不同根**时必须出声：否则会出现「发现用 A 根、逐故事面用 B 根」，
+ * 即 `#999` 那条旧病（仓外故事集会在仓内静默地跑）。
+ * @returns {{root: string|null, problem: string|null}}
+ */
+export const mergeStoriesRoots = ({ envDir = null, cliDir = null, base = ROOT, repoDefault = null } = {}) => {
+	const resolveRoot = (p) => (p ? resolve(base, String(p)) : null);   // 不与 core 的 norm 同名（K6 ①b）
+	const a = resolveRoot(envDir), b = resolveRoot(cliDir);
+	if (a && b && a !== b) {
+		return { root: null, explicit: true, problem: `故事根**两口不一致**：SG_STORIES_DIR 指向 ${a}，而 --stories-dir= 指向 ${b}。同时给出且不同根会「发现用一根、逐故事面用另一根」（\`#999\` 的旧病），因此拒绝执行；请只给其中一个（\`#1267\`）` };
+	}
+	// `explicit`：根是否**被显式给出**（env 或 CLI）。
+	// 仓内默认根时**不**给子进程塞 `SG_STORIES_DIR` —— 否则零故事态（仓内 `stories/` 空）下
+	// 子进程会撞上 fail-loud 校验（「没有任何 <slug>/00-story.json」）而整批红  。
+	return { root: a ?? b ?? repoDefault, explicit: !!(a || b), problem: null };
+};
 
 /** 发现口径（照既有先例 `scripts/report-page-coverage.mjs:97` → **不新造**）：`stories/<d>/00-story.json` 存在。 */
 export const discoverStories = (dir = STORIES) =>
 	existsSync(dir) ? readdirSync(dir).filter((d) => existsSync(join(dir, d, '00-story.json'))).sort() : [];
 
+// 已解析的故事根（主路/`--list` 解析后写入）→ `run()` 用它覆盖子进程的 env（见 ②）。
+let RESOLVED_ROOT = null;
+// 根是否**显式**给出（见 `run()`：仓内默认根时不塞 env，避免零故事态 fail-loud）。
+let RESOLVED_ROOT_EXPLICIT = false;
+
 const run = (cmd) => {
 	const t0 = Date.now();
 	// `#1267` 故事根口：**子命令必须同根** —— 否则"本件读新根、子进程读旧根" → 假绿。
-	const r = spawnSync('node', cmd, { cwd: ROOT, encoding: 'utf8', env: process.env });
+	// `#1267` ②：**父把已解析的根显式传给子** —— 不依赖"子进程会继承 env"这个假设
+	// （实测：主干按 CLI 跑、而它 spawn 的 audit 按 env 跑 → 一次运行里两个根同时被读  ）。
+	// 传法：子进程的 `SG_STORIES_DIR` 一律覆盖为**父已解析的根**（`RESOLVED_ROOT`）。
+	const env = { ...process.env };
+	// 只有**显式给出的根**才覆盖（仓内默认根时保持"未设 env"，让子进程走自己的默认 → 仍同根）。
+	if (RESOLVED_ROOT_EXPLICIT) env.SG_STORIES_DIR = RESOLVED_ROOT; else delete env.SG_STORIES_DIR;
+	const r = spawnSync('node', cmd, { cwd: ROOT, encoding: 'utf8', env });
 	return { cmd, rc: r.status ?? 1, out: `${r.stdout || ''}${r.stderr || ''}`, ms: Date.now() - t0 };
 };
 
@@ -48,6 +79,11 @@ if (isMain) {
 	if (argv.includes('--selftest')) {
 		const cases = [
 			['发现口径：非目录 ⇒ 空（不抛 ✗）', discoverStories(join(ROOT, 'stories/__nope__')).length === 0],
+			// `#1267` 两口合并：四条（含"不同根必须出声"）
+			['根合并：只给 env 则取 env', mergeStoriesRoots({ envDir: '/a/s1', base: '/', repoDefault: '/d' }).root === '/a/s1'],
+			['根合并：只给 CLI 则取 CLI', mergeStoriesRoots({ cliDir: '/a/s2', base: '/', repoDefault: '/d' }).root === '/a/s2'],
+			['根合并：两口相同则不报', (() => { const m = mergeStoriesRoots({ envDir: '/a/x', cliDir: '/a/x', base: '/', repoDefault: '/d' }); return !m.problem && m.root === '/a/x'; })()],
+			['根合并：两口不同则出声（且点名两侧）', (() => { const m = mergeStoriesRoots({ envDir: '/a/x', cliDir: '/b/y', base: '/', repoDefault: '/d' }); return !!m.problem && m.problem.includes('/a/x') && m.problem.includes('/b/y') && m.root === null; })()],
 			//注意：**不许断言「恰好三个」**（`#989` 的根因）：本仓跑器是**并行**的 —— 别的段会在运行中往
 			// `stories/` 放临时故事（`web-preview` 的 `stories/__e2e`、`new-story-fixture`）→ 精确等值会**随机红**。
 			// 要断言的是「**真故事都在**」（⊇），不是「只有它们」（＝）。
@@ -74,8 +110,16 @@ if (isMain) {
 
 	// ── `--list`（**能假的那一格**：新故事必须出现 → 否则"自动被覆盖"是空话）──
 	if (argv.includes('--list')) {
-		const root = (argv.find((a) => a.startsWith('--stories-dir=')) ?? '').slice('--stories-dir='.length) || STORIES;
-		for (const s of discoverStories(root)) console.log(s);
+		const mergedList = mergeStoriesRoots({
+			envDir: process.env.SG_STORIES_DIR || null,
+			cliDir: (argv.find((a) => a.startsWith('--stories-dir=')) ?? '').slice('--stories-dir='.length) || null,
+			base: ROOT,
+			repoDefault: STORIES,
+		});
+		if (mergedList.problem) { console.error(`✗ ${mergedList.problem}`); process.exit(1); }
+		RESOLVED_ROOT = mergedList.root;
+		RESOLVED_ROOT_EXPLICIT = mergedList.explicit;
+		for (const s of discoverStories(mergedList.root)) console.log(s);
 		process.exit(0);
 	}
 
@@ -84,7 +128,17 @@ if (isMain) {
 	// `--story=` 可给**目录**（仓外用户故事包）或 slug；给目录时只跑那一个（发现不适用）
 	// 发现根可换（`--stories-dir=`）：既能指**仓外故事集**，也让本件的自证能用临时目录 ——
 	// 不往仓内塞夹具（往 `stories/` 塞会在并发段里被别人看见，与 `#976` 同类事故）。
-	const root = (argv.find((a) => a.startsWith('--stories-dir=')) ?? '').slice('--stories-dir='.length) || STORIES;
+	const merged = mergeStoriesRoots({
+		envDir: process.env.SG_STORIES_DIR || null,
+		cliDir: (argv.find((a) => a.startsWith('--stories-dir=')) ?? '').slice('--stories-dir='.length) || null,
+		base: ROOT,
+		repoDefault: STORIES,
+	});
+	if (merged.problem) { console.error(`✗ ${merged.problem}`); process.exit(1); }
+	const root = merged.root;
+	// `#1267` ②：把**已解析的根**记下来 → `run()` 覆盖子进程的 `SG_STORIES_DIR`（父子同根）。
+	RESOLVED_ROOT = root;
+	RESOLVED_ROOT_EXPLICIT = merged.explicit;
 	const stories = one && !existsSync(join(root, one)) ? [] : discoverStories(root);
 	//注意：`#999`：**根不是仓内默认**时，逐故事面也必须看那个根（否则发现用 A 根、逐故事用 B 根
 	// → 拿它当**仓外故事集**入口时会在**仓内**静默地跑）。→ 传**目录**（`lint-story` 支持吃目录）；

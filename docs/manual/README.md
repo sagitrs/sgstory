@@ -31,7 +31,7 @@
 | 5 | **[条件行与规则表](05-rules.md)** ★先写 | 行字段（`id`／`scope`／`prio`／`req`／`any`／`exclude`／`prereq`）；单选 `<<rules>>` vs 菜单 `<<rulelist>>`；键族（`inv:`／`era:`／`gear:`／`chk:`）；算子 | [锚]＋[步骤] |
 | 6 | **[状态与写点](06-state.md)** | `sets`／`yields`／`gives`；状态树；**域表纪律** | [锚] |
 | 7 | **[位点检定与结果维](07-checks.md)** ★先写 | `<<sitecheck>>`／`<<snapshot>>`／`<<lastcheck>>`；`Checks.sites`；**`chk:<站点>.<字段>`**；未检定即引用 ⇒ fail-loud | [锚]＋[步骤] |
-| 8 | 笔记与图鉴 | `data/notes.json` ＋ `yields` 授予；图鉴 `Codex.items`；呈现面待 `#1308` | [锚] |
+| 8 | **[笔记与图鉴](08-codex.md)** | `data/notes.json` ＋ `yields` 授予；图鉴 `Codex.items`；**面板呈现契约（id／恒在／空态／挂 `#passages` 之外）** | [锚]＋[步骤] |
 | 9 | 车卡 | `Chargen` ＋ `hasChargen`；触发/渲染口待 `#1309` | [锚] |
 | 10 | 战斗 | `Combat.pools`／`Combat.actions`；四门声明前提 | [锚] |
 | 11 | 物品与经济 | `Items.defs`；`Economy.econEvents`；`<<give>>`／`<<econ>>` | [步骤] |

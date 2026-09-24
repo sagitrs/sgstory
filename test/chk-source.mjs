@@ -138,8 +138,23 @@ if (SELF_RENDER) {
 		rmSync(BAK(RULES), { force: true });
 		runRunner();
 	}
-	t('③ 能假·渲染面：条件行不命中 ⇒ 那行**不渲染**（呈现面能咬）', neg?.rendered === false || negRun?.status !== 0,
-		`rendered=${neg?.rendered} runnerRc=${negRun?.status}`);
+	// ★ `#1315` 常设检视（小修）：原写法 `rendered === false || negRun.status !== 0` 会把"**runner 崩了**"
+	//   读成"**过了**" ✗ —— 而本格的负态里 runner 非 0 是**另一回事**（条件行不命中 ⇒ 用例本就该红），
+	//   它**证明不了**渲染面。⇒ 丢 `||`：只认 `rendered === false`。
+	if (negRun?.status === 0) {
+		// runner 在"条件行不命中"的负态下**仍 rc=0** ⇒ 说明负态根本没生效（或改动没进构建）⇒ **未判**、出声点名
+		t('③ 前置：负态下 runner 应因"那行不渲染"而失败（rc≠0）', false, `runnerRc=${negRun?.status}`);
+	} else {
+		// ★ 前置断言（同 ② 那条"写入行 3→2"）：**先验负态补丁真进了构建**——产物里该规则行现在应指向
+		//   `chk:不存在的站点` ⇒ 只有这样，"那行没渲染"才是渲染面的证据（✗ 否则读的是没变的产物）。
+		{
+			const page = join(FX, 'dist/stories/north-room/index.html');
+			const patched = existsSync(page) && readFileSync(page, 'utf8').includes('不存在的站点');
+			t('③ 前置：产物里那条规则行已换成 `chk:不存在的站点`（证明补丁进了构建）', patched);
+		}
+		t('③ 能假·渲染面：条件行不命中 ⇒ 那行**不渲染**（呈现面能咬）', neg?.rendered === false,
+			`rendered=${neg?.rendered} runnerRc=${negRun?.status}`);
+	}
 	t('③ 且此时**写入仍在**（键在场 ⇒ 与 ② 分得开：写入与渲染各有看护）', !!neg?.checks?.[SITE] || !!neg?.got,
 		`keys=${JSON.stringify(Object.keys(neg?.checks ?? {}))}`);
 }

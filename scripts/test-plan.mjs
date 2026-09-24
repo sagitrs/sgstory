@@ -816,47 +816,47 @@ export const validateSuites = (plan = SEGMENTS, { members = SUITE_MEMBERS } = {}
  * 每条必须给 `why`（为什么）与 `until`（何时重建的触发条件）；缺任一项 → 自证格红。
  */
 export const SUSPENDED = {
-	'test-readkey-family-mjs': { why: '读键族抽取面：样本需真故事的键族分布（对象＝引擎面判据）', until: '#1282（M1 尾件：本轮未定，下轮复跑）' },
-	'scripts-audit-mjs-consequences-check': { why: '选择后果门：样本需故事条件面（对象＝引擎门）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'scripts-audit-mjs-state-check': { why: '状态契约门：样本需故事状态面（对象＝引擎门）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-gen-needed-mjs': { why: '生成件清单：反向核需 ≥3 个真故事', until: '#1282（M1 尾件：本轮未定，下轮复跑）' },
+	'test-readkey-family-mjs': { why: '读键族抽取面：样本需真故事的键族分布（对象＝引擎面判据）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
+	'scripts-audit-mjs-consequences-check': { why: '选择后果门：样本需故事条件面（对象＝引擎门）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'scripts-audit-mjs-state-check': { why: '状态契约门：样本需故事状态面（对象＝引擎门）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-gen-needed-mjs': { why: '生成件清单：反向核需 ≥3 个真故事', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'scripts-lint-human-face-mjs-check': { why: '人脸门：当前红因是本次新增注释（应修到绿，非下架）', until: '#1163（books 回填样本已到位 ⇒ 复核后即可摘条目）' },
-	'editor-k4': { why: 'K4 单一真源：需故事目录（对象＝编辑器内核）', until: '#1282（M1 尾件：已裁：默认＝"在生效故事根下存在且可读"）' },
-	'test-npm-entries-guard-mjs': { why: 'npm 入口差集：取样脚本随 WebUI 下架 ⇒ 待改取样', until: '#1282（M1 尾件：本轮未定，下轮复跑）' },
-	'editor-extract-selftest': { why: '共享帮手自证：样本需故事段（对象＝抽取器）', until: '#1282（M1 尾件：本轮未定，下轮复跑）' },
+	'editor-k4': { why: 'K4 单一真源：需故事目录（对象＝编辑器内核）', until: '#1279（M1 尾件回填复验：已裁：默认＝"在生效故事根下存在且可读"）' },
+	'test-npm-entries-guard-mjs': { why: 'npm 入口差集：取样脚本随 WebUI 下架 ⇒ 待改取样', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
+	'editor-extract-selftest': { why: '共享帮手自证：样本需故事段（对象＝抽取器）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'scripts-report-gate-ledger-mjs': { why: '台账门：探针读数缺失时走降级路径（需与 E 表对齐）', until: '#1163（books 回填样本已到位 ⇒ 复核后即可摘条目）' },
 	'scripts-md-format-mjs': { why: 'md 格式门：文档里引用了已下架件（应改述，非下架）', until: '#1163（books 回填样本已到位 ⇒ 复核后即可摘条目）' },
-	'test-audit-gates-run-mjs': { why: '审计跑器自证：需默认故事全绿（零故事下无默认故事）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-story-ci-mjs': { why: '用户故事 CI：K4/K5 面依赖故事与产物', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'scripts-ui-migration-diff-selftest': { why: '自证格里“默认故事”概念在零故事下失效（对象＝迁移比对工具）', until: '#1282（M1 尾件：本轮未定，下轮复跑）' },
-	'test-dialect-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-contract-version-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1282（M1 尾件：本轮未定，下轮复跑）' },
-	'test-cond-keyform-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1282（M1 尾件：已裁：默认＝"在生效故事根下存在且可读"）' },
-	'test-cond-keyform-mjs-selftest': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1282（M1 尾件：本轮未定，下轮复跑）' },
-	'test-prose-vocabulary-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1282（M1 尾件：本轮未定，下轮复跑）' },
+	'test-audit-gates-run-mjs': { why: '审计跑器自证：需默认故事全绿（零故事下无默认故事）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-story-ci-mjs': { why: '用户故事 CI：K4/K5 面依赖故事与产物', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'scripts-ui-migration-diff-selftest': { why: '自证格里“默认故事”概念在零故事下失效（对象＝迁移比对工具）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
+	'test-dialect-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-contract-version-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
+	'test-cond-keyform-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1279（M1 尾件回填复验：已裁：默认＝"在生效故事根下存在且可读"）' },
+	'test-cond-keyform-mjs-selftest': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
+	'test-prose-vocabulary-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'test-prose-vocabulary-mjs-selftest': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1163（books 回填样本已到位 ⇒ 复核后即可摘条目）' },
-	'test-equiv-scratch-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1282（M1 尾件：本轮未定，下轮复跑）' },
-	'test-chargen-apply-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-chargen-macros-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-choice-keys-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-combat-adv-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-comment-mask-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：本轮未定，下轮复跑）' },
-	'test-contract-defaults-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：改用 `storySlugs()`／样本给出）' },
-	'test-coverage-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：本轮未定，下轮复跑）' },
-	'test-fight-seq-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-focus-after-nav-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-g3-evidence-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-gate-discovery-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：改用 `storySlugs()`／样本给出）' },
-	'test-onetime-pickups-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-pc-base-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-pc-defaults-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-plan-needs-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：本轮未定，下轮复跑）' },
-	'test-properties-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-render-all-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-reread-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-roll-binding-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-rules-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
-	'test-saveui-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1282（M1 尾件：`#1282` M1 尾件）' },
+	'test-equiv-scratch-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
+	'test-chargen-apply-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-chargen-macros-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-choice-keys-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-combat-adv-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-comment-mask-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
+	'test-contract-defaults-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：改用 `storySlugs()`／样本给出）' },
+	'test-coverage-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
+	'test-fight-seq-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-focus-after-nav-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-g3-evidence-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-gate-discovery-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：改用 `storySlugs()`／样本给出）' },
+	'test-onetime-pickups-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-pc-base-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-pc-defaults-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-plan-needs-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
+	'test-properties-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-render-all-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-reread-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-roll-binding-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-rules-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-saveui-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 };
 
 /** 临时下架的段（跑器跳过并**单列**，不计失败、也不算未声明）。 */
@@ -867,13 +867,21 @@ export const suspendedSegs = () => Object.entries(SUSPENDED).map(([id, meta]) =>
  * 而本函数只查 `why`/`until` 非空 → **凭空写一个 id 就能豁免任何段**（实测：给真坏的段
  * 塞进表里 → `--tier=full` 与 `npm test` 双双全绿  ）。→ 补第一道：**下架 id 必须真实存在
  * 于 `testPlan()`**（段名写错／段已删而条目留着 → 红，两向都抓）。 */
-export const suspendedProblems = (table = SUSPENDED, { plan = null } = {}) => {
+export const suspendedProblems = (table = SUSPENDED, { plan = null, knownTickets = null } = {}) => {
 	const known = new Set((plan ?? testPlan()).map((s) => s.id));
 	return Object.entries(table).flatMap(([id, m]) => {
 		const bad = [];
 		if (!String(m?.why ?? '').trim()) bad.push(`\`${id}\` 缺 \`why\``);
 		if (!String(m?.until ?? '').trim()) bad.push(`\`${id}\` 缺 \`until\``);
 		if (!known.has(id)) bad.push(`\`${id}\` **不在 testPlan() 里**（凭空豁免／段名写错／段已删 ⇒ 该豁免无对象 ✗）`);
+		// `#1279`①：**`until` 指的前置票也必须有对象** —— 与「下架 id 须存在」同族（差一层）：
+		// 段存在，但 `until` 指向一张**不存在的票** → 回填永远不会被触发（豁免变成永久藏身处）。
+		// 判法：抽出票号与注入的 `knownTickets` 比对；**注入 null → 不出声**（离线/无 token 时
+		// 无法核实外部事实 → 由调用方显式区分「未核」与「核过且不存在」）。
+		if (knownTickets) {
+			const miss = [...String(m?.until ?? '').matchAll(/#(\d+)/g)].map((x) => x[1]).filter((x) => !knownTickets.has(x));
+			if (miss.length) bad.push(`\`${id}\` 的 \`until\` 指向**不存在的票** #${miss.join('、#')}（回填永远不会被触发 ✗）`);
+		}
 		return bad;
 	});
 };

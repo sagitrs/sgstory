@@ -443,6 +443,15 @@ t('🔴 `inputsDeclaredStats`：**声明了的段**计入 declared、不计入 u
 	//注意：四处调用点**全在少走路径**（②层需已声明段／仪表需 `--profile*`）→ 断了接线，**CI 与自证都绿**
 	t('🔴 ② 共用助手**接线在位**（`ensureParent` 已 import 且是函数 ⇒ 否则四处调用点起跑即崩 ✗）',
 		typeof ensureParent === 'function' && /from '\.\/lib\/ensure-parent\.mjs'/.test(readFileSync(fileURLToPath(import.meta.url), 'utf8')));
+	t('🔴 ⑤b `until` 票号须存在：注入**缺票**事实 ⇒ 报（能假）',
+		(() => { const all = [...new Set(Object.values(SUSPENDED).flatMap((m) => [...String(m.until ?? '').matchAll(/#(\d+)/g)].map((x) => x[1])))];
+			const missOne = new Set(all.slice(1));   // 故意漏掉一个真实使用的票号
+			return suspendedProblems(SUSPENDED, { knownTickets: missOne }).length > 0; })());
+	t('🔴 ⑤b `until` 票号须存在：含**全部**票号的事实 ⇒ 不报（正例，防恒真）',
+		(() => { const all = new Set(Object.values(SUSPENDED).flatMap((m) => [...String(m.until ?? '').matchAll(/#(\d+)/g)].map((x) => x[1])));
+			return suspendedProblems(SUSPENDED, { knownTickets: all }).length === 0; })());
+	t('🔴 ⑤b 无事实（null）⇒ 不出声（离线语义；显式区分「未核」与「核过不存在」）',
+		suspendedProblems(SUSPENDED, { knownTickets: null }).length === 0);
 	t('🔴 ⑤ 下架声明**须有对象**：凭空 id（不在 testPlan()）⇒ 红（修前：凭空 id 可豁免任何段 ✗）',
 		suspendedProblems({ 'no-such-segment-xyz': { why: 'x', until: 'y' } }, { plan: testPlan() }).length === 1);
 	t('🔴 ⑤ 下架声明须有对象：**真实存在的 id** ＋ why/until 齐 ⇒ 不报（正例，防该格恒真）',
@@ -497,7 +506,24 @@ if (tierProblems.length) { console.error(`✗ 计划的 tier 面有问题（--ti
 // `#1261` 甲：**临时下架**（对象在、样本暂缺）的段 —— 从选择面剔除并**单列**：
 // 不计失败、不算未声明、也不算"本次不跑"（它有自己的列，且声明缺 why/until 即红）。
 import('./test-plan.mjs');
-const suspProblems = suspendedProblems(SUSPENDED);
+// `#1267` 尾件（复核改派）：**有 token 时核一遍 `until` 引用的票号是否存在** ——
+// 与「下架 id 须存在」同族差一层：段存在、但 `until` 指向不存在的票 → 回填永远不触发。
+// 离线（无 token）→ 事实为 null → 该判据**不出声**（显式区分「未核」与「核过且不存在」，
+// 不静默假绿、也不因缺事实而误红）。
+const knownTickets = await (async () => {
+	if (!process.env.GH_TOKEN) { console.log('  · 无 GH_TOKEN ⇒ `until` 票号**未核**（离线降级；不算通过）'); return null; }
+	try {
+		const { execFileSync } = await import('node:child_process');
+		const nums = [...new Set(Object.values(SUSPENDED).flatMap((m) => [...String(m.until ?? '').matchAll(/#(\d+)/g)].map((x) => x[1])))];
+		const have = new Set(execFileSync('gh', ['issue', 'list', '--state', 'all', '--limit', '500', '--json', 'number', '--jq', '.[].number'],
+			{ encoding: 'utf8', timeout: 30000 }).split('\n').filter(Boolean));
+		const miss = nums.filter((n) => !have.has(n));
+		if (miss.length) console.error(`✗ \`until\` 引用的票号**不存在**：#${miss.join('、#')} ⇒ 回填永远不会被触发`);
+		console.log(`  · 票号核实：表内引用 ${nums.length} 张，全部存在 ${miss.length === 0 ? '✓' : '✗'}`);
+		return have;
+	} catch (e) { console.log(`  · 票号核实失败（${String(e.message).slice(0, 50)}）⇒ 未核（降级，不误红）`); return null; }
+})();
+const suspProblems = suspendedProblems(SUSPENDED, { knownTickets });
 if (suspProblems.length) { console.error('✗ 临时下架声明不合规（缺 why/until）：\n  ' + suspProblems.join('\n  ')); process.exit(1); }
 const suspIds = new Set(Object.keys(SUSPENDED));
 const suspended = plan0.filter((s) => suspIds.has(s.id));

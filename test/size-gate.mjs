@@ -137,7 +137,7 @@ const selftest = () => {
 
 if (process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 
-// `#1282`（M1 尾件 ⑥）：**基线随生效故事根**。理由与 `DIST_DIR = <故事根>/../dist` 同族：
+// `#1267`（M1 尾件 ⑥）：**基线随生效故事根**。理由与 `DIST_DIR = <故事根>/../dist` 同族：
 // 引擎仓那份基线是**引擎产物的预算**；拿 books 产物（更小）去收紧它 = 语义错位。
 // 仓内时 `STORIES_DIR = ROOT/stories` → 落点仍是 `test/size-baseline.json`（**逐字符恒等**  ）。
 const REPO_BASELINE = join(ROOT, 'test', 'size-baseline.json');
@@ -187,7 +187,7 @@ const readBaseline = () => {
 const parsed = readBaseline();
 
 if (update) {
-	// `#1282` ⑥：**外根且该根下无自己的基线 → 拒绝重签**（否则 `--update-size` 会把外根产物的
+	// `#1267` ⑥：**外根且该根下无自己的基线 → 拒绝重签**（否则 `--update-size` 会把外根产物的
 	// 尺寸写成**引擎仓**的预算  ）。要建外根的预算，先在该根上层放一份基线文件。
 	if (!WRITABLE) {
 		console.error(`✗ 当前故事根（${STORIES_DIR}）下没有自己的体积基线 ⇒ **拒绝重签**：`

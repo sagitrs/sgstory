@@ -10,6 +10,9 @@ import { pathToFileURL } from 'node:url';
 
 const WIDTHS = [360, 390, 768, 1440];
 const BASE = 'test/viewport-baseline.json';
+	// `#1261` zero-story: this smoke test targets the built product (defaultStoryHtml); with no
+	// story there is no product -> say so and skip (same handling as the a11y gate).
+	if (!defaultStoryHtml()) { console.log('  ○ zero-story mode (#1261): no product -> viewport smoke skipped'); process.exit(0); }
 if (!existsSync(defaultStoryHtml())) { console.error(`✗ 缺 ${relative(ROOT, defaultStoryHtml())}，请先构建`); process.exit(1); }
 
 const browser = await chromium.launch();

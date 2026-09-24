@@ -73,7 +73,6 @@ export const SEGMENTS = [
 	// `#908` ①：运行器**自己**能假（三态判定／注入计数／缺前置分家）—— 与探针实跑分家。
 	{ id: "scripts-probe-gates-mjs-selfcheck", phase: 'test', cost: 0, cmd: "node scripts/probe-gates.mjs --selfcheck" },
 	// 车道 E-(A)（`#215`）：页面侧覆盖率 —— **只读**（纯静态扫描 → 无 `needs`／不需 build）；报告用读数 不进任何断言
-	{ id: "scripts-report-page-coverage-mjs", phase: 'test', cost: 0, cmd: "node scripts/report-page-coverage.mjs" },
 	{ id: "test-integrity-mjs", phase: 'test', cost: 0, cmd: "node test/integrity.mjs" },
 	// `#791`／`#455`：CI 触发面完整性（draft 转 Ready 静默不跑 ＋ 无 dispatch 无法补跑取证）
 	{ id: "test-ci-triggers-mjs", phase: 'test', cost: 0.1, cmd: "node test/ci-triggers.mjs" },
@@ -639,7 +638,7 @@ export const SUITE_MEMBERS = {
 		 'build-mjs',
 	],
 	'infra': [
-		'scripts-probe-gates-mjs-probe-fast', 'scripts-probe-gates-mjs-check', 'scripts-probe-gates-mjs-selfcheck', 'scripts-report-page-coverage-mjs',
+		'scripts-probe-gates-mjs-probe-fast', 'scripts-probe-gates-mjs-check', 'scripts-probe-gates-mjs-selfcheck',
 		   'scripts-report-ledger-freshness-mjs-selftest',
 		'scripts-report-ledger-freshness-mjs-ledger-check', 'scripts-report-gate-ledger-mjs-selftest', 'scripts-report-gate-ledger-mjs', 'scripts-report-selftest-validity-mjs',
 		'scripts-md-format-mjs', 'scripts-move-precheck-mjs', 'scripts-move-precheck-mjs-selftest',

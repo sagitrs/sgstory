@@ -724,7 +724,10 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 			const storyCensus = censusOfStory(census, slug);
 			if (!storyCensus) console.log(`  · ${slug}：**未普查**（\`editor/escape-hatch-census.json\` 里没有本故事的条目）⇒ 「必须逃生舱」清单本次无可判对象（这是**状态**，不是"没问题"）`);
 			else {
-				const contractPath = join(ROOT, `${STORIES_DIR}/${slug}/data/contract.json`);
+				// `#1282` 尾件 1c：此处原为**双重拼接**（`join(ROOT, `${STORIES_DIR}/…`)`）——
+				// 仓内会变成 `/repo/repo/stories/…`、外根会变成 `/repo/books/stories/…` → 数学上必错。
+				// 本函数的正确写法是「根已经解析过一次」（同函数 `:645` 的 `storiesDir = STORIES_DIR`）：
+				const contractPath = join(STORIES_DIR, slug, 'data', 'contract.json');
 				const dataMembers = existsSync(contractPath) ? (JSON.parse(readFileSync(contractPath, 'utf8')).members ?? []).map((m) => m.name) : [];
 				const engineSymbols = {};
 				let anchorCount = 0;

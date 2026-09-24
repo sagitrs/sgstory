@@ -16,7 +16,7 @@
 import { passagesOf } from '../../../editor/lib/core/passages.mjs';   // `#1114` 2b-2b-0b：切段单一权威
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROOT } from '../../dist-paths.mjs';
+import { ROOT, absPath } from '../../dist-paths.mjs';   // #1282 tail item 1
 import { allSourceFiles, CONST_SECTION } from '../../module-order.mjs';
 import vm from 'node:vm';
 import { maskComments } from '../lib/mask.mjs';
@@ -274,7 +274,8 @@ export const run = (ctx) => {
 	// ── 真实数据：故事 token 集合 × 每个"引擎门"源码 ──
 	const ALLOW = loadAllow({ root: ROOT });
 	const storyFiles = allSourceFiles().filter((f) => f.startsWith('stories/'));
-	const storySources = Object.fromEntries(storyFiles.map((f) => [f, readFileSync(join(ROOT, f), 'utf8')]));
+	// `#1282` 尾件①：storyFiles 是**符号名** → 过 absPath（仓内恒等）。
+	const storySources = Object.fromEntries(storyFiles.map((f) => [f, readFileSync(absPath(f), 'utf8')]));
 	const tokens = storyTokensOf(storySources);
 	const gatesDir = join(ROOT, 'scripts/audit/gates');
 	const gateFiles = existsSync(gatesDir) ? readdirSync(gatesDir).filter((f) => f.endsWith('.mjs')) : [];
@@ -295,7 +296,8 @@ export const run = (ctx) => {
 	// 成员集从**故事声明面自动抽**（`storyTableMembers()` 把故事表段跑一遍取自有键）；
 	// 规则＝「出现故事表成员名（含**一层别名**与**在故事表上挂方法时的 `this.<成员>`**）、且未登记 → 红」。
 	{
-		const seedSrc = (CONST_SECTION.files ?? []).map((f) => { const fp = join(ROOT, f); return existsSync(fp) ? readFileSync(fp, 'utf8') : ''; }).join('\n');
+		// `#1282` 尾件①：`CONST_SECTION.files` 可能含**故事件**（符号名）→ 过 `absPath`（仓内恒等）。
+		const seedSrc = (CONST_SECTION.files ?? []).map((f) => { const fp = absPath(f); return existsSync(fp) ? readFileSync(fp, 'utf8') : ''; }).join('\n');
 		const skips = [];
 		const tables = storyTableMembers(storySources, { seedSrc, onSkip: (x) => skips.push(x) });
 		for (const s2 of skips) console.log(`  · 成员档：段载入跳过（${s2.file}）——${String(s2.why).slice(0, 80)}`);

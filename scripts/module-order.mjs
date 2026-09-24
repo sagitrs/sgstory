@@ -272,7 +272,9 @@ export const readModules = () => {
 	// #458 切片C：走**单一权威**（路径为键，与 MODULES／ORDER 一致）——此前只枚举 `src/*.twee` 且按 basename 键，
 	// 搬家后 → 键与 MODULES 对不上 → rank 报告里"引擎文件 0 个"（假绿）。
 	const out = {};
-	for (const f of allSourceFiles()) out[f] = readFileSync(join(ROOT, f), 'utf8');
+	// `#1282` 尾件①：`allSourceFiles()` 含**符号名**（stories/…）→ 必须过 `absPath`（仓内恒等；
+	// 否则外根下会把仓内同名路径读成本故事的源 → 读错件/ENOENT）。
+	for (const f of allSourceFiles()) out[f] = readFileSync(absPath(f), 'utf8');
 	return out;
 };
 

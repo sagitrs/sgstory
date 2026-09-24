@@ -10,7 +10,7 @@
 // ⇒ 零故事态可跑。产物操作**经 runner**？本夹具暂无 runner ⇒ 本格自清三层（夹具生成物／夹具 dist／**引擎中间件**）
 // 并**先验前置**（构建 rc=0）再读 —— 照"清三层"与"前置格"的既有口径。
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, cpSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, cpSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -20,8 +20,11 @@ const TABLES = join(FX, 'stories/north-room/data/tables.json');
 const WORK = '/tmp/sg-codex-panel-build';
 const SLUG = 'north-room';
 const LABEL = '钥匙柄上刻着「北」';                       // 夹具声明的 clue label（照夹具读，✗ 不照实现读）
+// ★ 声明标记必须**唯一**：先前用道具名「黄铜钥匙」当标记 ⇒ 那是**故事正文里本来就有的词** ⇒
+//   清空声明后它照样出现（实测 6 次）⇒ 得出"声明没生效"的**假读数** ✗ ⇒ 改用它下面这条 clue label（唯一）。
 const EMPTY_TEXT = '图鉴还没有条目';                       // 契约 §11.1 的空态文案
 const SELF = process.argv.includes('--selfcheck');
+const READ_ONLY = process.argv.includes('--read-only');   // `#1308`：父进程用**子进程**读负态（免同进程 boot 缓存）
 const BAK = (p) => p + '.bak-codexpanel';
 
 let bad = 0;
@@ -59,7 +62,7 @@ const read = async () => {
 	const text = panel ? String(panel.textContent ?? '') : '';
 	let productHasDecl = false;
 	try {
-		productHasDecl = readFileSync(join(WORK, 'dist/stories', SLUG, 'index.html'), 'utf8').includes('黄铜钥匙');
+		productHasDecl = readFileSync(join(WORK, 'dist/stories', SLUG, 'index.html'), 'utf8').includes(LABEL);
 	} catch { /* 读不到就是 false */ }
 	// `#1308`：**两个源**的读数（判 `items()` 里 `?? Game.Codex.items` 那支是不是历史残留）
 	const src = (() => {
@@ -78,6 +81,13 @@ const read = async () => {
 	return { panel: !!panel, inPassages, contained, text, productHasDecl, src };
 };
 
+if (READ_ONLY) {
+	const r = await read();
+	console.log(JSON.stringify({ panel: r.panel, inPassages: r.inPassages, contained: r.contained, text: r.text,
+		productHasDecl: r.productHasDecl, src: r.src }));
+	process.exit(0);
+}
+
 if (!existsSync(FX)) {
 	console.error(`  ○ 未判：夹具缺席（${FX}）⇒ 本格未判（对象不在 ⇒ 出声，✗ 不假装跑过）`);
 	process.exit(0);
@@ -88,7 +98,7 @@ clean();
 const b = build();
 t('前置：构建 rc=0（以夹具为故事根）', b.status === 0, String(b.status));
 const pos = await read();
-t('⓪ 数据面：产物里含声明（数据已落地）', pos.productHasDecl);
+t('⓪ 数据面：产物里含声明（用**唯一标记**＝clue label 判定）', pos.productHasDecl);
 t('① 呈现面：`#codex-panel` **在**（契约 §11.1：面板恒在）', pos.panel);
 t('① 面板挂在 `#passages` **之外**（段落重渲染不会冲掉它）', pos.panel && pos.inPassages === false && pos.contained === true,
 	`inPassages=${pos.inPassages} contained=${pos.contained}`);
@@ -107,14 +117,35 @@ if (SELF) {
 		clean();
 		const b2 = build();
 		t('③ 前置：空声明后仍能构建', b2.status === 0, String(b2.status));
+		// ★ **输入层**断言 ＋ **来源/时间**（协调席加的判别维度）：先答"喂进构建的那份输入是不是我这次的"
+		//   · `WORK` 的 `tables.json` 键集应为空（输入已生效）
+		//   · 且它的 mtime 应 ≈ 本次（⇒ 是这次拷进来的）⇒ 若早于本次 ⇒ `clean()` 没清 WORK 的输入副本
+		const inp = (() => {
+			try {
+				const f = join(WORK, 'stories', SLUG, 'data/tables.json');
+				const j = JSON.parse(readFileSync(f, 'utf8'));
+				const st = statSync(f);
+				return { keys: Object.keys(j?.containers?.Codex?.items ?? {}), mtimeMs: st.mtimeMs };
+			} catch (e) { return { err: String(e?.message ?? e).slice(0, 60) }; }
+		})();
+		const fresh = typeof inp?.mtimeMs === 'number' && (Date.now() - inp.mtimeMs) < 10 * 60 * 1000;
+		console.log('      输入层读数：keys=%s｜mtime 距now=%ss｜判=%s', JSON.stringify(inp?.keys ?? inp),
+			typeof inp?.mtimeMs === 'number' ? Math.round((Date.now() - inp.mtimeMs) / 1000) : '—',
+			fresh ? '本次拷入（输入已生效）' : '早于本次（疑 clean 没清输入副本）');
+		t('③ 前置：**输入**（WORK 副本）里 `Codex.items` 键集为空', Array.isArray(inp?.keys) && inp.keys.length === 0);
 		// ★ 前置断言（与 `chk-source` 同规）：**先验产物里已无该条目** ⇒ 才算"负态真生效"，
 		//   否则读数无效（分不清"负态没进构建"与"真行为"）。
 		const prodHas = (() => {
-			try { return readFileSync(join(WORK, 'dist/stories', SLUG, 'index.html'), 'utf8').includes('黄铜钥匙'); }
+			try { return readFileSync(join(WORK, 'dist/stories', SLUG, 'index.html'), 'utf8').includes(LABEL); }
 			catch { return true; }
 		})();
-		t('③ 前置：产物里**已无**该条目（证明空声明真进了构建）', prodHas === false);
-		neg = await read();
+		t('③ 前置：产物里**已无**该标记（证明空声明真进了构建）', prodHas === false);
+		// ★ 负态读数走**子进程**：同进程二次 `boot()` 会命中进程内缓存 ⇒ 第二次读数会悄悄变成第一次的 ✗
+		//（`chk-source` 已实测过同型；本格 ③ 也正是被它咬的）
+		const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--read-only'],
+			{ cwd: ROOT, encoding: 'utf8', timeout: 300000, env: { ...process.env, SG_STORIES_DIR: join(WORK, 'stories') } });
+		try { neg = JSON.parse(String(child.stdout ?? '').trim().split('\n').pop()); }
+		catch { neg = { panel: false, text: 'parse-failed:' + String(child.stdout ?? '').slice(0, 80) }; }
 	} finally {
 		copyFileSync(BAK(TABLES), TABLES);                                    // ✗ 不用 git checkout；用 cp bak
 		rmSync(BAK(TABLES), { force: true });

@@ -1,5 +1,6 @@
 
 import { defaultStoryHtml } from '../../dist-paths.mjs';
+import { absPath } from '../../../scripts/dist-paths.mjs';   // `#1269` A 类
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { assertFreshDist } from '../../dist-fresh.mjs';
@@ -102,11 +103,11 @@ if (wantAll || arg('a11y')) {
 	// 装饰 glyph： 必须被 aria-hidden 包裹；.act-n 角标必须 aria-hidden
 	let bare = 0;
 	for (const f of SRC_FILES) {
-		const t = readFileSync(f, 'utf8');
+		const t = readFileSync(absPath(f), 'utf8');   // `#1269` A 类：符号名 → 真身
 		bare += bareGlyphCount(t);
 	}
 	if (bare) { console.log(`  ✗ 有 ${bare} 个 ✦ 未被 aria-hidden 包裹（读屏会念出装饰字符）`); bad++; }
-	const actnBad = SRC_FILES.reduce((n, f) => n + actnMissingAria(readFileSync(f, 'utf8')), 0);
+	const actnBad = SRC_FILES.reduce((n, f) => n + actnMissingAria(readFileSync(absPath(f), 'utf8')), 0);   // `#1269` A 类
 	if (actnBad) { console.log(`  ✗ .act-n 角标 ${actnBad} 处缺 aria-hidden`); bad++; }
 	console.log('  · 语义：✦ 装饰 glyph 全包裹、.act-n 角标 aria-hidden、<html lang="zh-CN"> 构建期注入');
 	bad += selfBad;

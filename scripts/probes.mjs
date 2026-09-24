@@ -101,8 +101,10 @@ export const PROBES = [
 		cmd: 'node test/comment-face-split.mjs',
 		mutation: {
 			file: 'scripts/audit/gates/state.mjs',
-			find: "sources[f] = maskComments(readFileSync(f, 'utf8'));",
-			replace: "sources[f] = stripProseComments(readFileSync(f, 'utf8'));   // 探针：拿散文启发式扫代码",
+			// `#1269` A 类：靶同步 —— 被测语句已改走 `absPath(f)`（符号名 ⇒ 真身），
+			// 探针靶必须跟着改（否则"注入确认 0 处"＝**刀没下到真语句**，读数不成立 ✗）。
+			find: "sources[f] = maskComments(readFileSync(absPath(f), 'utf8'));",
+			replace: "sources[f] = stripProseComments(readFileSync(absPath(f), 'utf8'));   // 探针：拿散文启发式扫代码",
 		},
 		expect: { rc: 1, stdout: /不把散文启发式拿来扫代码|用 maskComments/ },
 		why: '量的是「按输入面分派实现」那一支真的在守（把代码面改回散文启发式 ⇒ 接线格当场点名 ✓）。',

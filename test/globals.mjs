@@ -19,6 +19,7 @@
 
 import { readFileSync, readdirSync } from 'node:fs';
 import { allSourceFiles } from '../scripts/module-order.mjs';
+import { absPath } from '../scripts/dist-paths.mjs';   // `#1269` A 类：符号名 → 真实路径
 
 export const RULE = /^(Game|Sg)/;
 
@@ -36,7 +37,9 @@ export const stripComments = (src) => src
 export const scanGlobals = (files) => {
 	const found = new Map();
 	for (const f of files) {
-		const lines = stripComments(readFileSync(f, 'utf8')).split('\n');
+		// `#1269` A 类：`files` 来自 `allSourceFiles()` → **符号名**（`stories/…`）→ 过 `absPath`
+		//（仓内恒等；外根指到真身）。本函数仍是「读一次盘」的纯扫描，不做根解析。
+		const lines = stripComments(readFileSync(absPath(f), 'utf8')).split('\n');
 		lines.forEach((line, i) => {
 			// 复合赋值也算「创建全局」：`??=` / `||=` / `&&=`（`+=` 之类不算本约定所指的全局定义）
 			for (const m of line.matchAll(/window\.([A-Za-z_$][A-Za-z0-9_$]*)\s*(?:\?\?|\|\||&&)?=(?!=)/g)) {

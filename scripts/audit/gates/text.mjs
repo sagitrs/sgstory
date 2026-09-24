@@ -1,5 +1,6 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { passagesOf } from '../../../editor/lib/core/passages.mjs';   // `#1114` 2b-2b-0b：切段单一权威
+import { absPath } from '../../../scripts/dist-paths.mjs';   // `#1269` A 类
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { stripProseComments, storyText } from '../lib/shared.mjs';   // `#1208`：本处是**散文面**（总字）
 // flags=['text']。校验：npm run audit:golden。
@@ -126,7 +127,7 @@ if (wantAll || arg('text')) {
 		// 扫它们等于让词表命中自己），而风格门本来只管散文（`#602`）。
 		// `#1114` 片 2b-2b-0b：切段**不再自写** —— 走 core 的 `passagesOf()`（**唯一分派点**）。
 		//（原先 `split(/^::\s*/m)` → `passages/` 下的 md 被切成 0 段 → 风格门看不见其正文）
-		const proseOf = (f) => passagesOf(readFileSync(f, 'utf8'), f)
+		const proseOf = (f) => passagesOf(readFileSync(absPath(f), 'utf8'), f)   // `#1269` A 类
 			.filter((p) => !p.tags.some((t) => ['script', 'widget', 'stylesheet'].includes(t)))
 			.map((p) => p.body).join('\n');
 		for (const f of judgeBlacklist(SRC_FILES, blacklist, proseOf)) {

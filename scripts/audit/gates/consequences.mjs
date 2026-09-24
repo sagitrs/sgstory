@@ -93,4 +93,16 @@ if (wantAll || arg('consequences')) {
 
 // `#1100` (甲)：**判据体提成具名导出** → 锚可指它（此前判据内联在 `run` 里 → 掏空 `run` 时
 // 锚检照样绿）。`run` 只做委派 → **行为逐字保持**（提取提交不夹带接线或格）。
-export const run = (ctx) => judgeConsequences(ctx);
+// `#1282` tail item 8: zero-story mode -- with no story there is no prose to judge,
+// so the premise of this gate does not hold. Previously the gate had no explicit
+// branch and instead escalated to "the gate itself is broken" (#1151) -- readers
+// then went off to fix the gate while the real cause was "no story". State the
+// premise explicitly and skip; keep the original semantics intact (a story with
+// prose but no consumer must still be red -- that is judged inside).
+export const run = (ctx) => {
+	if (!ctx?.storySlug) {
+		console.log("  #1282 零故事模式：无正文可判 ⇒ 本门未判（前提不成立）");
+		return 0;
+	}
+	return judgeConsequences(ctx);
+};

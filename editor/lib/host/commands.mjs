@@ -648,6 +648,15 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 	// 判**所有故事目录**（不是只有 `data/` 的）：③ 逃生舱判据不依赖 `data/` —— 上一版按 `data/` 取故事，
 	// 结果洞窟（缺 `contract.json`）**整段被跳过** → 它的 C 桶（`eventPool`）根本没人查。
 	// 这正是 `#777` 修的那族错（"读不到输入却当成没有"）——我自己的门也犯了一次。
+	// `#1282` tail item 5: zero-story mode -- the story root itself may not exist
+	// (repo has no `stories/`) -- previously readdirSync threw ENOENT outright, so this
+	// gate could not run at all in zero-story mode (that is why `#1276` had to clean
+	// the refusedFaces entry by hand). Same family as "gates that read products":
+	// zero story => say so explicitly and skip (not a silent pass, not a crash).
+	if (!existsSync(storiesDir)) {
+		console.log(`  #1282 零故事模式：故事根 ${storiesDir} 不存在 ⇒ 本门跳过（样本随 #1163 回填）`);
+		return 0;
+	}
 	const slugs = readdirSync(storiesDir).filter((s) => statSync(join(storiesDir, s)).isDirectory() && !s.startsWith('.'));
 	ok('取到故事目录', slugs.length > 0, slugs.join('、'));
 	ok('其中至少一个已数据化（有 `data/` 才算，未数据化的 ①/② 不假装判过）', slugs.some((s) => existsSync(join(storiesDir, s, 'data'))), slugs.filter((s) => existsSync(join(storiesDir, s, 'data'))).join('、'));

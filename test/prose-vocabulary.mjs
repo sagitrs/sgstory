@@ -28,7 +28,7 @@
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { STORIES_DIR } from '../scripts/dist-paths.mjs';   // `#1282`
+import { STORIES_DIR, storySlugs, absPath } from '../scripts/dist-paths.mjs';   // `#1282`
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';                       // `#1051`②：枚举改走 `git ls-files`（已入库面）
 import { untrackedScannedProblems, isTransientFixture } from '../scripts/lib/untracked-guard.mjs';
@@ -293,8 +293,12 @@ if (process.argv.includes('--selftest')) selftest();
 const trackedIn = (dir) => execFileSync('git', ['ls-files', '--', dir], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
 const untrackedIn = (dir) => execFileSync('git', ['ls-files', '--others', '--exclude-standard', '--', dir], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
 const vocabFiles = trackedIn('src').filter((f) => f.endsWith('.twee'));
-const vocab = engineVocab(vocabFiles.map((f) => readFileSync(join(ROOT, f), 'utf8')));
-const stories = trackedIn('stories').map((f) => /^stories\/([^/]+)\/00-story\.json$/.exec(f)?.[1]).filter(Boolean).sort();
+const vocab = engineVocab(vocabFiles.map((f) => readFileSync(absPath(f), 'utf8')));   // `#1282`：src 件时 absPath 恒等
+// `#1282` 尾件③（口径裁定）：**受判故事集合的默认面＝「在生效故事根下存在且可读」**，
+// 不再是 git 已入库面 —— 否则仓外故事（未入库）会被整体漏判（本门枚举面决定受判集合，
+// 漏判＝判据变松而无人知道）。**仅当判据的不变量本身就是「入库/跟踪状态」时才用 git 面**：
+// 本门确有一处属后者（下方「未跟踪件 → 提醒」那一段），它已单独说明理由，故保留 git 面。
+const stories = storySlugs();
 // `#1133` ⭐ **第二站点**：**产物缺失 → 报"先跑 `npm run build`"**（不许裸 ENOENT 崩）
 // 本件按清单读**声明件**，其中含**生成物**（家族谓词见 `editor/lib/core/generated-family.mjs` → gitignored）
 // → 未 build 时它们不在树 → `readFileSync` 裸 ENOENT → 读者读不出"该先 build"
@@ -303,8 +307,9 @@ const stories = trackedIn('stories').map((f) => /^stories\/([^/]+)\/00-story\.js
 	const missing = [];
 	for (const slug of stories) {
 		let mf = [];
-		try { mf = JSON.parse(readFileSync(join(STORIES, slug, '00-story.json'), 'utf8')).files ?? []; } catch { continue; }
-		for (const p of mf) if (isGeneratedFamily(p) && !existsSync(join(ROOT, p))) missing.push(p);   // `#1185`：谓词走单一权威
+		try { mf = JSON.parse(readFileSync(absPath(`stories/${slug}/00-story.json`), 'utf8')).files ?? []; } catch { continue; }
+		// `#1282` 尾件①：故事件的判存在也走 absPath（仓内恒等）。
+		for (const p of mf) if (isGeneratedFamily(p) && !existsSync(absPath(p))) missing.push(p);   // `#1185`：谓词走单一权威
 	}
 	if (missing.length) {
 		console.error(`✗ **前置缺失**（**不是**判据失败）：**生成物**不在树 ⇒ 先跑 \`npm run build\`（\`#1133\`）`);
@@ -317,7 +322,7 @@ let exempt = [];
 const judgedSlugs = [];
 const allJudgedFiles = [];
 for (const slug of stories) {
-	const story = JSON.parse(readFileSync(join(STORIES, slug, '00-story.json'), 'utf8'));
+	const story = JSON.parse(readFileSync(absPath(`stories/${slug}/00-story.json`), 'utf8'));   // `#1282` 尾件①
 	// `#1051`②：**以清单为准**（单一权威）——不再用 `readdirSync` 现扫。
 	// `#1114` 片 2b-2a：清单里的**散文层源**（`passages/` 下的 `.md`）也算段落源（原先按 `.twee` 过滤 → md 隐形）。
 	const declared = (story.files ?? []).filter((p) => (p.endsWith('.twee') || isStoryPassageMd(p)) && p.startsWith(`stories/${slug}/`));
@@ -331,7 +336,7 @@ for (const slug of stories) {
 		for (const p of undeclared) problems.push({ code: 'U2', msg: `\`${p}\` 在树上但**不在 \`00-story.json\` 的 \`files\` 里** ⇒ 不许静默（要么登记、要么删 —— 旧口径会把它当**正文**判 ✗）` });
 	}
 	const files = declared
-		.map((p) => ({ path: p, text: readFileSync(join(ROOT, p), 'utf8') }))
+		.map((p) => ({ path: p, text: readFileSync(absPath(p), 'utf8') }))   // `#1282` 尾件①：故事件走真身
 		.filter((f) => !isMetadataTwee(f.text))            // 元数据件：**内容谓词** 不靠文件名字面量
 		.filter((f) => !/^\s*\/\/\s*@generated/m.test(f.text.split('\n').slice(0, 3).join('\n')));   // 生成物不在本门射程
 	// `#1114` 片 2b-2a：**跟源同名段**（同一段在 `passages/*.md` 与 `*.twee` 各写一份）→ 红并**点名两处**。
@@ -355,8 +360,8 @@ for (const slug of stories) {
 	//注意：**并集只喂第三档**（禁则→允许→词表 三档次序不变 → 声明无法解锁禁则）。
 	const storyPassageMd = (sl) => trackedIn(`stories/${sl}`).filter((f) => f.endsWith('.md') && isStoryPassageMd(f));
 	const vocabFor = (sl) => {
-		const extra = storyPassageMd(sl).map((f) => readFileSync(join(ROOT, f), 'utf8'));
-		return extra.length ? engineVocab([...vocabFiles.map((f) => readFileSync(join(ROOT, f), 'utf8')), ...extra]) : vocab;
+		const extra = storyPassageMd(sl).map((f) => readFileSync(absPath(f), 'utf8'));   // `#1282` 尾件①
+		return extra.length ? engineVocab([...vocabFiles.map((f) => readFileSync(absPath(f), 'utf8')), ...extra]) : vocab;
 	};
 	if (judged) { judgedSlugs.push(slug); problems = problems.concat(proseVocabProblems({ slug, files, vocab: vocabFor(slug) })); allJudgedFiles.push(...files); }
 	else exempt.push(slug);

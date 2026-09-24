@@ -72,7 +72,7 @@ const renamedChk = readFileSync(ENGINE, 'utf8').replace(/chk:/g, 'chkX:');
 t('②b 能假证明：把引擎侧 `chk:` 族改名 ⇒ 该族从抽取面消失（证明本族的锚不是恒真）',
 	engineFamiliesOf(renamedChk).has('chk') === false);
 const renamed = readFileSync(ENGINE, 'utf8').replace(/const cx = \/\^codex:\(\.\+\)\$\/\.exec\(k\);/, 'const cx = /^codexX:(.+)$/.exec(k);');
-t('② 能假证明：把引擎侧 `codex:` 族改名 ⇒ 格 ① 的"六族全中"**当场红** ✗（证明它不是恒真格 ✓）',
+t('② 能假证明：把引擎侧 `codex:` 族改名 ⇒ 格 ① 的"全部族"**当场红** ✗（证明它不是恒真格 ✓）',
 	engineFamiliesOf(renamed).has('codex') === false);
 
 if (bad) { console.error(`\n✗ 可读键形成对断言：${bad} 格失败 ✗`); process.exit(1); }

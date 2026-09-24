@@ -76,7 +76,8 @@ Game.Notes = {
 };
 ```
 
-**薄封装**（唯一入口，便于将来换实现）：`Sg.notes.has(id)` / `add(id)` / `all()` / `missing(req[])`。
+**读取入口（`#1261` 后）**：笔记的**声明面**＝契约成员 `notes` 的已解析取值；条件行里的 `n_<id>` 键走**通用状态面**（引擎 `Sg.rules.readKey` ⇒ `Sg.notes.readPath(pc, `ev.notes.${id}`) === true`）。
+  ✗ 旧的 `Sg.notes.has／add／all／missing` **已随 `#1261` 删除**（本行此前把它们写成"唯一入口" ⇒ 教人用已删的 API）。
 
 **顺序敏感是硬约束**：对话常常「先问 A 才问得出 B」→ 笔记带 `prereq`，选择器按 (`req` 满足 ∧ `prereq` 已达成) 取**首个匹配**（first-match wins），优先级显式写在表里。纯集合模型会丢掉叙事顺序。
 
@@ -156,8 +157,8 @@ Game.Notes = {
 | 步 | 内容 | 出口判据（门） | 回滚点 |
 |---|---|---|---|
 | **1** | `Game.Notes` 表 ＋ `Sg.notes.*` 封装；**grant 读现有旗标**（零行为变化） | 全链绿；新增 `--notes` 门：笔记 ↔ 旗标一一对得上、`title/src/body` 非空 | 删表即回到今天 |
-| **2** | 段落内 `<<if $pc.ev.X>>` → `<<if Sg.notes.has('n_X')>>`（**纯转发**） | **可见漂移必须为 0**（不是 #264 那种「仅 N 段且已登记」的旧口径）＋ **把 `scripts/ui-migration-diff.mjs` 接入 `scripts/test-plan.mjs`**（评审补充：否则「diff=0」会退化成口头承诺） | 单文件可逆 |
-| **3** | 写点搬迁：`setflag X` → `Sg.notes.add('n_X')`（旗标降为兼容字段） | `--state` 域表更新；`saveload` 往返绿（笔记随档） | 保留双写一段时间 |
+| **2** | 段落内 `<<if $pc.ev.X>>` → `<<if Sg.notes.has('n_X')>>`（**纯转发**；★ 该 API **后来随 `#1261` 删除** ⇒ 现形态＝写 `n_<id>` 键、引擎走通用状态面） | **可见漂移必须为 0**（不是 #264 那种「仅 N 段且已登记」的旧口径）＋ **把 `scripts/ui-migration-diff.mjs` 接入 `scripts/test-plan.mjs`**（评审补充：否则「diff=0」会退化成口头承诺） | 单文件可逆 |
+| **3** | 写点搬迁：`setflag X` → `Sg.notes.add('n_X')`（旗标降为兼容字段；★ 同上，`add` **已随 `#1261` 删除**） | `--state` 域表更新；`saveload` 往返绿（笔记随档） | 保留双写一段时间 |
 | **4** | 对话内容**按表组装**（选择器＋优先级），删段落内手写分支 | `premise-source`／`choice-keys`／`rules-claims`／**`--rules`（写侧：`text` 纯渲染＋`scope` 与调用点一致）**／**`--reads`（读侧：数据表/内容不经字面状态读）** 全绿；新增「笔记→文案」覆盖门 | 按段落逐个切 |
 | **5** | 清理兼容层（删旗标）＋ 手册/README 更新 | 裸旗标计数归零门 | 兼容层保留到确认 |
 

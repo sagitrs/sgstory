@@ -14,7 +14,7 @@
 | 做质量评审 | `docs/quality-dimensions.md`（§一 方法 · §四 作业模板） | `docs/reviews/`（走查/评审存档，非权威） |
 | 接一个新故事 | `docs/engine-story-boundary.md` | `docs/story2-contracts.md` · `docs/repo-map.md`（§二 层归属） |
 | **故事写到某处，引擎还没有这个能力** | **`docs/process/story-engine-loop.md`**（需求到能力的五步循环） | `.github/ISSUE_TEMPLATE/engine-capability.yml`（需求模板）· `#1306`（需求台账） |
-| 想知道表能不能放点击态写 | `docs/click-time-writes-design.md` | `docs/notes-model.md`（§已知边界） |
+| 想知道表能不能放点击态写 | `docs/archive/click-time-writes-design.md` | `docs/notes-model.md`（§已知边界） |
 | **数据模型**（角色状态 `pc` ＋ 袋外变量／五类分区／结算三条通道） | **`docs/engine/data-model.md`** | `docs/engine/decisions.md`（已裁／待裁台账） |
 | **手写一个故事包**（每类 JSON 放什么、字段逐个） | **`docs/engine/json/README.md`**（索引 · 最小集 · 编译链） | `json/` 下八份逐字段手册 · `docs/engine/authoring-model.md`（三层归位） |
 | **写作形态**（MD 放什么／JSON 放什么／条件与计算写在哪） | **`docs/engine/authoring-model.md`** | `docs/engine/reference-spec.md`（判据 J1–J3 · 词汇面） |
@@ -54,7 +54,7 @@
 | `docs/rules-table-guide.md` | 118 | 手册 | 表语法实战："这个能不能进表"决策树 ＋ 踩坑清单（`#624` 沉淀） |
 | `docs/repo-map.md` | 84 | 地图 | 目录结构 ＋ 层归属 ＋ 权威落点速查 |
 | `docs/ui-coverage-gaps.md` | 75 | 口径 | 覆盖与未覆盖的判定口径 |
-| `docs/click-time-writes-design.md` | 96 | 设计稿·待评审 | 点击态写侧能否进表（`#624` 普查后的形状；含片一/片二与未决项） |
+| `docs/archive/click-time-writes-design.md` | 96 | 设计稿·待评审 | 点击态写侧能否进表（`#624` 普查后的形状；含片一/片二与未决项） |
 | `docs/editor-flip-playbook.md` | 97 | 手册（`#787`） | **翻面七步**：冻基线 → 门重指向 → 产物 → 双向反例 → 重签 → 合入；含六个已踩的坑与三条纪律 |
 | `docs/superpowers/specs/editor-pivot.md` | 146 | **设计稿**（伞 `#761`） | 编辑器转向：故事数据化 → 编译 → 校验 → 发布（schema v0 · 编译器边界 · 等价判据三级 · 分期与不变量 K1–K5） |
 | `docs/benchmark-ledger.md` | 55 | 台账 | 待收：目前**没有其它文档引用它**（`#606`） |

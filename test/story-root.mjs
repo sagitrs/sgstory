@@ -83,7 +83,16 @@ try {
 	const before = readdirSync(ROOT).sort().join(',');
 	const d7 = spawnSync('node', ['build.mjs'], { cwd: ROOT, encoding: 'utf8', env: { ...process.env, SG_STORIES_DIR: outside } });
 	const after = readdirSync(ROOT).sort().join(',');
-	t('⑦ 仓外故事**编译通过**（rc=0）', d7.status === 0, (d7.stderr || d7.stdout || '').trim().split('\n').slice(-2).join(' / ').slice(0, 120));
+	// `#1288`（复核）：该格偶发红（零链 68/69，红段本格），而**失败时子进程的错行被截断**
+	// → 只剩 " / Node.js v22.23.2" → **归因不可做**。修：失败时**把退出码 ＋ 子进程 stderr 全量打出来**
+	//（诊断不是判据；判据仍是 rc=0）。
+	const d7detail = (() => {
+		if (d7.status === 0) return '';
+		const err = String(d7.stderr ?? '').trim() || '(空 stderr)';
+		const out = String(d7.stdout ?? '').trim();
+		return `status=${d7.status} signal=${d7.signal ?? '-'}\n--- 子进程 stderr ---\n${err.slice(-1200)}\n--- 子进程 stdout（末 400 字）---\n${out.slice(-400)}`;
+	})();
+	t('⑦ 仓外故事**编译通过**（rc=0）', d7.status === 0, d7detail);
 	// 产物目录＝**故事根的兄弟**（`<root>/../dist`）→ 仓外故事根 → 产物在 books 仓，不在引擎仓。
 	const outDist = join(dirname(outside), 'dist', 'stories', 's1', 'index.html');
 	t('⑦ 产物落**仓外**（`dist/` 是故事根的兄弟；不写引擎仓 `stories/`）',

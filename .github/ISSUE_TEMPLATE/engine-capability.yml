@@ -47,8 +47,8 @@ body:
   - type: textarea
     id: accept
     attributes:
-      label: 验收判据
-      description: 「能力可用」怎么判（引擎侧判据格）；以及故事侧要用在哪、读数怎么贴。
+      label: 验收判据（引擎侧功能级判据）
+      description: 这个功能在引擎侧怎么判：判据格／测试（能红能绿），以及把实现退回时必须再红的那个读数。故事里用在哪只是背景，不作为验收。
     validations:
       required: true
   - type: input

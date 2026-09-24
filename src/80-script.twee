@@ -651,13 +651,23 @@ jQuery(document).on(':passageend.sgChoiceKey', (ev) => {
 		/** `#1308`：把面板挂（或重挂）到常驻位置。幂等：同 id 先移除再插。 */
 		mount() {
 			if (typeof document === 'undefined') return;
-			const old = document.getElementById('codex-panel');
-			if (old) old.remove();
-			const anchor = document.getElementById('passages') ?? document.body;
-			if (!anchor) return;
-			const wrap = document.createElement('div');
-			wrap.innerHTML = this.html();
-			if (wrap.firstElementChild) anchor.appendChild(wrap.firstElementChild);
+			const doc = document;
+			let host = doc.getElementById('codex-panel');
+			if (!host) {
+				// ★ 挂到 **`#passages` 之外**：段落重渲染会**重写** `#passages` 的内容 ⇒ 挂在里面会被冲掉
+				//（实测：手调可见、钩子里挂则消失 ✗）。仓内先例：`:443` 的 `document.body.insertBefore(…)`。
+				const wrap = doc.createElement('div');
+				wrap.innerHTML = this.html();
+				host = wrap.firstElementChild;
+				if (!host || !doc.body) return;
+				doc.body.insertBefore(host, doc.body.firstChild);
+			} else {
+				// 已在 ⇒ **只更新内容**（容器恒在 ⇒ 与契约 §11.1 的"面板恒在"一致）
+				const wrap = doc.createElement('div');
+				wrap.innerHTML = this.html();
+				const fresh = wrap.firstElementChild;
+				if (fresh) host.innerHTML = fresh.innerHTML;
+			}
 		},
 		/** 条目数据：经契约成员 `codexItems` 读（缺席则退回 `this.items()`）。 */
 		/** 条目数据：经契约成员 `codexItems` 读。故事没有该面 → 返回 null（调用点据此走兜底文案）。 */

@@ -13,6 +13,7 @@
 | 写 / 改剧情（现存故事，如 `night-ferry`） | `docs/engine-story-boundary.md`（接入契约） | `stories/night-ferry/`（含 `EDITOR-SESSION.md`）· `docs/twee-cheatsheet.md` |
 | 做质量评审 | `docs/quality-dimensions.md`（§一 方法 · §四 作业模板） | `docs/reviews/`（走查/评审存档，非权威） |
 | 接一个新故事 | `docs/engine-story-boundary.md` | `docs/story2-contracts.md` · `docs/repo-map.md`（§二 层归属） |
+| **故事写到某处，引擎还没有这个能力** | **`docs/process/story-engine-loop.md`**（需求到能力的五步循环） | `.github/ISSUE_TEMPLATE/engine-capability.yml`（需求模板）· `#1306`（需求台账） |
 | 想知道表能不能放点击态写 | `docs/click-time-writes-design.md` | `docs/notes-model.md`（§已知边界） |
 | **数据模型**（角色状态 `pc` ＋ 袋外变量／五类分区／结算三条通道） | **`docs/engine/data-model.md`** | `docs/engine/decisions.md`（已裁／待裁台账） |
 | **手写一个故事包**（每类 JSON 放什么、字段逐个） | **`docs/engine/json/README.md`**（索引 · 最小集 · 编译链） | `json/` 下八份逐字段手册 · `docs/engine/authoring-model.md`（三层归位） |

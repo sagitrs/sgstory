@@ -11,6 +11,8 @@ import { generatedFamilyProblems, isGeneratedFamily } from './editor/lib/core/ge
 import { valueTerms, engineLabels } from './editor/lib/core/vocab.mjs';
 import {
 	ROOT, storySlugs, readStory, storyHtml, shelfHtml, DEFAULT_SLUG,
+	resolveStoryRel, absPath,   // `#1267` 符号名 → 真实路径
+	DIST_DIR, STORIES_DIR,   // `#1267` 故事根口（产物随根 ⇒ 跑仓外故事不在引擎仓拉屎）
 	audienceOf,
 	FONT_PREFIX_FROM_ROOT, FONT_PREFIX_FROM_STORY,
 } from './scripts/dist-paths.mjs';
@@ -32,7 +34,7 @@ const STORY_OUT = flagOf('story-out', null);
 if (STORY_OUT && !WITH_RULES) throw new Error('--story-out 只与 --with-rules 配用 ✓（本口只为"改过的故事"的探测存在 ✓）');
 
 mkdirSync('build', { recursive: true });
-mkdirSync('dist', { recursive: true });
+mkdirSync(DIST_DIR, { recursive: true });   // `#1267` 随根
 
 // #319：加载顺序**显式**声明在 scripts/module-order.mjs（不再靠文件名前缀隐含）。
 // `#893` 守卫**分两层**：① **引擎件**（`src/**`）必须全在 `ORDER` 里（它们的先后是**全局**的）；
@@ -40,7 +42,7 @@ mkdirSync('dist', { recursive: true });
 // → **新建故事不必改代码**（原来一律要求 ⊂ ORDER → 新故事必改代码）。
 // 两层的**登记语义都没丢**：新件仍须**显式登记**，只是登记处换成**它自己的清单**。
 const slugs = storySlugs();
-const STORIES = 'stories';   // \`#1128\` 产物前置用（编译器 out 路径）
+const STORIES = STORIES_DIR;   // \`#1128\` 产物前置用（编译器 out 路径）
 // `#1128`：**产物前置**——干净树上产物 twee 不存在（移出 git）→ 构建前先从源（data/*.json）编译
 //（票面约束：`git clean` 后的干净树必须能重建全套产物 ——断点补在此；产物在=幂等跳过 已在=不重编 保持逐字节稳定）。
 {
@@ -57,7 +59,7 @@ const STORIES = 'stories';   // \`#1128\` 产物前置用（编译器 out 路径
 		const need = genNeeds({
 			declared,
 			family: (f) => isGeneratedFamily(f),
-			exists: (f) => existsSync(f),   // 清单里的 `files` 是相对仓根的路径
+			exists: (f) => existsSync(resolveStoryRel(f)),   // `#1267`：清单 `files` 是**符号名**（`stories/…`）⇒ 判存在也过换算
 			dataFiles,
 		});
 		if (need.needed.length) {
@@ -120,8 +122,8 @@ const SEG_HEAD = /^::\s+(.+?)\s*(?:\[[^\]]*\])?\s*$/gm;
 const knownNamesOf = (slug, files) => {
 	const names = new Set();
 	for (const f of files) {
-		if (isStoryPassageMd(f)) { const n = String(parseFrontMatter(readFileSync(f, 'utf8')).meta.passage ?? '').trim(); if (n) names.add(n); continue; }
-		for (const m of readFileSync(f, 'utf8').matchAll(SEG_HEAD)) names.add(m[1].trim());
+		if (isStoryPassageMd(f)) { const n = String(parseFrontMatter(readFileSync(resolveStoryRel(f), 'utf8')).meta.passage ?? '').trim(); if (n) names.add(n); continue; }
+		for (const m of readFileSync(resolveStoryRel(f), 'utf8').matchAll(SEG_HEAD)) names.add(m[1].trim());
 	}
 	return names;
 };
@@ -130,7 +132,7 @@ const assembleOne = (slug, f, known) => {
 	// → 拼装层 `p.tags? \` [${p.tags}]\`: ''` 把它当成真值 → 产物段头变 `:: 段名 [[]]`
 	// → 段名不再等于 `passage` 值 → 第三格判「拼装产物缺段」（实测踩到）。
 	// → 改用 core 的 `parseMdPassages`（**同一权威**）：name/tags/body 都已归位。
-	const [p0] = parseMdPassages(readFileSync(f, 'utf8'), f);
+	const [p0] = parseMdPassages(readFileSync(resolveStoryRel(f), 'utf8'), f);
 	const name = String(p0?.name ?? '').trim();
 	if (!name) { console.error(`✗ ${f}：front-matter 缺 \`passage\`（段名权威在本字段 ✓）`); process.exit(1); }
 	const { twee, problems } = assemblePassages({
@@ -148,7 +150,9 @@ const mergedOf = (s) => {
 	return scoped.map((f) => {
 		// `--with-rules`：只替换**规则文件那一份**（窄 —— 不动别的件）
 		if (isStoryPassageMd(f)) return assembleOne(s.slug, f, known);
-		const text = (WITH_RULES && /(^|\/)17-rules\.twee$/.test(f)) ? readFileSync(WITH_RULES, 'utf8') : readFileSync(f, 'utf8');
+		// `#1267`：清单里的路径是**符号名**（`stories/…`）⇒ 真读盘前必须过 `resolveStoryRel`
+		//（仓内＝恒等 ✓；仓外 ⇒ 指到真实故事根）。
+		const text = (WITH_RULES && /(^|\/)17-rules\.twee$/.test(f)) ? readFileSync(WITH_RULES, 'utf8') : readFileSync(resolveStoryRel(f), 'utf8');
 		return stripTweeComments(text).trimEnd();
 	}).join('\n\n') + '\n';
 };
@@ -165,11 +169,11 @@ for (const s of stories) {
 	const segs = [];
 	for (const f of scopedFiles(s)) {
 		if (isStoryPassageMd(f)) {
-			const n = String(parseFrontMatter(readFileSync(f, 'utf8')).meta.passage ?? '').trim();
+			const n = String(parseFrontMatter(readFileSync(resolveStoryRel(f), 'utf8')).meta.passage ?? '').trim();
 			if (n) segs.push({ name: n, path: f });
 			continue;
 		}
-		for (const m of readFileSync(f, 'utf8').matchAll(/^::\s+(.+?)\s*(?:\[[^\]]*\])?\s*$/gm)) segs.push({ name: m[1].trim(), path: f });
+		for (const m of readFileSync(resolveStoryRel(f), 'utf8').matchAll(/^::\s+(.+?)\s*(?:\[[^\]]*\])?\s*$/gm)) segs.push({ name: m[1].trim(), path: f });
 	}
 	const dup = duplicateProblems({ passages: segs });
 	if (dup.length) { console.error(`✗ 构建期重名（跟源同名段）✗：\n  ${dup.join('\n  ')}`); process.exit(1); }
@@ -179,7 +183,7 @@ for (const s of stories) {
 // 而产物里就少一段——那正是“绿≠覆盖”那一族 → 用**集合相等**把它变成 fail-loud。
 for (const s of stories) {
 	const scoped = scopedFiles(s);
-	const mdNames = scoped.filter(isStoryPassageMd).map((f) => String(parseFrontMatter(readFileSync(f, 'utf8')).meta.passage ?? '').trim()).filter(Boolean);
+	const mdNames = scoped.filter(isStoryPassageMd).map((f) => String(parseFrontMatter(readFileSync(resolveStoryRel(f), 'utf8')).meta.passage ?? '').trim()).filter(Boolean);
 	if (!mdNames.length) continue;
 	const got = new Set([...(merges.get(s.slug) ?? '').matchAll(/^::\s+(.+?)\s*(?:\[[^\]]*\])?\s*$/gm)].map((m) => m[1].trim()));
 	const missing = mdNames.filter((n) => !got.has(n));
@@ -196,7 +200,7 @@ for (const s of stories) {
 for (const s of stories) {
 	const out = merges.get(s.slug) ?? '';
 	for (const f of scopedFiles(s).filter(isStoryPassageMd)) {
-		const { meta } = parseFrontMatter(readFileSync(f, 'utf8'));
+		const { meta } = parseFrontMatter(readFileSync(resolveStoryRel(f), 'utf8'));
 		const needles = [`passage: ${String(meta.passage ?? '').trim()}`];
 		if (String(meta.tags ?? '').trim()) needles.push(`tags: ${String(meta.tags).trim()}`);
 		const hit = needles.filter((n) => out.includes(n));
@@ -215,7 +219,7 @@ for (const s of stories) {
 	const out = merges.get(s.slug) ?? '';
 	const got = new Map(parseTweePassages(out).map((p) => [p.name, p.body]));
 	for (const f of scopedFiles(s).filter(isStoryPassageMd)) {
-		const [p0] = parseMdPassages(readFileSync(f, 'utf8'), f);
+		const [p0] = parseMdPassages(readFileSync(resolveStoryRel(f), 'utf8'), f);
 		const want = stripTweeComments(p0.body).trimEnd();
 		if ((got.get(p0.name) ?? '').trimEnd() !== want) {
 			console.error(`✗ ${f}（段「${p0.name}」）的**产物 body 与「源剥注释后的 body」不等** ✗ ⇒ md 路径没剥注释（stripTweeComments 漏接 ✓）`);
@@ -229,7 +233,7 @@ for (const s of stories) {
 {
 	// `#1185`：家族谓词取单一权威（含 `00-meta.twee` —— 它有 `StoryIdentity [script]` 段，同样该被查）
 	const genFiles = files.filter((f) => isGeneratedFamily(f));
-	const gsrc = Object.fromEntries(genFiles.map((f) => [f, readFileSync(f, 'utf8')]));
+	const gsrc = Object.fromEntries(genFiles.map((f) => [f, readFileSync(resolveStoryRel(f), 'utf8')]));
 	const syntax = scriptSyntaxProblems({ files: gsrc, parse: (code) => { new vm.Script(code); } });
 	if (syntax.length) {
 		for (const p of syntax) console.error(`✗ [segment-syntax] ${p.file} 段「${p.passage}」：${p.why}`);
@@ -242,8 +246,9 @@ for (const s of stories) {
 //   为什么放在构建期：残留产物会被继续打进包，读者以为源还在；构建是唯一每个故事都必经的关口。
 {
 	const famSrc = Object.fromEntries(
-		files.filter((f) => isGeneratedFamily(f)).map((f) => [f, readFileSync(f, 'utf8')]));
-	const famProblems = generatedFamilyProblems({ files: famSrc, exists: (rel) => existsSync(join(ROOT, rel)) });
+		files.filter((f) => isGeneratedFamily(f)).map((f) => [f, readFileSync(resolveStoryRel(f), 'utf8')]));
+	// `#1267`：标记载明的源是**符号名**（`stories/…`）⇒ 判存在也过换算（仓内恒等 ✓）。
+	const famProblems = generatedFamilyProblems({ files: famSrc, exists: (rel) => existsSync(absPath(rel)) });
 	if (famProblems.length) {
 		for (const p of famProblems) console.error(`✗ [generated-family] ${p.path}：${p.why}`);
 		console.error('✗ 生成物家族有"产物在而源不在"的成员 —— 请一并删产物或恢复源');
@@ -296,7 +301,7 @@ const injectLang = (p) => {
 // ── 清 `dist/stories/`（`#1015`／`#1035`）：**不 prune 会让已删故事的旧产物留在本地**
 // → 本地验证面 ≠ 线上发布面（线上是干净 checkout）→ 本步让两者一致。
 //注意：只清 `stories/`：`dist/fonts/` 是共享根路径，由字体步骤负责。
-if (!STORY_OUT) rmSync(join(ROOT, 'dist', 'stories'), { recursive: true, force: true });   //注意：窄口模式（`--story-out`）只写一份 → 不清，免得把别人的产物删了
+if (!STORY_OUT) rmSync(join(DIST_DIR, 'stories'), { recursive: true, force: true });   // `#1267`：随根（仓内＝ROOT/dist 恒等）   //注意：窄口模式（`--story-out`）只写一份 → 不清，免得把别人的产物删了
 // ── 编译每个故事 → dist/stories/<slug>/index.html ─────────────────────
 for (const s of stories) {
 	if (STORY_OUT && s.slug !== DEFAULT_SLUG) continue;   // 窄口：只写目标那一份（其余故事不碰）

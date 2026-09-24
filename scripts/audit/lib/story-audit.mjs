@@ -14,7 +14,7 @@
 // · 键名固定：`text.topicWords` / `text.styleBlacklist` / `readBaseline`（形状在这里校验，调用方不必各自判）。
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROOT } from '../../dist-paths.mjs';
+import { STORIES_DIR } from '../../dist-paths.mjs';
 
 /** 每个故事**必须**提供的两份数据（缺一即报错——它们决定两道门对该故事判不判、怎么判）。 */
 export const REQUIRED_SHAPES = { topicWords: 'array', styleBlacklist: 'array', readBaseline: 'object' };
@@ -35,8 +35,9 @@ export const judgeStoryAudit = (data, { slug = '?' } = {}) => {
 };
 
 /** 读 + 校验（IO；缺文件/畸形 → **抛错**，不静默当空表）。 */
-export const loadStoryAudit = (slug, { root = ROOT } = {}) => {
-	const p = join(root, 'stories', String(slug), 'audit.json');
+// `#1267` 故事根口：默认根走 `STORIES_DIR`（受 `SG_STORIES_DIR` 控制）⇒ 与构建/其余门同根。
+export const loadStoryAudit = (slug, { root = STORIES_DIR } = {}) => {
+	const p = join(root, String(slug), 'audit.json');
 	if (!existsSync(p)) throw new Error(`缺 \`stories/${slug}/audit.json\`：门侧的故事判据数据必须由**该故事自己**声明（空表也要显式写；#602）`);
 	let data;
 	try { data = JSON.parse(readFileSync(p, 'utf8')); } catch (e) { throw new Error(`stories/${slug}/audit.json 不是合法 JSON：${e.message}`); }

@@ -1,6 +1,6 @@
 // 逐故事的「运行时契约」门（`#574`）——**接入契约的运行时那一半**。
 //
-// 为什么要有它：`#574` 的现场是「故事 2 的**内容**在调用 `Sg.notes.add(...)`，而它的**产物**里连
+// 为什么要有它：`#574` 的现场是「故事 2 的**内容**在授予笔记，而它的**产物**里连
 // `Sg.notes` 都没有」（`src/80-script.twee` 当时被登记成 `layer:'story'` → 不进第二/第三个故事的作用域）。
 // 顺着这条线又挖出三处**同一族**的静默坏掉（都是"声明了/写了，但运行时根本不生效"，而门全绿）：
 // · `Checks.sites` 的 `skill: 'dex'` 写成了**属性键**（引擎要技能名）→ **每次判定都抛「未知技能」**
@@ -14,7 +14,7 @@
 // ① **面存在**：故事作用域（`scopedFiles()`）里引用的 `Sg.*` 面必须在产物里存在
 //（`Sg.story.*` 除外＝接入契约口子；`Sg.X?.y` 可选链＝作者显式声明"可能没有"）；
 // ② **位点能判**：`Game.Checks.sites` 里**每个**位点都要能真的判一次（`Game.Checks.resolve()` 不抛）；
-// ③ **笔记可用**：内容里 `Sg.notes.add("id")` 用到的每条笔记都必须已登记，且 `add` 真的跑通；
+// ③ **笔记可用**：故事**授予**的每条笔记都必须已登记（新格式的授予路径＝`rules.json` 的 `yields`）；跑通；
 // ④ **侧栏可用**：没有车卡的故事必须给最小侧栏（血量/物品）；有车卡的故事在车卡前不得多出它；
 // ⑤ **机制真落**：故事 2 的真机路（陷阱·失败支）点完 → hp 降 ＋ 异常真的落 ＋ 结果槽落了 ＋ 零未捕获报错。
 //
@@ -64,15 +64,15 @@ export const judgeApiFace = (uses, has) => missingApis(uses, has).map((m) => ({
 /** 纯函数：**「用」面**的 note id（去重，带来源文件）。
  * `#1282`（裁定甲）：新格式下笔记授予只有一条合法路径＝`rules.json` 的 `yields`
  * （`21-resolve.twee` 选中→渲染成功→落 yields），产物 `17-rules.twee` 里它是**数据**形态
- * （`{…, yields: ['n_room_key']}`）→ 只认 `Sg.notes.add(...)` 字面量会让**「用」面恒空**
+ * （`{…, yields: ['n_room_key']}`）→ 若只认已退役的 `Sg.notes.add(...)` 字面量会让**「用」面恒空**
  * （判据对新格式故事一律不判）。故：**字面量 ＋ `yields:` 数据形态**都算「用」。
  *   不用 `Sg.notes.stored(pc)`（那是运行时已存那一侧）。 */
 export const noteIdsUsed = (sources) => {
 	const out = new Map();
 	for (const [file, raw] of Object.entries(sources)) {
 		const text = String(raw).replace(/\/%[\s\S]*?%\//g, ' ');
-		// ① 字面量形态（历史/自证用）
-		for (const m of text.matchAll(/Sg\.notes\.add\(\s*["']([A-Za-z_$][\w$]*)["']/g)) if (!out.has(m[1])) out.set(m[1], file);
+		// ① `Sg.notes.add(...)` **字面量匹配器已删**（`#1282` 裁定）：新格式下「用」面**只有 `yields` 一条路**
+		// （正文禁内建 `<<run>>`），而该 API 本身已随 `#1261` 删除 → 留着它是"给退役语法留一条**永不命中**的路"。
 		// ② `yields:` **数据形态**（新格式授予路径的产物形状：`{ …, yields: ['n_x'] }`）
 		for (const m of text.matchAll(/yields\s*:\s*\[([^\]]*)\]/g)) {
 			for (const q of m[1].matchAll(/["']([A-Za-z_$][\w$]*)["']/g)) if (!out.has(q[1])) out.set(q[1], file);
@@ -131,7 +131,7 @@ export const yieldsIdsOf = (rulesJson) => {
 export const judgeNotes = (used, declared) =>
 	[...used].filter(([id]) => !declared.includes(id)).map(([id, file]) => ({
 		code: 'note-undeclared',
-		msg: `${file} 调用 \`Sg.notes.add("${id}")\`，但该笔记未登记（\`Sg.notes.add\` fail-loud ⇒ 运行时抛错；#574）`,
+		msg: `${file} 授予了笔记「${id}」，但它不在声明面里（声明面＝契约成员 notes 的已解析表；授予路径＝rules.json 的 yields）⇒ 报未登记（#1282）`,
 	}));
 
 /** 纯函数：判据 ④ —— 侧栏该不该给"最小面"。 */
@@ -206,25 +206,25 @@ const main = async () => {
 		let bad = 0;
 		const t = (label, ok, extra = '') => { if (ok) console.log(`      ✓ 自证·${label}`); else { bad++; console.error(`      ✗ 自证·${label}${extra ? '：' + extra : ''}`); } };
 		const uses = apiUses({
-			'a.twee': '<<run Sg.notes.add("x")>> Sg.save.quick()',
+			'a.twee': 'Sg.notes.readPath(pc, "n_x") Sg.save.quick()',
 			'b.twee': '// Sg.ghost.nope() 只是注释\n/% Sg.alsoGhost() 块注释 %/',
 			'c.twee': 'Sg.story.notes() 与 Sg.story.checkSite("x")',
 			'd.twee': 'window.Sg.Codex?.sync?.()',
-			'e.twee': '正文里提到 `Sg.Codex` 只是文档提及，而 `Sg.notes.add("x")` 是真引用',
+			'e.twee': '正文里提到 `Sg.Codex` 只是文档提及，而 `Sg.notes.readPath(pc, "n_x")` 是真引用',
 			'f.twee': "const RESET_KEEPS = ['Sg.notes', 'Sg.store'];",   // 字符串字面量＝数据
 		});
-		t('① 正例：收集到 `Sg.notes.add` 与 `Sg.save.quick`（**最长的点号链**）', uses.has('Sg.notes.add') && uses.has('Sg.save.quick'), [...uses.keys()].join());
+		t('① 正例：收集到 `Sg.notes.readPath` 与 `Sg.save.quick`（**最长的点号链**）', uses.has('Sg.notes.readPath') && uses.has('Sg.save.quick'), [...uses.keys()].join());
 		t('① 正例：`Sg.story.*`（接入契约口子）不计入本门', ![...uses.keys()].some((k) => k.startsWith('Sg.story')));
 		t('① 反例：注释里的提及不算引用（行注释/块注释）', !uses.has('Sg.ghost.nope') && !uses.has('Sg.alsoGhost'), [...uses.keys()].join());
 		t('① 正例：可选链（`Sg.Codex?.sync?.()`）＝显式可选面 ⇒ 不计入必需面', ![...uses.keys()].some((k) => k.startsWith('Sg.Codex')), [...uses.keys()].join());
 		t('① 正例：正文里被反引号夹住的文档提及（`` `Sg.Codex` ``）不算引用', ![...uses.keys()].some((k) => k === 'Sg.Codex'), [...uses.keys()].join());
 		t('① 正例：字符串字面量里的名字是**数据**不是引用（`RESET_KEEPS`）', !uses.has('Sg.store') && !uses.has('Sg.notes'), [...uses.keys()].join());
-		const has = (p) => ['Sg.save', 'Sg.notes.add'].includes(p);
+		const has = (p) => ['Sg.save', 'Sg.notes.readPath'].includes(p);
 		t('① 正例：面都在 ⇒ 0 条', judgeApiFace(new Map([['Sg.save', 'x']]), has).length === 0);
 		const missing = judgeApiFace(new Map([['Sg.save', 'x'], ['Sg.Codex', 'stories/a/1.twee']]), has);
 		t('① 反例：产物缺一面 ⇒ 报一条且带来源文件', missing.length === 1 && missing[0].msg.includes('stories/a/1.twee'), JSON.stringify(missing));
 
-		const used = noteIdsUsed({ 'a.twee': '<<run Sg.notes.add("n_a")>> <<run Sg.notes.add(\'n_b\')>>', 'b.twee': '/% Sg.notes.add("n_ignored") %/' });
+		const used = noteIdsUsed({ 'a.twee': "yields: ['n_a', 'n_b']", 'b.twee': '/% (已退役 API)("n_ignored") %/' });
 		t('③ 正例：收集两条 note id（块注释里的不算）', used.size === 2 && used.has('n_a') && used.has('n_b'), [...used.keys()].join());
 		t('③ 反例：用而未登记 ⇒ 报一条', judgeNotes(new Map([['n_a', 'a.twee']]), ['n_b']).length === 1);
 		t('③ 正例：都登记了 ⇒ 0 条', judgeNotes(new Map([['n_a', 'a.twee']]), ['n_a']).length === 0);

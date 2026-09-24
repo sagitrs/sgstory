@@ -47,8 +47,8 @@ export const aggregatorChecks = (srcText) => {
  * `#893` 第三步：`②③④` 按**层**分工（引擎件 → `ORDER` ⧸ `MODULES`；故事件 → **它自己的清单**）——
  * 走单一权威 `checkRegistration()`；与 `test/layering.mjs` 的**唯一区别**：这里 `requireModules: true`
  *（`MODULES` 缺项是"账本不自洽"，属本脚本的六处同步面）。 */
-export const checkPlaces = ({ srcFiles, srcContents = null, order, modules, manifests, constFiles, aggregatorSrc, consumer }) => {
-	const out = [...checkRegistration({ sources: Object.fromEntries(srcFiles.map((f) => [f, ''])), order, modules, manifests, requireModules: true })];
+export const checkPlaces = ({ srcFiles, srcContents = null, order, modules, manifests, constFiles, aggregatorSrc, consumer, exists = null }) => {
+	const out = [...checkRegistration({ sources: Object.fromEntries(srcFiles.map((f) => [f, ''])), order, modules, manifests, requireModules: true, ...(exists ? { exists } : {}) })];
 	// `#1002`：**故事声明面必须排在消费它的引擎件之前** —— `checkRegistration()` 管不到这一格
 	//（`#998` 实测：漏排 → 故事表盖掉引擎挂在 `Game.*` 上的方法 → 门 TypeError → 后面的故事面全没跑）
 	// `#1220`：把**内容**喂给派生（原先只传名字加空串 → 派生会扫空）
@@ -130,6 +130,15 @@ if (process.argv.includes('--selftest')) {
 			manifests: [{ slug: 's', files: ['stories/s/10-cons.twee', TBL] }],
 			consumer: 'stories/s/10-cons.twee' }).some((x) => x.code === 'tables-after-consumer'));
 	t('边界：清单里**没有** `15-tables` 面 ⇒ 不判（这格管的是那一个面 ✓）', checkPlaces({ ...base, manifests: [{ slug: 's', files: [] }] }).filter((x) => x.code.startsWith('tables-')).length === 0);
+	// `#1271`：**报文须与事实相符** —— 两支能假（同一输入只改"磁盘在不在"）
+	{
+		const b = { ...base, manifests: [{ slug: 's', files: ['stories/s/data/tables.json'] }] };
+		t('🔴 `#1271` ①：清单列了**磁盘存在**但不属自动发现面的件 ⇒ 报「不应列入清单」（不是"缺件"）',
+			checkPlaces({ ...b, exists: () => true }).some((x) => x.code === 'manifest-should-not-list'));
+		t('🔴 `#1271` ②：清单列了**磁盘不存在**的件 ⇒ 仍报「缺件（改名或删除）」（真守卫保留）',
+			checkPlaces({ ...b, exists: () => false }).some((x) => x.code === 'missing-manifest-file'));
+	}
+
 	// `#1220`：消费侧改**派生**后的三格（能假／出声／反向核件数）
 	const SOCIAL = 'src/engine/40-sim/32-social.twee';
 	const synthContents = { [SOCIAL]: 'Object.assign((window.Game.Social ??= {}), {' };

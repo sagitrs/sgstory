@@ -112,7 +112,10 @@ MD 的 `[](…)` 是**资源地址**（渲染成 `href`），语义不等价；�
 
 ## 4. 一个内容故事的最小合法集（实测）
 
-`stories/night-ferry/` 现况（`audience: content`，唯一上架故事）：
+> ★**现状（`#1265` 之后）**：引擎仓内**零故事** —— 故事全在 books 仓；下面几行是**成文时的实测记录**，
+> 其中的 `stories/night-ferry/` 等**当时在仓、现已下架** ⇒ 路径**仅作史料**（✗ 不要照它写新故事）。
+
+成文时 `stories/night-ferry/` 的形态（`audience: content`）：
 
 - **入仓件**（12 类）：`00-story.json` · `data/{tables,rules,contract,meta}.json` · `passages/*.md`（11 段）· `audit.json` · `gates/*`。
   产物（`00-meta.twee`／`15-tables.twee`／`17-rules.twee`）**不入仓**（`#1128` 起）。

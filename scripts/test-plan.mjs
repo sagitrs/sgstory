@@ -862,14 +862,21 @@ export const SUSPENDED = {
 /** 临时下架的段（跑器跳过并**单列**，不计失败、也不算未声明）。 */
 export const suspendedSegs = () => Object.entries(SUSPENDED).map(([id, meta]) => ({ id, ...meta }));
 
-/** 自证：每条下架声明必须带 why 与 until（否则"临时下架"会变成新的藏身处）。 */
-export const suspendedProblems = (table = SUSPENDED) =>
-	Object.entries(table).flatMap(([id, m]) => {
+/** 自证：每条下架声明必须带 why 与 until（否则"临时下架"会变成新的藏身处）。
+ * `#1268`（复核）：**还要查"这个豁免是否成立"** —— 下架判定此前**只看 `id ∈ SUSPENDED`**，
+ * 而本函数只查 `why`/`until` 非空 → **凭空写一个 id 就能豁免任何段**（实测：给真坏的段
+ * 塞进表里 → `--tier=full` 与 `npm test` 双双全绿  ）。→ 补第一道：**下架 id 必须真实存在
+ * 于 `testPlan()`**（段名写错／段已删而条目留着 → 红，两向都抓）。 */
+export const suspendedProblems = (table = SUSPENDED, { plan = null } = {}) => {
+	const known = new Set((plan ?? testPlan()).map((s) => s.id));
+	return Object.entries(table).flatMap(([id, m]) => {
 		const bad = [];
 		if (!String(m?.why ?? '').trim()) bad.push(`\`${id}\` 缺 \`why\``);
 		if (!String(m?.until ?? '').trim()) bad.push(`\`${id}\` 缺 \`until\``);
+		if (!known.has(id)) bad.push(`\`${id}\` **不在 testPlan() 里**（凭空豁免／段名写错／段已删 ⇒ 该豁免无对象 ✗）`);
 		return bad;
 	});
+};
 
 export const testPlan = () => SEGMENTS;
 // **旧格式**：把计划拼回 `&&` 串（对照/调试用）

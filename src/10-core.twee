@@ -329,7 +329,7 @@ Macro.add('check', {
 		});
 		State.variables.last_check = res;
 		// `#1275`：**同一落点**并记「按站点名索引」的结果表（`chk:` 族的取值面）。
-		// 只在有站点名时记（无站点的临时检定不进表 ⇒ 不会被 `chk:` 误取到）。
+		// 只在有站点名时记（无站点的临时检定不进表 → 不会被 `chk:` 误取到）。
 		if (res && res.site) { const c = (State.variables.checks = State.variables.checks || {}); c[res.site] = res; }
 		$(this.output).append(renderCheck(res));
 	},
@@ -343,7 +343,7 @@ Macro.add('save', {
 		});
 		State.variables.last_check = res;
 		// `#1275`：**同一落点**并记「按站点名索引」的结果表（`chk:` 族的取值面）。
-		// 只在有站点名时记（无站点的临时检定不进表 ⇒ 不会被 `chk:` 误取到）。
+		// 只在有站点名时记（无站点的临时检定不进表 → 不会被 `chk:` 误取到）。
 		if (res && res.site) { const c = (State.variables.checks = State.variables.checks || {}); c[res.site] = res; }
 		$(this.output).append(renderCheck(res));
 	},
@@ -353,7 +353,16 @@ Macro.add('save', {
 // 拆开的理由：原 `<<sitecheck>>` 把「推导优势 + 掷骰 + 写结果槽 + 渲染」挤在一个 widget 里，
 // 使位点判定只能在浏览器里测（#441 的四条验收之四：不经浏览器可驱动 resolve()）。
 Macro.add('checkres', {
-	handler() { $(this.output).append(renderCheck(this.args[0])); },
+	handler() {
+		const res = this.args[0];
+		// `#1275`（**来源面**）：present 层也要**同款落点**记录“本次结果表”。
+		// 为什么必须补：`check`／`save` 两个入口都写了 `State.variables.checks`，而**新格式**走
+		// `<<sitecheck>>` → `<<checkres Game.Checks.resolve(…)>>` → **本宏（present 层）当时没写** →
+		// 取值族 `chk:<站点>.success` 永远取不到 → 条件行 **fail-loud 打断整段渲染**（绿而不通  ）。
+		// 口径：只补**写入**（与 `check`／`save` 完全同款）；**不动** fail-loud、**不动** `resolve`（纯函数保持纯）。
+		if (res && res.site) { const c = (State.variables.checks = State.variables.checks || {}); c[res.site] = res; }
+		$(this.output).append(renderCheck(res));
+	},
 });
 
 // ── 复显上一轮玩家发起的检定骰面（M9；不掷骰，只渲染快照）──

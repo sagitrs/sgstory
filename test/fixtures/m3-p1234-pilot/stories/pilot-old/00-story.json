@@ -1,0 +1,16 @@
+{
+	"slug": "pilot-old",
+	"title": "试点·旧形态（基线）",
+	"subtitle": "`#1234` 试点段 `01-门厅` 的**今天写法**：链接在散文里、条件在 `data/rules.json` 的行里",
+	"entry": "门厅",
+	"contractVersion": 1,
+	"audience": "content",
+	"files": [
+		"stories/pilot-old/00-meta.twee",
+		"stories/pilot-old/passages/01-门厅.md",
+		"stories/pilot-old/passages/02-靴子.md",
+		"stories/pilot-old/passages/03-里屋.md",
+		"stories/pilot-old/17-rules.twee"
+	],
+	"gates": []
+}

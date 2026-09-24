@@ -90,5 +90,25 @@ t('⑮ ★ **真入口**（无参跑 CLI）⇒ rc=0 ＋ 明说"零用例"', (() 
 	return /零用例/.test(r);
 })());
 
+// ── `#1287`（复核三件）新增三格 ────────────────────────────────────
+t('⑯ 票状态三态：**在线票号不存在 ⇒ missing ⇒ 归因无效 rc≠0**（不落 unknown）', (() => {
+	const r = classifyCase({ passed: false, ticket: '#99999999', ticketState: 'missing' });
+	return r.verdict === 'invalid-attribution' && r.exit !== 0;
+})());
+t('⑯b 反向：`unknown`（离线）仍 ⇒ rc=0（不据此判红）', classifyCase({ passed: false, ticket: '#1', ticketState: 'unknown' }).exit === 0);
+{
+	const d = mkdtempSync(join(tmpdir(), 'cases3-'));
+	mkdirSync(join(d, 's1'), { recursive: true });
+	writeFileSync(join(d, 's1', 'ok.json'), '{"id":"ok","story":"nope","expect":{}}');
+	writeFileSync(join(d, 's1', 'bad.json'), '{bad json');
+	const run = (argv) => { try { return { rc: 0, out: execFileSync('node', ['scripts/case-run.mjs', ...argv], { cwd: ROOT, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) }; } catch (e) { return { rc: e.status ?? 1, out: `${e.stdout ?? ''}${e.stderr ?? ''}` }; } };
+	const bad = run(['--cases=' + d]);
+	t('⑰ ★ 坏 JSON ⇒ **不许 rc=2 整停**、须**点名该文件**、其余照跑', bad.rc !== 2 && /不是合法 JSON：/.test(bad.out), `rc=${bad.rc}`);
+	const miss = run(['--cases=' + d, '--slug=nope']);
+	const empty = (() => { const e = mkdtempSync(join(tmpdir(), 'cases4-')); const r = run(['--cases=' + e]); rmSync(e, { recursive: true, force: true }); return r; })();
+	t('⑱ ★ **过滤器零命中**（根里有 N 条）与**根内 0 条**可分：前者出声 rc≠0 ＋ 给可用清单；后者 rc=0 明说', miss.rc !== 0 && /过滤器未命中/.test(miss.out) && /可用用例/.test(miss.out) && empty.rc === 0 && !/过滤器未命中/.test(empty.out), `miss.rc=${miss.rc} empty.rc=${empty.rc}`);
+	rmSync(d, { recursive: true, force: true });
+}
+
 console.log(bad ? `\n✗ case-run：${bad}/${n} 例失败` : `\n✔ case-run：${n} 例全部通过`);
 process.exit(bad ? 1 : 0);

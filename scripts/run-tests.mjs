@@ -415,6 +415,30 @@ t('🔴 `inputsDeclaredStats`：**声明了的段**计入 declared、不计入 u
 						const guardOk = untrackedScannedProblems({ untracked, isScanned: hasRealCall, exempted }).problems.length === 0;   // 未跟踪 ＋ 被扫到 ＋ 无豁免 → 红
 						return real.every((f) => EXEMPT.some((e) => e[0] === f)) && guardOk;
 		})());
+	// `#1268`（`#1267` 复核暴露）：**能假格 ④ —— 钩子与段的兼容性**（最值钱的那格）。
+	// 背景：②层的钩子会替换 `node:fs`。若 shim 的**导出面低于真身**，那么任何
+	// `import { X } from 'node:fs'`（X 未被 shim 带出）的段会**在 ESM 解析阶段即崩**
+	// → 好段被判「段坏了」（实测：`mkdtempSync` 未带出 → `test/story-root.mjs` 在钩子下 rc=1）。
+	// 本格把「钩子与段的兼容性」变成**常驻可测**：造一个**只 import 一个具名导出**的最小段，
+	// 走**与 ②层同一条注入路径**跑它 → 必须能跑通（非 0 即红）。
+	t('🔴 ④ 钩子兼容：最小段（只 `import { mkdtempSync }`）在**②层同款注入**下能跑通（rc=0）', (() => {
+		const dir = join(ROOT, 'build', 'hook-compat');
+		ensureParent(join(dir, 'minimal-import.mjs'));   // 走仓内助手（③ 格不许直接调 mkdir…Sync）
+		const seg = join(dir, 'minimal-import.mjs');
+		writeFileSync(seg, [
+			"import { mkdtempSync, rmSync } from 'node:fs';",
+			"import { tmpdir } from 'node:os';",
+			"const d = mkdtempSync(tmpdir() + '/sg-hook-compat-');",
+			"rmSync(d, { recursive: true, force: true });",
+			"console.log('ok');",
+		].join('\n') + '\n');
+		const childEnv = { ...process.env, SAGITRS_FS_HOOK_OUT: join(ROOT, 'build', 'fs-hook.jsonl'), SAGITRS_FS_HOOK_ID: 'hook-compat' };
+		delete childEnv.NODE_OPTIONS;
+		try {
+			execFileSync('node', ['--import', pathToFileURL(join(ROOT, 'scripts/lib/fs-hook.mjs')).href, seg], { env: childEnv, stdio: 'pipe' });
+			return true;
+		} catch { return false; }
+	})());
 	// `#1093` P2-d ②：**「写了调用、忘了接线」**（＝`#1031`「入口未接线」族 —— 本仓该族已有格，这条路径漏了）
 	//注意：四处调用点**全在少走路径**（②层需已声明段／仪表需 `--profile*`）→ 断了接线，**CI 与自证都绿**
 	t('🔴 ② 共用助手**接线在位**（`ensureParent` 已 import 且是函数 ⇒ 否则四处调用点起跑即崩 ✗）',
@@ -534,11 +558,23 @@ const suiteSel = suiteWant ? plan0.filter((s) => suiteOf(s) === suiteWant) : nul
 //注意：盲区（如实）：**非 node 子进程**的读看不见 → 该类段**只能保持未声明**（＝全跑型）
 if (tierWant === 'full' && !has('no-inputs-runtime')) {
 	const declared = plan0.filter((s) => Array.isArray(s.inputs) && s.inputs.length);
+		// `#1268`（`#1267` 复核暴露）：**②层必须认「临时下架」** —— 与本地链那条路同口径。
+		// 原实现逐段真跑、只用 `rcode !== 0` 判「段坏了」→ 零故事树下，「对象在但样本缺」的段
+		// 自身 rc=1 → 被全判违规（主干 `full-tier` 因此常红  ）。同一概念两处实现是缺陷，
+		// 收敛到 `test-plan.mjs` 的 `SUSPENDED`（**一处权威**）：下架段**跳过**并在汇总里**单列计数**
+		// （`why`／`until` 随之可见 → 信息不被掩盖）。
+		const suspIds = new Set(Object.keys(SUSPENDED));
+		const suspendedDeclared = declared.filter((s) => suspIds.has(s.id));
+		const checkDeclared = declared.filter((s) => !suspIds.has(s.id));
+		if (suspendedDeclared.length) {
+			console.log(`○ ②层：**下架 ${suspendedDeclared.length} 段**（对象在、样本缺 ⇒ 不计失败）：`
+				+ suspendedDeclared.map((s) => `${s.id}${SUSPENDED[s.id]?.why ? `（${String(SUSPENDED[s.id].why).slice(0, 40)}…）` : ''}`).join('、'));
+		}
 	if (!declared.length) console.log('○ ②层（运行真值）：**无已声明段** ⇒ 不跑 ✓（未声明＝全跑型 ✓）');
 	else {
 		const OUTJ = 'build/fs-hook.jsonl';
 		let rtBad = 0;
-		for (const seg of declared) {
+		for (const seg of checkDeclared) {
 			try { rmSync(OUTJ, { force: true }); } catch { /* 首次 */ }
 			//注意：`#1127` 复核阻断②：**跑子进程前必须确保落点父目录存在** ——
 			// 同文件 `:606` 早写着这条规矩（`#1072` 仪表族）→ 本处漏了（**干净 checkout ＋ 本块在 `build-mjs` 之前** → 无 `build/` → 空转）
@@ -546,9 +582,14 @@ if (tierWant === 'full' && !has('no-inputs-runtime')) {
 			const args = seg.cmd.replace(/^node\s+/, '').split(/\s+/);
 			let rcode = 0;
 			try {
-				execFileSync('node', args, {
-					env: { ...process.env, NODE_OPTIONS: '--import=' + pathToFileURL(join(ROOT, 'scripts/lib/fs-hook.mjs')).href, SAGITRS_FS_HOOK_OUT: join(ROOT, OUTJ), SAGITRS_FS_HOOK_ID: seg.id }, stdio: 'pipe',
-				});
+				// `#1267`（复核）：**钩子只作用于段进程本身，不得传给它的子进程**。
+				// 原实现把钩子塞进 `NODE_OPTIONS` → 段里 spawn 的孙进程（如 `npx extwee`）**也被拦**
+				// → graceful-fs 崩（`Cannot define property Symbol(graceful-fs.queue)`）→ 好段被判「段坏了」 。
+				// 改法：① 钩子改走**命令行 `--import`**（只对本次 node 调用生效，不经环境）；
+				//       ② 从子进程 env 去掉 `NODE_OPTIONS`（否则孙进程仍继承父的注入）。
+				const childEnv = { ...process.env, SAGITRS_FS_HOOK_OUT: join(ROOT, OUTJ), SAGITRS_FS_HOOK_ID: seg.id };
+				delete childEnv.NODE_OPTIONS;
+				execFileSync('node', ['--import', pathToFileURL(join(ROOT, 'scripts/lib/fs-hook.mjs')).href, ...args], { env: childEnv });
 			} catch (e) { rcode = e.status ?? 1; }
 			if (rcode !== 0) { rtBad++; console.error(`✗ [${seg.id}] ②层：段自身在钩子下 rc=${rcode}（段坏了 ⇒ 读数不成立 ✗ 照 #1123 的「读数必须真」 ✓）`); continue; }
 			let truth = [];
@@ -559,7 +600,7 @@ if (tierWant === 'full' && !has('no-inputs-runtime')) {
 			const low = fsArgLiterals(readFileSync(seg.cmd.replace(/^node\s+/, '').split(/\s+/)[0], 'utf8'));
 			for (const x of interLayerProblems({ lower: low, truth })) { rtBad++; console.error(`✗ [${seg.id}] ${x}`); }
 		}
-		console.log(`○ ②层（运行真值）：检查 **${declared.length}** 个已声明段 ⇒ 违规 **${rtBad}** 条`);
+		console.log(`○ ②层（运行真值）：检查 **${checkDeclared.length}** 个已声明段（另有 **${suspendedDeclared.length}** 段临时下架 ⇒ 不计）⇒ 违规 **${rtBad}** 条`);
 		if (rtBad) { console.error(`✗ ②层未过 ${rtBad} 条`); process.exit(2); }
 	}
 }

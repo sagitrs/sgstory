@@ -17,6 +17,12 @@
 // 只记**读** API（写 API 不参与"读取面"）；路径归一为**仓根相对**（仓外路径原样）。
 import * as real from 'node:fs';
 
+// `#1267`（复核）：**导出面不得低于真身** —— 本 shim 此前只显式列出被拦/被代理的若干具名导出，
+// 于是任何 `import { X } from 'node:fs'`（X 不在那串里，如 `mkdtempSync`）在**钩子下的段里 ESM 解析即崩**
+// → 把**好段**判成"段坏了"（②层） 。修法：以真身的具名导出为底（`export *`），本地显式导出**覆盖**其中的
+// 被拦项（ESM 里本地导出优先于 `export *` → 拦截语义不变）。这样"导入面"永远不低于真身。
+export * from 'node:fs';
+
 const ROOT = new URL('../../', import.meta.url).pathname.replace(/\/$/, '');
 const OUT = process.env.SAGITRS_FS_HOOK_OUT;
 const seen = new Set();

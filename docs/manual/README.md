@@ -30,7 +30,7 @@
 | 4 | 段落图与选项 | 边＝`[[标签\|目标]]`；结局段；执行器四张面（`visible`／`absent`／`edges`／`state`） | [步骤] |
 | 5 | **条件行与规则表** ★先写 | 行字段（`id`／`scope`／`prio`／`req`／`any`／`exclude`／`prereq`）；单选 `<<rules>>` vs 菜单 `<<rulelist>>`；键族（`inv:`／`era:`／`gear:`／`chk:`）；算子 | [锚]＋[步骤] |
 | 6 | 状态与写点 | `sets`／`yields`／`gives`；状态树；**域表纪律** | [锚] |
-| 7 | **位点检定与结果维** ★先写 | `<<sitecheck>>`／`<<snapshot>>`／`<<lastcheck>>`；`Checks.sites`；**`chk:<站点>.<字段>`**；未检定即引用 ⇒ fail-loud | [锚]＋[步骤] |
+| 7 | **[位点检定与结果维](07-checks.md)** ★先写 | `<<sitecheck>>`／`<<snapshot>>`／`<<lastcheck>>`；`Checks.sites`；**`chk:<站点>.<字段>`**；未检定即引用 ⇒ fail-loud | [锚]＋[步骤] |
 | 8 | 笔记与图鉴 | `data/notes.json` ＋ `yields` 授予；图鉴 `Codex.items`；呈现面待 `#1308` | [锚] |
 | 9 | 车卡 | `Chargen` ＋ `hasChargen`；触发/渲染口待 `#1309` | [锚] |
 | 10 | 战斗 | `Combat.pools`／`Combat.actions`；四门声明前提 | [锚] |

@@ -39,6 +39,11 @@ export const engineFamiliesOf = (src = readFileSync(ENGINE, 'utf8')) => {
 	if (/const cx = \/\^codex:\(\.\+\)\$\/\.exec\(k\);/.test(body)) fam.add('codex');
 	// ④ 显式根族
 	if (/if \(k\.startsWith\('pc\.'\)\) return window\.Sg\.notes\.readPath\(pc, k\.slice\(3\)\);/.test(body)) fam.add('pc');
+	// ⑦ `chk:` 站点结果族（`#1275` 案 A：`chk:<站点>.<字段>`，值域＝**本次点击的运行时结果**表）
+	// 两种等价形态都认（避免"谁定形态、谁来凑锚"的反向依赖）：**正则单元**（与 `inv|era|gear`／`codex` 同款）
+	// ／**分支头**。任一句**整句**在 ⇒ 该族在 —— 两支都认能扛"加 else／换解析"这类重构，仍抓得住"族改名"。
+	if (/const ck = \/\^chk:\(\.\+\)\\\.\(\[a-z\]\+\)\$\/\.exec\(k\);/.test(body)
+		|| /(?:^|\s)(?:else\s+)?if \(k\.startsWith\('chk:'\)\) \{/.test(body)) fam.add('chk');
 	// ⑤ 点分 ／ ⑥ 裸键（引擎同一 return 里的三元 → 两支）
 	if (/return window\.Sg\.notes\.readPath\(pc, k\.includes\('\.'\) \? k : `ev\.\$\{k\}`\);/.test(body)) { fam.add('dotted'); fam.add('bare'); }
 	return fam;
@@ -46,15 +51,20 @@ export const engineFamiliesOf = (src = readFileSync(ENGINE, 'utf8')) => {
 
 // ── 格 ① 族集合相等 ──────────────────────────────────────────────
 const eng = engineFamiliesOf();
-t('① 抽取面命中了引擎 `readKey` 的**全部六族**（锚完整语法单元 ✓ 少一支就会红）',
-	eng && ['note', 'inv', 'era', 'gear', 'codex', 'pc', 'dotted', 'bare'].every((f) => eng.has(f)));
-const CORE = ['note', 'inv', 'era', 'gear', 'codex', 'pc', 'dotted', 'bare'];
+const EXPECT = ['note', 'inv', 'era', 'gear', 'chk', 'codex', 'pc', 'dotted', 'bare'];   // `#1275`：加 `chk:` 族
+t(`① 抽取面命中了引擎 \`readKey\` 的**全部 ${EXPECT.length} 族**（锚完整语法单元 ✓ 少一支就会红）`,
+	eng && EXPECT.every((f) => eng.has(f)));
+const CORE = EXPECT;
 const coreFams = new Set(CORE.map((f) => readKeyFamily(f === 'note' ? 'n_x' : f === 'inv' ? 'inv:x' : f === 'era' ? 'era:past'
-	: f === 'gear' ? 'gear:x' : f === 'codex' ? 'codex:final' : f === 'pc' ? 'pc.gold' : f === 'dotted' ? 'ev.a.b' : 'gold')));
+	: f === 'gear' ? 'gear:x' : f === 'chk' ? 'chk:书房·敲墙.success' : f === 'codex' ? 'codex:final' : f === 'pc' ? 'pc.gold' : f === 'dotted' ? 'ev.a.b' : 'gold')));
 t(`① 两侧族集合相等（core ${[...coreFams].sort().join('／')} ≡ 引擎 ${eng ? [...eng].sort().join('／') : '抽取失败 ✗'}）`,
 	!!eng && coreFams.size === eng.size && [...coreFams].every((f) => eng.has(f)));
 
 // ── 格 ② 能假证明（探针式：引擎侧改名 → 格 ① 必红）──────────────
+// ②b（`#1275`）：`chk:` 族同理 —— 把源码里所有 `chk:` 换成 `chkX:` ⇒ 该族必须从抽取面**消失**。
+const renamedChk = readFileSync(ENGINE, 'utf8').replace(/chk:/g, 'chkX:');
+t('②b 能假证明：把引擎侧 `chk:` 族改名 ⇒ 该族从抽取面消失（证明本族的锚不是恒真）',
+	engineFamiliesOf(renamedChk).has('chk') === false);
 const renamed = readFileSync(ENGINE, 'utf8').replace(/const cx = \/\^codex:\(\.\+\)\$\/\.exec\(k\);/, 'const cx = /^codexX:(.+)$/.exec(k);');
 t('② 能假证明：把引擎侧 `codex:` 族改名 ⇒ 格 ① 的"六族全中"**当场红** ✗（证明它不是恒真格 ✓）',
 	engineFamiliesOf(renamed).has('codex') === false);

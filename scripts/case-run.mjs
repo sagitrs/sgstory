@@ -100,6 +100,10 @@ export const expectViolations = ({ expect = {}, seen = {} } = {}) => {
 	return out;
 };
 
+/** `#1267`（预审 ⑤）：**页面未捕获异常 → 该例的判据问题**（纯函数 → 能假）。
+ * 为什么单列：`uncaught` 是「页面坏了」的唯一信号；收集了却无人消费 → 页面抛错仍可能判绿（假绿）。 */
+export const runtimeProblems = (seen) => (seen?.uncaught ?? []).map((u) => ({ kind: 'uncaught', want: String(u).slice(0, 200) }));
+
 // ── 驱动面（jsdom；只在真跑时用 → 动态 import，缺依赖时给明说而不是崩）──────
 
 const drive = async (c) => {
@@ -147,8 +151,8 @@ export const runCase = async (c) => {
 			verdict: 'unattributed', exit: 1 };
 	}
 	// `#1267`（预审 ⑤）：**页面未捕获异常 → 该例判红并点名**（  不得删掉收集 —— 它是"页面坏了"的唯一信号）。
-	if ((seen.uncaught ?? []).length) {
-		return { ...c, problems: (seen.uncaught ?? []).map((u) => ({ kind: 'uncaught', want: String(u).slice(0, 200) })),
+	if (runtimeProblems(seen).length) {
+		return { ...c, problems: runtimeProblems(seen),
 			ticket: c.ticket ?? null, ticketState: await ticketStateOf(c.ticket ?? null),
 			verdict: 'unattributed', exit: 1 };
 	}
@@ -162,16 +166,19 @@ export const runCase = async (c) => {
 const main = async () => {
 	const args = parseArgs(process.argv.slice(2));
 	const casesDir = resolveCasesDir(args);
+	// `#1267`（预审 ④）：**`--json` 时人读行改走 stderr，stdout 只出 JSON**
+	//（否则 14 行人读文本 ＋ 末行 JSON → 消费方 `--json | jq .` 直接失败、与"CI 用"不符）。
+	const say = (...a) => (args.json ? console.error : console.log)(...a);
 	//   两条硬要求：① 打印解析出的 cases 根（实际值）；② "根不存在"与"存在但零用例"**必须分开**
-	console.log(`用例根（解析值）：${casesDir}`);
-	console.log(`故事根（生效值）：${STORIES_DIR}`);
+	say(`用例根（解析值）：${casesDir}`);
+	say(`故事根（生效值）：${STORIES_DIR}`);
 	if (!existsSync(casesDir)) {
 		console.error(`✗ 用例根不存在：${casesDir}（**出声**，不静默 rc=0 —— 否则路径写错会被当"没用例"假绿）`);
 		process.exit(1);
 	}
 	const found = discoverCases(casesDir, args);
 	if (!found.length) {
-		console.log('○ 零用例：该用例根下没有匹配的用例 ⇒ 本次未跑（rc=0，已明说）');
+		say('○ 零用例：该用例根下没有匹配的用例 ⇒ 本次未跑（rc=0，已明说）');
 		if (args.json) console.log(JSON.stringify({ casesDir, storiesDir: STORIES_DIR, summary: { total: 0, green: 0, expectedGap: 0, unattributed: 0, stale: 0, exit: 0 }, results: [] }));
 		process.exit(0);
 	}
@@ -181,13 +188,13 @@ const main = async () => {
 		const r = await runCase(c);
 		results.push(r);
 		const tag = { green: '✔', 'expected-gap': '○ 预期缺口', unattributed: '✗ 未归因', 'stale-attribution': '✗ 陈旧归因' }[r.verdict];
-		console.log(`${tag} ${r.id}${r.ticket ? ` ${r.ticket}` : ''}${r.verdict === 'stale-attribution' ? '（归因票已关但用例仍红 ⇒ 复查并补 closed_by）' : ''}`);
-		for (const p of r.problems) console.log(`    ✗ ${p.kind}: ${p.want}${p.got !== undefined ? `（实得 ${p.got}）` : ''}`);
+		say(`${tag} ${r.id}${r.ticket ? ` ${r.ticket}` : ''}${r.verdict === 'stale-attribution' ? '（归因票已关但用例仍红 ⇒ 复查并补 closed_by）' : ''}`);
+		for (const p of r.problems) say(`    ✗ ${p.kind}: ${p.want}${p.got !== undefined ? `（实得 ${p.got}）` : ''}`);
 	}
 	const sum = summarize(results);
 	// **汇总行每次都要打**（哪怕全绿）
-	console.log(`用例 ${sum.total} 条：绿 ${sum.green} ｜ 预期缺口 ${sum.expectedGap}（${results.filter((r) => r.verdict === 'expected-gap').map((r) => r.ticket).join(',') || '—'}）｜ 未归因 ${sum.unattributed} ｜ 陈旧归因 ${sum.stale} ⇒ rc=${sum.exit}`);
-	if (results.some((r) => r.ticketState === 'unknown')) console.log('  · 提示：有归因票的**状态未能核实**（无 GH_TOKEN 或查询失败）⇒ 按"未关"处理，不据此判红');
+	say(`用例 ${sum.total} 条：绿 ${sum.green} ｜ 预期缺口 ${sum.expectedGap}（${results.filter((r) => r.verdict === 'expected-gap').map((r) => r.ticket).join(',') || '—'}）｜ 未归因 ${sum.unattributed} ｜ 陈旧归因 ${sum.stale} ⇒ rc=${sum.exit}`);
+	if (results.some((r) => r.ticketState === 'unknown')) say('  · 提示：有归因票的**状态未能核实**（无 GH_TOKEN 或查询失败）⇒ 按"未关"处理，不据此判红');
 	// `#1267`（预审 ④）：`--json` **实现**（CI／接续器要用；不许 usage 有而实现无）。
 	if (args.json) {
 		console.log(JSON.stringify({

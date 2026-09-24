@@ -277,6 +277,8 @@ const main = () => {
 	try { baseFiles = execSync(`git ls-tree -r --name-only ${BASE}`, { encoding: 'utf8' }).split('\n'); } catch { baseFiles = []; }
 	// 工作区侧：**默认故事作用域**（引擎 ∪ 默认故事清单）；基线侧：基线树里的 `*.twee`（与工作区交集之外的交给 `inputProblems` 报）
 	const SLUG = (flagVal('story', DEFAULT_SLUG) || DEFAULT_SLUG);
+	// `#1261` zero-story: no story to scope; skip explicitly instead of crashing.
+	if (!SLUG) { console.log('  #1261 zero-story mode: no story -> ui-migration-diff skipped'); return; }
 	const scopeNames = new Set(scopedFiles(readStory(SLUG)));      // `#619`：按指定故事取文件集（不再是恒取默认故事）
 	const SRC = sourceFiles(baseFiles.filter((f) => !f.includes('stories/') || scopeNames.has(f)), Object.fromEntries(Object.entries(MODULES).filter(([k]) => scopeNames.has(k))));
 

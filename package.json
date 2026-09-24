@@ -11,7 +11,6 @@
 		"check:deauth": "node test/attribution-gate.mjs",
 		"check:npm-entries": "node scripts/check-npm-entries.mjs",
 		"serve": "python3 -m http.server 8000 --directory dist",
-		"editor": "node scripts/serve-editor.mjs",
 		"watch": "node --watch --watch-path=src build.mjs",
 		"audit": "node scripts/audit.mjs",
 		"report:rhythm": "node scripts/report-rhythm.mjs",

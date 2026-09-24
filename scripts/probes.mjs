@@ -435,25 +435,6 @@ export const PROBES = [
 		why: '量的是「**优势筹码只给优势、不完成诉求**」那一支真的在守（把 `applyAskEffect` 补回 `adv` 分支  门必红并点名 ）—— 否则 `#360` 那类"UI 标了优势、实际走免检"会静默回来 ',
 	},
 	{
-		// `#1033`：编辑器入口那条 —— 刀＝把**服务根**从"仓根"改成 `editor/web`。
-		//注意：为什么这把刀对：它正打在**本票的关键读数**上（`app.mjs` 跨目录 import `../lib/core/**` →
-		// 根必须是仓根）；改小根 → 那个跨目录资源 404 → 测试件的"**跨目录可达**"那格**确定性**变红
-		//（不靠并发/时序 —— 本仓刚被那类判据咬过两次）。
-		//注意：不需要 `rebuild`：被测面是 **scripts/** 的运行时行为（不编译进产物）。
-		//注意：被测件在 `scripts/**` → 与 `cmdNeedsProducts` 无关（该件不引 `boot.mjs`）→ `pre: []`。
-		id: 'test/serve-editor.mjs',
-		tier: 'fast',
-		pre: [],
-		cmd: 'node test/serve-editor.mjs',
-		mutation: {
-			file: 'scripts/serve-editor.mjs',
-			find: "export const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\\/$/, '');",
-			replace: "export const ROOT = fileURLToPath(new URL('../editor/web', import.meta.url)).replace(/\\/$/, '');   // 探针：把服务根改小  跨目录那格必红 ",
-		},
-		expect: { rc: 1, stdout: /跨目录/ },
-		why: '量的是「编辑器入口**真的以仓根为服务根**（＝页面能跑起来）」那一手在守（把根改小  `app.mjs` 跨目录 import 的资源取不到  测试件必红并点名"跨目录" ）—— 否则"能开"与"看着像能开"会混为一谈 ',
-	},
-	{
 		// `#1020`：条件键形门（**条件位/授予位**的键形必须引擎真能求值）。
 		// 刀＝把夹具里一处**授予位**的 `n_tav_tips` 改回 `note:n_tav_tips` —— 正是修复前的形状。
 		//注意：锚必须**唯一**：`"yield": "n_tav_tips"` 在数据里**恰好 1 处**（裸 `"n_tav_tips"` 有 5 处 → 会命中多处而报"锚不唯一"，实测）。

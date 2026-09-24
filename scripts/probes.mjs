@@ -299,12 +299,15 @@ export const PROBES = [
 		tier: 'fast',
 		pre: [],
 		cmd: 'node test/plan-needs.mjs',
+		// `#1315`：旧刀指向的段（`test-lint-scratch-mjs` / `test-lint-story-mjs`）已随 `#1261` 下架
+		// => `find` 找不到、刀失效（探针会静默变成"什么都没切"）。改刀为：往 `SEGMENTS` 里**注入一个缺 `mutates` 的独占段**
+		// => 本门的「独占段必须声明 mutates」格当场红并点名（与旧刀同为**静态锚**，确定性有效）。
 		mutation: {
 			file: 'scripts/test-plan.mjs',
-			find: "needs: ['build-mjs', 'test-lint-story-mjs'], cmd: \"node test/lint-scratch.mjs\"",
-			replace: "needs: ['build-mjs'], cmd: \"node test/lint-scratch.mjs\"",
+			find: 'export const SEGMENTS = [',
+			replace: 'export const SEGMENTS = [\n\t{ id: "__probe-exclusive__", phase: "test", cost: 0, exclusive: true, mutates: [], cmd: "true" },',
 		},
-		expect: { rc: 1, stdout: /缺 needs 依赖|边表端点/ },
+		expect: { rc: 1, stdout: /独占段必须声明 mutates/ },
 		why: '量的是「`test-lint-scratch-mjs` 对 `test-lint-story-mjs` 的产物依赖边**真的在册**」（删边  并发跑器不再保证相序  同波读到半成品  假红回归 `#1044` ）—— 否则这条边只活在注释里 ',
 	},
 	{

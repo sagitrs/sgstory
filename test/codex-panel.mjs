@@ -61,8 +61,21 @@ const read = async () => {
 	try {
 		productHasDecl = readFileSync(join(WORK, 'dist/stories', SLUG, 'index.html'), 'utf8').includes('黄铜钥匙');
 	} catch { /* 读不到就是 false */ }
+	// `#1308`：**两个源**的读数（判 `items()` 里 `?? Game.Codex.items` 那支是不是历史残留）
+	const src = (() => {
+		try {
+			const f = w.Sg?.story?.codexItems;
+			const viaStory = typeof f === 'function' ? f() : null;
+			const viaGame = w.Game?.Codex?.items ?? null;
+			return {
+				hasStoryFn: typeof f === 'function',
+				storyNames: viaStory ? Object.keys(viaStory) : null,
+				gameNames: viaGame ? Object.keys(viaGame) : null,
+			};
+		} catch (e) { return { err: String(e?.message ?? e).slice(0, 60) }; }
+	})();
 	try { w.close(); } catch { /* 已关 */ }
-	return { panel: !!panel, inPassages, contained, text, productHasDecl };
+	return { panel: !!panel, inPassages, contained, text, productHasDecl, src };
 };
 
 if (!existsSync(FX)) {
@@ -94,6 +107,13 @@ if (SELF) {
 		clean();
 		const b2 = build();
 		t('③ 前置：空声明后仍能构建', b2.status === 0, String(b2.status));
+		// ★ 前置断言（与 `chk-source` 同规）：**先验产物里已无该条目** ⇒ 才算"负态真生效"，
+		//   否则读数无效（分不清"负态没进构建"与"真行为"）。
+		const prodHas = (() => {
+			try { return readFileSync(join(WORK, 'dist/stories', SLUG, 'index.html'), 'utf8').includes('黄铜钥匙'); }
+			catch { return true; }
+		})();
+		t('③ 前置：产物里**已无**该条目（证明空声明真进了构建）', prodHas === false);
 		neg = await read();
 	} finally {
 		copyFileSync(BAK(TABLES), TABLES);                                    // ✗ 不用 git checkout；用 cp bak
@@ -101,6 +121,7 @@ if (SELF) {
 		clean();
 		build();
 	}
+	console.log('      两源读数（负态）：%s', JSON.stringify(neg?.src ?? null));
 	t('③ 空声明 ⇒ **面板仍在**（与"没实现"两态可分）', neg?.panel === true);
 	t('③ 空声明 ⇒ 面板含空态文案', String(neg?.text ?? '').includes(EMPTY_TEXT), String(neg?.text ?? '').slice(0, 60));
 	t('③ 且期望文本**不再**出现（真的换了态）', !String(neg?.text ?? '').includes(LABEL));

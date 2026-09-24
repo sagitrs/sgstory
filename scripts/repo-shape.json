@@ -19,7 +19,6 @@
 		{ "name": "editor", "why": "编辑器内核与宿主（编译、判据、Web 面）" },
 		{ "name": "scripts", "why": "门、报告、审计与测试跑器" },
 		{ "name": "src", "why": "引擎件（`*.twee`，加载顺序见 module-order）" },
-		{ "name": "stories", "why": "故事包（每故事一个目录 ＋ `00-story.json` 清单）" },
 		{ "name": "test", "why": "测试与自证件" },
 		{ "name": "vendor", "why": "第三方资产（霞鹜文楷字体、Twine 格式件）" }
 	]

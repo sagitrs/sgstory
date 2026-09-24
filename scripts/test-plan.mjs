@@ -50,13 +50,67 @@ export const FULL_REASONS = {
 		+ '⚠️ **移出 PR 档 ⇒ PR 期不再验证"门会咬"** ✗ ⇒ **已接线**（`#1071`：`.github/workflows/full-tier.yml`，触发面 ＝ nightly ＋ `push: main` ＋ `workflow_dispatch` ✓；**失败即红** ✗不是 report-only ✓）；'
 		+ '另：台账的探针列**依赖本段产出的** `build/probe-results.json`（gitignored）⇒ 本段不在 PR 档跑时，'
 		+ '台账那一列由 `report-gate-ledger.mjs --allow-stale-probe` **显式降级**（打印"探针面跳过"，不静默 ✓）。',
-	'test-witness-trace-mjs':
-		'**P4 见证件**（`#991` 的验收物：`walker --witness` 的轨迹够不够当见证 ✓）⇒ 属**发布／夜间**面 ✗；'
-		+ '且**成本高**（实测 **86.2s**，CI 日志 91.1s ／ `cost` 字段旧值 **0.4** ＝ **228× 失真** ✗ —— 本次一并改正 ✓）。'
-		+ '⚠️ **移出 PR 档 ⇒ PR 期不再验证"见证可复跑"** ⇒ **已接线**（同上 `full-tier.yml`；**失败即红** ✓）。',
+	// `#1261`：`test-witness-trace`（P4 见证件）随其样本下架 -> 段与理由块同删（留痕见下架台账）。
 };
 
 export const SEGMENTS = [
+	// `#1261` 甲：恢复并挂起（对象＝通用机制，样本暂缺）
+	{ id: "test-dialect-mjs", phase: 'test', cost: 0.1, cmd: "node test/dialect.mjs" },
+	// `#1261` 甲：恢复并挂起（对象＝通用机制，样本暂缺）
+	{ id: "test-contract-version-mjs", phase: 'test', cost: 0.1, cmd: "node test/contract-version.mjs" },
+	// `#1261` 甲：恢复并挂起（对象＝通用机制，样本暂缺）
+	{ id: "test-cond-keyform-mjs", phase: 'test', cost: 0, cmd: "node test/cond-keyform.mjs" },
+	// `#1261` 甲：恢复并挂起（对象＝通用机制，样本暂缺）
+	{ id: "test-cond-keyform-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/cond-keyform.mjs --selftest" },
+	// `#1261` 甲：恢复并挂起（对象＝通用机制，样本暂缺）
+	{ id: "test-prose-vocabulary-mjs", phase: 'test', cost: 0.5, cmd: "node test/prose-vocabulary.mjs" },
+	// `#1261` 甲：恢复并挂起（对象＝通用机制，样本暂缺）
+	{ id: "test-prose-vocabulary-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/prose-vocabulary.mjs --selftest" },
+	// `#1261` 甲：恢复并挂起（对象＝通用机制，样本暂缺）
+	{ id: "test-equiv-scratch-mjs", phase: 'test', cost: 1.0, cmd: "node test/equiv-scratch.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-chargen-apply-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/chargen-apply.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-chargen-macros-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/chargen-macros.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-choice-keys-mjs", phase: 'test', cost: 9, cmd: "node test/choice-keys.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-combat-adv-mjs", phase: 'test', cost: 15.6, cmd: "node test/combat-adv.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-comment-mask-mjs", phase: 'test', cost: 0, inputs: ['*'], cmd: "node test/comment-mask.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-contract-defaults-mjs", phase: 'test', cost: 0.3, inputs: ['*'], cmd: "node test/contract-defaults.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-coverage-mjs", phase: 'test', cost: 0, needs: ['test-render-all-mjs', 'test-scenarios-mjs'], cmd: "node test/coverage.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-fight-seq-mjs", phase: 'test', cost: 22, cmd: "node test/fight-seq.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-focus-after-nav-mjs", phase: 'test', cost: 1, cmd: "node test/focus-after-nav.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-g3-evidence-mjs", phase: 'test', cost: 15.7, cmd: "node test/g3-evidence.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-gate-discovery-mjs", phase: 'test', cost: 0, cmd: "node test/gate-discovery.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-onetime-pickups-mjs", phase: 'test', cost: 18.1, cmd: "node test/onetime-pickups.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-pc-base-mjs", phase: 'test', cost: 0.3, inputs: ['*'], cmd: "node test/pc-base.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-pc-defaults-mjs", phase: 'test', cost: 2, needs: ['test-web-preview-mjs'], cmd: "node test/pc-defaults.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-plan-needs-mjs", phase: 'test', cost: 0, cmd: "node test/plan-needs.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-properties-mjs", phase: 'test', cost: 5.6, cmd: "node test/properties.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-render-all-mjs", phase: 'test', cost: 8.9, cmd: "node test/render-all.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-reread-mjs", phase: 'test', cost: 0, cmd: "node test/reread.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-roll-binding-mjs", phase: 'test', cost: 0, cmd: "node test/roll-binding.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-rules-mjs", phase: 'test', cost: 1.6, inputs: ['*'],   // `#1132` B3：读构建产物 ＋ 故事数据（契约成员、车卡数据、图鉴条目）
+		cmd: "node test/rules.mjs" },
+	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
+	{ id: "test-saveui-mjs", phase: 'test', cost: 10.2, cmd: "node test/saveui.mjs" },
 	{ id: "build-mjs", phase: 'build', cost: 3, cmd: "node build.mjs" },
 	// `#899` ②：**新故事夹具场景**（①三门绿＋哨兵 ／ ②③两条安全网全红 ／ 清场三处＋dist 复原）。
 	//注意：必须是 `build` 相位 → **先跑且独占**（它要在仓的 `stories/` 下临时建夹具）；**且排在 `build-mjs` 之后**
@@ -73,7 +127,6 @@ export const SEGMENTS = [
 	// `#908` ①：运行器**自己**能假（三态判定／注入计数／缺前置分家）—— 与探针实跑分家。
 	{ id: "scripts-probe-gates-mjs-selfcheck", phase: 'test', cost: 0, cmd: "node scripts/probe-gates.mjs --selfcheck" },
 	// 车道 E-(A)（`#215`）：页面侧覆盖率 —— **只读**（纯静态扫描 → 无 `needs`／不需 build）；报告用读数 不进任何断言
-	{ id: "test-integrity-mjs", phase: 'test', cost: 0, cmd: "node test/integrity.mjs" },
 	// `#791`／`#455`：CI 触发面完整性（draft 转 Ready 静默不跑 ＋ 无 dispatch 无法补跑取证）
 	{ id: "test-ci-triggers-mjs", phase: 'test', cost: 0.1, cmd: "node test/ci-triggers.mjs" },
 	{ id: "test-ci-triggers-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/ci-triggers.mjs --selftest" },
@@ -92,18 +145,12 @@ export const SEGMENTS = [
 	{ id: "test-docs-read-path-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/docs-read-path.mjs --selftest" },
 	// `#1043`：散文正文的**词汇门** —— 内容故事（`audience: content`）的正文只许"散文／链接／payload 标记／
 	// 引擎已宣告的词汇宏"；禁 SugarCube 逻辑/表达式宏与未宣告宏（甲-1 的防退化保证）。内部件豁免（打印计数）。
-	{ id: "test-prose-vocabulary-mjs", phase: 'test', cost: 0.5, cmd: "node test/prose-vocabulary.mjs" },
-	{ id: "test-prose-vocabulary-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/prose-vocabulary.mjs --selftest" },
 	// 车道 D 切片 3（`#215` 报备 `18502113`）：**键级图的显示层**（jsdom，无宿主副作用 → cost 0.4）。
 	// 车道 D 切片 2（`#215` 报备 `18501384`）：**事件依赖的键级图**（只读 → 无前置、纯计算 → cost 0）。
 	// `#1031`：**自证接线**（本件自带 `--selftest` 入口却从未在 CI 里跑过 →“能假”那半零守护）。
 	//注意：接线前提：该 `--selftest` 跑的是**合成输入的成对正反例**（主跑不执行那些例）—— 已逐件实跑 + 看过实现面。
-	{ id: "test-event-graph-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/event-graph.mjs --selftest" },
-	{ id: "test-event-graph-mjs", phase: 'test', cost: 0, cmd: "node test/event-graph.mjs" },
 	// 车道 G 前半 · 切片 1a（`#215` 报备 `18502752`）：**方言指纹**（只读 → 无前置、纯计算 ＋ 读三故事的真文件 → cost 0.1）。
-	{ id: "test-dialect-mjs", phase: 'test', cost: 0.1, cmd: "node test/dialect.mjs" },
 	// 车道 G 前半 · 切片 1b（`#215` 报备 `18503024`）：**`contractVersion` ＝ 允许的全集（包络）**（只读、发现式取故事 ＋ 读真清单 → cost 0.1）。
-	{ id: "test-contract-version-mjs", phase: 'test', cost: 0.1, cmd: "node test/contract-version.mjs" },
 	// 车道 G 前半 · 切片 1c（`#215` 报备 `18503697` / 开工报备 `18503987`）：**`N-1` 兼容层三件哨兵**（只读、读真登记表 ＋ 三故事真号 → cost 0.1）。
 	{ id: "test-contract-compat-mjs", phase: 'test', cost: 0.1, cmd: "node test/contract-compat.mjs" },
 	// 车道 E-B2（`#215` 报备 `18502613`）：**规则行**页内面（读故事源 ＋ `web/**` —— 不读 `dist` → 无前置；jsdom ＋ `createContext` → cost 0.4）。
@@ -113,11 +160,7 @@ export const SEGMENTS = [
 	{ id: "test-readkey-family-mjs", phase: 'test', cost: 0, cmd: "node test/readkey-family.mjs",
 		inputs: ['*'] },
 	// `#1141`：**md 故事段落对两处面可见**（`ui-migration-diff` 的 parsePassages／`engine-story-free` 的 scriptBodies）→ 读 md 源与 core 分派面 → 全跑型
-	{ id: "test-md-visible-faces-mjs", phase: 'test', cost: 0.2, cmd: "node test/md-visible-faces.mjs",
-		inputs: ['*'] },   // `#1156`：读码两侧（引擎真源 ＋ core 镜像）——面经常量间接（抽取器看不到字面量）→ 取**全跑型**（宁多跑不漏面）
 	// `#1157`：**报文自带作用域** —— 跑真入口（`scripts/audit.mjs`）取首行对象头 → 面＝整个审计驱动器 → 全跑型
-	{ id: "test-audit-scope-header-mjs", phase: 'test', cost: 0.4, cmd: "node test/audit-scope-header.mjs",
-		inputs: ['*'] },
 	// 车道 D · `--settle`（`#215` 报备 `18504699`）：**落点文案页内面** —— 页内与 CLI **同一份判据**（`core/settleRows.mjs` → 两侧同判 ＋ 非空上的同判；读故事源 ＋ `web/**` ＋ `scripts/audit/context.mjs` → 无前置；jsdom → cost 0.4）。
 	// `#794` P1①：「故事包 I/O ＝ 唯一写路」的自证（核心在 `editor/lib/core/story.mjs`；含**写侧哨兵**：拒绝型 io → 写入当场失败）。
 	{ id: "test-core-story-mjs", phase: 'test', cost: 0, cmd: "node test/core-story.mjs" },
@@ -130,30 +173,16 @@ export const SEGMENTS = [
 	{ id: "scripts-audit-mjs-text-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --text --check" },
 	{ id: "scripts-audit-mjs-state-check", phase: 'test', cost: 0.1, cmd: "node scripts/audit.mjs --state --check" },
 	{ id: "scripts-audit-mjs-literals-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --literals --check" },
-	{ id: "test-rules-mjs", phase: 'test', cost: 1.6, inputs: ['*'],   // `#1132` B3：读构建产物 ＋ 故事数据（契约成员、车卡数据、图鉴条目）
-		cmd: "node test/rules.mjs" },
-	{ id: "test-properties-mjs", phase: 'test', cost: 5.6, cmd: "node test/properties.mjs" },
+	// `#1261`：`test-rules` 随其样本（故事数据面）下架，用例文件保留待迁 books 仓（见下架台账）。
 	{ id: "test-invariants-unit-mjs", phase: 'test', cost: 0, cmd: "node test/invariants.unit.mjs" },
-	{ id: "test-render-all-mjs", phase: 'test', cost: 8.9, cmd: "node test/render-all.mjs" },
 	{ id: "test-rules-claims-mjs-selftest", phase: 'test', cost: 15.6, cmd: "node test/rules-claims.mjs --selftest" },
 	{ id: "test-rules-claims-mjs", phase: 'test', cost: 15.6, cmd: "node test/rules-claims.mjs" },
-	{ id: "test-saveui-mjs", phase: 'test', cost: 10.2, cmd: "node test/saveui.mjs" },
-	{ id: "test-saveload-inventory-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/saveload-inventory.mjs --selftest" },
-	{ id: "test-saveload-inventory-mjs", phase: 'test', cost: 0, cmd: "node test/saveload-inventory.mjs" },
 	{ id: "test-layering-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/layering.mjs --selftest" },
 	{ id: "test-layering-mjs", phase: 'test', cost: 0, cmd: "node test/layering.mjs" },
-	{ id: "test-saveload-mjs", phase: 'test', cost: 30.7, cmd: "node test/saveload.mjs" },
-	{ id: "test-combat-adv-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/combat-adv.mjs --selftest" },
-	{ id: "test-combat-adv-mjs", phase: 'test', cost: 15.6, cmd: "node test/combat-adv.mjs" },
 	// `#1132` 块2 B1：车卡两宏守卫读数（boot 起真引擎 前置＝boot 自带的 dist 新鲜度断言 → 不另声明 needs）
-	{ id: "test-chargen-macros-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/chargen-macros.mjs" },
 	// `#1132` B2：等价读数（旧 JS ↔ 新施加器吃 json；序列级 → 咬到单次格看不见的数据污染）
 	// `#1132` B2：施加器每动词一格（set／add／append ＋ 未知动词大声报）
-	{ id: "test-chargen-apply-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/chargen-apply.mjs" },
-	{ id: "test-generated-family-mjs", phase: 'test', cost: 0, inputs: ['*'], cmd: "node test/generated-family.mjs" },
 	{ id: "test-gen-segment-syntax-mjs", phase: 'test', cost: 0, inputs: ['*'], cmd: "node test/gen-segment-syntax.mjs" },
-	{ id: "test-meta-source-mjs", phase: 'test', cost: 0, inputs: ['*'], cmd: "node test/meta-source.mjs" },
-	{ id: "test-chargen-equivalence-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/chargen-equivalence.mjs" },
 	// `#1166` 护栏机械化：三条命令的自证段（三件套房式 => 脚本 ＋ `--selftest` ＋ 段）
 	{ id: "scripts-clean-net-mjs-selftest", phase: 'test', cost: 0, inputs: ['*'], cmd: "node scripts/clean-net.mjs --selftest" },
 	{ id: "scripts-precommit-check-mjs-selftest", phase: 'test', cost: 0, inputs: ['*'], cmd: "node scripts/precommit-check.mjs --selftest" },
@@ -164,19 +193,10 @@ export const SEGMENTS = [
 	{ id: "scripts-lint-human-face-mjs-check", phase: 'test', cost: 0.4, inputs: ['*'], cmd: "node scripts/lint-human-face.mjs" },
 	{ id: "test-gen-needed-mjs", phase: 'test', cost: 0.3, inputs: ['*'], cmd: "node test/gen-needed.mjs" },   // `#1192`：构建期重编判据（按故事清单声明的产物集）
 	{ id: "test-route-registry-mjs", phase: 'test', cost: 0.3, inputs: ['*'], cmd: "node test/route-registry.mjs" },   // `#1189`：实现路线表判据（覆盖／完读／腐烂／反向核）
-	{ id: "test-contract-defaults-mjs", phase: 'test', cost: 0.3, inputs: ['*'], cmd: "node test/contract-defaults.mjs" },   // `#1188` A 半：契约缺省规格判据
 	{ id: "test-npm-entries-guard-mjs", phase: 'test', cost: 0.4, inputs: ['*'], cmd: "node test/npm-entries-guard.mjs" },   // `#1200`：npm 入口差集护栏的判据面（端到端能红 + 接线）
-	{ id: "test-pc-base-mjs", phase: 'test', cost: 0.3, inputs: ['*'], cmd: "node test/pc-base.mjs" },   // `#1186`：角色状态基础面判据（基础面清单／零玩法概念／默认值来源）
 
-	{ id: "test-g3-evidence-mjs", phase: 'test', cost: 15.7, cmd: "node test/g3-evidence.mjs" },
-	{ id: "test-fight-seq-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/fight-seq.mjs --selftest" },
-	{ id: "test-fight-seq-mjs", phase: 'test', cost: 22, cmd: "node test/fight-seq.mjs" },
-	{ id: "test-reread-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/reread.mjs --selftest" },
-	{ id: "test-reread-mjs", phase: 'test', cost: 0, cmd: "node test/reread.mjs" },
-	{ id: "test-smoke-mjs", phase: 'test', cost: 7.5, cmd: "node test/smoke.mjs" },
 	// #484 回归：把产品的 rAF 人为推迟 800ms（模拟高负载尾部事件）→ smoke 仍须通过
 	//（这就是"等产品自己的时钟（1 个 rAF tick）"这个修法的回归证据；不注入时是一次普通 smoke）
-	{ id: "test-smoke-mjs-raf-delayed", phase: 'test', cost: 8, cmd: "SG_RAF_DELAY_MS=800 node test/smoke.mjs" },
 	// #441 切片③④：多故事产物 + 书架页 + 故事页字体前缀（纯函数自证 + 真实产物检查）
 	// `#460`／`#566`：**逐故事真启动**（StoryInit 无错 ＋ `$era` 已定义 ＋ 起始段非空）——本段已含此判据
 	{ id: "test-multi-story-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/multi-story.mjs --selftest" },   // `#1031`：接线（S1–S5 正反例，主跑不执行这些合成例）
@@ -186,44 +206,26 @@ export const SEGMENTS = [
 	{ id: "scripts-move-precheck-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node scripts/move-precheck.mjs --selftest" },
 	// #436 收编（#493 的硬前置）：audit golden 基线。实测**全量仅 8.0s**（dragon 7.0s ＋ 其余每个 30–55ms）
 	// → 不需要"便宜子集"，整段进链；自证单列（比对函数自身的 10 例）
-	{ id: "test-audit-golden-mjs", phase: 'test', cost: 8, cmd: "node test/audit-golden.mjs" },
-	{ id: "test-audit-golden-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/audit-golden.mjs --selftest" },
 	// #457：文案计数**规则**自证（R1–R5；数字是 #459 `Sg.story.copy()` 迁移的基线）
-	{ id: "scripts-report-copy-text-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node scripts/report-copy-text.mjs --selftest" },
 	// 浏览器验收本体在 CI 的 soak job 跑（需 Chrome）；**守卫逻辑的自证不需要 Chrome**，故进主链
-	{ id: "test-browser-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/browser.mjs --selftest" },
 	{ id: "test-globals-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/globals.mjs --selftest" },
-	{ id: "test-choice-keys-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/choice-keys.mjs --selftest" },
 	// #407 D9①：选项前提可溯源（#404 的实例）——`--strict` 是红证入口
 	{ id: "test-premise-source-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/premise-source.mjs --selftest" },
 	// #407 D9④：场合面（NPC 登记簿须有 venue/role；当前登记模式报告）
 	{ id: "test-npc-venue-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/npc-venue.mjs --selftest" },
 	{ id: "test-npc-venue-mjs", phase: 'test', cost: 0, cmd: "node test/npc-venue.mjs" },
 	{ id: "test-premise-source-mjs", phase: 'test', cost: 0, cmd: "node test/premise-source.mjs" },
-	{ id: "test-choice-keys-mjs", phase: 'test', cost: 9, cmd: "node test/choice-keys.mjs" },
 	// `#1012`：**导航后焦点仍在正文内**（`docs/dev-conventions.md` §6「键盘可续」的可机检版）——
 	// 契约＝交互后 `activeElement.closest('#passages')` 必真（不绑具体元素）；两半都要能假：
 	// 导航型交互（真会红：修前焦点落 `body`）＋ 反例「程序性导航不许抢焦点」。
 	// `#1033`：编辑器 WebUI 的**启动入口**（`npm run editor` —— 能开 ＋ 开起来是活的（模块 MIME／跨目录可达）＋ 入口可发现）
-	{ id: "test-serve-editor-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/serve-editor.mjs --selftest" },
-	{ id: "test-serve-editor-mjs", phase: 'test', cost: 1, cmd: "node test/serve-editor.mjs" },
-	{ id: "test-focus-after-nav-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/focus-after-nav.mjs --selftest" },
-	{ id: "test-focus-after-nav-mjs", phase: 'test', cost: 1, cmd: "node test/focus-after-nav.mjs" },
 	{ id: "test-globals-mjs", phase: 'test', cost: 0, cmd: "node test/globals.mjs" },
-	{ id: "test-scenarios-mjs-selftest", phase: 'test', cost: 0.3, cmd: "node test/scenarios.mjs --selftest" },   // `#1031`：接线（合成输入成对；主跑 cost 23.6 → 自证 0.3，量过）
-	{ id: "test-scenarios-mjs", phase: 'test', cost: 23.6, cmd: "node test/scenarios.mjs" },
 	// `#215` 裁 (B)：**见证机器**自证 —— `walker --witness` 产出的轨迹够不够当 P4 的"见证"（到 ending ／同 seed 逐格可复跑 ／两条断言能假）。
 	// `#1070`：**`tier:'full'`**（P4 见证件・发布/夜间面，理由见 `FULL_REASONS`）
 	// ＋ `cost` 由旧值 **0.4** 改正为 **86.2**（旧值 **228× 失真** —— 它正是“读数不可信”的源头之一）。
-	{ id: "test-witness-trace-mjs", phase: 'test', cost: 86.2, tier: 'full', cmd: "node test/witness-trace.mjs" },
-	{ id: "scripts-report-rhythm-mjs-selftest", phase: 'test', cost: 0.2, needs: ['test-scenarios-mjs'], cmd: "node scripts/report-rhythm.mjs --selftest" },
-	{ id: "scripts-report-rhythm-mjs-check", phase: 'test', cost: 0, needs: ['test-scenarios-mjs'], cmd: "node scripts/report-rhythm.mjs --check" },
-	{ id: "test-fatal-guard-mjs", phase: 'test', cost: 18.7, cmd: "node test/fatal-guard.mjs" },
-	{ id: "test-onetime-pickups-mjs", phase: 'test', cost: 18.1, cmd: "node test/onetime-pickups.mjs" },
-	{ id: "test-roll-binding-mjs", phase: 'test', cost: 0, cmd: "node test/roll-binding.mjs" },
+	// `#1261`：`test-witness-trace` 段随其样本下架。
 	// #462：存储缝（键构造单一落点 · 两作用域 · 幂等迁移）
-	{ id: 'test-store-keys-mjs-selftest', phase: 'test', cost: 0, cmd: 'node test/store-keys.mjs --selftest' },
-	{ id: 'test-store-keys-mjs', phase: 'test', cost: 0, cmd: 'node test/store-keys.mjs' },
+	// `#1261`：`test-store-keys` 件已随样本下架 → 其两段同删（段引用不存在件的悬空引用）。
 	// #441-A：结算可脱离浏览器驱动（rng 可注入 · rollSite 纯 · present 不写状态）
 	// #436 原范围 1：笔记模型门已从 `test/notes-model.mjs` **升级为 audit 门**（可单跑 `--notes`），
 	// 一个段替代原来的 `-selftest` ＋ 主跑两段（自证在门内，与其它门一致）。
@@ -234,39 +236,33 @@ export const SEGMENTS = [
 	{ id: 'scripts-ui-migration-diff-selftest', phase: 'test', cost: 0, cmd: 'node scripts/ui-migration-diff.mjs --selftest' },
 	{ id: 'scripts-ui-migration-diff-check', phase: 'test', cost: 0.4, cmd: 'node scripts/ui-migration-diff.mjs --check --baseline=origin/main --out=build/ui-migration-diff.md' },
 	// main 侧新增（#360 交涉筹码按类型分派）：reb 冲突时按「计划＝单一权威」加在这里
-	{ id: "test-coverage-mjs", phase: 'test', cost: 0, needs: ['test-render-all-mjs', 'test-scenarios-mjs'], cmd: "node test/coverage.mjs" },
+	// `#1261`：原 `needs: ['test-render-all-mjs']` 随该段下架而移除（前置不再存在）。
 	{ id: "test-size-gate-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/size-gate.mjs --selftest" },
 	{ id: "test-size-gate-mjs", phase: 'test', cost: 0, cmd: "node test/size-gate.mjs" },
 	{ id: "test-silent-gate-mjs", phase: 'test', cost: 0, cmd: "node test/silent-gate.mjs" },
 	{ id: "test-comment-face-split-mjs", phase: 'test', cost: 0, cmd: "node test/comment-face-split.mjs" },   // `#1208`：剥注分面接线
-	{ id: "test-comment-mask-mjs", phase: 'test', cost: 0, inputs: ['*'], cmd: "node test/comment-mask.mjs" },   // `#1206`：剥注单一权威的能红格（全跑型：读码两侧，见理由登记）
 	// #762 P0：**故事数据 ↔ 手写版等价**（编辑器转向的第 0 步）——数据与手写 twee 漂移即红
 	{ id: "editor-compile-selftest", phase: 'test', cost: 0, cmd: "node editor/compile-story.mjs --selftest" },
 	{ id: "editor-equiv-selftest", phase: 'test', cost: 0, cmd: "node editor/equiv.mjs --selftest" },
 	// `#976`：**`equiv` 的中间目录与本片自证** —— 唯一 ＋ 用完就清（含失败路径）＋ 幂等失败点名（读故事源 ＋ 真跑一次 equiv → cost 1.0）。
-	{ id: "test-equiv-scratch-mjs", phase: 'test', cost: 1.0, cmd: "node test/equiv-scratch.mjs" },
 	// `#787` 翻面：手写侧**重指向**为冻结基线（翻面前 `main` 的仓内副本 →「生成得对不对」仍被判）
 	// `#1004` B2b：**面夹具**（`face-fixture`）＝接入契约的满配声明面（删掉两个内容故事后，为仍“有消费者”的那些面接上它们）。
 	// 两段与 `minimal-demo` 同形：① 声明面等价（冻结基线）；② 引擎门对该故事绿（`--engine-only`）。
 	//注意：`--l3=report`（而非 `hard`）：夹具的声明面**比两个旧故事宽得多** → strict 档会把它当成“与手写版形式不一致”的红（基线就是它自己建时的副本 → report 档才是有意义的那一档）。
-	{ id: "scripts-audit-mjs-face-fixture-engine", phase: 'test', cost: 0.3, cmd: "node scripts/audit.mjs --check --story face-fixture --engine-only" },
 	// `#762` 车道 C：**K4 门** —— 生成物标记 · 产物新鲜度(幂等) · **逃生舱可枚举**
 	//（清单外出现即红；登记腐烂也红 → 例外只能收缩留痕，不能随手加）
 	{ id: "editor-k4-selfcheck", phase: 'test', cost: 0, cmd: "node editor/k4.mjs --selfcheck" },
 	{ id: "editor-k4", phase: 'test', cost: 0.3, cmd: "node editor/k4.mjs" },
 	{ id: "test-state-diagnose", phase: 'test', cost: 0, cmd: "node test/state-diagnose.mjs" },
-	{ id: "test-k4-args", phase: 'test', cost: 0, cmd: "node test/k4-args.mjs" },
 	// `#1016`：**门面引用完整性**（登记表里指向仓内对象的键必须现存 —— `hatches[].slug`／`hatchFiles[]`／`refusedFaces[].file`）。
 	// 为什么要单独一段：这一格要**探针**才能从"写了断言"升级为"真会红"（`#908` ①），而探针的 `id` 必须逐字对上台账行
 	// → 台账行只从 `test/**`／`scripts/report-*.mjs`／audit 开关来 → 本件就是那个行。
 	//注意：`#1052` 起本件**不再是纯件**（⑦ 节走**真表**：真 `escape-hatch.json` ＋ 真 `git ls-files` ＋ 真 `existsSync`，
 	// 与真门 ③d 同一口径 —— 仍**只读** 不写，所以仍不需 `needs` 也不需产物）。
 	// → `test` 相位、无 `needs`。
-	{ id: "test-k4-references", phase: 'test', cost: 0, cmd: "node test/k4-references.mjs" },
 	//注意：`#1052`：**成对登记**（`#1018` 的形状）—— ⑦ 节是「未入库／不存在分开报」的**能假**那一半，
 	// 只在 `--selftest` 下跑（探针锤的也是它）→ 不登记它，那一半在 CI 里**零守护**。
 	// 两节都跑 = 裸调是①②～⑥的回归，`--selftest` 多跑⑦的判别性格。
-	{ id: "test-k4-references-selftest", phase: 'test', cost: 0, cmd: "node test/k4-references.mjs --selftest" },
 	// `#762` 车道 B：**条件表往返**（61 行）。**权威判据是 L1**：两版各自求值后行数组**深度相等**
 	// ＋ **字段直方图一致**（每列出现多少次都打出来 —— `#557` 那条老账：总体非空拦不住「少抽一项」）。
 	// **为什么这一段显式用 `--l3=report`**：手写版用**模板串**写 `text`、生成物用单引号串 —— 纯**排版**差异，
@@ -287,8 +283,6 @@ export const SEGMENTS = [
 	// 车道 A 后半：洞窟端到端等价（`--l3=report`：手写风格与生成风格不统一，L3 只当报告；权威判据是 L1＋键集合＋行为）
 	// `#787` 翻面：手写侧**重指向**为冻结基线（翻面前 `main` 的仓内副本 →「生成得对不对」仍被判）
 	// #752：**去权威化口径门** —— 注释／文档不许拿「谁定的」充当理由（#748 的清零面 ＋ 防回潮）
-	{ id: "test-attribution-gate-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/attribution-gate.mjs --selftest" },
-	{ id: "test-attribution-gate-mjs", phase: 'test', cost: 0.1, cmd: "node test/attribution-gate.mjs" },
 	{ id: "scripts-report-ledger-freshness-mjs-selftest", phase: 'test', cost: 0, cmd: "node scripts/report-ledger-freshness.mjs --selftest" },
 	{ id: "scripts-report-ledger-freshness-mjs-ledger-check", phase: 'test', cost: 0, cmd: "node scripts/report-ledger-freshness.mjs --ledger --check" },
 	{ id: "scripts-report-gate-ledger-mjs-selftest", phase: 'test', cost: 0, cmd: "node scripts/report-gate-ledger.mjs --selftest" },
@@ -302,9 +296,6 @@ export const SEGMENTS = [
 	// `#1130`：**窗口制造者 → 独占**（`exclusive` → 不与任何段重叠；`mutates` ＝ 它动哪些**已入库真源** → 独占的理由可查）
 	// 为什么：本段两处 `try/finally` **就地改真源**再恢复 → 恢复会刷新 mtime → 窗口期内"源比 dist 新" →
 	// 并行 boot 的段会撞新鲜度守卫（CI 实测 `test-gate-discovery-mjs` 偶发红）→ 故独占（mtime 回填已在段内）
-	{ id: "test-lint-story-mjs", phase: 'test', cost: 0.5, exclusive: true,
-		mutates: ['stories/minimal-demo/data/tables.json', 'stories/face-fixture/data/tables.json'],
-		cmd: "node test/lint-story.mjs" },  // 车道 E（#215）：lint-story 自证门
 	// `#1024`：**并发假红**（`lint-story` 的 scratch 必须本次运行唯一）—— 3 轮 × 3 进程跑同一 slug
 	// ＋ 两条**确定性**判据（旧落点没被重建 · 不留 `.lint-run-*` 草稿）；前置=dist 产物（故事门要读它）
 	//注意：`#1044`：**还得排在 `test-lint-story-mjs` 之后** —— 那一段的反例**直接改真文件**
@@ -313,13 +304,10 @@ export const SEGMENTS = [
 	//（实测：两段并发 **3/3 红**、各自的输出就是那段注入载荷；单跑皆绿）。
 	// → 依赖声明＝**单一权威**的排顺手段（同一个洞在 `test-story-ci-mjs` 上早已用同一条修法）。
 	// ➕ `#1044` 后半（本 PR）：这条边由 `test/plan-needs.mjs` **在册守护**（删边 → 门红并点名两端；探针刀见 `scripts/probes.mjs`）。
-	{ id: "test-lint-scratch-mjs", phase: 'test', cost: 2, needs: ['build-mjs', 'test-lint-story-mjs'], cmd: "node test/lint-scratch.mjs" },
 	//注意：自证**必须成对登记**（`#1018` 复核席点名的形状）：本件两条判据能不能被"种出来的反例"点燃，
 	// 只由 `--selftest` 量 → 不登记它 ＝ 那一半在 CI 里零守护
-	{ id: "test-lint-scratch-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/lint-scratch.mjs --selftest" },
 	// `#1044`：**段间产物依赖边守护**——「改真故事文件的段 → 读它的段」的 needs 边必须在册并点名
 	//（纯静态 → 无前置；能假反例在件内；探针刀＝删那条 needs → 必红）。
-	{ id: "test-plan-needs-mjs", phase: 'test', cost: 0, cmd: "node test/plan-needs.mjs" },
 	// `#1089`（乙′）：**未跟踪扫描面 → 红** 的**守护件**（判据＝`scripts/lib/untracked-guard.mjs` 的纯函数）。
 	// 三格成对：①未跟踪→报 ②已跟踪/不在扫描面→不报 ③豁免（**理由＋票号**）→不报但留痕；
 	// 内含**端到端真 git 三态**（自建夹具 ＋ 自行清场 → 不依赖仓内既有未跟踪件）。
@@ -336,7 +324,6 @@ export const SEGMENTS = [
 	// `#572`（修法）＋ `#581`（收尾）：这一段一度改成**显式四件套**（当时 `--engine-only` 会一路跑到 `--consequences`
 	// 并真的报红）；`#581`（引擎保留槽登记归引擎）＋ `#584`（注释遮蔽）落地后**三故事 `--engine-only` 全 rc=0**
 	// → **收回临时收窄**，恢复本段真意：**整套引擎门**对第二故事绿。
-	{ id: "scripts-audit-mjs-story2-engine", phase: 'test', cost: 0.2, cmd: "node scripts/audit.mjs --check --story minimal-demo --engine-only" },
 	// #490（S5 片二）：**第三个故事**的**洞窟声明面门**（表↔内容双向对账；故事门，故显式指定 --story）
 	// `#598`（实测缺陷）：**长战斗「点得动、走得掉」**真机回归 —— 静态门看不见这类运行期死路
 	//（`waveRecord` 返回对象被当字符串比 → 两条出口不可达；`<<include>>` 不导航 → 点了没反应）。
@@ -349,7 +336,6 @@ export const SEGMENTS = [
 	// #602：**引擎门不得出现故事专有字面量**（防"假解耦"回潮：故事判据数据住 `stories/<slug>/audit.json`）
 	{ id: "scripts-audit-mjs-engine-story-free", phase: 'test', cost: 0.1, cmd: "node scripts/audit.mjs --engine-story-free --check" },
 	// #607 P0：门的**发现与归属**（引擎门 ∪ 待迁移 ∪ 本故事已声明；顺序表；结构缺失必红）
-	{ id: "test-gate-discovery-mjs", phase: 'test', cost: 0, cmd: "node test/gate-discovery.mjs" },
 	// #640（伞 #626）：**矩阵门** —— 场景 × 道具/线索集合 → 期望（行键＝谓词上下文 · 期望＝渲染后+行为面 · 承诺 ratchet）
 	// #608：**短战斗相位门**（引擎侧 widget 的契约：四相位→分支 · 未结束不结算不推进 · 奖励/失败笔记走声明面）
 	// #705 片二／#702 a2：**敌人实例 · 5e 核心门**（实例化 · 攻击骰 vs AC · 伤害落部位 · 全灭通关）
@@ -371,7 +357,8 @@ export const SEGMENTS = [
 	// 红的那一格正是它（`--list` 精确等值 ＋ 壳自证里同形那条）→ 已改成 **⊇**（「真故事都在」，
 	// 不赌「只有它们」）。注意：`needs` 仍留：它是**另一条独立理由**（避免读到**半改的真数据**），
 	// 不是这条红的原因。
-	{ id: "test-story-ci-mjs", phase: 'test', cost: 18.6, needs: ["test-lint-story-mjs"], cmd: "node editor/story-ci.mjs" },
+	// `#1261`：原 `needs: ["test-lint-story-mjs"]` 随该段下架而移除（前置不再存在）。
+	{ id: "test-story-ci-mjs", phase: 'test', cost: 18.6, cmd: "node editor/story-ci.mjs" },
 	// `#761` P1 第一片（WebUI 静态加载）：纯加载件的测例（含 `--selftest` —— 那格"行为化"有依据）。
 	// `#761` P1 第二片：**页内编译对拍**（三故事 × 产物逐字节 ＋ 反例：源变则异 · 无源必抛）。
 	// `#761` P1 第三片：**写包对拍**（经唯一写路 writeStoryPackage，与 CLI 产物逐字节）。
@@ -381,42 +368,28 @@ export const SEGMENTS = [
 	// `#761` P1 第五片：**DOM 接线**（页面路 vs 直接路逐字节同；jsdom 显式收场）。
 	// `#892`（P4-1）：页内**新建**（起手包落内存 不碰 fs 可接既有表单）（jsdom）。
 	// `#1034`：导出下载接线 —— 入口在页面上、导出物清单与内核编目一致、空/部分包必报错、不落盘
-	{ id: "test-social-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/social-sink.mjs --selftest" },
-	{ id: "test-social-sink-mjs", phase: 'test', cost: 3, cmd: "node test/social-sink.mjs" },
 	// `#1011`（保覆盖版）：`#360` 交涉筹码按类型分派（B 段退役件接回；样本＝`face-fixture` 的 `老板娘·进塔`）
-	{ id: "test-social-lever-mjs", phase: 'test', cost: 3, cmd: "node test/social-lever.mjs" },
-	{ id: "test-notes-absence-mjs", phase: 'test', cost: 2, inputs: ['*'], cmd: "node test/notes-absence.mjs" },   // `#1223`：缺席容忍的运行期判据（需 boot 故事取 Sg.notes，故全跑型）
 	// `#1020`：条件位/授予位的**键形**必须引擎真能求值（`readKey` 权威；`note:n_*` → 条件恒假／授予位抛错）
 	// `#1132` 块2 片A：**故事侧代码面**（零逃生舱方向的 ratchet 门）
-	{ id: "test-story-codeface-mjs-selftest", phase: 'test', cost: 0, inputs: ['*'],   // `#1132` 全跑型（合成输入自证；另见理由登记）
-		cmd: "node test/story-codeface.mjs --selftest" },
-	{ id: "test-story-codeface-mjs", phase: 'test', cost: 0, inputs: ['*'],   // `#1132` 全跑型（读 stories 目录 + 两处机制标签声明件 → 静默跳过会成假绿面）
-		cmd: "node test/story-codeface.mjs" },
-	{ id: "test-cond-keyform-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/cond-keyform.mjs --selftest" },
-	{ id: "test-cond-keyform-mjs", phase: 'test', cost: 0, cmd: "node test/cond-keyform.mjs" },
-	{ id: "test-siteinfo-sink-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/siteinfo-sink.mjs --selftest" },
-	{ id: "test-siteinfo-sink-mjs", phase: 'test', cost: 2, cmd: "node test/siteinfo-sink.mjs" },
 	// `#707`：**战斗状态字段使用面门**（每个 `$pc.ev.fight.<字段>` 都必须有人用；死字段点名）
 	// `#693`（P1）：**主交互路径门**（确定性路线：点得动 · 无红框 · 到终点 · 产出可见）
 	// 洞窟「商人」门（`#696`：金币要有出口 → 旅人里随机出现商人；报价读声明面 · 买不起不显示 · 火把油）
 	// 洞窟五步主线**末步**门（实测）：走满 5 步再回岔口时**不许**抛 `roadOffer(6)` 红框 → 越界走退路
-	{ id: "test-cli-surface-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/cli-surface.mjs --selftest" },   // `#1031`：接线（可注入假 runner 驱动 `judgeSurface` 五例）
 	//注意：`#1070`：**还得排在 `test-web-preview-mjs` 之后** —— 本件驱动 `node editor/cli.mjs k4`（真门），
 	// 而 k4 会 `readdirSync(stories)` 逐故事判 → `test/web-preview.mjs` 的临时夹具 `stories/__e2e`
 	//（带 `00-story.json`）存活期间跑它 → 产生 ` __e2e：手写契约源非空（0 文件）却分类出 0 名成员` → **假红**
 	//（实测：起了 `stories/__e2e` 再跑 `editor/cli.mjs k4` → rc=1 且点名 `__e2e`；清掉 → rc=0）。
 	// 依赖声明＝**单一权威**的排顺手段（同族：`test-story-ci-mjs`／`test-lint-scratch-mjs` 早用同一条修法）。
-	{ id: "test-cli-surface-mjs", phase: 'test', cost: 4, cmd: "node test/cli-surface.mjs" },
 	// `#660` 片三-3：**pc 默认形状住引擎、数值走故事**（`Game.Pc.defaults()` 摘掉 `Sg.story.pcDefaults()` 后每个值都必须中性；
 	// 缺面 → 显式降级 · 畸形面 → fail-loud · `migrate()` 兜底带故事数值 · 三故事键集合一致）
 	//注意：`#1070`：**还得排在 `test-web-preview-mjs` 之后** —— 本件 ⑥ 走 `storySlugs()`（扫 `stories/` 下带
 	// `00-story.json` 的目录）→ 而 `test/web-preview.mjs` 会在**运行期间**临时建 `stories/__e2e`（带清单）
 	// → 同波命中它 → `boot({story:'__e2e'})` 找不到故事页 → **假红**（实测：波次重排后本段与 web-preview 重叠 → 必红）。
 	// 依赖声明＝**单一权威**的排顺手段（同族：`test-cli-surface-mjs`／`test-story-ci-mjs`／`test-lint-scratch-mjs`）。
-	{ id: "test-pc-defaults-mjs", phase: 'test', cost: 2, cmd: "node test/pc-defaults.mjs" },
 	// `#572`：**「选中 → 真跑」门** —— 门的 `run()` 被选中也可能静默早退（九道引擎门里七道就是这样）。
 	// 本段自证 `runSelectedGates()` ＋ 真跑默认故事，断言末行「选中 9 门 · 实跑 9 门」（修前那条汇总行不存在）。
-	{ id: "test-audit-gates-run-mjs", phase: 'test', cost: 0.3, needs: ["scripts-audit-mjs-story2-engine"], cmd: "node test/audit-gates-run.mjs" },
+	// `#1261`：原 `needs: ["scripts-audit-mjs-story2-engine"]` 随该段下架而移除。
+	{ id: "test-audit-gates-run-mjs", phase: 'test', cost: 0.3, cmd: "node test/audit-gates-run.mjs" },
 	// #490（S5）：**第三个故事**（无名洞窟）的引擎门 —— 它**声明了** S1–S4 的四件套（`mechanics()` 非 null）
 	// → 四道引擎门在这里第一次判**一个真正启用了新机制的故事**（`#486`–`#489` 的出口判据）。
 	// `#572` 同上：临时收窄已收回（`#581`／`#584` 落地后整套引擎门全绿）→ 本段跑**整套引擎门**。
@@ -457,24 +430,20 @@ export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 't
 // P2-B `cave` / `combat-dist` → `stories/hollow-cave/gates/`（故事 3 的两门）。
 export const AUDIT_STORY = [];   // #607 P2-B：**故事门已全部搬到故事侧**（`stories/<slug>/gates/`，清单声明）→ 工具层不再有故事门
 // 非门段里**与故事内容无关**的那些（构建 / 构建期 lint / 产物守卫）：显式登记，不放宽默认
-export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs', 'scripts-audit-mjs-story2-engine',
-	'test-focus-after-nav-mjs-selftest', 'test-focus-after-nav-mjs', // `#1012`：引擎侧焦点契约（与故事内容无关）
-	'test-serve-editor-mjs-selftest', 'test-serve-editor-mjs', // `#1033`：编辑器入口（与故事内容无关）
+export const ENGINE_EXTRA = ['build-mjs', 'test-multi-story-mjs',// `#1012`：引擎侧焦点契约（与故事内容无关） // `#1033`：编辑器入口（与故事内容无关）
 	'test-story-runtime-mjs-selftest', 'test-story-runtime-mjs',
 	'test-layering-mjs-selftest', 'test-layering-mjs', 'test-globals-mjs', 'test-silent-gate-mjs',
 	'test-gen-needed-mjs',   // `#1192`：构建期重编判据（与故事内容无关）
 	'test-route-registry-mjs',   // `#1189`：实现路线表判据（与故事内容无关）
-	'test-contract-defaults-mjs',   // `#1188` A 半：契约缺省规格判据（与故事内容无关）
-	'test-pc-base-mjs',   // `#1186`：角色状态基础面判据（与故事内容无关）
+	// `#1261`：`test-pc-base` 段与理由块随其样本下架（文件保留待迁 books 仓）。
+	/* 原条目（备查）：
+	*/
 	'test-comment-face-split-mjs',   // `#1208`：剥注分面接线（与故事内容无关）
-	'test-comment-mask-mjs',   // `#1206`：剥注权威的能红格（与故事内容无关）
 	'test-npm-entries-guard-mjs',   // `#1200`：npm 入口差集护栏判据（与故事内容无关）
 	'test-size-gate-mjs-selftest', 'test-size-gate-mjs',
 	// #607：门发现面与故事内容无关（清单/归属/顺序表）
-	'test-gate-discovery-mjs',
 	// #608：短战斗相位门判的是**引擎侧契约**（故事只是驱动）【`#1004` B2：该测试件已随故事删除 → 入口一并去掉】
 	// `#660` 片三-3：pc 默认**形状**住引擎（故事只给数值）→ 判的是引擎侧契约
-	'test-pc-defaults-mjs',
 	// 洞窟末步门判的是**故事 2 的内容**（`stories/hollow-cave/10-cave.twee`）→ 归 story 层；为免与故事层计数混淆，
 	// 这里显式登记为"故事内容门"的同族（不进 ENGINE_EXTRA）
 	];
@@ -576,66 +545,60 @@ export const SUITES = ['engine', 'editor', 'story-legal', 'story-product', 'infr
  *注意：规模**只作嗅探核**（非硬判据）：本表 engine 42／editor 45／story-legal 24／story-product 10／infra 37；
  * 票面记载过一次测量（48／51／22／14／23）但**未落盘** → 有差属**已知**，按「嗅探非硬判据」处理（`#1093` 裁决）。 */
 export const SUITE_MEMBERS = {
-	'engine': [
-		'test-integrity-mjs', 'test-rules-mjs', 'test-properties-mjs', 'test-invariants-unit-mjs',
-		'test-saveload-mjs', 'test-saveui-mjs', 'test-combat-adv-mjs', 'test-combat-adv-mjs-selftest',
-		'test-fight-seq-mjs', 'test-fight-seq-mjs-selftest', 'test-reread-mjs', 'test-reread-mjs-selftest',
-		'test-fatal-guard-mjs', 'test-onetime-pickups-mjs', 'test-roll-binding-mjs', 'test-scenarios-mjs',
-		'test-scenarios-mjs-selftest', 'test-silent-gate-mjs', 'test-gen-needed-mjs', 'test-route-registry-mjs', 'test-contract-defaults-mjs', 'test-comment-face-split-mjs', 'test-comment-mask-mjs', 'test-dialect-mjs', 'test-contract-version-mjs', 'test-npm-entries-guard-mjs', 'test-pc-base-mjs',
-		'test-contract-compat-mjs', 'test-pc-defaults-mjs', 'test-social-sink-mjs', 'test-social-sink-mjs-selftest',
-		'test-social-lever-mjs', 'test-notes-absence-mjs', 'test-siteinfo-sink-mjs', 'test-siteinfo-sink-mjs-selftest', 'test-event-graph-mjs',
-		'test-event-graph-mjs-selftest', 'scripts-audit-mjs-consequences-check', 'scripts-audit-mjs-a11y-check', 'scripts-audit-mjs-sitedisc-check',
+	'engine': ['test-invariants-unit-mjs','test-silent-gate-mjs', 'test-gen-needed-mjs', 'test-route-registry-mjs', 'test-comment-face-split-mjs', 'test-npm-entries-guard-mjs',
+		'test-contract-compat-mjs','scripts-audit-mjs-consequences-check', 'scripts-audit-mjs-a11y-check', 'scripts-audit-mjs-sitedisc-check',
 		'scripts-audit-mjs-text-check', 'scripts-audit-mjs-state-check', 'scripts-audit-mjs-literals-check', 'scripts-audit-mjs-slots-check',
-		'scripts-audit-mjs-status-check', 'scripts-audit-mjs-waves-check', 'scripts-audit-mjs-face-fixture-engine', 'scripts-audit-mjs-story2-engine',
+		'scripts-audit-mjs-status-check', 'scripts-audit-mjs-waves-check',
 		'scripts-audit-mjs-engine-story-free', 'scripts-audit-mjs-roads-check',
-		'scripts-report-copy-text-mjs-selftest',
 		'scripts-ui-migration-diff-selftest',
 		'scripts-ui-migration-diff-check',
 		'test-globals-mjs',
 		'test-globals-mjs-selftest',
-		'test-store-keys-mjs',
-		'test-store-keys-mjs-selftest',
-		'test-audit-golden-mjs',
-		'test-audit-golden-mjs-selftest',
-		'test-chargen-macros-mjs',
-		'test-chargen-equivalence-mjs',
-		'test-chargen-apply-mjs',
-		'test-generated-family-mjs',
+		// `#1261`：`test-store-keys` 两项随段下架而移除。
 		'test-gen-segment-syntax-mjs',
-		'test-meta-source-mjs',
+		'test-chargen-apply-mjs',
+		'test-chargen-macros-mjs',
+		'test-combat-adv-mjs',
+		'test-comment-mask-mjs',
+		'test-contract-defaults-mjs',
+		'test-fight-seq-mjs',
+		'test-onetime-pickups-mjs',
+		'test-pc-base-mjs',
+		'test-pc-defaults-mjs',
+		'test-properties-mjs',
+		'test-reread-mjs',
+		'test-roll-binding-mjs',
+		'test-rules-mjs',
+		'test-saveui-mjs',
+		'test-dialect-mjs',
+		'test-contract-version-mjs',
 	],
 	'editor': [
 		'editor-compile-selftest', 'editor-equiv-selftest',
 		'editor-k4', 'editor-k4-selfcheck', 'editor-k6', 'editor-k6-selftest',
-		'editor-extract-selftest', 'editor-classify-contract-selftest', 'test-equiv-scratch-mjs', 'test-import-side-effects-mjs',
-		'test-import-side-effects-mjs-selftest', 'test-layering-mjs', 'test-layering-mjs-selftest', 'test-core-story-mjs',
-		'test-serve-editor-mjs', 'test-serve-editor-mjs-selftest', 'test-focus-after-nav-mjs', 'test-focus-after-nav-mjs-selftest', 'test-readkey-family-mjs', 'test-md-visible-faces-mjs', 'test-audit-scope-header-mjs',
-		'test-browser-mjs-selftest',
+		'editor-extract-selftest', 'editor-classify-contract-selftest', 'test-import-side-effects-mjs',
+		'test-import-side-effects-mjs-selftest', 'test-layering-mjs', 'test-layering-mjs-selftest', 'test-core-story-mjs','test-readkey-family-mjs',
 
-		'test-k4-args',
-		'test-k4-references',
-		'test-k4-references-selftest',
-		'test-cli-surface-mjs',
-		'test-cli-surface-mjs-selftest',
 		'test-state-diagnose',
+		'test-focus-after-nav-mjs',
+		'test-equiv-scratch-mjs',
 	],
-	'story-legal': [
-		'test-prose-vocabulary-mjs', 'test-prose-vocabulary-mjs-selftest', 'test-multi-story-mjs',
-		'test-multi-story-mjs-selftest', 'test-lint-story-mjs', 'test-lint-scratch-mjs', 'test-lint-scratch-mjs-selftest',
+	'story-legal': ['test-multi-story-mjs',
+		'test-multi-story-mjs-selftest',
 		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs',
-		'test-story-ci-mjs-selftest', 'test-saveload-inventory-mjs', 'test-saveload-inventory-mjs-selftest', 'test-rules-claims-mjs',
+		'test-story-ci-mjs-selftest', 'test-rules-claims-mjs',
 		'test-rules-claims-mjs-selftest', 'test-premise-source-mjs', 'test-premise-source-mjs-selftest', 'test-npc-venue-mjs',
-		'test-npc-venue-mjs-selftest', 'test-choice-keys-mjs', 'test-choice-keys-mjs-selftest', 'test-g3-evidence-mjs',
+		'test-npc-venue-mjs-selftest',
+		'test-choice-keys-mjs',
+		'test-g3-evidence-mjs',
 		'test-cond-keyform-mjs',
 		'test-cond-keyform-mjs-selftest',
-		'scripts-report-rhythm-mjs-selftest',
-		'scripts-report-rhythm-mjs-check',
-		'test-story-codeface-mjs-selftest', 'test-story-codeface-mjs',
+		'test-prose-vocabulary-mjs',
+		'test-prose-vocabulary-mjs-selftest',
 	],
-	'story-product': [
-		'test-smoke-mjs', 'test-smoke-mjs-raf-delayed', 'test-size-gate-mjs', 'test-size-gate-mjs-selftest',
-		'test-render-all-mjs',
+	'story-product': ['test-size-gate-mjs', 'test-size-gate-mjs-selftest',
 		 'build-mjs',
+		'test-render-all-mjs',
 	],
 	'infra': [
 		'scripts-probe-gates-mjs-probe-fast', 'scripts-probe-gates-mjs-check', 'scripts-probe-gates-mjs-selfcheck',
@@ -643,14 +606,13 @@ export const SUITE_MEMBERS = {
 		'scripts-report-ledger-freshness-mjs-ledger-check', 'scripts-report-gate-ledger-mjs-selftest', 'scripts-report-gate-ledger-mjs', 'scripts-report-selftest-validity-mjs',
 		'scripts-md-format-mjs', 'scripts-move-precheck-mjs', 'scripts-move-precheck-mjs-selftest',
 		 'test-ci-triggers-mjs', 'test-ci-triggers-mjs-selftest', 'test-repo-shape-mjs',
-		'test-repo-shape-mjs-selftest', 'test-docs-read-path-mjs', 'test-docs-read-path-mjs-selftest', 'test-attribution-gate-mjs',
-		'test-attribution-gate-mjs-selftest', 'test-untracked-guard-mjs', 'test-passages-assemble-mjs-selftest',
-		'test-plan-needs-mjs', 'test-gate-discovery-mjs', 'test-audit-gates-run-mjs',
+		'test-repo-shape-mjs-selftest', 'test-docs-read-path-mjs', 'test-docs-read-path-mjs-selftest','test-untracked-guard-mjs', 'test-passages-assemble-mjs-selftest','test-audit-gates-run-mjs',
 
-		'test-coverage-mjs',
-		'test-witness-trace-mjs',
 		'scripts-clean-net-mjs-selftest', 'scripts-precommit-check-mjs-selftest', 'scripts-lint-new-segment-mjs-selftest',
 		'scripts-lint-human-face-mjs-selftest', 'scripts-lint-human-face-mjs-check',
+		'test-coverage-mjs',
+		'test-gate-discovery-mjs',
+		'test-plan-needs-mjs',
 	],
 };
 
@@ -703,48 +665,24 @@ export const inputsMatch = ({ declared = [], changed = [] } = {}) => {
  * 为什么 `['*']` 要管：它**等价「全跑型」** → 等于声明「本段不参与跳过」 → 那是**一次显式决定**
  *（同 `FULL_REASONS` 的口径：降频／不跳过都要留痕）。
  */
-export const INPUTS_WILDCARD_REASONS = {
-	'test-notes-absence-mjs': {
-		reason: '运行期判据：需 boot 故事取 Sg.notes（缺席与畸形两态都要真跑）=> 取全跑型以免静默跳过成假绿',
-		voucher: '#1223',
-	},
-	'test-comment-mask-mjs': {
+export const INPUTS_WILDCARD_REASONS = {	'test-comment-mask-mjs': {
 		reason: '读码两侧（剥注权威 `editor/lib/core/mask.mjs` ＋ 反例夹具）⇒ 面跨 `editor/**` 与 `test/**` ⇒ 取全跑型以免静默跳过成假绿面',
 		voucher: '#1206',
 	},
-	'test-rules-mjs': {
-		reason: '读构建产物与故事数据（契约成员、车卡数据、图鉴条目）=> 取全跑型以免静默跳过成假绿面 ✓',
-		voucher: '#1132',
-	},
-	'test-meta-source-mjs': {
-		reason: '读 stories 清单与故事件（元数据源恰一、正文与清单逐字一致）=> 依赖面跨 stories ⇒ 取全跑型以免静默跳过成假绿面',
-		voucher: '#1132',
-	},
-	'test-npm-entries-guard-mjs': {
+	// `#1261`：`test-rules` 随样本下架 -> 理由块同删（用例文件保留待迁 books 仓）。
+'test-npm-entries-guard-mjs': {
 		reason: '本件端到端跑护栏，而护栏扫描全仓文档与代码里的 `npm run` 引用（跨 docs／scripts／test／.github，且是动态遍历）=> 依赖面跨目录且静态抽面锚不到，取全跑型以免静默跳过成假绿面',
 		voucher: '#1200',
 	},
-	'test-pc-base-mjs': {
-		reason: '读三故事契约与角色状态（跨 stories，且路径由清单给出）=> 依赖面跨目录且静态抽面锚不到，取全跑型以免静默跳过成假绿面',
-		voucher: '#1186',
-	},
-	'test-contract-defaults-mjs': {
-		reason: '扫 `src/**` 的全部契约读点并读三故事的契约数据（跨目录、路径由清单给出）=> 依赖面跨目录且静态抽面锚不到，取全跑型以免静默跳过成假绿面',
-		voucher: '#1188',
-	},
-	'test-route-registry-mjs': {
+	// `#1261`：`test-pc-base` 理由块随段下架。
+'test-route-registry-mjs': {
 		reason: '扫 `src/**` 全部代码面找多路线现场（跨目录、且形态由表头定）=> 依赖面跨目录且静态抽面锚不到，取全跑型以免静默跳过成假绿面',
 		voucher: '#1189',
 	},
 	'test-gen-needed-mjs': {
 		reason: '读各故事清单与 data/ 面（跨 stories，且路径由清单动态给出）=> 依赖面跨目录且静态抽面锚不到，取全跑型以免静默跳过成假绿面',
 		voucher: '#1192',
-	},
-	'test-generated-family-mjs': {
-		reason: '读生成物家族成员与它们声明的源（跨 stories 与 data 面）=> 依赖面跨目录 ⇒ 取全跑型以免静默跳过成假绿面',
-		voucher: '#1185',
-	},
-	'test-chargen-apply-mjs': {
+	},	'test-chargen-apply-mjs': {
 		reason: 'boot 起真引擎直接调 Sg.Chargen.apply（不读 stories 目录）⇒ 取全跑型以免静默跳过成假绿面 ✓',
 		voucher: '#1132',
 	},
@@ -767,42 +705,41 @@ export const INPUTS_WILDCARD_REASONS = {
 	'scripts-lint-new-segment-mjs-selftest': {
 		reason: '合成计划注入五类缺陷（不读真计划）=> 取全跑型以免静默跳过成假绿面 ✓',
 		voucher: '#1166',
-	},
-	'test-chargen-equivalence-mjs': {
-		reason: 'boot 起真引擎＋读 stories/face-fixture/data/chargen.json（源面）⇒ 依赖面跨目录 ⇒ 取全跑型以免静默跳过成假绿面 ✓',
-		voucher: '#1132',
-	},
-	'test-gen-segment-syntax-mjs': {
+	},	'test-gen-segment-syntax-mjs': {
 		reason: '纯函数自证（不读 stories；解析器在测试内注入 node:vm）=> 取全跑型以免静默跳过成假绿面',
 		voucher: '#1176',
 	},
-	'test-chargen-macros-mjs': {
-		reason: 'boot 起真引擎＋直接调宏 handler（不读 stories 目录）；取全跑型以免静默跳过成假绿面 ✓',
-		voucher: '#1132',
-	},
-	'test-story-codeface-mjs-selftest': {
-		reason: '本段是**合成输入自证**（纯函数注入）⇒ 与真树文件无关，但为避免"静默跳过=假绿面" ✗ 取全跑型 ✓',
-		voucher: '#1132',
-	},
-	'test-story-codeface-mjs': {
+	// `#1261`：`test-chargen-macros` 段与理由块随其样本下架（文件保留待迁 books 仓）。
+'test-story-codeface-mjs': {
 		reason: '本段读 `stories` 目录下的 twee 清单 ＋ 两处机制标签声明件（漂移检测）⇒ 依赖面跨目录且会随迁移变动 ⇒ 取全跑型 ✓',
 		voucher: '#1132',
 	},
 	'test-passages-assemble-mjs-selftest': {
 		reason: '本段读**自证夹具**（跑起来在 src 侧动态造件）＋ 被判件住的目录不止一个 ⇒ 静态面写不窄 ⇒ 取全通配（＝不参与跳过 ✓）',
 		voucher: '#1114',
-	},
-	'test-md-visible-faces-mjs': {
-		reason: '本段读**故事源面**（`stories/**/passages/*.md` ＋ twee）与 core 分派面 ⇒ 面宽且随内容变 ⇒ 静态面写不窄 ⇒ 取全通配（宁多跑不漏面 ✓）',
-		voucher: '#1141',
-	},
-	'test-audit-scope-header-mjs': {
+	},	'test-audit-scope-header-mjs': {
 		reason: '本段跑**真入口**（`scripts/audit.mjs` 五个面 × 两态 `--story`）取首行对象头 ⇒ 面＝**整个审计驱动器**（含门与产物）⇒ 静态面写不窄 ⇒ 取全通配（宁多跑不漏面 ✓；头的形状一旦走偏必须当场红 ✗）',
 		voucher: '#1157',
 	},
 	'test-readkey-family-mjs': {
 		reason: '本段**读码两侧**（引擎真源 `src/engine/40-sim/22-rules.twee`（`#1187` 第五块后）＋ core 镜像 `editor/lib/core/audit-shared.mjs`）；面经**常量间接**（`ENGINE` 常量 ⇒ 抽取器看不到字面量 ✗）⇒ 取全通配（宁多跑不漏面 ✓ 成对断言一旦漂移必须当场红 ✗）',
 		voucher: '#1156',
+	},
+	'test-chargen-macros-mjs': {
+		reason: 'boot 起真引擎＋直接调宏 handler（不读 stories 目录）；取全跑型以免静默跳过成假绿面 ✓',
+		voucher: '#1132',
+	},
+	'test-contract-defaults-mjs': {
+		reason: '扫 `src/**` 的全部契约读点并读三故事的契约数据（跨目录、路径由清单给出）=> 依赖面跨目录且静态抽面锚不到，取全跑型以免静默跳过成假绿面',
+		voucher: '#1188',
+	},
+	'test-pc-base-mjs': {
+		reason: '读三故事契约与角色状态（跨 stories，且路径由清单给出）=> 依赖面跨目录且静态抽面锚不到，取全跑型以免静默跳过成假绿面',
+		voucher: '#1186',
+	},
+	'test-rules-mjs': {
+		reason: '读构建产物与故事数据（契约成员、车卡数据、图鉴条目）=> 取全跑型以免静默跳过成假绿面 ✓',
+		voucher: '#1132',
 	},
 };   // 键＝段 id；值＝{ reason, voucher}（**缺任一项不生效**）
 
@@ -849,6 +786,68 @@ export const validateSuites = (plan = SEGMENTS, { members = SUITE_MEMBERS } = {}
 	for (const id of ids) if (!seen.has(id)) problems.push(`\`${id}\` **未归组**（计划里有、表里没有 ⇒ 完备性破了 ✗）`);
 	return problems;
 };
+
+/** `#1261` 大裁剪：**临时下架**（对象仍在、样本暂缺）的段 —— 与"未声明/失败"分列。
+ *
+ * 语义三态（领队裁定）：**对象已删 → 退役**（从 SEGMENTS 移出）／
+ * **对象在但样本暂缺 → 临时下架**（本表登记，留痕可恢复）／**对象在且样本在 → 修到绿**。
+ * 每条必须给 `why`（为什么）与 `until`（何时重建的触发条件）；缺任一项 → 自证格红。
+ */
+export const SUSPENDED = {
+	'test-readkey-family-mjs': { why: '读键族抽取面：样本需真故事的键族分布（对象＝引擎面判据）', until: '#1163（books 回填样本）' },
+	'scripts-audit-mjs-consequences-check': { why: '选择后果门：样本需故事条件面（对象＝引擎门）', until: '#1163（books 回填样本）' },
+	'scripts-audit-mjs-state-check': { why: '状态契约门：样本需故事状态面（对象＝引擎门）', until: '#1163（books 回填样本）' },
+	'test-gen-needed-mjs': { why: '生成件清单：反向核需 ≥3 个真故事', until: '#1163（books 回填样本）' },
+	'scripts-lint-human-face-mjs-check': { why: '人脸门：当前红因是本次新增注释（应修到绿，非下架）', until: '#1163（books 回填样本）' },
+	'editor-k4': { why: 'K4 单一真源：需故事目录（对象＝编辑器内核）', until: '#1163（books 回填样本）' },
+	'test-npm-entries-guard-mjs': { why: 'npm 入口差集：取样脚本随 WebUI 下架 ⇒ 待改取样', until: '#1163（books 回填样本）' },
+	'editor-extract-selftest': { why: '共享帮手自证：样本需故事段（对象＝抽取器）', until: '#1163（books 回填样本）' },
+	'scripts-report-gate-ledger-mjs': { why: '台账门：探针读数缺失时走降级路径（需与 E 表对齐）', until: '#1163（books 回填样本）' },
+	'scripts-md-format-mjs': { why: 'md 格式门：文档里引用了已下架件（应改述，非下架）', until: '#1163（books 回填样本）' },
+	'test-audit-gates-run-mjs': { why: '审计跑器自证：需默认故事全绿（零故事下无默认故事）', until: '#1163（books 回填样本）' },
+	'test-story-ci-mjs': { why: '用户故事 CI：K4/K5 面依赖故事与产物', until: '#1163（books 回填样本）' },
+	'scripts-ui-migration-diff-selftest': { why: '自证格里“默认故事”概念在零故事下失效（对象＝迁移比对工具）', until: '#1163（books 回填样本）' },
+	'test-dialect-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1163（books 回填样本）' },
+	'test-contract-version-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1163（books 回填样本）' },
+	'test-cond-keyform-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1163（books 回填样本）' },
+	'test-cond-keyform-mjs-selftest': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1163（books 回填样本）' },
+	'test-prose-vocabulary-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1163（books 回填样本）' },
+	'test-prose-vocabulary-mjs-selftest': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1163（books 回填样本）' },
+	'test-equiv-scratch-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1163（books 回填样本）' },
+	'test-chargen-apply-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-chargen-macros-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-choice-keys-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-combat-adv-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-comment-mask-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-contract-defaults-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-coverage-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-fight-seq-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-focus-after-nav-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-g3-evidence-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-gate-discovery-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-onetime-pickups-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-pc-base-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-pc-defaults-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-plan-needs-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-properties-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-render-all-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-reread-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-roll-binding-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-rules-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+	'test-saveui-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1163（books 回填样本）' },
+};
+
+/** 临时下架的段（跑器跳过并**单列**，不计失败、也不算未声明）。 */
+export const suspendedSegs = () => Object.entries(SUSPENDED).map(([id, meta]) => ({ id, ...meta }));
+
+/** 自证：每条下架声明必须带 why 与 until（否则"临时下架"会变成新的藏身处）。 */
+export const suspendedProblems = (table = SUSPENDED) =>
+	Object.entries(table).flatMap(([id, m]) => {
+		const bad = [];
+		if (!String(m?.why ?? '').trim()) bad.push(`\`${id}\` 缺 \`why\``);
+		if (!String(m?.until ?? '').trim()) bad.push(`\`${id}\` 缺 \`until\``);
+		return bad;
+	});
 
 export const testPlan = () => SEGMENTS;
 // **旧格式**：把计划拼回 `&&` 串（对照/调试用）

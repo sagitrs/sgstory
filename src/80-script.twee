@@ -78,7 +78,7 @@ window.Sg.notes = {
 		// (3) 多源数组：OR（`#432-B8/B12`）
 		if (Array.isArray(path)) return path.some((q) => this.readPath(pc, q));
 		// (1) 缺项：**静默**（查询语义：读者遇缺即"未持有"）
-		//     引擎自身调用面依赖这一条：`migrateLegacy` 以 `e?.flagPath` 读**可选**路径
+		// 引擎自身调用面依赖这一条：`migrateLegacy` 以 `e?.flagPath` 读**可选**路径
 		if (path == null) return undefined;
 		// (2) 结构畸形：**出声**（作者错，与"缺席三形态"同族）
 		const segs = pathShapeProblem(path, 'readPath');
@@ -93,7 +93,7 @@ window.Sg.notes = {
 	// —— 故事侧**不新增 provider**，表里的 `flagPath` **就是**写回声明（形状定稿见 Discussion #513）。
 	writePath(pc, path, v) {
 		// (3) 写侧**不接受多源数组**：多源笔记必须显式给 `setPath`（见 `add()` 的 `#434` 护栏）；
-		//     数组在这里是"歧义目的地"，与结构畸形同族，因此**出声**（不静默写 `pc['a,b']`）
+		// 数组在这里是"歧义目的地"，与结构畸形同族，因此**出声**（不静默写 `pc['a,b']`）
 		if (Array.isArray(path)) {
 			throw new Error('Sg.notes.writePath：写侧不接受多源数组（多源笔记必须显式给 setPath，见 add() 的 #434 护栏）（#1247）');
 		}

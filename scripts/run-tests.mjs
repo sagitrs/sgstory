@@ -28,7 +28,7 @@ import { readFileSync, writeFileSync, rmSync, mkdirSync, existsSync } from 'node
 import { join, dirname } from 'node:path';
 import { pathToFileURL, fileURLToPath } from 'node:url';
 import { cpus } from 'node:os';
-import { testPlan, segmentLayer, validateLayers, tierOf, TIERS, DEFAULT_TIER, validateTiers, SUITES, suiteOf, validateSuites, inputsDeclaredStats, validateInputsRatchet, inputsMatch, validateInputsWildcardReasons } from './test-plan.mjs';
+import { SUSPENDED, suspendedProblems, testPlan, segmentLayer, validateLayers, tierOf, TIERS, DEFAULT_TIER, validateTiers, SUITES, suiteOf, validateSuites, inputsDeclaredStats, validateInputsRatchet, inputsMatch, validateInputsWildcardReasons } from './test-plan.mjs';
 import { fsArgLiterals, inputsLowerProblems, interLayerProblems, inputsTruthProblems } from './lib/inputs-lower.mjs';   // `#1093` P2-b：①层（静态下界）
 import { wiringProblems } from './lib/gate-wiring.mjs';
 import { wiringCells, WIRING_CELLS_EXPECTED } from './lib/gate-wiring-cells.mjs';
@@ -314,7 +314,9 @@ const selftest = async ({ quiet = false } = {}) => {
 			!probePlan.filter((s) => tierOf(s) === 'fast').some((s) => s.id === 'zz-only-full')
 			&& probePlan.filter((s) => tierOf(s) === 'full').some((s) => s.id === 'zz-only-full'));
 		// 能假那一半②：去掉一条 full 的理由 → **必须报**（降频不留痕＝红）
-		const noReason = plan.map((s) => (s.id === 'test-witness-trace-mjs' ? { ...s, id: 'zz-unreasoned-full', tier: 'full' } : s));
+		// `#1261`：原先借用 plan 里那个唯一的 full 段（`test-witness-trace`，已随样本下架）当素材 ->
+		// 改为**自造素材**（不依赖任何具体段；与同族其它能假格一致）。
+		const noReason = [...plan, { id: 'zz-unreasoned-full', phase: 'test', cost: 0, tier: 'full', cmd: 'node -e "1"' }];
 		t('🔴 能假：`full` 段没写理由 ⇒ 报（`FULL_REASONS` 缺条即红）', validateTiers(noReason).some((p) => /没写理由/.test(p)));
 		// 能假那一半④：**fast 段不得 `needs` 一个 full-only 段**（`#1070` E4）—— 该形态 → **PR 档全停**
 		t('🔴 能假：fast 段 `needs` 一个 full-only 段 ⇒ 报（否则 PR 档起跑即报“依赖了不存在的段”而全停）',
@@ -464,8 +466,16 @@ const tierWant = (() => {
 })();
 const tierProblems = validateTiers(plan0);
 if (tierProblems.length) { console.error(`✗ 计划的 tier 面有问题（--tier 依赖它）：\n  ${tierProblems.join('\n  ')}`); process.exit(2); }
-const tierSel = tierWant === 'full' ? plan0 : plan0.filter((s) => tierOf(s) === tierWant);
-const otherTier = plan0.filter((s) => !tierSel.includes(s));
+// `#1261` 甲：**临时下架**（对象在、样本暂缺）的段 —— 从选择面剔除并**单列**：
+// 不计失败、不算未声明、也不算"本次不跑"（它有自己的列，且声明缺 why/until 即红）。
+import('./test-plan.mjs');
+const suspProblems = suspendedProblems(SUSPENDED);
+if (suspProblems.length) { console.error('✗ 临时下架声明不合规（缺 why/until）：\n  ' + suspProblems.join('\n  ')); process.exit(1); }
+const suspIds = new Set(Object.keys(SUSPENDED));
+const suspended = plan0.filter((s) => suspIds.has(s.id));
+const tierSel = (tierWant === 'full' ? plan0 : plan0.filter((s) => tierOf(s) === tierWant)).filter((s) => !suspIds.has(s.id));
+const otherTier = plan0.filter((s) => !tierSel.includes(s) && !suspIds.has(s.id));
+if (suspended.length) console.log(`○ 临时下架（${suspended.length} 段，不计失败）：` + suspended.map((s) => s.id + `（${SUSPENDED[s.id].until}）`).join(' ｜ '));
 // ── `#1093` P1.1：`--suite=<名>`（**正交**维度 —— 与 `--tier`／`--only`／`--engine-only` **取交集**）
 //注意：起跑前**先校验分组表**（完备且不重叠）：表漂了 → **当场报**，不许"跑了一半才发现选择面不完整"
 const suiteWant = (() => {
@@ -589,7 +599,9 @@ const onlySel = only.length ? plan0.filter((s) => only.some((o) => s.id.includes
 const baseSel0 = layerSel && onlySel ? layerSel.filter((s) => onlySel.includes(s)) : (layerSel ?? onlySel ?? plan0);
 // `#1093`：`--suite` 与上面各维**取交集**（三个维度都正交）
 const baseSel = suiteSel ? baseSel0.filter((s) => suiteSel.includes(s)) : baseSel0;
-const sel = tierWant === 'full' ? baseSel : baseSel.filter((s) => tierOf(s) === tierWant);
+// `#1261` 甲：**临时下架**（对象在、样本暂缺）的段从最终选择面剔除 —— 已在上方单列打印。
+const selRaw = tierWant === 'full' ? baseSel : baseSel.filter((s) => tierOf(s) === tierWant);
+const sel = selRaw.filter((s) => !suspIds.has(s.id));
 const plan = (onlySel || layerSel) ? withDeps(sel) : sel;
 if (suiteSel) console.log(`○ --suite=${suiteWant}：选中 ${suiteSel.length}/${plan0.length} 段（**其余 ${plan0.length - suiteSel.length} 段本次不跑** —— 分组表见 \`scripts/test-plan.mjs\` 的 \`SUITE_MEMBERS\` ✓）`);
 

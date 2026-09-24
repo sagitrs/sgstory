@@ -19,7 +19,7 @@ Object.assign((window.Game.Checks ??= {}), {
 			// `#733` 片 2-b：**把 pc 传下去**（接缝原本只传位点名 → 故事只能按"当前存档 pc"算持有 →
 			// 合成 pc 的单测驱动不了它，违反 `#441-A`「可脱离浏览器驱动」）。故事侧已接受可选 pc。
 			// `#762` A 线：**下沉后**由引擎组装（故事只声明 `Game.Checks.knowledge*` 两张表）。
-			// `#1223`：`knowledgeOf` 随笔记概念退役 ⇒ 知识位直接读通用状态（`ev.notes.<site>`），
+			// `#1223`：`knowledgeOf` 随笔记概念退役 -> 知识位直接读通用状态（`ev.notes.<site>`），
 			// 无该位即"未持有"。注：原 `knowledgeOf` 的 `world.` 前缀硬编码属 #1251 的真缺口，本笔不再复制它。
 			const kn = { flag: site, why: site, held: window.Sg.notes.readPath(pc, `ev.notes.${site}`) === true };
 			// `#733` 片 2-b 接缝：故事若一并给出「**是否持有**」（`kn.held`，笔记面判定）→ 以它为准；

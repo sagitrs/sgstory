@@ -424,7 +424,9 @@ export const CONST_SECTION = {
 	// 允许出现"数据字段里的 era 字面量"与"`const Era = {…}` 定义"的文件（用**路径后缀**匹配，兼容搬家后的新路径）
 	// `#562`：**引擎侧默认常量**（`10-core` 的 `Game.Era??= {…}`／`Game.Damage??= {…}`）也是常量载体
 	// ——否则 `--literals` 会把那两行判成"裸时代字面量"（引擎给默认值 → 必须一起声明，这是"搬家要同步声明"的同一条纪律）
-	files: ['stories/night-ferry/15-tables.twee', 'src/engine/10-const.twee'],   // `#1004` B2：旧故事已删 → 夹具换到剩下的故事
+	// `#1261` 大裁剪：原列 `stories/night-ferry/15-tables.twee`（故事常量段）已随 demo 下架；
+	// 故事侧常量现随 `#1163` 在 books 仓落地 → 本行只留**引擎侧**常量载体。
+	files: ['src/engine/10-const.twee'],
 	eraDecl: /const Era = \{|Game\.Era \?\?= \{|Game\.Era = \{/,   // 常量定义行的特征（`#660` 片二：单源用普通赋值）
 	eraDataField: /(flagEra|era:)/,         // 故事表数据字段的特征
 	// 裸伤害数字：**不再按文件名限定章节**。原先只在 `30/40/50/60-ch*.twee` 里判 → 章节一旦改名

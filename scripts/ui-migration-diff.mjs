@@ -138,7 +138,8 @@ export const sourceFiles = (baseFiles = [], modules = {}) =>
  * 它证明"纯转发没改可见文本"，判的是**默认故事**的正文面。把新故事（第二/第三个）的正文也算进来
  * → 任何"新增内容"的 PR 都会被判成"未登记漂移"（实测：新增 `路·*` 76 段 → 红），而那不是本门要防的东西。
  * → 工作区侧＝**默认故事作用域**；基线侧仍取基线树里存在的同名文件（"删了正文文件"照样看得见）。 */
-export const defaultStoryFiles = () => scopedFiles(readStory(DEFAULT_SLUG));
+// `#1261` 零故事模式：仓内无默认故事 → 返回空面（调用方据此跳过），不把 null 拼进路径。
+export const defaultStoryFiles = () => (DEFAULT_SLUG ? scopedFiles(readStory(DEFAULT_SLUG)) : []);
 
 /** 从一段源文里取“条件表行”（`#595`）：把每个 `[script]` 段在沙箱里跑一遍，收 `Sg.story.rules()`。
  * 为什么不禁表文件路径：迁移会把常量/表搬家（`#441`／`#448`），写死路径 = 下次搬家再静默失效（`#559` 的教训）。

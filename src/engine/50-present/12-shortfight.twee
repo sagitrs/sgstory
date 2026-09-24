@@ -120,7 +120,7 @@
 			<<if _tail>><<set $pc.ev.settle to ($pc.ev.settle ?? "") + $args[3]>><<else>><<set $pc.ev.last_result to { p: passage(), era: $era, text: $args[3] }>><</if>>
 			<<print $args[3]>>
 			<<damage `Game.Damage.hurt`>>
-			<<if _note>>/% `#1223`：`<<note>>` 已退役 ⇒ 写通用状态面（canonical `ev.notes.<id>`） %/<<run Sg.notes.writePath($pc, "ev.notes." + _note, true)>><</if>>
+			<<if _note>>/% `#1223`：`<<note>>` 已退役 → 写通用状态面（canonical `ev.notes.<id>`） %/<<run Sg.notes.writePath($pc, "ev.notes." + _note, true)>><</if>>
 			<<set $pc.ev.fight to {}>>                       % 失败也清场（无奖励依赖，顺序无关）%
 			<<if _tail>><<include `_tail`>><</if>>
 		<</if>>

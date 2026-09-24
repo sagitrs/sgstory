@@ -70,7 +70,7 @@ const collectSources = () => {
 			if (e.isDirectory()) { if (!SKIP_DIR.test(e.name)) walk(r); continue; }
 			if (!SCAN_EXT.includes(e.name.slice(e.name.lastIndexOf('.')))) continue;
 			// 本工具自身排除：自证夹具里写着假脚本名（`npm run nope-xyz`），把它自己当引用是假阳性。
-			// 与 `scripts/lint-human-face.mjs` 的"豁免本工具自身"同一条房式。
+			// （原先此处引 `scripts/lint-human-face.mjs` 的「豁免本工具自身」作类比；该工具已随 `#1314` 撤销。）
 			if (r === 'scripts/check-npm-entries.mjs') continue;
 			// 探针登记表也排除：它的 `mutation.replace` 载荷里写着假脚本名（那是夹具，不是文档里的引用）。
 			// 不排除的后果很具体：护栏在**变异前就是红的** → 探针永远"不咬"（我实测撞到过）。

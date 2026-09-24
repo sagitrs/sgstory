@@ -12,6 +12,7 @@
 import { spawnSync } from 'node:child_process';
 import { runSelectedGates } from '../scripts/audit/lib/shared.mjs';
 import { AUDIT_ENGINE } from '../scripts/test-plan.mjs';
+import { storySlugs } from '../scripts/dist-paths.mjs';   // `#1315`：零故事态判「未判」用
 
 let bad = 0;
 const case_ = (label, ok, extra = '') => {
@@ -50,7 +51,14 @@ console.log('══ 「选中 ⇒ 真跑」门（#572）══');
 }
 
 // ── ② 回归：真跑 CLI —— 默认故事的引擎门必须**跑满** ──
-{
+// `#1315`（**未判**口径）：本格的**对象**是「选中 ⇒ 真跑」这条**机制**（门被选中就必须跑满、不许静默），
+// 而它的**前提**是「仓内有一份默认故事」。零故事态（`#1265` 后是常态）⇒ **前提不成立** ⇒
+// **出声说"未判"**（不算红、不算绿）—— ✗ 不再把整段挂起：**挂起 ＝ 判据不可见**（`#1267` 尾件那条教训），
+// 而机械面向上的**纯函数格（上面那批）仍在跑**，机制面并不失去看护。
+if (storySlugs().length === 0) {
+	console.log('  ○ 未判：仓内零故事（无默认故事）⇒ 「选中 ⇒ 真跑」的 **CLI 半段**未判'
+		+ '（对象在：`scripts/audit.mjs`；前提不成立：没有默认故事可跑）；纯函数格已跑，机制面仍有着护。');
+} else {
 	const r = spawnSync(process.execPath, ['scripts/audit.mjs', '--engine-only', '--check'], { encoding: 'utf8', timeout: 240_000 });
 	const out = `${r.stdout ?? ''}${r.stderr ?? ''}`;
 	const headers = (r.stdout ?? '').split('\n').filter((l) => l.startsWith('══')).length;

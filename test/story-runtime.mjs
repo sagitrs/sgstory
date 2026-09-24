@@ -61,12 +61,22 @@ export const judgeApiFace = (uses, has) => missingApis(uses, has).map((m) => ({
 	msg: `故事作用域里的 ${m.file} 引用了 \`${m.path}\`，但产物里不存在（运行时 TypeError；#574）`,
 }));
 
-/** 纯函数：内容里 `Sg.notes.add("id")` 用到的 note id（去重，带来源文件）。 */
+/** 纯函数：**「用」面**的 note id（去重，带来源文件）。
+ * `#1282`（裁定甲）：新格式下笔记授予只有一条合法路径＝`rules.json` 的 `yields`
+ * （`21-resolve.twee` 选中→渲染成功→落 yields），产物 `17-rules.twee` 里它是**数据**形态
+ * （`{…, yields: ['n_room_key']}`）→ 只认 `Sg.notes.add(...)` 字面量会让**「用」面恒空**
+ * （判据对新格式故事一律不判）。故：**字面量 ＋ `yields:` 数据形态**都算「用」。
+ *   不用 `Sg.notes.stored(pc)`（那是运行时已存那一侧）。 */
 export const noteIdsUsed = (sources) => {
 	const out = new Map();
 	for (const [file, raw] of Object.entries(sources)) {
 		const text = String(raw).replace(/\/%[\s\S]*?%\//g, ' ');
+		// ① 字面量形态（历史/自证用）
 		for (const m of text.matchAll(/Sg\.notes\.add\(\s*["']([A-Za-z_$][\w$]*)["']/g)) if (!out.has(m[1])) out.set(m[1], file);
+		// ② `yields:` **数据形态**（新格式授予路径的产物形状：`{ …, yields: ['n_x'] }`）
+		for (const m of text.matchAll(/yields\s*:\s*\[([^\]]*)\]/g)) {
+			for (const q of m[1].matchAll(/["']([A-Za-z_$][\w$]*)["']/g)) if (!out.has(q[1])) out.set(q[1], file);
+		}
 	}
 	return out;
 };
@@ -100,6 +110,22 @@ export const declaredNoteIds = (member, resolved = () => ({})) => {
 	if (member?.kind === 'null') return null;
 	const table = resolved() ?? {};
 	return [...new Set(Object.keys(table))].sort();          // (b) 零条 → [] ／ (c) 有条目 → 键集
+};
+
+/** `#1282`（裁定甲）：故事 `rules.json` 的 `rows[].yields` 声明的 note id ——
+ * 两种形态都收：`['n_a']`（字符串数组）与 `[{id:'n_a',path:'…'}]`（对象数组）。
+ * 为什么单列：**「用」面在新格式下主要从这里来**（授予路径的声明侧）。 */
+export const yieldsIdsOf = (rulesJson) => {
+	const out = [];
+	for (const row of (rulesJson?.rows ?? [])) {
+		const ys = row?.yields;
+		if (!Array.isArray(ys)) continue;
+		for (const y of ys) {
+			const id = typeof y === 'string' ? y : (y && typeof y.id === 'string' ? y.id : null);
+			if (id) out.push(id);
+		}
+	}
+	return [...new Set(out)].sort();
 };
 
 export const judgeNotes = (used, declared) =>
@@ -334,21 +360,28 @@ const main = async () => {
 				() => w.Sg?.story?.notes?.(),
 			);
 			// `#1282`：声明面三态 —— (a) 未声明 → **未判不计红**；(b)/(c) 面在 → 进判据（零条／有条目）。
+			// `#1282` A（复核）：**(a) 未判 → 真的不进后续**（原先只打印、随后仍崩：`declared === null`
+			// 会在末尾 `${declared.length}` 处 `Cannot read properties of null`）——**打印 ≠ 生效**。
+			const rulesPath = absPath(`stories/${slug}/data/rules.json`);
+			const rulesRows = existsSync(rulesPath) ? JSON.parse(readFileSync(rulesPath, 'utf8')) : null;
+			for (const id of yieldsIdsOf(rulesRows)) if (!used.has(id)) used.set(id, 'data/rules.json');
 			let noteFound = [];
+			let noteUnjudged = false;
 			if (declared === null) {
+				noteUnjudged = true;
 				console.log(`  #1282 [笔记可用] ${slug}：未声明契约成员 \`notes\` ⇒ **本项未判**（不计红；声明后即参与判定）`);
 			} else {
 				noteFound = judgeNotes(used, declared);
 				problems.push(...noteFound.map((f) => ({ ...f, slug })));
 			}
-			let noteBroken = 0;
-			for (const [id] of used) {
-				if (noteFound.some((f) => f.msg.includes(`"${id}"`))) continue;   // 未登记的交给上面那条报
-				try { w.Sg.notes.add(id); if (!w.Sg.notes.has(id)) { noteBroken++; console.log(`      ✗ ${id}：add 之后 has() 仍为假`); } }
-				catch (e) { noteBroken++; console.log(`      ✗ ${id}：add 抛错 ${e.message.slice(0, 90)}`); }
-			}
-			if (noteBroken) problems.push({ code: 'note-add', slug, msg: `故事「${slug}」有 ${noteBroken} 条笔记登记了但 add 跑不通` });
-			console.log(`  ${noteFound.length || noteBroken ? '✗' : '✓'} ${slug} ③：内容用到笔记 ${used.size} 条（登记 ${declared.length} 条），未登记 ${noteFound.length} · add 跑不通 ${noteBroken}`);
+			// `#1282` B（裁定：**整段退役**，不是改一行）：原处调 `w.Sg.notes.add(id)` ＋ `has(id)` 核
+			// "运行时能把笔记加进去"。**该 API 已随 `#1261` 大裁剪删除** → 对象已不存在 → 该检查**退役**
+			// （把 `add` 换成现存面 ＝ 给一个已无主体的能力造新检查 → 增生）。**能力现由本段另一条覆盖**：
+			// **声明面（契约成员 `notes` 的已解析表） × 「用」面（`rules.json` 的 `yields` ＋ 字面量）对照**  。
+			const noteLine = noteUnjudged
+				? `  · ${slug} ③：**未判**（契约成员 \`notes\` 未声明）· 用到 ${used.size} 条`
+				: `  ${noteFound.length ? '✗' : '✓'} ${slug} ③：内容用到笔记 ${used.size} 条（登记 ${(declared ?? []).length} 条），未登记 ${noteFound.length}`;
+			console.log(noteLine);
 			for (const f of noteFound) console.log(`      ✗ ${f.msg}`);
 
 			// ④ 侧栏（渲染 StoryCaption 后数元素）

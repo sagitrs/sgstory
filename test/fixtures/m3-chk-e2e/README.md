@@ -41,7 +41,20 @@ stories/   ← 取自 sagitrs/sgstory-books 的 **a57d08a7**（books 主干）�
   否则这里会慢慢变成"另一份故事"（那时它判的就不再是 books 的真实形态）。
 - 放在 `test/fixtures/**` 之外不落 `stories/**`（经 `SG_STORIES_DIR` 喂入）⇒ 引擎仓自己的故事根仍是 0 件。
 
-## 怎么跑（**先清生成物**，否则 build 会按"件在"复用旧产物）
+## 怎么跑
+
+**首选（一条命令，顺序不用记）**：
+
+```bash
+bash test/fixtures/m3-chk-e2e/run.sh          # 在引擎仓任意位置都可
+```
+
+`run.sh` 做三件事：**清生成物 ⇒ build ⇒ 跑用例**，退出码＝用例执行器的退出码。它存在的理由不是省事，
+而是把「**必须先清**」从**记忆**变成**结构**：本夹具的产物（`1[5678]-*.twee`／`00-meta.twee`／`dist/`）
+**被 `.gitignore` 忽略** ⇒ `git status` 看不出它们还在 ⇒ 忘了清时 build 会「按件在」**复用旧产物** ⇒
+你在**两个引擎态下会读到同一个结论**（那时它判的不是修复，而是旧故事）。
+
+**手动等价配方**（想知道每一步是什么时用）：
 
 ```bash
 F=test/fixtures/m3-chk-e2e
@@ -49,6 +62,10 @@ rm -f "$F"/stories/*/1[5678]-*.twee "$F"/stories/*/00-meta.twee && rm -rf "$F"/d
 SG_STORIES_DIR="$F/stories" node build.mjs
 SG_STORIES_DIR="$F/stories" node scripts/case-run.mjs --cases="$F/cases" --case=m3-chk-e2e
 ```
+
+> ★**若你在两个引擎态下拿到相同读数**，先别下结论 —— 那说明这次跑的很可能**不是修复**：
+> 按上面**先清**再跑；能假格的必要条件是「**修复前红、修复后绿**」。
+> 本夹具的两态读数见文末「修前／修后读数」，可当尺对照。
 
 （`test/fixtures/**/stories/*/1[5678]-*.twee` 与 `…/00-meta.twee` 已在 `.gitignore` 覆盖 ⇒ 跑完树仍是干净的。）
 

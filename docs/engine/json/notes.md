@@ -61,4 +61,5 @@
 - **`flagPath` 是"读"，不是"写"**：阶段 1 它读现有旗标（零行为变化）；写法仍走 `<<note "n_x">>` 或规则行 `yields`。
 - **多源必须显式**：`flagPath` 是数组 → 该笔记有 ≥2 条获取路径 → 授予时要用 `<<notepath "id" "path">>`（**路径限定**），不能用单源的 `<<note>>`。
 - **`Notes.entries` 在 `tables.json` 里也可以是数据源**（`face-fixture` 用它给空表）—— 两处都指同一容器，别重复声明同一 id。
-- 调用入口（薄封装，唯一）：`Sg.notes.has(id)` / `add(id)` / `all()` / `missing(req[])`。
+- **读取入口（`#1261` 后的现形态）**：笔记的**声明面**＝契约成员 `notes` 的已解析取值；条件行里的 `n_<id>` 键走**通用状态面**（引擎 `Sg.rules.readKey` ⇒ `Sg.notes.readPath(pc, `ev.notes.${id}`) === true`）。
+  ✗ 旧的 `Sg.notes.has／add／all／missing` **已随 `#1261` 删除**（本行此前把它们写成"唯一入口" ⇒ 教人用已删的 API）。

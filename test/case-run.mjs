@@ -54,5 +54,23 @@ t('⑧d `--slug=`／`--case=` 解析', (() => { const a = parseArgs(['--slug=s1'
 	rmSync(d, { recursive: true, force: true });
 }
 
+// ── `#1267`（预审）新增三格：真形状／精确匹配／目录过滤 ────────────────
+t('⑩ ★ `expect.edges` 是**对象**（真形状 `{from,label,to}`）⇒ 按 label 比、报文不得出现 `[object Object]`', (() => {
+	const v = expectViolations({ expect: { edges: [{ from: 'a', label: '丙', to: 'b' }] }, seen: { text: '', edges: ['丙'], state: {} } });
+	if (v.length !== 0) return false;                                       // 边全对 → 不报
+	const v2 = expectViolations({ expect: { edges: [{ from: 'a', label: '丙', to: 'b' }] }, seen: { text: '', edges: ['丁'], state: {} } });
+	return v2.length === 1 && !JSON.stringify(v2).includes('[object Object]') && v2[0].want === '丙';
+})());
+{
+	const d = mkdtempSync(join(tmpdir(), 'cases2-'));
+	mkdirSync(join(d, 's1'), { recursive: true });
+	writeFileSync(join(d, 'README.md'), '# 说明（不是 slug 目录）');
+	writeFileSync(join(d, 's1', 'c1.json'), '{}');
+	writeFileSync(join(d, 's1', 'c10.json'), '{}');
+	t('⑪ ★ 只把**目录**当 slug（`cases/README.md` 不被当 slug ⇒ 不再 ENOTDIR 崩）', discoverCases(d).length === 2);
+	t('⑫ ★ `--case=` **精确匹配**（`c1` 不连带 `c10`）', discoverCases(d, { slug: 's1', id: 'c1' }).length === 1);
+	rmSync(d, { recursive: true, force: true });
+}
+
 console.log(bad ? `\n✗ case-run：${bad}/${n} 例失败` : `\n✔ case-run：${n} 例全部通过`);
 process.exit(bad ? 1 : 0);

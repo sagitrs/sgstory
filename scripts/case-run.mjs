@@ -13,7 +13,7 @@
 // · **cases 根不存在** → **出声**（不静默 rc=0 —— 否则路径写错会被当"没用例"假绿）；
 //   **存在但零用例** → rc=0 ＋ **明说**。
 // · **汇总行每次都要打**（哪怕全绿 —— 否则 CI 里看不出有没有预期缺口）。
-import { existsSync, readdirSync, readFileSync } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'node:fs';
 import { join, resolve, isAbsolute } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { STORIES_DIR } from './dist-paths.mjs';
@@ -47,9 +47,14 @@ export const discoverCases = (casesDir, { slug = null, id = null } = {}) => {
 	for (const s of readdirSync(casesDir).sort()) {
 		if (slug && s !== slug) continue;
 		const dir = join(casesDir, s);
+		// `#1267`（预审 ①）：**只把目录当 slug** —— 同笔在 `cases/` 下放了 `README.md`，
+		// 原先无条件 `readdirSync(dir)` → `ENOTDIR` → 默认入口（无参）rc=2 崩，
+		// 与 README 自述"存在但零用例 → rc=0＋明说"直接矛盾。
+		try { if (!statSync(dir).isDirectory()) continue; } catch { continue; }
 		for (const f of readdirSync(dir).sort()) {
 			if (!f.endsWith('.json')) continue;
-			if (id && !f.startsWith(id)) continue;
+			// `#1267`（预审 ⑥）：**精确匹配**（`--case=c1` 不再连带 `c10`）。
+			if (id && f.replace(/\.json$/, '') !== id) continue;
 			out.push({ slug: s, id: f.replace(/\.json$/, ''), path: join(dir, f) });
 		}
 	}
@@ -81,10 +86,13 @@ export const summarize = (resultList = []) => {
 export const expectViolations = ({ expect = {}, seen = {} } = {}) => {
 	const out = [];
 	const text = String(seen.text ?? '');
-	const labels = new Set(seen.edges ?? []);
+	// `#1267`（预审 ②）：真用例的 `expect.edges` 是**对象**（`{from,label,to}`）→ **按 label 比**，
+	// 否则字符串比较恒 false → 边全对也红、且报文打印 `[object Object]`（读不出）。
+	const labelOf = (e) => (typeof e === 'string' ? e : String(e?.label ?? e?.to ?? JSON.stringify(e)));
+	const labels = new Set((seen.edges ?? []).map(labelOf));
 	for (const s of expect.visible ?? []) if (!text.includes(s)) out.push({ kind: 'visible', want: s });
 	for (const s of expect.absent ?? []) if (text.includes(s)) out.push({ kind: 'absent', want: s });
-	for (const s of expect.edges ?? []) if (!labels.has(s)) out.push({ kind: 'edges', want: s });
+	for (const s of expect.edges ?? []) { const w = labelOf(s); if (!labels.has(w)) out.push({ kind: 'edges', want: w }); }
 	for (const [path, want] of Object.entries(expect.state ?? {})) {
 		const got = seen.state?.[path];
 		if (JSON.stringify(got) !== JSON.stringify(want)) out.push({ kind: 'state', want: `${path}=${JSON.stringify(want)}`, got: JSON.stringify(got) });
@@ -128,7 +136,22 @@ const ticketStateOf = async (ticket) => {
 };
 
 export const runCase = async (c) => {
-	const seen = await drive(c);
+	// `#1267`（预审 ③）：**逐例 try/catch** —— 单例异常不再让整跑崩且不点名；
+	// 归「红-无归因（异常）」并**点名 case id**（其余用例照常汇总）。
+	let seen;
+	try {
+		seen = await drive(c);
+	} catch (e) {
+		return { ...c, problems: [{ kind: 'error', want: String(e?.message ?? e).slice(0, 200) }],
+			ticket: c.ticket ?? null, ticketState: await ticketStateOf(c.ticket ?? null),
+			verdict: 'unattributed', exit: 1 };
+	}
+	// `#1267`（预审 ⑤）：**页面未捕获异常 → 该例判红并点名**（  不得删掉收集 —— 它是"页面坏了"的唯一信号）。
+	if ((seen.uncaught ?? []).length) {
+		return { ...c, problems: (seen.uncaught ?? []).map((u) => ({ kind: 'uncaught', want: String(u).slice(0, 200) })),
+			ticket: c.ticket ?? null, ticketState: await ticketStateOf(c.ticket ?? null),
+			verdict: 'unattributed', exit: 1 };
+	}
 	const problems = expectViolations({ expect: c.expect ?? {}, seen });
 	const ticket = c.ticket ?? null;
 	const ticketState = await ticketStateOf(ticket);
@@ -149,6 +172,7 @@ const main = async () => {
 	const found = discoverCases(casesDir, args);
 	if (!found.length) {
 		console.log('○ 零用例：该用例根下没有匹配的用例 ⇒ 本次未跑（rc=0，已明说）');
+		if (args.json) console.log(JSON.stringify({ casesDir, storiesDir: STORIES_DIR, summary: { total: 0, green: 0, expectedGap: 0, unattributed: 0, stale: 0, exit: 0 }, results: [] }));
 		process.exit(0);
 	}
 	const results = [];
@@ -164,6 +188,16 @@ const main = async () => {
 	// **汇总行每次都要打**（哪怕全绿）
 	console.log(`用例 ${sum.total} 条：绿 ${sum.green} ｜ 预期缺口 ${sum.expectedGap}（${results.filter((r) => r.verdict === 'expected-gap').map((r) => r.ticket).join(',') || '—'}）｜ 未归因 ${sum.unattributed} ｜ 陈旧归因 ${sum.stale} ⇒ rc=${sum.exit}`);
 	if (results.some((r) => r.ticketState === 'unknown')) console.log('  · 提示：有归因票的**状态未能核实**（无 GH_TOKEN 或查询失败）⇒ 按"未关"处理，不据此判红');
+	// `#1267`（预审 ④）：`--json` **实现**（CI／接续器要用；不许 usage 有而实现无）。
+	if (args.json) {
+		console.log(JSON.stringify({
+			casesDir, storiesDir: STORIES_DIR, summary: sum,
+			results: results.map((r) => ({
+				id: r.id, slug: r.slug, verdict: r.verdict, exit: r.exit, ticket: r.ticket, ticketState: r.ticketState,
+				problems: r.problems.map((p2) => ({ kind: p2.kind, want: p2.want, got: p2.got ?? null })),
+			})),
+		}));
+	}
 	process.exit(sum.exit);
 };
 

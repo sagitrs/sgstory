@@ -1,6 +1,6 @@
 
-import { defaultStoryHtml, ROOT } from '../scripts/dist-paths.mjs';
-import { relative } from 'node:path';
+import { defaultStoryHtml, ROOT, STORIES_DIR } from '../scripts/dist-paths.mjs';
+import { relative, join, dirname } from 'node:path';
 // L0.5 产物体积 ratchet（`#187`）：首屏字节预算，只许降不许升。
 // 超基线 → 红；低于基线 → 收紧。重签：node test/size-gate.mjs --update-size（PR 写明理由）。
 //
@@ -137,7 +137,15 @@ const selftest = () => {
 
 if (process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 
-const BASELINE = 'test/size-baseline.json';
+// `#1282`（M1 尾件 ⑥）：**基线随生效故事根**。理由与 `DIST_DIR = <故事根>/../dist` 同族：
+// 引擎仓那份基线是**引擎产物的预算**；拿 books 产物（更小）去收紧它 = 语义错位。
+// 仓内时 `STORIES_DIR = ROOT/stories` → 落点仍是 `test/size-baseline.json`（**逐字符恒等**  ）。
+const REPO_BASELINE = join(ROOT, 'test', 'size-baseline.json');
+const EXTERNAL = STORIES_DIR !== join(ROOT, 'stories');
+// 外根：基线住在**该根的上层**（`<故事根>/../test/size-baseline.json`）—— books 仓自己的预算。
+const BASELINE = EXTERNAL ? join(dirname(STORIES_DIR), 'test', 'size-baseline.json') : REPO_BASELINE;
+// **硬约束**：外根且**该根下无基线** → **只报不写**（不得新建、更不得回写引擎仓那份）。
+const WRITABLE = !EXTERNAL || existsSync(BASELINE);
 const update = process.argv.includes('--update-size');
 // 原子写：先写临时文件再 rename（同一文件系统内 rename 是原子的）——避免并发读者看到半写内容
 const writeBaseline = (obj) => {
@@ -179,6 +187,14 @@ const readBaseline = () => {
 const parsed = readBaseline();
 
 if (update) {
+	// `#1282` ⑥：**外根且该根下无自己的基线 → 拒绝重签**（否则 `--update-size` 会把外根产物的
+	// 尺寸写成**引擎仓**的预算  ）。要建外根的预算，先在该根上层放一份基线文件。
+	if (!WRITABLE) {
+		console.error(`✗ 当前故事根（${STORIES_DIR}）下没有自己的体积基线 ⇒ **拒绝重签**：`
+			+ `本次量的是外根产物，写回会改到引擎仓的预算（越界写 ✗）。`
+			+ `若确实要为该根建立预算，请先在该根上层放一份 ${BASELINE}`);
+		process.exit(1);
+	}
 	// `#678` 交叉验证的教训（dev 提）：重签时**必须打印每项 delta＋来源提示**——
 	// 那次 `#678` 只改 5 个文件、却在重签里顺手把 **fonts 的存量漂移**（+1452B，靠 ±1% 容差一直绿着）也纠正了，
 	// 而 PR 说明里没写 → 得重算一遍才知道那笔账不是本 PR 的。**看不清账＝不能归因。**
@@ -214,9 +230,16 @@ if (failures) {
 	process.exit(1);
 }
 if (Object.keys(shrunken).length) {
-	const cur = readBaseline();
-	for (const [k, v] of Object.entries(shrunken)) cur.rows[k] = v;   // 只写**实际降低**的项
-	writeBaseline(cur);
-	console.log(`  （体积基线已收紧 ${Object.keys(shrunken).join('、')}——只紧不松；其余项与容差表保留）`);
+	if (!WRITABLE) {
+		// 外根且该根下无自己的基线 → **只报不写**（否则"合法收紧"会变成**越界写**：把 books 产物
+		// 的尺寸拿去收紧引擎仓的预算  ）。
+		console.log(`  （体积可收紧 ${Object.keys(shrunken).join('、')}，但当前故事根下无自己的基线 ⇒ **不写**；`
+			+ `如需建立本根的预算，在该根下放一份 ${BASELINE}）`);
+	} else {
+		const cur = readBaseline();
+		for (const [k, v] of Object.entries(shrunken)) cur.rows[k] = v;   // 只写**实际降低**的项
+		writeBaseline(cur);
+		console.log(`  （体积基线已收紧 ${Object.keys(shrunken).join('、')}——只紧不松；其余项与容差表保留）`);
+	}
 }
 console.log('✔ 体积 ratchet 通过（首屏字节在预算内）');

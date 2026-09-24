@@ -12,6 +12,7 @@
 
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { absPath } from '../scripts/dist-paths.mjs';   // `#1282`
 import { boot } from './boot.mjs';
 import { DEFAULT_SLUG, storySlugs } from '../scripts/dist-paths.mjs';
 import { PC_BASE_KEYS, PC_STORY_CONCEPTS, PC_GAMEPLAY_HOME, PC_GROUP_SIGNALS, PC_GAMEPLAY_CONCEPTS } from '../editor/lib/core/pc-state-map.mjs';
@@ -29,7 +30,8 @@ const ok = (name, cond, detail = '') => {
 	console.error(`✗ ${name}${detail ? ` —— ${detail}` : ''}`);
 };
 
-const contractOf = (slug) => JSON.parse(readFileSync(join(ROOT, 'stories', slug, 'data', 'contract.json'), 'utf8'));
+// `#1282` 尾件①：故事根下的路径经 `absPath`（仓内恒等 → 行为不变）。
+const contractOf = (slug) => JSON.parse(readFileSync(absPath(`stories/${slug}/data/contract.json`), 'utf8'));
 const slugs = [DEFAULT_SLUG, ...storySlugs().filter((s) => s !== DEFAULT_SLUG)];
 const stateOf = {};
 for (const slug of slugs) {

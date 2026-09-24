@@ -13,7 +13,7 @@
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems, READ_FORMS, deriveContractAliases, isTweeFile, contractReadDomain, deriveCapabilityGroups, requiredSilenced, fixtureFaceProblems, FIXTURE_FACE_EXPECTED, FIXTURE_FACE_EXCEPTIONS, fixtureFaceExceptionConflicts , storyKeyLiteralProblems, STORY_KEY_NAMES , exceptionRemovableProblems, EXCEPTION_REMOVAL_CHECKS } from '../editor/lib/core/contract-defaults.mjs';
-import { storySlugs } from '../scripts/dist-paths.mjs';
+import { storySlugs, absPath } from '../scripts/dist-paths.mjs';
 import { maskComments } from '../editor/lib/core/mask.mjs';
 import { outsideQuotes } from '../editor/lib/host/k6criteria.mjs';
 
@@ -33,7 +33,7 @@ const ok = (name, cond, detail = '') => {
 // ── 采集：故事声明的成员 ＋ 引擎读点（含成员名之后的原文，用来判守卫）──
 const membersByStory = {};
 for (const slug of storySlugs().filter((s) => !s.startsWith('__'))) {
-	const p = join(ROOT, 'stories', slug, 'data', 'contract.json');
+	const p = absPath(`stories/${slug}/data/contract.json`);   // `#1282` 尾件①
 	if (!existsSync(p)) continue;
 	membersByStory[slug] = JSON.parse(readFileSync(p, 'utf8')).members ?? [];
 }

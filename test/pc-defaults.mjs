@@ -1,5 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
+import { absPath } from '../scripts/dist-paths.mjs';   // `#1282`
 // `#660` 片三-3：`Game.Pc.defaults()` —— **形状住引擎、数值走故事**（`Sg.story.pcDefaults()`）
 //
 // 判据（每条对应一处失效方式）：
@@ -64,7 +65,8 @@ eq([mig.hp, mig.star.charge, mig.keeper.state], [3, 12, 'post'], '⑤ `migrate()
 // 范例的延伸（实际值仍用 `w.eval('Game.Pc.defaults()')`）。
 // 基础面只取 `PC_BASE_KEYS`；世界观概念**不再恒在**——故事用契约面 `pcShape` 声明时才有（见下方 expectedFor）。
 const BASE = [...PC_BASE_KEYS].sort();
-const contractOf = (slug) => JSON.parse(readFileSync(join(ROOT, 'stories', slug, 'data', 'contract.json'), 'utf8'));
+// `#1282` 尾件①：经 `absPath`（仓内恒等）。
+const contractOf = (slug) => JSON.parse(readFileSync(absPath(`stories/${slug}/data/contract.json`), 'utf8'));
 const facePresent = (members, face, kind) => {
 	const m = members.find((x) => x.name === face);
 	if (!m) return false;

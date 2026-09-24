@@ -1,0 +1,23 @@
+{
+	"id": "north-room/text-with-attr",
+	"story": "north-room",
+	"why": "★引擎缺口（expected gap）：正文里要一句『随状态变的短语』（例：门的开合随 ev.key_taken 变化）。现行散文形态只认本段入参 `{{名字}}`，而**引擎态／世界态的值不走 `{{}}`**——『引擎态／世界态提供的值走哪个面』是 `#1236` 的**未定点**（承 `#1234` 设计前置）。`docs/engine/authoring-model.md` §1.2 记 `{{…}}` 尚未实现；上游取值面票 `#1048` 已关闭（它只解决『取值面存在』）。",
+	"ticket": "1236",
+	"drive": {
+		"clicks": [
+			"翻一翻靴子",
+			"把钥匙收进口袋"
+		],
+		"state": {},
+		"seed": 12345
+	},
+	"expect": {
+		"visible": [
+			"门是关着的"
+		],
+		"absent": [],
+		"state": [],
+		"edges": []
+	},
+	"_closed_by": "（引擎侧落地后补：closed-by: <引擎票号> @ <时点>）"
+}

@@ -1,0 +1,22 @@
+{
+	"id": "north-room/any-none",
+	"story": "north-room",
+	"why": "G1（`any` 语义）**负控**：进靴子时两个备选（半截蜡烛／黄铜钥匙）都不成立 ⇒ 该行**不得渲染**（`any` 不等于『无条件通过』）",
+	"drive": {
+		"clicks": [
+			"翻一翻靴子"
+		],
+		"state": {},
+		"seed": 12345
+	},
+	"expect": {
+		"visible": [
+			"沾泥的靴子"
+		],
+		"absent": [
+			"看看靴底"
+		],
+		"state": [],
+		"edges": []
+	}
+}

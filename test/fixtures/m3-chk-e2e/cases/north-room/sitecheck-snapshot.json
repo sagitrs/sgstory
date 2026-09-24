@@ -1,0 +1,26 @@
+{
+	"id": "north-room/sitecheck-snapshot",
+	"story": "north-room",
+	"why": "G4（位点检快照）：里屋那一步是**玩家发起的信息类检定** ⇒ 应能跑通并留快照（`<<sitecheck>>` ＋ `<<snapshot>>` ⇒ `pc.ev.last_roll`）。断言两条**不变量**：站点名（结果对象里的键是 **`site`**，不是 `key`）与 DC（证明 DC 来自故事声明的位点表）。★本格曾在 `#1296`（故事侧容器同名覆盖引擎命名空间）下红；该票由 `#1299` 修（逐容器合并）⇒ 本格转绿。",
+	"drive": {
+		"clicks": [
+			"翻一翻靴子",
+			"把钥匙收进口袋",
+			"推门进去"
+		],
+		"state": {},
+		"seed": 12345
+	},
+	"expect": {
+		"visible": [],
+		"absent": [
+			"error within widget code"
+		],
+		"state": {
+			"ev.last_roll.site": "里屋·察觉",
+			"ev.last_roll.dc": 10
+		},
+		"edges": []
+	},
+	"_closed_by": "closed-by: #1296 @ 2026-09-24（引擎侧逐容器合并后本格转绿；#1299 合入主干 0ef8420）"
+}

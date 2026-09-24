@@ -1,0 +1,18 @@
+{
+	"id": "north-room/gated-choice-before",
+	"story": "north-room",
+	"why": "既有能力：条件选项（`data/rules.json` 的 `req: [inv:黄铜钥匙]` ⇒ 未拿钥匙时该边不出现、拿了才出现）",
+	"drive": {
+		"clicks": [],
+		"state": {},
+		"seed": 12345
+	},
+	"expect": {
+		"visible": [],
+		"absent": [
+			"推门进去"
+		],
+		"state": [],
+		"edges": []
+	}
+}

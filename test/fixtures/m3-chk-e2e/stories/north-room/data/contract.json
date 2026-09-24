@@ -1,0 +1,41 @@
+{
+	"section": "StoryBindings",
+	"note": "北屋（`north-room`）的接入契约成员：照最小合法集，本故事不新增面。",
+	"members": [
+		{
+			"name": "econEvents",
+			"kind": "game-ref",
+			"path": "Game.Economy.events",
+			"docs": "空表：本故事没有经济事件"
+		},
+		{
+			"name": "items",
+			"kind": "game-ref",
+			"path": "Game.Items.defs",
+			"docs": "物品定义表（两件：黄铜钥匙／半截蜡烛）"
+		},
+		{
+			"name": "rules",
+			"kind": "empty-array",
+			"docs": "条件表：**非空**（一行：拿过钥匙后「推门进去」才出现）—— 此处为占位说明，真源在 data/rules.json"
+		},
+		{
+			"name": "notes",
+			"kind": "empty-object",
+			"docs": "笔记表：本故事无笔记"
+		},
+		{
+			"name": "mechanics",
+			"kind": "null",
+			"docs": "新机制声明表：**本故事未启用** ⇒ 按 `#492` 口径**也要显式声明**（`null` ＝ 能力不在；调用方必须跳过，不许当空表）"
+		},
+		{
+			"name": "checkSite",
+			"kind": "lookup",
+			"from": "window.Game?.Checks?.sites",
+			"key": "name",
+			"required": true,
+			"error": "Sg.story.checkSite：位点「{key}」未登记（结构缺失必须报错，#441-E）"
+		}
+	]
+}

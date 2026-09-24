@@ -1,0 +1,22 @@
+{
+	"id": "north-room/m3-chk-e2e",
+	"story": "north-room",
+	"why": "`#1275` 的端到端绑定件：`chk:<站点>.success` 只有在**写入点真的落在 present 层**时才成立 —— 判据面（族集合／读取面）绿而这条红，就是那条缝",
+	"drive": {
+		"clicks": [
+			"翻一翻靴子",
+			"把钥匙收进口袋",
+			"推门进去"
+		],
+		"state": {},
+		"seed": 12345
+	},
+	"expect": {
+		"visible": [
+			"桌上那点光"
+		],
+		"absent": [],
+		"state": [],
+		"edges": []
+	}
+}

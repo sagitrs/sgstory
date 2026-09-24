@@ -20,6 +20,7 @@
 //
 // 用法：`node test/story-runtime.mjs`（自证：`--selftest`）
 import { readFileSync } from 'node:fs';
+import { absPath } from '../scripts/dist-paths.mjs';   // `#1267` A 类
 import { join } from 'node:path';
 import { scopedFiles, engineFiles } from '../scripts/module-order.mjs';
 import { storySlugs, readStory, ROOT } from '../scripts/dist-paths.mjs';
@@ -215,7 +216,7 @@ const main = async () => {
 	{
 		const eng = engineFiles();
 		const engWrites = new Set();
-		for (const f of eng) for (const k of qualifiedWriteKeys(readFileSync(join(ROOT, f), 'utf8'))) engWrites.add(k);
+		for (const f of eng) for (const k of qualifiedWriteKeys(readFileSync(absPath(f), 'utf8'))) engWrites.add(k);   // `#1267` A 类
 		let bad2 = 0;
 		for (const slug of storySlugs()) {
 			const files = scopedFiles(readStory(slug));
@@ -229,12 +230,20 @@ const main = async () => {
 			// → **不点名缺什么**。改为：**容忍缺席 ＋ 点名**「缺 `Game.State.domains` 声明（数组形态）」。
 			// 能假格：声明为非空域表且覆盖 → 绿（判据未写空）；非数组 → 点名并计红。
 			const rawDomains = createContext({ story: slug, argv: [] }).Game?.State?.domains;
-			const domains = Array.isArray(rawDomains) ? rawDomains : null;
-			if (domains === null) {
-				console.error(`✗ [域表纪律] 缺 \`Game.State.domains\` 声明（应为数组，实得 ${typeof rawDomains}）⇒ 本项**未判**（#1269 同族）`);
+			// `#1267` 尾件（裁定）：**三态分开**（口径与 `size-gate` 的外根无基线一致）——
+			//   ① 面**不存在**（`undefined`）→ **rc=0 ＋ 明说"本项未判"**（不计红："未判"与"红"是两种可见状态）
+			//   ② 面**存在但类型错**（非数组）→ **点名 ＋ 计红**（＝声明了却不合形，是真问题）
+			//   ③ 面存在且是数组 → 进判据（内容有错 → 仍红，见下方 uncovered）
+			if (rawDomains === undefined) {
+				console.log(`  #1267 [域表纪律] ${slug}：未声明 \`Game.State.domains\` ⇒ **本项未判**（不计红；声明后即参与判定）`);
+				continue;
+			}
+			if (!Array.isArray(rawDomains)) {
+				console.error(`✗ [域表纪律] \`Game.State.domains\` **存在但类型错**（应为数组，实得 ${typeof rawDomains}）⇒ 本项计红（#1267："未判"只适用于该面不存在）`);
 				bad2++;
 				continue;
 			}
+			const domains = rawDomains;
 			const uncovered = [...engWrites].filter((k) => {
 				const bare = String(k).split('.').pop();   // `ev.last_result` → `last_result`（域表按**裸键名**匹配）
 				return !domains.some((d) => (d.keys ?? []).includes(bare) || (d.prefix ?? []).some((p) => bare.startsWith(p)));
@@ -249,7 +258,8 @@ const main = async () => {
 	// ── 逐故事：① 面存在 · ② 位点能判 · ③ 笔记可用 · ④ 侧栏 ──
 	for (const slug of storySlugs()) {
 		const files = scopedFiles(readStory(slug));
-		const sources = Object.fromEntries(files.map((f) => [f, readFileSync(join(ROOT, f), 'utf8')]));
+		// `#1267` A 类：`files` 含**故事件**（符号名）→ 过 `absPath`（仓内恒等；否则外根 ENOENT）。
+		const sources = Object.fromEntries(files.map((f) => [f, readFileSync(absPath(f), 'utf8')]));
 		const uses = apiUses(sources);
 		const { w, close, uncaught, sleep } = await boot({ story: slug });
 		try {

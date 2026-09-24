@@ -304,6 +304,9 @@ export const SEGMENTS = [
 	// `#1275`：**来源面**端到端格（经夹具 runner；零故事态可跑）＋ `-selftest` 能假两格
 	{ id: "test-chk-source-mjs", phase: 'test', cost: 1.5, exclusive: true, mutates: ['build'], cmd: "node test/chk-source.mjs" },
 	{ id: "test-chk-source-mjs-selftest", phase: 'test', cost: 4, exclusive: true, mutates: ['build'], cmd: "node test/chk-source.mjs --selfcheck && node test/chk-source.mjs --selfcheck-render" },
+	// `#1308`：图鉴**呈现面**（面板恒在／含期望文本／空声明出空态；自带夹具、零故事态可跑）
+	{ id: "test-codex-panel-mjs", phase: 'test', cost: 2, exclusive: true, mutates: ['build'], cmd: "node test/codex-panel.mjs" },
+	{ id: "test-codex-panel-mjs-selftest", phase: 'test', cost: 5, exclusive: true, mutates: ['build'], cmd: "node test/codex-panel.mjs --selfcheck" },
 	// `#1296`：**故事侧容器不得静默吃掉引擎命名空间**（判 emit 的逐容器合并；能假＝改回旧形态必红）
 	{ id: "test-ns-merge-mjs", phase: 'test', cost: 0.2, cmd: "node test/ns-merge.mjs" },
 	// `#1267`（伞 `#1266`）：**故事根口**判据（守护"引擎能编译并跑仓外故事根"＋"仓内恒等"＋"不拉屎"）
@@ -593,6 +596,8 @@ export const SUITE_MEMBERS = {
 	'editor': [
 		// `#1275`：chk: 来源面（写入）＋ 渲染面，各一格
 		'test-chk-source-mjs', 'test-chk-source-mjs-selftest',
+		// `#1308`：图鉴呈现面
+		'test-codex-panel-mjs', 'test-codex-panel-mjs-selftest',
 		// `#1296`：引擎命名空间在故事声明同名容器后**仍在**（emit 面判据）
 		'test-ns-merge-mjs',
 		'editor-compile-selftest', 'editor-equiv-selftest',

@@ -215,10 +215,14 @@ export const storyTablesOrderProblems = ({ order = ORDER, manifests = [], consum
 		const pos = new Map(eff.map((f, i) => [f, i]));
 		for (const f of m.files ?? []) {
 			if (!/\/15-tables\.twee$/.test(f)) continue;
-			const i = pos.has(f) ? pos.get(f) : -1;
-			if (i < 0) out.push({ code: 'tables-not-in-order', msg: `${m.slug} 的 ${f} **不在生效加载序里** ✗（既不在 ORDER、也不在该故事清单）` });
+			// `#1267` 尾件③（裁定甲）：原先这里还有一条 `tables-not-in-order`，但它**不可能触发** ——
+			// 判据面（`pos` 由 `storyOrder({files: m.files})` 构造）**⊇ 循环面**（`m.files`）→ `pos.has(f)` **恒真**。
+			// 该形态**由「清单里没有 `15-tables` → 不判该面」接管**（循环本就只遍历清单件）。
+			// → 删掉死分支（留一个没有格、也不可能触发的判据＝把"看上去有守卫"写在纸上）。
+			if (!pos.has(f)) continue;
+			const i = pos.get(f);
 			// **同层**才要求先后：消费点若也在**该故事清单**里，表必须先于它。
-			else {
+			{
 				const sameLayer = consumers.filter((c) => (m.files ?? []).includes(c)).map((c) => pos.get(c)).filter((x) => x !== undefined);
 				const at2 = sameLayer.length ? Math.min(...sameLayer) : -1;
 				if (at2 >= 0 && i > at2) out.push({ code: 'tables-after-consumer', msg: `${m.slug} 的 ${f} 排在**同故事的** ${where} **之后** ✗（生效序 ${i} > ${at2}）—— 消费侧会在表就位前读到 \`undefined\`` });

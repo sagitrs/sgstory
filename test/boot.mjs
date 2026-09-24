@@ -22,6 +22,8 @@ import { renderedPassages, renderedTextOf } from '../editor/lib/core/preview.mjs
 const HTML_OF = new Map();
 const htmlOf = (story) => {
 	const key = story ?? DEFAULT_SLUG;
+	// `#1295`：**零故事态点名报错**（原来是裸 `TypeError: path must be string, received null` —— 看不出"因为仓内没有故事"）。
+	if (!key) throw new Error('boot()：仓内**零故事**（`DEFAULT_SLUG === null`）→ 必须显式传 `story`；零故事态请由调用方先判并优雅跳过（`#1295`）');
 	//注意：**工具契约**（复核席在 H5 配方里撞到的家族实例 —— `--out`／`--story-out`／`boot({story})` **同族**）：
 	// `storyHtml()` 会把入参**当相对**（`join(ROOT,'dist',…)`）→ 传**绝对路径**会被拼成 `dist/…/home/…`
 	// → **静默读到别的文件**（或 ENOENT 报文指错）。→ 这里**绝对路径按绝对处理**（`isAbsolute`）

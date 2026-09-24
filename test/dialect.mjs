@@ -12,6 +12,7 @@
 import { readFileSync } from 'node:fs';
 import { dialectOf, formatDialect, dialectShapeOf, dialectKeyOf } from '../editor/lib/core/dialect.mjs';
 import { readStoryPackage, DATA_FILES } from '../editor/lib/core/story.mjs';
+import { storySlugs, STORIES_DIR } from '../scripts/dist-paths.mjs';   // `#1282` 尾件②：枚举走生效根
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const io = { readText: (p) => readFileSync(`${ROOT}/${p}`, 'utf8') };
@@ -69,8 +70,14 @@ try {
 		// 变化原因明确（加了一个契约成员），不是形状走偏；其余四项（顶层键、在册数、条目表）均未变。
 				'night-ferry': { present: 3, absent: 1, topKeys: 10, itemLists: 3, itemFields: 12 },
 	};
+	// `#1282` 尾件②：**枚举面走生效根**（`storySlugs()`），期望表只对**存在**的样本生效。
+	// 样本缺席（例如 books 尚未提供该故事）→ 明说并跳过，而不是静默判红／判绿。
+	const have = new Set(storySlugs());
+	const judged = Object.keys(want).filter((s) => have.has(s));
+	const absent = Object.keys(want).filter((s) => !have.has(s));
+	if (absent.length) console.log(`  · 样本缺席（生效根下没有）⇒ 本件未判：${absent.join("、")}`);
 	const fps = new Set();
-	for (const slug of Object.keys(want)) {
+	for (const slug of judged) {
 		const d = dialectOf(readStoryPackage({ slug, io }));
 		console.log(`\n── 真数据（${slug}） ──`);
 		for (const line of formatDialect(d)) console.log(`  ${line}`);
@@ -82,10 +89,11 @@ try {
 		fps.add(dialectShapeOf(d));
 	}
 	t(`故事**两两不同** （${fps.size} 种形状串 —— 相同就说明这把尺子没分辨力 ；用**承重口**而不是 32 位指纹 ）`,
-		fps.size === Object.keys(want).length);
-	t('`rules.json` **缺席仍合法** ：`minimal-demo` 缺它  不在册且**不报** ',
+		fps.size === judged.length);
+	// `#1282` 尾件②：仅当该样本在生效根下存在时才判（缺席 → 本件未判）。
+	if (have.has('minimal-demo')) t('`rules.json` **缺席仍合法** ：`minimal-demo` 缺它  不在册且**不报** ',
 		(h => h.counts.absent === 2 && h.problems.length === 0 && !('rules.json' in h.files))(dialectOf(readStoryPackage({ slug: 'minimal-demo', io }))));
-	t('`rules.json` **在册但空表** 也合法 ：`night-ferry` 有它、`rows` 为 `[]`  在册且**不报** （空≠畸形，两者分开 ）',
+	if (have.has('night-ferry')) t('`rules.json` **在册但空表** 也合法 ：`night-ferry` 有它、`rows` 为 `[]`  在册且**不报** （空≠畸形，两者分开 ）',
 		(h => 'rules.json' in h.files && h.problems.length === 0)(dialectOf(readStoryPackage({ slug: 'night-ferry', io }))));
 
 	t('口径面：本件不碰值域／语义 （`DATA_FILES` 取自 `core/story.mjs`  单一权威 ）',

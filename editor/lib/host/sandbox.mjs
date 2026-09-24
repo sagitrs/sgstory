@@ -10,6 +10,7 @@
 // → 只搬命令体、把 runStory 留在壳里 → 就会出现第二份（"一处定义"那条纪律）。
 import vm from 'node:vm';
 import { join } from 'node:path';
+import { absPath } from '../../../scripts/dist-paths.mjs';   // `#1282` 尾件①
 import { readText, ROOT, engineScripts } from './fs.mjs';
 import { scriptBodies } from '../core/text.mjs';
 import { sectionFile } from '../core/story.mjs';
@@ -47,6 +48,7 @@ export const resolveLocalConst = (fileText, sectionName, ident) => {
 /** 引擎常量 ＋ 故事某一段的脚本体（**读文件** → 住 host）。
  * **消费者现状**：命令体（`lib/host/commands.mjs`，下一票）；**自证目前不消费它**（同 `sectionFile`）。 */
 export const engineOf = (slug, fromPath = null) => {
-	const text = readText(fromPath ?? join(ROOT, `stories/${slug}/${sectionFile('Game Tables')}`));
+	// `#1282` 尾件①：原写法**根本没走根**（`join(ROOT, 'stories/…')`）→ 外根下读仓内同名路径  。
+	const text = readText(fromPath ?? absPath(`stories/${slug}/${sectionFile('Game Tables')}`));
 	return engineScripts() + '\n' + scriptBodies(text).join('\n');
 };

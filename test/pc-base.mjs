@@ -20,6 +20,9 @@ import { allSourceFiles } from '../scripts/module-order.mjs';   // `#1186`：扫
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 /** 反向核：三故事的键数与基础面规模（改契约或改基础面时同片更新）。 */
+// `#1282` 尾件②：期望表只对**生效根下存在**的样本生效（枚举面走 storySlugs()）；
+// 样本缺席 → 明说未判（不静默判红／判绿）。
+const HAVE = new Set(storySlugs());
 const EXPECTED_KEYS = { 'face-fixture': 28, 'night-ferry': 8, 'minimal-demo': 8 };   // `#1216` B 半：补回夹具三名（checkSite/dragonMaxHp/poisonReduce）后随契约面更新 // `#1216` B 半：随契约面去声明而变（`rules`／`notes`／`pcDefaults` 为必给、已恢复） // `#1186`：世界观概念改由故事声明后，无概念的两故事少两键
 const EXPECTED_BASE = 7;
 

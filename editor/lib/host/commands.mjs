@@ -148,8 +148,10 @@ export const extractCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 
 	const tablesMode = rest.includes('--tables');
 	const section = argOf('section', tablesMode ? 'Game Tables' : 'StoryRules');
 	const key = argOf('key', 'rules');
-	const out = join(ROOT, argOf('out', tablesMode ? `${STORIES_DIR}/${slug}/data/tables.json` : `${STORIES_DIR}/${slug}/data/${key}.json`));
-	const file = join(ROOT, argOf('from', `${STORIES_DIR}/${slug}/${sectionFile(section)}`));
+	// `#1282` 尾件①/1c：默认值用**符号名**，拼根只用一处（`absPath`）——原写法把 `STORIES_DIR`
+	// 又塞进 `join(ROOT, …)` → 仓内得 `/repo/repo/stories/…`、外根得 `<repo>/<abs>/…`（两向都错  ）。
+	const out = absPath(argOf('out', tablesMode ? `stories/${slug}/data/tables.json` : `stories/${slug}/data/${key}.json`));
+	const file = absPath(argOf('from', `stories/${slug}/${sectionFile(section)}`));   // `#1282`：同上
 	const scripts = engineScripts() + '\n' + scriptBodies(readText(file)).join('\n');
 	const { Sg, diag } = runStory(scripts);
 	if (tablesMode) {
@@ -214,7 +216,7 @@ export const classifyCommand = (argv = [], { prog = 'node editor/classify-contra
 	if (!slug) { console.error(usageOf(prog, sub, '<slug> [--json]')); return 2; }
 	// `#959`（同族推广）：`--from=` 空 → `join(ROOT, '')` ＝ ROOT → `existsSync` **为真** → 会走"找不到成员" → **归因错**（真因是文件不在）。
 	if (argOf('from', null) === '') { console.error('✗ --from= 只接受文件路径（实得 （空））—— 例：`--from=stories/<slug>/15-tables.twee`'); return 2; }
-	const file = join(ROOT, argOf('from', `${STORIES_DIR}/${slug}/15-tables.twee`));
+	const file = absPath(argOf('from', `stories/${slug}/15-tables.twee`));   // `#1282`：同上
 	// `#794`：**输入缺失 → 单独一条** —— 实测：不存在的路径原先被报成"里面**找不到 Sg.story 成员**"，
 	// 方向对（不静默）但**归因错**（读的人会去查契约，而真因是**文件不在**）→ 与 `extract-story` 同口径。
 	if (!existsSync(file)) { console.error(`✗ 读不到输入：${file}（文件不存在）—— "读不到输入"不许当"没有故事逻辑"`); return 1; }
@@ -335,7 +337,7 @@ export const equivCommand = (argv = [], { prog = 'node editor/equiv.mjs', sub = 
 	//注意：**一处定义**：产物名只在这里算一次 —— 它**同时**驱动 `--hand` 的默认路径与下面取产物那一步
 	//（两处各写一份 ternary →“比的是 ch2、指路指 ch1”的**错位**；复核席 `18505646` 点名过这处）。
 	const defaultTwee = notesMode ? (notesTarget ?? '16-notes-ch1.twee') : rulesMode ? '17-rules.twee' : '15-tables.twee';
-	const handPath = join(ROOT, argOf('hand', `${STORIES_DIR}/${slug}/${defaultTwee}`));
+	const handPath = absPath(argOf('hand', `stories/${slug}/${defaultTwee}`));   // `#1282`：同上
 	// `#794` 观察项：**裸跑（未显式给 `--hand`）＋ 默认目标是产物 → 当场拒绝并指路**（见 `bareHandRefusal`）。
 	//注意：放在**昂贵比较之前**（复核口径）：下面要连编译两次 ＋ 逐字节比 → 跑完再报等于让人白等。
 	const defaultExists = existsSync(handPath);
@@ -724,7 +726,7 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 			const storyCensus = censusOfStory(census, slug);
 			if (!storyCensus) console.log(`  · ${slug}：**未普查**（\`editor/escape-hatch-census.json\` 里没有本故事的条目）⇒ 「必须逃生舱」清单本次无可判对象（这是**状态**，不是"没问题"）`);
 			else {
-				// `#1282` 尾件 1c：此处原为**双重拼接**（`join(ROOT, `${STORIES_DIR}/…`)`）——
+				// `#1282` 尾件 1c：此处原为**双重拼接**（把已解析的故事根又塞进 join(ROOT, …)）——
 				// 仓内会变成 `/repo/repo/stories/…`、外根会变成 `/repo/books/stories/…` → 数学上必错。
 				// 本函数的正确写法是「根已经解析过一次」（同函数 `:645` 的 `storiesDir = STORIES_DIR`）：
 				const contractPath = join(STORIES_DIR, slug, 'data', 'contract.json');

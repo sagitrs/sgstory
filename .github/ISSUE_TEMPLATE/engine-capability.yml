@@ -1,0 +1,61 @@
+name: 引擎能力需求（故事侧提出）
+description: 故事写到某处需要引擎还不具备的能力时，用这一份提需求。必带「今天必红」的样本。
+title: "[需求·引擎能力] "
+labels: ["需求·引擎能力"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        提之前请先读 `docs/process/story-engine-loop.md`。这份模板只收「引擎缺面」的需求；
+        如果只是用法问题或故事数据就能表达，请在 issue 里写明，分诊会把它改成更合适的形态。
+  - type: input
+    id: story
+    attributes:
+      label: 故事与位置
+      description: 哪个故事（slug）、哪一段（passage）、哪一句话。
+      placeholder: north-room ／ passages/03-里屋.md ／ 「<<sitecheck "里屋·察觉">>」
+    validations:
+      required: true
+  - type: textarea
+    id: intent
+    attributes:
+      label: 想做出什么效果
+      description: 写成「玩家会看到什么」，不要写成「引擎该怎么做」。
+    validations:
+      required: true
+  - type: textarea
+    id: today
+    attributes:
+      label: 今天的现状（错误原文或可观察行为）
+      description: 贴原始错误行或读数。不要写「好像不行」。
+    validations:
+      required: true
+  - type: textarea
+    id: falsifiable
+    attributes:
+      label: 能假样本（今天必红，能力落地后转绿）
+      description: 一条故事侧用例（`cases/<slug>/<name>.json`）或最小复现命令与读数。
+    validations:
+      required: true
+  - type: textarea
+    id: data-first
+    attributes:
+      label: 能不能用故事数据表达
+      description: 先答这一问。能，就不用新增能力；不能，请说明为什么数据表达不了。
+    validations:
+      required: true
+  - type: textarea
+    id: accept
+    attributes:
+      label: 验收判据
+      description: 「能力可用」怎么判（引擎侧判据格）；以及故事侧要用在哪、读数怎么贴。
+    validations:
+      required: true
+  - type: input
+    id: surface
+    attributes:
+      label: 涉及面（引擎哪个面）
+      description: 知道就填，不知道可留空（分诊会补）。
+      placeholder: Game.Checks ／ <<checkres>> ／ 条件表 ops
+    validations:
+      required: false

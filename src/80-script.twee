@@ -636,10 +636,14 @@ jQuery(document).on(':passageend.sgChoiceKey', (ev) => {
 			} catch { return this.blank(); }
 		},
 		write(d) { try { window.localStorage.setItem(window.Sg.store.key('story', 'codex.v1'), JSON.stringify(d)); } catch { /* 隐私模式 → 静默降级到"本次会话有效"（与 `Sg.store` 同款） */ } },
-		clueIds(item) { return window.Game.Codex.clueIds(item); },
-		satisfied(pc) { return window.Game.Codex.satisfied(pc); },
-		isUnlocked(item, store) { return window.Game.Codex.isUnlocked(item, store); },
-		progress(item, store) { return window.Game.Codex.progress(item, store); },
+		// `#1269`（第 6 处）：`Game.Codex` 在**故事未声明图鉴面**时可能整体未建 → 原先四支裸转发
+		// 会抛 `TypeError: window.Game.Codex.satisfied is not a function`（**不点名缺什么**，
+		// 读报文的人会去修引擎，而真因是故事盘缺 `codexItems` 声明）。同口径于本对象 `sync()`：
+		// **缺面 → 可选空集**（图鉴四支退化为空／false → 不静默给假数据）。
+		clueIds(item) { return window.Game?.Codex?.clueIds?.(item) ?? []; },
+		satisfied(pc) { return window.Game?.Codex?.satisfied?.(pc) ?? {}; },
+		isUnlocked(item, store) { return window.Game?.Codex?.isUnlocked?.(item, store) ?? false; },
+		progress(item, store) { return window.Game?.Codex?.progress?.(item, store) ?? null; },
 		sync() {
 			const pc = State.variables?.pc;
 			if (!pc || !window.Game?.Codex) return;

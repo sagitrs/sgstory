@@ -17,8 +17,11 @@
 // 依赖方向：`story.mjs → contractVersion.mjs` 单向（后者**不**反向 import 本件 → 无环）。
 import { CURRENT } from './contractVersion.mjs';
 
-/** 数据面文件（与 `data/` 下的产物同名；`rules.json`／`notes.json` 可缺 → `null`）。 */
-export const DATA_FILES = ['tables.json', 'contract.json', 'rules.json', 'notes.json'];
+/** 数据面文件（与 `data/` 下的产物同名；`rules.json`／`notes.json` 可缺 → `null`）。
+ * `#1350` 片 1：加 `passages.json`（作者面**目标形态**的段落数据）。形状权威＝`#1234` 冻结 schema，
+ * 本处只负责"**看得见**"（与既有 `data/*.json` 同面 ⇒ ✗ 不新增发现规则）；
+ * **消费**在后续片（`assemblePassages` 的输入：`params`／`links`／`present`）。 */
+export const DATA_FILES = ['tables.json', 'contract.json', 'rules.json', 'notes.json', 'passages.json'];
 
 /** 段落名 → 文件名（本仓约定：段落名与文件名不同，靠 `00-story.json` 的 files 列表兜底）。
  * 纯映射 → 住 core。**消费者现状**：命令体（`lib/host/commands.mjs`，下一票）；

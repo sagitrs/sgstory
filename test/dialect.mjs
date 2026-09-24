@@ -97,7 +97,10 @@ try {
 		(h => 'rules.json' in h.files && h.problems.length === 0)(dialectOf(readStoryPackage({ slug: 'night-ferry', io }))));
 
 	t('口径面：本件不碰值域／语义 （`DATA_FILES` 取自 `core/story.mjs`  单一权威 ）',
-		JSON.stringify(DATA_FILES) === JSON.stringify(['tables.json', 'contract.json', 'rules.json', 'notes.json']));
+		// `#1350` 片 1：数据面加 `passages.json`（作者面**目标形态**）⇒ 期望表随之更新。
+		// 说明为何不“自动跟随”：本格的**对象**是“口径面清单**就是**那几项”（单一权威的自证），
+		// 所以清单变动时**就要**有人动这里 —— 变动本身是可判的（✓ 不是把它改成“只要能导出就算过”）。
+		JSON.stringify(DATA_FILES) === JSON.stringify(['tables.json', 'contract.json', 'rules.json', 'notes.json', 'passages.json']));
 
 	if (bad) { console.error(`\n dialect 未通过（${bad} 项）`); rc = 1; }
 	else console.log('\n✔ dialect 通过：**方言指纹**（形状面  —— 不含值域／语义／行为 ）—— 两张表逐条对账 ＋ 缺/畸形分开 ＋ 刀 ＋ 值变不动 ＋ 现存故事读数 ');

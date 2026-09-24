@@ -11,7 +11,7 @@ import { join, resolve, dirname, relative } from 'node:path';
 import { readText, writeText, mkdirp, exists, ROOT, engineScripts } from './fs.mjs';
 // `#1267` 故事根口：本件是「故事包 I/O」的宿主，所有 stories/... 路径都走 STORIES_DIR，
 // 否则会出现「编译器读新根、lint/写回仍读旧根」的假绿。
-import { STORIES_DIR, absPath } from '../../../scripts/dist-paths.mjs';   // `#1267`：absPath 用于把符号名换成真实落盘路径
+import { STORIES_DIR, absPath, storySlugs } from '../../../scripts/dist-paths.mjs';   // `#1267`：absPath 用于把符号名换成真实落盘路径
 // `#1267` 故事根口：core 的 `packageFiles` 要的是**目录前缀**（相对仓根）——
 // 仓内时 'stories'（逐字符不变），仓外时给绝对路径 → 编译/lint/写回同根。
 const BASE = relative(ROOT, STORIES_DIR) || STORIES_DIR;
@@ -653,8 +653,26 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 	// gate could not run at all in zero-story mode (that is why `#1276` had to clean
 	// the refusedFaces entry by hand). Same family as "gates that read products":
 	// zero story => say so explicitly and skip (not a silent pass, not a crash).
-	if (!existsSync(storiesDir)) {
-		console.log(`  #1267 零故事模式：故事根 ${storiesDir} 不存在 ⇒ 本门跳过（样本随 #1163 回填）`);
+	// `#1300`：分叉按"**故事根里有没有故事**"，不按"根目录本身在不在" —— 两种"零"不同形：
+	//   · 根**不存在**（本仓常态之一）
+	//   · 根**存在但空**（`#1274` 的故事根口要求目录存在 → 这条会真出现）
+	// 两者都归"零故事 → **本门未判**"（明说、不计红）。反之，
+	// 根里**有故事、只是还没数据化**必须**仍红**（那是"一个都没判"的真信号，不许静默判过）。
+	// 判据只看故事根（`storySlugs()` ＝ 有 `00-story.json` 的目录），**产物在场与否不得影响结论**
+	//（本门自己跑编译器，不读工作区产物）。
+	if (storySlugs().length === 0) {
+		// `#1300`（裁定补格）：**"根为空"与"有目录但没清单"必须不同形** —— 后者最常见是
+		// "放错位置／改名" → **不红，但必须点名出声**（"允许的降级必须有可见读数"）。
+		const stray = existsSync(storiesDir)
+			? readdirSync(storiesDir).filter((s) => {
+				try { return statSync(join(storiesDir, s)).isDirectory() && !s.startsWith('.') && !existsSync(join(storiesDir, s, '00-story.json')); }
+				catch { return false; }
+			})
+			: [];
+		if (stray.length) {
+			console.log(`  #1300 告警：故事根里有目录但**没有 00-story.json**：${stray.join('、')} → 不判为故事（本门未判；常见成因：放错位置／改名）`);
+		}
+		console.log(`  #1300 零故事：故事根里没有任何故事（不存在或为空）→ 本门未判（不计红；装上故事后即参与判定）`);
 		return 0;
 	}
 	const slugs = readdirSync(storiesDir).filter((s) => statSync(join(storiesDir, s)).isDirectory() && !s.startsWith('.'));

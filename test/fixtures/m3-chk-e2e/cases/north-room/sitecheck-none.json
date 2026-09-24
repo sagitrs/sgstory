@@ -1,0 +1,23 @@
+{
+	"id": "north-room/sitecheck-none",
+	"story": "north-room",
+	"why": "G4 的**负控**：**没做检定 ⇒ 页面上不得有检定痕迹** —— 只走到靴子（不进里屋）⇒ 断言页面**没有**检定的渲染文本（`察觉检定`／`里屋·察觉`），同时断言**在靴子那段**（`visible`）以免成为空判。★本格在正例转绿后才落（正例还红时落负控，那个绿是空的）；★工具面附注：这里**无法**断言 `pc.ev.last_roll` 的『缺席』—— 未做检定时该键**不存在**（非 null），而执行器四张面里的 `state` 用 `JSON.stringify` 比较，表达不了 `undefined` ⇒ 待将来补 `expect.stateAbsent` 一类面时可收紧。",
+	"drive": {
+		"clicks": [
+			"翻一翻靴子"
+		],
+		"state": {},
+		"seed": 12345
+	},
+	"expect": {
+		"visible": [
+			"沾泥的靴子"
+		],
+		"absent": [
+			"察觉检定",
+			"里屋·察觉"
+		],
+		"state": [],
+		"edges": []
+	}
+}

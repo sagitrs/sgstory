@@ -1,0 +1,22 @@
+{
+	"id": "north-room/any-second-true",
+	"story": "north-room",
+	"why": "G1（`any` 语义）**正例**：`any[0]`＝半截蜡烛在本故事**没有授予路径**（永远拿不到）⇒ 该行**只能靠 `any[1]` 成立** ⇒ **只认第一个备选的实现会红**",
+	"drive": {
+		"clicks": [
+			"翻一翻靴子",
+			"把钥匙收进口袋",
+			"翻一翻靴子"
+		],
+		"state": {},
+		"seed": 12345
+	},
+	"expect": {
+		"visible": [],
+		"absent": [],
+		"state": [],
+		"edges": [
+			"看看靴底"
+		]
+	}
+}

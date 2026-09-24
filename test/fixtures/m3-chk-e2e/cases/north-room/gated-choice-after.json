@@ -1,0 +1,27 @@
+{
+	"id": "north-room/gated-choice-after",
+	"story": "north-room",
+	"why": "既有能力：条件选项（同一条边的**另一半** —— 拿过钥匙之后该边必须出现；与 `gated-choice-before` 成对，缺一半则『条件面』只有一半判据）",
+	"drive": {
+		"clicks": [
+			"翻一翻靴子",
+			"把钥匙收进口袋"
+		],
+		"state": {},
+		"seed": 12345
+	},
+	"expect": {
+		"visible": [
+			"推门进去"
+		],
+		"absent": [],
+		"state": [],
+		"edges": [
+			{
+				"from": "门厅",
+				"label": "推门进去",
+				"to": "里屋"
+			}
+		]
+	}
+}

@@ -1,0 +1,22 @@
+{
+	"id": "north-room/open-room",
+	"story": "north-room",
+	"why": "既有能力：段落图 ＋ 可见文案渲染（`[[标签|目标]]` 走通 ⇒ 目标段渲染出文本）",
+	"drive": {
+		"clicks": [
+			"翻一翻靴子",
+			"把钥匙收进口袋",
+			"推门进去"
+		],
+		"state": {},
+		"seed": 12345
+	},
+	"expect": {
+		"visible": [
+			"屋里比外头暖"
+		],
+		"absent": [],
+		"state": [],
+		"edges": []
+	}
+}

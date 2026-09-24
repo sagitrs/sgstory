@@ -1,5 +1,5 @@
 
-import { defaultStoryHtml, ROOT, STORIES_DIR } from '../scripts/dist-paths.mjs';
+import { defaultStoryHtml, ROOT, STORIES_DIR, DIST_DIR } from '../scripts/dist-paths.mjs';   // `#1267`：读盘方随根
 import { relative, join, dirname } from 'node:path';
 // L0.5 产物体积 ratchet（`#187`）：首屏字节预算，只许降不许升。
 // 超基线 → 红；低于基线 → 收紧。重签：node test/size-gate.mjs --update-size（PR 写明理由）。
@@ -161,7 +161,14 @@ if (!defaultStoryHtml()) {
 }
 if (!existsSync(defaultStoryHtml())) { console.error(`✗ 缺 ${relative(ROOT, defaultStoryHtml())}，请先构建`); process.exit(1); }
 const rows = { 'index.html': statSync(defaultStoryHtml()).size };
-rows.fonts = readdirSync('dist/fonts').reduce((a, f) => a + statSync(`dist/fonts/${f}`).size, 0);
+// `#1267` 尾件⑤（复核阻断）：**读盘方也要随根** —— 本笔把字体**写**到 `join(DIST_DIR,'fonts')`
+// （外根下＝`<外根>/dist/fonts`），而这里仍裸读仓内相对 `dist/fonts` → 外根有产物而引擎仓
+// 无 `dist/fonts` 时，**本行先抛 ENOENT**，把「外根无基线 → 未判 rc=0」那条裁定吃掉  
+// （前批未暴露，是因为那时字体还写在引擎仓 → 这里找得到）。改：走 `DIST_DIR`（仓内恒等）。
+const FONT_DIR = join(DIST_DIR, 'fonts');
+rows.fonts = existsSync(FONT_DIR)
+	? readdirSync(FONT_DIR).reduce((a, f) => a + statSync(join(FONT_DIR, f)).size, 0)
+	: 0;
 
 // #411 CI 实测：这条读曾在 CI 上 JSON.parse 崩（基线被写坏/半写）——改成**读重试 + 可诊断报错**，
 // 并且写回时用**原子替换**（见下）→ 并行执行（`--jobs>1`）下不会再有"读到半个文件"。

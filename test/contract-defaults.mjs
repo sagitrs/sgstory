@@ -21,6 +21,8 @@ const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 /** 反向核：三故事的数据成员数（能力开关不计）。改动契约时同片更新。 */
 // 现状（A 半不动契约）。B 半逐名加守卫并去声明之后，这三个数会下降（票面 `#1216` 钉进度）。
 const EXPECTED_DEFAULT_MISSING = 0;   // 仅剩 starBudget（保持必给，见缺省表旁理由） // 见下方信息面：已声明但缺省规格里没有、且缺省承重
+// `#1282` 尾件②：期望表只对生效根下存在的样本生效（缺席 → 明说未判）。
+const HAVE = new Set(storySlugs());
 const EXPECTED_DATA_MEMBERS = { 'face-fixture': 24, 'night-ferry': 6, 'minimal-demo': 5 };   // `#1227` 片一：夹具加 flipPolicy 契约成员 // `#1216` B 半：夹具回 checkSite；dragonMaxHp／poisonReduce 有意缺席（随 #1227 类一删） // `#1186`（流一）引入契约面 `pcShape` 后 face-fixture +1（跨票联动：谁后合谁带上）
 
 let bad = 0;

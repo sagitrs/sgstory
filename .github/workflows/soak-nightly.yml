@@ -27,9 +27,8 @@ jobs:
       - run: node build.mjs
       # 随机游走的家（report-only）：多种子长测；**失败不阻塞合入**，而是开票留痕（见下一步）
       - run: node test/walker.mjs 30 30 ${{ matrix.seed }}
-      # 缺口趋势的可见性（`#628`，**report-only、不入任何门禁**）：抽样观测，未观测 ≠ 断言不存在
-      - if: always()
-        run: npm run report:polarity
+      # `#1261` 大裁剪：`report-polarity-gap`（报告面退役 5 件之一）已删 ⇒ 本步骤退役；
+      # 何时重建：books 供样本后按新口径重立（见 #1265 下架台账）。
       - name: 失败 ⇒ 开票留痕（同一形态不重复开票）
         if: failure()
         env:

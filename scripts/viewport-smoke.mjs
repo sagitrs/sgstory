@@ -4,15 +4,18 @@ import { relative } from 'node:path';
 // 视口冒烟（#208D，手动档）：构建产物在四档视口下 ① 无页面/console 错误 ② scrollWidth 不劣于基线（ratchet 只许降）。
 // 首跑自建档 test/viewport-baseline.json；390 档存在既有横向溢出（#169 实测），基线如实记录、后续只紧不松。
 // 运行：node scripts/viewport-smoke.mjs（需 playwright：npm i --no-save playwright && npx playwright install chromium）
-import { chromium } from 'playwright';
+// `#1261` 零故事模式：没有逐故事产物可验 -> **明说并跳过**（退回 0）。
+// 位置必须在 `playwright` 导入**之前**（本地无该可选依赖时，零故事下不该崩）。
+if (!defaultStoryHtml()) { console.log('  #1261 zero-story mode: no product -> viewport-smoke skipped (until #1163)'); process.exit(0); }
+
+// `#1261`：`playwright` 是**可选依赖** -> 用动态 import 放在零故事 guard 之后
+//（ESM 静态 import 会被提升 -> 零故事下也会因缺包崩；实测过）。
+const { chromium } = await import('playwright');
 import { readFileSync, writeFileSync, existsSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
 
 const WIDTHS = [360, 390, 768, 1440];
 const BASE = 'test/viewport-baseline.json';
-	// `#1261` zero-story: this smoke test targets the built product (defaultStoryHtml); with no
-	// story there is no product -> say so and skip (same handling as the a11y gate).
-	if (!defaultStoryHtml()) { console.log('  ○ zero-story mode (#1261): no product -> viewport smoke skipped'); process.exit(0); }
 if (!existsSync(defaultStoryHtml())) { console.error(`✗ 缺 ${relative(ROOT, defaultStoryHtml())}，请先构建`); process.exit(1); }
 
 const browser = await chromium.launch();

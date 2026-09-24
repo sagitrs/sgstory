@@ -6,7 +6,7 @@
 //   ② 有人把「陈旲归因」当普通缺口（rc=0）→ 第 5 格红；
 //   ③ 有人把「根不存在」也静默 rc=0 → 入口那格红（本件只测纯函数；入口两态见 §实测）。
 import {
-	classifyCase, summarize, expectViolations, parseArgs, resolveCasesDir, discoverCases, runtimeProblems,
+	classifyCase, summarize, expectViolations, parseArgs, resolveCasesDir, discoverCases, runtimeProblems, VERDICT_LABELS, summaryLine,
 } from '../scripts/case-run.mjs';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -109,6 +109,17 @@ t('⑯b 反向：`unknown`（离线）仍 ⇒ rc=0（不据此判红）', classi
 	t('⑱ ★ **过滤器零命中**（根里有 N 条）与**根内 0 条**可分：前者出声 rc≠0 ＋ 给可用清单；后者 rc=0 明说', miss.rc !== 0 && /过滤器未命中/.test(miss.out) && /可用用例/.test(miss.out) && empty.rc === 0 && !/过滤器未命中/.test(empty.out), `miss.rc=${miss.rc} empty.rc=${empty.rc}`);
 	rmSync(d, { recursive: true, force: true });
 }
+
+// ── `#1287`（复核）：**呈现层**自证（判定对 ≠ 呈现对）────────────────────
+t('⑲ ★ **五态人读标签都非空**（新增状态漏接呈现位 ⇒ 行首 `undefined`）', (() => {
+	const keys = ['green', 'expected-gap', 'unattributed', 'invalid-attribution', 'stale-attribution'];
+	return keys.every((k) => typeof VERDICT_LABELS[k] === 'string' && VERDICT_LABELS[k].trim() !== '');
+})());
+t('⑳ ★ **人读汇总各桶之和 ＝ total**（且含「归因无效」桶）', (() => {
+	const sum = { total: 1, green: 0, expectedGap: 0, unattributed: 0, invalidAttribution: 1, stale: 0, exit: 1 };
+	const line = summaryLine(sum, 0, '');
+	return /归因无效 1/.test(line) && (sum.green + sum.expectedGap + sum.unattributed + sum.invalidAttribution + sum.stale) === sum.total;
+})());
 
 console.log(bad ? `\n✗ case-run：${bad}/${n} 例失败` : `\n✔ case-run：${n} 例全部通过`);
 process.exit(bad ? 1 : 0);

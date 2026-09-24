@@ -15,17 +15,20 @@
 // node scripts/report-gate-ledger.mjs --selftest # 自证（合成输入，验判定会咬）
 //
 // 退出码（`#1242` ① 起细分）：
-//   0 = 判得了，且一致
-//   1 = 判得了，但**不一致**（报文点名首个不同行号／列／两侧值）
-//   2 = **判不了**（探针读数不足：整体缺失／陈旧／不覆盖本档）——**不是失败，是判不了**；
-//       报文列明缺哪一类，并声明「本次不作结构判定」；显式 `--allow-stale-probe` 时走既有降级
+// 0 = 判得了，且一致
+// 1 = 判得了，但**不一致**（报文点名首个不同行号／列／两侧值）
+// 2 = **判不了**（探针读数不足：整体缺失／陈旧／不覆盖本档）——**不是失败，是判不了**；
+// 报文列明缺哪一类，并声明「本次不作结构判定」；显式 `--allow-stale-probe` 时走既有降级
 
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { planChain, testPlan, tierOf, FULL_REASONS } from './test-plan.mjs';
 import { maskComments } from '../editor/lib/core/mask.mjs';   // `#899` ③：**同一把刀**（全仓唯一遮蔽器 —— 不新增第二份）
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { PROBES } from './probes.mjs';   // `#908` ①：探针清单（**直接读数** —— 与「自证」那一格的**代理**分家）
+import { PROBES } from './probes.mjs';
+// `#1261` 甲（台账侧）：**临时下架**的段/探针在台账里**单列**，既不报「未接线但没写理由」，
+// 也不算「未探」—— 它们是「对象在、样本暂缺」的可见状态（各带 why/until）。
+import { SUSPENDED } from './test-plan.mjs';   // `#908` ①：探针清单（**直接读数** —— 与「自证」那一格的**代理**分家）
 
 const LEDGER = 'docs/gate-ledger.md';
 const PKG = 'package.json';
@@ -44,9 +47,6 @@ export const REASONS = {
 	'audit:canon': { form: '行为化', reason: '禁词/回流扫描：表格解析/§10 行覆盖/守林人代词/§9 双读（含 `allow` 白名单与 `/% %/` 剥注释）/§3.9 传说投放，**自证 6 例**（#342 第 8 波）' },
 	'audit:sel': { wired: true, reason: '接线说明：--sel 只是 --nosl＋--gear 的便捷别名，链上跑的是更具体的两个 flag，故没有单独的 --sel --check（**形态是有判定的门**，此前台账误标「仅登记」，已由形态对账改正）' },
 	// ── 报告脚本（id 形如 scripts/<file>）──
-	'scripts/report-rhythm.mjs': { wired: true, form: '行为化', reason: 'R1/R1b/R2/正例 四例自证，已入 npm test' },
-	'scripts/report-polarity-gap.mjs': { form: '行为化', reason: '**未接线（report-only）**：条件原子 × 极性的**覆盖缺口报告**（伞 `#626`／本票 `#628`）。它**刻意不是门**——观测是抽样的（未观测 ≠ 断言不存在），设成门就等于用抽样运气冒充「行为符合预期」（正是伞票要改掉的形态）。谁来跑：`npm run report:polarity`（前置 `npm run build`）；何时跑：裁决撤 soak 之前先看缺口、以及矩阵门（依赖 `#629`）落码前定行数。自证 8 例（注释遮蔽／`elseif`／widget 标记／`era` 两态／三档计数正反例／渲染点名），`--selftest` 能红。' },
-	'scripts/report-two-state.mjs': { form: '行为化', reason: '**未接线（原型）**：两态**注入**原型（伞 `#626`／本票 `#629`）——证明目标段的每个条件站点**真/假两侧都能由真实渲染观测到**（状态注入 ＋ `Engine.play` 直达；真机口径同 `#491`）。它刻意不是门：门形态等伞票裁决（落点见 `#607`）。谁来跑：`npm run report:two-state`（前置 `npm run build`）；何时跑：矩阵门（依赖本票结论）落码前验证执行器可行性。自证 9 例（期望五类 text/noText/choice/noChoice/lands 各带反例 ＋ 两态归纳单态必 false），`--selftest` 能红。' },
 	'scripts/report-ledger-freshness.mjs': { form: '行为化', reason: '**离线段已入 npm test**（`--ledger --check`：#297 对标台账行级新鲜度——行数栅栏/复核日期在期/触发条件非空/落点引用的门旗标与文件真实存在，7 例自证）；**网络段仍需 token**（#NNN 标记与 GitHub 真实状态一致），不塞主链路，由 `npm run report:freshness:check` 人工/定时跑' },
 	'scripts/report-gate-ledger.mjs': { wired: true, form: '行为化', reason: '本文件自身的自检（台账不腐），已入 npm test' },
 	'scripts/move-precheck.mjs': { wired: true, form: '行为化', reason: '#458 前置：**六处同步**校验（源文件/ORDER/MODULES/故事清单/常量声明/聚合返回）＋单根假设清点；自证 **11** 条断言（**量法**：`node scripts/move-precheck.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝六处正反例 ＋ **两层登记**（引擎件 ⊂ ORDER/MODULES ✓／故事件 ⊂ 清单 ✓）正反例 ＋ 聚合返回。`#893` 第三步：`②③④` 按层分工（引擎侧安全网一律不撤 ✓）' },
@@ -315,8 +315,20 @@ export const problems = (rows, declared = null, chain = []) => {
 		const ghosts = chain.filter((f) => !declared.includes(f));
 		if (ghosts.length) out.push({ id: '(链)', code: 'phantom-flag', msg: `链上跑了 audit 未声明的开关（幻影门）：${ghosts.join(', ')}——多半是改 flag 名后漏改链` });
 	}
+	// `#1261` 甲：台账行的 id 是**文件路径**（test/rules.mjs），而 SUSPENDED 的键是**段 id**
+	//（test-rules-mjs）→ 两种都算：直接命中，或按"段 id -> 文件路径"的两种常见变换命中。
+	const suspKeys = new Set(Object.keys(SUSPENDED));
+	const toFileGuess = (segId) => {
+		const base = segId.replace(/-mjs(-selftest)?$/, '.mjs');
+		if (base.startsWith('test-')) return 'test/' + base.slice(5);
+		if (base.startsWith('scripts-')) return 'scripts/' + base.slice(8);
+		if (base.startsWith('editor-')) return 'editor/' + base.slice(7);
+		return base;
+	};
+	const suspIsSuspended = (rowId) => suspKeys.has(rowId) || [...suspKeys].some((k) => toFileGuess(k) === rowId);
 	for (const r of rows) {
-		if ((!r.wired || r.form === '仅登记') && !r.reason) {
+		// `#1261` 甲：**临时下架**的段已知原因（样本暂缺）→ 不报 missing-reason；其状态在台账单列。
+		if ((!r.wired || r.form === '仅登记') && !r.reason && !suspIsSuspended(r.id)) {
 			out.push({ id: r.id, code: 'missing-reason', msg: `${r.form === '仅登记' ? '仅登记' : '未接线'}但没写理由` });
 		}
 		// 形态对账（建议③）：声明「仅登记」但门里有判定路径 → 升级未同步
@@ -399,7 +411,7 @@ ${TIER_NOTE}
 };
 
 // ── 自证 ─────────────────────────────────────────────────────────────
-/** `#1242` (1) ：把 `--check` 的"**判不了**（前置不足）"与"**判了，不一致**"分开。
+/** `#1242` (1)：把 `--check` 的"**判不了**（前置不足）"与"**判了，不一致**"分开。
  *
  * 症状（已两次）：无读数/读数陈旧时，`--check` 落到逐字节比对 因此 报成"台账与实况不一致" 因此
  * 读的人先怀疑结构，其实**读数不在册**。因此 两态两码：**2＝判不了**、**1＝判了，不一致**。
@@ -420,7 +432,7 @@ export const checkStateProblems = ({ recs = [], fresh = {}, allowStale = false }
 	return { kind: 'no-readings', noReadings, stale, missing, lines };
 };
 
-/** `#1242` (1) ：结构不一致时**点名**（首个不同行号 ＋ 表格列名 ＋ 两侧值），别只说"不一致"。 */
+/** `#1242` (1)：结构不一致时**点名**（首个不同行号 ＋ 表格列名 ＋ 两侧值），别只说"不一致"。 */
 export const ledgerDiff = (a = '', b = '') => {
 	const A = String(a).split('\n');
 	const B = String(b).split('\n');
@@ -530,7 +542,7 @@ const selftest = () => {
 		if (!ok) bad++;
 		console.log(`${ok ? '✓' : '✗'} ${name}（命中 ${got}，期望 ${want}）`);
 	}
-	// `#1242` (1) ：**判不了 vs 判了不一致** 的能假格（三态 + 一条反向）
+	// `#1242` (1)：**判不了 vs 判了不一致** 的能假格（三态 + 一条反向）
 	{
 		const cases2 = [
 			['读数整体缺失 因此 判不了（缺读数类）', () => checkStateProblems({ recs: [], fresh: {} }),
@@ -629,7 +641,7 @@ const main = () => {
 				console.log(`○ \`--allow-stale-probe\`：**本地产物不覆盖当前树** ⇒ 视作「无读数」（**探针面跳过比对** ✗、该列降级 \`—\` ✓），**其余面照旧逐字节严格** ✓ —— ${parts.join(' ｜ ')}；要拿真读数请重跑 \`node scripts/probe-gates.mjs --probe=${recMode ?? 'fast'}\` ✓（**别拿上次的 json 当现状** ✗）`);
 			}
 		}
-		// `#1242` (1) ：**先判"判不了"**（读数不在册/陈旧）因此 不与"结构不一致"混为一谈。
+		// `#1242` (1)：**先判"判不了"**（读数不在册/陈旧）因此 不与"结构不一致"混为一谈。
 		// 退出码语义：**2＝判不了（前置不足）／1＝判了，不一致**。显式 `--allow-stale-probe` 时跳过本段。
 		const stateProblems = checkStateProblems({ recs, fresh, allowStale: argv.includes('--allow-stale-probe') });
 		if (stateProblems) {

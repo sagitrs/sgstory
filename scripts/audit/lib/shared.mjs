@@ -132,7 +132,7 @@ export const makeShared = (ctx) => {
 	function classifyNarrativeState(input = {}) {
 		const sources = input.passageSrc ?? passageSrc;
 		const tags = input.passageTags ?? passageTags;
-		// `#1261` 零故事模式：`Game.Echoes` 可能不存在（故事面缺席）⇒ 退化为空回声表，
+		// `#1261` 零故事模式：`Game.Echoes` 可能不存在（故事面缺席）→ 退化为空回声表，
 		// 让门「无样本可判」而不是崩（`E.list` 是下游的硬读点）。
 		const Echoes = input.Echoes ?? Game.Echoes ?? { list: [], revisit: [] };
 		const Consequences = input.Consequences ?? Game.Consequences;

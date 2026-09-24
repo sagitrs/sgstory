@@ -20,7 +20,7 @@ import { VOCAB } from './vocab.mjs';
 const asList = (v) => (Array.isArray(v) ? v : v === undefined || v === null ? [] : [v]);
 
 /** 条件面字段名（`when` 形状；`prio` 是**序号** 不是键 → 不在内）。
- * ：原先对照的 `editor/web/events.mjs` 已随 WebUI 产品线下架。 */
+ *：原先对照的 `editor/web/events.mjs` 已随 WebUI 产品线下架。 */
 export const COND_FIELDS = Object.freeze(['req', 'any', 'exclude', 'prereq']);
 
 /** **事件行**需要的键（逐字段走 `condKeysOf` —— 对象算子形 `{ gte: [...]}` 也在内）。 */

@@ -66,8 +66,8 @@ export const createContext = ({ argv = process.argv, story = null } = {}) => {
 	// 为什么必须切：宇宙若＝全部源文件，第二个故事会**污染**第一个故事的指标，**又**被第一个故事的
 	// 判据要求（spike 实测 4 段门红）——那是"故事门没有故事作用域"这一个根因。
 	const slug = story ?? DEFAULT_SLUG;
-	// `#1261` 零故事模式：仓内无故事 ⇒ 没有故事清单可读 ⇒ 退化为**引擎面作用域**
-	// （scopedFiles(空清单) ⇒ 只含引擎文件）；故事门此时本就无样本，由段面自行跳过。
+	// `#1261` 零故事模式：仓内无故事 → 没有故事清单可读 → 退化为**引擎面作用域**
+	//（scopedFiles(空清单) → 只含引擎文件）；故事门此时本就无样本，由段面自行跳过。
 	const manifest = slug ? readStory(slug) : { slug: null, files: [], audience: 'internal' };
 	const SRC_FILES = scopedFiles(manifest);
 	const ctx = loadScripts(SRC_FILES);

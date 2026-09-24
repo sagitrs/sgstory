@@ -146,6 +146,11 @@ const writeBaseline = (obj) => {
 	renameSync(tmp, BASELINE);
 };
 
+// `#1261` 零故事模式：本门量的是**逐故事产物**的体积；仓内无故事 → 无产物可量 → 明说并跳过。
+if (!defaultStoryHtml()) {
+	console.log('  #1261 零故事模式：无逐故事产物 ⇒ 体积门跳过（样本随 #1163 回填）');
+	process.exit(0);
+}
 if (!existsSync(defaultStoryHtml())) { console.error(`✗ 缺 ${relative(ROOT, defaultStoryHtml())}，请先构建`); process.exit(1); }
 const rows = { 'index.html': statSync(defaultStoryHtml()).size };
 rows.fonts = readdirSync('dist/fonts').reduce((a, f) => a + statSync(`dist/fonts/${f}`).size, 0);

@@ -155,24 +155,6 @@ export const PROBES = [
 		why: '量的是 `tableReadProblems` 的**读侧判定**真的会红 （`test/state-diagnose.mjs:111` 那条「反例·`tableReadProblems`」）—— 掐掉产出  该断言必须红 ',
 	},
 	{
-		// 台账行：`test/k4-references.mjs`（`#1016` 新件）
-		id: 'test/k4-references.mjs',
-		tier: 'fast',
-		pre: [],
-		cmd: 'node test/k4-references.mjs',
-		mutation: {
-			// 被测件 ＝ `lib/core/**`（**不是**测试件）：把「引用不合规就收集」那一路**掐掉**
-			//注意：锚的选法：`out.push` 在这个文件里到处都是（13 处）→ 不可用它当锚。
-			// `#1052` 之后体里有**两条**收集支（磁盘不存在 ／ 已存在但未入库）→ 锤在**体**上
-			// 只能证明其中一条 —— 锚落在**循环头**才能同时量到两条（该字符串在本文件内唯一）。
-			file: 'editor/lib/core/k4criteria.mjs',
-			find: 'for (const r of rows) {',
-			replace: 'for (const r of []) {',
-		},
-		expect: { rc: 1, stdout: /门面引用/ },
-		why: '量的是「登记表里指向**不存在对象**的引用**真会被点名**」（`#1016` 那族：声明了要做 X、实际没做 ）—— 空掉判据循环  反例①②③（与 `#1052` 的未入库/不存在两类）必须红且点名 （基线绿＝现行登记表里**没有**坏引用 ）。 锚用 `for (const r of rows) {` 而非循环体：`#1052` 把体改成**两条**收集支（磁盘  ／ 未入库 ） 锤在体上只能证明其中一条  —— 锤在**循环头**才能同时量到两条 （同一文件内该字符串唯一 ）。',
-	},
-	{
 		// 台账行：`scripts/report-gate-ledger.mjs` —— 探针刀口对着**台账自己**
 		id: 'scripts/report-gate-ledger.mjs',
 		tier: 'fast',
@@ -189,51 +171,6 @@ export const PROBES = [
 		},
 		expect: { rc: 1, stdout: /hasSelfProof/ },
 		why: '量的是「自证」判定**自己**能假 （本列若恒真  整列读数作废 ）—— 与 `#899` ③ 同源：**判定也要有能假的另一半** ',
-	},
-	{
-		// 车道 D 切片 2（`#215` `18501384`）：**键级图**的运行器自证
-		id: 'test/event-graph.mjs',
-		tier: 'fast',
-		pre: [],
-		cmd: 'node test/event-graph.mjs',
-		mutation: {
-			// 把"按 `VOCAB.effects` 那几面取授予键"这一路**掐掉**（面名变成空）→ 授予表必空 → 三处断言必须红
-			file: 'editor/lib/core/eventGraph.mjs',
-			find: 'for (const face of VOCAB.effects) for (const k of asList(row?.[face]))',
-			replace: 'for (const face of []) for (const k of asList(row?.[face]))',
-		},
-		expect: { rc: 1, stdout: /keysGrantedBy|grantedBy/ },
-		why: '量的是「键级图」的两张表**真的**从数据面算出来 （掐掉授予面  `grantedBy` 空  合成反例与真数据反查都红 ）—— 不是常数 ',
-	},
-	{
-		// 车道 G 前半 · 切片 1a（`#215` 报备 `18502752`）：**方言指纹**的「**缺 vs 畸形**」分家自证
-		id: 'test/dialect.mjs',
-		tier: 'fast',
-		pre: [],
-		cmd: 'node test/dialect.mjs',
-		mutation: {
-			// 把"在册但不是普通对象"这一路**降级成合法空形状** → 畸形在册、数字与断言必红
-			file: 'editor/lib/core/dialect.mjs',
-			find: 'if (!isPlainObject(obj)) return null;',
-			replace: 'if (!isPlainObject(obj)) return { topKeys: [], items: {} };',
-		},
-		expect: { rc: 1, stdout: /不是普通对象|畸形/ },
-		why: '量的是「**缺  合法**  与 **畸形  报**  真的是两回事」（把畸形静默降成合法空形状  `rules.json: []` 那一条当场红 ）—— 否则“缺＝合法”会被写成“什么坏形状都合法”',
-	},
-	{
-		// 车道 G 前半 · 切片 1b（`#215` 报备 `18503024`）：**包络只剩一个方向的牙** —— 全集外字段必须报
-		id: 'test/contract-version.mjs',
-		tier: 'fast',
-		pre: [],
-		cmd: 'node test/contract-version.mjs',
-		mutation: {
-			// 把"逐字段查越界"这一路**让过去** → 全集外字段静默通过 → 合成那两条断言必红
-			file: 'editor/lib/core/contractVersion.mjs',
-			find: "for (const f of fields) if (!df.includes(f)) out.push({ file, kind: 'field', name: f, list });",
-			replace: "for (const f of []) if (!df.includes(f)) out.push({ file, kind: 'field', name: f, list });",
-		},
-		expect: { rc: 1, stdout: /brandNewField|全集外/ },
-		why: '量的是「**单向 ⊆ 包络**」那一刀**真的有牙** （把字段级越界检查摘掉  `brandNewField` 静默通过  必红且点名 ）—— 否则“全集”只是个摆设（随手加字段没人拦 ）',
 	},
 	{
 		// 车道 G 前半 · 切片 1c（`#215` 报备 `18503697` / 开工报备 `18503987`）：**反向哨兵**（退出条件）真的在守
@@ -261,26 +198,6 @@ export const PROBES = [
 	//注意：台账面不受影响：`docs/gate-ledger.md` 里**本来就没有这一行**（段表在 `ee67dcd` 已清）
 	// → 本行是**孤儿探针** → 删它**不动** `scripts/probe-budget.json` 的 `maxUnprobed`。
 	{
-		// `#976`：**中间目录用完就清**那一步真的在守（掐掉 `finally` 里的清理 → 残留 → 集合断言必红）
-		//注意：`#1004` B2b 重钉：本行原来那刀是「把产物目录改回旧形 `build/generated/<slug>`」 ——
-		// 测试件在 `3f14e0c` 换样本（`mist-forest` → `night-ferry`）时把断言改成了**看"跑完多了什么"**
-		// → 那刀落在**没被断言的**那一半上（`<slug>` 非点形）→ 实测**变异后 rc=0 → 探针不咬**。
-		// 现刀 = 掐掉 `finally` 的 `rmSync` → 本件跑完会**新**留下 `.equiv-run-*` → ② 必红
-		//（测试件同期把判据改成「不留**新**草稿」= baseline 差分 → 上一轮变异留下的残留**不会**顶红下一次基线，
-		// 否则「变异前就红」重演 —— 这正是本行上一版刀遇到过的坑）。
-		id: 'test/equiv-scratch.mjs',
-		tier: 'fast',
-		pre: [],
-		cmd: 'node test/equiv-scratch.mjs',
-		mutation: {
-			file: 'editor/lib/host/commands.mjs',
-			find: "rmSync(runDir, { recursive: true, force: true });",
-			replace: "void runDir;   // 探针：掐掉清理  残留  本件 ②/③ 必红 ",
-		},
-		expect: { rc: 1, stdout: /不留草稿目录/ },
-		why: '量的是「中间目录**真的用完就清**」（掐掉 `finally` 的清理  本件跑完新留 `.equiv-run-*`  "不留草稿"必红 ）—— 否则"唯一 ＋ 清理"只写在注释里 ',
-	},
-	{
 		// `#984`（P3-④ 用户故事 CI）：把「**发现到了却没进编排 → 点名**」那条判据掐掉（恒不报）
 		// →「新故事不会静默漏掉」就成了空话 → 自证里那条**能假**必红并点名。
 		id: 'test/story-ci.mjs',
@@ -296,27 +213,6 @@ export const PROBES = [
 		},
 		expect: { rc: 1, stdout: /发现了却没进编排/ },
 		why: '量的是「**发现 ≠ 覆盖**」那一步真的在守（让 `missingFromPlan` 恒不报  `test/story-ci.mjs` 的“能假”那条必红 ）—— 否则“新故事自动被覆盖”只是句口号 ',
-	},
-	{
-		// `#215` 裁 (B)：**兜底必须标出来**那一步真的在守（掐掉 `fallback: true` → 轨迹里出现
-		// "既无 `choiceKey`、也没标兜底"的步 → 自证的那条"按 key 可复跑"必红）
-		//注意：为什么用这一刀：它正是发起者点名的那一格（"兜底命中时要在 trace 里标出来，
-		// 免得'按 key 可复跑'被兜底悄悄破掉 "）→ **因果相关 ＋ 确定性**（不碰并发面）。
-		id: 'test/witness-trace.mjs',
-		tier: 'fast',
-		// `#1019`：本件的 `cmd` **读产物**（`witness-trace → test/walker.mjs → boot.mjs` 的 dist 新鲜度守卫）
-		// → 原 `pre: []` 让"未变异那一跑"在**树上产物陈旧/缺失**时红 → 被记成「**不咬**」（**病因名报错**，`#1018` 实测的假读数）。
-		//注意：这一条**不能靠静态判据自动抓到**（静态只判入口件的 import → 见 `cmdNeedsProducts` 的"宁漏不误"）
-		// → 靠**运行时那一支**点名 ＋ 本条显式声明（即本仓纪律：**前置写进命令**）。
-		pre: ['node build.mjs >/dev/null'],
-		cmd: 'node test/witness-trace.mjs',
-		mutation: {
-			file: 'test/walker.mjs',
-			find: "step.fallback = true;",
-			replace: "/* 探针：兜底不再标出  */ step.choiceLabel = step.choiceLabel;",
-		},
-		expect: { rc: 1, stdout: /兜底/ },
-		why: '量的是「**label 兜底真的被标出来**」（掐掉 `fallback: true` ⇒ 轨迹里那几步既无 key、也没标兜底 ⇒ 自证的"按 key 可复跑"那条必红 ✓）—— 否则"兜底是必要的 ✓ 但要显式"只写在注释里 ✗',
 	},
 	{
 		// `#1004` B2b：`ci.yml` 的**故事页路径不许硬编码**（`test/multi-story.mjs` 的 **P6**）。
@@ -393,84 +289,6 @@ export const PROBES = [
 		why: '量的是「仓根出现**未登记的顶层条目**时门会红并点名它」（误提交的临时件是**结构错**：`unclaimed-file` 只管源文件、`build.mjs` 只盯 `*.twee`  拦不住顶层目录；来历＝#874 的 home/** 与 #1008 本片删掉的 tmp/mf3.json）—— 白名单里把 `docs` 改名  真实存在的 `docs/` 成为未登记项  门必须红并点名',
 	},
 	{
-		// 台账行：`test/lint-scratch.mjs`（`#1024`：`lint-story` 的 scratch **本次运行唯一**）。
-		// 刀＝把 `lint` 的产物目录**改回按 slug 固定**（`build/generated/<slug>`）—— 正是修复前的形状。
-		//注意：为什么这一刀**确定性**有效：本件的两条判据里有一条是「**旧落点没有被这次运行重建**」，
-		// 它与并发时序无关 → 变异后必红（本片负控实测；只靠并发互踩那一轮可能恰好躲过）。
-		id: 'test/lint-scratch.mjs',
-		tier: 'fast',
-		pre: ['node build.mjs'],   // 该件跑真 `lint-story`，故事门要读 dist 产物 → 前置写进命令（缺前置报「缺前置」，不报「不咬」）
-		cmd: 'node test/lint-scratch.mjs',
-		mutation: {
-			file: 'editor/lib/host/commands.mjs',
-			find: "const gen = join(lintRun, 'gen');",
-			replace: "const gen = join(ROOT, 'build', 'generated', slug);",
-		},
-		expect: { rc: 1, stdout: /旧落点|并发自证未过/ },
-		why: '量的是「`lint-story` 的中间目录**本次运行唯一**」（改回按 slug 固定  两个并发进程互相踩  假红「编译不幂等」；本件用「旧落点没被重建」这条**与并发时序无关**的判据把它钉死 ）—— 否则「并发安全」只写在注释里 ',
-	},
-	{
-		// `#1019` 第 4 件：`test/social-lever.mjs`（`#1011` 保覆盖版，接手 `#360` 的交涉筹码分派门）。
-		// 刀＝在 `adv`（优势筹码）分支**补回 `S.applyAskEffect(a, pc)`** → 正是 `#360` **修复前**的形状
-		//（UI 标了"更有把握"、实际走免检完成）→ 门必红并点名「优势筹码不得直接完成诉求」。
-		//注意：选这条断言是因为它**与并发无关**（本仓刚被"共享目录/时序"那类判据咬过两次）：
-		// 它量的是"这一支有没有完成诉求"，只看状态、不看时序。
-		//注意：**必须 `pre` ＋ `rebuild` 两处都给**：被测面在 `src/**`（引擎源）→ 判据对象是**编译产物**
-		// → `pre` 建基线产物、`rebuild` 在**变异之后**重编（否则量不到变异 ＝"判据没坏但没量到东西"）
-		// ＋**还原之后**再跑一次（不留变异版产物 → 不污染后续段相序）。
-		// ➕ 这是 `rebuild` 那两处语义的**第一个真实用例**（`#1026` 落地／本条用上）。
-		id: 'test/social-lever.mjs',
-		tier: 'fast',
-		pre: ['node build.mjs >/dev/null'],
-		cmd: 'node test/social-lever.mjs',
-		rebuild: 'node build.mjs >/dev/null',
-		mutation: {
-			// `#1187` 第五块（social 拆分）：变异目标随代码搬家 —— 这段 `lv.gives === 'adv'` 已在 `32-social.twee` 里。
-			//注意：这是本系列**第三次**撞到"门/探针按文件名硬编 → 拆模块即腐烂"（前两次：gear-defs、readkey-family）。
-			file: 'src/engine/40-sim/32-social.twee',
-			find: "\t\t\t\tif (lv.gives === 'adv') {\n\t\t\t\t\t// #360：优势筹码只把「这一问更有把握」摆出来——**不完成诉求**。\n\t\t\t\t\tpc.ev.soc_lever = lv.id;",
-			replace: "\t\t\t\tif (lv.gives === 'adv') {\n\t\t\t\t\tS.applyAskEffect(a, pc);   // 探针：改回 #360 修复前形状 \n\t\t\t\t\tpc.ev.soc_lever = lv.id;",
-		},
-		expect: { rc: 1, stdout: /优势筹码不得直接完成诉求/ },
-		why: '量的是「**优势筹码只给优势、不完成诉求**」那一支真的在守（把 `applyAskEffect` 补回 `adv` 分支  门必红并点名 ）—— 否则 `#360` 那类"UI 标了优势、实际走免检"会静默回来 ',
-	},
-	{
-		// `#1020`：条件键形门（**条件位/授予位**的键形必须引擎真能求值）。
-		// 刀＝把夹具里一处**授予位**的 `n_tav_tips` 改回 `note:n_tav_tips` —— 正是修复前的形状。
-		//注意：锚必须**唯一**：`"yield": "n_tav_tips"` 在数据里**恰好 1 处**（裸 `"n_tav_tips"` 有 5 处 → 会命中多处而报"锚不唯一"，实测）。
-		//注意：`pre: []`：本门只读 `stories/*/data/tables.json`（走 `git ls-files`）→ **不读产物**
-		//（`cmdNeedsProducts` 静态判据亦判其不读 —— 本件的入口件不 import `boot.mjs`）。
-		//注意：该刀**与并发/时序无关**（纯数据键形 → 门必红）。
-		id: 'test/cond-keyform.mjs',
-		tier: 'fast',
-		pre: [],
-		cmd: 'node test/cond-keyform.mjs',
-		mutation: {
-			file: 'stories/face-fixture/data/tables.json',
-			find: '"yield": "n_tav_tips"',
-			replace: '"yield": "note:n_tav_tips"',
-		},
-		expect: { rc: 1, stdout: /求值不到|note:/ },
-		why: '量的是「条件键形必须引擎真能求值」那一手在守（把一处授予位改回 `note:n_*` ⇒ 门必红并点名 ✓）—— 否则 `note:n_*` 这种"结构性读不到"的键形会静默回到数据里 ✗（`#1020` ✓）',
-	},
-	{
-		// 台账行：`test/prose-vocabulary.mjs`（`#1043`：散文词汇门 —— 内容故事正文只许词汇宏）。
-		// 刀＝往**内容故事**（`night-ferry`）的正文里插一句 `<<set>>`（SugarCube 逻辑宏）—— 正是"作者在写代码"的形状。
-		//注意：刀打在**故事件**（不是测试件）：门读的是 `stories/**` 的正文 → 变异后 V1 必红。
-		//注意：本门**内部件豁免** → 不能拿夹具当靶子（它对内部件本来就不判 → 变异无效）。
-		id: 'test/prose-vocabulary.mjs',
-		tier: 'fast',
-		pre: [],
-		cmd: 'node test/prose-vocabulary.mjs',
-		mutation: {
-			file: 'stories/night-ferry/passages/01-渡口.md',   // `#1132` 片 3：夜渡迁 md 后靶子随件走
-			find: '[[把两枚钱数给他|付钱]]',
-			replace: '<<set $x to 1>>\n[[把两枚钱数给他|付钱]]',
-		},
-		expect: { rc: 1, stdout: /V1/ },
-		why: '量的是「**内容故事的正文里不许出现逻辑/表达式宏**」（甲-1 的防退化保证：作者不写 Twee）—— 否则"作者只写 MD＋JSON"这条路线会不知不觉退化回"作者在正文里写代码" ',
-	},
-	{
 		// `#1044`：段间产物依赖边守护门 —— 刀＝把 `test-lint-scratch-mjs` 的 needs 改回缺边形（修复前形状）。
 		//注意：为什么这一刀**确定性**有效：本门是纯静态判定（读 SEGMENTS 的 needs 数组 不跑并发 不赌时序）
 		// → 删边 → 判据①当场红并点名两端（与 `#1024` 探针「旧落点没被重建」同为静态锚）。
@@ -525,25 +343,6 @@ export const PROBES = [
 		why: '量的是「**逐文件适用面写准**（有该面才判）那一手真的在守」（掐掉条件化  `soak-nightly.yml` 等无 `pull_request` 面的文件立刻假红并点名文件 ）—— 否则扩射程后 8 处假红回归 （`#1087`）',
 	},
 	{
-		// `#1223` 步一：把"缺席容忍"的**能假**入仓 —— 复核环节的变异是一次性的，入仓的格才是下次算数的。
-		// 刀：把 `table()` 的"未注册 则 空表"改回 `throw` 则 缺席态下 缺席三态与缺 id 四格必红（实测 4 格）。
-		// 反面（畸形并进静默 则 3 格红）不另立条目：探针 id 与判据件一一对应（同 id 重复会被跑器点名）。
-		//注意：判据件 `boot` **真产物** 则 必须给 `rebuild`（变异序即变异则重建则跑、还原则重建则跑；
-		// 不重建时"还原后仍红"是假象 —— 本片实测踩过，已入册）。
-		id: 'test/notes-absence.mjs',
-		tier: 'fast',
-		pre: [],
-		cmd: 'node test/notes-absence.mjs',
-		rebuild: 'node build.mjs >/dev/null',
-		mutation: {
-			file: 'src/80-script.twee',
-			find: "if (typeof provide !== 'function') return {};",
-			replace: "if (typeof provide !== 'function') throw new Error('探针变异：未注册即抛');",
-		},
-		expect: { rc: 1, stdout: /4 格未过/ },
-		why: '量的是「整块缺席 ⇒ 无操作」这一手真在守：把"未注册 ⇒ 空表"掐掉（改回抛）⇒ 缺席态的静默格必红并点名 4 格；否则"缺席与故障同形"的缺口只活在复核环节那一次运行里（`#1223` 步一）。',
-	},
-	{
 		// `#1089`（乙′）：**未跟踪扫描面 → 红** 的**接线**守护 ——注意：本条的刀**必须打在"门里"**，
 		// 因为 `test/untracked-guard.mjs` 测的是**纯函数**（判据本身对），
 		// 而「**门到底有没有调用它**」纯函数自证**看不见** —— 那正是领队转达的那格
@@ -574,10 +373,21 @@ export const PROBES = [
 		//（本仓口径：探针量"变异前绿 → 变异后红且点名" → 本条的"点名"＝助手件里那条 "未跟踪" 断言）
 	},
 ];
-
-// `#1261` 大裁剪（WebUI 产品线下架）：以下探针的靶已随 `#1260` 删除而退役，
-// 其判据同笔下架（留痕见下架表：对象｜为什么｜何时重建）：
-//   - test/web-event-graph.mjs
-//   - test/web-rule-rows.mjs
-//   - test/web-read-faces.mjs
-//   - test/web-export.mjs
+// `#1261` 大裁剪：以下探针的**靶对象已删**（随 demo/WebUI/判据件下架）→ 退役；
+// 判据：**对象已删 → 退役**／对象在但样本暂缺 → 临时下架（见下架台账）／对象在且样本在 → 修到绿。
+// - test/k4-references.mjs
+// - test/event-graph.mjs
+// - test/web-event-graph.mjs
+// - test/dialect.mjs
+// - test/contract-version.mjs
+// - test/web-rule-rows.mjs
+// - test/web-read-faces.mjs
+// - test/equiv-scratch.mjs
+// - test/witness-trace.mjs
+// - test/lint-scratch.mjs
+// - test/social-lever.mjs
+// - test/serve-editor.mjs
+// - test/cond-keyform.mjs
+// - test/prose-vocabulary.mjs
+// - test/web-export.mjs
+// - test/notes-absence.mjs

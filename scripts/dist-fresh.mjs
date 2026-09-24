@@ -17,8 +17,8 @@ import { defaultStoryHtml } from './dist-paths.mjs';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 // 单一权威（#441 切片 β1）：不要在这里再写一份 `dist/index.html`
-// `#1261` 零故事模式：仓内无故事时没有逐故事产物 ⇒ DIST_PATH 为 null，
-// 依赖它的消费者（拿产物做断言的件）必须自行跳过；这里不再自动抛错（那是导入期副作用 ✗）。
+// `#1261` 零故事模式：仓内无故事时没有逐故事产物 → DIST_PATH 为 null，
+// 依赖它的消费者（拿产物做断言的件）必须自行跳过；这里不再自动抛错（那是导入期副作用）。
 export const DIST_PATH = (() => { try { return defaultStoryHtml(); } catch { return null; } })();
 export const SRC_DIR = join(ROOT, 'src');
 

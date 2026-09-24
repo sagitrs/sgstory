@@ -50,7 +50,11 @@ export const assertFreshDist = ({ distPath = DIST_PATH, srcDir = SRC_DIR, who = 
 	// Return an explicit marker instead of throwing 'run build' (which would be misleading).
 	if (st.noStory) return { skipped: true, reason: 'zero-story mode (#1261)' };
 	if (!st.exists) {
-		throw new Error(`找不到 dist/index.html——先跑 \`npm run build\`（${who}要检查构建产物；缺产物时静默跳过＝假绿）`);
+		// `#1315`：**报文必须自带对象** —— 原先只报“找不到”，✗ 不报“**找的是哪个**” ⇒ 事后无法定案
+		// （实测撞过一次：栈指到这里，但报文没打 `distPath`，于是“查的是仓内还是外根”判不出来 ✗）。
+		// 判据：“**报错要能自解释**” —— 缺“对象”那一维的读数，不能作为定案依据。
+		throw new Error(`找不到产物 ${distPath ?? '(null：零故事态无逐故事产物)'}——先跑 \`npm run build\`（${who}要检查构建产物；缺产物时静默跳过＝假绿）`
+			+ `\n  读数（对象）：distPath=${distPath ?? 'null'}｜srcDir=${srcDir}｜cwd=${process.cwd()}`);
 	}
 	if (!st.fresh) {
 		// `#1130`：**点名清单落盘**（durable）—— CI 上把它作为 artifact 上传 → 任何一次新鲜度红都能直接看名单
@@ -97,7 +101,15 @@ export const selftest = () => {
 	mk(60, 1);
 	cases.push(['src 比 dist 新 → 报错并给修复命令', (() => { try { assertFreshDist({ distPath, srcDir }); return false; } catch (e) { return /先跑 .npm run build./.test(e.message); } })()]);
 	rmSync(base, { recursive: true, force: true });
-	cases.push(['dist 缺失 → 报错（不静默跳过）', (() => { try { assertFreshDist({ distPath, srcDir }); return false; } catch (e) { return /找不到 dist\/index\.html/.test(e.message); } })()]);
+	// `#1315`：自证这格原先只match旧报文**字面**（`/找不到 dist\/index\.html/`）⇒ 报文一改就红 ✗
+	// ⇒ 升级为**语义 ＋ 对象**两断言：① 报文说明“找不到产物” ② **报文里必须出现被找的那个路径**
+	// （即“报错要能自解释”：缺“对象”那一维的报文不算合格 ✓）
+	cases.push(['dist 缺失 → 报错（不静默跳过）＋报文自带路径', (() => {
+		try { assertFreshDist({ distPath, srcDir }); return false; } catch (e) {
+			const m = String(e.message);
+			return /找不到产物/.test(m) && m.includes(distPath);
+		}
+	})()]);
 	rmSync(base, { recursive: true, force: true });
 	let bad = 0;
 	for (const [name, ok] of cases) { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${name}`); }

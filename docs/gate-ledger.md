@@ -38,7 +38,7 @@
 | `scripts/report-ledger-freshness.mjs` | 报告脚本 | 行为化 | ✅ | — | ✅ | — | **离线段已入 npm test**（`--ledger --check`：#297 对标台账行级新鲜度——行数栅栏/复核日期在期/触发条件非空/落点引用的门旗标与文件真实存在，7 例自证）；**网络段仍需 token**（#NNN 标记与 GitHub 真实状态一致），不塞主链路，由 `npm run report:freshness:check` 人工/定时跑 |
 | `scripts/report-selftest-validity.mjs` | 报告脚本 | 行为化 | ✅ | — | ✅ | — | **已入 npm test**（#474 接线）：静态扫描 `自证·` 是否「失败计入退出码」＋ 自增量是否「不崩」（TDZ/未声明）。接线前修掉剥离器**配对错位**（四条正则顺序剥 ⇒ 跨行贪婪吞代码 ⇒ `counters` 空 ⇒ 假阳性；**顺序治不了** ⇒ 改单扫描器按 JS 词法一次遮蔽注释/字符串/模板/正则，未闭合保守剥＋报诊断）。自证 18 例（V1×8＋V2×10），探针：删某门 `process.exit(1)` ⇒ 必报、退 1 |
 | `test/attribution-gate.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/audit-gates-run.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | **临时下架**：审计跑器自证：需默认故事全绿（零故事下无默认故事）（until #1279（M1 尾件回填复验：测试件接新根后）） |  |
+| `test/audit-gates-run.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
 | `test/browser.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | — | 需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑 |
 | `test/case-run.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
 | `test/chargen-apply.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |

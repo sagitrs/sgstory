@@ -822,7 +822,8 @@ export const SUSPENDED = {
 	'test-gen-needed-mjs': { why: '生成件清单：反向核需 ≥3 个真故事', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'test-npm-entries-guard-mjs': { why: 'npm 入口差集：取样脚本随 WebUI 下架 ⇒ 待改取样', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'scripts-md-format-mjs': { why: 'md 格式门：文档里引用了已下架件（应改述，非下架）', until: '#1163（books 回填样本已到位 ⇒ 复核后即可摘条目）' },
-	'test-audit-gates-run-mjs': { why: '审计跑器自证：需默认故事全绿（零故事下无默认故事）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	// `#1315`：`test-audit-gates-run-mjs` **已撤挂** —— 它的 CLI 半段改成**未判**口径
+	// （零故事 ⇒ 出声"未判"、不算红），机制面仍由同段的**纯函数格**看着护 ⇒ 不再需要挂起。
 	'test-story-ci-mjs': { why: '用户故事 CI：K4/K5 面依赖故事与产物', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'scripts-ui-migration-diff-selftest': { why: '自证格里“默认故事”概念在零故事下失效（对象＝迁移比对工具）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'test-contract-version-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },

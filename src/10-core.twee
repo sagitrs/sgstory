@@ -328,6 +328,9 @@ Macro.add('check', {
 			site: this.args[5] ?? '', advWhy: this.args[6] ?? '', disWhy: this.args[7] ?? '',
 		});
 		State.variables.last_check = res;
+		// `#1275`：**同一落点**并记「按站点名索引」的结果表（`chk:` 族的取值面）。
+		// 只在有站点名时记（无站点的临时检定不进表 ⇒ 不会被 `chk:` 误取到）。
+		if (res && res.site) { const c = (State.variables.checks = State.variables.checks || {}); c[res.site] = res; }
 		$(this.output).append(renderCheck(res));
 	},
 });
@@ -339,6 +342,9 @@ Macro.add('save', {
 			site: this.args[5] ?? '', advWhy: this.args[6] ?? '', disWhy: this.args[7] ?? '',
 		});
 		State.variables.last_check = res;
+		// `#1275`：**同一落点**并记「按站点名索引」的结果表（`chk:` 族的取值面）。
+		// 只在有站点名时记（无站点的临时检定不进表 ⇒ 不会被 `chk:` 误取到）。
+		if (res && res.site) { const c = (State.variables.checks = State.variables.checks || {}); c[res.site] = res; }
 		$(this.output).append(renderCheck(res));
 	},
 });

@@ -42,6 +42,24 @@ window.Sg.rules = {
 	// 一个"键"的**值**（不是真假）：`n_*` → 笔记真假；`inv:`／`era:` → 持有／时代；其余按 `readPath` 走（裸键＝`ev.`）。
 	// 与下面 `holds()` 的分工：`holds` 问"这个键成不成立"，`readKey` 问"这个键是多少"（算子形要比大小／比集合）。
 	readKey(key, pc) {
+		// `#1275`（C1/C5，案 A）：`chk:<站点>.success` —— 「**本次点击的运行时结果**」这一维。
+		// 与 `inv:`／`era:`／`gear:` **同构**（前缀族＝引擎 schema；站点名＝故事数据）。
+		// ★ 取值面＝**按站点名索引的本次结果表**（`State.variables.checks`，由既有写入点落 —— 不新开写路）。
+		// ★ **引用了一个本次尚未产生结果的站点 ⇒ fail-loud 点名** —— 这条把"同段先判后写"这个坑
+		//   变成**可判读数**（而不是静默当 false ⇒ 恒假/恒真的假面）。
+		if (typeof key === 'string' && key.startsWith('chk:')) {
+			const spec = key.slice(4);
+			const dot = spec.lastIndexOf('.');
+			const site = dot > 0 ? spec.slice(0, dot) : spec;
+			const field = dot > 0 ? spec.slice(dot + 1) : 'success';
+			const tbl = State.variables.checks ?? {};
+			const it = tbl[site];
+			if (!it) {
+				throw new Error(`Sg.rules：条件行引用了「**本次尚未检定**」的站点 \`chk:${site}\` —— `
+					+ '条件行在检定之前求值（该站点本次无结果）');
+			}
+			return it[field];
+		}
 		const k = String(key);
 		//注意：**要把传进来的 `pc` 递下去**（原先只写 `has(k)` → 默认读**当前存档的 pc**）：
 		// 这会让「按合成 pc 求值」的条件**读错档** —— 声明式线索判定（`#785` 第 1 族）正是靠它驱动合成态。

@@ -28,7 +28,8 @@
 import { maskComments } from './mask.mjs';
 
 /** **前缀键**（`inv:`／`era:`／`gear:`，`#624` 片四加最后一个）的**单一权威**：它们不是状态键（持有物/时代/行囊都不在 `pc.ev`/`pc.world` 域）→ 不参与状态契约与旗标分级；求值在引擎 `Sg.rules.holds()`。 */
-export const KEY_PREFIX_RE = /^(?:inv|era|gear):/;
+// `#1275`：加 `chk:` 族（**运行时结果维**，案 A）—— 与引擎 `readKey` 的族集合必须相等（`test/readkey-family.mjs` 守）。
+export const KEY_PREFIX_RE = /^(?:inv|era|gear|chk):/;
 
 // `#1156`：**可读键形的单一权威** —— 与引擎 `Sg.rules.readKey`（`src/engine/40-sim/22-rules.twee`，`#1187` 第五块后）的
 // 分支族**逐支对应**（真源在引擎 本函数是它的**族分类镜像**；两者由**成对断言**锁住 → 不再各写一份漂移）。

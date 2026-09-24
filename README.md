@@ -48,9 +48,9 @@ CI 变红时先看 [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)。
 |---|---|
 | **文档全索引**（权威表 ＋ 按任务读） | [`docs/README.md`](docs/README.md) |
 | 仓库目录 / 文件职责 / 层归属 | [`docs/repo-map.md`](docs/repo-map.md) |
-| Twee 语法与本仓词汇宏速查 | [`docs/twee-cheatsheet.md`](docs/twee-cheatsheet.md) |
+| 引擎功能手册（写故事的人看） | [`docs/manual/README.md`](docs/manual/README.md) |
 | 故事 1 的机制面（数值 ＋ 演示机制） | [`docs/game-mechanics.md`](docs/game-mechanics.md) |
-| 写剧情：接入契约与语法速查 | [`docs/engine-story-boundary.md`](docs/engine-story-boundary.md) · [`docs/twee-cheatsheet.md`](docs/twee-cheatsheet.md)（故事 1 的设定/设计遗产已入 [`docs/archive/`](docs/archive/README.md)，`#1077`） |
+| 写剧情：接入契约与语法速查 | [`docs/engine-story-boundary.md`](docs/engine-story-boundary.md) · [`docs/manual/03-prose.md`](docs/manual/03-prose.md)（故事 1 的设定/设计遗产已入 [`docs/archive/`](docs/archive/README.md)，`#1077`） |
 | 改引擎：代码级约定 | [`docs/dev-conventions.md`](docs/dev-conventions.md) |
 | 加门 / 测试：判据与作业模板 | [`docs/quality-dimensions.md`](docs/quality-dimensions.md) |
 

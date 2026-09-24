@@ -296,6 +296,8 @@ export const SEGMENTS = [
 	{ id: "scripts-report-selftest-validity-mjs", phase: 'test', cost: 0.2, cmd: "node scripts/report-selftest-validity.mjs" },
 	// #459／#482：故事「新机制声明表」的形状门（六条可机检点 · 各带正反自证）
 	{ id: "test-story-shape-mjs", phase: 'test', cost: 0.1, cmd: "node test/story-shape.mjs" },
+	// `#1267`（M1 最后一件）：**用例执行器**判据（三态／陈旧归因／入口两态）
+	{ id: "test-case-run-mjs", phase: 'test', cost: 0.2, cmd: "node test/case-run.mjs" },
 	// `#1267`（伞 `#1266`）：**故事根口**判据（守护"引擎能编译并跑仓外故事根"＋"仓内恒等"＋"不拉屎"）
 	{ id: "test-story-root-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/story-root.mjs" },
 	// `#1257`：**故事枚举两面一致**（`storySlugs()` ↔ `storyJsonFiles()`；含目录软链口径）
@@ -592,7 +594,7 @@ export const SUITE_MEMBERS = {
 	],
 	'story-legal': ['test-multi-story-mjs',
 		'test-multi-story-mjs-selftest',
-		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs',
+		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-case-run-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs',
 		// `#1267`／`#1257`：故事根口与两面一致性（归 `infra` 语义——判的是**工具链口径**，非故事内容）
 		'test-story-root-mjs', 'test-story-enum-faces-mjs',
 		'test-story-ci-mjs-selftest', 'test-rules-claims-mjs',

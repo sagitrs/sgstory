@@ -3,13 +3,14 @@
 // 豁免：行内或块内注释含汉字即视为已说明；确需无声吞错用 // silent-gate: ok <理由>。
 import { readFileSync, readdirSync } from 'node:fs';
 import { allSourceFiles } from '../scripts/module-order.mjs';
+import { absPath } from '../scripts/dist-paths.mjs';   // `#1269` A 类：符号名 → 真实路径
 import { maskComments } from '../editor/lib/core/mask.mjs';   // `#1206`：剥注单一权威（单次词法扫描）
 
 const files = allSourceFiles();   // #458 切片B：单一权威
 const CJK = /\p{Script=Han}/u;
 let bad = 0;
 for (const f of files) {
-	const text = readFileSync(f, 'utf8');
+	const text = readFileSync(absPath(f), 'utf8');   // `#1269` A 类
 	const re = /catch\s*(?:\([^)]*\))?\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g;
 	for (const m of text.matchAll(re)) {
 		const body = m[1];

@@ -11,6 +11,7 @@
 // ② 裸伤害数字：剧情文件里 `<<damage <数字>>>` 一律红——必须写成 `<<damage \`Game.Damage.x\`>>`
 //（注意：SugarCube 宏的**裸词参数会被当字符串**，所以必须用 backtick 表达式，见本仓 integrity 门「坑11」）。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { absPath } from '../../../scripts/dist-paths.mjs';   // `#1269` A 类
 import { declaredSourceOf } from '../../../editor/lib/core/generated-family.mjs';   // `#1185`：生成标记解析的单一权威
 import { CONST_SECTION } from '../../module-order.mjs';
 
@@ -180,7 +181,7 @@ export const run = (ctx) => {
 	}
 
 	const sources = {};
-	for (const f of ctx.SRC_FILES) sources[f] = readFileSync(f, 'utf8');
+	for (const f of ctx.SRC_FILES) sources[f] = readFileSync(absPath(f), 'utf8');   // `#1269` A 类
 	// `#787` 翻面：产物由**文件自己的标记**认出来（派生，不往手写清单里加）；误标则 fail-loud。
 	const derived = deriveDataSections(Object.entries(sources), CONST_SECTION.files);
 	const problems = [

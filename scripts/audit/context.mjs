@@ -9,7 +9,7 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { passagesOf } from '../../editor/lib/core/passages.mjs';   // `#1114` 2b-2b-0b：切段**唯一分派点**（md/twee 同入口）
 import { scopedFiles } from '../module-order.mjs';
-import { DEFAULT_SLUG, readStory } from '../dist-paths.mjs';
+import { DEFAULT_SLUG, readStory, absPath } from '../dist-paths.mjs';   // `#1269` A 类：符号名 → 真实路径
 import vm from 'node:vm';
 
 // ── vm 直载全部 [script] 段（按文件名序；浏览器专属全局用 stub 兑底）──
@@ -24,7 +24,7 @@ const loadScripts = (srcFiles) => {
 		setTimeout, clearTimeout, document: { addEventListener() {} },
 	};
 	for (const f of srcFiles) {
-		const text = readFileSync(f, 'utf8');
+		const text = readFileSync(absPath(f), 'utf8');
 		const scripts = [...text.matchAll(/::\s*[^\n[\]]+\[script\]([\s\S]*?)(?=\n::|$)/g)].map((m) => m[1]);
 		for (const body of scripts) vm.runInNewContext(body, ctx, { filename: f });
 	}
@@ -43,7 +43,7 @@ const indexPassages = (srcFiles) => {
 	const passageRaw = new Map(); // name -> 原文（payload 注释检查用）
 	const passageTags = new Map(); // name -> tags[]
 	for (const f of srcFiles) {
-		const text = readFileSync(f, 'utf8');
+		const text = readFileSync(absPath(f), 'utf8');
 		for (const p of passagesOf(text, f)) {
 			passageTags.set(p.name, p.tags);
 			passageRaw.set(p.name, p.body);

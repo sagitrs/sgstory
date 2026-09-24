@@ -1,3 +1,4 @@
+import { absPath } from '../../../scripts/dist-paths.mjs';   // `#1269` A 类
 // ⓪u 状态契约门（#318①/#318②）：`pc.ev` / `pc.world` 的键必须落在 `Game.State.domains` 的某个域里。
 //
 // 为什么：这些键是自由名字空间（81 个，散在 9 个 src 文件里写），此前没有任何一处能回答
@@ -327,7 +328,7 @@ export const run = (ctx) => {
 	// 注释里的示例（例如引擎侧 `sets: ['world.flower_taken']` 的口径说明）不是写点——不剥就会造**假红**
 	//（`#460` 实测：第二/第三故事因此报"flower_taken 只有写没有读"）。Twee 注释 `/% %/` 另由 `readKeys` 调用处剥。
 	const sources = {};
-	for (const f of ctx.SRC_FILES) sources[f] = maskComments(readFileSync(f, 'utf8'));
+	for (const f of ctx.SRC_FILES) sources[f] = maskComments(readFileSync(absPath(f), 'utf8'));   // `#1269` A 类
 	const NOTES = ctx.Game.Notes?.entries;
 	const RULES = ctx.window?.Sg?.story?.rules?.() ?? [];
 	// `#785`：把**声明面**也传进去（条件行 ＋ 诉求表 → 写点才看得见）——经接入契约取，不直读数据容器。

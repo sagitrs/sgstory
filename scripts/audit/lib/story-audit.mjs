@@ -35,7 +35,7 @@ export const judgeStoryAudit = (data, { slug = '?' } = {}) => {
 };
 
 /** 读 + 校验（IO；缺文件/畸形 → **抛错**，不静默当空表）。 */
-// `#1267` 故事根口：默认根走 `STORIES_DIR`（受 `SG_STORIES_DIR` 控制）⇒ 与构建/其余门同根。
+// `#1267` 故事根口：默认根走 `STORIES_DIR`（受 `SG_STORIES_DIR` 控制）→ 与构建/其余门同根。
 export const loadStoryAudit = (slug, { root = STORIES_DIR } = {}) => {
 	const p = join(root, String(slug), 'audit.json');
 	if (!existsSync(p)) throw new Error(`缺 \`stories/${slug}/audit.json\`：门侧的故事判据数据必须由**该故事自己**声明（空表也要显式写；#602）`);

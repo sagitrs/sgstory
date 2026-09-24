@@ -109,7 +109,7 @@ if (wantAll || arg('text')) {
 	// `#1261` zero-story: no stories/<slug>/audit.json to read (this gate's data lives in the story dir).
 	// The gate has no sample here, so say so and skip instead of joining null into a path.
 	if (!ctx.storySlug) { console.log('  #1261 zero-story mode: no story text face -> text gate skipped'); return; }
-	// `#1267`：默认根已随口（`STORIES_DIR`）⇒ 不再强传仓根，否则仓外故事根读不到。
+	// `#1267`：默认根已随口（`STORIES_DIR`）→ 不再强传仓根，否则仓外故事根读不到。
 	const auditData = loadStoryAudit(ctx.storySlug);
 	const words = auditData.topicWords;
 	if (!words.length) console.log('  主题词密度：**本故事未声明主题词**（`stories/<slug>/audit.json` 的 `text.topicWords` 为空）——本判据对该故事不适用，不再借用其它故事的词表（#602）');

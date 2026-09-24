@@ -30,8 +30,8 @@ export const sectionFile = (name) => {
 
 /** 纯粹的"包编目"：一个故事包由哪些文件构成（**不碰磁盘**）。 */
 // `#1267` 故事根口：包内路径是**符号名**（`stories/<slug>/…`）；`base` 是**注入的故事根前缀**
-// （默认 `stories` ⇒ 仓内行为逐字符不变）。**为什么不 import 宿主**：本件是 browser-safe core，
-// 不许 import `node:*`；根由宿主（CLI／WebUI）注入 ⇒ 两类宿主同形。
+// （默认 `stories` → 仓内行为逐字符不变）。**为什么不 import 宿主**：本件是 browser-safe core，
+// 不许 import `node:*`；根由宿主（CLI／WebUI）注入 → 两类宿主同形。
 export const packageFiles = (slug, { base = 'stories' } = {}) => {
 	const p = (rel) => `${base}/${slug}/${rel}`;
 	return {
@@ -168,7 +168,7 @@ export const selftestStory = () => {
 	const t = (label, ok) => { n++; if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} 自证·${label}`); };
 
 	const slug = 'demo';
-	const files = packageFiles(slug);   // 自证用**默认 base**（'stories'）⇒ 断言即既有口径
+	const files = packageFiles(slug);   // 自证用**默认 base**（'stories'）→ 断言即既有口径
 	t('编目：清单路径 = stories/<slug>/00-story.json', files.manifest === 'stories/demo/00-story.json');
 	t('编目：数据文件路径 = stories/<slug>/data/<name>', files.dataFile('tables.json') === 'stories/demo/data/tables.json');
 	t('编目：数据面四个文件（rules／notes 可缺 ⇒ 由 null 表达）', files.data.join(',') === DATA_FILES.join(','));   //注意：断言**绑在 DATA_FILES 上** —— 不写死名单（车道 B 加 `notes.json` 那回实测：写死 → 加面即红）

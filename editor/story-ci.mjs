@@ -25,7 +25,7 @@ import { K_FACES, buildPlan, summarizeRuns, missingFromPlan, finalVerdict } from
 import { storySlugs } from '../scripts/dist-paths.mjs';   // `#1004` B2b：仓内故事名单的**单一权威**（不写死名字）
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
-// `#1267` 故事根口：默认取 `STORIES_DIR`（受 `SG_STORIES_DIR` 控制）⇒ 与构建/audit 同根；
+// `#1267` 故事根口：默认取 `STORIES_DIR`（受 `SG_STORIES_DIR` 控制）→ 与构建/audit 同根；
 // 显式的 `--stories-dir=` 仍优先（本件原有能力）。
 const STORIES = process.env.SG_STORIES_DIR ? STORIES_DIR : join(ROOT, 'stories');
 
@@ -35,7 +35,7 @@ export const discoverStories = (dir = STORIES) =>
 
 const run = (cmd) => {
 	const t0 = Date.now();
-	// `#1267` 故事根口：**子命令必须同根** —— 否则"本件读新根、子进程读旧根" ⇒ 假绿。
+	// `#1267` 故事根口：**子命令必须同根** —— 否则"本件读新根、子进程读旧根" → 假绿。
 	const r = spawnSync('node', cmd, { cwd: ROOT, encoding: 'utf8', env: process.env });
 	return { cmd, rc: r.status ?? 1, out: `${r.stdout || ''}${r.stderr || ''}`, ms: Date.now() - t0 };
 };

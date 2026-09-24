@@ -13,7 +13,7 @@ import { readText, writeText, mkdirp, exists, ROOT, engineScripts } from './fs.m
 // 否则会出现「编译器读新根、lint/写回仍读旧根」的假绿。
 import { STORIES_DIR } from '../../../scripts/dist-paths.mjs';
 // `#1267` 故事根口：core 的 `packageFiles` 要的是**目录前缀**（相对仓根）——
-// 仓内时 'stories'（逐字符不变），仓外时给绝对路径 ⇒ 编译/lint/写回同根。
+// 仓内时 'stories'（逐字符不变），仓外时给绝对路径 → 编译/lint/写回同根。
 const BASE = relative(ROOT, STORIES_DIR) || STORIES_DIR;
 import { scriptBodies } from '../core/text.mjs';
 import { compileStory } from '../core/emit.mjs';

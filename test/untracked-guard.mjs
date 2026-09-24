@@ -68,7 +68,10 @@ case_('🔴 **不误伤**：普通新件（`docs/real-new.md`）⇒ **不算**�
 //注意：用**临时文件名**（本件自己保证清理）；断言"未跟踪 → 会被判、add 后 → 不会"。
 //注意：夹具名**不得用 `__` 前缀** —— 那是仓内「临时夹具」惯例 → 会被 `isTransientFixture` 放过
 //（本件自证实测踩过：用 `__untracked-guard-selftest-*.md` → 端到端那格量不出）。
-const FIXTURE = `docs/untracked-guard-selftest-${process.pid}.md`;
+// `#1261` 复核：夹具位置**移出 `docs/`** —— 旧位置与扫 `docs/**/*.md` 的 lint-human-face **撞车**
+//（实测 4 次 1 红 3 绿 = flap）；改到 `scripts/` 下的 `.md`：仍在"未跟踪扫描面"内（可被本件判），
+// 但**不被** lint 的文档面扫（它只扫 `docs/**/*.md`）。
+const FIXTURE = `scripts/untracked-guard-selftest-${process.pid}.md`;
 const abs = join(ROOT, FIXTURE);
 const othersOf = () => execFileSync('git', ['ls-files', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
 try {

@@ -84,8 +84,13 @@ try {
 
 	// ── 真数据：登记表 ＋ 三故事的真号（发现式取故事 —— 不写死名单）──
 	const registry = JSON.parse(readFileSync(`${ROOT}/editor/contract-compat.json`, 'utf8'));
-	const slugs = readdirSync(`${ROOT}/stories`, { withFileTypes: true }).filter((d) => d.isDirectory()).map((d) => d.name)
+	// `#1261` 零故事模式：`stories/` 目录可能不存在（demo 已下架、故事随 `#1163` 在 books 仓落地）
+	// → 无样本时取空表并**明说**（不把 ENOENT 当异常抛出）。
+	const __storiesDir = `${ROOT}/stories`;
+	const slugs = (existsSync(__storiesDir) ? readdirSync(__storiesDir, { withFileTypes: true }) : [])
+		.filter((d) => d.isDirectory()).map((d) => d.name)
 		.filter((n) => existsSync(`${ROOT}/stories/${n}/00-story.json`)).sort();
+	if (!slugs.length) console.log('  #1261 零故事模式：无故事样本 ⇒ 真数据段按空集核（样本随 #1163 回填）');
 	const versions = slugs.map((s) => readStoryPackage({ slug: s, io }).meta?.contractVersion);
 	console.log(`\n── 真数据 ✓ ──`);
 	for (const line of formatCompat({ entries: registry.entries, current: CURRENT })) console.log(`  ${line}`);

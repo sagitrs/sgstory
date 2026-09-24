@@ -443,6 +443,10 @@ t('🔴 `inputsDeclaredStats`：**声明了的段**计入 declared、不计入 u
 	//注意：四处调用点**全在少走路径**（②层需已声明段／仪表需 `--profile*`）→ 断了接线，**CI 与自证都绿**
 	t('🔴 ② 共用助手**接线在位**（`ensureParent` 已 import 且是函数 ⇒ 否则四处调用点起跑即崩 ✗）',
 		typeof ensureParent === 'function' && /from '\.\/lib\/ensure-parent\.mjs'/.test(readFileSync(fileURLToPath(import.meta.url), 'utf8')));
+	t('🔴 ⑤ 下架声明**须有对象**：凭空 id（不在 testPlan()）⇒ 红（修前：凭空 id 可豁免任何段 ✗）',
+		suspendedProblems({ 'no-such-segment-xyz': { why: 'x', until: 'y' } }, { plan: testPlan() }).length === 1);
+	t('🔴 ⑤ 下架声明须有对象：**真实存在的 id** ＋ why/until 齐 ⇒ 不报（正例，防该格恒真）',
+		suspendedProblems({ [testPlan()[0]?.id ?? 'x']: { why: 'x', until: 'y' } }, { plan: testPlan() }).length === 0);
 	// `#1100`：**接线自证格 ＋ 格数守卫** —— 返回值**必须用**（此前被丢弃 → `WIRING_CELLS_EXPECTED` 全仓无人使用）
 	// 原理：防摘**不靠再守一层**，靠「**摘了会改变一个可观的数**」（掐掉一格 → 数变 → 红）
 	const nCells = wiringCells(t);

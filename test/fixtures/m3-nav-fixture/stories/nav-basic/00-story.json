@@ -1,0 +1,16 @@
+{
+	"slug": "nav-basic",
+	"title": "导航最小夹具",
+	"subtitle": "引擎侧最小夹具（`#1315` 乙批）：服务「导航后焦点契约」判据（`focus-after-nav`）",
+	"entry": "起点",
+	"contractVersion": 1,
+	"audience": "internal",
+	"files": [
+		"stories/nav-basic/00-meta.twee",
+		"stories/nav-basic/passages/01-起点.md",
+		"stories/nav-basic/passages/02-终点.md",
+		"stories/nav-basic/15-tables.twee",
+		"stories/nav-basic/17-rules.twee"
+	],
+	"gates": []
+}

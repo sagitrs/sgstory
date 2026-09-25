@@ -79,12 +79,20 @@ let bad = 0;
 const fail = (msg) => { bad++; console.error(`✗ ${msg}`); };
 
 // 车卡引导 → 进正戏（这一串本身就是**程序性导航**＋点击链）
-for (const t of ['踏上旅途', '快速成型', '出发，前往歪脖子鸭酒馆']) await clickText(t);
+	// `#1315` 乙批：**不再钉死旧故事的车卡引导链**（样本可换）—— 导航型那半按 `data-passage` 现取（见下）✓
+	//   ✗ 原写法：`['踏上旅途','快速成型','出发，前往歪脖子鸭酒馆']` ⇒ 旧故事样本死了 ⇒ 判据跟着死 ✗
+	//   ⇒ 口径：判据**只依赖「行动区里有会换段落的链接」**，✗ 不依赖某故事的具体文案 ✓
+	//   ⇒ 兼顾程序性那半：**先进一次页面加载**（焦点落 body）⇒ 再试 `Engine.play` 不得抢焦点 ✓
+	{ const t0 = state(); if (!t0.focusInside) console.log('  样本·初始：焦点不在正文（落 ' + t0.focusTag + '）✓（程序性那半需的前提）'); }
 
 // ── ② 反例那一半先测：此刻焦点**不在**正文（页面载入后落 body）→ `Engine.play` 不许把它挪进去 ──
 {
 	const before = state();
-	w.SugarCube.Engine.play('酒馆');
+	// `#1315` 乙批：**不写死旧段名** —— 用**当前段**做程序性导航的目标（✗ 不依赖某故事的段名 ✓）
+	const _navTarget = (() => { const cur = w.SugarCube.State.passage;
+		const a0 = [...doc.querySelectorAll('#passages a.link-internal')].find((x) => x.getAttribute('data-passage') && x.getAttribute('data-passage') !== cur);
+		return a0?.getAttribute('data-passage') ?? cur; })();
+	w.SugarCube.Engine.play(_navTarget);
 	await sleep(300);
 	const after = state();
 	const problems = judgeInteraction({ kind: 'programmatic', passageBefore: before.passage, passageAfter: after.passage, focusInsideBefore: before.focusInside, focusInsideAfter: after.focusInside });

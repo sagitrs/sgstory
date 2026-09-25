@@ -1,0 +1,8 @@
+{
+	"section": "StoryBindings",
+	"note": "最小夹具：只声明引擎必需成员（未启用也要声明）",
+	"members": [
+		{ "name": "rules", "kind": "empty-array", "docs": "本夹具无规则行" },
+		{ "name": "mechanics", "kind": "null", "docs": "未启用新机制" }
+	]
+}

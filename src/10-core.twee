@@ -669,6 +669,27 @@ window.Sg.capability = (group) => {
 	<</if>>
 <</nobr>><</widget>>
 
+/% ── `#1413`：**战斗收尾宏**（作者面）—— 把"这场打完了、谁赢"落成**可判的声明态** ──────────────
+   为什么需要：旧故事在散文里自己写三件事（`<<if $pc.hp gt 0>>` ＋ `<<if $pc.ev.fight.round gt 2>>` ＋
+   `<<set $pc.ev.fight.done to true>>`）⇒ 新格式**没有落点** ✗（条件行无 hp／round 维，且 `done` 全仓无人写）。
+   本宏把"收尾"收成**一处调用**：落 `State.variables.fights[<池名>] = { won, lost, done, round, pcHp }`
+   ⇒ 条件行即可写 **`fight:<池名>.won` / `.lost` / `.done`**（与 `chk:` 同构的**声明态** ✓）。
+   ★**结果由作者显式给**（`won`／`lost`）—— ✗ 引擎**不判**"打够几回合算赢"（那是**故事策略**；
+     引擎一旦写死阈值，就是把"哪个故事怎么算赢"塞进引擎 ✗）。
+     ✗ 不传也可：本宏仍落**事实**（`round`／`pcHp`／`done`），并**按"hp ≤ 0 ⇒ lost"这一条**兜底
+     （它与引擎既有的"致命伤 ⇒ 结局"一致 ⇒ 属引擎可知的事实 ✓）。
+   ★✗ 不新开写路：仍写 `State` 表（与 `checks` 同规），由**本宏**（既有收尾位置）调用 ✓
+   用法：`<<fightend "雾影">>` ／ `<<fightend "雾影" won>>`（重复调用幂等 ✓） %/
+<<widget "fightend">><<nobr>>
+	/% ★ 落法要点（实测两坑）：
+	   ① `$args` 是**宏上下文**量 —— ✗ 在传给函数的函数体内取不到（实测：恒空 ⇒ 表从不被写）
+	   ② SugarCube 的 `<<run>>` **只吃单行表达式** —— ✗ 多行函数体会被截断（实测 `Unexpected end of input`）
+	   ⇒ 落法：**宏体顶层取局部量** ＋ **逻辑放引擎侧一处纯函数**（`Game.Combat.settle`），`<<run>>` 只调用 ✓ %/
+	<<set _pool to String($args[0] ?? "")>>
+	<<set _want to String($args[1] ?? "")>>
+	<<run Game.Combat.settle($pc, _pool, _want)>>
+<</nobr>><</widget>>
+
 /% #441-A：面板是 **present** —— 抽牌与「选中哪一手」都改走 `Game.Combat.ensureOffer`／`chooseAction`（sim），
    本 widget 体内因此不再有 `<<set $…>>`（旧实现三处 `<<set $pc.ev.fight.act to …>>` ＋ 一处经 `_f` 别名的
    `<<set _f.offer to …>>`，后者同样是写状态）。 %/

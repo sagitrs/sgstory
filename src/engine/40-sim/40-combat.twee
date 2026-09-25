@@ -80,6 +80,28 @@ Object.assign((window.Game.Combat ??= {}), {
 		}
 		return out;
 	},
+	/** ★ `#1413`：**战斗收尾结算** —— 把"这场打完了、谁赢"落成**可判的声明态**（纯函数、可由 node 驱动 ✓）。
+	 *  取值面＝`State.variables.fights[<池名>] = { won, lost, done, round, pcHp }` ⇒ 条件行写
+	 *  **`fight:<池名>.won` / `.lost` / `.done`**（与 `chk:` 同构 ✓）。
+	 *  ★**结果由作者显式给**（`want`）—— ✗ 引擎不判"打够几回合算赢"（那是**故事策略** ✗）；
+	 *    不传也可：仍落事实（`round`／`pcHp`）并按「hp ≤ 0 ⇒ lost」兜底（与引擎"致命伤⇒结局"一致 ✓）。
+	 *  幂等：已 `done` 的池不被覆盖（✗ 不覆盖首次结果）✓ */
+	settle(pc, pool, want) {
+		const p = String(pool ?? '');
+		const w = String(want ?? '').trim();
+		const f = pc?.ev?.fight;
+		if (!p || !f || String(f.pool) !== p) return null;          // ✗ 不是这一场 ⇒ 什么都不做
+		const tbl = (State.variables.fights = State.variables.fights || {});
+		if (tbl[p] && tbl[p].done) return tbl[p];                    // 幂等
+		// ★ `#1409` 同族的教训：**`hp` 非有限数时不许静默判输** —— `!(undefined > 0)` 恒真 ⇒ 会把
+		//   "没收尾/没车卡"误判成"输了" ✗（实测：探针没设 hp ⇒ won 与 lost 同时为 true ✗）
+		//   ⇒ 只能由**显式 `want`** 断胜负；未给 `want` 时**只落事实**（won/lost 都为 false ⇒ 分叉都不出 ✓）
+		const lost = w === 'lost' || (Number.isFinite(pc.hp) && pc.hp <= 0 && w === '');
+		const won = w === 'won' || (!lost && w !== '');
+		tbl[p] = { won: won, lost: lost, done: true, round: f.round ?? 1, pcHp: pc.hp };
+		f.done = true;                                                // 既有字段：`<<fightbegin>>` 判"新一场" ✓
+		return tbl[p];
+	},
 	resolveFoe(pc, foeSite, log) {
 		const T = window.Game, f = pc.ev.fight;
 		let check = null, hurt = 0;

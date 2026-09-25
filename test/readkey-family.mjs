@@ -50,6 +50,8 @@ export const engineFamiliesOf = (src = readFileSync(ENGINE, 'utf8')) => {
 	// 另一种等价形态（正则单元，与 `inv|era|gear`／`codex` 同款）也认。
 	if (/if \([^)]*\.startsWith\('chk:'\)\)\s*\{/.test(body)
 		|| /const ck = \/\^chk:\(\.\+\)\\\.\(\[a-z\]\+\)\$\/\.exec\(k\);/.test(body)) fam.add('chk');
+	// ⑧ `fight:` 战斗结果族（`#1413`：与 `chk:` **同构** —— `fight:<池名>.won` / `.lost` / `.done`）
+	if (/if \([^)]*\.startsWith\('fight:'\)\)\s*\{/.test(body)) fam.add('fight');
 	// ⑤ 点分 ／ ⑥ 裸键（引擎同一 return 里的三元 → 两支）
 	if (/return window\.Sg\.notes\.readPath\(pc, k\.includes\('\.'\) \? k : `ev\.\$\{k\}`\);/.test(body)) { fam.add('dotted'); fam.add('bare'); }
 	return fam;
@@ -57,12 +59,13 @@ export const engineFamiliesOf = (src = readFileSync(ENGINE, 'utf8')) => {
 
 // ── 格 ① 族集合相等 ──────────────────────────────────────────────
 const eng = engineFamiliesOf();
-const EXPECT = ['note', 'inv', 'era', 'gear', 'chk', 'codex', 'pc', 'dotted', 'bare'];   // `#1275`：加 `chk:` 族
+// `#1413`：加 `fight:` 族（**战斗结果维**，与 `chk:` 同构：`fight:<池名>.won` / `.lost` / `.done`）
+const EXPECT = ['note', 'inv', 'era', 'gear', 'chk', 'fight', 'codex', 'pc', 'dotted', 'bare'];
 t(`① 抽取面命中了引擎 \`readKey\` 的**全部 ${EXPECT.length} 族**（锚完整语法单元 ✓ 少一支就会红）`,
 	eng && EXPECT.every((f) => eng.has(f)));
 const CORE = EXPECT;
 const coreFams = new Set(CORE.map((f) => readKeyFamily(f === 'note' ? 'n_x' : f === 'inv' ? 'inv:x' : f === 'era' ? 'era:past'
-	: f === 'gear' ? 'gear:x' : f === 'chk' ? 'chk:书房·敲墙.success' : f === 'codex' ? 'codex:final' : f === 'pc' ? 'pc.gold' : f === 'dotted' ? 'ev.a.b' : 'gold')));
+	: f === 'gear' ? 'gear:x' : f === 'chk' ? 'chk:书房·敲墙.success' : f === 'fight' ? 'fight:雾影.won' : f === 'codex' ? 'codex:final' : f === 'pc' ? 'pc.gold' : f === 'dotted' ? 'ev.a.b' : 'gold')));
 t(`① 两侧族集合相等（core ${[...coreFams].sort().join('／')} ≡ 引擎 ${eng ? [...eng].sort().join('／') : '抽取失败 ✗'}）`,
 	!!eng && coreFams.size === eng.size && [...coreFams].every((f) => eng.has(f)));
 
@@ -71,6 +74,9 @@ t(`① 两侧族集合相等（core ${[...coreFams].sort().join('／')} ≡ 引�
 const renamedChk = readFileSync(ENGINE, 'utf8').replace(/chk:/g, 'chkX:');
 t('②b 能假证明：把引擎侧 `chk:` 族改名 ⇒ 该族从抽取面消失（证明本族的锚不是恒真）',
 	engineFamiliesOf(renamedChk).has('chk') === false);
+const renamedFight = readFileSync(ENGINE, 'utf8').replace(/fight:/g, 'fightX:');
+t('②c 能假证明：把引擎侧 `fight:` 族改名 ⇒ 该族从抽取面消失（✗ 锚不是恒真）',
+	engineFamiliesOf(renamedFight).has('fight') === false);
 const renamed = readFileSync(ENGINE, 'utf8').replace(/const cx = \/\^codex:\(\.\+\)\$\/\.exec\(k\);/, 'const cx = /^codexX:(.+)$/.exec(k);');
 t('② 能假证明：把引擎侧 `codex:` 族改名 ⇒ 格 ① 的"全部族"**当场红** ✗（证明它不是恒真格 ✓）',
 	engineFamiliesOf(renamed).has('codex') === false);

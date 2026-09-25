@@ -60,6 +60,24 @@ window.Sg.rules = {
 			}
 			return it[field];
 		}
+
+		// ★ `#1413`（**战斗结果维**，与 `chk:` **同构**）：`fight:<池名>.won` / `.lost` / `.done`
+		//   取值面＝**按池名索引的本次战斗结果表**（`State.variables.fights`，由**战斗收尾时**的
+		//   既有落点写入 —— ✗ 不新开写路 ✓）。与 `chk:` 同规：**引用了一张本次尚未收尾的战斗**
+		//   ⇒ **fail-loud 点名**（✗ 不静默当 false ⇒ 那会变成恒假的假面 ✓）
+		if (typeof key === 'string' && key.startsWith('fight:')) {
+			const spec = key.slice(6);
+			const dot = spec.lastIndexOf('.');
+			const pool = dot > 0 ? spec.slice(0, dot) : spec;
+			const field = dot > 0 ? spec.slice(dot + 1) : 'done';
+			const tbl = State.variables.fights ?? {};
+			const it = tbl[pool];
+			if (!it) {
+				throw new Error(`Sg.rules：条件行引用了「**本次尚未收尾**」的战斗 \`fight:${pool}\` —— `
+					+ '条件行在该场战斗结束之前求值（本次无结果）');
+			}
+			return it[field];
+		}
 		const k = String(key);
 		//注意：**要把传进来的 `pc` 递下去**（原先只写 `has(k)` → 默认读**当前存档的 pc**）：
 		// 这会让「按合成 pc 求值」的条件**读错档** —— 声明式线索判定（`#785` 第 1 族）正是靠它驱动合成态。

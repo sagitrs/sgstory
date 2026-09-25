@@ -1,0 +1,9 @@
+{
+	"section": "StoryBindings",
+	"note": "最小夹具：只声明引擎必需成员 ＋ 道具效果面（itemEffect）",
+	"members": [
+		{ "name": "rules", "kind": "empty-array", "docs": "本夹具无规则行" },
+		{ "name": "itemEffect", "kind": "lookup", "from": "window.Game?.Items?.effects", "key": "name", "default": null },
+		{ "name": "mechanics", "kind": "null", "docs": "未启用新机制" }
+	]
+}

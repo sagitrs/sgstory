@@ -114,7 +114,9 @@ export const SEGMENTS = [
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-plan-needs-mjs", phase: 'test', cost: 0, cmd: "node test/plan-needs.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
-	{ id: "test-properties-mjs", phase: 'test', cost: 5.6, cmd: "node test/properties.mjs" },
+		{ id: "test-properties-mjs", phase: 'test', cost: 5.6, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-hp-e2e/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-hp-e2e/stories node test/properties.mjs" },   // `#1353` 乙组：先 build 夹具再跑（⇒ **exclusive**，照 block-args/hp-nan 先例 ✓）
+		{ id: "test-locations-adv-mjs", phase: 'test', cost: 1, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-items-adv-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-items-adv-fixture/stories node test/locations-adv.mjs" },   // `#1353` 乙组：先 build 夹具再跑（⇒ **exclusive**，照 block-args/hp-nan 先例 ✓）
+	{ id: "test-chargen-shape-mjs", phase: 'test', cost: 1, cmd: "node test/chargen-shape.mjs" },   // `#1353` 乙组：从 properties 拆出的车卡面（暂挂起 ⇒ 见 SUSPENDED）
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-render-all-mjs", phase: 'test', cost: 8.9, cmd: "node test/render-all.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
@@ -618,6 +620,8 @@ export const SUITE_MEMBERS = {
 		'test-pc-base-mjs',
 		'test-pc-defaults-mjs',
 		'test-properties-mjs',
+		'test-locations-adv-mjs',   // `#1353` 乙组：位点优势面（拆出）
+		'test-chargen-shape-mjs',   // `#1353` 乙组：车卡面（拆出，暂挂起）
 		'test-reread-mjs',
 		'test-rules-mjs',
 		'test-dialect-mjs',
@@ -860,6 +864,8 @@ export const validateSuites = (plan = SEGMENTS, { members = SUITE_MEMBERS } = {}
  * 每条必须给 `why`（为什么）与 `until`（何时重建的触发条件）；缺任一项 → 自证格红。
  */
 export const SUSPENDED = {
+	// `#1353` 乙组：车卡面判据（从 properties 拆出）⇒ 夹具缺 `chargen` 数据面 ＋ **引擎段序缺陷 `#1418`**
+	'test-chargen-shape-mjs': { why: '车卡面判据（`#1353` 乙组拆出）；夹具缺 `chargen` 数据面 ＋ 引擎段序缺陷 `#1418`', until: '#1418 修好后：接夹具 m3-chargen-fixture 并撤挂' },
 	// `#1315` 时效审计（48h 第一/二轮）：`test-readkey-family-mjs` **撤挂** —— why 已失效：两态实跑均 **rc=0**（零故事态／外根态；读数见 `#1315` 审计评论）⇒ 本行理由不再成立（✗ 不写含糊的“永久降级”）。
 	'scripts-audit-mjs-consequences-check': { why: '选择后果门：样本需故事条件面（对象＝引擎门）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'scripts-audit-mjs-state-check': { why: '状态契约门：样本需故事状态面（对象＝引擎门）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
@@ -889,7 +895,8 @@ export const SUSPENDED = {
 	'test-gate-discovery-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：改用 `storySlugs()`／样本给出）' },
 	'test-pc-base-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'test-pc-defaults-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
-	'test-properties-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	// `#1353` 乙组：`test-properties-mjs` **撤挂** —— 接 hp 面夹具 `m3-hp-e2e` ⇒ 夹具根态 **13 格绿**；
+	//   原 D（车卡）／F（位点优势）两段已拆出（见 `chargen-shape`／`locations-adv`）⇒ 本件回归**单一面**（hp/判定/战斗）。
 	'test-render-all-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'test-reread-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'test-rules-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },

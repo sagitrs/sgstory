@@ -91,7 +91,8 @@ for (const p of content) {
 		}
 		// #407 D9② 同屏去重（次数面）：同一渲染态里**同一块检定结果只许出现一次**。
 		// 判据来自 #403 实锤（门厅取物：`<<sitecheck>>` 渲染一次 + `<<lastcheck>>` 复显一次 → d20(11) 两遍）——
-		// 那是"点一次后的屏"，渲染级只能抓"渲染时就重复"的那一半；点击态那一半由 roll-binding 的 #403 断言持有。
+		// 那是"点一次后的屏"，渲染级只能抓"渲染时就重复"的那一半；点击态那一半原由 roll-binding 的 #403 断言持有
+		//（`#1353` 乙组：该件已随旧剧情面下架 ⇒ 点击态那半自此无端到端守护，见 test-plan 的退役登记）。
 		{
 			const seen = new Map();
 			for (const el2 of w.document.querySelectorAll('#passages .check-result')) {

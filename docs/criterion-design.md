@@ -206,6 +206,86 @@
 | **读数** | 一次判定的输出，须**自带对象** | 形如「对象（仓/ref）＋ 面/量纲 ＋ 结论」 | ✗ 不带对象的读数**不能作为定案依据** | 本节（`#1315` 那组口径） |
 | **票齐 ≠ 门成立** | 票数够 ≠ 该改动**成立** | 只有**锚在当前头**的票算数（`commit_id == headRefOid`） | ✗ "两人 APPROVED"不证明"CI 绿"或"判据有效" | `shared/merge.md`（规则仓）＋ 回读脚本 |
 
+---
+
+## 五、五条路（**改这类东西 ⇒ 读哪本、守哪几条、违约会怎样**）
+
+**这一页解决什么**：以前"规矩没有正文"⇒ 只能"先写 ⇒ 被门咬 ⇒ 回头翻代码猜" ✗。
+**每条 =〔为什么 ＋ 判法/锚 ＋ 违约红在哪〕**，且**从代码抽**（✗ 不另写一套）：正文一句话 ＋ **指向权威处** ⇒ 能核、能被咬 ✓。
+
+### 路 L1：**新人入门**（这是什么、我怎么跑起来）
+```
+先读：根 `README.md`（对外首屏）→ 本页 §四（术语）→ `docs/manual/README.md` §1／§2（一个故事由什么组成／最小可跑故事）
+再读：`docs/repo-map.md`（目录与层归属）
+违约红在哪：✗ 无（读者路径不判红）；但**入口页有体量闸**：`md-format` 报「入口页 README.md 98 行（上限 120）」
+```
+
+### 路 L2：**写故事 / 写数据**
+```
+先读：`docs/manual/`（§3 散文面 · §5 条件行 · §6 状态与写点 · §7 位点检定 · §12 数据面）
+再读：`docs/engine/json/README.md`（每类 JSON 放什么）· `docs/engine/authoring-model.md`
+守：散文只写散文 ＋ `{{入参}}`；条件进条件行（✗ 不写 `<<if>>`）；值走声明面
+违约红在哪：`test/prose-vocabulary.mjs`
+  · 写了逻辑/表达式 ⇒ `[V1] … 正文里出现**逻辑/表达式**宏 <<set>>（段落「…」）—— 作者不写代码（甲-1）`
+  · 写了未宣告宏 ⇒ `[V2] … 引擎未宣告的宏 <<goto>>`
+  · **改制面**（故事有 `data/passages.json`）另有四条：`[P1]` 正文里出现链接 `[[…]]`（链接一律进 `links[]`）／
+    `[P2]` `{{= …}}`（`{{}}` 只许入参名）／`[P3]` `{{名}}` 未在本段 `params` 声明（或与 `slot` 撞名）／
+    `[P4]` `links[].to` 悬空 或 `args` 缺必填
+```
+
+### 路 L3：**改引擎（`src/**`、`editor/**`）**
+```
+先读：`docs/dev-conventions.md`（§1 渲染路径契约 · §2 构建与模块顺序 · §3 状态契约 · §4 状态域表）
+再读：`docs/engine/data-model.md` · `docs/engine/reference-spec.md` · `docs/engine/json/`
+守：契约/存档语义不变；模块顺序与依赖显式；状态键落在某域
+违约红在哪：
+  · 分层的加载期依赖 ⇒ `test/layering.mjs`（模块图问题逐条点名）
+  · 契约形状 ⇒ `test/contract-compat.mjs`（含"退出条件已成立而条目还在"也会红 ✓）
+  · 状态键无归属 ⇒ `npm run audit -- --state --check` 报**未归属键**（实证：一次点名 8 个）
+  · 产物新鲜度 ⇒ `scripts/dist-fresh.mjs`：「**找不到产物 `<distPath>`**…」＋`读数（对象）：distPath=…｜srcDir=…｜cwd=…`
+```
+
+### 路 L4：**改门 / 判据（`test/**`、`scripts/**`）** ← **最常"猜"的一条**
+```
+先读：本节 §一～§三（判据设计总法则）→ §四（术语）→ `docs/criteria-ledger.md`（判据册）→ `docs/quality-dimensions.md`
+守（四条，每条都有明确的"红在哪"）：
+ ① **加一个段 ⇒ 六处登记**（缺一处就红，报文如下）
+      · `SEGMENTS`（段本身）
+      · `SUITE_MEMBERS`（分组表；**双向完备**）⇒ `validateSuites`：
+        `组 engine 里的 \`<id>\` **不在计划里**（表漂了 ⇒ 要么补段、要么删条目）` ／
+        `\`<id>\` **未归组**（计划里有、表里没有 ⇒ 完备性破了 ✗）`
+      · `tier` ＋（若 `full`）`FULL_REASONS` 理由 ⇒ `validateTiers`：
+        `\`<id>\` 标了 tier:'full' 但没写理由（加到 FULL_REASONS ✓ —— 降频必须留痕）`
+      · audit 类：`AUDIT_ENGINE`／`AUDIT_STORY` 层表 ⇒ `validateLayers`：
+        `未归层：计划里的 \`--zzz --check\` 段没有任何层（新增门请加进 AUDIT_ENGINE／AUDIT_STORY）` ／
+        `僵尸层声明：waves 在层表里，但计划里没有对应段（删段时请同步层表）`
+      · `inputs`：声明面要么 `['*']`（全跑型）要么给理由（台账"理由（仅登记/未接线必填）"列）
+      · 探针：**有刀才算牙** ⇒ `scripts/probes.mjs` 加一条（`mutation` ＋ `expect`），预算见 `scripts/probe-budget.json`
+ ② **判据要能假**：尺一＝造刀（探针 `--probe=fast`）；尺二＝弄空对象（互否的格子不许同时为真）
+ ③ **面要说清**：判据判"哪些对象"（✗ 面不清 ⇒ 一落链就红，如旧形态故事对新判据）；**空面必须出声**
+ ④ **锚要锚对层**：✗ 不锚"本次要变更的那一层"，✗ 不锚实现的中间产物（否则实现一改判据就红）
+违约红在哪：见上面每条引号里的**报文原文**（都能在 `npm test` 的输出里原样看到）✓
+可复跑：`npm test`｜`node scripts/probe-gates.mjs --probe=fast`｜`node scripts/report-gate-ledger.mjs --selftest`
+```
+
+### 路 L5：**发布 / 运维**
+```
+先读：`docs/manual/13-build.md`（产出与发布 · 用例门）· `docs/process/story-engine-loop.md`（pin 与跨仓纪律）
+再读：`docs/gate-ledger.md`（**生成物** ✗ 不手改）· `docs/criteria-ledger.md` · `docs/baselines.md`（历史快照）
+守：发布前跑用例门；引擎 pin 与 books 同笔；台账/生成物**重生成而不手改**
+违约红在哪：
+  · 台账/生成物不同步 ⇒ `node scripts/report-gate-ledger.mjs --check`（✗ 缺 `build/probe-results.json` 时**拒绝出数** ✓）
+  · 用例门 ⇒ 发布工作流那一步（`case-run` 汇总行：绿／预期缺口／未归因 的条数）
+  · 路径引用死链 ⇒ `md-format`：`引用的仓内路径**不存在** …（同名文件在别处 ⇒ 像是搬家后没跟）`
+    ⚠️ **边界（我实测）**：它只报"**同名文件在别处**"这一类；**纯不存在的路径不报** ✗ ⇒ 见 §六
+```
+
+### 交叉引用（✗ 不另立体系）
+```
+本页是 `docs/criterion-design.md` 的**路标层**；判据设计的**法则**在 §一～§二，**术语**在 §四，**判据册**在 `docs/criteria-ledger.md`。
+入口：根 `README.md`（对外）＋ `docs/README.md` §一（对内"按任务读"，本页是它的**展开版**）✓
+```
+
 ## 三、怎么用这一页
 
 - 写**新判据**前：把"说的/看的/喂的"三句话各写一行，对不上就先改设计。

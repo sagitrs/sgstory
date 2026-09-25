@@ -50,9 +50,27 @@
 |---|---|---|
 | `defs` | `{ [名]: { kind?, protects?, maxHp?, reduce?, damage?, advSites?, from?, note?}}` | 装备定义 |
 
-注意：**实测形状与文档不一致（本仓已知漂移）**：`docs/story2-contracts.md` §1.2 声明的 `gearDef(id)` 是 `{kind,protects,maxHp,reduce,note}`；
+注意：**实测形状与文档不一致（本仓已知漂移）**：**本页 §5.1** 声明的 `gearDef(id)` 是 `{kind,protects,maxHp,reduce,note}`；
 而**代码实际读** `damage`（`Game.Gear.damageBonus`）与 `advSites`（`Game.Gear.advSource`），
 `face-fixture` 的 `Gear.defs` 也是 `{from,damage,advSites,note}`。→ **两者是同一字段名的两套口径**，见 `decisions.md` 的待定项。
+
+### 5.1 装备声明 `Sg.story.gearDef(id)` —— **字段表**（★口径门**逐字**比对本表 ↔ 代码 ✓）
+
+> 来源：原 `docs/story2-contracts.md` §1.2（★该件已按"一份为准"删除 ⇒ 本表即其宿主 ✓；装备属 `tables.json` 面 ✓）。
+
+>注意：**本节字段表以引擎实况为准**（`#1115` 件②）：表的字段集 ＝ **引擎在战斗路径实际读的**那组
+>（`src/engine/40-sim/21-resolve.twee` 的 `Sg.story.gearDef(k)?.<字段>`）。**口径门**（`scripts/lib/gear-defs-criteria.mjs`）
+> 逐字比对本表 ↔ 代码读的字段集 → **对称差非空即红**（给本文档加一个代码不读的字段 → 红；从本表删一个代码在读的字段 → 红）。
+
+| 字段 | 型 | 含义 | 缺省 |
+|---|---|---|---|
+| `damage` | `number` | 该件提供的伤害值（引擎累加：`:450`／`:453`） | `0` |
+| `advSites` | `string[]` | 该件**有优势**的位点（引擎按 `includes(site)` 判：`:456`） | `[]` |
+
+>注意：**被本节取代的那一套**（`kind`／`protects`／`maxHp`／`reduce`）：**不是被删，而是被标为"引擎未读"** ——
+> 本节的旧字段表曾按"护具契约"写（`kind`／`protects`／`maxHp`／`reduce`），而引擎在战斗路径**只读**上面两字段
+>（一手证据：`stories/face-fixture/15-tables.twee` 的 provider 是 `Game.Gear.defs` 的**直通** → 故事按旧表写 → 引擎读不到）。
+> → **旧四字段若要启用，须先在引擎里接线**（另票）；在那之前，本文档**不再声明**它们为 provider 字段（防止"按文档写 → 引擎不认"）。
 
 ## 6. `Items` —— 道具
 
@@ -91,7 +109,7 @@
 
 | 字段 | 型 | 含义 |
 |---|---|---|
-| `list` | `Array<…>` | 回响条目（本仓为空表 → **配了但没用**，见 `docs/story-surface-scope.md`） |
+| `list` | `Array<…>` | 回响条目（本仓为空表 → **配了但没用**，见 `docs/manual/12-data.md`） |
 | `revisit` | `Array<…>` | 重访条目 |
 
 ## 11. `Codex` —— 图鉴

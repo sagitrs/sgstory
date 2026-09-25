@@ -1,6 +1,6 @@
 # `data/notes.json` —— 笔记表
 
-> 模型与口诀：`docs/notes-model.md`（**唯一权威**）。本文件只写**文件形状与字段**。
+> 模型与口诀：`docs/criterion-design.md`（**唯一权威**）。本文件只写**文件形状与字段**。
 >注意：它是一个登记过的 **EXTENSION**（`editor/lib/core/contractVersion.mjs` 的 `EXTENSIONS`）：ADD 新面可 `CURRENT` 不变，但**必须在 `EXTENSIONS` 显式登记**。
 > 特点：**一个数据文件 → 多份产物**（`blocks[]` 每块产出一份 `16-notes-*.twee`）。
 

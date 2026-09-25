@@ -2,7 +2,7 @@
 //
 // 为什么这么判（而不是「引用必须已关闭」）：文档里引用开放票是正当的（「后续 #318②」）。
 // 真正会让按过时信息做决定的，是**标记与真实状态不符**——实测已抓到 6 处，最近一例：
-// `docs/quality-dimensions.md` 的 F7 行写 `⏳ #271`，而 #271 早已 CLOSED（PR #274 已 MERGED）。
+// 原 `docs/quality-dimensions.md` 的 F7 行（★该件已按"一份为准"删除 ⇒ 口径见 `docs/criterion-design.md` §一/§二）写 `⏳ #271`，而 #271 早已 CLOSED（PR #274 已 MERGED）。
 //
 // 判据：
 // 标记「已闭环」系（✅/已闭环/已修/已完成/已合/MERGED） → 目标须 closed（issue）或 merged（PR）
@@ -194,7 +194,7 @@ const selftest = () => {
 	const TODAY = new Date('2026-09-12T00:00:00Z');
 	const KNOWN = new Set(['dragon', 'echoes']);
 	const fixture = (o = {}) => {
-		const spot = o.spot ?? '#1 · `--dragon` · `docs/baselines.md`';
+		const spot = o.spot ?? '#1 · `--dragon` · `docs/benchmark-ledger.md`';
 		const review = o.review ?? '2026-09-12 复核：已复核';
 		const trigger = o.trigger ?? '该作出新作时';
 		const row = (n) => `| **竞品${n}** | 2020-01 | 维度 | ${spot} | ${review} | ${trigger} |`;

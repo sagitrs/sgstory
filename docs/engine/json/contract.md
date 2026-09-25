@@ -1,6 +1,6 @@
 # `data/contract.json` —— 接入契约（`Sg.story.*`）
 
-> 边界与三条缺省纪律：`docs/engine-story-boundary.md` §1（**权威**）。本文件只写**文件形状与 `kind` 全集**。
+> 边界与三条缺省纪律：`docs/criterion-design.md` §1（**权威**）。本文件只写**文件形状与 `kind` 全集**。
 > 编译：→ `15-tables.twee` 的 `StoryBindings` 段（产物）。分类实现：`editor/lib/core/classify.mjs`。
 
 ## 1. 顶层
@@ -43,7 +43,7 @@
 
 ## 4. 三条缺省纪律（**三类不许混**）
 
-`docs/engine-story-boundary.md` §1 定：
+`docs/criterion-design.md` §1 定：
 
 | 语义 | 缺省行为 |
 |---|---|

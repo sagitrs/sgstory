@@ -1,7 +1,7 @@
 # `docs/engine` —— 写作与引擎的设计面（设计文档目录）
 
 > **本目录是什么**：写作形态（Markdown／JSON 各放什么）与**引擎边界的成文设计**。
-> **不是**：设定书（→ `docs/archive/lore-canon.md`，故事 1 遗产已入档，见 `#1077`）、代码级约定（→ `docs/dev-conventions.md`）、门的登记（→ `docs/gate-ledger.md`）。
+> **不是**：设定书（→ `docs/archive/lore-canon.md`，故事 1 遗产已入档，见 `#1077`）、代码级约定（→ `docs/criterion-design.md`）、门的登记（→ `docs/gate-ledger.md`）。
 > **状态**：设计稿（**待评审**）。**凡形状与行为断言，一律附可复算命令**（`grep`／`sed` 行号 或 `git show`）；未落地的算**主张**，在 [`decisions.md`](decisions.md) 单列。
 
 ## 为什么有这一层
@@ -41,9 +41,9 @@
 
 | 面 | 唯一权威 | 本目录的角色 |
 |---|---|---|
-| 引擎／故事分工与接入契约 | `docs/engine-story-boundary.md` | 引用；**不重述** |
-| 知识模型（笔记／世界态／运行时） | `docs/notes-model.md` | 引用；取值命名空间与它对齐 |
-| 故事面范围（必需／可选／不做） | `docs/story-surface-scope.md` | 引用 |
-| 条件表语法实战 | `docs/rules-table-guide.md` | 引用 |
+| 引擎／故事分工与接入契约 | `docs/criterion-design.md` | 引用；**不重述** |
+| 知识模型（笔记／世界态／运行时） | `docs/criterion-design.md` | 引用；取值命名空间与它对齐 |
+| 故事面范围（必需／可选／不做） | `docs/manual/12-data.md` | 引用 |
+| 条件表语法实战 | `docs/manual/05-rules.md` | 引用 |
 | 编辑器转向的技术形状与分期 | `docs/superpowers/specs/editor-pivot.md` | **被本目录细化**（散文层由 Twee 改 MD 之后的那一段） |
 | 产物入仓与锁 | `#1042` | 引用 |

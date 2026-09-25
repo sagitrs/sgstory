@@ -3,7 +3,7 @@
 // 两道检查：
 // ① **真实契约**：当前故事（`Sg.story.mechanics()`）必须是「未启用」或「形状合法」——两者都不许是"看着像表其实坏掉"；
 // ② **自证（形状即判据的六条）**：每一条都给 正例（必须放过）＋ 反例（**必须抓住**）。
-// 为什么必须有 ②：`docs/dev-conventions.md` §9 —— 打印了 `自证·` 不等于自证有效，**失败要计入退出码**，
+// 为什么必须有 ②：`docs/criterion-design.md` §八 8.18 —— 打印了 `自证·` 不等于自证有效，**失败要计入退出码**，
 // 且失败路径不能崩（本文件的 `bad` 计数器声明在**最前**，并进 `process.exit`）。
 //
 // 用法：node test/story-shape.mjs
@@ -167,7 +167,7 @@ for (const slug of storySlugs()) {
 }
 
 if (bad) {
-	console.error(`\n✗ 形状门未通过（${bad} 项）—— 形状即判据：坏掉的表必须能被机器抓住，见 docs/engine-story-boundary.md`);
+	console.error(`\n✗ 形状门未通过（${bad} 项）—— 形状即判据：坏掉的表必须能被机器抓住，见 docs/criterion-design.md §八 8.9b`);
 	process.exit(1);
 }
 console.log('\n✔ 形状门通过（六条可机检点 · 各带正反自证 · 当前故事显式声明未启用/已启用均合法）');

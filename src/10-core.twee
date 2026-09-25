@@ -278,7 +278,7 @@ window.Game.Pc = {
 
 // ── 宏：<<check 技名 DC [adv|dis] [加值]>> / <<save 属性 DC [adv|dis] [加值]>> ──
 // 计算过程显示开关（"显示计算过程"；关掉只剩结果）。本地持久化，与图鉴同一套 localStorage 套路
-// #320 阶段 2：UI 与运行时统一挂到 `Sg.*`（数据/规则挂 `Game.*`，见 docs/dev-conventions.md §7）
+// #320 阶段 2：UI 与运行时统一挂到 `Sg.*`（数据/规则挂 `Game.*`，见 docs/criterion-design.md §八 8.6）
 window.Sg ??= {};
 window.Sg.UI = {
 	// #441-B/#462：键构造收敛到 `Sg.store`（本处是 **engine** 作用域 → 不加故事前缀，

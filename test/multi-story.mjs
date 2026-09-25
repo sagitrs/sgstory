@@ -57,7 +57,7 @@ export const ciLiteralProblems = (yaml, { story = STORY_PAGE_MAX_BYTES, shelf = 
  * 为什么要有它：`multi-story` 原先只查"产物存在 / 书架链接 / 字体文件"，而 `test/boot.mjs` 恒读
  * **默认故事**的产物 → 新故事**启动即崩也全绿**（实测：`minimal-demo`／`hollow-cave` 的 `$era` 恒 `undefined`，
  * StoryInit 抛 `Cannot read properties of undefined (reading 'PRESENT')`，SugarCube 允许继续 → 起始段照样渲染 → **像"能玩"**）。
- * → 这是 `#557` 的同一族："产物存在 ≠ 产物能跑"（`docs/dev-conventions.md` §13 第 1 条：读不到输入就该响）。 */
+ * → 这是 `#557` 的同一族："产物存在 ≠ 产物能跑"（`docs/criterion-design.md` §六 6.1／§6.7：读不到输入就该响）。 */
 export const judgeBoot = ({ slug, era, text, errors = [] }) => {
 	const out = [];
 	if (errors.length) out.push({ code: 'S4', msg: `故事「${slug}」启动报错：${String(errors[0]).split('\n')[0].slice(0, 120)}` });

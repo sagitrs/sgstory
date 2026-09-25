@@ -41,7 +41,7 @@
 
 ## 四、本文档**不覆盖**的面
 
-引擎／故事分工与接入契约 → `docs/engine-story-boundary.md`｜知识模型 → `docs/notes-model.md`｜故事面必需／可选／不做 → `docs/story-surface-scope.md`｜门的登记 → `docs/gate-ledger.md`｜质量判据 → `docs/quality-dimensions.md`。
+引擎／故事分工与接入契约 → `docs/criterion-design.md`｜知识模型 → `docs/criterion-design.md`｜故事面必需／可选／不做 → `docs/manual/12-data.md`｜门的登记 → `docs/gate-ledger.md`｜质量判据 → `docs/criterion-design.md`。
 **本文档不复制它们的内容**，只说明写作层与它们如何交界。
 
 ## 五、本稿的修正记录（**自报**，不抹）

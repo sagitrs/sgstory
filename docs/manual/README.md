@@ -49,7 +49,7 @@
 |---|---|
 | `docs/engine/json/*.md`（数据面规范） | ⇒ §12（手册做**索引＋差异**，原文保留） |
 | `docs/engine/authoring-model.md` | ⇒ §3／§4 |
-| `docs/rules-table-guide.md` | ⇒ §5 |
+| `docs/manual/05-rules.md` | ⇒ §5 |
 | `docs/engine/reference-spec.md` | ⇒ §14（只留可机检锚那份） |
 | `docs/engine/json/prose.md` §3 | ⇒ §3（**真源**，冲突时以它为准） |
 | `docs/process/story-engine-loop.md` ＋ 需求台账 | ⇒ §15（**链接**，不复制） |

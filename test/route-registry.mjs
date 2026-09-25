@@ -6,7 +6,7 @@
 // 腐烂：表里指的行为已不在（检测不到）→ 报
 // 反向核：检测到的现场数必须等于钉死值（当前 5）——防"检测器抽不到东西、覆盖格空转假绿"
 //
-// 反向核数随现场增减**人工更新**（这条写在 `docs/implementation-routes.md` 的出生规则里）。
+// 反向核数随现场增减**人工更新**（这条写在 `docs/criterion-design.md` §五的出生规则里）。
 
 import { readFileSync, existsSync } from 'node:fs';
 import { join } from 'node:path';

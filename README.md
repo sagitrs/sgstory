@@ -56,7 +56,7 @@ npm test                                       # 全链：PR 档（fast）
 | **判据设计法则 ＋ 术语表 ＋ 五条路 ＋ 通用纪律 ＋ 代码级约定** | [`docs/criterion-design.md`](docs/criterion-design.md) |
 | 判据册（每条判据的出处与形态） | [`docs/criteria-ledger.md`](docs/criteria-ledger.md) |
 | 门的登记与接线（**生成物** ✗ 不手改） | [`docs/gate-ledger.md`](docs/gate-ledger.md) |
-| 故事/引擎边界与接入契约 | [`docs/engine-story-boundary.md`](docs/engine-story-boundary.md) · [`docs/story2-contracts.md`](docs/story2-contracts.md) |
+| 故事/引擎边界与接入契约 | [`docs/criterion-design.md`](docs/criterion-design.md)（§八 8.9b 文本归属面 · 8.9 作用域） |
 | 引擎内部地图（层归属／模块顺序） | `scripts/module-order.mjs`（**代码即权威** ✓） |
 
 CI 变红时先看 [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) ✓

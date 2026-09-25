@@ -35,7 +35,7 @@ ok('① 真仓跑护栏 rc=0', clean.rc === 0, clean.out.slice(0, 160));
 ok('① 报文明说差集为空', /npm 入口差集为空/.test(clean.out));
 
 // ② 端到端能红（探针要咬的那一格）：插一行假引用 -> 必须点名，再还原
-const TARGET = 'docs/dev-conventions.md';
+const TARGET = 'docs/criterion-design.md';   // `#1359` ②：原靶件已按"一份为准"删除 ⇒ 换**活着且居中**的件（仍是本门看的文档面 ✓）
 const bak = readFileSync(join(ROOT, TARGET), 'utf8');
 let red = { rc: 0, out: '' };
 try {

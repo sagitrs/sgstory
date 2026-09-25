@@ -8,7 +8,7 @@
 // #459 切片三：位点表／情报捷径／战斗动作表已改走 `Sg.story.checkSite/checkKnowledge/combatAction`——
 // 本文件搬进 `src/engine/**` 后**不再直读故事表**（注意：层间门按字面量匹配，这里曾用别名 `T.Game` 躲过它，
 // 所以"门绿"不等于边界成立；本文件的证据是"真的没有直读"，见 PR）。
-// 命名根：挂 `Game.Checks.*`（数据/规则 → Game.*，见 docs/dev-conventions.md §7）。
+// 命名根：挂 `Game.Checks.*`（数据/规则 → Game.*，见 docs/criterion-design.md §八 8.6）。
 
 
 // ── 战斗回合的「算」（#441-A 第二刀）──────────────────────────────────────

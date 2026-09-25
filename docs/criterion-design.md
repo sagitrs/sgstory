@@ -233,7 +233,7 @@
 1. 先跑起来：读根 `README.md` 的「快速开始」⇒ `npm install` ⇒ `npm run build` ⇒ 打开 `dist/` 里的产物 ✓
 2. 认识一个故事：`docs/manual/01`／`02`（段落图／最小可跑故事）⇒ 现有夹具 `test/fixtures/m3-chk-e2e/` 可当样本 ✓
 3. 想改东西：按"改的是哪一类"对上 L2／L3／L4／L5（本节）✓
-4. 卡住时：§四 术语（先统一说法）⇒ `docs/repo-map.md`（目录与层归属）⇒ `TROUBLESHOOTING.md` ✓
+4. 卡住时：§四 术语（先统一说法）⇒ `scripts/module-order.mjs`（**层归属**：代码即权威）⇒ `TROUBLESHOOTING.md` ✓
 ```
 
 ### 路 L2：**写故事 / 写数据**
@@ -273,7 +273,7 @@
 
 #### L3 分步（改引擎）
 ```
-1. **先读契约**：`docs/engine/data-model.md`（数据是什么）＋ `docs/engine/reference-spec.md`（形状）＋ `docs/dev-conventions.md`
+1. **先读契约**：`docs/engine/data-model.md`（数据是什么）＋ `docs/engine/reference-spec.md`（形状）＋ **本页 §八**（代码级约定）
    §1 渲染路径契约／§2 构建与模块顺序／§3 状态契约／§4 状态域表 ✓
 2. **判断影响面**：这一改会不会动**存档语义**／**渲染生命周期**／**状态键归属** ⇒ 对不上就先改设计（§一 总法则）✓
 3. **加状态键**：必须在**每个故事**的 `data/tables.json` 域表里**找到归属**（引擎写点也如此）⇒ 跑 `npm run audit -- --state --check` ✓
@@ -333,7 +333,7 @@
 
 ## 六、通用纪律（**每条 = 为什么 ／ 判法·锚 ／ 违约红在哪**）
 
-> 本节从 `docs/dev-conventions.md`（代码级约定清单）＋ `docs/dev-conventions-cases.md`（实证与踩坑）＋
+> 本节从**原 `docs/dev-conventions.md`**（代码级约定清单；★该件已按"一份为准"删除，内容即本节 §六/§七/§八 ✓）＋ `docs/dev-conventions-cases.md`（实证与踩坑）＋
 > 今天的一手读数**抽取**而来（✗ 不重造）。每条都点到**能核的锚**；**"违约红在哪"引的是门里报文的原文** ✓
 
 ### 6.1 提交与 PR
@@ -465,7 +465,7 @@
 ```
 ---
 
-## 八、代码级约定（**从 `docs/dev-conventions.md` 抽取；✗ 不另写一套**）
+## 八、代码级约定（**抽取自原 `docs/dev-conventions.md`**；★该件已按"一份为准"删除 ⇒ 本节即其宿主 ✓）
 
 > **本节按协调席裁的"逐条抽取清单"搬运**（`#1359` 的清单评论）：**只搬还活着的代码级纪律**，✗ 不搬沿革与个案 ✓。
 > 每条＝**〔规则 ＋ 为什么 ＋ 判法/锚 ＋ ★违约红在哪〕**，并**指回权威处**（脚本／门／`ORDER`／常量表 ✓）。

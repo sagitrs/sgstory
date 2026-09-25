@@ -125,7 +125,7 @@ export const PATH_EXEMPT = /<!--\s*path-exempt:\s*([^*]*?)-->/;
  * 只把「**同名文件在别处存在**」的路径当陈旧引用判红（＝"文件搬了/改名了，引用没跟"），
  * 因为那正是本门要咬的缺陷类（`src/15-tables.twee` → `stories/mist-forest/…`）。
  * 同名文件在全仓**根本不存在**的引用 → 视为**尚未创建**（设计稿里"新增 `scripts/audit/discovery.mjs`"这种），
- * **只登记打印、不判红** —— 否则任何设计稿都会被门挡住（`docs/story-gates-design.md` 实测）。
+ * **只登记打印、不判红** —— 否则任何设计稿都会被门挡住（`docs/criterion-design.md` §八 8.15 实测）。
  * `exists`／`globMatches`／`basenameExists` 由调用方注入（自证用假实现）。
  */
 export const checkPathRefs = (text, { file = '<mem>', exists = () => true, globMatches = () => [], basenameExists = () => false } = {}) => {

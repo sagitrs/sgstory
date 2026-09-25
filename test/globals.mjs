@@ -119,7 +119,7 @@ let fails = 0;
 if (v.added.length) {
 	fails++;
 	console.error(`\n✗ 出现**新的裸全局**：${v.added.map((n) => `${n}（${(found.get(n) ?? []).map((x) => `${x.file}:${x.line}`).join(' ')}）`).join('、')}`);
-	console.error('  约定（docs/dev-conventions.md §7）：数据/规则挂 `Game.*`，UI/运行时挂 `Sg.*`；不新增裸全局。');
+	console.error('  约定（docs/criterion-design.md §八 8.6）：数据/规则挂 `Game.*`，UI/运行时挂 `Sg.*`；不新增裸全局。');
 }
 if (v.phantom.length) {
 	fails++;

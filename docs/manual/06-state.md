@@ -35,7 +35,7 @@ domains = Array<{ id, keys?: string[], prefix?: string[], where?, note? }>
 ★**`ev.fight` 不在上表里**：它是**故事相关**的 —— 有战斗内容的故事会在叙事段落读到它 ⇒ 属 `mechanic` 桶；
 没有战斗内容的故事才由它**自己**登记 ✓ ⇒ 判某个键归谁，看的是"**谁读它**"（✗ 不看名字像不像引擎的 ✓）。
 
-**落地纪律**（`docs/dev-conventions.md:474`）：**引擎写点必须在每个故事的域表里找到归属** —— 引擎保留槽只是"由引擎写"，
+**落地纪律**（`docs/criterion-design.md:474`）：**引擎写点必须在每个故事的域表里找到归属** —— 引擎保留槽只是"由引擎写"，
 **每个故事仍要自己把它们登记进自己的 `domains`**（否则 `--state` 门照样红 ✓）。
 
 ## 6.3 三种写点，各有各的槽 [锚]
@@ -51,7 +51,7 @@ domains = Array<{ id, keys?: string[], prefix?: string[], where?, note? }>
 ## 6.4 [步骤] 让门咬你一次（★能假）
 
 ```bash
-# 跑法（形状见 `docs/dev-conventions.md:378`）：
+# 跑法（形状见 `docs/criterion-design.md:378`）：
 node scripts/audit.mjs --story <slug> --check        # 故事根由环境变量 `SG_STORIES_DIR` 给（全仓唯一口）
 # 能假配方：把域表里**某个已被写到的键**从 `domains` 里删掉 ⇒ 期望：门**点名该键未归属** 且 rc≠0
 #   （实证 `#1267`：我当时的域表少了 runtime 一组 ⇒ 门一次点名 **8 个未归属键**：`ev.ending`／`ev.last_roll`／`ev.fight`／`ev.last_result`／

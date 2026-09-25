@@ -139,7 +139,7 @@ stories/<slug>/
 | 生成物 | 由谁生成 | 关键约束 |
 |---|---|---|
 | `15-tables.twee` | `data/tables.json` ＋ `data/contract.json` | 容器与注册口**显式给空**（空表＝合法数据集，缺失＝报错） |
-| `17-rules.twee` | `data/events.json` | 表语法见 `docs/rules-table-guide.md`；`text` 不许读渲染期状态（`--rules` 判） |
+| `17-rules.twee` | `data/events.json` | 表语法见 `docs/manual/05-rules.md`；`text` 不许读渲染期状态（`--rules` 判） |
 | `10-*.twee`（散文） | `passages/` 拼装 ＋ 插入 `<<rules>>`/`<<rulelist>>`/链接 | 段落**名与顺序**仍由 `00-story.json` 的 `files` ＋ 登记表决定 |
 | 目录登记（`ORDER`/`MODULES`） | **P3 之前手工**；P3 起由编译器**生成一段**（或改为动态发现） | 见 §5 拦路石 2 |
 

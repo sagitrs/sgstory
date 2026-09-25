@@ -27,7 +27,7 @@ const MODIFIERS = ['check', 'strict', 'story', 'engine-only'];
 // **每次调用都跑**：这些是"结构缺失"，必须响亮报错而不是静默少跑几道门。
 const discoveryProblems = await validateDiscovery();
 if (discoveryProblems.length) {
-	console.error('✗ 门发现面自检未通过（`#607`；见 docs/story-gates-design.md）：');
+	console.error('✗ 门发现面自检未通过（`#607`；见 docs/criterion-design.md §八 8.15）：');
 	for (const p of discoveryProblems) console.error(`   · ${p}`);
 	process.exit(1);
 }

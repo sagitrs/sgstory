@@ -1,6 +1,6 @@
 // `#877` 件级自证：`editor/lib/core/stateDiagnose.mjs`（形状与对齐 ＋ 读侧判定 ＋ 结构）
 //
-// 判据（每条都**能是假的** —— `docs/dev-conventions.md` §9 口径）：
+// 判据（每条都**能是假的** —— `docs/criterion-design.md` §八 8.18 口径）：
 // ① 坏 → findings **点名** `{event, field}`（不是"有错"）
 // ② 好 → **零**（能假的另一半 —— 否则"永远报错"也会过）
 // ③ **顺序稳定**：打乱输入对象的键序 → 输出**逐字节相同**（排序键与 `diagnose.mjs` 同）

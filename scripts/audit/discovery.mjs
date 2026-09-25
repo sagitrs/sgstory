@@ -4,7 +4,7 @@
 // 今天 34 道门全部登记在 `scripts/audit/registry.mjs` 的 `GATES` 里，其中 12 道判的是**故事 1 的内容**——
 // 而"这道门属于哪个故事"此前只存在于 `test-plan.mjs` 的 `AUDIT_STORY` 字符串数组里（它只说"是故事门"，
 // **说不出"是谁的门"**）→ `--story hollow-cave --truth` 会**照跑故事 1 的门**：拿别人的判据判你
-//（`#602` 那类"空判/假红"在**门侧**的同一成因）。设计见 `docs/story-gates-design.md`。
+//（`#602` 那类"空判/假红"在**门侧**的同一成因）。设计见 `docs/criterion-design.md` §八 8.15。
 //
 // 本片（P0）**不搬任何门**，只把机制与校验立起来（**零行为变化**是硬要求：`audit:golden` 零漂移为机械证据）：
 // · **落点**：故事门住 `stories/<slug>/gates/*.mjs`（P1 起逐门搬入）；

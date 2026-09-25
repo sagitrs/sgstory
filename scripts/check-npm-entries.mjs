@@ -33,7 +33,6 @@ const SKIP_DIR = /^(node_modules|\.git|dist|build|coverage)$/;
 
 /** **豁免清单（有名有目）**：键＝脚本名，值＝理由（写清为什么引用它不算缺口）。 */
 export const EXEMPT = {
-	matrix: '`docs/dev-conventions.md`：退役说明里的引用（"已随内容故事删除"），属否定语境，不是缺口',
 };
 
 /** **纯函数**：引用集合 × scripts × 豁免 → 问题清单（空＝绿）。 */

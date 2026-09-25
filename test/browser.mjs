@@ -403,7 +403,7 @@ async function keyboardCase(W, H) {
 		// `activeElement` 自然还停在原链接上 → 旧绿是**虚的**（借「按键前就为真的结果在屏」站的）。
 		//注意：必须用**导航型**样本：`女巫小屋` 那类**非导航型**（就地反馈）按键前后焦点都在 `#passages` 内
 		// → `focusInside` 两向皆真 → **无判别力**（写成 `check(after.focusInside)` 就是又一个假绿）。
-		// 判据照 `docs/dev-conventions.md` §6：契约＝「**焦点仍在 `#passages` 内**」 —— **不绑元素**
+		// 判据照 `docs/criterion-design.md` §八 8.5：契约＝「**焦点仍在 `#passages` 内**」 —— **不绑元素**
 		//（落 `.passage`／`.acts`／反馈槽 都算过 —— 那一层是**实现路径**）。
 		//注意：两向读数（2026-09-19 实测）：引擎侧那一手**禁用** → `focusInside=false`（落 `body`
 		// ＝本格真会红）；**启用** → `DIV.passage` → 本格**有判别力**。

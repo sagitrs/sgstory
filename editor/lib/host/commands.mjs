@@ -638,7 +638,7 @@ export const k4Command = (argv = [], { prog = 'node editor/cli.mjs', sub = 'k4' 
 	// 旧行为是"静默忽略多余参数"（`node editor/k4.mjs minimal-demo` → 照样跑整门、rc=0）
 	// → 那是"传了却没生效"的典型：调用方以为在限定范围、实际判了全部。
 	//注意：**它属行为变化**（不是纯搬运 → 单独一刀）：影响面＝**只影响手工调用**
-	//（仓内 `scripts/test-plan.mjs` 两条都裸调、`docs/editor-flip-playbook.md` 也裸调）
+	//（仓内 `scripts/test-plan.mjs` 两条都裸调、`docs/archive/editor-flip-playbook.md` 也裸调）
 	// → **`npm test` 原本看不见它** → 本票自带 `test/k4-args.mjs`（让这次变化**自己露面**）。
 	// 拒绝落在**共享命令体**里 → 两条入口行为一致（`--selfcheck` 属**壳侧**旗标 → 那条既有不对称不涉）。
 	if (argv.length) { console.error(usageOf(prog, sub, '（无参数）')); return 2; }

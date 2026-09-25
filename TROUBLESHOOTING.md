@@ -14,7 +14,7 @@
 
 **根因**：SugarCube 的 `setup` 全局在完整启动链中才创建；`[script]` 段落的求值时点早于它（jsdom 环境必现，真实浏览器时序更宽松但不可依赖）。
 
-**解法**：不用 `setup`，用自有全局命名空间（`window.Game` —— 数据/规则挂 `Game.*`、UI/运行时挂 `Sg.*`，见 `docs/dev-conventions.md` §7）。
+**解法**：不用 `setup`，用自有全局命名空间（`window.Game` —— 数据/规则挂 `Game.*`、UI/运行时挂 `Sg.*`，见 `docs/criterion-design.md` §八 8.6）。
 
 **预防**：script 段落里避免一切对引擎注入全局的早期依赖；见坑 6 的分片原则。
 

@@ -137,7 +137,8 @@ export const PROBES = [
 		pre: [],
 		cmd: 'node test/npm-entries-guard.mjs',
 		mutation: {
-			file: 'docs/dev-conventions.md',
+			file: 'docs/criterion-design.md',
+			// `#1359` ②：原 `docs/dev-conventions.md` 已删 ⇒ 探针改指正文（★探针的 `file` 是**被测量的对象** ⇒ 必须指**活着**的件 ✓）
 			find: "# 工程约定（Dev Conventions）",
 			replace: "# 工程约定（Dev Conventions）\n\n（探针：这里引用 `npm run probe-missing-entry`，不存在，应被点名）",
 		},
@@ -247,7 +248,7 @@ export const PROBES = [
 	/* 原条目（保留原文，便于接回）：
 		{
 			// `#1012`：**导航型交互之后焦点仍在正文内**（`test/focus-after-nav.mjs`）—— 契约见
-			// `docs/dev-conventions.md` §6「键盘可续」（`activeElement.closest('#passages')`，**不绑元素**）。
+			// `docs/criterion-design.md` §八 8.5「键盘可续」（`activeElement.closest('#passages')`，**不绑元素**）。
 			//注意：被测面是 `src/**` 的**引擎行为** → 本门读的是**产物**：`pre` 只建基线，
 			// 真正让变异生效的是 `rebuild` 的**第一处**（变异之后、`cmd` 之前）—— 写成 `pre` 会得到
 			// "变异后仍绿" 的**假不咬**（改了源却不重建 → 量的是上一代产物）。

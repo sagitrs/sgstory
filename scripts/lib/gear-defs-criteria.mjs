@@ -5,7 +5,7 @@
 // 同一概念（引擎战斗路径用的装备字段）存在**三处**说法，且**没有共同字段集**：
 // ① 表驱动 `Gear.defs`（`face-fixture`）＝ `{from,damage,advSites,note}`（`docs/engine/json/tables.md:55`）
 // ② **代码实际读的**（引擎）＝ `{damage, advSites}`（`src/engine/40-sim/10-gear.twee` 的 `gearDef`（`#1187` 第二块后；**不写行号** —— 行号会随拆分腐烂））
-// ③ **文档声明的**（接入契约）＝ `{kind,protects,maxHp,reduce,note}`（`docs/story2-contracts.md` §1.2）
+// ③ **文档声明的**（接入契约）＝ `{kind,protects,maxHp,reduce,note}`（`docs/engine/json/tables.md` §5.1）
 // ＋ 一手证据：`stories/face-fixture/15-tables.twee:939` 的 provider 逐字
 // `gearDef: (name) => window?.Game?.Gear?.defs?.[name]?? null`
 // → **`Sg.story.gearDef` 就是 `Game.Gear.defs` 的直通** → ∴ ① 与 ③ 是**同一概念的两套口径**（不是同名两概念）
@@ -39,7 +39,7 @@ export const ENGINE_FILE = {
 	toString: () => { const fs = engineFilesOf(); return fs.length ? fs.join(' ＋ ') : '(未派生)'; },
 	valueOf: () => engineFilesOf(),
 };
-export const CONTRACT_DOC = 'docs/story2-contracts.md';
+export const CONTRACT_DOC = 'docs/engine/json/tables.md';   // `#1359` ②：原 `docs/story2-contracts.md` 已按"一份为准"删除；本表搬进 `tables.md` §5.1（✗ 字段集一字不动 ✓）
 
 const realRead = (f) => { try { return readFileSync(f, 'utf8'); } catch { return ''; } };
 
@@ -52,13 +52,15 @@ const hasGearDefRead = (src) => GEARDEF_READ_RE.test(maskComments(String(src)));
 /** ② 侧：**代码实际读的**字段集（锚 `gearDef(...)?.<字段>`）。 */
 export const codeReadFields = (src) => [...new Set([...maskComments(String(src)).matchAll(new RegExp(GEARDEF_READ_RE.source, 'g'))].map((m) => m[1]))].sort();
 
-/** ③ 侧：**文档声明的**字段集（锚文档**表格首列**；只取 §1.2 那一段）。 */
+// `#1359` ② 删件批：**锚点迁移** —— 原宿主 `docs/story2-contracts.md` 已按"一份为准"删除；该表搬进
+// `docs/engine/json/tables.md` **§5.1**（★字段集一字未动 ✓）⇒ 锚点随之改为 **`### 5.1` … 下一个 `## `**（✗ 不再是 `### 1.2`…`### 1.3` ✓）。
+/** ③ 侧：**文档声明的**字段集（锚文档**表格首列**；只取 §5.1 那一段）。 */
 export const docDeclaredFields = (doc) => {
 	const t = String(doc);
-	const at = t.indexOf('### 1.2');
+	const at = t.indexOf('### 5.1');
 	if (at < 0) return [];
 	const rest = t.slice(at);
-	const end = rest.indexOf('\n### 1.3');
+	const end = rest.indexOf('\n## ');      // ★段落边界＝下一个二级标题（✗ 不靠 `### 1.3` ✓）
 	const seg = end < 0 ? rest : rest.slice(0, end);
 	return [...new Set([...seg.matchAll(/^\|\s*`([A-Za-z_$][\w$]*)`/gm)].map((m) => m[1]))].sort();
 };

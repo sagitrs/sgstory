@@ -1,6 +1,6 @@
 # `data/rules.json` —— 条件表
 
-> 规格与判据：`docs/engine/reference-spec.md` §1；写法决策树：`docs/rules-table-guide.md`。
+> 规格与判据：`docs/engine/reference-spec.md` §1；写法决策树：`docs/manual/05-rules.md`。
 > 编译：→ `17-rules.twee`（产物，`@generated`）。引擎消费：`Sg.rules.table()` → `pick()`。
 
 ## 1. 顶层
@@ -24,7 +24,7 @@
 | `any` | `Cond[]` | — | **至少一个**（空＝不要求） |
 | `exclude` | `Cond[]` | — | **都不**满足 |
 | `prereq` | `string[]` | — | 前置**行 id**（不是条件项 → 不走 `holdsCond`） |
-| `text` | `string` | — | 选中时渲染的正文。注意：两个时机（`#624` 裁定，`docs/dev-conventions.md:329-332`）：**渲染期**只许纯渲染（禁 `<<set>>`／`pc.ev.x =`／`Sg.notes.add()`）；**点击态**（`<<link>>` 体内）许词汇宏——把点击授予改成渲染后授予＝改变时机＝改变行为 |
+| `text` | `string` | — | 选中时渲染的正文。注意：两个时机（`#624` 裁定，`docs/criterion-design.md:329-332`）：**渲染期**只许纯渲染（禁 `<<set>>`／`pc.ev.x =`／`Sg.notes.add()`）；**点击态**（`<<link>>` 体内）许词汇宏——把点击授予改成渲染后授予＝改变时机＝改变行为 |
 | `yields` | `string[]` ／ `{id, path}[]` | — | 授予**笔记**（走 `Sg.notes.add`，幂等） |
 | `gives` | `string[]` | — | 授予**道具**（`pc.inv[k] = true`，幂等） |
 | `sets` | `string[]` | — | 置**状态键**。注意：**只置真**（布尔）；**有笔记的键不得走这里**（必须 `yields`） |

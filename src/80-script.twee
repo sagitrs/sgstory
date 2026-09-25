@@ -21,7 +21,7 @@ Save.onLoad.add((save) => {
 
 // ── 常驻存档 / 读档（v16 §5.0：常驻界面，不埋进侧栏菜单）──
 // 侧栏固定块调这三个全局函数；S / L 为快捷键（不在输入框内时生效）。
-// #320 阶段 1：这五个收进 `Sg.save.*`（UI/运行时命名空间，见 docs/dev-conventions.md §7）
+// #320 阶段 1：这五个收进 `Sg.save.*`（UI/运行时命名空间，见 docs/criterion-design.md §八 8.6）
 window.Sg.save = {
 	quick: () => Save.browser.slot.save(1, `快速存档 · ${State.variables.pc?.name || '无名旅人'}`),
 	// 读档有个坑：Save.browser.slot.load() 只把状态还原，**不会重画**（SugarCube 自己的存档界面
@@ -523,7 +523,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		// 越过「跳到正文」/「跳到行动」那两条跳转链接）；② 替换之后焦点**确实丢了**（`body`／
 		// 已脱离文档）—— 已有更精确落点的两种（`#180` 就地反馈定位 ／`#185` 子对话返回行动区）
 		// 各由上两处先处理，本处只补**没人接的那一类**（导航 + 目标段落里没有那些落点）。
-		//注意：判据口径照 `docs/dev-conventions.md` §6：契约是「**焦点仍在 `#passages` 内**」
+		//注意：判据口径照 `docs/criterion-design.md` §八 8.5：契约是「**焦点仍在 `#passages` 内**」
 		// —— 落到**哪一个**元素属实现路径（此处取段落根＝新内容的**顶部**，符合导航后的阅读顺序），
 		// 断言不得绑元素；滚动不动（`preventScroll`）—— 本票只修焦点，改滚动属另一件。
 		jQuery(document).on(':passageend.sgFocusNav', (ev) => {

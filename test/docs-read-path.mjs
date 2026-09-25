@@ -24,9 +24,10 @@ const README = join(ROOT, 'docs/README.md');
 /** 对象故事已删的文档（`#1004` 删故事 1；basename 对照——含 archive 在内的任何位置回流进必读面都算）。 */
 export const DELETED_STORY_DOCS = new Set(['lore-canon.md', 'game-outline.md', 'impl-map.md']);
 
-/** ratchet 上限（KB）与单列件：口径＝`#1077` 验收② 领队裁定（先读列除 dev-conventions ≤150KB；`dev-conventions` 瘦身另列 `#1080`）。 */
+// `#1359` ② 删件批：**单列豁免退役** —— 原单列件 `docs/dev-conventions.md` 已按"一份为准"删除；
+// 其余件回落统一的 `BUDGET_KB` 看护（✗ 不保留一个永远匹配不到的豁免 ✓）。
 export const BUDGET_KB = 150;
-export const BUDGET_EXEMPT = 'docs/dev-conventions.md';
+export const BUDGET_EXEMPT = null;   // ★退役（✗ 留已删件的路径 ⇒ 恒不命中 ⇒ 豁免无对象 ✗）
 
 /** `#1080`：**§17 瘦身 ratchet** —— `dev-conventions.md` 的 §17（从 `## 17.` 到文件尾）只许降不许升；
  * 证伪清单表行每条须「一句判定（含粗体）＋ 出处票号」（删判据本体只留案例 → 结构缺失 → 红）。 */
@@ -153,7 +154,7 @@ const case_ = (label, ok, extra = '') => {
 const selftest = () => {
 	const exists = (p) => !p.includes('no-such');
 	const sizeOf = (p) => (p.includes('huge') ? 160 * 1024 : 1024);
-	const okTable = '| 改引擎 / 机制 | `docs/dev-conventions.md` | `docs/repo-map.md` |\n| 写剧情 | `docs/twee-cheatsheet.md` | — |';
+	const okTable = '| 改引擎 / 机制 | `docs/criterion-design.md` | `scripts/module-order.mjs` |\n| 写剧情 | `docs/twee-cheatsheet.md` | — |';
 	const SEC = '## 一、按任务读\n';
 	// ① 死链夹具 → 必红并点名
 	const dead = deadLinkProblems(SEC + '| 写剧情 | `docs/no-such-doc.md` | — |', { exists });
@@ -162,7 +163,7 @@ const selftest = () => {
 	const stale = staleAuthorityProblems('## 一、按任务读\n| 查设定 | `docs/lore-canon.md` | — |\n## 二、权威表\n| 设定 | `docs/game-outline.md` | 手写 |');
 	case_('权威位指向作废必红', stale.length === 2 && stale.every((s) => s.includes('#1004')));
 	// ③ 正例 → 不红（三判据全过）
-	const clean = `## 一、按任务读\n${okTable}\n## 二、权威表\n| 面 | 唯一权威 | 形态 |\n|---|---|---|\n| 知识模型 | \`docs/notes-model.md\` | 手写 |`;
+	const clean = `## 一、按任务读\n${okTable}\n## 二、权威表\n| 面 | 唯一权威 | 形态 |\n|---|---|---|\n| 知识模型 | \`docs/criterion-design.md\` | 手写 |`;
 	case_('正例不红', deadLinkProblems(clean, { exists }).length === 0 && staleAuthorityProblems(clean).length === 0 && budgetProblems(clean, { sizeOf, exists }).length === 0);
 	// ③′ 字节超限夹具 → 必红（ratchet 有牙）
 	const huge = SEC + '| 大文档 | `docs/huge.md` | — |';
@@ -184,19 +185,14 @@ const selftest = () => {
 	case_('反例·表行删判据本体只留案例（无票号）⇒ 红', sec17Problems('## 17.\n### 证伪清单\n| ① | 某问题 | 案例细节文字 |\n').some((p) => p.includes('缺出处票号')));
 	case_('反例·表行无粗体判定句 ⇒ 红', sec17Problems('## 17.\n### 证伪清单\n| ① | 某问题 | 有票号（#1）但无判定句 |\n').some((p) => p.includes('缺粗体判定句')));
 	case_('正例·§17 合规 ⇒ 不报', sec17Problems('## 17.\n### 证伪清单\n| ① | 问题 | **判定**（`#1`） |\n').length === 0);
-	case_('反例·缺 ## 17. 节 ⇒ 红（#557 扫描面空）', sec17Problems('（无 §17）').length === 1);
 };
 
 const main = () => {
 	const text = readFileSync(README, 'utf8');
 	const problems = [...emptyScanProblems(text), ...deadLinkProblems(text), ...staleAuthorityProblems(text), ...budgetProblems(text)];
-	const dcv = readFileSync(join(ROOT, 'docs/dev-conventions.md'), 'utf8');
-	const sec17 = sec17Problems(dcv);
 	for (const p of problems) { bad++; console.error(`✗ ${p}`); }
-	for (const p of sec17) { bad++; console.error(`✗ ${p}`); }
 	case_('docs/README.md 必读面四判据全过（含扫描面非空）', problems.length === 0, problems.join('；'));
-	case_('dev-conventions §17 ratchet（#1080：≤15KB · 每条判定+票号）', sec17.length === 0, sec17.join('；'));
-	if (problems.length === 0) console.log(`      ○ 先读列（除 \`${BUDGET_EXEMPT}\`，单列见 #1080）合计 ${budgetReading(text)} ／ 上限 ${BUDGET_KB}KB —— 读数可见，不是只在红时才出现`);
+	if (problems.length === 0) console.log(`      ○ 先读列（单列豁免已退役）合计 ${budgetReading(text)} ／ 上限 ${BUDGET_KB}KB —— 读数可见，不是只在红时才出现`);
 };
 
 if (process.argv.includes('--selftest')) selftest();

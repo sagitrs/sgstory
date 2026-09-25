@@ -241,7 +241,7 @@ export const SEGMENTS = [
 	{ id: "test-npc-venue-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/npc-venue.mjs --selftest" },
 	{ id: "test-npc-venue-mjs", phase: 'test', cost: 0, cmd: "node test/npc-venue.mjs" },
 	{ id: "test-premise-source-mjs", phase: 'test', cost: 0, cmd: "node test/premise-source.mjs" },
-	// `#1012`：**导航后焦点仍在正文内**（`docs/dev-conventions.md` §6「键盘可续」的可机检版）——
+	// `#1012`：**导航后焦点仍在正文内**（`docs/criterion-design.md` §八 8.5「键盘可续」的可机检版）——
 	// 契约＝交互后 `activeElement.closest('#passages')` 必真（不绑具体元素）；两半都要能假：
 	// 导航型交互（真会红：修前焦点落 `body`）＋ 反例「程序性导航不许抢焦点」。
 	// `#1261`：编辑器 WebUI 的启动入口段（及其 `#1033` 说明）已随大裁剪下架 ⇒ 该段与其注释同删（段引用不存在件的悬空引用）。
@@ -463,7 +463,7 @@ export const SEGMENTS = [
 export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 'text', 'engine-story-free', 'slots', 'status', 'waves', 'roads'];   // #486：slots 是引擎门（输入＝声明表）
 // **`#607` P0 起 `AUDIT_STORY` 的含义**：＝「**尚未迁移**的故事门」清单（历史包袱；搬完一批删一批）。
 // 已搬进 `stories/<slug>/gates/` 的门由**该故事的清单**声明（`00-story.json` 的 `gates`），由 `scripts/audit/discovery.mjs`
-// 发现 → 下方这两个表只描述"还在工具层的门"。落点与机制见 `docs/story-gates-design.md`。
+// 发现 → 下方这两个表只描述"还在工具层的门"。落点与机制见 `docs/criterion-design.md` §八 8.15。
 // **已搬走**：P1 试点 `economy` / `items`＋`tokens` / `notes`；P2-A① `truth` / `choices` / `nosl` / `interact` /
 // `social` / `combat` / `starbudget` / `systems` / `checks`；P2-A② `canon` / `echoes` / `craft` / `dragon` /
 // `rules` / `reads` / `investment` / `npc` / `gear` → `stories/mist-forest/gates/`（故事 1 已搬完）；

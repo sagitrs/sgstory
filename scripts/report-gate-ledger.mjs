@@ -221,6 +221,7 @@ const push = (id, kind, wired, selfProof, extra = {}) => {
 		})(),
 		wired: wired ?? r.wired ?? false,
 		selfProof: selfProof ?? false,
+		hasProbe: Boolean(PROBES.find((p) => p.id === id)),   // `#1353` ①：欠账只认「有探针件」的行
 		form,
 		reason: r.reason ?? '',
 		...extra,
@@ -310,6 +311,11 @@ export const chainFlags = (testChain) => [...new Set([...testChain.matchAll(/aud
 
 export const problems = (rows, declared = null, chain = []) => {
 	const out = [];
+	// ★ `#1353` ①：**三门账自洽**（欠账 ≤ 总数）—— 口径回退会让它自相矛盾（实测：一律计 `—` ⇒ 欠账 106 > 总 80 ✗）。
+	//   放在 `problems()` 里（✗ 不是 main）⇒ 用**传入的 rows** 判 ⇒ **自证可注入合成行集**（能假 ✓）。
+	const ss = summary(rows);
+	if (ss.debtN > ss.total) out.push({ id: 'scripts/report-gate-ledger.mjs', code: 'debt-overflow',
+		msg: `欠账 ${ss.debtN} > 总项 ${ss.total} ⇒ **三门账不自洽**（口径回退？"—" 三种因被一律计成欠账 ✗）` });
 	if (declared) {
 		// 幻影门：链上有、audit 声明里没有
 		const ghosts = chain.filter((f) => !declared.includes(f));
@@ -351,13 +357,27 @@ const summary = (rows) => {
 	const probeOk = rows.filter((r) => r.probe === '✅').length;
 	const probeNone = rows.filter((r) => r.probe === '—').length;
 	const probeBad = rows.filter((r) => r.probe === '✗').length;
+	// ★ `#1353` ①：**欠账只算"有探针件却读数不咬"** —— `—` 含三因（无探针件／无读数／读数陈旧）⇒ ✗ 不能一律计欠账
+	//   （实测：无读数态下一次 `--update` 会算出「欠账 106 > 总 80」⇒ **自相矛盾** ✗）
+	//   口径：**该行压根没有探针件** ⇒ 属**检视面**（人来跑／人来看）；**有探针件但没读数** ⇒ 才是欠账。
+	const probeDebt = rows.filter((r) => r.probe === '✗' || (r.probe === '—' && r.hasProbe)).length;
 	let cap = 0;
 	try { cap = JSON.parse(readFileSync('scripts/probe-budget.json', 'utf8')).maxUnprobed ?? 0; } catch { cap = -1; }
-	return { total: rows.length, behavioral: beh, assertOnly, registry: reg, rate: +(beh / rows.length * 100).toFixed(1), probeOk, probeNone, probeBad, probeCap: cap < 0 ? '缺件 ✗' : cap };
+	// ★ `#1353` ①：**三门账**（门 / 检视 / 欠账）—— 目的：`#1344` 的"检视清单"与"该探未探"**不再混成一种**。
+	//   · **门**   ＝ 真留在闸上的（有自证的行为化门；`tier` 决定它跑在哪个档）
+	//   · **检视** ＝ 人来做、要留读数的（仅登记／人工走查／**临时暂缓**）—— ★暂缓项**计检视**，✗ 不计欠账
+	//   · **欠账** ＝ 真缺的（行为化但缺自证 ＋ **该探却未探**）⇒ 这才是要还的
+	// ★ 暂缓项取自 **`suspCellOf`**（`SUSPENDED` 的唯一读取口）—— ✗ 不新造字段（`rows` 里没有 `suspended`）
+	const suspendedN = rows.filter((r) => isSuspendedId(r.id)).length;
+	const review = reg + suspendedN;
+	const debtN = assertOnly + probeDebt;
+	return { total: rows.length, behavioral: beh, assertOnly, registry: reg, review, debtN, suspendedN, probeDebt, rate: +(beh / rows.length * 100).toFixed(1), probeOk, probeNone, probeBad };
 };
 
-// `#1261` 甲（台账侧）：**临时下架**列 —— 从 SUSPENDED 读（含段 id -> 文件路径映射）；
-// 台账里**看得见**「对象在、样本暂缺」这一状态（不是只写在代码注释里）。
+// `#1261` 甲（台账侧）：**临时下架**列（从 SUSPENDED 读；段 id ⇒ 文件路径要猜一次）
+/** `#1353` ①：该台账行是否**临时暂缓**（与 `suspCellOf` **同源** ⇒ 一处判定 ✓）。 */
+const isSuspendedId = (rowId) => suspCellOf(rowId) !== '—';
+
 const suspCellOf = (rowId) => {
 	for (const [id, m] of Object.entries(SUSPENDED)) {
 		const guess = id.replace(/-mjs(-selftest)?$/, '.mjs')
@@ -393,7 +413,7 @@ const TIER_NOTE = (() => {
 	].join('\n');
 })();
 
-const head = `# 门的行为化率台账（F2）
+const headOf = (s) => `# 门的行为化率台账（F2）
 
 > **由 \`scripts/report-gate-ledger.mjs\` 生成**（\`npm run report:gates:update\`）——**不要手改**：\`npm run report:gates:check\` 会校验「文件与实况一致」，漂移即红（与 F6 同源纪律）。（校验退出码：0＝一致／1＝不一致（点名首处差异）／2＝判不了（读数不足，本次不作结构判定））
 >
@@ -405,6 +425,8 @@ const head = `# 门的行为化率台账（F2）
 >
 ${LEGEND}
 
+**★ 三门账（#1353 ①）**：**门 ${s.behavioral}**（有自证的行为化） ｜ **检视 ${s.review}**（仅登记 ＋ **临时暂缓** —— 人来做、留读数） ｜ **欠账 ${s.debtN}**（行为化缺自证 ${s.assertOnly} ＋ **有探针件却探不到** ${s.probeDebt}）
+>
 **严格行为化率（有自证）：${s.behavioral}/${s.total} = ${s.rate}%** ｜ **有断言但缺自证：${s.assertOnly}**（＝下方工作清单）｜ 仅登记：${s.registry}
 **探针（直接读数 ✓，不是\"文件在不在\"那种代理 ✗）：\`✅\` ${s.probeOk} 项 ｜ \`—\` 未探 ${s.probeNone} 项（**上限 ${s.probeCap}** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ \`✗\` 不咬 ${s.probeBad} 项（**>0 即红** ✓）** —— 档位／清单：\`node scripts/probe-gates.mjs --probe=fast\` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）${s.probeOk === 0 && s.probeNone > 0 ? '〔**本次无读数**：生成时 \`build/probe-results.json\` 缺失，经 \`--allow-missing-probe\` 显式逃生 ⇒ **本行与探针列都不是覆盖读数**，不可据此判断探针面 ✗〕' : ''}
 ${TIER_NOTE}
@@ -418,7 +440,7 @@ ${TIER_NOTE}
 		? `\n## F2 工作清单：有断言但**缺自证**（${debt.length} 项）\n\n> 这些门**在跑、也在断言**，但从没被证明「反例会红」——本仓当日四类空判（覆盖≠验收／反例空判／死开关 #331／原理不可达 #338）都出自这一类。\n> 补法：给该门加一个**合成反例**用例（正例＋反例），并在本脚本的 \`REASONS\` 里改标 \`行为化\`。\n\n`
 			+ debt.map((r) => `- \`${r.id}\`（${r.kind}）`).join('\n') + '\n'
 		: '';
-	return `${head}${body}\n${debtSec}`;
+	return `${headOf(s)}${body}\n${debtSec}`;
 };
 
 // ── 自证 ─────────────────────────────────────────────────────────────
@@ -516,6 +538,14 @@ const selftest = () => {
 	h('🔴 `normalizeProbeFace`：**只抹探针列** —— 其余格逐字保留 ✓（"真不一致"照样红 ✓）',
 		(() => { const md = '| `x` | 形态A | 行为化 | ✅ | ✅ | 理由R |\n**探针（直接读数 ✓）：`✅` 26 项**'; const n = normalizeProbeFace(md); return n.includes('形态A') && n.includes('理由R') && n.includes('〔探针〕') && !/26 项/.test(n); })());
 	h('`probeStateOf`：无探针件 ⇒ `—` ✓', probeStateOf({}) === '—');
+	h('🔴 三门账：**欠账不超总数**（自洽）—— 在**真行**上验', (() => { const r = summary(rows); return r.debtN <= r.total && r.debtN >= 0; })());
+	// ★ 能假（合成输入，✗ 不靠改实现）：构造一个"**欠账 > 总数**"的行集 ⇒ `problems()` 必报 `debt-overflow` ✓
+	h('🔴 三门账 反例·**能假**：合成"欠账溢出"的行集 ⇒ `problems()` **必报** `debt-overflow` ✓', (() => {
+		const fake = [{ id: 'x', kind: 'test', form: '行为化（缺自证）', selfProof: false, probe: '✗', wired: true, hasProbe: true, reason: '' }];
+		return problems(fake).some((p) => p.code === 'debt-overflow');
+	})());
+	// 正例控制：正常行集 ⇒ **不报** `debt-overflow`（✗ 不误伤）
+	h('三门账 正例：正常行集 ⇒ 不报 `debt-overflow` ✓', !problems(rows).some((p) => p.code === 'debt-overflow'));
 	h('`probeStateOf`：有探针件但**从没跑过** ⇒ `—` ✗（不假装 ✅ ✓）', probeStateOf({ entry: { id: 'x' }, record: null }) === '—');
 	h('`probeStateOf`：跑了但**不咬** ⇒ `✗` ✓（>0 即红 ✓）', probeStateOf({ entry: { id: 'x' }, record: { ok: false } }) === '✗');
 	h('`probeStateOf`：咬住 ＋ 被测件**没改** ⇒ `✅` ✓', probeStateOf({ entry: { id: 'x' }, record: { ok: true, targetSha: 'aa' }, targetSha: 'now', sha: () => 'aa' }) === '✅');

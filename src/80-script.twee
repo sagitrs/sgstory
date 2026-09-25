@@ -647,12 +647,23 @@ Macro.add('printparam', {
 		const key = String(this.args[0] ?? '');
 		const seg = String(State.passage ?? '');
 		const got = window.Sg.inargs?.of(seg) ?? {};
-		if (!Object.prototype.hasOwnProperty.call(got, key)) {
-			// 取不到 ⇒ **点名**（✗ 不许静默空、✗ 不许读旧值 —— 后者由"一跳清"保证 ✓）
-			throw new Error('<<printparam>> 段「' + seg + '」的入参「' + key + '」**本次未传**'
-				+ '（入参只在经链接跳转时携带 ⇒ 直达本段时不会有值）');
+		// `#1350` 片 5：**本次未传 ⇒ 用该入参声明的 `default`**（若声明了）。
+		// 为什么：入参的"声明态默认值"是**可预判的**（与"实际传了什么"不同）⇒ 与旧形态的**固定字面**等价 ✓
+		//（靶：`门厅.params.提醒.default = "钥匙在靴里"` ⇒ 旧树散文就是这句字面 ⇒ 两树渲染文本可同 ✓）
+		const spec = (() => {
+			try { return window.Sg?.story?.passages?.()?.[seg]?.params?.[key] ?? null; } catch { return null; }
+		})();
+		if (Object.prototype.hasOwnProperty.call(got, key)) {
+			$(this.output).wiki(String(got[key]));
+			return;
 		}
-		$(this.output).wiki(String(got[key]));
+		if (spec && Object.prototype.hasOwnProperty.call(spec, 'default')) {
+			$(this.output).wiki(String(spec.default));
+			return;
+		}
+		// 两者都无 ⇒ **点名**（✗ 不许静默空、✗ 不许读旧值 —— 后者由"一跳清"保证 ✓）
+		throw new Error('<<printparam>> 段「' + seg + '」的入参「' + key + '」**本次未传**，且声明里也无 `default`'
+			+ '（入参只在经链接跳转时携带 ⇒ 直达本段时不会有值）');
 	},
 });
 

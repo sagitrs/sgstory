@@ -694,6 +694,11 @@ window.Sg.capability = (group) => {
    本 widget 体内因此不再有 `<<set $…>>`（旧实现三处 `<<set $pc.ev.fight.act to …>>` ＋ 一处经 `_f` 别名的
    `<<set _f.offer to …>>`，后者同样是写状态）。 %/
 <<widget "fightpanel">><<nobr>>
+	/% ★ `#1426`（**收尾时机**，与 `#1420` 同轴）：第 3 参＝**打满 N 回合即收尾**（**机械事实**：回合数 ✓）；
+	   第 4 参＝**作者显式给的结果**（`won`／`lost`；缺省＝**不判胜负** ⇒ 两侧分叉都不出 ✓）。
+	   ✗ 引擎仍**不判胜负**（那是故事策略 ✓）；✗ 不新开写路（复用 `Game.Combat.settle` ✓）；
+	   ✗ 不破零表达式（作者写的仍是**具名动作 ＋ 字面量参数** ✓）。
+	   ★兼容：两参**可选** ⇒ 不传 ⇒ 行为与今天**逐字相同** ✓（旧故事与既有夹具不受影响 ✓） %/
 	<<run Game.Combat.ensureOffer($pc)>>
 	<<set _f to $pc.ev.fight>>
 	<div class="acts">
@@ -703,6 +708,14 @@ window.Sg.capability = (group) => {
 				<<set _orig to passage()>>
 				<<run Game.Combat.chooseAction($pc, 0)>>
 				<<fightact $args[0]>>
+				/% ★ `#1426`：**收尾判定放在点击时**（✗ 不能在渲染期 —— 实测：SugarCube 对 `<<goto 同段>>`
+				   **不重渲染** ⇒ 渲染期的判断在「打满」那一刻永不执行 ✗）
+				   第 3 参＝打满 N 回合即收尾（**机械事实**）；第 4 参＝作者给的结果（缺省＝不判）%/
+				<<if $args[1] isnot undefined and $args[1] isnot null and $args[1] isnot "">>
+					<<if $pc.ev.fight and $pc.ev.fight.round gte Number($args[1])>>
+						<<run Game.Combat.settle($pc, String($args[0] ?? ""), String($args[2] ?? ""))>>
+					<</if>>
+				<</if>>
 				/% #350/#357：结算在点击时完成；**死透就不再归位**——<<damage>> 已跳「结局 死亡」，再 goto 会把它覆盖掉。用**存活条件**判，不依赖 widget 里的 passage() %/
 				<<if $pc.hp gt 0>><<goto `_orig`>><</if>>
 			<</link>>
@@ -714,6 +727,14 @@ window.Sg.capability = (group) => {
 				/% #350/#357：结算在点击时完成；**死透就不再归位**——<<damage>> 已跳「结局 死亡」，再 goto 会把它覆盖掉。用**存活条件**判，不依赖 widget 里的 passage() %/
 				<<run Game.Combat.chooseAction($pc, 1)>>
 				<<fightact $args[0]>>
+				/% ★ `#1426`：**收尾判定放在点击时**（✗ 不能在渲染期 —— 实测：SugarCube 对 `<<goto 同段>>`
+				   **不重渲染** ⇒ 渲染期的判断在「打满」那一刻永不执行 ✗）
+				   第 3 参＝打满 N 回合即收尾（**机械事实**）；第 4 参＝作者给的结果（缺省＝不判）%/
+				<<if $args[1] isnot undefined and $args[1] isnot null and $args[1] isnot "">>
+					<<if $pc.ev.fight and $pc.ev.fight.round gte Number($args[1])>>
+						<<run Game.Combat.settle($pc, String($args[0] ?? ""), String($args[2] ?? ""))>>
+					<</if>>
+				<</if>>
 				<<if $pc.hp gt 0>><<goto `_orig`>><</if>>
 			<</link>>
 			<span class="meta">（<<print Game.Combat.siteInfo(_f.offer[1])>>）</span>
@@ -724,6 +745,14 @@ window.Sg.capability = (group) => {
 				/% #350/#357：结算在点击时完成；**死透就不再归位**——<<damage>> 已跳「结局 死亡」，再 goto 会把它覆盖掉。用**存活条件**判，不依赖 widget 里的 passage() %/
 				<<run Game.Combat.chooseAction($pc, 2)>>
 				<<fightact $args[0]>>
+				/% ★ `#1426`：**收尾判定放在点击时**（✗ 不能在渲染期 —— 实测：SugarCube 对 `<<goto 同段>>`
+				   **不重渲染** ⇒ 渲染期的判断在「打满」那一刻永不执行 ✗）
+				   第 3 参＝打满 N 回合即收尾（**机械事实**）；第 4 参＝作者给的结果（缺省＝不判）%/
+				<<if $args[1] isnot undefined and $args[1] isnot null and $args[1] isnot "">>
+					<<if $pc.ev.fight and $pc.ev.fight.round gte Number($args[1])>>
+						<<run Game.Combat.settle($pc, String($args[0] ?? ""), String($args[2] ?? ""))>>
+					<</if>>
+				<</if>>
 				<<if $pc.hp gt 0>><<goto `_orig`>><</if>>
 			<</link>>
 			<span class="meta">（<<print Game.Combat.siteInfo(_f.offer[2])>>）</span>

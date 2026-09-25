@@ -172,6 +172,8 @@ export const SEGMENTS = [
 	{ id: "test-block-args-e2e-mjs", phase: 'test', cost: 40, exclusive: true, mutates: ['build'], cmd: "node test/block-args-e2e.mjs" },
 	// `#1409`：hp-NaN 端到端（自建故事根 ＋ build ⇒ 需 exclusive，照 block-args 先例 ✓）
 	{ id: "test-hp-nan-e2e-mjs", phase: 'test', cost: 25, exclusive: true, mutates: ['build'], cmd: "node test/hp-nan-e2e.mjs" },
+	// `#1426`：战斗收尾时机端到端（自建夹具根 ⇒ exclusive，照同族先例 ✓）
+	{ id: "test-fightpanel-turns-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/fightpanel-turns-e2e.mjs" },
 	// `#1413`：`fight:` 结果维端到端（**自建故事根** ⇒ exclusive，照同族先例 ✓）
 	{ id: "test-fight-keys-e2e-mjs", phase: 'test', cost: 15, exclusive: true, mutates: ['build'], cmd: "node test/fight-keys-e2e.mjs" },
 	{ id: "test-passages-assemble-mjs-selftest", phase: 'test', cost: 0.1, inputs: ['*'],   // `#1114` 全跑型（纯函数注入段——无 fs 面；`#1093` 裁定 5756510512 ①）
@@ -661,7 +663,7 @@ export const SUITE_MEMBERS = {
 		'scripts-report-selftest-validity-mjs', 'scripts-md-format-mjs', 'scripts-move-precheck-mjs', 'scripts-move-precheck-mjs-selftest',
 		'test-ci-triggers-mjs', 'test-ci-triggers-mjs-selftest', 'test-repo-shape-mjs', 'test-repo-shape-mjs-selftest',
 		'test-docs-read-path-mjs', 'test-docs-read-path-mjs-selftest', 'test-untracked-guard-mjs', 'test-passages-links-mjs',
-		'test-block-args-e2e-mjs', 'test-hp-nan-e2e-mjs', 'test-passages-assemble-mjs-selftest', 'test-audit-gates-run-mjs',
+		'test-block-args-e2e-mjs', 'test-hp-nan-e2e-mjs', 'test-fightpanel-turns-e2e-mjs', 'test-passages-assemble-mjs-selftest', 'test-audit-gates-run-mjs',
 		'test-fight-keys-e2e-mjs', 'scripts-clean-net-mjs-selftest', 'scripts-precommit-check-mjs-selftest', 'scripts-lint-new-segment-mjs-selftest',
 		'test-coverage-mjs', 'test-gate-discovery-mjs', 'test-plan-needs-mjs', 'test-attribution-gate-mjs-selftest',
 		'test-attribution-gate-mjs'

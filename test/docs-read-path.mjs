@@ -5,7 +5,7 @@
 // ① **死链**：「按任务读」表引用的文档必须存在（不存在 → 红并**点名行号**）；
 // ② **权威性**：对象故事已删的文档（`DELETED_STORY_DOCS` 显式对照表 `#1004`）出现在
 //「按任务读」或「权威表」→ 红，提示「降级或加作废横幅」（回流即红 → archive 口径有牙）；
-// ③ **体量 ratchet**：「按任务读」**先读列**（除 `dev-conventions.md`——单列见 `#1080`）引用总字节
+// ③ **体量 ratchet**：「按任务读」**先读列**引用总字节（★原单列豁免随 `docs/dev-conventions.md` 删除而**退役** ⇒ 现统一看护）
 // ≤ 150KB（口径与数字＝`#1077` 验收② 领队裁定，不自立）；超限 → 红并打印当前值。
 // 行内 `<!-- path-exempt:... -->` 沿用 `md-format.mjs` F4 惯例（留痕跳过）。
 //
@@ -13,6 +13,7 @@
 // ① 死链夹具 → 必红；② 权威位指向作废 → 必红；③ 正例 → 不红（＋字节超限夹具 → 必红）。
 // 复跑：`node test/docs-read-path.mjs`（无前置）· 自证：`node test/docs-read-path.mjs --selftest`
 // 探针：`scripts/probes.mjs` 的 `test/docs-read-path.mjs` 条（刀＝往真表插一行死链 → 门必红点名）。
+// ★ `#1359` ②（续）：`#1080` §17 ratchet 已**随宿主件删除一并退役**（连函数与其自证格，见下）。
 
 import { readFileSync, existsSync, statSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
@@ -27,26 +28,14 @@ export const DELETED_STORY_DOCS = new Set(['lore-canon.md', 'game-outline.md', '
 // `#1359` ② 删件批：**单列豁免退役** —— 原单列件 `docs/dev-conventions.md` 已按"一份为准"删除；
 // 其余件回落统一的 `BUDGET_KB` 看护（✗ 不保留一个永远匹配不到的豁免 ✓）。
 export const BUDGET_KB = 150;
-export const BUDGET_EXEMPT = null;   // ★退役（✗ 留已删件的路径 ⇒ 恒不命中 ⇒ 豁免无对象 ✗）
 
-/** `#1080`：**§17 瘦身 ratchet** —— `dev-conventions.md` 的 §17（从 `## 17.` 到文件尾）只许降不许升；
- * 证伪清单表行每条须「一句判定（含粗体）＋ 出处票号」（删判据本体只留案例 → 结构缺失 → 红）。 */
-export const SEC17_BUDGET_KB = 15;
-export const sec17Problems = (text, { byteLen = (t) => Buffer.byteLength(String(t), 'utf8') } = {}) => {
-	const t = String(text);
-	const i = t.indexOf('## 17.');
-	if (i < 0) return ['dev-conventions.md 缺 ## 17. 节（#1080 ratchet 扫描面为空 ⇒ 读不到输入不许当「没命中」）'];
-	const sec = t.slice(i);
-	const kb = byteLen(sec) / 1024;
-	const out = [];
-	if (kb > SEC17_BUDGET_KB) out.push(`dev-conventions §17 体量 ${kb.toFixed(1)}KB > 上限 ${SEC17_BUDGET_KB}KB（#1080：判据留正文、案例外移 dev-conventions-cases.md——只许降不许升）`);
-	for (const line of sec.split('\n')) {
-		if (!/^\| [①-⑳㉑-㊿]/.test(line)) continue;
-		if (!/#\d+/.test(line) && !/早期迁移·无票号/.test(line)) out.push(`证伪清单表行缺出处票号：「${line.slice(0, 30)}…」——每条须「一句判定＋票号」（#1080；确无票号 ⇒ 显式标「早期迁移·无票号」留痕）`);
-		else if (!/\*\*.+\*\*/.test(line.split(' | ').slice(2).join(' '))) out.push(`证伪清单表行缺粗体判定句：「${line.slice(0, 30)}…」（#1080）`);
-	}
-	return out;
-};
+// ★ `#1359` ② 删件批（续）：**`#1080` §17 瘦身 ratchet 随宿主件删除而退役** ——
+//   宿主 `docs/dev-conventions.md` 已按"一份为准"删除 ⇒ 该 ratchet 的**判据对象不存在**；
+//   而全仓调用点（除本件自证外）已为 **0** ⇒ 若只删调用点、留函数与自证格 ⇒ 链里**量的永远是合成假输入**
+//   （＝**空转**：看上去这条线还有看护，其实没有任何真实输入 ✗）。
+//   ⇒ 本笔**连函数与其自证格一并删除**（✗ 不保留"假输入也能绿"的格）。
+//   **恢复条件＝宿主件复活**：若日后重建 `docs/dev-conventions.md` 且其中再有 `## 17.` 节，
+//   把该 ratchet 一并恢复 —— 判据必须与**它的对象**同生同死（本仓"判据的锚不得建在已删对象上"同规）。
 
 const PATH_IN_BACKTICKS = /`((?:docs|stories)\/[A-Za-z0-9_./-]+?\.md)`/g;
 const EXEMPT_MARK = /<!--\s*path-exempt:/;
@@ -110,7 +99,7 @@ export const staleAuthorityProblems = (text) => {
 	return out;
 };
 
-/** ③ 体量 ratchet（纯函数：注入 sizeOf）——先读列（除 BUDGET_EXEMPT）存在文档的字节和 ≤ BUDGET_KB。 */
+/** ③ 体量 ratchet（纯函数：注入 sizeOf）——先读列存在文档的字节和 ≤ BUDGET_KB。 */
 export const budgetProblems = (text, { sizeOf = (p) => statSync(join(ROOT, p)).size, exists = (p) => existsSync(join(ROOT, p)) } = {}) => {
 	const paths = new Set();
 	for (const r of taskTableRows(text)) {
@@ -119,7 +108,6 @@ export const budgetProblems = (text, { sizeOf = (p) => statSync(join(ROOT, p)).s
 	let total = 0;
 	const parts = [];
 	for (const p of [...paths].sort()) {
-		if (p === BUDGET_EXEMPT) continue;
 		if (!exists(p)) continue;   // 死链由判据①管，这里不重复报
 		const b = sizeOf(p);
 		total += b; parts.push(`${(b / 1024).toFixed(1)}KB ${p}`);
@@ -127,7 +115,7 @@ export const budgetProblems = (text, { sizeOf = (p) => statSync(join(ROOT, p)).s
 	const kb = total / 1024;
 	if (paths.size === 0)
 		return [`先读列可计路径为 0 —— 疑似「按任务读」被删/引用被清空（#557 口径：读不到输入不许当「没命中」；「0KB ≤ 150KB」不是通过 ✗）`];
-	if (kb > BUDGET_KB) return [`先读列（除 \`${BUDGET_EXEMPT}\`，单列见 #1080）引用总字节 ${kb.toFixed(1)}KB > 上限 ${BUDGET_KB}KB（#1077 验收②口径）——新增先读文档须给出替代/合并了哪份：\n  ${parts.join('\n  ')}`];
+	if (kb > BUDGET_KB) return [`先读列引用总字节 ${kb.toFixed(1)}KB > 上限 ${BUDGET_KB}KB（#1077 验收②口径）——新增先读文档须给出替代/合并了哪份：\n  ${parts.join('\n  ')}`];
 	return [];
 };
 
@@ -139,7 +127,7 @@ export const budgetReading = (text, { sizeOf = (p) => statSync(join(ROOT, p)).si
 	}
 	let total = 0;
 	for (const p of paths) {
-		if (p === BUDGET_EXEMPT || !exists(p)) continue;
+		if (!exists(p)) continue;
 		total += sizeOf(p);
 	}
 	return `${(total / 1024).toFixed(1)}KB`;
@@ -180,11 +168,6 @@ const selftest = () => {
 	case_('反例·先读列可计路径为 0 ⇒ 必红（#557）', budgetProblems(SEC + '| 任务 | 无路径 | — |', { sizeOf, exists }).length === 1);
 	// 正例控制：两节都在且有行 → ⓪ 不报
 	case_('正例·两节齐全 ⇒ ⓪ 不报', emptyScanProblems('## 一、按任务读\n| 任务 | `docs/a.md` | — |\n## 二、权威表\n| 面 | 唯一权威 |\n|---|---|\n| A | `docs/x.md` |').length === 0);
-	// #1080：§17 ratchet 自证（能假三向 + 正例 + 扫描面空）
-	case_('反例·§17 超限 ⇒ 红（只许降）', sec17Problems('## 17.\n' + 'x'.repeat(16 * 1024), {}).length === 1);
-	case_('反例·表行删判据本体只留案例（无票号）⇒ 红', sec17Problems('## 17.\n### 证伪清单\n| ① | 某问题 | 案例细节文字 |\n').some((p) => p.includes('缺出处票号')));
-	case_('反例·表行无粗体判定句 ⇒ 红', sec17Problems('## 17.\n### 证伪清单\n| ① | 某问题 | 有票号（#1）但无判定句 |\n').some((p) => p.includes('缺粗体判定句')));
-	case_('正例·§17 合规 ⇒ 不报', sec17Problems('## 17.\n### 证伪清单\n| ① | 问题 | **判定**（`#1`） |\n').length === 0);
 };
 
 const main = () => {

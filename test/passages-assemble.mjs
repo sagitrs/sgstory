@@ -7,7 +7,7 @@
 // 自证：`node test/passages-assemble.mjs --selftest`
 //注意：自证结尾 `if (bad) … exit(1)`（#1100 形态硬化 ——格红必进退出码）
 
-import { parseFrontMatter, forbiddenProblems, danglingProblems, valueRefExpand, assemblePassages, FORBIDDEN_BUILTINS } from '../editor/lib/core/passages.mjs';
+import { parseFrontMatter, forbiddenProblems, danglingProblems, valueRefExpand, assemblePassages, endingProblems, FORBIDDEN_BUILTINS } from '../editor/lib/core/passages.mjs';
 import { valueTerms, VALUE_KINDS } from '../editor/lib/core/vocab.mjs';
 
 let bad = 0;
@@ -139,6 +139,30 @@ const selftest = () => {
 		} else {
 			t('② 渲染面：渲染文本里**必须出现**该值（取值链没断）', false);   // 链路通后由真跑替换
 		}
+	}
+	// ── `#1399`：**结局声明面**（唯一活声明＝`ending` 字段；`tags: [ending]` 是死声明 ⇒ 点名）─────
+	{
+		const P = (name, tags) => ({ name, tags, body: '正文。' });
+		t('结局① 正例：段数据写了 `ending:{key,kind}` ⇒ **不报**（唯一活声明 ✓）',
+			endingProblems({ passages: [P('入林', [])], data: { 入林: { ending: { key: '入林', kind: 'chapter' } } } }).length === 0);
+		t('结局② ★**病灶形态**：只有 `tags: [ending]`（无 `ending` 字段）⇒ 点名"死声明"并给修法',
+			(() => { const q = endingProblems({ passages: [P('结间 入林', ['ending'])], data: { '结间 入林': {} } });
+				return q.length === 1 && /死声明/.test(q[0]) && /ending: \{key,kind\}/.test(q[0]); })());
+		t('结局②反例·**旧形态**：正文手写 `<<ending \"x\" chapter>>` ＋ tags ⇒ **不报**（正文宏＝活声明 ✓）',
+			endingProblems({ passages: [{ name: '入林', tags: ['ending'], body: '正文。\n<<ending "x" chapter>>' }], data: { 入林: {} } }).length === 0);
+		t('结局③ 两处都写（tags ＋ 字段）⇒ **不报**（tags 作人读标记 ✓，活声明仍唯一）',
+			endingProblems({ passages: [P('入林', ['ending'])], data: { 入林: { ending: { key: '入林', kind: 'final' } } } }).length === 0);
+		t('结局④ `ending.key` 空 ⇒ 点名（出口卡与图鉴拿不到键）',
+			endingProblems({ passages: [P('入林', [])], data: { 入林: { ending: { key: '  ', kind: 'final' } } } }).some((x) => /key.*为空/.test(x)));
+		t('结局⑤ `ending.kind` 非法 ⇒ 点名（只许 chapter／final）',
+			endingProblems({ passages: [P('入林', [])], data: { 入林: { ending: { key: 'x', kind: 'epilogue' } } } }).some((x) => /只许/.test(x)));
+		t('结局⑥ ★注入面：带 `ending` 的段 ⇒ 产物里**恰有一处** `<<ending "key" kind>>`（编译期唯一注入 ✓）',
+			(() => { const r = assemblePassages({ passages: [P('入林', [])], known: new Set(),
+				data: { 入林: { ending: { key: '入林', kind: 'chapter' } } } });
+				const n = (r.twee.match(/<<ending "入林" chapter>>/g) ?? []).length; return n === 1 && r.problems.length === 0; })());
+		t('结局⑦ 负向：**没有** `ending` 的普通段 ⇒ 产物里**不得**出现 `<<ending`',
+			(() => { const r = assemblePassages({ passages: [P('门厅', [])], known: new Set(), data: { 门厅: {} } });
+				return !/<<ending/.test(r.twee); })());
 	}
 	if (bad) { console.error(`\n✗ 拼装层自证失败 ${bad} 项`); process.exit(1); }
 	console.log('\n✔ 拼装层自证通过（正例+禁则红+具名放行+悬空点名+取值展开+逐字保留+front-matter+单一权威）');

@@ -1,0 +1,22 @@
+{
+ "结局 收好": {
+  "ending": {
+   "key": "收好",
+   "kind": "final"
+  },
+  "links": [],
+  "present": "菜单",
+  "prio": 1,
+  "prereq": []
+ },
+ "结局 原样": {
+  "ending": {
+   "key": "原样",
+   "kind": "final"
+  },
+  "links": [],
+  "present": "菜单",
+  "prio": 1,
+  "prereq": []
+ }
+}

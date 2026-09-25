@@ -206,10 +206,62 @@ export const renderLinksOf = ({ name, links = [], present = null }) => {
 };
 
 /** 主拼装：一批 md 段 → 一份 twee 文本（含 front-matter 元数据行）。 */
+/** `#1399`：**结局声明面**的判据（纯函数 ⇒ 能假）。
+ * 口径（协调席红线）：**"这是结局"的声明处必须唯一且有牙** ——
+ *   · `ending`（段数据字段）＝**唯一活声明**（编译期注入 `<<ending>>` ⇒ 出口卡必在 ✓）
+ *   · `tags: [ending]`（散文 front-matter）＝**死声明**（全仓 0 消费方）⇒ 若**只有它**而没有 `ending` 字段
+ *     ⇒ **点名红**并给修法（这就是本票的病灶形态：两处声明、一处死 ✗）
+ *   · 两处都写 ⇒ 允许（tags 作**人读标记**），但**活声明只有一个**（`ending` 字段）✓
+ *   · **旧形态**（无段数据）在正文手写 `<<ending …>>` ⇒ 也是**活声明** ✓ ⇒ 此时 `tags` 只是冗余标记（✗ 不报）
+ *     ★ 只有"**tags 有而既无字段又无正文宏**"才是死声明 ⇒ 红（本票病灶形态 ✓ —— north-room 两段正如此）
+ *   · `ending.key` 必填（空 ⇒ 出口卡不带 key ⇒ 图鉴记账失真按 `#574`）✓
+ */
+export const endingProblems = ({ passages = [], data = null } = {}) => {
+	const out = [];
+	for (const p of passages) {
+		const seg = (data && typeof data === 'object' ? data[p.name] : null) ?? {};
+		const hasField = !!(seg.ending && typeof seg.ending === 'object');
+		const hasTag = Array.isArray(p.tags) && p.tags.includes('ending');
+		if (hasField) {
+			const key = String(seg.ending.key ?? '').trim();
+			if (!key) out.push('段「' + p.name + '」的 `ending.key` 为空 ⇒ 出口卡与图鉴记账都拿不到键 ✗（填一个短标识，如 `"入林"`）');
+			const kind = String(seg.ending.kind ?? 'final');
+			if (kind !== 'chapter' && kind !== 'final') out.push('段「' + p.name + '」的 `ending.kind` ＝`' + kind + '` ✗（只许 `chapter` 或 `final`）');
+		} else if (hasTag && !/<<\s*ending\b/.test(String(p.body ?? ''))) {
+			out.push('段「' + p.name + '」**只**写了 `tags: [ending]`（全仓**无消费方** ⇒ 死声明 ✗）⇒'
+				+ ' 改用段数据 `ending: {key,kind}`（编译期注入出口卡）—— 否则读者会**卡在结局页** ✗');
+		}
+	}
+	return out;
+};
+
+/** `#1399`：**受制裁变换**的**唯一实现** —— 源 body ⇒ 产物 body（`{{}}` 展开 ＋ `slot` 内联 ＋ 段尾块 ＋ `ending` 注入）。
+ * 为什么抽出来：`build.mjs` 有一条"产物 body ＝ 源经受制裁变换后的 body"的**期望面判据**；
+ * 它必须用**同一函数**再算一次（✗ 不在判据里另写一份 —— 两处必漂移，本仓反复撞过）✓
+ * ★ 新增变换（如 `#1399` 的 `ending` 注入）时**只改这里** ⇒ 拼装面与判据面同步 ✓
+ */
+export const applyPassageTransforms = ({ name, body, terms = new Set(), params = {}, slots = [], args = null, links = [], present = null, ending = null }) => {
+	const { body: expandedRaw, problems } = valueRefExpand({ name, body, terms, params, slot: null, slots, args });
+	const rl = renderLinksOf({ name, links, present });
+	let expanded = expandedRaw;
+	for (const { slot: sl, text } of rl.inline) {
+		const re = new RegExp('\\{\\{' + sl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\}\\}', 'g');
+		expanded = expanded.replace(re, `\n\n${text}\n\n`);
+	}
+	if (rl.tailBlock) expanded = `${expanded.replace(/\s+$/, '')}\n\n${rl.tailBlock}\n`;
+	if (ending && typeof ending === 'object') {
+		const key = String(ending.key ?? '').trim();
+		const kind = String(ending.kind ?? 'final').trim();
+		expanded = `${expanded.replace(/\s+$/, '')}\n\n<<ending "${key}" ${kind}>>\n`;
+	}
+	return { body: expanded, problems, rl };
+};
+
 export const assemblePassages = ({ passages, known, forbidden = new Set(), terms = new Set(), data = null }) => {
 	const problems = [];
 	// 先校验（悬空须看全集 → 两遍）
 	problems.push(...duplicateProblems({ passages }));   // `#1114` 2b-2a：重名段（跨源双写）→ 先报
+	problems.push(...endingProblems({ passages, data }));   // `#1399`：结局声明面（唯一活声明 ＋ tags 死声明点名）
 	for (const p of passages) {
 		problems.push(...forbiddenProblems({ name: p.name, body: p.body, forbidden }));
 		problems.push(...danglingProblems({ name: p.name, body: p.body, passages, known }));
@@ -236,20 +288,13 @@ export const assemblePassages = ({ passages, known, forbidden = new Set(), terms
 			}
 			return Object.keys(acc).length ? acc : null;
 		})();
-		const { body: expandedRaw, problems: vp } = valueRefExpand({ name: p.name, body: p.body, terms,
-			params: dseg.params ?? {}, slot: null, slots: [dseg.slot, ...linkSlots].filter(Boolean),
-			args: (dseg.args && typeof dseg.args === 'object') ? dseg.args : inbound });
-		problems.push(...vp);
-		// `#1350` 片 4：把本段 `links[]` 渲染出来（✗ 不新造渲染宏；复用 `<<rules>>`／`<<rulelist>>`）
-		const rl = renderLinksOf({ name: p.name, links: dseg.links ?? [], present: dseg.present ?? null });
-		let expanded = expandedRaw;
-		for (const { slot: sl, text } of rl.inline) {
-			// 内联：占位处就地换成"块形态"（前后空行 ＋ 该行）—— 与旧树散文内联链接同形 ✓
-			// ★ 占位形是 `{{名}}`（**双花括号**）；正则源＝`\{\{名\}\}`（✗ 别写多一层转义 —— 我踩过：`\\{` 会去找字面反斜杠 ✗）
-			const re = new RegExp('\\{\\{' + sl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\}\\}', 'g');
-			expanded = expanded.replace(re, `\n\n${text}\n\n`);
-		}
-		if (rl.tailBlock) expanded = `${expanded.replace(/\s+$/, '')}\n\n${rl.tailBlock}\n`;
+		// `#1399`：受制裁变换走**唯一实现** `applyPassageTransforms`（拼装面与判据面同源 ✓）
+		const tr = applyPassageTransforms({ name: p.name, body: p.body, terms,
+			params: dseg.params ?? {}, slots: [dseg.slot, ...linkSlots].filter(Boolean),
+			args: (dseg.args && typeof dseg.args === 'object') ? dseg.args : inbound,
+			links: dseg.links ?? [], present: dseg.present ?? null, ending: dseg.ending ?? null });
+		problems.push(...tr.problems);
+		const expanded = tr.body;
 		const tags = p.tags ? ` [${p.tags}]` : '';
 		chunks.push(`:: ${p.name}${tags}\n${expanded}`);
 	}

@@ -5,7 +5,7 @@ import { execSync } from 'node:child_process';
 import vm from 'node:vm';   // `#1176`：生成件脚本段的解析器（只解析不执行）
 import { join, dirname, relative, isAbsolute } from 'node:path';
 import { scopedFiles, checkRegistration, isStoryPassageMd } from './scripts/module-order.mjs';
-import { parseFrontMatter, parseMdPassages, parseTweePassages, assemblePassages, FORBIDDEN_BUILTINS, duplicateProblems } from './editor/lib/core/passages.mjs';
+import { valueRefExpand, parseFrontMatter, parseMdPassages, parseTweePassages, assemblePassages, FORBIDDEN_BUILTINS, duplicateProblems } from './editor/lib/core/passages.mjs';
 import { scriptSyntaxProblems } from './editor/lib/core/segment-syntax.mjs';
 import { generatedFamilyProblems, isGeneratedFamily } from './editor/lib/core/generated-family.mjs';   // `#1185` // `#1176`
 import { valueTerms, engineLabels } from './editor/lib/core/vocab.mjs';
@@ -135,6 +135,16 @@ const knownNamesOf = (slug, files) => {
 	}
 	return names;
 };
+// `#1350` 片 3：段落数据读取（**一处**；拼装层与本判据共用同一份 ⇒ ✗ 不各读一份）
+const PDATA = new Map();
+const pdataOf = (slug) => {
+	if (PDATA.has(slug)) return PDATA.get(slug);
+	let v = null;
+	try { v = JSON.parse(readFileSync(absPath(`stories/${slug}/data/passages.json`), 'utf8')); } catch { v = null; }
+	PDATA.set(slug, v);
+	return v;
+};
+
 const assembleOne = (slug, f, known) => {
 	//注意：`#1114` 2b-2b：tags **必须用 core 解析好的数组** —— 本处先前直接传 `meta.tags` 原串（`"[]"`）
 	// → 拼装层 `p.tags? \` [${p.tags}]\`: ''` 把它当成真值 → 产物段头变 `:: 段名 [[]]`
@@ -148,6 +158,9 @@ const assembleOne = (slug, f, known) => {
 		//（本函数上方的 `stripTweeComments` 注释就写着这条）→ 实测：PRE 0/34 → POST 23/34 且 body 变长。
 		passages: [{ name, tags: p0.tags ?? [], body: stripTweeComments(p0.body), path: f }],
 		known, forbidden: FORBIDDEN_BUILTINS, terms: termsOf(slug),
+		// `#1350` 片 3：把**该故事**的段落数据交给拼装层（它按**段名**取本段 `params`/`slot`/`args`；
+		// 片 2 已实现展开与点名）⇒ 这里只是"接通"。缺该文件 ⇒ `null`（旧形态逐字不变 ✓）。
+		data: (() => { try { return JSON.parse(readFileSync(absPath(`stories/${slug}/data/passages.json`), 'utf8')); } catch { return null; } })(),
 	});
 	if (problems.length) { console.error(`✗ 拼装失败：\n  ${problems.join('\n  ')}`); process.exit(1); }
 	return twee.trimEnd();
@@ -228,9 +241,28 @@ for (const s of stories) {
 	const got = new Map(parseTweePassages(out).map((p) => [p.name, p.body]));
 	for (const f of scopedFiles(s).filter(isStoryPassageMd)) {
 		const [p0] = parseMdPassages(readFileSync(resolveStoryRel(f), 'utf8'), f);
-		const want = stripTweeComments(p0.body).trimEnd();
+		const stripped = stripTweeComments(p0.body);
+		// ★ `#1350` 裁定（乙）：期望面**不是"源逐字"** —— 拼装层**声明过的变换**（`{{名}}` 展开成取值宏）是要发生的。
+		//   ⇒ 口径「**除声明的变换外**，散文逐字保留」；期望值 = 源经**同一套**变换（✗ 不各写一份替换）
+		let want = stripped.trimEnd();
+		try {
+			const dseg = (pdataOf(s.slug) ?? {})[p0.name] ?? {};
+			const linkSlots = (Array.isArray(dseg.links) ? dseg.links : []).map((l) => l && l.slot).filter(Boolean);
+			const inbound = (() => {
+				const all = pdataOf(s.slug) ?? {}; const acc = {};
+				for (const seg of Object.values(all)) for (const l of (Array.isArray(seg?.links) ? seg.links : [])) {
+					if (String(l?.to ?? '') !== String(p0.name)) continue;
+					if (l?.args && typeof l.args === 'object') Object.assign(acc, l.args);
+				}
+				return Object.keys(acc).length ? acc : null;
+			})();
+			const r = valueRefExpand({ name: p0.name, body: stripped, terms: termsOf(s.slug),
+				params: dseg.params ?? {}, slot: null, slots: [dseg.slot, ...linkSlots].filter(Boolean),
+				args: (dseg.args && typeof dseg.args === 'object') ? dseg.args : inbound });
+			want = String(r.body).trimEnd();
+		} catch { /* 无段落数据 ⇒ 退回"逐字"口径（旧行为逐字不变 ✓） */ }
 		if ((got.get(p0.name) ?? '').trimEnd() !== want) {
-			console.error(`✗ ${f}（段「${p0.name}」）的**产物 body 与「源剥注释后的 body」不等** ✗ ⇒ md 路径没剥注释（stripTweeComments 漏接 ✓）`);
+			console.error(`✗ ${f}（段「${p0.name}」）的**产物 body 与「源经受制裁变换后的 body」不等** ✗ ⇒ md 路径没剥注释（stripTweeComments 漏接 ✓）`);
 			process.exit(1);
 		}
 	}

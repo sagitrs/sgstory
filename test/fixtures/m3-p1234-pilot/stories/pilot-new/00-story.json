@@ -1,17 +1,18 @@
 {
-	"slug": "pilot-new",
-	"title": "试点·新形态（`#1234` 目标）",
-	"subtitle": "同内容的**新表达**：散文去链接、链接进 `passages.json`；散文里的 `{{提醒}}` 只用本段 `params` 声明的入参",
-	"entry": "门厅",
-	"contractVersion": 1,
-	"audience": "content",
-	"files": [
-		"stories/pilot-new/00-meta.twee",
-		"stories/pilot-new/passages/01-门厅.md",
-		"stories/pilot-new/passages/02-靴子.md",
-		"stories/pilot-new/passages/03-里屋.md",
-		"stories/pilot-new/passages/04-侧厅.md",
-		"stories/pilot-new/15-tables.twee"
-	],
-	"gates": []
+  "slug": "pilot-new",
+  "title": "试点·新形态（`#1234` 目标）",
+  "subtitle": "同内容的**新表达**：散文去链接、链接进 `passages.json`；散文里的 `{{提醒}}` 只用本段 `params` 声明的入参",
+  "entry": "门厅",
+  "contractVersion": 1,
+  "audience": "content",
+  "files": [
+    "stories/pilot-new/00-meta.twee",
+    "stories/pilot-new/passages/01-门厅.md",
+    "stories/pilot-new/passages/02-靴子.md",
+    "stories/pilot-new/passages/03-里屋.md",
+    "stories/pilot-new/passages/04-侧厅.md",
+    "stories/pilot-new/15-tables.twee",
+    "stories/pilot-new/17-rules.twee"
+  ],
+  "gates": []
 }

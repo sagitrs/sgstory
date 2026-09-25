@@ -21,6 +21,14 @@ export const declaredSourceOf = (text) => {
 	return m ? m[1].trim() : null;
 };
 
+/** `#1350` 片 3：**多来源**（`#1324` 之后的产物可能有两个源：`rules.json` ＋ `passages.json`）⇒ 拆开逐条核。
+ * ★ 口径：**任一声明的源存在即可**（✗ 不再只取第一个 ⇒ 否则第二来源被忽略 ⇒ 误报"源不在磁盘上" ✗）。 */
+export const declaredSourcesOf = (text) => {
+	const one = declaredSourceOf(text);
+	if (!one) return [];
+	return one.split(/\s*＋\s*/).map((x) => x.trim()).filter(Boolean);
+};
+
 /**
  * 纯函数：生成物家族两向核对。
  * `files` 是 `{ 路径: 全文}`（调用方过滤后传入，或全量由本函数按家族谓词筛）；
@@ -33,13 +41,15 @@ export const generatedFamilyProblems = ({ files = {}, exists }) => {
 	const out = [];
 	for (const [path, text] of Object.entries(files ?? {})) {
 		if (!isGeneratedFamily(path)) continue;
-		const src = declaredSourceOf(text);
-		if (!src) {
+		const srcs = declaredSourcesOf(text);
+		const src = srcs[0] ?? null;
+		if (!srcs.length) {
 			out.push({ path, code: 'no-marker', why: `生成物家族成员没有 \`@generated\` 标记（看不出源 ⇒ 无从核源）` });
 			continue;
 		}
-		if (!exists(src)) {
-			out.push({ path, code: 'source-missing', why: `产物仍在，但它标记载明的源「${src}」不在磁盘上（源被删而产物残留）` });
+		// `#1350` 片 3：**任一声明的源存在即可**（多来源产物的正确口径 ✓）
+		if (!srcs.some((x) => exists(x))) {
+			out.push({ path, code: 'source-missing', why: `产物仍在，但它标记载明的源「${srcs.join(' ＋ ')}」**都不在**磁盘上（源被删而产物残留）` });
 		}
 	}
 	return out;

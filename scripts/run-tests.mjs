@@ -609,7 +609,12 @@ if (tierWant === 'full' && !has('no-inputs-runtime')) {
 			//注意：`#1127` 复核阻断②：**跑子进程前必须确保落点父目录存在** ——
 			// 同文件 `:606` 早写着这条规矩（`#1072` 仪表族）→ 本处漏了（**干净 checkout ＋ 本块在 `build-mjs` 之前** → 无 `build/` → 空转）
 			ensureParent(OUTJ);   // ← 走共用助手（复核席要求）
-			const args = seg.cmd.replace(/^node\s+/, '').split(/\s+/);
+			// ★ `#1409`（实测崩溃）：`seg.cmd` **可能是 `VAR=值 node …` 形态**（env 前缀 —— 见 `test-plan` 里
+			//   `SG_STORIES_DIR=… node test/gen-needed.mjs`）⇒ 直接 `replace(/^node/)` 会把 **env 前缀当模块路径**
+			//   ⇒ `ERR_MODULE_NOT_FOUND` ✗（★指纹：**单跑 rc=0、层跑崩**）⇒ 且它**遮后面所有段**（可见性下降 ✗）
+			//   ⇒ 修：**剥掉 env 前缀**再取 node 的 argv（✗ 不改段定义 —— 那是作者面写法 ✓）
+			const cmdNoEnv = seg.cmd.replace(/^(?:[A-Za-z_][A-Za-z0-9_]*=(?:"[^"]*"|'[^']*'|\S*)\s+)+/, '');
+			const args = cmdNoEnv.replace(/^node\s+/, '').split(/\s+/);
 			let rcode = 0;
 			try {
 				// `#1267`（复核）：**钩子只作用于段进程本身，不得传给它的子进程**。
@@ -627,7 +632,7 @@ if (tierWant === 'full' && !has('no-inputs-runtime')) {
 				for (const ln of readFileSync(OUTJ, 'utf8').split('\n')) if (ln.trim()) truth = truth.concat(JSON.parse(ln).paths ?? []);
 			} catch { console.error(`✗ [${seg.id}] ②层：**取不到读数** ⇒ 不许当"读到 0 条"✗（#557：读不到输入 ≠ 没命中 ✓）`); rtBad++; continue; }
 			for (const x of inputsTruthProblems({ declared: seg.inputs, truth })) { rtBad++; console.error(`✗ [${seg.id}] ${x}`); }
-			const low = fsArgLiterals(readFileSync(seg.cmd.replace(/^node\s+/, '').split(/\s+/)[0], 'utf8'));
+			const low = fsArgLiterals(readFileSync(cmdNoEnv.replace(/^node\s+/, '').split(/\s+/)[0], 'utf8'));
 			for (const x of interLayerProblems({ lower: low, truth })) { rtBad++; console.error(`✗ [${seg.id}] ${x}`); }
 		}
 		console.log(`○ ②层（运行真值）：检查 **${checkDeclared.length}** 个已声明段（另有 **${suspendedDeclared.length}** 段临时下架 ⇒ 不计）⇒ 违规 **${rtBad}** 条`);

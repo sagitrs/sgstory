@@ -19,8 +19,20 @@ const rows = linksToRows({ data });
 // `#1350` 片 5 裁定：**带 `slot` 的链接不进规则行**（内联 ⊕ 段尾 ＝ 互斥的落位 ✓）
 //  ⇒ 本样本 4 条链接里 1 条带 `slot`（`翻一翻靴子`）⇒ 入表 **3** 条 ✓
 t('① 行数＝**不带 `slot`** 的链接数（3）', rows.length === 3);
-t('① `label`/`to` 编成 `text` 里的 `[[label|to]]`（维持现形态）',
-	rows.some((r) => r.scope === '门厅' && r.text === '[[推门进去|里屋]]'));
+t('① **不带 `args`** 的行：`label`/`to` 编成 `[[label|to]]`（维持现形态、逐字节不变）',
+	rows.some((r) => r.id === '侧厅.左门' && r.text === '[[推左门|里屋]]'));
+// ★ `#1350` 尾件 ⑥（实测缺陷：段尾块链接**收不到 args** —— `<<rulelist>>` 只 `wiki(row.text)`，
+//   而 `[[label|to]]` 由 SugarCube 自产 ⇒ 链接上**没有** `data-sg-args` ⇒ 目标段 `<<printparam>>` 报"本次未传" ✗）
+//   ⇒ 修的形态：**带 `args` 的行**在**编译期**就编成 `linkHtml(...)` 的 HTML（复用唯一权威 ⇒ ✗ 不在引擎里再造一份）
+//     而**不带 `args` 的行一字不动** ⇒ 片 5 的两条验收（渲染文本同／外属性集合同）仍成立 ✓
+t('① **带 `args`** 的行：`text` ＝ HTML（含 `data-sg-args`），✗ 不再是 `[[label|to]]`',
+	rows.some((r) => r.scope === '门厅' && r.text.includes('data-sg-args') && !r.text.includes('[[')));
+t('① 该 HTML **与 SugarCube 自产同形**（`class="link-internal"` ＋ `data-passage` ＋ `role="link"` ＋ `tabindex="0"`）',
+	rows.some((r) => {
+		const x = r.text;
+		return x.includes('data-sg-args') && x.includes('class="link-internal"') && x.includes('data-passage="里屋"')
+			&& x.includes('role="link"') && x.includes('tabindex="0"');
+	}));
 t('① `cond` **原样**搬进行（`req` 不解、不改）',
 	rows.some((r) => r.req && r.req.length === 1 && r.req[0] === 'inv:钥匙' && !('cond' in r)));
 t('① `prio`／`prereq` 原样（顺序维）',

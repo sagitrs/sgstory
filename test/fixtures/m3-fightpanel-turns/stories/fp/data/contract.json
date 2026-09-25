@@ -1,0 +1,71 @@
+{
+ "section": "StoryBindings",
+ "note": "战斗收尾时机（`#1426` 丙案）的最小夹具 —— ✗ 与任何具体故事无关",
+ "members": [
+  {
+   "name": "rules",
+   "kind": "empty-array",
+   "docs": "x"
+  },
+  {
+   "name": "passageSpecs",
+   "kind": "forward",
+   "docs": "x"
+  },
+  {
+   "name": "foeState",
+   "kind": "state-ref",
+   "path": "foe",
+   "default": {},
+   "docs": "具名对手状态面"
+  },
+  {
+   "name": "mechanics",
+   "kind": "null",
+   "docs": "x"
+  },
+  {
+   "name": "__pools",
+   "kind": "const",
+   "value": {
+    "雾影": [
+     "雾影·挥击"
+    ]
+   },
+   "docs": "池表（内部）"
+  },
+  {
+   "name": "combatPool",
+   "kind": "lookup",
+   "from": "Sg.story.__pools()",
+   "key": "id",
+   "default": [],
+   "docs": "战斗池：按池 id 取动作 id 数组（`lookup` ⇒ 调 `combatPool(poolId)` 回数组 ✓）"
+  },
+  {
+   "name": "combatAction",
+   "kind": "lookup",
+   "from": "Game.Combat.actions",
+   "key": "id",
+   "default": null,
+   "docs": "战斗动作"
+  },
+  {
+   "name": "actionLabel",
+   "kind": "lookup-field",
+   "via": "combatAction",
+   "key": "id",
+   "field": "label",
+   "required": true,
+   "docs": "动作标签"
+  },
+  {
+   "name": "checkSite",
+   "kind": "lookup",
+   "from": "Game.Checks.sites",
+   "key": "name",
+   "default": null,
+   "docs": "位点（战斗检定用）"
+  }
+ ]
+}

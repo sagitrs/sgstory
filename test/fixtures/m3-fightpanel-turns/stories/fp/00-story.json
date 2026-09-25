@@ -1,0 +1,16 @@
+{
+ "slug": "fp",
+ "title": "fp",
+ "entry": "斗",
+ "contractVersion": 1,
+ "audience": "internal",
+ "files": [
+  "stories/fp/00-meta.twee",
+  "stories/fp/passages/01-斗.md",
+  "stories/fp/passages/02-结局 胜.md",
+  "stories/fp/passages/04-战果.md",
+  "stories/fp/passages/03-结局 败.md",
+  "stories/fp/15-tables.twee",
+  "stories/fp/17-rules.twee"
+ ]
+}

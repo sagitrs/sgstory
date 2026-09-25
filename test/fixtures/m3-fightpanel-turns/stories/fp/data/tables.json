@@ -1,0 +1,60 @@
+{
+ "section": "Game Tables",
+ "note": "x",
+ "containers": {
+  "Checks": {
+   "sites": {
+    "雾影·挥击": {
+     "skill": "察觉",
+     "dc": 10
+    }
+   },
+   "keyYields": []
+  },
+  "Combat": {
+   "pools": {
+    "雾影": [
+     "雾影·挥击"
+    ]
+   },
+   "actions": {
+    "雾影·挥击": {
+     "site": "雾影·挥击",
+     "label": "劈下去",
+     "ok": {
+      "text": "刀锋掠过。"
+     },
+     "crit": {
+      "text": "正中！"
+     },
+     "bad": {
+      "text": "你被弹回。",
+      "hurt": 3
+     }
+    }
+   }
+  },
+  "Economy": {
+   "prices": {},
+   "events": []
+  },
+  "Gear": {
+   "defs": {}
+  },
+  "Items": {
+   "defs": {}
+  },
+  "Truth": {
+   "facts": {}
+  },
+  "Codex": {
+   "items": {}
+  },
+  "Echoes": {
+   "rows": []
+  },
+  "State": {
+   "domains": []
+  }
+ }
+}

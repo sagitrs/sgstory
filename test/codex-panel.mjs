@@ -10,14 +10,16 @@
 // ⇒ 零故事态可跑。产物操作**经 runner**？本夹具暂无 runner ⇒ 本格自清三层（夹具生成物／夹具 dist／**引擎中间件**）
 // 并**先验前置**（构建 rc=0）再读 —— 照"清三层"与"前置格"的既有口径。
 import { spawnSync } from 'node:child_process';
-import { copyFileSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, cpSync, statSync } from 'node:fs';
+import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, cpSync, statSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const FX = join(ROOT, 'test/fixtures/m3-codex-panel');
 const TABLES = join(FX, 'stories/north-room/data/tables.json');
-const WORK = '/tmp/sg-codex-panel-build';
+const WORK = process.env.SG_CODEX_WORK || mkdtempSync(join(tmpdir(), 'sg-cp-'));   // `#1362`：**每跑唯一**（原先写死 `/tmp/sg-codex-panel-build` ⇒ 并发互踩 ✗）；★ 父/子进程必须同一 WORK（负态读数走子进程；子进程自 mkdtemp 会建空目录 ⇒ 假红 ✗）⇒ 靠 env 继承
+// 同机两次/两格并发跑会互踩 ✗ —— 与"同进程读两次"同族，这次是"**同机两个段 ⇒ 同一个工作目录**"）
 const SLUG = 'north-room';
 const LABEL = '钥匙柄上刻着「北」';                       // 夹具声明的 clue label（照夹具读，✗ 不照实现读）
 // ★ 声明标记必须**唯一**：先前用道具名「黄铜钥匙」当标记 ⇒ 那是**故事正文里本来就有的词** ⇒
@@ -34,7 +36,9 @@ const t = (label, ok, extra = '') => {
 };
 
 const clean = () => {
-	rmSync(join(ROOT, 'build'), { recursive: true, force: true });          // ③ 引擎中间件
+	// `#1350`：**不再清引擎中间件** `ROOT/build` —— 当初加它是为了验一个假设（已否 ✗），
+	// 而它同时是**跨段共享面**（`chk-source` 也清同一个 `ROOT/build`）⇒ 并发下会互踩、读到别人的中间态 ✗。
+	// 口径：本格**只清自己的**（`WORK/dist` 与夹具侧生成物）；确需清引擎中间件 ⇒ 应在**同一把锁**里做。
 	rmSync(WORK, { recursive: true, force: true });
 	mkdirSync(WORK, { recursive: true });
 	cpSync(join(FX, 'stories'), join(WORK, 'stories'), { recursive: true });
@@ -143,7 +147,7 @@ if (SELF) {
 		// ★ 负态读数走**子进程**：同进程二次 `boot()` 会命中进程内缓存 ⇒ 第二次读数会悄悄变成第一次的 ✗
 		//（`chk-source` 已实测过同型；本格 ③ 也正是被它咬的）
 		const child = spawnSync(process.execPath, [fileURLToPath(import.meta.url), '--read-only'],
-			{ cwd: ROOT, encoding: 'utf8', timeout: 300000, env: { ...process.env, SG_STORIES_DIR: join(WORK, 'stories') } });
+			{ cwd: ROOT, encoding: 'utf8', timeout: 300000, env: { ...process.env, SG_STORIES_DIR: join(WORK, 'stories'), SG_CODEX_WORK: WORK } });
 		try { neg = JSON.parse(String(child.stdout ?? '').trim().split('\n').pop()); }
 		catch { neg = { panel: false, text: 'parse-failed:' + String(child.stdout ?? '').slice(0, 80) }; }
 	} finally {

@@ -103,12 +103,10 @@ export const SEGMENTS = [
 	{ id: "test-fight-seq-mjs", phase: 'test', cost: 22, cmd: "node test/fight-seq.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-focus-after-nav-mjs", phase: 'test', cost: 1, cmd: "node test/focus-after-nav.mjs" },
-	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
-	{ id: "test-g3-evidence-mjs", phase: 'test', cost: 15.7, cmd: "node test/g3-evidence.mjs" },
+	// `#1353` ③（丙组）：对象＝旧 demo 剧情支路（跨时代合龙门／一次性拾取）⇒ 最小化后无对象 ⇒ **下架删除**（同笔关 `#1074`／`#1076`）
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-gate-discovery-mjs", phase: 'test', cost: 0, cmd: "node test/gate-discovery.mjs" },
-	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
-	{ id: "test-onetime-pickups-mjs", phase: 'test', cost: 18.1, cmd: "node test/onetime-pickups.mjs" },
+	// `#1353` ③（丙组）：对象＝旧 demo 剧情支路（跨时代合龙门／一次性拾取）⇒ 最小化后无对象 ⇒ **下架删除**（同笔关 `#1074`／`#1076`）
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-pc-base-mjs", phase: 'test', cost: 0.3, inputs: ['*'], cmd: "node test/pc-base.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
@@ -605,7 +603,6 @@ export const SUITE_MEMBERS = {
 		'test-comment-mask-mjs',
 		'test-contract-defaults-mjs',
 		'test-fight-seq-mjs',
-		'test-onetime-pickups-mjs',
 		'test-pc-base-mjs',
 		'test-pc-defaults-mjs',
 		'test-properties-mjs',
@@ -641,7 +638,6 @@ export const SUITE_MEMBERS = {
 		'test-rules-claims-mjs-selftest', 'test-premise-source-mjs', 'test-premise-source-mjs-selftest', 'test-npc-venue-mjs',
 		'test-npc-venue-mjs-selftest',
 		'test-choice-keys-mjs',
-		'test-g3-evidence-mjs',
 		'test-cond-keyform-mjs',
 		'test-cond-keyform-mjs-selftest',
 		'test-prose-vocabulary-mjs',
@@ -883,9 +879,7 @@ export const SUSPENDED = {
 	'test-coverage-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'test-fight-seq-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'test-focus-after-nav-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
-	'test-g3-evidence-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'test-gate-discovery-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：改用 `storySlugs()`／样本给出）' },
-	'test-onetime-pickups-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'test-pc-base-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'test-pc-defaults-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'test-properties-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },

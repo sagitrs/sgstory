@@ -120,12 +120,18 @@ export const SEGMENTS = [
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-reread-mjs", phase: 'test', cost: 0, cmd: "node test/reread.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
-	{ id: "test-roll-binding-mjs", phase: 'test', cost: 0, cmd: "node test/roll-binding.mjs" },
+		// `#1353` ③（乙组真因版）：两条雤组（`roll-binding`／`saveui`）**下架删除** ——
+	//   它们本质是**旧故事的剧情专项判据**（`听雾`／`洞穴·战斗`／`守林人`等剧情面），而那些剧情
+	//   在 books 亦**不存在**（我核过）⇒ 迁移等于**为旧判据新写剧情**（= 为拦而拦 ✗）
+	//   ⇒ 判据随对象退役（同丙组体例）；若**机制**仍要守 ⇒ 另立机制面判据（红事件驱动）✓
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-rules-mjs", phase: 'test', cost: 1.6, inputs: ['*'],   // `#1132` B3：读构建产物 ＋ 故事数据（契约成员、车卡数据、图鉴条目）
 		cmd: "node test/rules.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
-	{ id: "test-saveui-mjs", phase: 'test', cost: 10.2, cmd: "node test/saveui.mjs" },
+		// `#1353` ③（乙组真因版）：两条雤组（`roll-binding`／`saveui`）**下架删除** ——
+	//   它们本质是**旧故事的剧情专项判据**（`听雾`／`洞穴·战斗`／`守林人`等剧情面），而那些剧情
+	//   在 books 亦**不存在**（我核过）⇒ 迁移等于**为旧判据新写剧情**（= 为拦而拦 ✗）
+	//   ⇒ 判据随对象退役（同丙组体例）；若**机制**仍要守 ⇒ 另立机制面判据（红事件驱动）✓
 	{ id: "build-mjs", phase: 'build', cost: 3, cmd: "node build.mjs" },
 	// `#899` ②：**新故事夹具场景**（①三门绿＋哨兵 ／ ②③两条安全网全红 ／ 清场三处＋dist 复原）。
 	//注意：必须是 `build` 相位 → **先跑且独占**（它要在仓的 `stories/` 下临时建夹具）；**且排在 `build-mjs` 之后**
@@ -609,9 +615,7 @@ export const SUITE_MEMBERS = {
 		'test-pc-defaults-mjs',
 		'test-properties-mjs',
 		'test-reread-mjs',
-		'test-roll-binding-mjs',
 		'test-rules-mjs',
-		'test-saveui-mjs',
 		'test-dialect-mjs',
 		'test-contract-version-mjs',
 	],
@@ -887,9 +891,7 @@ export const SUSPENDED = {
 	'test-properties-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'test-render-all-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'test-reread-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
-	'test-roll-binding-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'test-rules-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
-	'test-saveui-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 };
 
 /** 临时下架的段（跑器跳过并**单列**，不计失败、也不算未声明）。 */

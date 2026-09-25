@@ -125,10 +125,12 @@ export const valueRefExpand = ({ name, body, terms, params = {}, slot = null, sl
 	}
 	const out = String(body).replace(/\{\{([^{}\s]+)\}\}/g, (_, n) => {
 		if (slotSet.has(n)) return '<<print_SLOT ' + n + '>>';
-		if (pkeys.includes(n)) return '<<print_PARAM ' + n + '>>';
-		if (terms.has(n)) return '<<print_V ' + n + '>>';
+		// 入参：**引擎侧宏**（运行期取值 ⇒ ✗ 不烘值）—— 形态见 `docs/engine/json/tables.md` §11.2
+		if (pkeys.includes(n)) return '<<printparam "' + n + '">>';
+		// 世界态取值：**既有形态** `$pc.<名>`（✗ 不另造宏名）
+		if (terms.has(n)) return '$pc.' + n;
 		problems.push('段「' + name + '」的 {{' + n + '}} **不是本段入参、也不是落位、也不在世界态取值面**（本段 params＝' + JSON.stringify(pkeys) + '）⇒ 补声明或改名 ✗');
-		return '<<print_V ' + n + '>>';
+		return '$pc.' + n;
 	});
 	for (const [k, spec] of Object.entries(params ?? {})) {
 		if (!spec || spec.required !== true) continue;
@@ -155,6 +157,31 @@ export const duplicateProblems = ({ passages = [] } = {}) => {
 		out.push(`段名「${n}」**重复**（\`${seen.get(n)}\` 与 \`${where}\`）⇒ 同一段有两份源 ✗ ⇒ 删一份或改名（\`#1114\` 片 2b-2a：md 与 twee 不得同段共存 ✓）`);
 	}
 	return out;
+};
+
+/**
+ * `#1350` 片 4：把本段的 `links[]` **渲染出来**（✗ 不新造渲染宏 —— 复用既有 `<<rules>>`／`<<rulelist>>` 家族）。
+ *
+ * 落法（与旧树同形 ⇒ 渲染输出同来自**同一权威** `Sg.rules.pick`／`pickAll`）：
+ *  · **带 `slot`** 的链接 ⇒ 落在正文同名 `{{slot名}}` 占位处 ⇒ **内联**渲染（块形态＝前后空行 ＋ 该链接那行）
+ *  · **无 `slot`** 的链接 ⇒ 段尾块，按段级 `present` 选宏：`"菜单"` ⇒ `<<rulelist "段名">>`；否则（默认/`"单选"`）⇒ `<<rules "段名">>`
+ * ★ 为什么"无行 ⇒ 零字节"是可依赖的：`<<rules>>` 的实现在 `if (!row) return;` 早退；`pickAll` 空数组 ⇒ 循环不执行
+ *   （`src/engine/40-sim/21-resolve.twee:63-70`；`22-rules.twee:123-137`）⇒ 段尾块在"没有可渲染行"时**不产字节** ✓
+ * ★ 判别力纪律：`present` 的"菜单/单选"差异**只在有 ≥2 条尾块候选的段上可判** ⇒ 能假格要锚那种段（✗ 别锚只有 1 条的段）。
+ */
+export const renderLinksOf = ({ name, links = [], present = null }) => {
+	const inline = [];
+	const tail = [];
+	for (const l of links) {
+		if (!l || typeof l !== 'object') continue;
+		const label = String(l.label ?? '').trim();
+		const to = String(l.to ?? '').trim();
+		if (!label || !to) continue;
+		if (l.slot) inline.push({ slot: String(l.slot), text: `[[${label}|${to}]]` });
+		else tail.push({ text: `[[${label}|${to}]]` });
+	}
+	const macro = String(present ?? '') === '菜单' ? 'rulelist' : 'rules';
+	return { inline, tailBlock: tail.length ? `<<${macro} "${name}">>` : '' };
 };
 
 /** 主拼装：一批 md 段 → 一份 twee 文本（含 front-matter 元数据行）。 */
@@ -188,10 +215,19 @@ export const assemblePassages = ({ passages, known, forbidden = new Set(), terms
 			}
 			return Object.keys(acc).length ? acc : null;
 		})();
-		const { body: expanded, problems: vp } = valueRefExpand({ name: p.name, body: p.body, terms,
+		const { body: expandedRaw, problems: vp } = valueRefExpand({ name: p.name, body: p.body, terms,
 			params: dseg.params ?? {}, slot: null, slots: [dseg.slot, ...linkSlots].filter(Boolean),
 			args: (dseg.args && typeof dseg.args === 'object') ? dseg.args : inbound });
 		problems.push(...vp);
+		// `#1350` 片 4：把本段 `links[]` 渲染出来（✗ 不新造渲染宏；复用 `<<rules>>`／`<<rulelist>>`）
+		const rl = renderLinksOf({ name: p.name, links: dseg.links ?? [], present: dseg.present ?? null });
+		let expanded = expandedRaw;
+		for (const { slot: sl, text } of rl.inline) {
+			// 内联：占位处就地换成"块形态"（前后空行 ＋ 该行）—— 与旧树散文内联链接同形 ✓
+			const re = new RegExp(`\\{\\{${sl.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\}\\}`, 'g');
+			expanded = expanded.replace(re, `\n\n${text}\n\n`);
+		}
+		if (rl.tailBlock) expanded = `${expanded.replace(/\s+$/, '')}\n\n${rl.tailBlock}\n`;
 		const tags = p.tags ? ` [${p.tags}]` : '';
 		chunks.push(`:: ${p.name}${tags}\n${expanded}`);
 	}

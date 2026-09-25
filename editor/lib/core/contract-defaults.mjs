@@ -246,6 +246,47 @@ export const FIXTURE_FACE_EXCEPTIONS = {
 export const fixtureFaceExceptionConflicts = () => Object.keys(FIXTURE_FACE_EXCEPTIONS)
 	.filter((n) => FIXTURE_FACE_EXPECTED.includes(n));
 
+/** ★ `#1419`（**泛化版**）：**数据面非空 ⇒ 对应契约成员必须在** —— 族＝"**数据在但不生效**"。
+ *  为什么：引擎**只经接入契约**读这些面（如 `Sg.story.combatPool?.(id)`／`combatAction?.(…)`）；
+ *    而引擎对缺面的语义是"**缺省同义**"（空池／空值 ⇒ **静默**）✗ ⇒ 表现是"数据在、build 绿、界面无错，
+ *    但屏上啥也没有"（实测：`#1419` 的 `m3-combat-fixture` —— 池／动作各 3 条却**无可点动作**）。
+ *  ★判据面＝**数据面非空 ⇒ 成员必须在册**（✗ 不判"值对不对"—— 那是各面自己的判据 ✓）。
+ *  ★与 `fixtureFaceProblems` 的分工：那条只服务**满配夹具**（`face-fixture`，已随 `#1261` 删除 ⇒ **空转** ✗）；
+ *    本条面向**任意故事**（判"声明了数据却没接上契约"）✓。
+ *  纯函数（`tables`／`members` 注入 ⇒ 能假 ✓）。
+ */
+export const DATA_FACE_MEMBERS = Object.freeze([
+	// `数据面路径` ⇒ `必须声明的契约成员`（**只收引擎确实在读**的那些面；✗ 不一次做全）
+	{ path: ['containers', 'Combat', 'pools'], member: 'combatPool',
+		why: '`Game.Combat.eligible()` 经 `Sg.story.combatPool` 读池 ⇒ 缺成员＝**池恒空**（无可点动作 ✗）' },
+	{ path: ['containers', 'Combat', 'actions'], member: 'combatAction',
+		why: '`resolvePlayer()`／`siteInfo()` 经 `Sg.story.combatAction` 读动作 ⇒ 缺成员＝**动作取不到**（渲染空 ✗）' },
+	// ★ 物品面**收紧**（实测校准）：`Items.defs` 常只放**纯定义**（`label`／`note`）—— 那**不需要** `itemEffect` ✗
+	//   ⇒ 只在**定义里确有效果字段**（`advSite`／`advSites`／`flatDamageReduce` —— 引擎真读的三名 ✓）时才要求 ✓
+	{ path: ['containers', 'Items', 'defs'], member: 'itemEffect',
+		why: '物品定义里确有效果字段（`advSite`／`advSites`／`flatDamageReduce`）⇒ 引擎经 `Sg.story.itemEffect` 读它们'
+			+ ' ⇒ 缺成员＝**定义了效果却读不到**（静默 ✗）',
+		when: (v) => (v && typeof v === 'object')
+			&& Object.values(v).some((d) => d && typeof d === 'object'
+				&& ('advSite' in d || 'advSites' in d || 'flatDamageReduce' in d)) },
+]);
+
+/** 数据面非空 ⇒ 对应成员缺 ⇒ 点名（纯函数 ⇒ 能假）。 */
+export const dataFaceMemberProblems = ({ slug = '', tables = null, members = [] } = {}) => {
+	const have = new Set((members ?? []).map((m) => m?.name));
+	const out = [];
+	for (const spec of DATA_FACE_MEMBERS) {
+		const { path, member, why } = spec;
+		const v = path.reduce((o, k) => (o == null ? undefined : o[k]), tables ?? {});
+		const nonEmpty = Array.isArray(v) ? v.length > 0
+			: (v && typeof v === 'object') ? Object.keys(v).length > 0 : false;
+		if (nonEmpty && !have.has(member) && (!spec.when || spec.when(v)))
+			out.push({ slug, code: 'data-face-member-missing', name: member,
+				why: `数据面 \`${path.join('.')}\` **非空**，但契约里没有 \`${member}\` 成员 ⇒ ${why}` });
+	}
+	return out;
+};
+
 /** 夹具缺面 → 点名（含"整组全缺"的情形；普通故事不吃这条）。 */
 export const fixtureFaceProblems = ({ slug, members = [] }) => {
 	if (slug !== 'face-fixture') return [];

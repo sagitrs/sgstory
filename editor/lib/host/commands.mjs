@@ -39,6 +39,7 @@ import { definitionsOf, duplicateExportProblems, secondCopyProblems, coreHostPro
 //注意：**一处定义**：分类器实例**不在本文件重装** —— `lib/host/classify.mjs` 已经装好（`makeClassify({ evalLiteral: literalValue})`），
 // 本命令走它导出的缝 `classifyContractText`（那条缝多做 `locals` 上下文与 `const` 的 B→A 解析 → 该语义风险由**两时点差分**量掉）。
 import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, handwrittenClosureProblems, contractSourceText, staleTrackedProblems, referenceIntegrityProblems, undoneProblems } from '../core/k4criteria.mjs';
+import { dataFaceMemberProblems } from '../core/contract-defaults.mjs';   // `#1419`：数据面非空 ⇒ 契约成员必须在
 import { censusOfStory, censusSummarize, censusProblems } from '../core/hatchCensus.mjs';
 import { classifyContractText } from './classify.mjs';
 // `#794` 弧第 3 票（`equiv` 命令体）：用 vm／读文件／跑子进程 → **都在 host**。
@@ -97,6 +98,18 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 	const readIf = (f) => { try { return JSON.parse(readText(packageFiles(slug, { base: BASE }).dataFile(f))); } catch { return null; } };
 	const tables = readIf('tables.json');
 	const contract = readIf('contract.json');
+	// ★ `#1419`（**"数据在但不生效"** 族）：**数据面非空 ⇒ 对应契约成员必须在** —— 编译期点名 ✓
+	//   为什么必须在**编译期**：引擎对缺面的语义是"缺省同义"（空池／空值 ⇒ **静默**）✗ ⇒ 表现是
+	//   "数据在、build 绿、界面无错，但屏上啥也没有"（实测：`m3-combat-fixture` 池／动作各 3 条却无可点动作）
+	if (tables) {
+		const miss = dataFaceMemberProblems({ slug, tables,
+			members: (contract?.members ?? []) });
+		if (miss.length) {
+			for (const m of miss) console.error(`✗ [data-face] ${m.why}`);
+			console.error('✗ 数据面非空但契约缺成员 ⇒ 引擎会**静默当缺省**（空池/空值）⇒ 不写出产物');
+			return 1;
+		}
+	}
 	const rules = readIf('rules.json');
 	// `#1350` 片 3：段落数据（`data/passages.json`）的 `links[]` **合成进规则行** ⇒ 渲染口（`<<rules>>`／
 	// `<<rulelist>>`）**零改动**即可接上；条件求值仍走 `Sg.rules.matches` **一处权威** ✗ 不在渲染面二次求值。

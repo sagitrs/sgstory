@@ -2,12 +2,13 @@ import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync, rmSync
 import { allSourceFiles } from './scripts/module-order.mjs';
 import { genNeeds } from './scripts/lib/gen-needed.mjs';   // `#1192`：该不该重编这份故事的产物
 import { execSync } from 'node:child_process';
+import * as _crypto from 'node:crypto';   // 输入指纹（sha256）
 import vm from 'node:vm';   // `#1176`：生成件脚本段的解析器（只解析不执行）
 import { join, dirname, relative, isAbsolute } from 'node:path';
 import { scopedFiles, checkRegistration, isStoryPassageMd } from './scripts/module-order.mjs';
 import { valueRefExpand, renderLinksOf, parseFrontMatter, parseMdPassages, parseTweePassages, assemblePassages, FORBIDDEN_BUILTINS, duplicateProblems } from './editor/lib/core/passages.mjs';
 import { scriptSyntaxProblems } from './editor/lib/core/segment-syntax.mjs';
-import { generatedFamilyProblems, isGeneratedFamily } from './editor/lib/core/generated-family.mjs';   // `#1185` // `#1176`
+import { generatedFamilyProblems, isGeneratedFamily } from './editor/lib/core/generated-family.mjs';   // `#1350`：指纹写入也要用   // `#1185` // `#1176`
 import { valueTerms, engineLabels } from './editor/lib/core/vocab.mjs';
 import {
 	ROOT, storySlugs, readStory, storyHtml, shelfHtml, DEFAULT_SLUG,
@@ -35,6 +36,19 @@ if (STORY_OUT && !WITH_RULES) throw new Error('--story-out 只与 --with-rules �
 
 mkdirSync('build', { recursive: true });
 mkdirSync(DIST_DIR, { recursive: true });   // `#1267` 随根
+// `#1350` 后续笔：产出时写**输入指纹** `<DIST_DIR>/INPUTS.json`（件 → 内容 sha256）——
+// 用途：新鲜度判据**比指纹**（✗ 不比 mtime）⇒ 免把"**checkout 刷新 mtime**"读成"源变新了" ✗
+//（实测：本地 rebase/checkout 会把 `src/*.twee` 的 mtime 推后 ⇒ 靶产物恒"看起来旧" ✗）
+const writeInputsFingerprint = (files) => {
+	try {
+		const { createHash } = _crypto;
+		const out = {};
+		for (const f of files) {
+			try { out[f] = createHash('sha256').update(readFileSync(f)).digest('hex').slice(0, 16); } catch { /* 读不到就不记 */ }
+		}
+		writeFileSync(join(DIST_DIR, 'INPUTS.json'), JSON.stringify(out, null, 1) + '\n');
+	} catch { /* 指纹只是加固 ⇒ 写失败不该挡构建 */ }
+};
 
 // #319：加载顺序**显式**声明在 scripts/module-order.mjs（不再靠文件名前缀隐含）。
 // `#893` 守卫**分两层**：① **引擎件**（`src/**`）必须全在 `ORDER` 里（它们的先后是**全局**的）；
@@ -305,6 +319,9 @@ for (const s of stories) {
 		process.exit(1);
 	}
 }
+
+// `#1350` 后续笔：落输入指纹（在产物写完之后 ⇒ 它代表"本次产出对应的输入" ✓）
+writeInputsFingerprint(allSourceFiles(undefined, { withStoryData: true }).filter((p) => !isGeneratedFamily(p)).map((p) => absPath(p)));
 
 // ── 字体子集化（霞鹜文楷 → dist/fonts 外链 + preload）────────────────
 // 收集**所有故事**的文本字符 + ASCII + 常用符号，子集化为 woff2 外链文件：

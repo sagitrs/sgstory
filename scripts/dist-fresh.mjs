@@ -13,6 +13,7 @@ import { isGeneratedFamily } from '../editor/lib/core/generated-family.mjs';   /
 import { allSourceFiles } from './module-order.mjs';
 import { absPath } from './dist-paths.mjs';   // `#1267`：符号名 → 真实落盘路径
 import { fileURLToPath } from 'node:url';
+import * as _crypto from 'node:crypto';
 import { join, dirname } from 'node:path';   // `#1130`：落盘要建父目录（`dirname` 先前漏 import → 被 catch 吞掉）
 import { defaultStoryHtml } from './dist-paths.mjs';
 
@@ -22,6 +23,24 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 // 依赖它的消费者（拿产物做断言的件）必须自行跳过；这里不再自动抛错（那是导入期副作用）。
 export const DIST_PATH = (() => { try { return defaultStoryHtml(); } catch { return null; } })();
 export const SRC_DIR = join(ROOT, 'src');
+
+/** `#1350` 后续笔：读产物旁的**输入指纹**（`<dist>/INPUTS.json`；无 ⇒ `null`）。 */
+export const readInputsFingerprint = (distPath = DIST_PATH) => {
+	try {
+		if (!distPath) return null;
+		// ★  ＝  ⇒ 指纹在 **dist 根**（上两级），✗ 不是同级
+		const f = join(dirname(dirname(dirname(distPath))), 'INPUTS.json');
+		if (!existsSync(f)) return null;
+		const d = JSON.parse(readFileSync(f, 'utf8'));
+		return d && typeof d === 'object' ? d : null;
+	} catch { return null; }
+};
+
+/** `#1350` 后续笔：**内容指纹**（sha256 前 16）—— 与 build 侧写入口径同一份。 */
+export const inputShaOf = (file) => {
+	try { return _crypto.createHash('sha256').update(readFileSync(file)).digest('hex').slice(0, 16); }
+	catch { return null; }
+};
 
 export const distState = ({ distPath = DIST_PATH, srcDir = SRC_DIR } = {}) => {
 	if (!distPath) return { exists: false, fresh: false, noStory: true };   // `#1261` 零故事：无逐故事产物
@@ -37,6 +56,21 @@ export const distState = ({ distPath = DIST_PATH, srcDir = SRC_DIR } = {}) => {
 			// 「走仓内根」的红都源于此）。仓内时 `absPath` 恒等 → 行为逐字符不变。
 			.map((p) => absPath(p))
 		: readdirSync(srcDir).filter((f) => f.endsWith('.twee')).map((f) => join(srcDir, f));
+	// `#1350` 后续笔：**先看指纹**（有 ⇒ 比内容；✗ 不比 mtime ⇒ 免把"checkout 刷新 mtime"读成"源变新" ✗）
+	const fp = readInputsFingerprint(distPath);
+	if (fp) {
+		const changed = files.filter((f) => {
+			const was = fp[f];
+			if (typeof was !== 'string') return true;              // 指纹里没有该件 ⇒ 视为新输入（该重编）
+			return inputShaOf(f) !== was;                          // 内容不同 ⇒ 真变
+		});
+		const distMtimeFp = statSync(distPath).mtimeMs;
+		return { exists: true, fresh: changed.length === 0, byFingerprint: true,
+			newestSrc: Math.max(...files.map((f) => statSync(f).mtimeMs)), distMtime: distMtimeFp,
+			newer: changed.map((f) => ({ f, m: statSync(f).mtimeMs })), changedFiles: changed };
+	}
+	// 无指纹 ⇒ **出声**退回 mtime 口径（✗ 不静默、✗ 不判红）
+	console.error('  ○ 无输入指纹（`<dist>/INPUTS.json`）⇒ 新鲜度按 **mtime** 口径判（口径较弱：checkout 刷新 mtime 会误报）');
 	const newestSrc = Math.max(...files.map((f) => statSync(f).mtimeMs));
 	const distMtime = statSync(distPath).mtimeMs;
 	// `#1130`：**点名**比 dist 新的源件（前 10，按新→旧）——本来只报"旧了"不说是谁 → CI 上没法查

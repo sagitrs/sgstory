@@ -226,7 +226,7 @@ window.Sg.Ending = {
 window.Sg.save.restart = () => {
 	State.reset();
 	new Wikifier(null, Story.get('StoryInit').processText());
-	Engine.play(Config.passages.start);
+	window.Sg.inargs?.carry(null, null), Engine.play(Config.passages.start);
 };
 
 jQuery(document).on('click.sgEndAct', '#passages button[data-end-act]', function (ev) {
@@ -264,6 +264,14 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 			? ev.target.closest('#passages a.link-internal, #passages a.soc-opt')
 			: null;
 		if (!control || control.closest('.chargen-card')) return;
+		// `#1350` 片 5：**入参随跳转**（契约 §11.2 的唯一写点 `Sg.inargs.carry`）
+		// 读链接上的 `data-sg-args`（片 5 的 `<a>` 带的）⇒ 写到目标段的**临时槽**（一跳清）
+		try {
+			const dest = control.getAttribute('data-passage') ?? '';
+			const raw = control.getAttribute('data-sg-args');
+			const args = raw ? JSON.parse(raw) : null;
+			window.Sg.inargs?.carry(dest, args);
+		} catch { /* 属性坏了不该挡跳转 ⇒ 交给 <<printparam>> 一侧点名 */ }
 		const content = control.closest('.passage');
 		if (!content) return;
 		const panel = control.closest('.soc-ask');

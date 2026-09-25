@@ -169,6 +169,23 @@ export const duplicateProblems = ({ passages = [] } = {}) => {
  *   （`src/engine/40-sim/21-resolve.twee:63-70`；`22-rules.twee:123-137`）⇒ 段尾块在"没有可渲染行"时**不产字节** ✓
  * ★ 判别力纪律：`present` 的"菜单/单选"差异**只在有 ≥2 条尾块候选的段上可判** ⇒ 能假格要锚那种段（✗ 别锚只有 1 条的段）。
  */
+/**
+ * `#1350` 片 5：把一条链接渲染成**显式 `<a>`**。
+ *
+ * ★ 为什么不能"裸 `[[label|to]]` ＋ 只带自己的属性"：引擎有**两处既有消费者**依赖 SugarCube 自产的属性集合 ——
+ *   ① `src/80-script.twee` 的 `remember()`（选择器 `#passages a.link-internal`）② `:passageend.sgChoiceKey`
+ *      （遍历 `a.link-internal[data-passage]` 补 `data-choice`，键盘走位靠它）。
+ *   若我们少产属性 ⇒ 这两处**静默失效**，而"渲染文本逐字节同"（读 `textContent`）**看不见** ✗。
+ * ⇒ 口径：**与自产同形同属性**（实测自产＝`class="link-internal"` ＋ `data-passage` ＋ `role="link"` ＋ `tabindex="0"`；
+ *   `data-choice` 由 `:616` 补）⇒ 我们**只额外**加 `data-sg-args`（JSON 串，供跳转携带入参）。
+ */
+export const linkHtml = ({ label, to, args = null } = {}) => {
+	const esc = (x) => String(x ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+	const extra = args && typeof args === 'object' && Object.keys(args).length
+		? ` data-sg-args="${esc(JSON.stringify(args))}"` : '';
+	return `<a data-passage="${esc(to)}" class="link-internal" role="link" tabindex="0"${extra}>${esc(label)}</a>`;
+};
+
 export const renderLinksOf = ({ name, links = [], present = null }) => {
 	const inline = [];
 	const tail = [];
@@ -177,8 +194,9 @@ export const renderLinksOf = ({ name, links = [], present = null }) => {
 		const label = String(l.label ?? '').trim();
 		const to = String(l.to ?? '').trim();
 		if (!label || !to) continue;
-		if (l.slot) inline.push({ slot: String(l.slot), text: `[[${label}|${to}]]` });
-		else tail.push({ text: `[[${label}|${to}]]` });
+		const html = linkHtml({ label, to, args: l.args });
+		if (l.slot) inline.push({ slot: String(l.slot), text: html });
+		else tail.push({ text: html });
 	}
 	const macro = String(present ?? '') === '菜单' ? 'rulelist' : 'rules';
 	return { inline, tailBlock: tail.length ? `<<${macro} "${name}">>` : '' };

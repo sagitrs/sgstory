@@ -107,12 +107,12 @@ const selftest = () => {
 		const data = { 里屋: { params: { 提醒: { type: 'string', required: true } }, links: [] } };
 		const passages = [{ name: '里屋', tags: [], body: '纸上写着：{{提醒}}。' }];
 		const r = assemblePassages({ passages, known: new Set(), data });
-		t('① 占位符**不烘值**：产物 body 里是 `<<print_PARAM 提醒>>`（含占位 ✓）',
-			/<<print_PARAM 提醒>>/.test(r.twee));
+		t('① 占位符**不烘值**：产物 body 里是 `<<printparam "提醒">>`（占位，✗ 不含值 ✓）',
+			/<<printparam "提醒">>/.test(r.twee));
 		// ★ 口径修正（`#1373` 实跑暴露，我上一版**写错了**）：
 		//   "不含值字面"**不能**判"整份产物"——`args` 是**编译后的数据面**（供运行期取值用 ✓），
 		//   它**本来就该**带着值出现在规则表数据里（`args: { '提醒': '别进屋' }`）。
-		//   ⇒ 正确的面是「**段落 body**」：值**不许写进正文**（正文里应是 `<<print_PARAM 提醒>>`）✓
+		//   ⇒ 正确的面是「**段落 body**」：值**不许写进正文**（正文里应是 `<<printparam "提醒">>`）✓
 		//   （实证：靶产物里 2 处 `别进屋` 都在规则表数据行上，段落 `tw-passagedata` 里是占位 ✓）
 		const bodies = (twee) => [...String(twee).matchAll(/:{2}\s*([^\[\n]+?)\s*\[[^\]]*\]\n([\s\S]*?)(?=\n::|$)/g)]
 			.map((m) => ({ name: m[1].trim(), body: m[2] }));

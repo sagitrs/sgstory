@@ -253,6 +253,34 @@ export const endingProblems = ({ passages = [], data = null } = {}) => {
  * 它必须用**同一函数**再算一次（✗ 不在判据里另写一份 —— 两处必漂移，本仓反复撞过）✓
  * ★ 新增变换（如 `#1399` 的 `ending` 注入）时**只改这里** ⇒ 拼装面与判据面同步 ✓
  */
+/** ★ 双渲染宏（`#1412`）：**面内段**同时有**散文手写渲染宏**（`<<rules>>`／`<<rulelist>>`）与 **`links[]` 非空**
+ * ⇒ **点名红**。为什么：`links[]`（不带 `slot`）会在**编译期注入段尾块**（`<<rules>>`／`<<rulelist>>`）
+ * ⇒ 若正文**已手写**同一个宏 ⇒ 产物里**渲染两遍**（读者看到两组链接）✗ ——
+ * ★ 与 `#1399`「并存 ⇒ 红」**同族**：都是"**看起来能跑、其实重复渲染**"✗（无法从"能 build／能渲染"看出）。
+ *
+ * ★ 范围与面内/面外（与 `endingProblems` **同尺**）：只判**改制面**（该故事有 `data` 且该段在 `data` 里有段对象）；
+ *   义务不可追溯（旧形态作者没有这条义务）⇒ 面外 `continue` ✗ 不判 ✓
+ * ★ 例外（✗ 不报）：**带 `slot` 的 links** 是**内联落位**（✗ 不注入段尾块）⇒ 与手写宏**不冲突** ✓
+ */
+export const doubleRenderProblems = ({ passages = [], data = null } = {}) => {
+	const out = [];
+	for (const p of passages) {
+		const inFace = !!(data && typeof data === 'object' && Object.prototype.hasOwnProperty.call(data, p.name));
+		if (!inFace) continue;
+		const seg = data[p.name] ?? {};
+		const links = Array.isArray(seg.links) ? seg.links : [];
+		// ★ 只有**会注入段尾块**的那些 links 才算（带 `slot` 的走内联 ⇒ 不冲突 ✓）
+		const tailLinks = links.filter((l) => l && typeof l === 'object' && !l.slot
+			&& String(l.label ?? '').trim() && String(l.to ?? '').trim());
+		if (!tailLinks.length) continue;
+		const macros = String(p.body ?? '').match(/<<\s*(?:rules|rulelist)\b[^>]*>>/g) ?? [];
+		if (macros.length) out.push('段「' + p.name + '」**同时**有散文手写的渲染宏（`' + macros[0] + '`）与 `links[]`（'
+			+ tailLinks.length + ' 条会**注入段尾块**）⇒ 产物里**渲染两遍** ✗（读者看到两组链接）⇒'
+			+ ' 修法：**删掉正文那一行宏**（链接由编译期注入 ✓）或给这些链接加 `slot` 走**内联落位** ✓');
+	}
+	return out;
+};
+
 export const applyPassageTransforms = ({ name, body, terms = new Set(), params = {}, slots = [], args = null, links = [], present = null, ending = null }) => {
 	const { body: expandedRaw, problems } = valueRefExpand({ name, body, terms, params, slot: null, slots, args });
 	const rl = renderLinksOf({ name, links, present });
@@ -275,6 +303,7 @@ export const assemblePassages = ({ passages, known, forbidden = new Set(), terms
 	// 先校验（悬空须看全集 → 两遍）
 	problems.push(...duplicateProblems({ passages }));   // `#1114` 2b-2a：重名段（跨源双写）→ 先报
 	problems.push(...endingProblems({ passages, data }));   // `#1399`：结局声明面（唯一活声明 ＋ tags 死声明点名）
+	problems.push(...doubleRenderProblems({ passages, data }));   // `#1412`：双渲染宏（手写宏 ＋ links 非空 ⇒ 渲染两遍）
 	for (const p of passages) {
 		problems.push(...forbiddenProblems({ name: p.name, body: p.body, forbidden }));
 		problems.push(...danglingProblems({ name: p.name, body: p.body, passages, known }));

@@ -50,6 +50,20 @@ export const FULL_REASONS = {
 		+ '⚠️ **移出 PR 档 ⇒ PR 期不再验证"门会咬"** ✗ ⇒ **已接线**（`#1071`：`.github/workflows/full-tier.yml`，触发面 ＝ nightly ＋ `push: main` ＋ `workflow_dispatch` ✓；**失败即红** ✗不是 report-only ✓）；'
 		+ '另：台账的探针列**依赖本段产出的** `build/probe-results.json`（gitignored）⇒ 本段不在 PR 档跑时，'
 		+ '台账那一列由 `report-gate-ledger.mjs --allow-stale-probe` **显式降级**（打印"探针面跳过"，不静默 ✓）。',
+	'scripts-audit-mjs-consequences-check': '`#1353` 阶段一（PR 档减压）：「选择后果」引擎门：直接依赖故事侧条件面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
+	'scripts-audit-mjs-a11y-check': '`#1353` 阶段一（PR 档减压）：可访问性门：需真环境（读产物/DOM 面）⇒ 环境不具备时应记「未判」。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
+	'scripts-audit-mjs-sitedisc-check': '`#1353` 阶段一（PR 档减压）：位点判定门：面＝故事数据面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
+	'scripts-audit-mjs-text-check': '`#1353` 阶段一（PR 档减压）：文本载荷门：载荷阈值型判据，值随内容漂移。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
+	'scripts-audit-mjs-state-check': '`#1353` 阶段一（PR 档减压）：状态契约门：面＝故事状态面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
+	'scripts-audit-mjs-literals-check': '`#1353` 阶段一（PR 档减压）：字面量门：面＝故事数据面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
+	'scripts-audit-mjs-engine-story-free': '`#1353` 阶段一（PR 档减压）：引擎门「与故事无关」的反向核：判据稳定。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
+	'scripts-audit-mjs-slots-check': '`#1353` 阶段一（PR 档减压）：槽位门：面＝故事数据面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
+	'scripts-audit-mjs-status-check': '`#1353` 阶段一（PR 档减压）：状态门：面＝故事数据面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
+	'scripts-audit-mjs-waves-check': '`#1353` 阶段一（PR 档减压）：波次门：面＝故事数据面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
+	'scripts-audit-mjs-roads-check': '`#1353` 阶段一（PR 档减压）：路线门：面＝故事数据面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
+	'scripts-report-ledger-freshness-mjs-ledger-check': '`#1353` 阶段一（PR 档减压）：台账新鲜度读数（日期在期/行数栅栏）：是读数不是布尔判据。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
+	'scripts-report-gate-ledger-mjs': '`#1353` 阶段一（PR 档减压）：台账重生成动作（--allow-stale-probe）：动作不需要每 PR 做。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
+	'scripts-report-selftest-validity-mjs': '`#1353` 阶段一（PR 档减压）：自证有效性扫描：元判据，随「自证」整体变化才需重看。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
 	// `#1261`：`test-witness-trace`（P4 见证件）随其样本下架 -> 段与理由块同删（留痕见下架台账）。
 };
 
@@ -170,12 +184,12 @@ export const SEGMENTS = [
 	// `#794`：**import 副作用门** —— 任何 `editor/**` 模块被 import → 跑完且只留哨兵（`exit(0)` 与 import 期输出都必红）。
 	{ id: "test-import-side-effects-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/import-side-effects.mjs --selftest" },   // `#1031`：接线（合成模块输入 → 布尔计入退出码）
 	{ id: "test-import-side-effects-mjs", phase: 'test', cost: 0.6, cmd: "node test/import-side-effects.mjs" },
-	{ id: "scripts-audit-mjs-consequences-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --consequences --check" },
-	{ id: "scripts-audit-mjs-a11y-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --a11y --check" },
-	{ id: "scripts-audit-mjs-sitedisc-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --sitedisc --check" },
-	{ id: "scripts-audit-mjs-text-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --text --check" },
-	{ id: "scripts-audit-mjs-state-check", phase: 'test', cost: 0.1, cmd: "node scripts/audit.mjs --state --check" },
-	{ id: "scripts-audit-mjs-literals-check", phase: 'test', cost: 0, cmd: "node scripts/audit.mjs --literals --check" },
+	{ id: "scripts-audit-mjs-consequences-check", phase: 'test', tier: 'full', cost: 0, cmd: "node scripts/audit.mjs --consequences --check" },
+	{ id: "scripts-audit-mjs-a11y-check", phase: 'test', tier: 'full', cost: 0, cmd: "node scripts/audit.mjs --a11y --check" },
+	{ id: "scripts-audit-mjs-sitedisc-check", phase: 'test', tier: 'full', cost: 0, cmd: "node scripts/audit.mjs --sitedisc --check" },
+	{ id: "scripts-audit-mjs-text-check", phase: 'test', tier: 'full', cost: 0, cmd: "node scripts/audit.mjs --text --check" },
+	{ id: "scripts-audit-mjs-state-check", phase: 'test', tier: 'full', cost: 0.1, cmd: "node scripts/audit.mjs --state --check" },
+	{ id: "scripts-audit-mjs-literals-check", phase: 'test', tier: 'full', cost: 0, cmd: "node scripts/audit.mjs --literals --check" },
 	// `#1261`：`test-rules` 随其样本（故事数据面）下架，用例文件保留待迁 books 仓（见下架台账）。
 	{ id: "test-invariants-unit-mjs", phase: 'test', cost: 0, cmd: "node test/invariants.unit.mjs" },
 	{ id: "test-rules-claims-mjs-selftest", phase: 'test', cost: 15.6, cmd: "node test/rules-claims.mjs --selftest" },
@@ -290,13 +304,13 @@ export const SEGMENTS = [
 	// `#787` 翻面：手写侧**重指向**为冻结基线（翻面前 `main` 的仓内副本 →「生成得对不对」仍被判）
 	// #752：**去权威化口径门** —— 注释／文档不许拿「谁定的」充当理由（#748 的清零面 ＋ 防回潮）
 	{ id: "scripts-report-ledger-freshness-mjs-selftest", phase: 'test', cost: 0, cmd: "node scripts/report-ledger-freshness.mjs --selftest" },
-	{ id: "scripts-report-ledger-freshness-mjs-ledger-check", phase: 'test', cost: 0, cmd: "node scripts/report-ledger-freshness.mjs --ledger --check" },
+	{ id: "scripts-report-ledger-freshness-mjs-ledger-check", phase: 'test', tier: 'full', cost: 0, cmd: "node scripts/report-ledger-freshness.mjs --ledger --check" },
 	{ id: "scripts-report-gate-ledger-mjs-selftest", phase: 'test', cost: 0, cmd: "node scripts/report-gate-ledger.mjs --selftest" },
 	// `#1079`：带 `--allow-stale-probe` —— PR 档不跑探针段（`#1070`）→ 无 `build/probe-results.json`
 	// → 台账的**探针面**不参与逐字节比对（**其余面照旧严格**）；**有读数时它不生效**。
-	{ id: "scripts-report-gate-ledger-mjs", phase: 'test', cost: 0, cmd: "node scripts/report-gate-ledger.mjs --allow-stale-probe" },
+	{ id: "scripts-report-gate-ledger-mjs", phase: 'test', tier: 'full', cost: 0, cmd: "node scripts/report-gate-ledger.mjs --allow-stale-probe" },
 	// #474 接线：`自证·` 必须「失败计入退出码」且「不崩」（静态扫描 scripts/ ＋ test/ 共 77 文件，0 致命）
-	{ id: "scripts-report-selftest-validity-mjs", phase: 'test', cost: 0.2, cmd: "node scripts/report-selftest-validity.mjs" },
+	{ id: "scripts-report-selftest-validity-mjs", phase: 'test', tier: 'full', cost: 0.2, cmd: "node scripts/report-selftest-validity.mjs" },
 	// #459／#482：故事「新机制声明表」的形状门（六条可机检点 · 各带正反自证）
 	{ id: "test-story-shape-mjs", phase: 'test', cost: 0.1, cmd: "node test/story-shape.mjs" },
 	// `#1267`（M1 最后一件）：**用例执行器**判据（三态／陈旧归因／入口两态）
@@ -354,7 +368,7 @@ export const SEGMENTS = [
 	// #491 判据 1：**本故事**的战斗分布口径（胜率对闭式 · 期望回合/受伤期望 · 分布面 · 同种子复算）
 	// `#746`（口径：「文字反馈最重要」）：**有副作用的分支必须有落点文案**（挨了打必须看得见）
 	// #602：**引擎门不得出现故事专有字面量**（防"假解耦"回潮：故事判据数据住 `stories/<slug>/audit.json`）
-	{ id: "scripts-audit-mjs-engine-story-free", phase: 'test', cost: 0.1, cmd: "node scripts/audit.mjs --engine-story-free --check" },
+	{ id: "scripts-audit-mjs-engine-story-free", phase: 'test', tier: 'full', cost: 0.1, cmd: "node scripts/audit.mjs --engine-story-free --check" },
 	// #607 P0：门的**发现与归属**（引擎门 ∪ 待迁移 ∪ 本故事已声明；顺序表；结构缺失必红）
 	// #640（伞 #626）：**矩阵门** —— 场景 × 道具/线索集合 → 期望（行键＝谓词上下文 · 期望＝渲染后+行为面 · 承诺 ratchet）
 	// #608：**短战斗相位门**（引擎侧 widget 的契约：四相位→分支 · 未结束不结算不推进 · 奖励/失败笔记走声明面）
@@ -417,13 +431,13 @@ export const SEGMENTS = [
 	// #435 阶段 4：「无字面状态读」门（：表/内容都经封装层读——票面「数据表不得出现字面状态读」）
 	// #486（S1）：槽位/耐久**机制**门（引擎门——判据来自声明表，不读故事散文）：
 	// 两态语义 · 部位命中分布 · 损坏阈值 · 兼容降级 ·「声明面 ≤ 实现面」
-	{ id: 'scripts-audit-mjs-slots-check', phase: 'test', cost: 0, cmd: 'node scripts/audit.mjs --slots --check' },
+	{ id: 'scripts-audit-mjs-slots-check', phase: 'test', tier: 'full', cost: 0, cmd: 'node scripts/audit.mjs --slots --check' },
 	// #487（S2）：部位×异常门（同为引擎门：输入＝声明表）
-	{ id: 'scripts-audit-mjs-status-check', phase: 'test', cost: 0, cmd: 'node scripts/audit.mjs --status --check' },
+	{ id: 'scripts-audit-mjs-status-check', phase: 'test', tier: 'full', cost: 0, cmd: 'node scripts/audit.mjs --status --check' },
 	// #488（S3）：波次与重置门（引擎门）
-	{ id: 'scripts-audit-mjs-waves-check', phase: 'test', cost: 0, cmd: 'node scripts/audit.mjs --waves --check' },
+	{ id: 'scripts-audit-mjs-waves-check', phase: 'test', tier: 'full', cost: 0, cmd: 'node scripts/audit.mjs --waves --check' },
 	// #489（S4）：事件池与三选一门（引擎门）
-	{ id: 'scripts-audit-mjs-roads-check', phase: 'test', cost: 0, cmd: 'node scripts/audit.mjs --roads --check' },
+	{ id: 'scripts-audit-mjs-roads-check', phase: 'test', tier: 'full', cost: 0, cmd: 'node scripts/audit.mjs --roads --check' },
 ];
 
 // ── 门的**两层化**（#436-a）：引擎门 / 故事门 ──────────────────────────────

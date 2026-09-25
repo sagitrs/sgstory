@@ -1,0 +1,15 @@
+{
+	"slug": "ia-basic",
+	"title": "道具·位点优势最小夹具",
+	"subtitle": "引擎侧最小夹具（`#1315` 乙批）：服务「位点优势单调律」（道具 advSite／advSites ＋ 位点名）",
+	"entry": "门厅",
+	"contractVersion": 1,
+	"audience": "internal",
+	"files": [
+		"stories/ia-basic/00-meta.twee",
+		"stories/ia-basic/passages/01-门厅.md",
+		"stories/ia-basic/15-tables.twee",
+		"stories/ia-basic/17-rules.twee"
+	],
+	"gates": []
+}

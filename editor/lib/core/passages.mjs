@@ -107,13 +107,37 @@ export const danglingProblems = ({ name, body, passages, known }) => {
 	return out;
 };
 
-/** 取值展开：`{{名}}` ∈ valueTerms → twee 占位（运行时由 Game 填充）；∉ → 报（#1048 门侧同判 ——拼装层前置拦）。 */
-export const valueRefExpand = ({ name, body, terms }) => {
+/** 取值展开（`#1350` 片 2 扩为**三段**）：
+ *  ① **本段入参** `{{名}}`（`params`，值由调用处传入）⇒ `<<print_PARAM 名>>`
+ *  ② **落位占位** `{{名}}`（`slot`，运行时由渲染口填）⇒ `<<print_SLOT 名>>`
+ *  ③ **世界态取值**（既有口径，`terms`）⇒ `<<print_V 名>>`
+ * 为什么不合并报错：①②**共用 `{{}}` 命名空间** ⇒ 撞名要**换维**点名（与"缺值"不同形），
+ * 否则读者分不出"该给值而没给"与"两个东西撞了名"（两种病、两种修法）。
+ * 另：**只认本段 `params`**（别人的入参在本段不可见 ⇒ 报）；`required` 无 `default` 且调用处未传 ⇒ 报。 */
+export const valueRefExpand = ({ name, body, terms, params = {}, slot = null, args = null }) => {
 	const problems = [];
+	const pkeys = Object.keys(params ?? {});
+	const slots = new Set([slot].filter(Boolean));
+	for (const n of slots) {
+		if (pkeys.includes(n)) {
+			problems.push('段「' + name + '」的落位占位 {{' + n + '}} 与**入参同名** ⇒ 撞名 ✗（同名会把"该给值"与"该落位"混成一件事）⇒ 二者其一换名');
+		}
+	}
 	const out = String(body).replace(/\{\{([^{}\s]+)\}\}/g, (_, n) => {
-		if (!terms.has(n)) { problems.push(`段「${name}」取值 \`{{${n}}}\` 未在声明面（valueTerms——contract 值语义 ∪ VALUE_LABELS ✓）`); return `{{${n}}}`; }
-		return `<<print_${'V'} ${n}>>`;   // 展开为运行时占位（拼装层不改语义）
+		if (slots.has(n)) return '<<print_SLOT ' + n + '>>';
+		if (pkeys.includes(n)) return '<<print_PARAM ' + n + '>>';
+		if (terms.has(n)) return '<<print_V ' + n + '>>';
+		problems.push('段「' + name + '」的 {{' + n + '}} **不是本段入参、也不是落位、也不在世界态取值面**（本段 params＝' + JSON.stringify(pkeys) + '）⇒ 补声明或改名 ✗');
+		return '<<print_V ' + n + '>>';
 	});
+	for (const [k, spec] of Object.entries(params ?? {})) {
+		if (!spec || spec.required !== true) continue;
+		if (spec.default !== undefined) continue;
+		const given = args != null && Object.prototype.hasOwnProperty.call(args, k);
+		if (!given) {
+			problems.push('段「' + name + '」的入参 ' + k + ' **必填但没给值**（调用处未传、也无 `default`）');
+		}
+	}
 	return { body: out, problems };
 };
 
@@ -134,7 +158,7 @@ export const duplicateProblems = ({ passages = [] } = {}) => {
 };
 
 /** 主拼装：一批 md 段 → 一份 twee 文本（含 front-matter 元数据行）。 */
-export const assemblePassages = ({ passages, known, forbidden = new Set(), terms = new Set() }) => {
+export const assemblePassages = ({ passages, known, forbidden = new Set(), terms = new Set(), data = null }) => {
 	const problems = [];
 	// 先校验（悬空须看全集 → 两遍）
 	problems.push(...duplicateProblems({ passages }));   // `#1114` 2b-2a：重名段（跨源双写）→ 先报
@@ -145,7 +169,10 @@ export const assemblePassages = ({ passages, known, forbidden = new Set(), terms
 	// 再展开+拼装（逐字保留散文文本 只做 {{}} 替换）
 	const chunks = [];
 	for (const p of passages) {
-		const { body: expanded, problems: vp } = valueRefExpand({ name: p.name, body: p.body, terms });
+		// `#1350` 片 2：段落数据（`data/passages.json`，若给）按**段名**取本段 `params`/`slot`/`args`
+		const dseg = (data && typeof data === 'object' ? data[p.name] : null) ?? {};
+		const { body: expanded, problems: vp } = valueRefExpand({ name: p.name, body: p.body, terms,
+			params: dseg.params ?? {}, slot: dseg.slot ?? null, args: dseg.args ?? null });
 		problems.push(...vp);
 		const tags = p.tags ? ` [${p.tags}]` : '';
 		chunks.push(`:: ${p.name}${tags}\n${expanded}`);

@@ -32,10 +32,10 @@
 ```bash
 # 对象：夹具 `test/fixtures/m3-chk-e2e/` 的**整个用例面**（✗ 不是单例）
 SG_STORIES_DIR=test/fixtures/m3-chk-e2e/stories node scripts/case-run.mjs --cases=test/fixtures/m3-chk-e2e/cases
-# 结论（期望读数）：分母 **10**（★报读数必须带分母 ✓）；其中
+# 结论（期望读数）：分母 **10**（★**带对象**：夹具 `test/fixtures/m3-chk-e2e/cases/north-room/` **整个用例面** @ 主干 `0de357e`）（★报读数必须带分母 ✓）；其中
 #   `ending-original` ＝ 四张面里 `visible` ＋ **`absent`** 一起用的那条（断言含「北屋的门，你没有关」**且不含**「北屋的灯，你没有点」✓）
 #   `open-room`／`gated-choice-*` ＝ `edges` 面的正/前后两态 ✓
-# 只想跑单个夹具：`bash test/fixtures/m3-chk-e2e/run.sh`（★内部只跑 `--case=m3-chk-e2e` ⇒ 分母 **1**）
+# 只想跑单个夹具：`bash test/fixtures/m3-chk-e2e/run.sh`（★内部只跑 `--case=m3-chk-e2e` ⇒ 分母 **1**）（★**带对象**：夹具 `m3-chk-e2e` 自带单例 @ 主干 `0de357e`）
 ```
 
 **反例形态（✗ 这样写判不出来）**：

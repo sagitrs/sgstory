@@ -48,11 +48,11 @@
 ## 7.5 [步骤] 可复跑的读数（★带分母）
 
 ```bash
-# 正例与负控都在夹具的用例面里（★分母＝10；写法见下）
+# 正例与负控都在夹具的用例面里（★分母＝10；写法见下）★**带对象**：夹具 `test/fixtures/m3-chk-e2e/cases/north-room/` **整个用例面** @ 主干 `0de357e`
 SG_STORIES_DIR=test/fixtures/m3-chk-e2e/stories node scripts/case-run.mjs --cases=test/fixtures/m3-chk-e2e/cases
 # 期望读数：分母 10 ⇒ 其中 `sitecheck-snapshot`＝正例（断言 `ev.last_roll.site`／`.dc`）、`sitecheck-none`＝负控（没检定就引用 ⇒ 点名/不成立）
 #           另有 `m3-chk-e2e`＝`chk:` 的**端到端格**（判"来源面"那一面 ✓）
-# 只想跑单例：夹具的 `bash test/fixtures/m3-chk-e2e/run.sh`（★它内部只跑 `--case=m3-chk-e2e` ⇒ **分母 1**）
+# 只想跑单例：夹具的 `bash test/fixtures/m3-chk-e2e/run.sh`（★它内部只跑 `--case=m3-chk-e2e` ⇒ **分母 1**）（★**带对象**：夹具 `m3-chk-e2e` 自带单例 @ 主干 `0de357e`）
 ```
 
 **反例形态（✗ 这样写判不出来）**：

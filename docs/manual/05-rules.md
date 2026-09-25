@@ -54,9 +54,9 @@
 # 在引擎仓根：夹具的用例里就有"条件面"的真样本（含 `any` 析取与'先选过才出现'）
 bash test/fixtures/m3-chk-e2e/run.sh
 # 期望读数（实测）：清三层 ⇒ build rc=0 ⇒ 汇总行 `用例 1 条：绿 1 ｜ 预期缺口 0（—）｜ 未归因 0 ｜ 归因无效 0 ｜ 陈旧归因 0 ｜ 未核实 0 ⇒ rc=0`
-#   ★该命令**只跑夹具自带的那一例**（`--case=m3-chk-e2e` ⇒ 分母 1）。要看 `any` 与 `prereq` 的**两态**，跑整个用例面：
+#   ★该命令**只跑夹具自带的那一例**（`--case=m3-chk-e2e` ⇒ 分母 1）（★**带对象**：夹具 `m3-chk-e2e` 自带单例 @ 主干 `0de357e`）。要看 `any` 与 `prereq` 的**两态**，跑整个用例面：
 #      SG_STORIES_DIR=test/fixtures/m3-chk-e2e/stories node scripts/case-run.mjs --cases=test/fixtures/m3-chk-e2e/cases
-#      期望读数：分母 10（`any-none`／`any-second-true`＝`any` 的负/正例；`gated-choice-before/after`＝`prereq` 的前后两态）
+#      期望读数：分母 10（★**带对象**：夹具 `test/fixtures/m3-chk-e2e/cases/north-room/` **整个用例面** @ 主干 `0de357e`）（`any-none`／`any-second-true`＝`any` 的负/正例；`gated-choice-before/after`＝`prereq` 的前后两态）
 ```
 
 **反例形态（✗ 这样写判不出来）**：

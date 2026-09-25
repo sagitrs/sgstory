@@ -1,97 +1,80 @@
-# 迷雾森林 · Twine + SugarCube 脚手架
+# sgstory · Twine + SugarCube 引擎
 
-基于浏览器的文字冒险游戏模板：**Twee 纯文本源码 → 编译成单个 HTML 文件**；剧情用 git 管理，构建走 CLI，也可随时导入 Twine 2 可视化编辑。
-本仓是**一套引擎 ＋ 三个故事**：引擎（`src/`）与故事数据（`stories/<slug>/`）解耦，接入契约见 [`docs/engine-story-boundary.md`](docs/engine-story-boundary.md)。
+**一句话**：一个**通用**的文字冒险引擎 —— **Twee／Markdown 源 → 编译成单文件 HTML**；剧情用 git 管理，构建走 CLI。
 
-**▶ 在线试玩：https://sagitrs.github.io/sgstory/**（push 到 main → 测试通过 → 自动发布）
+> ★**本仓是引擎仓，不与特定故事耦合** ✗：编译器（`build.mjs`／`editor/**`）· 渲染（`src/**`）· 判据与门（`test/**`／`scripts/**`）都在这里；
+> **故事在另一个仓**：[`sagitrs/sgstory-books`](https://github.com/sagitrs/sgstory-books) ✓
+> ⇒ 所以本仓**顶层没有 `stories/`**；要编译某个故事时，用**唯一故事根口** `SG_STORIES_DIR` 指过去 ✓
 
 ## 快速开始
 
 ```bash
 npm install
-npm run build   # 编译 → dist/（index.html + fonts/ 外链子集字体，浏览器直接打开即玩）
-npm run serve   # 本地预览：http://localhost:8000
-npm test        # 全链（~2min）：L0 静态门 → 质量门 → 单测 → 全段渲染 → 冒烟 → 场景 → 覆盖 → 旧存档 → 体积
-npm run soak    # 加量长测（游走器 20+20 局）
-npm run browser # 真浏览器验收（零依赖 CDP，3 视口 × 4 场景 = 24 项）；容器缺系统库时 npm run browser:setup 免 root 就地解包
-npm run audit   # 表驱动审计：每个门都能单独跑（--truth --canon --echoes … --text）；加 --check 是 CI 判定态
-npm run watch   # 修改 src/ 自动重新编译
+npm run build                                  # 编译 → 产物**随故事根**（见下「故事在哪」）
+npm run serve                                  # 本地预览（静态服务 dist/）
+npm test                                       # 全链：PR 档（fast）
 ```
 
-门清单与"每门检什么"见 [`docs/quality-dimensions.md`](docs/quality-dimensions.md)；门的登记/接线见 [`docs/gate-ledger.md`](docs/gate-ledger.md)（生成物）；
-CI 变红时先看 [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)。
+**★"产物随故事根"**：`SG_STORIES_DIR=<故事根>` 时，逐故事产物落 `<故事根>/<slug>/…`、发布产物落 `<故事根>/../dist/`；
+不设它则用**仓内默认 `stories/`**（本仓默认零故事 ⇒ 只跑引擎侧）✓
 
-## 两个故事（＋ 一个测试夹具）
+## 故事在哪（✗ 本仓不放故事）
 
-> ⚠️ **B 段（`#1004`）之后**：`stories/mist-forest/`（迷雾森林）与 `stories/hollow-cave/`（无名洞窟）**已按决策删除** ✗。
-> ⇒ 仓内的**真内容故事**只剩下面 ① 一个 ✗（引擎回归的「真内容样本」从 3 降到 1 ✓ —— 这是收敛的**代价**，不是遗漏 ✓）。
+```
+故事仓：`sagitrs/sgstory-books` —— 每个故事一个包：清单 `00-story.json` ＋ `data/*.json` ＋ `passages/*.md`
+编译：  SG_STORIES_DIR=<故事仓>/stories npm run build
+         ⇒ 逐故事产物 dist/stories/<slug>/index.html ＋ 书架页 dist/index.html
+试玩：  线上书架由**故事仓**发布（本仓不发布故事页）✓
+```
+**上架与否由故事清单里的 `audience` 决定**：`content`＝上架（书架列它）／`internal`＝内部件（不上架 ✓）。
+**怎么写一个故事包**：见手册 [`docs/manual/12-data.md`](docs/manual/12-data.md)（数据面）与 [`docs/manual/README.md`](docs/manual/README.md)（全目录）✓
 
-| 故事 | 目录 | 状态 |
-|---|---|---|
-| ① **夜渡** | `stories/night-ferry/` | **第 4 个故事（P4 用编辑器做出 ✓）**：11 段落 · 6 步路线 · 2 个结局 · 见证轨迹已冻存 |
-| ② 最小示例 | `stories/minimal-demo/` | 接入契约的验证物（引擎不知道故事名；**空声明的对照样本**） |
-| — **测试夹具** | `stories/face-fixture/` | ⚠️ **不是内容故事** ✗：把「仍有真消费者」的接入面接住（段名沿用旧故事，正文全部新写 ✓） |
+## 常用命令（逐条对 `package.json` 实测）
 
-**上架与否由清单里的 `audience` 决定**（`#1035`）：`content`＝上架（用户面书架列它）／`internal`＝内部件（**仍会构建**，供门与测试使用，但**不列书架、不进用户面**）。⚠️ **必须显式声明**——缺字段或取值非法会让构建**直接报错**（fail-loud），免得内部件被静默上架。当前：`night-ferry`＝`content`；`minimal-demo`／`face-fixture`＝`internal`（书架上因此只有《夜渡》一个）。
+| 命令 | 作用 |
+|---|---|
+| `npm run build` | 编译（源 → 单文件 HTML；产物随故事根 ✓） |
+| `npm run watch` | 改 `src/` 自动重编 |
+| `npm run serve` | 本地静态预览 |
+| `npm test` | **全链（PR 档）**：门 → 单测 → 渲染 → 冒烟…（`--tier=fast` ✓） |
+| `npm run test:full` | **full 档**（含重段；nightly 走这一档 ✓） |
+| `npm run test:list` | 列出计划里的段（`test-plan.mjs` 是"跑哪些段"的**唯一权威** ✓） |
+| `npm run test:serial` | 串行跑（排查并发相关问题时用 ✓） |
+| `npm run audit` | 表驱动审计（每个门可单独跑：`--truth`／`--canon`／`--state` …；加 `--check` 是判定态 ✓） |
+| `npm run report:gates` | 门的**台账**（`--update` 重生成；`--check` 判定 ✓） |
+| `npm run soak` | 加量长测（游走器 ＋ 真浏览器 ✓） |
+| `npm run browser` | 真浏览器验收（容器缺系统库时先 `npm run browser:setup` ✓） |
+| `npm run compile:story` | 用**编辑核**编译单个故事（`editor/**` 仍在本仓 ✓） |
+| `npm run equiv:story` | 编辑核的等价性对拍 |
 
-## 知识模型（一句话版）
-
-把「**玩家知道什么**」与「**世界发生了什么**」当**两类存储**分开：能写成「你知道了……」⇒ **笔记**（`Sg.notes.has('n_X')`）；
-只是"发生过／已拥有" ⇒ **世界态**（`world`／`items`）；两者同键 ⇒ **拆成两个键**。
-
-- 完整版（三类划分 ＋ 判定口诀 ＋ 迁移五步 ＋ 层归属）：[`docs/notes-model.md`](docs/notes-model.md) —— **唯一权威**；
-- 故事的机制面（数值系统 ＋ 演示机制）：[`docs/game-mechanics.md`](docs/game-mechanics.md)。
-
-## 去哪里读什么
+## 去哪里读什么（入口都在这三处）
 
 | 我要…… | 去哪 |
 |---|---|
-| **文档全索引**（权威表 ＋ 按任务读） | [`docs/README.md`](docs/README.md) |
-| 仓库目录 / 文件职责 / 层归属 | [`docs/repo-map.md`](docs/repo-map.md) |
-| 引擎功能手册（写故事的人看） | [`docs/manual/README.md`](docs/manual/README.md) |
-| 故事 1 的机制面（数值 ＋ 演示机制） | [`docs/game-mechanics.md`](docs/game-mechanics.md) |
-| 写剧情：接入契约与语法速查 | [`docs/engine-story-boundary.md`](docs/engine-story-boundary.md) · [`docs/manual/03-prose.md`](docs/manual/03-prose.md)（故事 1 的设定/设计遗产已入 [`docs/archive/`](docs/archive/README.md)，`#1077`） |
-| 改引擎：代码级约定 | [`docs/dev-conventions.md`](docs/dev-conventions.md) |
-| 加门 / 测试：判据与作业模板 | [`docs/quality-dimensions.md`](docs/quality-dimensions.md) |
+| **文档总索引**（权威表 ＋ 按任务读） | [`docs/README.md`](docs/README.md) |
+| **引擎功能手册**（写故事的人看；段落／条件／状态／检定／发布…） | [`docs/manual/README.md`](docs/manual/README.md) |
+| **判据设计法则 ＋ 术语表 ＋ 五条路 ＋ 通用纪律 ＋ 代码级约定** | [`docs/criterion-design.md`](docs/criterion-design.md) |
+| 判据册（每条判据的出处与形态） | [`docs/criteria-ledger.md`](docs/criteria-ledger.md) |
+| 门的登记与接线（**生成物** ✗ 不手改） | [`docs/gate-ledger.md`](docs/gate-ledger.md) |
+| 故事/引擎边界与接入契约 | [`docs/engine-story-boundary.md`](docs/engine-story-boundary.md) · [`docs/story2-contracts.md`](docs/story2-contracts.md) |
+| 引擎内部地图（层归属／模块顺序） | `scripts/module-order.mjs`（**代码即权威** ✓） |
 
-## 工程约定（写新门 / 新用例前先读三条）
+CI 变红时先看 [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) ✓
 
-① 新门挂 [`scripts/test-plan.mjs`](scripts/test-plan.mjs)（`package.json` 的 test 只有一行 run-tests）；
-② 选项定位用 `data-choice`＝目标段落名（`c('塔门')`／`clickByKey`，**断言仍写文案**），歧义由 `test/choice-keys.mjs` 静态把住；
-③ 全局只有两个根：`Game.*`（数据/规则）与 `Sg.*`（UI/运行时），新增裸全局会被 `test/globals.mjs` 拦下。
+## 三条硬约定（改门／改用例前先读）
 
-另有两条会咬人的机检纪律（细节见上文 `dev-conventions.md`）：**机制动作只走词汇宏**、状态读取用 `$pc.*` 展示（W1–W3 告警）；
-**数值单一源**——DC/定价/道具效果/命题/回声只许住故事侧表，正文只传位点/事件键（L0 硬拦）。
+① **加段只有一个权威**：`scripts/test-plan.mjs` 的 `SEGMENTS`（`package.json` 的 `test` 只有一行 `node scripts/run-tests.mjs` ✓）
+　⇒ **加一个段要登记六处**（`SEGMENTS`／`SUITE_MEMBERS`／`tier`＋`FULL_REASONS`／`AUDIT_*` 层表／`inputs` 或理由／探针＋预算 ✓）；
+　"**违约会红在哪**"逐条列在 [`docs/criterion-design.md`](docs/criterion-design.md) §五 L4（引的是**门里报文原文** ✓）
+② **定位用稳定 key、断言用文案**：选项定位走 `data-choice`（＝目标段落名派生），✗ 不用中文文案当定位键 ✓
+③ **全局只有两个根**：`Game.*`（数据／规则）与 `Sg.*`（UI／运行时）；新增**裸全局**会被 `test/globals.mjs` 拦下（**白名单腐烂也红** ✓）
 
-## 编辑器与维护
+## 编辑器状况（如实说明）
 
-### （已下架）故事编辑器（WebUI）
-
-> 编辑器入口脚本已随 `#1261` 大裁剪下架（`package.json` 里已无该脚本）；本节只留作历史说明，**✗ 不要照它敲命令**。
-
-```bash
-# 该入口已随 `#1261` 下架（脚本不存在）；要看故事直接构建后用浏览器打开产物
-```
-
-- **为什么必须起服务、不能双击打开**：编辑器页面用 `<script type="module">` 加载 `app.mjs`，而浏览器的模块加载不允许 `file://`；且 `editor/web/app.mjs` 会**跨目录** import `../lib/core/**` ⇒ 服务根**必须是仓根**（只服务 `editor/web/` 会当场断 import）。端口被占用时该命令会**顺延**并打印实际端口。
-- **现在能做什么**：在页面里**选一个故事目录**（含 `00-story.json` 与 `data/` 的那个目录）⇒ 用编辑器内核读包并列出来，逐个面呈现（事件表单／诊断／键级图／读侧／规则行／落点文案）。
-- **⚠️ 现在还不能做什么**（免得被读成"已能用它做出故事"）：**写盘／导出还没接** —— 从页面把故事包保存回磁盘是另一张票（`#1034`，保存形态已定为"导出下载"）。因此它当前是**开发面／内部工具**，不是产品面入口。
-- **产品面 vs 开发面**（口径见 `docs/story-surface-scope.md`）：用户编辑＝使用产品（静态页 ＋ 读入目录 ＋ 导出下载；不依赖 git／Node／本仓）；上传故事＝开发产品（进本仓 `stories/**`，过全部 K 门与基线）。
-
-- **与 Twine 2 配合**：Library → Import 选 `dist/index.html` 可导入可视化编辑；导出 HTML 后用 `npx extwee -d -i 导出的.html -o 反编译.twee` 回到源码。
-- **升级 SugarCube**：换 `vendor/format.js` ＋ 更新**每个故事**的 `00-meta.twee`（如 `stories/night-ferry/00-meta.twee`）里的 `format-version`。
-- **玩家可见正文漂移复核**：`node scripts/ui-migration-diff.mjs`（工作区 vs 基线 → `docs/ui-migration-diff.md`）。
-- **发布**：push 到 main → CI 跑测试 → 构建并自动发布到 GitHub Pages。
+- **编辑核（`editor/lib/core/**`）仍在** ✓：`compile:story`／`equiv:story` 可用 ✓
+- **WebUI 产品线已下架** ✗：原界面入口的脚本已不存在 ⇒ 要看故事请**构建产物**后用浏览器打开 ✓
+- 沿革与细节：`docs/dev-conventions-cases.md`（案例册，按条号检索 ✓）
 
 ## 许可与来源
 
-| 部分 | 许可证 | 文件 |
-|---|---|---|
-| 代码（构建脚本、自定义宏、样式） | MIT | [LICENSE](LICENSE) |
-| 剧情文本与游戏内容（叙事、角色、结局） | CC BY 4.0 | [LICENSE-CONTENT.md](LICENSE-CONTENT.md) |
-| SugarCube 2（引擎，vendor 并嵌入产物） | BSD-2-Clause（© Thomas Michael Edwards） | [NOTICE](NOTICE) |
-| 霞鹜文楷 LXGW WenKai（正文字体，子集内嵌） | SIL OFL 1.1（© lxgw） | [NOTICE](NOTICE) |
-| D&D SRD 5.2（规则数值来源） | CC BY 4.0（© Wizards of the Coast） | [NOTICE](NOTICE) |
-| extwee / jsdom（仅开发期） | MIT | [NOTICE](NOTICE) |
-
-第三方项目鸣谢与外部参考资源：[`docs/credits.md`](docs/credits.md)。
+见 [`docs/credits.md`](docs/credits.md)（许可与第三方来源；含 SugarCube／字体等 ✓）。

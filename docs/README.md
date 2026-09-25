@@ -8,7 +8,7 @@
 | 我要…… | 先读 | 再读 |
 |---|---|---|
 | 改引擎 / 机制 | `docs/dev-conventions.md` | `docs/repo-map.md` · `docs/engine-story-boundary.md` |
-| 加 / 改门与测试 | `docs/quality-dimensions.md` | `docs/gate-ledger.md` · `docs/ui-coverage-gaps.md` |
+| 加 / 改门与测试 | `docs/quality-dimensions.md` | **`docs/criterion-design.md`**（判据设计法则 ＋ 术语表 ＋ 五条路 ＋ 变更与归档：加段登记哪几处、违约红在哪） · `docs/gate-ledger.md` · `docs/ui-coverage-gaps.md` |
 | 要把手写 `<<if>>` 搬进条件表 | **`docs/rules-table-guide.md`**（决策树＋踩坑） | `docs/dev-conventions.md` §11–§12（形状正典） |
 | 写 / 改剧情（现存故事，如 `night-ferry`） | `docs/engine-story-boundary.md`（接入契约） | `stories/night-ferry/`（含 `EDITOR-SESSION.md`）· `docs/manual/03-prose.md` |
 | 做质量评审 | `docs/quality-dimensions.md`（§一 方法 · §四 作业模板） | `docs/reviews/`（走查/评审存档，非权威） |
@@ -26,6 +26,7 @@
 |---|---|---|
 | 知识模型（笔记 / 世界态 / 运行时） | `docs/notes-model.md` | 手写 |
 | 质量维度与每门判据 | `docs/quality-dimensions.md` | 手写 |
+| **判据设计法则与流程语言**（总法则／术语／五条路／通用纪律／变更与归档） | **`docs/criterion-design.md`** | 手写（**术语与登记面指回代码** ✓） |
 | 代码级约定（渲染路径 / 构建顺序 / 命名 / 条件表形状） | `docs/dev-conventions.md` | 手写 |
 | 引擎与故事的边界、故事接入契约 | `docs/engine-story-boundary.md` · `docs/story2-contracts.md` | 手写 |
 | 故事面范围（**必需／可选／不做**，编辑器暴露哪些面） | `docs/story-surface-scope.md` | 手写 |

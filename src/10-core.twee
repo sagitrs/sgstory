@@ -503,7 +503,18 @@ window.Sg.capability = (group) => {
 <</widget>>
 
 <<widget "damage">><<nobr>>
-	<<set $pc.hp to Math.max(0, $pc.hp - $args[0])>>
+	/% `#1409`：**参数校验（fail-loud）** —— 非有限数 ⇒ **点名**（✗ 不许静默产 NaN：
+	   实测病灶：散文里反引号包宏 ⇒ `<<damage>>` **空参执行** ⇒ `$args[0]=undefined` ⇒
+	   `Math.max(0, hp - undefined)` ⇒ **NaN**（hp 是 number 型的 NaN ⇒ 类型检查挡不住 ✗）） %/
+	/% `#1409`：**一次算完校验 ＋ 结算** —— ✗ 不用"先 if 再 set"两行：SugarCube 里 `<<run>>` 抛错
+	   **不中止**后续宏（实测：报文出来了、`<<set>>` 仍执行 ⇒ hp 照样 NaN ✗）⇒ 必须在**同一表达式内**兜住：
+	   非有限数 ⇒ 抛（fail-loud，✗ 不静默产 NaN）） %/
+	<<set $pc.hp to Math.max(0, (function () {
+		const n = $args[0];
+		if (!Number.isFinite(n)) throw new Error("「damage」需要一个数字参数（实得 " + String(n)
+			+ "）——空参／非数会静默把 hp 变 NaN ✗");
+		return $pc.hp - n;
+	})())>>
 	<<if $pc.salves gt 0 and $pc.hp gt 0 and ($pc.max_hp - $pc.hp) gte 4>>
 		<<set $pc.salves to $pc.salves - 1>>
 		<<set $pc.hp to $pc.hp + 4>>

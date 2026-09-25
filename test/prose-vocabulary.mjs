@@ -241,6 +241,12 @@ export const passagesFaceProblems = ({ slug, data = {}, files = [] } = {}) => {
 					out.push({ code: 'P1', msg: `${f.path}:${line} 正文里出现**链接** \`[[…]]\`（段落「${p.name}」）—— 改制后**链接一律进 \`links[]\`**（散文＝纯模板 ✗ 零链接）` });
 				if (/\{\{=/.test(text))
 					out.push({ code: 'P2', msg: `${f.path}:${line} 正文里出现**表达式占位** \`{{= …}}\`（段落「${p.name}」）—— \`{{}}\` 只许**入参名**（值由调用处传入 ✗ 不许现算）` });
+				// ★ `#1409`（P5）：**散文里"反引号包宏" ⇒ 点名** —— SugarCube 的反引号是**代码**标记 ⇒ 会**真执行**
+				//   （作者语义是"提及"、引擎语义是"执行" ✗ ⇒ 同形不同义）。实测病灶：散文写反引号包 `<<damage>>` ⇒
+				//   宏以**空参执行** ⇒ `Math.max(0, hp - undefined)` ⇒ **NaN**（静默数值坏 ✗）
+				for (const m of text.matchAll(/`[^`]*<<\s*[A-Za-z][^>]*>>[^`]*`/g)) {
+					out.push({ code: 'P5', msg: `${f.path}:${line} 正文里出现**反引号包着的宏**（${m[0].slice(0, 40)}…）—— 反引号是 SugarCube 的**代码标记 ⇒ 会真执行**（✗ 不是"提及"）⇒ 去掉反引号，或用转义写法把它当纯文本 ` });
+				}
 				for (const m of text.matchAll(/\{\{\s*([^}=][^}]*?)\s*\}\}/g)) {
 					const nm = m[1];
 					if (Object.prototype.hasOwnProperty.call(params, nm) || slots.has(nm)) continue;
@@ -365,6 +371,11 @@ const selftest = () => {
 		// P2 零表达式
 		t('🔴 改制面·P2 反例：正文含 `{{= 1+1}}` ⇒ **P2**（`{{}}` 只许入参名）',
 			passagesFaceProblems({ slug: 'd', data: D(), files: mkP('值＝{{= 1+1}}') }).some((q) => q.code === 'P2'));
+		// ★ `#1409`·P5：**反引号包宏 ⇒ 会真执行**（✗ 不是"提及"）
+		t('🔴 改制面·P5 反例：正文含反引号包 `<<damage>>` ⇒ **P5**（SugarCube 会真执行它 ✗）',
+			passagesFaceProblems({ slug: 'd', data: D(), files: mkP('（用 `<<damage>>` 归零时跳）。') }).some((q) => q.code === 'P5'));
+		t('改制面·P5 正例：**不带反引号**的普通散文（含 `<<` 字面被转义）⇒ **不报** ✓',
+			!passagesFaceProblems({ slug: 'd', data: D(), files: mkP('（用 damage 归零时跳）。') }).some((q) => q.code === 'P5'));
 		// P3 铭名换维（与"缺值"不同形）
 		t('🔴 改制面·P3 撞名（**换维**）：`links[].slot` 与同段 `params` 同名 ⇒ P3 且报"撞名"',
 			(() => { const qs = passagesFaceProblems({ slug: 'd', data: D({ params: { 靴子口: { type: 'string' } }, links: [{ label: '看', to: '门厅', slot: '靴子口' }] }), files: mkP('x') });

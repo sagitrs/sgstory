@@ -100,6 +100,21 @@ export const analyzeMarkdown = (text, { file = '<mem>' } = {}) => {
 
 const PATH_ROOTS = 'src|stories|scripts|test|docs|vendor';
 /** 反引号里的仓内路径（含通配）＋可选的同行豁免标记。 */
+/** `#1362` 族第 4 例（竞态）：**列到清单、但读的那一刻它已消失** ⇒ 跳过并记名（`read` 注入 ⇒ 自证能假）。
+ * 现场：`test/untracked-guard.mjs` 的端到端格会**临时 `git add` 一个夹具 md** 再删 ⇒ 并发的本门
+ * `ls-files '*.md'` 会在**那个短窗口内**列到它 ⇒ 直接 `readFileSync` ⇒ `ENOENT` ✗
+ * （实测：与本件并发 12 轮命中 1 次；把夹具名改成"每次唯一"**治不了**它 ⇒ 真因是 **TOCTOU** ✗ 不是重名）。
+ * 口径：**跳过并出声**（✗ 不算门失败、✗ 不静默 —— "列名单"与"读"是两个时点）。 */
+export const readAlive = (files = [], read = () => '') => {
+	const texts = [];
+	const vanished = [];
+	for (const f of files) {
+		try { texts.push({ f, text: read(f) }); }
+		catch { vanished.push(f); }
+	}
+	return { texts, vanished };
+};
+
 export const PATH_REF = new RegExp('`((?:' + PATH_ROOTS + ')/[A-Za-z0-9_./\\-*]+\\.(?:twee|mjs|js|md|json|css))`', 'g');
 export const PATH_EXEMPT = /<!--\s*path-exempt:\s*([^*]*?)-->/;
 
@@ -193,6 +208,12 @@ const main = () => {
 		['F4 边界：同名文件全仓都没有（设计稿里"新增"的模块）⇒ 不判红、只登记', checkPathRefs('新增 `scripts/audit/discovery.mjs`', { exists: () => false }).problems.length === 0 && checkPathRefs('新增 `scripts/audit/discovery.mjs`', { exists: () => false }).planned.length === 1],
 		['F4 边界：能通配到的路径 ⇒ 不报', checkPathRefs('见 `src/*.twee`', { exists: () => false, globMatches: () => ['src/10-core.twee'] }).problems.length === 0],
 		['F4 边界：同行豁免标记 ⇒ 不报且留痕', checkPathRefs('原 `src/15-tables.twee` <!-- path-exempt: 搬家前的位置 -->', { exists: () => false }).exemptions.length === 1],
+		['🔴 竞态：**列到但读不到** ⇒ 跳过并记名（✗ 不抛、✗ 不静默）',
+			(() => { const r = readAlive(['a.md', 'gone.md'], (f) => { if (f === 'gone.md') throw new Error('ENOENT'); return '# ok\n'; });
+				return r.texts.length === 1 && r.texts[0].f === 'a.md' && r.vanished.length === 1 && r.vanished[0] === 'gone.md'; })()],
+		['🔴 竞态 正例：读得到就**不该**被记进 vanished（✗ 不误伤正常件）',
+			(() => { const r = readAlive(['a.md', 'b.md'], () => '# ok\n');
+				return r.texts.length === 2 && r.vanished.length === 0; })()],
 		['🔴 F5：表块 ⇒ 空行 ⇒ 又见 `|` 行 ⇒ **判红并点名两处行号**（`#973` 的真形态）',
 			analyzeMarkdown('| a |\n| - |\n| b |\n\n| c |\n').problems.some((p) => p.includes('L1-L3') && p.includes('L5') && p.includes('同一张表'))],
 		['F5 正例：**并列两张表**（空行 ＋ **新表头 ＋ 分隔行**）⇒ 不报（`docs/game-outline.md` 的真形态 ⇒ 第一版在此**假阳性** ✗）',
@@ -214,16 +235,20 @@ const main = () => {
 
 	// ── 真扫：全仓 `*.md` ──
 	const files = allMarkdown();
+	// ★ 竞态（`#1362` 族第 4 例，实测）：列清单之后、读到某件之前它可能**已消失** ⇒ 见 `readAlive` 头注。
+	const alive = readAlive(files, (f) => readFileSync(join(ROOT, f), 'utf8'));
+	const vanished = alive.vanished;
 	let oddFiles = 0, inFenceFiles = 0;
-	for (const f of files) {
-		const r = analyzeMarkdown(readFileSync(join(ROOT, f), 'utf8'), { file: f });
+	for (const { f, text } of alive.texts) {
+		const r = analyzeMarkdown(text, { file: f });
 		if (r.odd) oddFiles++;
 		if (r.odd && r.headingsInFence.length) inFenceFiles++;  // 只在**奇偶错位**的文件里才算'被吞'
-		for (const p of [...r.problems, ...conflictMarkerProblems(readFileSync(join(ROOT, f), "utf8"), { file: f })]) { bad++; console.error(`  ✗ ${p}`); }
+		for (const p of [...r.problems, ...conflictMarkerProblems(text, { file: f })]) { bad++; console.error(`  ✗ ${p}`); }
 	}
 	const leaked = files.filter((f) => /^(?:build|dist|node_modules|tmp|\.cache)\//.test(f));
 	if (leaked.length) { bad++; console.error(`  ✗ 清单里混进了 gitignored 目录：${leaked.slice(0, 3).join('、')}——本门只许扫 git 跟踪的文档（#617）`); }
 	console.log(`      扫描 ${files.length} 个 md（**git 跟踪**，天然排除 build/ 等 gitignored 目录）：围栏奇数 ${oddFiles} 个 · 有标题被吞 ${inFenceFiles} 个`);
+	if (vanished.length) console.log(`      · 竞态跳过 ${vanished.length} 件（列清单后消失 —— 并发段临时件，✗ 不算门失败）：${vanished.slice(0, 3).join('、')}`);
 
 	// ── `#1089`（裁定乙′）：**未跟踪的 `*.md` → 红** —— 本门扫面＝`git ls-files '*.md'` → 未跟踪的
 	// `*.md` **连 F6（残留冲突标记）都看不见它** → 那是**假绿**（`#1019`／`#1028` 同族）。
@@ -247,8 +272,7 @@ const main = () => {
 	const globMatchesInRepo = (p) => (p.includes('*') ? globSync(p, { cwd: ROOT }) : []);
 	const basenameIndex = new Set([...tracked].map((p) => p.split('/').pop()));
 	let pathRefs = 0, pathBad = 0, exempted = 0, plannedPaths = 0;
-	for (const f of files) {
-		const text = readFileSync(join(ROOT, f), 'utf8');
+	for (const { f, text } of alive.texts) {
 		pathRefs += [...text.matchAll(PATH_REF)].length;
 		const r = checkPathRefs(text, { file: f, exists: existsInRepo, globMatches: globMatchesInRepo, basenameExists: (p) => basenameIndex.has(p.split('/').pop()) });
 		pathBad += r.problems.length;

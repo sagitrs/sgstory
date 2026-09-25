@@ -94,6 +94,39 @@ const selftest = () => {
 		(() => { const r = valueRefExpand({ name: 'A', body: '{{p}}', terms: T, params: { p: { required: true, default: 'x' } } });
 			return r.problems.length === 0; })());
 
+	// ── `#1350`／`#1368`：**"不许烘值"**（占位符展开的真牙 ①）──────────────────────
+	// 背景（靶暴露）：`门厅.推门` 与 `侧厅.左门` **都传** `提醒:"别进屋"` ⇒ **同值** ⇒
+	//   "**编译期烘值**"与"**运行期取值**"产出**一模一样** ✗ ⇒ 当时**不可分辨**。
+	// ⇒ 本格把"值不许在编译期烘进产物"变成可判：**产物 body 里不得出现该值字面** ✓
+	//   （配套的另一半＝**渲染文本里必须出现该值**，由 `② 渲染面` 承担 ⇒ 两条各自能咬、✗ 互不替代 ✓）
+	{
+		const data = { 里屋: { params: { 提醒: { type: 'string', required: true } }, links: [] } };
+		const passages = [{ name: '里屋', tags: [], body: '纸上写着：{{提醒}}。' }];
+		const r = assemblePassages({ passages, known: new Set(), data });
+		t('① 占位符**不烘值**：产物 body 里是 `<<print_PARAM 提醒>>`（含占位 ✓）',
+			/<<print_PARAM 提醒>>/.test(r.twee));
+		t('① 占位符**不烘值**：产物 body 里**不含**任何 `args` 值字面（`别进屋` ✗）',
+			!r.twee.includes('别进屋'));
+
+		// **能假**：注入一个"把值烘进 body"的实现（模拟编译期取值）⇒ 上述断言**必红** ✓
+		const bake = (name, body) => body.replace(/\{\{提醒\}\}/g, '别进屋');
+		const baked = { twee: `:: ${'里屋'} []\n` + bake('里屋', passages[0].body) };
+		t('① 能假：若把值烘进 body ⇒ "不含值字面"那格**当场红** ✓',
+			!baked.twee.includes('别进屋') === false);
+	}
+	// ── `#1350`／`#1368`：**渲染面**（② 取值链没断）———————————————
+	// 形态：走**真入口**（`passages/*.md` → 拼装 → build → 渲染）才判得了 ⇒ 现网**还没有**那条链路
+	//   （`build.mjs` 调 `assemblePassages` 时**没传 `data`** ⇒ 新形态故事 build 不过 ⇒ 渲染无从谈起）
+	// ⇒ 按"零故事态／外根"同规：**前提不成立 ⇒ 出声"未判"**（✗ 不许静默绿 ✗ 也不许假红 ✓）
+	{
+		const chainReady = process.env.SG_NEW_FORM_BUILD === '1';
+		if (!chainReady) {
+			console.log('  ○ 未判：**渲染面**（② 值由 `args` 传入 ⇒ 渲染文本含该值）需要"新形态 build ＋ 渲染"链路，'
+				+ '现网未通（`build.mjs` 未传 `data` ⇒ 新形态 build 不过）⇒ 本格未判（✗ 不静默绿）');
+		} else {
+			t('② 渲染面：渲染文本里**必须出现**该值（取值链没断）', false);   // 链路通后由真跑替换
+		}
+	}
 	if (bad) { console.error(`\n✗ 拼装层自证失败 ${bad} 项`); process.exit(1); }
 	console.log('\n✔ 拼装层自证通过（正例+禁则红+具名放行+悬空点名+取值展开+逐字保留+front-matter+单一权威）');
 	process.exit(0);

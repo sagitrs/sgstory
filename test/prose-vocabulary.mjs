@@ -192,6 +192,60 @@ export const proseVocabProblems = ({ slug, files, vocab }) => {
 	return out;
 };
 
+// ── `#1234`／`#1350`：**改制面**（`data/passages.json` 存在的故事）的四条判据 ──────────
+// **面（必须机械可判）**：`面 ＝ { s ｜ storySlugs() 里有 s 且 `<s>/data/passages.json` 存在 }`。
+//注意：**"不在面内" ≠ "下架/欠账"** —— 旧形态故事按定义**不在面内**（**阶段未到** ✗ 不是欠账 ✗ 不是豁免）⇒ 用**存在性**定面。
+// 四条（锚名权威＝`#1234` 冻结 schema）：P1 零链接／P2 零表达式／P3 入参声明齐全＋撞名／P4 无悬空＋必填实参。
+/** **纯函数**：给定一个改制面故事的数据面与散文件 ⇒ 问题列表。 */
+export const passagesFaceProblems = ({ slug, data = {}, files = [] } = {}) => {
+	const out = [];
+	const keys = new Set(Object.keys(data));
+	const seg = (n) => data[n] ?? {};
+	// ── 数据面：P4 无悬空 ＋ 必填实参（args × 目标段 params）
+	const reqNames = (n) => Object.entries(seg(n).params ?? {})
+		.filter(([, d]) => d && d.required === true).map(([k]) => k);
+	const slotNames = (n) => new Set((seg(n).links ?? []).map((l) => l.slot).filter(Boolean));
+	for (const name of keys) {
+		const s0 = seg(name);
+		const params = s0.params ?? {};
+		// P3（撞名）：`slot` 与 `params` **同一 `{{}}` 命名空间** ⇒ 撞名则红（**换维**：命名冲突 ≠ 缺值）
+		for (const sl of slotNames(name))
+			if (Object.prototype.hasOwnProperty.call(params, sl))
+				out.push({ code: 'P3', msg: `${slug}：段「${name}」的 \`links[].slot\` 名 \`${sl}\` 与**同段 \`params\`** 撞名（同一 \`{{}}\` 命名空间 ✗）—— 改其中一个名` });
+		for (const l of s0.links ?? []) {
+			const to = l?.to;
+			if (typeof to !== 'string' || !keys.has(to)) {
+				out.push({ code: 'P4', msg: `${slug}：段「${name}」的链接 \`${l?.label ?? '?'}\`（id=${l?.id ?? '—'}）指向**不存在的段** \`${to ?? '?'}\`（\`links[].to\` 必须落在 \`passages.json\` 的键集合里）` });
+				continue;
+			}
+			const given = new Set(Object.keys(l.args ?? {}));
+			const miss = reqNames(to).filter((k) => !given.has(k));
+			if (miss.length)
+				out.push({ code: 'P4', msg: `${slug}：段「${name}」→「${to}」的 \`args\` 缺**必填**入参 \`${miss.join('、')}\`（目标段 \`params\` 声明 required；给了的：${[...given].join('、') || '无'}）` });
+		}
+	}
+	// ── 正文面：P1 零链接／P2 零表达式／P3 入参声明齐全
+	for (const f of files) {
+		for (const p of passagesOf(f.text, f.path)) {
+			if (p.tags.some((t) => ['script', 'widget', 'stylesheet'].includes(t))) continue;
+			const params = seg(p.name).params ?? {};
+			const slots = slotNames(p.name);
+			for (const { text, line } of stripCommentSpans(p.bodyLines)) {
+				if (/\[\[/.test(text))
+					out.push({ code: 'P1', msg: `${f.path}:${line} 正文里出现**链接** \`[[…]]\`（段落「${p.name}」）—— 改制后**链接一律进 \`links[]\`**（散文＝纯模板 ✗ 零链接）` });
+				if (/\{\{=/.test(text))
+					out.push({ code: 'P2', msg: `${f.path}:${line} 正文里出现**表达式占位** \`{{= …}}\`（段落「${p.name}」）—— \`{{}}\` 只许**入参名**（值由调用处传入 ✗ 不许现算）` });
+				for (const m of text.matchAll(/\{\{\s*([^}=][^}]*?)\s*\}\}/g)) {
+					const nm = m[1];
+					if (Object.prototype.hasOwnProperty.call(params, nm) || slots.has(nm)) continue;
+					out.push({ code: 'P3', msg: `${f.path}:${line} 正文占位 \`{{${nm}}}\`（段落「${p.name}」）**未在本段 \`params\` 声明**，也不是本段 \`links[].slot\` 名 ⇒ 取不到值` });
+				}
+			}
+		}
+	}
+	return out;
+};
+
 // ── 自证（纯合成输入，不碰真磁盘）────────────────────────────────────────
 // ── `#1051`②：**可注入纯函数**（㊱：攻击面落在判据上，不落现实 —— 自证喂入参即可判）──────────
 /** **在树上却不在清单里**的故事件（`00-story.json` 的 `files` 为准）。注意：本票的由来：`00-meta2.twee`
@@ -281,6 +335,47 @@ const selftest = () => {
 		untrackedScannedProblems({ untracked: ['src/99-new.twee'], isScanned: (f) => f.endsWith('.twee') }).problems.length === 1);
 	t('未跟踪·临时夹具 ⇒ **不算"忘了 add"**（并发段运行期自造 ✓ 不误咬 ✓）',
 		untrackedScannedProblems({ untracked: ['stories/x/__e2e.twee'], isScanned: (f) => f.endsWith('.twee') }).problems.length === 0);
+	// ── `#1234`／`#1350`：**改制面四条 ＋ 三格能假**（✗ 三格红形态各不相同）────────
+	// 说明：本组是**纯函数**自证（`passagesFaceProblems` 喂合成输入 ⇒ 不碰真磁盘、✗ 不依赖靶能否 build ✓）
+	{
+		const SEG = { name: '门厅', path: 'stories/demo/passages/01-门厅.md' };
+		const mkP = (body) => [{ path: SEG.path, text: `---\npassage: 门厅\ntags: []\n---\n${body}\n` }];
+		// ★ 合成输入必须用**真形态**（`passages/` 下的 md ＝ `---` 围栏 front-matter 一段一文件）——
+		//   我第一版漏了围栏 ⇒ md 走 twee 解析器 ⇒ 段名变成**文件名** ⇒ 「未在本段 params 声明」的**假红** ✗
+		//   （教训同族：**自证喂的合成输入也要与真形态同形**，否则格的结论指向它自己 ✗）
+		const D = (o = {}) => ({ 门厅: { params: {}, links: [], present: '菜单', prio: 1, prereq: [], ...o } });
+		// P1 零链接
+		t('🔴 改制面·P1 反例：正文含 `[[标签|目标]]` ⇒ **P1**（链接一律进 `links[]`）',
+			passagesFaceProblems({ slug: 'd', data: D(), files: mkP('河边。\n[[上船|船头]]') }).some((q) => q.code === 'P1'));
+		t('改制面·P1 正例（能假的另一半）：正文无链接 ⇒ 无 P1 ✓',
+			!passagesFaceProblems({ slug: 'd', data: D(), files: mkP('河边。') }).some((q) => q.code === 'P1'));
+		// P2 零表达式
+		t('🔴 改制面·P2 反例：正文含 `{{= 1+1}}` ⇒ **P2**（`{{}}` 只许入参名）',
+			passagesFaceProblems({ slug: 'd', data: D(), files: mkP('值＝{{= 1+1}}') }).some((q) => q.code === 'P2'));
+		// P3 铭名换维（与"缺值"不同形）
+		t('🔴 改制面·P3 撞名（**换维**）：`links[].slot` 与同段 `params` 同名 ⇒ P3 且报"撞名"',
+			(() => { const qs = passagesFaceProblems({ slug: 'd', data: D({ params: { 靴子口: { type: 'string' } }, links: [{ label: '看', to: '门厅', slot: '靴子口' }] }), files: mkP('x') });
+				return qs.some((q) => q.code === 'P3' && /撞名/.test(q.msg)); })());
+		t('🔴 改制面·P3 未声明占位（**与撞名不同因**）：`{{未见名}}` ⇒ P3 且报"未在本段 params 声明"',
+			(() => { const qs = passagesFaceProblems({ slug: 'd', data: D(), files: mkP('看 {{未见名}}') });
+				return qs.some((q) => q.code === 'P3' && /未在本段/.test(q.msg)); })());
+		t('改制面·P3 正例：`{{名}}` 是本段 `params` 或 `slot` ⇒ **不报** ✓',
+			passagesFaceProblems({ slug: 'd', data: D({ params: { 提醒: { type: 'string' } }, links: [{ label: '看', to: '门厅', slot: '靴子口' }] }), files: mkP('看 {{提醒}} 与 {{靴子口}}') }).length === 0);
+		// P4 无悬空 ＋ 必填实参（分形）
+		t('🔴 改制面·P4 悬空：`links[].to` 不在键集 ⇒ P4（点名 to ＋ 来源段）',
+			passagesFaceProblems({ slug: 'd', data: D({ links: [{ label: '走', to: '不存在的段' }] }), files: mkP('x') }).some((q) => q.code === 'P4' && /不存在的段/.test(q.msg)));
+		t('🔴 改制面·P4 漏必填 `p`：目标段 `required` 而 `args` 没给 ⇒ P4 且**点名缺的名**',
+			(() => { const data = D({ links: [{ label: '走', to: '里屋' }] }); data['里屋'] = { params: { p: { type: 'string', required: true } }, links: [] };
+				return passagesFaceProblems({ slug: 'd', data, files: mkP('x') }).some((q) => q.code === 'P4' && /缺\*\*必填\*\*入参 \`p\`/.test(q.msg)); })());
+		t('🔴 改制面·P4 给了 `p` 漏 `q`：**同形不同因**（缺的名不同）⇒ 仍 P4 且点名 `q`',
+			(() => { const data = D({ links: [{ label: '走', to: '里屋', args: { p: 'x' } }] });
+				data['里屋'] = { params: { p: { type: 'string', required: true }, q: { type: 'string', required: true } }, links: [] };
+				return passagesFaceProblems({ slug: 'd', data, files: mkP('x') }).some((q) => q.code === 'P4' && /q/.test(q.msg)); })());
+		t('改制面·P4 正例：必填都给 ⇒ 无 P4 ✓',
+			(() => { const data = D({ links: [{ label: '走', to: '里屋', args: { p: 'x' } }] });
+				data['里屋'] = { params: { p: { type: 'string', required: true } }, links: [] };
+				return !passagesFaceProblems({ slug: 'd', data, files: mkP('x') }).some((q) => q.code === 'P4'); })());
+	}
 	if (bad) { console.error(`\n✗ 词汇门自证失败 ${bad} 项`); process.exit(1); }   // `#1124` 评审阻断修：所有格先跑完再判退（格红进退出码）
 	console.log('\n✔ 自证通过（词汇抽取 ＋ 允许面 ＋ 逻辑/表达式/未宣告三类反例 ＋ 注释/段落豁免）');
 	process.exit(0);
@@ -299,6 +394,33 @@ const vocab = engineVocab(vocabFiles.map((f) => readFileSync(absPath(f), 'utf8')
 // 漏判＝判据变松而无人知道）。**仅当判据的不变量本身就是「入库/跟踪状态」时才用 git 面**：
 // 本门确有一处属后者（下方「未跟踪件 → 提醒」那一段），它已单独说明理由，故保留 git 面。
 const stories = storySlugs();
+// ── `#1234`／`#1350`：**改制面**四条（面＝"有 `data/passages.json` 的故事"）───────────────
+// 面（机械可判，✗ 不靠"我知道哪些是新的"）：`storySlugs()` 里有 s 且 `<s>/data/passages.json` 存在
+//注意：本段**只读声明源**（`passages.json` ＋ `passages/*.md`）⇒ ✗ 不依赖 `npm run build`；
+// 它必须在 `#1133` 前置守卫**之前**跑（否则"生成物缺席"会先 exit(2)，本段永远判不到 ✓）。
+//注意：此处用**本段自己的数组** `faceProblems`（`problems` 在其后声明 —— 直接用会 TDZ 崩 ✓ 实测踩过）。
+let faceProblems = [];
+{
+	const storiesForFace = storySlugs();
+	const face = storiesForFace.filter((sl) => existsSync(absPath(`stories/${sl}/data/passages.json`)));
+	if (face.length === 0) {
+		// **空面必须出声**（承"空面必红"）：改制面被清空（靶被挪走）不许看起来像"一切都好" ✗
+		console.log('○ 未判：改制面内 0 个故事（未改制／靶缺席）⇒ `data/passages.json` 四条未判（不计红 ✓，✗ 也不静默绿）');
+	} else {
+		for (const sl of face) {
+			const data = JSON.parse(readFileSync(absPath(`stories/${sl}/data/passages.json`), 'utf8'));
+			// 源面只取**读得到的**声明件（`passages/` 下的 md；✗ 不读生成物）——生成物缺席不影响本段判据
+			const onDisk = sourcesUnder(`stories/${sl}`).filter((x) => isStoryPassageMd(x));
+			let declared = [];
+			try { declared = (JSON.parse(readFileSync(absPath(`stories/${sl}/00-story.json`), 'utf8')).files ?? []); } catch { declared = []; }
+			const paths = [...new Set([...onDisk, ...declared.filter((x) => x.endsWith('.twee') && existsSync(absPath(x)))])];
+			const files = paths.map((x) => ({ path: x, text: readFileSync(absPath(x), 'utf8') }));
+			faceProblems = faceProblems.concat(passagesFaceProblems({ slug: sl, data, files }));
+		}
+		console.log(`改制面（有 \`data/passages.json\`）：${face.length} 个故事（${face.join('、')}）｜四条判据命中 ${faceProblems.length} 项`);
+	}
+}
+
 // `#1133` ⭐ **第二站点**：**产物缺失 → 报"先跑 `npm run build`"**（不许裸 ENOENT 崩）
 // 本件按清单读**声明件**，其中含**生成物**（家族谓词见 `editor/lib/core/generated-family.mjs` → gitignored）
 // → 未 build 时它们不在树 → `readFileSync` 裸 ENOENT → 读者读不出"该先 build"
@@ -318,6 +440,7 @@ const stories = storySlugs();
 	}
 }
 let problems = [];
+// 改制面四条的命中并入主汇总（本段跑在其前 ⇒ 用已收集的数组 ✓）
 let exempt = [];
 const judgedSlugs = [];
 const allJudgedFiles = [];
@@ -401,6 +524,7 @@ if (judgedSlugs.length === 0) {
 	process.exit(1);
 }
 console.log(`词汇表（引擎宣告，现抽）：${vocab.size} 个 ｜ 受判故事 ${judgedSlugs.length} 个（${judgedSlugs.join('、') || '无'}）｜ 内部件豁免 ${exempt.length} 个（${exempt.join('、') || '无'}）`);
+problems = problems.concat(faceProblems);
 if (problems.length) {
 	console.error(`✗ 散文词汇门未通过 ${problems.length} 项：`);
 	for (const p of problems) console.error(`    [${p.code}] ${p.msg}`);

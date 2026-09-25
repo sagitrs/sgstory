@@ -103,30 +103,8 @@ const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }
 	ok(s3.hp === 9 && s3.salves === 0, `库存空：不再回血（9/14）（实际 ${s3.hp}/${s3.salves}）`);
 }
 
-// ── D. 车卡不变量：专家模式 3 轮随机选（种子化）──
-{
-	let seed = 31337;
-	const rng = () => { seed ^= seed << 13; seed >>>= 0; seed ^= seed >> 17; seed >>>= 0; seed ^= seed << 5; seed >>>= 0; return seed / 0xffffffff; };
-	let shapeBad = 0;
-	const runs = [];
-	for (let run = 0; run < 6; run++) {
-		w.eval('SugarCube.State.variables.pc = Game.Pc.defaults()');
-		for (let r = 0; r < 3; r++) {
-			const n = w.eval(`Game.Chargen.rounds[${r}].options.length`);
-			w.eval(`Game.Chargen.pick(${r}, ${Math.floor(rng() * n)})`);
-		}
-		const p = JSON.parse(w.eval('JSON.stringify(SugarCube.State.variables.pc)'));
-		runs.push(`${p.classKey}/${p.bgKey}/${p.speciesKey}`);
-		if (p.round !== 3) shapeBad++;
-		if (p.hp !== p.max_hp || !(p.max_hp > 0)) shapeBad++;
-		if (new Set(p.skills).size !== p.skills.length) shapeBad++;
-		if (p.picked.length !== 3) shapeBad++;
-		if (Object.values(p.abilities).some((v) => v < 8 || v > 20)) shapeBad++;
-		if (!p.classLabel || !p.bgLabel || !p.speciesLabel) shapeBad++;
-	}
-	ok(shapeBad === 0, `车卡形状律 ×6 种子：round=3 / hp=max_hp / skills 去重 / picked=3 / 属性∈[8,20] / 三项标签齐（${runs.slice(0, 3).join(' ')}…）`);
-	ok(new Set(runs).size > 1, `随机组合产生多样角色（${new Set(runs).size} 种 / 6 次）`);
-}
+// ── D. 车卡不变量 ⇒ **已拆出**（`#1353` 乙组·拆分）：搬到 `test/chargen-shape.mjs`
+//   ★ 真因＝**引擎段序缺陷 `#1418`**（`Game.Chargen` 在启用车卡的新格式故事上未定义）⇒ 该件**暂挂起**（见 `test-plan` 挂起表）
 
 // ── E. 战斗伤害界限属性：随机装备/回合/败次 → 伤害 ∈[1,7] 且对败次单调不减 ──
 {
@@ -149,30 +127,9 @@ const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }
 	ok(monoBad === 0, `战斗伤害单调律 ${cases} 例：败次增加不降低伤害`);
 }
 
-// ── F. 位点优势单调律（M5b 重定）：空手无优势；加件不撤销优势；彩蛋位点永不吃优势 ──
-{
-	const I = w.Game.Items;
-	//注意：`#1004` B2b（**换样本**）：旧的位点/道具名单是**旧故事**的声明 → 按**面夹具**重钉；
-	// **判据不动**（空手无优势 · 加件不撤销 · 未被任何效果授权的位点满配也不吃优势）。
-	const sites = ['雾之魔物·挥击', '龙·斩击', '洞穴·战斗', '门厅·看钉', '森林·察觉'];
-	const items = ['坏哨', '月光花', '日记'];
-	const invOf = (keys) => Object.fromEntries(keys.map((k) => [k, true]));
-	let bad = 0, checked = 0;
-	for (const s of sites) {
-		if (I.advAt(s, {})) bad++; // 空手一律无优势
-		for (let m = 0; m < (1 << items.length); m++) {
-			const base = items.filter((_, i) => m & (1 << i));
-			if (!I.advAt(s, invOf(base))) continue;
-			checked++;
-			for (const extra of items) if (!I.advAt(s, invOf([...base, extra]))) bad++;
-		}
-	}
-	ok(bad === 0, `advAt 单调律：空手无优势 · 加件不撤销（已检查 ${checked} 个真值点）`);
-	// 满配：夹具 `Items.effects` 里 `坏哨` 的 `advSite`（挥击）与其 `advSites`（龙·斩击）各自生效
-	ok(I.advAt('雾之魔物·挥击', invOf(items)) === true && I.advAt('龙·斩击', invOf(items)) === true, '满配：坏哨的 advSite / advSites 各给对应位点优势');
-	// 未被任何效果授权的位点（夹具 `森林·察觉`）→ 满配也不吃优势（原「彩蛋位点」判据的等价形态）
-	ok(I.advAt('森林·察觉', invOf(items)) === false, '未被效果授权的位点满配也不吃任何道具优势');
-}
+// ── F. 位点优势单调律 ⇒ **已拆出**（`#1353` 乙组·拆分）：搬到 `test/locations-adv.mjs`
+//   ★ 为什么拆：它需要**道具面**（`Items.effects` 的 `advSite`／`advSites`）＋**位点名** ⇒ 与 hp 面不同族
+//     ⇒ 一件夹具喂两半，一半缺面就整段红（实测：`m3-hp-e2e` 无 `Items` 面 ⇒ 这半必红 ✗）
 
 console.log(failures ? `\n${failures} 项属性失败` : '\n属性测试全部通过');
 process.exit(failures ? 1 : 0);

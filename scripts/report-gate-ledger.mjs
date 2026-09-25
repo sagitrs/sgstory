@@ -194,6 +194,10 @@ export const normalizeProbeFace = (md) => String(md ?? '')
 	.map((l) => {
 		// ① 摘要的探针计数行（整行抹平 —— 它含 ✅/—/ 三个计数）
 		if (l.startsWith('**探针（直接读数')) return '**探针（直接读数 ✓…）：〔本次不参与比对（无读数 `--allow-stale-probe`）〕**';
+		// ★ `#1353` ①（写作者阻断②）：**三门账行也派生自探针读数**（`检视`／`欠账`／`probeDebt`）⇒
+		//   ✗ 不抹平的话：干净树单跑 `--allow-stale-probe` ⇒ `欠账` 值随本地产物变 ⇒ **rc=1 且入仓值错** ✗
+		//   （口径：**新字段若派生自本地产物 ⇒ 必须一并纳入降级面** —— 与探针计数行同族 ✓）
+		if (l.startsWith('**★ 三门账')) return '**★ 三门账（#1353 ①）**：〔本次不参与比对（派生自探针读数）〕';
 		// ② 表格行的第 5 格＝探针列（其前四格 kind/form/selfProof 不含 `|` → 用定点正则而非切分）
 		return l.replace(/^(\| `[^`]+` \| [^|]+ \| [^|]+ \| [^|]+ \| )[^|]+( \|)/, '$1〔探针〕$2');
 	})
@@ -371,7 +375,7 @@ const summary = (rows) => {
 	const suspendedN = rows.filter((r) => isSuspendedId(r.id)).length;
 	const review = reg + suspendedN;
 	const debtN = assertOnly + probeDebt;
-	return { total: rows.length, behavioral: beh, assertOnly, registry: reg, review, debtN, suspendedN, probeDebt, rate: +(beh / rows.length * 100).toFixed(1), probeOk, probeNone, probeBad };
+	return { total: rows.length, behavioral: beh, assertOnly, registry: reg, review, debtN, suspendedN, probeDebt, probeCap: cap < 0 ? '缺件 ✗' : cap, rate: +(beh / rows.length * 100).toFixed(1), probeOk, probeNone, probeBad };
 };
 
 // `#1261` 甲（台账侧）：**临时下架**列（从 SUSPENDED 读；段 id ⇒ 文件路径要猜一次）
@@ -538,6 +542,21 @@ const selftest = () => {
 	h('🔴 `normalizeProbeFace`：**只抹探针列** —— 其余格逐字保留 ✓（"真不一致"照样红 ✓）',
 		(() => { const md = '| `x` | 形态A | 行为化 | ✅ | ✅ | 理由R |\n**探针（直接读数 ✓）：`✅` 26 项**'; const n = normalizeProbeFace(md); return n.includes('形态A') && n.includes('理由R') && n.includes('〔探针〕') && !/26 项/.test(n); })());
 	h('`probeStateOf`：无探针件 ⇒ `—` ✓', probeStateOf({}) === '—');
+	// ★ `#1353` ①（写作者阻断①）：**"自证过 ≠ 判据还在"** —— `probeStateOf({})` 那条自证仍绿，但它量的**不是**
+	//   `probeCap` 的闸 ⇒ 我先前漏了 `probeCap` 的返回，**自证照样全绿**而闸已死 ✗（她抓的原话 ✓）
+	//   ⇒ 补一条**直接量闸**的自证：`summary()` 必须带回 `probeCap`，且 `probe-coverage-drop` 在**超上限**时**真能红** ✓
+	h('🔴 阻断① · `summary()` 必须带回 `probeCap`（✗ 漏它 ⇒ `probe-coverage-drop` 恒不为真 ⇒ 闸死）',
+		(typeof summary(rows).probeCap !== 'undefined'));
+	// ★ 该闸在 `main()` 里（✗ 不在 `problems()`）⇒ 自证**直接量闸的真条件**（✗ 不靠 `problems()` 注入）：
+	//   条件＝`s.probeNone > s.probeCap`（`s` 来自 `summary()`）⇒ 本格把它**抽出来量两态** ✓
+	h('🔴 阻断① · 能假：`summary()` 带回 `probeCap` 后，**超上限的条件真能成立**（两态可分 ✓）', (() => {
+		const r0 = summary(rows);
+		const cap = typeof r0.probeCap === 'number' ? r0.probeCap : null;
+		if (cap === null) return false;                       // 缺件态：✗ 本格不成立（另一条闸管）
+		// 态 A：未探数＝cap ⇒ **不**超限；态 B：未探数＝cap+1 ⇒ **超限** ⇒ 两态可分 ✓
+		const over = (none) => none > cap;
+		return over(cap) === false && over(cap + 1) === true;
+	})());
 	h('🔴 三门账：**欠账不超总数**（自洽）—— 在**真行**上验', (() => { const r = summary(rows); return r.debtN <= r.total && r.debtN >= 0; })());
 	// ★ 能假（合成输入，✗ 不靠改实现）：构造一个"**欠账 > 总数**"的行集 ⇒ `problems()` 必报 `debt-overflow` ✓
 	h('🔴 三门账 反例·**能假**：合成"欠账溢出"的行集 ⇒ `problems()` **必报** `debt-overflow` ✓', (() => {

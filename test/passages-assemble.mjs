@@ -105,14 +105,23 @@ const selftest = () => {
 		const r = assemblePassages({ passages, known: new Set(), data });
 		t('① 占位符**不烘值**：产物 body 里是 `<<print_PARAM 提醒>>`（含占位 ✓）',
 			/<<print_PARAM 提醒>>/.test(r.twee));
-		t('① 占位符**不烘值**：产物 body 里**不含**任何 `args` 值字面（`别进屋` ✗）',
-			!r.twee.includes('别进屋'));
+		// ★ 口径修正（`#1373` 实跑暴露，我上一版**写错了**）：
+		//   "不含值字面"**不能**判"整份产物"——`args` 是**编译后的数据面**（供运行期取值用 ✓），
+		//   它**本来就该**带着值出现在规则表数据里（`args: { '提醒': '别进屋' }`）。
+		//   ⇒ 正确的面是「**段落 body**」：值**不许写进正文**（正文里应是 `<<print_PARAM 提醒>>`）✓
+		//   （实证：靶产物里 2 处 `别进屋` 都在规则表数据行上，段落 `tw-passagedata` 里是占位 ✓）
+		const bodies = (twee) => [...String(twee).matchAll(/:{2}\s*([^\[\n]+?)\s*\[[^\]]*\]\n([\s\S]*?)(?=\n::|$)/g)]
+			.map((m) => ({ name: m[1].trim(), body: m[2] }));
+		const bl = bodies(r.twee);
+		t('① 占位符**不烘值**：**段落 body** 里不含 `args` 值字面（`别进屋` ✗）',
+			bl.length > 0 && bl.every((b) => !b.body.includes('别进屋')));
 
 		// **能假**：注入一个"把值烘进 body"的实现（模拟编译期取值）⇒ 上述断言**必红** ✓
 		const bake = (name, body) => body.replace(/\{\{提醒\}\}/g, '别进屋');
 		const baked = { twee: `:: ${'里屋'} []\n` + bake('里屋', passages[0].body) };
-		t('① 能假：若把值烘进 body ⇒ "不含值字面"那格**当场红** ✓',
-			!baked.twee.includes('别进屋') === false);
+		const bakedBodies = bodies(baked.twee);
+		t('① 能假：若把值烘进 **段落 body** ⇒ 那格**当场红** ✓',
+			(bakedBodies.length > 0) && !bakedBodies.every((b) => !b.body.includes('别进屋')));
 	}
 	// ── `#1350`／`#1368`：**渲染面**（② 取值链没断）———————————————
 	// 形态：走**真入口**（`passages/*.md` → 拼装 → build → 渲染）才判得了 ⇒ 现网**还没有**那条链路

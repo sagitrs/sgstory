@@ -12,7 +12,7 @@
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems, READ_FORMS, deriveContractAliases, isTweeFile, contractReadDomain, deriveCapabilityGroups, requiredSilenced, fixtureFaceProblems, FIXTURE_FACE_EXPECTED, FIXTURE_FACE_EXCEPTIONS, fixtureFaceExceptionConflicts , storyKeyLiteralProblems, STORY_KEY_NAMES , exceptionRemovableProblems, EXCEPTION_REMOVAL_CHECKS } from '../editor/lib/core/contract-defaults.mjs';
+import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems, READ_FORMS, deriveContractAliases, isTweeFile, contractReadDomain, deriveCapabilityGroups, requiredSilenced, fixtureFaceProblems, FIXTURE_FACE_EXPECTED, FIXTURE_FACE_EXCEPTIONS, fixtureFaceExceptionConflicts , storyKeyLiteralProblems, STORY_KEY_NAMES , exceptionRemovableProblems, EXCEPTION_REMOVAL_CHECKS , dataFaceMemberProblems} from '../editor/lib/core/contract-defaults.mjs';
 import { storySlugs, absPath } from '../scripts/dist-paths.mjs';
 import { maskComments } from '../editor/lib/core/mask.mjs';
 import { outsideQuotes } from '../editor/lib/host/k6criteria.mjs';
@@ -132,17 +132,30 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 // ── 能力开关 ──
 {
 	ok('能力开关仅一名', CAPABILITY_MEMBERS.size === 1 && CAPABILITY_MEMBERS.has('hasChargen'));
-	ok('能力开关不混进数据成员计数（夜渡口径）', dataMemberCount(membersByStory['night-ferry'] ?? []) === EXPECTED_DATA_MEMBERS['night-ferry'], `实得 ${dataMemberCount(membersByStory['night-ferry'] ?? [])}`);
+	// ★ `#1419` 顺笔：**样本缺席 ⇒ 未判**（✗ 不判红 —— `night-ferry` 已随 `#1261` 删除 ⇒ 旧期望恒不成立 ✗）
+	if (HAVE.has('night-ferry')) ok('能力开关不混进数据成员计数（夜渡口径）', dataMemberCount(membersByStory['night-ferry'] ?? []) === EXPECTED_DATA_MEMBERS['night-ferry'], `实得 ${dataMemberCount(membersByStory['night-ferry'] ?? [])}`);
+	else console.log('  ○ 未判：夜渡口径的样本 `night-ferry` 不在生效根（该面随 `#1261` 删除）');
 }
 
 // ── 反向核：三故事数据成员数 ＋ 引擎读点规模 ──
 {
-	const wrong = Object.entries(EXPECTED_DATA_MEMBERS).filter(([slug, n]) => dataMemberCount(membersByStory[slug] ?? []) !== n);
+	// ★ `#1419` 顺笔：**只对在场样本判**（✗ 已删样本不得恒红）—— 与 `#1267` 尾件② 同规
+	const present = Object.entries(EXPECTED_DATA_MEMBERS).filter(([slug]) => HAVE.has(slug));
+	const absent = Object.keys(EXPECTED_DATA_MEMBERS).filter((slug) => !HAVE.has(slug));
+	if (absent.length) console.log(`  ○ 未判：${absent.join('、')} 不在生效根（面随 \`#1261\` 删除 ⇒ 旧期望不成立）`);
+	const wrong = present.filter(([slug, n]) => dataMemberCount(membersByStory[slug] ?? []) !== n);
 	ok('反向核·三故事数据成员数命中钉死值', wrong.length === 0, wrong.map(([s, n]) => `${s} 期望 ${n} 实得 ${dataMemberCount(membersByStory[s] ?? [])}`).join(' / '));
 	// 能力组成员由**组助手**动态读取（形态扫描看不见） 与死声明同一口径，计入规模数。
 	const groupMembers = new Set(Object.values(capabilityGroups ?? {}).flat());
 	const readNamesAll = [...new Set([...readNames, ...[...groupMembers].filter((n) => Object.values(membersByStory).some((l) => (l ?? []).some((m) => m.name === n)))])];
-	ok('反向核·引擎读点规模（成员名 ≥ 20）', readNamesAll.length >= 20, `实得 ${readNamesAll.length}`);
+	// ★★ `#1419` 顺笔（**判据随对象退役 ＋ 留痕**，照 `#1415` 丙组先例）：
+	//   原格＝「**反例核·引擎读点规模（成员名 >= 20）**」—— 它的**样本**是那套**参考故事集**
+	//   （`face-fixture`／`night-ferry`／`minimal-demo`…，各故事声明一批契约成员 ⇒ 读点采集域够大）；
+	//   该故事集**已随 `#1261` 删除** ⇒ 生效根下域极小（实测：夹具根 5／books 根 6）⇒ 该格**恒红或恒未判** ✗
+	//   ★口径：「读点在不在」这一维今天由**别处**看护 —— 域内每个成员由 `defaultProblems`（逐名）与各面自己的门
+	//     （如 combat 面）承担 ⇒ 「总规模 >= 20」是**随那套样本一起死的代理量** ✗（不是机制判据）⇒ 退役 ✓
+	//   ★恢复条件＝**参考故事集复活**（届时同笔恢复本格 —— 判据与它的对象同生同死 ✓）
+	console.log(`  ○ 已退役：反向核·引擎读点规模（样本随 \`#1261\` 删除）；当前读点 ${readNamesAll.length} 个（仅信息）`);
 }
 
 // ── 守卫判据的能红对（合成输入）──
@@ -167,6 +180,26 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 		console.log(`  · required 但被静默缺省（待『#1227』口径处置）：${silenced.length} 项`);
 		for (const x of silenced) console.log(`      ${x.slug}:${x.name}（${x.why}）`);
 	}
+	// ── ★ `#1419`（**泛化版**）：**数据面非空 ⇒ 对应契约成员必须在**（族＝"数据在但不生效"）──
+	{
+		// 能假①：声明了 `Combat.pools`／`actions`（非空）却没声明 `combatPool`／`combatAction` ⇒ **点名** ✓
+		const q1 = dataFaceMemberProblems({ slug: 'x', members: [],
+			tables: { containers: { Combat: { pools: { 雾影: ['雾影·挥击'] }, actions: { '雾影·挥击': {} } }, Items: { defs: {} } } } });
+		ok('能假·数据面非空而成员缺 ⇒ 点名 combatPool 与 combatAction',
+			q1.some((x) => x.name === 'combatPool') && q1.some((x) => x.name === 'combatAction'));
+		// 能假②：成员**都在** ⇒ 不报（✗ 不误伤）✓
+		const q2 = dataFaceMemberProblems({ slug: 'x',
+			members: [{ name: 'combatPool' }, { name: 'combatAction' }, { name: 'itemEffect' }],
+			tables: { containers: { Combat: { pools: { A: ['a'] }, actions: { a: {} } }, Items: { defs: { 剑: {} } } } } });
+		ok('正例·成员齐 ⇒ 不报（✗ 不误伤）', q2.length === 0, q2.map((x) => x.name).join('、'));
+		// 正例③：数据面**空**（未启用该面）⇒ 不报（✗ 不逼人声明无关成员）✓
+		const q3 = dataFaceMemberProblems({ slug: 'x', members: [],
+			tables: { containers: { Combat: { pools: {}, actions: {} }, Items: { defs: {} } } } });
+		ok('正例·数据面为空（未启用）⇒ 不报', q3.length === 0);
+		// 能假④：物品面同理（`Items.defs` 非空 ⇒ 需 `itemEffect`）
+		const q4 = dataFaceMemberProblems({ slug: 'x', members: [], tables: { containers: { Items: { defs: { 月光花: {} } } } } });
+		ok('能假·物品面非空而缺 itemEffect ⇒ 点名', q4.some((x) => x.name === 'itemEffect'));
+	}
 	// ── 满配夹具的『该有的面』钉死（能力组在单成员组上会失效 夹具侧按集合判）──
 	{
 		// 能假①：夹具**整组全缺**（拿掉 checkSite 那一个成员） 必须点名（这条正是本片缺陷的复发路径）。
@@ -176,12 +209,15 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 		const normal = fixtureFaceProblems({ slug: 'minimal-demo', members: [] });
 		ok('能假·普通故事整组缺 ⇒ 本条不报（判能力关）', normal.length === 0);
 		// 实仓：夹具应报 0（现已回位 checkSite 且三名合法缺席在例外表）。
-		const fx = membersByStory['face-fixture'] ?? [];
-		const fxMiss = fixtureFaceProblems({ slug: 'face-fixture', members: fx });
-		// 实仓**断言**（不是信息面）：夹具缺任一面即红 —— 这正是本片缺陷的『判据件层』，
-		// 因为『契约层』（生成物里抛）在**整面缺席**时不可能触发（函数根本不存在）。
-		ok('实仓·夹具缺面 0（整面缺席也在此咬住）', fxMiss.length === 0, fxMiss.map((x) => x.name).join('、'));
-		for (const x of fxMiss) console.log(`      ${x.name}（${x.why}）`);
+				// ★ `#1419` 顺笔：满配夹具**已随 `#1261` 删除** ⇒ 实仓那格改为**在场才判**（✗ 不恒红）
+		if (HAVE.has('face-fixture')) {
+			const fx = membersByStory['face-fixture'] ?? [];
+			const fxMiss = fixtureFaceProblems({ slug: 'face-fixture', members: fx });
+			ok('实仓·夹具缺面 0（整面缺席也在此咬住）', fxMiss.length === 0, fxMiss.map((x) => x.name).join('、'));
+			for (const x of fxMiss) console.log(`      ${x.name}（${x.why}）`);
+		} else {
+			console.log('  ○ 未判：满配夹具 `face-fixture` 不在生效根（随 `#1261` 删除）');
+		}
 	}
 		ok('例外表与钉死集合互斥（例外名不得在钉死集合内）', fixtureFaceExceptionConflicts().length === 0, fixtureFaceExceptionConflicts().join('、'));
 		ok('例外表每行都写了移除触发（自清理）', Object.values(FIXTURE_FACE_EXCEPTIONS).every((x) => typeof x.removal === 'string' && x.removal.length > 0));

@@ -610,6 +610,44 @@ jQuery(document).on('keydown.sgSocial', '#passages a.soc-opt', function (ev) {
      · 注册在**文件末尾**，故在所有其它 `:passageend` 后处理**之后**执行
        （那些 pass 会做焦点回收 / 行动区包裹 / 跳转链接插入；派生若先跑会被重排丢掉或重复）。
    歧义由 `test/choice-keys.mjs` 静态枚举（同段落同目标 ≥2 条 → 要求作者覆盖或进白名单）。 */
+// ── `#1350` 片 5：跳转携带的**入参**（`args`）────────────────────────
+// 契约见 `docs/engine/json/tables.md` §11.2。三条口径（都别省）：
+//  · 写 **SugarCube 临时变量** `State.temporary.sginargs[<目标段名>]` ⇒ **一跳清**（✗ 不进存档、✗ 不留旧值 ✓）
+//  · **一处写点**：本函数 `carry()` —— 三个跳转路径都调它（✗ 不各写一份 ✓）
+//  · 取不到就**报**（✗ 不静默空、✗ 不读旧值）—— 由 `<<printparam>>` 一侧判 ✓
+{
+	window.Sg ??= {};
+	window.Sg.inargs = {
+		/** 把入链 `args` 记到目标段的临时槽（**一跳清**）。`args` 为空 ⇒ 只清目标段的槽（✗ 不写空对象）。 */
+		carry(dest, args) {
+			const d = String(dest ?? '');
+			if (!d) return;
+			const t = (State.temporary.sginargs ??= {});
+			if (args && typeof args === 'object' && Object.keys(args).length) t[d] = { ...args };
+			else delete t[d];
+		},
+		/** 取目标段已携带的入参（无 ⇒ `undefined`）。 */
+		of(dest) {
+			return (State.temporary.sginargs ?? {})[String(dest ?? '')];
+		},
+	};
+}
+
+// `#1350` 片 5：`<<printparam "名">>` —— 渲染**本段收到的入参**（值来自 `Sg.inargs`，见 §11.2）
+Macro.add('printparam', {
+	handler() {
+		const key = String(this.args[0] ?? '');
+		const seg = String(State.passage ?? '');
+		const got = window.Sg.inargs?.of(seg) ?? {};
+		if (!Object.prototype.hasOwnProperty.call(got, key)) {
+			// 取不到 ⇒ **点名**（✗ 不许静默空、✗ 不许读旧值 —— 后者由"一跳清"保证 ✓）
+			throw new Error('<<printparam>> 段「' + seg + '」的入参「' + key + '」**本次未传**'
+				+ '（入参只在经链接跳转时携带 ⇒ 直达本段时不会有值）');
+		}
+		$(this.output).wiki(String(got[key]));
+	},
+});
+
 jQuery(document).on(':passageend.sgChoiceKey', (ev) => {
 	const root = ev.content ?? document.querySelector('#passages');
 	if (!root?.querySelectorAll) return;

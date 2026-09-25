@@ -854,7 +854,7 @@ export const validateSuites = (plan = SEGMENTS, { members = SUITE_MEMBERS } = {}
  * 每条必须给 `why`（为什么）与 `until`（何时重建的触发条件）；缺任一项 → 自证格红。
  */
 export const SUSPENDED = {
-	'test-readkey-family-mjs': { why: '读键族抽取面：样本需真故事的键族分布（对象＝引擎面判据）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
+	// `#1315` 时效审计（48h 第一/二轮）：`test-readkey-family-mjs` **撤挂** —— why 已失效：两态实跑均 **rc=0**（零故事态／外根态；读数见 `#1315` 审计评论）⇒ 本行理由不再成立（✗ 不写含糊的“永久降级”）。
 	'scripts-audit-mjs-consequences-check': { why: '选择后果门：样本需故事条件面（对象＝引擎门）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'scripts-audit-mjs-state-check': { why: '状态契约门：样本需故事状态面（对象＝引擎门）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	// `#1343`（撤挂）：`test-gen-needed-mjs` 原挂起理由是「**反向核需 ≥3 个真故事**」⇒ 已补**夹具根**
@@ -867,7 +867,7 @@ export const SUSPENDED = {
 	//   两态实跑（零故事根／外根 books）：均 rc=0 ✓（读数写在 `#1333`）
 	// `#1315`：`test-audit-gates-run-mjs` **已撤挂** —— 它的 CLI 半段改成**未判**口径
 	// （零故事 ⇒ 出声"未判"、不算红），机制面仍由同段的**纯函数格**看着护 ⇒ 不再需要挂起。
-	'test-story-ci-mjs': { why: '用户故事 CI：K4/K5 面依赖故事与产物', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	'test-story-ci-mjs': { why: '用户故事 CI：链内跑 `editor/story-ci.mjs` ⇒ **零故事态**（仓内 `stories/` 不存在）下「发现到 0 个故事 ⇒ 不许判过」必红 ✗（单跑 `test/story-ci.mjs` rc=0 是它自己的零故事分支 ⇒ **两态不同形**）；why 未失效 ⇒ 留挂起', until: '#1315 审计：需与零故事口径同笔改后再撤' },
 	'scripts-ui-migration-diff-selftest': { why: '自证格里“默认故事”概念在零故事下失效（对象＝迁移比对工具）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'test-contract-version-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'test-cond-keyform-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1279（M1 尾件回填复验：已裁：默认＝"在生效故事根下存在且可读"）' },

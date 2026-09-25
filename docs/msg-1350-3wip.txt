@@ -1,0 +1,27 @@
+wip(1350): 片 3 起手 —— `links` 编译成**规则行同形**（渲染口零改动）
+
+★ WIP（✗ 不可合）：本轮只做到"落点定位 ＋ 计划"，**未改任何行为**。
+
+**已定位的落点（逐处可核）**
+· 段映射表：`editor/lib/core/story.mjs` 里 `'rules.json': { section:'StoryRules', key:'rules', rows:[] }` 一带
+  ⇒ `passages.json` 目前**只进了 `DATA_FILES`**（片 1），**还没有自己的段映射**（所以编译时不产出东西）✓
+· 渲染口（**已存在、且已是一处权威**）：`<<rules>>`（单选，`src/engine/40-sim/21-resolve.twee:63`，内部 `Sg.rules.pick`）
+  ／`<<rulelist>>`（菜单，`:79`，内部 `Sg.rules.pickAll`）⇒ 都走 `Sg.rules.matches` ✓
+· 条件求值：`src/engine/40-sim/22-rules.twee` 的 `matches`（**唯一权威**）✓
+
+**片 3 计划（✗ 不动渲染口 —— 让它"照旧"即可接上）**
+```
+把 `passages.json` 的 `links[]` **编译成规则行同形**（这样渲染口零改动）：
+  · `label`  ⇒ `text`（现形态的链接本就写在规则行 `text` 里 ⇒ 同形 ✓）
+  · `to`     ⇒ 目标段（同一行里的 `[[label|to]]`）
+  · `cond`   ⇒ **原样**搬进规则行的条件字段 ⇒ 求值仍走 `Sg.rules.matches` 一处 ✓
+  · `prio`／`prereq` ⇒ 原样（顺序维）
+  · `args`   ⇒ 本片先"编译进规则行"；**唯一需要设计的一处**＝`args` 怎么让目标段的 `{{提醒}}` 拿到值（与片 4 协同）
+  · `slot`   ⇒ 段内落位（片 4 与 `present` 一起处理）
+```
+**验收（判据已合 ⇒ 有据）**：靶 `pilot-new` 能编 ⇒ 与 `pilot-old` 渲染文本**逐字节同**；
+`prose-vocabulary` 的 P1–P4 **不触红**（当前新树停在"`{{提醒}}` 未声明" ⇒ 片 3/4 做完后应转绿 ✓）。
+
+**给写作者一句（Operator：知识要落进文档）**
+> 新增规矩：**`links[]` 与规则行是同一套**（`cond` 走 `Sg.rules.matches` 一处权威；✗ 渲染面不得二次求值）；
+> 红线：**同一链接不得两处声明**（段内 `links[]` 与规则行 `text` 二选一 ⇒ 两处同写＝两份真源 ✗）。

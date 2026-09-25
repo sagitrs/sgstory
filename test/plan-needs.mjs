@@ -29,6 +29,17 @@ export const NEED_EDGES = [];
  *  加边规则不变（两端必须先在 `SEGMENTS` 在册）；将来恢复同类段时**必须同时恢复对应边**。 */
 export const EMPTY_EDGES_REASON = '#1315：三条边的两端段均已随 `#1261` 下架 => 当前无边（空表由本条解释，非静默）';
 
+/** `#1315`（48h 审计）：**`needs` 也是边** —— "先跑谁"那条边**指向的段必须在册** ✗ 只管边表端点不够。
+ *  为什么：段改名/下架后，`needs` 会**悬空**，而三校验（tiers/layers/suites）**都不看它** ✗
+ *  ⇒ 症状：某段单跑必缺前置（例：`test-coverage-mjs` 单跑 `✗ 覆盖落盘缺失`），而根因**没人能一眼看出**。
+ *  本节只判"指向的段在不在册"；**✗ 不管是谁依赖谁**（那是 `missingEdges` 的事）✓ */
+export const danglingNeedsProblems = (segments = []) => {
+	const ids = new Set(segments.map((s) => s.id));
+	const out = [];
+	for (const s of segments) for (const n of (s.needs ?? [])) if (!ids.has(n)) out.push(`${s.id} 的 needs 指向**不在册**的段 \`${n}\` ⇒ 段改名/下架后这条边悬空（要么改指向、要么删边 ✗ 不许留着）`);
+	return out;
+};
+
 /** 判定（纯函数）：返回问题列表（空 ＝ 通过）。 */
 export const missingEdges = (segments, edges) => {
 	const byId = new Map(segments.map((s) => [s.id, s]));
@@ -51,6 +62,17 @@ const case_ = (label, ok, extra = '') => {
 // ①③：在册边逐条核验（needs 含 writer · 端点都在册）
 const problems = missingEdges(SEGMENTS, NEED_EDGES);
 case_('边表逐条在册', problems.length === 0, problems.join('；'));
+
+// `#1315`（48h 审计）：**needs 悬空** —— 边指向的段必须在册（✗ 三校验都不看它 ⇒ 本节补上）
+const dangling = danglingNeedsProblems(SEGMENTS);
+case_('needs 指向的段都在册（边悬空 ⇒ 点名该段与该依赖）', dangling.length === 0, dangling.join('；'));
+// **能假**（自带样本：注入一条指向不存在段的 needs ⇒ 必报）
+case_('反例·needs 悬空必报（自带样本：a 依赖不存在的 b）', (() => {
+	const segs = [{ id: 'a', needs: ['b'] }, { id: 'c' }];
+	const got = danglingNeedsProblems(segs);
+	return got.length === 1 && got[0].includes('a') && got[0].includes('b');
+})());
+case_('正例·needs 全在册 ⇒ 不报（不误伤 ✓）', danglingNeedsProblems([{ id: 'a', needs: ['b'] }, { id: 'b' }]).length === 0);
 case_('边表为空时必须有登记理由（空 != 静默：表空本身就是一次显式决定）',
 	NEED_EDGES.length > 0 || EMPTY_EDGES_REASON.trim().length > 0);
 

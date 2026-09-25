@@ -27,7 +27,7 @@
 | 1 | 一个故事由什么组成 | 段落图／清单（`files`）／数据（`data/*.json`）／体裁＝md ＋ json、零代码零 twee | [锚] |
 | 2 | 最小可跑故事 | 从零到"能玩"：目录 → 一段散文 → `00-story.json` → `build` → 跑一遍 | [步骤] |
 | 3 | **[散文面](03-prose.md)** | 能写什么／禁什么；**可用宏清单（从引擎派生）**；payload 标记 | [锚]＋[步骤] |
-| 4 | 段落图与选项 | 边＝`[[标签\|目标]]`；结局段；执行器四张面（`visible`／`absent`／`edges`／`state`） | [步骤] |
+| 4 | **[段落图与出口](04-exits.md)** | **出口两类（`<<ending>>`：终局／章节出口）**；执行器四张面（`visible`／`absent`／`edges`／`state`）★边的写法（今天 `[[标签\|目标]]`／改制后 `links[]`）见 §12 | [锚]＋[步骤] |
 | 5 | **[条件行与规则表](05-rules.md)** ★先写 | 行字段（`id`／`scope`／`prio`／`req`／`any`／`exclude`／`prereq`）；单选 `<<rules>>` vs 菜单 `<<rulelist>>`；键族（`inv:`／`era:`／`gear:`／`chk:`）；算子 | [锚]＋[步骤] |
 | 6 | **[状态与写点](06-state.md)** | `sets`／`yields`／`gives`；状态树；**域表纪律** | [锚] |
 | 7 | **[位点检定与结果维](07-checks.md)** ★先写 | `<<sitecheck>>`／`<<snapshot>>`／`<<lastcheck>>`；`Checks.sites`；**`chk:<站点>.<字段>`**；未检定即引用 ⇒ fail-loud | [锚]＋[步骤] |

@@ -15,6 +15,49 @@ import { linkHtml } from './passages.mjs';   // `#1350` 尾件 ⑥：带 args �
 //
 // 红线（同时写给写作者，供 `#1359` 总规范）：
 //   **同一链接不得两处声明**（段内 `links[]` 与规则行 `text` 二选一）—— 两处同写＝**两份真源** ✗。
+/** ★ `#1401`（**可达性**，纯函数 ⇒ 能假）：以 `entry` 为根、按**两处出边**算图的可达闭包，
+ * 返回**不可达的段名**（✗ 不含 `entry` 自身）。
+ *
+ * ★ 为什么必须**两处都看**（作者实测）：出边**分散在两地** ——
+ *   ① `passages.json` 各段的 `links[].to`（新形态）
+ *   ② 规则行的 `[[label|to]]`（`data/rules.json` 的 `text`；过渡形态）
+ *   ⇒ 只算一处 ⇒ **不是漏报就是误报**：实测"只算 `passages.json`"时**误报**「废哨站」
+ *     （指向它的边在 `rules.json` 的行里）✓
+ *
+ * ★ 范围（Operator 纪律）：这是**编译器/静态图机制** ⇒ 属**引擎** ✓
+ *   （✗ 引擎不判"这个故事该不该全可达"—— 那是故事策略面，归 books CI ✓）
+ */
+export const unreachablePassages = ({ data = null, entry = null, rules = null } = {}) => {
+	const names = data && typeof data === 'object' ? Object.keys(data) : [];
+	const root = String(entry ?? '').trim();
+	if (!names.length || !root) return [];
+	const known = new Set(names);
+	const edges = new Map(names.map((n) => [n, []]));
+	for (const [seg, v] of Object.entries(data ?? {})) {
+		for (const l of (Array.isArray(v?.links) ? v.links : [])) {
+			const to = String(l?.to ?? '').trim();
+			if (to && known.has(to) && edges.has(seg)) edges.get(seg).push(to);
+		}
+	}
+	// 规则行：`scope`（作用域段）→ `text` 里的 `[[label|to]]`（✗ 只认带 `|` 的成对形态）
+	for (const row of (Array.isArray(rules?.rows) ? rules.rows : [])) {
+		const seg = String(row?.scope ?? '').trim();
+		if (!edges.has(seg)) continue;
+		for (const m of String(row?.text ?? '').matchAll(/\[\[([^\]|]*)\|([^\]]+)\]\]/g)) {
+			const to = m[2].trim();
+			if (known.has(to)) edges.get(seg).push(to);
+		}
+	}
+	const seen = new Set([root]);
+	const q = [root];
+	while (q.length) {
+		const cur = q.shift();
+		for (const nx of edges.get(cur) ?? []) if (!seen.has(nx)) { seen.add(nx); q.push(nx); }
+	}
+	return names.filter((n) => !seen.has(n)).map((n) => '段「' + n + '」**不可达**（无任何入边且非 `entry`）⇒'
+		+ ' 读者永远走不到它：加一条指向它的链接（或删段／把它设成 `entry`）✗');
+};
+
 export const linksToRows = ({ data = {} } = {}) => {
 	const out = [];
 	for (const [scope, seg] of Object.entries(data ?? {})) {

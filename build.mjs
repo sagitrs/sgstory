@@ -6,7 +6,7 @@ import * as _crypto from 'node:crypto';   // 输入指纹（sha256）
 import vm from 'node:vm';   // `#1176`：生成件脚本段的解析器（只解析不执行）
 import { join, dirname, relative, isAbsolute } from 'node:path';
 import { scopedFiles, checkRegistration, isStoryPassageMd } from './scripts/module-order.mjs';
-import { valueRefExpand, renderLinksOf, parseFrontMatter, parseMdPassages, parseTweePassages, assemblePassages, FORBIDDEN_BUILTINS, duplicateProblems } from './editor/lib/core/passages.mjs';
+import { valueRefExpand, renderLinksOf, applyPassageTransforms, parseFrontMatter, parseMdPassages, parseTweePassages, assemblePassages, FORBIDDEN_BUILTINS, duplicateProblems } from './editor/lib/core/passages.mjs';
 import { scriptSyntaxProblems } from './editor/lib/core/segment-syntax.mjs';
 import { generatedFamilyProblems, isGeneratedFamily } from './editor/lib/core/generated-family.mjs';   // `#1350`：指纹写入也要用   // `#1185` // `#1176`
 import { valueTerms, engineLabels } from './editor/lib/core/vocab.mjs';
@@ -270,19 +270,12 @@ for (const s of stories) {
 				}
 				return Object.keys(acc).length ? acc : null;
 			})();
-			const r = valueRefExpand({ name: p0.name, body: stripped, terms: termsOf(s.slug),
-				params: dseg.params ?? {}, slot: null, slots: [dseg.slot, ...linkSlots].filter(Boolean),
-				args: (dseg.args && typeof dseg.args === 'object') ? dseg.args : inbound });
-			// `#1350` 片 4：**链接渲染也是声明的变换** ⇒ 期望面要用**同一函数**再算一次
-			//（✗ 不在本判据里另写一份替换 —— 那样两处必漂移）
-			let body2 = String(r.body);
-			const rl2 = renderLinksOf({ name: p0.name, links: dseg.links ?? [], present: dseg.present ?? null });
-			for (const { slot: sl, text } of rl2.inline) {
-				// ★ 双花括号；正则源＝`\{\{名\}\}`（✗ 别多一层转义 —— 与拼装层同一形态、同一病：我两处都犯过 ✗）
-				const re2 = new RegExp('\\{\\{' + sl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\}\\}', 'g');
-				body2 = body2.replace(re2, `\n\n${text}\n\n`);
-			}
-			if (rl2.tailBlock) body2 = `${body2.replace(/\s+$/, '')}\n\n${rl2.tailBlock}\n`;
+			// `#1399`：期望面走**同一实现**（`applyPassageTransforms`）—— ✗ 不在此另写一份替换（两处必漂移）
+			const tr = applyPassageTransforms({ name: p0.name, body: stripped, terms: termsOf(s.slug),
+				params: dseg.params ?? {}, slots: [dseg.slot, ...linkSlots].filter(Boolean),
+				args: (dseg.args && typeof dseg.args === 'object') ? dseg.args : inbound,
+				links: dseg.links ?? [], present: dseg.present ?? null, ending: dseg.ending ?? null });
+			const body2 = tr.body;
 			want = String(body2).trimEnd();
 		} catch { /* 无段落数据 ⇒ 退回"逐字"口径（旧行为逐字不变 ✓） */ }
 		if ((got.get(p0.name) ?? '').trimEnd() !== want) {

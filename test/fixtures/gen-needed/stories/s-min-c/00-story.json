@@ -1,0 +1,13 @@
+{
+ "slug": "s-min-c",
+ "title": "s-min-c",
+ "audience": "internal",
+ "entry": "开场",
+ "gates": [],
+ "files": [
+  "stories/s-min-c/00-meta.twee",
+  "stories/s-min-c/15-tables.twee",
+  "stories/s-min-c/17-rules.twee",
+  "stories/s-min-c/passages/01-开场.md"
+ ]
+}

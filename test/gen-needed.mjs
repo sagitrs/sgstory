@@ -70,6 +70,21 @@ const fam = (f) => /(^|\/)(1[5678]-[a-z0-9-]+\.twee|00-meta\.twee)$/.test(f);
 		ok(`⑤ ${slug}：清单里有产物被家族谓词认出`, fam2.length > 0, `声明 ${declared.length} 件`);
 		checked += 1;
 	}
+	// ★ `#1343`：**零故事根**（现有态）⇒ **出声未判**（✗ 不判红、✗ 不静默绿）—— 同 `#1321` 的 CLI 半段口径。
+	//   为什么：本段要判"按清单该不该重编"，**对象是故事** ⇒ 没有故事时它**无对象可判**（✗ 不是"判过且通过"）。
+	if (checked === 0) {
+		// ★ 但要分**两态**（✗ 不许把"没用故事根"与"用了却核不到"混同 —— 前者无对象，后者是**接线坏了**）：
+		//   · **显式给了故事根**（`SG_STORIES_DIR` 在场）却一件都没核到 ⇒ **红**（接线坏了 ⇒ 覆盖率静默归零 ✗）
+		//   · **零故事根**（仓默认态）⇒ 出声"未判"（✗ 不判红、✗ 不静默绿 —— 同 `#1321` 口径 ✓）
+		if (String(process.env.SG_STORIES_DIR ?? '').trim()) {
+			ok('⑤ 反向核：**给了故事根就必须真核到故事**（✗ 一件都没核到 ⇒ 接线坏了）', false,
+				`SG_STORIES_DIR=${process.env.SG_STORIES_DIR} 但核了 0 个故事`);
+		} else {
+			console.log('  ○ 未判：本段的对象是**故事清单**（零故事根 ⇒ 无对象可判）—— 请用夹具根跑：');
+			console.log('     `SG_STORIES_DIR=test/fixtures/gen-needed/stories node test/gen-needed.mjs`（3 个最小故事 ✓）');
+			process.exit(0);
+		}
+	}
 	ok('⑤ 反向核：真的核过故事（不是空跑）', checked >= 3, `核了 ${checked} 个故事`);
 }
 

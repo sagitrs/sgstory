@@ -1,0 +1,15 @@
+{
+ "slug": "fk",
+ "title": "fk",
+ "entry": "斗",
+ "contractVersion": 1,
+ "audience": "internal",
+ "files": [
+  "stories/fk/00-meta.twee",
+  "stories/fk/passages/01-斗.md",
+  "stories/fk/passages/02-结局 胜.md",
+  "stories/fk/passages/03-结局 败.md",
+  "stories/fk/15-tables.twee",
+  "stories/fk/17-rules.twee"
+ ]
+}

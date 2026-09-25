@@ -1,0 +1,49 @@
+{
+ "斗": {
+  "links": [
+   {
+    "label": "查看战果（胜）",
+    "to": "结局 胜",
+    "id": "斗.胜",
+    "cond": {
+     "req": [
+      "fight:雾影.won"
+     ]
+    }
+   },
+   {
+    "label": "查看战果（败）",
+    "to": "结局 败",
+    "id": "斗.败",
+    "cond": {
+     "req": [
+      "fight:雾影.lost"
+     ]
+    }
+   }
+  ],
+  "present": "菜单",
+  "prio": 1,
+  "prereq": []
+ },
+ "结局 胜": {
+  "ending": {
+   "key": "胜",
+   "kind": "final"
+  },
+  "links": [],
+  "present": "菜单",
+  "prio": 1,
+  "prereq": []
+ },
+ "结局 败": {
+  "ending": {
+   "key": "败",
+   "kind": "final"
+  },
+  "links": [],
+  "present": "菜单",
+  "prio": 1,
+  "prereq": []
+ }
+}

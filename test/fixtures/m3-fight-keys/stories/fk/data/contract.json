@@ -1,0 +1,28 @@
+{
+ "section": "StoryBindings",
+ "note": "fight: 结果键族的最小夹具（✗ 与任何具体故事无关）",
+ "members": [
+  {
+   "name": "rules",
+   "kind": "empty-array",
+   "docs": "x"
+  },
+  {
+   "name": "passageSpecs",
+   "kind": "forward",
+   "docs": "x"
+  },
+  {
+   "name": "foeState",
+   "kind": "state-ref",
+   "path": "foe",
+   "default": {},
+   "docs": "具名对手状态面"
+  },
+  {
+   "name": "mechanics",
+   "kind": "null",
+   "docs": "x"
+  }
+ ]
+}

@@ -69,6 +69,31 @@ const selftest = () => {
 	t('禁则真源：`FORBIDDEN_BUILTINS` 由 core 提供且与拼装层**同一份** ✓',
 		FORBIDDEN_BUILTINS.has('set') && FORBIDDEN_BUILTINS.has('if') && FORBIDDEN_BUILTINS.size >= 8);
 
+	// ⑪ `#1350` 片 2：`{{名}}` **三段展开**（本段入参 / 落位 / 世界态取值）＋ 两条**换维**报错。
+	// 口径：入参与落位**共用 `{{}}` 命名空间** ⇒ 撞名要换维点名（与"缺值"不同形）；只认**本段** params。
+	const P = { p: { type: 'string', required: true } };
+	t('片2·① 本段入参（已声明且已传）⇒ 展开为入参占位、不报',
+		(() => { const r = valueRefExpand({ name: 'A', body: '你好 {{p}}', terms: T, params: P, args: { p: 'x' } });
+			return r.problems.length === 0 && r.body.includes('print_PARAM p'); })());
+	t('片2·② 落位（`slot` 命中）⇒ 展开为落位占位、不报',
+		(() => { const r = valueRefExpand({ name: 'A', body: '口：{{slotA}}', terms: T, slot: 'slotA' });
+			return r.problems.length === 0 && r.body.includes('print_SLOT slotA'); })());
+	t('片2·③ 世界态取值（既有口径）⇒ 仍走具名占位、不报',
+		(() => { const r = valueRefExpand({ name: 'A', body: '值 {{classLabel}}', terms: T });
+			return r.problems.length === 0 && r.body.includes('print_V classLabel'); })());
+	t('片2·④ 撞名（`slot` 与入参同名）⇒ **换维**点名（不是"缺值"那一形）',
+		(() => { const r = valueRefExpand({ name: 'A', body: '{{n}}', terms: T, params: { n: {} }, slot: 'n' });
+			return r.problems.length === 1 && /撞名/.test(r.problems[0]); })());
+	t('片2·⑤ 三者都不是（未声明）⇒ 点名（列本段 params 便于自助）',
+		(() => { const r = valueRefExpand({ name: 'A', body: '{{未知}}', terms: T });
+			return r.problems.length === 1 && /不是本段入参/.test(r.problems[0]); })());
+	t('片2·⑥ 必填但调用处未传、也无 `default` ⇒ 点名',
+		(() => { const r = valueRefExpand({ name: 'A', body: '{{p}}', terms: T, params: P });
+			return r.problems.length === 1 && /必填但没给值/.test(r.problems[0]); })());
+	t('片2·⑥反例的另一半：带了 `default` ⇒ **不报**（否则"可选带默认"会被误杀）',
+		(() => { const r = valueRefExpand({ name: 'A', body: '{{p}}', terms: T, params: { p: { required: true, default: 'x' } } });
+			return r.problems.length === 0; })());
+
 	if (bad) { console.error(`\n✗ 拼装层自证失败 ${bad} 项`); process.exit(1); }
 	console.log('\n✔ 拼装层自证通过（正例+禁则红+具名放行+悬空点名+取值展开+逐字保留+front-matter+单一权威）');
 	process.exit(0);

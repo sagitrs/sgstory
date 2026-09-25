@@ -162,7 +162,10 @@ export const SEGMENTS = [
 	// `#1350` 尾件 ⑥：**段尾块链接的 `args` 端到端** —— 引擎仓夹具（`m3-p1234-pilot`）建**自建外根** ⇒
 	// `<<rulelist>>` 渲的行**真带上** `data-sg-args` ⇒ 点击 ⇒ 目标段**渲染出该值**（✗ 只比字符串咬不住：
 	// "链接不带 args"与"槽存不住"两层各自都能让值到不了 ✓）；含两条负向（不带 args 行不乱贴属性／无新跳转不读旧值）
-	{ id: "test-block-args-e2e-mjs", phase: 'test', cost: 40, cmd: "node test/block-args-e2e.mjs" },
+	// ★ 并发面（照 `#1362`／`codex-panel` 先例）：本段**自建故事根并跑 build**（写自己的 `dist/`）
+	//   ⇒ 必须 **`exclusive`**（✗ 否则与别的 boot 类段并发 ⇒ 实测：「等待起始段 门厅，当前渲染的是 开场」✗
+	//   —— 链里红、单跑/--only 绿，正是"并发撞共享面"的指纹）
+	{ id: "test-block-args-e2e-mjs", phase: 'test', cost: 40, exclusive: true, mutates: ['build'], cmd: "node test/block-args-e2e.mjs" },
 	{ id: "test-passages-assemble-mjs-selftest", phase: 'test', cost: 0.1, inputs: ['*'],   // `#1114` 全跑型（纯函数注入段——无 fs 面；`#1093` 裁定 5756510512 ①）
 		cmd: "node test/passages-assemble.mjs --selftest" },
 	{ id: "test-docs-read-path-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/docs-read-path.mjs --selftest" },

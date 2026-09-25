@@ -1,0 +1,32 @@
+{
+	"section": "StoryBindings",
+	"note": "hp 面最小夹具（`#1315` 乙批）：只声明引擎必需成员 ＋ 车卡族开关（hp/max_hp/salves 属车卡族 ⇒ 由 hasChargen 门控）",
+	"members": [
+		{
+			"name": "rules",
+			"kind": "empty-array",
+			"docs": "本夹具无规则行"
+		},
+		{
+			"name": "mechanics",
+			"kind": "null",
+			"docs": "未启用新机制"
+		},
+		{
+			"name": "hasChargen",
+			"kind": "const",
+			"value": true,
+			"docs": "开启车卡族 ⇒ pc 面含 hp/max_hp/salves（`damage` 宏所需）"
+		},
+		{
+			"name": "pcDefaults",
+			"kind": "const",
+			"docs": "车卡族数值（hp/max_hp/salves）",
+			"value": {
+				"hp": 14,
+				"max_hp": 14,
+				"salves": 0
+			}
+		}
+	]
+}

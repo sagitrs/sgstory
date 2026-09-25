@@ -1,0 +1,16 @@
+{
+ "slug": "hp-basic",
+ "title": "血量最小夹具",
+ "subtitle": "引擎侧最小夹具（`#1315` 乙批）：服务「hp 面」三条判据（properties／combat-adv／fight-seq）",
+ "entry": "门厅",
+ "contractVersion": 1,
+ "audience": "internal",
+ "files": [
+  "stories/hp-basic/00-meta.twee",
+  "stories/hp-basic/passages/01-门厅.md",
+  "stories/hp-basic/passages/02-结局 死亡.md",
+  "stories/hp-basic/15-tables.twee",
+  "stories/hp-basic/17-rules.twee"
+ ],
+ "gates": []
+}

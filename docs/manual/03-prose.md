@@ -76,3 +76,18 @@ node test/prose-vocabulary.mjs        # 散文词汇门；零故事态下出声"
 
 **原文在哪**：本节吸收 `docs/twee-cheatsheet.md` §二（宏清单，改造成 [锚] 形态）<!-- path-exempt: 该页已按 #1325 删除 -->；
 允许/禁止的**真源**是 `test/prose-vocabulary.mjs` 与 `docs/engine/json/prose.md` §3（**冲突时以它们为准**）。
+
+## ★ **反引号 ≠ 提及**（`#1409`）—— 它会**真执行**
+
+SugarCube 里反引号包起来的内容是**代码**标记 ⇒ **会被真的执行**（✗ 不是"引用/提及"）。
+实测病灶：散文里写 `` `<<damage>>` ``（想"提一下这个宏"）⇒ 宏**空参执行** ⇒ `Math.max(0, hp - undefined)`
+⇒ **`hp` 变成 `NaN`**（`number` 型的 NaN ⇒ 类型检查挡不住 ⇒ 静默数值坏 ✗）。
+
+```
+✗ 别这样写：结局：死亡（`<<damage>>` 归零时跳到这里）。
+✓ 这样写：  结局：死亡（damage 归零时跳到这里）。          ← 去掉反引号
+✓ 或转义：  结局：死亡（\`<<damage>>\` 归零时跳到这里）。  ← 当纯文本显示
+```
+
+★ **同时有引擎侧兜底**（`#1409`）：`<<damage>>` 对**非有限数参数 ⇒ fail-loud 点名**；
+`:passagestart` 安全网判据改 `Number.isFinite`（✗ 不再是 `typeof !== 'number' || <= 0` —— 那会**放过 NaN** ✗）。

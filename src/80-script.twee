@@ -577,8 +577,11 @@ jQuery(document).on(':passagestart', () => {
 	// 只对「已车卡」的档生效：未车卡（abilities 为空）是正常初始形状，不得改动（C1 收尾路线会验）
 	const pc = State.variables.pc;
 	if (pc.abilities) {
-		if (typeof pc.max_hp !== 'number' || pc.max_hp <= 0) pc.max_hp = 18;
-		if ((typeof pc.hp !== 'number' || pc.hp <= 0) && !pc.ev?.ending) pc.hp = 1;
+		// ★ `#1409`：判据用 **`Number.isFinite`**（✗ 不是 `typeof !== 'number' || <= 0`）——
+		//   因为 **`NaN` 是 `number` 且 `NaN <= 0` 为 `false`** ⇒ 旧判据**放过 NaN** ✗（实测：写 NaN ⇒ 跳转后仍是 NaN）
+		//   ⇒ 这一条是**兜底一切 NaN 来源**的网（✗ 不只 `<<damage>>`）✓
+		if (!Number.isFinite(pc.max_hp) || pc.max_hp <= 0) pc.max_hp = 18;
+		if ((!Number.isFinite(pc.hp) || pc.hp <= 0) && !pc.ev?.ending) pc.hp = 1;
 	}
 	// `#574`：图鉴是**故事可选面**（故事 1 有、故事 2／3 没有）——引擎不得直呼其名。
 	// 为什么必须可选：`Sg.Codex` 读 `Game.Codex.items`（故事 1 的数据）；对没有图鉴的故事直接调它会抛错，

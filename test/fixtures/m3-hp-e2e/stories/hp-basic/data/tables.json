@@ -1,0 +1,6 @@
+{
+	"section": "Game Tables",
+	"note": "hp 面最小夹具：车卡族默认值走契约 `pcDefaults`（✗ tables 的 Pc.defaults 不是该形状）",
+	"containers": {},
+	"merges": []
+}

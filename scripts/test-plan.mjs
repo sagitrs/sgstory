@@ -166,6 +166,8 @@ export const SEGMENTS = [
 	//   ⇒ 必须 **`exclusive`**（✗ 否则与别的 boot 类段并发 ⇒ 实测：「等待起始段 门厅，当前渲染的是 开场」✗
 	//   —— 链里红、单跑/--only 绿，正是"并发撞共享面"的指纹）
 	{ id: "test-block-args-e2e-mjs", phase: 'test', cost: 40, exclusive: true, mutates: ['build'], cmd: "node test/block-args-e2e.mjs" },
+	// `#1409`：hp-NaN 端到端（自建故事根 ＋ build ⇒ 需 exclusive，照 block-args 先例 ✓）
+	{ id: "test-hp-nan-e2e-mjs", phase: 'test', cost: 25, exclusive: true, mutates: ['build'], cmd: "node test/hp-nan-e2e.mjs" },
 	{ id: "test-passages-assemble-mjs-selftest", phase: 'test', cost: 0.1, inputs: ['*'],   // `#1114` 全跑型（纯函数注入段——无 fs 面；`#1093` 裁定 5756510512 ①）
 		cmd: "node test/passages-assemble.mjs --selftest" },
 	{ id: "test-docs-read-path-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/docs-read-path.mjs --selftest" },
@@ -657,7 +659,7 @@ export const SUITE_MEMBERS = {
 		'scripts-report-ledger-freshness-mjs-ledger-check', 'scripts-report-gate-ledger-mjs-selftest', 'scripts-report-gate-ledger-mjs', 'scripts-report-selftest-validity-mjs',
 		'scripts-md-format-mjs', 'scripts-move-precheck-mjs', 'scripts-move-precheck-mjs-selftest',
 		 'test-ci-triggers-mjs', 'test-ci-triggers-mjs-selftest', 'test-repo-shape-mjs',
-		'test-repo-shape-mjs-selftest', 'test-docs-read-path-mjs', 'test-docs-read-path-mjs-selftest','test-untracked-guard-mjs', 'test-passages-links-mjs', 'test-block-args-e2e-mjs', 'test-passages-assemble-mjs-selftest','test-audit-gates-run-mjs',
+		'test-repo-shape-mjs-selftest', 'test-docs-read-path-mjs', 'test-docs-read-path-mjs-selftest','test-untracked-guard-mjs', 'test-passages-links-mjs', 'test-block-args-e2e-mjs', 'test-hp-nan-e2e-mjs', 'test-passages-assemble-mjs-selftest','test-audit-gates-run-mjs',
 
 		'scripts-clean-net-mjs-selftest', 'scripts-precommit-check-mjs-selftest', 'scripts-lint-new-segment-mjs-selftest',
 		'test-coverage-mjs',

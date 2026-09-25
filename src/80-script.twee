@@ -802,31 +802,48 @@ jQuery(document).on(':passageend.sgChoiceKey', (ev) => {
 // 仅在故事声明了车卡数据（契约成员 `chargen` 在场）时定义；没有车卡的故事逐字不变。
 // 行为照原故事侧实现：`pick` 走声明式施加器 `Sg.Chargen.apply`，`finalize` 算血与姓名，
 // `applyPreset` 按预设的 picks 走一遍（纯数据施加）。姓名接管放在宏里，与 `mode`、`finalized` 同处。
-if (typeof window.Sg?.story?.chargen === 'function') {
-	window.Game = window.Game ?? {};
-	window.Game.Chargen = {
-		get rounds() { return window.Sg.story.chargen?.()?.rounds; },
-		get presets() { return window.Sg.story.chargen?.()?.presets; },
-		pick(roundIdx, optIdx) {
-			const pc = State.variables.pc;
-			const R = this.rounds[roundIdx];
-			const O = R.options[optIdx];
-			window.Sg.Chargen.apply(pc, O.patch ?? {});
-			pc.skills = [...new Set(pc.skills)];
-			pc.picked.push(`${R.title}：${O.name}`);
-			pc.round += 1;
-			if (pc.round >= this.rounds.length) this.finalize(pc);
-		},
-		finalize(pc) {
-			pc.name = State.variables.player_name || '无名旅人';
-			pc.max_hp = (pc.classHp ?? 8) + Game.Rules.mod(pc.abilities.con) * 2;
-			pc.hp = pc.max_hp;
-			pc.finalized = true;   // 幂等标记：任何调用方走完都留下它（宏的守卫因此仍有意义，也不会重复收尾）
-		},
-		applyPreset(idx) {
-			const P = this.presets[idx];
-			const picks = P.picks;
-			for (let r = 0; r < this.rounds.length; r++) this.pick(r, picks[r]);
-		},
-	};
-}
+// ★ `#1418`：**访问时惰性求值**（✗ 不在本段一次性判）—— `Sg.story.chargen`（故事数据面生成的
+//   `18-chargen.twee`）按段序**排在引擎件之后** ⇒ 本段执行那一刻它**还没到** ⇒ 任何"此刻判一次"都必失 ✗
+//   （＝"**数据在但不生效**"：产物里有 `Sg.story.chargen`、build 绿、界面无报错 ✗）
+//   ⇒ 用 **`Object.defineProperty` 的 getter 代理**：首次**访问** `Game.Chargen` 时才建（那时故事面早已在场 ✓）
+//   ✗ 不改变消费者写法（`Game.Chargen.rounds` 照读 ✓）；没车卡的故事 ⇒ getter 返回 `undefined`（✗ 逐字不变 ✓）
+window.Game = window.Game ?? {};
+Object.defineProperty(window.Game, 'Chargen', {
+	configurable: true,
+	get() {
+		if (typeof window.Sg?.story?.chargen !== 'function') return undefined;   // 没车卡的故事：同"不在"✓
+		Object.defineProperty(window.Game, 'Chargen', { configurable: true, writable: true, value: undefined });
+		window.Game.Chargen = {   // ★ 形态要点：`window.Game.X = {`（派生器 `ASSIGN_ON_GAME_RE` 只认这种 ✓）
+			get rounds() { return window.Sg.story.chargen?.()?.rounds; },
+			get presets() { return window.Sg.story.chargen?.()?.presets; },
+			pick(roundIdx, optIdx) {
+				const pc = State.variables.pc;
+				const R = this.rounds[roundIdx];
+				const O = R.options[optIdx];
+				window.Sg.Chargen.apply(pc, O.patch ?? {});
+				pc.skills = [...new Set(pc.skills)];
+				pc.picked.push(`${R.title}：${O.name}`);
+				pc.round += 1;
+				if (pc.round >= this.rounds.length) this.finalize(pc);
+			},
+			finalize(pc) {
+				pc.name = State.variables.player_name || '无名旅人';
+				pc.max_hp = (pc.classHp ?? 8) + Game.Rules.mod(pc.abilities.con) * 2;
+				pc.hp = pc.max_hp;
+				pc.finalized = true;   // 幂等标记：任何调用方走完都留下它（宏的守卫因此仍有意义，也不会重复收尾）
+			},
+			applyPreset(idx) {
+				const P = this.presets[idx];
+				const picks = P.picks;
+				for (let r = 0; r < this.rounds.length; r++) this.pick(r, picks[r]);
+			},
+		};
+		// ★ 静态可见的两条口径（实测）：
+		//   ① `module-order` 的 defines 扫描只认 `window.<路径> =`（✗ 不认 defineProperty）
+		//   ② `deriveStoryTableConsumers` 的 `ASSIGN_ON_GAME_RE` **还要求下一字符是 `{`**（字面量形态 ✗ 认 `= impl`）
+		//   ⇒ 故本处**直接以对象字面量赋值**（✗ 不经中间变量）✓
+		// ✗ 不能靠 `delete`（严格模式下删不可配置属性会抛，且语义要的是换掉这个访问器）
+		//   ⇒ 用 `Object.defineProperty` 把该属性**改写成数据属性**（`writable: true`），再走字面量赋值 ✓
+		return window.Game.Chargen;
+	},
+});

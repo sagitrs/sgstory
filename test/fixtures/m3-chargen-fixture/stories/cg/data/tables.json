@@ -1,0 +1,36 @@
+{
+ "section": "Game Tables",
+ "note": "x",
+ "containers": {
+  "Checks": {
+   "sites": {},
+   "keyYields": []
+  },
+  "Combat": {
+   "pools": {},
+   "actions": {}
+  },
+  "Economy": {
+   "prices": {},
+   "events": []
+  },
+  "Gear": {
+   "defs": {}
+  },
+  "Items": {
+   "defs": {}
+  },
+  "Truth": {
+   "facts": {}
+  },
+  "Codex": {
+   "items": {}
+  },
+  "Echoes": {
+   "rows": []
+  },
+  "State": {
+   "domains": []
+  }
+ }
+}

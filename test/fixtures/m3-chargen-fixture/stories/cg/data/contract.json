@@ -1,0 +1,33 @@
+{
+ "section": "StoryBindings",
+ "note": "车卡面最小夹具（✗ 与任何具体故事无关）",
+ "members": [
+  {
+   "name": "rules",
+   "kind": "empty-array",
+   "docs": "x"
+  },
+  {
+   "name": "passageSpecs",
+   "kind": "forward",
+   "docs": "x"
+  },
+  {
+   "name": "hasChargen",
+   "kind": "const",
+   "value": true,
+   "docs": "启用车卡族（给出 hp/max_hp/salves 等 13 键的形状）"
+  },
+  {
+   "name": "chargen",
+   "kind": "forward",
+   "to": "Sg.story.chargen",
+   "docs": "车卡数据（由 data/chargen.json 生成）"
+  },
+  {
+   "name": "mechanics",
+   "kind": "null",
+   "docs": "x"
+  }
+ ]
+}

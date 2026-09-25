@@ -1,0 +1,78 @@
+{
+ "section": "StoryChargen",
+ "rounds": [
+  {
+   "title": "出身",
+   "options": [
+    {
+     "name": "北地",
+     "patch": {
+      "classKey": "north",
+      "classLabel": "北地人"
+     }
+    },
+    {
+     "name": "南港",
+     "patch": {
+      "classKey": "south",
+      "classLabel": "南港人"
+     }
+    }
+   ]
+  },
+  {
+   "title": "路数",
+   "options": [
+    {
+     "name": "刀",
+     "patch": {
+      "bgKey": "blade",
+      "bgLabel": "刀客"
+     }
+    },
+    {
+     "name": "书",
+     "patch": {
+      "bgKey": "book",
+      "bgLabel": "书生"
+     }
+    }
+   ]
+  },
+  {
+   "title": "体魄",
+   "options": [
+    {
+     "name": "壮",
+     "patch": {
+      "abilities": {
+       "set": {
+        "con": 14
+       }
+      }
+     }
+    },
+    {
+     "name": "巧",
+     "patch": {
+      "abilities": {
+       "set": {
+        "con": 10
+       }
+      }
+     }
+    }
+   ]
+  }
+ ],
+ "presets": [
+  {
+   "name": "快建",
+   "picks": [
+    0,
+    0,
+    0
+   ]
+  }
+ ]
+}

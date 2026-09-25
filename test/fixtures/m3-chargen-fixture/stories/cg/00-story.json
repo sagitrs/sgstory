@@ -1,0 +1,14 @@
+{
+ "slug": "cg",
+ "title": "cg",
+ "entry": "开场",
+ "contractVersion": 1,
+ "audience": "internal",
+ "files": [
+  "stories/cg/00-meta.twee",
+  "stories/cg/passages/01-开场.md",
+  "stories/cg/15-tables.twee",
+  "stories/cg/17-rules.twee",
+  "stories/cg/18-chargen.twee"
+ ]
+}

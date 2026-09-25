@@ -72,12 +72,18 @@ export const pcLabelFields = (sources = []) => {
 };
 
 /** `#1048`：{{名字}} 判据 —— 未声明即红＋替换建议（候选最近名）。**纯函数**。 */
-export const valueRefProblems = ({ files = [], terms = new Set() } = {}) => {
+/** `#1350`：**声明面按故事形态分派** —— 改制面（有 `data/passages.json`）的声明面是**段 `params` ＋ `links[].slot`**，
+ *  旧形态的声明面是 `contract 值语义 ∪ VALUE_LABELS`。
+ * ★ 为什么必须分派：不分派 ⇒ 改制面故事会被**整片判红**（实测：靶 `pilot-new` 报 3 项 `V1 未声明的取值名 ${提醒}` ✗）。
+ * **向后兼容**：不传 `faceTerms` 时行为与旧版**逐字相同** ✓（旧调用点不动 ✓）。 */
+export const valueRefProblems = ({ files = [], terms = new Set(), faceTerms = null } = {}) => {
 	const out = [];
 	for (const f of files) {
 		const text = maskComments(f.text ?? '', { file: f.path, twee: false });
 		for (const m of text.matchAll(/\{\{([^{}\s]+)\}\}/g)) {
 			const name = m[1];
+			// 改制面：先看**段面**声明（params/slot），命中即放行 ✓；未命中再落回旧面 ⇒ 两面对同一名字**取并集** ✓
+			if (faceTerms && faceTerms.has(name)) continue;
 			if (terms.has(name)) continue;
 			// 最近候选（编辑距离粗版：共同前缀最长者）
 			let best = '', bl = -1;
@@ -294,6 +300,13 @@ const selftest = () => {
 	t('枚举·正例：全在清单里 ⇒ **不报**（不误咬 ✓）',
 		undeclaredStoryFiles({ declared: ['stories/x/a.twee'], onDisk: ['stories/x/a.twee'] }).length === 0);
 	t('🔴 #1048 反例：未声明取值名 {{foo}} ⇒ 报 V1 且含替换建议（最近候选）', valueRefProblems({ files: [{ path: 'x.twee', text: '见 {{foo}}' }], terms: new Set(['hasChargen', 'fooBar']) }).some((x) => x.code === 'V1' && x.hint.includes('fooBar'))),
+	// `#1350`：**声明面按故事形态分派**（改制面 ＝ 段 `params`/`slot`）
+	t('🔴 分派·面命中：`{{提醒}}` 在段面声明里 ⇒ **不报**（旧面没有它 ⇒ 若不分派就会整片判红 ✗）',
+		valueRefProblems({ files: [{ path: 'x.md', text: '见 {{提醒}}' }], terms: new Set(['别的']), faceTerms: new Set(['提醒']) }).length === 0);
+	t('🔴 分派·面未命中：`{{陌生名}}` 既不在段面也不在旧面 ⇒ **仍报 V1**（✗ 不是"分派＝放行一切"）',
+		valueRefProblems({ files: [{ path: 'x.md', text: '见 {{陌生名}}' }], terms: new Set(['别的']), faceTerms: new Set(['提醒']) }).some((q) => q.code === 'V1' && q.name === '陌生名'));
+	t('分派·**向后兼容**：不传 `faceTerms` ⇒ 行为与旧版一致（`{{提醒}}` 不在 terms ⇒ 报 V1 ✓）',
+		valueRefProblems({ files: [{ path: 'x.md', text: '见 {{提醒}}' }], terms: new Set(['别的']) }).length === 1);
 	t('#1048 正例：已声明取值名 ⇒ 不报', valueRefProblems({ files: [{ path: 'x.twee', text: '见 {{hasChargen}}' }], terms: new Set(['hasChargen']) }).length === 0),
 	t('#1048 边界：注释跨度里的 {{}} ⇒ 剥注释不罚（留痕优先）', valueRefProblems({ files: [{ path: 'x.twee', text: '/* 历史 {{oldName}} */' }], terms: new Set() }).length === 0),
 	t('#1048：valueTerms 并集（值语义 kind ∪ labels）', (() => { const t1 = valueTerms({ contract: { members: [{ name: 'a', kind: 'const' }, { name: 'b', kind: 'empty-object' }] }, labels: ['classLabel'] }); return t1.has('a') && t1.has('classLabel') && !t1.has('b'); })()),
@@ -506,7 +519,19 @@ for (const slug of stories) {
 		const pcL = pcLabelFields(vocabFiles.map((f) => readFileSync(join(ROOT, f), 'utf8')));
 		for (const l of pcL) if (/Label$/.test(l) && !labels.includes(l))
 			problems.push({ code: 'V2', msg: '引擎 pc 字段 `' + l + '` 是 Label 形态但未登记 VALUE_LABELS（src/10-core.twee 常量表——对账破了）' });
-		const vProbs = valueRefProblems({ files: allJudgedFiles.filter((f) => f.path.startsWith(`stories/${sl}/`)), terms: valueTerms({ contract, labels }) });
+		// `#1350`：**面内段声明面**（有 `data/passages.json` ⇒ 该故事的段 `params` 名 ∪ `links[].slot` 名）
+		const faceTerms = (() => {
+			const pp = absPath(`stories/${sl}/data/passages.json`);
+			if (!existsSync(pp)) return null;
+			const d = JSON.parse(readFileSync(pp, 'utf8'));
+			const out = new Set();
+			for (const v of Object.values(d)) {
+				for (const k of Object.keys(v?.params ?? {})) out.add(k);
+				for (const l of v?.links ?? []) if (l?.slot) out.add(l.slot);
+			}
+			return out;
+		})();
+		const vProbs = valueRefProblems({ files: allJudgedFiles.filter((f) => f.path.startsWith(`stories/${sl}/`)), terms: valueTerms({ contract, labels }), faceTerms });
 		for (const vp of vProbs) problems.push({ code: vp.code, msg: vp.path + ': ' + vp.hint });
 	}
 	if (unscanned.length) console.error(`○ 未跟踪（本次未扫，共 ${unscanned.length} 件）：${unscanned.join('、')}`);

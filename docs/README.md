@@ -19,6 +19,7 @@
 | **手写一个故事包**（每类 JSON 放什么、字段逐个） | **`docs/engine/json/README.md`**（索引 · 最小集 · 编译链） | `json/` 下八份逐字段手册 · `docs/engine/authoring-model.md`（三层归位） |
 | **写作形态**（MD 放什么／JSON 放什么／条件与计算写在哪） | **`docs/engine/authoring-model.md`** | `docs/engine/reference-spec.md`（判据 J1–J3 · 词汇面） |
 | 查历史 / 作废稿（含已删故事 1 的设定·设计·实施三件套，`#1077`） | `docs/archive/README.md` | — |
+| **某块做不了硬牙、又不敢删**（需要环境／时间／人判断／只是读数） | **`docs/checklist.md`**（三分处置②类的归宿：触发时机＋读数＋谁看） | `docs/criterion-design.md` §六 6.4（判据与对象同生同死） |
 
 ## 二、权威表（谁说话算数）
 

@@ -1,0 +1,16 @@
+{
+	"slug": "cg-basic",
+	"title": "车卡最小夹具",
+	"subtitle": "引擎侧最小夹具（`#1315` 乙批）：服务车卡面判据",
+	"entry": "门厅",
+	"contractVersion": 1,
+	"audience": "internal",
+	"files": [
+		"stories/cg-basic/00-meta.twee",
+		"stories/cg-basic/passages/01-门厅.md",
+		"stories/cg-basic/15-tables.twee",
+		"stories/cg-basic/17-rules.twee",
+		"stories/cg-basic/18-chargen.twee"
+	],
+	"gates": []
+}

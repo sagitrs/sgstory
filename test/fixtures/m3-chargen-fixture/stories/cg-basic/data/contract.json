@@ -1,0 +1,4 @@
+{ "section": "StoryBindings", "note": "最小夹具：启用车卡（hasChargen）", "members": [
+	{ "name": "rules", "kind": "empty-array", "docs": "无规则行" },
+	{ "name": "hasChargen", "kind": "const", "value": true, "docs": "车卡族开关" },
+	{ "name": "mechanics", "kind": "null", "docs": "未启用新机制" } ] }

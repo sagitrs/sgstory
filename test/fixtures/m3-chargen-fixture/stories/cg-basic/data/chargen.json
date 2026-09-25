@@ -1,0 +1,16 @@
+{
+	"section": "StoryChargen",
+	"note": "车卡最小夹具：3 轮 × 每轮 2 选（set/append 动词走引擎施加器）",
+	"rounds": [
+		{ "title": "出身", "options": [
+			{ "name": "甲出身", "patch": { "classKey": { "set": "a" }, "classLabel": { "set": "甲" }, "classHp": { "set": 8 } } },
+			{ "name": "乙出身", "patch": { "classKey": { "set": "b" }, "classLabel": { "set": "乙" }, "classHp": { "set": 10 } } } ] },
+		{ "title": "来历", "options": [
+			{ "name": "甲来历", "patch": { "bgKey": { "set": "x" }, "bgLabel": { "set": "某" } } },
+			{ "name": "乙来历", "patch": { "bgKey": { "set": "y" }, "bgLabel": { "set": "另" } } } ] },
+		{ "title": "族属", "options": [
+			{ "name": "甲族", "patch": { "speciesKey": { "set": "s1" }, "speciesLabel": { "set": "一族" } } },
+			{ "name": "乙族", "patch": { "speciesKey": { "set": "s2" }, "speciesLabel": { "set": "二族" } } } ] }
+	],
+	"presets": [ { "name": "默认", "picks": [0, 0, 0] } ]
+}

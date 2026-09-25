@@ -85,3 +85,19 @@ PY
 ```
 
 **落地顺序**（`#1234` 分工，已完成 ✓）：**靶（本节的例子）⇒ 判据 ⇒ 实现** ⇒ 本节已按"已落地"口径更新 ✓
+
+## 12.2 数据件的**缺省**与"最小合法形"（★✗ 不是"随便空"）[锚]
+
+```
+〔口径〕`data/*.json` 的缺件**各有自己的合法缺省**，且**形状不是随便空的** ——
+   · **必给成员**（`rules`／`notes`／`pcDefaults`／`starBudget`／`foeState`／`battleDamage`／`mechanics`）⇒ **成员必须声明**（✗ 声明不可去）；
+     ★**但对应的 `data/*.json` 文件可以缺**（缺省由引擎供；例：`rules` 缺省＝**空表** ✓）
+   · **可选成员**（例：`tables`）⇒ **成员本身可选**（✗ 不强制声明）⇒ 声明与否由**故事面**定（骨架模板默认带 ✓）
+〔为什么〕写成"随便空"会**静默产错**：`tables.json` 的编译器读的是 **`containers`**，若写成 `rows` ⇒ `undefined` ⇒ **静默产出一句空赋值** ✗
+〔权威（真值）〕
+   · 必给成员表：`editor/lib/core/contract-defaults.mjs` 的 **`REQUIRED_MEMBERS`** ✓
+   · **最小合法形**（缺省骨架）：`editor/lib/core/story.mjs` 的 `writeStoryPackage` 里那三行 ——
+     `tables.json ⇒ { section:'Game Tables', containers:{} }` ／ `contract.json ⇒ { section:'StoryBindings', members:[] }` ／ `rules.json ⇒ { section:'StoryRules', key:'rules', rows:[] }` ✓
+     （★该处注释原话：「形状**不是随便空的** —— 三件各有自己的最小合法形」✓）
+〔先例（活的 ✓）〕`books` 的 `m3-min-new`：**没有** `data/tables.json` ⇒ `build rc=0` ✓；靶 `pilot-new`：**声明了** `tables` 而**文件缺** ✓
+```

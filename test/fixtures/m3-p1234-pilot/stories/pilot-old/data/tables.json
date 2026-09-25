@@ -1,0 +1,22 @@
+{
+	"section": "StoryTables",
+	"containers": {
+		"State": {
+			"domains": [
+				{
+					"id": "runtime",
+					"keys": [
+						"ev.last_result",
+						"ev.last_roll",
+						"ev.ending",
+						"ev.soc",
+						"ev.soc_last",
+						"ev.soc_lever",
+						"ev.notes"
+					],
+					"note": "引擎保留槽（§6：7 个）"
+				}
+			]
+		}
+	}
+}

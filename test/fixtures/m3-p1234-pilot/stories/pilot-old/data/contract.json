@@ -1,9 +1,11 @@
 {
-	"version": 1,
-	"story": "pilot-old",
-	"domains": {
-		"story": { "keys": ["门厅.看过", "靴子.看过"] },
-		"runtime": { "keys": ["ev.last_roll", "ev.last_result"] },
-		"inventory": {}
-	}
+	"section": "StoryBindings",
+	"note": "试点故事（pilot-old）的接入契约：**照最小合法集，本故事不新增面**（域表纪律见  的  面）。",
+	"members": [
+		{
+			"name": "rules",
+			"kind": "empty-array",
+			"docs": "条件表：试点只用  的一行（旧形态）"
+		}
+	]
 }

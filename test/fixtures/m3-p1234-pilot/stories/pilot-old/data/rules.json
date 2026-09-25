@@ -1,4 +1,6 @@
 {
+	"section": "StoryRules",
+	"key": "rules",
 	"rows": [
 		{
 			"id": "门厅.推门",

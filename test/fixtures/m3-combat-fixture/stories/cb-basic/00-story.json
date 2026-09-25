@@ -1,0 +1,18 @@
+{
+ "slug": "cb-basic",
+ "title": "战斗最小夹具",
+ "subtitle": "引擎侧最小夹具（`#1315` 乙批）：服务「跨回合优势」与「同种子序列对照」两条判据（`combat-adv`／`fight-seq`）",
+ "entry": "门厅",
+ "contractVersion": 1,
+ "audience": "internal",
+ "files": [
+  "stories/cb-basic/00-meta.twee",
+  "stories/cb-basic/passages/01-门厅.md",
+  "stories/cb-basic/passages/02-斗.md",
+  "stories/cb-basic/passages/03-结局 胜.md",
+  "stories/cb-basic/passages/04-结局 败.md",
+  "stories/cb-basic/17-rules.twee",
+  "stories/cb-basic/15-tables.twee"
+ ],
+ "gates": []
+}

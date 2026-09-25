@@ -1,0 +1,53 @@
+{
+ "section": "StoryBindings",
+ "note": "最小夹具：只声明引擎必需成员（未启用也要声明）",
+ "members": [
+  {
+   "name": "rules",
+   "kind": "empty-array",
+   "docs": "本夹具无规则行"
+  },
+  {
+   "name": "foeState",
+   "kind": "state-ref",
+   "path": "foe",
+   "default": {}
+  },
+  {
+   "name": "battleDamage",
+   "kind": "forward",
+   "to": "Game.Items.battleDamage",
+   "params": [
+    "inv",
+    "round",
+    "defeats",
+    "poisoned"
+   ],
+   "args": [
+    "round",
+    "inv",
+    "defeats",
+    "poisoned"
+   ]
+  },
+  {
+   "name": "combatPool",
+   "kind": "lookup",
+   "from": "Game.Combat.pools",
+   "key": "id",
+   "default": null
+  },
+  {
+   "name": "combatAction",
+   "kind": "lookup",
+   "from": "Game.Combat.actions",
+   "key": "id",
+   "default": null
+  },
+  {
+   "name": "mechanics",
+   "kind": "null",
+   "docs": "未启用新机制"
+  }
+ ]
+}

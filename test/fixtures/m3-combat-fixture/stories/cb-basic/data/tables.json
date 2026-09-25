@@ -1,0 +1,71 @@
+{
+ "section": "Game Tables",
+ "note": "战斗最小夹具：一个敌人池 ＋ 一条动作（含 ok/crit/bad{hurt}）＋ 状态域登记",
+ "containers": {
+  "Combat": {
+   "pools": {
+    "雾影": [
+     "雾影·挥击",
+     "雾影·突刺",
+     "雾影·盘绕"
+    ]
+   },
+   "actions": {
+    "雾影·挥击": {
+     "site": "雾影·挥击",
+     "label": "劈下去",
+     "ok": {
+      "text": "刀锋掠过，它散开又聚。"
+     },
+     "crit": {
+      "text": "正中！"
+     },
+     "bad": {
+      "text": "你被弹回。",
+      "hurt": 3
+     }
+    },
+    "雾影·突刺": {
+     "site": "雾影·突刺",
+     "label": "抢上一步",
+     "ok": {
+      "text": "你抢进它身侧。"
+     },
+     "crit": {
+      "text": "穿过雾身！"
+     },
+     "bad": {
+      "text": "它先撞上你。",
+      "hurt": 2
+     }
+    },
+    "雾影·盘绕": {
+     "site": "雾影·盘绕",
+     "label": "等它散开",
+     "ok": {
+      "text": "它绕了半圈。"
+     },
+     "crit": {
+      "text": "它露了空！",
+      "adv": 1
+     },
+     "bad": {
+      "text": "雾气灌进口鼻。",
+      "hurt": 1
+     }
+    }
+   }
+  },
+  "State": {
+   "domains": {
+    "foe": {
+     "hp": {
+      "type": "number",
+      "default": 8
+     }
+    }
+   }
+  }
+ },
+ "merges": []
+}

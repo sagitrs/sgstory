@@ -6,6 +6,11 @@
 			"name": "rules",
 			"kind": "empty-array",
 			"docs": "条件表：试点只用  的一行（旧形态）"
+		},
+		{
+			"name": "mechanics",
+			"kind": "null",
+			"docs": "未启用新机制，但按 `#492` 必须显式声明（未启用也要声明）"
 		}
 	]
 }

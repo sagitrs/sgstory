@@ -1,11 +1,17 @@
 {
-	"section": "StoryBindings",
-	"note": "试点故事（pilot-new）的接入契约：**照最小合法集，本故事不新增面**（域表纪律见  的  面）。",
-	"members": [
-		{
-			"name": "rules",
-			"kind": "empty-array",
-			"docs": "条件表：试点只用 段数据里的 （新形态）"
-		}
-	]
+  "section": "StoryBindings",
+  "note": "试点故事（pilot-new）的接入契约：**照最小合法集，本故事不新增面**（域表纪律见  的  面）。",
+  "members": [
+    {
+      "name": "rules",
+      "kind": "empty-array",
+      "docs": "条件表：试点只用 段数据里的 （新形态）"
+    },
+    {
+      "name": "passageSpecs",
+      "kind": "forward",
+      "to": "Sg.story.passageSpecsValue ?? (() => null)",
+      "docs": "`#1350` 片 5：段落**声明面**（params／slot／present；✗ 不含 `args` 值 —— 那是运行期数据）"
+    }
+  ]
 }

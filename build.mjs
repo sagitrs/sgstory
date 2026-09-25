@@ -264,7 +264,8 @@ for (const s of stories) {
 			let body2 = String(r.body);
 			const rl2 = renderLinksOf({ name: p0.name, links: dseg.links ?? [], present: dseg.present ?? null });
 			for (const { slot: sl, text } of rl2.inline) {
-				const re2 = new RegExp(`\\{\\{${sl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\}\\}`, 'g');
+				// ★ 双花括号；正则源＝`\{\{名\}\}`（✗ 别多一层转义 —— 与拼装层同一形态、同一病：我两处都犯过 ✗）
+				const re2 = new RegExp('\\{\\{' + sl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\}\\}', 'g');
 				body2 = body2.replace(re2, `\n\n${text}\n\n`);
 			}
 			if (rl2.tailBlock) body2 = `${body2.replace(/\s+$/, '')}\n\n${rl2.tailBlock}\n`;

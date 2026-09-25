@@ -22,7 +22,14 @@ export const linksToRows = ({ data = {} } = {}) => {
 			if (!l || typeof l !== 'object') return;
 			const label = String(l.label ?? '').trim();
 			const to = String(l.to ?? '').trim();
+			// ★ `#1350` 片 5 裁定：**带 `slot` 的链接不进规则行** —— `slot` 的落位是“渲染在**正文该处**”，
+			//   它**不该**同时是“段尾菜单的候选”（内联 ⊕ 段尾 ＝ **互斥的落位** ✓）
+			//   ⇒ 否则同一条链接**两处渲染**＝重复 ✗（实测：靶 `门厅` 因此多出 1 条 ✓）
 			if (!label || !to) return;                                  // 缺件由 P1–P4（判据件）点名 ✗ 此处不重复报
+			// ★ `#1350` 片 5 裁定：**带 `slot` 的链接不进规则行** —— `slot` 的落位是“渲染在**正文该处**”，
+			//   它**不该**同时是“段尾菜单的候选”（内联 ⊕ 段尾 ＝ **互斥的落位** ✓）
+			//   ⇒ 否则同一条链接**两处渲染**＝重复 ✗（实测：靶 `门厅` 因此多出 1 条 ✓）
+			if (l.slot) return;
 			const row = { scope, text: `[[${label}|${to}]]` };
 			if (l.id) row.id = String(l.id);
 			if (Number.isFinite(l.prio)) row.prio = l.prio;
@@ -31,7 +38,6 @@ export const linksToRows = ({ data = {} } = {}) => {
 			if (l.cond && typeof l.cond === 'object') for (const [k, v] of Object.entries(l.cond)) row[k] = v;
 			// 传值面（片 4 消费；本片只透传）
 			if (l.args && typeof l.args === 'object') row.args = { ...l.args };
-			if (l.slot) row.slot = String(l.slot);
 			out.push(row);
 		});
 	}

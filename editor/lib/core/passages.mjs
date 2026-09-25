@@ -124,7 +124,9 @@ export const valueRefExpand = ({ name, body, terms, params = {}, slot = null, sl
 		}
 	}
 	const out = String(body).replace(/\{\{([^{}\s]+)\}\}/g, (_, n) => {
-		if (slotSet.has(n)) return '<<print_SLOT ' + n + '>>';
+		// `#1350` 片 4：`slot` 占位**原样保留** `{{名}}` —— 由 `renderLinksOf` 在拼装时**就地换成链接行**（✗ 不在这里换宏：
+		//   换了宏就变成"另一个运行时口"，而落位本是**编译期**就能定的事 ✗ —— 实测：换成 `<<print_SLOT>>` 会让片 4 接不上 ✗）
+		if (slotSet.has(n)) return '{{' + n + '}}';
 		// 入参：**引擎侧宏**（运行期取值 ⇒ ✗ 不烘值）—— 形态见 `docs/engine/json/tables.md` §11.2
 		if (pkeys.includes(n)) return '<<printparam "' + n + '">>';
 		// 世界态取值：**既有形态** `$pc.<名>`（✗ 不另造宏名）
@@ -242,7 +244,8 @@ export const assemblePassages = ({ passages, known, forbidden = new Set(), terms
 		let expanded = expandedRaw;
 		for (const { slot: sl, text } of rl.inline) {
 			// 内联：占位处就地换成"块形态"（前后空行 ＋ 该行）—— 与旧树散文内联链接同形 ✓
-			const re = new RegExp(`\\{\\{${sl.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\}\\}`, 'g');
+			// ★ 占位形是 `{{名}}`（**双花括号**）；正则源＝`\{\{名\}\}`（✗ 别写多一层转义 —— 我踩过：`\\{` 会去找字面反斜杠 ✗）
+			const re = new RegExp('\\{\\{' + sl.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\}\\}', 'g');
 			expanded = expanded.replace(re, `\n\n${text}\n\n`);
 		}
 		if (rl.tailBlock) expanded = `${expanded.replace(/\s+$/, '')}\n\n${rl.tailBlock}\n`;

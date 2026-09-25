@@ -48,6 +48,35 @@
    "name": "mechanics",
    "kind": "null",
    "docs": "未启用新机制"
+  },
+  {
+   "name": "checkSite",
+   "kind": "lookup",
+   "from": "Game.Checks.sites",
+   "key": "name",
+   "default": null
+  },
+  {
+   "name": "pcDefaults",
+   "kind": "const",
+   "value": {
+    "hp": 40,
+    "max_hp": 40,
+    "salves": 0,
+    "abilities": {
+     "str": 14,
+     "dex": 14,
+     "con": 14,
+     "int": 10,
+     "wis": 14,
+     "cha": 10
+    }
+   }
+  },
+  {
+   "name": "hasChargen",
+   "kind": "const",
+   "value": false
   }
  ]
 }

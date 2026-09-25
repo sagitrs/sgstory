@@ -92,7 +92,7 @@ export const SEGMENTS = [
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-choice-keys-mjs", phase: 'test', cost: 9, cmd: "node test/choice-keys.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
-	{ id: "test-combat-adv-mjs", phase: 'test', cost: 15.6, cmd: "node test/combat-adv.mjs" },
+		{ id: "test-combat-adv-mjs", phase: 'test', cost: 15.6, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-combat-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-combat-fixture/stories node test/combat-adv.mjs" },   // `#1353` 乙组：先 build 夹具再跑（⇒ exclusive，照 block-args/hp-nan 先例）
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-comment-mask-mjs", phase: 'test', cost: 0, inputs: ['*'], cmd: "node test/comment-mask.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
@@ -888,7 +888,8 @@ export const SUSPENDED = {
 	'test-cond-keyform-mjs-selftest': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'test-equiv-scratch-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'test-choice-keys-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
-	'test-combat-adv-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	// `#1315` 乙批：`test-combat-adv-mjs` **撤挂** —— 起引擎侧夹具 `test/fixtures/m3-combat-fixture/`，
+	//   判据改指该夹具（段名／播种）⇒ 夹具根态实跑 rc=0（报文：5 手在结转优势下掷骰）。
 	'test-comment-mask-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'test-contract-defaults-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：改用 `storySlugs()`／样本给出）' },
 	'test-coverage-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },

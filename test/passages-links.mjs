@@ -1,5 +1,7 @@
 // `#1350` 片 3 自证：`links[] → 规则行同形`（纯函数，零依赖 ⇒ 可在零故事态跑）。
-import { linksToRows, mergeLinksIntoRules, unreachablePassages } from '../editor/lib/core/passages-links.mjs';
+
+import { linksToRows, mergeLinksIntoRules, unmappedLinkFields, unreachablePassages } from '../editor/lib/core/passages-links.mjs';
+
 
 let bad = 0;
 const t = (label, ok) => { if (ok) console.log(`  ✓ ${label}`); else { bad++; console.error(`  ✗ ${label}`); } };
@@ -39,6 +41,33 @@ t('① `prio`／`prereq` 原样（顺序维）',
 	rows.some((r) => r.id === '侧厅.右门' && r.prio === 2 && r.prereq?.[0] === '侧厅.左门'));
 t('① `args` 透传（**片 4 消费**；本片不硬塞临时形状）', rows.some((r) => r.args?.提醒 === '别进屋'));
 t('① **带 `slot` 的链接不入表**（否则＝两处渲染 ✗）', !rows.some((r) => r.slot === '靴子口'));
+
+// ★ `#1406` ①②（**引擎能力半**）：`links[]` 的**行效果**（`gives`/`sets`/`yields`）映射 ＋ **白名单外字段点名**
+{
+	const d2 = { 靴子: { links: [
+		{ id: '靴子.收钥匙', label: '把钥匙收进口袋', to: '门厅', prio: 1, gives: ['黄铜钥匙'] },
+		{ id: '靴子.许诺', label: '许个愿', to: '门厅', sets: ['许过愿'] },
+		{ id: '靴子.记下', label: '记一笔', to: '门厅', yields: ['n_boot'] },
+	] } };
+	const r2 = linksToRows({ data: d2 });
+	t('效果① `gives` **映射进规则行**（与规则行同语义、同求值处 ⇒ ✗ 不新造第二套施加器）',
+		r2.some((r) => r.id === '靴子.收钥匙' && Array.isArray(r.gives) && r.gives[0] === '黄铜钥匙'));
+	t('效果② `sets` 映射（状态键面 ✓）', r2.some((r) => r.id === '靴子.许诺' && r.sets?.[0] === '许过愿'));
+	t('效果③ `yields` 映射（笔记面 ✓）', r2.some((r) => r.id === '靴子.记下' && r.yields?.[0] === 'n_boot'));
+	t('效果④ 三个效果字段**逐字对应**（✗ 不改写、✗ 不合并不换名）',
+		JSON.stringify(r2.find((r) => r.id === '靴子.收钥匙')?.gives) === JSON.stringify(['黄铜钥匙'])
+		&& JSON.stringify(r2.find((r) => r.id === '靴子.许诺')?.sets) === JSON.stringify(['许过愿']));
+	// ★ 泛化判据：白名单外字段（含**拼错**的形态）⇒ **点名**（✗ 不许静默丢弃）
+	t('泛化① ★白名单外字段 ⇒ **点名**（实测病灶：`gives` 曾被静默丢弃且 problems=0 ✗）',
+		(() => { const q = unmappedLinkFields({ links: [{ label: 'x', to: 'y', givse: ['钥匙'] }] });
+			return q.length === 1 && /givse/.test(q[0]); })());
+	t('泛化② **拼错**的形态也点名（`givse` vs `gives` ⇒ 提示相近的正确字段名）',
+		(() => { const q = unmappedLinkFields({ links: [{ label: 'x', to: 'y', givse: [] }] });
+			return q.length === 1 && /gives/.test(q[0]); })());
+	t('泛化③ 白名单内字段 ⇒ **不报**（✗ 不误伤）',
+		unmappedLinkFields({ links: [{ label: 'x', to: 'y', gives: [], sets: [], yields: [], cond: {}, prio: 1, prereq: [], args: {}, slot: 's', id: 'a' }] }).length === 0);
+	t('泛化④ `links` 非数组 ⇒ 不报、不抛（纯函数稳）', unmappedLinkFields({ links: null }).length === 0);
+}
 
 // ② 反例（能假的另一半）：缺 `label` 或 `to` ⇒ **不产行**（✗ 静默造半截行）
 const half = linksToRows({ data: { A: { links: [{ label: '只有标签' }, { to: '只有目标' }, { label: 'x', to: 'y' }] } } });

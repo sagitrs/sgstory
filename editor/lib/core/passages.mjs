@@ -114,17 +114,17 @@ export const danglingProblems = ({ name, body, passages, known }) => {
  * 为什么不合并报错：①②**共用 `{{}}` 命名空间** ⇒ 撞名要**换维**点名（与"缺值"不同形），
  * 否则读者分不出"该给值而没给"与"两个东西撞了名"（两种病、两种修法）。
  * 另：**只认本段 `params`**（别人的入参在本段不可见 ⇒ 报）；`required` 无 `default` 且调用处未传 ⇒ 报。 */
-export const valueRefExpand = ({ name, body, terms, params = {}, slot = null, args = null }) => {
+export const valueRefExpand = ({ name, body, terms, params = {}, slot = null, slots = null, args = null }) => {
 	const problems = [];
 	const pkeys = Object.keys(params ?? {});
-	const slots = new Set([slot].filter(Boolean));
-	for (const n of slots) {
+	const slotSet = new Set([...(Array.isArray(slots) ? slots : []), slot].filter(Boolean));
+	for (const n of slotSet) {
 		if (pkeys.includes(n)) {
 			problems.push('段「' + name + '」的落位占位 {{' + n + '}} 与**入参同名** ⇒ 撞名 ✗（同名会把"该给值"与"该落位"混成一件事）⇒ 二者其一换名');
 		}
 	}
 	const out = String(body).replace(/\{\{([^{}\s]+)\}\}/g, (_, n) => {
-		if (slots.has(n)) return '<<print_SLOT ' + n + '>>';
+		if (slotSet.has(n)) return '<<print_SLOT ' + n + '>>';
 		if (pkeys.includes(n)) return '<<print_PARAM ' + n + '>>';
 		if (terms.has(n)) return '<<print_V ' + n + '>>';
 		problems.push('段「' + name + '」的 {{' + n + '}} **不是本段入参、也不是落位、也不在世界态取值面**（本段 params＝' + JSON.stringify(pkeys) + '）⇒ 补声明或改名 ✗');
@@ -169,10 +169,28 @@ export const assemblePassages = ({ passages, known, forbidden = new Set(), terms
 	// 再展开+拼装（逐字保留散文文本 只做 {{}} 替换）
 	const chunks = [];
 	for (const p of passages) {
-		// `#1350` 片 2：段落数据（`data/passages.json`，若给）按**段名**取本段 `params`/`slot`/`args`
+		// `#1350` 片 2/3：段落数据（`data/passages.json`，若给）按**段名**取本段 `params`/`slot`/`args`。
+		// ★ 片 3 补充：`slot` 在靶里是**链接级**字段（`links[].slot` 指出该链接落在正文哪处）⇒
+		//   本段的合法占位名＝**段级 slot ∪ 本段各链接的 slot**（两种写法都认 ⇒ 与作者面一致 ✓）。
 		const dseg = (data && typeof data === 'object' ? data[p.name] : null) ?? {};
+		const linkSlots = (Array.isArray(dseg.links) ? dseg.links : []).map((l) => l && l.slot).filter(Boolean);
+		// ★ 片 3：**必填的“给了值”要按“调用处”算** —— 目标段的入参由**指向它的链接**的 `args` 提供
+		//（靶里就是：`门厅.推门` 与 `侧厅.左门` 两条 `args:{提醒:"别进屋"}`）
+		// ⇒ 本段自己的 `args`（段级）与**入链接的 args** 取并（后者优先于前者？不：任一来源给了就算给 ✓）。
+		const inbound = (() => {
+			if (!data || typeof data !== 'object') return null;
+			const acc = {};
+			for (const seg of Object.values(data)) {
+				for (const l of (Array.isArray(seg?.links) ? seg.links : [])) {
+					if (String(l?.to ?? '') !== String(p.name)) continue;
+					if (l?.args && typeof l.args === 'object') Object.assign(acc, l.args);
+				}
+			}
+			return Object.keys(acc).length ? acc : null;
+		})();
 		const { body: expanded, problems: vp } = valueRefExpand({ name: p.name, body: p.body, terms,
-			params: dseg.params ?? {}, slot: dseg.slot ?? null, args: dseg.args ?? null });
+			params: dseg.params ?? {}, slot: null, slots: [dseg.slot, ...linkSlots].filter(Boolean),
+			args: (dseg.args && typeof dseg.args === 'object') ? dseg.args : inbound });
 		problems.push(...vp);
 		const tags = p.tags ? ` [${p.tags}]` : '';
 		chunks.push(`:: ${p.name}${tags}\n${expanded}`);

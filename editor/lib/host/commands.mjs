@@ -18,7 +18,8 @@ const BASE = relative(ROOT, STORIES_DIR) || STORIES_DIR;
 import { scriptBodies } from '../core/text.mjs';
 import { compileStory } from '../core/emit.mjs';
 import { scriptSyntaxProblems } from '../core/segment-syntax.mjs';   // `#1176`：生成件脚本段语法检查（纯函数，解析器注入）
-import { packageFiles, writeStoryPackage, sectionFile, metaTwee } from '../core/story.mjs';   // `metaTwee`：`#1132` B4 元数据段的单一权威形状
+import { packageFiles, writeStoryPackage, sectionFile, metaTwee } from '../core/story.mjs';
+import { mergeLinksIntoRules } from '../core/passages-links.mjs';   // `#1350` 片 3：段落数据 → 规则行同形   // `metaTwee`：`#1132` B4 元数据段的单一权威形状
 import { unknownDomainWords } from '../core/vocab.mjs';
 import { runStory, engineOf } from './sandbox.mjs';
 
@@ -97,6 +98,10 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 	const tables = readIf('tables.json');
 	const contract = readIf('contract.json');
 	const rules = readIf('rules.json');
+	// `#1350` 片 3：段落数据（`data/passages.json`）的 `links[]` **合成进规则行** ⇒ 渲染口（`<<rules>>`／
+	// `<<rulelist>>`）**零改动**即可接上；条件求值仍走 `Sg.rules.matches` **一处权威** ✗ 不在渲染面二次求值。
+	const passagesData = readIf('passages.json');
+	const rulesMerged = mergeLinksIntoRules({ rules, data: passagesData });
 	const chargen = readIf('chargen.json');
 	const meta = readIf('meta.json');   // `#1132` B4：元数据段（title／entry／ifid） // `#1132` B3：车卡数据（运行期由 `<<applyQuickPreset>>` 经 `Sg.story.chargen()` 读）
 	const notesFace = readIf('notes.json');   // 车道 B · notes 面（`#215` `18504282`）：一个数据文件 → 多份产物
@@ -104,7 +109,7 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 	// `#1132` B4：元数据段的**次要**数据源（`title`／`entry`；主源是 `data/meta.json`）。清单可缺 ——
 	// 新建故事时先编译、后写清单（脚手架的既有次序）→ 此处不许硬抛，缺则从数据面取。
 	const story = (() => { try { return JSON.parse(readText(join(STORIES_DIR, slug, '00-story.json'))); } catch { return null; } })();
-	const files = compileStory({ tables, contract, rules, notesFace, slug, chargen, story, meta, metaTwee });
+	const files = compileStory({ tables, contract, rules: rulesMerged, notesFace, slug, chargen, story, meta, metaTwee });
 	// `#1176`：生成件的脚本段必须能解析。坏段会让引擎不启动，且症状隐蔽（错误不带 Uncaught 前缀，
 	// 容易被错误过滤漏掉）→ 在写出产物之前当场拦下并点名。解析器由宿主注入：core 不许依赖 node:*。
 	const syntax = scriptSyntaxProblems({ files, parse: (code) => { new vm.Script(code); } });

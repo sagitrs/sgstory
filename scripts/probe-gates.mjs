@@ -285,7 +285,8 @@ const mode = (arg.find((a) => a.startsWith('--probe=')) ?? '--probe=fast').split
 // `#1261` 甲（探针侧）：**临时暂缓** —— 靶对象仍在、但样本/前置随大裁剪暂缺 → 不跑、**单列**、
 // 不计"未咬"；每条必须给 why/until（缺即红，防它成为新的藏身处）。
 const SUSPENDED_PROBES = {
-	'test/gen-needed.mjs': { why: '反向核需 ≥3 个真故事（对象＝生成件清单）', until: '#1163' },
+	// `#1343`（撤暂缓）：`test/gen-needed.mjs` 的暂缓理由＝「**反向核需 ≥3 个真故事**」⇒ 已补**夹具根**
+	// （`test/fixtures/gen-needed/stories`，3 个最小故事）＋ 探针 `cmd` **内联该根** ⇒ 理由失效 ⇒ 撤 ✓
 	'test/contract-defaults.mjs': { why: '需故事契约面样本（对象＝契约默认面判据）', until: '#1163' },
 	'test/pc-base.mjs': { why: '需故事角色状态样本（对象＝角色状态面判据）', until: '#1163' },
 	'test/comment-mask.mjs': { why: '需读故事源面（对象＝剥注权威判据）', until: '#1163' },

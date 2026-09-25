@@ -217,7 +217,7 @@ export const SEGMENTS = [
 	// ⇒ 属**判据与目的脱钩**。
 	// 历史为过门做的记号清理**不回滚**（无害）；此后记号自由使用（不再有门在拦）。
 
-	{ id: "test-gen-needed-mjs", phase: 'test', cost: 0.3, inputs: ['*'], cmd: "node test/gen-needed.mjs" },   // `#1192`：构建期重编判据（按故事清单声明的产物集）
+	{ id: "test-gen-needed-mjs", phase: 'test', cost: 0.3, inputs: ['*'], cmd: "SG_STORIES_DIR=test/fixtures/gen-needed/stories node test/gen-needed.mjs" },   // `#1192`：构建期重编判据（与故事内容无关）｜`#1343`：cmd **内联夹具根**（3 个最小故事 ⇒ 反向核真核过 ✓；✗ 不新造发现机制）
 	{ id: "test-route-registry-mjs", phase: 'test', cost: 0.3, inputs: ['*'], cmd: "node test/route-registry.mjs" },   // `#1189`：实现路线表判据（覆盖／完读／腐烂／反向核）
 	{ id: "test-npm-entries-guard-mjs", phase: 'test', cost: 0.4, inputs: ['*'], cmd: "node test/npm-entries-guard.mjs" },   // `#1200`：npm 入口差集护栏的判据面（端到端能红 + 接线）
 
@@ -857,7 +857,10 @@ export const SUSPENDED = {
 	'test-readkey-family-mjs': { why: '读键族抽取面：样本需真故事的键族分布（对象＝引擎面判据）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'scripts-audit-mjs-consequences-check': { why: '选择后果门：样本需故事条件面（对象＝引擎门）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'scripts-audit-mjs-state-check': { why: '状态契约门：样本需故事状态面（对象＝引擎门）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
-	'test-gen-needed-mjs': { why: '生成件清单：反向核需 ≥3 个真故事', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
+	// `#1343`（撤挂）：`test-gen-needed-mjs` 原挂起理由是「**反向核需 ≥3 个真故事**」⇒ 已补**夹具根**
+	// （`test/fixtures/gen-needed/stories`，3 个**最小**故事：形状真、规模小）⇒ `why` 失效 ⇒ 段不再挂起 ✓
+	//   两态读数：夹具根态 **rc=0**（3 故事 ⇒ 反向核真核过）／零故事根态 ⇒ **出声未判、rc=0**（✗ 不静默绿 ✓，同 `#1321` 口径）
+	//   两条探针已在 `scripts/probes.mjs`（**该重编的必须重编** ＋ **不该重编的不许重编**）✓
 	// `#1333`（撤挂）：上面两条已摘 —— 它们的 `why` 均已失效（`why` 会过期，故在此写明"何时失效"）：
 	//   · `scripts-md-format-mjs`：`why` 写的是"文档里引用了已下架件（**应改述**，非下架）" ⇒ A 批（`#1329`）把那些引用改述到当前事实 ⇒ 门 **rc=0**
 	//   · `test-npm-entries-guard-mjs`：`why` 写的是"取样脚本随 WebUI 下架 ⇒ 待改取样" ⇒ 同批（`#1329` 的 npm 入口那 8 处）修后 ⇒ 门 **rc=0**

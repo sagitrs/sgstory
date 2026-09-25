@@ -35,15 +35,18 @@ export const PROBES = [
 		id: 'test/gen-needed.mjs',
 		tier: 'fast',
 		pre: [],
-		cmd: 'node test/gen-needed.mjs',
+		// `#1343`：cmd **内联夹具根**（3 个最小故事）—— ✗ 否则零故事根态下本段**无对象可判** ⇒ 探针不咬 ✗
+		cmd: 'SG_STORIES_DIR=test/fixtures/gen-needed/stories node test/gen-needed.mjs',
 		mutation: {
 			file: 'scripts/lib/gen-needed.mjs',
 			find: "const missing = products.filter((f) => !exists(f));",
 			replace: "const missing = products;   // 探针：改回恒真形态（不看在否）",
 		},
 		expect: { rc: 1, stdout: /只产子集且产物齐备/ },
-		why: '量的是「缺件才编」那一支（改回"忽略 exists"的恒真写法 ⇒ 第一格当场点名）。',
+		why: '量**两个方向**（**实跑读数**）：变异后 ① `只产子集且产物齐备` 红 ✓ ／ ⑤ 三个夹具故事各红 ✓（＝**不该重编的不许重编**）＋ ② `缺一件 ⇒ 恰点名该件` 也红 ✓（`missing` 不再是"恰那件"⇒**该重编的必须重编**）—— ★ 同一台账行只许**一条**探针 ⇒ 票面的"两条"由这一支刀的**两个断言面**承担 ✓',
 	},
+	// ★ `#1343`（撤挂）：原挂起理由＝「**反向核需 ≥3 个真故事**」⇒ 已补**夹具根**（`test/fixtures/gen-needed/stories`，
+	// 3 个最小故事：形状真、规模小）⇒ 该行探针的 `cmd` **内联夹具根**（✗ 否则零故事态下本段无对象 ⇒ 不咬 ✗）
 	// `#1189`：量的是「覆盖格真的在守」那一支 —— 刀＝往 `src/` 里插一段合成现场（形态与真的一样，不进表）。
 	{
 		id: 'test/route-registry.mjs',

@@ -1,0 +1,12 @@
+{
+ "slug": "s-min-a",
+ "title": "s-min-a",
+ "audience": "internal",
+ "entry": "开场",
+ "gates": [],
+ "files": [
+  "stories/s-min-a/00-meta.twee",
+  "stories/s-min-a/15-tables.twee",
+  "stories/s-min-a/passages/01-开场.md"
+ ]
+}

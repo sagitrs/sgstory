@@ -219,15 +219,28 @@ export const renderLinksOf = ({ name, links = [], present = null }) => {
 export const endingProblems = ({ passages = [], data = null } = {}) => {
 	const out = [];
 	for (const p of passages) {
-		const seg = (data && typeof data === 'object' ? data[p.name] : null) ?? {};
+		// ★ 甲①（协调席裁，`#1405` 阻断后定）：**门只对"改制面"生效** —— 面内判据＝
+		//   ① `<slug>/data/passages.json` 在场（调用方给了 `data`）**且** ② 该段在 `data` 里**有段对象**。
+		//   为什么：**义务不可追溯** —— 旧形态作者今天**根本没有**这条义务（旧承载者 `canon.mjs` 已随旧故事删除）
+		//   ⇒ 拿新门去追旧故事＝**本笔引入跨仓破坏** ✗（实测：books 真故事 `north-room` 无 `passages.json`
+		//   而写了 `tags: [ending]` ⇒ `build` 红 ⇒ `pages.yml` fail ✗）。
+		//   ⇒ 与 P1–P4 **同尺**：**"不在面内 ≠ 下架/欠账"** ✓（旧形态的缺陷**另有归属**：books 侧一次性改制 ✓）
+		const inFace = !!(data && typeof data === 'object' && Object.prototype.hasOwnProperty.call(data, p.name));
+		if (!inFace) continue;
+		const seg = data[p.name] ?? {};
 		const hasField = !!(seg.ending && typeof seg.ending === 'object');
 		const hasTag = Array.isArray(p.tags) && p.tags.includes('ending');
+		const hasMacro = /<<\s*ending\b/.test(String(p.body ?? ''));
 		if (hasField) {
 			const key = String(seg.ending.key ?? '').trim();
 			if (!key) out.push('段「' + p.name + '」的 `ending.key` 为空 ⇒ 出口卡与图鉴记账都拿不到键 ✗（填一个短标识，如 `"入林"`）');
 			const kind = String(seg.ending.kind ?? 'final');
 			if (kind !== 'chapter' && kind !== 'final') out.push('段「' + p.name + '」的 `ending.kind` ＝`' + kind + '` ✗（只许 `chapter` 或 `final`）');
-		} else if (hasTag && !/<<\s*ending\b/.test(String(p.body ?? ''))) {
+			// ★ 乙①（协调席裁）：**`ending` 字段 ＋ 正文手写宏并存 ⇒ 红** —— 否则产物**两张出口卡**
+			//   （绕过"**声明处唯一**"红线 ✗）。天然能假：产物 `<<ending` 计数 **≠ 1** ✓
+			if (hasMacro) out.push('段「' + p.name + '」**同时**有 `ending: {key,kind}` 与正文手写 `<<ending …>>` ⇒'
+				+ ' 产物会出**两张出口卡** ✗（声明处必须唯一：删掉正文那一行 ✓）');
+		} else if (hasTag && !hasMacro) {
 			out.push('段「' + p.name + '」**只**写了 `tags: [ending]`（全仓**无消费方** ⇒ 死声明 ✗）⇒'
 				+ ' 改用段数据 `ending: {key,kind}`（编译期注入出口卡）—— 否则读者会**卡在结局页** ✗');
 		}

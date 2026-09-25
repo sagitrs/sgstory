@@ -150,8 +150,15 @@ const selftest = () => {
 				return q.length === 1 && /死声明/.test(q[0]) && /ending: \{key,kind\}/.test(q[0]); })());
 		t('结局②反例·**旧形态**：正文手写 `<<ending \"x\" chapter>>` ＋ tags ⇒ **不报**（正文宏＝活声明 ✓）',
 			endingProblems({ passages: [{ name: '入林', tags: ['ending'], body: '正文。\n<<ending "x" chapter>>' }], data: { 入林: {} } }).length === 0);
-		t('结局③ 两处都写（tags ＋ 字段）⇒ **不报**（tags 作人读标记 ✓，活声明仍唯一）',
+		t('结局③ tags ＋ 字段 ⇒ **不报**（tags 只是人读标记；活声明仍唯一 ✓）',
 			endingProblems({ passages: [P('入林', ['ending'])], data: { 入林: { ending: { key: '入林', kind: 'final' } } } }).length === 0);
+		t('结局③乙 ★**并存 ⇒ 红**（`ending` 字段 ＋ 正文手写宏 ⇒ 产物**两张出口卡** ✗ —— 协调席裁）',
+			(() => { const q = endingProblems({ passages: [{ name: '入林', tags: [], body: '正文。\n<<ending "入林" chapter>>' }],
+				data: { 入林: { ending: { key: '入林', kind: 'chapter' } } } });
+				return q.length === 1 && /两张出口卡/.test(q[0]); })());
+		t('结局③甲 ★**面外不判**（无段数据／段不在 data 里 ⇒ ✗ 不报 —— 义务不可追溯，与 P1–P4 同尺）',
+			endingProblems({ passages: [P('结局 收好', ['ending'])], data: null }).length === 0
+			&& endingProblems({ passages: [P('结局 收好', ['ending'])], data: { 别的段: {} } }).length === 0);
 		t('结局④ `ending.key` 空 ⇒ 点名（出口卡与图鉴拿不到键）',
 			endingProblems({ passages: [P('入林', [])], data: { 入林: { ending: { key: '  ', kind: 'final' } } } }).some((x) => /key.*为空/.test(x)));
 		t('结局⑤ `ending.kind` 非法 ⇒ 点名（只许 chapter／final）',

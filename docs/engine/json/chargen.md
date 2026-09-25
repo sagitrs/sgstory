@@ -1,6 +1,6 @@
 # `data/chargen.json` —— 车卡数据集（可缺）
 
-> 实况样本：`stories/face-fixture/data/chargen.json`。生成物：`18-chargen.twee`（家族第 4 类）。
+> 实况样本：`stories/face-fixture/data/chargen.json`。生成物：`18-chargen.twee`（家族第 4 类）。 <!-- path-exempt: `face-fixture` 已随 `#1261` 大裁剪删除（历史叙述）；现成样本见 `test/fixtures/m3-chargen-fixture/` -->
 > 来源：`#1132` 块二 B2（`chargen.json` ＋ 声明式施加器，2026-09-22）／B3 步③①（数据面接通，生成 `18-chargen.twee`）；
 > 引擎侧消费：`Sg.Chargen`（`src/80-script.twee`）与 `<<pickPreset>>`／`<<applyQuickPreset>>` 两宏。
 

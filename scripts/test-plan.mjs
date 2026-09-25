@@ -102,7 +102,7 @@ export const SEGMENTS = [
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-fight-seq-mjs", phase: 'test', cost: 22, cmd: "node test/fight-seq.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
-	{ id: "test-focus-after-nav-mjs", phase: 'test', cost: 1, cmd: "node test/focus-after-nav.mjs" },
+	{ id: "test-focus-after-nav-mjs", phase: 'test', cost: 1, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node test/focus-after-nav.mjs" },   // `#1315` 乙批：先 build 夹具再跑（⇒ exclusive，照 block-args/hp-nan 先例）
 	// `#1353` ③（丙组）：对象＝旧 demo 剧情支路（跨时代合龙门／一次性拾取）⇒ 最小化后无对象 ⇒ **下架删除**（同笔关 `#1074`／`#1076`）
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-gate-discovery-mjs", phase: 'test', cost: 0, cmd: "node test/gate-discovery.mjs" },
@@ -894,7 +894,8 @@ export const SUSPENDED = {
 	'test-contract-defaults-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：改用 `storySlugs()`／样本给出）' },
 	'test-coverage-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'test-fight-seq-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
-	'test-focus-after-nav-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	// `#1315` 乙批：**撤挂** —— 起夹具 `test/fixtures/m3-nav-fixture/`；判据去掉两处钉死旧故事（车卡引导链 3 步／`Engine.play('酒馆')`）
+	//   ⇒ 夹具根态实跑 rc=0（程序性导航不抢焦点 ＋ 导航型交互后焦点仍在 #passages 内）。
 	'test-gate-discovery-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：改用 `storySlugs()`／样本给出）' },
 	'test-pc-base-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'test-pc-defaults-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },

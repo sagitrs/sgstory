@@ -79,7 +79,7 @@
 | `test/fight-keys-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
 | `test/fight-seq.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | **临时下架**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：测试件接新根后）） |  |
 | `test/fightpanel-turns-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/focus-after-nav.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | **临时下架**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：测试件接新根后）） |  |
+| `test/focus-after-nav.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
 | `test/gate-discovery.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | **临时下架**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：改用 `storySlugs()`／样本给出）） |  |
 | `test/gen-needed.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ | — |  |
 | `test/gen-segment-syntax.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |

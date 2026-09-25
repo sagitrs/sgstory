@@ -91,8 +91,47 @@ export const linksToRows = ({ data = {} } = {}) => {
 			if (l.cond && typeof l.cond === 'object') for (const [k, v] of Object.entries(l.cond)) row[k] = v;
 			// 传值面（片 4 消费；本片只透传）
 			if (l.args && typeof l.args === 'object') row.args = { ...l.args };
+			// ★ `#1406` ①（**行效果映射**）：`gives`／`sets`／`yields` 与**规则行同语义** ⇒ **逐字搬**进行，
+			//   求值仍走**同一个施加器**（`Sg.rules.applyGrants/applySets/applyYields` ⇒ ✗ 不新造第二套 ✓）。
+			//   为什么（实测病灶）：链接搬进 `links[]` 后**没地方放行效果** ⇒ `gives` 被**静默丢弃**、
+			//   读者拿不到钥匙、门永远打不开，而**没有任何判据会红** ✗ ——"静默丢维"的具体实例 ✓
+			for (const k of ['gives', 'sets', 'yields']) {
+				const v = l[k];
+				if (v == null) continue;
+				if (Array.isArray(v)) { if (v.length) row[k] = [...v]; }
+				else if (typeof v === 'object') row[k] = { ...v };
+				else row[k] = v;                     // 字符串等标量形态照搬（求值侧 `items()` 本就认 ✓）
+			}
 			out.push(row);
 		});
+	}
+	return out;
+};
+
+/** ★ `#1406` ⑤（**泛化判据**，协调席裁"比 `gives` 本身更值"）：`links[]` 的**映射白名单**。
+ * 为什么要有它：今天 `gives` 被**静默丢弃**且 `problems=0` ⇒ 作者看到的是"我写了、它没生效"而**没人告诉他为什么** ✗。
+ * 形态：**白名单外字段 ⇒ 点名**（含**拼错**的形态 ⇒ 提示相近的正确名）。
+ * ★ 好处：**任何**未来新增的链接字段都会先红一次 ⇒ 逼作者与实现**同步**（同族先例：`slot` 与 `params` **撞名即红** ✓）。
+ * ★ 范围（Operator 纪律）：这是**编译器/输入校验**行为 ⇒ 属**引擎** ✓（✗ 不判"故事该不该这么写"）。
+ */
+export const LINK_FIELDS = Object.freeze(['label', 'to', 'id', 'prio', 'prereq', 'cond', 'args', 'slot', 'gives', 'sets', 'yields']);
+
+/** 白名单外字段 ⇒ 点名清单（纯函数；`links` 非数组 ⇒ 空、不抛）。 */
+export const unmappedLinkFields = ({ links = [] } = {}) => {
+	const out = [];
+	if (!Array.isArray(links)) return out;
+	const known = new Set(LINK_FIELDS);
+	const near = (f) => LINK_FIELDS.find((k) => k.length === f.length && k !== f
+		&& [...k].filter((c, i) => c === f[i]).length >= k.length - 1);
+	for (const l of links) {
+		if (!l || typeof l !== 'object') continue;
+		for (const k of Object.keys(l)) {
+			if (known.has(k)) continue;
+			const n = near(k);
+			out.push('链接「' + String(l.label ?? l.id ?? '(无标签)') + '」有**映射白名单外**的字段 `' + k + '` '
+				+ (n ? '（是不是想写 `' + n + '`？）' : '') + ' ⇒ 它会被**静默丢弃** ✗（白名单：'
+				+ LINK_FIELDS.join('／') + '）');
+		}
 	}
 	return out;
 };

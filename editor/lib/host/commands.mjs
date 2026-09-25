@@ -19,7 +19,7 @@ import { scriptBodies } from '../core/text.mjs';
 import { compileStory } from '../core/emit.mjs';
 import { scriptSyntaxProblems } from '../core/segment-syntax.mjs';   // `#1176`：生成件脚本段语法检查（纯函数，解析器注入）
 import { packageFiles, writeStoryPackage, sectionFile, metaTwee } from '../core/story.mjs';
-import { mergeLinksIntoRules } from '../core/passages-links.mjs';   // `#1350` 片 3：段落数据 → 规则行同形   // `metaTwee`：`#1132` B4 元数据段的单一权威形状
+import { mergeLinksIntoRules, unmappedLinkFields, LINK_FIELDS } from '../core/passages-links.mjs';   // `#1350` 片 3：段落数据 → 规则行同形   // `metaTwee`：`#1132` B4 元数据段的单一权威形状
 import { unknownDomainWords } from '../core/vocab.mjs';
 import { runStory, engineOf } from './sandbox.mjs';
 
@@ -115,6 +115,22 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 	// `<<rulelist>>`）**零改动**即可接上；条件求值仍走 `Sg.rules.matches` **一处权威** ✗ 不在渲染面二次求值。
 	const passagesData = readIf('passages.json');
 	const rulesMerged = mergeLinksIntoRules({ rules, data: passagesData });
+	// ★ `#1406` ⑤（**泛化判据**）：`links[]` 的**白名单外字段 ⇒ 点名**（✗ 不许静默丢弃）。
+	//   为什么必须接在编译期：实测病灶＝`gives` 被**静默丢弃**而 `problems=0` ⇒ 作者看到的是
+	//   "我写了、它没生效"，**没人告诉他为什么** ✗ —— 编译期出声 ⇒ 他当场看得见 ✓
+	//   ★ 范围（Operator 纪律）：这是**编译器/输入校验** ⇒ 属**引擎** ✓（✗ 不判"故事该不该这么写"）
+	if (passagesData && typeof passagesData === 'object') {
+		const bad = [];
+		for (const [seg, v] of Object.entries(passagesData)) {
+			for (const q of unmappedLinkFields({ links: v?.links ?? [] })) bad.push(`段「${seg}」${q}`);
+		}
+		if (bad.length) {
+			for (const b of bad) console.error(`✗ [links-fields] ${b}`);
+			console.error('✗ `passages.json` 的 `links[]` 里有**映射白名单外**的字段 —— 它们会被静默丢弃，故不写出产物'
+				+ `（白名单：${LINK_FIELDS.join('／')}）`);
+			return 1;
+		}
+	}
 	const chargen = readIf('chargen.json');
 	const meta = readIf('meta.json');   // `#1132` B4：元数据段（title／entry／ifid） // `#1132` B3：车卡数据（运行期由 `<<applyQuickPreset>>` 经 `Sg.story.chargen()` 读）
 	const notesFace = readIf('notes.json');   // 车道 B · notes 面（`#215` `18504282`）：一个数据文件 → 多份产物

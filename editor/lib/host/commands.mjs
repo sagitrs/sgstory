@@ -109,7 +109,7 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 	// `#1132` B4：元数据段的**次要**数据源（`title`／`entry`；主源是 `data/meta.json`）。清单可缺 ——
 	// 新建故事时先编译、后写清单（脚手架的既有次序）→ 此处不许硬抛，缺则从数据面取。
 	const story = (() => { try { return JSON.parse(readText(join(STORIES_DIR, slug, '00-story.json'))); } catch { return null; } })();
-	const files = compileStory({ tables, contract, rules: rulesMerged, notesFace, slug, chargen, story, meta, metaTwee });
+	const files = compileStory({ tables, contract, rules: rulesMerged, passages: passagesData, notesFace, slug, chargen, story, meta, metaTwee });
 	// `#1176`：生成件的脚本段必须能解析。坏段会让引擎不启动，且症状隐蔽（错误不带 Uncaught 前缀，
 	// 容易被错误过滤漏掉）→ 在写出产物之前当场拦下并点名。解析器由宿主注入：core 不许依赖 node:*。
 	const syntax = scriptSyntaxProblems({ files, parse: (code) => { new vm.Script(code); } });

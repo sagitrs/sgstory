@@ -167,7 +167,7 @@
 - 看**别人的判据**时问三问：①输入是参数还是环境 ②声称与覆盖是否一致 ③观测对象与遮蔽口径是否匹配。
 - 撞到新的一面：**给它命名、写实例、留纸** —— 没名字的教训会被重犯。
 
-**交叉引用**：`editor/k6.mjs`（L1／L1′／③b 的实现与注释即上面各条的实例）· `docs/engine-story-boundary.md`（引擎/故事边界）· `docs/superpowers/specs/editor-pivot.md`（编辑器转向）· `#794`（内核抽取／防双内核）。
+**交叉引用**：`editor/k6.mjs`（L1／L1′／③b 的实现与注释即上面各条的实例）· `docs/manual/**`（**手册：作者面与引擎面**）· `docs/criteria-ledger.md`（判据册）· `docs/dev-conventions-cases.md`（案例册）· `docs/superpowers/specs/editor-pivot.md`（编辑器转向）· `#794`（内核抽取／防双内核）。
 
 ## 四、术语表（门／判据／流程的**共同语言**）
 
@@ -224,7 +224,7 @@
 ### 路 L1：**新人入门**（这是什么、我怎么跑起来）
 ```
 先读：根 `README.md`（对外首屏）→ 本页 §四（术语）→ `docs/manual/README.md` §1／§2（一个故事由什么组成／最小可跑故事）
-再读：`docs/repo-map.md`（目录与层归属）
+再读：`scripts/module-order.mjs`（**层归属与模块顺序：代码即权威** ✓）· `docs/manual/README.md`（手册目录）
 违约红在哪：✗ 无（读者路径不判红）；但**入口页有体量闸**：`md-format` 报「入口页 README.md 98 行（上限 120）」
 ```
 
@@ -243,7 +243,7 @@
 
 ### 路 L3：**改引擎（`src/**`、`editor/**`）**
 ```
-先读：`docs/dev-conventions.md`（§1 渲染路径契约 · §2 构建与模块顺序 · §3 状态契约 · §4 状态域表）
+先读：`docs/manual/06-state.md`（状态与写点 · **域表纪律**）· `docs/manual/13-build.md`（产出与发布 · 构建链）· `scripts/module-order.mjs`（层归属，代码即权威）
 再读：`docs/engine/data-model.md` · `docs/engine/reference-spec.md` · `docs/engine/json/`
 守：契约/存档语义不变；模块顺序与依赖显式；状态键落在某域
 违约红在哪：
@@ -255,7 +255,7 @@
 
 ### 路 L4：**改门 / 判据（`test/**`、`scripts/**`）** ← **最常"猜"的一条**
 ```
-先读：本节 §一～§二（判据设计总法则）＋ §三（怎么用这一页）→ §四（术语）→ `docs/criteria-ledger.md`（判据册）→ `docs/quality-dimensions.md`
+先读：本节 §一～§二（判据设计总法则）＋ §三（怎么用这一页）→ §四（术语）→ `docs/criteria-ledger.md`（判据册）
 守（四条，每条都有明确的"红在哪"）：
  ① **加一个段 ⇒ 六处登记**（缺一处就红，报文如下）
       · `SEGMENTS`（段本身）
@@ -279,7 +279,7 @@
 ### 路 L5：**发布 / 运维**
 ```
 先读：`docs/manual/13-build.md`（产出与发布 · 用例门）· `docs/process/story-engine-loop.md`（pin 与跨仓纪律）
-再读：`docs/gate-ledger.md`（**生成物** ✗ 不手改）· `docs/criteria-ledger.md` · `docs/baselines.md`（历史快照）
+再读：`docs/gate-ledger.md`（**生成物** ✗ 不手改）· `docs/criteria-ledger.md`（判据册）
 守：发布前跑用例门；引擎 pin 与 books 同笔；台账/生成物**重生成而不手改**
 违约红在哪：
   · 台账/生成物不同步 ⇒ `node scripts/report-gate-ledger.mjs --check`（✗ 缺 `build/probe-results.json` 时**拒绝出数** ✓）

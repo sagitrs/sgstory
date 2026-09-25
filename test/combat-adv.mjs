@@ -47,10 +47,10 @@ const pc = () => w.SugarCube.State.variables.pc;
 const actsOnScreen = () => [...w.document.querySelectorAll(CLICKABLE_SEL)].filter((x) => !x.textContent.includes('设定集'));
 const click = async (el) => { await settle(); el.click(); await settle(); await sleep(220); };
 
-// 播种：盟约 ＋ 龙醒 ＋ 好哨（adv 手在池子里）＋ 干净战斗台账
+// 播种（`#1315` 乙批）：干净战斗台账 ＋ 满 hp（夹具 = m3-combat-fixture；带 adv 的那手在池子里）
 w.eval('(function(){const pc=SugarCube.State.variables.pc;pc.hp=40;pc.max_hp=40;pc.ev.fight=null;'
-	+ 'pc.keeper={state:"ally"};pc.dragon={hp:Game.Dragon.hp,awake:true,defeats:0};pc.inv["好哨"]=true;pc.ev.failure_cause=true;})()');
-w.SugarCube.Engine.play('封印·并肩'); await settle(); await sleep(400);
+	+ 'pc.ev.failure_cause=true;})()');
+w.SugarCube.Engine.play('斗'); await settle(); await sleep(400);
 
 const A = w.Game.Combat.actions;
 const obs = [];

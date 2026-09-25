@@ -159,6 +159,10 @@ export const SEGMENTS = [
 	// `#1114` 片1：散文层拼装判据（纯函数注入 无前置 ——正例/禁则红/悬空点名/取值/逐字/单权威 成对）
 	// `#1350` 片 3/5：`links[] → 规则行同形`（纯函数；含"带 slot 的不入表"等能假）
 	{ id: "test-passages-links-mjs", phase: 'test', cost: 0.3, cmd: "node test/passages-links.mjs" },
+	// `#1350` 尾件 ⑥：**段尾块链接的 `args` 端到端** —— 引擎仓夹具（`m3-p1234-pilot`）建**自建外根** ⇒
+	// `<<rulelist>>` 渲的行**真带上** `data-sg-args` ⇒ 点击 ⇒ 目标段**渲染出该值**（✗ 只比字符串咬不住：
+	// "链接不带 args"与"槽存不住"两层各自都能让值到不了 ✓）；含两条负向（不带 args 行不乱贴属性／无新跳转不读旧值）
+	{ id: "test-block-args-e2e-mjs", phase: 'test', cost: 40, cmd: "node test/block-args-e2e.mjs" },
 	{ id: "test-passages-assemble-mjs-selftest", phase: 'test', cost: 0.1, inputs: ['*'],   // `#1114` 全跑型（纯函数注入段——无 fs 面；`#1093` 裁定 5756510512 ①）
 		cmd: "node test/passages-assemble.mjs --selftest" },
 	{ id: "test-docs-read-path-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/docs-read-path.mjs --selftest" },
@@ -650,7 +654,7 @@ export const SUITE_MEMBERS = {
 		'scripts-report-ledger-freshness-mjs-ledger-check', 'scripts-report-gate-ledger-mjs-selftest', 'scripts-report-gate-ledger-mjs', 'scripts-report-selftest-validity-mjs',
 		'scripts-md-format-mjs', 'scripts-move-precheck-mjs', 'scripts-move-precheck-mjs-selftest',
 		 'test-ci-triggers-mjs', 'test-ci-triggers-mjs-selftest', 'test-repo-shape-mjs',
-		'test-repo-shape-mjs-selftest', 'test-docs-read-path-mjs', 'test-docs-read-path-mjs-selftest','test-untracked-guard-mjs', 'test-passages-links-mjs', 'test-passages-assemble-mjs-selftest','test-audit-gates-run-mjs',
+		'test-repo-shape-mjs-selftest', 'test-docs-read-path-mjs', 'test-docs-read-path-mjs-selftest','test-untracked-guard-mjs', 'test-passages-links-mjs', 'test-block-args-e2e-mjs', 'test-passages-assemble-mjs-selftest','test-audit-gates-run-mjs',
 
 		'scripts-clean-net-mjs-selftest', 'scripts-precommit-check-mjs-selftest', 'scripts-lint-new-segment-mjs-selftest',
 		'test-coverage-mjs',

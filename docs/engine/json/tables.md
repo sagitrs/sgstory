@@ -107,11 +107,16 @@
 | 占位种类 | 判定 | 编译成 | 为什么 |
 |---|---|---|---|
 | **落位** `slot` | 名 ∈ 本段各链接的 `slot` | **拼装期**就地换成该链接的渲染（`[[label\|to]]` 或段尾块） | 位置维 ⇒ 编译期就能定（✗ 不需要运行时口） |
-| **入参** `param` | 名 ∈ 本段 `params` | **引擎侧宏 `<<printparam "名">>`** ⇒ 从 **`State.temporary.sginargs[段名]`**（一跳清）取值 | 值只有**跳转时**才知道（"我从哪条链接来"）⇒ 必须运行期取值 ✗ 不许编译期烘值 |
+| **入参** `param` | 名 ∈ 本段 `params` | **引擎侧宏 `<<printparam "名">>`** ⇒ 从 **`Sg.inargs` 的闭包缓冲**（按段名键）取值 | 值只有**跳转时**才知道（"我从哪条链接来"）⇒ 必须运行期取值 ✗ 不许编译期烘值 |
 | **世界态取值** | 名 ∈ 既有取值面（契约成员 ∩ `VALUE_KINDS` ∪ 引擎 `VALUE_LABELS`） | **既有形态** `$pc.<名>`（如 `$pc.classLabel`） | 它**已有既名**（`vocab.mjs` 的 `valueTerms` ＋ `10-core.twee:6` 的 `VALUE_LABELS`）⇒ ✗ 不另造第二名字 |
 
 **写入点（唯一）：** 引擎函数 **`Sg.inargs.carry(dest, args)`** —— 它把入链 `args` 写到
-**SugarCube 临时变量** `State.temporary.sginargs[<目标段名>]`（**一跳清** ⇒ ✗ 不进存档、✗ 不留旧值）。
+**`Sg.inargs` 的闭包缓冲**（按 `dest` 段名键；**新一次 `carry` 整体替换**缓冲 ＝ 一跳清 ⇒ ✗ 不进存档、✗ 不留旧值）。
+★ **✗ 不许改用 `State.temporary.sginargs`**（`#1350` 尾件 ⑥ 实测）：SugarCube 每次换段都调
+`State.clearTemporary()`（`vendor/format.js` 的 `enginePlay`：`TempState={},State.clearTemporary()`
+**在渲染新段之前**）⇒ 点击时写进去、渲染前就被抹掉 ⇒ 目标段**永远读不到** ✗
+（实测：插桩 `carry` 只调 1 次且写对，最终槽 `null`）。**一跳清**也**✗ 不是"取后即删"**
+（同段正文里 `{{入参}}` 出现两次 ⇒ 第二次必断 ✗）⇒ 语义是**整体替换** ✓
 三处跳转路径**都调它**（✗ 不各写一份）：① 链接点击委托（`src/80-script.twee` 的 `#passages a.link-internal`）
 ② 链接遍历点（同文件 `a.link-internal[data-passage]`）③ 程序性跳转 `Engine.play(dest)`（全仓 5 处）。
 宏 `<<printparam "名">>` 从该槽按名取（取不到 ⇒ 报『本段入参未传』 ✗ 不许静默空、✗ 不许读旧值）。

@@ -618,25 +618,31 @@ jQuery(document).on('keydown.sgSocial', '#passages a.soc-opt', function (ev) {
      · 注册在**文件末尾**，故在所有其它 `:passageend` 后处理**之后**执行
        （那些 pass 会做焦点回收 / 行动区包裹 / 跳转链接插入；派生若先跑会被重排丢掉或重复）。
    歧义由 `test/choice-keys.mjs` 静态枚举（同段落同目标 ≥2 条 → 要求作者覆盖或进白名单）。 */
-// ── `#1350` 片 5：跳转携带的**入参**（`args`）────────────────────────
+// ── `#1350` 片 5（尾件 ⑥ 修）：跳转携带的**入参**（`args`）────────────────
 // 契约见 `docs/engine/json/tables.md` §11.2。三条口径（都别省）：
-//  · 写 **SugarCube 临时变量** `State.temporary.sginargs[<目标段名>]` ⇒ **一跳清**（✗ 不进存档、✗ 不留旧值 ✓）
-//  · **一处写点**：本函数 `carry()` —— 三个跳转路径都调它（✗ 不各写一份 ✓）
+//  · 存处＝**`Sg.inargs` 的闭包缓冲**（按**目标段名**键）—— ★ 尾件 ⑥ 实测修正：
+//    ✗ **不能用 `State.temporary`** —— SugarCube 每次换段都调 `State.clearTemporary()`
+//    （`vendor/format.js` 的 `enginePlay`：`_state=States.Playing,TempState={},State.clearTemporary()`，
+//     **在渲染新段之前**）⇒ 点击时写进去 ⇒ 渲染前就被抹掉 ⇒ 目标段永远读不到 ✗
+//    （实测：插桩 `carry` 只调 1 次且写对，最终槽 `null`；`State.clearTemporary()` ⇒ 立刻 `null` ✓）
+//  · **一跳清** ＝ **新一次 `carry` 整体替换**缓冲（✗ 不是"取后即删" —— 同段正文里 `{{入参}}`
+//    出现两次时第二次必断 ✗）⇒ 同段多次读都命中 ✓，且 ✗ 读不到上一跳的旧值 ✓
 //  · 取不到就**报**（✗ 不静默空、✗ 不读旧值）—— 由 `<<printparam>>` 一侧判 ✓
 {
 	window.Sg ??= {};
+	/** 闭包缓冲：`{ [目标段名]: { 入参名: 值 } }`（✗ 不进 `State.variables` ⇒ 不进存档 ✓）。 */
+	let buffer = Object.create(null);
 	window.Sg.inargs = {
-		/** 把入链 `args` 记到目标段的临时槽（**一跳清**）。`args` 为空 ⇒ 只清目标段的槽（✗ 不写空对象）。 */
+		/** 把入链 `args` 记到目标段的缓冲（**整体替换**＝一跳清）。`args` 为空 ⇒ 清空缓冲（✗ 不留旧值）。 */
 		carry(dest, args) {
 			const d = String(dest ?? '');
 			if (!d) return;
-			const t = (State.temporary.sginargs ??= {});
-			if (args && typeof args === 'object' && Object.keys(args).length) t[d] = { ...args };
-			else delete t[d];
+			buffer = Object.create(null);                                 // 整体替换 ⇒ 一跳清 ✓
+			if (args && typeof args === 'object' && Object.keys(args).length) buffer[d] = { ...args };
 		},
 		/** 取目标段已携带的入参（无 ⇒ `undefined`）。 */
 		of(dest) {
-			return (State.temporary.sginargs ?? {})[String(dest ?? '')];
+			return buffer[String(dest ?? '')];
 		},
 	};
 }

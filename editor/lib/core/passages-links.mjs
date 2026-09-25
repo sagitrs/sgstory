@@ -1,3 +1,4 @@
+import { linkHtml } from './passages.mjs';   // `#1350` 尾件 ⑥：带 args 的行 → HTML（复用唯一权威）
 // `#1350` 片 3：`data/passages.json` 的 `links[]` → **规则行同形**（纯函数）。
 //
 // 为什么要"转成规则行"而不是新写一个渲染口：本仓的**渲染与条件求值各有一处权威**——
@@ -30,7 +31,16 @@ export const linksToRows = ({ data = {} } = {}) => {
 			//   它**不该**同时是“段尾菜单的候选”（内联 ⊕ 段尾 ＝ **互斥的落位** ✓）
 			//   ⇒ 否则同一条链接**两处渲染**＝重复 ✗（实测：靶 `门厅` 因此多出 1 条 ✓）
 			if (l.slot) return;
-			const row = { scope, text: `[[${label}|${to}]]` };
+			// ★ `#1350` 尾件 ⑥（实测缺陷）：**段尾块的链接收不到 `args`** —— `<<rules>>`／`<<rulelist>>` 只
+			//   `wiki(row.text)`，而 `[[label|to]]` 由 SugarCube 自产 ⇒ 链接上**无** `data-sg-args` ⇒
+			//   目标段的 `<<printparam>>` 报"本次未传" ✗（实测：靶 `pilot-new` 的 `门厅.推门` 带 `args`
+			//   却永不生效）。修法：**带 `args` 的行在编译期就编成 HTML**（复用 `linkHtml` 唯一权威
+			//   ⇒ ✗ 不在引擎里再造一份）；**不带 `args` 的行一字不动**（⇒ 片 5 的"渲染文本同／
+			//   外属性集合同"两条验收仍成立 ✓）。
+			const hasArgs = l.args && typeof l.args === 'object' && Object.keys(l.args).length > 0;
+			const row = hasArgs
+				? { scope, text: linkHtml({ label, to, args: l.args }) }
+				: { scope, text: `[[${label}|${to}]]` };
 			if (l.id) row.id = String(l.id);
 			if (Number.isFinite(l.prio)) row.prio = l.prio;
 			if (Array.isArray(l.prereq) && l.prereq.length) row.prereq = [...l.prereq];

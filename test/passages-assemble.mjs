@@ -7,7 +7,7 @@
 // 自证：`node test/passages-assemble.mjs --selftest`
 //注意：自证结尾 `if (bad) … exit(1)`（#1100 形态硬化 ——格红必进退出码）
 
-import { parseFrontMatter, forbiddenProblems, danglingProblems, valueRefExpand, assemblePassages, endingProblems, FORBIDDEN_BUILTINS } from '../editor/lib/core/passages.mjs';
+import { parseFrontMatter, forbiddenProblems, danglingProblems, valueRefExpand, assemblePassages, endingProblems, doubleRenderProblems, FORBIDDEN_BUILTINS } from '../editor/lib/core/passages.mjs';
 import { valueTerms, VALUE_KINDS } from '../editor/lib/core/vocab.mjs';
 
 let bad = 0;
@@ -170,6 +170,25 @@ const selftest = () => {
 		t('结局⑦ 负向：**没有** `ending` 的普通段 ⇒ 产物里**不得**出现 `<<ending`',
 			(() => { const r = assemblePassages({ passages: [P('门厅', [])], known: new Set(), data: { 门厅: {} } });
 				return !/<<ending/.test(r.twee); })());
+	}
+	// ★ 双渲染宏（`#1412`）：**面内段**同时有散文手写渲染宏（`<<rules>>`／`<<rulelist>>`）与 `links[]`（非空 ⇒ 注入段尾块）
+	//   ⇒ **点名红**（修法：删手写宏 或 移内联 `slot`）—— 与 `#1399`「并存 ⇒ 红」同族（"看起来能跑、其实重复渲染"✗）
+	{
+		const P = (name, body, tags = []) => ({ name, tags, body });
+		t('双渲染① 正例：**手写宏 ＋ 无 links** ⇒ 不报（旧形态：链接写在正文里，宏是唯一渲染口 ✓）',
+			doubleRenderProblems({ passages: [P('门厅', '正文。\n<<rulelist "门厅">>')], data: { 门厅: { links: [] } } }).length === 0);
+		t('双渲染② 正例：**有 links ＋ 无手写宏** ⇒ 不报（新形态：块由编译期注入 ✓）',
+			doubleRenderProblems({ passages: [P('门厅', '正文。')], data: { 门厅: { links: [{ label: 'x', to: 'y' }] } } }).length === 0);
+		t('双渲染③ ★**病灶形态**：手写 `<<rulelist>>` ＋ `links[]` 非空 ⇒ 点名（产物会**渲染两遍** ✗）',
+			(() => { const q = doubleRenderProblems({ passages: [P('门厅', '正文。\n<<rulelist "门厅">>')], data: { 门厅: { links: [{ label: 'x', to: 'y' }] } } });
+				return q.length === 1 && /两遍|重复渲染/.test(q[0]); })());
+		t('双渲染④ `<<rules>>` 形态同样点名 ✓',
+			doubleRenderProblems({ passages: [P('门厅', '正文。\n<<rules "门厅">>')], data: { 门厅: { links: [{ label: 'x', to: 'y' }] } } }).length === 1);
+		t('双渲染⑤ ★**面外不判**（无段数据／段不在 data 里 ⇒ ✗ 不报 —— 义务不可追溯，与 `endingProblems` 同尺）',
+			doubleRenderProblems({ passages: [P('门厅', '正文。\n<<rulelist "门厅">>')], data: null }).length === 0
+			&& doubleRenderProblems({ passages: [P('门厅', '正文。\n<<rulelist "门厅">>')], data: { 别的段: {} } }).length === 0);
+		t('双渲染⑥ 带 `slot` 的 links（**内联** ⇒ 不注入段尾块）＋ 手写宏 ⇒ ✗ 不报（互斥落位 ✓）',
+			doubleRenderProblems({ passages: [P('门厅', '正文。\n<<rulelist "门厅">>')], data: { 门厅: { links: [{ label: 'x', to: 'y', slot: '口' }] } } }).length === 0);
 	}
 	if (bad) { console.error(`\n✗ 拼装层自证失败 ${bad} 项`); process.exit(1); }
 	console.log('\n✔ 拼装层自证通过（正例+禁则红+具名放行+悬空点名+取值展开+逐字保留+front-matter+单一权威）');

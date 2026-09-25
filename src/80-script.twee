@@ -650,8 +650,9 @@ Macro.add('printparam', {
 		// `#1350` 片 5：**本次未传 ⇒ 用该入参声明的 `default`**（若声明了）。
 		// 为什么：入参的"声明态默认值"是**可预判的**（与"实际传了什么"不同）⇒ 与旧形态的**固定字面**等价 ✓
 		//（靶：`门厅.params.提醒.default = "钥匙在靴里"` ⇒ 旧树散文就是这句字面 ⇒ 两树渲染文本可同 ✓）
+		// `#1350` 片 5：段落**声明面**经契约成员 `passageSpecs` 读（✗ 不读 args 值 —— 那是运行期数据）
 		const spec = (() => {
-			try { return window.Sg?.story?.passages?.()?.[seg]?.params?.[key] ?? null; } catch { return null; }
+			try { return window.Sg?.story?.passageSpecs?.()?.[seg]?.params?.[key] ?? null; } catch { return null; }
 		})();
 		if (Object.prototype.hasOwnProperty.call(got, key)) {
 			$(this.output).wiki(String(got[key]));

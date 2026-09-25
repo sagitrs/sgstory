@@ -16,7 +16,9 @@ const data = {
 	] },
 };
 const rows = linksToRows({ data });
-t('① 行数＝链接数（4）', rows.length === 4);
+// `#1350` 片 5 裁定：**带 `slot` 的链接不进规则行**（内联 ⊕ 段尾 ＝ 互斥的落位 ✓）
+//  ⇒ 本样本 4 条链接里 1 条带 `slot`（`翻一翻靴子`）⇒ 入表 **3** 条 ✓
+t('① 行数＝**不带 `slot`** 的链接数（3）', rows.length === 3);
 t('① `label`/`to` 编成 `text` 里的 `[[label|to]]`（维持现形态）',
 	rows.some((r) => r.scope === '门厅' && r.text === '[[推门进去|里屋]]'));
 t('① `cond` **原样**搬进行（`req` 不解、不改）',
@@ -24,7 +26,7 @@ t('① `cond` **原样**搬进行（`req` 不解、不改）',
 t('① `prio`／`prereq` 原样（顺序维）',
 	rows.some((r) => r.id === '侧厅.右门' && r.prio === 2 && r.prereq?.[0] === '侧厅.左门'));
 t('① `args` 透传（**片 4 消费**；本片不硬塞临时形状）', rows.some((r) => r.args?.提醒 === '别进屋'));
-t('① `slot` 透传（片 4 落位用）', rows.some((r) => r.slot === '靴子口'));
+t('① **带 `slot` 的链接不入表**（否则＝两处渲染 ✗）', !rows.some((r) => r.slot === '靴子口'));
 
 // ② 反例（能假的另一半）：缺 `label` 或 `to` ⇒ **不产行**（✗ 静默造半截行）
 const half = linksToRows({ data: { A: { links: [{ label: '只有标签' }, { to: '只有目标' }, { label: 'x', to: 'y' }] } } });

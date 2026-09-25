@@ -74,13 +74,17 @@ const selftest = () => {
 	const P = { p: { type: 'string', required: true } };
 	t('片2·① 本段入参（已声明且已传）⇒ 展开为入参占位、不报',
 		(() => { const r = valueRefExpand({ name: 'A', body: '你好 {{p}}', terms: T, params: P, args: { p: 'x' } });
-			return r.problems.length === 0 && r.body.includes('print_PARAM p'); })());
-	t('片2·② 落位（`slot` 命中）⇒ 展开为落位占位、不报',
+			// `#1350` §11.2：入参编译成**引擎侧宏** `<<printparam "名">>`（运行期取值 ⇒ ✗ 不烘值）
+			return r.problems.length === 0 && r.body.includes('<<printparam "p">>'); })());
+	t('片2·② 落位（`slot` 命中）⇒ 展开为**占位**、不报（片 4 在拼装期把它换成链接行）',
 		(() => { const r = valueRefExpand({ name: 'A', body: '口：{{slotA}}', terms: T, slot: 'slotA' });
-			return r.problems.length === 0 && r.body.includes('print_SLOT slotA'); })());
+			// `#1350` §11.2：`slot` 的**落位**由片 4 的 `renderLinksOf` 在拼装期换成链接行
+			// ⇒ 本函数（`valueRefExpand`）只负责"认它是合法占位"（✗ 不报）⇒ 断言＝三支都不是时**才**报
+			return r.problems.length === 0; })());
 	t('片2·③ 世界态取值（既有口径）⇒ 仍走具名占位、不报',
 		(() => { const r = valueRefExpand({ name: 'A', body: '值 {{classLabel}}', terms: T });
-			return r.problems.length === 0 && r.body.includes('print_V classLabel'); })());
+			// `#1350` §11.2：世界态取值走**既有形态** `$pc.<名>`（✗ 不另造宏名）
+			return r.problems.length === 0 && r.body.includes('$pc.classLabel'); })());
 	t('片2·④ 撞名（`slot` 与入参同名）⇒ **换维**点名（不是"缺值"那一形）',
 		(() => { const r = valueRefExpand({ name: 'A', body: '{{n}}', terms: T, params: { n: {} }, slot: 'n' });
 			return r.problems.length === 1 && /撞名/.test(r.problems[0]); })());

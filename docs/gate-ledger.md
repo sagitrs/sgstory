@@ -129,6 +129,7 @@
 | `test/story-shape.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
 | `test/takes-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
 | `test/untracked-guard.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | — |  |
+| `test/vitals-consumers.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
 | `test/walker.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | — | — | 随机游走 soak（npm run soak）：耗时长、种子流非确定，不进 npm test |
 
 ## F2 工作清单：有断言但**缺自证**（42 项）
@@ -177,4 +178,5 @@
 - `test/story-enum-faces.mjs`（测试脚本）
 - `test/story-root.mjs`（测试脚本）
 - `test/takes-e2e.mjs`（测试脚本）
+- `test/vitals-consumers.mjs`（测试脚本）
 - `test/walker.mjs`（测试脚本）

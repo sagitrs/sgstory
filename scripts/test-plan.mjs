@@ -51,7 +51,6 @@ export const FULL_REASONS = {
 		+ '另：台账的探针列**依赖本段产出的** `build/probe-results.json`（gitignored）⇒ 本段不在 PR 档跑时，'
 		+ '台账那一列由 `report-gate-ledger.mjs --allow-stale-probe` **显式降级**（打印"探针面跳过"，不静默 ✓）。',
 	'scripts-audit-mjs-consequences-check': '`#1353` 阶段一（PR 档减压）：「选择后果」引擎门：直接依赖故事侧条件面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
-	'scripts-audit-mjs-a11y-check': '`#1353` 阶段一（PR 档减压）：可访问性门：需真环境（读产物/DOM 面）⇒ 环境不具备时应记「未判」。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
 	'scripts-audit-mjs-sitedisc-check': '`#1353` 阶段一（PR 档减压）：位点判定门：面＝故事数据面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
 	'scripts-audit-mjs-text-check': '`#1353` 阶段一（PR 档减压）：文本载荷门：载荷阈值型判据，值随内容漂移。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
 	'scripts-audit-mjs-state-check': '`#1353` 阶段一（PR 档减压）：状态契约门：面＝故事状态面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
@@ -227,7 +226,9 @@ export const SEGMENTS = [
 	{ id: "test-import-side-effects-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/import-side-effects.mjs --selftest" },   // `#1031`：接线（合成模块输入 → 布尔计入退出码）
 	{ id: "test-import-side-effects-mjs", phase: 'test', cost: 0.6, cmd: "node test/import-side-effects.mjs" },
 	{ id: "scripts-audit-mjs-consequences-check", phase: 'test', tier: 'full', cost: 0, cmd: "node scripts/audit.mjs --consequences --check" },
-	{ id: "scripts-audit-mjs-a11y-check", phase: 'test', tier: 'full', cost: 0, cmd: "node scripts/audit.mjs --a11y --check" },
+	// `#1353` 批 3（撤挂）：可访问性门 —— 需**真产物**（读 DOM/产物面）⇒ 接夹具根（建产物后跑）✓
+	//   ★实测（开发侧）：接夹具根后 **rc=0 绿** ⇒ 真该跑 ⇒ 从 full 撤出 ✓（与批 1/2 同形）
+	{ id: "scripts-audit-mjs-a11y-check", phase: 'test', cost: 1, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node scripts/audit.mjs --a11y --check" },
 	{ id: "scripts-audit-mjs-sitedisc-check", phase: 'test', tier: 'full', cost: 0, cmd: "node scripts/audit.mjs --sitedisc --check" },
 	{ id: "scripts-audit-mjs-text-check", phase: 'test', tier: 'full', cost: 0, cmd: "node scripts/audit.mjs --text --check" },
 	{ id: "scripts-audit-mjs-state-check", phase: 'test', tier: 'full', cost: 0.1, cmd: "node scripts/audit.mjs --state --check" },

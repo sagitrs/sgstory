@@ -16,7 +16,7 @@
 import { passagesOf } from '../../../editor/lib/core/passages.mjs';   // `#1114` 2b-2b-0b：切段单一权威
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { ROOT, absPath } from '../../dist-paths.mjs';   // #1267 tail item 1
+import { ROOT, absPath, STORIES_DIR } from '../../dist-paths.mjs';   // #1267 tail item 1｜`#1353` 批 3：夹具态判别
 import { allSourceFiles, CONST_SECTION } from '../../module-order.mjs';
 import vm from 'node:vm';
 import { maskComments } from '../lib/mask.mjs';
@@ -35,6 +35,17 @@ export const ENGINE_COMMON = new Set([
 /** 白名单**数据**（`scripts/audit/engine-story-allow.json`）：键 `<门文件>::<token>` → `理由（#票号）`。
  * 为什么放 JSON 不写在本文件：检查器**自己**也在被扫的门里——把 token 写进代码会被自己命中（实测过一次）。
  * 纪律：理由**必须带票号**；声明了却不再命中 → 报（逼你删，不留僵尸豁免）。 */
+/** 纯函数：某个**故事根**是否落在**测试夹具**下（`#1353` 批 3 · 裁定＝**乙**）。
+ *
+ * 为什么要它：`allSourceFiles()` 的故事根**跟着 `SG_STORIES_DIR` 走** ⇒ 夹具态下，
+ * **夹具自己的段名**会被当成"故事专有 token" ⇒ 随后撞上门源码里的**中文自证描述串**
+ * （实测：`roads.mjs` 自证用例写「…抬高**终点**让一段悬空…」，而 `nav-basic` 夹具恰有一段名「终点」）
+ * ⇒ ★门报的是**夹具段名**，✗ 不是"门依赖了真故事词" ⇒ **判据对象错**（口径错位）✓
+ * ★判据**只排除夹具**（✗ 不是"只认仓内" —— 那会把 books 的**外部真故事根**一起关掉；
+ *   实测 books CI 真的以 `SG_STORIES_DIR=$GITHUB_WORKSPACE/books/stories` 跑本门 ⇒ 必须照判 ✓）。
+ * ★与 `#1261`「零故事态」**同轴**：夹具不是故事 ⇒ 无样本可抽 ⇒ 不进红 ✓。 */
+export const isFixtureStoryRoot = (dir) => /(^|\/)test\/fixtures\//.test(String(dir ?? '') + '/');
+
 export const loadAllow = ({ root = ROOT } = {}) => {
 	const p = join(root, 'scripts/audit/engine-story-allow.json');
 	if (!existsSync(p)) throw new Error('缺 scripts/audit/engine-story-allow.json（白名单是数据，必须显式存在；空对象也要写）');
@@ -264,6 +275,13 @@ export const run = (ctx) => {
 				const noStory = !storySources.length;
 				return !Object.keys(tables).length && !noStory;   // → 走红分支
 			})()],
+			// `#1353` 批 3（裁定乙）：token 来源的**对象**判别 —— 夹具不是故事 ✓
+			['🔴 三态③：**夹具故事根** ⇒ 无样本（✗ 不进红 —— 夹具段名不该被当故事 token）',
+				isFixtureStoryRoot('/r/test/fixtures/m3-nav-fixture/stories') === true],
+			['★三态③-反：**仓内**与 **books 外部真故事根** ⇒ **照判**（✗ 不被误排除）',
+				isFixtureStoryRoot('/r/stories') === false
+				&& isFixtureStoryRoot('/home/u/books/stories') === false
+				&& isFixtureStoryRoot('/r/test/other/stories') === false],
 			['边界（探测档）：`Object.assign((window.Game.Economy ??= {}), …)` 的**声明式** `??=` ⇒ 不报', probeTierProblems({ file: 'x', src: 'Object.assign((window.Game.Economy ??= {}), { apply() {} });', tables: TB }).length === 0],
 		];
 		let selfBad = 0;
@@ -273,7 +291,19 @@ export const run = (ctx) => {
 
 	// ── 真实数据：故事 token 集合 × 每个"引擎门"源码 ──
 	const ALLOW = loadAllow({ root: ROOT });
-	const storyFiles = allSourceFiles().filter((f) => f.startsWith('stories/'));
+	// ★ `#1353` 批 3（裁定＝**乙**：判据的 token 来源限定「**真故事**」✗ 夹具）：
+	//   真因：`allSourceFiles()` 的故事根**跟着 `SG_STORIES_DIR` 走** ⇒ 外根/夹具态下，
+	//     **夹具自己的段名**会被当成"故事专有 token" ⇒ ★随后撞上门源码里的**中文自证描述串**
+	//     （实测：`roads.mjs` 自证用例写「…抬高**终点**让一段悬空…」，而 `nav-basic` 夹具恰有一段名「终点」）
+	//     ⇒ ★**门报的是"夹具段名"**，✗ 不是"门依赖了真故事词" ⇒ 这是**口径错位**（判据对象错）✓
+	//   ★为什么不选甲/丙：甲（为过门改夹具内容）＝**本末倒置**；丙（白名单登记"同词巧合"）＝**为过而过**
+	//     （那描述串不会变 ⇒ 永不腐烂 ⇒ 豁免成了永久噪音 ✓）
+	//   ★与 `#1261`「零故事态」**同轴**：判据只对**真故事**成立 ⇒ 夹具态下**不进红**（明说无样本 ✓）
+	//   ★判据（✗ 不是"只认仓内" —— 那会连 books 的**外部真故事根**一起关掉 ✗）：
+	//     仅当故事根落在**测试夹具**下时排除（夹具＝测试件，✗ 不是"另一个故事"）；
+	//     仓内 `stories/` 与 books 的**外部真故事根**都照常判 ✓
+	const storiesIsFixture = isFixtureStoryRoot(STORIES_DIR);
+	const storyFiles = storiesIsFixture ? [] : allSourceFiles().filter((f) => f.startsWith('stories/'));
 	// `#1267` 尾件①：storyFiles 是**符号名** → 过 absPath（仓内恒等）。
 	const storySources = Object.fromEntries(storyFiles.map((f) => [f, readFileSync(absPath(f), 'utf8')]));
 	const tokens = storyTokensOf(storySources);

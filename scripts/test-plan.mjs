@@ -116,7 +116,7 @@ export const SEGMENTS = [
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 		{ id: "test-properties-mjs", phase: 'test', cost: 5.6, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-hp-e2e/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-hp-e2e/stories node test/properties.mjs" },   // `#1353` 乙组：先 build 夹具再跑（⇒ **exclusive**，照 block-args/hp-nan 先例 ✓）
 		{ id: "test-locations-adv-mjs", phase: 'test', cost: 1, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-items-adv-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-items-adv-fixture/stories node test/locations-adv.mjs" },   // `#1353` 乙组：先 build 夹具再跑（⇒ **exclusive**，照 block-args/hp-nan 先例 ✓）
-	{ id: "test-chargen-shape-mjs", phase: 'test', cost: 1, cmd: "node test/chargen-shape.mjs" },   // `#1353` 乙组：从 properties 拆出的车卡面（暂挂起 ⇒ 见 SUSPENDED）
+		{ id: "test-chargen-shape-mjs", phase: 'test', cost: 1, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node test/chargen-shape.mjs" },   // `#1353` 乙组：车卡面（`#1418` 修后接夹具根 ⇒ 先 build 再跑，照同组两段形态）
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-render-all-mjs", phase: 'test', cost: 8.9, cmd: "node test/render-all.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
@@ -867,7 +867,9 @@ export const validateSuites = (plan = SEGMENTS, { members = SUITE_MEMBERS } = {}
  */
 export const SUSPENDED = {
 	// `#1353` 乙组：车卡面判据（从 properties 拆出）⇒ 夹具缺 `chargen` 数据面 ＋ **引擎段序缺陷 `#1418`**
-	'test-chargen-shape-mjs': { why: '车卡面判据（`#1353` 乙组拆出）；夹具缺 `chargen` 数据面 ＋ 引擎段序缺陷 `#1418`', until: '#1418 修好后：接夹具 m3-chargen-fixture 并撤挂' },
+	// `#1315` 审计（48h 下架复验）：`test-chargen-shape-mjs` **撤挂** —— `#1418`（车卡惰性求值）已修，
+	//   夹具 `m3-chargen-fixture` **扩族属轮**（补 `speciesKey`／`speciesLabel`：断言面含「三项标签齐」⇒ 夹具须给齐 ✓）
+	//   ⇒ 夹具根态实跑 rc=0（形状律 ×6 种子 ＋ 组合多样性）✓
 	// `#1315` 时效审计（48h 第一/二轮）：`test-readkey-family-mjs` **撤挂** —— why 已失效：两态实跑均 **rc=0**（零故事态／外根态；读数见 `#1315` 审计评论）⇒ 本行理由不再成立（✗ 不写含糊的“永久降级”）。
 	'scripts-audit-mjs-consequences-check': { why: '选择后果门：样本需故事条件面（对象＝引擎门）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	'scripts-audit-mjs-state-check': { why: '状态契约门：样本需故事状态面（对象＝引擎门）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },

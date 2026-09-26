@@ -40,11 +40,17 @@
    ]
   },
   {
-   "title": "体魄",
+   "title": "族属",
    "options": [
     {
-     "name": "壮",
+     "name": "北地民",
      "patch": {
+      "speciesKey": {
+       "set": "north"
+      },
+      "speciesLabel": {
+       "set": "北地民"
+      },
       "abilities": {
        "set": {
         "con": 14
@@ -53,11 +59,17 @@
      }
     },
     {
-     "name": "巧",
+     "name": "沙民",
      "patch": {
+      "speciesKey": {
+       "set": "sand"
+      },
+      "speciesLabel": {
+       "set": "沙民"
+      },
       "abilities": {
        "set": {
-        "con": 10
+        "con": 12
        }
       }
      }

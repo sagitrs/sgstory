@@ -1,5 +1,5 @@
 
-import { defaultStoryHtml, storyRelPath, storyHtml, FONT_PREFIX_FROM_STORY } from '../scripts/dist-paths.mjs';
+import { defaultStoryHtml, storyRelPath, storyHtml, FONT_PREFIX_FROM_STORY, DIST_DIR } from '../scripts/dist-paths.mjs';   // ★`#1504`：`DIST_DIR` 是**根**的单一权威（✗ 不再硬编 `resolve('dist')`）
 import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1261`：零故事判定（与同批门同口径）
 // #263（#185 阶段五）真实浏览器验收：零依赖 CDP 驱动（Node 22 内建 fetch + WebSocket）
 //
@@ -158,7 +158,10 @@ const MIME = {
 	'.woff2': 'font/woff2', '.woff': 'font/woff', '.ttf': 'font/ttf', '.otf': 'font/otf',
 	'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif', '.svg': 'image/svg+xml', '.webp': 'image/webp',
 };
-const ROOT = resolve('dist');
+// ★ `#1504` CR（转述＋实证）：本服务器此前硬编**仓根** `resolve('dist')`
+//   ⇒ ★与 `SG_STORIES_DIR=夹具` 合用时，产物在 `test/fixtures/<夹具>/dist/` ⇒ **服务器 404** ⇒ 导航到非故事页 ⇒ bail ✗
+//   ⇒ ★正解：改用**同一权威** `DIST_DIR`（`dist-paths.mjs` 已导出 —— ★本件别处已 import 它三个函数，但**没用它** ⇒ 半拉口径 ✓）
+const ROOT = DIST_DIR;
 const server = http.createServer((req, res) => {
 	let pathname;
 	try { pathname = decodeURIComponent(new URL(req.url, 'http://127.0.0.1').pathname); } catch { pathname = '/'; }

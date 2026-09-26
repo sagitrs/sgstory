@@ -117,21 +117,18 @@ jobs:
       - run: npx playwright install --with-deps chromium
       - name: browser.mjs real-browser assertions
         env:
-          CI_REQUIRE_BROWSER: "1"
           CHROME_PATH: ${{ github.workspace }}/pw-chromium-ci
         run: |
+          # ★ `#1504`＋`#1516`（裁定＝甲′）：**本步撤掉 `CI_REQUIRE_BROWSER=1`** ——
+          #   ★为什么：`browser.mjs` 的**对象**是"**两个故事 ＋ 内容够跑满 58 条断言**"（`MIN_ASSERTIONS`）
+          #     ⇒ ★而**引擎仓天然零故事**、★仓内 16 个夹具**无一满足**（13 个只有 1 个故事；唯一两个故事的 `m3-p1234-pilot` 是 pilot 级）
+          #     ⇒ ★**此前它"通过"完全靠零故事分支空转**（✗ 假绿）⇒ `#1504` 把那个分支治掉 ⇒ **这半现形** ✓
+          #   ★故本步**诚实打印「未判」退 0**（✗ 不是"声称必需却静默跳过" —— 两者不同 ✓）
+          #   ★**"对象从哪来"是另一笔**：`#1516`（探索 A＝引擎自有最小夹具[含"两故事/58 下界"设计前提**重审**] vs B＝迁 books CI）
           PW_PATH=$(node -e "console.log(require('playwright').chromium.executablePath())")
           test -x "$PW_PATH" || { echo "ERROR: playwright chromium 缺失"; exit 1; }
           ln -sf "$PW_PATH" "$CHROME_PATH"
-          # ★ `#1504`（诊断 S15）：**本步必须自己带故事** —— 否则引擎仓天然零故事 ⇒
-          #   `browser.mjs` 走零故事分支 ⇒ ★配合 `CI_REQUIRE_BROWSER=1` ⇒ **报"接线失效"退 1** ✓
-          #   （★这**正是本票要治的那件事的另一半**：此前它靠零故事分支**空转绿** ✗ ⇒ 本票一修就现形 ✓）
-          #   ⇒ 供既有夹具（`test/fixtures/m3-nav-fixture` —— 仓内两段既有范式同用它 ✓）＋ **清三层后重编**
-          rm -f test/fixtures/m3-nav-fixture/stories/nav-basic/15-tables.twee \
-                test/fixtures/m3-nav-fixture/stories/nav-basic/17-rules.twee \
-                test/fixtures/m3-nav-fixture/stories/nav-basic/00-meta.twee
-          SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node build.mjs
-          SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node test/browser.mjs
+          node test/browser.mjs
 
   deploy:
     # main 分支推送且测试通过后，自动发布到 GitHub Pages

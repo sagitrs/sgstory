@@ -108,7 +108,7 @@ export const SEGMENTS = [
 	{ id: "test-gate-discovery-mjs", phase: 'test', cost: 0, cmd: "node test/gate-discovery.mjs" },
 	// `#1353` ③（丙组）：对象＝旧 demo 剧情支路（跨时代合龙门／一次性拾取）⇒ 最小化后无对象 ⇒ **下架删除**（同笔关 `#1074`／`#1076`）
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
-	{ id: "test-pc-base-mjs", phase: 'test', cost: 0.3, inputs: ['*'], cmd: "node test/pc-base.mjs" },
+		{ id: "test-pc-base-mjs", phase: 'test', cost: 0.3, inputs: ['*'], exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node test/pc-base.mjs" },   // `#1315` 审计：接车卡夹具根（先 build 再跑）
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-pc-defaults-mjs", phase: 'test', cost: 2, cmd: "node test/pc-defaults.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
@@ -899,7 +899,8 @@ export const SUSPENDED = {
 	// `#1315` 乙批：**撤挂** —— 起夹具 `test/fixtures/m3-nav-fixture/`；判据去掉两处钉死旧故事（车卡引导链 3 步／`Engine.play('酒馆')`）
 	//   ⇒ 夹具根态实跑 rc=0（程序性导航不抢焦点 ＋ 导航型交互后焦点仍在 #passages 内）。
 	'test-gate-discovery-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：改用 `storySlugs()`／样本给出）' },
-	'test-pc-base-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	// `#1315` 审计（下架复验）：`test-pc-base-mjs` **撤挂** —— 原 `EXPECTED_KEYS` 钉死三旧 slug（随 `#1261` 删）
+	//   ⇒ 已改判据（对在场故事逐 slug 核「至少一在场 ＋ 形状单一源」）＋ 接夹具根 ⇒ 实跑 rc=0（10 格全绿）✓
 	'test-pc-defaults-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	// `#1353` 乙组：`test-properties-mjs` **撤挂** —— 接 hp 面夹具 `m3-hp-e2e` ⇒ 夹具根态 **13 格绿**；
 	//   原 D（车卡）／F（位点优势）两段已拆出（见 `chargen-shape`／`locations-adv`）⇒ 本件回归**单一面**（hp/判定/战斗）。

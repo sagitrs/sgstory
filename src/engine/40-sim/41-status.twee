@@ -1,0 +1,164 @@
+:: StatusFx [script]
+// `#1437`（D 块分家·第二刀 B）：**状态效果面**的**算** —— 从 `40-combat.twee` 摘出（`#1436` 终态图）。
+//
+// 为什么摘（✗ 不是"文件太长"）：状态效果是**独立玩法面**（回合制持续效果），✗ 与战斗结算同源。
+//   `#1446` 终态裁：宿主＝`Game.StatusFx`（新起件）｜`#1437` 两条约束照旧：
+//   ① **作者面键名/形状一字不动**（`mechanics().statuses`／`statusPenalty` 不变 ✓）
+//   ② **分家不加功能**（方法体**一字不改**，只换宿主 ⇒ 新面另票 ✓）
+//
+// ★写法说明（`#1444`／`#1418`／`#1425` 同一颗钉，第三次撞）：
+//   引擎侧新增 `Game.X` 必须用 `window.Game.X = { … }` **字面量赋值** ——
+//   `scripts/module-order.mjs` 的声明检测只认这一形（✗ 用 `??=` 会被排除 ⇒ 分层门报 `missing-define`）。
+//
+// ★跨件依赖（两处，见 `#1445` 门面约束门 + `#1446` 调用图）：
+//   · 声明表：经**公共门面** `Game.StoryDecl.decl()` 取（✗ 不走 `Game.Combat.slotsDecl()`）
+//   · 掷骰：`window.Game.Combat.rollDice(…)`（**行为方法跨块直调 ✓** —— 与"绕门面读声明"不同类 ✓）
+//   ⇒ 加载顺序：本件（41）排在 `40-combat.twee`（40）之后、被 `present`（`10-core.twee`）调 ⇒ 两向都安全 ✓
+window.Game.StatusFx = {
+	statusEntries(pc) {
+		const mech = window.Game.StoryDecl?.decl?.() ?? null;
+		if (!mech) return [];
+		const out = [];
+		for (const [part, map] of Object.entries(pc?.statuses ?? {})) {
+			for (const [id, turns] of Object.entries(map ?? {})) out.push({ part, id, label: mech.statuses?.[id]?.label ?? id, turns });
+		}
+		return out;
+	},
+	statusParts(mech, id) {
+		const st = mech?.statuses?.[id];
+		if (!st) return [];
+		return st.parts === '*' ? (mech.hitLocations ?? []) : (st.parts ?? []);
+	},
+	statusInstances(pc) {
+		const out = [];
+		for (const [part, bag] of Object.entries(pc?.statuses ?? {})) {
+			for (const [id, turns] of Object.entries(bag ?? {})) if (turns > 0) out.push({ part, id, turns });
+		}
+		return out;
+	},
+	statusPenaltyFor(pc, part, mech = window.Game.StoryDecl?.decl?.() ?? null) {
+		let sum = 0;
+		const counted = new Set();
+		for (const { part: afflicted, id } of this.statusInstances(pc)) {
+			// `#747`（正典口径：**该部位**相关减成）：只有"查的部位＝异常**所在**的部位"才算 ——
+			// 腿上的麻痹不该罚手臂的判定（旧手写表恰好也是这个效果：查 `paralysis@手臂` 取不到 → 0
+			// → 本改动**不改变**已声明格的行为，只是把口径写清并推广到"声明生成"）。
+			if (afflicted !== part) continue;
+			if (!this.statusParts(mech, id).includes(part)) continue;
+			// `#747`（实测暴露的账）：同一异常在**多个部位**发作时（如手臂＋躯干都流血），
+			// 查询"躯干"会把该异常**按实例重复计**（流血在两处 → −2）→ 同一异常对同一部位**只算一次**。
+			if (counted.has(id)) continue;
+			counted.add(id);
+			// `#747`（症状：减成靠**手写稀疏表** → 漏格没人看得见，`麻痹@手臂` 就是洞）：
+			// **减成由声明生成** —— `statuses[id].perRound.penalty = { value, scope:'part'}`
+			// → 对该异常的**每一个允许部位**都生效（组合穷举天然齐全）。
+			const decl = mech.statuses?.[id]?.perRound?.penalty;
+			if (decl) {
+				if (decl.scope !== 'part') throw new Error(`Game.Combat.statusPenaltyFor：perRound.penalty.scope 本片只实现 part（拿到 ${JSON.stringify(decl.scope)}）——声明面不得大于实现面（#747）`);
+				if (typeof decl.value !== 'number') throw new Error(`Game.Combat.statusPenaltyFor：perRound.penalty.value 必须是数字（拿到 ${JSON.stringify(decl.value)}，#747）`);
+				// `#747`：`only` ＝「**只押这几个部位**」的显式声明（可选）。缺省 → 覆盖该异常的全部允许部位；
+				// 给了就必须是允许部位的**子集**（否则是把减成押到了这个异常根本不能落的地方 → fail-loud）。
+				if (decl.only !== undefined) {
+					if (!Array.isArray(decl.only) || !decl.only.length) throw new Error(`Game.Combat.statusPenaltyFor：perRound.penalty.only 必须是非空数组（拿到 ${JSON.stringify(decl.only)}，#747）`);
+					const allowedParts = this.statusParts(mech, id);
+					for (const pOnly of decl.only) if (!allowedParts.includes(pOnly)) throw new Error(`Game.Combat.statusPenaltyFor：「${id}」的 penalty.only 里有「${pOnly}」，但它不在允许部位（${allowedParts.join('、')}）里（#747）`);
+					if (!decl.only.includes(part)) continue;     // 该部位不在「押注范围」内 → 无减成
+				}
+				sum += decl.value;
+				continue;                                  // 声明已覆盖（全部或声明的子集）→ 不再查手写表（否则重复计）
+			}
+			// 回落：手写表 `statusPenalty[<id>@<部位>]` —— 只给「就想押在某一个部位」的情形（如流血只压躯干）
+			const pen = mech.statusPenalty?.[`${id}@${part}`];
+			if (!pen) continue;
+			for (const [k, v] of Object.entries(pen)) {
+				if (k !== 'check' || typeof v !== 'number') throw new Error(`Game.Combat.statusPenaltyFor：statusPenalty['${id}@${part}'] 的键「${k}」本片未实现（只认 check:number）——声明面不得大于实现面（#487）`);
+				sum += v;
+			}
+		}
+		return sum;
+	},
+	statusEffect(entry, mech, excludeId) {
+		if (entry?.harm === 'damage') return { kind: 'damage', amount: window.Game.Combat.rollDice(entry.dice ?? '1') };
+		if (entry?.addStatus === 'random') {
+			const ids = Object.keys(mech.statuses ?? {}).filter((x) => x !== excludeId);
+			if (!ids.length) return { kind: 'none' };
+			const rng = window.Game.Rules.rng;
+			const id = rng.pickOne(ids);   // `#1441` 共用取一原语（rebase 后在此处同步 ✓）
+			const parts = this.statusParts(mech, id);
+			const part = entry.part === 'random' ? rng.pickOne(parts) : entry.part;   // `#1441` 共用取一原语（同 ✓）
+			return { kind: 'addStatus', id, part, turns: mech.statuses[id].turns };
+		}
+		throw new Error(`Game.Combat.statusTick：onFail 效果形态未实现（本片只认 harm:'damage'+dice ／ addStatus:'random'）——声明面不得大于实现面（#487）`);
+	},
+	statusTick(pc) {
+		const mech = window.Game.StoryDecl?.decl?.() ?? null;
+		if (!mech) return null;                                   // 未启用 → 调用方不调（显式降级）
+		const statuses = mech.statuses ?? {};
+		const steps = [];
+		for (const { part, id, turns } of this.statusInstances(pc)) {
+			const st = statuses[id];
+			if (!st) throw new Error(`Game.Combat.statusTick：状态「${id}」不在声明表里（结构缺失必须报错，#487）`);
+			if (!(typeof st.turns === 'number' && st.turns > 0)) throw new Error(`Game.Combat.statusTick：状态「${id}」缺 \`turns\`（正数）——持续回合必须可声明（#487）`);
+			const per = st.perRound?.hp;
+			if (per !== undefined && typeof per !== 'number') throw new Error(`Game.Combat.statusTick：状态「${id}」的 \`perRound.hp\` 必须是数字（#487）`);
+			const res = window.Game.Rules.save(pc, st.check.attr, st.check.dc, { bonus: this.statusPenaltyFor(pc, part, mech) });
+			const step = { part, id, res, perRound: typeof per === 'number' ? per : 0 };
+			if (res.success) { step.kind = 'recover'; step.turns = turns - 1; steps.push(step); continue; }
+			const grade = res.roll <= this.statusLowRoll ? 'low' : 'most';
+			const entry = (st.onFail ?? []).find((x) => x.when === grade);
+			if (!entry) throw new Error(`Game.Combat.statusTick：状态「${id}」缺「${grade}」档（分档必须穷尽，#459）`);
+			step.kind = 'fail'; step.grade = grade; step.effect = this.statusEffect(entry, mech, id);
+			steps.push(step);
+		}
+		return { steps };
+	},
+	statusTickApply(pc, plan) {
+		if (!plan) return null;
+		const mech = window.Game.StoryDecl?.decl?.() ?? null;
+		const next = {};
+		for (const [part, bag] of Object.entries(pc?.statuses ?? {})) next[part] = { ...bag };
+		const drop = (part, id) => { if (next[part]) { delete next[part][id]; if (!Object.keys(next[part]).length) delete next[part]; } };
+		const put = (part, id, turns) => { next[part] = { ...(next[part] ?? {}), [id]: turns }; };
+		let hurt = 0;
+		const hits = [];
+		for (const s of plan.steps) {
+			if (s.perRound) {
+				const at = this.slotAbsorbAt(pc, s.part, Math.abs(s.perRound));   // 每回合被动也走 S1 的减成/耐久
+				if (at?.gear) pc.gearHp = { ...(pc.gearHp ?? {}), [at.gear]: at.gearHp };
+				hits.push({ part: s.part, from: s.id, ...at });
+				hurt += at ? at.toHp : Math.abs(s.perRound);
+			}
+			if (s.kind === 'recover') { if (s.turns > 0) put(s.part, s.id, s.turns); else drop(s.part, s.id); continue; }
+			if (s.effect?.kind === 'damage') {
+				const at = this.slotAbsorbAt(pc, s.part, s.effect.amount);
+				if (at?.gear) pc.gearHp = { ...(pc.gearHp ?? {}), [at.gear]: at.gearHp };
+				hits.push({ part: s.part, from: s.id, ...at });
+				hurt += at ? at.toHp : s.effect.amount;
+			} else if (s.effect?.kind === 'addStatus') {
+				put(s.effect.part, s.effect.id, s.effect.turns);
+			}
+		}
+		return { statuses: next, hurt, hits };
+	},
+	applyStatus(pc, id, part) {
+		const mech = window.Game.StoryDecl?.decl?.() ?? null;
+		if (!mech) return null;
+		const st = mech.statuses?.[id];
+		if (!st) throw new Error(`Game.Combat.applyStatus：状态「${id}」未声明（结构缺失必须报错，#487）`);
+		if (!this.statusParts(mech, id).includes(part)) throw new Error(`Game.Combat.applyStatus：「${id}」不允许落在「${part}」（仅限部位是声明的一部分，#487）`);
+		return { statuses: { ...(pc?.statuses ?? {}), [part]: { ...(pc.statuses?.[part] ?? {}), [id]: st.turns } } };
+	},
+	cureStatus(pc, id) {
+		const next = {};
+		for (const [part, bag] of Object.entries(pc?.statuses ?? {})) { const b = { ...bag }; delete b[id]; if (Object.keys(b).length) next[part] = b; }
+		return { statuses: next };
+	},
+	clearStatuses() { return { statuses: {} }; },
+	tickStatuses(pc) {
+		const plan = this.statusTick(pc);
+		if (!plan) return null;
+		const applied = this.statusTickApply(pc, plan);
+		pc.statuses = applied.statuses;
+		return { hurt: applied.hurt, hits: applied.hits, steps: plan.steps };
+	},
+};

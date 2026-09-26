@@ -188,6 +188,11 @@ export const SEGMENTS = [
 	{ id: "test-takes-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/takes-e2e.mjs" },
 	// `#1474`：效果面路径拒 `pc.` 前缀（写侧一处收束）端到端
 	{ id: "test-pc-prefix-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/pc-prefix-e2e.mjs" },
+	// `#1510`：**笔记授予真的发生**（运行时面）—— `#1282` 夹具第 3 件的判据。
+	// 为什么另开一件（✗ 不塞进 `story-runtime`）：那件断的是**声明面 × 「用」面**（`notes.json` 键集 × `yields` 字面量），
+	//   运行时授予**没发生它也照样绿**（实测：删掉授予链 ⇒ rc=0 且判据③ 仍绿）⇒ 两面是**两个对象** ⇒ 本件断**运行时真值**。
+	// 自建夹具根 ＋ build（`mkdtemp` ⇒ 每次真清生成物）⇒ **exclusive**，照同族 `adds`／`takes`／`rulelist-effects` 先例 ✓
+	{ id: "test-note-grant-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/note-grant.mjs" },
 	// `#1468`（`#1472` 新件）：规则行效果时机端到端（自建夹具根 ⇒ exclusive ✓）
 	{ id: "test-rulelist-effects-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/rulelist-effects-e2e.mjs" },
 	// `#1418`：chargen 惰性安装端到端（自建夹具根 ＋ build ⇒ exclusive，照同族先例 ✓）
@@ -694,7 +699,7 @@ export const SUITE_MEMBERS = {
 		'test-block-args-e2e-mjs', 'test-hp-nan-e2e-mjs', 'test-fightpanel-turns-e2e-mjs', 'test-passages-assemble-mjs-selftest',
 		'test-audit-gates-run-mjs', 'test-fight-keys-e2e-mjs', 'scripts-clean-net-mjs-selftest', 'scripts-precommit-check-mjs-selftest',
 		'scripts-lint-new-segment-mjs-selftest', 'test-coverage-mjs', 'test-gate-discovery-mjs', 'test-plan-needs-mjs',
-		'test-attribution-gate-mjs-selftest', 'test-attribution-gate-mjs', 'test-chargen-lazy-e2e-mjs', 'test-adds-e2e-mjs', 'test-rulelist-effects-e2e-mjs', 'test-takes-e2e-mjs', 'test-pc-prefix-e2e-mjs'
+		'test-attribution-gate-mjs-selftest', 'test-attribution-gate-mjs', 'test-chargen-lazy-e2e-mjs', 'test-adds-e2e-mjs', 'test-rulelist-effects-e2e-mjs', 'test-takes-e2e-mjs', 'test-pc-prefix-e2e-mjs', 'test-note-grant-mjs'
 	],
 };
 

@@ -113,8 +113,15 @@ window.Game.Rules = {
 		},
 		abilityMod: { base: 10, divisor: 2 },   // ★公式的**参数**（`(score - base) / divisor`）⇒ ✗ 不存公式字符串
 		prof: 2,
-		dice: { sides: 20, nat20: 'crit', nat1: 'bad' },
-		grades: ['crit', 'ok', 'bad'],
+		// ★ `#1461`（第五刀·键名定稿）：**"跟骰子有关的命名"全进 `dice`** ——
+		//   `sides`（骰面）／`nat20`／`nat1`（自然骰 ⇒ **档位名**）／`ok`／`bad`（普通成败 ⇒ **档位名**）✓
+		//   ✗ 不另开 `outcome` 存同两个值（两个键存同一个值 ⇒ 必然漂移 ✓）
+		dice: { sides: 20, nat20: 'crit', nat1: 'bad', ok: 'ok', bad: 'bad' },
+		// ★ `#1461` ①：`pcAC()` 读它 —— **基数 ＋ 用哪个属性**两键（✗ 不写表达式：声明面不许大于实现面 ✓）
+		ac: { base: 10, ability: 'dex' },
+		// ★ `#1461` ④：**分档名全表**（一处权威）—— 战斗三档 ＋ `statuses.onFail` 的 `most`／`low`
+		//   （`#1433` 的收敛判据："**同名同概念才合**" ⇒ 这里恰恰同名同概念 ⇒ 一张表 ✓）
+		gradesAll: ['crit', 'ok', 'bad', 'most', 'low'],
 	},
 	/** 故事声明的规则包（缺面 ⇒ 内置）；★合并＝**键级覆盖**（✗ 不是整份替换）。
 	 *  为什么键级：故事只想改 `prof` 时，✗ 不该被迫照抄 18 个技能名（照抄 ⇒ 两处必漂移 ✗）。 */
@@ -173,15 +180,18 @@ window.Game.Rules = {
 		const parts = this.parts(pc, ability, { skill, bonus });
 		const mod = parts.reduce((n, p) => n + p.v, 0);
 		const { roll, rolls } = this.roll(adv), total = roll + mod;
+		// ★ `#1461`（第五刀）：**自然骰读包**（✗ 不写死 20／1 ⇒ 否则与包不同步 ✓）
+		const _dp = window.Game.Rules.pack().dice;
 		return { label: this.skillLabel(skill), site, skill, ability, dc, roll, rolls, mod, total, parts, adv, advWhy, disWhy, nat,
-			success: nat ? roll === nat : roll === 20 ? true : roll === 1 ? false : total >= dc };
+			success: nat ? roll === nat : roll === _dp.sides ? true : roll === 1 ? false : total >= dc };
 	},
 	save(pc, ability, dc, { adv = 0, bonus = 0, nat = 0, site = '', advWhy = '', disWhy = '' } = {}) {
 		const parts = this.parts(pc, ability, { bonus });
 		const mod = parts.reduce((n, p) => n + p.v, 0);
 		const { roll, rolls } = this.roll(adv), total = roll + mod;
+		const _dp2 = window.Game.Rules.pack().dice;   // ★ `#1461`：自然骰读包（同 `check`）
 		return { label: `${this.ABILITIES[ability]}豁免`, site, ability, dc, roll, rolls, mod, total, parts, adv, advWhy, disWhy, nat,
-			success: nat ? roll === nat : roll === 20 ? true : roll === 1 ? false : total >= dc };
+			success: nat ? roll === nat : roll === _dp2.sides ? true : roll === 1 ? false : total >= dc };
 	},
 };
 
@@ -356,7 +366,7 @@ function renderCheck(res) {
 	const parts = (res.parts ?? []).filter((p) => p.v).map((p) => `${p.v >= 0 ? '+' : ''}${p.v} ${p.k}`).join(' ');
 	const head = `<div class="check-result ${cls}">🎯 <span class="check-label">${res.label}</span>` +
 		(res.site ? ` <span class="check-site">〔${res.site}〕</span>` : '') + ` · ${dcStr}：` +
-		`<span class="check-dice">d20(${res.roll})</span>${detail && parts ? ` ${parts}` : ` ${modStr}`} = <b>${res.total}</b> ${res.roll === 20 ? '★ 大成功' : res.roll === 1 ? '✘ 大失败' : res.success ? '✔ 成功' : '✘ 失败'}</div>`;
+		`<span class="check-dice">${window.Game.Rules.pack().dice.name ?? 'd20'}(${res.roll})</span>${detail && parts ? ` ${parts}` : ` ${modStr}`} = <b>${res.total}</b> ${res.roll === 20 ? '★ 大成功' : res.roll === 1 ? '✘ 大失败' : res.success ? '✔ 成功' : '✘ 失败'}</div>`;
 	if (!detail) return head;
 	const notes = [];
 	if (res.adv > 0) notes.push(`优势：${res.advWhy || '有利条件'}（${(res.rolls ?? []).join(' / ')} 取高）`);

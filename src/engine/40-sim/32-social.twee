@@ -179,7 +179,7 @@ Object.assign((window.Game.Social ??= {}), {
 			pc.ev.last_roll = res;
 			if (res.success) {
 				S.applyAskEffect(a, pc);
-				pc.ev.soc_last[a.id] = { kind: 'ok', text: a.ok, notes: S.settle(a, pc, site, res.roll === 20 ? 'crit' : 'ok') };
+				pc.ev.soc_last[a.id] = { kind: 'ok', text: a.ok, notes: S.settle(a, pc, site, res.roll === window.Game.Rules.pack().dice.sides ? window.Game.Rules.pack().dice.nat20 : window.Game.Rules.pack().dice.ok) };
 			} else {
 				pc.ev.soc_last[a.id] = { kind: 'bad', text: a.bad, notes: S.settle(a, pc, site, 'bad') };
 			}

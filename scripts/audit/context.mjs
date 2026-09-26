@@ -10,6 +10,7 @@ import { readFileSync, readdirSync } from 'node:fs';
 import { passagesOf } from '../../editor/lib/core/passages.mjs';   // `#1114` 2b-2b-0b：切段**唯一分派点**（md/twee 同入口）
 import { scopedFiles } from '../module-order.mjs';
 import { DEFAULT_SLUG, readStory, absPath } from '../dist-paths.mjs';   // `#1269` A 类：符号名 → 真实路径
+import { existsSync } from 'node:fs';
 import vm from 'node:vm';
 
 // ── vm 直载全部 [script] 段（按文件名序；浏览器专属全局用 stub 兑底）──
@@ -85,6 +86,14 @@ export const createContext = ({ argv = process.argv, story = null } = {}) => {
 
 	if (!ctx.State.variables.pc) ctx.State.variables.pc = Game.Pc.defaults();
 	const { passageSrc, passageRaw, passageTags } = indexPassages(SRC_FILES);
+	// ★ `#1505`：**段级数据面**（`data/passages.json`）—— ★让门能读**数据面字段**（如 `payload`），
+	//   ✗ 不必去散文里正则匹配 ✓。★缺件 ⇒ 空对象（门按"数据面没有 ⇒ 回落散文"的过渡口径 ✓）。
+	const passageData = (() => {
+		try {
+			const p = absPath(`stories/${slug}/data/passages.json`);
+			return existsSync(p) ? JSON.parse(readFileSync(p, 'utf8')) : {};
+		} catch { return {}; }
+	})();
 	const arg = (k) => argv.includes(`--${k}`);
 	// `#607` P2-B：`--story <slug>` **单独给**（一个门开关都没点）→「**本故事作用域全跑**」。
 	// 今日它走"没有选中任何门"退 2 → 第二个故事的**全跑无路可走**（golden 的 `not-in-full-run` 交叉核对
@@ -98,5 +107,5 @@ export const createContext = ({ argv = process.argv, story = null } = {}) => {
 	// 注意：把 vm 上下文里的**全部提升全局**一并摊平返回——原 audit.mjs 里存在 `ctx.Game.Chargen.rounds`
 	// 这类「从 vm 上下文取表」的用法（拆分时被 golden 的「单跑内容须在全跑里」断言当场抓到全跑崩溃）。
 	// 保持这个兼容面，才能做到「只搬家不改行为」。
-	return { ...ctx, SRC_FILES, storySlug: slug, storyManifest: manifest, presets, passageSrc, passageRaw, passageTags, arg, wantAll, argv, vmCtx: ctx };
+	return { ...ctx, SRC_FILES, storySlug: slug, storyManifest: manifest, presets, passageSrc, passageRaw, passageTags, passageData, arg, wantAll, argv, vmCtx: ctx };
 };

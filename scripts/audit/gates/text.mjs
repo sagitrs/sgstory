@@ -50,7 +50,7 @@ export const judgeBlacklist = (files, words, readOf) => {
 };
 
 export const run = (ctx) => {
-	const { Game, presets, passageSrc, passageRaw, passageTags, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
+	const { Game, presets, passageSrc, passageRaw, passageTags, passageData = {}, SRC_FILES, arg, wantAll, classifyNarrativeState, successRate } = ctx;
 
 // ── ⓪e D5 语言经济（#39）：载荷标注门 + 词频报告 + 套路句式门 ──
 if (wantAll || arg('text')) {
@@ -94,8 +94,21 @@ if (wantAll || arg('text')) {
 	// 载荷门：内容段落须有 payload 标注（信息/张力/选择 ≥1）
 	const payloads = new Map();
 	const isInfra = (name) => name === 'StoryInit' || name.startsWith('Story') || (passageTags.get(name)?.some((t) => ['script', 'widget', 'stylesheet'].includes(t)) ?? false);
-	for (const [name, src] of passageRaw) if (!isInfra(name)) { const m = String(src).match(/payload:\s*(信息|张力|选择)(?:[|｜](?:信息|张力|选择))*/); if (m) payloads.set(name, m[0].split(':')[1]); }
-	for (const f of judgePayloads(passageRaw, isInfra)) { console.log(`  ✗ 段落「${f.name}」缺 payload 标注`); bad++; }
+	// ★ `#1505`：**载荷分级改读数据面**（`passages.json` 的段级 `payload`）——
+	//   ★原写法在**散文**里正则 `payload:\s*(信息|张力|选择)` ✗ ⇒ ★正题是"**散文零标记**" ⇒ 必须搬 ✓
+	//   ★过渡：★数据面缺该项 ⇒ **回落散文正则**（✗ 不静默当"缺标注" —— 那会在迁移中途造成假红 ✓）
+	for (const [name, src] of passageRaw) {
+		if (isInfra(name)) continue;
+		const fromData = passageData?.[name]?.payload;
+		if (fromData != null) { payloads.set(name, String(fromData)); continue; }
+		const m = String(src).match(/payload:\s*(信息|张力|选择)(?:[|｜](?:信息|张力|选择))*/);
+		if (m) payloads.set(name, m[0].replace(/payload:\s*/, ''));
+	}
+	// ★ `#1505`：**数据面有 `payload` 的段 ⇒ 不算缺**（✗ 再要求散文里有标记 ✓ —— 那正是要撤掉的形态）
+	for (const f of judgePayloads(passageRaw, isInfra)) {
+		if (passageData?.[f.name]?.payload != null) continue;
+		console.log(`  ✗ 段落「${f.name}」缺 payload 标注`); bad++;
+	}
 	console.log(`  载荷标注：${payloads.size}（信息 ${[...payloads.values()].filter((v) => v.includes('信息')).length} · 张力 ${[...payloads.values()].filter((v) => v.includes('张力')).length} · 选择 ${[...payloads.values()].filter((v) => v.includes('选择')).length}）`);
 	// 词频报告（主题词健康度）
 	// #435 前置 0：【故事文本源】单一权威 —— 内容段落 ∪ 归属到它的表行 `text`。

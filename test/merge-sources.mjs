@@ -33,13 +33,37 @@ const t = (l, ok, d = '') => { if (ok) console.log(`  ✓ ${l}`); else { bad++; 
 	const srcs = [{ from: 'shared/rules.json', json: { a: 1 } }, { from: 'shared/world.json', json: { a: 2 } }];
 	const { traces } = mergeSources(srcs);
 	// ★ `#1519`：规则级由**顶层字段指认**（✗ 不再是 `sources[0]` 位置捷径）
+	// ★★ `#1519` 阻断①的**验收格**（T 给的形）：★**嵌套真形**（`tables.json` 的真形就是嵌套 ✓）
+	//   ★原实现「递归只登记容器」⇒ ★叶子 `from` 恒 `null` ⇒ ★覆盖判据**永不命中**（主靶 ✓）
+	{
+		const nested = [
+			{ from: 'A', json: { containers: { Checks: { sites: { s1: { abil: 'str', dc: 10 } } } } } },
+			{ from: 'B', json: { containers: { Checks: { sites: { s1: { dc: 99 } } } } } },
+		];
+		const rN = mergeSources(nested);
+		t('★★**嵌套真形**：留痕的 `from` **有值**（＝A，✗ 不是 null —— 阻断①主靶 ✓）',
+			rN.traces.length === 1 && rN.traces[0].from === 'A' && rN.traces[0].path === 'containers.Checks.sites.s1.dc',
+			JSON.stringify(rN.traces));
+		t('★★嵌套真形 ＋ 指认后 ⇒ 覆盖判据**命中**（主靶修复的验收面 ✓）',
+			ruleLevelOverrides(nested, rN.traces, 'A').length === 1);
+		// ★判据自纠（T 的）：「颠倒顺序结果一致」是**错的**（顺序＝优先级 ⇒ 结果本该变）
+		//   ⇒ ★正确判别＝★**同数组只改指认 ⇒ 结果跟指认变** ✓
+		t('★顺序语义（自纠）：**同数组、改指认** ⇒ 结果**跟指认变**',
+			ruleLevelOverrides(nested, rN.traces, 'A').length === 1 && ruleLevelOverrides(nested, rN.traces, 'B').length === 0);
+	}
 	t('★**未指认** ⇒ **不判**（无规则级可言 ⇒ 故事覆盖共享件本就该允许 ⇒ 零破坏 ✓）',
 		ruleLevelOverrides(srcs, traces).length === 0, JSON.stringify(ruleLevelOverrides(srcs, traces)));
 	const ov = ruleLevelOverrides(srcs, traces, 'shared/rules.json');
 	t('★**指认后**：覆盖规则级键 ⇒ **被判出**（`a` 来自 `shared/rules.json` 却被盖）', ov.length === 1 && ov[0].path === 'a', JSON.stringify(ov));
-	t('★**误报形（`#1517` 照亮的那一形）**：指认**别的件** ⇒ 「故事覆盖**非规则级**的共享件」⇒ **不判**（✗ 不再假红 ✓）',
-		ruleLevelOverrides(srcs, traces, 'shared/other.json').length === 0);
-	t('★边界：指认的件**不在列表** ⇒ 不判（由缺件/形状判据管 ✓）', ruleLevelOverrides(srcs, traces, 'shared/nope.json').length === 0);
+	// ★★ 阻断②（T 复现到根）：**指认拼错 ⇒ 点名红**（✗ 不许静默当"未指认" ✓）
+	//   ★与"**未指认**"（合法：零破坏）**必须分开** ⇒ 下面两格正是那条界线 ✓
+	t('★★**指认拼错（不在 `sources` 里）⇒ 抛出点名**（✗ 静默失去保护 ✓）',
+		(() => { try { ruleLevelOverrides(srcs, traces, 'shared/nope.json'); return ''; } catch (e) { return e.message; } })().includes('不在'),
+		'未抛出');
+	// ★**误报形**（`#1517` 照亮那一形）的正解：★指认**列表里真有的另一件**（如 `world`）⇒
+	//   ★"故事覆盖**非规则级**的共享件" ⇒ **判据不命中**（✗ 不再假红 ✓）
+	t('★**误报形正解**：指认**列表里真有的另一件**（`shared/world.json`）⇒ 覆盖**非规则级**的共享件 ⇒ **不命中**（✗ 不假红 ✓）',
+		ruleLevelOverrides(srcs, traces, 'shared/world.json').length === 0);
 	t('★反向：世界级盖世界级 ⇒ **不算**覆盖规则级', (() => {
 		const s2 = [{ from: 'shared/rules.json', json: { z: 1 } }, { from: 'shared/w1.json', json: { a: 1 } }, { from: 'shared/w2.json', json: { a: 2 } }];
 		const r2 = mergeSources(s2);
@@ -88,6 +112,7 @@ const t = (l, ok, d = '') => { if (ok) console.log(`  ✓ ${l}`); else { bad++; 
 		const ovr = mkT({ sources: ['shared/rules.json', 'shared/world.json'], ruleSource: 'shared/rules.json' });
 		t('★**指认后**：覆盖规则级键 ⇒ **出声**（D5 判据③）且点名路径', /规则级/.test(ovr) && /\ba\b/.test(ovr), ovr.slice(0, 100));
 		t('★**未指认** ⇒ 同一输入**不出声**（✗ 不假红 ✓）', mkT({ sources: ['shared/rules.json', 'shared/world.json'] }) === '');
+		t('★★**指认拼错 ⇒ 出声**（端到端：✗ 无声明期保护就静默 ✓）', /不在/.test(mkT({ sources: ['shared/rules.json'], ruleSource: 'shared/typo.json' })));
 	// 形状不符 ⇒ 出声
 	const sh = (() => { try { expandSources({ slug: 's', data: { 'tables.json': { sources: ['stories/x/data/tables.json'] } }, io: mkIo({}), repoRoot: '' }); return ''; } catch (e) { return e.message; } })();
 	t('★形状不符（`from` 指进故事目录）⇒ **出声**', /not-repo-level/.test(sh), sh.slice(0, 90));

@@ -16,6 +16,7 @@
 //（→ 页面新建的故事与三个既有故事**同形**；不带 → `test/contract-version.mjs` 会点名"缺号"）。
 // 依赖方向：`story.mjs → contractVersion.mjs` 单向（后者**不**反向 import 本件 → 无环）。
 import { CURRENT } from './contractVersion.mjs';
+import { mergeSources, ruleLevelOverrides, sourcesShapeProblems } from './merge-sources.mjs'   // `#1485` 五步②：三源合并（纯函数 ✓）
 
 /** 数据面文件（与 `data/` 下的产物同名；`rules.json`／`notes.json` 可缺 → `null`）。
  * `#1350` 片 1：加 `passages.json`（作者面**目标形态**的段落数据）。形状权威＝`#1234` 冻结 schema，
@@ -64,6 +65,52 @@ export const readStoryPackage = ({ slug, io, base } = {}) => {
 		try { data[name] = JSON.parse(io.readText(p)); } catch { data[name] = null; }
 	}
 	return { slug, meta, data };
+};
+
+/** ★ `#1485`（五步②）：把 `tables.json` 顶层的 `sources: [...]` 展开成**三层合并**的结果。
+ * ★**仓级**（裁定 D5）：`from` 是**相对仓根**的路径（`shared/…`；✗ 不是故事目录 —— 由 `sourcesShapeProblems` 判）；
+ *   故本函数需要一个**能读任意路径**的 `io`（宿主注入的 `readText` 本来就是"路径原样" ✓）。
+ * ★**零源 ＝ 今天**：`sources` 缺省 ⇒ ★原样返回（**一行不改**）⇒ 调用方行为逐字节不变 ✓。
+ * ★出声三件：① 形不对 ⇒ 抛 ② 被引件读不到 ⇒ 抛 ③ ★**覆盖规则级键 ⇒ 抛**（D5 ✓）。
+ * @param {{ slug: string, data: object, io: object, repoRoot?: string }} p
+ */
+export const expandSources = ({ slug, data, io, repoRoot = '' } = {}) => {
+	need(io, 'readText', 'expandSources');
+	const tables = data?.['tables.json'];
+	const srcList = tables?.sources;
+	if (srcList == null) return { data, traces: [] };                      // ★零源 ⇒ 今天 ✓
+	const shape = sourcesShapeProblems(srcList);
+	if (shape.length) {
+		throw new Error(`${slug}／data/tables.json 的 \`sources\` 形状不对：`
+			+ shape.map((x) => `${x.code}${x.index != null ? `@${x.index}` : ''}${x.from ? `(${x.from})` : ''}`).join('、')
+			+ '（每项形如 {"from":"shared/x.json"}，且 from 必须是**仓级**相对路径）（#1485）');
+	}
+	const at = (rel) => (repoRoot ? `${repoRoot.replace(/\/$/, '')}/${rel}` : rel);
+	const merged = [];
+	for (const ent of srcList) {
+		const path = at(String(ent.from));
+		if (typeof io.exists === 'function' && !io.exists(path)) {
+			throw new Error(`${slug}：\`sources\` 引用的件**读不到**「${ent.from}」（解析为 ${path}）——`
+				+ ' 被引件缺失必须出声（✗ 不许静默当空）（#1485）');
+		}
+		let json;
+		try { json = JSON.parse(io.readText(path)); }
+		catch (e) { throw new Error(`${slug}：\`sources\` 引用的件**解析失败**「${ent.from}」：${e.message}（#1485）`); }
+		merged.push({ from: String(ent.from), json });
+	}
+	// ★顺序不变（数组即优先级）；逐容器逐键合并 ＋ 留痕
+	const out = mergeSources(merged);
+	// ★判据③：覆盖"规则级"（＝列表最前那一件）的键 ⇒ **红**
+	const overRules = ruleLevelOverrides(merged, out.traces);
+	if (overRules.length) {
+		throw new Error(`${slug}：\`sources\` 里**更具体的层覆盖了「规则级」的键** ⇒ ✗（D5：具体者胜，`
+			+ '但不许故事/世界层盖掉规则级 —— 那会让"规则"失去权威）\n    '
+			+ overRules.map((t) => `${t.path}（${t.from} ⇒ ${t.to}）`).join('\n    ') + '（#1485）');
+	}
+	// ★只替换"被引的那一层"（本票只对 `tables.json` 开 `sources[]` ⇒ 其余四个照旧 ✓）
+	const next = { ...data };
+	next['tables.json'] = out.json;
+	return { data: next, traces: out.traces };
 };
 
 /** **故事数据的唯一写路**：所有写者（`extract-story` / `compile-story` / `classify-contract --propose` / 未来的 UI 保存）都走它。

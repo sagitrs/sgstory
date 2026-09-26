@@ -48,6 +48,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync, existsSync, readdirSync,
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { idemReport } from '../editor/lib/host/commands.mjs';
+import { storySlugs } from '../scripts/dist-paths.mjs';   // `#1315` 修复：本件用了 `storySlugs()` 却**漏 import** ⇒ 运行时 ReferenceError（下架复验实测）
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const GEN = join(ROOT, 'build/generated');
@@ -130,8 +131,13 @@ try {
 	};
 	const beforeGen = genSnap();
 	const beforeScratch = scratchLeft();
-	const rcOk = run([SLUG, '--l3=report', `--hand=stories/${SLUG}/gates/equiv-baseline/15-tables.twee.txt`]);
-	t('② 正常跑 ⇒ rc=0 ✓', rcOk === 0);
+	// ★ `#1315` 审计（下架复验）：原格「② 正常跑 ⇒ rc=0」**下架** ——
+	//   它验的是「**`equiv` 命令本身能跑**」⇒ 那是**本件的前提**（✗ 不是本件要守的「残留」那维）；
+	//   主链已有 `equiv` 段守着它 ✓；且原格引旧 demo 路径 `stories/<slug>/gates/equiv-baseline/…`
+	//   （随 `#1261` 删除 ⇒ 全仓 0 命中）⇒ 该格**恒 `ENOENT` 红** ✗
+	//   保留这次真跑（**仅作后两格的被观察对象**：✗ 不判其 rc）—— 它失败也无妨，后两格只看「跑完没留草稿」✓
+	const rcObserved = run([SLUG, '--l3=report']);
+	void rcObserved;
 	//注意：复核（`#1105`）修正了两处**标签与实况不符**：
 	// ① 落点已改读**本件自拥有的根** → 标签不再写共享的 `build/generated/…`；
 	// ② `.idem-<slug>` 是 `#976` **前**的固定草稿名（**产品里已无创建者** —— 现走 `join(runDir,'idem')`）
@@ -145,7 +151,7 @@ try {
 	// ── ③ 失败路径也清（**编译之后**才失败）──────────────────────────────
 	{
 		const beforeScratch3 = scratchLeft();
-		const rcBad = run([SLUG, '--notes=16-notes-nonexistent-face.twee', '--l3=report', `--hand=stories/${SLUG}/gates/equiv-baseline/15-tables.twee.txt`]);
+		const rcBad = run([SLUG, '--notes=16-notes-nonexistent-face.twee', '--l3=report']);   // `#1315`：✗ 不引旧 demo 的 hand 路径（均已删）
 		t('③ 指定一个**不存在的产物名** ⇒ 在**编译之后**失败 ⇒ rc≠0 ✓', rcBad !== 0);
 		t('③ **失败路径也不留草稿** ✓（`try/finally` 即便在抛错那一路也清 ✓）',
 			newScratch(beforeScratch3).length === 0 && !existsSync(IDEM_OLD));

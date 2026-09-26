@@ -23,6 +23,7 @@
 // 自证：`node test/reread.mjs --selftest`（5 条判据各带会红的反例）
 
 import { createContext } from '../scripts/audit/context.mjs';
+import { storySlugs } from '../scripts/dist-paths.mjs';   // `#1315` 审计：零故事守卫（同 `#1267` 尾件② 同规）
 
 const MYSTERY_MARK = /终局后揭开|唯一揭开处|谜底/;
 // 终局级词表（#408）：真结局名 / 真结局目标 / 普通结局的达成做法
@@ -165,6 +166,13 @@ if (process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 //（HEAD 版即如此），只因 `Game.Codex.items` 为空、那个回调**从未被调用** → 一直不炸。
 // 本片新增的 `codexFinalGate` **主动调用** `w.Sg.rules` → 触发它 → 故在此把 `w` 变成**真定义**
 //（`createContext()` 返回 `...ctx`，其中含 `window`）。
+// ★ `#1315` 审计（下架复验）：**零故事守卫** —— 本件的 R3/R4/R5 读 `Game.Truth.claims`，
+//   而 `Game.Truth` 是**故事数据面**（`containers.Truth`）⇒ 零故事态下 `undefined`⇒ 裸 `TypeError` ✗
+//   ★反讽：本件自己的口径（R1/R2「零状态档不得泄底」）恰恰要求**先守自己的前提**（✗ 裸奔）✓
+if (storySlugs().length === 0) {
+	console.log('○ 零故事：仓内无故事 → 本项**未判**（不计红；接故事根后即参与判定）');
+	process.exit(0);
+}
 const { Game, passageSrc, window: w } = createContext();
 // `#1132` 块 1：**门控识别面的第二处** —— 条件表行（`rules.json` 的 `req: ['codex:final']`）
 // 走**已有单一权威**（`w.Sg.rules.table()` 不另写"表在哪/字段叫什么"）。

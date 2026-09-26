@@ -23,7 +23,13 @@ const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 // `#1267` 尾件②：期望表只对**生效根下存在**的样本生效（枚举面走 storySlugs()）；
 // 样本缺席 → 明说未判（不静默判红／判绿）。
 const HAVE = new Set(storySlugs());
-const EXPECTED_KEYS = { 'face-fixture': 28, 'night-ferry': 8, 'minimal-demo': 8 };   // `#1216` B 半：补回夹具三名（checkSite/dragonMaxHp/poisonReduce）后随契约面更新 // `#1216` B 半：随契约面去声明而变（`rules`／`notes`／`pcDefaults` 为必给、已恢复） // `#1186`：世界观概念改由故事声明后，无概念的两故事少两键
+// ★ `#1315` 审计（下架复验）：原 `EXPECTED_KEYS` **钉死三个旧 slug**（face-fixture／night-ferry／minimal-demo）
+//   ⇒ 三者均随 `#1261` 删除（全仓 0 命中）⇒ 那是「**把故事样本当判据**」的分类错 ✗
+//   （与 `#1433` 的「自算计数」同族：写死名单／数字 ⇒ 必腐烂）
+//   ⇒ 改为「**对在场的故事逐 slug 核**」：约束换成两条**结构不变量**——
+//     ① 每个在场故事的键集合 ⊇ `PC_BASE_KEYS`（格① 已核 ✓）
+//     ② **各在场故事的键名集合两两相等**（形状单一源：故事只能给数值、✗ 不能改形状 ✓）
+//   ★恢复条件＝参考故事集复活时，可回头补「逐 slug 钉死值」（届时同笔 ✓）
 const EXPECTED_BASE = 7;
 
 let bad = 0;
@@ -86,8 +92,21 @@ const keysOfGroup = (group) => Object.entries(PC_GAMEPLAY_HOME).filter(([, home]
 
 // ⑤ 反向核
 {
-	const wrong = Object.entries(EXPECTED_KEYS).filter(([slug, n]) => (stateOf[slug] ?? []).length !== n);
-	ok('⑤ 反向核：三故事键数命中钉死值', wrong.length === 0, wrong.map(([s, n]) => `${s} 期望 ${n} 实得 ${(stateOf[s] ?? []).length}`).join(' / '));
+	// ★ `#1315`：改成「对**在场**故事逐 slug 核」（✗ 不写死名单）—— 两条约束：
+	//   ① ✗ **不空跑**（至少一个在场）② **形状单一源**（各在场故事的键名集合两两相等）
+	{
+		const present = Object.keys(stateOf);
+		ok('⑤ 反向核：**至少一个在场故事**（✗ 空跑也不可当通过）', present.length > 0, `在场 ${present.length}`);
+		// ★ 空跑防御：**只有一个在场故事时**，「两两相等」是**平凡真** ✗
+		//   （实测：只给一个故事时，改它的键集合本格**仍绿** ✗）⇒ 按仓内口径：**前提不成立就明说未判**（✗ 不算绿）
+		if (present.length < 2) {
+			console.log(`  ○ 未判：形状单一源（只有 ${present.length} 个在场故事 ⇒ 无从比对；两个以上时即参与判定）`);
+		} else {
+			const base = [...stateOf[present[0]]].sort().join(',');
+			const diff = present.filter((x) => [...stateOf[x]].sort().join(',') !== base);
+			ok('⑤ 反向核：**形状单一源**（各在场故事的键名集合两两相等 ✓）', diff.length === 0, diff.length ? `与 ${present[0]} 不同：${diff.join(',')}` : `共 ${present.length} 个故事一致`);
+		}
+	}
 	ok('⑤ 反向核：玩法概念名表 ＝ 归属表 ＋ 世界观概念（同源）', PC_GAMEPLAY_CONCEPTS.length === Object.keys(PC_GAMEPLAY_HOME).length + PC_STORY_CONCEPTS.length);
 }
 

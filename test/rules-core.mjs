@@ -84,6 +84,29 @@ ok(nat1.roll === 1 && !nat1.success, '自然 1 → 无视加值必然失败');
 	eq(R.mod(12), 2, '③ 能假：`divisor` 8→2 ⇒ `mod(12)` = (12-8)/2 = 2（读数**跟着包走** ⇒ 判据不是摆设 ✓）');
 	w.Sg.story.rulesPack = keep;
 	eq(R.mod(14), 2, '③ 复位 ⇒ 回内置语义（`(14-10)/2`）✓');
+
+	// ★★ `#1463`（T 阻断，我实测成立）：**骰面 ≈ 判定侧的源头** ——
+	//    `roll()` 里硬编 `rng.d(20)` ⇒ 包改了 `dice.sides` 而源头仍掷 20 ⇒ ★`nat20` 那一支**恒不触发** ✗
+	//    ⇒ 本格钉住"**源头也读包**"：给合成包 `sides:100` ⇒ `roll()` 的读数**必须落在 1..100** ✓
+	//    ★并核 `{roll, rolls}` 返回形**没丢**（`rolls` 是"计算过程"要显示的两枚 ✓）
+	{
+		w.Sg.story.rulesPack = () => ({ dice: { sides: 100 } });
+		const seen = new Set();
+		let shapeOk = true;
+		for (let i = 0; i < 60; i++) {
+			const r = R.roll(0);
+			if (!Array.isArray(r.rolls) || r.rolls.length !== 1 || typeof r.roll !== 'number') shapeOk = false;
+			seen.add(r.roll);
+		}
+		const inRange = [...seen].every((v) => v >= 1 && v <= 100);
+		const beyond20 = [...seen].some((v) => v > 20);   // ★若源头硬编 20 ⇒ 永远取不到 >20 的值 ✗
+		ok(shapeOk, '★ `roll()` 保留 `{roll, rolls}` 返回形（✗ 不直接 `return d20` 丢掉过程显示 ✓）');
+		ok(inRange, '★ 包 `sides:100` ⇒ `roll()` 落在 **1..100**（源头读包 ✓）');
+		ok(beyond20, '★ 且**取得到 >20 的值** ⇒ 证「源头没硬编 20」✓（✗ 否则 `nat20` 支恒不触发 ✗）');
+		w.Sg.story.rulesPack = keep;
+		const back = R.roll(0);
+		ok(back.roll >= 1 && back.roll <= 20, '★ 复位 ⇒ `roll()` 回 1..20（内置 `sides:20` ✓）');
+	}
 }
 
 // ── `#568` 条件项的**对象算子形**（`gte`／`lte`／`oneOf`）：引擎兑现 ＋ 结构畸形 fail-loud ──

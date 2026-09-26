@@ -84,6 +84,22 @@ ok(nat1.roll === 1 && !nat1.success, '自然 1 → 无视加值必然失败');
 	eq(R.mod(12), 2, '③ 能假：`divisor` 8→2 ⇒ `mod(12)` = (12-8)/2 = 2（读数**跟着包走** ⇒ 判据不是摆设 ✓）');
 	w.Sg.story.rulesPack = keep;
 	eq(R.mod(14), 2, '③ 复位 ⇒ 回内置语义（`(14-10)/2`）✓');
+	// ★★ `#1463`（写作者撤回 APPROVE 时附的**非阻断缺口**，我复核成立）：
+	//    「**改回写死 ⇒ 链 91/91 全绿**」—— 即 `pick()` 的**档位名**若写死 `'ok'`，**无门会红** ✗
+	//    ⇒ 本格把**档位名改成新名**，再断 `pick()` 取到的是**新名** ✓（＝「消费面真读包」的牙 ✓）
+	{
+		const keepA = w.Sg.story.combatAction;
+		w.Sg.story.combatAction = () => ({ ok: { text: 'OK' }, bad: { text: 'BAD' }, crit: { text: 'CRIT' } });
+		w.Sg.story.rulesPack = () => ({ dice: { sides: 20, ok: 'plainWin', bad: 'plainLose', nat20: 'bigWin' } });   // ★须给 sides（✗ 否则 _d2.sides undefined ⇒ 自然骰档判不中）
+		const r1 = w.Game.Combat.pick('a', { roll: 5, success: true });
+		ok(r1.kind === 'plainWin', `★ 包把 ok 改名 ⇒ pick 取到**新名**（实得 ${JSON.stringify(r1.kind)}）`);
+		const r2 = w.Game.Combat.pick('a', { roll: 5, success: false });
+		ok(r2.kind === 'plainLose', `★ 失败档同理（实得 ${JSON.stringify(r2.kind)}）`);
+		const r3 = w.Game.Combat.pick('a', { roll: 20, success: true });
+		ok(r3.kind === 'bigWin', `★ 自然骰档（roll===内置 sides 20）同理（实得 ${JSON.stringify(r3.kind)}）`);
+		w.Sg.story.rulesPack = keep;
+		w.Sg.story.combatAction = keepA;
+	}
 
 	// ★★ `#1463`（T 阻断，我实测成立）：**骰面 ≈ 判定侧的源头** ——
 	//    `roll()` 里硬编 `rng.d(20)` ⇒ 包改了 `dice.sides` 而源头仍掷 20 ⇒ ★`nat20` 那一支**恒不触发** ✗

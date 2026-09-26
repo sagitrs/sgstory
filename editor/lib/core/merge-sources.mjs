@@ -41,7 +41,19 @@ export const mergeSources = (sources = []) => {
 				traces.push({ path: here, from: origins.get(here) ?? null, to: from, over: dst[k], by: v });
 			}
 			dst[k] = Array.isArray(v) ? [...v] : (isPlainObject(v) ? { ...v } : v);
+			// ★登记**叶子**（含"整块替换"的容器值 ✓）
 			origins.set(here, from);
+			// ★★ 阻断①（T 复现到根）：**新写入的对象 ⇒ 其内层叶子也要登记** ——
+			//   否则下一个源覆盖 `a.b.c` 时 `origins.get('a.b.c')` 仍是 `undefined` ✗（同型 ✓）
+			if (isPlainObject(dst[k])) originsOf(dst[k], from, here);
+		}
+	};
+	/** ★ `#1519` 阻断①：**只登记来源**（✗ 不合并、✗ 不记 trace）—— 给"新写入对象"的内层叶子用 ✓。 */
+	const originsOf = (obj, from, path) => {
+		for (const [k, v] of Object.entries(obj ?? {})) {
+			const here = path ? `${path}.${k}` : k;
+			origins.set(here, from);
+			if (isPlainObject(v)) originsOf(v, from, here);
 		}
 	};
 	const out = {};
@@ -73,7 +85,14 @@ export const ruleLevelOverrides = (sources = [], traces = [], ruleSource = null)
 	const key = ruleSource == null ? '' : String(ruleSource).trim();
 	if (!key) return [];                                        // ★未指认 ⇒ 不判（零破坏 ✓）
 	const list = Array.isArray(sources) ? sources.filter(Boolean) : [];
-	if (!list.some((s) => String(s?.from ?? '') === key)) return [];   // ★指认的件不在列表 ⇒ 不判（由形状/缺件判据管 ✓）
+	// ★★ 阻断②（T 复现到根）：**指认拼错 ⇒ 不许静默** ——
+	//   "**未指认**"是合法的（无规则级 ⇒ 不判 ⇒ 零破坏）；★但"**指认了却找不到**"⇒ **点名红** ✓
+	//   （原写法把两者都当"不判" ⇒ ★`ruleSource: 'shard/x.json'` 拼错 ⇒ `build` **rc=0 无声** ✗）
+	if (!list.some((s) => String(s?.from ?? '') === key)) {
+		throw new Error(`\`ruleSource\` 指认的件「${key}」**不在 \`sources\` 里**（可选项：`
+			+ list.map((x) => `\`${String(x?.from ?? '')}\``).join('、') + `）⇒ ✗ 拼错会**静默失去保护**`
+			+ `（★"未指认"合法；"指认了却找不到"⇒ 点名）（#1519）`);
+	}   // ★指认的件不在列表 ⇒ 不判（由形状/缺件判据管 ✓）
 	return (traces ?? []).filter((t) => String(t?.from ?? '') === key);
 };
 

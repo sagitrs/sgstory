@@ -20,6 +20,39 @@
    "docs": "具名对手状态面"
   },
   {
+   "name": "combatPool",
+   "kind": "lookup",
+   "from": "Game.Combat.pools",
+   "key": "id",
+   "default": [],
+   "docs": "战斗池（按池 id 取动作 id 数组）"
+  },
+  {
+   "name": "combatAction",
+   "kind": "lookup",
+   "from": "Game.Combat.actions",
+   "key": "id",
+   "default": null,
+   "docs": "战斗动作"
+  },
+  {
+   "name": "actionLabel",
+   "kind": "lookup-field",
+   "via": "combatAction",
+   "key": "id",
+   "field": "label",
+   "required": true,
+   "docs": "动作标签"
+  },
+  {
+   "name": "checkSite",
+   "kind": "lookup",
+   "from": "Game.Checks.sites",
+   "key": "name",
+   "default": null,
+   "docs": "位点（战斗检定用）"
+  },
+  {
    "name": "mechanics",
    "kind": "null",
    "docs": "x"

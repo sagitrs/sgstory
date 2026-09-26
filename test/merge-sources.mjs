@@ -43,8 +43,11 @@ const t = (l, ok, d = '') => { if (ok) console.log(`  ✓ ${l}`); else { bad++; 
 
 // ── ③ 形状：`from` 必须**仓级**（✗ 不许指进故事目录）──────────────────────
 {
-	t('★形状：`from` 指进 `stories/` ⇒ **点名**', sourcesShapeProblems([{ from: 'stories/s/data/tables.json' }]).some((x) => x.code === 'not-repo-level'));
-	t('形状：缺 `from` ⇒ 点名', sourcesShapeProblems([{}]).some((x) => x.code === 'missing-from'));
+	t('★形状：`from` 指进 `stories/` ⇒ **点名**', sourcesShapeProblems(['stories/s/data/tables.json']).some((x) => x.code === 'not-repo-level'));
+	t('★形状（定名后）：**非字符串项** ⇒ 点名（✗ 不认 `{from}` 对象形 —— 两形并存 ✗）',
+		sourcesShapeProblems([42]).some((x) => x.code === 'bad-entry') && sourcesShapeProblems([{ from: 'shared/x.json' }]).some((x) => x.code === 'bad-entry'));
+	t('★形状：**空数组** ⇒ 点名（✗ 静默当"零源" ✓）', sourcesShapeProblems([]).some((x) => x.code === 'empty-array'));
+	t('★形状：**仓级字符串** ⇒ 绿（正例）', sourcesShapeProblems(['shared/a.json', 'shared/b.json']).length === 0);
 	t('形状：非数组 ⇒ 点名', sourcesShapeProblems({}).some((x) => x.code === 'not-array'));
 	t('★形状：缺省（`null`/`undefined`）⇒ **绿**（零源＝今天 ✓）', sourcesShapeProblems(null).length === 0 && sourcesShapeProblems(undefined).length === 0);
 }
@@ -57,18 +60,18 @@ const t = (l, ok, d = '') => { if (ok) console.log(`  ✓ ${l}`); else { bad++; 
 	const zero = expandSources({ slug: 's', data: base, io: mkIo({}), repoRoot: '' });
 	t('★零源 ⇒ **数据原样**（✗ 不合并、✗ 不报错 —— "零源＝今天" ✓）', zero.data === base && zero.traces.length === 0);
 	// 被引件缺 ⇒ 出声
-	const miss = (() => { try { expandSources({ slug: 's', data: { 'tables.json': { sources: [{ from: 'shared/nope.json' }] } }, io: mkIo({}), repoRoot: '' }); return ''; } catch (e) { return e.message; } })();
+	const miss = (() => { try { expandSources({ slug: 's', data: { 'tables.json': { sources: ['shared/nope.json'] } }, io: mkIo({}), repoRoot: '' }); return ''; } catch (e) { return e.message; } })();
 	t('★被引件缺 ⇒ **出声**（句里点名 `from`）', /read不到|读不到/.test(miss) && /shared\/nope\.json/.test(miss), miss.slice(0, 90));
 	// 正常合并 ＋ 覆盖规则级 ⇒ 出声
 	const files = { 'shared/rules.json': JSON.stringify({ a: 1, keep: 'r' }), 'shared/world.json': JSON.stringify({ b: 2 }) };
 	const rulesObj = { rows: [] };
-	const input = { 'tables.json': { sources: [{ from: 'shared/rules.json' }, { from: 'shared/world.json' }] }, 'rules.json': rulesObj };
+	const input = { 'tables.json': { sources: ['shared/rules.json', 'shared/world.json'] }, 'rules.json': rulesObj };
 	const ok = expandSources({ slug: 's', data: input, io: mkIo(files), repoRoot: '' });
 	t('★正常三源 ⇒ 合并入 `tables.json`（★其余数据面**同一对象** ⇒ 不动 ✓）', ok.data['tables.json'].a === 1 && ok.data['tables.json'].b === 2 && ok.data['rules.json'] === rulesObj && ok.data !== input, JSON.stringify(ok.data['tables.json']));
-	const ovr = (() => { try { expandSources({ slug: 's', data: { 'tables.json': { sources: [{ from: 'shared/rules.json' }, { from: 'shared/world.json' }] } }, io: mkIo({ 'shared/rules.json': JSON.stringify({ a: 1 }), 'shared/world.json': JSON.stringify({ a: 2 }) }), repoRoot: '' }); return ''; } catch (e) { return e.message; } })();
+	const ovr = (() => { try { expandSources({ slug: 's', data: { 'tables.json': { sources: ['shared/rules.json', 'shared/world.json'] } }, io: mkIo({ 'shared/rules.json': JSON.stringify({ a: 1 }), 'shared/world.json': JSON.stringify({ a: 2 }) }), repoRoot: '' }); return ''; } catch (e) { return e.message; } })();
 	t('★**覆盖规则级键 ⇒ 出声**（D5 判据③）且点名路径', /规则级/.test(ovr) && /\ba\b/.test(ovr), ovr.slice(0, 100));
 	// 形状不符 ⇒ 出声
-	const sh = (() => { try { expandSources({ slug: 's', data: { 'tables.json': { sources: [{ from: 'stories/x/data/tables.json' }] } }, io: mkIo({}), repoRoot: '' }); return ''; } catch (e) { return e.message; } })();
+	const sh = (() => { try { expandSources({ slug: 's', data: { 'tables.json': { sources: ['stories/x/data/tables.json'] } }, io: mkIo({}), repoRoot: '' }); return ''; } catch (e) { return e.message; } })();
 	t('★形状不符（`from` 指进故事目录）⇒ **出声**', /not-repo-level/.test(sh), sh.slice(0, 90));
 }
 

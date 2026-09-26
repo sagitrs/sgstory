@@ -594,6 +594,14 @@ const selftest = () => {
 	h('`probeStateOf`：跑了但**不咬** ⇒ `✗` ✓（>0 即红 ✓）', probeStateOf({ entry: { id: 'x' }, record: { ok: false } }) === '✗');
 	h('`probeStateOf`：咬住 ＋ 被测件**没改** ⇒ `✅` ✓', probeStateOf({ entry: { id: 'x' }, record: { ok: true, targetSha: 'aa' }, targetSha: 'now', sha: () => 'aa' }) === '✅');
 	h('`probeStateOf`：咬住但**被测件改过** ⇒ 回落 `—` ✗（禁拿旧读数充数 ✓）', probeStateOf({ entry: { id: 'x' }, record: { ok: true, targetSha: 'aa' }, targetSha: 'now', sha: () => 'bb' }) === '—');
+	// ★ `#1497` CR（转述）：**「能假」列自己也要能假** —— 原状零调用 ⇒ 三刀全不咬 ✗（同形 `#1467`）
+	//   ★故补四分支格 ＋ ★一格**钉「两列不是同一列」**（今天真台账两列取值常同 ⇒ 没这格，将来合成同一函数也不红 ✓）
+	h('★ `canFalsifyOf`：有变异 ＋ 咬住 ＋ sha 同 ⇒ `✅` ✓', canFalsifyOf({ entry: { mutation: {} }, record: { ok: true, targetSha: 'aa' }, targetSha: 'now', sha: () => 'aa' }) === '✅');
+	h('★ `canFalsifyOf`：**无变异件** ⇒ `—`（★「未验」的唯一承载：✗ 不是「不能假」✓）', canFalsifyOf({ entry: {}, record: { ok: true } }) === '—');
+	h('★ `canFalsifyOf`：跑过但不咬（`ok:false`）⇒ `—`（✗ 不给它 ✅ ✓）', canFalsifyOf({ entry: { mutation: {} }, record: { ok: false } }) === '—');
+	h('★ `canFalsifyOf`：咬住但**被测件改过** ⇒ `—`（旧读数作废 ✓）', canFalsifyOf({ entry: { mutation: {} }, record: { ok: true, targetSha: 'aa' }, targetSha: 'now', sha: () => 'bb' }) === '—');
+	h('★★ `canFalsifyOf` 与 `probeStateOf` **必须可不同**（钉「两列不是同一列」）：同一输入下（无变异件）⇒ canFalsify `—` ✗ 而 probeState `✅` ⇒ 两者不同 ✓',
+		canFalsifyOf({ entry: {}, record: { ok: true, targetSha: 'aa' }, targetSha: 'now', sha: () => 'aa' }) !== probeStateOf({ entry: {}, record: { ok: true, targetSha: 'aa' }, targetSha: 'now', sha: () => 'aa' }));
 	// `#1079`：探针面抹平（`--allow-stale-probe`）—— 三格：**能假的两个方向**都要有（不然就是"抹掉一切 → 永远绿"）
 	{
 		const md = [

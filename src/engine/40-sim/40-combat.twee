@@ -199,7 +199,7 @@ Object.assign((window.Game.Combat ??= {}), {
 		const picked = [];
 		const rng = window.Game.Rules.rng;                        // 唯一随机入口（node 未注入 → 大声报错）
 		while (picked.length < n && poolCopy.length) {
-			const i = Math.min(poolCopy.length - 1, rng.d(poolCopy.length) - 1);
+			const i = rng.pickIndex(poolCopy.length);   // `#1441`：共用取一原语（原为裸式 `Math.min(len-1, rng.d(len)-1)`；★这里要**下标** ⇒ 用 pickIndex）
 			picked.push(poolCopy.splice(i, 1)[0]);
 		}
 		return picked;
@@ -330,7 +330,7 @@ Object.assign((window.Game.Combat ??= {}), {
 		if (!mech) return null;
 		const parts = mech.hitLocations ?? [];
 		const rng = window.Game.Rules.rng;                        // 唯一随机入口（node 未注入 → 大声报错）
-		const part = parts[Math.min(parts.length - 1, rng.d(parts.length) - 1)];
+		const part = rng.pickOne(parts);   // `#1441`：共用取一原语
 		return this.slotAbsorbAt(pc, part, hurt);
 	},
 	// 判定失败的耐久扣减（S1 已定 ④：**掷骰** −1 或 −2）；返回计划，不写 `pc`。
@@ -448,9 +448,9 @@ Object.assign((window.Game.Combat ??= {}), {
 			const ids = Object.keys(mech.statuses ?? {}).filter((x) => x !== excludeId);
 			if (!ids.length) return { kind: 'none' };
 			const rng = window.Game.Rules.rng;
-			const id = ids[Math.min(ids.length - 1, rng.d(ids.length) - 1)];
+			const id = rng.pickOne(ids);   // `#1441`：共用取一原语
 			const parts = this.statusParts(mech, id);
-			const part = entry.part === 'random' ? parts[Math.min(parts.length - 1, rng.d(parts.length) - 1)] : entry.part;
+			const part = entry.part === 'random' ? rng.pickOne(parts) : entry.part;   // `#1441`：共用取一原语
 			return { kind: 'addStatus', id, part, turns: mech.statuses[id].turns };
 		}
 		throw new Error(`Game.Combat.statusTick：onFail 效果形态未实现（本片只认 harm:'damage'+dice ／ addStatus:'random'）——声明面不得大于实现面（#487）`);
@@ -698,7 +698,7 @@ Object.assign((window.Game.Combat ??= {}), {
 		const total = roll + atk.bonus;
 		const crit = roll === 20, fumble = roll === 1;
 		const hit = crit || (!fumble && total >= ac);
-		const part = parts[Math.min(parts.length - 1, window.Game.Rules.rng.d(parts.length) - 1)];
+		const part = window.Game.Rules.rng.pickOne(parts);   // `#1441`：共用取一原语
 		const raw = hit ? this.rollDice(atk.dmg) * (crit ? 2 : 1) : 0;
 		const absorb = hit ? this.slotAbsorbAt(pc, part, raw) : null;
 		return { foe: id, roll, rolls, bonus: atk.bonus, total, ac, hit, crit, part, raw, absorb };

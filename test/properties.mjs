@@ -15,6 +15,37 @@ const queueDice = (dice) => {
 const R = w.Game.Rules;
 const PC = { abilities: { str: 10, dex: 10, con: 10, int: 10, wis: 15, cha: 10 }, skills: ['察觉'], flags: {} };
 
+// ── `#1441`（分家配套）：**共用取一原语** `Game.Rules.rng.pickIndex` / `pickOne` ──────────
+// 背景：同一式子（`list[Math.min(len-1, rng.d(len)-1)]`）**在本仓出现 5 处**（部位抽取／状态目标／随机部位／
+//   攻击命中部位／池抽取）⇒ 抽成一条原语（**五份副本 = 五处会各自漂移的地方** ✓）。
+// ★三态：① 空表 ⇒ **显式**（`pickIndex` → -1／`pickOne` → null，✗ 不崩 ✗ 不返 undefined）
+//   ② 边界（源返回越界 ⇒ **不越界取 undefined**）③ **能假**（换源 ⇒ 读数跟着变 ⇒ 判据不是摆设）
+{
+	const rng = w.Game.Rules.rng;
+	const EE = (a, b, m) => ok(JSON.stringify(a) === JSON.stringify(b), `${m}（期望 ${JSON.stringify(b)}，实得 ${JSON.stringify(a)}）`);
+	// ① 空表 / 非法长度
+	EE(rng.pickIndex(0), -1, '① `pickIndex(0)` ⇒ -1（空表不崩，✗ 不取 undefined）');
+	EE(rng.pickIndex(-3), -1, '① 负长度 ⇒ -1（✗ 不靠调用方自己防）');
+	EE(rng.pickIndex(NaN), -1, '① 非数长度 ⇒ -1');
+	EE(rng.pickOne([]), null, '① `pickOne([])` ⇒ null（显式空，✗ 不是 undefined）');
+	EE(rng.pickOne(null), null, '① 非数组 ⇒ null（✗ 不崩）');
+
+	// ② 边界：源返回**越界值** ⇒ 仍不越界（`Math.min` 那层防御 ✓）
+	const keep = rng._impl;
+	rng.set(() => 999);
+	EE(rng.pickIndex(3), 2, '② 源越界 ⇒ 夹到末下标（✗ 不越界取 undefined）');
+	EE(rng.pickOne(['a', 'b', 'c']), 'c', '② 同上：`pickOne` 夹到末元素');
+	rng.set(() => 0);
+	EE(rng.pickIndex(3), 0, '② 源返回 0 ⇒ 夹到下标 0（`d()` 约定 1..n ⇒ 用 `-1` 归一 ✓）');
+
+	// ③ 能假：换源 ⇒ 读数**跟着变**
+	rng.set(() => 2);
+	EE(rng.pickOne(['a', 'b', 'c']), 'b', '③ 能假：源=2 ⇒ 取到 b（读数跟着源走 ✓）');
+	rng.set(() => 3);
+	EE(rng.pickOne(['a', 'b', 'c']), 'c', '③ 能假：源=3 ⇒ 取到 c ✓');
+	rng.set(keep);
+}
+
 // ── A. 判定决策边界全枚举：die 1..20 × DC {8,10,12,15} ──
 {
 	const mod = R.check(PC, '察觉', 10).mod;

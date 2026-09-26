@@ -54,6 +54,27 @@ window.Game.Rules = {
 			if (typeof random === 'function') return random(1, n);   // SugarCube 默认源
 			throw new Error('Game.Rules.rng 未注入随机源：node 环境请先 Game.Rules.rng.set(fn)');
 		},
+		/** ★ `#1441`（分家配套）：**随机取一个下标**（`n<=0` ⇒ `-1`）。
+		 *  `Math.min(n - 1, d(n) - 1)` —— ★`Math.min` 那一层是**防御**：`d(n)` 的源若被注入成越界值，
+		 *  这里仍不越界（✗ 不会取到 `undefined` 后一路静默下去 ✓）。 */
+		pickIndex(n) {
+			const len = Number(n);
+			if (!Number.isFinite(len) || len <= 0) return -1;
+			// ★**上下界都夹**（`#1441` 实测）：原式只有 `Math.min`（上界）⇒ 源若返回 `0`，
+			//   `d(len)-1 = -1` ⇒ 仍**越界** ✗（判据当场咬到）。故补 `Math.max(0, …)` ✓
+			//   ★对**正常源**（约定 1..n）零影响 ⇒ "零行为变化"仍成立 ✓。
+			return Math.max(0, Math.min(len - 1, this.d(len) - 1));
+		},
+		/** ★ `#1441`（分家配套）：**从列表里随机取一**（空列表 ⇒ `null`）。
+		 *  为什么单列成一条：**同一式子（取下标再取值）在本仓出现 5 处** ——
+		 *  部位抽取／状态目标／随机部位／攻击命中部位／池抽取 ⇒ 五份副本＝**五处会各自漂移的地方** ✓
+		 *  ★注意：需要"**下标**"的调用方（如 splice 后取走）用 `pickIndex`，✗ 不要用 `indexOf(pickOne(…))`
+		 *  （列表**有重复元素**时 `indexOf` 会取到**第一个** ⇒ 与随机意图不符 ✗）。 */
+		pickOne(list) {
+			const xs = Array.isArray(list) ? list : [];
+			if (!xs.length) return null;
+			return xs[this.pickIndex(xs.length)];
+		},
 	},
 	// ── `#491` 判据 10：**调试开关**（限"构建期/URL 参数"，**不进玩家 UI**）───────────────
 	// 口径（已定 ⑩）：① 只在 URL 带参数时生效 → 默认**零影响**；② 只影响**随机与事件池**，不动规则/数值表；

@@ -25,7 +25,10 @@ const FX = join(ROOT, 'test/fixtures/m3-chk-e2e');
 const STORIES = join(FX, 'stories');
 const RUNNER = join(FX, 'run.sh');
 const CORE = join(ROOT, 'src/10-core.twee');
-const RULES = join(STORIES, 'north-room/data/rules.json');
+// `#1509`：该 `<rules[]>` 行的**载体已从 `data/rules.json` 迁到 `data/passages.json` 的 `links[]`**
+//   （手写宏 → 数据面；条件／呈现两侧语义不变）⇒ 本件的负态构造改读**承载它的那份文件**。
+//   ★口径不变：**结构**（`req` 一字不动 ＋ 只改呈现侧 label）＋ **两条腿各自独立**。
+const LINKS = join(STORIES, 'north-room/data/passages.json');
 const BAK = (p) => p + '.bak-chksource';
 const SITE = '里屋·察觉';                                   // 夹具规则行 `req: ["chk:里屋·察觉.success"]`
 
@@ -126,22 +129,22 @@ if (SELF) {
 // ── ③ 能假·渲染面 ────────────────────────────────────────
 if (SELF_RENDER) {
 	// `#1347` 甲·**变体 A**：**条件保持为真**（`req` 一字不动）⇒ 只动**呈现侧**（那一行的 label）。
+	// ★ `#1509`：该行的载体已迁到 `data/passages.json` 的 `links[]`（`cond.req` ＋ `label` 同形等价）⇒ 只换读取面。
 	// 为什么：旧构造"改 `req` ⇒ 条件不命中"**同时动了写入与渲染两条腿** ✗ ⇒ 两格互相掩盖、也证明不了"渲染面跟着输入变"。
 	// 变体 A 给出**更强**的读数：写入仍在 ✓ ＋ **渲染出的文本＝新 label** ✓ ＋ 旧 label 不再出现 ✓ ⇒ 两条腿各自独立。
 	// ★ `rc` **不当代理**：变体 A 下用例可能因"它断言的是旧 label"而失败 ⇒ rc 只用来问"**负态跑起来了没有**"。
 	console.log('  ── 能假·渲染面（变体 A）：条件不动、只改那一行呈现侧 label ──');
-	copyFileSync(RULES, BAK(RULES));
+	copyFileSync(LINKS, BAK(LINKS));
 	let neg = null, negRun = null;
 	try {
 		// ★ 结构性写法：**parse ⇒ 改值 ⇒ 写回**（✗ 不对 `JSON.stringify` 的文本做替换）
-		const d = JSON.parse(readFileSync(RULES, 'utf8'));
-		const rows = Array.isArray(d?.rows) ? d.rows : [];
-		const row = rows.find((r) => Array.isArray(r?.req) && r.req.some((k) => String(k).startsWith('chk:')));
-		if (!row) throw new Error('夹具里找不到含 `chk:` 的条件行');
-		row.text = String(row.text).replace('桌上那点光', '桌上那点灰');
-		writeFileSync(RULES, JSON.stringify(d, null, 2) + '\n');
+		const d = JSON.parse(readFileSync(LINKS, 'utf8'));
+		const row = (d?.['里屋']?.links ?? []).find((l) => l?.cond?.req?.some((k) => String(k).startsWith('chk:')));
+		if (!row) throw new Error('夹具里找不到含 `chk:` 的条件（`passages.json` 的 `links[].cond.req`）');
+		row.label = String(row.label).replace('桌上那点光', '桌上那点灰');
+		writeFileSync(LINKS, JSON.stringify(d, null, 2) + '\n');
 		{
-			const srcTxt = readFileSync(RULES, 'utf8');
+			const srcTxt = readFileSync(LINKS, 'utf8');
 			t('③ 前置·输入层：源件里呈现侧已改（新 label 在）', srcTxt.includes('桌上那点灰'));
 			t('③ 前置·输入层：**条件一字未动**（`req` 仍是 `chk:里屋·察觉.success`）', srcTxt.includes('chk:里屋·察觉.success'));
 		}
@@ -163,8 +166,8 @@ if (SELF_RENDER) {
 		try { neg = JSON.parse(String(childNeg.stdout ?? '').trim().split('\n').pop()); }
 		catch { neg = { rendered: 'parse-failed:' + String(childNeg.stdout ?? '').slice(0, 80) }; }
 	} finally {
-		copyFileSync(BAK(RULES), RULES);
-		rmSync(BAK(RULES), { force: true });
+		copyFileSync(BAK(LINKS), LINKS);
+		rmSync(BAK(LINKS), { force: true });
 		runRunner();
 	}
 	// 两条腿各自独立：

@@ -38,7 +38,9 @@ t('① 开局（pcDefaults 生效）⇒ hp 是**有限数**（fixture 声明 14�
 w.eval('(function(){SugarCube.State.variables.pc.hp=7;})()');
 await w.SugarCube.Engine.play('结局 死亡'); await B.settle();
 t('② ★跳结局段后 hp **仍是有限数**（✗ 不再是 NaN —— 本缺陷的正面判据）', Number.isFinite(pc().hp), `hp=${String(pc().hp)}`);
-t('② ★页面有 **fail-loud 点名**（空参 ⇒ 报错 ⇒ ✗ 不静默）', /需要一个数字参数/.test(txt()), txt().slice(0, 80));
+// ★ `#1488`：结算走原语 `settleValue` ⇒ ★报文改为"**操作数必须是有限数**"（★仍是 fail-loud ＋ 点名 ✓）
+//   ⇒ ★断**新报文**（✗ 不改断"不静默"这个要求本身 —— 它仍然成立 ✓）
+t('② ★页面有 **fail-loud 点名**（空参 ⇒ 报错 ⇒ ✗ 不静默）', /有限数/.test(txt()), txt().slice(0, 110));
 // ③ 正常伤害仍工作（✗ 不误伤）
 w.eval('(function(){const v=SugarCube.State.variables;v.pc.hp=10;v.pc.salves=0;v.pc.max_hp=10;})()');
 w.eval('(function(){const d=document.createElement("div");document.body.appendChild(d);new SugarCube.Wikifier(d,"<<damage 3>>");})()');

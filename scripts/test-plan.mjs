@@ -368,6 +368,8 @@ export const SEGMENTS = [
 	{ id: "test-vitals-consumers-mjs", phase: 'test', cost: 0.5, cmd: "node test/vitals-consumers.mjs" },
 	// ★ `#1487`（④ 收尾）：`migrate()` 兜底 与 车卡 `finalize` 都按名/按数据取值（★含 `emitChargen` 全量透传的照亮）
 	{ id: "test-vitals-migrate-chargen-mjs", phase: 'test', cost: 4, exclusive: true, mutates: ['build'], cmd: "node test/vitals-migrate-chargen.mjs" },
+	// ★ `#1488`（五步⑤）：结算原语（枚举三件）＋ 阈值只 0 ＋ 零界＝实体授予
+	{ id: "test-settle-primitives-mjs", phase: 'test', cost: 0.5, cmd: "node test/settle-primitives.mjs" },
 	{ id: "test-sources-wired-e2e-mjs", phase: 'test', cost: 3, exclusive: true, mutates: ['build'], cmd: "node test/sources-wired-e2e.mjs" },
 	// `#1275`：**来源面**端到端格（经夹具 runner；零故事态可跑）＋ `-selftest` 能假两格
 	{ id: "test-chk-source-mjs", phase: 'test', cost: 1.5, exclusive: true, mutates: ['build'], cmd: "node test/chk-source.mjs" },
@@ -680,7 +682,7 @@ export const SUITE_MEMBERS = {
 	],
 	'story-legal': ['test-multi-story-mjs',
 		'test-multi-story-mjs-selftest',
-		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-case-run-mjs', 'test-merge-sources-mjs', 'test-sources-wired-e2e-mjs', 'test-vitals-consumers-mjs', 'test-vitals-migrate-chargen-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs',
+		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-case-run-mjs', 'test-merge-sources-mjs', 'test-sources-wired-e2e-mjs', 'test-vitals-consumers-mjs', 'test-vitals-migrate-chargen-mjs', 'test-settle-primitives-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs',
 		// `#1267`／`#1257`：故事根口与两面一致性（归 `infra` 语义——判的是**工具链口径**，非故事内容）
 		'test-story-root-mjs', 'test-story-enum-faces-mjs',
 		'test-story-ci-mjs-selftest', 'test-rules-claims-mjs',

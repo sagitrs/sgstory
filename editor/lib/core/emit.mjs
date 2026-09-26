@@ -359,7 +359,10 @@ export const compileStory = ({ tables, contract, rules, notesFace, slug, chargen
 				for (const k of ['label', 'to', 'cond', 'prio', 'prereq', 'slot', 'id']) if (x?.[k] !== undefined) o[k] = x[k];
 				return o;   // ★ `args` **不进**（运行期数据 ⇒ ✗ 不许烘进产物）
 			});
-			specs[seg] = { params: v.params ?? {}, present: v.present ?? null, links: l };
+			// ★ `#1505`：段级字段加 **`payload`**（载荷分级：`信息`／`张力`／`选择`）——
+			//   ★它原是**散文标记**（`/% payload: … %/`）⇒ 移到**数据面**（✗ 散文里不留 ✓）
+			//   ★注：`payload` 是**声明面**（门按它判"内容段有没有标注"）⇒ 与 `present` **同类**，一同注入 ✓
+			specs[seg] = { params: v.params ?? {}, present: v.present ?? null, payload: v.payload ?? null, links: l };
 		}
 		for (const m of contract.members) {
 			if (m && m.name === 'passageSpecs') { m.kind = 'const'; m.value = specs; delete m.to; }

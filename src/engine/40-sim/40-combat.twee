@@ -360,8 +360,9 @@ Object.assign((window.Game.Combat ??= {}), {
 		// ★ `#1461` ①：**基数 ＋ 用哪个属性读包**（✗ 不写死 `10`／`'dex'` —— 否则与包不同步 ✓）
 		const acPack = window.Game.Rules.pack().ac ?? { base: 10, ability: 'dex' };
 		let ac = (acPack.base ?? 10) + window.Game.Rules.abilityMod(pc, acPack.ability ?? 'dex');
-		// ★ `#1461`：护具字段名**也来自包**（缺省 `'ac'` ⇒ 零包＝今天 ✓）
-		const field = acPack.gearField ?? 'ac';
+		// ★ `#1461`（写作者阻断 ④）：**撤 `gearField`** —— 护具字段名 `ac` 属**装备面形状**（✗ 规则书命名）
+		//   ⇒ 按接缝判定线 "换一套规则书不会变" ⇒ 直接读 `def.ac` ✓（✗ 声明面大于实现面）
+		const field = 'ac';
 		for (const g of pc?.gear ?? []) {
 			const def = mech.equipment?.[g];
 			if (!def || def[field] === undefined) continue;
@@ -412,7 +413,10 @@ Object.assign((window.Game.Combat ??= {}), {
 		const total = roll + mod;
 		// ★ `#1461`：自然骰**读包**（✗ 不写死 20／1 —— 否则与包不同步 ✓）
 		const _d = window.Game.Rules.pack().dice;
-		const crit = roll === _d.sides, fumble = roll === 1;   // ★`fumble` 的语义是「自然 1」⇒ 保留下界 1
+		// ★ `#1461` 定稿：**命中哪一档由骰面定**（`roll === dice.sides` / `roll === 1`）——
+		//   ★`fumble` 的下界**恒为 `1`**（**骰的语义** ✓；✗ 包不提供「下界值」键 —— 我一度自造 `nat1Value` ⇒ 已撤回）
+		//   ★**那一档叫什么由包定** ⇒ 档位名从 `dice` 读（`nat20`／`nat1`／`ok`／`bad`）✓
+		const crit = roll === _d.sides, fumble = roll === 1;
 		const hit = crit || (!fumble && total >= def.ac);
 		let dealt = 0;
 		const next = foes.map((f) => ({ ...f }));
@@ -449,7 +453,10 @@ Object.assign((window.Game.Combat ??= {}), {
 		const total = roll + atk.bonus;
 		// ★ `#1461`：自然骰**读包**（✗ 不写死 20／1 —— 否则与包不同步 ✓）
 		const _d = window.Game.Rules.pack().dice;
-		const crit = roll === _d.sides, fumble = roll === 1;   // ★`fumble` 的语义是「自然 1」⇒ 保留下界 1
+		// ★ `#1461` 定稿：**命中哪一档由骰面定**（`roll === dice.sides` / `roll === 1`）——
+		//   ★`fumble` 的下界**恒为 `1`**（**骰的语义** ✓；✗ 包不提供「下界值」键 —— 我一度自造 `nat1Value` ⇒ 已撤回）
+		//   ★**那一档叫什么由包定** ⇒ 档位名从 `dice` 读（`nat20`／`nat1`／`ok`／`bad`）✓
+		const crit = roll === _d.sides, fumble = roll === 1;
 		const hit = crit || (!fumble && total >= ac);
 		const part = window.Game.Rules.rng.pickOne(parts);   // `#1441`：共用取一原语
 		// ★ `#1461`：**翻倍系数读包**（`dice.critMul`；缺省 2 ⇒ 零包＝今天 ✓）

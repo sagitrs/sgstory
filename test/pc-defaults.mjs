@@ -111,6 +111,31 @@ ok(Object.keys(storyDefaults).every((k) => !keysOf(bare).includes(k)), '③ 缺�
 	ok(String(shapeOk) === 'OK', '★③ `pcShape` 给自定义键 ⇒ **生效**（✗ 不被吞 —— 与 `pcDefaults` 的分工不同）', String(shapeOk).slice(0, 80));
 }
 
+<<<<<<< HEAD
+=======
+// ── ★ `#1484`（五步①·**收束本身的独立格**）：`pcDefaults` 给**引擎已知键** ⇒ fail-loud ─────
+// ★为什么必须**独立成格**（写作者提的缺口）：★本票的**核心判据**就是"引擎不再吸收车卡族键"，
+//   而它原先是**只被夹具的现态间接护着**（夹具不再写 ⇒ 撞不到）⇒ ★那样"改回去也不红" ✗
+//   ⇒ ★照"每票逐处能假"钉住：**直接喂一个带引擎已知键的 pcDefaults** ⇒ 必须红且点名 ✓
+{
+	const probe = (obj) => w.eval(`(() => { const f = Sg.story.pcDefaults; Sg.story.pcDefaults = () => (${JSON.stringify(obj)});
+		try { return (Game.Pc.defaults(), '没报错'); } catch (e) { return 'ERR:' + e.message; } finally { Sg.story.pcDefaults = f; } })()`);
+	// ① 车卡族键（`hp`）⇒ 红，且**点名**该键 ＋ 说明归属
+	const e1 = String(probe({ hp: 9 }));
+	ok(/引擎已知键/.test(e1) && /「hp」/.test(e1), '★① 收束：`pcDefaults:{hp:9}` ⇒ **红 ＋ 点名键名**', e1.slice(0, 100));
+	// ② 基础面键（`ev`）⇒ 同样红（名单＝基础面 ∪ 各组 keys）
+	const e2 = String(probe({ ev: {} }));
+	ok(/引擎已知键/.test(e2) && /「ev」/.test(e2), '★② 基础面键（`ev`）⇒ 同样红（名单含基础面 ✓）', e2.slice(0, 100));
+	// ③ ★反向（防空判）：**自定义键** ⇒ **绿**（✗ 不是"一律报"）
+	const okc = String(probe({ 心情: 3 }));
+	ok(okc === '没报错', '★③ 反例：**自定义键** ⇒ **绿**（✗ 收束不是"禁止一切键" ✓）', okc.slice(0, 90));
+	// ④ 边界：车卡族成员键（`abilities`）⇒ 也红（✗ 不只顶层那 13 个名字）
+	const e4 = String(probe({ abilities: { str: 1 } }));
+	ok(/引擎已知键/.test(e4), '★④ 边界：`abilities` ⇒ 也红（`groups.chargen.keys` 的一员 ✓）', e4.slice(0, 90));
+}
+
+
+>>>>>>> 8f900f2e (test(1490): 补「收束本身」的独立格（照写作者提的缺口 —— 判据 ↔ 实现格的差）)
 // ④ 面返回非对象 → 报错
 const msgs = [];
 for (const bad of ['() => 42', '() => []', "() => 'x'"]) {

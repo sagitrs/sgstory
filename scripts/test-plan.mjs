@@ -65,6 +65,7 @@ export const FULL_REASONS = {
 	'scripts-report-gate-ledger-mjs': '`#1353` 阶段一（PR 档减压）：台账重生成动作（--allow-stale-probe）：动作不需要每 PR 做。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
 	'scripts-report-selftest-validity-mjs': '`#1353` 阶段一（PR 档减压）：自证有效性扫描：元判据，随「自证」整体变化才需重看。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
 	// `#1261`：`test-witness-trace`（P4 见证件）随其样本下架 -> 段与理由块同删（留痕见下架台账）。
+	'scripts-audit-mjs-facade-call-check': '`#1445`：判**引擎侧代码结构**（门面调用面）—— 全仓扫描 ＋ 自证 ⇒ 非 PM 档必需（PR 档可省，随 full 跑；见 `#1437` 分家伞）',
 };
 
 export const SEGMENTS = [
@@ -455,6 +456,7 @@ export const SEGMENTS = [
 	// #486（S1）：槽位/耐久**机制**门（引擎门——判据来自声明表，不读故事散文）：
 	// 两态语义 · 部位命中分布 · 损坏阈值 · 兼容降级 ·「声明面 ≤ 实现面」
 	{ id: 'scripts-audit-mjs-slots-check', phase: 'test', tier: 'full', cost: 0, cmd: 'node scripts/audit.mjs --slots --check' },
+	{ id: 'scripts-audit-mjs-facade-call-check', phase: 'test', tier: 'full', cost: 0, cmd: 'node scripts/audit.mjs --facade-call --check' },   // `#1445`：门面调用面约束（绕门面直调 ⇒ 点名）
 	// #487（S2）：部位×异常门（同为引擎门：输入＝声明表）
 	{ id: 'scripts-audit-mjs-status-check', phase: 'test', tier: 'full', cost: 0, cmd: 'node scripts/audit.mjs --status --check' },
 	// #488（S3）：波次与重置门（引擎门）
@@ -477,7 +479,7 @@ export const SEGMENTS = [
 // ③ 未分类的**非门段**一律按 `story` 处理（**保守**：绝不误入引擎门集合 → `--engine-only` 只多不少地安全）；
 // 要把它划进引擎门，就显式加进 `ENGINE_EXTRA`（一行）。
 // 注：`a11y` 也是引擎门，但**尚未接线**（F2 台账：未接线 7 道）→ 接线时加进本表（否则 `validateLayers()` 的僵尸声明会报红——这正是想要的行为）
-export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 'text', 'engine-story-free', 'slots', 'status', 'waves', 'roads'];   // #486：slots 是引擎门（输入＝声明表）
+export const AUDIT_ENGINE = ['consequences', 'literals', 'state', 'sitedisc', 'text', 'engine-story-free', 'slots', 'status', 'waves', 'roads', 'facade-call'];   // #486：slots 是引擎门（输入＝声明表）
 // **`#607` P0 起 `AUDIT_STORY` 的含义**：＝「**尚未迁移**的故事门」清单（历史包袱；搬完一批删一批）。
 // 已搬进 `stories/<slug>/gates/` 的门由**该故事的清单**声明（`00-story.json` 的 `gates`），由 `scripts/audit/discovery.mjs`
 // 发现 → 下方这两个表只描述"还在工具层的门"。落点与机制见 `docs/criterion-design.md` §八 8.15。
@@ -605,7 +607,7 @@ export const SUITE_MEMBERS = {
 	'engine': ['test-invariants-unit-mjs','test-silent-gate-mjs', 'test-gen-needed-mjs', 'test-route-registry-mjs', 'test-comment-face-split-mjs', 'test-npm-entries-guard-mjs',
 		'test-contract-compat-mjs','scripts-audit-mjs-consequences-check', 'scripts-audit-mjs-a11y-check', 'scripts-audit-mjs-sitedisc-check',
 		'scripts-audit-mjs-text-check', 'scripts-audit-mjs-state-check', 'scripts-audit-mjs-literals-check', 'scripts-audit-mjs-slots-check',
-		'scripts-audit-mjs-status-check', 'scripts-audit-mjs-waves-check',
+		'scripts-audit-mjs-status-check', 'scripts-audit-mjs-waves-check', 'scripts-audit-mjs-facade-call-check',
 		'scripts-audit-mjs-engine-story-free', 'scripts-audit-mjs-roads-check',
 		'scripts-ui-migration-diff-selftest',
 		'scripts-ui-migration-diff-check',

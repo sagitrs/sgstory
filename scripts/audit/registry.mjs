@@ -14,6 +14,7 @@ import * as g_text from './gates/text.mjs';
 import * as g_state from './gates/state.mjs';
 import * as g_literals from './gates/literals.mjs';
 import * as g_slots from './gates/slots.mjs';
+import * as g_facade_call from './gates/facade-call.mjs';   // `#1445`：门面调用面约束（绕门面直调 ⇒ 点名）
 import * as g_status from './gates/status.mjs';
 import * as g_waves from './gates/waves.mjs';
 import * as g_roads from './gates/roads.mjs';
@@ -27,6 +28,7 @@ export const GATES = [
 	g_state,
 	g_literals,
 	g_slots,
+	g_facade_call,
 	g_status,
 	g_waves,
 	g_roads,

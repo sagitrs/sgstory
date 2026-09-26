@@ -1,0 +1,5 @@
+{
+ "src/engine/40-sim/32-social.twee:18": "`ask()` 直接链式取 `this.socialAsks()` —— ★属**社交块**（不在本轮 D→B/C→E→A 的切法内）⇒ 待社交分家时一并改（`#1437` 伞，第二批）",
+ "src/engine/40-sim/32-social.twee:61": "`dcOf()` 链式取 `this.socialAttAdj()` —— 同上（社交块，`#1437` 第二批）",
+ "src/engine/40-sim/32-social.twee:66": "`siteOf()` 链式取 `this.socialApproaches()` —— 同上（社交块，`#1437` 第二批）"
+}

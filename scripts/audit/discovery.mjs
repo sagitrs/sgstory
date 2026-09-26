@@ -37,7 +37,7 @@ export const gateKey = (mod) => [...new Set(mod.flags ?? [])].sort().join('+');
  * → 每个键都必须在现存门模块的 `flag`／`flags` 里找得到。 */
 export const GATE_ORDER = [
 	'a11y', 'consequences', 'sitedisc', 'text',
-	'state', 'literals', 'slots', 'status', 'waves', 'roads', 'engine-story-free',
+	'state', 'literals', 'slots', 'status', 'waves', 'roads', 'facade-call', 'engine-story-free',
 ];
 
 /** 引擎门：flag ∈ `AUDIT_ENGINE`（`test-plan.mjs` 是层表的单一权威）。 */

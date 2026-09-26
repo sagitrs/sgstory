@@ -30,6 +30,7 @@ export const GATE_ANCHORS = {
 	a11y: 'contrastFindings',
 	consequences: 'judgeConsequences',
 	'engine-story-free': 'judgeStoryFree',
+	'facade-call': 'facadeCallProblems',   // `#1445`：判据体＝「找绕过门面的直调」（✗ 不指 `run`）
 	literals: 'analyze',
 	roads: 'judgeRoads',
 	sitedisc: 'judgeFailBranches',

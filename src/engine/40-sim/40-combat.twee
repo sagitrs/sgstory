@@ -551,7 +551,10 @@ Object.assign((window.Game.Combat ??= {}), {
 		if (ac === null) throw new Error('Game.Combat.foeHit：未启用部位机制（`mechanics()` 为 null）⇒ 敌人攻击不落部位（#705）');
 		const atk = def.attack ?? {};
 		if (typeof atk.bonus !== 'number') throw new Error(`Game.Combat.foeHit：敌人「${id}」的 \`attack.bonus\` 必须是数字（拿到 ${JSON.stringify(atk.bonus)}，#702）`);
-		const parts = Array.isArray(atk.parts) && atk.parts.length ? atk.parts : (this.slotsDecl()?.hitLocations ?? []);
+		// ★ `#1445`：**先赋局部量**（✗ 不链式直调 `this.slotsDecl()`）—— 本仓口径：声明表经**门面**取一次，
+		//   之后只读局部量 ⇒ 摘出「声明宿主」时读点**不受影响**（这正是分家能「零行为变化」的原因 ✓）
+		const _mech = this.slotsDecl();
+		const parts = Array.isArray(atk.parts) && atk.parts.length ? atk.parts : (_mech?.hitLocations ?? []);
 		if (!parts.length) throw new Error(`Game.Combat.foeHit：敌人「${id}」没有可落部位（\`attack.parts\` 空且没有 \`hitLocations\`，#705）`);
 		const { roll, rolls } = window.Game.Rules.roll(adv);
 		const total = roll + atk.bonus;

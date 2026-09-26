@@ -182,11 +182,16 @@ export const duplicateProblems = ({ passages = [] } = {}) => {
  * ⇒ 口径：**与自产同形同属性**（实测自产＝`class="link-internal"` ＋ `data-passage` ＋ `role="link"` ＋ `tabindex="0"`；
  *   `data-choice` 由 `:616` 补）⇒ 我们**只额外**加 `data-sg-args`（JSON 串，供跳转携带入参）。
  */
-export const linkHtml = ({ label, to, args = null } = {}) => {
+export const linkHtml = ({ label, to, args = null, effects = null } = {}) => {
 	const esc = (x) => String(x ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 	const extra = args && typeof args === 'object' && Object.keys(args).length
 		? ` data-sg-args="${esc(JSON.stringify(args))}"` : '';
-	return `<a data-passage="${esc(to)}" class="link-internal" role="link" tabindex="0"${extra}>${esc(label)}</a>`;
+	// ★ `#1408`（行效果的**施加时刻**）：作者面语义＝**点击那一刻施加** ⇒ 效果随链接走（`data-sg-effects`）
+	//   ⇒ 由 `#1350` 片 5 那处**点击处理器**（`remember`，与 `Sg.inargs.carry` 同刻）施加 ✓
+	//   ✗ 不能沿用"编成规则行 ⇒ 该作用域渲染时施加"：那会让读者**什么都没点就拿到钥匙** ✗（实测）
+	const eff = effects && typeof effects === 'object' && Object.keys(effects).length
+		? ` data-sg-effects="${esc(JSON.stringify(effects))}"` : '';
+	return `<a data-passage="${esc(to)}" class="link-internal" role="link" tabindex="0"${extra}${eff}>${esc(label)}</a>`;
 };
 
 export const renderLinksOf = ({ name, links = [], present = null }) => {
@@ -197,7 +202,10 @@ export const renderLinksOf = ({ name, links = [], present = null }) => {
 		const label = String(l.label ?? '').trim();
 		const to = String(l.to ?? '').trim();
 		if (!label || !to) continue;
-		const html = linkHtml({ label, to, args: l.args });
+		// ★ `#1408`：行效果（`gives`/`sets`/`yields`）**随链接走**（✗ 不进规则行 —— 进规则行＝"渲染即施加" ✗）
+	const effects = {};
+	for (const k of ['gives', 'sets', 'yields']) if (l[k] != null) effects[k] = l[k];
+	const html = linkHtml({ label, to, args: l.args, effects: Object.keys(effects).length ? effects : null });
 		if (l.slot) inline.push({ slot: String(l.slot), text: html });
 		else tail.push({ text: html });
 	}

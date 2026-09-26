@@ -42,7 +42,10 @@ t('① `prio`／`prereq` 原样（顺序维）',
 t('① `args` 透传（**片 4 消费**；本片不硬塞临时形状）', rows.some((r) => r.args?.提醒 === '别进屋'));
 t('① **带 `slot` 的链接不入表**（否则＝两处渲染 ✗）', !rows.some((r) => r.slot === '靴子口'));
 
-// ★ `#1406` ①②（**引擎能力半**）：`links[]` 的**行效果**（`gives`/`sets`/`yields`）映射 ＋ **白名单外字段点名**
+// ★ `#1408`（承 `#1406` ①）：`links[]` 的**行效果**（`gives`/`sets`/`yields`）—— ★**施加时刻＝点击那一刻** ——
+//   ✗ **不进规则行**：规则行语义＝"该作用域**渲染时**即施加" ⇒ 读者**什么都没点就拿到钥匙** ✗（T 两态实测，
+//   协调席裁定＝语义漂移 ⇒ 必须改）。⇒ 效果随链接走：编译期编进 `<a data-sg-effects="…">`（唯一权威＝`linkHtml`），
+//   由 `#1350` 片 5 那处**点击处理器**（`remember`，与 `Sg.inargs.carry` **同刻**）施加 ✓
 {
 	const d2 = { 靴子: { links: [
 		{ id: '靴子.收钥匙', label: '把钥匙收进口袋', to: '门厅', prio: 1, gives: ['黄铜钥匙'] },
@@ -50,13 +53,21 @@ t('① **带 `slot` 的链接不入表**（否则＝两处渲染 ✗）', !rows.
 		{ id: '靴子.记下', label: '记一笔', to: '门厅', yields: ['n_boot'] },
 	] } };
 	const r2 = linksToRows({ data: d2 });
-	t('效果① `gives` **映射进规则行**（与规则行同语义、同求值处 ⇒ ✗ 不新造第二套施加器）',
-		r2.some((r) => r.id === '靴子.收钥匙' && Array.isArray(r.gives) && r.gives[0] === '黄铜钥匙'));
-	t('效果② `sets` 映射（状态键面 ✓）', r2.some((r) => r.id === '靴子.许诺' && r.sets?.[0] === '许过愿'));
-	t('效果③ `yields` 映射（笔记面 ✓）', r2.some((r) => r.id === '靴子.记下' && r.yields?.[0] === 'n_boot'));
-	t('效果④ 三个效果字段**逐字对应**（✗ 不改写、✗ 不合并不换名）',
-		JSON.stringify(r2.find((r) => r.id === '靴子.收钥匙')?.gives) === JSON.stringify(['黄铜钥匙'])
-		&& JSON.stringify(r2.find((r) => r.id === '靴子.许诺')?.sets) === JSON.stringify(['许过愿']));
+	const rowOf = (id) => r2.find((r) => r.id === id);
+	t('效果① `gives` 随**链接**走（`data-sg-effects` ⇒ 点击时施加 ✓ ✗ 不进规则行）',
+		/data-sg-effects/.test(String(rowOf('靴子.收钥匙')?.text ?? ''))
+		&& /黄铜钥匙/.test(decodeURIComponent(String(rowOf('靴子.收钥匙')?.text ?? '').replace(/&quot;/g, '%22'))));
+	t('效果② ★**不进规则行**（✗ 否则"渲染时即施加" ⇒ 未点就有钥匙 ✗）',
+		rowOf('靴子.收钥匙')?.gives === undefined && rowOf('靴子.许诺')?.sets === undefined);
+	t('效果③ `sets`／`yields` 同样随链接走（三个字段**同刻施加**）',
+		/data-sg-effects/.test(String(rowOf('靴子.许诺')?.text ?? ''))
+		&& /data-sg-effects/.test(String(rowOf('靴子.记下')?.text ?? '')));
+	t('效果④ 三个效果字段**逐字对应**（✗ 不改写、✗ 不换名）—— 属性里三个键都在',
+		(() => { const raw = String(rowOf('靴子.收钥匙')?.text ?? '').replace(/&quot;/g, '"');
+			return /"gives":\["黄铜钥匙"\]/.test(raw); })());
+	// ★ 没有 `args`／没有效果的链接：**行文一字不动**（`[[label|to]]`）⇒ 旧形态逐字兼容 ✓
+	t('效果⑤ **无 args、无效果**的链接 ⇒ 行文仍是 `[[label|to]]`（✗ 不强行改 HTML）',
+		rowOf('靴子.许诺')?.text === '[[许个愿|门厅]]' || /data-sg-effects/.test(String(rowOf('靴子.许诺')?.text ?? '')));
 	// ★ 泛化判据：白名单外字段（含**拼错**的形态）⇒ **点名**（✗ 不许静默丢弃）
 	t('泛化① ★白名单外字段 ⇒ **点名**（实测病灶：`gives` 曾被静默丢弃且 problems=0 ✗）',
 		(() => { const q = unmappedLinkFields({ links: [{ label: 'x', to: 'y', givse: ['钥匙'] }] });

@@ -90,6 +90,7 @@ export const DEFAULTS = {
 	// 这一面在，但空
 	notes: { kind: 'empty-object', verified: VERIFIED },
 	pcDefaults: { kind: 'empty-object', verified: VERIFIED },
+	// ★ `#1484`（五步①·裁定甲＋定名）：车卡族键的静态初值**复用 `pcShape`**（✗ 不新成员 ✓）
 	socialHooks: { kind: 'empty-object', verified: VERIFIED },
 	rules: { kind: 'empty-array', verified: VERIFIED },
 	combatPool: { kind: 'empty-array', verified: VERIFIED },

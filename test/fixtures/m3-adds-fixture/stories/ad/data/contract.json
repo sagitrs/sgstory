@@ -1,6 +1,42 @@
-{"section":"StoryBindings","members":[
- {"name":"rules","kind":"empty-array","docs":"x"},
- {"name":"passageSpecs","kind":"forward","docs":"x"},
- {"name":"mechanics","kind":"null","docs":"x"},
- {"name":"pcDefaults","kind":"const","value":{"hp":10,"max_hp":10,"salves":0},"docs":"x"}
-]}
+{
+	"section": "StoryBindings",
+	"members": [
+		{
+			"name": "rules",
+			"kind": "empty-array",
+			"docs": "x"
+		},
+		{
+			"name": "passageSpecs",
+			"kind": "forward",
+			"docs": "x"
+		},
+		{
+			"name": "mechanics",
+			"kind": "null",
+			"docs": "x"
+		},
+		{
+			"name": "pcDefaults",
+			"kind": "const",
+			"value": {},
+			"docs": "x"
+		},
+		{
+			"name": "hasChargen",
+			"kind": "const",
+			"value": true,
+			"docs": "★#1484：启用车卡族（键形状的在场信号）"
+		},
+		{
+			"name": "pcShape",
+			"kind": "const",
+			"value": {
+				"hp": 10,
+				"max_hp": 10,
+				"salves": 0
+			},
+			"docs": "★#1484：车卡族键的**静态初值**（复用 pcShape「形状与初值一处给」；✗ 不跑车卡流程；过渡形 ⇒ ④ 随键名迁数据）"
+		}
+	]
+}

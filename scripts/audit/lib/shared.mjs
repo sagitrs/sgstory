@@ -40,10 +40,21 @@ export const FACE_HOST = {
 	// 现状（`#1437` 分家逐块搬 ⇒ 本表随块更新）
 	roadOffer: 'Combat',        // D 块（路线）
 	statusTick: 'StatusFx',     // ★ B 块（`#1452` 已搬）
-	wavePlan: 'Combat',         // E 块（未搬）
-	gearDurability: 'Gear',     // ★ C 块（`#1437` 第三刀）
-	slotAbsorb: 'Gear',         // ★ C 块（`#1437` 第三刀已搬 `Game.Gear`）
-};
+	// ★ E 块（`#1437` 第四刀已搬 `Game.Encounters`）—— 凡被 `requireCombatFace` 认过的都要登记
+	wavePlan: 'Encounters',
+	waveBegin: 'Encounters',
+	waveRecord: 'Encounters',
+	waveRewardScale: 'Encounters',
+	encounterReward: 'Encounters',
+	encounterFailNote: 'Encounters',
+	enemyDef: 'Encounters',
+	enemyMaxHp: 'Encounters',
+	foeRound: 'Encounters',
+	foeDamage: 'Encounters',
+	foeHit: 'Encounters',
+	// ★ C 块（`#1437` 第三刀）
+	gearDurability: 'Gear',
+	slotAbsorb: 'Gear',};
 /** 能力面就绪守卫：`method` 在**它当前的宿主**上是否是函数（✗ 不硬编码 `Combat`）。 */
 export const requireCombatFace = (game, method) => {
 	const host = FACE_HOST[method] ?? 'Combat';   // 未登记 ⇒ 按老口径（`Combat`）⇒ 零行为变化 ✓

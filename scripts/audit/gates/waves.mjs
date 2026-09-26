@@ -69,8 +69,17 @@ export const run = (ctx) => {
 	const __fn = requireCombatFace(Game, 'wavePlan');
 	// **两态能假格（常驻）**：就绪与缺席必须给出不同判定；否则等于"门在跑但零判定"。
 	{
-		const readyInj = requireCombatFace({ Combat: { 'wavePlan': () => null } }, 'wavePlan') !== null;
-		const absentInj = requireCombatFace({ Combat: {} }, 'wavePlan') === null;
+		// ★ `#1437`（E 块分家，照 `#1452` 立的纪律）：**守卫锚跟着搬家** —— E 块把 `wavePlan` 搬到 `Game.Encounters`
+		//   ⇒ 本格按**新宿主**喂（✗ 仍喂 `Combat` ⇒ 与真相不符 ⇒ 自证变装饰 ✗）
+		const readyInj = requireCombatFace({ Encounters: { 'wavePlan': () => null } }, 'wavePlan') !== null;
+		const absentInj = requireCombatFace({ Encounters: {} }, 'wavePlan') === null;
+		// ★**能假（映射锚的牙）**：喂到**旧宿主**（`Combat`）⇒ 必须 **null**
+		//   （✗ 不许「两个宿主都认」 —— 那会让「搬家后锚忘改」重新变成**静默通过** ✗）
+		const movedAway = requireCombatFace({ Combat: { 'wavePlan': () => null } }, 'wavePlan') === null;
+		if (!movedAway) {
+			console.error("  ✗ 映射锚失效：`wavePlan` 在**旧宿主** `Combat` 上仍被认到 ⇒ 搬家后锚忘改也看不出来 ✗（`#1437` E 块）");
+			return 1;
+		}
 		if (!(readyInj && absentInj)) {
 			console.error(`  ✗ 守卫两态不可分（就绪=${readyInj}／缺席=${absentInj}）⇒ 本门可能在"零判定"下报绿（#1269）`);
 			return 1;
@@ -92,13 +101,13 @@ export const run = (ctx) => {
 	try {
 		// ── ⑤ 兼容降级 ──
 		Sg.story.mechanics = () => null;
-		t('⑤ 未启用 ⇒ `wavePlan`／`waveBegin`／`waveRewardScale` 全返 `null`', Game.Combat.wavePlan('short') === null && Game.Combat.waveBegin(PC(), 'short') === null && Game.Combat.waveRewardScale('long', 1) === null);
+		t('⑤ 未启用 ⇒ `wavePlan`／`waveBegin`／`waveRewardScale` 全返 `null`', Game.Encounters.wavePlan('short') === null && Game.Encounters.waveBegin(PC(), 'short') === null && Game.Encounters.waveRewardScale('long', 1) === null);
 
 		Sg.story.mechanics = () => MECH;
 
 		// ── ① 两档定义（已定 ②）──
 		{
-			const s = Game.Combat.wavePlan('short'), l = Game.Combat.wavePlan('long');
+			const s = Game.Encounters.wavePlan('short'), l = Game.Encounters.wavePlan('long');
 			t('① 短＝1 批·1 回合·1 命中（单次判定定胜负）', s.rounds === 1 && s.hits === 1 && s.waves.length === 1 && s.long === false, JSON.stringify(s));
 			// `#705` 片二-B（判据⑦）：声明了 `enemies` 的波 → 通关判据＝**敌人全灭**（`hits` 退场），
 			// 上限按判据⑥**重导**（`#599` 的 5 是固定伤害数学下算的）→ 现在是 **8**（覆盖实测 p90）。
@@ -109,37 +118,37 @@ export const run = (ctx) => {
 		// ── ① 波次推进 / 增援（真跑引擎）──
 		{
 			const pc = PC();
-			const started = Game.Combat.waveBegin(pc, 'long');
+			const started = Game.Encounters.waveBegin(pc, 'long');
 			t('① `waveBegin` 开局：写 `pc.ev.fight.wave`（不新增顶层键）＋ 返回第一批的池', pc.ev.fight.wave.idx === 1 && started.pool === 'p1' && Object.keys(pc).includes('ev'), JSON.stringify(pc.ev.fight.wave));
 			const trace = [];
 			// 合法轨迹：第一批 3 次命中 → `advance`（换池）；第二批 3 次命中 → `cleared`。
 			//（初版夹具写 [true,false,true,true] → 第 3 回合恰好用尽而本批未清 → 引擎已判 `failed`，
 			// 我却继续调 `waveRecord` → 判据自检当场抓到"已结束还在推进"。夹具自身要合法。）
-			for (const okk of [true, true, true, true, true, true]) { const r = Game.Combat.waveRecord(pc, okk); trace.push({ success: okk, phase: r.phase, pool: r.pool }); }
+			for (const okk of [true, true, true, true, true, true]) { const r = Game.Encounters.waveRecord(pc, okk); trace.push({ success: okk, phase: r.phase, pool: r.pool }); }
 			const adv = trace[2], last = trace[5];
 			t('① **清完一批才增援**：第 3 次命中 ⇒ `advance` 且换池到 `p2`', adv.phase === 'advance' && adv.pool === 'p2', JSON.stringify(adv));
 			t('① 增援后**计数各自重置**（第二批从 0 起算 ⇒ 3 次命中才 `cleared`）', pc.ev.fight.wave.idx === 2 && trace[3].phase === 'continue', JSON.stringify({ wave: pc.ev.fight.wave, step3: trace[3] }));
-			t('判据自检：真跑轨迹不报违反项', traceViolations({ trace, plan: Game.Combat.wavePlan('long') }).length === 0, traceViolations({ trace, plan: Game.Combat.wavePlan('long') }).join(' / '));
+			t('判据自检：真跑轨迹不报违反项', traceViolations({ trace, plan: Game.Encounters.wavePlan('long') }).length === 0, traceViolations({ trace, plan: Game.Encounters.wavePlan('long') }).join(' / '));
 			t('① 最后一批清完 ⇒ `cleared`', last.phase === 'cleared', JSON.stringify(last));
 		}
 
 		// ── ① 回合用尽 → 判负 ──
 		{
 			const pc = PC();
-			Game.Combat.waveBegin(pc, 'long');
+			Game.Encounters.waveBegin(pc, 'long');
 			let last = null;
-			const R = Game.Combat.wavePlan('long').rounds;                          // 口径从**声明面**读，别再写死数字
-			for (let i = 0; i < R; i++) last = Game.Combat.waveRecord(pc, false);   // R 回合全败（无命中）
+			const R = Game.Encounters.wavePlan('long').rounds;                          // 口径从**声明面**读，别再写死数字
+			for (let i = 0; i < R; i++) last = Game.Encounters.waveRecord(pc, false);   // R 回合全败（无命中）
 			t(`① 回合用尽而本批未清 ⇒ \`failed\`（${R} 回合上限）`, last.phase === 'failed' && pc.ev.fight.wave.rounds === R && pc.ev.fight.wave.hits === 0, JSON.stringify(last));
 			const pc2 = PC();
-			Game.Combat.waveBegin(pc2, 'short');
-			const r1 = Game.Combat.waveRecord(pc2, false);
+			Game.Encounters.waveBegin(pc2, 'short');
+			const r1 = Game.Encounters.waveRecord(pc2, false);
 			t('① 短战斗：1 回合失败即判负（无第二回合）', r1.phase === 'failed', JSON.stringify(r1));
 		}
 
 		// ── ② 奖励随难度单调 ──
 		{
-			const a = Game.Combat.waveRewardScale('long', 1), b = Game.Combat.waveRewardScale('long', 2);
+			const a = Game.Encounters.waveRewardScale('long', 1), b = Game.Encounters.waveRewardScale('long', 2);
 			t('② 同遭遇内随批号（难度）**严格递增**', b > a, JSON.stringify({ a, b }));
 			t('② 乘数取声明的 `rewardsScale`（1.5 × difficulty）', Math.abs(a - 1.5) < 1e-9 && Math.abs(b - 3) < 1e-9, JSON.stringify({ a, b }));
 		}
@@ -164,7 +173,7 @@ export const run = (ctx) => {
 
 		// ── 自证（4 类反例：合成轨迹必须被判出）──
 		{
-			const plan = Game.Combat.wavePlan('long');
+			const plan = Game.Encounters.wavePlan('long');
 			const good = [{ success: true, phase: 'continue', pool: 'p1' }, { success: true, phase: 'continue', pool: 'p1' }, { success: true, phase: 'advance', pool: 'p2' }, { success: true, phase: 'continue', pool: 'p2' }, { success: true, phase: 'continue', pool: 'p2' }, { success: true, phase: 'cleared', pool: 'p2' }];
 			const cases = [
 				['正例：自洽轨迹不报', good, 0],

@@ -196,9 +196,15 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 		const q3 = dataFaceMemberProblems({ slug: 'x', members: [],
 			tables: { containers: { Combat: { pools: {}, actions: {} }, Items: { defs: {} } } } });
 		ok('正例·数据面为空（未启用）⇒ 不报', q3.length === 0);
-		// 能假④：物品面同理（`Items.defs` 非空 ⇒ 需 `itemEffect`）
-		const q4 = dataFaceMemberProblems({ slug: 'x', members: [], tables: { containers: { Items: { defs: { 月光花: {} } } } } });
-		ok('能假·物品面非空而缺 itemEffect ⇒ 点名', q4.some((x) => x.name === 'itemEffect'));
+		// 正例④：物品面非空但**只有纯定义**（`label`／`note`）⇒ **不报**（★判据面收紧：纯定义不读效果 ⇒ ✗ 不逼人声明 `itemEffect`）✓
+		const q4 = dataFaceMemberProblems({ slug: 'x', members: [],
+			tables: { containers: { Items: { defs: { 月光花: { label: '月光花', note: '夜里会亮' } } } } } });
+		ok('正例·物品面只有纯定义（无效果字段）⇒ 不报（★收紧后的正确行为）', q4.length === 0, q4.map((x) => x.name).join('、'));
+		// 能假⑤：物品面**含效果字段**（`advSite`／`advSites`／`flatDamageReduce` 之一）却缺 `itemEffect` ⇒ **点名** ✓
+		//   ★这条就是"收紧"的牙：把上面那格的纯定义换成一个有效果字段的物件 ⇒ 必须立刻报 ⇒ 证明收紧**不是**把判据弄哑 ✓
+		const q5 = dataFaceMemberProblems({ slug: 'x', members: [],
+			tables: { containers: { Items: { defs: { 坏哨: { advSite: '山道', flatDamageReduce: 1 } } } } } });
+		ok('能假·物品面含效果字段而缺 itemEffect ⇒ 点名', q5.some((x) => x.name === 'itemEffect'));
 	}
 	// ── 满配夹具的『该有的面』钉死（能力组在单成员组上会失效 夹具侧按集合判）──
 	{

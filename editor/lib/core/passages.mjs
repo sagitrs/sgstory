@@ -204,7 +204,7 @@ export const renderLinksOf = ({ name, links = [], present = null }) => {
 		if (!label || !to) continue;
 		// ★ `#1408`：行效果（`gives`/`sets`/`yields`）**随链接走**（✗ 不进规则行 —— 进规则行＝"渲染即施加" ✗）
 	const effects = {};
-	for (const k of ['gives', 'sets', 'yields', 'adds']) if (l[k] != null) effects[k] = l[k];
+	for (const k of ['gives', 'sets', 'yields', 'adds', 'takes']) if (l[k] != null) effects[k] = l[k];
 	const html = linkHtml({ label, to, args: l.args, effects: Object.keys(effects).length ? effects : null });
 		if (l.slot) inline.push({ slot: String(l.slot), text: html });
 		else tail.push({ text: html });

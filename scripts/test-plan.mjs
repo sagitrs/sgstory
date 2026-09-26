@@ -185,6 +185,12 @@ export const SEGMENTS = [
 	{ id: "test-block-args-e2e-mjs", phase: 'test', cost: 40, exclusive: true, mutates: ['build'], cmd: "node test/block-args-e2e.mjs" },
 	// `#1466`：声明式算术效果（adds）端到端（自建夹具根 ⇒ exclusive ✓）
 	{ id: "test-adds-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/adds-e2e.mjs" },
+	// `#1471`：库存移除（takes）端到端（自建夹具根 ⇒ exclusive ✓）
+	{ id: "test-takes-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/takes-e2e.mjs" },
+	// `#1474`：效果面路径拒 `pc.` 前缀（写侧一处收束）端到端
+	{ id: "test-pc-prefix-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/pc-prefix-e2e.mjs" },
+	// `#1468`（`#1472` 新件）：规则行效果时机端到端（自建夹具根 ⇒ exclusive ✓）
+	{ id: "test-rulelist-effects-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/rulelist-effects-e2e.mjs" },
 	// `#1418`：chargen 惰性安装端到端（自建夹具根 ＋ build ⇒ exclusive，照同族先例 ✓）
 	{ id: "test-chargen-lazy-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/chargen-lazy-e2e.mjs" },
 	// `#1409`：hp-NaN 端到端（自建故事根 ＋ build ⇒ 需 exclusive，照 block-args 先例 ✓）
@@ -687,7 +693,7 @@ export const SUITE_MEMBERS = {
 		'test-block-args-e2e-mjs', 'test-hp-nan-e2e-mjs', 'test-fightpanel-turns-e2e-mjs', 'test-passages-assemble-mjs-selftest',
 		'test-audit-gates-run-mjs', 'test-fight-keys-e2e-mjs', 'scripts-clean-net-mjs-selftest', 'scripts-precommit-check-mjs-selftest',
 		'scripts-lint-new-segment-mjs-selftest', 'test-coverage-mjs', 'test-gate-discovery-mjs', 'test-plan-needs-mjs',
-		'test-attribution-gate-mjs-selftest', 'test-attribution-gate-mjs', 'test-chargen-lazy-e2e-mjs', 'test-adds-e2e-mjs'
+		'test-attribution-gate-mjs-selftest', 'test-attribution-gate-mjs', 'test-chargen-lazy-e2e-mjs', 'test-adds-e2e-mjs', 'test-rulelist-effects-e2e-mjs', 'test-takes-e2e-mjs', 'test-pc-prefix-e2e-mjs'
 	],
 };
 

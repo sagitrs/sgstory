@@ -18,7 +18,7 @@ const BASE = relative(ROOT, STORIES_DIR) || STORIES_DIR;
 import { scriptBodies } from '../core/text.mjs';
 import { compileStory } from '../core/emit.mjs';
 import { scriptSyntaxProblems } from '../core/segment-syntax.mjs';   // `#1176`：生成件脚本段语法检查（纯函数，解析器注入）
-import { packageFiles, writeStoryPackage, sectionFile, metaTwee } from '../core/story.mjs';
+import { packageFiles, writeStoryPackage, sectionFile, metaTwee, expandSources } from '../core/story.mjs';   // ★`#1486`：三源合并（`sources[]`）接进编译期读路
 import { mergeLinksIntoRules, compileRowEffectsIntoLinks, unmappedLinkFields, LINK_FIELDS } from '../core/passages-links.mjs';   // `#1350` 片 3：段落数据 → 规则行同形   // `metaTwee`：`#1132` B4 元数据段的单一权威形状
 import { unknownDomainWords } from '../core/vocab.mjs';
 import { runStory, engineOf } from './sandbox.mjs';
@@ -96,7 +96,17 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 	const outArg = rest.find((a) => a.startsWith('--out='));
 	const OUT = outArg ? outArg.slice('--out='.length) : join(ROOT, 'build/generated', slug);
 	const readIf = (f) => { try { return JSON.parse(readText(packageFiles(slug, { base: BASE }).dataFile(f))); } catch { return null; } };
-	const tables = readIf('tables.json');
+	let tables = readIf('tables.json');
+	// ★ `#1486`（五步③"包换源"）：**编译期读路接上三源合并**（`#1485` 落的 `expandSources`）——
+	//   为什么在**编译期**：`tables.json` 的 `containers` 经编译器折成**契约成员**（`Sg.story.X`）⇒
+	//   ★"合并"必须发生在**折成员之前**（✗ 运行期合并 ⇒ 18 个读点各自读数据 ⇒ 漂移面 ✗ ✓）。
+	//   ★**零源＝今天**：`sources` 缺省 ⇒ `expandSources` 原样返回（**同一对象** ⇒ 零行为变化 ✓）。
+	//   ★出声（照 `#1485`）：被引件缺 ⇒ 抛；★覆盖"规则级"键 ⇒ 抛（D5 ✓）。
+	if (tables && tables.sources != null) {
+		try {
+			tables = expandSources({ slug, data: { 'tables.json': tables }, io: NODE_IO, repoRoot: ROOT })['data']['tables.json'];
+		} catch (e) { console.error(`✗ [sources] ${e.message}`); return 1; }
+	}
 	const contract = readIf('contract.json');
 	// ★ `#1419`（**"数据在但不生效"** 族）：**数据面非空 ⇒ 对应契约成员必须在** —— 编译期点名 ✓
 	//   为什么必须在**编译期**：引擎对缺面的语义是"缺省同义"（空池／空值 ⇒ **静默**）✗ ⇒ 表现是

@@ -100,6 +100,11 @@ export const expandSources = ({ slug, data, io, repoRoot = '' } = {}) => {
 		catch (e) { throw new Error(`${slug}：\`sources\` 引用的件**解析失败**「${rel}」：${e.message}（#1485）`); }
 		merged.push({ from: rel, json });
 	}
+	// ★★ `#1486`（③ 开笔照亮 ② 的**真缺陷**）：**故事自己的 `tables.json` 必须作为**最具体的最后一层**入合并** ——
+	//   `sources` 列的只是"**更不具体的**那些层"（规则级／世界级）⇒ ★而**故事级**就是**本件自己**
+	//   （D5：规则级 ⇒ 世界级 ⇒ 故事级，"具体者胜"）⇒ ★漏掉它 ⇒ **故事自己的内容整份丢** ✗
+	//   （实测：`section` 变 `undefined` ⇒ 编译期报"`tables.json.section` 缺失" ⇒ 本票接线时当场现形 ✓）
+	merged.push({ from: `<story:${slug}>`, json: tables });
 	// ★顺序不变（数组即优先级）；逐容器逐键合并 ＋ 留痕
 	const out = mergeSources(merged);
 	// ★判据③：覆盖"规则级"（＝列表最前那一件）的键 ⇒ **红**

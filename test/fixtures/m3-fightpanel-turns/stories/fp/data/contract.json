@@ -66,6 +66,16 @@
    "key": "name",
    "default": null,
    "docs": "位点（战斗检定用）"
+  },
+  {
+   "name": "pcDefaults",
+   "kind": "const",
+   "value": {
+    "hp": 16,
+    "max_hp": 16,
+    "salves": 0
+   },
+   "docs": "★ `#1428`：战斗夹具**必须有 hp 面** —— 缺它 ⇒ `resolveFoe` 的 `if (pc.hp > 0)` 为假 ⇒ 敌人整段被跳过（假正常）⇒ 那正是本缺陷藏身之处"
   }
  ]
 }

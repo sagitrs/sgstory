@@ -49,7 +49,7 @@ Object.assign((window.Game.Combat ??= {}), {
 		};
 		T.Combat.applyEffect(pc, eff, f);
 		f.act = null;
-		return { check, hurt: eff.hurt ?? 0, log };
+		return { check, hurt: eff.hurt ?? 0, log, site: a?.site ?? null };
 	},
 	// 对手那一轮 ＋ 收尾（轮次/下一轮牌/清 guard 与 skipFoe/落台账）。**无论 hp 是否归零都要走收尾**
 	//（旧实现里收尾在 `if ($pc.hp gt 0)` 之外）。对手检定未发生时 `check` 为 null。
@@ -102,7 +102,7 @@ Object.assign((window.Game.Combat ??= {}), {
 		f.done = true;                                                // 既有字段：`<<fightbegin>>` 判"新一场" ✓
 		return tbl[p];
 	},
-	resolveFoe(pc, foeSite, log) {
+	resolveFoe(pc, foeSite, log, pcSite) {
 		const T = window.Game, f = pc.ev.fight;
 		let check = null, hurt = 0;
 		// #486（S1）：受击再过一道「掷部位 → 护具吸伤/耐久 → 溢出落 HP」。
@@ -114,11 +114,25 @@ Object.assign((window.Game.Combat ??= {}), {
 			log.foe = { ...(log.foe ?? {}), slots: plan };   // 台账留证：打了哪个部位、被哪件吸了多少
 			return plan.toHp;
 		};
+		// ★ `#1428`：**「未声明 hp 面」不许静默跳过敌人** —— 旧写法 `if (pc.hp > 0)` 是**裸读**：
+		// `pc.hp === undefined` 时 `undefined > 0` 为假 ⇒ 敌人那一支**整段被跳过** ⇒ 战斗**看着正常**（✗ 最阴的一种：
+		// 「数据在但不生效」的假正常 —— 比崩更险）。照 `#1409` 口径改用 `Number.isFinite` ⇒ **非有限数一律 fail-loud 点名**。
+		if (!Number.isFinite(pc.hp)) {
+			throw new Error('resolveFoe：`pc.hp` 不是有限数（' + String(pc.hp) + '）—— 战故事必须显式声明 hp 面（契约 `pcDefaults`）；' +
+				'不声明会让敌人**静默不出手**（曾经看着正常）⇒ 这里 fail-loud 点名。');
+		}
 		if (pc.hp > 0) {
 			if (f.skipFoe) {
 				log.foe = { text: '这一轮它没有出手。' };
 			} else {
-				check = T.Checks.resolve(foeSite, pc, null);
+				// ★ `#1428`：**位点由 `resolvePlayer` 交下来**（`pcSite`）——
+				// ✗ 不能用形参 `foeSite`：`<<fightact>>` 传进来的是**池名**（`<<fightpanel "<池名>" …>>` 的语义 ✓），
+				//   而位点表的键是**位点名**（如 `雾影·挥击`）⇒ 拿池名去查 ⇒ `checkSite()` 回 `null` ⇒ 下游 `s.dis` 崩 ✗。
+				// ✗ 也不能在这里现取 `combatAction(f.act)`：`resolvePlayer` 结尾已把 `f.act` 清空（"这一手"用完了）
+				//   ⇒ 那时取到的是 null ⇒ 只能拿到池名 ✗。
+				// 故由 `resolvePlayer` 把**这一手的位点**随返回值交下来（同一处取，✗ 不重复推导）；
+				// `pcSite` 缺省时回落形参（保老路径：没有动作的故事仍按传入的位点名查一次）。
+				check = T.Checks.resolve(pcSite ?? foeSite, pc, null);
 				// `#1227` 类一：**引擎不再知道"龙"是特殊敌人** —— 由 `foeState` 接缝的存在性决定走哪条：
 				// 故事给了对手状态面 → 走「有血量/连败/涂毒的具名对手结算」；没给 → 走「一击式压迫」回落。
 				//（原形参 `isDragon` 是故事侧传进来的布尔，等于把"哪个故事有龙"写进引擎调用约定。）

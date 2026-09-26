@@ -14,9 +14,9 @@
 > · **量法（可粘贴复跑 ✓）**：`node scripts/report-gate-ledger.mjs --selftest`（含 4 条 `hasSelfProof` 正反例 ✓）；
 > · **缺自证的几行**（`—` ✓）：补一条**能假的负控制** ✓，或按 `#908` ① 登记探针 ✓ —— 名单见下方「工作清单」（**动态生成** ✗，不写死 ✓）。
 
-**★ 三门账（#1353 ①）**：**门 46**（有自证的行为化） ｜ **检视 9**（仅登记 ＋ **临时暂缓** —— 人来做、留读数） ｜ **欠账 46**（行为化缺自证 41 ＋ **有探针件却探不到** 5）
+**★ 三门账（#1353 ①）**：**门 45**（有自证的行为化） ｜ **检视 9**（仅登记 ＋ **临时暂缓** —— 人来做、留读数） ｜ **欠账 47**（行为化缺自证 42 ＋ **有探针件却探不到** 5）
 >
-**严格行为化率（有自证）：46/88 = 52.3%** ｜ **有断言但缺自证：41**（＝下方工作清单）｜ 仅登记：0
+**严格行为化率（有自证）：45/88 = 51.1%** ｜ **有断言但缺自证：42**（＝下方工作清单）｜ 仅登记：0
 **探针（直接读数 ✓，不是"文件在不在"那种代理 ✗）：`✅` 12 项 ｜ `—` 未探 76 项（**上限 117** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ `✗` 不咬 0 项（**>0 即红** ✓）** —— 档位／清单：`node scripts/probe-gates.mjs --probe=fast` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）
 **档位（tier，`#1070`）：PR 档（`--tier=fast`）只跑 `tier:'fast'` 的段；下列 **15 段**在 `full` 档（`npm run test:full`；nightly/main 由 `#1071` 接线）。**降频必须留痕** ✓（K5）——理由如下（单一权威＝`scripts/test-plan.mjs` 的 `FULL_REASONS` ✓）：**
 | 段 | 实测成本 | 为什么不在 PR 档（理由 ＋ 代价） |
@@ -37,98 +37,98 @@
 | `scripts-audit-mjs-waves-check` | 0s | `#1353` 阶段一（PR 档减压）：波次门：面＝故事数据面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。 |
 | `scripts-audit-mjs-roads-check` | 0s | `#1353` 阶段一（PR 档减压）：路线门：面＝故事数据面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。 |
 
-| 门 | 类型 | 形态 | 自证 | **探针** | 接线（npm test） | **不进 CI 运行** | 理由（仅登记/未接线必填） |
-|---|---|---|---|---|---|---|---|
-| `audit:a11y` | audit 开关 | 行为化 | ✅ | — | ✅ | — |  |
-| `audit:consequences` | audit 开关 | 行为化 | ✅ | — | ✅ | — |  |
-| `audit:engine-story-free` | audit 开关 | 行为化 | ✅ | — | ✅ | — |  |
-| `audit:facade-call` | audit 开关 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `audit:literals` | audit 开关 | 行为化 | ✅ | — | ✅ | — |  |
-| `audit:roads` | audit 开关 | 行为化 | ✅ | — | ✅ | — |  |
-| `audit:sitedisc` | audit 开关 | 行为化 | ✅ | — | ✅ | — |  |
-| `audit:slots` | audit 开关 | 行为化 | ✅ | — | ✅ | — |  |
-| `audit:state` | audit 开关 | 行为化 | ✅ | — | ✅ | — |  |
-| `audit:status` | audit 开关 | 行为化 | ✅ | — | ✅ | — |  |
-| `audit:text` | audit 开关 | 行为化 | ✅ | — | ✅ | — | 文本载荷门（**有判定**：载荷阈值）——此前台账误标「仅登记」，由形态对账查出并改正；自证待补（密度 ratchet 在 --craft，本门是自己的载荷线） |
-| `audit:waves` | audit 开关 | 行为化 | ✅ | — | ✅ | — |  |
-| `scripts/report-gate-ledger.mjs` | 报告脚本 | 行为化 | ✅ | ✅ | ✅ | — | 本文件自身的自检（台账不腐），已入 npm test |
-| `scripts/report-ledger-freshness.mjs` | 报告脚本 | 行为化 | ✅ | — | ✅ | — | **离线段已入 npm test**（`--ledger --check`：#297 对标台账行级新鲜度——行数栅栏/复核日期在期/触发条件非空/落点引用的门旗标与文件真实存在，7 例自证）；**网络段仍需 token**（#NNN 标记与 GitHub 真实状态一致），不塞主链路，由 `npm run report:freshness:check` 人工/定时跑 |
-| `scripts/report-selftest-validity.mjs` | 报告脚本 | 行为化 | ✅ | — | ✅ | — | **已入 npm test**（#474 接线）：静态扫描 `自证·` 是否「失败计入退出码」＋ 自增量是否「不崩」（TDZ/未声明）。接线前修掉剥离器**配对错位**（四条正则顺序剥 ⇒ 跨行贪婪吞代码 ⇒ `counters` 空 ⇒ 假阳性；**顺序治不了** ⇒ 改单扫描器按 JS 词法一次遮蔽注释/字符串/模板/正则，未闭合保守剥＋报诊断）。自证 18 例（V1×8＋V2×10），探针：删某门 `process.exit(1)` ⇒ 必报、退 1 |
-| `test/adds-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/attribution-gate.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/audit-gates-run.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/block-args-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/browser.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | — | 需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑 |
-| `test/case-run.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/chargen-apply.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/chargen-lazy-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/chargen-macros.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/chargen-shape.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/chk-source.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/choice-keys.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/ci-triggers.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | — |  |
-| `test/codex-panel.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/combat-adv.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/comment-face-split.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | — |  |
-| `test/comment-mask.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | **不进 CI 运行（挂起）**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：本轮未定，下轮复跑）） |  |
-| `test/cond-keyform.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | **不进 CI 运行（挂起）**：对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺（until #1279（M1 尾件回填复验：已裁：默认＝"在生效故事根下存在且可读"）） |  |
-| `test/contract-compat.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ | — |  |
-| `test/contract-defaults.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/contract-version.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | **不进 CI 运行（挂起）**：对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺（until #1279（M1 尾件回填复验：本轮未定，下轮复跑）） |  |
-| `test/core-story.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/coverage.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | **不进 CI 运行（挂起）**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：本轮未定，下轮复跑）） |  |
-| `test/dialect.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/docs-read-path.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | — |  |
-| `test/equiv-scratch.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | **不进 CI 运行（挂起）**：对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺（until #1279（M1 尾件回填复验：本轮未定，下轮复跑）） |  |
-| `test/fight-keys-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/fight-seq.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | **不进 CI 运行（挂起）**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：测试件接新根后）） |  |
-| `test/fightpanel-turns-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/focus-after-nav.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/gate-discovery.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | **不进 CI 运行（挂起）**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：改用 `storySlugs()`／样本给出）） |  |
-| `test/gen-needed.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ | — |  |
-| `test/gen-segment-syntax.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/globals.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/hp-nan-e2e.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/import-side-effects.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/invariants.unit.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/layering.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — | 自证 **33** 条断言（**量法**：`node test/layering.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝模块依赖（`cases` 11 项，含 `#893` 两层登记的三条正反例）/ 点号 defines / 层间方向 / engine rank 派生与四条禁止边 |
-| `test/locations-adv.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/multi-story.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | — |  |
-| `test/npc-venue.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/npm-entries-guard.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/ns-merge.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/passages-assemble.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/passages-links.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/pc-base.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/pc-defaults.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/pc-prefix-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/plan-needs.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/premise-source.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/properties.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/prose-vocabulary.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/readkey-family.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/render-all.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/repo-shape.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | — |  |
-| `test/reread.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/route-registry.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ | — |  |
-| `test/rulelist-effects-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/rules-claims.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/rules-core.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/rules.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | **不进 CI 运行（挂起）**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：测试件接新根后）） |  |
-| `test/saveload.mjs` | 测试脚本 | 行为化 | — | — | — | — | **自证按需跑**：`node test/saveload.mjs --selftest`（故障注入＝落档后人为扰动，断言比较器判红）；不塞主链的理由＝自证需完整导航（成本≈主跑 30s，收益不值） |
-| `test/silent-gate.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/size-gate.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/state-diagnose.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | — |  |
-| `test/story-ci.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | **不进 CI 运行（挂起）**：用户故事 CI：链内跑 `editor/story-ci.mjs` ⇒ **零故事态**（仓内 `stories/` 不存在）下「发现到 0 个故事 ⇒ 不许判过」必红 ✗（单跑 `test/story-ci.mjs` rc=0 是它自己的零故事分支 ⇒ **两态不同形**）；why 未失效 ⇒ 留挂起（until #1315 审计：需与零故事口径同笔改后再撤） | **自证的归位（`#1056`）**：本件的 `--selftest` **不是入口** ✗ —— 它是**真断言的载荷**（`cli(['--selftest'])` 测壳的旗标面 ✓）⇒ 裸调与 `--selftest` 输出逐字节相同 ✓。⇒ **不接也不删**（`#1031` 口径 ✓）：硬接无意义旗标 ＝ 为凑绿而接线 ✗、删字符串 ＝ 拆真断言 ✗。真断言面由**裸调段**（`test-story-ci-mjs`）执行 ✓ —— `test-plan` 里那个 `-selftest` id 跑的就是裸调 ✓。 |
-| `test/story-enum-faces.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/story-root.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/story-runtime.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/story-shape.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
-| `test/takes-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/untracked-guard.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | — |  |
-| `test/walker.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | — | 随机游走 soak（npm run soak）：耗时长、种子流非确定，不进 npm test |
+| 门 | 类型 | 形态 | 自证信号（静态） | **能假** | **探针（动态）** | 接线（npm test） | **不进 CI 运行** | 理由（仅登记/未接线必填） |
+|---|---|---|---|---|---|---|---|---|
+| `audit:a11y` | audit 开关 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `audit:consequences` | audit 开关 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `audit:engine-story-free` | audit 开关 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `audit:facade-call` | audit 开关 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `audit:literals` | audit 开关 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `audit:roads` | audit 开关 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `audit:sitedisc` | audit 开关 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `audit:slots` | audit 开关 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `audit:state` | audit 开关 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `audit:status` | audit 开关 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `audit:text` | audit 开关 | 行为化 | ✅ | — | — | ✅ | — | 文本载荷门（**有判定**：载荷阈值）——此前台账误标「仅登记」，由形态对账查出并改正；自证待补（密度 ratchet 在 --craft，本门是自己的载荷线） |
+| `audit:waves` | audit 开关 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `scripts/report-gate-ledger.mjs` | 报告脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | — | 本文件自身的自检（台账不腐），已入 npm test |
+| `scripts/report-ledger-freshness.mjs` | 报告脚本 | 行为化 | ✅ | — | — | ✅ | — | **离线段已入 npm test**（`--ledger --check`：#297 对标台账行级新鲜度——行数栅栏/复核日期在期/触发条件非空/落点引用的门旗标与文件真实存在，7 例自证）；**网络段仍需 token**（#NNN 标记与 GitHub 真实状态一致），不塞主链路，由 `npm run report:freshness:check` 人工/定时跑 |
+| `scripts/report-selftest-validity.mjs` | 报告脚本 | 行为化 | ✅ | — | — | ✅ | — | **已入 npm test**（#474 接线）：静态扫描 `自证·` 是否「失败计入退出码」＋ 自增量是否「不崩」（TDZ/未声明）。接线前修掉剥离器**配对错位**（四条正则顺序剥 ⇒ 跨行贪婪吞代码 ⇒ `counters` 空 ⇒ 假阳性；**顺序治不了** ⇒ 改单扫描器按 JS 词法一次遮蔽注释/字符串/模板/正则，未闭合保守剥＋报诊断）。自证 18 例（V1×8＋V2×10），探针：删某门 `process.exit(1)` ⇒ 必报、退 1 |
+| `test/adds-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/attribution-gate.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/audit-gates-run.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/block-args-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/browser.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | — | — | 需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑 |
+| `test/case-run.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/chargen-apply.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/chargen-lazy-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/chargen-macros.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/chargen-shape.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/chk-source.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/choice-keys.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/ci-triggers.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | — |  |
+| `test/codex-panel.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/combat-adv.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/comment-face-split.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | — |  |
+| `test/comment-mask.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | **不进 CI 运行（挂起）**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：本轮未定，下轮复跑）） |  |
+| `test/cond-keyform.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | **不进 CI 运行（挂起）**：对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺（until #1279（M1 尾件回填复验：已裁：默认＝"在生效故事根下存在且可读"）） |  |
+| `test/contract-compat.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ | ✅ | — |  |
+| `test/contract-defaults.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/contract-version.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | **不进 CI 运行（挂起）**：对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺（until #1279（M1 尾件回填复验：本轮未定，下轮复跑）） |  |
+| `test/core-story.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/coverage.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | **不进 CI 运行（挂起）**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：本轮未定，下轮复跑）） |  |
+| `test/dialect.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/docs-read-path.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | — |  |
+| `test/equiv-scratch.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | **不进 CI 运行（挂起）**：对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺（until #1279（M1 尾件回填复验：本轮未定，下轮复跑）） |  |
+| `test/fight-keys-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/fight-seq.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | **不进 CI 运行（挂起）**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：测试件接新根后）） |  |
+| `test/fightpanel-turns-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/focus-after-nav.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/gate-discovery.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | **不进 CI 运行（挂起）**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：改用 `storySlugs()`／样本给出）） |  |
+| `test/gen-needed.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ | ✅ | — |  |
+| `test/gen-segment-syntax.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/globals.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/hp-nan-e2e.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/import-side-effects.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/invariants.unit.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/layering.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — | 自证 **33** 条断言（**量法**：`node test/layering.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝模块依赖（`cases` 11 项，含 `#893` 两层登记的三条正反例）/ 点号 defines / 层间方向 / engine rank 派生与四条禁止边 |
+| `test/locations-adv.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/multi-story.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | — |  |
+| `test/npc-venue.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/npm-entries-guard.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/ns-merge.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/passages-assemble.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/passages-links.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/pc-base.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/pc-defaults.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/pc-prefix-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/plan-needs.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/premise-source.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/properties.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/prose-vocabulary.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/readkey-family.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/render-all.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/repo-shape.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | — |  |
+| `test/reread.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/route-registry.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ | ✅ | — |  |
+| `test/rulelist-effects-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/rules-claims.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/rules-core.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/rules.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | **不进 CI 运行（挂起）**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：测试件接新根后）） |  |
+| `test/saveload.mjs` | 测试脚本 | 行为化 | — | — | — | — | — | **自证按需跑**：`node test/saveload.mjs --selftest`（故障注入＝落档后人为扰动，断言比较器判红）；不塞主链的理由＝自证需完整导航（成本≈主跑 30s，收益不值） |
+| `test/silent-gate.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/size-gate.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/state-diagnose.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | — |  |
+| `test/story-ci.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | **不进 CI 运行（挂起）**：用户故事 CI：链内跑 `editor/story-ci.mjs` ⇒ **零故事态**（仓内 `stories/` 不存在）下「发现到 0 个故事 ⇒ 不许判过」必红 ✗（单跑 `test/story-ci.mjs` rc=0 是它自己的零故事分支 ⇒ **两态不同形**）；why 未失效 ⇒ 留挂起（until #1315 审计：需与零故事口径同笔改后再撤） | **自证的归位（`#1056`）**：本件的 `--selftest` **不是入口** ✗ —— 它是**真断言的载荷**（`cli(['--selftest'])` 测壳的旗标面 ✓）⇒ 裸调与 `--selftest` 输出逐字节相同 ✓。⇒ **不接也不删**（`#1031` 口径 ✓）：硬接无意义旗标 ＝ 为凑绿而接线 ✗、删字符串 ＝ 拆真断言 ✗。真断言面由**裸调段**（`test-story-ci-mjs`）执行 ✓ —— `test-plan` 里那个 `-selftest` id 跑的就是裸调 ✓。 |
+| `test/story-enum-faces.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/story-root.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/story-runtime.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/story-shape.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/takes-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/untracked-guard.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | — |  |
+| `test/walker.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | — | — | 随机游走 soak（npm run soak）：耗时长、种子流非确定，不进 npm test |
 
-## F2 工作清单：有断言但**缺自证**（41 项）
+## F2 工作清单：有断言但**缺自证**（42 项）
 
 > 这些门**在跑、也在断言**，但从没被证明「反例会红」——本仓当日四类空判（覆盖≠验收／反例空判／死开关 #331／原理不可达 #338）都出自这一类。
 > 补法：给该门加一个**合成反例**用例（正例＋反例），并在本脚本的 `REASONS` 里改标 `行为化`。
@@ -162,6 +162,7 @@
 - `test/ns-merge.mjs`（测试脚本）
 - `test/passages-links.mjs`（测试脚本）
 - `test/pc-base.mjs`（测试脚本）
+- `test/pc-defaults.mjs`（测试脚本）
 - `test/pc-prefix-e2e.mjs`（测试脚本）
 - `test/properties.mjs`（测试脚本）
 - `test/readkey-family.mjs`（测试脚本）

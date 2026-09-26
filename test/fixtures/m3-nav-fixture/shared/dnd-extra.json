@@ -1,0 +1,12 @@
+{
+	"containers": {
+		"Checks": {
+			"sites": {
+				"来自共享层": {
+					"abil": "str",
+					"dc": 11
+				}
+			}
+		}
+	}
+}

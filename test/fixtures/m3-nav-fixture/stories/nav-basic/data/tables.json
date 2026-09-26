@@ -1,1 +1,9 @@
-{ "section": "Game Tables", "note": "导航夹具：不需要任何表面", "containers": {}, "merges": [] }
+{
+	"section": "Game Tables",
+	"note": "导航夹具：不需要任何表面",
+	"containers": {},
+	"merges": [],
+	"sources": [
+		"test/fixtures/m3-nav-fixture/shared/dnd-extra.json"
+	]
+}

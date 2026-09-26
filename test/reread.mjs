@@ -1,46 +1,26 @@
 // A5「回读友好」门（#296 走查的机检部分）：**可回看不泄底**。
 //
 // 为什么能机检：A5 的判据在实现上是「**门控**」问题——图鉴条目/线索必须由**发现**（`test(pc)` 谓词）
-// 解锁，设定集里的「谜底级」知识必须由 `Sg.Codex.seenFinal()` 挡在终局之前。
-// 票面要求「复核其**行为**而非字符串」（#220 同类实锤就是这么漏的），故 R1/R2 是**行为**断言：
+// 解锁。票面要求「复核其**行为**而非字符串」（#220 同类实锤就是这么漏的），故 R1/R2 是**行为**断言：
 // 给一个零状态档，任何已解锁的东西都是泄底。
 //
-// 判据：
+// 判据（本件现存两维）：
 // R1 零状态档：新卡（`Game.Pc.defaults()`）下，图鉴**不得有任何线索谓词为真**
 // R2 空记录：空图鉴记录（`blank()`）下，不得有任何条目 `isUnlocked`
-// R3 声明落地：`Game.Truth.claims` 里 `type:'codex'` 的站点段落必须真实存在（声明的证据点不许是空头）
-// R4 谜底门控：`via` 标为「终局后揭开 / 唯一揭开处 / 谜底」的 codex 站点，其页面必须带 `Sg.Codex.seenFinal()`
-// R5 自称谜底必门控：任何设定集页面若出现「谜底」字样，该页必须带 `seenFinal()` 门（防「新写的谜底忘了加门」）
-// R6 终局级知识必门控（#408 举一反三）：页面里出现**终局级词**（真结局名/凑齐/普通结局做法）→ 该页必须带门。
-// 与 R5 的差别正是 #408 的教训：结局页**从不自称「谜底」**，却比术语页更直接地给出终局配方 → R5 抓不到。
-// 当前 `设定集·结局` 是**已知缺陷**（#408）：报告但不判失败；修复后转严格并删 `ENDGAME_KNOWN`。
 //
-//注意：R4/R5 的**边界（只登记不判定，理由如下）**：
-//「哪些知识算谜底」是**设计判断**，无法从代码推出——所以本门只判**已被声明的**谜底
-//（`Truth.claims` 的 `via` 措辞 ＋ 页面自称「谜底」），不猜未声明的散文。
-// 设计方新增一处「本该门控但从未声明」的谜底，本门**看不见**——这是有意的：宁可漏报也不假报。
+// ★★ `#1315` 审计（下架复验）：**R3–R6 退役**（判据随对象退役 ✓）——
+//   原 R3/R4/R5/R6 判的是「**谜底级/终局级知识的门控**」，其**声明面**是 `Game.Truth.claims`
+//   （`containers.Truth.claims`：命题 ＋ `sites[].via` 措辞）。我核过：**`claims` 在全仓 0 命中**
+//   （引擎源／`editor/`／全部夹具都无）⇒ 那是**随旧 demo 走掉的机制**（`#1261` 大裁剪）
+//   ⇒ 按三问①（**对象已走**）：**判据随对象退役**，✗ 不是「夹具缺面」、✗ 也不是修对象。
+//   ★`Game.Truth` 本身**还在**（object，夹具声明 `Truth:{facts:{}}`）⇒ 退役的是它**没有的那个字段**
+//     （`claims`）所支撑的那几维 ⇒ 与「面不在 ⇒ 未判」**不同族** ✓
+//   ★恢复条件＝**该机制复活**（届时同笔恢复 R3–R6 —— 判据与它的对象同生同死 ✓）
 //
-// 自证：`node test/reread.mjs --selftest`（5 条判据各带会红的反例）
+// 自证：`node test/reread.mjs --selftest`（**现存两维**各带会红的反例）
 
 import { createContext } from '../scripts/audit/context.mjs';
 import { storySlugs } from '../scripts/dist-paths.mjs';   // `#1315` 审计：零故事守卫（同 `#1267` 尾件② 同规）
-
-const MYSTERY_MARK = /终局后揭开|唯一揭开处|谜底/;
-// 终局级词表（#408）：真结局名 / 真结局目标 / 普通结局的达成做法
-export const ENDGAME_MARK = /送星归位|散开的东西重新凑齐|虚弱到无法打断/;
-// 已知缺陷（报告但不判失败；修复后**删掉本条并转严格**）——本仓约定：缺陷基线引用票号
-export const ENDGAME_KNOWN = {};   // #408 已随 #419 修完（逐条结局门控）→ 白名单清空、R6 转严格
-export const endgameUngated = (pages, known = ENDGAME_KNOWN, extraGate = () => false) => Object.entries(pages)
-	.filter(([name, src]) => ENDGAME_MARK.test(src ?? '') && !GATE_SRC.test(src ?? '') && !extraGate(name))
-	.map(([name]) => name);
-export const splitEndgame = (ungated, known = ENDGAME_KNOWN) => ({
-	known: ungated.filter((n) => n in known),
-	fresh: ungated.filter((n) => !(n in known)),
-});
-//「有门控」的两种形态（#408 修完时的教训）：①整页按「走到过终局」门控 seenFinal()；
-// ②逐条结局门控 read().endings.includes(…)（#419 采用，更细——未走到的那条只给「还没走到」）。
-// 只认前者会对 #419 的修法误报，故两种都认。
-const GATE_SRC = /Sg\.Codex\.(?:seenFinal\(\)|read\(\)\.endings)/;
 
 // ── 纯函数（依赖注入：自证时喂夹具，不与真实游戏耦合）────────────────────
 // R1：零状态档下为真的线索
@@ -73,37 +53,6 @@ export const blankUnlocks = (items, api, store) => {
 	return out;
 };
 
-// R3：声明的 codex 站点段落是否存在
-export const missingCodexSites = (claims, has) => {
-	const out = [];
-	for (const c of claims ?? []) {
-		for (const s of (c.sites ?? []).filter((s) => s.type === 'codex')) {
-			if (!has(s.p)) out.push(`${c.id} → ${s.p}`);
-		}
-	}
-	return [...new Set(out)];
-};
-
-// R4：谜底级命题的 codex 站点是否真带门
-export const ungatedMysterySites = (claims, pageOf, extraGate = () => false) => {
-	const out = [];
-	for (const c of claims ?? []) {
-		for (const s of (c.sites ?? []).filter((s) => s.type === 'codex' && MYSTERY_MARK.test(s.via ?? ''))) {
-			// `#1132` 块 1：门控识别面**扩展**（**不弱化**）—— `GATE_SRC.test(正文源码)` ∨ `extraGate(页)`
-			//（`extraGate` ＝ "该页 scope 的条件行含 `req: codex:final`" —— 甲形态把门从正文搬进表
-			// 语义未变：**两处都没有 → 照红** 旧形态的漏门仍被抓）
-			if (!GATE_SRC.test(pageOf(s.p) ?? '') && !extraGate(s.p)) out.push(`${c.id} → ${s.p}（via：${s.via}）`);
-		}
-	}
-	return [...new Set(out)];
-};
-
-// R5：页面自称「谜底」却没门
-export const selfDeclaredMysteryUngated = (pages, extraGate = () => false) =>
-	Object.entries(pages ?? {})
-		.filter(([name, src]) => /谜底/.test(src ?? '') && !GATE_SRC.test(src ?? '') && !extraGate(name))
-		.map(([name]) => name);
-
 const selftest = () => {
 	let bad = 0;
 	const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
@@ -120,93 +69,34 @@ const selftest = () => {
 	t('R2 正例：空记录下无解锁', blankUnlocks(items, api, { clues: {} }).length === 0);
 	t('R2 反例：`isUnlocked: () => true` 必须被抓', blankUnlocks(items, { isUnlocked: () => true }, { clues: {} }).length === Object.keys(items).length);
 
-	const claims = [
-		{ id: 'ok', sites: [{ p: '设定集·术语', type: 'codex', via: '设定集·术语' }] },
-		{ id: 'gone', sites: [{ p: '设定集·不存在', type: 'codex', via: '设定集·术语' }] },
-	];
-	t('R3 正例：存在的站点不报', !missingCodexSites(claims, (p) => p === '设定集·术语').some((x) => x.includes('ok')));
-	t('R3 反例：引用了不存在的段落必须被抓', missingCodexSites(claims, (p) => p === '设定集·术语').some((x) => x.includes('设定集·不存在')));
-
-	const myst = [{ id: 'mist', sites: [{ p: '设定集·术语', type: 'codex', via: '设定集·术语（Sg.Codex.seenFinal() 门内——唯一揭开处）' }] }];
-	t('R4 正例：谜底站点带门则不报', ungatedMysterySites(myst, () => '<<if Sg.Codex.seenFinal()>>谜底<</if>>').length === 0);
-	t('R4 反例：谜底站点没门必须被抓', ungatedMysterySites(myst, () => '谜底：它睡着时漏出来的力气。').length === 1);
-
-	t('R5 正例：自称谜底且有门则不报', selfDeclaredMysteryUngated({ 页: '<<if Sg.Codex.seenFinal()>>雾 · 谜底<</if>>' }).length === 0);
-	t('R5 反例：页面自称「谜底」却没门必须被抓', selfDeclaredMysteryUngated({ 页: '雾 · 谜底：它睡着时漏出来的力气。' }).includes('页'));
-	// `#1132` 块 1：**门控识别面扩展**的三态（`extraGate` ＝ "该页 scope 的条件行含 `req: codex:final`"）
-	t('🔴 R4·正例（旧形态）：正文有门 ⇒ 不报 ✓（原有抓力未放掉）',
-		ungatedMysterySites(myst, () => '<<if Sg.Codex.seenFinal()>>谜底<</if>>', () => false).length === 0);
-	t('🔴 R4·**新形态**：正文无门 ＋ 条件行有 `codex:final` ⇒ **不报** ✓（门搬进表 ⇒ 事实未变）',
-		ungatedMysterySites(myst, () => '谜底：它睡着时漏出来的力气。', (p) => p === '设定集·术语').length === 0);
-	t('🔴 R4·**回归半**：正文无门 ＋ **条件行也没有** ⇒ **必报** ✓（旧形态的漏门仍被抓 ✗ 未弱化）',
-		ungatedMysterySites(myst, () => '谜底：它睡着时漏出来的力气。', () => false).length === 1);
-	t('🔴 R4·**新形态漏门**：条件行被删 ⇒ 报且点名该页 ✓',
-		(() => { const r = ungatedMysterySites(myst, () => '正文无门。', (p) => p !== '设定集·术语'); return r.length === 1 && r[0].includes('设定集·术语'); })());
-	t('🔴 R5/R6 同型：`extraGate` 放过 ⇒ 不报；掐掉 ⇒ 报 ✓',
-		selfDeclaredMysteryUngated({ 页: '谜底' }, (p) => p === '页').length === 0
-		&& selfDeclaredMysteryUngated({ 页: '谜底' }, () => false).length === 1);
-
-	// R6（#408）：终局级知识必须门控 + 已知缺陷姿态
-	t('R6 正例：终局级词 + 带门 → 不报', endgameUngated({ 页: '<<if Sg.Codex.seenFinal()>>真结局只有一个：送星归位<</if>>' }, {}).length === 0);
-	t('R6 反例①：终局级词 + 无门 → 报', endgameUngated({ 页: '真结局只有一个：送星归位。要把三百年里散开的东西重新凑齐。' }, {}).includes('页'));
-	t('R6 反例②：无终局级词 + 无门 → 不报（防误伤普通页）', endgameUngated({ 页: '塔里没有亡灵。' }, {}).length === 0);
-	{
-		const sp = splitEndgame(['设定集·结局', '设定集·新页'], { '设定集·结局': '#408' });
-		t('R6 已知缺陷姿态：在 KNOWN 里 → 只登记；不在 → 判红', sp.known.join() === '设定集·结局' && sp.fresh.join() === '设定集·新页');
-	}
-
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项——A5 门没有咬合力`); process.exit(1); }
-	console.log('\n✔ 自证通过：零状态档泄漏 / 空记录解锁 / 站点缺失 / 谜底漏门 / 自称谜底漏门 / 终局级漏门（含已知缺陷姿态）六类反例都会红');
+	console.log('\n✔ 自证通过：零状态档泄漏 / 空记录解锁 两类反例都会红（★R3–R6 已随 `claims` 对象退役，见件头注释）');
 };
 
 if (process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 
 // ── 真实运行 ─────────────────────────────────────────────────────────
-// `#1132` 块 1：**顺手修掉一个潜伏地雷** —— 本文件 `:153` 的回调里引用了**未声明标识符 `w`**
-//（HEAD 版即如此），只因 `Game.Codex.items` 为空、那个回调**从未被调用** → 一直不炸。
-// 本片新增的 `codexFinalGate` **主动调用** `w.Sg.rules` → 触发它 → 故在此把 `w` 变成**真定义**
-//（`createContext()` 返回 `...ctx`，其中含 `window`）。
-// ★ `#1315` 审计（下架复验）：**零故事守卫** —— 本件的 R3/R4/R5 读 `Game.Truth.claims`，
-//   而 `Game.Truth` 是**故事数据面**（`containers.Truth`）⇒ 零故事态下 `undefined`⇒ 裸 `TypeError` ✗
-//   ★反讽：本件自己的口径（R1/R2「零状态档不得泄底」）恰恰要求**先守自己的前提**（✗ 裸奔）✓
+// ★ `#1315` 审计（下架复验）：**零故事守卫** —— 本件读故事面（`Game.Codex.items`／`Game.Pc`），
+//   零故事态下没有可启动的故事页 ⇒ 按 `#1267` 尾件② 同规：**前提不成立就明说未判 ＋ 不计红** ✓
 if (storySlugs().length === 0) {
 	console.log('○ 零故事：仓内无故事 → 本项**未判**（不计红；接故事根后即参与判定）');
 	process.exit(0);
 }
+// `#1132` 块 1：**顺手修掉一个潜伏地雷** —— 本文件曾有回调引用**未声明标识符 `w`**（HEAD 版即如此），
+// 只因 `Game.Codex.items` 为空、那个回调**从未被调用** → 一直不炸（故在此把 `w` 变成**真定义**：
+// `createContext()` 返回 `...ctx`，其中含 `window`）。
 const { Game, passageSrc, window: w } = createContext();
-// `#1132` 块 1：**门控识别面的第二处** —— 条件表行（`rules.json` 的 `req: ['codex:final']`）
-// 走**已有单一权威**（`w.Sg.rules.table()` 不另写"表在哪/字段叫什么"）。
-const codexFinalGate = (p) => (w.Sg.rules?.table?.() ?? [])
-	.filter((r) => String(r.scope ?? '').split('#')[0] === p)
-	.some((r) => (r.req ?? []).includes('codex:final'));
 const fails = [];
 const show = (ok, msg) => { console.log(`${ok ? '✓' : '✗'} ${msg}`); if (!ok) fails.push(msg); };
 
-const leak = virginLeaks(Game.Codex.items, Game.Pc.defaults(), (c, pc) => w.Sg.rules.matches(c, pc, new Set()));
+const items = Game.Codex?.items ?? {};
+const leak = virginLeaks(items, Game.Pc.defaults(), (c, pc) => w.Sg.rules.matches(c, pc, new Set()));
 show(leak.length === 0, `R1 零状态档下图鉴无已解锁线索${leak.length ? `：泄漏 ${leak.join(', ')}` : ''}`);
 
-const blanks = blankUnlocks(Game.Codex.items, Game.Codex, { clues: {}, endings: [], finals: [] });
+const blanks = blankUnlocks(items, Game.Codex, { clues: {}, endings: [], finals: [] });
 show(blanks.length === 0, `R2 空图鉴记录下无已解锁条目${blanks.length ? `：${blanks.join(', ')}` : ''}`);
 
-const sites = missingCodexSites(Game.Truth.claims, (p) => passageSrc.has(p));
-show(sites.length === 0, `R3 命题声明的 codex 站点段落都存在${sites.length ? `：缺失 ${sites.join(', ')}` : ''}`);
-
-const mystSites = unionClaims(Game.Truth.claims, (c) => (c.sites ?? []).filter((s) => s.type === 'codex').map((s) => s.p));
-const ungated = ungatedMysterySites(Game.Truth.claims, (p) => passageSrc.get(p) ?? '', codexFinalGate);
-show(ungated.length === 0, `R4 「谜底级」codex 站点都真带 Sg.Codex.seenFinal() 门${ungated.length ? `：漏门 ${ungated.join(', ')}` : ''}`);
-
-const pages = Object.fromEntries([...passageSrc].filter(([n]) => /^设定集/.test(n)));
-const selfMyst = selfDeclaredMysteryUngated(pages, codexFinalGate);
-show(selfMyst.length === 0, `R5 设定集里自称「谜底」的页面都带门（查了 ${Object.keys(pages).length} 页）${selfMyst.length ? `：漏门 ${selfMyst.join(', ')}` : ''}`);
-
-// R6（#408）：终局级知识必须门控；已知缺陷只登记
-const ungatedEnd = endgameUngated(pages, ENDGAME_KNOWN, codexFinalGate);
-const endSplit = splitEndgame(ungatedEnd);
-for (const n of endSplit.known) console.log(`⏳ [已知缺陷 ${ENDGAME_KNOWN[n]}] R6「${n}」含终局级知识但没有 seenFinal 门——报告但不判失败（修复后删除 ENDGAME_KNOWN 中转严格）`);
-show(endSplit.fresh.length === 0, `R6 含终局级词的设定集页面都带门（词表：真结局名/凑齐/普通结局做法）${endSplit.fresh.length ? `：新漏门 ${endSplit.fresh.join(', ')}` : ''}`);
-
-function unionClaims(claims, f) { return [...new Set((claims ?? []).flatMap(f))]; }
-
-console.log(`\n  A5 口径：图鉴 ${Object.keys(Game.Codex.items).length} 条目 · ${Object.values(Game.Codex.items).reduce((n, d) => n + (d.clues?.length ?? 0), 0)} 线索 · 命题 ${Game.Truth.claims.length} 条 · 谜底级 codex 站点 ${mystSites.length} 处`);
+console.log(`\n  A5 口径（现存两维）：图鉴 ${Object.keys(items).length} 条目 · ${Object.values(items).reduce((n, d) => n + (d.clues?.length ?? 0), 0)} 线索`
+	+ `　★R3–R6（谜底/终局级门控）已随声明面 \`Truth.claims\` 退役（全仓 0 命中，见件头注释）`);
 if (fails.length) { console.error(`\n✗ A5 回读友好门未通过（${fails.length} 项）`); process.exit(1); }
-console.log('✔ A5 回读友好门通过：零状态不泄底、声明站点落地、谜底级与终局级内容都被终局门挡住' + (endSplit.known.length ? `（其中 ${endSplit.known.length} 处为已知缺陷 ${{ ...ENDGAME_KNOWN }[endSplit.known[0]]}，见上）` : ''));
+console.log('✔ A5 回读友好门通过：零状态不泄底、空记录不泄底（★后四维已随对象退役；恢复条件见件头注释）');

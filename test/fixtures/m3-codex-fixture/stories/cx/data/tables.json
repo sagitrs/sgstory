@@ -1,0 +1,18 @@
+{
+	"section": "Game Tables",
+	"note": "图鉴最小夹具：1 条目 ＋ 2 条**带条件**的 clue（零状态档下两条都不真 ⇒ 服务 R1「零状态档不泄底」）",
+	"containers": {
+		"Codex": {
+			"items": {
+				"铜牌": {
+					"hint": "门厅那块铜牌",
+					"clues": [
+						{ "id": "c_1", "label": "牌上刻着一个「北」字", "req": ["inv:铜牌"] },
+						{ "id": "c_2", "label": "牌背有一道划痕", "req": ["world.seen_b1"] }
+					]
+				}
+			}
+		}
+	},
+	"merges": []
+}

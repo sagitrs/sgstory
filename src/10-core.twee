@@ -671,10 +671,10 @@ window.Sg.capability = (group) => {
 	   阈值＝`V().zero`（D3 只 0）｜后果＝`V().zeroGives`（**声明的实体授予** ⇒ ★引擎✗特判"死亡" ✓）
 	   ★去向仍是**故事可选面**（`#491` 判据 4）：★引擎只**授予实体**；跳不跳结局由**故事自己**的条件行决定 ✓ %/
 	<<if $pc[_khp] lte _V.zero>>
-		<<run (function () {
-			const pc = State.variables.pc, R = Game.Rules;
-			for (const name of (R.V().zeroGives ?? [])) { pc.inv = pc.inv ?? {}; pc.inv[String(name)] = true; }
-		})()>>
+		/% ★ `#1488`（裁定甲①）：★**改调原语**（`Sg.rules.applyZeroGives`）—— ✗ 不在此内联循环 ✓
+		   ★理由（D6 单一入口）：★经"零界授予"这件事**今天只有一处**，但**内联循环与原语各写一份**
+		     ⇒ ★改一处不改另一处 ⇒ **必然漂移** ✗；★且原语**无人用＝死码**（★本笔落了个"没人调的函数" ✗）✓ %/
+		<<run window.Sg.rules.applyZeroGives(State.variables.pc, Game.Rules.V().zeroGives)>>
 		/% #357：致命伤**即刻登记结局**——安全网（:passagestart 的 hp≤0 修补）以
 		   `!pc.ev.ending` 为门，若不先登记，它会赶在结局页渲染前把 hp 修回 1，
 		   把刚受致命伤的角色"复活"。 %/

@@ -57,6 +57,14 @@ const t = (l, ok, d = '') => { if (ok) console.log(`  ✓ ${l}`); else { bad++; 
 	const mkIo = (files) => ({ readText: (p) => { if (!(p in files)) throw new Error('ENOENT: ' + p); return files[p]; }, exists: (p) => p in files });
 	const base = { 'tables.json': { containers: {}, merges: [] }, 'rules.json': { rows: [] } };
 	// ★零源 ⇒ 今天（原样返回同一对象）
+	// ★ `#1486`（③ 开笔现形）：**故事级必须作为最后一层入合并** —— `sources` 只列「更不具体的层」✓
+	//   实测（本会话）：漏掉它 ⇒ ★故事自己的 `tables.json` **整份丢**（`section` 变 undefined ⇒ 编译期报缺段名 ✗）
+	const withSrc = expandSources({ slug: 's', data: { 'tables.json': { section: 'Game Tables', containers: { A: 1 }, sources: ['shared/x.json'] } },
+		io: mkIo({ 'shared/x.json': JSON.stringify({ containers: { B: 2 }, extra: 'shared' }) }), repoRoot: '' });
+	t('★故事级是**最后一层**（具体者胜）：故事自己的 `section`／`containers.A` **都在**（✗ 不被合并吞掉 ✓）',
+		withSrc.data['tables.json'].section === 'Game Tables' && withSrc.data['tables.json'].containers.A === 1,
+		JSON.stringify(withSrc.data['tables.json']));
+	t('★共享层同时并入（`containers.B` ＋ `extra` ✓）', withSrc.data['tables.json'].containers.B === 2 && withSrc.data['tables.json'].extra === 'shared');
 	const zero = expandSources({ slug: 's', data: base, io: mkIo({}), repoRoot: '' });
 	t('★零源 ⇒ **数据原样**（✗ 不合并、✗ 不报错 —— "零源＝今天" ✓）', zero.data === base && zero.traces.length === 0);
 	// 被引件缺 ⇒ 出声

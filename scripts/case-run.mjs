@@ -97,8 +97,16 @@ export const expectViolations = ({ expect = {}, seen = {} } = {}) => {
 	for (const s of expect.absent ?? []) if (text.includes(s)) out.push({ kind: 'absent', want: s });
 	for (const s of expect.edges ?? []) { const w = labelOf(s); if (!labels.has(w)) out.push({ kind: 'edges', want: w }); }
 	for (const [path, want] of Object.entries(expect.state ?? {})) {
-		const got = seen.state?.[path];
-		if (JSON.stringify(got) !== JSON.stringify(want)) out.push({ kind: 'state', want: `${path}=${JSON.stringify(want)}`, got: JSON.stringify(got) });
+		const raw = seen.state?.[path];
+		// ★ `#1478`（裁定＝甲）：**归一"键不存在"** —— 比较前把 `undefined` 折成 `null`（**一处**）。
+		//   真因：`JSON.stringify(undefined)` **返回 `undefined`**（✗ 不是字符串 `"null"`）⇒
+		//     用例写 `want: null` 时两侧**永远不等** ⇒ ★**键在不在都红**（**不可达判据**：数据对了也红 ✗）。
+		//   为什么需要它：★「**键不存在**」是**合法且必要**的断言形 —— 例如 `#1471` 的 `takes`（库存移除），
+		//     它的**唯一正确**断言就是"该键**不存在**"（✗ 不是 `false` —— 与 `gives` 的 `= true` 对称 ✓）。
+		//   ★向后兼容：既有用例的 `state` 全是 `{}`／具体值（✗ 没有依赖"`undefined` 与 `null` 不等"的）✓
+		const got = raw ?? null;
+		const wantN = want ?? null;
+		if (JSON.stringify(got) !== JSON.stringify(wantN)) out.push({ kind: 'state', want: `${path}=${JSON.stringify(wantN)}`, got: JSON.stringify(got) });
 	}
 	return out;
 };

@@ -12,7 +12,11 @@
 //   ② 覆盖 ⇒ ★**记 `traces`**（逐容器逐键；✗ 静默 ✓）
 //   ③ ★**覆盖"规则级"键 ⇒ 红**（D5：具体者胜**但不许**故事盖掉规则级 ✓）
 //
-// `sources` 形状：`[{ from: "shared/dnd-core.json", json: {...} }, …]`
+// `sources` **声明形**（`tables.json` 顶层）：★**字符串数组** —— `["shared/rules.json", "shared/world.json", …]`
+//   ★为什么用**字符串数组**（裁定）：仓内**单字段清单的惯例形**（`gives`／`sets`／`req` 一族都是 `string[]`）；
+//     且 `#487` 口径是"**声明面 ✗ 大于实现面**" ⇒ ✗ 造 `{from}` 壳**给将来留位**（那正是要避免的 ✓）
+//   ★**顺序＝优先级**：数组**靠后**者胜（`[规则级, 世界级, 故事级]` ⇒ 故事级最后 ⇒ 最具体 ✓）
+//   ★内部形态（本件消费）仍是 `[{from, json}]` —— 由主读路**读盘时**补上 `json` ✓
 //   ★**顺序＝优先级**：数组**靠后**者胜（`[规则级, 世界级, 故事级]` ⇒ 故事级最后 ⇒ 最具体 ✓）
 
 /** 是不是"普通对象"（合并粒度＝**逐容器逐键**；数组／标量 ⇒ **整块替换**）。 */
@@ -63,10 +67,11 @@ export const sourcesShapeProblems = (sources) => {
 	const out = [];
 	if (sources == null) return out;                              // 缺省 ⇒ 单源（＝今天）✓
 	if (!Array.isArray(sources)) return [{ code: 'not-array', got: typeof sources }];
+	if (!sources.length) return [{ code: 'empty-array' }];        // ★空数组 ⇒ 出声（✗ 静默当"零源" ✓）
 	sources.forEach((s, i) => {
-		if (!isPlainObject(s)) { out.push({ code: 'bad-entry', index: i }); return; }
-		if (typeof s.from !== 'string' || !s.from.trim()) out.push({ code: 'missing-from', index: i });
-		else if (/^stories\//.test(s.from)) out.push({ code: 'not-repo-level', index: i, from: s.from });
+		// ★`#1485`（裁定）：**声明形＝字符串数组** ⇒ 非字符串项一律点名（✗ 不认 `{from}` 对象形 —— 两形并存 ✗）
+		if (typeof s !== 'string' || !s.trim()) { out.push({ code: 'bad-entry', index: i, got: typeof s }); return; }
+		if (/^stories\//.test(s)) out.push({ code: 'not-repo-level', index: i, from: s });   // ★★必留（T 读数点名的）
 	});
 	return out;
 };

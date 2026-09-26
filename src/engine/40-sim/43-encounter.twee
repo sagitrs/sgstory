@@ -112,10 +112,14 @@ window.Game.Encounters = {
 		if (!parts.length) throw new Error(`Game.Encounters.foeHit：敌人「${id}」没有可落部位（\`attack.parts\` 空且没有 \`hitLocations\`，#705）`);
 		const { roll, rolls } = window.Game.Rules.roll(adv);
 		const total = roll + atk.bonus;
-		const crit = roll === 20, fumble = roll === 1;
+		// ★ `#1461`（写作者阻断 ③：**同族不同命** ⇒ E 块与战斗面判据必须一致 ✗）：
+		//   命中哪一档由**骰面**定（`dice.sides`）｜下界恒 `1`（骰的语义 ✓）｜档位名归包 ✓
+		const _d = window.Game.Rules.pack().dice;
+		const crit = roll === _d.sides, fumble = roll === 1;
 		const hit = crit || (!fumble && total >= ac);
 		const part = window.Game.Rules.rng.pickOne(parts);   // `#1441`：共用取一原语
-		const raw = hit ? window.Game.Combat.rollDice(atk.dmg) * (crit ? 2 : 1) : 0;
+		const _cm2 = window.Game.Rules.pack().dice.critMul ?? 2;   // ★ `#1461`：翻倍系数读包（缺省 2 ⇒ 零包＝今天 ✓）
+		const raw = hit ? window.Game.Combat.rollDice(atk.dmg) * (crit ? _cm2 : 1) : 0;
 		const absorb = hit ? this.slotAbsorbAt(pc, part, raw) : null;
 		return { foe: id, roll, rolls, bonus: atk.bonus, total, ac, hit, crit, part, raw, absorb };
 	},

@@ -199,7 +199,9 @@ export const normalizeProbeFace = (md) => String(md ?? '')
 		//   （口径：**新字段若派生自本地产物 ⇒ 必须一并纳入降级面** —— 与探针计数行同族 ✓）
 		if (l.startsWith('**★ 三门账')) return '**★ 三门账（#1353 ①）**：〔本次不参与比对（派生自探针读数）〕';
 		// ② 表格行的第 5 格＝探针列（其前四格 kind/form/selfProof 不含 `|` → 用定点正则而非切分）
-		return l.replace(/^(\| `[^`]+` \| [^|]+ \| [^|]+ \| [^|]+ \| )[^|]+( \|)/, '$1〔探针〕$2');
+		// ★ `#1497`：**「能假」列与「探针（动态）」列同源**（都派生自 `build/probe-results.json`）
+		//   ⇒ ★**一并抹平**（✗ 只抹其一 ⇒ 干净树比对仍红 ✗ —— `#1353` ① 那条教训的同型：**派生自本地产物的新字段必须同入降级面** ✓）
+		return l.replace(/^(\| `[^`]+` \| [^|]+ \| [^|]+ \| [^|]+ \| )[^|]+( \| )[^|]+( \|)/, '$1〔能假〕$2〔探针〕$3');
 	})
 	.join('\n');
 
@@ -225,6 +227,15 @@ const push = (id, kind, wired, selfProof, extra = {}) => {
 		})(),
 		wired: wired ?? r.wired ?? false,
 		selfProof: selfProof ?? false,
+		// ★ `#1497`：**能假**列（实跑读数 ⇒ 与探针列**同源** ⇒ 同入降级面 ✓）
+		canFalsify: canFalsifyOf({
+			entry: PROBES.find((p) => p.id === id),
+			record: recs.find((x) => x.id === id),
+			targetSha: (() => {
+				try { const e = PROBES.find((p) => p.id === id); return e?.mutation?.file ? readFileSync(e.mutation.file, 'utf8') : null; } catch { return null; }
+			})(),
+			sha: sha16,
+		}),
 		hasProbe: Boolean(PROBES.find((p) => p.id === id)),   // `#1353` ①：欠账只认「有探针件」的行
 		form,
 		reason: r.reason ?? '',
@@ -244,6 +255,20 @@ const push = (id, kind, wired, selfProof, extra = {}) => {
  * 本函数量的是"**信号出现在代码/字符串面**"，**不是**"断言真会红"（后者要逐文件变异 → 不在本片）。
  * → 这一列**只能说它真正比过的东西**；更强的证据得走探针（另票）。
  * **量法（可粘贴复跑）**：`node scripts/report-gate-ledger.mjs --selftest`（四条正反例）＋ `--update` 看那一列的变化。 */
+/** ★ `#1497`（列名改实 ＋ 加「能假」列）：**「能假」这一列量的是什么** ——
+ *  ★它回答的问题是：**"这条判据**真的会咬**吗？"**（✗ 不是"它有没有自证的**信号**" —— 那是左边那列 ✓）
+ *  ★口径（诊断报告的实测依据）：`#1467` 曾出现"**格名声称"只改一边即红"，而实测两格放行了该形态**" ——
+ *    ★**静态信号完全看不出**这种事 ⇒ 故本列**只认实跑读数**（探针记录：变异跑过且**确实红了** ✓）。
+ *  ★量法（可粘贴复跑）：`node scripts/probe-gates.mjs --probe=fast` ⇒ 读 `build/probe-results.json` ⇒ 本列随之变。
+ *  ★边界（✗ 不夸大）：**只有"有探针件"的行**才可能有值 ⇒ 其余行是 `—`（**未验** ✗ 不是"不能假" ✓）。 */
+export const canFalsifyOf = ({ entry, record, targetSha, sha = (x) => x } = {}) => {
+	if (!entry?.mutation) return '—';                                  // 无变异件 ⇒ 未验（✗ 不说"不能假"）
+	if (!record) return '—';
+	if (record.ok !== true) return '—';                                // 跑过但没过 ⇒ 未验
+	if (record.targetSha && targetSha && record.targetSha !== sha(targetSha)) return '—';   // 被测件改过 ⇒ 旧读数作废
+	return '✅';
+};
+
 export const hasSelfProof = (src) => /负例|反例|selftest/.test(maskComments(String(src ?? ''), { file: 'ledger', twee: false }));
 
 /** `#1056`：**入口**判定 —— 件里是否真有 `--selftest` 的**真派发**（而不是"提到了这个词"）。
@@ -435,10 +460,10 @@ ${LEGEND}
 **探针（直接读数 ✓，不是\"文件在不在\"那种代理 ✗）：\`✅\` ${s.probeOk} 项 ｜ \`—\` 未探 ${s.probeNone} 项（**上限 ${s.probeCap}** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ \`✗\` 不咬 ${s.probeBad} 项（**>0 即红** ✓）** —— 档位／清单：\`node scripts/probe-gates.mjs --probe=fast\` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）${s.probeOk === 0 && s.probeNone > 0 ? '〔**本次无读数**：生成时 \`build/probe-results.json\` 缺失，经 \`--allow-missing-probe\` 显式逃生 ⇒ **本行与探针列都不是覆盖读数**，不可据此判断探针面 ✗〕' : ''}
 ${TIER_NOTE}
 
-| 门 | 类型 | 形态 | 自证 | **探针** | 接线（npm test） | **不进 CI 运行** | 理由（仅登记/未接线必填） |
-|---|---|---|---|---|---|---|---|
+| 门 | 类型 | 形态 | 自证信号（静态） | **能假** | **探针（动态）** | 接线（npm test） | **不进 CI 运行** | 理由（仅登记/未接线必填） |
+|---|---|---|---|---|---|---|---|---|
 `;
-	const body = rows.map((r) => `| \`${r.id}\` | ${r.kind} | ${r.form} | ${r.selfProof ? '✅' : '—'} | ${r.probe} | ${r.wired ? '✅' : '—'} | ${suspCellOf(r.id)} | ${r.reason || ''} |`).join('\n');
+	const body = rows.map((r) => `| \`${r.id}\` | ${r.kind} | ${r.form} | ${r.selfProof ? '✅' : '—'} | ${r.canFalsify} | ${r.probe} | ${r.wired ? '✅' : '—'} | ${suspCellOf(r.id)} | ${r.reason || ''} |`).join('\n');
 	const debt = rows.filter((r) => r.form === '行为化（缺自证）');
 	const debtSec = debt.length
 		? `\n## F2 工作清单：有断言但**缺自证**（${debt.length} 项）\n\n> 这些门**在跑、也在断言**，但从没被证明「反例会红」——本仓当日四类空判（覆盖≠验收／反例空判／死开关 #331／原理不可达 #338）都出自这一类。\n> 补法：给该门加一个**合成反例**用例（正例＋反例），并在本脚本的 \`REASONS\` 里改标 \`行为化\`。\n\n`
@@ -540,7 +565,7 @@ const selftest = () => {
 	//注意：**边界：只抹"探针面"** —— 其余面（行集合/形态/自证/接线/理由）**照旧严格**
 	// → "新增门没重生成"这类**真**不一致**照样红**（不许因为读数不可信就把整张台账放过）。
 	h('🔴 `normalizeProbeFace`：**只抹探针列** —— 其余格逐字保留 ✓（"真不一致"照样红 ✓）',
-		(() => { const md = '| `x` | 形态A | 行为化 | ✅ | ✅ | 理由R |\n**探针（直接读数 ✓）：`✅` 26 项**'; const n = normalizeProbeFace(md); return n.includes('形态A') && n.includes('理由R') && n.includes('〔探针〕') && !/26 项/.test(n); })());
+		(() => { const md = '| `x` | 形态A | 行为化 | ✅ | ✅ | ✅ | 理由R |\n**探针（直接读数 ✓）：`✅` 26 项**'; const n = normalizeProbeFace(md); return n.includes('形态A') && n.includes('理由R') && n.includes('〔探针〕') && !/26 项/.test(n); })());
 	h('`probeStateOf`：无探针件 ⇒ `—` ✓', probeStateOf({}) === '—');
 	// ★ `#1353` ①（写作者阻断①）：**"自证过 ≠ 判据还在"** —— `probeStateOf({})` 那条自证仍绿，但它量的**不是**
 	//   `probeCap` 的闸 ⇒ 我先前漏了 `probeCap` 的返回，**自证照样全绿**而闸已死 ✗（她抓的原话 ✓）
@@ -573,17 +598,21 @@ const selftest = () => {
 	{
 		const md = [
 			'**探针（直接读数 ✓）：`✅` 21 项 ｜ `—` 未探 73 项 ｜ `✗` 不咬 0 项**',
-			'| `a.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ |  |',
-			'| `b.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ |  |',
+			'| `a.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ |  |',
+			'| `b.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ |  |',
 		].join('\n');
 		const norm = normalizeProbeFace(md);
 		h('`normalizeProbeFace`：**摘要的探针计数行**被抹平（✅/—/✗ 计数不再影响比对）', !/`21 项`/.test(norm) && /不参与比对/.test(norm));
-		h('`normalizeProbeFace`：**表格行的探针列**（第 5 格）被抹平（✅ ⇒ 〔探针〕）', norm.includes('| ✅ | 〔探针〕 | ✅ |') && !/〔探针〕 \| — \|/.test(norm));
+		// ★ `#1497`：**两列同抹**（能假 ＋ 探针 —— 同源自探针读数 ⇒ ✗ 只抹其一不行）
+		h('`normalizeProbeFace`：**能假列 ＋ 探针列**都被抹平（★同源 ⇒ 同入降级面）',
+			// ★两列都被抹平（两行各验一次：能假原本 ✅ 与 — ⇒ 抹后都是 〔能假〕）
+			norm.split('\n').filter((l) => l.startsWith('| \`')).every((l) => /\| 〔能假〕 \| 〔探针〕 \|/.test(l))
+			&& !/〔能假〕 \| ✅ \|/.test(norm) && !/〔能假〕 \| — \|/.test(norm));
 		h('🔴 `normalizeProbeFace`：**其余格照旧保留** ✗（自证／接线／形态／理由一字不动 ⇒ 区分度还在 ✓）',
 			norm.includes('| `a.mjs` | 测试脚本 | 行为化 | ✅ |') && norm.includes('|  |') && !/其他/.test(norm));
-		h('🔴 **只抹探针面 ≠ 抹掉一切**：行集合变化（新增/删段）**仍会报** ✓', normalizeProbeFace('| `a.mjs` | x | 行为化 | ✅ | ✅ | ✅ |  |') !== normalizeProbeFace('| `zz.mjs` | x | 行为化 | ✅ | ✅ | ✅ |  |'));
+		h('🔴 **只抹探针面 ≠ 抹掉一切**：行集合变化（新增/删段）**仍会报** ✓', normalizeProbeFace('| `a.mjs` | x | 行为化 | ✅ | ✅ | ✅ | ✅ |  |') !== normalizeProbeFace('| `zz.mjs` | x | 行为化 | ✅ | ✅ | ✅ |  |'));
 		h('🔴 **同一行的自证列变化**（`✅`⇒`—`）⇒ 抹平后**仍不等** ✓（这是“新增门没重生成”的价值面，不能一起丢）',
-			normalizeProbeFace('| `a.mjs` | x | 行为化 | ✅ | ✅ | ✅ | r |') !== normalizeProbeFace('| `a.mjs` | x | 行为化（缺自证） | — | ✅ | ✅ | r |'));
+			normalizeProbeFace('| `a.mjs` | x | 行为化 | ✅ | ✅ | ✅ | ✅ | r |') !== normalizeProbeFace('| `a.mjs` | x | 行为化（缺自证） | — | ✅ | ✅ | ✅ | r |'));
 	}
 	if (hbad) { console.error(`\n✗ 「自证」判定的读数不成立（${hbad} 项）`); process.exit(1); }
 	const cases = [

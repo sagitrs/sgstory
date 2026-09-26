@@ -41,7 +41,8 @@ export const FACE_HOST = {
 	roadOffer: 'Combat',        // D 块（路线）
 	statusTick: 'StatusFx',     // ★ B 块（`#1452` 已搬）
 	wavePlan: 'Combat',         // E 块（未搬）
-	slotAbsorb: 'Combat',       // C 块（未搬）
+	gearDurability: 'Gear',     // ★ C 块（`#1437` 第三刀）
+	slotAbsorb: 'Gear',         // ★ C 块（`#1437` 第三刀已搬 `Game.Gear`）
 };
 /** 能力面就绪守卫：`method` 在**它当前的宿主**上是否是函数（✗ 不硬编码 `Combat`）。 */
 export const requireCombatFace = (game, method) => {

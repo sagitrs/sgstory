@@ -126,14 +126,14 @@ window.Game.StatusFx = {	// 低骰分档阈值（原住 `Game.Combat.statusLowRo
 		const hits = [];
 		for (const s of plan.steps) {
 			if (s.perRound) {
-				const at = window.Game.Combat.slotAbsorbAt(pc, s.part, Math.abs(s.perRound));   // 每回合被动也走 S1 的减成/耐久
+				const at = window.Game.Gear.slotAbsorbAt(pc, s.part, Math.abs(s.perRound));   // 每回合被动也走 S1 的减成/耐久
 				if (at?.gear) pc.gearHp = { ...(pc.gearHp ?? {}), [at.gear]: at.gearHp };
 				hits.push({ part: s.part, from: s.id, ...at });
 				hurt += at ? at.toHp : Math.abs(s.perRound);
 			}
 			if (s.kind === 'recover') { if (s.turns > 0) put(s.part, s.id, s.turns); else drop(s.part, s.id); continue; }
 			if (s.effect?.kind === 'damage') {
-				const at = window.Game.Combat.slotAbsorbAt(pc, s.part, s.effect.amount);
+				const at = window.Game.Gear.slotAbsorbAt(pc, s.part, s.effect.amount);
 				if (at?.gear) pc.gearHp = { ...(pc.gearHp ?? {}), [at.gear]: at.gearHp };
 				hits.push({ part: s.part, from: s.id, ...at });
 				hurt += at ? at.toHp : s.effect.amount;

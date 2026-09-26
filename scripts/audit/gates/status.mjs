@@ -67,7 +67,7 @@ export const visibilityProblems = (sidebarSrc) => {
 	const src = String(sidebarSrc ?? '');
 	if (!src.trim()) return [{ code: 'sidebar-src-missing', why: '取不到侧栏源码（`src/10-core.twee`）——本判据要读渲染面才能判' }];
 	const out = [];
-	if (!/Game\.Combat\.gearDurability\(/.test(src)) out.push({ code: 'gearhp-invisible', why: '侧栏没有渲染**装备耐久**（`Game.Combat.gearDurability(`）——S1 机制对玩家不可见（#703）' });
+	if (!/Game\.Gear\.gearDurability\(/.test(src)) out.push({ code: 'gearhp-invisible', why: '侧栏没有渲染**装备耐久**（`Game.Gear.gearDurability(`）——S1 机制对玩家不可见（#703）' });
 	if (!/Game\.StatusFx\.statusEntries\(/.test(src)) out.push({ code: 'status-invisible', why: '侧栏没有渲染**部位异常**（`Game.StatusFx.statusEntries(`）——S2 机制对玩家不可见（#703）' });
 	return out;
 };
@@ -241,9 +241,9 @@ export const run = (ctx) => {
 			// `#703`：机制可见性（**独立循环**——它判的是"渲染面有没有引用"，不是 plan 违反项）
 			{
 				const visCases = [
-					['#703 正例：侧栏渲染了装备耐久与部位异常 ⇒ 不报', '行囊 <<set _gh to Game.Combat.gearDurability($pc)>> <<set _st to Game.StatusFx.statusEntries($pc)>>', 0],
+					['#703 正例：侧栏渲染了装备耐久与部位异常 ⇒ 不报', '行囊 <<set _gh to Game.Gear.gearDurability($pc)>> <<set _st to Game.StatusFx.statusEntries($pc)>>', 0],
 					['🔴 #703 反例：删掉装备耐久渲染 ⇒ 报', '<<set _st to Game.StatusFx.statusEntries($pc)>>', 1],
-					['🔴 #703 反例：删掉部位异常渲染 ⇒ 报', '<<set _gh to Game.Combat.gearDurability($pc)>>', 1],
+					['🔴 #703 反例：删掉部位异常渲染 ⇒ 报', '<<set _gh to Game.Gear.gearDurability($pc)>>', 1],
 					['#703 反例：取不到侧栏源码 ⇒ 报（不静默判过）', '', 1],
 				];
 				for (const [label, src, want] of visCases) {

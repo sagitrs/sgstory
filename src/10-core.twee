@@ -676,12 +676,12 @@ window.Sg.capability = (group) => {
 		<<if _L.foe>><div class="fight-log">''它：''<<print _L.foe.text>>
 			/% `#704`（症状：`log.foe.slots` 有数据但渲染面**从不引用** → 玩家看不到"打在哪、被哪件吸了多少、哪件快坏了"）：
 			   受击明细**单独一行**（与耐久/异常各占一块，不混排 —— 混排会让"扣了多少"对不上账）。
-			   **取值口与 `#703` 侧栏共用** `Game.Combat.gearDurability($pc)`（不写两套）。
+			   **取值口与 `#703` 侧栏共用** `Game.Gear.gearDurability($pc)`（不写两套）。
 			   **未启用槽位的故事没有 `slots` → 这一行整个不出现**（不留空行/问号；这条是门的反例）。 %/
 			<<if _L.foe.slots>>
 				<<set _s to _L.foe.slots>>
 				<<set _max to 0>>
-				<<for _g range Game.Combat.gearDurability($pc)>>
+				<<for _g range Game.Gear.gearDurability($pc)>>
 					<<if _g.name is _s.gear>><<set _max to _g.max>><</if>>
 				<</for>>
 				<div class="meta">〔<<print _s.part>>〕<<if _s.gear>>护具 ''<<print _s.gear>>'' 吸 <<print _s.absorbed>><<if _s.reduce>>（减 <<print _s.reduce>>）<</if>><<if _max gt 0>>　余 <<print _s.gearHp>>/<<print _max>><</if>><<if _s.broke>>　''碎了''<</if>><<else>>没有护具挡下<</if>>　→ 落 HP <<print _s.toHp>></div>
@@ -943,7 +943,7 @@ $pc.speciesLabel $pc.classLabel
 <<if $pc.gear.length>>行囊：<<print $pc.gear.join('、')>><</if>>
 /% `#703`：**装备耐久**与**部位异常**——两者此前全仓零渲染（`gearHp`／`statuses` 只在 defaults 里出现过），
    玩家因此看不见 S1/S2 两套机制。取值走引擎只读快照（单一口径）；未启用机制的故事 → 列表为空 → 整块不出现。 %/
-<<set _gh to Game.Combat.gearDurability($pc)>>
+<<set _gh to Game.Gear.gearDurability($pc)>>
 <<if _gh.length>>
 <div class="gear-hp">''装备''　<<for _i to 0; _i lt _gh.length; _i++>><<print _gh[_i].name>>　<<print _gh[_i].cur>>/<<print _gh[_i].max>><<if _gh[_i].broken>>（''已损坏''）<</if>><<if _i lt _gh.length - 1>>　｜　<</if>><</for>></div>
 <</if>>

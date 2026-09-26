@@ -68,7 +68,7 @@ const PC = { gear: ['布衣'], gearHp: {} };
 const hit = (Game, mech, idx, pc = PC, raw = 2) => {
 	// 注入"恒出 idx+1"的种子流 → 部位可确定：`d(n) = _impl(1,n)` → 返回 idx+1 即命中 hitLocations[idx]
 	Game.Rules.rng.set(() => idx + 1);
-	try { return Game.Combat.slotAbsorb(pc, raw); } finally { Game.Rules.rng.reset(); }
+	try { return Game.Gear.slotAbsorb(pc, raw); } finally { Game.Rules.rng.reset(); }
 };
 
 /** `#704`（症状：`log.foe.slots` 有数据但渲染面从不引用 → 玩家看不到"打在哪、被哪件吸了多少、哪件快坏了"）：
@@ -96,8 +96,17 @@ export const run = (ctx) => {
 	const __fn = requireCombatFace(Game, 'slotAbsorb');
 	// **两态能假格（常驻）**：就绪与缺席必须给出不同判定；否则等于"门在跑但零判定"。
 	{
-		const readyInj = requireCombatFace({ Combat: { 'slotAbsorb': () => null } }, 'slotAbsorb') !== null;
-		const absentInj = requireCombatFace({ Combat: {} }, 'slotAbsorb') === null;
+		// ★ `#1437`（C 块分家，照 `#1452` 立的纪律）：**守卫锚跟着搬家** —— C 块把 `slotAbsorb` 搬到 `Game.Gear`
+		//   ⇒ 本格按**新宿主**喂（✗ 仍喂 `Combat` ⇒ 与真相不符 ⇒ 自证变装饰 ✗）
+		const readyInj = requireCombatFace({ Gear: { 'slotAbsorb': () => null } }, 'slotAbsorb') !== null;
+		const absentInj = requireCombatFace({ Gear: {} }, 'slotAbsorb') === null;
+		// ★**能假（映射锚的牙）**：喂到**旧宿主**（`Combat`）⇒ 必须 **null**
+		//   （✗ 不许「两个宿主都认」 —— 那会让「搬家后锚忘改」重新变成**静默通过** ✗）
+		const movedAway = requireCombatFace({ Combat: { 'slotAbsorb': () => null } }, 'slotAbsorb') === null;
+		if (!movedAway) {
+			console.error("  ✗ 映射锚失效：`slotAbsorb` 在**旧宿主** `Combat` 上仍被认到 ⇒ 搬家后锚忘改也看不出来 ✗（`#1437` C 块）");
+			return 1;
+		}
 		if (!(readyInj && absentInj)) {
 			console.error(`  ✗ 守卫两态不可分（就绪=${readyInj}／缺席=${absentInj}）⇒ 本门可能在"零判定"下报绿（#1269）`);
 			return 1;
@@ -120,8 +129,8 @@ export const run = (ctx) => {
 	try {
 		// ── ⓪ 兼容模式：未启用 → `null`（调用方原样返回）──
 		Sg.story.mechanics = () => null;
-		t('③ 未启用（`mechanics()` 为 null）⇒ `slotAbsorb` 返回 `null`（调用方原样返回＝零行为变化）', Game.Combat.slotAbsorb(PC, 5) === null);
-		t('③ 未启用 ⇒ `repairAll` 也返回 `null`（不产生"隐形修复"）', Game.Combat.repairAll(PC) === null);
+		t('③ 未启用（`mechanics()` 为 null）⇒ `slotAbsorb` 返回 `null`（调用方原样返回＝零行为变化）', Game.Gear.slotAbsorb(PC, 5) === null);
+		t('③ 未启用 ⇒ `repairAll` 也返回 `null`（不产生"隐形修复"）', Game.Gear.repairAll(PC) === null);
 
 		// ── ① 两态语义（真跑引擎，判据走 `violations`）──
 		Sg.story.mechanics = () => MECH;
@@ -148,7 +157,7 @@ export const run = (ctx) => {
 			Game.Rules.rng.set(asSugarRandom(mulberry32(20260913)));
 			const cnt = new Map();
 			const N = 20000;
-			try { for (let i = 0; i < N; i++) { const s = Game.Combat.slotAbsorb(PC, 0); cnt.set(s.part, (cnt.get(s.part) ?? 0) + 1); } }
+			try { for (let i = 0; i < N; i++) { const s = Game.Gear.slotAbsorb(PC, 0); cnt.set(s.part, (cnt.get(s.part) ?? 0) + 1); } }
 			finally { Game.Rules.rng.reset(); }
 			const want = N / parts.length;
 			// 容差按**二项分布**定，不是拍脑袋：n=20000、p=1/20 → σ=√(n·p·(1−p))≈30.8 次 → 3σ≈92 次（9.2%）。
@@ -160,7 +169,7 @@ export const run = (ctx) => {
 			// 可复算：同一种子再跑一遍 → 直方图逐项相同（这才是"分布口径可复算"的硬证据）
 			Game.Rules.rng.set(asSugarRandom(mulberry32(20260913)));
 			const cnt2 = new Map();
-			try { for (let i = 0; i < N; i++) { const s2 = Game.Combat.slotAbsorb(PC, 0); cnt2.set(s2.part, (cnt2.get(s2.part) ?? 0) + 1); } }
+			try { for (let i = 0; i < N; i++) { const s2 = Game.Gear.slotAbsorb(PC, 0); cnt2.set(s2.part, (cnt2.get(s2.part) ?? 0) + 1); } }
 			finally { Game.Rules.rng.reset(); }
 			t('② 同种子两次 ⇒ 直方图逐项一致（可复算）', parts.every((p) => cnt.get(p) === cnt2.get(p)));
 			t(`② 每个部位都被抽到（无"永远打不到"的槽位）`, parts.every((p) => (cnt.get(p) ?? 0) > 0));
@@ -176,13 +185,13 @@ export const run = (ctx) => {
 
 			// 判定失败的耐久扣减：掷骰 −1/−2（注 1 → −1；注 2 → −2），不设"直接损坏"档
 			Game.Rules.rng.set(() => 1);
-			const w1 = Game.Combat.gearWear({ gear: ['布衣'], gearHp: {} }, '布衣');
+			const w1 = Game.Gear.gearWear({ gear: ['布衣'], gearHp: {} }, '布衣');
 			Game.Rules.rng.reset();
 			Game.Rules.rng.set(() => 2);
-			const w2 = Game.Combat.gearWear({ gear: ['布衣'], gearHp: {} }, '布衣');
+			const w2 = Game.Gear.gearWear({ gear: ['布衣'], gearHp: {} }, '布衣');
 			Game.Rules.rng.reset();
 			t('② `gearWear` 掷骰 −1/−2（两颗骰面各一例）', w1.loss === 1 && w2.loss === 2 && w2.from === 3 && w2.to === 1, JSON.stringify([w1, w2]));
-			const rep = Game.Combat.repairAll({ gear: ['布衣'], gearHp: { 布衣: 0 } });
+			const rep = Game.Gear.repairAll({ gear: ['布衣'], gearHp: { 布衣: 0 } });
 			t('② 温泉 `repairAll` ⇒ 满耐久表（v1 唯一修复点）', rep && rep.布衣 === 3, JSON.stringify(rep));
 
 			// 4. 声明面 ≤ 实现面：形态不在实现集 → 报错

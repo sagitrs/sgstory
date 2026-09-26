@@ -428,7 +428,7 @@ let faceProblems = [];
 	const storiesForFace = storySlugs();
 	const face = storiesForFace.filter((sl) => existsSync(absPath(`stories/${sl}/data/passages.json`)));
 	if (face.length === 0) {
-		// **空面必须出声**（承**空面必须出声**）：改制面被清空（靶被挪走）不许看起来像"一切都好" ✗
+		// 承术语表「**空面必须出声（✗ 不许静默绿）**」：改制面被清空（靶被挪走）不许看起来像"一切都好" ✗
 		console.log('○ 未判：改制面内 0 个故事（未改制／靶缺席）⇒ `data/passages.json` 四条未判（不计红 ✓，✗ 也不静默绿）');
 	} else {
 		for (const sl of face) {

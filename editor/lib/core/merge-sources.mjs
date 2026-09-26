@@ -90,7 +90,11 @@ export const ruleLevelOverrides = (sources = [], traces = [], ruleSource = null)
 	//   （原写法把两者都当"不判" ⇒ ★`ruleSource: 'shard/x.json'` 拼错 ⇒ `build` **rc=0 无声** ✗）
 	if (!list.some((s) => String(s?.from ?? '') === key)) {
 		throw new Error(`\`ruleSource\` 指认的件「${key}」**不在 \`sources\` 里**（可选项：`
-			+ list.map((x) => `\`${String(x?.from ?? '')}\``).join('、') + `）⇒ ✗ 拼错会**静默失去保护**`
+			// ★ `#1517`（写作者的非阻断建议）：★**可选项只列 `sources` 声明里的件**（✗ 不列 `<story:slug>`）——
+			//   ★理由：★**报文与"作者能写的东西"同界**（`ruleSource` **只能指向 `sources` 里的件** ⇒
+			//     把"故事自己"也列进去 ⇒ ★会诱导作者去指认它（那是**非法**的：它不在 `sources` 里 ✓）
+			+ list.filter((x) => !String(x?.from ?? '').startsWith('<story:')).map((x) => `\`${String(x?.from ?? '')}\``).join('、')
+			+ `）⇒ ✗ 拼错会**静默失去保护**`
 			+ `（★"未指认"合法；"指认了却找不到"⇒ 点名）（#1519）`);
 	}   // ★指认的件不在列表 ⇒ 不判（由形状/缺件判据管 ✓）
 	return (traces ?? []).filter((t) => String(t?.from ?? '') === key);

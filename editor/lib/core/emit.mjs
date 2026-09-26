@@ -260,7 +260,13 @@ export const emitRules = (rows) => [
 /** 纯函数：`data/chargen.json` 转成 `StoryChargen` 段（原样 JSON 内联，生成物，不带新增语义）。 */
 export const emitChargen = (d) => [
 	'Object.assign((window.Sg.story ??= {}), {',
-		'chargen: () => (' + JSON.stringify({ rounds: d.rounds, presets: d.presets }) + '),',
+		// ★ `#1487`（五步④ 收尾时照亮）：★原写法**只发 `{rounds, presets}`** ✗ ⇒
+		//   ★故事往 `data/chargen.json` 加的**任何别的字段都到不了 `Sg.story.chargen()`** ✗
+		//   （实测：加 `hpBase`／`hpPerCon` ⇒ `Sg.story.chargen()?.hpBase === undefined` ✗ ——
+		//    ★即"**数据在但不生效**"族：数据面写了、生成器**没透传** ⇒ 静默 ✗）
+		//   ⇒ ★修：**原样透传全部字段**（✗ 不挑字段 —— 挑字段 ⇒ 每加一个都要改生成器 ✗）；
+		//     `rounds`／`presets` **照旧在**（✗ 零行为变化 ✓ —— 它们是同一份数据里的两个键 ✓）
+		'chargen: () => (' + JSON.stringify({ ...d, section: undefined }) + '),',
 	'});',
 ].join('\n');
 

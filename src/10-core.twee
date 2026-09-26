@@ -658,7 +658,8 @@ window.Sg.capability = (group) => {
 	<<if $pc[_ksa] gt 0 and $pc[_khp] gt _V.zero and ($pc[_kmx] - $pc[_khp]) gte _V.heal>>
 		<<set $pc[_ksa] to $pc[_ksa] - 1>>
 		<<set $pc[_khp] to $pc[_khp] + _V.heal>>
-		<span class="damage-flash">''你受到了 $args[0] 点伤害！''（伤得重，消耗一副药膏，恢复 4 点生命）</span>
+		/% ★ `#1487`（CR ③）：文案里的"恢复 4 点"**与 `vitals.heal` 同值** ⇒ ★改用 `_V.heal`（✗ 不硬编 ✓ ⇒ 改 `heal` 该串跟变 ✓） %/
+		<span class="damage-flash">''你受到了 $args[0] 点伤害！''（伤得重，消耗一副药膏，恢复 <<print _V.heal>> 点生命）</span>
 	<<else>>
 		<span class="damage-flash">''你受到了 $args[0] 点伤害！''</span>
 	<</if>>
@@ -1052,7 +1053,7 @@ window.Sg.capability = (group) => {
 $pc.speciesLabel $pc.classLabel
 <<hpbar>>
 金币：$pc.gold
-药膏：$pc.salves 副（缺口满 4 点时自动用，一副恢复 4 点）
+药膏：$pc.salves 副（缺口满 <<print Game.Rules.V().heal>> 点时自动用，一副恢复 <<print Game.Rules.V().heal>> 点）
 <<if $pc.gear.length>>行囊：<<print $pc.gear.join('、')>><</if>>
 /% `#703`：**装备耐久**与**部位异常**——两者此前全仓零渲染（`gearHp`／`statuses` 只在 defaults 里出现过），
    玩家因此看不见 S1/S2 两套机制。取值走引擎只读快照（单一口径）；未启用机制的故事 → 列表为空 → 整块不出现。 %/

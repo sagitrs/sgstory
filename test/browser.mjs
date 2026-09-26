@@ -25,10 +25,6 @@ import { join, extname, resolve } from 'node:path';
 // `#1261` 零故事模式（CI 面可见）：本件的对象＝**构建产物在真机浏览器里正确**（产品面，会活过 M1b）；
 // 仓内无故事 -> 没有逐故事产物可验 -> 明说并退 0（不是静默跳过：CI 日志可见此行）。
 // 状态＝「临时下架」：随 `#1163`（books 回填样本）恢复。
-if (!DEFAULT_SLUG) {
-	console.log('  #1261 零故事模式：无逐故事产物 ⇒ browser 真机断言跳过（until #1163）');
-	process.exit(0);
-}
 
 const HOME = process.env.HOME ?? '';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -97,11 +93,34 @@ const bail = (reason) => {
 	process.exit(v.code);
 };
 
+// ★ `#1498`（诊断 P1-b／S12）：**零故事早退必须归并进 `bail()` 的单一出口**。
+//   原状：`if (!DEFAULT_SLUG) { …; process.exit(0); }` **在 `REQUIRE_BROWSER`／`skipVerdict` 之前**（:28 附近）
+//     ⇒ ★`CI_REQUIRE_BROWSER=1` 时**严格门被短路**（零故事 ⇒ 退 0 ＝ 静默降级 ✗ —— 正是 CI 接线失效）
+//   修：走 `bail('零故事（仓内无逐故事产物，until #1163）')` ⇒ ★严格门与跳过成为**同一判定面** ✓
+//     ① 不设 `CI_REQUIRE_BROWSER` ⇒ 明说未判 ＋ **退 0**（本地行为**不变** ✓）
+//     ② 设 `=1` ⇒ ★**报"浏览器验收被跳过 ＝ CI 接线失效" ＋ 退 1** ✓
+
 const selftest = () => {
 	let bad = 0;
 	const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
 	t('跳过 + CI_REQUIRE_BROWSER=1 → 必须失败（不许静默降级）', skipVerdict(true).code === 1);
 	t('跳过 + 本地（无该变量）→ 允许，退 0', skipVerdict(false).code === 0);
+	// ★ `#1498`：**接线格**（判据两格之上再加一格）——★"判定函数对"**≠**"零故事早退走它" ✗
+	//   故这里直接扫**本件源码**：零故事分支必须**经 `bail(`**，✗ 不许自带 `process.exit(0)` ✓
+	//   （★这是"被测对象＝本文件"的**结构断言** —— 它可假：改回旧写法 ⇒ 当场红 ✓）
+	{
+		const self = readFileSync(new URL(import.meta.url), 'utf8');
+		// 取"零故事分支"那一段（`if (!DEFAULT_SLUG)` 起 到 行尾 ;）
+		// ★取**真代码行**（✗ 不能取注释里的同形文字 —— 本笔实测撞过：注释里也写了它，match 取到注释 ✗）
+		const code = self.split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n');
+		const m = code.match(/^\s*if \(!DEFAULT_SLUG\)[^\n]*/m);
+		const line = m ? m[0] : '';
+		t('★ `#1498` 接线：零故事分支**经 `bail(`**（✗ 不自带 process.exit）', /bail\(/.test(line) && !/process\.exit/.test(line), line.slice(0, 90));
+		// ★且 `bail` 必须**定义在**零故事分支之前（✗ 前向引用会 TypeError ⇒ 静默降级）
+		const iBail = self.indexOf('const bail = (reason) =>');
+		const iZero = self.indexOf('if (!DEFAULT_SLUG)');
+		t('★ `#1498` 顺序：`bail` 定义**在零故事分支之前**（✗ 前向引用）', iBail >= 0 && iZero >= 0 && iBail < iZero);
+	}
 	// 用 `MIN_ASSERTIONS` 现算（不写死数字）：下界一涨，这几例自动跟着走（否则每加断言都要改自证）
 	t(`${MIN_ASSERTIONS}/${MIN_ASSERTIONS} 达下界 → 通过`, evaluateRun({ total: MIN_ASSERTIONS, fails: 0 }).code === 0);
 	t(`${MIN_ASSERTIONS}/${MIN_ASSERTIONS}（有失败）→ 失败`, evaluateRun({ total: MIN_ASSERTIONS, fails: 1 }).code === 1);
@@ -111,6 +130,10 @@ const selftest = () => {
 	console.log('\n✔ 自证通过：CI 跳过必红 / 本地可跳 / 达下界绿 / 有失败红 / 断言被删红 / 0-0 假绿红');
 };
 if (process.argv.includes('--selftest')) { selftest(); process.exit(0); }
+
+// ★ `#1498`：零故事早退（**归并进 `bail()` 单一出口**）—— ★必须放在 `--selftest` **之后**：
+//   否则零故事态下 `--selftest` **自己**会被早退吃掉（✗ 连自证都跑不了 —— 本笔实测撞过 ✓）
+if (!DEFAULT_SLUG) bail('零故事模式（仓内无逐故事产物，until #1163）');
 
 const CHROME = findChrome();
 if (!CHROME) bail('未找到 Chrome；设 CHROME_PATH 或装 Chrome for Testing');

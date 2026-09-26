@@ -358,6 +358,8 @@ export const SEGMENTS = [
 	{ id: "test-story-shape-mjs", phase: 'test', cost: 0.1, cmd: "node test/story-shape.mjs" },
 	// `#1267`（M1 最后一件）：**用例执行器**判据（三态／陈旧归因／入口两态）
 	{ id: "test-case-run-mjs", phase: 'test', cost: 0.2, cmd: "node test/case-run.mjs" },
+	// `#1485`：装载层三源（合并器纯函数 ＋ 主读路的展开；★零源＝今天）
+	{ id: "test-merge-sources-mjs", phase: 'test', cost: 1, cmd: "node test/merge-sources.mjs" },
 	// `#1275`：**来源面**端到端格（经夹具 runner；零故事态可跑）＋ `-selftest` 能假两格
 	{ id: "test-chk-source-mjs", phase: 'test', cost: 1.5, exclusive: true, mutates: ['build'], cmd: "node test/chk-source.mjs" },
 	{ id: "test-chk-source-mjs-selftest", phase: 'test', cost: 4, exclusive: true, mutates: ['build'], cmd: "node test/chk-source.mjs --selfcheck && node test/chk-source.mjs --selfcheck-render" },
@@ -669,7 +671,7 @@ export const SUITE_MEMBERS = {
 	],
 	'story-legal': ['test-multi-story-mjs',
 		'test-multi-story-mjs-selftest',
-		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-case-run-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs',
+		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-case-run-mjs', 'test-merge-sources-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs',
 		// `#1267`／`#1257`：故事根口与两面一致性（归 `infra` 语义——判的是**工具链口径**，非故事内容）
 		'test-story-root-mjs', 'test-story-enum-faces-mjs',
 		'test-story-ci-mjs-selftest', 'test-rules-claims-mjs',

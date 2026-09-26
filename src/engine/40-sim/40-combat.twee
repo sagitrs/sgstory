@@ -277,7 +277,10 @@ Object.assign((window.Game.Combat ??= {}), {
 	// `equipment[*].{slot,maxHp,reduce}`——形状权威＝`scripts/audit/lib/story-shape.mjs`，`#459`），
 	// **机制全在引擎**（本块）。`mechanics()` 为 `null` → 本块**一律不被调用** → 旧路径不变（#492 显式降级）。
 	// 状态：`pc.gearHp = { 具名: 剩余耐久}`（缺项＝满耐久；0 → 损坏）。
-	slotsDecl() { return window.Sg.story.mechanics?.() ?? null; },
+	// `#1437`（D 块分家）：本方法**转调**公共门面 `Game.StoryDecl.decl()` ——
+	// ✗ 不再自己读 `Sg.story.mechanics`（那张表**不是战斗专属**：B/C/D/E 四块共用 ⇒ 公共面在 `05-decl.twee`）。
+	// ★保留本名与语义（逐字同 ⇒ **零行为变化** ✓）；命名归位见 `#1437`（引擎内部名 → `decl()`）。
+	slotsDecl() { return window.Game.StoryDecl?.decl?.() ?? null; },
 	gearHpOf(pc, mech, gearName) {
 		const max = mech?.equipment?.[gearName]?.maxHp ?? 0;
 		const cur = pc?.gearHp?.[gearName];

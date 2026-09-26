@@ -46,11 +46,16 @@ const keysOf = (o) => Object.keys(o).sort().join(',');
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const real = w.eval('Game.Pc.defaults()');
 // `#1353` 批 3：期望改从**故事自己的声明面**来（样本无关）。
+// ★ `#1484`（五步①·定名后）：车卡族静态初值**就写在 `pcShape` 里**（复用"形状与初值一处给"）
+//   ⇒ ★门测的是"**故事声明 ⇒ 效果**" ⇒ ★数值声明面 ＝ `pcDefaults`（自定义键）＋ `pcShape`（含车卡族初值）✓
+// ★ `#1484`：`storyDefaults`＝**故事自定义键**（`pcDefaults`，判据 ③ 用）；
+//   `storyNumeric`＝数值声明面的**全部**（自定义键 ＋ `pcShape` 里的车卡族初值）✓
 const storyDefaults = w.eval('(Sg.story.pcDefaults ? Sg.story.pcDefaults() : null)') ?? {};
+const storyNumeric = { ...storyDefaults, ...(w.eval('(Sg.story.pcShape ? Sg.story.pcShape() : null)') ?? {}) };
 const flatPairs = (o, prefix = '') => Object.entries(o ?? {}).flatMap(([k, v]) =>
 	(v && typeof v === 'object' && !Array.isArray(v)) ? flatPairs(v, prefix + k + '.') : [[prefix + k, v]]);
 const flatOf = (o) => Object.fromEntries(flatPairs(o));
-const declaredFlat = flatOf(storyDefaults);
+const declaredFlat = flatOf(storyNumeric);
 const actualFlat = flatOf(real);
 const missingVal = Object.entries(declaredFlat).filter(([k, v]) => JSON.stringify(actualFlat[k]) !== JSON.stringify(v));
 ok(missingVal.length === 0, `② 真机：故事声明的**每个叶子值**都生效（${Object.keys(declaredFlat).length} 项）`,
@@ -58,17 +63,18 @@ ok(missingVal.length === 0, `② 真机：故事声明的**每个叶子值**都�
 // 深合并一层：**只在"形状侧已给同名对象"时才有可测面**（那时深合并与整块替换不同）。
 //   ★实测：本夹具 `hasChargen=false` ⇒ 形状侧不预置 `abilities` ⇒ 两法无差别 ⇒ 该格应**明说未判**（✗ 不当纯过）。
 const shapeOnly = w.eval('(() => { const f = Sg.story.pcDefaults; delete Sg.story.pcDefaults; try { return Game.Pc.defaults(); } finally { Sg.story.pcDefaults = f; } })()');
-const objKeys = Object.entries(storyDefaults).filter(([, v]) => v && typeof v === 'object' && !Array.isArray(v)).map(([k]) => k);
+const objKeys = Object.entries(storyNumeric).filter(([, v]) => v && typeof v === 'object' && !Array.isArray(v)).map(([k]) => k);
 const overlap = objKeys.filter((k) => shapeOnly[k] && typeof shapeOnly[k] === 'object');
 if (overlap.length) {
-	const notMerged = overlap.filter((k) => Object.keys(storyDefaults[k]).some((kk) => !Object.keys(real[k] ?? {}).includes(kk)));
+	const notMerged = overlap.filter((k) => Object.keys(storyNumeric[k]).some((kk) => !Object.keys(real[k] ?? {}).includes(kk)));
 	ok(notMerged.length === 0, `② 深合并一层：与形状重叠的声明对象，子键全部到位（${overlap.join('、')}）`);
 } else {
 	console.log(`  ○ 未判：声明的对象键（${objKeys.join('、') || '无'}）与形状侧已给的对象**无重叠** ⇒ 「深合并 vs 整块替换」今日无差别（✗ 不当纯过）。`);
 }
 for (const [k, v] of Object.entries(real)) {
 	if (v && typeof v === 'object' && !Array.isArray(v)) {
-		const expSub = storyDefaults[k] ?? {};
+		// ★ `#1484`：子键期望要取**两个口的并**（车卡族键的声明住 `pcChargen` ⇒ 只用 pcDefaults 会把它们误判成未声明 ✗）
+		const expSub = storyNumeric[k] ?? {};
 		const extras = Object.keys(v).filter((kk) => !(kk in expSub));
 		ok(extras.every((kk) => isNeutral(v[kk])), `② 深合并：「${k}」里故事未声明的子键均为中性值（${extras.join('、') || '无'}）`);
 	}
@@ -76,12 +82,34 @@ for (const [k, v] of Object.entries(real)) {
 
 // ① + ③ 摘掉故事面 → 形状中性 ＋ 不抛错（缺面＝显式降级）
 // `#1186`：概念改由故事声明（契约面 `pcShape`）→ "摘故事面"要**两处都摘**（数值面 `pcDefaults` ＋ 形状面 `pcShape`）。
+// ★ `#1484`：摘面＝**两处**（数值面 `pcDefaults` ＋ 形状面 `pcShape`）—— ★车卡族静态初值**就在 pcShape 里** ✓
 const bare = w.eval('(() => { const f = Sg.story.pcDefaults, g = Sg.story.pcShape; delete Sg.story.pcDefaults; delete Sg.story.pcShape; try { return Game.Pc.defaults(); } finally { Sg.story.pcDefaults = f; Sg.story.pcShape = g; } })()');
 ok(isNeutral(bare), '① 摘掉两处故事面后：引擎给的**每个值都中性**（故事 1 的数值没有硬编码回引擎）');
 // `#1186`：世界观概念由故事声明 → 两处都摘后这些键**不存在**（不再有"引擎预置的中性值"可断言）。
 // `#1353` 批 3：概念键由**本故事**声明 ⇒ 断言它的键集合里没有声明面的任何顶层键（✗ 不钉具体概念名）。
 ok(Object.keys(storyDefaults).every((k) => !(k in bare)), '③ 缺面 ⇒ 概念键不存在（概念随故事声明；引擎不预置）');
 ok(Object.keys(storyDefaults).every((k) => !keysOf(bare).includes(k)), '③ 缺面 ⇒ 键集合里也没有这些概念键');
+
+// ── ★ `#1484`（五步①·裁定甲**＋定名**）：车卡族静态初值**复用 `pcShape`** ──────────────
+// 三条判据（★照票面）：① 不跑车卡也能给终值 ② 与**车卡流程**并存 ⇒ fail-loud（单产生路径）③ 自定义键仍走 `pcDefaults`
+{
+	// ① 不跑车卡也能给终值（本夹具 `hasChargen:true` 但**不跑流程** ⇒ 值只能来自本口）
+	const d = w.eval('Game.Pc.defaults()');
+	// ★定名后：车卡族静态初值就写在 `pcShape` 里（✗ 无独立口）
+	const shapeVals = w.eval('(Sg.story.pcShape ? Sg.story.pcShape() : null)') ?? {};
+	const got = (shapeVals.hp !== undefined) && d.hp === shapeVals.hp && d.max_hp === shapeVals.max_hp;
+	ok(got, `★① 静态初值口生效（✗ 不跑车卡也有终值）：hp=${d.hp}／max_hp=${d.max_hp}`);
+	// ② ★**二选一**：与车卡流程并存 ⇒ fail-loud 点名
+	const dup = w.eval(`(() => { const h = Sg.story.pcShape; Sg.story.chargen = () => ({ rounds: [], presets: [] });
+		try { return (Game.Pc.defaults(), '没报错'); } catch (e) { return 'ERR:' + e.message; } finally { delete Sg.story.chargen; } })()`);
+	ok(/二选一|并存|两条产生路径/.test(String(dup)), '★② 与车卡流程并存 ⇒ **fail-loud**（单产生路径纪律）', String(dup).slice(0, 90));
+	// ③ ★定名后语义变了：`pcShape` **允许**给基础/车卡族键的初值（也允许自定义键）⇒ ✗ 不再"非车卡族即报"
+	//    ⇒ 改断言**分工**：`pcShape` 给的键**一律生效**（✗ 被吞）；★而 `pcDefaults` 给**引擎已知键** ⇒ 仍 fail-loud（收束 ✓）
+	const shapeOk = w.eval(`(() => { const h = Sg.story.pcShape; Sg.story.pcShape = () => ({ 心情: 3 });
+		try { const r = Game.Pc.defaults(); return r['心情'] === 3 ? 'OK' : '未生效:' + JSON.stringify(r['心情']); }
+		finally { Sg.story.pcShape = h; } })()`);
+	ok(String(shapeOk) === 'OK', '★③ `pcShape` 给自定义键 ⇒ **生效**（✗ 不被吞 —— 与 `pcDefaults` 的分工不同）', String(shapeOk).slice(0, 80));
+}
 
 // ④ 面返回非对象 → 报错
 const msgs = [];

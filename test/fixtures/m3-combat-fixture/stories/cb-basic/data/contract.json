@@ -1,82 +1,88 @@
 {
- "section": "StoryBindings",
- "note": "最小夹具：只声明引擎必需成员（未启用也要声明）",
- "members": [
-  {
-   "name": "rules",
-   "kind": "empty-array",
-   "docs": "本夹具无规则行"
-  },
-  {
-   "name": "foeState",
-   "kind": "state-ref",
-   "path": "foe",
-   "default": {}
-  },
-  {
-   "name": "battleDamage",
-   "kind": "forward",
-   "to": "Game.Items.battleDamage",
-   "params": [
-    "inv",
-    "round",
-    "defeats",
-    "poisoned"
-   ],
-   "args": [
-    "round",
-    "inv",
-    "defeats",
-    "poisoned"
-   ]
-  },
-  {
-   "name": "combatPool",
-   "kind": "lookup",
-   "from": "Game.Combat.pools",
-   "key": "id",
-   "default": null
-  },
-  {
-   "name": "combatAction",
-   "kind": "lookup",
-   "from": "Game.Combat.actions",
-   "key": "id",
-   "default": null
-  },
-  {
-   "name": "mechanics",
-   "kind": "null",
-   "docs": "未启用新机制"
-  },
-  {
-   "name": "checkSite",
-   "kind": "lookup",
-   "from": "Game.Checks.sites",
-   "key": "name",
-   "default": null
-  },
-  {
-   "name": "pcDefaults",
-   "kind": "const",
-   "value": {
-    "hp": 40,
-    "max_hp": 40,
-    "salves": 0,
-    "abilities": {
-     "str": 14,
-     "dex": 14,
-     "con": 14,
-     "int": 10,
-     "wis": 14,
-     "cha": 10
-    }
-   }
-  },
-  {
-   "name": "hasChargen",
-   "kind": "const",
-   "value": false
-  }
- ]
+	"section": "StoryBindings",
+	"note": "最小夹具：只声明引擎必需成员（未启用也要声明）",
+	"members": [
+		{
+			"name": "rules",
+			"kind": "empty-array",
+			"docs": "本夹具无规则行"
+		},
+		{
+			"name": "foeState",
+			"kind": "state-ref",
+			"path": "foe",
+			"default": {}
+		},
+		{
+			"name": "battleDamage",
+			"kind": "forward",
+			"to": "Game.Items.battleDamage",
+			"params": [
+				"inv",
+				"round",
+				"defeats",
+				"poisoned"
+			],
+			"args": [
+				"round",
+				"inv",
+				"defeats",
+				"poisoned"
+			]
+		},
+		{
+			"name": "combatPool",
+			"kind": "lookup",
+			"from": "Game.Combat.pools",
+			"key": "id",
+			"default": null
+		},
+		{
+			"name": "combatAction",
+			"kind": "lookup",
+			"from": "Game.Combat.actions",
+			"key": "id",
+			"default": null
+		},
+		{
+			"name": "mechanics",
+			"kind": "null",
+			"docs": "未启用新机制"
+		},
+		{
+			"name": "checkSite",
+			"kind": "lookup",
+			"from": "Game.Checks.sites",
+			"key": "name",
+			"default": null
+		},
+		{
+			"name": "pcDefaults",
+			"kind": "const",
+			"value": {}
+		},
+		{
+			"name": "hasChargen",
+			"kind": "const",
+			"value": true
+		},
+		{
+			"name": "pcShape",
+			"kind": "const",
+			"value": {
+				"hp": 40,
+				"max_hp": 40,
+				"salves": 0,
+				"abilities": {
+					"str": 14,
+					"dex": 14,
+					"con": 14,
+					"int": 10,
+					"wis": 14,
+					"cha": 10
+				}
+			},
+			"docs": "★#1484：车卡族键的**静态初值**（复用 pcShape「形状与初值一处给」；✗ 不跑车卡流程；过渡形 ⇒ ④ 随键名迁数据）"
+		}
+	]
 }

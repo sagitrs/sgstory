@@ -22,11 +22,17 @@
 			"name": "pcDefaults",
 			"kind": "const",
 			"docs": "车卡族数值（hp/max_hp/salves）",
+			"value": {}
+		},
+		{
+			"name": "pcShape",
+			"kind": "const",
 			"value": {
 				"hp": 14,
 				"max_hp": 14,
 				"salves": 0
-			}
+			},
+			"docs": "★#1484：车卡族键的**静态初值**（复用 pcShape「形状与初值一处给」；✗ 不跑车卡流程；过渡形 ⇒ ④ 随键名迁数据）"
 		}
 	]
 }

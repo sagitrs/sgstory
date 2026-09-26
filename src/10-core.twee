@@ -245,10 +245,28 @@ window.Game.Pc = {
 			});
 		}
 		// ── `#1186`：故事自有的状态形状（契约面 `pcShape`：形状与初值一处给，引擎**不补兄弟键**）──
+		// ★ `#1484`（五步①·裁定甲**＋定名**）：**`pcShape` 允许给「引擎面键（车卡族）」的静态初值** ——
+		//   即不跑车卡流程也能把 `hp`／`max_hp`／`salves`（及 `abilities` 等）写成**终值** ✓
+		//   ★为什么需要它（① 开笔实测的落差）：车卡族 13 键的**形状＋中性值**由 `hasChargen()` 预置，
+		//     而**真值**只有跑车卡流程（`Chargen.finalize`）才算得出 ⇒
+		//     ★三夹具（`hp-basic`／`cb-basic`／`fp`）**不跑车卡**却需要 hp 真值 ⇒ 此前**借 `pcDefaults` 偷渡** ✗
+		//     ⇒ 收束后那条路走不通 ⇒ ★故**开放 `pcShape` 给车卡族静态初值**（复用既有口 ✗ 不新造第二套语义 ✓）
+		//   ★**单产生路径纪律**：车卡族键**二选一** —— **车卡流程** ∨ **`pcShape` 静态初值**；
+		//     ★两者并存（`hasChargen() && Sg.story.chargen`）⇒ **fail-loud 点名**（✗ 静默以某一方为准 ✓）
+		//   ★**过渡形**：④（键归数据）落地时，这些初值**随键名一起迁数据** ⇒ 本开放**不是**永久语义 ✓
 		if (typeof window.Sg?.story?.pcShape === 'function') {
 			const own = window.Sg.story.pcShape();
 			if (own && typeof own === 'object' && !Array.isArray(own)) {
-				for (const [k, v] of Object.entries(own)) shape[k] = (v && typeof v === 'object' && !Array.isArray(v)) ? { ...v } : v;
+				const chargenKeys = this.groups?.chargen?.keys ?? [];
+				const hasChargenFace = window.Sg?.story?.hasChargen?.() === true;
+				for (const [k, v] of Object.entries(own)) {
+					// ★并存点名：`pcShape` 给车卡族键 **且** 车卡流程也在 ⇒ 两条产生路径
+					if (chargenKeys.includes(k) && hasChargenFace && window.Sg?.story?.chargen != null) {
+						throw new Error(`Sg.story.pcShape()：键「${k}」属**车卡族** ⇒ 与**车卡流程**并存 ✗`
+							+ ` 两条产生路径（车卡族键二选一：车卡流程 ∨ pcShape 静态初值）（#1484）`);
+					}
+					shape[k] = (v && typeof v === 'object' && !Array.isArray(v)) ? { ...v } : v;
+				}
 			}
 		}
 		// ── `#1186`：在场模块的状态组（信号＝故事的接入契约面，登记见本对象 `groups`）──
@@ -264,12 +282,28 @@ window.Game.Pc = {
 		if (face('foeState')) Object.assign(shape, window.Game?.Combat?.foeShape?.() ?? {});
 		if (face('socialAsks') || face('socialHooks')) shape.soc = { att: {}, tries: {}, read: {} };
 		// ── 故事数值叠加（`#660` 片三-3）────────────────────────────────────────────
+
 		const extra = window.Sg?.story?.pcDefaults?.();
 		if (extra === undefined || extra === null) return shape;        // 缺面 → **显式降级**（只给形状）
 		if (typeof extra !== 'object' || Array.isArray(extra)) {
 			throw new Error('Sg.story.pcDefaults()：必须返回对象（结构畸形必须报错，#660 片三-3）');
 		}
+		// ★ `#1484`（五步①，裁定 D1／D6）：**`pcDefaults` 只给"故事自定义键"** ——
+		//   引擎已知键（基础面 ＋ **各模块组声明的键**）**不许**走这条口 ⇒ ★点名 fail-loud（✗ 静默吸收）。
+		//   ★为什么（真因）：`defaults()` 早已收窄成"**只给形状**"（键集合由引擎定 ⇒ 见本函数上面），
+		//     而**车卡族数值**本应由车卡族自己的面给 —— 但实测三夹具（`hp-basic`／`cb-basic`／`fp`）把
+		//     `hp`／`max_hp`／`salves`（＋ `cb-basic` 还带 `abilities`）塞在 `pcDefaults` 里 ⇒
+		//     ★引擎**静默吸收**了它们 ⇒ 与"引擎不知 hp 键名"（D1）**方向相反** ✗
+		//   ★名单**从代码推出**（✗ 不写死 —— 照 `#1448` 的纪律：写死会腐烂 ✓）：
+		//     ＝ `PC_BASE_KEYS` 同源的基础面 ＋ 下面 `groups` 各组的 `keys`（★同一张表，引擎自持 ✓）
+		const baseKeys = new Set(['name', 'round', 'picked', 'mode', 'flags', 'ev', 'world']);
+		const groupKeys = new Set(Object.values(this.groups ?? {}).flatMap((g) => g?.keys ?? []));
 		for (const [k, v] of Object.entries(extra)) {
+			if (baseKeys.has(k) || groupKeys.has(k)) {
+				throw new Error(`Sg.story.pcDefaults()：键「${k}」属**引擎已知键**（基础面／模块状态组）`
+					+ ` ⇒ ✗ 不许由 \`pcDefaults\` 给（那是"故事自定义键"的口）—— `
+					+ `车卡族／模块键的**数值**该由该模块自己的面给（#1484）`);
+			}
 			const cur = shape[k];
 			// 两边都是对象 → **一层深合并**（保住形状的其它子键：只给 `charge` 不能把 `spent`/`first_free` 抹掉）
 			if (v && typeof v === 'object' && !Array.isArray(v) && cur && typeof cur === 'object' && !Array.isArray(cur)) Object.assign(cur, v);

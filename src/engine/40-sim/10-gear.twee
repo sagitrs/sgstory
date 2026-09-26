@@ -10,4 +10,59 @@ Object.assign((window.Game.Gear ??= {}), {
 	advSource(site, gear) {
 		return (gear ?? []).find((k) => (window.Sg.story.gearDef?.(k)?.advSites ?? []).includes(site)) ?? '';
 	},
+	// ── `#1437`（D 块分家·第三刀 C）：**装备耐久面**（`#1436` 终态裁：宿主＝`Game.Gear`）──
+	// ★从 `40-combat.twee` 摘出（方法体**一字不改**，只换宿主）；★两条跨件依赖照 `#1445` 门面约束＋`#1446` 调用图：
+	//   · 声明表 ⇒ 经**公共门面** `Game.StoryDecl.decl()`（✗ 不走 `Game.Combat.slotsDecl()`）
+	//   · 掷骰 ⇒ `window.Game.Combat.pickN`／其它（**行为方法跨块直调 ✓**）
+	gearHpOf(pc, mech, gearName) {
+		const max = mech?.equipment?.[gearName]?.maxHp ?? 0;
+		const cur = pc?.gearHp?.[gearName];
+		return typeof cur === 'number' ? cur : max;
+	},
+	gearDurability(pc) {
+		const mech = window.Game.StoryDecl?.decl?.() ?? null;
+		if (!mech) return [];
+		return (pc?.gear ?? []).filter((g) => mech.equipment?.[g]).map((g) => {
+			const max = mech.equipment[g].maxHp ?? 0;
+			const cur = this.gearHpOf(pc, mech, g);
+			return { name: g, cur, max, broken: cur <= 0 };
+		});
+	},
+	slotAbsorbAt(pc, part, hurt) {
+		const mech = window.Game.StoryDecl?.decl?.() ?? null;
+		if (!mech) return null;                                   // 未启用 → 调用方走旧路径
+		const worn = (pc?.gear ?? []).filter((g) => g && mech.equipment?.[g]);
+		const gearName = worn.find((g) => (mech.slots?.[mech.equipment[g].slot]?.protects ?? null) === part) ?? null;
+		if (!gearName) return { part, gear: null, reduce: 0, absorbed: 0, toHp: hurt, gearHp: null, broke: false };
+		const def = mech.equipment[gearName];
+		const form = Object.keys(def.reduce ?? {})[0];
+		if (form !== 'flat') throw new Error(`Game.Gear.slotAbsorb：减成形态「${form}」本片未实现（已实现：flat）——声明面不得大于实现面（#486）`);
+		const hp0 = this.gearHpOf(pc, mech, gearName);
+		if (hp0 <= 0) return { part, gear: gearName, reduce: 0, absorbed: 0, toHp: hurt, gearHp: 0, broke: true };   // 已损坏：不吸伤、不减成
+		const reduce = def.reduce.flat ?? 0;
+		const after = Math.max(0, hurt - reduce);
+		const absorbed = Math.min(hp0, after);
+		const hp1 = hp0 - absorbed;
+		return { part, gear: gearName, reduce, absorbed, toHp: after - absorbed, gearHp: hp1, broke: hp1 <= 0 };
+	},
+	slotAbsorb(pc, hurt) {
+		const mech = window.Game.StoryDecl?.decl?.() ?? null;
+		if (!mech) return null;
+		const parts = mech.hitLocations ?? [];
+		const rng = window.Game.Rules.rng;                        // 唯一随机入口（node 未注入 → 大声报错）
+		const part = rng.pickOne(parts);   // `#1441`：共用取一原语
+		return this.slotAbsorbAt(pc, part, hurt);
+	},
+	gearWear(pc, gearName) {
+		const mech = window.Game.StoryDecl?.decl?.() ?? null;
+		if (!mech || !mech.equipment?.[gearName]) return null;
+		const loss = window.Game.Rules.rng.d(2);                   // 1..2（已定 ④：不设"直接损坏"档）
+		const from = this.gearHpOf(pc, mech, gearName);
+		return { gear: gearName, loss, from, to: Math.max(0, from - loss) };
+	},
+	repairAll(pc) {
+		const mech = window.Game.StoryDecl?.decl?.() ?? null;
+		if (!mech) return null;
+		return Object.fromEntries(Object.entries(mech.equipment ?? {}).map(([n, d]) => [n, d.maxHp]));
+	},
 });

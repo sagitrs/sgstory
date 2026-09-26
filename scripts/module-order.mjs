@@ -37,7 +37,7 @@ export const ORDER = [
 	//（`Object.assign(window.Game.Checks, …)`）→ 必须排在它前面。多故事并存下 ORDER 的"全局交错"语义
 	// 值得另票收紧（per-story ORDER），本票先按既有形状办。
 	//注意：`night-ferry`（`#998` 实测）：**漏登记 → 它落到末尾 → 顶层浅合并 `window.Game = Object.assign(…)` 会把
-	// 引擎加载期 assign 进 `Game.Combat` 的方法**一起替换掉** → `Game.Combat.slotAbsorb` 消失 → `slots` 门抛异常
+	// 引擎加载期 assign 进 `Game.Combat` 的方法**一起替换掉** → `Game.Gear.slotAbsorb` 消失 → `slots` 门抛异常
 	// → 这条**不是可选**：**每个故事的 `15-tables.twee` 都必须排在 `21-resolve` 之前**（:43 那句的原意）。
 	// ── 面夹具（`face-fixture`，`#1004` B2b）：**测试夹具（非内容故事）** ──
 	// 它的 `15-tables.twee` 同样**必须排在 `21-resolve` 前**（同 `night-ferry` 的 `#998` 实测：否则顶层浅合并
@@ -164,7 +164,7 @@ export const requireManifests = (manifests, who = 'checkRegistration') => {
  * 代价（`#998` 实测）：`21-resolve` 加载期做 `Object.assign((window.Game.X??= {}), {…方法…})`，
  * 故事表做 `window.Game = Object.assign(window.Game?? {}, { X: {…}})`（**顶层浅合并 ＝ 替换**）
  * → **谁后跑谁赢**：故事表若排在引擎之后 → 引擎挂在 `Game.Combat` 上的方法**被抹掉**
- * → 门里 `Game.Combat.slotAbsorb(...)` 抛 TypeError → **门崩**（后面的故事面**全没跑**）。
+ * → 门里 `Game.Gear.slotAbsorb(...)` 抛 TypeError → **门崩**（后面的故事面**全没跑**）。
  *
  *注意：判据只钉**两格**（不扩大）：① 该件**在 ORDER 里**；② 它**排在消费侧之前**。
  * ③ 名字口径：故事侧固定 `15-tables.twee`（模块序的表里就是这么排的）；

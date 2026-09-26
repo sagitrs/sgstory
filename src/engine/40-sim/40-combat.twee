@@ -281,66 +281,15 @@ Object.assign((window.Game.Combat ??= {}), {
 	// ✗ 不再自己读 `Sg.story.mechanics`（那张表**不是战斗专属**：B/C/D/E 四块共用 ⇒ 公共面在 `05-decl.twee`）。
 	// ★保留本名与语义（逐字同 ⇒ **零行为变化** ✓）；命名归位见 `#1437`（引擎内部名 → `decl()`）。
 	slotsDecl() { return window.Game.StoryDecl?.decl?.() ?? null; },
-	gearHpOf(pc, mech, gearName) {
-		const max = mech?.equipment?.[gearName]?.maxHp ?? 0;
-		const cur = pc?.gearHp?.[gearName];
-		return typeof cur === 'number' ? cur : max;
-	},
 	/** `#703`：侧栏（`StoryCaption`）用的**只读快照**——装备耐久与部位异常此前**全仓零渲染**（数据早就在状态里）。
 	 * 只算不写（渲染路径不得改状态，`#315` 契约）；未启用新机制的故事（故事 1／最小示例）→ 空列表 → 侧栏整块不出现。 */
-	gearDurability(pc) {
-		const mech = this.slotsDecl();
-		if (!mech) return [];
-		return (pc?.gear ?? []).filter((g) => mech.equipment?.[g]).map((g) => {
-			const max = mech.equipment[g].maxHp ?? 0;
-			const cur = this.gearHpOf(pc, mech, g);
-			return { name: g, cur, max, broken: cur <= 0 };
-		});
-	},
 
 	// 受击（指定部位）：该部位有护具就按声明减成（本片只落 `flat`）→ 余量由该件**耐久吸收**，
 	// 溢出量落 HP；耐久 ≤ 0 → **损坏**（`reduce` 归 0 且不再吸伤）。**纯函数**：只返回计划，不写 `pc`。
 	//（S2 需要「指定部位」的形态：异常结算的"该部位受伤"不该另掷一个部位 → 抽出本方法。）
-	slotAbsorbAt(pc, part, hurt) {
-		const mech = this.slotsDecl();
-		if (!mech) return null;                                   // 未启用 → 调用方走旧路径
-		const worn = (pc?.gear ?? []).filter((g) => g && mech.equipment?.[g]);
-		const gearName = worn.find((g) => (mech.slots?.[mech.equipment[g].slot]?.protects ?? null) === part) ?? null;
-		if (!gearName) return { part, gear: null, reduce: 0, absorbed: 0, toHp: hurt, gearHp: null, broke: false };
-		const def = mech.equipment[gearName];
-		const form = Object.keys(def.reduce ?? {})[0];
-		if (form !== 'flat') throw new Error(`Game.Combat.slotAbsorb：减成形态「${form}」本片未实现（已实现：flat）——声明面不得大于实现面（#486）`);
-		const hp0 = this.gearHpOf(pc, mech, gearName);
-		if (hp0 <= 0) return { part, gear: gearName, reduce: 0, absorbed: 0, toHp: hurt, gearHp: 0, broke: true };   // 已损坏：不吸伤、不减成
-		const reduce = def.reduce.flat ?? 0;
-		const after = Math.max(0, hurt - reduce);
-		const absorbed = Math.min(hp0, after);
-		const hp1 = hp0 - absorbed;
-		return { part, gear: gearName, reduce, absorbed, toHp: after - absorbed, gearHp: hp1, broke: hp1 <= 0 };
-	},
 	// 受击（掷部位，走**可注入** rng）：掷出部位后交给 `slotAbsorbAt`。
-	slotAbsorb(pc, hurt) {
-		const mech = this.slotsDecl();
-		if (!mech) return null;
-		const parts = mech.hitLocations ?? [];
-		const rng = window.Game.Rules.rng;                        // 唯一随机入口（node 未注入 → 大声报错）
-		const part = rng.pickOne(parts);   // `#1441`：共用取一原语
-		return this.slotAbsorbAt(pc, part, hurt);
-	},
 	// 判定失败的耐久扣减（S1 已定 ④：**掷骰** −1 或 −2）；返回计划，不写 `pc`。
-	gearWear(pc, gearName) {
-		const mech = this.slotsDecl();
-		if (!mech || !mech.equipment?.[gearName]) return null;
-		const loss = window.Game.Rules.rng.d(2);                   // 1..2（已定 ④：不设"直接损坏"档）
-		const from = this.gearHpOf(pc, mech, gearName);
-		return { gear: gearName, loss, from, to: Math.max(0, from - loss) };
-	},
 	// 温泉（S1 已定 ④：v1 唯一修复点）——返回"满耐久表"；调用方写 `pc.gearHp`。
-	repairAll(pc) {
-		const mech = this.slotsDecl();
-		if (!mech) return null;
-		return Object.fromEntries(Object.entries(mech.equipment ?? {}).map(([n, d]) => [n, d.maxHp]));
-	},
 	// ── S2（`#487`）：部位 × 异常（每回合判定：恢复／恶化／受伤） ───────────────
 	// 契约（声明面；形状权威＝`scripts/audit/lib/story-shape.mjs`）：
 	// `mechanics().statuses[id] = { parts:'*'|[部位…], turns:n, check:{attr,dc}, onFail:[{when,…}]}`

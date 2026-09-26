@@ -109,7 +109,12 @@ export const assertFreshDist = ({ distPath = DIST_PATH, srcDir = SRC_DIR, who = 
 		} catch (e) {
 			writeNote = `\n  ⚠️ **点名清单落盘失败**（${e.message}）⇒ 名单已折进本报错，未丢 ✓（不静默 ✓）`;
 		}
-		throw new Error('dist/index.html 比 src/*.twee 旧——先跑 `npm run build`（否则断言基于旧游戏，结果是假红/假绿）' + (st.newer ?? []).map((x) => `\n    · ${x.f}（${new Date(x.m).toISOString()} > dist ${new Date(st.distMtime).toISOString()}）`).join('') + writeNote);
+		// `#1476`：★**报文必须自带对象** —— 与「找不到」分支（`#1315`）**同形**补齐。
+		// 原状：只列 `newer[]`（**src 件**路径）⇒ ★"**哪个 dist 旧了**"读不出来 ✗
+		// 实测（2026-09-26）：`SG_STORIES_DIR` 指夹具/外根 ⇒ `DIST_DIR = dirname(STORIES_DIR)/dist`
+		//   ⇒ 被查的 dist **不是** `ROOT/dist` ⇒ ★缺对象读数时，读者会把"我读错对象"误判成"判据错了" ✓
+		throw new Error('dist/index.html 比 src/*.twee 旧——先跑 `npm run build`（否则断言基于旧游戏，结果是假红/假绿）'
+			+ `\n  读数（对象）：distPath=${distPath}｜srcDir=${srcDir}｜cwd=${process.cwd()}` + (st.newer ?? []).map((x) => `\n    · ${x.f}（${new Date(x.m).toISOString()} > dist ${new Date(st.distMtime).toISOString()}）`).join('') + writeNote);
 	}
 	return st;
 };
@@ -133,7 +138,14 @@ export const selftest = () => {
 	mk(1, 60);
 	cases.push(['dist 比 src 新 → 放行', (() => { try { assertFreshDist({ distPath, srcDir }); return true; } catch { return false; } })()]);
 	mk(60, 1);
-	cases.push(['src 比 dist 新 → 报错并给修复命令', (() => { try { assertFreshDist({ distPath, srcDir }); return false; } catch (e) { return /先跑 .npm run build./.test(e.message); } })()]);
+	// `#1476`：与本文件的「找不到」格（`#1315`）**同形** —— 判旧报错也必须是**语义 ＋ 对象**两断言：
+	// ① 说明"旧了 ＋ 给修复命令" ② ★**报文里必须出现被查的那个 `distPath`**（✗ 不只列 src 件 ✓）
+	cases.push(['src 比 dist 新 → 报错并给修复命令 ＋报文自带路径（#1476）', (() => {
+		try { assertFreshDist({ distPath, srcDir }); return false; } catch (e) {
+			const m = String(e.message);
+			return /先跑 .npm run build./.test(m) && m.includes(distPath);
+		}
+	})()]);
 	rmSync(base, { recursive: true, force: true });
 	// `#1315`：自证这格原先只match旧报文**字面**（`/找不到 dist\/index\.html/`）⇒ 报文一改就红 ✗
 	// ⇒ 升级为**语义 ＋ 对象**两断言：① 报文说明“找不到产物” ② **报文里必须出现被找的那个路径**

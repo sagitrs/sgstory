@@ -84,6 +84,32 @@ ok(nat1.roll === 1 && !nat1.success, '自然 1 → 无视加值必然失败');
 	eq(R.mod(12), 2, '③ 能假：`divisor` 8→2 ⇒ `mod(12)` = (12-8)/2 = 2（读数**跟着包走** ⇒ 判据不是摆设 ✓）');
 	w.Sg.story.rulesPack = keep;
 	eq(R.mod(14), 2, '③ 复位 ⇒ 回内置语义（`(14-10)/2`）✓');
+	// ── ★ `#1487`（五步④·D1）：**量纲族 `vitals`** —— 三条能假 ＋ 零包 ✓ ────────────────
+	// ① 缺面 ⇒ 内置（零包＝今天）｜② 给覆盖 ⇒ 生效（逐项）｜③ ★能假（改每一项 ⇒ 读数必跟变）
+	eq(R.V(), R.BUILTIN.vitals, '★① 缺 `vitals` ⇒ **内置**（逐字同 ⇒ 零包＝今天 ✓）');
+	eq(R.vk('hp'), 'hp', '★① `vk("hp")` ＝ `hp`（内置键名 ✓）');
+	eq(R.V().floor.hp, 0, '★① `floor.hp` ＝ 0（下限 ✓）');
+	eq(R.V().heal, 4, '★① `heal` ＝ 4（治疗量；今天两处同一个数 ✓）');
+	eq(R.V().zero, 0, '★① `zero` ＝ 0（D3：只 0 ✓）');
+	eq(R.V().zeroGives, ['倒地'], '★① `zeroGives` ＝ 声明实体（✗ 引擎特判"死亡" ✓）');
+	{
+		const keepV = w.Sg.story.rulesPack;
+		// ★② 键名改 ⇒ `vk()` **跟变**（★这就是"引擎✗知键名"的机械证据：名字是**数据**的字面量 ✓）
+		w.Sg.story.rulesPack = () => ({ vitals: { keys: { hp: 'hpX' } } });
+		eq(R.vk('hp'), 'hpX', '★② **能假（键名）**：`vitals.keys.hp` 改 `hpX` ⇒ `vk("hp")` **跟变** ✓（✗ 若写死 ⇒ 必红 ✓）');
+		eq(R.vk('maxHp'), 'max_hp', '★② **键级合并**：只给 `keys.hp` ⇒ `maxHp` 仍走内置 ✓（✗ 没被整份替换）');
+		// ★③ 下限改 ⇒ `V().floor.hp` 跟变
+		w.Sg.story.rulesPack = () => ({ vitals: { floor: { hp: -5 } } });
+		eq(R.V().floor.hp, -5, '★③ **能假（下限）**：`floor.hp` 改 -5 ⇒ `V().floor.hp` **跟变** ✓');
+		// ★④ 零界后果改 ⇒ 跟变
+		w.Sg.story.rulesPack = () => ({ vitals: { zeroGives: ['另一实体'] } });
+		eq(R.V().zeroGives, ['另一实体'], '★④ **能假（零界后果）**：`zeroGives` 改 ⇒ **跟变** ✓');
+		// ★⑤ 治疗量改 ⇒ 跟变
+		w.Sg.story.rulesPack = () => ({ vitals: { heal: 9 } });
+		eq(R.V().heal, 9, '★⑤ **能假（治疗量）**：`heal` 改 9 ⇒ **跟变** ✓');
+		w.Sg.story.rulesPack = keepV;
+		eq(R.V(), R.BUILTIN.vitals, '★⑤ 复位 ⇒ 回内置（`V()` 深合并后与 `BUILTIN.vitals` 等价 ✓）');
+	}
 	// ★★ `#1463`（写作者撤回 APPROVE 时附的**非阻断缺口**，我复核成立）：
 	//    「**改回写死 ⇒ 链 91/91 全绿**」—— 即 `pick()` 的**档位名**若写死 `'ok'`，**无门会红** ✗
 	//    ⇒ 本格把**档位名改成新名**，再断 `pick()` 取到的是**新名** ✓（＝「消费面真读包」的牙 ✓）

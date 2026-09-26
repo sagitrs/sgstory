@@ -96,14 +96,19 @@ Object.assign((window.Game.Combat ??= {}), {
 		// ★ `#1409` 同族的教训：**`hp` 非有限数时不许静默判输** —— `!(undefined > 0)` 恒真 ⇒ 会把
 		//   "没收尾/没车卡"误判成"输了" ✗（实测：探针没设 hp ⇒ won 与 lost 同时为 true ✗）
 		//   ⇒ 只能由**显式 `want`** 断胜负；未给 `want` 时**只落事实**（won/lost 都为 false ⇒ 分叉都不出 ✓）
-		const lost = w === 'lost' || (Number.isFinite(pc.hp) && pc.hp <= 0 && w === '');
+		// ★ `#1487`（五步④·D1）：**键名与阈值都读数据**（`vk('hp')` ＋ `V().zero` ⇒ ✗ 结算逻辑里不出现字面量 ✓）
+		// ★注意：本函数**没有** `T`（那是 `resolveFoe` 的局部量）⇒ ✗ 误用会 `ReferenceError`（本笔实测撞过 ✓）
+		const _khp = window.Game.Rules.vk('hp'), _vz = window.Game.Rules.V().zero;
+		const lost = w === 'lost' || (Number.isFinite(pc[_khp]) && pc[_khp] <= _vz && w === '');
 		const won = w === 'won' || (!lost && w !== '');
-		tbl[p] = { won: won, lost: lost, done: true, round: f.round ?? 1, pcHp: pc.hp };
+		tbl[p] = { won: won, lost: lost, done: true, round: f.round ?? 1, pcHp: pc[_khp] };
 		f.done = true;                                                // 既有字段：`<<fightbegin>>` 判"新一场" ✓
 		return tbl[p];
 	},
 	resolveFoe(pc, foeSite, log, pcSite) {
 		const T = window.Game, f = pc.ev.fight;
+		// ★ `#1487`：本函数里的量纲键名/阈值**都从这里取**（✗ 不裸读 ✓）
+		const _khp = T.Rules.vk('hp'), _vz = T.Rules.V().zero;
 		let check = null, hurt = 0;
 		// #486（S1）：受击再过一道「掷部位 → 护具吸伤/耐久 → 溢出落 HP」。
 		// `mechanics()` 未启用时 `slotAbsorb` 返回 `null` → **原样返回**（显式降级，零行为变化）。
@@ -117,11 +122,11 @@ Object.assign((window.Game.Combat ??= {}), {
 		// ★ `#1428`：**「未声明 hp 面」不许静默跳过敌人** —— 旧写法 `if (pc.hp > 0)` 是**裸读**：
 		// `pc.hp === undefined` 时 `undefined > 0` 为假 ⇒ 敌人那一支**整段被跳过** ⇒ 战斗**看着正常**（✗ 最阴的一种：
 		// 「数据在但不生效」的假正常 —— 比崩更险）。照 `#1409` 口径改用 `Number.isFinite` ⇒ **非有限数一律 fail-loud 点名**。
-		if (!Number.isFinite(pc.hp)) {
-			throw new Error('resolveFoe：`pc.hp` 不是有限数（' + String(pc.hp) + '）—— 战故事必须显式声明 hp 面（契约 `pcDefaults`）；' +
+		if (!Number.isFinite(pc[_khp])) {
+			throw new Error('resolveFoe：`pc.` ＋ `' + _khp + '` 不是有限数（' + String(pc[_khp]) + '）—— 战故事必须显式声明该量纲面（契约 `pcShape`／`pcDefaults`）；' +
 				'不声明会让敌人**静默不出手**（曾经看着正常）⇒ 这里 fail-loud 点名。');
 		}
-		if (pc.hp > 0) {
+		if (pc[_khp] > _vz) {
 			if (f.skipFoe) {
 				log.foe = { text: '这一轮它没有出手。' };
 			} else {

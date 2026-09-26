@@ -110,8 +110,9 @@ t('★正①附：落点是作者给的那一段（`战后`）', String(S.passag
 	try {
 		w.eval('(function(){ var p=SugarCube.State.variables.pc; var old=p.hp; p.hp = NaN; try { Game.Combat.resolveFoe(p, "雾影", {}, null); } finally { p.hp = old; } })()');
 	} catch (e) { e5 = String(e && e.message ? e.message : e); }
-	t('★能假：`pc.hp` 非有限数（NaN）⇒ `resolveFoe` **fail-loud 点名**（✗ 不静默跳过敌人）',
-		/pc\.hp/.test(e5) && /有限数/.test(e5), e5.slice(0, 140));
+	// ★ `#1487`：报文改成"键名由数据给"⇒ ★断言同步为「**断到那个键名**」（`hp` 仍在报文里 ✓ —— ✗ 不弱化判据）
+	t('★能假：该量纲非有限数（NaN）⇒ `resolveFoe` **fail-loud 点名**（✗ 不静默跳过敌人）',
+		/hp/.test(e5) && /有限数/.test(e5), e5.slice(0, 140));
 }
 if (B.uncaught?.length) { bad++; console.error('  ✗ 页面有未捕获异常：' + B.uncaught.slice(0, 2).join(' ｜ ')); }
 try { await B.close?.(); } catch { /* 忽略 */ }

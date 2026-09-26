@@ -119,9 +119,21 @@ export const facadeCallProblems = ({ files = [], methods = new Set(), allow = {}
 				if (names.some((n2) => new RegExp('^\\s*' + esc(n2) + '\\s*\\(\\s*[^)]*\\)\\s*\\{\\s*return\\s+this\\s*\\.\\s*' + esc(name) + '\\s*\\(').test(line))) continue;
 				// ✅ ③' **默认参数**（`f(x, mech = this.slotsDecl())`）—— 语义上就是"先赋局部量" ✓
 				//   ★实测：`statusPenaltyFor(pc, part, mech = this.slotsDecl())` ⇒ 第一版把它误报 ✗（本门自证之外的真扫抓到 ✓）
-				if (new RegExp('^\\s*[A-Za-z_$][\\w$]*\\s*\\(.*=\\s*(?:this|Game\\s*\\.\\s*Combat)\\s*\\.?\\s*' + esc(name) + '\\s*\\(').test(line)) continue;
+				// ★ `#1448`（T 阻断的二层）：本豁免**必须限定在参数列表内** ——
+				//   ✗ 第一版用 `\\(.*=`（`.*` 会**跨过 `)` 一直吃到方法体里的 `=`**）⇒ 把
+				//   `bad2(pc) { const def = this.slotsDecl()?.enemies?.[id]; … }` 误判成「默认参数」⇒ **漏报** ✗（实测 ✓）
+				//   ⇒ 判据：`=` 必须出现在**第一个 `)` 之前**（`[^)]*=`）✓
+				if (new RegExp('^\\s*[A-Za-z_$][\\w$]*\\s*\\([^)]*=\\s*(?:this|Game\\s*\\.\\s*Combat)\\s*\\.?\\s*' + esc(name) + '\\s*\\(').test(line)) continue;
 				// ✅ ③ **先赋局部量**：`const/let/var x = this.name(…)`
-				if (new RegExp('(?:const|let|var)\\s+[A-Za-z_$][\\w$]*\\s*=\\s*(?:this|Game\\s*\\.\\s*Combat)\\s*\\.?\\s*' + esc(name) + '\\s*\\(').test(line)) continue;
+				// ★ `#1448`（T 阻断）：**只有「取整张表」才算「先赋局部量」** —— 若调用后**还接成员/下标**
+				//   （`const def = this.slotsDecl()?.enemies?.[id];`）⇒ ★那仍是**绕门面直调** ✗
+				//   （她的实锤：自证样本只有 `return` 形 ⇒ 声明形缺口**不被看护** ✗ ⇒ 门自己漏判 ✓）
+				//   ⇒ 判据：**调用之后到行尾**只许 `);`／`),`／`)`（✗ 不许 `?.x`／`[i]` 之类）
+				//   ★判据（`#1448` 二层修正）：**看调用之后紧跟的是什么** ——
+				//     · 其后**不许**是 `?.` ／ `.` ／ `[`（那是「取字段／下标」⇒ 绕门面 ✗）
+				//     · ✗ 不能写成「必须行尾结束」：`const mech = this.slotsDecl(); return mech?.x;` **是合法的**
+				//       （先取整张表、再用局部量）⇒ 那样写会把**合法形**误报 ✗（本门自证当场抓到 ✓）
+				if (new RegExp('(?:const|let|var)\\s+[A-Za-z_$][\\w$]*\\s*=\\s*(?:this|Game\\s*\\.\\s*Combat)\\s*\\.?\\s*' + esc(name) + '\\s*\\(\\)\\s*(?!\\s*(?:\\?\\.|\\.|\\[))').test(line)) continue;
 				// ✅ ④ 白名单（带票号）
 				if (allow[key]) { hitAllow.add(key); continue; }
 				out.push({ file: f.path, line: i2 + 1, why: `绕过门面直调 \`${name}()\`（取声明表请先赋局部量：\`const x = this.${name}()\`）—— 摘出声明宿主时，直调是**唯一会咬人**的读点` });
@@ -152,17 +164,22 @@ export const run = (ctx = {}) => {
 	//   自证里按行号断言会**永不成立**（本门第一版就这么错、自证当场红 ✓）
 	const synth = [{
 		path: 'synth/a.twee',
+		// ★ `#1448`（T 阻断）：自证必须**覆盖判据声称 ✗ 的每一种形** —— 之前只有 `return` 形，
+		//   ⇒ **声明形**（`const x = this.<名>()?.成员`）缺口**不被看护** ✗（她实锤：门自己漏判 ✓）
+		//   ⇒ 本件补**第 5 态**（声明形 ⇒ 必红）✓
+		// ★注意：这几行**必须是 `text` 的数组元素本身**（✗ 不能在里面塞 JS 注释 —— 那会变成"被扫的文本"⇒ 行号错位 ✗ 实测踩过）
 		text: [
 			'slotsDecl() { return window.Sg.story.mechanics?.() ?? null; }',
 			'roadsDecl() { return this.slotsDecl()?.roads ?? null; }',
 			'ok(pc) { const mech = this.slotsDecl(); return mech?.x; }',
 			'bad(pc) { return this.slotsDecl()?.hitLocations ?? []; }',
+			'bad2(pc) { const def = this.slotsDecl()?.enemies?.[id]; return def; }',
 		].join('\n'),
 	}];
 	const sm = facadeMethods(synth);
 	const sp = facadeCallProblems({ files: synth, methods: sm });
 	const named = (t) => sp.some((x) => x.file === 'synth/a.twee' && x.line === t);
-	const selfOk = sm.has('slotsDecl') && sm.has('roadsDecl') && !named(1) && !named(2) && !named(3) && named(4);
+	const selfOk = sm.has('slotsDecl') && sm.has('roadsDecl') && !named(1) && !named(2) && !named(3) && named(4) && named(5);
 	if (!selfOk) {
 		console.error('  ✗ 自证未过：允许的三形或"直调必红"其中一条不成立');
 		console.error(`    推得的名单：${[...sm].join(', ') || '（空）'}｜合成检出：${JSON.stringify(sp)}`);

@@ -67,6 +67,11 @@ export const readStoryPackage = ({ slug, io, base } = {}) => {
 	return { slug, meta, data };
 };
 
+/** ★ `#1519`：**指认"规则级"的顶层字段名** —— ★**待写作者定**（同 `vitals`／`zeroGives` 先例 ✓）。
+ *  ★为什么单列常量：★名字**只此一处** ⇒ 她定名后**改一处**即可（✗ 散在判据/报文里 ⇒ 改名必漏 ✓）；
+ *  ★默认值＝`ruleSource`（我的暂名）；★**未声明该字段 ⇒ 无规则级 ⇒ 不判**（零破坏 ✓）。 */
+export const RULE_SOURCE_FIELD = 'ruleSource';
+
 /** ★ `#1485`（五步②）：把 `tables.json` 顶层的 `sources: [...]` 展开成**三层合并**的结果。
  * ★**仓级**（裁定 D5）：`from` 是**相对仓根**的路径（`shared/…`；✗ 不是故事目录 —— 由 `sourcesShapeProblems` 判）；
  *   故本函数需要一个**能读任意路径**的 `io`（宿主注入的 `readText` 本来就是"路径原样" ✓）。
@@ -107,12 +112,15 @@ export const expandSources = ({ slug, data, io, repoRoot = '' } = {}) => {
 	merged.push({ from: `<story:${slug}>`, json: tables });
 	// ★顺序不变（数组即优先级）；逐容器逐键合并 ＋ 留痕
 	const out = mergeSources(merged);
-	// ★判据③：覆盖"规则级"（＝列表最前那一件）的键 ⇒ **红**
-	const overRules = ruleLevelOverrides(merged, out.traces);
+	// ★判据③（`#1519`）：覆盖"规则级"的键 ⇒ **红** —— ★规则级由**顶层字段指认**（✗ 不再是"列表最前"位置捷径 ✓）
+	//   ★**字段名**取 `RULE_SOURCE_FIELD`（★一处常量 ⇒ 写作者定名后**只改这一处** ✓）
+	//   ★**未指认 ⇒ 不判**（零破坏 ✓）：无规则级可言 ⇒ 故事覆盖共享件**本就该允许** ✓
+	const declaredRule = tables?.[RULE_SOURCE_FIELD] ?? null;
+	const overRules = ruleLevelOverrides(merged, out.traces, declaredRule);
 	if (overRules.length) {
-		throw new Error(`${slug}：\`sources\` 里**更具体的层覆盖了「规则级」的键** ⇒ ✗（D5：具体者胜，`
+		throw new Error(`${slug}：**更具体的层覆盖了「规则级」的键** ⇒ ✗（D5：具体者胜，`
 			+ '但不许故事/世界层盖掉规则级 —— 那会让"规则"失去权威）\n    '
-			+ overRules.map((t) => `${t.path}（${t.from} ⇒ ${t.to}）`).join('\n    ') + '（#1485）');
+			+ overRules.map((t) => `${t.path}（${t.from} ⇒ ${t.to}）`).join('\n    ') + `（#1485／#1519：规则级＝\`${RULE_SOURCE_FIELD}\` 指认的那一件）`);
 	}
 	// ★只替换"被引的那一层"（本票只对 `tables.json` 开 `sources[]` ⇒ 其余四个照旧 ✓）
 	const next = { ...data };

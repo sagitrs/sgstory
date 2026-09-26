@@ -53,13 +53,28 @@ export const mergeSources = (sources = []) => {
 	return { json: out, traces };
 };
 
-/** ★**覆盖"规则级"键 ⇒ 红**（D5 判据③）：规则级 ＝ `sources[0]`（数组**最前** ＝ 最不具体）。 */
-// 为什么单列：主读路要"出声"，而"出声"的条件**必须可自证** ⇒ 判据住纯函数 ✓
-export const ruleLevelOverrides = (sources = [], traces = []) => {
+/** ★**覆盖"规则级"键 ⇒ 红**（D5 判据③）—— ★`#1519`：规则级由**顶层字段指认**（✗ 不再是 `sources[0]` 位置捷径）。
+ *
+ * ★为什么要改（`#1517` 照亮的真缺陷）：`#1485` 原实现把"规则级"＝**数组最前那一件** ✗ ——
+ *   而 D5 的三层是 **规则级 ⇒ 世界级 ⇒ 故事级**；`sources` 里列的只是"**故事引来的**被引层"，
+ *   ★**"故事级"根本不在其中**（它是**本件自己**）⇒ ★故"数组最前"＝**被引层里最不具体的那个**，
+ *   究竟是"规则级"还是"世界级"**位置看不出来** ⇒ ★于是"**故事自己的 `note` 覆盖共享件的 `note`**"
+ *   被判成"覆盖规则级" ✗（那本该允许 ⇒ **假红** ✓）。
+ *
+ * ★裁定（`#1519`，维护者方向＝乙）：**顶层字段显式指认**哪一件是规则级 ⇒ ★**未指认 ⇒ 无规则级 ⇒ 不判**（零破坏 ✓）。
+ * ★**字段名待写作者定**（同 `vitals`／`zeroGives` 先例 ⇒ 形态定稿权在她 ✓）；
+ *   本函数**按调用方传入的名字**取（✗ 不在本处写死），调用方（`expandSources`）拿同一常量 ✓。
+ *
+ * @param {Array<{from: string, json: any}>} sources 已读好的被引层（顺序＝优先级，靠后者胜）
+ * @param {Array<object>} traces `mergeSources` 的覆盖留痕
+ * @param {string|null} ruleSource ★**被指认为"规则级"的那一件的 `from`**（✗ null ⇒ 不判 ✓）
+ */
+export const ruleLevelOverrides = (sources = [], traces = [], ruleSource = null) => {
+	const key = ruleSource == null ? '' : String(ruleSource).trim();
+	if (!key) return [];                                        // ★未指认 ⇒ 不判（零破坏 ✓）
 	const list = Array.isArray(sources) ? sources.filter(Boolean) : [];
-	const first = list[0]?.from != null ? String(list[0].from) : null;
-	if (!first) return [];
-	return (traces ?? []).filter((t) => String(t?.from ?? '') === first);
+	if (!list.some((s) => String(s?.from ?? '') === key)) return [];   // ★指认的件不在列表 ⇒ 不判（由形状/缺件判据管 ✓）
+	return (traces ?? []).filter((t) => String(t?.from ?? '') === key);
 };
 
 /** 纯函数：`sources` 声明形状检查（空＝绿）。★`from` 必须是**仓级相对路径**（✗ 不许指进故事目录）。 */

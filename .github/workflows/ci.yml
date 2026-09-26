@@ -123,7 +123,15 @@ jobs:
           PW_PATH=$(node -e "console.log(require('playwright').chromium.executablePath())")
           test -x "$PW_PATH" || { echo "ERROR: playwright chromium 缺失"; exit 1; }
           ln -sf "$PW_PATH" "$CHROME_PATH"
-          node test/browser.mjs
+          # ★ `#1504`（诊断 S15）：**本步必须自己带故事** —— 否则引擎仓天然零故事 ⇒
+          #   `browser.mjs` 走零故事分支 ⇒ ★配合 `CI_REQUIRE_BROWSER=1` ⇒ **报"接线失效"退 1** ✓
+          #   （★这**正是本票要治的那件事的另一半**：此前它靠零故事分支**空转绿** ✗ ⇒ 本票一修就现形 ✓）
+          #   ⇒ 供既有夹具（`test/fixtures/m3-nav-fixture` —— 仓内两段既有范式同用它 ✓）＋ **清三层后重编**
+          rm -f test/fixtures/m3-nav-fixture/stories/nav-basic/15-tables.twee \
+                test/fixtures/m3-nav-fixture/stories/nav-basic/17-rules.twee \
+                test/fixtures/m3-nav-fixture/stories/nav-basic/00-meta.twee
+          SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node build.mjs
+          SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node test/browser.mjs
 
   deploy:
     # main 分支推送且测试通过后，自动发布到 GitHub Pages

@@ -13,12 +13,17 @@
 //（`kind`／`name`／`path`／`value`）→ **24 个故事特有** → "方言"是**包络**，不是"同形要求"（本件会打印这三个数）。
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
+import { storySlugs, absPath } from '../scripts/dist-paths.mjs';   // `#1267`: story-root / zero-story authority
 import { dialectOf } from '../editor/lib/core/dialect.mjs';
 import { readStoryPackage, manifestFor } from '../editor/lib/core/story.mjs';
 import { CURRENT, DECLARED, EXTENSIONS, checkDialect, judgeExtensions, judgeContractVersion, unusedDeclared, formatContractVersion } from '../editor/lib/core/contractVersion.mjs';
 
 const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
-const io = { readText: (p) => readFileSync(`${ROOT}/${p}`, 'utf8'), exists: (p) => existsSync(`${ROOT}/${p}`) };
+// `#1353` batch3: the old form joined ROOT by hand (`${ROOT}/${p}`) -- that resolves only the
+//   in-repo story root. In external-root mode (story root elsewhere, e.g. fixture roots) the
+//   manifest paths (`stories/<slug>/...`) must go through the authority `absPath()` (`#1267`),
+//   which rewrites the `stories/` prefix to the real root. Without it: ENOENT on any fixture root.
+const io = { readText: (p) => readFileSync(absPath(p), 'utf8'), exists: (p) => existsSync(absPath(p)) };
 
 let rc = 0;
 try {
@@ -83,10 +88,16 @@ try {
 	t('`manifestFor()` 产出的清单**自带 `audience`**（`#1035`）', manifestFor({ slug: 'x', twee: { '00-meta.twee': '' }, ifid: 'a1b2c3d4-5e6f-4a7b-8c9d-0e1f2a3b4c5d' }).audience === 'content');
 
 	// ── 真数据：**发现式**（不写死名单）──────────────────────────────────
-	const slugs = readdirSync(`${ROOT}/stories`, { withFileTypes: true })
-		.filter((d) => d.isDirectory()).map((d) => d.name)
-		.filter((n) => existsSync(`${ROOT}/stories/${n}/00-story.json`)).sort();
-	t(`发现式取故事 ✓：${slugs.join('、')}（${slugs.length} 个 ⇒ 新故事自动进本门 ✓）`, slugs.length >= 2);   // `#1004` B2：旧故事已删 → 基数下界从 3 跟到 **2**（本格证的是"发现式"，不是基数）
+	// `#1353` batch3: used to readdirSync `<root>/stories` by hand -- in zero-story mode /
+	//   external-root mode that dir does not exist => ENOENT crash. storySlugs() is the single
+	//   authority (existsSync-guarded); empty list => name the unjudged part, do not crash.
+	const slugs = storySlugs();
+	if (!slugs.length) {
+		console.log('  ○ 未判：生效根下没有故事（零故事态／外根模式）⇒ 「发现式取故事」与「并集／共有」两格未判；纯函数格已跑。');
+	}
+	if (slugs.length) t(`发现式取故事 ✓：${slugs.join('、')}（${slugs.length} 个 ⇒ 新故事自动进本门 ✓）`, slugs.length >= 1);
+	// ★原判据要求 `>= 2`（那是“两故事并集／共有”两格的前提）⇒ 只有 1 个故事时那是**真实未判**，
+	//   ✗ 不该按红处理（本件机制面不依赖故事个数）。
 
 	const dialects = [];
 	for (const slug of slugs) {
@@ -116,10 +127,21 @@ try {
 	// → 它的 `contract.json::members` 让并集 5 → **17**、共有 5 → **4**（`docs` 不再是共有 ——
 	// 夹具声明的是**接入面的满配**，不是"照着旧故事的成员表抄"）→ 数字按**实测**重钉。
 	// `#1186`：新增契约成员 `pcShape`（形状面）后，共有字段由 4 变 **5**（`docs` 也成了三故事共有）→ 按实测重钉。
-	t('**现有字段逐字可核** ✓（`docs`／`kind`／`name`／`path`／`value` —— 量化依据落在读数里 ✓ 不只写在票面 ✓）',
-		// `#1216` B 半：三故事的**带 `value` 的 const 族成员**（`poisonReduce`／`dragonMaxHp` 等）已去声明
-		// → `value` 不再是三故事共有；共有字段由 5 变 **4** → 按**实测**重钉（本件既有先例）。
-		JSON.stringify(common) === JSON.stringify(['docs', 'kind', 'name', 'path']));
+	// `#1353` batch3: the old form hard-coded the deleted stories' common set
+	//   (`['docs','kind','name','path']`) => permanent red for any other sample, and with zero
+	//   stories a red for "nothing to compare". Replaced by the **envelope**'s own list
+	//   (`DECLARED['contract.json'].items.members`, the single authority) -- so this is exactly
+	//   "union of observed member fields <= declared envelope", sample-independent.
+	const ALLOWED_MEMBER_FIELDS = DECLARED['contract.json'].items.members;
+	const stray = [...union].filter((f) => !ALLOWED_MEMBER_FIELDS.includes(f));
+	if (slugs.length) {
+		t(`**现有字段逐字可核** ✓（并集 ${all.length} 个字段全落在包络声明的 ${ALLOWED_MEMBER_FIELDS.length} 个内）`,
+			stray.length === 0);
+		if (stray.length) console.error(`     ✗ 包络外字段：${stray.join('、')}`);
+	} else {
+		console.log('  ○ 未判：「现有字段逐字可核」需至少一个在场故事 ⇒ 今天未判（✗ 不当红）。');
+	}
+
 
 	// ── 反向：**只报不判**（归 G-2）────────────────────────────────────
 	const unused = unusedDeclared(dialects);

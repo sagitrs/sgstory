@@ -1,5 +1,14 @@
 :: RuleSelector [script]
 // `#1187`：条件表选择器从 `21-resolve.twee` 拆出（`#1184` 流二）；本块逐行照搬，依赖 `Game.Economy`。
+// ★ `#1488`（裁定甲②）：**结算算子的唯一权威表** —— ★**模块级 `const`** ⇒ ★`SETTLE_OPS` 由它**派生**
+//   ★为什么必须派生（✗ 不靠断言）：★"**同源**"若靠两处字面量 + 一条断言 ⇒ ★那只是"**漂移会被发现**" ✗；
+//     ★而**派生 ⇒ 漂移在构造上不可能**（★只有一处字面量 ✓）—— ★"等价格"与"不可能"是**两件事** ✓
+const SETTLE_OPS_TABLE = {
+	sub: (c, v) => c - v,
+	add: (c, v) => c + v,
+	pctOfMax: (c, v, m) => c + Math.floor((m * v) / 100),
+};
+
 window.Sg.rules = {
 	// 表**只经故事注册的入口**取（`#1223` 后：表本身随笔记概念退役，剩余入口＝条件域声明）（与 `Sg.notes.table()` 同一纪律）
 	table() {
@@ -277,15 +286,11 @@ window.Sg.rules = {
 		const mx = Number.isFinite(max) ? max : 0;
 		const fl = Number.isFinite(floor) ? floor : 0;
 		// ★**枚举表**（✗ 不写 else 分支 —— 未列出的算子 ⇒ 点名 ✓ 照 `#1461` 的"表驱动"口径 ✓）
-		const OPS = {
-			sub: (c, v) => c - v,
-			add: (c, v) => c + v,
-			pctOfMax: (c, v, m) => c + Math.floor((m * v) / 100),
-		};
-		const f = OPS[String(op)];
+		// ★ `#1488`：★**用模块级那张表**（✗ 不在函数里再写一份 —— 那就是第二处字面量 ⇒ 漂移面 ✓）
+		const f = SETTLE_OPS_TABLE[String(op)];
 		if (!f) {
 			throw new Error(`Sg.rules.settleValue：算子「${op}」**未宣告**（可用：`
-				+ `${Object.keys(OPS).map((x) => `\`${x}\``).join('／')}）—— ✗ 表达式解析器不做（裁定 D2 ✓）`);
+				+ `${Object.keys(SETTLE_OPS_TABLE).map((x) => `\`${x}\``).join('／')}）—— ✗ 表达式解析器不做（裁定 D2 ✓）`);
 		}
 		// ★**带下限**：★不论哪个算子 ⇒ 结算后都夹到 `floor`（✗ 不许出现低于下限的值 ✓）
 		return Math.max(fl, f(base, n, mx));
@@ -305,6 +310,6 @@ window.Sg.rules = {
 		}
 		return granted;
 	},
-	// ★ `#1488`：**算子枚举（声明面）** —— ★与 `settleValue` 的 `OPS` 表**同源**（✗ 两处各写一份 ⇒ 必然漂移 ✓）
-	SETTLE_OPS: ['sub', 'add', 'pctOfMax'],
+	// ★ `#1488`（裁定甲②）：★**声明面＝从那张表派生**（✗ 不写第二份字面量 ✓ ⇒ ★漂移**在构造上不可能** ✓）
+	SETTLE_OPS: Object.keys(SETTLE_OPS_TABLE),
 };

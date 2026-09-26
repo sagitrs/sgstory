@@ -369,7 +369,8 @@ export const SEGMENTS = [
 	// ★ `#1487`（④ 收尾）：`migrate()` 兜底 与 车卡 `finalize` 都按名/按数据取值（★含 `emitChargen` 全量透传的照亮）
 	{ id: "test-vitals-migrate-chargen-mjs", phase: 'test', cost: 4, exclusive: true, mutates: ['build'], cmd: "node test/vitals-migrate-chargen.mjs" },
 	// ★ `#1488`（五步⑤）：结算原语（枚举三件）＋ 阈值只 0 ＋ 零界＝实体授予
-	{ id: "test-settle-primitives-mjs", phase: 'test', cost: 0.5, cmd: "node test/settle-primitives.mjs" },
+	// ★ `#1488`（五步⑤）：结算原语**真跑**（`boot()` ⇒ 需要夹具根 ⇒ 内联 `SG_STORIES_DIR` ✓）
+	{ id: "test-settle-primitives-mjs", phase: 'test', cost: 2, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node test/settle-primitives.mjs" },
 	{ id: "test-sources-wired-e2e-mjs", phase: 'test', cost: 3, exclusive: true, mutates: ['build'], cmd: "node test/sources-wired-e2e.mjs" },
 	// `#1275`：**来源面**端到端格（经夹具 runner；零故事态可跑）＋ `-selftest` 能假两格
 	{ id: "test-chk-source-mjs", phase: 'test', cost: 1.5, exclusive: true, mutates: ['build'], cmd: "node test/chk-source.mjs" },

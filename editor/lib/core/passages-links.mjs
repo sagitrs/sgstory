@@ -81,9 +81,7 @@ export const linksToRows = ({ data = {} } = {}) => {
 			//   ⇒ ✗ 不在引擎里再造一份）；**不带 `args` 的行一字不动**（⇒ 片 5 的"渲染文本同／
 			//   外属性集合同"两条验收仍成立 ✓）。
 			const hasArgs = l.args && typeof l.args === 'object' && Object.keys(l.args).length > 0;
-			const row = hasArgs
-				? { scope, text: linkHtml({ label, to, args: l.args }) }
-				: { scope, text: `[[${label}|${to}]]` };
+			const row = { scope, text: `[[${label}|${to}]]` };   // 默认行文；带 `args`／带效果时下面改写成 HTML
 			if (l.id) row.id = String(l.id);
 			if (Number.isFinite(l.prio)) row.prio = l.prio;
 			if (Array.isArray(l.prereq) && l.prereq.length) row.prereq = [...l.prereq];
@@ -91,16 +89,15 @@ export const linksToRows = ({ data = {} } = {}) => {
 			if (l.cond && typeof l.cond === 'object') for (const [k, v] of Object.entries(l.cond)) row[k] = v;
 			// 传值面（片 4 消费；本片只透传）
 			if (l.args && typeof l.args === 'object') row.args = { ...l.args };
-			// ★ `#1406` ①（**行效果映射**）：`gives`／`sets`／`yields` 与**规则行同语义** ⇒ **逐字搬**进行，
-			//   求值仍走**同一个施加器**（`Sg.rules.applyGrants/applySets/applyYields` ⇒ ✗ 不新造第二套 ✓）。
-			//   为什么（实测病灶）：链接搬进 `links[]` 后**没地方放行效果** ⇒ `gives` 被**静默丢弃**、
-			//   读者拿不到钥匙、门永远打不开，而**没有任何判据会红** ✗ ——"静默丢维"的具体实例 ✓
-			for (const k of ['gives', 'sets', 'yields']) {
-				const v = l[k];
-				if (v == null) continue;
-				if (Array.isArray(v)) { if (v.length) row[k] = [...v]; }
-				else if (typeof v === 'object') row[k] = { ...v };
-				else row[k] = v;                     // 字符串等标量形态照搬（求值侧 `items()` 本就认 ✓）
+			// ★ `#1408`（承 `#1406` ①）：`gives`／`sets`／`yields` ＝ **点击那一刻**施加（与 `args`／跳转同刻 ✓）——
+			//   ⇒ 由 `linkHtml` 编进 `<a data-sg-effects="…">`（点击处理器施加 ✓），**✗ 不进规则行**：
+			//   规则行语义＝"该作用域**渲染时**即施加" ⇒ 那会让读者**什么都没点就拿到钥匙** ✗（实测两态）。
+			//   ★带 `args` 或带效果的行：**编成 HTML**（`linkHtml` 唯一权威 ✓）；两者都无 ⇒ 行文一字不动（`[[label|to]]`）
+			const effKeys = ['gives', 'sets', 'yields'].filter((k) => l[k] != null);
+			const effects = {};
+			for (const k of effKeys) effects[k] = l[k];
+			if (hasArgs || effKeys.length) {
+				row.text = linkHtml({ label, to, args: hasArgs ? l.args : null, effects: effKeys.length ? effects : null });
 			}
 			out.push(row);
 		});

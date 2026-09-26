@@ -271,6 +271,20 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 			const raw = control.getAttribute('data-sg-args');
 			const args = raw ? JSON.parse(raw) : null;
 			window.Sg.inargs?.carry(dest, args);
+			// ★ `#1408`：**行效果在点击那一刻施加**（与上面的 `carry` **同刻** ✓）——
+			//   作者面语义是「点它会怎样」（✗ 不是"进这一段就怎样"）。实测病灶：把效果编成**规则行** ⇒
+			//   规则行语义＝"该作用域**渲染时**即施加" ⇒ 读者**什么都没点就拿到钥匙** ✗（两态实测）
+			//   ⇒ 效果随链接走（编译期编进 `<a data-sg-effects>`，唯一权威＝`linkHtml` ✓），此处施加 ✓
+			//   ★施加器仍是**同一个**（`Sg.rules.applyYields/applyGrants/applySets` ⇒ ✗ 不造第二套 → 幂等/写点单一照旧 ✓）
+			const rawEff = control.getAttribute('data-sg-effects');
+			if (rawEff) {
+				const eff = JSON.parse(rawEff);
+				if (eff && typeof eff === 'object') {
+					window.Sg.rules.applyYields(eff);
+					window.Sg.rules.applyGrants(eff);
+					window.Sg.rules.applySets(eff);
+				}
+			}
 		} catch { /* 属性坏了不该挡跳转 ⇒ 交给 <<printparam>> 一侧点名 */ }
 		const content = control.closest('.passage');
 		if (!content) return;

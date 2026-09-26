@@ -111,8 +111,6 @@ ok(Object.keys(storyDefaults).every((k) => !keysOf(bare).includes(k)), '③ 缺�
 	ok(String(shapeOk) === 'OK', '★③ `pcShape` 给自定义键 ⇒ **生效**（✗ 不被吞 —— 与 `pcDefaults` 的分工不同）', String(shapeOk).slice(0, 80));
 }
 
-<<<<<<< HEAD
-=======
 // ── ★ `#1484`（五步①·**收束本身的独立格**）：`pcDefaults` 给**引擎已知键** ⇒ fail-loud ─────
 // ★为什么必须**独立成格**（写作者提的缺口）：★本票的**核心判据**就是"引擎不再吸收车卡族键"，
 //   而它原先是**只被夹具的现态间接护着**（夹具不再写 ⇒ 撞不到）⇒ ★那样"改回去也不红" ✗
@@ -135,7 +133,6 @@ ok(Object.keys(storyDefaults).every((k) => !keysOf(bare).includes(k)), '③ 缺�
 }
 
 
->>>>>>> 8f900f2e (test(1490): 补「收束本身」的独立格（照写作者提的缺口 —— 判据 ↔ 实现格的差）)
 // ④ 面返回非对象 → 报错
 const msgs = [];
 for (const bad of ['() => 42', '() => []', "() => 'x'"]) {

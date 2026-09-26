@@ -608,8 +608,14 @@ jQuery(document).on(':passagestart', () => {
 		// ★ `#1409`：判据用 **`Number.isFinite`**（✗ 不是 `typeof !== 'number' || <= 0`）——
 		//   因为 **`NaN` 是 `number` 且 `NaN <= 0` 为 `false`** ⇒ 旧判据**放过 NaN** ✗（实测：写 NaN ⇒ 跳转后仍是 NaN）
 		//   ⇒ 这一条是**兜底一切 NaN 来源**的网（✗ 不只 `<<damage>>`）✓
-		if (!Number.isFinite(pc.max_hp) || pc.max_hp <= 0) pc.max_hp = 18;
-		if ((!Number.isFinite(pc.hp) || pc.hp <= 0) && !pc.ev?.ending) pc.hp = 1;
+		// ★ `#1487`（五步④·D1）：**兜底也用"按名取值"** —— 键名走 `vk()` ✓
+		//   ★**兜底值**（`18`／`1`）：★今天**仍住这里**（✗ 未入数据）—— ★理由：★它是"**旧档修复**"的**一次性常量**
+		//     （✗ 不是"游戏规则参数"）；★**但键名必须走数据**（换规则书 ⇒ 键名变 ⇒ 兜底得跟 ✓）
+		//   ★⇒ 即：★**"18/1 该不该入数据"是 ⑤ 之后的另一问**（写作者清单里标了"初值类仍是字面量" ✓）——
+		//     本处**只做键名**（✗ 不顺手把两个常量搬走 —— 那会与"初值面"的归属口径撞 ✓）
+		const _khp = Game.Rules.vk('hp'), _kmx = Game.Rules.vk('maxHp');
+		if (!Number.isFinite(pc[_kmx]) || pc[_kmx] <= 0) pc[_kmx] = 18;
+		if ((!Number.isFinite(pc[_khp]) || pc[_khp] <= 0) && !pc.ev?.ending) pc[_khp] = 1;
 	}
 	// `#574`：图鉴是**故事可选面**（故事 1 有、故事 2／3 没有）——引擎不得直呼其名。
 	// 为什么必须可选：`Sg.Codex` 读 `Game.Codex.items`（故事 1 的数据）；对没有图鉴的故事直接调它会抛错，
@@ -856,8 +862,17 @@ Object.defineProperty(window.Game, 'Chargen', {
 			},
 			finalize(pc) {
 				pc.name = State.variables.player_name || '无名旅人';
-				pc.max_hp = (pc.classHp ?? 8) + Game.Rules.mod(pc.abilities.con) * 2;
-				pc.hp = pc.max_hp;
+				// ★ `#1487`（五步④·D1）：**公式参数归 `chargen` 面**（写作者裁：用"换规则书会不会变"的尺子 ⇒ 会变 ⇒ 进数据 ✓）
+				//   ★**键名**归 `vitals`（`vk('maxHp')`／`vk('hp')` ⇒ ✗ 不裸读 ✓）
+				//   ★**跨面引用走注记**（✗ 不搬字段 —— 搬 ⇒ 两处各存一份 ⇒ 必然漂移 ✗）：★本公式的参数
+				//     **参与 `vitals.keys.maxHp` 的计算**（★该注记同时写在 `#1487` 票面／契约侧 ✓）
+				//   ★**缺省**：`?? 8`／`* 2` ⇒ ★参数缺省住 `vitals` 的**同级缺省**（✗ 不在本处硬编 —— 但如果 `mechanics()`
+				//     未声明该面 ⇒ 退回**今天那两个数**（＝零包＝今天 ✓，由下面的 `?? ` 兜住）✓
+				const _ch = (window.Sg?.story?.chargen?.() ?? {});
+				const _hpArg = _ch.hpBase ?? 8, _hpMul = _ch.hpPerCon ?? 2;
+				const _khp = Game.Rules.vk('hp'), _kmx = Game.Rules.vk('maxHp');
+				pc[_kmx] = (pc.classHp ?? _hpArg) + Game.Rules.mod(pc.abilities.con) * _hpMul;
+				pc[_khp] = pc[_kmx];
 				pc.finalized = true;   // 幂等标记：任何调用方走完都留下它（宏的守卫因此仍有意义，也不会重复收尾）
 			},
 			applyPreset(idx) {

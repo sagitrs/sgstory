@@ -240,10 +240,23 @@ export const makeShared = (ctx) => {
 			return !!noteId && !!refsByPassage.get(name)?.has(noteId);
 		};
 		const written = new Set();
-		for (const src of stripped.values()) {
+		// ★ `#1435`（裁定＝乙）：**写点要按"所在段是不是引擎段"分开收** ——
+		//   为什么需要：引擎自己会写**瞬态/协议键**（实测：`40-combat.twee` 的 `pc.ev.fight = null`、
+		//   `12-shortfight.twee` 的 `$pc.ev.settle`）⇒ 门把它们当"作者的选择后果" ⇒ 报
+		//   「无任何桶（假选择嫌疑）」✗ —— ★那是**对象错**（引擎状态机 ✗ 不是作者选择）
+		//   （与 `#1353` 批 3 的「夹具不是故事」**同族**：判据对象不是它声称的那个 ✓）
+		//   ★严格收窄：**只排除"写点**全部**来自引擎段、且不在故事声明面"的键** ⇒
+		//     ★只要**作者在叙事段落也写过**同一个键 ⇒ 它就成了作者面的东西 ⇒ **照判** ✓
+		const wroteByEngine = new Set();
+		const wroteByNarrative = new Set();
+		const noteKeysOf = (src) => [...writeKeys(src), ...noteWriteFlags(src, noteEntries)];
+		for (const [name, src] of stripped.entries()) {
 			// 写点形态来自**单一权威** `WRITE_PATTERNS`（#476 复核建议：两处字面量曾漂移过一次）
 			// ＋ #434 的笔记写点（`Sg.notes.add('n_x')` → 该笔记 flagPath 的裸键也算被写）
-			for (const k of [...writeKeys(src), ...noteWriteFlags(src, noteEntries)]) written.add(k);
+			for (const k of noteKeysOf(src)) {
+				written.add(k);
+				(isEngine(name) ? wroteByEngine : wroteByNarrative).add(k);
+			}
 		}
 		// `#785`：**声明式写点**也要计入 —— 效果从函数搬进声明后，本集合会漏掉它们 → `--consequences` 的
 		// 写入旗标计数从 88 降到 82（**判据看不见**，不是真的少写；实测 6 个：tav_tips/tav_fog/flower_warned/
@@ -296,6 +309,14 @@ export const makeShared = (ctx) => {
 		const buckets = new Map();
 		const problems = [];
 		for (const flag of written) {
+			// ★ `#1435`（裁定＝乙）：**引擎内建瞬态/协议键**不进本门 —— 判据**对象**是"作者的选择后果"，
+			//   而这类键由引擎状态机写入、作者既不可见也不由作者选择 ⇒ ✗ 不是本门的对象 ✓
+			//   ★排除条件**严格收窄**（✗ 宽排除会把门弄空）：① 写点**全部**来自引擎段
+			//     ② **不在故事声明面**（`codexFlags`／`rowFlags`／`declCond` 三个面都没提它）
+			//     ★"两边都写 ⇒ 归叙事 ⇒ 不排除" 由 ① 保证（`wroteByNarrative` 一旦命中即不满足）✓
+			//   ★实证（本笔的自证格 A/B/C）：A 格（纯引擎段写）不再报；★B 格（叙事段写·无人读）**仍报** ✓
+			const declSurface = codexFlags.has(flag) || rowFlags.has(flag);
+			if (wroteByEngine.has(flag) && !wroteByNarrative.has(flag) && !declSurface) continue;
 			// 先算派生桶（echo 优先——回声表本身就是登记表），再校验声明是否与实况一致
 			const narrHit = rowFlags.has(flag) || [...stripped.entries()].some(([n, src]) => !isEngine(n) && !isEnding(n) && hasIf(n, src, flag));
 			const endHit = [...stripped.entries()].some(([n, src]) => isEnding(n) && hasIf(n, src, flag));

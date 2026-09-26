@@ -66,6 +66,25 @@ if (wantAll || arg('consequences')) {
 			['`<<elseif $pc.ev.X>>` 也算条件消费（#581）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['Q', '<<if $pc.ev.z>>甲<<elseif $pc.ev.a>>乙<</if>>']] })); return r.buckets.get('a') === 'mechanic' && r.problems.length === 0; })()],
 			// `#437` C-2c-3：读侧兼容层退场后图鉴谓词改走 `Sg.notes.has('n_x')`
 			['`Sg.notes.has("n_a")` 也算图鉴读 ⇒ codex 桶（#437 C-2c-3）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['P', '<<setflag "a">>'], ['Game Tables', "Sg.notes.has('n_a')"]], passageTags: [['Game Tables', ['script']]], notes: { n_a: { flagPath: 'ev.a' } } })); return r.buckets.get('a') === 'codex' && r.problems.length === 0; })()],
+			// ★ `#1435`（裁定＝乙）：**引擎内建瞬态/协议键**不是本门的判据对象（✗ 不是"作者的选择后果"）。
+			//   实测来源：`40-combat.twee` 的 `pc.ev.fight = null`、`12-shortfight.twee` 的 `$pc.ev.settle`。
+			//   ★排除**严格收窄**：写点**全部**来自引擎段 ＋ **不在声明面**（两边都写／表里提过 ⇒ 照判 ✓）
+			['🔴 引擎段写·无读·无声明 ⇒ **不进 finding**（引擎内建瞬态 ✗ 不是作者的选择后果）', (() => {
+				const r = classifyNarrativeState(mk({ passageSrc: [['E', 'pc.ev.fight = null;'], ['Game Tables', 'const t = 1;']], passageTags: [['E', ['script']], ['Game Tables', ['script']]] }));
+				return !r.buckets.has('fight') && !r.problems.some((x) => x.includes('fight'));
+			})()],
+			['★反例（防空判）：**叙事段**写·无人读 ⇒ **仍报**「无任何桶」（★排除规则**没有**把门弄空 ✓）', (() => {
+				const r = classifyNarrativeState(mk({ passageSrc: [['P', '<<setflag "b">>']], passageTags: [['P', []]] }));
+				return r.buckets.get('b') === 'none' && r.problems.some((x) => x.includes('「b」'));
+			})()],
+			['★边界①：引擎段 ＋ **叙事段都写** ⇒ **照报**（"作者碰过 ⇒ 就算作者的" ✓）', (() => {
+				const r = classifyNarrativeState(mk({ passageSrc: [['E', 'pc.ev.fight = null;'], ['P', '<<setflag "fight">>']], passageTags: [['E', ['script']], ['P', []]] }));
+				return r.buckets.get('fight') === 'none' && r.problems.some((x) => x.includes('「fight」'));
+			})()],
+			['★边界②：引擎段写·但**声明面提过**（表里写 `req` 含 `ev.fight`）⇒ **照判**（归 codex 桶 ✗ 不被排除 ✓）', (() => {
+				const r = classifyNarrativeState(mk({ passageSrc: [['E', 'pc.ev.fight = null;'], ['Game Tables', "{ id: 'x', req: ['ev.fight'] }"]], passageTags: [['E', ['script']], ['Game Tables', ['script']]] }));
+				return r.buckets.get('fight') === 'codex' && !r.problems.some((x) => x.includes('「fight」'));
+			})()],
 			['🔴 没有 `has("n_a")` 这类读 ⇒ **不进** codex 桶（防"有笔记条目就算读"的误判）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['P', '<<setflag "a">>'], ['Game Tables', 'const x = 1;']], notes: { n_a: { flagPath: 'ev.a' } } })); return r.buckets.get('a') !== 'codex'; })()],
 		];
 		for (const [label, ok] of cases) { if (!ok) selfBad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }

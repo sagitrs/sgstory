@@ -23,7 +23,9 @@ const ROOT = new URL('..', import.meta.url).pathname.replace(/\/$/, '');
 const EXPECTED_DEFAULT_MISSING = 0;   // 仅剩 starBudget（保持必给，见缺省表旁理由） // 见下方信息面：已声明但缺省规格里没有、且缺省承重
 // `#1267` 尾件②：期望表只对生效根下存在的样本生效（缺席 → 明说未判）。
 const HAVE = new Set(storySlugs());
-const EXPECTED_DATA_MEMBERS = { 'face-fixture': 24, 'night-ferry': 6, 'minimal-demo': 5 };   // `#1227` 片一：夹具加 flipPolicy 契约成员 // `#1216` B 半：夹具回 checkSite；dragonMaxHp／poisonReduce 有意缺席（随 #1227 类一删） // `#1186`（流一）引入契约面 `pcShape` 后 face-fixture +1（跨票联动：谁后合谁带上）
+// `#1353` batch3: the old form pinned three **deleted** stories' member counts
+//   ({'face-fixture':24,'night-ferry':6,'minimal-demo':5}); any other sample root degenerated to
+//   "○ unjudged". Replaced by a sample-independent invariant below (no story names, no counts).
 
 let bad = 0;
 const ok = (name, cond, detail = '') => {
@@ -133,18 +135,30 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 {
 	ok('能力开关仅一名', CAPABILITY_MEMBERS.size === 1 && CAPABILITY_MEMBERS.has('hasChargen'));
 	// ★ `#1419` 顺笔：**样本缺席 ⇒ 未判**（✗ 不判红 —— `night-ferry` 已随 `#1261` 删除 ⇒ 旧期望恒不成立 ✗）
-	if (HAVE.has('night-ferry')) ok('能力开关不混进数据成员计数（夜渡口径）', dataMemberCount(membersByStory['night-ferry'] ?? []) === EXPECTED_DATA_MEMBERS['night-ferry'], `实得 ${dataMemberCount(membersByStory['night-ferry'] ?? [])}`);
-	else console.log('  ○ 未判：夜渡口径的样本 `night-ferry` 不在生效根（该面随 `#1261` 删除）');
+	// `#1353` batch3: capability-switch members must never be counted as data members -- checked on
+	//   **every story present** (the old form only did it for the deleted `night-ferry`).
+	for (const slug of Object.keys(membersByStory)) {
+		const all = (membersByStory[slug] ?? []).length;
+		const data = dataMemberCount(membersByStory[slug] ?? []);
+		ok(`能力开关不混进数据成员计数（${slug}）`, data <= all && all - data <= CAPABILITY_MEMBERS.size);
+	}
+
 }
 
 // ── 反向核：三故事数据成员数 ＋ 引擎读点规模 ──
 {
 	// ★ `#1419` 顺笔：**只对在场样本判**（✗ 已删样本不得恒红）—— 与 `#1267` 尾件② 同规
-	const present = Object.entries(EXPECTED_DATA_MEMBERS).filter(([slug]) => HAVE.has(slug));
-	const absent = Object.keys(EXPECTED_DATA_MEMBERS).filter((slug) => !HAVE.has(slug));
-	if (absent.length) console.log(`  ○ 未判：${absent.join('、')} 不在生效根（面随 \`#1261\` 删除 ⇒ 旧期望不成立）`);
-	const wrong = present.filter(([slug, n]) => dataMemberCount(membersByStory[slug] ?? []) !== n);
-	ok('反向核·三故事数据成员数命中钉死值', wrong.length === 0, wrong.map(([s, n]) => `${s} 期望 ${n} 实得 ${dataMemberCount(membersByStory[s] ?? [])}`).join(' / '));
+	// `#1353` batch3: the old form pinned three **deleted** stories' member counts, so any other
+	//   sample root degenerated to "○ unjudged". The count itself was a **proxy** that died with that
+	//   sample set ⇒ the pin is retired. What remains worth guarding is the **predicate** (which is
+	//   sample-independent and can actually fail): `dataMemberCount` must exclude **capability switches**
+	//   and count everything else — proven on synthetic input (a tautological recount would be a fake green).
+	const SYNTH = [{ name: 'hasChargen' }, { name: 'checkSite' }, { name: 'mechanics' }];
+	ok('能假¹·能力开关不计入数据成员（合成）', dataMemberCount(SYNTH) === 2);
+	ok('能假²·数据成员逐个都计（合成）', dataMemberCount([{ name: 'a' }, { name: 'b' }]) === 2);
+	ok('能假³·空表 ⇒ 0（✗ 不崩）', dataMemberCount([]) === 0);
+	// 实仓只报读数（✗ 不判红）：在场故事的计数各是多少由它们自己声明决定。
+	console.log(`  · 在场故事的数据成员计数：${Object.entries(membersByStory).map(([k, v]) => k + '=' + dataMemberCount(v)).join(' / ') || '（无）'}`);
 	// 能力组成员由**组助手**动态读取（形态扫描看不见） 与死声明同一口径，计入规模数。
 	const groupMembers = new Set(Object.values(capabilityGroups ?? {}).flat());
 	const readNamesAll = [...new Set([...readNames, ...[...groupMembers].filter((n) => Object.values(membersByStory).some((l) => (l ?? []).some((m) => m.name === n)))])];
@@ -206,25 +220,17 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 			tables: { containers: { Items: { defs: { 坏哨: { advSite: '山道', flatDamageReduce: 1 } } } } } });
 		ok('能假·物品面含效果字段而缺 itemEffect ⇒ 点名', q5.some((x) => x.name === 'itemEffect'));
 	}
-	// ── 满配夹具的『该有的面』钉死（能力组在单成员组上会失效 夹具侧按集合判）──
-	{
-		// 能假①：夹具**整组全缺**（拿掉 checkSite 那一个成员） 必须点名（这条正是本片缺陷的复发路径）。
-		const missOne = fixtureFaceProblems({ slug: 'face-fixture', members: FIXTURE_FACE_EXPECTED.filter((n) => n !== 'checkSite').map((n) => ({ name: n })) });
-		ok('能假·夹具缺 checkSite（整组全缺）⇒ 点名', missOne.some((x) => x.code === 'fixture-face-missing' && x.name === 'checkSite'));
-		// 能假②：**普通故事**整组缺 本条**不报**（允许判『能力关』）。
-		const normal = fixtureFaceProblems({ slug: 'minimal-demo', members: [] });
-		ok('能假·普通故事整组缺 ⇒ 本条不报（判能力关）', normal.length === 0);
-		// 实仓：夹具应报 0（现已回位 checkSite 且三名合法缺席在例外表）。
-				// ★ `#1419` 顺笔：满配夹具**已随 `#1261` 删除** ⇒ 实仓那格改为**在场才判**（✗ 不恒红）
-		if (HAVE.has('face-fixture')) {
-			const fx = membersByStory['face-fixture'] ?? [];
-			const fxMiss = fixtureFaceProblems({ slug: 'face-fixture', members: fx });
-			ok('实仓·夹具缺面 0（整面缺席也在此咬住）', fxMiss.length === 0, fxMiss.map((x) => x.name).join('、'));
-			for (const x of fxMiss) console.log(`      ${x.name}（${x.why}）`);
-		} else {
-			console.log('  ○ 未判：满配夹具 `face-fixture` 不在生效根（随 `#1261` 删除）');
-		}
-	}
+	// ── 满配夹具的『该有的面』：已退役（判据随对象退役）──
+	// ★ `#1353` batch3（裁：空转自证下架）：本组原为三格 ——
+	//   ① 能假¹（合成：拿掉 `checkSite` 必点名）② 能假²（合成：普通故事不报）
+	//   ③ **实仓**：满配夹具应报 0。
+	// ★空转的是 ③：它的前提是生效根下**存在 `face-fixture` 这个故事** ——
+	//   而该故事已随 `#1261` 删除 ⇒ `HAVE.has('face-fixture')` **恒假** ⇒ 那格从此只走 `○ 未判`，
+	//   而 `fixtureFaceProblems()` 自身也**从此不会在真数据上出声**（`slug !== 'face-fixture' ⇒ 返空）。
+	//   ⇒ 按“判据与它的对象同生同死”退役本组（✗ 留一个永远不会出声的看护）。
+	//   ★恢复条件：`#1419`（数据面非空 ⇒ 对应契约成员必在）的**泛化判据**落地后，
+	//   按新形（对**在场故事**判，✗ 不钉某个 slug）补回对应格 ✓。
+	console.log('  ○ 已退役：「满配夹具的该有的面」——对象（满配对照故事 `face-fixture`）已随 `#1261` 删除；泛化判据见 `#1419`。');
 		ok('例外表与钉死集合互斥（例外名不得在钉死集合内）', fixtureFaceExceptionConflicts().length === 0, fixtureFaceExceptionConflicts().join('、'));
 		ok('例外表每行都写了移除触发（自清理）', Object.values(FIXTURE_FACE_EXCEPTIONS).every((x) => typeof x.removal === 'string' && x.removal.length > 0));
 	// ── 引擎侧「故事键名字面」判据（`#1227` 类一/类二）──

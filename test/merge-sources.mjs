@@ -57,6 +57,9 @@ const t = (l, ok, d = '') => { if (ok) console.log(`  ✓ ${l}`); else { bad++; 
 	t('★**指认后**：覆盖规则级键 ⇒ **被判出**（`a` 来自 `shared/rules.json` 却被盖）', ov.length === 1 && ov[0].path === 'a', JSON.stringify(ov));
 	// ★★ 阻断②（T 复现到根）：**指认拼错 ⇒ 点名红**（✗ 不许静默当"未指认" ✓）
 	//   ★与"**未指认**"（合法：零破坏）**必须分开** ⇒ 下面两格正是那条界线 ✓
+	t('★**拼错报文的可选项只列 `sources`**（✗ 不含 `<story:…>` —— 报文与"作者能写的东西"同界 ✓）',
+		(() => { const m = (() => { try { ruleLevelOverrides(srcs, traces, 'x'); return ''; } catch (e) { return e.message; } })();
+			return !/<story:/.test(m) && /shared\/rules\.json/.test(m); })(), '报文含 <story:> 或没列可选项');
 	t('★★**指认拼错（不在 `sources` 里）⇒ 抛出点名**（✗ 静默失去保护 ✓）',
 		(() => { try { ruleLevelOverrides(srcs, traces, 'shared/nope.json'); return ''; } catch (e) { return e.message; } })().includes('不在'),
 		'未抛出');

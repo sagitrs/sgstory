@@ -151,22 +151,45 @@ export const KINDS = {
 		return `(${k}) => ${value}${field} ?? ${fallbackExpr(m.fallback, k)}`;
 	},
 	'template': (m) => {
-		//「按条件拼句」→ 声明式（`parts[].when/text` ＋ `join`/`prefix`/`suffix`/`map`）；**不写任意 JS**。
+		//「按条件拼句」→ 声明式（`parts[].cond/text` ＋ `join`/`prefix`/`suffix`/`map`）；**不写任意 JS**。
 		// 覆盖的真实形状：洞窟 `lootText`（`#736`：战利品句按实际掉落生成）。
+		// `cond` ⇒ 与链接／规则行**同一个词形**（`#1234` §六B 收敛：`when` 一词退场）。
+		// ★**求值面不同（`#1234` §六B 甲案，明写）**：这里判的是**入参**（`template.param` 那个对象），
+		//   而规则行／链接的 `cond` 判的是**存档**（`Sg.rules.matches(row, pc)`）⇒ ✗ 两处不可混用。
+		//   为什么不能都一样：`matches` 只吃 `pc`，把入参条件塞进去＝读错对象（静默判错 ✗）⇒ 两处各自权威。
 		const r = assertChain(m.param ?? 'r', 'template.param');
 		const base = m.baseParam ? assertChain(m.baseParam, 'template.baseParam') : null;
-		const when = (w) => {
-			if (w && typeof w === 'object' && Array.isArray(w.gt)) { const [f, n] = w.gt; assertChain(f, 'template.parts[].when.gt'); return `${r}?.${f} > ${literal(n)}`; }
-			if (w && typeof w === 'object' && typeof w.truthy === 'string') { assertChain(w.truthy, 'template.parts[].when.truthy'); return `${r}?.${w.truthy}`; }
-			throw new Error(`template.parts[].when 只接受 {gt:[字段,数]} 或 {truthy:字段}（实得 ${JSON.stringify(w)}）`);
+		// 条件项 → JS 表达式（**对象式**：`{ gte: ['gold', 0] }` ＝ `cond` 词汇表 + `{ 字段 }` 简写）。
+		// 词表与 `Sg.rules.ops` **同一张**（`#1234` §六B）：新增算子只需在 `ops` 里加一处，两边同时认。
+		const OPS_CMP = { gte: '>=', gt: '>', lte: '<=', lt: '<' };
+		const condExpr = (pt, i) => {
+			// `when` 一词退场（`#1234` §六B）：**旧名 fail-loud**（✗ 不许静默当没写 ⇒ 那段永远不出现 ✗）
+			if (pt.when !== undefined) throw new Error(`template.parts[${i}].cond：字段名已由 \`when\` 收敛为 \`cond\`（\`#1234\` §六B）—— 旧名不再接受（实得 ${JSON.stringify(pt.when)}）`);
+			const c = pt.cond;
+			const where = `template.parts[${i}].cond`;
+			if (!c || typeof c !== 'object' || Array.isArray(c)) throw new Error(`${where} 必须是条件项对象（实得 ${JSON.stringify(c)}）`);
+			const names = Object.keys(c);
+			if (names.length !== 1) throw new Error(`${where} 必须**恰有一个**算子（拿到 ${names.length} 个：${names.join('／')}）—— 见 \`#1234\` §六B`);
+			const op = names[0];
+			// 一切键都按**算子**处理 ⇒ 不在词表里 ⇒ fail-loud（✗ 不许猜成字段名 ⇒ 静默永假）
+			if (OPS_CMP[op]) {
+				const args = c[op];
+				if (!Array.isArray(args) || args.length !== 2) throw new Error(`${where}.${op} 的参数必须是 [字段, 数]（实得 ${JSON.stringify(args)}）`);
+				const [f, n] = args;
+				assertChain(f, `${where}.${op}[0]`);
+				if (typeof n !== 'number') throw new Error(`${where}.${op}[1] 必须是数字（实得 ${JSON.stringify(n)}）`);
+				return `${r}?.${f} ${OPS_CMP[op]} ${literal(n)}`;
+			}
+			if (op === 'truthy') { const f = c.truthy; assertChain(f, `${where}.truthy`); return `${r}?.${f}`; }
+			throw new Error(`${where} 的算子「${op}」未被引擎宣告（\`Sg.rules.ops\` = gte/gt/lte/lt/oneOf ＋ \`truthy\`）——未宣告的算子会让条件**永假**（实得 ${JSON.stringify(c)}）`);
 		};
 		const hole = (f, pt) => {
 			assertChain(f, 'template.parts[].text 里的字段');
 			return pt.map ? `(${literal(pt.map)})[${r}.${f}] ?? ${r}.${f}` : `${r}.${f}`;   // `map` 映射的是**值**（如 `钥匙 → 锈钥匙`）
 		};
-		const body = (m.parts ?? []).map((pt) => {
+		const body = (m.parts ?? []).map((pt, i) => {
 			const text = escTemplate(String(pt.text ?? '')).replace(/\{(\w+)\}/g, (_, f) => '${' + hole(f, pt) + '}');
-			return `\t\tif (${when(pt.when)}) bits.push(\`${text}\`);`;
+			return `\t\tif (${condExpr(pt, i)}) bits.push(\`${text}\`);`;
 		}).join('\n');
 		const baseExpr = base ? '${' + base + " ?? ''}" : '';
 		const joinExpr = '${bits.join(' + jsString(m.join ?? '') + ')}';

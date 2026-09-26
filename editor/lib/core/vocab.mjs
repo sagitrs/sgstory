@@ -17,7 +17,7 @@ export const VOCAB = Object.freeze({
 	/** **引擎兑现的授予面**（`yields`／`gives`／`sets`）—— 被引擎忽略的声明＝**静默空转**。 */
 	effects: Object.freeze(['yields', 'gives', 'sets']),
 	/** **条件项的"对象算子"**（`{ gte: […]}` 一族）—— 引擎不认的算子会让条件**永假**。 */
-	ops: Object.freeze(['gte', 'lte', 'oneOf']),
+	ops: Object.freeze(['gte', 'gt', 'lte', 'lt', 'oneOf']),
 	/** **取值项**（当前只 `price`）—— 未宣告的取值项 → fail-loud。 */
 	terms: Object.freeze(['price']),
 });

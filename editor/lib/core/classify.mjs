@@ -136,7 +136,7 @@ export const makeClassify = ({ evalLiteral } = {}) => {
 		const localRef = /^\(\) => ([A-Za-z_$][\w$]*)$/.exec(s);
 		if (localRef) return B('const', { ref: localRef[1] }, `引用局部常量 \`${localRef[1]}\` ⇒ 迁迁移时把它的**字面量**搬进 data（值仍是数据，不是逻辑）`);
 		// 模板拼句：`const bits = []; … bits.push(…)` → 可声明为 `template` kind
-		if (/const (\w+) = \[\];[\s\S]*\1\.push\(/.test(s)) return B('template', { raw: s }, '按条件拼句 ⇒ 可用 **`template` kind** 表达（parts.when/text ＋ join/suffix）');
+		if (/const (\w+) = \[\];[\s\S]*\1\.push\(/.test(s)) return B('template', { raw: s }, '按条件拼句 ⇒ 可用 **`template` kind** 表达（parts.cond/text ＋ join/suffix）');
 		// 派生字段：`const a = <链>(key); … typeof a.<字段>!== 'string' …` → `lookup-field` ＋ `via`/`required`
 		const derived = /^\((\w+)\) => \{ const (\w+) = ([\w$.()]+)\(\1\); if \(typeof \2\.(\w+) !== 'string' \|\| !\2\.\4\) throw new Error\(.*\); return \2\.\4; \}$/.exec(s);
 		if (derived) {

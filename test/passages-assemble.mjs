@@ -171,6 +171,28 @@ const selftest = () => {
 			(() => { const r = assemblePassages({ passages: [P('门厅', [])], known: new Set(), data: { 门厅: {} } });
 				return !/<<ending/.test(r.twee); })());
 	}
+	// ★ `#1505`（本票）：段级字段 **`check`** —— 「本段入口跑一次位点检定」（原散文 `<<sitecheck "站点">><<snapshot>>`）。
+	//   ★判据的靶 ＝ **告成的核心是"编译期注入"**（照上面 `结局⑥/⑦` 的形 ✓）：
+	//   ① 声明了 ⇒ 产物里**恰有一对** `<<sitecheck "站点">><<snapshot>>`（且**在段首**）；
+	//   ② ★**配对不拆**（`snapshot` 与 `sitecheck` 永远同生 —— 少一个 ⇒ 骰面丢了 ⇒ `<<lastcheck>>` 恒不显 ✗）；
+	//   ③ 未声明 ⇒ **不得**出现（零破坏 ✓）；④ ★**站点名含引号 ⇒ 转义**（✗ 不许把段炸开 ✓）。
+	{
+		const P = (name, body, tags = []) => ({ name, tags, body });
+		const seg = (body, check) => assemblePassages({ passages: [P('里屋', body)], known: new Set(), data: { 里屋: check == null ? {} : { check } } }).twee;
+		t('段级 check① 声明了 ⇒ 产物**恰有一对** `<<sitecheck "…">><<snapshot>>`，且在**段首**',
+			(() => { const t2 = seg('正文。', '里屋·察觉');
+				return (t2.match(/<<sitecheck "里屋·察觉">><<snapshot>>/g) ?? []).length === 1
+					&& t2.split('\n').find((l) => l.includes('sitecheck')).indexOf('<<sitecheck') === 0; })());
+		t('段级 check② ★**配对不拆**：产物里 `sitecheck` 与 `snapshot` 的出现次数**相等**（✗ 少一个 ⇒ 骰面丢）',
+			(() => { const t2 = seg('正文。', '里屋·察觉');
+				const a2 = (t2.match(/<<sitecheck\b/g) ?? []).length, b2 = (t2.match(/<<snapshot>>/g) ?? []).length;
+				return a2 === 1 && b2 === 1; })());
+		t('段级 check③ 负向：**未声明** `check` ⇒ 产物里**不得**出现（零破坏 ✓）',
+			(() => !/<<sitecheck|<<snapshot/.test(seg('正文。', null)) && !/<<sitecheck|<<snapshot/.test(seg('正文。', undefined)))());
+		t('段级 check④ 站点名**含双引号** ⇒ 转义（✗ 不许把宏/段炸开 ✓）',
+			(() => { const t2 = seg('正文。', '站点"引号');
+				return t2.includes('\\"') && !/<<sitecheck "站点"引号"/.test(t2); })());
+	}
 	// ★ 双渲染宏（`#1412`）：**面内段**同时有散文手写渲染宏（`<<rules>>`／`<<rulelist>>`）与 `links[]`（非空 ⇒ 注入段尾块）
 	//   ⇒ **点名红**（修法：删手写宏 或 移内联 `slot`）—— 与 `#1399`「并存 ⇒ 红」同族（"看起来能跑、其实重复渲染"✗）
 	{
@@ -191,7 +213,7 @@ const selftest = () => {
 			doubleRenderProblems({ passages: [P('门厅', '正文。\n<<rulelist "门厅">>')], data: { 门厅: { links: [{ label: 'x', to: 'y', slot: '口' }] } } }).length === 0);
 	}
 	if (bad) { console.error(`\n✗ 拼装层自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 拼装层自证通过（正例+禁则红+具名放行+悬空点名+取值展开+逐字保留+front-matter+单一权威）');
+	console.log('\n✔ 拼装层自证通过（正例+禁则红+具名放行+悬空点名+取值展开+逐字保留+front-matter+单一权威+段级字段注入）');
 	process.exit(0);
 };
 

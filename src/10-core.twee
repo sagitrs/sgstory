@@ -639,7 +639,7 @@ window.Sg.capability = (group) => {
 	/% #487（S2）：**回合开始 → 异常结算** —— 在玩家行动之前先结算（已定 ⑤的顺序）。
 	   未启用新机制（`Sg.story.mechanics()` 为 null）→ `tickStatuses` 返回 null → 这一行完全无副作用。
 	   落 HP 仍走 present 的 `<<damage>>`（与其他伤害同一处，保住既有渲染/时序）。 %/
-	<<set _st to Game.Combat.tickStatuses($pc)>>
+	<<set _st to Game.StatusFx.tickStatuses($pc)>>
 	<<if _st and _st.hurt>><<damage _st.hurt>><</if>>
 	<<set _p to Game.Combat.resolvePlayer($pc, $args[0])>>
 	<<checkres `_p.check`>>
@@ -947,7 +947,7 @@ $pc.speciesLabel $pc.classLabel
 <<if _gh.length>>
 <div class="gear-hp">''装备''　<<for _i to 0; _i lt _gh.length; _i++>><<print _gh[_i].name>>　<<print _gh[_i].cur>>/<<print _gh[_i].max>><<if _gh[_i].broken>>（''已损坏''）<</if>><<if _i lt _gh.length - 1>>　｜　<</if>><</for>></div>
 <</if>>
-<<set _st to Game.Combat.statusEntries($pc)>>
+<<set _st to Game.StatusFx.statusEntries($pc)>>
 <<if _st.length>>
 <div class="status-list">''状态''　<<for _i to 0; _i lt _st.length; _i++>><<print _st[_i].part>>·<<print _st[_i].label>>（<<print _st[_i].turns>> 回合）<<if _i lt _st.length - 1>>　｜　<</if>><</for>></div>
 <</if>>

@@ -3,74 +3,220 @@
  "rounds": [
   {
    "title": "出身",
+   "intro": "你凭什么走到这里？",
    "options": [
     {
      "name": "北地",
+     "desc": "在雪线以北长大。",
+     "effect": "体 16｜生存",
      "patch": {
-      "classKey": "north",
-      "classLabel": "北地人"
+      "classKey": {
+       "set": "north"
+      },
+      "classLabel": {
+       "set": "北地人"
+      },
+      "classHp": {
+       "set": 10
+      },
+      "abilities": {
+       "set": {
+        "str": 14,
+        "dex": 12,
+        "con": 16,
+        "int": 10,
+        "wis": 12,
+        "cha": 10
+       }
+      },
+      "skills": {
+       "append": [
+        "生存"
+       ]
+      }
      }
     },
     {
-     "name": "南港",
+     "name": "沙民",
+     "desc": "从商路上来。",
+     "effect": "敏 14｜游说",
      "patch": {
-      "classKey": "south",
-      "classLabel": "南港人"
+      "classKey": {
+       "set": "sand"
+      },
+      "classLabel": {
+       "set": "沙民"
+      },
+      "classHp": {
+       "set": 8
+      },
+      "abilities": {
+       "set": {
+        "str": 12,
+        "dex": 14,
+        "con": 12,
+        "int": 12,
+        "wis": 10,
+        "cha": 12
+       }
+      },
+      "skills": {
+       "append": [
+        "游说"
+       ]
+      }
+     }
+    },
+    {
+     "name": "书吏",
+     "desc": "抄了半辈子卷宗。",
+     "effect": "智 15｜调查",
+     "patch": {
+      "classKey": {
+       "set": "clerk"
+      },
+      "classLabel": {
+       "set": "书吏"
+      },
+      "classHp": {
+       "set": 6
+      },
+      "abilities": {
+       "set": {
+        "str": 10,
+        "dex": 10,
+        "con": 12,
+        "int": 15,
+        "wis": 13,
+        "cha": 11
+       }
+      },
+      "skills": {
+       "append": [
+        "调查"
+       ]
+      }
      }
     }
    ]
   },
   {
    "title": "路数",
+   "intro": "你靠什么吃饭？",
    "options": [
     {
-     "name": "刀",
+     "name": "刀客",
+     "desc": "替人出刀。",
+     "effect": "力 +2｜长剑｜金币 10",
      "patch": {
-      "bgKey": "blade",
-      "bgLabel": "刀客"
+      "bgKey": {
+       "set": "blade"
+      },
+      "bgLabel": {
+       "set": "刀客"
+      },
+      "abilities.str": {
+       "add": 2
+      },
+      "gear": {
+       "append": [
+        "长剑"
+       ]
+      },
+      "gold": {
+       "set": 10
+      }
      }
     },
     {
-     "name": "书",
+     "name": "行商",
+     "desc": "低买高卖。",
+     "effect": "魅 +1｜金币 15",
      "patch": {
-      "bgKey": "book",
-      "bgLabel": "书生"
+      "bgKey": {
+       "set": "trader"
+      },
+      "bgLabel": {
+       "set": "行商"
+      },
+      "abilities.cha": {
+       "add": 1
+      },
+      "gold": {
+       "set": 15
+      }
+     }
+    },
+    {
+     "name": "药师",
+     "desc": "认草识药。",
+     "effect": "感 +1｜药膏",
+     "patch": {
+      "bgKey": {
+       "set": "herbal"
+      },
+      "bgLabel": {
+       "set": "药师"
+      },
+      "abilities.wis": {
+       "add": 1
+      },
+      "salves": {
+       "set": 1
+      }
      }
     }
    ]
   },
   {
    "title": "族属",
+   "intro": "你的血脉？",
    "options": [
     {
-     "name": "北地民",
+     "name": "山民",
+     "desc": "骨头硬。",
+     "effect": "体 +1",
      "patch": {
       "speciesKey": {
-       "set": "north"
+       "set": "hill"
       },
       "speciesLabel": {
-       "set": "北地民"
+       "set": "山民"
       },
-      "abilities": {
-       "set": {
-        "con": 14
-       }
+      "abilities.con": {
+       "add": 1
       }
      }
     },
     {
-     "name": "沙民",
+     "name": "林民",
+     "desc": "腿脚快。",
+     "effect": "敏 +1",
      "patch": {
       "speciesKey": {
-       "set": "sand"
+       "set": "wood"
       },
       "speciesLabel": {
-       "set": "沙民"
+       "set": "林民"
       },
-      "abilities": {
-       "set": {
-        "con": 12
-       }
+      "abilities.dex": {
+       "add": 1
+      }
+     }
+    },
+    {
+     "name": "泽民",
+     "desc": "看得远。",
+     "effect": "感 +2",
+     "patch": {
+      "speciesKey": {
+       "set": "marsh"
+      },
+      "speciesLabel": {
+       "set": "泽民"
+      },
+      "abilities.wis": {
+       "add": 2
       }
      }
     }
@@ -79,11 +225,27 @@
  ],
  "presets": [
   {
-   "name": "快建",
+   "name": "甲配",
    "picks": [
     0,
     0,
     0
+   ]
+  },
+  {
+   "name": "乙配",
+   "picks": [
+    1,
+    1,
+    1
+   ]
+  },
+  {
+   "name": "丙配",
+   "picks": [
+    2,
+    2,
+    2
    ]
   }
  ]

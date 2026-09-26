@@ -58,7 +58,11 @@ window.Game.Encounters = {
 		return { pool: plan.waves[0].pool, plan };
 	},
 	enemyDef(id) {
-		const def = window.Game.StoryDecl?.decl?.() ?? null?.enemies?.[id];
+		// ★ `#1457`（T 阻断，我实测成立）：✗ **不能写 `decl() ?? null?.enemies?.[id]`** ——
+		//   成员访问 `?.enemies` 先发生在 **null** 上 ⇒ 短路成 `undefined` ⇒ `a ?? undefined` **恒取左侧**
+		//   ⇒ 结果是**整张声明表**（而不是某个敌人）✗ ⇒ 必须先取局部量、再用 ✓（照 `#1448` 验证过的形）
+		const _mech = window.Game.StoryDecl?.decl?.() ?? null;
+		const def = _mech?.enemies?.[id];
 		if (!def) throw new Error(`Game.Encounters.enemyDef：敌人「${id}」未声明（结构缺失必须报错，#705）`);
 		return def;
 	},
@@ -103,7 +107,8 @@ window.Game.Encounters = {
 		if (ac === null) throw new Error('Game.Encounters.foeHit：未启用部位机制（`mechanics()` 为 null）⇒ 敌人攻击不落部位（#705）');
 		const atk = def.attack ?? {};
 		if (typeof atk.bonus !== 'number') throw new Error(`Game.Encounters.foeHit：敌人「${id}」的 \`attack.bonus\` 必须是数字（拿到 ${JSON.stringify(atk.bonus)}，#702）`);
-		const parts = Array.isArray(atk.parts) && atk.parts.length ? atk.parts : (window.Game.StoryDecl?.decl?.() ?? null?.hitLocations ?? []);
+		const _mech = window.Game.StoryDecl?.decl?.() ?? null;   // ★ `#1457`：先取局部量（✗ 不 `?? null?.x` —— 理由见 `enemyDef`）
+		const parts = Array.isArray(atk.parts) && atk.parts.length ? atk.parts : (_mech?.hitLocations ?? []);
 		if (!parts.length) throw new Error(`Game.Encounters.foeHit：敌人「${id}」没有可落部位（\`attack.parts\` 空且没有 \`hitLocations\`，#705）`);
 		const { roll, rolls } = window.Game.Rules.roll(adv);
 		const total = roll + atk.bonus;
@@ -147,7 +152,8 @@ window.Game.Encounters = {
 		return plan.rewardsScale * wv.difficulty;                    // 线性：同一遭遇内随难度严格递增
 	},
 	encounterReward(id) {
-		const enc = window.Game.StoryDecl?.decl?.() ?? null?.encounters?.[id];
+		const _mech = window.Game.StoryDecl?.decl?.() ?? null;   // ★ `#1457`：先取局部量
+		const enc = _mech?.encounters?.[id];
 		if (!enc) return { gold: 0, item: null };
 		const r = enc.reward ?? {};
 		const gold = typeof r.gold === 'number' && r.gold > 0 ? r.gold : 0;
@@ -162,7 +168,8 @@ window.Game.Encounters = {
 		return { gold, item };
 	},
 	encounterFailNote(id) {
-		const enc = window.Game.StoryDecl?.decl?.() ?? null?.encounters?.[id];
+		const _mech = window.Game.StoryDecl?.decl?.() ?? null;   // ★ `#1457`：先取局部量
+		const enc = _mech?.encounters?.[id];
 		const n = enc?.failNote;
 		if (n == null) return null;
 		if (typeof n !== 'string' || !n) throw new Error(`Game.Encounters.encounterFailNote：encounters.${id}.failNote 必须是非空字符串（拿到 ${JSON.stringify(n)}）——结构畸形必须报错（#608）`);

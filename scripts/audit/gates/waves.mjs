@@ -54,6 +54,16 @@ const MECH = {
 	encounters: {
 		short: { waves: [{ pool: 'p1', difficulty: 1 }] },
 		long: { waves: [{ pool: 'p1', difficulty: 1 }, { pool: 'p2', difficulty: 2, reinforce: true }], rewardsScale: 1.5 },
+		// ★ `#705` 片二-B：**声明了 `enemies` 的波** ⇒ 走"敌人全灭"判据（本门判据⑦）
+		boss: { waves: [{ pool: 'p1', difficulty: 1, enemies: ['骨龙'] }] },
+	},
+	// ★ `#1457`（T 阻断的第二条）：**必须给最小 `enemies` 声明样本** ——
+	//   ✗ 否则 `enemyDef()`／`foeHit()` 这类**经 `decl()?.enemies?.[id]` 取值**的路径
+	//   **永远拿不到样本** ⇒ 一旦写成 `decl() ?? null?.enemies?.[id]`（成员访问先发生在 null ⇒ 短路）
+	//   就会**恒取整张声明表** ✗ 而**没有任何门会红**（★T 是靠纯逻辑直测才抓到的 ✓）
+	//   ⇒ 本样本让那条路径**真跑** ⇒ 该缺陷下次进门就会红 ✓
+	enemies: {
+		骨龙: { hp: 12, ac: 15, attack: { bonus: 3, dmg: '1d6' } },
 	},
 };
 const PC = () => ({ hp: 5, max_hp: 10, inv: { 花: true, 剑: true }, gear: [], gearHp: { 布衣: 1 }, statuses: { 手: { 流血: 2 } }, ev: { fight: { pool: 'p1', round: 1 } }, soc: { att: { a: 1 } }, star: { charge: 7 }, dragon: { hp: 9 }, world: { hall_hint: true } });
@@ -115,6 +125,23 @@ export const run = (ctx) => {
 
 		}
 
+		// ── ★ `#1457`（T 阻断第二条）：**`enemies` 取值路径直测** ──────────────────────
+		//   为什么单列一组：`enemyDef()`／`foeHit()` 经 `decl()?.enemies?.[id]` 取值 ——
+		//   ✗ 若写成 `decl() ?? null?.enemies?.[id]`（成员访问**先发生在 `null`** ⇒ 短路成 `undefined`）
+		//     则 `a ?? undefined` **恒取左侧** ⇒ 拿到的是**整张声明表** ✗（而不是某个敌人）
+		//   ★而这条缺陷**没有任何既有格会红**（旧 `MECH` 无 `enemies` 键 ⇒ 该路径从不真跑）
+		//   ⇒ 本组让它**真跑** ⇒ 下次写错就当场红 ✓（★T 是靠纯逻辑直测抓到的 —— 这条格是那次教训的沉淀）
+		{
+			const def = Game.Encounters.enemyDef('骨龙');
+			t('★ `enemyDef(骨龙)` ⇒ 拿到**该敌人**的声明（✗ 不是整张声明表）',
+				!!def && def.hp === 12 && def.ac === 15 && def.attack?.dmg === '1d6',
+				JSON.stringify(def)?.slice(0, 120));
+			t('★ 且**不含**表级键（`hitLocations`／`encounters`）⇒ 证「短路取左侧」没发生 ✓',
+				!!def && def.hitLocations === undefined && def.encounters === undefined);
+			let threw = '';
+			try { Game.Encounters.enemyDef('不存在的敌人'); } catch (e) { threw = String(e && e.message || e); }
+			t('★ 未声明的敌人 ⇒ **fail-loud 点名**（✗ 不静默拿整张表）', /enemyDef|未声明/.test(threw), threw.slice(0, 100));
+		}
 		// ── ① 波次推进 / 增援（真跑引擎）──
 		{
 			const pc = PC();

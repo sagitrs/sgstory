@@ -108,18 +108,30 @@ export function makeSession(w, { settle = async () => {}, sleep = defaultSleep, 
 // · **有没有车卡**问题由 `Sg.story.hasChargen()` 回答 —— 这正是**引擎自己**判那一支的方式
 //（`src/10-core.twee:707`："车卡是本故事的页面（引擎不知道故事名）"）；
 // · 没车卡的故事 → **跳过车卡链**（`boot()` 已停在 `00-story.json::entry` ＝ 与"车卡后"等价的起始态）；
-// · 有车卡的故事 → 走 `chargen` 两步，两步的文案**可传参**（默认仍是旧链那两句 ——
-// 夹具故事按裁定 (甲) **沿用旧段名** → 传参甚至用不上，但留出口子）。
+// · 有车卡的故事 → 走 `chargen` 两步，两步的文案**可传参**。
+// ★ `#1353` 批 2（裁定：默认值不写故事段名）：**默认值不再写某故事的段名** ——
+//   原默认 `chargen = ['踏上旅途','快速成型']`／`startLabel = '出发，前往歪脖子鸭酒馆'` 是**旧故事**（`mist-forest`）的链
+//   ⇒ 后果实测：`saveload.mjs` 唯一那个**不传参**的调用方 ⇒ 在不含该故事的树上直接抛
+//     `找不到链接「踏上旅途」@ 门厅`（真受害者 ✓）；且它也是"**隐式依赖旧故事**"那一类隐患的温床。
+//   ⇒ 改成：**有车卡的故事必须显式给标签**（✗ 不传 ⇒ 当场点名报错，而不是猜一个段名）。
+//     · `chargen` 缺省 ⇒ `null`；故事 `hasChargen()` 为真却没给 ⇒ **抛错点名**（✗ 不静默跳过 ⇒ 那会变成"看着跑绿"）
+//     · `startLabel` 缺省 ⇒ `null` ＝ **不点那一步**（无车卡的故事本就停在 entry ✓）
 //注意：控制：`startLabel` 改成**存在才点**（旧写法是"必须点到"）—— 它原本是"车卡终于走完、进正戏"那一步；
 // 无车卡的故事里没有那一步，硬点会把"没有车卡"变成一条假红。→ 用 `tryClickByLabel`，
 // 并把"点了没"如实返回（要严格断言是否进入正戏的件，自己看读数）。
 export async function newGame({ story = DEFAULT_SLUG, random = 0.5, preset = 0, session = {},
-	chargen = ['踏上旅途', '快速成型'], startLabel = '出发，前往歪脖子鸭酒馆' } = {}) {
+	chargen = null, startLabel = null } = {}) {
 	const { w, uncaught, settle, sleep } = await boot({ story, random: typeof random === 'function' ? random : () => random });
 	const s = makeSession(w, { settle, sleep, ...session });
 	const hasChargen = !!w.Sg?.story?.hasChargen?.();
 	let charged = false;
 	if (hasChargen) {
+		// ★ `#1353`（裁定：默认值不写故事段名）：有车卡却没给标签 ⇒ **点名报错**（✗ 不用某故事的段名兜底）
+		if (!Array.isArray(chargen) || !chargen.length) {
+			throw new Error('newGame()：本故事 `hasChargen()` 为真，但**没有给车卡链标签**'
+				+ '（`chargen: [<第一步标签>, <成型标签>]`）—— ✗ 本函数不再用任何故事段名作默认（`#1353` 裁 (丙)）'
+				+ '。缺省不猜：请显式传，或让该件走"不点车卡"的路子。');
+		}
 		await s.clickByLabel(chargen[0]);
 		if (preset) {
 			// 选第 N 套预设（点第 N 张卡里的「快速成型」；不带 preset 则默认第一张）

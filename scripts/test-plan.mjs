@@ -91,7 +91,8 @@ export const SEGMENTS = [
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-chargen-macros-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/chargen-macros.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
-	{ id: "test-choice-keys-mjs", phase: 'test', cost: 9, cmd: "node test/choice-keys.mjs" },
+	// `#1353` 批 2（接夹具）：接夹具根 ⇒ **撤挂真跑**（判据本体一字未改；只改「车卡引导」装置走公共 `harness.newGame`）
+	{ id: "test-choice-keys-mjs", phase: 'test', cost: 9, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node test/choice-keys.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 		{ id: "test-combat-adv-mjs", phase: 'test', cost: 15.6, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-combat-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-combat-fixture/stories node test/combat-adv.mjs" },   // `#1353` 乙组：先 build 夹具再跑（⇒ exclusive，照 block-args/hp-nan 先例）
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
@@ -122,7 +123,8 @@ export const SEGMENTS = [
 		{ id: "test-locations-adv-mjs", phase: 'test', cost: 1, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-items-adv-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-items-adv-fixture/stories node test/locations-adv.mjs" },   // `#1353` 乙组：先 build 夹具再跑（⇒ **exclusive**，照 block-args/hp-nan 先例 ✓）
 		{ id: "test-chargen-shape-mjs", phase: 'test', cost: 1, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node test/chargen-shape.mjs" },   // `#1353` 乙组：车卡面（`#1418` 修后接夹具根 ⇒ 先 build 再跑，照同组两段形态）
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
-	{ id: "test-render-all-mjs", phase: 'test', cost: 8.9, cmd: "node test/render-all.mjs" },
+	// `#1353` 批 2（接夹具）：同上（接夹具根 ⇒ 撤挂；车卡引导改走 `harness.newGame`）
+	{ id: "test-render-all-mjs", phase: 'test', cost: 8.9, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node test/render-all.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 		{ id: "test-reread-mjs", phase: 'test', cost: 1.5, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-codex-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-codex-fixture/stories node test/reread.mjs" },   // `#1315` 审计：接图鉴面夹具根（先 build 再跑，照同组形态）
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
@@ -902,7 +904,6 @@ export const SUSPENDED = {
 	'test-cond-keyform-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1279（M1 尾件回填复验：已裁：默认＝"在生效故事根下存在且可读"）' },
 	'test-cond-keyform-mjs-selftest': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'test-equiv-scratch-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
-	'test-choice-keys-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	// `#1315` 乙批：`test-combat-adv-mjs` **撤挂** —— 起引擎侧夹具 `test/fixtures/m3-combat-fixture/`，
 	//   判据改指该夹具（段名／播种）⇒ 夹具根态实跑 rc=0（报文：5 手在结转优势下掷骰）。
 	'test-comment-mask-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
@@ -916,7 +917,6 @@ export const SUSPENDED = {
 	// `#1353` 批 3：撤挂（旧故事数值自洽化 ＋ 接夹具根）
 	// `#1353` 乙组：`test-properties-mjs` **撤挂** —— 接 hp 面夹具 `m3-hp-e2e` ⇒ 夹具根态 **13 格绿**；
 	//   原 D（车卡）／F（位点优势）两段已拆出（见 `chargen-shape`／`locations-adv`）⇒ 本件回归**单一面**（hp/判定/战斗）。
-	'test-render-all-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	// `#1315` 审计（下架复验）：`test-reread-mjs` **撤挂** —— R3–R6 已随声明面 `Truth.claims` 退役（全仓 0 命中），
 	//   现存 R1/R2 接新夹具 `test/fixtures/m3-codex-fixture/`（零状态档不泄底）⇒ 夹具根态实跑 rc=0 ✓
 	'test-rules-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },

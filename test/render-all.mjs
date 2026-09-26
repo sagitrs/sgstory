@@ -5,19 +5,24 @@
 // 渲染期自动跳转（检定失败→死亡等）记为 forward 信息不算失败，但错误/空输出仍算。
 import { renderedElsOf } from '../editor/lib/core/preview.mjs';   // `#761` 六片A：选择器只有一处
 import { boot, CLICKABLE_SEL, trailingAfterLast } from './boot.mjs';
+import { newGame } from './harness.mjs';   // `#1353` 批 2（接夹具）：车卡引导**不再手写**（✗ 不写死某故事的段名）
 import { readFileSync } from 'node:fs';
 const exitsWhitelist = JSON.parse(readFileSync(new URL('./exits-whitelist.json', import.meta.url), 'utf-8'));
 
-// 白盒 A9：共享 boot（d20 恒 11：中性、无自然 20/1；uncaught 监听内置）
-const { w, uncaught, sleep } = await boot({ random: 0.5 });
-
-// ── 构造"车卡后"角色状态（裸 StoryInit 状态检定必败→连锁死亡 goto，不具代表性）──
-const byLabel = (t) => [...w.document.querySelectorAll('#passages a.link-internal')].find((x) => x.textContent === t);
-const step = async (label) => { const a = byLabel(label); if (!a) throw new Error(`车卡引导失败：找不到「${label}」`); a.click(); await sleep(300); };
-await step('踏上旅途');
-await step('快速成型'); // 第一张预设（铁卫）——随机中性，任何预设都构成合法角色
-await step('出发，前往歪脖子鸭酒馆');
-if (typeof w.SugarCube.State.variables.pc?.abilities?.str !== 'number') throw new Error('车卡后状态不完整（abilities 缺失）——L1 快照不可用');
+// `#1353` 批 2（接夹具）：**车卡引导改走公共 harness**（`#1004` B2b 早已改成"问 `hasChargen()`、标签可传"）
+//   ⇒ ✗ 不再手写三个写死旧故事的标签（那是"隐式依赖旧故事"⇒ 样本一换就卡在第一步，
+//     实测：原写法在任何无车卡夹具上都报 `车卡引导失败：找不到「踏上旅途」`）。
+//   ★本件**不传** `chargen`：夹具无车卡 ⇒ `newGame` 跳过该链（✗ 不猜段名 ⇒ 缺标签也不会静默兜底）。
+const session = await newGame({ random: 0.5 });
+const { w, uncaught, sleep } = session;
+// `#1353` 批 2（接夹具）：原断言假定「**每个故事都有车卡**」（车卡后必有 `pc.abilities`）——
+//   ✗ 对无车卡的故事不成立（它停在 `entry`，`pc` 由引擎默认形状给 ⇒ 未必有 `abilities`）。
+//   ⇒ 按形态分化：**有车卡** ⇒ 必须车卡后状态完整（原判据保留 ✓）；**无车卡** ⇒ 只要求 `pc` 在场 (✗ 不假装经过车卡)。
+if (session.hasChargen) {
+	if (typeof w.SugarCube.State.variables.pc?.abilities?.str !== 'number') throw new Error('车卡后状态不完整（abilities 缺失）——L1 快照不可用');
+} else if (!w.SugarCube.State.variables.pc) {
+	throw new Error('无车卡的故事里 `pc` 也不在场 ⇒ L1 快照不可用（✗ 与“没有车卡”是两回事）');
+}
 
 // 快照：完整角色 + 世界默认旗标；每次 play 前整备还原。
 //注意：State.variables 是 getter-only（descriptor 无 writable）：整体赋值是静默 no-op（坑12，

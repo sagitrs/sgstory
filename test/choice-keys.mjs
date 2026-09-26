@@ -14,11 +14,15 @@
 //
 // 自证：`node test/choice-keys.mjs --selftest`
 
-import { boot } from './boot.mjs';
+import { newGame } from './harness.mjs';   // `#1353` 批 2（接夹具）：车卡引导**不再手写**（✗ 不写死某故事的段名）
 
 // 已人工确认**等价**（点到哪条都一样）的重复：`段落|时代 → key`
 export const ALLOW = {
-	// 例：'地下宴会厅|now → 宴会·过去': '该段落按 $era 分支只渲染其中一条，同一状态下不会同时出现',
+	// `#1353` 批 2（接夹具）：**合法汇流**样本 —— 夹具 `m3-nav-fixture` 的「起点」有**三条**链接、
+	//   其中两条文案不同（「绕远路」／「翻窗出去」）但**目标同为「终点」**。
+	//   ★这是**设计上允许**的形（两条路通往同一段）⇒ 登记理由：它们**副作用相同**（都是纯导航、无 setter），
+	//     语义上确实等价 ⇒ 派生 key 相同**不是**歧义（✗ 歧义的定义是看着是两件事、实际同段且副作用不同）。
+	'起点|now → 终点': '三条入口都只做同一件事（纯导航到「终点」，无 setter）⇒ 合法汇流，不是歧义',
 };
 
 // 判定（纯函数，便于自证）：findings = 新增歧义；stale = 白名单腐烂
@@ -46,12 +50,10 @@ const selftest = () => {
 if (process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 
 // ── 真实运行：逐段落（$era 段双时代）× 渲染态收集派生 key ──────────────
-const { w, uncaught, sleep } = await boot({ random: 0.5 });
-const byLabel = (t) => [...w.document.querySelectorAll('#passages a.link-internal')].find((x) => x.textContent === t);
-const step = async (label) => { const a = byLabel(label); if (!a) throw new Error(`车卡引导失败：找不到「${label}」`); a.click(); await sleep(300); };
-await step('踏上旅途');
-await step('快速成型');
-await step('出发，前往歪脖子鸭酒馆');
+// `#1353` 批 2（接夹具）：车卡引导改走公共 `harness.newGame`（✗ 不手写旧故事三标签）。
+//   本件同样**不传** `chargen`：无车卡的故事跳过该链（有车卡却没给标签 ⇒ `newGame` 当场点名报错 ✓）。
+const session = await newGame({ random: 0.5 });
+const { w, uncaught, sleep } = session;
 
 const snapshot = JSON.stringify(w.SugarCube.State.variables);
 const restore = (era) => {

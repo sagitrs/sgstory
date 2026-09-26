@@ -289,7 +289,7 @@ export const doubleRenderProblems = ({ passages = [], data = null } = {}) => {
 	return out;
 };
 
-export const applyPassageTransforms = ({ name, body, terms = new Set(), params = {}, slots = [], args = null, links = [], present = null, ending = null }) => {
+export const applyPassageTransforms = ({ name, body, terms = new Set(), params = {}, slots = [], args = null, links = [], present = null, ending = null, check = null }) => {
 	const { body: expandedRaw, problems } = valueRefExpand({ name, body, terms, params, slot: null, slots, args });
 	const rl = renderLinksOf({ name, links, present });
 	let expanded = expandedRaw;
@@ -298,6 +298,15 @@ export const applyPassageTransforms = ({ name, body, terms = new Set(), params =
 		expanded = expanded.replace(re, `\n\n${text}\n\n`);
 	}
 	if (rl.tailBlock) expanded = `${expanded.replace(/\s+$/, '')}\n\n${rl.tailBlock}\n`;
+	// ★ `#1505`：段级字段 **`check`** —— 「本段入口要跑一次位点检定」（原散文写法 `<<sitecheck "站点">><<snapshot>>`）。
+	//   ★编译期把它**渲染成引擎已宣告的宏调用**注入段首（✗ 不需要新宏 ✓）。
+	//   ★`<<snapshot>>` 是 `<<sitecheck>>` 的**配对动作**（写 `pc.ev.last_roll` 供 `<<lastcheck>>` 复显）
+	//     ⇒ 声明 `check` 即**一并注入**（✗ 不让作者写两个字段 —— 它们永远成对 ✓）。
+	//   ★空/缺省 ⇒ **不动**（零破坏 ✓）。
+	if (check != null && String(check).trim() !== '') {
+		const site = String(check).trim().replace(/"/g, '\\"');
+		expanded = `<<sitecheck "${site}">><<snapshot>>\n${expanded}`;
+	}
 	if (ending && typeof ending === 'object') {
 		const key = String(ending.key ?? '').trim();
 		const kind = String(ending.kind ?? 'final').trim();
@@ -342,7 +351,8 @@ export const assemblePassages = ({ passages, known, forbidden = new Set(), terms
 		const tr = applyPassageTransforms({ name: p.name, body: p.body, terms,
 			params: dseg.params ?? {}, slots: [dseg.slot, ...linkSlots].filter(Boolean),
 			args: (dseg.args && typeof dseg.args === 'object') ? dseg.args : inbound,
-			links: dseg.links ?? [], present: dseg.present ?? null, ending: dseg.ending ?? null });
+			links: dseg.links ?? [], present: dseg.present ?? null, ending: dseg.ending ?? null,
+			check: dseg.check ?? null });
 		problems.push(...tr.problems);
 		const expanded = tr.body;
 		const tags = p.tags ? ` [${p.tags}]` : '';

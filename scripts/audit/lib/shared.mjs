@@ -31,8 +31,22 @@ export const normalizeEchoes = (raw) => ({
  * 为什么不抛：**抛错会把两种语义混成一种** —— "该报缺声明"与"该说无样本可判"在不同调用点不同
  * （门自证＝无样本可判；判据本体＝该点名）。也不许各门自行内联判断（同概念两处实现即缺陷）。
  */
+// ★ `#1452`（T 的阻断，裁＝甲）：**能力面名 ⇒ 宿主路径**的**权威映射**（一处）。
+// 为什么需要它（实测病灶，最阴的一形态）：对象**搬家**（如 B 块把状态面从 `Game.Combat` 搬到 `Game.StatusFx`）
+//   而**守卫锚不跟着搬** ⇒ `requireCombatFace` 恒回 `null` ⇒ 门**静默跳过自证**（rc 仍 0！）✗
+//   ⇒ ★"对象搬家 ⇒ 判据锚不跟 ⇒ 门静默跳" —— 这比"门红"危险得多（✗ 看不出来）。
+// 纪律（`#1437` 分家清单新增）：**凡被本函数认过的方法，搬迁必须成对改**（映射 ＋ 该门的**能假格**）。
+export const FACE_HOST = {
+	// 现状（`#1437` 分家逐块搬 ⇒ 本表随块更新）
+	roadOffer: 'Combat',        // D 块（路线）
+	statusTick: 'StatusFx',     // ★ B 块（`#1452` 已搬）
+	wavePlan: 'Combat',         // E 块（未搬）
+	slotAbsorb: 'Combat',       // C 块（未搬）
+};
+/** 能力面就绪守卫：`method` 在**它当前的宿主**上是否是函数（✗ 不硬编码 `Combat`）。 */
 export const requireCombatFace = (game, method) => {
-	const fn = game?.Combat?.[method];
+	const host = FACE_HOST[method] ?? 'Combat';   // 未登记 ⇒ 按老口径（`Combat`）⇒ 零行为变化 ✓
+	const fn = game?.[host]?.[method];
 	return typeof fn === 'function' ? fn : null;
 };
 export const writeKeys = (text) => {

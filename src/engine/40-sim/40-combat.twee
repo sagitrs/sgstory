@@ -366,7 +366,7 @@ Object.assign((window.Game.Combat ??= {}), {
 		return entry;
 	},
 	HISTORY_MAX: 6,
-	statusLowRoll: 5,      // 低骰分档阈值（设计稿 §2.3／§8 D4）：d20 原值 ≤ 5 → `low` 档，其余 → `most`
+	// `statusLowRoll` 已随 B 块搬到 `Game.StatusFx`（✗ 两处真相 ⇒ 必漂移）
 	/** 枚举生效中的 `{ 部位, 异常, 剩余回合}`。 */
 	/** 该部位当前的判定减成（`statusPenalty['异常@部位']`；本片只认 `check` 键，其余形态报错）。 */
 	/** 骰式：**纯整数**（`N`，固定伤害）· **`NdM`** · **`NdM±K`**（`#702` 5e 对齐新增：伤害骰 ＋ 属性调整，如 `1d8+3`）。

@@ -62,13 +62,13 @@ const PC = { gear: ['布衣'], gearHp: {}, abilities: { con: 10 }, skills: [], f
 /** `#703`：**机制必须可被玩家看见**——S1 的耐久与 S2 的异常若没有任何渲染点，
  * "机制存在"对玩家等于不存在（反馈③："UI 上看不到装备状态和部位状态"）。
  * 判据（源码级、可反例）：侧栏渲染面（`StoryCaption` 所在文件）必须调用引擎的只读快照入口
- * `Game.Combat.gearDurability(` 与 `Game.Combat.statusEntries(`。 */
+ * `Game.Gear.gearDurability(`（C 块宿主）与 `Game.StatusFx.statusEntries(`（★B 块宿主，`#1452` 搬）。 */
 export const visibilityProblems = (sidebarSrc) => {
 	const src = String(sidebarSrc ?? '');
 	if (!src.trim()) return [{ code: 'sidebar-src-missing', why: '取不到侧栏源码（`src/10-core.twee`）——本判据要读渲染面才能判' }];
 	const out = [];
 	if (!/Game\.Combat\.gearDurability\(/.test(src)) out.push({ code: 'gearhp-invisible', why: '侧栏没有渲染**装备耐久**（`Game.Combat.gearDurability(`）——S1 机制对玩家不可见（#703）' });
-	if (!/Game\.Combat\.statusEntries\(/.test(src)) out.push({ code: 'status-invisible', why: '侧栏没有渲染**部位异常**（`Game.Combat.statusEntries(`）——S2 机制对玩家不可见（#703）' });
+	if (!/Game\.StatusFx\.statusEntries\(/.test(src)) out.push({ code: 'status-invisible', why: '侧栏没有渲染**部位异常**（`Game.StatusFx.statusEntries(`）——S2 机制对玩家不可见（#703）' });
 	return out;
 };
 
@@ -110,8 +110,17 @@ export const run = (ctx) => {
 	const __fn = requireCombatFace(Game, 'statusTick');
 	// **两态能假格（常驻）**：就绪与缺席必须给出不同判定；否则等于"门在跑但零判定"。
 	{
-		const readyInj = requireCombatFace({ Combat: { 'statusTick': () => null } }, 'statusTick') !== null;
-		const absentInj = requireCombatFace({ Combat: {} }, 'statusTick') === null;
+		// ★ `#1452`（T 的阻断，裁＝甲）：**守卫锚跟着搬家** —— B 块把 `statusTick` 搬到 `Game.StatusFx`
+		//   ⇒ 本格必须按**新宿主**喂（✗ 仍喂 `Combat` ⇒ 与真相不符 ⇒ 自证变装饰 ✗ 实测就是这条当场红 ✓）
+		const readyInj = requireCombatFace({ StatusFx: { 'statusTick': () => null } }, 'statusTick') !== null;
+		const absentInj = requireCombatFace({ StatusFx: {} }, 'statusTick') === null;
+		// ★**能假（映射锚的牙）**：把方法喂到**旧宿主**（`Combat`）⇒ 必须 **null**
+		//   （✗ 不许「两个宿主都认」 —— 那会让「搬家后锚忘改」重新变成**静默通过** ✗）
+		const movedAway = requireCombatFace({ Combat: { 'statusTick': () => null } }, 'statusTick') === null;
+		if (!movedAway) {
+			console.error("  ✗ 映射锚失效：`statusTick` 在**旧宿主** `Combat` 上仍被认到 ⇒ 搬家后锚忘改也看不出来 ✗（`#1452`）");
+			return 1;
+		}
 		if (!(readyInj && absentInj)) {
 			console.error(`  ✗ 守卫两态不可分（就绪=${readyInj}／缺席=${absentInj}）⇒ 本门可能在"零判定"下报绿（#1269）`);
 			return 1;
@@ -137,39 +146,39 @@ export const run = (ctx) => {
 	try {
 		// ── ⑥ 兼容降级 ──
 		Sg.story.mechanics = () => null;
-		t('⑥ 未启用（`mechanics()` 为 null）⇒ `statusTick` 返回 `null`（调用方跳过）', Game.Combat.statusTick(PC) === null);
-		t('⑥ 未启用 ⇒ `tickStatuses` 也返回 `null`（不写状态、不产伤害）', Game.Combat.tickStatuses(clone(PC)) === null);
-		t('⑥ 未启用 ⇒ `applyStatus` 返回 `null`（不静默施加）', Game.Combat.applyStatus(PC, '流血', '衣服') === null);
+		t('⑥ 未启用（`mechanics()` 为 null）⇒ `statusTick` 返回 `null`（调用方跳过）', Game.StatusFx.statusTick(PC) === null);
+		t('⑥ 未启用 ⇒ `tickStatuses` 也返回 `null`（不写状态、不产伤害）', Game.StatusFx.tickStatuses(clone(PC)) === null);
+		t('⑥ 未启用 ⇒ `applyStatus` 返回 `null`（不静默施加）', Game.StatusFx.applyStatus(PC, '流血', '衣服') === null);
 
 		// ── ① 每回合被动 ＋ ② 恢复 ＋ ③ 分档（真跑引擎，注入 rng 控骰）──
 		Sg.story.mechanics = () => MECH;
 		{
 			const pc = clone(PC);                       // 衣服 流血 2 回合
 			rngAt(Game, 20);                            // 恒 20 → 判定必成 → 走「恢复」分支
-			const plan = Game.Combat.statusTick(pc);
+			const plan = Game.StatusFx.statusTick(pc);
 			Game.Rules.rng.reset();
 			t('② 必成骰（20）⇒ 恢复：剩余 2 → 1', plan.steps.length === 1 && plan.steps[0].kind === 'recover' && plan.steps[0].turns === 1, JSON.stringify(plan.steps[0]));
 			t('① 计划里带上每回合被动（`perRound: -1`）', plan.steps[0].perRound === -1, JSON.stringify(plan.steps[0].perRound));
 			t('判据自检：合规计划不报违反项', planViolations({ plan, mech: MECH, prev: pc.statuses }).length === 0, planViolations({ plan, mech: MECH, prev: pc.statuses }).join(' / '));
 
 			// 落：被动 −1（无护具部位 → 全额落 HP）＋ 恢复
-			const applied = Game.Combat.statusTickApply(clone(PC), plan);
+			const applied = Game.StatusFx.statusTickApply(clone(PC), plan);
 			t('① 被动伤害走 S1：衣服有护具（reduce 1）⇒ perRound 1 点被吃住 ⇒ hurt=0', applied.hurt === 0 && applied.statuses.衣服.流血 === 1, JSON.stringify({ hurt: applied.hurt, statuses: applied.statuses }));
 			const pcBare = clone(PC); pcBare.gear = [];    // 无护具 → 全额落 HP
-			const applied2 = Game.Combat.statusTickApply(pcBare, plan);
+			const applied2 = Game.StatusFx.statusTickApply(pcBare, plan);
 			t('① 无护具 ⇒ 被动伤害全落 HP（hurt=1）', applied2.hurt === 1, JSON.stringify(applied2.hurt));
 
 			// 到 0 → 清除
 			const pc1 = clone(PC); pc1.statuses = { 衣服: { 流血: 1 } };
 			rngAt(Game, 20);
-			const plan1 = Game.Combat.statusTick(pc1);
-			const ap1 = Game.Combat.statusTickApply(pc1, plan1);
+			const plan1 = Game.StatusFx.statusTick(pc1);
+			const ap1 = Game.StatusFx.statusTickApply(pc1, plan1);
 			Game.Rules.rng.reset();
 			t('② 剩余 1 ⇒ 恢复后清除（`statuses` 里不留空壳）', ap1.statuses.衣服 === undefined, JSON.stringify(ap1.statuses));
 
 			// 低骰失败 → `low` 档 → 随机他异常（部位合法）
 			rngAt(Game, 3);                              // d20=3 → 失败且 ≤5 → low
-			const planLow = Game.Combat.statusTick(clone(PC));
+			const planLow = Game.StatusFx.statusTick(clone(PC));
 			Game.Rules.rng.reset();
 			const st = planLow.steps[0];
 			t('③ 低骰（3）⇒ `low` 档 ⇒ 随机他异常（落在声明允许的部位）', st.kind === 'fail' && st.grade === 'low' && st.effect.kind === 'addStatus' && st.effect.id === '麻痹' && ['手腕', '鞋'].includes(st.effect.part), JSON.stringify(st));
@@ -177,27 +186,27 @@ export const run = (ctx) => {
 
 			// 高骰失败 → `most` 档 → 伤害（经 S1 减成/耐久）
 			rngAt(Game, 8);                              // d20=8 → 失败但 >5 → most
-			const planMost = Game.Combat.statusTick(clone(PC));
+			const planMost = Game.StatusFx.statusTick(clone(PC));
 			Game.Rules.rng.reset();
 			const sm = planMost.steps[0];
 			t('③ 非低骰失败（8）⇒ `most` 档 ⇒ 伤害（骰式已解成正数）', sm.kind === 'fail' && sm.grade === 'most' && sm.effect.kind === 'damage' && sm.effect.amount >= 1, JSON.stringify(sm));
-			const apMost = Game.Combat.statusTickApply(clone(PC), planMost);
+			const apMost = Game.StatusFx.statusTickApply(clone(PC), planMost);
 			t('③ 该伤害同走 S1：衣服护具吸住（hurt ≤ 伤害）', apMost.hurt <= sm.effect.amount, JSON.stringify({ hurt: apMost.hurt, amount: sm.effect.amount }));
 
 			// ④ 减成作用域：手腕有 麻痹 → 判定 bonus −3
 			const pcPen = clone(PC); pcPen.statuses = { 手腕: { 麻痹: 2 } };
-			t('④ `statusPenalty[' + "'麻痹@手腕'" + '].check = −3` ⇒ 该部位判定减成 −3', Game.Combat.statusPenaltyFor(pcPen, '手腕') === -3, String(Game.Combat.statusPenaltyFor(pcPen, '手腕')));
-			t('④ 别的部位不受影响（作用域＝该部位）', Game.Combat.statusPenaltyFor(pcPen, '衣服') === 0, String(Game.Combat.statusPenaltyFor(pcPen, '衣服')));
+			t('④ `statusPenalty[' + "'麻痹@手腕'" + '].check = −3` ⇒ 该部位判定减成 −3', Game.StatusFx.statusPenaltyFor(pcPen, '手腕') === -3, String(Game.StatusFx.statusPenaltyFor(pcPen, '手腕')));
+			t('④ 别的部位不受影响（作用域＝该部位）', Game.StatusFx.statusPenaltyFor(pcPen, '衣服') === 0, String(Game.StatusFx.statusPenaltyFor(pcPen, '衣服')));
 			rngAt(Game, 12);                             // 12 + 0 = 12 ≥ 12 本应过；带上 −3 → 9 < 12 → 失败
-			const planPen = Game.Combat.statusTick(pcPen);
+			const planPen = Game.StatusFx.statusTick(pcPen);
 			Game.Rules.rng.reset();
 			t('④ 减成真的进了判定（12+0 ≥ DC12 本应恢复，−3 后失败）', planPen.steps[0].kind === 'fail' && planPen.steps[0].res.mod === -3, JSON.stringify(planPen.steps[0].res));
 
 			// ⑤ 解除
 			const pc5 = clone(PC); pc5.statuses = { 衣服: { 流血: 3, 麻痹: 1 }, 手腕: { 麻痹: 2 } };
-			const cured = Game.Combat.cureStatus(pc5, '流血');
+			const cured = Game.StatusFx.cureStatus(pc5, '流血');
 			t('⑤ `cureStatus("流血")` 只清该异常（其他部位/异常留存）', !cured.statuses.衣服.流血 && cured.statuses.衣服.麻痹 === 1 && cured.statuses.手腕.麻痹 === 2, JSON.stringify(cured.statuses));
-			t('⑤ `clearStatuses()` 清全部（温泉）', Object.keys(Game.Combat.clearStatuses().statuses).length === 0);
+			t('⑤ `clearStatuses()` 清全部（温泉）', Object.keys(Game.StatusFx.clearStatuses().statuses).length === 0);
 
 			// 骰式：两种形态都认（纯整数＝固定值；NdM 走 rng）
 			rngAt(Game, 3);
@@ -208,9 +217,9 @@ export const run = (ctx) => {
 
 			// ⑦ 声明面 ≤ 实现面（四种形态各报一次错）
 			const badCases = [
-				['`turns` 缺失', () => { const m = { ...MECH, statuses: { ...MECH.statuses, 流血: { ...MECH.statuses.流血, turns: undefined } } }; return [m, () => Game.Combat.statusTick(clone(PC))]; }],
-				['`perRound.hp` 非数字', () => { const m = { ...MECH, statuses: { ...MECH.statuses, 流血: { ...MECH.statuses.流血, perRound: { hp: 'x' } } } }; return [m, () => Game.Combat.statusTick(clone(PC))]; }],
-				['`statusPenalty` 出现非 `check` 键', () => { const m2 = { ...MECH, statusPenalty: { '麻痹@手腕': { dmg: -1 } } }; return [m2, () => Game.Combat.statusPenaltyFor({ statuses: { 手腕: { 麻痹: 1 } } }, '手腕', m2)]; }],
+				['`turns` 缺失', () => { const m = { ...MECH, statuses: { ...MECH.statuses, 流血: { ...MECH.statuses.流血, turns: undefined } } }; return [m, () => Game.StatusFx.statusTick(clone(PC))]; }],
+				['`perRound.hp` 非数字', () => { const m = { ...MECH, statuses: { ...MECH.statuses, 流血: { ...MECH.statuses.流血, perRound: { hp: 'x' } } } }; return [m, () => Game.StatusFx.statusTick(clone(PC))]; }],
+				['`statusPenalty` 出现非 `check` 键', () => { const m2 = { ...MECH, statusPenalty: { '麻痹@手腕': { dmg: -1 } } }; return [m2, () => Game.StatusFx.statusPenaltyFor({ statuses: { 手腕: { 麻痹: 1 } } }, '手腕', m2)]; }],
 				// `#702`：`NdM±K` 现在是**合法**骰式（伤害骰＋属性调整）→ 反例改用仍非法的形态
 				['骰式不是 `N`／`NdM`／`NdM±K`', () => [MECH, () => Game.Combat.rollDice('1d4+2d6')]],
 			];
@@ -232,8 +241,8 @@ export const run = (ctx) => {
 			// `#703`：机制可见性（**独立循环**——它判的是"渲染面有没有引用"，不是 plan 违反项）
 			{
 				const visCases = [
-					['#703 正例：侧栏渲染了装备耐久与部位异常 ⇒ 不报', '行囊 <<set _gh to Game.Combat.gearDurability($pc)>> <<set _st to Game.Combat.statusEntries($pc)>>', 0],
-					['🔴 #703 反例：删掉装备耐久渲染 ⇒ 报', '<<set _st to Game.Combat.statusEntries($pc)>>', 1],
+					['#703 正例：侧栏渲染了装备耐久与部位异常 ⇒ 不报', '行囊 <<set _gh to Game.Combat.gearDurability($pc)>> <<set _st to Game.StatusFx.statusEntries($pc)>>', 0],
+					['🔴 #703 反例：删掉装备耐久渲染 ⇒ 报', '<<set _st to Game.StatusFx.statusEntries($pc)>>', 1],
 					['🔴 #703 反例：删掉部位异常渲染 ⇒ 报', '<<set _gh to Game.Combat.gearDurability($pc)>>', 1],
 					['#703 反例：取不到侧栏源码 ⇒ 报（不静默判过）', '', 1],
 				];

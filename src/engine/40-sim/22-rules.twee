@@ -19,7 +19,7 @@ window.Sg.rules = {
 	// **条件项的"对象算子"词表**（`#568`，与 `prefixes`／`effects` 同轴）：行里用了未宣告的算子 → `--rules` 判红。
 	// 为什么必须由引擎宣告：引擎不认的算子会让条件**永假** → 行静默死掉（本仓反复踩的那类）。
 	// 词表与门侧同一份口径（`scripts/audit/lib/shared.mjs` 的 `OPS`）；两侧漂移会被 `--rules` 当场抓住。
-	ops: ['gte', 'lte', 'oneOf'],
+	ops: ['gte', 'gt', 'lte', 'lt', 'oneOf'],
 	// **取值项**（`#624` 片二，与 `ops` 同轴的反沉默面）：条件里可以写"随状态变的值"，当前只有
 	// `{ price: '<econ 事件 id>'}`（＝该事件**当前要花多少钱**，正数）。为什么要有它：可负担性判定
 	//（`gold ≥ 价格`）原本只能在散文里算 → 那几处进不了表。用到的取值项必须在这里宣告（门核对）。
@@ -124,7 +124,12 @@ window.Sg.rules = {
 			return allowed.includes(got);
 		}
 		if (typeof got !== 'number' || typeof want !== 'number') return false;     // 数值算子遇非数值 → 不匹配（不硬比、不抛）
-		return op === 'gte' ? got >= want : got <= want;
+		// ★**表驱动**（`#1234` §六B）：此前的三元写法（`gte ? >= : <=`）在 `ops` 加成员后会**静默改判**
+		//   （新算子落进 else 分支 ⇒ 拿 `<=` 算 ✗）⇒ 改成按算子查表，未列出的算子**不可能走到这里**
+		//   （`this.ops` 已在上面把未宣告算子 fail-loud 拦掉）。
+		const cmp = { gte: (a, b) => a >= b, gt: (a, b) => a > b, lte: (a, b) => a <= b, lt: (a, b) => a < b }[op];
+		if (!cmp) throw new Error(`Sg.rules：算子「${op}」已宣告但**无求值实现**（Sg.rules.ops 与 holdsCond 漂移）—— 请同步两侧`);
+		return cmp(got, want);
 	},
 	// 行是否满足（`req` 全中 ∧ `any` 至少一（空＝不要求）∧ `exclude` 全不中 ∧ `prereq` 已选中过）
 	// 三个字段走**同一**抽取（字符串／对象形都认）；`prereq` 是**行 id**，不是条件项 → 不走 `holdsCond`。

@@ -37,7 +37,8 @@ export { assertChain, escTemplate, guardChain, GLOBAL_ROOTS, KINDS, jsStringInne
 
 const selftest = () => {
 	let bad = 0;
-	const t = (label, ok, got = '') => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} 自证·${label}${ok ? '' : `\n    实得：${got}`}`); };
+	let ran = 0;
+	const t = (label, ok, got = '') => { ran++; if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} 自证·${label}${ok ? '' : `\n    实得：${got}`}`); };
 	/** emit → 丢进 vm → **断言行为**。
 	 * 为什么不能只断言"产物文本包含某串"（审查实测的绕法）：把 `if (!v) throw …` 改成 `if (false) throw …`
 	 * —— 语义废掉、文本仍在 → 文本式自证照旧全绿 ＝ **摆设**。所以这里一律**跑起来看行为**。 */
@@ -149,15 +150,18 @@ const selftest = () => {
 	})());
 	// `template`（审查要求的三态：两件都掉 / 只掉钱 / 只掉物 ＋ 都不掉 → 空串）
 	const TPL = { name: 'lootText', kind: 'template', param: 'r', baseParam: 'base', prefix: '他退开的地方散着', suffix: '。', join: '，还有', trim: true, empty: '',
-		parts: [{ when: { gt: ['gold', 0] }, text: '旧币 {gold} 枚' }, { when: { truthy: 'item' }, text: '一把{item}', map: { 钥匙: '锈钥匙' } }] };
+		parts: [{ cond: { gt: ['gold', 0] }, text: '旧币 {gold} 枚' }, { cond: { truthy: 'item' }, text: '一把{item}', map: { 钥匙: '锈钥匙' } }] };
 	const T = build([TPL]);
 	t('`template`：两件都掉 ⇒ 两句都出、用 join 连', probeCall(T.lootText, { gold: 3, item: '钥匙' }, '').ok === JSON.stringify('他退开的地方散着旧币 3 枚，还有一把锈钥匙。'));
 	t('`template`：**只掉钱**', probeCall(T.lootText, { gold: 5, item: null }, '').ok === JSON.stringify('他退开的地方散着旧币 5 枚。'));
 	t('`template`：**只掉物**（且走 `map` 改名）', probeCall(T.lootText, { gold: 0, item: '干粮' }, '').ok === JSON.stringify('他退开的地方散着一把干粮。'));
 	t('`template`：**都不掉 ⇒ 空串**（不拼半句）', probeCall(T.lootText, {}, '').ok === '""');
 	t('`template`：`baseParam` 前置（base 为空值时用空串兜）', probeCall(T.lootText, { gold: 1 }, '它倒了。').ok === JSON.stringify('它倒了。他退开的地方散着旧币 1 枚。'));
-	t('`template`：`when` 形状不认识 ⇒ emit 抛错（不许猜）', (() => {
-		try { build([{ name: 'x', kind: 'template', param: 'r', parts: [{ when: { weird: 1 }, text: 'a' }] }]); return false; } catch { return true; }
+	t('`template`：`cond` 算子未宣告 ⇒ emit 抛错（不许猜）', (() => {
+		try { build([{ name: 'x', kind: 'template', param: 'r', parts: [{ cond: { weird: 1 }, text: 'a' }] }]); return false; } catch { return true; }
+	})());
+	t('`template`：**旧名 `when`** ⇒ emit 抛错并点出收敛（✗ 不许静默当没写）', (() => {
+		try { build([{ name: 'x', kind: 'template', param: 'r', parts: [{ when: { gt: ['gold', 0] }, text: 'a' }] }]); return false; } catch { return true; }
 	})());
 	t('兜底硬化：`fallback: "String(id)"`（裸表达式）⇒ emit 抛错', (() => {
 		try { build([{ name: 'x', kind: 'lookup-field', from: 'Game.Items.defs', key: 'id', field: 'label', fallback: 'String(id)' }]); return false; } catch { return true; }
@@ -204,7 +208,9 @@ const selftest = () => {
 	t('未知 kind ⇒ emit 抛错（不许静默产出半个函数）', badPath({ kind: 'nope' }));
 
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
-	console.log('\n✔ 自证通过（45 例：lookup 5 · lookup-field 6 · bool-exists 2 · state-ref 2 · game-ref 7 · 成员相对查表 3 · forward 2 · **template 6（含三态）** · 卫生/硬化 7——**全部按行为断言**）');
+	// 计数**算出来**（`#1234` 收敛笔顺手修）：此前是写死字符串，实测已与实况**三处互不一致**
+	//（摘要「45 例」／分组和 40／实际 `t()` 调用 46）⇒ 那种数字**只会腐烂**，且下一个人加一格就再错一次。
+	console.log(`\n✔ 自证通过（${ran} 例 —— **全部按行为断言**）`);
 };
 
 //注意：**主模块守卫**（实测踩到）：这些脚本**同时是库**（`equiv` 被 `extract` 导入、`compile` 被 `equiv` 起子进程）。

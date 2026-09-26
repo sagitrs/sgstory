@@ -622,6 +622,13 @@ for (const file of fixtures) {
 	ok(!M({ req: [{ gte: ['star.spent', 4] }] }), 'gte：3 ≥ 4 不成立 ⇒ 不匹配');
 	ok(M({ req: [{ lte: ['star.spent', 3] }] }), 'lte：3 ≤ 3 ⇒ 匹配（边界取等）');
 	ok(!M({ req: [{ lte: ['star.spent', 2] }] }), 'lte：3 ≤ 2 不成立 ⇒ 不匹配');
+	// `#1234` §六B 收敛：`gt`／`lt` 与 `gte`／`lte` **同族补齐**（旧故事用 `gt` 写过而新格式表达不出）。
+	// ★取等边界单列：`gt`/`lt` 在**取等处必须为假** —— 这正是「三元写法（`gte ? >= : <=`）加算子＝静默改判」的探针：
+	//   若不改成表驱动，`gt` 会落进 else 分支按 `<=` 算 ⇒ 下面第一条会**假绿**。
+	ok(M({ req: [{ gt: ['star.spent', 2] }] }), 'gt：3 > 2 ⇒ 匹配');
+	ok(!M({ req: [{ gt: ['star.spent', 3] }] }), 'gt·取等：3 > 3 **不成立** —— 与 `gte` 的取等语义**分开** ✓');
+	ok(M({ req: [{ lt: ['star.spent', 4] }] }), 'lt：3 < 4 ⇒ 匹配');
+	ok(!M({ req: [{ lt: ['star.spent', 3] }] }), 'lt·取等：3 < 3 **不成立** —— 与 `lte` 分开 ✓');
 	// oneOf：两种写法都认（嵌套数组 / 平铺）
 	ok(M({ any: [{ oneOf: ['keeper.state', ['seal', 'open']] }] }), 'oneOf（嵌套数组）：seal ∈ 集合 ⇒ 匹配');
 	ok(M({ any: [{ oneOf: ['keeper.state', 'seal', 'open'] }] }), 'oneOf（平铺）：同上 ⇒ 匹配');

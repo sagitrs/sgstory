@@ -144,7 +144,7 @@ export const notePaths = (entries) => {
 // · **对象算子形**（数值/枚举另票）：`{ gte: ['star.spent', 3]}`／`{ lte: ['hp', 1]}`／`{ oneOf: ['keeper.state', ['seal']]}`。
 // 这里只取**键**（算子/阈值不进状态契约、不进旗标分级）——门侧各消费点都经它，避免各写一套。
 // 算子本身的**声明面**＝`Sg.rules.ops`（与 `prefixes`／`effects` 同轴：用了未声明的算子 → `--rules` 判红）。
-export const OPS = ['gte', 'lte', 'oneOf'];
+export const OPS = ['gte', 'gt', 'lte', 'lt', 'oneOf'];
 export const condKeysOf = (cond) => {
 	if (cond && typeof cond === 'object' && !Array.isArray(cond)) {
 		const out = [];

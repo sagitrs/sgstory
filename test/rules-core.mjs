@@ -141,7 +141,12 @@ ok(nat1.roll === 1 && !nat1.success, '自然 1 → 无视加值必然失败');
 	ok(M({ req: [{ oneOf: ['inv:钥匙', [true]] }] }), '前缀键：`inv:钥匙` 在对象形里照样求值 ⇒ 匹配');
 	// 结构畸形 → fail-loud（静默为假正是本票要根除的那类）
 	const throws = (row) => { try { M(row); return false; } catch { return true; } };
-	ok(throws({ req: [{ gt: ['star.spent', 1] }] }), '未宣告算子「gt」⇒ **抛错**（不静默为假）');
+	// ★ `#1433` 连带（`#1447` rebase 时改，★实测撞到）：本格原用 `gt` 当「未宣告算子」的样本 ——
+	//   而 `#1433` 已把 `gt`/`lt` **补进 `Sg.rules.ops`** ⇒ 再用它**测不出「未宣告」** ✗（它会**真求值**）；
+	//   ★实测：rebase 后本格**变红**（`✗ 未宣告算子「gt」⇒ 抛错`）—— 因为 `gt` 现在**是**宣告过的 ✓。
+	//   ⇒ 换成**确实不在词表里**的算子（`approx`）⇒ **判据意图不变**（未宣告 ⇒ fail-loud ✓）。
+	//   ★而「`gt` 已宣告且语义正确」另有正面格看护（同段 `gt：3 > 2 ⇒ 匹配` ＋ 两条**取等边界** ✓）。
+	ok(throws({ req: [{ approx: ['star.spent', 1] }] }), '未宣告算子「approx」⇒ **抛错**（不静默为假）');
 	ok(throws({ req: [{ gte: ['star.spent', 1], lte: ['star.spent', 9] }] }), '一个对象里两个算子 ⇒ 抛错（结构畸形）');
 	ok(throws({ req: [{ gte: ['star.spent'] }] }), '算子参数只有键、没有值 ⇒ 抛错');
 	ok(throws({ req: [{ gte: 'star.spent' }] }), '算子参数不是数组 ⇒ 抛错');

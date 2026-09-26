@@ -134,6 +134,29 @@ export const unmappedLinkFields = ({ links = [] } = {}) => {
 };
 
 /** 把段落数据合成到既有 `rules` 上（**不改既有 rows**，只追加 ⇒ 旧形态逐字不变 ✓）。 */
+/** ★ `#1468`：把**既有规则行**（含手写 `rules.json` 的行）的 `gives`/`sets`/`yields` **编进链接** ——
+ *  真因：`<<rulelist>>`/`<<rules>>` 渲染期就 `applyYields(…)` ⇒ ★**读者没点就拿到东西** ✗
+ *  （实测：`north-room` 进「靴子」段未点任何链接 ⇒ `inv` 里已有黄铜钥匙 ✓）
+ *  ★与 `#1408`（`links[]` 路径）**同一形**：效果随链接走（`data-sg-effects`）⇒ **点击处理器**施加；
+ *  ✗ 不进规则行 ⇒ 渲染期**不落效果** ✓（唯一权威仍是 `linkHtml` ⇒ ✗ 不造第二套 ✓）。
+ *  ★面：只处理**能编成链接**的行（`text` 恰为 `[[label|to]]`）；
+ *  行文**不含链接**（纯文本行）⇒ 保留原样并打 `effectsUnmounted`（它没有「点击」可挂 ⇒ 渲染期也不落 ✓）。
+ */
+export const compileRowEffectsIntoLinks = ({ rules = null } = {}) => {
+	const rows = Array.isArray(rules?.rows) ? rules.rows : [];
+	const out = rows.map((row) => {
+		const effKeys = ['gives', 'sets', 'yields'].filter((k) => row?.[k] != null);
+		if (!effKeys.length) return row;
+		const t = String(row?.text ?? '');
+		const m = t.match(/^\s*\[\[([^\]|]*)\|([^\]]+)\]\]\s*$/);
+		if (!m) return { ...row, effectsUnmounted: true };   // ★无链接 ⇒ 渲染期也不落（见 handler）
+		const effects = {};
+		for (const k of effKeys) effects[k] = row[k];
+		const html = linkHtml({ label: m[1], to: m[2], args: row.args ?? null, effects });
+		return { ...row, text: html };
+	});
+	return { ...(rules ?? {}), rows: out };
+};
 export const mergeLinksIntoRules = ({ rules = null, data = null } = {}) => {
 	const added = linksToRows({ data });
 	if (!added.length) return rules;

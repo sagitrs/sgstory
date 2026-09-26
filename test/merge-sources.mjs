@@ -32,8 +32,14 @@ const t = (l, ok, d = '') => { if (ok) console.log(`  ✓ ${l}`); else { bad++; 
 {
 	const srcs = [{ from: 'shared/rules.json', json: { a: 1 } }, { from: 'shared/world.json', json: { a: 2 } }];
 	const { traces } = mergeSources(srcs);
-	const ov = ruleLevelOverrides(srcs, traces);
-	t('★覆盖规则级键 ⇒ **被判出**（`a` 来自 `shared/rules.json` 却被盖）', ov.length === 1 && ov[0].path === 'a', JSON.stringify(ov));
+	// ★ `#1519`：规则级由**顶层字段指认**（✗ 不再是 `sources[0]` 位置捷径）
+	t('★**未指认** ⇒ **不判**（无规则级可言 ⇒ 故事覆盖共享件本就该允许 ⇒ 零破坏 ✓）',
+		ruleLevelOverrides(srcs, traces).length === 0, JSON.stringify(ruleLevelOverrides(srcs, traces)));
+	const ov = ruleLevelOverrides(srcs, traces, 'shared/rules.json');
+	t('★**指认后**：覆盖规则级键 ⇒ **被判出**（`a` 来自 `shared/rules.json` 却被盖）', ov.length === 1 && ov[0].path === 'a', JSON.stringify(ov));
+	t('★**误报形（`#1517` 照亮的那一形）**：指认**别的件** ⇒ 「故事覆盖**非规则级**的共享件」⇒ **不判**（✗ 不再假红 ✓）',
+		ruleLevelOverrides(srcs, traces, 'shared/other.json').length === 0);
+	t('★边界：指认的件**不在列表** ⇒ 不判（由缺件/形状判据管 ✓）', ruleLevelOverrides(srcs, traces, 'shared/nope.json').length === 0);
 	t('★反向：世界级盖世界级 ⇒ **不算**覆盖规则级', (() => {
 		const s2 = [{ from: 'shared/rules.json', json: { z: 1 } }, { from: 'shared/w1.json', json: { a: 1 } }, { from: 'shared/w2.json', json: { a: 2 } }];
 		const r2 = mergeSources(s2);
@@ -76,8 +82,12 @@ const t = (l, ok, d = '') => { if (ok) console.log(`  ✓ ${l}`); else { bad++; 
 	const input = { 'tables.json': { sources: ['shared/rules.json', 'shared/world.json'] }, 'rules.json': rulesObj };
 	const ok = expandSources({ slug: 's', data: input, io: mkIo(files), repoRoot: '' });
 	t('★正常三源 ⇒ 合并入 `tables.json`（★其余数据面**同一对象** ⇒ 不动 ✓）', ok.data['tables.json'].a === 1 && ok.data['tables.json'].b === 2 && ok.data['rules.json'] === rulesObj && ok.data !== input, JSON.stringify(ok.data['tables.json']));
-	const ovr = (() => { try { expandSources({ slug: 's', data: { 'tables.json': { sources: ['shared/rules.json', 'shared/world.json'] } }, io: mkIo({ 'shared/rules.json': JSON.stringify({ a: 1 }), 'shared/world.json': JSON.stringify({ a: 2 }) }), repoRoot: '' }); return ''; } catch (e) { return e.message; } })();
-	t('★**覆盖规则级键 ⇒ 出声**（D5 判据③）且点名路径', /规则级/.test(ovr) && /\ba\b/.test(ovr), ovr.slice(0, 100));
+		const files2 = { 'shared/rules.json': JSON.stringify({ a: 1 }), 'shared/world.json': JSON.stringify({ a: 2 }) };
+		// ★`expandSources` 签名是**单对象**（`{slug, data, io, repoRoot}`）⇒ 我把 `io`/`repoRoot` 写在**同一对象内** ✓
+		const mkT = (tables) => (() => { try { expandSources({ slug: 's', data: { 'tables.json': tables }, io: mkIo(files2), repoRoot: '' }); return ''; } catch (e) { return e.message; } })();
+		const ovr = mkT({ sources: ['shared/rules.json', 'shared/world.json'], ruleSource: 'shared/rules.json' });
+		t('★**指认后**：覆盖规则级键 ⇒ **出声**（D5 判据③）且点名路径', /规则级/.test(ovr) && /\ba\b/.test(ovr), ovr.slice(0, 100));
+		t('★**未指认** ⇒ 同一输入**不出声**（✗ 不假红 ✓）', mkT({ sources: ['shared/rules.json', 'shared/world.json'] }) === '');
 	// 形状不符 ⇒ 出声
 	const sh = (() => { try { expandSources({ slug: 's', data: { 'tables.json': { sources: ['stories/x/data/tables.json'] } }, io: mkIo({}), repoRoot: '' }); return ''; } catch (e) { return e.message; } })();
 	t('★形状不符（`from` 指进故事目录）⇒ **出声**', /not-repo-level/.test(sh), sh.slice(0, 90));

@@ -209,4 +209,36 @@ window.Sg.rules = {
 		}
 		return set;
 	},
+	/** ★ `#1466`：**声明式算术效果** —— `adds: { <键路径>: <数> }`（增量，正负皆可）。
+	 *  为什么需要：效果面此前只会"**置真**"（`gives` 库存布尔／`sets` 恒 `true`／`yields` 笔记）
+	 *    ⇒ ★**"±数值"状态（如心情值）作者面写不出来** ✗（"读"与"存在"都够，"变"没有 ✓）。
+	 *  ★与 `sets` 同规：键路径（`ev.` 前缀可省／`world.x` 可写 —— ✗ 不新造路径语法）；
+	 *  ★与 `sets` 同刻：**点击那一刻**施加（照 `#1408` 的 `data-sg-effects` 路 ⇒ ✗ 不进规则行）；
+	 *  ★**缺省零值语义**：键不存在 ⇒ 按 `0` 起算（✗ 不产 `NaN` ✓）；
+	 *  ★**有限数校验**：值非有限数 ⇒ **fail-loud 点名**（照 `#1406` ⑤ 白名单同规 ✓）。
+	 *  ✗ 不做乘除/表达式（"声明面不许大于实现面" `#487` ）｜✗ 不做随机增量（另票）。 */
+	applyAdds(row, pc = State.variables.pc) {
+		const map = row?.adds && typeof row.adds === 'object' && !Array.isArray(row.adds) ? row.adds : null;
+		if (!map) return [];
+		const applied = [];
+		for (const [k0, v0] of Object.entries(map)) {
+			const k = String(k0);
+			const n = Number(v0);
+			if (!Number.isFinite(n)) {
+				throw new Error(`Sg.rules.applyAdds：\`adds.${k}\` 的值必须是**有限数**（拿到 ${JSON.stringify(v0)}）——`
+					+ ' ✗ 否则静默产 NaN（结构畸形必须报错 ✓）');
+			}
+			const path = k.includes('.') ? k : `ev.${k}`;
+			const cur = window.Sg.notes.readPath(pc, path);
+			// ★**缺省零值**：不存在（`undefined`／`null`）⇒ 按 `0` 起算 ✓；★非数 ⇒ **不静默当 0**（点名）
+			if (cur !== undefined && cur !== null && typeof cur !== 'number') {
+				throw new Error(`Sg.rules.applyAdds：\`adds.${k}\` 的目标 \`${path}\` 已有**非数值**（${JSON.stringify(cur)}）——`
+					+ ' ✗ 不许把它静默当 0 再加（会掩盖数据错 ✓）');
+			}
+			const next = (typeof cur === 'number' ? cur : 0) + n;
+			window.Sg.notes.writePath(pc, path, next);
+			applied.push(k);
+		}
+		return applied;
+	},
 };

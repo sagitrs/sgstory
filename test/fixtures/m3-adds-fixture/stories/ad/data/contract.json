@@ -1,0 +1,6 @@
+{"section":"StoryBindings","members":[
+ {"name":"rules","kind":"empty-array","docs":"x"},
+ {"name":"passageSpecs","kind":"forward","docs":"x"},
+ {"name":"mechanics","kind":"null","docs":"x"},
+ {"name":"pcDefaults","kind":"const","value":{"hp":10,"max_hp":10,"salves":0},"docs":"x"}
+]}

@@ -1,0 +1,9 @@
+{
+ "房间": { "links": [
+   { "label": "咬一口", "to": "咬一口", "adds": { "心情": 5 } },
+   { "label": "再咬一口", "to": "咬一口", "adds": { "心情": 5 } },
+   { "label": "放下", "to": "看心情" }
+ ], "present": "菜单", "prio": 1, "prereq": [] },
+ "咬一口": { "links": [ { "label": "回房间", "to": "房间" } ], "present": "菜单", "prio": 1, "prereq": [] },
+ "看心情": { "links": [], "present": "菜单", "prio": 1, "prereq": [] }
+}

@@ -283,6 +283,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 					window.Sg.rules.applyYields(eff);
 					window.Sg.rules.applyGrants(eff);
 					window.Sg.rules.applySets(eff);
+					window.Sg.rules.applyAdds(eff);   // ★ `#1466`：算术效果（与上面三者**同刻** ✓）
 				}
 			}
 		} catch { /* 属性坏了不该挡跳转 ⇒ 交给 <<printparam>> 一侧点名 */ }

@@ -73,6 +73,7 @@ export const SEGMENTS = [
 	// ★ `#1504`（`#1498` 修甲）：browser 的 `--selftest` **进程内即可跑**（✗ 不需 Chrome）
 	//   ★为什么必须成段（写作者的 CR）：`#1498` 补的两格**写了却不跑** ⇒ ✗ 必须**接上**（判定函数对 ≠ 早退走它）✓
 	{ id: "test-browser-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/browser.mjs --selftest" },
+	{ id: "test-note-grant-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/note-grant.mjs" },
 	{ id: "test-attribution-gate-mjs", phase: 'test', cost: 0.1, cmd: "node test/attribution-gate.mjs" },
 	// `#1261` 甲：恢复并挂起（对象＝通用机制，样本暂缺）
 	{ id: "test-dialect-mjs", phase: 'test', cost: 0.1, cmd: "node test/dialect.mjs" },
@@ -697,7 +698,7 @@ export const SUITE_MEMBERS = {
 		'test-block-args-e2e-mjs', 'test-hp-nan-e2e-mjs', 'test-fightpanel-turns-e2e-mjs', 'test-passages-assemble-mjs-selftest',
 		'test-audit-gates-run-mjs', 'test-fight-keys-e2e-mjs', 'scripts-clean-net-mjs-selftest', 'scripts-precommit-check-mjs-selftest',
 		'scripts-lint-new-segment-mjs-selftest', 'test-coverage-mjs', 'test-gate-discovery-mjs', 'test-plan-needs-mjs',
-		'test-attribution-gate-mjs-selftest', 'test-browser-mjs-selftest', 'test-attribution-gate-mjs', 'test-chargen-lazy-e2e-mjs', 'test-adds-e2e-mjs', 'test-rulelist-effects-e2e-mjs', 'test-takes-e2e-mjs', 'test-pc-prefix-e2e-mjs'
+		'test-attribution-gate-mjs-selftest', 'test-browser-mjs-selftest', 'test-attribution-gate-mjs', 'test-chargen-lazy-e2e-mjs', 'test-adds-e2e-mjs', 'test-rulelist-effects-e2e-mjs', 'test-takes-e2e-mjs', 'test-pc-prefix-e2e-mjs', 'test-note-grant-mjs'
 	],
 };
 

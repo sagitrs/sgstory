@@ -270,7 +270,15 @@ export const makeShared = (ctx) => {
 			// → 不认它就会"转一处、桶丢一处"（实测：转图鉴 5 处 → `--consequences` `codex×3 → codex×2 · engine?×1`；
 			// 再转 NPC 3 处 → `--echoes` 分级 5 → 6）。`noteReadKeys` 只认**笔记引用**（不像全量 `readKeys()`
 			// 会把表里字符串文案提到的 `pc.ev.notes` 也算成读点）。
-			.concat(noteReadKeys(tblSrc, noteEntries).map((k) => String(k).replace(/^(ev|world)\./, ''))));
+			// ★ `#1151`（本门自身失能）修：**命名空间必须与 `written` 对齐**。
+			//   `#1223` 重建后 `noteReadKeys()` 产出**canonical `ev.notes.<id>`**（读侧与写侧同键 ⇒ 两侧可直比）；
+			//   而 `written` 的旗标来自**笔记 `flagPath` 的裸键**（`noteWriteFlags()` ⇒ `ev.a` 剥成 `a`）⇒
+			//   ★若此处只做 `replace(/^(ev|world)\./,'')` ⇒ 得 **`notes.n_a`**（✗ 与 `a` **永不相同**）
+			//   ⇒ ★`codexFlags.has('a')` **恒 false** ⇒ 图鉴桶**恒落 `none`** ⇒ 本门自证格**恒红**（＝本门失能 ✓）
+			//   ★修法＝**折到 `flagPath` 裸键**（与下方 `declCond.notes` 分支**同一手法** ✓）：
+			//     读侧 id → `notePathsById` → 各自剥 `ev.`/`world.` ⇒ 与 `written` 同命名空间 ✓
+			.concat([...new Set([...noteReadKeys(tblSrc, noteEntries)]
+				.flatMap((k) => { const id = String(k).replace(/^ev\.notes\./, ''); return (notePathsById.get(id) ?? []).map((q) => String(q).replace(/^(ev|world)\./, '')); }))]));
 		// `#785` 第 1 族（读点收口）：线索判定从"手写谓词"改成**声明式条件**后，消费点住在**数据字符串**里
 		//（`{ id, label, req: ['world.fog_thin']}`／`req: ['n_x']`）—— 上面三种全是**代码形状**扫描
 		//（`p.ev.X`／`readPath`／`notes.has`）→ 一个都看不见它 → 图鉴桶"转一处、桶丢一处"，

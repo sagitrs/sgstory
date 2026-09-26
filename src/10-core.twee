@@ -623,7 +623,7 @@ window.Sg.capability = (group) => {
 	<<set _p to Game.Combat.resolvePlayer($pc, $args[0])>>
 	<<checkres `_p.check`>>
 	<<if _p.hurt>><<damage _p.hurt>><</if>>
-	<<set _fo to Game.Combat.resolveFoe($pc, $args[0], _p.log)>>
+	<<set _fo to Game.Combat.resolveFoe($pc, $args[0], _p.log, _p.site)>>
 	<<if _fo.check>><<checkres `_fo.check`>><</if>>
 	<<if _fo.hurt>><<damage _fo.hurt>><</if>>
 	/% `#701`（症状：战斗屏只有**最后一手**，翻页/重渲染后旧的就没了）：**点击时**（sim 路径，允许写状态）

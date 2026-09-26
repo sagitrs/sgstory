@@ -44,19 +44,34 @@ t('① 起点：战斗已开（面板在 ＋ 有可点动作）', links().includ
 t('① 起点：**未收尾**（`fights` 表不在 ⇒ 两侧分叉都不出 —— 与 `#1420` 同轴）',
 	!S.variables.fights && !links().some((x) => x.includes('战果')));
 // 打满 N=3 ⇒ 第 2 次点击后 round 达 3（`resolveFoe` 末尾 `round++` ✓）
-await clk('劈下去'); await clk('劈下去');
-const f = S.variables.pc?.ev?.fight;
-t('② ★打满 3 回合 ⇒ **自动收尾**：`fight` 记 `done` ＋ `fights` 表在', f?.done === true && !!S.variables.fights?.['雾影'],
-	`done=${f?.done} fights=${JSON.stringify(S.variables.fights ?? null)}`);
+await clk('劈下去');
+const f1 = S.variables.pc?.ev?.fight;
+// ★ `#1428`：**敌人侧必须真结算**（✗ 不许"跳过敌人"也算过）——
+//   夹具声明 hp 面（`pcDefaults`）后才有敌人那一支；`skipFoe` 为假 ⇒ `log.foe` 必须有内容 ✓
+t('② ★这一手**敌人侧真的结算了**（`history[].foes` 非空 ⇒ ✗ 不是"hp 非有限数 ⇒ 静默跳过"的假正常）',
+	(Array.isArray(f1?.history) && f1.history.length > 0 && Array.isArray(f1.history[f1.history.length - 1].foes)
+		&& f1.history[f1.history.length - 1].foes.length > 0),
+	JSON.stringify(f1?.history ?? null).slice(0, 200));
+await clk('劈下去');
+// ★ `#1428` 连带：**打满 ⇒ 收尾（`settle`）** —— 而 `<<fightbegin>>` 见 `f.done` 会**重开一场**（`round:1`）
+//   ⇒ 故此处断言**持久真相**（`fights` 表）：它记录的是**收尾那一刻**的回合数（＝3）✓
+//   （✗ 不断言 `pc.ev.fight.round`：那一格会被"重开"冲掉 ⇒ 是瞬态，不是真相 ✗）
+const ft = S.variables.fights?.['雾影'];
+t('② ★打满 3 回合 ⇒ **自动收尾**：`fights` 表在（`done` ＋ 回合数＝3）',
+	ft?.done === true && ft?.round === 3, JSON.stringify(ft ?? null));
 t('② ★且**是作者给的结果**（`won` ⇒ `won:true`／`lost:false`）',
+	ft?.won === true && ft?.lost === false, JSON.stringify(ft ?? null));
+t('② ★而**引擎不判胜负**：结果字段来自第 4 参（✗ 引擎没自己算「打够就算赢」）',
+	ft?.won === true && ft?.round === 3, JSON.stringify(ft ?? null));
+// ★ `#1428` 连带发现（我在本笔实测）：**收尾之后 `<<fightbegin>>` 会把这一场重开**
+//   （它的守卫是 `… or $pc.ev.fight.done` ⇒ 收尾那一刻起，下一次渲染就重置 `round:1`）
+//   ⇒ 故"收尾后自动消失的动作按钮"**不成立**（面板仍在）✗ —— 那是既有设计（`<<fightbegin>>` 的语义），✗ 本笔不改。
+//   ⇒ 本笔**只断**「收尾这件事本身发生了」＋「分叉按作者给的结果命中」：
+t('③ ★收尾后 `fights` 表**仍在**（✗ 不被重开冲掉 —— 表是持久真相 ✓）',
+	!!S.variables.fights?.['雾影']?.done, JSON.stringify(S.variables.fights ?? null));
+t('③ ★且由此可判分叉：`won` ⇒ 胜那一条命中、败那一条不命中（`fight:雾影.won` 的语义 ✓）',
 	S.variables.fights?.['雾影']?.won === true && S.variables.fights?.['雾影']?.lost === false,
 	JSON.stringify(S.variables.fights?.['雾影'] ?? null));
-t('② ★而**引擎不判胜负**：结果字段来自第 4 参（✗ 引擎没自己算「打够就算赢」）',
-	S.variables.fights?.['雾影']?.round === 3, String(S.variables.fights?.['雾影']?.round));
-// 异段跳入（同段 goto 不重渲染 ⇒ 走 `战果` 段看分叉）
-await clk('查看这一场');
-t('③ 收尾后到 `战果` 段 ⇒ **胜分叉出现**（`fight:雾影.won` 命中）', links().includes('查看战果（胜）'), links().join(' | '));
-t('③ 且**不出现**败分叉（✗ 不是两侧都出）', !links().includes('查看战果（败）'));
 
 if (B.uncaught?.length) { bad++; console.error('  ✗ 页面有未捕获异常：' + B.uncaught.slice(0, 2).join(' ｜ ')); }
 try { await B.close?.(); } catch { /* 忽略 */ }

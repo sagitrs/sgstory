@@ -54,6 +54,11 @@ export const REASONS = {
 	// ── 测试脚本（id 形如 test/<file>）──
 	'test/walker.mjs': { wired: false, reason: '随机游走 soak（npm run soak）：耗时长、种子流非确定，不进 npm test' },
 	'test/browser.mjs': { wired: false, reason: '需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑' },
+	// ★ `#1504`（`#1498` 修甲）：**主跑仍需 Chrome** ⇒ `wired:false` **不动** ✓；
+	//   但其 `--selftest` **进程内可跑**（✗ 不需 Chrome —— 实测：`CHROME_PATH` 指空两态 rc=0 ✓）
+	//   ⇒ ★**单独成段接线**（`test-browser-mjs-selftest`）⇒ 那两格才**真在链上跑** ✓
+	//   ★为什么必须这么接（写作者的 CR）：`#1498` 补的两格原先是**写了却不跑** ✗ —— "判定函数对 ≠ 早退走它" 正是本票主题的**孪生** ✓
+	'test-browser.mjs-selftest': { wired: true, form: '行为化', reason: '`--selftest` 段：进程内（无需 Chrome）⇒ 已入 npm test（`#1504`）' },
 	'test/audit-golden.mjs': { wired: true, form: '行为化', reason: '**已入 npm test**（#436 收编）：实测全量 **8.0s**（dragon 7.0s ＋ 其余每个 30–55ms ⇒ 无需子集；此前"24 个开关较慢"的估计不成立）。收编时逐条归因既有漂移（18 个开关：10 纯自证插入／3 含新不变量行／3 数值替换／1 `state`（#483））' },
 	'test/saveload-inventory.mjs': { wired: true, form: '行为化', reason: '自证 6 例（含 widget 间接改状态）' },
 	'test/layering.mjs': { wired: true, form: '行为化', reason: '自证 **33** 条断言（**量法**：`node test/layering.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝模块依赖（`cases` 11 项，含 `#893` 两层登记的三条正反例）/ 点号 defines / 层间方向 / engine rank 派生与四条禁止边' },

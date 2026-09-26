@@ -42,6 +42,8 @@ export const ORDER = [
 	// ── 面夹具（`face-fixture`，`#1004` B2b）：**测试夹具（非内容故事）** ──
 	// 它的 `15-tables.twee` 同样**必须排在 `21-resolve` 前**（同 `night-ferry` 的 `#998` 实测：否则顶层浅合并
 	// 会把引擎 assign 进 `Game.*` 的方法一起替换掉 → 门抛异常）。
+	'src/engine/40-sim/05-decl.twee',      // `#1437`：**故事声明表的公共门面**（`Sg.story.mechanics` 一处读）
+	                                        //   零依赖 ⇒ 排最前（B/C/D/E 四块都经它 ⇒ 必须在它们之前）
 	'src/engine/40-sim/10-gear.twee',      // `#1187`：装备面的算（零依赖；Items／Combat 依赖它 → 必须在前）
 	'src/engine/40-sim/12-economy.twee',   // `#1187`：经济面的算（零依赖；Social／rules 依赖它 → 必须在前）
 	'src/engine/40-sim/20-items.twee',     // `#1187`：道具面的算（依赖 Gear；Checks 依赖它 → 必须在前）
@@ -78,6 +80,7 @@ export const MODULES = {
 	'src/engine/40-sim/22-rules.twee': { deps: ['src/engine/40-sim/12-economy.twee'], defines: ['Sg.rules'], layer: 'engine', note: '条件表选择器（`#1187` 拆出；`{price: id}` 硬依赖 `Game.Economy.priceOf`）。段名取 `RuleSelector` 以避开 `src/10-core.twee` 已占的 `Rules`（那是 `Game.Rules` 内核，同名不同物）' },
 	'src/engine/40-sim/32-social.twee': { deps: ['src/10-core.twee', 'src/engine/40-sim/12-economy.twee', 'src/engine/40-sim/22-rules.twee'], defines: [], layer: 'engine', note: '交涉面的算（`#1187` 拆出；读 `Game.Economy.priceOf`／`Sg.rules.matches`／`Game.Rules` 内核 —— 三条依赖按读面如实登记）' },
 	'src/engine/40-sim/20-items.twee': { deps: ['src/engine/40-sim/10-gear.twee'], defines: [], layer: 'engine', note: '道具面的算（`#1187` 拆出；依赖 `Game.Gear.advSource` 与契约 `itemEffect`／`poisonReduce`）' },
+	'src/engine/40-sim/05-decl.twee': { deps: [], defines: ['Game.StoryDecl'], layer: 'engine', note: '`#1437`：故事声明表的**公共门面**（`Sg.story.mechanics()` 的**唯一**读取点；零依赖、零新作者面）' },
 	'src/engine/40-sim/10-gear.twee': { deps: [], defines: [], layer: 'engine', note: '装备面的算（`#1187` 拆出；只读契约 `gearDef`，零引擎依赖）' },
 	'src/engine/40-sim/40-combat.twee': { deps: ['src/10-core.twee', 'src/engine/30-persist/05-store.twee', 'src/engine/40-sim/10-gear.twee'], defines: [], layer: 'engine', note: '战斗面的算（`#1187` 三块合一）。⚠️ 读面里**排在后面**的那些（`Sg.notes`／`Sg.Codex`，住在 `src/80-script.twee`，ORDER 更后）只能算**运行时耦合** ⇒ 不登记为 deps（登记会成前向依赖 ✗）；而**排在前面的读面照常登记**（如 `#1204` 对 `22-rules` 的登记）⇒ 两种情形同一把尺子：**加载序**。' },
 	'src/engine/40-sim/42-codex.twee': { deps: ['src/engine/40-sim/22-rules.twee'], defines: [], layer: 'engine', note: '图鉴面的算（`#1187` 拆出）。读面 `Sg.rules`（条件求值单一权威）＋ `Sg.story`（运行期故事数据）⇒ 只登记前者的提供者（加载序）；`Sg.Codex`（住 `src/80-script.twee`，ORDER 更后）是**运行时耦合**、不登记。' },

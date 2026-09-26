@@ -66,7 +66,9 @@ export const checkPlaces = ({ srcFiles, srcContents = null, order, modules, mani
 const srcFiles = allSourceFiles();   // #458：dogfooding——自己的校验也走单一权威（**路径视角**，与 ORDER/清单一致）
 const aggregatorPath = srcFiles.includes('15-tables.twee') ? join(SRC, '15-tables.twee') : null;
 // `#1220` 反向核：派生出的消费件数**钉死**（引擎侧增删赋值件时同片更新这个数）——防"扫描抽空 → 判据静默变松"
-const EXPECTED_CONSUMERS = 11;
+// `#1437`（D 块分家）：引擎**新增一件** `src/engine/40-sim/05-decl.twee`（故事声明公共门面）⇒ 本数 **11 ⇒ 12** ✓
+//   ★本条正是那颗「引擎侧增删赋值件 ⇒ 同片更新本数」的钉 ⇒ ✗ 不是改松判据，而是**照它的要求**更新（同片 ✓）。
+const EXPECTED_CONSUMERS = 12;
 const derivedCount = deriveStoryTableConsumers({ sources: Object.fromEntries(srcFiles.map((f) => { try { return [f, readFileSync(f, 'utf8')]; } catch { return [f, '']; } })) }).length;
 if (derivedCount !== EXPECTED_CONSUMERS) {
 	console.error(`✗ 消费侧派生件数 ${derivedCount} ≠ 钉死值 ${EXPECTED_CONSUMERS} ⇒ 引擎侧增删了赋值件：同片更新本数（判据不能静默变松）`);

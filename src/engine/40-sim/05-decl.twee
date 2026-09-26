@@ -1,0 +1,17 @@
+:: StoryDecl [script]
+// `#1437`（D 块分家第一刀）：**故事声明的机制表**的**公共门面**。
+//
+// 为什么单独一件（✗ 不留在 `Game.Combat`）：`Sg.story.mechanics()` 不是战斗专属 —— 它是**四块**的公共声明面
+//（状态效果／装备耐久／路线槽位／波次遭遇）。此前它挂在 `Game.Combat.slotsDecl()` 名下 ⇒
+//  ① 名字**暗示"战斗的槽位"**（而它读的是**整张** mechanics ✗）② 若 D 块摘出时跟着走 ⇒ B/C/E 三块
+//  **反过来依赖路线面**（＝把公共面私有化 ✗）。
+//
+// ★本件只做一件事：**把 `Sg.story.mechanics()` 读成一处**（✗ 不加任何新作者面、✗ 不改语义）。
+// ★零行为变化判据：`decl()` 与旧 `Game.Combat.slotsDecl()` **逐字同**（同一个表达式）⇒ 摘出前后行为相同。
+// ★写法说明：本件用 `window.Game.StoryDecl = {…}`（✗ 不用 `Object.assign((window.X ??= {}), …)`）——
+//   因为 `scripts/module-order.mjs:297` 的**声明检测**只认 `window\.X =` 这一形（`:304` 的 defines 对账靠它）
+//   ⇒ ✗ 用 `??=` 会被 `(?!=)` 排除 ⇒ 分层门报 `missing-define`（实测撞到 ✗）。
+window.Game.StoryDecl = {
+	/** 故事声明的机制表（`Sg.story.mechanics()`）；未声明 ⇒ `null`（调用方**显式降级**）。 */
+	decl() { return window.Sg?.story?.mechanics?.() ?? null; },
+};

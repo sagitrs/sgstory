@@ -64,10 +64,11 @@ Macro.add('rules', {
 	handler() {
 		const row = window.Sg.rules.pick(String(this.args[0] ?? ''));
 		if (!row) return;
-		if (row.text) $(this.output).wiki(String(row.text));   // 先渲染（抛错则不往下走）
-		window.Sg.rules.applyYields(row);                       // 渲染成功后再授予（笔记；幂等）
-		window.Sg.rules.applyGrants(row);                       // 物品面（同上）
-		window.Sg.rules.applySets(row);                         // 状态键面（同上；只置真）
+		if (row.text) $(this.output).wiki(String(row.text));   // 渲染（抛错则不往下走）
+		// ★ `#1468`：**渲染期不再落效果** —— 行效果已由编译期编进链接（`data-sg-effects`），
+		//   由**点击处理器**施加（与 `#1408` 的 `links[]` 路径**同一处** ✗ 不造第二套 ✓）
+		//   ★真因：渲染期就 `applyYields/Grants/Sets` ⇒ **读者没点就拿到东西** ✗
+		//   ★例外：`effectsUnmounted`（行文无链接）⇒ 无「点击」可挂 ⇒ 渲染期也不落 ✓
 	},
 });
 
@@ -80,9 +81,7 @@ Macro.add('rulelist', {
 	handler() {
 		for (const row of window.Sg.rules.pickAll(String(this.args[0] ?? ''))) {
 			if (row.text) $(this.output).wiki(String(row.text));
-			window.Sg.rules.applyYields(row);
-			window.Sg.rules.applyGrants(row);
-			window.Sg.rules.applySets(row);
+			// ★ `#1468`：**渲染期不落效果**（见 `<<rules>>` 处说明 ⇒ 同一施加器、点击时施加 ✓）
 		}
 	},
 });

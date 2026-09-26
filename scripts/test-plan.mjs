@@ -97,7 +97,9 @@ export const SEGMENTS = [
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-comment-mask-mjs", phase: 'test', cost: 0, inputs: ['*'], cmd: "node test/comment-mask.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
-	{ id: "test-contract-defaults-mjs", phase: 'test', cost: 0.3, inputs: ['*'], cmd: "node test/contract-defaults.mjs" },
+	// `#1353` batch3: attach the fixture root so it runs for real (old expectations retired:
+	//   three deleted stories' member counts + the never-firing face-fixture self-check).
+	{ id: "test-contract-defaults-mjs", phase: 'test', cost: 0.3, inputs: ['*'], exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-combat-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-combat-fixture/stories node test/contract-defaults.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-coverage-mjs", phase: 'test', cost: 0, needs: ['test-render-all-mjs'], cmd: "node test/coverage.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
@@ -902,7 +904,6 @@ export const SUSPENDED = {
 	// `#1315` 乙批：`test-combat-adv-mjs` **撤挂** —— 起引擎侧夹具 `test/fixtures/m3-combat-fixture/`，
 	//   判据改指该夹具（段名／播种）⇒ 夹具根态实跑 rc=0（报文：5 手在结转优势下掷骰）。
 	'test-comment-mask-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
-	'test-contract-defaults-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：改用 `storySlugs()`／样本给出）' },
 	'test-coverage-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'test-fight-seq-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 	// `#1315` 乙批：**撤挂** —— 起夹具 `test/fixtures/m3-nav-fixture/`；判据去掉两处钉死旧故事（车卡引导链 3 步／`Engine.play('酒馆')`）

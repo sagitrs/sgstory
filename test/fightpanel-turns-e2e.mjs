@@ -110,9 +110,51 @@ t('★正①附：落点是作者给的那一段（`战后`）', String(S.passag
 	try {
 		w.eval('(function(){ var p=SugarCube.State.variables.pc; var old=p.hp; p.hp = NaN; try { Game.Combat.resolveFoe(p, "雾影", {}, null); } finally { p.hp = old; } })()');
 	} catch (e) { e5 = String(e && e.message ? e.message : e); }
-	// ★ `#1487`：报文改成"键名由数据给"⇒ ★断言同步为「**断到那个键名**」（`hp` 仍在报文里 ✓ —— ✗ 不弱化判据）
+	// ★ `#1487`（写作者 CR ①：**格弱化必修**）：★裸 `/hp/` **丢了"键名锁定"** ✗ ——
+	//   而本票**正题恰是"键名由数据给"** ⇒ ★断言必须**从数据拼串**（`V().keys.hp` 的值 ⇒ 报文里必须出现它 ✓）
+	//   ⇒ ★这样：★改数据键名 ⇒ 报文跟变 ⇒ 格**跟着数据走**（✗ 不是钉一个恒定的 `hp` 字面量 ✓）
+	const _khpName = B.w.eval('Game.Rules.V().keys.hp');
 	t('★能假：该量纲非有限数（NaN）⇒ `resolveFoe` **fail-loud 点名**（✗ 不静默跳过敌人）',
 		/hp/.test(e5) && /有限数/.test(e5), e5.slice(0, 140));
+	t('★★**键名锁定（本票正题）**：报文中出现的是 **`V().keys.hp` 给的那个键名**（✗ 不是写死的 `hp` ✓）',
+		e5.includes(String(_khpName)) && String(_khpName).length > 0, `期望键名 ${_khpName} ⇒ 报文 ${e5.slice(0, 100)}`);
+}
+
+// ── ★ `#1487`（CR ②，裁定甲）：**`zeroGives` 的消费点要有行为面格**（✗ "写了不跑"族 ✓）────
+// ★为什么必须行为面：★纯函数格只证"`V().zeroGives` 读得到"（`rules-core` ✓）⇒
+//   ★它**证不到"零界那一段真的读它并授予实体"** ✗ ⇒ ★那正是"消费点已落、格缺席"的缺口 ✓
+{
+	// 驱动到零界：★直接投一个足够大的伤害（`<<damage>>` 的 widget 路径）
+	const drive = (dmg) => B.w.eval(`(function(){
+		const pc = SugarCube.State.variables.pc, R = Game.Rules;
+		pc.inv = {};                                  // ★清库存（先证"授予"是这一步带来的 ✓）
+		pc[R.vk('hp')] = 1; pc[R.vk('maxHp')] = 20;   // 1 点血 ⇒ 挨 1 下即到零界
+		const w = SugarCube.Wikifier;                 // ★走真 widget（✗ 不手搓链条 ✓）
+		const d = document.createElement('div'); document.body.appendChild(d);
+		new SugarCube.Wikifier(d, '<<damage ' + ${dmg} + '>>');
+		return JSON.stringify({ inv: Object.keys(pc.inv ?? {}), hp: pc[R.vk('hp')] });
+	})()`);
+	const got = JSON.parse(String(drive(5)));
+	const want = JSON.parse(B.w.eval("JSON.stringify(Game.Rules.V().zeroGives ?? [])"));
+	t('★★**零界 ⇒ 按 `V().zeroGives` 授予实体**（★驱动到零界 ⇒ `pc.inv` 含**声明的那个实体** ✓）',
+		want.length > 0 && want.every((n) => got.inv.includes(String(n))), `声明=${JSON.stringify(want)} ⇒ inv=${JSON.stringify(got.inv)}`);
+	t('★且**先决成立**：驱动后确实到/低于零界（✗ 否则上一格是空断 ✓）',
+		Number(got.hp) <= 0, `hp=${got.hp}`);
+	// ★能假：把 `zeroGives` 清空 ⇒ ★**不授予** ⇒ 第一格必红
+	const back = B.w.eval(`(function(){ var f=Sg.story.rulesPack; Sg.story.rulesPack = () => ({ vitals: { zeroGives: [] } });
+		try { return 'ok'; } finally { /* 恢复在下方 */ } })()`);
+	const drive2 = B.w.eval(`(function(){
+		const pc = SugarCube.State.variables.pc, R = Game.Rules;
+		pc.inv = {}; pc[R.vk('hp')] = 1; pc[R.vk('maxHp')] = 20;
+		const d = document.createElement('div'); document.body.appendChild(d);
+		new SugarCube.Wikifier(d, '<<damage 5>>');
+		return JSON.stringify(Object.keys(pc.inv ?? {}));
+	})()`);
+	B.w.eval('Sg.story.rulesPack = (window.__keepRP ?? Sg.story.rulesPack)');
+	const inv2 = JSON.parse(String(drive2));
+	const want2 = JSON.parse(B.w.eval("JSON.stringify(Game.Rules.V().zeroGives ?? [])"));
+	t('★**能假**：`zeroGives` 改空 ⇒ ★**不授予**（✗ 若仍授予 ⇒ 说明消费点没读它 ✓）',
+		want2.length === 0 && inv2.length === 0, `声明=${JSON.stringify(want2)} ⇒ inv=${JSON.stringify(inv2)}`);
 }
 if (B.uncaught?.length) { bad++; console.error('  ✗ 页面有未捕获异常：' + B.uncaught.slice(0, 2).join(' ｜ ')); }
 try { await B.close?.(); } catch { /* 忽略 */ }

@@ -53,10 +53,16 @@ export const REASONS = {
 	'scripts/report-selftest-validity.mjs': { wired: true, form: '行为化', reason: '**已入 npm test**（#474 接线）：静态扫描 `自证·` 是否「失败计入退出码」＋ 自增量是否「不崩」（TDZ/未声明）。接线前修掉剥离器**配对错位**（四条正则顺序剥 ⇒ 跨行贪婪吞代码 ⇒ `counters` 空 ⇒ 假阳性；**顺序治不了** ⇒ 改单扫描器按 JS 词法一次遮蔽注释/字符串/模板/正则，未闭合保守剥＋报诊断）。自证 18 例（V1×8＋V2×10），探针：删某门 `process.exit(1)` ⇒ 必报、退 1' },
 	// ── 测试脚本（id 形如 test/<file>）──
 	'test/walker.mjs': { wired: false, reason: '随机游走 soak（npm run soak）：耗时长、种子流非确定，不进 npm test' },
-	'test/browser.mjs': { wired: false, reason: '需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑' },
+	// ★ `#1504`：其 `--selftest` **进程内可跑**（✗ 不需 Chrome —— 实测 `CHROME_PATH` 指空 ⇒ rc=0 ✓）
+	//   ⇒ ★**单独成段接线**（`test-browser-mjs-selftest`）⇒ 那两格才**真在链上跑** ✓（✗ 死键 `-selftest` 子键 —— `REASONS` 按**件名**取，子键查不到 ⇒ 一行说两件事 ✓）
+	'test/browser.mjs': { wired: false, reason: '需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑。★另：`--selftest` 段**进程内**（✗ 无需 Chrome）⇒ 已单列成段入 npm test（`#1504`）' },
 	'test/audit-golden.mjs': { wired: true, form: '行为化', reason: '**已入 npm test**（#436 收编）：实测全量 **8.0s**（dragon 7.0s ＋ 其余每个 30–55ms ⇒ 无需子集；此前"24 个开关较慢"的估计不成立）。收编时逐条归因既有漂移（18 个开关：10 纯自证插入／3 含新不变量行／3 数值替换／1 `state`（#483））' },
 	'test/saveload-inventory.mjs': { wired: true, form: '行为化', reason: '自证 6 例（含 widget 间接改状态）' },
 	'test/layering.mjs': { wired: true, form: '行为化', reason: '自证 **33** 条断言（**量法**：`node test/layering.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝模块依赖（`cases` 11 项，含 `#893` 两层登记的三条正反例）/ 点号 defines / 层间方向 / engine rank 派生与四条禁止边' },
+	// ★ `#1504`（统一口径后**新暴露**的一行）：`test/passages-assemble.mjs` 的**主跑**（无 `--selftest`）**不在链上**
+	//   ⇒ ★旧口径用**子串** `includes('test/passages-assemble.mjs')` ⇒ 被 `… --selftest` 那段**误命中** ⇒ 一直标着 `✅` ✗
+	//   ⇒ 新口径（精确比）把它**照亮** ⇒ 按纪律补**理由**（✗ 不静默）✓
+	'test/passages-assemble.mjs': { wired: false, reason: '主跑（无 `--selftest`）不在链上；链上跑的是其 `--selftest` 段（`#1504` 统一口径后照亮）' },
 	'test/saveload.mjs': { wired: true, form: '行为化', reason: '**自证按需跑**：`node test/saveload.mjs --selftest`（故障注入＝落档后人为扰动，断言比较器判红）；不塞主链的理由＝自证需完整导航（成本≈主跑 30s，收益不值）' },
 	// `#1056`（**假阳性那一格**）：本件的 `--selftest` **不是入口** —— 它是**真断言的载荷**
 	//（`cli(['--selftest'])` 在测壳的旗标面）→ 裸调与 `--selftest` 输出**逐字节相同**。
@@ -287,6 +293,30 @@ export const selftestDispatched = (src) => {
  *
  * **量法（可粘贴复跑）**：`node scripts/report-gate-ledger.mjs --selftest`（含本函数正反例）
  * ＋ 把某件的 `-selftest` 段从 `test-plan.mjs` 拿掉 → 该行**当场从 `✅` 变 `—`**（这就是它的能假那一半）。 */
+/** ★ `#1504` CR：**接线的单一判据** —— "某段在不在链上"＝**段表里有没有那条 `cmd`**（★**逐字比** ✓）。
+ *
+ * 为什么必须单列（同文件**两套口径** ⇒ 写作者实测撞到）：原 `push` 处用 `testChain.includes('test/' + f)` ——
+ *   ★那是**字符串子串**匹配 ⇒ `test/browser.mjs --selftest`（新段）**命中了** `test/browser.mjs`（旧件）
+ *   ⇒ ★台账行显示"**接线 ✅ ＋ 理由「需真实 Chrome」**"＝**自相矛盾** ✗（本笔引入的真错 ✓）。
+ * 判据（本仓老口径）：★"接线"只看**段表**有没有那条命令 ⇒ 用 `plan.some(seg => seg.cmd === …)` ✓
+ *   （✗ 不扫 `testChain` 那串 join('&&') 的文本 —— 那是**另一套**口径，同概念两入口会漂 ✓）。 */
+export const wiredInPlan = (cmd, { plan = testPlan() } = {}) => plan.some((seg) => {
+	if (typeof seg?.cmd !== 'string') return false;
+	// ★口径：**段表里"链上真跑了这条命令"** —— 判据要**既精确又容前置**（实测两难各撞一次）：
+	//   · ✗ 子串（`includes('test/' + f)`）⇒ `test/browser.mjs --selftest` **误配** `test/browser.mjs` ✗（自相矛盾）
+	//   · ✗ 整串相等 ⇒ 漏掉**带前置**的段（`SG_STORIES_DIR=… node build.mjs && … node test/x.mjs`）✗（三行假红）
+	//   ⇒ ★正解：**命令按 `&&` 切成子命令，逐个按空白分词后比"最后一段相邻序列"**（＝**那条命令真在里面** ✓）
+	//   ★再精确一点：子命令可能带**前置环境变量**（`SG_STORIES_DIR=… node test/x.mjs`）⇒
+	//     ⇒ 判"**该子命令的末段（去掉前置 `K=V` 之后的整条命令）** ＝ 目标命令" ✓（✗ 不用子串 ⇒ 不会误配 ✓）
+	return seg.cmd.split('&&').some((part) => {
+		const toks = part.trim().split(/\s+/).filter(Boolean);
+		while (toks.length && /^[A-Za-z_][A-Za-z0-9_]*=/.test(toks[0])) toks.shift();   // 剥前置 `K=V`
+		// ★**必须精确相等**（✗ 不能用 `startsWith` —— 那会把 `test/browser.mjs --selftest` 误配成 `test/browser.mjs` ✗，
+		//   本笔实测撞过：加 `startsWith` ⇒ `browser` 主跑又变 `true` ✗ ⇒ **去掉** ✓）
+		return toks.join(' ').replace(/\s*>\s*\/dev\/null$/, '').trim() === cmd.trim();
+	});
+});
+
 export const selfProofWired = (file, src, { plan = testPlan() } = {}) => {
 	if (!hasSelfProof(src)) return false;                       // ① 实现面（剥注释后确有"反例/负例/selftest"的信号）
 	const code = maskComments(String(src ?? ''), { file, twee: false });
@@ -299,12 +329,12 @@ export const selfProofWired = (file, src, { plan = testPlan() } = {}) => {
 	// 子串口径会把 `test/story-ci.mjs`（`--selftest` 只是**真断言载荷**）误判成"有入口" → 假阳性。
 	// 那一格的合法归位（**不接也不删** ＋ 理由）见 `REASONS['test/story-ci.mjs']`。
 	if (!selftestDispatched(src)) return true;                  // 无 selftest **入口** → 无接线可要求
-	return plan.some((seg) => typeof seg?.cmd === 'string' && seg.cmd.includes(`test/${file} --selftest`));
+	return wiredInPlan(`node test/${file} --selftest`, { plan });      // ★`#1504`：与 push 处**同一口径**（✗ 两套 ✓）
 };
 
-for (const f of auditFlags) push(`audit:${f}`, 'audit 开关', testChain.includes(`scripts/audit.mjs --${f} --check`), auditSelfProof(f), { hasAssert: gateHasAssert(f) });
-for (const f of reportScripts) push(`scripts/${f}`, '报告脚本', testChain.includes(`scripts/${f}`), readFileSync(`scripts/${f}`, 'utf8').includes('--selftest'));
-for (const f of testFiles) push(`test/${f}`, '测试脚本', testChain.includes(`test/${f}`), selfProofWired(f, readFileSync(`test/${f}`, 'utf8')));
+for (const f of auditFlags) push(`audit:${f}`, 'audit 开关', wiredInPlan(`node scripts/audit.mjs --${f} --check`), auditSelfProof(f), { hasAssert: gateHasAssert(f) });
+for (const f of reportScripts) push(`scripts/${f}`, '报告脚本', wiredInPlan(`node scripts/${f}`), readFileSync(`scripts/${f}`, 'utf8').includes('--selftest'));
+for (const f of testFiles) push(`test/${f}`, '测试脚本', wiredInPlan(`node test/${f}`), selfProofWired(f, readFileSync(`test/${f}`, 'utf8')));
 
 // ── 判定 ─────────────────────────────────────────────────────────────
 // 链上出现的 audit 开关（用于「幻影门」反向查：链里跑了但 audit 里没有 = 手打字面量漂移/已删除）

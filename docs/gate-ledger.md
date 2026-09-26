@@ -14,10 +14,10 @@
 > · **量法（可粘贴复跑 ✓）**：`node scripts/report-gate-ledger.mjs --selftest`（含 4 条 `hasSelfProof` 正反例 ✓）；
 > · **缺自证的几行**（`—` ✓）：补一条**能假的负控制** ✓，或按 `#908` ① 登记探针 ✓ —— 名单见下方「工作清单」（**动态生成** ✗，不写死 ✓）。
 
-**★ 三门账（#1353 ①）**：**门 47**（有自证的行为化） ｜ **检视 9**（仅登记 ＋ **临时暂缓** —— 人来做、留读数） ｜ **欠账 46**（行为化缺自证 41 ＋ **有探针件却探不到** 5）
+**★ 三门账（#1353 ①）**：**门 46**（有自证的行为化） ｜ **检视 9**（仅登记 ＋ **临时暂缓** —— 人来做、留读数） ｜ **欠账 46**（行为化缺自证 41 ＋ **有探针件却探不到** 5）
 >
-**严格行为化率（有自证）：47/89 = 52.8%** ｜ **有断言但缺自证：41**（＝下方工作清单）｜ 仅登记：0
-**探针（直接读数 ✓，不是"文件在不在"那种代理 ✗）：`✅` 12 项 ｜ `—` 未探 77 项（**上限 117** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ `✗` 不咬 0 项（**>0 即红** ✓）** —— 档位／清单：`node scripts/probe-gates.mjs --probe=fast` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）
+**严格行为化率（有自证）：46/88 = 52.3%** ｜ **有断言但缺自证：41**（＝下方工作清单）｜ 仅登记：0
+**探针（直接读数 ✓，不是"文件在不在"那种代理 ✗）：`✅` 12 项 ｜ `—` 未探 76 项（**上限 117** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ `✗` 不咬 0 项（**>0 即红** ✓）** —— 档位／清单：`node scripts/probe-gates.mjs --probe=fast` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）
 **档位（tier，`#1070`）：PR 档（`--tier=fast`）只跑 `tier:'fast'` 的段；下列 **15 段**在 `full` 档（`npm run test:full`；nightly/main 由 `#1071` 接线）。**降频必须留痕** ✓（K5）——理由如下（单一权威＝`scripts/test-plan.mjs` 的 `FULL_REASONS` ✓）：**
 | 段 | 实测成本 | 为什么不在 PR 档（理由 ＋ 代价） |
 |---|---|---|
@@ -51,14 +51,14 @@
 | `audit:status` | audit 开关 | 行为化 | ✅ | — | ✅ | — |  |
 | `audit:text` | audit 开关 | 行为化 | ✅ | — | ✅ | — | 文本载荷门（**有判定**：载荷阈值）——此前台账误标「仅登记」，由形态对账查出并改正；自证待补（密度 ratchet 在 --craft，本门是自己的载荷线） |
 | `audit:waves` | audit 开关 | 行为化 | ✅ | — | ✅ | — |  |
-| `scripts/report-gate-ledger.mjs` | 报告脚本 | 行为化 | ✅ | ✅ | ✅ | — | 本文件自身的自检（台账不腐），已入 npm test |
-| `scripts/report-ledger-freshness.mjs` | 报告脚本 | 行为化 | ✅ | — | ✅ | — | **离线段已入 npm test**（`--ledger --check`：#297 对标台账行级新鲜度——行数栅栏/复核日期在期/触发条件非空/落点引用的门旗标与文件真实存在，7 例自证）；**网络段仍需 token**（#NNN 标记与 GitHub 真实状态一致），不塞主链路，由 `npm run report:freshness:check` 人工/定时跑 |
+| `scripts/report-gate-ledger.mjs` | 报告脚本 | 行为化 | ✅ | ✅ | — | — | 本文件自身的自检（台账不腐），已入 npm test |
+| `scripts/report-ledger-freshness.mjs` | 报告脚本 | 行为化 | ✅ | — | — | — | **离线段已入 npm test**（`--ledger --check`：#297 对标台账行级新鲜度——行数栅栏/复核日期在期/触发条件非空/落点引用的门旗标与文件真实存在，7 例自证）；**网络段仍需 token**（#NNN 标记与 GitHub 真实状态一致），不塞主链路，由 `npm run report:freshness:check` 人工/定时跑 |
 | `scripts/report-selftest-validity.mjs` | 报告脚本 | 行为化 | ✅ | — | ✅ | — | **已入 npm test**（#474 接线）：静态扫描 `自证·` 是否「失败计入退出码」＋ 自增量是否「不崩」（TDZ/未声明）。接线前修掉剥离器**配对错位**（四条正则顺序剥 ⇒ 跨行贪婪吞代码 ⇒ `counters` 空 ⇒ 假阳性；**顺序治不了** ⇒ 改单扫描器按 JS 词法一次遮蔽注释/字符串/模板/正则，未闭合保守剥＋报诊断）。自证 18 例（V1×8＋V2×10），探针：删某门 `process.exit(1)` ⇒ 必报、退 1 |
 | `test/adds-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
 | `test/attribution-gate.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
 | `test/audit-gates-run.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
 | `test/block-args-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/browser.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | — | 需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑 |
+| `test/browser.mjs` | 测试脚本 | 行为化 | ✅ | — | — | — | 需真实 Chrome（npm run browser / soak）；CI 由 soak job 跑。★另：`--selftest` 段**进程内**（✗ 无需 Chrome）⇒ 已单列成段入 npm test（`#1504`） |
 | `test/case-run.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
 | `test/chargen-apply.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
 | `test/chargen-lazy-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
@@ -94,14 +94,13 @@
 | `test/layering.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — | 自证 **33** 条断言（**量法**：`node test/layering.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝模块依赖（`cases` 11 项，含 `#893` 两层登记的三条正反例）/ 点号 defines / 层间方向 / engine rank 派生与四条禁止边 |
 | `test/locations-adv.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
 | `test/multi-story.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | — |  |
-| `test/note-grant.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
 | `test/npc-venue.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
 | `test/npm-entries-guard.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
 | `test/ns-merge.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/passages-assemble.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
+| `test/passages-assemble.mjs` | 测试脚本 | 行为化 | ✅ | — | — | — | 主跑（无 `--selftest`）不在链上；链上跑的是其 `--selftest` 段（`#1504` 统一口径后照亮） |
 | `test/passages-links.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
 | `test/pc-base.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
-| `test/pc-defaults.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
+| `test/pc-defaults.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
 | `test/pc-prefix-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | ✅ | — |  |
 | `test/plan-needs.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
 | `test/premise-source.mjs` | 测试脚本 | 行为化 | ✅ | — | ✅ | — |  |
@@ -137,7 +136,6 @@
 - `audit:facade-call`（audit 开关）
 - `test/adds-e2e.mjs`（测试脚本）
 - `test/block-args-e2e.mjs`（测试脚本）
-- `test/browser.mjs`（测试脚本）
 - `test/chargen-apply.mjs`（测试脚本）
 - `test/chargen-lazy-e2e.mjs`（测试脚本）
 - `test/chargen-macros.mjs`（测试脚本）
@@ -163,6 +161,7 @@
 - `test/ns-merge.mjs`（测试脚本）
 - `test/passages-links.mjs`（测试脚本）
 - `test/pc-base.mjs`（测试脚本）
+- `test/pc-defaults.mjs`（测试脚本）
 - `test/pc-prefix-e2e.mjs`（测试脚本）
 - `test/properties.mjs`（测试脚本）
 - `test/readkey-family.mjs`（测试脚本）

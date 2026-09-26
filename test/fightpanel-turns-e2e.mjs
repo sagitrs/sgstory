@@ -11,6 +11,14 @@
 //
 // 两态：① 打满 N 回合 ⇒ **自动收尾**（`fights` 表在 ＋ `fight:<池>.won` 为真 ⇒ 胜分叉出现）
 //      ② 未打满 ⇒ **不收尾**（表不在 ⇒ 两侧分叉都不出 ✓，与 `#1420` 的"未收尾 ⇒ 不出"同轴）
+// ★ `#1432`（**收尾后的去向**，作者裁定＝③）：第 5 参＝去向段名 —— 收尾那一击把读者**带出这一段** ✓
+//   ★为什么不是「收尾后不渲动作」：那条只能读**持久**的 `fights[池].done`，而 `settle` 幂等 ⇒
+//     ① 同一池再打 ⇒ 结果被丢（静默空转 ✗）② 同一池名**跨章复用** ⇒ 无敌可打（面板空 ✗）⇒ ③ 天然避开两者 ✓
+//   缺省（不给第 5 参）⇒ 与今天**逐字相同** ✓；去向段名取不到 ⇒ **fail-loud 点名**（段名 ＋ 池名）✓；
+//   死透那一击 ⇒ 仍去「结局 死亡」（去向跳转排在 `$pc.hp gt 0` 之内 ⇒ ✗ 不覆盖）✓
+// ★ 实测（写本笔时踩到的坑）：`<<goto>>` 宏＝`setTimeout(() => Engine.play(…), Engine.DOM_DELAY)`
+//   ⇒ **异步**（默认 40ms）⇒ 判据读「跳没跳」要**等一拍**（✗ 点完立刻读 ⇒ 假红）。
+//   而 `Engine.play(dest)` 直接调 ⇒ 在**渲染期**被引擎拒（本 widget 正跑在 link 体渲染里）✗
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
@@ -73,6 +81,38 @@ t('③ ★且由此可判分叉：`won` ⇒ 胜那一条命中、败那一条不
 	S.variables.fights?.['雾影']?.won === true && S.variables.fights?.['雾影']?.lost === false,
 	JSON.stringify(S.variables.fights?.['雾影'] ?? null));
 
+// ── ★ `#1432` 去向（正①②／反③④）＋ 能假：hp 非有限数 ⇒ fail-loud ────────────────
+// ★ 读「跳没跳」必须**等一拍**：`<<goto>>` 走 `setTimeout(…, Engine.DOM_DELAY)`（默认 40ms）✗ 立刻读＝假红
+const nav = async (l) => { await clk(l); await B.settle(); await new Promise((r) => setTimeout(r, 150)); await B.settle(); };
+
+// 正①：本夹具的「斗」段**带第 5 参**（`"战后"`）⇒ 打满 ⇒ 应离开「斗」
+await nav('劈下去'); await nav('劈下去');
+t('★正①：给了去向 ⇒ 打满后**离开「斗」段**（真跳了 ✓，✗ 不是留一个可点的空转按钮）',
+	String(S.passage) !== '斗', `段=${S.passage}`);
+t('★正①附：落点是作者给的那一段（`战后`）', String(S.passage).includes('战后'), `段=${S.passage}`);
+
+// 反④：去向段名不存在 ⇒ fail-loud（点名**段名 ＋ 池名**）—— 直接调 widget（✗ 不靠造一个坏夹具）
+{
+	// ★ 读法（实测）：SugarCube 把宏内错误**渲染成可见文本**（✗ 不是抛 ／ ✗ 不是静默）——
+	//   `<<run (function(){ throw … })()>>` ⇒ 页面里出现 `Error: <<fightdest>>: error within widget code (… 段落不存在：「…」 …)`
+	//   ★这比抛更合适：**作者当场在页面上看得见**（✗ 不静默跳成荒地）✓
+	const dd = w.document.createElement('div');
+	w.document.body.appendChild(dd);
+	new w.SugarCube.Wikifier(dd, '<<fightdest "没有这个段" "雾影">>');
+	const txt4 = String(dd.textContent ?? '');
+	t('★反④：去向段名取不到 ⇒ **fail-loud** 且点名（段名「没有这个段」＋ 池名「雾影」）',
+		/没有这个段/.test(txt4) && /雾影/.test(txt4) && /不存在/.test(txt4), txt4.slice(0, 150));
+}
+
+// ★ 能假（T 重申的那条）：夹具声明了 `pcDefaults` ⇒ 全程走「有 hp」支 ⇒ fail-loud 那半**原本没有牙** ✗
+{
+	let e5 = '';
+	try {
+		w.eval('(function(){ var p=SugarCube.State.variables.pc; var old=p.hp; p.hp = NaN; try { Game.Combat.resolveFoe(p, "雾影", {}, null); } finally { p.hp = old; } })()');
+	} catch (e) { e5 = String(e && e.message ? e.message : e); }
+	t('★能假：`pc.hp` 非有限数（NaN）⇒ `resolveFoe` **fail-loud 点名**（✗ 不静默跳过敌人）',
+		/pc\.hp/.test(e5) && /有限数/.test(e5), e5.slice(0, 140));
+}
 if (B.uncaught?.length) { bad++; console.error('  ✗ 页面有未捕获异常：' + B.uncaught.slice(0, 2).join(' ｜ ')); }
 try { await B.close?.(); } catch { /* 忽略 */ }
 rmSync(WORK, { recursive: true, force: true });

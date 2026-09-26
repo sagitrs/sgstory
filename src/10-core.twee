@@ -690,6 +690,30 @@ window.Sg.capability = (group) => {
 	<<run Game.Combat.settle($pc, _pool, _want)>>
 <</nobr>><</widget>>
 
+/% ★ `#1432`：**收尾后的去向**（作者裁定＝③「收尾后自动跳转」；与 `#1426` 的收尾时机**同轴**：都在面板参数上）。
+   ✗ 引擎仍**不判胜负**（那是故事策略 ✓）；✗ 不新开写路（复用 `Game.Combat.settle` ✓）。
+   ★为什么单开一个 widget：判定与跳转都要落在 **link 体**（＝**点击那一刻**）——
+     ① ✗ 不能放渲染期：渲染期判"已收尾"只能读**持久**的 `fights[池].done` ⇒ 同一池名**跨章复用**时会**无敌可打** ✗
+     ② ✗ 不能直接写在三处 link 体内（三份重复 ⇒ 改一处漏两处 ✗）⇒ 收进一个 widget，三处调用 ✓
+   ★死透优先级：本 widget **只做跳转**，其调用点在三处 `<<if $pc.hp gt 0>>` **之内** ⇒
+     ✗ 不会覆盖 `<<damage>>` 已跳的「结局 死亡」（既有注释已写明这条）✓
+   用法：`<<fightdest "<段名>" "<池名>">>`（第 1 参缺省／空 ⇒ **什么都不做** ⇒ 与今天逐字相同 ✓） %/
+<<widget "fightdest">><<nobr>>
+	<<set _fdest to String($args[0] ?? "")>>
+	<<if _fdest isnot "">>
+		<<if Story.has(_fdest)>>
+			/% ★**用 `<<goto>>` 宏**（✗ 不用 `Engine.play`）：实测两条 ——
+			   · `Engine.play(dest)` 在**渲染期**被引擎拒（本 widget 正跑在 link 体的渲染里）⇒ 不动 ✗
+			   · `<<goto>>` 宏＝`setTimeout(() => Engine.play(…), Engine.DOM_DELAY)`（读 `vendor/format.js`）
+			     ⇒ **异步但一定会跳**（默认 40ms ⇒ 观感上就是「立刻」）✓ ⇒ 这才是渲染期导航的正路 ✓
+			   ★判据注意：读「跳没跳」要**等一拍**（✗ 点完立刻读 ⇒ 会假红） %/
+			<<goto `_fdest`>>
+		<<else>>
+			<<run (function(){ throw new Error('<<fightpanel>>：第 5 参（收尾后去向）指向的段落不存在：「' + String(_fdest) + '」（战斗池：「' + String($args[1] ?? "") + '」）—— 请核段落名，✗ 不静默跳成荒地'); })()>>
+		<</if>>
+	<</if>>
+<</nobr>><</widget>>
+
 /% #441-A：面板是 **present** —— 抽牌与「选中哪一手」都改走 `Game.Combat.ensureOffer`／`chooseAction`（sim），
    本 widget 体内因此不再有 `<<set $…>>`（旧实现三处 `<<set $pc.ev.fight.act to …>>` ＋ 一处经 `_f` 别名的
    `<<set _f.offer to …>>`，后者同样是写状态）。 %/
@@ -717,7 +741,15 @@ window.Sg.capability = (group) => {
 					<</if>>
 				<</if>>
 				/% #350/#357：结算在点击时完成；**死透就不再归位**——<<damage>> 已跳「结局 死亡」，再 goto 会把它覆盖掉。用**存活条件**判，不依赖 widget 里的 passage() %/
-				<<if $pc.hp gt 0>><<goto `_orig`>><</if>>
+				<<if $pc.hp gt 0>>
+					/% ★ `#1432`：**收尾后按作者给的去向跳转**（第 5 参）；缺省 ⇒ 走今天的 `<<goto _orig>>` ✓
+					   ★排在存活条件**之内** ⇒ 死透那一击仍去「结局 死亡」（✗ 不被覆盖）✓ %/
+					<<if $args[1] isnot undefined and $args[1] isnot null and $args[1] isnot "" and $pc.ev.fight and $pc.ev.fight.round gte Number($args[1]) and $args[3] isnot undefined and $args[3] isnot null and $args[3] isnot "">>
+						<<fightdest $args[3] $args[0]>>
+					<<else>>
+						<<goto `_orig`>>
+					<</if>>
+				<</if>>
 			<</link>>
 			<span class="meta">（<<print Game.Combat.siteInfo(_f.offer[0])>>）</span>
 		<</if>>
@@ -735,7 +767,15 @@ window.Sg.capability = (group) => {
 						<<run Game.Combat.settle($pc, String($args[0] ?? ""), String($args[2] ?? ""))>>
 					<</if>>
 				<</if>>
-				<<if $pc.hp gt 0>><<goto `_orig`>><</if>>
+				<<if $pc.hp gt 0>>
+					/% ★ `#1432`：**收尾后按作者给的去向跳转**（第 5 参）；缺省 ⇒ 走今天的 `<<goto _orig>>` ✓
+					   ★排在存活条件**之内** ⇒ 死透那一击仍去「结局 死亡」（✗ 不被覆盖）✓ %/
+					<<if $args[1] isnot undefined and $args[1] isnot null and $args[1] isnot "" and $pc.ev.fight and $pc.ev.fight.round gte Number($args[1]) and $args[3] isnot undefined and $args[3] isnot null and $args[3] isnot "">>
+						<<fightdest $args[3] $args[0]>>
+					<<else>>
+						<<goto `_orig`>>
+					<</if>>
+				<</if>>
 			<</link>>
 			<span class="meta">（<<print Game.Combat.siteInfo(_f.offer[1])>>）</span>
 		<</if>>
@@ -753,7 +793,15 @@ window.Sg.capability = (group) => {
 						<<run Game.Combat.settle($pc, String($args[0] ?? ""), String($args[2] ?? ""))>>
 					<</if>>
 				<</if>>
-				<<if $pc.hp gt 0>><<goto `_orig`>><</if>>
+				<<if $pc.hp gt 0>>
+					/% ★ `#1432`：**收尾后按作者给的去向跳转**（第 5 参）；缺省 ⇒ 走今天的 `<<goto _orig>>` ✓
+					   ★排在存活条件**之内** ⇒ 死透那一击仍去「结局 死亡」（✗ 不被覆盖）✓ %/
+					<<if $args[1] isnot undefined and $args[1] isnot null and $args[1] isnot "" and $pc.ev.fight and $pc.ev.fight.round gte Number($args[1]) and $args[3] isnot undefined and $args[3] isnot null and $args[3] isnot "">>
+						<<fightdest $args[3] $args[0]>>
+					<<else>>
+						<<goto `_orig`>>
+					<</if>>
+				<</if>>
 			<</link>>
 			<span class="meta">（<<print Game.Combat.siteInfo(_f.offer[2])>>）</span>
 		<</if>>

@@ -163,9 +163,13 @@ window.Game.Rules = {
 	skillLabel(skill) { const ab = this.SKILLS[skill]; return ab ? `${skill}检定（${this.ABILITIES[ab]}）` : `${skill}检定`; },
 	// 取骰：记下两枚供"计算过程"显示（优势取高 / 劣势取低）
 	roll(adv) {
-		const a = this.rng.d(20);
+		// ★ `#1463`（T 阻断，我实测成立）：**骰面 ≈ 判定侧的源头** —— 这里硬编 `20` ⇒
+		//   包改了 `dice.sides` 而此处仍掷 20 ⇒ ★`nat20` 那一支**恒不触发** ✗（判定侧改了也没用 ✓）
+		//   ★保留 `{roll, rolls}` 返回形（`rolls` 是"计算过程"要显示的两枚 ⇒ ✗ 不能直接 `return d20` 丢它 ✓）
+		const _S = this.pack().dice?.sides ?? 20;   // 缺省 20 ⇒ 零包＝今天 ✓
+		const a = this.rng.d(_S);
 		if (!adv) return { roll: a, rolls: [a] };
-		const b = this.rng.d(20);
+		const b = this.rng.d(_S);
 		return { roll: adv > 0 ? Math.max(a, b) : Math.min(a, b), rolls: [a, b] };
 	},
 	// 修正构成（拆项：判定属性 + 熟练 + 加值 + 幸运）

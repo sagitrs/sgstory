@@ -26,7 +26,7 @@ import { maskComments } from '../editor/lib/core/mask.mjs';   // `#899` ③：**
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
 import { PROBES } from './probes.mjs';
-// `#1261` 甲（台账侧）：**临时下架**的段/探针在台账里**单列**，既不报「未接线但没写理由」，
+// `#1261` 甲（台账侧）：**不进 CI 运行（挂起）**的段/探针在台账里**单列**，既不报「未接线但没写理由」，
 // 也不算「未探」—— 它们是「对象在、样本暂缺」的可见状态（各带 why/until）。
 import { SUSPENDED } from './test-plan.mjs';   // `#908` ①：探针清单（**直接读数** —— 与「自证」那一格的**代理**分家）
 
@@ -337,7 +337,7 @@ export const problems = (rows, declared = null, chain = []) => {
 	};
 	const suspIsSuspended = (rowId) => suspKeys.has(rowId) || [...suspKeys].some((k) => toFileGuess(k) === rowId);
 	for (const r of rows) {
-		// `#1261` 甲：**临时下架**的段已知原因（样本暂缺）→ 不报 missing-reason；其状态在台账单列。
+		// `#1261` 甲：**不进 CI 运行（挂起）**的段已知原因（样本暂缺）→ 不报 missing-reason；其状态在台账单列。
 		if ((!r.wired || r.form === '仅登记') && !r.reason && !suspIsSuspended(r.id)) {
 			out.push({ id: r.id, code: 'missing-reason', msg: `${r.form === '仅登记' ? '仅登记' : '未接线'}但没写理由` });
 		}
@@ -378,7 +378,7 @@ const summary = (rows) => {
 	return { total: rows.length, behavioral: beh, assertOnly, registry: reg, review, debtN, suspendedN, probeDebt, probeCap: cap < 0 ? '缺件 ✗' : cap, rate: +(beh / rows.length * 100).toFixed(1), probeOk, probeNone, probeBad };
 };
 
-// `#1261` 甲（台账侧）：**临时下架**列（从 SUSPENDED 读；段 id ⇒ 文件路径要猜一次）
+// `#1261` 甲（台账侧）：**不进 CI 运行**列（从 SUSPENDED 读；段 id ⇒ 文件路径要猜一次）
 /** `#1353` ①：该台账行是否**临时暂缓**（与 `suspCellOf` **同源** ⇒ 一处判定 ✓）。 */
 const isSuspendedId = (rowId) => suspCellOf(rowId) !== '—';
 
@@ -386,7 +386,7 @@ const suspCellOf = (rowId) => {
 	for (const [id, m] of Object.entries(SUSPENDED)) {
 		const guess = id.replace(/-mjs(-selftest)?$/, '.mjs')
 			.replace(/^test-/, 'test/').replace(/^scripts-/, 'scripts/').replace(/^editor-/, 'editor/');
-		if (id === rowId || guess === rowId) return `**临时下架**：${m.why}（until ${m.until}）`;
+		if (id === rowId || guess === rowId) return `**不进 CI 运行（挂起）**：${m.why}（until ${m.until}）`;
 	}
 	return '—';
 };
@@ -435,7 +435,7 @@ ${LEGEND}
 **探针（直接读数 ✓，不是\"文件在不在\"那种代理 ✗）：\`✅\` ${s.probeOk} 项 ｜ \`—\` 未探 ${s.probeNone} 项（**上限 ${s.probeCap}** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ \`✗\` 不咬 ${s.probeBad} 项（**>0 即红** ✓）** —— 档位／清单：\`node scripts/probe-gates.mjs --probe=fast\` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）${s.probeOk === 0 && s.probeNone > 0 ? '〔**本次无读数**：生成时 \`build/probe-results.json\` 缺失，经 \`--allow-missing-probe\` 显式逃生 ⇒ **本行与探针列都不是覆盖读数**，不可据此判断探针面 ✗〕' : ''}
 ${TIER_NOTE}
 
-| 门 | 类型 | 形态 | 自证 | **探针** | 接线（npm test） | **临时下架** | 理由（仅登记/未接线必填） |
+| 门 | 类型 | 形态 | 自证 | **探针** | 接线（npm test） | **不进 CI 运行** | 理由（仅登记/未接线必填） |
 |---|---|---|---|---|---|---|---|
 `;
 	const body = rows.map((r) => `| \`${r.id}\` | ${r.kind} | ${r.form} | ${r.selfProof ? '✅' : '—'} | ${r.probe} | ${r.wired ? '✅' : '—'} | ${suspCellOf(r.id)} | ${r.reason || ''} |`).join('\n');

@@ -123,6 +123,23 @@ ok(nat1.roll === 1 && !nat1.success, '自然 1 → 无视加值必然失败');
 		const back = R.roll(0);
 		ok(back.roll >= 1 && back.roll <= 20, '★ 复位 ⇒ `roll()` 回 1..20（内置 `sides:20` ✓）');
 	}
+	// ★★ `#1463`（写作者更正票里那条可复用缺口形态，我照落）：
+	//    **同一概念的两个入口必须都读包** —— `d20(adv)`（裸值）与 `roll(adv)`（带过程）都在掷骰，
+	//    ★我先前只改了 `roll()` 的判定侧、`d20()` 本来就读了包 ⇒ **两入口不一致**（换 d6 体系 ⇒ 一个 d20 一个 d6）✗
+	//    ⇒ 本格断「**两条入口在不同 `sides` 下仍一致**」（✗ 否则将来还会只改一边 ✓）
+	{
+		w.Sg.story.rulesPack = () => ({ dice: { sides: 100 } });
+		let bothInRange = true, bothBeyond20 = false;
+		for (let i = 0; i < 80; i++) {
+			const a = R.d20(0), b = R.roll(0);
+			if (!(a >= 1 && a <= 100)) bothInRange = false;
+			if (!(b.roll >= 1 && b.roll <= 100)) bothInRange = false;
+			if (a > 20 || b.roll > 20) bothBeyond20 = true;
+		}
+		ok(bothInRange, '★ 两入口一致：`d20()` 与 `roll()` 在 `sides:100` 下**都**落 1..100（✗ 只改一边即红 ✓）');
+		ok(bothBeyond20, '★ 且**两条都**取得到 >20（证**两处都没硬编 20** ✓）');
+		w.Sg.story.rulesPack = keep;
+	}
 }
 
 // ── `#568` 条件项的**对象算子形**（`gte`／`lte`／`oneOf`）：引擎兑现 ＋ 结构畸形 fail-loud ──

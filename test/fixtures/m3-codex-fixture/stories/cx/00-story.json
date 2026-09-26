@@ -1,0 +1,15 @@
+{
+	"slug": "cx",
+	"title": "图鉴最小夹具",
+	"subtitle": "引擎侧最小夹具（`#1315` 乙批）：服务「零状态档不泄底」判据（`reread` 的 R1/R2）",
+	"entry": "门厅",
+	"contractVersion": 1,
+	"audience": "internal",
+	"files": [
+		"stories/cx/00-meta.twee",
+		"stories/cx/passages/01-门厅.md",
+		"stories/cx/15-tables.twee",
+		"stories/cx/17-rules.twee"
+	],
+	"gates": []
+}

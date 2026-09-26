@@ -120,7 +120,7 @@ export const SEGMENTS = [
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-render-all-mjs", phase: 'test', cost: 8.9, cmd: "node test/render-all.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
-	{ id: "test-reread-mjs", phase: 'test', cost: 0, cmd: "node test/reread.mjs" },
+		{ id: "test-reread-mjs", phase: 'test', cost: 1.5, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-codex-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-codex-fixture/stories node test/reread.mjs" },   // `#1315` 审计：接图鉴面夹具根（先 build 再跑，照同组形态）
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 		// `#1353` ③（乙组真因版）：两条雤组（`roll-binding`／`saveui`）**下架删除** ——
 	//   它们本质是**旧故事的剧情专项判据**（`听雾`／`洞穴·战斗`／`守林人`等剧情面），而那些剧情
@@ -904,7 +904,8 @@ export const SUSPENDED = {
 	// `#1353` 乙组：`test-properties-mjs` **撤挂** —— 接 hp 面夹具 `m3-hp-e2e` ⇒ 夹具根态 **13 格绿**；
 	//   原 D（车卡）／F（位点优势）两段已拆出（见 `chargen-shape`／`locations-adv`）⇒ 本件回归**单一面**（hp/判定/战斗）。
 	'test-render-all-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
-	'test-reread-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
+	// `#1315` 审计（下架复验）：`test-reread-mjs` **撤挂** —— R3–R6 已随声明面 `Truth.claims` 退役（全仓 0 命中），
+	//   现存 R1/R2 接新夹具 `test/fixtures/m3-codex-fixture/`（零状态档不泄底）⇒ 夹具根态实跑 rc=0 ✓
 	'test-rules-mjs': { why: '样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）', until: '#1279（M1 尾件回填复验：测试件接新根后）' },
 };
 

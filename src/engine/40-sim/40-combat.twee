@@ -355,13 +355,18 @@ Object.assign((window.Game.Combat ??= {}), {
 	 * 护具未声明 `ac` → 记 0（背包/武器）；声明了但非数字 → 报错（结构畸形必须报错）。 */
 	pcAC(pc) {
 		const mech = this.slotsDecl();
+		// ★ `#1461`：**两态保持**（✗ 别把 `null` 变成 `0` —— 否则"未启用 ⇒ 走旧路径"的分支会**悄悄改道** ✗）
 		if (!mech) return null;
-		let ac = 10 + window.Game.Rules.abilityMod(pc, 'dex');
+		// ★ `#1461` ①：**基数 ＋ 用哪个属性读包**（✗ 不写死 `10`／`'dex'` —— 否则与包不同步 ✓）
+		const acPack = window.Game.Rules.pack().ac ?? { base: 10, ability: 'dex' };
+		let ac = (acPack.base ?? 10) + window.Game.Rules.abilityMod(pc, acPack.ability ?? 'dex');
+		// ★ `#1461`：护具字段名**也来自包**（缺省 `'ac'` ⇒ 零包＝今天 ✓）
+		const field = acPack.gearField ?? 'ac';
 		for (const g of pc?.gear ?? []) {
 			const def = mech.equipment?.[g];
-			if (!def || def.ac === undefined) continue;
-			if (typeof def.ac !== 'number') throw new Error(`Game.Combat.pcAC：护具「${g}」的 \`ac\` 必须是数字（#702）`);
-			ac += def.ac;
+			if (!def || def[field] === undefined) continue;
+			if (typeof def[field] !== 'number') throw new Error(`Game.Combat.pcAC：护具「${g}」的 \`${field}\` 必须是数字（#702）`);
+			ac += def[field];
 		}
 		return ac;
 	},
@@ -405,7 +410,9 @@ Object.assign((window.Game.Combat ??= {}), {
 		const { roll, rolls } = window.Game.Rules.roll(adv);
 		const mod = window.Game.Rules.abilityMod(pc, ability) + window.Game.Rules.prof();
 		const total = roll + mod;
-		const crit = roll === 20, fumble = roll === 1;
+		// ★ `#1461`：自然骰**读包**（✗ 不写死 20／1 —— 否则与包不同步 ✓）
+		const _d = window.Game.Rules.pack().dice;
+		const crit = roll === _d.sides, fumble = roll === 1;   // ★`fumble` 的语义是「自然 1」⇒ 保留下界 1
 		const hit = crit || (!fumble && total >= def.ac);
 		let dealt = 0;
 		const next = foes.map((f) => ({ ...f }));
@@ -440,10 +447,14 @@ Object.assign((window.Game.Combat ??= {}), {
 		if (!parts.length) throw new Error(`Game.Combat.foeHit：敌人「${id}」没有可落部位（\`attack.parts\` 空且没有 \`hitLocations\`，#705）`);
 		const { roll, rolls } = window.Game.Rules.roll(adv);
 		const total = roll + atk.bonus;
-		const crit = roll === 20, fumble = roll === 1;
+		// ★ `#1461`：自然骰**读包**（✗ 不写死 20／1 —— 否则与包不同步 ✓）
+		const _d = window.Game.Rules.pack().dice;
+		const crit = roll === _d.sides, fumble = roll === 1;   // ★`fumble` 的语义是「自然 1」⇒ 保留下界 1
 		const hit = crit || (!fumble && total >= ac);
 		const part = window.Game.Rules.rng.pickOne(parts);   // `#1441`：共用取一原语
-		const raw = hit ? this.rollDice(atk.dmg) * (crit ? 2 : 1) : 0;
+		// ★ `#1461`：**翻倍系数读包**（`dice.critMul`；缺省 2 ⇒ 零包＝今天 ✓）
+		const _cm = window.Game.Rules.pack().dice.critMul ?? 2;
+		const raw = hit ? this.rollDice(atk.dmg) * (crit ? _cm : 1) : 0;
 		const absorb = hit ? this.slotAbsorbAt(pc, part, raw) : null;
 		return { foe: id, roll, rolls, bonus: atk.bonus, total, ac, hit, crit, part, raw, absorb };
 	},
@@ -522,7 +533,9 @@ Object.assign((window.Game.Combat ??= {}), {
 	RESET_KEEPS: ['ev', 'soc', 'world', 'Sg.notes', 'Sg.Codex', 'Sg.store'],
 	pick(actionId, res) {
 		const a = window.Sg.story.combatAction?.(actionId) ?? null;
-		const kind = res?.roll === 20 ? 'crit' : res?.success ? 'ok' : 'bad';
+		// ★ `#1461`：自然骰 ＋ **档位名**都读包（✗ 三处写死 ⇒ 与社交面／状态面不同源 ✓）
+		const _d2 = window.Game.Rules.pack().dice;
+		const kind = res?.roll === _d2.sides ? _d2.nat20 : res?.success ? _d2.ok : _d2.bad;
 		return { kind, eff: a[kind] ?? {} };
 	},
 	playerEff(actionId, res, pc) {

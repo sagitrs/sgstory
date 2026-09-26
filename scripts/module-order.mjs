@@ -50,6 +50,7 @@ export const ORDER = [
 	'src/engine/40-sim/22-rules.twee',     // `#1187`：条件表选择器（`Sg.rules`；依赖 Economy，Codex／Social 依赖它）
 	'src/engine/40-sim/32-social.twee',    // `#1187`：交涉面的算（依赖 Economy／rules，Codex 依赖它）
 	'src/engine/40-sim/41-status.twee',   // `#1437` B 块：**状态效果面**（从 40-combat 摘出）
+	'src/engine/40-sim/43-encounter.twee',   // `#1437` E 块：**波次／遭遇面**（从 40-combat 摘出）
 	'src/engine/40-sim/42-codex.twee',     // `#1187`：图鉴面的算（读 Sg.rules → 必须排在 rules 之后）
 	'src/engine/40-sim/40-combat.twee',    // `#1187`：战斗面的算（三块合一；读 Gear／Rules 内核 → 必须排其后）
 	'src/engine/40-sim/21-resolve.twee',    // 结算（sim，伞 #441 的 40-sim 落点）：位点判定的「算」＋ rng 注入（#441-A）
@@ -83,6 +84,7 @@ export const MODULES = {
 	'src/engine/40-sim/20-items.twee': { deps: ['src/engine/40-sim/10-gear.twee'], defines: [], layer: 'engine', note: '道具面的算（`#1187` 拆出；依赖 `Game.Gear.advSource` 与契约 `itemEffect`／`poisonReduce`）' },
 	'src/engine/40-sim/05-decl.twee': { deps: [], defines: ['Game.StoryDecl'], layer: 'engine', note: '`#1437`：故事声明表的**公共门面**（`Sg.story.mechanics()` 的**唯一**读取点；零依赖、零新作者面）' },
 	'src/engine/40-sim/41-status.twee': { deps: ['src/engine/40-sim/05-decl.twee'], defines: ['Game.StatusFx'], layer: 'engine', note: '`#1437` B 块：状态效果（读声明经 StoryDecl ✓）' },
+	'src/engine/40-sim/43-encounter.twee': { deps: ['src/engine/40-sim/05-decl.twee', 'src/engine/40-sim/10-gear.twee'], defines: ['Game.Encounters'], layer: 'engine', note: '`#1437` E 块：波次/遭遇（读声明经 StoryDecl；吸伤经 Gear ✓）' },
 	'src/engine/40-sim/10-gear.twee': { deps: [], defines: [], layer: 'engine', note: '装备面的算（`#1187` 拆出；只读契约 `gearDef`，零引擎依赖）' },
 	'src/engine/40-sim/40-combat.twee': { deps: ['src/10-core.twee', 'src/engine/30-persist/05-store.twee', 'src/engine/40-sim/10-gear.twee'], defines: [], layer: 'engine', note: '战斗面的算（`#1187` 三块合一）。⚠️ 读面里**排在后面**的那些（`Sg.notes`／`Sg.Codex`，住在 `src/80-script.twee`，ORDER 更后）只能算**运行时耦合** ⇒ 不登记为 deps（登记会成前向依赖 ✗）；而**排在前面的读面照常登记**（如 `#1204` 对 `22-rules` 的登记）⇒ 两种情形同一把尺子：**加载序**。' },
 	'src/engine/40-sim/42-codex.twee': { deps: ['src/engine/40-sim/22-rules.twee'], defines: [], layer: 'engine', note: '图鉴面的算（`#1187` 拆出）。读面 `Sg.rules`（条件求值单一权威）＋ `Sg.story`（运行期故事数据）⇒ 只登记前者的提供者（加载序）；`Sg.Codex`（住 `src/80-script.twee`，ORDER 更后）是**运行时耦合**、不登记。' },

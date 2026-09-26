@@ -280,6 +280,16 @@ export const doubleRenderProblems = ({ passages = [], data = null } = {}) => {
 		// ★ 只有**会注入段尾块**的那些 links 才算（带 `slot` 的走内联 ⇒ 不冲突 ✓）
 		const tailLinks = links.filter((l) => l && typeof l === 'object' && !l.slot
 			&& String(l.label ?? '').trim() && String(l.to ?? '').trim());
+		// ★ `#1505`（同族）：段级 **`check`** 字段 ＋ 散文**手写** `<<sitecheck>>`／`<<snapshot>>`
+		//   ⇒ ★**检定跑两遍**（两次掷骰！）✗ —— ★比"重复渲染"更隐蔽：★玩家看到的是**两次不同的骰面**。
+		//   ★修法：删掉散文那两个宏（由编译期注入 ✓）。
+		//   ★★注意：本判**不依赖 `links[]`** ⇒ ★必须在下面的 `if (!tailLinks.length) continue` **之前** ✓
+		//   （★我第一次放在后面 ⇒ 该格当场红 ✓ —— ★"早退分支之前/之后"是本仓反复撞的坑 ✓）
+		const segCheck = seg.check != null && String(seg.check).trim() !== '';
+		const handCheck = /<<\s*sitecheck\b[^>]*>>|<<\s*snapshot\b[^>]*>>/.test(String(p.body ?? ''));
+		if (segCheck && handCheck) out.push('段「' + p.name + '」**同时**有段级 `check` 字段与散文手写的 '
+			+ '`<<sitecheck>>`／`<<snapshot>>` ⇒ 产物里**检定跑两遍**（★两次掷骰，玩家会看到两个不同骰面）✗ ⇒ '
+			+ '修法：**删掉散文那两个宏**（由编译期注入 ✓）');
 		if (!tailLinks.length) continue;
 		const macros = String(p.body ?? '').match(/<<\s*(?:rules|rulelist)\b[^>]*>>/g) ?? [];
 		if (macros.length) out.push('段「' + p.name + '」**同时**有散文手写的渲染宏（`' + macros[0] + '`）与 `links[]`（'
@@ -304,7 +314,9 @@ export const applyPassageTransforms = ({ name, body, terms = new Set(), params =
 	//     ⇒ 声明 `check` 即**一并注入**（✗ 不让作者写两个字段 —— 它们永远成对 ✓）。
 	//   ★空/缺省 ⇒ **不动**（零破坏 ✓）。
 	if (check != null && String(check).trim() !== '') {
-		const site = String(check).trim().replace(/"/g, '\\"');
+		// ★ 转义：★`"` 会提前闭合宏串（T 的非阻断加固建议）＋ ★`\\`（反斜杠本身会吃掉后续字符 ⇒ 必须先于 `"`）
+		//   ＋ ★换行/回车（行式解析里会把宏拆成两半 ⇒ 后半段变散文泄漏给玩家 ✓）
+		const site = String(check).trim().replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\r\n]+/g, ' ');
 		expanded = `<<sitecheck "${site}">><<snapshot>>\n${expanded}`;
 	}
 	if (ending && typeof ending === 'object') {

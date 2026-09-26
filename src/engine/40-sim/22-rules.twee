@@ -192,6 +192,22 @@ window.Sg.rules = {
 		}
 		return granted;
 	},
+	/** ★ `#1471`：**从库存移除**（`takes: [<道具名>…]`）—— 与 `gives` **对称**：
+	 *  `gives` 是 `inv[k] = true`；本函数是 `delete inv[k]`（✗ 置 `false` —— **不在库里＝键不存在** ✓）。
+	 *  为什么需要：效果面此前**只有"加"没有"减"** ⇒ ★"**用掉**"这类动作（吃掉苹果／花掉钥匙）表达不出 ✗
+	 *    （`sets` 只置状态键 ✗ 不碰库存；`gives` 只加 ⇒ ★绕过写法会让库存语义仍不正确 ✓）
+	 *  ★与 `gives` **同刻**：**点击那一刻**施加（照 `#1408` 的 `data-sg-effects` 路 ⇒ ✗ 不进规则行）；
+	 *  ★**幂等**：键不存在 ⇒ **什么都不做**（✗ 不报错 —— "没这东西也就不必移除" ✓）。
+	 *  ✗ 不做"移除笔记／状态键"（另一维）｜✗ 不做"数量"（今天 `inv` 是**布尔集合** ✓）。 */
+	applyTakes(row, pc = State.variables.pc) {
+		const items = Array.isArray(row?.takes) ? row.takes : row?.takes ? [row.takes] : [];
+		const taken = [];
+		for (const it of items) {
+			const k = String(it);
+			if (pc.inv && pc.inv[k] === true) { delete pc.inv[k]; taken.push(k); }
+		}
+		return taken;
+	},
 	// **状态键**面（`#435` Q1：授予家族第三类 —— `yields` 笔记／`gives` 物品／`sets` 状态键）。
 	// 行里声明 `sets: ['world.flower_taken']` ≡ `<<setflag "flower_taken">>`，由 `<<rules>>` 渲染成功后统一落。
 	// 为什么要有第三类：世界态/运行时旗标（`flower_taken`／`flower_sleep`／`forge_thanks`…）**没有笔记**，

@@ -97,6 +97,18 @@ window.Sg.notes = {
 		if (Array.isArray(path)) {
 			throw new Error('Sg.notes.writePath：写侧不接受多源数组（多源笔记必须显式给 setPath，见 add() 的 #434 护栏）（#1247）');
 		}
+		// ★ `#1474`（裁定＝甲-2：**写侧一处收束**）：**路径里不许带 `pc.` 前缀** ⇒ **fail-loud 点名**。
+		//   ★真因（作者实测）：`pc.` 前缀**只在 `cond` 面被宣告**（那是**读侧**取值语法）；
+		//     而效果面（`sets`／`adds`／`yields.y.path`）的路径是**相对 `pc`** 的 ⇒ ★写成 `pc.心情`
+		//     会被 `split('.')` 成 `['pc','心情']` ⇒ **静默写到 `pc.pc.心情`** ✗（界面无错、自称成功、而真处没写 ——
+		//     与 `#1419`／`#1423` 的「**数据在但不生效**」族同族 ✓）。
+		//   ★**为什么一处拦**（✗ 不是三处各加）：**写侧唯一收束点就是这里**（`applySets`／`applyAdds`／
+		//     `applyYields` 的 `y.path` **都经本函数**）⇒ 一处拦 ⇒ **将来第四个效果字段自动覆盖** ✓。
+		if (typeof path === 'string' && (path === 'pc' || path.startsWith('pc.'))) {
+			throw new Error('Sg.notes.writePath：路径**不带 `pc.` 前缀**（拿到 ' + JSON.stringify(path) + '）——'
+				+ ' 效果面的路径是**相对 `pc`** 的（`ev.x`／`world.x`／裸键 ⇒ 裸键默认 `ev.`）；'
+				+ ' ✗ `pc.` 只在 `cond` 面（读侧取值语法）出现 ⇒ 写在这里会**静默落到 `pc.pc.…`**（`#1474`）');
+		}
 		// (1) 缺项 ＋ (2) 结构畸形：**出声**（写是命令：没有目的地不等于缺数据）
 		const segs = pathShapeProblem(path, 'writePath');
 		let cur = pc;
@@ -284,6 +296,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 					window.Sg.rules.applyGrants(eff);
 					window.Sg.rules.applySets(eff);
 					window.Sg.rules.applyAdds(eff);   // ★ `#1466`：算术效果（与上面三者**同刻** ✓）
+					window.Sg.rules.applyTakes(eff);  // ★ `#1471`：库存移除（同刻 ✓）
 				}
 			}
 		} catch { /* 属性坏了不该挡跳转 ⇒ 交给 <<printparam>> 一侧点名 */ }

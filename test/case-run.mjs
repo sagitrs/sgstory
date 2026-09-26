@@ -31,6 +31,21 @@ const vs = expectViolations({ expect: { visible: ['甲'], absent: ['乙'], edges
 t('⑥ expect 四面各自能咬（absent／edges／state 命中，visible 不误报）', vs.length === 3 && vs.every((v) => ['absent', 'edges', 'state'].includes(v.kind)), JSON.stringify(vs.map((v) => v.kind)));
 t('⑥b 反向：全部满足 ⇒ 0 违例', expectViolations({ expect: { visible: ['甲'], absent: ['丙'], edges: ['丁'], state: { 'ev.x': 2 } }, seen }).length === 0);
 
+// ── `#1478`：**「键不存在」可断**（★两向 ＋ 向后兼容）────────────────────
+// 真因：`JSON.stringify(undefined)` **返回 `undefined`**（✗ 不是 `"null"`）⇒ `want: null` 时两侧恒不等
+//   ⇒ ★**键在不在都红**（**不可达判据**：数据对了也红 ✗）—— 与"空判"对称的另一半 ✓
+// 用途：★「**键不存在**」是合法断言形 —— 例如 `#1471` 的 `takes`（库存移除），其**唯一正确**断言
+//   就是"该键**不存在**"（✗ 不是 `false` —— 与 `gives` 的 `= true` 对称 ✓）
+t('⑫ ★键**不存在** ＋ 期望 `null` ⇒ **绿**（判定可达 —— 修前此处**恒红**）',
+	expectViolations({ expect: { state: { 'inv.苹果': null } }, seen: { state: {} } }).length === 0);
+t('⑫b ★键**存在** ＋ 期望 `null` ⇒ **必红**（★反例能咬 —— 不是"一律放行"）',
+	expectViolations({ expect: { state: { 'inv.苹果': null } }, seen: { state: { 'inv.苹果': true } } }).length === 1);
+t('⑫c ★`undefined` 与 `null` **同义**（两侧都无该键 ⇒ 绿；⇒ 归一的是**比较** ✗ 不是"放宽"）',
+	expectViolations({ expect: { state: { 'ev.x': undefined } }, seen: { state: {} } }).length === 0);
+t('⑫d 向后兼容：具体值两向仍咬（相等 ⇒ 绿／不等 ⇒ 红）',
+	expectViolations({ expect: { state: { 'ev.x': 2 } }, seen: { state: { 'ev.x': 2 } } }).length === 0
+	&& expectViolations({ expect: { state: { 'ev.x': 2 } }, seen: { state: { 'ev.x': 3 } } }).length === 1);
+
 // ── 汇总（含 rc 合成）────────────────────────────────────────────
 t('⑦ 汇总：有一条 rc≠0 ⇒ 总 rc=1；计数分组对', (() => {
 	const s = summarize([{ verdict: 'green', exit: 0 }, { verdict: 'expected-gap', exit: 0 }, { verdict: 'unattributed', exit: 1 }]);

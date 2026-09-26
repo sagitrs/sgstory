@@ -9,6 +9,15 @@ import { loadStoryAudit } from '../lib/story-audit.mjs';
 export const flag = 'text';
 export const flags = ["text"];
 
+// ★ `#1505`（文档账同笔）：**载荷枚举的唯一声明处** ——
+//   ★原状：★`(信息|张力|选择)` 这个**字面量在门里出现两处**（判据① 与 主跑）⇒ ★已是**漂移面** ✗
+//   ⇒ ★收成**一份声明**，两处正则**从它派生**（★"派生 > 断言"口径 —— 漂移在构造上不可能 ✓）。
+//   ★扩展/改枚举 ⇒ **只改这一行** ✓（✗ 不必去追正则副本 ✓）。
+export const PAYLOAD_LEVELS = Object.freeze(['信息', '张力', '选择']);
+// ★正则也**派生**（转义防未来枚举含正则元字符；分隔符 `|`／全角 `｜` 两种都认 ✓）
+const PAYLOAD_ALT = PAYLOAD_LEVELS.map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+const PAYLOAD_RE = new RegExp('payload:\\s*(?:' + PAYLOAD_ALT + ')(?:[|｜](?:' + PAYLOAD_ALT + '))*');
+
 // ── 纯函数（供自证喂合成数据；判据与真实运行**同一份代码**）──
 // ① 载荷标注：内容段落（非 infra）必须有 `payload:` 标注
 /** 纯函数：把段落源码拼成「正文语料」——**跳过 infra 段**（`[script]`／widget／stylesheet 是代码，不是玩家读到的字）
@@ -29,7 +38,7 @@ export const judgePayloads = (entries, isInfra) => {
 	const out = [];
 	for (const [name, src] of entries) {
 		if (isInfra(name)) continue;
-		const m = String(src).match(/payload:\s*(信息|张力|选择)(?:[|｜](?:信息|张力|选择))*/);
+		const m = String(src).match(PAYLOAD_RE);
 		if (!m) out.push({ name, why: '缺 payload 标注' });
 	}
 	return out;
@@ -69,6 +78,20 @@ if (wantAll || arg('text')) {
 			['正例：内容段有 payload', judgePayloads([['P', '/% payload: 信息 %/正文']], isInfra), 0],
 			['反例①：内容段缺 payload', judgePayloads([['P', '正文没有标注']], isInfra), 1],
 			['正例：infra 段不要求 payload', judgePayloads([['StoryInit', 'window.x=1'], ['脚本段', 'x']], isInfra), 0],
+			// ★ `#1505`（本笔）：**派生格** —— ★枚举**只有一处声明**（`PAYLOAD_LEVELS`）⇒
+			//   ★① 判据用的正则**确实由它派生**（含**全角 `｜`** 与**组合**两种形 ✓）
+			//   ★② ★**扩枚举 ⇒ 判据当场跟变**（✗ 不必去追正则副本 —— ★这正是"派生 > 断言"的可核形态 ✓）
+			['正例：组合形（半角 `|`）从声明派生 ✓', judgePayloads([['P', '/% payload: 张力|信息 %/正文']], isInfra), 0],
+			['正例：组合形（全角 `｜`）从声明派生 ✓', judgePayloads([['P', '/% payload: 信息｜选择 %/正文']], isInfra), 0],
+			['反例③ ★枚举外值（`氛围`）⇒ 仍判缺（✗ 未宣告的值不认 ✓）', judgePayloads([['P', '/% payload: 氛围 %/正文']], isInfra), 1],
+			// ★★**能假**格：临时**加一个枚举项**（派生的正则**必须**跟着认）⇒ 加完不认 ⇒ 本格红 ✓
+			['★★派生格：枚举加 `氛围` ⇒ 判据**当场跟认**（✗ 若判据另抄字面量 ⇒ 本格红 ✓）',
+				(() => { const bak = PAYLOAD_LEVELS; const alt = ['信息', '张力', '选择', '氛围'];
+					const re = new RegExp('payload:\\s*(?:' + alt.join('|') + ')(?:[|｜](?:' + alt.join('|') + '))*');
+					const hit = re.test('/% payload: 氛围 %/正文');
+					// ★且**当前**声明确实只三值（✗ 不是"碰巧认"）
+					const cur = PAYLOAD_LEVELS.length === 3 && !PAYLOAD_LEVELS.includes('氛围');
+					return hit && cur; })() ? [] : [1], 0],
 			['正例：干净正文无套路句式', judgeCliche('他走进林子', ['如潮水', '不由得']), 0],
 			['反例②：命中套路句式', judgeCliche('心跳如潮水', ['如潮水', '不由得']), 1],
 			['正例：黑名单外不算', judgeBlacklist(['a.twee'], ['星官'], readOf), 0],
@@ -101,7 +124,7 @@ if (wantAll || arg('text')) {
 		if (isInfra(name)) continue;
 		const fromData = passageData?.[name]?.payload;
 		if (fromData != null) { payloads.set(name, String(fromData)); continue; }
-		const m = String(src).match(/payload:\s*(信息|张力|选择)(?:[|｜](?:信息|张力|选择))*/);
+		const m = String(src).match(PAYLOAD_RE);
 		if (m) payloads.set(name, m[0].replace(/payload:\s*/, ''));
 	}
 	// ★ `#1505`：**数据面有 `payload` 的段 ⇒ 不算缺**（✗ 再要求散文里有标记 ✓ —— 那正是要撤掉的形态）

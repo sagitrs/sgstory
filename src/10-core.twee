@@ -125,7 +125,42 @@ window.Game.Rules = {
 		// ★ `#1461` ④：**分档名全表**（一处权威）—— 战斗三档 ＋ `statuses.onFail` 的 `most`／`low`
 		//   （`#1433` 的收敛判据："**同名同概念才合**" ⇒ 这里恰恰同名同概念 ⇒ 一张表 ✓）
 		gradesAll: ['crit', 'ok', 'bad', 'most', 'low'],
+		// ★ `#1487`（五步④·D1）：**量纲族** —— ★引擎按名取值（✗ 不认字面量 ✓）
+		//   ★为什么住 `BUILTIN`（裁定①）：★与 `dice`／`ac`／`gradesAll` **同一模式**（"引擎的内置规则"）
+		//     ⇒ ★**引擎✗知键名**的准确含义＝"✗ 硬编在**结算逻辑**里"；硬编在**声明的缺省**里且**可被数据覆盖** ⇒ 合规 ✓
+		//   ★终形（写作者定 ✓，✗ 不改）：`{keys, zero, zeroGives, floor, heal}`
+		//   ★形状规则：**逐量纲各一值** ⇒ `vitals.<类>.<量纲>`（如 `floor`）｜**全量纲共一值** ⇒ `vitals.<类>`（如 `heal`／`zero`）✓
+		vitals: {
+			// ① 量纲 → `pc` 键名（★换一套规则书 ⇒ **类的名不变、键名可变** ✓）
+			keys: { hp: 'hp', maxHp: 'max_hp', salves: 'salves' },
+			// ② 零界阈值（D3：**只 0** ⇒ ✗ 不实现多档 ✓）
+			zero: 0,
+			// ③ 零界后果＝**声明的实体授予**（`#1488` 定名；★走 `gives` 族 ⇒ 单级布尔 ✓；✗ 引擎✗特判"死亡" ✓）
+			zeroGives: ['倒地'],
+			// ④ **逐量纲**：减法后**下限**（今天的 `hp` 下限 0 ⇒ `Math.max(floor.hp, …)` ✓）
+			floor: { hp: 0 },
+			// ⑤ **全量纲共一值**：治疗量（今天两处同一个数 ⇒ 单值 ✓ —— 声明面 ✗ 不许大于实现面 ✓）
+			heal: 4,
+		},
 	},
+	/** ★ `#1487`：**量纲取值的单一入口** —— ★引擎各处走它（✗ 不裸读字面量 ✓）。
+	 *  ★"引擎✗知键名"的落地形：★**名字从 `vitals.keys` 取**（`V.hp` ＝ 数据给的那个键名）⇒ 结算逻辑里**无字面量** ✓
+	 *  ★缺省／部分缺省都安全：★逐键回落（`pack().vitals?.keys?.hp ?? BUILTIN.vitals.keys.hp` ✓）。 */
+	V() {
+		const p = this.pack().vitals ?? null;
+		const b = this.BUILTIN.vitals;
+		if (!p || typeof p !== 'object' || Array.isArray(p)) return b;
+		// ★**一层深合并**（只并 `keys`／`floor` 两个**对象**类；标量/数组整块取 ✓）
+		return {
+			keys: { ...b.keys, ...(p.keys ?? {}) },
+			zero: p.zero ?? b.zero,
+			zeroGives: Array.isArray(p.zeroGives) ? p.zeroGives : b.zeroGives,
+			floor: { ...b.floor, ...(p.floor ?? {}) },
+			heal: p.heal ?? b.heal,
+		};
+	},
+	/** ★ `#1487`：**量纲名 → `pc` 键名**（`V().keys` 的取值口）—— 读点写 `pc[this.vk('hp')]` ✓ */
+	vk(name) { return this.V().keys?.[name] ?? this.BUILTIN.vitals.keys[name]; },
 	/** 故事声明的规则包（缺面 ⇒ 内置）；★合并＝**键级覆盖**（✗ 不是整份替换）。
 	 *  为什么键级：故事只想改 `prof` 时，✗ 不该被迫照抄 18 个技能名（照抄 ⇒ 两处必漂移 ✗）。 */
 	pack() {
@@ -608,20 +643,33 @@ window.Sg.capability = (group) => {
 	/% `#1409`：**一次算完校验 ＋ 结算** —— ✗ 不用"先 if 再 set"两行：SugarCube 里 `<<run>>` 抛错
 	   **不中止**后续宏（实测：报文出来了、`<<set>>` 仍执行 ⇒ hp 照样 NaN ✗）⇒ 必须在**同一表达式内**兜住：
 	   非有限数 ⇒ 抛（fail-loud，✗ 不静默产 NaN）） %/
-	<<set $pc.hp to Math.max(0, (function () {
+	/% ★ `#1487`（五步④·D1）：**结算逻辑里 ✗ 不出现量纲键名字面量** —— 键名从 `Game.Rules.vk('hp')` 取（＝数据给的 ✓）；
+	   下限从 `V().floor.hp` 取；零界后果走 `zeroGives`。★缺省（`BUILTIN`）＝今天那套 ⇒ **零包逐位同** ✓ %/
+	<<set _V to Game.Rules.V()>>
+	<<set _khp to Game.Rules.vk('hp')>>
+	<<set _kmx to Game.Rules.vk('maxHp')>>
+	<<set _ksa to Game.Rules.vk('salves')>>
+	<<set $pc[_khp] to Math.max(_V.floor.hp, (function () {
 		const n = $args[0];
 		if (!Number.isFinite(n)) throw new Error("「damage」需要一个数字参数（实得 " + String(n)
 			+ "）——空参／非数会静默把 hp 变 NaN ✗");
-		return $pc.hp - n;
+		return $pc[_khp] - n;
 	})())>>
-	<<if $pc.salves gt 0 and $pc.hp gt 0 and ($pc.max_hp - $pc.hp) gte 4>>
-		<<set $pc.salves to $pc.salves - 1>>
-		<<set $pc.hp to $pc.hp + 4>>
+	<<if $pc[_ksa] gt 0 and $pc[_khp] gt _V.zero and ($pc[_kmx] - $pc[_khp]) gte _V.heal>>
+		<<set $pc[_ksa] to $pc[_ksa] - 1>>
+		<<set $pc[_khp] to $pc[_khp] + _V.heal>>
 		<span class="damage-flash">''你受到了 $args[0] 点伤害！''（伤得重，消耗一副药膏，恢复 4 点生命）</span>
 	<<else>>
 		<span class="damage-flash">''你受到了 $args[0] 点伤害！''</span>
 	<</if>>
-	<<if $pc.hp lte 0>>
+	/% ★ `#1487`（五步④·D1）：零界判定与后果**都读数据** ——
+	   阈值＝`V().zero`（D3 只 0）｜后果＝`V().zeroGives`（**声明的实体授予** ⇒ ★引擎✗特判"死亡" ✓）
+	   ★去向仍是**故事可选面**（`#491` 判据 4）：★引擎只**授予实体**；跳不跳结局由**故事自己**的条件行决定 ✓ %/
+	<<if $pc[_khp] lte _V.zero>>
+		<<run (function () {
+			const pc = State.variables.pc, R = Game.Rules;
+			for (const name of (R.V().zeroGives ?? [])) { pc.inv = pc.inv ?? {}; pc.inv[String(name)] = true; }
+		})()>>
 		/% #357：致命伤**即刻登记结局**——安全网（:passagestart 的 hp≤0 修补）以
 		   `!pc.ev.ending` 为门，若不先登记，它会赶在结局页渲染前把 hp 修回 1，
 		   把刚受致命伤的角色"复活"。 %/
@@ -842,7 +890,10 @@ window.Sg.capability = (group) => {
 	/% #350/#357：结算在点击时完成；**死透就不再归位**——`<<damage>>` 已跳「结局 死亡」，再 goto 会把它覆盖掉。
 	   用**存活条件**判。★`#1432`：收尾后按作者给的去向跳转（第 5 参）；缺省 ⇒ 走今天的 `<<goto _orig>>` ✓；
 	   且排在存活条件**之内** ⇒ 死透那一击仍去「结局 死亡」（✗ 不被覆盖）✓ %/
-	<<if $pc.hp gt 0>>
+	/% ★ `#1487`：**存活守卫也按名取值**（`vk('hp')` ＋ `V().zero` ⇒ ✗ 不裸读键名/阈值 ✓） %/
+	<<set _khp2 to Game.Rules.vk('hp')>>
+	<<set _V2 to Game.Rules.V()>>
+	<<if $pc[_khp2] gt _V2.zero>>
 		<<if $args[2] isnot undefined and $args[2] isnot null and $args[2] isnot "" and $pc.ev.fight and $pc.ev.fight.round gte Number($args[2]) and $args[4] isnot undefined and $args[4] isnot null and $args[4] isnot "">>
 			<<fightdest $args[4] $args[1]>>
 		<<else>>

@@ -14,7 +14,10 @@
 //   · 声明表：经**公共门面** `Game.StoryDecl.decl()` 取（✗ 不走 `Game.Combat.slotsDecl()`）
 //   · 掷骰：`window.Game.Combat.rollDice(…)`（**行为方法跨块直调 ✓** —— 与"绕门面读声明"不同类 ✓）
 //   ⇒ 加载顺序：本件（41）排在 `40-combat.twee`（40）之后、被 `present`（`10-core.twee`）调 ⇒ 两向都安全 ✓
-window.Game.StatusFx = {
+window.Game.StatusFx = {	// 低骰分档阈值（原住 `Game.Combat.statusLowRoll`，值**一字不改** 5）——
+	// ✗ 漏搬的后果（实测）：`this.statusLowRoll` 取到 `undefined` ⇒ `roll <= undefined` **恒假**
+	//   ⇒ 分档**恒为 most** ✗（门的两格当场红 ✓）—— 即「对象搬家 ⇒ 连带常数必须跟」的实例。
+	statusLowRoll: 5,
 	statusEntries(pc) {
 		const mech = window.Game.StoryDecl?.decl?.() ?? null;
 		if (!mech) return [];
@@ -123,14 +126,14 @@ window.Game.StatusFx = {
 		const hits = [];
 		for (const s of plan.steps) {
 			if (s.perRound) {
-				const at = this.slotAbsorbAt(pc, s.part, Math.abs(s.perRound));   // 每回合被动也走 S1 的减成/耐久
+				const at = window.Game.Combat.slotAbsorbAt(pc, s.part, Math.abs(s.perRound));   // 每回合被动也走 S1 的减成/耐久
 				if (at?.gear) pc.gearHp = { ...(pc.gearHp ?? {}), [at.gear]: at.gearHp };
 				hits.push({ part: s.part, from: s.id, ...at });
 				hurt += at ? at.toHp : Math.abs(s.perRound);
 			}
 			if (s.kind === 'recover') { if (s.turns > 0) put(s.part, s.id, s.turns); else drop(s.part, s.id); continue; }
 			if (s.effect?.kind === 'damage') {
-				const at = this.slotAbsorbAt(pc, s.part, s.effect.amount);
+				const at = window.Game.Combat.slotAbsorbAt(pc, s.part, s.effect.amount);
 				if (at?.gear) pc.gearHp = { ...(pc.gearHp ?? {}), [at.gear]: at.gearHp };
 				hits.push({ part: s.part, from: s.id, ...at });
 				hurt += at ? at.toHp : s.effect.amount;
@@ -144,8 +147,8 @@ window.Game.StatusFx = {
 		const mech = window.Game.StoryDecl?.decl?.() ?? null;
 		if (!mech) return null;
 		const st = mech.statuses?.[id];
-		if (!st) throw new Error(`Game.Combat.applyStatus：状态「${id}」未声明（结构缺失必须报错，#487）`);
-		if (!this.statusParts(mech, id).includes(part)) throw new Error(`Game.Combat.applyStatus：「${id}」不允许落在「${part}」（仅限部位是声明的一部分，#487）`);
+		if (!st) throw new Error(`Game.StatusFx.applyStatus：状态「${id}」未声明（结构缺失必须报错，#487）`);
+		if (!this.statusParts(mech, id).includes(part)) throw new Error(`Game.StatusFx.applyStatus：「${id}」不允许落在「${part}」（仅限部位是声明的一部分，#487）`);
 		return { statuses: { ...(pc?.statuses ?? {}), [part]: { ...(pc.statuses?.[part] ?? {}), [id]: st.turns } } };
 	},
 	cureStatus(pc, id) {

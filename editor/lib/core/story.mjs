@@ -82,21 +82,23 @@ export const expandSources = ({ slug, data, io, repoRoot = '' } = {}) => {
 	const shape = sourcesShapeProblems(srcList);
 	if (shape.length) {
 		throw new Error(`${slug}／data/tables.json 的 \`sources\` 形状不对：`
-			+ shape.map((x) => `${x.code}${x.index != null ? `@${x.index}` : ''}${x.from ? `(${x.from})` : ''}`).join('、')
-			+ '（每项形如 {"from":"shared/x.json"}，且 from 必须是**仓级**相对路径）（#1485）');
+			+ shape.map((x) => `${x.code}${x.index != null ? `@${x.index}` : ''}${x.from ? `(${x.from})` : ''}${x.got ? `(实得 ${x.got})` : ''}`).join('、')
+			+ '（每项＝**仓级**相对路径字符串，如 "shared/x.json"）（#1485）');
 	}
 	const at = (rel) => (repoRoot ? `${repoRoot.replace(/\/$/, '')}/${rel}` : rel);
 	const merged = [];
-	for (const ent of srcList) {
-		const path = at(String(ent.from));
+	// ★`#1485`（裁定）：声明形是**字符串数组**（`["shared/x.json", …]`）⇒ 本处逐个读盘并补 `json` ✓
+	for (const from of srcList) {
+		const rel = String(from);
+		const path = at(rel);
 		if (typeof io.exists === 'function' && !io.exists(path)) {
-			throw new Error(`${slug}：\`sources\` 引用的件**读不到**「${ent.from}」（解析为 ${path}）——`
+			throw new Error(`${slug}：\`sources\` 引用的件**读不到**「${rel}」（解析为 ${path}）——`
 				+ ' 被引件缺失必须出声（✗ 不许静默当空）（#1485）');
 		}
 		let json;
 		try { json = JSON.parse(io.readText(path)); }
-		catch (e) { throw new Error(`${slug}：\`sources\` 引用的件**解析失败**「${ent.from}」：${e.message}（#1485）`); }
-		merged.push({ from: String(ent.from), json });
+		catch (e) { throw new Error(`${slug}：\`sources\` 引用的件**解析失败**「${rel}」：${e.message}（#1485）`); }
+		merged.push({ from: rel, json });
 	}
 	// ★顺序不变（数组即优先级）；逐容器逐键合并 ＋ 留痕
 	const out = mergeSources(merged);

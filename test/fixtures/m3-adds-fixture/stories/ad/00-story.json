@@ -1,0 +1,15 @@
+{
+ "slug": "ad",
+ "title": "ad",
+ "entry": "房间",
+ "contractVersion": 1,
+ "files": [
+  "stories/ad/00-meta.twee",
+  "stories/ad/passages/01-房间.md",
+  "stories/ad/passages/02-咬一口.md",
+  "stories/ad/passages/03-看心情.md",
+  "stories/ad/15-tables.twee",
+  "stories/ad/17-rules.twee"
+ ],
+ "audience": "internal"
+}

@@ -99,17 +99,42 @@ window.Game.Rules = {
 			return lo + Math.floor((((x ^ (x >>> 14)) >>> 0) / 4294967296) * (hi - lo + 1));
 		};
 	},
-	ABILITIES: { str: '力量', dex: '敏捷', con: '体质', int: '智力', wis: '感知', cha: '魅力' },
-	SKILLS: {
-		运动: 'str', 体操: 'dex', 巧手: 'dex', 隐匿: 'dex',
-		奥秘: 'int', 历史: 'int', 调查: 'int', 自然: 'int', 宗教: 'int',
-		驯兽: 'wis', 洞悉: 'wis', 医药: 'wis', 察觉: 'wis', 生存: 'wis',
-		欺瞒: 'cha', 恐吓: 'cha', 表演: 'cha', 游说: 'cha',
+	// ── `#1438` 规则参数包：**内置缺省**（dnd SRD 5.2 那套）───────────────────────
+	// 为什么有"内置"这一份：✗ 未声明 `rulesPack` 的故事必须**逐字不变** ⇒ 缺省＝今天的常量 ✓
+	// 取值面：故事经契约成员 `rulesPack`（`const` kind ⇒ `Sg.story.rulesPack()`）给**覆盖值**；
+	//   合并语义＝**键级覆盖**（只给 `prof` 就只改 prof ✓）；缺面／`null` ⇒ 全走内置 ✓
+	BUILTIN: {
+		abilities: { str: '力量', dex: '敏捷', con: '体质', int: '智力', wis: '感知', cha: '魅力' },
+		skills: {
+			运动: 'str', 体操: 'dex', 巧手: 'dex', 隐匿: 'dex',
+			奥秘: 'int', 历史: 'int', 调查: 'int', 自然: 'int', 宗教: 'int',
+			驯兽: 'wis', 洞悉: 'wis', 医药: 'wis', 察觉: 'wis', 生存: 'wis',
+			欺瞒: 'cha', 恐吓: 'cha', 表演: 'cha', 游说: 'cha',
+		},
+		abilityMod: { base: 10, divisor: 2 },   // ★公式的**参数**（`(score - base) / divisor`）⇒ ✗ 不存公式字符串
+		prof: 2,
+		dice: { sides: 20, nat20: 'crit', nat1: 'bad' },
+		grades: ['crit', 'ok', 'bad'],
 	},
-	mod(score) { return Math.floor(((score ?? 10) - 10) / 2); },
+	/** 故事声明的规则包（缺面 ⇒ 内置）；★合并＝**键级覆盖**（✗ 不是整份替换）。
+	 *  为什么键级：故事只想改 `prof` 时，✗ 不该被迫照抄 18 个技能名（照抄 ⇒ 两处必漂移 ✗）。 */
+	pack() {
+		const p = window.Sg?.story?.rulesPack?.() ?? null;
+		if (!p || typeof p !== 'object' || Array.isArray(p)) return this.BUILTIN;
+		return { ...this.BUILTIN, ...p };
+	},
+	// ★`SKILLS`／`ABILITIES` 改为 **getter**：**读法不变**（`R.SKILLS`／`R.ABILITIES` 照旧 ✓）
+	//   ⇒ 既有调用点、`test/rules.mjs` 的"引擎 ↔ 编译期镜像逐字同"钉法、五处 `skillLabel` 文案**全部不动** ✓
+	get ABILITIES() { return this.pack().abilities ?? this.BUILTIN.abilities; },
+	get SKILLS() { return this.pack().skills ?? this.BUILTIN.skills; },
+	mod(score) {
+		// `#1438`：公式**参数**归包（✗ 不写死 10／2）
+		const f = this.pack().abilityMod ?? this.BUILTIN.abilityMod;
+		return Math.floor(((score ?? f.base) - f.base) / f.divisor);
+	},
 	fmod(score) { const m = this.mod(score); return m >= 0 ? `+${m}` : `${m}`; },
 	abilityMod(pc, ab) { return this.mod(pc.abilities?.[ab]); },
-	prof() { return 2; }, // 1–4 级熟练加值（SRD 5.2 曲线）
+	prof() { return this.pack().prof ?? this.BUILTIN.prof; }, // `#1438`：熟练加值归包（缺省 2 ＝ SRD 5.2）
 	skillMod(pc, skill) {
 		const ab = this.SKILLS[skill];
 		if (!ab) throw new Error(`未知技能: ${skill}`);
@@ -118,8 +143,10 @@ window.Game.Rules = {
 		return m;
 	},
 	d20(adv) {
-		if (!adv) return this.rng.d(20);
-		const a = this.rng.d(20), b = this.rng.d(20);
+		// `#1438`：**骰面归包**（缺省 20 ⇒ 今天逐字不变 ✓）
+		const S = this.pack().dice?.sides ?? this.BUILTIN.dice.sides;
+		if (!adv) return this.rng.d(S);
+		const a = this.rng.d(S), b = this.rng.d(S);
 		return adv > 0 ? Math.max(a, b) : Math.min(a, b);
 	},
 	// 判定标注：说清"用什么属性判定"（技能 → 属性，SRD 5.2）

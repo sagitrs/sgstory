@@ -127,6 +127,11 @@ export const SEGMENTS = [
 	//   它们本质是**旧故事的剧情专项判据**（`听雾`／`洞穴·战斗`／`守林人`等剧情面），而那些剧情
 	//   在 books 亦**不存在**（我核过）⇒ 迁移等于**为旧判据新写剧情**（= 为拦而拦 ✗）
 	//   ⇒ 判据随对象退役（同丙组体例）；若**机制**仍要守 ⇒ 另立机制面判据（红事件驱动）✓
+	// ★ `#1438`（拆段）：**规则核层**（只读 `Game.Rules` 的那几段：调整值／技能加值／d20／自然 20-1／
+	//   `#1438` 规则参数包／`#568` 条件项算子形）—— 这些格**不需故事样本**，但 `boot()` 要一份可启动的故事页
+	//   ⇒ 按 `test-chargen-shape-mjs` 先例接**夹具根**（`exclusive` ＋ `mutates:['build']`：本段自建故事根并 build ✓）。
+	//   ★为什么必须拆出：留在 `test-rules-mjs`（**挂起**）里 ⇒ 判据「**写了但不跑**」（链绿与它无关 ✗，实测 grep 输出 0 命中）。
+	{ id: "test-rules-core-mjs", phase: 'test', cost: 1, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node test/rules-core.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-rules-mjs", phase: 'test', cost: 1.6, inputs: ['*'],   // `#1132` B3：读构建产物 ＋ 故事数据（契约成员、车卡数据、图鉴条目）
 		cmd: "node test/rules.mjs" },
@@ -612,6 +617,7 @@ export const SUITE_MEMBERS = {
 		'scripts-ui-migration-diff-selftest',
 		'scripts-ui-migration-diff-check',
 		'test-globals-mjs',
+		'test-rules-core-mjs',   // `#1438` 拆段：只读 `Game.Rules` 的规则核层（接夹具根 ⇒ 进链真跑 ✓）
 		'test-globals-mjs-selftest',
 		// `#1261`：`test-store-keys` 两项随段下架而移除。
 		'test-gen-segment-syntax-mjs',

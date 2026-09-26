@@ -8,6 +8,18 @@
 // **判据本身不动**（表驱动 · 线索不白送 · 解锁＝集齐 · 事件金额表驱动）。
 import { readFileSync, readdirSync } from 'node:fs';
 import { boot } from './boot.mjs';
+import { storySlugs } from '../scripts/dist-paths.mjs';   // `#1438` 拆段：零故事守卫（同 `#1267` 尾件② 规）
+
+// ★★ `#1438` 拆段（先说清，✗ 别让后来人以为本件'全跑了'）：
+//   ① **只读 `Game.Rules` 的那几段**（调整值／技能加值／d20／自然 20-1／`#1438` 规则参数包／`#568` 算子形）
+//      已搬到 **`test/rules-core.mjs`**（**进链真跑** ✓ —— 那几格**不需故事样本**，留在这里只会**从不执行** ✗）。
+//   ② 本件保留**真依赖故事面**的段（车卡／L4 存档矩阵／`#28` 表契约等）⇒ 继续**挂起**（`SUSPENDED`，等 `#1279`）。
+//   ③ 本件单独跑时**零故事态**会崩（`boot()` 要一份可启动故事页）⇒ 按仓内口径**明说未判**（✗ 不算绿、✗ 不裸崩）。
+if (storySlugs().length === 0) {
+	console.log('○ 零故事：仓内无故事 → `test/rules.mjs` 未判（不计红；接故事根后即参与判定）');
+	console.log('  ★注：只读 `Game.Rules` 的那半已搬 `test/rules-core.mjs`（进链，接夹具根 ✓）');
+	process.exit(0);
+}
 let failures = 0;
 const eq = (actual, expected, msg) => {
 	const okk = JSON.stringify(actual) === JSON.stringify(expected);
@@ -23,44 +35,9 @@ const ok = (cond, msg) => {
 const { w, sleep } = await boot({ random: 0.5 }); // d20 恒为 11
 const R = w.Game.Rules;
 
-// ── 调整值 ──
-eq(R.mod(10), 0, 'mod(10) = 0');
-eq(R.mod(14), 2, 'mod(14) = +2');
-eq(R.mod(8), -1, 'mod(8) = -1');
-eq(R.mod(16), 3, 'mod(16) = +3');
-eq(R.fmod(17), '+3', 'fmod(17) 带符号');
-eq(R.fmod(8), '-1', 'fmod(8) 负号');
-eq(R.fmod(10), '+0', 'fmod(10) 零');
-
-// ── 技能加值 ──
-const pc = { abilities: { str: 8, dex: 14, con: 12, int: 10, wis: 15, cha: 13 }, skills: ['察觉'], flags: {} };
-eq(R.skillMod(pc, '察觉'), 4, '熟练察觉：感(15)+2熟练 = +4');
-eq(R.skillMod(pc, '运动'), -1, '未熟练运动：力(8) = -1');
-eq(R.skillMod({ ...pc, skills: [...pc.skills, '运动'] }, '运动'), 1, '熟练运动：-1+2 = +1');
-eq(R.skillMod(pc, '游说'), 1, '未熟练游说：魅(13) = +1');
-ok((() => { try { R.skillMod(pc, '不存在的技能'); return false; } catch { return true; } })(), '未知技能抛错（表外技能不可静默通过）');
-
-// ── d20 检定（random 恒定 0.5 → d20=11）──
-const mid = R.check(pc, '游说', 11);
-eq(mid.roll, 11, '常规骰 d20=11');
-ok(mid.success, '11+1=12 ≥ DC11 → 成功');
-ok(!R.check(pc, '游说', 13).success, '11+1=12 < DC13 → 失败');
-eq(R.d20(1), 11, '优势取高');
-eq(R.d20(-1), 11, '劣势取低');
-const lucky = R.check({ ...pc, flags: { luck: true } }, '游说', 13);
-ok(lucky.success && lucky.mod === 2, '机运烙印：+1 加值（12+1=13 ≥ 13）');
-const bonused = R.check(pc, '游说', 20, { bonus: 6 });
-ok(bonused.mod === 7, '情境加值并入修正（+1+6）');
-
-// ── 自然 20 / 自然 1（SRD 5.2）──
-const dom20 = await boot({ random: 0.999 });
-const nat20 = dom20.w.Game.Rules.check(pc, '运动', 30);
-ok(nat20.roll === 20 && nat20.success, '自然 20 → 无视 DC 必然成功');
-ok(dom20.w.Game.Rules.save(pc, 'str', 25).success, '豁免同样适用自然 20 规则');
-const dom1 = await boot({ random: 0.0001 });
-const nat1 = dom1.w.Game.Rules.check(pc, '察觉', 1);
-ok(nat1.roll === 1 && !nat1.success, '自然 1 → 无视加值必然失败');
-
+// ★ `#1438`（拆段）：本段（「调整值／技能加值／d20 检定／自然 20-1」）已搬到 `test/rules-core.mjs` ——
+//   理由：这几格**只读 `Game.Rules`**（✗ 不需故事样本），而本件**整段挂起**（`SUSPENDED`）⇒ 它们**从不进链** ✗。
+//   拆出后进链真跑 ✓；本件保留车卡／L4／表契约等**真依赖故事面**的段（继续挂起，等 `#1279`）。
 // ── 车卡：3 轮 × 每轮 3 选项，apply 均可执行 ──
 const rounds = w.Game.Chargen.rounds;
 eq(rounds.length, 3, '车卡共 3 轮（职业/背景/种族）');

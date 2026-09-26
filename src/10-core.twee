@@ -652,12 +652,13 @@ window.Sg.capability = (group) => {
 	<<set _khp to Game.Rules.vk('hp')>>
 	<<set _kmx to Game.Rules.vk('maxHp')>>
 	<<set _ksa to Game.Rules.vk('salves')>>
-	<<set $pc[_khp] to Math.max(_V.floor.hp, (function () {
-		const n = $args[0];
-		if (!Number.isFinite(n)) throw new Error("「damage」需要一个数字参数（实得 " + String(n)
-			+ "）——空参／非数会静默把 hp 变 NaN ✗");
-		return $pc[_khp] - n;
-	})())>>
+	/% ★ `#1488`（五步⑤·裁定 D2）：★**结算走枚举原语**（`settleValue('sub', …)` ⇒ ★下限由 `vitals.floor.hp` 给 ✓）——
+	   ★原写法 `Math.max(floor, hp - n)` 是"**就地写结算**" ✗ ⇒ 与"算子枚举"相抵（✗ 每处各写一遍 ⇒ 漂移 ✓）
+	   ★仍**同一表达式内兜住**（`#1409` 口径：`<<run>>` 抛错不中止后续宏 ✓ —— 且原语自身 fail-loud ✓ %/
+	/% ★ `#1488` 注记：★**两个对象别混** —— `vitals`／`vk`／`V` 住 **`Game.Rules`**（`10-core`）；
+	   ★结算原语 `settleValue`／`applyZeroGives` 住 **`Sg.rules`**（`22-rules`）⇒ ★调用要分清（我第一版混过 ✓） %/
+	<<set $pc[_khp] to window.Sg.rules.settleValue('sub', $args[0],
+		{ cur: $pc[_khp], max: $pc[_kmx], floor: _V.floor.hp })>>
 	<<if $pc[_ksa] gt 0 and $pc[_khp] gt _V.zero and ($pc[_kmx] - $pc[_khp]) gte _V.heal>>
 		<<set $pc[_ksa] to $pc[_ksa] - 1>>
 		<<set $pc[_khp] to $pc[_khp] + _V.heal>>

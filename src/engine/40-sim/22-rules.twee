@@ -257,4 +257,54 @@ window.Sg.rules = {
 		}
 		return applied;
 	},
+	/** ★ `#1488`（五步⑤·裁定 D2）：**结算原语（枚举三件）** —— ★`sub`（**带下限**）／`add`／`pctOfMax`
+	 *  ★为什么是"枚举"（✗ 表达式解析器）：★声明面**不许大于实现面**（`#487`）⇒ ★只列**今天真需要**的三个 ✓；
+	 *    ★要加第四个 ⇒ **明着加**（✗ 不是"随手写个表达式"——那会让声明面变成一门语言 ✓）
+	 *  ★**下限的来源**：★`sub` 的 floor 由**调用方给**（量纲各自的 `vitals.floor.<量纲>` ✓ ⇒ ✗ 不在此硬编 0 ✓）
+	 *  ★**阈值只 0**（D3）：★本组原语**不含**"pct 阈值／残血档"（✗ 整体不做 ⇒ 出现第二档 ⇒ 判据红 ✓）
+	 *  @param {string} op  `sub`｜`add`｜`pctOfMax`（★未列出的算子 ⇒ **点名**，✗ 不静默走 else ✓）
+	 *  @param {number} value 操作数；`pctOfMax` 时是**百分比**（如 `50` ⇒ 最大值的 50%）
+	 *  @param {{cur:number, max:number, floor:number}} ctx 当前值／最大值／下限
+	 *  @returns {number} 结算后的值（★`floor` 之后 ⇒ ✗ 不出现负值 ✓）
+	 */
+	settleValue(op, value, { cur = 0, max = 0, floor = 0 } = {}) {
+		const n = Number(value);
+		if (!Number.isFinite(n)) {
+			throw new Error(`Sg.rules.settleValue：操作数必须是**有限数**（拿到 ${JSON.stringify(value)}）——`
+				+ ' ✗ 否则静默产 NaN（结构畸形必须报错，照 `#1409` 口径 ✓）');
+		}
+		const base = Number.isFinite(cur) ? cur : 0;
+		const mx = Number.isFinite(max) ? max : 0;
+		const fl = Number.isFinite(floor) ? floor : 0;
+		// ★**枚举表**（✗ 不写 else 分支 —— 未列出的算子 ⇒ 点名 ✓ 照 `#1461` 的"表驱动"口径 ✓）
+		const OPS = {
+			sub: (c, v) => c - v,
+			add: (c, v) => c + v,
+			pctOfMax: (c, v, m) => c + Math.floor((m * v) / 100),
+		};
+		const f = OPS[String(op)];
+		if (!f) {
+			throw new Error(`Sg.rules.settleValue：算子「${op}」**未宣告**（可用：`
+				+ `${Object.keys(OPS).map((x) => `\`${x}\``).join('／')}）—— ✗ 表达式解析器不做（裁定 D2 ✓）`);
+		}
+		// ★**带下限**：★不论哪个算子 ⇒ 结算后都夹到 `floor`（✗ 不许出现低于下限的值 ✓）
+		return Math.max(fl, f(base, n, mx));
+	},
+	/** ★ `#1488`：**零界后果** —— 按数据面声明的实体授予（★走 `gives` 族 ⇒ **单级布尔** ✓）。
+	 *  ★裁定 D4（重定形）：★**死亡＝一种实体**（✗ 引擎特判"死亡" ✗ 强塞 `statuses` 的 `part`/`turns` ✓）
+	 *  ★去向/分支 ⇒ **叙事面 `cond` 该实体**（数据侧自治 ✓）。
+	 *  ★**缺项出声**（判据④）：★声明了却在库里有非布尔值 ⇒ 点名（✗ 静默覆盖 ✓）。 */
+	applyZeroGives(pc = State.variables.pc, names = []) {
+		const list = Array.isArray(names) ? names : (names == null ? [] : [names]);
+		const granted = [];
+		for (const n0 of list) {
+			const k = String(n0);
+			if (!k) continue;
+			pc.inv = pc.inv ?? {};
+			if (pc.inv[k] !== true) { pc.inv[k] = true; granted.push(k); }
+		}
+		return granted;
+	},
+	// ★ `#1488`：**算子枚举（声明面）** —— ★与 `settleValue` 的 `OPS` 表**同源**（✗ 两处各写一份 ⇒ 必然漂移 ✓）
+	SETTLE_OPS: ['sub', 'add', 'pctOfMax'],
 };

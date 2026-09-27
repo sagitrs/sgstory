@@ -144,7 +144,9 @@ export const stripCommentSpans = (bodyLines) => {
 	let inComment = false;
 	for (const { text, line } of bodyLines) {
 		let t = text;
-		// payload 标记是单行构造 → 先摘出来（它内部不可能有宏，直接整体当"已允许"）
+		// payload 标记是单行构造 → 先摘出来（它内部不可能有宏）
+		// ★ `#1508`（P6）：★“当**已允许**”这句已**不适用**（终态下它**就是红的**）—— ★故 P6 **另扫原始行**把它抳回来✗
+		//   （✗ 不能只改这句注释就算改完 —— ★遮蔽器的行为没变，★判据得**另指一处**才能绕过它）
 		if (/%\s*payload:/.test(t) && /%\/\s*$/.test(t.trim())) { out.push({ text: '', line}); continue;}
 		let res = '';
 		let i = 0;
@@ -191,15 +193,10 @@ export const proseVocabProblems = ({ slug, files, vocab }) => {
 				//   ★理由：`#1505`／`#1506` 已把 sitecheck/snapshot/payload 与 fight 三族搬到**段级字段 ＋ 编译期注入**
 				//     ⇒ 故事段里**不再需要手写宏** ⇒ 出现即残留（✗ 无白名单可放行）。
 				//   ★口径：只判**散文段**（`isProse` 已滤 script/widget/stylesheet）。
-				//   ★与 V1/V2：那两条是**宣告面**（有白名单）；P6 是**形态面**（零白名单）⇒ 终态下 P6 先红、V1/V2 不再触发。
-				// ★★ 标记那一半：`/% payload: … %/` 由 `stripCommentSpans` **整体摘掉**（`text:''`）⇒ `text` 里**看不到它** ✗
-				//   ★故必须另扫**原始行**（`p.bodyLines`）—— 否则"零标记终态"无人守 ✗
-				//   （实测：我第一版 P6 只扫 `text` ⇒ payload 标记那格**当场红** ✓）
-				for (const { text: rawLine, line: rawNo } of p.bodyLines) {
-					if (/%\s*payload:/.test(rawLine)) {
-						out.push({ code: 'P6', msg: `${f.path}:${rawNo} 正文里出现**payload 标记** \`/% payload: … %/\`（段落「${p.name}」）—— ★\`#1508\` 终态：**零标记**（负荷走**段级字段 ⇒ 编译期注入**）✗ 手写` });
-					}
-				}
+				//   ★与 V1/V2：那两条是**宣告面**（有白名单）；P6 是**形态面**（零白名单）。
+				//   ★★**实况（★ CR 纠正我的旧措词）**：★终态下★**V1/V2 仍会与 P6 同时报**⇒ ★**双报**（同一处 两码）✗ ——
+				//     ★故上一行写“**V1/V2 不再触发**”是错的（★与实测相反）✗；★真正退役在★**另票**：★`#1552`（清死码：★V1/V2 白名单语义已无对象）✓
+				//   ★在那之前：★两档并存、各自报各自的（★☆"逐渐双报"是**已知状态**，✗ 不是漏洞）✓
 				const MACRO_RE = /<<[\s\S]*?>>/g;
 				const NAME_OF = /^<<\s*(-?[A-Za-z=!][A-Za-z0-9_-]*)/;
 				for (const m of text.matchAll(MACRO_RE)) {
@@ -219,6 +216,14 @@ export const proseVocabProblems = ({ slug, files, vocab }) => {
 						out.push({ code: 'P6', msg: `${f.path}:${line} 正文里出现**未闭合/残留的 \`<<\`**（段落「${p.name}」）—— ★\`#1508\` 终态：**散文零宏**✗ 手写` });
 				}
 			}
+				// ★★ 标记那一半：`/% payload: … %/` 由 `stripCommentSpans` **整体摘掉**（`text:''`）⇒ `text` 里**看不到它** ✗
+				//   ★故必须另扫**原始行**（`p.bodyLines`）—— 否则"零标记终态"无人守 ✗
+				//   （实测：我第一版 P6 只扫 `text` ⇒ payload 标记那格**当场红** ✓）
+				for (const { text: rawLine, line: rawNo } of p.bodyLines) {
+					if (/%\s*payload:/.test(rawLine)) {
+						out.push({ code: 'P6', msg: `${f.path}:${rawNo} 正文里出现**payload 标记** \`/% payload: … %/\`（段落「${p.name}」）—— ★\`#1508\` 终态：**零标记**（负荷走**段级字段 ⇒ 编译期注入**）✗ 手写` });
+					}
+				}
 		}
 	}
 	return out;
@@ -324,6 +329,8 @@ const selftest = () => {
 		proseVocabProblems({ slug: 'demo', vocab, files: mk('/% 第一行\n   <<set $x to 1>> 第二行 %/\n正文') }).length === 0);
 	t('正例：`[script]` 段落里的宏**不判**（非散文）',
 		proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'p.twee', text: ':: StoryHooks [script]\nwindow.Sg ??= {};\n<<set $x to 1>>\n' }] }).length === 0);
+	t('🔴 P6：同一段多行正文里的 payload 标记 **只报一次**（★ CR：旧写法嵌在逐行循环里 ⇒ 报 N 次）',
+		proseVocabProblems({ slug: 'demo', vocab, files: mk('/% payload: 信息 %/\n正文一\n正文二\n正文三') }).filter((q) => q.code === 'P6').length === 1);
 	t('🔴 P6 反例：★**参数里含 `>`** 的已宣告宏也报（★tester-4 CR：`[^>]*` 会**漏**这种）',
 		proseVocabProblems({ slug: 'demo', vocab, files: mk('<<give " ⚠ > ⚠">>') }).some((q) => q.code === 'P6'));
 	t('🔴 P6 反例：★**未闭合**的 `<<give`（已宣告）也报（★否则三道门都不接）',

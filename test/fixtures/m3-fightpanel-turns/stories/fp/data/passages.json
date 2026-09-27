@@ -9,7 +9,13 @@
   ],
   "present": "菜单",
   "prio": 1,
-  "prereq": []
+  "prereq": [],
+  "fight": {
+   "pool": "雾影",
+   "turns": 3,
+   "result": "won",
+   "dest": "战后"
+  }
  },
  "结局 胜": {
   "ending": {

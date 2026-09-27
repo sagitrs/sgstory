@@ -212,6 +212,56 @@ const selftest = () => {
 		t('★段级 check⑧ 负向：**只有**段级 `check`（散文无手写宏）⇒ ✗ 不报（新形态 ✓）',
 			doubleRenderProblems({ passages: [P('里屋', '正文。')], data: { 里屋: { check: '里屋·察觉' } } }).length === 0);
 	}
+	// ★ `#1506`（本票）：段级字段 **`fight`** —— 「这一段入口是一场战斗」（原散文三行：
+	//   `<<fightbegin "池">>` ／ `<<fightlog>>` ／ `<<fightpanel "池" N 结果 去向>>`）。
+	//   ★靶同样＝**编译期注入**（照上面 `段级 check` 的形 ✓）：
+	//   ① 声明 ⇒ 产物里**三个宏各恰一个**，且**在段首**（挂载点顺序＝数据字段顺序）；
+	//   ② ★**可选位按位置传参**：`result` 给了而 `turns` 没给 ⇒ 补空槽（`<<fightpanel "池" null won>>`），
+	//      ✗ 不许把它悄悄挪成 `<<fightpanel "池" won>>`（那是"打满 won 回合"—— 语法/语义双错 ✗）；
+	//   ③ 未声明 ⇒ **不得**出现（零破坏 ✓）；④ `pool` 缺/空 ⇒ **点名**（✗ 不注入半个宏串 ✓）；
+	//   ⑤ `turns` 非数 ⇒ 点名（它是回合数这个**机械事实** ✗ 不是文案 ✓）；⑥ 转义＋换行降级（与 `check` 同一套 ✓）。
+	{
+		const P = (name, body, tags = []) => ({ name, tags, body });
+		const segF = (body, fight) => assemblePassages({ passages: [P('斗', body)], known: new Set(),
+			data: { 斗: fight == null ? {} : { fight } } });
+		const tweeF = (body, fight) => segF(body, fight).twee;
+		t('段级 fight① 声明了 ⇒ 产物**三个宏各恰一个**，且**在段首**（顺序＝begin／log／panel ✓）',
+			(() => { const t2 = tweeF('雾在门口。', { pool: '雾影', turns: 3, result: 'won', dest: '战后' });
+				// ★ 段首＝**段体首行**（`twee` 的第 0 行是 `:: 段名 []` 段头 ⇒ 注入落在第 1 行 ✓）
+				const L = t2.split('\n');
+				return (t2.match(/<<fightbegin "雾影">>/g) ?? []).length === 1
+					&& (t2.match(/<<fightlog>>/g) ?? []).length === 1
+					&& (t2.match(/<<fightpanel "雾影" 3 won "战后">>/g) ?? []).length === 1
+					&& L[1] === '<<fightbegin "雾影">><<fightlog>><<fightpanel "雾影" 3 won "战后">>'
+					&& String(L[2]).startsWith('雾在门口'); })());
+		t('段级 fight② 只给 `pool` ⇒ **两参形**（与今天手写常见形同：`<<fightpanel "雾影">>`）',
+			(() => { const t2 = tweeF('雾在门口。', { pool: '雾影' });
+				return t2.includes('<<fightbegin "雾影">><<fightlog>><<fightpanel "雾影">>'); })());
+		t('段级 fight③ ★**可选位按位置传参**：`result` 给了而 `turns` 没给 ⇒ 补空槽（✗ 不许挪成"打满 won 回合"）',
+			tweeF('雾在门口。', { pool: '雾影', result: 'won' }).includes('<<fightpanel "雾影" null won>>'));
+		t('段级 fight④ 负向：**未声明** ⇒ 产物里**不得**出现战斗三宏（零破坏 ✓）',
+			(() => !/<<fightbegin|<<fightlog|<<fightpanel/.test(tweeF('雾在门口。', null))
+				&& !/<<fightbegin|<<fightlog|<<fightpanel/.test(tweeF('雾在门口。', undefined)))());
+		t('段级 fight⑤ `pool` 缺/空 ⇒ **点名**（✗ 不许静默注入半个宏串 ⇒ 产物里也没有那三个宏 ✓）',
+			(() => { const a = segF('雾在门口。', { turns: 3 }), b = segF('雾在门口。', { pool: '   ' });
+				return a.problems.length === 1 && /pool/.test(a.problems[0]) && !/<<fightbegin/.test(a.twee)
+					&& b.problems.length === 1 && /pool/.test(b.problems[0]); })());
+		t('段级 fight⑥ `turns` 非数 ⇒ **点名**（它是回合数这个机械事实 ✗ 不是文案）',
+			(() => { const q = segF('雾在门口。', { pool: '雾影', turns: '三' });
+				return q.problems.length === 1 && /有限数/.test(q.problems[0]); })());
+		t('段级 fight⑦ ★**转义＋换行降级**（与 `check` 同一套：`"`⇒`\\"`，换行⇒空格）',
+			(() => { const t2 = tweeF('雾在门口。', { pool: '池"名\n换行' });
+				return t2.includes('<<fightbegin "池\\"名 换行">>') && (t2.match(/<<fightbegin/g) ?? []).length === 1; })());
+		t('★段级 fight⑧ **双注 ⇒ 点名**（`fight` 字段 ＋ 散文手写三宏 ⇒ 同一场**渲两遍** ✗）',
+			(() => { const q = doubleRenderProblems({ passages: [P('斗', '正文。\n<<fightbegin "雾影">>\n<<fightlog>>\n<<fightpanel "雾影" 3 won>>')],
+					data: { 斗: { fight: { pool: '雾影' } } } });
+				return q.length === 1 && /两遍/.test(q[0]); })());
+		t('★段级 fight⑨ **单行手写也点名**（作者只删了两行、留了 `<<fightpanel>>` 一行 ⇒ 同样要红 ✓）',
+			doubleRenderProblems({ passages: [P('斗', '正文。\n<<fightpanel "雾影">>')],
+				data: { 斗: { fight: { pool: '雾影' } } } }).length === 1);
+		t('★段级 fight⑩ 负向：**只有**段级 `fight`（散文无手写宏）⇒ ✗ 不报（新形态 ✓）',
+			doubleRenderProblems({ passages: [P('斗', '雾在门口。')], data: { 斗: { fight: { pool: '雾影' } } } }).length === 0);
+	}
 	// ★ 双渲染宏（`#1412`）：**面内段**同时有散文手写渲染宏（`<<rules>>`／`<<rulelist>>`）与 `links[]`（非空 ⇒ 注入段尾块）
 	//   ⇒ **点名红**（修法：删手写宏 或 移内联 `slot`）—— 与 `#1399`「并存 ⇒ 红」同族（"看起来能跑、其实重复渲染"✗）
 	{

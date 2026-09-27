@@ -19,6 +19,9 @@
 // ★ 实测（写本笔时踩到的坑）：`<<goto>>` 宏＝`setTimeout(() => Engine.play(…), Engine.DOM_DELAY)`
 //   ⇒ **异步**（默认 40ms）⇒ 判据读「跳没跳」要**等一拍**（✗ 点完立刻读 ⇒ 假红）。
 //   而 `Engine.play(dest)` 直接调 ⇒ 在**渲染期**被引擎拒（本 widget 正跑在 link 体渲染里）✗
+// ★ `#1506`（本笔）：本夹具的「斗」段**已迁段级 `fight` 声明**（`data/passages.json` 里
+//   `"fight": { "pool": "雾影", "turns": 3, "result": "won", "dest": "战后" }`），散文里**不再手写三宏**。
+//   ⇒ 本笔的格**逐条不变** ＝ 注入形与手写形**行为等价**的取证面（✗ 不靠"看起来像" ✓）。
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';

@@ -261,6 +261,22 @@ const selftest = () => {
 				data: { 斗: { fight: { pool: '雾影' } } } }).length === 1);
 		t('★段级 fight⑩ 负向：**只有**段级 `fight`（散文无手写宏）⇒ ✗ 不报（新形态 ✓）',
 			doubleRenderProblems({ passages: [P('斗', '雾在门口。')], data: { 斗: { fight: { pool: '雾影' } } } }).length === 0);
+		t('★段级 fight⑪ **类型错 ⇒ 点名**（字符串／数组／数字／布尔）—— ✗ 不静默跳过',
+			(() => ['雾影', ['雾影'], 3, true].every((bad) => {
+				const q = segF('雾在门口。', bad);
+				return q.problems.length === 1 && /必须是\*\*对象\*\*/.test(q.problems[0])
+					&& !/<<fightbegin|<<fightlog|<<fightpanel/.test(q.twee);   // ★产物里**零出现**（✗ 不产坏产物）
+			}))());
+		t('★段级 fight⑫ 能假：类型错形与"**未声明**"的**注入面逐字相同**（都是零）⇒ 唯一的判别就是 `problems` 那一维',
+			(() => {
+				// ★ 这就是初版那个洞的形状：★去掉 `problems` 这一维 ⇒ "这一段本就不打架"与"声明被静默忽略"**读数完全相同** ✓
+				//   ⇒ ★把本笔新加的那支 `else if` 撤掉 ⇒ ⑪ 当场红（problems 变 0 ⇒ 本格也随之不成立 ✓）
+				const badOnes = ['雾影', ['雾影'], 3].map((bad) => segF('雾在门口。', bad));
+				const none = segF('雾在门口。', null);
+				return none.problems.length === 0
+					&& badOnes.every((q) => q.twee === none.twee)          // ★注入面无法区分
+					&& badOnes.every((q) => q.problems.length === 1);        // ★所以只靠声明面点名 ✓
+			})());
 	}
 	// ★ 双渲染宏（`#1412`）：**面内段**同时有散文手写渲染宏（`<<rules>>`／`<<rulelist>>`）与 `links[]`（非空 ⇒ 注入段尾块）
 	//   ⇒ **点名红**（修法：删手写宏 或 移内联 `slot`）—— 与 `#1399`「并存 ⇒ 红」同族（"看起来能跑、其实重复渲染"✗）

@@ -287,7 +287,12 @@ for (const s of stories) {
 			want = String(body2).trimEnd();
 		} catch { /* 无段落数据 ⇒ 退回"逐字"口径（旧行为逐字不变 ✓） */ }
 		if ((got.get(p0.name) ?? '').trimEnd() !== want) {
-			console.error(`✗ ${f}（段「${p0.name}」）的**产物 body 与「源经受制裁变换后的 body」不等** ✗ ⇒ md 路径没剥注释（stripTweeComments 漏接 ✓）`);
+			// ★ `#1543` CR（**NIT-2**）：原先这里把**通用**的"body 不等"一律断言成"md 路径没剥注释"——
+			//   ★T 用刀 K4′（漏传 `fight` 参数）实测：**红是对的，但病因说反了** ⇒ 把人带偏 ✗。
+			//   ⇒ ★改为**列可能原因**（✗ 不写单一因果断言 —— 那句结论只有在"期望面与实装面各算一次"时成立 ✓）。
+			console.error(`✗ ${f}（段「${p0.name}」）的**产物 body 与「源经受制裁变换后的 body」不等** ✗ ⇒ 可能原因：`
+				+ `① md 路径没剥注释（\`stripTweeComments\` 漏接）② 段级字段在**两处调用点**（\`build.mjs\` 本处 / \`passages.mjs\` 的拼装面）漏传了一个`
+				+ `（⇒ 两边各算一次必不等）③ 拼装面新增变换但期望面未同步`);
 			process.exit(1);
 		}
 	}

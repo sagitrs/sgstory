@@ -109,5 +109,5 @@ const DECL = [
 
 if (bad) { console.error(`\n✗ \`panels\` 声明维判据失败 ${bad} 项`); process.exit(1); }
 console.log('\n✔ `panels` 声明维通过（面在但空 · 非必给 · 编译层逐字发射 · 形不归一 · 同一性 · 有读点 · 形态错 fail-loud）');
-console.log('  ○ 未判（**不在本件范围**）：spec §3／§4④ 的「零声明 ⇒ 玩家面不渲染」—— 那是**消费点**义务，'
-	+ '本件无消费点可判 ⇒ 随 P3 `#1539`（StoryCaption 改走 `panels`）承接。');
+console.log('  ○ 未判（**不在本件范围**）：spec §3／§4④ 的「零声明 ⇒ 玩家面不渲染」—— 那是**消费点**义务。'
+	+ '★自 `#1539`（P3）起，该面由 `test/panels-render.mjs` 承接（本件与它**不同断**：本件判声明面，它判消费面）。');

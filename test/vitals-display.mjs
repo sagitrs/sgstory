@@ -49,6 +49,18 @@ const makeRoot = (variant) => {
 		mem('rulesPack').value = { ...(mem('rulesPack').value ?? {}), vitals: { keys: { hp: RENAMED }, label: { hp: '血量' } } };
 		writeFileSync(cp, JSON.stringify(d, null, 2) + '\n');
 	}
+	// ★`#1539`（P3）：血条改走 `panels` 声明（`【hpbar】` 已删）⇒ 夹具须声明一块；
+	//   ★定形乙：`valueKey`／`maxKey` 装 **`pc` 键名**（✗ 量纲名）—— `renamed` 态下键名随之改。
+	{
+		const cp = join(cg, 'data/contract.json');
+		const d = JSON.parse(readFileSync(cp, 'utf8'));
+		const mem = (n) => d.members.find((m) => m.name === n);
+		const key = variant === 'renamed' ? RENAMED : 'hp';
+		const maxKey = variant === 'renamed' ? 'max_hp' : 'max_hp';   // 只改 hp 那一维（照 `#1518` 的两态）
+		if (!mem('panels')) d.members.push({ name: 'panels', kind: 'const', value: [] });
+		mem('panels').value = [{ as: 'bar', slot: 'sidebar.primary', props: [{ slot: 'sidebar.primary', valueKey: key, maxKey, label: '生命' }] }];
+		writeFileSync(cp, JSON.stringify(d, null, 2) + '\n');
+	}
 	execFileSync(process.execPath, [join(ROOT, 'build.mjs')], { cwd: ROOT, env: { ...process.env, SG_STORIES_DIR: stories }, stdio: 'pipe' });
 	return { WORK, stories };
 };
@@ -66,10 +78,12 @@ const observe = async (stories, { withChargen = true } = {}) => {
 		S.pc[Game.Rules.vk('hp')] = 7; S.pc[Game.Rules.vk('maxHp')] = 20;
 		S.pc[Game.Rules.vk('salves')] = 3; S.pc.name = '测'; S.pc.classLabel = '测职'; S.pc.speciesLabel = '测族';
 		return 1; })()`);
-	// ① 血条（渲染 StoryCaption 后取 .hpbar-text）
+	// ① 血条（渲染 StoryCaption 后取 `Sg.draw.bar` 产的 `.sg-bar-text`）
+	//   ★`#1539`（P3）：选择器从旧的 `.hpbar-text` 改为新原语的 `.sg-bar-text`
+	//     （★同时刻也断住"旧内置块已不再画"：产物里若还有 `.hpbar` ⇒ 本件同时会看到两份 ⇒ ⑨ 抓）。
 	w.SugarCube.Engine.play('StoryCaption');
 	await B.settle(); await new Promise((r) => setTimeout(r, 200)); await B.settle();
-	const bar = String(w.document.querySelector('.hpbar-text')?.textContent ?? '').trim();
+	const bar = String(w.document.querySelector('.sg-bar-text')?.textContent ?? '').trim();
 	// ② snap()：快照的 hp 字段
 	const snap = w.eval(`(function(){ const s = Game.Pc.snap(SugarCube.State.variables.pc); return { hp: s.hp, gold: s.gold }; })()`);
 	// ③ diff()：人话文案
@@ -87,7 +101,11 @@ const observe = async (stories, { withChargen = true } = {}) => {
 {
 	const { WORK, stories } = makeRoot('asis');
 	const o = await observe(stories);
-	t('① 血条：`❤ 7 / 20`（内置键名 `hp`／`max_hp` 真被读到）', /❤\s*7\s*\/\s*20/.test(o.bar), o.bar);
+	// ★`#1539`：文案与"❤"图标都归**故事声明**（spec §2.1 红线③：✗ 引擎不内置图标/配色）
+	//   ⇒ 本格断"**声明的 label 与取到的数**都在屏上"，✗ 不断引擎自造的 `❤`
+	t('① 血条：字号与文案来自声明 ⇒ `7 / 20` ＋ 声明的 label', /7\s*\/\s*20/.test(o.bar) && /生命/.test(o.bar), o.bar);
+	t('⑨ 引擎侧清零：旧内置块 `.hpbar` **不再产字节**（✗ 两块并存 ⇒ 同一属性出现两处 ✗）',
+		!String(o.cap ?? '').includes('hpbar') && !String(o.bar ?? '').includes('hpbar'), '产物里仍有 hpbar 残留');
 	t('② 快照：`snap().hp === 7`（键名走 `vk("hp")`）', o.snap?.hp === 7, JSON.stringify(o.snap));
 	t('③ 文案：含内置词「生命」（`vl("hp")` ⇒ 内置 `生命`）', /生命/.test(o.diffText), o.diffText);
 	t('④ 侧栏：含「药膏」＋ 数量 3（键名 ＋ 文案都从数据读）', /药膏/.test(o.cap) && /3 副/.test(o.cap), o.cap.slice(-120));
@@ -100,7 +118,7 @@ const observe = async (stories, { withChargen = true } = {}) => {
 	const o = await observe(stories);
 	// 键名改了 ⇒ 血条仍应显示（值在新键名下）、快照仍应取到 7
 	t('⑤ 血条：改键名（`hp`⇒`hpRenamed`）后**仍显示 7 / 20**（✗ 写死 `pc.hp` 则此处必红）',
-		/❤\s*7\s*\/\s*20/.test(o.bar), o.bar);
+		/7\s*\/\s*20/.test(o.bar), o.bar);
 	t('⑥ 快照：改键名后 `snap().hp === 7`（✗ 写死 `pc.hp` 则取到 0 ⇒ 红）', o.snap?.hp === 7, JSON.stringify(o.snap));
 	t('⑦ 文案：改文案（`生命`⇒`血量`）后**出现「血量」**（✗ 写死字面量则必红）', /血量/.test(o.diffText), o.diffText);
 	t('⑧ 文案：**旧词「生命」不再出现**（✗ 两处并存 ⇒ 说明有一处写死）', !/生命/.test(o.diffText), o.diffText);
@@ -108,4 +126,4 @@ const observe = async (stories, { withChargen = true } = {}) => {
 }
 
 if (bad) { console.error(`\n✗ 展示面读数据自证失败 ${bad} 项`); process.exit(1); }
-console.log('\n✔ 展示面读数据自证通过（hpbar／snap／diff／侧栏：改数据 ⇒ 展示跟变；✗ 无字面量残留）');
+console.log('\n✔ 展示面读数据自证通过（血条走 `panels` 声明／snap／diff／侧栏：改数据 ⇒ 展示跟变；✗ 无字面量残留；✗ 旧内置块不再画）');

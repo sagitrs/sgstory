@@ -86,6 +86,28 @@ setPack({ economy: { keys: { gold: 'goldRenamed' }, label: { gold: '银币' } } 
 		(() => { const o = JSON.parse(String(r)); return o.atK !== 0 && o.atOld === 0; })(), String(r));
 }
 
+// ── ④ ★★**全仓无硬编**（★把“我自扫”变成**判据** —— ✗ 靠眼力 ✗）──
+//   ★★为什么非要有这一格：★我第一版只用 `grep -rn 'pc.gold'` 自扫
+//     ⇒ ★★**漏了 `pc?.gold`**（★可选链）＋ 漏了 **文案字面“金币”**（★共 **5 处**）✗
+//   ★正解：★把**模式写全**（`pc?.gold` 也算）+ **必须剥注释**（★✗ 然后对每处判“语义面→键名 / 展示面→文案 / 声明面→该留”）✓
+{
+	const { execFileSync } = await import('node:child_process');
+	const files = execFileSync('git', ['ls-files', 'src/'], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n');
+	const CODE = (raw) => raw.replace(/\/%[\s\S]*?%\//g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+	const hits = [];
+	for (const f of files) {
+		const code = CODE(readFileSync(join(ROOT, f), 'utf8'));
+		code.split('\n').forEach((l, i) => {
+			// ★键名面：★`pc.gold`／`pc?.gold`／`pc['gold']` 等硬编
+			if (/pc\??\.gold|pc\[\s*['"]gold['"]\s*\]/.test(l)) hits.push([f, i + 1, '键名', l.trim()]);
+			// ★文案面：★字面 `金币`（★**声明面那一行除外** —— 它**就是**缺省值 ✓）
+			if (/金币/.test(l) && !/label:\s*\{\s*gold:/.test(l)) hits.push([f, i + 1, '文案', l.trim()]);
+		});
+	}
+	t('④ ★**全仓无硬编**（键名面 `pc?.gold` 也算；文案面 `金币` 字面；★声明面那行除外）',
+		hits.length === 0, hits.slice(0, 4).map((h) => `${h[0]}:${h[1]}(${h[2]})${h[3].slice(0, 60)}`).join(' ｜ '));
+}
+
 if (bad) { console.error(`\n✗ economy 键名面自证失败 ${bad} 项`); process.exit(1); }
 console.log('\n✔ economy 键名面自证通过（零声明逐位同／改声明 ⇒ 结算＋展示同时跟变）');
 rmSync(WORK, { recursive: true, force: true });

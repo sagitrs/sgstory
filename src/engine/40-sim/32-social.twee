@@ -70,7 +70,9 @@ Object.assign((window.Game.Social ??= {}), {
 	leverOpen(a, lv, pc) {
 		if (lv.needRead && !pc?.soc?.read?.[a.npc]) return false;
 		if (lv.need != null && !this.condHolds(lv.need, pc)) return false;
-		if (lv.econ && (pc?.gold ?? 0) < -window.Game.Economy.priceOf(lv.econ, pc)) return false;
+		// ★ `#1530`：★**词锦门槛也走数据**（★键名 `ek('gold')` ⇒ ★否则改了键名
+		//   ★玩家**看到灰筹码**而侧栏里有钱** ✗ —— ★语义面不只是展示 ✓）
+		if (lv.econ && (pc?.[window.Game.Rules.ek('gold')] ?? 0) < -window.Game.Economy.priceOf(lv.econ, pc)) return false;
 		return true;
 	},
 	roll(pc, site, dc, advWhy) {

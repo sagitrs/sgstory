@@ -332,9 +332,22 @@ export const applyPassageTransforms = ({ name, body, terms = new Set(), params =
 	//   ★`<<snapshot>>` 是 `<<sitecheck>>` 的**配对动作**（写 `pc.ev.last_roll` 供 `<<lastcheck>>` 复显）
 	//     ⇒ 声明 `check` 即**一并注入**（✗ 不让作者写两个字段 —— 它们永远成对 ✓）。
 	//   ★空/缺省 ⇒ **不动**（零破坏 ✓）。
-	if (check != null && String(check).trim() !== '') {
-		// ★ 转义走**模块级唯一口**（`escapeMacroArg`）—— ✗ 不在此内联一份（评审 NIT-1：注释说"同一个口"而代码两份 ✗）
-		expanded = `<<sitecheck "${escapeMacroArg(check)}">><<snapshot>>\n${expanded}`;
+	//   ★★ `#1546` 缺口③：**类型错与空值原先都是"静默"** ——
+	//     · `check: { a: 1 }`（照 `fight` 的样子写错）⇒ `String({})` ＝ `"[object Object]"` ⇒ ★**注入脏值**（无声）；
+	//     · `check: ''`／空白 ⇒ `trim()` 后为空 ⇒ ★**静默跳过** ⇒ 与"未声明 `check`"**读数完全相同**
+	//       （"本段跑了检定"与"本段没有任何检定"不可区分）✗
+	//   ⇒ ★两支都改为**点名**（与 `#1543` 的段级 `fight` **同一把尺**：存在但形不对 ⇒ fail-loud，✗ 不静默）。
+	if (check != null) {
+		if (typeof check !== 'string') {
+			problems.push('段「' + name + '」的段级 `check` 必须是**字符串**（拿到 '
+				+ (Array.isArray(check) ? 'array' : typeof check) + ' ' + JSON.stringify(check) + '）——'
+				+ ' 写法是 `check: "<站点名>"`（★✗ 静默注入 `[object Object]` 这种脏值 ⇒ 那一页会拿脏站点名去检定 ✓）');
+		} else if (String(check).trim() === '') {
+			problems.push('段「' + name + '」的段级 `check` **为空（或空白）** ⇒ 要么给站点名、要么**删掉该字段**（★✗ 静默跳过会让"这一页跑了检定"与"这一页没有检定" **读数完全相同** ✓）');
+		} else {
+			// ★ 转义走**模块级唯一口**（`escapeMacroArg`）—— ✗ 不在此内联一份（评审 NIT-1：注释说"同一个口"而代码两份 ✗）
+			expanded = `<<sitecheck "${escapeMacroArg(check)}">><<snapshot>>\n${expanded}`;
+		}
 	}
 	// ★ `#1506`：段级字段 **`fight`** —— 「这一段入口是一场战斗」（原散文写法 `<<fightbegin "池">>\n<<fightlog>>\n`
 	//   `<<fightpanel "池" N won "去向">>` 三行）。

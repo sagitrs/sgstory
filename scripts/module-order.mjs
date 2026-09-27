@@ -276,6 +276,15 @@ export const checkRegistration = ({ sources, order = ORDER, modules = MODULES, m
 		if (!names.includes(f)) { out.push({ code: 'missing-file', msg: `ORDER 里的 ${f} 不存在（改了名或删了文件）` }); continue; }
 		if (!isEngine(f) && !claimed.has(f)) out.push({ code: 'orphan-in-order', msg: `${f} 在 ORDER 里，但既非引擎件、也不属于任何故事清单` });
 	}
+	// ★★ `#1546` 缺口②：**`MODULES` 的键 ⊄ 源文件**（ghost entry）—— 原先**无人判**。
+	//   实测（`move-precheck`）：往 `MODULES` 里挂一个**不存在的**文件 ⇒ **rc=0**，且头行照旧印
+	//   「✔ 六处同步一致（源文件 19 · ORDER 19 · MODULES **20** · …）」—— ★**印出了分母不一致、却给出"一致"的结论** ✗。
+	//   危害不在当下（`ORDER` 无它 ⇒ 不进产物），而在「**我以为登记过了**」的错觉：改名/删件后残留的条目会**冒充**登记。
+	//   ⇒ ★点名（与 `missing-modules` 同族：两者都是"**登记处与事实不符**"）。
+	//   ★射程：只在 `requireModules`（＝"MODULES 面必须健全"）时判；★与 ORDER 的交集由 `missing-file` 判，避免重复报。
+	if (requireModules) for (const f of Object.keys(modules)) {
+		if (!names.includes(f) && !order.includes(f)) out.push({ code: 'ghost-modules', msg: `MODULES 里的 ${f} **在源里不存在**（改名或删件后的残留条目）⇒ 删掉它（✗ 留着会冒充"已登记"）` });
+	}
 	return out;
 };
 
@@ -575,7 +584,12 @@ export const orderFiles = (files, order = ORDER) => [...files].sort((a, b) => {
 });
 /** 按 basename 或路径后缀解析源文件（供只认文件名的调用点用，如 `resolve-node.mjs`）。 */
 /** 引擎文件（`MODULES.layer === 'engine'`）——**故事作用域**的一半。 */
-export const engineFiles = (order = ORDER, modules = MODULES) => order.filter((f) => (modules[f]?.layer ?? 'story') === 'engine');
+// ★ `#1546` 缺口①：**同一问题只能有一个答案** —— 原先这里**自己**取 `modules[f]?.layer ?? 'story'`
+//   （✗ **无 `src/**` 兜底**），而 `layerOf()`（`:138`）**有**路径兜底 ⇒ ★同一件两函数可能给出**相反**的层判定；
+//   而产物作用域走 `engineFiles()` ⇒ `order` 登了、`MODULES` 漏登的引擎件被当**故事件**丢掉 ⇒ **不进任何故事的产物**
+//   （实测 `#1541`：`13-draw.twee` 判据全绿而产物里 `Sg.draw` 为 `undefined`）。
+//   ⇒ ★改为**由 `layerOf` 派生**：两处同源，✗ 不再各答一次。
+export const engineFiles = (order = ORDER, modules = MODULES) => order.filter((f) => layerOf(f, modules) === 'engine');
 
 /** **一个故事的加载顺序**（`#893`）：**`ORDER` 里有的 → 按 `ORDER`**（唯一权威）；
  * **`ORDER` 里没有的**（＝新故事自己的件）→ **按它清单的序**（**稳定排序**，两边都不丢）。

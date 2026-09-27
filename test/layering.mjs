@@ -13,7 +13,7 @@
 //
 // 自证：`node test/layering.mjs --selftest`
 
-import { requireManifests, checkModuleGraph, ORDER, MODULES, readModules, checkLayerDirection, LAYER_OF, STORY_SYMBOLS, normalizeSymbolRefs, checkEngineRanks, rankOfPath, storyManifests } from '../scripts/module-order.mjs';
+import { requireManifests, checkModuleGraph, ORDER, MODULES, readModules, checkLayerDirection, LAYER_OF, STORY_SYMBOLS, normalizeSymbolRefs, checkEngineRanks, rankOfPath, storyManifests, engineFiles, layerOf, checkRegistration } from '../scripts/module-order.mjs';
 import { selftest as distFreshSelftest } from '../scripts/dist-fresh.mjs';
 import { storyJsonRoleProblems } from '../scripts/module-order.mjs';   // `#1130` ④′：json 角色格
 
@@ -111,6 +111,30 @@ if (process.argv.includes('--selftest')) {
 	t('**能假的另一半** ✓：`requireManifests([])` **不抛**（空数组合法 ✓ —— 否则"永远抛"也会过 ✗）', (() => {
 		try { return Array.isArray(requireManifests([])); } catch { return false; }
 	})());
+	// ★★ `#1546` 缺口①：**同一问题只能有一个答案**（`engineFiles()` 与 `layerOf()`）
+	//   旧形：`engineFiles()` 自己取 `modules[f]?.layer ?? 'story'`（**无 `src/**` 兜底**）、`layerOf()` **有**
+	//   ⇒ `order` 登了、`MODULES` 漏登的引擎件被当**故事件**丢掉（产物里就没它）。
+	//   ★正例（基线上同判）：真 `ORDER` 逐件比两函数 ⇒ **0 分歧**。
+	{
+		const ef = new Set(engineFiles());
+		const dis = ORDER.filter((f) => (layerOf(f) === 'engine') !== ef.has(f));
+		t('缺口①·**基线**：真 `ORDER` 逐件比 `engineFiles()` 与 `layerOf()` ⇒ **0 分歧** ✓', dis.length === 0, dis.join('、'));
+	}
+	//   ★能假（合成例）：★**只登 ORDER、漏登 MODULES** 的 `src/**` 件 —— 旧形会把它判成故事件（✗ 不进产物），
+	//     新形按路径兜底 ⇒ 与 `layerOf()` **同判 engine** ✓（这正是 `#1541` 那个死件的形状）
+	t('缺口①·**能假**：`engineFiles()` 对**未登 MODULES 的 `src/**` 件**仍判 engine（与 `layerOf()` 同断）',
+		(() => { const fake = ['src/engine/50-present/99-fake.twee'];
+			return engineFiles(fake, {}).length === 1 && layerOf(fake[0], {}) === 'engine'; })());
+	// ★★ `#1546` 缺口②：**`MODULES` 挂不存在的文件**（ghost entry）⇒ 点名
+	t('缺口②·**能假**：`MODULES` 里挂一个**源里不存在**的文件 ⇒ 报 `ghost-modules` 且**点名该件**',
+		(() => { const r = checkRegistration({ sources: { 'src/10-core.twee': '' }, order: ['src/10-core.twee'], manifests: [],
+			modules: { 'src/10-core.twee': { deps: [], defines: [], layer: 'engine' }, 'src/engine/50-present/99-ghost.twee': { deps: [], defines: [], layer: 'engine' } },
+			requireModules: true });
+			return r.some((p) => p.code === 'ghost-modules' && /99-ghost/.test(p.msg)); })());
+	t('缺口②·**不该红时绿**：无 ghost ⇒ 不报（✗ 否则任何基线上都常红）',
+		(() => { const r = checkRegistration({ sources: { 'src/10-core.twee': '' }, order: ['src/10-core.twee'], manifests: [],
+			modules: { 'src/10-core.twee': { deps: [], defines: [], layer: 'engine' } }, requireModules: true });
+			return r.filter((p) => p.code === 'ghost-modules').length === 0; })());
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项——分层 lint 没有咬合力`); process.exit(1); }
 	console.log('\n✔ 自证通过：合规绿 / 前向依赖红 / 未登记红 / 定义漂移红 / 文件缺失红 / 点号 defines 正反例 / 两层登记（#893）正反例 / **清单形状（#930）三条（非数组点名 ✗ ＋ [] 不抛 ✓）**');
 	process.exit(0);

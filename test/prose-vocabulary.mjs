@@ -192,6 +192,23 @@ export const proseVocabProblems = ({ slug, files, vocab }) => {
 					if (vocab.has(name)) continue;
 					out.push({ code: 'V2', file: f.path, line, macro: name, msg: `${f.path}:${line} 正文里出现**引擎未宣告**的宏 \`<<${name}>>\`（段落「${p.name}」）—— 未登记＝不可审；要新增词汇宏 ⇒ 在引擎宣告（\`<<widget>>\`／\`Macro.add\`）＋ 票内说明理由` });
 				}
+				// ★★ `#1508`（P6 门翻转 · 零白名单终态）：**散文里出现任何 `<<…>>` ⇒ 红**（✗ 不看是否已宣告）。
+				//   ★理由：`#1505`／`#1506` 已把 sitecheck/snapshot/payload 与 fight 三族搬到**段级字段 ＋ 编译期注入**
+				//     ⇒ ★故事段里**不再需要手写宏** ⇒ ★出现即残留（✗ 无白名单可放行 ✓）。
+				//   ★与 V1/V2 的关系：那两条是"**宣告面**"判据（未宣告/逻辑宏）⇒ 都有**白名单**；P6 是"**形态面**"⇒ **零白名单** ✓
+				//     ⇒ ★终态下 P6 先红、V1/V2 不再触发（★它们的白名单随本次翻转**失效** ✓ 另票清死码）。
+				//   ★口径：★只判**散文段**（`isProse` 已滤 script/widget/stylesheet ✓）；★`payload` 标记被 `stripCommentSpans` 保留
+				//     ⇒ ★`/% payload: … %/` 也会被抓（★正合"零标记终态" ✓）。
+				// ★★ 标记那一半：`/% payload: … %/` 由 `stripCommentSpans` **整体摘掉**（`text:''`）⇒ `text` 里**看不到它** ✗
+				//   ★故必须另扫**原始行**（`p.bodyLines`）—— 否则“零标记终态”无人守✗（实测：我第一版 P6 只扫 `text` ⇒ payload 标记格**当场红**）
+				for (const { text: rawLine, line: rawNo } of p.bodyLines) {
+					if (/%\s*payload:/.test(rawLine)) {
+						out.push({ code: 'P6', msg: `${f.path}:${rawNo} 正文里出现**payload 标记** \`/% payload: … %/\`（段落「${p.name}」）—— ★\`#1508\` 终态：**零标记**（负荷走**段级字段** ⇒ 编译期注入）✗ 手写` });
+					}
+				}
+				for (const m of text.matchAll(/<<[^>]*>>/g)) {
+				out.push({ code: 'P6', msg: `${f.path}:${line} 正文里出现**宏** \`${m[0].slice(0, 40)}…\`（段落「${p.name}」）—— ★\`#1508\` 终态：**散文零宏**（检定/战术/载荷一律走**段级字段 ＋ 编译期注入**）✗ 手写` });
+				}
 			}
 		}
 	}
@@ -279,11 +296,14 @@ const selftest = () => {
 	const t = (label, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} 自证·${label}`); };
 	const vocab = engineVocab(['<<widget "give">>', "<<widget \"note\">>", "Macro.add('ending', {", "Macro.add('rulelist', {"]);
 	t('词表抽取：widget ∪ Macro.add ⇒ 4 个', vocab.size === 4 && vocab.has('give') && vocab.has('ending'));
+	// ★★ `#1508`（P6 终态）：上游三格【**过渡豁免的守护格**】已随对象退役 ✗ ——
+	//   ①「词汇宏放行⇒ 0 问题」、②「payload 标记不报」、③「具名动作宏不红」
+	//   —— 三格守的都是「**散文里可以有宏**」这个过渡期行为；`#1508` 把它翻成「**零白名单**」⇒ 守护对象不存在 ⇒ **随对象退役**
+	//   （❗ ✗ 不是“改格让它绿” —— 改格会把「过渡豁免」留在格里 ⇒ **P6 自己反而没人守**）✗
+	//   ★现场（本门新的守护）：P6 五格（见下）—— 反例×3 ＋ 正例×1 ＋ 非散文边界×1 ✓
 
 	const mk = (body) => [{ path: 'stories/demo/10-x.twee', text: `:: 开场 [prose]\n${body}\n` }];
 
-	t('正例：散文＋链接＋词汇宏＋back ⇒ 0 问题',
-		proseVocabProblems({ slug: 'demo', vocab, files: mk('河在夜里不出声。\n[[上船|船头]]\n<<give "坏哨">>\n<<ending "抵岸" final>>\n<<back "回开场">>') }).length === 0);
 	t('反例：`<<set>>` ⇒ V1 且点名',
 		(proseVocabProblems({ slug: 'demo', vocab, files: mk('<<set $x to 1>>') })[0]?.code) === 'V1');
 	t('反例：`<<if>>` ⇒ V1', (proseVocabProblems({ slug: 'demo', vocab, files: mk('<<if $x>>嗯<</if>>') })[0]?.code) === 'V1');
@@ -293,12 +313,22 @@ const selftest = () => {
 		proseVocabProblems({ slug: 'demo', vocab, files: mk('/% 当初写成 <<if $x>> ⇒ 错在哪… %/') }).length === 0);
 	t('正例：**跨行注释**里的宏不判',
 		proseVocabProblems({ slug: 'demo', vocab, files: mk('/% 第一行\n   <<set $x to 1>> 第二行 %/\n正文') }).length === 0);
-	t('正例：`/% payload: … %/` 标记不报', proseVocabProblems({ slug: 'demo', vocab, files: mk('/% payload: 信息|选择 %/\n正文') }).length === 0);
 	t('正例：`[script]` 段落里的宏**不判**（非散文）',
 		proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'p.twee', text: ':: StoryHooks [script]\nwindow.Sg ??= {};\n<<set $x to 1>>\n' }] }).length === 0);
 	t('反例：`[widget]` 段落**不判**（同上）',
 		proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'p.twee', text: ':: W [widget]\n<<widget "z">><<set $x to 1>><</widget>>\n' }] }).length === 0);
 	t('边界：正文里**没有宏** ⇒ 0 问题', proseVocabProblems({ slug: 'demo', vocab, files: mk('只有散文。') }).length === 0);
+	// ★ `#1508`（P6 门翻转）：**散文零宏** —— 反例/正例/两处边界
+	t('🔴 P6 反例：散文含 `<<fightpanel “雾影” 3 won>>` ⇒ **P6**（★终态：散文零宏）',
+		proseVocabProblems({ slug: 'demo', vocab, files: mk('雾里站着。\n<<fightpanel "雾影" 3 won>>') }).some((q) => q.code === 'P6'));
+	t('🔴 P6 反例：★**已宣告**的宏也报（★零白名单 —— ✗ 不看 vocab 有没有它）',
+		proseVocabProblems({ slug: 'demo', vocab, files: mk('<<back "回开场">>') }).some((q) => q.code === 'P6'));
+	t('🔴 P6 反例：`/% payload: … %/` **标记**也报（★正合零标记终态）',
+		proseVocabProblems({ slug: 'demo', vocab, files: mk('/% payload: 信息 %/\n正文') }).some((q) => q.code === 'P6'));
+	t('P6 正例（能假的另一半）：**纯散文**（无任何 `<<`）⇒ 不报 ✓',
+		!proseVocabProblems({ slug: 'demo', vocab, files: mk('河在夜里不出声。\n[[上船|船头]]\n{{提醒}}') }).some((q) => q.code === 'P6'));
+	t('P6 边界：**非散文段**（`[script]`）里的宏 ⇒ 不报（★本门只判散文 ✓）',
+		!proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'p.twee', text: ':: StoryHooks [script]\n<<set $x to 1>>\n' }] }).some((q) => q.code === 'P6'));
 
 	// `#1051`②：**枚举口径**（成对 —— 改前/改后行为都要能判）
 	t('🔴 枚举：`00-meta2.twee` 在树上、不在清单 ⇒ **报**（旧口径会把它当**正文**判 ✗）',
@@ -320,8 +350,6 @@ const selftest = () => {
 	// 三格能假：禁则红 ／具名动作宏不红 ／未宣告宏红；另一格：**跟源同名段**必报。
 	t('🔴 md 源·反例：md 正文含 `<<set>>` ⇒ **V1**（判据体与 twee 路**共用** ✓）',
 		(proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'stories/demo/passages/0-a.md', text: '---\npassage: 开场\n---\n门是虚掩的。\n<<set $x to 1>>\n' }] })[0]?.code) === 'V1');
-	t('🔴 md 源·正例（能假的另一半）：md 正文的**具名动作宏** ⇒ **不红** ✓',
-		proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'stories/demo/passages/0-a.md', text: '---\npassage: 开场\n---\n正文 <<give "坏哨">> 完。\n' }] }).length === 0);
 	t('🔴 md 源·反例：md 正文的**未宣告宏** ⇒ **V2**（不分派会成“假绿”：twee 解析器把 md 解成空 ⇒ 看着像扫过 ✓）',
 		(proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'stories/demo/passages/0-a.md', text: '---\npassage: 开场\n---\n<<nonexistent>>\n' }] })[0]?.code) === 'V2');
 	t('md 源·front-matter：`passage` ⇒ 段名、`tags` ⇒ tag 面（与拼装层同一权威解析 ✓）',
@@ -566,4 +594,6 @@ if (problems.length) {
 	for (const p of problems) console.error(`    [${p.code}] ${p.msg}`);
 	process.exit(1);
 }
-console.log('✔ 散文词汇门通过（内容故事正文只含：散文／链接／payload 标记／引擎已宣告的词汇宏）');
+// ★ `#1508`（P6 终态）：**这句话随翻转更新** —— 旧文案说“只含…词汇宏”已不适用（那是**过渡期语义**）✗
+//   ★下游靠这行认“过没过”⇒ **文案说错比不说更坏**（人会按它反推判据边界）✗
+console.log('✔ 散文词汇门通过（内容故事正文：**零宏** —— 散文只有文字与 `[[…]]` 链接；比如检定/战术/负荷走**段级字段 ⇒ 编译期注入**）');

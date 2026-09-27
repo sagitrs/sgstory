@@ -6,8 +6,10 @@
 //      （`hp` 104／`gold` 41／…）★且**必然漏**（`心情`／`钥匙` 同样是"某故事的概念"却不在表里 ✓）。
 //   ② **行为**：★`bar` 给数 ⇒ 给定串｜★`list` **空且无 `empty` ⇒ 空串**（✗ 引擎不自造"（空）" ✓）｜★给了 `empty` ⇒ 用故事的 ✓。
 import { readFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
 import { maskComments } from '../editor/lib/core/mask.mjs';
 import { engineFiles, MODULES } from '../scripts/module-order.mjs';   // ★`#1541`：**归属**的唯一权威（✗ 本地再算一次）
+import { DIST_DIR } from '../scripts/dist-paths.mjs';   // ★`#1541` ③c：产物根走**单一权威**（`#1267` 随故事根）
 
 let bad = 0;
 const t = (l, ok, d = '') => { if (ok) console.log(`  ✓ ${l}`); else { bad++; console.error(`  ✗ ${l}${d ? ' —— ' + d : ''}`); } };
@@ -56,9 +58,19 @@ const D = await load();
 //   ③a 本件必须在 `engineFiles()` 里（＝它真会进 `scopedFiles()` → 真会进产物）；
 //   ③b **归属只能有一个答案**：`MODULES[本件].layer` 与 `engineFiles()` 的判定必须一致
 //        （防“只登 ORDER、漏登 MODULES”再现）；
-//   ③c 产物面在场：`build/game.twee` 在（且含本件段）―― `npm test` 的 `build` phase 先跑且独占 ⇒ 顺序有保证。
+//   ③c 产物面在场：**`<DIST_DIR>/INPUTS.json`** 里列着本件 —— 它是**构建器自己吐的输入清单**
+//        （`build.mjs` 的 `writeInputsFingerprint`：件 → sha256），✗ 不是"某段恰好写过的中间文件"。
 // `#1541` 修复面：`MODULES` 补登 `13-draw`（单行）＋ `build.mjs` 的 `checkRegistration` 开 `requireModules`
 //（生产者侧 rc≠0 拦住断链产物）—— 本格是**本件自己的**回归牙（✗ 不靠别人代跑）。
+//
+// ★`#1541` 追加（本格自身的**实测缺陷**，修在**产物锚**上）：初版 ③c 读的是 `build/game.twee` ——
+//   而那个文件是**逐故事**在 `for (const s of stories)` 里写的 ⇒ **零故事态永不写它**（CI 的 `npm test` 正是零故事）。
+//   ⇒ 初版单跑当场红、**只在链上侥幸绿**（靠别的段 `SG_STORIES_DIR=… node build.mjs` 的**副作用**先把它写出来）
+//   ⇒ 那是**跨段顺序依赖**（本仓 `run-tests` 的 DAG 明令禁止：段之间只允许通过 `needs` 表达依赖）——
+//   证据：`rm -rf build && node build.mjs && node test/draw-primitives.mjs` ⇒ ③c **假红** ✗。
+//   改用 `dist/INPUTS.json`：零故事态**也写**（`writeInputsFingerprint` 在故事循环之外），
+//   且它列的正是"**哪些件真进了产物**"——与 `engineFiles()` 的**声明面**形成一对比：
+//   一个问"它的归属对不对"、一个问"构建器实得有没有把它算进去"（✗ 同一件事两处断）。
 {
 	const EF = engineFiles();
 	t('★③a **归属**（主判）：本件在 `engineFiles()` 里（⇒ 真会进 `scopedFiles()` → 真会进产物）',
@@ -67,14 +79,22 @@ const D = await load();
 	const viaModules = MODULES[FILE]?.layer === 'engine';
 	t('★③b **单一答案**：MODULES 里本件的 layer 为 engine 与 engineFiles() 同断（✗ 两个口径两个答案）',
 		viaModules === EF.includes(FILE), `MODULES 侧 = ${viaModules} ／ engineFiles() 侧 = ${EF.includes(FILE)}`);
-	// ③c 产物面在场：build 段先跑且独占（build phase）⇒ 这里读得到；缺失则点名“没 build”而不是静默跳过
-	const GT = 'build/game.twee';
-	if (!existsSync(GT)) {
-		t('★③c 产物在场：build/game.twee 存在（npm test 里由 build phase 段先跑 ⇒ 应有）', false, `${GT} 不存在 —— 请先跑 node build.mjs（本段 ✗ 自建：同概念两处）`);
+	// ③c 产物面：`<DIST_DIR>/INPUTS.json` —— 构建器自己吐的**输入清单**（零故事态也写）。
+	// ★路径走**单一权威** `DIST_DIR`（`#1267` 随故事根）—— ✗ 不硬编 `dist/`（跑仓外故事时它不在仓内）。
+	const INPUTS = join(DIST_DIR, 'INPUTS.json');
+	if (!existsSync(INPUTS)) {
+		t('★③c 产物面在场：`<DIST_DIR>/INPUTS.json` 存在（build 一跑就写；✗ 不依赖某段先写 `build/game.twee`）',
+			false, `${INPUTS} 不存在 —— 请先跑 node build.mjs（本段 ✗ 自建：同概念两处）`);
 	} else {
-		const gt = readFileSync(GT, 'utf8');
-		t('★③c 产物在场且**含本件段**（源码→产物边界，在**产物侧**再问一次）',
-			gt.includes('Draw primitives') && gt.includes('sg-bar-fill'), '`build/game.twee` 里找不到本件段（段名/sg-bar-fill 皆无）');
+		const raw = readFileSync(INPUTS, 'utf8');
+		let list = null;
+		try { list = Object.keys(JSON.parse(raw)); } catch { list = null; }
+		t('★③c 输入清单可解析（构建器产物格式未变）', Array.isArray(list) && list.length > 0, `实得 ${raw.slice(0, 80)}`);
+		if (Array.isArray(list)) {
+			// 认**路径后缀**（清单里是绝对/相对路径，随 `#1267` 故事根而异）⇒ 比末段最稳
+			t('★③c **本件真进了产物输入面**（`INPUTS.json` 列出它 —— 源码→产物边界在**产物侧**再问一次）',
+				list.some((k) => String(k).endsWith(FILE)), `清单 ${list.length} 件里找不到 ${FILE}`);
+		}
 	}
 }
 

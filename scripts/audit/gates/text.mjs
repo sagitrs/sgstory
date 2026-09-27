@@ -164,25 +164,30 @@ if (wantAll || arg('text')) {
 	//   ★修：★把自证闸**提到短路之前**（✗ 不改"零故事 ⇒ 未判"的**样本语义** ✓）。
 	//   ★注意：★自证段落里若有"依赖故事面"的格 ⇒ 那些格在零故事态**本就不该跑** ⇒ 由各自的
 	//     "前提不成立"分支自行 `continue`（✗ 不是把整段挪走 ✓）。
-	if (selfBad) {
-		console.error(`\n✗ D5 文本门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓（★ #1528：本条在**零故事短路之前**判 ✓）`);
-		process.exit(1);
-	}
-	// ★ `#1528`：★**回归格** —— ★「零故事短路**不得在自证闸之前**」。
-	//   ★判法：★**行首锤**（`^\tif (selfBad) {` ／ `^\tif (!\.storySlug)`）⇒ ★避开本格**自己体内**的同名串
-	//   ★★为什么非要这样（★我实测踩过）：★第一版用 `src.indexOf('if (selfBad) {')` ——
-	//     ★而该串**出现在本格自己的代码里**（`const iGate = src.indexOf(...)` 那行）
-	//     ⇒ ★判据取决于**本格自身的文本顺序** ✗（★实测：删掉**真闸**后，本格**仍绿** ✗）
-	//   ★另：★本格判不成立时必须**自己退出 1**（★它此时处于**短路之后** ⇒ ★`selfBad++` **到不了闸** ✗）
+	// ★ `#1528`／`#1529` CR：★**回归格** —— ★「自证闸必须在**所有自证格之后**」（★T 乙案：
+	//   ★`#1528` 的判法只比“与短路的先后” ⇒ ★**防不住“格自己在闸之后”**（★我第一版就是：
+	//     格在 `:145`、闸在 `:129`、短路在 `:150` ⇒ ★★它自己失能！✗）
+	//   ★正确判据：★闸必须在**每一个 `selfBad++` 之后**（★用**最后一个 `selfBad++`** 比序 ✓）
+	//   ★且★无自证格（★不得存在 `selfBad++`）时 ⇒ ★本格也要**绿**（★证「无格可失能」✓）
 	{
 		const src = readFileSync(absPath('scripts/audit/gates/text.mjs'), 'utf8');
 		const mGate = src.match(/^\tif \(selfBad\) \{/m);
 		const mShort = src.match(/^\tif \(!ctx\.storySlug\)/m);
 		const iGate = mGate ? mGate.index : -1, iShort = mShort ? mShort.index : -1;
-		const ok = iGate > 0 && iShort > 0 && iGate < iShort;
-		console.log(`      ${ok ? '✓' : '✗'} 自证·★零故事短路**在自证闸之后**（✗ 否则零故事态自证红不进退出码）`);
+		const incs = [...src.matchAll(/selfBad\+\+/g)].map((m) => m.index);
+		const last = incs.length ? incs[incs.length - 1] : -1;
+		const ok = iGate > 0 && iShort > 0 && iGate < iShort && (last < 0 || iGate > last);
+		console.log(`      ${ok ? '✓' : '✗'} 自证·★自证闸**在所有自证格之后**（★且在零故事短路之前）`);
 		if (!ok) { selfBad++; }
 	}
+
+	// ★ `#1528`：★**自证闸** —— ★必须在**所有自证格之后**（★T 乙案）、★**零故事短路之前**。
+	//   ★脉络：★格级属性 ⇒ 与数据面有无样本无关 ✓（✗ 被短路绕过 ✗）
+	if (selfBad) {
+		console.error(`\n✗ D5 文本门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓`);
+		process.exit(1);
+	}
+
 	// `#1261` zero-story: no stories/<slug>/audit.json to read (this gate's data lives in the story dir).
 	// The gate has no sample here, so say so and skip instead of joining null into a path.
 	if (!ctx.storySlug) { console.log('  #1261 zero-story mode: no story text face -> text gate skipped'); return; }

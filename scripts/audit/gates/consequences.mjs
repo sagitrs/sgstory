@@ -1,5 +1,6 @@
 // audit 门模块（#316 第 2 步）：从 scripts/audit.mjs **逐字搬出**，不改语义。
 import { existsSync, readFileSync, readdirSync, writeFileSync } from 'node:fs';
+import { absPath } from '../../dist-paths.mjs';
 // flags=['consequences']。校验：npm run audit:golden。
 export const flag = 'consequences';
 export const flags = ["consequences"];
@@ -72,6 +73,18 @@ export const selfProofConsequences = (classifyNarrativeState) => {
 		['🔴 没有 `has("n_a")` 这类读 ⇒ **不进** codex 桶（防"有笔记条目就算读"的误判）', (() => { const r = classifyNarrativeState(mk({ passageSrc: [['P', '<<setflag "a">>'], ['Game Tables', 'const x = 1;']], notes: { n_a: { flagPath: 'ev.a' } } })); return r.buckets.get('a') !== 'codex'; })()],
 	];
 	for (const [label, ok] of cases) { if (!ok) selfBad++; console.log(`      ${ok ? '✓' : '✗'} 自证·${label}`); }
+	// ★ `#1529` CR（T 乙案）：★**自证闸必须在所有自证格之后**（★且在零故事短路之前）。
+	//   ★为什么：`#1528` 的判法只比“与短路的先后” ⇒ ★防不住“格自己在闸之后”（★`text.mjs` 就是这么失能的 ✗）。
+	//   ★用**行首锚**（★避开本格体内的同名串 ✓）。
+	{
+		const src = readFileSync(absPath('scripts/audit/gates/consequences.mjs'), 'utf8');
+		const mGate = src.match(/^\tif \(selfBadPre\) \{/m);
+		const mShort = src.match(/^\tif \(!ctx\?\.storySlug\)/m);
+		const incs = [...src.matchAll(/selfBad\+\+/g)].map((m) => m.index);
+		const last = incs.length ? incs[incs.length - 1] : -1;
+		const ok = mGate && mShort && mGate.index < mShort.index && (last < 0 || mGate.index > last);
+		if (!ok) selfBad++;
+	}
 
 	return selfBad;
 };

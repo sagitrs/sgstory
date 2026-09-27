@@ -383,6 +383,10 @@ export const SEGMENTS = [
 	//   （`observe()` 每轮新根＋build）⇒ 动已入库真源？**否**（全在 `mkdtemp` 的临时根里）
 	//   ⇒ 但**与别的段并跑会争 `ROOT/build`**（`build.mjs` 的 cwd 相对中间件）⇒ 取 `exclusive`（照同族先例）
 	{ id: "test-panels-render-mjs", phase: 'test', cost: 6, exclusive: true, mutates: ['build'], cmd: "node test/panels-render.mjs" },
+	// ★`#1540` P4：**终态确认**（删净／已迁面领域词归零／读点在场／真故事两态）——
+	//   ✗ `exclusive`：本段只**读源文**（剥注释后判结构）＋ 真故事两态**自建临时根并 build**
+	//   ⇒ 与 `test-panels-render.mjs` 同族 ⇒ **要** `exclusive`（争 `ROOT/build`）
+	{ id: "test-panels-terminal-mjs", phase: 'test', cost: 4, exclusive: true, mutates: ['build'], cmd: "node test/panels-terminal.mjs" },
 	{ id: "test-panels-mjs", phase: 'test', cost: 0.2, cmd: "node test/panels.mjs" },
 	{ id: "test-settle-primitives-mjs", phase: 'test', cost: 2, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node test/settle-primitives.mjs" },
 	{ id: "test-sources-wired-e2e-mjs", phase: 'test', cost: 3, exclusive: true, mutates: ['build'], cmd: "node test/sources-wired-e2e.mjs" },
@@ -697,7 +701,7 @@ export const SUITE_MEMBERS = {
 	],
 	'story-legal': ['test-multi-story-mjs',
 		'test-multi-story-mjs-selftest',
-		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-case-run-mjs', 'test-merge-sources-mjs', 'test-sources-wired-e2e-mjs', 'test-vitals-consumers-mjs', 'test-vitals-migrate-chargen-mjs', 'test-vitals-display-mjs', 'test-draw-primitives-mjs', 'test-panels-mjs', 'test-panels-render-mjs', 'test-settle-primitives-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs', 'test-economy-keys-mjs',
+		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-case-run-mjs', 'test-merge-sources-mjs', 'test-sources-wired-e2e-mjs', 'test-vitals-consumers-mjs', 'test-vitals-migrate-chargen-mjs', 'test-vitals-display-mjs', 'test-draw-primitives-mjs', 'test-panels-terminal-mjs', 'test-panels-mjs', 'test-panels-render-mjs', 'test-settle-primitives-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs', 'test-economy-keys-mjs',
 		// `#1267`／`#1257`：故事根口与两面一致性（归 `infra` 语义——判的是**工具链口径**，非故事内容）
 		'test-story-root-mjs', 'test-story-enum-faces-mjs',
 		'test-story-ci-mjs-selftest', 'test-rules-claims-mjs',

@@ -220,6 +220,33 @@ if (!existsSync(join(ROOT, FIX_FROM))) {
 					!o2.bar && !o2.list, JSON.stringify(o2));
 			}
 		}
+		// ⑧ ★★（评审 ⑥⑦）**"静默无效键"** —— spec 的示例形必须与**实现消费的键**一致。
+		//   ★为什么单列一组（✗ 靠文档自觉）：**spec 就是"怎么抄"的来源** ——
+		//     照 §2.2 抄的第三个作者会写两个**静默无效**的键（`prop.slot` 落回缺省、
+		//     `style:"hp"` 无样式），而两处都**不报错**（实测：后者与"不传 style"逐字相同）。
+		//     ⇒ 实测证据：本笔的 books 半就是照 §2.2 抄的，踩到后回头查实现才改。
+		{
+			const core = readFileSync(join(ROOT, 'src/10-core.twee'), 'utf8');
+			const draw = readFileSync(join(ROOT, 'src/engine/50-present/13-draw.twee'), 'utf8');
+			const spec = readFileSync(join(ROOT, 'docs/superpowers/specs/display-face.md'), 'utf8');
+			// ⑧a 实现**只读 block 的 slot**（✗ prop 的）
+			t('⑧a 实现只读 **block** 的 `slot`（✗ `prop.slot`）',
+				/b\?\.slot|block\?\.slot/.test(core) && !/prop\?\.slot/.test(core));
+			// ⑧b spec 示例**不再**把 slot 写在 prop 上（与 ⑧a 一致）
+			const example = spec.slice(spec.indexOf('```jsonc'), spec.indexOf('```', spec.indexOf('```jsonc') + 8));
+			t('⑧b spec §2.2 示例的 `slot` 写在 **block** 上（✗ prop —— 那是静默无效键）',
+				/"as":\s*"bar",\s*"slot"/.test(example) && !/props":\s*\[\s*\{\s*"slot"/.test(example),
+				example.slice(0, 120));
+			// ⑧c spec 示例的 `style` 是**对象**形（✗ 字符串 `"hp"` —— 那是静默无效值）
+			t('⑧c spec §2.2 示例的 `style` 是**对象**（✗ 字符串 `"hp"`：与不传 style 逐字相同）',
+				/"style":\s*\{/.test(example) && !/"style":\s*"(?!\{)/.test(example), example.slice(0, 160));
+			// ⑧d 实现**只认对象** style（✗ 字符串）—— 与 ⑧c 同断的另一面
+			t('⑧d 实现 `Sg.draw.bar` 的 `style` 只认对象（读 `style.fill`／`style.track`）',
+				/style\.fill/.test(draw) && /style\.track/.test(draw));
+			// ⑧e spec 写了「被消费的键」清单（把"声明面 ≡ 实现面"钉住）
+			t('⑧e spec §2.2 有**被消费的键**清单（✗ 只给示例 ⇒ 后人照抄静默无效键）',
+				/被消费的键/.test(spec) && /prop 上的 `slot` ✗ 不读/.test(spec));
+		}
 		// ⑦ ★★（评审 ② MAJOR）**"画了但看不见"** —— 新渲染件产的类**必须有样式**。
 		//   ★为什么单列一格：`13-draw.twee` 只产**结构**（DOM 串），**形**在 `90-style.twee` ⇒
 		//     少了样式则"节点在、`style.width` 也在，而高度 0 ⇒ 玩家看不见" ⇒

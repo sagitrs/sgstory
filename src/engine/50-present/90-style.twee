@@ -56,8 +56,12 @@ body {
 	color: #d3e2f5;
 }
 
-/* 血条 */
-.hpbar {
+/* ★★`#1539`（P3）：**图形原语 `Sg.draw.bar` 的样式**（类名 `sg-bar*` —— ✗ 旧的 `.hpbar*`）。
+   为什么单列这条：`13-draw.twee` 只产**结构**（DOM 串），**形**在这里 ⇒
+   ★少了它就会「**画了但看不见**」（节点在、`style.width:35%` 也在，而高度为 0 ⇒ 玩家看不到）——
+   这正是"判据绿而对象不在"那一族（评审 `#1556` 的 ② MAJOR，实测：`.sg-bar*` 全 src 0 条样式）。
+   ★颜色/配色**✗ 不写死**：`fill`／`track` 由**故事声明**的 `style` 传入（spec §2.1 红线③）。 */
+.sg-bar {
 	position: relative;
 	height: 22px;
 	background: #2c2836;
@@ -67,12 +71,12 @@ body {
 	margin: 0.8em auto;
 	max-width: 320px;
 }
-.hpbar-fill {
+.sg-bar-fill {
 	height: 100%;
 	transition: width 0.4s ease;
 	border-radius: 11px 0 0 11px;
 }
-.hpbar-text {
+.sg-bar-text {
 	position: absolute;
 	inset: 0;
 	text-align: center;
@@ -255,7 +259,7 @@ body {
 	.ability-table { font-size: 0.85em; }
 	.act-group { padding: 0.35em 0.5em; }
 	.check-result { font-size: 0.85em; padding: 0.4em 0.6em; }
-	.hpbar-text { font-size: 0.8em; }
+	.sg-bar-text { font-size: 0.8em; }
 	.choice-card { padding: 0.6em 0.7em; }
 	.tower-hub ul { padding-inline-start: 1.2em; }
 	.tower-hub li { margin: 0.3em 0; }
@@ -307,15 +311,18 @@ body {
 }
 .save-bar .save-btn:hover { background: rgba(169, 192, 218, 0.2); }
 .save-bar .save-btn:focus-visible { outline: 2px solid #a9c0da; outline-offset: 2px; }
-.inv-block { margin-top: 0.6em; }
-.inv-list {
+/* ★★`#1539`（P3）：**图形原语 `Sg.draw.list` 的样式**（类名 `sg-list*` —— ✗ 旧的 `.inv-*`，壳已删）。
+   分隔符（`sep`）与空文案（`empty`）由**故事声明**给（spec §2.1 红线②③）。 */
+.sg-list {
 	display: flex;
 	flex-wrap: wrap;
 	gap: 3px 8px;
 	font-size: 0.88em;
 	line-height: 1.7;
+	margin-top: 0.6em;
 }
-.inv-item { color: #cfd8c8; }
+.sg-list-item { color: #cfd8c8; }
+.sg-list-empty { color: #8b806b; }
 
 /* ── M1 骨架补充 ─────────────────────────────────────── */
 .flip-note { color: #a9c0da; font-size: 0.95em; }
@@ -376,7 +383,7 @@ body {
 
 @media (prefers-reduced-motion: reduce) {
 	.passage { animation: none; transition: none; }
-	.choice-card, .hpbar-fill { transition: none; }
+	.choice-card, .sg-bar-fill { transition: none; }
 	.choice-card:hover { transform: none; }
 }
 /* ── 结局页收尾卡（C1）── */

@@ -192,9 +192,16 @@ const selftest = () => {
 		t('段级 check④ 站点名**含双引号** ⇒ 转义（✗ 不许把宏/段炸开 ✓）',
 			(() => { const t2 = seg('正文。', '站点"引号');
 				return t2.includes('\\"') && !/<<sitecheck "站点"引号"/.test(t2); })());
-		t('段级 check⑤ ★**转义加固**：`\\` 也被转义（✗ 它会把后面的 `"` 吃掉 ⇒ 宏串提前闭合 ✓）',
+		// ★ `#1527` CR（同族“判据不能假”）：★旧格用 `t2.includes('\\\\')` ⇒
+		//   ★**输入自带反斜杠** ⇒ ★该子串**恒命中** ✗（★判据被输入本身满足）
+		//   ★修：★**期望串逐字相等**（★`inject` 行与实得行**逐字**比 —— ✗ 不问子串✓）
+		//   ★输入 `'站点\\"'`（JS 字面 ⇒ 实值 站点+\+" 三字符）
+		//     ⇒ ★期望产物行：`<<sitecheck "站点\\\"">><<snapshot>>`（★反斜杠**被转成**双反斜杠 ＋ 引号前一个反斜杠）
+		t('段级 check⑤ ★**转义加固（逐字比）**：★`\\` ⇒ `\\\\`，`"` ⇒ `\\"`（✗ 它会把后面的 `"` 吃掉 ⇒ 宏串提前闭合 ✓）',
 			(() => { const t2 = seg('正文。', '站点\\"');
-				return !/<<sitecheck "站点\""/.test(t2) && t2.includes('\\\\'); })());
+				const wantLine = '<<sitecheck "站点\\\\\\"">><<snapshot>>';
+				const gotLine = t2.split('\n').find((l) => l.includes('sitecheck')) ?? '';
+				return gotLine === wantLine; })());
 		t('段级 check⑥ ★**换行降级**：站点名含换行 ⇒ 换成空格（✗ 否则宏被拆成两半 ⇒ 后半段泄漏给玩家 ✓）',
 			(() => { const t2 = seg('正文。', '站点\n引号');
 				return /<<sitecheck "站点 引号">>/.test(t2) && (t2.match(/<<sitecheck/g) ?? []).length === 1; })());

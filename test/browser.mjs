@@ -66,6 +66,34 @@ export const REQUIRE_BROWSER = process.env.CI_REQUIRE_BROWSER === '1';
 //   · `engine`（甲＋丙）：★**不依赖故事内容** ⇒ ★零故事／单夹具即可跑（引擎侧持有 ✓）
 //   · `story`（乙）：★**点名段名／事件键** ⇒ ★需真故事（归 books 侧 ✓ —— `books#36`）
 //   ★默认 `all`（✗ 改旧行为）；`BROWSER_TIERS=engine` ⇒ 只跑甲＋丙。
+// ★★ `#1532`（坐标裁）：乙类的**段名／入口名／事件键**改**可注入**
+//   ★理由：鄂一段点的名字是**故事侧的事** —— ★引擎侧把它硬编在自己身上
+//     ⇒ ★换个真故事（books）就得改**引擎仓的源码** ✗（★与 `#1532` 的“字句不进引擎”相抵 ✗）
+//   ★一处权威：★**一张映射表** —— ★默认值＝旧值（★✗ 改旧行为 ３）
+//     ，★可用 `SG_BROWSER_STORY_MAP='{...JSON...}'` 整体覆盖（★books 侧就这么传 ✓）。
+//   ★形式：★`{ 女巫屋: {...} }`？★✗ —— ★用**作用名**（`enter屋`）→ **段名**，因为★“哪一份作用”是引擎侧的词汇 ✓
+export const STORY_MAP = (() => {
+	const dflt = {
+		witchHut: { passage: '女巫小屋' },
+		caveFight: { passage: '洞穴·战斗' },
+		// ★ `#1532`（T 的 B3 更正）：★旧值 `门厅`／入口 `看钉` ⇒ 改 **`里屋`**（★books 的 `north-room` 里那段名）
+		//   ★两个条件都要核（★T 的判法）：★① **内容性质**：行动要**跨段**（导航型）；
+		//     ★② **渲染性质**：它要落在 **`.acts`** 里（★由段的 `present` 决定 ✓）。
+		//   ★为什么 `门厅` ✗：★`north-room` 全菜单形（★不落 `.acts`）⇒ ★只满足 ① **✗ 满足 ②** ✗
+		//     （★✗ 是“旧段名没了”那么简单 —— ★是**渲染性质不对** ✗）
+		hall: { passage: '里屋', expect: '里屋·觉察' },
+		keeper: { passage: '守林人', state: 'pc.keeper=pc.keeper||{};' },
+		multi: { passage: '岔路' },
+	};
+	try {
+		const raw = process.env.SG_BROWSER_STORY_MAP;
+		return raw ? { ...dflt, ...JSON.parse(raw) } : dflt;
+	} catch (e) {
+		console.error('✗ SG_BROWSER_STORY_MAP 不是合法 JSON：' + e.message);
+		process.exit(1);
+	}
+})();
+
 export const TIERS = (process.env.BROWSER_TIERS ?? 'all').trim() || 'all';
 export const runsEngine = TIERS === 'all' || TIERS === 'engine';
 export const runsStory = TIERS === 'all' || TIERS === 'story';
@@ -160,6 +188,13 @@ const selftest = () => {
 	//   ★判法：★两层**各自贴自己的下界**；★**且引擎层下界不能拿故事层的数去逗** ✗
 	//   ★为什么：★共用一个数 ⇒ ★两层必有一层**永远红**（★不是真红）；
 	//     而★为了跑绿把它改小 ⇒ ★**删乙类也会放行** ✗
+	// ★★ `#1532`（坐标裁）：★**乙类段名可注入** —— ★判法：★默认值＝**旧值**（★✗ 改旧行为）；
+	//   ★且★映射表**真的在管**：★各作用名的 `passage` 非空（★若某处改成硬编字面量 ⇒ 本格仍绿，
+	//     ★故★另有★**行为面**守它：`SG_BROWSER_STORY_MAP` 非法 ⇒ 必退 1（★实测✓））
+	t('★乙类段名可注入：★默认值＝旧值（★✗ 改旧行为）',
+		STORY_MAP.witchHut.passage === '女巫小屋' && STORY_MAP.caveFight.passage === '洞穴·战斗'
+		&& STORY_MAP.hall.passage === '里屋' && STORY_MAP.hall.expect === '里屋·觉察'
+		&& STORY_MAP.keeper.passage === '守林人' && STORY_MAP.multi.passage === '岔路');
 	t('★两层下界**各自独立**（★引擎层：达下界绿／低一条红）',
 		evaluateRun({ total: MIN_ASSERTIONS_ENGINE, fails: 0, minAssertions: MIN_ASSERTIONS_ENGINE }).code === 0
 		&& evaluateRun({ total: MIN_ASSERTIONS_ENGINE - 1, fails: 0, minAssertions: MIN_ASSERTIONS_ENGINE }).code === 1);
@@ -419,7 +454,7 @@ async function keyboardCase(W, H) {
 	// 夹具里行动区内的宏链接**全是自环/只出面板**（读数：`酒馆` 话题链接点击后 `passage` 不变且无反馈；
 	// `女巫小屋`「从炉火边拿起那件东西」/ `书房`「把案上那本日记收起来」→ **反馈由无到有**）；
 	// `女巫小屋` 行动区最大（16 条）→ Tab 面与取件面都最稳。
-	await enter('女巫小屋', `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{};`);
+	await enter(STORY_MAP.witchHut.passage, `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{};`);
 	const vp = `${W}x${H}`;
 
 	// 反例自测：往正文里塞一个「关闭的 details ＋ 可聚焦链接」，先证明检查器认得出，
@@ -452,10 +487,10 @@ async function keyboardCase(W, H) {
 	// #1004 B2b 按裁定 A 重指: 原写法钉着旧故事的文案（「先看清钉子是怎么卡的」）→ 换成
 	// 与故事无关的取法（行动区/正文里第一个可聚焦链接）—— 测的仍是「Enter 能触发交互 ＋ 焦点回收」这一机制。
 	// `#1004` B2b 裁定（2026-09-19 option 3）：谓词须**两条同时成立** ——
-	// ① 落在引擎包过的行动区里（`closest('.acts')`）；② 是 `<<link>>` 宏链接（`macro-link`）。
+	// ① 落在引擎包过的行动区里（`closest('.acts')`）；② **可聚焦且未禁用**（★`#1532`：★旧写法绑 `macro-link` 类名 —— 它在仓内 **0 命中** ✗）。
 	// 实测依据：原写法 `querySelectorAll('.acts a, #passages a.link-internal')` 返的是**文档序并集**，
 	// `酒馆` 里 `pool[0]` 是裸 `[[森林边缘]]`（不在行动区）；而**只加** `closest` 谓词仍不够 ——
-	// `酒馆` 的行动区首位是裸 `[[就地了结这一趟]]`（无 `macro-link`）→ 仍会选到**不响应**的裸链接。
+	// ★ `#1532`：★故换成**行为性质**的谓词（★✗ 绑类名 —— ★books 真故事走 `link-internal` ✓）。
 	const FB_PROBE = `(function(){
 		const slot = document.querySelector('#passages .action-feedback, #passages .scene-feedback, #passages .check-result');
 		const echo = [...document.querySelectorAll('#passages *')].find(e => e.children.length === 0 &&
@@ -464,9 +499,13 @@ async function keyboardCase(W, H) {
 			focusInside: !!document.activeElement?.closest('#passages'),
 			focusCls: String(document.activeElement?.className || ''), passage: SugarCube.State.passage };
 	})()`;
+	// ★ `#1532`（T 的终定披露）：旧写法用 `.macro-link`（`<<link>>` 宏的类名）
+	//   ⇒ ★**books 的真故事走 `link-internal`**（散文 `[[…]]`）；★仓内 `.macro-link` **0 命中**
+	//     ⇒ ★该探针**恒空**（★做不到「能焦点的行动链接」这件事 ✗）
+	//   ★正解：★**✗ 绑类名** —— 改成「**行为性质**」三条：① 在 `.acts` 里、② 可聚焦、③ 未禁用 ✓
 	const focusedAction = await ev(`(function(){
-		const a = [...document.querySelectorAll('.acts a.macro-link')]
-			.find(x => x.closest('.acts') && typeof x.focus === 'function');
+		const a = [...document.querySelectorAll('.acts a')]
+			.find(x => x.closest('.acts') && typeof x.focus === 'function' && !x.hasAttribute('disabled'));
 		if (!a) return false;
 		a.focus();
 		return document.activeElement === a;
@@ -544,7 +583,7 @@ for (const [W, H] of VP) {
 	// `#1004` B2b 复核席按**裁定 A** 重指（面级 → 重指到有该面的样本）：旧名 `雾之魔物·战` 是**已删故事**的战斗段
 	// → 换到面夹具的战斗段 `洞穴·战斗`（`<<fightbegin "雾影">>` ＋ `<<fightpanel "…" false>>`，战斗面满配）。
 	if (runsStory) {
-		await enter('洞穴·战斗', `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; delete pc.ev.fight; pc.hp=pc.max_hp;`);
+		await enter(STORY_MAP.caveFight.passage, `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; delete pc.ev.fight; pc.hp=pc.max_hp;`);
 		{
 			const acts = await ev('window.__sg.rect(".acts a")');
 			const diag = await ev('JSON.stringify({p:SugarCube.State.passage,a:document.querySelectorAll(".acts a").length,hp:SugarCube.State.variables.pc.hp,f:!!SugarCube.State.variables.pc.ev.fight})');
@@ -578,12 +617,17 @@ for (const [W, H] of VP) {
 	if (runsStory) {
 		// ③ 门厅：观察结果留屏且可见
 		await ev(HELPERS);
-		await enter('门厅', `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; delete pc.inv['坏哨']; delete pc.world.whistle_taken;   // #1004 B2b: 夹具的场地旗标是 world.whistle_taken（旧写的 ev.hall_seen 是旧故事的）`);
+		await enter(STORY_MAP.hall.passage, `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; delete pc.inv['坏哨']; delete pc.world.whistle_taken;   // #1004 B2b: 夹具的场地旗标是 world.whistle_taken（旧写的 ev.hall_seen 是旧故事的）`);
 		{
 			// `#1004` B2b：入口按夹具改准（夹具 `门厅` 的观察入口叫 `看钉`；`先看清钉子是怎么卡的` 是旧故事的文案）
-			const clk = await ev('window.__sg.click("看钉")');
-			await sleep(900);
-			if (!clk?.ok) console.log(`   （门厅点击未命中：${JSON.stringify(clk)} passage=${await ev('SugarCube.State.passage')}）`);
+			// ★ `#1532`：★**入口名由数据给**（★没给 ⇒ ✗ 点：★结果由**渲染期注入**产生）✓
+			if (STORY_MAP.hall.entry) {
+				const clk = await ev(`window.__sg.click("${STORY_MAP.hall.entry}")`);
+				await sleep(900);
+				if (!clk?.ok) console.log(`   （入口点击未命中：${JSON.stringify(clk)} passage=${await ev('SugarCube.State.passage')}）`);
+			} else {
+				await sleep(600);   // ★render-time 注入也要一拍（`Engine.DOM_DELAY`）
+			}
 			const res = await ev(`(function(){
 				// #1004 B2b: 读数对准夹具的等价可观察面 —— 夹具 门厅·看钉 把结果写在**正文段落**里
 				//（旧故事放在专用容器里，该容器名已随 #1227 类四删除）。判据语义不变：**结果在屏且在视口内**。
@@ -591,7 +635,7 @@ for (const [W, H] of VP) {
 				// 实况读数: 夹具这条走"点击时检定" -> 结果落在结果槽里（形如 察觉检定（感知）〔门厅·看钉〕 DC11）。
 				// （我上一版改成找正文文案「钉子旁边那圈灰」是找错了对象 —— 那句是段落正文，不是结果）。
 				const hit=[...document.querySelectorAll('#passages .check-result, #passages .scene-feedback')]
-					.find(e=>/门厅·看钉|检定/.test(e.textContent));
+					.find(e=>new RegExp(String(STORY_MAP.hall.expect ?? '检定')).test(e.textContent));
 				if(!hit) return null; const r=hit.getBoundingClientRect(); return { top:r.top, bottom:r.bottom, text:hit.textContent.slice(0,40) };
 			})()`);
 			if (!res) console.log(`   （门厅结果未找到：结果槽=${String(await ev(`document.querySelector('#passages .scene-feedback, #passages .check-result')?.textContent?.replace(/\s+/g,' ').slice(0,80) ?? 'NO'`))}）`);
@@ -604,7 +648,7 @@ for (const [W, H] of VP) {
 	if (runsStory) {
 		// ④ 守林人：子对话返回＝短入口＋行动区可见（不重放介绍）
 		await ev(HELPERS);
-		await enter('守林人', `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; pc.keeper=pc.keeper||{}; pc.keeper.met=true;`);
+		await enter(STORY_MAP.keeper.passage, `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; pc.keeper=pc.keeper||{}; pc.keeper.met=true;`);
 		{
 			// ⛔ **退役 ＋ 声明**（`#1004` B2b，按裁定 A 的"剧情级"半边）：原两格
 			//「**不重放首遇介绍**」（认台词「我就是守林人」）与「**子对话返回** → 行动区在视口内」
@@ -658,7 +702,7 @@ for (const [W, H] of VP) {
 			check(bar.hp, `${vp} 故事2 侧栏给出**血量条**（无车卡的最小面）`);
 			check(bar.inv, `${vp} 故事2 侧栏给出**物品栏**`);
 			// ③ 三选一：真机布局下至少两条路落在视口内（可点性/首屏不空）
-			await ev('window.__sg.play("岔路")');   // `#1004` B2b：`minimal-demo` 的多选一段叫 `岔路`（旧写法 `岔口` 是旧故事的）
+			await ev(`window.__sg.play("${STORY_MAP.multi.passage}")`);   // `#1004` B2b：`minimal-demo` 的多选一段叫 `岔路`（旧写法 `岔口` 是旧故事的）
 			await sleep(320);
 			const cards = await ev('window.__sg.blocks("#passages a.link-internal")');
 			const inVp = (cards ?? []).filter((b) => b.bottom <= H + 1).length;

@@ -62,6 +62,13 @@ if (LIBS) childEnv.LD_LIBRARY_PATH = process.env.LD_LIBRARY_PATH ? `${LIBS}:${pr
 // `MIN_ASSERTIONS` → 断言数**下界自 ratchet**：跟着脚本里的断言数走，删除断言即红
 //（换成 workflow 里的魔数就会腐烂：原来写死 `N -ge 24`，而实际早已 38 —— 删 14 条断言也照样放行）
 export const REQUIRE_BROWSER = process.env.CI_REQUIRE_BROWSER === '1';
+// ★ `#1532`（`#1516` C 案）：★断言**分层开关** —— 按“是否依赖故事内容”分两层：
+//   · `engine`（甲＋丙）：★**不依赖故事内容** ⇒ ★零故事／单夹具即可跑（引擎侧持有 ✓）
+//   · `story`（乙）：★**点名段名／事件键** ⇒ ★需真故事（归 books 侧 ✓ —— `books#36`）
+//   ★默认 `all`（✗ 改旧行为）；`BROWSER_TIERS=engine` ⇒ 只跑甲＋丙。
+export const TIERS = (process.env.BROWSER_TIERS ?? 'all').trim() || 'all';
+export const runsEngine = TIERS === 'all' || TIERS === 'engine';
+export const runsStory = TIERS === 'all' || TIERS === 'story';
 //注意：`#1004` B2b 复核席**下调**：59 → 56（**写明理由**，这条门本来就允许"同步下调并写明理由"）。
 // 理由：下界当初有一部分是「**故事 2（`hollow-cave`）三视口 +15**」撑起来的（`#491` 判据 5）；
 // 该故事已随 B 段删除 → 本件那一块按**裁定 A** 重指到同样**无车卡**的冒烟故事 `minimal-demo`
@@ -133,7 +140,8 @@ if (process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 
 // ★ `#1498`：零故事早退（**归并进 `bail()` 单一出口**）—— ★必须放在 `--selftest` **之后**：
 //   否则零故事态下 `--selftest` **自己**会被早退吃掉（✗ 连自证都跑不了 —— 本笔实测撞过 ✓）
-if (!DEFAULT_SLUG) bail('零故事模式（仓内无逐故事产物，until #1163）');
+// ★ `#1532`：零故事只挡**乙类** —— 甲类（字体／版式／自证）不依赖故事 ⇒ 不该 bail
+if (!DEFAULT_SLUG && runsStory) bail('零故事模式（仓内无逐故事产物；★仅 `BROWSER_TIERS=engine` 可跑甲+丙类）');
 
 const CHROME = findChrome();
 if (!CHROME) bail('未找到 Chrome；设 CHROME_PATH 或装 Chrome for Testing');
@@ -482,72 +490,81 @@ for (const [W, H] of VP) {
 	await ev(HELPERS);
 	// `#1004` B2b 复核席按**裁定 A** 重指（面级 → 重指到有该面的样本）：旧名 `雾之魔物·战` 是**已删故事**的战斗段
 	// → 换到面夹具的战斗段 `洞穴·战斗`（`<<fightbegin "雾影">>` ＋ `<<fightpanel "…" false>>`，战斗面满配）。
-	await enter('洞穴·战斗', `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; delete pc.ev.fight; pc.hp=pc.max_hp;`);
-	{
-		const acts = await ev('window.__sg.rect(".acts a")');
-		const diag = await ev('JSON.stringify({p:SugarCube.State.passage,a:document.querySelectorAll(".acts a").length,hp:SugarCube.State.variables.pc.hp,f:!!SugarCube.State.variables.pc.ev.fight})');
-		check(!!acts && acts.top < H, `${vp} 战斗首屏：第一项行动在视口内（top=${Math.round(acts?.top ?? -1)} < ${H}）取景=${diag}`);
-		const firstBlock = await ev('window.__sg.rect("#passages .passage > *")');
-		check(!!firstBlock && firstBlock.top < 260, `${vp} 战斗首屏：无近整屏空白（首块 top=${Math.round(firstBlock?.top ?? -1)}）`);
-		await shoot(`${vp}-combat-first`);
-	}
-
-	// ② 战斗回合：点一手 → 检定/你/它/下一轮 相邻成块
-	{
-		const first = await ev('(function(){const a=document.querySelector(".acts a"); if(!a) return null; return a.textContent.trim();})()');
-		if (first) {
-			await ev(`window.__sg.click(${JSON.stringify(first)})`);
-			await sleep(700);
-			// 一轮的反馈块（检定/你/它/伤害）按 DOM 顺序取，测相邻块间距——漏块会把中间隔着的块算成空白
-			const gaps = await ev(`(function(){
-				const els=[...document.querySelectorAll('#passages .check-result, #passages .fight-log, #passages .damage-flash')];
-				if(els.length<2) return null;
-				const rects=els.map(el=>el.getBoundingClientRect()).sort((a,b)=>a.top-b.top);
-				let max=0; for(let i=1;i<rects.length;i++) max=Math.max(max, rects[i].top-rects[i-1].bottom);
-				return max;
-			})()`);
-			check(gaps !== null && gaps < 60, `${vp} 战斗回合：反馈相邻成块（最大间距=${gaps === null ? 'n/a' : Math.round(gaps)}px < 60）`);
-			await shoot(`${vp}-combat-round`);
+	if (runsStory) {
+		await enter('洞穴·战斗', `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; delete pc.ev.fight; pc.hp=pc.max_hp;`);
+		{
+			const acts = await ev('window.__sg.rect(".acts a")');
+			const diag = await ev('JSON.stringify({p:SugarCube.State.passage,a:document.querySelectorAll(".acts a").length,hp:SugarCube.State.variables.pc.hp,f:!!SugarCube.State.variables.pc.ev.fight})');
+			check(!!acts && acts.top < H, `${vp} 战斗首屏：第一项行动在视口内（top=${Math.round(acts?.top ?? -1)} < ${H}）取景=${diag}`);
+			const firstBlock = await ev('window.__sg.rect("#passages .passage > *")');
+			check(!!firstBlock && firstBlock.top < 260, `${vp} 战斗首屏：无近整屏空白（首块 top=${Math.round(firstBlock?.top ?? -1)}）`);
+			await shoot(`${vp}-combat-first`);
 		}
+
+		// ② 战斗回合：点一手 → 检定/你/它/下一轮 相邻成块
+		{
+			const first = await ev('(function(){const a=document.querySelector(".acts a"); if(!a) return null; return a.textContent.trim();})()');
+			if (first) {
+				await ev(`window.__sg.click(${JSON.stringify(first)})`);
+				await sleep(700);
+				// 一轮的反馈块（检定/你/它/伤害）按 DOM 顺序取，测相邻块间距——漏块会把中间隔着的块算成空白
+				const gaps = await ev(`(function(){
+					const els=[...document.querySelectorAll('#passages .check-result, #passages .fight-log, #passages .damage-flash')];
+					if(els.length<2) return null;
+					const rects=els.map(el=>el.getBoundingClientRect()).sort((a,b)=>a.top-b.top);
+					let max=0; for(let i=1;i<rects.length;i++) max=Math.max(max, rects[i].top-rects[i-1].bottom);
+					return max;
+				})()`);
+				check(gaps !== null && gaps < 60, `${vp} 战斗回合：反馈相邻成块（最大间距=${gaps === null ? 'n/a' : Math.round(gaps)}px < 60）`);
+				await shoot(`${vp}-combat-round`);
+			}
+		}
+
 	}
 
-	// ③ 门厅：观察结果留屏且可见
-	await ev(HELPERS);
-	await enter('门厅', `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; delete pc.inv['坏哨']; delete pc.world.whistle_taken;   // #1004 B2b: 夹具的场地旗标是 world.whistle_taken（旧写的 ev.hall_seen 是旧故事的）`);
-	{
-		// `#1004` B2b：入口按夹具改准（夹具 `门厅` 的观察入口叫 `看钉`；`先看清钉子是怎么卡的` 是旧故事的文案）
-		const clk = await ev('window.__sg.click("看钉")');
-		await sleep(900);
-		if (!clk?.ok) console.log(`   （门厅点击未命中：${JSON.stringify(clk)} passage=${await ev('SugarCube.State.passage')}）`);
-		const res = await ev(`(function(){
-			// #1004 B2b: 读数对准夹具的等价可观察面 —— 夹具 门厅·看钉 把结果写在**正文段落**里
-			//（旧故事放在专用容器里，该容器名已随 #1227 类四删除）。判据语义不变：**结果在屏且在视口内**。
-			const p=document.querySelector('#passages .passage'); if(!p) return null;
-			// 实况读数: 夹具这条走"点击时检定" -> 结果落在结果槽里（形如 察觉检定（感知）〔门厅·看钉〕 DC11）。
-			// （我上一版改成找正文文案「钉子旁边那圈灰」是找错了对象 —— 那句是段落正文，不是结果）。
-			const hit=[...document.querySelectorAll('#passages .check-result, #passages .scene-feedback')]
-				.find(e=>/门厅·看钉|检定/.test(e.textContent));
-			if(!hit) return null; const r=hit.getBoundingClientRect(); return { top:r.top, bottom:r.bottom, text:hit.textContent.slice(0,40) };
-		})()`);
-		if (!res) console.log(`   （门厅结果未找到：结果槽=${String(await ev(`document.querySelector('#passages .scene-feedback, #passages .check-result')?.textContent?.replace(/\s+/g,' ').slice(0,80) ?? 'NO'`))}）`);
-		check(!!res && res.top < H, `${vp} 门厅：观察结果留屏且在视口内（top=${Math.round(res?.top ?? -1)}）`);
-		await shoot(`${vp}-hall-result`);
+	if (runsStory) {
+		// ③ 门厅：观察结果留屏且可见
+		await ev(HELPERS);
+		await enter('门厅', `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; delete pc.inv['坏哨']; delete pc.world.whistle_taken;   // #1004 B2b: 夹具的场地旗标是 world.whistle_taken（旧写的 ev.hall_seen 是旧故事的）`);
+		{
+			// `#1004` B2b：入口按夹具改准（夹具 `门厅` 的观察入口叫 `看钉`；`先看清钉子是怎么卡的` 是旧故事的文案）
+			const clk = await ev('window.__sg.click("看钉")');
+			await sleep(900);
+			if (!clk?.ok) console.log(`   （门厅点击未命中：${JSON.stringify(clk)} passage=${await ev('SugarCube.State.passage')}）`);
+			const res = await ev(`(function(){
+				// #1004 B2b: 读数对准夹具的等价可观察面 —— 夹具 门厅·看钉 把结果写在**正文段落**里
+				//（旧故事放在专用容器里，该容器名已随 #1227 类四删除）。判据语义不变：**结果在屏且在视口内**。
+				const p=document.querySelector('#passages .passage'); if(!p) return null;
+				// 实况读数: 夹具这条走"点击时检定" -> 结果落在结果槽里（形如 察觉检定（感知）〔门厅·看钉〕 DC11）。
+				// （我上一版改成找正文文案「钉子旁边那圈灰」是找错了对象 —— 那句是段落正文，不是结果）。
+				const hit=[...document.querySelectorAll('#passages .check-result, #passages .scene-feedback')]
+					.find(e=>/门厅·看钉|检定/.test(e.textContent));
+				if(!hit) return null; const r=hit.getBoundingClientRect(); return { top:r.top, bottom:r.bottom, text:hit.textContent.slice(0,40) };
+			})()`);
+			if (!res) console.log(`   （门厅结果未找到：结果槽=${String(await ev(`document.querySelector('#passages .scene-feedback, #passages .check-result')?.textContent?.replace(/\s+/g,' ').slice(0,80) ?? 'NO'`))}）`);
+			check(!!res && res.top < H, `${vp} 门厅：观察结果留屏且在视口内（top=${Math.round(res?.top ?? -1)}）`);
+			await shoot(`${vp}-hall-result`);
+		}
+
 	}
 
-	// ④ 守林人：子对话返回＝短入口＋行动区可见（不重放介绍）
-	await ev(HELPERS);
-	await enter('守林人', `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; pc.keeper=pc.keeper||{}; pc.keeper.met=true;`);
-	{
-		// ⛔ **退役 ＋ 声明**（`#1004` B2b，按裁定 A 的"剧情级"半边）：原两格
-		//「**不重放首遇介绍**」（认台词「我就是守林人」）与「**子对话返回** → 行动区在视口内」
-		//（走 `问他：你守的到底是什么` → `回到守林人`）—— 那是**旧故事**的首遇门控 ＋ 子对话层；
-		// 面夹具的 `守林人` 只是一个 hub（`他拄着杖站在路口。` ＋ `<<socpanel>>`）→ 两面**都没有对象**。
-		//注意：**声明**：**「首遇门控（`keeper_intro`）＋ 子对话返回落点」这两面自此无端到端守护**
-		//（其**非真机**对偶件 `test/saveui.mjs` 那一格也已同批退役并声明）。
-		// 保留并可机检的那半：**入口块在视口内**（真机布局下不空屏）—— 改判夹具的交涉面板/首个可点项。
-		const acts = await ev('window.__sg.rect(".soc-opt, .socpanel, #passages a.link-internal")');
-		check(!!acts && acts.top < H * 0.8, `${vp} 守林人：首个可点项落在视口内（top=${Math.round(acts?.top ?? -1)}）`);
-		await shoot(`${vp}-keeper-entry`);
+	if (runsStory) {
+		// ④ 守林人：子对话返回＝短入口＋行动区可见（不重放介绍）
+		await ev(HELPERS);
+		await enter('守林人', `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; pc.keeper=pc.keeper||{}; pc.keeper.met=true;`);
+		{
+			// ⛔ **退役 ＋ 声明**（`#1004` B2b，按裁定 A 的"剧情级"半边）：原两格
+			//「**不重放首遇介绍**」（认台词「我就是守林人」）与「**子对话返回** → 行动区在视口内」
+			//（走 `问他：你守的到底是什么` → `回到守林人`）—— 那是**旧故事**的首遇门控 ＋ 子对话层；
+			// 面夹具的 `守林人` 只是一个 hub（`他拄着杖站在路口。` ＋ `<<socpanel>>`）→ 两面**都没有对象**。
+			//注意：**声明**：**「首遇门控（`keeper_intro`）＋ 子对话返回落点」这两面自此无端到端守护**
+			//（其**非真机**对偶件 `test/saveui.mjs` 那一格也已同批退役并声明）。
+			// 保留并可机检的那半：**入口块在视口内**（真机布局下不空屏）—— 改判夹具的交涉面板/首个可点项。
+			const acts = await ev('window.__sg.rect(".soc-opt, .socpanel, #passages a.link-internal")');
+			check(!!acts && acts.top < H * 0.8, `${vp} 守林人：首个可点项落在视口内（top=${Math.round(acts?.top ?? -1)}）`);
+			await shoot(`${vp}-keeper-entry`);
+		}
+
 	}
 
 	// ⑤ 放大文字 200% 仍无横向溢出

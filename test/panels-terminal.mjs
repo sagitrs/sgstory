@@ -169,8 +169,24 @@ if (!BOOKS || !existsSync(BOOKS)) {
 			B.close?.();
 			return has;
 		};
-		t('③ 真故事（`fruit-demo`）**有声明 ⇒ 那一条画**', await withPanels(true));
-		t('③ 撤声明 ⇒ **那一条✗画**（✗ 退回内置画法 —— 终态）', !(await withPanels(false)));
+		// ★★（评审 CR）**"对象未就绪"与"判据红"必须分开** —— ✗ 混同。
+		//   现场（评审实测并复现）：books main 的 `fruit-demo` **没有** `panels` 声明（books 半未迁）
+		//   ⇒ "有声明 ⇒ 画"那一支**必然画不出** ⇒ 判据红。而真因是"**books 侧未迁**"（✗ 引擎侧缺陷）
+		//   ⇒ 任何人在这之前跑本件都会得到一个**假红**（读数与"真缺陷红"完全相同 ✗）。
+		//   ★处置（照评审倾的 ①）：**先断前置** —— 该故事无 `panels` 声明 ⇒ `○ 未判`（✗ 判红）、
+		//     且**不计入退码**。与本件别处那句"真故事面留待 books 侧声明落地后由该仓/同窗确认"自洽。
+		const cp0 = join(BOOKS, 'fruit-demo', 'data', 'contract.json');
+		let hasDecl = false;
+		try { hasDecl = (JSON.parse(readFileSync(cp0, 'utf8')).members ?? []).some((m) => m.name === 'panels'); }
+		catch { /* 读不到 ⇒ 视作未就绪 */ }
+		if (!hasDecl) {
+			console.log('  ○ 未判：`fruit-demo` 尚无 `panels` 声明（**books 侧未迁**）⇒ ③ 的真故事两态**未判**'
+				+ '（✗ 判红 —— 真因是对象未就绪，不是引擎侧缺陷）');
+			console.log('    ★前置：books 侧的 `panels` 声明落地后重跑本件（届时 ③ 自然可复现）');
+		} else {
+			t('③ 真故事（`fruit-demo`）**有声明 ⇒ 那一条画**', await withPanels(true));
+			t('③ 撤声明 ⇒ **那一条✗画**（✗ 退回内置画法 —— 终态）', !(await withPanels(false)));
+		}
 	} finally { rmSync(WORK, { recursive: true, force: true }); }
 }
 

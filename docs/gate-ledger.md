@@ -80,6 +80,7 @@
 | `test/dialect.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
 | `test/docs-read-path.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | — |  |
 | `test/draw-primitives.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/economy-keys.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
 | `test/equiv-scratch.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | **不进 CI 运行（挂起）**：对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺（until #1279（M1 尾件回填复验：本轮未定，下轮复跑）） |  |
 | `test/fight-keys-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
 | `test/fight-seq.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | **不进 CI 运行（挂起）**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：测试件接新根后）） |  |
@@ -160,6 +161,7 @@
 - `test/coverage.mjs`（测试脚本）
 - `test/dialect.mjs`（测试脚本）
 - `test/draw-primitives.mjs`（测试脚本）
+- `test/economy-keys.mjs`（测试脚本）
 - `test/equiv-scratch.mjs`（测试脚本）
 - `test/fight-keys-e2e.mjs`（测试脚本）
 - `test/fight-seq.mjs`（测试脚本）

@@ -211,6 +211,23 @@ const selftest = () => {
 				return q.length === 1 && /两遍|掷骰/.test(q[0]); })());
 		t('★段级 check⑧ 负向：**只有**段级 `check`（散文无手写宏）⇒ ✗ 不报（新形态 ✓）',
 			doubleRenderProblems({ passages: [P('里屋', '正文。')], data: { 里屋: { check: '里屋·察觉' } } }).length === 0);
+		// ★★ `#1546` 缺口③：**形不对 ⇒ 点名**（照 `#1543` 段级 `fight` 同一把尺）——
+		//   旧形：`check: {}` ⇒ `String({})` ⇒ 注入 `<<sitecheck "[object Object]">>`（**脏值**，无声）；
+		//         `check: ''` ⇒ trim 后为空 ⇒ **静默跳过**（与"未声明"读数完全相同）。
+		const res = (check) => assemblePassages({ passages: [P('里屋', '正文。')], known: new Set(), data: { 里屋: check == null ? {} : { check } } });
+		t('★段级 check⑨ **类型错 ⇒ 点名**（对象／数组／数字；✗ 不静默注入 `[object Object]`）',
+			(() => [{}, ['a'], 3, true].every((bad) => {
+				const q = res(bad);
+				return q.problems.length === 1 && /字符串/.test(q.problems[0]) && !/<<sitecheck/.test(q.twee);
+			}))());
+		t('★段级 check⑩ **空/空白 ⇒ 点名**（✗ 静默跳过 ⇒ "跑了检定"与"没声明"读数相同）',
+			(() => ['', '   '].every((bad) => {
+				const q = res(bad);
+				return q.problems.length === 1 && /为空/.test(q.problems[0]) && !/<<sitecheck/.test(q.twee);
+			}))());
+		t('★段级 check⑪ 能假（另一半）：**缺省（`null`／未给）⇒ 不报**（✗ 与"空串"混判 —— 两者是不同的），且**正常站点名仍绿**',
+			(() => [null, undefined].every((bad) => res(bad).problems.length === 0)
+				&& res('里屋·察觉').problems.length === 0 && /<<sitecheck "里屋·察觉">>/.test(res('里屋·察觉').twee))());
 	}
 	// ★ `#1506`（本票）：段级字段 **`fight`** —— 「这一段入口是一场战斗」（原散文三行：
 	//   `<<fightbegin "池">>` ／ `<<fightlog>>` ／ `<<fightpanel "池" N 结果 去向>>`）。

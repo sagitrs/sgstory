@@ -27,7 +27,15 @@ const loadScripts = (srcFiles) => {
 	for (const f of srcFiles) {
 		const text = readFileSync(absPath(f), 'utf8');
 		const scripts = [...text.matchAll(/::\s*[^\n[\]]+\[script\]([\s\S]*?)(?=\n::|$)/g)].map((m) => m[1]);
-		for (const body of scripts) vm.runInNewContext(body, ctx, { filename: f });
+		// `#1541`：**`/% %/` 是 twee 块注释，✗ 是 JS** —— 必须**先剥再 eval**，否则 `/%` 被当成正则字面量的
+		// 开头 ⇒ `SyntaxError: Invalid regular expression: missing /`（实测：`13-draw.twee` 段首注释块一上就崩，
+		// 连带 `test/reread`／`audit --a11y`／`npc-venue`／`premise-source` 四段全红）。
+		// 为什么之前没爆：剥注释只在 **`build.mjs`** 一侧接了（`stripTweeComments`）——本函数是**另一条加载路**，
+		// 而旧树里**没有**任何 `[script]` 体以 `/%` 开头 ⇒ 两条路的分歧被掩盖（同 `indexPassages` 下方那行同形）。
+		// 口径与 `indexPassages()` 及权威 `build.mjs:stripTweeComments()` **逐字一致**（同一正则、同一空格替换）。
+		// ✗ 不用 `maskComments`：它按 JS 词法同时遮 `//`／模板（本件 `22-rules.twee:313` 的注释里有反引号
+		// ⇒ 会被判成未闭合模板而把真代码一并抹掉 —— 实测“遮蔽后 ✗ Unexpected token ')'”）。
+		for (const body of scripts) vm.runInNewContext(String(body).replace(/\/%[\s\S]*?%\//g, ' '), ctx, { filename: f });
 	}
 	// 浏览器侧 window.X 是全局——vm 侧需手动提升
 	for (const k of Object.keys(ctx.window)) if (!(k in ctx)) ctx[k] = ctx.window[k];

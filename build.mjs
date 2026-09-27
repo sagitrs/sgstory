@@ -98,9 +98,16 @@ const stories = slugs.map((slug) => ({ slug, ...readStory(slug) }));
 	//（本仓实测过这一族：同一个"顺序/登记"口径在两处各算一次 → 改一处、另一处静默失效）。
 	// 判据逐条（安全网一条不撤）：**引擎件** ⊂ `ORDER` ／**故事件** ⊂ **它自己的清单** ／
 	// `ORDER` 里的文件必须存在 ／清单列出的文件必须存在 ／`ORDER` 里的非引擎孤儿。
+	// `#1541`：**`requireModules: true`** —— `ORDER` 管**顺序**、`MODULES` 管**归属**；
+	// `engineFiles()`（→ `storyOrder()` → **产物**）只读 `MODULES[f]?.layer ?? 'story'`，**路径不兜底**，
+	// 而 `layerOf()` 用 `src/**` 兜底 ⇒ **同一问题两个答案**。旧值（不传，默认 false）时本守卫只钉一半：
+	// ⇒ **只登 `ORDER` 的引擎件当场通过、却不进任何故事的产物**（实测：`13-draw.twee` 判据全绿而
+	// `window.Sg.draw` 在产物里 `undefined`；`test/story-runtime.mjs` ① 也看不见 —— 它只查**被引用**的面）。
+	// 本条错在**生产者侧**：旧口径下 `build.mjs` **rc=0 却产出了断链的产物**（"值对了 ≠ 值送到"同族）。
 	const reg = checkRegistration({
 		sources: Object.fromEntries(files.map((f) => [f, ''])),
 		manifests: stories.map((s) => ({ slug: s.slug, files: s.files ?? [] })),
+		requireModules: true,
 	});
 	if (reg.length) {
 		for (const p of reg) console.error(` [${p.code}] ${p.msg}`);

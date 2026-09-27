@@ -375,6 +375,8 @@ export const SEGMENTS = [
 	{ id: "test-draw-primitives-mjs", phase: 'test', cost: 0.3, cmd: "node test/draw-primitives.mjs" },   // ★`#1537` P1：图形原语（结构约束＋行为）—— ✗ `exclusive`：本段只**读**源件＋跑纯函数，**不 build 不写盘**（`#1130`：`exclusive` 的语义是「独占 ＋ 动的已入库真源须列 `mutates`」⇒ 本段两样都不占 ✓）
 	// ★ `#1488`（五步⑤）：结算原语（枚举三件）＋ 阈值只 0 ＋ 零界＝实体授予
 	// ★ `#1488`（五步⑤）：结算原语**真跑**（`boot()` ⇒ 需要夹具根 ⇒ 内联 `SG_STORIES_DIR` ✓）
+	// ★`#1538` P2：契约成员 `panels`（声明维）—— ✗ `exclusive`：只读**规格/emit 纯函数**，不 build 不写盘（口径同 `test/draw-primitives.mjs`）
+	{ id: "test-panels-mjs", phase: 'test', cost: 0.2, cmd: "node test/panels.mjs" },
 	{ id: "test-settle-primitives-mjs", phase: 'test', cost: 2, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node test/settle-primitives.mjs" },
 	{ id: "test-sources-wired-e2e-mjs", phase: 'test', cost: 3, exclusive: true, mutates: ['build'], cmd: "node test/sources-wired-e2e.mjs" },
 	// `#1275`：**来源面**端到端格（经夹具 runner；零故事态可跑）＋ `-selftest` 能假两格
@@ -688,7 +690,7 @@ export const SUITE_MEMBERS = {
 	],
 	'story-legal': ['test-multi-story-mjs',
 		'test-multi-story-mjs-selftest',
-		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-case-run-mjs', 'test-merge-sources-mjs', 'test-sources-wired-e2e-mjs', 'test-vitals-consumers-mjs', 'test-vitals-migrate-chargen-mjs', 'test-vitals-display-mjs', 'test-draw-primitives-mjs', 'test-settle-primitives-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs',
+		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-case-run-mjs', 'test-merge-sources-mjs', 'test-sources-wired-e2e-mjs', 'test-vitals-consumers-mjs', 'test-vitals-migrate-chargen-mjs', 'test-vitals-display-mjs', 'test-draw-primitives-mjs', 'test-panels-mjs', 'test-settle-primitives-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs',
 		// `#1267`／`#1257`：故事根口与两面一致性（归 `infra` 语义——判的是**工具链口径**，非故事内容）
 		'test-story-root-mjs', 'test-story-enum-faces-mjs',
 		'test-story-ci-mjs-selftest', 'test-rules-claims-mjs',

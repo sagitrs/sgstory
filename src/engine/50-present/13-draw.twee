@@ -26,6 +26,30 @@ window.Sg.draw = {
 			+ `<div class="sg-bar-fill" style="width:${pct}%${fill ? `;background:${fill}` : ''}"></div>`
 			+ `<span class="sg-bar-text">${label}${label && nums ? ' ' : ''}${nums}</span></div>`;
 	},
+	/** ★★`#1222`-L3（**UI 票**）：**选择卡**原语 —— 一组选项 ⇒ 卡片列表。
+	 *  `#1177`（车卡页收编）为**第一个消费者**；任何"三选一"场景（事件分支／奖励挑选）直接复用 ✓。
+	 *  @param {{prompt?:string, options?:Array<{id?:string,label?:string,hint?:string,disabled?:boolean}>, style?:{accent?:string}}} p
+	 *  ★红线照 `bar`／`list`（§2.1）：① 实现里 ✗ 许领域词（✗ 认得"这是职业还是道具"——`id`／`label` 全由调用方给）；
+	 *   ② ★**空 ⇒ 不产字节**（`options` 空 ⇒ 返回 `''` —— ✗ 不自造"没有可选项"之类的话 ✓）；
+	 *   ③ ★样式（主色）由 `style.accent` 传入（✗ 引擎不内置三档配色；形在 `90-style.twee` 的 `.sg-cards*` ✓）；
+	 *   ④ ★**✗ 产出回调**（纯函数 —— 交互在 `Sg.choose`，✗ 把两件事混在一个函数里 ✓）。
+	 *  ★`disabled` 的选项**照画**（★玩家看得见"有这么一条，但这条现在不可选"）⇒ 但✗ 可点（`disabled` ＋ `sg-card-disabled`）✓。 */
+	cards({ prompt = '', options = [], style = {} } = {}) {
+		const arr = Array.isArray(options) ? options.filter((o) => o && typeof o === 'object') : [];
+		if (!arr.length) return '';
+		// ★只转义**属性值**里的引号（✗ 不动展示文本 —— 与 `bar`／`list` 同口径：故事正文原样画 ✓）。
+		const escAttr = (v) => String(v ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
+		const card = (o) => '<button type="button" class="sg-card' + (o.disabled ? ' sg-card-disabled' : '') + '"'
+			+ ` data-sg-choice="${escAttr(o.id)}"`
+			+ (o.disabled ? ' disabled aria-disabled="true"' : '') + '>'
+			+ `<span class="sg-card-label">${o.label ?? ''}</span>`
+			+ (o.hint ? `<span class="sg-card-hint">${o.hint}</span>` : '')
+			+ '</button>';
+		const accent = String(style.accent ?? '');
+		return `<div class="sg-cards"${accent ? ` style="--sg-card-accent:${escAttr(accent)}"` : ''}>`
+			+ (prompt ? `<div class="sg-cards-prompt">${prompt}</div>` : '')
+			+ `<div class="sg-cards-options">${arr.map(card).join('')}</div></div>`;
+	},
 	/** ★一元列表 ⇒ 一段 DOM 串。★✗ 读 `pc`（`items` 由调用方算好 ✓）。
 	 *  @param {{items?:Array, label?:string, empty?:string, sep?:string}} p
 	 *  ★`label`（`#1560`）＝**块标题** —— 与 `bar` 的 `label` **对称**（同类两块：一个带名、一个无名 ⇒ 非对称 ✗）：
@@ -39,5 +63,72 @@ window.Sg.draw = {
 		if (!arr.length) return empty ? `<div class="sg-list sg-list-empty">${head}${empty}</div>` : '';
 		const body = arr.map((x) => `<span class="sg-list-item">${x}</span>`).join(sep);
 		return `<div class="sg-list">${head}${body}</div>`;
+	},
+};
+
+/** ★★`#1222`-L3（UI 票）：**交互面** —— "点选 ⇒ 效果"。
+    ★分工（✗ 不许混）：`Sg.draw.cards` ＝**纯函数**（数据 ⇒ 串）；`Sg.choose` ＝**唯一**接事件的那一层。
+    ★它持的只有"**交互态**"（宿主／监听／（可选）一次性旗标），✗ 不持业务态（✗ 不知道 `id` 是什么、
+      ✗ 不写 `pc`、✗ 不施加补丁 —— 那些是**调用方**的 `onPick` ✓）。
+    ★为何 `onPick` 缺失要**fail-loud**：✗ 挂上一排"点了没反应"的卡片 ＝ 玩家侧**静默失效**
+      （同族：`#1543` 的 `fight` 类型错／`#1551` 的 `panels` 非数组 ✓）。 */
+window.Sg.choose = {
+	/** ★**每宿主最多一个在用挂载**（`WeakMap`）—— ★这条是**实测抓出来的**：第一版 `render` 只看调用方
+	 *  传的 `unmount` ⇒ 叠挂后**一次点击触发两遍**（旧 `onPick` ＋ 新 `onPick`）⇒ 在"选择 ⇒ 施加补丁"的
+	 *  场景里就是**同一笔补丁施加两次**（✗ 静默双写）。 */
+	_mounts: new WeakMap(),
+	/** 解析宿主（Element 直接用；字符串 ⇒ 走 `document.querySelector`；✗ 解析不到 ⇒ 抛）。 */
+	_host(host) {
+		const doc = globalThis.document;
+		const el = typeof host === 'string' ? (doc ? doc.querySelector(host) : null) : host;
+		if (!el || typeof el.addEventListener !== 'function') {
+			throw new Error('Sg.choose：拿不到宿主元素（给 Element 或可在本环境解析的选择器）');
+		}
+		return el;
+	},
+	/** 卸掉该宿主**在用**的那一个挂载（✗ 无 ⇒ 静默无事 ✓）。 */
+	unmount(host) {
+		const el = this._host(host);
+		const cur = this._mounts.get(el);
+		if (cur) { cur.off(); this._mounts.delete(el); }
+	},
+	/** 把卡片挂到宿主上，并接上"点选 ⇒ `onPick(id)`"。
+	 *  @param {Element|string} host 宿主元素（或选择器 —— ✗ 字符串在 node 侧解析不到 ⇒ 抛）
+	 *  @param {{prompt?:string, options?:Array, onPick:(id:string)=>void, style?:{}, once?:boolean}} p
+	 *  @returns {() => void} 卸载函数（解绑监听 ⇒ ✗ 累积监听；★测试与重渲染都要它 ✓）
+	 *  ★`once: true` ⇒ **每张卡最多触发一次**（★防连点 ⇒ 补丁叠加那类事故；默认 `false` ＝
+	 *    每次点击都调 —— ★第一个消费者（车卡）**应当**传 `once:true`，本席 ✗ 替它定默认 ✓）。 */
+	mount(host, { prompt = '', options = [], onPick, style = {}, once = false } = {}) {
+		if (typeof onPick !== 'function') {
+			throw new Error('Sg.choose.mount：`onPick` 必须是函数（✗ 静默挂上"点了没反应"的卡片）');
+		}
+		const el = this._host(host);
+		// ★先卸旧（同宿主重复挂载 ⇒ ✗ 叠监听 —— 见 `_mounts` 的注释）
+		this.unmount(el);
+		// ★走 `window.Sg.`（✗ 不靠裸 `Sg` 的全局性 —— 浏览器里等价，而 node 侧夹具里才解析得到 ✓）
+		el.innerHTML = window.Sg.draw.cards({ prompt, options, style });
+		const fired = new Set();
+		const onClick = (ev) => {
+			const card = ev?.target?.closest?.('[data-sg-choice]');
+			if (!card || card.disabled || card.classList?.contains('sg-card-disabled')) return;
+			const id = card.getAttribute('data-sg-choice');
+			if (id == null || id === '') return;
+			if (once && fired.has(id)) return;
+			fired.add(id);
+			onPick(id);
+		};
+		el.addEventListener('click', onClick);
+		const off = () => {
+			el.removeEventListener('click', onClick);
+			// ★只清"自己那一个"（✗ 把后来者的登记一起删掉 ⇒ 后来者成了不可卸的孤儿 ✓）
+			if (this._mounts.get(el)?.off === off) this._mounts.delete(el);
+		};
+		this._mounts.set(el, { off });
+		return off;
+	},
+	/** 一次性渲染：★先卸后挂（✗ 叠监听 ⇒ 一次点击触发两遍 ✓）。 */
+	render(host, p) {
+		this.unmount(host);
+		return this.mount(host, p);
 	},
 };

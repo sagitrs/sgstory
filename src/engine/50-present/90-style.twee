@@ -332,6 +332,42 @@ body {
 	font-weight: 700;
 	color: #cfd8c8;
 }
+
+/* ★★`#1222`-L3（UI 票）：**选择卡**的形（类名 `sg-cards*`／`sg-card*`）。
+   ★与 `#1539`／`#1560` 同法：**结构在 `13-draw.twee`、形在这里**，两处必须同笔
+     （缺样式＝"画了但看不见"族 —— 卡片若没有边框/内边距/可点区，玩家看到的只是挤在一起的文字 ✓）。
+   ★主色走 `var(--sg-card-accent)`（★由故事声明的 `style.accent` 给 ⇒ ✗ 引擎不替故事定配色，
+     缺省值只是"没有声明时也看得见"的兜底 ✓）。 */
+.sg-cards {
+	margin: 0.9em 0;
+	font-size: 0.95em;
+	line-height: 1.6;
+}
+.sg-cards-prompt { margin-bottom: 0.5em; color: #cfd8c8; }
+.sg-cards-options {
+	display: flex;
+	flex-wrap: wrap;
+	gap: 8px;
+}
+.sg-card {
+	flex: 1 1 30%;
+	min-width: 140px;
+	display: flex;
+	flex-direction: column;
+	gap: 2px;
+	padding: 0.6em 0.8em;
+	text-align: left;
+	cursor: pointer;
+	background: rgba(44, 40, 54, 0.6);
+	color: inherit;
+	border: 1px solid var(--sg-card-accent, #4a4358);
+	border-radius: 8px;
+}
+.sg-card:hover { background: rgba(169, 192, 218, 0.18); }
+.sg-card:focus-visible { outline: 2px solid var(--sg-card-accent, #a9c0da); outline-offset: 2px; }
+.sg-card-label { font-weight: 700; }
+.sg-card-hint { font-size: 0.85em; color: #8b806b; }
+.sg-card-disabled { opacity: 0.5; cursor: not-allowed; }
 .sg-list-empty { color: #8b806b; }
 
 /* ── M1 骨架补充 ─────────────────────────────────────── */

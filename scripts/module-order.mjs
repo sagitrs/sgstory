@@ -62,9 +62,8 @@ export const ORDER = [
 	// → 不登记就会把 12-hooks/13-codex/… 提到段落面之前（实测：产物段序 @4 起整块位移）。
 	// `#1132` 片 3：夜渡 11 段叙事迁 md（**原段序** 逐字无损；`00-meta.twee` **不动** → 等片 B 同闸同批）
 	'src/80-script.twee',    // 存档 API / Sg.notes / Sg.Ending ＋ 渲染后处理（**引擎层**，`#574` 修正 layer）
-	'src/engine/50-present/12-shortfight.twee',
+	'src/engine/50-present/12-shortfight.twee',    // 短战斗 widget（#608：从故事侧上移）
 	'src/engine/50-present/13-draw.twee',     // 图形原语（`#1534` P1：`Sg.draw.bar`／`list` —— 无领域语义）
-   // 短战斗 widget（#608：从故事侧上移）
 	'src/engine/50-present/90-style.twee',     // 纯 CSS
 	// `#1175`：minimal-demo 5 段叙事迁 md（原段序，逐字无损）
 	// ── 第三个故事（#490 S5「无名洞窟」雏形）：同样按相对位置交错登记 ──
@@ -100,7 +99,12 @@ export const MODULES = {
 	'src/engine/50-present/11-scene.twee': { deps: ['src/10-core.twee'], defines: ['widget:actOut', 'widget:sceneFeedback'], layer: 'engine', note: '场景迁移配方（结果留屏）' },
 	'src/80-script.twee': { deps: ['src/10-core.twee'], defines: ['Sg.save', 'Sg.notes', 'Sg.Ending', 'Sg.Codex', 'Game.Chargen'], layer: 'engine', note: "引擎运行时胶水（`#574` 修正 layer）：存档 API（`Sg.save`）· `Sg.notes`（数据经 `Sg.story.notes()`）· 结局收尾 · 结果留屏/空白归一/键盘路径/`data-choice` 派生——对**每个故事**成立 ⇒ 必须随引擎进每个故事的作用域" },
 	'src/engine/50-present/90-style.twee': { deps: ['src/10-core.twee'], defines: [], layer: 'engine', note: '样式' },
-	'src/engine/50-present/12-shortfight.twee': { deps: ['src/10-core.twee'], defines: ['widget:shortFight'], layer: 'engine', note: '短战斗 widget（#608：S3 机制上移；相位→分支只看 `waveRecord().phase`，奖励/失败笔记走声明面）' },};
+	'src/engine/50-present/12-shortfight.twee': { deps: ['src/10-core.twee'], defines: ['widget:shortFight'], layer: 'engine', note: '短战斗 widget（#608：S3 机制上移；相位→分支只看 `waveRecord().phase`，奖励/失败笔记走声明面）' },
+	// `#1541`：**两个登记处管两件事** —— `ORDER` 管**顺序**、`MODULES` 管**归属**（`engineFiles()` 从它派生）。
+	// 只登 `ORDER` ⇒ `layerOf()` 虽靠 `src/**` 路径兜底判得出 engine，但 `engineFiles()` 走的是
+	// `modules[f]?.layer ?? 'story'` ⇒ **被当成故事件** ⇒ 不进 `storyOrder()` ⇒ **不进任何故事的产物**
+	//（实测：`Sg.draw` 在产物里 `undefined`、本体独有串全 0 —— 而 `build.mjs` rc=0 ✓ 它只管「引擎件 ⊂ ORDER」）。
+	'src/engine/50-present/13-draw.twee': { deps: ['src/10-core.twee'], defines: ['Sg.draw'], layer: 'engine', note: '图形原语（`#1534` P1：`Sg.draw.bar`／`list` —— 一个数落在一段区间里／一元列表；无领域语义）' },};
 
 // ── 判定（纯函数，供 test/layering.mjs 与自证共用）──────────────────────
 // sources: { 文件名: 源码字符串}

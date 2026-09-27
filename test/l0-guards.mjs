@@ -15,16 +15,25 @@
 import { readFileSync, readdirSync } from 'node:fs';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { PC_BASE_KEYS, PC_GAMEPLAY_HOME, undeclaredWriteProblems, undeclaredWriteReport, dualProducerProblems, UNDECLARED_WRITE_EXCEPTIONS, exceptionRemovable, unknownPrefixProblems, collectConditionKeys } from '../editor/lib/core/pc-state-map.mjs';
+import { PC_BASE_KEYS, PC_GAMEPLAY_HOME, undeclaredWriteProblems, undeclaredWriteReport, dualProducerProblems, UNDECLARED_WRITE_EXCEPTIONS, exceptionRemovable, collectConditionKeys } from '../editor/lib/core/pc-state-map.mjs';
+import { unknownPrefixProblems } from '../editor/lib/core/audit-shared.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(HERE, '..');
 let CONTEXT = null;   // 真引擎上下文（懒建；行为面用）
+let KEY_PREFIX_RE_BEHAVIOR = () => false;   // 由 ②c-4 前替换为真判据（懒建；✗ 顶层 await）
 let bad = 0;
 const t = (label, ok, detail = '') => {
 	if (ok) console.log(`  ✓ ${label}`);
 	else { bad += 1; console.error(`  ✗ ${label}${detail ? ` —— ${detail}` : ''}`); }
 };
+
+// ②c-4 用：懒取真正则（顶层 await 合法 —— 本件已是 ESM 顶层）
+{
+	const { KEY_PREFIX_RE } = await import('../editor/lib/core/audit-shared.mjs');
+	const { VOCAB } = await import('../editor/lib/core/vocab.mjs');
+	KEY_PREFIX_RE_BEHAVIOR = () => VOCAB.prefixes.every((p) => KEY_PREFIX_RE.test(`${p}:x`));
+}
 
 // ── ② 未宣告前缀 ⇒ 点名红 ─────────────────────────────────────────────────
 {
@@ -54,6 +63,20 @@ const t = (label, ok, detail = '') => {
 		.split(',').map((s) => s.trim().replace(/^['"]|['"]$/g, '')).filter(Boolean);
 	t('②c `prefixes` 与 vocab 镜像**逐字同**', JSON.stringify(declared) === JSON.stringify(mirrored),
 		`引擎 ${declared.join('、')} ／ 镜像 ${mirrored.join('、')}`);
+	// ★★ ②c-2~②c-4（评审 `#1566` 缺陷①的**根因**：四份前缀清单各自腐烂）
+	//   现场：`audit-shared.mjs` 的 `KEY_PREFIX_RE` 硬编码 ⇒ **漏 `codex`**；
+	//        `test/cond-keyform.mjs` 的 `keyReadable` 硬编码 ⇒ **漏 `chk`／`fight`**（缺口还各不相同）
+	//   ⇒ 修法＝**四份收成一份**（引擎 ⇒ VOCAB ⇒ 其余**派生**）；本组断"派生化"落地且不回流。
+	const auditShared = readFileSync(join(ROOT, 'editor/lib/core/audit-shared.mjs'), 'utf8');
+	t('②c-2 `audit-shared.mjs` 的 `KEY_PREFIX_RE` **从 VOCAB 派生**（✗ 硬编码 —— 原漏 `codex`）',
+		auditShared.includes('KEY_PREFIX_RE = new RegExp') && auditShared.includes('VOCAB.prefixes.join'),
+		'仍是硬编码（易再腐烂）');
+	t('②c-3 `cond-keyform.mjs` 的 `keyReadable` **从 VOCAB 派生**（✗ 硬编码 —— 原漏 `chk`／`fight`）',
+		/VOCAB\.prefixes\.join/.test(readFileSync(join(ROOT, 'test/cond-keyform.mjs'), 'utf8')));
+	t('②c-4 ★**行为面**：`KEY_PREFIX_RE` 认全**六个**（✗ 漏 `codex` 那个旧形）', (() => {
+		// 行为面（✗ 读源码）：真取该正则逐前缀试
+		return KEY_PREFIX_RE_BEHAVIOR();
+	})());
 	// ②d ★能假：造一个未宣告前缀 ⇒ 该格红（本格判"判据真的会抛"）
 	t('②d **能假**：未宣告前缀在该判据下**必然命中**（✗ 恒绿）',
 		colonPrefixesOf(['inv:钥匙', 'bogus:x', 'foo:钥匙']).some((p) => !declared.includes(p)),

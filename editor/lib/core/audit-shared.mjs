@@ -26,10 +26,16 @@
 // 正形是**逐函数冒烟** ＋ **两道门与 main 逐字节同** ＋ `npm test` 全绿。
 
 import { maskComments } from './mask.mjs';
+import { VOCAB } from './vocab.mjs';   // ★`#1564`：前缀集的**单一权威**（✗ 不在本件再写一份）
 
 /** **前缀键**（`inv:`／`era:`／`gear:`，`#624` 片四加最后一个）的**单一权威**：它们不是状态键（持有物/时代/行囊都不在 `pc.ev`/`pc.world` 域）→ 不参与状态契约与旗标分级；求值在引擎 `Sg.rules.holds()`。 */
 // `#1275`：加 `chk:` 族（**运行时结果维**，案 A）—— 与引擎 `readKey` 的族集合必须相等（`test/readkey-family.mjs` 守）。
-export const KEY_PREFIX_RE = /^(?:inv|era|gear|chk|fight):/;
+// ★★ `#1564` 件②（评审 `#1566` 缺陷①的**根因**）：**前缀集从 `VOCAB.prefixes` 派生**（✗ 硬编码）。
+//   本行原写死 `inv|era|gear|chk|fight` ⇒ **漏 `codex`**（`readKey` 实认它）✗；
+//   ★同类漂移今天共有**两份**：本处漏 `codex`／`test/cond-keyform.mjs` 的 `keyReadable` 漏 `chk`／`fight`
+//     （★"同一问题的两份各自腐烂的实现"，缺口还各不相同）。
+//   ⇒ 改成派生后**四份清单收成一份**：引擎 `Sg.rules.prefixes` ⇒ `VOCAB.prefixes`（有钉法 `test/rules-core.mjs`）⇒ 这里 ✓
+export const KEY_PREFIX_RE = new RegExp(`^(?:${VOCAB.prefixes.join('|')}):`);
 
 // `#1156`：**可读键形的单一权威** —— 与引擎 `Sg.rules.readKey`（`src/engine/40-sim/22-rules.twee`，`#1187` 第五块后）的
 // 分支族**逐支对应**（真源在引擎 本函数是它的**族分类镜像**；两者由**成对断言**锁住 → 不再各写一份漂移）。
@@ -156,6 +162,53 @@ export const condKeysOf = (cond) => {
 	}
 	return [String(cond)];
 };
+/**
+ * ★★ `#1564`（`#1222` 链首 L0 · 件②的**编译期半**）（★本件＝前缀族的 **home field**，与 `KEY_PREFIX_RE` 同处），评审 CR ① 后补）：
+ * **条件键的前缀必须是引擎已宣告的** —— 编译期点名（✗ 等到玩家点那条链接才炸）。
+ *
+ * **为什么必须有编译期半**（评审实测的形态）：
+ *   运行时那条（`22-rules.twee` 的 `readKey`）只覆盖"**该条件被求值**"的时刻 ⇒
+ *   写错前缀的数据在**编译期全绿、键进产物**，要等到玩家点那条链接时才崩 ✗
+ *   ★而**同一把尺子的另一半**（未宣告**算子**）在 `emit.mjs` 就是**编译期**抛的 ⇒ ✗ 一套尺子两个时刻。
+ *   ★同理（本笔件④ 的自述）："运行时抛会让玩家在游玩中崩，编译期点名才是**写数据的人**看得见的位置"。
+ *
+ * **判据（纯函数，能假）**：从条件项里抽"字符串键"（`req`／`any`／`exclude`）与对象算子的首参
+ *   ⇒ 凡形如 `<标识符>:` 者，其前缀 ∉ `declared` ⇒ 点名。
+ * ★`declared` **由调用方注入**（✗ 不在此 import `vocab.mjs` —— 与本文件"纯表、不拉依赖"的分工一致；
+ *   调用方取 `vocab.mjs` 的镜像，**照 `test/l0-guards.mjs` ②c 的既有做法**，✗ 不另写第三份清单）。
+ */
+export const unknownPrefixProblems = ({ conditions = [], declared = [], where = '' } = {}) => {
+	const known = new Set(declared);
+	const out = [];
+	const checkKey = (k, ctx) => {
+		if (typeof k !== 'string') return;
+		const m = /^([A-Za-z_][A-Za-z0-9_]*):/.exec(k);
+		if (!m) return;                       // 裸键／`pc.`／含点键 —— ✗ 不是前缀族 ✓
+		if (m[1] === 'n_') return;            // `n_` 是**前缀式**（✗ 冒号族）—— 见 `22-rules.twee` 的说明 ✓
+		if (known.has(m[1])) return;
+		out.push({ code: 'unknown-prefix', key: k, prefix: m[1], where: ctx,
+			why: `${where ? where + '：' : ''}条件键 \`${k}\` 的**前缀「${m[1]}:」未被引擎宣告**`
+				+ `（已宣告：${declared.join('／')}）—— 未宣告的前缀会让该条件**永假**（玩家点它时才炸 ✗）`
+				+ ' ⇒ 请改用已宣告的前缀，或先在 `prefixes` 里登记（`#1564` 件②·编译期半）' });
+	};
+	// 条件项：字符串 ＝ 键本身；对象 ＝ `{ 算子: [键, …值] }`（首参是键）
+	const walk = (c, ctx) => {
+		if (typeof c === 'string') { checkKey(c, ctx); return; }
+		if (c && typeof c === 'object' && !Array.isArray(c)) {
+			for (const args of Object.values(c)) {
+				if (Array.isArray(args) && args.length) checkKey(args[0], ctx);
+			}
+		}
+	};
+	for (const { cond, ctx } of conditions) {
+		for (const field of ['req', 'any', 'exclude']) {
+			const v = cond?.[field];
+			for (const c of (Array.isArray(v) ? v : v == null ? [] : [v])) walk(c, ctx ?? '');
+		}
+	}
+	return out;
+};
+
 export const asListOf = (x) => (Array.isArray(x) ? x : x == null ? [] : [x]);
 // 条件表行引用的**限定键**（`ev.x`/`world.x`）——`--state` 用（它按限定键判"有写有读"）。
 // 与 `ruleRowFlags()`（裸键，D2 用）同源：都从 `req/any/exclude` 取；`n_*` 展开成笔记的 `flagPath`。

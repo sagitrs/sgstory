@@ -41,7 +41,8 @@ import { definitionsOf, duplicateExportProblems, secondCopyProblems, coreHostPro
 import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, handwrittenClosureProblems, contractSourceText, staleTrackedProblems, referenceIntegrityProblems, undoneProblems } from '../core/k4criteria.mjs';
 import { dataFaceMemberProblems } from '../core/contract-defaults.mjs';   // `#1419`：数据面非空 ⇒ 契约成员必须在
 import { VOCAB } from '../core/vocab.mjs';   // `#1564`：条件前缀的**已宣告清单**（镜像，✗ 不另写第三份）
-import { undeclaredWriteReport, unknownPrefixProblems, collectConditionKeys } from '../core/pc-state-map.mjs';   // `#1564`：数据面 ✗ 许写未宣告的 pc 键（隐键 ⇒ 静默改数值）
+import { undeclaredWriteReport, collectConditionKeys } from '../core/pc-state-map.mjs';   // `#1564`：数据面 ✗ 许写未宣告的 pc 键（隐键 ⇒ 静默改数值）
+import { unknownPrefixProblems } from '../core/audit-shared.mjs';   // `#1564`：前缀族 home field（与 `KEY_PREFIX_RE` 同处）
 import { censusOfStory, censusSummarize, censusProblems } from '../core/hatchCensus.mjs';
 import { classifyContractText } from './classify.mjs';
 // `#794` 弧第 3 票（`equiv` 命令体）：用 vm／读文件／跑子进程 → **都在 host**。

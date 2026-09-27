@@ -198,54 +198,9 @@ export const undeclaredWriteReport = ({ written = [], dataKeys = null, home = PC
 	return { fails, infos };
 };
 
-/**
- * ★★ `#1564`（`#1222` 链首 L0 · 件②的**编译期半**，评审 CR ① 后补）：
- * **条件键的前缀必须是引擎已宣告的** —— 编译期点名（✗ 等到玩家点那条链接才炸）。
- *
- * **为什么必须有编译期半**（评审实测的形态）：
- *   运行时那条（`22-rules.twee` 的 `readKey`）只覆盖"**该条件被求值**"的时刻 ⇒
- *   写错前缀的数据在**编译期全绿、键进产物**，要等到玩家点那条链接时才崩 ✗
- *   ★而**同一把尺子的另一半**（未宣告**算子**）在 `emit.mjs` 就是**编译期**抛的 ⇒ ✗ 一套尺子两个时刻。
- *   ★同理（本笔件④ 的自述）："运行时抛会让玩家在游玩中崩，编译期点名才是**写数据的人**看得见的位置"。
- *
- * **判据（纯函数，能假）**：从条件项里抽"字符串键"（`req`／`any`／`exclude`）与对象算子的首参
- *   ⇒ 凡形如 `<标识符>:` 者，其前缀 ∉ `declared` ⇒ 点名。
- * ★`declared` **由调用方注入**（✗ 不在此 import `vocab.mjs` —— 与本文件"纯表、不拉依赖"的分工一致；
- *   调用方取 `vocab.mjs` 的镜像，**照 `test/l0-guards.mjs` ②c 的既有做法**，✗ 不另写第三份清单）。
- */
-export const unknownPrefixProblems = ({ conditions = [], declared = [], where = '' } = {}) => {
-	const known = new Set(declared);
-	const out = [];
-	const checkKey = (k, ctx) => {
-		if (typeof k !== 'string') return;
-		const m = /^([A-Za-z_][A-Za-z0-9_]*):/.exec(k);
-		if (!m) return;                       // 裸键／`pc.`／含点键 —— ✗ 不是前缀族 ✓
-		if (m[1] === 'n_') return;            // `n_` 是**前缀式**（✗ 冒号族）—— 见 `22-rules.twee` 的说明 ✓
-		if (known.has(m[1])) return;
-		out.push({ code: 'unknown-prefix', key: k, prefix: m[1], where: ctx,
-			why: `${where ? where + '：' : ''}条件键 \`${k}\` 的**前缀「${m[1]}:」未被引擎宣告**`
-				+ `（已宣告：${declared.join('／')}）—— 未宣告的前缀会让该条件**永假**（玩家点它时才炸 ✗）`
-				+ ' ⇒ 请改用已宣告的前缀，或先在 `prefixes` 里登记（`#1564` 件②·编译期半）' });
-	};
-	// 条件项：字符串 ＝ 键本身；对象 ＝ `{ 算子: [键, …值] }`（首参是键）
-	const walk = (c, ctx) => {
-		if (typeof c === 'string') { checkKey(c, ctx); return; }
-		if (c && typeof c === 'object' && !Array.isArray(c)) {
-			for (const args of Object.values(c)) {
-				if (Array.isArray(args) && args.length) checkKey(args[0], ctx);
-			}
-		}
-	};
-	for (const { cond, ctx } of conditions) {
-		for (const field of ['req', 'any', 'exclude']) {
-			const v = cond?.[field];
-			for (const c of (Array.isArray(v) ? v : v == null ? [] : [v])) walk(c, ctx ?? '');
-		}
-	}
-	return out;
-};
-
-/** 便捷：从 `rules.json` ＋ `passages.json` 的行/链接里抽条件（✗ 调用方不必各写一遍遍历）。 */
+/** 便捷：从 `rules.json` ＋ `passages.json` 的行/链接里抽条件（✗ 调用方不必各写一遍遍历）。
+ *  ★与 `unknownPrefixProblems`（在 `audit-shared.mjs`）分工：**本函数只管"抽"**（数据遍历），
+ *    那条管"判"（前缀合法性）—— 抽与判分开，两侧各自可测 ✓。 */
 export const collectConditionKeys = ({ rules = null, passages = null } = {}) => {
 	const out = [];
 	const push = (obj, ctx) => { if (obj && typeof obj === 'object') out.push({ cond: obj, ctx }); };

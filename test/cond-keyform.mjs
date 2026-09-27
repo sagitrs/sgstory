@@ -35,6 +35,7 @@ import { execFileSync } from 'node:child_process';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { asListOf, condKeysOf } from '../editor/lib/core/audit-shared.mjs';
+import { VOCAB } from '../editor/lib/core/vocab.mjs';   // ★`#1564`：前缀集单一权威
 // `#1089`（裁定乙′）：**未跟踪扫描面 → 红** 的共用助手（一处定义、三门复用）。
 import { untrackedScannedProblems, isUntrackedExemptLine } from '../scripts/lib/untracked-guard.mjs';
 
@@ -50,7 +51,9 @@ export const keyReadable = (key) => {
 	const k = String(key ?? '').trim();
 	if (!k) return false;
 	if (k.startsWith('n_')) return true;                       // `Sg.notes.has(k, pc)`
-	if (/^(inv|era|gear|codex):.+$/.test(k)) return true;     // 冒号后必须**非空**（`#1132`：`codex:<名>` 同族）
+	// ★★ `#1564` 件②（评审 `#1566` 缺陷①根因）：**从 `VOCAB.prefixes` 派生**（✗ 硬编码）——
+	//   原写死 `inv|era|gear|codex` ⇒ **漏 `chk`／`fight`**（`readKey` 实认两名）⇒ 会把**合法键**判成"求值不到" ✗
+	if (new RegExp(`^(?:${VOCAB.prefixes.join('|')}):.+$`).test(k)) return true;   // 冒号后必须**非空**
 	if (k.startsWith('pc.')) return true;                      // 显式根 → 从 pc 走
 	if (k.includes(':')) return false;                         //注意：其余带冒号的（`note:`／`flag:`／`keeper:`…）→ 引擎读不到 → **恒假**
 	return true;                                               // 不含冒号：有点 → readPath；无点 → `ev.<k>`（两种都成立）

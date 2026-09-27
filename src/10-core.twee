@@ -176,6 +176,23 @@ window.Game.Rules = {
 	 *  ★为什么单开一个口（✗ 不裸读 `V().label.hp`）：与 `vk()` **同形对称** —— 展示面的两问
 	 *    「这个量纲的**键**叫什么」与「它在屏上**叫什么**」各自一个口 ⇒ ✗ 读点不会漏回落到内置 ✓ */
 	vl(name) { return this.V().label?.[name] ?? this.BUILTIN.vitals.label[name]; },
+	/** ★ `#1538`（表示面 P2）：**故事声明的「属性 → UI」维**（契约成员 `panels`）—— 单一读点。
+	 *
+	 *  ★它做什么：把**声明的规范化与只读**放在一处，✗ 不在此渲染（渲染在 `Sg.draw.*`，由消费面调用）。
+	 *  ★为什么 P2 就要有这个读点（✗ 等 P3）：本仓的门有一条 `dead-declaration`（`contract-defaults.mjs:364`：
+	 *    "**声明了但引擎从不读**" ⇒ 点名），而 `test/contract-defaults.mjs:88` 把它归**失败面**（计入退出码）。
+	 *    ⇒ 若只有 `DEFAULTS.panels` 而**无读点**，则**任何故事一声明 `panels` 就红** ⇒
+	 *    "声明面先行、消费面在后"的分期就**没有可声明窗口**，P3 又要 books 同窗补声明（spec §6①）⇒ 承重顺序互锁。
+	 *    ★而 spec §3.1（"补一块声明 ⇒ 那一块**立即**改走声明"）正是要求故事**能先声明**。
+	 *  ★形状（spec §2.2）：数组；每项 `{ as: 'bar'|'list', props: [...] }`。
+	 *  ★边界：缺面 ⇒ `[]`（**"这一面在，但空"** —— spec §4④：✗ 不印占位、✗ 不印 `$pc.x`，玩家面**干净的空**）；
+	 *    给了非数组（结构畸形）⇒ **fail-loud**（照 `pcDefaults()` 的同族口径：✗ 不静默当空 —— 见上方 `pcDefaults` 那一支的同一句话）。 */
+	panels() {
+		const raw = window.Sg?.story?.panels?.();
+		if (raw == null) return [];
+		if (!Array.isArray(raw)) throw new Error('Sg.story.panels()：必须返回**数组**（结构畸形必须报错，照 pcDefaults 同族口径）—— ✗ 不静默当空');
+		return raw;
+	},
 	/** 故事声明的规则包（缺面 ⇒ 内置）；★合并＝**键级覆盖**（✗ 不是整份替换）。
 	 *  为什么键级：故事只想改 `prof` 时，✗ 不该被迫照抄 18 个技能名（照抄 ⇒ 两处必漂移 ✗）。 */
 	pack() {

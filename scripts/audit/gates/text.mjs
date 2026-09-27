@@ -55,6 +55,23 @@ export const run = (ctx) => {
 // ── ⓪e D5 语言经济（#39）：载荷标注门 + 词频报告 + 套路句式门 ──
 if (wantAll || arg('text')) {
 	console.log('\n══ ⓪e 语言经济（D5/#39）——每段有载荷，无陈词滥调 ══');
+	// ★★ `#1529` CR（T 单点刀）：★「闸的位置」是**关于本门结构**的不变量 ——
+	//   ★✗ 不能当作 `selfBad` 格：★「**任何放在闸之后的红，谁来看它？没人**」（★**自我指涉** ✗）
+	//   ★故：★改成★「**门内最先跑的静态检查**」，★它**自己直接 `process.exit(1)`**（★✗ 经 `selfBad`、✗ 需人看 ✓）
+	//   ★且它在**零故事短路之前** ⇒ ★无论有无故事都跑 ✓
+	{
+		const self = readFileSync(absPath('scripts/audit/gates/text.mjs'), 'utf8');
+		const mGate = self.match(/^\tif \(selfBad\) \{/m);
+		const mShort = self.match(/^\tif \(!ctx\.storySlug\)/m);
+		const iGate = mGate ? mGate.index : -1, iShort = mShort ? mShort.index : -1;
+		const incs = [...self.matchAll(/selfBad\+\+/g)].map((m) => m.index);
+		const last = incs.length ? incs[incs.length - 1] : -1;
+		if (!(iGate > 0 && iShort > 0 && iGate < iShort && (last < 0 || iGate > last))) {
+			console.error('\n✗ D5 文本门：**自证闸位置不变量不成立** —— 闸必须在**所有自证格之后**、**零故事短路之前**。');
+			console.error('  ★语义：本条是**关于本门结构**的不变量（★✗ 是“门判得对不对”）⇒ ★它**自己退**，✗ 不进 `selfBad` ✓');
+			process.exit(1);
+		}
+	}
 	let bad = 0;
 	// `#1151`：**自证格**的计数单列（格红＝本门失能；与「判据发现」语义不同 → 分开记）
 	let selfBad = 0;
@@ -126,25 +143,6 @@ if (wantAll || arg('text')) {
 	//   ★修：★把自证闸**提到短路之前**（✗ 不改"零故事 ⇒ 未判"的**样本语义** ✓）。
 	//   ★注意：★自证段落里若有"依赖故事面"的格 ⇒ 那些格在零故事态**本就不该跑** ⇒ 由各自的
 	//     "前提不成立"分支自行 `continue`（✗ 不是把整段挪走 ✓）。
-	// ★ `#1528`／`#1529` CR：★**回归格** —— ★「自证闸必须在**所有自证格之后**」（★T 乙案：
-	//   ★`#1528` 的判法只比“与短路的先后” ⇒ ★**防不住“格自己在闸之后”**（★我第一版就是：
-	//     格在 `:145`、闸在 `:129`、短路在 `:150` ⇒ ★★它自己失能！✗）
-	//   ★正确判据：★闸必须在**每一个 `selfBad++` 之后**（★用**最后一个 `selfBad++`** 比序 ✓）
-	//   ★且★无自证格（★不得存在 `selfBad++`）时 ⇒ ★本格也要**绿**（★证「无格可失能」✓）
-	{
-		const src = readFileSync(absPath('scripts/audit/gates/text.mjs'), 'utf8');
-		const mGate = src.match(/^\tif \(selfBad\) \{/m);
-		const mShort = src.match(/^\tif \(!ctx\.storySlug\)/m);
-		const iGate = mGate ? mGate.index : -1, iShort = mShort ? mShort.index : -1;
-		const incs = [...src.matchAll(/selfBad\+\+/g)].map((m) => m.index);
-		const last = incs.length ? incs[incs.length - 1] : -1;
-		const ok = iGate > 0 && iShort > 0 && iGate < iShort && (last < 0 || iGate > last);
-		console.log(`      ${ok ? '✓' : '✗'} 自证·★自证闸**在所有自证格之后**（★且在零故事短路之前）`);
-		if (!ok) { selfBad++; }
-	}
-
-	// ★ `#1528`：★**自证闸** —— ★必须在**所有自证格之后**（★T 乙案）、★**零故事短路之前**。
-	//   ★脉络：★格级属性 ⇒ 与数据面有无样本无关 ✓（✗ 被短路绕过 ✗）
 	if (selfBad) {
 		console.error(`\n✗ D5 文本门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓`);
 		process.exit(1);

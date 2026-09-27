@@ -194,6 +194,29 @@ const selftest = () => {
 	//   ★改**行为面**：★把 `expect` 当正则去 `test` **夹具真串**（★假如值写错（如字序颠倒）⇒ 本格当场红 ✓）。
 	//   ★且★用**真实对象**（夹具 `north-room` 的检定名）—— ★✗ 再造一个字面量比自己 ✓
 	//   ★实测依据：★我原写的 `觉察`（**字序颠倒**）⇒ ★真值是 `察觉`（`north-room` 的 `chk:里屋·察觉.success`）✓
+	// ★★ `#1536` CR（T 的**跨边界格**建议）：★**“值对了” ≠ “值送到了”**。
+	//   ★静态扫：`ev(\`…\`)` 的**模板串里** ✗ 得出现 **node 侧的自由标识符**
+	//   （★如 `STORY_MAP`）—— ★它们在**页面侧不存在** ⇒ 抛 ⇒ ★格**恒红**（★而不是“发现了一个缺陷”）✗。
+	//   ★正解：★**node 侧先插值**（`${JSON.stringify(…)}`）⇒ ★模板串里只剩**数据字面量** ✓
+	t('★跨边界：`ev(\`…\`)` 模板串里 **✗ 出现 node 侧自由标识符**（★如 `STORY_MAP`）',
+		(() => {
+			const self = readFileSync(new URL(import.meta.url), 'utf8');
+			// ★取**所有** `ev(\`…\`)` 模板串（★非横跨：括号配平）
+			// ★取**所有** `ev(`…`)` 的模板串（★两侧 ``` 之间；★跳过 `\\` 转义 ✓）
+			const spans = [];
+			for (let i = self.indexOf('ev(`'); i >= 0; i = self.indexOf('ev(`', i + 1)) {
+				const open = self.indexOf('`', i);
+				let j = open + 1;
+				while (j < self.length) {
+					if (self[j] === '\\') { j += 2; continue; }   // ★转义对：跳**两**个
+					if (self[j] === '`') break;
+					j++;
+				}
+				spans.push(self.slice(open + 1, j));
+			}
+			// ★只查**未插值的空间**：模板串里出现 `STORY_MAP`（★未被 `${}` 包）⇒ 红
+			const bad = spans.filter((t) => /STORY_MAP/.test(t.replace(/\$\{[^}]*\}/g, '')));
+			return bad.length === 0; })());
 	t('★乙类：`hall.expect` 能**匹中检定名形的真串**（★行为面 —— ✗ 字面量比字面量）',
 		new RegExp(String(STORY_MAP.hall.expect)).test('察觉检定（感知）〔里屋·察觉〕 DC11') === true);
 	t('★两层下界**各自独立**（★引擎层：达下界绿／低一条红）',
@@ -629,6 +652,10 @@ for (const [W, H] of VP) {
 			} else {
 				await sleep(600);   // ★render-time 注入也要一拍（`Engine.DOM_DELAY`）
 			}
+			// ★ CR（T：**跨进程边界漏插值**）：下方 `ev` 的**模板串里**若直接引 `STORY_MAP`
+			//   ⇒ ★它在**页面侧**执行、**而 `STORY_MAP` 是 node 侧绑定** ⇒ ★页面侧不存在 ⇒ 抛 ⇒ 本句返 `null` ⇒ 格恒红 ✗
+			//   ★正解：**node 侧先插值**（`${JSON.stringify(…)}` —— 照 `:626`／`:706` 同形 ✓）。
+			//   ★★口径：**“值对了” ≠ “值送到了”** —— 判据跨边界 ⇒ **必须在那一侧验一次** ✓
 			const res = await ev(`(function(){
 				// #1004 B2b: 读数对准夹具的等价可观察面 —— 夹具 门厅·看钉 把结果写在**正文段落**里
 				//（旧故事放在专用容器里，该容器名已随 #1227 类四删除）。判据语义不变：**结果在屏且在视口内**。
@@ -636,7 +663,7 @@ for (const [W, H] of VP) {
 				// 实况读数: 夹具这条走"点击时检定" -> 结果落在结果槽里（形如 察觉检定（感知）〔门厅·看钉〕 DC11）。
 				// （我上一版改成找正文文案「钉子旁边那圈灰」是找错了对象 —— 那句是段落正文，不是结果）。
 				const hit=[...document.querySelectorAll('#passages .check-result, #passages .scene-feedback')]
-					.find(e=>new RegExp(String(STORY_MAP.hall.expect ?? '检定')).test(e.textContent));
+					.find(e=>new RegExp(String(${JSON.stringify(STORY_MAP.hall.expect ?? '检定')})).test(e.textContent));
 				if(!hit) return null; const r=hit.getBoundingClientRect(); return { top:r.top, bottom:r.bottom, text:hit.textContent.slice(0,40) };
 			})()`);
 			if (!res) console.log(`   （门厅结果未找到：结果槽=${String(await ev(`document.querySelector('#passages .scene-feedback, #passages .check-result')?.textContent?.replace(/\s+/g,' ').slice(0,80) ?? 'NO'`))}）`);

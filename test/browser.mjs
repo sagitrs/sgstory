@@ -1,5 +1,5 @@
 
-import { defaultStoryHtml, storyRelPath, storyHtml, FONT_PREFIX_FROM_STORY, DIST_DIR } from '../scripts/dist-paths.mjs';   // ★`#1504`：`DIST_DIR` 是**根**的单一权威（✗ 不再硬编 `resolve('dist')`）
+import { defaultStoryHtml, storyRelPath, storyHtml, shelfHtml, FONT_PREFIX_FROM_STORY, DIST_DIR } from '../scripts/dist-paths.mjs';   // ★ `#1532`：加 `shelfHtml`（引擎层跑书架页 ✓）   // ★`#1504`：`DIST_DIR` 是**根**的单一权威（✗ 不再硬编 `resolve('dist')`）
 import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1261`：零故事判定（与同批门同口径）
 // #263（#185 阶段五）真实浏览器验收：零依赖 CDP 驱动（Node 22 内建 fetch + WebSocket）
 //
@@ -77,13 +77,20 @@ export const runsStory = TIERS === 'all' || TIERS === 'story';
 // 且它换掉的那一面（无车卡最小面／多选一可点／200% 不溢出）**逐条仍在**。
 export const MIN_ASSERTIONS = 58;   // `#1012`（2026-09-19）：+1＝新增「导航型交互」断言、+1＝原先 xfail 的「焦点回收正文」**转正** → 只涨
 
+// ★ `#1532`（`#1516` C 案）：★**下界拆双 ratchet** —— ★两层各自管自己的下界：
+//   · `ENGINE`（甲＋丙）：★零故事即可跑 ⇒ ★**现测 12**（★为什么不是 0：3 视口 × 4 条甲类）
+//   · `STORY`（乙）：★需真故事 ⇒ ★现下界 **58**（★两层合跑时的总数 —— ★下一步拆完各自重算 ✓）
+//   ★★**为何必须拆**：★若共用 58 ⇒ ★以引擎层跑时**永远红**（★不是真红 —— 是下界不对）；
+//     而★**它更坏的一面**：★若为了跑绿而把 58 改小 ⇒ ★删乙类断言也会放行 ✗
+export const MIN_ASSERTIONS_ENGINE = 12;
+export const MIN_ASSERTIONS_STORY = 58;
 // 跳过时该退什么码（纯函数，便于自证）
 export const skipVerdict = (requireBrowser) => (requireBrowser
 	? { code: 1, notes: ['✗ CI_REQUIRE_BROWSER=1：浏览器验收被跳过 ＝ CI 接线失效（不许静默降级）'] }
 	: { code: 0, notes: [] });
 
 // 跑完时的判定（纯函数，便于自证）
-export const evaluateRun = ({ total, fails, minAssertions = MIN_ASSERTIONS }) => {
+export const evaluateRun = ({ total, fails, minAssertions = (runsStory ? MIN_ASSERTIONS : MIN_ASSERTIONS_ENGINE) }) => {
 	if (total < minAssertions) {
 		return { code: 1, notes: [`✗ 断言数 ${total} < 下界 ${minAssertions}——这不像失败，像**被删除**：请补回断言，或同步下调 MIN_ASSERTIONS 并写明理由`] };
 	}
@@ -120,7 +127,9 @@ const selftest = () => {
 		// 取"零故事分支"那一段（`if (!DEFAULT_SLUG)` 起 到 行尾 ;）
 		// ★取**真代码行**（✗ 不能取注释里的同形文字 —— 本笔实测撞过：注释里也写了它，match 取到注释 ✗）
 		const code = self.split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n');
-		const m = code.match(/^\s*if \(!DEFAULT_SLUG\)[^\n]*/m);
+				// ★ `#1532`：★本分支现在**带两个条件**（`!DEFAULT_SLUG && runsStory`）——
+		//   ★判据仍然只问两件：★**走 `bail(`** ＋ ★**✗ 自带 `process.exit`** ✓（★不管条件几个 ✗）
+		const m = code.match(/^\s*if \(!DEFAULT_SLUG\b[^\n]*/m);
 		const line = m ? m[0] : '';
 		t('★ `#1498` 接线：零故事分支**经 `bail(`**（✗ 不自带 process.exit）', /bail\(/.test(line) && !/process\.exit/.test(line), line.slice(0, 90));
 		// ★且 `bail` 必须**定义在**零故事分支之前（✗ 前向引用会 TypeError ⇒ 静默降级）
@@ -133,6 +142,15 @@ const selftest = () => {
 	t(`${MIN_ASSERTIONS}/${MIN_ASSERTIONS}（有失败）→ 失败`, evaluateRun({ total: MIN_ASSERTIONS, fails: 1 }).code === 1);
 	t(`${MIN_ASSERTIONS - 5}/${MIN_ASSERTIONS - 5} 低于下界 → 失败（断言被删也算红，不靠 workflow 魔数）`, evaluateRun({ total: MIN_ASSERTIONS - 5, fails: 0, minAssertions: MIN_ASSERTIONS }).code === 1);
 	t('0/0 → 失败（0/0 假绿）', evaluateRun({ total: 0, fails: 0 }).code === 1);
+	// ★ `#1532`：★**两层各自的下界**（★★★★★★★★★★★★★★★★★★）——
+	//   ★判法：★两层**各自贴自己的下界**；★**且引擎层下界不能拿故事层的数去逗** ✗
+	//   ★为什么：★共用一个数 ⇒ ★两层必有一层**永远红**（★不是真红）；
+	//     而★为了跑绿把它改小 ⇒ ★**删乙类也会放行** ✗
+	t('★两层下界**各自独立**（★引擎层：达下界绿／低一条红）',
+		evaluateRun({ total: MIN_ASSERTIONS_ENGINE, fails: 0, minAssertions: MIN_ASSERTIONS_ENGINE }).code === 0
+		&& evaluateRun({ total: MIN_ASSERTIONS_ENGINE - 1, fails: 0, minAssertions: MIN_ASSERTIONS_ENGINE }).code === 1);
+	t('★故事层下界**独立**（引擎层的数**不能**逗它）',
+		evaluateRun({ total: MIN_ASSERTIONS_ENGINE, fails: 0, minAssertions: MIN_ASSERTIONS_STORY }).code === 1);
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
 	console.log('\n✔ 自证通过：CI 跳过必红 / 本地可跳 / 达下界绿 / 有失败红 / 断言被删红 / 0-0 假绿红');
 };
@@ -154,7 +172,9 @@ if (!CHROME) bail('未找到 Chrome；设 CHROME_PATH 或装 Chrome for Testing'
 		bail(`Chrome 起不来${missing.length ? `，缺 ${[...new Set(missing)].join(', ')}` : ''}`);
 	}
 }
-if (!existsSync(defaultStoryHtml())) bail(`${defaultStoryHtml()} 不存在，先 npm run build`);
+// ★ `#1532`：★引擎层只需**书架页**；乙类（故事层）才需故事页 ✓
+if (runsStory && !existsSync(defaultStoryHtml())) bail(`${defaultStoryHtml()} 不存在，先 npm run build`);
+if (!runsStory && !existsSync(shelfHtml())) bail(`${shelfHtml()} 不存在，先 npm run build`);
 
 // ── 静态服务 + 浏览器 ───────────────────────────────────────────
 // #363（P2）：原来这个服务器**不区分路径**，所有请求都回 dist/index.html —— 于是
@@ -270,18 +290,26 @@ const loadFresh = async (story = null) => {
 	// #441 β2：根路径 `index.html` 已是**书架页** → 必须按 storyRelPath() 进故事页。
 	// 这里加一道守卫：万一又跑到别的产物上，**立即 bail**而不是让后面 38 条断言"合理地"全红
 	//（那类失败看起来像布局回归，实际是"测试跑错了产物"——本仓最贵的一种假红）。
-	await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/${storyRelPath(story ?? undefined)}` });
+	// ★ `#1532`：★引擎层（零故事 / ★无正式故事页）跑**书架页**（`dist/index.html`）——
+	//   ★甲类断言（字体／版式）全在书架页上成立 ✓（★✗ 再要求"故事页" ✗）
+	const goShelf = !runsStory || !DEFAULT_SLUG;
+	await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/${goShelf ? 'index.html' : storyRelPath(story ?? undefined)}` });
 	for (let i = 0; i < 40; i++) {
 		await sleep(250);
-		const ok = await ev('!!(window.SugarCube && SugarCube.State && SugarCube.State.passage)').catch(() => false);
+		// ★ `#1532`：书架页**没有 SugarCube**（它是静态选书页）⇒ ★改问"**页面已挂上字体面**"
+		const ok = goShelf
+			? await ev('!!document.getElementById("font-face")').catch(() => false)
+			: await ev('!!(window.SugarCube && SugarCube.State && SugarCube.State.passage)').catch(() => false);
 		if (ok) break;
 	}
 	// #441 β2 守卫（放在就绪等待**之后**：navigate 后立刻查会误报——页面还没解析完）：
 	// 万一又跑到书架页/别的产物上，**立即 bail**，而不是让后面 38 条断言"合理地"全红
 	//（那类失败看起来像布局回归，实际是"测试跑错了产物"——本仓最贵的一种假红）。
 	{
-		const ok = await ev('!!document.getElementById("font-face") && !!document.getElementById("passages")');
-		if (!ok) bail(`导航到的不是故事页（期望 ${storyRelPath(story ?? undefined)}）——是不是又跑到书架页/别的产物上了？`);
+		const ok = goShelf
+			? await ev('!!document.getElementById("font-face")')
+			: await ev('!!document.getElementById("font-face") && !!document.getElementById("passages")');
+		if (!ok && !goShelf) bail(`导航到的不是故事页（期望 ${storyRelPath(story ?? undefined)}）——是不是又跑到书架页/别的产物上了？`);
 	}
 	await ev(HELPERS);
 	// #363：**字体必须真的加载**（此前服务器把所有路径都回 HTML → 验收跑在兜底字体上）。
@@ -361,7 +389,7 @@ async function keyboardCase(W, H) {
 	await loadFresh();
 	await ev(HELPERS);
 	// `#1004` B2b 按裁定 A 重指: 键盘序列测的是「行动区可 Tab 抵达」这一**机制**（与故事内容无关），
-	// 旧写法从 `门厅` 进（那段的行动区是旧故事专用的块名，已随 `#1227` 类四删除）。
+	// 旧写法从 `门厅` 进（那段的行动区是旧故事专用的块名，已随 `#1227` 类四删除）。★ `#1532`：本处旧口径已过期——
 	// 2026-09-19 复测后改定 `女巫小屋`（`70f4045` 撤回 `门厅·看钉` 那行夹具后重选）：
 	// 夹具里行动区内的宏链接**全是自环/只出面板**（读数：`酒馆` 话题链接点击后 `passage` 不变且无反馈；
 	// `女巫小屋`「从炉火边拿起那件东西」/ `书房`「把案上那本日记收起来」→ **反馈由无到有**）；
@@ -427,7 +455,7 @@ async function keyboardCase(W, H) {
 		// 可观察面二选一：· `passage` 变化 ／ · 反馈节点**由无到有**（`!before.hasFb && after.hasFb`）。
 		//注意：`70f4045` 撤回那行夹具后，夹具里**没有**会导航的行动区宏链接 → 只能取「反馈由无到有」这一支
 		//（读数：`酒馆` 话题链接两支皆否；`女巫小屋`「从炉火边拿起那件东西」后者成立）。
-		//注意：必须带 `before` 读数：`门厅·看钉` 那类段的**渲染期** `<<sitecheck>>` 会预置 `check-result`，
+		//★ `#1532`（`#1505` 后）：`<<sitecheck>>` **已改为段级 `check` 字段的编译期注入**（✗ 不再是段落里手写宏）——，
 		// 只判 `after.hasFb` 会在**未按键时**即为真 → 无判别力（本片实测过的假绿，勿回退）。
 		const activated = after.passage !== before.passage || (!before.hasFb && after.hasFb);
 		check(activated,
@@ -435,7 +463,7 @@ async function keyboardCase(W, H) {
 		// ── 半 (ii)：焦点回收正文 —— `#1012` 修好后**转正**（用**导航型**样本）───────────
 		//注意：这半**此前从未守护**：旧写法 `rawKeyDown` 从不触发默认动作 → 交互根本没发生，
 		// `activeElement` 自然还停在原链接上 → 旧绿是**虚的**（借「按键前就为真的结果在屏」站的）。
-		//注意：必须用**导航型**样本：`女巫小屋` 那类**非导航型**（就地反馈）按键前后焦点都在 `#passages` 内
+		//★ `#1532`：注意必须用**导航型**样本：`女巫小屋` 那类**非导航型**（就地反馈）按键前后焦点都在 `#passages` 内
 		// → `focusInside` 两向皆真 → **无判别力**（写成 `check(after.focusInside)` 就是又一个假绿）。
 		// 判据照 `docs/criterion-design.md` §八 8.5：契约＝「**焦点仍在 `#passages` 内**」 —— **不绑元素**
 		//（落 `.passage`／`.acts`／反馈槽 都算过 —— 那一层是**实现路径**）。
@@ -614,8 +642,11 @@ for (const [W, H] of VP) {
 }
 
 // #284①：键盘序列（真机按键）——单视口做即可，走 390×844
-console.log('\n── 键盘序列（#284①，真机 Tab/Enter）');
-await keyboardCase(390, 844);
+// ★ `#1532`：★本块属**乙类**（它 `enter('女巫小屋')`）⇒ ★加 `runsStory` 闸 ✓
+if (runsStory) {
+	console.log('\n── 键盘序列（#284①，真机 Tab/Enter）');
+	await keyboardCase(390, 844);
+}
 
 if (xfails.length) {
 	console.log(`\n⚠ xfail ${xfails.length} 条（已实测不成立，**不计失败**，逐条指向承接票）：`);

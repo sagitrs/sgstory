@@ -26,7 +26,9 @@ Object.assign((window.Game.Economy ??= {}), {
 	apply(pc, id) {
 		const ev = this.econEvents()[id];
 		const d = this.priceOf(id, pc);
-		pc.gold = pc.gold + d;
+		// ★ `#1530`：★**键名从数据读**（★`ek('gold')` ⇒ 不硬编 `pc.gold` ✓）
+		const _kg = Game.Rules.ek('gold');
+		pc[_kg] = (pc[_kg] ?? 0) + d;
 		if (ev?.gives) {
 			for (const [k, v] of Object.entries(ev.gives)) {
 				if (Array.isArray(v)) pc[k] = [...(pc[k] ?? []), ...v.filter((x) => !(pc[k] ?? []).includes(x))];

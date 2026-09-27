@@ -36,6 +36,20 @@
 			"key": "name",
 			"required": true,
 			"error": "Sg.story.checkSite：位点「{key}」未登记（结构缺失必须报错，#441-E）"
+		},
+		{
+			"name": "rulesPack",
+			"kind": "const",
+			"value": {
+				"economy": {
+					"keys": {
+						"gold": "goldRenamed"
+					},
+					"label": {
+						"gold": "银币"
+					}
+				}
+			}
 		}
 	]
 }

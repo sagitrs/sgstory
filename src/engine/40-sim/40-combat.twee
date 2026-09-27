@@ -513,7 +513,8 @@ Object.assign((window.Game.Combat ??= {}), {
 	 * · 单一落点：内容不许再自己读 `reward.gold`／自己掷骰（`--waves` 有"声明 ↔ 内容对账"断言）。 */
 	grantReward(pc, id, { rng } = {}) {
 		const { gold, item } = this.encounterReward(id);
-		if (gold > 0) pc.gold = (pc.gold ?? 0) + gold;
+		// ★ `#1530`：★同上（★键名从数据读 ✓）
+		if (gold > 0) { const _kg = Game.Rules.ek('gold'); pc[_kg] = (pc[_kg] ?? 0) + gold; }
 		let got = null;
 		if (item) {
 			const roll = rng ? rng(1, 100) : window.Game.Rules.rng.d(100);

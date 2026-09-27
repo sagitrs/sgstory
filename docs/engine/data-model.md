@@ -94,7 +94,7 @@ Game.Pc.diff(before, pc)  // 结算后的差分 —— 生成玩家可见文案
 | 通道 | 写在哪 | 对数据的操作 | 数学性质 |
 |---|---|---|---|
 | **① 声明三格** | 表行 `yields`／`gives`／`sets` | `ev.notes[id]=true` · `inv[k]=true` · `writePath(…, true)` | **单调布尔写入 ＋ 幂等** |
-| **② 具名动作宏** | 正文：`<<damage>>` `<<econ>>` `<<give>>` `<<take>>` `<<setflag>>` `<<note>>` … | `hp−=n` · `gold+=delta` · `delete inv[x]` · `statuses[部位][异常]=n` | **带值／可逆／非幂等** |
+| **② 具名动作宏**（★ `#1508`/`#1552` 起：**散文零宏** —— 作者面已废，仅引擎侧登记面留存） | 正文：`<<damage>>` `<<econ>>` `<<give>>` `<<take>>` `<<setflag>>` `<<note>>` … | `hp−=n` · `gold+=delta` · `delete inv[x]` · `statuses[部位][异常]=n` | **带值／可逆／非幂等** |
 | **③ 原始计算** | 正文 `<<set>>`／`<<run>>` | 任意变换 | 任意（甲-1 **判红**） |
 
 ### 5.1 为什么①只有三格，且 `sets` 必须是布尔（**结构原因**）

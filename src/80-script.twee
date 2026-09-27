@@ -11,7 +11,8 @@ Save.onSave.add((save) => {
 		species: pc.speciesLabel || '',
 		class: pc.classLabel || '',
 		hp: pc.hp,
-		gold: pc.gold,
+		// ★ `#1530`：★**展示面也走数据**（★与结算同一个口 ✓）
+		gold: pc[Game.Rules.ek('gold')],
 	};
 });
 Save.onLoad.add((save) => {

@@ -150,6 +150,17 @@ window.Game.Rules = {
 			//     ⇒ 没有装文案的字段 ⇒ ✗ 新造机制（D6）而按**已定的形状规则**添一格 ✓。
 			label: { hp: '生命', maxHp: '生命上限', salves: '药膏' },
 		},
+		// ★★ `#1530`（`#1487` 同族）：**钱币量纲的声明面** —— ★同 `vitals` 的形（★第 5 成员 ✓）
+		//   ★为什么要：★`gold` 原先**结算层硬编**（`pc.gold = (pc.gold ?? 0) + …`）
+		//     ★而**展示层也硬编**（`金币：$pc.gold`）⇒ ★与 `vitals` **同病** ✗
+		//   ★口径：★"引擎✗知键名"＝★**✗ 硬编在结算逻辑里**；
+		//     ★硬编在**声明的缺省**里且**可覆盖** ⇒ 合规 ✓
+		economy: {
+			// ① 量纲 → `pc` 键名（★换一套规则书 ⇒ ★名不变、键名可变 ✓）
+			keys: { gold: 'gold' },
+			// ② ★**展示用文案**（★与 `vitals.label` **同形状** ⇒ 逐量纲各一值 ✓）
+			label: { gold: '金币' },
+		},
 	},
 	/** ★ `#1487`：**量纲取值的单一入口** —— ★引擎各处走它（✗ 不裸读字面量 ✓）。
 	 *  ★"引擎✗知键名"的落地形：★**名字从 `vitals.keys` 取**（`V.hp` ＝ 数据给的那个键名）⇒ 结算逻辑里**无字面量** ✓
@@ -193,6 +204,21 @@ window.Game.Rules = {
 		if (!Array.isArray(raw)) throw new Error('Sg.story.panels()：必须返回**数组**（结构畸形必须报错，照 pcDefaults 同族口径）—— ✗ 不静默当空');
 		return raw;
 	},
+	/** ★ `#1530`：**钱币量纲面**（`vitals` 同族）—— ★缺面 ⇒ 内置；★**逐键回落** ✓ */
+	E() {
+		const p = this.pack().economy ?? null;
+		const b = this.BUILTIN.economy;
+		if (!p || typeof p !== 'object' || Array.isArray(p)) return b;
+		// ★与 `V()` **同手法**：★只并 `keys`／`label` 两个**对象**类；★`label` 放**末位**（★键序逐字同 ✓）
+		return {
+			keys: { ...b.keys, ...(p.keys ?? {}) },
+			label: { ...b.label, ...(p.label ?? {}) },
+		};
+	},
+	/** ★ `#1530`：**量纲名 → `pc` 键名**（`E().keys` 的取值口）—— ★读点写 `pc[this.ek('gold')]` ✓ */
+	ek(name) { return this.E().keys?.[name] ?? this.BUILTIN.economy.keys[name]; },
+	/** ★ `#1530`：**量纲名 → 展示文案**（`E().label` 的取值口）—— ★读点写 `this.el('gold')` ✓ */
+	el(name) { return this.E().label?.[name] ?? this.BUILTIN.economy.label[name]; },
 	/** 故事声明的规则包（缺面 ⇒ 内置）；★合并＝**键级覆盖**（✗ 不是整份替换）。
 	 *  为什么键级：故事只想改 `prof` 时，✗ 不该被迫照抄 18 个技能名（照抄 ⇒ 两处必漂移 ✗）。 */
 	pack() {
@@ -391,8 +417,11 @@ window.Game.Pc = {
 		//   ★`gold` **不在本笔**（它是 `groups.economy` 的键，其结算层也硬编 ⇒ 另票，见 `#1518` 评论）✓
 		//   ★注意宿主：本函数住 `Game.Pc`，取值口在 `Game.Rules` ⇒ **✗ 不能写 `this.vk`**（`this` 是 `Game.Pc`）
 		const _khp = window.Game.Rules.vk('hp');
+		// ★★ `#1530`：gold 本笔收了（它属 groups.economy ⇒ 另一个量纲面 ⇒ 走 ek('gold') ✓）
+		const _kg = window.Game.Rules.ek('gold');
+		const _lgd = window.Game.Rules.el('gold');
 		return {
-			hp: pc?.[_khp] ?? 0, gold: pc?.gold ?? 0,
+			hp: pc?.[_khp] ?? 0, gold: pc?.[_kg] ?? 0,
 			gearHp: { ...(pc?.gearHp ?? {}) },
 			statuses: JSON.parse(JSON.stringify(pc?.statuses ?? {})),
 			inv: { ...(pc?.inv ?? {}) },
@@ -407,8 +436,11 @@ window.Game.Pc = {
 		const _khp = window.Game.Rules.vk('hp'), _lhp = window.Game.Rules.vl('hp');
 		const hp0 = b.hp ?? 0, hp1 = pc?.[_khp] ?? 0;
 		if (hp1 !== hp0) out.push(`${hp1 > hp0 ? '+' : '−'}${Math.abs(hp1 - hp0)} ${_lhp}（${hp0}→${hp1}）`);
-		const g0 = b.gold ?? 0, g1 = pc?.gold ?? 0;
-		if (g1 !== g0) out.push(`${g1 > g0 ? '+' : '−'}${Math.abs(g1 - g0)} 金币（${g0}→${g1}）`);
+		// ★ `#1530`：★**钱币差分也走数据**（★键名 `ek('gold')`／文案 `el('gold')` ✓）
+		//   ★同 `#1518` 那行的手法（★实宿主不是 `Game.Rules` ⇒ 显式取 `window.Game.Rules` ✓）
+		const _kgd = window.Game.Rules.ek('gold'), _lgd = window.Game.Rules.el('gold');
+		const g0 = b[_kgd] ?? 0, g1 = pc?.[_kgd] ?? 0;
+		if (g1 !== g0) out.push(`${g1 > g0 ? '+' : '−'}${Math.abs(g1 - g0)} ${_lgd}（${g0}→${g1}）`);
 		const bStatus = b.statuses ?? {}, nowStatus = pc?.statuses ?? {};
 		for (const [part, bag] of Object.entries(nowStatus)) {
 			for (const [id, turns] of Object.entries(bag ?? {})) {
@@ -1097,7 +1129,6 @@ window.Sg.capability = (group) => {
 ''$pc.name''
 $pc.speciesLabel $pc.classLabel
 <<hpbar>>
-金币：$pc.gold
 <<print Game.Rules.vl('salves')>>：<<print $pc[Game.Rules.vk('salves')]>> 副（缺口满 <<print Game.Rules.V().heal>> 点时自动用，一副恢复 <<print Game.Rules.V().heal>> 点）
 <<if $pc.gear.length>>行囊：<<print $pc.gear.join('、')>><</if>>
 /% `#703`：**装备耐久**与**部位异常**——两者此前全仓零渲染（`gearHp`／`statuses` 只在 defaults 里出现过），
@@ -1126,7 +1157,7 @@ $pc.speciesLabel $pc.classLabel
    `#660` 片三-2：这里原本**直接探测故事的全局名**（`not Game.Chargen`）——那是边界破口（引擎知道故事的表叫什么）→
    改成问**接入契约** `Sg.story.hasChargen()`（引擎只问"有没有"，不把故事全局再拿回去）。 %/
 <<hpbar>>
-金币：$pc.gold
+<<print Game.Rules.el('gold')>>：<<print $pc[Game.Rules.ek('gold')]>>
 <div class="inv-block">
 ''物品栏''
 <div class="inv-list"><<inventory>></div>

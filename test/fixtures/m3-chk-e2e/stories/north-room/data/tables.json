@@ -17,7 +17,13 @@
 		},
 		"Economy": {
 			"prices": {},
-			"events": []
+			"events": [
+				{
+					"id": "门厅·买灯油",
+					"delta": -3,
+					"label": "买灯油"
+				}
+			]
 		},
 		"Gear": {
 			"defs": {}

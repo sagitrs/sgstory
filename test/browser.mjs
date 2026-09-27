@@ -82,7 +82,7 @@ export const MIN_ASSERTIONS = 58;   // `#1012`（2026-09-19）：+1＝新增「�
 //   · `STORY`（乙）：★需真故事 ⇒ ★现下界 **58**（★两层合跑时的总数 —— ★下一步拆完各自重算 ✓）
 //   ★★**为何必须拆**：★若共用 58 ⇒ ★以引擎层跑时**永远红**（★不是真红 —— 是下界不对）；
 //     而★**它更坏的一面**：★若为了跑绿而把 58 改小 ⇒ ★删乙类断言也会放行 ✗
-export const MIN_ASSERTIONS_ENGINE = 12;
+export const MIN_ASSERTIONS_ENGINE = 33;
 export const MIN_ASSERTIONS_STORY = 58;
 // 跳过时该退什么码（纯函数，便于自证）
 export const skipVerdict = (requireBrowser) => (requireBrowser
@@ -313,7 +313,11 @@ const loadFresh = async (story = null) => {
 	//（那类失败看起来像布局回归，实际是"测试跑错了产物"——本仓最贵的一种假红）。
 	// ★ `#1532`：★引擎层（零故事 / ★无正式故事页）跑**书架页**（`dist/index.html`）——
 	//   ★甲类断言（字体／版式）全在书架页上成立 ✓（★✗ 再要求"故事页" ✗）
-	const goShelf = !runsStory || !DEFAULT_SLUG;
+	// ★ `#1532`（修）：★**只有“没有指定故事”时才走书架页** ——
+	//   ★我第一版写成 `!runsStory || !DEFAULT_SLUG` ⇒ ★**丙类传了 `SB` 也被拉到书架页** ✗
+	//     （★实测：侧栏无血量条、链接数 0 —— ★因为根本没进故事页 ✗）
+	//   ★正解：★`goShelf = story == null && (!runsStory || !DEFAULT_SLUG)`（★**给了故事就去故事页** ✓）
+	const goShelf = story == null && (!runsStory || !DEFAULT_SLUG);
 	await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/${goShelf ? 'index.html' : storyRelPath(story ?? undefined)}` });
 	for (let i = 0; i < 40; i++) {
 		await sleep(250);
@@ -626,12 +630,19 @@ for (const [W, H] of VP) {
 
 // ── `#491` 判据 5：**第三个故事**的真机三视口（本故事自己的一遍；故事 1 的用例不套用）──
 {
+	// ★ `#1532`：★丙类（无车卡最小面）⇒ ★归**引擎层**（★用仓内夹具 ⇒ ✗ 不需真故事 ✓）
+	if (runsEngine) {
 	// `#1004` B2b 复核席按**裁定 A** 重指：这一块测的是「**无车卡的故事**也要有最小面（血量/物品栏）＋
 	// 多选一可点 ＋ 200% 不溢出」 —— `hollow-cave` 已删 → 换到同样**无车卡**的冒烟故事 `minimal-demo`
 	//（它的入口是 `开场`、多选一在 `岔路`）。
-	const SB = 'minimal-demo';
+	// ★★ `#1532`（`#1516` C 案、丙类）：★本块测的是「**无车卡的故事也要有最小面**」
+	//   （侧栏血量条／物品栏／三选一／200% 不溢出）—— ★**先前点的 `minimal-demo` 是 books 侧故事**（仓内无）
+	//   ⇒ ★★改指**仓内最小夹具** `nocar-basic`（`test/fixtures/m3-nocar-fixture`）——
+	//   ★它正是为这一面建的（无车卡 ＋ `vitals` 走引擎 `BUILTIN` 缺省 ＋ 三路 ✓）
+	//   ★归层：★丙类（形状通用、取值来自最小夹具）⇒ ★**跟 `runsEngine`（引擎层）一起跑** ✓
+	const SB = 'nocar-basic';
 	if (!existsSync(storyHtml(SB))) {
-		console.log(`\n（跳过故事 2 真机：${storyHtml(SB)} 不存在——先 npm run build）`);
+		console.log(`\n（跳过无车卡最小面真机：${storyHtml(SB)} 不存在——先 npm run build）`);
 	} else {
 		console.log('\n══ 故事 2 真机三视口（#491 判据 5／无名洞窟）══');
 		for (const [W, H] of VP) {
@@ -661,6 +672,8 @@ for (const [W, H] of VP) {
 		}
 	}
 }
+
+	}
 
 // #284①：键盘序列（真机按键）——单视口做即可，走 390×844
 // ★ `#1532`：★本块属**乙类**（它 `enter('女巫小屋')`）⇒ ★加 `runsStory` 闸 ✓

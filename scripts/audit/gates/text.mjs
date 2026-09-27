@@ -15,8 +15,15 @@ export const flags = ["text"];
 //   ★扩展/改枚举 ⇒ **只改这一行** ✓（✗ 不必去追正则副本 ✓）。
 export const PAYLOAD_LEVELS = Object.freeze(['信息', '张力', '选择']);
 // ★正则也**派生**（转义防未来枚举含正则元字符；分隔符 `|`／全角 `｜` 两种都认 ✓）
-const PAYLOAD_ALT = PAYLOAD_LEVELS.map((v) => v.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
-const PAYLOAD_RE = new RegExp('payload:\\s*(?:' + PAYLOAD_ALT + ')(?:[|｜](?:' + PAYLOAD_ALT + '))*');
+// ★★ `#1526` CR（同族“判据不能假”）：★收成**可注入**的工厂 ——
+//   ★理由：★自证格若**自己另拼一个临时正则** ⇒ ★与**判据本体**无关
+//     ⇒ ★刀（判据本体改拄字面量）⇒ **格仍绿** ✗（同义反复）
+//   ★修：★本体的正则由 `makePayloadRe(levels)` 生成 ⇒ ★格**换声明再调本体** ⇒ ★判据必须跟变 ✓
+export const makePayloadRe = (levels = PAYLOAD_LEVELS) => {
+	const alt = levels.map((v) => String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+	return new RegExp('payload:\\s*(?:' + alt + ')(?:[|｜](?:' + alt + '))*');
+};
+const PAYLOAD_RE = makePayloadRe();
 
 // ── 纯函数（供自证喂合成数据；判据与真实运行**同一份代码**）──
 // ① 载荷标注：内容段落（非 infra）必须有 `payload:` 标注
@@ -34,11 +41,14 @@ export const buildNarrative = (entries, isInfra) => {
 	return out;
 };
 
-export const judgePayloads = (entries, isInfra) => {
+// ★ `#1526` CR：★**可注入正则**（默认＝本体的 `PAYLOAD_RE`）——
+//   ★为什么：★自证格若**自己另拼正则** ⇒ ★它验的是那个临时正则（同义反复）✗
+//   ★修：★格**把“换了声明的正则”注入判据本体** ⇒ ★本体若不用该参数（改拄字面量）⇒ **格红** ✓
+export const judgePayloads = (entries, isInfra, re = PAYLOAD_RE) => {
 	const out = [];
 	for (const [name, src] of entries) {
 		if (isInfra(name)) continue;
-		const m = String(src).match(PAYLOAD_RE);
+		const m = String(src).match(re);
 		if (!m) out.push({ name, why: '缺 payload 标注' });
 	}
 	return out;
@@ -85,13 +95,18 @@ if (wantAll || arg('text')) {
 			['正例：组合形（全角 `｜`）从声明派生 ✓', judgePayloads([['P', '/% payload: 信息｜选择 %/正文']], isInfra), 0],
 			['反例③ ★枚举外值（`氛围`）⇒ 仍判缺（✗ 未宣告的值不认 ✓）', judgePayloads([['P', '/% payload: 氛围 %/正文']], isInfra), 1],
 			// ★★**能假**格：临时**加一个枚举项**（派生的正则**必须**跟着认）⇒ 加完不认 ⇒ 本格红 ✓
-			['★★派生格：枚举加 `氛围` ⇒ 判据**当场跟认**（✗ 若判据另抄字面量 ⇒ 本格红 ✓）',
-				(() => { const bak = PAYLOAD_LEVELS; const alt = ['信息', '张力', '选择', '氛围'];
-					const re = new RegExp('payload:\\s*(?:' + alt.join('|') + ')(?:[|｜](?:' + alt.join('|') + '))*');
-					const hit = re.test('/% payload: 氛围 %/正文');
-					// ★且**当前**声明确实只三值（✗ 不是"碰巧认"）
-					const cur = PAYLOAD_LEVELS.length === 3 && !PAYLOAD_LEVELS.includes('氛围');
-					return hit && cur; })() ? [] : [1], 0],
+			// ★★派生格（**非同义反复**）：★**换声明再调判据本体**。
+			//   ★判法：★声明换成 `[...、氛围]` ⇒ `makePayloadRe(新声明)`（★**本体**）
+			//     对 `/% payload: 氛围 %/` **必须认** ✓（★若判据另拄字面量 ⇒ 本格**红** ✗）
+			//   ★且旧声明对同一输入**不应认**（★证明“是声明在管” ✓）
+			// ★★派生格（**非同义反复**）：★**把“换了声明的正则”注入 `judgePayloads` 本体**。
+			//   ★判法：★声明换成 `[..., 氛围]` ⇒ ★对 `/% payload: 氛围 %/` 本体**必须认**（检出 0）✓
+			//     ★而旧声明（默认参）对同一输入**不应认**（检出 1）（★证明“是声明在管”✓）
+			//   ★★**能假**：★若本体不用 `re`（改拄字面量）⇒ ★本格**当场红** ✗（★这才是“判据不能假”的形 ✓）
+			['★★派生格：换声明 ⇒ 判据**本体跟变**',
+				(() => { const withNew = judgePayloads([['P', '/% payload: 氛围 %/正文']], isInfra, makePayloadRe(['信息', '张力', '选择', '氛围']));
+					const withOld = judgePayloads([['P', '/% payload: 氛围 %/正文']], isInfra);
+					return withNew.length === 0 && withOld.length === 1; })() ? [] : [1], 0],
 			['正例：干净正文无套路句式', judgeCliche('他走进林子', ['如潮水', '不由得']), 0],
 			['反例②：命中套路句式', judgeCliche('心跳如潮水', ['如潮水', '不由得']), 1],
 			['正例：黑名单外不算', judgeBlacklist(['a.twee'], ['星官'], readOf), 0],

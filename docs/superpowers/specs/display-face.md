@@ -64,7 +64,7 @@
 
 ```
 Sg.draw.bar({ value, max, label?, style? })     ← 一个数落在一段区间里（本方案起步件①）
-Sg.draw.list({ items, empty? })                 ← 一元列表（起步件②）
+Sg.draw.list({ items, label?, empty?, sep? })   ← 一元列表（起步件②；`label`＝块标题 `#1560`）
 ★声明里的 `as` ＝"用哪个原语"（✗ 用 `mount` —— 它与 `slot`（放哪）近义，两词会互相拉扯）
 （Sg.draw.group({ title?, parts: […] })         ← 组合/嵌套 —— ★待执行票定（Q3））
 ```
@@ -88,7 +88,7 @@ Sg.draw.list({ items, empty? })                 ← 一元列表（起步件②�
     "props": [ { "valueKey": "hp", "maxKey": "max_hp", "label": "生命",
                  "style": { "fill": "#d1495b", "track": "#eeeeee" } } ] },
   { "as": "list", "slot": "sidebar.primary",
-    "props": [ { "valueKey": "inv", "empty": "（空）" } ] }
+    "props": [ { "valueKey": "inv", "label": "物品栏", "empty": "（空）" } ] }
 ] }
 ```
 
@@ -98,12 +98,16 @@ Sg.draw.list({ items, empty? })                 ← 一元列表（起步件②�
 |---|---|---|
 | **block** | `as` · `slot` · `props` | `slot` 是**块**的属性（决定这一块挂哪）；✗ 缺省 ⇒ `sidebar.primary` |
 | **`bar` 的 prop** | `valueKey` · `maxKey` · `label` · `style` | `style` 是**对象** `{fill?, track?, showNumbers?}` |
-| **`list` 的 prop** | `valueKey` · `empty` · `sep` | ✗ 没有 `maxKey`（一元列表无上界）|
+| **`list` 的 prop** | `valueKey` · `label` · `empty` · `sep` | ✗ 没有 `maxKey`（一元列表无上界）；★`label`（`#1560`）＝**块标题**，与 `bar` 的 `label` **对称** |
 
-★★**两条要写明（本轮实测出来的"静默无效键"）**：
-1. **prop 上的 `slot` ✗ 不读** —— 它只被当**块**的属性消费（`Sg.panels.renderSlot` 读 `block.slot`）。
+★★**三条要写明（本轮实测出来的"静默无效键" ＋ `#1560` 的键族区分）**：
+1. **`label`／`empty`／`sep` 是「文案」，`valueKey`／`maxKey` 是「键名」** —— 两组不同族：
+   文案**原样画**（✗ 引擎不去 `pc` 里找它），键名**必须真存在于 `pc`**（取不到 ⇒ 该块不产字节）✓。
+   ★`label` 是 `#1560` 补的（P3 迁移把侧栏内置的「物品栏」标题丢了：`list` 原先**无**标题维 ⇒
+   "**声明面表达不了实现面曾有的东西**"；补它的判据＝与 `bar` 已有 `label` **对称**）。
+2. **prop 上的 `slot` ✗ 不读** —— 它只被当**块**的属性消费（`Sg.panels.renderSlot` 读 `block.slot`）。
    ⇒ 写在 prop 上**不报错、也不生效**（落回缺省 `sidebar.primary`）。★照旧示例抄的人会写两个静默无效的键。
-2. **`style` ✗ 收字符串** —— 实现只认**对象**形（`{fill?, track?, showNumbers?}`）。
+3. **`style` ✗ 收字符串** —— 实现只认**对象**形（`{fill?, track?, showNumbers?}`）。
    ⇒ 写 `"style": "hp"` 与**不传 `style`** 逐字相同（实测：两串相等），
    而 §2.1 红线④**禁引擎内置配色** ⇒ `'hp'` 在**任何地方都不可能**被解成配色 ✗。
 

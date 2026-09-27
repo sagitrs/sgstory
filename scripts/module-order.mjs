@@ -62,7 +62,9 @@ export const ORDER = [
 	// → 不登记就会把 12-hooks/13-codex/… 提到段落面之前（实测：产物段序 @4 起整块位移）。
 	// `#1132` 片 3：夜渡 11 段叙事迁 md（**原段序** 逐字无损；`00-meta.twee` **不动** → 等片 B 同闸同批）
 	'src/80-script.twee',    // 存档 API / Sg.notes / Sg.Ending ＋ 渲染后处理（**引擎层**，`#574` 修正 layer）
-	'src/engine/50-present/12-shortfight.twee',   // 短战斗 widget（#608：从故事侧上移）
+	'src/engine/50-present/12-shortfight.twee',
+	'src/engine/50-present/13-draw.twee',     // 图形原语（`#1534` P1：`Sg.draw.bar`／`list` —— 无领域语义）
+   // 短战斗 widget（#608：从故事侧上移）
 	'src/engine/50-present/90-style.twee',     // 纯 CSS
 	// `#1175`：minimal-demo 5 段叙事迁 md（原段序，逐字无损）
 	// ── 第三个故事（#490 S5「无名洞窟」雏形）：同样按相对位置交错登记 ──

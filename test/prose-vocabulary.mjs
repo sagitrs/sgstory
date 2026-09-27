@@ -182,32 +182,41 @@ export const proseVocabProblems = ({ slug, files, vocab }) => {
 			const isProse = !p.tags.some((t) => ['script', 'widget', 'stylesheet'].includes(t));
 			if (!isProse) continue;
 			for (const { text, line } of stripCommentSpans(p.bodyLines)) {
-				for (const m of text.matchAll(/<<(-?[A-Za-z=!][A-Za-z0-9_-]*)/g)) {
-					const name = m[1];
-					if (FORBIDDEN_BUILTINS.has(name)) {
-						out.push({ code: 'V1', file: f.path, line, macro: name, msg: `${f.path}:${line} 正文里出现**逻辑/表达式**宏 \`<<${name}>>\`（段落「${p.name}」）—— 作者不写代码（甲-1）；机制动作请走**词汇宏**或**声明表**` });
-						continue;
-					}
-					if (ALLOWED_BUILTINS.has(name)) continue;
-					if (vocab.has(name)) continue;
-					out.push({ code: 'V2', file: f.path, line, macro: name, msg: `${f.path}:${line} 正文里出现**引擎未宣告**的宏 \`<<${name}>>\`（段落「${p.name}」）—— 未登记＝不可审；要新增词汇宏 ⇒ 在引擎宣告（\`<<widget>>\`／\`Macro.add\`）＋ 票内说明理由` });
-				}
-				// ★★ `#1508`（P6 门翻转 · 零白名单终态）：**散文里出现任何 `<<…>>` ⇒ 红**（✗ 不看是否已宣告）。
+				// ★★ `#1508` CR（tester-4）：★**一次提取，两处消费**（✗ 旧写法「同一门两套口径」）
+				//   旧：V1/V2 按**名字**扫（`/<<(-?[A-Za-z=!]…)/`），P6 按**整串**扫（`/<<[^>]*>>/`）
+				//   ⇒ ★`[^>]*` 遇**参数里含 `>`** 的宏（`<<give "a > b">>`）⇒ P6 **命中 0**；
+				//     而名字扫命中 `give` ⇒ 已宣告 ⇒ V1/V2 **放过** ⇒ ★★**三道门都不接** ✗（实测复现）
+				//   ⇒ ★正解：★**配对**正则 `/<<[\s\S]*?>>/g` 提一次 ⇒ 名字从匹配串**派生**（供 V1/V2）＋整串（供 P6）✓
+				// ★★ `#1508`（P6 门翻转 · 零白名单终态）：**散文出现任何 `<<…>>` 宏 或 `/% payload: … %/` 标记 ⇒ 红**
 				//   ★理由：`#1505`／`#1506` 已把 sitecheck/snapshot/payload 与 fight 三族搬到**段级字段 ＋ 编译期注入**
-				//     ⇒ ★故事段里**不再需要手写宏** ⇒ ★出现即残留（✗ 无白名单可放行 ✓）。
-				//   ★与 V1/V2 的关系：那两条是"**宣告面**"判据（未宣告/逻辑宏）⇒ 都有**白名单**；P6 是"**形态面**"⇒ **零白名单** ✓
-				//     ⇒ ★终态下 P6 先红、V1/V2 不再触发（★它们的白名单随本次翻转**失效** ✓ 另票清死码）。
-				//   ★口径：★只判**散文段**（`isProse` 已滤 script/widget/stylesheet ✓）；★`payload` 标记被 `stripCommentSpans` 保留
-				//     ⇒ ★`/% payload: … %/` 也会被抓（★正合"零标记终态" ✓）。
+				//     ⇒ 故事段里**不再需要手写宏** ⇒ 出现即残留（✗ 无白名单可放行）。
+				//   ★口径：只判**散文段**（`isProse` 已滤 script/widget/stylesheet）。
+				//   ★与 V1/V2：那两条是**宣告面**（有白名单）；P6 是**形态面**（零白名单）⇒ 终态下 P6 先红、V1/V2 不再触发。
 				// ★★ 标记那一半：`/% payload: … %/` 由 `stripCommentSpans` **整体摘掉**（`text:''`）⇒ `text` 里**看不到它** ✗
-				//   ★故必须另扫**原始行**（`p.bodyLines`）—— 否则“零标记终态”无人守✗（实测：我第一版 P6 只扫 `text` ⇒ payload 标记格**当场红**）
+				//   ★故必须另扫**原始行**（`p.bodyLines`）—— 否则"零标记终态"无人守 ✗
+				//   （实测：我第一版 P6 只扫 `text` ⇒ payload 标记那格**当场红** ✓）
 				for (const { text: rawLine, line: rawNo } of p.bodyLines) {
 					if (/%\s*payload:/.test(rawLine)) {
-						out.push({ code: 'P6', msg: `${f.path}:${rawNo} 正文里出现**payload 标记** \`/% payload: … %/\`（段落「${p.name}」）—— ★\`#1508\` 终态：**零标记**（负荷走**段级字段** ⇒ 编译期注入）✗ 手写` });
+						out.push({ code: 'P6', msg: `${f.path}:${rawNo} 正文里出现**payload 标记** \`/% payload: … %/\`（段落「${p.name}」）—— ★\`#1508\` 终态：**零标记**（负荷走**段级字段 ⇒ 编译期注入**）✗ 手写` });
 					}
 				}
-				for (const m of text.matchAll(/<<[^>]*>>/g)) {
-				out.push({ code: 'P6', msg: `${f.path}:${line} 正文里出现**宏** \`${m[0].slice(0, 40)}…\`（段落「${p.name}」）—— ★\`#1508\` 终态：**散文零宏**（检定/战术/载荷一律走**段级字段 ＋ 编译期注入**）✗ 手写` });
+				const MACRO_RE = /<<[\s\S]*?>>/g;
+				const NAME_OF = /^<<\s*(-?[A-Za-z=!][A-Za-z0-9_-]*)/;
+				for (const m of text.matchAll(MACRO_RE)) {
+					const name = NAME_OF.exec(m[0])?.[1] ?? '';
+					// ── 第一档（V1/V2，**宣告面**；★终态下由 P6 兜底，本档保留到"清死码"那一票）──
+					if (FORBIDDEN_BUILTINS.has(name)) {
+						out.push({ code: 'V1', file: f.path, line, macro: name, msg: `${f.path}:${line} 正文里出现**逻辑/表达式**宏 \`${m[0].slice(0, 40)}\`（段落「${p.name}」）—— 作者不写控制流（迁移规则 \`#1114\` 片1前置②：状态进 data/、控制流进记录）` });
+					} else if (!ALLOWED_BUILTINS.has(name) && !vocab.has(name)) {
+						out.push({ code: 'V2', file: f.path, line, macro: name, msg: `${f.path}:${line} 正文里出现**引擎未宣告**的宏 \`${m[0].slice(0, 40)}\`（段落「${p.name}」）—— 未登记＝不可审；要新增词汇宏 ⇒ 在引擎宣告（\`<<widget>>\`／\`Macro.add\`）＋票内说明理由` });
+					}
+					// ── P6（**形态面**，零白名单）──
+						out.push({ code: 'P6', msg: `${f.path}:${line} 正文里出现**宏** \`${m[0].slice(0, 40)}\`（段落「${p.name}」）—— ★\`#1508\` 终态：**散文零宏**（检定/战术/载荷一律走**段级字段 ⇒ 编译期注入**）✗ 手写` });
+				}
+				// ★★ 未配对的 `<<`（✗ 配对正则吃不到的：未闭合）⇒ ★P6 也要红
+				//   ★理由：「零宏」若只算配对形 ⇒ ★`<<give`（已宣告且未闭合）三道门都不接 ✗
+				if (text.replace(MACRO_RE, '').includes('<<')) {
+						out.push({ code: 'P6', msg: `${f.path}:${line} 正文里出现**未闭合/残留的 \`<<\`**（段落「${p.name}」）—— ★\`#1508\` 终态：**散文零宏**✗ 手写` });
 				}
 			}
 		}
@@ -315,6 +324,10 @@ const selftest = () => {
 		proseVocabProblems({ slug: 'demo', vocab, files: mk('/% 第一行\n   <<set $x to 1>> 第二行 %/\n正文') }).length === 0);
 	t('正例：`[script]` 段落里的宏**不判**（非散文）',
 		proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'p.twee', text: ':: StoryHooks [script]\nwindow.Sg ??= {};\n<<set $x to 1>>\n' }] }).length === 0);
+	t('🔴 P6 反例：★**参数里含 `>`** 的已宣告宏也报（★tester-4 CR：`[^>]*` 会**漏**这种）',
+		proseVocabProblems({ slug: 'demo', vocab, files: mk('<<give " ⚠ > ⚠">>') }).some((q) => q.code === 'P6'));
+	t('🔴 P6 反例：★**未闭合**的 `<<give`（已宣告）也报（★否则三道门都不接）',
+		proseVocabProblems({ slug: 'demo', vocab, files: mk('正文 <<give "x" 后面没闭') }).some((q) => q.code === 'P6'));
 	t('反例：`[widget]` 段落**不判**（同上）',
 		proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'p.twee', text: ':: W [widget]\n<<widget "z">><<set $x to 1>><</widget>>\n' }] }).length === 0);
 	t('边界：正文里**没有宏** ⇒ 0 问题', proseVocabProblems({ slug: 'demo', vocab, files: mk('只有散文。') }).length === 0);

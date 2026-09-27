@@ -53,6 +53,13 @@ export const parseFrontMatter = (text) => {
  * 返回统一形态：`{ name, tags, body, bodyLines:[{text, line}], line}`（两路消费者共用）。 */
 export const isStoryPassageMdPath = (rel) => /^stories\/[^/]+\/passages\/.*\.md$/.test(String(rel));
 
+/** ★ `#1505`／`#1506`（评审 NIT-1）：**注入宏串的字面量转义口**（**唯一一处** —— 段级 `check`／`fight` 共用）。
+ * 三条（顺序有意义）：① `\` **必须先于** `"`（反斜杠会吃掉紧随的那个字符 ⇒ 顺序错＝转义当场失效）；
+ * ② `"` 会**提前闭合宏串**（后半段变宏语法/散文）；③ 换行/回车会把宏**拆成两半**（行式解析）。
+ * ★为什么抽成模块级：本笔初版两处各写一份同链复制 ⇒ ★**注释声称"同一个口"而代码是两份**
+ *   ⇒ ★将来给一处加规则（如转义 `$`／`<<`）另一处不同步＝静默漂移 ✗（两席都点了这条）✓。 */
+export const escapeMacroArg = (x) => String(x).trim().replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\r\n]+/g, ' ');
+
 /** twee 的段头切段（`:: 名 [tags] {meta}` → 段对象）。**纯函数**。 */
 export const parseTweePassages = (text) => {
 	const lines = String(text).split('\n');
@@ -326,10 +333,8 @@ export const applyPassageTransforms = ({ name, body, terms = new Set(), params =
 	//     ⇒ 声明 `check` 即**一并注入**（✗ 不让作者写两个字段 —— 它们永远成对 ✓）。
 	//   ★空/缺省 ⇒ **不动**（零破坏 ✓）。
 	if (check != null && String(check).trim() !== '') {
-		// ★ 转义：★`"` 会提前闭合宏串（T 的非阻断加固建议）＋ ★`\\`（反斜杠本身会吃掉后续字符 ⇒ 必须先于 `"`）
-		//   ＋ ★换行/回车（行式解析里会把宏拆成两半 ⇒ 后半段变散文泄漏给玩家 ✓）
-		const site = String(check).trim().replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\r\n]+/g, ' ');
-		expanded = `<<sitecheck "${site}">><<snapshot>>\n${expanded}`;
+		// ★ 转义走**模块级唯一口**（`escapeMacroArg`）—— ✗ 不在此内联一份（评审 NIT-1：注释说"同一个口"而代码两份 ✗）
+		expanded = `<<sitecheck "${escapeMacroArg(check)}">><<snapshot>>\n${expanded}`;
 	}
 	// ★ `#1506`：段级字段 **`fight`** —— 「这一段入口是一场战斗」（原散文写法 `<<fightbegin "池">>\n<<fightlog>>\n`
 	//   `<<fightpanel "池" N won "去向">>` 三行）。
@@ -342,28 +347,42 @@ export const applyPassageTransforms = ({ name, body, terms = new Set(), params =
 	//     · `turns` 必须是**有限数**（它是「打满 N 回合」的机械事实 ⇒ 写 "三" 这种词是数据错，点名 ✓）
 	//   ★**行为等价**（票面验收）：注入的三行与作者今日手写的三行**逐字同形** ⇒ `fightpanel-turns`／`combat-adv`
 	//     两条端到端的格**逐条不变**即可证 ✓（✗ 不靠"看起来像" ✓）。
-	if (fight != null && typeof fight === 'object' && !Array.isArray(fight)) {
-		// 转义与 `check` **同一套**（引号／反斜杠／换行 —— 三处都过同一个口，✗ 不各写一份 ✓）
-		const esc = (x) => String(x).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\r\n]+/g, ' ');
-		const pool = String(fight.pool ?? '').trim();
-		if (!pool) {
-			problems.push('段「' + name + '」的段级 `fight` **缺 `pool`**（或为空）—— 战斗池名是 `<<fightbegin>>` 的第一个参'
-				+ '数，缺它注入的宏串无对象 ✗ ⇒ 补 `fight: { pool: "<池名>" }`（✗ 不静默注入半个宏 ✓）');
+	//   ★★`#1543` CR（**门禁级**）：★**类型错必须是 fail-loud** —— 初版这一支是
+	//     `fight != null && typeof fight === 'object' && !Array.isArray(fight)` ⇒ ★非对象形态（`'雾影'`／`['雾影']`／`3`）
+	//     **不点名、不注入、build rc=0** ⇒ ★产物里那一段**没有战斗**，而它与"作者本就不想要战斗"**读数完全相同**
+	//     ⇒ ★Testability Gate ②（success observability）不成立 ✗。
+	//     ★手误可预期：相邻字段 `check` 是**字符串**（`check: "里屋·察觉"`）而 `fight` 是**对象** ⇒
+	//     作者照 `check` 的样子写 `fight: "雾影"` 是很自然的一步，且**没有反馈** ✗。
+	//     ⇒ ★本处改写：**存在但非对象 ⇒ 点名**（与"`pool` 缺/空"同一族：✗ 不静默产坏产物 ✓）。
+	if (fight != null) {
+		if (typeof fight !== 'object' || Array.isArray(fight)) {
+			problems.push('段「' + name + '」的段级 `fight` 必须是**对象**（拿到 '
+				+ (Array.isArray(fight) ? 'array' : typeof fight) + ' ' + JSON.stringify(fight) + '）——'
+				+ ' 写法是 `fight: { pool: "<池名>", turns?, result?, dest? }`'
+				+ '（★它是**对象**，✗ 不是字符串 —— 与相邻字段 `check` 的形**不同**）'
+				+ ' ⇒ ✗ 静默跳过会让"这一段本就不打架"与"声明被忽略"**读数完全相同**（那一段就没有战斗 ✓）');
 		} else {
-			const hasTurns = fight.turns != null && fight.turns !== '';
-			if (hasTurns && !Number.isFinite(Number(fight.turns))) {
-				problems.push('段「' + name + '」的段级 `fight.turns` 不是**有限数**（拿到 '
-					+ JSON.stringify(fight.turns) + '）—— 它是「打满 N 回合即收尾」的**机械事实**（回合数）✗ 不是文案 ⇒ 给个数 ✓');
+			const pool = String(fight.pool ?? '').trim();
+			if (!pool) {
+				problems.push('段「' + name + '」的段级 `fight` **缺 `pool`**（或为空）—— 战斗池名是 `<<fightbegin>>` 的第一个参'
+					+ '数，缺它注入的宏串无对象 ✗ ⇒ 补 `fight: { pool: "<池名>" }`（✗ 不静默注入半个宏 ✓）');
+			} else {
+				const hasTurns = fight.turns != null && fight.turns !== '';
+				if (hasTurns && !Number.isFinite(Number(fight.turns))) {
+					problems.push('段「' + name + '」的段级 `fight.turns` 不是**有限数**（拿到 '
+						+ JSON.stringify(fight.turns) + '）—— 它是「打满 N 回合即收尾」的**机械事实**（回合数）✗ 不是文案 ⇒ 给个数 ✓');
+				}
+				const result = fight.result != null && String(fight.result).trim() !== '' ? String(fight.result).trim() : '';
+				const dest = fight.dest != null && String(fight.dest).trim() !== '' ? String(fight.dest).trim() : '';
+				// ★ 只有真给过值时**才补空槽**（全缺 ⇒ 收成两参形 `<<fightpanel "池">>`，与今天手写常见形同 ✓）
+				const P = escapeMacroArg(pool);
+				let panel;
+				if (dest) panel = `<<fightpanel "${P}" ${hasTurns ? Number(fight.turns) : 'null'} ${result ? escapeMacroArg(result) : 'null'} "${escapeMacroArg(dest)}">>`;
+				else if (result) panel = `<<fightpanel "${P}" ${hasTurns ? Number(fight.turns) : 'null'} ${escapeMacroArg(result)}>>`;
+				else if (hasTurns) panel = `<<fightpanel "${P}" ${Number(fight.turns)}>>`;
+				else panel = `<<fightpanel "${P}">>`;
+				expanded = `<<fightbegin "${P}">><<fightlog>>${panel}\n${expanded}`;
 			}
-			const result = fight.result != null && String(fight.result).trim() !== '' ? String(fight.result).trim() : '';
-			const dest = fight.dest != null && String(fight.dest).trim() !== '' ? String(fight.dest).trim() : '';
-			// ★ 只有真给过值时**才补空槽**（全缺 ⇒ 收成两参形 `<<fightpanel "池">>`，与今天手写常见形同 ✓）
-			let panel;
-			if (dest) panel = `<<fightpanel "${esc(pool)}" ${hasTurns ? Number(fight.turns) : 'null'} ${result ? esc(result) : 'null'} "${esc(dest)}">>`;
-			else if (result) panel = `<<fightpanel "${esc(pool)}" ${hasTurns ? Number(fight.turns) : 'null'} ${esc(result)}>>`;
-			else if (hasTurns) panel = `<<fightpanel "${esc(pool)}" ${Number(fight.turns)}>>`;
-			else panel = `<<fightpanel "${esc(pool)}">>`;
-			expanded = `<<fightbegin "${esc(pool)}">><<fightlog>>${panel}\n${expanded}`;
 		}
 	}
 	if (ending && typeof ending === 'object') {

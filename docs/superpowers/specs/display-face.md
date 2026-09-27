@@ -84,11 +84,28 @@ Sg.draw.list({ items, empty? })                 ← 一元列表（起步件②�
 ```jsonc
 // data/contract.json 的 members 里新增（形状草案，待执行票细化；`as`＝原语、`slot`＝位置）
 { "name": "panels", "kind": "const", "value": [
-  { "as": "bar",  "props": [ { "slot": "sidebar.primary", "valueKey": "hp", "maxKey": "max_hp",
-                               "label": "生命", "style": "hp" } ] },
-  { "as": "list", "props": [ { "slot": "sidebar.primary", "valueKey": "inv", "empty": "（空）" } ] }
+  { "as": "bar",  "slot": "sidebar.primary",
+    "props": [ { "valueKey": "hp", "maxKey": "max_hp", "label": "生命",
+                 "style": { "fill": "#d1495b", "track": "#eeeeee" } } ] },
+  { "as": "list", "slot": "sidebar.primary",
+    "props": [ { "valueKey": "inv", "empty": "（空）" } ] }
 ] }
 ```
+
+★**被消费的键**（**声明面 ≡ 实现面** —— 照本示例抄的人只会写到**真生效**的键）：
+
+| 层 | 被消费的键 | 备注 |
+|---|---|---|
+| **block** | `as` · `slot` · `props` | `slot` 是**块**的属性（决定这一块挂哪）；✗ 缺省 ⇒ `sidebar.primary` |
+| **`bar` 的 prop** | `valueKey` · `maxKey` · `label` · `style` | `style` 是**对象** `{fill?, track?, showNumbers?}` |
+| **`list` 的 prop** | `valueKey` · `empty` · `sep` | ✗ 没有 `maxKey`（一元列表无上界）|
+
+★★**两条要写明（本轮实测出来的"静默无效键"）**：
+1. **prop 上的 `slot` ✗ 不读** —— 它只被当**块**的属性消费（`Sg.panels.renderSlot` 读 `block.slot`）。
+   ⇒ 写在 prop 上**不报错、也不生效**（落回缺省 `sidebar.primary`）。★照旧示例抄的人会写两个静默无效的键。
+2. **`style` ✗ 收字符串** —— 实现只认**对象**形（`{fill?, track?, showNumbers?}`）。
+   ⇒ 写 `"style": "hp"` 与**不传 `style`** 逐字相同（实测：两串相等），
+   而 §2.1 红线④**禁引擎内置配色** ⇒ `'hp'` 在**任何地方都不可能**被解成配色 ✗。
 
 ★**关键**：`valueKey`／`maxKey`／`label`／`style` **全在故事数据** ⇒ 引擎只说"拿 `bar` 去画 `props` 里这几个数"
 ★**命名口径（`max` ✗ 用）**：`valueKey`／`maxKey` 都以 **`Key` 后缀**写明"这装的是**键名**，✗ 是数" ——

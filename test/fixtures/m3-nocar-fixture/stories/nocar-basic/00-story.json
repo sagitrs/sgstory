@@ -1,0 +1,17 @@
+{
+ "slug": "nocar-basic",
+ "title": "无车卡最小夹具",
+ "subtitle": "引擎侧最小夹具（`#1532`）：服务「无车卡故事的最小面」判据（侧栏血量条／物品栏／三选一／200% 不溢出）",
+ "entry": "开场",
+ "contractVersion": 1,
+ "audience": "internal",
+ "files": [
+  "stories/nocar-basic/00-meta.twee",
+  "stories/nocar-basic/passages/01-开场.md",
+  "stories/nocar-basic/passages/02-岔路.md",
+  "stories/nocar-basic/passages/03-尽头.md",
+  "stories/nocar-basic/15-tables.twee",
+  "stories/nocar-basic/17-rules.twee"
+ ],
+ "gates": []
+}

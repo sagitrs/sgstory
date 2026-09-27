@@ -65,6 +65,7 @@
 ```
 Sg.ui.bar({ value, max, label?, style? })     ← 一个数落在一段区间里（本方案起步件①）
 Sg.ui.list({ items, empty? })                 ← 一元列表（起步件②）
+★声明里的 `as` ＝"用哪个原语"（✗ 用 `mount` —— 它与 `slot`（放哪）近义，两词会互相拉扯）
 （Sg.ui.group({ title?, parts: […] })         ← 组合/嵌套 —— ★待执行票定（Q3））
 ```
 
@@ -73,22 +74,26 @@ Sg.ui.list({ items, empty? })                 ← 一元列表（起步件②）
 ```
 ① ★原语实现里 ✗ 许出现领域词：`hp`／`gold`／`inventory`／`gear`／`status`（扫 `Sg.ui.*` 的实现体）
 ② ★原语入参**只接受已算好的值**（`value`／`max`／`items`）—— ✗ 自己不知道去 `pc` 里取哪个键
-③ ★"没数据 ⇒ 不渲染"由**原语统一处理**（空 `items` ⇒ 不产字节；✗ 不是印 `（空）` 或 `$pc.x`）
+③ ★"没数据 ⇒ 不渲染"由**原语统一处理**：空 `items` ⇒ **不产字节** ——
+   ★**引擎 ✗ 自造空文案**（✗ 印 `（空）` ✗ 印 `$pc.x`）★但**故事可显式**给 `empty`（那是故事的字，✗ 引擎的）
 ④ ★样式（颜色阈值／图标／分隔符）**全部**由 `style` 传入或取数据面缺省 —— ✗ 引擎不内置三档配色
 ```
 
 ### 2.2 故事侧：契约成员 `panels`（声明维）
 
 ```jsonc
-// data/contract.json 的 members 里新增（形状草案，待执行票细化）
+// data/contract.json 的 members 里新增（形状草案，待执行票细化；`as`＝原语、`slot`＝位置）
 { "name": "panels", "kind": "const", "value": [
-  { "mount": "bar",  "props": [ { "slot": "sidebar.primary", "key": "hp", "max": "max_hp",
-                                  "label": "生命", "style": "hp" } ] },
-  { "mount": "list", "props": [ { "slot": "sidebar.primary", "key": "inv", "empty": "（空）" } ] }
+  { "as": "bar",  "props": [ { "slot": "sidebar.primary", "valueKey": "hp", "maxKey": "max_hp",
+                               "label": "生命", "style": "hp" } ] },
+  { "as": "list", "props": [ { "slot": "sidebar.primary", "valueKey": "inv", "empty": "（空）" } ] }
 ] }
 ```
 
-★**关键**：`key`／`max`／`label`／`style` **全在故事数据** ⇒ 引擎只说"拿 `bar` 去画 `props` 里这几个数"
+★**关键**：`valueKey`／`maxKey`／`label`／`style` **全在故事数据** ⇒ 引擎只说"拿 `bar` 去画 `props` 里这几个数"
+★**命名口径（`max` ✗ 用）**：`valueKey`／`maxKey` 都以 **`Key` 后缀**写明"这装的是**键名**，✗ 是数" ——
+  ★与既有量纲族口径**同族**（`vitals.keys` 是"量纲 → **键名**"；`label` 是"量纲 → **人读的字**"）⇒ **"键名"与"数"必须两词** ✓
+  ★若不写 `Key` 后缀（旧草案的 `key`／`max`）⇒ 后人写执行票时**很容易把 `max` 当数值填** ✗（歧义即缺陷，`#1534` 复核）
 ⇒ **引擎侧再无 `hp` 这个字**（这正是 Admin 要的那条线）。
 
 ### 2.3 取值来源（`#1531` 的定位）
@@ -140,7 +145,7 @@ Q5 过渡 ⇒ **零声明 ⇒ 玩家面空 ＋ 开发者面出声**（✗ 静默
    ⇒ 出现 `hp`／`gold`／`inventory`／`gear`／`status` ⇒ 红并点名文件:行
    （门形照 `engine-story-free`／`test/vitals-consumers.mjs` 的"按块扫 ＋ 新旧形两断" ✓）
 ② ★原语**纯函数可测**（✗ 不经故事）：`bar({value:7,max:20})` ⇒ 给定 DOM 串；`list({items:[…]})` ⇒ 给定串
-③ ★声明面**两态**：改 `panels[].label`（或 `key`）⇒ 屏上跟变（照 `#1531` 的形 ✓）
+③ ★声明面**两态**：改 `panels[].label`（或 `valueKey`）⇒ 屏上跟变（照 `#1531` 的形 ✓）
 ④ ★**"没声明 ⇒ 玩家面不渲染"**：零 `panels` ⇒ 侧栏无状态块（✗ 不是"渲染一个空血条"；
    也 ✗ 印 `（空）` ✗ 印 `$pc.x` —— ★玩家面应**干净的空**，✗ "空面出声"那行属**开发者面** ✓）
 ⑤ ★**"假值不画"**：故事没声明 hp ⇒ 屏上 ✗ 出现任何血条（今天会出 `❤ 0 / 1` ⇒ 本条能假 ✓）
@@ -153,6 +158,13 @@ Q5 过渡 ⇒ **零声明 ⇒ 玩家面空 ＋ 开发者面出声**（✗ 静默
 ```
 P1 **原语先行**：`Sg.ui.bar`／`Sg.ui.list`（纯函数 ＋ 红线门 ① ＋ 验证 ②）
 P2 **声明面**：契约成员 `panels`（发现层/编译层/emit ＋ 验证 ③④）
+   ★**可行性核查（实读，支撑 P2 成本）**：声明维的**接缝极少** ——
+     · `editor/lib/core/contract-defaults.mjs` 的 `DEFAULTS` **加一行**即可（先例：`pcShape: { kind: 'empty-object' }`）
+       ⇒ `panels: { kind: 'empty-array' }`（"这一面在，但空" ⇒ ✗ 误报 `default-missing`）；
+     · **✗ 不必**动 `REQUIRED_MEMBERS`（那是"声明不可去"的强门（如 `mechanics`）—— `panels` 属**可选声明** ✓）；
+     · 全仓 `pcShape` 的落点扫描（同类声明维的先例）：`contract-defaults` ×2 ／ `pc-state-map` ×1 ／ 测试件为主
+       ⇒ ★**改点收敛**（✗ 20 处读点各自改 ✓）—— 与 `#1438` 的 `pack()` "单入口"同形 ✓
+     · `test/pc-defaults.mjs`（20 处）：那是**该成员自己的判据件** ⇒ 新成员需**同形补一件**（预期，✗ 不是阻力）
 P3 **迁移**：`StoryCaption` 的 4 件逐件搬（照 `#1505` 的"溶解"形：数据补齐 ＋ 引擎侧清零）
 P4 **退役**：`hpbar` 宏删（照 `#1227` 类一先例）；`inventory` 宏同族处置
 ★每期一票、**每票逐处能假**（✗ 只测一处）
@@ -165,5 +177,5 @@ P4 **退役**：`hpbar` 宏删（照 `#1227` 类一先例）；`inventory` 宏�
 ② ★统一性：中间形下"侧栏长什么样"由各故事自己定 ⇒ 可能出现风格漂移 ⇒ 建议给 `style` 一组**数据面缺省**
    （引擎给缺省**值**，✗ 不给"必须用哪个" ✓ —— 与 `vitals` 的"内置缺省可被覆盖"同模式）
 ③ ★`#1531` 冻结件与新形的接缝：`vk()`／`vl()` 保留为取值来源，但迁移后**引擎不再自己画** ⇒
-   接缝 = `panels.props[].key` 的解析走 `vk()` ✓（口径单一，✗ 不开第二套 ✓）
+   接缝 = `panels.props[].valueKey` 的解析走 `vk()` ✓（口径单一，✗ 不开第二套 ✓）
 ```

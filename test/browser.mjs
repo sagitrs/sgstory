@@ -89,6 +89,18 @@ export const skipVerdict = (requireBrowser) => (requireBrowser
 	? { code: 1, notes: ['✗ CI_REQUIRE_BROWSER=1：浏览器验收被跳过 ＝ CI 接线失效（不许静默降级）'] }
 	: { code: 0, notes: [] });
 
+// ★ `#1532`（写作者侦察 `5851352857` 的裁）：★**未判 ≠ 通过** —— ★探不到浏览器（环境缺）时
+//   本件**必须出声说“未判”**，✗ 不许静默绿 ✗。
+//   ★为什么单列：★“跳过”（`skipVerdict`）允许本地退 0（★有意的本地便利）；
+//     而“**环境缺 ⇒ 根本没判**”是**另一种**事 ⇒ ★若也退 0 ⇒ ★绿灯看着有验收、其实一行没跑 ✓
+//     （★与 `#363`／`#385` 那族“静默降级”同源 ✓）
+//   ★Chrome 可得性裁（协调席）：甲类跑 **realmachine job 的 `BROWSER_TIERS=engine` 步骤**（该 job 保证有 Chrome）；
+//     books tier 用 **books CI 自装 playwright**（✗ 不跨仓 realmachine checkout ✓）
+export const unjudgedVerdict = () => ({
+	code: 1,
+	notes: ['✗ 未判：探不到浏览器（环境缺 Chrome）—— ★这**不等于通过**（✗ 静默绿）；★请装 Chrome for Testing 或 `npm run browser:setup`'],
+});
+
 // 跑完时的判定（纯函数，便于自证）
 export const evaluateRun = ({ total, fails, minAssertions = (runsStory ? MIN_ASSERTIONS : MIN_ASSERTIONS_ENGINE) }) => {
 	if (total < minAssertions) {
@@ -142,6 +154,8 @@ const selftest = () => {
 	t(`${MIN_ASSERTIONS}/${MIN_ASSERTIONS}（有失败）→ 失败`, evaluateRun({ total: MIN_ASSERTIONS, fails: 1 }).code === 1);
 	t(`${MIN_ASSERTIONS - 5}/${MIN_ASSERTIONS - 5} 低于下界 → 失败（断言被删也算红，不靠 workflow 魔数）`, evaluateRun({ total: MIN_ASSERTIONS - 5, fails: 0, minAssertions: MIN_ASSERTIONS }).code === 1);
 	t('0/0 → 失败（0/0 假绿）', evaluateRun({ total: 0, fails: 0 }).code === 1);
+	// ★ `#1532`：★**未判也必退 1**（★与“跳过”分开：跳过允许本地退 0，未判不允许 ✓）
+	t('未判（环境缺）⇒ **必退 1**（✗ 静默绿）', unjudgedVerdict().code === 1);
 	// ★ `#1532`：★**两层各自的下界**（★★★★★★★★★★★★★★★★★★）——
 	//   ★判法：★两层**各自贴自己的下界**；★**且引擎层下界不能拿故事层的数去逗** ✗
 	//   ★为什么：★共用一个数 ⇒ ★两层必有一层**永远红**（★不是真红）；
@@ -162,7 +176,14 @@ if (process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 if (!DEFAULT_SLUG && runsStory) bail('零故事模式（仓内无逐故事产物；★仅 `BROWSER_TIERS=engine` 可跑甲+丙类）');
 
 const CHROME = findChrome();
-if (!CHROME) bail('未找到 Chrome；设 CHROME_PATH 或装 Chrome for Testing');
+if (!CHROME) {
+	// ★ `#1532`：★**未判**（✗ 不是跳过、✗ 不是通过）⇒ ★必须出声 ＋ 退 1 ✓
+	const v = unjudgedVerdict();
+	console.error('✗ 真实浏览器验收：**未判**（探不到 Chrome）—— ★这不等于通过 ✗');
+	console.log('BROWSER_ASSERTIONS unjudged');
+	for (const n of v.notes) console.error(n);
+	process.exit(v.code);
+}
 // 预检：库不全时 Chrome 起不来——直接给出准备命令，不让脚本超时失败
 {
 	const probe = spawnSync(CHROME, ['--version'], { env: childEnv, encoding: 'utf-8' });

@@ -97,7 +97,7 @@ window.Sg.choose = {
 	 *  @param {{prompt?:string, options?:Array, onPick:(id:string)=>void, style?:{}, once?:boolean}} p
 	 *  @returns {() => void} 卸载函数（解绑监听 ⇒ ✗ 累积监听；★测试与重渲染都要它 ✓）
 	 *  ★`once: true` ⇒ **每张卡最多触发一次**（★防连点 ⇒ 补丁叠加那类事故；默认 `false` ＝
-	 *    每次点击都调 —— ★第一个消费者（车卡）**应当**传 `once:true`，本席 ✗ 替它定默认 ✓）。 */
+	 *    每次点击都调 —— ★第一个消费者（车卡）**应当**传 `once:true`（★本片 ✗ 替消费者定默认 ✓）。 */
 	mount(host, { prompt = '', options = [], onPick, style = {}, once = false } = {}) {
 		if (typeof onPick !== 'function') {
 			throw new Error('Sg.choose.mount：`onPick` 必须是函数（✗ 静默挂上"点了没反应"的卡片）');

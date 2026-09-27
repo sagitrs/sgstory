@@ -22,10 +22,10 @@ export const ciLiteralProblems = (yaml, { story = STORY_PAGE_MAX_BYTES, shelf = 
 	const y = String(yaml ?? '');
 	const storyLit = /test\s+"\$SSZ"\s+-lt\s+(\d+)/.exec(y);
 	const shelfLit = /test\s+"\$SZ"\s+-gt\s+0\s+-a\s+"\$SZ"\s+-lt\s+(\d+)/.exec(y);
-	if (!storyLit) out.push({ code: 'P5', msg: 'ci.yml 里找不到故事页上界断言（test "$SSZ" -lt …）——口径锚点丢了' });
-	else if (Number(storyLit[1]) !== story) out.push({ code: 'P5', msg: `ci.yml 故事页上界 ${storyLit[1]} ≠ STORY_PAGE_MAX_BYTES ${story}（两处口径漂了）` });
-	if (!shelfLit) out.push({ code: 'P5', msg: 'ci.yml 里找不到书架页上界断言（test "$SZ" … -lt …）' });
-	else if (Number(shelfLit[1]) !== shelf) out.push({ code: 'P5', msg: `ci.yml 书架页上界 ${shelfLit[1]} ≠ SHELF_PAGE_MAX_BYTES ${shelf}` });
+	if (!storyLit) out.push({ code: 'L5', msg: 'ci.yml 里找不到故事页上界断言（test "$SSZ" -lt …）——口径锚点丢了' });
+	else if (Number(storyLit[1]) !== story) out.push({ code: 'L5', msg: `ci.yml 故事页上界 ${storyLit[1]} ≠ STORY_PAGE_MAX_BYTES ${story}（两处口径漂了）` });
+	if (!shelfLit) out.push({ code: 'L5', msg: 'ci.yml 里找不到书架页上界断言（test "$SZ" … -lt …）' });
+	else if (Number(shelfLit[1]) !== shelf) out.push({ code: 'L5', msg: `ci.yml 书架页上界 ${shelfLit[1]} ≠ SHELF_PAGE_MAX_BYTES ${shelf}` });
 	// ── **P6**（`#1004` B2b）：冒烟作业里的**故事页路径**不许硬编码 ────────────────────────────
 	// 为什么需要这一格：冒烟作业**不 checkout 仓库** → 读不到 `DEFAULT_SLUG` 常量 → 只能写字面量；
 	// 而字面量会随故事**改名/删除**腐烂 → `curl` 404 → 该作业红 —— 而它**只在 push to main 跑**
@@ -47,9 +47,9 @@ export const ciLiteralProblems = (yaml, { story = STORY_PAGE_MAX_BYTES, shelf = 
 		for (const m of line.matchAll(/(?<![\w.-])stories\/([A-Za-z0-9._-]+)\/index\.html/g)) stray.push({ slug: m[1], line: rawLine.trim().slice(0, 72) });
 	}
 	if (stray.length)
-		out.push({ code: 'P6', msg: `ci.yml 的**非注释行**里出现故事页字面量 \`stories/${stray[0].slug}/index.html\`（${stray[0].line}…）—— ⚠️ **现存/已删一律红** ✗（现存：${slugs.join(' / ')} ✓）：本作业只在 push to main 跑 ⇒ 硬编码会随故事改名/删除腐烂，而 PR CI 看不见（改用「从书架页现场取」✓）` });
+		out.push({ code: 'L6', msg: `ci.yml 的**非注释行**里出现故事页字面量 \`stories/${stray[0].slug}/index.html\`（${stray[0].line}…）—— ⚠️ **现存/已删一律红** ✗（现存：${slugs.join(' / ')} ✓）：本作业只在 push to main 跑 ⇒ 硬编码会随故事改名/删除腐烂，而 PR CI 看不见（改用「从书架页现场取」✓）` });
 	if (!ANCHOR_LINE.test(code) || !code.includes('/tmp/idx.html'))
-		out.push({ code: 'P6', msg: "ci.yml 里找不到「从书架页现场取故事页路径」的锚点（`STORY_PATH=$(grep -oE 'stories/<slug>/index.html' /tmp/idx.html)`）" });
+		out.push({ code: 'L6', msg: "ci.yml 里找不到「从书架页现场取故事页路径」的锚点（`STORY_PATH=$(grep -oE 'stories/<slug>/index.html' /tmp/idx.html)`）" });
 	return out;
 };
 
@@ -88,11 +88,11 @@ export const checkShelf = (html, builtSlugs, { maxBytes = SHELF_MAX_BYTES, bytes
 export const checkStoryFontRefs = (html, fontFiles, { prefix = FONT_PREFIX_FROM_STORY } = {}) => {
 	const out = [];
 	const refs = [...html.matchAll(/(?:href="|url\(')([^'"]*LXGWWenKai-[^'"]*\.woff2)/g)].map((m) => m[1]);
-	if (refs.length === 0) out.push({ code: 'P1', msg: '故事产物里没有任何 woff2 引用（字体注入丢了？）' });
+	if (refs.length === 0) out.push({ code: 'L1', msg: '故事产物里没有任何 woff2 引用（字体注入丢了？）' });
 	for (const r of refs) {
-		if (!r.startsWith(prefix)) out.push({ code: 'P1', msg: `故事产物的字体前缀不是 ${prefix}：${r}` });
+		if (!r.startsWith(prefix)) out.push({ code: 'L1', msg: `故事产物的字体前缀不是 ${prefix}：${r}` });
 		const base = r.slice(prefix.length);
-		if (!fontFiles.includes(base)) out.push({ code: 'P2', msg: `引用的字体文件不在 dist/fonts/ 里：${base}` });
+		if (!fontFiles.includes(base)) out.push({ code: 'L2', msg: `引用的字体文件不在 dist/fonts/ 里：${base}` });
 	}
 	return out;
 };
@@ -101,7 +101,7 @@ export const checkStoryFontRefs = (html, fontFiles, { prefix = FONT_PREFIX_FROM_
  * 为什么必须有：`size-gate` 的基线 997,937B ＋ 0.5% 容差 ≈ 1,002.9KB，而部署后是 1,000,000B 硬红
  * → 中间有一条 ~5KB 宽的窗带：**PR 与 soak 全绿、main 的部署后冒烟红**（`#576` 实测撞上）。 */
 export const judgeStoryPage = ({ slug, bytes, max = STORY_PAGE_MAX_BYTES }) =>
-	bytes >= max ? [{ code: 'P4', msg: `故事「${slug}」产物 ${bytes}B ≥ 上界 ${max}B（疑似回胖/内嵌资产；部署后冒烟用的是同一上界）` }] : [];
+	bytes >= max ? [{ code: 'L4', msg: `故事「${slug}」产物 ${bytes}B ≥ 上界 ${max}B（疑似回胖/内嵌资产；部署后冒烟用的是同一上界）` }] : [];
 
 // ── main ────────────────────────────────────────────────────────────────
 const problems = [];
@@ -129,22 +129,22 @@ if (!existsSync(shelfHtml())) {
 // 且**不得**带字体注入（书目页不装游戏资源；带上了说明"游戏又被写回根路径"了）。
 {
 	const rootPath = join(DIST_DIR, 'index.html');
-	if (!existsSync(rootPath)) problems.push({ code: 'P3', msg: '缺 dist/index.html（书架页＝进站门面）' });
+	if (!existsSync(rootPath)) problems.push({ code: 'L3', msg: '缺 dist/index.html（书架页＝进站门面）' });
 	else {
 		const root = readFileSync(rootPath, 'utf8');
-		if (root.includes('id="font-face"')) problems.push({ code: 'P3', msg: 'dist/index.html 是书架页，却带字体注入（id="font-face"）——游戏不该再写回根路径' });
+		if (root.includes('id="font-face"')) problems.push({ code: 'L3', msg: 'dist/index.html 是书架页，却带字体注入（id="font-face"）——游戏不该再写回根路径' });
 		// `#1035`：书架只该列**内容故事**（内部件仍构建，但不得进用户面）
 		const contentBuilt = built.filter((slug) => audienceOf(readStory(slug)) === 'content');
 		const internalBuilt = built.filter((slug) => audienceOf(readStory(slug)) === 'internal');
-		for (const slug of contentBuilt) if (!root.includes(`stories/${slug}/index.html`)) problems.push({ code: 'P3', msg: `根页（书架）缺少指向 stories/${slug}/index.html 的链接（内容故事必须上架）` });
-		for (const slug of internalBuilt) if (root.includes(`stories/${slug}/index.html`)) problems.push({ code: 'P3', msg: `根页（书架）链到了**内部件** stories/${slug}/（audience: internal ⇒ 不进用户面）` });
+		for (const slug of contentBuilt) if (!root.includes(`stories/${slug}/index.html`)) problems.push({ code: 'L3', msg: `根页（书架）缺少指向 stories/${slug}/index.html 的链接（内容故事必须上架）` });
+		for (const slug of internalBuilt) if (root.includes(`stories/${slug}/index.html`)) problems.push({ code: 'L3', msg: `根页（书架）链到了**内部件** stories/${slug}/（audience: internal ⇒ 不进用户面）` });
 	}
 }
 
 // P5（`#576` 未决①）：部署后冒烟里的两个上界字面量必须与常量同值
 {
 	const ciPath = join(ROOT, '.github', 'workflows', 'ci.yml');
-	if (!existsSync(ciPath)) problems.push({ code: 'P5', msg: '找不到 .github/workflows/ci.yml（口径锚点没了）' });
+	if (!existsSync(ciPath)) problems.push({ code: 'L5', msg: '找不到 .github/workflows/ci.yml（口径锚点没了）' });
 	else problems.push(...ciLiteralProblems(readFileSync(ciPath, 'utf8')));
 }
 

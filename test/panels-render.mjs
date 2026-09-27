@@ -118,6 +118,35 @@ if (!existsSync(join(ROOT, FIX_FROM))) {
 			return { cap, bar, list };
 		};
 
+
+		/** 观测 `nocar-basic`：`withPanels=false` ⇒ 撤掉该夹具的 `panels` 声明（看逐块切换）。 */
+		const observeNocar = async (NOCAR, withPanels) => {
+			round += 1;
+			const root = join(WORK, `n${round}`, 'stories');
+			cpSync(join(ROOT, NOCAR), root, { recursive: true });
+			for (const f of ['15-tables.twee', '16-notes.twee', '17-rules.twee', '18-chargen.twee', '00-meta.twee']) {
+				const q = join(root, 'nocar-basic', f); if (existsSync(q)) rmSync(q);
+			}
+			const cpn = join(root, 'nocar-basic', 'data/contract.json');
+			const dn = JSON.parse(readFileSync(cpn, 'utf8'));
+			if (!withPanels) dn.members = dn.members.filter((m) => m.name !== 'panels');
+			writeFileSync(cpn, JSON.stringify(dn, null, 2) + '\n');
+			execFileSync(process.execPath, [join(ROOT, 'build.mjs')],
+				{ cwd: ROOT, env: { ...process.env, SG_STORIES_DIR: root }, stdio: 'pipe' });
+			process.env.SG_STORIES_DIR = root;
+			const { boot } = await import('./boot.mjs');
+			const B = await boot({ story: join(WORK, `n${round}`, 'dist/stories/nocar-basic/index.html'), entry: '开场', random: 0.5 });
+			const w = B.w;
+			w.SugarCube.Engine.play('StoryCaption');
+			await B.settle(); await new Promise((r) => setTimeout(r, 200)); await B.settle();
+			const scope = w.document.querySelector('#story-caption') || w.document;
+			const bar = [...scope.querySelectorAll('*')].some((el) => /%/.test(el.style?.width || ''));
+			const list = scope.querySelectorAll('.sg-list-item, .inv-item').length > 0;
+			const text = String(scope.textContent || '').replace(/\s+/g, ' ').slice(0, 80);
+			B.close?.();
+			return { bar, list, text };
+		};
+
 		const BAR = [{ as: 'bar', slot: 'sidebar.primary', props: [{ slot: 'sidebar.primary', valueKey: 'hp', maxKey: 'max_hp', label: '生命' }] }];
 		const LIST = [{ as: 'list', slot: 'sidebar.primary', props: [{ slot: 'sidebar.primary', valueKey: 'inv', empty: '（空）' }] }];
 
@@ -168,6 +197,25 @@ if (!existsSync(join(ROOT, FIX_FROM))) {
 			let ok4b = true;
 			try { ctx.Sg.panels.renderSlot({ hp: 1, max_hp: 2 }, 'sidebar.primary'); } catch { ok4b = false; }
 			t('④b 反证：合法 `as` ⇒ ✗ 不抛（本格可区分，✗ 恒红）', ok4b);
+		}
+		// ⑥ ★★（评审要求）**产品面：无车卡故事的"最小面"两态**（✗ 只由真机档承担 ——
+		//   "链上全绿、真机面红"正是本笔的教训）。对象＝**真夹具** `m3-nocar-fixture/nocar-basic`
+		//   （就是 `test/browser.mjs` 断言的那个故事）⇒ 本格与真机档**同对象**（✗ 另造一个像的）。
+		{
+			const NOCAR = 'test/fixtures/m3-nocar-fixture/stories';
+			if (!existsSync(join(ROOT, NOCAR))) {
+				console.log('  ○ 未判：`m3-nocar-fixture` 缺席 ⇒ ⑥（产品最小面两态）未判；'
+					+ '★注意：本面若无人判 ⇒ 正是"链上全绿、真机面红"那个洞（见 `#1556` CR）。');
+			} else {
+				const o = await observeNocar(NOCAR, /* withPanels */ true);
+				t('⑥ `nocar-basic`（无车卡）**有声明 ⇒ 最小面两块都在**（血量条 ＋ 物品栏）',
+					o.bar && o.list, JSON.stringify(o));
+				t('⑥ 且**画的是真数据**（✗ 不是引擎替它猜的 `❤ 0 / 1` 假值 —— spec §4④ 点名的那型）',
+					/12\s*\/\s*12/.test(o.text), o.text);
+				const o2 = await observeNocar(NOCAR, /* withPanels */ false);
+				t('⑥ **撤声明 ⇒ 两块皆✗画**（逐块切换；✗ 旧内置块补位）',
+					!o2.bar && !o2.list, JSON.stringify(o2));
+			}
 		}
 	} finally { rmSync(WORK, { recursive: true, force: true }); }
 }

@@ -726,9 +726,22 @@ for (const [W, H] of VP) {
 			const ov = await ev('window.__sg.overflow()');
 			check(ov.scroll <= ov.inner + 1, `${vp} 故事2 开场无横向溢出（${ov.scroll} ≤ ${ov.inner}）`);
 			// ② 侧栏：**没有车卡的故事也要能看见血量与物品**（`#574` 的最小面；这是"战斗试验场"的前提）
-			const bar = await ev(`(function(){const c=document.querySelector('#story-caption')||document.getElementById('ui-bar');return { hp: !!document.querySelector('.hpbar'), inv: !!document.querySelector('.inv-block'), text: (c?.textContent||'').replace(/\\s+/g,' ').slice(0,40) };})()`);
-			check(bar.hp, `${vp} 故事2 侧栏给出**血量条**（无车卡的最小面）`);
-			check(bar.inv, `${vp} 故事2 侧栏给出**物品栏**`);
+			// ★`#1539`（P3）**解耦**：原先断言写死**实现类名**（`.hpbar`／`.inv-block`）—— 那是
+			//   "断言随实现走"（实现一换类名它就红，而产品其实是对的；本次 CR 的根因之一）。
+			//   ⇒ 改为按**语义结构**判：本笔起 `panels` 声明驱动的渲染件产 `.sg-bar`／`.sg-list`，
+			//     但**判据不绑它**——改判"侧栏那一区里**有没有图形化的量条**与**列表**"：
+			//     · 量条：任一元素其 `style.width` 带 `%`（`Sg.draw.bar` 的产物形态，与类名无关）；
+			//     · 列表：`Sg.draw.list` 的项（`.sg-list-item`）**或**旧壳的 `.inv-item` —— 两者都认（迁移窗内兩態皆可）。
+			//   ★为什么这样更稳：断言判的是"最小面**在不在**"（产品性质），✗ "它叫什么类名"（实现形状）。
+			const bar = await ev(`(function(){
+				const c = document.querySelector('#story-caption') || document.getElementById('ui-bar');
+				const scope = c || document;
+				const widthPct = [...scope.querySelectorAll('*')].some((el) => /%/.test(el.style?.width || ''));
+				const listItems = scope.querySelectorAll('.sg-list-item, .inv-item').length;
+				return { bar: widthPct, list: listItems > 0, text: (c?.textContent || '').replace(/\\s+/g, ' ').slice(0, 40) };
+			})()`);
+			check(bar.bar, `${vp} 故事2 侧栏给出**血量条**（无车卡的最小面 · 判"有百分比量条"而非类名）`);
+			check(bar.list, `${vp} 故事2 侧栏给出**物品栏**（判"有列表项"而非类名）`);
 			// ③ 三选一：真机布局下至少两条路落在视口内（可点性/首屏不空）
 			await ev(`window.__sg.play("${STORY_MAP.multi.passage}")`);   // `#1004` B2b：`minimal-demo` 的多选一段叫 `岔路`（旧写法 `岔口` 是旧故事的）
 			await sleep(320);

@@ -69,6 +69,127 @@ export const gameplayKeysFor = (declaredModules = []) => {
 	return Object.entries(PC_GAMEPLAY_HOME).filter(([, home]) => set.has(home)).map(([k]) => k);
 };
 
+/**
+ * ★★ `#1564`（`#1222` 链首 L0 · 件④）：**引擎写的 `pc` 键必须**已在归属表里宣告**。
+ *
+ * **为什么要它**（本仓实测的形态 —— `pc.classHp` "隐键"）：
+ *   `pc.classHp` 由**车卡 `patch.set` 临时造**（`chargen.json` 的 `"classHp":{"set":10}`），
+ *   被 `finalize()` 读（`80-script.twee:875`：`pc[_kmx] = (pc.classHp ?? _hpArg) + …`），
+ *   而它 ★**✗ 在 `PC_GAMEPLAY_HOME`**（无归属）★**✗ 在 `PC_BASE_KEYS`**（非基础面）
+ *   ★**✗ 在 `groups.chargen.keys`**（✗ 在那 13 名清单里）⇒ **三处皆无 = "隐键"** ✗
+ *
+ * **后果（为什么必须红）**：隐键**不在任何清单** ⇒ `pcShape` 的"车卡族键**二选一**"守卫、
+ *   `defaults()` 的预置形状、归属表 —— **三条面都看不见它** ⇒
+ *   归并/迁移时**漏掉它也不会有人报**，而 `finalize` 的 `?? _hpArg` 会**静默走缺省**（＝静默改数值）✗
+ *
+ * **口径**（与 `#1484` **反向成对**，`#1222` 裁决）：
+ *   · `#1484` 管"**声明里不许给已知（引擎面）键**"（`pcShape` 与车卡流程并存 ⇒ 点名）；
+ *   · **本函数管"引擎不许写未宣告的键"** ⇒ 两侧合起来＝"**共读可以，两处产生不行**"（`#1222` 总口径）✓
+ *
+ * **判据（纯函数，能假）**：给定"引擎写入点"的键集 ⇒ 不在 `已宣告集`（基础面 ∪ 归属表）的键 ⇒ 点名。
+ * ★`written` 由调用方注入（✗ 不在此读盘 —— 与本仓"合成输入不得让默认值去读盘"的纪律一致）。
+ */
+export const undeclaredWriteProblems = ({ written = [], home = PC_GAMEPLAY_HOME, base = PC_BASE_KEYS } = {}) => {
+	const declared = new Set([...base, ...Object.keys(home)]);
+	const out = [];
+	for (const k of written) {
+		if (!declared.has(k)) {
+			out.push({ code: 'undeclared-pc-write', key: k,
+				why: `引擎写了 \`pc.${k}\`，但它**✗ 在基础面**（\`PC_BASE_KEYS\`）**✗ 在归属表**（\`PC_GAMEPLAY_HOME\`）`
+					+ ' ⇒ **隐键**：不在任何清单 ⇒ "车卡族二选一"守卫／预置形状／归属表**三条面都看不见它**'
+					+ ' ⇒ 归并时漏它也无人报，而读点会**静默走缺省**（＝静默改数值）✗'
+					+ '（`#1564` 件④；与 `#1484` 反向成对）' });
+		}
+	}
+	return out;
+};
+
+/**
+ * ★★ `#1564`（`#1222` 链首 L0 · 件③）：**同一个键被两族各自产生 ⇒ 点名红**。
+ *
+ * **口径**（`#1222` 总口径）：**共读可以，两处产生不行** ——
+ *   · **共读可以**：一个键被两族**读**是**合法**的（`salves` 是实例：既是 vitals 量纲
+ *     ［有下限／阈值 ⇒ 结算要拿它判定］又是道具计数［展示／持有一族］）⇒ ✗ 不许因此报错；
+ *   · **两处产生不行**：同一键被**两条路径各自写** ⇒ **哪一份生效不可判**（谁后写谁赢，或深合并各半）✗。
+ *
+ * **为什么它不是新造概念**（本仓既有先例 ＋ 它在归并后的**替代物**）：
+ *   `10-core.twee` 的 `pcShape` 处理里原有一条**并存守卫**：
+ *     "`pcShape` 给车卡族键 **且** 车卡流程也在 ⇒ throw"（`#1484`）——
+ *   但它的**判据物**是 `hasChargen` ＋ `chargen != null`（两名都在归并中消失）⇒
+ *   ★若跟着删 ⇒ "两条产生路径"从**当场点名**退化为**静默以某一方为准**（`#1474`／`#1478` 同族）✗
+ *   ⇒ 故本函数把它**转形**成不依赖那两名的形：**直接判"两个产生源的键集有没有交"** ✓
+ *
+ * **判据（纯函数，能假）**：给两个**产生源**的键集 ＋ 各族名 ⇒ 交非空 ⇒ 每个交键点名两端。
+ * ★`sources` 由调用方注入（✗ 不在此读盘）—— 与本仓"合成输入不得让默认值去读盘"的纪律一致。
+ */
+export const dualProducerProblems = ({ sources = {} } = {}) => {
+	const names = Object.keys(sources);
+	const out = [];
+	for (let i = 0; i < names.length; i++) {
+		for (let j = i + 1; j < names.length; j++) {
+			const a = names[i], b = names[j];
+			const A = new Set(sources[a] ?? []), B = new Set(sources[b] ?? []);
+			for (const k of A) {
+				if (B.has(k)) {
+					out.push({ code: 'dual-producer', key: k, a, b,
+						why: `键 \`${k}\` 被**两族各自产生**（\`${a}\` ∧ \`${b}\`）⇒ **哪一份生效不可判** ✗`
+							+ '（同一族**共读**是合法的 —— `salves` 即实例；但**两处产生**不行）'
+							+ '（`#1564` 件③：旧 `hasChargen` 并存守卫的**转形**）' });
+				}
+			}
+		}
+	}
+	return out;
+};
+
+/**
+ * ★★ `#1564`（`#1222` 链首 L0 · 件④）：**"隐键"的登记表（带退出条件）**。
+ *
+ * **为什么需要它**（范围边界，协调席 2026-09-27 裁**甲**）：
+ *   `pc.classHp` 是**已实测的隐键**（✗ 基础面 ✗ 归属表 ✗ 13 名清单），而它的**消除**是
+ *   `#1222` 链 **L1/L2** 的事（写作者裁："随归并消掉"，承载物改住声明面 `classes.<职业>.hp`）
+ *   ⇒ ★L0 **只落判据＋对该实例登记**（"**抓而不修**"，正是范围边界），✗ 让 L0 现在就把夹具判红。
+ *
+ * **口径（与 `FIXTURE_FACE_EXCEPTIONS` 同族）**：每行 `{ why, removal, check }` ——
+ *   · `why`：为何留着（散文）；
+ *   · `removal`：退出条件（散文）；
+ *   · `check`：退出条件的**可机核谓词**（✗ 自由书写 —— 与 `EXCEPTION_REMOVAL_CHECKS` 的"小词表"同纪律）。
+ *   ⇒ ★`exceptionRemovable(key, ctx)` 命中 ⇒ 该登记行**已可清** ⇒ 判据会红（防"登记成了永久豁免"）。
+ */
+export const UNDECLARED_WRITE_EXCEPTIONS = Object.freeze({
+	classHp: {
+		why: '车卡 `patch.set` 造的隐键（`finalize` 读它算血）—— 引擎侧三面（基础面／归属表／13 名清单）皆无它',
+		removal: '`#1222` 链 L1/L2 归并完成时（承载物改住声明面 `classes.<职业>.hp`）⇒ 该键从数据面消失',
+		check: { kind: 'absentFromData', name: 'classHp' },
+	},
+});
+
+/** 该登记行的**退出条件是否已满足**（＝已可清）。`ctx.dataKeys` 由调用方注入（✗ 不在此读盘）。 */
+export const exceptionRemovable = (key, { dataKeys = [] } = {}) => {
+	const row = UNDECLARED_WRITE_EXCEPTIONS[key];
+	if (!row) return false;
+	const set = new Set(dataKeys);
+	if (row.check?.kind === 'absentFromData') return !set.has(row.check.name);
+	return false;
+};
+
+/** 纯函数：`undeclaredWriteProblems` 的**登记感知**版（✗ 未登记 ⇒ 报；已登记 ⇒ 只列"信息面"）。
+ *  ★分工：**未登记** ⇒ 失败面（该红）；**已登记** ⇒ 信息面（只报，✗ 计退码）＋ 退出条件命中则**转回失败面**。 */
+export const undeclaredWriteReport = ({ written = [], dataKeys = [], home = PC_GAMEPLAY_HOME, base = PC_BASE_KEYS } = {}) => {
+	const fails = [], infos = [];
+	for (const p of undeclaredWriteProblems({ written, home, base })) {
+		const registered = p.key in UNDECLARED_WRITE_EXCEPTIONS;
+		if (!registered) { fails.push(p); continue; }
+		// 已登记：退出条件命中 ⇒ 该行**已可清** ⇒ 也必须红（防"登记成了永久豁免"）
+		if (exceptionRemovable(p.key, { dataKeys })) {
+			fails.push({ ...p, code: 'exception-removable',
+				why: `\`pc.${p.key}\` 的**登记行已可清**（退出条件命中：${UNDECLARED_WRITE_EXCEPTIONS[p.key].removal}）`
+					+ ' ⇒ 请删除该登记行（✗ 让登记变成永久豁免）' });
+		} else infos.push({ ...p, code: 'undeclared-pc-write-registered' });
+	}
+	return { fails, infos };
+};
+
 /** 纯函数：归属表自身的形状检查（空＝绿）：三张表不重叠、基础面不含玩法概念。 */
 export const pcHomeProblems = () => {
 	const out = [];

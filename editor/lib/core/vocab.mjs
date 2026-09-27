@@ -13,7 +13,9 @@
 /** 四轴词表（`Object.freeze` → 页内拿到的是**只读**声明：改它没有意义，改引擎才有）。 */
 export const VOCAB = Object.freeze({
 	/** **键形前缀**（`inv:<道具>`／`era:<时代>`／`gear:<道具>`）—— 行里用了未宣告的前缀 → `--rules` 判红。 */
-	prefixes: Object.freeze(['inv', 'era', 'gear']),
+	// ★ `#1563`：与 `22-rules.twee` 的 `prefixes` **逐字同**（`test/rules-core.mjs` 断这条）——
+	//   原缺 `chk`／`fight`／`codex`（readKey 实认但清单没列）⇒ 判据②会误杀。
+	prefixes: Object.freeze(['inv', 'era', 'gear', 'chk', 'fight', 'codex']),
 	/** **引擎兑现的授予面**（`yields`／`gives`／`sets`）—— 被引擎忽略的声明＝**静默空转**。 */
 	effects: Object.freeze(['yields', 'gives', 'sets']),
 	/** **条件项的"对象算子"**（`{ gte: […]}` 一族）—— 引擎不认的算子会让条件**永假**。 */

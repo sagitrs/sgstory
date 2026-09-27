@@ -40,6 +40,7 @@ import { definitionsOf, duplicateExportProblems, secondCopyProblems, coreHostPro
 // 本命令走它导出的缝 `classifyContractText`（那条缝多做 `locals` 上下文与 `const` 的 B→A 解析 → 该语义风险由**两时点差分**量掉）。
 import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, handwrittenClosureProblems, contractSourceText, staleTrackedProblems, referenceIntegrityProblems, undoneProblems } from '../core/k4criteria.mjs';
 import { dataFaceMemberProblems } from '../core/contract-defaults.mjs';   // `#1419`：数据面非空 ⇒ 契约成员必须在
+import { undeclaredWriteReport } from '../core/pc-state-map.mjs';   // `#1564`：数据面 ✗ 许写未宣告的 pc 键（隐键 ⇒ 静默改数值）
 import { censusOfStory, censusSummarize, censusProblems } from '../core/hatchCensus.mjs';
 import { classifyContractText } from './classify.mjs';
 // `#794` 弧第 3 票（`equiv` 命令体）：用 vm／读文件／跑子进程 → **都在 host**。
@@ -117,6 +118,30 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 		if (miss.length) {
 			for (const m of miss) console.error(`✗ [data-face] ${m.why}`);
 			console.error('✗ 数据面非空但契约缺成员 ⇒ 引擎会**静默当缺省**（空池/空值）⇒ 不写出产物');
+			return 1;
+		}
+	}
+	// ★★ `#1564`（`#1222` 链首 L0 · 件④）：**数据面 ✗ 许写"未宣告的 pc 键"** —— 编译期点名 ✓
+	//   ★依据（实读的形态 —— `pc.classHp` "隐键"）：`chargen.json` 的 `patch` 里写 `"classHp":{"set":10}`
+	//     ⇒ 引擎**照数据造键**，而 `classHp` **✗ 在基础面**（`PC_BASE_KEYS`）**✗ 在归属表**（`PC_GAMEPLAY_HOME`）
+	//     **✗ 在 `groups.chargen.keys`** ⇒ ★**三条面都看不见它** ⇒ 归并时漏它也无人报，
+	//     而读点（`finalize` 的 `pc.classHp ?? _hpArg`）会**静默走缺省** ＝ **静默改数值** ✗
+	//   ★为什么在**编译期**：与上面 `dataFaceMemberProblems` **同一族**（"数据在但不生效／数据造了未宣告的键"）
+	//     —— 运行时抛会让玩家在游玩中崩，编译期点名才是**写数据的人**看得见的位置 ✓
+	//   ★判据物＝**纯函数** `undeclaredWriteProblems`（`pc-state-map.mjs`，✗ 不在此另写清单 ✗ 防两处漂移）；
+	//     写入集＝`chargen.json` 的 `patch` 键（**顶层段**：深层键由形状侧约束，隐键在顶层）✓
+	const chargenData = readIf('chargen.json');
+	if (chargenData && typeof chargenData === 'object' && Array.isArray(chargenData.rounds)) {
+		const written = [...new Set(
+			chargenData.rounds.flatMap((r) => (r?.options ?? []).flatMap((o) => Object.keys(o?.patch ?? {})))
+		)].map((pth) => String(pth).split('.')[0]);
+		// ★`#1564` 裁**甲**（范围边界）：**已登记的实例 ⇒ 只报不红**（信息面），
+		//   未登记 ⇒ 失败面；登记行的**退出条件命中** ⇒ 也红（防"登记成了永久豁免"）。
+		const rep = undeclaredWriteReport({ written, dataKeys: written });
+		for (const m of rep.infos) console.log(`  ○ [chargen-write·登记] ${m.key}（已登记，退出条件见 pc-state-map.mjs）`);
+		if (rep.fails.length) {
+			for (const m of rep.fails) console.error(`✗ [chargen-write] ${m.why}`);
+			console.error('✗ 数据面写了**未宣告的 pc 键** ⇒ 引擎会照数据造"隐键"（三条面都看不见它）⇒ 不写出产物');
 			return 1;
 		}
 	}

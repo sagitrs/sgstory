@@ -145,5 +145,5 @@ export const FONT_PREFIX_FROM_STORY = '../../fonts/';
  *（内容表里的解释性注释可省若干 KB）——别靠压内容来适配门。 */
 export const STORY_PAGE_MAX_BYTES = 2_000_000;
 /** 书架页**硬上界**（字节）——与 CI 的 `post-deploy-smoke` 同一口径（那边写的是同数字的字面量，
- * 由 `test/multi-story.mjs` 的 P5 门钉住：两处不等就在 PR 里红）。`#576` 未决① 的处置：不搬钱，搬判据。 */
+ * 由 `test/multi-story.mjs` 的 L5 门钉住：两处不等就在 PR 里红）。`#576` 未决① 的处置：不搬钱，搬判据。 */
 export const SHELF_PAGE_MAX_BYTES = 100_000;

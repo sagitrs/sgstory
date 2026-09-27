@@ -221,7 +221,7 @@ export const PROBES = [
 		why: '量的是「**发现 ≠ 覆盖**」那一步真的在守（让 `missingFromPlan` 恒不报  `test/story-ci.mjs` 的“能假”那条必红 ）—— 否则“新故事自动被覆盖”只是句口号 ',
 	},
 	{
-		// `#1004` B2b：`ci.yml` 的**故事页路径不许硬编码**（`test/multi-story.mjs` 的 **P6**）。
+		// `#1004` B2b：`ci.yml` 的**故事页路径不许硬编码**（`test/multi-story.mjs` 的 **L6**）。
 		// 为什么它值得一条探针：那两条判据是「**只在合后才跑的门**」（`post-deploy-smoke` 只在 push to main 跑）
 		// 在 **PR 阶段的唯一能见度** —— 实测就该作业硬引用已删故事页而 PR CI 全绿。
 		//注意：**刀要打在洞里**（复核席给的读数）：早先那版判据只抓「已删 slug」 → 变异**已删**那一支
@@ -236,7 +236,7 @@ export const PROBES = [
 			find: "STORY_PATH=$(grep -oE 'stories/[A-Za-z0-9._-]+/index\\.html' /tmp/idx.html | head -1)",
 			replace: "STORY_PATH=$(grep -oE 'stories/[A-Za-z0-9._-]+/index\\.html' /tmp/idx.html | head -1)\n          STORY=\"${URL}stories/face-fixture/index.html\"   # 探针：锚点仍在 ＋ 另起一行写死【现存】故事 ⇒ P6 必红 ✓",
 		},
-		expect: { rc: 1, stdout: /P6/ },
+		expect: { rc: 1, stdout: /L6/ },
 		why: '量的是「冒烟作业里的故事页路径**不许硬编码**（⚠️ **现存/已删一律** ✗）＋ **必须从书架页现场取**」（锚点仍在 ＋ 写死一个**现存**故事 ⇒ P6 必红 ✓）—— 该判据是"只在合后跑的门"在 PR 阶段的唯一能见度 ✗',
 	},
 	// ⛔ **退役 ＋ 声明**（`#1226` 探针身份门的首个实测样本；形态照 `#1004` B2b）：

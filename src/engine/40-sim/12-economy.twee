@@ -38,5 +38,6 @@ Object.assign((window.Game.Economy ??= {}), {
 		return { delta: d };
 	},
 	// present：金额文案（`<<econ>>` widget 与 `<<socresolve>>` 共用此一处）
-	note(d) { return `（${d < 0 ? `金币 ${d}` : d > 0 ? `金币 +${d}` : '——'}）`; },
+	// ★ `#1530`：★金额文案也走 `el('gold')`（★展示**单一源** —— ✗ 再硬编“金币” ✗）
+	note(d) { const n = window.Game.Rules.el('gold'); return `（${d < 0 ? `${n} ${d}` : d > 0 ? `${n} +${d}` : '——'}）`; },
 });

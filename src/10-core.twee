@@ -1067,7 +1067,7 @@ window.Sg.capability = (group) => {
 					<<for _i to 0; _i lt _S.levers(_a, $pc).length; _i++>>
 						<<set _lv to _S.levers(_a, $pc)[_i]>>
 						<<print `<a class="soc-opt" role="link" tabindex="0" data-ask="${_a.id}" data-how="lever:${_lv.id}">拿出筹码：${_lv.name}（${_a.tag}）</a>`>>
-						<span class="soc-meta">（<<if _lv.econ>>花 <<print -Game.Economy.priceOf(_lv.econ, $pc)>> 金币 ｜ <</if>><<if _lv.gives is "auto">>直接答应<<if Sg.UI.showDetail()>>，无需掷骰<</if>><</if>><<if _lv.gives is "adv">>后续更有把握<<if Sg.UI.showDetail()>>（交涉检定有优势）<</if>><</if>>）</span>
+						<span class="soc-meta">（<<if _lv.econ>>花 <<print -Game.Economy.priceOf(_lv.econ, $pc)>> <<print Game.Rules.el('gold')>> ｜ <</if>><<if _lv.gives is "auto">>直接答应<<if Sg.UI.showDetail()>>，无需掷骰<</if>><</if>><<if _lv.gives is "adv">>后续更有把握<<if Sg.UI.showDetail()>>（交涉检定有优势）<</if>><</if>>）</span>
 					<</for>>
 					<<for _i to 0; _i lt _S.open(_a, $pc).length; _i++>>
 						<<set _o to _S.open(_a, $pc)[_i]>>

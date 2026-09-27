@@ -1,6 +1,7 @@
 
 import { defaultStoryHtml, storyRelPath, storyHtml, shelfHtml, FONT_PREFIX_FROM_STORY, DIST_DIR } from '../scripts/dist-paths.mjs';   // ★ `#1532`：加 `shelfHtml`（引擎层跑书架页 ✓）   // ★`#1504`：`DIST_DIR` 是**根**的单一权威（✗ 不再硬编 `resolve('dist')`）
-import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';   // `#1261`：零故事判定（与同批门同口径）
+import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';
+import { resolveStoryMap } from '../scripts/browser-story-map.mjs';   // ★ `#1532`：乙类映射表（无副作用 ⇒ 格可进程内量 ✓）   // `#1261`：零故事判定（与同批门同口径）
 // #263（#185 阶段五）真实浏览器验收：零依赖 CDP 驱动（Node 22 内建 fetch + WebSocket）
 //
 // 为什么不用 puppeteer/playwright：本仓只需「导航 + 求值 + 截图 + 视口」四件事，
@@ -66,33 +67,16 @@ export const REQUIRE_BROWSER = process.env.CI_REQUIRE_BROWSER === '1';
 //   · `engine`（甲＋丙）：★**不依赖故事内容** ⇒ ★零故事／单夹具即可跑（引擎侧持有 ✓）
 //   · `story`（乙）：★**点名段名／事件键** ⇒ ★需真故事（归 books 侧 ✓ —— `books#36`）
 //   ★默认 `all`（✗ 改旧行为）；`BROWSER_TIERS=engine` ⇒ 只跑甲＋丙。
-// ★★ `#1532`（坐标裁）：乙类的**段名／入口名／事件键**改**可注入**
-//   ★理由：鄂一段点的名字是**故事侧的事** —— ★引擎侧把它硬编在自己身上
-//     ⇒ ★换个真故事（books）就得改**引擎仓的源码** ✗（★与 `#1532` 的“字句不进引擎”相抵 ✗）
-//   ★一处权威：★**一张映射表** —— ★默认值＝旧值（★✗ 改旧行为 ３）
-//     ，★可用 `SG_BROWSER_STORY_MAP='{...JSON...}'` 整体覆盖（★books 侧就这么传 ✓）。
-//   ★形式：★`{ 女巫屋: {...} }`？★✗ —— ★用**作用名**（`enter屋`）→ **段名**，因为★“哪一份作用”是引擎侧的词汇 ✓
-export const STORY_MAP = (() => {
-	const dflt = {
-		witchHut: { passage: '女巫小屋' },
-		caveFight: { passage: '洞穴·战斗' },
-		// ★ `#1532`（T 的 B3 更正）：★旧值 `门厅`／入口 `看钉` ⇒ 改 **`里屋`**（★books 的 `north-room` 里那段名）
-		//   ★两个条件都要核（★T 的判法）：★① **内容性质**：行动要**跨段**（导航型）；
-		//     ★② **渲染性质**：它要落在 **`.acts`** 里（★由段的 `present` 决定 ✓）。
-		//   ★为什么 `门厅` ✗：★`north-room` 全菜单形（★不落 `.acts`）⇒ ★只满足 ① **✗ 满足 ②** ✗
-		//     （★✗ 是“旧段名没了”那么简单 —— ★是**渲染性质不对** ✗）
-		hall: { passage: '里屋', expect: '里屋·觉察' },
-		keeper: { passage: '守林人', state: 'pc.keeper=pc.keeper||{};' },
-		multi: { passage: '岔路' },
-	};
-	try {
-		const raw = process.env.SG_BROWSER_STORY_MAP;
-		return raw ? { ...dflt, ...JSON.parse(raw) } : dflt;
-	} catch (e) {
-		console.error('✗ SG_BROWSER_STORY_MAP 不是合法 JSON：' + e.message);
-		process.exit(1);
-	}
-})();
+// ★★ `#1532`（坐标裁）：乙类的**段名／入口名／事件键**可注入 ——
+//   ★实现已抽到 **无副作用模块** `scripts/browser-story-map.mjs`（★门与格**同 import 同一份** ✓）
+//   ★为何要抽（CR：**注入生效无近格** —— ★“守卫在远处” ✗）：
+//     ★原写法是**顶层 IIFE**（读 env ＋ 失败即 `process.exit(1)`）⇒
+//     ★`browser.mjs` 是**顶层 await 脚本** ⇒ ★**无法在进程内 import 它**来量“注入到底生效没” ✗
+//     ★⇒ 故自证只能**在远处**断言（“默认值＝旧值”）而**注入那一路没近格** ✗
+//   ★现在：★格可 `resolveStoryMap({ env: { SG_BROWSER_STORY_MAP: '…' } })` **直接量** ✓
+const { map: _SM, error: _SM_ERR } = resolveStoryMap({ env: process.env });
+if (_SM_ERR) { console.error('✗ ' + _SM_ERR); process.exit(1); }
+export const STORY_MAP = _SM;
 
 export const TIERS = (process.env.BROWSER_TIERS ?? 'all').trim() || 'all';
 export const runsEngine = TIERS === 'all' || TIERS === 'engine';
@@ -191,10 +175,27 @@ const selftest = () => {
 	// ★★ `#1532`（坐标裁）：★**乙类段名可注入** —— ★判法：★默认值＝**旧值**（★✗ 改旧行为）；
 	//   ★且★映射表**真的在管**：★各作用名的 `passage` 非空（★若某处改成硬编字面量 ⇒ 本格仍绿，
 	//     ★故★另有★**行为面**守它：`SG_BROWSER_STORY_MAP` 非法 ⇒ 必退 1（★实测✓））
+	// ★★ `#1532` CR（代码审查：**注入生效无近格**）：★现在抽成无副作用模块 ⇒ ★**进程内直接量** ✓
+	//   ★三格：① 注入**真生效**（★且段名与默认不同 ⇒ ★✗ 可能是“碰巧相同”）
+	//     ② 注入**逐作用名合并**（★只给一个 ⇒ ★其余落回默认 ✓）
+	//     ③ ★**非法 JSON ⇒ 出错信息且不崩**（★这是“无副作用”的可量形 ✓）
+	t('★乙类注入：**真生效**（★段名 `X` ⇒ 读到 `X`）',
+		resolveStoryMap({ env: { SG_BROWSER_STORY_MAP: '{"witchHut":{"passage":"X"}}' } }).map.witchHut.passage === 'X');
+	t('★乙类注入：**逐作用名合并**（★未给的落回默认）',
+		resolveStoryMap({ env: { SG_BROWSER_STORY_MAP: '{"witchHut":{"passage":"X"}}' } }).map.multi.passage === '岔路');
+	t('★乙类注入：★**非法 JSON ⇒ 出错信息**（★✗ 崩、✗ 静默）',
+		(() => { const r = resolveStoryMap({ env: { SG_BROWSER_STORY_MAP: '{oops' } });
+			return r.error !== null && r.map.witchHut.passage === '女巫小屋'; })());
 	t('★乙类段名可注入：★默认值＝旧值（★✗ 改旧行为）',
 		STORY_MAP.witchHut.passage === '女巫小屋' && STORY_MAP.caveFight.passage === '洞穴·战斗'
-		&& STORY_MAP.hall.passage === '里屋' && STORY_MAP.hall.expect === '里屋·觉察'
+		&& STORY_MAP.hall.passage === '里屋'
 		&& STORY_MAP.keeper.passage === '守林人' && STORY_MAP.multi.passage === '岔路');
+	// ★ `#1532` CR（T：本格**恒真** —— ★拿表里字面量比**同一个**字面量）。
+	//   ★改**行为面**：★把 `expect` 当正则去 `test` **夹具真串**（★假如值写错（如字序颠倒）⇒ 本格当场红 ✓）。
+	//   ★且★用**真实对象**（夹具 `north-room` 的检定名）—— ★✗ 再造一个字面量比自己 ✓
+	//   ★实测依据：★我原写的 `觉察`（**字序颠倒**）⇒ ★真值是 `察觉`（`north-room` 的 `chk:里屋·察觉.success`）✓
+	t('★乙类：`hall.expect` 能**匹中检定名形的真串**（★行为面 —— ✗ 字面量比字面量）',
+		new RegExp(String(STORY_MAP.hall.expect)).test('察觉检定（感知）〔里屋·察觉〕 DC11') === true);
 	t('★两层下界**各自独立**（★引擎层：达下界绿／低一条红）',
 		evaluateRun({ total: MIN_ASSERTIONS_ENGINE, fails: 0, minAssertions: MIN_ASSERTIONS_ENGINE }).code === 0
 		&& evaluateRun({ total: MIN_ASSERTIONS_ENGINE - 1, fails: 0, minAssertions: MIN_ASSERTIONS_ENGINE }).code === 1);

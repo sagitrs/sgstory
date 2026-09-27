@@ -372,6 +372,7 @@ export const SEGMENTS = [
 	//   （键名走 `vk()`／文案走 `vl()`）⇒ ★**改数据声明 ⇒ 展示跟变**（两态：键名 ＋ 文案）
 	//   自建夹具根（`mkdtemp` ⇒ 每次真清生成物；同进程跑两棵树⇒传绝对路径）⇒ **exclusive** ✓
 	{ id: "test-vitals-display-mjs", phase: 'test', cost: 5, exclusive: true, mutates: ['build'], cmd: "node test/vitals-display.mjs" },
+	{ id: "test-draw-primitives-mjs", phase: 'test', cost: 0.3, exclusive: true, cmd: "node test/draw-primitives.mjs" },   // ★`#1537` P1：图形原语（结构约束＋行为）
 	// ★ `#1488`（五步⑤）：结算原语（枚举三件）＋ 阈值只 0 ＋ 零界＝实体授予
 	// ★ `#1488`（五步⑤）：结算原语**真跑**（`boot()` ⇒ 需要夹具根 ⇒ 内联 `SG_STORIES_DIR` ✓）
 	{ id: "test-settle-primitives-mjs", phase: 'test', cost: 2, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node test/settle-primitives.mjs" },
@@ -687,7 +688,7 @@ export const SUITE_MEMBERS = {
 	],
 	'story-legal': ['test-multi-story-mjs',
 		'test-multi-story-mjs-selftest',
-		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-case-run-mjs', 'test-merge-sources-mjs', 'test-sources-wired-e2e-mjs', 'test-vitals-consumers-mjs', 'test-vitals-migrate-chargen-mjs', 'test-vitals-display-mjs', 'test-settle-primitives-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs',
+		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-case-run-mjs', 'test-merge-sources-mjs', 'test-sources-wired-e2e-mjs', 'test-vitals-consumers-mjs', 'test-vitals-migrate-chargen-mjs', 'test-vitals-display-mjs', 'test-draw-primitives-mjs', 'test-settle-primitives-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs',
 		// `#1267`／`#1257`：故事根口与两面一致性（归 `infra` 语义——判的是**工具链口径**，非故事内容）
 		'test-story-root-mjs', 'test-story-enum-faces-mjs',
 		'test-story-ci-mjs-selftest', 'test-rules-claims-mjs',

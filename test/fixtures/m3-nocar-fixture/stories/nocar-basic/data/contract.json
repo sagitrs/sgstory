@@ -1,8 +1,58 @@
 {
-	"section": "StoryBindings",
-	"note": "无车卡最小夹具：只声明引擎必需成员（未启用也要声明）",
-	"members": [
-		{ "name": "rules", "kind": "empty-array", "docs": "本夹具无规则行" },
-		{ "name": "mechanics", "kind": "null", "docs": "未启用新机制" }
-	]
+ "section": "StoryBindings",
+ "note": "无车卡最小夹具：声明引擎必需成员 ＋ **表示面 `panels`**（最小面＝声明出来的；✗ 不再靠引擎内置的假值 `❤ 0 / 1`）",
+ "members": [
+  {
+   "name": "rules",
+   "kind": "empty-array",
+   "docs": "本夹具无规则行"
+  },
+  {
+   "name": "mechanics",
+   "kind": "null",
+   "docs": "未启用新机制"
+  },
+  {
+   "name": "pcShape",
+   "kind": "const",
+   "value": {
+    "hp": 12,
+    "max_hp": 12,
+    "inv": {
+     "黄铜钥匙": true
+    }
+   },
+   "docs": "无车卡最小面：血量与物品的**真数据**（✗ 不再是引擎替它猜的 `❤ 0 / 1` 假值 —— spec §4④）"
+  },
+  {
+   "name": "panels",
+   "kind": "const",
+   "value": [
+    {
+     "as": "bar",
+     "slot": "sidebar.primary",
+     "props": [
+      {
+       "slot": "sidebar.primary",
+       "valueKey": "hp",
+       "maxKey": "max_hp",
+       "label": "生命"
+      }
+     ]
+    },
+    {
+     "as": "list",
+     "slot": "sidebar.primary",
+     "props": [
+      {
+       "slot": "sidebar.primary",
+       "valueKey": "inv",
+       "empty": "（空）"
+      }
+     ]
+    }
+   ],
+   "docs": "表示面（spec §2.2）：**最小面＝声明出来的**（✗ 不是引擎内置）"
+  }
+ ]
 }

@@ -107,6 +107,12 @@ export const DEFAULTS = {
 	socialAttAdj: { kind: 'const', value: { friendly: -5, neutral: 0, hostile: 5 }, verified: VERIFIED },
 	socialAsks: { kind: 'empty-array', verified: VERIFIED },
 	codexItems: { kind: 'null', verified: VERIFIED },
+	// ★ `#1538`（表示面 P2）：故事的「属性 → UI」声明维。
+	//   ★语义＝**这一面在，但空**（✗ 误报 `default-missing`）—— 与 `rules`／`combatPool` 同族。
+	//   ★**✗ 入 `REQUIRED_MEMBERS`**：它是**可选声明**（spec §1.2：与 `pcShape`／`rulesPack` 同住，故事可以不声明）；
+	//     入必给集会把「可选」变成「必给」✗（`#1538` 票面与 spec §5 的可行性核读已裁）。
+	//   ★零声明 ⇒ 玩家面**不产字节**（spec §3／§4④）—— 由空数组表达，✗ 不印 `（空）`、✗ 不印 `$pc.x` ✓。
+	panels: { kind: 'empty-array', verified: VERIFIED },
 	// 能力开关（缺席即"没有车卡"）
 	hasChargen: { kind: 'const', value: false, verified: VERIFIED },
 };

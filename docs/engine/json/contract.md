@@ -63,6 +63,7 @@
 { "name": "poisonReduce","kind": "const", "value": 0 }
 { "name": "econEvents", "kind": "game-ref", "path": "Game.Economy.events" }
 { "name": "hasChargen", "kind": "const", "value": false, "docs": "没有车卡（实测 `minimal-demo` 形态；`bool-exists` 判的是 `!!window.X`——别混）" }
+{ "name": "panels", "kind": "const", "value": [], "docs": "属性→UI 声明维（表示面）。可选声明：省略或给空数组都合法（`empty-array` 缺省 ⇒ 不报 `default-missing`）；形状 `[{ as: 'bar'|'list', props: [...] }]`，见 spec `docs/superpowers/specs/display-face.md` §2.2" }
 ```
 
 `face-fixture`（**25** 个成员）实测分布：`game-ref` 8 · `const` 6 · `lookup` 5 · `bool-exists` 1 · `state-ref` 1 · `forward` 1 · `empty-array` 1 · `null` 1 · `lookup-field` 1（来源：`#1188` 第一片删两名零读取成员后的树面，2026-09-22）。
@@ -74,3 +75,6 @@
 - **新故事照最小合法集写**（本故事不新增面 → 不新增登记）；有面才登记。
 - **`null` 与 `empty-*` 语义不同**：`null` ＝"这一面不存在，调用方跳过"；`empty-*` ＝"这一面存在且为空" —— 混用会让调用方的分支写错。
 - 契约的**成员集合**就是 `{{名字}}`（正文取值）的**候选声明面**（见 `decisions.md` 的 **P2**，**待裁**）。
+- **可选声明 vs 必给**：`panels`（表示面）是**可选**成员 —— 省略或给空数组都合法；而 `rules`／`notes`／`pcDefaults`／`mechanics` 等属**必给**（未启用也要声明，去声明会撞 `story-shape` 门）。
+  ⇒ 判别唯一权威＝`editor/lib/core/contract-defaults.mjs` 的 `REQUIRED_MEMBERS` 与 `DEFAULTS`（本文件只给指针，✗ 不复述名单）。
+- **声明了就必须有人读**：本仓有一条门判「`dead-declaration` —— 声明了但引擎从不读」（`contract-defaults.mjs`；`test/contract-defaults.mjs` 把它归**失败面**，计入退出码）⇒ 新增可选成员时，**读点要与声明面同期落**，否则故事一按新声明就红（`#1538` 的 `panels` 即按此落：声明面 ＋ `Game.Rules.panels()` 读点同笔）。

@@ -87,7 +87,27 @@ const DECL = [
 	}
 }
 
+// ── ⑥ ★★（评审提请）**能被声明**那一面 ＋ **声明形态错 ⇒ 点名**（P2 的分期底线）──────
+// ★为什么单独一组：本仓已有一条门 `dead-declaration`（`contract-defaults.mjs:364`：
+//   “**声明了但引擎从不读**” ⇒ `test/contract-defaults.mjs:88` 把它归**失败面**，计入退出码）。
+//   ⇒ 若只有 `DEFAULTS.panels` 而 **无引擎读点** ⇒ **任何故事一声明 `panels` 就红** ⇒
+//   “声明面先行、消费面在后”的分期就**没有可声明窗口**（而 spec §3.1 正是要求故事**能先声明**：
+//   “补一块声明 ⇒ 那一块**立即**改走声明”）。
+//   ★本组的价值＝把“**只有声明面时也能如实声明**”变成**机检**（✗ 靠人记得先落读点）。
+//   ★能假：把 `src/10-core.twee` 的 `panels()` 读点删掉 ⇒ ⑥a 当场红。
+{
+	const core = readFileSync('src/10-core.twee', 'utf8');
+	// ⑥a 引擎侧**有读点**：`panels()`（与 `vk()`／`vl()` 同族的声明取值口）
+	//     ★它**不渲染**（渲染归 P3 的消费面）—— 只把声明的**规范化与只读**放一处。
+	t('⑥a 引擎侧**有** `panels` 读点（✗ 无读点 ⇒ 任何故事一声明它就撞 `dead-declaration` 失败面）',
+		/panels\s*\(\s*\)\s*\{/.test(core), '`src/10-core.twee` 里没有 `panels()` 读点');
+	// ⑥b 形态错 ⇒ fail-loud（照本仓同族教训：`#1543` 的 `fight` 类型错**静默路径**是门禁级缺陷）
+	t('⑥b 读点对**非数组**声明 fail-loud（✗ 不静默当空 —— 与 `pcDefaults` 同族口径）',
+		/panels\(\)[\s\S]{0,900}?Array\.isArray\(raw\)[\s\S]{0,400}?throw new Error/.test(core),
+		'读点里找不到“非数组 ⇒ throw”那一支');
+}
+
 if (bad) { console.error(`\n✗ \`panels\` 声明维判据失败 ${bad} 项`); process.exit(1); }
-console.log('\n✔ `panels` 声明维通过（面在但空 · 非必给 · 编译层逐字发射 · 形不归一 · 同一性）');
+console.log('\n✔ `panels` 声明维通过（面在但空 · 非必给 · 编译层逐字发射 · 形不归一 · 同一性 · 有读点 · 形态错 fail-loud）');
 console.log('  ○ 未判（**不在本件范围**）：spec §3／§4④ 的「零声明 ⇒ 玩家面不渲染」—— 那是**消费点**义务，'
 	+ '本件无消费点可判 ⇒ 随 P3 `#1539`（StoryCaption 改走 `panels`）承接。');

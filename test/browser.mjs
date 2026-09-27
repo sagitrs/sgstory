@@ -728,20 +728,23 @@ for (const [W, H] of VP) {
 			// ② 侧栏：**没有车卡的故事也要能看见血量与物品**（`#574` 的最小面；这是"战斗试验场"的前提）
 			// ★`#1539`（P3）**解耦**：原先断言写死**实现类名**（`.hpbar`／`.inv-block`）—— 那是
 			//   "断言随实现走"（实现一换类名它就红，而产品其实是对的；本次 CR 的根因之一）。
-			//   ⇒ 改为按**语义结构**判：本笔起 `panels` 声明驱动的渲染件产 `.sg-bar`／`.sg-list`，
-			//     但**判据不绑它**——改判"侧栏那一区里**有没有图形化的量条**与**列表**"：
-			//     · 量条：任一元素其 `style.width` 带 `%`（`Sg.draw.bar` 的产物形态，与类名无关）；
-			//     · 列表：`Sg.draw.list` 的项（`.sg-list-item`）**或**旧壳的 `.inv-item` —— 两者都认（迁移窗内兩態皆可）。
-			//   ★为什么这样更稳：断言判的是"最小面**在不在**"（产品性质），✗ "它叫什么类名"（实现形状）。
+			//   ⇒ 改为按**几何**判（✗ 不绑类名、✗ 也不只看 `style.width`）：
+			//     ★★`#1556` 评审（② MAJOR）实测过：只判"`style.width` 含 `%`"是**不够的** ——
+			//     若 CSS 缺失（`.sg-bar*` 无样式 ⇒ 高度 0）则"节点在、宽度属性也在"而**玩家看不见** ⇒
+			//     判据会**绿**而对象**不在**（正是"判据绿而对象不在"那一族）。
+			//     ⇒ 判**可见性**：该量条元素 `getBoundingClientRect().height > 0`（有高度才是真能看见）。
+			//     · 量条：侧栏内**有高度 > 0** 的元素其 `style.width` 带 `%`；
+			//     · 列表：`.sg-list-item` **或**旧壳 `.inv-item`，且其 rect 高度 > 0。
 			const bar = await ev(`(function(){
 				const c = document.querySelector('#story-caption') || document.getElementById('ui-bar');
 				const scope = c || document;
-				const widthPct = [...scope.querySelectorAll('*')].some((el) => /%/.test(el.style?.width || ''));
-				const listItems = scope.querySelectorAll('.sg-list-item, .inv-item').length;
-				return { bar: widthPct, list: listItems > 0, text: (c?.textContent || '').replace(/\\s+/g, ' ').slice(0, 40) };
+				const visible = (el) => { const r = el.getBoundingClientRect(); return r.height > 0 && r.width > 0; };
+				const barEl = [...scope.querySelectorAll('*')].find((el) => /%/.test(el.style?.width || '') && visible(el));
+				const listEl = [...scope.querySelectorAll('.sg-list-item, .inv-item')].find(visible);
+				return { bar: !!barEl, list: !!listEl, text: (c?.textContent || '').replace(/\\s+/g, ' ').slice(0, 40) };
 			})()`);
-			check(bar.bar, `${vp} 故事2 侧栏给出**血量条**（无车卡的最小面 · 判"有百分比量条"而非类名）`);
-			check(bar.list, `${vp} 故事2 侧栏给出**物品栏**（判"有列表项"而非类名）`);
+			check(bar.bar, `${vp} 故事2 侧栏给出**血量条**（无车卡的最小面 · 判"有**可见**的百分比量条"——几何 > 0，✗ 只看属性）`);
+			check(bar.list, `${vp} 故事2 侧栏给出**物品栏**（判"有**可见**的列表项"）`);
 			// ③ 三选一：真机布局下至少两条路落在视口内（可点性/首屏不空）
 			await ev(`window.__sg.play("${STORY_MAP.multi.passage}")`);   // `#1004` B2b：`minimal-demo` 的多选一段叫 `岔路`（旧写法 `岔口` 是旧故事的）
 			await sleep(320);

@@ -140,6 +140,9 @@ if (!existsSync(join(ROOT, FIX_FROM))) {
 			w.SugarCube.Engine.play('StoryCaption');
 			await B.settle(); await new Promise((r) => setTimeout(r, 200)); await B.settle();
 			const scope = w.document.querySelector('#story-caption') || w.document;
+			// ★PR 档（jsdom）**量不到几何**（`getBoundingClientRect()` 恒 0）⇒ 本件判**结构存在**
+			//   ＋ ★**样式表里有对应规则**（".sg-bar 等有样式" —— 那一面正是"画了但看不见"的根因）。
+			//   ★几何判据由**真机档**（`test/browser.mjs`，评审 ⑤ 已改判 `rect.height > 0`）承担。
 			const bar = [...scope.querySelectorAll('*')].some((el) => /%/.test(el.style?.width || ''));
 			const list = scope.querySelectorAll('.sg-list-item, .inv-item').length > 0;
 			const text = String(scope.textContent || '').replace(/\s+/g, ' ').slice(0, 80);
@@ -216,6 +219,19 @@ if (!existsSync(join(ROOT, FIX_FROM))) {
 				t('⑥ **撤声明 ⇒ 两块皆✗画**（逐块切换；✗ 旧内置块补位）',
 					!o2.bar && !o2.list, JSON.stringify(o2));
 			}
+		}
+		// ⑦ ★★（评审 ② MAJOR）**"画了但看不见"** —— 新渲染件产的类**必须有样式**。
+		//   ★为什么单列一格：`13-draw.twee` 只产**结构**（DOM 串），**形**在 `90-style.twee` ⇒
+		//     少了样式则"节点在、`style.width` 也在，而高度 0 ⇒ 玩家看不见" ⇒
+		//     所有**结构面**判据全绿而**对象不在**（同族：`#1541` 的"死件"／`#1551` 的"缺省规格 ≠ 进产物"）。
+		//   ★几何的最终判据在真机档（jsdom 量不到 rect）—— 本格判"**样式规则在场**"这一必要条件。
+		{
+			const css = readFileSync(join(ROOT, 'src/engine/50-present/90-style.twee'), 'utf8');
+			t('⑦ 新渲染件的类**有样式**：`.sg-bar`（✗ 缺 ⇒ 高度 0 ⇒ 玩家看不见）', /\.sg-bar\s*\{/.test(css));
+			t('⑦ `.sg-bar-fill` 有样式（宽度百分比要能看见）', /\.sg-bar-fill\s*\{/.test(css));
+			t('⑦ `.sg-list`／`.sg-list-item` 有样式', /\.sg-list\s*\{/.test(css) && /\.sg-list-item\s*\{/.test(css));
+			t('⑦ 旧类**死码已清**（`.hpbar`／`.inv-item` 在样式表里零命中 —— 壳已删）',
+				!/\.hpbar\s*\{/.test(css) && !/\.inv-item\s*\{/.test(css), '样式表里仍有已删件的规则');
 		}
 	} finally { rmSync(WORK, { recursive: true, force: true }); }
 }

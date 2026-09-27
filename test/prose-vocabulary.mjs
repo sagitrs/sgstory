@@ -184,44 +184,37 @@ export const proseVocabProblems = ({ slug, files, vocab }) => {
 			const isProse = !p.tags.some((t) => ['script', 'widget', 'stylesheet'].includes(t));
 			if (!isProse) continue;
 			for (const { text, line } of stripCommentSpans(p.bodyLines)) {
-				// ★★ `#1508` CR（tester-4）：★**一次提取，两处消费**（✗ 旧写法「同一门两套口径」）
-				//   旧：V1/V2 按**名字**扫（`/<<(-?[A-Za-z=!]…)/`），P6 按**整串**扫（`/<<[^>]*>>/`）
-				//   ⇒ ★`[^>]*` 遇**参数里含 `>`** 的宏（`<<give "a > b">>`）⇒ P6 **命中 0**；
-				//     而名字扫命中 `give` ⇒ 已宣告 ⇒ V1/V2 **放过** ⇒ ★★**三道门都不接** ✗（实测复现）
-				//   ⇒ ★正解：★**配对**正则 `/<<[\s\S]*?>>/g` 提一次 ⇒ 名字从匹配串**派生**（供 V1/V2）＋整串（供 P6）✓
-				// ★★ `#1508`（P6 门翻转 · 零白名单终态）：**散文出现任何 `<<…>>` 宏 或 `/% payload: … %/` 标记 ⇒ 红**
-				//   ★理由：`#1505`／`#1506` 已把 sitecheck/snapshot/payload 与 fight 三族搬到**段级字段 ＋ 编译期注入**
-				//     ⇒ 故事段里**不再需要手写宏** ⇒ 出现即残留（✗ 无白名单可放行）。
-				//   ★口径：只判**散文段**（`isProse` 已滤 script/widget/stylesheet）。
-				//   ★与 V1/V2：那两条是**宣告面**（有白名单）；P6 是**形态面**（零白名单）。
-				//   ★★**实况（★ CR 纠正我的旧措词）**：★终态下★**V1/V2 仍会与 P6 同时报**⇒ ★**双报**（同一处 两码）✗ ——
-				//     ★故上一行写“**V1/V2 不再触发**”是错的（★与实测相反）✗；★真正退役在★**另票**：★`#1552`（清死码：★V1/V2 白名单语义已无对象）✓
-				//   ★在那之前：★两档并存、各自报各自的（★☆"逐渐双报"是**已知状态**，✗ 不是漏洞）✓
-				const MACRO_RE = /<<[\s\S]*?>>/g;
+				// ★★★ `#1552`（本票 · 裁＝**甲**）：★**三档并存 ⇒ 单一 `P6` ＋ `kind`**（✗ 白名单从"判"降为"分类输入"）
+				//   ★旧形（`#1550` 及其前）：★V1（禁则内建）／V2（未宣告）／P6（形态）**三档各报各的** ⇒ ★同一处**双报** ✗
+				//   ★新形：★**判**统一归 `P6`（零白名单 ⇒ 任何宏都报）｜★**诊断**由 `kind` 承载：
+				//     · `forbidden`   ＝ 名字在 `FORBIDDEN_BUILTINS`（禁则内建：控制流/表达式）
+				//     · `unannounced` ＝ 不在允许集、也不在宣告面（`vocab`）
+				//     · `declared`    ＝ 已宣告（★终态下**同样报** —— ★这就是"零白名单"）
+				//   ★为什么不是"删掉 V1/V2 的码、留下它们的信息"（乙案）：★**分类要可机检可统计**（✗ 只进文案 ⇒ 统计不了）✓
+				//   ★★注意：`FORBIDDEN_BUILTINS` 的**内容**不动（它**同时被 `forbiddenProblems` 用**）—— 本档只改**用法**（判 ⇒ 分类）✓
+				//   ★★闭合标签（`<</if>>` 这类）**不是宏** ⇒ ★正则用 `(?!/)` **排它**（✗ 否则它会被当第二个宏报一次 ✗）
+const MACRO_RE = /<<(?!\/)[\s\S]*?>>/g;
 				const NAME_OF = /^<<\s*(-?[A-Za-z=!][A-Za-z0-9_-]*)/;
 				for (const m of text.matchAll(MACRO_RE)) {
 					const name = NAME_OF.exec(m[0])?.[1] ?? '';
-					// ── 第一档（V1/V2，**宣告面**；★终态下由 P6 兜底，本档保留到"清死码"那一票）──
-					if (FORBIDDEN_BUILTINS.has(name)) {
-						out.push({ code: 'V1', file: f.path, line, macro: name, msg: `${f.path}:${line} 正文里出现**逻辑/表达式**宏 \`${m[0].slice(0, 40)}\`（段落「${p.name}」）—— 作者不写控制流（迁移规则 \`#1114\` 片1前置②：状态进 data/、控制流进记录）` });
-					} else if (!ALLOWED_BUILTINS.has(name) && !vocab.has(name)) {
-						out.push({ code: 'V2', file: f.path, line, macro: name, msg: `${f.path}:${line} 正文里出现**引擎未宣告**的宏 \`${m[0].slice(0, 40)}\`（段落「${p.name}」）—— 未登记＝不可审；要新增词汇宏 ⇒ 在引擎宣告（\`<<widget>>\`／\`Macro.add\`）＋票内说明理由` });
-					}
-					// ── P6（**形态面**，零白名单）──
-						out.push({ code: 'P6', msg: `${f.path}:${line} 正文里出现**宏** \`${m[0].slice(0, 40)}\`（段落「${p.name}」）—— ★\`#1508\` 终态：**散文零宏**（检定/战术/载荷一律走**段级字段 ⇒ 编译期注入**）✗ 手写` });
+					const kind = FORBIDDEN_BUILTINS.has(name) ? 'forbidden'
+						: (!ALLOWED_BUILTINS.has(name) && !vocab.has(name)) ? 'unannounced' : 'declared';
+					const why = kind === 'forbidden' ? '★禁则内建（控制流/表达式 —— 作者不写控制流）'
+						: kind === 'unannounced' ? '★引擎未宣告（未登记＝不可审）' : '★已宣告（✗ 但终态下**仍不许手写** —— 由编译期注入）';
+					out.push({ code: 'P6', file: f.path, line, macro: name, kind, msg: `${f.path}:${line} 正文里出现**宏** \`${m[0].slice(0, 40)}\`（段落「${p.name}」）—— 类别＝\`${kind}\`（${why}）⇒ ★\`#1508\` 终态：**散文零宏**✗ 手写` });
 				}
 				// ★★ 未配对的 `<<`（✗ 配对正则吃不到的：未闭合）⇒ ★P6 也要红
-				//   ★理由：「零宏」若只算配对形 ⇒ ★`<<give`（已宣告且未闭合）三道门都不接 ✗
-				if (text.replace(MACRO_RE, '').includes('<<')) {
-						out.push({ code: 'P6', msg: `${f.path}:${line} 正文里出现**未闭合/残留的 \`<<\`**（段落「${p.name}」）—— ★\`#1508\` 终态：**散文零宏**✗ 手写` });
+				//   ★理由：「零宏」若只算配对形 ⇒ ★`<<give`（已宣告且未闭合）**没有任何档**接 ✗
+				//   ★残留检查也要**先拉掉闭合标签**（✗ 否则 `<</if>>` 会被误报成"未闭合" ✗）
+				if (text.replace(MACRO_RE, '').replace(/<<\/[A-Za-z]*>>/g, '').includes('<<')) {
+					out.push({ code: 'P6', file: f.path, line, macro: '<<', kind: 'unclosed', msg: `${f.path}:${line} 正文里出现**未闭合/残留的 \`<<\`**（段落「${p.name}」）—— 类别＝unclosed ⇒ ★\`#1508\` 终态：**散文零宏**✗ 手写` });
 				}
 			}
 				// ★★ 标记那一半：`/% payload: … %/` 由 `stripCommentSpans` **整体摘掉**（`text:''`）⇒ `text` 里**看不到它** ✗
 				//   ★故必须另扫**原始行**（`p.bodyLines`）—— 否则"零标记终态"无人守 ✗
-				//   （实测：我第一版 P6 只扫 `text` ⇒ payload 标记那格**当场红** ✓）
 				for (const { text: rawLine, line: rawNo } of p.bodyLines) {
 					if (/%\s*payload:/.test(rawLine)) {
-						out.push({ code: 'P6', msg: `${f.path}:${rawNo} 正文里出现**payload 标记** \`/% payload: … %/\`（段落「${p.name}」）—— ★\`#1508\` 终态：**零标记**（负荷走**段级字段 ⇒ 编译期注入**）✗ 手写` });
+						out.push({ code: 'P6', file: f.path, line: rawNo, kind: 'marker', msg: `${f.path}:${rawNo} 正文里出现**payload 标记** \`/% payload: … %/\`（段落「${p.name}」）—— 类别＝marker ⇒ ★\`#1508\` 终态：**零标记**（负荷走**段级字段 ⇒ 编译期注入**）✗ 手写` });
 					}
 				}
 		}
@@ -318,17 +311,26 @@ const selftest = () => {
 
 	const mk = (body) => [{ path: 'stories/demo/10-x.twee', text: `:: 开场 [prose]\n${body}\n` }];
 
-	t('反例：`<<set>>` ⇒ V1 且点名',
-		(proseVocabProblems({ slug: 'demo', vocab, files: mk('<<set $x to 1>>') })[0]?.code) === 'V1');
-	t('反例：`<<if>>` ⇒ V1', (proseVocabProblems({ slug: 'demo', vocab, files: mk('<<if $x>>嗯<</if>>') })[0]?.code) === 'V1');
-	t('反例：表达式宏 `<<= … >>` ⇒ V1', (proseVocabProblems({ slug: 'demo', vocab, files: mk("<<= window.Sg.Codex?.render?.() ?? 'x' >>") })[0]?.code) === 'V1');
-	t('反例：引擎**未宣告**的宏（`<<goto>>`）⇒ V2', (proseVocabProblems({ slug: 'demo', vocab, files: mk('<<goto "船头">>') })[0]?.code) === 'V2');
+	t('★`#1552`：`<<set>>` ⇒ **P6**、`kind:forbidden`（★单一码，✗ 再双报）',
+		(() => { const r = proseVocabProblems({ slug: 'demo', vocab, files: mk('<<set $x to 1>>') }); return r.length === 1 && r[0].code === 'P6' && r[0].kind === 'forbidden'; })());
+	t('★`#1552`：`<<if>>` ⇒ **P6**、`kind:forbidden`', (() => { const r = proseVocabProblems({ slug: 'demo', vocab, files: mk('<<if $x>>嗯<</if>>') }); return r.length === 1 && r[0].code === 'P6' && r[0].kind === 'forbidden'; })());
+	t('★`#1552`：表达式宏 `<<= … >>` ⇒ **P6**、`kind:forbidden`', (() => { const r = proseVocabProblems({ slug: 'demo', vocab, files: mk("<<= window.Sg.Codex?.render?.() ?? 'x' >>") }); return r.length === 1 && r[0].kind === 'forbidden'; })());
+	t('★`#1552`：未宣告的宏（`<<goto>>`）⇒ **P6**、`kind:unannounced`', (() => { const r = proseVocabProblems({ slug: 'demo', vocab, files: mk('<<goto "船头">>') }); return r.length === 1 && r[0].kind === 'unannounced'; })());
 	t('正例：注释里的 `<<if>>` **不判**（剔注释／留痕优先）',
 		proseVocabProblems({ slug: 'demo', vocab, files: mk('/% 当初写成 <<if $x>> ⇒ 错在哪… %/') }).length === 0);
 	t('正例：**跨行注释**里的宏不判',
 		proseVocabProblems({ slug: 'demo', vocab, files: mk('/% 第一行\n   <<set $x to 1>> 第二行 %/\n正文') }).length === 0);
 	t('正例：`[script]` 段落里的宏**不判**（非散文）',
 		proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'p.twee', text: ':: StoryHooks [script]\nwindow.Sg ??= {};\n<<set $x to 1>>\n' }] }).length === 0);
+	// ★★ `#1552`（本票）：三档并存 ⇒ **单一 `P6` ＋ `kind`**（★四条）
+	t('🔴 `#1552`：★**一处一条**（`<<set $x to 1>>` ⇒ `P6` 计数 **1**，✗ 不许 V1＋P6 两条）',
+		proseVocabProblems({ slug: 'demo', vocab, files: mk('<<set $x to 1>>') }).filter((q) => q.code === 'P6').length === 1);
+	t('🔴 `#1552`：★**零白名单仍成立**（`<<back "回开场">>` 虽在允许集 ⇒ **仍报**，且 `kind:declared`）',
+		proseVocabProblems({ slug: 'demo', vocab, files: mk('<<back "回开场">>') }).some((q) => q.code === 'P6' && q.kind === 'declared'));
+	t('🔴 `#1552`：★**三分类各自命中**（forbidden／unannounced，declared 三形）',
+		(() => { const r = proseVocabProblems({ slug: 'demo', vocab, files: mk('<<set $x to 1>>\n<<goto "y">>\n<<give "z">>') }); const ks = r.filter((q) => q.code === 'P6').map((q) => q.kind).sort(); return JSON.stringify(ks) === JSON.stringify(['declared', 'forbidden', 'unannounced']); })());
+	t('🔴 `#1552`：★**闭合标签不算宏**（`<<if>>…<</if>>` ⇒ `P6` 计数 **1**，✗ 不把 `<</if>>` 当第二个）',
+		proseVocabProblems({ slug: 'demo', vocab, files: mk('<<if $x>>嗯<</if>>') }).filter((q) => q.code === 'P6').length === 1);
 	t('🔴 P6：同一段多行正文里的 payload 标记 **只报一次**（★ CR：旧写法嵌在逐行循环里 ⇒ 报 N 次）',
 		proseVocabProblems({ slug: 'demo', vocab, files: mk('/% payload: 信息 %/\n正文一\n正文二\n正文三') }).filter((q) => q.code === 'P6').length === 1);
 	t('🔴 P6 反例：★**参数里含 `>`** 的已宣告宏也报（★tester-4 CR：`[^>]*` 会**漏**这种）',
@@ -368,10 +370,10 @@ const selftest = () => {
 	t('#1048：valueTerms 并集（值语义 kind ∪ labels）', (() => { const t1 = valueTerms({ contract: { members: [{ name: 'a', kind: 'const' }, { name: 'b', kind: 'empty-object' }] }, labels: ['classLabel'] }); return t1.has('a') && t1.has('classLabel') && !t1.has('b'); })()),
 	// ── `#1114` 片 2b-2a：**散文层源**（`passages/` 下的 `.md`）进判据面 ────────────────
 	// 三格能假：禁则红 ／具名动作宏不红 ／未宣告宏红；另一格：**跟源同名段**必报。
-	t('🔴 md 源·反例：md 正文含 `<<set>>` ⇒ **V1**（判据体与 twee 路**共用** ✓）',
-		(proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'stories/demo/passages/0-a.md', text: '---\npassage: 开场\n---\n门是虚掩的。\n<<set $x to 1>>\n' }] })[0]?.code) === 'V1');
-	t('🔴 md 源·反例：md 正文的**未宣告宏** ⇒ **V2**（不分派会成“假绿”：twee 解析器把 md 解成空 ⇒ 看着像扫过 ✓）',
-		(proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'stories/demo/passages/0-a.md', text: '---\npassage: 开场\n---\n<<nonexistent>>\n' }] })[0]?.code) === 'V2');
+	t('🔴 md 源·反例：md 正文含 `<<set>>` ⇒ **P6**、`kind:forbidden`（判据体与 twee 路**共用** ✓）',
+		proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'stories/demo/passages/0-a.md', text: '---\npassage: 开场\n---\n门是虚掩的。\n<<set $x to 1>>\n' }] }).some((q) => q.code === 'P6' && q.kind === 'forbidden'));
+	t('🔴 md 源·反例：md 正文的**未宣告宏** ⇒ **P6**、`kind:unannounced`（不分派会成“假绿” ✓）',
+		proseVocabProblems({ slug: 'demo', vocab, files: [{ path: 'stories/demo/passages/0-a.md', text: '---\npassage: 开场\n---\n<<nonexistent>>\n' }] }).some((q) => q.code === 'P6' && q.kind === 'unannounced'));
 	t('md 源·front-matter：`passage` ⇒ 段名、`tags` ⇒ tag 面（与拼装层同一权威解析 ✓）',
 		(() => { const p = passagesOf('---\npassage: 酒馆\ntags: prose\nscope_of: x\n---\n正文\n', 'stories/x/passages/p.md')[0]; return p.name === '酒馆' && p.tags.includes('prose') && p.bodyLines[0].text === '正文'; })());
 	t('🔴 跟源同名段（md ＋ twee 各写一份）⇒ **报且点名两处** ✗（“改了 md 没改 twee”的静默分叉 ✓）',

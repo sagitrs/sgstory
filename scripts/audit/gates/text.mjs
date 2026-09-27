@@ -131,15 +131,19 @@ if (wantAll || arg('text')) {
 		process.exit(1);
 	}
 	// ★ `#1528`：★**回归格** —— ★「零故事短路**不得在自证闸之前**」。
-	//   ★判法：★本门自证格的**计数位置**必须**在短路之前** ⇒ ★用源文顺序可核（✗ 不依赖运行时状态 ✓）。
-	//   ★为什么用文本核：★“两个位置的先后”本身不能用行为格验（★格级属性 ⇒ 只能看源文）。
+	//   ★判法：★**行首锤**（`^\tif (selfBad) {` ／ `^\tif (!\.storySlug)`）⇒ ★避开本格**自己体内**的同名串
+	//   ★★为什么非要这样（★我实测踩过）：★第一版用 `src.indexOf('if (selfBad) {')` ——
+	//     ★而该串**出现在本格自己的代码里**（`const iGate = src.indexOf(...)` 那行）
+	//     ⇒ ★判据取决于**本格自身的文本顺序** ✗（★实测：删掉**真闸**后，本格**仍绿** ✗）
+	//   ★另：★本格判不成立时必须**自己退出 1**（★它此时处于**短路之后** ⇒ ★`selfBad++` **到不了闸** ✗）
 	{
 		const src = readFileSync(absPath('scripts/audit/gates/text.mjs'), 'utf8');
-		const iShort = src.indexOf('zero-story mode');
-		const iGate = src.indexOf('if (selfBad) {');
-		const ok = iShort > 0 && iGate > 0 && iGate < iShort;
+		const mGate = src.match(/^\tif \(selfBad\) \{/m);
+		const mShort = src.match(/^\tif \(!ctx\.storySlug\)/m);
+		const iGate = mGate ? mGate.index : -1, iShort = mShort ? mShort.index : -1;
+		const ok = iGate > 0 && iShort > 0 && iGate < iShort;
 		console.log(`      ${ok ? '✓' : '✗'} 自证·★零故事短路**在自证闸之后**（✗ 否则零故事态自证红不进退出码）`);
-		if (!ok) selfBad++;
+		if (!ok) { selfBad++; }
 	}
 	// `#1261` zero-story: no stories/<slug>/audit.json to read (this gate's data lives in the story dir).
 	// The gate has no sample here, so say so and skip instead of joining null into a path.

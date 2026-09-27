@@ -61,14 +61,32 @@ const PC = { gear: ['布衣'], gearHp: {}, abilities: { con: 10 }, skills: [], f
 
 /** `#703`：**机制必须可被玩家看见**——S1 的耐久与 S2 的异常若没有任何渲染点，
  * "机制存在"对玩家等于不存在（反馈③："UI 上看不到装备状态和部位状态"）。
- * 判据（源码级、可反例）：侧栏渲染面（`StoryCaption` 所在文件）必须调用引擎的只读快照入口
- * `Game.Gear.gearDurability(`（C 块宿主）与 `Game.StatusFx.statusEntries(`（★B 块宿主，`#1452` 搬）。 */
-export const visibilityProblems = (sidebarSrc) => {
+ *
+ * ★★`#1540`（表示面 P4）**口径变更**：原判据要求侧栏里**出现字面串**
+ * `Game.Gear.gearDurability(` 与 `Game.StatusFx.statusEntries(`。
+ * 那在"**走声明**"的终态下**反过来逼死代码留着**（门在守"这几行删不得" —— 循环），
+ * 而 `gear-hp`／`status-list` 两块在**全部对象**（5 个 books 故事 ＋ 各夹具）上
+ * `statuses`／`gearDef` **皆空** ⇒ 一个都不渲染（`#1540` 已按 `#1227` 先例删）。
+ *
+ * ⇒ 新判据＝**渲染面存在**（✗ 字面串在场）：侧栏必须有一个**能把这两类数据画出来**的面 ——
+ *   即走**声明驱动**的渲染件 `Sg.panels.renderSlot(`（`#1539` P3 落）。
+ *   ★"看得见"的义务随之**移到故事侧**：故事有该数据时**声明一块** `bar`／`list` 指向它 ✓
+ *     （引擎侧只保证"有面"，✗ 保证"某个故事画了它" —— 引擎✗知某个故事有哪些属性，那是 spec §1.1 的中间形）。
+ *   ★**✗ 不弱化**：侧栏**既无声明面、也无字面串** ⇒ 仍然红（机制确实"无处可见"）。
+ *   ★为什么单列这条并写明理由：`#1540` 的裁定语（丙）＝"该门现在是在守'死代码必须留下'"。 */
+export const visibilityProblems = (sidebarSrc, { declared = false } = {}) => {
 	const src = String(sidebarSrc ?? '');
 	if (!src.trim()) return [{ code: 'sidebar-src-missing', why: '取不到侧栏源码（`src/10-core.twee`）——本判据要读渲染面才能判' }];
 	const out = [];
-	if (!/Game\.Gear\.gearDurability\(/.test(src)) out.push({ code: 'gearhp-invisible', why: '侧栏没有渲染**装备耐久**（`Game.Gear.gearDurability(`）——S1 机制对玩家不可见（#703）' });
-	if (!/Game\.StatusFx\.statusEntries\(/.test(src)) out.push({ code: 'status-invisible', why: '侧栏没有渲染**部位异常**（`Game.StatusFx.statusEntries(`）——S2 机制对玩家不可见（#703）' });
+	// ① 声明驱动面（终态正解）
+	const hasDeclSurface = /Sg\.panels\.renderSlot\(/.test(src);
+	// ② 字面串面（过渡期形态；✗ 清零它 —— 有故事真在用数据时会退回旧式渲染）
+	const hasLiteral = /Game\.Gear\.gearDurability\(/.test(src) && /Game\.StatusFx\.statusEntries\(/.test(src);
+	if (hasDeclSurface || hasLiteral) return out;
+	out.push({ code: 'no-visible-surface',
+		why: '侧栏**既无声明驱动渲染面（`Sg.panels.renderSlot(`）、也无字面串渲染点** ⇒ S1 耐久／S2 异常无可视面（#703）'
+			+ '—— 修法：侧栏走 `Sg.panels.renderSlot(SugarCube.State.variables.pc, …)`（`#1539`），'
+			+ '或由故事声明一块指向该数据 ✓（★✗ 不许"引擎内置一个死块"充当可见性）' });
 	return out;
 };
 
@@ -241,9 +259,15 @@ export const run = (ctx) => {
 			// `#703`：机制可见性（**独立循环**——它判的是"渲染面有没有引用"，不是 plan 违反项）
 			{
 				const visCases = [
-					['#703 正例：侧栏渲染了装备耐久与部位异常 ⇒ 不报', '行囊 <<set _gh to Game.Gear.gearDurability($pc)>> <<set _st to Game.StatusFx.statusEntries($pc)>>', 0],
-					['🔴 #703 反例：删掉装备耐久渲染 ⇒ 报', '<<set _st to Game.StatusFx.statusEntries($pc)>>', 1],
-					['🔴 #703 反例：删掉部位异常渲染 ⇒ 报', '<<set _gh to Game.Gear.gearDurability($pc)>>', 1],
+					// ★`#1540`：口径改"**渲染面存在**"⇒ 正例改成**声明驱动面**（终态正解）
+					['#703 正例（终态）：侧栏走 `Sg.panels.renderSlot(` ⇒ 不报',
+						'<<print Sg.panels.renderSlot(SugarCube.State.variables.pc, \'sidebar.primary\')>>', 0],
+					['#703 正例（过渡）：侧栏仍有字面串渲染点（装备耐久 ＋ 部位异常）⇒ 不报',
+						'行囊 <<set _gh to Game.Gear.gearDurability($pc)>> <<set _st to Game.StatusFx.statusEntries($pc)>>', 0],
+					['🔴 #703 反例：**既无声明面、也无可视渲染点**（只留一个死块）⇒ 报',
+						'<div class="gear-hp">装备</div>', 1],
+					['🔴 #703 反例：只留一类字面串（半个面）⇒ 报（✗ 半个也算看得见）',
+						'<<set _st to Game.StatusFx.statusEntries($pc)>>', 1],
 					['#703 反例：取不到侧栏源码 ⇒ 报（不静默判过）', '', 1],
 				];
 				for (const [label, src, want] of visCases) {

@@ -95,6 +95,19 @@ export const judgeConsequences = (ctx) => {
 // ── ⓪q D2 选择后果门（#267）：每个被写入旗标必须落一桶 ══
 if (wantAll || arg('consequences')) {
 	console.log('\n══ ⓪q 选择后果门（#267）——非任意·非二元·后果可见（机械判据）══');
+	// ★★ `#1529` CR（T 单点刀）：闸位置＝关于本门结构的不变量 —— **✗ 不能当 `selfBad` 格**
+	//   （★「任何放在闸之后的红，谁来看它？没人」—— **自我指涉** ✗）⇒ 改成「**门内最先跑的静态检查**」，**自己退** ✓
+	{
+		const self = readFileSync(absPath('scripts/audit/gates/consequences.mjs'), 'utf8');
+		const mGate = self.match(/^\tif \(selfBadPre\) \{/m);
+		const mShort = self.match(/^\tif \(!ctx\?\.storySlug\)/m);
+		const incs = [...self.matchAll(/selfBad\+\+/g)].map((m) => m.index);
+		const last = incs.length ? incs[incs.length - 1] : -1;
+		if (!(mGate && mShort && mGate.index < mShort.index && (last < 0 || mGate.index > last))) {
+			console.error('\n✗ 选择后果门：**自证闸位置不变量不成立**');
+			process.exit(1);
+		}
+	}
 	let bad = 0;
 	// `#1151`：**自证格**的计数单列（格红＝本门失能；与「判据发现」语义不同 → 分开记）
 	const selfBad = 0;   // ★ `#1528`：自证已抽到 `selfProofConsequences()`（✗ 不在此重复跑）

@@ -175,19 +175,85 @@ export const exceptionRemovable = (key, { dataKeys = [] } = {}) => {
 
 /** 纯函数：`undeclaredWriteProblems` 的**登记感知**版（✗ 未登记 ⇒ 报；已登记 ⇒ 只列"信息面"）。
  *  ★分工：**未登记** ⇒ 失败面（该红）；**已登记** ⇒ 信息面（只报，✗ 计退码）＋ 退出条件命中则**转回失败面**。 */
-export const undeclaredWriteReport = ({ written = [], dataKeys = [], home = PC_GAMEPLAY_HOME, base = PC_BASE_KEYS } = {}) => {
+export const undeclaredWriteReport = ({ written = [], dataKeys = null, home = PC_GAMEPLAY_HOME, base = PC_BASE_KEYS } = {}) => {
 	const fails = [], infos = [];
+	// ★★ 评审 CR（tester-4）修：**登记行的"已可清"必须能判到** ——
+	//   ✗ 原实现只在"**该键仍被写**"的循环里查退出条件 ⇒ 键**不再被写**时（＝退出条件**已满足**、
+	//     正是要报的时刻）循环**看不到它** ⇒ 登记行成了**永久豁免**（④f 声称要防的正是这个 ✗）。
+	//   ⇒ 两件事分开：① `written` 里的**未登记**键 ⇒ 失败面；② **登记表本身**逐行查退出条件
+	//     （`dataKeys` 缺省 ＝ 用 `written` 当"数据面实况"；调用方若另有数据面读数可显式传）。
+	const data = dataKeys ?? written;
 	for (const p of undeclaredWriteProblems({ written, home, base })) {
-		const registered = p.key in UNDECLARED_WRITE_EXCEPTIONS;
-		if (!registered) { fails.push(p); continue; }
-		// 已登记：退出条件命中 ⇒ 该行**已可清** ⇒ 也必须红（防"登记成了永久豁免"）
-		if (exceptionRemovable(p.key, { dataKeys })) {
-			fails.push({ ...p, code: 'exception-removable',
-				why: `\`pc.${p.key}\` 的**登记行已可清**（退出条件命中：${UNDECLARED_WRITE_EXCEPTIONS[p.key].removal}）`
-					+ ' ⇒ 请删除该登记行（✗ 让登记变成永久豁免）' });
-		} else infos.push({ ...p, code: 'undeclared-pc-write-registered' });
+		if (p.key in UNDECLARED_WRITE_EXCEPTIONS) {
+			infos.push({ ...p, code: 'undeclared-pc-write-registered' });
+		} else fails.push(p);
+	}
+	// ② 登记表逐行：退出条件命中 ⇒ 该行**已可清** ⇒ 红（✗ 让登记变成永久豁免）
+	for (const key of Object.keys(UNDECLARED_WRITE_EXCEPTIONS)) {
+		if (!exceptionRemovable(key, { dataKeys: data })) continue;
+		fails.push({ code: 'exception-removable', key,
+			why: `\`pc.${key}\` 的**登记行已可清**（退出条件命中：${UNDECLARED_WRITE_EXCEPTIONS[key].removal}）`
+				+ ' ⇒ 请删除该登记行（✗ 让登记变成永久豁免）' });
 	}
 	return { fails, infos };
+};
+
+/**
+ * ★★ `#1564`（`#1222` 链首 L0 · 件②的**编译期半**，评审 CR ① 后补）：
+ * **条件键的前缀必须是引擎已宣告的** —— 编译期点名（✗ 等到玩家点那条链接才炸）。
+ *
+ * **为什么必须有编译期半**（评审实测的形态）：
+ *   运行时那条（`22-rules.twee` 的 `readKey`）只覆盖"**该条件被求值**"的时刻 ⇒
+ *   写错前缀的数据在**编译期全绿、键进产物**，要等到玩家点那条链接时才崩 ✗
+ *   ★而**同一把尺子的另一半**（未宣告**算子**）在 `emit.mjs` 就是**编译期**抛的 ⇒ ✗ 一套尺子两个时刻。
+ *   ★同理（本笔件④ 的自述）："运行时抛会让玩家在游玩中崩，编译期点名才是**写数据的人**看得见的位置"。
+ *
+ * **判据（纯函数，能假）**：从条件项里抽"字符串键"（`req`／`any`／`exclude`）与对象算子的首参
+ *   ⇒ 凡形如 `<标识符>:` 者，其前缀 ∉ `declared` ⇒ 点名。
+ * ★`declared` **由调用方注入**（✗ 不在此 import `vocab.mjs` —— 与本文件"纯表、不拉依赖"的分工一致；
+ *   调用方取 `vocab.mjs` 的镜像，**照 `test/l0-guards.mjs` ②c 的既有做法**，✗ 不另写第三份清单）。
+ */
+export const unknownPrefixProblems = ({ conditions = [], declared = [], where = '' } = {}) => {
+	const known = new Set(declared);
+	const out = [];
+	const checkKey = (k, ctx) => {
+		if (typeof k !== 'string') return;
+		const m = /^([A-Za-z_][A-Za-z0-9_]*):/.exec(k);
+		if (!m) return;                       // 裸键／`pc.`／含点键 —— ✗ 不是前缀族 ✓
+		if (m[1] === 'n_') return;            // `n_` 是**前缀式**（✗ 冒号族）—— 见 `22-rules.twee` 的说明 ✓
+		if (known.has(m[1])) return;
+		out.push({ code: 'unknown-prefix', key: k, prefix: m[1], where: ctx,
+			why: `${where ? where + '：' : ''}条件键 \`${k}\` 的**前缀「${m[1]}:」未被引擎宣告**`
+				+ `（已宣告：${declared.join('／')}）—— 未宣告的前缀会让该条件**永假**（玩家点它时才炸 ✗）`
+				+ ' ⇒ 请改用已宣告的前缀，或先在 `prefixes` 里登记（`#1564` 件②·编译期半）' });
+	};
+	// 条件项：字符串 ＝ 键本身；对象 ＝ `{ 算子: [键, …值] }`（首参是键）
+	const walk = (c, ctx) => {
+		if (typeof c === 'string') { checkKey(c, ctx); return; }
+		if (c && typeof c === 'object' && !Array.isArray(c)) {
+			for (const args of Object.values(c)) {
+				if (Array.isArray(args) && args.length) checkKey(args[0], ctx);
+			}
+		}
+	};
+	for (const { cond, ctx } of conditions) {
+		for (const field of ['req', 'any', 'exclude']) {
+			const v = cond?.[field];
+			for (const c of (Array.isArray(v) ? v : v == null ? [] : [v])) walk(c, ctx ?? '');
+		}
+	}
+	return out;
+};
+
+/** 便捷：从 `rules.json` ＋ `passages.json` 的行/链接里抽条件（✗ 调用方不必各写一遍遍历）。 */
+export const collectConditionKeys = ({ rules = null, passages = null } = {}) => {
+	const out = [];
+	const push = (obj, ctx) => { if (obj && typeof obj === 'object') out.push({ cond: obj, ctx }); };
+	for (const r of rules?.rows ?? []) push(r, `规则行「${r?.id ?? r?.scope ?? '?'}」`);
+	for (const [seg, v] of Object.entries(passages ?? {})) {
+		for (const l of (v?.links ?? [])) push(l, `段「${seg}」的链接「${l?.id ?? l?.to ?? '?'}」`);
+	}
+	return out;
 };
 
 /** 纯函数：归属表自身的形状检查（空＝绿）：三张表不重叠、基础面不含玩法概念。 */

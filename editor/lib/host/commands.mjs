@@ -40,7 +40,8 @@ import { definitionsOf, duplicateExportProblems, secondCopyProblems, coreHostPro
 // 本命令走它导出的缝 `classifyContractText`（那条缝多做 `locals` 上下文与 `const` 的 B→A 解析 → 该语义风险由**两时点差分**量掉）。
 import { MARKER, markerProblems, freshnessProblems, escapeHatchProblems, refusedFaceProblems, handwrittenClosureProblems, contractSourceText, staleTrackedProblems, referenceIntegrityProblems, undoneProblems } from '../core/k4criteria.mjs';
 import { dataFaceMemberProblems } from '../core/contract-defaults.mjs';   // `#1419`：数据面非空 ⇒ 契约成员必须在
-import { undeclaredWriteReport } from '../core/pc-state-map.mjs';   // `#1564`：数据面 ✗ 许写未宣告的 pc 键（隐键 ⇒ 静默改数值）
+import { VOCAB } from '../core/vocab.mjs';   // `#1564`：条件前缀的**已宣告清单**（镜像，✗ 不另写第三份）
+import { undeclaredWriteReport, unknownPrefixProblems, collectConditionKeys } from '../core/pc-state-map.mjs';   // `#1564`：数据面 ✗ 许写未宣告的 pc 键（隐键 ⇒ 静默改数值）
 import { censusOfStory, censusSummarize, censusProblems } from '../core/hatchCensus.mjs';
 import { classifyContractText } from './classify.mjs';
 // `#794` 弧第 3 票（`equiv` 命令体）：用 vm／读文件／跑子进程 → **都在 host**。
@@ -137,7 +138,9 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 		)].map((pth) => String(pth).split('.')[0]);
 		// ★`#1564` 裁**甲**（范围边界）：**已登记的实例 ⇒ 只报不红**（信息面），
 		//   未登记 ⇒ 失败面；登记行的**退出条件命中** ⇒ 也红（防"登记成了永久豁免"）。
-		const rep = undeclaredWriteReport({ written, dataKeys: written });
+		//   ★`dataKeys` 缺省＝用 `written`（＝本故事 `chargen patch` 的键）当**数据面实况**：
+		//     `classHp` 不在其中 ⇒ 登记行判"已可清" ⇒ 红 ✓（评审 CR 修的正是这条可达性）
+		const rep = undeclaredWriteReport({ written });
 		for (const m of rep.infos) console.log(`  ○ [chargen-write·登记] ${m.key}（已登记，退出条件见 pc-state-map.mjs）`);
 		if (rep.fails.length) {
 			for (const m of rep.fails) console.error(`✗ [chargen-write] ${m.why}`);
@@ -145,7 +148,25 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 			return 1;
 		}
 	}
-	const rules = readIf('rules.json');
+	// ★★ `#1564`（L0 · 件②的**编译期半**，评审 CR ① 后补）：**条件键的前缀必须是引擎已宣告的**
+	//   ★为什么必须有这一半（评审实测）：运行时那条（`22-rules.twee` 的 `readKey`）只覆盖"**该条件被求值**"的
+	//     时刻 ⇒ 写错前缀的数据**编译期全绿、键进产物**，要等玩家点那条链接才崩 ✗
+	//   ★而**同一把尺子的另一半**（未宣告**算子**）在 `emit.mjs` 就是**编译期**抛 ⇒ ✗ 一套尺子两个时刻。
+	//   ★清单**取 `vocab.mjs` 的镜像**（✗ 不在此另写第三份 —— 照 `test/l0-guards.mjs` ②c 的既有做法）。
+	const rulesData = readIf('rules.json');
+	const passagesForConds = readIf('passages.json');
+	{
+		const unknown = unknownPrefixProblems({
+			conditions: collectConditionKeys({ rules: rulesData, passages: passagesForConds }),
+			declared: VOCAB.prefixes,
+		});
+		if (unknown.length) {
+			for (const m of unknown) console.error(`✗ [cond-prefix] ${m.why}`);
+			console.error('✗ 条件键用了**未宣告的前缀** ⇒ 该条件**永假**（玩家点它时才炸）⇒ 不写出产物');
+			return 1;
+		}
+	}
+	const rules = rulesData;
 	// `#1350` 片 3：段落数据（`data/passages.json`）的 `links[]` **合成进规则行** ⇒ 渲染口（`<<rules>>`／
 	// `<<rulelist>>`）**零改动**即可接上；条件求值仍走 `Sg.rules.matches` **一处权威** ✗ 不在渲染面二次求值。
 	const passagesData = readIf('passages.json');

@@ -140,10 +140,15 @@ window.Game.Rules = {
 			// ④ **逐量纲**：减法后**下限**（今天的 `hp` 下限 0 ⇒ `Math.max(floor.hp, …)` ✓）
 			floor: { hp: 0 },
 			// ⑤ **全量纲共一值**：治疗量（今天两处同一个数 ⇒ 单值 ✓ —— 声明面 ✗ 不许大于实现面 ✓）
-			// ★ `#1487` 注记（"半拉提醒"）：★本族**只覆盖"结算"** —— ★**展示类**（`hpbar` 的 `❤ x / y`／`snap()` 快照）
-			//   与**初值类**（`pcShape`／`chargen` 的键）★**仍是字面量**（✗ 未跟数据走 ✓）⇒ 那些归 `#1518`（展示票）／初值声明面 ✓
-			//   ⇒ ★即：★**"只有结算跟变、血条不跟"**是**已知的半拉状态**（✗ 不是漏 ✓）—— 照本仓"写清边界"口径 ✓
+			// ★ `#1487` 注记（边界）：★本族**只管"结算"** —— ★**展示类**（`hpbar` 的 `❤ x / y`／`snap()` 快照／`diff()` 文案／侧栏）
+			//   ★**已收口**：★键名走 `vk()`／文案走 `vl()`（`#1518` 展示半 —— `pc.hp` 与 `生命` 等字面量已归零 ✓）。
+			//   ★**初值类**（`pcShape`／`chargen` 的键）：★住各自的**声明面**（✗ 不是"字面量" ⇒ 也不是本族该管的 —— 本族只管取值口）✓
 			heal: 4,
+			// ★ `#1518`（展示半·D1「展示面需要键名 ⇒ 展示层读数据」）：**展示用文案**——与 `keys` **同形状**
+			//   （逐量纲各一值 ⇒ `label.<量纲>`）⇒ ★读点写 `V().label.hp`（✗ 不硬编字面量 ✓）。
+			//   ★为什么必须有它：票面要求「文案从数据读」，而 `#1520` 只落了 `keys/zero/zeroGives/floor/heal`
+			//     ⇒ 没有装文案的字段 ⇒ ✗ 新造机制（D6）而按**已定的形状规则**添一格 ✓。
+			label: { hp: '生命', maxHp: '生命上限', salves: '药膏' },
 		},
 	},
 	/** ★ `#1487`：**量纲取值的单一入口** —— ★引擎各处走它（✗ 不裸读字面量 ✓）。
@@ -153,17 +158,24 @@ window.Game.Rules = {
 		const p = this.pack().vitals ?? null;
 		const b = this.BUILTIN.vitals;
 		if (!p || typeof p !== 'object' || Array.isArray(p)) return b;
-		// ★**一层深合并**（只并 `keys`／`floor` 两个**对象**类；标量/数组整块取 ✓）
+		// ★**一层深合并**（只并 `keys`／`floor`／`label` 三个**对象**类；标量/数组整块取 ✓）
+		// ★`label` 放**末位**：★`V()` 的键序必须与 `BUILTIN.vitals` **逐字同**（既有判据“缺面 ⇒ 内置”逐字比 ✓）
 		return {
 			keys: { ...b.keys, ...(p.keys ?? {}) },
 			zero: p.zero ?? b.zero,
 			zeroGives: Array.isArray(p.zeroGives) ? p.zeroGives : b.zeroGives,
 			floor: { ...b.floor, ...(p.floor ?? {}) },
 			heal: p.heal ?? b.heal,
+			// ★ `#1518`：文案同样**逐键回落**（只给 `label.hp` ⇒ `maxHp` 仍走内置 ✓）
+			label: { ...b.label, ...(p.label ?? {}) },
 		};
 	},
 	/** ★ `#1487`：**量纲名 → `pc` 键名**（`V().keys` 的取值口）—— 读点写 `pc[this.vk('hp')]` ✓ */
 	vk(name) { return this.V().keys?.[name] ?? this.BUILTIN.vitals.keys[name]; },
+	/** ★ `#1518`：**量纲名 → 展示文案**（`V().label` 的取值口）—— 读点写 `this.vl('hp')` ✓
+	 *  ★为什么单开一个口（✗ 不裸读 `V().label.hp`）：与 `vk()` **同形对称** —— 展示面的两问
+	 *    「这个量纲的**键**叫什么」与「它在屏上**叫什么**」各自一个口 ⇒ ✗ 读点不会漏回落到内置 ✓ */
+	vl(name) { return this.V().label?.[name] ?? this.BUILTIN.vitals.label[name]; },
 	/** 故事声明的规则包（缺面 ⇒ 内置）；★合并＝**键级覆盖**（✗ 不是整份替换）。
 	 *  为什么键级：故事只想改 `prof` 时，✗ 不该被迫照抄 18 个技能名（照抄 ⇒ 两处必漂移 ✗）。 */
 	pack() {
@@ -357,8 +369,13 @@ window.Game.Pc = {
 	// <<set _snap to Game.Pc.snap($pc)>> …做点什么… <<caveEffect _snap>>
 	// 口径：**纯函数**（不改 pc）· 只报**变化项**（无变化 → 空串 → 调用方不打印）· 顺序稳定（便于门与复核）。
 	snap(pc) {
+		// ★ `#1518`（展示半·D1）：**快照的 hp 半也按名取值** —— 键名走 `vk('hp')`（✗ 不硬编 `pc.hp` ✓）
+		//   ★为什么快照也算展示面：它只服务于「**说法子**」（`diff()` ⇒ `−3 生命`）⇒ 与血条同一族 ✓
+		//   ★`gold` **不在本笔**（它是 `groups.economy` 的键，其结算层也硬编 ⇒ 另票，见 `#1518` 评论）✓
+		//   ★注意宿主：本函数住 `Game.Pc`，取值口在 `Game.Rules` ⇒ **✗ 不能写 `this.vk`**（`this` 是 `Game.Pc`）
+		const _khp = window.Game.Rules.vk('hp');
 		return {
-			hp: pc?.hp ?? 0, gold: pc?.gold ?? 0,
+			hp: pc?.[_khp] ?? 0, gold: pc?.gold ?? 0,
 			gearHp: { ...(pc?.gearHp ?? {}) },
 			statuses: JSON.parse(JSON.stringify(pc?.statuses ?? {})),
 			inv: { ...(pc?.inv ?? {}) },
@@ -368,8 +385,11 @@ window.Game.Pc = {
 	diff(before, pc) {
 		const out = [];
 		const b = before ?? {};
-		const hp0 = b.hp ?? 0, hp1 = pc?.hp ?? 0;
-		if (hp1 !== hp0) out.push(`${hp1 > hp0 ? '+' : '−'}${Math.abs(hp1 - hp0)} 生命（${hp0}→${hp1}）`);
+		// ★ `#1518`（展示半·D1）：**量纲文案从数据读** —— 词（`生命`）走 `vl('hp')`（✗ 不硬编 ✓）
+		//   ★宿主同上：`Game.Pc.diff` 里 `this` 不是 `Game.Rules` ⇒ 显式取 `window.Game.Rules` ✓
+		const _khp = window.Game.Rules.vk('hp'), _lhp = window.Game.Rules.vl('hp');
+		const hp0 = b.hp ?? 0, hp1 = pc?.[_khp] ?? 0;
+		if (hp1 !== hp0) out.push(`${hp1 > hp0 ? '+' : '−'}${Math.abs(hp1 - hp0)} ${_lhp}（${hp0}→${hp1}）`);
 		const g0 = b.gold ?? 0, g1 = pc?.gold ?? 0;
 		if (g1 !== g0) out.push(`${g1 > g0 ? '+' : '−'}${Math.abs(g1 - g0)} 金币（${g0}→${g1}）`);
 		const bStatus = b.statuses ?? {}, nowStatus = pc?.statuses ?? {};
@@ -545,7 +565,11 @@ Macro.add('hpbar', {
 	skipArgs: true,
 	handler() {
 		const pc = Game.Pc.now();
-		const hp = Math.max(0, pc.hp ?? 0), max = pc.max_hp ?? 1;
+		// ★ `#1518`（展示半·D1）：**血条的两个键名都从数据读** —— `vk('hp')`／`vk('maxHp')`（✗ 不硬编 ✓）；
+		//   下限也走数据（`V().floor.hp` ⇒ 与结算同一处口径，✗ 不写死 `Math.max(0, …)` ✓）
+		const _khp = Game.Rules.vk('hp'), _kmx = Game.Rules.vk('maxHp');
+		const _floorHp = Game.Rules.V().floor.hp;
+		const hp = Math.max(_floorHp, pc[_khp] ?? 0), max = pc[_kmx] ?? 1;
 		const pct = Math.round((hp / max) * 100);
 		const color = pct > 50 ? '#5dbb63' : pct > 25 ? '#e0a458' : '#d1495b';
 		jQuery(this.output).append(
@@ -663,7 +687,7 @@ window.Sg.capability = (group) => {
 		<<set $pc[_ksa] to $pc[_ksa] - 1>>
 		<<set $pc[_khp] to $pc[_khp] + _V.heal>>
 		/% ★ `#1487`（CR ③）：文案里的"恢复 4 点"**与 `vitals.heal` 同值** ⇒ ★改用 `_V.heal`（✗ 不硬编 ✓ ⇒ 改 `heal` 该串跟变 ✓） %/
-		<span class="damage-flash">''你受到了 $args[0] 点伤害！''（伤得重，消耗一副药膏，恢复 <<print _V.heal>> 点生命）</span>
+		<span class="damage-flash">''你受到了 $args[0] 点伤害！''（伤得重，消耗一副<<print Game.Rules.vl('salves')>>，恢复 <<print _V.heal>> 点<<print Game.Rules.vl('hp')>>）</span>
 	<<else>>
 		<span class="damage-flash">''你受到了 $args[0] 点伤害！''</span>
 	<</if>>
@@ -1057,7 +1081,7 @@ window.Sg.capability = (group) => {
 $pc.speciesLabel $pc.classLabel
 <<hpbar>>
 金币：$pc.gold
-药膏：$pc.salves 副（缺口满 <<print Game.Rules.V().heal>> 点时自动用，一副恢复 <<print Game.Rules.V().heal>> 点）
+<<print Game.Rules.vl('salves')>>：<<print $pc[Game.Rules.vk('salves')]>> 副（缺口满 <<print Game.Rules.V().heal>> 点时自动用，一副恢复 <<print Game.Rules.V().heal>> 点）
 <<if $pc.gear.length>>行囊：<<print $pc.gear.join('、')>><</if>>
 /% `#703`：**装备耐久**与**部位异常**——两者此前全仓零渲染（`gearHp`／`statuses` 只在 defaults 里出现过），
    玩家因此看不见 S1/S2 两套机制。取值走引擎只读快照（单一口径）；未启用机制的故事 → 列表为空 → 整块不出现。 %/

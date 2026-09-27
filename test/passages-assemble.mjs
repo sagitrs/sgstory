@@ -192,6 +192,25 @@ const selftest = () => {
 		t('段级 check④ 站点名**含双引号** ⇒ 转义（✗ 不许把宏/段炸开 ✓）',
 			(() => { const t2 = seg('正文。', '站点"引号');
 				return t2.includes('\\"') && !/<<sitecheck "站点"引号"/.test(t2); })());
+		// ★ `#1527` CR（同族“判据不能假”）：★旧格用 `t2.includes('\\\\')` ⇒
+		//   ★**输入自带反斜杠** ⇒ ★该子串**恒命中** ✗（★判据被输入本身满足）
+		//   ★修：★**期望串逐字相等**（★`inject` 行与实得行**逐字**比 —— ✗ 不问子串✓）
+		//   ★输入 `'站点\\"'`（JS 字面 ⇒ 实值 站点+\+" 三字符）
+		//     ⇒ ★期望产物行：`<<sitecheck "站点\\\"">><<snapshot>>`（★反斜杠**被转成**双反斜杠 ＋ 引号前一个反斜杠）
+		t('段级 check⑤ ★**转义加固（逐字比）**：★`\\` ⇒ `\\\\`，`"` ⇒ `\\"`（✗ 它会把后面的 `"` 吃掉 ⇒ 宏串提前闭合 ✓）',
+			(() => { const t2 = seg('正文。', '站点\\"');
+				const wantLine = '<<sitecheck "站点\\\\\\"">><<snapshot>>';
+				const gotLine = t2.split('\n').find((l) => l.includes('sitecheck')) ?? '';
+				return gotLine === wantLine; })());
+		t('段级 check⑥ ★**换行降级**：站点名含换行 ⇒ 换成空格（✗ 否则宏被拆成两半 ⇒ 后半段泄漏给玩家 ✓）',
+			(() => { const t2 = seg('正文。', '站点\n引号');
+				return /<<sitecheck "站点 引号">>/.test(t2) && (t2.match(/<<sitecheck/g) ?? []).length === 1; })());
+		t('★段级 check⑦ **双注 ⇒ 点名**（`check` 字段 ＋ 散文手写 `<<sitecheck>>` ⇒ ★检定**跑两遍**—— 两次掷骰 ✗）',
+			(() => { const q = doubleRenderProblems({ passages: [P('里屋', '正文。\n<<sitecheck "里屋·察觉">><<snapshot>>')],
+					data: { 里屋: { check: '里屋·察觉' } } });
+				return q.length === 1 && /两遍|掷骰/.test(q[0]); })());
+		t('★段级 check⑧ 负向：**只有**段级 `check`（散文无手写宏）⇒ ✗ 不报（新形态 ✓）',
+			doubleRenderProblems({ passages: [P('里屋', '正文。')], data: { 里屋: { check: '里屋·察觉' } } }).length === 0);
 	}
 	// ★ 双渲染宏（`#1412`）：**面内段**同时有散文手写渲染宏（`<<rules>>`／`<<rulelist>>`）与 `links[]`（非空 ⇒ 注入段尾块）
 	//   ⇒ **点名红**（修法：删手写宏 或 移内联 `slot`）—— 与 `#1399`「并存 ⇒ 红」同族（"看起来能跑、其实重复渲染"✗）

@@ -9,6 +9,22 @@ import { loadStoryAudit } from '../lib/story-audit.mjs';
 export const flag = 'text';
 export const flags = ["text"];
 
+// ★ `#1505`（文档账同笔）：**载荷枚举的唯一声明处** ——
+//   ★原状：★`(信息|张力|选择)` 这个**字面量在门里出现两处**（判据① 与 主跑）⇒ ★已是**漂移面** ✗
+//   ⇒ ★收成**一份声明**，两处正则**从它派生**（★"派生 > 断言"口径 —— 漂移在构造上不可能 ✓）。
+//   ★扩展/改枚举 ⇒ **只改这一行** ✓（✗ 不必去追正则副本 ✓）。
+export const PAYLOAD_LEVELS = Object.freeze(['信息', '张力', '选择']);
+// ★正则也**派生**（转义防未来枚举含正则元字符；分隔符 `|`／全角 `｜` 两种都认 ✓）
+// ★★ `#1526` CR（同族“判据不能假”）：★收成**可注入**的工厂 ——
+//   ★理由：★自证格若**自己另拼一个临时正则** ⇒ ★与**判据本体**无关
+//     ⇒ ★刀（判据本体改拄字面量）⇒ **格仍绿** ✗（同义反复）
+//   ★修：★本体的正则由 `makePayloadRe(levels)` 生成 ⇒ ★格**换声明再调本体** ⇒ ★判据必须跟变 ✓
+export const makePayloadRe = (levels = PAYLOAD_LEVELS) => {
+	const alt = levels.map((v) => String(v).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|');
+	return new RegExp('payload:\\s*(?:' + alt + ')(?:[|｜](?:' + alt + '))*');
+};
+const PAYLOAD_RE = makePayloadRe();
+
 // ── 纯函数（供自证喂合成数据；判据与真实运行**同一份代码**）──
 // ① 载荷标注：内容段落（非 infra）必须有 `payload:` 标注
 /** 纯函数：把段落源码拼成「正文语料」——**跳过 infra 段**（`[script]`／widget／stylesheet 是代码，不是玩家读到的字）
@@ -25,11 +41,14 @@ export const buildNarrative = (entries, isInfra) => {
 	return out;
 };
 
-export const judgePayloads = (entries, isInfra) => {
+// ★ `#1526` CR：★**可注入正则**（默认＝本体的 `PAYLOAD_RE`）——
+//   ★为什么：★自证格若**自己另拼正则** ⇒ ★它验的是那个临时正则（同义反复）✗
+//   ★修：★格**把“换了声明的正则”注入判据本体** ⇒ ★本体若不用该参数（改拄字面量）⇒ **格红** ✓
+export const judgePayloads = (entries, isInfra, re = PAYLOAD_RE) => {
 	const out = [];
 	for (const [name, src] of entries) {
 		if (isInfra(name)) continue;
-		const m = String(src).match(/payload:\s*(信息|张力|选择)(?:[|｜](?:信息|张力|选择))*/);
+		const m = String(src).match(re);
 		if (!m) out.push({ name, why: '缺 payload 标注' });
 	}
 	return out;
@@ -55,6 +74,23 @@ export const run = (ctx) => {
 // ── ⓪e D5 语言经济（#39）：载荷标注门 + 词频报告 + 套路句式门 ──
 if (wantAll || arg('text')) {
 	console.log('\n══ ⓪e 语言经济（D5/#39）——每段有载荷，无陈词滥调 ══');
+	// ★★ `#1529` CR（T 单点刀）：★「闸的位置」是**关于本门结构**的不变量 ——
+	//   ★✗ 不能当作 `selfBad` 格：★「**任何放在闸之后的红，谁来看它？没人**」（★**自我指涉** ✗）
+	//   ★故：★改成★「**门内最先跑的静态检查**」，★它**自己直接 `process.exit(1)`**（★✗ 经 `selfBad`、✗ 需人看 ✓）
+	//   ★且它在**零故事短路之前** ⇒ ★无论有无故事都跑 ✓
+	{
+		const self = readFileSync(absPath('scripts/audit/gates/text.mjs'), 'utf8');
+		const mGate = self.match(/^\tif \(selfBad\) \{/m);
+		const mShort = self.match(/^\tif \(!ctx\.storySlug\)/m);
+		const iGate = mGate ? mGate.index : -1, iShort = mShort ? mShort.index : -1;
+		const incs = [...self.matchAll(/selfBad\+\+/g)].map((m) => m.index);
+		const last = incs.length ? incs[incs.length - 1] : -1;
+		if (!(iGate > 0 && iShort > 0 && iGate < iShort && (last < 0 || iGate > last))) {
+			console.error('\n✗ D5 文本门：**自证闸位置不变量不成立** —— 闸必须在**所有自证格之后**、**零故事短路之前**。');
+			console.error('  ★语义：本条是**关于本门结构**的不变量（★✗ 是“门判得对不对”）⇒ ★它**自己退**，✗ 不进 `selfBad` ✓');
+			process.exit(1);
+		}
+	}
 	let bad = 0;
 	// `#1151`：**自证格**的计数单列（格红＝本门失能；与「判据发现」语义不同 → 分开记）
 	let selfBad = 0;
@@ -69,6 +105,25 @@ if (wantAll || arg('text')) {
 			['正例：内容段有 payload', judgePayloads([['P', '/% payload: 信息 %/正文']], isInfra), 0],
 			['反例①：内容段缺 payload', judgePayloads([['P', '正文没有标注']], isInfra), 1],
 			['正例：infra 段不要求 payload', judgePayloads([['StoryInit', 'window.x=1'], ['脚本段', 'x']], isInfra), 0],
+			// ★ `#1505`（本笔）：**派生格** —— ★枚举**只有一处声明**（`PAYLOAD_LEVELS`）⇒
+			//   ★① 判据用的正则**确实由它派生**（含**全角 `｜`** 与**组合**两种形 ✓）
+			//   ★② ★**扩枚举 ⇒ 判据当场跟变**（✗ 不必去追正则副本 —— ★这正是"派生 > 断言"的可核形态 ✓）
+			['正例：组合形（半角 `|`）从声明派生 ✓', judgePayloads([['P', '/% payload: 张力|信息 %/正文']], isInfra), 0],
+			['正例：组合形（全角 `｜`）从声明派生 ✓', judgePayloads([['P', '/% payload: 信息｜选择 %/正文']], isInfra), 0],
+			['反例③ ★枚举外值（`氛围`）⇒ 仍判缺（✗ 未宣告的值不认 ✓）', judgePayloads([['P', '/% payload: 氛围 %/正文']], isInfra), 1],
+			// ★★**能假**格：临时**加一个枚举项**（派生的正则**必须**跟着认）⇒ 加完不认 ⇒ 本格红 ✓
+			// ★★派生格（**非同义反复**）：★**换声明再调判据本体**。
+			//   ★判法：★声明换成 `[...、氛围]` ⇒ `makePayloadRe(新声明)`（★**本体**）
+			//     对 `/% payload: 氛围 %/` **必须认** ✓（★若判据另拄字面量 ⇒ 本格**红** ✗）
+			//   ★且旧声明对同一输入**不应认**（★证明“是声明在管” ✓）
+			// ★★派生格（**非同义反复**）：★**把“换了声明的正则”注入 `judgePayloads` 本体**。
+			//   ★判法：★声明换成 `[..., 氛围]` ⇒ ★对 `/% payload: 氛围 %/` 本体**必须认**（检出 0）✓
+			//     ★而旧声明（默认参）对同一输入**不应认**（检出 1）（★证明“是声明在管”✓）
+			//   ★★**能假**：★若本体不用 `re`（改拄字面量）⇒ ★本格**当场红** ✗（★这才是“判据不能假”的形 ✓）
+			['★★派生格：换声明 ⇒ 判据**本体跟变**',
+				(() => { const withNew = judgePayloads([['P', '/% payload: 氛围 %/正文']], isInfra, makePayloadRe(['信息', '张力', '选择', '氛围']));
+					const withOld = judgePayloads([['P', '/% payload: 氛围 %/正文']], isInfra);
+					return withNew.length === 0 && withOld.length === 1; })() ? [] : [1], 0],
 			['正例：干净正文无套路句式', judgeCliche('他走进林子', ['如潮水', '不由得']), 0],
 			['反例②：命中套路句式', judgeCliche('心跳如潮水', ['如潮水', '不由得']), 1],
 			['正例：黑名单外不算', judgeBlacklist(['a.twee'], ['星官'], readOf), 0],
@@ -101,7 +156,7 @@ if (wantAll || arg('text')) {
 		if (isInfra(name)) continue;
 		const fromData = passageData?.[name]?.payload;
 		if (fromData != null) { payloads.set(name, String(fromData)); continue; }
-		const m = String(src).match(/payload:\s*(信息|张力|选择)(?:[|｜](?:信息|张力|选择))*/);
+		const m = String(src).match(PAYLOAD_RE);
 		if (m) payloads.set(name, m[0].replace(/payload:\s*/, ''));
 	}
 	// ★ `#1505`：**数据面有 `payload` 的段 ⇒ 不算缺**（✗ 再要求散文里有标记 ✓ —— 那正是要撤掉的形态）
@@ -120,6 +175,17 @@ if (wantAll || arg('text')) {
 	// `#602`：**主题词表属该故事的数据**（经 `Sg.story.text()` 取）——原先硬编码在本门里 →
 	// 换故事后本行还在打印**故事 1 的词**（全 0 照绿＝空判，实测 `--story hollow-cave` 输出 `雾×0 星×0 …`）。
 	// 数据住**该故事目录**（`stories/<slug>/audit.json`，不进产物）；缺文件/畸形 → 抛错（`loadStoryAudit` 负责）
+	// ★ `#1528`：★**自证格的红必须先过退出码闸**（`#1151` 口径＝"**格级属性**，✗ 与数据面有无样本无关"）。
+	//   ★原状：★零故事短路**在自证之后** ⇒ ★自证红已计（`selfBad`）却**先 return 了** ⇒ `rc=0` ✗
+	//   ⇒ ★即：★"**本门最容易失能的那种运行态**（引擎仓默认零故事）**恰恰不看自证**" ✗
+	//   ★修：★把自证闸**提到短路之前**（✗ 不改"零故事 ⇒ 未判"的**样本语义** ✓）。
+	//   ★注意：★自证段落里若有"依赖故事面"的格 ⇒ 那些格在零故事态**本就不该跑** ⇒ 由各自的
+	//     "前提不成立"分支自行 `continue`（✗ 不是把整段挪走 ✓）。
+	if (selfBad) {
+		console.error(`\n✗ D5 文本门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓`);
+		process.exit(1);
+	}
+
 	// `#1261` zero-story: no stories/<slug>/audit.json to read (this gate's data lives in the story dir).
 	// The gate has no sample here, so say so and skip instead of joining null into a path.
 	if (!ctx.storySlug) { console.log('  #1261 zero-story mode: no story text face -> text gate skipped'); return; }
@@ -152,13 +218,7 @@ if (wantAll || arg('text')) {
 		const hits = judgeCliche(narrative, CLICHE);
 	if (hits.length) { console.log(`  ✗ 套路句式命中：${hits.join('、')}`); bad += hits.length; }
 	else console.log('  套路句式门：零命中');
-	bad += selfBad;
-	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 格级属性，**不依赖 `process.argv`**
-	//注意：与「判据发现」**分开报**：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」
-	if (selfBad) {
-		console.error(`\n✗ D5 文本门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓（\`#1151\`）`);
-		process.exit(1);
-	}
+	bad += selfBad;   // ★ #1528：自证闸已**上提**到零故事短路之前（✗ 不在此重复判）
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ D5 文本门：${bad} 项`); process.exit(1); }
 		console.log('\n✔ D5 文本门通过');

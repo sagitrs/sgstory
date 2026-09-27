@@ -362,7 +362,12 @@ export const compileStory = ({ tables, contract, rules, notesFace, slug, chargen
 			// ★ `#1505`：段级字段加 **`payload`**（载荷分级：`信息`／`张力`／`选择`）——
 			//   ★它原是**散文标记**（`/% payload: … %/`）⇒ 移到**数据面**（✗ 散文里不留 ✓）
 			//   ★注：`payload` 是**声明面**（门按它判"内容段有没有标注"）⇒ 与 `present` **同类**，一同注入 ✓
-			specs[seg] = { params: v.params ?? {}, present: v.present ?? null, payload: v.payload ?? null, check: v.check ?? null, links: l };
+			specs[seg] = { params: v.params ?? {}, present: v.present ?? null, payload: v.payload ?? null, check: v.check ?? null,
+				// ★ `#1506`：段级 **`fight`**（战场声明：池名＋可选的打满 N 回合/结果/去向）——
+				//   ★与 `check`／`payload` **同类**（声明面）⇒ 一同注入契约，供渲染面/工具读取 ✓
+				//   ★注意：★**注入形态仍是"编成宏串"**（在 `applyPassageTransforms` 一处，✗ 不在此另算一份）；
+				//     本处只是让**声明面可见**（与 `payload` 同理：门/工具能读到它 ✓）
+				fight: v.fight ?? null, links: l };
 		}
 		for (const m of contract.members) {
 			if (m && m.name === 'passageSpecs') { m.kind = 'const'; m.value = specs; delete m.to; }

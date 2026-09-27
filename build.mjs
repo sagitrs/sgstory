@@ -275,7 +275,7 @@ for (const s of stories) {
 				params: dseg.params ?? {}, slots: [dseg.slot, ...linkSlots].filter(Boolean),
 				args: (dseg.args && typeof dseg.args === 'object') ? dseg.args : inbound,
 				links: dseg.links ?? [], present: dseg.present ?? null, ending: dseg.ending ?? null,
-				check: dseg.check ?? null });
+				check: dseg.check ?? null, fight: dseg.fight ?? null });
 			const body2 = tr.body;
 			want = String(body2).trimEnd();
 		} catch { /* 无段落数据 ⇒ 退回"逐字"口径（旧行为逐字不变 ✓） */ }

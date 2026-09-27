@@ -290,6 +290,18 @@ export const doubleRenderProblems = ({ passages = [], data = null } = {}) => {
 		if (segCheck && handCheck) out.push('段「' + p.name + '」**同时**有段级 `check` 字段与散文手写的 '
 			+ '`<<sitecheck>>`／`<<snapshot>>` ⇒ 产物里**检定跑两遍**（★两次掷骰，玩家会看到两个不同骰面）✗ ⇒ '
 			+ '修法：**删掉散文那两个宏**（由编译期注入 ✓）');
+		// ★ `#1506`（同族）：段级 **`fight`** 字段 ＋ 散文**手写**战斗三宏（`<<fightbegin>>`／`<<fightlog>>`／
+		//   `<<fightpanel>>`）⇒ ★**同一场战斗被起两遍** —— 且**比 `check` 那颗更隐蔽**：
+		//   `<<fightbegin>>` 的守卫是「同池子且**没打完** ⇒ 这就是重渲染、不清台账」⇒ 表面上"没有重复起"，
+		//   但**日志块与面板块各渲两遍**（读者看到两组"这一轮你能做的"＋两份战斗日志）✗；
+		//   换池名/收尾后更是真的起两场。
+		//   ★修法：**删掉散文里那三行宏**（由编译期注入 ✓）—— 与 `check` 那颗同形同修法 ✓。
+		//   ★面：三段里**任一手写**即报（作者只删了两行、留了一行，同样要红 ✓）。
+		const segFight = seg.fight != null && typeof seg.fight === 'object' && String(seg.fight.pool ?? '').trim() !== '';
+		const handFight = /<<\s*(?:fightbegin|fightlog|fightpanel)\b[^>]*>>/.exec(String(p.body ?? ''));
+		if (segFight && handFight) out.push('段「' + p.name + '」**同时**有段级 `fight` 声明与散文手写的 `' + handFight[0]
+			+ '` ⇒ 产物里**同一场战斗渲两遍**（两组动作按钮 ＋ 两份战斗日志；收尾后再渲更会真起两场）✗ ⇒ '
+			+ '修法：**删掉散文里那三行战斗宏**（`fightbegin`／`fightlog`／`fightpanel` 由编译期注入 ✓）');
 		if (!tailLinks.length) continue;
 		const macros = String(p.body ?? '').match(/<<\s*(?:rules|rulelist)\b[^>]*>>/g) ?? [];
 		if (macros.length) out.push('段「' + p.name + '」**同时**有散文手写的渲染宏（`' + macros[0] + '`）与 `links[]`（'
@@ -299,7 +311,7 @@ export const doubleRenderProblems = ({ passages = [], data = null } = {}) => {
 	return out;
 };
 
-export const applyPassageTransforms = ({ name, body, terms = new Set(), params = {}, slots = [], args = null, links = [], present = null, ending = null, check = null }) => {
+export const applyPassageTransforms = ({ name, body, terms = new Set(), params = {}, slots = [], args = null, links = [], present = null, ending = null, check = null, fight = null }) => {
 	const { body: expandedRaw, problems } = valueRefExpand({ name, body, terms, params, slot: null, slots, args });
 	const rl = renderLinksOf({ name, links, present });
 	let expanded = expandedRaw;
@@ -318,6 +330,41 @@ export const applyPassageTransforms = ({ name, body, terms = new Set(), params =
 		//   ＋ ★换行/回车（行式解析里会把宏拆成两半 ⇒ 后半段变散文泄漏给玩家 ✓）
 		const site = String(check).trim().replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\r\n]+/g, ' ');
 		expanded = `<<sitecheck "${site}">><<snapshot>>\n${expanded}`;
+	}
+	// ★ `#1506`：段级字段 **`fight`** —— 「这一段入口是一场战斗」（原散文写法 `<<fightbegin "池">>\n<<fightlog>>\n`
+	//   `<<fightpanel "池" N won "去向">>` 三行）。
+	//   ★**编译期**把它渲染成**引擎已宣告的三个宏调用**注入段首（✗ 不新造宏 ✓ —— 与 `#1505` 的 `check` **同形** ✓）。
+	//   ★字段形（纯数据，票面「`fightbegin(池, N, 结果, 去向)` ⇒ 段级 fight 声明」＋「挂载点顺序＝数据字段顺序」）：
+	//     `{ pool, turns?, result?, dest? }` ⇒ `<<fightbegin "池">><<fightlog>><<fightpanel "池" turns result dest>>`
+	//     · `pool` **必填**（它今天就是 `fightbegin` 的第一个参数；缺 ⇒ **fail-loud 点名**，✗ 不静默注入半个宏串 ✓）
+	//     · `turns`／`result`／`dest` **可选**且**按位置传参**：`result` 给了而 `turns` 没给 ⇒ 要塞一个空槽
+		//       （`<<fightpanel "池"  won>>`**语法错** ⇒ 本处补 `null`，`fightpick` 的守卫认它 ✓）—— ✗ 不给个假数 ✓
+	//     · `turns` 必须是**有限数**（它是「打满 N 回合」的机械事实 ⇒ 写 "三" 这种词是数据错，点名 ✓）
+	//   ★**行为等价**（票面验收）：注入的三行与作者今日手写的三行**逐字同形** ⇒ `fightpanel-turns`／`combat-adv`
+	//     两条端到端的格**逐条不变**即可证 ✓（✗ 不靠"看起来像" ✓）。
+	if (fight != null && typeof fight === 'object' && !Array.isArray(fight)) {
+		// 转义与 `check` **同一套**（引号／反斜杠／换行 —— 三处都过同一个口，✗ 不各写一份 ✓）
+		const esc = (x) => String(x).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/[\r\n]+/g, ' ');
+		const pool = String(fight.pool ?? '').trim();
+		if (!pool) {
+			problems.push('段「' + name + '」的段级 `fight` **缺 `pool`**（或为空）—— 战斗池名是 `<<fightbegin>>` 的第一个参'
+				+ '数，缺它注入的宏串无对象 ✗ ⇒ 补 `fight: { pool: "<池名>" }`（✗ 不静默注入半个宏 ✓）');
+		} else {
+			const hasTurns = fight.turns != null && fight.turns !== '';
+			if (hasTurns && !Number.isFinite(Number(fight.turns))) {
+				problems.push('段「' + name + '」的段级 `fight.turns` 不是**有限数**（拿到 '
+					+ JSON.stringify(fight.turns) + '）—— 它是「打满 N 回合即收尾」的**机械事实**（回合数）✗ 不是文案 ⇒ 给个数 ✓');
+			}
+			const result = fight.result != null && String(fight.result).trim() !== '' ? String(fight.result).trim() : '';
+			const dest = fight.dest != null && String(fight.dest).trim() !== '' ? String(fight.dest).trim() : '';
+			// ★ 只有真给过值时**才补空槽**（全缺 ⇒ 收成两参形 `<<fightpanel "池">>`，与今天手写常见形同 ✓）
+			let panel;
+			if (dest) panel = `<<fightpanel "${esc(pool)}" ${hasTurns ? Number(fight.turns) : 'null'} ${result ? esc(result) : 'null'} "${esc(dest)}">>`;
+			else if (result) panel = `<<fightpanel "${esc(pool)}" ${hasTurns ? Number(fight.turns) : 'null'} ${esc(result)}>>`;
+			else if (hasTurns) panel = `<<fightpanel "${esc(pool)}" ${Number(fight.turns)}>>`;
+			else panel = `<<fightpanel "${esc(pool)}">>`;
+			expanded = `<<fightbegin "${esc(pool)}">><<fightlog>>${panel}\n${expanded}`;
+		}
 	}
 	if (ending && typeof ending === 'object') {
 		const key = String(ending.key ?? '').trim();
@@ -364,7 +411,7 @@ export const assemblePassages = ({ passages, known, forbidden = new Set(), terms
 			params: dseg.params ?? {}, slots: [dseg.slot, ...linkSlots].filter(Boolean),
 			args: (dseg.args && typeof dseg.args === 'object') ? dseg.args : inbound,
 			links: dseg.links ?? [], present: dseg.present ?? null, ending: dseg.ending ?? null,
-			check: dseg.check ?? null });
+			check: dseg.check ?? null, fight: dseg.fight ?? null });
 		problems.push(...tr.problems);
 		const expanded = tr.body;
 		const tags = p.tags ? ` [${p.tags}]` : '';

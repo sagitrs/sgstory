@@ -19,7 +19,8 @@ SG_STORIES_DIR=test/fixtures/m3-combat-fixture/stories node test/combat-adv.mjs 
 · data/contract.json → members：`foeState`(state-ref, path:'foe')／`battleDamage`(forward)／
     **`combatPool`／`combatAction`（lookup，源＝Game.Combat.pools／actions）**／`checkSite`(lookup)／
     `pcDefaults`(const，带 abilities 与 hp)／`hasChargen`(const false)／`rules`／`mechanics`
-· 段落：门厅 ⇒ 斗（`<<fightbegin "雾影">>`＋`<<fightpanel "雾影" false>>`＋`<<fightlog>>`）⇒ 结局 胜/败（`ending:final`）
+· 段落：门厅 ⇒ 斗（★`#1506` 起：斗段**不再手写宏**，改在 `data/passages.json` 里声明
+    `"fight": { "pool": "雾影" }` ⇒ 编译期挂载三宏）⇒ 结局 胜/败（`ending:final`）
 ```
 
 ## 实测读数（本仓主干）
@@ -34,6 +35,8 @@ SG_STORIES_DIR=test/fixtures/m3-combat-fixture/stories node test/combat-adv.mjs 
 ① `combatPool`／`combatAction` **不会**从 `containers.Combat` 自动派生 ⇒ 必须**显式写进 contract 的 members**
    缺它们 ⇒ 产物无这两成员 ⇒ `eligible()` 得 undefined ⇒ **池恒空**（而 `Game.Combat.pools` 有数据 ⇒ "数据在但不生效"）✗
 ② `<<fightpanel>>` **必须带参**：`<<fightpanel "<对手位点>" false>>`
+   （★`#1506` 起由段级 `fight` ＋编译期挂载，作者面不再手写；★本夹具的 `false` 是旧写法，
+    段级 `fight` 的对应形＝**不给 `turns`/`result`/`dest` 三字段** ⇒ 注入成两参形 `<<fightpanel "雾影">>` ✓）
    —— `fightact`／`resolveFoe` 用 `$args[0]` 当**对手检定位点** ⇒ 不传 ⇒ `s` 为 null ⇒ 崩在 `s.dis` ✗
 ③ `Checks.sites` 的 `skill` 要**技能名**（`运动`／`体操`／`察觉`…），✗ 不是属性缩写（`str`/`dex`）
    —— 写 `dex` ⇒ `未知技能: dex` ✗（合法表在 `src/10-core.twee` 的 `Rules.SKILLS`）

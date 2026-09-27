@@ -10,6 +10,7 @@ import { execFileSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
+import { maskComments } from '../editor/lib/core/mask.mjs';   // ★ `#1530` CR：★剥注释走**仓内唯一掩蔽器** ✓
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 let bad = 0;
@@ -93,10 +94,15 @@ setPack({ economy: { keys: { gold: 'goldRenamed' }, label: { gold: '银币' } } 
 {
 	const { execFileSync } = await import('node:child_process');
 	const files = execFileSync('git', ['ls-files', 'src/'], { cwd: ROOT, encoding: 'utf8' }).trim().split('\n');
-	const CODE = (raw) => raw.replace(/\/%[\s\S]*?%\//g, '').replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+	// ★★ `#1530` CR（developer-10）：★旧写法只剥**整行** `// …`（`^\s*\/\/`）
+	//   ⇒ ★**行尾** `code; // 说明` 的部分**剥不掉** ⇒ ★它里面的 `pc.gold`／`金币` 被当**代码**
+	//   ⇒ ★★**本格恒红**（★实测：9 命中**全是注释** ✗）—— ★而它看起来像“真发现了 9 处硬编” ✗
+	//   ★正解：★**复用仓内唯一的掩蔽器 `maskComments`**（★✗ 自写逐行正则
+	//     —— ★“**逐行正则剥注释＝假信号**”本仓已有记账 ✗）✓
+	const CODE = (raw, file) => maskComments(raw, { file, twee: true });
 	const hits = [];
 	for (const f of files) {
-		const code = CODE(readFileSync(join(ROOT, f), 'utf8'));
+		const code = CODE(readFileSync(join(ROOT, f), 'utf8'), f);
 		code.split('\n').forEach((l, i) => {
 			// ★键名面：★`pc.gold`／`pc?.gold`／`pc['gold']` 等硬编
 			if (/pc\??\.gold|pc\[\s*['"]gold['"]\s*\]/.test(l)) hits.push([f, i + 1, '键名', l.trim()]);

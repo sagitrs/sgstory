@@ -1,0 +1,38 @@
+:: Draw primitives [script]
+/% ★ `#1534`／`#1537`（表示面 P1）：**图形原语** —— ★引擎只提供"**一个条**"／"**一元列表**"，
+   ✗ 不提供"血条"（★"这数是血"与"它画成什么"全归**故事声明** ⇒ spec `docs/superpowers/specs/display-face.md` §2.1 ✓）。
+
+   ★★红线四条（★本件的**结构约束**，✗ 关键词黑名单 —— 黑名单必漏）：
+    ① ★实现体里 **✗ 许出现领域词**（`hp`／`gold`／… 一个都不许 ⇒ 连"某故事的概念"（`心情`／`钥匙`）也不该有 ✓）
+    ② ★入参**只收已算好的值**（`value`／`max`／`items`）⇒ ★**✗ 读 `pc`**（门据此判：本块 `pc` 命中 = 0 ✓）
+    ③ ★**空 ⇒ 不产字节**（✗ 不自造 `（空）` ✗ 不印 `$pc.x` —— ★故事可**显式**给 `empty` ✓）
+    ④ ★样式（色／图标／分隔符）**全由 `style` 传入**（✗ 引擎不内置三档配色 —— 那是"引擎替故事猜" ✓）
+
+   ★定名：**`Sg.draw.*`**（写作者裁 ✓；✗ `Sg.ui.*` —— 与既有 `Sg.UI`（界面偏好）只差大小写 ✗）。 %/
+window.Sg = window.Sg || {};
+window.Sg.draw = {
+	/** ★一个数落在一段区间里 ⇒ 一段 DOM 串。★✗ 读 `pc`／✗ 认出这是什么量纲（`label` 由调用方给 ✓）。
+	 *  @param {{value:number, max:number, label?:string, style?:{}} } p
+	 *  ★`style` 目前认：`{fill?:string, track?:string, showNumbers?:boolean}`（★全是**样式**，✗ 语义 ✓）。
+	 *  ★★边界（一律**不产字节**而不是印个占位）：★非有限数 ⇒ `''`；`max <= 0` ⇒ `''` ✓。 */
+	bar({ value, max, label = '', style = {} } = {}) {
+		const v = Number(value), m = Number(max);
+		if (!Number.isFinite(v) || !Number.isFinite(m) || m <= 0) return '';
+		const pct = Math.max(0, Math.min(100, Math.round((v / m) * 100)));
+		const fill = String(style.fill ?? '');
+		const track = String(style.track ?? '');
+		const nums = style.showNumbers === false ? '' : `${v} / ${m}`;
+		return '<div class="sg-bar"' + (track ? ` style="background:${track}"` : '') + '>'
+			+ `<div class="sg-bar-fill" style="width:${pct}%${fill ? `;background:${fill}` : ''}"></div>`
+			+ `<span class="sg-bar-text">${label}${label && nums ? ' ' : ''}${nums}</span></div>`;
+	},
+	/** ★一元列表 ⇒ 一段 DOM 串。★✗ 读 `pc`（`items` 由调用方算好 ✓）。
+	 *  @param {{items?:Array, empty?:string, sep?:string}} p
+	 *  ★**空 ⇒ 不产字节**：★`items` 为空且**故事未显式给 `empty`** ⇒ 返回 `''` ✓（✗ 引擎不自造"（空）" ✓）。 */
+	list({ items = [], empty = '', sep = '' } = {}) {
+		const arr = Array.isArray(items) ? items : [];
+		if (!arr.length) return empty ? `<div class="sg-list sg-list-empty">${empty}</div>` : '';
+		const body = arr.map((x) => `<span class="sg-list-item">${x}</span>`).join(sep);
+		return `<div class="sg-list">${body}</div>`;
+	},
+};

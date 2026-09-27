@@ -56,11 +56,12 @@ scope_of: []
 
 | 类别 | 内容 | 结果 |
 |---|---|---|
-|  **允许** | 散文文本 · `[[…]]` · `{{…}}` · **具名动作宏**（引擎宣告面 33 个） | 通过 |
+|  **允许** | 散文文本 · `[[…]]` · `{{…}}` | 通过 |
+| ⛔ **禁止（`#1508` 起）** | **任何** `<<…>>` 宏（★含**已宣告**的 —— **零白名单**）· `/% payload: … %/` 标记 | 红（`P6`）|
 | ⛔ **禁止** | 原始计算内建（**真源＝`test/prose-vocabulary.mjs:35` 的 `FORBIDDEN_BUILTINS`，共 8 项含 `elseif`／`=`——此处只举例 `<<= …>>`／`<<set>>`，不复述全集**） | **判红** |
 |注意：**不判** | 注释跨度 `/% … %/` · `[script]`／`[widget]`／`[stylesheet]` 段 | 跳过 |
 
-**具名动作宏**（实测 33 个 ＝ `<<widget>>` 23 ＋ `Macro.add` 10）：
+**具名动作宏**（实测 33 个 ＝ `<<widget>>` 23 ＋ `Macro.add` 10）： ← ★`#1508` 起：**✗ 作者面不再使用**（终态零宏）；★本清单**仅作引擎侧宣告面留档** ✓
 `give` `note` `notepath` `setflag` `take` `econ` `damage` `sitecheck` `check` `checkres` `ending` `rules` `rulelist` `firstTime` `snapshot` `actOut` `inventory` `sceneFeedback` `shortFight` `fight*`（`fightact`/`fightbegin`/`fightlog`/`fightpanel`）`foeIntent` `foeRound` `socpanel` `socresolve` `eraPresent` `save` `hpbar` `dragonbar` `lastcheck` `lastCheckFor` …
 
 → **要新增词汇 → 在引擎宣告**（`<<widget>>`／`Macro.add`），不是为了过门而改门。

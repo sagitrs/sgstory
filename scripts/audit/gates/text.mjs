@@ -158,6 +158,27 @@ if (wantAll || arg('text')) {
 	// `#602`：**主题词表属该故事的数据**（经 `Sg.story.text()` 取）——原先硬编码在本门里 →
 	// 换故事后本行还在打印**故事 1 的词**（全 0 照绿＝空判，实测 `--story hollow-cave` 输出 `雾×0 星×0 …`）。
 	// 数据住**该故事目录**（`stories/<slug>/audit.json`，不进产物）；缺文件/畸形 → 抛错（`loadStoryAudit` 负责）
+	// ★ `#1528`：★**自证格的红必须先过退出码闸**（`#1151` 口径＝"**格级属性**，✗ 与数据面有无样本无关"）。
+	//   ★原状：★零故事短路**在自证之后** ⇒ ★自证红已计（`selfBad`）却**先 return 了** ⇒ `rc=0` ✗
+	//   ⇒ ★即：★"**本门最容易失能的那种运行态**（引擎仓默认零故事）**恰恰不看自证**" ✗
+	//   ★修：★把自证闸**提到短路之前**（✗ 不改"零故事 ⇒ 未判"的**样本语义** ✓）。
+	//   ★注意：★自证段落里若有"依赖故事面"的格 ⇒ 那些格在零故事态**本就不该跑** ⇒ 由各自的
+	//     "前提不成立"分支自行 `continue`（✗ 不是把整段挪走 ✓）。
+	if (selfBad) {
+		console.error(`\n✗ D5 文本门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓（★ #1528：本条在**零故事短路之前**判 ✓）`);
+		process.exit(1);
+	}
+	// ★ `#1528`：★**回归格** —— ★「零故事短路**不得在自证闸之前**」。
+	//   ★判法：★本门自证格的**计数位置**必须**在短路之前** ⇒ ★用源文顺序可核（✗ 不依赖运行时状态 ✓）。
+	//   ★为什么用文本核：★“两个位置的先后”本身不能用行为格验（★格级属性 ⇒ 只能看源文）。
+	{
+		const src = readFileSync(absPath('scripts/audit/gates/text.mjs'), 'utf8');
+		const iShort = src.indexOf('zero-story mode');
+		const iGate = src.indexOf('if (selfBad) {');
+		const ok = iShort > 0 && iGate > 0 && iGate < iShort;
+		console.log(`      ${ok ? '✓' : '✗'} 自证·★零故事短路**在自证闸之后**（✗ 否则零故事态自证红不进退出码）`);
+		if (!ok) selfBad++;
+	}
 	// `#1261` zero-story: no stories/<slug>/audit.json to read (this gate's data lives in the story dir).
 	// The gate has no sample here, so say so and skip instead of joining null into a path.
 	if (!ctx.storySlug) { console.log('  #1261 zero-story mode: no story text face -> text gate skipped'); return; }
@@ -190,13 +211,7 @@ if (wantAll || arg('text')) {
 		const hits = judgeCliche(narrative, CLICHE);
 	if (hits.length) { console.log(`  ✗ 套路句式命中：${hits.join('、')}`); bad += hits.length; }
 	else console.log('  套路句式门：零命中');
-	bad += selfBad;
-	// `#1151`（同 `#1149`／`#1150`）⭐ **自证格的红必须进退出码** —— 格级属性，**不依赖 `process.argv`**
-	//注意：与「判据发现」**分开报**：本条语义是「**本门自身失能**」，不是「故事数据/内容有问题」
-	if (selfBad) {
-		console.error(`\n✗ D5 文本门：**自证格**红 ${selfBad} 项 ⇒ **本门自身失能**（不是判据发现 ✗）—— 请修本门再跑 ✓（\`#1151\`）`);
-		process.exit(1);
-	}
+	bad += selfBad;   // ★ #1528：自证闸已**上提**到零故事短路之前（✗ 不在此重复判）
 	if (process.argv.includes('--check')) {
 		if (bad) { console.error(`\n✗ D5 文本门：${bad} 项`); process.exit(1); }
 		console.log('\n✔ D5 文本门通过');

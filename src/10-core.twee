@@ -613,24 +613,13 @@ Macro.add('ending', {
 	},
 });
 
-// ── 血条宏 ──────────────────────────────────────────────
-Macro.add('hpbar', {
-	skipArgs: true,
-	handler() {
-		const pc = Game.Pc.now();
-		// ★ `#1518`（展示半·D1）：**血条的两个键名都从数据读** —— `vk('hp')`／`vk('maxHp')`（✗ 不硬编 ✓）；
-		//   下限也走数据（`V().floor.hp` ⇒ 与结算同一处口径，✗ 不写死 `Math.max(0, …)` ✓）
-		const _khp = Game.Rules.vk('hp'), _kmx = Game.Rules.vk('maxHp');
-		const _floorHp = Game.Rules.V().floor.hp;
-		const hp = Math.max(_floorHp, pc[_khp] ?? 0), max = pc[_kmx] ?? 1;
-		const pct = Math.round((hp / max) * 100);
-		const color = pct > 50 ? '#5dbb63' : pct > 25 ? '#e0a458' : '#d1495b';
-		jQuery(this.output).append(
-			`<div class="hpbar"><div class="hpbar-fill" style="width:${pct}%;background:${color}"></div>` +
-			`<span class="hpbar-text">❤ ${hp} / ${max}</span></div>`
-		);
-	},
-});
+// ★★`#1539`（表示面 P3）：**`<<hpbar>>` 宏已删**（引擎侧清零 —— spec §5 P3）。
+//   ★为什么删：它把「量纲语义（`hp`）」与「画法（`❤ cur/max` ＋ 三档配色 50/25）」**焊死在引擎**里
+//     —— 正是 Admin 判定的那条矛盾（【引擎侧不感知 hp 概念】vs【引擎侧要有状态表示 UI】）。
+//   ★替代：**故事声明 `panels`**（spec §2.2）⇒ 引擎侧 `Sg.panels.renderSlot()` 经 `Sg.draw.bar()` 画；
+//     键名（`valueKey`／`maxKey`）／文案（`label`）／样式（`style`）**全在故事数据**里。
+//   ★先例：`#1227` 类一删 `dragonbar`（引擎✗为某个故事/某个概念提供渲染件）—— 本条是同族的第二例。
+
 // `#1227` 类一：`dragonbar`（龙专用血条宏）**已删** —— 它是内容专用渲染件（文案里写死"龙"、取数写死
 // `Sg.story.dragonMaxHp()`）。通用渲染件是上面的 `<<hpbar>>`；故事要自己的血条形态，走 `<<hpbar>>` 或
 // 故事侧自带宏（引擎不再为某一个故事提供渲染件）。
@@ -699,6 +688,63 @@ window.Sg.capability = (group) => {
 	const KEYS = { flipItem: 'item', flipStarCost: 'cost', flipReturnFlag: 'flag' };
 	for (const n of names) out[KEYS[n] ?? n] = window.Sg.story[n]();
 	return out;
+};
+
+/% ★★`#1539`（表示面 P3）：**声明驱动渲染**（spec §2.2／§3.1）—— 引擎只做「拿 `Sg.draw.*` 去画 `props` 里这几个数」。
+
+   形状（spec §2.2，**定形乙**）：`valueKey`／`maxKey` **装 `pc` 键名**（✗ 量纲名）⇒ 取值＝`pc[valueKey]`。
+   ★定形为乙的理由（2026-09-27 裁定；并有实测支持）：§2.2 示例逐字（`maxKey:'max_hp'`／`valueKey:'inv'`）
+     都是 **`pc` 键名** ⇒ 乙照逐字落地；§2.3 的验收目标「引擎侧再无 `hp` 这个字」**不依赖** `vk()`
+     （键名字面量全在**故事数据**里）；而甲下 `list` 的 `inv` **不是量纲** ⇒ 无法照 §6③ 落地 ✗。
+   ⇒ ★`vk()` 只在**声明侧**把量纲名翻成键名；**引擎侧渲染只做 `pc[valueKey]` 取值**。
+
+   逐块切换（spec §3.1）：**以 `panels` 声明为准画；未声明的块 ✗ 画** —— 粒度＝**块**（✗ 全故事一次切）。
+   红线（spec §2.1）：① 实现里 ✗ 许出现领域词／✗ 认得出“这是哪个量纲”（值全由 `props` 指）
+     ② 空 ⇒ **不产字节**（✗ 不自造「（空）」✗ 不印 `$pc.x` —— 故事可显式给 `empty`）
+     ③ 样式（色／图标／分隔符）**全由 `style` 传**（✗ 引擎不内置配色）。 %/
+window.Sg.panels = {
+	/** 取故事的 `panels` 声明（经 `Game.Rules.panels()` 那个**读点** —— 缺面 ⇒ `[]`，非数组 ⇒ 抛）。 */
+	declared() {
+		return (window.Game?.Rules?.panels?.() ?? []);
+	},
+	/** 一个 `prop` 的取值：**直接 `pc[valueKey]`**（定形乙 —— 装的是 `pc` 键名）。
+	 *  ✗ 不经 `vk()`；✗ 认不出“这是哪个量纲”（那是故事的事 ✓）。 */
+	valueOf(pc, prop) {
+		const k = prop?.valueKey;
+		return (k == null || k === '') ? undefined : pc?.[k];
+	},
+	/** 已知 `as` 原语表（spec §2.2 起步两件；`group` 待将来真形再定 ✓）。 */
+	primitives: {
+		bar({ pc, prop }) {
+			const v = Sg.panels.valueOf(pc, prop);
+			const m = Sg.panels.valueOf(pc, { valueKey: prop?.maxKey });
+			return Sg.draw.bar({ value: v, max: m, label: prop?.label ?? '', style: prop?.style ?? {} });
+		},
+		list({ pc, prop }) {
+			const src = Sg.panels.valueOf(pc, prop);
+			const items = Array.isArray(src) ? src
+				: (src && typeof src === 'object') ? Object.keys(src)
+				: [];
+			return Sg.draw.list({ items, empty: prop?.empty ?? '', sep: prop?.sep ?? '' });
+		},
+	},
+	/** 画**一块**（`panels` 的一项）⇒ DOM 串。★空 ⇒ **不产字节**（spec §2.1 红线②）。
+	 *  ★未声明的 `as` ⇒ **fail-loud**（✗ 静默不画 —— 同族：`#1543` 的 `fight` 类型错／`#1551` 的 `panels` 非数组）。 */
+	renderBlock(pc, block) {
+		const name = String(block?.as ?? '');
+		const fn = this.primitives[name];
+		if (typeof fn !== 'function') {
+			throw new Error(`Sg.panels：未知的 \`as\` 原语「${name}」（已知：${Object.keys(this.primitives).join('、')}）`
+				+ ` —— ✗ 静默不画（声明写错必须看得见）`);
+		}
+		return (block.props ?? []).map((prop) => fn.call(this.primitives, { pc, prop })).join('');
+	},
+	/** 按 `slot` 取该位置的全部块 ⇒ DOM 串（**逐块**；未声明 ⇒ ✗ 画 —— spec §3.1）。 */
+	renderSlot(pc, slot) {
+		return this.declared()
+			.filter((b) => (b?.slot ?? 'sidebar.primary') === slot)
+			.map((b) => this.renderBlock(pc, b)).join('');
+	},
 };
 
 :: StoryInit
@@ -1085,15 +1131,6 @@ window.Sg.capability = (group) => {
 	<</if>>
 <</nobr>><</widget>>
 
-/% 物品栏（v16 §5.0）：侧栏列出身上带着的东西——不凑数、不集齐开锁 %/
-<<widget "inventory">><<nobr>>
-	<<set _inv to Object.keys($pc.inv ?? {})>>
-	<<if _inv.length>>
-		<<for _i to 0; _i lt _inv.length; _i++>><span class="inv-item">_inv[_i]</span><</for>>
-	<<else>>
-		（空）
-	<</if>>
-<</nobr>><</widget>>
 <<widget "flipEra">><<nobr>>
 	/% `#1132` B3＋`#1216` B 半：时代翻转是**能力组**（三名一起才是这个能力）。
 	   全缺 → 能力关（不渲染）；部分缺 → 出声点名；不给数值缺省。 %/
@@ -1132,8 +1169,16 @@ window.Sg.capability = (group) => {
 <<if $pc.classLabel>>
 ''$pc.name''
 $pc.speciesLabel $pc.classLabel
-<<hpbar>>
-<<print Game.Rules.el('gold')>>：<<print $pc[Game.Rules.ek('gold')]>>
+/% ★★`#1539`（P3）：**逐块切换** —— 以 `panels` 声明为准画；未声明 ⇒ ✗ 画（粒度＝块，✗ 全故事一次切）。
+   ★为什么不能“旧内置块继续画”：那样同一属性会出现**两处**（一份来自声明、一份来自内置）
+     ⇒ “**真正生效的那一份不可判**”（同族：`#1474`／`#1478`／`#1484`）✓。
+   ★零声明 ⇒ **干净的空**（spec §4④：✗ 印 `（空）`、✗ 印 `$pc.x` ✓）。 %/
+<<print Sg.panels.renderSlot($pc, 'sidebar.primary')>>
+/% ★★`#1539`（P3）×`#1530`（economy 键名）：**金币行两个口径同时满足** ——
+   ① 键名走 `Game.Rules.ek('gold')` / 文案走 `Game.Rules.el('gold')`（`#1530`：✗ 硬编）；
+   ② spec §4④：**没有该维 ⇒ 整行不产字节**（✗ 印 `$pc.x` 字面 —— 实测未声明 economy 的故事
+     会把裸变量当散文原样印给玩家，`#1534` 评论 `5851722091` §三）。 %/
+<<set _gk to Game.Rules.ek('gold')>><<set _gv to $pc[_gk]>><<if _gv !== undefined>><<print Game.Rules.el('gold')>>：<<print _gv>><</if>>
 <<print Game.Rules.vl('salves')>>：<<print $pc[Game.Rules.vk('salves')]>> 副（缺口满 <<print Game.Rules.V().heal>> 点时自动用，一副恢复 <<print Game.Rules.V().heal>> 点）
 <<if $pc.gear.length>>行囊：<<print $pc.gear.join('、')>><</if>>
 /% `#703`：**装备耐久**与**部位异常**——两者此前全仓零渲染（`gearHp`／`statuses` 只在 defaults 里出现过），
@@ -1146,10 +1191,6 @@ $pc.speciesLabel $pc.classLabel
 <<if _st.length>>
 <div class="status-list">''状态''　<<for _i to 0; _i lt _st.length; _i++>><<print _st[_i].part>>·<<print _st[_i].label>>（<<print _st[_i].turns>> 回合）<<if _i lt _st.length - 1>>　｜　<</if>><</for>></div>
 <</if>>
-<div class="inv-block">
-''物品栏''
-<div class="inv-list"><<inventory>></div>
-</div>
 <<set _flipCap to Sg.capability('flip')>><<if _flipCap.ok and $pc.inv[_flipCap.item]>>
 <</if>>
 /% #460：设定集是本故事的页面（引擎不知道故事名）→ **存在才渲染**；否则第二/第三故事侧栏会出现死链 %/
@@ -1160,13 +1201,14 @@ $pc.speciesLabel $pc.classLabel
    `gear`）为前提，没有车卡的故事里那些字段永远是空；而"能看见血量的战斗试验场"是本故事的前提。
    故事 1 不受影响：它有车卡 → 车卡前仍是"只有存档按钮"，与改前逐字相同。
    `#660` 片三-2：这里原本**直接探测故事的全局名**（`not Game.Chargen`）——那是边界破口（引擎知道故事的表叫什么）→
-   改成问**接入契约** `Sg.story.hasChargen()`（引擎只问"有没有"，不把故事全局再拿回去）。 %/
-<<hpbar>>
-<<print Game.Rules.el('gold')>>：<<print $pc[Game.Rules.ek('gold')]>>
-<div class="inv-block">
-''物品栏''
-<div class="inv-list"><<inventory>></div>
-</div>
+   改成问**接入契约** `Sg.story.hasChargen()`（引擎只问"有没有"，不把故事全局再拿回去）。
+   ★★`#1539`（P3）：本支同样改走 `panels` 声明（逐块切换）——两条支的差别只在"车卡卡面"与
+     "最小面"的**其余元素**；状态块本身**同一处口径**（✗ 两份实现 ✓）。 %/
+<<print Sg.panels.renderSlot($pc, 'sidebar.primary')>>
+/% ★★`#1539`（P3）×`#1530`（economy 键名）：金币行**两个口径同时满足** ——
+   ① 键名 `Game.Rules.ek('gold')` / 文案 `Game.Rules.el('gold')`（`#1530`：✗ 硬编）；
+   ② spec §4④：**没有该维 ⇒ 整行不产字节**（✗ 印 `$pc.x` 字面） ✓ %/
+<<set _gk to Game.Rules.ek('gold')>><<set _gv to $pc[_gk]>><<if _gv !== undefined>><<print Game.Rules.el('gold')>>：<<print _gv>><</if>>
 /% 设定集同样是"存在才渲染"（本故事没有它 → 不出现死链） %/
 <<if Story.has("设定集")>>[[📖 设定集|设定集]]<</if>>
 <</if>>

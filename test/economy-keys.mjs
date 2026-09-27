@@ -62,6 +62,32 @@ setPack({ economy: { keys: { gold: 'goldRenamed' }, label: { gold: '银币' } } 
 	t('② 改声明：`ek(\'gold\')` ⇒ `goldRenamed`（★键名从数据读）', w.eval("window.Game.Rules.ek('gold')") === 'goldRenamed');
 	t('② 改声明：`el(\'gold\')` ⇒ `银币`（★文案从数据读）', w.eval("window.Game.Rules.el('gold')") === '银币');
 	// ★展示面：snap 读改名后的键（★故意把旧键设成别的值 ⇒ 读错即露）
+	// ★★ CR（T 建议）：★**默认形的键集也要跟变** —— ★否则改了键名而 `defaults()` 仍造旧键
+	//   ⇒ ★侧栏读不到 ⇒ **`undefined`**（★而它不会红：★读数不变差、只是空 ✗）✓
+	const keysAfter = w.eval(`(function(){ const pc=window.SugarCube.State.variables.pc;
+		return JSON.stringify({ has: Object.prototype.hasOwnProperty.call(pc, window.Game.Rules.ek('gold')),
+			legacy: Object.prototype.hasOwnProperty.call(pc, 'gold') }); })()`);
+	{
+		const o = JSON.parse(String(keysAfter));
+		t('★默认形：★**含 `ek(‘gold’)` 给的键**（✗ 不只造旧键）', o.has === true, String(keysAfter));
+		t('★默认形：★**✗ 含旧键 `gold`**（★否则是“两个键都在”的假安全 ✗）', o.legacy === false, String(keysAfter));
+	}
+	// ★★ CR（T 建议）：★**语义面也跟变** —— `Social.leverOpen()` 的筹码门槛读哪个键
+	{
+		// ★ 用**夹具真有的经济事件 id**（★假 id ⇒ `priceOf` 抛「未知经济事件」 ✗）
+		const r = w.eval(`(function(){ const S = window.Sg.social ?? window.Game.Social;
+			if (!S || typeof S.leverOpen !== 'function') return 'no-api';
+			const pc = window.SugarCube.State.variables.pc;
+			const K = window.Game.Rules.ek('gold');
+			const ids = Object.keys(window.Game.Economy.econEvents?.() ?? {});
+			if (!ids.length) return 'no-econ';
+			const lv = { econ: ids[0], need: null };
+			pc[K] = 0; pc.gold = 999; const low = S.leverOpen({ id: 'a' }, lv, pc);
+			pc[K] = 999; const high = S.leverOpen({ id: 'a' }, lv, pc);
+			return JSON.stringify({ low, high }); })()`);
+		t('★语义面：`leverOpen()` 的筹码门槛**跟声明走**（★✗ 只读旧键 ✗）',
+			String(r) === 'no-api' || (() => { const o = JSON.parse(String(r)); return o.low === false && o.high === true; })(), String(r));
+	}
 	const snap = w.eval(`(function(){ const pc=window.SugarCube.State.variables.pc;
 		pc[window.Game.Rules.ek('gold')] = 42; pc.gold = 999;
 		return window.Game.Pc.snap(pc).gold; })()`);
@@ -112,6 +138,16 @@ setPack({ economy: { keys: { gold: 'goldRenamed' }, label: { gold: '银币' } } 
 	}
 	t('④ ★**全仓无硬编**（键名面 `pc?.gold` 也算；文案面 `金币` 字面；★声明面那行除外）',
 		hits.length === 0, hits.slice(0, 4).map((h) => `${h[0]}:${h[1]}(${h[2]})${h[3].slice(0, 60)}`).join(' ｜ '));
+}
+
+// ── ⑤ ★★侧栏两处都在（★CR③ 那种：★**有车卡支那行被整个删掉** —— ★而它**不会红** ✗）──
+//   ★★为什么非要有这一格：★`StoryCaption` 有**两条支**（`if $pc.classLabel`／`elseif not hasChargen()`）
+//     ⇒ ★**两支各自一行金币** ⇒ ★删一行只是“摸一支的展示” → ★**无任何读数变化** ✗
+{
+	const src = readFileSync(join(ROOT, 'src/10-core.twee'), 'utf8');
+	const branch = String(src).match(/<<if \$pc\.classLabel>>[\s\S]*?<\/if>>/);
+	const n = (String(src).match(/Game\.Rules\.el\('gold'\)>>：/g) ?? []).length;
+	t('⑤ 侧栏：**两处金币行**都在（★有车卡支＋无车卡支 —— ★删一支不会红 ✗）', n === 2, '实得 ' + n);
 }
 
 if (bad) { console.error(`\n✗ economy 键名面自证失败 ${bad} 项`); process.exit(1); }

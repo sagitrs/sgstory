@@ -365,7 +365,11 @@ window.Game.Pc = {
 		// ── `#1186`：在场模块的状态组（信号＝故事的接入契约面，登记见本对象 `groups`）──
 		// 缺面 → 键不存在（判据二"未声明模块的故事角色状态零玩法概念"要的形状）。
 		const face = (k) => window.Sg?.story?.[k] != null;
-		if (face('econEvents')) shape.gold = 0;
+		// ★ `#1530`：★**默认形也走数据** —— ★否则改了键名
+		//   ⇒ ★本行仍造**旧键** ⇒ ★侧栏 `ek()` 读不到 ⇒ **`undefined`** ✗
+		//   ★宿主：★本处在 `Game.Pc.defaults()`（`this` 是 `Game.Pc` ✗ `Game.Rules`）
+		//     ⇒ ★必须显式 `window.Game.Rules.ek('gold')`（✗ 不能 `this.ek` ✗）
+		if (face('econEvents')) shape[window.Game.Rules.ek('gold')] = 0;
 		if (face('itemEffect')) shape.inv = {};
 		if (face('gearDef')) shape.gearHp = {};
 		if (face('checkSite')) shape.statuses = {};
@@ -1129,6 +1133,7 @@ window.Sg.capability = (group) => {
 ''$pc.name''
 $pc.speciesLabel $pc.classLabel
 <<hpbar>>
+<<print Game.Rules.el('gold')>>：<<print $pc[Game.Rules.ek('gold')]>>
 <<print Game.Rules.vl('salves')>>：<<print $pc[Game.Rules.vk('salves')]>> 副（缺口满 <<print Game.Rules.V().heal>> 点时自动用，一副恢复 <<print Game.Rules.V().heal>> 点）
 <<if $pc.gear.length>>行囊：<<print $pc.gear.join('、')>><</if>>
 /% `#703`：**装备耐久**与**部位异常**——两者此前全仓零渲染（`gearHp`／`statuses` 只在 defaults 里出现过），

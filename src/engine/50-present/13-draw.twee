@@ -27,12 +27,17 @@ window.Sg.draw = {
 			+ `<span class="sg-bar-text">${label}${label && nums ? ' ' : ''}${nums}</span></div>`;
 	},
 	/** ★一元列表 ⇒ 一段 DOM 串。★✗ 读 `pc`（`items` 由调用方算好 ✓）。
-	 *  @param {{items?:Array, empty?:string, sep?:string}} p
-	 *  ★**空 ⇒ 不产字节**：★`items` 为空且**故事未显式给 `empty`** ⇒ 返回 `''` ✓（✗ 引擎不自造"（空）" ✓）。 */
-	list({ items = [], empty = '', sep = '' } = {}) {
+	 *  @param {{items?:Array, label?:string, empty?:string, sep?:string}} p
+	 *  ★`label`（`#1560`）＝**块标题** —— 与 `bar` 的 `label` **对称**（同类两块：一个带名、一个无名 ⇒ 非对称 ✗）：
+	 *   ★由**调用方**给（✗ 引擎不自造名字 ✓）；★它与 `empty`／`sep` 同族＝**文案**，✗ 不是数据键名 ✓。
+	 *  ★**空 ⇒ 不产字节**：★`items` 为空且**故事未显式给 `empty`** ⇒ 返回 `''` ✓（✗ 引擎不自造"（空）" ✓）。
+	 *   ★★这一条**优先于** `label`：空且无 `empty` ⇒ **连标题也不画**（✗ 让 `label` 把空块"救活" ⇒ 否则
+	 *     "空 ⇒ 不产字节"在"只给了标题"时被悄悄破掉，而 §2.1 红线③ 的故事侧权利是**显式给 `empty`** ✓）。 */
+	list({ items = [], label = '', empty = '', sep = '' } = {}) {
 		const arr = Array.isArray(items) ? items : [];
-		if (!arr.length) return empty ? `<div class="sg-list sg-list-empty">${empty}</div>` : '';
+		const head = label ? `<span class="sg-list-text">${label}</span>` : '';
+		if (!arr.length) return empty ? `<div class="sg-list sg-list-empty">${head}${empty}</div>` : '';
 		const body = arr.map((x) => `<span class="sg-list-item">${x}</span>`).join(sep);
-		return `<div class="sg-list">${body}</div>`;
+		return `<div class="sg-list">${head}${body}</div>`;
 	},
 };

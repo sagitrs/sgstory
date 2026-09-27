@@ -48,6 +48,19 @@ const D = await load();
 	t('★行为：`list` 空且**无 `empty`** ⇒ **空串**（✗ 引擎不自造"（空）" ✓）', D.list({ items: [] }) === '', JSON.stringify(D.list({ items: [] })));
 	t('★行为：`list` 给了 `empty` ⇒ **用故事的** ✓', D.list({ items: [], empty: '（空空）' }).includes('（空空）'));
 	t('★行为：`list` 有项 ⇒ 逐项出现 ✓', (() => { const s2 = D.list({ items: ['甲', '乙'] }); return s2.includes('甲') && s2.includes('乙'); })());
+	// ★★`#1560`：`list` 的**块标题维**（`label` —— 与 `bar` 的 `label` 对称）。三格＝"给／不给／空块"。
+	t('★行为：`list` 给了 `label` ⇒ **标题出现**（`#1560` —— 与 `bar` 的 `label` 对称）',
+		D.list({ items: ['甲'], label: '物品栏' }).includes('物品栏'),
+		JSON.stringify(D.list({ items: ['甲'], label: '物品栏' })));
+	t('★行为：`list` **✗ 不给 `label`** ⇒ 标题位**不产字节**（✗ 引擎不自造名字 ✓）',
+		!D.list({ items: ['甲'] }).includes('sg-list-text'), JSON.stringify(D.list({ items: ['甲'] })));
+	t('★行为（★这条是本维的**边界**）：空块 ＋ 给了 `label` 但**✗ 没给 `empty`** ⇒ **仍空串**'
+		+ '（"空 ⇒ 不产字节"优先 ⇒ ✗ 不许标题把空块"救活" ✓）',
+		D.list({ items: [], label: '物品栏' }) === '', JSON.stringify(D.list({ items: [], label: '物品栏' })));
+	t('★行为：空块 ＋ 给了 `label` **且**给了 `empty` ⇒ 标题与空文案**同现**（＝故事显式要它看得见 ✓）', (() => {
+		const s3 = D.list({ items: [], label: '物品栏', empty: '（空）' });
+		return s3.includes('物品栏') && s3.includes('（空）');
+	})());
 }
 
 // ── ③ ★★“值对了 ≠ 值送到”（`#1541` 评审指出的真缺陷族）：**源码→产物**边界必须在本侧验一次 ──
@@ -99,4 +112,4 @@ const D = await load();
 }
 
 if (bad) { console.error(`\n✗ 图形原语自证失败 ${bad} 项`); process.exit(1); }
-console.log('\n✔ 图形原语自证通过（结构：pc=0 ／ 领域词=0 ⇒ 无领域语义；行为：bar 给数、list 空则不产字节；归属：engineFiles() 含本件 ＋ 产物含本件段）');
+console.log('\n✔ 图形原语自证通过（结构：pc=0 ／ 领域词=0 ⇒ 无领域语义；行为：bar 给数、list 空则不产字节、list 的 label 标题给而现／空块无 empty 仍空；归属：engineFiles() 含本件 ＋ 产物含本件段）');

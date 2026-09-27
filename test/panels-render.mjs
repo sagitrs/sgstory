@@ -114,8 +114,10 @@ if (!existsSync(join(ROOT, FIX_FROM))) {
 			const cap = String(w.document.querySelector('#passages')?.textContent ?? w.document.body.textContent ?? '');
 			const bar = String(w.document.querySelector('.sg-bar-text')?.textContent ?? '').trim();
 			const list = w.document.querySelectorAll('.sg-list-item').length;
+			// ★`#1560`：`list` 的**块标题**（`.sg-list-text` —— 由声明的 `label` 给）
+			const listLabel = String(w.document.querySelector('.sg-list-text')?.textContent ?? '').trim();
 			B.close?.();
-			return { cap, bar, list };
+			return { cap, bar, list, listLabel };
 		};
 
 
@@ -152,6 +154,8 @@ if (!existsSync(join(ROOT, FIX_FROM))) {
 
 		const BAR = [{ as: 'bar', slot: 'sidebar.primary', props: [{ slot: 'sidebar.primary', valueKey: 'hp', maxKey: 'max_hp', label: '生命' }] }];
 		const LIST = [{ as: 'list', slot: 'sidebar.primary', props: [{ slot: 'sidebar.primary', valueKey: 'inv', empty: '（空）' }] }];
+		// ★`#1560`：同形 ＋ `label`（块标题 —— 与 `bar` 的 `label` 对称）
+		const LIST_LABEL = [{ as: 'list', slot: 'sidebar.primary', props: [{ valueKey: 'inv', label: '物品栏', empty: '（空）' }] }];
 
 		// ② 逐块切换：有声明 ⇒ 按声明画
 		{
@@ -174,6 +178,16 @@ if (!existsSync(join(ROOT, FIX_FROM))) {
 			t('② 有 `list` 声明 ⇒ **按声明画**（物品栏逐项出现）', o.list >= 1, `sg-list-item=${o.list}`);
 			const o2 = await observe([]);
 			t('② 撤 `list` 声明 ⇒ 物品栏✗画（逐块粒度：✗ 全故事一次切）', o2.list === 0, `sg-list-item=${o2.list}`);
+		}
+		// ② ★★`#1560`：`list` 的**块标题**两态（真机面 —— ✗ 只判原语纯函数：
+		//   标题最终是"**侧栏里真出现**"才算数 ⇒ 这一格走 `StoryCaption` 真渲染 ✓）
+		{
+			const o = await observe(LIST_LABEL);
+			t('② `list` 给了 `label` ⇒ **侧栏真出现该标题**（`#1560` —— 键名/文案全来自声明）',
+				o.listLabel === '物品栏', JSON.stringify(o.listLabel));
+			const o2 = await observe(LIST);
+			t('② ✗ 不给 `label` ⇒ **标题位不产字节**（✗ 引擎不自造名字 ✓）',
+				o2.listLabel === '', JSON.stringify(o2.listLabel));
 		}
 		// ④ 未知 `as` ⇒ fail-loud —— ★**在渲染件层断**（✗ 经 `Engine.play`：SugarCube 会把宏体抛的
 		//   异常吞进它自己的错误面 ⇒ 从 `play()` 那一侧看不见「抛了没」，本格会变成**恒绿** ✗ —— 实测过）。
@@ -257,6 +271,11 @@ if (!existsSync(join(ROOT, FIX_FROM))) {
 			t('⑦ 新渲染件的类**有样式**：`.sg-bar`（✗ 缺 ⇒ 高度 0 ⇒ 玩家看不见）', /\.sg-bar\s*\{/.test(css));
 			t('⑦ `.sg-bar-fill` 有样式（宽度百分比要能看见）', /\.sg-bar-fill\s*\{/.test(css));
 			t('⑦ `.sg-list`／`.sg-list-item` 有样式', /\.sg-list\s*\{/.test(css) && /\.sg-list-item\s*\{/.test(css));
+			// ★`#1560`：块标题也要有样式 —— ★且必须**独占一行**（`flex-basis: 100%`）：
+			//   标题与首个条目挤在同一行 ⇒ 那就不是标题（★样式缺/不生效＝同族"看得见"的那面）。
+			t('⑦ `.sg-list-text`（块标题）有样式**且能独占一行**（`flex-basis: 100%`）',
+				/\.sg-list-text\s*\{[^}]*flex-basis:\s*100%/.test(css),
+				(css.match(/\.sg-list-text\s*\{[^}]*\}/) ?? ['（无该规则）'])[0].replace(/\s+/g, ' ').slice(0, 100));
 			t('⑦ 旧类**死码已清**（`.hpbar`／`.inv-item` 在样式表里零命中 —— 壳已删）',
 				!/\.hpbar\s*\{/.test(css) && !/\.inv-item\s*\{/.test(css), '样式表里仍有已删件的规则');
 		}

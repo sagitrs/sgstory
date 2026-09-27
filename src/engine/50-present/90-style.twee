@@ -312,7 +312,8 @@ body {
 .save-bar .save-btn:hover { background: rgba(169, 192, 218, 0.2); }
 .save-bar .save-btn:focus-visible { outline: 2px solid #a9c0da; outline-offset: 2px; }
 /* ★★`#1539`（P3）：**图形原语 `Sg.draw.list` 的样式**（类名 `sg-list*` —— ✗ 旧的 `.inv-*`，壳已删）。
-   分隔符（`sep`）与空文案（`empty`）由**故事声明**给（spec §2.1 红线②③）。 */
+   分隔符（`sep`）与空文案（`empty`）由**故事声明**给（spec §2.1 红线②③）。
+   ★`#1560`：块标题（`sg-list-text` —— `label` 由**故事声明**给，与 `bar` 的 `label` **对称**）。 */
 .sg-list {
 	display: flex;
 	flex-wrap: wrap;
@@ -321,7 +322,16 @@ body {
 	line-height: 1.7;
 	margin-top: 0.6em;
 }
+/* ★★`#1560`：块标题 —— `flex-basis: 100%` 让它在 `.sg-list`（`flex-wrap` 容器）里**独占一行**
+   （✗ 否则标题与第一个条目挤在同一行 ⇒ 那就不是"标题"了）。
+   ★⚠️少这一条就是「**画了但看不见**」那一族（`#1556` ② 的实测教训：节点在、样式缺 ⇒ 玩家看不到）——
+   故本笔与 `#1539` 同法：**结构在 `13-draw.twee`、形在这里**，两处必须同笔 ✓。 */
 .sg-list-item { color: #cfd8c8; }
+.sg-list-text {
+	flex-basis: 100%;
+	font-weight: 700;
+	color: #cfd8c8;
+}
 .sg-list-empty { color: #8b806b; }
 
 /* ── M1 骨架补充 ─────────────────────────────────────── */

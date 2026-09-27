@@ -726,7 +726,7 @@ window.Sg.panels = {
 			const items = Array.isArray(src) ? src
 				: (src && typeof src === 'object') ? Object.keys(src)
 				: [];
-			return Sg.draw.list({ items, empty: prop?.empty ?? '', sep: prop?.sep ?? '' });
+			return Sg.draw.list({ items, label: prop?.label ?? '', empty: prop?.empty ?? '', sep: prop?.sep ?? '' });
 		},
 	},
 	/** 画**一块**（`panels` 的一项）⇒ DOM 串。★空 ⇒ **不产字节**（spec §2.1 红线②）。

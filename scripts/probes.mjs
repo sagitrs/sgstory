@@ -324,7 +324,9 @@ export const PROBES = [
 		cmd: 'node test/docs-read-path.mjs',
 		mutation: {
 			file: 'docs/README.md',
-			find: "| 查历史 / 作废稿（含已删故事 1 的设定·设计·实施三件套，`#1077`） | `docs/archive/README.md` | — |",
+			// ★ `#1601`／CR（tester-4）：★锚随**本笔改写的那行**更新（✗ 脱锚 ⇒ 探针**反假绿**失效 ✗
+			//   —— ★台账 `--allow-stale-probe` **抓不到**这种脱锚，只有**实跑探针**能抓 ✓）
+			find: "| 查历史 / 作废稿（★`#1601` 后只余 `lore-canon.md`：条文锚） | `docs/archive/README.md` | — |",
 			replace: "| 查历史 / 作废稿（含已删故事 1 的设定·设计·实施三件套，`#1077`） | `docs/archive/README.md` | — |\n| 探针：虚构文档 | `docs/no-such-doc-probe.md` | — |   # 探针：死链  门必红 ",
 		},
 		expect: { rc: 1, stdout: /no-such-doc-probe|不存在/ },

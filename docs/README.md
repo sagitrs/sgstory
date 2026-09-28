@@ -12,11 +12,10 @@
 | 写 / 改剧情（现存故事，如 `night-ferry`） | `docs/criterion-design.md`（接入契约） | `stories/night-ferry/`（含 `EDITOR-SESSION.md`）· `docs/manual/03-prose.md` |
 | 接一个新故事 | `docs/criterion-design.md` | `docs/criterion-design.md` · `scripts/module-order.mjs`（§二 层归属） |
 | **故事写到某处，引擎还没有这个能力** | **`docs/process/story-engine-loop.md`**（需求到能力的五步循环） | `.github/ISSUE_TEMPLATE/engine-capability.yml`（需求模板）· `#1306`（需求台账） |
-| 想知道表能不能放点击态写 | `docs/archive/click-time-writes-design.md` | `docs/criterion-design.md`（§已知边界） |
 | **数据模型**（角色状态 `pc` ＋ 袋外变量／五类分区／结算三条通道）——★**设计稿·待评审** | **`docs/engine/data-model.md`** | `docs/engine/decisions.md`（已裁／待裁台账） |
 | **手写一个故事包**（每类 JSON 放什么、字段逐个）——★**设计稿·待评审** | **`docs/engine/json/README.md`**（索引 · 最小集 · 编译链） | `json/` 下八份逐字段手册 · `docs/engine/authoring-model.md`（三层归位） |
 | **写作形态**（MD 放什么／JSON 放什么／条件与计算写在哪）——★**设计稿·待评审** | **`docs/engine/authoring-model.md`** | `docs/engine/reference-spec.md`（判据 J1–J3 · 词汇面） |
-| 查历史 / 作废稿（含已删故事 1 的设定·设计·实施三件套，`#1077`） | `docs/archive/README.md` | — |
+| 查历史 / 作废稿（★`#1601` 后只余 `lore-canon.md`：条文锚） | `docs/archive/README.md` | — |
 | **某块做不了硬牙、又不敢删**（需要环境／时间／人判断／只是读数） | **`docs/checklist.md`**（三分处置②类的归宿：触发时机＋读数＋谁看） | `docs/criterion-design.md` §六 6.4（判据与对象同生同死） |
 
 ## 二、权威表（谁说话算数）
@@ -46,7 +45,6 @@
 | `docs/criterion-design.md` | 274 | 权威 | 故事 2/3 的接入契约清单 |
 | `docs/criterion-design.md` | 273 | 权威 | 维度总表 ＋ 候选池 ＋ 给测试的作业模板 |
 | `docs/criterion-design.md` | 217 | 权威 | 三类划分 ＋ 判定口诀 ＋ 迁移五步 |
-| `docs/archive/notes-model-batches.md` | 215 | 记录 | 笔记模型分批迁移的过程记录 |
 | `docs/ui-inventory.md` | 201 | 盘点 | 段落与交互元素清单；**生成物 · 随样本漂移（含故事 1 读数，`#1077` 降级标注）** |
 | `docs/criterion-design.md` | 130 | 权威 | 两层边界与接入契约 |
 | `docs/manual/12-data.md` | 97 | 口径 | 必需／可选／不做三栏 ＋ 判定三问 ＋ 与同类格式对照 |
@@ -54,8 +52,6 @@
 | `docs/manual/05-rules.md` | 118 | 手册 | 表语法实战："这个能不能进表"决策树 ＋ 踩坑清单（`#624` 沉淀） |
 | `scripts/module-order.mjs` | 84 | 地图 | 目录结构 ＋ 层归属 ＋ 权威落点速查 |
 | `docs/readings/ui-coverage-gaps.md` | 75 | 口径 | 覆盖与未覆盖的判定口径 |
-| `docs/archive/click-time-writes-design.md` | 96 | 设计稿·待评审 | 点击态写侧能否进表（`#624` 普查后的形状；含片一/片二与未决项） |
-| `docs/archive/editor-flip-playbook.md` | 102 | **史料·编辑器线已砍**（`#1325`） | 翻面七步（冻基线 → 门重指向 → 产物 → 双向反例 → 重签）——**✗ 不要再照它执行翻面**；手法仍有参照价值 |已踩的坑与三条纪律 |
 | `docs/superpowers/specs/editor-pivot.md` | 220 | **史料·编辑器线已砍**（`#1325`） | 编辑器转向的技术形状（schema v0 · 编译器边界 · 等价判据 · 分期）——**✗ 不要照它落码**；其 §2.1 约定仍以 `docs/engine/**` 为准 |译器边界 · 等价判据三级 · 分期与不变量 K1–K5） |
 | `docs/benchmark-ledger.md` | 55 | 台账 | 质量对标台账（`#297`）：12 款竞品 ＋ 触发条件 ＋ 复核写回；★**门 F6**（`report:freshness --ledger`）**直读它** ⇒ ✗ 不得删 ✓ |
 | `docs/manual/README.md` | 63 | 手册 | 引擎功能手册目录与**准入条**（按功能组织）|
@@ -68,7 +64,7 @@
 | `docs/engine/authoring-model.md` | 122 | **设计稿·待评审** | 写作模型：MD／JSON／条件与计算三层归位（`#1085` 格式层） |
 | `docs/engine/reference-spec.md` | 124 | **设计稿·待评审** | 条件行参考形状 · 词汇面 · 判据 J1–J3（J3 未实现如实标注） |
 | `docs/engine/json/` 下 9 份 | — | **手册** | 故事包逐文件手写手册（`#1085`；索引见 `docs/engine/json/README.md`） |
-| `docs/archive/` | 13 份 | 作废 | 禁止回流；对照表见 `docs/archive/README.md`（含故事 1 三件套：设定书／设计蓝本／实施图，`#1077`） |
+| `docs/archive/` | **1 份** | 作废 | 禁止回流；★`#1601` 后只余 `lore-canon.md`（`test/rules-claims.mjs` 的**冻结条文锚** ⇒ 活体读者 ✓）；说明见 `docs/archive/README.md` |
 
 ## 四、口径与惯例
 

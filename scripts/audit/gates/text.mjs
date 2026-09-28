@@ -210,7 +210,7 @@ if (wantAll || arg('text')) {
 			.filter((p) => !p.tags.some((t) => ['script', 'widget', 'stylesheet'].includes(t)))
 			.map((p) => p.body).join('\n');
 		for (const f of judgeBlacklist(SRC_FILES, blacklist, proseOf)) {
-			console.log(`  ✗ 风格违和词「${f.word}」@ ${f.file.split('/').pop()}:${f.line}（本故事声明的黑名单——替换表 docs/archive/westward-unification.md）`);
+			console.log(`  ✗ 风格违和词「${f.word}」@ ${f.file.split('/').pop()}:${f.line}（本故事声明的黑名单 —— 替换表见故事数据）`);
 			bad++;
 		}
 		console.log(`  风格门：黑名单 ${blacklist.length} 词扫描完成`);

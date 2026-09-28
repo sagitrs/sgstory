@@ -23,6 +23,8 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '');
 const README = join(ROOT, 'docs/README.md');
 
 /** 对象故事已删的文档（`#1004` 删故事 1；basename 对照——含 archive 在内的任何位置回流进必读面都算）。 */
+// ★ `#1601`：名单里的件**已物理删除**（archive 只余 lore-canon.md ✓）—— ★本集**照旧保留**：
+//   它的用途是「**拦**对已删件的引用」（✗ 不是「这些件还在」）⇒ ★删了它，引用就没人拦 ✓
 export const DELETED_STORY_DOCS = new Set(['lore-canon.md', 'game-outline.md', 'impl-map.md']);
 
 // `#1359` ② 删件批：**单列豁免退役** —— 原单列件 `docs/dev-conventions.md` 已按"一份为准"删除；

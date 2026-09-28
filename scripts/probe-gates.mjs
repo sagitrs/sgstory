@@ -7,7 +7,7 @@
  * node scripts/probe-gates.mjs --selfcheck # 只验**运行器自己**能假（纯函数 ＋ 注入 0 处必须报）
  * node scripts/probe-gates.mjs --probe=fast # 跑 fast 档（结果写 build/probe-results.json —— 落点**自己建** 无前置）
  * node scripts/probe-gates.mjs --probe=full # 跑全部（慢）
- * node scripts/probe-gates.mjs --check # 结构校验（不跑探针：清单 ↔ 台账行对得上吗）
+ * node scripts/probe-gates.mjs --check # 结构校验（不跑探针：清单 ↔ 台账行对得上吗 ＋ ★锚自检 `#1603`）
  * ```
  *
  * ## 一条探针的四步（每步都可能**红在别的地方**，所以分开报）
@@ -88,6 +88,40 @@ export const applyMutation = (src, find, replace) => {
 	const count = countHits(src, find);
 	if (count !== 1) return { out: src, count, applied: false };
 	return { out: src.replace(find, replace), count, applied: true };
+};
+/** 锚自检（纯·静态·**不下刀**）：每条**在跑**的探针，`mutation.find` 在 `mutation.file` 里必须**恰好命中 1 处**。
+ *
+ * 为什么要有这一件（`#1603` 实案 `#1602`）：★改写了**被锚定的那一行** ⇒ `find` 命中 **0 处** ⇒ 探针
+ * **在册、却证明不了任何东西**（跑起来只报「注入确认 0 处」）。★而这条**只有实跑才现形**，实跑档
+ * （`--probe=fast`）在 **full 档（周期）** ⇒ **PR 档看不见** ✗ ⇒ 本检查把它**提前成静态结构校验**
+ * （挂进 `--check` —— 它已在 PR 档、cost 0 ✓）。
+ *
+ * 四态（★**不许无声**）：
+ * · 命中 **0** ⇒ 报「**脱锚**」（点名 id ＋ 锚串 ⇒ 同笔更新探针锚 ✓）
+ * · 命中 **>1** ⇒ 报「**锚不唯一**」（下刀处含糊 ⇒ 要求恰好 1 ✓）
+ * · 靶件**不在树**（例：产物件在裸检出里不存在）⇒ 「**未判**」—— **不红，但必须出声** ✓（✗ 不许当"通过" ✓）
+ * · 暂缓探针（`SUSPENDED_PROBES`）⇒ 跳过 ✓（它们本来就不跑 ⇒ 不产生假绿 ✓）；无刀的探针不归本检 ✓
+ * @returns {{problems:string[], checked:number, undecided:string[], suspended:string[]}}
+ */
+export const probeAnchorProblems = (probes = [], {
+	read = (f) => (existsSync(f) ? readFileSync(f, 'utf8') : null),
+	suspended = new Set(),
+} = {}) => {
+	const problems = [], undecided = [], susp = [];
+	let checked = 0;
+	for (const p of probes) {
+		const id = String(p?.id ?? '');
+		if (suspended.has(id)) { susp.push(id); continue; }
+		const mut = p?.mutation;
+		if (!mut?.file || !mut?.find) continue;   // 无刀（纯自证段）⇒ 不归本检 ✓
+		const src = read(mut.file);
+		if (src === null) { undecided.push(`${id}（靶件 \`${mut.file}\` 不在树）`); continue; }
+		checked++;
+		const n = countHits(src, mut.find);
+		if (n === 0) problems.push(`✗ 探针 \`${id}\` **脱锚**：\`find\` 在 \`${mut.file}\` 里命中 **0 处** ⇒ 它在册却**证明不了任何东西** ✗（★改写了被锚定的行？⇒ 同笔更新探针锚 ✓ 锚串：\`${mut.find.slice(0, 90)}${mut.find.length > 90 ? '…' : ''}\`）`);
+		else if (n > 1) problems.push(`✗ 探针 \`${id}\` **锚不唯一**：\`find\` 在 \`${mut.file}\` 里命中 **${n} 处** ⇒ 下刀处含糊（要求恰好 1 ✓）`);
+	}
+	return { problems, checked, undecided, suspended: susp };
 };
 /** 三态判定（纯）：`ok` / `reason` 二选一 —— 每条 reason 都对应**一种"红在别处"**。
  *
@@ -187,6 +221,23 @@ const selfcheck = () => {
 	h('🔴 `cmdNeedsProducts` 反例：`noProducts` **显式豁免**（带理由）⇒ false ✓',
 		cmdNeedsProducts({ cmd: 'node test/a.mjs', noProducts: '本件只读 git ✓' }, { read: fakeRead({ 'test/a.mjs': "import { boot } from './boot.mjs';" }) }) === false);
 	h('`verdictOf`：正＋反都成立 ⇒ ok ✓', verdictOf({ baseRc: 0, mutatedRc: 1, hitCount: 1, stdout: '目标判据 红', expect: { rc: 1, stdout: /目标判据/ } }).ok === true);
+	// `#1603`：★锚自检（**四态**：在场唯一 ⇒ 不报；脱锚／不唯一 ⇒ 必报；靶件不在树 ⇒ **未判但不红**；暂缓 ⇒ 跳过）
+	const anchorCase = (probes, opts = {}) => probeAnchorProblems(probes, { read: fakeRead({}), ...opts });
+	const hitProbe = [{ id: 'test/a.mjs', mutation: { file: 'x.mjs', find: 'AAA', replace: 'BBB' } }];
+	const hitOpts = { read: fakeRead({ 'x.mjs': 'zAAAz' }) };
+	h('`probeAnchorProblems`：锚**在场且唯一** ⇒ **不报** ✓', anchorCase(hitProbe, hitOpts).problems.length === 0);
+	h('`probeAnchorProblems`：同例 `checked=1` ＋ 无未判/暂缓 ✓', anchorCase(hitProbe, hitOpts).checked === 1 && anchorCase(hitProbe, hitOpts).undecided.length === 0 && anchorCase(hitProbe, hitOpts).suspended.length === 0);
+	h('🔴 `probeAnchorProblems`：**脱锚（0 处）⇒ 必报并点名**（`#1602` 落 main 前的形态 ✓）',
+		/脱锚/.test(anchorCase([{ id: 'test/docs-read-path.mjs', mutation: { file: 'docs/README.md', find: '被改写的那行', replace: 'Q' } }], { read: fakeRead({ 'docs/README.md': '别的行' }) }).problems[0] ?? ''));
+	h('🔴 `probeAnchorProblems`：**锚不唯一（2 处）⇒ 必报** ✓',
+		/锚不唯一/.test(anchorCase([{ id: 'test/a.mjs', mutation: { file: 'x.mjs', find: 'AA', replace: 'B' } }], { read: fakeRead({ 'x.mjs': 'AAxAA' }) }).problems[0] ?? ''));
+	h('`probeAnchorProblems`：靶件**不在树** ⇒ **未判（不红）但出声** ✓（✗ 不许当"通过" ✓）',
+		anchorCase([{ id: 'test/a.mjs', mutation: { file: 'dist/gen.js', find: 'x', replace: 'y' } }]).problems.length === 0 &&
+		anchorCase([{ id: 'test/a.mjs', mutation: { file: 'dist/gen.js', find: 'x', replace: 'y' } }]).undecided.length === 1);
+	h('`probeAnchorProblems`：**暂缓**探针跳过 ✓（不跑就不产生假绿 ✓）',
+		anchorCase([{ id: 'test/s.mjs', mutation: { file: 'x.mjs', find: 'zzz', replace: 'y' } }], { suspended: new Set(['test/s.mjs']) }).problems.length === 0 &&
+		anchorCase([{ id: 'test/s.mjs', mutation: { file: 'x.mjs', find: 'zzz', replace: 'y' } }], { suspended: new Set(['test/s.mjs']) }).suspended.length === 1);
+	h('`probeAnchorProblems`：无刀探针不归本检 ✓', anchorCase([{ id: 'test/n.mjs', cmd: 'node test/n.mjs' }]).problems.length === 0);
 	if (bad) { console.error(`\n✗ 探针运行器自检 ${bad} 条未过`); process.exit(1); }
 	console.log('\n✔ 探针运行器自检通过（三态判定 ＋ 注入计数 ＋ 缺前置分家 ＋ `#1019` 静态预检 ✓）');
 };
@@ -253,6 +304,20 @@ const rowsOf = () => {
 	} catch { return null; }
 };
 
+// `#1603`：★本块**上移**到此处（原在 `selected` 之前）—— `--check` 路径（**静态锚自检**）也要读 `suspProbeIds` ✓
+// `#1261` 甲（探针侧）：**临时暂缓** —— 靶对象仍在、但样本/前置随大裁剪暂缺 → 不跑、**单列**、
+// 不计"未咬"；每条必须给 why/until（缺即红，防它成为新的藏身处）。
+const SUSPENDED_PROBES = {
+	// `#1343`（撤暂缓）：`test/gen-needed.mjs` 的暂缓理由＝「**反向核需 ≥3 个真故事**」⇒ 已补**夹具根**
+	// （`test/fixtures/gen-needed/stories`，3 个最小故事）＋ 探针 `cmd` **内联该根** ⇒ 理由失效 ⇒ 撤 ✓
+	'test/contract-defaults.mjs': { why: '需故事契约面样本（对象＝契约默认面判据）', until: '#1163' },
+	'test/pc-base.mjs': { why: '需故事角色状态样本（对象＝角色状态面判据）', until: '#1163' },
+	'test/comment-mask.mjs': { why: '需读故事源面（对象＝剥注权威判据）', until: '#1163' },
+	'test/npm-entries-guard.mjs': { why: '取样脚本随 WebUI 下架（对象＝npm 入口护栏）', until: '#1163' },
+	'test/plan-needs.mjs': { why: '刀的锚随段面变化（对象＝计划依赖判据）', until: '#1163' },
+};
+const suspProbeIds = new Set(Object.keys(SUSPENDED_PROBES));
+
 const checkStructure = () => {
 	let bad = 0;
 	const ids = rowsOf();
@@ -268,8 +333,15 @@ const checkStructure = () => {
 	// 边界：对**孤儿探针**恒真（无台账行可对 → 不归本判据管，由上面那条报）。
 	const struct = probeStructureProblems(PROBES);
 	if (struct.length) { bad += struct.length; for (const m of struct) console.error(m); }
+	// `#1603`：★**锚自检**（静态·**不下刀**）—— 见 `probeAnchorProblems` 头注（实案 `#1602`：被锚定的行被改写 ⇒
+	// 探针 `find` 命中 0 处 ⇒ 「在册却证明不了任何东西」，而这条只在 **full 档**实跑时オ现形 ✗）。
+	const anchors = probeAnchorProblems(PROBES, { suspended: suspProbeIds });
+	if (anchors.problems.length) { bad += anchors.problems.length; for (const m of anchors.problems) console.error(m); }
 	if (bad) { console.error(`\n✗ 探针结构校验 ${bad} 条未过`); process.exit(1); }
 	console.log(`✔ 探针结构校验通过（${PROBES.length} 条 ✓：清单 ↔ 台账行对得上 ✓ 无重复 ✓）`);
+	console.log(`✔ 探针锚自检通过（${anchors.checked} 条锚**在场且唯一** ✓` +
+		(anchors.undecided.length ? `；★未判 ${anchors.undecided.length} 条（✗ **不等于通过**）：` + anchors.undecided.join('、') : '') +
+		(anchors.suspended.length ? `；暂缓跳过 ${anchors.suspended.length} 条 ✓` : '') + '）');
 };
 
 // ── 主 ───────────────────────────────────────────────────────────────
@@ -282,21 +354,10 @@ if (arg.includes('--list')) {
 }
 if (arg.includes('--check')) { checkStructure(); process.exit(0); }
 const mode = (arg.find((a) => a.startsWith('--probe=')) ?? '--probe=fast').split('=')[1];
-// `#1261` 甲（探针侧）：**临时暂缓** —— 靶对象仍在、但样本/前置随大裁剪暂缺 → 不跑、**单列**、
-// 不计"未咬"；每条必须给 why/until（缺即红，防它成为新的藏身处）。
-const SUSPENDED_PROBES = {
-	// `#1343`（撤暂缓）：`test/gen-needed.mjs` 的暂缓理由＝「**反向核需 ≥3 个真故事**」⇒ 已补**夹具根**
-	// （`test/fixtures/gen-needed/stories`，3 个最小故事）＋ 探针 `cmd` **内联该根** ⇒ 理由失效 ⇒ 撤 ✓
-	'test/contract-defaults.mjs': { why: '需故事契约面样本（对象＝契约默认面判据）', until: '#1163' },
-	'test/pc-base.mjs': { why: '需故事角色状态样本（对象＝角色状态面判据）', until: '#1163' },
-	'test/comment-mask.mjs': { why: '需读故事源面（对象＝剥注权威判据）', until: '#1163' },
-	'test/npm-entries-guard.mjs': { why: '取样脚本随 WebUI 下架（对象＝npm 入口护栏）', until: '#1163' },
-	'test/plan-needs.mjs': { why: '刀的锚随段面变化（对象＝计划依赖判据）', until: '#1163' },
-};
+// `#1603`：`SUSPENDED_PROBES`／`suspProbeIds` 已**上移**到 `checkStructure()` 之前（`--check` 也要读它 ✓）
 const suspProbeProblems = Object.entries(SUSPENDED_PROBES).flatMap(([id, m]) =>
 	[!String(m?.why ?? '').trim() ? `\`${id}\` 缺 why` : '', !String(m?.until ?? '').trim() ? `\`${id}\` 缺 until` : ''].filter(Boolean));
 if (suspProbeProblems.length) { console.error('✗ 探针暂缓声明不合规：\n  ' + suspProbeProblems.join('\n  ')); process.exit(1); }
-const suspProbeIds = new Set(Object.keys(SUSPENDED_PROBES));
 const selected = (mode === 'full' ? PROBES : PROBES.filter((p) => p.tier === 'fast')).filter((p) => !suspProbeIds.has(p.id));
 const suspProbes = PROBES.filter((p) => suspProbeIds.has(p.id));
 if (suspProbes.length) console.log(`○ 探针临时暂缓（${suspProbes.length} 条，不计未咬）：` + suspProbes.map((p) => p.id + `（${SUSPENDED_PROBES[p.id].until}）`).join(' ｜ '));

@@ -2,6 +2,10 @@
 import { defaultStoryHtml, storyRelPath, storyHtml, shelfHtml, FONT_PREFIX_FROM_STORY, DIST_DIR } from '../scripts/dist-paths.mjs';   // ★ `#1532`：加 `shelfHtml`（引擎层跑书架页 ✓）   // ★`#1504`：`DIST_DIR` 是**根**的单一权威（✗ 不再硬编 `resolve('dist')`）
 import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';
 import { resolveStoryMap } from '../scripts/browser-story-map.mjs';   // ★ `#1532`：乙类映射表（无副作用 ⇒ 格可进程内量 ✓）   // `#1261`：零故事判定（与同批门同口径）
+
+// ★★ `#1592` M7／A：战斗首屏面的**门闸**（✗ 旋钮 —— ★它是「对象形未定」的显式记号 ✓）
+//   ★unblock：**战斗阶梯阶 3**（结果渲染＋命中判定）落地 ⇒ 重定对象 ＋ 置 true（挂 `#1542` 链 ✓）
+const A_FIGHT_FACE_READY = false;
 // #263（#185 阶段五）真实浏览器验收：零依赖 CDP 驱动（Node 22 内建 fetch + WebSocket）
 //
 // 为什么不用 puppeteer/playwright：本仓只需「导航 + 求值 + 截图 + 视口」四件事，
@@ -95,7 +99,14 @@ export const MIN_ASSERTIONS = 58;   // `#1012`（2026-09-19）：+1＝新增「�
 //   ★★**为何必须拆**：★若共用 58 ⇒ ★以引擎层跑时**永远红**（★不是真红 —— 是下界不对）；
 //     而★**它更坏的一面**：★若为了跑绿而把 58 改小 ⇒ ★删乙类断言也会放行 ✗
 export const MIN_ASSERTIONS_ENGINE = 33;
-export const MIN_ASSERTIONS_STORY = 58;
+// ★★ `#1592` M7／D：**下界按在场格重算 ＋ 写明理由**（协调席裁 ③ ✓；✗ 不容忍「凭旧数虚高」✗）
+//   ★旧值 58 的前提是「五键段都在且都满格」—— 而实测那五键**四个在语料里根本不存在**（`#1592` 归因表 ✓），
+//     那时的 58 是**靠零故事分支空转**凑的（✗ 假绿）⇒ ★今天 story 档**真跑**、**真对象**只有：
+//       ① B 门厅（`north-room/里屋`）3 视口 × 1 格       ② ④ 守林人面 ⇒ **○ 未判**（对象随 `books#26` ✓）
+//       ③ A 战斗首屏 ⇒ **○ 未判**（对象形随阶 3 重定 ✓）  ④ ⑤ 无横向溢出（每视口 1 格）＋ 键盘 4 格（对象待定 ✓）
+//   ★现值＝**实测**（见本笔读数：真跑 35 格）⇒ ★下界取实测值：✗ 不可再低（防删断言），★再加格时**必须**同步上调 ✓
+//   ★（story 档当前**默认关**（CI 不开）⇒ 该下界只在**显式开**时有牙 ✓；开闸前必须把它调到"真跑值" ✓）
+export const MIN_ASSERTIONS_STORY = 35;
 // 跳过时该退什么码（纯函数，便于自证）
 export const skipVerdict = (requireBrowser) => (requireBrowser
 	? { code: 1, notes: ['✗ CI_REQUIRE_BROWSER=1：浏览器验收被跳过 ＝ CI 接线失效（不许静默降级）'] }
@@ -185,11 +196,16 @@ const selftest = () => {
 		resolveStoryMap({ env: { SG_BROWSER_STORY_MAP: '{"witchHut":{"passage":"X"}}' } }).map.multi.passage === '岔路');
 	t('★乙类注入：★**非法 JSON ⇒ 出错信息**（★✗ 崩、✗ 静默）',
 		(() => { const r = resolveStoryMap({ env: { SG_BROWSER_STORY_MAP: '{oops' } });
-			return r.error !== null && r.map.witchHut.passage === '女巫小屋'; })());
-	t('★乙类段名可注入：★默认值＝旧值（★✗ 改旧行为）',
-		STORY_MAP.witchHut.passage === '女巫小屋' && STORY_MAP.caveFight.passage === '洞穴·战斗'
-		&& STORY_MAP.hall.passage === '里屋'
-		&& STORY_MAP.keeper.passage === '守林人' && STORY_MAP.multi.passage === '岔路');
+			return r.error !== null && r.map.witchHut.passage === '房间'; })());
+	// ★ `#1592` M7：**重指后**的值（旧值 `女巫小屋`／`洞穴·战斗`／`里屋`／`守林人`／`岔路` 见 git 历史 ✓）
+	//   ★且 A／B／C 三键**必须带 `story`**（✗ 否则 story 档退化回「全部格跑同一个故事页」✗）
+	t('★乙类段名可注入：★重指后的默认值（★✗ 改旧行为 —— ★A/B/C 各带 story ✓）',
+		STORY_MAP.witchHut.story === 'fruit-demo' && STORY_MAP.witchHut.passage === '房间'
+		&& STORY_MAP.hall.story === 'north-room' && STORY_MAP.hall.passage === '里屋'
+		&& STORY_MAP.keeper.story === 'mist-forest' && STORY_MAP.keeper.passage === '守林人'
+		&& STORY_MAP.multi.passage === '岔路');
+	// ★ `#1592` M7／A：★门闸常量在场且为 false（★"未判"要**可判**：真值一旦被写成 true 而对象未定 ⇒ 会挂 ✗）
+	t('★A 门闸：`A_FIGHT_FACE_READY === false`（★unblock 挂 `#1542` 阶 3 ✓）', A_FIGHT_FACE_READY === false);
 	// ★ `#1532` CR（T：本格**恒真** —— ★拿表里字面量比**同一个**字面量）。
 	//   ★改**行为面**：★把 `expect` 当正则去 `test` **夹具真串**（★假如值写错（如字序颠倒）⇒ 本格当场红 ✓）。
 	//   ★且★用**真实对象**（夹具 `north-room` 的检定名）—— ★✗ 再造一个字面量比自己 ✓
@@ -478,6 +494,7 @@ async function keyboardCase(W, H) {
 	// 夹具里行动区内的宏链接**全是自环/只出面板**（读数：`酒馆` 话题链接点击后 `passage` 不变且无反馈；
 	// `女巫小屋`「从炉火边拿起那件东西」/ `书房`「把案上那本日记收起来」→ **反馈由无到有**）；
 	// `女巫小屋` 行动区最大（16 条）→ Tab 面与取件面都最稳。
+	await loadFresh(STORY_MAP.witchHut.story);   // ★M7：键盘格在自己的故事上跑（✗ 不再靠当前页 ✗）
 	await enter(STORY_MAP.witchHut.passage, `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{};`);
 	const vp = `${W}x${H}`;
 
@@ -594,7 +611,8 @@ console.log(`   浏览器：${CHROME.replace(HOME, '~')}`);
 
 for (const [W, H] of VP) {
 	await setViewport(W, H);
-	await loadFresh();
+	// ★`#1592` M7：本循环各块**各自 `loadFresh(<自己的故事>)`**（✗ 从前无参 ⇒ 全格跑同一个故事 ✗）
+	await loadFresh(STORY_MAP.hall.story);
 	const vp = label(W, H);
 	console.log(`\n── 视口 ${vp}`);
 
@@ -606,7 +624,14 @@ for (const [W, H] of VP) {
 	await ev(HELPERS);
 	// `#1004` B2b 复核席按**裁定 A** 重指（面级 → 重指到有该面的样本）：旧名 `雾之魔物·战` 是**已删故事**的战斗段
 	// → 换到面夹具的战斗段 `洞穴·战斗`（`<<fightbegin "雾影">>` ＋ `<<fightpanel "…" false>>`，战斗面满配）。
-	if (runsStory) {
+	// ★★ `#1592` M7／A（裁＝**乙**）：**○ 未判 ＋ 出声** —— ★理由两条（协调席 ✓）：
+	//   ① 甲案＝复活已溶解的面（`<<fightbegin>>`/`<<fightpanel>>` 宏式战斗正是 `#1506` 溶解的对象 ⇒ 为其造夹具＝开倒车 ✗）
+	//   ② 战斗阶梯正在重做战斗面（**阶 3**〔结果渲染＋命中判定〕落地 ⇒ 新首屏形定形）⇒ 现在造任何 A 夹具都会被阶 3 作废 ✗
+	//   ★unblock 条件：**阶 3 落地后重定对象**（挂 `#1542` 链 ✓）—— ★格**保留在此**（✗ 未删断言 ✓），门闸一开即复跑 ✓
+	if (runsStory && !A_FIGHT_FACE_READY) {
+		console.log('  ○ 未判：战斗首屏面（3 视口 × 3 格）—— ★对象形未定（宏式战斗面板已随 `#1506` 溶解 ⇒ 阶 3 重定 ✓，挂 `#1542`）');
+	}
+	if (runsStory && A_FIGHT_FACE_READY) {
 		await enter(STORY_MAP.caveFight.passage, `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; delete pc.ev.fight; pc.hp=pc.max_hp;`);
 		{
 			const acts = await ev('window.__sg.rect(".acts a")');
@@ -641,6 +666,7 @@ for (const [W, H] of VP) {
 	if (runsStory) {
 		// ③ 门厅：观察结果留屏且可见
 		await ev(HELPERS);
+		await loadFresh(STORY_MAP.hall.story);   // ★M7／B：本块在**自己的故事**上跑（✗ 不再靠「当前页碰巧是它」✗）
 		await enter(STORY_MAP.hall.passage, `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; delete pc.inv['坏哨']; delete pc.world.whistle_taken;   // #1004 B2b: 夹具的场地旗标是 world.whistle_taken（旧写的 ev.hall_seen 是旧故事的）`);
 		{
 			// `#1004` B2b：入口按夹具改准（夹具 `门厅` 的观察入口叫 `看钉`；`先看清钉子是怎么卡的` 是旧故事的文案）
@@ -673,7 +699,11 @@ for (const [W, H] of VP) {
 
 	}
 
-	if (runsStory) {
+	// ★★ `#1592` M7／C（裁）：**对象未就绪 ⇒ ○ 未判 ＋ 出声**（✗ 判红、✗ 删断言）
+	//   ★对象＝`mist-forest` 第二章「守林人」（`books#26` 未落 ⇒ 章落地即**自动接上** ✓）
+	if (runsStory && !existsSync(storyHtml(STORY_MAP.keeper.story))) {
+		console.log('  ○ 未判：守林人面 —— 语料里没有 ' + STORY_MAP.keeper.story + ' 的「' + STORY_MAP.keeper.passage + '」段（`books#26` 第二章未落 ✓）');
+	} else if (runsStory) {
 		// ④ 守林人：子对话返回＝短入口＋行动区可见（不重放介绍）
 		await ev(HELPERS);
 		await enter(STORY_MAP.keeper.passage, `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; pc.keeper=pc.keeper||{}; pc.keeper.met=true;`);

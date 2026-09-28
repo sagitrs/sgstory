@@ -69,6 +69,9 @@ try {
 // ★开关**默认开**（协调席裁：本笔内开闸 ✓）｜`CORPUS_STORY_TIER=0` 显式关（本地无 Chrome 时的便利口 ✓）
 // ★开关＝**显式 opt-in**（`CORPUS_STORY_TIER=1`）：★M7 的 story 档**尚未可用**（A 组挂起 ⇒ 见 `#1592`）
 //   ⇒ ★CI 不开（✗ 不让引擎 CI 红着过日子 ✓）；★归因分治落齐后改为默认开 ✓
+// ★★开关＝**显式 opt-in**（`CORPUS_STORY_TIER=1`）：★M7 第二半**已落**（映射重指／各格自载／A・C 未判／下界重算 ✓），
+//   但**尚未全绿**（实测 30/35：★键盘格的原对象 `女巫小屋` 全仓已不存在 ✗ ＋ 另 2 格 ⇒ 见本笔读数 ✓）
+//   ⇒ ★**✗ 不在 CI 开**（开了会让引擎 CI 红着过日子 ✗ 与裁④的用意相悖 ✓）；★待键盘对象定形后改为默认开 ✓
 if (process.env.CORPUS_STORY_TIER === '1') {
 	try {
 		execFileSync(process.execPath, [join(ROOT, 'test', 'browser.mjs')], {
@@ -77,7 +80,7 @@ if (process.env.CORPUS_STORY_TIER === '1') {
 		t('③ story 档（语料）⇒ rc=0', true);
 	} catch { t('③ story 档（语料）⇒ rc=0', false, '见上方逐条读数'); }
 } else {
-	console.log('  ○ ③ story 档（M7）**本段不跑**：★A 组在段级 `fight` 夹具上会**挂起**（对象形不匹配，见 `#1592` 归因表 ✓）⇒ 归因分治落齐后改为默认开 ✓');
+	console.log('  ○ ③ story 档（M7）**本段不跑**：★已落（映射/自载/未判/下界 ✓）但**未全绿**（✗ 键盘格对象 `女巫小屋` 全仓不存在 ＋ 另 2 格 ⇒ 见 `#1592` 读数 ✓）⇒ ★开闸待对象定形 ✓');
 
 }
 

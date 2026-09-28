@@ -13,16 +13,15 @@
 
 /** 默认值 ＝ **旧值**（★迁移纪律：新机制上场时默认行为逐字不变 ✗ 不许顺手"改良"）。 */
 export const DEFAULT_STORY_MAP = Object.freeze({
-	witchHut: { passage: '女巫小屋' },
-	caveFight: { passage: '洞穴·战斗' },
-	// ★ `#1532`（T 的 B3 更正）：旧值 `门厅`／入口 `看钉` ⇒ 改 **`里屋`**（books 的 `north-room` 里那段名）。
-	//   两个条件都要核（T 的判法）：① **内容性质**：动作要**跨段**（导航型）；
-	//   ② **渲染性质**：它要落在 **`.acts`** 里（由段的 `present` 决定 ✓）。
-	//   为什么 `门厅` ✗：`north-room` 全菜单形（不落 `.acts`）⇒ 只满足 ①，✗ 满足 ② ✗
-	//   （✗ 不是"旧段名没了"那么简单 —— 是**渲染性质不对** ✗）
-	hall: { passage: '里屋', expect: '里屋·察觉' },
-	keeper: { passage: '守林人', state: 'pc.keeper=pc.keeper||{};' },
-	multi: { passage: '岔路' },
+	// ★★ `#1592` M7（迁宿主时**逐项归因**后的重指；旧值见 git 历史）——
+	//   ★为什么每键都带「story」：★story 档的格会 `loadFresh(<story>)`（✗ 从前 `loadFresh()` 无参
+	//     ⇒ **全部格跑在同一个故事页**（`DEFAULT_SLUG`）⇒ 五键的段在那一个故事里**一个都不在** ✗
+	//     ⇒ 那些格**永远找不到对象**（实测：真跑 ⇒ 13 红 ✓）。★改的是**接法**，✗ 断言 ✓。
+	witchHut: { story: 'fruit-demo', passage: '房间' },   // ★`keyboardCase` 要「**行动区最大**」：语料实测 **12 链**（＞ mist-forest 3 ✓）
+	caveFight: { story: 'mist-forest', passage: '洞穴·战斗' },   // ★A（裁＝乙）：**○ 未判**（对象形＝宏式战斗面板已随 `#1506` 溶解 ⇒ ★阶 3 落地后重定 ✓）
+	hall: { story: 'north-room', passage: '里屋', expect: '里屋·察觉' },   // ★B：语料里段与 `check:` 都在 ✓
+	keeper: { story: 'mist-forest', passage: '守林人', state: 'pc.keeper=pc.keeper||{};' },   // ★C（裁）：对象**未就绪**（`books#26` 第二章）⇒ 该组走「○ 未判 ＋ 出声」
+	multi: { passage: '岔路' },   // ★✗ 不动：用在 **engine 档**（`runsEngine` 块），而 `nocar-basic` **确有** `岔路` ✓
 });
 
 /**

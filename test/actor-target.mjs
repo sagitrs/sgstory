@@ -171,6 +171,32 @@ if (!existsSync(join(ROOT, FIX_FROM))) {
 		} catch (e) { rc = e?.status ?? 1; out = String(e?.stdout ?? '') + String(e?.stderr ?? ''); }
 		t('⑥ 编译期：未宣告的实体名 ⇒ `build` **rc≠0**（✗ 一路绿到玩家）', rc !== 0, `rc=${rc}`);
 		t('⑥ 且点名到位（`[actor-ref]` ＋ 那个名字）', /\[actor-ref\]/.test(out) && /没宣告的实体/.test(out), out.split('\n').find((l) => l.includes('actor-ref')) ?? out.slice(0, 160));
+
+		// ── ⑦ ★`#1582`：**规则行**（第三个站点）必须同尺子 —— 它也是活路径 ────────────
+		//   ★依据（实测）：`compileRowEffectsIntoLinks` 把规则行的 `actor` 与效果字段**同装进** `data-sg-effects`
+		//     ⇒ 点击那一刻照它解析目标 ⇒ 名字写错照样"一路绿到玩家面前" ✗
+		let rc7 = 0, out7 = '';
+		try {
+			build(({ dir, read, write }) => {
+				const rp = join(dir, 'data', 'rules.json'); const rd = read(rp);
+				rd.rows = [{ id: '规则.劈', to: '战果', actor: '没宣告的实体', gives: ['x'], label: '劈' }];
+				write(rp, rd);
+			});
+		} catch (e) { rc7 = e?.status ?? 1; out7 = String(e?.stdout ?? '') + String(e?.stderr ?? ''); }
+		t('⑦（`#1582`）规则行的 `actor` 是活路径 ⇒ 未宣告名也得编译期点名（✗ 只抽两端）', rc7 !== 0, `rc=${rc7}`);
+		t('⑦ 且点名到**规则行**（`[actor-ref]` ＋ 「规则行「规则.劈」」）',
+			/\[actor-ref\]/.test(out7) && /规则行「规则\.劈」/.test(out7),
+			out7.split('\n').find((l) => l.includes('actor-ref')) ?? out7.slice(0, 160));
+		// ⑦b 能假的反证：同一个位置用**已宣告**名 ⇒ rc=0（该格可区分，✗ 恒红）
+		let ok7b = true;
+		try {
+			build(({ dir, read, write }) => {
+				const rp = join(dir, 'data', 'rules.json'); const rd = read(rp);
+				rd.rows = [{ id: '规则.劈', to: '战果', actor: '木桩', gives: ['x'], label: '劈' }];
+				write(rp, rd);
+			});
+		} catch { ok7b = false; }
+		t('⑦b 反证：规则行用**已宣告**名 ⇒ `build` rc=0（✗ 恒红）', ok7b);
 	} finally {
 		rmSync(WORK, { recursive: true, force: true });
 	}

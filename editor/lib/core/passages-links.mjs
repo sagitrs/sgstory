@@ -94,12 +94,12 @@ export const linksToRows = ({ data = {} } = {}) => {
 			//   规则行语义＝"该作用域**渲染时**即施加" ⇒ 那会让读者**什么都没点就拿到钥匙** ✗（实测两态）。
 			//   ★带 `args` 或带效果的行：**编成 HTML**（`linkHtml` 唯一权威 ✓）；两者都无 ⇒ 行文一字不动（`[[label|to]]`）
 			// ★ `#1571`：`actor` 与效果字段**同装进** `data-sg-effects`（点击那一刻的收束点据它解析目标 ✓）
-			const effKeys = ['gives', 'sets', 'yields', 'adds', 'takes', 'actor'].filter((k) => l[k] != null);
+			const effKeys = EFFECT_FIELDS.filter((k) => l[k] != null);   // ★`#1586`：一份权威（✗ 各写一份）
 			const effects = {};
 			for (const k of effKeys) effects[k] = l[k];
 			// ★ `#1562`（阶 2a）：**事件引用**（`use`）**✗ 属效果字段** ⇒ 单独走 `data-sg-call`
 			//   （★`actor` 能进 `effects` 是因为它是**目标维**；而 `use` 是“**调哪个事件**” ⇒ 语义不同 ✓）
-			const call = l.use != null && String(l.use).trim() !== '' ? String(l.use).trim() : null;
+			const call = l[CALL_FIELD] != null && String(l[CALL_FIELD]).trim() !== '' ? String(l[CALL_FIELD]).trim() : null;
 			if (hasArgs || effKeys.length || call) {
 				row.text = linkHtml({ label, to, args: hasArgs ? l.args : null, effects: effKeys.length ? effects : null, call });
 			}
@@ -117,25 +117,58 @@ export const linksToRows = ({ data = {} } = {}) => {
  */
 export const LINK_FIELDS = Object.freeze(['label', 'to', 'id', 'prio', 'prereq', 'cond', 'args', 'slot', 'gives', 'sets', 'yields', 'adds', 'takes', 'actor', 'use']);   // ★ `#1571`（1c）：`actor` ＝ **对象维**（该链接的效果施加到**哪个实体**上；缺省 ⇒ `pc` ✓）   // ★ `#1466`：`adds` ＝ 算术效果（与 gives/sets/yields 同族 ✓）
 
-/** 白名单外字段 ⇒ 点名清单（纯函数；`links` 非数组 ⇒ 空、不抛）。 */
-export const unmappedLinkFields = ({ links = [] } = {}) => {
+/**
+ * ★★ `#1586`（病灶：**两处装箱键各写一份 ⇒ 必漂移**）：**效果面**字段 ＝ 进 `data-sg-effects` 的那些。
+ * ★**单一权威**：链接路径（`linksToRows`）与规则行路径（`compileRowEffectsIntoLinks`）**共用这一份** ——
+ *   实测的漂移后果：规则行那份漏了 `use`／`adds`／`takes` ⇒ ★**静默丢弃**（写的人以为生效 ✗）。
+ * ★`actor` 能进这里（它是**目标维**）；★`use` **不进**（它是"调哪个事件" ⇒ 走独立的 `data-sg-call` 面，见下）✓。
+ */
+export const EFFECT_FIELDS = Object.freeze(['gives', 'sets', 'yields', 'adds', 'takes', 'actor']);
+
+/** ★★ `#1586`：**调用面**字段（进 `data-sg-call` —— 与效果面**分开**，语义不同 ✓）。 */
+export const CALL_FIELD = 'use';
+
+/**
+ * ★★ `#1586`：**规则行**（`rules.json` 的 `rows[]`）**支持的字段域** —— ★按**消费点**派生（✗ 凭记忆）：
+ *   · 生成侧（`linksToRows` 产出的键）：`scope／text／id／prio／prereq／条件三件／args／效果六件`
+ *   · 条件求值（`Sg.rules.matches`）：`req`／`any`／`exclude`／`prereq`
+ *   · 效果施加（`applyGives/Sets/Yields/Adds/Takes` ＋ `actor` 目标维）：`gives／sets／yields／adds／takes／actor`
+ *   · 渲染口（`<<rules>>`／`<<rulelist>>`）：`text`／`scope`／`prio`／`id`
+ *   · 装箱口（`compileRowEffectsIntoLinks`）：`text`／`args`／`use`
+ *   ⇒ ★真数据核对（两仓全部 `rules.json` ＋ 夹具 `linksToRows` 产出）：现用 10 键**全在其中** ✓
+ *      （`gives／yields／adds／takes／actor／use` 今天只出现在**链接**上 —— ✗ 不代表规则行可以"写而不生效" ✓）
+ * ★与 `contractVersion.mjs` 的 `'rules.json'.items.rows` 登记面**同源**（该件的判据件断这条 ✓）。
+ */
+export const ROW_FIELDS = Object.freeze(['id', 'scope', 'text', 'prio', 'prereq', 'req', 'any', 'exclude',
+	'args', 'gives', 'sets', 'yields', 'adds', 'takes', 'actor', 'use']);
+
+/** 白名单外字段 ⇒ 点名清单（**核心**：位置名／标签取法／白名单都由调用方给 ⇒ 一处实现两条路径共用 ✓）。 */
+const unmappedFieldsOf = ({ items = [], known = [], label = () => '(无标签)', what = '链接' } = {}) => {
 	const out = [];
-	if (!Array.isArray(links)) return out;
-	const known = new Set(LINK_FIELDS);
-	const near = (f) => LINK_FIELDS.find((k) => k.length === f.length && k !== f
+	if (!Array.isArray(items)) return out;
+	const set = new Set(known);
+	const near = (f) => known.find((k) => k.length === f.length && k !== f
 		&& [...k].filter((c, i) => c === f[i]).length >= k.length - 1);
-	for (const l of links) {
-		if (!l || typeof l !== 'object') continue;
-		for (const k of Object.keys(l)) {
-			if (known.has(k)) continue;
+	for (const it of items) {
+		if (!it || typeof it !== 'object') continue;
+		for (const k of Object.keys(it)) {
+			if (set.has(k)) continue;
 			const n = near(k);
-			out.push('链接「' + String(l.label ?? l.id ?? '(无标签)') + '」有**映射白名单外**的字段 `' + k + '` '
+			out.push(what + '「' + String(label(it)) + '」有**映射白名单外**的字段 `' + k + '` '
 				+ (n ? '（是不是想写 `' + n + '`？）' : '') + ' ⇒ 它会被**静默丢弃** ✗（白名单：'
-				+ LINK_FIELDS.join('／') + '）');
+				+ known.join('／') + '）');
 		}
 	}
 	return out;
 };
+
+/** 白名单外字段 ⇒ 点名清单（纯函数；`links` 非数组 ⇒ 空、不抛）。★报文与 `#1406` ⑤ 逐字同（零回归 ✓）。 */
+export const unmappedLinkFields = ({ links = [] } = {}) =>
+	unmappedFieldsOf({ items: links, known: LINK_FIELDS, what: '链接', label: (l) => l.label ?? l.id ?? '(无标签)' });
+
+/** ★★ `#1586`：**规则行**的同款点名（✗ 此前规则行**没有**这道点名 ⇒ 拼错/未知字段**静默** ✗）。 */
+export const unmappedRowFields = ({ rows = [] } = {}) =>
+	unmappedFieldsOf({ items: rows, known: ROW_FIELDS, what: '规则行', label: (r) => r.id ?? r.scope ?? '(无 id)' });
 
 /** 把段落数据合成到既有 `rules` 上（**不改既有 rows**，只追加 ⇒ 旧形态逐字不变 ✓）。 */
 /** ★ `#1468`：把**既有规则行**（含手写 `rules.json` 的行）的 `gives`/`sets`/`yields` **编进链接** ——
@@ -150,14 +183,20 @@ export const compileRowEffectsIntoLinks = ({ rules = null } = {}) => {
 	const rows = Array.isArray(rules?.rows) ? rules.rows : [];
 	const out = rows.map((row) => {
 		// ★ `#1571`：`actor`（对象维）与效果字段**同装**（✗ 顺手动 `adds`／`takes` 的既有缺口 —— 另记 ✓）
-		const effKeys = ['gives', 'sets', 'yields', 'actor'].filter((k) => row?.[k] != null);
-		if (!effKeys.length) return row;
+		// ★★ `#1586`（本笔的修）：★原来这里写死 `['gives','sets','yields','actor']` ⇒ **漏 `use`／`adds`／`takes`**
+		//   ⇒ 规则行上写它们＝**静默丢弃**（实测：`use` 的行**没进** `data-sg-call`、产物里停在 `[[…]]` ✗）
+		const effKeys = EFFECT_FIELDS.filter((k) => row?.[k] != null);
+		// ★ `#1586`：`use` 同链接路径一样走**独立的 `data-sg-call`** ✓（✗ 塞进 effects —— 语义不同）
+		//   ★**必须先算 `call` 再判早退**：★只写 `use`（✗ 别的效果）的行也要编译 ⇒ ✗ 否则它照样被丢
+		//     （本片第一版就漏了这一步 ⇒ 实测"只写 use 的行仍停在 `[[…]]`" ⇒ 当场补 ✓）
+		const call = row?.[CALL_FIELD] != null && String(row[CALL_FIELD]).trim() !== '' ? String(row[CALL_FIELD]).trim() : null;
+		if (!effKeys.length && !call) return row;
 		const t = String(row?.text ?? '');
 		const m = t.match(/^\s*\[\[([^\]|]*)\|([^\]]+)\]\]\s*$/);
 		if (!m) return { ...row, effectsUnmounted: true };   // ★无链接 ⇒ 渲染期也不落（见 handler）
 		const effects = {};
 		for (const k of effKeys) effects[k] = row[k];
-		const html = linkHtml({ label: m[1], to: m[2], args: row.args ?? null, effects });
+		const html = linkHtml({ label: m[1], to: m[2], args: row.args ?? null, effects, call });
 		return { ...row, text: html };
 	});
 	return { ...(rules ?? {}), rows: out };

@@ -1,6 +1,7 @@
 // `#1350` 片 3 自证：`links[] → 规则行同形`（纯函数，零依赖 ⇒ 可在零故事态跑）。
 
-import { linksToRows, mergeLinksIntoRules, unmappedLinkFields, unreachablePassages } from '../editor/lib/core/passages-links.mjs';
+import { linksToRows, mergeLinksIntoRules, unmappedLinkFields, unmappedRowFields, compileRowEffectsIntoLinks, EFFECT_FIELDS, CALL_FIELD, ROW_FIELDS, LINK_FIELDS, unreachablePassages } from '../editor/lib/core/passages-links.mjs';
+import { DECLARED } from '../editor/lib/core/contractVersion.mjs';
 
 
 let bad = 0;
@@ -123,5 +124,47 @@ t('③ 既有 rules 为 null 而段落数据有 ⇒ 造最小合法壳（section
 		unreachablePassages({ data: {}, entry: null }).length === 0 && unreachablePassages({}).length === 0);
 }
 
+// ── ★`#1586`：**效果面／规则行字段面**的两处装箱与点名（纯函数面）──────────────────
+{
+	// ① 规则行装箱：**与链接同一份 `EFFECT_FIELDS`** ⇒ `adds`／`takes`／`actor` 不再被丢；`use` 走独立 `data-sg-call`
+	const rows = [
+		{ id: 'r-use', scope: 's', text: '[[用事件|尽头]]', use: '斩' },
+		{ id: 'r-adds', scope: 's', text: '[[加|尽头]]', adds: { '情绪.怒': 1 } },
+		{ id: 'r-takes', scope: 's', text: '[[拿|尽头]]', takes: ['苹果'] },
+		{ id: 'r-actor', scope: 's', text: '[[打木桩|尽头]]', actor: '木桩', adds: { '伤.累计': 3 } },
+	];
+	const out = compileRowEffectsIntoLinks({ rules: { rows } }).rows;
+	t('⑥ ★规则行装箱与链接**共用 `EFFECT_FIELDS`**：`adds`／`takes`／`actor` 都进 `data-sg-effects`（✗ 不再静默丢弃）',
+		/data-sg-effects="[^"]*adds/.test(out[1].text) && /data-sg-effects="[^"]*takes/.test(out[2].text)
+		&& /data-sg-effects="[^"]*actor/.test(out[3].text),
+		JSON.stringify(out.map((r) => r.text.slice(0, 60))));
+	t('⑥b ★`use` 走**独立面** `data-sg-call`（✗ 塞进 effects —— 语义不同）',
+		new RegExp(`data-sg-call="${'斩'}"`).test(out[0].text) && !/data-sg-effects/.test(out[0].text));
+	t('⑥c **能假**：只写 `use`（✗ 别的效果）的行**也要编译**（✗ 早退把它丢了 —— 第一版漏了这步 ✓）',
+		out[0].text !== '[[用事件|尽头]]' && out[0].text.includes('link-internal'));
+
+	// ② 规则行白名单点名（✗ 此前规则行**没有**这道 ⇒ 拼错/未知字段静默 ✗）；链接侧报文**逐字不变**
+	const linkMsg = unmappedLinkFields({ links: [{ label: '甲', slow: 1 }] })[0];
+	t('⑦ 规则行点名：白名单外字段 ⇒ 点名（含「规则行「id」」＋ 白名单 ＋ 相近名提示）',
+		(() => { const m = unmappedRowFields({ rows: [{ id: 'r1', test: 1 }] })[0];
+			return /^规则行「r1」/.test(m) && /`test`/.test(m) && /是不是想写 `text`/.test(m) && /白名单/.test(m); })(),
+		unmappedRowFields({ rows: [{ id: 'r1', test: 1 }] })[0]);
+	t('⑦b2 相近名提示**只在同一面**的白名单里找（✗ 跨界提示）：行里写 `slow`（链接字段 `slot` 的形近）⇒ **无**提示（`slot` ✗ 属行字段面 ✓）',
+		!unmappedRowFields({ rows: [{ id: 'r1', slow: 1 }] })[0].includes('是不是想写'));
+	t('⑦b **零回归**：链接侧报文与既有形态**逐字同**（✗ 改动不该动它）',
+		/^链接「甲」/.test(linkMsg) && /是不是想写 `slot`/.test(linkMsg));
+	t('⑦c **无假红**：合规规则行（含全部 16 键的合法子集）⇒ 0 条',
+		unmappedRowFields({ rows: [{ id: 'r', scope: 's', text: '[[a|b]]', prio: 1, prereq: ['x'], req: ['inv:甲'], any: ['乙'], exclude: ['丙'], args: {}, gives: ['甲'], sets: ['乙'], yields: ['n_x'], adds: { a: 1 }, takes: ['甲'], actor: '木桩', use: '斩' }] }).length === 0);
+
+	// ③ ★单一天由**断言**钉住（照 `VOCAB.prefixes` 的"镜像 ＋ 钉法"惯例）
+	const reg = DECLARED?.['rules.json']?.items?.rows ?? [];
+	t('⑧ ★`contractVersion` 的 `rules.json` 登记面 ≡ `ROW_FIELDS`（两表**逐字同** ⇒ ✗ 两处各写一份必漂移）',
+		JSON.stringify([...reg].sort()) === JSON.stringify([...ROW_FIELDS].sort()),
+		`登记=${reg.join('／')}／ROW_FIELDS=${ROW_FIELDS.join('／')}`);
+	t('⑧b `EFFECT_FIELDS` ⊆ `ROW_FIELDS`（效果面是行字段面的子集 ⇒ 装箱键不会跑到白名单外 ✓）',
+		EFFECT_FIELDS.every((k) => ROW_FIELDS.includes(k)) && ROW_FIELDS.includes(CALL_FIELD));
+}
+
 if (bad) { console.error(`\n✗ 片3 自证失败 ${bad} 项`); process.exit(1); }
 console.log('\n✔ 片3 自证通过（links→rows 同形／缺件不造半截行／合成只追加）');
+

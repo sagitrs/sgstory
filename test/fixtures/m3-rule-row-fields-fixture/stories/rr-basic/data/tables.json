@@ -1,0 +1,6 @@
+{
+	"section": "Game Tables",
+	"note": "本夹具只判**对象维**（`actor`）⇒ 不声明任何表容器（走引擎 BUILTIN 缺省 ✓）",
+	"containers": {},
+	"merges": []
+}

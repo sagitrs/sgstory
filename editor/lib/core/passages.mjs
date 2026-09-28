@@ -352,7 +352,7 @@ export const duplicateSourceProblems = ({ passages = [], data = null } = {}) => 
 	return out;
 };
 
-export const applyPassageTransforms = ({ name, body, terms = new Set(), params = {}, slots = [], args = null, links = [], present = null, ending = null, check = null, fight = null }) => {
+export const applyPassageTransforms = ({ name, body, terms = new Set(), params = {}, slots = [], args = null, links = [], present = null, ending = null, check = null, fight = null, reroll = false }) => {
 	const { body: expandedRaw, problems } = valueRefExpand({ name, body, terms, params, slot: null, slots, args });
 	const rl = renderLinksOf({ name, links, present });
 	let expanded = expandedRaw;
@@ -380,7 +380,9 @@ export const applyPassageTransforms = ({ name, body, terms = new Set(), params =
 			problems.push('段「' + name + '」的段级 `check` **为空（或空白）** ⇒ 要么给站点名、要么**删掉该字段**（★✗ 静默跳过会让"这一页跑了检定"与"这一页没有检定" **读数完全相同** ✓）');
 		} else {
 			// ★ 转义走**模块级唯一口**（`escapeMacroArg`）—— ✗ 不在此内联一份（评审 NIT-1：注释说"同一个口"而代码两份 ✗）
-			expanded = `<<sitecheck "${escapeMacroArg(check)}">><<snapshot>>\n${expanded}`;
+			// ★ `#1574`（阶 3b）：段级 `reroll` ⇒ ★把"重掷"随**生成的调用**带下去（★单一生成点 ⇒ ✗ 不会漂 ✓）
+			//   ★`$args[2]` 取 `"reroll"` 即重掷；★缺省（空串）⇒ **复用** ✓
+			expanded = `<<sitecheck "${escapeMacroArg(check)}" "" "${reroll ? 'reroll' : ''}">><<snapshot>>\n${expanded}`;
 		}
 	}
 	// ★ `#1506`：段级字段 **`fight`** —— 「这一段入口是一场战斗」（原散文写法 `<<fightbegin "池">>\n<<fightlog>>\n`
@@ -478,7 +480,7 @@ export const assemblePassages = ({ passages, known, forbidden = new Set(), terms
 			params: dseg.params ?? {}, slots: [dseg.slot, ...linkSlots].filter(Boolean),
 			args: (dseg.args && typeof dseg.args === 'object') ? dseg.args : inbound,
 			links: dseg.links ?? [], present: dseg.present ?? null, ending: dseg.ending ?? null,
-			check: dseg.check ?? null, fight: dseg.fight ?? null });
+			check: dseg.check ?? null, fight: dseg.fight ?? null, reroll: dseg.reroll ?? false });
 		problems.push(...tr.problems);
 		const expanded = tr.body;
 		const tags = p.tags ? ` [${p.tags}]` : '';

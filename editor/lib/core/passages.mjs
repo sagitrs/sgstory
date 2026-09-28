@@ -122,7 +122,9 @@ export const danglingProblems = ({ name, body, passages, known }) => {
  * 为什么不合并报错：①②**共用 `{{}}` 命名空间** ⇒ 撞名要**换维**点名（与"缺值"不同形），
  * 否则读者分不出"该给值而没给"与"两个东西撞了名"（两种病、两种修法）。
  * 另：**只认本段 `params`**（别人的入参在本段不可见 ⇒ 报）；`required` 无 `default` 且调用处未传 ⇒ 报。 */
-export const valueRefExpand = ({ name, body, terms, params = {}, slot = null, slots = null, args = null }) => {
+export const valueRefExpand = ({ name, body, terms, params = {}, slot = null, slots = null, args = null, bindings = null }) => {
+	// ★ `#1569`（阶 3）：事件文本的槽 `bindings`（槽名 ⇒ 编译期替换串）。★扩展**本**函数（✗ 不造第二套 {{名}} 管线）。
+	// 双向完备：未绑 ⇒ 报｜多给 ⇒ 报（票面「槽名重复 ⇒ 抛」按上下文配对读作**多给 ⇒ 抛**）。
 	const problems = [];
 	const pkeys = Object.keys(params ?? {});
 	const slotSet = new Set([...(Array.isArray(slots) ? slots : []), slot].filter(Boolean));
@@ -131,10 +133,13 @@ export const valueRefExpand = ({ name, body, terms, params = {}, slot = null, sl
 			problems.push('段「' + name + '」的落位占位 {{' + n + '}} 与**入参同名** ⇒ 撞名 ✗（同名会把"该给值"与"该落位"混成一件事）⇒ 二者其一换名');
 		}
 	}
+	const served = new Set();   // ★(阶3) 真被用到的槽名（⇒ 多给的能点名）
 	const out = String(body).replace(/\{\{([^{}\s]+)\}\}/g, (_, n) => {
 		// `#1350` 片 4：`slot` 占位**原样保留** `{{名}}` —— 由 `renderLinksOf` 在拼装时**就地换成链接行**（✗ 不在这里换宏：
 		//   换了宏就变成"另一个运行时口"，而落位本是**编译期**就能定的事 ✗ —— 实测：换成 `<<print_SLOT>>` 会让片 4 接不上 ✗）
 		if (slotSet.has(n)) return '{{' + n + '}}';
+		// ★(阶3) 本子句绑定表**优先于**入参／世界态（✗ 不回落段级 {{名}}）
+		if (bindings && Object.prototype.hasOwnProperty.call(bindings, n)) { served.add(n); return String(bindings[n]); }
 		// 入参：**引擎侧宏**（运行期取值 ⇒ ✗ 不烘值）—— 形态见 `docs/engine/json/tables.md` §11.2
 		if (pkeys.includes(n)) return '<<printparam "' + n + '">>';
 		// 世界态取值：**既有形态** `$pc.<名>`（✗ 不另造宏名）
@@ -149,6 +154,10 @@ export const valueRefExpand = ({ name, body, terms, params = {}, slot = null, sl
 		if (!given) {
 			problems.push('段「' + name + '」的入参 ' + k + ' **必填但没给值**（调用处未传、也无 `default`）');
 		}
+	}
+	// ★(阶3) 双向完备：多给的槽（有绑定、format 没用）⇒ 点名
+	if (bindings) for (const k of Object.keys(bindings)) {
+		if (!served.has(k)) problems.push('事件文本的槽「' + k + '」有绑定但 format 里没用到 ⇒ 多余槽（拼错名 = 静默不渲染）');
 	}
 	return { body: out, problems };
 };

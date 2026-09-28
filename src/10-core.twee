@@ -753,6 +753,38 @@ window.Sg.actors = {
  *  ★分工：★`Sg.rules.evalExpr`／`evalEffect` 是**求值器**（纯，住 `22-rules.twee`）；
  *  本口只做**编排**：取声明 ⇒ 选 `use` ⇒ 求 `args`（**一次／前态**）⇒ 施加 `effect`（★写到**对象维的根** ✓）✓
  *  ★★为什么"施加"复用既有五个施加器（✗ 不另造写路）：★"**写侧一处收束**"（同 `#1408`／`#1474` 的理由 ✓）。 */
+// ★ `#1569`（阶 3）：**结果表** —— 「结算结果 ⇒ 渲染」的取值面。
+//   ★形：`State.variables.uses[<被作用的目标名>] = { <路径>: { before, after } }`（★按**目标名**索引 ✓ ——
+//     ★与 `chk:<站点>.field` 同构：★按名索引的结果表 ＋ **键前缀读** ＋ ★**本次尚未产生 ⇒ 点名** ✓）。
+//   ★写入者 ＝ **引擎通用写**（★每条 `effect` 子句执行后落各路径的 before／after ⇒ ★引擎**不知故事语义** ✓）。
+window.Sg.uses = {
+	table() { return (State.variables.uses ??= {}); },
+	/** 记一条：**目标名** + 路径 + 前值 + 后值（★effect 子句专用 ✓）。 */
+	record(targetName, path, before, after) {
+		const t = this.table();
+		const box = (t[targetName] ??= {});
+		box[path] = { before, after, amount: (typeof after === 'number' && typeof before === 'number') ? after - before : after };
+		return box[path];
+	},
+	/** ★**键前缀读** `use:that.<路径>` ⇒ ★未产生 ⇒ **fail-loud 点名**（✗ 不静默当 0 ✓）。 */
+	read(a, p) {
+		const rel = String(p ?? '').trim();
+		if (!rel.startsWith('that')) throw new Error(`Sg.uses.read：结果键 \`use:${rel}\` 只认 \`that.<路径>\` 形（✗ 别的不许 ✓）`);
+		const name = a && a.targetName;
+		const box = name ? this.table()[name] : null;
+		if (!box) throw new Error(`Sg.uses.read：结果键 \`use:${rel}\` **本次尚未产生** —— 目标「${name ?? '(无)'}」还没有结算记录（✗ 静默当 0 会让渲染说谎 ✓）`);
+		let cur = box;
+		const segs = rel.slice('that'.length).replace(/^\./, '').split('.').filter(Boolean);
+		for (const k of segs) {
+			if (cur == null || !Object.prototype.hasOwnProperty.call(cur, k)) {
+				throw new Error(`Sg.uses.read：结果键 \`use:${rel}\` **本次尚未产生** —— 「${name}」的结算记录里没有「${segs.join('.')}」（✗ 静默当 0 ✓）`);
+			}
+			cur = cur[k];
+		}
+		return cur;
+	},
+};
+
 window.Sg.events = {
 	/** 声明表的**唯一读口**（生成件 `Game.Events.defs` ⇐ `data/events.json` ✓）。 */
 	defs() {
@@ -777,11 +809,15 @@ window.Sg.events = {
 		const target = window.Sg.actors.resolve(pc, ctx.actor);
 		const list = Array.isArray(ev.use) ? ev.use : [];
 		// ★① 按序取**第一个 `when` 成立者**（★漏写 ⇒ `true` ✓；★取中即停 ✓）
+		// ★(阶3) 结果表的**目标名**（★按目标名索引 ✓）—— ★函数级（✗ 别关进 if(eff) 块里）
+		const tgtName = String(ctx.actor ?? 'pc').trim() || 'pc';
 		let pick = null;
-		for (const it of list) {
+		let pickIdx = -1;
+		for (let i = 0; i < list.length; i += 1) {
+			const it = list[i];
 			if (!it || typeof it !== 'object') continue;
 			const ok = it.when == null ? true : !!R.holdsCond(it.when, pc, { target });
-			if (ok) { pick = it; break; }
+			if (ok) { pick = it; pickIdx = i; break; }
 		}
 		if (!pick) {
 			throw new Error(`Sg.events：事件「${n}」的 \`use\` 列表**全不成立**（${list.length} 条都没选中）—— `
@@ -814,6 +850,9 @@ window.Sg.events = {
 			//     => 那正是 panels 的 valueKey 所用的口径 => 两者一致）。
 			// ★(CR NIT①) 两阶段：先**全量校验** ⇒ 再落盘
 			//   ★理由：下面那个循环是**边检边写** ⇒ 中途一处 undefined 会留**半写**（★半写比不写更坏 ✗）
+			// ★(阶3) 结果表：先读各路径 before ⇒ 写后再落 before／after（引擎通用写，不知故事语义）
+			const befores = {};
+			for (const path of Object.keys(eff)) { try { befores[path] = window.Sg.notes.readPath(target, path); } catch (e) { befores[path] = undefined; } }
 			for (const [p0, v0] of Object.entries(eff)) {
 				if (v0 === undefined) throw new Error('Sg.events：effect 的路径「' + p0 + '」算不出值（undefined）✗ —— ★本检在**任何写之前**（★两阶段校验 ✓）');
 			}
@@ -822,11 +861,14 @@ window.Sg.events = {
 					throw new Error('Sg.events：effect 的路径「' + path + '」算不出值（undefined）—— 来源写错会在写侧静默变空 ✗');
 				}
 				window.Sg.notes.writePath(target, path, val);
+				window.Sg.uses.record(tgtName, path, befores[path], val);
 			}
 		}
 		// ★递归调子事件（★`args` 不向下传 —— 子事件自带 `$n` 绑定 ⇒ ✗ 不许隐式继承 ⇒ 显式才可判 ✓）
 		if (sub) this.call(sub, { actor: ctx.actor, pc }, _depth + 1);   // ★NIT② 深度 +1（自指 ⇒ 16 层点名 ✓）
-		return { name: n, pick, args, eff };
+		const T = window.Game?.Events?.texts ?? {};
+		const text = T[n + '#' + pickIdx] ?? T[n] ?? null;
+		return { name: n, pick, pickIdx, args, eff, text, renderArgs: Object.assign({}, args, { that: target, this: ev, targetName: tgtName }) };
 	},
 };
 

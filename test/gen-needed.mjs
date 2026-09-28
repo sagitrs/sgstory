@@ -70,6 +70,9 @@ const fam = (f) => /(^|\/)(1[5678]-[a-z0-9-]+\.twee|00-meta\.twee)$/.test(f);
 	// ⑨ ★**默认不变**（`stale` 不传 ⇒ 旧行为，逐字不变）—— 守 "✗ 传 stale 的既有调用点行为不被改"
 	const r9 = genNeeds({ declared, family: fam, exists: () => true, dataFiles: ['tables.json'] });
 	ok('⑨ 默认（✗ 传 `stale`）⇒ 行为照旧（旧调用点不受影响）', r9.needed.length === 0 && r9.why === '清单声明的产物齐备（且输入未变）', JSON.stringify(r9));
+	// ★（评审 CR tester-4 的"指纹不可得"那条 —— ★**纯函数层判不了**：`stale` 由调用方算 ⇒
+	//   ★故意**不在这里造同义格**（那会与 ⑥ 重复、且 ✗ 咬住真接法）⇒ ★该条由
+	//   `test/event-expr.mjs` 的 **⑩ 端到端格**兜（删 `<DIST_DIR>` ⇒ 重编）✓）
 	// ⑩ ★**可区分**：`stale` 非空与空**必须给出不同结果**（不然⑥⑦是同一格的两个恒真断言）
 	ok('⑩ 可区分：`stale` 非空 ↔ 空 ⇒ 结果**不同**（✗ 恒真格）',
 		genNeeds({ ...base, stale: ['a.json'] }).needed.length !== genNeeds({ ...base, stale: [] }).needed.length);

@@ -81,7 +81,14 @@ const STORIES = STORIES_DIR;   // \`#1128\` 产物前置用（编译器 out 路�
 			try {
 				const fp = existsSync(join(DIST_DIR, 'INPUTS.json'))
 					? JSON.parse(readFileSync(join(DIST_DIR, 'INPUTS.json'), 'utf8')) : null;
-				if (!fp || typeof fp !== 'object') return [];
+				// ★★评审 CR（tester-4）：**指纹"不可得" ⇒ 保守重编**（✗ 静默跳过）。
+				//   复现：产物齐备 ⇒ **只删 `<DIST_DIR>`**（`INPUTS.json` 随它没了）⇒ 改 `data/*.json`
+				//   ⇒ 修前 `build` rc=0、无重编、生成件**仍是旧值** ✗ ⇒ ★**同一病灶**（守卫不跑），
+				//   只是触发条件从"数据改了"变成"**指纹不可得**"。
+				//   ★"删 `dist`"是**常规动作**（clean 常是"`dist` ＋ 故事生成物"两向清）⇒ 这条路径必被踩到 ✓
+				//   ★口径：**不可知 ⇒ 宁可重编一次**（与"✗ 静默跳过"相悖的正是这一处）✓
+				//   ★注意：✗ 用"文件不存在"当代理 —— 首建时产物也不存在，但那时走 `missing` 分支（✗ 到这里）✓
+				if (!fp || typeof fp !== 'object') return dataFiles.slice();
 				const out = [];
 				for (const f of dataFiles) {
 					const rel = `stories/${slug}/data/${f}`;
@@ -92,7 +99,10 @@ const STORIES = STORIES_DIR;   // \`#1128\` 产物前置用（编译器 out 路�
 					if (now !== was) out.push(f);
 				}
 				return out;
-			} catch { return []; }   // 读不到 ⇒ 退回旧口径（✗ 挡住构建）
+			// ★★评审 CR（同向两条）：**`catch` 也是"指纹不可得"** —— `INPUTS.json` **坏掉／读不动**时
+			//   同样会静默退回"只判存在"⇒ 跳过编译 ⇒ 守卫不跑 ✗ ⇒ ★与上面 `!fp` **同档处理：保守重编** ✓
+			//   （★幂等无害：重编一次即写回好指纹 ⇒ 下一轮收敛 ✓）
+			} catch { return dataFiles.slice(); }
 		})();
 		const need = genNeeds({
 			declared,

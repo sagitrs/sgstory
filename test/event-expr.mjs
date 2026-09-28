@@ -132,5 +132,61 @@ t('① 生成件被产出（`19-events.twee` 在）', existsSync(join(FX, SLUG, 
 		`首次 rc=${r1.rc}｜改后 rc=${r2.rc}（★修前此处 rc=0 ＝ 假绿）｜out=${(r2.out || '').replace(/\s+/g, ' ').slice(0, 160)}`);
 }
 
+// ---- ⑩ ★★评审 CR（tester-4）：**指纹不可得** ⇒ 保守重编（✗ 静默跳过）----
+//   ★复现路径（评审实测）：产物齐备 ⇒ **只删 `<DIST_DIR>`**（`INPUTS.json` 随它没了）⇒ 改数据 ⇒
+//     修前 `build` rc=0、无重编、生成件**仍旧值** ✗（＝`#1583` 同一病灶，触发条件换成"指纹不可得"）
+//   ★为什么必咬：★"删 `dist`"是**常规 clean 动作**（常与故事生成物两向清）⇒ 这条路径必被踩到 ✓
+{
+	const W = mkdtempSync(join(tmpdir(), 'sg-event-fpmiss-'));
+	let r1, r2, genAfter;
+	try {
+		const stories = join(W, 'stories');
+		cpSync(FX, stories, { recursive: true });
+		const run = () => {
+			try { execFileSync(process.execPath, [join(ROOT, 'build.mjs')], { cwd: ROOT, env: { ...process.env, SG_STORIES_DIR: stories }, stdio: 'pipe' }); return { rc: 0, out: '' }; }
+			catch (e) { return { rc: e.status ?? 1, out: String(e.stdout ?? '') + String(e.stderr ?? '') }; }
+		};
+		r1 = run();                                        // ① 编出产物 ＋ 写指纹（`<DIST_DIR>` 随故事根）
+		rmSync(join(W, 'dist'), { recursive: true, force: true });   // ② ★只删 dist ⇒ 指纹没了，产物还在
+		// ③ 改数据（不改产物、不补指纹）
+		const dp = join(stories, SLUG, 'data/events.json');
+		const dd = JSON.parse(readFileSync(dp, 'utf8'));
+		if (dd.events?.['斩']) dd.events['斩'].value = 42;
+		writeFileSync(dp, JSON.stringify(dd, null, 1) + '\n');
+		r2 = run();
+		genAfter = existsSync(join(stories, SLUG, '19-events.twee')) ? readFileSync(join(stories, SLUG, '19-events.twee'), 'utf8') : '';
+	} finally { rmSync(W, { recursive: true, force: true }); }
+	t('⑩ ★指纹不可得（只删 `<DIST_DIR>`）⇒ **保守重编**（✗ 静默跳过）',
+		r1.rc === 0 && r2.rc === 0 && /value:\s*42/.test(genAfter),
+		`首次 rc=${r1.rc}｜删 dist 改数据后 rc=${r2.rc}｜生成件含新值=${/value:\s*42/.test(genAfter)}（★修前此处生成件仍旧值 ✗）`);
+}
+
+// ---- ⑪ ★★评审 CR（同向第二条）：**指纹坏掉**（`INPUTS.json` 解析不了）⇒ 同样保守重编（✗ 静默跳过）----
+//   ★与 ⑩ **同一档**但**不同入口**：⑩ 走 `!fp`（文件不在），⑪ 走 `catch`（在但坏）——
+//   ★两个入口必须**同结论**（✗ 一个保守一个退回），否则"坏指纹"这条会漏 ✓
+{
+	const W = mkdtempSync(join(tmpdir(), 'sg-event-fpbad-'));
+	let r1, r2, genAfter;
+	try {
+		const stories = join(W, 'stories');
+		cpSync(FX, stories, { recursive: true });
+		const run = () => {
+			try { execFileSync(process.execPath, [join(ROOT, 'build.mjs')], { cwd: ROOT, env: { ...process.env, SG_STORIES_DIR: stories }, stdio: 'pipe' }); return { rc: 0, out: '' }; }
+			catch (e) { return { rc: e.status ?? 1, out: String(e.stdout ?? '') + String(e.stderr ?? '') }; }
+		};
+		r1 = run();
+		writeFileSync(join(W, 'dist', 'INPUTS.json'), '{ 这不是 JSON');   // ★在但**坏**
+		const dp = join(stories, SLUG, 'data/events.json');
+		const dd = JSON.parse(readFileSync(dp, 'utf8'));
+		if (dd.events?.['斩']) dd.events['斩'].value = 43;
+		writeFileSync(dp, JSON.stringify(dd, null, 1) + '\n');
+		r2 = run();
+		genAfter = existsSync(join(stories, SLUG, '19-events.twee')) ? readFileSync(join(stories, SLUG, '19-events.twee'), 'utf8') : '';
+	} finally { rmSync(W, { recursive: true, force: true }); }
+	t('⑪ ★指纹**坏掉**（`catch` 入口）⇒ 同档保守重编（✗ 两个入口结论不一）',
+		r1.rc === 0 && r2.rc === 0 && /value:\s*43/.test(genAfter),
+		`首次 rc=${r1.rc}｜坏指纹改数据后 rc=${r2.rc}｜生成件含新值=${/value:\s*43/.test(genAfter)}`);
+}
+
 if (bad) { console.error(`\n✗ 事件声明面（阶 2a）自证失败 ${bad} 项`); process.exit(1); }
 console.log('\n✔ 事件声明面（阶 2a）自证通过（生成表 · 引用随链接 · 名字级点名 · 白名单 · 登记门）');

@@ -20,7 +20,7 @@ import { compileStory } from '../core/emit.mjs';
 import { scriptSyntaxProblems } from '../core/segment-syntax.mjs';   // `#1176`：生成件脚本段语法检查（纯函数，解析器注入）
 import { packageFiles, writeStoryPackage, sectionFile, metaTwee, expandSources } from '../core/story.mjs';   // ★`#1486`：三源合并（`sources[]`）接进编译期读路
 import { mergeLinksIntoRules, compileRowEffectsIntoLinks, unmappedLinkFields, LINK_FIELDS } from '../core/passages-links.mjs';
-import { actorRefsOf, undeclaredActorProblems } from '../core/audit-shared.mjs';   // ★`#1571`（1c）：声明面引用的**实体名**必须已宣告（编译期点名，✗ 等到玩家）   // `#1350` 片 3：段落数据 → 规则行同形   // `metaTwee`：`#1132` B4 元数据段的单一权威形状
+import { actorRefsOf, undeclaredActorProblems, eventRefsOf, undeclaredEventProblems } from '../core/audit-shared.mjs';   // ★`#1571`（1c）：声明面引用的**实体名**必须已宣告（编译期点名，✗ 等到玩家）   // `#1350` 片 3：段落数据 → 规则行同形   // `metaTwee`：`#1132` B4 元数据段的单一权威形状
 import { unknownDomainWords } from '../core/vocab.mjs';
 import { runStory, engineOf } from './sandbox.mjs';
 
@@ -163,6 +163,20 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 			return 1;
 		}
 	}
+	// ★ `#1562`（阶 2a）：**声明面引用的「事件名」必须已宣告**（`data/events.json` 的 `events` 键）⇒ 编译期点名。
+	//   ★与 `#1571`（1c）的 actor 检查**同形同理由**：运行时只在“玩家点了那条链接”时才响
+	//     ⇒ ★名字写错会一路绿（build／CI）到玩家面前才炸 ✗（同族：`#1564` 前缀判据 ✓）。
+	const events = readIf('events.json');
+	{
+		const declaredEvents = events && typeof events.events === 'object' && !Array.isArray(events.events) ? events.events : {};
+		const bad = undeclaredEventProblems({ refs: eventRefsOf({ passages: passagesData }), declared: declaredEvents });
+		if (bad.length) {
+			for (const m of bad) console.error(`✗ [event-ref] ${m.why}`);
+			console.error('✗ 声明面引用了**未宣告的事件名** ⇒ 该调用**会在运行时才炸**（✗ 静默无效）'
+				+ ' ⇒ 先在 `data/events.json` 的 `events` 里声明它（`#1562` 阶 2a）');
+			return 1;
+		}
+	}
 	const chargen = readIf('chargen.json');
 	const meta = readIf('meta.json');   // `#1132` B4：元数据段（title／entry／ifid） // `#1132` B3：车卡数据（运行期由 `<<applyQuickPreset>>` 经 `Sg.story.chargen()` 读）
 	const notesFace = readIf('notes.json');   // 车道 B · notes 面（`#215` `18504282`）：一个数据文件 → 多份产物
@@ -170,7 +184,7 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 	// `#1132` B4：元数据段的**次要**数据源（`title`／`entry`；主源是 `data/meta.json`）。清单可缺 ——
 	// 新建故事时先编译、后写清单（脚手架的既有次序）→ 此处不许硬抛，缺则从数据面取。
 	const story = (() => { try { return JSON.parse(readText(join(STORIES_DIR, slug, '00-story.json'))); } catch { return null; } })();
-	const files = compileStory({ tables, contract, rules: rulesCompiled, passages: passagesData, notesFace, slug, chargen, story, meta, metaTwee });
+	const files = compileStory({ tables, contract, rules: rulesCompiled, passages: passagesData, notesFace, slug, chargen, story, meta, metaTwee, events });
 	// `#1176`：生成件的脚本段必须能解析。坏段会让引擎不启动，且症状隐蔽（错误不带 Uncaught 前缀，
 	// 容易被错误过滤漏掉）→ 在写出产物之前当场拦下并点名。解析器由宿主注入：core 不许依赖 node:*。
 	const syntax = scriptSyntaxProblems({ files, parse: (code) => { new vm.Script(code); } });

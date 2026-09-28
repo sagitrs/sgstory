@@ -388,3 +388,33 @@ export const undeclaredActorProblems = ({ refs = [], declared = {} } = {}) => {
 	}
 	return out;
 };
+
+/** ★ `#1562`（阶 2a）：**声明面引用的「事件名」**（＝链接的 `use`）—— ★✗ 属效果字段（它是“调哪个事件”）⇒ 单列 ✓。
+ *  ★与 `actorRefsOf` **同形**（同族：声明面引用 ⇒ 编译期可判 ✓）。 */
+export const eventRefsOf = ({ passages = null } = {}) => {
+	const out = [];
+	for (const [seg, s] of Object.entries(passages ?? {})) {
+		for (const l of (s?.links ?? [])) {
+			if (l?.use == null || String(l.use).trim() === '') continue;
+			out.push({ name: String(l.use).trim(), where: `段「${seg}」的链接「${l?.id ?? l?.label ?? '?'}」` });
+		}
+	}
+	return out;
+};
+
+/** ★★ 判据（纯函数，能假）：引用的**事件名必须已宣告**（`data/events.json` 的 `events` 键）⇒ 否则点名。
+ *  ★为什么必须有编译期这一道（与 `undeclaredActorProblems` 同一理由）：运行时只在“玩家点了那条链接”时才响
+ *    ⇒ ★名字写错会**一路绿**（build／CI）到玩家面前才炸 ✗（同族：`#1564` 前缀判据 ✓）。 */
+export const undeclaredEventProblems = ({ refs = [], declared = {} } = {}) => {
+	const known = new Set(Object.keys(declared ?? {}));
+	const out = [];
+	for (const { name, where } of refs) {
+		if (known.has(name)) continue;
+		out.push({ code: 'undeclared-event', name, where,
+			why: `${where} 引用了事件「${name}」，但它**不在事件声明表**（\`data/events.json\` 的 \`events\`）里`
+				+ `（已宣告：${known.size ? [...known].join('／') : '（空）'}）——`
+				+ ' ★名字写错会让该调用**到运行时才炸**（✗ 静默无效）'
+				+ ' ⇒ 请先在 \`events\` 里声明该事件，或改用已宣告的名字（\`#1562\` 阶 2a）' });
+	}
+	return out;
+};

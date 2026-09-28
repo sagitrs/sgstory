@@ -381,7 +381,9 @@ export const SEGMENTS = [
 	// ★`#1567`（`#1222` L3）：选择卡原语 ＋ 交互面 —— ✗ `exclusive`：本段只读源件 ＋ 跑纯函数/jsdom（**不 build 不写盘**，口径同 `test-draw-primitives.mjs` ✓）
 	{ id: "test-choose-cards-mjs", phase: 'test', cost: 0.5, cmd: "node test/choose-cards.mjs" },
 	// ★`#1571`（1c）：实体对象维（`actor` 两端）—— ★`exclusive`（它**要 build**，争 `ROOT/build`）
-	{ id: "test-actor-target-mjs", phase: 'test', cost: 8, exclusive: true, mutates: ['build'], cmd: "node test/actor-target.mjs" },   // ★`#1537` P1：图形原语（结构约束＋行为）—— ✗ `exclusive`：本段只**读**源件＋跑纯函数，**不 build 不写盘**（`#1130`：`exclusive` 的语义是「独占 ＋ 动的已入库真源须列 `mutates`」⇒ 本段两样都不占 ✓）
+	{ id: "test-actor-target-mjs", phase: 'test', cost: 8, exclusive: true, mutates: ['build'], cmd: "node test/actor-target.mjs" },
+	// `#1562`（阶 2a）：事件声明面（生成表 `Game.Events.defs` ＋ 链接 `use` ⇒ `data-sg-call` ＋ 名字级点名）
+	{ id: "test-event-expr-mjs", phase: 'test', cost: 12, exclusive: true, mutates: ['build'], cmd: "node test/event-expr.mjs" },   // ★`#1537` P1：图形原语（结构约束＋行为）—— ✗ `exclusive`：本段只**读**源件＋跑纯函数，**不 build 不写盘**（`#1130`：`exclusive` 的语义是「独占 ＋ 动的已入库真源须列 `mutates`」⇒ 本段两样都不占 ✓）
 	// ★ `#1488`（五步⑤）：结算原语（枚举三件）＋ 阈值只 0 ＋ 零界＝实体授予
 	// ★ `#1488`（五步⑤）：结算原语**真跑**（`boot()` ⇒ 需要夹具根 ⇒ 内联 `SG_STORIES_DIR` ✓）
 	// ★`#1538` P2：契约成员 `panels`（声明维）—— ✗ `exclusive`：只读**规格/emit 纯函数**，不 build 不写盘（口径同 `test/draw-primitives.mjs`）
@@ -732,7 +734,7 @@ export const SUITE_MEMBERS = {
 		'test-block-args-e2e-mjs', 'test-hp-nan-e2e-mjs', 'test-fightpanel-turns-e2e-mjs', 'test-passages-assemble-mjs-selftest',
 		'test-audit-gates-run-mjs', 'test-fight-keys-e2e-mjs', 'scripts-clean-net-mjs-selftest', 'scripts-precommit-check-mjs-selftest',
 		'scripts-lint-new-segment-mjs-selftest', 'test-coverage-mjs', 'test-gate-discovery-mjs', 'test-plan-needs-mjs',
-		'test-attribution-gate-mjs-selftest', 'test-browser-mjs-selftest', 'test-attribution-gate-mjs', 'test-chargen-lazy-e2e-mjs', 'test-adds-e2e-mjs', 'test-rulelist-effects-e2e-mjs', 'test-takes-e2e-mjs', 'test-pc-prefix-e2e-mjs', 'test-note-grant-mjs', 'test-inline-prose-e2e-mjs'
+		'test-attribution-gate-mjs-selftest', 'test-browser-mjs-selftest', 'test-attribution-gate-mjs', 'test-chargen-lazy-e2e-mjs', 'test-adds-e2e-mjs', 'test-rulelist-effects-e2e-mjs', 'test-takes-e2e-mjs', 'test-pc-prefix-e2e-mjs', 'test-note-grant-mjs', 'test-inline-prose-e2e-mjs', 'test-event-expr-mjs'
 	],
 };
 

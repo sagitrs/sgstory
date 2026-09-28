@@ -1,0 +1,15 @@
+{
+ "slug": "ev-basic",
+ "title": "事件声明夹具",
+ "subtitle": "★`sgstory#1562`（阶 2a）：事件声明面 `data/events.json` ⇒ 生成表 `Game.Events.defs`；链接 `use` ⇒ `data-sg-call`（引用随链接、声明住生成表）",
+ "entry": "开场",
+ "contractVersion": 1,
+ "audience": "internal",
+ "files": [
+  "stories/ev-basic/00-meta.twee",
+  "stories/ev-basic/15-tables.twee",
+  "stories/ev-basic/17-rules.twee",
+  "stories/ev-basic/19-events.twee"
+ ],
+ "gates": []
+}

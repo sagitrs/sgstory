@@ -189,7 +189,7 @@ export const duplicateProblems = ({ passages = [] } = {}) => {
  * ⇒ 口径：**与自产同形同属性**（实测自产＝`class="link-internal"` ＋ `data-passage` ＋ `role="link"` ＋ `tabindex="0"`；
  *   `data-choice` 由 `:616` 补）⇒ 我们**只额外**加 `data-sg-args`（JSON 串，供跳转携带入参）。
  */
-export const linkHtml = ({ label, to, args = null, effects = null } = {}) => {
+export const linkHtml = ({ label, to, args = null, effects = null, call = null } = {}) => {
 	const esc = (x) => String(x ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 	const extra = args && typeof args === 'object' && Object.keys(args).length
 		? ` data-sg-args="${esc(JSON.stringify(args))}"` : '';
@@ -198,7 +198,12 @@ export const linkHtml = ({ label, to, args = null, effects = null } = {}) => {
 	//   ✗ 不能沿用"编成规则行 ⇒ 该作用域渲染时施加"：那会让读者**什么都没点就拿到钥匙** ✗（实测）
 	const eff = effects && typeof effects === 'object' && Object.keys(effects).length
 		? ` data-sg-effects="${esc(JSON.stringify(effects))}"` : '';
-	return `<a data-passage="${esc(to)}" class="link-internal" role="link" tabindex="0"${extra}${eff}>${esc(label)}</a>`;
+	// ★ `#1562`（阶 2a）：**事件引用**随链接走 —— `data-sg-call="<事件名>"`。
+	//   ★为什么是**引用**（✗ 不是求值结果）：事件里的 `use`／`when`／`args` 都**依赖状态**
+	//     （`rand`／实体 hp／前态）⇒ 只能**点击那一刻**求值 ✓（与 `#1408` 的"行效果在点击那一刻施加"同刻 ✓）。
+	//   ★声明本体住**生成表** `Game.Events.defs`（由 `emitEvents` 出）⇒ 引用与声明**各归其位** ✓。
+	const callAttr = call != null && String(call).trim() !== '' ? ` data-sg-call="${esc(String(call).trim())}"` : '';
+	return `<a data-passage="${esc(to)}" class="link-internal" role="link" tabindex="0"${extra}${eff}${callAttr}>${esc(label)}</a>`;
 };
 
 export const renderLinksOf = ({ name, links = [], present = null }) => {

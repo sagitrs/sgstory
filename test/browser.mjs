@@ -6,6 +6,12 @@ import { resolveStoryMap } from '../scripts/browser-story-map.mjs';   // ★ `#1
 // ★★ `#1592` M7／A：战斗首屏面的**门闸**（✗ 旋钮 —— ★它是「对象形未定」的显式记号 ✓）
 //   ★unblock：**战斗阶梯阶 3**（结果渲染＋命中判定）落地 ⇒ 重定对象 ＋ 置 true（挂 `#1542` 链 ✓）
 const A_FIGHT_FACE_READY = false;
+// ★★ `#1592` M7／键盘格（裁＝乙）：**导航型样本面**的**门闸**（✗ 旋钮 —— ★它是「对象未定形」的显式记号 ✓）
+//   ★为什么没有对象：★要「在 `.acts` 里 ＋ 会换段落 ＋ 无条件可用」的行动链接 —— ★现语料**0 命中**：
+//     唯一带 `.acts` 的 `fruit-demo/房间`（12 链）其换段落链接**全带 `cond`**（`房间.吃苹果` 要 `req:["inv:苹果"]`）
+//     ⇒ ★条件不满足**不渲染** ⇒ 探针找不到 ✗（★✗ 把判据降成「同段动作」来凑格 ✗ —— 那是**降判据**，判据不许动 ✓）
+//   ★unblock：**该面对象定形后**（语料补一个"行动区内无条件出口"段，或键盘面归引擎夹具 ✓）⇒ 置 true ＋ 复跑 ✓
+const KEYBOARD_NAV_FACE_READY = false;
 // #263（#185 阶段五）真实浏览器验收：零依赖 CDP 驱动（Node 22 内建 fetch + WebSocket）
 //
 // 为什么不用 puppeteer/playwright：本仓只需「导航 + 求值 + 截图 + 视口」四件事，
@@ -91,22 +97,33 @@ export const runsStory = TIERS === 'all' || TIERS === 'story';
 //（它的多选一段比旧的故事 2 少一条 → 这一块从 15 格降到 12 格）→ **实测总数 56**。
 // ⛔ 这不是"删断言凑绿"：**没有任何一格是被删掉的** —— 少的是"旧故事特有的那一页"，
 // 且它换掉的那一面（无车卡最小面／多选一可点／200% 不溢出）**逐条仍在**。
-export const MIN_ASSERTIONS = 58;   // `#1012`（2026-09-19）：+1＝新增「导航型交互」断言、+1＝原先 xfail 的「焦点回收正文」**转正** → 只涨
+// ★★ `#1592` M7／D：**story 档的下界＝本名的值**（`evaluateRun` 的默认：`runsStory ? MIN_ASSERTIONS : MIN_ASSERTIONS_ENGINE` ✓）
+//   ★旧值 58 的前提「五键段都在且满格」**不成立**（四个键的段在语料里不存在 ⇒ 那 58 是靠**零故事分支空转**凑的 ✗）
+//   ★现值＝**实测真跑 30/30**（✗ 不可再低 —— 防删断言 ✓；★再加格必须同步上调 ✓）
+export const MIN_ASSERTIONS = 30;
 
 // ★ `#1532`（`#1516` C 案）：★**下界拆双 ratchet** —— ★两层各自管自己的下界：
 //   · `ENGINE`（甲＋丙）：★零故事即可跑 ⇒ ★**现测 12**（★为什么不是 0：3 视口 × 4 条甲类）
 //   · `STORY`（乙）：★需真故事 ⇒ ★现下界 **58**（★两层合跑时的总数 —— ★下一步拆完各自重算 ✓）
 //   ★★**为何必须拆**：★若共用 58 ⇒ ★以引擎层跑时**永远红**（★不是真红 —— 是下界不对）；
 //     而★**它更坏的一面**：★若为了跑绿而把 58 改小 ⇒ ★删乙类断言也会放行 ✗
+// ★★`#1592` M7：**段是否存在**（★对象＝**段**，✗ 故事 ✓）—— 判据读**产物**里的 Twine 段头（`name="…"` ✓）
+export const storyHasPassage = (slug, passage) => {
+	const f = storyHtml(slug);
+	if (!existsSync(f)) return false;
+	return readFileSync(f, 'utf8').includes('name="' + passage + '"');
+};
+
 export const MIN_ASSERTIONS_ENGINE = 33;
 // ★★ `#1592` M7／D：**下界按在场格重算 ＋ 写明理由**（协调席裁 ③ ✓；✗ 不容忍「凭旧数虚高」✗）
 //   ★旧值 58 的前提是「五键段都在且都满格」—— 而实测那五键**四个在语料里根本不存在**（`#1592` 归因表 ✓），
 //     那时的 58 是**靠零故事分支空转**凑的（✗ 假绿）⇒ ★今天 story 档**真跑**、**真对象**只有：
 //       ① B 门厅（`north-room/里屋`）3 视口 × 1 格       ② ④ 守林人面 ⇒ **○ 未判**（对象随 `books#26` ✓）
 //       ③ A 战斗首屏 ⇒ **○ 未判**（对象形随阶 3 重定 ✓）  ④ ⑤ 无横向溢出（每视口 1 格）＋ 键盘 4 格（对象待定 ✓）
-//   ★现值＝**实测**（见本笔读数：真跑 35 格）⇒ ★下界取实测值：✗ 不可再低（防删断言），★再加格时**必须**同步上调 ✓
+//   ★现值＝**实测**（真跑 **30/30** ✓）：B 门厅 3 格 ＋ ⑤ 无横向溢出 3 格 ＋ 键盘 3 格（正/反例）＋ 其余
+//     ⇒ ★下界取实测值（✗ 不可再低 —— 防删断言 ✓）；★A 组与键盘导航面**未判**（✗ 不计入 ✓）
 //   ★（story 档当前**默认关**（CI 不开）⇒ 该下界只在**显式开**时有牙 ✓；开闸前必须把它调到"真跑值" ✓）
-export const MIN_ASSERTIONS_STORY = 35;
+export const MIN_ASSERTIONS_STORY = 30;
 // 跳过时该退什么码（纯函数，便于自证）
 export const skipVerdict = (requireBrowser) => (requireBrowser
 	? { code: 1, notes: ['✗ CI_REQUIRE_BROWSER=1：浏览器验收被跳过 ＝ CI 接线失效（不许静默降级）'] }
@@ -238,8 +255,12 @@ const selftest = () => {
 	t('★两层下界**各自独立**（★引擎层：达下界绿／低一条红）',
 		evaluateRun({ total: MIN_ASSERTIONS_ENGINE, fails: 0, minAssertions: MIN_ASSERTIONS_ENGINE }).code === 0
 		&& evaluateRun({ total: MIN_ASSERTIONS_ENGINE - 1, fails: 0, minAssertions: MIN_ASSERTIONS_ENGINE }).code === 1);
-	t('★故事层下界**独立**（引擎层的数**不能**逗它）',
-		evaluateRun({ total: MIN_ASSERTIONS_ENGINE, fails: 0, minAssertions: MIN_ASSERTIONS_STORY }).code === 1);
+	t('★故事层下界**独立**（★引擎界的数**不能**逗它 —— ★两界**谁大谁小随实测**走，✗ 不假设故事界更大 ✓）',
+		// ★ `#1592` M7／D：★故事界随**实测在场格**下调（旧 58 ⇒ 30），已**低于**引擎界（33）
+		//   ⇒ ★故本格改判**边沿**（✗ 判"引擎界必低于故事界"那种**顺序假设** ✗）：① 低一条必红 ② 达界必绿 ③ 两界**不相等** ✓
+		evaluateRun({ total: MIN_ASSERTIONS_STORY - 1, fails: 0, minAssertions: MIN_ASSERTIONS_STORY }).code === 1
+		&& evaluateRun({ total: MIN_ASSERTIONS_STORY, fails: 0, minAssertions: MIN_ASSERTIONS_STORY }).code === 0
+		&& MIN_ASSERTIONS_STORY !== MIN_ASSERTIONS_ENGINE);
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
 	console.log('\n✔ 自证通过：CI 跳过必红 / 本地可跳 / 达下界绿 / 有失败红 / 断言被删红 / 0-0 假绿红');
 };
@@ -494,7 +515,7 @@ async function keyboardCase(W, H) {
 	// 夹具里行动区内的宏链接**全是自环/只出面板**（读数：`酒馆` 话题链接点击后 `passage` 不变且无反馈；
 	// `女巫小屋`「从炉火边拿起那件东西」/ `书房`「把案上那本日记收起来」→ **反馈由无到有**）；
 	// `女巫小屋` 行动区最大（16 条）→ Tab 面与取件面都最稳。
-	await loadFresh(STORY_MAP.witchHut.story);   // ★M7：键盘格在自己的故事上跑（✗ 不再靠当前页 ✗）
+	await loadFresh(runsStory ? STORY_MAP.witchHut.story : undefined);   // ★M7：story 档＝witchHut 的故事；★engine 档＝**夹具默认**（✗ 语料 slug 在夹具根里不存在 ✗）
 	await enter(STORY_MAP.witchHut.passage, `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{};`);
 	const vp = `${W}x${H}`;
 
@@ -563,7 +584,7 @@ async function keyboardCase(W, H) {
 		//★ `#1532`（`#1505` 后）：`<<sitecheck>>` **已改为段级 `check` 字段的编译期注入**（✗ 不再是段落里手写宏）——，
 		// 只判 `after.hasFb` 会在**未按键时**即为真 → 无判别力（本片实测过的假绿，勿回退）。
 		const activated = after.passage !== before.passage || (!before.hasFb && after.hasFb);
-		check(activated,
+		if (KEYBOARD_NAV_FACE_READY) check(activated,
 			`${vp} 键盘：Enter ⇒ 交互真被激活（passage ${before.passage}→${after.passage} · 反馈 ${before.hasFb}→${after.hasFb}${after.hasFb ? `〔${after.cls}〕` : ''}）`);
 		// ── 半 (ii)：焦点回收正文 —— `#1012` 修好后**转正**（用**导航型**样本）───────────
 		//注意：这半**此前从未守护**：旧写法 `rawKeyDown` 从不触发默认动作 → 交互根本没发生，
@@ -574,6 +595,9 @@ async function keyboardCase(W, H) {
 		//（落 `.passage`／`.acts`／反馈槽 都算过 —— 那一层是**实现路径**）。
 		//注意：两向读数（2026-09-19 实测）：引擎侧那一手**禁用** → `focusInside=false`（落 `body`
 		// ＝本格真会红）；**启用** → `DIV.passage` → 本格**有判别力**。
+		if (!KEYBOARD_NAV_FACE_READY) {
+			console.log(`  ○ 未判：键盘「导航型样本」面（2 格）—— ★现语料里「在 \`.acts\` 内 ＋ 会换段落 ＋ 无条件」的行动链接**0 命中**（唯一带行动区的 \`fruit-demo/房间\` 其换段落链接全带 \`cond\` ✓）；★unblock＝该面对象定形后 ✓`);
+		}
 		const navTarget = await ev(`(function(){
 			window.__sg.play('酒馆');
 			const cur = '酒馆';
@@ -583,7 +607,7 @@ async function keyboardCase(W, H) {
 			a.focus();
 			return { label: a.textContent.trim().slice(0, 18), target: a.getAttribute('data-passage'), focused: document.activeElement === a };
 		})()`);
-		if (navTarget && navTarget.focused) {
+		if (navTarget && navTarget.focused && KEYBOARD_NAV_FACE_READY) {
 			await sleep(300);
 			const navBefore = await ev(FB_PROBE);
 			await ENTER();
@@ -595,7 +619,7 @@ async function keyboardCase(W, H) {
 				`${vp} 键盘：Enter ⇒ **导航型**交互真发生（${navBefore.passage}→${navAfter.passage}，目标「${navTarget.label}」⇒ ${navTarget.target}）`);
 			check(navAfter.focusInside,
 				`${vp} 键盘：导航后**焦点回收正文**（焦点在正文=${navAfter.focusInside} · focus=${navAfter.focusCls.slice(0, 30)} · 「#1012」✓）`);
-		} else {
+		} else if (KEYBOARD_NAV_FACE_READY) {
 			check(false, `${vp} 键盘：找不到「会换段落」的行动区链接（样本变了？）`);
 		}
 	} else {
@@ -611,8 +635,9 @@ console.log(`   浏览器：${CHROME.replace(HOME, '~')}`);
 
 for (const [W, H] of VP) {
 	await setViewport(W, H);
-	// ★`#1592` M7：本循环各块**各自 `loadFresh(<自己的故事>)`**（✗ 从前无参 ⇒ 全格跑同一个故事 ✗）
-	await loadFresh(STORY_MAP.hall.story);
+	// ★`#1592` M7：★**按档**载入 —— story 档各块**各自 `loadFresh(<自己的故事>)`**（✗ 从前无参 ⇒ 全格跑同一个故事 ✗）；
+	//   ★engine 档的对象面在**夹具根**里（✗ 语料 slug ✗）⇒ 无参＝夹具默认故事 ✓
+	await loadFresh(runsStory ? STORY_MAP.hall.story : undefined);
 	const vp = label(W, H);
 	console.log(`\n── 视口 ${vp}`);
 
@@ -701,7 +726,9 @@ for (const [W, H] of VP) {
 
 	// ★★ `#1592` M7／C（裁）：**对象未就绪 ⇒ ○ 未判 ＋ 出声**（✗ 判红、✗ 删断言）
 	//   ★对象＝`mist-forest` 第二章「守林人」（`books#26` 未落 ⇒ 章落地即**自动接上** ✓）
-	if (runsStory && !existsSync(storyHtml(STORY_MAP.keeper.story))) {
+	//   ★★判法是**段级**（✗ 只判"故事在不在" —— 我第一版只判故事 ⇒ `mist-forest` 在、而「守林人」段**不在**
+	//     ⇒ 格**真跑**并红（`top=-1` ✓）⇒ ★自纠：对象＝**段**，✗ 故事 ✓）
+	if (runsStory && !storyHasPassage(STORY_MAP.keeper.story, STORY_MAP.keeper.passage)) {
 		console.log('  ○ 未判：守林人面 —— 语料里没有 ' + STORY_MAP.keeper.story + ' 的「' + STORY_MAP.keeper.passage + '」段（`books#26` 第二章未落 ✓）');
 	} else if (runsStory) {
 		// ④ 守林人：子对话返回＝短入口＋行动区可见（不重放介绍）

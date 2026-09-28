@@ -17,7 +17,11 @@ export const DEFAULT_STORY_MAP = Object.freeze({
 	//   ★为什么每键都带「story」：★story 档的格会 `loadFresh(<story>)`（✗ 从前 `loadFresh()` 无参
 	//     ⇒ **全部格跑在同一个故事页**（`DEFAULT_SLUG`）⇒ 五键的段在那一个故事里**一个都不在** ✗
 	//     ⇒ 那些格**永远找不到对象**（实测：真跑 ⇒ 13 红 ✓）。★改的是**接法**，✗ 断言 ✓。
-	witchHut: { story: 'fruit-demo', passage: '房间' },   // ★`keyboardCase` 要「**行动区最大**」：语料实测 **12 链**（＞ mist-forest 3 ✓）
+	witchHut: { story: 'fruit-demo', passage: '房间' },   // ★取它是因**它有 `.acts` 行动区**（12 链 ✓）—— ★键盘格的正/反例 3 格靠它 ✓
+	//   ★★但它的「换段落」链接**全带 `cond`**（例：`房间.吃苹果` 要 `req:["inv:苹果"]`）⇒ ★条件不满足**不渲染**
+	//     ⇒ ★键盘格的「**导航型样本**」面（2 格）**无对象** ⇒ 该面走「○ 未判 ＋ 出声」（见 `test/browser.mjs` ✓）
+	//   ★取证：语料全 JSON 扫「`to` ＋ 效果」同现 ⇒ 13 条；★其中**有 `.acts` 且换段落无条件**者 **0 条** ✓
+	//   ★（反面教训：★我第一版按格的**注释**"行动区最大"选对象、✗ 按它的**代码判据**（换段落＋在 `.acts`）⇒ 两轮真跑红 ✓）
 	caveFight: { story: 'mist-forest', passage: '洞穴·战斗' },   // ★A（裁＝乙）：**○ 未判**（对象形＝宏式战斗面板已随 `#1506` 溶解 ⇒ ★阶 3 落地后重定 ✓）
 	hall: { story: 'north-room', passage: '里屋', expect: '里屋·察觉' },   // ★B：语料里段与 `check:` 都在 ✓
 	keeper: { story: 'mist-forest', passage: '守林人', state: 'pc.keeper=pc.keeper||{};' },   // ★C（裁）：对象**未就绪**（`books#26` 第二章）⇒ 该组走「○ 未判 ＋ 出声」

@@ -66,6 +66,9 @@ try {
 
 // ③ story 档（M7）：★只在**显式要求**时跑（`CORPUS_STORY_TIER=1`）—— ★因为它的**对象归属**正在归因分治中
 //   （见 `#1592` 评论的归因表：映射默认 5 键里 **4 个在语料里不存在** ⇒ 那些格**没有对象** ✗）
+// ★开关**默认开**（协调席裁：本笔内开闸 ✓）｜`CORPUS_STORY_TIER=0` 显式关（本地无 Chrome 时的便利口 ✓）
+// ★开关＝**显式 opt-in**（`CORPUS_STORY_TIER=1`）：★M7 的 story 档**尚未可用**（A 组挂起 ⇒ 见 `#1592`）
+//   ⇒ ★CI 不开（✗ 不让引擎 CI 红着过日子 ✓）；★归因分治落齐后改为默认开 ✓
 if (process.env.CORPUS_STORY_TIER === '1') {
 	try {
 		execFileSync(process.execPath, [join(ROOT, 'test', 'browser.mjs')], {
@@ -74,8 +77,8 @@ if (process.env.CORPUS_STORY_TIER === '1') {
 		t('③ story 档（语料）⇒ rc=0', true);
 	} catch { t('③ story 档（语料）⇒ rc=0', false, '见上方逐条读数'); }
 } else {
-	console.log('  ○ ③ story 档（M7）**本段不跑**：★它的对象归属正在归因分治（`#1592` 归因表：默认映射 5 键里 4 个在语料里不存在 ✗）');
-	console.log('    ⇒ 分治裁定后本段接上（届时 `CORPUS_STORY_TIER=1` 恒开 ✓）；★在此之前**✗ 不开**（否则引擎 CI 会红着过日子 ✗）');
+	console.log('  ○ ③ story 档（M7）**本段不跑**：★A 组在段级 `fight` 夹具上会**挂起**（对象形不匹配，见 `#1592` 归因表 ✓）⇒ 归因分治落齐后改为默认开 ✓');
+
 }
 
 if (bad) { console.error(`\n✗ 语料安全网失败 ${bad} 项`); process.exit(1); }

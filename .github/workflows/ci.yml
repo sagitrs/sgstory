@@ -129,9 +129,15 @@ jobs:
       - name: corpus smoke（books 语料：编译 ＋ 字体产物断言）
         env:
           SG_BOOKS_DIR: ${{ github.workspace }}/books
+          CHROME_PATH: ${{ github.workspace }}/pw-chromium-ci
         # ★★改走 **plan 段**（✗ 不在这里抄命令）—— ★"plan 段＝单一权威"要**结构上**成立，✗ 靠人把路径抄对
         #   （本片第一版抄错路径 ⇒ CI 红 ✗ 实证 ✓）；★段名可读 ⇒ 红时报文点名它 ✓
-        run: node scripts/run-tests.mjs --only=corpus-books-smoke
+        run: |
+          # ★story 档（③）要**真浏览器**：★本步自备软链（✗ 不靠上一步的副作用 ✗ —— `realmachine` job 已 `playwright install --with-deps` ✓）
+          PW_PATH=$(node -e "console.log(require('playwright').chromium.executablePath())")
+          test -x "$PW_PATH" || { echo "ERROR: playwright chromium 缺失"; exit 1; }
+          ln -sf "$PW_PATH" "$CHROME_PATH"
+          node scripts/run-tests.mjs --only=corpus-books-smoke
 
       - name: browser.mjs real-browser assertions
         env:

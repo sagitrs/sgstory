@@ -160,9 +160,9 @@ export const checkReadmeBudget = (text, { max = README_MAX_LINES, file = 'README
 
 /** 仓库里的 `*.md` 清单 = **git 跟踪的那些**（`#617`）。
  * 为什么不再走文件系统遍历：`build/` 这类 **gitignored 产物/临时目录**下面出现的 `*.md`（例如
- * `ui-migration-diff --out=build/…` 的正常产物、或往届临时文件）会被当成"仓内文档"扫描 →
+ * 某个 `--out=build/…` 的正常产物、或往届临时文件）会被当成「仓内文档」扫描 →
  * ① 本地**假红**（实测：`build/_t5.md` 引用了搬走的 `src/70-codex.twee`）② 与并行段**竞态**
- *（同一轮 `npm test` 里边写 `build/ui-migration-diff.md` 边扫它）。
+ *（同一轮 `npm test` 里边写 `build/*.md` 边扫它）。★`#1606`：原举的 `ui-migration-diff` 工具已**一套退** ⇒ 例子改泛化 ✓
  * `git ls-files` 从**结构上**排除这类目录 —— 比"记得把每个目录名加进 SKIP_DIRS"可靠。
  * 另：本门已经依赖 git（F4 的路径存在性也用 `git ls-files`），不多一层新依赖。 */
 /** F6（`#1084`）：残留冲突标记。注意：只咬「行首**带尾随内容**」的 `<<<<<<< `/`>>>>>>> `（git 形态如 `<<<<<<< HEAD`／`>>>>>>> <oid> (msg)`）；

@@ -1,0 +1,22 @@
+{
+	"房间": { "payload": "信息|选择",
+		"links": [
+			{ "id": "房间.收苹果", "label": "收下苹果", "to": "房间", "prio": 10, "cond": { "exclude": ["收下了"] }, "gives": ["苹果"], "sets": ["收下了"] },
+			{ "id": "房间.收梨", "label": "收下梨", "to": "房间", "prio": 9, "cond": { "exclude": ["收下了"] }, "gives": ["梨"], "sets": ["收下了"] },
+			{ "id": "房间.收桃", "label": "收下桃", "to": "房间", "prio": 8, "cond": { "exclude": ["收下了"] }, "gives": ["桃"], "sets": ["收下了"] },
+			{ "id": "房间.收李", "label": "收下李", "to": "房间", "prio": 7, "cond": { "exclude": ["收下了"] }, "gives": ["李"], "sets": ["收下了"] },
+			{ "id": "房间.收枣", "label": "收下枣", "to": "房间", "prio": 6, "cond": { "exclude": ["收下了"] }, "gives": ["枣"], "sets": ["收下了"] },
+			{ "id": "房间.吃苹果", "label": "吃掉苹果", "to": "吃苹果", "prio": 5, "cond": { "req": ["inv:苹果"], "exclude": ["吃下了"] }, "sets": ["吃下了"], "takes": ["苹果"], "adds": { "心情.值": 5 } },
+			{ "id": "房间.吃梨", "label": "吃掉梨", "to": "房间", "prio": 5, "cond": { "req": ["inv:梨"], "exclude": ["吃下了"] }, "sets": ["吃下了"], "takes": ["梨"] },
+			{ "id": "房间.吃桃", "label": "吃掉桃", "to": "房间", "prio": 5, "cond": { "req": ["inv:桃"], "exclude": ["吃下了"] }, "sets": ["吃下了"], "takes": ["桃"] },
+			{ "id": "房间.吃李", "label": "吃掉李", "to": "房间", "prio": 5, "cond": { "req": ["inv:李"], "exclude": ["吃下了"] }, "sets": ["吃下了"], "takes": ["李"] },
+			{ "id": "房间.吃枣", "label": "吃掉枣", "to": "房间", "prio": 5, "cond": { "req": ["inv:枣"], "exclude": ["吃下了"] }, "sets": ["吃下了"], "takes": ["枣"] },
+			{ "id": "房间.好心情", "label": "心情不错，看看窗外", "to": "好心情", "prio": 2, "cond": { "req": [{ "gte": ["心情.值", 65] }] } },
+			{ "id": "房间.出门", "label": "出门去", "to": "结局", "prio": 1, "cond": { "req": ["吃下了"] } }
+		],
+		"params": {}, "present": "菜单", "prio": 1, "prereq": []
+	},
+	"结局": { "payload": "信息", "ending": { "key": "出门", "kind": "final" }, "links": [], "present": "菜单", "prio": 1, "prereq": [] },
+	"吃苹果": { "payload": "信息", "links": [{ "label": "回到房间", "to": "房间" }], "present": "菜单", "prio": 1, "prereq": [] },
+	"好心情": { "payload": "信息", "links": [{ "label": "回到房间", "to": "房间" }], "present": "菜单", "prio": 1, "prereq": [] }
+}

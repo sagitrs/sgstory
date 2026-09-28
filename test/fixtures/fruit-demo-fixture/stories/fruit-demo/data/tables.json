@@ -1,0 +1,28 @@
+{
+ "section": "Game Tables",
+ "note": "道具面：5 种水果。★本原型**只测「能不能收下／吃下」**，故 `effects` 留空（被动效果不在本票范围）。",
+ "containers": {
+  "Items": {
+   "defs": {
+    "苹果": { "from": "果树", "note": "一只苹果" },
+    "梨": { "from": "果树", "note": "一只梨" },
+    "桃": { "from": "果树", "note": "一只桃" },
+    "李": { "from": "果树", "note": "一只李" },
+    "枣": { "from": "果树", "note": "一只枣" }
+   },
+   "effects": {}
+  },
+  "Checks": { "sites": {}, "keyYields": [] },
+  "Combat": { "pools": {}, "actions": {} },
+  "Economy": { "prices": {}, "events": [] },
+  "Gear": { "defs": {} },
+  "Truth": { "facts": {} },
+  "Codex": { "items": {} },
+  "Echoes": { "rows": [] },
+  "State": {
+   "domains": [
+    { "id": "水果演示", "keys": ["收下了", "吃下了"] }
+   ]
+  }
+ }
+}

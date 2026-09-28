@@ -350,6 +350,22 @@ export const PROBES = [
 		why: '量的是「按任务读表引用的文档必须存在（死链红点名）」那一手真的在守（插一行死链  门必红并点名行号与路径 ）—— 否则必读面死链只活在注释里 （`#1078` ）',
 	},
 	{
+		// `#1609`（tester-4 出笔）：★"夹具用例套**有的接线有的没**" 是本仓旧病灶 —— ★本探针就是接线的那条线 ✓
+		//   ★变异改的是**夹具故事的值门阈值**（65⇒9999 ✓ 唯一整串 ✓）⇒ `fruit-demo/mood-by-value` 必红
+		//   ⇒ ★证明这套用例**真在判东西**（✗ 空跑恒绿 ✓）。
+		id: 'test/fruit-demo-cases.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/fruit-demo-cases.mjs',
+		mutation: {
+			file: 'test/fixtures/fruit-demo-fixture/stories/fruit-demo/data/passages.json',
+			find: '{ "gte": ["心情.值", 65] }',
+			replace: '{ "gte": ["心情.值", 9999] }',
+		},
+		expect: { rc: 1, stdout: /未归因|mood-by-value/ },
+		why: '`#1609`：值门阈值一变 ⇒ 那条用例必红 ⇒ 本判据真在判东西（✗ 空跑恒绿 ✓）',
+	},
+	{
 		// `#1087`：修 `#1054` 落在 main 上的**探针缺陷** ——
 		//注意：原条目**只有 `id` 一行**（缺自己的 `cmd`/`mutation`/`expect`/`why`），且它**在同一个 `{…}` 里**
 		// → JS **对象重复键** → `id` 被后写的覆盖，**其余字段沿用了上一个条目（`docs-read-path`）的**

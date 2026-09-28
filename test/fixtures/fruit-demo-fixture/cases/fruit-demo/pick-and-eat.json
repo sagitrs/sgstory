@@ -1,0 +1,22 @@
+{
+ "id": "fruit-demo/pick-and-eat",
+ "story": "fruit-demo",
+ "why": "收下苹果 ⇒ 「吃掉苹果」出现 ＋ 五选一消失（★此步不跳段：`收下` 行的 text 目标是本段 ✓）",
+ "drive": {
+  "clicks": [
+   "收下苹果"
+  ],
+  "state": {},
+  "seed": 1
+ },
+ "expect": {
+  "visible": [
+   "吃掉苹果"
+  ],
+  "absent": [
+   "收下梨"
+  ],
+  "state": [],
+  "edges": []
+ }
+}

@@ -1004,7 +1004,7 @@ window.Sg.panels = {
    为什么这样拆（#441-A）：「点一下既算又画」是「界面/判定分离」在这份代码里的唯一实体障碍——
    抽完后本 widget 体内不再有 `<<set $…>>`（present 不写状态），且 `resolve()` 能在 node 里直接驱动。 %/
 <<widget "sitecheck">><<nobr>>
-	<<checkres `Game.Checks.resolve($args[0], $pc, $args[1])`>>
+	<<checkres `Game.Checks.resolve($args[0], $pc, $args[1], $args[2] === "reroll")`>>
 <</nobr>><</widget>>
 
 /% 经济事件词汇：金额出走 Game.Economy；gives 自动入账 %/

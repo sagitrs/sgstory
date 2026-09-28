@@ -36,7 +36,14 @@ Object.assign((window.Game.Checks ??= {}), {
 		return s.abil ? T.Rules.save(pc, s.abil, s.dc, opt) : T.Rules.check(pc, s.skill, s.dc, opt);
 	},
 	// sim 侧入口：算完把结果写进**结果槽**（`$last_check`——段落分支与 `<<snapshot>>` 读它）
-	resolve(site, pc, advArg) {
+	resolve(site, pc, advArg, reroll = false) {
+		// ★ `#1574`（阶 3b）**重入语义**：★默认 **`false` ＝ 复用** ——
+		//   ★重入同一站点（沿导航来回走）时 ★**沿用已有结果**（✗ 不重掷 ✓）
+		//   ⇒ ★治「可反复刷到想要的骰面」✗；★要重掷 ⇒ 段级声明 `reroll: true` ✓
+		//   ★口径：★"重掷 vs 复用"是**作者的意思** ⇒ 显式 ✓；★默认复用 ⇒ "忘写"的后果**一眼看得出**
+		//     （战斗里每轮同骰面 ✓）—— ★比"隐性假信号"好 ✓
+		const store = State.variables.checks ?? {};
+		if (!reroll && store[site]) { State.variables.last_check = store[site]; return store[site]; }
 		const res = this.rollSite(site, pc, advArg);
 		State.variables.last_check = res;
 		return res;

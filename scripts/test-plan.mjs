@@ -179,6 +179,9 @@ export const SEGMENTS = [
 	{ id: "test-passages-links-mjs", phase: 'test', cost: 0.3, cmd: "node test/passages-links.mjs" },
 	// ★`#1588`：生成物家族谓词（前缀集＝单一权威 ＋ 无副本 ＋ 消费者真认）
 	{ id: "test-generated-family-mjs", phase: 'test', cost: 0.3, cmd: "node test/generated-family.mjs" },
+	// ★`#1592` M5（引擎语料跑 · 安全网）：用 **books 真语料**编译 ＋ 字体产物断言（＋ M7 的 story 档，待归因分治后接上）
+	//   ★无 books 检出 ⇒ **○ 未判 rc=0 ＋ 出声**（✗ 不假装判过）；★CI 由 `realmachine` 调**同一命令**（单一权威 ✓）
+	{ id: "corpus-books-smoke", phase: 'test', cost: 6, cmd: "node test/corpus-books-smoke.mjs" },
 	// `#1350` 尾件 ⑥：**段尾块链接的 `args` 端到端** —— 引擎仓夹具（`m3-p1234-pilot`）建**自建外根** ⇒
 	// `<<rulelist>>` 渲的行**真带上** `data-sg-args` ⇒ 点击 ⇒ 目标段**渲染出该值**（✗ 只比字符串咬不住：
 	// "链接不带 args"与"槽存不住"两层各自都能让值到不了 ✓）；含两条负向（不带 args 行不乱贴属性／无新跳转不读旧值）
@@ -718,7 +721,7 @@ export const SUITE_MEMBERS = {
 	],
 	'story-legal': ['test-multi-story-mjs',
 		'test-multi-story-mjs-selftest',
-		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-case-run-mjs', 'test-merge-sources-mjs', 'test-sources-wired-e2e-mjs', 'test-vitals-consumers-mjs', 'test-vitals-migrate-chargen-mjs', 'test-vitals-display-mjs', 'test-draw-primitives-mjs', 'test-generated-family-mjs', 'test-choose-cards-mjs', 'test-actor-target-mjs', 'test-any-and-req-cases-mjs', 'test-rule-row-fields-e2e-mjs', 'test-panels-terminal-mjs', 'test-panels-mjs', 'test-panels-render-mjs', 'test-settle-primitives-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs', 'test-economy-keys-mjs',
+		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-case-run-mjs', 'test-merge-sources-mjs', 'test-sources-wired-e2e-mjs', 'test-vitals-consumers-mjs', 'test-vitals-migrate-chargen-mjs', 'test-vitals-display-mjs', 'test-draw-primitives-mjs', 'test-generated-family-mjs', 'test-choose-cards-mjs', 'test-actor-target-mjs', 'test-any-and-req-cases-mjs', 'test-rule-row-fields-e2e-mjs', 'test-panels-terminal-mjs', 'corpus-books-smoke', 'test-panels-mjs', 'test-panels-render-mjs', 'test-settle-primitives-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs', 'test-economy-keys-mjs',
 		// `#1267`／`#1257`：故事根口与两面一致性（归 `infra` 语义——判的是**工具链口径**，非故事内容）
 		'test-story-root-mjs', 'test-story-enum-faces-mjs',
 		'test-story-ci-mjs-selftest', 'test-rules-claims-mjs',

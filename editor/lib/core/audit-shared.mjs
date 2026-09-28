@@ -405,6 +405,59 @@ export const eventRefsOf = ({ passages = null } = {}) => {
 /** ★★ 判据（纯函数，能假）：引用的**事件名必须已宣告**（`data/events.json` 的 `events` 键）⇒ 否则点名。
  *  ★为什么必须有编译期这一道（与 `undeclaredActorProblems` 同一理由）：运行时只在“玩家点了那条链接”时才响
  *    ⇒ ★名字写错会**一路绿**（build／CI）到玩家面前才炸 ✗（同族：`#1564` 前缀判据 ✓）。 */
+/** ★ `#1569`（阶 3）：**事件定义面**的判据（B′ 分类 ＋ 字段白名单 ＋ 子句文本形）。
+ *
+ *  ★B′（**由声明派生**，零新字段 ✓）：★**散文事件**＝有 `text` ⇒ ✗ 不许有 `use`／`when`（★`links` ✗ 事件面没有 ✓）；
+ *  ★**控制事件**＝有 `use` ⇒ ✗ 不许有**事件级** `text`（★子句级 `text` **允许** —— 那正是「结果渲染」✓）。
+ *  字段白名单：★事件级 `label`／`text`／`use`／`when`；★子句级 `when`／`text`／`effect`／`call`／`args`（照 2b ✓）。
+ *  子句文本形：`{format: string, <槽>: <绑定>}`；★`file` ⇒ **点名**（Operator 裁：阶段 4 之前不引 markdown 载体）；
+ *  ★`format` 与 `file` 同给 ⇒ 点名（✗ 不许谁优先静默）；★`format` 不是串 ⇒ 点名。
+ *  ★槽的**双向完备**在 `valueRefExpand`（一条管线 ✓）—— 本函数只管**形**与**分类** ✓。 */
+export const proseEventProblems = ({ defs = null, where = '事件声明' } = {}) => {
+	const out = [];
+	const EV_KEYS = new Set(['label', 'text', 'use', 'when']);
+	const CL_KEYS = new Set(['when', 'text', 'effect', 'call', 'args']);
+	const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
+	for (const [name, ev] of Object.entries(defs ?? {})) {
+		if (!isObj(ev)) { out.push({ code: 'prose-event-shape', why: `${where}：事件「${name}」必须是对象（拿到 ${JSON.stringify(ev)}）` }); continue; }
+		for (const k of Object.keys(ev)) {
+			if (!EV_KEYS.has(k)) out.push({ code: 'prose-event-field', why: `${where}：事件「${name}」有**白名单外字段**「${k}」（合法：${[...EV_KEYS].join('／')}）⇒ ✗ 装配错名字会静默不生效` });
+		}
+		const hasText = ev.text != null;
+		const hasUse = ev.use != null;
+		if (hasText && hasUse) out.push({ code: 'prose-event-mix', why: `${where}：事件「${name}」**同时**有 \`text\` 与 \`use\` ⇒ ✗ 散文事件与控制事件**互斥**（B′：有 text ⇒ 散文；有 use ⇒ 控制）` });
+		if (hasText && ev.when != null) out.push({ code: 'prose-event-when', why: `${where}：事件「${name}」是**散文事件**（有 \`text\`）⇒ ✗ 不许有 \`when\`（条件属控制事件）` });
+		if (hasText) checkText({ out, where, name, text: ev.text, at: '事件级' });
+		if (!Array.isArray(ev.use)) {
+			if (hasUse) out.push({ code: 'prose-event-use', why: `${where}：事件「${name}」的 \`use\` 必须是**子句列表**` });
+			continue;
+		}
+		ev.use.forEach((c, i) => {
+			const at = `子句[${i}]`;
+			if (!isObj(c)) { out.push({ code: 'prose-event-clause', why: `${where}：事件「${name}」的${at}必须是对象` }); return; }
+			for (const k of Object.keys(c)) {
+				if (!CL_KEYS.has(k)) out.push({ code: 'prose-event-clause-field', why: `${where}：事件「${name}」的${at}有白名单外字段「${k}」（合法：${[...CL_KEYS].join('／')}）` });
+			}
+			if (c.text != null) checkText({ out, where, name: `${name}」的${at}`, text: c.text, at: '子句级' });
+		});
+	}
+	return out;
+};
+
+const checkText = ({ out, where, name, text, at }) => {
+	const k = 'prose-event-text';
+	if (!(text && typeof text === 'object' && !Array.isArray(text))) {
+		out.push({ code: k, why: `${where}：事件「${name}」的${at} text 必须是对象（形如 {format, <槽>}）` });
+		return;
+	}
+	if (text.file != null) {
+		out.push({ code: 'prose-event-file', why: `${where}：事件「${name}」的${at} text 给了 file ⇒ ✗ 本阶段不引 markdown 载体（Operator 裁：阶段 4 之前散文全内嵌）` });
+	}
+	if (text.format == null) out.push({ code: 'prose-event-format', why: `${where}：事件「${name}」的${at} text 缺 format（内嵌散文必须给串）` });
+	else if (typeof text.format !== 'string') out.push({ code: 'prose-event-format', why: `${where}：事件「${name}」的${at} text.format 必须是字符串` });
+	if (text.file != null && text.format != null) out.push({ code: 'prose-event-both', why: `${where}：事件「${name}」的${at} format 与 file 同给 ⇒ ✗ 二选一（不许谁优先静默）` });
+};
+
 export const undeclaredEventProblems = ({ refs = [], declared = {} } = {}) => {
 	const known = new Set(Object.keys(declared ?? {}));
 	const out = [];

@@ -1,6 +1,7 @@
 // `#794` 内核抽取 · **core 层**：编译器的**发射面**（纯函数：助手层 ＋ 类型表 ＋ 三个 emit ＋ `compileStory`）。
 // 为什么整块搬：`classify`（下一步）要用 `KINDS`／`GLOBAL_ROOTS`，而 `KINDS` 的发射器又依赖这一整套助手
 //（实测：单搬 `KINDS` → `ReferenceError: assertChain is not defined`）→ 助手层与它同生共死。
+import { valueRefExpand } from './passages.mjs';   // ★ `#1569`：`{{名}}` **唯一**管线（✗ 不造第二套）
 // 本层无宿主依赖：不 import `node:fs`／`child_process`／`vm`（读写产物由**壳**做，K6 判据③在盯）。
 const CHAIN_RE = /^[A-Za-z_$][\w$]*(\??\.[A-Za-z_$][\w$]*|\(\))*$/;
 export const assertChain = (v, what = '路径') => {
@@ -275,7 +276,54 @@ export const emitChargen = (d) => [
  *  ★事件本体放 `Game.Events.defs[<事件名>]`（★引用只写名字 ⇒ 这里是**名字 ⇒ 声明**的单一权威 ✓）。 */
 export const emitEvents = (d) => {
 	const defs = (d && typeof d === 'object' && d.events && typeof d.events === 'object' && !Array.isArray(d.events)) ? d.events : {};
-	return `window.Game = window.Game ?? {};\nObject.assign((window.Game.Events ??= {}), ${literal({ defs })});`;
+	// ★ `#1569`（阶 3）：**结果渲染** —— 每处 `text` ⇒ ★**一个产物宏**（编译期成宏 ✓ ⇒ 产物里**不留 `{{槽}}`** ✓）。
+	//   ★绑定编译：★`$n` ⇒ `$args[0][n]`；★`this.x`／`that.x` ⇒ `$args[0].this/that.<路径>`；
+	//     ★`use:<路径>` ⇒ `Sg.uses.read($args[0], "<路径>")`（★结果表 ⇒ 未产生 ⇒ **运行期点名** ✓）。
+	//   ★**唯一** `{{名}}` 管线 = `valueRefExpand`（✗ 不造第二套 ✓）；★槽只认本子句绑定表（✗ 不回落段级 ✓）。
+	const macros = [];
+	const texts = {};
+	const problems = [];
+	const compileBinding = (name, expr, at) => {
+		const t = String(expr ?? '').trim();
+		if (/^\$\d+$/.test(t)) return `$args[0][${jsString(t)}]`;   // ★键就是 \"$1\" 形（★照 2b 的绑定表 ✓）
+		const rootPath = (root) => t === root ? `$args[0].${root}`
+			: (t.startsWith(root + '.') ? `$args[0].${root}.` + t.slice(root.length + 1) : null);
+		const a = rootPath('this'); if (a) return a;
+		const b = rootPath('that'); if (b) return b;
+		if (t.startsWith('use:')) return `Sg.uses.read($args[0], ${jsString(t.slice(4))})`;
+		problems.push(`事件「${at}」的槽「${name}」绑定 \`${t}\` **不是合法取值项**（只认 \$n／this.…／that.…／use:…）`);
+		return '""';
+	};
+	const oneText = ({ where, text }) => {
+		if (!text || typeof text !== 'object' || typeof text.format !== 'string') return null;
+		const bindings = {};
+		for (const [k, v] of Object.entries(text)) if (k !== 'format') bindings[k] = compileBinding(k, v, where);
+		const r = valueRefExpand({ name: where, body: text.format, terms: new Set(), bindings });
+		problems.push(...r.problems);
+		return r.body;
+	};
+	for (const [ev, def] of Object.entries(defs)) {
+		if (!def || typeof def !== 'object') continue;
+		const body = oneText({ where: `${ev}`, text: def.text });
+		if (body != null) {
+			const w = 'sgtext_' + ev.replace(/[^\w]/g, '_');
+			macros.push(`<<widget "${w}">>${body}<</widget>>`);
+			texts[ev] = w;
+		}
+		const list = Array.isArray(def.use) ? def.use : [];
+		list.forEach((c, i) => {
+			if (!c || typeof c !== 'object') return;
+			const b2 = oneText({ where: `${ev}#${i}`, text: c.text });
+			if (b2 == null) return;
+			const w2 = 'sgtext_' + ev.replace(/[^\w]/g, '_') + '_' + i;
+			macros.push(`<<widget "${w2}">>${b2}<</widget>>`);
+			texts[ev + '#' + i] = w2;
+		});
+	}
+	return ['window.Game = window.Game ?? {};',
+		`Object.assign((window.Game.Events ??= {}), ${literal({ defs })});`,
+		`Object.assign((window.Game.Events ??= {}), { texts: ${literal(texts)}, textProblems: ${literal(problems)} });`,
+		...macros].join('\n');
 };
 
 /** 纯函数：`data/tables.json` → `Game Tables` 段（不含段头与生成标记）。 */

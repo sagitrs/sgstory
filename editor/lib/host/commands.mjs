@@ -20,7 +20,7 @@ import { compileStory } from '../core/emit.mjs';
 import { scriptSyntaxProblems } from '../core/segment-syntax.mjs';   // `#1176`：生成件脚本段语法检查（纯函数，解析器注入）
 import { packageFiles, writeStoryPackage, sectionFile, metaTwee, expandSources } from '../core/story.mjs';   // ★`#1486`：三源合并（`sources[]`）接进编译期读路
 import { mergeLinksIntoRules, compileRowEffectsIntoLinks, unmappedLinkFields, unmappedRowFields, LINK_FIELDS, ROW_FIELDS } from '../core/passages-links.mjs';
-import { actorRefsOf, undeclaredActorProblems, eventRefsOf, undeclaredEventProblems } from '../core/audit-shared.mjs';   // ★`#1571`（1c）：声明面引用的**实体名**必须已宣告（编译期点名，✗ 等到玩家）   // `#1350` 片 3：段落数据 → 规则行同形   // `metaTwee`：`#1132` B4 元数据段的单一权威形状
+import { actorRefsOf, undeclaredActorProblems, eventRefsOf, undeclaredEventProblems, proseEventProblems } from '../core/audit-shared.mjs';   // ★`#1571`（1c）：声明面引用的**实体名**必须已宣告（编译期点名，✗ 等到玩家）   // `#1350` 片 3：段落数据 → 规则行同形   // `metaTwee`：`#1132` B4 元数据段的单一权威形状
 import { unknownDomainWords } from '../core/vocab.mjs';
 import { runStory, engineOf } from './sandbox.mjs';
 
@@ -173,6 +173,10 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 	{
 		const declaredEvents = events && typeof events.events === 'object' && !Array.isArray(events.events) ? events.events : {};
 		const bad = undeclaredEventProblems({ refs: eventRefsOf({ passages: passagesData }), declared: declaredEvents });
+		// ★ `#1569`（阶 3）：事件**定义面**的判据（B′ 分类 ＋ 字段白名单 ＋ 子句文本形 ✓）
+		for (const pr of proseEventProblems({ defs: declaredEvents, where: 'data/events.json' })) {
+			console.error(`✗ [prose-event] ${pr.why}`);
+		}
 		if (bad.length) {
 			for (const m of bad) console.error(`✗ [event-ref] ${m.why}`);
 			console.error('✗ 声明面引用了**未宣告的事件名** ⇒ 该调用**会在运行时才炸**（✗ 静默无效）'

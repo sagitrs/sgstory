@@ -102,5 +102,35 @@ t('① 生成件被产出（`19-events.twee` 在）', existsSync(join(FX, SLUG, 
 		b.rc !== 0 && /unclaimed-file/.test(b.out), b.out.replace(/\s+/g, ' ').slice(0, 220));
 }
 
+// ---- ⑨ ★`#1583` 合后的**自然路径**格：✗ 清生成物，改数据 ⇒ 守卫**照样跑**（✗ 假绿）----
+//   ★件头"前置"记的是本件当时的**绕行**（每格先清生成物）—— 现在 `genNeeds` 会比**输入指纹**，
+//   所以★自然路径（改数据、不清产物）也必须咬住 ⇒ 本格**故意不清**，专测这一点 ✓
+{
+	// ★造副本、**先编一次**（留下产物＋指纹），再改数据、**不清产物** ⇒ 第二次 build 应当**重编并咬住**。
+	const W = mkdtempSync(join(tmpdir(), 'sg-event-nat-'));
+	let r1, r2;
+	try {
+		const stories = join(W, 'stories');
+		cpSync(FX, stories, { recursive: true });
+		// 第一次：净态（副本自带无产物）⇒ 正常编出产物 ＋ 写指纹
+		r1 = (() => {
+			try { execFileSync(process.execPath, [join(ROOT, 'build.mjs')], { cwd: ROOT, env: { ...process.env, SG_STORIES_DIR: stories }, stdio: 'pipe' }); return { rc: 0 }; }
+			catch (e) { return { rc: e.status ?? 1, out: String(e.stdout ?? '') + String(e.stderr ?? '') }; }
+		})();
+		// 第二次：**只把事件名改成未宣告的**，★不清产物、★不清指纹 ⇒ 修前这里 rc=0（假绿）
+		const dp = join(stories, SLUG, 'data/events.json');
+		const dd = JSON.parse(readFileSync(dp, 'utf8'));
+		dd.events['斩'] && (delete dd.events['斩'], dd.events['未宣告的事件']);
+		writeFileSync(dp, JSON.stringify(dd, null, 1) + '\n');
+		r2 = (() => {
+			try { execFileSync(process.execPath, [join(ROOT, 'build.mjs')], { cwd: ROOT, env: { ...process.env, SG_STORIES_DIR: stories }, stdio: 'pipe' }); return { rc: 0, out: '' }; }
+			catch (e) { return { rc: e.status ?? 1, out: String(e.stdout ?? '') + String(e.stderr ?? '') }; }
+		})();
+	} finally { rmSync(W, { recursive: true, force: true }); }
+	t('⑨ ★`#1583` 自然路径：改数据**不清产物** ⇒ 守卫照样跑（✗ 假绿）',
+		r1.rc === 0 && r2.rc !== 0 && /event-ref/.test(r2.out),
+		`首次 rc=${r1.rc}｜改后 rc=${r2.rc}（★修前此处 rc=0 ＝ 假绿）｜out=${(r2.out || '').replace(/\s+/g, ' ').slice(0, 160)}`);
+}
+
 if (bad) { console.error(`\n✗ 事件声明面（阶 2a）自证失败 ${bad} 项`); process.exit(1); }
 console.log('\n✔ 事件声明面（阶 2a）自证通过（生成表 · 引用随链接 · 名字级点名 · 白名单 · 登记门）');

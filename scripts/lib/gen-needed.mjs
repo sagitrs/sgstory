@@ -13,12 +13,18 @@
 //
 // 纯函数：`exists`、`family` 都由调用方注入，测试可以喂合成输入。
 
-/** 该故事的产物集里，哪些需要重建。返回 `{ needed, why}`。 */
-export const genNeeds = ({ declared = [], exists = () => false, family = () => false, dataFiles = [] } = {}) => {
+/** 该故事的产物集里，哪些需要重建。返回 `{ needed, why}`。
+ *  ★`#1583`：**产物齐备 ✗ 等于"不必重编"** —— 判据原来只判 `exists`（✗ 判**新鲜度**）⇒
+ *  ★**数据改了而产物还在 ⇒ 整段 `compile-story` 被跳过** ⇒ ★**编译期守卫全不跑**（假绿）。 */
+export const genNeeds = ({ declared = [], exists = () => false, family = () => false, dataFiles = [], stale = [] } = {}) => {
 	const products = declared.filter((f) => family(f));
 	if (products.length) {
 		const missing = products.filter((f) => !exists(f));
-		return { needed: missing, why: missing.length ? `清单声明的产物缺 ${missing.length} 件` : '清单声明的产物齐备' };
+		if (missing.length) return { needed: missing, why: `清单声明的产物缺 ${missing.length} 件` };
+		// ★`#1583`：产物齐备，但**输入已变** ⇒ 仍须重编（✗ 否则守卫不跑 ⇒ 假绿）。
+		//   ★`stale` 由**调用方**算好（纯函数 ✗ 碰文件系统）—— 见 `build.mjs` 的指纹比对。
+		if (stale.length) return { needed: products, why: `产物齐备但**输入已变**（${stale.length} 件：${stale.slice(0, 3).join('、')}${stale.length > 3 ? '…' : ''}）` };
+		return { needed: [], why: '清单声明的产物齐备（且输入未变）' };
 	}
 	if (dataFiles.length) return { needed: ['(整篇)'], why: `清单未声明产物而 data/ 有 ${dataFiles.length} 份源（新建故事）` };
 	return { needed: [], why: '清单未声明产物且 data/ 无源' };

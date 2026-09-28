@@ -54,6 +54,27 @@ const fam = (f) => /(^|\/)(1[5678]-[a-z0-9-]+\.twee|00-meta\.twee)$/.test(f);
 	ok('④ 清单未声明产物且无源 ⇒ 不需要', r.needed.length === 0, JSON.stringify(r));
 }
 
+// ★ `#1583`：**新鲜度**半 —— 产物齐备 ✗ 等于"不必重编"（数据改了而产物还在 ⇒ 跳过编译 ⇒ **守卫不跑** ⇒ 假绿）
+{
+	const declared = ['stories/x/00-meta.twee', 'stories/x/15-tables.twee'];
+	const base = { declared, family: fam, exists: () => true, dataFiles: ['tables.json', 'meta.json'] };
+	// ⑥ ★**能假**：产物齐备 ＝ 真，但**输入已变**（`stale` 非空）⇒ 必须重编（✗ 短路成"齐备 ⇒ 不需要"）
+	const r6 = genNeeds({ ...base, stale: ['tables.json'] });
+	ok('⑥ **能假**（`#1583`）：产物齐备但输入已变 ⇒ **重编**（✗ 短路成"不需要"）', r6.needed.length === 2, JSON.stringify(r6));
+	// ⑦ ★**正例（✗ 误杀）**：产物齐备且**输入未变**（`stale` 空）⇒ 仍**不重编**（幂等跳过不变 ✓）
+	const r7 = genNeeds({ ...base, stale: [] });
+	ok('⑦ 正例（`#1583`）：齐备且输入未变 ⇒ **仍跳过**（✗ 把幂等打掉）', r7.needed.length === 0, JSON.stringify(r7));
+	// ⑧ ★**缺件的优先级**：既缺件又陈旧 ⇒ 报"缺件"（读报文的人先看缺件 ⇒ 理由更准 ✓）
+	const r8 = genNeeds({ ...base, exists: (f) => !f.endsWith('15-tables.twee'), stale: ['tables.json'] });
+	ok('⑧ 缺件 ＋ 陈旧 ⇒ 报**缺件**（✗ 把两种混成一句）', r8.needed.length === 1 && /缺 1 件/.test(r8.why), JSON.stringify(r8));
+	// ⑨ ★**默认不变**（`stale` 不传 ⇒ 旧行为，逐字不变）—— 守 "✗ 传 stale 的既有调用点行为不被改"
+	const r9 = genNeeds({ declared, family: fam, exists: () => true, dataFiles: ['tables.json'] });
+	ok('⑨ 默认（✗ 传 `stale`）⇒ 行为照旧（旧调用点不受影响）', r9.needed.length === 0 && r9.why === '清单声明的产物齐备（且输入未变）', JSON.stringify(r9));
+	// ⑩ ★**可区分**：`stale` 非空与空**必须给出不同结果**（不然⑥⑦是同一格的两个恒真断言）
+	ok('⑩ 可区分：`stale` 非空 ↔ 空 ⇒ 结果**不同**（✗ 恒真格）',
+		genNeeds({ ...base, stale: ['a.json'] }).needed.length !== genNeeds({ ...base, stale: [] }).needed.length);
+}
+
 // ⑤ 真仓三故事：产物齐备时都不需要重编；逐故事按**自己的清单**判（不是同一个固定清单）
 {
 	let checked = 0;

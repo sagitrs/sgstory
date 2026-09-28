@@ -115,6 +115,16 @@ export const summarize = (resultList = []) => {
 /** 逐条判据（纯函数）：返回**未满足项**的可读清单（`expect` 的四个面）。 */
 export const expectViolations = ({ expect = {}, seen = {} } = {}) => {
 	const out = [];
+	// ★★ `#1612`（`#1609` 审计：变异抽查② 发现）：**空断言 ⇒ fail-loud** —— ★四维**全空** ⇒ 本函数**零违例**
+	//   ⇒ ★用例**恒真**（★与 0/0 假绿同族：★"把判据降到零"—— 同 `#1592` M7 口径"✗ 把判据降成凑格" ✓）。
+	//   ★为什么落在**本函数**（✗ 只在报告层加一句）：★它是**唯一的判据面** ⇒ ★任何调用者（含将来新入口）都
+	//     自动继承这道点名 ✓（★落在报告层 ⇒ 换入口就漏 ✓）。
+	//   ★取证：审计实测两态 —— 清空 `absent` ⇒ rc=0 ✗；四维全空 ⇒ rc=0 ✗（＝恒真）✓
+	const DIMS = ['visible', 'absent', 'edges', 'state'];
+	const emptyDim = (v) => v == null || (Array.isArray(v) ? v.length === 0 : (typeof v === 'object' ? Object.keys(v).length === 0 : false));
+	if (DIMS.every((k) => emptyDim(expect?.[k]))) {
+		out.push({ kind: 'empty-expect', want: `至少一维非空（${DIMS.join('／')}）`, got: '四维全空' });
+	}
 	const text = String(seen.text ?? '');
 	// `#1267`（预审 ②）：真用例的 `expect.edges` 是**对象**（`{from,label,to}`）→ **按 label 比**，
 	// 否则字符串比较恒 false → 边全对也红、且报文打印 `[object Object]`（读不出）。

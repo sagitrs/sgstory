@@ -50,7 +50,7 @@
 
 **必留 K1–K5**（K1 失败开向 · K2 契约 fail-loud ＋ `--engine-story-free` 三档 · K3 点得动/不抛错/走得到终点/存档不丢 · K4 单一真源 · K5 让步留痕）。
 
-**可放（转 report-only，不删）**：数值平衡（`--dragon` · `--combat-dist` · `fight-seq` 逐字节）· `size-gate` ratchet · 文笔密度（`--craft`/`--text`）· 覆盖承诺（`--investment` · `itemmatrix` 的 `promised`）· `ui-migration-diff`。
+**可放（转 report-only，不删）**：数值平衡（`--dragon` · `--combat-dist` · `fight-seq` 逐字节）· `size-gate` ratchet · 文笔密度（`--craft`/`--text`）· 覆盖承诺（`--investment` · `itemmatrix` 的 `promised`）· `ui-migration-diff`〔★该件与其生成器已按 `#1606` **一套退** ✓ —— 本文是**史料**，原文照留 ✓〕。
 
 > 判据一句话：**允许「数值不对」，不允许「点了没反应」**。
 
@@ -161,7 +161,7 @@ stories/<slug>/
 >
 > **→ 迁移某故事时，权威判据是下面这一组（缺一不可）**：
 > 1. **L1 结构/行为**（本文件 §2）；2. **L2 门**：`npm test` 全绿 ＋ **`audit:golden` 零漂移**；
-> 3. **`ui-migration-diff` 零正文漂移** —— **这才是"玩家看到的字"那条线**，而且它覆盖**散文段**（L3 只比 `[script]` 段）；
+> 3. **`ui-migration-diff`〔★该件与其生成器已按 `#1606` **一套退** ✓ —— 本文是**史料**，原文照留 ✓〕 零正文漂移** —— **这才是"玩家看到的字"那条线**，而且它覆盖**散文段**（L3 只比 `[script]` 段）；
 > 4. **`fight-seq` 逐字节**（掷骰序不变）；5. **该故事自己的门**（`stories/<slug>/gates/**`）。
 > **L3 降为报告制，但保留"逐故事棘轮"**：已确认逐字节相同的故事（今：`minimal-demo`）**不许变红**，且 L3 **永远打印**
 > ——可以不是权威，但不能静默消失。

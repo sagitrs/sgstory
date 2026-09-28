@@ -64,15 +64,11 @@ try {
 		woff.length === 2, `实得 ${woff.length} 个（缺 fonttools？⇒ \`pip install fonttools brotli\` 后重跑 ✓）`);
 }
 
-// ③ story 档（M7）：★只在**显式要求**时跑（`CORPUS_STORY_TIER=1`）—— ★因为它的**对象归属**正在归因分治中
-//   （见 `#1592` 评论的归因表：映射默认 5 键里 **4 个在语料里不存在** ⇒ 那些格**没有对象** ✗）
-// ★开关**默认开**（协调席裁：本笔内开闸 ✓）｜`CORPUS_STORY_TIER=0` 显式关（本地无 Chrome 时的便利口 ✓）
-// ★开关＝**显式 opt-in**（`CORPUS_STORY_TIER=1`）：★M7 的 story 档**尚未可用**（A 组挂起 ⇒ 见 `#1592`）
-//   ⇒ ★CI 不开（✗ 不让引擎 CI 红着过日子 ✓）；★归因分治落齐后改为默认开 ✓
-// ★★开关＝**显式 opt-in**（`CORPUS_STORY_TIER=1`）：★M7 第二半**已落**（映射重指／各格自载／A・C 未判／下界重算 ✓），
-//   但**尚未全绿**（实测 30/35：★键盘格的原对象 `女巫小屋` 全仓已不存在 ✗ ＋ 另 2 格 ⇒ 见本笔读数 ✓）
-//   ⇒ ★**✗ 不在 CI 开**（开了会让引擎 CI 红着过日子 ✗ 与裁④的用意相悖 ✓）；★待键盘对象定形后改为默认开 ✓
-if (process.env.CORPUS_STORY_TIER === '1') {
+// ③ story 档（M7）：★**默认跑**（见下方开关 ✓）—— ★对象归属**已分治落地**：每键带 `story` ＋ 每格自载 ✓
+//   ★A（战斗首屏）与键盘「导航型样本」面＝**○ 未判 ＋ 出声**（对象未定形 ⇒ 见 `test/browser.mjs` 两个门闸常量 ✓）
+// ★★开关**默认开**（裁：M7 第二半落地 ＋ 真跑全绿 ⇒ 本笔**开闸** ✓）｜`CORPUS_STORY_TIER=0` 显式关（本地无 Chrome 时的便利口 ✓）
+//   ★读数（本机真跑）：★story 档 **30/30 绿** ✓（A 组与键盘导航面＝**○ 未判 ＋ 出声** ⇒ ✗ 不计入 ✓）
+if (process.env.CORPUS_STORY_TIER !== '0') {
 	try {
 		execFileSync(process.execPath, [join(ROOT, 'test', 'browser.mjs')], {
 			cwd: ROOT, env: { ...process.env, SG_STORIES_DIR: stories, BROWSER_TIERS: 'story', CI_REQUIRE_BROWSER: '1' }, stdio: 'inherit',
@@ -80,7 +76,7 @@ if (process.env.CORPUS_STORY_TIER === '1') {
 		t('③ story 档（语料）⇒ rc=0', true);
 	} catch { t('③ story 档（语料）⇒ rc=0', false, '见上方逐条读数'); }
 } else {
-	console.log('  ○ ③ story 档（M7）**本段不跑**：★已落（映射/自载/未判/下界 ✓）但**未全绿**（✗ 键盘格对象 `女巫小屋` 全仓不存在 ＋ 另 2 格 ⇒ 见 `#1592` 读数 ✓）⇒ ★开闸待对象定形 ✓');
+	console.log('  ○ ③ story 档：**显式关**（`CORPUS_STORY_TIER=0`）—— ★CI ✗ 不设它 ⇒ 真跑 ✓');
 
 }
 

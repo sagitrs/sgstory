@@ -114,5 +114,37 @@ const summary = (out) => (out.split('\n').find((l) => l.includes('用例 ') && l
 		r.brc === 0, `build rc=${r.brc}｜${(r.bout || '').replace(/\s+/g, ' ').slice(0, 120)}`);
 }
 
+// ── ⑤ ★**接线我自己的漏**：`m3-adds-fixture/cases`（值门 2 条）────────────────
+//   ★来历（`#1609` 审计 · 孤岛 A 类，★我 `#1595` 建的）：★那两条用例（`adds-value-gate-hit`／`-miss`）
+//     是**值门正/负控**，★但我建它们时**只手工跑过**（`#1595` 正文写"本笔另验"）⇒ ★**从未接进任何 test 文件** ✗
+//     ⇒ ★后果实证（`#1607`）：★该夹具的值门回归**真坏过**（`{gte:[键,值]}` 静默永假），
+//       而 ★**CI 全绿**（`grep m3-adds-fixture test/*.mjs` 只命中 `stories/` 面那三支）✗
+//     ⇒ ★本组把 `cases/` 面接上 ⇒ ★**以后同类回归在 PR 期就会红**（✗ 靠人手工跑）✓
+//   ★与 ③ 组**同形**（都做"🔴 真跑 ≥N 条"那一格 —— ★因为"用例文件在"**不等于**"它在跑" ✓）
+{
+	const r = runFixture('m3-adds-fixture');
+	t('⑤ `m3-adds-fixture/cases`（值门 2 条）可跑（★接线：此前**无人读** cases/ 面 ✗）',
+		r.brc === 0 && r.rc === 0, `build rc=${r.brc}｜用例 rc=${r.rc}｜${summary(r.out)}`);
+	// ★防"再变孤岛"的那一格（★照 ③ 组同形）：★断言**真跑满 2 条**（✗ 只跑 1 条/0 条）
+	t('⑤ 且**真跑了 ≥2 条**（✗ 又变孤岛/空跑 —— 那是"用例文件在、跑面上不在" ✓）',
+		/用例 [2-9] 条/.test(r.out), summary(r.out));
+	// ★★能假（接法面）：把**值门阈值**改坏（`gte` 的 10 ⇒ 9999 ⇒ 正控那支永假）⇒ ★**必须红**
+	//   ★证明本组不是"读了但没咬" ✓｜★刀锚＝**唯一整串**（`"gte"` 在夹具里命中恰好 1 ⇒ 打歪即崩 ✓）
+	const bad1 = runFixture('m3-adds-fixture', (stories) => {
+		const p = join(stories, 'ad/data/passages.json');
+		const src = readFileSync(p, 'utf8');
+		const anchor = '"gte"';
+		const hits = src.split(anchor).length - 1;
+		if (hits !== 1) throw new Error(`刀锚命中 ${hits} 处（要求恰好 1 ✓）`);
+		// ★改**紧随其后的阈值行**（`"心情",\n        10` ⇒ `9999`）：锚唯一 ⇒ 精确
+		const after = src.slice(src.indexOf(anchor));
+		const m = /(\n\s*"心情",\n\s*)(10)(\n)/.exec(after);
+		if (!m) throw new Error('刀：阈值行未命中（形状变了 ⇒ 须同步本刀 ✓）');
+		writeFileSync(p, src.slice(0, src.indexOf(anchor)) + after.replace(m[0], m[1] + '9999' + m[3]));
+	});
+	t('⑤ 🔴 **能假**：值门阈值改坏（`gte` 10⇒9999 ⇒ 正控永假）⇒ **该夹具用例红**（✗ 读了却没咬）',
+		bad1.rc !== 0, `rc=${bad1.rc}｜${summary(bad1.out)}`);
+}
+
 if (bad) { console.error(`\n✗ M2 迁移自证失败 ${bad} 项`); process.exit(1); }
 console.log('\n✔ M2 迁移自证通过（`any` 或语义 · `req` 成对 · `exclude`/`sets` · 两腿各一把能假刀）');

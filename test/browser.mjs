@@ -1,17 +1,7 @@
 
-import { defaultStoryHtml, storyRelPath, storyHtml, shelfHtml, FONT_PREFIX_FROM_STORY, DIST_DIR } from '../scripts/dist-paths.mjs';   // ★ `#1532`：加 `shelfHtml`（引擎层跑书架页 ✓）   // ★`#1504`：`DIST_DIR` 是**根**的单一权威（✗ 不再硬编 `resolve('dist')`）
+import { storyRelPath, storyHtml, shelfHtml, FONT_PREFIX_FROM_STORY, DIST_DIR } from '../scripts/dist-paths.mjs';   // ★ `#1532`：加 `shelfHtml`（引擎层跑书架页 ✓）   // ★`#1504`：`DIST_DIR` 是**根**的单一权威（✗ 不再硬编 `resolve('dist')`）
 import { DEFAULT_SLUG } from '../scripts/dist-paths.mjs';
-import { resolveStoryMap } from '../scripts/browser-story-map.mjs';   // ★ `#1532`：乙类映射表（无副作用 ⇒ 格可进程内量 ✓）   // `#1261`：零故事判定（与同批门同口径）
 
-// ★★ `#1592` M7／A：战斗首屏面的**门闸**（✗ 旋钮 —— ★它是「对象形未定」的显式记号 ✓）
-//   ★unblock：**战斗阶梯阶 3**（结果渲染＋命中判定）落地 ⇒ 重定对象 ＋ 置 true（挂 `#1542` 链 ✓）
-const A_FIGHT_FACE_READY = false;
-// ★★ `#1592` M7／键盘格（裁＝乙）：**导航型样本面**的**门闸**（✗ 旋钮 —— ★它是「对象未定形」的显式记号 ✓）
-//   ★为什么没有对象：★要「在 `.acts` 里 ＋ 会换段落 ＋ 无条件可用」的行动链接 —— ★现语料**0 命中**：
-//     唯一带 `.acts` 的 `fruit-demo/房间`（12 链）其换段落链接**全带 `cond`**（`房间.吃苹果` 要 `req:["inv:苹果"]`）
-//     ⇒ ★条件不满足**不渲染** ⇒ 探针找不到 ✗（★✗ 把判据降成「同段动作」来凑格 ✗ —— 那是**降判据**，判据不许动 ✓）
-//   ★unblock：**该面对象定形后**（语料补一个"行动区内无条件出口"段，或键盘面归引擎夹具 ✓）⇒ 置 true ＋ 复跑 ✓
-const KEYBOARD_NAV_FACE_READY = false;
 // #263（#185 阶段五）真实浏览器验收：零依赖 CDP 驱动（Node 22 内建 fetch + WebSocket）
 //
 // 为什么不用 puppeteer/playwright：本仓只需「导航 + 求值 + 截图 + 视口」四件事，
@@ -70,60 +60,15 @@ if (LIBS) childEnv.LD_LIBRARY_PATH = process.env.LD_LIBRARY_PATH ? `${LIBS}:${pr
 // ——绿灯看着有验收，其实一行断言都没跑。此前每个调用方各自内联 grep 守卫（`viewport-smoke.yml` 有、
 // `ci.yml` 曾漏），既重复又会漏。现在把契约下沉：
 // `CI_REQUIRE_BROWSER=1` → **跳过即失败**（脚本唯一的真源；调用方只需给这个环境变量）
-// `MIN_ASSERTIONS` → 断言数**下界自 ratchet**：跟着脚本里的断言数走，删除断言即红
+// `MIN_ASSERTIONS_ENGINE` → 断言数**下界自 ratchet**：跟着脚本里的断言数走，删除断言即红
 //（换成 workflow 里的魔数就会腐烂：原来写死 `N -ge 24`，而实际早已 38 —— 删 14 条断言也照样放行）
 export const REQUIRE_BROWSER = process.env.CI_REQUIRE_BROWSER === '1';
-// ★ `#1532`（`#1516` C 案）：★断言**分层开关** —— 按“是否依赖故事内容”分两层：
-//   · `engine`（甲＋丙）：★**不依赖故事内容** ⇒ ★零故事／单夹具即可跑（引擎侧持有 ✓）
-//   · `story`（乙）：★**点名段名／事件键** ⇒ ★需真故事（归 books 侧 ✓ —— `books#36`）
-//   ★默认 `all`（✗ 改旧行为）；`BROWSER_TIERS=engine` ⇒ 只跑甲＋丙。
-// ★★ `#1532`（坐标裁）：乙类的**段名／入口名／事件键**可注入 ——
-//   ★实现已抽到 **无副作用模块** `scripts/browser-story-map.mjs`（★门与格**同 import 同一份** ✓）
-//   ★为何要抽（CR：**注入生效无近格** —— ★“守卫在远处” ✗）：
-//     ★原写法是**顶层 IIFE**（读 env ＋ 失败即 `process.exit(1)`）⇒
-//     ★`browser.mjs` 是**顶层 await 脚本** ⇒ ★**无法在进程内 import 它**来量“注入到底生效没” ✗
-//     ★⇒ 故自证只能**在远处**断言（“默认值＝旧值”）而**注入那一路没近格** ✗
-//   ★现在：★格可 `resolveStoryMap({ env: { SG_BROWSER_STORY_MAP: '…' } })` **直接量** ✓
-const { map: _SM, error: _SM_ERR } = resolveStoryMap({ env: process.env });
-if (_SM_ERR) { console.error('✗ ' + _SM_ERR); process.exit(1); }
-export const STORY_MAP = _SM;
 
 export const TIERS = (process.env.BROWSER_TIERS ?? 'all').trim() || 'all';
 export const runsEngine = TIERS === 'all' || TIERS === 'engine';
-export const runsStory = TIERS === 'all' || TIERS === 'story';
-//注意：`#1004` B2b 复核席**下调**：59 → 56（**写明理由**，这条门本来就允许"同步下调并写明理由"）。
-// 理由：下界当初有一部分是「**故事 2（`hollow-cave`）三视口 +15**」撑起来的（`#491` 判据 5）；
-// 该故事已随 B 段删除 → 本件那一块按**裁定 A** 重指到同样**无车卡**的冒烟故事 `minimal-demo`
-//（它的多选一段比旧的故事 2 少一条 → 这一块从 15 格降到 12 格）→ **实测总数 56**。
-// ⛔ 这不是"删断言凑绿"：**没有任何一格是被删掉的** —— 少的是"旧故事特有的那一页"，
-// 且它换掉的那一面（无车卡最小面／多选一可点／200% 不溢出）**逐条仍在**。
-// ★★ `#1592` M7／D：**story 档的下界＝本名的值**（`evaluateRun` 的默认：`runsStory ? MIN_ASSERTIONS : MIN_ASSERTIONS_ENGINE` ✓）
-//   ★旧值 58 的前提「五键段都在且满格」**不成立**（四个键的段在语料里不存在 ⇒ 那 58 是靠**零故事分支空转**凑的 ✗）
-//   ★现值＝**实测真跑 30/30**（✗ 不可再低 —— 防删断言 ✓；★再加格必须同步上调 ✓）
-export const MIN_ASSERTIONS = 30;
 
-// ★ `#1532`（`#1516` C 案）：★**下界拆双 ratchet** —— ★两层各自管自己的下界：
-//   · `ENGINE`（甲＋丙）：★零故事即可跑 ⇒ ★**现测 12**（★为什么不是 0：3 视口 × 4 条甲类）
-//   · `STORY`（乙）：★需真故事 ⇒ ★现下界 **58**（★两层合跑时的总数 —— ★下一步拆完各自重算 ✓）
-//   ★★**为何必须拆**：★若共用 58 ⇒ ★以引擎层跑时**永远红**（★不是真红 —— 是下界不对）；
-//     而★**它更坏的一面**：★若为了跑绿而把 58 改小 ⇒ ★删乙类断言也会放行 ✗
-// ★★`#1592` M7：**段是否存在**（★对象＝**段**，✗ 故事 ✓）—— 判据读**产物**里的 Twine 段头（`name="…"` ✓）
-export const storyHasPassage = (slug, passage) => {
-	const f = storyHtml(slug);
-	if (!existsSync(f)) return false;
-	return readFileSync(f, 'utf8').includes('name="' + passage + '"');
-};
 
 export const MIN_ASSERTIONS_ENGINE = 33;
-// ★★ `#1592` M7／D：**下界按在场格重算 ＋ 写明理由**（协调席裁 ③ ✓；✗ 不容忍「凭旧数虚高」✗）
-//   ★旧值 58 的前提是「五键段都在且都满格」—— 而实测那五键**四个在语料里根本不存在**（`#1592` 归因表 ✓），
-//     那时的 58 是**靠零故事分支空转**凑的（✗ 假绿）⇒ ★今天 story 档**真跑**、**真对象**只有：
-//       ① B 门厅（`north-room/里屋`）3 视口 × 1 格       ② ④ 守林人面 ⇒ **○ 未判**（对象随 `books#26` ✓）
-//       ③ A 战斗首屏 ⇒ **○ 未判**（对象形随阶 3 重定 ✓）  ④ ⑤ 无横向溢出（每视口 1 格）＋ 键盘 4 格（对象待定 ✓）
-//   ★现值＝**实测**（真跑 **30/30** ✓）：B 门厅 3 格 ＋ ⑤ 无横向溢出 3 格 ＋ 键盘 3 格（正/反例）＋ 其余
-//     ⇒ ★下界取实测值（✗ 不可再低 —— 防删断言 ✓）；★A 组与键盘导航面**未判**（✗ 不计入 ✓）
-//   ★（story 档当前**默认关**（CI 不开）⇒ 该下界只在**显式开**时有牙 ✓；开闸前必须把它调到"真跑值" ✓）
-export const MIN_ASSERTIONS_STORY = 30;
 // 跳过时该退什么码（纯函数，便于自证）
 export const skipVerdict = (requireBrowser) => (requireBrowser
 	? { code: 1, notes: ['✗ CI_REQUIRE_BROWSER=1：浏览器验收被跳过 ＝ CI 接线失效（不许静默降级）'] }
@@ -142,9 +87,9 @@ export const unjudgedVerdict = () => ({
 });
 
 // 跑完时的判定（纯函数，便于自证）
-export const evaluateRun = ({ total, fails, minAssertions = (runsStory ? MIN_ASSERTIONS : MIN_ASSERTIONS_ENGINE) }) => {
+export const evaluateRun = ({ total, fails, minAssertions = MIN_ASSERTIONS_ENGINE }) => {
 	if (total < minAssertions) {
-		return { code: 1, notes: [`✗ 断言数 ${total} < 下界 ${minAssertions}——这不像失败，像**被删除**：请补回断言，或同步下调 MIN_ASSERTIONS 并写明理由`] };
+		return { code: 1, notes: [`✗ 断言数 ${total} < 下界 ${minAssertions}——这不像失败，像**被删除**：请补回断言，或同步下调 MIN_ASSERTIONS_ENGINE 并写明理由`] };
 	}
 	if (fails) return { code: 1, notes: [`✗ ${fails} 条断言失败`] };
 	return { code: 0, notes: [] };
@@ -171,105 +116,21 @@ const selftest = () => {
 	const t = (msg, ok) => { if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} ${msg}`); };
 	t('跳过 + CI_REQUIRE_BROWSER=1 → 必须失败（不许静默降级）', skipVerdict(true).code === 1);
 	t('跳过 + 本地（无该变量）→ 允许，退 0', skipVerdict(false).code === 0);
-	// ★ `#1498`：**接线格**（判据两格之上再加一格）——★"判定函数对"**≠**"零故事早退走它" ✗
-	//   故这里直接扫**本件源码**：零故事分支必须**经 `bail(`**，✗ 不许自带 `process.exit(0)` ✓
-	//   （★这是"被测对象＝本文件"的**结构断言** —— 它可假：改回旧写法 ⇒ 当场红 ✓）
-	{
-		const self = readFileSync(new URL(import.meta.url), 'utf8');
-		// 取"零故事分支"那一段（`if (!DEFAULT_SLUG)` 起 到 行尾 ;）
-		// ★取**真代码行**（✗ 不能取注释里的同形文字 —— 本笔实测撞过：注释里也写了它，match 取到注释 ✗）
-		const code = self.split('\n').filter((l) => !/^\s*\/\//.test(l)).join('\n');
-				// ★ `#1532`：★本分支现在**带两个条件**（`!DEFAULT_SLUG && runsStory`）——
-		//   ★判据仍然只问两件：★**走 `bail(`** ＋ ★**✗ 自带 `process.exit`** ✓（★不管条件几个 ✗）
-		const m = code.match(/^\s*if \(!DEFAULT_SLUG\b[^\n]*/m);
-		const line = m ? m[0] : '';
-		t('★ `#1498` 接线：零故事分支**经 `bail(`**（✗ 不自带 process.exit）', /bail\(/.test(line) && !/process\.exit/.test(line), line.slice(0, 90));
-		// ★且 `bail` 必须**定义在**零故事分支之前（✗ 前向引用会 TypeError ⇒ 静默降级）
-		const iBail = self.indexOf('const bail = (reason) =>');
-		const iZero = self.indexOf('if (!DEFAULT_SLUG)');
-		t('★ `#1498` 顺序：`bail` 定义**在零故事分支之前**（✗ 前向引用）', iBail >= 0 && iZero >= 0 && iBail < iZero);
-	}
-	// 用 `MIN_ASSERTIONS` 现算（不写死数字）：下界一涨，这几例自动跟着走（否则每加断言都要改自证）
-	t(`${MIN_ASSERTIONS}/${MIN_ASSERTIONS} 达下界 → 通过`, evaluateRun({ total: MIN_ASSERTIONS, fails: 0 }).code === 0);
-	t(`${MIN_ASSERTIONS}/${MIN_ASSERTIONS}（有失败）→ 失败`, evaluateRun({ total: MIN_ASSERTIONS, fails: 1 }).code === 1);
-	t(`${MIN_ASSERTIONS - 5}/${MIN_ASSERTIONS - 5} 低于下界 → 失败（断言被删也算红，不靠 workflow 魔数）`, evaluateRun({ total: MIN_ASSERTIONS - 5, fails: 0, minAssertions: MIN_ASSERTIONS }).code === 1);
+	// 用 `MIN_ASSERTIONS_ENGINE` 现算（不写死数字）：下界一涨，这几例自动跟着走（否则每加断言都要改自证）
+	t(`${MIN_ASSERTIONS_ENGINE}/${MIN_ASSERTIONS_ENGINE} 达下界 → 通过`, evaluateRun({ total: MIN_ASSERTIONS_ENGINE, fails: 0 }).code === 0);
+	t(`${MIN_ASSERTIONS_ENGINE}/${MIN_ASSERTIONS_ENGINE}（有失败）→ 失败`, evaluateRun({ total: MIN_ASSERTIONS_ENGINE, fails: 1 }).code === 1);
+	t(`${MIN_ASSERTIONS_ENGINE - 5}/${MIN_ASSERTIONS_ENGINE - 5} 低于下界 → 失败（断言被删也算红，不靠 workflow 魔数）`, evaluateRun({ total: MIN_ASSERTIONS_ENGINE - 5, fails: 0, minAssertions: MIN_ASSERTIONS_ENGINE }).code === 1);
 	t('0/0 → 失败（0/0 假绿）', evaluateRun({ total: 0, fails: 0 }).code === 1);
 	// ★ `#1532`：★**未判也必退 1**（★与“跳过”分开：跳过允许本地退 0，未判不允许 ✓）
 	t('未判（环境缺）⇒ **必退 1**（✗ 静默绿）', unjudgedVerdict().code === 1);
-	// ★ `#1532`：★**两层各自的下界**（★★★★★★★★★★★★★★★★★★）——
-	//   ★判法：★两层**各自贴自己的下界**；★**且引擎层下界不能拿故事层的数去逗** ✗
-	//   ★为什么：★共用一个数 ⇒ ★两层必有一层**永远红**（★不是真红）；
-	//     而★为了跑绿把它改小 ⇒ ★**删乙类也会放行** ✗
-	// ★★ `#1532`（坐标裁）：★**乙类段名可注入** —— ★判法：★默认值＝**旧值**（★✗ 改旧行为）；
-	//   ★且★映射表**真的在管**：★各作用名的 `passage` 非空（★若某处改成硬编字面量 ⇒ 本格仍绿，
-	//     ★故★另有★**行为面**守它：`SG_BROWSER_STORY_MAP` 非法 ⇒ 必退 1（★实测✓））
-	// ★★ `#1532` CR（代码审查：**注入生效无近格**）：★现在抽成无副作用模块 ⇒ ★**进程内直接量** ✓
-	//   ★三格：① 注入**真生效**（★且段名与默认不同 ⇒ ★✗ 可能是“碰巧相同”）
-	//     ② 注入**逐作用名合并**（★只给一个 ⇒ ★其余落回默认 ✓）
-	//     ③ ★**非法 JSON ⇒ 出错信息且不崩**（★这是“无副作用”的可量形 ✓）
-	t('★乙类注入：**真生效**（★段名 `X` ⇒ 读到 `X`）',
-		resolveStoryMap({ env: { SG_BROWSER_STORY_MAP: '{"witchHut":{"passage":"X"}}' } }).map.witchHut.passage === 'X');
-	t('★乙类注入：**逐作用名合并**（★未给的落回默认）',
-		resolveStoryMap({ env: { SG_BROWSER_STORY_MAP: '{"witchHut":{"passage":"X"}}' } }).map.multi.passage === '岔路');
-	t('★乙类注入：★**非法 JSON ⇒ 出错信息**（★✗ 崩、✗ 静默）',
-		(() => { const r = resolveStoryMap({ env: { SG_BROWSER_STORY_MAP: '{oops' } });
-			return r.error !== null && r.map.witchHut.passage === '房间'; })());
-	// ★ `#1592` M7：**重指后**的值（旧值 `女巫小屋`／`洞穴·战斗`／`里屋`／`守林人`／`岔路` 见 git 历史 ✓）
-	//   ★且 A／B／C 三键**必须带 `story`**（✗ 否则 story 档退化回「全部格跑同一个故事页」✗）
-	t('★乙类段名可注入：★重指后的默认值（★✗ 改旧行为 —— ★A/B/C 各带 story ✓）',
-		STORY_MAP.witchHut.story === 'fruit-demo' && STORY_MAP.witchHut.passage === '房间'
-		&& STORY_MAP.hall.story === 'north-room' && STORY_MAP.hall.passage === '里屋'
-		&& STORY_MAP.keeper.story === 'mist-forest' && STORY_MAP.keeper.passage === '守林人'
-		&& STORY_MAP.multi.passage === '岔路');
-	// ★ `#1592` M7／A：★门闸常量在场且为 false（★"未判"要**可判**：真值一旦被写成 true 而对象未定 ⇒ 会挂 ✗）
-	t('★A 门闸：`A_FIGHT_FACE_READY === false`（★unblock 挂 `#1542` 阶 3 ✓）', A_FIGHT_FACE_READY === false);
-	// ★ `#1532` CR（T：本格**恒真** —— ★拿表里字面量比**同一个**字面量）。
-	//   ★改**行为面**：★把 `expect` 当正则去 `test` **夹具真串**（★假如值写错（如字序颠倒）⇒ 本格当场红 ✓）。
-	//   ★且★用**真实对象**（夹具 `north-room` 的检定名）—— ★✗ 再造一个字面量比自己 ✓
-	//   ★实测依据：★我原写的 `觉察`（**字序颠倒**）⇒ ★真值是 `察觉`（`north-room` 的 `chk:里屋·察觉.success`）✓
-	// ★★ `#1536` CR（T 的**跨边界格**建议）：★**“值对了” ≠ “值送到了”**。
-	//   ★静态扫：`ev(\`…\`)` 的**模板串里** ✗ 得出现 **node 侧的自由标识符**
-	//   （★如 `STORY_MAP`）—— ★它们在**页面侧不存在** ⇒ 抛 ⇒ ★格**恒红**（★而不是“发现了一个缺陷”）✗。
-	//   ★正解：★**node 侧先插值**（`${JSON.stringify(…)}`）⇒ ★模板串里只剩**数据字面量** ✓
-	t('★跨边界：`ev(\`…\`)` 模板串里 **✗ 出现 node 侧自由标识符**（★如 `STORY_MAP`）',
-		(() => {
-			const self = readFileSync(new URL(import.meta.url), 'utf8');
-			// ★取**所有** `ev(\`…\`)` 模板串（★非横跨：括号配平）
-			// ★取**所有** `ev(`…`)` 的模板串（★两侧 ``` 之间；★跳过 `\\` 转义 ✓）
-			const spans = [];
-			for (let i = self.indexOf('ev(`'); i >= 0; i = self.indexOf('ev(`', i + 1)) {
-				const open = self.indexOf('`', i);
-				let j = open + 1;
-				while (j < self.length) {
-					if (self[j] === '\\') { j += 2; continue; }   // ★转义对：跳**两**个
-					if (self[j] === '`') break;
-					j++;
-				}
-				spans.push(self.slice(open + 1, j));
-			}
-			// ★只查**未插值的空间**：模板串里出现 `STORY_MAP`（★未被 `${}` 包）⇒ 红
-			const bad = spans.filter((t) => /STORY_MAP/.test(t.replace(/\$\{[^}]*\}/g, '')));
-			return bad.length === 0; })());
-	t('★乙类：`hall.expect` 能**匹中检定名形的真串**（★行为面 —— ✗ 字面量比字面量）',
-		new RegExp(String(STORY_MAP.hall.expect)).test('察觉检定（感知）〔里屋·察觉〕 DC11') === true);
 	t('★两层下界**各自独立**（★引擎层：达下界绿／低一条红）',
 		evaluateRun({ total: MIN_ASSERTIONS_ENGINE, fails: 0, minAssertions: MIN_ASSERTIONS_ENGINE }).code === 0
 		&& evaluateRun({ total: MIN_ASSERTIONS_ENGINE - 1, fails: 0, minAssertions: MIN_ASSERTIONS_ENGINE }).code === 1);
-	t('★故事层下界**独立**（★引擎界的数**不能**逗它 —— ★两界**谁大谁小随实测**走，✗ 不假设故事界更大 ✓）',
-		// ★ `#1592` M7／D：★故事界随**实测在场格**下调（旧 58 ⇒ 30），已**低于**引擎界（33）
-		//   ⇒ ★故本格改判**边沿**（✗ 判"引擎界必低于故事界"那种**顺序假设** ✗）：① 低一条必红 ② 达界必绿 ③ 两界**不相等** ✓
-		evaluateRun({ total: MIN_ASSERTIONS_STORY - 1, fails: 0, minAssertions: MIN_ASSERTIONS_STORY }).code === 1
-		&& evaluateRun({ total: MIN_ASSERTIONS_STORY, fails: 0, minAssertions: MIN_ASSERTIONS_STORY }).code === 0
-		&& MIN_ASSERTIONS_STORY !== MIN_ASSERTIONS_ENGINE);
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
 	console.log('\n✔ 自证通过：CI 跳过必红 / 本地可跳 / 达下界绿 / 有失败红 / 断言被删红 / 0-0 假绿红');
 };
 if (process.argv.includes('--selftest')) { selftest(); process.exit(0); }
 
-// ★ `#1498`：零故事早退（**归并进 `bail()` 单一出口**）—— ★必须放在 `--selftest` **之后**：
-//   否则零故事态下 `--selftest` **自己**会被早退吃掉（✗ 连自证都跑不了 —— 本笔实测撞过 ✓）
-// ★ `#1532`：零故事只挡**乙类** —— 甲类（字体／版式／自证）不依赖故事 ⇒ 不该 bail
-if (!DEFAULT_SLUG && runsStory) bail('零故事模式（仓内无逐故事产物；★仅 `BROWSER_TIERS=engine` 可跑甲+丙类）');
 
 const CHROME = findChrome();
 if (!CHROME) {
@@ -290,8 +151,8 @@ if (!CHROME) {
 	}
 }
 // ★ `#1532`：★引擎层只需**书架页**；乙类（故事层）才需故事页 ✓
-if (runsStory && !existsSync(defaultStoryHtml())) bail(`${defaultStoryHtml()} 不存在，先 npm run build`);
-if (!runsStory && !existsSync(shelfHtml())) bail(`${shelfHtml()} 不存在，先 npm run build`);
+// ★ `#1597`（收窄）：story 档已撤 ⇒ ★本件只跑**引擎层**（对象＝仓内最小夹具 ✓），✗ 不再看逐故事产物 ✓
+if (!existsSync(shelfHtml())) bail(`${shelfHtml()} 不存在，先 npm run build`);
 
 // ── 静态服务 + 浏览器 ───────────────────────────────────────────
 // #363（P2）：原来这个服务器**不区分路径**，所有请求都回 dist/index.html —— 于是
@@ -410,10 +271,8 @@ const loadFresh = async (story = null) => {
 	// ★ `#1532`：★引擎层（零故事 / ★无正式故事页）跑**书架页**（`dist/index.html`）——
 	//   ★甲类断言（字体／版式）全在书架页上成立 ✓（★✗ 再要求"故事页" ✗）
 	// ★ `#1532`（修）：★**只有“没有指定故事”时才走书架页** ——
-	//   ★我第一版写成 `!runsStory || !DEFAULT_SLUG` ⇒ ★**丙类传了 `SB` 也被拉到书架页** ✗
 	//     （★实测：侧栏无血量条、链接数 0 —— ★因为根本没进故事页 ✗）
-	//   ★正解：★`goShelf = story == null && (!runsStory || !DEFAULT_SLUG)`（★**给了故事就去故事页** ✓）
-	const goShelf = story == null && (!runsStory || !DEFAULT_SLUG);
+	const goShelf = story == null && !DEFAULT_SLUG;   // ★ `#1597`：story 档已撤（✗ 不再看 runsStory ✓）
 	await send('Page.navigate', { url: `http://127.0.0.1:${PORT}/${goShelf ? 'index.html' : storyRelPath(story ?? undefined)}` });
 	for (let i = 0; i < 40; i++) {
 		await sleep(250);
@@ -504,129 +363,6 @@ const focusInfo = () => ev(`(function(){
 	};
 })()`);
 
-// 键盘用例（#284①）：一条正例序列 ＋ 一条反例自测（证明「折叠区不入序」的检查有牙）
-async function keyboardCase(W, H) {
-	await setViewport(W, H);
-	await loadFresh();
-	await ev(HELPERS);
-	// `#1004` B2b 按裁定 A 重指: 键盘序列测的是「行动区可 Tab 抵达」这一**机制**（与故事内容无关），
-	// 旧写法从 `门厅` 进（那段的行动区是旧故事专用的块名，已随 `#1227` 类四删除）。★ `#1532`：本处旧口径已过期——
-	// 2026-09-19 复测后改定 `女巫小屋`（`70f4045` 撤回 `门厅·看钉` 那行夹具后重选）：
-	// 夹具里行动区内的宏链接**全是自环/只出面板**（读数：`酒馆` 话题链接点击后 `passage` 不变且无反馈；
-	// `女巫小屋`「从炉火边拿起那件东西」/ `书房`「把案上那本日记收起来」→ **反馈由无到有**）；
-	// `女巫小屋` 行动区最大（16 条）→ Tab 面与取件面都最稳。
-	await loadFresh(runsStory ? STORY_MAP.witchHut.story : undefined);   // ★M7：story 档＝witchHut 的故事；★engine 档＝**夹具默认**（✗ 语料 slug 在夹具根里不存在 ✗）
-	await enter(STORY_MAP.witchHut.passage, `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{};`);
-	const vp = `${W}x${H}`;
-
-	// 反例自测：往正文里塞一个「关闭的 details ＋ 可聚焦链接」，先证明检查器认得出，
-	// 再证明 Tab 不会进去（原生行为）——若将来有人给折叠区里放控件又设 display 假隐藏，这条会红。
-	const negative = await ev(`(function(){
-		const box = document.querySelector('#passages .passage');
-		const d = document.createElement('details');
-		d.innerHTML = '<summary>反例折叠</summary><a href="#" id="neg-probe" tabindex="0">反例控件</a>';
-		box.appendChild(d);
-		const probe = document.getElementById('neg-probe');
-		return { exists: !!probe, closedDetected: !!probe.closest('details:not([open])') };
-	})()`);
-	check(negative.exists && negative.closedDetected, `${vp} 键盘反例自测：检查器能识别「关闭折叠区内的可聚焦控件」`);
-
-	// 正例：Tab 序列（正文 → 跳到行动 → 行动区），全程不得落进关闭的折叠区
-	const seq = [];
-	for (let i = 0; i < 30; i++) {
-		await TAB();
-		const f = await focusInfo();
-		if (!f) break;
-		seq.push(f);
-		if (f.inActs) break;                       // 到达行动区即停
-	}
-	check(seq.some((f) => f.text.includes('跳到正文')), `${vp} 键盘：首个跳转链接「跳到正文」可达（越过侧栏）`);
-	check(seq.some((f) => f.text.includes('跳到行动')), `${vp} 键盘：「跳到行动」在 Tab 序列内`);
-	check(seq.every((f) => !f.inClosedDetails), `${vp} 键盘：Tab 序列不入关闭的折叠区（走了 ${seq.length} 步）`);
-	check(seq.some((f) => f.inActs), `${vp} 键盘：Tab 能抵达行动区控件`);
-
-	// 键盘触发一次真实交互：把焦点放到**行动区里第一个可聚焦链接**再 Enter
-	// #1004 B2b 按裁定 A 重指: 原写法钉着旧故事的文案（「先看清钉子是怎么卡的」）→ 换成
-	// 与故事无关的取法（行动区/正文里第一个可聚焦链接）—— 测的仍是「Enter 能触发交互 ＋ 焦点回收」这一机制。
-	// `#1004` B2b 裁定（2026-09-19 option 3）：谓词须**两条同时成立** ——
-	// ① 落在引擎包过的行动区里（`closest('.acts')`）；② **可聚焦且未禁用**（★`#1532`：★旧写法绑 `macro-link` 类名 —— 它在仓内 **0 命中** ✗）。
-	// 实测依据：原写法 `querySelectorAll('.acts a, #passages a.link-internal')` 返的是**文档序并集**，
-	// `酒馆` 里 `pool[0]` 是裸 `[[森林边缘]]`（不在行动区）；而**只加** `closest` 谓词仍不够 ——
-	// ★ `#1532`：★故换成**行为性质**的谓词（★✗ 绑类名 —— ★books 真故事走 `link-internal` ✓）。
-	const FB_PROBE = `(function(){
-		const slot = document.querySelector('#passages .action-feedback, #passages .scene-feedback, #passages .check-result');
-		const echo = [...document.querySelectorAll('#passages *')].find(e => e.children.length === 0 &&
-			(e.textContent.includes('DC') || e.textContent.includes('d20(')));
-		return { hasFb: !!(slot || echo), cls: slot ? slot.className : (echo ? 'echo' : '-'),
-			focusInside: !!document.activeElement?.closest('#passages'),
-			focusCls: String(document.activeElement?.className || ''), passage: SugarCube.State.passage };
-	})()`;
-	// ★ `#1532`（T 的终定披露）：旧写法用 `.macro-link`（`<<link>>` 宏的类名）
-	//   ⇒ ★**books 的真故事走 `link-internal`**（散文 `[[…]]`）；★仓内 `.macro-link` **0 命中**
-	//     ⇒ ★该探针**恒空**（★做不到「能焦点的行动链接」这件事 ✗）
-	//   ★正解：★**✗ 绑类名** —— 改成「**行为性质**」三条：① 在 `.acts` 里、② 可聚焦、③ 未禁用 ✓
-	const focusedAction = await ev(`(function(){
-		const a = [...document.querySelectorAll('.acts a')]
-			.find(x => x.closest('.acts') && typeof x.focus === 'function' && !x.hasAttribute('disabled'));
-		if (!a) return false;
-		a.focus();
-		return document.activeElement === a;
-	})()`);
-	if (focusedAction) {
-		const before = await ev(FB_PROBE);
-		await ENTER();
-		await sleep(800);
-		const after = await ev(FB_PROBE);
-		// ── 半 (i)：`Enter` → **交互真被激活** —— 本片裁定后**真守护** ─────────────────────
-		// 可观察面二选一：· `passage` 变化 ／ · 反馈节点**由无到有**（`!before.hasFb && after.hasFb`）。
-		//注意：`70f4045` 撤回那行夹具后，夹具里**没有**会导航的行动区宏链接 → 只能取「反馈由无到有」这一支
-		//（读数：`酒馆` 话题链接两支皆否；`女巫小屋`「从炉火边拿起那件东西」后者成立）。
-		//★ `#1532`（`#1505` 后）：`<<sitecheck>>` **已改为段级 `check` 字段的编译期注入**（✗ 不再是段落里手写宏）——，
-		// 只判 `after.hasFb` 会在**未按键时**即为真 → 无判别力（本片实测过的假绿，勿回退）。
-		const activated = after.passage !== before.passage || (!before.hasFb && after.hasFb);
-		if (KEYBOARD_NAV_FACE_READY) check(activated,
-			`${vp} 键盘：Enter ⇒ 交互真被激活（passage ${before.passage}→${after.passage} · 反馈 ${before.hasFb}→${after.hasFb}${after.hasFb ? `〔${after.cls}〕` : ''}）`);
-		// ── 半 (ii)：焦点回收正文 —— `#1012` 修好后**转正**（用**导航型**样本）───────────
-		//注意：这半**此前从未守护**：旧写法 `rawKeyDown` 从不触发默认动作 → 交互根本没发生，
-		// `activeElement` 自然还停在原链接上 → 旧绿是**虚的**（借「按键前就为真的结果在屏」站的）。
-		//★ `#1532`：注意必须用**导航型**样本：`女巫小屋` 那类**非导航型**（就地反馈）按键前后焦点都在 `#passages` 内
-		// → `focusInside` 两向皆真 → **无判别力**（写成 `check(after.focusInside)` 就是又一个假绿）。
-		// 判据照 `docs/criterion-design.md` §八 8.5：契约＝「**焦点仍在 `#passages` 内**」 —— **不绑元素**
-		//（落 `.passage`／`.acts`／反馈槽 都算过 —— 那一层是**实现路径**）。
-		//注意：两向读数（2026-09-19 实测）：引擎侧那一手**禁用** → `focusInside=false`（落 `body`
-		// ＝本格真会红）；**启用** → `DIV.passage` → 本格**有判别力**。
-		if (!KEYBOARD_NAV_FACE_READY) {
-			console.log(`  ○ 未判：键盘「导航型样本」面（2 格）—— ★现语料里「在 \`.acts\` 内 ＋ 会换段落 ＋ 无条件」的行动链接**0 命中**（唯一带行动区的 \`fruit-demo/房间\` 其换段落链接全带 \`cond\` ✓）；★unblock＝该面对象定形后 ✓`);
-		}
-		const navTarget = await ev(`(function(){
-			window.__sg.play('酒馆');
-			const cur = '酒馆';
-			const a = [...document.querySelectorAll('#passages .acts a.link-internal')]
-				.find(x => (x.getAttribute('data-passage') ?? '') && x.getAttribute('data-passage') !== cur);
-			if (!a) return null;
-			a.focus();
-			return { label: a.textContent.trim().slice(0, 18), target: a.getAttribute('data-passage'), focused: document.activeElement === a };
-		})()`);
-		if (navTarget && navTarget.focused && KEYBOARD_NAV_FACE_READY) {
-			await sleep(300);
-			const navBefore = await ev(FB_PROBE);
-			await ENTER();
-			await sleep(800);
-			const navAfter = await ev(FB_PROBE);
-			// 两半都要能假：① **真导航**（`passage` 到目标 —— 否则就不是"导航型"样本了）；
-			// ② **焦点仍在正文内**（§6 的契约）。
-			check(navAfter.passage === navTarget.target,
-				`${vp} 键盘：Enter ⇒ **导航型**交互真发生（${navBefore.passage}→${navAfter.passage}，目标「${navTarget.label}」⇒ ${navTarget.target}）`);
-			check(navAfter.focusInside,
-				`${vp} 键盘：导航后**焦点回收正文**（焦点在正文=${navAfter.focusInside} · focus=${navAfter.focusCls.slice(0, 30)} · 「#1012」✓）`);
-		} else if (KEYBOARD_NAV_FACE_READY) {
-			check(false, `${vp} 键盘：找不到「会换段落」的行动区链接（样本变了？）`);
-		}
-	} else {
-		check(false, `${vp} 键盘：找不到可聚焦的行动链接（状态不对？）`);
-	}
-}
-
 const VP = [[360, 667], [390, 844], [1280, 844]];
 const label = (w, h) => `${w}x${h}`;
 
@@ -636,8 +372,7 @@ console.log(`   浏览器：${CHROME.replace(HOME, '~')}`);
 for (const [W, H] of VP) {
 	await setViewport(W, H);
 	// ★`#1592` M7：★**按档**载入 —— story 档各块**各自 `loadFresh(<自己的故事>)`**（✗ 从前无参 ⇒ 全格跑同一个故事 ✗）；
-	//   ★engine 档的对象面在**夹具根**里（✗ 语料 slug ✗）⇒ 无参＝夹具默认故事 ✓
-	await loadFresh(runsStory ? STORY_MAP.hall.story : undefined);
+	await loadFresh();   // ★ `#1597`：story 档已撤 ⇒ ★统一落在夹具默认故事上 ✓
 	const vp = label(W, H);
 	console.log(`\n── 视口 ${vp}`);
 
@@ -647,107 +382,6 @@ for (const [W, H] of VP) {
 
 	// ① 战斗首屏：行动入口在视口内 + 首屏空白
 	await ev(HELPERS);
-	// `#1004` B2b 复核席按**裁定 A** 重指（面级 → 重指到有该面的样本）：旧名 `雾之魔物·战` 是**已删故事**的战斗段
-	// → 换到面夹具的战斗段 `洞穴·战斗`（`<<fightbegin "雾影">>` ＋ `<<fightpanel "…" false>>`，战斗面满配）。
-	// ★★ `#1592` M7／A（裁＝**乙**）：**○ 未判 ＋ 出声** —— ★理由两条（协调席 ✓）：
-	//   ① 甲案＝复活已溶解的面（`<<fightbegin>>`/`<<fightpanel>>` 宏式战斗正是 `#1506` 溶解的对象 ⇒ 为其造夹具＝开倒车 ✗）
-	//   ② 战斗阶梯正在重做战斗面（**阶 3**〔结果渲染＋命中判定〕落地 ⇒ 新首屏形定形）⇒ 现在造任何 A 夹具都会被阶 3 作废 ✗
-	//   ★unblock 条件：**阶 3 落地后重定对象**（挂 `#1542` 链 ✓）—— ★格**保留在此**（✗ 未删断言 ✓），门闸一开即复跑 ✓
-	if (runsStory && !A_FIGHT_FACE_READY) {
-		console.log('  ○ 未判：战斗首屏面（3 视口 × 3 格）—— ★对象形未定（宏式战斗面板已随 `#1506` 溶解 ⇒ 阶 3 重定 ✓，挂 `#1542`）');
-	}
-	if (runsStory && A_FIGHT_FACE_READY) {
-		await enter(STORY_MAP.caveFight.passage, `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; delete pc.ev.fight; pc.hp=pc.max_hp;`);
-		{
-			const acts = await ev('window.__sg.rect(".acts a")');
-			const diag = await ev('JSON.stringify({p:SugarCube.State.passage,a:document.querySelectorAll(".acts a").length,hp:SugarCube.State.variables.pc.hp,f:!!SugarCube.State.variables.pc.ev.fight})');
-			check(!!acts && acts.top < H, `${vp} 战斗首屏：第一项行动在视口内（top=${Math.round(acts?.top ?? -1)} < ${H}）取景=${diag}`);
-			const firstBlock = await ev('window.__sg.rect("#passages .passage > *")');
-			check(!!firstBlock && firstBlock.top < 260, `${vp} 战斗首屏：无近整屏空白（首块 top=${Math.round(firstBlock?.top ?? -1)}）`);
-			await shoot(`${vp}-combat-first`);
-		}
-
-		// ② 战斗回合：点一手 → 检定/你/它/下一轮 相邻成块
-		{
-			const first = await ev('(function(){const a=document.querySelector(".acts a"); if(!a) return null; return a.textContent.trim();})()');
-			if (first) {
-				await ev(`window.__sg.click(${JSON.stringify(first)})`);
-				await sleep(700);
-				// 一轮的反馈块（检定/你/它/伤害）按 DOM 顺序取，测相邻块间距——漏块会把中间隔着的块算成空白
-				const gaps = await ev(`(function(){
-					const els=[...document.querySelectorAll('#passages .check-result, #passages .fight-log, #passages .damage-flash')];
-					if(els.length<2) return null;
-					const rects=els.map(el=>el.getBoundingClientRect()).sort((a,b)=>a.top-b.top);
-					let max=0; for(let i=1;i<rects.length;i++) max=Math.max(max, rects[i].top-rects[i-1].bottom);
-					return max;
-				})()`);
-				check(gaps !== null && gaps < 60, `${vp} 战斗回合：反馈相邻成块（最大间距=${gaps === null ? 'n/a' : Math.round(gaps)}px < 60）`);
-				await shoot(`${vp}-combat-round`);
-			}
-		}
-
-	}
-
-	if (runsStory) {
-		// ③ 门厅：观察结果留屏且可见
-		await ev(HELPERS);
-		await loadFresh(STORY_MAP.hall.story);   // ★M7／B：本块在**自己的故事**上跑（✗ 不再靠「当前页碰巧是它」✗）
-		await enter(STORY_MAP.hall.passage, `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; delete pc.inv['坏哨']; delete pc.world.whistle_taken;   // #1004 B2b: 夹具的场地旗标是 world.whistle_taken（旧写的 ev.hall_seen 是旧故事的）`);
-		{
-			// `#1004` B2b：入口按夹具改准（夹具 `门厅` 的观察入口叫 `看钉`；`先看清钉子是怎么卡的` 是旧故事的文案）
-			// ★ `#1532`：★**入口名由数据给**（★没给 ⇒ ✗ 点：★结果由**渲染期注入**产生）✓
-			if (STORY_MAP.hall.entry) {
-				const clk = await ev(`window.__sg.click("${STORY_MAP.hall.entry}")`);
-				await sleep(900);
-				if (!clk?.ok) console.log(`   （入口点击未命中：${JSON.stringify(clk)} passage=${await ev('SugarCube.State.passage')}）`);
-			} else {
-				await sleep(600);   // ★render-time 注入也要一拍（`Engine.DOM_DELAY`）
-			}
-			// ★ CR（T：**跨进程边界漏插值**）：下方 `ev` 的**模板串里**若直接引 `STORY_MAP`
-			//   ⇒ ★它在**页面侧**执行、**而 `STORY_MAP` 是 node 侧绑定** ⇒ ★页面侧不存在 ⇒ 抛 ⇒ 本句返 `null` ⇒ 格恒红 ✗
-			//   ★正解：**node 侧先插值**（`${JSON.stringify(…)}` —— 照 `:626`／`:706` 同形 ✓）。
-			//   ★★口径：**“值对了” ≠ “值送到了”** —— 判据跨边界 ⇒ **必须在那一侧验一次** ✓
-			const res = await ev(`(function(){
-				// #1004 B2b: 读数对准夹具的等价可观察面 —— 夹具 门厅·看钉 把结果写在**正文段落**里
-				//（旧故事放在专用容器里，该容器名已随 #1227 类四删除）。判据语义不变：**结果在屏且在视口内**。
-				const p=document.querySelector('#passages .passage'); if(!p) return null;
-				// 实况读数: 夹具这条走"点击时检定" -> 结果落在结果槽里（形如 察觉检定（感知）〔门厅·看钉〕 DC11）。
-				// （我上一版改成找正文文案「钉子旁边那圈灰」是找错了对象 —— 那句是段落正文，不是结果）。
-				const hit=[...document.querySelectorAll('#passages .check-result, #passages .scene-feedback')]
-					.find(e=>new RegExp(String(${JSON.stringify(STORY_MAP.hall.expect ?? '检定')})).test(e.textContent));
-				if(!hit) return null; const r=hit.getBoundingClientRect(); return { top:r.top, bottom:r.bottom, text:hit.textContent.slice(0,40) };
-			})()`);
-			if (!res) console.log(`   （门厅结果未找到：结果槽=${String(await ev(`document.querySelector('#passages .scene-feedback, #passages .check-result')?.textContent?.replace(/\s+/g,' ').slice(0,80) ?? 'NO'`))}）`);
-			check(!!res && res.top < H, `${vp} 门厅：观察结果留屏且在视口内（top=${Math.round(res?.top ?? -1)}）`);
-			await shoot(`${vp}-hall-result`);
-		}
-
-	}
-
-	// ★★ `#1592` M7／C（裁）：**对象未就绪 ⇒ ○ 未判 ＋ 出声**（✗ 判红、✗ 删断言）
-	//   ★对象＝`mist-forest` 第二章「守林人」（`books#26` 未落 ⇒ 章落地即**自动接上** ✓）
-	//   ★★判法是**段级**（✗ 只判"故事在不在" —— 我第一版只判故事 ⇒ `mist-forest` 在、而「守林人」段**不在**
-	//     ⇒ 格**真跑**并红（`top=-1` ✓）⇒ ★自纠：对象＝**段**，✗ 故事 ✓）
-	if (runsStory && !storyHasPassage(STORY_MAP.keeper.story, STORY_MAP.keeper.passage)) {
-		console.log('  ○ 未判：守林人面 —— 语料里没有 ' + STORY_MAP.keeper.story + ' 的「' + STORY_MAP.keeper.passage + '」段（`books#26` 第二章未落 ✓）');
-	} else if (runsStory) {
-		// ④ 守林人：子对话返回＝短入口＋行动区可见（不重放介绍）
-		await ev(HELPERS);
-		await enter(STORY_MAP.keeper.passage, `const pc=SugarCube.State.variables.pc; pc.inv=pc.inv||{}; pc.ev=pc.ev||{}; pc.keeper=pc.keeper||{}; pc.keeper.met=true;`);
-		{
-			// ⛔ **退役 ＋ 声明**（`#1004` B2b，按裁定 A 的"剧情级"半边）：原两格
-			//「**不重放首遇介绍**」（认台词「我就是守林人」）与「**子对话返回** → 行动区在视口内」
-			//（走 `问他：你守的到底是什么` → `回到守林人`）—— 那是**旧故事**的首遇门控 ＋ 子对话层；
-			// 面夹具的 `守林人` 只是一个 hub（`他拄着杖站在路口。` ＋ `<<socpanel>>`）→ 两面**都没有对象**。
-			//注意：**声明**：**「首遇门控（`keeper_intro`）＋ 子对话返回落点」这两面自此无端到端守护**
-			//（其**非真机**对偶件 `test/saveui.mjs` 那一格也已同批退役并声明）。
-			// 保留并可机检的那半：**入口块在视口内**（真机布局下不空屏）—— 改判夹具的交涉面板/首个可点项。
-			const acts = await ev('window.__sg.rect(".soc-opt, .socpanel, #passages a.link-internal")');
-			check(!!acts && acts.top < H * 0.8, `${vp} 守林人：首个可点项落在视口内（top=${Math.round(acts?.top ?? -1)}）`);
-			await shoot(`${vp}-keeper-entry`);
-		}
-
-	}
 
 	// ⑤ 放大文字 200% 仍无横向溢出
 	await ev(`document.documentElement.style.fontSize='200%'`);
@@ -757,7 +391,7 @@ for (const [W, H] of VP) {
 	await ev(`document.documentElement.style.fontSize=''`);
 }
 
-// ── `#491` 判据 5：**第三个故事**的真机三视口（本故事自己的一遍；故事 1 的用例不套用）──
+// ── `#491` 判据 5：**无车卡最小面**的真机三视口（★`#1532` 归**引擎层**：用仓内夹具 `nocar-basic` ✓）──
 {
 	// ★ `#1532`：★丙类（无车卡最小面）⇒ ★归**引擎层**（★用仓内夹具 ⇒ ✗ 不需真故事 ✓）
 	if (runsEngine) {
@@ -773,7 +407,7 @@ for (const [W, H] of VP) {
 	if (!existsSync(storyHtml(SB))) {
 		console.log(`\n（跳过无车卡最小面真机：${storyHtml(SB)} 不存在——先 npm run build）`);
 	} else {
-		console.log('\n══ 故事 2 真机三视口（#491 判据 5／无名洞窟）══');
+		console.log('\n══ 无车卡最小面 真机三视口（#491 判据 5／`nocar-basic`）══');
 		for (const [W, H] of VP) {
 			const vp = label(W, H);
 			await setViewport(W, H);
@@ -803,7 +437,7 @@ for (const [W, H] of VP) {
 			check(bar.bar, `${vp} 故事2 侧栏给出**血量条**（无车卡的最小面 · 判"有**可见**的百分比量条"——几何 > 0，✗ 只看属性）`);
 			check(bar.list, `${vp} 故事2 侧栏给出**物品栏**（判"有**可见**的列表项"）`);
 			// ③ 三选一：真机布局下至少两条路落在视口内（可点性/首屏不空）
-			await ev(`window.__sg.play("${STORY_MAP.multi.passage}")`);   // `#1004` B2b：`minimal-demo` 的多选一段叫 `岔路`（旧写法 `岔口` 是旧故事的）
+			await ev(`window.__sg.play("${'岔路'}")`);   // `#1004` B2b：`minimal-demo` 的多选一段叫 `岔路`（旧写法 `岔口` 是旧故事的）
 			await sleep(320);
 			const cards = await ev('window.__sg.blocks("#passages a.link-internal")');
 			const inVp = (cards ?? []).filter((b) => b.bottom <= H + 1).length;
@@ -820,18 +454,11 @@ for (const [W, H] of VP) {
 
 	}
 
-// #284①：键盘序列（真机按键）——单视口做即可，走 390×844
-// ★ `#1532`：★本块属**乙类**（它 `enter('女巫小屋')`）⇒ ★加 `runsStory` 闸 ✓
-if (runsStory) {
-	console.log('\n── 键盘序列（#284①，真机 Tab/Enter）');
-	await keyboardCase(390, 844);
-}
-
 if (xfails.length) {
 	console.log(`\n⚠ xfail ${xfails.length} 条（已实测不成立，**不计失败**，逐条指向承接票）：`);
 	for (const x of xfails) console.log(`   ⚠ ${x}`);
 }
-const summary = `${fails ? '✗' : '✔'} 真实浏览器验收：${fails ? `${fails} 项失败` : '全部通过'}（断言 ${total - fails}/${total} · ${VP.length} 视口 × 4 场景 ＋ 键盘序列 1 例）`;
+const summary = `${fails ? '✗' : '✔'} 真实浏览器验收：${fails ? `${fails} 项失败` : '全部通过'}（断言 ${total - fails}/${total} · ${VP.length} 视口 × 4 场景）`;
 console.log(`\n${summary}`);
 console.log(`   截图：${shots}/（${VP.length} 视口 × 4 场景）`);
 const verdict = evaluateRun({ total, fails });

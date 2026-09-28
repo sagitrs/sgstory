@@ -70,11 +70,36 @@ const STORIES = STORIES_DIR;   // \`#1128\` 产物前置用（编译器 out 路�
 		try { declared = JSON.parse(readFileSync(manifest, 'utf8')).files ?? []; } catch { declared = []; }
 		const dataDir = join(STORIES, slug, 'data');
 		const dataFiles = existsSync(dataDir) ? readdirSync(dataDir).filter((f) => f.endsWith('.json')) : [];
+		// ★`#1583`：**新鲜度**半 —— 产物齐备 ≠ 不必重编。判据原来只判 `exists` ⇒ **数据改了而产物还在**
+		//   ⇒ 整段 `compile-story` 被跳过 ⇒ **编译期守卫全不跑**（本地假绿；实测：改夹具 actor 为未宣告名
+		//   不清生成物 ⇒ rc=0 ✗，清三层后 rc=1 ＋ `[actor-ref]` ✓）。
+		//   ★口径照 `#1350` 后续笔（`scripts/dist-fresh.mjs` 的同一份）：**比内容指纹，✗ 比 mtime**
+		//   （checkout/rebase 会刷新 mtime ⇒ 比 mtime 会误报"源变新" ✗）。
+		//   ★`stale` 在这里算（`genNeeds` 保持纯函数 ✗ 碰文件系统）：本故事的 `data/*.json` 逐件比
+		//   上一轮 `INPUTS.json` 里记的 sha；**无指纹**（首建／老产物）⇒ `stale = []`（照旧跳过 ⇒ 行为不变 ✓）。
+		const stale = (() => {
+			try {
+				const fp = existsSync(join(DIST_DIR, 'INPUTS.json'))
+					? JSON.parse(readFileSync(join(DIST_DIR, 'INPUTS.json'), 'utf8')) : null;
+				if (!fp || typeof fp !== 'object') return [];
+				const out = [];
+				for (const f of dataFiles) {
+					const rel = `stories/${slug}/data/${f}`;
+					const abs = resolveStoryRel(rel);
+					const was = fp[abs] ?? fp[rel];   // 指纹键是**绝对路径**（`writeInputsFingerprint` 收 `.map(absPath)`）⇒ 两种都认
+					if (typeof was !== 'string') continue;   // ★指纹里没有该件 ⇒ 新建故事的源 ⇒ **不算陈旧**（✗ 否则新加一个 data json 会无故重编且说不出理由）
+					const now = _crypto.createHash('sha256').update(readFileSync(abs)).digest('hex').slice(0, 16);
+					if (now !== was) out.push(f);
+				}
+				return out;
+			} catch { return []; }   // 读不到 ⇒ 退回旧口径（✗ 挡住构建）
+		})();
 		const need = genNeeds({
 			declared,
 			family: (f) => isGeneratedFamily(f),
 			exists: (f) => existsSync(resolveStoryRel(f)),   // `#1267`：清单 `files` 是**符号名**（`stories/…`）→ 判存在也过换算
 			dataFiles,
+			stale,
 		});
 		if (need.needed.length) {
 			execFileSync('node', ['editor/compile-story.mjs', slug, `--out=${join(STORIES, slug)}/`], { stdio: 'pipe' });

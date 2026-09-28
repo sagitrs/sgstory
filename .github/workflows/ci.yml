@@ -119,7 +119,7 @@ jobs:
       #   ★为什么在引擎侧：books 的 PR 门只留"可编译性 ＋ 散文形态 ＋ 发布"；行为面归引擎（伞 §三 ✓）
       #   ★语料＝ books `main`（安全网对着**最新真实内容** ✓）；★sha 打印在读数里（归因面 ✓）
       #   ★跨仓 checkout **默认 token 即可**（★books 的 `pr-gate.yml` **反向**取引擎时亦未传 token ✓）
-      #   ★本步**调 plan 段同一条命令**（`scripts/corpus-smoke.mjs` ⇒ 单一权威 ✓；✗ 不在此另写一遍 ✓）
+      #   ★本步**调 plan 段同一条命令**（`node scripts/run-tests.mjs --only=corpus-books-smoke` ⇒ 单一权威 ✓；✗ 不在此另写一遍 ✓）
       - name: checkout books corpus（语料安全网）
         uses: actions/checkout@v4
         with:
@@ -129,7 +129,9 @@ jobs:
       - name: corpus smoke（books 语料：编译 ＋ 字体产物断言）
         env:
           SG_BOOKS_DIR: ${{ github.workspace }}/books
-        run: node scripts/corpus-smoke.mjs
+        # ★★改走 **plan 段**（✗ 不在这里抄命令）—— ★"plan 段＝单一权威"要**结构上**成立，✗ 靠人把路径抄对
+        #   （本片第一版抄错路径 ⇒ CI 红 ✗ 实证 ✓）；★段名可读 ⇒ 红时报文点名它 ✓
+        run: node scripts/run-tests.mjs --only=corpus-books-smoke
 
       - name: browser.mjs real-browser assertions
         env:

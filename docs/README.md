@@ -7,7 +7,7 @@
 | 我要…… | 先读 | 再读 |
 |---|---|---|
 | 改引擎 / 机制 | `docs/criterion-design.md` | `scripts/module-order.mjs` · `docs/criterion-design.md` |
-| 加 / 改门与测试 | `docs/criterion-design.md` | **`docs/criterion-design.md`**（判据设计法则 ＋ 术语表 ＋ 五条路 ＋ 变更与归档：加段登记哪几处、违约红在哪） · `docs/gate-ledger.md` · `docs/readings/ui-coverage-gaps.md` |
+| 加 / 改门与测试 | `docs/criterion-design.md` | **`docs/criterion-design.md`**（判据设计法则 ＋ 术语表 ＋ 五条路 ＋ 变更与归档：加段登记哪几处、违约红在哪） · `docs/gate-ledger.md` |
 | 要把手写 `<<if>>` 搬进条件表 | **`docs/manual/05-rules.md`**（决策树＋踩坑） | `docs/criterion-design.md` §11–§12（形状正典） |
 | 写 / 改剧情（现存故事，如 `night-ferry`） | `docs/criterion-design.md`（接入契约） | `stories/night-ferry/`（含 `EDITOR-SESSION.md`）· `docs/manual/03-prose.md` |
 | 接一个新故事 | `docs/criterion-design.md` | `docs/criterion-design.md` · `scripts/module-order.mjs`（§二 层归属） |
@@ -16,7 +16,6 @@
 | **手写一个故事包**（每类 JSON 放什么、字段逐个）——★**设计稿·待评审** | **`docs/engine/json/README.md`**（索引 · 最小集 · 编译链） | `json/` 下八份逐字段手册 · `docs/engine/authoring-model.md`（三层归位） |
 | **写作形态**（MD 放什么／JSON 放什么／条件与计算写在哪）——★**设计稿·待评审** | **`docs/engine/authoring-model.md`** | `docs/engine/reference-spec.md`（判据 J1–J3 · 词汇面） |
 | 查历史 / 作废稿（★`#1601` 后只余 `lore-canon.md`：条文锚） | `docs/archive/README.md` | — |
-| **某块做不了硬牙、又不敢删**（需要环境／时间／人判断／只是读数） | **`docs/checklist.md`**（三分处置②类的归宿：触发时机＋读数＋谁看） | `docs/criterion-design.md` §六 6.4（判据与对象同生同死） |
 
 ## 二、权威表（谁说话算数）
 
@@ -32,7 +31,7 @@
 | 目录 / 文件层说明 | `scripts/module-order.mjs` | 手写 |
 | 门的登记与接线 | `docs/gate-ledger.md` | **生成物** |
 | 节奏 / 相异度基线 | `docs/readings/baselines.md` | **生成物** |
-| UI 盘点 / 覆盖缺口 | `docs/ui-inventory.md` · `docs/readings/ui-coverage-gaps.md` | 手写 ＋ 机检 |
+| UI 盘点 / 覆盖缺口 | `docs/ui-inventory.md` | 手写 ＋ 机检 |
 | 玩家可见正文漂移 | `docs/ui-migration-diff.md` | **生成物** |
 
 ## 三、全量清单
@@ -56,7 +55,6 @@
 | `docs/benchmark-ledger.md` | 55 | 台账 | 质量对标台账（`#297`）：12 款竞品 ＋ 触发条件 ＋ 复核写回；★**门 F6**（`report:freshness --ledger`）**直读它** ⇒ ✗ 不得删 ✓ |
 | `docs/manual/README.md` | 63 | 手册 | 引擎功能手册目录与**准入条**（按功能组织）|
 | `docs/manual/03-prose.md` | 66 | 手册 | §3 散文面：能写什么／禁什么＋**可用宏清单（从引擎派生）** |
-| `docs/credits.md` | 20 | 参考 | 参考资源 ＋ 第三方鸣谢 |
 | `docs/ui-migration-diff.md` | 16 | **生成物** | `node scripts/ui-migration-diff.mjs` |
 | `docs/engine/README.md` | 42 | **设计稿·待评审** | `docs/engine` 索引：本期（论证层）读序 ＋ 与既有权威的关系 |
 | `docs/engine/data-model.md` | 146 | **设计稿·待评审** | 数据模型：角色状态 `pc` ＋ 袋外变量 · 五类分区 · 结算三条通道（含为何声明面只有三格且必须幂等） |

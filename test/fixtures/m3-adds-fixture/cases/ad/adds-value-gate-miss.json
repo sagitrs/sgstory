@@ -1,0 +1,7 @@
+{
+	"id": "ad/adds-value-gate-miss",
+	"story": "ad",
+	"why": "同格**负控**（防空判）：只咬一次（值 5 < 10）⇒ `gte` 那行**不出现**、`lt` 那行**出现** ⇒ 证两行**互斥**（迁自 books `fruit-demo/mood-below` 的能力半）",
+	"drive": { "clicks": ["咬一口", "回房间"], "state": {}, "seed": 1 },
+	"expect": { "visible": ["值不够就看这里"], "absent": ["值够了就去看看"], "state": [], "edges": [] }
+}

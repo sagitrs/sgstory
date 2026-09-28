@@ -1,0 +1,7 @@
+{
+	"id": "any-basic/any-none",
+	"story": "any-basic",
+	"why": "`any` **负控**：两个键都不成立 ⇒ 该行**不得**渲染（`any` ✗ 等于『无条件通过』）—— 迁自 books `north-room/any-none`／`mist-forest/any-gate-closed` 的**能力半**",
+	"drive": { "clicks": [], "state": {}, "seed": 12345 },
+	"expect": { "visible": [], "absent": ["开门进里间"], "state": [], "edges": [] }
+}

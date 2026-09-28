@@ -1,0 +1,16 @@
+{
+ "slug": "any-basic",
+ "title": "any 条件最小夹具",
+ "subtitle": "引擎侧夹具（`#1592` M2）：服务 `any` 语义（命中／不命中成对）—— 迁自 books `mist-forest`／`north-room` 的能力半",
+ "entry": "厅",
+ "contractVersion": 1,
+ "audience": "internal",
+ "files": [
+  "stories/any-basic/00-meta.twee",
+  "stories/any-basic/passages/01-厅.md",
+  "stories/any-basic/passages/02-里间.md",
+  "stories/any-basic/15-tables.twee",
+  "stories/any-basic/17-rules.twee"
+ ],
+ "gates": []
+}

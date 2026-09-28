@@ -1,0 +1,7 @@
+{
+	"id": "gate-basic/req-after",
+	"story": "gate-basic",
+	"why": "`req` 条件选项**成对之『后』**：拿到钥匙 ⇒ 内门**必须**出现且可点（迁自 books `north-room/gated-choice-after`）",
+	"drive": { "clicks": ["拾起钥匙"], "state": {}, "seed": 12345 },
+	"expect": { "visible": ["推开内门"], "absent": [], "state": [], "edges": [ { "from": "房", "label": "推开内门", "to": "内室" } ] }
+}

@@ -1,0 +1,7 @@
+{
+	"id": "any-basic/any-first-true",
+	"story": "any-basic",
+	"why": "`any` **正控（第一支命中）**：`any[0]` 成立 ⇒ 该行渲染 ⇒ 边可点 —— 迁自 books `mist-forest/any-gate-open` 的能力半",
+	"drive": { "clicks": ["拿起甲"], "state": {}, "seed": 12345 },
+	"expect": { "visible": ["开门进里间"], "absent": [], "state": [], "edges": [ { "from": "厅", "label": "开门进里间", "to": "里间" } ] }
+}

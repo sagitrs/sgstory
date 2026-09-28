@@ -19,7 +19,7 @@ import { scriptBodies } from '../core/text.mjs';
 import { compileStory } from '../core/emit.mjs';
 import { scriptSyntaxProblems } from '../core/segment-syntax.mjs';   // `#1176`：生成件脚本段语法检查（纯函数，解析器注入）
 import { packageFiles, writeStoryPackage, sectionFile, metaTwee, expandSources } from '../core/story.mjs';   // ★`#1486`：三源合并（`sources[]`）接进编译期读路
-import { mergeLinksIntoRules, compileRowEffectsIntoLinks, unmappedLinkFields, LINK_FIELDS } from '../core/passages-links.mjs';
+import { mergeLinksIntoRules, compileRowEffectsIntoLinks, unmappedLinkFields, unmappedRowFields, LINK_FIELDS, ROW_FIELDS } from '../core/passages-links.mjs';
 import { actorRefsOf, undeclaredActorProblems, eventRefsOf, undeclaredEventProblems } from '../core/audit-shared.mjs';   // ★`#1571`（1c）：声明面引用的**实体名**必须已宣告（编译期点名，✗ 等到玩家）   // `#1350` 片 3：段落数据 → 规则行同形   // `metaTwee`：`#1132` B4 元数据段的单一权威形状
 import { unknownDomainWords } from '../core/vocab.mjs';
 import { runStory, engineOf } from './sandbox.mjs';
@@ -125,6 +125,8 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 	// `#1350` 片 3：段落数据（`data/passages.json`）的 `links[]` **合成进规则行** ⇒ 渲染口（`<<rules>>`／
 	// `<<rulelist>>`）**零改动**即可接上；条件求值仍走 `Sg.rules.matches` **一处权威** ✗ 不在渲染面二次求值。
 	const passagesData = readIf('passages.json');
+	// ★ `#1586`：**手写**规则行（原样 —— ✗ 不用 merge 后的：链接来的行其字段已由 `LINK_FIELDS` 把关 ✓）
+	const rules0 = readIf('rules.json');
 	const rulesMerged = mergeLinksIntoRules({ rules, data: passagesData });
 	// ★ `#1468`：**行效果编进链接**（✗ 不进规则行 —— 否则 `<<rulelist>>` 渲染期就落效果 ✗）
 	const rulesCompiled = compileRowEffectsIntoLinks({ rules: rulesMerged });
@@ -139,8 +141,9 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 		}
 		if (bad.length) {
 			for (const b of bad) console.error(`✗ [links-fields] ${b}`);
-			console.error('✗ `passages.json` 的 `links[]` 里有**映射白名单外**的字段 —— 它们会被静默丢弃，故不写出产物'
-				+ `（白名单：${LINK_FIELDS.join('／')}）`);
+			console.error('✗ `passages.json` 的 `links[]`／`rules.json` 的 `rows[]` 里有**映射白名单外**的字段'
+				+ ' —— 它们会被静默丢弃，故不写出产物'
+				+ `（链接白名单：${LINK_FIELDS.join('／')}｜规则行白名单：${ROW_FIELDS.join('／')}）`);
 			return 1;
 		}
 	}
@@ -174,6 +177,19 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 			for (const m of bad) console.error(`✗ [event-ref] ${m.why}`);
 			console.error('✗ 声明面引用了**未宣告的事件名** ⇒ 该调用**会在运行时才炸**（✗ 静默无效）'
 				+ ' ⇒ 先在 `data/events.json` 的 `events` 里声明它（`#1562` 阶 2a）');
+			return 1;
+		}
+	}
+	// ★★ `#1586`：**规则行**（`rules.json` 的 `rows[]`）也有这道点名了。
+	//   ★此前只有**链接**侧有（`#1406` ⑤）⇒ 规则行写拼错/未知字段＝**静默丢弃** ✗
+	//   ★同一条纯函数核心（`unmappedFieldsOf`）⇒ 两条路径**同一把尺子** ✓（与 `#1582` 的 actor 口径同理）
+	//   ★**✗ 嵌在链接那个 `if` 里**：没有 `passages.json` 的故事（出边走规则行的那型）照样要判 ✓（本片第一版踩过）
+	{
+		const badRows = unmappedRowFields({ rows: (rules0?.rows ?? []) });
+		if (badRows.length) {
+			for (const q of badRows) console.error(`✗ [links-fields] ${q}`);
+			console.error('✗ `rules.json` 的 `rows[]` 里有**映射白名单外**的字段 —— 它们会被静默丢弃，故不写出产物'
+				+ `（规则行白名单：${ROW_FIELDS.join('／')}）`);
 			return 1;
 		}
 	}

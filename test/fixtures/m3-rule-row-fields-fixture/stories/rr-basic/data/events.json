@@ -1,0 +1,14 @@
+{
+ "section": "Game Events",
+ "note": "★`#1562` 阶 2a：事件声明面（★本笔只落**声明＋引用**；求值／分派＝阶 2b）",
+ "events": {
+  "斩": {
+   "label": "斩",
+   "value": 3,
+   "properties": [
+    "weapon"
+   ],
+   "note": "★声明面：`use`／`effect` 等属阶 2b（本笔不解析 ✓）"
+  }
+ }
+}

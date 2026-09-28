@@ -192,7 +192,10 @@ if (!existsSync(join(ROOT, FIX_FROM))) {
 		try {
 			build(({ dir, read, write }) => {
 				const rp = join(dir, 'data', 'rules.json'); const rd = read(rp);
-				rd.rows = [{ id: '规则.劈', to: '战果', actor: '木桩', gives: ['x'], label: '劈' }];
+				// ★`#1586`：本格原来用的是 `{ to, label }` —— ★那是**链接**字段，**规则行**的 label／to 住在 `text` 里
+				//   （`linksToRows` 就是把 `[[label|to]]` 编进 `text` ✓）⇒ ★本笔的**规则行白名单点名**一上就把这行
+				//   判红了（＝"点名有牙"的实证 ✓）⇒ 改成**合法的行形**（判据的**意**不变：规则行的 `actor` 会被编译期查 ✓）
+				rd.rows = [{ id: '规则.劈', scope: '开场', text: '[[劈|战果]]', actor: '木桩', gives: ['x'] }];
 				write(rp, rd);
 			});
 		} catch { ok7b = false; }

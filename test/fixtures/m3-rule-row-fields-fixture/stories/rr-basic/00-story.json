@@ -1,0 +1,17 @@
+{
+ "slug": "rr-basic",
+ "title": "规则行字段面夹具",
+ "subtitle": "★`sgstory#1586`：**规则行路径**（`rules.json` 的 `rows[]` ⇒ `<<rules>>` 渲染）—— 字段面与链接路径**对齐**（`use`⇒`data-sg-call`；`adds`/`takes`/`actor`⇒`data-sg-effects`）",
+ "entry": "开场",
+ "contractVersion": 1,
+ "audience": "internal",
+ "files": [
+  "stories/rr-basic/00-meta.twee",
+  "stories/rr-basic/passages/01-开场.md",
+  "stories/rr-basic/passages/02-战果.md",
+  "stories/rr-basic/15-tables.twee",
+  "stories/rr-basic/17-rules.twee",
+  "stories/rr-basic/19-events.twee"
+ ],
+ "gates": []
+}

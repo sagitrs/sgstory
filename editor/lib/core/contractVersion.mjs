@@ -64,7 +64,11 @@ export const DECLARED = Object.freeze({
 	'rules.json': Object.freeze({
 		topKeys: Object.freeze(['key', 'rows', 'section']),
 		items: Object.freeze({
-			rows: Object.freeze(['any', 'exclude', 'id', 'prio', 'req', 'scope', 'sets', 'text', 'yields']),
+			// ★ `#1586`：与 `passages-links.mjs` 的 `ROW_FIELDS` **同源**（✗ 两处各写一份 ⇒ 必漂移：
+			//   本行原缺 `gives`／`args`／`prereq` 与后加的 `adds`／`takes`／`actor`／`use` ⇒ 已对齐 ✓；
+			//   ★该件的判据件断"两表逐字同"（`test/passages-links.mjs`）⇒ 单一天由**断言**钉住 ✓）
+			rows: Object.freeze(['id', 'scope', 'text', 'prio', 'prereq', 'req', 'any', 'exclude',
+				'args', 'gives', 'sets', 'yields', 'adds', 'takes', 'actor', 'use']),
 		}),
 	}),
 });

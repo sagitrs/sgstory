@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// `#1592` M5（引擎语料跑 · 安全网）：**用 books 真语料**在**引擎 CI** 里跑「编译 ＋ 字体产物 »`[+ story 档]`。
+// `#1592` M5（引擎语料跑 · 安全网）：**用 books 真语料**在**引擎 CI** 里跑「编译 ＋ 字体产物」。
 //
 // ★为什么在引擎侧（伞 §三）：books 的 PR 门只留"可编译性 ＋ 散文形态 ＋ 发布"；
 //   ★而"`any` 是或不是与""`req` 未满足不出现"这类**行为回归**归引擎（M2 已把对象迁进引擎夹具 ✓）。
@@ -9,7 +9,8 @@
 //   ① 宿主＝ engine CI 的 `realmachine` job（它**已有** chromium ＋ **fonttools**）
 //   ② 语料 ref ＝ books `main`（安全网要对着**最新真实内容**；★并打印检出 sha 供归因 ✓）
 //   ③ 无 books 检出 ⇒ **○ 未判（rc=0 ＋ 出声）**（✗ 不假装判过 ✓；✗ 不当失败 ✓）
-//   ④ 本笔＝M5＋M7 同笔（M7＝story 档迁宿主）
+//   ④ ★`#1597`（**收窄**）：★原「M7＝story 档迁宿主」已**撤**（操作者边界收严 ⇒ 非必要不保留 ✓）
+//      ⇒ ★本段只留 ①②＋sha 归因＋未判出声；★story 档（含逐故事格／映射表）✗ 不在此段跑 ✓
 //
 // ★★预飞实测（本片）探到的**空转洞**（＝ `books#38`）：books 的 `pr-gate` **没装 fonttools**
 //   ⇒ `build.mjs` 的字体子集"**优雅跳过**"⇒ 产物**无 `#font-face`** ⇒ `test/browser.mjs` 的就绪守卫 **bail**
@@ -56,7 +57,8 @@ try {
 	t('① 语料编译 ⇒ rc=0', false, `${String(e?.stdout ?? '')}${String(e?.stderr ?? '')}`.split('\n').filter(Boolean).slice(-3).join(' ｜ ').slice(0, 300));
 }
 
-// ② ★字体产物硬断言（**防空转**：缺 fonttools ⇒ build "优雅跳过" ⇒ 无 `#font-face` ⇒ story 档会静默跳过 ✗）
+// ② ★字体产物硬断言 —— ★它是**引擎输入契约**的自测（★缺 fonttools ⇒ `build.mjs` **优雅跳过**字体 ⇒ 产物里
+//    无 `#font-face`／无 `dist/fonts/*.woff2` ✗）⇒ ★「产物在场」必须**硬断言**（✗ 不许把「没报错」当过 ✓）
 {
 	const fontsDir = join(corpusDir, 'dist', 'fonts');
 	const woff = existsSync(fontsDir) ? readdirSync(fontsDir).filter((f) => f.endsWith('.woff2')) : [];
@@ -64,20 +66,6 @@ try {
 		woff.length === 2, `实得 ${woff.length} 个（缺 fonttools？⇒ \`pip install fonttools brotli\` 后重跑 ✓）`);
 }
 
-// ③ story 档（M7）：★**默认跑** —— ★开关＝`CORPUS_STORY_TIER=0` **显式关**（本地无 Chrome 的便利口 ✓）
-//   ★对象归属已分治落地（每键带 `story` ＋ 每格自载 ✓）；★A（战斗首屏）与键盘「导航型样本」面＝**○ 未判 ＋ 出声**
-//     （对象未定形 ⇒ 见 `test/browser.mjs` 的两只门闸常量 ＋ 各自 unblock 条件 ✓）；★本机真跑：**30/30 绿** ✓
-if (process.env.CORPUS_STORY_TIER !== '0') {
-	try {
-		execFileSync(process.execPath, [join(ROOT, 'test', 'browser.mjs')], {
-			cwd: ROOT, env: { ...process.env, SG_STORIES_DIR: stories, BROWSER_TIERS: 'story', CI_REQUIRE_BROWSER: '1' }, stdio: 'inherit',
-		});
-		t('③ story 档（语料）⇒ rc=0', true);
-	} catch { t('③ story 档（语料）⇒ rc=0', false, '见上方逐条读数'); }
-} else {
-	console.log('  ○ ③ story 档：**显式关**（`CORPUS_STORY_TIER=0`）—— ★CI ✗ 不设它 ⇒ 真跑 ✓');
-
-}
 
 if (bad) { console.error(`\n✗ 语料安全网失败 ${bad} 项`); process.exit(1); }
-console.log('\n✔ 语料安全网通过（编译 rc=0 ＋ 字体产物在场；story 档见上）');
+console.log('\n✔ 语料安全网通过（编译 rc=0 ＋ 字体产物在场）');

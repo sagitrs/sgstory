@@ -233,7 +233,7 @@ export const SEGMENTS = [
 	// 跨语言（twee 不能 import JS）故双份**故意存在**，但**不许悄悄漂移**（改名 → 格红 探针式）。cost 0（纯读码）。
 	{ id: "test-readkey-family-mjs", phase: 'test', cost: 0, cmd: "node test/readkey-family.mjs",
 		inputs: ['*'] },
-	// `#1141`：**md 故事段落对两处面可见**（`ui-migration-diff` 的 parsePassages／`engine-story-free` 的 scriptBodies）→ 读 md 源与 core 分派面 → 全跑型
+	// `#1141`：**md 故事段落对一处面可见**（`engine-story-free` 的 scriptBodies）→ 读 md 源与 core 分派面 → 全跑型
 	// `#1157`：**报文自带作用域** —— 跑真入口（`scripts/audit.mjs`）取首行对象头 → 面＝整个审计驱动器 → 全跑型
 	// 车道 D · `--settle`（`#215` 报备 `18504699`）：**落点文案页内面** —— 页内与 CLI **同一份判据**（`core/settleRows.mjs` → 两侧同判 ＋ 非空上的同判；读故事源 ＋ `web/**` ＋ `scripts/audit/context.mjs` → 无前置；jsdom → cost 0.4）。
 	// `#794` P1①：「故事包 I/O ＝ 唯一写路」的自证（核心在 `editor/lib/core/story.mjs`；含**写侧哨兵**：拒绝型 io → 写入当场失败）。
@@ -312,8 +312,6 @@ export const SEGMENTS = [
 	// 基线用 `origin/main`（CI 里可达：工作流有 `git fetch origin main --depth=1`；那个 92f3d04
 	// 迁移基线在浅克隆里取不到——脚本现在会**明确报错**而不是把"读不到"当成"没变化"）。
 	// 报告落 `build/`（gitignored）→ CI 不脏树；本地想看文档版就按 README 直接跑脚本（默认写 docs/）。
-	{ id: 'scripts-ui-migration-diff-selftest', phase: 'test', cost: 0, cmd: 'node scripts/ui-migration-diff.mjs --selftest' },
-	{ id: 'scripts-ui-migration-diff-check', phase: 'test', cost: 0.4, cmd: 'node scripts/ui-migration-diff.mjs --check --baseline=origin/main --out=build/ui-migration-diff.md' },
 	// main 侧新增（#360 交涉筹码按类型分派）：reb 冲突时按「计划＝单一权威」加在这里
 	// `#1261`：原 `needs: ['test-render-all-mjs']` 随该段下架而移除（前置不再存在）。
 	{ id: "test-size-gate-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/size-gate.mjs --selftest" },
@@ -687,8 +685,6 @@ export const SUITE_MEMBERS = {
 		'scripts-audit-mjs-text-check', 'scripts-audit-mjs-state-check', 'scripts-audit-mjs-literals-check', 'scripts-audit-mjs-slots-check',
 		'scripts-audit-mjs-status-check', 'scripts-audit-mjs-waves-check', 'scripts-audit-mjs-facade-call-check',
 		'scripts-audit-mjs-engine-story-free', 'scripts-audit-mjs-roads-check',
-		'scripts-ui-migration-diff-selftest',
-		'scripts-ui-migration-diff-check',
 		'test-globals-mjs',
 		'test-rules-core-mjs',   // `#1438` 拆段：只读 `Game.Rules` 的规则核层（接夹具根 ⇒ 进链真跑 ✓）
 		'test-globals-mjs-selftest',
@@ -965,7 +961,6 @@ export const SUSPENDED = {
 	// `#1315`：`test-audit-gates-run-mjs` **已撤挂** —— 它的 CLI 半段改成**未判**口径
 	// （零故事 ⇒ 出声"未判"、不算红），机制面仍由同段的**纯函数格**看着护 ⇒ 不再需要挂起。
 	'test-story-ci-mjs': { why: '用户故事 CI：链内跑 `editor/story-ci.mjs` ⇒ **零故事态**（仓内 `stories/` 不存在）下「发现到 0 个故事 ⇒ 不许判过」必红 ✗（单跑 `test/story-ci.mjs` rc=0 是它自己的零故事分支 ⇒ **两态不同形**）；why 未失效 ⇒ 留挂起', until: '#1315 审计：需与零故事口径同笔改后再撤' },
-	'scripts-ui-migration-diff-selftest': { why: '自证格里“默认故事”概念在零故事下失效（对象＝迁移比对工具）', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'test-contract-version-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },
 	'test-cond-keyform-mjs': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1279（M1 尾件回填复验：已裁：默认＝"在生效故事根下存在且可读"）' },
 	'test-cond-keyform-mjs-selftest': { why: '对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺', until: '#1279（M1 尾件回填复验：本轮未定，下轮复跑）' },

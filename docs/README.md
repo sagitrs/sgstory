@@ -31,8 +31,7 @@
 | 目录 / 文件层说明 | `scripts/module-order.mjs` | 手写 |
 | 门的登记与接线 | `docs/gate-ledger.md` | **生成物** |
 | 节奏 / 相异度基线 | `docs/readings/baselines.md` | **生成物** |
-| UI 盘点 / 覆盖缺口 | `docs/ui-inventory.md` | 手写 ＋ 机检 |
-| 玩家可见正文漂移 | `docs/ui-migration-diff.md` | **生成物** |
+| UI 盘点 / 覆盖缺口 | —（★`#1606` 执行笔：`ui-inventory`／`ui-migration-diff` 与其生成器**一套退** ✓） | 手写 ＋ 机检 |
 
 ## 三、全量清单
 
@@ -44,7 +43,6 @@
 | `docs/criterion-design.md` | 274 | 权威 | 故事 2/3 的接入契约清单 |
 | `docs/criterion-design.md` | 273 | 权威 | 维度总表 ＋ 候选池 ＋ 给测试的作业模板 |
 | `docs/criterion-design.md` | 217 | 权威 | 三类划分 ＋ 判定口诀 ＋ 迁移五步 |
-| `docs/ui-inventory.md` | 201 | 盘点 | 段落与交互元素清单；**生成物 · 随样本漂移（含故事 1 读数，`#1077` 降级标注）** |
 | `docs/criterion-design.md` | 130 | 权威 | 两层边界与接入契约 |
 | `docs/manual/12-data.md` | 97 | 口径 | 必需／可选／不做三栏 ＋ 判定三问 ＋ 与同类格式对照 |
 | `docs/gate-ledger.md` | 92 | **生成物** | `npm run report:gates:update`（**不要手改**） |
@@ -55,7 +53,6 @@
 | `docs/benchmark-ledger.md` | 55 | 台账 | 质量对标台账（`#297`）：12 款竞品 ＋ 触发条件 ＋ 复核写回；★**门 F6**（`report:freshness --ledger`）**直读它** ⇒ ✗ 不得删 ✓ |
 | `docs/manual/README.md` | 63 | 手册 | 引擎功能手册目录与**准入条**（按功能组织）|
 | `docs/manual/03-prose.md` | 66 | 手册 | §3 散文面：能写什么／禁什么＋**可用宏清单（从引擎派生）** |
-| `docs/ui-migration-diff.md` | 16 | **生成物** | `node scripts/ui-migration-diff.mjs` |
 | `docs/engine/README.md` | 42 | **设计稿·待评审** | `docs/engine` 索引：本期（论证层）读序 ＋ 与既有权威的关系 |
 | `docs/engine/data-model.md` | 146 | **设计稿·待评审** | 数据模型：角色状态 `pc` ＋ 袋外变量 · 五类分区 · 结算三条通道（含为何声明面只有三格且必须幂等） |
 | `docs/engine/decisions.md` | 52 | 台账 | 裁定状态栏：已裁（9 条）／本稿主张（待裁 5 条）／待定（7 条） |
@@ -66,7 +63,7 @@
 
 ## 四、口径与惯例
 
-- **生成物不要手改**：`docs/readings/baselines.md`（`report:rhythm`）· `docs/gate-ledger.md`（`report:gates:update`）· `docs/ui-migration-diff.md`。
+- **生成物不要手改**：`docs/readings/baselines.md`（`report:rhythm`）· `docs/gate-ledger.md`（`report:gates:update`）· md`。
 - **状态标记必须是真的**：文档里 `#NNN`／PR 号旁边的 ✅／⏳ 要与 GitHub 真实状态同类 —— `npm run report:freshness`（`docs/criterion-design.md` F6 节）。
 - **文档格式有门**：`node scripts/md-format.mjs` —— ① 每个 `*.md` 的围栏必须成对、标题不许落在代码块里（`#603`；`README.md` 曾因一个多余的围栏让四个标题被吞）；② **反引号里的仓内路径必须存在**（`#606` 片一；`src/*.twee` 搬家后曾有 11 处引用未更新，已修）；③ **入口页体量 ratchet**：`README.md` ≤ 120 行（防它再长回 godfile）；④ **残留冲突标记必红**（`#1084`）：行首带尾随内容的 `<<<<<<< `/`>>>>>>> ` → 红并点名（解 rebase/merge 冲突没删净——实测游离 `>>>>>>>` 进过 commit 而三门全绿）；裸 `=======` 是合法 Markdown（setext／分隔线）不单独判，只在被夹住时附报。
 - **要引用已消失的历史路径**：同行写 `<!-- path-exempt: 理由 -->`（门会**留痕打印**豁免，便于收编 —— 别用它掩盖真错误）。

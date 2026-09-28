@@ -420,9 +420,8 @@ export const proseEventProblems = ({ defs = null, where = '事件声明' } = {})
 	const isObj = (x) => x && typeof x === 'object' && !Array.isArray(x);
 	for (const [name, ev] of Object.entries(defs ?? {})) {
 		if (!isObj(ev)) { out.push({ code: 'prose-event-shape', why: `${where}：事件「${name}」必须是对象（拿到 ${JSON.stringify(ev)}）` }); continue; }
-		for (const k of Object.keys(ev)) {
-			if (!EV_KEYS.has(k)) out.push({ code: 'prose-event-field', why: `${where}：事件「${name}」有**白名单外字段**「${k}」（合法：${[...EV_KEYS].join('／')}）⇒ ✗ 装配错名字会静默不生效` });
-		}
+		// ★(阶3 实测反证) **事件级字段白名单**已删 —— ★2b 的事件本就有 `value`／`properties` 等事件级字段 ✓
+		//   ⇒ ★加严会**打破既有夹具**（✗ 回归）⇒ ★只保留 **子句级**白名单（那是 2b 定死的 ✓）。
 		const hasText = ev.text != null;
 		const hasUse = ev.use != null;
 		if (hasText && hasUse) out.push({ code: 'prose-event-mix', why: `${where}：事件「${name}」**同时**有 \`text\` 与 \`use\` ⇒ ✗ 散文事件与控制事件**互斥**（B′：有 text ⇒ 散文；有 use ⇒ 控制）` });

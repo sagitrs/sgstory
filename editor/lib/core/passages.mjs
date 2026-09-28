@@ -122,7 +122,7 @@ export const danglingProblems = ({ name, body, passages, known }) => {
  * 为什么不合并报错：①②**共用 `{{}}` 命名空间** ⇒ 撞名要**换维**点名（与"缺值"不同形），
  * 否则读者分不出"该给值而没给"与"两个东西撞了名"（两种病、两种修法）。
  * 另：**只认本段 `params`**（别人的入参在本段不可见 ⇒ 报）；`required` 无 `default` 且调用处未传 ⇒ 报。 */
-export const valueRefExpand = ({ name, body, terms, params = {}, slot = null, slots = null, args = null, bindings = null }) => {
+export const valueRefExpand = ({ name, body, terms, params = {}, slot = null, slots = null, args = null, bindings = null, wrap = null }) => {
 	// ★ `#1569`（阶 3）：事件文本的槽 `bindings`（槽名 ⇒ 编译期替换串）。★扩展**本**函数（✗ 不造第二套 {{名}} 管线）。
 	// 双向完备：未绑 ⇒ 报｜多给 ⇒ 报（票面「槽名重复 ⇒ 抛」按上下文配对读作**多给 ⇒ 抛**）。
 	const problems = [];
@@ -139,7 +139,7 @@ export const valueRefExpand = ({ name, body, terms, params = {}, slot = null, sl
 		//   换了宏就变成"另一个运行时口"，而落位本是**编译期**就能定的事 ✗ —— 实测：换成 `<<print_SLOT>>` 会让片 4 接不上 ✗）
 		if (slotSet.has(n)) return '{{' + n + '}}';
 		// ★(阶3) 本子句绑定表**优先于**入参／世界态（✗ 不回落段级 {{名}}）
-		if (bindings && Object.prototype.hasOwnProperty.call(bindings, n)) { served.add(n); return String(bindings[n]); }
+		if (bindings && Object.prototype.hasOwnProperty.call(bindings, n)) { served.add(n); const v = String(bindings[n]); return wrap ? wrap(v) : v; }
 		// 入参：**引擎侧宏**（运行期取值 ⇒ ✗ 不烘值）—— 形态见 `docs/engine/json/tables.md` §11.2
 		if (pkeys.includes(n)) return '<<printparam "' + n + '">>';
 		// 世界态取值：**既有形态** `$pc.<名>`（✗ 不另造宏名）

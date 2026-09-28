@@ -319,10 +319,15 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 							const res = window.Sg.events.call(rawCall, { actor: eff.actor ?? null });
 							// ★(阶3) **结果渲染**：★选中子句带 `text` ⇒ 用**产物宏**渲染（★编译期成宏 ⇒ 产物里不留 {{槽}} ✓）
 							//   ★`renderArgs` 经 `State.temporary` 作**唯一**入参（★槽只认本子句绑定表 ✓）
-							if (res && res.text) {
-								State.temporary.sgargs = res.renderArgs;
+							// ★(阶3) **结果渲染**：★编译期生成的渲染函数（★`{{槽}}` 已在产物里展开 ⇒ ✗ 无第二套插值 ✓）
+							//   ★落页：★追加一个 `<span class="sg-text">`（★纯文本 ⇒ ✗ 不引第二套 markup 口 ✓）
+							const render = res && res.text ? (window.Game?.Events?.render ?? {})[res.text] : null;
+							if (render) {
 								const host = control.closest('.passage') ?? document.getElementById('passages');
-								jQuery(host).wiki('<<' + res.text + ' _sgargs>>');
+								const span = document.createElement('span');
+								span.className = 'sg-text';
+								span.textContent = String(render(res.renderArgs));
+								host.appendChild(span);
 							}
 						} catch (err) {
 							const msg = String(err && err.message || err);

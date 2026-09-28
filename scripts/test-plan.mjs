@@ -174,6 +174,10 @@ export const SEGMENTS = [
 	//（`DELETED_STORY_DOCS` 显式对照表 → archive 口径有牙）· 先读列（除 dev-conventions，单列 #1080）
 	// 体量 ratchet ≤150KB（口径与数字＝#1077 验收②裁定）。纯读 docs/README.md → 无前置。
 	{ id: "test-docs-read-path-mjs", phase: 'test', cost: 0, cmd: "node test/docs-read-path.mjs" },
+	// `#1606`：**docs 分类表双向门** —— ★"表即工件"：本段读 `docs/CLASSIFICATION.md` 本身 ＋ 与树对差
+	//   （树∖表 ⇒ 未分类红｜表∖树 ⇒ 幽灵行红｜重复/空表/空类 ⇒ 红）。★为什么需要：本仓 7/13 被引件删掉是**静默**的
+	//   ⇒ ★"动了它有没有处置"原本没有门看得见 ⇒ 表入仓 ＋ 门读它 ⇒ 那一类变**机械红** ✓
+	{ id: "test-docs-classification-mjs", phase: 'test', cost: 0, cmd: "node test/docs-classification.mjs" },
 	// `#1114` 片1：散文层拼装判据（纯函数注入 无前置 ——正例/禁则红/悬空点名/取值/逐字/单权威 成对）
 	// `#1350` 片 3/5：`links[] → 规则行同形`（纯函数；含"带 slot 的不入表"等能假）
 	{ id: "test-passages-links-mjs", phase: 'test', cost: 0.3, cmd: "node test/passages-links.mjs" },
@@ -210,6 +214,7 @@ export const SEGMENTS = [
 	{ id: "test-passages-assemble-mjs-selftest", phase: 'test', cost: 0.1, inputs: ['*'],   // `#1114` 全跑型（纯函数注入段——无 fs 面；`#1093` 裁定 5756510512 ①）
 		cmd: "node test/passages-assemble.mjs --selftest" },
 	{ id: "test-docs-read-path-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/docs-read-path.mjs --selftest" },
+	{ id: "test-docs-classification-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/docs-classification.mjs --selftest" },
 	// `#1043`：散文正文的**词汇门** —— 内容故事（`audience: content`）的正文只许"散文／链接／payload 标记／
 	// 引擎已宣告的词汇宏"；禁 SugarCube 逻辑/表达式宏与未宣告宏（甲-1 的防退化保证）。内部件豁免（打印计数）。
 	// 车道 D 切片 3（`#215` 报备 `18502113`）：**键级图的显示层**（jsdom，无宿主副作用 → cost 0.4）。
@@ -742,7 +747,7 @@ export const SUITE_MEMBERS = {
 		'scripts-report-ledger-freshness-mjs-selftest', 'scripts-report-ledger-freshness-mjs-ledger-check', 'scripts-report-gate-ledger-mjs-selftest', 'scripts-report-gate-ledger-mjs',
 		'scripts-report-selftest-validity-mjs', 'scripts-md-format-mjs', 'scripts-move-precheck-mjs', 'scripts-move-precheck-mjs-selftest',
 		'test-ci-triggers-mjs', 'test-ci-triggers-mjs-selftest', 'test-repo-shape-mjs', 'test-repo-shape-mjs-selftest',
-		'test-docs-read-path-mjs', 'test-docs-read-path-mjs-selftest', 'test-untracked-guard-mjs', 'test-passages-links-mjs',
+		'test-docs-read-path-mjs', 'test-docs-read-path-mjs-selftest', 'test-docs-classification-mjs', 'test-docs-classification-mjs-selftest', 'test-untracked-guard-mjs', 'test-passages-links-mjs',
 		'test-block-args-e2e-mjs', 'test-hp-nan-e2e-mjs', 'test-fightpanel-turns-e2e-mjs', 'test-passages-assemble-mjs-selftest',
 		'test-audit-gates-run-mjs', 'test-fight-keys-e2e-mjs', 'scripts-clean-net-mjs-selftest', 'scripts-precommit-check-mjs-selftest',
 		'scripts-lint-new-segment-mjs-selftest', 'test-coverage-mjs', 'test-gate-discovery-mjs', 'test-plan-needs-mjs',

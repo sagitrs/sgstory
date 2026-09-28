@@ -1,0 +1,1 @@
+{"id": "fruit-demo/mood-below", "story": "fruit-demo", "why": "★**反向（防空判）**：只收下、✗ 没吃 ⇒ 心情仍是 **60**（< 65）⇒ 该出口**不出现**。★与 mood-by-value 成对 ⇒ ★**两个态都可判**（✗ 单格恒真：只写\"出现\" ⇒ 就算阈值写错也绿 ✓）", "drive": {"clicks": ["收下苹果"], "state": {}, "seed": 1}, "expect": {"visible": ["吃掉苹果"], "absent": ["心情不错，看看窗外"], "state": {"心情": {"值": 60}}, "edges": []}}

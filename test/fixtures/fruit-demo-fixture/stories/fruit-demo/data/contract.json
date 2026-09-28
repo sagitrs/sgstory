@@ -1,0 +1,74 @@
+{
+ "section": "StoryBindings",
+ "note": "水果演示（fruit-demo）：最小合法集 ＋ 状态面。★`pcDefaults` 按既定口径显式给（既有实测：不声明 ⇒ 车卡族不生成 ⇒ pc 无 hp 面）。",
+ "members": [
+  {
+   "name": "rules",
+   "kind": "empty-array",
+   "docs": "条件表：本故事的行在 `data/rules.json`（5 条收下 ＋ 吃下后的出口）"
+  },
+  {
+   "name": "passageSpecs",
+   "kind": "forward",
+   "docs": "段落声明面（params／slot／present）——必须在契约里声明，否则渲染出错串"
+  },
+  {
+   "name": "pcDefaults",
+   "kind": "const",
+   "value": {
+    "心情": {
+     "值": 60
+    }
+   },
+   "docs": "玩家默认态：**故事自定义键**（★引擎已知键 ⇒ ✗ 不许走本口 —— `#1484` 收束；车卡族数值见 `pcShape`）"
+  },
+  {
+   "name": "pcShape",
+   "kind": "const",
+   "value": {
+    "hp": 12,
+    "max_hp": 12,
+    "salves": 0
+   },
+   "docs": "★`#1484`：**车卡族键的静态初值**（本故事✗ 不跑车卡流程 ⇒ 走这一路；★由 `pcDefaults` **搬来** —— 收束 `#1484` 后 `pcDefaults` ✗ 收引擎已知键）"
+  },
+  {
+   "name": "mechanics",
+   "kind": "null",
+   "docs": "新机制声明表：未启用 ⇒ 显式 null"
+  },
+  {
+   "name": "panels",
+   "kind": "const",
+   "docs": "表示面 P3（sagitrs/sgstory#1539 books 半 · #42）：hp 有真值（pcShape 12/12）⇒ 声明 bar；inv 真在玩（五果）⇒ 声明 list。★只写**被消费的键**：slot 在 **block**（✗ prop 上的 slot 不读）；style 用**对象形**（✗ 字符串形是 no-op）；list 的 inv 来自 pc.inv",
+   "value": [
+    {
+     "as": "bar",
+     "slot": "sidebar.primary",
+     "props": [
+      {
+       "valueKey": "hp",
+       "maxKey": "max_hp",
+       "label": "生命",
+       "style": {
+        "fill": "#d1495b",
+        "track": "#eeeeee"
+       }
+      }
+     ]
+    },
+    {
+     "as": "list",
+     "slot": "sidebar.primary",
+     "props": [
+      {
+       "valueKey": "inv",
+       "empty": "（空）",
+       "label": "物品栏"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

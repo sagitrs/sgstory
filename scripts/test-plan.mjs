@@ -215,6 +215,8 @@ export const SEGMENTS = [
 		cmd: "node test/passages-assemble.mjs --selftest" },
 	{ id: "test-docs-read-path-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/docs-read-path.mjs --selftest" },
 	{ id: "test-docs-classification-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/docs-classification.mjs --selftest" },
+	{ id: "test-fruit-demo-cases-mjs", phase: 'test', cost: 12, cmd: "node test/fruit-demo-cases.mjs" },   // ★`#1609`：用例套**接线**（自持 story ＋ 真 case-run ＋ 能假刀）
+	{ id: "test-fruit-demo-cases-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/fruit-demo-cases.mjs --selftest" },
 	// `#1043`：散文正文的**词汇门** —— 内容故事（`audience: content`）的正文只许"散文／链接／payload 标记／
 	// 引擎已宣告的词汇宏"；禁 SugarCube 逻辑/表达式宏与未宣告宏（甲-1 的防退化保证）。内部件豁免（打印计数）。
 	// 车道 D 切片 3（`#215` 报备 `18502113`）：**键级图的显示层**（jsdom，无宿主副作用 → cost 0.4）。
@@ -747,7 +749,7 @@ export const SUITE_MEMBERS = {
 		'scripts-report-ledger-freshness-mjs-selftest', 'scripts-report-ledger-freshness-mjs-ledger-check', 'scripts-report-gate-ledger-mjs-selftest', 'scripts-report-gate-ledger-mjs',
 		'scripts-report-selftest-validity-mjs', 'scripts-md-format-mjs', 'scripts-move-precheck-mjs', 'scripts-move-precheck-mjs-selftest',
 		'test-ci-triggers-mjs', 'test-ci-triggers-mjs-selftest', 'test-repo-shape-mjs', 'test-repo-shape-mjs-selftest',
-		'test-docs-read-path-mjs', 'test-docs-read-path-mjs-selftest', 'test-docs-classification-mjs', 'test-docs-classification-mjs-selftest', 'test-untracked-guard-mjs', 'test-passages-links-mjs',
+		'test-docs-read-path-mjs', 'test-docs-read-path-mjs-selftest', 'test-docs-classification-mjs', 'test-docs-classification-mjs-selftest', 'test-fruit-demo-cases-mjs', 'test-fruit-demo-cases-mjs-selftest', 'test-untracked-guard-mjs', 'test-passages-links-mjs',
 		'test-block-args-e2e-mjs', 'test-hp-nan-e2e-mjs', 'test-fightpanel-turns-e2e-mjs', 'test-passages-assemble-mjs-selftest',
 		'test-audit-gates-run-mjs', 'test-fight-keys-e2e-mjs', 'scripts-clean-net-mjs-selftest', 'scripts-precommit-check-mjs-selftest',
 		'scripts-lint-new-segment-mjs-selftest', 'test-coverage-mjs', 'test-gate-discovery-mjs', 'test-plan-needs-mjs',

@@ -1,0 +1,1 @@
+{"id":"fruit-demo/no-eat-no-exit","story":"fruit-demo","why":"★反向断言两条：① 收下后**五选一消失**（`exclude: 收下了`）② 没吃 ⇒ 出口不出现","drive":{"clicks":["收下苹果"],"state":{},"seed":1},"expect":{"visible":["吃掉苹果"],"absent":["收下梨","收下苹果","出门去"],"state":[],"edges":[]}}

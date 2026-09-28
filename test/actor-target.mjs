@@ -136,6 +136,31 @@ if (!existsSync(join(ROOT, FIX_FROM))) {
 		t('⑤ 声明面 0 特化：两端的 `actor` 都是**裸名**（✗ 含 `pc` ／✗ 含 `.`）',
 			names.length === 2 && names.every((n) => !/pc/i.test(n) && !n.includes('.')), JSON.stringify(names));
 
+		// ── ⑦ ★`#1578`（test-infra）：**用例面断得到实体**（★端到端：真跑 `case-run`）────
+		{
+			const { root: r4 } = build();                       // 一棵已 build 的树（用例要产物 ✓）
+			const casesFix = join(ROOT, 'test/fixtures/m3-actor-fixture/cases');
+			const run = (casesRoot) => {
+				try {
+					return { rc: 0, out: execFileSync(process.execPath,
+						[join(ROOT, 'scripts/case-run.mjs'), `--cases=${casesRoot}`],
+						{ cwd: ROOT, env: { ...process.env, SG_STORIES_DIR: r4 }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) };
+				} catch (e) { return { rc: e?.status ?? 1, out: `${e?.stdout ?? ''}${e?.stderr ?? ''}` }; }
+			};
+			const ok = run(casesFix);
+			t('⑦ 用例面：`expect.state` 用 **`$` 根** ⇒ **断得到实体**（夹具用例绿 ⇒ `#1562` 验收⑦在用例面可断言 ✓）',
+				ok.rc === 0 && /绿 1/.test(ok.out), ok.out.split('\n').find((l) => l.includes('用例 ')) ?? ok.out.slice(0, 160));
+			// ★能假：把那条 `$` 去掉（＝退回 `pc` 相对）⇒ **该用例必红**（✗ 静默放过）
+			const bare = join(WORK, 'cases-bare'); cpSync(casesFix, bare, { recursive: true });
+			const cj = join(bare, SLUG, 'swing.json');
+			const c0 = JSON.parse(readFileSync(cj, 'utf8'));
+			c0.expect.state = Object.fromEntries(Object.entries(c0.expect.state).map(([k, v]) => [k.replace(/^\$/, ''), v]));
+			writeFileSync(cj, JSON.stringify(c0, null, 1) + '\n');
+			const bad = run(bare);
+			t('⑦ **能假**：漏写 `$`（＝按 `pc` 相对取）⇒ 该用例**红**且点名（实得 null ⇒ ✗ 静默放过 ✓）',
+				bad.rc !== 0 && /实得 null/.test(bad.out), `rc=${bad.rc}`);
+		}
+
 		// ── ⑥ 编译期（端到端刀）：未宣告的实体名 ⇒ build rc=1 并点名 ────────
 		let rc = 0, out = '';
 		try {

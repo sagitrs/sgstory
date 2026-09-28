@@ -1,0 +1,12 @@
+{
+	"id": "actor-basic/swing",
+	"story": "actor-basic",
+	"why": "★`#1578`（test-infra）：**用例面断得到实体** —— 点击那条 `actor: 木桩` 的链接 ⇒ ★效果写在**实体**上（✗ 不是 `pc`）⇒ `expect.state` 用 **`$` 根**读到 `State.variables.actors` ✓（阶段 2 验收「效果写到实体」在用例面的可断言形 ✓）",
+	"drive": { "clicks": ["用小刀劈木桩"], "state": {}, "seed": 1 },
+	"expect": {
+		"visible": ["木桩晃了一下"],
+		"absent": ["用小刀劈木桩"],
+		"edges": [],
+		"state": { "$actors.木桩.伤.累计": 3, "$actors.木桩.hp": 10000, "hp": 12 }
+	}
+}

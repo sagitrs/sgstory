@@ -37,6 +37,33 @@ export const parseArgs = (argv = []) => {
 };
 
 /** cases 根的解析（**显式 `--cases=` 优先**；默认 `<ROOT>/cases`）。 */
+/**
+ * ★★ `#1578`（test-infra）：`expect.state` 的**路径 → 值**（★**根是显式的**）。
+ *
+ * **为什么要有它**（缺口实测）：原实现把每条路径**一律按 `pc` 相对**取 ⇒
+ *   ★`State.variables` 上的**非 `pc` 面**（甲2a 的 `actors` 等）在用例里**断不到**
+ *   ⇒ 阶段 2 验收「效果写到实体」在**用例面不可断言**（`#1562` 验收⑦）✗。
+ *
+ * **写法（两档，✗ 不靠猜 —— 歧义即缺陷）**：
+ *   · ★**裸路径**（既有写法）／**显式 `pc.` 前缀** ⇒ 根＝**`pc`**（★裸路径**逐字不变** ⇒ 零迁移 ✓）；
+ *   · ★**`$` 前缀** ⇒ 根＝**`State.variables`**（照 SugarCube 的变量 sigil：`$actors.木桩.hp` ⇒
+ *     `State.variables.actors.木桩.hp` ✓；`$pc.hp` ≡ `pc.hp` ≡ 裸 `hp` ✓）。
+ * ★为什么用 `$` 而✗ 不"自动判根（首段 ∈ `vars` 且 ∉ `pc`）"：★后者在**同名**时不可判
+ *   （读数会随数据漂移）⇒ 属"歧义即缺陷" ✓（协调席 2026-09-28 裁＝甲）。
+ * @param {string} path 期望路径（`"inv"`／`"pc.hp"`／`"$actors.木桩.hp"`）
+ * @param {{pc?:object, vars?:object}} ctx `pc` ⇒ 存档角色；`vars` ⇒ `State.variables`（★`$` 档要它）
+ */
+export const stateValueOf = (path, { pc = undefined, vars = undefined } = {}) => {
+	const p = String(path ?? '');
+	const rooted = p.startsWith('$');
+	let body = rooted ? p.slice(1) : p;
+	const root = rooted ? vars : pc;
+	// ★显式 `pc.` 前缀 ⇒ 与**裸路径**同义（★防"静默无效键"：✗ 剥掉它就会取 `pc.pc.hp` ⇒ 恒 `undefined` ⇒
+	//   写的人以为断了，其实那条断言**永远红**却看不出为什么 ✓）。实测：全仓 42 条用例**无人**用过它 ✓。
+	if (!rooted && body.startsWith('pc.')) body = body.slice(3);
+	return body.split('.').reduce((o, k) => (o == null ? undefined : o[k]), root);
+};
+
 export const resolveCasesDir = ({ cases = null, root = ROOT } = {}) =>
 	cases ? (isAbsolute(cases) ? cases : resolve(root, cases)) : join(root, 'cases');
 
@@ -144,10 +171,11 @@ const drive = async (c) => {
 	const { w, settle, sleep } = await boot({ story: c.story, random: c.drive?.seed ?? 0.5 });
 	const s = makeSession(w, { settle, sleep });
 	for (const click of c.drive?.clicks ?? []) await s.clickByLabel(click);
-	const pc = w.SugarCube?.State?.variables?.pc;
+	const vars = w.SugarCube?.State?.variables;
+	const pc = vars?.pc;
 	const state = {};
 	for (const p of Object.keys(c.expect?.state ?? {})) {
-		state[p] = p.split('.').reduce((o, k) => (o == null ? undefined : o[k]), pc);
+		state[p] = stateValueOf(p, { pc, vars });
 	}
 	const edges = [...w.document.querySelectorAll('a.link-internal, a.soc-opt')].map((e) => e.textContent.trim());
 	return { text: s.text(), edges, state, uncaught: w.__uncaught ?? [] };

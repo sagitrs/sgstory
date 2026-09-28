@@ -6,7 +6,7 @@
 //   ② 有人把「陈旲归因」当普通缺口（rc=0）→ 第 5 格红；
 //   ③ 有人把「根不存在」也静默 rc=0 → 入口那格红（本件只测纯函数；入口两态见 §实测）。
 import {
-	classifyCase, summarize, expectViolations, parseArgs, resolveCasesDir, discoverCases, runtimeProblems, VERDICT_LABELS, summaryLine,
+	classifyCase, summarize, expectViolations, parseArgs, resolveCasesDir, discoverCases, runtimeProblems, VERDICT_LABELS, summaryLine, stateValueOf,
 } from '../scripts/case-run.mjs';
 import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
@@ -42,6 +42,28 @@ t('⑫b ★键**存在** ＋ 期望 `null` ⇒ **必红**（★反例能咬 —�
 	expectViolations({ expect: { state: { 'inv.苹果': null } }, seen: { state: { 'inv.苹果': true } } }).length === 1);
 t('⑫c ★`undefined` 与 `null` **同义**（两侧都无该键 ⇒ 绿；⇒ 归一的是**比较** ✗ 不是"放宽"）',
 	expectViolations({ expect: { state: { 'ev.x': undefined } }, seen: { state: {} } }).length === 0);
+// ── ★`#1578`：`expect.state` 的**根**（显式：`$` ⇒ `State.variables`｜裸／`pc.` ⇒ `pc`）────────
+{
+	const pc = { hp: 12, inv: { 钥匙: true }, actors: { 假: 1 } };
+	const vars = { pc, actors: { 木桩: { hp: 10000, 伤: { 累计: 3 } } }, era: 'present' };
+	t('⑬ ★`$` 前缀 ⇒ 根＝`State.variables`（用例面**断得到实体** —— `#1562` 验收⑦ 的可断言形）',
+		stateValueOf('$actors.木桩.伤.累计', { pc, vars }) === 3
+		&& stateValueOf('$actors.木桩.hp', { pc, vars }) === 10000
+		&& stateValueOf('$era', { pc, vars }) === 'present',
+		JSON.stringify([stateValueOf('$actors.木桩.伤.累计', { pc, vars }), stateValueOf('$era', { pc, vars })]));
+	t('⑬b **向后兼容（零迁移）**：裸路径与 `pc.` 前缀 ⇒ 根仍是 `pc`（既有 41 条用例语义**逐字不变**）',
+		JSON.stringify(stateValueOf('inv', { pc, vars })) === JSON.stringify(pc.inv)
+		&& stateValueOf('hp', { pc, vars }) === 12 && stateValueOf('pc.hp', { pc, vars }) === 12,
+		JSON.stringify([stateValueOf('inv', { pc, vars }), stateValueOf('hp', { pc, vars })]));
+	t('⑬c `$pc.hp` ≡ 裸 `hp`（`$` 只是"换个根"，✗ 不是另一套取法 ⇒ 两档可互推 ✓）',
+		stateValueOf('$pc.hp', { pc, vars }) === stateValueOf('hp', { pc, vars }));
+	t('⑬d ★**能假**：实体路径**漏写 `$`** ⇒ 按 `pc` 相对取 ⇒ `undefined`（⇒ 该格在用例里**必红**，✗ 静默放过）',
+		stateValueOf('actors.木桩.伤.累计', { pc, vars }) === undefined
+		&& stateValueOf('$actors.木桩.伤.累计', { pc, vars }) === 3);
+	t('⑬e 边界：缺 `vars`（✗ 传）⇒ `$` 档取到 `undefined`（✗ 崩、✗ 回退 `pc` —— 回退会让"写错根"静默变绿 ✗）',
+		stateValueOf('$actors.木桩.hp', { pc }) === undefined && stateValueOf('hp', { pc }) === 12);
+}
+
 t('⑫d 向后兼容：具体值两向仍咬（相等 ⇒ 绿／不等 ⇒ 红）',
 	expectViolations({ expect: { state: { 'ev.x': 2 } }, seen: { state: { 'ev.x': 2 } } }).length === 0
 	&& expectViolations({ expect: { state: { 'ev.x': 2 } }, seen: { state: { 'ev.x': 3 } } }).length === 1);

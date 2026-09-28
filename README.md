@@ -77,4 +77,17 @@ CI 变红时先看 [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) ✓
 
 ## 许可与来源
 
-见 [`docs/credits.md`](docs/credits.md)（许可与第三方来源；含 SugarCube／字体等 ✓）。
+★本仓自有内容按仓内声明使用；**第三方来源与鸣谢**列在下面（★`#1606` 执行笔：原 `docs/credits.md`
+**并入本节** —— ★第三方署名／许可是**内容义务** ⇒ ✗ 随"文档瘦身"静默丢掉 ✓）。
+
+**参考资源**：SugarCube 文档（<https://www.motoslave.net/sugarcube/2/docs/>）· Twee 3 规范
+（<https://github.com/iftechfoundation/twine-specs/blob/master/twee-3-specification.md>）· extwee 编译器
+（<https://github.com/videlais/extwee>）· Twine（<https://twinery.org>）· VS Code 扩展 **twee3-language-tools** ·
+踩坑实录与引擎评估见 [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md)。
+
+**鸣谢（参考了以下开源项目／作品，未直接包含其代码）**：
+[Another-RPG-Engine](https://github.com/AnotherRPGEnthusiast/Another-RPG-Engine)（MIT，SugarCube 原生 RPG 引擎 · 数值修饰栈模式）·
+[foundryvtt/dnd5e](https://github.com/foundryvtt/dnd5e)（MIT，5e 规则 JS 实现 · 检定公式组织）·
+[rpg-dice-roller](https://github.com/dice-roller/rpg-dice-roller)（MIT，骰子表达式解析思路）·
+[5e-bits/5e-srd-api](https://github.com/5e-bits/5e-srd-api)（MIT，SRD 数据组织）·
+★[Ascend Nousta's Tower](https://jaclynlewis.itch.io/ascend-noustas-tower)（**CC BY-SA 4.0**，© Jaclyn Lewis）— 第二章「守林人之塔」的**单页地城结构灵感**（未复制内容 ✓）。

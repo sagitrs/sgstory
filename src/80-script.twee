@@ -293,11 +293,17 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 			if (rawEff) {
 				const eff = JSON.parse(rawEff);
 				if (eff && typeof eff === 'object') {
-					window.Sg.rules.applyYields(eff);
-					window.Sg.rules.applyGrants(eff);
-					window.Sg.rules.applySets(eff);
-					window.Sg.rules.applyAdds(eff);   // ★ `#1466`：算术效果（与上面三者**同刻** ✓）
-					window.Sg.rules.applyTakes(eff);  // ★ `#1471`：库存移除（同刻 ✓）
+					// ★★ `#1571`（对象维 · **写端**）：**解析一次**该施加到**哪个对象**上，再把"根"传下去。
+					//   ★为什么在这一处（✗ 不散到五个施加器里）：**写侧唯一收束点就是这里**
+					//     （与 `#1474` 的"写侧一处收束"同一处理由 ⇒ 将来第六个效果字段**自动**继承对象维 ✓）；
+					//   ★五个施加器的第二个参数**本来就是"根对象"**（`pc`）⇒ ★它们的签名一字不改 ✓
+					//   ★缺省（✗ 无 `actor`）⇒ `resolve` 原样回 `pc` ⇒ 既有行为逐字不变 ✓
+					const target = window.Sg.actors.resolve(State.variables.pc, eff.actor);
+					window.Sg.rules.applyYields(eff, target);
+					window.Sg.rules.applyGrants(eff, target);
+					window.Sg.rules.applySets(eff, target);
+					window.Sg.rules.applyAdds(eff, target);   // ★ `#1466`：算术效果（与上面三者**同刻** ✓）
+					window.Sg.rules.applyTakes(eff, target);  // ★ `#1471`：库存移除（同刻 ✓）
 				}
 			}
 		} catch { /* 属性坏了不该挡跳转 ⇒ 交给 <<printparam>> 一侧点名 */ }

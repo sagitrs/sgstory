@@ -19,7 +19,8 @@ import { scriptBodies } from '../core/text.mjs';
 import { compileStory } from '../core/emit.mjs';
 import { scriptSyntaxProblems } from '../core/segment-syntax.mjs';   // `#1176`：生成件脚本段语法检查（纯函数，解析器注入）
 import { packageFiles, writeStoryPackage, sectionFile, metaTwee, expandSources } from '../core/story.mjs';   // ★`#1486`：三源合并（`sources[]`）接进编译期读路
-import { mergeLinksIntoRules, compileRowEffectsIntoLinks, unmappedLinkFields, LINK_FIELDS } from '../core/passages-links.mjs';   // `#1350` 片 3：段落数据 → 规则行同形   // `metaTwee`：`#1132` B4 元数据段的单一权威形状
+import { mergeLinksIntoRules, compileRowEffectsIntoLinks, unmappedLinkFields, LINK_FIELDS } from '../core/passages-links.mjs';
+import { actorRefsOf, undeclaredActorProblems } from '../core/audit-shared.mjs';   // ★`#1571`（1c）：声明面引用的**实体名**必须已宣告（编译期点名，✗ 等到玩家）   // `#1350` 片 3：段落数据 → 规则行同形   // `metaTwee`：`#1132` B4 元数据段的单一权威形状
 import { unknownDomainWords } from '../core/vocab.mjs';
 import { runStory, engineOf } from './sandbox.mjs';
 
@@ -140,6 +141,23 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 			for (const b of bad) console.error(`✗ [links-fields] ${b}`);
 			console.error('✗ `passages.json` 的 `links[]` 里有**映射白名单外**的字段 —— 它们会被静默丢弃，故不写出产物'
 				+ `（白名单：${LINK_FIELDS.join('／')}）`);
+			return 1;
+		}
+	}
+	// ★★ `#1571`（`#1222` 链 1c · 件②）：**声明面引用的实体名必须已宣告**（契约成员 `actors` 的键）⇒ 编译期点名。
+	//   ★依据（与本笔的运行时兜底**成对**）：`Sg.actors.resolve` 只在"玩家点了那条链接／走到那块面板"时才响
+	//     ⇒ 名字写错会**一路绿**（build／CI）到玩家面前才炸 ✗（同族：`#1564` 的前缀判据 —— 同一精神、同一形 ✓）
+	//   ★两个位置（＝本票"一个词两端同用"的两端）：读端 `panels.props[].actor`｜写端 链接的 `actor` ✓
+	{
+		const actorsMember = (contract?.members ?? []).find((m) => m?.name === 'actors');
+		const declaredActors = actorsMember && actorsMember.value && typeof actorsMember.value === 'object' ? actorsMember.value : {};
+		const bad = undeclaredActorProblems({
+			refs: actorRefsOf({ contract, passages: passagesData }),
+			declared: declaredActors,
+		});
+		if (bad.length) {
+			for (const m of bad) console.error(`✗ [actor-ref] ${m.why}`);
+			console.error('✗ 声明面引用了**未宣告的实体名** ⇒ 该读/写点会在运行时才炸（✗ 静默回退 `pc` ✗ 静默不产字节）⇒ 不写出产物');
 			return 1;
 		}
 	}

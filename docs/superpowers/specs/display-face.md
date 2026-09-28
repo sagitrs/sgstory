@@ -97,8 +97,17 @@ Sg.draw.list({ items, label?, empty?, sep? })   ← 一元列表（起步件②�
 | 层 | 被消费的键 | 备注 |
 |---|---|---|
 | **block** | `as` · `slot` · `props` | `slot` 是**块**的属性（决定这一块挂哪）；✗ 缺省 ⇒ `sidebar.primary` |
-| **`bar` 的 prop** | `valueKey` · `maxKey` · `label` · `style` | `style` 是**对象** `{fill?, track?, showNumbers?}` |
-| **`list` 的 prop** | `valueKey` · `label` · `empty` · `sep` | ✗ 没有 `maxKey`（一元列表无上界）；★`label`（`#1560`）＝**块标题**，与 `bar` 的 `label` **对称** |
+| **`bar` 的 prop** | `valueKey` · `maxKey` · `label` · `style` · **`actor`** | `style` 是**对象** `{fill?, track?, showNumbers?}`；★`actor`（`#1571`）＝**对象维**（读**哪个实体**；✗ 不给 ⇒ `pc`）|
+| **`list` 的 prop** | `valueKey` · `label` · `empty` · `sep` · **`actor`** | ✗ 没有 `maxKey`（一元列表无上界）；★`label`（`#1560`）＝**块标题**，与 `bar` 的 `label` **对称** |
+
+★★**对象维（`actor`）—— 一个词，两端同用**（`#1571`／`#1222` 链 1c）：
+```
+★读端＝**本 spec 的 prop**（`panels.props[].actor`）｜写端＝**行效果**（`links[].actor`，见 `docs/manual/12-data.md`）✓
+★取值＝**实体名**（★须在契约成员 `actors` 里宣告 ⇒ ★名字写错**编译期点名**，✗ 等玩家 ✓）
+★✗ 不给 ⇒ 目标＝**`pc`**（既有行为逐字不变 ✓）｜★实现＝"给收束口换一个**根对象**"
+  （读端 `panels.objectOf`／写端点击收束点 ⇒ 两端**各一处**，✗ 不新造第二套读写路径 ✓）
+★**`maxKey` 与 `valueKey` 必须取自同一个对象**（✗ 否则会印"实体的值 / 玩家的上界"这种混合读数 —— 实测踩过）✓
+```
 
 ★★**三条要写明（本轮实测出来的"静默无效键" ＋ `#1560` 的键族区分）**：
 1. **`label`／`empty`／`sep` 是「文案」，`valueKey`／`maxKey` 是「键名」** —— 两组不同族：

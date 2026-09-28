@@ -93,7 +93,8 @@ export const linksToRows = ({ data = {} } = {}) => {
 			//   ⇒ 由 `linkHtml` 编进 `<a data-sg-effects="…">`（点击处理器施加 ✓），**✗ 不进规则行**：
 			//   规则行语义＝"该作用域**渲染时**即施加" ⇒ 那会让读者**什么都没点就拿到钥匙** ✗（实测两态）。
 			//   ★带 `args` 或带效果的行：**编成 HTML**（`linkHtml` 唯一权威 ✓）；两者都无 ⇒ 行文一字不动（`[[label|to]]`）
-			const effKeys = ['gives', 'sets', 'yields', 'adds', 'takes'].filter((k) => l[k] != null);
+			// ★ `#1571`：`actor` 与效果字段**同装进** `data-sg-effects`（点击那一刻的收束点据它解析目标 ✓）
+			const effKeys = ['gives', 'sets', 'yields', 'adds', 'takes', 'actor'].filter((k) => l[k] != null);
 			const effects = {};
 			for (const k of effKeys) effects[k] = l[k];
 			if (hasArgs || effKeys.length) {
@@ -111,7 +112,7 @@ export const linksToRows = ({ data = {} } = {}) => {
  * ★ 好处：**任何**未来新增的链接字段都会先红一次 ⇒ 逼作者与实现**同步**（同族先例：`slot` 与 `params` **撞名即红** ✓）。
  * ★ 范围（Operator 纪律）：这是**编译器/输入校验**行为 ⇒ 属**引擎** ✓（✗ 不判"故事该不该这么写"）。
  */
-export const LINK_FIELDS = Object.freeze(['label', 'to', 'id', 'prio', 'prereq', 'cond', 'args', 'slot', 'gives', 'sets', 'yields', 'adds', 'takes']);   // ★ `#1466`：`adds` ＝ 算术效果（与 gives/sets/yields 同族 ✓）
+export const LINK_FIELDS = Object.freeze(['label', 'to', 'id', 'prio', 'prereq', 'cond', 'args', 'slot', 'gives', 'sets', 'yields', 'adds', 'takes', 'actor']);   // ★ `#1571`（1c）：`actor` ＝ **对象维**（该链接的效果施加到**哪个实体**上；缺省 ⇒ `pc` ✓）   // ★ `#1466`：`adds` ＝ 算术效果（与 gives/sets/yields 同族 ✓）
 
 /** 白名单外字段 ⇒ 点名清单（纯函数；`links` 非数组 ⇒ 空、不抛）。 */
 export const unmappedLinkFields = ({ links = [] } = {}) => {
@@ -145,7 +146,8 @@ export const unmappedLinkFields = ({ links = [] } = {}) => {
 export const compileRowEffectsIntoLinks = ({ rules = null } = {}) => {
 	const rows = Array.isArray(rules?.rows) ? rules.rows : [];
 	const out = rows.map((row) => {
-		const effKeys = ['gives', 'sets', 'yields'].filter((k) => row?.[k] != null);
+		// ★ `#1571`：`actor`（对象维）与效果字段**同装**（✗ 顺手动 `adds`／`takes` 的既有缺口 —— 另记 ✓）
+		const effKeys = ['gives', 'sets', 'yields', 'actor'].filter((k) => row?.[k] != null);
 		if (!effKeys.length) return row;
 		const t = String(row?.text ?? '');
 		const m = t.match(/^\s*\[\[([^\]|]*)\|([^\]]+)\]\]\s*$/);

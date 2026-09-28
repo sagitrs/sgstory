@@ -352,3 +352,35 @@ export const NOTE_DECL_RE = /(?:^|[^\w:])note:(n_[a-z0-9_]+)/g;
 export const NOTE_REF_RE = /Sg\.notes\.(?:has|entry)\(\s*['"](n_[a-z0-9_]+)['"]|(?:^|[^\w:])note:(n_[a-z0-9_]+)/g;
 // `#785`：声明式条件里的 `n_*` 也是笔记读（`req: ['n_x']`）——笔记消费可数不该因改形状而消失。
 // 文本里引用的笔记 id
+
+/** ★★ `#1571`（`#1222` 链 1c）：**声明面引用"对象"（实体名）时的抽取口**（纯函数）。
+ *  ★两个位置（＝本票"一个词两端同用"的两端）：读端 `panels.props[].actor`｜写端 链接（行）的 `actor`。 */
+export const actorRefsOf = ({ contract = null, passages = null } = {}) => {
+	const out = [];
+	const push = (v, where) => { if (v != null && String(v).trim() !== '') out.push({ name: String(v).trim(), where }); };
+	for (const m of (contract?.members ?? [])) {
+		if (m?.name !== 'panels' || !Array.isArray(m.value)) continue;
+		m.value.forEach((b, i) => (b?.props ?? []).forEach((pr, j) => push(pr?.actor, `panels[${i}].props[${j}]`)));
+	}
+	for (const [seg, s] of Object.entries(passages ?? {})) {
+		for (const l of (s?.links ?? [])) push(l?.actor, `段「${seg}」的链接「${l?.id ?? l?.label ?? '?'}」`);
+	}
+	return out;
+};
+
+/** ★★ 判据（纯函数，能假）：引用的实体名**必须已宣告**（契约成员 `actors` 的键）⇒ 否则点名。
+ *  ★为什么必须有编译期这一道：运行时 `Sg.actors.resolve` 只在"玩家点了那条链接／走到那块面板"时才响
+ *    ⇒ 名字写错会**一路绿**（build／CI）到玩家面前才炸 ✗（同族：`#1564` 的前缀判据 —— 同一精神、同一形 ✓）。 */
+export const undeclaredActorProblems = ({ refs = [], declared = {} } = {}) => {
+	const known = new Set(Object.keys(declared ?? {}));
+	const out = [];
+	for (const { name, where } of refs) {
+		if (known.has(name)) continue;
+		out.push({ code: 'undeclared-actor', name, where,
+			why: `${where} 引用了实体「${name}」，但它**不在声明的实体表**（契约成员 \`actors\`）里`
+				+ `（已宣告：${known.size ? [...known].join('／') : '（空）'}）——`
+				+ ' ★名字写错会让该读/写点**到运行时才炸**（✗ 静默回退 `pc` ✗ 静默不产字节）'
+				+ ' ⇒ 请先在 `actors` 里声明该实体，或改用已宣告的名字（`#1571` 1c）' });
+	}
+	return out;
+};

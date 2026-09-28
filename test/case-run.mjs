@@ -127,6 +127,16 @@ t('⑮ ★ **真入口**（无参跑 CLI）⇒ rc=0 ＋ 明说"零用例"', (() 
 	return /零用例/.test(r);
 })());
 
+// ── ★★ `#1612`（`#1609` 审计）：**空断言 ⇒ fail-loud**（恒真用例族）────────────────
+//   ★正例（能假）：四维全空 ⇒ **必红 ＋ 点名**；★反例（✗ 误伤）：**任一维非空** ⇒ 不报 ✓
+t('★空断言①：`expect` 四维全空 ⇒ **必红 ＋ 点名 `empty-expect`**（✗ 恒真）',
+	(() => { const v = expectViolations({ expect: {}, seen: { text: '甲', edges: [], state: {} } });
+		return v.length === 1 && v[0].kind === 'empty-expect'; })());
+t('★空断言② 反例（✗ 误伤）：任一维非空 ⇒ **不报**空断言（★四维各试一次 ✓）',
+	['visible', 'absent', 'edges', 'state'].every((k) => {
+		const e = k === 'state' ? { state: { 'ev.x': 1 } } : { [k]: ['甲'] };
+		return !expectViolations({ expect: e, seen: { text: '甲', edges: ['甲'], state: { 'ev.x': 1 } } }).some((v) => v.kind === 'empty-expect');
+	}));
 // ── `#1287`（复核三件）新增三格 ────────────────────────────────────
 t('⑯ 票状态三态：**在线票号不存在 ⇒ missing ⇒ 归因无效 rc≠0**（不落 unknown）', (() => {
 	const r = classifyCase({ passed: false, ticket: '#99999999', ticketState: 'missing' });

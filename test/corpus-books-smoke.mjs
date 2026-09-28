@@ -64,10 +64,9 @@ try {
 		woff.length === 2, `实得 ${woff.length} 个（缺 fonttools？⇒ \`pip install fonttools brotli\` 后重跑 ✓）`);
 }
 
-// ③ story 档（M7）：★**默认跑**（见下方开关 ✓）—— ★对象归属**已分治落地**：每键带 `story` ＋ 每格自载 ✓
-//   ★A（战斗首屏）与键盘「导航型样本」面＝**○ 未判 ＋ 出声**（对象未定形 ⇒ 见 `test/browser.mjs` 两个门闸常量 ✓）
-// ★★开关**默认开**（裁：M7 第二半落地 ＋ 真跑全绿 ⇒ 本笔**开闸** ✓）｜`CORPUS_STORY_TIER=0` 显式关（本地无 Chrome 时的便利口 ✓）
-//   ★读数（本机真跑）：★story 档 **30/30 绿** ✓（A 组与键盘导航面＝**○ 未判 ＋ 出声** ⇒ ✗ 不计入 ✓）
+// ③ story 档（M7）：★**默认跑** —— ★开关＝`CORPUS_STORY_TIER=0` **显式关**（本地无 Chrome 的便利口 ✓）
+//   ★对象归属已分治落地（每键带 `story` ＋ 每格自载 ✓）；★A（战斗首屏）与键盘「导航型样本」面＝**○ 未判 ＋ 出声**
+//     （对象未定形 ⇒ 见 `test/browser.mjs` 的两只门闸常量 ＋ 各自 unblock 条件 ✓）；★本机真跑：**30/30 绿** ✓
 if (process.env.CORPUS_STORY_TIER !== '0') {
 	try {
 		execFileSync(process.execPath, [join(ROOT, 'test', 'browser.mjs')], {

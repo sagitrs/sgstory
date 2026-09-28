@@ -315,6 +315,23 @@ export const PROBES = [
 		why: '量的是「`test-lint-scratch-mjs` 对 `test-lint-story-mjs` 的产物依赖边**真的在册**」（删边  并发跑器不再保证相序  同波读到半成品  假红回归 `#1044` ）—— 否则这条边只活在注释里 ',
 	},
 	{
+		// `#1606`：**docs 分类表双向门**（★"表即工件"）—— ★刀＝把某行的**类**抹掉 ⇒ 门必红并点名（"未分类/类为空" ✓）。
+		//  ★为什么这把刀值钱：★本仓 **8 件被引件删掉是静默的**（✗ 四门全绿）⇒ ★"动了它有没有处置"原本**没有门看得见**
+		//    ⇒ ★表入仓 ＋ 门读它 ⇒ 这一类从"无门看"变**机械红** ✓ —— 探针证明的正是**这一手真在守** ✓。
+		//注意：`pre: []`（纯读 `docs/CLASSIFICATION.md` ＋ `git ls-files` ⇒ ✗ 不读产物 ✓）。
+		id: 'test/docs-classification.mjs',
+		tier: 'fast',
+		pre: [],
+		cmd: 'node test/docs-classification.mjs',
+		mutation: {
+			file: 'docs/CLASSIFICATION.md',
+			find: '| `docs/engine/block-names.md` | 引擎架构·规范契约 |',
+			replace: '| `docs/engine/block-names.md` |  |',
+		},
+		expect: { rc: 1, stdout: /未分类|类为空|no-class|unclassified/ },
+		why: '量的是「表即工件」那一手真的在守：★把某行的**类**抹掉 ⇒ 门**必红**并点名（★✗ 不是"表随便改都绿" ✓）—— ★这把刀同时覆盖了"静默件"那一族原先**无门看**的缺口 ✓',
+	},
+	{
 		// `#1078`：读路径门（「按任务读」死链必红点名）。刀＝往真表插一行死链（虚构文档）→ 门必红并点名行号与路径。
 		//注意：该刀**与并发/时序无关**（纯读 docs/README.md → 静态确定性）。
 		//注意：`pre: []`：本门只读 docs/README.md（入口件不 import `boot.mjs` → `cmdNeedsProducts` 判其不读产物）。

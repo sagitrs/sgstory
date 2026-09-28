@@ -49,7 +49,6 @@
 | `docs/manual/05-rules.md` | 118 | 手册 | 表语法实战："这个能不能进表"决策树 ＋ 踩坑清单（`#624` 沉淀） |
 | `scripts/module-order.mjs` | 84 | 地图 | 目录结构 ＋ 层归属 ＋ 权威落点速查 |
 | `docs/superpowers/specs/editor-pivot.md` | 220 | **史料·编辑器线已砍**（`#1325`） | 编辑器转向的技术形状（schema v0 · 编译器边界 · 等价判据 · 分期）——**✗ 不要照它落码**；其 §2.1 约定仍以 `docs/engine/**` 为准 |译器边界 · 等价判据三级 · 分期与不变量 K1–K5） |
-| `docs/benchmark-ledger.md` | 55 | 台账 | 质量对标台账（`#297`）：12 款竞品 ＋ 触发条件 ＋ 复核写回；★**门 F6**（`report:freshness --ledger`）**直读它** ⇒ ✗ 不得删 ✓ |
 | `docs/manual/README.md` | 63 | 手册 | 引擎功能手册目录与**准入条**（按功能组织）|
 | `docs/manual/03-prose.md` | 66 | 手册 | §3 散文面：能写什么／禁什么＋**可用宏清单（从引擎派生）** |
 | `docs/engine/README.md` | 42 | **设计稿·待评审** | `docs/engine` 索引：本期（论证层）读序 ＋ 与既有权威的关系 |

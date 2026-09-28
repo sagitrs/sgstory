@@ -218,7 +218,8 @@ window.Sg.rules = {
 			// ★布尔谓词（and/or/not/contains/in/gte/...）=> **直接就是真假** (✗ 不与 rest[0] 比)
 			if (this.fns[k0].ret === 'bool') return !!v;
 			// ★数值函数 => 与第二操作数（取值项/字面量）比
-			const w2 = this.termValue(rest[0], pc);
+			// ★(阶3 实测) 第二操作数**可能是字面量数**（如 `{lte:[{sub:[…]},0]}`）⇒ 直取（✗ 走 termValue 会取不到 ⇒ 谓词恒假 ✗）
+			const w2 = (typeof rest[0] === 'number' || typeof rest[0] === 'boolean') ? rest[0] : this.termValue(rest[0], pc);
 			if (typeof v !== 'number' || typeof w2 !== 'number') return false;
 			const C2 = { gte: (a, b) => a >= b, gt: (a, b) => a > b, lte: (a, b) => a <= b, lt: (a, b) => a < b }[op];
 			if (!C2) throw new Error('Sg.rules：算子「' + op + '」已宣告但无求值实现（漂移）');

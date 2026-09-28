@@ -256,6 +256,17 @@ jQuery(document).on('click.sgEndAct', '#passages button[data-end-act]', function
 });
 
 // 卡片挪到段落末尾（:passagerender 的 ev.content 就是这个段落元素）
+// ★(阶3) 事件文本 ⇒ 落到**落脚段**（★点链接会跳段 ⇒ 就地 append 会被冲掉 ✗ ⇒ 挂在渲染后 ✓）
+let sgPendingText = null;
+jQuery(document).on(':passagerender.sgEventText', (ev) => {
+	if (!sgPendingText) return;
+	const span = document.createElement('span');
+	span.className = 'sg-text';
+	span.textContent = sgPendingText;
+	jQuery(ev.content).append(span);
+	sgPendingText = null;
+});
+
 jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 	const $content = jQuery(ev.content);
 	const $foot = $content.find('.foot');
@@ -323,11 +334,9 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 							//   ★落页：★追加一个 `<span class="sg-text">`（★纯文本 ⇒ ✗ 不引第二套 markup 口 ✓）
 							const render = res && res.text ? (window.Game?.Events?.render ?? {})[res.text] : null;
 							if (render) {
-								const host = control.closest('.passage') ?? document.getElementById('passages');
-								const span = document.createElement('span');
-								span.className = 'sg-text';
-								span.textContent = String(render(res.renderArgs));
-								host.appendChild(span);
+								// ★★(阶3 实测) ✗ 不能就地 append —— ★点链接会**跳段**（`<<goto>>`）⇒ 段落重绘把它冲掉 ✗
+								//   ⇒ ★记进**模块级变量**（✗ 不用 `State.temporary`：换页会清 ✓），由 `:passagerender` 落到**落脚段** ✓
+								sgPendingText = String(render(res.renderArgs));
 							}
 						} catch (err) {
 							const msg = String(err && err.message || err);

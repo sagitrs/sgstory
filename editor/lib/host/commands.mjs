@@ -147,12 +147,14 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 	// ★★ `#1571`（`#1222` 链 1c · 件②）：**声明面引用的实体名必须已宣告**（契约成员 `actors` 的键）⇒ 编译期点名。
 	//   ★依据（与本笔的运行时兜底**成对**）：`Sg.actors.resolve` 只在"玩家点了那条链接／走到那块面板"时才响
 	//     ⇒ 名字写错会**一路绿**（build／CI）到玩家面前才炸 ✗（同族：`#1564` 的前缀判据 —— 同一精神、同一形 ✓）
-	//   ★两个位置（＝本票"一个词两端同用"的两端）：读端 `panels.props[].actor`｜写端 链接的 `actor` ✓
+	//   ★**三个位置**（`#1571` 的两个 ＋ `#1582` 补的规则行）：读端 `panels.props[].actor`｜写端 **链接** 的 `actor`｜
+	//     ★写端 **规则行** 的 `actor`（`compileRowEffectsIntoLinks` 把它与效果字段同装进 `data-sg-effects` ⇒
+	//     ★同一条活路径，✗ 不许漏抽 —— 漏了就是半个护栏 ✗）。
 	{
 		const actorsMember = (contract?.members ?? []).find((m) => m?.name === 'actors');
 		const declaredActors = actorsMember && actorsMember.value && typeof actorsMember.value === 'object' ? actorsMember.value : {};
 		const bad = undeclaredActorProblems({
-			refs: actorRefsOf({ contract, passages: passagesData }),
+			refs: actorRefsOf({ contract, passages: passagesData, rules }),
 			declared: declaredActors,
 		});
 		if (bad.length) {

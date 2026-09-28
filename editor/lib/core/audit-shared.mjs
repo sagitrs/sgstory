@@ -355,7 +355,7 @@ export const NOTE_REF_RE = /Sg\.notes\.(?:has|entry)\(\s*['"](n_[a-z0-9_]+)['"]|
 
 /** ★★ `#1571`（`#1222` 链 1c）：**声明面引用"对象"（实体名）时的抽取口**（纯函数）。
  *  ★两个位置（＝本票"一个词两端同用"的两端）：读端 `panels.props[].actor`｜写端 链接（行）的 `actor`。 */
-export const actorRefsOf = ({ contract = null, passages = null } = {}) => {
+export const actorRefsOf = ({ contract = null, passages = null, rules = null } = {}) => {
 	const out = [];
 	const push = (v, where) => { if (v != null && String(v).trim() !== '') out.push({ name: String(v).trim(), where }); };
 	for (const m of (contract?.members ?? [])) {
@@ -365,6 +365,10 @@ export const actorRefsOf = ({ contract = null, passages = null } = {}) => {
 	for (const [seg, s] of Object.entries(passages ?? {})) {
 		for (const l of (s?.links ?? [])) push(l?.actor, `段「${seg}」的链接「${l?.id ?? l?.label ?? '?'}」`);
 	}
+	// ★★ `#1582`：**第三个站点** —— 规则行的 `actor`（`#1571` 1c 给它加了支持：`actor` 与效果字段**同装进**
+	//   `data-sg-effects` ⇒ 点击那一刻照它解析目标）⇒ ★它和链接一样是**活路径** ⇒ 编译期必须**同尺子**
+	//   （✗ 漏抽 ⇒ 规则行里写错实体名会一路绿到玩家面前才炸 ✗ —— 正是本判据存在的理由）。
+	for (const r of (rules?.rows ?? [])) push(r?.actor, `规则行「${r?.id ?? r?.label ?? '?'}」`);
 	return out;
 };
 

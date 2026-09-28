@@ -19,6 +19,7 @@
 // ⇒ 零故事态可跑。产物操作**经 runner**？本夹具暂无 runner ⇒ 本格自清三层（夹具生成物／夹具 dist／**引擎中间件**）
 // 并**先验前置**（构建 rc=0）再读 —— 照"清三层"与"前置格"的既有口径。
 import { spawnSync } from 'node:child_process';
+import { isGeneratedFamily } from '../editor/lib/core/generated-family.mjs';   // ★`#1588`：家族谓词**单一权威**（✗ 本件不再写副本）
 import { copyFileSync, existsSync, mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, cpSync, statSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -55,7 +56,8 @@ const clean = () => {
 	cpSync(join(FX, 'stories'), join(WORK, 'stories'), { recursive: true });
 	const dir = join(WORK, 'stories', SLUG);
 	for (const f of readdirSync(dir)) {                                     // ① 夹具侧生成物
-		if (/^1[5678]-.*\.twee$/.test(f) || f === '00-meta.twee') rmSync(join(dir, f), { force: true });
+		// ★`#1588`：家族谓词取**单一权威**（✗ 本件原有一份 `1[5678]` 副本 ⇒ 漏 `19-events.twee`）
+		if (isGeneratedFamily(`stories/x/${f}`)) rmSync(join(dir, f), { force: true });
 	}
 };
 

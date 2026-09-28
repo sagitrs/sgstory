@@ -1,0 +1,7 @@
+{
+	"id": "gate-basic/sets-persist",
+	"story": "gate-basic",
+	"why": "`sets` 的**写入面**（不只影响渲染）：点一次之后走的仍是**同一段** ⇒ 该标志已落在 `pc`（用 `exclude` 那行的消失作**间接读数**；★直接读 `pc` 由 `state` 维在下面的格断）",
+	"drive": { "clicks": ["拾起钥匙"], "state": {}, "seed": 12345 },
+	"expect": { "visible": [], "absent": ["再四处看看"], "state": [], "edges": [] }
+}

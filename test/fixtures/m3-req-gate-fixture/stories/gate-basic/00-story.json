@@ -1,0 +1,16 @@
+{
+ "slug": "gate-basic",
+ "title": "条件选项（req / exclude / sets）最小夹具",
+ "subtitle": "引擎侧夹具（`#1592` M2）：服务 `req:` 条件选项 ＋ `exclude` ＋ `sets` —— 迁自 books `north-room/gated-choice-*`／`fruit-demo/no-eat-no-exit`／`mist-forest/exclude-after-set` 的能力半",
+ "entry": "房",
+ "contractVersion": 1,
+ "audience": "internal",
+ "files": [
+  "stories/gate-basic/00-meta.twee",
+  "stories/gate-basic/passages/01-房.md",
+  "stories/gate-basic/passages/02-内室.md",
+  "stories/gate-basic/15-tables.twee",
+  "stories/gate-basic/17-rules.twee"
+ ],
+ "gates": []
+}

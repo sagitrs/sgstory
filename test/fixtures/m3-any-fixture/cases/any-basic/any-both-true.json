@@ -1,0 +1,7 @@
+{
+	"id": "any-basic/any-both-true",
+	"story": "any-basic",
+	"why": "`any` **两支全成立** ⇒ 渲染**一次**（✗ 因两支命中而画两遍 —— 或语义下『命中数』✗ 影响产出）",
+	"drive": { "clicks": ["拿起甲", "拿起乙"], "state": {}, "seed": 12345 },
+	"expect": { "visible": ["开门进里间"], "absent": [], "state": [], "edges": [ { "from": "厅", "label": "开门进里间", "to": "里间" } ] }
+}

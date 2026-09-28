@@ -1,0 +1,7 @@
+{
+	"id": "ad/adds-value-gate-hit",
+	"story": "ad",
+	"why": "**数值效果 ＋ 按值分支**（正控）：`adds` 两次（+5+5）⇒ 值达 10 ⇒ `gte` 那行**出现**（迁自 books `fruit-demo/mood-by-value` 的能力半；★文案半弃 —— 夹具用自己的标签）",
+	"drive": { "clicks": ["咬一口", "回房间", "再咬一口", "回房间"], "state": {}, "seed": 1 },
+	"expect": { "visible": ["值够了就去看看"], "absent": ["值不够就看这里"], "state": [], "edges": [] }
+}

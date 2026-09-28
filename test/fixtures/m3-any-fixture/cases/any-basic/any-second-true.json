@@ -1,0 +1,7 @@
+{
+	"id": "any-basic/any-second-true",
+	"story": "any-basic",
+	"why": "`any` **正控（第二支命中）**：`any[1]` 成立也渲染 ⇒ `any` 是**或**（✗ 只认第一支）—— 迁自 books `north-room/any-second-true`；★夹具里两支都**可授予**（✗ 复刻 books 那条『`any[0]` 永不可得』的故事内容）",
+	"drive": { "clicks": ["拿起乙"], "state": {}, "seed": 12345 },
+	"expect": { "visible": ["开门进里间"], "absent": [], "state": [], "edges": [ { "from": "厅", "label": "开门进里间", "to": "里间" } ] }
+}

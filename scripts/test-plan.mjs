@@ -386,6 +386,9 @@ export const SEGMENTS = [
 	{ id: "test-actor-target-mjs", phase: 'test', cost: 8, exclusive: true, mutates: ['build'], cmd: "node test/actor-target.mjs" },
 	// ★`#1586`：规则行字段面（`use`／`adds`／`takes` 拉平 ＋ 白名单点名）—— ★`exclusive`（它**要 build** ✓）
 	{ id: "test-rule-row-fields-e2e-mjs", phase: 'test', cost: 6, exclusive: true, mutates: ['build'], cmd: "node test/rule-row-fields-e2e.mjs" },
+	// ★`#1592`（M2）：books 侧**引擎契约性质**用例迁成引擎夹具（`any` 或语义 · `req` 成对 · 值门 · 唤醒休眠用例）
+	//   ★`exclusive`（它要 build ＋ 跑 `case-run` 驱动夹具 ⇒ 争 `ROOT/build`）
+	{ id: "test-any-and-req-cases-mjs", phase: 'test', cost: 10, exclusive: true, mutates: ['build'], cmd: "node test/any-and-req-cases.mjs" },
 	// `#1562`（阶 2a）：事件声明面（生成表 `Game.Events.defs` ＋ 链接 `use` ⇒ `data-sg-call` ＋ 名字级点名）
 	{ id: "test-event-expr-mjs", phase: 'test', cost: 12, exclusive: true, mutates: ['build'], cmd: "node test/event-expr.mjs" },   // ★`#1537` P1：图形原语（结构约束＋行为）—— ✗ `exclusive`：本段只**读**源件＋跑纯函数，**不 build 不写盘**（`#1130`：`exclusive` 的语义是「独占 ＋ 动的已入库真源须列 `mutates`」⇒ 本段两样都不占 ✓）
 	// ★ `#1488`（五步⑤）：结算原语（枚举三件）＋ 阈值只 0 ＋ 零界＝实体授予
@@ -713,7 +716,7 @@ export const SUITE_MEMBERS = {
 	],
 	'story-legal': ['test-multi-story-mjs',
 		'test-multi-story-mjs-selftest',
-		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-case-run-mjs', 'test-merge-sources-mjs', 'test-sources-wired-e2e-mjs', 'test-vitals-consumers-mjs', 'test-vitals-migrate-chargen-mjs', 'test-vitals-display-mjs', 'test-draw-primitives-mjs', 'test-generated-family-mjs', 'test-choose-cards-mjs', 'test-actor-target-mjs', 'test-rule-row-fields-e2e-mjs', 'test-panels-terminal-mjs', 'test-panels-mjs', 'test-panels-render-mjs', 'test-settle-primitives-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs', 'test-economy-keys-mjs',
+		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-case-run-mjs', 'test-merge-sources-mjs', 'test-sources-wired-e2e-mjs', 'test-vitals-consumers-mjs', 'test-vitals-migrate-chargen-mjs', 'test-vitals-display-mjs', 'test-draw-primitives-mjs', 'test-generated-family-mjs', 'test-choose-cards-mjs', 'test-actor-target-mjs', 'test-any-and-req-cases-mjs', 'test-rule-row-fields-e2e-mjs', 'test-panels-terminal-mjs', 'test-panels-mjs', 'test-panels-render-mjs', 'test-settle-primitives-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs', 'test-economy-keys-mjs',
 		// `#1267`／`#1257`：故事根口与两面一致性（归 `infra` 语义——判的是**工具链口径**，非故事内容）
 		'test-story-root-mjs', 'test-story-enum-faces-mjs',
 		'test-story-ci-mjs-selftest', 'test-rules-claims-mjs',

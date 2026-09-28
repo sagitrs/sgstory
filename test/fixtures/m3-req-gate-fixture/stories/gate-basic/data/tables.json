@@ -1,0 +1,12 @@
+{
+ "section": "Game Tables",
+ "note": "条件夹具：只给一个可授予的标志（`钥匙`）与一个可消费项（`粮`，走 `takes`）",
+ "containers": {
+  "Items": {
+   "粮": {
+    "名称": "粮"
+   }
+  }
+ },
+ "merges": []
+}

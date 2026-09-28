@@ -1,0 +1,7 @@
+{
+	"id": "gate-basic/req-before",
+	"story": "gate-basic",
+	"why": "`req` 条件选项**成对之『前』**：未拿到钥匙 ⇒ 内门**不得**出现（迁自 books `north-room/gated-choice-before`）",
+	"drive": { "clicks": [], "state": {}, "seed": 12345 },
+	"expect": { "visible": ["再四处看看"], "absent": ["推开内门"], "state": [], "edges": [] }
+}

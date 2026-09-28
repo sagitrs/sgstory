@@ -113,6 +113,12 @@ export const DEFAULTS = {
 	//     入必给集会把「可选」变成「必给」✗（`#1538` 票面与 spec §5 的可行性核读已裁）。
 	//   ★零声明 ⇒ 玩家面**不产字节**（spec §3／§4④）—— 由空数组表达，✗ 不印 `（空）`、✗ 不印 `$pc.x` ✓。
 	panels: { kind: 'empty-array', verified: VERIFIED },
+	// ★ `#1571`（`#1222` 链 1c）：**实体表**（甲2a 裁：目标实体的状态另开一张 ⇒ `State.variables.actors`）。
+	//   ★形状＝`{ "<实体名>": { …属性… } }` ⇒ ★它是**实体名的单一权威**：声明面（`panels.props[].actor`／
+	//     链接 `actor`）引用的名字必须在这里 ⇒ **编译期点名**（✗ 等玩家）✓ 见 `commands.mjs` 的 `[actor-ref]`。
+	//   ★语义＝**这一面在，但空**（✗ 误报 `default-missing`）—— 与 `panels`／`rules` 同族；
+	//     ★**✗ 入 `REQUIRED_MEMBERS`**（可选声明：没有实体的故事不声明它 ✓）。
+	actors: { kind: 'empty-object', verified: VERIFIED },
 	// 能力开关（缺席即"没有车卡"）
 	hasChargen: { kind: 'const', value: false, verified: VERIFIED },
 };

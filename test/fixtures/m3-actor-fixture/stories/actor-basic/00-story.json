@@ -1,0 +1,14 @@
+{
+ "slug": "actor-basic",
+ "title": "实体对象维夹具",
+ "subtitle": "★`sgstory#1571`（`#1222` 链 1c）：**对象维**（`actor`）两端 —— 读端 `panels.props[].actor`｜写端 链接 `actor`",
+ "entry": "开场",
+ "contractVersion": 1,
+ "audience": "internal",
+ "files": [
+  "stories/actor-basic/00-meta.twee",
+  "stories/actor-basic/15-tables.twee",
+  "stories/actor-basic/17-rules.twee"
+ ],
+ "gates": []
+}

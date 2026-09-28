@@ -204,6 +204,20 @@ window.Game.Rules = {
 		if (!Array.isArray(raw)) throw new Error('Sg.story.panels()：必须返回**数组**（结构畸形必须报错，照 pcDefaults 同族口径）—— ✗ 不静默当空');
 		return raw;
 	},
+	/** ★★ `#1571`（`#1222` 链 1c）：**实体表**（甲2a 裁：目标实体的运行期状态另开一张表 ⇒ `State.variables.actors`）。
+	 *  ★本读点取的是**声明面的初始实体**（契约成员 `actors`，`kind:'const'`）—— ★它是"**实体名**"的**单一权威**：
+	 *    编译期据此判"**声明里引用的实体名是否真存在**"（✗ 等玩家）（照 `#1564` 那套前缀判据的同一精神 ✓）。
+	 *  ★形状：`{ "<实体名>": { …任意属性… }, … }`（键＝实体名 ⇒ ★声明面引用时**只写名字**，✗ 写路径 ✓）。
+	 *  ★边界：缺面 ⇒ `{}`（**"这一面在，但空"** —— 用于没有实体面的故事，✗ 不报错）；非对象（结构畸形）⇒ **fail-loud**
+	 *    （照 `panels()`／`pcDefaults()` 的同族口径：✗ 不静默当空 ✓）。 */
+	actors() {
+		const raw = window.Sg?.story?.actors?.();
+		if (raw == null) return {};
+		if (typeof raw !== 'object' || Array.isArray(raw)) {
+			throw new Error('Sg.story.actors()：必须返回**对象**（实体名 ⇒ 属性表；结构畸形必须报错，照 panels 同族口径）—— ✗ 不静默当空');
+		}
+		return raw;
+	},
 	/** ★ `#1530`：**钱币量纲面**（`vitals` 同族）—— ★缺面 ⇒ 内置；★**逐键回落** ✓ */
 	E() {
 		const p = this.pack().economy ?? null;
@@ -703,6 +717,37 @@ window.Sg.capability = (group) => {
    红线（spec §2.1）：① 实现里 ✗ 许出现领域词／✗ 认得出“这是哪个量纲”（值全由 `props` 指）
      ② 空 ⇒ **不产字节**（✗ 不自造「（空）」✗ 不印 `$pc.x` —— 故事可显式给 `empty`）
      ③ 样式（色／图标／分隔符）**全由 `style` 传**（✗ 引擎不内置配色）。 %/
+window.Sg.actors = {
+	/** 声明面的初始实体（经 `Game.Rules.actors()` 那个读点 —— 缺面 ⇒ `{}`）。 */
+	declared() {
+		return (window.Game?.Rules?.actors?.() ?? {});
+	},
+	/** `StoryInit` 用：把**声明**的初始实体**深拷贝**进运行期表 `State.variables.actors`。
+	 *  ★为什么必须拷贝（✗ 不许直接引用声明对象）：声明面是**共享的常量** ⇒ 直接引用会让"这一档写着写着"
+	 *    把**声明**改了（换档/重开还在），且同一进程里两个档会互相看见 ✗（同族：`panels` 的 `__const_*` 只读语义 ✓）。 */
+	init() {
+		return JSON.parse(JSON.stringify(this.declared() ?? {}));
+	},
+	/** ★★**对象维的解析口**（本票的"一个词两端同用"就落在这里）：给一个**实体名** ⇒ 回"该读/写哪个对象"。
+	 *  · ★`name` 缺省／空白 ⇒ **原样回 `pc`**（既有行为逐字不变 ⇒ 验收②"不回归" ✓）；
+	 *  · ★有名字 ⇒ 回 `State.variables.actors[name]`；★**取不到 ⇒ fail-loud 点名**
+	 *    （✗ 不静默回退 `pc`、✗ 不静默不产字节 —— 那是"静默死"族；编译期另有一道点名 ✓ 见 `commands.mjs`）。
+	 *  ★语义：返回的是**根对象** ⇒ 读端 `pc[key]`／写端 `readPath/writePath(pc, path)` 的 `pc` 位置
+	 *    换成它即可（两端**各只有一个收束口**，✗ 不新造第二套读写路径 ✓）。 */
+	resolve(pc, name) {
+		const n = String(name ?? '').trim();
+		if (!n) return pc;
+		const tbl = State.variables.actors;
+		const it = tbl && typeof tbl === 'object' ? tbl[n] : undefined;
+		if (it == null) {
+			throw new Error(`Sg.actors：实体「${n}」**不在实体表**（\`State.variables.actors\`）里 —— `
+				+ '声明面写的实体名必须真存在（✗ 静默回退 `pc`、✗ 静默不产字节；结构错必须点名 ✓）'
+				+ `（现表：${JSON.stringify(Object.keys(tbl ?? {}))}）`);
+		}
+		return it;
+	},
+};
+
 window.Sg.panels = {
 	/** 取故事的 `panels` 声明（经 `Game.Rules.panels()` 那个**读点** —— 缺面 ⇒ `[]`，非数组 ⇒ 抛）。 */
 	declared() {
@@ -710,19 +755,29 @@ window.Sg.panels = {
 	},
 	/** 一个 `prop` 的取值：**直接 `pc[valueKey]`**（定形乙 —— 装的是 `pc` 键名）。
 	 *  ✗ 不经 `vk()`；✗ 认不出“这是哪个量纲”（那是故事的事 ✓）。 */
-	valueOf(pc, prop) {
+	/** ★★ `#1571`（1c）：**对象维的解析点** —— 一块 prop 要读**哪个对象**（`prop.actor`；缺省 ⇒ 传进来的 `pc` ✓）。
+	 *  ★为什么单列一个口（✗ 只在 `valueOf` 里解）：一个 prop 里有**多个键**（`valueKey` ＋ **`maxKey`**）——
+	 *    它们**必须取自同一个对象** ✗ 否则会印出"**实体的值 / 玩家的上界**"这种混合读数（实测踩过：`10000 / 12`）。 */
+	objectOf(pc, prop) {
+		return Sg.actors.resolve(pc, prop?.actor);
+	},
+	/** 一个 `prop` 的取值：★入参**已是根对象**（由 `objectOf` 解析 —— ✗ 这里不认识"实体"这个概念 ✓）。
+	 *  直接 `root[valueKey]`（定形乙 —— 装的是**键名**）；✗ 不经 `vk()`；✗ 认不出"这是哪个量纲"（那是故事的事 ✓）。 */
+	valueOf(root, prop) {
 		const k = prop?.valueKey;
-		return (k == null || k === '') ? undefined : pc?.[k];
+		return (k == null || k === '') ? undefined : root?.[k];
 	},
 	/** 已知 `as` 原语表（spec §2.2 起步两件；`group` 待将来真形再定 ✓）。 */
 	primitives: {
 		bar({ pc, prop }) {
-			const v = Sg.panels.valueOf(pc, prop);
-			const m = Sg.panels.valueOf(pc, { valueKey: prop?.maxKey });
+			// ★ `#1571`：**先解析对象**（`prop.actor`）⇒ `valueKey` 与 `maxKey` **同一个对象** ✓
+			const root = Sg.panels.objectOf(pc, prop);
+			const v = Sg.panels.valueOf(root, prop);
+			const m = Sg.panels.valueOf(root, { valueKey: prop?.maxKey });
 			return Sg.draw.bar({ value: v, max: m, label: prop?.label ?? '', style: prop?.style ?? {} });
 		},
 		list({ pc, prop }) {
-			const src = Sg.panels.valueOf(pc, prop);
+			const src = Sg.panels.valueOf(Sg.panels.objectOf(pc, prop), prop);
 			const items = Array.isArray(src) ? src
 				: (src && typeof src === 'object') ? Object.keys(src)
 				: [];
@@ -753,6 +808,8 @@ window.Sg.panels = {
 /% 全局状态初始化（**形状**单一源见 `Game.Pc.defaults`；**数值**来自 `Sg.story.pcDefaults()`，见 `#660` 片三-3） %/
 <<set $player_name to "">>
 <<set $pc to Game.Pc.defaults()>>
+/% ★ `#1571`：运行期实体表（`State.variables.actors`）—— ★由**声明面**的初始实体深拷贝而来（✗ 直接引用声明 ✓） %/
+<<set $actors to Sg.actors.init()>>
 
 :: Widgets [widget]
 /% 受伤 + 药膏自动生效 + 死亡判定。用法：<<damage N>>。

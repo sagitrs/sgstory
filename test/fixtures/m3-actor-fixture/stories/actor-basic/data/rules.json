@@ -1,0 +1,5 @@
+{
+	"section": "StoryRules",
+	"note": "本夹具无规则行（出边走 `passages.json` 的 `links[]` ✓）",
+	"rows": []
+}

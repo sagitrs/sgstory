@@ -63,6 +63,7 @@
 { "name": "poisonReduce","kind": "const", "value": 0 }
 { "name": "econEvents", "kind": "game-ref", "path": "Game.Economy.events" }
 { "name": "hasChargen", "kind": "const", "value": false, "docs": "没有车卡（实测 `minimal-demo` 形态；`bool-exists` 判的是 `!!window.X`——别混）" }
+{ "name": "actors", "kind": "const", "value": {}, "docs": "★`#1571`（1c）：**实体表**（甲2a 裁 ⇒ `State.variables.actors`）—— 形状 `{ \"<实体名>\": { …属性… } }`；★它是**实体名的单一权威**（声明面 `panels.props[].actor`／`links[].actor` 引用的名字必须在这里 ⇒ **编译期点名**）；可选声明（`empty-object` 缺省 ⇒ 不报 `default-missing`）" }
 { "name": "panels", "kind": "const", "value": [], "docs": "属性→UI 声明维（表示面）。可选声明：省略或给空数组都合法（`empty-array` 缺省 ⇒ 不报 `default-missing`）；形状 `[{ as: 'bar'|'list', props: [...] }]`，见 spec `docs/superpowers/specs/display-face.md` §2.2" }
 ```
 

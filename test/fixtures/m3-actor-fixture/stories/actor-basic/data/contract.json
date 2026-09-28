@@ -1,0 +1,67 @@
+{
+ "section": "StoryBindings",
+ "members": [
+  {
+   "name": "rules",
+   "kind": "empty-array",
+   "docs": "本夹具无规则行"
+  },
+  {
+   "name": "mechanics",
+   "kind": "null"
+  },
+  {
+   "name": "pcShape",
+   "kind": "const",
+   "value": {
+    "hp": 12,
+    "max_hp": 12
+   },
+   "docs": "玩家侧真值（★与实体侧对照：读端要能分别印出**两边**的血 ✓）"
+  },
+  {
+   "name": "actors",
+   "kind": "const",
+   "value": {
+    "木桩": {
+     "hp": 10000,
+     "max_hp": 10000,
+     "伤": {
+      "累计": 0
+     }
+    }
+   },
+   "docs": "★`#1571`：**实体表**（甲2a 裁）—— 键＝实体名（★声明面只写名字，✗ 写路径）；本夹具一条实体"
+  },
+  {
+   "name": "panels",
+   "kind": "const",
+   "value": [
+    {
+     "as": "bar",
+     "slot": "sidebar.primary",
+     "props": [
+      {
+       "actor": "木桩",
+       "valueKey": "hp",
+       "maxKey": "max_hp",
+       "label": "木桩的血"
+      }
+     ]
+    },
+    {
+     "as": "bar",
+     "slot": "sidebar.primary",
+     "props": [
+      {
+       "valueKey": "hp",
+       "maxKey": "max_hp",
+       "label": "我的血"
+      }
+     ]
+    }
+   ],
+   "docs": "★两条 bar 同 `valueKey`、**不同目标**（一条指实体、一条缺省＝`pc`）⇒ 既是对象维的正例，也是「两条并存不回归」那格（验收②）"
+  }
+ ]
+}

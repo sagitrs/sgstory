@@ -50,12 +50,19 @@ const t = (label, ok, detail = '') => {
 		!readAllTwee().includes("Macro.add('hpbar'") && !readAllTwee().includes('widget "inventory"'));
 }
 
-// ── ⑤ 取值口径（乙）：`pc[valueKey]`，✗ 经 `vk()` ─────────────────────────────
+// ── ⑤ 取值口径（乙）：`root[valueKey]`，✗ 经 `vk()`（★`#1571` 后：`root` 由 `objectOf` 解析而来）────
 {
 	const core = readFileSync(join(ROOT, 'src/10-core.twee'), 'utf8');
-	t('⑤ 取值口径＝**乙**：`valueOf` 直接 `pc?.[k]`（✗ `vk(k)` —— 后者的入参是**量纲名**）',
-		/pc\?\.\[k\]/.test(core) && !/vk\(k\)/.test(core),
+	t('⑤ 取值口径＝**乙**：`valueOf(root, prop)` 直取 `root?.[k]`（✗ `vk(k)` —— 后者的入参是**量纲名**）',
+		/root\?\.\[k\]/.test(core) && !/vk\(k\)/.test(core),
 		'取值口看起来走了 `vk()`');
+	// ★ `#1571`（1c）：**对象维**（`prop.actor` ⇒ 读哪个实体）—— ★判"解析点在场且被 `bar`／`list` 真用"，
+	//   ✗ 判措辞（同族：本笔的"判据物必须被产品面调用"那条 ✓）
+	t('⑤ 对象维：解析点在 `panels.objectOf`，且 `bar`／`list` **都**经它取对象（✗ 只 `valueOf` 里解 ⇒ 会印"实体的值 / 玩家的上界"混合读数）',
+		/objectOf\(pc, prop\)\s*\{/.test(core) && /Sg\.actors\.resolve\(pc, prop\?\.actor\)/.test(core)
+		&& /Sg\.panels\.objectOf\(pc, prop\)/.test(core)
+		&& /Sg\.panels\.valueOf\(Sg\.panels\.objectOf\(pc, prop\), prop\)/.test(core),
+		'对象解析或它的两处消费不全');
 }
 
 // ── ②③④ 真机面（需夹具 ⇒ 无故事时明说未判）────────────────────────────────

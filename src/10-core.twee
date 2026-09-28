@@ -748,6 +748,80 @@ window.Sg.actors = {
 	},
 };
 
+/** ★★ `#1562`（阶 2b）：**事件调用面** —— ★形照 `Sg.actors`（命名空间 ＋ 薄口 ✓）。
+ *  ★分工：★`Sg.rules.evalExpr`／`evalEffect` 是**求值器**（纯，住 `22-rules.twee`）；
+ *  本口只做**编排**：取声明 ⇒ 选 `use` ⇒ 求 `args`（**一次／前态**）⇒ 施加 `effect`（★写到**对象维的根** ✓）✓
+ *  ★★为什么"施加"复用既有五个施加器（✗ 不另造写路）：★"**写侧一处收束**"（同 `#1408`／`#1474` 的理由 ✓）。 */
+window.Sg.events = {
+	/** 声明表的**唯一读口**（生成件 `Game.Events.defs` ⇐ `data/events.json` ✓）。 */
+	defs() {
+		return (window.Game?.Events?.defs ?? {});
+	},
+	/** ★**调用一个事件**（点击那一刻 ⇒ 链接／规则行的 `data-sg-call`）。
+	 *  @param {string} name 事件名（★必须已宣告 ⇒ ✗ 否则点名 ✓）
+	 *  @param {{actor?:string, pc?:object}} [ctx] `actor` ⇒ 目标实体名（★1c 的对象维 ✓） */
+	call(name, ctx = {}) {
+		const n = String(name ?? '').trim();
+		const table = this.defs();
+		const ev = n && Object.prototype.hasOwnProperty.call(table, n) ? table[n] : null;
+		if (!ev) {
+			throw new Error(`Sg.events：事件「${n}」**不在声明表**（\`Game.Events.defs\`）里 —— `
+				+ `（已宣告：${JSON.stringify(Object.keys(table))}）⇒ 名字写错不许静默无效 ✓`);
+		}
+		const R = window.Sg.rules;
+		const pc = ctx.pc ?? State.variables.pc;
+		// ★目标实体（1c 的对象维）：★缺省 ⇒ 原样回 `pc` ✓
+		const target = window.Sg.actors.resolve(pc, ctx.actor);
+		const list = Array.isArray(ev.use) ? ev.use : [];
+		// ★① 按序取**第一个 `when` 成立者**（★漏写 ⇒ `true` ✓；★取中即停 ✓）
+		let pick = null;
+		for (const it of list) {
+			if (!it || typeof it !== 'object') continue;
+			const ok = it.when == null ? true : !!R.holdsCond(it.when, pc, { target });
+			if (ok) { pick = it; break; }
+		}
+		if (!pick) {
+			throw new Error(`Sg.events：事件「${n}」的 \`use\` 列表**全不成立**（${list.length} 条都没选中）—— `
+				+ '✗ 静默什么都不做（那是"看起来能跑"族）⇒ 请补兜底项或检查 when ✓');
+		}
+		// ★② `args` ⇒ **一次、前态**（★`$n` **只求值一次** ⇒ ✗ 引用两次得两个数 ✗）
+		const args = {};
+		for (const [k, v] of Object.entries(pick.args ?? {})) {
+			if (!/^\$\d+$/.test(k)) {
+				throw new Error(`Sg.events：参数名「${k}」不合法 —— ★必须以 **\`$\`＋数字** 组成（如 \`$1\`）✓`);
+			}
+			args[k] = R.evalExpr(v, { pc, self: ev, target });
+		}
+		// ★③ `effect` ⇒ 写到**对象维的根**（✗ 不硬编 `pc` ✓）⇒ 交给既有五个施加器 ✓
+		// ★★ 子句的两支（★照 Operator 的草图 ＝ 子句带 `effect`；而**散文**挪子事件是**另一件事** ⇒ 两者并存 ✓）：
+		//   · ★`effect` ⇒ **就地**施加（本事件的这一支 ✓ —— ★本阶主要用它 ✓）
+		//   · ★`call` ⇒ **调子事件**（★递归 ⇒ 阶 3 的散文支会用得最多 ✓；★子事件也可只是逻辑 ✓）
+		//   ★★二者同时给 ⇒ **点名**（✗ 不许"谁先谁后"静默 —— 语义不明即缺陷 ✓）。
+		const hasEff = pick.effect != null;
+		const sub = pick.call != null && String(pick.call).trim() !== '' ? String(pick.call).trim() : null;
+		if (hasEff && sub) {
+			throw new Error(`Sg.events：事件「${n}」的 ` + '`use` 子句**同时**给了 `effect` 与 `call` ⇒ 语义不明 ⇒ ✗ 请拆成两条 ✓');
+		}
+		const eff = hasEff ? R.evalEffect(pick.effect, { pc, self: ev, target, args }) : null;
+		if (eff) {
+			// #1562 (2b): 本笔的 effect 语义 = **函数式更新**（evalEffect 已算出**最终值** => 见 evalExpr）
+			//   => 经 **Sg.notes.writePath** 落盘。它**就是写侧的唯一收束点**（引擎注释原话:
+			//   applySets/applyAdds/applyYields 的 y.path **都经本函数**）=> 本处**不是**第二条写路
+			//   （区别于五个施加器: 它们的路径约定是"裸键 => ev.* 前缀", 而实体根字段(如 hp)必须根相对
+			//     => 那正是 panels 的 valueKey 所用的口径 => 两者一致）。
+			for (const [path, val] of Object.entries(eff)) {
+				if (val === undefined) {
+					throw new Error('Sg.events：effect 的路径「' + path + '」算不出值（undefined）—— 来源写错会在写侧静默变空 ✗');
+				}
+				window.Sg.notes.writePath(target, path, val);
+			}
+		}
+		// ★递归调子事件（★`args` 不向下传 —— 子事件自带 `$n` 绑定 ⇒ ✗ 不许隐式继承 ⇒ 显式才可判 ✓）
+		if (sub) this.call(sub, { actor: ctx.actor, pc });
+		return { name: n, pick, args, eff };
+	},
+};
+
 window.Sg.panels = {
 	/** 取故事的 `panels` 声明（经 `Game.Rules.panels()` 那个**读点** —— 缺面 ⇒ `[]`，非数组 ⇒ 抛）。 */
 	declared() {

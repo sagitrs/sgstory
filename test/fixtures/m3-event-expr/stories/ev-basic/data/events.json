@@ -1,6 +1,6 @@
 {
  "section": "Game Events",
- "note": "★`#1562` 阶 2a：事件声明面（★本笔只落**声明＋引用**；求值／分派＝阶 2b）",
+ "note": "★#1562 阶 2a＋2b：子句 when/args/effect（就地）＋ call 子事件（无参 ⇒ ✗ 不隐式继承 args）",
  "events": {
   "斩": {
    "label": "斩",
@@ -8,7 +8,63 @@
    "properties": [
     "weapon"
    ],
-   "note": "★声明面：`use`／`effect` 等属阶 2b（本笔不解析 ✓）"
+   "use": [
+    {
+     "when": {
+      "and": [
+       {
+        "gte": [
+         {
+          "rand": 20
+         },
+         "that.ac"
+        ]
+       },
+       {
+        "contains": [
+         "that.properties",
+         "enemy"
+        ]
+       }
+      ]
+     },
+     "args": {
+      "$1": "this.value"
+     },
+     "effect": {
+      "hp": {
+       "sub": [
+        "that.hp",
+        "$1"
+       ]
+      },
+      "伤.累计": {
+       "add": [
+        "that.伤.累计",
+        "$1"
+       ]
+      }
+     }
+    },
+    {
+     "call": "斩·空"
+    }
+   ]
+  },
+  "斩·空": {
+   "label": "斩·空",
+   "use": [
+    {
+     "effect": {
+      "空砍": {
+       "add": [
+        "that.空砍",
+        1
+       ]
+      }
+     }
+    }
+   ]
   }
  }
 }

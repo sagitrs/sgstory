@@ -23,9 +23,22 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url)).replace(/\/$/, '');
 const README = join(ROOT, 'docs/README.md');
 
 /** 对象故事已删的文档（`#1004` 删故事 1；basename 对照——含 archive 在内的任何位置回流进必读面都算）。 */
-// ★ `#1601`：名单里的件**已物理删除**（archive 只余 lore-canon.md ✓）—— ★本集**照旧保留**：
-//   它的用途是「**拦**对已删件的引用」（✗ 不是「这些件还在」）⇒ ★删了它，引用就没人拦 ✓
-export const DELETED_STORY_DOCS = new Set(['lore-canon.md', 'game-outline.md', 'impl-map.md']);
+// ★★ `#1601`／CR（tester-4 核点①）：★改**路径制**（✗ basename 制 —— ★本仓恰有**同名不同物**的对
+//   （`docs/lore-canon.md` 与 `docs/archive/lore-canon.md`）⇒ basename 制**分不清**，会**假阳/假阴** ✗）
+//   ⇒ ★名单＝**路径**（★以 `/` 结尾者按**目录前缀**拦 ✓）；★并**并入本笔新删件** ⇒ 以后机械可拦 ✓
+//   ★本集的用途是「**拦**对已删件的引用」（✗ 不是「这些件还在」）⇒ ★删了它，引用就没人拦 ✓
+export const DELETED_STORY_DOCS = new Set([
+	// 故事 1 三件套（`#1004` 删故事／`#1077` 入档）—— ★其「对象故事已删」语义照旧 ✓
+	'docs/archive/lore-canon.md', 'docs/archive/game-outline.md', 'docs/archive/impl-map.md',
+	// ★ `#1601` 新删（archive 清理 14 件）
+	'docs/archive/chapter3-design.md', 'docs/archive/chapter3-map.md', 'docs/archive/click-time-writes-design.md',
+	'docs/archive/editor-flip-playbook.md', 'docs/archive/homecoming-redesign.md',
+	'docs/archive/lore-canon-v13.md', 'docs/archive/lore-canon-v14.md',
+	'docs/archive/lore-canon-v15.md', 'docs/archive/lore-canon-v16.md',
+	'docs/archive/notes-model-batches.md', 'docs/archive/redesign-core-assets.md', 'docs/archive/westward-unification.md',
+	// ★ `#1601`：两段**整目录**已删 ⇒ 用**前缀**拦（✗ 不逐条列件名 ✓）
+	'docs/reviews/', 'docs/evidence/',
+]);
 
 // `#1359` ② 删件批：**单列豁免退役** —— 原单列件 `docs/dev-conventions.md` 已按"一份为准"删除；
 // 其余件回落统一的 `BUDGET_KB` 看护（✗ 不保留一个永远匹配不到的豁免 ✓）。
@@ -90,8 +103,11 @@ export const staleAuthorityProblems = (text) => {
 		for (const r of rows) {
 			if (EXEMPT_MARK.test(r.line)) continue;
 			for (const m of r.line.matchAll(PATH_IN_BACKTICKS)) {
-				const base = m[1].split('/').pop();
-				if (DELETED_STORY_DOCS.has(base))
+				// ★ `#1601`：**路径制**（✗ basename ✓）—— 规范化掉 `./` 前缀；★以 `/` 结尾的名单项按**目录前缀**判 ✓
+				const norm = m[1].replace(/^\.\//, '');
+				const hit = DELETED_STORY_DOCS.has(norm)
+					|| [...DELETED_STORY_DOCS].some((d) => d.endsWith('/') && norm.startsWith(d));
+				if (hit)
 					out.push(`${where} 第 ${r.no} 行：\`${m[1]}\` 的对象故事已删（\`#1004\`）⇒ 不得再进必读面/权威表——降级标注或移入 docs/archive/（对照表见 docs/archive/README.md）`);
 			}
 		}
@@ -150,8 +166,15 @@ const selftest = () => {
 	const dead = deadLinkProblems(SEC + '| 写剧情 | `docs/no-such-doc.md` | — |', { exists });
 	case_('死链夹具必红并点名', dead.length === 1 && dead[0].includes('no-such-doc.md') && dead[0].includes('不存在'));
 	// ② 权威位指向作废 → 必红（按任务读行 + 权威表行两种位置）
-	const stale = staleAuthorityProblems('## 一、按任务读\n| 查设定 | `docs/lore-canon.md` | — |\n## 二、权威表\n| 设定 | `docs/game-outline.md` | 手写 |');
+	// ★ `#1601`／CR：★判据**路径制** ⇒ 夹具也用**真路径**（✗ basename ✓）
+	const stale = staleAuthorityProblems('## 一、按任务读\n| 查设定 | `docs/archive/lore-canon.md` | — |\n## 二、权威表\n| 设定 | `docs/archive/game-outline.md` | 手写 |');
 	case_('权威位指向作废必红', stale.length === 2 && stale.every((s) => s.includes('#1004')));
+	// ★ `#1601`／CR ②：★**同名不同物**不误伤（`docs/lore-canon.md` ✗ 不在名单 ⇒ 不红 ✓）
+	const sameName = staleAuthorityProblems('## 一、按任务读\n| 查设定 | `docs/lore-canon.md` | — |');
+	case_('同名不同物不误伤（路径制 ✓）', sameName.length === 0);
+	// ★ `#1601`／CR ②：★**本笔新删件**被拦（旧 basename 名单 ✗ 拦不到 ✓）
+	const newDel = staleAuthorityProblems('## 一、按任务读\n| 查设定 | `docs/archive/editor-flip-playbook.md` | — |');
+	case_('新删件被拦（并入名单 ✓）', newDel.length === 1);
 	// ③ 正例 → 不红（三判据全过）
 	const clean = `## 一、按任务读\n${okTable}\n## 二、权威表\n| 面 | 唯一权威 | 形态 |\n|---|---|---|\n| 知识模型 | \`docs/criterion-design.md\` | 手写 |`;
 	case_('正例不红', deadLinkProblems(clean, { exists }).length === 0 && staleAuthorityProblems(clean).length === 0 && budgetProblems(clean, { sizeOf, exists }).length === 0);

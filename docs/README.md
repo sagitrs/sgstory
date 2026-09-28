@@ -1,7 +1,6 @@
 # 文档索引（`docs/`）
 
 > 入口页是仓库根的 `README.md`（"是什么 ＋ 一键跑起来"）；**本页回答"哪份是权威、写什么的时候读哪份"**。
-> 存档口径：`docs/archive/` ＝ **已作废的设定稿**（禁止回流，对照表见 `docs/archive/README.md`）；`docs/reviews/` ＝ **走查/评审的流程记录**（非权威、可过期，见 `docs/reviews/README.md`）。
 
 ## 一、按任务读（推荐路径）
 
@@ -11,7 +10,6 @@
 | 加 / 改门与测试 | `docs/criterion-design.md` | **`docs/criterion-design.md`**（判据设计法则 ＋ 术语表 ＋ 五条路 ＋ 变更与归档：加段登记哪几处、违约红在哪） · `docs/gate-ledger.md` · `docs/readings/ui-coverage-gaps.md` |
 | 要把手写 `<<if>>` 搬进条件表 | **`docs/manual/05-rules.md`**（决策树＋踩坑） | `docs/criterion-design.md` §11–§12（形状正典） |
 | 写 / 改剧情（现存故事，如 `night-ferry`） | `docs/criterion-design.md`（接入契约） | `stories/night-ferry/`（含 `EDITOR-SESSION.md`）· `docs/manual/03-prose.md` |
-| 做质量评审 | `docs/criterion-design.md`（§一 方法 · §四 作业模板） | `docs/reviews/`（走查/评审存档，非权威） |
 | 接一个新故事 | `docs/criterion-design.md` | `docs/criterion-design.md` · `scripts/module-order.mjs`（§二 层归属） |
 | **故事写到某处，引擎还没有这个能力** | **`docs/process/story-engine-loop.md`**（需求到能力的五步循环） | `.github/ISSUE_TEMPLATE/engine-capability.yml`（需求模板）· `#1306`（需求台账） |
 | 想知道表能不能放点击态写 | `docs/archive/click-time-writes-design.md` | `docs/criterion-design.md`（§已知边界） |
@@ -60,14 +58,8 @@
 | `docs/archive/editor-flip-playbook.md` | 102 | **史料·编辑器线已砍**（`#1325`） | 翻面七步（冻基线 → 门重指向 → 产物 → 双向反例 → 重签）——**✗ 不要再照它执行翻面**；手法仍有参照价值 |已踩的坑与三条纪律 |
 | `docs/superpowers/specs/editor-pivot.md` | 220 | **史料·编辑器线已砍**（`#1325`） | 编辑器转向的技术形状（schema v0 · 编译器边界 · 等价判据 · 分期）——**✗ 不要照它落码**；其 §2.1 约定仍以 `docs/engine/**` 为准 |译器边界 · 等价判据三级 · 分期与不变量 K1–K5） |
 | `docs/benchmark-ledger.md` | 55 | 台账 | 质量对标台账（`#297`）：12 款竞品 ＋ 触发条件 ＋ 复核写回；★**门 F6**（`report:freshness --ledger`）**直读它** ⇒ ✗ 不得删 ✓ |
-| `docs/reviews/visual-review-2026-09-10.md` | 47 | 存档 | 2026-09-10 视觉走查 |
 | `docs/manual/README.md` | 63 | 手册 | 引擎功能手册目录与**准入条**（按功能组织）|
 | `docs/manual/03-prose.md` | 66 | 手册 | §3 散文面：能写什么／禁什么＋**可用宏清单（从引擎派生）** |
-| `docs/reviews/text-review-2026-09-10.md` | 41 | 存档 | 文本走查（另一份 `…after-rebase…` 是重基后的复跑） |
-| `docs/reviews/quality-selfaudit-ch123.md` | 38 | 存档 | 1–3 章八维自检（流程记录，非设定稿） |
-| `docs/reviews/rebase-review-2026-09-10.md` | 31 | 存档 | 重基复核记录 |
-| `docs/reviews/text-review-after-rebase-2026-09-10.md` | 29 | 存档 | 重基后的文本复跑 |
-| `docs/reviews/design-review.md` | 28 | 存档 | D6 可用性走查（呈现层改动时复审） |
 | `docs/credits.md` | 20 | 参考 | 参考资源 ＋ 第三方鸣谢 |
 | `docs/ui-migration-diff.md` | 16 | **生成物** | `node scripts/ui-migration-diff.mjs` |
 | `docs/engine/README.md` | 42 | **设计稿·待评审** | `docs/engine` 索引：本期（论证层）读序 ＋ 与既有权威的关系 |
@@ -77,7 +69,6 @@
 | `docs/engine/reference-spec.md` | 124 | **设计稿·待评审** | 条件行参考形状 · 词汇面 · 判据 J1–J3（J3 未实现如实标注） |
 | `docs/engine/json/` 下 9 份 | — | **手册** | 故事包逐文件手写手册（`#1085`；索引见 `docs/engine/json/README.md`） |
 | `docs/archive/` | 13 份 | 作废 | 禁止回流；对照表见 `docs/archive/README.md`（含故事 1 三件套：设定书／设计蓝本／实施图，`#1077`） |
-| `docs/reviews/` | 7 份 | 存档 | 走查/评审流程记录（非权威）；见 `docs/reviews/README.md` |
 
 ## 四、口径与惯例
 
@@ -86,4 +77,3 @@
 - **文档格式有门**：`node scripts/md-format.mjs` —— ① 每个 `*.md` 的围栏必须成对、标题不许落在代码块里（`#603`；`README.md` 曾因一个多余的围栏让四个标题被吞）；② **反引号里的仓内路径必须存在**（`#606` 片一；`src/*.twee` 搬家后曾有 11 处引用未更新，已修）；③ **入口页体量 ratchet**：`README.md` ≤ 120 行（防它再长回 godfile）；④ **残留冲突标记必红**（`#1084`）：行首带尾随内容的 `<<<<<<< `/`>>>>>>> ` → 红并点名（解 rebase/merge 冲突没删净——实测游离 `>>>>>>>` 进过 commit 而三门全绿）；裸 `=======` 是合法 Markdown（setext／分隔线）不单独判，只在被夹住时附报。
 - **要引用已消失的历史路径**：同行写 `<!-- path-exempt: 理由 -->`（门会**留痕打印**豁免，便于收编 —— 别用它掩盖真错误）。
 - **动文档要不要跑全链**：只改文档的 PR 不跑 soak（`docs/criterion-design.md` §10）。
-- **本页与两个存档目录的分工**：本页管"现役文档 ＋ 两张清单"；`docs/archive/README.md` 管"作废稿与其替代关系"；`docs/reviews/README.md` 管"流程记录（走查/评审）"。

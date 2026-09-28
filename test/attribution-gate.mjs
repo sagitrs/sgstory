@@ -15,8 +15,8 @@
 // · 叙事学词 `作者层`/`作者覆盖`/`作者侧`：**叙述人称**术语，与「谁要求的」无关；
 // · 单独出现的 `原话`：故事正文有「她的原话你记下了」（`stories/mist-forest/30-ch1.twee`）。
 //
-// 豁免面（改它们＝篡改记录／日志）：`docs/archive/**`（已作废稿）· `docs/reviews/**`（流程记录）·
-// `docs/evidence/**`（冻结的取证日志，只能重生成不能改）。三者都在各自 README 里写明。
+// 豁免面（改它们＝篡改记录）：`docs/archive/**`（已作废稿，其 README 里写明 ✓）。
+// ★`#1601`：原先还有 `docs/reviews/**`（流程记录）与 `docs/evidence/**`（冻结取证日志）—— ★两者**已删** ✓
 // 本门与白名单**自身**跳过（里面就是被匹配的字面量）—— 跳过路径**硬编码两条**并在输出里打印。
 // 单行豁免 `deauth-exempt: <理由＋票号>`：给**文档里讲这条规矩本身**用的（例子必须写出坏写法），
 // **理由与票号少任一项都不算豁免**，且用到的每一行都在输出里留痕。
@@ -55,7 +55,9 @@ export const TOKENS = [
 ];
 
 /** 整目录豁免：改它们＝篡改记录（三个目录的 README 都写明了） */
-export const EXEMPT_DIRS = ['docs/archive/', 'docs/reviews/', 'docs/evidence/'];
+// ★ `#1601`（docs 残留清理）：★`docs/reviews/`／`docs/evidence/` **已删** ⇒ ★豁免面收窄到**只剩 archive** ✓
+//   （★豁免名单**不能留死目录** —— 见 `#1601` 验收：「删后全仓零断链」✓）
+export const EXEMPT_DIRS = ['docs/archive/'];
 
 /** 自身跳过：本门与白名单里就是被匹配的字面量。**硬编码两条**，且输出里打印（反沉默）。 */
 export const SELF_SKIP = ['test/attribution-gate.mjs', 'test/attribution-allow.json'];
@@ -173,7 +175,7 @@ const selftest = () => {
 	t('正例⑬：同族 `sci席`（`ci` 前还是字母）⇒ **不咬** ✗', judge(F('a.md', '英文 sci席 结尾'), {}).findings.length === 0);
 	t('正例⑭：同族 `ci 席`（前面不是字母）⇒ **仍咬** ✗', judge(F('a.md', '一个 ci 席 单字'), {}).findings.length === 1);
 	// ── 豁免面 ──
-	t('边界①：三个豁免目录整目录不扫', ['docs/archive/x.md', 'docs/reviews/y.md', 'docs/evidence/z.log'].every(isExempt));
+	t('边界①：豁免目录整目录不扫（★`#1601` 后只剩 archive ✓）', ['docs/archive/x.md', 'docs/archive/y.md'].every(isExempt));
 	t('边界②：本门与白名单自身跳过', isExempt('test/attribution-gate.mjs') && isExempt('test/attribution-allow.json'));
 	t('边界③：扫描面只收文本扩展名（图片/字体不在内）', isScanned('a.twee') && !isScanned('a.png') && !isScanned('a.ttf'));
 	t('边界④：`deauth-exempt:` 带理由＋票号 ⇒ 该行放行且**留痕**', (() => { const r = judge(F('a.md', '坏写法：操作者裁定 deauth-exempt: 讲解用 #1'), {}); return r.findings.length === 0 && r.exemptedLines.length === 1; })());

@@ -280,17 +280,18 @@ export const emitEvents = (d) => {
 	//   ★绑定编译：★`$n` ⇒ `$args[0][n]`；★`this.x`／`that.x` ⇒ `$args[0].this/that.<路径>`；
 	//     ★`use:<路径>` ⇒ `Sg.uses.read($args[0], "<路径>")`（★结果表 ⇒ 未产生 ⇒ **运行期点名** ✓）。
 	//   ★**唯一** `{{名}}` 管线 = `valueRefExpand`（✗ 不造第二套 ✓）；★槽只认本子句绑定表（✗ 不回落段级 ✓）。
-	const macros = [];
+	const renders = {};
 	const texts = {};
+	const stripped = {};   // ★defs 去掉 text 后的形（⇒ 产物里 ✗ 不留 {{槽}} ✓）
 	const problems = [];
 	const compileBinding = (name, expr, at) => {
 		const t = String(expr ?? '').trim();
-		if (/^\$\d+$/.test(t)) return `$args[0][${jsString(t)}]`;   // ★键就是 \"$1\" 形（★照 2b 的绑定表 ✓）
-		const rootPath = (root) => t === root ? `$args[0].${root}`
-			: (t.startsWith(root + '.') ? `$args[0].${root}.` + t.slice(root.length + 1) : null);
+		if (/^\$\d+$/.test(t)) return `a[${jsString(t)}]`;   // ★键就是 \"$1\" 形（★照 2b 的绑定表 ✓）
+		const rootPath = (root) => t === root ? `a.${root}`
+			: (t.startsWith(root + '.') ? `a.${root}.` + t.slice(root.length + 1) : null);
 		const a = rootPath('this'); if (a) return a;
 		const b = rootPath('that'); if (b) return b;
-		if (t.startsWith('use:')) return `Sg.uses.read($args[0], ${jsString(t.slice(4))})`;
+		if (t.startsWith('use:')) return `Sg.uses.read(a, ${jsString(t.slice(4))})`;
 		problems.push(`事件「${at}」的槽「${name}」绑定 \`${t}\` **不是合法取值项**（只认 \$n／this.…／that.…／use:…）`);
 		return '""';
 	};
@@ -298,32 +299,48 @@ export const emitEvents = (d) => {
 		if (!text || typeof text !== 'object' || typeof text.format !== 'string') return null;
 		const bindings = {};
 		for (const [k, v] of Object.entries(text)) if (k !== 'format') bindings[k] = compileBinding(k, v, where);
-		const r = valueRefExpand({ name: where, body: text.format, terms: new Set(), bindings });
-		problems.push(...r.problems);
-		return r.body;
+		// ★★(阶3 实测) 原方案是**产物宏**（`<<widget>>`）—— 实测两点不通：
+		//   ① ★`:: X [widget]` 的**标签不生效**（`Story.get(...).tags` 为空 ⇒ widget 未登记 ✗）
+		//   ② ★widget 的 `$args` 求值失败（`bad evaluation` ✗）
+		//   ⇒ ★改：★**编译期生成 JS 渲染函数**（★`{{槽}}` 仍在**编译期**展开 ⇒ ✗ 无第二套插值 ✓）
+		//     ＋ ★值面在**产出那一刻**求（★就是"结算与渲染同时"✓）
+		const probe = valueRefExpand({ name: where, body: text.format, terms: new Set(), bindings, wrap: (x) => '\u0000' + x + '\u0000' });
+		problems.push(...probe.problems);
+		const parts = String(probe.body).split('\u0000');
+		return parts.map((seg, i) => (i % 2 === 1 ? '(' + seg + ')' : jsString(seg))).join(' + ');
 	};
-	for (const [ev, def] of Object.entries(defs)) {
+	for (let evIdx = 0; evIdx < Object.keys(defs).length; evIdx += 1) {
+		const ev = Object.keys(defs)[evIdx];
+		const def = defs[ev];
 		if (!def || typeof def !== 'object') continue;
 		const body = oneText({ where: `${ev}`, text: def.text });
 		if (body != null) {
-			const w = 'sgtext_' + ev.replace(/[^\w]/g, '_');
-			macros.push(`<<widget "${w}">>${body}<</widget>>`);
+			const w = 'sgtext_e' + evIdx;   // ★按**序号**命名（✗ 不用事件名：中文名会被压成同形 `____` ⇒ 撞名 ✗）
+			renders[w] = `function (a) { return ${body}; }`;
 			texts[ev] = w;
 		}
+		stripped[ev] = Object.assign({}, def, def.text != null ? { text: '<prose>' } : {});
 		const list = Array.isArray(def.use) ? def.use : [];
+		if (Array.isArray(def.use)) stripped[ev].use = def.use.map((c) => (c && typeof c === 'object' && c.text != null ? Object.assign({}, c, { text: '<prose>' }) : c));
 		list.forEach((c, i) => {
 			if (!c || typeof c !== 'object') return;
 			const b2 = oneText({ where: `${ev}#${i}`, text: c.text });
 			if (b2 == null) return;
-			const w2 = 'sgtext_' + ev.replace(/[^\w]/g, '_') + '_' + i;
-			macros.push(`<<widget "${w2}">>${b2}<</widget>>`);
+			const w2 = 'sgtext_e' + evIdx + '_' + i;
+			renders[w2] = `function (a) { return ${b2}; }`;
 			texts[ev + '#' + i] = w2;
 		});
 	}
-	return ['window.Game = window.Game ?? {};',
-		`Object.assign((window.Game.Events ??= {}), ${literal({ defs })});`,
-		`Object.assign((window.Game.Events ??= {}), { texts: ${literal(texts)}, textProblems: ${literal(problems)} });`,
-		...macros].join('\n');
+	// ★★(阶3 实测) `<<widget>>` **不能住在 `[script]` 段里**（实测 `Unexpected token '<<'` ✗）
+	//   ⇒ ★宏**另起一段**（`[widget]` 标签 ⇒ SugarCube 自动登记 ⇒ 运行期可用 ✓）✓
+	const body = ['window.Game = window.Game ?? {};',
+		// ★★(阶3 实测) `defs` 里**去掉 `text`** —— ★否则**产物里残留 `{{槽}}`** ✗（验收⑥要求**零** ✓）
+		//   渲染一律走 `texts` 索引（宏名 ✓）⇒ ★数据面只留"该事件的第几子句有文本"的**指针** ✓
+		`Object.assign((window.Game.Events ??= {}), ${literal({ defs: stripped })});`,
+		`Object.assign((window.Game.Events ??= {}), { texts: ${literal(texts)}, textProblems: ${literal(problems)} });`].join('\n');
+	// ★渲染函数表 ⇒ 与 defs 同段（都是 `[script]` ✓ 无标签依赖 ✓）
+	const rows = Object.entries(renders).map(([k, fn]) => `\t${jsKey(k)}: ${fn},`).join('\n');
+	return [body, `Object.assign((window.Game.Events ??= {}), { render: {\n${rows}\n} });`].join('\n');
 };
 
 /** 纯函数：`data/tables.json` → `Game Tables` 段（不含段头与生成标记）。 */

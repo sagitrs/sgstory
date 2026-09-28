@@ -861,7 +861,11 @@ window.Sg.events = {
 					throw new Error('Sg.events：effect 的路径「' + path + '」算不出值（undefined）—— 来源写错会在写侧静默变空 ✗');
 				}
 				window.Sg.notes.writePath(target, path, val);
-				window.Sg.uses.record(tgtName, path, befores[path], val);
+				const rec = {};
+				for (const [path, val] of Object.entries(eff)) { window.Sg.notes.writePath(target, path, val); rec[path] = window.Sg.uses.record(tgtName, path, befores[path], val); }
+				// ★(阶3) 顶层也落 {amount, before, after}（回填的形 ⇒ `use:that.amount` 才读得到）
+				const first = Object.keys(rec)[0];
+				if (first) Object.assign(window.Sg.uses.table()[tgtName], { amount: rec[first].amount, before: rec[first].before, after: rec[first].after, path: first });
 			}
 		}
 		// ★递归调子事件（★`args` 不向下传 —— 子事件自带 `$n` 绑定 ⇒ ✗ 不许隐式继承 ⇒ 显式才可判 ✓）

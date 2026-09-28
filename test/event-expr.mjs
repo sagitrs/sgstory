@@ -288,6 +288,20 @@ t('★新形也在：`{"gte":[{"rand":20},"that.ac"]}`（首操作数＝表达�
 	catch (e) { return 'THROW:' + String(e.message).slice(0, 60); }
 	return r === true ? 'OK:true' : 'OK:' + JSON.stringify(r);
 })(), /OK:true/);
+// ★★(CR `#1607` ②) **`in` 键必须有格**（★在册原无格 ✗）—— ★它就是 operator 的规范形名（`{"in":["$3",["human","animal"]]}` ✓）
+//   ★且一格同时盖两件事：★`in` 这个键**能取到** ✓（动态取键 `this.fns[k0]` ✓）＋ ★**字面量数组**是合法操作数 ✓
+t('★`in` 键：`{"in":["human",["human","animal"]]}` ⇒ 真（★名字＝规范名 `in`，✗ 未换名 ✓）', (() => {
+	let r = null;
+	try { r = w.Sg.rules.evalExpr({ in: ['human', ['human', 'animal']] }, {}); }
+	catch (e) { return 'THROW:' + String(e.message).slice(0, 60); }
+	return r === true ? 'OK:true' : 'OK:' + JSON.stringify(r);
+})(), /OK:true/);
+t('★`in` 键：不在数组里 ⇒ 假（★✗ 恒真 ✓）', (() => {
+	let r = null;
+	try { r = w.Sg.rules.evalExpr({ in: ['orc', ['human', 'animal']] }, {}); }
+	catch (e) { return 'THROW:' + String(e.message).slice(0, 60); }
+	return r === false ? 'OK:false' : 'OK:' + JSON.stringify(r);
+})(), /OK:false/);
 t('★算得对：`{add:[{rand:6},1]}` ⇒ 7（★固定随机源 ⇒ 逐字可比 ✓）', R.evalExpr({ add: [{ rand: 6 }, 1] }) === 7, String(R.evalExpr({ add: [{ rand: 6 }, 1] })));
 t('★算得对：`and`/`gte`/`in` 组合（命中判定形）', R.holdsCond({ gte: [{ rand: 20 }, 12] }, S.variables.pc) === true, 'gte(rand20,12) ⇒ true ✓');
 if (B.uncaught?.length) { bad++; console.error('  ✗ 页面有未捕获异常：' + B.uncaught.slice(0, 2).join(' ｜ ')); }

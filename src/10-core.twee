@@ -869,7 +869,8 @@ window.Sg.events = {
 			}
 		}
 		// ★递归调子事件（★`args` 不向下传 —— 子事件自带 `$n` 绑定 ⇒ ✗ 不许隐式继承 ⇒ 显式才可判 ✓）
-		if (sub) this.call(sub, { actor: ctx.actor, pc }, _depth + 1);   // ★NIT② 深度 +1（自指 ⇒ 16 层点名 ✓）
+		// ★(阶3) 子句是 `call`（子事件）⇒ ★把**子事件的结果整体带回**（★含它的 `text` ⇒ 否则子事件的散文不渲染 ✗ 实测）
+		if (sub) return this.call(sub, { actor: ctx.actor, pc }, _depth + 1);   // ★NIT② 深度 +1（自指 ⇒ 16 层点名 ✓）
 		const T = window.Game?.Events?.texts ?? {};
 		const text = T[n + '#' + pickIdx] ?? T[n] ?? null;
 		return { name: n, pick, pickIdx, args, eff, text, renderArgs: Object.assign({}, args, { that: target, this: ev, targetName: tgtName }) };

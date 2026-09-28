@@ -48,6 +48,8 @@ const buildWith = (storiesRoot) => {
 	}
 };
 /** 造一个**临时副本**（只改一处 ⇒ 归因清楚 ✓）。`mutate(storyDir)` 在副本上动手。 */
+import { valueRefExpand } from '../editor/lib/core/passages.mjs';
+import { proseEventProblems } from '../editor/lib/core/audit-shared.mjs';
 const withCopy = (mutate) => {
 	const W = mkdtempSync(join(tmpdir(), 'sg-event-'));
 	try {
@@ -304,6 +306,55 @@ t('★`in` 键：不在数组里 ⇒ 假（★✗ 恒真 ✓）', (() => {
 })(), /OK:false/);
 t('★算得对：`{add:[{rand:6},1]}` ⇒ 7（★固定随机源 ⇒ 逐字可比 ✓）', R.evalExpr({ add: [{ rand: 6 }, 1] }) === 7, String(R.evalExpr({ add: [{ rand: 6 }, 1] })));
 t('★算得对：`and`/`gte`/`in` 组合（命中判定形）', R.holdsCond({ gte: [{ rand: 20 }, 12] }, S.variables.pc) === true, 'gte(rand20,12) ⇒ true ✓');
+// ════════ 阶 3（`#1569`）：散文事件 ＋ 结果渲染 ＋ 条件效果 ════════
+const callText = (ev, actor) => {
+	const r = w.Sg.events.call(ev, { actor });
+	const fn = (w.Game.Events.render ?? {})[r.text];
+	return fn ? String(fn(r.renderArgs)) : '（无文本）';
+};
+const EV = '木桩';
+w.Sg.uses.table();   // 确保表在
+// ---- ① 绷带两条子句各一格（条件效果 ⇒ 命题里的"可治／不可治"两支）----
+S.variables.actors[EV].hp = S.variables.actors[EV].maxHp;
+t('★① 绷带·满血 ⇒ 走「用不上」支（★文本按 {{槽}} 渲染 ✓）', /没有受伤/.test(callText('用绷带', EV)), callText('用绷带', EV));
+S.variables.actors[EV].hp = 5000;
+t('★①-b 绷带·受伤 ⇒ 走包扎支（★同一事件两条子句 ✓）', /包扎/.test(callText('用绷带', EV)), callText('用绷带', EV));
+// ---- ② 命中／闪避两分支（★用 `when` ＋ 事件引用 ⇒ ✗ 不用 Game.Combat ✓）----
+w.Game.Rules.rng.set((lo, hi) => hi);
+t('★② 命中 ⇒ 「劈中」文本（★值来自结果表 `use:that.amount` ✓）', /劈中/.test(callText('斩', EV)), callText('斩', EV));
+w.Game.Rules.rng.set((lo, hi) => lo);
+t('★②-b 闪避 ⇒ 「挥空」文本（★同一事件的条件效果 ✓）', /挥空/.test(callText('斩', EV)), callText('斩', EV));
+// ---- ④ 能假·结果键：引用"本次尚未产生"的结果键 ⇒ 点名 ----
+t('★④ 结果键**未产生** ⇒ 点名（✗ 不静默当 0 ✓）', (() => {
+	try { w.Sg.uses.read({ targetName: '从未结算过' }, 'that.amount'); return 'OK:无抛 ✗'; }
+	catch (e) { return /尚未产生/.test(String(e.message)) ? 'THROW:点名 ✓' : 'THROW:别的话：' + String(e.message).slice(0, 50); }
+})(), /THROW:点名/);
+// ---- ⑤ 能假·槽（★纯函数面：本子句绑定表 ✓）----
+const V = (body, bindings) => valueRefExpand({ name: 'e', body, terms: new Set(), bindings });
+t('★⑤-a 槽**未绑** ⇒ 点名', V('{{没绑}}', { 目标: 'A' }).problems.length > 0, JSON.stringify(V('{{没绑}}', { 目标: 'A' }).problems).slice(0, 80));
+t('★⑤-b 槽**多给** ⇒ 点名（★票面「槽名重复」按上下文配对读作多给 ⇒ 抛 ✓）', V('{{目标}}', { 目标: 'A', 多余: 'B' }).problems.length > 0, JSON.stringify(V('{{目标}}', { 目标: 'A', 多余: 'B' }).problems).slice(0, 80));
+t('★⑤-c 只绑本子句 ⇒ ✗ 不回落段级（★未绑即点名，✗ 静默取段级 ✓）', V('{{世界态}}', { 目标: 'A' }).problems.length > 0, '');
+// ---- ⑦ B′ 两条判据各一格（★编译期可判 ✓）----
+t('★⑦-a **散文事件带 `use`** ⇒ 点名', proseEventProblems({ defs: { e: { text: { format: 'x' }, use: [{}] } } }).length > 0, '');
+t('★⑦-b **控制事件带事件级 `text`** ⇒ 点名', proseEventProblems({ defs: { e: { use: [{}], text: { format: 'x' } } } }).length > 0, '');
+t('★⑦-c `text.file` ⇒ 点名（★阶段 4 之前不引 markdown 载体 ✓）', proseEventProblems({ defs: { e: { text: { file: 'a.md' } } } }).some((p) => p.code === 'prose-event-file'), '');
+// ---- ⑥ 产物侧：`{{槽}}` 已被编译期展开（✗ 产物里不留 ✓）----
+{
+	const f = join(FX, SLUG, '19-events.twee');
+	const body = existsSync(f) ? readFileSync(f, 'utf8') : '';
+	t('★⑥ 产物里**不留** `{{槽}}`（★编译期成渲染函数 ✓）', body.length > 0 && !/\{\{/.test(body), `19-events.twee 含 {{ 次数=${(body.match(/\{\{/g) ?? []).length}`);
+	t('★⑥-b 产物里有**渲染函数表**（★每子句一个 ✓）', /render:\s*\{/.test(body) && /function \(a\)/.test(body), '');
+}
+// ---- ⑨ 零旧战斗能力（★票面写的是"**本笔路径**" ⇒ ★只看**本笔新增的行** ✓ ——
+//         ★整文件 grep 会咬到引擎**既有**的名字（如 `fights` 的历史件）⇒ ✗ 那不是本笔引入的 ✓）----
+{
+	const banned = /Game\.Combat|Game\.Encounters|State\.variables\.fights|rollDice|battleDamage|slotAbsorbAt/;
+	const diff = execFileSync('git', ['diff', 'origin/main...HEAD', '--unified=0', '--', 'src', 'editor'],
+		{ cwd: ROOT, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
+	const added = diff.split('\n').filter((l) => l.startsWith('+') && !l.startsWith('+++'));
+	const hits = added.filter((l) => banned.test(l));
+	t('★⑨ **本笔新增行**零旧战斗能力（★只看 `origin/main...HEAD` 的 `+` 行 ✓）', hits.length === 0, hits.slice(0, 2).join(' ｜ '));
+}
 if (B.uncaught?.length) { bad++; console.error('  ✗ 页面有未捕获异常：' + B.uncaught.slice(0, 2).join(' ｜ ')); }
 try { await B.close?.(); } catch { /* 忽略 */ }
 

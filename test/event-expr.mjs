@@ -349,11 +349,22 @@ t('★⑦-c `text.file` ⇒ 点名（★阶段 4 之前不引 markdown 载体 �
 //         ★整文件 grep 会咬到引擎**既有**的名字（如 `fights` 的历史件）⇒ ✗ 那不是本笔引入的 ✓）----
 {
 	const banned = /Game\.Combat|Game\.Encounters|State\.variables\.fights|rollDice|battleDamage|slotAbsorbAt/;
-	const diff = execFileSync('git', ['diff', 'origin/main...HEAD', '--unified=0', '--', 'src', 'editor'],
-		{ cwd: ROOT, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
-	const added = diff.split('\n').filter((l) => l.startsWith('+') && !l.startsWith('+++'));
-	const hits = added.filter((l) => banned.test(l));
-	t('★⑨ **本笔新增行**零旧战斗能力（★只看 `origin/main...HEAD` 的 `+` 行 ✓）', hits.length === 0, hits.slice(0, 2).join(' ｜ '));
+	// ★★CR（developer-9，**CI 实测红**）：★三号形 `origin/main...HEAD` **需要 merge-base** ——
+	//   ★CI 浅检出（depth=1、两侧无共同祖先）⇒ `git diff` **fatal** ⇒ ★整支测试**崩**（✗ 红的不是判据、是取基线的方式 ✓）
+	//   ⇒ ★改**两号形**（★与 `scripts/coverage.mjs` 同口径：一处权威 ✓）＋ ★**catch ＋ 点名**
+	//     （★基线不可得 ⇒ 报"先 `git fetch origin main`" ⇒ ✗ 不许崩 ✓）
+	let added = null;
+	let why = '';
+	try {
+		const diff = execFileSync('git', ['diff', 'origin/main', '--unified=0', '--', 'src', 'editor'],
+			{ cwd: ROOT, encoding: 'utf8', maxBuffer: 8 * 1024 * 1024 });
+		added = diff.split('\n').filter((l) => l.startsWith('+') && !l.startsWith('+++'));
+	} catch (e) {
+		why = '基线不可得（`git diff origin/main` 失败）⇒ ★先 `git fetch origin main` ✓｜' + String(e && e.message || e).split('\n')[0].slice(0, 80);
+	}
+	t('★⑨ **本笔新增行**零旧战斗能力（★只看 `git diff origin/main` 的 `+` 行 ✓ 两号形 ⇒ 浅检出也不崩 ✓）',
+		added != null && added.filter((l) => banned.test(l)).length === 0,
+		added == null ? why : added.filter((l) => banned.test(l)).slice(0, 2).join(' ｜ '));
 }
 if (B.uncaught?.length) { bad++; console.error('  ✗ 页面有未捕获异常：' + B.uncaught.slice(0, 2).join(' ｜ ')); }
 try { await B.close?.(); } catch { /* 忽略 */ }

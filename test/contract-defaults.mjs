@@ -12,7 +12,7 @@
 
 import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
-import { DEFAULTS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems, READ_FORMS, deriveContractAliases, isTweeFile, contractReadDomain, deriveCapabilityGroups, requiredSilenced, fixtureFaceProblems, FIXTURE_FACE_EXPECTED, FIXTURE_FACE_EXCEPTIONS, fixtureFaceExceptionConflicts , storyKeyLiteralProblems, STORY_KEY_NAMES , exceptionRemovableProblems, EXCEPTION_REMOVAL_CHECKS , dataFaceMemberProblems} from '../editor/lib/core/contract-defaults.mjs';
+import { DEFAULTS, REQUIRED_MEMBERS, CAPABILITY_MEMBERS, equalsDefault, isGuardedRead, dataMemberCount, defaultProblems, READ_FORMS, deriveContractAliases, isTweeFile, contractReadDomain, deriveCapabilityGroups, requiredSilenced, fixtureFaceProblems, FIXTURE_FACE_EXPECTED, FIXTURE_FACE_EXCEPTIONS, fixtureFaceExceptionConflicts , storyKeyLiteralProblems, STORY_KEY_NAMES , exceptionRemovableProblems, EXCEPTION_REMOVAL_CHECKS , dataFaceMemberProblems} from '../editor/lib/core/contract-defaults.mjs';
 import { storySlugs, absPath } from '../scripts/dist-paths.mjs';
 import { maskComments } from '../editor/lib/core/mask.mjs';
 import { outsideQuotes } from '../editor/lib/host/k6criteria.mjs';
@@ -102,10 +102,39 @@ for (const code of ['dead-declaration', 'read-without-default']) {
 	console.log(`  · 该去但前提未满足（去声明会撞 L1／等价面，见票面 #1216）：${redundant.length} 项`);
 	for (const p of redundant) console.log(`      ${p.slug}:${p.name}（${p.why}）`);
 	// 两张清单做完后本就该空 非空校验改用合成输入（能假：给一条“值等于缺省且全守卫”的声明必须列出来）。
-		// 用**非必给**成员（必给成员的声明不可去，会被正确跳过 拿它测不出『该去』这一支）。
+		// ★（`#1576` 同款过度断言，随引擎侧一并改准）用**非必给**成员 —— ★因为**审计的两支都会跳过必给成员**
+		//   （本支＝冗余/建议删；另见「二·补」支）⇒ ★拿必给成员测不出『该去』这一支（**是"测不出"，✗ 不是"不可去"**）。
+		//   ★必给成员的声明**撤掉是否 fail-loud 取决于它的读点**（读点 fail-loud ⇒ 当场报｜带守卫 ⇒ 照跑）✓
 		const syntheticRedundant = defaultProblems({ membersByStory: { 's': [{ name: 'combatPool', kind: 'empty-array' }] },
 			readsByMember: { combatPool: [{ file: 'x.twee', line: 1, tail: '?.(a) ?? []', before: 'Sg.story.combatPool' }] }, defaults: DEFAULTS });
 		ok('能假·该去的声明可枚举（合成一条冗余声明必须列出）', syntheticRedundant.some((x) => x.code === 'redundant-declaration'));
+		// ★（`#1576`）**过度断言的守卫格** —— 本格盯"那句错话不许回来"（`#1564` 格族：
+		//   ★文本判据可接受，条件是它**能假**：把措辞改回"不可去"⇒ 本格当场红 ✓；
+		//   ★而"注释是否真的对"由**行为面**兜 —— 下一格（必给成员**不**被两支建议去掉）✓）。
+		{
+			const eng = readFileSync(join(ROOT, 'editor/lib/core/contract-defaults.mjs'), 'utf8');
+			// ★判据①：**准确**表述在场（"审计两支跳过" ＋ "本支不跳过"），且旧过度断言原句**不在**。
+			const judge = (txt) => /审计的两支跳过必给成员/.test(txt) && /本支\*\*不\*\*跳过必给成员/.test(txt)
+				&& !/必给成员的声明不可去（读点是 fail-loud）/.test(txt);
+			ok('（#1576）过度断言已改准（含"审计两支跳过"＋"本支不跳过"＋"取决于读点"）', judge(eng),
+				/必给成员的声明不可去（读点是 fail-loud）/.test(eng) ? '旧的过度断言原句又回来了' : '新的准确措辞缺失');
+			// ★判据②**能假自证**：把新表述换回旧原句 ⇒ judge 必须为假（✗ 恒真）。
+			const reverted = eng.replace(/审计的两支跳过必给成员/, '必给成员')
+				.replace(/本支\*\*不\*\*跳过必给成员[^\n]*/, '必给成员的声明不可去（读点是 fail-loud）');
+			ok('（#1576）能假：把措辞换回旧原句 ⇒ judge 为假（本格✗恒绿）', judge(reverted) === false);
+			// ★判据③**行为面**（本票"注释是否真的对"由此兜）：必给成员**不**被"冗余/建议删"支建议去掉。
+			const reqName = [...REQUIRED_MEMBERS][0];
+			const synth = defaultProblems({ membersByStory: { s: [{ name: reqName, kind: 'empty-array' }] },
+				readsByMember: { [reqName]: [{ file: 'x.twee', line: 1, tail: '?.(a) ?? []', before: `Sg.story.${reqName}` }] }, defaults: DEFAULTS });
+			ok(`（#1576）行为面：必给成员「${reqName}」不被"冗余/建议删"支建议去掉（本支跳过它）`,
+				!synth.some((x) => x.code === 'redundant-declaration' && x.name === reqName));
+			// ★判据④**反向**（防"两支都跳过"被读成"必给成员受特别保护"）：必给成员若**引擎从不读** ⇒
+			//   **第一支（死声明）照报**（该支不跳过必给成员）—— ★这正是本票要讲清的第二点。
+			const dead = defaultProblems({ membersByStory: { s: [{ name: reqName, kind: 'empty-array' }] },
+				readsByMember: {}, defaults: DEFAULTS });
+			ok(`（#1576）反向：必给成员「${reqName}」从不被读 ⇒ 死声明支照样报（该支不跳过必给成员）`,
+				dead.some((x) => x.code === 'dead-declaration' && x.name === reqName));
+		}
 	// B 半做完后真实清单**本就该空**（空＝做完） 非空校验改用**合成输入**（能假：给一个未守卫的读点必须列出来）。
 		const synthetic = defaultProblems({ membersByStory: { 's': [{ name: 'rules', kind: 'empty-array' }] },
 			readsByMember: { rules: [{ file: 'x.twee', line: 1, tail: '(a)', before: 'Sg.story.rules' }] }, defaults: DEFAULTS });

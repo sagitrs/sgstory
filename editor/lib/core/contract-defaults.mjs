@@ -361,13 +361,24 @@ export const defaultProblems = ({ membersByStory = {}, readsByMember = {}, defau
 		const declared = new Set(members.map((m) => m.name));
 		// 一、死声明：声明了但引擎从不读
 		// 能力组成员由组助手读取（动态取，形态扫描看不见）→ 不算死声明。
+		// ★（`#1576`）★本支**不**跳过必给成员 ⇒ ★必给成员若引擎从不读，**照样本支报** `dead-declaration`
+		//   ⇒ ★别把"必给"读成受本函数特殊保护的豁免（上面那句 `continue` 只在**第二支**，见下）✓
 		for (const n of declared) if (!inCapabilityGroup(n) && !(n in readsByMember)) out.push({ slug, code: 'dead-declaration', name: n });
 		// 二、冗余声明：值等于缺省，且读点全带守卫（去声明的前提）
 		for (const m of members) {
 			if (!equalsDefault(m, defaults)) continue;
 			const sites = readsByMember[m.name] ?? [];
 			const unguarded = sites.filter((s) => !isGuardedRead(s.tail, s.before));
-			if (REQUIRED_MEMBERS.has(m.name)) continue;   // 必给成员的声明不可去（读点是 fail-loud）
+			// ★★（`#1576` 修过度断言）★这句 `continue` 的**语义**＝"**审计的两支跳过必给成员**"
+			//   （★本支＝冗余/建议删；★另见下方「二·补」支的 `REQUIRED_MEMBERS.has(m.name)`
+			//   —— ★两支同款跳过 ⇒ 故必给成员**不会被这两支建议去掉**）
+			//   ⇒ ★它**不是一个强制门**，✗ 也**不代表"声明不可去"**：
+			//   ★撤掉某个必给成员声明之后**是否 fail-loud**，**取决于该成员的读点** ——
+			//   ★读点 fail-loud ⇒ 撤了当场报｜★读点带守卫 ⇒ 撤了照跑（实证：`sgstory-books#50` 撤
+			//   `battle-demo-dnd` 的 `foeState` 行 ⇒ `build` **rc=0**）✗ 不能一概而论 ✓
+			//   ★（`#1576` 缘由）原措辞曾断言必给成员声明**撤不得** ⇒ 该误读被人照着写进了 `sgstory-books#48`
+			//   的票面，后由 `books#50` 纠正 ⇒ 本笔即为防下一个读者同款被误导（★故本处**不复述**原句 ✓）。
+			if (REQUIRED_MEMBERS.has(m.name)) continue;
 			if (sites.length && unguarded.length === 0) out.push({ slug, code: 'redundant-declaration', name: m.name,
 				why: `值等于缺省，${sites.length} 处读点全带守卫` });
 		}

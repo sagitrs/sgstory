@@ -304,6 +304,25 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 					window.Sg.rules.applySets(eff, target);
 					window.Sg.rules.applyAdds(eff, target);   // ★ `#1466`：算术效果（与上面三者**同刻** ✓）
 					window.Sg.rules.applyTakes(eff, target);  // ★ `#1471`：库存移除（同刻 ✓）
+					// ★★ `#1562`（阶 2b）：**事件调用**（`data-sg-call`）—— ★与上面五个效果**同刻**（点击那一刻 ✓）。
+					//   ★★两处入口（**链接**／**规则行**）在 **DOM 层已统一**（`#1586` 拉平 ⇒ 两边都出 `data-sg-call` ✓）
+					//     ⇒ ★此处**只此一处**接（✗ 两处各写一套 ⇒ 铁律②"同一概念一处实现" ✓）。
+					//   ★顺序：★**先该链接自己的效果、后事件**（★两者同刻、语义独立 ⇒ 写在此处仅为了"先后就一个地方说了算" ✓）。
+					//   ★`actor` 复用**同一个解析结果**（★即"这次作用的目标" ⇒ `that.*` 在值面也指它 ✓）。
+					const rawCall = control.getAttribute('data-sg-call');
+					// ★★ `#1562`（阶 2b）：★**事件调用必须“响”**——★本块外层那个 `catch` 是为“**属性坏了不挡跳转**”写的 ✓，
+					//   但它会把 **数据错（点名）也吞掉** ✗ ⇒ ★所以这里**单独包一层**且**出声**（✗ 静默 ✗）。
+					//   ★形：★`console.error` ＋ 在元素上打标记（★两路都可见 ⇒ ✗ 只靠日志 ✗）——
+					//     ★测试与门据此可断（✗ 不依赖“人去看控制台” ✓）。
+					if (rawCall) {
+						try {
+							window.Sg.events.call(rawCall, { actor: eff.actor ?? null });
+						} catch (err) {
+							const msg = String(err && err.message || err);
+							control.setAttribute('data-sg-call-error', msg);
+							console.error('✗ [sg-call] ' + msg);
+						}
+					}
 				}
 			}
 		} catch { /* 属性坏了不该挡跳转 ⇒ 交给 <<printparam>> 一侧点名 */ }

@@ -48,6 +48,81 @@ window.Sg.rules = {
 		}
 		return t;
 	},
+	// #1562 (2b) fns: name => {arity, ret, fn}; 未宣告/元数/类型 => fail-loud.
+	fns: {
+		add: { arity: 2, ret: 'num', fn: (a, b) => a + b },
+		sub: { arity: 2, ret: 'num', fn: (a, b) => a - b },
+		rand: { arity: 1, ret: 'num', fn: (n) => window.Game.Rules.rng.d(n) },
+		in: { arity: 2, ret: 'bool', fn: (a, b) => Array.isArray(b) && b.includes(a) },
+		contains: { arity: 2, ret: 'bool', fn: (a, b) => Array.isArray(a) && a.includes(b) },
+		not: { arity: 1, ret: 'bool', fn: (a) => !a },
+		and: { arity: -1, ret: 'bool', fn: (...xs) => xs.every(Boolean) },
+		or: { arity: -1, ret: 'bool', fn: (...xs) => xs.some(Boolean) },
+		// #1562 (2b): 比较算子也进本表 => 谓词面与表达式面**同一空间**（holdsCond 的 ops 支保留 = 兼容）。
+		gte: { arity: 2, ret: 'bool', fn: (a, b) => a >= b },
+		gt: { arity: 2, ret: 'bool', fn: (a, b) => a > b },
+		lte: { arity: 2, ret: 'bool', fn: (a, b) => a <= b },
+		lt: { arity: 2, ret: 'bool', fn: (a, b) => a < b },
+		oneOf: { arity: 2, ret: 'bool', fn: (a, b) => Array.isArray(b) && b.includes(a) },
+	},
+	// #1562 (2b) evalExpr: 字面量 / $n / this.x / that.x / {fn:[...]}; 深度上限 32.
+	evalExpr(e, ctx = {}, depth = 0) {
+		const MAX = 32;
+		if (depth > MAX) throw new Error(`Sg.rules.evalExpr：**嵌套深度超限**（> ${MAX}）—— 畸形数据不许把求值器拖死 ✗`);
+		if (e == null || typeof e === 'number' || typeof e === 'boolean') return e;
+		if (typeof e === 'string') {
+			const s = e.trim();
+			if (/^\$\d+$/.test(s)) {
+				const a = ctx.args ?? {};
+				if (!Object.prototype.hasOwnProperty.call(a, s)) {
+					throw new Error(`Sg.rules.evalExpr：参数 \`${s}\` **未绑**（已绑：${JSON.stringify(Object.keys(a))}）——`
+						+ ' ✗ 未绑参数不许静默当 0（那会让效果静默失真 ✓）');
+				}
+				return a[s];
+			}
+			for (const [root, box] of [['this', ctx.self], ['that', ctx.target]]) {
+				if (s === root) return box;
+				if (s.startsWith(root + '.')) {
+					let cur = box;
+					for (const k of s.slice(root.length + 1).split('.')) cur = (cur == null ? undefined : cur[k]);
+					return cur;
+				}
+			}
+			// ★裸串 ⇒ **字面量**（#1562 2b 定案）：★operator 的模型需要字面量（如 contains(that.properties, "enemy") /
+			//   in($3, ["human","animal"]) ✓）⇒ ✗ 不能一律当错。★键**必须显式点名**（this.／that.）✓
+			//   ★与 holdsCond 的**旧**口径不同（那里裸串＝键引用）—— ★故本口径只适用于**表达式**面 ✓
+			return s;
+		}
+		if (typeof e !== 'object' || Array.isArray(e)) throw new Error(`Sg.rules.evalExpr：表达式必须是对象或字面量（拿到 ${JSON.stringify(e)}）`);
+		const names = Object.keys(e);
+		if (names.length !== 1) throw new Error(`Sg.rules.evalExpr：函数项必须**恰有一个**名字（拿到 ${names.length} 个：${names.join('／')}）`);
+		const name = names[0];
+		const spec = this.fns?.[name];
+		if (!spec) throw new Error(`Sg.rules.evalExpr：函数「${name}」**未被引擎宣告**（\`Sg.rules.fns\` = ${JSON.stringify(Object.keys(this.fns ?? {}))}）——`
+			+ ' ✗ 未宣告不许静默当字面量（那会让条件永假 ✓）');
+		const rawArgs = Array.isArray(e[name]) ? e[name] : [e[name]];
+		if (spec.arity >= 0 && rawArgs.length !== spec.arity) {
+			throw new Error(`Sg.rules.evalExpr：函数「${name}」要 **${spec.arity}** 个参数（拿到 ${rawArgs.length} 个）—— 元数不符必须点名 ✓`);
+		}
+		const vals = rawArgs.map((x) => this.evalExpr(x, ctx, depth + 1));
+		if (vals.some((v) => v === undefined)) {
+			throw new Error(`Sg.rules.evalExpr：函数「${name}」的参数里有**取不到的值**（undefined）—— 来源写错会在运算里静默变 NaN ✗ ⇒ 请检查 this／that 路径 ✓`);
+		}
+		const out = spec.fn(...vals);
+		if (spec.ret === 'num' && !Number.isFinite(out)) throw new Error(`Sg.rules.evalExpr：函数「${name}」必须返回**有限数**（拿到 ${JSON.stringify(out)}）`);
+		if (spec.ret === 'bool' && typeof out !== 'boolean') throw new Error(`Sg.rules.evalExpr：函数「${name}」必须返回**布尔**（拿到 ${JSON.stringify(out)}）`);
+		return out;
+	},
+	// #1562 (2b) evalEffect: { "<路径>": <表达式> } => { "<路径>": <最终值> }
+	//   语义 = **函数式更新**（表达式自己读旧值 => 例如 {"hp": {"sub": ["that.hp", 3]}}）。
+	//   与 adds **同形**（路径 => 值）=> 写侧交 Sg.notes.writePath（**唯一的写侧收束点**）。
+	evalEffect(effect, ctx = {}) {
+		if (effect == null) return null;
+		if (typeof effect !== 'object' || Array.isArray(effect)) throw new Error('Sg.rules.evalEffect：effect 必须是对象（拿到 ' + JSON.stringify(effect) + '）');
+		const out = {};
+		for (const [path, expr] of Object.entries(effect)) out[path] = this.evalExpr(expr, ctx);
+		return out;
+	},
 	// 一个"键"的**值**（不是真假）：`n_*` → 笔记真假；`inv:`／`era:` → 持有／时代；其余按 `readPath` 走（裸键＝`ev.`）。
 	// 与下面 `holds()` 的分工：`holds` 问"这个键成不成立"，`readKey` 问"这个键是多少"（算子形要比大小／比集合）。
 	readKey(key, pc) {
@@ -115,17 +190,42 @@ window.Sg.rules = {
 	// 单个**条件项**是否满足（`#568`）：字符串 → 沿用 `holds()`；对象 → 按算子比较。
 	// 结构问题一律 **fail-loud**（畸形／未宣告算子 → 抛错）——静默为假正是本票要根除的那类；
 	// 而**取值失败**（键缺失、类型不可比）→ 只**不匹配**（false）："还没发生"是合法状态，不是结构缺陷。
-	holdsCond(cond, pc) {
+	holdsCond(cond, pc, ctx0 = null) {
 		if (cond == null || typeof cond !== 'object' || Array.isArray(cond)) return this.holds(cond, pc);
 		const names = Object.keys(cond);
 		if (names.length !== 1) throw new Error(`Sg.rules：条件项对象形必须**恰有一个**算子（拿到 ${names.length} 个：${names.join('／')}）——结构畸形必须报错（#568）`);
 		const op = names[0];
-		if (!this.ops.includes(op)) throw new Error(`Sg.rules：算子「${op}」未被引擎宣告（\`Sg.rules.ops\` = ${JSON.stringify(this.ops)}）——未宣告的算子会让条件永假（#568）`);
+		// #1562 (2b): `op` 可以是**算子**(ops: 比较) 或**谓词函数**(fns: and/or/not/contains/intersects) => 两者都放行。
+		if (!this.ops.includes(op) && !this.fns?.[op]) throw new Error(`Sg.rules：算子「${op}」未被引擎宣告（\`Sg.rules.ops\` = ${JSON.stringify(this.ops)}）——未宣告的算子会让条件永假（#568）`);
 		const args = cond[op];
 		if (!Array.isArray(args) || args.length < 2) throw new Error(`Sg.rules：算子「${op}」的参数必须是 [键, …值]（拿到 ${JSON.stringify(args)}）——结构畸形必须报错（#568）`);
 		const [key, ...rest] = args;
 		// **先解析操作数**（取值项）：结构问题必须 fail-loud，不能因为键恰好缺失就把它静默跳过。
+		// #1562 (2b) 第一个操作数: 对象且单键 且该键在 fns 里 -> 谓词函数 => evalExpr; 否则回既有 readKey (兼容)
+		const k0 = (key !== null && typeof key === 'object' && !Array.isArray(key) && Object.keys(key).length === 1) ? Object.keys(key)[0] : null;
+		// ★★(2b) 定案：`op` **本身**是谓词函数（and/or/not/contains/intersects/gte/...）
+		//   ⇒ ★对**整个节点** `cond` 求值（✗ 不是对 `key`）—— ★否则 `and` 只算第一个参数 ✗（实测踩到）
+		if (this.fns?.[op]) {
+			const vAll = this.evalExpr(cond, Object.assign({ pc, target: pc }, ctx0 ?? {}), 0);
+			return !!vAll;
+		}
+		// ★推广支：op 是比较算子，而**第一个操作数**是函数/表达式 ⇒ 先求它，再与第二操作数比
+		if (k0 && this.fns?.[k0]) {
+			const v = this.evalExpr(key, Object.assign({ pc, target: pc }, ctx0 ?? {}), 0);
+			// ★布尔谓词（and/or/not/contains/intersects/gte/...）=> **直接就是真假** (✗ 不与 rest[0] 比)
+			if (this.fns[k0].ret === 'bool') return !!v;
+			// ★数值函数 => 与第二操作数（取值项/字面量）比
+			const w2 = this.termValue(rest[0], pc);
+			if (typeof v !== 'number' || typeof w2 !== 'number') return false;
+			const C2 = { gte: (a, b) => a >= b, gt: (a, b) => a > b, lte: (a, b) => a <= b, lt: (a, b) => a < b }[op];
+			if (!C2) throw new Error('Sg.rules：算子「' + op + '」已宣告但无求值实现（漂移）');
+			return C2(v, w2);
+		}
 		const want = op === 'oneOf' ? null : this.termValue(rest[0], pc);
+		// ★ `#1562`（阶 2b）：**第一个操作数也允许取值项／表达式**（`holdsCond` 的推广 ✓）——
+		//   ★**兼容**：★**字符串仍＝键引用**（走既有 `readKey`，含 `n_*`／`inv:`／`era:`／`chk:`／`fight:` 前缀族 ✓）；
+		//   ★★**对象** ＝ 表达式（`{rand:20}`／`{add:[…]}` 等 ⇒ 走 `evalExpr` ✓）。
+		//   ★于是"命中判定"＝ `{gte:[{rand:20}, "that.ac"]}`（✗ 不新造机制 ✓）。
 		const got = this.readKey(key, pc);
 		if (got === undefined || got === null) return false;                        // 键缺失 → 不匹配
 		if (op === 'oneOf') {

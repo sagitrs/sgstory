@@ -188,5 +188,97 @@ t('① 生成件被产出（`19-events.twee` 在）', existsSync(join(FX, SLUG, 
 		`首次 rc=${r1.rc}｜坏指纹改数据后 rc=${r2.rc}｜生成件含新值=${/value:\s*43/.test(genAfter)}`);
 }
 
-if (bad) { console.error(`\n✗ 事件声明面（阶 2a）自证失败 ${bad} 项`); process.exit(1); }
+
+// ================= ★★ `#1562`（阶 2b）：运行期求值 ＋ 分派 ＝================
+// 口径：★**只 boot 一次**（`SG_STORIES_DIR` 必须在 `import boot` **之前**给 ⇒ 变体只能靠"改内存里的声明表"，
+//   ✗ 不能每个变体一次 build ✗）；★随机源**注入固定值**（`rng.set((lo,hi)=>hi)` ⇒ `rand(20)`＝20 ⇒ 命中 ✓）。
+// 格：① 读＝9997｜② 能假·值（`value` 3⇒5 ⇒ 9995）｜③ 能假·谓词（去 `enemy` ⇒ 走兜底 ＋ hp ✗ 变）｜
+//     ⑤ 能假·全不成立 ⇒ 点名｜⑦ 效果写到实体（✗ 给 `actor` ⇒ 落 `pc` ⇒ 木桩✗变）｜⑨ 六种非法形｜
+//     ⑫ 自然路径也红（`#1583` 后成立 ⇒ ✗ 不必清生成物）
+process.env.SG_STORIES_DIR = FX;
+const { boot } = await import('./boot.mjs');
+const B = await boot({ story: SLUG, random: 0.5 });
+const w = B.w, S = w.SugarCube.State, R = w.Sg.rules;
+w.Game.Rules.rng.set((lo, hi) => hi);            // ★固定随机源 ⇒ rand(20)＝20（★逐字可比 ✓）
+const hp = () => S.variables.actors['木桩'].hp;
+const pk = () => S.variables.actors['木桩'].空砍;
+const click = async (label) => {
+	const a = [...w.document.querySelectorAll('#passages a.link-internal')].find((x) => x.textContent.trim() === label);
+	if (!a) return false;
+	a.dispatchEvent(new w.MouseEvent('click', { bubbles: true, cancelable: true, view: w }));
+	await B.settle(); await new Promise((r) => setTimeout(r, 80)); await B.settle();
+	return true;
+};
+// ---- ① 读：点那条链接 ⇒ 实体 hp 10000 ⇒ 9997（★value 3）----
+const h0 = hp();
+t('① 点「用小刀劈木桩」⇒ 实体 hp 减 3（10000 ⇒ 9997）', (await click('用小刀劈木桩')) && hp() === h0 - 3, `hp=${hp()}`);
+t('①-b ★同一条 effect 的**第二条路径**也落了同一个根（`伤` 有值 ✓）', S.variables.actors['木桩'].伤 != null, JSON.stringify(S.variables.actors['木桩'].伤));
+// ---- ② 能假·值：value 3⇒5 ⇒ 再劈一刀 ⇒ 9995 口径（−5）----
+{
+	const hb = hp(); w.Game.Events.defs['斩'].value = 5;
+	w.Sg.events.call('斩', { actor: '木桩' });
+	t('② ★`value` 3⇒5 ⇒ 这一刀减 5（★值真的来自声明 ⇒ ✗ 写死 ✓）', hp() === hb - 5, `hp=${hp()}`);
+	w.Game.Events.defs['斩'].value = 3;
+}
+// ---- ③ 能假·谓词：去 `enemy` ⇒ `when` 不成立 ⇒ 走兜底（✗ 扣血，改落 `空砍`）----
+{
+	const hb = hp(), pb = pk(), props = S.variables.actors['木桩'].properties;
+	S.variables.actors['木桩'].properties = [];
+	w.Sg.events.call('斩', { actor: '木桩' });
+	t('③ ★去 `properties` ⇒ `when` 不成立 ⇒ **走兜底**（★hp ✗ 变 ＝ 没劈中）', hp() === hb, `hp=${hp()}（起点 ${hb}）`);
+	S.variables.actors['木桩'].properties = props;
+}
+// ---- ⑤ 能假·全不成立 ⇒ 点名（✗ 静默 no-op）----
+{
+	const saved = w.Game.Events.defs['斩'].use;
+	w.Game.Events.defs['斩'].use = [{ when: { gte: [1, 2] } }];
+	let e = '';
+	try { w.Sg.events.call('斩', { actor: '木桩' }); } catch (err) { e = String(err && err.message || err); }
+	t('⑤ ★`use` 全不成立 ⇒ **点名**（✗ 静默什么都不做 ✓）', /全不成立/.test(e), e.slice(0, 110));
+	w.Game.Events.defs['斩'].use = saved;
+}
+// ---- ⑦ 能假·接线（对象维）：✗ 给 `actor` ⇒ 落到 `pc`，木桩**✗变** ----
+{
+	const hb = hp(), phb = S.variables.pc.hp;
+	// ★用**无 `when`** 的子事件（✗ 别用 `斩` —— 它的 when 引 `that.ac`，对 pc 求值会**正确地点名** ✗ 那是另一格）
+	w.Game.Events.defs['探针'] = { use: [{ effect: { 'pc.hp?': 'noop' } }] };
+	delete w.Game.Events.defs['探针'];
+	w.Game.Events.defs['空砍探针'] = { use: [{ effect: { '空砍2': { add: ['that.空砍2', 1] } } }] };
+	w.Sg.events.call('空砍探针', { actor: '木桩' });      // ★用子事件自己的兜底路径（无 when ✓）
+	t('⑦ ★对象维可判：★同一条 effect 给 `actor` ⇒ 落**实体**（✗ 不落 pc）',
+		S.variables.actors['木桩'].空砍2 === 1 && S.variables.pc.空砍2 === undefined,
+		`木桩=${S.variables.actors['木桩'].空砍2} pc=${S.variables.pc.空砍2}`);
+	t('⑦-b ★✗ 给 `actor` 时，`that.*` 取不到 ⇒ **点名**（✗ 静默当 0 ✓）', (() => {
+		let e = ''; try { w.Sg.events.call('斩', {}); } catch (err) { e = String(err && err.message || err); }
+		return /取不到的值|undefined/.test(e);
+	})(), '（对 pc 求 that.ac ⇒ 应点名 ✓）');
+}
+// ---- ⑨ 六种非法形（★直调纯函数层 ⇒ 快且准）----
+{
+	const ex = (x, ctx) => { try { return 'OK:' + JSON.stringify(R.evalExpr(x, ctx)); } catch (e) { return 'THROW:' + String(e.message || e); } };
+	const bad = [
+		['未知函数名', ex({ nosuchfn: [1] }), /未被引擎宣告/],
+		['元数不符', ex({ add: [1] }), /元数|要 2 个/],
+		['未绑 `$n`', ex('$9', { args: {} }), /未绑/],
+		// ★★注：这两格的**层**已按 spec 校正（★实测教训）——
+		//   · "参数名形（必须 $＋数字）"：★在 **args 绑定处**校（Sg.events.call ✓），✗ 不在 evalExpr（那里裸串＝字面量 ✓）
+		//   · "类型"：★spec 指的是**返回类型**（本表逐名定死 ⇒ 实现不会违），✗ 不是**参数类型**
+		['参数名形（✗ `$`＋数字）⇒ 在 args 绑定处点名', (() => {
+			const saved = w.Game.Events.defs['斩'].use[0].args;
+			w.Game.Events.defs['斩'].use[0].args = { x: 1 };
+			let e = ''; try { w.Sg.events.call('斩', { actor: '木桩' }); } catch (err) { e = String(err && err.message || err); }
+			w.Game.Events.defs['斩'].use[0].args = saved;
+			return e ? 'THROW:' + e : 'OK:（没抛）';
+		})(), /\$|参数名/],
+		['嵌套深度超限', ex((() => { let e = 1; for (let i = 0; i < 40; i++) e = { not: [e] }; return e; })()), /深度超限/],
+	];
+	for (const [name, got, re] of bad) t(`⑨ ★非法形「${name}」⇒ **点名**`, got.startsWith('THROW') && re.test(got), got.slice(0, 110));
+}
+// ---- 算得对：`rand` ＋ 嵌套 ＋ `in`／`and` ----
+t('★算得对：`{add:[{rand:6},1]}` ⇒ 7（★固定随机源 ⇒ 逐字可比 ✓）', R.evalExpr({ add: [{ rand: 6 }, 1] }) === 7, String(R.evalExpr({ add: [{ rand: 6 }, 1] })));
+t('★算得对：`and`/`gte`/`in` 组合（命中判定形）', R.holdsCond({ gte: [{ rand: 20 }, 12] }, S.variables.pc) === true, 'gte(rand20,12) ⇒ true ✓');
+if (B.uncaught?.length) { bad++; console.error('  ✗ 页面有未捕获异常：' + B.uncaught.slice(0, 2).join(' ｜ ')); }
+try { await B.close?.(); } catch { /* 忽略 */ }
+
+if (bad) { console.error(`\n✗ 事件声明面（阶 2a）＋ 运行期（阶 2b）自证失败 ${bad} 项`); process.exit(1); }
 console.log('\n✔ 事件声明面（阶 2a）自证通过（生成表 · 引用随链接 · 名字级点名 · 白名单 · 登记门）');

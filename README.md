@@ -77,7 +77,7 @@ CI 变红时先看 [`TROUBLESHOOTING.md`](TROUBLESHOOTING.md) ✓
 
 ## 许可与来源
 
-本仓自有内容按仓内声明使用；第三方来源与鸣谢列在下面（原 `docs/credits.md` 已并入本节：第三方署名与许可是内容义务，不随文档瘦身丢弃）。
+本仓自有内容按仓内声明使用；第三方来源与鸣谢列在下面（原 `credits.md` 已并入本节：第三方署名与许可是内容义务，不随文档瘦身丢弃）。
 
 **参考资源**：SugarCube 文档（<https://www.motoslave.net/sugarcube/2/docs/>）· Twee 3 规范
 （<https://github.com/iftechfoundation/twine-specs/blob/master/twee-3-specification.md>）· extwee 编译器

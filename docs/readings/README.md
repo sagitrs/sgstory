@@ -8,7 +8,7 @@
 | 我要…… | 读 |
 |---|---|
 | 看节奏 / 相异度基线（生成物，随样本漂移） | `baselines.md` |
-| ~~看 UI 覆盖与未覆盖的判定口径~~ | ★**已退**：`ui-coverage-gaps.md` 与 `../ui-inventory.md` 及其生成器（`scripts/ui-migration-diff.mjs`）已按 `#1606` 执行笔**一套退** ✓（★本行原指两件全删 ⇒ 留死引用 ✗ 故改述 ✓） |
+| ~~看 UI 覆盖与未覆盖的判定口径~~ | ★**已退**：`ui-coverage-gaps.md` 与 `ui-inventory.md` 及其生成器（`ui-migration-diff.mjs`）已按 `#1606` 执行笔**一套退** ✓（★本行原指两件全删 ⇒ 留死引用 ✗ 故改述 ✓） |
 
 ## 边界（✗ 别混）
 

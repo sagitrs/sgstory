@@ -363,7 +363,6 @@ export const SEGMENTS = [
 	{ id: "scripts-report-ledger-freshness-mjs-selftest", phase: 'test', cost: 0, cmd: "node scripts/report-ledger-freshness.mjs --selftest" },
 	// ★`#1590`（裁＝**接**）：★台账新鲜度检查 **0s 只读** ⇒ 原「`#1353` PR 档减压」的理由**不成立**（那条减压针对的是**重活** ✗）
 	//   ★事故驱动：`sgstory#1589` 注册了新段却没重生台账 ⇒ **CI 全绿而实况陈旧** ✗（缺口被人肉跑才发现 ⇒ 本段就是把它变成门 ✓）
-	{ id: "scripts-report-ledger-freshness-mjs-ledger-check", phase: 'test', cost: 0, cmd: "node scripts/report-ledger-freshness.mjs --ledger --check" },
 	{ id: "scripts-report-gate-ledger-mjs-selftest", phase: 'test', cost: 0, cmd: "node scripts/report-gate-ledger.mjs --selftest" },
 	// `#1079`：带 `--allow-stale-probe` —— PR 档不跑探针段（`#1070`）→ 无 `build/probe-results.json`
 	// → 台账的**探针面**不参与逐字节比对（**其余面照旧严格**）；**有读数时它不生效**。
@@ -595,7 +594,7 @@ export const segmentLayer = (seg, declaredStoryFlags = []) => {
 	return ENGINE_EXTRA.includes(seg.id) ? 'engine' : 'story';
 };
 
-// 只认 **`scripts/audit.mjs` 的门段**的 flag —— 别把 `report-ledger-freshness --ledger --check`
+// 只认 **`scripts/audit.mjs` 的门段**的 flag —— 别把 `report-ledger-freshness` 的其它模式
 // 这类同名形态误当门（本 PR 的校验第一次跑就抓到过这个假阳性）
 export const auditFlag = (seg) => {
 	const cmd = seg.cmd ?? '';
@@ -741,8 +740,10 @@ export const SUITE_MEMBERS = {
 		'test-render-all-mjs',
 	],
 	'infra': [
+		// ★ `#1606` 执行笔 Step C：★**补回**被误删的成员（★原行含多个 id ⇒ 我按行过滤把整行删了 ✗ 自纠 ✓；
+		//   ★只去掉已退的 `…-ledger-check` 一个 id ✓）
+		'scripts-report-ledger-freshness-mjs-selftest', 'scripts-report-gate-ledger-mjs-selftest', 'scripts-report-gate-ledger-mjs',
 		'scripts-probe-gates-mjs-probe-fast', 'scripts-probe-gates-mjs-check', 'scripts-probe-gates-mjs-selfcheck',
-		'scripts-report-ledger-freshness-mjs-selftest', 'scripts-report-ledger-freshness-mjs-ledger-check', 'scripts-report-gate-ledger-mjs-selftest', 'scripts-report-gate-ledger-mjs',
 		'scripts-report-selftest-validity-mjs', 'scripts-md-format-mjs', 'scripts-move-precheck-mjs', 'scripts-move-precheck-mjs-selftest',
 		'test-ci-triggers-mjs', 'test-ci-triggers-mjs-selftest', 'test-repo-shape-mjs', 'test-repo-shape-mjs-selftest',
 		'test-docs-read-path-mjs', 'test-docs-read-path-mjs-selftest', 'test-docs-classification-mjs', 'test-docs-classification-mjs-selftest', 'test-fruit-demo-cases-mjs', 'test-fruit-demo-cases-mjs-selftest', 'test-untracked-guard-mjs', 'test-passages-links-mjs',

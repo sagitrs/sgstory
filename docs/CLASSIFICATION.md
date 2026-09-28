@@ -48,7 +48,6 @@
 | `docs/README.md` | 索引·入口（手维护） | 5 | 5 | ★留 ＋ 与本仓实况**同笔**同步（★删/迁件 ⇒ 本行同笔改 ✓） | `test/docs-read-path.mjs` **rc=1** ＋ 探针锚（`probes.mjs:326` ✓） | ★**手维护索引**（"按任务读/权威表"两具名表 ⇒ `docs-read-path` 解析 ✓） |
 | `docs/archive/README.md` | 特殊：冻结锚／存档 | 2 | 1 | 留（★`lore-canon.md` ＝ `rules-claims` 的**冻结条文锚** ⇒ ✗ 移动 ✗ 改写 ✓） | `test/docs-read-path.mjs` **rc=1** ✓ |  |
 | `docs/archive/lore-canon.md` | 特殊：冻结锚／存档 | 2 | 1 | 留（★`lore-canon.md` ＝ `rules-claims` 的**冻结条文锚** ⇒ ✗ 移动 ✗ 改写 ✓） | `test/rules-claims.mjs` **rc=1**（直读 ENOENT ✓） |  |
-| `docs/benchmark-ledger.md` | 过时删除（候选） | 1 | 1 | ★删（第二笔执行）—— 见验收列（A/B 分写 ✓） | ★**A（接线态）**：`report-ledger-freshness --ledger --check` ⇒ **rc=1**（★裸跑只出声 ⇒ 会被误记"静默" ✗ 实测 ✓） | ★**不宜直接退**：它有 **90 天 SLA 新鲜度门**在守 ⇒ ★"退它"要先退**门**（✗ 先退件 ✓） |
 
 ## 计数（★与独立复核读数逐条对上 ✓）
 

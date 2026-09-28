@@ -735,6 +735,7 @@ window.Sg.actors = {
 	 *  ★语义：返回的是**根对象** ⇒ 读端 `pc[key]`／写端 `readPath/writePath(pc, path)` 的 `pc` 位置
 	 *    换成它即可（两端**各只有一个收束口**，✗ 不新造第二套读写路径 ✓）。 */
 	resolve(pc, name) {
+		// ★(CR NIT②) 自指深度护栏：★事件 ⇒ 子事件（`call`）链可能自指 ⇒ ✗ 无护栏会栈溢出
 		const n = String(name ?? '').trim();
 		if (!n) return pc;
 		const tbl = State.variables.actors;
@@ -760,7 +761,9 @@ window.Sg.events = {
 	/** ★**调用一个事件**（点击那一刻 ⇒ 链接／规则行的 `data-sg-call`）。
 	 *  @param {string} name 事件名（★必须已宣告 ⇒ ✗ 否则点名 ✓）
 	 *  @param {{actor?:string, pc?:object}} [ctx] `actor` ⇒ 目标实体名（★1c 的对象维 ✓） */
-	call(name, ctx = {}) {
+	call(name, ctx = {}, _depth = 0) {
+		// ★(CR NIT②) 自指深度护栏：事件 ⇒ 子事件（`call`）链可能自指 ⇒ ✗ 无护栏会栈溢出
+		if (_depth > 16) throw new Error('Sg.events.call：事件调用链**超过 16 层**（★自指事件？）—— 事件「' + name + '」');
 		const n = String(name ?? '').trim();
 		const table = this.defs();
 		const ev = n && Object.prototype.hasOwnProperty.call(table, n) ? table[n] : null;
@@ -809,6 +812,11 @@ window.Sg.events = {
 			//   applySets/applyAdds/applyYields 的 y.path **都经本函数**）=> 本处**不是**第二条写路
 			//   （区别于五个施加器: 它们的路径约定是"裸键 => ev.* 前缀", 而实体根字段(如 hp)必须根相对
 			//     => 那正是 panels 的 valueKey 所用的口径 => 两者一致）。
+			// ★(CR NIT①) 两阶段：先**全量校验** ⇒ 再落盘
+			//   ★理由：下面那个循环是**边检边写** ⇒ 中途一处 undefined 会留**半写**（★半写比不写更坏 ✗）
+			for (const [p0, v0] of Object.entries(eff)) {
+				if (v0 === undefined) throw new Error('Sg.events：effect 的路径「' + p0 + '」算不出值（undefined）✗ —— ★本检在**任何写之前**（★两阶段校验 ✓）');
+			}
 			for (const [path, val] of Object.entries(eff)) {
 				if (val === undefined) {
 					throw new Error('Sg.events：effect 的路径「' + path + '」算不出值（undefined）—— 来源写错会在写侧静默变空 ✗');
@@ -817,7 +825,7 @@ window.Sg.events = {
 			}
 		}
 		// ★递归调子事件（★`args` 不向下传 —— 子事件自带 `$n` 绑定 ⇒ ✗ 不许隐式继承 ⇒ 显式才可判 ✓）
-		if (sub) this.call(sub, { actor: ctx.actor, pc });
+		if (sub) this.call(sub, { actor: ctx.actor, pc }, _depth + 1);   // ★NIT② 深度 +1（自指 ⇒ 16 层点名 ✓）
 		return { name: n, pick, args, eff };
 	},
 };

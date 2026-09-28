@@ -275,6 +275,19 @@ t('①-b ★同一条 effect 的**第二条路径**也落了同一个根（`伤`
 	for (const [name, got, re] of bad) t(`⑨ ★非法形「${name}」⇒ **点名**`, got.startsWith('THROW') && re.test(got), got.slice(0, 110));
 }
 // ---- 算得对：`rand` ＋ 嵌套 ＋ `in`／`and` ----
+// ★★(CR `#1607` ①) **旧形必须存活**：legacy 比较（裸串＝**键**）—— ★否则数据在但不生效（静默 false ⇒ 最坏 ✗）
+t('★旧形存活：`{"gte":["心情", 10]}`（裸串＝**键**）⇒ 谓词为真', (() => {
+	let r = null;
+	try { r = w.Sg.rules.holdsCond({ gte: ['心情', 10] }, Object.assign({}, S.variables.pc, { '心情': 12 }), null); }
+	catch (e) { return 'THROW:' + String(e.message).slice(0, 60); }
+	return r === true ? 'OK:true' : 'OK:' + JSON.stringify(r);
+})(), /OK:true/);
+t('★新形也在：`{"gte":[{"rand":20},"that.ac"]}`（首操作数＝表达式）⇒ 谓词为真（★同一 `op` 两代并存 ✓）', (() => {
+	let r = null;
+	try { r = w.Sg.rules.holdsCond({ gte: [{ rand: 20 }, 'that.ac'] }, S.variables.pc, { target: S.variables.actors['木桩'] }); }
+	catch (e) { return 'THROW:' + String(e.message).slice(0, 60); }
+	return r === true ? 'OK:true' : 'OK:' + JSON.stringify(r);
+})(), /OK:true/);
 t('★算得对：`{add:[{rand:6},1]}` ⇒ 7（★固定随机源 ⇒ 逐字可比 ✓）', R.evalExpr({ add: [{ rand: 6 }, 1] }) === 7, String(R.evalExpr({ add: [{ rand: 6 }, 1] })));
 t('★算得对：`and`/`gte`/`in` 组合（命中判定形）', R.holdsCond({ gte: [{ rand: 20 }, 12] }, S.variables.pc) === true, 'gte(rand20,12) ⇒ true ✓');
 if (B.uncaught?.length) { bad++; console.error('  ✗ 页面有未捕获异常：' + B.uncaught.slice(0, 2).join(' ｜ ')); }

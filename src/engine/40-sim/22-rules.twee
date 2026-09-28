@@ -203,16 +203,19 @@ window.Sg.rules = {
 		// **先解析操作数**（取值项）：结构问题必须 fail-loud，不能因为键恰好缺失就把它静默跳过。
 		// #1562 (2b) 第一个操作数: 对象且单键 且该键在 fns 里 -> 谓词函数 => evalExpr; 否则回既有 readKey (兼容)
 		const k0 = (key !== null && typeof key === 'object' && !Array.isArray(key) && Object.keys(key).length === 1) ? Object.keys(key)[0] : null;
-		// ★★(2b) 定案：`op` **本身**是谓词函数（and/or/not/contains/intersects/gte/...）
+		// ★★(2b) 定案：`op` **本身**是谓词函数（and/or/not/contains/in/gte/...）
 		//   ⇒ ★对**整个节点** `cond` 求值（✗ 不是对 `key`）—— ★否则 `and` 只算第一个参数 ✗（实测踩到）
-		if (this.fns?.[op]) {
+		// ★★(CR `#1607` ①) **比较算子（∈ `ops`）不走本支** ⇒ ★**旧形 `{"gte":["键", 值]}` 存活** ✓
+		//   （★裸串在**旧口径**里是**键** ✓；★新口径「裸串＝字面量」只适用于**表达式面** ✓）
+		//   ★三个形都活：旧形 ✓｜`{"and":[…]}`（✗ ∈ ops）⇒ 本支 ✓｜`{"gte":[{"rand":20},"that.ac"]}` ⇒ ★推广支 ✓
+		if (this.fns?.[op] && !this.ops.includes(op)) {
 			const vAll = this.evalExpr(cond, Object.assign({ pc, target: pc }, ctx0 ?? {}), 0);
 			return !!vAll;
 		}
 		// ★推广支：op 是比较算子，而**第一个操作数**是函数/表达式 ⇒ 先求它，再与第二操作数比
 		if (k0 && this.fns?.[k0]) {
 			const v = this.evalExpr(key, Object.assign({ pc, target: pc }, ctx0 ?? {}), 0);
-			// ★布尔谓词（and/or/not/contains/intersects/gte/...）=> **直接就是真假** (✗ 不与 rest[0] 比)
+			// ★布尔谓词（and/or/not/contains/in/gte/...）=> **直接就是真假** (✗ 不与 rest[0] 比)
 			if (this.fns[k0].ret === 'bool') return !!v;
 			// ★数值函数 => 与第二操作数（取值项/字面量）比
 			const w2 = this.termValue(rest[0], pc);

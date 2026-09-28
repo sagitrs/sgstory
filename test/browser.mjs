@@ -123,7 +123,7 @@ const selftest = () => {
 	t('0/0 → 失败（0/0 假绿）', evaluateRun({ total: 0, fails: 0 }).code === 1);
 	// ★ `#1532`：★**未判也必退 1**（★与“跳过”分开：跳过允许本地退 0，未判不允许 ✓）
 	t('未判（环境缺）⇒ **必退 1**（✗ 静默绿）', unjudgedVerdict().code === 1);
-	t('★两层下界**各自独立**（★引擎层：达下界绿／低一条红）',
+	t('★下界**边沿**（★`#1597` 后只剩**引擎层**一层 ⇒ ✗ 不再说「两层」✓）：达下界绿／低一条红',
 		evaluateRun({ total: MIN_ASSERTIONS_ENGINE, fails: 0, minAssertions: MIN_ASSERTIONS_ENGINE }).code === 0
 		&& evaluateRun({ total: MIN_ASSERTIONS_ENGINE - 1, fails: 0, minAssertions: MIN_ASSERTIONS_ENGINE }).code === 1);
 	if (bad) { console.error(`\n✗ 自证失败 ${bad} 项`); process.exit(1); }
@@ -412,10 +412,10 @@ for (const [W, H] of VP) {
 			const vp = label(W, H);
 			await setViewport(W, H);
 			await loadFresh(SB);
-			console.log(`\n── 视口 ${vp}（故事 2）`);
+			console.log(`\n── 视口 ${vp}（无车卡最小面）`);   // ★ `#1597` 收尾：对象＝仓内夹具 `nocar-basic`（✗ 不再是「故事 2」✓）
 			// ① 开场无横向溢出
 			const ov = await ev('window.__sg.overflow()');
-			check(ov.scroll <= ov.inner + 1, `${vp} 故事2 开场无横向溢出（${ov.scroll} ≤ ${ov.inner}）`);
+			check(ov.scroll <= ov.inner + 1, `${vp} 无车卡最小面 开场无横向溢出（${ov.scroll} ≤ ${ov.inner}）`);
 			// ② 侧栏：**没有车卡的故事也要能看见血量与物品**（`#574` 的最小面；这是"战斗试验场"的前提）
 			// ★`#1539`（P3）**解耦**：原先断言写死**实现类名**（`.hpbar`／`.inv-block`）—— 那是
 			//   "断言随实现走"（实现一换类名它就红，而产品其实是对的；本次 CR 的根因之一）。
@@ -434,19 +434,19 @@ for (const [W, H] of VP) {
 				const listEl = [...scope.querySelectorAll('.sg-list-item, .inv-item')].find(visible);
 				return { bar: !!barEl, list: !!listEl, text: (c?.textContent || '').replace(/\\s+/g, ' ').slice(0, 40) };
 			})()`);
-			check(bar.bar, `${vp} 故事2 侧栏给出**血量条**（无车卡的最小面 · 判"有**可见**的百分比量条"——几何 > 0，✗ 只看属性）`);
-			check(bar.list, `${vp} 故事2 侧栏给出**物品栏**（判"有**可见**的列表项"）`);
+			check(bar.bar, `${vp} 无车卡最小面 侧栏给出**血量条**（无车卡的最小面 · 判"有**可见**的百分比量条"——几何 > 0，✗ 只看属性）`);
+			check(bar.list, `${vp} 无车卡最小面 侧栏给出**物品栏**（判"有**可见**的列表项"）`);
 			// ③ 三选一：真机布局下至少两条路落在视口内（可点性/首屏不空）
 			await ev(`window.__sg.play("${'岔路'}")`);   // `#1004` B2b：`minimal-demo` 的多选一段叫 `岔路`（旧写法 `岔口` 是旧故事的）
 			await sleep(320);
 			const cards = await ev('window.__sg.blocks("#passages a.link-internal")');
 			const inVp = (cards ?? []).filter((b) => b.bottom <= H + 1).length;
-			check((cards ?? []).length >= 2 && inVp >= 2, `${vp} 故事2 三选一：≥2 条路在视口内（共 ${(cards ?? []).length} 条 · 在内 ${inVp}）`);
+			check((cards ?? []).length >= 2 && inVp >= 2, `${vp} 无车卡最小面 三选一：≥2 条路在视口内（共 ${(cards ?? []).length} 条 · 在内 ${inVp}）`);
 			// ④ 200% 文字缩放仍无横向溢出（与故事 1 同口径）
 			await ev('document.documentElement.style.fontSize = "200%"');
 			await sleep(220);
 			const ov2 = await ev('window.__sg.overflow()');
-			check(ov2.scroll <= ov2.inner + 1, `${vp} 故事2 文字 200% 无横向溢出（${ov2.scroll} ≤ ${ov2.inner}）`);
+			check(ov2.scroll <= ov2.inner + 1, `${vp} 无车卡最小面 文字 200% 无横向溢出（${ov2.scroll} ≤ ${ov2.inner}）`);
 			await ev('document.documentElement.style.fontSize = ""');
 		}
 	}

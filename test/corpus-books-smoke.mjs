@@ -68,4 +68,5 @@ try {
 
 
 if (bad) { console.error(`\n✗ 语料安全网失败 ${bad} 项`); process.exit(1); }
-console.log('\n✔ 语料安全网通过（编译 rc=0 ＋ 字体产物在场）');
+// ★ `#1596` NIT（收尾）：★摘要行**把两件都点名** ＋ 带上**语料 sha**（★归因面一眼可见 ⇒ 引擎 CI 红时先看它 ✓）
+console.log(`\n✔ 语料安全网通过（① 编译 rc=0 ｜ ② 字体产物恰 2 ｜ ★语料 sha=${sha}）`);

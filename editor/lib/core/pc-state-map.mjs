@@ -201,15 +201,40 @@ export const undeclaredWriteReport = ({ written = [], dataKeys = null, home = PC
 /** 便捷：从 `rules.json` ＋ `passages.json` 的行/链接里抽条件（✗ 调用方不必各写一遍遍历）。
  *  ★与 `unknownPrefixProblems`（在 `audit-shared.mjs`）分工：**本函数只管"抽"**（数据遍历），
  *    那条管"判"（前缀合法性）—— 抽与判分开，两侧各自可测 ✓。 */
-export const collectConditionKeys = ({ rules = null, passages = null } = {}) => {
+export const collectConditionKeys = ({ rules = null, passages = null, tables = null } = {}) => {
 	const out = [];
 	const push = (obj, ctx) => { if (obj && typeof obj === 'object') out.push({ cond: obj, ctx }); };
+	// ★★ 评审 CR（tester-4）：**两种载体的条件位置不同** ——
+	//   · **规则行**：条件**在行顶层**（`{id, scope, req, any, exclude, …}`）⇒ 推 `r` 本身 ✓
+	//   · **链接**：条件**嵌在 `cond` 下**（`{id, label, to, prio, cond:{req:[…]}}`）⇒ ★必须推 `l.cond`
+	//     原实现推 `l` 本身 ⇒ 顶层没有 `req` ⇒ **该判据对链接恒不命中** ✗
+	//     ★而**链接正是真数据的主战场**（实测：`north-room`／`m3-min-new` 等故事的条件主要写在 `links[].cond`）
+	//     ⇒ 评审的刀：把链接里的 `inv:铜钥匙` 改成 `foo:…` ⇒ 修前 `rc=0` ＋ 产物真进 ✗
 	for (const r of rules?.rows ?? []) push(r, `规则行「${r?.id ?? r?.scope ?? '?'}」`);
 	for (const [seg, v] of Object.entries(passages ?? {})) {
-		for (const l of (v?.links ?? [])) push(l, `段「${seg}」的链接「${l?.id ?? l?.to ?? '?'}」`);
+		for (const l of (v?.links ?? [])) {
+			// ★兜底：`cond` 缺失时退回 `l` 本身（若将来有人在链接顶层写条件，仍能抓到 ✓）
+			push(l?.cond ?? l, `段「${seg}」的链接「${l?.id ?? l?.to ?? '?'}」`);
+		}
+	}
+	// ★★ 评审补充（量化补充）：**`tables.json` 的容器里也有条件键** —— 逐容器扫（✗ 容器名不写死 ✓）。
+	// ★★ 评审补充（量化补充）：**`tables.json` 的容器里也有条件键**（实测 3 个 `req`）
+	//   ⇒ 逐容器递归扫（✗ 容器名不写死 ✓）；★与 `dataFaceMemberProblems` 的 walk 同法。
+	{
+		const walkT = (obj, path) => {
+			if (Array.isArray(obj)) { for (const v of obj) walkT(v, path); return; }
+			if (obj && typeof obj === 'object') { for (const k of Object.keys(obj)) walkT(obj[k], path + k + '.'); }
+			for (const field of ['req', 'any', 'exclude']) {
+				const v = obj?.[field];
+				if (!Array.isArray(v)) continue;
+				for (const c of v) if (typeof c === 'string') push({ [field]: [c] }, path.replace(/\.$/, ''));
+			}
+		};
+		walkT(tables, 'tables.');
 	}
 	return out;
 };
+
 
 /** 纯函数：归属表自身的形状检查（空＝绿）：三张表不重叠、基础面不含玩法概念。 */
 export const pcHomeProblems = () => {

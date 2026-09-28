@@ -90,13 +90,26 @@ const t = (label, ok, detail = '') => {
 	t('②f **能假**（编译期）：条件键用未宣告前缀 ⇒ 点名',
 		unknownPrefixProblems({ conditions: collectConditionKeys({ rules: { rows: [{ id: 'r', req: ['bogus:x'] }] } }), declared })
 			.some((p) => p.prefix === 'bogus'));
-	t('②g **正例**：全用已宣告前缀 ⇒ ✗ 不报（✗ 误杀真数据）',
+	// ★★ 评审 CR（tester-4）修：本格原喂 `links:[{req:…}]` —— **生产从不产生的形状**
+	//   （真数据的链接是 `{id,label,to,prio,**cond**:{req:[…]}}`）⇒ 格与接法**脱钩** ✗
+	//   ⇒ 改成**真实形状**（链接的条件在 `cond` 下）✓
+	t('②g **正例**（★真实形状）：全用已宣告前缀 ⇒ ✗ 不报（✗ 误杀真数据）',
 		unknownPrefixProblems({
 			conditions: collectConditionKeys({
 				rules: { rows: [{ req: ['inv:钥匙'], any: [{ gte: ['gold', 1] }] }] },
-				passages: { 斗: { links: [{ id: 'l', req: ['fight:雾影.won'] }] } },
+				// ★真数据形：链接的条件嵌在 `cond`
+				passages: { 斗: { links: [{ id: 'l', cond: { req: ['fight:雾影.won'] } }] } },
 			}), declared,
 		}).length === 0);
+	// ★②g-2 **反例（★这条是"链接覆盖"的判别格 —— 修前恒绿＝脱钩实证）**：
+	//   链接的 `cond` 里放未宣告前缀 ⇒ 必须点名（✗ 恒不命中）
+	t('②g-2 **能假（链接面）**：链接 `cond` 里的未宣告前缀 ⇒ 点名（✗ 修前恒不命中）',
+		unknownPrefixProblems({
+			conditions: collectConditionKeys({
+				passages: { 斗: { links: [{ id: 'l', cond: { req: ['foo:钥匙'] } }] } },
+			}), declared,
+		}).some((p) => p.prefix === 'foo'),
+		'链接 cond 里的未宣告前缀没被抓到（判据对链接面瞎）');
 }
 
 /** 真调 `Sg.rules.readKey(key, pc)`，返回"是否抛"（★行为面，✗ 读源码文本）。 */

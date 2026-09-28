@@ -139,13 +139,24 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 		)].map((pth) => String(pth).split('.')[0]);
 		// ★`#1564` 裁**甲**（范围边界）：**已登记的实例 ⇒ 只报不红**（信息面），
 		//   未登记 ⇒ 失败面；登记行的**退出条件命中** ⇒ 也红（防"登记成了永久豁免"）。
-		//   ★`dataKeys` 缺省＝用 `written`（＝本故事 `chargen patch` 的键）当**数据面实况**：
-		//     `classHp` 不在其中 ⇒ 登记行判"已可清" ⇒ 红 ✓（评审 CR 修的正是这条可达性）
+		//   ★★**真修点在 `pc-state-map.mjs` 的 `undeclaredWriteReport`**（评审 NIT：注释原指错）——
+		//     它**单开一圈遍历登记表本身**（✗ 原实现只在"仍被写"的循环里查 ⇒ 键不再被写时看不到它 ⇒ 永久豁免）。
+		//     ★本行 `dataKeys` **省缺**（＝用 `written` 当数据面实况）与旧写法 `dataKeys: written` **语义等价** ⇒
+		//     ✗ 调用点无新语义（别把修点读在这里）。
 		const rep = undeclaredWriteReport({ written });
 		for (const m of rep.infos) console.log(`  ○ [chargen-write·登记] ${m.key}（已登记，退出条件见 pc-state-map.mjs）`);
 		if (rep.fails.length) {
 			for (const m of rep.fails) console.error(`✗ [chargen-write] ${m.why}`);
-			console.error('✗ 数据面写了**未宣告的 pc 键** ⇒ 引擎会照数据造"隐键"（三条面都看不见它）⇒ 不写出产物');
+			// ★评审 NIT：**汇总行按 `code` 分两句**（原一句把两件事说成一件 ⇒ 读报文的人被误导）：
+			//   · `undeclared-pc-write` = **未登记**的隐键（真·新缺陷）；
+			//   · `exception-removable` = **已登记但已可清**（登记行该删了 —— ✗ 不是"数据写错了"）。
+			const kinds = new Set(rep.fails.map((m) => m.code));
+			if (kinds.has('undeclared-pc-write')) {
+				console.error('✗ 数据面写了**未宣告的 pc 键** ⇒ 引擎会照数据造"隐键"（三条面都看不见它）⇒ 不写出产物');
+			}
+			if (kinds.has('exception-removable')) {
+				console.error('✗ **登记行已可清**（退出条件命中 ⇒ 该键已从数据面消失）⇒ 请删除该登记行（✗ 让登记成永久豁免）⇒ 不写出产物');
+			}
 			return 1;
 		}
 	}

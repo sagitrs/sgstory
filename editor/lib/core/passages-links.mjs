@@ -97,8 +97,11 @@ export const linksToRows = ({ data = {} } = {}) => {
 			const effKeys = ['gives', 'sets', 'yields', 'adds', 'takes', 'actor'].filter((k) => l[k] != null);
 			const effects = {};
 			for (const k of effKeys) effects[k] = l[k];
-			if (hasArgs || effKeys.length) {
-				row.text = linkHtml({ label, to, args: hasArgs ? l.args : null, effects: effKeys.length ? effects : null });
+			// ★ `#1562`（阶 2a）：**事件引用**（`use`）**✗ 属效果字段** ⇒ 单独走 `data-sg-call`
+			//   （★`actor` 能进 `effects` 是因为它是**目标维**；而 `use` 是“**调哪个事件**” ⇒ 语义不同 ✓）
+			const call = l.use != null && String(l.use).trim() !== '' ? String(l.use).trim() : null;
+			if (hasArgs || effKeys.length || call) {
+				row.text = linkHtml({ label, to, args: hasArgs ? l.args : null, effects: effKeys.length ? effects : null, call });
 			}
 			out.push(row);
 		});
@@ -112,7 +115,7 @@ export const linksToRows = ({ data = {} } = {}) => {
  * ★ 好处：**任何**未来新增的链接字段都会先红一次 ⇒ 逼作者与实现**同步**（同族先例：`slot` 与 `params` **撞名即红** ✓）。
  * ★ 范围（Operator 纪律）：这是**编译器/输入校验**行为 ⇒ 属**引擎** ✓（✗ 不判"故事该不该这么写"）。
  */
-export const LINK_FIELDS = Object.freeze(['label', 'to', 'id', 'prio', 'prereq', 'cond', 'args', 'slot', 'gives', 'sets', 'yields', 'adds', 'takes', 'actor']);   // ★ `#1571`（1c）：`actor` ＝ **对象维**（该链接的效果施加到**哪个实体**上；缺省 ⇒ `pc` ✓）   // ★ `#1466`：`adds` ＝ 算术效果（与 gives/sets/yields 同族 ✓）
+export const LINK_FIELDS = Object.freeze(['label', 'to', 'id', 'prio', 'prereq', 'cond', 'args', 'slot', 'gives', 'sets', 'yields', 'adds', 'takes', 'actor', 'use']);   // ★ `#1571`（1c）：`actor` ＝ **对象维**（该链接的效果施加到**哪个实体**上；缺省 ⇒ `pc` ✓）   // ★ `#1466`：`adds` ＝ 算术效果（与 gives/sets/yields 同族 ✓）
 
 /** 白名单外字段 ⇒ 点名清单（纯函数；`links` 非数组 ⇒ 空、不抛）。 */
 export const unmappedLinkFields = ({ links = [] } = {}) => {

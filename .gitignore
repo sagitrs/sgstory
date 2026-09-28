@@ -15,3 +15,5 @@ stories/*/16-notes-*.twee
 stories/*/00-meta.twee
 test/fixtures/**/stories/*/1[5678]-*.twee
 test/fixtures/**/stories/*/00-meta.twee
+stories/*/19-events.twee
+test/fixtures/**/stories/*/19-events.twee

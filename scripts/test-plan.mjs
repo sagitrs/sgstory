@@ -60,8 +60,6 @@ export const FULL_REASONS = {
 	'scripts-audit-mjs-status-check': '`#1353` 阶段一（PR 档减压）：状态门：面＝故事数据面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
 	'scripts-audit-mjs-waves-check': '`#1353` 阶段一（PR 档减压）：波次门：面＝故事数据面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
 	'scripts-audit-mjs-roads-check': '`#1353` 阶段一（PR 档减压）：路线门：面＝故事数据面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
-	'scripts-report-ledger-freshness-mjs-ledger-check': '`#1353` 阶段一（PR 档减压）：台账新鲜度读数（日期在期/行数栅栏）：是读数不是布尔判据。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
-	'scripts-report-gate-ledger-mjs': '`#1353` 阶段一（PR 档减压）：台账重生成动作（--allow-stale-probe）：动作不需要每 PR 做。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
 	'scripts-report-selftest-validity-mjs': '`#1353` 阶段一（PR 档减压）：自证有效性扫描：元判据，随「自证」整体变化才需重看。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
 	// `#1261`：`test-witness-trace`（P4 见证件）随其样本下架 -> 段与理由块同删（留痕见下架台账）。
 	'scripts-audit-mjs-facade-call-check': '`#1445`：判**引擎侧代码结构**（门面调用面）—— 全仓扫描 ＋ 自证 ⇒ 非 PM 档必需（PR 档可省，随 full 跑；见 `#1437` 分家伞）',
@@ -355,11 +353,15 @@ export const SEGMENTS = [
 	// `#787` 翻面：手写侧**重指向**为冻结基线（翻面前 `main` 的仓内副本 →「生成得对不对」仍被判）
 	// #752：**去权威化口径门** —— 注释／文档不许拿「谁定的」充当理由（#748 的清零面 ＋ 防回潮）
 	{ id: "scripts-report-ledger-freshness-mjs-selftest", phase: 'test', cost: 0, cmd: "node scripts/report-ledger-freshness.mjs --selftest" },
-	{ id: "scripts-report-ledger-freshness-mjs-ledger-check", phase: 'test', tier: 'full', cost: 0, cmd: "node scripts/report-ledger-freshness.mjs --ledger --check" },
+	// ★`#1590`（裁＝**接**）：★台账新鲜度检查 **0s 只读** ⇒ 原「`#1353` PR 档减压」的理由**不成立**（那条减压针对的是**重活** ✗）
+	//   ★事故驱动：`sgstory#1589` 注册了新段却没重生台账 ⇒ **CI 全绿而实况陈旧** ✗（缺口被人肉跑才发现 ⇒ 本段就是把它变成门 ✓）
+	{ id: "scripts-report-ledger-freshness-mjs-ledger-check", phase: 'test', cost: 0, cmd: "node scripts/report-ledger-freshness.mjs --ledger --check" },
 	{ id: "scripts-report-gate-ledger-mjs-selftest", phase: 'test', cost: 0, cmd: "node scripts/report-gate-ledger.mjs --selftest" },
 	// `#1079`：带 `--allow-stale-probe` —— PR 档不跑探针段（`#1070`）→ 无 `build/probe-results.json`
 	// → 台账的**探针面**不参与逐字节比对（**其余面照旧严格**）；**有读数时它不生效**。
-	{ id: "scripts-report-gate-ledger-mjs", phase: 'test', tier: 'full', cost: 0, cmd: "node scripts/report-gate-ledger.mjs --allow-stale-probe" },
+	// ★`#1590`（裁＝**接**）：★**只读** `--check`（✗ 接 `--update` —— **重生是作者动作**，✗ 由 CI 代劳 ✓）
+	//   ★自咬：登记本段的那一笔**必须同笔重生台账**（否则本段当场红 ✓）
+	{ id: "scripts-report-gate-ledger-mjs", phase: 'test', cost: 0, cmd: "node scripts/report-gate-ledger.mjs --check --allow-stale-probe" },
 	// #474 接线：`自证·` 必须「失败计入退出码」且「不崩」（静态扫描 scripts/ ＋ test/ 共 77 文件，0 致命）
 	{ id: "scripts-report-selftest-validity-mjs", phase: 'test', tier: 'full', cost: 0.2, cmd: "node scripts/report-selftest-validity.mjs" },
 	// #459／#482：故事「新机制声明表」的形状门（六条可机检点 · 各带正反自证）

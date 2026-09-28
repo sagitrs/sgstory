@@ -31,7 +31,7 @@
 		"compile:story": "node editor/compile-story.mjs",
 		"equiv:story": "node editor/equiv.mjs",
 		"clean:net": "node scripts/clean-net.mjs",
-		"check:precommit": "node scripts/precommit-check.mjs",
+		"check:precommit": "node scripts/precommit-check.mjs && node scripts/report-gate-ledger.mjs --selftest && node scripts/report-gate-ledger.mjs --allow-stale-probe",
 		"lint:new-segment": "node scripts/lint-new-segment.mjs"
 	},
 	"devDependencies": {

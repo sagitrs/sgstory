@@ -149,7 +149,8 @@ jobs:
           # ★★ `#1532`（`#1516` C 案）：★本步**按层跑** —— ★引擎侧（甲＋丙）用**仓内最小夹具**，★✗ 再靠零故事分支空转 ✗
           #   ★对象：`test/fixtures/m3-nocar-fixture`（**无车卡最小面**：侧栏血量条／物品栏／三选一 ✓）
           #   ★下界：`MIN_ASSERTIONS_ENGINE`（3 视口 ×（4 甲＋5 丙）＋键盘档 ⇒ ★**33**）
-          #   ★乙类（点名真故事段）⇒ **books 侧**（`BROWSER_TIERS=story`，★那里天然有真故事 ✓）：`books#36`
+          #   ★★story 档（乙类）**已撤**（`#1597` 收窄：非必要不保留 ✓）⇒ ★本步**只有引擎档**：
+          #     ★对象＝仓内最小夹具（`nocar-basic` ✓）—— ★此处 ✗ 不再点名任何已撤的档／已关的票 ✓
           #   ★本步同时守**“探不到浏览器 ⇒ 未判 ✗ 静默绿”**（`unjudgedVerdict` ⇒ 退 1 ✓）
           #   ★**产物**：★`DIST_DIR` 随 `SG_STORIES_DIR` 走 ⇒ ★**夹具的 dist 得自己编**（✗ 根 `npm run build` 不会产它 ✗）
           SG_STORIES_DIR="$PWD/test/fixtures/m3-nocar-fixture/stories" node build.mjs

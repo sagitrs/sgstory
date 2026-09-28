@@ -49,8 +49,6 @@
 | `docs/archive/README.md` | 特殊：冻结锚／存档 | 2 | 1 | 留（★`lore-canon.md` ＝ `rules-claims` 的**冻结条文锚** ⇒ ✗ 移动 ✗ 改写 ✓） | `test/docs-read-path.mjs` **rc=1** ✓ |  |
 | `docs/archive/lore-canon.md` | 特殊：冻结锚／存档 | 2 | 1 | 留（★`lore-canon.md` ＝ `rules-claims` 的**冻结条文锚** ⇒ ✗ 移动 ✗ 改写 ✓） | `test/rules-claims.mjs` **rc=1**（直读 ENOENT ✓） |  |
 | `docs/benchmark-ledger.md` | 过时删除（候选） | 1 | 1 | ★删（第二笔执行）—— 见验收列（A/B 分写 ✓） | ★**A（接线态）**：`report-ledger-freshness --ledger --check` ⇒ **rc=1**（★裸跑只出声 ⇒ 会被误记"静默" ✗ 实测 ✓） | ★**不宜直接退**：它有 **90 天 SLA 新鲜度门**在守 ⇒ ★"退它"要先退**门**（✗ 先退件 ✓） |
-| `docs/ui-inventory.md` | 过时删除（候选） | 1 | 3 | ★删（第二笔执行）—— 见验收列（A/B 分写 ✓） | ★**B 类（静默）**：★删后四门 ＋ 其引用件测试**全绿**（✗ 无机械验收）⇒ ★必须**内容判** ＋ ★意图性引用**同笔处理**（改指向／删句 ✓） | ★与 `ui-migration-diff.md` ＋ 其脚本是**一套**（`scripts/ui-*`）⇒ 处置要**同笔** ✓ |
-| `docs/ui-migration-diff.md` | 过时删除（候选） | 1 | 2 | ★删（第二笔执行）—— 见验收列（A/B 分写 ✓） | ★**B 类（静默）**：★删后四门 ＋ 其引用件测试**全绿**（✗ 无机械验收）⇒ ★必须**内容判** ＋ ★意图性引用**同笔处理**（改指向／删句 ✓） | 同上：**一套退** ✓ |
 
 ## 计数（★与独立复核读数逐条对上 ✓）
 

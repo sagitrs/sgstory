@@ -115,6 +115,22 @@ jobs:
           path: ~/.cache/ms-playwright
           key: pw-chromium-${{ runner.os }}-v1
       - run: npx playwright install --with-deps chromium
+      # ★★ `#1592` M5（引擎语料跑 · 安全网）：用 **books 真语料**编译 ＋ 字体产物断言。
+      #   ★为什么在引擎侧：books 的 PR 门只留"可编译性 ＋ 散文形态 ＋ 发布"；行为面归引擎（伞 §三 ✓）
+      #   ★语料＝ books `main`（安全网对着**最新真实内容** ✓）；★sha 打印在读数里（归因面 ✓）
+      #   ★跨仓 checkout **默认 token 即可**（★books 的 `pr-gate.yml` **反向**取引擎时亦未传 token ✓）
+      #   ★本步**调 plan 段同一条命令**（`scripts/corpus-smoke.mjs` ⇒ 单一权威 ✓；✗ 不在此另写一遍 ✓）
+      - name: checkout books corpus（语料安全网）
+        uses: actions/checkout@v4
+        with:
+          repository: sagitrs/sgstory-books
+          path: books
+          fetch-depth: 1
+      - name: corpus smoke（books 语料：编译 ＋ 字体产物断言）
+        env:
+          SG_BOOKS_DIR: ${{ github.workspace }}/books
+        run: node scripts/corpus-smoke.mjs
+
       - name: browser.mjs real-browser assertions
         env:
           CHROME_PATH: ${{ github.workspace }}/pw-chromium-ci

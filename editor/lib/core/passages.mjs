@@ -318,6 +318,26 @@ export const doubleRenderProblems = ({ passages = [], data = null } = {}) => {
 	return out;
 };
 
+/** ★`#1570`：**散文来源唯一** —— 同一段的散文**只许一处来源**（文件 `passages/*.md`／twee ∨ ★数据面
+ * `data/passages.json` 的段级 `text`）。
+ * ★与 `doubleRenderProblems`（`#1412` 双渲染／`#1505` 双注）**同族**：两处各写一份 ⇒ 必漂移 ✗（★本仓反复撞的那类）。
+ * ★口径：`p.fromData === true` 的段＝**数据面合成**的那一份 ⇒ **跳过**（★它就是数据面来源本身，✗ 不算"两处"）。
+ * ★判据面＝"`text` **非空**"（与 `build.mjs` 的 `inlineTextOf` 同口径 ⇒ ✗ 空串／缺项不算有来源 ✓）。 */
+export const duplicateSourceProblems = ({ passages = [], data = null } = {}) => {
+	const out = [];
+	if (!data || typeof data !== 'object') return out;
+	for (const p of passages) {
+		if (p?.fromData === true) continue;
+		const seg = Object.prototype.hasOwnProperty.call(data, p?.name) ? data[p.name] : null;
+		if (!seg || typeof seg !== 'object') continue;
+		if (typeof seg.text !== 'string' || seg.text.trim() === '') continue;
+		out.push(`段「${p.name}」的散文**有两处来源**：文件 \`${String(p.path ?? p.source ?? '(未标来源)')}\` `
+			+ `＋ 数据面 \`data/passages.json\` 的 \`text\` ⇒ ✗ **只许一处**（删一处）—— \`#1570\` 的「来源唯一」判据`
+			+ `（与 \`#1412\` 双渲染／\`#1505\` 双注同族：两处各写一份 ⇒ 必漂移）`);
+	}
+	return out;
+};
+
 export const applyPassageTransforms = ({ name, body, terms = new Set(), params = {}, slots = [], args = null, links = [], present = null, ending = null, check = null, fight = null }) => {
 	const { body: expandedRaw, problems } = valueRefExpand({ name, body, terms, params, slot: null, slots, args });
 	const rl = renderLinksOf({ name, links, present });
@@ -412,6 +432,7 @@ export const assemblePassages = ({ passages, known, forbidden = new Set(), terms
 	problems.push(...duplicateProblems({ passages }));   // `#1114` 2b-2a：重名段（跨源双写）→ 先报
 	problems.push(...endingProblems({ passages, data }));   // `#1399`：结局声明面（唯一活声明 ＋ tags 死声明点名）
 	problems.push(...doubleRenderProblems({ passages, data }));   // `#1412`：双渲染宏（手写宏 ＋ links 非空 ⇒ 渲染两遍）
+	problems.push(...duplicateSourceProblems({ passages, data }));   // ★`#1570`：散文**来源唯一**（文件 ∧ 数据面 `text` ⇒ 点名）
 	for (const p of passages) {
 		problems.push(...forbiddenProblems({ name: p.name, body: p.body, forbidden }));
 		problems.push(...danglingProblems({ name: p.name, body: p.body, passages, known }));

@@ -147,13 +147,20 @@ const termsOf = (slug) => {
 	return valueTerms({ contract, labels: ENGINE_LABELS });
 };
 const SEG_HEAD = /^::\s+(.+?)\s*(?:\[[^\]]*\])?\s*$/gm;
-/** 该故事**合法段名全集**（twee 段名 ∪ md 段名）——md 段可以引用同故事的 twee 段（两源共存期）。 */
-const knownNamesOf = (slug, files) => {
+/** 文件源（md／twee）里的**段名集**（✗ 含数据面 —— 数据面是另一轴，见 `inlineTextOf`）。 */
+const segNamesOfFiles = (files) => {
 	const names = new Set();
 	for (const f of files) {
 		if (isStoryPassageMd(f)) { const n = String(parseFrontMatter(readFileSync(resolveStoryRel(f), 'utf8')).meta.passage ?? '').trim(); if (n) names.add(n); continue; }
 		for (const m of readFileSync(resolveStoryRel(f), 'utf8').matchAll(SEG_HEAD)) names.add(m[1].trim());
 	}
+	return names;
+};
+/** 该故事**合法段名全集**（twee 段名 ∪ md 段名 ∪ ★数据面散文段名）——md 段可以引用同故事的 twee 段（两源共存期）。
+ * ★`#1570`：数据面散文的段名**必须**在此 ⇒ 否则指向"内嵌散文段"的 `[[…]]` 会被 `danglingProblems` 判**悬空** ✗。 */
+const knownNamesOf = (slug, files) => {
+	const names = segNamesOfFiles(files);
+	for (const n of Object.keys(inlineTextOf(slug))) names.add(n);
 	return names;
 };
 // `#1350` 片 3：段落数据读取（**一处**；拼装层与本判据共用同一份 ⇒ ✗ 不各读一份）
@@ -165,7 +172,30 @@ const pdataOf = (slug) => {
 	PDATA.set(slug, v);
 	return v;
 };
+/** ★`#1570`：**数据面散文**（`data/passages.json` 的段级 `text`）—— ★**一处读法**
+ * （✗ 各读一份 ⇒ 正是本仓反复撞的"两处口径"；本仓 `pdataOf` 的注释也早写着"共用同一份" ✓）。
+ * ★口径：`text` **非空字符串**才算"这一段的散文在数据面"（空串／缺项 ⇒ 视同没有 ⇒ 走文件源 ✓）。 */
+const inlineTextOf = (slug) => {
+	const data = pdataOf(slug);
+	const out = Object.create(null);
+	for (const [n, seg] of Object.entries(data && typeof data === 'object' ? data : {})) {
+		if (seg && typeof seg === 'object' && typeof seg.text === 'string' && seg.text.trim() !== '') out[n] = seg.text;
+	}
+	return out;
+};
 
+/** ★`#1570`：**唯一的拼装调用点**（✗ 不另造第二条路 —— 文件源与数据面源**共用**它 ⇒
+ * `{{}}` 展开／slot 落位／悬空判定／终局判定 **同一份** ⇒ ★本笔的"铁律②（两条来源同一管线）"**由结构保证** ✓）。
+ * `known` ＝ 合法链接目标集；`pdataOf` ＝ 段落数据（`#1350` 片 3 既有的"**一处**读法" ✓）。 */
+const assemblePassage = (slug, p, known) => {
+	const { twee, problems } = assemblePassages({
+		passages: [p],
+		known, forbidden: FORBIDDEN_BUILTINS, terms: termsOf(slug),
+		data: pdataOf(slug),
+	});
+	if (problems.length) { console.error(`✗ 拼装失败：\n  ${problems.join('\n  ')}`); process.exit(1); }
+	return twee.trimEnd();
+};
 const assembleOne = (slug, f, known) => {
 	//注意：`#1114` 2b-2b：tags **必须用 core 解析好的数组** —— 本处先前直接传 `meta.tags` 原串（`"[]"`）
 	// → 拼装层 `p.tags? \` [${p.tags}]\`: ''` 把它当成真值 → 产物段头变 `:: 段名 [[]]`
@@ -174,29 +204,33 @@ const assembleOne = (slug, f, known) => {
 	const [p0] = parseMdPassages(readFileSync(resolveStoryRel(f), 'utf8'), f);
 	const name = String(p0?.name ?? '').trim();
 	if (!name) { console.error(`✗ ${f}：front-matter 缺 \`passage\`（段名权威在本字段 ✓）`); process.exit(1); }
-	const { twee, problems } = assemblePassages({
-		//注意：`#1114` 2b-2b：**twee 路径剥注释、md 路径也要剥** —— 否则 `/% … %/` 原样入 dist
-		//（本函数上方的 `stripTweeComments` 注释就写着这条）→ 实测：PRE 0/34 → POST 23/34 且 body 变长。
-		passages: [{ name, tags: p0.tags ?? [], body: stripTweeComments(p0.body), path: f }],
-		known, forbidden: FORBIDDEN_BUILTINS, terms: termsOf(slug),
-		// `#1350` 片 3：把**该故事**的段落数据交给拼装层（它按**段名**取本段 `params`/`slot`/`args`；
-		// 片 2 已实现展开与点名）⇒ 这里只是"接通"。缺该文件 ⇒ `null`（旧形态逐字不变 ✓）。
-		data: (() => { try { return JSON.parse(readFileSync(absPath(`stories/${slug}/data/passages.json`), 'utf8')); } catch { return null; } })(),
-	});
-	if (problems.length) { console.error(`✗ 拼装失败：\n  ${problems.join('\n  ')}`); process.exit(1); }
-	return twee.trimEnd();
+	//注意：`#1114` 2b-2b：**twee 路径剥注释、md 路径也要剥** —— 否则 `/% … %/` 原样入 dist
+	//（本函数上方的 `stripTweeComments` 注释就写着这条）→ 实测：PRE 0/34 → POST 23/34 且 body 变长。
+	return assemblePassage(slug, { name, tags: p0.tags ?? [], body: stripTweeComments(p0.body), path: f }, known);
 };
 const mergedOf = (s) => {
 	const scoped = scopedFiles(s);
 	const known = knownNamesOf(s.slug, scoped);
-	return scoped.map((f) => {
+	// ★`#1570`：先拼**文件源**（md／twee）；**数据面散文**随后由**同一个** `assemblePassage` 拼（见下）✓
+	const fromFiles = scoped.map((f) => {
 		// `--with-rules`：只替换**规则文件那一份**（窄 —— 不动别的件）
 		if (isStoryPassageMd(f)) return assembleOne(s.slug, f, known);
 		// `#1267`：清单里的路径是**符号名**（`stories/…`）→ 真读盘前必须过 `resolveStoryRel`
 		//（仓内＝恒等  ；仓外 → 指到真实故事根）。
 		const text = (WITH_RULES && /(^|\/)17-rules\.twee$/.test(f)) ? readFileSync(WITH_RULES, 'utf8') : readFileSync(resolveStoryRel(f), 'utf8');
 		return stripTweeComments(text).trimEnd();
-	}).join('\n\n') + '\n';
+	});
+	// ★`#1570`：**数据面散文**的段（段表有 `text` 且**无同名文件**）⇒ ★走**同一个** `assemblePassage`
+	//   （✗ 不另造拼装路 ⇒ 变换管线同一份 ⇒ "铁律②"**由结构保证** ✓）。
+	//   ★"文件 ＋ 数据面"**撞车**不由本处判：★由 core 的 `duplicateSourceProblems` 在 `assemblePassages`
+	//   里**点名** ✓（同族：`#1412` 双渲染／`#1505` 双注）⇒ ★本处 ✗ 不重复判（免两处措辞 ⇒ 漂移）。
+	const fileNames = segNamesOfFiles(scoped);
+	const fromData = Object.entries(inlineTextOf(s.slug))
+		.filter(([n]) => !fileNames.has(n))
+		// ★本笔自查：**文件路径对 body 过 `stripTweeComments`，数据面也必须过** —— ★否则"两条来源**不同口径**"
+		//   ⇒ ★`/% … %/` 在一侧被剥、另一侧原样入 dist ⇒ ★等价性当场破 ✗（★正撞铁律②）。
+		.map(([name, body]) => assemblePassage(s.slug, { name, tags: [], body: stripTweeComments(body), path: '(数据面散文)', fromData: true }, known));
+	return [...fromFiles, ...fromData].join('\n\n') + '\n';
 };
 const merges = new Map(stories.map((s) => [s.slug, mergedOf(s)]));
 
@@ -226,6 +260,8 @@ for (const s of stories) {
 for (const s of stories) {
 	const scoped = scopedFiles(s);
 	const mdNames = scoped.filter(isStoryPassageMd).map((f) => String(parseFrontMatter(readFileSync(resolveStoryRel(f), 'utf8')).meta.passage ?? '').trim()).filter(Boolean);
+	// ★`#1570`：**数据面散文**的段名也进这一格（★同一族判据：防"有的段被静默吞掉" ✗ ⇒ 新来源同样要覆盖 ✓）。
+	for (const n of Object.keys(inlineTextOf(s.slug))) mdNames.push(n);
 	if (!mdNames.length) continue;
 	const got = new Set([...(merges.get(s.slug) ?? '').matchAll(/^::\s+(.+?)\s*(?:\[[^\]]*\])?\s*$/gm)].map((m) => m[1].trim()));
 	const missing = mdNames.filter((n) => !got.has(n));

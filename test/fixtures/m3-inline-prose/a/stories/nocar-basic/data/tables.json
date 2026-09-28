@@ -1,0 +1,6 @@
+{
+	"section": "Game Tables",
+	"note": "无车卡夹具：不需要任何表面（`vitals` 走引擎 `BUILTIN` 缺省 —— 本夹具正是要验那条缺省路）",
+	"containers": {},
+	"merges": []
+}

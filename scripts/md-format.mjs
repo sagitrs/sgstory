@@ -22,7 +22,7 @@
 // → 要「表没问题」的**定性** → 用**渲染器**或人眼（与 §17 ㉔「**代理 ≠ 直接读数**」同格）。
 // F4「引用的仓内路径必须存在」（`#606` 片一）：反引号里写的 `src/`／`stories/`／`scripts/`／`test/`／`docs/`／`vendor/` 路径，
 // 必须真在仓库里（或能通配到）。**为什么需要**：`src/*.twee` 在 `#458`／`#460` 搬到 `stories/<slug>/` 之后，
-// 文档里 **14 处引用从未更新**（`baselines.md`／`notes-model-batches.md`／`impl-map.md`／`engine-story-boundary.md`／`game-outline.md`／`README.md`）——
+// 文档里 **14 处引用从未更新**（`baselines.md`／★`notes-model-batches.md`／`impl-map.md`（★后两者已删 `#1601`）／`engine-story-boundary.md`／`game-outline.md`／`README.md`）——
 // 而 markdown 链接（`[x](path)`）**死链是 0**：坏的**全住在反引号里**、没有门。
 // 历史叙述确需引用已消失的路径时，同行写 `<!-- path-exempt: 理由 -->`（门会**留痕打印**豁免，便于收编）。
 // **两类边界（照这两句判，别自行推）**：
@@ -85,7 +85,7 @@ export const analyzeMarkdown = (text, { file = '<mem>' } = {}) => {
 		let j = i;
 		while (j + 1 < lines.length && /^\s*\|/.test(lines[j + 1])) j += 1;   // 走到本表块末
 		const blank = j + 1;
-		//注意：**先量再判**（本判据第一版就在 **`docs/game-outline.md` 上假阳性**）：两张**并列的表**也是合法的
+		//注意：**先量再判**（本判据第一版就在 **某份**已删史料稿（`game-outline.md`，`#1601` 已清）**上假阳性**）：两张**并列的表**也是合法的
 		// —— 它们靠"空行 ＋ **新表头 ＋ 分隔行**"分家 → 所以只有"空行之后又续 `|` 行、**且它不是新表头**"才算破。
 		const cont = lines[blank + 1] ?? '';
 		const contIsNewTable = /^\s*\|/.test(cont) && /^\s*\|[\s:|-]+\|[\s:|-]*$/.test(lines[blank + 2] ?? '');
@@ -216,7 +216,7 @@ const main = () => {
 				return r.texts.length === 2 && r.vanished.length === 0; })()],
 		['🔴 F5：表块 ⇒ 空行 ⇒ 又见 `|` 行 ⇒ **判红并点名两处行号**（`#973` 的真形态）',
 			analyzeMarkdown('| a |\n| - |\n| b |\n\n| c |\n').problems.some((p) => p.includes('L1-L3') && p.includes('L5') && p.includes('同一张表'))],
-		['F5 正例：**并列两张表**（空行 ＋ **新表头 ＋ 分隔行**）⇒ 不报（`docs/game-outline.md` 的真形态 ⇒ 第一版在此**假阳性** ✗）',
+		['F5 正例：**并列两张表**（空行 ＋ **新表头 ＋ 分隔行**）⇒ 不报（★该件已删 `#1601`；当时实测的真形态 ⇒ 第一版在此**假阳性** ✗）',
 			analyzeMarkdown('| 甲 | 乙 |\n| - | - |\n| 1 | 2 |\n\n| 丙 | 丁 |\n| - | - |\n| 3 | 4 |\n').problems.length === 0],
 		['F5 正例：表块 ⇒ 空行 ⇒ **普通正文**（正常结束）⇒ 不报',
 			analyzeMarkdown('| a |\n| - |\n\n正文\n').problems.length === 0],

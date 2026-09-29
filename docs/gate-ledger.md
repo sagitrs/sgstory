@@ -14,10 +14,10 @@
 > · **量法（可粘贴复跑 ✓）**：`node scripts/report-gate-ledger.mjs --selftest`（含 4 条 `hasSelfProof` 正反例 ✓）；
 > · **缺自证的几行**（`—` ✓）：补一条**能假的负控制** ✓，或按 `#908` ① 登记探针 ✓ —— 名单见下方「工作清单」（**动态生成** ✗，不写死 ✓）。
 
-**★ 三门账（#1353 ①）**：**门 50**（有自证的行为化） ｜ **检视 9**（仅登记 ＋ **临时暂缓** —— 人来做、留读数） ｜ **欠账 74**（行为化缺自证 61 ＋ **有探针件却探不到** 13）
+**★ 三门账（#1353 ①）**：**门 50**（有自证的行为化） ｜ **检视 9**（仅登记 ＋ **临时暂缓** —— 人来做、留读数） ｜ **欠账 66**（行为化缺自证 61 ＋ **有探针件却探不到** 5）
 >
 **严格行为化率（有自证）：50/112 = 44.6%** ｜ **有断言但缺自证：61**（＝下方工作清单）｜ 仅登记：0
-**探针（直接读数 ✓，不是"文件在不在"那种代理 ✗）：`✅` 6 项 ｜ `—` 未探 106 项（**上限 117** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ `✗` 不咬 0 项（**>0 即红** ✓）** —— 档位／清单：`node scripts/probe-gates.mjs --probe=fast` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）
+**探针（直接读数 ✓，不是"文件在不在"那种代理 ✗）：`✅` 14 项 ｜ `—` 未探 98 项（**上限 117** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ `✗` 不咬 0 项（**>0 即红** ✓）** —— 档位／清单：`node scripts/probe-gates.mjs --probe=fast` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）
 **档位（tier，`#1070`）：PR 档（`--tier=fast`）只跑 `tier:'fast'` 的段；下列 **23 段**在 `full` 档（`npm run test:full`；nightly/main 由 `#1071` 接线）。**降频必须留痕** ✓（K5）——理由如下（单一权威＝`scripts/test-plan.mjs` 的 `FULL_REASONS` ✓）：**
 | 段 | 实测成本 | 为什么不在 PR 档（理由 ＋ 代价） |
 |---|---|---|
@@ -59,7 +59,7 @@
 | `audit:status` | audit 开关 | 行为化 | ✅ | — | — | ✅ | — |  |
 | `audit:text` | audit 开关 | 行为化 | ✅ | — | — | ✅ | — | 文本载荷门（**有判定**：载荷阈值）——此前台账误标「仅登记」，由形态对账查出并改正；自证待补（密度 ratchet 在 --craft，本门是自己的载荷线） |
 | `audit:waves` | audit 开关 | 行为化 | ✅ | — | — | ✅ | — |  |
-| `scripts/report-gate-ledger.mjs` | 报告脚本 | 行为化 | ✅ | — | — | — | — | 本文件自身的自检（台账不腐），已入 npm test |
+| `scripts/report-gate-ledger.mjs` | 报告脚本 | 行为化 | ✅ | ✅ | ✅ | — | — | 本文件自身的自检（台账不腐），已入 npm test |
 | `scripts/report-ledger-freshness.mjs` | 报告脚本 | 行为化 | ✅ | — | — | — | — | **引用面（网络段）已入 npm test**：`--check` 核对文档里 `#NNN` 标记与 GitHub 真实状态（离线自证 **5** 例）；★`#1606` 执行笔 Step C：★**F6 竞品侧对标台账那一半已随件退** —— `judgeBenchmarkLedger` ＋ 其 **7 例自证** ＋ `runLedger`／`--ledger` 模式 ＋ 段（`…-ledger-check`）**一并删除** ✓（★门先退、件后删 ✓） |
 | `scripts/report-selftest-validity.mjs` | 报告脚本 | 行为化 | ✅ | — | — | ✅ | — | **已入 npm test**（#474 接线）：静态扫描 `自证·` 是否「失败计入退出码」＋ 自增量是否「不崩」（TDZ/未声明）。接线前修掉剥离器**配对错位**（四条正则顺序剥 ⇒ 跨行贪婪吞代码 ⇒ `counters` 空 ⇒ 假阳性；**顺序治不了** ⇒ 改单扫描器按 JS 词法一次遮蔽注释/字符串/模板/正则，未闭合保守剥＋报诊断）。自证 18 例（V1×8＋V2×10），探针：删某门 `process.exit(1)` ⇒ 必报、退 1 |
 | `test/actor-target.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
@@ -78,10 +78,10 @@
 | `test/chk-source.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
 | `test/choice-keys.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
 | `test/choose-cards.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
-| `test/ci-triggers.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/ci-triggers.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | — |  |
 | `test/codex-panel.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
 | `test/combat-adv.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
-| `test/comment-face-split.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/comment-face-split.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | — |  |
 | `test/comment-mask.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | **不进 CI 运行（挂起）**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：本轮未定，下轮复跑）） |  |
 | `test/cond-keyform.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | **不进 CI 运行（挂起）**：对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺（until #1279（M1 尾件回填复验：已裁：默认＝"在生效故事根下存在且可读"）） |  |
 | `test/contract-compat.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ | ✅ | — |  |
@@ -91,8 +91,8 @@
 | `test/corpus-books-smoke.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
 | `test/coverage.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | **不进 CI 运行（挂起）**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：本轮未定，下轮复跑）） |  |
 | `test/dialect.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
-| `test/docs-classification.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
-| `test/docs-read-path.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/docs-classification.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | — |  |
+| `test/docs-read-path.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | — |  |
 | `test/draw-primitives.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
 | `test/economy-keys.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
 | `test/equiv-scratch.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | **不进 CI 运行（挂起）**：对象＝通用机制（方言/契约版本/键形/词汇/工具不变量），样本随 demo 暂缺（until #1279（M1 尾件回填复验：本轮未定，下轮复跑）） |  |
@@ -101,7 +101,7 @@
 | `test/fight-seq.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | **不进 CI 运行（挂起）**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：测试件接新根后）） |  |
 | `test/fightpanel-turns-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
 | `test/focus-after-nav.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
-| `test/fruit-demo-cases.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/fruit-demo-cases.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | — |  |
 | `test/gate-discovery.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | **不进 CI 运行（挂起）**：样本随 demo 下架（对象＝该用例本身，属引擎/工具面判据）（until #1279（M1 尾件回填复验：改用 `storySlugs()`／样本给出）） |  |
 | `test/gen-needed.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ | ✅ | — |  |
 | `test/gen-segment-syntax.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
@@ -114,7 +114,7 @@
 | `test/layering.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — | 自证 **33** 条断言（**量法**：`node test/layering.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝模块依赖（`cases` 11 项，含 `#893` 两层登记的三条正反例）/ 点号 defines / 层间方向 / engine rank 派生与四条禁止边 |
 | `test/locations-adv.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
 | `test/merge-sources.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
-| `test/multi-story.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
+| `test/multi-story.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | — |  |
 | `test/note-grant.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
 | `test/npc-venue.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
 | `test/npm-entries-guard.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |
@@ -136,7 +136,7 @@
 | `test/repo-shape.mjs` | 测试脚本 | 行为化 | ✅ | ✅ | ✅ | ✅ | — |  |
 | `test/reread.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
 | `test/reroll.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
-| `test/route-registry.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
+| `test/route-registry.mjs` | 测试脚本 | 行为化（缺自证） | — | ✅ | ✅ | ✅ | — |  |
 | `test/rule-row-fields-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
 | `test/rulelist-effects-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
 | `test/rules-claims.mjs` | 测试脚本 | 行为化 | ✅ | — | — | ✅ | — |  |

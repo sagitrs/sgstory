@@ -31,7 +31,10 @@ Object.assign((window.Game.Combat ??= {}), {
 	resolvePlayer(pc, foeSite) {
 		const T = window.Game, f = pc.ev.fight;
 		const a = window.Sg.story.combatAction?.(f.act) ?? null;   // 缺面即 null（与缺省同义） // #459 切片三：故事数据经契约
-		const check = T.Checks.resolve(a.site, pc, f.adv ? 'adv' : null);
+				// ★ `#1574`：★战斗**每轮要掷** ⇒ ★显式 `reroll = true`
+		//   （✗ 不能吃段级「复用」默认 —— 否则第 2 轮起沿用第 1 轮骰面）
+		//   ★实测：★被 CI 逞到（`m3-actor-fixture` 的 cases 全红 ✗）⇒ ★战斗的每轮掷骰是**引擎语义** ✓
+		const check = T.Checks.resolve(a.site, pc, f.adv ? 'adv' : null, true);
 		const hadAdv = (f.adv ?? 0) > 0;
 		// #352：优势在**被这一手消费后**才清零（旧实现放在本轮末尾清零 → 准备动作的「下一击有优势」当场作废）
 		f.adv = 0;
@@ -137,7 +140,7 @@ Object.assign((window.Game.Combat ??= {}), {
 				//   ⇒ 那时取到的是 null ⇒ 只能拿到池名 ✗。
 				// 故由 `resolvePlayer` 把**这一手的位点**随返回值交下来（同一处取，✗ 不重复推导）；
 				// `pcSite` 缺省时回落形参（保老路径：没有动作的故事仍按传入的位点名查一次）。
-				check = T.Checks.resolve(pcSite ?? foeSite, pc, null);
+				check = T.Checks.resolve(pcSite ?? foeSite, pc, null, true);   // ★同上：战斗每轮重掷 ✓
 				// `#1227` 类一：**引擎不再知道"龙"是特殊敌人** —— 由 `foeState` 接缝的存在性决定走哪条：
 				// 故事给了对手状态面 → 走「有血量/连败/涂毒的具名对手结算」；没给 → 走「一击式压迫」回落。
 				//（原形参 `isDragon` 是故事侧传进来的布尔，等于把"哪个故事有龙"写进引擎调用约定。）

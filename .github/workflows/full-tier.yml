@@ -54,7 +54,15 @@ jobs:
     #   而它**不在 PR 关键路径上**（PR 档仍 ≤2 分钟）⇒ 给足 45 分钟，宁宽不放任超时。
     timeout-minutes: 45
     steps:
+      # ★★ `#1622`（同族缺口）：★**本档也跑 `md-format`**（`--tier=full` ＝ **全集 147 段**，
+      #   `md-format` 在其中）⇒ ★浅克隆下 F4 那一支（`git log --all` 判"引用的路径**曾否存在**"）
+      #   退化成 **○ 未判**（✗ 红、✗ 静默）⇒ ★**全量档也无牙** ✗ ——
+      #   ★而它是 `push: main` ＋ nightly（`:30`／`:33`）⇒ ★**"静默通道换处复发"正是在这里** ✓。
+      #   ★故与 `ci.yml` 的 `test` job 同处置 ⇒ `fetch-depth: 0`（成本同量级 ✓）。
+      #   ★★**✗ 不要改回默认** —— 改回后本档仍绿，但 F4 那一支**静默失效** ✗。
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22

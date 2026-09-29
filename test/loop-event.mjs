@@ -15,7 +15,7 @@ const FX = join(ROOT, 'test/fixtures/m3-loop-fixture/stories');
 const SLUG = 'loop-basic';
 const CASE = process.env.LE_CASE ?? null;
 if (!CASE) {
-	const cases = ['walk', 'limit', 'deadend', 'noedge', 'zero'];
+	const cases = ['walk', 'limit', 'revisit', 'deadend', 'noedge', 'zero'];
 	let rc = 0;
 	for (const c of cases) {
 		const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url)], { env: { ...process.env, LE_CASE: c }, encoding: 'utf8', cwd: ROOT });
@@ -43,7 +43,8 @@ const loop = async ({ injectVisits = null, clicks = 5 } = {}) => {
 	const B = await boot({ story: SLUG, random: 0.5 });
 	const w = B.w, S = w.SugarCube.State;
 	S.variables.sgVisits = S.variables.sgVisits || {};
-	if (injectVisits != null) { S.variables.sgVisits['战斗'] = injectVisits; w.SugarCube.Engine.play('战斗'); await new Promise((r) => setTimeout(r, 300)); }
+	// ★★计数形是 {name, n}（★**连续**计数 ✓）⇒ ★注入要与它同形 ✗ 否则推过上限推不动 ✓
+		if (injectVisits != null) { S.variables.sgVisits = { name: '战斗', n: injectVisits }; w.SugarCube.Engine.play('战斗'); await new Promise((r) => setTimeout(r, 300)); }
 	const errs = []; w.console.error = (...a) => errs.push(String(a.join(' ')));
 	const links = () => [...w.document.querySelectorAll('#passages a')].map((x) => x.textContent.trim());
 	const click = async (l) => {
@@ -75,12 +76,26 @@ try {
 		t('★①-c 末态 pc.ev.turn = 3（★计数真的走了 ✓）', r.turn === 3, `turn=${r.turn}`);
 		t('★①-d ★**正常循环不报兜底**（✗ 零误报 —— 否则"能假"无从谈起 ✓）', !r.deadend && !r.limit, JSON.stringify(r.errs).slice(0, 120));
 	}
+	if (CASE === 'revisit') {
+		// ---- 丙：★**非循环回访 ⇒ 不误报**（★CR `#1653` 丙 ✓）—— ★一局里"总共进过 N 次"是正常的
+		//      （★例：中枢段来回经过 ✗ 不是循环 ✗）⇒ ★进**别的段**即归零 ⇒ ✗ 不该点名 ✓
+		clearThree(); build();
+		process.env.SG_STORIES_DIR = FX;
+		const { boot } = await import('./boot.mjs');
+		const B = await boot({ story: SLUG, random: 0.5 });
+		const w = B.w, S = w.SugarCube.State;
+		const errs = []; w.console.error = (...a) => errs.push(String(a.join(' ')));
+		// ★交替进两个段 70 次（★每次都"进别的段"⇒ 连续计数每次都是 1 ✓）
+		for (let i = 0; i < 70; i += 1) { w.SugarCube.Engine.play('战斗'); await new Promise((r) => setTimeout(r, 3)); w.SugarCube.Engine.play('战果'); await new Promise((r) => setTimeout(r, 3)); }
+		t('★④ 非循环回访（★交替进两段共 70 次）⇒ **不误报**（★连续计数 ⇒ 每次都是 1 ✓）', !errs.some((e) => /visitlimit/.test(e)), JSON.stringify(errs).slice(0, 130));
+		await B.close?.();
+	}
 	if (CASE === 'limit') {
 		// ---- ② 能假·终止条件写坏（永不成立）⇒ 重入上限兜底点名 ----
 		clearThree(); build();
 		const r = await loop({ injectVisits: 64 });   // ★"条件永不成立"等价于"进段次数停不下来" ⇒ 推过上限
 		// ★★(实测) DOM 标记会被**随后的跳段**冲掉 ⇒ ★判据以**点名报文**为准（★报文里带段名与次数 ✓）
-		t('★② 能假·终止条件写坏 ⇒ **重入上限具名**（too many times (64) ＋ 段名 ＋ 次数）', r.errs.some((e) => /sg-visitlimit/.test(e) && /too many times \(64\)/.test(e) && /战斗/.test(e)), JSON.stringify(r.errs).slice(0, 150));
+		t('★② 能假·终止条件写坏 ⇒ **重入上限具名**（too many times (64) ＋ 段名 ＋ **连续**次数）', r.errs.some((e) => /sg-visitlimit/.test(e) && /too many times \(64\)/.test(e) && /战斗/.test(e)), JSON.stringify(r.errs).slice(0, 150));
 	}
 	if (CASE === 'deadend') {
 		// ---- ③ 能假·兜底链接：撤掉「结束战斗」⇒ 无可见出边点名 ----

@@ -253,7 +253,6 @@ window.__sg = {
   play(name) { SugarCube.Engine.play(name); return true; },
   rect(sel) { const el = document.querySelector(sel); if (!el) return null; const r = el.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, height: r.height, left: r.left, right: r.right, width: r.width }; },
   overflow() { return { scroll: document.documentElement.scrollWidth, inner: window.innerWidth }; },
-  text() { return document.querySelector('#passages')?.textContent ?? ''; },
   blocks(sel) { return [...document.querySelectorAll(sel)].map((el) => { const r = el.getBoundingClientRect(); return { top: r.top, bottom: r.bottom }; }); },
   gotoScrollTop() { window.scrollTo(0, 0); return true; }
 };`;
@@ -333,35 +332,6 @@ const enter = async (passage, stateJs = '') => {
 	await sleep(150);
 };
 
-// #284①：真机键盘序列——用 CDP Input 真发 Tab/Enter（不是 JS 派发合成事件）
-const pressKey = async (key, code, vk) => {
-	const base = { key, code, windowsVirtualKeyCode: vk, nativeVirtualKeyCode: vk };
-	await send('Input.dispatchKeyEvent', { type: 'rawKeyDown', ...base });
-	await send('Input.dispatchKeyEvent', { type: 'keyUp', ...base });
-	await sleep(70);
-};
-const TAB = () => pressKey('Tab', 'Tab', 9);
-// `#1004` B2b 复核席实测修正（2026-09-19）：原与 TAB 共用 `rawKeyDown` —— CDP 下 `rawKeyDown`+`keyUp`
-// **不产生默认动作**：对 `<a>` 打 Enter 后 `State.passage` 不变、`activeElement` 仍停在原链接
-//（而真 `click()` 会导航/出反馈 → 证明是**投递方式**不对、不是链接不响应）。
-// → Enter 改投带 `text` 的 `keyDown`（CDP 语义：带 `text` 才触发默认动作），本条断言自此才有判别力。
-const ENTER = async () => {
-	const base = { key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13, text: '\r', unmodifiedText: '\r' };
-	await send('Input.dispatchKeyEvent', { type: 'keyDown', ...base });
-	await send('Input.dispatchKeyEvent', { type: 'keyUp', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13 });
-	await sleep(70);
-};
-const focusInfo = () => ev(`(function(){
-	const a = document.activeElement;
-	if (!a) return null;
-	return {
-		tag: a.tagName, text: (a.textContent || '').trim().slice(0, 22), cls: String(a.className || ''),
-		inPassages: !!a.closest('#passages'),
-		inClosedDetails: !!a.closest('details:not([open])'),
-		inActs: !!a.closest('.acts'),
-		isFeedback: a.classList.contains('action-feedback') || a.classList.contains('scene-feedback'),
-	};
-})()`);
 
 const VP = [[360, 667], [390, 844], [1280, 844]];
 const label = (w, h) => `${w}x${h}`;
@@ -432,7 +402,7 @@ for (const [W, H] of VP) {
 				const visible = (el) => { const r = el.getBoundingClientRect(); return r.height > 0 && r.width > 0; };
 				const barEl = [...scope.querySelectorAll('*')].find((el) => /%/.test(el.style?.width || '') && visible(el));
 				const listEl = [...scope.querySelectorAll('.sg-list-item, .inv-item')].find(visible);
-				return { bar: !!barEl, list: !!listEl, text: (c?.textContent || '').replace(/\\s+/g, ' ').slice(0, 40) };
+				return { bar: !!barEl, list: !!listEl };
 			})()`);
 			check(bar.bar, `${vp} 无车卡最小面 侧栏给出**血量条**（无车卡的最小面 · 判"有**可见**的百分比量条"——几何 > 0，✗ 只看属性）`);
 			check(bar.list, `${vp} 无车卡最小面 侧栏给出**物品栏**（判"有**可见**的列表项"）`);

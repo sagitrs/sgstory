@@ -286,16 +286,12 @@ export const emitEvents = (d) => {
 	const problems = [];
 	const compileBinding = (name, expr, at) => {
 		const t = String(expr ?? '').trim();
-		// ★★ `#1669`：★**一律经共用求值口** `Sg.events.val(a, <原样>, <哪处>, <槽名>)` ——
-		//   ★为什么：★裸属性访问（`a.that.ev.turn`）在**取不到**时抛**裸 `TypeError`** ✗（★整页坏掉、报文里
-		//   ✗ 没有槽名/路径 ⇒ 作者无从下手 ✓）；★而★★同族另两处**已经**点名（`evalExpr` ✓／`Sg.uses.read` ✓）
-		//   ⇒ ★本行把这三形**拉平到同一口径** ✓（★`use:` 那支本来就点名 ⇒ 保留 ✓）
-		const named = (js) => `Sg.events.val(a, ${jsString(t)}, ${jsString(at)}, ${jsString(name)}, (a) => ${js})`;
-		if (/^\$\d+$/.test(t)) return named(`a[${jsString(t)}]`);   // ★键就是 \"$1\" 形（★照 2b 的绑定表 ✓）
+		// ★键就是 \"$1\" 形（★照 2b 的绑定表 ✓）
+		if (/^\$\d+$/.test(t)) return `a[${jsString(t)}]`;
 		const rootPath = (root) => t === root ? `a.${root}`
 			: (t.startsWith(root + '.') ? `a.${root}.` + t.slice(root.length + 1) : null);
-		const a2 = rootPath('this'); if (a2) return named(a2);
-		const b2 = rootPath('that'); if (b2) return named(b2);
+		const a = rootPath('this'); if (a) return a;
+		const b = rootPath('that'); if (b) return b;
 		if (t.startsWith('use:')) return `Sg.uses.read(a, ${jsString(t.slice(4))})`;
 		problems.push(`事件「${at}」的槽「${name}」绑定 \`${t}\` **不是合法取值项**（只认 \$n／this.…／that.…／use:…）`);
 		return '""';

@@ -1,5 +1,5 @@
 {
- "src/engine/40-sim/32-social.twee:18": "`ask()` 直接链式取 `this.socialAsks()` —— ★属**社交块**（不在本轮 D→B/C→E→A 的切法内）⇒ 待社交分家时一并改（`#1437` 伞，第二批）",
- "src/engine/40-sim/32-social.twee:61": "`dcOf()` 链式取 `this.socialAttAdj()` —— 同上（社交块，`#1437` 第二批）",
- "src/engine/40-sim/32-social.twee:66": "`open()` 链式取 `this.socialApproaches()` —— 同上（社交块，`#1437` 第二批）"
+ "src/engine/40-sim/32-social.twee::ask::ask(id) { return this.socialAsks().find((a) => a.id === id) ?? null; }": "`ask()` 直接链式取 `this.socialAsks()` —— ★属**社交块**（不在本轮 D→B/C→E→A 的切法内）⇒ 待社交分家时一并改（`#1437` 伞，第二批）",
+ "src/engine/40-sim/32-social.twee::dcOf::return Math.max(5, (s.dc ?? 15) + (this.socialAttAdj()[this.attitude(a, pc)] ?? 0) + 5 * this.tries(a, pc, site))": "`dcOf()` 链式取 `this.socialAttAdj()` —— 同上（社交块，`#1437` 第二批）",
+ "src/engine/40-sim/32-social.twee::open::return { site, skill, ap: this.socialApproaches()[skill] ?? null, dc: this.dcOf(a, site, pc) }": "`open()` 链式取 `this.socialApproaches()` —— 同上（社交块，`#1437` 第二批）"
 }

@@ -258,6 +258,41 @@ jQuery(document).on('click.sgEndAct', '#passages button[data-end-act]', function
 // 卡片挪到段落末尾（:passagerender 的 ev.content 就是这个段落元素）
 // ★(阶3) 事件文本 ⇒ 落到**落脚段**（★点链接会跳段 ⇒ 就地 append 会被冲掉 ✗ ⇒ 挂在渲染后 ✓）
 let sgPendingText = null;
+// ★★ `#1572`（阶 4）**"无可见出边 ⇒ 具名"**（★两条条件链接都假 ⇒ 玩家**卡死** ✗）：
+//   ★判据要**精**：★本段**声明了**链接（`data-sg-links-declared > 0` ✓）却**一条都不可见** ⇒ 点名 ✓
+//     （★结局段／无链接段声明 0 条 ⇒ ✗ 不报 ✓ —— ★"没声明"和"声明了但全不可见"是两回事 ✓）
+// ★★ `#1572`（阶 4）**"重入上限 ⇒ 具名"**（★"终止条件永不成立" ⇒ 玩家被**无限要求点"下一回合"** ✗）：
+//   ★为什么必须有：★"**循环 ＋ 状态**"**无法静态证明终止** ⇒ ★防线只有**运行期上限 ＋ 具名** ✓
+//   ★计数：★**按段名**（`State.variables.sgVisits` ✓）；★上限缺省 **64** ✓
+//   ★（★作者可设上限 ⇒ 后续接段级声明面 ⇒ ✗ 本笔只落**缺省上限** ＋ 具名 ✓ —— 验收②只要求缺省生效 ✓）
+jQuery(document).on(':passagerender.sgVisitLimit', (ev) => {
+	const name = String(State.passage ?? '');
+	const visits = (State.variables.sgVisits ??= {});
+	visits[name] = (visits[name] ?? 0) + 1;
+	const LIMIT = 64;
+	if (visits[name] <= LIMIT) return;
+	const msg = 'visited this line too many times (' + LIMIT + ')：段「' + name + '」已进 '
+		+ visits[name] + ' 次 ⇒ ✗ 疑**终止条件永不成立**（循环停不下来）⇒ 请检查起止条件／计数效果，或改写兜底链接 ✓';
+	jQuery(ev.content).attr('data-sg-visitlimit', '1');
+	console.error('✗ [sg-visitlimit] ' + msg);
+});
+
+jQuery(document).on(':passagerender.sgDeadEnd', (ev) => {
+	const $c = jQuery(ev.content);
+	const declared = Number($c.find('[data-sg-links-declared]').attr('data-sg-links-declared') ?? 0) || 0;
+	if (declared <= 0) return;
+	// ★可见出边 ＝ **可点的链接**（`a.link-internal` 一族 ✓ —— ✗ 不数纯文本行 ✓）
+	const visible = $c.find('a.link-internal, a.link-external, a[data-passage]').length;
+	if (visible > 0) return;
+	// ★★(实测) `ev.passage` 是**对象**（✗ 不是串）⇒ 直接 String() 会写出 `[object Object]` ✗
+	//   ⇒ ★取**段名**走 `State.passage`（★运行期当前段名 ✓）
+	const name = String(State.passage ?? '');
+	const msg = '无可见出边（No selectable options）：段「' + name + '」声明了 ' + declared + ' 条链接，但**此刻一条都不可见**'
+		+ ' ⇒ ✗ 玩家无路可走 ⇒ 请给一条**无条件**兜底链接（如"原路退回去"），或检查条件 ✓';
+	$c.attr('data-sg-deadend', '1');
+	console.error('✗ [sg-deadend] ' + msg);
+});
+
 jQuery(document).on(':passagerender.sgEventText', (ev) => {
 	if (!sgPendingText) return;
 	const span = document.createElement('span');

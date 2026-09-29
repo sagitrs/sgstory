@@ -427,6 +427,15 @@ export const proseEventProblems = ({ defs = null, where = '事件声明' } = {})
 		if (hasText && hasUse) out.push({ code: 'prose-event-mix', why: `${where}：事件「${name}」**同时**有 \`text\` 与 \`use\` ⇒ ✗ 散文事件与控制事件**互斥**（B′：有 text ⇒ 散文；有 use ⇒ 控制）` });
 		if (hasText && ev.when != null) out.push({ code: 'prose-event-when', why: `${where}：事件「${name}」是**散文事件**（有 \`text\`）⇒ ✗ 不许有 \`when\`（条件属控制事件）` });
 		if (hasText) checkText({ out, where, name, text: ev.text, at: '事件级' });
+		// ★★ `#1572`（阶 4）**编译期判据**：「每个事件至少声明一条**出边**」（★分工：编译期管**声明了没有** ✓
+		//   ／ 运行期管**此刻有没有可见的** ✓）。★出边 ＝ ★子句里的 `call`（自指 ∨ 别的事件 ✓）
+		//   ∨ `effect`（改了状态 ⇒ 能往前走 ✓）∨ **散文**（`text` ⇒ 明确读作"到此为止"的叙述 ✓）
+		//   ⇒ ★三者皆无 ⇒ ★点名（★"一个什么都不做的事件"是**死声明** ✗，不是"终" ✓）
+		if (Array.isArray(ev.use)) {
+			const hasEdge = ev.use.some((c) => c && typeof c === 'object'
+				&& (String(c.call ?? '').trim() !== '' || c.effect != null || c.text != null));
+			if (!hasEdge) out.push({ code: 'prose-event-no-edge', why: `${where}：事件「${name}」**一条出边都没有**（子句里既无 call、也无 effect、也无散文 text）⇒ ✗ 死声明（「什么也不做」不是「终」✓）⇒ 请给 call／effect／或用散文收尾 ✓` });
+		}
 		if (!Array.isArray(ev.use)) {
 			if (hasUse) out.push({ code: 'prose-event-use', why: `${where}：事件「${name}」的 \`use\` 必须是**子句列表**` });
 			continue;

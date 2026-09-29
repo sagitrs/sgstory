@@ -49,7 +49,7 @@
 ```
 
 注意 施加器**写前深拷贝**（`_clone`）：契约是"绝不改写调用方数据"，否则同一预设连用两次会数值翻倍
-（`#1132` B2 修的数据污染缺陷，两格回归在 `test/chargen-equivalence.mjs` 与 `test/chargen-apply.mjs`）。
+（`#1132` B2 修的数据污染缺陷，两格回归在 `test/chargen-equivalence.mjs` 与 `test/chargen-apply.mjs`）。 <!-- path-exempt: 该路径曾存在、今已删/改名（`#1619`：曾存在 ⇒ 必须标注）—— 本条是历史依据，✗ 不代表现状 -->
 
 ## 5. `Preset`
 
@@ -73,4 +73,4 @@ data/chargen.json ──compile-story──→ 18-chargen.twee（@generated，�
   后者走 `Sg.story.chargen()`（未注册该面的故事由引擎侧返回空值，可见行为不变）。
 - 生成物与其余四类同族（`gitignore`／`clean-net` 白名单／`dist-fresh` 源面排除／K4 标记与新鲜度／`#1185` 守卫）。
 - **行为等价**：预设终态有冻结基线（`gates/chargen-lifecycle-baseline.json`，`#1132` B2 动手前用旧路冻的），
-  `test/chargen-equivalence.mjs` 逐字段比对。
+  `test/chargen-equivalence.mjs` 逐字段比对。 <!-- path-exempt: 该路径曾存在、今已删/改名（`#1619`：曾存在 ⇒ 必须标注）—— 本条是历史依据，✗ 不代表现状 -->

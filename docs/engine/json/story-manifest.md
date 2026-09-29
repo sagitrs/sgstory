@@ -1,13 +1,13 @@
 # `00-story.json` —— 故事清单（manifest）
 
 > 实况样本：任一故事的 `00-story.json`（原举例 `night-ferry` 已随 `#1261` 下架）。生成器：`editor/lib/core/story.mjs` 的 `manifestFor()`／`starterPackage()`。
-> 消费方：`build.mjs`（认故事 · 加载顺序 · 书架）· `scripts/module-order.mjs`（`files`／`gates`）· `test/store-keys.mjs`。
+> 消费方：`build.mjs`（认故事 · 加载顺序 · 书架）· `scripts/module-order.mjs`（`files`／`gates`）· `test/store-keys.mjs`。 <!-- path-exempt: 该路径曾存在、今已删/改名（`#1619`：曾存在 ⇒ 必须标注）—— 本条是历史依据，✗ 不代表现状 -->
 
 ## 1. 字段表
 
 | 字段 | 型 | 必填 | 缺省 | 含义 · 校验 |
 |---|---|---|---|---|
-| `slug` | `string` |  | — | 故事目录名（＝ `stories/<slug>/`）。**必须与 `00-meta.twee` 的 `Sg.storyId.slug` 一致** → `test/store-keys.mjs` 判红 |
+| `slug` | `string` |  | — | 故事目录名（＝ `stories/<slug>/`）。**必须与 `00-meta.twee` 的 `Sg.storyId.slug` 一致** → `test/store-keys.mjs` 判红 | <!-- path-exempt: 该路径曾存在、今已删/改名（`#1619`：曾存在 ⇒ 必须标注）—— 本条是历史依据，✗ 不代表现状 -->
 | `title` | `string` |  | `'未命名故事'`（起手模板） | 标题（书架／页面标题） |
 | `subtitle` | `string` | — | `''` | 副标题（书架显示） |
 | `entry` | `string` |  | `'开场'` | **起始段的段落名**。必须与 `00-meta.twee` 的 `StoryData.start` **一致**（不一致 → 启始段找不到） |

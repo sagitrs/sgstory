@@ -128,19 +128,39 @@ export const PATH_EXEMPT = /<!--\s*path-exempt:\s*([^*]*?)-->/;
  * **只登记打印、不判红** —— 否则任何设计稿都会被门挡住（`docs/criterion-design.md` §八 8.15 实测）。
  * `exists`／`globMatches`／`basenameExists` 由调用方注入（自证用假实现）。
  */
-export const checkPathRefs = (text, { file = '<mem>', exists = () => true, globMatches = () => [], basenameExists = () => false } = {}) => {
-	const problems = [], exemptions = [], planned = [];
+export const checkPathRefs = (text, { file = '<mem>', exists = () => true, globMatches = () => [], basenameExists = () => false,
+	// ★★ `#1619`（`#1616` CR 咬出）：★**"不存在"有两种来历**，本门原先**同桶**处理 ✗ ——
+	//   · 甲 ★**从来没建过**（先写文档后补件 ⇒ 合理）⇒ 登记 ✓
+	//   · 乙 ★**建过、后来被删/改名**（★"删了件没清引用" ⇒ **必须红** ✓）—— ★原先它也进「尚未创建」桶 ⇒ **静默** ✗
+	//     （★实证：`#1606` 删 `docs/credits.md` 后入口页死链**没红**，靠人读 CR 才抓到 ✓）
+	//   ★故本门加一问 **`everExisted`**（由调用方注入 `git log --all` 的实现 ✓）⇒ ★乙类 ⇒ **红** ✓
+	//   ★**浅克隆**（CI 默认 `fetch-depth: 1`）⇒ ★既判不出"曾存在"、也判不出"从未" ⇒ ★**○ 未判 ＋ 出声**（✗ 静默、✗ 值红 ✓）。
+	everExisted = () => false, shallow = false } = {}) => {
+	const problems = [], exemptions = [], planned = [], undecided = [];
 	String(text).split('\n').forEach((line, i) => {
 		const ex = PATH_EXEMPT.exec(line);
 		for (const m of line.matchAll(PATH_REF)) {
 			const p = m[1];
 			if (exists(p) || globMatches(p).length) continue;
 			if (ex) { exemptions.push(`${file}:${i + 1} 豁免「${p}」（理由：${ex[1].trim()}）`); continue; }
-			if (!basenameExists(p)) { planned.push(`${file}:${i + 1} 尚未创建「${p}」（设计稿正常；若它其实搬过家 ⇒ 是缺陷）`); continue; }
+			if (!basenameExists(p)) {
+				// ★通配族（`test/web-*.mjs`）＝**一类**而非一个路径 ⇒ 照旧登记（✗ 断言"曾存在" ✓）
+				if (p.includes('*')) { planned.push(`${file}:${i + 1} 尚未创建「${p}」（★通配族 ⇒ 只登记 ✓）`); continue; }
+				// ★乙类：**曾存在**（已删/搬走）⇒ **红**（★✗ 静默进「尚未创建」桶 ✓）
+				if (everExisted(p)) {
+					problems.push(`${file}:${i + 1}：引用的仓内路径 \`${p}\` **曾存在**（已被删/搬走）⇒ `
+						+ '★同笔**清引用或改述**（确需引用历史路径时同行加 `<!-- path-exempt: 理由 -->` ✓）'
+						+ '—— ★「全仓同名文件不存在」有两种来历，本门原先同桶 ⇒ 删件留下的死引用**静默** ✗（`#1619`）');
+					continue;
+				}
+				// ★浅克隆 ⇒ 判不出"曾否存在" ⇒ **○ 未判 ＋ 出声**（✗ 红、✗ 静默 ✓）
+				if (shallow) { undecided.push(`${file}:${i + 1} ○ 未判「${p}」：**浅克隆**（`+"`fetch-depth: 1`"+`）⇒ 判不出它「曾否存在」（✗ 值红、✗ 静默）`); continue; }
+				planned.push(`${file}:${i + 1} 尚未创建「${p}」（设计稿正常；若它其实搬过家 ⇒ 是缺陷）`); continue;
+			}
 			problems.push(`${file}:${i + 1}：引用的仓内路径**不存在** \`${p}\`（同名文件在别处 ⇒ 像是搬家后没跟；确需引用历史路径时同行加 <!-- path-exempt: 理由 -->）`);
 		}
 	});
-	return { problems, exemptions, planned };
+	return { problems, exemptions, planned, undecided };
 };
 
 /** 入口页体量上限（行）。分层后的 README 是 79 行；留余量到 120，再超就说明参考件又在往入口页塞。 */
@@ -208,6 +228,12 @@ const main = () => {
 		['F4 边界：同名文件全仓都没有（设计稿里"新增"的模块）⇒ 不判红、只登记', checkPathRefs('新增 `scripts/audit/discovery.mjs`', { exists: () => false }).problems.length === 0 && checkPathRefs('新增 `scripts/audit/discovery.mjs`', { exists: () => false }).planned.length === 1],
 		['F4 边界：能通配到的路径 ⇒ 不报', checkPathRefs('见 `src/*.twee`', { exists: () => false, globMatches: () => ['src/10-core.twee'] }).problems.length === 0],
 		['F4 边界：同行豁免标记 ⇒ 不报且留痕', checkPathRefs('原 `src/15-tables.twee` <!-- path-exempt: 搬家前的位置 -->', { exists: () => false }).exemptions.length === 1],
+		// ★ `#1619`：★新增五格（★「曾存在 ⇒ 红」是本笔的牙 ✓；其余四格＝防误伤／防静默／陷阱留证 ✓）
+		['🔴 F4 反例·曾存在：路径建过又被删/改名（`everExisted` 为真）⇒ 判红并点名「曾存在」', (() => { const r = checkPathRefs('见 `test/scenarios.mjs`', { exists: () => false, basenameExists: () => false, everExisted: () => true }); return r.problems.length === 1 && r.problems[0].includes('曾存在') && r.planned.length === 0; })()],
+		['F4 正例·从未存在：`everExisted` 为假 ⇒ 只登记（设计稿里「新增」的正常形 ✓）', checkPathRefs('新增 `scripts/audit/discovery.mjs`', { exists: () => false, basenameExists: () => false, everExisted: () => false }).planned.length === 1],
+		['F4 边界·浅克隆：判不出「曾否存在」⇒ ○ 未判 ＋ 出声（✗ 值红、✗ 静默）', (() => { const r = checkPathRefs('见 `test/scenarios.mjs`', { exists: () => false, basenameExists: () => false, everExisted: () => false, shallow: true }); return r.undecided.length === 1 && r.problems.length === 0 && r.planned.length === 0; })()],
+		['F4 边界·通配族：`test/web-*.mjs` ⇒ 只登记（✗ 断言「曾存在」✓）', (() => { const r = checkPathRefs('见 `test/web-*.mjs`', { exists: () => false, basenameExists: () => false, everExisted: () => true }); return r.planned.length === 1 && r.problems.length === 0; })()],
+		['🔴 F4 陷阱留证：豁免理由里带 `*` ⇒ 正则不匹配（★标记看着在、其实没生效 ✗ —— 本笔实测撞过 ✓）', checkPathRefs('原 `src/15-tables.twee` <!-- path-exempt: 有**加粗**的理由 -->', { exists: () => false, basenameExists: () => false, everExisted: () => true }).problems.length === 1],
 		['🔴 竞态：**列到但读不到** ⇒ 跳过并记名（✗ 不抛、✗ 不静默）',
 			(() => { const r = readAlive(['a.md', 'gone.md'], (f) => { if (f === 'gone.md') throw new Error('ENOENT'); return '# ok\n'; });
 				return r.texts.length === 1 && r.texts[0].f === 'a.md' && r.vanished.length === 1 && r.vanished[0] === 'gone.md'; })()],
@@ -271,13 +297,26 @@ const main = () => {
 	const existsInRepo = (p) => tracked.has(p) || existsSync(join(ROOT, p));
 	const globMatchesInRepo = (p) => (p.includes('*') ? globSync(p, { cwd: ROOT }) : []);
 	const basenameIndex = new Set([...tracked].map((p) => p.split('/').pop()));
-	let pathRefs = 0, pathBad = 0, exempted = 0, plannedPaths = 0;
+	// ★ `#1619`：★**"曾存在"判据**（乙类 ⇒ 红）—— ★由 `git log --all` 判；★**浅克隆**下判不出 ⇒ **○ 未判 ＋ 出声**（✗ 红、✗ 静默 ✓）
+	const isShallow = (() => { try { return execFileSync('git', ['rev-parse', '--is-shallow-repository'], { cwd: ROOT, encoding: 'utf8' }).trim() === 'true'; } catch { return true; } })();
+	const everExistedCache = new Map();
+	const everExistedInRepo = (p) => {
+		if (!everExistedCache.has(p)) {
+			let hit = false;
+			try { hit = execFileSync('git', ['log', '--all', '--format=%H', '-1', '--', p], { cwd: ROOT, encoding: 'utf8' }).trim() !== ''; } catch { hit = false; }
+			everExistedCache.set(p, hit);
+		}
+		return everExistedCache.get(p);
+	};
+	let pathRefs = 0, pathBad = 0, exempted = 0, plannedPaths = 0, undecidedPaths = 0;
 	for (const { f, text } of alive.texts) {
 		pathRefs += [...text.matchAll(PATH_REF)].length;
-		const r = checkPathRefs(text, { file: f, exists: existsInRepo, globMatches: globMatchesInRepo, basenameExists: (p) => basenameIndex.has(p.split('/').pop()) });
+		const r = checkPathRefs(text, { file: f, exists: existsInRepo, globMatches: globMatchesInRepo, basenameExists: (p) => basenameIndex.has(p.split('/').pop()), everExisted: everExistedInRepo, shallow: isShallow });
 		pathBad += r.problems.length;
 		exempted += r.exemptions.length;
 		plannedPaths += r.planned.length;
+		for (const u of r.undecided) console.log(`      · ${u}`);
+		undecidedPaths += r.undecided.length;
 		for (const pr of r.problems) { bad++; console.error(`  ✗ ${pr}`); }
 		for (const e of r.exemptions) console.log(`      · 豁免留痕 ${e}`);
 		for (const pl of r.planned) console.log(`      · 登记（尚未创建）${pl}`);

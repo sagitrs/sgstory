@@ -7,7 +7,7 @@
 // 自证：`node test/passages-assemble.mjs --selftest`
 //注意：自证结尾 `if (bad) … exit(1)`（#1100 形态硬化 ——格红必进退出码）
 
-import { parseFrontMatter, forbiddenProblems, danglingProblems, valueRefExpand, assemblePassages, endingProblems, doubleRenderProblems, FORBIDDEN_BUILTINS } from '../editor/lib/core/passages.mjs';
+import { parseFrontMatter, forbiddenProblems, danglingProblems, valueRefExpand, assemblePassages, endingProblems, doubleRenderProblems, FORBIDDEN_BUILTINS , sitecheckCall} from '../editor/lib/core/passages.mjs';
 import { valueTerms, VALUE_KINDS } from '../editor/lib/core/vocab.mjs';
 
 let bad = 0;
@@ -181,7 +181,9 @@ const selftest = () => {
 		const seg = (body, check) => assemblePassages({ passages: [P('里屋', body)], known: new Set(), data: { 里屋: check == null ? {} : { check } } }).twee;
 		t('段级 check① 声明了 ⇒ 产物**恰有一对** `<<sitecheck "…">><<snapshot>>`，且在**段首**',
 			(() => { const t2 = seg('正文。', '里屋·察觉');
-				return (t2.match(/<<sitecheck "里屋·察觉">><<snapshot>>/g) ?? []).length === 1
+				// ★(CR `#1574`) ★期望形**从唯一真源派生**（✗ 不手抄 —— 手抄就会像这次一样漂 ✗）；★仍是**逐字比** ✓
+				const want = sitecheckCall('里屋·察觉', false);
+				return (t2.split(want).length - 1) === 1
 					&& t2.split('\n').find((l) => l.includes('sitecheck')).indexOf('<<sitecheck') === 0; })());
 		t('段级 check② ★**配对不拆**：产物里 `sitecheck` 与 `snapshot` 的出现次数**相等**（✗ 少一个 ⇒ 骰面丢）',
 			(() => { const t2 = seg('正文。', '里屋·察觉');
@@ -191,7 +193,7 @@ const selftest = () => {
 			(() => !/<<sitecheck|<<snapshot/.test(seg('正文。', null)) && !/<<sitecheck|<<snapshot/.test(seg('正文。', undefined)))());
 		t('段级 check④ 站点名**含双引号** ⇒ 转义（✗ 不许把宏/段炸开 ✓）',
 			(() => { const t2 = seg('正文。', '站点"引号');
-				return t2.includes('\\"') && !/<<sitecheck "站点"引号"/.test(t2); })());
+				return t2.includes('\\"') && !t2.includes('<<sitecheck "站点"引号"'); })());
 		// ★ `#1527` CR（同族“判据不能假”）：★旧格用 `t2.includes('\\\\')` ⇒
 		//   ★**输入自带反斜杠** ⇒ ★该子串**恒命中** ✗（★判据被输入本身满足）
 		//   ★修：★**期望串逐字相等**（★`inject` 行与实得行**逐字**比 —— ✗ 不问子串✓）
@@ -199,12 +201,12 @@ const selftest = () => {
 		//     ⇒ ★期望产物行：`<<sitecheck "站点\\\"">><<snapshot>>`（★反斜杠**被转成**双反斜杠 ＋ 引号前一个反斜杠）
 		t('段级 check⑤ ★**转义加固（逐字比）**：★`\\` ⇒ `\\\\`，`"` ⇒ `\\"`（✗ 它会把后面的 `"` 吃掉 ⇒ 宏串提前闭合 ✓）',
 			(() => { const t2 = seg('正文。', '站点\\"');
-				const wantLine = '<<sitecheck "站点\\\\\\"">><<snapshot>>';
+				const wantLine = sitecheckCall('站点\\"', false);   // ★唯一真源 ⇒ ✗ 不手抄 ✓
 				const gotLine = t2.split('\n').find((l) => l.includes('sitecheck')) ?? '';
 				return gotLine === wantLine; })());
 		t('段级 check⑥ ★**换行降级**：站点名含换行 ⇒ 换成空格（✗ 否则宏被拆成两半 ⇒ 后半段泄漏给玩家 ✓）',
 			(() => { const t2 = seg('正文。', '站点\n引号');
-				return /<<sitecheck "站点 引号">>/.test(t2) && (t2.match(/<<sitecheck/g) ?? []).length === 1; })());
+				return t2.includes(sitecheckCall('站点 引号', false)) && (t2.match(/<<sitecheck/g) ?? []).length === 1; })());
 		t('★段级 check⑦ **双注 ⇒ 点名**（`check` 字段 ＋ 散文手写 `<<sitecheck>>` ⇒ ★检定**跑两遍**—— 两次掷骰 ✗）',
 			(() => { const q = doubleRenderProblems({ passages: [P('里屋', '正文。\n<<sitecheck "里屋·察觉">><<snapshot>>')],
 					data: { 里屋: { check: '里屋·察觉' } } });
@@ -227,7 +229,7 @@ const selftest = () => {
 			}))());
 		t('★段级 check⑪ 能假（另一半）：**缺省（`null`／未给）⇒ 不报**（✗ 与"空串"混判 —— 两者是不同的），且**正常站点名仍绿**',
 			(() => [null, undefined].every((bad) => res(bad).problems.length === 0)
-				&& res('里屋·察觉').problems.length === 0 && /<<sitecheck "里屋·察觉">>/.test(res('里屋·察觉').twee))());
+				&& res('里屋·察觉').problems.length === 0 && res('里屋·察觉').twee.includes(sitecheckCall('里屋·察觉', false)))());
 	}
 	// ★ `#1506`（本票）：段级字段 **`fight`** —— 「这一段入口是一场战斗」（原散文三行：
 	//   `<<fightbegin "池">>` ／ `<<fightlog>>` ／ `<<fightpanel "池" N 结果 去向>>`）。

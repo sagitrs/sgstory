@@ -15,7 +15,7 @@ const FX = join(ROOT, 'test/fixtures/m3-loop-fixture/stories');
 const SLUG = 'loop-basic';
 const CASE = process.env.LE_CASE ?? null;
 if (!CASE) {
-	const cases = ['walk', 'limit', 'revisit', 'cycle', 'seglmt', 'declchain', 'deadend', 'noedge', 'zero'];
+	const cases = ['walk', 'limit', 'revisit', 'cycle', 'seglmt', 'declchain', 'longgame', 'deadend', 'noedge', 'zero'];
 	let rc = 0;
 	for (const c of cases) {
 		const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url)], { env: { ...process.env, LE_CASE: c }, encoding: 'utf8', cwd: ROOT });
@@ -86,9 +86,12 @@ try {
 		const B = await boot({ story: SLUG, random: 0.5 });
 		const w = B.w, S = w.SugarCube.State;
 		const errs = []; w.console.error = (...a) => errs.push(String(a.join(' ')));
-		// ★交替进两个段 70 次（★每次都"进别的段"⇒ 连续计数每次都是 1 ✓）
-		for (let i = 0; i < 70; i += 1) { w.SugarCube.Engine.play('战斗'); await new Promise((r) => setTimeout(r, 3)); w.SugarCube.Engine.play('战果'); await new Promise((r) => setTimeout(r, 3)); }
-		t('★④ 非循环回访（★交替进两段共 70 次）⇒ **不误报**（★连续计数 ⇒ 每次都是 1 ✓）', !errs.some((e) => /visitlimit/.test(e)), JSON.stringify(errs).slice(0, 130));
+		// ★★ `#1667` T 席 RC 后**重定范围**：★本格原先跑"交替 70 次"＝**140 次渲染 ＝ 70 个周期** ✗ ——
+		//   ★而新门（★"紧致循环深度 > 2×LIMIT" ⇒ ★p=2 时 ≈ **64 个周期**）⇒ ★那已是**门附近** ✓
+		//   ⇒ ★本格改回它**本来要钉的那件事**：★**浅**重复（★tester-4 说的 shallow ✓）⇒ 10 个周期 ⇒ **不报** ✓
+		//   ★（★"长局里的浅重复 ⇒ 不报"另由 ⑩ 格钉住 —— ★两格分工：★④＝单轮浅、⑩＝长局多轮 ✓）
+		for (let i = 0; i < 20; i += 1) { w.SugarCube.Engine.play('战斗'); await new Promise((r) => setTimeout(r, 3)); w.SugarCube.Engine.play('战果'); await new Promise((r) => setTimeout(r, 3)); }
+		t('★④ 浅重复（★交替进两段共 20 次 ＝ 10 个周期）⇒ **不误报**（★远低于门 ✓）', !errs.some((e) => /visitlimit/.test(e)), JSON.stringify(errs).slice(0, 130));
 		await B.close?.();
 	}
 	if (CASE === 'limit') {
@@ -152,6 +155,25 @@ try {
 		await new Promise((r) => setTimeout(r, 300));
 		const hit = errs.find((e) => /sg-visitlimit/.test(e));
 		t('★④-b 运行期据此报 `(4)`（★链后半 ✓ ⇒ 声明面到运行期**通** ✓）', !!hit && /\(4\)/.test(hit), (hit ?? '(无)').slice(0, 110));
+		await B.close?.();
+	}
+	if (CASE === 'longgame') {
+		// ---- ★⑩（`#1667` T 席 RC 要的格）：**长局 ＋ 正常循环 ⇒ 不报** ----
+		//   ★形（他会复现的那个）：★玩家**反复"短循环一下再离开"**（商店↔背包 20 次 ⇒ 走开；再来一轮…）
+		//     ⇒ ★生涯总访问自然过 300 ✓ ⇒ ★旧门（`total > 300`）会误报 ✗ ⇒ ★本格钉住"✗ 不许误报" ✓
+		clearThree(); build();
+		process.env.SG_STORIES_DIR = FX;
+		const { boot } = await import('./boot.mjs');
+		const B = await boot({ story: SLUG, random: 0.5 });
+		const w = B.w, S = w.SugarCube.State;
+		const errs = []; w.console.error = (...a) => errs.push(String(a.join(' ')));
+		S.variables.sgVisits = { ring: '', n: 0, last: '', cyc: 0 };
+		// ★★每轮：交替 20 次（＝10 个周期，✗ 远不到门 ✓）⇒ 再进别的段一次（★打断 ✓）⇒ 重复 30 轮
+		for (let round = 0; round < 30; round += 1) {
+			for (let i = 0; i < 20; i += 1) { w.SugarCube.Engine.play(i % 2 ? '战果' : '战斗'); await new Promise((r) => setTimeout(r, 1)); }
+			w.SugarCube.Engine.play('战果'); await new Promise((r) => setTimeout(r, 1));
+		}
+		t('★⑩ 长局 ＋ 正常循环（★反复"短循环再离开"共 30 轮、总访问 > 300）⇒ **不误报**', !errs.some((e) => /sg-visitlimit/.test(e)), JSON.stringify(errs).slice(0, 130));
 		await B.close?.();
 	}
 	if (CASE === 'deadend') {

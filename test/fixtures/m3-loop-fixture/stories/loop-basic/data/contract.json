@@ -52,6 +52,11 @@
      ]
     }
    ]
+  },
+  {
+   "name": "passageSpecs",
+   "kind": "const",
+   "value": {}
   }
  ]
 }

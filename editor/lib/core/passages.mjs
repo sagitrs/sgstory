@@ -371,6 +371,20 @@ export const duplicateSourceProblems = ({ passages = [], data = null } = {}) => 
 export const sitecheckCall = (site, reroll = false) =>
 	`<<sitecheck "${escapeMacroArg(site)}" "-" "${reroll ? 'reroll' : ''}">><<snapshot>>`;
 
+/** ★ `#1657`（阶 4 收口）：★**段级重入上限** `${...}` 的**唯一判据**（★与 `rerollDeclared` 同形而不同维 ✓）。
+ *  ★为什么要有它：★"一个每次只加 1 的慢循环"与"一回合要进 30 次的内层循环"**对上限的需求不同**
+ *  ⇒ ★让作者**按段声明**（如 `visitLimit: 200` ✓）比**全局 64** 准 ✓（★64 变**缺省值** ✗ 不是唯一值 ✓）。
+ *  ★形：★`true`／字符串数字都认（★前言只给字符串 ✓）；★✗ 非正数 ⇒ 视为**未声明**（走缺省 ✓）。
+ *  ★两来源任一给了就算（md 前言 ／ `data/passages.json` ✓ —— ★与 `rerollDeclared` 同口径 ✓）。 */
+export const visitLimitDeclared = (meta, dseg) => {
+	const one = (x) => {
+		if (x == null || x === '') return null;
+		const n = Number(x);
+		return Number.isFinite(n) && n >= 1 ? Math.floor(n) : null;
+	};
+	return one(meta && meta.visitLimit) ?? one(dseg && dseg.visitLimit);
+};
+
 export const rerollDeclared = (meta, dseg) => {
 	const one = (x) => x === true || String(x ?? '').trim() === 'true';
 	return one(meta && meta.reroll) || one(dseg && dseg.reroll);

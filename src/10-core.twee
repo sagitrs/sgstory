@@ -743,7 +743,21 @@ window.Sg.actors = {
 	bind() {
 		const tbl = State.variables.actors;
 		if (!tbl || typeof tbl !== 'object') return false;
-		Object.defineProperty(tbl, 'pc', { get: () => State.variables.pc, enumerable: false, configurable: true });
+		// ★ `#1573` 批4（裁定：**丙** —— 不翻转存储 ✓）：★真身仍是 `$pc` ✓，`actors.pc` 是**别名** ✓。
+		//   ★本笔只**补 setter**（★写别名 ⇒ 落真身 ✓），★使别名**双向** ✓（读／写都通 ✓）。
+		//   ★★**为什么不做"真身翻转"（记录在此，✗ 别后人再试一遍）**：★实测（`#1573` 票面）——
+		//     ★SugarCube 的变量读写（`<<set>>` ✓／宏 ✓／`<<if $pc.hp>>` ✓）走**它自己的 `State.setVar` 内部跟踪** ✗
+		//     ★**不经 JS 属性访问器** ⇒ ★把 `$pc` 做成访问器 ⇒ ★**twee 层看不见真身** ⇒ ★**静默分叉** ✗
+		//     ★（代价：翻转需迁 twee/宏层 **38** 处 ＋ JS **20** 处 ≈ **58** 处 ＋ 守卫 ✓ —— 数据在 `#1573` ✓。）
+		//   ★★**边界（成文于判据旁）**：本别名是**非枚举访问器** ⇒ ★表的**迭代**（`Object.keys` ✓）
+		//     ★与**序列化**（`JSON.stringify`／存档 ✓）**都不含** `pc` ✓ ⇒ ★"玩家**不**作为一行被枚举出来" ✓。
+		//     ★若将来**确需**"枚举实体时把玩家也算一行" ✗ ⇒ ★**重开乙** ✓（量化与守卫设计见 `#1573` ✓），
+		//     ★✗ 不许**只加 `enumerable: true`** —— ★那会让存档多一份**死拷贝** ✗（`#1664` 已证 ✓）。
+		Object.defineProperty(tbl, 'pc', {
+			get: () => State.variables.pc,
+			set: (v) => { State.variables.pc = v; },   // ★写别名 ⇒ 落**真身** `$pc` ✓（丙：真身不移）
+			enumerable: false, configurable: true,
+		});
 		return true;
 	},
 	/** ★★ `#1573`：**玩家那一行**（★presentation／存档／"读玩家状态"面的**唯一口** ✓）。

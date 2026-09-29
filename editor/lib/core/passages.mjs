@@ -376,13 +376,20 @@ export const sitecheckCall = (site, reroll = false) =>
  *  ⇒ ★让作者**按段声明**（如 `visitLimit: 200` ✓）比**全局 64** 准 ✓（★64 变**缺省值** ✗ 不是唯一值 ✓）。
  *  ★形：★`true`／字符串数字都认（★前言只给字符串 ✓）；★✗ 非正数 ⇒ 视为**未声明**（走缺省 ✓）。
  *  ★两来源任一给了就算（md 前言 ／ `data/passages.json` ✓ —— ★与 `rerollDeclared` 同口径 ✓）。 */
-export const visitLimitDeclared = (meta, dseg) => {
-	const one = (x) => {
-		if (x == null || x === '') return null;
+export const visitLimitDeclared = (meta, dseg, where = '') => {
+	// ★★ `#1667` T 席 NIT：★"写坏 ⇒ **静默回落 64**" ✗ —— ★那会让作者以为自己设了上限、其实没设 ✓
+	//   ⇒ ★**写坏 ⇒ 点名**（★本函数在**编译期**跑（`emit.mjs`）⇒ 抛即编译红 ✓，✗ 不静默 ✓）
+	const one = (x, from) => {
+		if (x == null || x === '') return null;                 // ★未声明 ⇒ 缺省（✗ 不报）✓
 		const n = Number(x);
-		return Number.isFinite(n) && n >= 1 ? Math.floor(n) : null;
+		if (!Number.isFinite(n) || n < 1) {
+			throw new Error('段级 `visitLimit` **形不对**' + (where ? '（段「' + where + '」）' : '')
+				+ '：' + from + ' 给的是 ' + JSON.stringify(x)
+				+ ' ⇒ ✗ 需**正数**（如 `visitLimit: 200` ✓）—— ✗ 不静默回落 64（那会让"设了"与"没设"读数相同 ✓）');
+		}
+		return Math.floor(n);
 	};
-	return one(meta && meta.visitLimit) ?? one(dseg && dseg.visitLimit);
+	return one(meta && meta.visitLimit, 'md 前言') ?? one(dseg && dseg.visitLimit, '数据面');
 };
 
 export const rerollDeclared = (meta, dseg) => {

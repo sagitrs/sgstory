@@ -276,6 +276,17 @@ let sgPendingText = null;
 //     （★实测 H 形：4 环**永不触发** ✓）—— ★这是**明知的边界**：★周期越长，"它还是循环"越难与
 //     "长局里的常客"分开 ⇒ ★宁漏勿误（★误报会把正常长局判成卡死 ✓）
 //   ★上限：★段级 `visitLimit`（`passageSpecs()` 读 ✓，缺省 64 ✓）
+// ★★ `#1657`（阶 4 收口）：**重入上限** —— ★双信号（★"连续" ∨ "**紧致循环**"），✗ 不是单看连续。
+//   ★★① **连续臂**：★同一段连着进 > LIMIT ⇒ 点名 ✓
+//   ★★② **循环臂**（`#1657` ①）：★只数连续会漏掉★**交替型**（`A↔B↔A↔B…` ⇒ n 恒为 1 ✗）
+//   ★★★**门（`#1667` T 席 RC 后重做）**：★原先挂 `总访问 > 300` ✗ —— ★实测**误报**：
+//     ★普通存档里"商店↔背包"级**浅重复**（生涯总量自然过 300 ✓）⇒ ★把正常玩法判成卡死 ✗
+//     ⇒ ★**总访问只证明"玩得久"，✗ 不证明"现在可疑"** ✓
+//     ⇒ ★门改为★**循环自身的深度**：★"本段参与的**紧致循环**已**连续**重复 > LIMIT 次" ✓
+//       （★与连续臂**同量级** ⇒ 两臂可比 ✓；★浅重复只攒个位数 ⇒ ✗ 不触发 ✓）
+//   ★**删 p=1**（`#1667` T 席 RC ①）：★`p=1` 被**连续臂**包含（★连着进同一段 ✓）却**绕过 64 上限** ✗ ⇒ ★只认 p ∈ {2,3} ✓
+//   ★**边界（照实）**：★只认 **p ≤ 3** ⇒ ★4 环及更长**漏网** ✗ —— ★宁可漏、不可误（★误报会把正常长局判成卡死 ✓）
+//   ★上限：★段级 `visitLimit`（`passageSpecs()` 读 ✓，缺省 64 ✓）
 jQuery(document).on(':passagerender.sgVisitLimit', (ev) => {
 	const name = String(State.passage ?? '');
 	let LIMIT = 64;
@@ -284,28 +295,34 @@ jQuery(document).on(':passagerender.sgVisitLimit', (ev) => {
 		const n = sp && sp.visitLimit != null ? Number(sp.visitLimit) : NaN;
 		if (Number.isFinite(n) && n >= 1) LIMIT = Math.floor(n);
 	} catch (e) { /* 读不到 ⇒ 缺省 */ }
-	const st = (State.variables.sgVisits = State.variables.sgVisits || { ring: '', n: 0, last: '', total: 0 });
-	st.total = (st.total || 0) + 1;
+	const st = (State.variables.sgVisits = State.variables.sgVisits || { ring: '', n: 0, last: '', cyc: 0 });
 	// ★★总是更新 `last`（✗ 旧实现只在换段时更新 ⇒ `last === name` 永假 ⇒ 连续臂恒 n=1 ✗ —— 实测照出 ✓）
 	st.n = (st.last === name) ? (st.n || 0) + 1 : 1;
 	st.last = name;
 	const SEP = String.fromCharCode(1);
 	const win = (st.ring ? String(st.ring).split(SEP) : []).concat([name]).slice(-32);
 	st.ring = win.join(SEP);
+	// ★★循环臂：★最近 2p 段以 p 周期铺满（p ∈ {2,3} ✓ ✗ 不含 1 ✓）⇒ ★循环深度 +1；★否则**归零** ✓
+	let tight = false;
+	for (let p = 2; p <= 3; p += 1) {
+		if (win.length < 2 * p) continue;
+		const w = win.slice(-2 * p);
+		let ok = true;
+		for (let i = p; i < w.length; i += 1) if (w[i] !== w[i - p]) { ok = false; break; }
+		// ★✗ 不再判"本段在周期内" —— ★`#1667` T 席 RC 指出它**恒真** ✗（★窗尾就是本次 ⇒ `w[2p-1] === name` ✓）
+		//   ⇒ ★该判无判别力 ⇒ ★删；★"本段参与"由**上一层**保证（★本处理器只因 `name` 的渲染而进 ✓）
+		if (ok) { tight = true; break; }
+	}
+	st.cyc = tight ? (st.cyc || 0) + 1 : 0;
 	let why = '';
 	if (st.n > LIMIT) {
 		why = '连续进了 ' + st.n + ' 次（中间没有进别的段）';
-	} else if (st.total > 300) {
-		for (let p = 1; p <= 3; p += 1) {
-			if (win.length < 2 * p) continue;
-			const w = win.slice(-2 * p);
-			let ok = true;
-			for (let i = p; i < w.length; i += 1) if (w[i] !== w[i - p]) { ok = false; break; }
-			if (!ok) continue;
-			let inPeriod = false;
-			for (let i = 0; i < p; i += 1) if (w[i] === name) inPeriod = true;
-			if (inPeriod) { why = '近期以周期 ' + p + ' 重启（第 ' + st.total + ' 次进段）'; break; }
-		}
+	} else if (st.cyc > 2 * LIMIT) {
+		// ★★(自查) 门要按**周期数**算，✗ 不能按"渲染次数"——
+		//   ★实测推演：★"中枢交替 70 次"＝`cyc`=70（★渲染数 ✓）⇒ ★若门取 `> LIMIT`(64) ⇒ ★**仍误报** ✗
+		//   ★⇒ 取 `> 2 × LIMIT`（★p=2 ⇒ 至少 **64 个周期**；★p=3 ⇒ 42 个 ✓）⇒
+		//     ★B（70 渲染 ≈ 35 周期）✗ 不过门 ✓；★真循环（无界）在 ~128 渲染时必触发 ✓
+		why = '参与的**紧致循环**已连续重复约 ' + Math.floor(st.cyc / 2) + '+ 个周期（★近期以周期 2–3 铺满）';
 	}
 	if (!why) return;
 	const msg = 'visited this line too many times (' + LIMIT + ')：段「' + name + '」' + why

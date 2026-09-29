@@ -286,11 +286,16 @@ export const emitEvents = (d) => {
 	const problems = [];
 	const compileBinding = (name, expr, at) => {
 		const t = String(expr ?? '').trim();
-		if (/^\$\d+$/.test(t)) return `a[${jsString(t)}]`;   // ★键就是 \"$1\" 形（★照 2b 的绑定表 ✓）
+		// ★★ `#1669`：★**一律经共用求值口** `Sg.events.val(a, <原样>, <哪处>, <槽名>)` ——
+		//   ★为什么：★裸属性访问（`a.that.ev.turn`）在**取不到**时抛**裸 `TypeError`** ✗（★整页坏掉、报文里
+		//   ✗ 没有槽名/路径 ⇒ 作者无从下手 ✓）；★而★★同族另两处**已经**点名（`evalExpr` ✓／`Sg.uses.read` ✓）
+		//   ⇒ ★本行把这三形**拉平到同一口径** ✓（★`use:` 那支本来就点名 ⇒ 保留 ✓）
+		const named = (js) => `Sg.events.val(a, ${jsString(t)}, ${jsString(at)}, ${jsString(name)}, (a) => ${js})`;
+		if (/^\$\d+$/.test(t)) return named(`a[${jsString(t)}]`);   // ★键就是 \"$1\" 形（★照 2b 的绑定表 ✓）
 		const rootPath = (root) => t === root ? `a.${root}`
 			: (t.startsWith(root + '.') ? `a.${root}.` + t.slice(root.length + 1) : null);
-		const a = rootPath('this'); if (a) return a;
-		const b = rootPath('that'); if (b) return b;
+		const a2 = rootPath('this'); if (a2) return named(a2);
+		const b2 = rootPath('that'); if (b2) return named(b2);
 		if (t.startsWith('use:')) return `Sg.uses.read(a, ${jsString(t.slice(4))})`;
 		problems.push(`事件「${at}」的槽「${name}」绑定 \`${t}\` **不是合法取值项**（只认 \$n／this.…／that.…／use:…）`);
 		return '""';
@@ -437,7 +442,7 @@ export const compileStory = ({ tables, contract, rules, notesFace, slug, chargen
 			//   ★注：`payload` 是**声明面**（门按它判"内容段有没有标注"）⇒ 与 `present` **同类**，一同注入 ✓
 			specs[seg] = { params: v.params ?? {}, present: v.present ?? null, payload: v.payload ?? null, check: v.check ?? null, reroll: v.reroll === true,
 				// ★ `#1657`：段级**重入上限**（★运行期从 `passageSpecs()` 读 ✓；★缺省 `null` ⇒ 跑全局缺省 64 ✓）
-				visitLimit: visitLimitDeclared((v && v.meta) || null, v),
+				visitLimit: visitLimitDeclared((v && v.meta) || null, v, seg),
 				// ★ `#1506`：段级 **`fight`**（战场声明：池名＋可选的打满 N 回合/结果/去向）——
 				//   ★与 `check`／`payload` **同类**（声明面）⇒ 一同注入契约，供渲染面/工具读取 ✓
 				//   ★注意：★**注入形态仍是"编成宏串"**（在 `applyPassageTransforms` 一处，✗ 不在此另算一份）；

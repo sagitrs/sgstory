@@ -1,0 +1,49 @@
+{
+ "section": "Game Events",
+ "events": {
+  "多轮战斗": {
+   "label": "多轮战斗",
+   "use": [
+    {
+     "when": {
+      "lt": [
+       "that.turn",
+       3
+      ]
+     },
+     "call": "挥刀"
+    },
+    {
+     "when": {
+      "gte": [
+       "that.turn",
+       3
+      ]
+     },
+     "call": "收刀"
+    }
+   ]
+  },
+  "挥刀": {
+   "label": "挥刀",
+   "use": [
+    {
+     "text": {
+      "format": "你劈下去——木桩晃了一下。（第 {{回合}} 回合）",
+      "回合": "that.turn"
+     }
+    }
+   ]
+  },
+  "收刀": {
+   "label": "收刀",
+   "use": [
+    {
+     "text": {
+      "format": "木桩不再晃了。"
+     }
+    }
+   ]
+  }
+ }
+}

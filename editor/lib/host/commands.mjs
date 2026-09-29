@@ -174,8 +174,15 @@ export const buildCommand = (argv = [], { prog = 'node editor/cli.mjs', sub = 'b
 		const declaredEvents = events && typeof events.events === 'object' && !Array.isArray(events.events) ? events.events : {};
 		const bad = undeclaredEventProblems({ refs: eventRefsOf({ passages: passagesData }), declared: declaredEvents });
 		// ★ `#1569`（阶 3）：事件**定义面**的判据（B′ 分类 ＋ 字段白名单 ＋ 子句文本形 ✓）
-		for (const pr of proseEventProblems({ defs: declaredEvents, where: 'data/events.json' })) {
-			console.error(`✗ [prose-event] ${pr.why}`);
+		// ★★(测出来的真缺口) ★**只打印 ✗ 不让编译红** ⇒ ★判据"看着在、其实不咬" ✗（`#1572` 验收⑤ 逮到）
+		//   ⇒ ★同路并进 `bad` ⇒ ★走既有的"有问题 ⇒ return 1"路径 ✓
+		const evProblems = proseEventProblems({ defs: declaredEvents, where: 'data/events.json' });
+		for (const pr of evProblems) console.error(`✗ [prose-event] ${pr.why}`);
+		// ★★(实测) ✗ 不能并进 `bad` —— ★那会让它在下面被**当成 `[event-ref]` 再打一遍**（标签错 ✗）
+		//   ⇒ ★**独立退出**：★有 `prose-event` 问题 ⇒ 直接 rc=1 ✓
+		if (evProblems.length) {
+			console.error('✗ 事件定义面未过（`prose-event`：B′ 分类／字段／文本形／出边）⇒ 不写出产物 ✓');
+			return 1;
 		}
 		if (bad.length) {
 			for (const m of bad) console.error(`✗ [event-ref] ${m.why}`);

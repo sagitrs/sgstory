@@ -78,7 +78,9 @@ export const stateValueOf = (path, { pc = undefined, vars = undefined } = {}) =>
  *    （例：`"$actors.木桩.hp": 1` ⇒ 造实体前态 ✓）—— ★同一处文件 ⇒ 读写两面一套口径 ✓。
  *  ★**缺失的中间层会建**（✗ 否则"造一个还不存在的实体前态"要作者自己先铺路径 ✓）；
  *    ★但中间层**已存在且非对象** ⇒ **fail-loud 点名**（结构性错 ⇒ ✗ 静默覆盖 ✓ —— 同 `stateValueOf` 的 fail-loud 口径 ✓）。
- *  @returns {boolean} 是否真写入了（★便于判据件断言"这一步被消费" ✓）
+ *  ★**✗ 不返回「是否写入」**（复核 NIT（`#1624`）：★本行上一版还留着"`@returns {boolean}` 便于断言" ✗，
+ *   而**实现早已不返回** ✓ ⇒ ★残留的 doc 行与实现**自相矛盾** ⇒ 删 ✓）
+ *    ★「这一步真被消费」由**用例级**判据守：★同一用例**两种态**跑（种着绿／清空 `drive.state` ⇒ 必红 ✓），✗ 不靠返回值 ✓。
  */
 export const stateSetOf = (path, value, { pc = undefined, vars = undefined } = {}) => {
 	const p = String(path ?? '');

@@ -231,12 +231,6 @@ const check = (cond, msg) => { total++; console.log(`${cond ? '✓' : '✗'} ${m
 // 但**必须逐条打印实测值**、不得静默，并在末尾汇总 ＋ 指向承接票（`#1012`）。
 const xfails = [];
 const xfail = (label, detail) => { xfails.push(`${label} — ${detail}`); console.log(`⚠ xfail ${label} — ${detail}`); };
-const shots = 'build/browser-evidence';
-mkdirSync(shots, { recursive: true });
-const shoot = async (name) => {
-	const r = await send('Page.captureScreenshot', { format: 'png' });
-	if (r.result?.data) writeFileSync(join(shots, `${name}.png`), Buffer.from(r.result.data, 'base64'));
-};
 
 // 页面里注入的辅助：按标签点链接、读布局量
 const HELPERS = `
@@ -311,25 +305,6 @@ const loadFresh = async (story = null) => {
 		`#363 字体按 font/* MIME 提供且是 woff2（非 HTML 兜底）${badFont.length ? `：异常 ${JSON.stringify(badFont)}` : ''}`);
 	check(/loaded/.test(fontProbe?.status ?? '') && (fontProbe?.check === true),
 		`#363 发布字体已加载（document.fonts：${fontProbe?.status}；check LXGW WenKai=${fontProbe?.check}；faces=${(fontProbe?.faces ?? []).filter((x) => /LXGW|WenKai/i.test(x)).join(',') || '—'}）`);
-};
-// 直接进段落（布局检查用；状态按需注入）——与 jsdom 侧同款短路手法
-const enter = async (passage, stateJs = '') => {
-	// 基线角色：开场态还没车卡（hp 未定义），直接进场景会走「已倒下」支——补一个合法角色底
-	await ev(`(function(){ const pc=SugarCube.State.variables.pc;
-		if (typeof pc.max_hp !== 'number' || pc.max_hp <= 0) pc.max_hp = 18;
-		if (typeof pc.hp !== 'number' || pc.hp <= 0) pc.hp = pc.max_hp;
-		if (typeof pc.gold !== 'number') pc.gold = 10;
-		pc.inv = pc.inv || {}; pc.ev = pc.ev || {}; pc.world = pc.world || {};
-		pc.star = pc.star || { spent: 0 }; })()`);
-	await ev(`(function(){ ${stateJs} })()`);
-	await ev(`window.__sg.play(${JSON.stringify(passage)})`);
-	for (let i = 0; i < 20; i++) {
-		await sleep(150);
-		if (await ev(`SugarCube.State.passage === ${JSON.stringify(passage)}`)) break;
-	}
-	await sleep(250);
-	await ev('window.__sg.gotoScrollTop()');
-	await sleep(150);
 };
 
 
@@ -430,7 +405,9 @@ if (xfails.length) {
 }
 const summary = `${fails ? '✗' : '✔'} 真实浏览器验收：${fails ? `${fails} 项失败` : '全部通过'}（断言 ${total - fails}/${total} · ${VP.length} 视口 × 4 场景）`;
 console.log(`\n${summary}`);
-console.log(`   截图：${shots}/（${VP.length} 视口 × 4 场景）`);
+// ★ `#1621` 顺手清（★文案不说谎）：★原句宣称「截图：build/browser-evidence/（3 视口 × 4 场景）」
+//   —— ★而自 `#1597` 阶段二删 story 档后，截图的**唯一调用者**（story 侧失败路径）随之消失 ⇒ ★`shoot` 成死件 ✗
+//   ⇒ ★本笔删死件 ＋ **把这句改真**（要恢复截图 ⇒ 把 `Page.captureScreenshot` 接回失败路径即可 ✓）
 const verdict = evaluateRun({ total, fails });
 for (const n of verdict.notes) console.error(n);
 console.log(`BROWSER_ASSERTIONS ${total - fails}/${total}`);   // 稳定锚点（#385 后 CI 不再需要解析它，保留供人读）

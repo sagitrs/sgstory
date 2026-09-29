@@ -256,10 +256,13 @@ export const run = (ctx) => {
 		['🔴 反例：**普通键**只有读且无域 ⇒ 照红（证明 portal 只对 `codex:` 生效 ✓）',
 			analyze({ 'a.twee': ':: P\n<<if $pc.ev.tav_q>>y<</if>>' }, { notes: {}, rules: [] }),
 			[{ id: 'tv', prefix: ['tav_'] }], 1, 'check'],
-		// `#608`：**声明面驱动的写点**——引擎侧是变量（`<<note _note>>`），字面 id 只在故事数据表里（`failNote`）
-		['正例（#608）：声明面 `failNote` 的写点 ⇒ 不算「只有读」', analyze({ 'a.twee': `:: T\n\tencounters: { short: { failNote: 'n_tav_x' } },\n:: P\n<<if Sg.notes.has('n_tav_x')>>y<</if>>` }, { notes: { n_tav_x: { flagPath: 'ev.tav_x' } } }), [{ id: 'tavern', prefix: ['tav_'] }], 0, 'check'],
+		// ★★ `#1632`（`#1223`/`#1251`）：**原本这里有"正例（#608）：声明面 `failNote` 的写点 ⇒ 不算「只有读」"一格 —— 已删** ✓
+		//   ★为什么删：★该格**被测的机制已整体退场** —— `notes` 概念退场（`src/80-script.twee:132`："`migrateLegacy()` 已随 `notes` 概念退场"）
+		//     ⇒ ★`Sg.notes.has`／`flagPath` 活链在后来的键形换代里没了（`#1223`/`#1251`）⇒ ★样本测的是**不存在的机制** ⇒ **永不成立** ✗
+		//   ★判据面**没有变松**：★下面那条 **反例（#608／#728）**（多源笔记且无声明面写点 ⇒ 仍必须报「只有读」）**保留** ✓ —— 它才是"防空判"的那格 ✓
 		['反例（#608／#728）：**多源**笔记且没有声明面写点 ⇒ 仍必须报「只有读」（保证上面那条不是空判）', { src: { 'a.twee': `:: P\n<<if Sg.notes.has('n_tav_x')>>y<</if>>` }, notes: { n_tav_x: { flagPath: ['ev.tav_x', 'world.tav_x2'] } } }, [{ id: 'tavern', prefix: ['tav_'] }], 1, 'retire'],
-		['正例（#728）：**单源**笔记的 `flagPath` 键只有笔记本读 ⇒ 退场，不报「只有读」', { src: { 'a.twee': `:: P\n<<if Sg.notes.has('n_tav_x')>>y<</if>>` }, notes: { n_tav_x: { flagPath: 'ev.tav_x' } } }, [{ id: 'tavern', prefix: ['tav_'] }], 0, 'retire'],
+		// ★★ `#1632`：**原本这里有"正例（#728）：单源笔记的 `flagPath` 键只有笔记本读 ⇒ 退场"一格 —— 已删** ✓（★同因：`notes`／`flagPath` 活链已随 `#1223`/`#1251` 退场 ⇒ 样本永不成立 ✗）
+		//   ★同样：★它下面的 **反例（#728）**（非笔记键只有读 ⇒ 照常报）**保留** ✓
 		['🔴 反例（#728）：**非笔记**键只有读 ⇒ 照常报（退场只针对单源笔记的 flagPath）', { src: { 'a.twee': `:: P\n<<if $pc.ev.tav_loose>>y<</if>>` }, notes: { n_tav_x: { flagPath: 'ev.tav_x' } } }, [{ id: 'tavern', prefix: ['tav_'] }], 1, 'retire'],
 		['歧义（命中两个域）→ 红', analyze(SELF_GOOD), [{ id: 'a', prefix: ['tav_'] }, { id: 'b', prefix: ['tav_x'] }], 1, 'check'],
 		// #365 类：setflag 写 **world**，条件却读 **ev** → ev 那一支永远不成立
@@ -271,8 +274,8 @@ export const run = (ctx) => {
 		['声明了却没有写点（僵尸声明）→ 红', analyze(SELF_GOOD), D, 1, 'dynamic-stale'],
 		['声明面读点（`#787`）：对**已写键**的 `any`／`req` 引用算读 ⇒ 不报「只有写」；而 `inv:…`／没人写的键必须被**过滤掉**（否则塞出新噪声）', null, D, 0, 'declRead'],
 		['键名不匹配 `[a-z_]\\w*` → 检出，且 `analyze()` **不崩**（#476 遗留地雷）', analyze({ 'a.twee': ':: P\npc.ev.BadKey = true' }), D, 1, 'charset'],
-		// #433 阶段 2：读点换了写法（`Sg.notes.has`）但「读了什么」不该消失
-		['经笔记的读（`Sg.notes.has`）也算读 ⇒ 不再是"只有写"', null, D, 0, 'noteRead'],
+		// ★★ `#1632`：**原本这里有"经笔记的读（`Sg.notes.has`）也算读"一格 ＋ 它的 `noteRead` 驱动器支 —— 已删** ✓
+		//   ★同因：★`Sg.notes.has` 读点已随 `notes` 概念退场（`#1223`/`#1251`）⇒ ★该形在**源码面已不存在** ⇒ 样本永不成立 ✗
 		// #434 阶段 3：写点换了写法（`Sg.notes.add`）但「写了什么」不该消失 —— 未读时必须报"只有写"
 		['经笔记的写（`Sg.notes.add`）也算写 ⇒ 未读时必报"只有写"', null, D, 1, 'noteWrite'],
 		// #435 阶段 4：条件表行里的键＝读点（手写 `<<if>>` 搬进表后，源码里没有这个读点了）
@@ -285,7 +288,6 @@ export const run = (ctx) => {
 			kind === 'ns' ? nsMismatch(keys).length
 			: kind === 'charset' ? charsetViolations({ 'a.twee': ':: P\npc.ev.BadKey = true' }).length
 			: kind === 'retire' ? (() => { const ks = analyze(keys.src, { notes: keys.notes }); return check(ks, dm, [], keys.notes).length; })()
-			: kind === 'noteRead' ? check(analyze({ 'a.twee': ':: P\n<<set $pc.ev.tav_x to true>>\n<<setflag "tav_x2">>\n<<if Sg.notes.has(\'n_x\')>>y<</if>>' }, { notes: { n_x: { flagPath: ['ev.tav_x', 'world.tav_x2'] } } }), dm, [], { n_x: { flagPath: ['ev.tav_x', 'world.tav_x2'] } }).length
 			: kind === 'noteWrite' ? check(analyze({ 'a.twee': ":: P\n<<run Sg.notes.add('n_x')>>" }, { notes: { n_x: { flagPath: 'ev.tav_x' } } }), dm).length
 			: kind === 'ruleSet' ? (() => {
 				const ks = analyze({ 'a.twee': ':: P\n<<if $pc.ev.tav_x>>y<</if>>' }, { notes: {}, rules: [{ id: 'r', scope: 'P', sets: ['ev.tav_x'] }] });

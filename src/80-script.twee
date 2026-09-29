@@ -267,12 +267,17 @@ let sgPendingText = null;
 //   ★（★作者可设上限 ⇒ 后续接段级声明面 ⇒ ✗ 本笔只落**缺省上限** ＋ 具名 ✓ —— 验收②只要求缺省生效 ✓）
 jQuery(document).on(':passagerender.sgVisitLimit', (ev) => {
 	const name = String(State.passage ?? '');
-	const visits = (State.variables.sgVisits ??= {});
-	visits[name] = (visits[name] ?? 0) + 1;
+	// ★★CR（`#1653` 甲／丙）：★计数必须是**连续**的 ✗ 不是**累计**的 ——
+	//   ★★"循环停不下来"指的是**同一段连着进**（✗ 无进展）；★而"一局里总共进过 N 次"是**正常**的
+	//     （★例：中枢段被来回经过 65 次 ✗ 不是循环 ✗）⇒ ★**进别的段即归零** ✓
+	//   ★（★累计口径会**误报**，且报文写"已进 N 次"也**误导** —— ✗ 两者是同一处根因 ✓）
+	const box = (State.variables.sgVisits ??= { name: '', n: 0 });
+	if (box.name === name) box.n += 1; else { box.name = name; box.n = 1; }
 	const LIMIT = 64;
-	if (visits[name] <= LIMIT) return;
-	const msg = 'visited this line too many times (' + LIMIT + ')：段「' + name + '」已进 '
-		+ visits[name] + ' 次 ⇒ ✗ 疑**终止条件永不成立**（循环停不下来）⇒ 请检查起止条件／计数效果，或改写兜底链接 ✓';
+	if (box.n <= LIMIT) return;
+	const msg = 'visited this line too many times (' + LIMIT + ')：段「' + name + '」**连续**进了 '
+		+ box.n + ' 次（★中间没有进别的段）⇒ ✗ 疑**终止条件永不成立**（循环停不下来）'
+		+ ' ⇒ 请检查起止条件／计数效果，或改写兜底链接 ✓';
 	jQuery(ev.content).attr('data-sg-visitlimit', '1');
 	console.error('✗ [sg-visitlimit] ' + msg);
 });

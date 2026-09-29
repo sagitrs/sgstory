@@ -436,7 +436,6 @@ export const compileStory = ({ tables, contract, rules, notesFace, slug, chargen
 			//   ★它原是**散文标记**（`/% payload: … %/`）⇒ 移到**数据面**（✗ 散文里不留 ✓）
 			//   ★注：`payload` 是**声明面**（门按它判"内容段有没有标注"）⇒ 与 `present` **同类**，一同注入 ✓
 			specs[seg] = { params: v.params ?? {}, present: v.present ?? null, payload: v.payload ?? null, check: v.check ?? null, reroll: v.reroll === true,
-				// ★ `#1657`：段级重入上限（★运行期从 `passageSpecs()` 读 ✓；★缺省 null ⇒ 跑全局缺省 64 ✓）
 				// ★ `#1657`：段级**重入上限**（★运行期从 `passageSpecs()` 读 ✓；★缺省 `null` ⇒ 跑全局缺省 64 ✓）
 				visitLimit: visitLimitDeclared((v && v.meta) || null, v),
 				// ★ `#1506`：段级 **`fight`**（战场声明：池名＋可选的打满 N 回合/结果/去向）——

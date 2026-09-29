@@ -1,0 +1,57 @@
+{
+ "section": "StoryBindings",
+ "members": [
+  {
+   "name": "rules",
+   "kind": "empty-array"
+  },
+  {
+   "name": "mechanics",
+   "kind": "null"
+  },
+  {
+   "name": "pcShape",
+   "kind": "const",
+   "value": {
+    "hp": 12,
+    "max_hp": 12,
+    "ev": {
+     "turn": 0
+    }
+   }
+  },
+  {
+   "name": "actors",
+   "kind": "const",
+   "value": {
+    "木桩": {
+     "hp": 10000,
+     "max_hp": 10000,
+     "ac": 12,
+     "turn": 0,
+     "properties": [
+      "enemy"
+     ],
+     "name": "木桩"
+    }
+   }
+  },
+  {
+   "name": "panels",
+   "kind": "const",
+   "value": [
+    {
+     "as": "bar",
+     "slot": "sidebar.primary",
+     "props": [
+      {
+       "actor": "木桩",
+       "valueKey": "hp",
+       "maxKey": "max_hp"
+      }
+     ]
+    }
+   ]
+  }
+ ]
+}

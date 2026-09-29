@@ -42,7 +42,9 @@ export const DELETED_STORY_DOCS = new Set([
 
 // `#1359` ② 删件批：**单列豁免退役** —— 原单列件 `docs/dev-conventions.md` 已按"一份为准"删除；
 // 其余件回落统一的 `BUDGET_KB` 看护（✗ 不保留一个永远匹配不到的豁免 ✓）。
-export const BUDGET_KB = 150;
+// ★预算校准（2026-09-29）：判据册是**持续增条的成长性登记簿**，预算随之校准；
+//   分级（速览层）落地后**回基下调**。★数字变更随本笔走评审（测试域面 T 票必需）。
+export const BUDGET_KB = 160;
 
 // ★ `#1359` ② 删件批（续）：**`#1080` §17 瘦身 ratchet 随宿主件删除而退役** ——
 //   宿主 `docs/dev-conventions.md` 已按"一份为准"删除 ⇒ 该 ratchet 的**判据对象不存在**；

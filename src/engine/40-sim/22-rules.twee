@@ -256,7 +256,7 @@ window.Sg.rules = {
 		return true;
 	},
 	// 选择：过滤作用域 → **按 prio 降序（稳定：同 prio 保持声明序）** → 取第一条
-	pick(scope, { pc = State.variables.pc, chose = new Set() } = {}) {
+	pick(scope, { pc = window.Sg.actors.current(), chose = new Set() } = {}) {
 		const rows = this.table().filter((r) => r && r.scope === scope);
 		const idx = new Map(rows.map((r, i) => [r, i]));
 		return rows.filter((r) => this.matches(r, pc, chose))
@@ -265,7 +265,7 @@ window.Sg.rules = {
 	// **菜单**：同一作用域**所有**命中的行（按 `prio` 降序、同 prio 按表序）——与 `pick()` 的"单选"分工见 `<<rulelist>>`。
 	// 为什么需要它（`#624` 批 1 勘察）：`pick()` 是 first-match wins → 一个作用域只渲染一行；
 	// 而"一次能问六个话题"这种**菜单**天然是一组**同时可用**的行 → 表机制必须有"渲染全部命中行"的入口。
-	pickAll(scope, { pc = State.variables.pc, chose = new Set() } = {}) {
+	pickAll(scope, { pc = window.Sg.actors.current(), chose = new Set() } = {}) {
 		const rows = this.table().filter((r) => r && r.scope === scope);
 		const idx = new Map(rows.map((r, i) => [r, i]));
 		return rows.filter((r) => this.matches(r, pc, chose))
@@ -273,7 +273,10 @@ window.Sg.rules = {
 	},
 	// 授予：把行声明的 `yields` 落成 `ev.notes.<id>` 写入（**A 方案**：`text` 只渲染，授予由调用侧统一做）。
 	// 返回**本次真正新授予**的 id（幂等 → 第二次调用返回 `[]`）——这个返回值就是"连渲两次只落一次"的取证面。
-	applyYields(row, pc = State.variables.pc) {
+	// ★ `#1573`（批2 · 裁定③）：★**施加面的缺省＝`current()`（作用实体）** —— ★与「对象查表的兜底根＝`player()`」是**两个不同的口** ✓
+//   ★分列理由：★战斗轮里「当前作用实体」可能是**对手** ⇒ ★缺省若取玩家 ⇒ **效果落到玩家身上** ✗；
+//   ★今日 `current() === player()` ⇒ **行为逐字不变** ✓（★等价判据见 PR ✓）。
+applyYields(row, pc = window.Sg.actors.current()) {
 		const list = Array.isArray(row?.yields) ? row.yields : row?.yields ? [row.yields] : [];
 		const granted = [];
 		for (const y of list) {
@@ -295,7 +298,7 @@ window.Sg.rules = {
 	//「获得【…】」提示改为写在行的 `text` 里（逐字不变 → `--zero` 仍为 0），否则提示会被追加到
 	// 渲染结果的**末尾**而与原位不同 → 文本漂移。口径一句话：**表＝声明（条件／文本／授予），
 	// 写点执行恒在 `<<rules>>` 一处**。
-	applyGrants(row, pc = State.variables.pc) {
+	applyGrants(row, pc = window.Sg.actors.current()) {
 		const items = Array.isArray(row?.gives) ? row.gives : row?.gives ? [row.gives] : [];
 		const granted = [];
 		for (const it of items) {
@@ -312,7 +315,7 @@ window.Sg.rules = {
 	 *  ★与 `gives` **同刻**：**点击那一刻**施加（照 `#1408` 的 `data-sg-effects` 路 ⇒ ✗ 不进规则行）；
 	 *  ★**幂等**：键不存在 ⇒ **什么都不做**（✗ 不报错 —— "没这东西也就不必移除" ✓）。
 	 *  ✗ 不做"移除笔记／状态键"（另一维）｜✗ 不做"数量"（今天 `inv` 是**布尔集合** ✓）。 */
-	applyTakes(row, pc = State.variables.pc) {
+	applyTakes(row, pc = window.Sg.actors.current()) {
 		const items = Array.isArray(row?.takes) ? row.takes : row?.takes ? [row.takes] : [];
 		const taken = [];
 		for (const it of items) {
@@ -328,7 +331,7 @@ window.Sg.rules = {
 	// 口径三条（门侧 `setProblems()` 机检）：只置**真**（不写数值/枚举）· 键必须是**已登记的状态键** ·
 	// **有笔记的键不得走这里**（必须 `yields`，否则同一知识两条写路）。
 	// 裸键默认 `ev.`（与 `holds()` 同口径）；写入走 `Sg.notes.writePath`（与读侧同一权威，不另开写路）。
-	applySets(row, pc = State.variables.pc) {
+	applySets(row, pc = window.Sg.actors.current()) {
 		const keys = Array.isArray(row?.sets) ? row.sets : row?.sets ? [row.sets] : [];
 		const set = [];
 		for (const k0 of keys) {
@@ -346,7 +349,7 @@ window.Sg.rules = {
 	 *  ★**缺省零值语义**：键不存在 ⇒ 按 `0` 起算（✗ 不产 `NaN` ✓）；
 	 *  ★**有限数校验**：值非有限数 ⇒ **fail-loud 点名**（照 `#1406` ⑤ 白名单同规 ✓）。
 	 *  ✗ 不做乘除/表达式（"声明面不许大于实现面" `#487` ）｜✗ 不做随机增量（另票）。 */
-	applyAdds(row, pc = State.variables.pc) {
+	applyAdds(row, pc = window.Sg.actors.current()) {
 		const map = row?.adds && typeof row.adds === 'object' && !Array.isArray(row.adds) ? row.adds : null;
 		if (!map) return [];
 		const applied = [];
@@ -403,7 +406,7 @@ window.Sg.rules = {
 	 *  ★裁定 D4（重定形）：★**死亡＝一种实体**（✗ 引擎特判"死亡" ✗ 强塞 `statuses` 的 `part`/`turns` ✓）
 	 *  ★去向/分支 ⇒ **叙事面 `cond` 该实体**（数据侧自治 ✓）。
 	 *  ★**缺项出声**（判据④）：★声明了却在库里有非布尔值 ⇒ 点名（✗ 静默覆盖 ✓）。 */
-	applyZeroGives(pc = State.variables.pc, names = []) {
+	applyZeroGives(pc = window.Sg.actors.current(), names = []) {
 		const list = Array.isArray(names) ? names : (names == null ? [] : [names]);
 		const granted = [];
 		for (const n0 of list) {

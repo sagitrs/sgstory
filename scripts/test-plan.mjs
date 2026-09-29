@@ -76,7 +76,12 @@ export const FULL_REASONS = {
 	'test-fruit-demo-cases-mjs-selftest': '`#1642` PR 档减压（一）：上段的判据自证面 ⇒ **随主段同档**（✗ 主段夜里跑、自证在 PR 跑＝自证与对象不同档）✓',
 	'test-choice-keys-mjs': '`#1642` PR 档减压（一）：导航键面（`#761` 窄口族）—— 与溶解面同批 ⇒ 不占 PR 档；★full 档仍跑 ✓',
 	'test-chargen-shape-mjs': '`#1642` PR 档减压（一）：车卡形状门 —— 车卡面**近期溶解** ⇒ 不占 PR 档；★full 档仍跑 ✓',
+	// ★ `#1645`（第一片）：**e2e 合并轮把这三面折成一次 build** ⇒ 细网留 `full`（★归因不变 ✓；★粗网在 `test-e2e-roundtrip-mjs`）
+	'test-adds-e2e-mjs': '`#1645` PR 档减压（二·第一片）：`adds` 声明式算术 —— ★该面已由 `test-e2e-roundtrip-mjs`（一次 build＋一次 jsdom 的合并轮，`[adds]` 7 格）覆盖 ⇒ 细网留 full ✓',
+	'test-takes-e2e-mjs': '`#1645` PR 档减压（二·第一片）：`takes` 库存移除 —— ★同上，合并轮 `[takes]` 5 格覆盖 ⇒ 细网留 full ✓',
+	'test-pc-prefix-e2e-mjs': '`#1645` PR 档减压（二·第一片）：`pc.` 前缀拒绝 —— ★同上，合并轮 `[pc-prefix]` 8 格覆盖 ⇒ 细网留 full ✓',
 };
+
 
 
 export const SEGMENTS = [
@@ -209,15 +214,18 @@ export const SEGMENTS = [
 	//   —— 链里红、单跑/--only 绿，正是"并发撞共享面"的指纹）
 	{ id: "test-block-args-e2e-mjs", phase: 'test', cost: 40, exclusive: true, mutates: ['build'], cmd: "node test/block-args-e2e.mjs" },
 	// `#1466`：声明式算术效果（adds）端到端（自建夹具根 ⇒ exclusive ✓）
-	{ id: "test-adds-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/adds-e2e.mjs" },
+	// ★ `#1645`（PR 档减压二 · 第一片）：**端到端合并轮** —— 一次 build ＋ 一次 jsdom 覆盖 `adds`／`takes`／`pc.` 前缀
+	//   ★对应的 3 段原件已移 `full`（细网留夜间 ⇒ 归因不变）；本段＝**粗网**（✗ 它的红只告诉你哪一类坏了）
+	{ id: "test-e2e-roundtrip-mjs", phase: 'test', cost: 18, exclusive: true, mutates: ['build'], cmd: "node test/e2e-roundtrip.mjs" },
+	{ id: "test-adds-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/adds-e2e.mjs", tier: 'full' },
 	// ★`#1574`（阶 3b）：★段级 `check` 的重入语义（`reroll` 显式 ¦ 默认复用）—— ★`exclusive`（它**要 build** ✓）
 	{ id: "test-reroll-mjs", phase: 'test', cost: 25, exclusive: true, mutates: ['build'], cmd: "node test/reroll.mjs" },
 	// `#1570`：段散文**数据面来源**的自证（★等价性＝同一故事两副本只改载体 ⇒ 比产物；来源撞车 ⇒ 编译期点名）
 	{ id: "test-inline-prose-e2e-mjs", phase: 'test', cost: 5, exclusive: true, mutates: ['build'], cmd: "node test/inline-prose-e2e.mjs" },
 	// `#1471`：库存移除（takes）端到端（自建夹具根 ⇒ exclusive ✓）
-	{ id: "test-takes-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/takes-e2e.mjs" },
+	{ id: "test-takes-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/takes-e2e.mjs", tier: 'full' },
 	// `#1474`：效果面路径拒 `pc.` 前缀（写侧一处收束）端到端
-	{ id: "test-pc-prefix-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/pc-prefix-e2e.mjs" },
+	{ id: "test-pc-prefix-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/pc-prefix-e2e.mjs", tier: 'full' },
 	// `#1468`（`#1472` 新件）：规则行效果时机端到端（自建夹具根 ⇒ exclusive ✓）
 	{ id: "test-rulelist-effects-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/rulelist-effects-e2e.mjs" },
 	// `#1418`：chargen 惰性安装端到端（自建夹具根 ＋ build ⇒ exclusive，照同族先例 ✓）
@@ -767,7 +775,7 @@ export const SUITE_MEMBERS = {
 		'test-block-args-e2e-mjs', 'test-hp-nan-e2e-mjs', 'test-fightpanel-turns-e2e-mjs', 'test-passages-assemble-mjs-selftest',
 		'test-audit-gates-run-mjs', 'test-fight-keys-e2e-mjs', 'scripts-clean-net-mjs-selftest', 'scripts-precommit-check-mjs-selftest',
 		'scripts-lint-new-segment-mjs-selftest', 'test-coverage-mjs', 'test-gate-discovery-mjs', 'test-plan-needs-mjs',
-		'test-attribution-gate-mjs-selftest', 'test-browser-mjs-selftest', 'test-attribution-gate-mjs', 'test-build-staging-race-mjs', 'test-chargen-lazy-e2e-mjs', 'test-adds-e2e-mjs', 'test-reroll-mjs', 'test-rulelist-effects-e2e-mjs', 'test-takes-e2e-mjs', 'test-pc-prefix-e2e-mjs', 'test-note-grant-mjs', 'test-inline-prose-e2e-mjs', 'test-event-expr-mjs'
+		'test-attribution-gate-mjs-selftest', 'test-browser-mjs-selftest', 'test-attribution-gate-mjs', 'test-build-staging-race-mjs', 'test-chargen-lazy-e2e-mjs', 'test-adds-e2e-mjs', 'test-e2e-roundtrip-mjs', 'test-reroll-mjs', 'test-rulelist-effects-e2e-mjs', 'test-takes-e2e-mjs', 'test-pc-prefix-e2e-mjs', 'test-note-grant-mjs', 'test-inline-prose-e2e-mjs', 'test-event-expr-mjs'
 	],
 };
 

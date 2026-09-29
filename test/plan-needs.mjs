@@ -129,15 +129,6 @@ export const DEFAULT_ROOT_READERS = [
 export const defaultRootReaderProblems = (segs = [], readers = DEFAULT_ROOT_READERS) => {
 	const byId = new Map(segs.map((s) => [s.id, s]));
 
-// ★ `#1658`（合并后 · D 席 NIT）：★给 `exclusive: true` **上钉** —— ★"读全仓扫描面"的段必须独占 ✓
-//   ★为什么必须钉：★`exclusive` 是**构造性防线**（★"并行窗口"格只能钉**那个窗口** ⇒ ✗ 钉不住"它是否仍是独占段" ✓）
-//     ⇒ ★没有格 ⇒ ★**它哪天被摘掉会无人报** ✗（★这正是 NIT 说的"行无钉" ✓）
-//   ★能假：★把 `scripts-md-format-mjs` 的 `exclusive: true` 摘掉 ⇒ ★**本格红** ✓（实测 ✓）
-//   ★防空判：★若该段 id 被改名或删除 ⇒ `.exclusive !== true` ⇒ ★**红** ✓（✗ 不静默放过 ✓）
-const SCAN_ALL_MD_SEGMENTS = ['scripts-md-format-mjs'];
-case_('🔴 `#1658`·读全仓 `.md`（扫描面）的段必须 `exclusive`（✗ 否则与"造仓内临时 `.md` 的段"并行 ⇒ `#1648` 族假红）',
-	SCAN_ALL_MD_SEGMENTS.every((id) => (SEGMENTS.find((s) => s.id === id) ?? {}).exclusive === true),
-	SCAN_ALL_MD_SEGMENTS.filter((id) => (SEGMENTS.find((s) => s.id === id) ?? {}).exclusive !== true).join('、'));
 	const out = [];
 	for (const r of readers) {
 		const s = byId.get(r.id);
@@ -146,6 +137,20 @@ case_('🔴 `#1658`·读全仓 `.md`（扫描面）的段必须 `exclusive`（�
 	}
 	return out;
 };
+
+// ★ `#1658`（合并后 · D 席 NIT①）：★给 `exclusive: true` **上钉** —— ★"读全仓扫描面"的段必须独占 ✓
+//   ★**本格与 `#1663` 是**两层防线**，✗ 不是重复**：
+//     ★**层 1（本格钉的）＝跑器相位规则**：标了 `exclusive` ⇒ 该段**不与任何段重叠**（★"构造上不同时发生" ✓）
+//     ★**层 2（`#1663` 加的）＝并行窗口格**：★"仓内有未跟踪 `.md` 时跑 `md-format` ⇒ **不得假红**"（★盯的是**行为** ✓）
+//     ⇒ ★层 2 **只能证明"此刻没假红"**，✗ 证不了"它还是独占段"；★层 1 一旦被摘（有人顺手删了 `exclusive`）⇒ ★**层 2 照绿** ⇒ ✗ **假绿面** ✓
+//     ⇒ ★**本格就是把层 1 钉住**：★`exclusive` 一被摘 ⇒ 本格红 ✓
+//   ★**能假**：★把 `scripts-md-format-mjs` 的 `exclusive: true` 摘掉 ⇒ ★**本格红** ✓（实测 ✓）
+//   ★**防空判**：★若该段 id 被改名或删除 ⇒ `.exclusive !== true` ⇒ ★**红** ✓（✗ 不静默放过 ✓）
+//   ★**位置**：★本格必须在**模块顶层**（✗ 不进任何函数体）—— ★否则：★① 纯函数带副作用（★每次调用记一次 ✗）② 调用点被删/改名 ⇒ ★**钉静默消失** ✗（★正是本格要治的病 ✓）
+const SCAN_ALL_MD_SEGMENTS = ['scripts-md-format-mjs'];
+case_('🔴 `#1658`·读全仓 `.md`（扫描面）的段必须 `exclusive`（✗ 否则与"造仓内临时 `.md` 的段"并行 ⇒ `#1648` 族假红）',
+	SCAN_ALL_MD_SEGMENTS.every((id) => (SEGMENTS.find((s) => s.id === id) ?? {}).exclusive === true),
+	SCAN_ALL_MD_SEGMENTS.filter((id) => (SEGMENTS.find((s) => s.id === id) ?? {}).exclusive !== true).join('、'));
 {
 	case_('默认根产物读者必须声明 `needs: [\'build-mjs\']`（★`--only` 单跑才带得上前置 ✓）',
 		defaultRootReaderProblems(SEGMENTS).length === 0, defaultRootReaderProblems(SEGMENTS).join('；'));

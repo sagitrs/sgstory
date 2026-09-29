@@ -150,8 +150,12 @@ if (!existsSync(join(ROOT, FIX_FROM))) {
 			const ok = run(casesFix);
 			t('⑦ 用例面：`expect.state` 用 **`$` 根** ⇒ **断得到实体**（夹具用例绿 ⇒ `#1562` 验收⑦在用例面可断言 ✓）',
 				// ★ `#1580`：★用例数**会随夹具增长**（本笔 +1 ⇒ 2 条）⇒ ★**解析数字**（✗ 硬编「绿 1」——
-			//   那正是我在 `#1615` D 票里给对方提过的同族 NIT ✓ 此处自纠 ✓）：★断言"**零失败** ＋ 绿数 ≥ 1"
-			ok.rc === 0 && (() => { const m = /绿 (\d+)/.exec(ok.out); return m && Number(m[1]) >= 1; })(),
+			// ★ `#1580`：★用例数**会随夹具增长** ⇒ ★**解析数字**（✗ 硬编「绿 1」—— ★那是我在 `#1615` D 票里给对方提过的同族 NIT ✓ 自纠 ✓）
+			// ★D 席 NIT③（**收紧**）：★原断言是「绿数 ≥ 1」✗ —— ★**有红格时也会过** ⇒ ★改判「**零失败**」（从同一行汇总解析 绿／总 ⇒ `绿 === 总` ＋ rc=0 ✓）
+			ok.rc === 0 && (() => {
+				const g = /绿 (\d+)/.exec(ok.out); const t = /(\d+) 条/.exec(ok.out);
+				return !!g && !!t && Number(g[1]) === Number(t[1]);   // ★绿 === 总 ⇒ **零失败** ✓
+			})(),
 			ok.out.split('\n').find((l) => l.includes('用例 ')) ?? ok.out.slice(0, 160));
 			// ★能假：把那条 `$` 去掉（＝退回 `pc` 相对）⇒ **该用例必红**（✗ 静默放过）
 			const bare = join(WORK, 'cases-bare'); cpSync(casesFix, bare, { recursive: true });

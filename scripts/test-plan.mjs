@@ -198,7 +198,7 @@ export const SEGMENTS = [
 	{ id: "test-repo-shape-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/repo-shape.mjs --selftest" },
 	// `#1078`：**读路径门** ——「按任务读」死链必红点名行号 · 对象故事已删的文档回流必读面/权威表必红
 	//（`DELETED_STORY_DOCS` 显式对照表 → archive 口径有牙）· 先读列（除 dev-conventions，单列 #1080）
-	// 体量 ratchet ≤150KB（口径与数字＝#1077 验收②裁定）。纯读 docs/README.md → 无前置。
+	// 体量 ratchet 见 `BUDGET_KB`（口径与数字＝#1077 验收②裁定）。纯读 docs/README.md → 无前置。
 	{ id: "test-docs-read-path-mjs", phase: 'test', cost: 0, cmd: "node test/docs-read-path.mjs" },
 	// `#1606`：**docs 分类表双向门** —— ★"表即工件"：本段读 `docs/CLASSIFICATION.md` 本身 ＋ 与树对差
 	//   （树∖表 ⇒ 未分类红｜表∖树 ⇒ 幽灵行红｜重复/空表/空类 ⇒ 红）。★为什么需要：本仓 7/13 被引件删掉是**静默**的

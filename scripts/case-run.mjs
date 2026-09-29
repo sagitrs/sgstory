@@ -53,14 +53,22 @@ export const parseArgs = (argv = []) => {
  * @param {string} path 期望路径（`"inv"`／`"pc.hp"`／`"$actors.木桩.hp"`）
  * @param {{pc?:object, vars?:object}} ctx `pc` ⇒ 存档角色；`vars` ⇒ `State.variables`（★`$` 档要它）
  */
-export const stateValueOf = (path, { pc = undefined, vars = undefined } = {}) => {
+/** ★★ `#1580`／D 席 NIT①：**归一只有一处** —— ★原先读侧与写侧**各写一遍**（「同一条」是**说法**、✗ 不是事实 ✗）
+ *  ⇒ ★抽成这**一个**纯函数：★返回「根选谁 ＋ 路径正文」（`pc.` 前缀在此剥掉 ⇒ 与裸路径同义 ✓）。
+ *  ★为什么必须一处：★两处副本＝**必漂移**（本仓反复踩的那族）⇒ ★读写两面共用它 ⇒ 漂移**在构造上不可能** ✓ */
+export const normStatePath = (path) => {
 	const p = String(path ?? '');
 	const rooted = p.startsWith('$');
-	let body = rooted ? p.slice(1) : p;
+	const body0 = rooted ? p.slice(1) : p;
+	const body = (!rooted && body0.startsWith('pc.')) ? body0.slice(3) : body0;
+	return { rooted, body };
+};
+
+export const stateValueOf = (path, { pc = undefined, vars = undefined } = {}) => {
+	const { rooted, body } = normStatePath(path);       // ★唯一归一（✗ 本处不再自己写一遍 ✓）
 	const root = rooted ? vars : pc;
-	// ★显式 `pc.` 前缀 ⇒ 与**裸路径**同义（★防"静默无效键"：✗ 剥掉它就会取 `pc.pc.hp` ⇒ 恒 `undefined` ⇒
-	//   写的人以为断了，其实那条断言**永远红**却看不出为什么 ✓）。实测：全仓 42 条用例**无人**用过它 ✓。
-	if (!rooted && body.startsWith('pc.')) body = body.slice(3);
+	// ★显式 `pc.` 前缀的剥除**已归一到 `normStatePath`**（✗ 上一版这里还有第二份副本 ✓）——
+	//   ★防「静默无效键」：✗ 不剥 ⇒ 会取 `pc.pc.hp` ⇒ 恒 `undefined`（写的人以为断了、其实永远红却看不出为什么 ✓）
 	return body.split('.').reduce((o, k) => (o == null ? undefined : o[k]), root);
 };
 
@@ -74,10 +82,9 @@ export const stateValueOf = (path, { pc = undefined, vars = undefined } = {}) =>
  */
 export const stateSetOf = (path, value, { pc = undefined, vars = undefined } = {}) => {
 	const p = String(path ?? '');
-	const rooted = p.startsWith('$');
-	let body = rooted ? p.slice(1) : p;
+	const { rooted, body } = normStatePath(path);      // ★与读侧**同一函数**（✗ 不再是两处副本 ✓）
 	const root = rooted ? vars : pc;
-	if (!rooted && body.startsWith('pc.')) body = body.slice(3);       // ★与读侧**同一条**归一（✗ 两处各写 ⇒ 必漂移 ✓）
+	// ★`pc.` 前缀的剥除已由 `normStatePath` 统一（✗ 上一版这里是第二份副本 ✓）
 	const parts = body.split('.');
 	if (!parts.length || parts.some((k) => k === '')) throw new Error(`stateSetOf：路径「${p}」畸形（空段 ⇒ ✗ 静默种到根上 ✓）`);
 	if (root == null || typeof root !== 'object') throw new Error(`stateSetOf：根不可写（${p} ⇒ ${rooted ? 'State.variables' : 'pc'} 缺）—— ✗ 静默丢弃 ✓`);
@@ -89,7 +96,7 @@ export const stateSetOf = (path, value, { pc = undefined, vars = undefined } = {
 		cur = cur[k];
 	}
 	cur[parts[parts.length - 1]] = value;
-	return true;
+
 };
 
 export const resolveCasesDir = ({ cases = null, root = ROOT } = {}) =>

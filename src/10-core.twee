@@ -726,7 +726,37 @@ window.Sg.actors = {
 	 *  ★为什么必须拷贝（✗ 不许直接引用声明对象）：声明面是**共享的常量** ⇒ 直接引用会让"这一档写着写着"
 	 *    把**声明**改了（换档/重开还在），且同一进程里两个档会互相看见 ✗（同族：`panels` 的 `__const_*` 只读语义 ✓）。 */
 	init() {
+		// ★★ `#1573`（阶 2b · 候选甲·修订形）：★**这里 ✗ 放 `pc` 键** —— ★实测：`<<set $actors to …>>` 会对值**克隆**
+		//   ⇒ ★把 getter 定义在**返回值**上 ⇒ 克隆后**变一份拷贝** ✗（`descHasGet=false` ＋ 两侧 keys 同形 ⇒ ★**静默分叉** ✓）
+		//   ⇒ ★别名改在**设定之后**、对**活表**定义（见 `bind()` ✓）⇒ ★从源头保证**永不存在**那份拷贝 ✓。
 		return JSON.parse(JSON.stringify(this.declared() ?? {}));
+	},
+	/** ★★ `#1573`：把**玩家那一行**绑到**活表** `State.variables.actors` 上（★**getter** ⇒ 与 `$pc` **同一对象** ✓）。
+	 *  ★**非枚举**（`enumerable: false`）—— ★实测口径：★**枚举 getter 会被 `JSON.stringify` 物化成值快照** ✗
+	 *    （★即存档里会多一份 `pc` 的**死拷贝** ✓ ⇒ ★载档后那次重绑会把它**覆盖**掉 ✓，但★**"零存档影响"**这条承诺
+	 *      就**不成立**了 ✗）⇒ ★取**非枚举** ✓ ⇒ ★存档里**没有**这个键 ✓（★验收格＝**payload 键级**实证 ✓）。
+	 *  ★调用点**两处**（★缺任一 ⇒ 该路径下"表里有 pc"不成立 ✗）：★`StoryInit` 的 `<<set $actors …>>` **之后** ✓
+	 *    ＋ ★`Save.onLoad`（★反序列化出来的表**没有**这个 getter ✗）。★幂等（可重复调 ✓）。 */
+	bind() {
+		const tbl = State.variables.actors;
+		if (!tbl || typeof tbl !== 'object') return false;
+		Object.defineProperty(tbl, 'pc', { get: () => State.variables.pc, enumerable: false, configurable: true });
+		return true;
+	},
+	/** ★★ `#1573`：**玩家那一行**（★presentation／存档／"读玩家状态"面的**唯一口** ✓）。
+	 *  ★为什么与 `current()` **分列两口**（✗ 合并）：★语义不同 —— `player()` ＝ **玩家**（★侧栏／存档 ⇒ **战斗轮里仍是玩家** ✓）；
+	 *    `current()` ＝ **当前作用实体**（★effects ⇒ **战斗轮里可能是对手** ✓）⇒ ★混用＝"**战斗轮侧栏显示对手的血**" ✗。 */
+	player() {
+		const tbl = State.variables.actors;
+		// ★自愈：★载档后若没跑到 `Save.onLoad` 钩子 ⇒ 这里补绑（✗ 让"表里有 pc"**时有时无** ✓）
+		if (tbl && typeof tbl === 'object' && !Object.getOwnPropertyDescriptor(tbl, 'pc')?.get) this.bind();
+		const it = tbl && typeof tbl === 'object' ? tbl.pc : undefined;
+		return it ?? State.variables.pc;      // ★表／绑定未就绪（如 `StoryInit` 之前）⇒ 回退 `$pc` ✓
+	},
+	/** ★★ `#1573`：**当前作用实体**（★`vitals`／`floor`／`zeroGives` 的施加口要"作用于它" ✓ —— 票面做法③ ✓）。
+	 *  ★本口**只读**：★"当前是谁"由**战斗循环**持有（✗ 不在这里放第二份状态 ✓）。★缺省＝玩家 ✓（＝`resolve(pc, 空)` 同义 ✓）。 */
+	current() {
+		return this.player();
 	},
 	/** ★★**对象维的解析口**（本票的"一个词两端同用"就落在这里）：给一个**实体名** ⇒ 回"该读/写哪个对象"。
 	 *  · ★`name` 缺省／空白 ⇒ **原样回 `pc`**（既有行为逐字不变 ⇒ 验收②"不回归" ✓）；
@@ -739,6 +769,11 @@ window.Sg.actors = {
 		const n = String(name ?? '').trim();
 		if (!n) return pc;
 		const tbl = State.variables.actors;
+		// ★★ `#1573`：★**自愈**（★载档后反序列化出来的表**没有**那个 getter ✗）——
+		//   ★为什么放这里（✗ 不放 `Save.onLoad` 钩子）：★钩子的注册面**测不了**（`Save.onLoad` 无 `fire` ✓ 实测 ✓）
+		//     ⇒ ★"留一段**没有格钉**的码"＝**拒绝** ✓（同 `#1664` 的复核 RC ✓）；★自愈放**口里** ⇒ 每次读都**可被格钉** ✓
+		//   ★为什么要在 `'pc'` 这一支上：★不补 ⇒ 载档后 `resolve(pc, 'pc')` 走 `it == null` ⇒ **fail-loud 抛** ✗。
+		if (n === 'pc' && !Object.getOwnPropertyDescriptor(tbl, 'pc')?.get) this.bind();
 		const it = tbl && typeof tbl === 'object' ? tbl[n] : undefined;
 		if (it == null) {
 			throw new Error(`Sg.actors：实体「${n}」**不在实体表**（\`State.variables.actors\`）里 —— `
@@ -939,6 +974,9 @@ window.Sg.panels = {
 <<set $pc to Game.Pc.defaults()>>
 /% ★ `#1571`：运行期实体表（`State.variables.actors`）—— ★由**声明面**的初始实体深拷贝而来（✗ 直接引用声明 ✓） %/
 <<set $actors to Sg.actors.init()>>
+/* ★★ `#1573`：★**设定之后**才绑（★`<<set>>` 会克隆 ⇒ 定在 `init()` 的返回值上会被克隆成**拷贝** ✗）——
+   ★本行**必须**紧跟 `$actors` 那一行 ✓（★丢返回用 `_probe` ⇒ `<<set>>` 必须有左侧 ✓）。 */
+<<set _probe to Sg.actors.bind()>>
 
 :: Widgets [widget]
 /% 受伤 + 药膏自动生效 + 死亡判定。用法：<<damage N>>。

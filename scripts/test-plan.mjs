@@ -426,6 +426,9 @@ export const SEGMENTS = [
 	{ id: "test-choose-cards-mjs", phase: 'test', cost: 0.5, cmd: "node test/choose-cards.mjs" },
 	// ★`#1571`（1c）：实体对象维（`actor` 两端）—— ★`exclusive`（它**要 build**，争 `ROOT/build`）
 	{ id: "test-actor-target-mjs", phase: 'test', cost: 8, exclusive: true, mutates: ['build'], cmd: "node test/actor-target.mjs" },
+	// ★ `#1573`（阶 2b · 甲）：**玩家＝实体表里的一条** —— 绑定面（同一对象／非枚举）＋ ★**payload 级存档面**
+	//   （真 serialize/deserialize 往返：getter 消失如预期／**无快照残留**／自愈重绑 ✓）。★须 build 夹具根 ⇒ exclusive ✓
+	{ id: "test-pc-entity-mjs", phase: 'test', cost: 6, exclusive: true, mutates: ['build'], cmd: "node test/pc-entity.mjs" },
 	// ★`#1586`：规则行字段面（`use`／`adds`／`takes` 拉平 ＋ 白名单点名）—— ★`exclusive`（它**要 build** ✓）
 	{ id: "test-rule-row-fields-e2e-mjs", phase: 'test', cost: 6, exclusive: true, mutates: ['build'], cmd: "node test/rule-row-fields-e2e.mjs" },
 	// ★`#1592`（M2）：books 侧**引擎契约性质**用例迁成引擎夹具（`any` 或语义 · `req` 成对 · 值门 · 唤醒休眠用例）
@@ -800,7 +803,7 @@ export const SUITE_MEMBERS = {
 	],
 	'story-legal': ['test-multi-story-mjs',
 		'test-multi-story-mjs-selftest',
-		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-case-run-mjs', 'test-merge-sources-mjs', 'test-sources-wired-e2e-mjs', 'test-vitals-consumers-mjs', 'test-vitals-migrate-chargen-mjs', 'test-vitals-display-mjs', 'test-draw-primitives-mjs', 'test-generated-family-mjs', 'test-choose-cards-mjs', 'test-actor-target-mjs', 'test-any-and-req-cases-mjs', 'test-rule-row-fields-e2e-mjs', 'test-panels-terminal-mjs', 'corpus-books-smoke', 'test-panels-mjs', 'test-panels-render-mjs', 'test-settle-primitives-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs', 'test-economy-keys-mjs',
+		'test-story-shape-mjs', 'test-story-runtime-mjs', 'test-case-run-mjs', 'test-pc-entity-mjs', 'test-merge-sources-mjs', 'test-sources-wired-e2e-mjs', 'test-vitals-consumers-mjs', 'test-vitals-migrate-chargen-mjs', 'test-vitals-display-mjs', 'test-draw-primitives-mjs', 'test-generated-family-mjs', 'test-choose-cards-mjs', 'test-actor-target-mjs', 'test-any-and-req-cases-mjs', 'test-rule-row-fields-e2e-mjs', 'test-panels-terminal-mjs', 'corpus-books-smoke', 'test-panels-mjs', 'test-panels-render-mjs', 'test-settle-primitives-mjs', 'test-story-runtime-mjs-selftest', 'test-story-ci-mjs', 'test-economy-keys-mjs',
 		// `#1267`／`#1257`：故事根口与两面一致性（归 `infra` 语义——判的是**工具链口径**，非故事内容）
 		'test-story-root-mjs', 'test-story-enum-faces-mjs',
 		'test-story-ci-mjs-selftest', 'test-rules-claims-mjs',

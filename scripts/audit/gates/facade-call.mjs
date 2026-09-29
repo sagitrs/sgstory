@@ -30,7 +30,8 @@
 //     —— ★**对行号漂移免疫** ✓：`a5bcee9f` 在 `32-social.twee:70` 处 1 行改 3 行（+2）⇒ 其下全部行号 +2
 //        ⇒ 行号式键 `:128` 落到 `settle(a, pc, site, kind) {`（**定义行**）⇒ 永不命中 ⇒ **full-tier 红 4h** ✗（`#1629` 实证）
 //   · **行号式**（旧）：`<文件>:<行号>` —— ★仍支持，但**一移即僵尸** ✗ ⇒ 建议迁移：
-//     `node scripts/audit.mjs --facade-call --suggest-keys` 可**打印现成的结构式键** ✓
+//     ★**无需新开关** —— ★本门在"键**仍命中**"时会**自动打印**现成的结构式键（运行时那几行 `· 提示（#1629）：…` ✓）；
+//     ★已漂（不再命中）的行号键 ⇒ ★取不到现成键 ⇒ 按 `<文件>::<方法名>::<调用行文本>` 手写 ✓
 //   声明了却**不再命中** ⇒ 报（逼你删，✗ 不留僵尸豁免）；★理由里写了反引号方法名（形如 `` `X()` ``）⇒
 //   该命中行**所在方法名须＝X**（✗ 否则排障被误导 —— 正是上面 `:128` 那条「读起来像该删键、其实键漂了」的误导 ✓）。
 //
@@ -142,7 +143,7 @@ export const facadeMethods = (files = []) => {
  * 允许的三形：定义处／转调处（该行**只**做 `return this.<名单方法>(…)` 或派生）／先赋局部量（`const x = this.<名单方法>();`）。
  * @param {{files:{path:string,text:string}[], methods:Set<string>, allow?:object, collect?:{hits?:object[]}|null}} o
  *   ★ `#1629`：`allow` 支持**结构式键**（`<文件>::<方法名>::<调用行文本>` ⇒ 行号漂移免疫 ✓）；
- *   `collect.hits` 回填命中元数据（供 `--suggest-keys` ✓）。
+ *   `collect.hits` 回填命中元数据 ⇒ ★供**运行时**那几行"提示（`#1629`）"打印现成结构式键用 ✓（✗ 无新开关 ✓）。
  */
 export const facadeCallProblems = ({ files = [], methods = new Set(), allow = {}, collect = null } = {}) => {
 	const out = [];
@@ -240,7 +241,9 @@ export const facadeCallProblems = ({ files = [], methods = new Set(), allow = {}
 			file: kk.file, line: at, key: k,
 			why: `白名单项「${k}」已**不再命中** ⇒ 请删（✗ 不留僵尸豁免）｜理由：${allow[k]}`
 				+ (kk.kind === 'line'
-					? '｜★建议迁**结构式**键 —— 行号式一移即僵尸 ✗（`#1629` 的 4h 红即此）⇒ `node scripts/audit.mjs --facade-call --suggest-keys` 可打印现成键 ✓'
+					? '｜★建议迁**结构式**键 —— 行号式一移即僵尸 ✗（`#1629` 的 4h 红即此）；'
+						+ '★换法：本门在**键仍命中**时**已自动打印**现成的结构式键（看上文 `· 提示（#1629）` 行 ✓）；'
+						+ '★本键**已漂**（不再命中）⇒ 自动取不到 ⇒ 按 `<文件>::<方法名>::<调用行文本>` 手写 ✓'
 					: ''),
 		});
 	}

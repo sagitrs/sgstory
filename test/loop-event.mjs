@@ -44,8 +44,8 @@ const loop = async ({ injectVisits = null, clicks = 5 } = {}) => {
 	const w = B.w, S = w.SugarCube.State;
 	S.variables.sgVisits = S.variables.sgVisits || {};
 	// ★★计数形是 {name, n}（★**连续**计数 ✓）⇒ ★注入要与它同形 ✗ 否则推过上限推不动 ✓
-		// ★★运行期形是 {ring:串, n, last, total}（★环存字符串 —— 数组会被 SugarCube 克隆拒 ✓）
-		if (injectVisits != null) { S.variables.sgVisits = { ring: '', n: injectVisits, last: '战斗', total: 0 }; w.SugarCube.Engine.play('战斗'); await new Promise((r) => setTimeout(r, 300)); }
+		// ★★运行期形是 {ring:串, n, last, cyc}（★环存字符串 ＋ 循环深度 `cyc` —— ★数组会被 SugarCube 克隆拒 ✓）
+		if (injectVisits != null) { S.variables.sgVisits = { ring: '', n: injectVisits, last: '战斗', cyc: 0 }; w.SugarCube.Engine.play('战斗'); await new Promise((r) => setTimeout(r, 300)); }
 	const errs = []; w.console.error = (...a) => errs.push(String(a.join(' ')));
 	const links = () => [...w.document.querySelectorAll('#passages a')].map((x) => x.textContent.trim());
 	const click = async (l) => {
@@ -109,7 +109,7 @@ try {
 		const B = await boot({ story: SLUG, random: 0.5 });
 		const w = B.w, S = w.SugarCube.State;
 		const errs = []; w.console.error = (...a) => errs.push(String(a.join(' ')));
-		S.variables.sgVisits = { ring: '', n: 0, last: '', total: 0 };
+		S.variables.sgVisits = { ring: '', n: 0, last: '', cyc: 0 };
 		for (let i = 0; i < 350; i += 1) { w.SugarCube.Engine.play(i % 2 ? '战果' : '战斗'); await new Promise((r) => setTimeout(r, 1)); }
 		const hit = errs.find((e) => /sg-visitlimit/.test(e));
 		t('★① 交替型卡死（A↔B 无界 350 次）⇒ **周期臂点名**（★旧口径在这里永不触发 ✗）', !!hit && /周期/.test(hit), (hit ?? '(无)').slice(0, 120));
@@ -125,9 +125,9 @@ try {
 		const errs = []; w.console.error = (...a) => errs.push(String(a.join(' ')));
 		const sp = w.Sg.story.passageSpecs();
 		sp['战斗'] = Object.assign({}, sp['战斗'], { visitLimit: 4 });
-		// ★★(实测) ✗ 别用交替测段级上限 —— ★交替时**连续臂** n 恒为 1 ✗，而**周期臂**有 `total>300` 门 ✗
+		// ★★(实测) ✗ 别用交替测段级上限 —— ★交替时**连续臂** n 恒为 1 ✗，而**周期臂**有 **自身深度门**（★连续渲染数 > 2×LIMIT） ✗
 		//   ⇒ ★段级上限要测**连续**：★注入"已连续 5 次" ⇒ 下一次渲染 ⇒ n=6 > 4 ⇒ 报 (4) ✓
-		S.variables.sgVisits = { ring: '', n: 5, last: '战斗', total: 0 };
+		S.variables.sgVisits = { ring: '', n: 5, last: '战斗', cyc: 0 };
 		w.SugarCube.Engine.play('战斗');
 		await new Promise((r) => setTimeout(r, 300));
 		const hit = errs.find((e) => /sg-visitlimit/.test(e));
@@ -150,7 +150,7 @@ try {
 		const specLmt = (w.Sg.story.passageSpecs()['战斗'] || {}).visitLimit;
 		t('★④-a 声明面 `visitLimit: 4` ⇒ **契约 spec 里读到 4**（★链前半 ✓）', Number(specLmt) === 4, `spec.visitLimit=${JSON.stringify(specLmt)}`);
 		const errs = []; w.console.error = (...a) => errs.push(String(a.join(' ')));
-		S.variables.sgVisits = { ring: '', n: 5, last: '战斗', total: 0 };
+		S.variables.sgVisits = { ring: '', n: 5, last: '战斗', cyc: 0 };
 		w.SugarCube.Engine.play('战斗');
 		await new Promise((r) => setTimeout(r, 300));
 		const hit = errs.find((e) => /sg-visitlimit/.test(e));
@@ -160,7 +160,7 @@ try {
 	if (CASE === 'longgame') {
 		// ---- ★⑩（`#1667` 复现反馈 要的格）：**长局 ＋ 正常循环 ⇒ 不报** ----
 		//   ★形（他会复现的那个）：★玩家**反复"短循环一下再离开"**（商店↔背包 20 次 ⇒ 走开；再来一轮…）
-		//     ⇒ ★生涯总访问自然过 300 ✓ ⇒ ★旧门（`total > 300`）会误报 ✗ ⇒ ★本格钉住"✗ 不许误报" ✓
+		//     ⇒ ★若按"生涯总量"设门 ⇒ ★这种正常玩法会被误报 ✗ ⇒ ★本格钉住"✗ 不许误报" ✓（★门＝**循环自身深度** ✓）
 		clearThree(); build();
 		process.env.SG_STORIES_DIR = FX;
 		const { boot } = await import('./boot.mjs');

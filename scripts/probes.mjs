@@ -435,3 +435,21 @@ export const PROBES = [
 // - test/prose-vocabulary.mjs
 // - test/web-export.mjs
 // - test/notes-absence.mjs
+
+/** ★ `#1661`：**临时暂缓**的探针 —— ★`#1261` 甲移来此处（原在 `probe-gates.mjs` 里是**局部 `const`** ⇒
+ *   ★别的消费者（`report-gate-ledger.mjs` 的 strict `--check`）**读不到** ✗ ⇒ **同一份口径两处不一致** ✓）。
+ *
+ * ★**为什么必须放这里**：★`probe-gates.mjs` **不能被 import**（它顶层就是 CLI：`--check` 甚至 `process.exit` ✓）
+ *   ⇒ ★数据（谁暂缓了）必须住在**可安全 import 的数据模块**里 ✓ ⇒ 运行器与台账检查**共享同一份** ✓。
+ * ★口径：★暂缓 ⇒ **不跑、单列、不计"未咬"**，★且**不计入「应有」**（★否则"跑过的机器"会恒判「缺件」⇒ **假红** ✗）。
+ * ★每条必须给 `why`／`until`（缺即红 ✓ —— 防它成为新的藏身处）。
+ */
+export const SUSPENDED_PROBES = {
+	// `#1343`（撤暂缓）：`test/gen-needed.mjs` 的暂缓理由＝「**反向核需 ≥3 个真故事**」⇒ 已补**夹具根**
+	// （`test/fixtures/gen-needed/stories`，3 个最小故事）＋ 探针 `cmd` **内联该根** ⇒ 理由失效 ⇒ 撤 ✓
+	'test/contract-defaults.mjs': { why: '需故事契约面样本（对象＝契约默认面判据）', until: '#1163' },
+	'test/pc-base.mjs': { why: '需故事角色状态样本（对象＝角色状态面判据）', until: '#1163' },
+	'test/comment-mask.mjs': { why: '需读故事源面（对象＝剥注权威判据）', until: '#1163' },
+	'test/npm-entries-guard.mjs': { why: '取样脚本随 WebUI 下架（对象＝npm 入口护栏）', until: '#1163' },
+	'test/plan-needs.mjs': { why: '刀的锚随段面变化（对象＝计划依赖判据）', until: '#1163' },
+};

@@ -26,7 +26,7 @@ import { ensureParent } from './lib/ensure-parent.mjs';   // `#1093` P2-d：写�
 import { dirname } from 'node:path';
 import { execSync, execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { PROBES } from './probes.mjs';
+import { PROBES, SUSPENDED_PROBES } from './probes.mjs';   // ★`#1661`：暂缓名单改由**数据模块**提供（同口径共享 ✓）
 import { maskComments } from '../editor/lib/core/mask.mjs';   // `#1019`：静态判据先**剥注释**再认 import（避免"文本里提过 boot.mjs"被误判）
 
 const RECORD = 'build/probe-results.json';
@@ -305,17 +305,7 @@ const rowsOf = () => {
 };
 
 // `#1603`：★本块**上移**到此处（原在 `selected` 之前）—— `--check` 路径（**静态锚自检**）也要读 `suspProbeIds` ✓
-// `#1261` 甲（探针侧）：**临时暂缓** —— 靶对象仍在、但样本/前置随大裁剪暂缺 → 不跑、**单列**、
-// 不计"未咬"；每条必须给 why/until（缺即红，防它成为新的藏身处）。
-const SUSPENDED_PROBES = {
-	// `#1343`（撤暂缓）：`test/gen-needed.mjs` 的暂缓理由＝「**反向核需 ≥3 个真故事**」⇒ 已补**夹具根**
-	// （`test/fixtures/gen-needed/stories`，3 个最小故事）＋ 探针 `cmd` **内联该根** ⇒ 理由失效 ⇒ 撤 ✓
-	'test/contract-defaults.mjs': { why: '需故事契约面样本（对象＝契约默认面判据）', until: '#1163' },
-	'test/pc-base.mjs': { why: '需故事角色状态样本（对象＝角色状态面判据）', until: '#1163' },
-	'test/comment-mask.mjs': { why: '需读故事源面（对象＝剥注权威判据）', until: '#1163' },
-	'test/npm-entries-guard.mjs': { why: '取样脚本随 WebUI 下架（对象＝npm 入口护栏）', until: '#1163' },
-	'test/plan-needs.mjs': { why: '刀的锚随段面变化（对象＝计划依赖判据）', until: '#1163' },
-};
+// `#1661`：★名单本体已迁入 `probes.mjs`（★本模块**不可被 import** ⇒ 别的消费者取不到 ✗）—— 此处只留派生集 ✓
 const suspProbeIds = new Set(Object.keys(SUSPENDED_PROBES));
 
 const checkStructure = () => {

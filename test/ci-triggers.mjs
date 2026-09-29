@@ -175,12 +175,47 @@ export const mainOnlyJobsMissingDispatch = (text) => {
  *     ⇒ ★要更细就得**按 job 解析**（★值当的时点：真出现"该深的那处漏了" ✓ 实例再加 ✓）。
  * ★**✗ 不要求**不跑这些命令的 workflow（如 `pages.yml`／`realmachine` 那类 ⇒ ★加深＝白花成本 ✓）。 */
 export const depthProblems = (text) => {
-	const s = String(text ?? '');
-	const runsTier = /(npm (run )?test\b|test:full|md-format|run-tests\.mjs)/.test(s);
+	const raw = String(text ?? '');
+	// ★★ `#1623` CR（tester-3，★**两席都漏**）：★**先 mask 注释再数** ✓ ——
+	//   ★原先我数的是**整份文本的字面** ⇒ ★而本仓 workflow 的注释里**恰好写着** "`fetch-depth: 0`"（解释这条规矩本身 ✓）
+	//     ⇒ ★**把真键改回 `1`，注释还留着"0"** ⇒ ★门**照绿** ✗（★"注释不算数"这条没守住 ✓）
+	//   ★这里的 mask 是**粗粒度**的（行内 `#` 起 ⇒ 一律抹掉 ✓）—— ★CI 的 YAML 里 `#` 不进值 ⇒ 够用 ✓
+	//     （★若将来出现"值里含 `#`"的写法 ⇒ ★本处会**多抹** ⇒ ★那是**保守方向**：宁可误红 ✓）
+	const s = raw.replace(/^[^\n]*?#.*$/gm, (l) => l.replace(/#.*$/, ''));
+	// ★★ 强形（`#1623` CR ③）：★**按 job 块**判 —— ★凡"跑 tier"的 **job**，★其**本 job 内**必须有一处 `fetch-depth: 0` ✓
+	//   ⇒ ★这顺带盖住"**多处 checkout、只给错了的那一处加深**"（★我上一版明写的边界洞 ✓）
+	const jobs = (() => {
+		const i = s.indexOf('\njobs:');
+		if (i < 0) return null;                                  // ★合成夹具（无 jobs:）⇒ 退回整份文本 ✓
+		const body = s.slice(i + 1);
+		const out = [];
+		let cur = null;
+		for (const line of body.split('\n')) {
+			const mj = /^  ([A-Za-z0-9_-]+):\s*$/.exec(line);    // ★job 名（缩进 2 ✓）
+			if (mj) { if (cur) out.push(cur); cur = { name: mj[1], text: '' }; continue; }
+			if (cur) cur.text += line + '\n';
+		}
+		if (cur) out.push(cur);
+		return out.filter((j) => j.text.trim());
+	})();
+	if (jobs) {
+		const bad = [];
+		for (const j of jobs) {
+			if (!/(npm (run )?test\b|test:full|md-format|run-tests\.mjs(?!\s+--only))/.test(j.text)) continue;   // ★不跑 tier 的 job：不要求 ✓
+			const ck = (j.text.match(/uses:\s*actions\/checkout@/g) ?? []).length;
+			const dp = (j.text.match(/fetch-depth:\s*0\b/g) ?? []).length;
+			if (ck && !dp) bad.push(j.name);
+		}
+		if (!bad.length) return [];
+		return [`跑 \`npm test\`／\`md-format\` 的 **job（${bad.join('／')}）**里没有一处 \`checkout\` 带 \`fetch-depth: 0\` `
+			+ '⇒ ★`md-format` 的 F4 面（`git log --all` 判"引用路径曾否存在"）在**那个 job** 上**牙不露** ✗（`#1622`／`#1623` CR ✓）'];
+	}
+	// ★退回形（无 `jobs:` 的合成夹具）：整份文本"至少一处带深度" ✓
+	const runsTier = /(npm (run )?test\b|test:full|md-format|run-tests\.mjs(?!\s+--only))/.test(s);
 	if (!runsTier) return [];
 	const checkouts = (s.match(/uses:\s*actions\/checkout@/g) ?? []).length;
 	const deep = (s.match(/fetch-depth:\s*0\b/g) ?? []).length;
-	if (!checkouts || deep >= 1) return [];     // ★"至少一处带深度"（★边界见函数头注释 ✓）
+	if (!checkouts || deep >= 1) return [];
 	return [`跑 \`npm test\`／\`md-format\` 的档**必须取全历史**（\`fetch-depth: 0\`）—— 现 ${checkouts} 处 \`checkout\`、带深度的 **0** 处 `
 		+ '⇒ ★`md-format` 的 F4 面（`git log --all` 判"引用路径曾否存在"）在本档上**牙不露** ✗（`#1622`／`#1626` D 票 NIT-1 ✓）'];
 };
@@ -248,6 +283,14 @@ if (process.argv.includes('--selftest')) {
 		t('🔴 反例：跑 `npm test` 而 `checkout` 无深度 ⇒ 点名（✗ 静默）', depthProblems(noDepth).length === 1);
 		t('正例：同档带 `fetch-depth: 0` ⇒ 不报', depthProblems(yesDepth).length === 0);
 		t('边界：不跑 tier 的档（无 `npm test`／`md-format`）⇒ 不要求（✗ 白花成本也判红 ✓）', depthProblems(notTier).length === 0);
+		// ★ `#1623` CR（tester-3，★两席都漏的两格）——
+		const commentOnly = withTier('      # ★注释里写着 fetch-depth: 0（✗ 不算数）\n      - uses: actions/checkout@v4\n        with:\n          fetch-depth: 1\n      - run: npm test\n');
+		t('🔴 钉住「注释不算数」：注释含 `fetch-depth: 0` 而**真键＝1** ⇒ **必红**（✗ 数文本字面的洞 ✓）', depthProblems(commentOnly).length === 1);
+		// ★强形（按 job 块）：★跑 tier 的那个 job 没深度、另一个 job 有 ⇒ **必红**（★盖住「多处只给错了那处」✓）
+		const twoJobs = `on:\n  push:\n    branches: [main]\n  workflow_dispatch: {}\njobs:\n  other:\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          fetch-depth: 0\n      - run: npm run build\n  tier:\n    steps:\n      - uses: actions/checkout@v4\n      - run: npm test\n`;
+		const twoJobsFixed = `on:\n  push:\n    branches: [main]\n  workflow_dispatch: {}\njobs:\n  other:\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          fetch-depth: 0\n      - run: npm run build\n  tier:\n    steps:\n      - uses: actions/checkout@v4\n        with:\n          fetch-depth: 0\n      - run: npm test\n`;
+		t('🔴 按 job 块：**跑 tier 的那个 job** 无深度（另一个 job 有）⇒ **必红**（✗ 整份文本「至少一处」会漏 ✓）', (() => { const r = depthProblems(twoJobs); return r.length === 1 && /tier/.test(r[0]); })());
+		t('正例：两个 job 各带深度 ⇒ 不报', depthProblems(twoJobsFixed).length === 0);
 		t('正例·真树：本仓 4 个 workflow ⇒ 0 问题（`ci.yml`＋`full-tier.yml` 已带；其余不适用 ✓）',
 			workflowFiles().every((rel) => depthProblems(readFileSync(join(ROOT, rel), 'utf8')).length === 0));
 	}

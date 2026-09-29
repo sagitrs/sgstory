@@ -53,7 +53,16 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
+      # ★★ `#1622`：★**取全历史**（`fetch-depth: 0`）—— ★`md-format` 的 F4 面有一支按 `git log --all` 判
+      #   「引用的仓内路径**曾否存在**」（★"曾存在 ⇒ 红"＝删件留下死引用那一族 ✓）：
+      #   ★浅克隆（默认 `fetch-depth: 1`）下**判不出** ⇒ 该支退化成 **○ 未判 ＋ 出声**（✗ 红）⇒ ★**CI 上没牙** ✗。
+      #   ★为什么给**整个 job**（✗ 只给某一步）：★`checkout` 这一步**铺出的工作树＝本 job 后续所有步共用的**
+      #     ⇒ ★给它深度＝给整个 job 深度（★要"只给一步"得另加 `git fetch --unshallow` 步 —— ★能，但没必要：
+      #     ★成本＝多拉历史（`.git` **86M**／1434 提交 ⇒ 与本 job 的 12 分钟测试比可忽略 ✓））。
+      #   ★★**✗ 不要改回 `fetch-depth: 1`** —— 改回后 CI 仍绿但 F4 那一支**静默失效** ✗（`#1619`／`#1622` 的实测 ✓）。
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22

@@ -111,5 +111,36 @@ export const NO_EXCLUSIVE_TODAY = '#1315：原独占段（`test-lint-story-mjs`�
 	})());
 }
 
+
+// ★★ `#1659`：**读了"默认根"产物 ⇒ 必须声明 `needs: ['build-mjs']`**（★与本节同概念，✗ 另立一套 ✓）——
+//   · 为什么：`--only=<段>` 单跑若不声明前置 ⇒ **不带前置** ⇒ 该段红（★它自己的 fail-loud ✓，但单跑者要**从报文里推**"先 build" ✓）
+//   · ★执行器**已消费** `needs`（`scripts/run-tests.mjs` 的 `withDeps`：`--only` 自动带上前置并打印
+//     `○ --only：自动带上前置段 …` ✓）⇒ ★本笔只把**声明面接上** ✓（★`#1580` 教训：✗ 落成"声明了没人读" ✓ —— 这里读者**已存在** ✓）
+//   · ★登记表＝**显式决定**（加一条＝一次决定；✗ 不许顺手）✓
+export const DEFAULT_ROOT_READERS = [
+	{ id: 'test-draw-primitives-mjs', why: '③c 格读 `<DIST_DIR>/INPUTS.json`（构建器吐的输入清单）⇒ 须先有默认根 build ✓' },
+	{ id: 'test-multi-story-mjs', why: '多故事产物检查读默认根 `<DIST_DIR>/stories/*` ✓' },
+];
+/** 判据：每个登记段都必须在计划里，且 `needs` 含 `build-mjs`（★✗ 只管"有没有声明"——"该不该登记"是人审 ✓）。 */
+export const defaultRootReaderProblems = (segs = [], readers = DEFAULT_ROOT_READERS) => {
+	const byId = new Map(segs.map((s) => [s.id, s]));
+	const out = [];
+	for (const r of readers) {
+		const s = byId.get(r.id);
+		if (!s) { out.push(`${r.id}：登记在表里但**不在计划**（段改名/下架 ⇒ 表悬空 ✗）`); continue; }
+		if (!(s.needs ?? []).includes('build-mjs')) out.push(`${r.id}：读了默认根产物却 ✗ 未声明 \`needs: ['build-mjs']\` ⇒ \`--only\` 单跑会缺前置 ✓`);
+	}
+	return out;
+};
+{
+	case_('默认根产物读者必须声明 `needs: [\'build-mjs\']`（★`--only` 单跑才带得上前置 ✓）',
+		defaultRootReaderProblems(SEGMENTS).length === 0, defaultRootReaderProblems(SEGMENTS).join('；'));
+	// ★能假（自带样本，注入 ⇒ 不依赖现网有几个）：摘掉一条声明 ⇒ 必报
+	const cut = SEGMENTS.map((s) => (s.id === 'test-draw-primitives-mjs' ? { ...s, needs: [] } : s));
+	case_('反例·摘掉一条 `needs` ⇒ 必报（自带样本）', defaultRootReaderProblems(cut).length === 1, defaultRootReaderProblems(cut).join('；'));
+	// 正例控制：空表 ⇒ 无问题（防"对任意输入都报"）
+	case_('正例·空登记表放过', defaultRootReaderProblems(SEGMENTS, []).length === 0);
+}
+
 console.log(bad === 0 ? '✔ plan-needs：段间产物依赖边全部在册' : `✗ plan-needs：${bad} 条问题（见上）`);
 process.exit(bad === 0 ? 0 : 1);

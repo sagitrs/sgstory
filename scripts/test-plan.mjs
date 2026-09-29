@@ -306,7 +306,7 @@ export const SEGMENTS = [
 	// #441 切片③④：多故事产物 + 书架页 + 故事页字体前缀（纯函数自证 + 真实产物检查）
 	// `#460`／`#566`：**逐故事真启动**（StoryInit 无错 ＋ `$era` 已定义 ＋ 起始段非空）——本段已含此判据
 	{ id: "test-multi-story-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/multi-story.mjs --selftest" },   // `#1031`：接线（S1–S5 正反例，主跑不执行这些合成例）
-	{ id: "test-multi-story-mjs", phase: 'test', cost: 0.1, cmd: "node test/multi-story.mjs" },
+	{ id: "test-multi-story-mjs", phase: 'test', cost: 0.1, needs: ['build-mjs'], cmd: "node test/multi-story.mjs" },   // ★`#1659`：读默认根产物 ⇒ 声明前置（--only 单跑才带得上 ✓）
 	// #458 前置：**六处同步**校验（源文件/ORDER/MODULES/故事清单/常量声明/聚合返回）＋单根假设清点
 	{ id: "scripts-move-precheck-mjs", phase: 'test', cost: 0.2, cmd: "node scripts/move-precheck.mjs" },
 	{ id: "scripts-move-precheck-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node scripts/move-precheck.mjs --selftest" },
@@ -415,7 +415,7 @@ export const SEGMENTS = [
 	//   （键名走 `vk()`／文案走 `vl()`）⇒ ★**改数据声明 ⇒ 展示跟变**（两态：键名 ＋ 文案）
 	//   自建夹具根（`mkdtemp` ⇒ 每次真清生成物；同进程跑两棵树⇒传绝对路径）⇒ **exclusive** ✓
 	{ id: "test-vitals-display-mjs", phase: 'test', cost: 5, exclusive: true, mutates: ['build'], cmd: "node test/vitals-display.mjs" },
-	{ id: "test-draw-primitives-mjs", phase: 'test', cost: 0.3, cmd: "node test/draw-primitives.mjs" },
+	{ id: "test-draw-primitives-mjs", phase: 'test', cost: 0.3, needs: ['build-mjs'], cmd: "node test/draw-primitives.mjs" },   // ★`#1659`：③c 读 `<DIST_DIR>/INPUTS.json` ⇒ 同上 ✓
 	// ★`#1567`（`#1222` L3）：选择卡原语 ＋ 交互面 —— ✗ `exclusive`：本段只读源件 ＋ 跑纯函数/jsdom（**不 build 不写盘**，口径同 `test-draw-primitives.mjs` ✓）
 	{ id: "test-choose-cards-mjs", phase: 'test', cost: 0.5, cmd: "node test/choose-cards.mjs" },
 	// ★`#1571`（1c）：实体对象维（`actor` 两端）—— ★`exclusive`（它**要 build**，争 `ROOT/build`）

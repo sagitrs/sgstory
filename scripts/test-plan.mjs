@@ -139,6 +139,12 @@ export const SEGMENTS = [
 	{ id: "test-pc-defaults-mjs", phase: 'test', cost: 2, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-combat-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-combat-fixture/stories node test/pc-defaults.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-plan-needs-mjs", phase: 'test', cost: 0, cmd: "node test/plan-needs.mjs" },
+	// ★ `#1655`：**PR 档（`fast`）Σcost 预算/棘轮**（★`fast Σcost ≤ FAST_COST_BUDGET`，超了要交代）
+	//   ★cost **0**：★它只读 `testPlan()`（万分之一秒级）⇒ ★**不为自己加预算** ✓
+	//   ★inputs **`['*']`**（全跑型）—— ★**语义就该如此**：★预算是**计划表的整体属性** ⇒
+	//     ★**任何**改动都可能加段（✗ 只是 `test-plan.mjs` 的改动 ✓）⇒ ★漏跑一次 ＝ 棘轮当次失效 ✗
+	//     ⇒ ★理由与票号见 `INPUTS_WILDCARD_REASONS`（`validateInputsWildcardReasons` 会核 ✓）
+	{ id: "test-fast-budget-mjs", phase: 'test', cost: 0, inputs: ['*'], cmd: "node test/fast-budget.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 		{ id: "test-properties-mjs", phase: 'test', cost: 5.6, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-hp-e2e/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-hp-e2e/stories node test/properties.mjs" },   // `#1353` 乙组：先 build 夹具再跑（⇒ **exclusive**，照 block-args/hp-nan 先例 ✓）
 		{ id: "test-locations-adv-mjs", phase: 'test', cost: 1, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-items-adv-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-items-adv-fixture/stories node test/locations-adv.mjs" },   // `#1353` 乙组：先 build 夹具再跑（⇒ **exclusive**，照 block-args/hp-nan 先例 ✓）
@@ -697,6 +703,50 @@ export const validateTiers = (plan = SEGMENTS, { reasons = FULL_REASONS } = {}) 
 	return problems;
 };
 
+/** ★★ `#1655`：**PR 档（`fast`）Σcost 预算/棘轮** —— `fast Σcost ≤ FAST_COST_BUDGET`，超了就红。
+ *
+ * ★**为什么需要它**（一手读数，✗ 推测）：`#1644` 把 10 段移出 fast ⇒ **328.7s** ✓；
+ *   ★而**两天后**回到 **353.7s**（125 段）—— ★**涨源定位到**：`test-reroll-mjs`（＋25s，随 `#1574`）✓
+ *   ⇒ ★★**"裁剪"是一次性动作，而"新增段"是持续流入** ⇒ ★只靠挪档 ⇒ **负载会慢慢爬回来** ✗
+ *     ⇒ ★本仓"红率/等待太久"的问题会**周期性复发**（每次都要有人重量一遍 ✓）。
+ * ★★**口径**：★**"可加但要交代"，✗ 不是"不许加"**（★与 `size-gate` 的产物体积棘轮、
+ *   覆盖率 ratchet、"探针未探上限 117" **同形** ✓）—— 超预算的笔**二择一**：
+ *   ① ★**说明它为什么该占 PR 档**（★例：**每笔都可能踩**的面 —— 改动面广／失败率高／红代价大 ✓）；
+ *   ② ★**把它移到 `full`**（★走本表的 `FULL_REASONS` 书面理由 ⇒ 与本仓 `#1070` 纪律③**同一处评审** ✓）。
+ *
+ * ★**取值（★可核：注明取值日 ＋ 来源 ＋ 余量口径）**：
+ *   · **取值日**：`2026-09-29`（本票落笔时）
+ *   · **来源**：★`testPlan()` 实测 ⇒ ★**fast 125 段，Σcost ＝ 348.7s**（★读数可复跑：
+ *     `node --input-type=module -e "import {testPlan,tierOf} from './scripts/test-plan.mjs'; …"` ✓）
+ *   · **余量**：★**＋11.3s（≈3.2%）** ⇒ ★预算 **360s** —— ★口径：★"**容得下一个小段（≤10s）而不用交代，
+ *     但 ≥25s 的段（如 `test-reroll-mjs`／`test-loop-event-mjs`）必然顶格** ⇒ ★逼出那次交代 ✓
+ * ★**✗ 不许为了过而调数**：`cost` 是**估算值** ⇒ ★把某段 cost 改小也能"过格" ✗ ——
+ *   ★本判据**只读** `testPlan()`（★✗ 不引入第二份 cost 表 ⇒ 单一权威 ✓）；
+ *   ★**改 `cost` ＝ 改判据输入** ⇒ ★它在本表里，与判据同处一处评审 ✓。 */
+export const FAST_COST_BUDGET = 360;
+
+/** ★ `#1655`：**纯函数** —— 给计划，返回 fast 档**超预算**问题（空＝在预算内）。
+ * @param {Array} plan 段表（缺省 `SEGMENTS`）
+ * @param {number} budget 预算秒数（缺省 `FAST_COST_BUDGET`）
+ * @returns {{why:string}[]} 问题清单（空＝通过）
+ * ★实现口径：★**只算 `tierOf(s)==='fast'`**（★缺省即 fast ⇒ 与选择器**同一口径** ✓，
+ *   ✗ 不另写一份"哪些算 fast" ✓）；★`cost` 缺省按 **0**（★旧段未标 cost ⇒ 不算它 → 偏保守 ✓）。 */
+export const fastBudgetProblems = (plan = SEGMENTS, budget = FAST_COST_BUDGET) => {
+	const fast = plan.filter((s) => tierOf(s) === 'fast');
+	const sum = fast.reduce((t, s) => t + (Number(s.cost) || 0), 0);
+	if (sum <= budget) return [];
+	const top = fast.slice().sort((a, b) => (Number(b.cost) || 0) - (Number(a.cost) || 0)).slice(0, 5)
+		.map((s) => `\`${s.id}\`(${s.cost}s)`).join('、');
+	return [{
+		why: `**PR 档（fast）Σcost 超预算**：实测 **${sum.toFixed(1)}s**（${fast.length} 段）＞ 预算 **${budget}s** `
+			+ `（超出 ${(sum - budget).toFixed(1)}s）⇒ ★**二择一**：★① 在 PR 里**说明它为何该占 PR 档**`
+			+ `（★例：每笔都可能踩的面 —— 改动面广／失败率高／红代价大 ✓）；★② 把它**移到 \`full\`**`
+			+ `（★走 \`FULL_REASONS\` 书面理由 ✓）。★本档 cost 最高的 5 段：${top} `
+			+ `（★口径见 \`FAST_COST_BUDGET\` 注释：**"可加但要交代"**，✗ 不是"不许加" ✓）`,
+	}];
+};
+
+
 export const SUITES = ['engine', 'editor', 'story-legal', 'story-product', 'infra'];
 
 /** `#1093` P1.0：**分组表**（`id -> suite`）—— 口径＝**判据锚的被看护物**（不是目录粗分）。
@@ -776,7 +826,7 @@ export const SUITE_MEMBERS = {
 		'test-docs-read-path-mjs', 'test-docs-read-path-mjs-selftest', 'test-docs-classification-mjs', 'test-docs-classification-mjs-selftest', 'test-fruit-demo-cases-mjs', 'test-fruit-demo-cases-mjs-selftest', 'test-untracked-guard-mjs', 'test-passages-links-mjs',
 		'test-block-args-e2e-mjs', 'test-hp-nan-e2e-mjs', 'test-fightpanel-turns-e2e-mjs', 'test-passages-assemble-mjs-selftest',
 		'test-audit-gates-run-mjs', 'test-fight-keys-e2e-mjs', 'scripts-clean-net-mjs-selftest', 'scripts-precommit-check-mjs-selftest',
-		'scripts-lint-new-segment-mjs-selftest', 'test-coverage-mjs', 'test-gate-discovery-mjs', 'test-plan-needs-mjs',
+		'scripts-lint-new-segment-mjs-selftest', 'test-coverage-mjs', 'test-gate-discovery-mjs', 'test-plan-needs-mjs', 'test-fast-budget-mjs',
 		'test-attribution-gate-mjs-selftest', 'test-browser-mjs-selftest', 'test-attribution-gate-mjs', 'test-build-staging-race-mjs',
 'test-chargen-lazy-e2e-mjs', 'test-adds-e2e-mjs', 'test-e2e-roundtrip-mjs', 'test-reroll-mjs',
 'test-rulelist-effects-e2e-mjs', 'test-takes-e2e-mjs', 'test-pc-prefix-e2e-mjs', 'test-note-grant-mjs',
@@ -834,6 +884,11 @@ export const inputsMatch = ({ declared = [], changed = [] } = {}) => {
  *（同 `FULL_REASONS` 的口径：降频／不跳过都要留痕）。
  */
 export const INPUTS_WILDCARD_REASONS = {
+	// `#1655`：PR 档预算棘轮 —— 它量的是**计划表的整体属性**（fast Σcost），✗ 不是某个文件的面。
+	'test-fast-budget-mjs': {
+		reason: '本件量的是**计划表的整体属性**（`fast` 档 Σcost 与预算的差）⇒ ★任何一笔改动都可能**新增/挪动段**而推高它 ⇒ 只盯 `scripts/test-plan.mjs` 的改动会**漏掉"别的笔加了段"** ⇒ 取全跑型（棘轮必须每次都判 ✓）',
+		voucher: '#1655',
+	},
 	// `#1267`（伞 `#1266`）：故事根口判据——它**故意**要覆盖"仓内/仓外两态、多个入口（build／module-order／
 	// dist-paths）"，任何单面通配都不足以表达"口是否处处生效" → 取全跑型。
 	'test-story-root-mjs': {

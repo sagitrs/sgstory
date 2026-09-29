@@ -25,7 +25,7 @@ import { planChain, testPlan, tierOf, FULL_REASONS } from './test-plan.mjs';
 import { maskComments } from '../editor/lib/core/mask.mjs';   // `#899` ③：**同一把刀**（全仓唯一遮蔽器 —— 不新增第二份）
 import { createHash } from 'node:crypto';
 import { pathToFileURL } from 'node:url';
-import { PROBES } from './probes.mjs';
+import { PROBES, SUSPENDED_PROBES } from './probes.mjs';   // ★`#1661`：暂缓名单 —— ★与 `probe-gates` 的 `selected` **同口径** ✓
 // `#1261` 甲（台账侧）：**不进 CI 运行（挂起）**的段/探针在台账里**单列**，既不报「未接线但没写理由」，
 // 也不算「未探」—— 它们是「对象在、样本暂缺」的可见状态（各带 why/until）。
 import { SUSPENDED } from './test-plan.mjs';   // `#908` ①：探针清单（**直接读数** —— 与「自证」那一格的**代理**分家）
@@ -154,9 +154,11 @@ export const formOf = ({ selfProof = false, form } = {}) => form ?? (selfProof ?
  * ## 两种原因**必须分开报**：`stale`＝有读数但 `targetSha` 不符；`missing`＝本档应有的没记。
  * @returns {{stale: string[], missing: string[], required: number}}
  */
-export const probeFreshnessProblems = ({ probes = [], records = [], mode = null, targetShaOf = () => null, sha = (x) => x } = {}) => {
+export const probeFreshnessProblems = ({ probes = [], records = [], mode = null, suspended = new Set(), targetShaOf = () => null, sha = (x) => x } = {}) => {
 	// 本档应覆盖哪些探针（`full` → 全集；其它 → 非 `full` 档的那些）
-	const required = probes.filter((p) => (mode === 'full' ? true : p.tier !== 'full'));
+	// ★`#1661`：**再减去「临时暂缓」的** —— ★与 `probe-gates.mjs` 的 `selected`（同样滤掉 `suspProbeIds`）**同口径** ✓
+	//   ★不滤的后果（实测）：★5 条按 `#1163` 暂缓 ⇒ 跑过 `--probe=fast` 的机器记录**必缺这 5 条** ⇒ strict `--check` **恒 rc=2**（假红 ✗）
+	const required = probes.filter((p) => (mode === 'full' ? true : p.tier !== 'full')).filter((p) => !suspended.has(p.id));
 	const stale = [], missing = [];
 	for (const p of required) {
 		const r = records.find((x) => x.id === p.id);
@@ -594,6 +596,12 @@ const selftest = () => {
 	// 否则会**抹平整面探针列** ＋ **报错原因还是错的**（说"陈旧"，真实是"不覆盖档位"）。
 	h('🔴 `probeFreshnessProblems`：**档位范围**——`mode=fast` 的记录**不要求** `full` 档探针 ⇒ 缺它**不算缺件** ✓',
 		(() => { const r = probeFreshnessProblems({ probes: [{ id: 'a', tier: 'fast', mutation: { file: 'f' } }, { id: 'b', tier: 'full', mutation: { file: 'g' } }], records: [{ id: 'a', targetSha: 'X' }], mode: 'fast', targetShaOf: () => 'now', sha: () => 'X' }); return r.missing.length === 0 && r.required === 1; })());
+	// ★ `#1661`：**暂缓面与「应有」口径必须一致**（★实测：运行器排除、检查却全要 ⇒ 有读数的机器恒 rc=2 ⇒ 假红 ✗）
+	h('🔴 `probeFreshnessProblems`：**临时暂缓**的探针**不计入「应有」**（与 `probe-gates` 的 `selected` 同口径 ✓）',
+		(() => { const r = probeFreshnessProblems({ probes: [{ id: 'a', tier: 'fast', mutation: { file: 'f' } }, { id: 'b', tier: 'fast', mutation: { file: 'g' } }], records: [], mode: 'fast', suspended: new Set(['b']) }); return r.required === 1 && r.missing.length === 1 && r.missing[0] === 'a'; })());
+	// ★反格（成对）：★**未暂缓**的缺件**照旧**记 `missing` —— ✗ 不许被上一条顺手吞掉（那会把整面探针放过 ✓）
+	h('🔴 `probeFreshnessProblems`：**未暂缓**的缺件**照旧** `missing`（✗ 上一条不许吞 ✓）',
+		(() => { const r = probeFreshnessProblems({ probes: [{ id: 'a', tier: 'fast', mutation: { file: 'f' } }, { id: 'b', tier: 'fast', mutation: { file: 'g' } }], records: [{ id: 'a' }], mode: 'fast', suspended: new Set(['b']) }); return r.required === 1 && r.missing.length === 0 && r.stale.length === 0; })());
 	h('`probeFreshnessProblems`：`mode=full` ⇒ **要求全集** ⇒ 缺 `full` 档那条 ⇒ 记 `missing` ✓（同一条探针、两种档位两种判 ✓）',
 		(() => { const probes = [{ id: 'a', tier: 'fast', mutation: { file: 'f' } }, { id: 'b', tier: 'full', mutation: { file: 'g' } }]; const r = probeFreshnessProblems({ probes, records: [{ id: 'a', targetSha: 'X' }], mode: 'full', targetShaOf: () => 'now', sha: () => 'X' }); return r.missing.length === 1 && r.missing[0] === 'b' && r.required === 2; })());
 	//注意：**边界：只抹"探针面"** —— 其余面（行集合/形态/自证/接线/理由）**照旧严格**
@@ -756,7 +764,7 @@ const main = () => {
 		//注意：③ 必须**视作①**（抹平 ＋ 指名打印）—— 拿旧读数当「现状」→ **假红**
 		//（开发机撞过：同一棵树、同一命令，只差一个陈旧本地产物 → 结论相反）
 		const fresh = probeFreshnessProblems({
-			probes: PROBES, records: recs, mode: recMode,
+			probes: PROBES, records: recs, mode: recMode, suspended: new Set(Object.keys(SUSPENDED_PROBES)),
 			targetShaOf: (p) => (p.mutation?.file ? readFileSync(p.mutation.file, 'utf8') : null), sha: sha16,
 		});
 		const incomplete = recs.length > 0 && (fresh.stale.length > 0 || fresh.missing.length > 0);

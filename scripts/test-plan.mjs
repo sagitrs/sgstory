@@ -63,7 +63,21 @@ export const FULL_REASONS = {
 	'scripts-report-selftest-validity-mjs': '`#1353` 阶段一（PR 档减压）：自证有效性扫描：元判据，随「自证」整体变化才需重看。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。',
 	// `#1261`：`test-witness-trace`（P4 见证件）随其样本下架 -> 段与理由块同删（留痕见下架台账）。
 	'scripts-audit-mjs-facade-call-check': '`#1445`：判**引擎侧代码结构**（门面调用面）—— 全仓扫描 ＋ 自证 ⇒ 非 PM 档必需（PR 档可省，随 full 跑；见 `#1437` 分家伞）',
+	// ★ `#1642`（Operator 动机「合入 PR 等待太久」· 协调席裁 A）：**PR 档减压（一）—— 溶解概念 10 段**
+	//   ★判据：这些段**对应的概念近期会溶解** ⇒ 不值得占 PR 档；★**保护不丢**（full 档仍跑）
+	//   ★**✗ 现在删** —— 判据随对象退役 ⇒ 与溶解笔**同笔**删（✗ 早删＝过渡期失保护）
+	'test-fight-seq-mjs': '`#1642` PR 档减压（一）：旧战斗序列对照门（`#493`）—— 对象（旧战斗面）**近期溶解** ⇒ 不占 PR 档；★full 档仍跑 ⇒ 溶解笔同笔删 ✓',
+	'test-note-grant-mjs': '`#1642` PR 档减压（一）：笔记授予运行时面 —— 笔记概念**近期溶解** ⇒ 不占 PR 档；★full 档仍跑 ✓',
+	'test-combat-adv-mjs': '`#1642` PR 档减压（一）：战斗优势门 —— 战斗面**近期溶解** ⇒ 不占 PR 档；★full 档仍跑 ✓',
+	'test-chargen-lazy-e2e-mjs': '`#1642` PR 档减压（一）：车卡懒求值端到端 —— 车卡面**近期溶解** ⇒ 不占 PR 档；★full 档仍跑 ✓',
+	'test-fightpanel-turns-e2e-mjs': '`#1642` PR 档减压（一）：战斗收尾时机端到端 —— 战斗面**近期溶解** ⇒ 不占 PR 档；★full 档仍跑 ✓',
+	'test-fight-keys-e2e-mjs': '`#1642` PR 档减压（一）：战斗结果维端到端 —— 战斗面**近期溶解** ⇒ 不占 PR 档；★full 档仍跑 ✓',
+	'test-fruit-demo-cases-mjs': '`#1642` PR 档减压（一）：fruit-demo 固化件（`#1609`）—— 其对象**待 M5 语料面定案** ⇒ 不占 PR 档；★full 档仍跑 ✓',
+	'test-fruit-demo-cases-mjs-selftest': '`#1642` PR 档减压（一）：上段的判据自证面 ⇒ **随主段同档**（✗ 主段夜里跑、自证在 PR 跑＝自证与对象不同档）✓',
+	'test-choice-keys-mjs': '`#1642` PR 档减压（一）：导航键面（`#761` 窄口族）—— 与溶解面同批 ⇒ 不占 PR 档；★full 档仍跑 ✓',
+	'test-chargen-shape-mjs': '`#1642` PR 档减压（一）：车卡形状门 —— 车卡面**近期溶解** ⇒ 不占 PR 档；★full 档仍跑 ✓',
 };
+
 
 export const SEGMENTS = [
 	// `#1261` 复核：`test-attribution-gate` 守**人类面去权威化纪律**（对象活过 M1b → 保留，非下架）
@@ -71,7 +85,7 @@ export const SEGMENTS = [
 	// ★ `#1504`（`#1498` 修甲）：browser 的 `--selftest` **进程内即可跑**（✗ 不需 Chrome）
 	//   ★为什么必须成段（写作者的 CR）：`#1498` 补的两格**写了却不跑** ⇒ ✗ 必须**接上**（判定函数对 ≠ 早退走它）✓
 	{ id: "test-browser-mjs-selftest", phase: 'test', cost: 0, cmd: "node test/browser.mjs --selftest" },
-	{ id: "test-note-grant-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/note-grant.mjs" },
+	{ id: "test-note-grant-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/note-grant.mjs" , tier: 'full' },
 	{ id: "test-attribution-gate-mjs", phase: 'test', cost: 0.1, cmd: "node test/attribution-gate.mjs" },
 	// `#1261` 甲：恢复并挂起（对象＝通用机制，样本暂缺）
 	{ id: "test-dialect-mjs", phase: 'test', cost: 0.1, cmd: "node test/dialect.mjs" },
@@ -93,9 +107,9 @@ export const SEGMENTS = [
 	{ id: "test-chargen-macros-mjs", phase: 'test', cost: 0.5, inputs: ['*'], cmd: "node test/chargen-macros.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	// `#1353` 批 2（接夹具）：接夹具根 ⇒ **撤挂真跑**（判据本体一字未改；只改「车卡引导」装置走公共 `harness.newGame`）
-	{ id: "test-choice-keys-mjs", phase: 'test', cost: 9, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node test/choice-keys.mjs" },
+	{ id: "test-choice-keys-mjs", phase: 'test', cost: 9, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node test/choice-keys.mjs" , tier: 'full' },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
-		{ id: "test-combat-adv-mjs", phase: 'test', cost: 15.6, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-combat-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-combat-fixture/stories node test/combat-adv.mjs" },   // `#1353` 乙组：先 build 夹具再跑（⇒ exclusive，照 block-args/hp-nan 先例）
+		{ id: "test-combat-adv-mjs", phase: 'test', cost: 15.6, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-combat-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-combat-fixture/stories node test/combat-adv.mjs" , tier: 'full' },   // `#1353` 乙组：先 build 夹具再跑（⇒ exclusive，照 block-args/hp-nan 先例）
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-comment-mask-mjs", phase: 'test', cost: 0, inputs: ['*'], cmd: "node test/comment-mask.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
@@ -105,7 +119,7 @@ export const SEGMENTS = [
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-coverage-mjs", phase: 'test', cost: 0, needs: ['test-render-all-mjs'], cmd: "node test/coverage.mjs" },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
-	{ id: "test-fight-seq-mjs", phase: 'test', cost: 22, cmd: "node test/fight-seq.mjs" },
+	{ id: "test-fight-seq-mjs", phase: 'test', cost: 22, cmd: "node test/fight-seq.mjs" , tier: 'full' },
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	{ id: "test-focus-after-nav-mjs", phase: 'test', cost: 1, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node test/focus-after-nav.mjs" },   // `#1315` 乙批：先 build 夹具再跑（⇒ exclusive，照 block-args/hp-nan 先例）
 	// `#1353` ③（丙组）：对象＝旧 demo 剧情支路（跨时代合龙门／一次性拾取）⇒ 最小化后无对象 ⇒ **下架删除**（同笔关 `#1074`／`#1076`）
@@ -122,7 +136,7 @@ export const SEGMENTS = [
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 		{ id: "test-properties-mjs", phase: 'test', cost: 5.6, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-hp-e2e/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-hp-e2e/stories node test/properties.mjs" },   // `#1353` 乙组：先 build 夹具再跑（⇒ **exclusive**，照 block-args/hp-nan 先例 ✓）
 		{ id: "test-locations-adv-mjs", phase: 'test', cost: 1, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-items-adv-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-items-adv-fixture/stories node test/locations-adv.mjs" },   // `#1353` 乙组：先 build 夹具再跑（⇒ **exclusive**，照 block-args/hp-nan 先例 ✓）
-		{ id: "test-chargen-shape-mjs", phase: 'test', cost: 1, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node test/chargen-shape.mjs" },   // `#1353` 乙组：车卡面（`#1418` 修后接夹具根 ⇒ 先 build 再跑，照同组两段形态）
+		{ id: "test-chargen-shape-mjs", phase: 'test', cost: 1, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-chargen-fixture/stories node test/chargen-shape.mjs" , tier: 'full' },   // `#1353` 乙组：车卡面（`#1418` 修后接夹具根 ⇒ 先 build 再跑，照同组两段形态）
 	// `#1261` 甲：恢复段定义并挂起（对象在、样本暂缺；见 SUSPENDED 表）
 	// `#1353` 批 2（接夹具）：同上（接夹具根 ⇒ 撤挂；车卡引导改走 `harness.newGame`）
 	{ id: "test-render-all-mjs", phase: 'test', cost: 8.9, exclusive: true, mutates: ['build'], cmd: "SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node build.mjs >/dev/null && SG_STORIES_DIR=test/fixtures/m3-nav-fixture/stories node test/render-all.mjs" },
@@ -204,19 +218,19 @@ export const SEGMENTS = [
 	// `#1468`（`#1472` 新件）：规则行效果时机端到端（自建夹具根 ⇒ exclusive ✓）
 	{ id: "test-rulelist-effects-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/rulelist-effects-e2e.mjs" },
 	// `#1418`：chargen 惰性安装端到端（自建夹具根 ＋ build ⇒ exclusive，照同族先例 ✓）
-	{ id: "test-chargen-lazy-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/chargen-lazy-e2e.mjs" },
+	{ id: "test-chargen-lazy-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/chargen-lazy-e2e.mjs" , tier: 'full' },
 	// `#1409`：hp-NaN 端到端（自建故事根 ＋ build ⇒ 需 exclusive，照 block-args 先例 ✓）
 	{ id: "test-hp-nan-e2e-mjs", phase: 'test', cost: 25, exclusive: true, mutates: ['build'], cmd: "node test/hp-nan-e2e.mjs" },
 	// `#1426`：战斗收尾时机端到端（自建夹具根 ⇒ exclusive，照同族先例 ✓）
-	{ id: "test-fightpanel-turns-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/fightpanel-turns-e2e.mjs" },
+	{ id: "test-fightpanel-turns-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/fightpanel-turns-e2e.mjs" , tier: 'full' },
 	// `#1413`：`fight:` 结果维端到端（**自建故事根** ⇒ exclusive，照同族先例 ✓）
-	{ id: "test-fight-keys-e2e-mjs", phase: 'test', cost: 15, exclusive: true, mutates: ['build'], cmd: "node test/fight-keys-e2e.mjs" },
+	{ id: "test-fight-keys-e2e-mjs", phase: 'test', cost: 15, exclusive: true, mutates: ['build'], cmd: "node test/fight-keys-e2e.mjs" , tier: 'full' },
 	{ id: "test-passages-assemble-mjs-selftest", phase: 'test', cost: 0.1, inputs: ['*'],   // `#1114` 全跑型（纯函数注入段——无 fs 面；`#1093` 裁定 5756510512 ①）
 		cmd: "node test/passages-assemble.mjs --selftest" },
 	{ id: "test-docs-read-path-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/docs-read-path.mjs --selftest" },
 	{ id: "test-docs-classification-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/docs-classification.mjs --selftest" },
-	{ id: "test-fruit-demo-cases-mjs", phase: 'test', cost: 12, cmd: "node test/fruit-demo-cases.mjs" },   // ★`#1609`：用例套**接线**（自持 story ＋ 真 case-run ＋ 能假刀）
-	{ id: "test-fruit-demo-cases-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/fruit-demo-cases.mjs --selftest" },
+	{ id: "test-fruit-demo-cases-mjs", phase: 'test', cost: 12, cmd: "node test/fruit-demo-cases.mjs" , tier: 'full' },   // ★`#1609`：用例套**接线**（自持 story ＋ 真 case-run ＋ 能假刀）
+	{ id: "test-fruit-demo-cases-mjs-selftest", phase: 'test', cost: 0.1, cmd: "node test/fruit-demo-cases.mjs --selftest" , tier: 'full' },
 	// `#1043`：散文正文的**词汇门** —— 内容故事（`audience: content`）的正文只许"散文／链接／payload 标记／
 	// 引擎已宣告的词汇宏"；禁 SugarCube 逻辑/表达式宏与未宣告宏（甲-1 的防退化保证）。内部件豁免（打印计数）。
 	// 车道 D 切片 3（`#215` 报备 `18502113`）：**键级图的显示层**（jsdom，无宿主副作用 → cost 0.4）。

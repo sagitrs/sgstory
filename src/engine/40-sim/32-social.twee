@@ -127,7 +127,10 @@ Object.assign((window.Game.Social ??= {}), {
 	/** 落账：成功/失败各自的代价（2024 的态度与重试规则）。 */
 	settle(a, pc, site, kind) {
 		const skill = (window.Sg?.story?.checkSite?.(site) ?? {}).skill ?? '';
-		const ap = this.socialApproaches()[skill] ?? {};
+		// ★ `#1625`：★**先取整张表再下标**（`const apAll = …; apAll[skill]`）—— ✗ 不再链式直调
+		//   （绕门面直调是"摘出声明宿主时唯一会咬人的读点" ⇒ 本地化后**分家无需改这里** ✓）
+		const apAll = this.socialApproaches();
+		const ap = apAll[skill] ?? {};
 		if (!pc.soc) pc.soc = { att: {}, tries: {}, read: {} };
 		if (kind === 'crit' || kind === 'ok') {
 			if (ap.read) { if (!pc.soc.read) pc.soc.read = {}; pc.soc.read[a.npc] = true; }

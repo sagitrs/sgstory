@@ -233,7 +233,11 @@ export const renderLinksOf = ({ name, links = [], present = null }) => {
 		else tail.push({ text: html });
 	}
 	const macro = String(present ?? '') === '菜单' ? 'rulelist' : 'rules';
-	return { inline, tailBlock: tail.length ? `<<${macro} "${name}">>` : '' };
+	// ★★ `#1572`（阶 4）**"无可见出边 ⇒ 具名"的数据面**（★判据要精 ✗ 不是"段里没链接" ✓）：
+	//   ★本段**声明了**几条链接 ⇒ ★打一个**隐藏 DOM 标记** ⇒ ★运行期（`:passagerender`）据此判
+	//   ★「声明了 N>0 条，却**一条都不可见**」⇒ ★点名（★结局段声明 0 条 ⇒ ✗ 不报 ✓）
+	const marker = `<span data-sg-links-declared="${links.filter((l) => l && typeof l === 'object' && String(l.label ?? '').trim() && String(l.to ?? '').trim()).length}" hidden></span>`;
+	return { inline, tailBlock: (tail.length ? `<<${macro} "${name}">>` : '') + marker };
 };
 
 /** 主拼装：一批 md 段 → 一份 twee 文本（含 front-matter 元数据行）。 */

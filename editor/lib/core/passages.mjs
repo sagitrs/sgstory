@@ -354,6 +354,15 @@ export const duplicateSourceProblems = ({ passages = [], data = null } = {}) => 
 	return out;
 };
 
+/** ★ `#1574`（阶 3b）：**段级 `reroll` 的唯一判据**（★三处调用点共用 ⇒ ✗ 各写一份必漂移 ✓）。
+ *  ★口径：★**两来源任一给了就算**（md 前言 ／ `data/passages.json`）—— ★因为 `<<sitecheck>>` 调用**在 body 里**
+ *  ⇒ ★段级声明会**改变 body** ⇒ ★两条来源**必须同源**（✗ 只写数据面 ⇒ 等价性门红 ✗，实测）。
+ *  ★形：★数据面是 `true`（boolean）／★前言是 `"true"`（**字符串** —— `parseFrontMatter` 只给字符串 ✓）⇒ 两形都认 ✓。 */
+export const rerollDeclared = (meta, dseg) => {
+	const one = (x) => x === true || String(x ?? '').trim() === 'true';
+	return one(meta && meta.reroll) || one(dseg && dseg.reroll);
+};
+
 export const applyPassageTransforms = ({ name, body, terms = new Set(), params = {}, slots = [], args = null, links = [], present = null, ending = null, check = null, fight = null, reroll = false }) => {
 	const { body: expandedRaw, problems } = valueRefExpand({ name, body, terms, params, slot: null, slots, args });
 	const rl = renderLinksOf({ name, links, present });
@@ -384,7 +393,9 @@ export const applyPassageTransforms = ({ name, body, terms = new Set(), params =
 			// ★ 转义走**模块级唯一口**（`escapeMacroArg`）—— ✗ 不在此内联一份（评审 NIT-1：注释说"同一个口"而代码两份 ✗）
 			// ★ `#1574`（阶 3b）：段级 `reroll` ⇒ ★把"重掷"随**生成的调用**带下去（★单一生成点 ⇒ ✗ 不会漂 ✓）
 			//   ★`$args[2]` 取 `"reroll"` 即重掷；★缺省（空串）⇒ **复用** ✓
-			expanded = `<<sitecheck "${escapeMacroArg(check)}" "" "${reroll ? 'reroll' : ''}">><<snapshot>>\n${expanded}`;
+			// ★★(实测) ✗ **不能传空串占位** —— SugarCube 会把它当“缺席”⇒ **后面的参数整条不见** ✗
+			//   ⇒ 改非空占位 `"-"`（★widget 侧把 `"-"` 译回 `null` ✓）
+			expanded = `<<sitecheck "${escapeMacroArg(check)}" "-" "${reroll ? 'reroll' : ''}">><<snapshot>>\n${expanded}`;
 		}
 	}
 	// ★ `#1506`：段级字段 **`fight`** —— 「这一段入口是一场战斗」（原散文写法 `<<fightbegin "池">>\n<<fightlog>>\n`
@@ -463,10 +474,7 @@ export const assemblePassages = ({ passages, known, forbidden = new Set(), terms
 		//   本段的合法占位名＝**段级 slot ∪ 本段各链接的 slot**（两种写法都认 ⇒ 与作者面一致 ✓）。
 		const dseg = (data && typeof data === 'object' ? data[p.name] : null) ?? {};
 		// ★ `#1574`：★段级 `reroll` 可**任一侧**声明（md 前言／数据面）—— ★两路径生成**同一 body** ⇒ 等价性门不红 ✓
-		// ★★(实测) md 前言的值是**字符串**（`reroll: true` ⇒ `"true"`）⇒ ✗ 不能用 `=== true` 比 ✗
-		//   ★故两来源都按"**真值形**"判：`true`（数据面 boolean）／`"true"`（前言字符串）✓
-		const truthy = (x) => x === true || String(x).trim() === 'true';
-		const segReroll = truthy(p.meta && p.meta.reroll) || truthy(dseg.reroll);
+		const segReroll = rerollDeclared(p.meta, dseg);
 		const linkSlots = (Array.isArray(dseg.links) ? dseg.links : []).map((l) => l && l.slot).filter(Boolean);
 		// ★ 片 3：**必填的“给了值”要按“调用处”算** —— 目标段的入参由**指向它的链接**的 `args` 提供
 		//（靶里就是：`门厅.推门` 与 `侧厅.左门` 两条 `args:{提醒:"别进屋"}`）

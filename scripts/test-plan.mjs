@@ -209,6 +209,8 @@ export const SEGMENTS = [
 	{ id: "test-block-args-e2e-mjs", phase: 'test', cost: 40, exclusive: true, mutates: ['build'], cmd: "node test/block-args-e2e.mjs" },
 	// `#1466`：声明式算术效果（adds）端到端（自建夹具根 ⇒ exclusive ✓）
 	{ id: "test-adds-e2e-mjs", phase: 'test', cost: 20, exclusive: true, mutates: ['build'], cmd: "node test/adds-e2e.mjs" },
+	// ★`#1574`（阶 3b）：★段级 `check` 的重入语义（`reroll` 显式 ¦ 默认复用）—— ★`exclusive`（它**要 build** ✓）
+	{ id: "test-reroll-mjs", phase: 'test', cost: 25, exclusive: true, mutates: ['build'], cmd: "node test/reroll.mjs" },
 	// `#1570`：段散文**数据面来源**的自证（★等价性＝同一故事两副本只改载体 ⇒ 比产物；来源撞车 ⇒ 编译期点名）
 	{ id: "test-inline-prose-e2e-mjs", phase: 'test', cost: 5, exclusive: true, mutates: ['build'], cmd: "node test/inline-prose-e2e.mjs" },
 	// `#1471`：库存移除（takes）端到端（自建夹具根 ⇒ exclusive ✓）
@@ -764,7 +766,7 @@ export const SUITE_MEMBERS = {
 		'test-block-args-e2e-mjs', 'test-hp-nan-e2e-mjs', 'test-fightpanel-turns-e2e-mjs', 'test-passages-assemble-mjs-selftest',
 		'test-audit-gates-run-mjs', 'test-fight-keys-e2e-mjs', 'scripts-clean-net-mjs-selftest', 'scripts-precommit-check-mjs-selftest',
 		'scripts-lint-new-segment-mjs-selftest', 'test-coverage-mjs', 'test-gate-discovery-mjs', 'test-plan-needs-mjs',
-		'test-attribution-gate-mjs-selftest', 'test-browser-mjs-selftest', 'test-attribution-gate-mjs', 'test-chargen-lazy-e2e-mjs', 'test-adds-e2e-mjs', 'test-rulelist-effects-e2e-mjs', 'test-takes-e2e-mjs', 'test-pc-prefix-e2e-mjs', 'test-note-grant-mjs', 'test-inline-prose-e2e-mjs', 'test-event-expr-mjs'
+		'test-attribution-gate-mjs-selftest', 'test-browser-mjs-selftest', 'test-attribution-gate-mjs', 'test-chargen-lazy-e2e-mjs', 'test-adds-e2e-mjs', 'test-reroll-mjs', 'test-rulelist-effects-e2e-mjs', 'test-takes-e2e-mjs', 'test-pc-prefix-e2e-mjs', 'test-note-grant-mjs', 'test-inline-prose-e2e-mjs', 'test-event-expr-mjs'
 	],
 };
 

@@ -6,7 +6,7 @@ import * as _crypto from 'node:crypto';   // 输入指纹（sha256）
 import vm from 'node:vm';   // `#1176`：生成件脚本段的解析器（只解析不执行）
 import { join, dirname, relative, isAbsolute } from 'node:path';
 import { scopedFiles, checkRegistration, isStoryPassageMd } from './scripts/module-order.mjs';
-import { valueRefExpand, renderLinksOf, applyPassageTransforms, parseFrontMatter, parseMdPassages, parseTweePassages, assemblePassages, FORBIDDEN_BUILTINS, duplicateProblems } from './editor/lib/core/passages.mjs';
+import { valueRefExpand, renderLinksOf, applyPassageTransforms, parseFrontMatter, parseMdPassages, parseTweePassages, assemblePassages, rerollDeclared, FORBIDDEN_BUILTINS, duplicateProblems } from './editor/lib/core/passages.mjs';
 import { scriptSyntaxProblems } from './editor/lib/core/segment-syntax.mjs';
 import { generatedFamilyProblems, isGeneratedFamily } from './editor/lib/core/generated-family.mjs';   // `#1350`：指纹写入也要用   // `#1185` // `#1176`
 import { valueTerms, engineLabels } from './editor/lib/core/vocab.mjs';
@@ -241,7 +241,8 @@ const assembleOne = (slug, f, known) => {
 	if (!name) { console.error(`✗ ${f}：front-matter 缺 \`passage\`（段名权威在本字段 ✓）`); process.exit(1); }
 	//注意：`#1114` 2b-2b：**twee 路径剥注释、md 路径也要剥** —— 否则 `/% … %/` 原样入 dist
 	//（本函数上方的 `stripTweeComments` 注释就写着这条）→ 实测：PRE 0/34 → POST 23/34 且 body 变长。
-	return assemblePassage(slug, { name, tags: p0.tags ?? [], body: stripTweeComments(p0.body), path: f }, known);
+	// ★ `#1574`：★段对象必须带上 `meta` —— ✗ 只传 name/tags/body 会把前言的段级声明（如 `reroll`）**丢掉** ✗（实测：刀不通）
+	return assemblePassage(slug, { name, tags: p0.tags ?? [], body: stripTweeComments(p0.body), meta: p0.meta ?? null, path: f }, known);
 };
 const mergedOf = (s) => {
 	const scoped = scopedFiles(s);
@@ -353,7 +354,9 @@ for (const s of stories) {
 				params: dseg.params ?? {}, slots: [dseg.slot, ...linkSlots].filter(Boolean),
 				args: (dseg.args && typeof dseg.args === 'object') ? dseg.args : inbound,
 				links: dseg.links ?? [], present: dseg.present ?? null, ending: dseg.ending ?? null,
-				check: dseg.check ?? null, fight: dseg.fight ?? null });
+				check: dseg.check ?? null, fight: dseg.fight ?? null,
+				// ★ `#1574`：★期望面也必须带 `reroll` —— ✗ 否则【产物 body】与【期望 body】不等 ⇒ **等价性门红** ✗（实测）
+				reroll: rerollDeclared(p0.meta, dseg) });
 			const body2 = tr.body;
 			want = String(body2).trimEnd();
 		} catch { /* 无段落数据 ⇒ 退回"逐字"口径（旧行为逐字不变 ✓） */ }

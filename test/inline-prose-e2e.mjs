@@ -21,7 +21,7 @@
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { execFileSync } from 'node:child_process';
-import { mkdtempSync, rmSync, cpSync, readFileSync, writeFileSync, mkdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, cpSync, readFileSync, writeFileSync, mkdirSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -52,8 +52,11 @@ const sectionsOf = (twee) => {
 };
 
 // ---- ① / ③ / ④：两侧各 build 一次，比产物 ----
-const atwee = (() => { const r = buildSide(join(FX, 'a/stories')); t('④-a a 侧（md 载体）build ⇒ rc=0', r.rc === 0, r.out.slice(0, 200)); return readFileSync(join(ROOT, 'build/game.twee'), 'utf8'); })();
-const btwee = (() => { const r = buildSide(join(FX, 'b/stories')); t('④-b b 侧（数据面载体、**无 `passages/` 目录**）build ⇒ rc=0', r.rc === 0, r.out.slice(0, 300)); return readFileSync(join(ROOT, 'build/game.twee'), 'utf8'); })();
+// ★ `#1643` CR：★产物来源由 `build/game.twee`（已改为**进程独有暂存** ⇒ ✗ 不再存在）改为
+//   **逐故事**稳定的 `build/game-<slug>.twee` ✓ —— ★并**加存在断言**（✗ 不无条件 readFileSync ⇒ 否则 ENOENT 掩盖病因 ✓）。
+const tweeOf = () => join(ROOT, 'build', `game-${SLUG}.twee`);
+const atwee = (() => { const r = buildSide(join(FX, 'a/stories')); t('④-a a 侧（md 载体）build ⇒ rc=0', r.rc === 0, r.out.slice(0, 200)); const p = tweeOf(); t('④-a 产物在场：`build/game-<slug>.twee` 存在', existsSync(p), p); return readFileSync(p, 'utf8'); })();
+const btwee = (() => { const r = buildSide(join(FX, 'b/stories')); t('④-b b 侧（数据面载体、**无 `passages/` 目录**）build ⇒ rc=0', r.rc === 0, r.out.slice(0, 300)); const p = tweeOf(); t('④-b 产物在场：`build/game-<slug>.twee` 存在', existsSync(p), p); return readFileSync(p, 'utf8'); })();
 const A = sectionsOf(atwee), B = sectionsOf(btwee);
 const da = new Map(A.map((s) => [s.name, s.text])), db = new Map(B.map((s) => [s.name, s.text]));
 const diffNames = [...da.keys()].filter((n) => db.has(n) && da.get(n) !== db.get(n));

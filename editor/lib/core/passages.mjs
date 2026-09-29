@@ -358,6 +358,15 @@ export const duplicateSourceProblems = ({ passages = [], data = null } = {}) => 
  *  ★口径：★**两来源任一给了就算**（md 前言 ／ `data/passages.json`）—— ★因为 `<<sitecheck>>` 调用**在 body 里**
  *  ⇒ ★段级声明会**改变 body** ⇒ ★两条来源**必须同源**（✗ 只写数据面 ⇒ 等价性门红 ✗，实测）。
  *  ★形：★数据面是 `true`（boolean）／★前言是 `"true"`（**字符串** —— `parseFrontMatter` 只给字符串 ✓）⇒ 两形都认 ✓。 */
+/** ★ `#1574`（阶 3b）：★**段级 `check` 生成的宏调用 = 唯一真源**（生成点与自证共用 ⇒ ✗ 不会漂 ✓）。
+ *  ★形：`<<sitecheck "<站点>" "-" "<reroll ? 'reroll' : ''>">><<snapshot>>`
+ *  ★两个新参的**理由**（都实测过）：
+ *    · `"-"` ⇒ ★**非空占位** —— ✗ 用 `""` 会被 SugarCube 当"缺席"丢掉 ⇒ **它后面的参数整条不见** ✗
+ *    · 第三参 `"reroll"` ⇒ ★把段级声明带给运行期（★位置无关读法 ⇒ ✗ 不靠 `$args[2]` ✓）
+ *  ★站点名走 `escapeMacroArg`（模块级唯一口 ✓ —— ✗ 不在此内联一份 ✓）。 */
+export const sitecheckCall = (site, reroll = false) =>
+	`<<sitecheck "${escapeMacroArg(site)}" "-" "${reroll ? 'reroll' : ''}">><<snapshot>>`;
+
 export const rerollDeclared = (meta, dseg) => {
 	const one = (x) => x === true || String(x ?? '').trim() === 'true';
 	return one(meta && meta.reroll) || one(dseg && dseg.reroll);
@@ -395,7 +404,7 @@ export const applyPassageTransforms = ({ name, body, terms = new Set(), params =
 			//   ★`$args[2]` 取 `"reroll"` 即重掷；★缺省（空串）⇒ **复用** ✓
 			// ★★(实测) ✗ **不能传空串占位** —— SugarCube 会把它当“缺席”⇒ **后面的参数整条不见** ✗
 			//   ⇒ 改非空占位 `"-"`（★widget 侧把 `"-"` 译回 `null` ✓）
-			expanded = `<<sitecheck "${escapeMacroArg(check)}" "-" "${reroll ? 'reroll' : ''}">><<snapshot>>\n${expanded}`;
+			expanded = sitecheckCall(check, reroll) + '\n' + expanded;
 		}
 	}
 	// ★ `#1506`：段级字段 **`fight`** —— 「这一段入口是一场战斗」（原散文写法 `<<fightbegin "池">>\n<<fightlog>>\n`

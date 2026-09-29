@@ -50,7 +50,7 @@
 | `audit:text` | audit 开关 | 行为化 | ✅ | — | — | ✅ | — | 文本载荷门（**有判定**：载荷阈值）——此前台账误标「仅登记」，由形态对账查出并改正；自证待补（密度 ratchet 在 --craft，本门是自己的载荷线） |
 | `audit:waves` | audit 开关 | 行为化 | ✅ | — | — | ✅ | — |  |
 | `scripts/report-gate-ledger.mjs` | 报告脚本 | 行为化 | ✅ | ✅ | ✅ | — | — | 本文件自身的自检（台账不腐），已入 npm test |
-| `scripts/report-ledger-freshness.mjs` | 报告脚本 | 行为化 | ✅ | — | — | — | — | **离线段已入 npm test**（`--ledger --check`：#297 对标台账行级新鲜度——行数栅栏/复核日期在期/触发条件非空/落点引用的门旗标与文件真实存在，7 例自证）；**网络段仍需 token**（#NNN 标记与 GitHub 真实状态一致），不塞主链路，由 `npm run report:freshness:check` 人工/定时跑 |
+| `scripts/report-ledger-freshness.mjs` | 报告脚本 | 行为化 | ✅ | — | — | — | — | **引用面（网络段）已入 npm test**：`--check` 核对文档里 `#NNN` 标记与 GitHub 真实状态（离线自证 **5** 例）；★`#1606` 执行笔 Step C：★**F6 竞品侧对标台账那一半已随件退** —— `judgeBenchmarkLedger` ＋ 其 **7 例自证** ＋ `runLedger`／`--ledger` 模式 ＋ 段（`…-ledger-check`）**一并删除** ✓（★门先退、件后删 ✓） |
 | `scripts/report-selftest-validity.mjs` | 报告脚本 | 行为化 | ✅ | — | — | ✅ | — | **已入 npm test**（#474 接线）：静态扫描 `自证·` 是否「失败计入退出码」＋ 自增量是否「不崩」（TDZ/未声明）。接线前修掉剥离器**配对错位**（四条正则顺序剥 ⇒ 跨行贪婪吞代码 ⇒ `counters` 空 ⇒ 假阳性；**顺序治不了** ⇒ 改单扫描器按 JS 词法一次遮蔽注释/字符串/模板/正则，未闭合保守剥＋报诊断）。自证 18 例（V1×8＋V2×10），探针：删某门 `process.exit(1)` ⇒ 必报、退 1 |
 | `test/actor-target.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |
 | `test/adds-e2e.mjs` | 测试脚本 | 行为化（缺自证） | — | — | — | ✅ | — |  |

@@ -47,7 +47,7 @@ export const REASONS = {
 	'audit:canon': { form: '行为化', reason: '禁词/回流扫描：表格解析/§10 行覆盖/守林人代词/§9 双读（含 `allow` 白名单与 `/% %/` 剥注释）/§3.9 传说投放，**自证 6 例**（#342 第 8 波）' },
 	'audit:sel': { wired: true, reason: '接线说明：--sel 只是 --nosl＋--gear 的便捷别名，链上跑的是更具体的两个 flag，故没有单独的 --sel --check（**形态是有判定的门**，此前台账误标「仅登记」，已由形态对账改正）' },
 	// ── 报告脚本（id 形如 scripts/<file>）──
-	'scripts/report-ledger-freshness.mjs': { form: '行为化', reason: '**离线段已入 npm test**（`--ledger --check`：#297 对标台账行级新鲜度——行数栅栏/复核日期在期/触发条件非空/落点引用的门旗标与文件真实存在，7 例自证）；**网络段仍需 token**（#NNN 标记与 GitHub 真实状态一致），不塞主链路，由 `npm run report:freshness:check` 人工/定时跑' },
+	'scripts/report-ledger-freshness.mjs': { form: '行为化', reason: '**引用面（网络段）已入 npm test**：`--check` 核对文档里 `#NNN` 标记与 GitHub 真实状态（离线自证 **5** 例）；★`#1606` 执行笔 Step C：★**F6 竞品侧对标台账那一半已随件退** —— `judgeBenchmarkLedger` ＋ 其 **7 例自证** ＋ `runLedger`／`--ledger` 模式 ＋ 段（`…-ledger-check`）**一并删除** ✓（★门先退、件后删 ✓）' },
 	'scripts/report-gate-ledger.mjs': { wired: true, form: '行为化', reason: '本文件自身的自检（台账不腐），已入 npm test' },
 	'scripts/move-precheck.mjs': { wired: true, form: '行为化', reason: '#458 前置：**六处同步**校验（源文件/ORDER/MODULES/故事清单/常量声明/聚合返回）＋单根假设清点；自证 **11** 条断言（**量法**：`node scripts/move-precheck.mjs --selftest` 输出里 `✓`/`✗` 行计数）；覆盖面＝六处正反例 ＋ **两层登记**（引擎件 ⊂ ORDER/MODULES ✓／故事件 ⊂ 清单 ✓）正反例 ＋ 聚合返回。`#893` 第三步：`②③④` 按层分工（引擎侧安全网一律不撤 ✓）' },
 	'scripts/report-selftest-validity.mjs': { wired: true, form: '行为化', reason: '**已入 npm test**（#474 接线）：静态扫描 `自证·` 是否「失败计入退出码」＋ 自增量是否「不崩」（TDZ/未声明）。接线前修掉剥离器**配对错位**（四条正则顺序剥 ⇒ 跨行贪婪吞代码 ⇒ `counters` 空 ⇒ 假阳性；**顺序治不了** ⇒ 改单扫描器按 JS 词法一次遮蔽注释/字符串/模板/正则，未闭合保守剥＋报诊断）。自证 18 例（V1×8＋V2×10），探针：删某门 `process.exit(1)` ⇒ 必报、退 1' },

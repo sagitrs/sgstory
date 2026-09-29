@@ -5,7 +5,7 @@ Config.saves.maxSlotSaves = 16; // 存档位（默认 8；SugarCube 上限 = Sav
 
 // 存档里写入自定义元数据，玩家在存档菜单里可以区分不同存档
 Save.onSave.add((save) => {
-	const pc = State.variables.pc ?? {};
+	const pc = window.Sg.actors.player() ?? {};   // ★ `#1573`：presentation／存档面 ⇒ 走**口**（✗ 直读 `$pc` ✓）
 	save.metadata = {
 		name: pc.name || State.variables.player_name || '无名旅人',
 		species: pc.speciesLabel || '',
@@ -24,7 +24,7 @@ Save.onLoad.add((save) => {
 // 侧栏固定块调这三个全局函数；S / L 为快捷键（不在输入框内时生效）。
 // #320 阶段 1：这五个收进 `Sg.save.*`（UI/运行时命名空间，见 docs/criterion-design.md §八 8.6）
 window.Sg.save = {
-	quick: () => Save.browser.slot.save(1, `快速存档 · ${State.variables.pc?.name || '无名旅人'}`),
+	quick: () => Save.browser.slot.save(1, `快速存档 · ${window.Sg.actors.player()?.name || '无名旅人'}`),
 	// 读档有个坑：Save.browser.slot.load() 只把状态还原，**不会重画**（SugarCube 自己的存档界面
 	// 也是 load().then(Engine.show)）。少了这一步，画面会停在原地——按 L 看着像没反应。
 	load: (index) => Save.browser.slot.load(index).then(Engine.show, (ex) => UI.alert(`读档失败：${ex.message}`)),
@@ -117,7 +117,7 @@ window.Sg.notes = {
 		cur[segs[segs.length - 1]] = v;
 	},
 	// 真存储（#434）：`pc.ev.notes` 是「已授予」的**记录**；旧档只有旗标 → 由 has() 的旗标面兜住
-	stored(id, pc = State.variables.pc) { return !!pc?.ev?.notes?.[id]; },
+	stored(id, pc = window.Sg.actors.player()) { return !!pc?.ev?.notes?.[id]; }   // ★ `#1573`：缺省＝**玩家** ⇒ 走口 ✓,
 	/**
 	 * 位点 → 知识（`#762` A 线：`checkKnowledge` 下沉）。
 	 * 故事仍持有 `Game.Checks.knowledge`（位点→旗标）与 `knowledgeWhy`（旗标→来源）两张**声明表**；
@@ -349,7 +349,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 					//     （与 `#1474` 的"写侧一处收束"同一处理由 ⇒ 将来第六个效果字段**自动**继承对象维 ✓）；
 					//   ★五个施加器的第二个参数**本来就是"根对象"**（`pc`）⇒ ★它们的签名一字不改 ✓
 					//   ★缺省（✗ 无 `actor`）⇒ `resolve` 原样回 `pc` ⇒ 既有行为逐字不变 ✓
-					const target = window.Sg.actors.resolve(State.variables.pc, eff.actor);
+					const target = window.Sg.actors.resolve(window.Sg.actors.player(), eff.actor);
 					window.Sg.rules.applyYields(eff, target);
 					window.Sg.rules.applyGrants(eff, target);
 					window.Sg.rules.applySets(eff, target);
@@ -424,7 +424,7 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 					const hasCheck = frag.find('.check-result').length > 0;
 					const fresh = frag.text().replace(/\s+/g, ' ').trim();
 					if (fresh && fresh.length < 400) {
-						State.variables.pc.ev.last_result = { p: State.passage, text: fresh, hasCheck };
+						window.Sg.actors.player().ev.last_result = { p: State.passage, text: fresh, hasCheck };
 					}
 				}
 			} catch (e) { /* 捕获失败不影响导航 */ }
@@ -432,18 +432,18 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 		};
 	}
 	jQuery(document).on(':passagerender.sgResult', (ev) => {
-		const r = State.variables.pc?.ev?.last_result;
+		const r = window.Sg.actors.player()?.ev?.last_result;
 		if (!r || !r.text) return;
 		// #300 裁决（2026-09-12）：**结局页不显示本次结果槽**——结局以自身叙述为准；
 		// 落点是结局页的那些掷（顶楼·夺杖→讨伐、龙·终击→星落/坠星之死）在豁免表登记理由。
 		if (String(State.passage ?? '').startsWith('结局')) {
 			// #364：结局页不显示结果槽（#300 裁决），但**必须把它消费掉**——
 			// 否则这次行动的临时结果会一直挂着，等玩家开设定集时串到那一页上去。
-			delete State.variables.pc.ev.last_result;
+			delete window.Sg.actors.player().ev.last_result;
 			return;
 		}
 		// 显示一次即清空：跨段导航（如洞穴动武→森林边缘）也把本次结果留在屏上
-		delete State.variables.pc.ev.last_result;
+		delete window.Sg.actors.player().ev.last_result;
 		const content = ev.content;
 		if (content.querySelector('.scene-feedback')) return;
 		const div = document.createElement('div');
@@ -685,12 +685,14 @@ jQuery(document).on(':passagerender.sgEndFoot', (ev) => {
 // 安全网：每个段落开始前归一化 $pc 形状（旧档缺字段/类型错误都会被补齐，
 // 幂等且代价可忽略——坑10 的纵深防御）；顺带把图鉴线索并进永久记录。
 jQuery(document).on(':passagestart', () => {
+	// ★ `#1573`：**迁移 shim 面** ⇒ ★**保留直读 `$pc`**（✗ 不走口 ✓）—— ★此刻实体表／绑定**可能尚未就绪** ✓
+	//   （★它要能在「任何口可用之前」跑 ✓）；★同文件**其余 11 处**（presentation／状态面）**已改走口** ✓
 	Game.Pc.migrate(State.variables.pc);
 	// #264：旧档/手改档的「已倒下」残余——hp 或 max_hp ≤ 0 且没有结局记录时，
 	// 场景会用 <<if $pc.hp gt 0>> 渲染空白页（实测：极简档进雾之魔物·战空白）。
 	// 修到「一点余气」，让玩家能看见场景与出口而不是黑屏；真正的死亡仍走结局流程。
 	// 只对「已车卡」的档生效：未车卡（abilities 为空）是正常初始形状，不得改动（C1 收尾路线会验）
-	const pc = State.variables.pc;
+	const pc = State.variables.pc;   // ★ `#1573`：**迁移 shim 面** ⇒ 同上一处（✗ 不走口 ✓）
 	if (pc.abilities) {
 		// ★ `#1409`：判据用 **`Number.isFinite`**（✗ 不是 `typeof !== 'number' || <= 0`）——
 		//   因为 **`NaN` 是 `number` 且 `NaN <= 0` 为 `false`** ⇒ 旧判据**放过 NaN** ✗（实测：写 NaN ⇒ 跳转后仍是 NaN）
@@ -725,7 +727,7 @@ jQuery(document).on('click.sgSocial', '#passages a.soc-opt', function (ev) {
 	// 引擎的点击代理不得盲调：没有交涉机制的故事若出现 `.soc-opt`，这里只当它不是可点的。
 	if (typeof Game.Social?.ask !== 'function') return;
 	if (!Game.Social.ask(ask)) return;
-	State.variables.pc.ev.soc = { id: ask, how: String(this.dataset.how ?? 'will') };
+	window.Sg.actors.player().ev.soc = { id: ask, how: String(this.dataset.how ?? 'will') };   // ★ `#1573`：走口 ✓
 	Engine.play(State.passage);
 });
 // 键盘可达（role="link" 的自制链接）
@@ -938,7 +940,7 @@ Object.defineProperty(window.Game, 'Chargen', {
 			get rounds() { return window.Sg.story.chargen?.()?.rounds; },
 			get presets() { return window.Sg.story.chargen?.()?.presets; },
 			pick(roundIdx, optIdx) {
-				const pc = State.variables.pc;
+				const pc = window.Sg.actors.player();   // ★ `#1573`：建人上下文 ⇒ 也走口（★返回**同一对象** ⇒ 行为逐字不变 ✓）
 				const R = this.rounds[roundIdx];
 				const O = R.options[optIdx];
 				window.Sg.Chargen.apply(pc, O.patch ?? {});

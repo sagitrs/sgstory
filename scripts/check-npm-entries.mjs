@@ -17,7 +17,11 @@
 // **边界（本件量不到的地方，明写）**：
 // · 只覆盖 `npm run` 这一面。同类形态还有"脚本头注写的用法"（例如 `node scripts/x.mjs --flag` 里的
 // flag 是否存在），那层不在本件覆盖内，别假装覆盖。
-// · 只做名字集合差集，**不判**该 script 指向的文件是否存在（那是另一件事）。
+// · 名字集合差集外，**另判一层**：`node <件>` 形脚本的入口件**必须在仓**（`#1635` 补，见 `entryFileProblems`）。
+//   原先此处写的是"**不判**该 script 指向的文件是否存在（那是另一件事）" —— ★`#1635` 把那"另一件事"做了 ✓
+//   （实测来源：`audit:golden` 指向的 `test/audit-golden.mjs` 已删，而**没有任何门**看得见 ⇒
+//    跑 `npm run audit:golden` 直接 `Cannot find module`，台账还写着 `wired: true` ✓）。
+//   仍未覆盖（明写）：`gh`／`make`／`python` 等非 `node` 命令；`node -e` 内联；依赖目录里的 bin ✓。
 // · **本工具自身不在扫描面内**（自证夹具里写着假脚本名 → 否则自己咬自己）。
 //
 // 用法：node scripts/check-npm-entries.mjs [--stat|--selftest]
@@ -33,6 +37,38 @@ const SKIP_DIR = /^(node_modules|\.git|dist|build|coverage)$/;
 
 /** **豁免清单（有名有目）**：键＝脚本名，值＝理由（写清为什么引用它不算缺口）。 */
 export const EXEMPT = {
+};
+
+/** ★ `#1635`：**入口件必须在仓** —— `package.json` 里每个 `node <件>` 形的脚本，那个"件"必须真存在。
+ *
+ * ★为什么单列一格（✗ 并入名字差集）：★两者量的是**不同的东西** —— 名字差集问
+ *   "`npm run X` 这个名字有没有定义"；本格问"**定义了的那个 X 指向的文件还在不在**" ✓
+ *   ★实测（`#1635`）：`audit:golden` 名字**有**（差集绿）、★但它指向的 `test/audit-golden.mjs`
+ *   **已随 `1f90880d` 删除** ⇒ ★**名字差集对此完全无感** ✗ ⇒ 这就是本格存在的理由 ✓
+ *
+ * ★判法（宁可粗糙，✗ 不假装精细）：★值按 `&&`／`||`／`;` 切段 ⇒ ★每段找 `node` ⇒★其后**第一个非旗标 token**
+ *   （`--watch` 这类被跳过 ✓）⇒ ★形如入口件（`.mjs`／`.cjs`／`.js` 后缀，或含 `/`）⇒ ★要求存在于仓 ✓
+ *
+ * ★边界（明写，✗ 别当它比实际强）：★① 只查 **`node <件>`**（`gh`／`make`／`python` 等**不查** ✓）；
+ *   ★② `node -e`／`-p` 内联 ⇒ **无入口件** ⇒ 跳过 ✓；★③ 不查 `node_modules/.bin`（那属依赖面 ✓）。
+ * @returns {{name:string, cmd:string, entry:string}[]} 缺口（空＝绿）
+ */
+export const entryFileProblems = ({ scripts = {}, root = ROOT, exists = existsSync } = {}) => {
+	const out = [];
+	const isEntry = (t) => /\.(?:mjs|cjs|js)$/.test(t) || t.includes('/');
+	for (const [name, cmd] of Object.entries(scripts)) {
+		for (const seg of String(cmd ?? '').split(/\s*(?:&&|\|\||;)\s*/)) {
+			const toks = seg.trim().split(/\s+/).filter(Boolean);
+			const i = toks.indexOf('node');
+			if (i < 0) continue;
+			// `node -e`／`-p`／`--eval`／`--print` ⇒ 内联代码，没有入口件
+			if (toks.slice(i + 1).some((t) => /^-(?:e|p|-eval|-print)$/.test(t))) continue;
+			const entry = toks.slice(i + 1).find((t) => !t.startsWith('-'));   // ★旗标（`--watch` 等）跳过 ✓
+			if (!entry || !isEntry(entry)) continue;
+			if (!exists(join(root, entry))) out.push({ name, cmd: String(cmd), entry });
+		}
+	}
+	return out;
 };
 
 /** **纯函数**：引用集合 × scripts × 豁免 → 问题清单（空＝绿）。 */
@@ -92,6 +128,17 @@ const SELF_CASES = [
 	['反例：豁免项没人引用了 ⇒ 白名单腐烂', { sources: [{ file: 'x.md', text: '无关内容' }], scripts: new Set(), allow: { matrix: '否定语境' } }, 1],
 ];
 
+/** ★ `#1635` 自证格：入口件存在性（正／反／两条边界／反假绿）。 */
+const SELF_ENTRY_CASES = [
+	['正例：入口件在仓 ⇒ 不报', { scripts: { build: 'node build.mjs' }, exists: () => true }, 0],
+	['🔴 反例：入口件不在仓 ⇒ 报（这正是 `audit:golden` 那一形 ✓）', { scripts: { 'audit:golden': 'node test/audit-golden.mjs' }, exists: () => false }, 1],
+	['边界：`node --watch <件>` ⇒ 旗标被跳过、查的是件（✗ 不把 `--watch` 当入口）', { scripts: { watch: 'node --watch scripts/x.mjs' }, exists: () => false }, 1],
+	['边界：非 `node` 命令（`gh`／`make`）⇒ 不查（✗ 不越界假红）', { scripts: { a: 'gh pr list', b: 'make test' }, exists: () => false }, 0],
+	['边界：`node -e` 内联 ⇒ 无入口件 ⇒ 不查', { scripts: { c: "node -e 'console.log(1)'" }, exists: () => false }, 0],
+	['边界：多段（`&&` 切）⇒ 逐段查，缺一段也报', { scripts: { d: 'node build.mjs && node scripts/gone.mjs' }, exists: (p) => /build\.mjs$/.test(p) }, 1],
+	['🔴 反假绿：全局 `exists` 恒真 ⇒ 那两格必须**不报**（否则上面的"反例"是假绿）', { scripts: { 'audit:golden': 'node test/audit-golden.mjs' }, exists: () => true }, 0],
+];
+
 const main = () => {
 	const argv = process.argv.slice(2);
 	const has = (f) => argv.includes(`--${f}`);
@@ -115,6 +162,13 @@ const main = () => {
 		const refs = entryProblems({ sources: [{ file: 'x.md', text: '`npm run a1` `npm run b2`' }], scripts: new Set(['a1', 'b2']) }).referenced;
 		if (refs.length === 2) console.log('✓ 反向核：引用集合确实被抓到（2 个）');
 		else { bad += 1; console.error(`✗ 反向核失败：referenced=${JSON.stringify(refs)}`); }
+		// ★ `#1635`：入口件存在性那几格（★`exists` 注入 ⇒ 合成样本能假 ✓）
+		for (const [name, input, wantProblems] of SELF_ENTRY_CASES) {
+			const got = entryFileProblems(input).length;
+			const okk = wantProblems === 0 ? got === 0 : got > 0;
+			if (!okk) { bad += 1; console.error(`✗ 自证未通过（入口件）：${name}（问题数 ${got}）`); }
+			else console.log(`✓ ${name}`);
+		}
 		if (bad) { console.error(`\n✗ 自证未通过（${bad} 项）`); process.exit(1); }
 		console.log('\n✔ 自证通过');
 		process.exit(0);
@@ -122,12 +176,21 @@ const main = () => {
 
 	const scripts = new Set(Object.keys(JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scripts ?? {}));
 	const sources = collectSources();
+	const scriptsMap = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8')).scripts ?? {};
 	const r = entryProblems({ sources, scripts, allow: EXEMPT });
+	const ef = entryFileProblems({ scripts: scriptsMap });   // ★ `#1635`：入口件必须在仓
 
 	if (has('stat')) {
 		console.log(`  扫描 ${sources.length} 件｜引用到的脚本 ${r.referenced.length} 个｜package.json scripts ${scripts.size} 个`);
 		console.log(`  缺口 ${r.missing.length} 个｜豁免 ${Object.keys(EXEMPT).length} 个（腐烂 ${r.stale.length} 个）`);
+		console.log(`  入口件缺失 ${ef.length} 个（${ef.map((x) => x.name).join('、') || '—'}）`);
 		return;
+	}
+
+	if (ef.length) {
+		for (const { name, cmd, entry } of ef) console.error(`✗ 脚本 ${name} 的入口件不在仓：${entry}（cmd：${cmd}）`);
+		console.error('\n修法：补回入口件，或把该 script（从 `package.json`）与它的登记一并删干净。');
+		process.exit(1);
 	}
 
 	if (r.missing.length || r.stale.length) {
@@ -140,7 +203,7 @@ const main = () => {
 		console.error('\n修法：补 `package.json` 的 script，或把**否定语境**的引用登记进本件 `EXEMPT`（写清理由）。');
 		process.exit(1);
 	}
-	console.log(`✔ npm 入口差集为空（扫描 ${sources.length} 件，引用 ${r.referenced.length} 个脚本，豁免 ${Object.keys(EXEMPT).length} 个）`);
+	console.log(`✔ npm 入口差集为空 ＋ 入口件全在仓（扫描 ${sources.length} 件，引用 ${r.referenced.length} 个脚本，豁免 ${Object.keys(EXEMPT).length} 个，入口件 ${Object.keys(scriptsMap).length} 个）`);
 };
 
 if (process.argv[1] && process.argv[1].endsWith('check-npm-entries.mjs')) main();

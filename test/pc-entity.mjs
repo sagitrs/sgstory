@@ -7,6 +7,9 @@
 //        ⇒ ★存档里会多一份**死拷贝** ✓ ⇒ "零存档影响"**不成立** ✗）
 //   ★④ ★**真 `Save.serialize()` ⇒ `deserialize()` 往返**：★载后 getter **没了**（如预期 ✓）、
 //        ★而**没有**遗留那份快照（键级 ✓）、★且 `player()` 的**自愈**能把绑定**恢复** ✓
+//   ★★ `#1573` 批4（裁定 **丙**）**边界**（★成文于判据旁 ✓）：`actors.pc` 是**非枚举访问器** ⇒
+//        ★表的**迭代**与**序列化**（含存档）**都不含** `pc` ✓ ⇒ ★"玩家**不**作为一行被枚举" ✓；
+//        ★若将来确需"枚举时把玩家算一行" ⇒ ★**重开乙** ✓（数据与守卫设计见 `#1573`；★✗ 不许只加 `enumerable:true`）
 //   ★⑤ 两个口**语义分列**：`player()`（玩家 ✓）≠ "当前作用实体"的**将来**语义（本笔 `current()` 暂＝`player()` ✓ ——
 //        ★战斗轮改由循环设 ⇒ 那一步**另笔** ✓；此处只钉"两口**都在**且**都可读**" ✓）
 import { dirname, join } from 'node:path';
@@ -57,6 +60,34 @@ try {
 				&& !!Object.getOwnPropertyDescriptor(S.actors, 'pc')?.get);
 		} finally { S.actors = saved; }
 	}
+	// ★★ `#1573` 批4（裁定：**丙**）：`actors.pc` 别名**补 setter** ⇒ 双向 ✓ ＋ **边界**成文 ✓。三格＋一格：
+	{
+		const before = S.pc, sentinel = { name: '哨兵' };
+		S.actors.pc = sentinel;                       // ★⑧ 写**别名** ⇒ 必须落**真身** `$pc` ✓
+		t('⑧ 写别名 `actors.pc` ⇒ 落真身 `$pc`（同一对象 ✓）', S.pc === sentinel, `pc===${S.pc === sentinel}`);
+		delete S.actors.pc;                           // ★⑨ delete ⇒ **不许**动真身（裁定：no-op ✓）
+		t('⑨ `delete actors.pc` ⇒ **真身不动** ✓（且随后读口**自愈**重装 ✓）',
+			S.pc === sentinel && A.player() === sentinel
+			&& !!Object.getOwnPropertyDescriptor(S.actors, 'pc')?.get, `pc===${S.pc === sentinel}`);
+		S.actors.pc = before;                         // 还原
+		// ★★ ⑩ **子键写**（裁定："setter 三格" 的第三格 ✓ —— ★"别名双向"**最常用**的形就是"改玩家某字段" ✓）：
+		//   ★判据：★`actors.pc.<key> = n` ⇒ ★真身 `$pc.<key>` **当场可见** ✓ ⇒ ★**同一对象**（✗ 不是拷贝 ✓）
+		//   ⇒ ★能假：★把 getter 改成**返回拷贝**（`({...pc})`）⇒ ★本格必红 ✓（★拷贝上写 ⇒ 真身看不见 ✓）
+		const SUB = '__probe_sub', had = Object.prototype.hasOwnProperty.call(S.pc, SUB), prevSub = S.pc[SUB];
+		S.actors.pc[SUB] = 7;
+		t('⑩ **子键写**：`actors.pc.<key> = n` ⇒ 落**真身**（★同一对象 ⇒ ✗ 不是拷贝 ✓）',
+			S.pc[SUB] === 7, `pc[SUB]=${S.pc[SUB]}`);
+		if (had) S.pc[SUB] = prevSub; else delete S.pc[SUB];
+	}
+	// ★★ ⑪ 裁定②③的**消解留痕**（★成格，✗ 不只在正文）：★丙 ⇒ **无格式变** ⇒ ★真 payload 键面**一字不动** ✓
+	try {
+		const o = JSON.parse(w.LZString.decompressFromBase64(SC.Save.serialize()));
+		const V = o.state.delta[0]?.variables ?? {};
+		t('⑪ **真 payload** 键面 ⇒ 仍 `["era","player_name","pc","actors"]`（★丙 ＝ 无格式变 ⇒ 裁点2/3 消解 ✓）',
+			JSON.stringify(Object.keys(V).sort()) === JSON.stringify(['actors', 'era', 'pc', 'player_name']),
+			JSON.stringify(Object.keys(V)));
+	} catch (e) { t('⑪ 真 payload 解压/取键', false, String(e.message).slice(0, 60)); }
+
 	// ④ payload 级往返
 	const payload = SC.Save.serialize();
 	SC.Save.deserialize(payload);
@@ -69,4 +100,4 @@ try {
 } finally { rmSync(W, { recursive: true, force: true }); }
 
 if (bad) { console.error(`\n✗ 玩家实体化（甲）自证失败 ${bad} 项`); process.exit(1); }
-console.log('\n✔ 玩家实体化（甲）自证通过（同一对象 · 非枚举 · 无快照 · 载后自愈）');
+console.log('\n✔ 玩家实体化自证通过（甲·修订形；★批4 裁定＝**丙** ⇒ 不翻转存储 ✓ · 同一对象 · 非枚举 · 无快照 · 载后自愈 · 别名双向）');

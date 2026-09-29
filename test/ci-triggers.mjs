@@ -168,8 +168,11 @@ export const mainOnlyJobsMissingDispatch = (text) => {
  * ★故凡**跑 `npm test`／`md-format`／`run-tests`** 的 workflow ⇒ ★其 `actions/checkout` **必须** `fetch-depth: 0` ✓
  *   （★现在写在 `ci.yml` 的 `test` job 与 `full-tier.yml` 的 `full` job 两处 ✓ —— ★本格把"两处"这个事实
  *    变成**机械可判** ⇒ ★将来**新增**第三个这类 workflow ✗ 靠人记得 ✓）。
- * ★判法（★宁可粗糙、✗ 不假装精细）：★数 `uses: actions/checkout@` 与 `fetch-depth: 0` 的**个数** ⇒ 后者必须 ≥ 前者 ✓
- *   （★本仓两处都是"一 job 一 checkout" ⇒ 够用；★将来多 checkout 时此处自然会要求逐个配 ✓）。
+ * ★判法（★宁可粗糙、✗ 不假装精细）：★该 workflow 里**至少一处** `checkout` 带 `fetch-depth: 0` ✓
+ *   ★★**边界（✗ 明写，别当它比实际强）**：★它挡的是「**整档忘了加深**」这个形（`deep === 0` ✓）；
+ *     ★**✗ 不挡**「一个 job 有**多处** checkout、只给错了的那一处加深」—— ★本仓今天不需要那么细
+ *     （`ci.yml` 三处 checkout 里 ★**只有 `test` job 那处该深**，`realmachine` 两处**不该** ✓）
+ *     ⇒ ★要更细就得**按 job 解析**（★值当的时点：真出现"该深的那处漏了" ✓ 实例再加 ✓）。
  * ★**✗ 不要求**不跑这些命令的 workflow（如 `pages.yml`／`realmachine` 那类 ⇒ ★加深＝白花成本 ✓）。 */
 export const depthProblems = (text) => {
 	const s = String(text ?? '');
@@ -177,8 +180,8 @@ export const depthProblems = (text) => {
 	if (!runsTier) return [];
 	const checkouts = (s.match(/uses:\s*actions\/checkout@/g) ?? []).length;
 	const deep = (s.match(/fetch-depth:\s*0\b/g) ?? []).length;
-	if (!checkouts || deep >= checkouts) return [];
-	return [`跑 \`npm test\`／\`md-format\` 的档**必须取全历史**（\`fetch-depth: 0\`）—— 现 ${checkouts} 处 \`checkout\` 只有 ${deep} 处带深度 `
+	if (!checkouts || deep >= 1) return [];     // ★"至少一处带深度"（★边界见函数头注释 ✓）
+	return [`跑 \`npm test\`／\`md-format\` 的档**必须取全历史**（\`fetch-depth: 0\`）—— 现 ${checkouts} 处 \`checkout\`、带深度的 **0** 处 `
 		+ '⇒ ★`md-format` 的 F4 面（`git log --all` 判"引用路径曾否存在"）在本档上**牙不露** ✗（`#1622`／`#1626` D 票 NIT-1 ✓）'];
 };
 
@@ -236,6 +239,18 @@ console.log('  判据（逐文件适用面写准 ✓）：有 `pull_request` 面
 if (process.argv.includes('--selftest')) {
 	let bad = 0, n = 0;
 	const t = (label, ok) => { n++; if (!ok) bad++; console.log(`${ok ? '✓' : '✗'} 自证·${label}`); };
+	// ★ `#1622` NIT-1：「跑 tier 的档必须取全历史」四格（★正／反／边界／真树 ✓）
+	{
+		const withTier = (body) => `on:\n  push:\n    branches: [main]\n  workflow_dispatch: {}\njobs:\n  test:\n    steps:\n${body}`;
+		const noDepth = withTier('      - uses: actions/checkout@v4\n      - run: npm test\n');
+		const yesDepth = withTier('      - uses: actions/checkout@v4\n        with:\n          fetch-depth: 0\n      - run: npm test\n');
+		const notTier = withTier('      - uses: actions/checkout@v4\n      - run: npm run build\n');
+		t('🔴 反例：跑 `npm test` 而 `checkout` 无深度 ⇒ 点名（✗ 静默）', depthProblems(noDepth).length === 1);
+		t('正例：同档带 `fetch-depth: 0` ⇒ 不报', depthProblems(yesDepth).length === 0);
+		t('边界：不跑 tier 的档（无 `npm test`／`md-format`）⇒ 不要求（✗ 白花成本也判红 ✓）', depthProblems(notTier).length === 0);
+		t('正例·真树：本仓 4 个 workflow ⇒ 0 问题（`ci.yml`＋`full-tier.yml` 已带；其余不适用 ✓）',
+			workflowFiles().every((rel) => depthProblems(readFileSync(join(ROOT, rel), 'utf8')).length === 0));
+	}
 	const good = `on:\n  push:\n    branches: [main]\n  workflow_dispatch: {}\n  pull_request:\n    types: [opened, synchronize, reopened, ready_for_review]\njobs:\n  test:\n    runs-on: ubuntu-latest\n  zzjob:\n    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')\n  zzstep:\n    if: always()\n    steps:\n      - if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')\n        uses: actions/upload-artifact@v4\n  deploy:\n    if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')\n    needs: [test]\n`;
 	// `#1054` 复核（口径脆性）：**等价写法**必须同判 —— 这是本门"防退化"可信度的前提
 	t('反例⑥（复核给的 A5 形态）：main-only 不接受 dispatch 且用**双引号** `"push"` ⇒ **仍点名**（不许被等价写法绕过 ✗）', (() => {

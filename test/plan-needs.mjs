@@ -94,14 +94,18 @@ case_('正例·空边表放过', missingEdges(SEGMENTS, []).length === 0);
 // `#1130`：**独占段的理由可查** —— 标了 `exclusive` 的段必须声明 `mutates`（它动哪些**已入库真源**）
 // 为什么（与 `NEED_EDGES` 同口径）：独占是一次**显式决定** → 理由进数据、不许只写注释（不可机检）
 // 为什么需要独占：窗口制造者（就地改真源再恢复 → mtime 刷新）与并行 boot 的段撞新鲜度守卫 → 偶发红
-const exclDeclProblems = (segs) => segs.filter((s) => s.exclusive && (!Array.isArray(s.mutates) || s.mutates.length === 0)).map((s) => s.id);
+// ★ `#1663` CR（tester-4）：★纯**读者**也可独占（★它不改已入库真源，★但与"造临时件"并行会假红）
+//   ⇒ 规则扩两形：★`mutates`（它动哪些真源）★**或**★`exclusiveWhy`（书面理由，非空）——★两者**任一**即可查，★都空 ⇒ 报 ✗
+const exclDeclProblems = (segs) => segs.filter((s) => s.exclusive
+	&& (!Array.isArray(s.mutates) || s.mutates.length === 0)
+	&& !(typeof s.exclusiveWhy === 'string' && s.exclusiveWhy.trim().length > 0)).map((s) => s.id);
 /** `#1315`：**"独占段数 = 0"必须被显式登记**（两种零不同形）—— 原格写"≥1（今天=lint-story）"，
  *  而那个段已随 `#1261` 下架 => 格变红；若只是把格删掉，机制被静默摘除时也没人知道。
  *  => 改成：`≥1` **或** 本条登记在场 => 表空/机制无人用时**必须有人写下理由**。 */
 export const NO_EXCLUSIVE_TODAY = '#1315：原独占段（`test-lint-story-mjs`，就地改真 `stories/*/data/tables.json`）已随 `#1261` 下架 => 当前无段会动已入库真源 => 独占机制暂无人使用（登记以备复核；将来有段动真源 => 必须标 `exclusive` + 非空 `mutates`）';
 {
 	const excl = SEGMENTS.filter((s) => s.exclusive);
-	case_('独占段必须声明 mutates（非空 ⇒ 理由可查）', exclDeclProblems(SEGMENTS).length === 0, exclDeclProblems(SEGMENTS).join('、'));
+	case_('独占段必须声明 `mutates`（非空）**或** `exclusiveWhy`（书面理由）—— 两者任一即可查', exclDeclProblems(SEGMENTS).length === 0, exclDeclProblems(SEGMENTS).join('、'));
 	case_('独占段 >=1 或已登记「今天没有」（0 必须被解释 => 机制不会被静默摘除）', excl.length >= 1 || NO_EXCLUSIVE_TODAY.trim().length > 0, `exclusive 段数=${excl.length}`);
 	// `#1315`：旧写法对**现有** exclusive 段做空 mutates 副本 => 今天 0 个 => 恒等于 `0===0 && false` => 必红且**判不到东西**。
 	// 改为**注入**一个合成独占段（自带样本）=> 无论现网有几个 exclusive 段，本格都能被点燃。

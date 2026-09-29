@@ -6,7 +6,7 @@
 // ② **权威性**：对象故事已删的文档（`DELETED_STORY_DOCS` 显式对照表 `#1004`）出现在
 //「按任务读」或「权威表」→ 红，提示「降级或加作废横幅」（回流即红 → archive 口径有牙）；
 // ③ **体量 ratchet**：「按任务读」**先读列**引用总字节（★原单列豁免随 `docs/dev-conventions.md` 删除而**退役** ⇒ 现统一看护）
-// ≤ `BUDGET_KB`（现 160）KB（口径与数字＝`#1077` 验收② 领队裁定，不自立）；超限 → 红并打印当前值。
+// ≤ `BUDGET_KB`（口径与数字＝`#1077` 验收② 领队裁定，不自立）；超限 → 红并打印当前值。
 // 行内 `<!-- path-exempt:... -->` 沿用 `md-format.mjs` F4 惯例（留痕跳过）。
 //
 // 自证三格（`--selftest`，`#1031` 成对登记形状；全部**合成夹具驱动纯函数** 不碰真文件）：
@@ -135,7 +135,7 @@ export const budgetProblems = (text, { sizeOf = (p) => statSync(join(ROOT, p)).s
 	}
 	const kb = total / 1024;
 	if (paths.size === 0)
-		return [`先读列可计路径为 0 —— 疑似「按任务读」被删/引用被清空（#557 口径：读不到输入不许当「没命中」；「0KB ≤ BUDGET_KB（现 160）KB」不是通过 ✗）`];
+		return [`先读列可计路径为 0 —— 疑似「按任务读」被删/引用被清空（#557 口径：读不到输入不许当「没命中」；「0KB ≤ BUDGET_KB」不是通过 ✗）`];
 	if (kb > BUDGET_KB) return [`先读列引用总字节 ${kb.toFixed(1)}KB > 上限 ${BUDGET_KB}KB（#1077 验收②口径）——新增先读文档须给出替代/合并了哪份：\n  ${parts.join('\n  ')}`];
 	return [];
 };

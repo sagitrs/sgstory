@@ -102,7 +102,7 @@ passages/*.md ──────────────────────
 
 | 文件 | 主要闸门 |
 |---|---|
-| `00-story.json` | `build.mjs`（故事件不在清单里 → 拒；清单里的文件不存在 → 拒）· `test/store-keys.mjs`（`slug` 与 `00-meta.twee` 的 `Sg.storyId` 一致）· `audience` **fail-loud**（缺字段／取值非法 → 报错） |
+| `00-story.json` | `build.mjs`（故事件不在清单里 → 拒；清单里的文件不存在 → 拒）· `test/store-keys.mjs`（`slug` 与 `00-meta.twee` 的 `Sg.storyId` 一致）· `audience` **fail-loud**（缺字段／取值非法 → 报错） | <!-- path-exempt: 该路径曾存在、今已删/改名（`#1619`：曾存在 ⇒ 必须标注）—— 本条是历史依据，✗ 不代表现状 -->
 | `00-meta.twee` | IFID 形态（UUIDv4，大写 hex）· `StoryData.start` ≡ 清单 `entry` |
 | `data/*.json` | 编译器 `section` 必填 · `scripts/audit/lib/story-shape.mjs`（`mechanics` 形状六条）· `scripts/audit/gates/*.mjs`（各容器） |
 | `data/rules.json` | **未实现**：`--rules` 开关不存在（实调 → 未知开关）；键形判据在 `test/cond-keyform.mjs`；死行判定在编辑器 UI（`ruleRows.mjs`）——详见 `reference-spec.md` §3.0 |

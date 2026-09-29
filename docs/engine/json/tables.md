@@ -56,7 +56,7 @@
 
 ### 5.1 装备声明 `Sg.story.gearDef(id)` —— **字段表**（★口径门**逐字**比对本表 ↔ 代码 ✓）
 
-> 来源：原 `docs/story2-contracts.md` §1.2（★该件已按"一份为准"删除 ⇒ 本表即其宿主 ✓；装备属 `tables.json` 面 ✓）。
+> 来源：原 `docs/story2-contracts.md` §1.2（★该件已按"一份为准"删除 ⇒ 本表即其宿主 ✓；装备属 `tables.json` 面 ✓）。 <!-- path-exempt: 该路径曾存在、今已删/改名（`#1619`：曾存在 ⇒ 必须标注）—— 本条是历史依据，✗ 不代表现状 -->
 
 >注意：**本节字段表以引擎实况为准**（`#1115` 件②）：表的字段集 ＝ **引擎在战斗路径实际读的**那组
 >（`src/engine/40-sim/21-resolve.twee` 的 `Sg.story.gearDef(k)?.<字段>`）。**口径门**（`scripts/lib/gear-defs-criteria.mjs`）
@@ -69,7 +69,7 @@
 
 >注意：**被本节取代的那一套**（`kind`／`protects`／`maxHp`／`reduce`）：**不是被删，而是被标为"引擎未读"** ——
 > 本节的旧字段表曾按"护具契约"写（`kind`／`protects`／`maxHp`／`reduce`），而引擎在战斗路径**只读**上面两字段
->（一手证据：`stories/face-fixture/15-tables.twee` 的 provider 是 `Game.Gear.defs` 的**直通** → 故事按旧表写 → 引擎读不到）。
+>（一手证据：`stories/face-fixture/15-tables.twee` 的 provider 是 `Game.Gear.defs` 的**直通** → 故事按旧表写 → 引擎读不到）。 <!-- path-exempt: 该路径曾存在、今已删/改名（`#1619`：曾存在 ⇒ 必须标注）—— 本条是历史依据，✗ 不代表现状 -->
 > → **旧四字段若要启用，须先在引擎里接线**（另票）；在那之前，本文档**不再声明**它们为 provider 字段（防止"按文档写 → 引擎不认"）。
 
 ## 6. `Items` —— 道具

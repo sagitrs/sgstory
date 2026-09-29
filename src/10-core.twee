@@ -329,7 +329,7 @@ window.Game.Pc = {
 		social: { keys: ['soc'], present: ['socialAsks', 'socialHooks'], kind: 'fn' },
 	},
 	// 取当前 pc（原裸全局 `Game.Pc.now()`，#320 阶段 4 并进来）
-	now() { return State.variables.pc; },
+	now() { return State.variables.pc; },   // ★ `#1573`：**保留直读** —— ★它是「**状态根**」这个**原语** ⇒ ★走口＝给原语塞**自愈副作用**（`player()` 会补绑 ✓）✗
 	// `#660` 片三-3：**形状住引擎、数值走故事** —— 本函数只给**形状**（键名 ＋ **中性值**：0/''/false/[]/{}），
 	// 故事侧用 `Sg.story.pcDefaults()` 叠加它自己的数值（deep-merge 一层，键集合仍由引擎定）。
 	// 为什么：`star.charge = 12`／`keeper.state = 'post'` 是**故事 1 的数值**，写在引擎里等于故事 2/3 也带着
@@ -422,7 +422,7 @@ window.Game.Pc = {
 		}
 		return shape;
 	},
-	has(name) { return !!State.variables.pc?.inv?.[name]; },
+	has(name) { return !!window.Sg.actors.player()?.inv?.[name]; },   // ★ `#1573`：玩家面 ⇒ 走口 ✓
 	// ── `#746`（口径：「文字反馈最重要」）：**副作用要能自己说出数字** ──────────────────────
 	// 为什么住引擎：句子由内容面写（文案属故事），但"掉了多少血／上了什么异常／哪件护具掉了几点耐久／
 	// 拿了什么"是**机制算出来的** —— 让作者手写这些数字，一定会漏（实测：失败/惩罚路径普遍没接句子）。
@@ -592,7 +592,7 @@ Macro.add('checkres', {
 // ── 复显上一轮玩家发起的检定骰面（M9；不掷骰，只渲染快照）──
 Macro.add('lastcheck', {
 	handler() {
-		const r = State.variables.pc?.ev?.last_roll;
+		const r = window.Sg.actors.player()?.ev?.last_roll;
 		if (r) $(this.output).append(renderCheck(r));
 	},
 });
@@ -602,10 +602,10 @@ Macro.add('lastcheck', {
 Macro.add('lastcheckFor', {
 	handler() {
 		// #300 P2：本次结果槽已经带着这一掷的骰面时不再复显（同一颗骰不显示两遍）
-		const lr = State.variables.pc?.ev?.last_result;
+		const lr = window.Sg.actors.player()?.ev?.last_result;
 		if (lr?.hasCheck && lr.p === State.passage) return;
 		const sites = this.args.flat(Infinity).map(String);
-		const r = State.variables.pc?.ev?.last_roll;
+		const r = window.Sg.actors.player()?.ev?.last_roll;
 		if (r && sites.includes(r.site)) $(this.output).append(renderCheck(r));
 	},
 });
@@ -616,7 +616,7 @@ Macro.add('ending', {
 		const key = String(this.args[0] ?? '').trim();
 		const kind = String(this.args[1] ?? 'final').trim();
 		if (key) {
-			State.variables.pc.ev.ending = key;                          // 本档记录
+			window.Sg.actors.player().ev.ending = key;                          // 本档记录
 			// `#574`：图鉴是**故事可选面**（故事 1 有、故事 2/3 没有）→ 可选链：没有它就只是不记账。
 			window.Sg.Codex?.recordEnding?.(key, kind);  // 永久记录（有图鉴的故事才记）
 		}
@@ -654,7 +654,7 @@ Macro.add('pickPreset', {
 		if (!Number.isFinite(n)) {
 			throw new Error('<<pickPreset>> 序号=[' + String(raw) + '] 非数字 ⇒ 会写进烂值（后续 `presets[NaN]` 才炸且报文不知所云 ✗）');
 		}
-		State.variables.pc.presetIdx = n;
+		window.Sg.actors.player().presetIdx = n;
 		Engine.play(dest);   // `#1132` B1：用引擎侧程序性导航（同 `80-script.twee` 的既有写法）
 		//注意：别把跳转目标拼进 **wiki 宏串**（拼接出的字面宏会被静态分析当成真边 → 假悬空报错 实测踩过）
 	},
@@ -665,7 +665,7 @@ Macro.add('pickPreset', {
 Macro.add('applyQuickPreset', {
 	handler() {
 		const Ch = window.Game?.Chargen;
-		const pc = State.variables.pc;
+		const pc = window.Sg.actors.player();   // ★ `#1573`：建人面 ⇒ 走口 ✓
 		if (!Ch || typeof Ch.applyPreset !== 'function') {
 			throw new Error('<<applyQuickPreset>> 前置缺失：故事的 `Game.Chargen` 未接入（本宏需要其 applyPreset／finalize ✓）');
 		}
@@ -842,7 +842,7 @@ window.Sg.events = {
 				+ `（已宣告：${JSON.stringify(Object.keys(table))}）⇒ 名字写错不许静默无效 ✓`);
 		}
 		const R = window.Sg.rules;
-		const pc = ctx.pc ?? State.variables.pc;
+		const pc = ctx.pc ?? window.Sg.actors.player();   // ★ `#1573`：★**查表兜底根＝玩家**（✗ 非 current ✓ —— 口径见 `22-rules.twee` 件头 ✓）
 		// ★目标实体（1c 的对象维）：★缺省 ⇒ 原样回 `pc` ✓
 		const target = window.Sg.actors.resolve(pc, ctx.actor);
 		const list = Array.isArray(ev.use) ? ev.use : [];
@@ -1025,7 +1025,7 @@ window.Sg.panels = {
 		/% ★ `#1488`（裁定甲①）：★**改调原语**（`Sg.rules.applyZeroGives`）—— ✗ 不在此内联循环 ✓
 		   ★理由（D6 单一入口）：★经"零界授予"这件事**今天只有一处**，但**内联循环与原语各写一份**
 		     ⇒ ★改一处不改另一处 ⇒ **必然漂移** ✗；★且原语**无人用＝死码**（★本笔落了个"没人调的函数" ✗）✓ %/
-		<<run window.Sg.rules.applyZeroGives(State.variables.pc, Game.Rules.V().zeroGives)>>
+		<<run window.Sg.rules.applyZeroGives(window.Sg.actors.current(), Game.Rules.V().zeroGives)>>
 		/% #357：致命伤**即刻登记结局**——安全网（:passagestart 的 hp≤0 修补）以
 		   `!pc.ev.ending` 为门，若不先登记，它会赶在结局页渲染前把 hp 修回 1，
 		   把刚受致命伤的角色"复活"。 %/

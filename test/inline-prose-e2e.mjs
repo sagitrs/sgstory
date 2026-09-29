@@ -54,9 +54,12 @@ const sectionsOf = (twee) => {
 // ---- ① / ③ / ④：两侧各 build 一次，比产物 ----
 // ★ `#1643` CR：★产物来源由 `build/game.twee`（已改为**进程独有暂存** ⇒ ✗ 不再存在）改为
 //   **逐故事**稳定的 `build/game-<slug>.twee` ✓ —— ★并**加存在断言**（✗ 不无条件 readFileSync ⇒ 否则 ENOENT 掩盖病因 ✓）。
-const tweeOf = () => join(ROOT, 'build', `game-${SLUG}.twee`);
-const atwee = (() => { const r = buildSide(join(FX, 'a/stories')); t('④-a a 侧（md 载体）build ⇒ rc=0', r.rc === 0, r.out.slice(0, 200)); const p = tweeOf(); t('④-a 产物在场：`build/game-<slug>.twee` 存在', existsSync(p), p); return readFileSync(p, 'utf8'); })();
-const btwee = (() => { const r = buildSide(join(FX, 'b/stories')); t('④-b b 侧（数据面载体、**无 `passages/` 目录**）build ⇒ rc=0', r.rc === 0, r.out.slice(0, 300)); const p = tweeOf(); t('④-b 产物在场：`build/game-<slug>.twee` 存在', existsSync(p), p); return readFileSync(p, 'utf8'); })();
+// ★ `#1648`：★产物来源落**随根**位 `<DIST_DIR>/game-<slug>.twee>`（✗ 仓内固定 `build/`）——
+//   ★因为 ★a／b **同 slug 不同根** ⇒ 若落仓内固定名，二者**会互踩**（★正是本件要证的"内容不同" ✓）
+//   ⇒ ★随根后：★**不同根 ⇒ 不同文件** ⇒ ✗ 互踩（构造上消除 ✓）。
+const tweeOf = (storiesRoot) => join(dirname(storiesRoot), 'dist', `game-${SLUG}.twee`);
+const atwee = (() => { const root = join(FX, 'a/stories'); const r = buildSide(root); t('④-a a 侧（md 载体）build ⇒ rc=0', r.rc === 0, r.out.slice(0, 200)); const p = tweeOf(root); t('④-a 产物在场：`<DIST_DIR>/game-<slug>.twee` 存在', existsSync(p), p); return readFileSync(p, 'utf8'); })();
+const btwee = (() => { const root = join(FX, 'b/stories'); const r = buildSide(root); t('④-b b 侧（数据面载体、**无 `passages/` 目录**）build ⇒ rc=0', r.rc === 0, r.out.slice(0, 300)); const p = tweeOf(root); t('④-b 产物在场：`<DIST_DIR>/game-<slug>.twee` 存在', existsSync(p), p); return readFileSync(p, 'utf8'); })();
 const A = sectionsOf(atwee), B = sectionsOf(btwee);
 const da = new Map(A.map((s) => [s.name, s.text])), db = new Map(B.map((s) => [s.name, s.text]));
 const diffNames = [...da.keys()].filter((n) => db.has(n) && da.get(n) !== db.get(n));

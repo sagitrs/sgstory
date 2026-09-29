@@ -482,7 +482,12 @@ for (const s of stories) {
 	//     ★**同一个 slug 可以存在于不同根**（例：`nocar-basic` 有三处构造者：`inline-prose` 的 a／b ＋ `panels` 的改副本 ＋ browser ✓）
 	//     ⇒ ★同 slug 而**内容不同**时，这个**仓内相对**同名文件仍可能互踩 ✗（两证：md5 不同 ✓）
 	//     ⇒ ★彻底的「随根位」（`<DIST_DIR>/game-<slug>.twee`／或 slug ＋ 根指纹）在 `#1648` 收 ✓（本笔只做"收窄" ✓）。
-	writeFileSync(join('build', `game-${s.slug}.twee`), merges.get(s.slug), 'utf8');
+	// ★★ `#1648`（我 CR 的残余收口）：★副本落**随根**位（✗ 不再落仓内固定 `build/`）——
+	//   ★`DIST_DIR` ＝ `join(dirname(STORIES_DIR),'dist')` ⇒ ★**随根**（各段各自根 ⇒ 各自 dist ✓）
+	//   ⇒ ★★**不同根 ⇒ 不同文件** ⇒ 同 slug 不同内容（`inline-prose` 的 a／b ＋ `panels` 的改副本）
+	//     **在构造上不再互踩** ✓（★`#1646` 只做到"收窄到每 slug 一名" ⇒ 这一格这里收 ✓）。
+	//   ★为什么仍需副本（✗ 让读者读 `STAGE`）：★`STAGE` **退出即删** ⇒ ★读者（后起的段）读不到 ✓。
+	writeFileSync(join(DIST_DIR, `game-${s.slug}.twee`), merges.get(s.slug), 'utf8');
 	// 用 extwee 编译：Twee + SugarCube 格式 → 单文件 HTML
 	execSync(`npx extwee -c -i ${JSON.stringify(join(STAGE, 'game.twee'))} -o ${relative(ROOT, out)} -s vendor/format.js`, { stdio: 'inherit' });
 	if (fontCss) writeFileSync(out, injectFonts(readFileSync(out, 'utf8'), FONT_PREFIX_FROM_STORY));

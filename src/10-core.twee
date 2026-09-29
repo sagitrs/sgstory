@@ -828,30 +828,6 @@ window.Sg.events = {
 	defs() {
 		return (window.Game?.Events?.defs ?? {});
 	},
-	/** ★★ `#1669`：**渲染函数的共用求值口** —— ★取不到 ⇒ **点名**（✗ 不是裸 `TypeError` ✓）。
-	 *  ★为什么要有它：★生成的渲染函数里，`$n`／`this.x`／`that.x` 原先编成**裸属性访问** ✗ ⇒
-	 *    ★取不到时抛的是 `Cannot read properties of undefined (reading 'x')` —— ★玩家看到**整页坏掉** ✓，
-	 *    ★而报文里**没有槽名与路径** ⇒ ★作者无从下手 ✓。
-	 *  ★★口径（★与同族两处**拉平** ✓）：★`Sg.rules.evalExpr`（取不到 ⇒ 点名**函数名＋哪个参数** ✓）／
-	 *    ★`Sg.uses.read`（尚未产生 ⇒ 点名 ✓）⇒ ★本口同样**点名**：★事件名 ／ 哪处（事件级 or 子句序）／
-	 *    ★**槽名** ／ ★**原样取值项** ✓。
-	 *  ★语义：★`raw` 只用于**报文**（★求值由调用点给的**闭包**做 ⇒ ✗ 不在本口里解析字符串 ✓）。 */
-	val(a, raw, where, slot, fn) {
-		const head = 'Sg.events.val：事件「' + where + '」的槽「' + slot + '」取值项 `' + raw + '` ';
-		let v;
-		try {
-			v = fn(a);
-		} catch (e) {
-			// ★★(自查) ★**中间量缺失**（如 `a.that.ev` 不存在 ⇒ `.turn` 抛）★也必须是**点名** ✗
-			//   ⇒ ★✗ 不能只判"最终值 undefined" ✓（★否则中间缺失仍抛裸 `TypeError` ✓）
-			throw new Error(head + '**求值失败**（' + String((e && e.message) || e).slice(0, 80)
-				+ '）⇒ ✗ 裸异常会把整页带坏、且无从定位 ⇒ 请检查该路径的**中间段**是否存在 ✓');
-		}
-		if (v === undefined) {
-			throw new Error(head + '**取不到**（undefined）⇒ ✗ 静默渲染成 \"undefined\" 会让散文说谎 ⇒ 请检查该路径 ✓');
-		}
-		return v;
-	},
 	/** ★**调用一个事件**（点击那一刻 ⇒ 链接／规则行的 `data-sg-call`）。
 	 *  @param {string} name 事件名（★必须已宣告 ⇒ ✗ 否则点名 ✓）
 	 *  @param {{actor?:string, pc?:object}} [ctx] `actor` ⇒ 目标实体名（★1c 的对象维 ✓） */

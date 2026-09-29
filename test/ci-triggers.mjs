@@ -161,6 +161,27 @@ export const mainOnlyJobsMissingDispatch = (text) => {
  * · `workflow_dispatch` 那条 → 沿用（它对**每个** workflow 都成立 —— 手动补跑是通用要求）
  * → 否则扩射程后会**误报**（`soak-nightly` 等**无 `pull_request` 面**的文件各报 2–3 条 —— 实测已量：8 处）。
  *注意：**边界（不削弱真判据）**：`ci.yml` 那两条**仍然照判**（它真有那两个面 → 条件为真 不被放过）。 */
+/** ★★ `#1622` ／ NIT-1（`#1626` D 票采纳）：**"跑 md-format 的档 ⇒ 必须取全历史"**（★防"同族缺口换处复发" ✓）。
+ *
+ * ★为什么需要它（★而不是靠人记）：★`md-format` 的 F4 面有一支按 `git log --all` 判「引用的路径**曾否存在**」
+ *   （★"曾存在 ⇒ 红"＝**删件留下死引用**那一族 ✓）⇒ ★浅克隆下它退化成 **○ 未判**（✗ 红）⇒ ★**该档上牙不露** ✗。
+ * ★故凡**跑 `npm test`／`md-format`／`run-tests`** 的 workflow ⇒ ★其 `actions/checkout` **必须** `fetch-depth: 0` ✓
+ *   （★现在写在 `ci.yml` 的 `test` job 与 `full-tier.yml` 的 `full` job 两处 ✓ —— ★本格把"两处"这个事实
+ *    变成**机械可判** ⇒ ★将来**新增**第三个这类 workflow ✗ 靠人记得 ✓）。
+ * ★判法（★宁可粗糙、✗ 不假装精细）：★数 `uses: actions/checkout@` 与 `fetch-depth: 0` 的**个数** ⇒ 后者必须 ≥ 前者 ✓
+ *   （★本仓两处都是"一 job 一 checkout" ⇒ 够用；★将来多 checkout 时此处自然会要求逐个配 ✓）。
+ * ★**✗ 不要求**不跑这些命令的 workflow（如 `pages.yml`／`realmachine` 那类 ⇒ ★加深＝白花成本 ✓）。 */
+export const depthProblems = (text) => {
+	const s = String(text ?? '');
+	const runsTier = /(npm (run )?test\b|test:full|md-format|run-tests\.mjs)/.test(s);
+	if (!runsTier) return [];
+	const checkouts = (s.match(/uses:\s*actions\/checkout@/g) ?? []).length;
+	const deep = (s.match(/fetch-depth:\s*0\b/g) ?? []).length;
+	if (!checkouts || deep >= checkouts) return [];
+	return [`跑 \`npm test\`／\`md-format\` 的档**必须取全历史**（\`fetch-depth: 0\`）—— 现 ${checkouts} 处 \`checkout\` 只有 ${deep} 处带深度 `
+		+ '⇒ ★`md-format` 的 F4 面（`git log --all` 判"引用路径曾否存在"）在本档上**牙不露** ✗（`#1622`／`#1626` D 票 NIT-1 ✓）'];
+};
+
 export const triggerProblems = (text) => {
 	const out = [];
 	const s = triggerSurface(text);
@@ -194,6 +215,8 @@ const summary = [];
 for (const rel of files) {
 	const text = readFileSync(join(ROOT, rel), 'utf8');
 	const probs = triggerProblems(text);
+	const dProbs = depthProblems(text);   // ★ `#1622` NIT-1：跑 md-format 的档必须取全历史 ✓
+	probs.push(...dProbs);
 	const sf = triggerSurface(text);
 	summary.push(`${rel.replace('.github/workflows/', '')}${sf.hasDispatch ? '' : '（**无 dispatch**）'}`);
 	if (probs.length) {

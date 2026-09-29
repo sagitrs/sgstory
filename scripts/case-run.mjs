@@ -64,6 +64,34 @@ export const stateValueOf = (path, { pc = undefined, vars = undefined } = {}) =>
 	return body.split('.').reduce((o, k) => (o == null ? undefined : o[k]), root);
 };
 
+/** ★★ `#1580`（与 `stateValueOf` **成对**的**写侧**）：把一条用例的"前态"**种进**状态 ——
+ *  ★用途：★`drive.state` 原先**声明了但执行器不读**（静默无效 ✗）⇒ ★本件把它实现成「**点击前种前态**」（`#1562` 阶段 2 要的"前态造形" ✓）。
+ *  ★**口径与读侧同形同词**（✗ 各写一套）：★裸路径／显式 `pc.` 前缀 ⇒ 根＝`pc`｜★`$` 前缀 ⇒ 根＝`State.variables` ✓
+ *    （例：`"$actors.木桩.hp": 1` ⇒ 造实体前态 ✓）—— ★同一处文件 ⇒ 读写两面一套口径 ✓。
+ *  ★**缺失的中间层会建**（✗ 否则"造一个还不存在的实体前态"要作者自己先铺路径 ✓）；
+ *    ★但中间层**已存在且非对象** ⇒ **fail-loud 点名**（结构性错 ⇒ ✗ 静默覆盖 ✓ —— 同 `stateValueOf` 的 fail-loud 口径 ✓）。
+ *  @returns {boolean} 是否真写入了（★便于判据件断言"这一步被消费" ✓）
+ */
+export const stateSetOf = (path, value, { pc = undefined, vars = undefined } = {}) => {
+	const p = String(path ?? '');
+	const rooted = p.startsWith('$');
+	let body = rooted ? p.slice(1) : p;
+	const root = rooted ? vars : pc;
+	if (!rooted && body.startsWith('pc.')) body = body.slice(3);       // ★与读侧**同一条**归一（✗ 两处各写 ⇒ 必漂移 ✓）
+	const parts = body.split('.');
+	if (!parts.length || parts.some((k) => k === '')) throw new Error(`stateSetOf：路径「${p}」畸形（空段 ⇒ ✗ 静默种到根上 ✓）`);
+	if (root == null || typeof root !== 'object') throw new Error(`stateSetOf：根不可写（${p} ⇒ ${rooted ? 'State.variables' : 'pc'} 缺）—— ✗ 静默丢弃 ✓`);
+	let cur = root;
+	for (let i = 0; i < parts.length - 1; i++) {
+		const k = parts[i];
+		if (cur[k] == null) cur[k] = {};
+		else if (typeof cur[k] !== 'object') throw new Error(`stateSetOf：路径「${p}」的第 ${i + 1} 段「${k}」已是 ${typeof cur[k]}（非对象）⇒ ✗ 静默覆盖 ✓`);
+		cur = cur[k];
+	}
+	cur[parts[parts.length - 1]] = value;
+	return true;
+};
+
 export const resolveCasesDir = ({ cases = null, root = ROOT } = {}) =>
 	cases ? (isAbsolute(cases) ? cases : resolve(root, cases)) : join(root, 'cases');
 
@@ -180,6 +208,12 @@ const drive = async (c) => {
 	}
 	const { w, settle, sleep } = await boot({ story: c.story, random: c.drive?.seed ?? 0.5 });
 	const s = makeSession(w, { settle, sleep });
+	// ★★ `#1580`：★**点击前种前态**（`drive.state` 原先**声明了没人读** ✗ ⇒ 现按票面实现 ✓）——
+	//   ★口径与 `expect.state` 的读侧**同形**（裸／`pc.` ⇒ `pc`｜`$` ⇒ `State.variables` ✓）；★顺序：**boot 之后、clicks 之前** ✓
+	{
+		const vars0 = w.SugarCube?.State?.variables;
+		for (const [p, v] of Object.entries(c.drive?.state ?? {})) stateSetOf(p, v, { pc: vars0?.pc, vars: vars0 });
+	}
 	for (const click of c.drive?.clicks ?? []) await s.clickByLabel(click);
 	const vars = w.SugarCube?.State?.variables;
 	const pc = vars?.pc;

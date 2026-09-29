@@ -265,23 +265,54 @@ let sgPendingText = null;
 //   ★为什么必须有：★"**循环 ＋ 状态**"**无法静态证明终止** ⇒ ★防线只有**运行期上限 ＋ 具名** ✓
 //   ★计数：★**按段名**（`State.variables.sgVisits` ✓）；★上限缺省 **64** ✓
 //   ★（★作者可设上限 ⇒ 后续接段级声明面 ⇒ ✗ 本笔只落**缺省上限** ＋ 具名 ✓ —— 验收②只要求缺省生效 ✓）
+// ★★ `#1657`（阶 4 收口）：**重入上限** —— ★双信号判据（★"连续" ∨ "周期"），✗ 不是单看连续。
+//   ★为什么：★"循环 ＋ 状态"无法静态证明终止 ⇒ 防线只有**运行期上限 ＋ 具名** ✓
+//   ★★① **连续臂**：★同一段连着进 > LIMIT ⇒ 点名 ✓
+//   ★★② **周期臂**（`#1657` ①）：★只数连续会漏掉★**交替型**（`A↔B↔A↔B…` ⇒ n 恒为 1 ✗）
+//     ⇒ ★判"近期是否以**周期 p ≤ 3** 重启" ✓ ＋ ★**本段须在周期内** ✓
+//     ★★且★**必须挂在 `total > 300` 门下** ✗✗ —— ★否则★**中枢交替**（70 次后离开）会被误报 ✗
+//       （★实测：B/C 两形挂门后**永不触发** ✓，而无界 2/3 环**第 301 次**触发 ✓）
+//   ★★★**边界（照实写，✗ 不藏）**：★周期臂只认 **p ≤ 3** ⇒ ★**4 环及更长（`A↔B↔C↔D…`）漏网** ✗
+//     （★实测 H 形：4 环**永不触发** ✓）—— ★这是**明知的边界**：★周期越长，"它还是循环"越难与
+//     "长局里的常客"分开 ⇒ ★宁漏勿误（★误报会把正常长局判成卡死 ✓）
+//   ★上限：★段级 `visitLimit`（`passageSpecs()` 读 ✓，缺省 64 ✓）
 jQuery(document).on(':passagerender.sgVisitLimit', (ev) => {
 	const name = String(State.passage ?? '');
-	// ★★CR（`#1653` 甲／丙）：★计数必须是**连续**的 ✗ 不是**累计**的 ——
-	//   ★★"循环停不下来"指的是**同一段连着进**（✗ 无进展）；★而"一局里总共进过 N 次"是**正常**的
-	//     （★例：中枢段被来回经过 65 次 ✗ 不是循环 ✗）⇒ ★**进别的段即归零** ✓
-	//   ★（★累计口径会**误报**，且报文写"已进 N 次"也**误导** —— ✗ 两者是同一处根因 ✓）
-	const box = (State.variables.sgVisits ??= { name: '', n: 0 });
-	if (box.name === name) box.n += 1; else { box.name = name; box.n = 1; }
-	const LIMIT = 64;
-	if (box.n <= LIMIT) return;
-	const msg = 'visited this line too many times (' + LIMIT + ')：段「' + name + '」**连续**进了 '
-		+ box.n + ' 次（★中间没有进别的段）⇒ ✗ 疑**终止条件永不成立**（循环停不下来）'
-		+ ' ⇒ 请检查起止条件／计数效果，或改写兜底链接 ✓';
+	let LIMIT = 64;
+	try {
+		const sp = window.Sg && window.Sg.story && window.Sg.story.passageSpecs ? window.Sg.story.passageSpecs()[name] : null;
+		const n = sp && sp.visitLimit != null ? Number(sp.visitLimit) : NaN;
+		if (Number.isFinite(n) && n >= 1) LIMIT = Math.floor(n);
+	} catch (e) { /* 读不到 ⇒ 缺省 */ }
+	const st = (State.variables.sgVisits = State.variables.sgVisits || { ring: '', n: 0, last: '', total: 0 });
+	st.total = (st.total || 0) + 1;
+	// ★★总是更新 `last`（✗ 旧实现只在换段时更新 ⇒ `last === name` 永假 ⇒ 连续臂恒 n=1 ✗ —— 实测照出 ✓）
+	st.n = (st.last === name) ? (st.n || 0) + 1 : 1;
+	st.last = name;
+	const SEP = String.fromCharCode(1);
+	const win = (st.ring ? String(st.ring).split(SEP) : []).concat([name]).slice(-32);
+	st.ring = win.join(SEP);
+	let why = '';
+	if (st.n > LIMIT) {
+		why = '连续进了 ' + st.n + ' 次（中间没有进别的段）';
+	} else if (st.total > 300) {
+		for (let p = 1; p <= 3; p += 1) {
+			if (win.length < 2 * p) continue;
+			const w = win.slice(-2 * p);
+			let ok = true;
+			for (let i = p; i < w.length; i += 1) if (w[i] !== w[i - p]) { ok = false; break; }
+			if (!ok) continue;
+			let inPeriod = false;
+			for (let i = 0; i < p; i += 1) if (w[i] === name) inPeriod = true;
+			if (inPeriod) { why = '近期以周期 ' + p + ' 重启（第 ' + st.total + ' 次进段）'; break; }
+		}
+	}
+	if (!why) return;
+	const msg = 'visited this line too many times (' + LIMIT + ')：段「' + name + '」' + why
+		+ ' ⇒ 疑终止条件永不成立（循环停不下来）⇒ 请检查起止条件／计数效果，或改写兜底链接（上限可用段级 visitLimit 调）';
 	jQuery(ev.content).attr('data-sg-visitlimit', '1');
-	console.error('✗ [sg-visitlimit] ' + msg);
+	console.error('[sg-visitlimit] ' + msg);
 });
-
 jQuery(document).on(':passagerender.sgDeadEnd', (ev) => {
 	const $c = jQuery(ev.content);
 	const declared = Number($c.find('[data-sg-links-declared]').attr('data-sg-links-declared') ?? 0) || 0;

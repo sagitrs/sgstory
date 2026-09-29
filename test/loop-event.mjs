@@ -15,7 +15,7 @@ const FX = join(ROOT, 'test/fixtures/m3-loop-fixture/stories');
 const SLUG = 'loop-basic';
 const CASE = process.env.LE_CASE ?? null;
 if (!CASE) {
-	const cases = ['walk', 'limit', 'revisit', 'deadend', 'noedge', 'zero'];
+	const cases = ['walk', 'limit', 'revisit', 'cycle', 'seglmt', 'deadend', 'noedge', 'zero'];
 	let rc = 0;
 	for (const c of cases) {
 		const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url)], { env: { ...process.env, LE_CASE: c }, encoding: 'utf8', cwd: ROOT });
@@ -44,7 +44,8 @@ const loop = async ({ injectVisits = null, clicks = 5 } = {}) => {
 	const w = B.w, S = w.SugarCube.State;
 	S.variables.sgVisits = S.variables.sgVisits || {};
 	// ★★计数形是 {name, n}（★**连续**计数 ✓）⇒ ★注入要与它同形 ✗ 否则推过上限推不动 ✓
-		if (injectVisits != null) { S.variables.sgVisits = { name: '战斗', n: injectVisits }; w.SugarCube.Engine.play('战斗'); await new Promise((r) => setTimeout(r, 300)); }
+		// ★★运行期形是 {ring:串, n, last, total}（★环存字符串 —— 数组会被 SugarCube 克隆拒 ✓）
+		if (injectVisits != null) { S.variables.sgVisits = { ring: '', n: injectVisits, last: '战斗', total: 0 }; w.SugarCube.Engine.play('战斗'); await new Promise((r) => setTimeout(r, 300)); }
 	const errs = []; w.console.error = (...a) => errs.push(String(a.join(' ')));
 	const links = () => [...w.document.querySelectorAll('#passages a')].map((x) => x.textContent.trim());
 	const click = async (l) => {
@@ -96,6 +97,39 @@ try {
 		const r = await loop({ injectVisits: 64 });   // ★"条件永不成立"等价于"进段次数停不下来" ⇒ 推过上限
 		// ★★(实测) DOM 标记会被**随后的跳段**冲掉 ⇒ ★判据以**点名报文**为准（★报文里带段名与次数 ✓）
 		t('★② 能假·终止条件写坏 ⇒ **重入上限具名**（too many times (64) ＋ 段名 ＋ **连续**次数）', r.errs.some((e) => /sg-visitlimit/.test(e) && /too many times \(64\)/.test(e) && /战斗/.test(e)), JSON.stringify(r.errs).slice(0, 150));
+	}
+	if (CASE === 'cycle') {
+		// ---- ★①（`#1657`）：**交替型卡死（A↔B 无界）⇒ 应报** —— ★旧"只数连续"的口径在这里**一声不响** ✗ ----
+		clearThree(); build();
+		process.env.SG_STORIES_DIR = FX;
+		const { boot } = await import('./boot.mjs');
+		const B = await boot({ story: SLUG, random: 0.5 });
+		const w = B.w, S = w.SugarCube.State;
+		const errs = []; w.console.error = (...a) => errs.push(String(a.join(' ')));
+		S.variables.sgVisits = { ring: '', n: 0, last: '', total: 0 };
+		for (let i = 0; i < 350; i += 1) { w.SugarCube.Engine.play(i % 2 ? '战果' : '战斗'); await new Promise((r) => setTimeout(r, 1)); }
+		const hit = errs.find((e) => /sg-visitlimit/.test(e));
+		t('★① 交替型卡死（A↔B 无界 350 次）⇒ **周期臂点名**（★旧口径在这里永不触发 ✗）', !!hit && /周期/.test(hit), (hit ?? '(无)').slice(0, 120));
+		await B.close?.();
+	}
+	if (CASE === 'seglmt') {
+		// ---- ★②（`#1657`）：**段级 `visitLimit`** ⇒ ★上限不再是全局魔数（★缺省 64 只作缺省值 ✓）----
+		clearThree(); build();
+		process.env.SG_STORIES_DIR = FX;
+		const { boot } = await import('./boot.mjs');
+		const B = await boot({ story: SLUG, random: 0.5 });
+		const w = B.w, S = w.SugarCube.State;
+		const errs = []; w.console.error = (...a) => errs.push(String(a.join(' ')));
+		const sp = w.Sg.story.passageSpecs();
+		sp['战斗'] = Object.assign({}, sp['战斗'], { visitLimit: 4 });
+		// ★★(实测) ✗ 别用交替测段级上限 —— ★交替时**连续臂** n 恒为 1 ✗，而**周期臂**有 `total>300` 门 ✗
+		//   ⇒ ★段级上限要测**连续**：★注入"已连续 5 次" ⇒ 下一次渲染 ⇒ n=6 > 4 ⇒ 报 (4) ✓
+		S.variables.sgVisits = { ring: '', n: 5, last: '战斗', total: 0 };
+		w.SugarCube.Engine.play('战斗');
+		await new Promise((r) => setTimeout(r, 300));
+		const hit = errs.find((e) => /sg-visitlimit/.test(e));
+		t('★② 段级 `visitLimit: 4` ⇒ 上限按段生效（★第 5 次即报，✗ 不是 64 ✓）', !!hit && /\(4\)/.test(hit), (hit ?? '(无)').slice(0, 120));
+		await B.close?.();
 	}
 	if (CASE === 'deadend') {
 		// ---- ③ 能假·兜底链接：撤掉「结束战斗」⇒ 无可见出边点名 ----

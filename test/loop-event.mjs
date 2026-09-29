@@ -15,7 +15,7 @@ const FX = join(ROOT, 'test/fixtures/m3-loop-fixture/stories');
 const SLUG = 'loop-basic';
 const CASE = process.env.LE_CASE ?? null;
 if (!CASE) {
-	const cases = ['walk', 'limit', 'revisit', 'cycle', 'seglmt', 'deadend', 'noedge', 'zero'];
+	const cases = ['walk', 'limit', 'revisit', 'cycle', 'seglmt', 'declchain', 'deadend', 'noedge', 'zero'];
 	let rc = 0;
 	for (const c of cases) {
 		const r = spawnSync(process.execPath, [fileURLToPath(import.meta.url)], { env: { ...process.env, LE_CASE: c }, encoding: 'utf8', cwd: ROOT });
@@ -129,6 +129,29 @@ try {
 		await new Promise((r) => setTimeout(r, 300));
 		const hit = errs.find((e) => /sg-visitlimit/.test(e));
 		t('★② 段级 `visitLimit: 4` ⇒ 上限按段生效（★第 5 次即报，✗ 不是 64 ✓）', !!hit && /\(4\)/.test(hit), (hit ?? '(无)').slice(0, 120));
+		await B.close?.();
+	}
+	if (CASE === 'declchain') {
+		// ---- ★④（领队审点）：**声明面 ⇒ 运行期读** 的**整条链**（★✗ 不绕开声明直接改 spec ✗）----
+		//   ★链：★`data/passages.json` 的段级 `visitLimit` ⇒ ★`visitLimitDeclared` ⇒ ★`emit` 的 `specs` ⇒
+		//     ★契约 `passageSpecs()` ⇒ ★运行期读 ⇒ ★报 `(4)` ✓
+		//   ★★为什么必须单独立一格：★`seglmt` 那格是**直接改 spec**（★只验了"读得到" ✗）⇒ ★链的前半没验 ✓
+		const d = JSON.parse(ORIG.p);
+		d['战斗'].visitLimit = 4;                     // ★★写进**声明面**（✗ 不碰 spec ✓）
+		writeFileSync(P, JSON.stringify(d, null, 1) + '\n');
+		clearThree(); build();
+		process.env.SG_STORIES_DIR = FX;
+		const { boot } = await import('./boot.mjs');
+		const B = await boot({ story: SLUG, random: 0.5 });
+		const w = B.w, S = w.SugarCube.State;
+		const specLmt = (w.Sg.story.passageSpecs()['战斗'] || {}).visitLimit;
+		t('★④-a 声明面 `visitLimit: 4` ⇒ **契约 spec 里读到 4**（★链前半 ✓）', Number(specLmt) === 4, `spec.visitLimit=${JSON.stringify(specLmt)}`);
+		const errs = []; w.console.error = (...a) => errs.push(String(a.join(' ')));
+		S.variables.sgVisits = { ring: '', n: 5, last: '战斗', total: 0 };
+		w.SugarCube.Engine.play('战斗');
+		await new Promise((r) => setTimeout(r, 300));
+		const hit = errs.find((e) => /sg-visitlimit/.test(e));
+		t('★④-b 运行期据此报 `(4)`（★链后半 ✓ ⇒ 声明面到运行期**通** ✓）', !!hit && /\(4\)/.test(hit), (hit ?? '(无)').slice(0, 110));
 		await B.close?.();
 	}
 	if (CASE === 'deadend') {

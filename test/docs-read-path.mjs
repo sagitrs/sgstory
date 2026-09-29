@@ -161,7 +161,9 @@ const case_ = (label, ok, extra = '') => {
 
 const selftest = () => {
 	const exists = (p) => !p.includes('no-such');
-	const sizeOf = (p) => (p.includes('huge') ? 160 * 1024 : 1024);
+	// ★ `#1676`：★夹具**从 `BUDGET_KB` 派生**（✗ 硬编 —— ★预算一变、格就烂 ✗）
+	const OVER_KB = BUDGET_KB + 10;                     // 超限 10KB
+	const sizeOf = (p) => (p.includes('huge') ? OVER_KB * 1024 : 1024);
 	const okTable = '| 改引擎 / 机制 | `docs/criterion-design.md` | `scripts/module-order.mjs` |\n| 写剧情 | `docs/twee-cheatsheet.md` | — |';
 	const SEC = '## 一、按任务读\n';
 	// ① 死链夹具 → 必红并点名
@@ -183,7 +185,7 @@ const selftest = () => {
 	// ③′ 字节超限夹具 → 必红（ratchet 有牙）
 	const huge = SEC + '| 大文档 | `docs/huge.md` | — |';
 	const bp = budgetProblems(huge, { sizeOf, exists });
-	case_('字节超限夹具必红', bp.length === 1 && bp[0].includes('160.0KB') && bp[0].includes('150'));
+	case_('字节超限夹具必红', bp.length === 1 && bp[0].includes(`${OVER_KB}.0KB`) && bp[0].includes(String(BUDGET_KB)));
 	// 边界：path-exempt 行跳过（留痕惯例沿用）
 	const ex = deadLinkProblems(SEC + '| 历史 | `docs/no-such-doc.md` <!-- path-exempt: 历史叙述 --> | — |', { exists });
 	case_('path-exempt 行跳过', ex.length === 0);

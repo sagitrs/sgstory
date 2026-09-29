@@ -128,6 +128,16 @@ export const DEFAULT_ROOT_READERS = [
 /** 判据：每个登记段都必须在计划里，且 `needs` 含 `build-mjs`（★✗ 只管"有没有声明"——"该不该登记"是人审 ✓）。 */
 export const defaultRootReaderProblems = (segs = [], readers = DEFAULT_ROOT_READERS) => {
 	const byId = new Map(segs.map((s) => [s.id, s]));
+
+// ★ `#1658`（合并后 · D 席 NIT）：★给 `exclusive: true` **上钉** —— ★"读全仓扫描面"的段必须独占 ✓
+//   ★为什么必须钉：★`exclusive` 是**构造性防线**（★"并行窗口"格只能钉**那个窗口** ⇒ ✗ 钉不住"它是否仍是独占段" ✓）
+//     ⇒ ★没有格 ⇒ ★**它哪天被摘掉会无人报** ✗（★这正是 NIT 说的"行无钉" ✓）
+//   ★能假：★把 `scripts-md-format-mjs` 的 `exclusive: true` 摘掉 ⇒ ★**本格红** ✓（实测 ✓）
+//   ★防空判：★若该段 id 被改名或删除 ⇒ `.exclusive !== true` ⇒ ★**红** ✓（✗ 不静默放过 ✓）
+const SCAN_ALL_MD_SEGMENTS = ['scripts-md-format-mjs'];
+case_('🔴 `#1658`·读全仓 `.md`（扫描面）的段必须 `exclusive`（✗ 否则与"造仓内临时 `.md` 的段"并行 ⇒ `#1648` 族假红）',
+	SCAN_ALL_MD_SEGMENTS.every((id) => (SEGMENTS.find((s) => s.id === id) ?? {}).exclusive === true),
+	SCAN_ALL_MD_SEGMENTS.filter((id) => (SEGMENTS.find((s) => s.id === id) ?? {}).exclusive !== true).join('、'));
 	const out = [];
 	for (const r of readers) {
 		const s = byId.get(r.id);

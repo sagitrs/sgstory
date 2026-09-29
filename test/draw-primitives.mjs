@@ -96,7 +96,7 @@ const D = await load();
 	// ★路径走**单一权威** `DIST_DIR`（`#1267` 随故事根）—— ✗ 不硬编 `dist/`（跑仓外故事时它不在仓内）。
 	const INPUTS = join(DIST_DIR, 'INPUTS.json');
 	if (!existsSync(INPUTS)) {
-		t('★③c 产物面在场：`<DIST_DIR>/INPUTS.json` 存在（build 一跑就写；✗ 不依赖某段先写 `build/game-<slug>.twee`（★`#1643` CR 后：逐故事稳定副本；共享暂存名已废 ✓））',
+		t('★③c 产物面在场：`<DIST_DIR>/INPUTS.json` 存在（build 一跑就写；✗ 不依赖某段先写 `game-<slug>.twee`（★`#1643` CR：逐故事稳定副本；★`#1648`：副本已落**随根**位 `<DIST_DIR>/` ⇒ 共享暂存名全废 ✓））',
 			false, `${INPUTS} 不存在 —— 请先跑 node build.mjs（本段 ✗ 自建：同概念两处）`);
 	} else {
 		const raw = readFileSync(INPUTS, 'utf8');

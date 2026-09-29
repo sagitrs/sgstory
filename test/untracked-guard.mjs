@@ -14,7 +14,7 @@
 //注意：**边界（本件只测纯函数）**：它**不**证明三个门真的接了（那是探针的活）——
 // 本仓老账：**"自证测纯函数、不测接线"** → 删掉接入点自证仍全绿（`#1089` 领队转达的那格）。
 
-import { untrackedScannedProblems, isUntrackedExemptLine, UNTRACKED_EXEMPT_MARKER } from '../scripts/lib/untracked-guard.mjs';
+import { untrackedScannedProblems, isUntrackedExemptLine, isTransientFixture, UNTRACKED_EXEMPT_MARKER } from '../scripts/lib/untracked-guard.mjs';
 import { execFileSync } from 'node:child_process';
 import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -71,18 +71,26 @@ case_('🔴 **不误伤**：普通新件（`docs/real-new.md`）⇒ **不算**�
 // `#1261` 复核：夹具位置**移出 `docs/`**（当时理由是「与扫 `docs/**/*.md` 的 lint-human-face
 // 相撞，实测 4 次 1 红 3 绿 = flap」）。该门已随 `#1314` 撤销 ⇒ 理由不再成立，但**位置不动**
 // （移到 `scripts/` 下的 `.md` 仍在「未跟踪扫描面」内，合本件要求）。// 但**不被** lint 的文档面扫（它只扫 `docs/**/*.md`）。
-const FIXTURE = `scripts/untracked-guard-selftest-${process.pid}.md`;
+// ★★ `#1648`：★夹具名**必须落在临时夹具惯例内**（`__` 前缀）—— ✗ 否则它会落进**别的门的看护面** ✗
+//   ★实测（`#1648` 根因）：原名 `scripts/untracked-guard-selftest-<pid>.md` ⇒ 而 `md-format` 有一格
+//   `#1089`「**未跟踪的 `*.md` ⇒ 红**」⇒ ★本段运行时，`md-format` 若**同时在跑**（同组并行）就拿它当
+//   「有人忘了 `git add`」⇒ **偶发红**（≈1/5，实测量到 ✓）—— ★那是**本段的夹具越界**，✗ 不是别人的缺陷 ✓
+//   ★`isTransientFixture`（`scripts/lib/untracked-guard.mjs`）的本意**正是**放过这种运行期夹具 ⇒ 用它的命名 ✓
+const FIXTURE = `scripts/__untracked-guard-selftest-${process.pid}.md`;
 const abs = join(ROOT, FIXTURE);
 const othersOf = () => execFileSync('git', ['ls-files', '--others', '--exclude-standard'], { cwd: ROOT, encoding: 'utf8' }).split('\n').filter(Boolean);
 try {
 	if (existsSync(abs)) unlinkSync(abs);
 	writeFileSync(abs, '# 夹具\n');
 	// 未跟踪态 → 必须在 `git ls-files --others` 里，且被判
-	const miss1 = untrackedScannedProblems({ untracked: othersOf(), isScanned: isMd, exempted: [] });
+	// ★★ `#1648`：★本格必须显式传 `isTransient: () => false` —— ★它要证的正是「**未跟踪 ⇒ 会被判**」这条**裸行为**
+	//   ⇒ ★若沿用缺省的临时夹具豁免，夹具被放过 ⇒ ★本格量不出（★`#1648` 的注释正记着当年用 `__` ⇒ **端到端量不出**
+	//   ⇒ 病根就是当时没显式传 ✓）。★两格都传（否则「add 后不在清单」那格会因豁免而**恒真** ⇒ 假绿 ✓）
+	const miss1 = untrackedScannedProblems({ untracked: othersOf(), isScanned: isMd, exempted: [], isTransient: () => false });
 	case_('端到端·未跟踪：夹具出现在"未跟踪 ⇒ 会被判"清单里（**真 git 读数** ✓）', miss1.unscanned.includes(FIXTURE));
 	// add 后 → 从 `--others` 消失 → 不再被判（＝"add 后不红"）
 	execFileSync('git', ['add', FIXTURE], { cwd: ROOT });
-	const miss2 = untrackedScannedProblems({ untracked: othersOf(), isScanned: isMd, exempted: [] });
+	const miss2 = untrackedScannedProblems({ untracked: othersOf(), isScanned: isMd, exempted: [], isTransient: () => false });
 	case_('端到端·`git add` 后：夹具**离开**未跟踪清单 ⇒ 不再被判（两状态两结果 ✓）', !miss2.unscanned.includes(FIXTURE));
 	execFileSync('git', ['reset', '-q', FIXTURE], { cwd: ROOT });
 } finally {
@@ -91,6 +99,10 @@ try {
 }
 // 清场自证：夹具不得残留（否则本件自己会污染工作树）
 case_('端到端·清场：夹具已删且不再出现在未跟踪清单里', !existsSync(abs) && !othersOf().includes(FIXTURE));
+// ★★ `#1648`：★**夹具名与惯例同源**（把「✗ 越界」钉成判据）—— ★能假：
+//   ★把 `FIXTURE` 改回 `scripts/untracked-guard-selftest-${pid}.md`（去 `__` 前缀）⇒ **本格红** ✓
+case_('🔴 `#1648`·夹具名落在临时夹具惯例内（`__` 前缀 ⇒ 别的门会放行它，✗ 落进别人看护面 ✓）',
+	isTransientFixture(FIXTURE));
 
 console.log(bad === 0
 	? '✔ untracked-guard：未跟踪 ⇒ 红 · 已跟踪 ⇒ 不红 · 豁免（理由＋票号）⇒ 不红但留痕 —— 三格成对 ✓'

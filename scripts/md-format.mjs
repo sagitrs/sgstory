@@ -321,7 +321,7 @@ const main = () => {
 		for (const e of r.exemptions) console.log(`      · 豁免留痕 ${e}`);
 		for (const pl of r.planned) console.log(`      · 登记（尚未创建）${pl}`);
 	}
-	console.log(`      路径引用 ${pathRefs} 处：陈旧 ${pathBad} 处（同名在别处）· 尚未创建 ${plannedPaths} 处（设计稿里"新增"的模块，只登记）· 豁免留痕 ${exempted} 处`);
+	console.log(`      路径引用 ${pathRefs} 处：陈旧 ${pathBad} 处（同名在别处）· 尚未创建 ${plannedPaths} 处（设计稿里"新增"的模块，只登记）· 豁免留痕 ${exempted} 处 · ○ 未判 ${undecidedPaths} 处（★浅克隆才有；✗ 红 ✗ 静默）`);
 
 	// ── F5：入口页体量 ratchet ──
 	if (files.includes('README.md')) {

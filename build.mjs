@@ -1,7 +1,8 @@
-import { readdirSync, readFileSync, writeFileSync, mkdirSync, existsSync, rmSync } from 'node:fs';
+import { readdirSync, readFileSync, writeFileSync, mkdirSync, mkdtempSync, existsSync, rmSync } from 'node:fs';
 import { allSourceFiles } from './scripts/module-order.mjs';
 import { genNeeds } from './scripts/lib/gen-needed.mjs';   // `#1192`：该不该重编这份故事的产物
 import { execSync } from 'node:child_process';
+import { tmpdir } from 'node:os';   // `#1643`：中间件的**进程唯一**暂存（✗ 不再共享固定路径 ✓）
 import * as _crypto from 'node:crypto';   // 输入指纹（sha256）
 import vm from 'node:vm';   // `#1176`：生成件脚本段的解析器（只解析不执行）
 import { join, dirname, relative, isAbsolute } from 'node:path';
@@ -34,7 +35,15 @@ const WITH_RULES = flagOf('with-rules', null);
 const STORY_OUT = flagOf('story-out', null);
 if (STORY_OUT && !WITH_RULES) throw new Error('--story-out 只与 --with-rules 配用 ✓（本口只为"改过的故事"的探测存在 ✓）');
 
-mkdirSync('build', { recursive: true });
+mkdirSync('build', { recursive: true });   // `#1643`：暂存已不在此目录（见下），保留以免其它调用面依赖它存在 ✓
+// ★★ `#1643`：**中间件（暂存）不再落共享固定路径** —— `build/game.twee`／`font-chars.txt`／`fontface.css`
+//   原先都写成 `build/<固定名>` ⇒ ★而 `run-tests.mjs` 最多 **8 段并发** ⇒ ★"写 → 外部命令读"之间是**共享暂存** ✗
+//   ⇒ ★窗口（`npx extwee` 启动慢）内被另一段覆盖 ⇒ 产物**装错故事**／门**非确定性红** ✗
+//   （实证：`test-case-run-mjs` 的 ㉔ "种着"那一半本应绿、在 CI 上却红 ✓）
+// ⇒ ★本进程一个 `mkdtemp` 目录（✗ 固定名、✗ 共享位）＋ **退出即删** ✓
+//   （与 `#1267`"产物／暂存都别在共享位上拉屎"同向 ✓）。
+const STAGE = mkdtempSync(join(tmpdir(), 'sg-build-'));
+process.on('exit', () => { try { rmSync(STAGE, { recursive: true, force: true }); } catch { /* 退出清理：失败不掩主流程 */ } });
 mkdirSync(DIST_DIR, { recursive: true });   // `#1267` 随根
 // `#1350` 后续笔：产出时写**输入指纹** `<DIST_DIR>/INPUTS.json`（件 → 内容 sha256）——
 // 用途：新鲜度判据**比指纹**（✗ 不比 mtime）⇒ 免把"**checkout 刷新 mtime**"读成"源变新了" ✗
@@ -417,7 +426,7 @@ if (fontOK && existsSync('vendor/fonts/LXGWWenKai-Medium.ttf')) {
 		'零一二三四五六七八九十百千万亿上中下左右前后',
 	];
 	const chars = new Set([...merges.values()].join('') + EXTRA.join(''));
-	writeFileSync('build/font-chars.txt', [...chars].join(''), 'utf8');
+	writeFileSync(join(STAGE, 'font-chars.txt'), [...chars].join(''), 'utf8');
 	try {
 		console.log('🔤 生成字体子集（LXGW WenKai → dist/fonts）…');
 		// `#1267` 尾件⑤：字体产物落点必须**随根**（原来硬编仓内相对 `dist/fonts`
@@ -425,8 +434,8 @@ if (fontOK && existsSync('vendor/fonts/LXGWWenKai-Medium.ttf')) {
 		// ⇒ `test/multi-story` 的 L2 报"引用的字体文件不在 dist/fonts 里" ✗）。
 		const fontOutDir = join(DIST_DIR, 'fonts');
 		mkdirSync(fontOutDir, { recursive: true });
-		execSync(`python3 scripts/subset_font.py build/font-chars.txt build/fontface.css ${JSON.stringify(fontOutDir)}`, { stdio: 'inherit' });
-		fontCss = readFileSync('build/fontface.css', 'utf8');
+		execSync(`python3 scripts/subset_font.py ${JSON.stringify(join(STAGE, 'font-chars.txt'))} ${JSON.stringify(join(STAGE, 'fontface.css'))} ${JSON.stringify(fontOutDir)}`, { stdio: 'inherit' });
+		fontCss = readFileSync(join(STAGE, 'fontface.css'), 'utf8');
 	} catch (e) {
 		console.warn('⚠️  字体子集化失败（缺 fonttools/brotli?），使用系统字体回退：' + e.message.split('\n')[0]);
 	}
@@ -457,15 +466,25 @@ if (!STORY_OUT) rmSync(join(DIST_DIR, 'stories'), { recursive: true, force: true
 // ── 编译每个故事 → dist/stories/<slug>/index.html ─────────────────────
 for (const s of stories) {
 	if (STORY_OUT && s.slug !== DEFAULT_SLUG) continue;   // 窄口：只写目标那一份（其余故事不碰）
-	writeFileSync('build/game.twee', merges.get(s.slug), 'utf8');
+	writeFileSync(join(STAGE, 'game.twee'), merges.get(s.slug), 'utf8');
 	//注意：**工具契约**（复核席对 `#874` 的裁定 (a)）：`--story-out` **绝对路径按绝对处理** ——
 	// 原先一律 `join(ROOT, …)` → `path.join('/repo','/repo/dist/x')` ＝ `/repo/repo/dist/x`
 	//（`join` **不**在绝对段重置 —— 那是 `resolve`）→ 构建落**荒处**、目标文件仍是**旧那份**
 	// → 调用方以为写了、其实没写。修在**工具侧**（只修调用点 → 下一个调用者再踩）。
 	const out = STORY_OUT ? (isAbsolute(STORY_OUT) ? STORY_OUT : join(ROOT, STORY_OUT)) : storyHtml(s.slug);
 	mkdirSync(dirname(out), { recursive: true });
+	// ★★ `#1643` CR（`developer-9` 抓的**确定性回归** ✗）：★暂存搬进 `STAGE` 后，**两个读者仍读旧路径** ⇒
+	//   `test/event-expr.mjs`（`existsSync` 为假 ⇒ 静默空串 ⇒ 断言假 ✗）＋ `test/inline-prose-e2e.mjs`（无条件读 ⇒ **ENOENT** ✗）。
+	//   ⇒ ★故**另写一份「逐故事」的 stable 副本**给读者用 ✓：`build/game-<slug>.twee`
+	//     ★为什么**逐故事名**（✗ 不用 `build/game.twee`／✗ 也不用 `<DIST_DIR>/game.twee` 这种“每根一个”名）：
+	//     ★一个根可以有**多个故事**（books 根 5 个 ✓）⇒ 每根一个名时，两个并发构建仍会互踩**同名文件** ✗；
+	//     逐故事名 ⇒ ★**收窄**共享（不同故事不同文件 ✓）—— ★★但**未消除** ✗（`developer-9` CR 实锤）：
+	//     ★**同一个 slug 可以存在于不同根**（例：`nocar-basic` 有三处构造者：`inline-prose` 的 a／b ＋ `panels` 的改副本 ＋ browser ✓）
+	//     ⇒ ★同 slug 而**内容不同**时，这个**仓内相对**同名文件仍可能互踩 ✗（两证：md5 不同 ✓）
+	//     ⇒ ★彻底的「随根位」（`<DIST_DIR>/game-<slug>.twee`／或 slug ＋ 根指纹）在 `#1648` 收 ✓（本笔只做"收窄" ✓）。
+	writeFileSync(join('build', `game-${s.slug}.twee`), merges.get(s.slug), 'utf8');
 	// 用 extwee 编译：Twee + SugarCube 格式 → 单文件 HTML
-	execSync(`npx extwee -c -i build/game.twee -o ${relative(ROOT, out)} -s vendor/format.js`, { stdio: 'inherit' });
+	execSync(`npx extwee -c -i ${JSON.stringify(join(STAGE, 'game.twee'))} -o ${relative(ROOT, out)} -s vendor/format.js`, { stdio: 'inherit' });
 	if (fontCss) writeFileSync(out, injectFonts(readFileSync(out, 'utf8'), FONT_PREFIX_FROM_STORY));
 	injectLang(out);
 }

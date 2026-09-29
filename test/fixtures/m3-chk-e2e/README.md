@@ -53,7 +53,7 @@ bash test/fixtures/m3-chk-e2e/run.sh          # 在引擎仓任意位置都可
 而是把「**必须先清**」从**记忆**变成**结构**。**它清的三层**（少一层就会读到旧东西）：
 
 ```
-① **引擎中间件** `<引擎工作树>/build/`（里面有 `game.twee`／`fontface.css`／`font-chars.txt`）
+① **引擎中间件** `<引擎工作树>/build/`（★`#1643` CR 后：**逐故事** `game-<slug>.twee` 是给读者的稳定副本 ✓；`game.twee`／`fontface.css`／`font-chars.txt` 已改为**进程独有暂存**（`mkdtemp`，跑完即删）✗）
    —— **改了 `src/**` 就必须清这一层**，否则写进故事里的是**旧引擎** ✗
 ② 这个夹具里那个故事的**生成物** `stories/*/1[5678]-*.twee`／`00-meta.twee`（源＝`data/*.json`／`passages/*.md`）
 ③ 这个夹具的**产物面** `dist/`

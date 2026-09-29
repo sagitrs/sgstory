@@ -37,12 +37,13 @@ const clearGen = (storiesRoot) => {
 	if (!existsSync(d)) return;
 	for (const f of readdirSync(d)) if (GEN.includes(f)) rmSync(join(d, f));
 };
-/** 跑一次 build（★`build/game.twee` 逐故事覆盖 ⇒ 单故事根才是可读的产物 ✓）。 */
+/** 跑一次 build（★`build/game-<slug>.twee` **逐故事**一份 ⇒ 该故事根下必可读 ✓；
+ *  ★`#1643` CR：原读 `build/game.twee` —— 那个名已改为**进程独有暂存**（`mkdtemp`）⇒ ✗ 不再存在 ⇒ 必读**逐故事**那份 ✓）。 */
 const buildWith = (storiesRoot) => {
 	clearGen(storiesRoot);
 	try {
 		execFileSync(process.execPath, [join(ROOT, 'build.mjs')], { cwd: ROOT, env: { ...process.env, SG_STORIES_DIR: storiesRoot }, stdio: 'pipe' });
-		return { rc: 0, out: '', twee: existsSync(join(ROOT, 'build/game.twee')) ? readFileSync(join(ROOT, 'build/game.twee'), 'utf8') : '' };
+		return { rc: 0, out: '', twee: existsSync(join(ROOT, 'build', `game-${SLUG}.twee`)) ? readFileSync(join(ROOT, 'build', `game-${SLUG}.twee`), 'utf8') : '' };
 	} catch (e) {
 		return { rc: e.status ?? 1, out: String(e.stdout ?? '') + String(e.stderr ?? ''), twee: '' };
 	}

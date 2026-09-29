@@ -15,7 +15,7 @@
 // 本仓老账：**"自证测纯函数、不测接线"** → 删掉接入点自证仍全绿（`#1089` 领队转达的那格）。
 
 import { untrackedScannedProblems, isUntrackedExemptLine, isTransientFixture, UNTRACKED_EXEMPT_MARKER } from '../scripts/lib/untracked-guard.mjs';
-import { execFileSync } from 'node:child_process';
+import { execFileSync, spawnSync } from 'node:child_process';
 import { readFileSync, writeFileSync, unlinkSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -104,6 +104,25 @@ case_('端到端·清场：夹具已删且不再出现在未跟踪清单里', !e
 case_('🔴 `#1648`·夹具名落在临时夹具惯例内（`__` 前缀 ⇒ 别的门会放行它，✗ 落进别人看护面 ✓）',
 	isTransientFixture(FIXTURE));
 
+// ★★ `#1658`（操作者裁定「不稳定用例严禁上架」的结构性防法 · 甲）：★**并行复现格** ——
+//   不变量（真形态）：★**在"仓内出现未跟踪 `.md`"的窗口里跑 `md-format` ⇒ 不得假红** ✓
+//     为什么：`md-format` 有一格「未跟踪的 `.md` 落在扫描面 ⇒ 红」（`#1089`）⇒ 并行段造临时件时它**按设计**会红 ⇒
+//     唯一的稳定依赖就是「**临时夹具的名字能被 `isTransientFixture` 认得**」✓（`#1648` 的根因正是名字不认 ✓）
+//   ★能假：★把夹具名去掉 `__` 前缀 ⇒ 下一格（惯例）+ 本格（并行）**都红** ✓（实测 ✓）
+//   ★边界：★本格复现的是**窗口内的静态假红**（造件那一刻 ⇒ 跑 md-format）⇒ ✗ 不复刻调度的时序抖动（那不可复现 ⇒ 只能靠惯例从构造上消 ✓）
+{
+	const abs2 = join(ROOT, FIXTURE);
+	try {
+		writeFileSync(abs2, '# 并行窗口夹具\n');
+		// ★窗口：文件已在仓内且**未跟踪** ⇒ 此刻跑 md-format
+		const r2 = spawnSync(process.execPath, [join(ROOT, 'scripts/md-format.mjs'), '--check'], { cwd: ROOT, encoding: 'utf8' });
+		const out2 = String(r2.stdout ?? '') + String(r2.stderr ?? '');
+		case_('🔴 #1658·并行窗口：仓内有未跟踪 `.md` 时跑 `md-format` ⇒ **不假红**（惯例命名 ⇒ 豁免谓词认得 ✓）',
+			r2.status === 0, `rc=${r2.status}｜` + out2.split('\n').filter((l) => /✗|未扫/.test(l)).slice(0, 2).join(' ｜ '));
+	} finally {
+		try { if (existsSync(abs2)) unlinkSync(abs2); } catch { /* 已清 */ }
+	}
+}
 console.log(bad === 0
 	? '✔ untracked-guard：未跟踪 ⇒ 红 · 已跟踪 ⇒ 不红 · 豁免（理由＋票号）⇒ 不红但留痕 —— 三格成对 ✓'
 	: `✗ untracked-guard：${bad} 条未过（见上）`);

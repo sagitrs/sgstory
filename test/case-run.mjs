@@ -6,9 +6,10 @@
 //   ② 有人把「陈旲归因」当普通缺口（rc=0）→ 第 5 格红；
 //   ③ 有人把「根不存在」也静默 rc=0 → 入口那格红（本件只测纯函数；入口两态见 §实测）。
 import {
-	classifyCase, summarize, expectViolations, parseArgs, resolveCasesDir, discoverCases, runtimeProblems, VERDICT_LABELS, summaryLine, stateValueOf,
+	classifyCase, summarize, expectViolations, parseArgs, resolveCasesDir, discoverCases, runtimeProblems, VERDICT_LABELS,
+	stateSetOf, summaryLine, stateValueOf,
 } from '../scripts/case-run.mjs';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
+import { mkdtempSync, mkdirSync, writeFileSync, rmSync, cpSync, readFileSync } from 'node:fs';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { tmpdir } from 'node:os';
@@ -182,6 +183,51 @@ t('⑳ ★ **人读汇总各桶之和 ＝ total**（且含「归因无效」桶�
 	const line = summaryLine(sum, 0, '');
 	return /归因无效 1/.test(line) && (sum.green + sum.expectedGap + sum.unattributed + sum.invalidAttribution + sum.stale) === sum.total;
 })());
+
+
+// ── ★★ `#1580`：`drive.state` ＝ **点击前种前态**（原先**声明了没人读** ✗ ⇒ 静默无效族）──
+//   ★判据四条：① 写侧口径与读侧**同形**（裸／`pc.` ⇒ `pc`｜`$` ⇒ `State.variables` ✓）
+//   ② 缺失中间层会建 ③ 结构性错 **fail-loud**（✗ 静默覆盖）④ ★**真被消费**（可假：去种 ⇒ 该用例必红 ✓）
+{
+	// ① 三档根（与 `stateValueOf` 对读同一对象 ⇒ 同形 ✓）
+	const pc1 = { hp: 12 }, vars1 = { actors: { 木桩: { hp: 10000 } }, pc: pc1 };
+	stateSetOf('hp', 5, { pc: pc1, vars: vars1 });            // 裸 ⇒ pc
+	stateSetOf('pc.hp', 7, { pc: pc1, vars: vars1 });          // 显式 pc. ⇒ pc（★与裸同义 ✓）
+	stateSetOf('$actors.木桩.hp', 1, { pc: pc1, vars: vars1 }); // $ ⇒ State.variables
+	t('㉑ ★写侧三档根与读侧**同形**（裸／`pc.` ⇒ `pc`｜`$` ⇒ `vars`；★写后**读得回** ✓）',
+		pc1.hp === 7 && vars1.actors.木桩.hp === 1
+		&& stateValueOf('hp', { pc: pc1 }) === 7 && stateValueOf('$actors.木桩.hp', { pc: pc1, vars: vars1 }) === 1);
+	// ② 缺失中间层 ⇒ 建（★"造一个还不存在的实体前态"是正常用法 ✓）
+	const vars2 = {};
+	stateSetOf('$actors.木桩.hp', 3, { pc: {}, vars: vars2 });
+	t('㉒ ★缺失中间层 ⇒ **建**（✗ 逼作者先铺路径 ✓）', vars2.actors?.木桩?.hp === 3);
+	// ③ 结构性错 ⇒ **fail-loud**（✗ 静默覆盖／✗ 静默丢 ✓）
+	let threw = 0;
+	for (const [path, ctx] of [['a.b', { pc: { a: 5 } }], ['', { pc: {} }], ['$x.y', { pc: {}, vars: null }]]) {
+		try { stateSetOf(path, 1, ctx); } catch { threw++; }
+	}
+	t('㉓ ★结构性错（父段非对象／空段／根缺）⇒ **逐个 fail-loud**（✗ 静默 ✓）', threw === 3);
+}
+// ④ ★**真被消费**（★"读侧已实现" ≠ "写侧接上了" —— ✗ 靠读代码看 ✓）：★同一用例**两种态**跑，读数必须**分家** ✓
+{
+	const W = mkdtempSync(join(tmpdir(), 'cases-seed-'));
+	try {
+		cpSync(join(ROOT, 'test/fixtures/m3-actor-fixture/stories'), join(W, 'stories'), { recursive: true });
+		cpSync(join(ROOT, 'test/fixtures/m3-actor-fixture/cases'), join(W, 'cases'), { recursive: true });
+		execFileSync(process.execPath, [join(ROOT, 'build.mjs')], { cwd: ROOT, env: { ...process.env, SG_STORIES_DIR: join(W, 'stories') }, stdio: 'pipe' });
+		const runSeed = () => { try {
+			return { rc: 0, out: execFileSync(process.execPath, [join(ROOT, 'scripts/case-run.mjs'), `--cases=${join(W, 'cases')}`],
+				{ cwd: ROOT, env: { ...process.env, SG_STORIES_DIR: join(W, 'stories') }, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }) };
+		} catch (e) { return { rc: e.status ?? 1, out: `${e.stdout ?? ''}${e.stderr ?? ''}` }; } };
+		const on = runSeed();
+		const f = join(W, 'cases/actor-basic/seed-pre-state.json');
+		const d = JSON.parse(readFileSync(f, 'utf8')); d.drive.state = {}; writeFileSync(f, JSON.stringify(d, null, 1) + '\n');
+		const off = runSeed();
+		t('㉔ ★**真被消费**（可假）：★种着 ⇒ **绿**（rc=0）｜★**清空 `drive.state`** ⇒ **红 ＋ 点名两格**（✗ 恒绿 ✓）',
+			on.rc === 0 && off.rc !== 0 && /\$actors\.木桩\.hp=1（实得 10000）/.test(off.out) && /hp=5（实得 12）/.test(off.out),
+			`种着 rc=${on.rc}｜清空 rc=${off.rc}`);
+	} finally { rmSync(W, { recursive: true, force: true }); }
+}
 
 console.log(bad ? `\n✗ case-run：${bad}/${n} 例失败` : `\n✔ case-run：${n} 例全部通过`);
 process.exit(bad ? 1 : 0);

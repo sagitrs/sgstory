@@ -1,0 +1,27 @@
+{
+ "id": "actor-basic/seed-pre-state",
+ "story": "actor-basic",
+ "why": "★`#1580`：`drive.state` ＝ **点击前种前态**（原先**声明了没人读** ✗）⇒ ★本用例**只有种上才过**：`$actors.木桩.hp` 先种 1（实体侧 · `$` 根）＋ `hp` 先种 5（`pc` 侧 · 裸根）⇒ 点击后 `expect.state` 读回两者 ✓（★把 `drive.state` 清空 ⇒ **必红** ⇒ ★「真被消费」可判 ✓）",
+ "drive": {
+  "clicks": [
+   "用小刀劈木桩"
+  ],
+  "state": {
+   "$actors.木桩.hp": 1,
+   "hp": 5
+  },
+  "seed": 1
+ },
+ "expect": {
+  "visible": [
+   "木桩晃了一下"
+  ],
+  "absent": [],
+  "edges": [],
+  "state": {
+   "$actors.木桩.hp": 1,
+   "hp": 5,
+   "$actors.木桩.伤.累计": 3
+  }
+ }
+}

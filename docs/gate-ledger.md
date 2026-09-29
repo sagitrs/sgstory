@@ -18,10 +18,20 @@
 >
 **严格行为化率（有自证）：50/110 = 45.5%** ｜ **有断言但缺自证：59**（＝下方工作清单）｜ 仅登记：0
 **探针（直接读数 ✓，不是"文件在不在"那种代理 ✗）：`✅` 14 项 ｜ `—` 未探 96 项（**上限 117** ✓ 超过即红 ✗；**调高它**是一次显式手改 ⇒ 靠评审拦 ✗，机器拦不住“手改上限”本身 ✓ —— 边界记在票 #908 内 ✗）｜ `✗` 不咬 0 项（**>0 即红** ✓）** —— 档位／清单：`node scripts/probe-gates.mjs --probe=fast` ✓（⑲：本轮覆盖到哪一档写在这行里 ✓）
-**档位（tier，`#1070`）：PR 档（`--tier=fast`）只跑 `tier:'fast'` 的段；下列 **13 段**在 `full` 档（`npm run test:full`；nightly/main 由 `#1071` 接线）。**降频必须留痕** ✓（K5）——理由如下（单一权威＝`scripts/test-plan.mjs` 的 `FULL_REASONS` ✓）：**
+**档位（tier，`#1070`）：PR 档（`--tier=fast`）只跑 `tier:'fast'` 的段；下列 **23 段**在 `full` 档（`npm run test:full`；nightly/main 由 `#1071` 接线）。**降频必须留痕** ✓（K5）——理由如下（单一权威＝`scripts/test-plan.mjs` 的 `FULL_REASONS` ✓）：**
 | 段 | 实测成本 | 为什么不在 PR 档（理由 ＋ 代价） |
 |---|---|---|
+| `test-note-grant-mjs` | 20s | `#1642` PR 档减压（一）：笔记授予运行时面 —— 笔记概念**近期溶解** ⇒ 不占 PR 档；★full 档仍跑 ✓ |
+| `test-choice-keys-mjs` | 9s | `#1642` PR 档减压（一）：导航键面（`#761` 窄口族）—— 与溶解面同批 ⇒ 不占 PR 档；★full 档仍跑 ✓ |
+| `test-combat-adv-mjs` | 15.6s | `#1642` PR 档减压（一）：战斗优势门 —— 战斗面**近期溶解** ⇒ 不占 PR 档；★full 档仍跑 ✓ |
+| `test-fight-seq-mjs` | 22s | `#1642` PR 档减压（一）：旧战斗序列对照门（`#493`）—— 对象（旧战斗面）**近期溶解** ⇒ 不占 PR 档；★full 档仍跑 ⇒ 溶解笔同笔删 ✓ |
+| `test-chargen-shape-mjs` | 1s | `#1642` PR 档减压（一）：车卡形状门 —— 车卡面**近期溶解** ⇒ 不占 PR 档；★full 档仍跑 ✓ |
 | `scripts-probe-gates-mjs-probe-fast` | 253.3s | **探针＝元判据**（量的是"门会不会红"✓）⇒ 属**周期性验证**，不是每次改动都要重跑 ✗。代价（实测）：**253.3s**（CI 日志 278.2s）＝ 全链串行 743s 的 **37%**（`#1070` 实测）✓。⚠️ **移出 PR 档 ⇒ PR 期不再验证"门会咬"** ✗ ⇒ **已接线**（`#1071`：`.github/workflows/full-tier.yml`，触发面 ＝ nightly ＋ `push: main` ＋ `workflow_dispatch` ✓；**失败即红** ✗不是 report-only ✓）；另：台账的探针列**依赖本段产出的** `build/probe-results.json`（gitignored）⇒ 本段不在 PR 档跑时，台账那一列由 `report-gate-ledger.mjs --allow-stale-probe` **显式降级**（打印"探针面跳过"，不静默 ✓）。 |
+| `test-chargen-lazy-e2e-mjs` | 20s | `#1642` PR 档减压（一）：车卡懒求值端到端 —— 车卡面**近期溶解** ⇒ 不占 PR 档；★full 档仍跑 ✓ |
+| `test-fightpanel-turns-e2e-mjs` | 20s | `#1642` PR 档减压（一）：战斗收尾时机端到端 —— 战斗面**近期溶解** ⇒ 不占 PR 档；★full 档仍跑 ✓ |
+| `test-fight-keys-e2e-mjs` | 15s | `#1642` PR 档减压（一）：战斗结果维端到端 —— 战斗面**近期溶解** ⇒ 不占 PR 档；★full 档仍跑 ✓ |
+| `test-fruit-demo-cases-mjs` | 12s | `#1642` PR 档减压（一）：fruit-demo 固化件（`#1609`）—— 其对象**待 M5 语料面定案** ⇒ 不占 PR 档；★full 档仍跑 ✓ |
+| `test-fruit-demo-cases-mjs-selftest` | 0.1s | `#1642` PR 档减压（一）：上段的判据自证面 ⇒ **随主段同档**（✗ 主段夜里跑、自证在 PR 跑＝自证与对象不同档）✓ |
 | `scripts-audit-mjs-consequences-check` | 0s | `#1353` 阶段一（PR 档减压）：「选择后果」引擎门：直接依赖故事侧条件面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。 |
 | `scripts-audit-mjs-sitedisc-check` | 0s | `#1353` 阶段一（PR 档减压）：位点判定门：面＝故事数据面。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。 |
 | `scripts-audit-mjs-text-check` | 0s | `#1353` 阶段一（PR 档减压）：文本载荷门：载荷阈值型判据，值随内容漂移。 ★ **本项属阶段二待清理** —— 它只是**暂存**在 full，✗ 不是「永久降频」；阶段二按三分处置逐条定性（真该跑 ⇒ 写明为什么必须存在／其余 ⇒ 检视项或移除）✓。 |

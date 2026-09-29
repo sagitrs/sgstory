@@ -121,6 +121,31 @@
 第一版**自动分类器**判出"注定删除 28 条"，亲读后 **0 条**；差的 28 条全因分类器把"**用夹具当载体**"读成"**守夹具**"。
 → **判"某门是否服务某对象"必须读该门的断言本体**，不能凭它提到了某名字。
 
+### ★撤过什么·为什么：引擎档的"纯文本／键盘"看护面（`#1621`）
+
+**撤了什么**（`test/browser.mjs`，全部**零用点** ⇒ 撤＝清死码，✗ 不是"减看护"）：
+`HELPERS.text()`（读 `#passages.textContent`）｜键盘组 `pressKey`／`TAB`／`ENTER`／`focusInfo`｜
+`#491` 探针的 `text:` 诊断字段｜`shoot`＋`shots`＋`mkdirSync`（截图）｜死 `enter()`（`__sg.play` 包装）。
+
+**为什么**：
+- ★裁定（2026-09-29，引擎侧同批见 `sagitrs/sgstory-books#60` ：「**故事仅保证可编译**；★引擎侧移除对文档的看护用例，**看护对象不应该是纯文本**」）⇒ ★本笔复查结论＝**零文本看护**：引擎档 33 格断言面**全是几何／结构**
+  （`scrollWidth ≤ innerWidth`／`rect.top`／`height > 0`／元素**存在性** ✓）；`textContent` 的**唯一用途＝按标签定位链接**（工具用法 ✓）。
+- 键盘组的**唯一使用者＝键盘格**，而它随 story 档整体删除（门闸 `KEYBOARD_NAV_FACE_READY` **从未启用** ⇒ 死件）。
+- `shoot` 的**唯一调用者＝story 侧失败路径** ⇒ 随 story 档删除而失用；★其结尾**文案**当时宣称"截图：`build/browser-evidence/`（3 视口 × 4 场景）"
+  而**实际不产** ⇒ 同笔**改真**（★"文案不说谎"）。
+
+**★重加键盘面前必读（★否则会踩同一个坑）**：
+```
+★★**CDP 发 Enter 必须用带 `text` 的 `keyDown`**（✗ `rawKeyDown`）★
+   · 实证（`#1004` B2b，2026-09-19）：★`rawKeyDown` ＋ `keyUp` 在 CDP 下**不产生默认动作** ⇒
+     对 `<a>` 打 Enter 后 `State.passage` **不变**、`activeElement` **仍停在原链接** ✗
+   · 而真 `click()` 会导航／出反馈 ⇒ ★证明是**投递方式**不对、✗ 不是链接不响应 ✓
+   · 正解：`{ type: 'keyDown', key: 'Enter', code: 'Enter', windowsVirtualKeyCode: 13, nativeVirtualKeyCode: 13,
+     text: '\r', unmodifiedText: '\r' }` ⇒ ★**带 `text` 才触发默认动作** ✓
+   · ★同族的 `TAB`：`rawKeyDown` 是**够**的（默认动作＝移焦 ⇒ CDP 会走 ✓）⇒ ✗ 一刀切改成 `keyDown` ✓
+   · ★恢复截图 ⇒ 把 `Page.captureScreenshot` **接回失败路径**即可（✗ 只加回助手不接线 ⇒ 又成死件 ✓）
+```
+
 ## 维护
 
 - **每行带依据与现存处**（件:行 或契约项名）；

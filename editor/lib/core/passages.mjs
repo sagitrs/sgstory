@@ -85,7 +85,9 @@ export const parseMdPassages = (text, path = '') => {
 	const name = String(meta.passage ?? '').trim() || path;
 	const tags = String(meta.tags ?? '').split(/[\s,]+/).map((t) => t.replace(/^\[|\]$/g, '')).filter(Boolean);
 	const bodyLines = String(body).split('\n').map((t, j) => ({ text: t, line: j + 1 }));
-	return [{ name, tags, line: 1, body: String(body), bodyLines }];
+	// ★ `#1574`（阶 3b）：★前言的**其余字段**也要带上 —— ★原来只搬 `passage`／`tags` ⇒ ★`reroll` 这类段级声明
+	//   会被**静默丢弃** ✗（实测：md 里写 `reroll: true` ⇒ 产物里那段 body **与数据面路径不等** ⇒ 等价性门红 ✗）
+	return [{ name, tags, line: 1, body: String(body), bodyLines, meta }];
 };
 
 /** **唯一分派点**（`#1114` 片 2b-2b-0b）：给一份源文本与它的路径 → 段落数组。 */
@@ -460,6 +462,11 @@ export const assemblePassages = ({ passages, known, forbidden = new Set(), terms
 		// ★ 片 3 补充：`slot` 在靶里是**链接级**字段（`links[].slot` 指出该链接落在正文哪处）⇒
 		//   本段的合法占位名＝**段级 slot ∪ 本段各链接的 slot**（两种写法都认 ⇒ 与作者面一致 ✓）。
 		const dseg = (data && typeof data === 'object' ? data[p.name] : null) ?? {};
+		// ★ `#1574`：★段级 `reroll` 可**任一侧**声明（md 前言／数据面）—— ★两路径生成**同一 body** ⇒ 等价性门不红 ✓
+		// ★★(实测) md 前言的值是**字符串**（`reroll: true` ⇒ `"true"`）⇒ ✗ 不能用 `=== true` 比 ✗
+		//   ★故两来源都按"**真值形**"判：`true`（数据面 boolean）／`"true"`（前言字符串）✓
+		const truthy = (x) => x === true || String(x).trim() === 'true';
+		const segReroll = truthy(p.meta && p.meta.reroll) || truthy(dseg.reroll);
 		const linkSlots = (Array.isArray(dseg.links) ? dseg.links : []).map((l) => l && l.slot).filter(Boolean);
 		// ★ 片 3：**必填的“给了值”要按“调用处”算** —— 目标段的入参由**指向它的链接**的 `args` 提供
 		//（靶里就是：`门厅.推门` 与 `侧厅.左门` 两条 `args:{提醒:"别进屋"}`）
@@ -480,7 +487,7 @@ export const assemblePassages = ({ passages, known, forbidden = new Set(), terms
 			params: dseg.params ?? {}, slots: [dseg.slot, ...linkSlots].filter(Boolean),
 			args: (dseg.args && typeof dseg.args === 'object') ? dseg.args : inbound,
 			links: dseg.links ?? [], present: dseg.present ?? null, ending: dseg.ending ?? null,
-			check: dseg.check ?? null, fight: dseg.fight ?? null, reroll: dseg.reroll ?? false });
+			check: dseg.check ?? null, fight: dseg.fight ?? null, reroll: segReroll });
 		problems.push(...tr.problems);
 		const expanded = tr.body;
 		const tags = p.tags ? ` [${p.tags}]` : '';

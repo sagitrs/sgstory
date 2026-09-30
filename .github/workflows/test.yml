@@ -12,6 +12,14 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 22
+      # 门的摆位（#1714 权衡）：**同 job 内、构建之前的独立 step**，不另开 job——
+      #   ①本门不依赖 build 产物（纯静态读仓 + 离线缓存）⇒ 前置即 fail-fast；
+      #   ②本仓 CI 只有一个 job，为 <1s 的静态门另开 job 要多付一次排队/checkout；
+      #   ③独立 step 使红面归因清晰（step 级红/绿），且可与单测分步重跑。
+      - name: 引用形与 pin 完整性门（#1714 第①级；离线，缓存缺失即红）
+        run: node tests/gates/refs-integrity.mjs
+      - name: 门自身的可假刀自检（5 刀；证明门会红也会绿）
+        run: node tests/gates/refs-integrity.selftest.mjs
       - name: 构建（生成单测 bundle 与清单）
         run: python3 build.py
       - name: 无头单测（断言 fail === 0）

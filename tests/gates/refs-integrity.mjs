@@ -49,7 +49,8 @@ const RE_PLAIN_REF = /SRD\s+(\d+(?:\.\d+)*)\s*·\s*([^\s`:：]+\.md)\s*[:：]\s*
 const RE_PLACEHOLDER = /SRD\s+\d+(?:\.\d+)*\s*·\s*<[^>]+>\s*[:：]\s*<[^>]+>/g;   // `SRD 5.2.1 · <文件>:<行>` 约定占位
 const RE_VERSION_REF = /SRD\s+(\d+(?:\.\d+)*)/g;
 const RE_SAME_AS_ABOVE = /同上\s*[:：]\s*\d/;
-const RE_DECLARATION = /SRD\s+\d+(?:\.\d+)*[^·]*·\s*`?[\w.-]+\/[\w.-]+`?\s*@\s*`?[0-9a-f]{7,40}/;
+const RE_DECLARATION = /SRD\s+(\d+(?:\.\d+)*)[^·]*·\s*`?([\w.-]+\/[\w.-]+)`?\s*@\s*`?([0-9a-f]{7,40})[….…]?/;
+const RE_LINE_ENTRY = /^(\d+)(?:[-–](\d+))?(?:\/(\d+))*$/;   // 7252 / 7256-7287 / 7279/7283/7287
 
 const problems = [];
 const red = (m) => problems.push(m);
@@ -128,13 +129,14 @@ for (const r of pins) {
   pinResults.push({ ...r, ok, got: { lines, sha1 } });
   if (!ok) red(`pin 不符：${cacheNameFor(r)} — 表 ${r.lines}行/${r.sha1} 实 ${lines}行/${sha1}（源被改写/换版，或表被改）`);
 }
-// 文件名 → 允许的版本集（同名跨面消歧）
-const versionsByBase = new Map();
+// 文件名（含路径）与版本 → 面：同名文件跨面时靠面消歧（NIT-2）
+const rowsByFaceBase = new Set(pins.map((r) => `${r.face}|${path.basename(r.file)}`));
+const facesByVersion = new Map();
 for (const r of pins) {
-  const b = path.basename(r.file);
-  if (!versionsByBase.has(b)) versionsByBase.set(b, new Set());
-  versionsByBase.get(b).add(r.version);
+  if (!facesByVersion.has(r.version)) facesByVersion.set(r.version, new Set());
+  facesByVersion.get(r.version).add(r.face);
 }
+const pinRowByFaceBase = new Map(pins.map((r) => [`${r.face}|${path.basename(r.file)}`, r]));
 
 /* A + C. 引用形门 + 值自洽子检查 */
 function loadExemptions() {
@@ -166,6 +168,8 @@ for (const f of files) {
     for (const _ of text.matchAll(RE_PLACEHOLDER)) cites.push({ ver: null, file: '<文件>', entry: '<行>' });
     const versions = [...text.matchAll(RE_VERSION_REF)].map((m) => m[1]);
     for (const c of cites) if (!c.ver) c.ver = versions[0] ?? null;
+    if (new Set(versions).size > 1) red(`一行混引多版本（NIT-5）：${at} → 出现 ${[...new Set(versions)].join('、')}，请拆成多行或显式标注每条所属版本`);
+    if (cites.length > 0 && !versions[0]) { red(`引用缺版本（README §三.2 必带版本）：${at}`); }
 
     if (cites.length > 0) {
       let allOk = true;
@@ -176,15 +180,32 @@ for (const f of files) {
           continue;
         }
         const base = path.basename(c.file);
-        if (!versionsByBase.has(base)) { red(`引用指向 pin 表外的文件：${at} → ${c.file}（先登记进 README §一 pin 表）`); allOk = false; continue; }
-        if (!c.ver) { red(`引用缺版本（README §三.2 必带版本）：${at} → ${c.file}`); allOk = false; continue; }
-        if (!versionsByBase.get(base).has(c.ver)) { red(`引用版本与 pin 表不符：${at} → SRD ${c.ver} · ${c.file}（表内该文件为 SRD ${[...versionsByBase.get(base)].join('/')}）`); allOk = false; continue; }
+        const faces = c.ver ? facesByVersion.get(c.ver) : null;
+        if (!faces) { red(`引用版本不在 pin 表内（先登记源）：${at} → SRD ${c.ver ?? '(缺)'} · ${c.file}`); allOk = false; continue; }
+        const matchedFace = [...faces].find((fa) => rowsByFaceBase.has(`${fa}|${base}`));
+        if (!matchedFace) { red(`引用版本与 pin 表不符（按面判）：${at} → SRD ${c.ver} · ${c.file}（该版本面上无此文件）`); allOk = false; continue; }
+        // NIT-2：pin 行带目录时引用必须给全路径（否则 5E/3E 同名文件可互换版本徽号）
+        const row = pinRowByFaceBase.get(`${matchedFace}|${base}`);
+        if (row.file.includes('/') && c.file !== row.file && !c.file.endsWith(row.file)) {
+          red(`引用路径不完整（跨面歧义）：${at} → 须写 pin 表内的完整路径「${row.file}」`); allOk = false; continue;
+        }
+        // 行号范围须落在该 pin 文件的行数内
+        const lm = RE_LINE_ENTRY.exec(c.entry ?? '');
+        if (lm) {
+          const nums = c.entry.split(/[-–/]/).map(Number).filter((n) => Number.isFinite(n));
+          const max = Math.max(...nums);
+          if (max < 1 || max > row.lines) { red(`引用行号越界：${at} → ${c.file}:${c.entry}（该 pin 文件 ${row.lines} 行）`); allOk = false; continue; }
+        }
         if (!c.entry || c.entry.length < 2) { red(`引用条目为空：${at}`); allOk = false; continue; }
       }
       if (allOk) { lastCitationIdx = i; verified++; }
     } else if (RE_DECLARATION.test(text)) {
-      verified++;                                     // 来源声明行（README §一 表头同形）
-      lastCitationIdx = i;
+      // NIT-1：来源声明行不只比形态——须与 pin 表交叉核对（repo + commit 前缀 + 版本）
+      const d = RE_DECLARATION.exec(text);
+      const [, dver, drepo, dsha] = d;
+      const hit = pins.find((r) => r.repo === drepo && r.version === dver && r.pin.startsWith(dsha));
+      if (hit) { verified++; lastCitationIdx = i; }
+      else red(`来源声明行与 pin 表不符（伪造/过期）：${at} → SRD ${dver} · ${drepo}@${dsha}（pin 表内无此 repo×版本×commit 前缀组合）`);
     } else if (RE_SAME_AS_ABOVE.test(text)) {
       if (Number.isFinite(lastCitationIdx)) verified++;
       else red(`「同上」无前置完整引用：${at}`);

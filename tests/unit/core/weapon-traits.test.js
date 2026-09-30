@@ -28,6 +28,22 @@
 		assert.eq(snapshot(), before, '失败时不改变状态（不做部分扣减）');
 	});
 
+	test('inventory：give/take 的 n 必须为整数（小数会污染 charges，须显式拒绝）', () => {
+		/* T 席 NIT（tester-4）：原实现 `take('bandage', 0.5)` ⇒ `slot.charges -= 0.5` ⇒ charges 变 1.5
+		 *   （小数进入存档面）。守卫取「显式抛错」而非静默取整：调用方传小数是**编程错误**，
+		 *   静默取整会掩盖它（与 defEffect/defPipeline 的「坏输入 fail loud」同形）。 */
+		R().give('bandage'); // charges = 2
+		let e1 = null;
+		try { R().take('bandage', 0.5); } catch (e) { e1 = e.message; }
+		assert.ok(e1, 'take 收到小数 ⇒ 抛错（不静默继续）');
+		assert.eq(inv().find((s) => s.id === 'bandage').charges, 2, 'charges 未被小数污染');
+		let e2 = null;
+		try { R().give('bandage', 0.5); } catch (e) { e2 = e.message; }
+		assert.ok(e2, 'give 收到小数 ⇒ 抛错');
+		assert.eq(inv().find((s) => s.id === 'bandage').charges, 2, 'charges 仍为整数');
+		assert.eq(R().give('bandage', -1), true, '整数路径不受影响');
+		assert.eq(inv().find((s) => s.id === 'bandage').charges, 1);
+	});
 	test('inventory：take 非堆叠道具按件扣；n≤0 ⇒ false', () => {
 		R().give('dagger'); R().give('dagger'); // 非堆叠 ⇒ 两个槽
 		assert.eq(inv().filter((s) => s.id === 'dagger').length, 2);
@@ -88,6 +104,26 @@
 
 	/* ---------- C) RPG.throwItem ---------- */
 
+	test('inventory：ammo【不足】⇒ 攻击**不得执行**（目标 HP 不变）——钉住「检查先于动作」的顺序', () => {
+		/* T 席 NIT（tester-4）：现有断言（返回值 false / 无 item:used / 状态不变）**不蕴含**「未开火」——
+		 *   `item.used` 内部抛错或短路也能满足它们。只有**目标状态**能直接钉住顺序不变量。
+		 *   判别性：把弹药检查块下移到 item.used(...) 之后（=「先开火再看有没有弹」），本用例必红。 */
+		R().defItem({
+			id: 'unit-gun2', name: '测试枪2', weapon: true, slot: 'weapon', charges: null, stackable: false,
+			stats: { dmg: '1d6', type: 'piercing', ranged: true, ammo: { id: 'unit-bullet2' } },
+			actions: { equip: R().slotEquip, unequip: R().slotUnequip },
+			used(that) { that.hp -= 7; this.perform('砰！'); }, // 可观测副作用：目标掉血
+		});
+		R().defItem({ id: 'unit-bullet2', name: '测试弹2', charges: 1, stackable: true, used() {} });
+		R().give('unit-gun2'); R().give('unit-bullet2');
+		const target = { name: '靶', hp: 20, maxHp: 20, stats: { ac: -999 }, noDodge: true };
+		assert.eq(R().useItem('unit-gun2', target, { name: '射手', stats: { dex: 12 } }), true, '有弹药 ⇒ 正常开火');
+		assert.eq(target.hp, 13, '首次开火造成伤害（7）');
+		assert.eq(R().has('unit-bullet2'), false, '弹药已耗尽');
+		const hpBefore = target.hp;
+		assert.eq(R().useItem('unit-gun2', target, { name: '射手', stats: { dex: 12 } }), false, '无弹药 ⇒ 返回 false');
+		assert.eq(target.hp, hpBefore, '⚠ 目标不得受伤（攻击未执行）——本条才是「检查先于动作」的钉住点');
+	});
 	test('inventory：投掷 ⇒ 执行攻击后【离包】（SRD Thrown，equipment.md:84）', () => {
 		R().give('dagger');
 		assert.ok(R().has('dagger'));

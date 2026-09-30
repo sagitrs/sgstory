@@ -10,10 +10,12 @@ const inv = () => {
 	return vars.inventory;
 };
 
-/** 发放道具（同 id 可叠加时会合并剩余次数） */
+/** 发放道具（同 id 可叠加时会合并剩余次数）；`n < 0` ⇒ 消耗，走 `RPG.take` */
 RPG.give = (id, n = 1) => {
 	const def = RPG.createItem(id); // 读默认定义（次数、可否叠加）
 	const list = inv();
+	if (n < 0) return RPG.take(id, -n); // 负数即消耗，见 RPG.take
+	if (n === 0) return;
 	if (def.stackable && def.charges != null) {
 		const slot = list.find((s) => s.id === id);
 		if (slot) {
@@ -22,6 +24,33 @@ RPG.give = (id, n = 1) => {
 		}
 	}
 	for (let i = 0; i < n; i++) list.push(def.toJSON());
+};
+
+/**
+ * 消耗道具（`RPG.give(id, -n)` 的实现，亦可直接调用）。
+ * 语义（#1736）：
+ *   - 按 id **从后往前**扣减：先扣堆叠槽的 `charges`，再整槽移除（不产生「charges ≤ 0 的残槽」）。
+ *   - **不足则整体不生效**并返回 `false`（防「扣到负数」，也不做部分扣减——原子性）。
+ *   - 非堆叠道具（`charges == null`）每个槽计 1 件。
+ * @returns {boolean} 是否成功扣减（不足 / n ≤ 0 ⇒ false 且状态不变）
+ */
+RPG.take = (id, n = 1) => {
+	if (!(n > 0)) return false;
+	const list = inv();
+	/* 先算总量（非堆叠每槽 1；堆叠按 charges）——不足则不动状态 */
+	const total = list.reduce((s, slot) => s + (slot.id === id ? (slot.charges ?? 1) : 0), 0);
+	if (total < n) return false;
+	let left = n;
+	for (let i = list.length - 1; i >= 0 && left > 0; i--) { // 从后往前，保持既有槽位不变动
+		const slot = list[i];
+		if (slot.id !== id) continue;
+		if (slot.charges == null) { list.splice(i, 1); left -= 1; continue; }
+		const use = Math.min(slot.charges, left);
+		slot.charges -= use;
+		left -= use;
+		if (slot.charges <= 0) list.splice(i, 1); // 用尽即移除槽，不留 charges=0 残槽
+	}
+	return true;
 };
 
 /** 是否持有某道具 */
@@ -67,6 +96,29 @@ RPG.slotUnequip = function slotUnequip() {
 	this.perform(`你卸下了「${this.name}」。`);
 };
 
+/**
+ * 投掷动作（#1736）：把武器**掷出**——执行攻击后从背包移除该武器。
+ *
+ * 解析点：读 `this.stats.thrown`（非空才可投）——这是该字段的**消费点**；
+ *   无 `Thrown` 特性的武器拒绝投掷（否则 `thrown` 仍是死键，D 席「旋钮生效链」不成立）。
+ *
+ * SRD 依据：Thrown「you can throw the weapon to make a ranged attack, and you can draw that
+ *   weapon as part of the attack. If the weapon is a Melee weapon, use the same ability modifier
+ *   for the attack and damage rolls that you use for a melee attack」（pin: equipment.md:84）。
+ * 故此处**不复制判定数学**：仍走道具自己的 `used`（近战武器的 Finesse/力量口径本就与 SRD 一致）；
+ * 本动作只负责「掷出后离开背包」这一后果。
+ *
+ * 用法：道具声明 `actions: { throw: RPG.throwItem }`。
+ */
+RPG.throwItem = function throwItem(that, from) {
+	if (this.stats?.thrown == null) {
+		this.perform(`「${this.name}」没有 Thrown 特性，不能投掷。`);
+		return;
+	}
+	this.used(that, from); // 先掷（走该武器的既有攻击路径），再离手
+	RPG.take(this.id, 1); // 掷出即离开背包（SRD：thrown 武器经投掷使用）
+};
+
 /** 槽位中文名表（提示文案用）。core 不认识具体槽名——由规则包补全：
  *  RPG.slotLabels.weapon = '武器' 之类。 */
 RPG.slotLabels = {};
@@ -93,6 +145,11 @@ RPG.loot = (victim) => {
  *   item.used(that, from, action) → 提交可变状态 → 发事件。
  * 动作在实例上修改的 equipped 会提交回背包快照；
  * 只有默认动作 'use' 消耗充能（装备/卸下不耗次数）。
+ *
+ * 弹药要求（#1736）：默认动作 `use` 且道具声明 `stats.ammo = { id, perShot? }` 时，
+ *   **须持有足够弹药**才执行；不足则提示并 `return false`（**不消耗回合**、不发 `item:used`）。
+ *   扣弹经 `RPG.take`（原子：不足即不动状态）。
+ *   SRD 依据：Ammunition「only if you have ammunition… Each attack expends one piece」（pin: equipment.md:68-70）。
  */
 RPG.useItem = (id, that, from, action = 'use') => {
 	const list = inv();
@@ -102,6 +159,13 @@ RPG.useItem = (id, that, from, action = 'use') => {
 		return false;
 	}
 	const item = RPG.reviveItem(slot);
+	/* 弹药检查在动作之前：不足 ⇒ 不发 item:used、不扣次数、不消耗回合 */
+	const ammo = action === 'use' ? item.stats?.ammo : null;
+	if (ammo && !RPG.take(ammo.id, ammo.perShot ?? 1)) {
+		const need = RPG.createItem(ammo.id).name;
+		setup.RPG.perform(`没有可用的${need}了——「${item.name}」打不出去。`);
+		return false;
+	}
 	item.used(that, from, action);
 	slot.equipped = item.equipped; // 动作里改的装备态 → 提交回快照
 	if (action === 'use' && item.charges != null) {

@@ -311,4 +311,49 @@ test('ammo【跨面·回归】同实例复用（actor.items 持实例）⇒ fina
 	assert.eq(bullets.charges, 8, '同实例再直调 ⇒ 仍扣 1 发（标记未残留）');
 });
 
+
+test('ammo【跨面·回归】无 from 直调 ⇒ 扣在持有者，✗ 不得从受击者扣（D 缺陷 2）', () => {
+	const D5 = setup.DND5E;
+	/* ★ 钉住 developer 的缺陷 2：兜底扣减原写 `from ?? that` ⇒ 直调 `used(foe)`（无 from）时
+	 *   **从受击者扣弹**（实测：射手 10→10、靶 10→9）—— 与「兜底应保证攻击者付费」相反。
+	 *   修后归属顺序：① 显式 `from` → ② 受击者恰是持有者 → ③ 注册表持有者（实例／按 id）→ ④ 不扣。 */
+	R().defItem({ id: 'unit-own-gun', name: '归属枪', weapon: true, slot: 'weapon', charges: null, stackable: false,
+		stats: { dmg: '1d6', type: 'piercing', ranged: true, ammo: { id: 'unit-own-bullet' } },
+		actions: { equip: R().slotEquip, unequip: R().slotUnequip },
+		used(that, from) { D5.attack(this, that, from); } });
+	R().defItem({ id: 'unit-own-bullet', name: '归属弹', charges: 10, stackable: true, used() {} });
+	R().rng.set(() => 0.99);
+	R().give('unit-own-gun'); R().give('unit-own-bullet'); R().equip('unit-own-gun');
+	const shooter = D5.Player;
+	/* 受击者**自己带 10 发同名弹药** —— 旧版正是扣到这里 */
+	const foe = new (R().Character)({ name: '靶', hp: 9999, maxHp: 9999,
+		items: [{ id: 'unit-own-bullet', charges: 10 }], stats: D5.stats({ ac: -999 }) });
+	const gun = R().reviveItem(State.variables.inventory.find((s) => s.id === 'unit-own-gun'));
+	const shooterBefore = State.variables.inventory.find((s) => s.id === 'unit-own-bullet').charges;
+	const foeBefore = foe.items[0].charges;
+	gun.used(foe); // ★ 直调，无 from
+	const shooterAfter = State.variables.inventory.find((s) => s.id === 'unit-own-bullet').charges;
+	assert.eq(foe.items[0].charges, foeBefore, '✗ 不得从受击者扣弹（旧版此处 10 → 9）');
+	assert.eq(shooterBefore - shooterAfter, 1, '扣在持有者（射手）身上');
+	assert.ok(foe.hp < 9999, '攻击确实发生');
+});
+
+test('ammo【跨面·回归】无人持有该武器 ⇒ 不扣弹、不开火（✗ 不回落受击者）', () => {
+	const D5 = setup.DND5E;
+	R().defItem({ id: 'unit-orphan-gun', name: '孤儿枪', weapon: true, slot: 'weapon', charges: null, stackable: false,
+		stats: { dmg: '1d6', type: 'piercing', ranged: true, ammo: { id: 'unit-orphan-bullet' } },
+		used(that, from) { D5.attack(this, that, from); } });
+	R().defItem({ id: 'unit-orphan-bullet', name: '孤儿弹', charges: 5, stackable: true, used() {} });
+	R().rng.set(() => 0.99);
+	State.variables = {}; // 玩家背包清空 ⇒ 该枪无人持有
+	const gun = R().createItem('unit-orphan-gun'); gun.equipped = true;
+	const foe = new (R().Character)({ name: '靶', hp: 9999, maxHp: 9999,
+		items: [{ id: 'unit-orphan-bullet', charges: 5 }], stats: D5.stats({ ac: -999 }) });
+	const hp0 = foe.hp;
+	gun.used(foe); // 无 from、无持有者
+	assert.eq(foe.hp, hp0, '无法判定付款人 ⇒ 不开火');
+	assert.eq(foe.items[0].charges, 5, '✗ 不得从受击者扣弹');
+	assert.eq(R().has('unit-orphan-bullet'), false, '玩家也没被扣');
+});
+
 })();

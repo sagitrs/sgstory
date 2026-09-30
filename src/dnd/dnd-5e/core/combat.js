@@ -144,10 +144,20 @@ DND5E.attack = (item, that, from) => {
 	 *   SRD：Ammunition「you can … make a ranged attack **only if you have ammunition**…
 	 *   Each attack expends one piece」（pin: `equipment.md:68-70`）。 */
 	const ammo = item.stats?.ammo;
-	if (ammo && RPG.ammoOwed(item) && !RPG.take(ammo.id, ammo.perShot ?? 1, from ?? that)) {
-		const need = RPG.items.has(ammo.id) ? RPG.createItem(ammo.id).name : ammo.id;
-		item.perform(`没有可用的${need}了——「${item.name}」打不出去。`);
-		return;
+	if (ammo && RPG.ammoOwed(item)) {
+		/* ★ 扣弹对象必须是**攻击者**（弹药由射手付），✗ 不得回落到 `that`（受击者）。
+		 *   起初写 `from ?? that` —— 当调用方直调 `used(foe)`（无 `from`）时会**从靶身上扣弹**
+		 *   （实测：射手 10→10、靶 10→9）⇒ 兜底反成「受击者付费」，与「兜底应保证攻击者付费」
+		 *   的意图相反（developer 的缺陷 2，tester-4 独立复证）。
+		 *   无 `from` 时的正确归属是**道具的持有者** —— `used` 的 `this` 就是该实例；
+		 *   其持有者即「背包里含此实例的角色」，由 `RPG.ammoOwner(item, that)` 解析（见 `30-inventory.js`）。
+		 *   解析不出（纯数据、无人持有）⇒ **不扣**（交由调用方显式给 `from`），✗ 不从受击者扣。 */
+		const owner = RPG.ammoOwner(item, from, that);
+		if (owner == null || !RPG.take(ammo.id, ammo.perShot ?? 1, owner)) {
+			const need = RPG.items.has(ammo.id) ? RPG.createItem(ammo.id).name : ammo.id;
+			item.perform(`没有可用的${need}了——「${item.name}」打不出去。`);
+			return;
+		}
 	}
 
 	// 近战武器拔出检查（复用 core 逻辑；不属结算管线：是行动前置）

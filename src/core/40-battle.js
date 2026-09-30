@@ -73,8 +73,8 @@ RPG.Battle = class Battle extends RPG.Event {
 
 	async execute() {
 		const alive = (group) => group.filter((c) => !this.isOut(c));
-		/** 等概率随机选取一个存活目标 */
-		const pick = (group) => group[Math.floor(Math.random() * group.length)];
+		/** 等概率随机选取一个存活目标（随机取值一律经 `RPG.rng`，见 §决策五 契约） */
+		const pick = (group) => group[RPG.rng.index(group.length)];
 
 		for (let round = 1; round <= this.rounds; round++) {
 			if (alive(this.players).length === 0 || alive(this.enemies).length === 0) {

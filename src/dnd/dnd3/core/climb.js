@@ -40,7 +40,9 @@ setup.DND3.SPAN1_SCALING = {
  * type：`climb`（段内攀爬层）｜`hub`（大空洞·整备区）｜`exit`（顶层出口，仅第 50 层，本段无）。
  * 本笔只落一段：L1–L9 为 climb、L10 为 hub。层 id 与遭遇表键一致（同键控，防两套命名）。
  */
-setup.DND3.LAYER_META_SPAN1 = [
+/* ★ 注册进 **core 的层表注册面**（#1760 折领队裁甲）：层元数据是**内容物**，由内容侧注册；
+ *   消费方（core 的 `RPG.respawn`、任意包）只读 ⇒ 包与包之间零认知（`src/README.md:13`）。 */
+RPG.registerLayerMeta('span1', setup.DND3.LAYER_META_SPAN1 = [
 	{ id: 'L1', type: 'climb', start: true },   // 灵魂肉身苏醒之地（`outline.md`「第 1 层是最深处」）
 	{ id: 'L2', type: 'climb' },
 	{ id: 'L3', type: 'climb' },
@@ -51,7 +53,7 @@ setup.DND3.LAYER_META_SPAN1 = [
 	{ id: 'L8', type: 'climb' },
 	{ id: 'L9', type: 'climb' },
 	{ id: 'L10', type: 'hub' },                 // 大空洞·奴隶制农耕聚落（整备区，非战斗）
-];
+]);
 
 /* ---------- 遭遇表（1–9 层；第 10 层不设条目 = 整备区）----------
  * 纪律：怪物一律引 `DND3.<Monster>.id`（注册面），零件一律引已注册 `Item` id——

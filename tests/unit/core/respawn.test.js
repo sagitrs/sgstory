@@ -8,16 +8,24 @@
 	const R = () => setup.RPG;
 	const D = () => setup.DND5E;
 
-	/** 起点层（模拟 `#1748` 的层元数据契约：`start: true` 的元素） */
+	/** 起点层：登记进 **core 的层表注册面**（`#1760` 裁甲：层表是跨包共享数据 ⇒ 由内容侧注册，
+	 *   包之间零认知）。测试即「内容侧」的一个实例。 */
 	const withLayerMeta = (meta) => {
-		const prev = setup.DND3?.LAYER_META_SPAN1;
-		setup.DND3.LAYER_META_SPAN1 = meta;
-		return () => { if (prev === undefined) delete setup.DND3.LAYER_META_SPAN1; else setup.DND3.LAYER_META_SPAN1 = prev; };
+		const prev = R().layerMeta['unit-span'];
+		R().registerLayerMeta('unit-span', meta);
+		const others = Object.keys(R().layerMeta).filter((k) => k !== 'unit-span');
+		const saved = others.map((k) => [k, R().layerMeta[k]]);
+		for (const k of others) delete R().layerMeta[k];   // 隔离：只留本用例的一张表
+		return () => {
+			delete R().layerMeta['unit-span'];
+			for (const [k, v] of saved) R().layerMeta[k] = v;
+			if (prev !== undefined) R().layerMeta['unit-span'] = prev;
+		};
 	};
 	const META = [{ id: 'L1', type: 'climb', start: true }, { id: 'L2', type: 'climb' }, { id: 'L5', type: 'climb' }, { id: 'L10', type: 'hub' }];
 
 	const mkMap = (cur = 'L3') => {
-		const m = new (R().WorldMap)({ id: 'unit-respawn-map' });
+		const m = new (R().WorldMap)({ id: 'world' });   // 缺省键 ⇒ mapCurrent
 		for (const id of ['L1', 'L2', 'L3', 'L5', 'L10']) m.addLocation(new (R().Location)({ id, name: id }));
 		m.current = cur;
 		return m;
@@ -134,12 +142,15 @@
 		try {
 			const c = dead();
 			const map = mkMap('L3');
-			const n = countLoot(() => R().respawn(c, { map }));
+			let r = null;
+			const n = countLoot(() => { r = R().respawn(c, { map }); });
 			assert.eq(n, 1, 'loot 恰被调用一次（接线段：不测「掉了什么」，只测「走没走这条路」）');
 			assert.ok(c.items.some((s) => s.id === 'coin' && s.equipped === true), '已装备项仍在（裁定④）');
 			// ★ 已知语义（写进判据防后人写恒绿断言）：玩家 items ≡ $inventory 同引用
 			//   ⇒ 掉落表现为**顺序变化**而非移除（本用例不断言「A 消失了」）
-			assert.eq(R().respawn(dead(), { map }).dropped >= 0, true, '返回值以 dropped 计数承载该事实');
+			//   但 `dropped` 是**差值计数**，对同引用路径**仍可判**：本用例的角色是**自有数组**
+			//   （`dead()` 造的是 Character.items 自有数组，非玩家桥接）⇒ 掉 1 件。
+			assert.eq(r.dropped, 1, 'dropped 差值计数可判（M10：恒 0 ⇒ 本断言红）');
 		} finally { off(); }
 	});
 
@@ -235,18 +246,46 @@
 			const n = R().respawn(c2);
 			assert.ok(n.cleared >= 2, `core 兜底亦能清档（实得 ${n.cleared}）`);
 			assert.eq(c2.contains(R().death), false, '兜底路径下 death 亦被清（④ 与实现无关）');
+			// ★ 兜底实现「保 death」这一点在 respawn 调用后**不可观测**（④ 已清）⇒ 直调兜底钉住它
+			//   （M9：把 kept 改成非 death id ⇒ 本断言红）
+			const c3 = new (R().Character)({ name: '丙', hp: 0, maxHp: 5, stats: D().stats() });
+			c3.gain(R().death); c3.gain('fear');
+			R().respawnClearEffectsFallback(c3);
+			assert.eq(JSON.stringify(c3.effects), JSON.stringify([R().death.id]),
+				'core 兜底保 death、清其余（与包侧 clearEffectsOnDeath 同语义）');
 		} finally { R().respawnHooks.clearEffects = prev; }
 	});
 
-	test('respawn：起点层注入（core 不认识任何层表）', () => {
-		const prev = R().respawnHooks.startLayer;
+	test('respawn：起点层读 **core 层表注册面**（包之间零认知，裁定②裁甲）', () => {
+		// 层表由「内容侧」注册 ⇒ 换一张表，起点随之改变（core 不内置任何层表）
+		const off = withLayerMeta([{ id: 'L2', type: 'climb' }, { id: 'L5', type: 'climb', start: true }]);
 		try {
-			// 换一个注入实现 ⇒ 目标随之改变，证明 core 的层来源是注入而非内置
-			R().onRespawnStartLayer(() => 'L10');
 			const map = mkMap('L3');
 			R().respawn(dead(), { map });
-			assert.eq(map.current, 'L10', '目标随注入实现改变');
-		} finally { R().respawnHooks.startLayer = prev; }
+			assert.eq(map.current, 'L5', '起点＝注册表内第一个 start:true');
+			assert.eq(R().startLayerId(), 'L5', '读取器与 respawn 同源');
+		} finally { off(); }
+	});
+
+	test('respawn：无层表注册 ⇒ 起点为 null（只清档不搬位，不抛错）', () => {
+		const saved = { ...R().layerMeta };
+		for (const k of Object.keys(R().layerMeta)) delete R().layerMeta[k];
+		try {
+			assert.eq(R().startLayerId(), null, '无注册 ⇒ null');
+			const map = mkMap('L3');
+			const c = dead();
+			const r = R().respawn(c, { map });
+			assert.eq(map.current, 'L3', '不搬位（保持原位）');
+			assert.eq(c.contains(R().death), false, '但清算照做');
+			assert.eq(r.to, null, 'to 报告 null');
+		} finally { for (const k of Object.keys(R().layerMeta)) delete R().layerMeta[k]; Object.assign(R().layerMeta, saved); }
+	});
+
+	test('respawn：5E 包零 3E 认知（源面断言）', () => {
+		// 架构面回归：本笔首版让 5E 包直读 setup.DND3（全仓唯一跨包直读）⇒ 已消除。
+		// 该断言以「注册面可用」为据（5E 侧不再需要任何读取器）。
+		assert.eq(typeof R().registerLayerMeta, 'function', '注册面在 core');
+		assert.eq(R().respawnHooks.startLayer, undefined, 'startLayer 注入面已删（跨包直读的载体）');
 	});
 
 	test('respawn 判据 2a（M2b）：loot 换空函数 ⇒ 敌人路径语义判据红（判别力自证）', () => {
@@ -263,5 +302,53 @@
 			assert.eq(e.items.length, 2, '突变：未掉落（真实现下为 1 ⇒ 判据 2a 红）');
 			assert.eq(State.variables.inventory.length, 0, '突变：未增收（真实现下为 1）');
 		} finally { R().loot = orig; }
+	});
+
+	/* ---------- #1760 裁甲②：mapCurrent 进 State（设计稿 §四承诺）---------- */
+
+	test('mapCurrent：moveTo 单点同步（实例字段与 State 恒一致）', () => {
+		State.variables.mapCurrent = undefined;
+		const map = mkMap('L1');
+		assert.eq(State.variables.mapCurrent, undefined, '构造不写（首次进入由 moveTo 写）');
+		map.moveTo('L3');
+		assert.eq(State.variables.mapCurrent, 'L3', 'moveTo 是唯一写点（M6 打这条）');
+		assert.eq(map.current, 'L3', '实例字段同步');
+		map.moveTo('L5');
+		assert.eq(State.variables.mapCurrent, 'L5', '每次移动都同步');
+	});
+
+	test('mapCurrent：JSON 往返后可从 State 恢复（M1-① 的先行子集）', () => {
+		const map = mkMap('L1');
+		map.moveTo('L5');
+		// 模拟读档：新实例（current 回到初始）＋ State 里存着位置 ⇒ 构造时恢复
+		const round = JSON.parse(JSON.stringify({ mapCurrent: State.variables.mapCurrent }));
+		State.variables.mapCurrent = round.mapCurrent;
+		const revived = new (R().WorldMap)({ id: 'world' });
+		assert.eq(revived.current, 'L5', '读档后 current 从 State 恢复（不依赖实例）');
+		assert.eq(revived.current, round.mapCurrent, '两值一致');
+	});
+
+	test('mapCurrent：具名地图各占一键（互不覆盖）', () => {
+		const m1 = new (R().WorldMap)({ id: 'world' });
+		const m2 = new (R().WorldMap)({ id: 'babel' });
+		for (const m of [m1, m2]) {
+			m.addLocation(new (R().Location)({ id: 'A', name: 'A' }));
+			m.addLocation(new (R().Location)({ id: 'B', name: 'B' }));
+		}
+		State.variables.mapCurrent = undefined; State.variables.mapCurrent_babel = undefined;
+		m1.moveTo('A'); m2.moveTo('B');
+		assert.eq(State.variables.mapCurrent, 'A', '世界地图用 mapCurrent');
+		assert.eq(State.variables.mapCurrent_babel, 'B', '具名地图用 mapCurrent_<id>');
+	});
+
+	test('respawn 判据 1（M6 真刀面）：回起点时 mapCurrent 亦被同步', () => {
+		const off = withLayerMeta(META);
+		try {
+			const map = mkMap('L3');
+			map.moveTo('L3');
+			assert.eq(State.variables.mapCurrent, 'L3', '前置：已同步');
+			R().respawn(dead(), { map });
+			assert.eq(State.variables.mapCurrent, 'L1', '搬位后 State 同步（M6：去掉 moveTo 内 _syncToState ⇒ 本断言红）');
+		} finally { off(); }
 	});
 })();

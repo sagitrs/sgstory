@@ -451,3 +451,34 @@ test('ammo【跨面·回归】多角色**共持同一实例** ⇒ 不可判 ⇒ 
 });
 
 })();
+
+/* ---------- D) 战斗通路的「拒绝 ⇒ 回合」现状（T 席 #1752/#1765 审查补格，`#1752` 裁定(甲)） ---------- */
+
+test('battle：act 被拒（零弹药）⇒ **回合仍推进**（现状钉住；规则裁定见票 #1752 后继）', async () => {
+	/* ★本格**只钉现状、不改行为**（领队裁(甲)）。它存在的原因是：在 `#1768` 审查中实测到
+	 *   「`RPG.act` 的 `status` 在战斗三处调用点被丢弃 ⇒ 拒绝亦耗回合」，而该行为**当时无人声称、无人断言**
+	 *   （`#1765` 判据①只写「目标 HP 不变」）⇒ 将来谁改都不会红。
+	 * ⇒ 现把现状钉住：**若将来把「拒绝不耗回合」落成行为，本格应当变红**（届时按新语义改本格，✗ 不是回归）。
+	 * 判别性：把 `40-battle.js` 的回合推进改成「`status==='rejected'` ⇒ 跳过」（= 领队预倾向的「拒绝不耗回合」），
+	 *   本格必红。 */
+	const R = setup.RPG, D = setup.DND5E;
+	R.defItem({
+		id: 'tw-gun', name: '测试枪', weapon: true, slot: 'weapon', charges: null, stackable: false,
+		stats: { dmg: '1d6', type: 'piercing', ranged: true, ammo: { id: 'tw-bullet' } },
+		used() {},
+	});
+	R.defItem({ id: 'tw-bullet', name: '测试弹', charges: 1, stackable: true, used() {} });
+	const shooter = new R.Character({ name: '枪手', hp: 100, maxHp: 100, stats: D.stats({ ac: 12 }) });
+	shooter.items = [{ id: 'tw-gun', equipped: true }];        // ★刻意不给弹药
+	const foe = new R.Character({ name: '靶', hp: 500, maxHp: 500, stats: D.stats({ ac: 10 }) });
+	R.rng.set(() => 0.99);                                      // 恒高（若真开火必命中）
+	let turnEnd = 0;
+	const off = R.events.on('battle:turnEnd', () => { turnEnd += 1; });
+	try {
+		assert.eq(R.has('tw-bullet'), false, '前置：零弹药');
+		const battle = new R.Battle(3, [shooter], [foe], false);
+		await battle.execute();
+	} finally { off(); }
+	assert.eq(foe.hp, 500, '★零弹药 ⇒ 目标未受伤（`#1765` 判据①：攻击未执行）');
+	assert.eq(turnEnd, 6, '★现状：2 人 × 3 回合 ⇒ turnEnd ×6 —— 即**拒绝亦耗回合**（本格钉住现状，非 endorse）');
+});

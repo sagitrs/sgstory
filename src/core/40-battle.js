@@ -78,7 +78,7 @@ RPG.BattleTurn = class BattleTurn extends RPG.Event {
 			this.perform(`${attacker.name}没有装备任何武器，只能干瞪眼。`);
 			return;
 		}
-		weapon.used(defender, attacker); // 攻击结果由武器自己 perform（规则在这里）
+		setup.RPG.act(attacker, weapon.id, defender); // 统一入口（#1752）：弹药/充能副作用不再绕过
 	}
 };
 
@@ -286,7 +286,7 @@ RPG.Battle = class Battle extends RPG.Event {
 			return;
 		}
 		if (dispatch.type === 'equip' || dispatch.type === 'unequip') {
-			setup.RPG.useItem(dispatch.item.id, attacker, attacker, dispatch.type);
+			setup.RPG.act(attacker, dispatch.item.id, attacker, dispatch.type); // 统一入口（#1752）
 			return;
 		}
 
@@ -296,6 +296,6 @@ RPG.Battle = class Battle extends RPG.Event {
 		const everyone = [...this.players, ...this.enemies].filter((c) => !this.isOut(c));
 		const target = everyone.find((c) => c.name === targetName);
 
-		attacker.use(dispatch.item, target); // 结果由 used 内部 perform 打印
+		setup.RPG.act(attacker, dispatch.item.id, target); // 统一入口（#1752）
 	}
 };

@@ -131,6 +131,19 @@ RPG.defPipeline({
  *   武器 stats.finesse: true 时用 max(力量, 灵巧)调整值 作为攻击与伤害调整值
  */
 DND5E.attack = (item, that, from) => {
+	/* 弹药要求（`#1765` 甲形：检查**下沉到攻击层**，✗ 只放 `useItem`）
+	 *   理由：两条战斗通路（自动 `#attack` / 交互 `attacker.use`）**直调 `used` ⇒ `attack`**，
+	 *   绕过 `useItem` ⇒ 若检查只在 `useItem`，战斗中**永不扣弹**（`#1765` 实测：零弹 5 回合 125 伤害）。
+	 *   放这里 ⇒ **任何**到达攻击的路径都被兜住（纵深防御），与 `#1752` 统一入口互补。
+	 *   SRD：Ammunition「you can … make a ranged attack **only if you have ammunition**…
+	 *   Each attack expends one piece」（pin: `equipment.md:68-70`）。 */
+	const ammo = item.stats?.ammo;
+	if (ammo && RPG.ammoOwed(item) && !RPG.take(ammo.id, ammo.perShot ?? 1, from ?? that)) {
+		const need = RPG.items.has(ammo.id) ? RPG.createItem(ammo.id).name : ammo.id;
+		item.perform(`没有可用的${need}了——「${item.name}」打不出去。`);
+		return;
+	}
+
 	// 近战武器拔出检查（复用 core 逻辑；不属结算管线：是行动前置）
 	if (item.slot === 'weapon' && !item.equipped) {
 		const held = RPG.equippedWeapon();

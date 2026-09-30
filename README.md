@@ -32,6 +32,7 @@ master/main 自本提交起重启为空干线。
 | **d20m** | 同上 | 同上 | 同上 | `source/4Future未来/2FutureCybernetics.md` | 419 | `7494bfdf73b0c41d` | OGL 1.0a |
 | **d20m** | 同上 | 同上 | 同上 | `source/4Future未来/9FutureRobots.md` | 822 | `ed0bd344862d8d52` | OGL 1.0a |
 | **d20m** | 同上 | 同上 | 同上 | `source/1msrdlegal法律信息.md` | 55 | `87de6c063a445aa5` | OGL 1.0a |
+| **d20m** | 同上 | 同上 | 同上 | `source/1Modern现代/27msrdcombat战斗.md` | 1079 | `919704002031c35e` | OGL 1.0a |
 
 **授权与标注**：5E 面依 **CC BY 4.0**（归属声明见 `LICENSE-CONTENT.md` 第二节）；**3E 面与 d20m 面同为 OGL 1.0a，
 但两面的 Section 15 COPYRIGHT NOTICE 各自不同**（见同文件第三节／第四节）；第三方软件与三面的来源声明汇总见 `NOTICE`。

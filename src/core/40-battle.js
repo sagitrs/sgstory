@@ -8,6 +8,52 @@
  * 出局判定默认 hp 归零，其他规则包可覆写 Battle.prototype.isOut。
  */
 
+/** 回合边界 —— 两条通路（Battle 循环 / #playerAction）共用的**唯一**实现。
+ *
+ * 事件：`battle:turnStart`（可**闸门**：订阅方置 `payload.cancel = true` ⇒ 该行动者本次不行动）
+ *       `battle:turnEnd`（只读；payload 冻结）
+ * 遗留事件 `battle:turn` 与 `BattleTurn.execute()` 保持零改（`battle:turn` 只在自动通路的
+ * `BattleTurn.execute()` 内发射，交互通路**不补发**——补发会改 dnd3 交互战的可观测行为）。
+ *
+ * 失败处置通则：**损益可重试者吞并（本处，战斗编排点），损益不可逆者传播（结算管线）**。
+ * 订阅方抛错一律吞并 + console.error，不得中断整场战斗（沿用 events.emit 既有形态）。
+ * 定义级 hooks（RPG 效果的 hooks.onTurnStart/onTurnEnd）**只读**，不得置 cancel；
+ * 顺序 = `c.effects` 数组序，单条抛错不中断其余（同样吞并 + console.error）。
+ *
+ * ⚠ 独立使用 `new RPG.BattleTurn(…).execute()` 时**不经本面**（由调用方自行调
+ *   RPG.turnBoundary.start/end；tests/e2e/old-house/src/story/battles.twee 即此形态）。
+ */
+RPG.turnBoundary = {
+	_runHooks(actor, key, payload) {
+		// 只跑**行动者本人**所持效果的钩子，顺序 = `c.effects` 数组序（层级 id 取其 base 的定义）
+		for (const id of actor?.effects ?? []) {
+			const def = RPG.effects.get(RPG.effectSplit(id).base);
+			const fn = def?.hooks?.[key];
+			if (typeof fn !== 'function') continue;
+			try {
+				fn(actor, { battle: payload.battle, effectId: id }); // hooks 只读：改 cancel 无效
+			} catch (ex) {
+				console.error(`[RPG] 效果「${id}」的 ${key} 钩子出错：`, ex);
+			}
+		}
+	},
+
+	/** 回合开始：返回 { cancel, reason }（闸门）。cancel 只认 `=== true`；reason 只认字符串 */
+	start(payload) {
+		const p = { actor: payload.actor, battle: payload.battle ?? null, cancel: false, reason: null };
+		RPG.events.emit('battle:turnStart', p);
+		this._runHooks(p.actor, 'onTurnStart', p);
+		return { cancel: p.cancel === true, reason: typeof p.reason === 'string' ? p.reason : null };
+	},
+
+	/** 回合结束（payload 冻结 ⇒ 订阅方改写无效/抛错，择一由实现定） */
+	end(payload) {
+		const p = Object.freeze({ actor: payload.actor, battle: payload.battle ?? null });
+		RPG.events.emit('battle:turnEnd', p);
+		this._runHooks(p.actor, 'onTurnEnd', p);
+	},
+};
+
 RPG.BattleTurn = class BattleTurn extends RPG.Event {
 	constructor(attacker, defender) {
 		super();
@@ -88,18 +134,31 @@ RPG.Battle = class Battle extends RPG.Event {
 			);
 			for (const attacker of actors) {
 				if (this.isOut(attacker)) continue; // 回合内被击倒的角色失去本次行动
+
+				// ── 回合边界（F1：闸门与 turnStart **先于选靶**，被拦回合不消耗 RPG.rng 读数）──
+				const gate = RPG.turnBoundary.start({ actor: attacker, battle: this });
+				if (gate.cancel) {
+					this.perform(`${attacker.name}无法行动${gate.reason ? `（${gate.reason}）` : ''}。`);
+					RPG.turnBoundary.end({ actor: attacker, battle: this });
+					continue;
+				}
+
 				const foes = this.players.includes(attacker)
 					? alive(this.enemies)
 					: alive(this.players);
-				if (foes.length === 0) break; // 行动途中对方被团灭
+				if (foes.length === 0) { // 行动途中对方被团灭（仍收尾回合边界）
+					RPG.turnBoundary.end({ actor: attacker, battle: this });
+					break;
+				}
 
 				const isPlayerControlled =
 					this.interactive &&
 					(attacker.properties ?? []).includes('player');
 				if (isPlayerControlled) {
-					await this.#playerAction(attacker); // 交互式回合
+					await this.#playerAction(attacker); // 交互式回合（turnEnd 在通路的 finally）
 				} else {
 					new RPG.BattleTurn(attacker, pick(foes)).execute();
+					RPG.turnBoundary.end({ actor: attacker, battle: this });
 				}
 			}
 		}
@@ -181,6 +240,15 @@ RPG.Battle = class Battle extends RPG.Event {
 	}
 
 	async #playerAction(attacker) {
+		// 回合末钩子在**所有出口**统一收尾（3 个 return ＋ 未来可能的抛错；turnStart 由调用方循环发）
+		try {
+			await this.#playerActionBody(attacker);
+		} finally {
+			RPG.turnBoundary.end({ actor: attacker, battle: this });
+		}
+	}
+
+	async #playerActionBody(attacker) {
 		const slots = attacker.items;
 		if (slots.length === 0) {
 			this.perform(

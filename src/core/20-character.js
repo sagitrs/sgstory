@@ -33,41 +33,80 @@ RPG.Character = class Character extends Object {
 	}
 
 	/**
-	 * 重载检索：
-	 *   contains(effect) → 是否已持有该效果/减益（布尔值）
-	 *   contains(props)  → 在随身道具中检索满足全部给定属性（真值）的道具，
-	 *                      返回还原后的实例（例如 ['weapon', 'equipped']），
-	 *                      没有则返回 null
+	 * 重载检索（两条互斥分支）：
+	 *   contains(ref)   → 是否已持有该效果/减益（布尔值）
+	 *       ref = 已注册的 id 串 | Effect 实例（含层级 id，如 'exhaustion:3'）
+	 *       层级 base（如 'exhaustion'）⇒ **任一层级为真**（严格前缀匹配）
+	 *   contains(props) → 在随身道具中检索满足全部给定属性（真值）的道具，
+	 *       返回还原后的实例（例如 ['weapon', 'equipped']），没有则返回 null
+	 *
+	 * ⚠ 非数组、非字符串、非 Effect 实例的入参**一律抛错**（err.code='EFFECT_BAD_REF'）。
+	 *   旧行为把裸 id / null / 0 / '' 当作空 props 数组 ⇒ 静默返回「首个随身道具」（恒真幽灵）；
+	 *   未注册 id 同样抛错（err.code='EFFECT_UNKNOWN'）——读路径不得静默假阴性。
 	 */
 	contains(propsOrEffect) {
-		if (propsOrEffect instanceof RPG.Effect) {
-			return this.effects.includes(propsOrEffect.id);
+		if (Array.isArray(propsOrEffect)) {
+			return (
+				this.items
+					.map((snapshot) => setup.RPG.reviveItem(snapshot))
+					.find((item) => propsOrEffect.every((p) => item[p])) ?? null
+			);
 		}
-		const props = Array.isArray(propsOrEffect) ? propsOrEffect : [];
-		return (
-			this.items
-				.map((snapshot) => setup.RPG.reviveItem(snapshot))
-				.find((item) => props.every((p) => item[p])) ?? null
-		);
+		const spec = RPG.effectSpec(propsOrEffect, 'any');
+		if (spec.leveled && spec.level === null) {
+			const prefix = `${spec.base}:`; // 严格前缀：'exhaustionFoo' 不得命中 'exhaustion'
+			return this.effects.some((id) => {
+				if (!id.startsWith(prefix)) return false;
+				const n = RPG.effectLevelOfId(id, spec.def);
+				return n >= spec.def.levels.min && n <= spec.def.levels.max;
+			});
+		}
+		return this.effects.includes(spec.id);
 	}
 
-	/** 获得一个效果/减益（幂等：已持有则不重复添加） */
-	gain(effect) {
-		if (!(effect instanceof RPG.Effect)) {
-			throw new Error(`gain 的参数应是 Effect 实例，收到：${effect}`);
+	/** 获得一个效果/减益（幂等：已持有同 id 则不重复添加）
+	 *  ref = 已注册的 id 串（层级效果须带层数，如 'exhaustion:3'）| Effect 实例
+	 *
+	 *  ⚠ **层级效果是原子升降级**（#1713 裁定 ★①甲）：gain 新层前先移除同 base 的其它层
+	 *  ⇒ 同一层级效果在 c.effects 中**至多一条**，effectLevel() 的单值承诺由此成立。
+	 *  （#1689 的「升降级 = lose 旧级 + gain 新级」仍可显式写，但不再是非此不可的两步。） */
+	gain(ref) {
+		const spec = RPG.effectSpec(ref, 'id'); // 归一化：非法形态/未注册/层级缺失或越域 ⇒ 抛错
+		if (spec.leveled) {
+			const prefix = `${spec.base}:`;
+			this.effects = this.effects.filter((id) => !id.startsWith(prefix));
 		}
-		if (!this.contains(effect)) this.effects.push(effect.id);
+		if (!this.effects.includes(spec.id)) this.effects.push(spec.id);
 		return this;
 	}
 
-	/** 失去一个效果/减益 */
-	lose(effect) {
-		if (!(effect instanceof RPG.Effect)) {
-			throw new Error(`lose 的参数应是 Effect 实例，收到：${effect}`);
+	/** 失去一个效果/减益（幂等：未持有不报错）
+	 *  层级效果传裸 base（如 'exhaustion'）⇒ **移除全部层级**；传 'exhaustion:3' ⇒ 精确移除该层 */
+	lose(ref) {
+		const spec = RPG.effectSpec(ref, 'all');
+		if (spec.leveled && spec.level === null) {
+			const prefix = `${spec.base}:`;
+			this.effects = this.effects.filter((id) => !id.startsWith(prefix));
+			return this;
 		}
-		const i = this.effects.indexOf(effect.id);
+		const i = this.effects.indexOf(spec.id);
 		if (i !== -1) this.effects.splice(i, 1);
 		return this;
+	}
+
+	/** 层级效果的当前级数（0 = 未持有；非层级效果 ⇒ 抛错 err.code='EFFECT_NO_LEVELS'） */
+	effectLevel(ref) {
+		const spec = RPG.effectSpec(ref, 'any');
+		if (!spec.leveled) {
+			throw RPG.effectError('EFFECT_NO_LEVELS', `效果「${spec.base}」没有层级`);
+		}
+		for (const id of this.effects) {
+			if (id.startsWith(`${spec.base}:`)) {
+				const n = RPG.effectLevelOfId(id, spec.def);
+				if (n >= spec.def.levels.min && n <= spec.def.levels.max) return n;
+			}
+		}
+		return 0;
 	}
 
 	/**
@@ -119,7 +158,18 @@ RPG.Character = class Character extends Object {
 			items: snapshot.items ?? [],
 			properties: snapshot.properties ?? [],
 		});
+		// 效果面按 id 串还原（存档安全）。**未注册 / 形态非法的 id 一律保留**：
+		// 旧档（或未加载的 pack）里的 id 不得让读档硬抛错；注册表无法解释的形态同样保真保留，
+		// 否则读档一次就丢数据（真实未知 vs 存量畸形无法区分，见 #1713 F3 / §1.3）。
 		c.effects = [...(snapshot.effects ?? [])];
+		for (const id of c.effects) {
+			const known = typeof id === 'string' && RPG.effects.has(RPG.effectSplit(id).base);
+			const valid = known && RPG.effectLevelOfId(id) > 0;
+			const leveledBase = known && RPG.effectSplit(id).levelText === null;
+			if (valid || leveledBase) continue;
+			console.warn(`[RPG] 存档含未注册或不可解释的效果 id「${id}」` +
+				'（可能来自旧档或未加载的 pack）；已保留。');
+		}
 		return c;
 	}
 

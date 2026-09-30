@@ -23,10 +23,13 @@ DND3.checkSave = (character, type, dc, label = type) => {
 
 /* ---------- 恐惧效果（区域 12 肉团的恐惧光环） ---------- */
 
-RPG.fear = new RPG.Debuff({
+/** fear —— dnd3 包的效果定义（由**本包**注册，core 不代劳；见 #1713 F3）。
+ *  注册后 `RPG.fear` 即定义单例，可以直接传给 gain/lose/contains（也可传 'fear'）。 */
+RPG.fear = RPG.defEffect({
 	id: 'fear',
 	name: '恐惧',
 	desc: '被恐惧笼罩，只想逃离。',
+	kind: 'debuff',
 });
 
 /** 恐惧豁免：目标须对抗法术豁免，失败获得 fear 减益。

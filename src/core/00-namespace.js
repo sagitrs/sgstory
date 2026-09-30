@@ -13,6 +13,9 @@ setup.RPG = {
 	/** 道具注册表：id → 道具类（各规则包共用一张表） */
 	items: new Map(),
 
+	/** 效果注册表：base id → Effect 定义单例（各包共用一张表，同 items；见 17-effect） */
+	effects: new Map(),
+
 	/** 角色注册表：id → Character 实例 */
 	characters: new Map(),
 

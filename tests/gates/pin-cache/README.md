@@ -27,11 +27,12 @@
 | `2FutureCybernetics-d20m.md` | 同上 | 同上 | 同上 | OGL 1.0a |
 | `9FutureRobots-d20m.md` | 同上 | 同上 | 同上 | OGL 1.0a |
 | `1msrdlegal法律信息-d20m.md` | 同上 | 同上 | 同上 | OGL 1.0a |
+| `27msrdcombat战斗-d20m.md` | 同上 | 同上 | 同上 | OGL 1.0a |
 > ★**d20m 面的 §15 vintage**：本目录 `1msrdlegal法律信息-d20m.md`（§15 在 `:49-53`）为
 > `Open Game License v 1.0a` ＋ `Modern System Reference Document Copyright 2002-2003`；
 > 另有传世本作 `v 1.0` ＋ `2002-2004` 且作者名单多三位 ⇒ **本仓不采**（换 vintage 须换 pin 行 ＋
 > 同步 `LICENSE-CONTENT.md` 第二节第四节照录，✗ 混引）。
-> ★**行尾**：d20m 面 6 份中 3 份为 **CRLF**（`25msrdequipment…`／`2FutureCybernetics`／`9FutureRobots`）、
+> ★**行尾**：d20m 面 7 份中 4 份为 **CRLF**（`25msrdequipment…`／`2FutureCybernetics`／`9FutureRobots`）、
 > 3 份为 LF ⇒ 缓存是**逐字节副本**，✗ 做行尾归一（sha1 以字节计）。
 
 授权与归属全文见仓根 `LICENSE-CONTENT.md`（5E 面归属）与 `NOTICE`（第三方声明汇总）。

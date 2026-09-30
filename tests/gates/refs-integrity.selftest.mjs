@@ -6,8 +6,12 @@
  *   K2 抹掉引用里的版本号（`SRD 5.2.1 · …` → `SRD · …`）⇒ 期望红（README §三.2 必带版本）
  *   K3 改 pin 表 sha1 末位 ⇒ 期望红（证明门真校验哈希，不只是 grep 格式）
  *   K4 改仓内一值（goblin `hp: 7` → `hp: 8`，注仍称 HP 7）⇒ 期望红（值自洽子检查）
+ *   K5 伪造来源声明行（形态合法但 pin 表无此 repo×版本×commit）⇒ 期望红（NIT-1 要求的第 6 刀）
+ *   K6 引用行号越界 ⇒ 期望红（行号须落在该 pin 文件行数内）
+ *   K7 3E 引用抹掉目录（跨面同名 equipment.md 可互换版本徽号）⇒ 期望红（NIT-2）
  *
  * 用法：node tests/gates/refs-integrity.selftest.mjs        （退出码：全如期 0；有偏差 1）
+ * 刀数随 knives 数组自动增减（输出行取 knives.length）。
  */
 import fs from 'node:fs';
 import os from 'node:os';
@@ -66,6 +70,21 @@ const knives = [
     apply: (d) => edit(d, 'README.md', '| `6ef9e2499230a560` |', '| `6ef9e2499230a561` |'),
   },
   {
+    id: 'K5', name: '伪造来源声明行（形态对、pin 表无此 repo×版本×commit）⇒ 红', expect: 1, mark: '来源声明行与 pin 表不符',
+    apply: (d) => edit(d, 'src/dnd/dnd-5e/00-init.js',
+      '· `downfallx/dnd-5e-srd-markdown` @ `1b4b99d…`',
+      '· `evil/fake-repo` @ `deadbee…`'),
+  },
+  {
+    id: 'K6', name: '引用行号越界（:7257 → :99999）⇒ 红', expect: 1, mark: '行号越界',
+    apply: (d) => edit(d, 'src/dnd/dnd-5e/monsters/goblin.js', 'monsters-A-Z.md:7257', 'monsters-A-Z.md:99999'),
+  },
+  {
+    id: 'K7', name: '跨面同名校验（3E 引用抹掉目录 → 与 5E equipment.md 可互换版本徽号）⇒ 红', expect: 1, mark: '引用路径不完整',
+    apply: (d) => edit(d, 'src/dnd/dnd3/items/club.js',
+      '`Basic Rules and Legal/equipment.md:427-434`', '`equipment.md:427-434`'),
+  },
+  {
     id: 'K4', name: '改仓内一值（hp 7→8，注仍称 HP 7）⇒ 红', expect: 1, mark: '值自洽不符',
     apply: (d) => edit(d, 'src/dnd/dnd-5e/monsters/goblin.js', '	hp: 7, maxHp: 7,', '	hp: 8, maxHp: 8,'),
   },
@@ -88,5 +107,5 @@ for (const k of knives) {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 }
-console.log(bad === 0 ? '✓ 五刀全部如期（门会红也会绿）' : `✗ ${bad} 刀未如期`);
+console.log(bad === 0 ? `✓ ${knives.length} 刀全部如期（门会红也会绿）` : `✗ ${bad}/${knives.length} 刀未如期`);
 process.exit(bad === 0 ? 0 : 1);

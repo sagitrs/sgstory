@@ -18,9 +18,10 @@
  *                    重访触发写在豁免条目 why 内（换 pin／新增第 4 个 3E 点／要求逐格精度）。
  *
  * 读数（**分母显式**）：声称口径 15（= 源行口径 9 + 其它 6）；源行口径 9 = A 4 + B 3 + C 2。
- * 退出码：K>0 ∨ pin 不符 ∨ 缓存缺失 ∨ 任一占比超限 ∨ 过期豁免 ∨ 豁免含 glob ⇒ 1；全绿 ⇒ 0。
+ * 退出码：K>0 ∨ pin 不符 ∨ 缓存缺失 ∨ 任一占比超限 ∨ 过期豁免 ∨ 豁免含 glob ∨ **覆盖面低于基线** ∨ **记账面超上限** ⇒ 1；全绿 ⇒ 0。
  *
- * 用法：node tests/gates/refs-integrity.mjs [--root <dir>] [--list] [--refresh]（--refresh 仅人工）
+ * 用法：node tests/gates/refs-integrity.mjs [--root <dir>] [--list] [--refresh] [--update-baseline]
+ *        （--refresh 与 --update-baseline 均**仅人工**，CI 绝不调用）
  */
 import fs from 'node:fs';
 import path from 'node:path';
@@ -34,6 +35,7 @@ const arg = (k) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : nu
 const ROOT = path.resolve(arg('--root') ?? DEFAULT_ROOT);
 const REFRESH = argv.includes('--refresh');
 const LIST = argv.includes('--list');
+const UPDATE_BASELINE = argv.includes('--update-baseline');   // 仅人工（同 --refresh 形态）
 
 /* ---- 门内参数（可判读数；改这里即改门）---- */
 const EXEMPTION_CAP_PCT = 20;              // 其它豁免（含 C 组映射说明行）占**声称口径**上限
@@ -45,6 +47,8 @@ const SCAN_SKIP_DIRS = ['node_modules', 'dist', 'build', 'vendor', '.git', 'gate
 const BLOCK_WINDOW = 40;                        // 引用指向条目标题行时的向下扫窗上限（行）
 const CACHE_DIR = path.join(ROOT, 'tests', 'gates', 'pin-cache');
 const EXEMPTIONS_FILE = path.join(ROOT, 'tests', 'gates', 'claims-exemptions.json');
+/* 覆盖面基线（#1720）：门对**错误** fail-loud，对**信息量下降**原为无感 —— 本文件给出下限/上限。 */
+const BASELINE_FILE = path.join(ROOT, 'tests', 'gates', 'coverage-baseline.json');
 const NAME_MAP_FILE = path.join(ROOT, 'tests', 'gates', 'name-map.json');
 const README = path.join(ROOT, 'README.md');
 
@@ -184,11 +188,25 @@ if (nameMap.length === 0) red(`映射表为空或缺失：${path.relative(ROOT, 
 const files = SCAN_DIRS.flatMap((d) => walk(path.join(ROOT, d))).sort();
 let claims = 0, verified = 0, exemptCitation = 0, exemptValue = 0, placeholders = 0;
 let sourceLineClaims = 0, valueChecked = 0, valueCompared = 0, selfCheck = 0, selfChecked = 0;
+/* 值自洽两支**分面计数**（承 `#1720` 覆盖面基线）：①注↔字段（HP/AC）②用例名↔断言。
+ * 分开计的理由：#1734 的静默降格只发生在②（标题自由度）——若共用计数，①的增补会掩盖②的下降。 */
+let selfCmpTotal = 0, selfCmpChecked = 0, titleTotal = 0, titleChecked = 0;
 const uncovered = [];
 let cmp5e = 0, cmp3e = 0;   // A 组比对按源格式分计（验收 4）
 const noValueCites = [];    // 引用解析成功但抽不到可比值（静默 0 覆盖 ⇒ 须可见）
 const uncoveredCand = [];   // 未覆盖**候选**（按行收集，输出前按「文件+键」聚合，见下）
-const claimedKeysByFile = new Map();   // 文件 → 该文件**声称过**的键集（粒度＝块，遵 README §三.3）
+/* 声称方位集：键＝`${rel}|${blockKey}`，**blockKey = 最近的「声称载体」起始行**
+ *   （JS：含 `/*` 的注释块起始行 或 `test(` 行；找不到则 0）。
+ *   粒度为何取「块」而非「文件」：本仓引用形约定是「**一处引用覆盖其下紧邻的一组同源数值**」
+ *   （`README.md`「规则来源」§三 第 3 条「落在最近的声明点」）——故同一块声称过的键，
+ *   不应对**别的块**登记未覆盖；取文件级会跨块抑制（`#1735` D 席 NIT-2 指出）。 */
+function blockKeyOf(lines, idx) {
+  for (let j = idx; j >= 0; j--) {
+    if (/^\s*\/\*/.test(lines[j]) || /^\s*test\(\s*'/.test(lines[j])) return j + 1;
+  }
+  return 0;
+}
+const claimedKeysByBlock = new Map();
 let cGroupChecked = 0;
 const mappingHit = new Set();
 
@@ -316,9 +334,9 @@ for (const f of files) {
     const selfCmp = (label, claimed, field) => {
       const m = text.match(new RegExp(`${field}\\s*:\\s*(-?\\d+)`));
       if (!m) return;
-      selfCheck++;
+      selfCheck++; selfCmpTotal++;
       if (Number(m[1]) !== Number(claimed)) red(`值自洽不符：${at} 注称 ${label}=${claimed}，同行 ${field}: ${m[1]}`);
-      else selfChecked++;
+      else { selfChecked++; selfCmpChecked++; }
     };
     for (const m of text.matchAll(/HP\s+(\d+)/g)) selfCmp('HP', m[1], 'hp');
     for (const m of text.matchAll(/AC\s+(\d+)/g)) selfCmp('AC', m[1], 'ac');
@@ -340,8 +358,8 @@ for (const f of files) {
           INT: ['int_mod', 'int'], WIS: ['wis_mod', 'wis'], CHA: ['cha_mod', 'cha'],
         }[key];
         titlePairs[key] = Number(val);
-        selfCheck++;
-        if (fields.some((fl) => new RegExp(`assert\\.eq\\([^,]*\\.${fl}\\s*,\\s*${val}\\b`).test(body))) selfChecked++;
+        selfCheck++; titleTotal++;
+        if (fields.some((fl) => new RegExp(`assert\\.eq\\([^,]*\\.${fl}\\s*,\\s*${val}\\b`).test(body))) { selfChecked++; titleChecked++; }
         else red(`用例名数值无对应断言：${at} 声称 ${key} ${val}，其后 12 行内无 assert.eq(…${fields.join('|')}…, ${val})`);
       }
     }
@@ -399,9 +417,10 @@ for (const f of files) {
           if (claimedRaw[k] === undefined) claimedRaw[k] = Number(m[2]);
         }
         for (const m of text.matchAll(/\b(HP|AC)\s+(\d+)/g)) claimed[m[1]] = Number(m[2]);
-        const fileClaims = claimedKeysByFile.get(rel) ?? new Set();
-        for (const k of [...Object.keys(claimed), ...Object.keys(claimedRaw), ...Object.keys(titlePairs)]) fileClaims.add(k);
-        claimedKeysByFile.set(rel, fileClaims);
+        const bKey = `${rel}|${blockKeyOf(lines, i)}`;
+        const blockClaims = claimedKeysByBlock.get(bKey) ?? new Set();
+        for (const k of [...Object.keys(claimed), ...Object.keys(claimedRaw), ...Object.keys(titlePairs)]) blockClaims.add(k);
+        claimedKeysByBlock.set(bKey, blockClaims);
         for (const k of ABIL_KEYS) if (titlePairs[k] !== undefined) claimed[k] = titlePairs[k];
         if (titlePairs.HP !== undefined) claimed.HP = titlePairs.HP;
         if (titlePairs.AC !== undefined) claimed.AC = titlePairs.AC;
@@ -464,7 +483,31 @@ for (const f of files) {
                * 只有「本行声称了一部分、源还有其余」才是真缺口（作者枚举不全）。 */
               const hasClaims = Object.keys(claimed).length > 0 || Object.keys(claimedRaw).length > 0
                 || Object.keys(titlePairs).length > 0;
-              if (hasClaims) uncoveredCand.push({ file: rel, key: k, at, src: src[k], cache: path.basename(r.cachePath) });
+              /* 该块若有**权威的 house rule 声明** ⇒ 属「已声明偏离」，不登记未覆盖
+               *   （`README.md`「规则来源」§三 第 5 条：无源条目须当 house rule 并写明）。
+               *   只认权威短语 `house rule`（`RE_CLAIM` 已含），**不扩同义词**——否则又造第二入口（领队裁 ③）。 */
+              let bStart = blockKeyOf(lines, i) - 1;
+              /* 若块以 `test(` 开头，**向上并入紧邻的注释块**：`house rule` 声明惯写在其上
+               *   （实测 `stats.test.js:37-38` 是注释、`:39` 才是 `test(`）⇒ 不并入会漏声明。 */
+              while (/^\s*test\(\s*'/.test(lines[bStart] ?? '') && bStart > 0
+                     && /^\s*(\*|\/\*|\*\/)/.test(lines[bStart - 1])) {
+                bStart--;
+              }
+              /* 块文本取到**块的末尾**而非「声称行」为止：多行注释块里，`house rule` 声明常写在
+               * 声称行**之后**的一行（实测 `stats.test.js:37` 声称、`:38` 声明）⇒ 只取到声称行会漏。 */
+              let bEnd = i;
+              if (/^\s*\/\*/.test(lines[bStart] ?? '')) {
+                for (let k = i; k < lines.length; k++) { bEnd = k; if (/\*\//.test(lines[k])) break; }
+              } else {
+                for (let k = i; k < lines.length; k++) {
+                  bEnd = k;
+                  if (/^\s*\}\);?\s*$/.test(lines[k])) break;
+                  if (k > i && /^\s*test\(\s*'/.test(lines[k])) { bEnd = k - 1; break; }
+                }
+              }
+              const blockText = lines.slice(Math.max(0, bStart), bEnd + 1).join('\n');
+              const declared = /house\s*rule/i.test(blockText);
+              if (hasClaims && !declared) uncoveredCand.push({ file: rel, key: k, at, src: src[k], cache: path.basename(r.cachePath), block: `${rel}|${blockKeyOf(lines, i)}` });
               continue;
             }
             valueCompared++;
@@ -506,11 +549,24 @@ if (noValueCites.length > 0) {
  * 若按行计，逐条断言的用例会机械放大（实测 3E 六维 × 6 条断言 = 30 项噪声）。 */
 const seenUc = new Set();
 for (const c of uncoveredCand) {
+  /* 去重键用 **`${file}|${key}`**，判定用**块**（`claimedKeysByBlock`）——
+   * 两者职责不同（D 席 `developer-9` 在 `#1738` 的 NIT-A）：
+   *   判定取块：同一文件内**别的块**声称过该键，不抑制本块的登记；
+   *   去重取文件+键：同一键在同文件内可能因「注释块起始行 ≠ test 行」落到两个 blockKey
+   *   （实测 `stats.test.js` 的 `:37` 注释块与 `:39` test 行），若按块去重会把**同一事实登记两次**
+   *   ⇒ 记账被虚高、ceiling 被锁在虚高值上，**后续真实增长反而被掩盖**（恰是本票要防问题的镜像）。 */
+  /* 判定用**块**、去重用 **`${file}|${key}`**（D 席 `#1738` NIT-A 指定）：
+   *   · 判定取块：别的块声称过该键，不抑制本块的登记；
+   *   · 去重取文件+键：拦掉「同文件内同键落到两个 blockKey」的重复
+   *     （实测 `stats.test.js` 的 `:37` 注释块与 `:39` test 行正是此形 ⇒ 曾虚高登记两次）。
+   *   注：「源有值而仓内不声称」在**源值面**的真信号数是 2（Guard 的 AC 16／HP 11）；
+   *   本条按**仓内位置**去重 ⇒ 同一源值被**两个文件**引用时各记一次（详见 PR 评论的实测）。 */
   const tag = `${c.file}|${c.key}`;
   if (seenUc.has(tag)) continue;
-  if (claimedKeysByFile.get(c.file)?.has(c.key)) continue;
+  if (claimedKeysByBlock.get(c.block)?.has(c.key)) continue;
   seenUc.add(tag);
-  uncovered.push(`${c.file}｜${c.key}（源=${c.src.v}@${c.cache}:${c.src.line}，该文件未声称该键）`);
+  const where = c.block.endsWith('|0') ? '该文件（无块归属）' : '该块';
+  uncovered.push(`${c.at} ${c.file}｜${c.key}（源=${c.src.v}@${c.cache}:${c.src.line}，${where}未声称该键）`);
 }
 if (uncovered.length > 0) {
   console.log(`  tier-②：A 组**未覆盖** ${uncovered.length} 项（源有值、本行/用例未声称 ⇒ 记账不红，防分母静默缩小）：`);
@@ -528,6 +584,56 @@ if (LIST) {
     });
   }
 }
+/* ---------- 覆盖面基线（#1720）：下限（覆盖面）+ 上限（记账面） ---------- */
+const faces = {
+  claims, sourceLineClaims,
+  aGroupCompared: valueCompared, aGroupChecked: valueChecked, cGroupChecked,
+  selfCmpChecked,        // 值自洽①注↔字段
+  titleChecked,          // 值自洽②用例名↔断言（#1734 的面）
+  sourceFormats5e: cmp5e, sourceFormats3e: cmp3e,
+};
+const ceilings = { uncovered: uncovered.length, noValueCites: noValueCites.length };
+
+if (UPDATE_BASELINE) {
+  let sha = 'unknown';
+  try { sha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT }).toString().trim(); } catch { /* 非 git */ }
+  fs.writeFileSync(BASELINE_FILE, JSON.stringify({
+    $note: '覆盖面基线（#1720）：faces＝**下限**（低于即红），ceilings＝**上限**（高于即红）。唯一更新通道 = `--update-baseline`（仅人工，CI 绝不调用）：基线变更会出现在 PR diff 里，合入者须解释「为什么少了这一项」。',
+    seededAt: sha, faces, ceilings,
+  }, null, 2) + '\n');
+  console.log(`已播种覆盖面基线：${path.relative(ROOT, BASELINE_FILE)}（seededAt=${sha}）`);
+  for (const [k, v] of Object.entries(faces)) console.log(`  faces.${k} = ${v}`);
+  for (const [k, v] of Object.entries(ceilings)) console.log(`  ceilings.${k} = ${v}`);
+  process.exit(0);
+}
+
+let baseOk = true;
+if (!fs.existsSync(BASELINE_FILE)) {
+  red(`覆盖面基线缺失：${path.relative(ROOT, BASELINE_FILE)}（须入库；缺失**显式红**，不静默跳过）⇒ 人工播种：node tests/gates/refs-integrity.mjs --update-baseline`);
+  baseOk = false;
+} else {
+  let base = null;
+  try { base = JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8')); }
+  catch (e) { red(`覆盖面基线解析失败：${e.message}`); baseOk = false; }
+  if (base) {
+    const drops = [], overs = [];
+    for (const [k, want] of Object.entries(base.faces ?? {})) {
+      const got = faces[k];
+      if (got === undefined) { red(`基线含未知面「${k}」（门已改名？请 --update-baseline 重播）`); baseOk = false; continue; }
+      if (got < want) { drops.push(`${k} ${want}→${got}（-${want - got}）`); baseOk = false; }
+    }
+    for (const [k, cap] of Object.entries(base.ceilings ?? {})) {
+      const got = ceilings[k];
+      if (got !== undefined && got > cap) { overs.push(`${k} ${cap}→${got}（+${got - cap}）`); baseOk = false; }
+    }
+    if (drops.length > 0) red(`覆盖面下降（低于基线 ⇒ 门推动信息减少）：${drops.join('；')} ⇒ 若为有意收缩，须人工 --update-baseline 并在 PR 里说明理由`);
+    if (overs.length > 0) red(`记账面增长超上限（「源有值而仓内不声称」的面在扩大）：${overs.join('；')}`);
+    console.log(`  覆盖面基线对账（seededAt=${base.seededAt ?? '?'}）：${baseOk ? '✓ 逐面无下降、无超限' : '✗ 见下'}`);
+    console.log(`    faces：${Object.entries(faces).map(([k, v]) => `${k} ${v}/${base.faces?.[k] ?? '-'}`).join('｜')}`);
+    console.log(`    ceilings：${Object.entries(ceilings).map(([k, v]) => `${k} ${v}/${base.ceilings?.[k] ?? '-'}`).join('｜')}`);
+  }
+}
+
 if (problems.length > 0) {
   console.log('\n✗ 门红：');
   for (const p of problems) console.log(`  - ${p}`);

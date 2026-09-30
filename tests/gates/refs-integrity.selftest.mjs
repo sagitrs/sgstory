@@ -14,6 +14,10 @@
  *   K9  映射表写错条目名（Goblin Minion → Goblin Warrior）⇒ 期望红（C 组）
  *
  * 用法：node tests/gates/refs-integrity.selftest.mjs        （退出码：全如期 0；有偏差 1）
+ *
+ * ⚠️ **刀必须自带非空 `apply`**：`makeCopy()` 拷贝含 `tests/gates/**` ⇒ 沙箱内会连同
+ *    「被回退/被改的门」一起跑。空 `apply` 的刀，其场景在沙箱里 **从不出现** ⇒ 恒绿、给出假验收信号
+ *    （D 席 `developer-9` 在 `#1735` 的 NIT-1 实测：把 fields 回退为只认 `*_mod` 时 K12 仍绿）。
  * 刀数随 knives 数组自动增减（输出行取 knives.length）。
  */
 import fs from 'node:fs';
@@ -154,8 +158,14 @@ const knives = [
       '	maxHp: 7, // SRD 5.2.1 · monsters-A-Z.md:7257 —— HP 9 (2d6)'),
   },
   {
-    id: 'K12', name: '标题载**原始分**（#1724 模型）⇒ 不红【#1734 验收刀】（基线绿即为证）', expect: 0, mark: '✓ 门绿',
-    apply: () => {},   // 基线形态本身即具判别力：修复前该形态红（见 K12b）
+    /* NIT-1（D 席 `developer-9`）：**刀必须自带非空 `apply`** ——
+     * 自检的 COPY 含 `tests/gates/**`，故「回退门本身」时沙箱里跑的是被回退的门；
+     * 若刀为空，其「场景」在沙箱里从未出现 ⇒ 恒绿空刀、给出**假的验收信号**。
+     * 本刀构造「标题载**原始分**（#1724 模型）＋ 断言为原始分字段」的真场景 ⇒ 旧门必红、新门须绿。 */
+    id: 'K12', name: '标题载**原始分**（#1724 模型）⇒ 不红【#1734 验收刀】', expect: 0, mark: '✓ 门绿',
+    apply: (d) => editAny(d, 'tests/unit/dnd-5e/stats.test.js', [
+      [['（AC 12, HP 7，六维原始分见下）', '（AC 12, HP 7, STR 8, DEX 15）']],   // 断言侧在 #1724 后已是原始分
+    ]),
   },
   {
     id: 'K12b', name: '标题载原始分 **且** 断言为原始分字段 ⇒ 绿（两代兼容的正面用例）', expect: 0, mark: '✓ 门绿',
@@ -168,6 +178,29 @@ const knives = [
       s = s.replace('assert.eq(D().Goblin.stats.dex_mod, 2);', 'assert.eq(D().Goblin.stats.dex, 15);');
       fs.writeFileSync(p, s);
     },
+  },
+  {
+    id: 'K13', name: '覆盖面下降（删整行声称 ⇒ claims 51→50）⇒ 红【#1720 判据 1】', expect: 1, mark: '覆盖面下降',
+    apply: (d) => dropLines(d, 'src/dnd/dnd-5e/monsters/goblin.js', 'maxHp: 7, // SRD 5.2.1 · monsters-A-Z.md:7257'),
+  },
+  {
+    id: 'K14', name: '基线缺失 ⇒ 红（不静默跳过）【#1720 判据 4】', expect: 1, mark: '覆盖面基线缺失',
+    apply: (d) => fs.rmSync(path.join(d, 'tests/gates/coverage-baseline.json'), { force: true }),
+  },
+  {
+    id: 'K15', name: '记账面超上限（ceilings 压到 0 下限之下）⇒ 红【#1720 判据 3】', expect: 1, mark: '记账面增长超上限',
+    apply: (d) => {
+      const p = path.join(d, 'tests/gates/coverage-baseline.json');
+      const doc = JSON.parse(fs.readFileSync(p, 'utf8'));
+      /* 构造：把上限压到 −1（低于任何实际值，含真 0）⇒ 必红。
+       *   不用「压到 3」：那在真值 0 的树上是**空刀**（0 ≤ 3 恒真）——值随基线收敛后原构造失效。 */
+      doc.ceilings.uncovered = -1;
+      fs.writeFileSync(p, JSON.stringify(doc, null, 2) + '\n');
+    },
+  },
+  {
+    id: 'K16', name: '标题删值（用例名↔断言，`#1734` 面）⇒ 红【#1720 判据 2】', expect: 1, mark: '覆盖面下降',
+    apply: (d) => edit(d, 'tests/unit/dnd-5e/stats.test.js', '（AC 12, HP 7，六维原始分见下）', '（六维原始分见下）'),
   },
 ];
 

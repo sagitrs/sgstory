@@ -116,6 +116,8 @@ IIFE 包裹避免跨文件顶层重名），然后 `python build.py`——manife
       ```
       > 引擎侧注入点：`RPG.rng.set(fn)` / `RPG.rng.setSequence(values)`（实现见 `#1706`／PR `#1710`）。
       > 本技法在迁移后**仍有效**（默认实现每次调用时读 `Math.random`），但**新用例优先用 `RPG.rng`**（可判、可复位、无全局副作用）。
+      > 复位责任随迁移转移：`RPG.rng` 的注入由 harness 的**用例前置重置**统一复位（`tests/unit/framework/harness.js` 的 `__resetState` 内 `RPG.rng.reset()`，见 `#1706`／PR `#1710`）⇒ 用 `RPG.rng.setSequence(...)` 时**无需**重复抄 `try/finally`。
+      > ⚠️ 但 harness **不会**复原你替换过的 `Math.random` ⇒ 仍用上示 `Math.random` 替换法时，`try/finally` **仍然必须**。
    2. **必中/必不中构造（攻击面）**：给目标加 `noDodge: true`（同时免「天然 1 必失」与重击两条路径），再配 `stats: { ac: -999 }`；也可用临时道具 `bab: 99` 提高命中面。
       ⚠️ **只写 `ac: -999` 不构成必中**：`die === 1` 仍必失；`die === 20` 触发重击而翻倍伤害——**dnd3 另需确认掷**（`dnd3/core/combat.js`），**dnd-5e 无确认掷**（`dnd-5e/core/combat.js`，天然 20 即重击）。`noDodge: true` 在**两包**同时关闭这两条路径。实测（PR #1687 检视，**dnd3 面**）：未加 `noDodge` 的「必中靶」用例 2000 轮翻转 **20.6%**、宿主 20 轮 3 红。
    3. **非攻击检定/豁免的加值构造**：无掷骰管线的检定面（撬锁、属性检定、豁免检定）直接用加值强制成败——例如 `D().Player.stats.dex_mod = ±20`、`stats.save_spells = ±20`（与 DC 拉开足够距离即必成/必败）。

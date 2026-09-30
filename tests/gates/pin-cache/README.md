@@ -19,7 +19,6 @@
 授权与归属全文见仓根 `LICENSE-CONTENT.md`（5E 面归属）与 `NOTICE`（第三方声明汇总）。
 
 **体量（实测口径）**：6 份源文件本体合计 **1,014,737 B**；含本说明文件后本目录内容合计 **1,016,781 B**（git 口径，非 `du` 块口径）。
-
 **刷新（仅人工，CI 不用）**——`--refresh` 会联网重取并按 sha1 打印读数：
 
 ```bash
@@ -33,7 +32,8 @@ node tests/gates/refs-integrity.mjs --refresh
 
 | 日期 | 复核人 | 方法 | 结果 |
 |---|---|---|---|
-| 2026-09-30 | `sagitrs-tester-3` | `gh api … ?ref=<pin>` → `wc -l` + `sha1sum \| cut -c1-16`，与 README §一 逐项比 | **5/5 相符** |
-| 2026-09-30 | `sagitrs-tester-4` | 同法（`Accept: application/vnd.github.raw`），独立重取后与表逐项比；并把该比对固化为门内断言（`pin 校验 5/5`） | **5/5 相符** |
+| 2026-09-30 | `sagitrs-tester-3` | `gh api … ?ref=<pin>` → `wc -l` + `sha1sum \| cut -c1-16`，与 README §一 逐项比 | 当时表内 **5/5 相符**（该次复核时表为 5 行） |
+| 2026-09-30 | `sagitrs-tester-4` | 同法（`Accept: application/vnd.github.raw`），独立重取后与表逐项比；并把该比对固化为门内断言 | 当时表内 **5/5 相符**（同上） |
+| 2026-09-30 | 本仓 PR `#1723`（3E 源入表） | 新增第 6 行（`3.5 Compendium/Monsters/3.5 Monsters - G.md`）后按门读数复核 | **6/6 相符**（见该 PR 的门读数） |
 
-⇒ 两席**各自独立**取源闭合，且自本次起由 `tests/gates/refs-integrity.mjs` 在 CI 上每次机械复核（表 ↔ 缓存 ↔ sha1）。
+⇒ 各次复核均与**当时**的 pin 表逐项相符（表随新增源而扩张：5 → 6）；自本次起由 `tests/gates/refs-integrity.mjs` 在 CI 上每次机械复核（表 ↔ 缓存 ↔ sha1），故**现行准据以门的 `pin 校验 N/N` 读数为准**，本表只记历史复核。

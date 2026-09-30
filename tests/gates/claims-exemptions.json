@@ -1,0 +1,11 @@
+{
+  "$note": "豁免清单（#1714 判据 5）：每条例外须含「值位置(file+match) + 为何无源(why) + 依据(basis)」。门打印豁免占比并设上限（见 refs-integrity.mjs 的 EXEMPTION_CAP_PCT）。条目一旦不再命中实际声称 ⇒ 门红（过期豁免须删）。",
+  "exemptions": [
+    {
+      "file": "src/dnd/dnd-5e/monsters/goblin.js",
+      "match": "无**单独的「Goblin」条目",
+      "why": "命名映射说明行：只陈述「源里没有同名条目」，本身不是数值声称（数值在同文件 :11 的引用注）",
+      "basis": "README「规则来源」§三.4（命名不一致以源条目名为准并注明映射）"
+    }
+  ]
+}

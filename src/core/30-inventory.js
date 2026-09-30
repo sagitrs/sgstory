@@ -246,17 +246,19 @@ RPG.ammoOwner = (item, from, that) => {
 	const chars = RPG.characters;
 	const list = chars == null ? [] : (typeof chars.values === 'function' ? [...chars.values()] : Object.values(chars));
 	const holds = (who) => Array.isArray(who?.items) && who.items.some((s) => s === item);
-	/* 快照路径（`reviveItem` 每次新建实例 ⇒ 实例恒等不命中）⇒ 按 **id** 兜底匹配。
-	 *   ★ **命中多于一个者即不可判**（developer 第三轮：双持有者——双方都注册且各持同型——时
-	 *   「取最后登记者」会把归属判给**受击者**（实测射手 10→10、靶 10→9）。"取最后一个"没有依据：
-	 *   同 id 不同实例本就无法区分谁在开火 ⇒ 返回 `null`（与「宁可不出手，不可让他人付费」自洽）。 */
+	/* ★ **唯一才判**（本笔四轮迭代的收敛形）：实例恒等命中恰 1 个 ⇒ 用它；否则看按 id 命中恰 1 个
+	 *   （快照路径：`reviveItem` 每次新建实例 ⇒ 实例恒等不命中）。**其余一切情况 ⇒ `null`（不扣）**：
+	 *   无人持有、多角色共持**同一实例**、多角色持**同 id 不同实例** —— 三者都不可判谁在开火。
+	 *   ★ 早先为「共持实例」单列一行守卫（②′），实测**删掉后测试仍全绿**：因按 id 分支同样命中
+	 *   ≥2 ⇒ 返回 `null` —— 该守卫是**冗余分支（死代码）**，已删，只留这一处歧义判定。
+	 *   反面教训（`developer` 第三轮）：曾写「按 id 从后往前取最后登记者」，双持有者时恰命中
+	 *   **受击者**（射手 10→10、靶 10→9）—— 「取任一」没有依据，歧义必须判 `null`。 */
 	const holdsId = (who) => Array.isArray(who?.items) && who.items.some((s) => s?.id === item.id);
 	const byInstance = list.filter(holds);
 	if (byInstance.length === 1) return byInstance[0]; // ② 实例恒等且唯一 ⇒ 无歧义
-	if (byInstance.length > 1) return null; // ②′ 多角色共持同一实例 ⇒ 不可判
-	const byId = list.filter(holdsId);
+	const byId = byInstance.length === 0 ? list.filter(holdsId) : [];
 	if (byId.length === 1) return byId[0]; // ③ 按 id 且唯一 ⇒ 可判（快照路径的常见形）
-	return null; // ④ 无人持有／多持有者（歧义）⇒ 不扣、不开火
+	return null; // ④ 无人持有／歧义（≥2）⇒ 不扣、不开火
 };
 
 RPG.act = (actor, itemRef, target, action = 'use', from = actor) => {

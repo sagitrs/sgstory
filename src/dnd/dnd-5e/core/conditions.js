@@ -54,11 +54,13 @@ DND5E.Conditions = {
 	// SRD 5.2.1 · rules-glossary.md:988；:996「Attack rolls against you have Disadvantage, and your attack
 	//   rolls have Advantage」
 	invisible: { selfRollMode: 'advantage', targetRollMode: 'disadvantage', scope: 'battle', duration: 'turn' },
-	// SRD 5.2.1 · rules-glossary.md:1123；:1127「Inactive」；:1133「Attack rolls against you have
-	//   Advantage」；:1131 近战自动暴击（P3）；:1135 豁免必败（力/敏）
+	// SRD 5.2.1 · rules-glossary.md:1123；:1127「_Incapacitated._ You have the Incapacitated
+	//   condition」（源词为 Incapacitated）；:1133「Attack rolls against you have Advantage」；
+	//   :1131 近战自动暴击（P3）；:1135 豁免必败（力/敏）
 	paralyzed: { targetRollMode: 'advantage', inactive: true, scope: 'battle' },
-	// SRD 5.2.1 · rules-glossary.md:1147；:1153「Inactive」；:1157「Attack rolls against you have
-	//   Advantage」；:1159 豁免必败；:1161 全抗（P4）
+	// SRD 5.2.1 · rules-glossary.md:1147；:1153「_Incapacitated._ You have the Incapacitated
+	//   condition」（源词为 Incapacitated）；:1157「Attack rolls against you have Advantage」；
+	//   :1159 豁免必败；:1161 全抗（P4）
 	petrified: { targetRollMode: 'advantage', inactive: true, scope: 'persistent' },
 	// SRD 5.2.1 · rules-glossary.md:1169；:1173「You have Disadvantage on attack rolls and ability checks」
 	poisoned: { selfRollMode: 'disadvantage', scope: 'persistent' },
@@ -68,32 +70,37 @@ DND5E.Conditions = {
 	// SRD 5.2.1 · rules-glossary.md:1214；:1220「Attack rolls against you have Advantage, and your attack
 	//   rolls have Disadvantage」；:1222 豁免劣势（敏）
 	restrained: { selfRollMode: 'disadvantage', targetRollMode: 'advantage', scope: 'battle' },
-	// SRD 5.2.1 · rules-glossary.md:1419；:1423「Inactive」；:1427「Attack rolls against you have
-	//   Advantage」；:1425 豁免必败（力/敏）
+	// SRD 5.2.1 · rules-glossary.md:1419；:1423「_Incapacitated._ You have the Incapacitated
+	//   condition」（源词为 Incapacitated）；:1427「Attack rolls against you have Advantage」；
+	//   :1425 豁免必败（力/敏）
 	stunned: { targetRollMode: 'advantage', inactive: true, scope: 'battle', duration: 'turn' },
-	// SRD 5.2.1 · rules-glossary.md:1503；:1507「Inactive」；:1511「Attack rolls against you have
-	//   Advantage」；:1509 近战自动暴击（P3）；:1513 豁免必败；:1515 速度 0
+	// SRD 5.2.1 · rules-glossary.md:1503；:1507「_Inert._ You have the Incapacitated **and Prone**
+	//   conditions…」（源词为 Inert；★源文此条**合并 Prone** ⇒ 本表暂未含 Prone 面，归后）；
+	//   :1511「Attack rolls against you have Advantage」；:1509 近战自动暴击（P3）；:1513 豁免必败；:1515 速度 0
 	unconscious: { targetRollMode: 'advantage', inactive: true, scope: 'battle' },
 };
 
 /* ---------- 注册进 Effect 注册表（#1727 单层权威） ---------- */
 
+/* ⚠ **`desc` 是对玩家的契约面**：只写**本笔已实现**的效果；SRD 有、但本笔未落的面
+ *  一律以「（未实现：…归 Pn）」显式标注 —— 与 `grappled` 同形（本笔只有该条做对，
+ *  #1758 的 T 席 MAJOR-1 已把这条立为模板：desc 不得宣称未实现的效果）。 */
 const NAMES = {
 	blinded: ['目盲', '看不见，攻击与受击都受影响。'],
-	charmed: ['魅惑', '无法攻击施魅者。'],
-	deafened: ['耳聋', '听不见，听觉检定必败。'],
-	exhaustion: ['力竭', '每级使 D20 Test −2；6 级死亡。'],
-	frightened: ['恐惧', '看见恐惧源时攻击与检定劣势，且不能靠近。'],
+	charmed: ['魅惑', '（未实现：禁攻施魅者——需 source 追踪，归 P3）'],
+	deafened: ['耳聋', '（未实现：听觉检定必败——仓无技能系统，归 P4）'],
+	exhaustion: ['力竭', '每级使 D20 Test −2（归 P2）；6 级死亡、长休减 1 级。'],
+	frightened: ['恐惧', '看见恐惧源时攻击与检定劣势。（未实现：源不可见即结束、不能靠近，归 P3）'],
 	grappled: ['被擒抱', '攻击掷骰劣势。（简化：对擒抱者的例外未实现）'],
 	incapacitated: ['失能', '不能进行任何动作。'],
 	invisible: ['隐形', '攻击优势，对来犯劣势。'],
-	paralyzed: ['麻痹', '失能；对来犯优势；近战自动暴击。'],
-	petrified: ['石化', '失能；对来犯优势；全抗。'],
+	paralyzed: ['麻痹', '失能；对来犯优势。（未实现：近战自动暴击、力/敏豁免必败，归 P3）'],
+	petrified: ['石化', '失能；对来犯优势。（未实现：力/敏豁免必败、全抗，归 P4）'],
 	poisoned: ['中毒', '攻击与检定劣势。'],
 	prone: ['倒地', '攻击劣势；5 尺内来犯优势，否则劣势。'],
-	restrained: ['受束', '攻击劣势；对来犯优势；敏捷豁免劣势。'],
-	stunned: ['震慑', '失能；对来犯优势。'],
-	unconscious: ['昏迷', '失能；对来犯优势；近战自动暴击。'],
+	restrained: ['受束', '攻击劣势；对来犯优势。（未实现：敏捷豁免劣势，归 P2/P3）'],
+	stunned: ['震慑', '失能；对来犯优势。（未实现：力/敏豁免必败，归 P2/P3）'],
+	unconscious: ['昏迷', '失能；对来犯优势。（未实现：近战自动暴击、力/敏豁免必败、Prone 面，归 P3）'],
 };
 
 for (const [id, cond] of Object.entries(DND5E.Conditions)) {

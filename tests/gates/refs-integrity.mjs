@@ -330,7 +330,7 @@ for (const f of files) {
           if (max < 1 || max > row.lines) { red(`引用行号越界：${at} → ${c.file}:${c.entry}（该 pin 文件 ${row.lines} 行）`); allOk = false; continue; }
         }
         if (!c.entry || c.entry.length < 2) { red(`引用条目为空：${at}`); allOk = false; continue; }
-        const rec = { ...c, face, row, cachePath: path.join(CACHE_DIR, cacheNameFor(row)) };
+        const rec = { ...c, at, face, row, cachePath: path.join(CACHE_DIR, cacheNameFor(row)) };
         resolved.push(rec);
         if (face === 'd20m') d20mResolved.push(rec);
       }
@@ -579,7 +579,10 @@ const d20mRefs = d20mResolved;
 console.log(`  tier-② 显式降级：d20m 面**值级对源未覆盖**（tier-① 引用形＋pin 完整性仍在核）｜`
   + `d20m 引用 ${d20mRefs.length} 处均已按 tier-① 核 ｜ A 组比对 0 次（MSRD 值解析器未落：源为表格行＋破折号占位，三套解析器并立不成比例）`
   + `｜${VERBOSE ? 'verbose=on' : '--verbose 可见明细'}`);
-if (VERBOSE) for (const c of d20mRefs) console.log(`    · ${c.at} → ${path.basename(c.cachePath)}:${c.row && c.row.lines ? '' : ''}(tier-①)`);
+/* verbose 明细：**可抽验面** —— 「22 处已核」必须打得出来是**哪 22 处**（tester-4 判别性验证）。
+ * ★计数口径：门报的 ${d20mRefs.length} = **解析成功（tier-① 通过）的引用条数**；与 `grep -c 'SRD d20M'` 不等的
+ *   差额来自：同一行可含**多条**引用（同一注释行多个 `·`），以及 `RE_PLACEHOLDER` 等约定占位不计。 */
+if (VERBOSE) for (const c of d20mRefs) console.log(`    · ${c.at} → SRD d20M · ${c.file}:${c.entry}（tier-① 已核）`);
 if (noValueCites.length > 0) {
   console.log(`  第①级/A 组：**引用无可抽取值** ${noValueCites.length} 处（引用区间/块内未解析出 HP/AC/属性 ⇒ 静默 0 覆盖，记账可见）：`);
   for (const c of noValueCites) console.log(`    · ${c}`);

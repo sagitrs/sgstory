@@ -1,0 +1,19 @@
+{
+  "$note": "命名映射表（#1714 tier-② C 组）：仓内名 ≠ 源条目名时的**单一权威数据源**（README §三.4 只写约定 + 指针到此）。门只校验「映射存在 + 所引源行的条目标题确为该名」，**不评数值**（数值面归 A 组）。",
+  "entries": [
+    {
+      "repo": "DND5E.Goblin",
+      "name": "哥布林",
+      "source": { "file": "monsters-A-Z.md", "entry": "Goblin Minion" },
+      "why": "SRD 5.2.1 无单独的「Goblin」条目；取 Goblin Minion（AC 12／HP 7）。源里另有 Goblin Warrior（AC 15／HP 10）与 Goblin Boss（AC 17／HP 21），均非本条目",
+      "claim": "src/dnd/dnd-5e/monsters/goblin.js:1"
+    },
+    {
+      "repo": "DND5E.GoblinBoss",
+      "name": "哥布林首领",
+      "source": { "file": "monsters-A-Z.md", "entry": "Goblin Boss" },
+      "why": "同名对应，列此以显式声明映射面完整（A/C 两组成员集合可枚举）",
+      "claim": "src/dnd/dnd-5e/monsters/goblin-boss.js:1"
+    }
+  ]
+}

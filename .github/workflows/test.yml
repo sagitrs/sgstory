@@ -18,7 +18,7 @@ jobs:
       #   ③独立 step 使红面归因清晰（step 级红/绿），且可与单测分步重跑。
       - name: 引用形与 pin 完整性门（#1714 第①级；离线，缓存缺失即红）
         run: node tests/gates/refs-integrity.mjs
-      - name: 门自身的可假刀自检（5 刀；证明门会红也会绿）
+      - name: 门自身的可假刀自检（刀数见输出；证明门会红也会绿）
         run: node tests/gates/refs-integrity.selftest.mjs
       - name: 构建（生成单测 bundle 与清单）
         run: python3 build.py

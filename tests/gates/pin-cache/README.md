@@ -27,3 +27,12 @@ node tests/gates/refs-integrity.mjs --refresh
 
 刷完须**同时**核对 `README.md` §一 pin 表：若源被上游改写（sha1/行数变化），**表与缓存一并更新**，
 并在 PR 里说明「哪一行变了、为什么」。只改缓存不改表（或反之）⇒ 门红。
+
+## 外部复核记录（独立重取，非本席自证）
+
+| 日期 | 复核人 | 方法 | 结果 |
+|---|---|---|---|
+| 2026-09-30 | `sagitrs-tester-3` | `gh api … ?ref=<pin>` → `wc -l` + `sha1sum \| cut -c1-16`，与 README §一 逐项比 | **5/5 相符** |
+| 2026-09-30 | `sagitrs-tester-4` | 同法（`Accept: application/vnd.github.raw`），独立重取后与表逐项比；并把该比对固化为门内断言（`pin 校验 5/5`） | **5/5 相符** |
+
+⇒ 两席**各自独立**取源闭合，且自本次起由 `tests/gates/refs-integrity.mjs` 在 CI 上每次机械复核（表 ↔ 缓存 ↔ sha1）。

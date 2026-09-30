@@ -118,6 +118,22 @@ const knives = [
     id: 'K9', name: '映射表写错条目名 ⇒ 红（C 组）', expect: 1, mark: '映射校验不符（C 组）',
     apply: (d) => edit(d, 'tests/gates/name-map.json', '"entry": "Goblin Minion"', '"entry": "Goblin Warrior"'),
   },
+  {
+    id: 'K10', name: '改仓内属性调整值（注释不同步）⇒ 红【#1725 A 组属性面】', expect: 1, mark: '源值比对不符（A 组）',
+    apply: (d) => edit(d, 'src/dnd/dnd-5e/monsters/goblin.js', 'str_mod: -1, dex_mod: 2, con_mod: 0,', 'str_mod: -1, dex_mod: 3, con_mod: 0,'),
+  },
+  {
+    id: 'K10b', name: '改属性调整值**且注释同步改**（一致地错）⇒ 红【#1725 验收刀】', expect: 1, mark: '源值比对不符（A 组）',
+    apply: (d) => edit(d, 'src/dnd/dnd-5e/monsters/goblin.js',
+      'dex_mod: 2, con_mod: 0, // 同上 :7279/7283/7287 —— STR 8(−1) DEX 15(+2) CON 10(+0)',
+      'dex_mod: 3, con_mod: 0, // 同上 :7279/7283/7287 —— STR 8(−1) DEX 15(+3) CON 10(+0)'),
+  },
+  {
+    id: 'K11', name: '删掉行内字段但保留声称值（#1722 writer 的 MAJOR：旧码静默缩分母）⇒ 红', expect: 1, mark: '源值比对不符（A 组）',
+    apply: (d) => edit(d, 'src/dnd/dnd-5e/monsters/goblin.js',
+      '	hp: 7, maxHp: 7, // SRD 5.2.1 · monsters-A-Z.md:7257 —— HP 7 (2d6)',
+      '	maxHp: 7, // SRD 5.2.1 · monsters-A-Z.md:7257 —— HP 9 (2d6)'),
+  },
 ];
 
 let bad = 0;

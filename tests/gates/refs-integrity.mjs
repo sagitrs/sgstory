@@ -57,6 +57,17 @@ const RE_LINE_ENTRY = /^(\d+)(?:[-–](\d+))?(?:\/(\d+))*$/;
 
 const SRC_VAL_RES = { HP: /\*\*HP\*\*\s+(\d+)/, AC: /\*\*AC\*\*\s+(\d+)/ };
 
+/* ---- A 组扩展：属性调整值（#1725）----
+ *  5E 源：三连单元格 `<td><strong>DEX</strong></td> <td>15</td> <td>+2</td>` ⇒ 取**调整列**
+ *  3E 源：单行 `| Abilities: | Str 11, Dex 13, ... |` ⇒ 取**原始分**并按统一公式换算
+ *  两格式的「原始分 → 调整值」均须等于 floor((score−10)/2)（门内自检，防解析错） */
+const ABIL_KEYS = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
+const ABIL_FIELD = { STR: 'str_mod', DEX: 'dex_mod', CON: 'con_mod', INT: 'int_mod', WIS: 'wis_mod', CHA: 'cha_mod' };
+const abilMod = (score) => Math.floor((score - 10) / 2);
+const RE_ABILITY_5E = /<td><strong>(STR|DEX|CON|INT|WIS|CHA)<\/strong><\/td>\s*<td>(-?\d+)<\/td>\s*<td>([+-]?\d+)<\/td>/g;
+const RE_ABILITY_3E_LINE = /\|\s*Abilities:\s*\|/i;
+const RE_ABILITY_3E_PAIR = /\b(Str|Dex|Con|Int|Wis|Cha)\s+(\d+)/g;
+
 const problems = [];
 const red = (m) => problems.push(m);
 
@@ -170,6 +181,8 @@ if (nameMap.length === 0) red(`映射表为空或缺失：${path.relative(ROOT, 
 const files = SCAN_DIRS.flatMap((d) => walk(path.join(ROOT, d))).sort();
 let claims = 0, verified = 0, exemptCitation = 0, exemptValue = 0, placeholders = 0;
 let sourceLineClaims = 0, valueChecked = 0, valueCompared = 0, selfCheck = 0, selfChecked = 0;
+const uncovered = [];
+let cmp5e = 0, cmp3e = 0;   // A 组比对按源格式分计（验收 4）
 let cGroupChecked = 0;
 const mappingHit = new Set();
 
@@ -186,6 +199,25 @@ function sourceValues(cachePath, entry) {
       if (m && out[k] === undefined) out[k] = { v: Number(m[1]), line: i };
     }
   }
+  /* 5E：属性三连单元格（可跨行）—— 取调整列，并自检 floor((score−10)/2) */
+  const slice = norm(ls.slice(lo - 1, hi).join('\n'));
+  for (const m of slice.matchAll(RE_ABILITY_5E)) {
+    const key = m[1]; const score = Number(m[2]); const mod = Number(m[3]);
+    const line = lo + slice.slice(0, m.index).split('\n').length - 1;
+    if (abilMod(score) !== mod) {
+      red(`门内自检：源属性调整列与公式不符（${path.basename(cachePath)}:${line} ${key} 原始 ${score} ⇒ 公式 ${abilMod(score)}，源列 ${mod}）—— 源格式或本门解析需复核`);
+      continue;
+    }
+    if (out[key] === undefined) out[key] = { v: mod, line, score };
+  }
+  /* 3E：单行 `| Abilities: | Str 11, ... |` —— 取原始分并按同一公式换算 */
+  for (let i = lo; i <= hi; i++) {
+    if (!RE_ABILITY_3E_LINE.test(ls[i - 1])) continue;
+    for (const m of norm(ls[i - 1]).matchAll(RE_ABILITY_3E_PAIR)) {
+      const key = m[1].toUpperCase();
+      if (out[key] === undefined) out[key] = { v: abilMod(Number(m[2])), line: i, score: Number(m[2]) };
+    }
+  }
   return out;
 }
 
@@ -197,7 +229,9 @@ for (const f of files) {
   for (let i = 0; i < lines.length; i++) {
     const raw = lines[i];
     const text = norm(raw);
-    if (!RE_CLAIM.test(text)) continue;
+    /* `同上 :N` 行本身不含「SRD/对齐」字样，但它是**值声称的延续** ⇒ 也须入门（#1725：
+     *  否则该行的属性/AC 值只靠用例名偶然覆盖，改动它门不红 —— writer NIT-2 的根因）。 */
+    if (!RE_CLAIM.test(text) && !RE_SAME_AS_ABOVE.test(text)) continue;
     claims++;
     const at = `${rel}:${i + 1}`;
 
@@ -272,8 +306,8 @@ for (const f of files) {
     const titlePairs = {};
     if (tm) {
       const body = lines.slice(i + 1, i + 12).join('\n');
-      for (const [, key, val] of tm[1].matchAll(/(AC|HP|STR|DEX|CON)\s+(-?\d+)/g)) {
-        const fields = { AC: ['ac'], HP: ['maxHp', 'hp'], STR: ['str_mod'], DEX: ['dex_mod'], CON: ['con_mod'] }[key];
+      for (const [, key, val] of tm[1].matchAll(/(AC|HP|STR|DEX|CON|INT|WIS|CHA)\s+(-?\d+)/g)) {
+        const fields = { AC: ['ac'], HP: ['maxHp', 'hp'], STR: ['str_mod'], DEX: ['dex_mod'], CON: ['con_mod'], INT: ['int_mod'], WIS: ['wis_mod'], CHA: ['cha_mod'] }[key];
         titlePairs[key] = Number(val);
         selfCheck++;
         if (fields.some((fl) => new RegExp(`assert\\.eq\\([^,]*\\.${fl}\\s*,\\s*${val}\\b`).test(body))) selfChecked++;
@@ -282,12 +316,22 @@ for (const f of files) {
     }
 
     /* ---------- tier-②：A 组 源值比对 + C 组 映射校验 ---------- */
-    const effResolved = resolved.length > 0
+    /* 「同上 :N」（#1722 writer NIT-2）：本行只有行号、无完整引用 ⇒ 沿用最近一次完整引用的**出处文件**，
+     *  但**行号取本行自己写的**（`同上 :7279/7283/7287`）——否则属性值会抽错区间而静默漏比。 */
+    const sameAsAbove = resolved.length === 0 && RE_SAME_AS_ABOVE.test(text) && lastResolved.length > 0;
+    let effResolved = resolved.length > 0
       ? resolved
-      : (i - lastCitationIdx <= CITATION_LOOKBACK && /test\(\s*'/.test(text) ? lastResolved : []);
+      : (sameAsAbove
+        ? lastResolved
+        : (i - lastCitationIdx <= CITATION_LOOKBACK && /test\(\s*'/.test(text) ? lastResolved : []));
+    if (sameAsAbove) {
+      const nM = text.match(/同上\s*[:：]\s*([0-9][0-9/\-–]*)/);
+      if (nM) effResolved = lastResolved.map((r) => ({ ...r, entry: nM[1] }));
+    }
     if (effResolved.length > 0) {
       // C 组：本条是否为映射表声明的引用点？
       const mapHit = nameMap.find((e) => `${e.claim}` === at);
+      if (mapHit && effResolved.length > 1) red(`映射校验歧义：${at} 同时解析到 ${effResolved.length} 条引用，C 组无法判定应对哪一条（请拆行）`);
       if (mapHit) {
         const want = `### ${mapHit.source.entry}`;
         const r0 = resolved[0];
@@ -302,18 +346,44 @@ for (const f of files) {
       if (findEx(rel, raw, 'value') >= 0) {
         exemptValue++;                                  // B 组整组豁免（逐位置）
       } else {
+        /* ---- 声称侧枚举（#1725）----
+         *  「分母」由**声称侧**决定：本行注释／用例名／用例体内**确实写出**的值才算一项。
+         *  这封住 #1722 writer 的 MAJOR：旧实现「仓内该行没给字段 ⇒ continue」会让分母静默缩小
+         *  （探针：删掉注释行的 `hp: 7,` 而保留「HP 7」 ⇒ 6/6 变 5/5、门仍绿）。
+         *  现在「仓内字段缺、但声称写了值」仍与源比对（取声称值）；**源有值而本行未声称**者
+         *  进入「未覆盖」记账并在读数行打印（甲）。 */
+        const claimed = {};
+        for (const m of text.matchAll(/\b(STR|DEX|CON|INT|WIS|CHA)\b\s+\d+\s*[（(](-?\d+)[）)]/g)) claimed[m[1]] = Number(m[2]);
+        for (const m of text.matchAll(/\b(HP|AC)\s+(\d+)/g)) claimed[m[1]] = Number(m[2]);
+        for (const k of ABIL_KEYS) if (titlePairs[k] !== undefined) claimed[k] = titlePairs[k];
+        if (titlePairs.HP !== undefined) claimed.HP = titlePairs.HP;
+        if (titlePairs.AC !== undefined) claimed.AC = titlePairs.AC;
+        /* 用例体内的直接断言也是「声称」 */
+        const body = lines.slice(i + 1, i + 13).join('\n');
+        for (const k of ABIL_KEYS) {
+          const am = body.match(new RegExp(`assert\\.eq\\([^,]*\\.${ABIL_FIELD[k]}\\s*,\\s*(-?\\d+)`));
+          if (am) claimed[k] = Number(am[1]);
+        }
+        for (const [k, fl] of [['HP', '(?:maxHp|hp)'], ['AC', 'ac']]) {
+          const am = body.match(new RegExp(`assert\\.eq\\([^,]*\\.${fl}\\s*,\\s*(\\d+)`));
+          if (am) claimed[k] = Number(am[1]);
+        }
         for (const r of effResolved) {
           const src = sourceValues(r.cachePath, r.entry);
           const repoVals = {};
           const hpm = text.match(/hp\s*:\s*(\d+)/); if (hpm) repoVals.HP = Number(hpm[1]);
           const acm = text.match(/ac\s*:\s*(\d+)/); if (acm) repoVals.AC = Number(acm[1]);
-          if (titlePairs.HP !== undefined && repoVals.HP === undefined) repoVals.HP = titlePairs.HP;
-          if (titlePairs.AC !== undefined && repoVals.AC === undefined) repoVals.AC = titlePairs.AC;
+          for (const k of ABIL_KEYS) {
+            const m = text.match(new RegExp(`${ABIL_FIELD[k]}\\s*:\\s*(-?\\d+)`));
+            if (m) repoVals[k] = Number(m[1]);
+          }
           for (const k of Object.keys(src)) {
-            if (repoVals[k] === undefined) continue;
+            const rv = repoVals[k] !== undefined ? repoVals[k] : claimed[k];   /* 关键：缺字段时回落到声称值，不静默跳过 */
+            if (rv === undefined) { uncovered.push(`${at} ${k}（源=${src[k].v}@${path.basename(r.cachePath)}:${src[k].line}，本行/用例未声称）`); continue; }
             valueCompared++;
-            if (src[k].v === repoVals[k]) valueChecked++;
-            else red(`源值比对不符（A 组）：${at} ${k} 仓内=${repoVals[k]} 源=${src[k].v}（${path.basename(r.cachePath)}:${src[k].line}）`);
+            if (r.face === '3E') cmp3e++; else cmp5e++;   /* 验收 4：区分 3E 换算 与 5E 调整列 */
+            if (src[k].v === rv) valueChecked++;
+            else red(`源值比对不符（A 组）：${at} ${k} 仓内/声称=${rv} 源=${src[k].v}（${path.basename(r.cachePath)}:${src[k].line}）`);
           }
         }
       }
@@ -338,7 +408,14 @@ console.log(`  pin 校验：${pinOk}/${pinResults.length} 相符${pinOk === pinR
 for (const r of pinResults) console.log(`    ${r.ok ? '✓' : '✗'} ${cacheNameFor(r).padEnd(26)} 表=${r.lines}行/${r.sha1}${r.ok ? '' : ` 实=${r.got?.lines ?? '-'}行/${r.got?.sha1 ?? '-'}`}`);
 console.log(`  口径：声称 ${claims}（= 源行 ${sourceLineClaims} + 其它 ${claims - sourceLineClaims}）；源行 ${sourceLineClaims} = A ${aGroup} + B ${exemptValue} + C ${cGroupChecked}`);
 console.log(`  第①级：已核 ${verified}（含约定占位 ${placeholders}）/ 不符 ${problems.length}；其它豁免 ${exemptCitation}（${pctOther.toFixed(1)}%，分母=${claims}，上限 ${EXEMPTION_CAP_PCT}%）`);
-console.log(`  tier-②：A 组源值比对 已核 ${valueChecked}/${valueCompared}（分母=可比对项）｜C 组映射 已核 ${cGroupChecked}/${nameMap.length}（命中条目 ${[...mappingHit].join('、') || '-'}）`);
+console.log(`  tier-②：A 组源值比对 已核 ${valueChecked}/${valueCompared}（分母=**声称侧**可比对项）｜C 组映射 已核 ${cGroupChecked}/${nameMap.length}（命中条目 ${[...mappingHit].join('、') || '-'}）`);
+console.log(`            按源格式：5E 调整列 ${cmp5e} 次 ＋ 3E 原始分换算 ${cmp3e} 次`);
+if (uncovered.length > 0) {
+  console.log(`  tier-②：A 组**未覆盖** ${uncovered.length} 项（源有值、本行/用例未声称 ⇒ 记账不红，防分母静默缩小）：`);
+  for (const u of uncovered) console.log(`    · ${u}`);
+} else {
+  console.log('  tier-②：A 组未覆盖 0 项（源有值者皆已被声称并比对）');
+}
 console.log(`          B 组列语义豁免 ${exemptValue}（${pctB.toFixed(1)}%，分母=${sourceLineClaims}，独立上限 ${B_VALUE_EXEMPTION_CAP_PCT}%）`);
 console.log(`  值自洽（注↔代码，第①级）：已核 ${selfChecked}/${selfCheck}`);
 if (LIST) {

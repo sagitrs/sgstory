@@ -23,8 +23,13 @@ window.assert = {
 	},
 };
 
-/* 每个用例运行前重置故事变量，用例之间互不污染 */
-window.__resetState = () => { State.variables = {}; };
+/* 每个用例运行前重置故事变量与随机源，用例之间互不污染 */
+window.__resetState = () => {
+	State.variables = {};
+	// 随机源一并复位（#1706）：注入的固定序列/函数不得跨用例残留。
+	// 本轮在 bundle 加载后调用（setup.RPG 已存在）；防御性取可选链，与加载序解耦。
+	if (window.setup?.RPG?.rng?.reset) window.setup.RPG.rng.reset();
+};
 
 window.__runTests = async () => {
 	const results = [];

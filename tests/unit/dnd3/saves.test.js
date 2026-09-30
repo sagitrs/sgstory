@@ -12,9 +12,8 @@
 	});
 
 	test('dnd3 saves：save 的成败判定（受控掷骰）', () => {
-		// 注入固定 RNG：掷出 10
-		const origRandom = Math.random;
-		Math.random = () => 0.5; // (0.5*20)+1 = 11（向下取整 10 + 1 = 11）
+		// 注入固定随机源：掷出 11（0.5*20 向下取整 10 + 1 = 11）
+		R().rng.set(() => 0.5);
 		try {
 			const c = { stats: { save_spells: 2 } };
 			const r1 = D().save(c, 'spells', 12);
@@ -29,14 +28,13 @@
 			const r4 = D().save(c0, 'spells', 11);
 			assert.ok(r4.success, `掷 11+0=11 == DC 11 → 成功`);
 		} finally {
-			Math.random = origRandom;
+			R().rng.reset();
 		}
 	});
 
 	test('dnd3 saves：fearCheck 失败后施加 fear 减益', () => {
-		// 注入必败 RNG
-		const origRandom = Math.random;
-		Math.random = () => 0.0; // 掷 1
+		// 注入必败随机源：掷 1
+		R().rng.set(() => 0.0);
 		try {
 			const c = new (R().Character)({ name: '懦夫' });
 			assert.ok(!c.contains(R().fear), '初始未恐惧');
@@ -45,7 +43,7 @@
 			assert.ok(c.contains(R().fear), '获得 fear 减益');
 			assert.eq(c.effects.filter(e => e === 'fear').length, 1, '只施加一次');
 		} finally {
-			Math.random = origRandom;
+			R().rng.reset();
 		}
 	});
 
@@ -60,15 +58,14 @@
 	});
 
 	test('dnd3 saves：fearCheck 成功时不施加减益', () => {
-		const origRandom = Math.random;
-		Math.random = () => 0.99; // 掷 20
+		R().rng.set(() => 0.99); // 掷 20
 		try {
 			const c = new (R().Character)({ name: '勇士' });
 			const ok = D().fearCheck(c, 1); // DC 1 → 必成功
 			assert.ok(ok, '豁免成功');
 			assert.ok(!c.contains(R().fear), '未获得 fear');
 		} finally {
-			Math.random = origRandom;
+			R().rng.reset();
 		}
 	});
 })();

@@ -28,12 +28,11 @@
 	});
 
 	test('dnd3 combat：装备提升防御——着甲后同攻击者更难命中（固定 RNG）', () => {
-		// 固定 Math.random → d20 始终掷 11（=(0.5*20)|0+1=11）
+		// 固定随机源 → d20 始终掷 11（=(0.5*20)|0+1=11）
 		// 天然 1/20 不会出现（固定掷 11），AC 检查正常生效：
 		// 裸靶 AC 10：11+0=11 >= 10 → 每掷必中
 		// 甲靶 AC 13：11+0=11 < 13 → 每掷必不中（mail ac_bonus=3 → 10+3=13）
-		const origRandom = Math.random;
-		Math.random = () => 0.5;
+		R().rng.set(() => 0.5);
 		try {
 			const attacker = { stats: { bab: 0, str_mod: 0 } };
 			const swings = 10;
@@ -52,7 +51,7 @@
 			assert.ok(n2 === 0, `甲靶（AC 13）掷 11 应全不中（${n2}/${swings}）`);
 			assert.ok(n2 < n1, `着甲后更难命中（裸 ${n1} vs 甲 ${n2}）`);
 		} finally {
-			Math.random = origRandom;
+			R().rng.reset();
 		}
 	});
 

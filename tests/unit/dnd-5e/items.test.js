@@ -1,4 +1,5 @@
 /* dnd-5e 道具的单元测试：SRD 数值验证、槽位系统
+ * 出处约定：`SRD 5.2.1 · <文件>:<行>`（可复核锚见仓根 README「规则来源」）
  * 注意：RPG.items 是共享注册表——dnd3 的同名道具会覆盖 5e 的。
  * 测试 5E 道具数值用 new DND5E.Xxx() 直接实例化。
  */
@@ -6,7 +7,8 @@
 	const R = () => setup.RPG;
 	const D = () => setup.DND5E;
 
-	test('5e items：木棒 1d4（5E SRD，非 3E 的 1d6）', () => {
+	/* 出处：SRD 5.2.1 · equipment.md:132-133（Simple Melee Weapons → Club「1d4 Bludgeoning」） */
+	test('5e items：木棒 1d4（SRD 5.2.1，非 3E 的 1d6）', () => {
 		const club = new (D().Club)();
 		assert.eq(club.stats.dmg, '1d4');
 		assert.eq(club.slot, 'weapon');

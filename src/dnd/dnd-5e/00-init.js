@@ -2,7 +2,9 @@
 /* DND5E 规则包 —— D&D 5e (2024 SRD) 数值块约定与命名空间
  *
  * 与 dnd3 平行的规则包，构建在 setup.RPG 之上。
- * 规则来源：https://github.com/downfallx/dnd-5e-srd-markdown
+ * 规则来源：SRD 5.2.1（2024）· `downfallx/dnd-5e-srd-markdown` @ `1b4b99d…`
+ *   —— 可复核锚（commit／文件／sha1）与引用形约定见仓根 `README.md`「规则来源」；
+ *      归属与许可全文见 `NOTICE` / `LICENSE-CONTENT.md`（CC BY 4.0）。
  *
  * 5E 与 3.5E 的关键差异（详见 core/combat.js）：
  *   - 攻击加成 = 熟练度(prof) + 力量或灵巧（不再用 BAB）

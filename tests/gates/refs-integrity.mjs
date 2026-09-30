@@ -228,7 +228,8 @@ function blockKeyOf(lines, idx) {
   return 0;
 }
 const claimedKeysByBlock = new Map();
-let cGroupChecked = 0;
+let cGroupChecked = 0;                  // **受检**条数（分母；✗ 不含显式跳过者）
+const cGroupSkipped = [];               // 显式跳过者（`cCheck:false`）——须**可见**，✗ 静默从分母消失
 const mappingHit = new Set();
 
 function sourceValues(cachePath, entry) {
@@ -403,16 +404,28 @@ for (const f of files) {
     if (effResolved.length > 0) {
       // C 组：本条是否为映射表声明的引用点？
       const mapHit = nameMap.find((e) => `${e.claim}` === at);
-      if (mapHit && effResolved.length > 1) red(`映射校验歧义：${at} 同时解析到 ${effResolved.length} 条引用，C 组无法判定应对哪一条（请拆行）`);
-      if (mapHit) {
-        const want = `### ${mapHit.source.entry}`;
+      /* ②（#1766 领队裁定甲）：**显式跳过**者（`cCheck:false`）不进分母 —— 否则「已核 N/M」里的 M
+       *   会把「根本没受检」的条目算作已覆盖（跳过前提下照样印 3/3 ⇒ 该计数**高估**覆盖）。
+       *   跳过**不是**豁免：条目名与理由仍须登记在 `name-map.json`，且此处**出声**留痕。 */
+      if (mapHit?.cCheck === false) {
+        cGroupSkipped.push(`${mapHit.source?.entry ?? '?'}（${mapHit.source?.file ?? '?'}）`);
+        mapHit.skip = true;
+      }
+      if (mapHit && !mapHit.skip && effResolved.length > 1) red(`映射校验歧义：${at} 同时解析到 ${effResolved.length} 条引用，C 组无法判定应对哪一条（请拆行）`);
+      if (mapHit && !mapHit.skip) {
+        /* ①（#1766 领队裁定甲）：条目**前缀放宽为 `#{2,6}`** —— 各源文件的条目标题层级不统一：
+         *   5E `rules-glossary.md` 用 h4（`#### Blinded [Condition]`）、`monsters-A-Z.md` 用 h3（`### Goblin`），
+         *   而 3E `Monsters - Animals.md` 用 **h2**（`## Lizard, Monitor`）⇒ 原硬编码 `### ` 对 3E 面**必假红**。
+         *   放宽只影响**前缀层级**，✗ 不放宽条目名本身 ⇒ 仍精确要求「所引源行确为该条目名」。 */
+        const wantExact = mapHit.source.entry;
         const r0 = resolved[0];
         const nums = String(r0.entry).split(/[-–/]/).map(Number).filter(Number.isFinite);
         const ls = fs.readFileSync(r0.cachePath, 'utf8').split('\n');
-        const hit = nums.some((n) => (ls[n - 1] ?? '').trim().startsWith(want));
+        const hit = nums.some((n) => new RegExp(`^#{2,6}\\s+${wantExact.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*$`)
+          .test((ls[n - 1] ?? '').trim()));
         cGroupChecked++;
         if (hit) mappingHit.add(mapHit.source.entry);
-        else red(`映射校验不符（C 组）：${at} 声明源条目「${mapHit.source.entry}」，但所引源行未见 \`${want}\``);
+        else red(`映射校验不符（C 组）：${at} 声明源条目「${mapHit.source.entry}」，但所引源行未见 \`#{2,6} ${mapHit.source.entry}\``);
       }
       // A 组：源值 vs 仓内值
       if (findEx(rel, raw, 'value') >= 0) {
@@ -565,7 +578,12 @@ console.log(`  pin 校验：${pinOk}/${pinResults.length} 相符${pinOk === pinR
 for (const r of pinResults) console.log(`    ${r.ok ? '✓' : '✗'} ${cacheNameFor(r).padEnd(26)} 表=${r.lines}行/${r.sha1}${r.ok ? '' : ` 实=${r.got?.lines ?? '-'}行/${r.got?.sha1 ?? '-'}`}`);
 console.log(`  口径：声称 ${claims}（= 源行 ${sourceLineClaims} + 其它 ${claims - sourceLineClaims}）；源行 ${sourceLineClaims} = A ${aGroup} + B ${exemptValue} + C ${cGroupChecked}`);
 console.log(`  第①级：已核 ${verified}（含约定占位 ${placeholders}）/ 不符 ${problems.length}；其它豁免 ${exemptCitation}（${pctOther.toFixed(1)}%，分母=${claims}，上限 ${EXEMPTION_CAP_PCT}%）`);
-console.log(`  tier-②：A 组源值比对 已核 ${valueChecked}/${valueCompared}（分母=**声称侧**可比对项）｜C 组映射 已核 ${cGroupChecked}/${nameMap.length}（命中条目 ${[...mappingHit].join('、') || '-'}）`);
+/* ② 口径：「已核 N/受检 M」——M **不含**显式跳过者（`cCheck:false`），且跳过者单列出声。
+ *   （原式为 `/${nameMap.length}`：把跳过者也计入分母 ⇒ 覆盖数被**高估**。） */
+console.log(`  tier-②：A 组源值比对 已核 ${valueChecked}/${valueCompared}（分母=**声称侧**可比对项）`
+  + `｜C 组映射 已核 ${mappingHit.size}/受检 ${cGroupChecked}`
+  + (cGroupSkipped.length > 0 ? `（跳过 ${cGroupSkipped.length}：${cGroupSkipped.join('、')}——条目与理由仍在映射表，✗ 非豁免）` : '')
+  + `（命中条目 ${[...mappingHit].join('、') || '-'}）`);
 console.log(`            按源格式：5E 调整列 ${cmp5e} 次 ＋ 3E 原始分换算 ${cmp3e} 次 ＋ d20M ${cmpD20M} 次（tier-① 显式降级，见下）`);
 /* S3-④（领队裁定：降级）：d20m 源无值级解析器 ⇒ **显式**声明，✗ 静默不核。
  *   理由：MSRD 属性值主要内嵌 markdown 表格行（`|Colossal|44|32d10|120|47|6|—|…`），

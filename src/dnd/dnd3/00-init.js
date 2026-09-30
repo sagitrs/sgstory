@@ -39,8 +39,8 @@ setup.DND3.stats = (over = {}) => ({ ...setup.DND3.STAT_BLOCK, ...over });
 /** 3E 面**不设**通用属性上限（既有的定制写入路径不引入上限）——`null` 表示不校验。 */
 setup.DND3.ABILITY_MAX = null;
 
-/** 原始分 → 调整值（与 5E 同式；引用：SRD 3.5 · `Monsters/Monsters.md` 各怪物块
- *  给出的「Str 11, Dex 13…」与其调整值位），缺参按缺省原始分 10 计 ⇒ +0。 */
+/** 原始分 → 调整值（与 5E 同式）。引用：SRD 3.5 · `Basic Rules and Legal/basics-and-ability-scores.md:150`
+ *  （Table: Ability Modifiers and Bonus Spells）；缺参按缺省原始分 10 计 ⇒ +0。 */
 setup.DND3.abilityMod = (score) => Math.floor(((score ?? 10) - 10) / 2);
 
 /** 取某维的调整值（消费点统一走这里；`stats` 可为 undefined） */

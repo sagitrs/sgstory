@@ -30,3 +30,12 @@
       （压低后不红 ⇒ 该面没在守护，是静默稀释）；
       ③ **放宽 vs 口径归位分离**——豁免类改动**去掉条件**验计数**是否越限**，
       且被豁免面之外的判定须**一字未变**。
+
+## PR body 的机械写入口（锚 #1757／#1767，本仓副本；跨仓工具面主落点报 Coordinator 侧）
+
+- [ ] 改 PR body **禁用 `gh pr edit`**——本仓实测 **exit=1**（`GraphQL: Projects (classic) is being deprecated…`）。
+      正解：`gh api -X PATCH repos/<owner>/<repo>/pulls/<N> --input patch.json`（`{"body": "<全文>"}`）
+- [ ] ★**写后必须回读**：`gh pr view <N> --repo <R> --json body | grep <新标记>` 确认**生效**。
+      ✗ 用 `>/dev/null` 吞 stderr 后凭自己的 echo 声称「已更新」
+      （实证 #1767：`gh pr edit … >/dev/null && echo 已更新` ⇒ 退出码 1 被吞 ⇒ 据 echo 错报「已更新」；
+      回读发现 live body 对新增内容 **0 命中**，本地文件与 live 相差 895 字节；改 PATCH 后 ✓）

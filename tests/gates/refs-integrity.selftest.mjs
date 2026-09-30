@@ -202,7 +202,34 @@ const knives = [
     id: 'K16', name: '标题删值（用例名↔断言，`#1734` 面）⇒ 红【#1720 判据 2】', expect: 1, mark: '覆盖面下降',
     apply: (d) => edit(d, 'tests/unit/dnd-5e/stats.test.js', '（AC 12, HP 7，六维原始分见下）', '（六维原始分见下）'),
   },
+
+
+  /* ---------- S3-⑧（#1744）：d20m 面「会红」的刀 —— 门对第三面真有判别力 ---------- */
+  {
+    id: 'K13d', name: '改 d20m pin 行 sha1 一位 ⇒ 红（d20m 的 pin 校验真在核，✗ 恒 9/15）', expect: 1, mark: 'pin 不符',
+    apply: (d) => {
+      const p = path.join(d, 'README.md');
+      let s = fs.readFileSync(p, 'utf8');
+      // 27msrdcombat战斗.md 的 d20m pin：1079 行 / 919704002031c35e ⇒ 末位 +1
+      assert2(s.includes('919704002031c35e'), 'd20m pin 行靶不在（接口面变了须同步改刀）');
+      s = s.replace('919704002031c35e', '919704002031c35f');
+      fs.writeFileSync(p, s);
+    },
+  },
+  {
+    id: 'K14d', name: '删 d20m 用例的引用注行 ⇒ 红（d20m 面的「纯引用」也在核）', expect: 1, mark: '声称未带可解析引用',
+    apply: (d) => {
+      const p = path.join(d, 'tests/unit/d20m/stats.test.js');
+      let s = fs.readFileSync(p, 'utf8');
+      const victim = s.split('\n').findIndex((l) => l.includes('SRD d20M · source/4Future未来/9FutureRobots.md:140'));
+      assert2(victim >= 0, 'd20m 引用注行靶不在');
+      s = s.split('\n').filter((_, i) => i !== victim).join('\n');
+      fs.writeFileSync(p, s);
+    },
+  },
 ];
+
+function assert2(cond, msg) { if (!cond) throw new Error(msg); }
 
 let bad = 0;
 console.log('门自检（refs-integrity.selftest.mjs）');

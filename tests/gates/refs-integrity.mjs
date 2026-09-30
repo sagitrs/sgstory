@@ -35,7 +35,8 @@ const arg = (k) => { const i = argv.indexOf(k); return i >= 0 ? argv[i + 1] : nu
 const ROOT = path.resolve(arg('--root') ?? DEFAULT_ROOT);
 const REFRESH = argv.includes('--refresh');
 const LIST = argv.includes('--list');
-const UPDATE_BASELINE = argv.includes('--update-baseline');   // 仅人工（同 --refresh 形态）
+const UPDATE_BASELINE = argv.includes('--update-baseline');   // 仅人工（同 --refresh 形态；#1720）
+const VERBOSE = argv.includes('--verbose');                   // S3-④ 降级明细出声（#1744）
 
 /* ---- 门内参数（可判读数；改这里即改门）---- */
 const EXEMPTION_CAP_PCT = 20;              // 其它豁免（含 C 组映射说明行）占**声称口径**上限
@@ -53,11 +54,13 @@ const NAME_MAP_FILE = path.join(ROOT, 'tests', 'gates', 'name-map.json');
 const README = path.join(ROOT, 'README.md');
 
 /* ---- 引用形 ---- */
-const RE_CLAIM = /对齐\s*SRD|SRD\s+\d|house\s*rule|数值(?:来自|对齐|取自)\s*SRD/i;
+/* S3-⑦：`SRD d20M` 与 5E/3E 的 `SRD \d` **同权** —— 否则「只写引用不写对齐」的行整行跳过，
+ *   d20m 的**纯引用面静默不核**（writer-2 实测：现门红的 4 项全来自「对齐 SRD d20M」支）。 */
+const RE_CLAIM = /对齐\s*SRD|SRD\s+(?:\d|d20M)|house\s*rule|数值(?:来自|对齐|取自)\s*SRD/i;
 const RE_BACKTICK_REF = /`([^`]*\.md)\s*[:：]\s*([^`]+)`/g;
-const RE_PLAIN_REF = /SRD\s+(\d+(?:\.\d+)*)\s*·\s*([^\s`:：]+\.md)\s*[:：]\s*([^\s`）)。,]+)/g;
+const RE_PLAIN_REF = /SRD\s+(\d+(?:\.\d+)*|d20M)\s*·\s*([^\s`:：]+\.md)\s*[:：]\s*([^\s`）)。,]+)/g;
 const RE_PLACEHOLDER = /SRD\s+\d+(?:\.\d+)*\s*·\s*<[^>]+>\s*[:：]\s*<[^>]+>/g;
-const RE_VERSION_REF = /SRD\s+(\d+(?:\.\d+)*)/g;
+const RE_VERSION_REF = /SRD\s+(\d+(?:\.\d+)*|d20M)/g;
 const RE_SAME_AS_ABOVE = /同上\s*[:：]\s*\d/;
 const RE_DECLARATION = /SRD\s+(\d+(?:\.\d+)*)[^·]*·\s*`?([\w.-]+\/[\w.-]+)`?\s*@\s*`?([0-9a-f]{7,40})[….…]?/;
 const RE_LINE_ENTRY = /^(\d+)(?:[-–](\d+))?(?:\/(\d+))*$/;
@@ -107,21 +110,38 @@ function parsePinTable() {
   const rows = [];
   let lastVersion = null;
   for (const line of md.split('\n')) {
-    const m = line.match(/^\|\s*\*\*(5E|3E)\*\*\s*\|(.*)\|\s*$/);
+    const m = line.match(/^\|\s*\*\*(5E|3E|d20m)\*\*\s*\|(.*)\|\s*$/);
     if (!m) continue;
     const cells = m[2].split('|').map((c) => c.trim().replace(/`/g, ''));
     const [repo, version, pin, file, lines, sha1] = cells;
     if (!/^\d+$/.test(lines ?? '')) continue;
-    let ver = version.match(/\d+(?:\.\d+)*/)?.[0];
-    if (!ver) ver = lastVersion;
+    /* S3-⑥（writer-2 实测）：`d20M` 这类**短 token 版本**会被「纯数字版本正则」截成 `20`
+     *   ⇒ 引用侧 token `d20M` 在 facesByVersion 查不到 ⇒ d20m 引用全红。
+     *   处置：**整格即标识符**（`[A-Za-z][A-Za-z0-9.]*`，本仓写 `d20M`）⇒ 取原文；
+     *   否则取数字串（`SRD 5.2.1（2024）` ⇒ `5.2.1`；`D&D v3.5 SRD` ⇒ `3.5`）。
+     * ★注意：`同上` 是 pin 表的**既有续行惯用**（同面后续行的 repo/版本/pin 列全写「同上」）——
+     *   对它**必须**继承上一行版本；否则整表除每面首行外全部丢失（我首版即栽在此）。
+     *   只有**既非「同上」、又取不出**的单元格才属异常。 */
+    const tokenM = version.match(/^([A-Za-z][A-Za-z0-9.]*)$/);
+    let ver = tokenM ? tokenM[1] : version.match(/\d+(?:\.\d+)*/)?.[0];
+    if (!ver && /^同上$/.test(version)) ver = lastVersion; // 既有续行惯用 ⇒ 继承（合规，非静默洞）
+    if (!ver) {
+      /* :112 的静默继承须**出声**（S3-⑥）：非「同上」却取不出 ⇒ 面与版本错配而无声（与 #1714「✗ 静默」同族）。 */
+      red(`pin 表版本单元格取不出：面=${m[1]} 原文=「${version}」⇒ 拒绝静默继承上一行（${lastVersion ?? '无'}）；请写明确版本（如 \`d20M\` 或 \`5.2.1\`）`);
+      continue;
+    }
     lastVersion = ver;
-    rows.push({ face: m[1], repo, version: ver, pin, file, lines: Number(lines), sha1 });
+    rows.push({ face: m[1], repo, version: ver, versionRaw: version, pin, file, lines: Number(lines), sha1 });
   }
   return rows;
 }
-const cacheNameFor = (pinRow) => (pinRow.face === '3E'
-  ? `${path.basename(pinRow.file).replace(/\.md$/, '')}-3e.md`
-  : path.basename(pinRow.file));
+const cacheNameFor = (pinRow) => {
+  const base = path.basename(pinRow.file).replace(/\.md$/, '');
+  /* 面 → 缓存名后缀（S3-②：第三桶 d20m，照 3E 的 `-3e.md` 同款变换） */
+  if (pinRow.face === '3E') return `${base}-3e.md`;
+  if (pinRow.face === 'd20m') return `${base}-d20m.md`;
+  return path.basename(pinRow.file);
+};
 
 function refresh(rows) {
   fs.mkdirSync(CACHE_DIR, { recursive: true });
@@ -192,8 +212,9 @@ let sourceLineClaims = 0, valueChecked = 0, valueCompared = 0, selfCheck = 0, se
  * 分开计的理由：#1734 的静默降格只发生在②（标题自由度）——若共用计数，①的增补会掩盖②的下降。 */
 let selfCmpTotal = 0, selfCmpChecked = 0, titleTotal = 0, titleChecked = 0;
 const uncovered = [];
-let cmp5e = 0, cmp3e = 0;   // A 组比对按源格式分计（验收 4）
+let cmp5e = 0, cmp3e = 0, cmpD20M = 0;   // A 组比对按源格式分计（验收 4）；S3-⑤：d20m 单列，不并入 5E
 const noValueCites = [];    // 引用解析成功但抽不到可比值（静默 0 覆盖 ⇒ 须可见）
+const d20mResolved = [];    // S3-④：d20m 面解析成功的引用（tier-① 已核；值级显式降级 ⇒ 须打出声）
 const uncoveredCand = [];   // 未覆盖**候选**（按行收集，输出前按「文件+键」聚合，见下）
 /* 声称方位集：键＝`${rel}|${blockKey}`，**blockKey = 最近的「声称载体」起始行**
  *   （JS：含 `/*` 的注释块起始行 或 `test(` 行；找不到则 0）。
@@ -309,7 +330,9 @@ for (const f of files) {
           if (max < 1 || max > row.lines) { red(`引用行号越界：${at} → ${c.file}:${c.entry}（该 pin 文件 ${row.lines} 行）`); allOk = false; continue; }
         }
         if (!c.entry || c.entry.length < 2) { red(`引用条目为空：${at}`); allOk = false; continue; }
-        resolved.push({ ...c, face, row, cachePath: path.join(CACHE_DIR, cacheNameFor(row)) });
+        const rec = { ...c, face, row, cachePath: path.join(CACHE_DIR, cacheNameFor(row)) };
+        resolved.push(rec);
+        if (face === 'd20m') d20mResolved.push(rec);
       }
       if (allOk && resolved.length > 0) { lastCitationIdx = i; lastResolved = resolved; verified++; sourceLineClaims++; }
     } else if (RE_DECLARATION.test(text)) {
@@ -446,6 +469,9 @@ for (const f of files) {
           const src = sourceValues(r.cachePath, r.entry);
           const hasClaims = Object.keys(claimed).length > 0 || Object.keys(claimedRaw).length > 0
             || Object.keys(titlePairs).length > 0;
+          /* d20m 面**不入** noValueCites（S3-④ 显式降级：该面无值解析器 ⇒「抽不到值」是**预期**
+           *   而非缺口，计入会污染 5E/3E 的记账面并超 ceiling）。该面 0 次值比对已由降级行出声。 */
+          if (r.face === 'd20m') continue;
           if (hasClaims && Object.keys(src).length === 0) noValueCites.push(`${at} → ${path.basename(r.cachePath)}:${r.entry}`);
           const repoVals = {};
           const hpm = text.match(/hp\s*:\s*(\d+)/); if (hpm) repoVals.HP = Number(hpm[1]);
@@ -511,7 +537,8 @@ for (const f of files) {
               continue;
             }
             valueCompared++;
-            if (r.face === '3E') cmp3e++; else cmp5e++;
+            /* S3-⑤：d20m 面单列（✗ 并入 5E —— 否则 d20m 的比对量会污染 5E 读数桶） */
+            if (r.face === '3E') cmp3e++; else if (r.face === 'd20m') cmpD20M++; else cmp5e++;
             if (sv === rv) valueChecked++;
             else red(`源值比对不符（A 组）：${at} ${k} ${unit} 仓内/声称=${rv} 源=${sv}（${path.basename(r.cachePath)}:${src[k].line}）`);
           }
@@ -539,7 +566,20 @@ for (const r of pinResults) console.log(`    ${r.ok ? '✓' : '✗'} ${cacheName
 console.log(`  口径：声称 ${claims}（= 源行 ${sourceLineClaims} + 其它 ${claims - sourceLineClaims}）；源行 ${sourceLineClaims} = A ${aGroup} + B ${exemptValue} + C ${cGroupChecked}`);
 console.log(`  第①级：已核 ${verified}（含约定占位 ${placeholders}）/ 不符 ${problems.length}；其它豁免 ${exemptCitation}（${pctOther.toFixed(1)}%，分母=${claims}，上限 ${EXEMPTION_CAP_PCT}%）`);
 console.log(`  tier-②：A 组源值比对 已核 ${valueChecked}/${valueCompared}（分母=**声称侧**可比对项）｜C 组映射 已核 ${cGroupChecked}/${nameMap.length}（命中条目 ${[...mappingHit].join('、') || '-'}）`);
-console.log(`            按源格式：5E 调整列 ${cmp5e} 次 ＋ 3E 原始分换算 ${cmp3e} 次`);
+console.log(`            按源格式：5E 调整列 ${cmp5e} 次 ＋ 3E 原始分换算 ${cmp3e} 次 ＋ d20M ${cmpD20M} 次（tier-① 显式降级，见下）`);
+/* S3-④（领队裁定：降级）：d20m 源无值级解析器 ⇒ **显式**声明，✗ 静默不核。
+ *   理由：MSRD 属性值主要内嵌 markdown 表格行（`|Colossal|44|32d10|120|47|6|—|…`），
+ *   单元格用 `—` 表「不适用」且有 `Str*`/`Str**` 变体 ⇒ 落解析器须发现表头行语义、
+ *   与既有 5E/3E 两套并立第三套，成本/风险不成比例（门按**拦截价值**取舍）。
+ *   仍在防的：pin 行 sha1/行数（第①级）＋ 该面引用可解析性。可逆：30–49 内容真落码需值核时再议。 */
+/* d20m 值解析器未落 ⇒ 该面 A 组比对恒 0；此处**显式打出声**（✗ 静默不核）。
+ *   领队裁定三理由：①门禁时长约束＋「门按拦截价值取舍」②tier-① 的 pin sha1/行数校验仍在，
+ *   防的是假绿窗口（已闭合）而非值级 ③30–49 真落码需值核时（M3+）再议 —— 降级可逆。 */
+const d20mRefs = d20mResolved;
+console.log(`  tier-② 显式降级：d20m 面**值级对源未覆盖**（tier-① 引用形＋pin 完整性仍在核）｜`
+  + `d20m 引用 ${d20mRefs.length} 处均已按 tier-① 核 ｜ A 组比对 0 次（MSRD 值解析器未落：源为表格行＋破折号占位，三套解析器并立不成比例）`
+  + `｜${VERBOSE ? 'verbose=on' : '--verbose 可见明细'}`);
+if (VERBOSE) for (const c of d20mRefs) console.log(`    · ${c.at} → ${path.basename(c.cachePath)}:${c.row && c.row.lines ? '' : ''}(tier-①)`);
 if (noValueCites.length > 0) {
   console.log(`  第①级/A 组：**引用无可抽取值** ${noValueCites.length} 处（引用区间/块内未解析出 HP/AC/属性 ⇒ 静默 0 覆盖，记账可见）：`);
   for (const c of noValueCites) console.log(`    · ${c}`);

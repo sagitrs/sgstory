@@ -180,10 +180,13 @@ RPG.useItem = (id, that, from, action = 'use') => {
 };
 
 /**
- * 取「玩家角色」（`#1752`）：注册表中 `properties` 含 `'player'` 的角色。
- * core 经 `RPG.characters` **注册表**取用，✗ 直接引用 `DND5E.Player`／`DND3.Player`
- *   （避免 core→规则包的耦合；两包各注册一个 `id: 'player'`，注册表按 id 覆盖，最终只留一个）。
- * @returns {RPG.Character|null} 未注册（纯 core 单测场景）⇒ null
+ * 取**玩家角色**（供 core 内部把「玩家背包语义」的操作路由到正确的角色实例）。
+ * ★ 已知耦合（developer 缺陷 3）：查找键是 `properties` 含 `'player'`，而 5E／3E 两包
+ *   **都以 `id: 'player'` 注册**（`defCharacter` 会告警并**覆盖**先前登记 —— 同 `#1743` 的
+ *   「跨包 id 冲突／注册面静默遮蔽」形态）⇒ 本函数命中「后加载」的那个。
+ *   **今日无功能差异**：两包的 `items` 都桥接同一条 `State.variables.inventory`。
+ *   **若某包的背包桥分家，此处会静默指向错误的角色** ⇒ 届时应改为**显式传入** actor，
+ *   或按包名解析。在此之前，消费方不得依赖「返回的一定是某特定包的 Player」。
  */
 RPG.playerActor = () =>
 	[...(RPG.characters?.values?.() ?? [])].find((c) => (c.properties ?? []).includes('player')) ?? null;
@@ -223,6 +226,29 @@ RPG.unequip = (id) => RPG.useItem(id, null, null, 'unequip');
  *   实例级键 ＋ `finally` ⇒ 作用域严格 = **单次动作**，跨角色／跨动作自动隔离。
  */
 RPG.ammoOwed = (item) => item.__ammoPaid !== true;
+
+/**
+ * 解析**弹药该记在谁头上**（`#1765` 兜底路径的归属判定）。
+ * 顺序：① 显式 `from`（调用方给的施术者）→ ② **道具持有者**（谁的 `items` 里含此实例）
+ * → ③ `null`（无人持有 ⇒ 调用方须显式给 `from`，**✗ 不回落受击者**）。
+ *
+ * ★ 为什么需要本函数：`DND5E.attack` 的兜底在 `used(foe)`（无 `from`）被直调时拿到
+ *   `from === undefined`；若写成 `from ?? that` 就会**从受击者扣弹**（developer 缺陷 2 实测：
+ *   射手 10→10、靶 10→9）—— 兜底的本意是保证**攻击者**付费。
+ */
+RPG.ammoOwner = (item, from, that) => {
+	if (from != null) return from; // ① 显式施术者优先（最常见：act / 战斗直调都传 from）
+	const chars = RPG.characters;
+	const list = chars == null ? [] : (typeof chars.values === 'function' ? [...chars.values()] : Object.values(chars));
+	const holds = (who) => Array.isArray(who?.items) && who.items.some((s) => s === item);
+	/* 快照路径（`reviveItem` 每次新建实例 ⇒ 实例恒等不命中）⇒ 按 **id** 兜底匹配。
+	 *   歧义（两个角色带同名 id）⇒ 按**从后往前**取最后登记者，与 `RPG.take` 同向。 */
+	const holdsId = (who) => Array.isArray(who?.items) && who.items.some((s) => s?.id === item.id);
+	if (holds(that) || (typeof item?.used === 'function' && holdsId(that))) return that; // ② 受击者恰是持有者
+	for (const who of list) if (holds(who)) return who; // ③ 注册表里持有该实例者
+	for (let i = list.length - 1; i >= 0; i--) if (holdsId(list[i])) return list[i]; // ③′ 按 id
+	return null; // ④ 无人持有（纯数据／无法判定）⇒ 须调用方显式给 from，✗ 不回落受击者
+};
 
 RPG.act = (actor, itemRef, target, action = 'use', from = actor) => {
 	if (actor == null || !Array.isArray(actor.items)) {
@@ -267,7 +293,7 @@ RPG.act = (actor, itemRef, target, action = 'use', from = actor) => {
 
 /**
  * 把动作里改过的**可变状态**写回施术者的道具快照（`RPG.act` 的提交步）。
- * 目前只提交 `equipped`（`charges` 由 `act` 自行处理，它需分辨「用尽则移除槽」）。
+ * 提交 `equipped` 与 `charges` 两项（`charges <= 0` 的**槽移除**由 `act` 负责，它需 `splice`）。
  */
 RPG.commit = (actor, item) => {
 	const list = actor?.items;

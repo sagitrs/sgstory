@@ -35,7 +35,7 @@
 	});
 
 	/* 出处：SRD 5.2.1 · monsters-A-Z.md:8753（「Guard」）——该条目的属性为 STR 13／DEX 12／CON 12（其余三项 +0）；
-	 * HP/AC 为本仓设计值（「受伤入场」变体），不在此断言对齐。 */
+	 * HP/AC 为 house rule（非 SRD）（「受伤入场」变体），不在此断言对齐。 */
 	test('5e：受伤的守卫属性对齐 SRD 5.2.1 · Guard（原始分见下）', () => {
 		assert.eq(D().Guard.stats.str, 13);
 		assert.eq(D().Guard.stats.dex, 12, 'DEX 12（⇒ +1）');

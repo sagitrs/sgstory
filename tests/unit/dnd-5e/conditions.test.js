@@ -45,6 +45,26 @@
 		}
 	});
 
+	test('conditions：desc 是对玩家的契约面 —— 未实现的面必须显式标注（#1758 MAJOR-1 判据）', () => {
+		// 判据形：声明表已实现的字段 ⇒ desc 可写；表内**未落**的面（被注释自认归 Pn）
+		// 必须在 desc 里带「未实现」标注，不得写成生效承诺。
+		const UNIMPLEMENTED = {
+			charmed: '禁攻', deafened: '听觉', frightened: '不能靠近', paralyzed: '自动暴击',
+			petrified: '全抗', restrained: '豁免劣势', stunned: '豁免必败', unconscious: '自动暴击',
+		};
+		for (const [id, word] of Object.entries(UNIMPLEMENTED)) {
+			const desc = R().effectOf(id).desc;
+			assert.ok(desc.includes('未实现'), `「${id}」的 desc 须显式标注未实现（玩家契约面）`);
+			assert.ok(desc.includes(word), `「${id}」的 desc 须点明未实现的是「${word}」面`);
+		}
+		// 对照：grappled 用了「简化」而非「未实现」（同族形态也须标注）——防两类标注都丢失
+		assert.ok(R().effectOf('grappled').desc.includes('简化'), 'grappled 的简化须标注');
+		// 已实现的面不得被误标（防「一律加未实现」蒙混）
+		for (const id of ['blinded', 'invisible', 'poisoned', 'prone', 'incapacitated']) {
+			assert.ok(!R().effectOf(id).desc.includes('未实现'), `「${id}」已实现 ⇒ 不得标未实现`);
+		}
+	});
+
 	test('conditions：定义已注册进 Effect 注册表（单层权威：注册即实例、声明字段随之挂载）', () => {
 		for (const id of Object.keys(D().Conditions)) {
 			const def = R().effectOf(id);

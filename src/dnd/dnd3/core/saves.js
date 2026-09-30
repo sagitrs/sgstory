@@ -5,7 +5,7 @@
  * 由 stats.save 里的字段提供调整值（默认 0）。
  */
 
-/** 豁免检定：1d20 + save_mod vs DC，返回 { success, roll, needed } */
+/** 豁免检定：1d20 + save_mod vs DC，返回 { success, roll, total, dc, mod } */
 DND3.save = (character, type, dc) => {
 	const mod = character?.stats?.[`save_${type}`] ?? 0;
 	const roll = DND3.d20();

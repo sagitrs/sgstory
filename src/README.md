@@ -58,9 +58,26 @@
   `RPG.slotLabels.槽名 = '中文'` 由规则包补全提示文案（core 不认识具体槽）。
 - 装备参与战斗数值走规则包：dnd3 的 `DND3.acOf(角色)` 会把已装备道具的
   `stats.ac_bonus` 计入防御等级（铁环甲 +3、包铁皮靴 +1）。
-- 近战武器共用 `DND3.meleeAttack`（dnd3/core/combat.js）：拔出检查、
-  1d20+BAB+力量 vs acOf、天然 1/重击威胁范围 `stats.critMin`、击倒结算
-  ——**加新武器只需写数据（见 sword.js），零重复判定代码**。
+- 近战武器共用 `DND3.meleeAttack`（dnd3/core/combat.js）：拔出检查（`stats.ranged: true` 的远程武器**跳过**）、
+  1d20+BAB+**力量** vs acOf（远程武器改用**灵巧** `dex_mod`）、天然 1/重击威胁范围 `stats.critMin`、击倒结算
+  ——**加新武器只需写数据（见 sword.js），零重复判定代码**（dnd-5e 同构：`DND5E.attack`，同样识别 `stats.ranged`）。
+
+## 交互战（玩家控制的回合）
+
+`properties` 含 `'player'` 的角色在 `interactive: true` 的 `Battle` 中由玩家亲自操作，
+回合分三层：**① 选道具**（含「跳过本回合」）→ **② 选动作**（使用／装备／卸下）→
+若选「使用」则 **③ 选目标**。三种动作的语义：
+
+- **使用**：进入目标选择；武器若未装备会自动「拔出」（不额外消耗）。
+- **装备／卸下**：**消耗整回合**，**不经目标选择**，且经 `RPG.useItem(id, actor, actor, action)`
+  执行 ⇒ 修改会**提交回背包快照**（凡「改了实例没写回快照」的分裂脑问题见 F1 同源教训）。
+- **跳过本回合**：不消耗任何资源，直接结束。
+- **远程武器不需拔出**（`stats.ranged: true`），其攻击与伤害用**灵巧**而非力量。
+
+选项构造在 `Battle.buildPlayerOptions()`（纯函数，可直接单测：道具选项／动作选项／目标选项）；
+「选中后的分派」在 `Battle.dispatchAction(chosen, action, item)`（纯函数，返回
+`skip`／`use`／`equip`／`unequip`）。测试范式见 `tests/unit/core/battle-interaction.test.js`
+（驱动 `battle.execute()` ＋ 桩化 `choice` 时**必须**用 `finally` 还原包内单例，见 #1699）。
 
 ## 已知边界（开发者必读）
 

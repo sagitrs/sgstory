@@ -42,10 +42,24 @@ RPG.rng = {
 	/** 复位：回到默认源（用例前置挂点调用，防注入跨用例残留） */
 	reset() { this._impl = null; return this; },
 
+	/** 取一个原始单元值 `[0,1)`。**本方法是全仓唯一读随机源之处**，其余消费点一律走 `pick`／`index`。 */
+	unit() {
+		return this._impl ? this._impl() : Math.random();   // ★默认源动态读取
+	},
+
 	/** 掷单颗骰：映射与历史实现逐字相同（`1 + floor(unit * sides)`） */
 	pick(sides) {
-		const unit = this._impl ? this._impl() : Math.random();   // ★默认源动态读取
-		return 1 + Math.floor(unit * sides);
+		return 1 + Math.floor(this.unit() * sides);
+	},
+
+	/** 非骰面的等概率取值：返回 `[0, n)` 的下标。
+	 *  用途：战斗 AI 选目标、宝箱陷阱取一——这些本来也直调 `Math.random()`，
+	 *  收到本入口后「随机取值一律经 `RPG.rng`」才在仓内成立（#1706）。 */
+	index(n) {
+		if (!Number.isInteger(n) || n <= 0) {
+			throw new Error(`RPG.rng.index 需要正整数，收到：${n}`);
+		}
+		return Math.floor(this.unit() * n);
 	},
 };
 

@@ -13,4 +13,27 @@
 		assert.ok(b.locked, '必败');
 		D().Player.stats.dex_mod = 1;
 	});
+
+	test('dnd3 chest：陷阱池取值经 RPG.rng（注入后确定）', () => {
+		const R = () => setup.RPG;
+		// 调用面探针：每次取值读源一次；读数映射到具体池项
+		let calls = 0;
+		R().rng.set(() => { calls++; return 0.0; }); // index(3) ⇒ 0
+		try {
+			assert.eq(D().rollChestTrap().id, 'trap-needle', '0.0 ⇒ 池首');
+			assert.eq(calls, 1, '一次取值恰读源 1 次');
+		} finally {
+			R().rng.reset();
+		}
+		calls = 0;
+		R().rng.set(() => { calls++; return 0.999; }); // index(3) ⇒ 2
+		try {
+			assert.eq(D().rollChestTrap().id, 'trap-shock', '0.999 ⇒ 池末');
+			assert.eq(calls, 1, '一次取值恰读源 1 次');
+		} finally {
+			R().rng.reset();
+		}
+		// 越过池尾的越域保护：index 只接受正整数
+		assert.throws(() => R().rng.index(0), 'index(0) 抛错');
+	});
 })();

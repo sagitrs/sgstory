@@ -23,7 +23,7 @@ DND3.TrapShock = RPG.defItem({
 	used: trapShockUsed,
 });
 
-/** 宝箱陷阱技能池（按 id 随机取一） */
+/** 宝箱陷阱技能池（按 id 随机取一；随机取值一律经 `RPG.rng`） */
 DND3.CHEST_TRAPS = ['trap-needle', 'trap-fire', 'trap-shock'];
 DND3.rollChestTrap = () =>
-	RPG.createItem(DND3.CHEST_TRAPS[Math.floor(Math.random() * DND3.CHEST_TRAPS.length)]);
+	RPG.createItem(DND3.CHEST_TRAPS[RPG.rng.index(DND3.CHEST_TRAPS.length)]);

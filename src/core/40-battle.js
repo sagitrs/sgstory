@@ -127,9 +127,43 @@ RPG.Battle = class Battle extends RPG.Event {
 	}
 
 	/**
+	 * 构造交互回合的选项集合（纯函数，可单元测试）。
+	 * 返回 { itemOptions, actionOptionsFor(item), targetOptions }。
+	 */
+	buildPlayerOptions(attacker) {
+		const slots = attacker.items;
+		const itemOptions = slots.map((slot, i) => {
+			const item = setup.RPG.reviveItem(slot);
+			return { text: `${item.name}${item.equipped ? '（已装备）' : ''}`, value: String(i) };
+		});
+		itemOptions.push({ text: '（跳过本回合）', value: 'skip' });
+
+		const actionOptionsFor = (item) => {
+			const actions = [{ text: `使用${item.name}`, value: 'use' }];
+			const handlers = item.constructor.handlers;
+			if (!item.equipped && typeof handlers?.equip === 'function') {
+				actions.push({ text: `装备「${item.name}」（消耗本回合）`, value: 'equip' });
+			}
+			if (item.equipped && typeof handlers?.unequip === 'function') {
+				actions.push({ text: `卸下「${item.name}」（消耗本回合）`, value: 'unequip' });
+			}
+			return actions;
+		};
+
+		const everyone = [...this.players, ...this.enemies].filter((c) => !this.isOut(c));
+		const targetOptions = everyone.map((c) => ({
+			text: `${c.name}（${this.players.includes(c) ? '己方' : '敌方'}）`,
+			value: c.name,
+		}));
+
+		return { itemOptions, actionOptionsFor, targetOptions };
+	}
+
+	/**
 	 * 私有函数：玩家控制的交互式回合。
 	 * 流程：选道具 → 选动作（使用/装备/卸下）→ 若使用则选目标 → 执行。
 	 * 装备/卸下消耗整回合（不走目标选择）；使用武器时自动拔出（不额外消耗）。
+	 * 选项构造在 buildPlayerOptions()（可测试纯函数），本方法只做交互与执行。
 	 */
 	async #playerAction(attacker) {
 		const slots = attacker.items;
@@ -140,13 +174,10 @@ RPG.Battle = class Battle extends RPG.Event {
 			return;
 		}
 
+		const { itemOptions, actionOptionsFor, targetOptions } = this.buildPlayerOptions(attacker);
+
 		// ① 选道具
 		this.perform(`现在是${attacker.name}的回合，请选择道具：`);
-		const itemOptions = slots.map((slot, i) => {
-			const item = setup.RPG.reviveItem(slot);
-			return { text: `${item.name}${item.equipped ? '（已装备）' : ''}`, value: String(i) };
-		});
-		itemOptions.push({ text: '（跳过本回合）', value: 'skip' });
 		const chosen = await attacker.choice(itemOptions);
 		if (chosen === 'skip') {
 			this.perform(`${attacker.name}按兵不动。`);
@@ -154,16 +185,8 @@ RPG.Battle = class Battle extends RPG.Event {
 		}
 		const item = setup.RPG.reviveItem(slots[Number(chosen)]);
 
-		// ② 选动作（有装备动作且未装备 → 可装备；已装备且有卸下动作 → 可卸下）
-		const actions = [{ text: `使用${item.name}`, value: 'use' }];
-		const handlers = item.constructor.handlers;
-		if (!item.equipped && typeof handlers?.equip === 'function') {
-			actions.push({ text: `装备「${item.name}」（消耗本回合）`, value: 'equip' });
-		}
-		if (item.equipped && typeof handlers?.unequip === 'function') {
-			actions.push({ text: `卸下「${item.name}」（消耗本回合）`, value: 'unequip' });
-		}
-
+		// ② 选动作
+		const actions = actionOptionsFor(item);
 		let action = 'use';
 		if (actions.length > 1) {
 			this.perform(`对「${item.name}」做什么？`);
@@ -177,13 +200,9 @@ RPG.Battle = class Battle extends RPG.Event {
 		}
 
 		// ③ 使用：选目标
-		const everyone = [...this.players, ...this.enemies].filter((c) => !this.isOut(c));
-		const targetOptions = everyone.map((c) => ({
-			text: `${c.name}（${this.players.includes(c) ? '己方' : '敌方'}）`,
-			value: c.name,
-		}));
 		this.perform(`对谁使用${item.name}？`);
 		const targetName = await attacker.choice(targetOptions);
+		const everyone = [...this.players, ...this.enemies].filter((c) => !this.isOut(c));
 		const target = everyone.find((c) => c.name === targetName);
 
 		attacker.use(item, target); // 结果由 used 内部 perform 打印

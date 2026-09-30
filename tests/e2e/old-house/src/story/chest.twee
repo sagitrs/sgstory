@@ -1,0 +1,56 @@
+/* 铁箱遭遇（RPG.Chest 陷阱宝箱的完整交互）
+ * 入口在地窖（cellar.js 的 cellar-entry 场景里有「查看铁箱」选项）
+ */
+
+:: 铁箱
+<<if setup.DND3.IronChest.locked>>
+锁孔里一片死寂——铁箱被彻底锁死了，再怎么摆弄也不会有反应。
+<<elseif setup.DND3.IronChest.isDone>>
+铁箱敞着口，里面已经空了。
+<<else>>
+包铁皮的箱子立在墙角，锁孔泛着幽光。硬砸一定砸得开（它可不会闪避），但你隐约觉得箱子里藏着什么机关。
+<<if not setup.DND3.IronChest.disarmed and setup.RPG.has("iron-key")>>
+[[用铁钥匙开锁|开铁箱]]
+<</if>>
+<<if not setup.DND3.IronChest.disarmed>>
+[[尝试撬锁|撬铁箱]]
+<</if>>
+<<if setup.RPG.has("club")>>
+[[攻击铁箱|攻击铁箱]]
+<</if>>
+<<if setup.RPG.has("bomb")>>
+[[用炸弹炸开铁箱|炸铁箱]]
+<</if>>
+<</if>>
+
+<<link "回地窖">><<set $sceneId to "cellar-entry">><<goto "场景舞台">><</link>>
+
+:: 开铁箱
+<<run setup.DND3.IronChest.used(setup.DND3.Player, setup.DND3.Player, "open")>>
+
+<<link "回地窖">><<set $sceneId to "cellar-entry">><<goto "场景舞台">><</link>>
+
+:: 撬铁箱
+<<run setup.DND3.IronChest.used(setup.DND3.Player, setup.DND3.Player, "lockpick")>>
+
+<<link "回地窖">><<set $sceneId to "cellar-entry">><<goto "场景舞台">><</link>>
+
+:: 攻击铁箱
+<<run setup.RPG.useItem("club", setup.DND3.IronChest, setup.DND3.Player)>>
+<<if setup.DND3.IronChest.isBroken>>
+<<run setup.DND3.IronChest.brokenBy(setup.DND3.Player)>>
+<</if>>
+
+<<if not setup.DND3.IronChest.isBroken>>
+[[继续攻击|攻击铁箱]]
+<</if>>
+<<link "回地窖">><<set $sceneId to "cellar-entry">><<goto "场景舞台">><</link>>
+
+:: 炸铁箱
+<<run setup.RPG.useItem("bomb", setup.DND3.IronChest, setup.DND3.Player)>>
+<<if setup.DND3.IronChest.isBroken>>
+<<run setup.DND3.IronChest.brokenBy(setup.DND3.Player)>>
+<</if>>
+硝烟散去，碎木片簌簌落下。
+
+<<link "回地窖">><<set $sceneId to "cellar-entry">><<goto "场景舞台">><</link>>

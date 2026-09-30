@@ -1,0 +1,66 @@
+/* 战斗段落：地图 action 跳转到这里做全屏渲染，战毕回「探索」 */
+
+:: 攻击哥布林
+<<run (new setup.RPG.BattleTurn(setup.DND3.Player, setup.DND3.Goblin)).execute()>>
+<<if not setup.DND3.Goblin.isDown>>
+<<run (new setup.RPG.BattleTurn(setup.DND3.Goblin, setup.DND3.Player)).execute()>>
+<<else>>
+<<run setup.RPG.loot(setup.DND3.Goblin)>>
+<</if>>
+
+[[继续攻击|攻击哥布林]]
+[[停手离开|探索]]
+
+:: 首领战
+储物间深处的阴影里站起来一个块头更大的哥布林——它敲着胸脯吼了一嗓子，
+角落里那只受伤的哥布林也强撑着爬了起来。墙角传来一声呻吟：一个**受伤的守卫**
+被绑在柱子上，看到你后挣扎着低声说："帮我……解开绳子，我还能打。"
+
+<<link "解开守卫的绳子（2v2 交互战）">><<run setup.DND3.Guard.hp = Math.max(setup.DND3.Guard.hp, 6)>><<goto "守卫并肩战">><</link>>
+<<if not setup.DND3.Goblin.isDown>>
+[[独自挑战（1v2 自动战）|独自首领战]]
+<<else>>
+[[独自挑战首领|独自首领战]]
+<</if>>
+
+:: 守卫并肩战
+<<set _allies to []>>
+<<run _allies.push(setup.DND3.Player)>>
+<<if not setup.DND3.Guard.isDown>>
+<<run _allies.push(setup.DND3.Guard)>>
+<</if>>
+<<set _foes to []>>
+<<if not setup.DND3.Goblin.isDown>>
+<<run _foes.push(setup.DND3.Goblin)>>
+<</if>>
+<<if not setup.DND3.GoblinBoss.isDown>>
+<<run _foes.push(setup.DND3.GoblinBoss)>>
+<</if>>
+<<if _foes.length gt 0>>
+<<run (new setup.RPG.Battle(5, _allies, _foes, true)).execute()>>
+<<else>>
+哥布林们已经倒下了。
+<</if>>
+<<if setup.DND3.GoblinBoss.isDown>>
+<<run setup.RPG.loot(setup.DND3.GoblinBoss)>>
+<</if>>
+<<if setup.DND3.Goblin.isDown>>
+<<run setup.RPG.loot(setup.DND3.Goblin)>>
+<</if>>
+
+[[查看情况|探索]]
+
+:: 独自首领战
+<<if not setup.DND3.Goblin.isDown>>
+<<run (new setup.RPG.Battle(5, [setup.DND3.Player], [setup.DND3.Goblin, setup.DND3.GoblinBoss])).execute()>>
+<<else>>
+<<run (new setup.RPG.Battle(5, [setup.DND3.Player], [setup.DND3.GoblinBoss])).execute()>>
+<</if>>
+<<if setup.DND3.GoblinBoss.isDown>>
+<<run setup.RPG.loot(setup.DND3.GoblinBoss)>>
+<</if>>
+
+<<if not setup.DND3.GoblinBoss.isDown and not setup.DND3.Player.isDown>>
+[[再战|独自首领战]]
+<</if>>
+[[查看情况|探索]]

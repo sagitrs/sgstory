@@ -1,0 +1,10 @@
+:: StoryInit
+<<set $player to { name: "旅行者", hp: 18, maxHp: 20, stats: setup.DND3.stats({ ac: 12, str_mod: 1, dex_mod: 1 }), effects: [] }>>
+<<set $hasKey to false>>
+<<set $inventory to []>>
+<<set $trapSprung to false>>
+<<set $itemUseCount to 0>>
+<<set $turnCount to 0>>
+<<set $sceneId to "">>
+<<set $boxOpened to false>>
+<<set $wineTaken to false>>

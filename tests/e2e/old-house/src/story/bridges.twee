@@ -1,0 +1,11 @@
+/* 桥接段落：twee ↔ Scene 系统的出入口
+ *
+ * 场景舞台：通用桥接，$sceneId 决定执行哪个 Scene（地窖等）
+ * 探索：进入地图驱动的探索模式（MapScene）
+ */
+
+:: 场景舞台
+<<run setup.RPG.Scene.play($sceneId)>>
+
+:: 探索
+<<run setup.RPG.Scene.play("explore")>>

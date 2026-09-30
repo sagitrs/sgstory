@@ -1,0 +1,16 @@
+/* 哥布林互动：治疗与回报（非战斗交互的示例） */
+
+:: 给哥布林包扎
+<<rpg_use "bandage" `setup.DND3.Goblin` `setup.DND3.Player`>>
+
+哥布林包扎好伤口，冲你龇牙一笑，从腰间的破口袋里掏出一卷绷带比划着——它想回报你。
+
+[[让它给你包扎|哥布林的报答]]
+[[道别离开|探索]]
+
+:: 哥布林的报答
+<<run setup.DND3.Goblin.use(setup.RPG.createItem("bandage"), setup.DND3.Player)>>
+
+它的手法意外地娴熟，大概是常年和野蛮的同伴们打交道练出来的。
+
+[[回到地图|探索]]

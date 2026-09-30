@@ -1,0 +1,12 @@
+/* 结局 */
+
+:: 结局-月光
+你握着怀表走出老宅，身后的门在晚风中缓缓合上。
+
+表盖内侧刻着一行小字：『给 <<= $player.name or "旅行者">> ——时间会记得勇敢的人。』
+
+本次冒险，你共使用了 <<= $itemUseCount >> 次道具。<<if $turnCount>>战斗中，你经历了 <<= $turnCount >> 个回合。<</if>>
+
+—— 示例结局 ——
+
+<<link "重新开始">><<run SugarCube.Engine.restart()>><</link>>

@@ -29,7 +29,8 @@ RPG.fear = new RPG.Debuff({
 	desc: '被恐惧笼罩，只想逃离。',
 });
 
-/** 恐惧豁免：<4HD 生物见肉团须对抗法术，失败获得 fear 减益 */
+/** 恐惧豁免：目标须对抗法术豁免，失败获得 fear 减益。
+ *  dc 参数由调用方按目标挑战等级或场景决定（引擎本身无 HD 概念）。 */
 DND3.fearCheck = (character, dc = 12) => {
 	if (character.contains(RPG.fear)) return true; // 已恐惧
 	const ok = DND3.checkSave(character, 'spells', dc, '恐惧');

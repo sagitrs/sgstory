@@ -27,26 +27,33 @@
 		}
 	});
 
-	test('dnd3 combat：装备提升防御——着甲后同攻击者更难命中（统计）', () => {
-		const attacker = { stats: { bab: 0, str_mod: 0 } }; // 命中需 1d20 >= AC
-		const swings = 200;
-		const hitCount = (target) => {
-			let hits = 0;
+	test('dnd3 combat：装备提升防御——着甲后同攻击者更难命中（固定 RNG）', () => {
+		// 固定 Math.random → d20 始终掷 11（=(0.5*20)|0+1=11）
+		// 天然 1/20 不会出现（固定掷 11），AC 检查正常生效：
+		// 裸靶 AC 10：11+0=11 >= 10 → 每掷必中
+		// 甲靶 AC 13：11+0=11 < 13 → 每掷必不中（mail ac_bonus=3 → 10+3=13）
+		const origRandom = Math.random;
+		Math.random = () => 0.5;
+		try {
+			const attacker = { stats: { bab: 0, str_mod: 0 } };
+			const swings = 10;
+			const naked = { name: '裸靶', hp: 999, maxHp: 999, stats: { ac: 10 } };
+			const armored = { name: '甲靶', hp: 999, maxHp: 999, stats: { ac: 10 }, items: [{ id: 'mail', equipped: true }] };
+			let n1 = 0, n2 = 0;
 			for (let i = 0; i < swings; i++) {
-				const h = target.hp;
-				target.hp = Math.min(target.maxHp, target.hp); // 保持可继续挨打
-				R().createItem('club').used(target, attacker);
-				if (target.hp < h) hits++;
-				target.hp = target.maxHp; // 重置继续统计
+				naked.hp = 999;
+				R().createItem('club').used(naked, attacker);
+				if (naked.hp < 999) n1++;
+				armored.hp = 999;
+				R().createItem('club').used(armored, attacker);
+				if (armored.hp < 999) n2++;
 			}
-			return hits;
-		};
-		const naked = { name: '裸靶', hp: 999, maxHp: 999, stats: { ac: 10 } };
-		const armored = { name: '甲靶', hp: 999, maxHp: 999, stats: { ac: 10 }, items: [{ id: 'mail', equipped: true }] };
-		const n1 = hitCount(naked);   // AC 10 → 期望 ~50%
-		const n2 = hitCount(armored); // AC 13 → 期望 ~35%
-		// 统计断言：200 掷时均值差 ~30、σ ~10，n2 < n1 的置信度 >99.9%
-		assert.ok(n2 < n1, `着甲后被命中更少（裸 ${n1} vs 甲 ${n2}，共 ${swings} 掷）`);
+			assert.ok(n1 === swings, `裸靶（AC 10）掷 11 应全命中（${n1}/${swings}）`);
+			assert.ok(n2 === 0, `甲靶（AC 13）掷 11 应全不中（${n2}/${swings}）`);
+			assert.ok(n2 < n1, `着甲后更难命中（裸 ${n1} vs 甲 ${n2}）`);
+		} finally {
+			Math.random = origRandom;
+		}
 	});
 
 	test('dnd3 combat：炸弹用灵巧不用力量，可击倒目标', () => {

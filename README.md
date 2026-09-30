@@ -25,6 +25,7 @@ master/main 自本提交起重启为空干线。
 | **3E** | `Obsidian-TTRPG-Community/DnD-3.5-SRD-Markdown` | D&D **v3.5** SRD | `70a6b263e68604d8b2fb931937746161f2b65b58` | `Basic Rules and Legal/equipment.md` | 3590 | `44b0c09a7783c8d9` | OGL 1.0a |
 | **3E** | 同上 | 同上 | 同上 | `Basic Rules and Legal/legal-information.md` | 170 | `0571fa14cf815eb8` | OGL 1.0a |
 | **3E** | 同上 | 同上 | 同上 | `3.5 Compendium/Monsters/3.5 Monsters - G.md` | 1827 | `709b744a9f34bdbc` | OGL 1.0a |
+| **3E** | 同上 | 同上 | 同上 | `Monsters/Monsters - Animals.md` | 2382 | `c14af45a23bc039e` | OGL 1.0a |
 | **3E** | 同上 | 同上 | 同上 | `Basic Rules and Legal/basics-and-ability-scores.md` | 296 | `ddf4d4fec8a75621` | OGL 1.0a |
 | **d20m** | `qt911025/d20m-srd-zhcn` | `d20M` | `1733391d14c7782d2ba24fb7d398725b7a32c9f6` | `source/1Modern现代/2msrdbasics基本.md` | 43 | `4c0c176d4c1b1110` | OGL 1.0a |
 | **d20m** | 同上 | 同上 | 同上 | `source/1Modern现代/3msrdabilityscores属性值.md` | 74 | `05adfce1847f2e8b` | OGL 1.0a |

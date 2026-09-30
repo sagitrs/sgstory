@@ -168,4 +168,49 @@ twee 里 `<<run (new Battle(...)).execute()>>` **之后的 `<<if>>` 行
 - **红线**：把规则数学（掷骰公式、DC、字段名）放进 `src/core` 的 PR
   会被拒绝——请下沉到 `<包>/core/`。
 
+## 引擎扩展点（规则包的三条标准接入面）
+
+规则包要用「回合面」「效果面」「结算面」能力时，**不要改 core**——core 已把这三个面
+做成 pack 无关的扩展点（`#1713`）。各面的**序／权威／失败形态**由 core 唯一承载：
+
+### ① Effect 注册与归一化（`RPG.defEffect`）
+
+```js
+RPG.defEffect({ id: 'frightened', name: '恐惧', kind: 'debuff',
+                selfRollMode: 'disadvantage',          // ← 任意声明字段都会挂到定义上
+                levels: { min: 1, max: 6 },            // 层级效果（可选）
+                hooks: { onTurnEnd(actor, ctx) {} } }) // 定义级回合钩子（可选）
+```
+
+- `c.gain / lose / contains` 收 **id 串或 Effect 实例**（归一化为 id；`c.effects` 永远是字符串数组，存档安全）。
+- **读路径严格**：未注册 / 形态非法 / 层数缺失或越域 ⇒ 抛错（`err.code` 见 `17-effect.js` 头注释；消息只到 id，注册列表在 `err.registeredIds`）。
+- ⚠ 层级效果用**参数化 id**（`'exhaustion:3'`）：`gain` 新层会**自动移除同 base 其它层**（原子升降级）；
+  `lose('exhaustion')`＝移除全部层级；`contains('exhaustion')`＝任一层级为真；`c.effectLevel('exhaustion')` 读级数（0=未持有）。
+- `RPG.death` 属 core；**包的效果由包自己 `defEffect`**（如 dnd3 的 `fear`）。
+
+### ② 回合生命周期钩子（`RPG.turnBoundary` + `battle:turnStart/turnEnd`）
+
+- 两条通路（自动 `BattleTurn` / 交互 `#playerAction`）**统一**发 `battle:turnStart`（可**闸门**）与 `battle:turnEnd`；
+  订阅方置 `payload.cancel = true`（只认 `=== true`）＋可选 `reason`（仅字符串）⇒ 该行动者本次不行动（打印「无法行动（reason）」）。
+- 失能类条件（#1689 的 `canAct`）＝ `turnStart` 的**闸门订阅方**；回合末豁免（`saveEnd`）＝ `turnEnd` 订阅方——core 不认识条件。
+- 遗留事件 `battle:turn` 保持原位（仅自动通路）；**独立使用** `new RPG.BattleTurn(a, b).execute()` 不经本面——
+  由调用方自行调 `RPG.turnBoundary.start/end`（e2e `battles.twee` 即此形态）。
+- 定义级 hooks **只读**（改不了 cancel），顺序 = `c.effects` 数组序，抛错吞并不中断其余。
+
+### ③ 结算管线（`RPG.defPipeline` / `RPG.runPipeline`）
+
+```js
+RPG.defPipeline({ id: '<pack>.<行为>', stages: [
+  { id: '<pack>.atk',    run(ctx) { ctx.atkMod = …; } },   // ① 命中修正
+  { id: '<pack>.mode',   run(ctx) { ctx.rollMode = …; } }, // ② 优势/劣势模式
+  { id: '<pack>.resolve', run(ctx) { /* 掷骰/命中/暴击 */ } },
+  { id: '<pack>.damage', run(ctx) { /* 伤害与施加 */ } },
+] });
+```
+
+- **序的唯一权威 = `stages` 数组序**（core 不重排）；阶段置 `ctx.done = true` 提前结束（失手不结算）。
+- `ctx.roll(mode)` 一律经 `RPG.rng`（唯一随机入口，`#1706`）——否则测试的固定序列注入会失效。
+- 阶段抛错**传播**（结算不可逆，静默 = 数值算错还不报）；回合钩子抛错**吞并**（可重试的编排点）。
+- 参考实现：`dnd-5e.attack`（`dnd-5e/core/combat.js`，四段）。
+
 ## Issue 格式（认为架构有欠缺时）

@@ -418,4 +418,36 @@ test('ammo【跨面·回归】双持有者（各持同型、受击者后注册�
 	} finally { R().characters.delete('unit-dup-foe'); }
 });
 
+
+test('ammo【跨面·回归】多角色**共持同一实例** ⇒ 不可判 ⇒ null、不扣（②′ 守卫的刀）', () => {
+	const D5 = setup.DND5E;
+	/* ★ 本条给 ②′（多角色共持同一实例 ⇒ null）配刀：先前删除该行仍 220/0 全绿 ⇒ **无刀的守卫**。
+	 *   形态：**同一枪实例**同时出现在两名角色的 `items` 里（如交接中的武器、或数据被复制引用）
+	 *   ⇒ 实例恒等能命中多个，归属不可判 ⇒ 必须返回 `null` 且不扣任何人。 */
+	R().defItem({ id: 'unit-share-gun', name: '共用枪', weapon: true, slot: 'weapon', charges: null, stackable: false,
+		stats: { dmg: '1d6', type: 'piercing', ranged: true, ammo: { id: 'unit-share-bullet' } },
+		used(that, from) { D5.attack(this, that, from); } });
+	R().defItem({ id: 'unit-share-bullet', name: '共用弹', charges: 10, stackable: true, used() {} });
+	R().rng.set(() => 0.99);
+	const gun = R().createItem('unit-share-gun'); gun.equipped = true; // ★ 同一实例
+	const a = new (R().Character)({ name: '甲', hp: 60, maxHp: 60, properties: ['npc'],
+		items: [gun, { id: 'unit-share-bullet', charges: 10 }], stats: D5.stats({ str: 12, dex: 12, prof: 2 }) });
+	const b2 = new (R().Character)({ name: '乙', hp: 60, maxHp: 60, properties: ['npc'],
+		items: [gun], stats: D5.stats({ str: 12, dex: 12, prof: 2 }) });
+	R().characters.set('unit-share-a', a);
+	R().characters.set('unit-share-b', b2);
+	try {
+		const foe = new (R().Character)({ name: '靶', hp: 9999, maxHp: 9999,
+			items: [{ id: 'unit-share-bullet', charges: 10 }], stats: D5.stats({ ac: -999 }) });
+		assert.eq(R().ammoOwner(gun, undefined, foe), null, '多角色共持同一实例 ⇒ 不可判（null）');
+		const b1 = a.items.find((s) => s.id === 'unit-share-bullet').charges;
+		const fp = foe.items[0].charges;
+		const hp0 = foe.hp;
+		gun.used(foe); // 直调，无 from
+		assert.eq(a.items.find((s) => s.id === 'unit-share-bullet').charges, b1, '甲不扣（不可判）');
+		assert.eq(foe.items[0].charges, fp, '靶不扣');
+		assert.eq(foe.hp, hp0, '不开火');
+	} finally { R().characters.delete('unit-share-a'); R().characters.delete('unit-share-b'); }
+});
+
 })();

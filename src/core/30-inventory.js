@@ -14,6 +14,7 @@ const inv = () => {
 RPG.give = (id, n = 1) => {
 	const def = RPG.createItem(id); // 读默认定义（次数、可否叠加）
 	const list = inv();
+	if (!Number.isInteger(n)) throw new Error(`RPG.give 的 n 须为整数（收到 ${n}）——次数计数不允许小数`);
 	if (n < 0) return RPG.take(id, -n); // 负数即消耗，见 RPG.take
 	if (n === 0) return;
 	if (def.stackable && def.charges != null) {
@@ -35,6 +36,7 @@ RPG.give = (id, n = 1) => {
  * @returns {boolean} 是否成功扣减（不足 / n ≤ 0 ⇒ false 且状态不变）
  */
 RPG.take = (id, n = 1) => {
+	if (!Number.isInteger(n)) throw new Error(`RPG.take 的 n 须为整数（收到 ${n}）`);
 	if (!(n > 0)) return false;
 	const list = inv();
 	/* 先算总量（非堆叠每槽 1；堆叠按 charges）——不足则不动状态 */

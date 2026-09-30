@@ -14,13 +14,13 @@
 	});
 
 	/* 出处：SRD 3.5 · `3.5 Compendium/Monsters/3.5 Monsters - G.md:1283`（`## Goblin` → Abilities：Str 11／Dex 13／Con 12／Int 10／Wis 9／Cha 6） */
-	test('dnd3：哥布林属性调整值对齐 SRD 3.5 · Goblin（#1719 修跨版本污染）', () => {
-		assert.eq(D().Goblin.stats.str_mod, 0, 'Str 11 ⇒ +0（#1719 修正跨版本污染）');
-		assert.eq(D().Goblin.stats.dex_mod, 1, 'Dex 13 ⇒ +1');
-		assert.eq(D().Goblin.stats.con_mod, 1, 'Con 12 ⇒ +1');
-		assert.eq(D().Goblin.stats.int_mod, 0, 'Int 10 ⇒ +0');
-		assert.eq(D().Goblin.stats.wis_mod, -1, 'Wis 9 ⇒ −1');
-		assert.eq(D().Goblin.stats.cha_mod, -2, 'Cha 6 ⇒ −2');
+	test('dnd3：哥布林原始分对齐 SRD 3.5 · Goblin（#1719 修跨版本污染）', () => {
+		assert.eq(D().Goblin.stats.str, 11, 'Str 11（#1719 修正跨版本污染）');
+		assert.eq(D().Goblin.stats.dex, 13, 'Dex 13');
+		assert.eq(D().Goblin.stats.con, 12, 'Con 12');
+		assert.eq(D().Goblin.stats.int, 10, 'Int 10');
+		assert.eq(D().Goblin.stats.wis, 9, 'Wis 9');
+		assert.eq(D().Goblin.stats.cha, 6, 'Cha 6');
 	});
 
 	test('dnd3：哥布林首领比普通哥布林更强（maxHp/stats 断言）', () => {

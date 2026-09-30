@@ -57,11 +57,13 @@
 	});
 
 	test('dnd3 chargen：静态角色携带原始分（U11）', () => {
-		// 3E 哥布林：与源条目相符的四维（SRD 3.5 · Monsters/Monsters.md:11840）；Str/Dex 为 house rule（#1719）
-		assert.eq(D().Goblin.stats.con, 12, 'SRD 3.5 · Monsters/Monsters.md:11840（Goblin）CON 12');
-		assert.eq(D().Goblin.stats.int, 10, 'SRD 3.5 · Monsters/Monsters.md:11840（Goblin）INT 10');
-		assert.eq(D().Goblin.stats.wis, 9, 'SRD 3.5 · Monsters/Monsters.md:11840（Goblin）WIS 9');
-		assert.eq(D().Goblin.stats.cha, 6, 'SRD 3.5 · Monsters/Monsters.md:11840（Goblin）CHA 6');
+		// 3E 哥布林：六维全部对齐源条目（SRD 3.5 · `3.5 Compendium/Monsters/3.5 Monsters - G.md:1283`，`## Goblin` → Abilities）
+		assert.eq(D().Goblin.stats.str, 11, 'SRD 3.5 · `3.5 Compendium/Monsters/3.5 Monsters - G.md:1283`（Goblin）Str 11');
+		assert.eq(D().Goblin.stats.dex, 13, 'SRD 3.5 · `3.5 Compendium/Monsters/3.5 Monsters - G.md:1283`（Goblin）Dex 13');
+		assert.eq(D().Goblin.stats.con, 12, 'SRD 3.5 · `3.5 Compendium/Monsters/3.5 Monsters - G.md:1283`（Goblin）Con 12');
+		assert.eq(D().Goblin.stats.int, 10, 'SRD 3.5 · `3.5 Compendium/Monsters/3.5 Monsters - G.md:1283`（Goblin）Int 10');
+		assert.eq(D().Goblin.stats.wis, 9, 'SRD 3.5 · `3.5 Compendium/Monsters/3.5 Monsters - G.md:1283`（Goblin）Wis 9');
+		assert.eq(D().Goblin.stats.cha, 6, 'SRD 3.5 · `3.5 Compendium/Monsters/3.5 Monsters - G.md:1283`（Goblin）Cha 6');
 	});
 
 	test('dnd3 chargen：弃最低与生成法（U12/U14）', () => {

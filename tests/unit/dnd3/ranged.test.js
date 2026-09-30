@@ -25,12 +25,12 @@
 			const dummy = { name: '靶', hp: 100, maxHp: 100, stats: { ac: 0 }, noDodge: true };
 			new (D().ShortBow)().used(dummy, attacker);
 			// 掷 11 + bab(0) = 11 >= AC 0 → 命中
-			// 伤害 = 1d6(固定掷 3~4) + dex(3)，不含 str(-10)
+			// 伤害 = 1d6(固定掷 4) + 灵巧调整值(+3)，不含力量调整值（str: 1 ⇒ −5）
 			const dmg = 100 - dummy.hp;
 			// 0.5 ⇒ 1d6 掷 (0.5*6)|0+1 = 4；伤害 = 4+3 = 7
 			assert.ok(dmg >= 4 && dmg <= 9,
 				`远程伤害 ${dmg} 应含灵巧 +3（1d6+3 = 4..9 范围）`);
-			assert.ok(dmg > 3, `伤害 > 3（若误用力量 -10 则 1d6-10 → 最低钳制 1）`);
+			assert.ok(dmg > 3, `伤害 > 3（若误用力量：str 1 ⇒ −5，1d6−5 最低钳制 1）`);
 		} finally {
 			R().rng.reset();
 		}

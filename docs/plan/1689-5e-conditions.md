@@ -168,6 +168,13 @@ DND5E.saveEnd = (c, condId, dc = 10) => {
 ⇒ **读路径仍用 id 字符串**（`c.effects.includes(id)`、`Conditions[id]`）——本稿 §三 原型与 §四 用例的字符串读法**正确，不改**。
 ⇒ **两层键集必须一致**（机械守卫）：`Object.keys(DND5E.Conditions)` ≡ `Object.keys(DND5E.ConditionEffects)` 且同 `id` —— 用例在册，防两层漂移（`meta.md ## 规则编写准则 ### 1. 单一权威源`）。
 
+### 两处必踩的坑（D 席真引擎实测；本席已独立复现）
+
+| # | 坑 | 实测读数 | 禁令 |
+|---|---|---|---|
+| 1 | **读路径不得用 `c.contains(裸 id)`** —— `contains` 的参数非 `RPG.Effect` 时落入 **props 分支**（`20-character.js:42-52`：在随身道具中检索满足属性的道具）⇒ 返回**首个道具实例**而非布尔 | 角色带 1 件道具时：`c.contains('frightened')` ⇒ `{"id":"coin","charges":null,"equipped":false}`（**对象 = 恒真值**） | **禁用** `if (c.contains('id'))`；读持有性一律用 **`c.effects.includes(id)`**（本稿 §三 原型已如此） |
+| 2 | **实例层绝不入 State** —— `RPG.Debuff` 实例是**包内常驻注册表**成员，存档只存 **id 字符串** | `c.effects` 存 id（`20-character.js:27-28`，`Character.snapshot()` 亦按 id 序列化） | 写存档/快照时**不得**把 `ConditionEffects[id]` 实例塞进 `State.variables`（与仓内 `src/README.md`「F1·角色血量不进存档」的道具快照范式同源） |
+
 **可复现证据**（与引擎侧 `instanceof` 守卫同形）——以下为**核心片段**（含 `Character` 守卫桩与 5 条断言的**完整可跑脚本**见本 PR 票面 comment；本稿实跑 **不符数 = 0/5**）：
 
 ```js
@@ -288,7 +295,7 @@ console.log(`不符数 = ${bad}/10`);
 | `targetMelee` / `targetRanged` | `rollMode()` `ctx.melee` 分支 | **P1** |
 | `inactive` | `canAct()`（派生式） | **P1** |
 | `saveEnd.ability` | `saveEnd()` → `DND5E.save()` | **P2** |
-| `levels`（exhaustion） | `DND5E.d20TestMod(character)`（P2 新增）→ `src/dnd/dnd-5e/core/combat.js` 的 `#attack()` 调整值汇合处（平值修正，**非**优势/劣势 ⇒ 不走 `rollMode`） | **P2** |
+| `levels`（exhaustion） | `DND5E.d20TestMod(character)`（P2 新增，平值修正）⇒ **消费点有两处**：① **`DND5E.attack()`**（`src/dnd/dnd-5e/core/combat.js:47`）的 `atkMod` 汇合处（`:70`）② **`DND5E.save()`**（同包，P2 同时交付）的检定汇总处——**SRD L573 明定「D20 Tests encompass ability checks, attack rolls, **and saving throws**」⇒ 只接攻击面 ⇒ exhaustion 对豁免不生效（与源文不符）** | **P2** |
 | `autoCritMelee` | P3 攻击结算 | **P3** |
 | `cannotAttackSource` | P3 Battle 约束 | **P3** |
 | `speed0` | P4（WorldMap 层） | **P4** |
@@ -307,9 +314,9 @@ console.log(`不符数 = ${bad}/10`);
 Battle 循环（src/core/40-battle.js）
   ├── 现有：isOut 判定 → 跳过
   ├── 【P1 新增】DND5E.canAct(attacker) → 跳过（失能/麻痹/石化/震慑/昏迷）
-  ├── BattleTurn.execute() → #attack() → weapon.used()
-  │     ├── 【P1 新增】DND5E.rollMode(attacker, defender, {melee}) → 选 d20/d20adv/d20dis
-  │     ├── 【P2 新增】DND5E.d20TestMod(attacker) → 平值修正汇入调整值（exhaustion −2×级；**非**优势/劣势，与 rollMode 分路）
+  ├── BattleTurn.execute() → core `#attack()`（`40-battle.js:28`，仅选武器）→ weapon.used() → **pack `DND5E.attack()`（`dnd-5e/core/combat.js:47`）** ← **规则判定面**
+  │     ├── 【P1 新增】DND5E.rollMode(attacker, defender, {melee}) → 选 d20/d20adv/d20dis（选择点：`combat.js:74`）
+  │     ├── 【P2 新增】DND5E.d20TestMod(attacker) → 平值修正汇入 `atkMod`（`combat.js:70`）与 **`DND5E.save()` 的检定汇总处**（exhaustion −2×级；**非**优势/劣势，与 rollMode 分路；**含豁免**，据 SRD L573）
   │     └── 【P3 新增】autoCritMelee 判定
   └── 【P2 新增】回合末 DND5E.saveEnd(c, cond) —— ⚠️ 见下「承载点」
 ```
@@ -324,7 +331,9 @@ Battle 循环（src/core/40-battle.js）
 ⇒ **无论甲乙，均改核心**（与 §九.1 的边界陈述一致，不再自相矛盾）。
 
 ### `d20adv` / `d20dis` 归位
-两者**已存在于 5E 包**（`00-init.js:35-36`），P1 只在 `#attack()` 中**接线**（按 `rollMode` 结果选骰）——**不重造**。其"优势生效"的锁面见 §八.3。
+两者**已存在于 5E 包**（`00-init.js:35-36`），P1 只在 **pack 的 `DND5E.attack()`**（`src/dnd/dnd-5e/core/combat.js:74` 的 `const die = DND5E.d20()` 处）**接线**（按 `rollMode` 结果选骰）——**不重造**。其"优势生效"的锁面见 §八.3。
+
+> ⚠️ **勿混称两个 `attack`**（回应 D 席 P3-1/2）：**core 的 `#attack()`**（`src/core/40-battle.js:28`，私有）**只做「选武器 → `weapon.used()`」，不含规则数学**；**pack 的 `DND5E.attack()`**（`src/dnd/dnd-5e/core/combat.js:47`）才是规则该落之处（`atkMod` 在 `:70`、选骰在 `:74`）。本文凡写「判定面」均指后者。
 
 ---
 
@@ -372,6 +381,11 @@ Battle 循环（src/core/40-battle.js）
    - **dnd3/wfrp 行为不受影响** ⇒ 由 §八.4 负例**证明**，不由陈述保证。
 2. `charmed` 的施魅者追踪 ⇒ **P3**（`condition.source`）；P1/P2 声明表中**不含**该字段。
 3. `exhaustion` ⇒ **P2**（**D20 Test 平值修正**面：`-2×级`，6 级死亡，长休减 1 级）；**速度面（`-5×级`，L782）随移动系统归 P4**——与 `grappled`/`restrained` 的 `speed0` 同族（同源：现仓无移动系统）。升降级与旧级移除须显式（**移除走实例层**：`lose(ConditionEffects[id])`，见 §三「两层模型」）。
+
+   **⚠️ 层级 id 与两层键集守卫的交互（D 席 P3-4；§三 守卫要求两层键集一致）**：5.2.1 的 exhaustion 有 **0–6 级**，故两层须**同步**承载层级——二择（P2 实现时选定并写明）：
+   - **(甲) 每级一条目**：`exhaustion:1` … `exhaustion:6` 各在 `Conditions` 与 `ConditionEffects` 各一条（两层各 6 项，键集仍一致）；升降级 = `lose(旧级实例)` + `gain(新级实例)`。
+   - **(乙) 单条目 + 级数分存**：`Conditions.exhaustion = { levels: true }`、`ConditionEffects.exhaustion` 单实例；实际级数另存（如 `character.stats.exhaustionLevel`），由 `d20TestMod` 读级数。
+   ⇒ 无论甲乙，**键集守卫均须沿用**（甲靠同形、乙靠单形）；`levels` 字段的消费点见 §五。
 4. `grappled` 的「对非擒抱者劣势」⇒ **P1 按无条件劣势实现并标注简化**，例外分支归 **P4**（同 `speed0`）。
 5. `DND5E.save` 与 `DND3.save` **口径不同**（前者按 `save_<ability>`、后者按豁免类型索引）⇒ 本稿**不自作统一**，仅在 5E 包内交付；跨包统一若需要，另立票。
 6. `deafened` 需听觉检定系统（现仓无技能系统）⇒ **P4 降级实现**（`canHear=false` 标记），技能系统另立票。

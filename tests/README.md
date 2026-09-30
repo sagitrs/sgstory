@@ -61,7 +61,7 @@ python build.py        # 同时产出 tests/unit/bundle.js 与 e2e 的 game.html
 
 ## 测试基建纪律（命令与探针）
 
-任何**可能阻塞**的命令——jsdom／网络请求／DOM 事件等待／子进程／交互式命令——都必须**自带超时**并**保留退出码**。以下七条为硬性要求：
+任何**可能阻塞**的命令——jsdom／网络请求／DOM 事件等待／子进程／交互式命令——都必须**自带超时**并**保留退出码**。以下八条为硬性要求：
 
 1. **必套超时**：`timeout 60 node scripts/probe.js …`。没有超时的探针一旦在等外部资源（不可达主机、永不触发的 DOM 事件），会**永不返回**。
 2. **禁用「生产者 | head -N」作为「跑一下看看」的形态**：`head` 在收满 N 行前**一直等生产端**，生产端一挂则**整条管道无声挂死**（既无输出也无退出码），并且会**卡住调用它的会话**（会话在工具调用返回前不处理新输入）。
@@ -85,6 +85,24 @@ python build.py        # 同时产出 tests/unit/bundle.js 与 e2e 的 game.html
    也不能证明红是突变造成的。
    > 实证（2026-09-30）：一次「陷阱路绕过随机源」的实验**先得全绿**，一度被判为「用例抓不住该回归」；
    > 补重建后**同一突变 10/10 红**，结论**反转**。见 `#1715`／`#1710`。
+8. **改任何 CRLF 文件（含 `src/**` 的注释笔）须二进制替换 ＋ 前后行尾断言**：本仓不少文件是
+   **CRLF**（`tests/README.md` 自己就是；`src/**` 也有）。用 text 方式改写（`Path.write_text()`、
+   `sed -i`、多数编辑器的「保存」）会把行尾**静默归一成 LF** ⇒ 产生**整档伪 diff**
+   （改动只有一行，diff 却是全文），审阅者无法看清真实改动、评审面被噪声淹没。
+   正解：**以字节为底做替换**，并在写入**前后**各断言一次行尾数不变：
+   ```python
+   raw = p.read_bytes()
+   assert raw.count(b'\r\n') == raw.count(b'\n') > 0      # 前置：确认是 CRLF
+   out = raw.replace(old_bytes, new_bytes)
+   assert out.count(b'\r\n') == out.count(b'\n')          # 后置：行尾未被归一
+   p.write_bytes(out)
+   ```
+   **一行自检**（改完立刻验，与 base 比行尾数）：
+   ```bash
+   python3 -c "import pathlib,sys; r=pathlib.Path(sys.argv[1]).read_bytes(); print(r.count(b'\r\n'), r.count(b'\n'))" <文件>
+   ```
+   > 实证（2026-09-30）：我改 `src/dnd/**` 的 4 处注释时未察觉其为 CRLF ⇒ 行尾静默转 LF、
+   > 整档伪 diff（**正是本节上文自己写下的那条坑**）。见 `#1738`／`#1720`。
 
 
 ## 如何写单元用例

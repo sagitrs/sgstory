@@ -5,6 +5,6 @@ DND5E.Dagger = RPG.defItem({
 	stats: { dmg: '1d4', type: 'piercing', weight: 1, cost: 2,
 		finesse: true, thrown: '20/60' },
 	weapon: true, slot: 'weapon', charges: null, stackable: false,
-	actions: { equip: RPG.slotEquip, unequip: RPG.slotUnequip },
+	actions: { equip: RPG.slotEquip, unequip: RPG.slotUnequip, throw: RPG.throwItem },
 	used(that, from) { DND5E.attack(this, that, from); },
 });

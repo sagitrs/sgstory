@@ -40,6 +40,7 @@ const CITATION_LOOKBACK = 3;
 const SCAN_DIRS = ['src', 'tests', 'stories'];
 const SCAN_EXT = ['.js', '.mjs', '.twee'];
 const SCAN_SKIP_DIRS = ['node_modules', 'dist', 'build', 'vendor', '.git', 'gates'];
+const BLOCK_WINDOW = 40;                        // 引用指向条目标题行时的向下扫窗上限（行）
 const CACHE_DIR = path.join(ROOT, 'tests', 'gates', 'pin-cache');
 const EXEMPTIONS_FILE = path.join(ROOT, 'tests', 'gates', 'claims-exemptions.json');
 const NAME_MAP_FILE = path.join(ROOT, 'tests', 'gates', 'name-map.json');
@@ -65,7 +66,7 @@ const ABIL_KEYS = ['STR', 'DEX', 'CON', 'INT', 'WIS', 'CHA'];
 const ABIL_FIELD = { STR: 'str_mod', DEX: 'dex_mod', CON: 'con_mod', INT: 'int_mod', WIS: 'wis_mod', CHA: 'cha_mod' };
 const abilMod = (score) => Math.floor((score - 10) / 2);
 const RE_ABILITY_5E = /<td><strong>(STR|DEX|CON|INT|WIS|CHA)<\/strong><\/td>\s*<td>(-?\d+)<\/td>\s*<td>([+-]?\d+)<\/td>/g;
-const RE_ABILITY_3E_LINE = /\|\s*Abilities:\s*\|/i;
+const RE_ABILITY_3E_LINE = /Abilities:\s*\|?\s*Str\s+\d/i;   // 兼容两种源格式：`| Abilities: | Str 11, …` 与 `Abilities:   Str 11, …`
 const RE_ABILITY_3E_PAIR = /\b(Str|Dex|Con|Int|Wis|Cha)\s+(\d+)/g;
 
 const problems = [];
@@ -183,6 +184,7 @@ let claims = 0, verified = 0, exemptCitation = 0, exemptValue = 0, placeholders 
 let sourceLineClaims = 0, valueChecked = 0, valueCompared = 0, selfCheck = 0, selfChecked = 0;
 const uncovered = [];
 let cmp5e = 0, cmp3e = 0;   // A 组比对按源格式分计（验收 4）
+const noValueCites = [];    // 引用解析成功但抽不到可比值（静默 0 覆盖 ⇒ 须可见）
 let cGroupChecked = 0;
 const mappingHit = new Set();
 
@@ -192,7 +194,23 @@ function sourceValues(cachePath, entry) {
   const nums = String(entry ?? '').split(/[-–/]/).map(Number).filter(Number.isFinite);
   if (nums.length === 0) return out;
   const lo = Math.max(1, Math.min(...nums));
-  const hi = Math.min(Math.max(...nums), ls.length);
+  let hi = Math.min(Math.max(...nums), ls.length);
+  /* 引用指向**条目标题行**时（如 `## Goblin`，值在下方「Abilities:」行）：向下**限量**延伸扫窗，
+   * 上限 BLOCK_WINDOW 行且遇下一标题行即止。
+   * 必要性：否则该引用**静默抽不到任何值**（0 次比对、连「未覆盖」也不产生）。
+   * 限量而非「扫到块尾」：3E 源为整本 dump，块尾可能远在数百行外 ⇒ 会吃到别的条目（实测：无限扫窗
+   * 使未覆盖从 1 项涨到 120 项并误红）。 */
+  if (/^#{1,6}\s/.test(ls[lo - 1] ?? '')) {
+    /* 只对**条目标题行**引用延伸扫窗（上限 BLOCK_WINDOW、遇下一标题行即止）。
+     * 必要性：`## Goblin` 这类引用若只扫本行，会**静默抽不到值**（0 比对且无记账）。
+     * 为何不推广到「单行引用一律延伸」：实测在合入 #1724 的树上会**误红**（41/42，35 项未覆盖）
+     * —— 40 行扫窗会吃到相邻条目的值；宁可让这类引用进入「引用无可抽取值」**记账可见**。 */
+    const cap = Math.min(lo + BLOCK_WINDOW, ls.length);
+    for (let i = hi + 1; i <= cap; i++) {
+      if (/^#{1,6}\s/.test(ls[i - 1])) break;
+      hi = i;
+    }
+  }
   for (let i = lo; i <= hi; i++) {
     for (const [k, re] of Object.entries(SRC_VAL_RES)) {
       const m = re.exec(ls[i - 1]);
@@ -352,8 +370,14 @@ for (const f of files) {
          *  （探针：删掉注释行的 `hp: 7,` 而保留「HP 7」 ⇒ 6/6 变 5/5、门仍绿）。
          *  现在「仓内字段缺、但声称写了值」仍与源比对（取声称值）；**源有值而本行未声称**者
          *  进入「未覆盖」记账并在读数行打印（甲）。 */
-        const claimed = {};
-        for (const m of text.matchAll(/\b(STR|DEX|CON|INT|WIS|CHA)\b\s+\d+\s*[（(](-?\d+)[）)]/g)) claimed[m[1]] = Number(m[2]);
+        const claimed = {};      // 调整值口径
+        const claimedRaw = {};   // 原始分口径
+        for (const m of text.matchAll(/\b(STR|DEX|CON|INT|WIS|CHA)\b\s+(\d+)\s*[（(](-?\d+)[）)]/g)) {
+          claimedRaw[m[1]] = Number(m[2]); claimed[m[1]] = Number(m[3]);
+        }
+        for (const m of text.matchAll(/\b(STR|DEX|CON|INT|WIS|CHA)\b\s+(\d+)(?![\d（(])/g)) {
+          if (claimedRaw[m[1]] === undefined) claimedRaw[m[1]] = Number(m[2]);
+        }
         for (const m of text.matchAll(/\b(HP|AC)\s+(\d+)/g)) claimed[m[1]] = Number(m[2]);
         for (const k of ABIL_KEYS) if (titlePairs[k] !== undefined) claimed[k] = titlePairs[k];
         if (titlePairs.HP !== undefined) claimed.HP = titlePairs.HP;
@@ -363,6 +387,8 @@ for (const f of files) {
         for (const k of ABIL_KEYS) {
           const am = body.match(new RegExp(`assert\\.eq\\([^,]*\\.${ABIL_FIELD[k]}\\s*,\\s*(-?\\d+)`));
           if (am) claimed[k] = Number(am[1]);
+          const ar = body.match(new RegExp(`assert\\.eq\\([^,]*\\.${k.toLowerCase()}\\s*,\\s*(-?\\d+)`));   // 原始分断言（#1724）
+          if (ar) claimedRaw[k] = Number(ar[1]);
         }
         for (const [k, fl] of [['HP', '(?:maxHp|hp)'], ['AC', 'ac']]) {
           const am = body.match(new RegExp(`assert\\.eq\\([^,]*\\.${fl}\\s*,\\s*(\\d+)`));
@@ -370,20 +396,43 @@ for (const f of files) {
         }
         for (const r of effResolved) {
           const src = sourceValues(r.cachePath, r.entry);
+          const hasClaims = Object.keys(claimed).length > 0 || Object.keys(claimedRaw).length > 0
+            || Object.keys(titlePairs).length > 0;
+          if (hasClaims && Object.keys(src).length === 0) noValueCites.push(`${at} → ${path.basename(r.cachePath)}:${r.entry}`);
           const repoVals = {};
           const hpm = text.match(/hp\s*:\s*(\d+)/); if (hpm) repoVals.HP = Number(hpm[1]);
           const acm = text.match(/ac\s*:\s*(\d+)/); if (acm) repoVals.AC = Number(acm[1]);
+          const repoRaw = {}, repoMod = {};
           for (const k of ABIL_KEYS) {
-            const m = text.match(new RegExp(`${ABIL_FIELD[k]}\\s*:\\s*(-?\\d+)`));
-            if (m) repoVals[k] = Number(m[1]);
+            const mm = text.match(new RegExp(`${ABIL_FIELD[k]}\\s*:\\s*(-?\\d+)`));      // 旧形态 `str_mod:`
+            if (mm) repoMod[k] = Number(mm[1]);
+            const rm = text.match(new RegExp(`\\b${k.toLowerCase()}\\s*:\\s*(-?\\d+)`)); // 新形态 `str:`（#1724 原始分）
+            if (rm) repoRaw[k] = Number(rm[1]);
           }
           for (const k of Object.keys(src)) {
-            const rv = repoVals[k] !== undefined ? repoVals[k] : claimed[k];   /* 关键：缺字段时回落到声称值，不静默跳过 */
-            if (rv === undefined) { uncovered.push(`${at} ${k}（源=${src[k].v}@${path.basename(r.cachePath)}:${src[k].line}，本行/用例未声称）`); continue; }
+            const isAbil = ABIL_KEYS.includes(k);
+            let rv, sv, unit;
+            if (isAbil && src[k].score !== undefined) {
+              /* 原始分口径优先（两侧都有原始分时最直接；#1724 后仓内即原始分） */
+              const raw = repoRaw[k] !== undefined ? repoRaw[k] : claimedRaw[k];
+              if (raw !== undefined) { rv = raw; sv = src[k].score; unit = '原始分'; }
+            }
+            if (rv === undefined) {
+              const rm = repoMod[k] !== undefined ? repoMod[k] : claimed[k];
+              if (rm !== undefined) { rv = rm; sv = src[k].v; unit = '调整值'; }
+            }
+            if (rv === undefined) {
+              /* 纯引用行（未声称任何值）不记账 —— 其值由**同块的相邻行**承载（如 `stats:` 行）；
+               * 只有「本行声称了一部分、源还有其余」才是真缺口（作者枚举不全）。 */
+              const hasClaims = Object.keys(claimed).length > 0 || Object.keys(claimedRaw).length > 0
+                || Object.keys(titlePairs).length > 0;
+              if (hasClaims) uncovered.push(`${at} ${k}（源=${src[k].v}@${path.basename(r.cachePath)}:${src[k].line}，本行/用例未声称）`);
+              continue;
+            }
             valueCompared++;
-            if (r.face === '3E') cmp3e++; else cmp5e++;   /* 验收 4：区分 3E 换算 与 5E 调整列 */
-            if (src[k].v === rv) valueChecked++;
-            else red(`源值比对不符（A 组）：${at} ${k} 仓内/声称=${rv} 源=${src[k].v}（${path.basename(r.cachePath)}:${src[k].line}）`);
+            if (r.face === '3E') cmp3e++; else cmp5e++;
+            if (sv === rv) valueChecked++;
+            else red(`源值比对不符（A 组）：${at} ${k} ${unit} 仓内/声称=${rv} 源=${sv}（${path.basename(r.cachePath)}:${src[k].line}）`);
           }
         }
       }
@@ -410,6 +459,10 @@ console.log(`  口径：声称 ${claims}（= 源行 ${sourceLineClaims} + 其它
 console.log(`  第①级：已核 ${verified}（含约定占位 ${placeholders}）/ 不符 ${problems.length}；其它豁免 ${exemptCitation}（${pctOther.toFixed(1)}%，分母=${claims}，上限 ${EXEMPTION_CAP_PCT}%）`);
 console.log(`  tier-②：A 组源值比对 已核 ${valueChecked}/${valueCompared}（分母=**声称侧**可比对项）｜C 组映射 已核 ${cGroupChecked}/${nameMap.length}（命中条目 ${[...mappingHit].join('、') || '-'}）`);
 console.log(`            按源格式：5E 调整列 ${cmp5e} 次 ＋ 3E 原始分换算 ${cmp3e} 次`);
+if (noValueCites.length > 0) {
+  console.log(`  第①级/A 组：**引用无可抽取值** ${noValueCites.length} 处（引用区间/块内未解析出 HP/AC/属性 ⇒ 静默 0 覆盖，记账可见）：`);
+  for (const c of noValueCites) console.log(`    · ${c}`);
+}
 if (uncovered.length > 0) {
   console.log(`  tier-②：A 组**未覆盖** ${uncovered.length} 项（源有值、本行/用例未声称 ⇒ 记账不红，防分母静默缩小）：`);
   for (const u of uncovered) console.log(`    · ${u}`);

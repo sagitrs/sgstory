@@ -56,6 +56,19 @@ function edit(dir, rel, from, to) {
   if (!s.includes(from)) throw new Error(`假刀失配：${rel} 内找不到待改文本：${from.slice(0, 60)}`);
   fs.writeFileSync(p, s.replace(from, to));
 }
+/* 形态无关改写：属性值在 `_mod`（旧）与原始分（#1724 起）两种形态下各有锚点；
+ * 逐个尝试，全部失配即显式失败（不得静默无操作 —— 见 #1715）。 */
+function editAny(dir, rel, variants) {
+  const p = path.join(dir, rel);
+  let s = fs.readFileSync(p, 'utf8');
+  for (const pairs of variants) {                      // 每个 variant = 一组 [from,to]（可多次替换，保证形态内自洽）
+    if (pairs.every(([from]) => s.includes(from))) {
+      for (const [from, to] of pairs) s = s.replace(from, to);
+      fs.writeFileSync(p, s); return;
+    }
+  }
+  throw new Error(`假刀失配（形态无关）：${rel} 内各形态锚点均未命中`);
+}
 
 const knives = [
   { id: 'K0', name: '洁净副本 ⇒ 绿', expect: 0, mark: '✓ 门绿', apply: () => {} },
@@ -119,14 +132,20 @@ const knives = [
     apply: (d) => edit(d, 'tests/gates/name-map.json', '"entry": "Goblin Minion"', '"entry": "Goblin Warrior"'),
   },
   {
-    id: 'K10', name: '改仓内属性调整值（注释不同步）⇒ 红【#1725 A 组属性面】', expect: 1, mark: '源值比对不符（A 组）',
-    apply: (d) => edit(d, 'src/dnd/dnd-5e/monsters/goblin.js', 'str_mod: -1, dex_mod: 2, con_mod: 0,', 'str_mod: -1, dex_mod: 3, con_mod: 0,'),
+    id: 'K10', name: '改仓内属性值（注释不同步）⇒ 红【#1725 A 组属性面】', expect: 1, mark: '源值比对不符（A 组）',
+    apply: (d) => editAny(d, 'src/dnd/dnd-5e/monsters/goblin.js', [
+      [['str_mod: -1, dex_mod: 2, con_mod: 0,', 'str_mod: -1, dex_mod: 3, con_mod: 0,']],          // 旧形态（*_mod）
+      [['str: 8, dex: 15, con: 10,', 'str: 8, dex: 16, con: 10,']],                                // 原始分形态（#1724）
+    ]),
   },
   {
-    id: 'K10b', name: '改属性调整值**且注释同步改**（一致地错）⇒ 红【#1725 验收刀】', expect: 1, mark: '源值比对不符（A 组）',
-    apply: (d) => edit(d, 'src/dnd/dnd-5e/monsters/goblin.js',
-      'dex_mod: 2, con_mod: 0, // 同上 :7279/7283/7287 —— STR 8(−1) DEX 15(+2) CON 10(+0)',
-      'dex_mod: 3, con_mod: 0, // 同上 :7279/7283/7287 —— STR 8(−1) DEX 15(+3) CON 10(+0)'),
+    id: 'K10b', name: '改属性值**且注释同步改**（一致地错）⇒ 红【#1725 验收刀】', expect: 1, mark: '源值比对不符（A 组）',
+    apply: (d) => editAny(d, 'src/dnd/dnd-5e/monsters/goblin.js', [
+      [['dex_mod: 2, con_mod: 0, // 同上 :7279/7283/7287 —— STR 8(−1) DEX 15(+2) CON 10(+0)',
+        'dex_mod: 3, con_mod: 0, // 同上 :7279/7283/7287 —— STR 8(−1) DEX 15(+3) CON 10(+0)']],
+      [['str: 8, dex: 15, con: 10, // 同上 :7279/7283/7287 —— STR 8(−1) DEX 15(+2) CON 10(+0)',
+        'str: 8, dex: 16, con: 10, // 同上 :7279/7283/7287 —— STR 8(−1) DEX 16(+3) CON 10(+0)']],  // 值 ∧ 注释**同步**改（一致地错）
+    ]),
   },
   {
     id: 'K11', name: '删掉行内字段但保留声称值（#1722 writer 的 MAJOR：旧码静默缩分母）⇒ 红', expect: 1, mark: '源值比对不符（A 组）',

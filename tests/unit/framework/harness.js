@@ -38,7 +38,7 @@ window.__runTests = async () => {
 			fail++; results.push(['fail', `${t.name} —— ${e.message}`]);
 		}
 	}
-	window.__unitResult = { total: window.__tests.length, pass, fail };
+	window.__unitResult = { total: window.__tests.length, pass, fail, failures: results.filter(r => r[0] === 'fail').map(r => r[1]) };
 	const $out = document.getElementById('out');
 	for (const [st, name] of results) {
 		$out.insertAdjacentHTML(

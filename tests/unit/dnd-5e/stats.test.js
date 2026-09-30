@@ -17,18 +17,28 @@
 		}
 	});
 
-	/* 出处：SRD 5.2.1 · monsters-A-Z.md:7256-7287（「Goblin Minion」）；命名映射见 README「规则来源」§三.4 */
+	/* 出处：SRD 5.2.1 · monsters-A-Z.md:7256-7287（「Goblin Minion」）；WIS/CHA 见 :7297/7301；命名映射见 README「规则来源」§三.4 */
 	test('5e：哥布林数值对齐 SRD 5.2.1 · Goblin Minion（AC 12, HP 7, STR -1, DEX +2）', () => {
 		assert.eq(D().Goblin.stats.ac, 12);
 		assert.eq(D().Goblin.maxHp, 7);
 		assert.eq(D().Goblin.stats.str_mod, -1);
 		assert.eq(D().Goblin.stats.dex_mod, 2);
+		assert.eq(D().Goblin.stats.wis_mod, -1, 'WIS 8 ⇒ −1');
+		assert.eq(D().Goblin.stats.cha_mod, -1, 'CHA 8 ⇒ −1');
 	});
 
-	/* 出处：SRD 5.2.1 · monsters-A-Z.md:7408-7409（「Goblin Boss」） */
+	/* 出处：SRD 5.2.1 · monsters-A-Z.md:7408-7409（「Goblin Boss」）；WIS 见 :7449 */
 	test('5e：哥布林首领数值对齐 SRD 5.2.1 · Goblin Boss（AC 17, HP 21）', () => {
 		assert.eq(D().GoblinBoss.stats.ac, 17);
 		assert.eq(D().GoblinBoss.maxHp, 21);
+		assert.eq(D().GoblinBoss.stats.wis_mod, -1, 'WIS 8 ⇒ −1');
+	});
+
+	/* 出处：SRD 5.2.1 · monsters-A-Z.md:8753（「Guard」）——DEX 12（+1）／CON 12（+1）；
+	 * HP/AC 为本仓设计值（「受伤入场」变体），不在此断言对齐。 */
+	test('5e：受伤的守护属性调整值对齐 SRD 5.2.1 · Guard（DEX +1, CON +1）', () => {
+		assert.eq(D().Guard.stats.dex_mod, 1);
+		assert.eq(D().Guard.stats.con_mod, 1);
 	});
 
 	test('5e：优势/劣势掷骰', () => {

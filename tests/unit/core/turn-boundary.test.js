@@ -211,6 +211,33 @@
 		}
 	});
 
+	test('turnBoundary：自动通路 body 抛错时仍发 turnEnd（与交互通路的 finally 对称）', async () => {
+		resetGoblin();
+		// 抛错武器：used() 直接抛 ⇒ 自动通路的 BattleTurn.execute() 抛错
+		R().defItem({
+			id: 'u-boom-sword', name: '爆裂剑', weapon: true, slot: 'weapon', stats: { dmg: '1' },
+			used() { throw new Error('武器结算故障'); },
+		});
+		const p = makePlayer([{ id: 'u-boom-sword', equipped: true }]);
+		let threw = false;
+		const { log, off } = probeEvents();
+		try {
+			try {
+				await new (R().Battle)(1, [p], [D().Goblin]).execute();
+			} catch (e) {
+				threw = true; // 抛错向外传播
+			}
+			const mine = log.filter(([, n]) => n === '测试员').map(([tp]) => tp);
+			assert.eq(JSON.stringify(mine), JSON.stringify(['battle:turnStart', 'battle:turnEnd']),
+				'自动通路抛错后 turnEnd 仍恰好一次（finally）');
+			assert.ok(threw, '抛错本身向外传播（本面只负责收尾）');
+			// 与交互通路的形态对称 ⇒ 两条通路各有一条「抛错仍收尾」用例（M②2 的对照面）
+			assert.eq(log.filter(([tp]) => tp === 'battle:turnEnd').length, 1, '整场只一次 turnEnd');
+		} finally {
+			off();
+		}
+	});
+
 	test('turnBoundary：独立调用（不经 Battle）——start/end 可直接用，end 的 payload 冻结', () => {
 		const actor = makePlayer();
 		const { log, off } = probeEvents();

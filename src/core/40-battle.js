@@ -157,8 +157,13 @@ RPG.Battle = class Battle extends RPG.Event {
 				if (isPlayerControlled) {
 					await this.#playerAction(attacker); // 交互式回合（turnEnd 在通路的 finally）
 				} else {
-					new RPG.BattleTurn(attacker, pick(foes)).execute();
-					RPG.turnBoundary.end({ actor: attacker, battle: this });
+					// F2：自动通路的收尾同样包 try/finally（与交互通路的 finally **对称**）——
+					// 武器 used() 等结算抛错时仍发 turnEnd，回合边界不因异常而漏（抛错本身照常传播）
+					try {
+						new RPG.BattleTurn(attacker, pick(foes)).execute();
+					} finally {
+						RPG.turnBoundary.end({ actor: attacker, battle: this });
+					}
 				}
 			}
 		}

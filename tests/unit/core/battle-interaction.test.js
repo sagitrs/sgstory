@@ -74,4 +74,50 @@
 		assert.ok(enemyOpt && enemyOpt.text.includes('敌方'), '敌人标注敌方');
 		assert.ok(allyOpt && allyOpt.text.includes('己方'), '盟友标注己方');
 	});
+
+	/* ---------- dispatchAction 分派决策（M5b/M5d 突变检测） ---------- */
+
+	test('battle dispatch：skip → {type:skip}，不进入目标选择（M5d）', () => {
+		const d = R().Battle.dispatchAction('skip', null, null);
+		assert.eq(d.type, 'skip', 'skip 分派返回 skip');
+		assert.ok(!('item' in d) || d.item === null, 'skip 不携带道具');
+	});
+
+	test('battle dispatch：equip → {type:equip,item}，经 useItem 提交（M5b）', () => {
+		R().give('club');
+		const item = R().reviveItem(State.variables.inventory[0]);
+		const d = R().Battle.dispatchAction('0', 'equip', item);
+		assert.eq(d.type, 'equip', '分派返回 equip');
+		assert.ok(d.item && d.item.id === 'club', '携带正确的道具');
+		// 实际执行：验证 useItem 提交到背包快照
+		assert.ok(!State.variables.inventory[0].equipped, '初始未装备');
+		R().useItem(d.item.id, D().Player, D().Player, d.type);
+		assert.ok(State.variables.inventory[0].equipped, 'equip 经 useItem 提交到快照');
+	});
+
+	test('battle dispatch：unequip → {type:unequip,item}，经 useItem 提交', () => {
+		R().give('club'); R().equip('club');
+		const item = R().reviveItem(State.variables.inventory[0]);
+		const d = R().Battle.dispatchAction('0', 'unequip', item);
+		assert.eq(d.type, 'unequip', '分派返回 unequip');
+		assert.ok(State.variables.inventory[0].equipped, '初始已装备');
+		R().useItem(d.item.id, D().Player, D().Player, d.type);
+		assert.ok(!State.variables.inventory[0].equipped, 'unequip 经 useItem 提交到快照');
+	});
+
+	test('battle dispatch：use → {type:use,item}，进入目标选择', () => {
+		R().give('club');
+		const item = R().reviveItem(State.variables.inventory[0]);
+		const d = R().Battle.dispatchAction('0', 'use', item);
+		assert.eq(d.type, 'use', '分派返回 use');
+		assert.ok(d.item && d.item.id === 'club', '携带道具');
+	});
+
+	test('battle dispatch：无动作参数 → 默认 use（只有「使用」一个选项时）', () => {
+		R().give('bandage');
+		const item = R().reviveItem(State.variables.inventory[0]);
+		// 绷带没有 equip/unequip handler，动作层只有 use
+		const d = R().Battle.dispatchAction('0', 'use', item);
+		assert.eq(d.type, 'use', '默认为 use');
+	});
 })();

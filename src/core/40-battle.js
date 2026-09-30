@@ -165,6 +165,21 @@ RPG.Battle = class Battle extends RPG.Event {
 	 * 装备/卸下消耗整回合（不走目标选择）；使用武器时自动拔出（不额外消耗）。
 	 * 选项构造在 buildPlayerOptions()（可测试纯函数），本方法只做交互与执行。
 	 */
+	/**
+	 * 分派决策（纯函数，可单元测试）。
+	 * 根据 chosen（道具选择）和 action（动作选择）返回执行指令：
+	 *   { type: 'skip' }           → 跳过回合，不消耗资源
+	 *   { type: 'equip', item }    → 装备，经 useItem 提交，消耗回合
+	 *   { type: 'unequip', item }  → 卸下，经 useItem 提交，消耗回合
+	 *   { type: 'use', item }      → 使用，进入目标选择
+	 */
+	static dispatchAction(chosen, action, item) {
+		if (chosen === 'skip') return { type: 'skip' };
+		if (action === 'equip') return { type: 'equip', item };
+		if (action === 'unequip') return { type: 'unequip', item };
+		return { type: 'use', item };
+	}
+
 	async #playerAction(attacker) {
 		const slots = attacker.items;
 		if (slots.length === 0) {
@@ -179,32 +194,35 @@ RPG.Battle = class Battle extends RPG.Event {
 		// ① 选道具
 		this.perform(`现在是${attacker.name}的回合，请选择道具：`);
 		const chosen = await attacker.choice(itemOptions);
-		if (chosen === 'skip') {
+		const item = chosen === 'skip' ? null : setup.RPG.reviveItem(slots[Number(chosen)]);
+
+		// ② 选动作
+		let action = 'use';
+		if (item) {
+			const actions = actionOptionsFor(item);
+			if (actions.length > 1) {
+				this.perform(`对「${item.name}」做什么？`);
+				action = await attacker.choice(actions);
+			}
+		}
+
+		// ③ 分派执行（决策在 dispatchAction，纯函数可测）
+		const dispatch = RPG.Battle.dispatchAction(chosen, action, item);
+		if (dispatch.type === 'skip') {
 			this.perform(`${attacker.name}按兵不动。`);
 			return;
 		}
-		const item = setup.RPG.reviveItem(slots[Number(chosen)]);
-
-		// ② 选动作
-		const actions = actionOptionsFor(item);
-		let action = 'use';
-		if (actions.length > 1) {
-			this.perform(`对「${item.name}」做什么？`);
-			action = await attacker.choice(actions);
-		}
-
-		// 装备/卸下：消耗整回合，直接结束（经 useItem 提交到背包快照）
-		if (action === 'equip' || action === 'unequip') {
-			setup.RPG.useItem(item.id, attacker, attacker, action);
+		if (dispatch.type === 'equip' || dispatch.type === 'unequip') {
+			setup.RPG.useItem(dispatch.item.id, attacker, attacker, dispatch.type);
 			return;
 		}
 
-		// ③ 使用：选目标
-		this.perform(`对谁使用${item.name}？`);
+		// 使用：选目标
+		this.perform(`对谁使用${dispatch.item.name}？`);
 		const targetName = await attacker.choice(targetOptions);
 		const everyone = [...this.players, ...this.enemies].filter((c) => !this.isOut(c));
 		const target = everyone.find((c) => c.name === targetName);
 
-		attacker.use(item, target); // 结果由 used 内部 perform 打印
+		attacker.use(dispatch.item, target); // 结果由 used 内部 perform 打印
 	}
 };

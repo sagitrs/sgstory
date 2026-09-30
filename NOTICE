@@ -41,6 +41,10 @@ Copyright (c) 2013-2024, Thomas Michael Edwards <thomasmedwards@gmail.com>. All 
 二、规则数值内容（Rules Content）
 --------------------------------
 
+**第三方内容的逐字副本**：`tests/gates/pin-cache/**` 是本节所列源的**未修改逐字副本**（verbatim copy），
+随仓入库以供应离线校验（门 `tests/gates/refs-integrity.mjs` 据其复核 pin 表「行数 ＋ SHA-1 前 16」）。
+其著作权归原权利人，按下列各面授权分别使用；文件清单、体量与授权细分见同目录 `README.md`。
+
 本仓 `src/dnd/dnd-5e/**` 与 `src/dnd/dnd3/**` 的规则数值（武器伤害骰／护甲 AC／怪物数值块／
 判定数学）分别取材于下列两份 System Reference Document。**两面授权不同，须分别遵守**：
 

@@ -169,13 +169,15 @@ RPG.Character = class Character extends Object {
 			name: snapshot.name,
 			hp: snapshot.hp,
 			maxHp: snapshot.maxHp,
-			stats: snapshot.stats,
+			stats: { ...(snapshot.stats ?? {}) },
 			items: snapshot.items ?? [],
 			properties: snapshot.properties ?? [],
 		});
 		// 效果面按 id 串还原（存档安全）。**未注册 / 形态非法的 id 一律保留**：
 		// 旧档（或未加载的 pack）里的 id 不得让读档硬抛错；注册表无法解释的形态同样保真保留，
 		// 否则读档一次就丢数据（真实未知 vs 存量畸形无法区分，见 #1713 F3 / §1.3）。
+		// 包侧修补（Symbol 标识等在 JSON 往返中丢失的键）——core 不认识任何包名
+		for (const fn of RPG.reviveHooks ?? []) fn(c.stats);
 		c.effects = [...(snapshot.effects ?? [])];
 		c.effectTurns = { ...(snapshot.effectTurns ?? {}) };
 		for (const id of c.effects) {
@@ -200,6 +202,26 @@ RPG.Character = class Character extends Object {
 
 /** 声明式定义角色（推荐）—— new Character(def) 并按 id 登记到 characters 注册表。
  *  同 id 重复注册会 console.warn（与 registerItem 同理）。 */
+/**
+ * 还原钩子登记表（`#1758` 甲/丙形）：`revive()` 对 `stats` 的**包侧修补**点。
+ *
+ * 为什么需要：包的**标识**（如 `setup.DND5E.PACK` 这类 Symbol 键）**不进 JSON** ⇒ 存档往返后丢失。
+ *   Symbol 是判据（如 `#1741` 闸门「只接管本包角色」）的载体，丢了就会**静默失效**。
+ * core 不硬编码任何包名（零 pack 依赖）⇒ 由各包**自行注册**一个修补函数；
+ *   它接收 `stats` 并**就地**重挂自己的标识（键集与 JSON 面**零变化**）。
+ */
+RPG.reviveHooks = [];
+
+/** 注册一个「还原时修补 stats」的钩子；返回注销函数（幂等注册由调用方负责） */
+RPG.onReviveStats = (fn) => {
+	if (typeof fn !== 'function') throw new Error('onReviveStats 需要函数');
+	RPG.reviveHooks.push(fn);
+	return () => {
+		const i = RPG.reviveHooks.indexOf(fn);
+		if (i !== -1) RPG.reviveHooks.splice(i, 1);
+	};
+};
+
 RPG.defCharacter = (def) => {
 	const c = new RPG.Character(def);
 	if (def && def.id) {

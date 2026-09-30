@@ -248,6 +248,6 @@ RPG.events.on('battle:turnEnd', ({ actor } = {}) => {
 RPG.events.on('battle:turnStart', (p) => {
 	const actor = p?.actor;
 	if (!(actor instanceof RPG.Character)) return;
-	if (actor.stats?.[DND5E.PACK] !== 'dnd-5e') return;        // 只接管本包角色（跨包零影响）
+	if (actor.stats?.[DND5E.PACK] !== 'dnd-5e') return;        // 只接管本包角色（跨包零影响；键为 5E 专属 Symbol）
 	if (!DND5E.canAct(actor)) { p.cancel = true; p.reason = '失能'; }
 });

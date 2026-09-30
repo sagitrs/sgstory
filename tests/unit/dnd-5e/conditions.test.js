@@ -351,6 +351,67 @@
 		assert.eq(ctx.rollMode, 'disadvantage', 'blinded 攻方 ⇒ 劣势模式进 ctx');
 	});
 
+	test('conditions 集成：闸门经**存档路径**仍生效 —— 四形态×两包矩阵（#1758 丙形判据）', () => {
+		// 背景：包标识是 Symbol 键 ⇒ **不进 JSON**。若只在「当场构造」的角色上测，
+		// 读档角色会静默失去标识 ⇒ 闸门恒早退（「新洞换旧洞」）。
+		// 本用例把 **A 直构 / B Player 桥接 / C State 快照 revive / D JSON 往返** 四种形态都走一遍。
+		const P5 = setup.DND5E.PACK, P3 = setup.DND3.PACK;
+		const mk = (stats, eff) => {
+			const c = new (R().Character)({ name: '甲', hp: 10, maxHp: 10, stats });
+			c.effects = [...eff];
+			return c;
+		};
+		const gate = (c) => R().turnBoundary.start({ actor: c, battle: null }).cancel;
+		const roundTrip = (c) => R().Character.revive(JSON.parse(JSON.stringify(c.toJSON())));
+
+		// ── A 直构 ──
+		assert.eq(gate(mk(D().stats(), ['paralyzed'])), true, 'A 直构 5E：拦');
+		assert.eq(gate(mk(setup.DND3.stats(), ['paralyzed'])), false, 'A 直构 3E：不拦');
+
+		// ── C State 快照 revive ──
+		State.variables.actors = { x: JSON.parse(JSON.stringify(mk(D().stats(), ['paralyzed']).toJSON())) };
+		const cRev = R().Character.revive(State.variables.actors.x);
+		assert.eq(cRev.stats[P5], 'dnd-5e', 'C：revive 后包标识**已重挂**');
+		assert.eq(gate(cRev), true, 'C revive 5E：拦');
+		State.variables.actors3 = { x: JSON.parse(JSON.stringify(mk(setup.DND3.stats(), ['paralyzed']).toJSON())) };
+		const c3Rev = R().Character.revive(State.variables.actors3.x);
+		assert.eq(c3Rev.stats[P3], 'dnd3', 'C：3E 包标识已重挂');
+		assert.eq(gate(c3Rev), false, 'C revive 3E：不拦（不得被 5E 钩子误标）');
+
+		// ── D JSON 往返（README 的存档范式） ──
+		assert.eq(gate(roundTrip(mk(D().stats(), ['paralyzed']))), true, 'D JSON 往返 5E：拦');
+		assert.eq(gate(roundTrip(mk(setup.DND3.stats(), ['paralyzed']))), false, 'D JSON 往返 3E：不拦');
+
+		// ── B Player 桥接（State 面的 stats，不经 revive） ──
+		State.variables.player = JSON.parse(JSON.stringify({
+			name: '旅', hp: 18, maxHp: 20, effects: ['paralyzed'], stats: D().stats(),
+		}));
+		assert.eq(setup.DND5E.Player.stats[P5], 'dnd-5e', 'B 5E Player：桥接面已重挂标识');
+		assert.eq(gate(setup.DND5E.Player), true, 'B Player 桥接 5E：拦');
+		State.variables.player = JSON.parse(JSON.stringify({
+			name: '旅', hp: 18, maxHp: 20, effects: ['paralyzed'], stats: setup.DND3.stats(),
+		}));
+		assert.eq(setup.DND3.Player.stats[P3], 'dnd3', 'B 3E Player：桥接面已重挂标识');
+		assert.eq(gate(setup.DND3.Player), false, 'B Player 桥接 3E：不拦');
+
+		// ── 形状判别：两包钩子不得互相覆盖（后者胜 = 与加载序耦合） ──
+		//   两包现用**各自独立的 Symbol 键**（Symbol.for('rpg.pack.<包名>')）⇒ 同一 stats 上
+		//   两包标识可并存而互不覆盖；但**写入**仍须按形状判别（3E 钩子不得给 5E stats 写值）。
+		const s5 = D().stats();
+		for (const fn of R().reviveHooks) fn(s5);
+		assert.eq(s5[P5], 'dnd-5e', '5E 形状的 stats 被 5E 钩子标记');
+		assert.eq(s5[P3], undefined, '5E 形状的 stats 不得被 3E 钩子标记（3E 键未写入）');
+		const s3 = setup.DND3.stats();
+		for (const fn of R().reviveHooks) fn(s3);
+		assert.eq(s3[P3], 'dnd3', '3E 形状只被 3E 钩子标记');
+		assert.eq(s3[P5], undefined, '3E 形状不得被 5E 钩子标记');
+		// 同一 stats 上两键可并存（若将来有跨包角色）：互不覆盖
+		const sm = { ...D().stats(), ...setup.DND3.stats() };
+		for (const fn of R().reviveHooks) fn(sm);
+		assert.eq(sm[P5], 'dnd-5e', '两键并存：5E 键');
+		assert.eq(sm[P3], 'dnd3', '两键并存：3E 键（未被 5E 覆盖）');
+	});
+
 	test('conditions 集成：turnStart 闸门 —— 包归属判据两侧都被钉住（MAJOR-3）', () => {
 		const mk = (stats, eff) => {
 			const c = new (R().Character)({ name: '甲', hp: 10, maxHp: 10, stats });
@@ -375,7 +436,9 @@
 		assert.eq(R().turnBoundary.start({ actor: mk(s5, ['paralyzed']), battle: null }).cancel, true,
 			'5E 角色缺 prof ⇒ 仍须拦住（旧判据此处会漏拦）');
 		// ⑤ 包标识本身：两包 Symbol 同键、值各异，且不污染键集/存档面
-		assert.eq(setup.DND5E.PACK, setup.DND3.PACK, '两包共用同一 Symbol 键');
+		assert.ok(setup.DND5E.PACK !== setup.DND3.PACK, '两包用**各自独立**的 Symbol 键（互不覆盖）');
+		assert.eq(String(setup.DND5E.PACK), 'Symbol(rpg.pack.dnd-5e)', '5E 键名带包名');
+		assert.eq(String(setup.DND3.PACK), 'Symbol(rpg.pack.dnd3)', '3E 键名带包名');
 		assert.eq(D().stats()[setup.DND5E.PACK], 'dnd-5e', '5E 包标识');
 		assert.eq(setup.DND3.stats()[setup.DND3.PACK], 'dnd3', '3E 包标识');
 		assert.ok(!Object.keys(D().stats()).includes(String(setup.DND5E.PACK)), 'Symbol 键不进 Object.keys（U9 键集用例不受影响）');

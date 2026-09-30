@@ -31,7 +31,16 @@ Object.defineProperties(DND5E.Player, {
 	name: bridge('name'),
 	hp: bridge('hp'),
 	maxHp: bridge('maxHp'),
-	stats: bridge('stats'),
+	stats: {
+		// 桥接面同样需要重挂包标识（Symbol 不进 JSON/State ⇒ 读档后的 Player.stats 会丢标识）
+		get: () => {
+			const st = state().stats ?? {};
+			for (const fn of RPG.reviveHooks ?? []) fn(st);
+			return st;
+		},
+		set: (v) => { state().stats = v; },
+		configurable: true,
+	},
 	items: {
 		get: invState,
 		set: (v) => { State.variables.inventory = v; },

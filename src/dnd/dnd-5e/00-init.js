@@ -37,9 +37,21 @@ setup.DND5E.STAT_BLOCK = {
  *    ② 不进 `JSON.stringify` ⇒ **存档面零变化**；
  *    ③ 但**随对象展开 `{...stats}` 保留**（Symbol 是自有可枚举属性）⇒ 经 `Character` 构造后仍在。
  *  两侧包共用 `Symbol.for` 同一键、各写各的值 ⇒ 判据可写「等于本包名」。 */
-setup.DND5E.PACK = Symbol.for('rpg.pack');
+setup.DND5E.PACK = Symbol.for('rpg.pack.dnd-5e');
+	// ⚠ 每包**独立 Symbol 键**（键名带包名）：同一 stats 上两包的标识互不覆盖，
+	//   判据「stats[P5]==='dnd-5e'」与「stats[P3]==='dnd3'」可同时为真而不冲突；
+	//   若共用一键，后写入者会抹掉先写入者（加载序耦合）——正是 T 复审抓到的形态。
 
 setup.DND5E.stats = (over = {}) => ({ ...setup.DND5E.STAT_BLOCK, ...over, [setup.DND5E.PACK]: 'dnd-5e' });
+
+/** 还原侧修补（#1758 丙形）：Symbol 标识不进 JSON ⇒ 存档往返 / State 快照 / Player 桥接后都会丢。
+ *  本包注册一个钩子，把它**就地**重挂回去（键集与 JSON 面零变化 ⇒ 不影响键集用例与存档格式）。 */
+setup.RPG.onReviveStats((stats) => {
+	// ⚠ 只在 stats **呈本包形状**时重挂 —— 否则两包钩子会互相覆盖（后者胜 = 与加载序耦合）
+	//   判据用本包的**独有字段**（5E 有 `prof`、3E 有 `bab`），不由注册顺序决定。
+	if (!('prof' in stats)) return;
+	stats[setup.DND5E.PACK] = 'dnd-5e';
+});
 
 /**
  * 定制写入路径（`setScore`）的原始分上限＝20。

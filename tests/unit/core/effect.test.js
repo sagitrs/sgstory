@@ -214,7 +214,7 @@
 		const c = new (R().Character)({ name: '甲', hp: 7, maxHp: 9 });
 		c.gain('u-rt:3'); c.gain(R().death);
 		const snap = c.toJSON();
-		assert.eq(JSON.stringify(Object.keys(snap).sort()), '["effects","hp","items","maxHp","name","properties","stats"]', '键集不变');
+		assert.eq(JSON.stringify(Object.keys(snap).sort()), '["effectTurns","effects","hp","items","maxHp","name","properties","stats"]', '键集不变');
 		assert.ok(Array.isArray(snap.effects) && snap.effects.every((x) => typeof x === 'string'), 'effects 是纯字符串数组');
 		assert.eq(JSON.stringify(snap.effects), '["u-rt:3","death"]', '层级 id 原样存');
 		const back = R().Character.revive(snap);

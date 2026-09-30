@@ -31,9 +31,14 @@ DND5E.acOf = (c) => {
 	return a.base + dex;                                    // 轻甲：全额灵巧
 };
 
-/** 击倒结算：HP 归零 → death 减益（5E 里目标应做死亡豁免，此处简化） */
+/** 击倒结算：HP 归零 → death 减益（5E 里目标应做死亡豁免，此处简化）。
+ *  ⚠ **死亡 ⇒ 全档清零**（伞 #1728 死亡面裁定⑤：新肉身＝全新印出）：
+ *   进入 death 前先清掉其余条件与回合数；`death` 本身保留（绷带复活的 contains(death) 依赖它）。
+ *   只在**首次**进入死亡时清（幂等守卫沿用原式），故复活后再死仍会再清一次。
+ *   注：dnd3 侧**不接**此语义（3E 死亡规则不同；裁定面属 5E 包）。 */
 DND5E.grantDeathIfDown = (that) => {
 	if (that instanceof RPG.Character && that.hp <= 0 && !that.contains(RPG.death)) {
+		DND5E.clearEffectsOnDeath(that);      // #1741：死亡清档（保留 death 标记）
 		that.gain(RPG.death);
 	}
 };
@@ -72,8 +77,9 @@ RPG.defPipeline({
 		},
 		{
 			id: '5e.mode',
+			// #1689 P1：优势/劣势模式来自条件表（双向分池 + 近战/远程条件性）
 			run(ctx) {
-				ctx.rollMode = 'normal'; // P1 起由 DND5E.rollMode(attacker, defender, { melee }) 覆写
+				ctx.rollMode = DND5E.rollMode(ctx.from, ctx.that, { melee: ctx.melee });
 			},
 		},
 		{

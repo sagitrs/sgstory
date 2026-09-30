@@ -26,6 +26,9 @@ RPG.Character = class Character extends Object {
 		this.properties = properties;
 		/** 持有的效果/减益，存 Effect 的 id 字符串（Player 桥接到 $player.effects） */
 		this.effects = [];
+		/** 按回合计时的效果剩余回合数（id → n；纯数据 ⇒ 随 toJSON 存档）。
+		 *  与 effects 同生共死：效果被移除时其条目一并删除（见 #1741 的 tickTurnDurations／clearBattleScoped） */
+		this.effectTurns = {};
 	}
 
 	get isDown() {
@@ -162,6 +165,7 @@ RPG.Character = class Character extends Object {
 		// 旧档（或未加载的 pack）里的 id 不得让读档硬抛错；注册表无法解释的形态同样保真保留，
 		// 否则读档一次就丢数据（真实未知 vs 存量畸形无法区分，见 #1713 F3 / §1.3）。
 		c.effects = [...(snapshot.effects ?? [])];
+		c.effectTurns = { ...(snapshot.effectTurns ?? {}) };
 		for (const id of c.effects) {
 			const known = typeof id === 'string' && RPG.effects.has(RPG.effectSplit(id).base);
 			const valid = known && RPG.effectLevelOfId(id) > 0;
@@ -177,7 +181,7 @@ RPG.Character = class Character extends Object {
 		return {
 			name: this.name, hp: this.hp, maxHp: this.maxHp,
 			stats: this.stats, items: this.items,
-			effects: this.effects, properties: this.properties,
+			effects: this.effects, effectTurns: this.effectTurns, properties: this.properties,
 		};
 	}
 };

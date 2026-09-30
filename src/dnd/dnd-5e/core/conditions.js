@@ -257,11 +257,7 @@ RPG.events.on('battle:turnStart', (p) => {
  *  但保留 death 标记这一「包语义」由本包负责解释。 */
 RPG.onRespawnClearEffects((c) => DND5E.clearEffectsOnDeath(c));
 
-/** 起点层解析：层权威在 `#1748` 的层元数据契约内（`start: true`）——本包提供读取器，
- *  **不另立权威**；dnd3 侧 `LAYER_META_SPAN1` 未加载时返回 null（⇒ respawn 只清档不搬位）。 */
-RPG.onRespawnStartLayer(() => {
-	const meta = setup.DND3?.LAYER_META_SPAN1;
-	if (!Array.isArray(meta)) return null;
-	const start = meta.find((l) => l.start === true);
-	return start ? start.id : null;
-});
+/* ★ 起点层：**本包不再读取任何他包命名空间**（#1760 折领队裁甲）——
+ *   层表由**内容侧**注册进 core 的注册面（`RPG.registerLayerMeta`），core 的 `RPG.startLayerId()`
+ *   直接读取 ⇒ 本包连「读取器」都不必提供（首版的 5E 读 3E 是全仓唯一跨包直读，已消除）。
+ *   收益：单包部署时「回最深处」不再静默失效（不再由「另一个包在不在」决定）。 */

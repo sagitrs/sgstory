@@ -55,6 +55,33 @@ RPG.WorldMap = class WorldMap extends Object {
 		this.locations = new Map();      // id → Location
 		this.exits = [];                 // Exit[]（有向边）
 		this.current = null;             // 当前位置 id
+		/* ★ #1760（设计稿 §四）：「current 在堆上 ⇒ 读档即错位」的最小修——
+		 *   实例字段落一份到 `State.variables.mapCurrent`（**纯字符串 id**，零改语义）。
+		 *   写点单点＝下面 `moveTo`（含构造后的首次进入）；读点＝`current` getter。
+		 *   本笔**只搬这一项**（不搬 locations/exits ⇒ 全量地图序列化另票）。 */
+		this._restoreFromState();
+	}
+
+	/** 存档键：世界地图（`id==='world'`，缺省）用 `mapCurrent`；具名地图用 `mapCurrent_<id>`。
+	 *  本笔落**单地图**键（设计稿 §四）；多地图并存时各占一键 ⇒ 互不覆盖（全量序列化另票）。 */
+	_stateKey() {
+		return !this.id || this.id === 'world' ? 'mapCurrent' : `mapCurrent_${this.id}`;
+	}
+
+	/** 从存档恢复当前位置（实例字段在堆上 ⇒ 读档后回到初始值，故以 State 为准）。
+	 *  静默策略：State 里没有该键（首次运行／旧档／非存档环境）⇒ 保持原值，不抛错。 */
+	_restoreFromState() {
+		const vars = typeof State === 'undefined' || State == null ? null : State.variables;
+		const saved = vars == null ? undefined : vars[this._stateKey()];
+		if (typeof saved === 'string' && this.current == null) this.current = saved;
+		return this.current;
+	}
+
+	/** 把当前位置写回 State（**唯一写点**：`moveTo` 内调用 ⇒ 与 `current` 恒一致）。 */
+	_syncToState() {
+		const vars = typeof State === 'undefined' || State == null ? null : State.variables;
+		if (vars == null) return;
+		vars[this._stateKey()] = this.current;
 	}
 
 	/** 添加节点（重复 id 抛错） */
@@ -99,6 +126,7 @@ RPG.WorldMap = class WorldMap extends Object {
 		}
 
 		this.current = locId;
+		this._syncToState();             // ★ 单点写：实例字段与 State 同步（#1760 §四）
 
 		// 进入新位置
 		if (target.onEnter) target.onEnter(target);

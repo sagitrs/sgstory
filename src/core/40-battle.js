@@ -89,7 +89,8 @@ RPG.BattleTurn = class BattleTurn extends RPG.Event {
  *   1／2a／2b／3a／3b／4 与 M1–M7 即本合同，落码逐条兑现）。
  *
  * **core 规则无关**（两条注入，与 `onReviveStats` 同族 —— core 不认识任何包）：
- *   · `RPG.respawnHooks.startLayer`    起点层解析（层权威在 `#1748` 的层元数据契约内，core 不另立）
+ *   · 起点层：读 **core 的层表注册面** `RPG.registerLayerMeta`/`RPG.startLayerId`（见下）——
+ *     层表由**内容侧**注册，故 core 与各包都不认识别人的命名空间
  *   · `RPG.respawnHooks.clearEffects`  清档实现（`#1741` 的 `clearEffectsOnDeath` 在 **dnd-5e 包**内；
  *     core 不能直接调 ⇒ 由包侧注册。未注册时走 core 的无包语义兜底形）
  *
@@ -100,13 +101,34 @@ RPG.BattleTurn = class BattleTurn extends RPG.Event {
  *   这是**实测事实**（design §五），非修辞。
  * ⚠ ⑤ 必须先于 ⑥：`moveTo` 会触发新层的 `onEnter` 钩子；若钩子读 `hp`，顺序反了会读到死亡态。
  */
-RPG.respawnHooks = { startLayer: null, clearEffects: null };
+RPG.respawnHooks = { clearEffects: null };
 
-/** 注册「起点层」解析器：`fn(character) -> 层 id`。各包/故事调用（层权威在各自的层元数据内）。 */
-RPG.onRespawnStartLayer = (fn) => {
-	if (typeof fn !== 'function') throw new Error('onRespawnStartLayer 需要函数');
-	RPG.respawnHooks.startLayer = fn;
-	return () => { if (RPG.respawnHooks.startLayer === fn) RPG.respawnHooks.startLayer = null; };
+/* ---------- 层表注册面（`#1748` 层元数据契约的**归档处**）----------
+ * ⚠ **为何在 core**：层表是**跨包共享的数据**，不是某个包的私有物。若让一个包直读另一个包的命名空间
+ *   （首版 5E 包读 `setup.DND3.LAYER_META_SPAN1`），即违反 `src/README.md:13`
+ *   「★规则包之间互不可见——共享的东西应下沉 core/」（T 席实测那处是**全仓唯一先例**）。
+ *   ⇒ **注册方＝内容侧**（层元数据本就是内容物，如一段层表 `LAYER_META_SPAN1` 的拥有者 dnd3）；
+ *     **消费方（core 的 respawn、任意包）只读**，包与包之间零认知。
+ *   收益：单包部署时行为不再由「另一个包在不在」决定（首版会静默退化为「只清档不搬位」）。
+ */
+RPG.layerMeta = Object.create(null);   // 注册 id → 层表（保留注册顺序）
+
+/** 注册一张层表（契约形见 `#1748`：`[{ id, type, start? }]`，**不校验内容**——那是内容侧的事）。 */
+RPG.registerLayerMeta = (id, meta) => {
+	if (typeof id !== 'string' || id === '') throw new Error('registerLayerMeta 需要非空 id');
+	if (!Array.isArray(meta)) throw new Error('registerLayerMeta 的 meta 须是数组');
+	RPG.layerMeta[id] = meta;
+	return meta;
+};
+
+/** 起点层 id：在**已注册**层表里找第一个 `start: true` 的元素（无注册／无标记 ⇒ `null`）。
+ *  「最深处」的权威＝层表里的 `start: true`，本函数只是**读取器**，不另立权威（裁定②）。 */
+RPG.startLayerId = () => {
+	for (const id of Object.keys(RPG.layerMeta)) {
+		const hit = RPG.layerMeta[id].find((l) => l && l.start === true);
+		if (hit) return hit.id;
+	}
+	return null;
 };
 
 /** 注册「清档」实现：`fn(character) -> 清掉的条数`（包侧，通常转发 `clearEffectsOnDeath`）。 */
@@ -162,7 +184,7 @@ RPG.respawn = (c, { to, map } = {}) => {
 
 	// ⑥ 搬位置（纯 id；`to` 优先 —— M7 即打这条）
 	const fromId = map?.current ?? null;
-	const target = to ?? (typeof RPG.respawnHooks.startLayer === 'function' ? RPG.respawnHooks.startLayer(c) : null);
+	const target = to ?? RPG.startLayerId();
 	if (map && target != null) map.moveTo(target);
 
 	return { moved: target != null || map != null, dropped, cleared, from: fromId, to: target };

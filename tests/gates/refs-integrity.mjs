@@ -579,9 +579,16 @@ const d20mRefs = d20mResolved;
 console.log(`  tier-② 显式降级：d20m 面**值级对源未覆盖**（tier-① 引用形＋pin 完整性仍在核）｜`
   + `d20m 引用 ${d20mRefs.length} 处均已按 tier-① 核 ｜ A 组比对 0 次（MSRD 值解析器未落：源为表格行＋破折号占位，三套解析器并立不成比例）`
   + `｜${VERBOSE ? 'verbose=on' : '--verbose 可见明细'}`);
-/* verbose 明细：**可抽验面** —— 「22 处已核」必须打得出来是**哪 22 处**（tester-4 判别性验证）。
- * ★计数口径：门报的 ${d20mRefs.length} = **解析成功（tier-① 通过）的引用条数**；与 `grep -c 'SRD d20M'` 不等的
- *   差额来自：同一行可含**多条**引用（同一注释行多个 `·`），以及 `RE_PLACEHOLDER` 等约定占位不计。 */
+/* verbose 明细：**可抽验面** —— 「${d20mRefs.length} 处已核」必须打得出来是**哪 22 处**（tester-4 判别性验证）。
+ * ★计数口径（**实测，非推断**；writer-2 复核后订正——我首版两条因果在实仓均不成立）：
+ *   门报的 ${d20mRefs.length} = **引用形**（`SRD d20M · <文件>.md:<行>`）**解析成功条数**。
+ *   仓内 `grep -rn 'SRD d20M' src/dnd/d20m tests/unit/d20m` ⇒ **28 行／28 次**（＝无一行含两处）。
+ *   差额 6 处 = **测试名里的散文提及**（形如 `test('…对齐 SRD d20M，加值再高也不命中')`）——
+ *   **非引用形**；其引用由**上方注行继承**（`lastCitationIdx`，lookback 3）⇒ **计入 claim、不计入引用**。
+ *   该 6 处 = chargen:15／combat:47,80,94／items:10／stats:34。
+ *   ★其中 `tests/unit/d20m/stats.test.js:34` 是**诱饵**：`…对齐 SRD d20M · Armature(Small)…` ——
+ *   **形似引用形却不是 `.md` 引用**（这也是「23 行含 `SRD d20M ·` 但只有 22 处被核」的原因）。 */
+
 if (VERBOSE) for (const c of d20mRefs) console.log(`    · ${c.at} → SRD d20M · ${c.file}:${c.entry}（tier-① 已核）`);
 if (noValueCites.length > 0) {
   console.log(`  第①级/A 组：**引用无可抽取值** ${noValueCites.length} 处（引用区间/块内未解析出 HP/AC/属性 ⇒ 静默 0 覆盖，记账可见）：`);

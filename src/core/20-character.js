@@ -105,14 +105,42 @@ RPG.Character = class Character extends Object {
 		return new RPG.Character(plain);
 	}
 
+	/** 快照 → 实例（从 State / 存档还原，保留 hp/items/effects 等可变态）。
+	 *  存档安全：SugarCube 只序列化 State.variables——角色 hp/isDown 必须
+	 *  存在 State 里（如 $actors = { goblin: goblin.toJSON() }）才能进档。
+	 *  推荐模式：战斗中改堆上实例 → 战毕写回 State → 读档时 revive。 */
+	static revive(snapshot) {
+		if (snapshot == null) throw new Error('Character.revive: 快照为空');
+		const c = new RPG.Character({
+			name: snapshot.name,
+			hp: snapshot.hp,
+			maxHp: snapshot.maxHp,
+			stats: snapshot.stats,
+			items: snapshot.items ?? [],
+			properties: snapshot.properties ?? [],
+		});
+		c.effects = [...(snapshot.effects ?? [])];
+		return c;
+	}
+
 	toJSON() {
-		return { name: this.name, hp: this.hp, maxHp: this.maxHp, stats: this.stats };
+		return {
+			name: this.name, hp: this.hp, maxHp: this.maxHp,
+			stats: this.stats, items: this.items,
+			effects: this.effects, properties: this.properties,
+		};
 	}
 };
 
-/** 声明式定义角色（推荐）—— new Character(def) 并按 id 登记到 characters 注册表 */
+/** 声明式定义角色（推荐）—— new Character(def) 并按 id 登记到 characters 注册表。
+ *  同 id 重复注册会 console.warn（与 registerItem 同理）。 */
 RPG.defCharacter = (def) => {
 	const c = new RPG.Character(def);
-	if (def && def.id) RPG.characters.set(def.id, c);
+	if (def && def.id) {
+		if (RPG.characters.has(def.id)) {
+			console.warn(`[RPG] 角色 id「${def.id}」重复注册：已存在，将被覆盖。`);
+		}
+		RPG.characters.set(def.id, c);
+	}
 	return c;
 };

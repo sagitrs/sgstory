@@ -64,12 +64,19 @@ RPG.Item = class Item extends Object {
 	}
 };
 
-/** 注册道具类（添加新道具时调用；一般用 defItem 即可） */
+/** 注册道具类（添加新道具时调用；一般用 defItem 即可）。
+ *  同 id 重复注册会 console.warn——两包同名道具后者遮蔽前者是已知风险。 */
 RPG.registerItem = (klass) => {
 	if (!(klass?.prototype instanceof RPG.Item)) {
 		throw new Error(`registerItem: ${klass?.name} 不是 Item 的子类`);
 	}
-	RPG.items.set(new klass().id, klass);
+	const id = new klass().id;
+	if (RPG.items.has(id)) {
+		console.warn(`[RPG] 道具 id「${id}」重复注册：${RPG.items.get(id).name} 被覆盖。` +
+			'如果两个规则包同名（如 club），后加载的会遮蔽先加载的——' +
+			'消费方应直接用 new DND3.Club() / new DND5E.Club() 而非注册表查找。');
+	}
+	RPG.items.set(id, klass);
 	return klass;
 };
 

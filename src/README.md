@@ -62,7 +62,43 @@
   1d20+BAB+力量 vs acOf、天然 1/重击威胁范围 `stats.critMin`、击倒结算
   ——**加新武器只需写数据（见 sword.js），零重复判定代码**。
 
-## Issue 格式（认为架构有欠缺时）
+## 已知边界（开发者必读）
+
+### F1 · 角色血量不进存档
+
+SugarCube 存档只序列化 `State.variables`。道具走快照/复活进档 ✓；
+但角色（`setup.DND3.Goblin` 等堆上单例）的 **hp/isDown/effects 不进档** ✗。
+中弹 → 存档 → 读档 = 满血复活但战利品还在。
+
+**修复路径**：战斗毕把角色态写回 State，读档时用 `Character.revive()` 还原：
+```js
+// 战毕存档
+State.variables.actors = { goblin: setup.DND3.Goblin.toJSON() };
+// 读档还原
+const snap = State.variables.actors.goblin;
+if (snap) Object.assign(setup.DND3.Goblin, setup.RPG.Character.revive(snap));
+```
+当前 e2e 用 `:enginerestart` 钩子重置而非快照（适用于"重开即重置"的短篇，
+长篇或需要续档的故事应走上述快照路径）。
+
+### F2 · 跨包同名静默覆盖
+
+两个规则包可能注册同名道具/角色（如 dnd3 和 dnd-5e 都有 `club`）。
+后加载的包会**覆盖**先加载的同名注册。`registerItem`/`defCharacter`
+对重复 id 会 `console.warn`，但不会阻止。
+
+**消费方守则**：直接用 `new DND3.Club()` / `new DND5E.Club()` 实例化，
+不要通过 `RPG.createItem('club')` 查找（除非确认只有一个包在跑）。
+
+### F3 · 交互战的异步边界
+
+`Battle.execute()` 在交互模式下是 async（内部 `await choice()`）。
+twee 里 `<<run (new Battle(...)).execute()>>` **之后的 `<<if>>` 行
+不代表战后状态**——首访时它们在玩家做选择之前就执行了。
+
+**守则**：交互战的结果一律经重渲染链接取得（战后段落里用 `<<if>>` 读状态，
+而不是在同一段落里紧跟 `<<run>>` 判断）。自动战（`interactive: false`）
+同步完成，无此限制。
 
 标题前缀标明层次：`[core]` / `[dnd3]` / `[build]` / `[arch]`（跨层）。
 正文包含五节：
@@ -114,3 +150,5 @@
 
 - **红线**：把规则数学（掷骰公式、DC、字段名）放进 `src/core` 的 PR
   会被拒绝——请下沉到 `<包>/core/`。
+
+## Issue 格式（认为架构有欠缺时）

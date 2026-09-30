@@ -9,6 +9,7 @@
 |---|---|---|---|
 | **5E 面** | `src/dnd/dnd-5e/**` 的规则数值（武器伤害／护甲／怪物数值块／判定数学） | System Reference Document 5.2.1（2024） | **CC BY 4.0** |
 | **3E 面** | `src/dnd/dnd3/**` 的规则数值（武器／护甲／豁免等） | D&D Revised (v.3.5) System Reference Document | **Open Game License v1.0a** |
+| **d20m 面** | `src/dnd/d20m/**` 的规则数值（火器／义体／机器人机架等） | Modern System Reference Document（d20 Modern／d20 Future 等子集） | **Open Game License v1.0a**（§15 见第四节，与 3E 面**不同**） |
 
 ## 二、5E 面 —— CC BY 4.0 归属（Attribution）
 
@@ -433,7 +434,35 @@ Andy Collins, David Noonan, Rich Redman, Bruce R. Cordell, John D.
 Rateliff, Thomas Reid, James Wyatt, based on original material by E.
 Gary Gygax and Dave Arneson.
 
-### Open Game License v1.0a 全文（自源 `Basic Rules and Legal/legal-information.md:48-159` 照录）
+## 四、d20m 面 —— Open Game License v1.0a（Modern System Reference Document）
+
+**OGC / PI 声明**：d20m 面的规则数值属 **Open Game Content（OGC）**，本仓对之不新增版权主张，
+亦未将其中任何内容声明为 Product Identity（PI）；本仓自有代码、测试与文档表述**不是** OGC。
+
+> ★**与第三节（3E 面）的关系**：两面**同依 OGL 1.0a** ⇒ **许可全文不分叉**（共用第五节的同一份内嵌）。
+> 但两面的 **Section 15 COPYRIGHT NOTICE 不同**（vintage 不同）⇒ **✗ 互串、✗ 合并成一条**。
+> ★**vintage 以 pin 表那一份为准**：本仓 pin 处（`README.md`「规则来源」§一 的 `d20m` 面行，
+> pin = `source/1msrdlegal法律信息.md`）的 §15 为 **`v 1.0a` ＋ `Copyright 2002-2003`**。
+> 另有传世本的 §15 作 `v 1.0` ＋ `Copyright 2002-2004` 且作者名单多三位
+> （第三方派生数据集的副本如此）——**本仓不采**（那是**另一个 vintage**，若要改用须换 pin 行与本节照录，
+> ✗ 混引）。vintage 差异的完整对照见 `#1740` §1.3。
+
+### Section 15 · COPYRIGHT NOTICE（自源 `source/1msrdlegal法律信息.md:49-53` 照录）
+
+Open Game License v 1.0a Copyright 2000, Wizards of the Coast, Inc.
+
+Modern System Reference Document Copyright 2002-2003, Wizards of the Coast, Inc.; Authors
+Bill Slavicsek, Jeff Grubb, Rich Redman, Charles Ryan, Eric Cagle, David Noonan, Stan!,
+based on material by Jonathan Tweet, Monte Cook, Skip Williams, Richard Baker, Peter
+Adkison, Bruce R. Cordell, John Tynes, Andy Collins, and JD Wiker.
+
+> ★**逐字与换行**：源文该段为**两条独立段落**（OGL 行／MSRD 行），本处照录**保留分段**；
+> 唯一的排版差异是本处按 100 列**折行**（源文各为单行）——★**引用者以 pin 缓存为逐字准据**
+> （`tests/gates/pin-cache/1msrdlegal法律信息-d20m.md`，sha1 前 16 ＝ `87de6c063a445aa5`）。
+> ★OGL §6 的义务：凡复制/修改/分发 OGC，须把该 OGC 的 COPYRIGHT NOTICE **原样**并入自己的
+> COPYRIGHT NOTICE ⇒ 本节即本仓对 d20m 面的履行处。
+
+## 五、Open Game License v1.0a 全文（3E 面与 d20m 面**共用**同一份内嵌；自源 `Basic Rules and Legal/legal-information.md:48-159` 照录）
 
 OPEN GAME LICENSE Version 1.0a
 

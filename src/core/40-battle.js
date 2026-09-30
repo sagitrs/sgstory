@@ -128,8 +128,8 @@ RPG.Battle = class Battle extends RPG.Event {
 
 	/**
 	 * 私有函数：玩家控制的交互式回合。
-	 * 选道具（含已装备武器在内的全部随身道具）→ 选目标（所有存活角色）→ use。
-	 * 道具选项的 value 是随身栏位下标；目标选项的 value 是角色名。
+	 * 流程：选道具 → 选动作（使用/装备/卸下）→ 若使用则选目标 → 执行。
+	 * 装备/卸下消耗整回合（不走目标选择）；使用武器时自动拔出（不额外消耗）。
 	 */
 	async #playerAction(attacker) {
 		const slots = attacker.items;
@@ -140,14 +140,43 @@ RPG.Battle = class Battle extends RPG.Event {
 			return;
 		}
 
-		this.perform(`现在是${attacker.name}的回合，请选择要使用的道具：`);
+		// ① 选道具
+		this.perform(`现在是${attacker.name}的回合，请选择道具：`);
 		const itemOptions = slots.map((slot, i) => {
 			const item = setup.RPG.reviveItem(slot);
 			return { text: `${item.name}${item.equipped ? '（已装备）' : ''}`, value: String(i) };
 		});
+		itemOptions.push({ text: '（跳过本回合）', value: 'skip' });
 		const chosen = await attacker.choice(itemOptions);
+		if (chosen === 'skip') {
+			this.perform(`${attacker.name}按兵不动。`);
+			return;
+		}
 		const item = setup.RPG.reviveItem(slots[Number(chosen)]);
 
+		// ② 选动作（有装备动作且未装备 → 可装备；已装备且有卸下动作 → 可卸下）
+		const actions = [{ text: `使用${item.name}`, value: 'use' }];
+		const handlers = item.constructor.handlers;
+		if (!item.equipped && typeof handlers?.equip === 'function') {
+			actions.push({ text: `装备「${item.name}」（消耗本回合）`, value: 'equip' });
+		}
+		if (item.equipped && typeof handlers?.unequip === 'function') {
+			actions.push({ text: `卸下「${item.name}」（消耗本回合）`, value: 'unequip' });
+		}
+
+		let action = 'use';
+		if (actions.length > 1) {
+			this.perform(`对「${item.name}」做什么？`);
+			action = await attacker.choice(actions);
+		}
+
+		// 装备/卸下：消耗整回合，直接结束（经 useItem 提交到背包快照）
+		if (action === 'equip' || action === 'unequip') {
+			setup.RPG.useItem(item.id, attacker, attacker, action);
+			return;
+		}
+
+		// ③ 使用：选目标
 		const everyone = [...this.players, ...this.enemies].filter((c) => !this.isOut(c));
 		const targetOptions = everyone.map((c) => ({
 			text: `${c.name}（${this.players.includes(c) ? '己方' : '敌方'}）`,

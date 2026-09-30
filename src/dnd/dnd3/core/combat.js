@@ -37,7 +37,9 @@ DND3.grantDeathIfDown = (that) => {
  *     确认掷骰命中则伤害骰与力量调整值都 ×stats.crit——长剑 19-20/×2）。
  */
 DND3.meleeAttack = (item, that, from) => {
-	if (!item.equipped) {
+	// 远程武器不需拔出，用灵巧
+	const isRanged = item.stats.ranged === true;
+	if (!isRanged && !item.equipped) {
 		const held = RPG.equippedWeapon();
 		if (held && held.id !== item.id) {
 			item.perform(`你得先腾出手——「${held.name}」还握在手里。`);
@@ -48,7 +50,9 @@ DND3.meleeAttack = (item, that, from) => {
 	}
 
 	const f = from?.stats ?? {};
-	const atkMod = (f.bab ?? 0) + (f.str_mod ?? 0);
+	// 远程武器用灵巧，近战用力量
+	const abilMod = isRanged ? (f.dex_mod ?? 0) : (f.str_mod ?? 0);
+	const atkMod = (f.bab ?? 0) + abilMod;
 	const ac = DND3.acOf(that);
 	const die = DND3.d20();
 	const critMin = item.stats.critMin ?? 20;
@@ -67,8 +71,8 @@ DND3.meleeAttack = (item, that, from) => {
 	let dmg = 0;
 	for (let i = 0; i < times; i++) {
 		const r = RPG.rollDetail(item.stats.dmg);
-		dmg += r.total + (f.str_mod ?? 0); // 重击时调整值同样翻倍
-		parts.push(r.rolls.join('+') + (f.str_mod ? RPG.formatMod(f.str_mod) : ''));
+		dmg += r.total + abilMod; // 重击时调整值同样翻倍
+		parts.push(r.rolls.join('+') + (abilMod ? RPG.formatMod(abilMod) : ''));
 	}
 	if (dmg < 1) dmg = 1; // 惩罚压到 0 以下时至少造成 1 点
 

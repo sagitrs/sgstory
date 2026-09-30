@@ -24,9 +24,12 @@
 	});
 
 	test('battle：AI 选目标经 RPG.rng（注入后确定）', async () => {
-		// 调用面探针：每次读源计一次并记值。读数恒 0.999 ⇒ index(2)=1 选中「乙」；
-		// 同一读数使 d20=20（必中）。**首次读数即决定选靶**（若选靶绕过 RPG.rng，
-		// 本用例会随机打在甲／乙其一 ⇒ 约半数概率红）。
+		// 调用面探针：每次读源计一次并记值。读数恒 0.999 ⇒ 敌选靶 index(2)=1 选中「乙」；
+		// 同一读数使 d20=20（必中）。读源序列恰为 **7** 次：
+		//   index(1)（甲选靶）· index(1)（乙选靶）· **index(2)=1（敌选乙）**
+		//   ・pick(d20)=20（命中）・pick(d20)=20（重击确认）・pick(d6)=6 ・pick(d6)=6（两枚伤害骰）
+		// 断言精确次数：若 `index` 绕过注入（直调 Math.random），前三次读数不会发生
+		// ⇒ 计数当场不足 7 ⇒ 确定红（而非「是否打到甲」的概率红）。
 		const reads = [];
 		R().rng.set(() => { reads.push(0.999); return 0.999; });
 		try {
@@ -37,9 +40,9 @@
 				stats: { bab: 5, str_mod: 0 }, items: [{ id: 'club', equipped: true }],
 			});
 			await new (R().Battle)(1, [p1, p2], [foe]).execute();
-			assert.eq(p1.hp, 50, '甲未被选为目标（首读 0.999 ⇒ index 1）');
+			assert.eq(p1.hp, 50, '甲未被选为目标（敌选靶读 index(2)=1）');
 			assert.ok(p2.hp < 50, '乙被选为目标并受伤');
-			assert.ok(reads.length >= 2, `选靶与攻击各至少读一次源（实读 ${reads.length} 次）`);
+			assert.eq(reads.length, 7, `读源恰 7 次（选靶 3 ＋ 攻击 4），实得 ${reads.length}`);
 		} finally {
 			R().rng.reset();
 		}

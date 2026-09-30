@@ -100,7 +100,7 @@
 > ⇒ **本笔只落了其中三项**（10／灵巧／装备加值），**职业加值（class bonus）与体型加值未落**。
 > **定性**：`house rule（非 SRD）`——理由：职业加值依赖「职业面」（本包无职业数据；#1744 票面 ✗ 不做清单），
 > 体型加值依赖体型表（本笔未 pin）。★**本笔 ✗ 声称「完全对齐」**。
-> ★**注**：本包 `stats.ac` 缺省 10 且玩家件写 12＝**设计值**（同 §2.10 的 house rule 面）。
+> ★**注**：本包 `stats.ac` 缺省 10 且玩家件写 12＝**house rule（非 SRD）**（同 §2.10）。
 
 ### 2.8 击倒结算（★**house rule**）
 
@@ -134,7 +134,7 @@
 |---|---|---|
 | 贝瑞塔 92F | `dmg 2d6`／威胁 **20**／`type ballistic`／射程增量 **40 ft**／`weight 3` | `SRD d20M · source/1Modern现代/25msrdequipmentweaponsandarmor武器与盔甲.md:71` —— 该行逐列：`\|Beretta 92F (9mm autoloader)\|2d6\|20\|Ballistic\|40 ft\|S\|15 box\|Small\|3 lb\|16\|Lic (+1)\|` |
 | 义体·假臂（PL 5） | `hardness 3`／`hp 5`／槽 `arms` | `SRD d20M · source/4Future未来/2FutureCybernetics.md:97`（条目头）；`:99`「provides **no special game benefits**」／`:100` Type External／`:101` Hardness/Hit Points 3/5 |
-| 骨架型无人机（Armature · Small · PL 5） | `str 11`／`dex 12`／`wis 10`／`cha 1`；`hp 8`（**设计值**＝`1/2d10` 固定化 ＋ Extra 5）；`ac 12`（**设计值**＝10＋灵巧+1＋Small +1）；`bab 0`；`cr 0` | `SRD d20M · source/4Future未来/9FutureRobots.md:140` —— 该行：`\|Small\|16\|1/2d10\|5\|11\|12\|—\|—\|10\|1\|—\|`；机架节入口 `:124`；通性 `:85`「Hit Die: d10.」／`:86`「Base Attack Bonus: 3/4 of total Hit Dice.」 |
+| 骨架型无人机（Armature · Small · PL 5） | `str 11`／`dex 12`／`wis 10`／`cha 1`；`hp 8`（**house rule（非 SRD）**＝`1/2d10` 固定化 ＋ Extra 5）；`ac 12`（**house rule（非 SRD）**＝10＋灵巧+1＋Small +1）；`bab 0`；`cr 0` | `SRD d20M · source/4Future未来/9FutureRobots.md:140` —— 该行：`\|Small\|16\|1/2d10\|5\|11\|12\|—\|—\|10\|1\|—\|`；机架节入口 `:124`；通性 `:85`「Hit Die: d10.」／`:86`「Base Attack Bonus: 3/4 of total Hit Dice.」 |
 
 ★**取得面（Purchase DC）本笔不落**：火器的取得面是 **Purchase DC**（`:71` 第 10 列，值 16），而本仓
 裁定「黄金贯穿始终」（books#72）⇒ `Purchase DC → 金数`的映射属**后续票**

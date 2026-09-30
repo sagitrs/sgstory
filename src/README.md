@@ -1,11 +1,16 @@
 # src/ —— 插件本体开发指南
 
-这里是 SugarCube 增强插件的源码。两层结构：
+这里是 SugarCube 增强插件的源码。两层结构（`core/` 一层 ＋ **规则包一层（可多个）**）：
 
 | 目录 | 命名空间 | 职责 | 铁律 |
 |---|---|---|---|
 | `core/` | `setup.RPG` | 规则无关引擎：基类、背包、战斗循环、场景、输入输出 | **零规则字段**——core 回答“能不能、怎么做”，不回答“掷什么骰、DC 多少” |
 | `dnd3/` | `setup.DND3` | D&D 3.5 规则包：数值块约定、判定数学、内容 | 判定数学只进 `dnd3/core/`，不碰 `src/core` |
+| `dnd-5e/` | `setup.DND5E` | D&D 5e（2024 SRD）规则包：同上 | 判定数学只进 `dnd-5e/core/`，不碰 `src/core` |
+| `d20m/` | `setup.D20M` | d20 Modern（MSRD）规则包：同上（3e 系判定数学、火器、义体/机器人自证件） | 判定数学只进 `d20m/core/`，不碰 `src/core` |
+
+★**本表须列全所有规则包**——新增包时**同笔补行**（否则下一个人照着半张表建包）；复现命令：`ls -d src/dnd/*/`。
+★**规则包之间互不可见**——共享的东西应下沉 `core/`；★**跨包同名 id 会彼此静默遮蔽**（见 §F2；系统性政策见 #1743）。
 
 ## 如何添加你自己的插件（规则包）
 
@@ -34,12 +39,28 @@
    DND3 风格：RPG.defItem({ id, name, stats, used(that, from) { … }, actions: { … } })
    ```
 
-4. **构建注入是自动的**——build.py 对 `src/<包>/**` 自动注入
-   `(RPG, <包名大写>, $)` 别名（`src/wfrp/**` 得到 `WFRP`），文件里直接用。
-   前提：包的 `00-init` 先创建 `setup.WFRP`（加载顺序：数字前缀保证 00 最先）。
+4. **构建注入是自动的**——build.py 对 `src/<包>/**` 自动注入 `(RPG, <别名>, $)`，文件里直接用。
+   ★**别名 ＝ 包根目录名** 经 `upper()` 且**去掉 `-`**（`build.py:116`）。实测对照：
 
-**先读参考实现**：`dnd3/` 是完整范例（规则包结构、stats 约定、判定扩展、
-内容组织）。新包与 dnd3 平行，互不可见——共享的东西应该在 `core`。
+   | 目录 | 别名 |
+   |---|---|
+   | `src/dnd/dnd3/` | `DND3` |
+   | `src/dnd/dnd-5e/` | `DND5E` |
+   | `src/dnd/d20m/` | `D20M` |
+
+   三条坑（都实测过）：
+   - **别名由目录名唯一决定** ⇒ 包内**不得**自选短名：目录写 `d20-modern/` 却在文件里手写 `setup.D20M`
+     ⇒ `D20M` 会 undefined。**目录名就是接口名**。
+   - **包根 ＝ 向上最近的那个「含 `00-init.js` 的目录」**（`build.py:97` `find_pack_root`）
+     ⇒ 包内子目录**不要再放** `00-init.js`（否则子树会被认成另一个包）。
+   - **首行 `/* raw */`** 的文件**跳过** IIFE 包装（`build.py:43`）——只有**创建命名空间本身**的
+     `00-init.js` 该这么写。
+
+   前提：包的 `00-init` 先创建 `setup.<别名>`（加载顺序：数字前缀保证 00 最先）。
+
+**先读参考实现**：`dnd3/` 是完整范例（规则包结构、stats 约定、判定扩展、内容组织）；
+`dnd-5e/` 读 5E 面差异（`prof` 替代 `bab`、护甲**替换**基础 AC）；`d20m/` 读火器与自证件。
+新包与它们平行，互不可见——共享的东西应该在 `core`。
 
 ## 命名约定（提交前自查）
 
@@ -100,12 +121,16 @@ if (snap) Object.assign(setup.DND3.Goblin, setup.RPG.Character.revive(snap));
 
 ### F2 · 跨包同名静默覆盖
 
-两个规则包可能注册同名道具/角色（如 dnd3 和 dnd-5e 都有 `club`）。
-后加载的包会**覆盖**先加载的同名注册。`registerItem`/`defCharacter`
-对重复 id 会 `console.warn`，但不会阻止。
+**各**规则包可能注册同名道具/角色（现例：`club` 在 `dnd3/items/club.js` 与 `dnd-5e/items/club.js`
+都有；`player` 三个包都注册）。后加载的包会**覆盖**先加载的同名注册。
+`registerItem`/`defCharacter` 对重复 id 会 `console.warn`，但不会阻止。
 
-**消费方守则**：直接用 `new DND3.Club()` / `new DND5E.Club()` 实例化，
+**消费方守则**：直接用 `new DND3.Club()` / `new DND5E.Club()` / `new D20M.Beretta92F()` 实例化，
 不要通过 `RPG.createItem('club')` 查找（除非确认只有一个包在跑）。
+
+★系统性政策（注册面静默遮蔽的实例与处置）见 **#1743**。本仓现况（机械可核）：
+`grep -rn "id: 'player'" src/` ⇒ **三个包**都注册（`dnd3/player.js`、`dnd-5e/player.js`、`d20m/player.js`）
+⇒ 启动告警 **2** 条（每个后加载者一次），**末位注册者生效**（`RPG.characters.get('player')` 逐字取末位）。
 
 ### F3 · 交互战的异步边界
 

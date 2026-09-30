@@ -8,7 +8,9 @@ tests/
 ├─ unit/                       单元测试（目录镜像 src/ 结构）
 │  ├─ unit.html                入口页：按序加载 framework → dist → 用例
 │  ├─ core/<单元>.test.js      core 引擎的用例（与 src/core 文件一一对应）
-│  ├─ dnd3/<单元>.test.js      dnd3 规则包的用例（stats/characters/chest/items）
+│  ├─ dnd3/<单元>.test.js      dnd3 规则包的用例（目录名与 src/dnd/dnd3 同名）
+│  ├─ dnd-5e/<单元>.test.js    dnd-5e 规则包的用例
+│  ├─ d20m/<单元>.test.js      d20m 规则包的用例
 │  ├─ framework/               测试基础设施（手写）
 │  │  ├─ shims.js              SugarCube 环境桩（setup/State/SugarCube/jQuery）
 │  │  └─ harness.js            迷你测试框架（test/assert/__runTests）
@@ -38,13 +40,41 @@ tests/
 | core/effect.test.js | src/core/17-effect（Effect/Debuff/death） |
 | core/character.test.js | src/core/20-character |
 | core/inventory.test.js | src/core/30-inventory（give/装备竞争/充能/战利品） |
+| core/weapon-traits.test.js | src/core/30-inventory 的武器特性消费点（#1736） |
 | core/battle.test.js | src/core/40-battle |
+| core/turn-boundary.test.js | src/core/40-battle 的回合生命周期钩子（`RPG.turnBoundary`；#1713） |
+| core/battle-interaction.test.js | src/core/40-battle 的交互回合（选项构造纯函数等） |
 | core/chest.test.js | src/core/41-chest（机制，无判定） |
+| core/pipeline.test.js | src/core/45-pipeline（结算管线；#1713） |
+| core/map.test.js | src/core/60-map（有向图校验、移动、条件出口） |
 | dnd3/stats.test.js | src/dnd3/00-init（STAT_BLOCK/stats 工厂） |
 | dnd3/characters.test.js | src/dnd3/characters（数值块对称性） |
+| dnd3/chargen.test.js | src/dnd3/core/chargen（#1697 P1：原始分/换算/写面越域/属性生成） |
 | dnd3/chest.test.js | src/dnd3/core/chest（3E 撬锁检定） |
 | dnd3/combat.test.js | src/dnd3/core/combat（acOf/近战数学/击倒/炸弹灵巧投掷） |
+| dnd3/saves.test.js | src/dnd3/core/saves（豁免检定、恐惧） |
 | dnd3/items.test.js | src/dnd3/items（3E 判定数学） |
+| dnd3/alliance.test.js | ★跨单元（场景级）：2v2 联盟战（玩家＋受伤守卫 vs 双哥布林） |
+| dnd3/battle.test.js | ★跨单元（场景级）：多敌人战斗（双哥布林） |
+| dnd3/ranged.test.js | ★跨单元（场景级）：远程武器与短弓（消抖：`noDodge` ＋ 固定随机源） |
+| dnd-5e/stats.test.js | src/dnd/dnd-5e/00-init（数值块与基础约定） |
+| dnd-5e/chargen.test.js | src/dnd/dnd-5e/core/chargen（#1697 P1 车卡） |
+| dnd-5e/combat.test.js | src/dnd/dnd-5e/core/combat（攻击数学：熟练度/Finesse/重击骰翻倍） |
+| dnd-5e/items.test.js | src/dnd/dnd-5e/items（SRD 数值验证、槽位系统） |
+| d20m/stats.test.js | src/dnd/d20m/00-init（数值块；机架表值面） |
+| d20m/chargen.test.js | src/dnd/d20m/core/chargen（#1697 P1 车卡） |
+| d20m/combat.test.js | src/dnd/d20m/core/combat（acOf、攻击数学、天然 1/20、伤害修正） |
+| d20m/items.test.js | src/dnd/d20m/items（自证件数值面与槽位面） |
+
+★**本表以命令输出为准**（手抄必陈旧：本表曾长期只列 **15** 行，而当时实有 **33** 个用例文件）：
+
+```bash
+ls -1 tests/unit/*/*.test.js   # 每行一个用例文件；新增/删除用例须**同笔**更新本表
+ls -d  src/dnd/*/              # 新增规则包须同笔补本表（并补 src/README 的两层结构表）
+```
+
+★**为什么这条要写死**：用例清单由 `dist/manifest.js` **递归自动发现** ⇒ 表陈旧**不会**让任何门变红
+（无机械兜底，纯文档面）⇒ 只能靠「同笔更新」＋上方复现命令，不能靠门。
 
 ## 如何运行与判定
 
@@ -149,7 +179,7 @@ IIFE 包裹避免跨文件顶层重名），然后 `python build.py`——manife
       > 复位责任随迁移转移：`RPG.rng` 的注入由 harness 的**用例前置重置**统一复位（`tests/unit/framework/harness.js` 的 `__resetState` 内 `RPG.rng.reset()`，见 `#1706`／PR `#1710`）⇒ 用 `RPG.rng.setSequence(...)` 时**无需**重复抄 `try/finally`。
       > ⚠️ 但 harness **不会**复原你替换过的 `Math.random` ⇒ 仍用上示 `Math.random` 替换法时，`try/finally` **仍然必须**。
    2. **必中/必不中构造（攻击面）**：给目标加 `noDodge: true`（同时免「天然 1 必失」与重击两条路径），再配 `stats: { ac: -999 }`；也可用临时道具 `bab: 99` 提高命中面。
-      ⚠️ **只写 `ac: -999` 不构成必中**：`die === 1` 仍必失；`die === 20` 触发重击而翻倍伤害——**dnd3 另需确认掷**（`dnd3/core/combat.js`），**dnd-5e 无确认掷**（`dnd-5e/core/combat.js`，天然 20 即重击）。`noDodge: true` 在**两包**同时关闭这两条路径。实测（PR #1687 检视，**dnd3 面**）：未加 `noDodge` 的「必中靶」用例 2000 轮翻转 **20.6%**、宿主 20 轮 3 红。
+      ⚠️ **只写 `ac: -999` 不构成必中**：`die === 1` 仍必失；`die === 20` 触发重击而翻倍伤害——**dnd3 与 d20m 另需确认掷**（`dnd3/core/combat.js`、`d20m/core/combat.js`），**dnd-5e 无确认掷**（`dnd-5e/core/combat.js`，天然 20 即重击）。`noDodge: true` 在**各包**同时关闭这两条路径。实测（PR #1687 检视，**dnd3 面**）：未加 `noDodge` 的「必中靶」用例 2000 轮翻转 **20.6%**、宿主 20 轮 3 红。
    3. **非攻击检定/豁免的加值构造**：无掷骰管线的检定面（撬锁、属性检定、豁免检定）直接用加值强制成败——例如 `D().Player.stats.dex = 1` 或 `= 20`（原始分；调整值由 `modOf` 现算 ⇒ 分别得 −5／+5）、`stats.save_spells = ±20`（与 DC 拉开足够距离即必成/必败）。
    4. **统计型断言（最后手段）**：循环 N 次比较计数时须留重试余量（如 `while (hp > 0 && n < 10)`），并接受其为概率性断言；**能固定 RNG 就不要用统计法**（掷数放大只降方差不消随机，实测仍有 0.1–0.2% 长尾）。
 

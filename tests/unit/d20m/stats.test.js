@@ -29,7 +29,7 @@
 	});
 
 	/* 出处：SRD d20M · source/4Future未来/9FutureRobots.md:140（「Table: Armature Robot Frames」的 Small 行；
-	 * 机架节入口见同文 :124）。HP/AC 为本仓**设计值**（骰面固定化 ＋ 尺寸加值），不在本格断言对齐。
+	 * 机架节入口见同文 :124）。HP/AC 为本仓 **house rule（非 SRD）**（骰面固定化 ＋ 尺寸加值），不在本格断言对齐。
 	 * 锚：**#1744 §2.11**（无人机表值面） */
 	test('d20m：骨架型无人机数值对齐 SRD d20M · Armature(Small)（AC 12, HP 8, STR 11, DEX 12）', () => {
 		assert.eq(D().ArmatureDrone.stats.ac, 12);

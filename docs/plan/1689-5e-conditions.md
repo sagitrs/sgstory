@@ -295,7 +295,7 @@ console.log(`不符数 = ${bad}/10`);
 | `targetMelee` / `targetRanged` | `rollMode()` `ctx.melee` 分支 | **P1** |
 | `inactive` | `canAct()`（派生式） | **P1** |
 | `saveEnd.ability` | `saveEnd()` → `DND5E.save()` | **P2** |
-| `levels`（exhaustion） | `DND5E.d20TestMod(character)`（P2 新增，平值修正）⇒ **消费点有两处**：① **`DND5E.attack()`**（`src/dnd/dnd-5e/core/combat.js:47`）的 `atkMod` 汇合处（`:70`）② **`DND5E.save()`**（同包，P2 同时交付）的检定汇总处——**SRD L573 明定「D20 Tests encompass ability checks, attack rolls, **and saving throws**」⇒ 只接攻击面 ⇒ exhaustion 对豁免不生效（与源文不符）** | **P2** |
+| `levels`（exhaustion） | **P1 消费点**：`effectLevelOfId`／`Character.effectLevel`（`#1727` 既有原语，读 `def.levels`）；**P2 第二消费点**：`DND5E.d20TestMod(character)`（P2 新增，平值修正）⇒ **消费点有两处**：① **`DND5E.attack()`**（`src/dnd/dnd-5e/core/combat.js:47`）的 `atkMod` 汇合处（`:70`）② **`DND5E.save()`**（同包，P2 同时交付）的检定汇总处——**SRD L573 明定「D20 Tests encompass ability checks, attack rolls, **and saving throws**」⇒ 只接攻击面 ⇒ exhaustion 对豁免不生效（与源文不符）** | **P2** |
 | `autoCritMelee` | P3 攻击结算 | **P3** |
 | `cannotAttackSource` | P3 Battle 约束 | **P3** |
 | `speed0` | P4（WorldMap 层） | **P4** |
@@ -324,6 +324,19 @@ Battle 循环（src/core/40-battle.js）
 > **回填（2026-09-30，`#1713` 落地后）**：本节与 §九.3 的两处「甲/乙二择」已被 `#1713` 的引擎扩展点消解——
 > `saveEnd` 挂 `battle:turnEnd`（两通路统一，甲乙都不必选）；exhaustion 层级用**参数化 id**（`'exhaustion:3'`，
 > `c.effects` 仍是纯字符串数组、原子升降级，甲乙都不必选）。详见 `src/README.md`「引擎扩展点」节。
+
+### `duration`（回合时长）的规范句（#1741 D 席 MAJOR-4 回填）
+
+`duration: 'turn'` 的**唯一**语义与接线：
+
+- **时长只在施加时确定**：走 `DND5E.gainCondition(character, condId, { turns })`（**本包公开 API**）；
+  `turns` 省略 ⇒ 按 **1** 回合。
+- **`Character.gain(id)` 是低层写面，不登记时长**：它施加的 `duration:'turn'` 效果会在**下一个回合末
+  被移除**（`tickTurnDurations` 对未登记者按 1 起算）。这是**有意**的：不给时长的调用**不得**
+  产生「永不结束的回合效果」。故生产代码应优先用 `gainCondition`（唯一能表达 `turns ≥ 2` 的入口）。
+- **消费点**：`battle:turnEnd` 事件 → `DND5E.tickTurnDurations(actor)`（`#1727` 的钩子面）；
+  剩余数存 `character.effectTurns`（纯数据 ⇒ 随 `toJSON` 存档）。
+- **范围**：本笔只做「回合计数 + 归零移除」；**不做**「按场景」「按消耗存量」两档（后者是第五档票的面）。
 
 ### ⚠️ `saveEnd` 的承载点（回应 D 席 #7）
 
@@ -395,7 +408,13 @@ Battle 循环（src/core/40-battle.js）
      ⇒ 对 **NPC**：**两者均不自动进档**（包内单例不随存档走，按 `src/README.md`「F1」）——**这不是甲/乙的差异**，而是包内单例的普遍性质。
    ⇒ 无论甲乙，**键集守卫均须沿用**（甲靠同形、乙靠单形）；`levels` 字段的消费点见 §五。
 4. `grappled` 的「对非擒抱者劣势」⇒ **P1 按无条件劣势实现并标注简化**，例外分支归 **P4**（同 `speed0`）。
-5. `DND5E.save` 与 `DND3.save` **口径不同**（前者按 `save_<ability>`、后者按豁免类型索引）⇒ 本稿**不自作统一**，仅在 5E 包内交付；跨包统一若需要，另立票。
+5. `DND5E.save` 与 `DND3.save` **口径不同**（3E 按豁免类型索引）⇒ 本稿**不自作统一**，仅在 5E 包内交付。
+
+   **⚠ 5E 面的调整值来源（#1741 落码时由 D 席 MAJOR-1 定点，本稿回填）**：5E **不读 `save_<ability>`**
+   —— 5E 的 `STAT_BLOCK` 不含任何 `save_*` 字段（全仓 `save_*` 的唯一生产者是 3E 的 `DND3.save`，
+   而它按**豁免类型**索引）⇒ 照抄 3E 口径会使 5E 侧豁免加值**恒为 0**（裸 1d20）。
+   5E 一律走 **`DND5E.modOf(stats, ability)`**（`#1697` P1 的现算面，与本包 attack／AC 同源），
+   `ability` 取六维名（`str|dex|con|int|wis|cha`）。跨包统一若需要，另立票。
 6. `deafened` 需听觉检定系统（现仓无技能系统）⇒ **P4 降级实现**（`canHear=false` 标记），技能系统另立票。
 
 ---

@@ -41,6 +41,9 @@ DND5E.Conditions = {
 	// SRD 5.2.1 · rules-glossary.md:774；:778「each time you receive it, you gain 1 Exhaustion level.
 	//   You die if your Exhaustion level is 6」；:780 D20 Test −2×级（P2 消费）；:784「Finishing a Long
 	//   Rest removes 1 of your Exhaustion levels」⇒ **唯一有源支撑的 persistent**
+	//   `levels` 的**本笔消费点**：`#1727` 既有原语 `effectLevelOfId`／`Character.effectLevel`
+	//   （层级 id 的解析与读取）⇒ 归期注为「P1（由 effectLevelOfId 读）」，
+	//   非 §五 原表的 P2（P2 的 `d20TestMod` 是**第二个**消费点，届时另注）。
 	exhaustion: { inactive: false, scope: 'persistent', levels: { min: 1, max: 6 } },
 	// SRD 5.2.1 · rules-glossary.md:816；:820「You have Disadvantage on ability checks and attack rolls
 	//   while the source of fear is within line of sight」（source 追踪归 P3）
@@ -133,14 +136,22 @@ DND5E.rollMode = (attacker, defender, { melee = false } = {}) => {
 DND5E.canAct = (c) => !Object.entries(DND5E.Conditions)
 	.some(([id, cond]) => cond.inactive && (c?.effects ?? []).includes(id));
 
-/** 豁免检定：1d20 + 该维调整值 vs DC（口径与 DND3.save 不同，见 #1689 §九.5，不自作统一） */
+/** 豁免检定：1d20 + **该维调整值** vs DC。
+ *
+ * ⚠ **调整值来源（D 席 MAJOR-1 修法甲，已回填设计稿 §九.5）**：5E 面**不读 `save_*` 字段**
+ *   —— 5E 的 `STAT_BLOCK` 无 `save_*`（全仓唯一生产者是 3E 的 `DND3.save`，且它按**豁免类型**
+ *   索引，口径不同）⇒ 若照抄 3E 口径，5E 侧豁免加值**恒为 0**（裸 1d20）。
+ *   本包一律走 `modOf(stats, ability)`（`#1697` P1 的现算面，与本包 attack/AC 同源）。
+ *   `ability` 取六维名：`str|dex|con|int|wis|cha`。 */
 DND5E.save = (c, ability, dc) => {
-	const mod = c?.stats?.[`save_${ability}`] ?? 0;
+	const mod = DND5E.modOf(c?.stats, ability);
 	const roll = DND5E.d20();
 	return { success: roll + mod >= dc, roll, mod, dc };
 };
 
-/** 回合末豁免：非豁免型 ⇒ null；未持有 ⇒ 幂等 true（不掷骰）；成功 ⇒ 移除该条（层级条精确一层）。 */
+/** 回合末豁免：非豁免型 ⇒ null；未持有 ⇒ 幂等 true（不掷骰）；成功 ⇒ 移除该条（层级条精确一层）。
+ *  DC：声明 `saveEnd.dc` 优先；**未声明 ⇒ 用调用方传入值，其默认 10**（N-2：措辞写明，防读者以为
+ *  一律由调用方决定）。 */
 DND5E.saveEnd = (c, condId, dc = 10) => {
 	const base = RPG.effectSplit(condId).base;
 	const cond = DND5E.Conditions[base];
@@ -165,8 +176,7 @@ DND5E.tickTurnDurations = (c) => {
 		if (DND5E.Conditions[base]?.duration !== 'turn') continue;
 		const n = (left[id] ?? 1) - 1;
 		if (n > 0) { left[id] = n; continue; }
-		delete left[id];
-		c.lose(id);
+		c.lose(id);   // 移除即由 Character.lose 的单点清理顺带删掉 left[id]
 		changed = true;
 	}
 	c.effectTurns = left;
@@ -180,8 +190,7 @@ DND5E.clearBattleScoped = (c) => {
 	for (const id of [...(c?.effects ?? [])]) {
 		const base = RPG.effectSplit(id).base;
 		if (DND5E.Conditions[base]?.scope !== 'battle') continue;
-		c.lose(id);
-		if (c.effectTurns && id in c.effectTurns) delete c.effectTurns[id];
+		c.lose(id);   // 同上：回合数条目由单点清理（#1741 MINOR-5）
 		removed.push(id);
 	}
 	return removed;
@@ -190,15 +199,22 @@ DND5E.clearBattleScoped = (c) => {
 /** 死亡 ⇒ 全档清零（伞 #1728 死亡面裁定⑤：新肉身＝全新印出 ⇒ effects 与回合数全清）。
  *  ⚠ 本条与 scope 无关：**所有** effect 都清（含 persistent）。respawn 面另票，此处只做清理语义。 */
 DND5E.clearEffectsOnDeath = (c) => {
-	const kept = RPG.death?.id ?? 'death';
+	const kept = RPG.death.id;   // 直接引用同包链上的定义单例（N-4：不用字符串回落，防形状变更时静默退化）
 	const before = (c?.effects ?? []).length;
 	if (Array.isArray(c?.effects)) c.effects = c.effects.filter((id) => id === kept);
 	if (c && typeof c === 'object' && 'effectTurns' in c) c.effectTurns = {};
 	return before - (c?.effects ?? []).length;
 };
 
-/** 施加条件（统一入口）：写入持有 + 登记回合数（`duration:'turn'` 用）。
- *  turns 省略时按 1（一个回合）。层级条件用「id:级数」（#1727 原子升降级）。 */
+/** 施加条件（**本包的公开 API**，生产路径的回合数来源 —— D 席 MAJOR-4 修法甲）。
+ *
+ * ⚠ **`duration:'turn'` 的规范句**（已回填设计稿 §六「回合面」）：
+ *   - **时长只在施加时确定**：调用方走本函数并给 `turns`；`turns` 省略 ⇒ 按 **1** 回合；
+ *   - **`Character.gain(id)` 是低层写面，不登记时长** ⇒ 它施加的 `duration:'turn'` 效果
+ *     会在**下一个回合末被移除**（`tickTurnDurations` 对未登记者按 1 起算）——
+ *     这是**有意**的：不给时长的调用**不得**产生「永不结束的回合效果」；
+ *   - 因此**生产代码应优先用 `gainCondition`**（唯一能表达时长 ≥2 的入口）。
+ * 层级条件用「id:级数」（`#1727` 原子升降级）。 */
 DND5E.gainCondition = (c, condId, { turns = 1 } = {}) => {
 	c.gain(condId);
 	const base = RPG.effectSplit(condId).base;
@@ -221,10 +237,17 @@ RPG.events.on('battle:turnEnd', ({ actor } = {}) => {
 });
 
 /** 闸门接线（#1689 P1 · canAct）：把「不能行动」的条件接进 #1727 的 turnStart 闸门。
- *  ⚠ 只对本包角色生效（`stats` 有 ac 字段即 5E 侧）；dnd3 面不受影响（负例见用例）。 */
+ *
+ * ⚠ **包归属判据（D 席 MAJOR-3 修法）**：原判据 `stats.prof === undefined` **两侧都错** ——
+ *   ① 3E 角色的 `stats` 若带上 `prof`（`prof` 在 3E 是**道具**字段：`simple`/`martial`）⇒ 误判为
+ *   5E ⇒ **跨包误拦**；② 5E 角色 `stats` 缺 `prof` ⇒ **漏拦**。
+ *   改用**两包独有字段的组合**（不用单字段嗅探）：
+ *     3E 的 `STAT_BLOCK` 有 `bab`、无 `prof`；5E 有 `prof`、无 `bab` —— 两者**互斥**，且该互斥由
+ *     `#1697` 的键集用例（U9「数值块键集精确相等」）**机械守卫** ⇒ 判据不会随字段增删而静默失效。
+ *   两侧负例在册：3E 带 `prof`（＋bab）不接管／5E 缺 `prof`（且无 bab）仍接管。 */
 RPG.events.on('battle:turnStart', (p) => {
 	const actor = p?.actor;
 	if (!(actor instanceof RPG.Character)) return;
-	if (actor.stats?.prof === undefined) return;    // 非 5E 角色（3E 用 bab、无 prof）不接管
+	if (actor.stats?.[DND5E.PACK] !== 'dnd-5e') return;        // 只接管本包角色（跨包零影响）
 	if (!DND5E.canAct(actor)) { p.cancel = true; p.reason = '失能'; }
 });

@@ -31,7 +31,15 @@ setup.DND5E.STAT_BLOCK = {
 	prof: 2,      // 熟练度加值（1-4级 +2，5-8级 +3…替代 3E 的 BAB）
 	cr: 0,        // 挑战等级
 };
-setup.DND5E.stats = (over = {}) => ({ ...setup.DND5E.STAT_BLOCK, ...over });
+/** 包标识（Symbol 键）：显式标注数值块的**归属包**，供跨包判据使用（如 #1741 的闸门只接管本包角色）。
+ *  ⚠ 用 Symbol 而非字符串键的理由（三条同时成立）：
+ *    ① 不进 `Object.keys` ⇒ `#1697` 的「键集精确相等」用例（U9）不受影响；
+ *    ② 不进 `JSON.stringify` ⇒ **存档面零变化**；
+ *    ③ 但**随对象展开 `{...stats}` 保留**（Symbol 是自有可枚举属性）⇒ 经 `Character` 构造后仍在。
+ *  两侧包共用 `Symbol.for` 同一键、各写各的值 ⇒ 判据可写「等于本包名」。 */
+setup.DND5E.PACK = Symbol.for('rpg.pack');
+
+setup.DND5E.stats = (over = {}) => ({ ...setup.DND5E.STAT_BLOCK, ...over, [setup.DND5E.PACK]: 'dnd-5e' });
 
 /**
  * 定制写入路径（`setScore`）的原始分上限＝20。

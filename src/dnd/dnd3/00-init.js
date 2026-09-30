@@ -34,7 +34,15 @@ setup.DND3.STAT_BLOCK = {
 	heal_bonus: 0, // 治疗加成
 	cr: 0, // 挑战等级
 };
-setup.DND3.stats = (over = {}) => ({ ...setup.DND3.STAT_BLOCK, ...over });
+/** 包标识（Symbol 键）：显式标注数值块的**归属包**，供跨包判据使用（如 #1741 的闸门只接管本包角色）。
+ *  ⚠ 用 Symbol 而非字符串键的理由（三条同时成立）：
+ *    ① 不进 `Object.keys` ⇒ `#1697` 的「键集精确相等」用例（U9）不受影响；
+ *    ② 不进 `JSON.stringify` ⇒ **存档面零变化**；
+ *    ③ 但**随对象展开 `{...stats}` 保留**（Symbol 是自有可枚举属性）⇒ 经 `Character` 构造后仍在。
+ *  两侧包共用 `Symbol.for` 同一键、各写各的值 ⇒ 判据可写「等于本包名」。 */
+setup.DND3.PACK = Symbol.for('rpg.pack');
+
+setup.DND3.stats = (over = {}) => ({ ...setup.DND3.STAT_BLOCK, ...over, [setup.DND3.PACK]: 'dnd3' });
 
 /** 3E 面**不设**通用属性上限（既有的定制写入路径不引入上限）——`null` 表示不校验。 */
 setup.DND3.ABILITY_MAX = null;

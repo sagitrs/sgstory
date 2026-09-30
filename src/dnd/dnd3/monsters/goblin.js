@@ -16,6 +16,7 @@ DND3.Goblin = RPG.defCharacter({
 	maxHp: 7,
 	// 数值块与玩家完全对称（属性调整值见文件头出处；与源 Abilities 一致）
 	stats: DND3.stats({
+		// SRD 3.5 · `3.5 Compendium/Monsters/3.5 Monsters - G.md:1283`（`## Goblin` → Abilities）——Str 11／Dex 13／Con 12／Int 10／Wis 9／Cha 6
 		str: 11, dex: 13, con: 12, int: 10, wis: 9, cha: 6,
 		ac: 15, bab: -1, heal_bonus: 3, cr: '1/4',
 	}),

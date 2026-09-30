@@ -37,7 +37,7 @@
 			const p2 = new (R().Character)({ name: '乙', hp: 50, maxHp: 50, stats: { ac: 10 } });
 			const foe = new (R().Character)({
 				name: '敌', hp: 999, maxHp: 999,
-				stats: { bab: 5, str_mod: 0 }, items: [{ id: 'club', equipped: true }],
+				stats: { bab: 5, str: 10 }, items: [{ id: 'club', equipped: true }],
 			});
 			await new (R().Battle)(1, [p1, p2], [foe]).execute();
 			assert.eq(p1.hp, 50, '甲未被选为目标（敌选靶读 index(2)=1）');

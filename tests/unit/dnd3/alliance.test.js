@@ -48,7 +48,7 @@
 		});
 		const guard = new (R().Character)({
 			name: '守卫', hp: 6, maxHp: 12,
-			stats: D().stats({ ac: 14, bab: 0, str_mod: 1 }),
+			stats: D().stats({ ac: 14, bab: 0, str: 12 }),
 			items: [{ id: 'club', equipped: true }],
 		});
 

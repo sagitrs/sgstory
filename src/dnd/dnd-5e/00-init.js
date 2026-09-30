@@ -20,15 +20,33 @@ setup.DND5E = {
 /**
  * 标准 5E 数值块：所有字段带默认值，角色之间保持**完全对称**。
  * 定义角色时一律走 DND5E.stats({ 覆盖… })，不要手写残缺的块。
+ *
+ * 六维存**原始分**（#1697 P1）：调整值不落字段，一律由 `DND5E.modOf(stats, 维)` 现算。
+ * 原始分缺省 10 ⇒ 调整值 +0，与旧的 `*_mod: 0` 中性值等价。
  */
 setup.DND5E.STAT_BLOCK = {
-	str_mod: 0, dex_mod: 0, con_mod: 0, // 六维调整值（前半）
-	int_mod: 0, wis_mod: 0, cha_mod: 0, // 六维调整值（后半）
+	str: 10, dex: 10, con: 10, // 六项原始分（前半）
+	int: 10, wis: 10, cha: 10, // 六项原始分（后半）
 	ac: 10,       // 基础 AC（无甲时 10+灵巧；穿甲后由 acOf 计算）
 	prof: 2,      // 熟练度加值（1-4级 +2，5-8级 +3…替代 3E 的 BAB）
 	cr: 0,        // 挑战等级
 };
 setup.DND5E.stats = (over = {}) => ({ ...setup.DND5E.STAT_BLOCK, ...over });
+
+/**
+ * 定制写入路径（`setScore`）的原始分上限＝20。
+ * 引用：SRD 5.2.1 · `playing-the-game.md:115`「Ability Modifiers」邻域的上限条款。
+ * 注：静态声明路径不受此限（怪物可由 `stats()` 直接声明更高值）。
+ */
+setup.DND5E.ABILITY_MAX = 20;
+
+/** 原始分 → 调整值。引用：SRD 5.2.1 · `playing-the-game.md:101`「Ability Modifiers」
+ *  （表值 10–11⇒+0、20–21⇒+5…；本实现为等价闭式：floor((分−10)/2)）。
+ *  缺参（未设该维）按缺省原始分 10 计 ⇒ +0，即旧 `?? 0` 的中性语义。 */
+setup.DND5E.abilityMod = (score) => Math.floor(((score ?? 10) - 10) / 2);
+
+/** 取某维的调整值（消费点统一走这里；`stats` 可为 undefined） */
+setup.DND5E.modOf = (stats, ability) => setup.DND5E.abilityMod(stats?.[ability]);
 
 /** 1d20 —— 5E 一切检定的基础 */
 setup.DND5E.d20 = () => setup.RPG.roll('1d20');

@@ -3,8 +3,8 @@
 	const R = () => setup.RPG;
 
 	test('dnd3：木棒的 3E 判定读 stats（力量加成）', () => {
-		// 用 bab+str 必中的攻击者与必中的目标验证伤害含 str_mod
-		const attacker = { stats: { bab: 20, str_mod: 3 } };
+		// 用 bab+力量 必中的攻击者与必中的目标验证伤害含力量调整值（原始分 str）
+		const attacker = { stats: { bab: 20, str: 16 } };
 		const dummy = { name: '靶', hp: 50, maxHp: 50, stats: { ac: -999 } };
 		let delta = 0;
 		for (let i = 0; i < 8; i++) {

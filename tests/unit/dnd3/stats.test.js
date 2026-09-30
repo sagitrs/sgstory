@@ -6,6 +6,6 @@
 		const s = D().stats({ ac: 15 });
 		assert.eq(Object.keys(s).length, Object.keys(D().STAT_BLOCK).length, '字段数一致');
 		assert.eq(s.ac, 15, '覆盖生效');
-		assert.eq(s.str_mod, 0, '默认值生效');
+		assert.eq(s.str, 10, '六项原始分默认 10（调整值 +0）');
 	});
 })();

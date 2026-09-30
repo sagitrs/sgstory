@@ -18,7 +18,7 @@ RPG.Character = class Character extends Object {
 		this.name = name;
 		this.maxHp = maxHp;
 		this.hp = Math.min(hp, maxHp);
-		/** 规则数值块（字段由规则包约定：dnd3 用 ac/bab/str_mod，wfrp 用 WS/Wounds…） */
+		/** 规则数值块（字段由规则包约定：dnd3 用 ac/bab 与原始分 str…，wfrp 用 WS/Wounds…） */
 		this.stats = { ...stats };
 		/** 随身道具快照（Player 会被访问器桥接到 $inventory） */
 		this.items = items;

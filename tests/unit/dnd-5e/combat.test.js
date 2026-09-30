@@ -7,29 +7,29 @@
 	const D = () => setup.DND5E;
 
 	test('5e combat：acOf——无甲 = 10 + 灵巧', () => {
-		const c = { stats: { dex_mod: 3 } };
+		const c = { stats: { dex: 16 } };
 		assert.eq(D().acOf(c), 13);
 	});
 
 	test('5e combat：acOf——轻甲（皮甲）= 11 + 灵巧', () => {
-		const c = { stats: { dex_mod: 3 }, items: [{ id: 'leather', equipped: true }] };
+		const c = { stats: { dex: 16 }, items: [{ id: 'leather', equipped: true }] };
 		assert.eq(D().acOf(c), 14);
 	});
 
 	test('5e combat：acOf——中甲（链甲衫）= 13 + min(灵巧, 2)', () => {
-		const c = { stats: { dex_mod: 3 }, items: [{ id: 'chain-shirt', equipped: true }] };
+		const c = { stats: { dex: 16 }, items: [{ id: 'chain-shirt', equipped: true }] };
 		assert.eq(D().acOf(c), 15, '灵巧 3 但上限 2');
-		const c2 = { stats: { dex_mod: 1 }, items: [{ id: 'chain-shirt', equipped: true }] };
+		const c2 = { stats: { dex: 12 }, items: [{ id: 'chain-shirt', equipped: true }] };
 		assert.eq(D().acOf(c2), 14, '灵巧 1 低于上限');
 	});
 
 	test('5e combat：acOf——重甲（环甲）= 14 固定，不加灵巧', () => {
-		const c = { stats: { dex_mod: 5 }, items: [{ id: 'ring-mail', equipped: true }] };
+		const c = { stats: { dex: 20 }, items: [{ id: 'ring-mail', equipped: true }] };
 		assert.eq(D().acOf(c), 14);
 	});
 
 	test('5e combat：攻击含熟练度（prof +2 替代 BAB）', () => {
-		const attacker = { stats: { prof: 20, str_mod: 0, dex_mod: 0 } };
+		const attacker = { stats: { prof: 20, str: 10, dex: 10 } };
 		const dummy = { name: '靶', hp: 100, maxHp: 100, stats: { ac: -999 } };
 		let hit = false;
 		for (let i = 0; i < 10 && !hit; i++) {
@@ -41,7 +41,7 @@
 	});
 
 	test('5e combat：Finesse 武器用 max(str, dex)', () => {
-		const attacker = { stats: { prof: 20, str_mod: -5, dex_mod: 3 } };
+		const attacker = { stats: { prof: 20, str: 1, dex: 16 } };
 		const dummy = { name: '靶', hp: 100, maxHp: 100, stats: { ac: -999 } };
 		let hit = false;
 		for (let i = 0; i < 10 && !hit; i++) {
@@ -53,7 +53,7 @@
 	});
 
 	test('5e combat：木棒伤害 1d4（5E 数值，非 3E 的 1d6）', () => {
-		const attacker = { stats: { prof: 20, str_mod: 0 } };
+		const attacker = { stats: { prof: 20, str: 10 } };
 		const dummy = { name: '靶', hp: 100, maxHp: 100, stats: { ac: -999 } };
 		let maxDmg = 0;
 		for (let i = 0; i < 30; i++) {
@@ -68,7 +68,7 @@
 	});
 
 	test('5e combat：炸弹是远程武器（用灵巧）', () => {
-		const attacker = { stats: { prof: 20, str_mod: -5, dex_mod: 3 } };
+		const attacker = { stats: { prof: 20, str: 1, dex: 16 } };
 		const dummy = { name: '靶', hp: 10, maxHp: 10, stats: { ac: -999 } };
 		let hit = false;
 		for (let i = 0; i < 10 && !hit; i++) {

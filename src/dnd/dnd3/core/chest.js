@@ -9,10 +9,10 @@ DND3.Chest = class Chest extends RPG.Chest {};
 DND3.Chest.handlers = {
 	...RPG.Chest.handlers,
 
-	/** 3E 撬锁：1d20 + 施术者灵巧调整值（stats.dex_mod）vs lockDC；
+	/** 3E 撬锁：1d20 + 施术者灵巧调整值（stats.dex）vs lockDC；
 	 *  成功≈使用钥匙（机关判定被跳过），失败永久锁死。 */
 	lockpick(that) {
-		const roll = DND3.d20() + (that?.stats?.dex_mod ?? 0);
+		const roll = DND3.d20() + DND3.modOf(that?.stats, 'dex');
 		RPG.perform(`（撬锁判定：${roll} / DC ${this.lockDC}）`);
 		if (roll >= this.lockDC) this.openBy();
 		else this.lockNow();

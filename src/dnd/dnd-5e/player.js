@@ -6,7 +6,7 @@ const DEFAULTS = {
 	name: '旅行者',
 	hp: 18,
 	maxHp: 20,
-	stats: DND5E.stats({ ac: 12, str_mod: 1, dex_mod: 1 }),
+	stats: DND5E.stats({ ac: 12, str: 12, dex: 12 }), // 玩家预生成数值：非 SRD 怪物条目，按 house rule 标注（#1697 P1；对齐评估见 #1719）
 };
 
 const state = () => {

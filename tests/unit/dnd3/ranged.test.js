@@ -21,7 +21,7 @@
 		// noDodge 免必失/免重击 → 纯线性断言
 		R().rng.set(() => 0.5);
 		try {
-			const attacker = { stats: { bab: 0, str_mod: -10, dex_mod: 3 } };
+			const attacker = { stats: { bab: 0, str: 1, dex: 16 } };
 			const dummy = { name: '靶', hp: 100, maxHp: 100, stats: { ac: 0 }, noDodge: true };
 			new (D().ShortBow)().used(dummy, attacker);
 			// 掷 11 + bab(0) = 11 >= AC 0 → 命中
@@ -39,7 +39,7 @@
 	test('dnd3 ranged：近战武器仍用力量（固定 RNG）', () => {
 		R().rng.set(() => 0.5);
 		try {
-			const attacker = { stats: { bab: 0, str_mod: 3, dex_mod: -10 } };
+			const attacker = { stats: { bab: 0, str: 16, dex: 1 } };
 			const dummy = { name: '靶', hp: 100, maxHp: 100, stats: { ac: 0 }, noDodge: true };
 			const club = new (D().Club)();
 			club.equipped = true; // 绕过拔出检查
@@ -55,7 +55,7 @@
 	test('dnd3 ranged：短弓未装备也可直接使用（与近战需拔出的差异面）', () => {
 		R().rng.set(() => 0.5);
 		try {
-			const attacker = { stats: { bab: 0, str_mod: 0, dex_mod: 0 } };
+			const attacker = { stats: { bab: 0, str: 10, dex: 10 } };
 			const dummy = { name: '靶', hp: 100, maxHp: 100, stats: { ac: 0 }, noDodge: true };
 			const bow = new (D().ShortBow)();
 			assert.ok(!bow.equipped, '初始未装备');

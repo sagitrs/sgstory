@@ -2,7 +2,7 @@
  *
  * B/X 风格豁免：掷 1d20 + 调整值 vs DC，≥ DC 成功。
  * 豁免类型对应 3E：petrification（石化）、spells（法术）、fortitude 等，
- * 由 stats.save 里的字段提供调整值（默认 0）。
+ * 由 `stats.save_<类型>` 字段提供调整值（默认 0；与六维调整值无关）。
  */
 
 /** 豁免检定：1d20 + save_mod vs DC，返回 { success, roll, total, dc, mod } */

@@ -59,7 +59,7 @@
 - 装备参与战斗数值走规则包：dnd3 的 `DND3.acOf(角色)` 会把已装备道具的
   `stats.ac_bonus` 计入防御等级（铁环甲 +3、包铁皮靴 +1）。
 - 近战武器共用 `DND3.meleeAttack`（dnd3/core/combat.js）：拔出检查（`stats.ranged: true` 的远程武器**跳过**）、
-  1d20+BAB+**力量** vs acOf（远程武器改用**灵巧** `dex_mod`）、天然 1/重击威胁范围 `stats.critMin`、击倒结算
+  1d20+BAB+**力量**调整值 vs acOf（远程武器改用**灵巧**调整值；调整值由 `stats` 的原始分现算）、天然 1/重击威胁范围 `stats.critMin`、击倒结算
   ——**加新武器只需写数据（见 sword.js），零重复判定代码**（dnd-5e 同构：`DND5E.attack`，同样识别 `stats.ranged`）。
 
 ## 交互战（玩家控制的回合）

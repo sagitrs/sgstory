@@ -17,7 +17,8 @@ const DEFAULTS = {
 	hp: 18,
 	maxHp: 20,
 	// 数值块与哥布林完全对称（走 DND3.stats 填满默认值）
-	stats: DND3.stats({ ac: 12, str_mod: 1, dex_mod: 1, heal_bonus: 0 }),
+	// 玩家预生成数值：非 SRD 怪物条目，按 house rule 标注（#1697 P1；对齐评估见 #1719）
+	stats: DND3.stats({ ac: 12, str: 12, dex: 12, heal_bonus: 0 }),
 };
 
 const state = () => {

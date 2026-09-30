@@ -14,7 +14,7 @@
 
 	test('dnd3 combat：长剑与木棒共用同一套近战数学', () => {
 		// 必中构造：bab 20；对低 AC 目标连击，两种武器都应造成伤害
-		const attacker = { stats: { bab: 20, str_mod: 2 } };
+		const attacker = { stats: { bab: 20, str: 14 } };
 		for (const id of ['club', 'sword']) {
 			const dummy = { name: '靶', hp: 100, maxHp: 100, stats: { ac: -999 } };
 			let damaged = false;
@@ -34,7 +34,7 @@
 		// 甲靶 AC 13：11+0=11 < 13 → 每掷必不中（mail ac_bonus=3 → 10+3=13）
 		R().rng.set(() => 0.5);
 		try {
-			const attacker = { stats: { bab: 0, str_mod: 0 } };
+			const attacker = { stats: { bab: 0, str: 10 } };
 			const swings = 10;
 			const naked = { name: '裸靶', hp: 999, maxHp: 999, stats: { ac: 10 } };
 			const armored = { name: '甲靶', hp: 999, maxHp: 999, stats: { ac: 10 }, items: [{ id: 'mail', equipped: true }] };
@@ -56,7 +56,7 @@
 	});
 
 	test('dnd3 combat：炸弹用灵巧不用力量，可击倒目标', () => {
-		const attacker = { stats: { bab: 20, dex_mod: 5, str_mod: -5 } };
+		const attacker = { stats: { bab: 20, dex: 20, str: 1 } };
 		const dummy = { name: '靶', hp: 6, maxHp: 6, stats: { ac: -999 } };
 		let thrown = 0;
 		while (dummy.hp > 0 && thrown < 10) {

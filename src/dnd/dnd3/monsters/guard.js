@@ -11,8 +11,10 @@ DND3.Guard = RPG.defCharacter({
 	name: '受伤的守卫',
 	hp: 6,          // 半血入场，需要玩家治疗
 	maxHp: 12,
+	// house rule（非 SRD 数值）：3E SRD 无「Guard」条目（源仓 `Monsters/Monsters.md` grep 零命中）；
+	// 本块为故事自有（半血入场），P1 行为保全 ⇒ 按原调整值落原始分；对齐评估见 #1719。
 	stats: DND3.stats({
-		str_mod: 1, dex_mod: 0, con_mod: 1,
+		str: 12, dex: 10, con: 12,
 		ac: 14, bab: 0, heal_bonus: 0, cr: '1/2',
 	}),
 	items: [

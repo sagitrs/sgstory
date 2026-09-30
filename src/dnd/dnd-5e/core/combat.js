@@ -18,10 +18,10 @@ RPG.slotLabels.feet = '脚';
  *     { base: 11, dex: true, dexMax: null }   → 轻甲：11 + dex
  *     { base: 13, dex: true, dexMax: 2 }      → 中甲：13 + min(dex, 2)
  *     { base: 14, dex: false }                → 重甲：14（不加灵巧）
- *   未穿甲 = 10 + dex_mod。
+ *   未穿甲 = 10 + 灵巧调整值。
  */
 DND5E.acOf = (c) => {
-	const dex = c?.stats?.dex_mod ?? 0;
+	const dex = DND5E.modOf(c?.stats, 'dex');
 	const body = (c?.items ?? []).find((s) => s.equipped && RPG.reviveItem(s).slot === 'body');
 	if (!body) return 10 + dex; // 无甲
 	const armor = RPG.reviveItem(body);
@@ -42,7 +42,7 @@ DND5E.grantDeathIfDown = (that) => {
  * 5E 近战/远程攻击（木棒、长剑、炸弹等共用）：
  *   攻击掷骰 = 1d20 + 熟练度(若熟练) + 力量或灵巧（Finesse 取高者）
  *   天然 20 = 重击 → **全部伤害骰翻倍**（调整值不翻倍）
- *   武器 stats.finesse: true 时用 max(str_mod, dex_mod) 作为攻击与伤害调整值
+ *   武器 stats.finesse: true 时用 max(力量, 灵巧)调整值 作为攻击与伤害调整值
  */
 DND5E.attack = (item, that, from) => {
 	// 近战武器拔出检查（复用 core 逻辑）
@@ -61,10 +61,10 @@ DND5E.attack = (item, that, from) => {
 	const isFinesse = item.stats.finesse === true;
 	const isRanged = item.stats.ranged === true;
 	const abilMod = isRanged
-		? (f.dex_mod ?? 0)
+		? DND5E.modOf(f, 'dex')
 		: isFinesse
-			? Math.max(f.str_mod ?? 0, f.dex_mod ?? 0)
-			: (f.str_mod ?? 0);
+			? Math.max(DND5E.modOf(f, 'str'), DND5E.modOf(f, 'dex'))
+			: DND5E.modOf(f, 'str');
 	// 熟练度：简单/军用武器默认熟练（简化：prof 直接加）
 	const prof = f.prof ?? 0;
 	const atkMod = prof + abilMod;

@@ -1,5 +1,5 @@
 :: StoryInit
-<<set $player to { name: "旅行者", hp: 18, maxHp: 20, stats: setup.DND3.stats({ ac: 12, str_mod: 1, dex_mod: 1 }), effects: [] }>>
+<<set $player to { name: "旅行者", hp: 18, maxHp: 20, stats: setup.DND3.stats({ ac: 12, str: 12, dex: 12 }), effects: [] }>>
 <<set $hasKey to false>>
 <<set $inventory to []>>
 <<set $trapSprung to false>>

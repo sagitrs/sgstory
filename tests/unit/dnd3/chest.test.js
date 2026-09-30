@@ -2,16 +2,32 @@
 (() => {
 	const D = () => setup.DND3;
 
-	test('dnd3 chest：撬锁判定 ±dex 强制成败', () => {
-		D().Player.stats.dex_mod = 20;
-		const a = new (D().Chest)({ id: 'b3', name: '甲匣' });
-		a.used(D().Player, D().Player, 'lockpick');
-		assert.ok(a.opened, '必成');
-		D().Player.stats.dex_mod = -20;
-		const b = new (D().Chest)({ id: 'b4', name: '乙匣' });
-		b.used(D().Player, D().Player, 'lockpick');
-		assert.ok(b.locked, '必败');
-		D().Player.stats.dex_mod = 1;
+	test('dnd3 chest：撬锁判定的灵巧调整值与 DC 边界（注入定骰）', () => {
+		const R = () => setup.RPG;
+		// 固定出目 d20 = 1（0.0）⇒ roll = 1 + 灵巧调整值，逐档验 DC 12（Chest 默认 lockDC）边界：
+		//   dex 1 ⇒ −5 ⇒ 1−5 = −4 < 12 必败；dex 32 ⇒ +11 ⇒ 1+11 = 12 ≥ 12 恰过（3E 面不设原始分上限）
+		for (const [dex, shouldOpen, why] of [[1, false, 'dex 1（−5）⇒ −4 < 12 必败'], [32, true, 'dex 32（+11）⇒ 12 ≥ 12 恰过']]) {
+			R().rng.set(() => 0.0);
+			try {
+				D().Player.stats.dex = dex;
+				const box = new (D().Chest)({ id: `b-lock-${dex}`, name: '匣' });
+				box.used(D().Player, D().Player, 'lockpick');
+				assert.eq(box.opened === true, shouldOpen, why);
+			} finally {
+				R().rng.reset();
+			}
+		}
+		// 固定出目 d20 = 20（0.99）⇒ 低调整值也能过（19+1+… ≥ 12）
+		R().rng.set(() => 0.99);
+		try {
+			D().Player.stats.dex = 1;
+			const box = new (D().Chest)({ id: 'b-lock-max', name: '匣' });
+			box.used(D().Player, D().Player, 'lockpick');
+			assert.ok(box.opened, 'd20 = 20 ⇒ 20−5 = 15 ≥ 12 必成');
+		} finally {
+			R().rng.reset();
+			D().Player.stats.dex = 12; // 还原给后续用例
+		}
 	});
 
 	test('dnd3 chest：陷阱池取值经 RPG.rng（注入后确定）', () => {

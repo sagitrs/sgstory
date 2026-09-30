@@ -21,7 +21,7 @@ RPG.Item = class Item extends Object {
 		this.id = def.id;
 		this.name = def.name ?? def.id;
 		this.desc = def.desc ?? '';
-		/** 规则数值块（dnd3 填 ac/bab/str_mod…，wfrp 填 WS/BS/Wounds…，字段由规则包约定） */
+		/** 规则数值块（dnd3 填 ac/bab/原始分 str…，wfrp 填 WS/BS/Wounds…，字段由规则包约定） */
 		this.stats = { ...def.stats };
 		/** 剩余使用次数；null 表示无限次 */
 		this.charges = def.charges ?? null;

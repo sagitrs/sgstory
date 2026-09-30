@@ -12,7 +12,7 @@ DND3.Bomb = RPG.defItem({
 
 	used(that, from) {
 		const f = from?.stats ?? {};
-		const atkMod = (f.bab ?? 0) + (f.dex_mod ?? 0); // 投掷武器用灵巧
+		const atkMod = (f.bab ?? 0) + DND3.modOf(f, 'dex'); // 投掷武器用灵巧
 		const ac = DND3.acOf(that);
 		const die = DND3.d20();
 		const noDodge = that?.noDodge === true;

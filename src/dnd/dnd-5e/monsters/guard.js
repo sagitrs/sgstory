@@ -10,7 +10,9 @@ DND5E.Guard = RPG.defCharacter({
 	name: '受伤的守卫',
 	hp: 6, maxHp: 12,
 	stats: DND5E.stats({
-		str_mod: 1, dex_mod: 1, con_mod: 1,
+		// SRD 5.2.1 · monsters-A-Z.md:8753（Guard）—— STR 13(+1) DEX 12(+1) CON 12(+1)；
+		// WIS 11／CHA 10／INT 10 均为 +0，与本仓默认一致，故未另设。
+		str: 13, dex: 12, con: 12,
 		ac: 14, prof: 2, cr: '1/8',
 	}),
 	items: [{ id: 'club', equipped: true }],

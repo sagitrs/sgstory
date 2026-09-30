@@ -51,7 +51,7 @@ DND3.meleeAttack = (item, that, from) => {
 
 	const f = from?.stats ?? {};
 	// 远程武器用灵巧，近战用力量
-	const abilMod = isRanged ? (f.dex_mod ?? 0) : (f.str_mod ?? 0);
+	const abilMod = isRanged ? DND3.modOf(f, 'dex') : DND3.modOf(f, 'str');
 	const atkMod = (f.bab ?? 0) + abilMod;
 	const ac = DND3.acOf(that);
 	const die = DND3.d20();

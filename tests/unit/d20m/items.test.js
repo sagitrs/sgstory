@@ -5,7 +5,8 @@
 	const R = () => setup.RPG;
 	const D = () => setup.D20M;
 
-	/* 出处：SRD d20M · source/1Modern现代/25msrdequipmentweaponsandarmor武器与盔甲.md:71（「Beretta 92F (9mm autoloader)」行） */
+	/* 出处：SRD d20M · source/1Modern现代/25msrdequipmentweaponsandarmor武器与盔甲.md:71（「Beretta 92F (9mm autoloader)」行）
+	 * 锚：**#1744 §2.11**（自证件表值面）—— docs/plan/1744-d20m-combat.md */
 	test('d20m items：贝瑞塔 92F 的伤害面对齐 SRD d20M（DMG 2d6, CRIT 20, RANGE 40）', () => {
 		const w = new (D().Beretta92F)();
 		assert.eq(w.stats.dmg, '2d6', 'Damage 列');
@@ -20,7 +21,8 @@
 	});
 
 	/* 出处：SRD d20M · source/4Future未来/2FutureCybernetics.md:97（「Prosthetic Arm (PL 5)」；
-	 * 逐行读数见 :99 Benefit／:100 Type External／:101 Hardness/Hit Points 3/5／:102 Base Purchase DC 17） */
+	 * 逐行读数见 :99 Benefit／:100 Type External／:101 Hardness/Hit Points 3/5／:102 Base Purchase DC 17）
+	 * 锚：**#1744 §2.11**（义体条目 :99「no special game benefits」⇒ ✗ 造加值） */
 	test('d20m items：义体·假臂的替换面（PL 5）', () => {
 		const c = new (D().ProstheticArm)();
 		assert.eq(c.stats.hardness, 3, 'Hardness 3');

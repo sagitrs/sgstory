@@ -1,4 +1,5 @@
 /* d20m 车卡族（#1697 P1）：六维原始分、换算、写面越域、属性生成
+ * 断言锚：**#1744 §2.9**（写面与上限）／**§2.10**（生成法＝house rule 面）—— docs/plan/1744-d20m-combat.md §四
  * （与 dnd3／dnd-5e 同构；差异面：本包 `ABILITY_MAX === null` —— MSRD 不设通用上限）
  */
 (() => {
@@ -21,6 +22,7 @@
 		assert.eq(D().abilityMod(undefined), 0, '缺参按缺省 10');
 	});
 
+	/* 锚：#1744 §2.9a（唯一写面 ＋ 调整值现算） */
 	test('d20m chargen：写入后按原始分取调整值', () => {
 		const c = { stats: D().stats() };
 		D().setScore(c, 'str', 16);
@@ -30,6 +32,7 @@
 		assert.eq(D().modOf(c.stats, 'cha'), 0, '未定制的维度 ⇒ +0');
 	});
 
+	/* 锚：#1744 §2.9b（无上限）／§2.9c（越域抛错） */
 	test('d20m chargen：写面无上界、下界与非整数仍抛错（越域不静默夹取）', () => {
 		const c = { stats: D().stats() };
 		assert.eq(D().ABILITY_MAX, null, '本包不设通用上限（ABILITY_MAX === null）');

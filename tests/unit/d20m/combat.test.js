@@ -1,6 +1,7 @@
 /* d20m/core/combat 的单元测试：acOf（装备加成）、攻击数学、天然 1/20、伤害修正、伤害下限
  *
  * ★本文件的判定条款**逐条对源**（战斗节 `27msrdcombat战斗.md` 已入 pin 表）——
+ * 断言锚：**#1744 §2.1～§2.7**（逐格写在该格上方）—— docs/plan/1744-d20m-combat.md §四。
  *   尤其「**远程不加伤害调整值**（`:77`）」与「**天然 1/20 自动成败**（`:21`）」两处是
  *   本包与 dnd3 形态**故意不同**的地方，各有一条**判别性**用例钉住（✗ 靠注释自陈）。
  */
@@ -18,6 +19,7 @@
 		used(that, from) { setup.D20M.attack(this, that, from); },
 	});
 
+	/* 锚：#1744 §2.7（有效防御；**house rule** —— 源式 :103 的职业加值／体型加值本笔未落） */
 	test('d20m combat：acOf ＝ 基础 ac ＋ 已装备道具的 ac_bonus', () => {
 		R().defItem({ id: 'unit-d20m-vest', name: '试样护具', stats: { ac_bonus: 3 }, used() {} });
 		const c = new (R().Character)({ name: '靶甲', hp: 10, stats: { ac: 10 } });
@@ -73,7 +75,8 @@
 		}
 	});
 
-	/* 源：SRD d20M · source/1Modern现代/27msrdcombat战斗.md:21（天然 1 必失／天然 20 必中） */
+	/* 源：SRD d20M · source/1Modern现代/27msrdcombat战斗.md:21（天然 1 必失／天然 20 必中）
+	 * 锚：**#1744 §2.3**（★对齐源文，✗ house rule） */
 	test('d20m combat：天然 1 必失（对齐 SRD d20M，加值再高也不命中）', () => {
 		R().rng.set(() => 0); // d20 恒 1
 		try {
@@ -86,7 +89,8 @@
 		}
 	});
 
-	/* 源：SRD d20M · source/1Modern现代/27msrdcombat战斗.md:21（天然 20 必中） */
+	/* 源：SRD d20M · source/1Modern现代/27msrdcombat战斗.md:21（天然 20 必中）
+	 * 锚：**#1744 §2.3 ＋ §2.4**（天然 20 恒命中；确认掷未命中 ⇒ 仅普通命中） */
 	test('d20m combat：天然 20 必中（对齐 SRD d20M，防御再高也命中）', () => {
 		R().rng.set(() => 0.99); // d20 恒 20；确认掷亦 20；2d6 各掷 6
 		try {
@@ -100,6 +104,7 @@
 		}
 	});
 
+	/* 锚：#1744 §2.6（伤害下限 1，源 :25-27） */
 	test('d20m combat：伤害下限 1（近战负力量压到 0 以下时）', () => {
 		// 序列：d20 = 11（命中）；两枚 d6 = 1、1 ⇒ 2 − 5 = −3 ⇒ 取下限 1
 		R().rng.setSequence([0.5, 0, 0]);
@@ -113,6 +118,7 @@
 		}
 	});
 
+	/* 锚：#1744 §2.8（击倒结算；**house rule** —— 死亡/濒死状态机本笔未落） */
 	test('d20m combat：HP 归零对 Character 挂死亡减益', () => {
 		R().rng.set(() => 0.5);
 		try {

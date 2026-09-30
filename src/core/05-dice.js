@@ -1,7 +1,53 @@
 /* RPG 核心 —— 骰子工具
  * 支持 '1d6'、'2d4+1'、'1d8-2' 记法，以及固定值 '3'。
  * 规则无关：dnd3 的 1d20 检定与 wfrp 的 1d100 百分骰都用它。
+ *
+ * 随机源：所有骰面一律经 `RPG.rng.pick(sides)`（唯一随机入口）。
+ *   为什么：直调 `Math.random()` 时用例只能做范围断言；收成单一入口后用例可注入
+ *   固定序列做确定性断言。设计与契约见 docs/plan/1697-character-creation.md §决策五。
  */
+
+/** 随机源：唯一注入面。
+ *
+ * 默认源**动态读取** `Math.random`（不在定义时冻结）——冻结会让既有「替换
+ * `Math.random`」的用例注入**静默失效**（测试仍绿而实为真随机）。
+ */
+RPG.rng = {
+	_impl: null,
+
+	/** 唯一注入形态：`fn` 与 `Math.random` 同形（无参，返回 `[0,1)`） */
+	set(fn) {
+		if (typeof fn !== 'function') {
+			throw new Error(`RPG.rng.set 需要函数（与 Math.random 同形），收到：${typeof fn}`);
+		}
+		this._impl = fn;
+		return this;
+	},
+
+	/** 便捷件：注入固定序列（单元值数组）。按次消耗，**耗尽即抛错**——
+	 *  不静默回退真随机、不重复末值：假确定性必须当场可见。 */
+	setSequence(values) {
+		if (!Array.isArray(values) || values.length === 0) {
+			throw new Error('RPG.rng.setSequence 需要非空的单元值数组');
+		}
+		const rest = [...values];
+		return this.set(() => {
+			if (rest.length === 0) {
+				throw new Error('RPG.rng：注入序列已耗尽（不静默回退真随机）');
+			}
+			return rest.shift();
+		});
+	},
+
+	/** 复位：回到默认源（用例前置挂点调用，防注入跨用例残留） */
+	reset() { this._impl = null; return this; },
+
+	/** 掷单颗骰：映射与历史实现逐字相同（`1 + floor(unit * sides)`） */
+	pick(sides) {
+		const unit = this._impl ? this._impl() : Math.random();   // ★默认源动态读取
+		return 1 + Math.floor(unit * sides);
+	},
+};
 
 /** 掷骰，返回明细 { expr, count, sides, mod, rolls, total } */
 RPG.rollDetail = (expr) => {
@@ -18,7 +64,7 @@ RPG.rollDetail = (expr) => {
 	const mod = m[3] ? parseInt(m[3], 10) : 0;
 	const rolls = [];
 	for (let i = 0; i < count; i++) {
-		rolls.push(1 + Math.floor(Math.random() * sides));
+		rolls.push(RPG.rng.pick(sides));   // 唯一随机入口（#1706）
 	}
 	return {
 		expr,

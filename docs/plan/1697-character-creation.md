@@ -8,26 +8,38 @@
 
 ## 一、规则出处与引用口径
 
-### 1.1 术语与版本
+### 1.1 版本口径与本文取值
 
-本文所引的 5E 数值一律出自 **System Reference Document 5.1**（下称 SRD 5.1）正文条款；3E 数值出自 **D&D 3.5 SRD**（d20 SRD）与《地下城主指南》（下称 DMG）的变体条款。两处口径的差异须显式说明：
+本引擎的 5E 规则包在 `src/dnd/dnd-5e/00-init.js:1` 声明其规则依据为「D&D 5e (2024 SRD)」（下称声明版）；3E 数值出自 **D&D 3.5 SRD**（d20 SRD）与《地下城主指南》（下称 DMG）的变体条款。
 
-- 仓库 `src/dnd/dnd-5e/00-init.js` 的文件头声明为「D&D 5e (2024 SRD)」，而本文引用的是 SRD 5.1 的条款文本 ⇒ **两处口径不一致**。该不一致登记为上游票 #1686 的待决项（见 §1.3），本文不代为选定。
+**本文按引擎声明版取值。** 理由：本稿的读者是落地实现者，若按另一版本取值，该值会被固化进代码与用例。据此逐面标注取值来源：
+
+| 5E 面 | 本文取值 | 依据 |
+|---|---|---|
+| 27 点购买成本表、标准阵列、4d6 弃最低、属性上限、调整值公式 | 两版同值 | 两版逐项比对结果一致 |
+| 升级生命值（掷生命骰加体质调整值，最低 1；或取职业定值） | 两版同值 | 同上 |
+| **ASI 面（触发级与形态）** | **声明版（2024）值** | 声明版中 ASI 是**通用专长**，复得级**按职业**，第 19 级为 **Epic Boon** 而非 ASI ⇒ 见 §1.2 与 §决策八 |
+| 属性加值的来源面（由背景或由种族给出） | 本稿不断言 | 两版差异面，登记为 #1686 的核定项（见 §十.3） |
+
+首稿把版本口径登记为「本文不代决」；在「按声明版取值」确定之后，该立场不再成立。仓库声明的**授权核验**仍属 #1686（见 §1.3）。
 
 ### 1.2 逐数引源
 
-本方案出现的每个规则数值，均在下表中给出条款出处；引用形态分「条款正文」与「表值」两类。
+本方案出现的每个规则数值，均在下表中给出条款出处。引用形态分三类：「条款正文」为条款直接给出；「表值」为条款内表格给出；「**设计判断**」为本方案的设计选择，条款未直接规定，实现时须按规则包参数暴露或在文档中显式登记。
 
 | 数值 | 出处条款 | 引用形态 |
 |---|---|---|
-| 27 点购买成本表（原始分 8–15，成本依次 0,1,2,3,4,5,7,9） | SRD 5.1「Variant: Customizing Ability Scores」 | 表值 |
+| 27 点购买成本表（原始分 8–15，成本依次 0,1,2,3,4,5,7,9） | 声明版「Variant: Customizing Ability Scores」（两版同值） | 表值 |
 | 27 点购买的预算与定义域（27 点、原始分 8–15） | 同上 | 条款正文 |
-| 标准阵列 15、14、13、12、10、8 | SRD 5.1 属性生成法（标准阵列选项） | 条款正文 |
-| 4d6 弃最低（掷四枚 d6，取最高三枚之和，重复六次） | SRD 5.1 属性生成法 | 条款正文 |
-| 属性上限（冒险者 20；怪物与神性存在可至 30） | SRD 5.1「Ability Scores」 | 条款正文 |
-| 属性调整值 = 向下取整((原始分 − 10) ÷ 2) | SRD 5.1 属性值与调整值表 | 表值 |
-| ASI 触发级：4、8、12、16、19；效果为单项 +2 或两项各 +1；不得越 20 | SRD 5.1「Ability Score Improvement」 | 条款正文 |
-| 升级生命值：掷职业生命骰并加体质调整值，把合计（最低 1）加到最大生命值；亦可取职业定值 | SRD 5.1「Level Advancement」 | 条款正文 |
+| 标准阵列 15、14、13、12、10、8 | 声明版属性生成法（标准阵列选项；两版同值） | 条款正文 |
+| 4d6 弃最低（掷四枚 d6，取最高三枚之和，重复六次） | 声明版属性生成法（两版同值） | 条款正文 |
+| 属性上限（冒险者 20；怪物与神性存在可至 30） | 声明版「Ability Scores」（两版同值） | 条款正文 |
+| 属性调整值 = 向下取整((原始分 − 10) ÷ 2) | 声明版属性值与调整值表（两版同值） | 表值 |
+| ASI 的形态与效果：通用专长（前置：等级 4+，可重复）；单项 +2 或两项各 +1；不得越 20 | 声明版「Feats / Ability Score Improvement」 | 条款正文 |
+| ASI 复得级按职业：多数职业 4、8、12、16；战士 4、6、8、12、14、16；游荡者 4、8、10、12、16 | 声明版「Classes」各职业特性表 | 表值 |
+| 第 19 级为 Epic Boon，不授 ASI | 声明版「Classes」各职业特性表（Level 19: Epic Boon） | 条款正文 |
+| 升级生命值：掷职业生命骰并加体质调整值，把合计（最低 1）加到最大生命值；亦可取职业定值 | 声明版「Level Advancement」（两版同值） | 条款正文 |
+| 升级时当前生命值随之增加同一数额 | 条款只规定加到最大生命值 | **设计判断**（见 §决策八 的备选与理由） |
 | 3.5E 点数购买：基准 8、上限 18；成本 8→0、9→1、10→2、11→3、12→4、13→5、14→6、15→8、16→10、17→13、18→16 | D&D 3.5 DMG 变体「点数购买」 | 表值 |
 | 3.5E 点数购买的预算档：25、28、32（按战役强度） | 同上 | 表值 |
 | 3.5E 精英阵列 15、14、13、12、10、8 | D&D 3.5 SRD／DMG「精英角色」 | 表值 |
@@ -35,8 +47,8 @@
 
 ### 1.3 上游依赖 #1686 的两项待决（本文不代决）
 
-1. **来源选定与授权核验**。SRD 5.1 的授权形态为 Creative Commons Attribution 4.0（以官方 PDF 首页的声明为准），与 OGL 1.0a 不同；而**3.5E 的点数购买属 DMG 的变体条款，并不在 d20 SRD 正文之内**（d20 SRD 只开放 OGL 覆盖的内容）。因此，引用 3.5E 成本表与预算档之前，需要由 #1686 核定其可引用性与标注形态。
-2. **版本口径统一**（见 §1.1）。
+1. **来源选定与授权核验**。声明版的授权形态为 Creative Commons Attribution 4.0（以官方 PDF 首页的声明为准），与 OGL 1.0a 不同；而**3.5E 的点数购买属 DMG 的变体条款，并不在 d20 SRD 正文之内**（d20 SRD 只开放 OGL 覆盖的内容）。因此，引用 3.5E 成本表与预算档之前，需要由 #1686 核定其可引用性与标注形态。
+2. **仓库声明的落地**：声明版与仓库现有数值一致性的逐条核对（本文已按声明版取值，见 §1.1）。
 
 本文的处置：凡本文引用的数值均给出条款出处；**来源选定、授权核验与仓库声明的落地一律归 #1686**。本文不新增来源断言，也不代为选择来源。
 
@@ -53,7 +65,7 @@
 | 点数购买（point buy） | 以固定预算逐点购买原始分的属性生成法 |
 | 标准阵列 | 5E 的固定六值分配方案（15、14、13、12、10、8） |
 | 精英阵列 | 3E 的固定六值分配方案（15、14、13、12、10、8） |
-| ASI（Ability Score Improvement） | 达到特定等级时提升原始分的规则机制 |
+| ASI（Ability Score Improvement） | 达到特定等级时提升原始分的规则机制；在声明版中是**通用专长**（可重复取），本方案只落其效果面（见 §决策八） |
 | 生命骰（hit die） | 升级时用于决定生命值增量的职业骰 |
 
 ## 三、结构性发现：现仓只存调整值，不存原始分
@@ -72,7 +84,7 @@
 | 2 | 3E 数值块同形（六项调整值加 `ac`、`bab`、`heal_bonus`、`cr`） | `src/dnd/dnd3/00-init.js:22-30` |
 | 3 | 全 `src/**` 内不存在「原始分换算为调整值」的函数 | `Math.floor((` 在 `src/**` 内零命中 |
 | 4 | 消费点只读调整值 | `src/dnd/dnd-5e/core/combat.js:24,63-67`、`src/dnd/dnd3/core/combat.js:54`、`src/dnd/dnd3/core/chest.js:15`、`src/dnd/dnd3/items/bomb.js:15` |
-| 5 | 原始分**只活在注释里**，即作者当年是看着 SRD 原始分手工算出调整值再写入代码 | `src/dnd/dnd-5e/monsters/goblin.js:8`（`// SRD：STR 8(-1) DEX 15(+2) CON 10(+0)`）；`src/dnd/dnd3/monsters/goblin.js:11`（`// 对齐 3.5 怪物手册：Dex15→+2、Con12→+1、Wis9→-1、Cha6→-2`） |
+| 5 | 原始分**只活在注释里**，即作者当年是看着 SRD 原始分手工算出调整值再写入代码 | `src/dnd/dnd-5e/monsters/goblin.js:8`（`// SRD：STR 8(-1) DEX 15(+2) CON 10(+0)`）；`src/dnd/dnd3/monsters/goblin.js:13`（`// 对齐 3.5 怪物手册：Dex15→+2、Con12→+1、Wis9→-1、Cha6→-2`） |
 
 ### 3.3 为什么必须存原始分：调整值不能反推原始分
 
@@ -134,6 +146,7 @@
 - **形态**：两包的 `STAT_BLOCK` 各增六项原始分；**移除六项调整值字段**；规则包提供换算函数；消费点改读「取原始分 → 换算」。
 - **中性值等价性**：原始分默认值取 10，对应调整值 +0，与今日 `*_mod: 0` 的中性值等价 ⇒ 未经过定制的角色，其既有数值语义不变。
 - **被否方案**：①两列并存（漂移面不可机械封闭）；②保留调整值字段但改为只读派生视图（数值块是纯数据快照，会被展开与序列化剥离，取值器无法存活）。
+- **写面唯一性的精确表述**：唯一写面是内部提交函数 `commitScore(character, ability, target)`（只写、不校验）；两个公开入口都经它——`setScore`（单项：校验后提交）与 `spendASI`（批量：全量校验后统一提交，见 §决策九）。首稿的「`setScore` 是唯一写入口」表述过粗，在引入批量入口后不再成立。
 
 ### 决策二：对称不变量的解法
 
@@ -170,12 +183,21 @@
 - **点数购买**：5E 定义域为 8–15，3E 定义域为 8–18；越域输入**抛错**，不静默夹取、不返回哨兵。
 - **原始分写入**：5E 面的**定制写入路径**（`setScore` 与 `spendASI`）上限为 20（SRD 条款，见 §1.2），越域抛错；**静态声明路径不受此限**——怪物在数值块里直接声明数值，不经过写入路径，因此「怪物可至 30」与上述上限并存（该路径亦不触发对称不变量的检查）。**3E 面不设通用上限**（本文不为 3E 面引入该上限，其条款面按 §1.3 的来源核定状态处理）⇒ 上限做成规则包参数，默认 20，3E 包覆盖为 `null`。
 
-### 决策八：升级与 ASI
+### 决策八：升级、生命值与 ASI（按声明版）
 
-- **ASI 触发级**：使用显式级表 `[4, 8, 12, 16, 19]`（§1.2 条款）。**不使用 `level % 4`**：后者会给出 20 级并漏掉 19 级。
-- **升级生命值**：增量为 `max(1, 掷生命骰 + 体质调整值)`；`maxHp` 增加该增量，`hp` 增加同一增量并以新的 `maxHp` 为上限；**不把当前生命值置为满血**（SRD 条款为「加到最大生命值」，当前生命值随增）。
-- **取定值法**：5E 面由 SRD「Level Advancement」的定值选项提供，形态为 `levelUp(character, { hpMethod: 'roll' | 'fixed' })`，默认 `'roll'`；**3E 面不暴露该选项**——本文不引 3E 的对应条款，是否提供须待 #1686 核定后另行决定。首稿在已知边界里声明 `useAverage` 而实现中没有该参数的悬空声明，随之消除。
+- **ASI 的形态与效果**：声明版中 ASI 是**通用专长**（前置：等级 4+，可重复取），效果为单项 +2 或两项各 +1，且不得使属性越 20。本方案只落其**效果面**（给出 2 点待分配属性点，与专长条文的上限一致），专长系统的其余部分不在本方案（§十.2）。
+- **ASI 触发级**：**按职业**取值（声明版条款），**不使用单一全局级表**，更不使用 `level % 4`。形态为「职业数据为权威源 + 包内默认回退表」：多数职业为 4、8、12、16；战士为 4、6、8、12、14、16；游荡者为 4、8、10、12、16。职业数据面本身不在本方案（§十.1），本方案只定义接口与默认回退，且**默认值即多数职业的级表**。
+- **第 19 级**：声明版中为 **Epic Boon**（非 ASI）⇒ 本方案在这一级**不给出待分配属性点**，只登记一个待办标记供后续机制接入。
+- **3E 面**：3.5 的属性提升规则与声明版 5E 不同（提升量与级表均不同）；本方案不引其条款，**3E 包不暴露 ASI 面**，是否落地待 #1686 核定后另行决定。
+- **升级生命值**：增量为 `max(1, 掷生命骰 + 体质调整值)`；`maxHp` 增加该增量。**当前生命值随之增加同一数额**属**设计判断**（条款只规定加到最大生命值）：本方案取「随增并以新的 `maxHp` 为上限」，备选是「当前生命值不变」；两者都可在实现时切换，但必须在实现 PR 内固定其一并写道理由。
+- **取定值法**：5E 面由声明版「Level Advancement」的定值选项提供（两版同值），形态为 `levelUp(character, { hpMethod: 'roll' | 'fixed' })`，默认 `'roll'`；**3E 面不暴露该选项**——本文不引 3E 的对应条款，是否提供须待 #1686 核定后另行决定。首稿在已知边界里声明 `useAverage` 而实现中没有该参数的悬空声明，随之消除。
 - **待分配属性点的读写面**：`pendingASI` 只由 `levelUp` 增加、只由 `spendASI` 减少（§6 原语 4），不存在第三个写入点。
+
+### 决策九：批量写入的原子性（两阶段提交）
+
+- **背景（本稿 D 票 MAJOR 2 的实跑证据）**：把首稿的 `spendASI` 逐字转录后实跑，起点 `{str:10, dex:20, pendingASI:2}`、分配 `[['str',1],['dex',1]]` ⇒ 第二项触发越域并抛错，但**第一项已提交而 `pendingASI` 仍为 2** ⇒ 再调一次即净得 «2 点换 +3»。根因是「逐项校验与提交交错」，而它是决策七「越域一律抛错」的直接副产物。
+- **决策**：批量入口一律**两阶段**——阶段一将全部分配累加到候选值上并逐项校验（不写入），阶段二统一提交（此阶段不再抛错）。任何一项越域 ⇒ **角色数值与 `pendingASI` 都不变**。
+- **同一属性的重复分配**：阶段一的候选值按**累加后**的目标值校验（例如已 19 的灵巧两次各 +1 ⇒ 候选 20、21 ⇒ 第二项越域⇒整体抛错），而不是逐项独立校验。
 
 ## 六、原语设计
 
@@ -184,25 +206,30 @@
 ### 原语 1：原始分写入与换算
 
 - **归属**：`DND5E` 与 `DND3` 各自实现（换算公式相同，但上限参数不同）。
-- **签名**：`<PACK>.abilityMod(score)` → 调整值；`<PACK>.setScore(character, ability, score)` → 调整值。
-- **语义**：`setScore` 是原始分的**唯一写入口**，写入原始分并返回按换算公式得到的调整值。调整值不落字段（§决策一）。
+- **签名**：`<PACK>.abilityMod(score)` → 调整值；`<PACK>.setScore(character, ability, score)` → 调整值；内部提交面 `<PACK>.commitScore(character, ability, target)`。
+- **语义**：原始分只有一个**写面**：内部函数 `commitScore`（只写、不校验），`setScore` 与 `spendASI` 都经它（§决策一、§决策九）。调整值不落字段（§决策一）。
 - **定义域与失败形态**：原始分越出 `[1, <PACK>.ABILITY_MAX]` 时抛错；`ABILITY_MAX` 默认 20，3E 包覆盖为 `null`（表示不设上限，判定处显式跳过该次比较）。
 - **示例**：
 
 ```js
-DND5E.ABILITY_MAX = 20;   // 3E 包覆盖为 null（不设上限，SRD 未设通用上限；见 §1.3）
+DND5E.ABILITY_MAX = 20;   // 3E 包覆盖为 null（不设通用上限；见 §决策七）
 
-/** 原始分换算调整值（SRD 5.1 属性值与调整值表；纯函数，无副作用） */
+/** 原始分换算调整值（声明版属性值与调整值表；纯函数，无副作用） */
 DND5E.abilityMod = (score) => Math.floor((score - 10) / 2);
 
-/** 原始分的唯一写入口：越域抛错，不静默夹取 */
+/** 唯一写面：只写、不校验（内部函数；越域校验由两个公开入口负责） */
+DND5E.commitScore = (character, ability, target) => {
+	character.stats[ability] = target;
+	return DND5E.abilityMod(target);
+};
+
+/** 单项写入：校验后交唯一写面。越域抛错，不静默夹取 */
 DND5E.setScore = (character, ability, score) => {
 	const max = DND5E.ABILITY_MAX;
 	if (!Number.isInteger(score) || score < 1 || (max !== null && score > max)) {
 		throw new Error(`原始分越域：${ability}=${score}（允许 1..${max ?? '不限'}）`);
 	}
-	character.stats[ability] = score;
-	return DND5E.abilityMod(score);
+	return DND5E.commitScore(character, ability, score);
 };
 ```
 
@@ -233,18 +260,22 @@ DND5E.rollAbilityScores = () => Array.from({ length: 6 }, () => RPG.rollKeepHigh
 
 - **归属**：成本表与预算档落各包（两版数值不同，见 §1.2）。
 - **签名**：`<PACK>.pointBuyCost(scores, budget)` → `{ total, budget, remaining, withinBudget }`。
-- **语义**：`scores` 为六项原始分；`budget` 参与超预算判定与余额计算（消费点即在此，见 §十一 对照表第 3 条）。
+- **语义**：`scores` 为六项原始分；`budget` 参与超预算判定与余额计算。
+- **供应预算的常量的消费链（三项全部写全，避免声明了常量而不接入选址）**：
+  1. 5E：`DND5E.POINT_BUY_BUDGET`（单一预算常量）⇒ 调用点为 `DND5E.pointBuyCost(scores, DND5E.POINT_BUY_BUDGET)`；
+  2. 3E：`DND3.POINT_BUY_BUDGETS[key]`（按战役强度选档，键由故事面给出）⇒ 调用点为 `DND3.pointBuyCost(scores, DND3.POINT_BUY_BUDGETS[tier])`；
+  3. 两个常量都不被 `pointBuyCost` 内部读取（只有形参 `budget` 被读）⇒ 常量与函数的耦合面只有上述两个调用点，测试须打在调用点上（U23、U24）。
 - **定义域与失败形态**：原始分越出表定义域时抛错（5E 为 8–15，3E 为 8–18），不返回哨兵。
 - **示例**：
 
 ```js
-/** 5E 27 点购买成本表（SRD 5.1；定义域 8–15） */
+/** 5E 27 点购买成本表（声明版；定义域 8–15） */
 DND5E.POINT_BUY_COST = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 7, 15: 9 };
 DND5E.POINT_BUY_BUDGET = 27;
 
 /** 3.5E 点数购买成本表（3.5 DMG；定义域 8–18，以基准分 8 的累计成本给出） */
 DND3.POINT_BUY_COST = { 8: 0, 9: 1, 10: 2, 11: 3, 12: 4, 13: 5, 14: 6, 15: 8, 16: 10, 17: 13, 18: 16 };
-/** 3.5E 预算档（按战役强度；表值为基准值，档位名由故事面选用） */
+/** 3.5E 预算档（按战役强度）；档位键由故事面给出，值经下面的调用点传入 */
 DND3.POINT_BUY_BUDGETS = { standard: 25, tough: 28, highPowered: 32 };
 
 DND5E.pointBuyCost = (scores, budget) => {
@@ -258,47 +289,75 @@ DND5E.pointBuyCost = (scores, budget) => {
 	}
 	return { total, budget, remaining: budget - total, withinBudget: total <= budget };
 };
+
+// 调用点一（5E，单一预算）
+DND5E.pointBuyCost(scores, DND5E.POINT_BUY_BUDGET);
+// 调用点二（3E，按故事面的档位键选档）
+DND3.pointBuyCost(scores, DND3.POINT_BUY_BUDGETS[tier]);
 ```
 
 ### 原语 4：升级
 
-- **归属**：两包各自实现（ASI 级表与取定值选项为 5E 面条款）。
+- **归属**：两包各自实现（ASI 面与取定值选项为 5E 面条款；3E 的对应规则见 §决策八）。
 - **签名**：`<PACK>.levelUp(character, { hpMethod })` → 升级后的角色（`hpMethod` 取值 `'roll'` 或 `'fixed'`，默认 `'roll'`）。
-- **语义**：等级 +1；按生命骰计算生命值增量并同时加到 `maxHp` 与 `hp`（以新的 `maxHp` 为上限）；等级命中 ASI 级表时给出待分配的属性点。
-- **待分配属性点的消费点**：`<PACK>.spendASI(character, assignments)`——`assignments` 为「属性名与增量」的二元组数组，合计必须等于 `pendingASI`，且每项写入后不得越出 `ABILITY_MAX`；写回原始分并从 `pendingASI` 中扣减。`pendingASI` 只由 `levelUp` 增加、只由 `spendASI` 减少，两个函数构成该字段的全部读写面。
-- **失败形态**：`hpMethod` 取 3E 包未支持的 `'fixed'` 时抛错（见 §决策八）；`spendASI` 的合计与 `pendingASI` 不等，或写入后越上限时抛错。
+- **语义**：等级 +1；按生命骰计算生命值增量并加到 `maxHp` 与 `hp`（以新的 `maxHp` 为上限）；等级命中该角色职业的 ASI 级表时给出待分配的属性点；命中 Epic Boon 级时登记待办标记。
+- **多职业边界**：本方案假定单职业（职业等级等于角色等级）；多职业的级表叠加不在本方案（§十.1）。
+- **待分配属性点的消费点**：`<PACK>.spendASI(character, assignments)`——`assignments` 为「属性名与增量」的二元组数组；合计必须等于 `pendingASI`；**两阶段提交**（§决策九），任何一项越域时角色数值与 `pendingASI` 都不变。`pendingASI` 只由 `levelUp` 增加、只由 `spendASI` 减少。
+- **失败形态**：`hpMethod` 取 3E 包未支持的 `'fixed'` 时抛错（见 §决策八）；`spendASI` 的合计不等、或任一项越域时抛错且不产生部分写入。
 - **示例**：
 
 ```js
-/** 5E ASI 触发级（SRD 5.1：4、8、12、16、19） */
-DND5E.ASI_LEVELS = [4, 8, 12, 16, 19];
+/** 声明版：ASI 复得级按职业；本表只登记与多数职业不同的两个职业，其余走默认回退 */
+DND5E.ASI_LEVELS_DEFAULT = [4, 8, 12, 16];
+DND5E.ASI_LEVELS_BY_CLASS = {
+	fighter: [4, 6, 8, 12, 14, 16],
+	rogue: [4, 8, 10, 12, 16],
+};
+/** 声明版：第 19 级为 Epic Boon（非 ASI） */
+DND5E.EPIC_BOON_LEVEL = 19;
 
-/** 待分配属性点的唯一消费入口：合计须等于待分配点，且每项写入后不得越上限 */
+/** ASI 级表的取值入口：职业数据（不在本方案）为权威源，缺省回退到多数职业的级表 */
+DND5E.asiLevelsOf = (classKey) => DND5E.ASI_LEVELS_BY_CLASS[classKey ?? ''] ?? DND5E.ASI_LEVELS_DEFAULT;
+
+/** 待分配属性点的唯一消费入口：两阶段（全量校验 ⇒ 统一提交）；任何一项越域则数值与点数都不变 */
 DND5E.spendASI = (character, assignments) => {
 	const pending = character.stats.pendingASI ?? 0;
 	const total = assignments.reduce((s, [, delta]) => s + delta, 0);
 	if (total !== pending) {
 		throw new Error(`待分配点数不符：本次分配 ${total}，可分配 ${pending}`);
 	}
+	const max = DND5E.ABILITY_MAX;
+	const next = new Map();                          // 阶段一：全量校验，不写入
 	for (const [ability, delta] of assignments) {
-		DND5E.setScore(character, ability, character.stats[ability] + delta);   // 越域由 setScore 抛错
+		const target = (next.get(ability) ?? character.stats[ability]) + delta;   // 同一属性多次分配按累加值校验
+		if (target < 1 || (max !== null && target > max)) {
+			throw new Error(`待分配点数分配后越域：${ability}=${target}（允许 1..${max ?? '不限'}）`);
+		}
+		next.set(ability, target);
+	}
+	for (const [ability, target] of next) {           // 阶段二：统一提交，此阶段不再抛错
+		DND5E.commitScore(character, ability, target);
 	}
 	character.stats.pendingASI = 0;
 	return character.stats.pendingASI;
 };
 
 DND5E.levelUp = (character, { hpMethod = 'roll' } = {}) => {
-	character.stats.level = (character.stats.level ?? 1) + 1;
-	const hitDie = character.stats.hitDie ?? 8;
-	const conMod = DND5E.abilityMod(character.stats.con);
+	const stats = character.stats;
+	stats.level = (stats.level ?? 1) + 1;
+	const hitDie = stats.hitDie ?? 8;
+	const conMod = DND5E.abilityMod(stats.con);
 	const gain = hpMethod === 'roll'
 		? Math.max(1, RPG.roll(`1d${hitDie}`) + conMod)
 		: Math.max(1, Math.floor(hitDie / 2) + 1 + conMod);
 	character.maxHp += gain;
-	character.hp = Math.min(character.maxHp, character.hp + gain); // 随增，不置满血
-	if (DND5E.ASI_LEVELS.includes(character.stats.level)) {
-		character.stats.pendingASI = (character.stats.pendingASI ?? 0) + 2;
-		character.perform(`${character.name} 升到 ${character.stats.level} 级，可提升属性；请分配 ${character.stats.pendingASI} 点。`);
+	character.hp = Math.min(character.maxHp, character.hp + gain);   // 随增（设计判断，见 §决策八）
+	if (DND5E.asiLevelsOf(stats.classKey).includes(stats.level)) {
+		stats.pendingASI = (stats.pendingASI ?? 0) + 2;
+		character.perform(`${character.name} 升到 ${stats.level} 级，可提升属性；请分配 ${stats.pendingASI} 点。`);
+	}
+	if (stats.level === DND5E.EPIC_BOON_LEVEL) {
+		stats.pendingEpicBoon = true;   // 占位：Epic Boon 机制不在本方案
 	}
 	return character;
 };
@@ -308,8 +367,10 @@ DND5E.levelUp = (character, { hpMethod = 'roll' } = {}) => {
 
 | 包 | 变更前 | 变更后 |
 |---|---|---|
-| `DND5E` | 六项 `*_mod`、`ac`、`prof`、`cr` | 六项原始分（默认 10）、`level`（默认 1）、`hitDie`（默认 8）、`pendingASI`（默认 0）、`ac`、`prof`、`cr` |
-| `DND3` | 六项 `*_mod`、`ac`、`bab`、`heal_bonus`、`cr` | 六项原始分（默认 10）、`level`（默认 1）、`hitDie`（默认 8）、`pendingASI`（默认 0）、`ac`、`bab`、`heal_bonus`、`cr` |
+| `DND5E` | 六项 `*_mod`、`ac`、`prof`、`cr` | 六项原始分（默认 10）、`classKey`（默认空串）、`level`（默认 1）、`hitDie`（默认 8）、`pendingASI`（默认 0）、`pendingEpicBoon`（默认 `false`）、`ac`、`prof`、`cr` |
+| `DND3` | 六项 `*_mod`、`ac`、`bab`、`heal_bonus`、`cr` | 六项原始分（默认 10）、`classKey`（默认空串）、`level`（默认 1）、`hitDie`（默认 8）、`pendingASI`（默认 0）、`pendingEpicBoon`（默认 `false`）、`ac`、`bab`、`heal_bonus`、`cr` |
+
+（`classKey` 是 ASI 级表选职业的输入；职业数据面不在本方案，缺省即回退到多数职业的级表。）
 
 ## 七、交互设计：角色创建流程
 
@@ -325,7 +386,8 @@ DND5E.levelUp = (character, { hpMethod = 'roll' } = {}) => {
                                               进入游戏与首场战斗
 ```
 
-- **确认与重掷**：4d6 弃最低给出「接受」与「重掷」两个选项；重掷不设次数上限（SRD 未限制），但每次重掷都重新生成六个值。
+- **确认与重掷**：4d6 弃最低给出「接受」与「重掷」两个选项；重掷不设次数上限（声明版未限制），但每次重掷都重新生成六个值。
+- **预算的选档与传入**：点数购买在进入分配前先选定预算——5E 用 `DND5E.POINT_BUY_BUDGET`；3E 由故事面给出档位键（`standard`／`tough`／`highPowered`）后取 `DND3.POINT_BUY_BUDGETS[tier]`。两者都作为实参传入 `pointBuyCost`（调用点见 §6 原语 3）。
 - **越域与超预算的反馈**：点数购买在选项被点击的当次即调用 `pointBuyCost`，越域抛错由场景捕获并转为提示文案；`withinBudget` 为假时禁止确认。
 - **写入时机**：六项分配完成、玩家确认之后，才对六项各调用一次 `setScore`，避免中途出现只写了一部分原始分的中间态。
 
@@ -337,11 +399,11 @@ DND5E.levelUp = (character, { hpMethod = 'roll' } = {}) => {
 |---|---|---|---|
 | **P0** | 随机源注入点（前置件） | `src/core/05-dice.js`、`tests/unit/framework/harness.js` | 3 |
 | **P1** | 原始分管线、换算、属性生成 | `src/dnd/dnd-5e/00-init.js`、`src/dnd/dnd3/00-init.js`、`src/dnd/dnd-5e/core/chargen.js`、`src/dnd/dnd3/core/chargen.js` | 12 |
-| **P2** | 点数购买（两版）、标准与精英阵列、分配交互 | `src/dnd/dnd-5e/core/chargen.js`、`src/dnd/dnd-5e/core/chargen-scene.js`、`src/dnd/dnd3/core/chargen.js` | 14 |
-| **P3** | 升级、ASI、生命值 | `src/dnd/dnd-5e/core/chargen.js`、`src/dnd/dnd3/core/chargen.js` | 9 |
-| **P4** | 3E 预算档接入与专长占位 | `src/dnd/dnd3/core/chargen.js` | 6 |
+| **P2** | 点数购买（两版，含预算档接入）、标准与精英阵列、分配交互 | `src/dnd/dnd-5e/core/chargen.js`、`src/dnd/dnd-5e/core/chargen-scene.js`、`src/dnd/dnd3/core/chargen.js` | 15 |
+| **P3** | 升级、生命值、ASI 级表、两阶段批量写入 | `src/dnd/dnd-5e/core/chargen.js`、`src/dnd/dnd3/core/chargen.js` | 14 |
+| **P4** | 3E 预算档与属性生成法、专长占位 | `src/dnd/dnd3/core/chargen.js` | 7 |
 
-用例总预算为 44 条，与 §8.2 的列举逐条对应（列举数即预算数）。
+用例总预算为 51 条，与 §8.2 的列举逐条对应（列举数即预算数）。
 
 ### 8.2 用例清单
 
@@ -352,14 +414,14 @@ DND5E.levelUp = (character, { hpMethod = 'roll' } = {}) => {
 | U1 | P0 | 注入固定序列后掷骰可复现 | 同一序列两次调用 `RPG.roll('2d6')` 结果相同 |
 | U2 | P0 | 未注入时使用默认随机源 | `RPG.rng.reset()` 后 `RPG.roll('1d6')` 落在 1–6 |
 | U3 | P0 | 用例之间随机源不残留 | 前置重置后，前一用例注入的序列不影响后一用例 |
-| U4 | P1 | 换算表逐格 | 原始分 1 至 20 逐格与 SRD 表一致（端点：8→−1、10→0、11→0、20→5） |
+| U4 | P1 | 换算表逐格 | 原始分 1 至 20 逐格与声明版表一致（端点：8→−1、10→0、11→0、20→5） |
 | U5 | P1 | 写入后按原始分取调整值 | 写入后消费点读到与 `abilityMod(原始分)` 相同的值 |
-| U6 | P1 | 越域写入抛错 | `setScore(c,'str',0)` 与 `setScore(c,'str',21)` 均抛错 |
+| U6 | P1 | 越域写入抛错 | `setScore(c,'str',0)` 与 `setScore(c,'str',21)` 均抛错，且数值未被改动 |
 | U7 | P1 | 3E 包无 20 上限 | 3E 包写入 21 不抛错（上限为包参数） |
 | U8 | P1 | 字段集与数值块一致 | `stats()` 的字段数等于 `STAT_BLOCK` 字段数（既有用例，字段集变更后仍须通过） |
 | U9 | P1 | 角色之间数值块对称 | 四个角色的键集完全一致（既有用例，字段集变更后仍须通过） |
-| U10 | P1 | 静态角色携带原始分 | 5E 与 3E 的哥布林、哥布林首领的原始分等于 SRD 值 |
-| U11 | P1 | 弃最低的确定性 | 注入序列后四个骰子为 1、2、3、4 时总分为 9（弃 1） |
+| U10 | P1 | 静态角色携带原始分 | 5E 与 3E 的哥布林、哥布林首领的原始分等于其注释所载的 SRD 值 |
+| U11 | P1 | 弃最低的确定性 | 注入序列使四枚骰子为 1、2、3、4 时总分为 9（弃 1） |
 | U12 | P1 | 弃最低的取值范围 | 注入边界序列后总分等于可能的最小值 3 与最大值 18 |
 | U13 | P1 | 生成法产出六个值 | `rollAbilityScores()` 返回长度为 6 的数组 |
 | U14 | P1 | 取高枚数越域抛错 | `rollKeepHighest('4d6', 5)` 抛错 |
@@ -371,28 +433,35 @@ DND5E.levelUp = (character, { hpMethod = 'roll' } = {}) => {
 | U20 | P2 | 超预算的返回形态 | 合计超过预算时 `withinBudget` 为假，且 `remaining` 为负而不抛错 |
 | U21 | P2 | 5E 越域抛错 | 输入 16 抛错（5E 定义域为 8–15） |
 | U22 | P2 | 3E 越域抛错 | 输入 7 或 19 抛错（3E 定义域为 8–18） |
-| U23 | P2 | 3E 预算档取值 | 三个档位分别为 25、28、32 |
-| U24 | P2 | 3E 与 5E 的成本表不相同 | 同一原始分（如 14）在两包的 `POINT_BUY_COST` 中取值不同 |
-| U25 | P2 | 阵列分配不改变合计 | 标准阵列与精英阵列的六值合计均为 72 |
-| U26 | P2 | 分配完成后六项均已写入 | 场景确认后六项原始分齐备，且换算结果与各项一致 |
-| U27 | P2 | 未确认前不写入 | 分配中途放弃时角色的数值块未出现部分写入 |
-| U28 | P2 | 点数购买的超预算阻断 | `withinBudget` 为假时场景不进入确认态 |
-| U29 | P2 | 阵列分配越域即拒 | 分配结果越出包定义域时抛出并被场景转为提示 |
-| U30 | P3 | 等级自增 | 升级一次后等级由 1 变为 2 |
-| U31 | P3 | 生命值增量下限 | 注入使骰值最低且体质调整值为 −5 时，增量仍为 1 |
-| U32 | P3 | 生命值随增 | 升级后 `hp` 增加与 `maxHp` 相同的增量（未满血时不满血） |
-| U33 | P3 | 满血角色的上限约束 | 升级前满血时，升级后 `hp` 恰等于新的 `maxHp` |
-| U34 | P3 | ASI 级表逐格 | 第 4、8、12、16、19 级各获得 2 点；第 5、18、20 级不获得 |
-| U35 | P3 | 20 级不触发 ASI | 由 19 级升至 20 级时待分配点数不增加 |
-| U36 | P3 | 取定值法不掷骰 | `hpMethod:'fixed'` 下注入「一旦被调用即抛错」的随机源，调用仍成功 |
-| U37 | P3 | 3E 包拒绝取定值 | 3E 包以 `hpMethod:'fixed'` 调用时抛错 |
-| U38 | P3 | 待分配点的累加与消费 | 连续两次获得 ASI 后点数为 4；`spendASI` 合计不符时抛错，相符时点归零且原始分按分配量变化 |
-| U39 | P4 | 3E 预算档接入 | 以 25、28、32 三个预算分别校验同一组原始分时 `withinBudget` 与余额均正确 |
-| U40 | P4 | 3E 属性生成法 | 3E 包的生成法与 5E 包在同一注入序列下结果相同 |
-| U41 | P4 | 3E 成本表与档位独立 | 改动 3E 档位不影响 5E 的预算常量 |
-| U42 | P4 | 专长占位接口存在 | 占位函数存在且在不支持时抛错而非静默返回 |
-| U43 | P4 | 3E 数值块字段集 | 3E 的 `STAT_BLOCK` 含原始分与成长字段，且 `bab`、`heal_bonus` 仍在 |
-| U44 | P4 | 两包字段集各自对称 | 两包各自的角色键集一致（各自独立校验） |
+| U23 | P2 | 3E 预算档常量驱动判定 | 同一组原始分在 `POINT_BUY_BUDGETS.standard`（25）档 `withinBudget` 为假、在 `highPowered`（32）档为真（证明档位常量接入了选档与传参） |
+| U24 | P2 | 5E 预算常量驱动判定 | `pointBuyCost(scores, DND5E.POINT_BUY_BUDGET)` 的 `remaining` 等于 27 减合计（证明单一预算常量接入传参） |
+| U25 | P2 | 3E 与 5E 的成本表不相同 | 同一原始分（如 14）在两包的 `POINT_BUY_COST` 中取值不同 |
+| U26 | P2 | 阵列分配不改变合计 | 标准阵列与精英阵列的六值合计均为 72 |
+| U27 | P2 | 分配完成后六项均已写入 | 场景确认后六项原始分齐备，且换算结果与各项一致 |
+| U28 | P2 | 未确认前不写入 | 分配中途放弃时角色的数值块未出现部分写入 |
+| U29 | P2 | 点数购买的超预算阻断 | `withinBudget` 为假时场景不进入确认态 |
+| U30 | P2 | 阵列分配越域即拒 | 分配结果越出包定义域时抛出并被场景转为提示 |
+| U31 | P3 | 等级自增 | 升级一次后等级由 1 变为 2 |
+| U32 | P3 | 生命值增量下限 | 注入使骰值最低且体质调整值为 −5 时，增量仍为 1 |
+| U33 | P3 | 生命值随增（设计判断） | 升级后 `hp` 增加与 `maxHp` 相同的增量（未满血时不满血） |
+| U34 | P3 | 满血角色的上限约束 | 升级前满血时，升级后 `hp` 恰等于新的 `maxHp` |
+| U35 | P3 | 默认级表逐格 | 第 4、8、12、16 级各获得 2 点；第 5、18、20 级不获得 |
+| U36 | P3 | 19 级为 Epic Boon | 第 19 级不增加待分配点数，且登记 Epic Boon 待办标记 |
+| U37 | P3 | 战士级表 | 战士在第 6、14 级额外获得 2 点（证明按职业取值，非单一全局级表） |
+| U38 | P3 | 游荡者级表 | 游荡者在第 10 级额外获得 2 点 |
+| U39 | P3 | 职业键缺省时回退默认级表 | `classKey` 为空串时使用 `ASI_LEVELS_DEFAULT` |
+| U40 | P3 | 取定值法不掷骰 | `hpMethod:'fixed'` 下注入「一旦被调用即抛错」的随机源，调用仍成功 |
+| U41 | P3 | 3E 包拒绝取定值 | 3E 包以 `hpMethod:'fixed'` 调用时抛错 |
+| U42 | P3 | 批量写入的原子性 | 起点 `{str:10, dex:20, pendingASI:2}`、分配 `[['str',1],['dex',1]]` ⇒ 抛错，且 `str`、`dex`、`pendingASI` **三者均不变** |
+| U43 | P3 | 同一属性重复分配的累加校验 | 灵巧为 19 时分配 `[['dex',1],['dex',1]]` ⇒ 抛错且数值与点数均不变（按累加后目标值校验） |
+| U44 | P3 | 待分配点的累加与消费 | 连续两次获得 ASI 后点数为 4；`spendASI` 合计不符时抛错，相符时点归零且原始分按分配量变化 |
+| U45 | P4 | 3E 预算档接入 | 以 25、28、32 三个预算分别校验同一组原始分时 `withinBudget` 与余额均正确 |
+| U46 | P4 | 3E 属性生成法 | 3E 包的生成法与 5E 包在同一注入序列下结果相同 |
+| U47 | P4 | 3E 成本表与档位独立 | 改动 3E 档位不影响 5E 的预算常量 |
+| U48 | P4 | 专长占位接口存在 | 占位函数存在且在不支持时抛错而非静默返回 |
+| U49 | P4 | 3E 数值块字段集 | 3E 的 `STAT_BLOCK` 含原始分与成长字段，且 `bab`、`heal_bonus` 仍在 |
+| U50 | P4 | 两包字段集各自对称 | 两包各自的角色键集一致（各自独立校验） |
+| U51 | P4 | 3E 包不暴露 ASI 面 | 调用 3E 的 ASI 入口即抛错或该入口不存在（依 §决策八） |
 
 ## 九、迁移面
 
@@ -433,9 +502,9 @@ DND5E.levelUp = (character, { hpMethod = 'roll' } = {}) => {
 
 ## 十、已知边界与不在本方案内的事项
 
-1. **职业与等级数据面**：职业表、各职业的生命骰查表不在本方案内；生命骰先以数值块字段承载默认值。
+1. **职业与等级数据面**：职业表、各职业的生命骰查表、**按职业的 ASI 级表**均不在本方案内。本方案只定义「职业数据为权威源 + 包内默认回退表」的接口与默认值（§决策八）；多职业不在本方案。
 2. **专长机制**：仅留占位接口；5E 的专长体系不在本方案内。
-3. **种族加值**：加值的施加顺序（先加值再判上限，或反之）须在实施时写明；浮动加值是否在所选 groundtruth 之内，归 #1686 核定。
+3. **属性加值的来源面**：声明版与该加值的给出者（背景或种族）与首稿引用版不同；本稿对该面**不做断言**，登记为 #1686 的核定项。无论来源如何，施加顺序（先加值再判上限，或反之）须在实施时写明。
 4. **交互文案**：多语文本归 #1696。
 5. **存档兼容**：本方案改变数值块字段集，旧存档中的调整值字段不会被读取。当前版本号为 0.1.0，是否需要迁移方案由所属组领队裁定；若判定不需要，应在实施 PR 中显式声明。
 6. **点数购买的来源可引用性**：见 §1.3 第 1 条。
@@ -453,8 +522,25 @@ DND5E.levelUp = (character, { hpMethod = 'roll' } = {}) => {
 | 5（新字段未入 `STAT_BLOCK`，破坏对称不变量） | 新增字段一律进两包 `STAT_BLOCK` | §决策二、§决策三、§6.5、U8、U9 |
 | 6（升级即满血与 SRD 不符） | 改为 `hp` 随增、以新的 `maxHp` 为上限 | §决策八、U32、U33 |
 | 7（两处并存写入的权威面未定义；跨包写入口归属未定义） | 决策为「原始分为唯一真值、调整值不落字段」；3E 面归 `DND3.*` | §决策一、§决策四、§6 原语 1 |
-| 8（用例预算与语义锁脱节） | 预算与列举逐条对应（44 条），并逐条写明断言的不变量；补入漂移、对称、越域、哨兵四类用例 | §8 |
+| 8（用例预算与语义锁脱节） | 预算与列举逐条对应（本版共 51 条），并逐条写明断言的不变量；补入漂移、对称、越域、哨兵四类用例 | §8 |
 | 9（静默夹取 `[1,20]`；3E 无 20 上限） | 越域抛错；上限做成包参数 | §决策七、U6、U7 |
 | 10（基线含未合入 PR；路径省略；P4 归属错位） | 基线改为主干提交；路径写全；P4 归 `DND3` | 文首、§决策四、§8.1 |
 | 11（「已证实」缺证据指针） | 结构性发现改为五处可复核读数加两条论据 | §3.2、§3.3 |
 | 12（文档语言：口语残留词与电报式短句） | 全文改为完整语句；术语首现处给出定义 | §二 |
+
+## 十二、承本稿 D 席审查记录（PR #1703）的处置
+
+本稿的上一版（头 `745f3b6e`）由 D 席检视（`sagitrs-developer-9`）给出 2 项 MAJOR 与 3 项 MINOR/NIT。处置如下；两项 MAJOR 我先各自独立复现，再据此修改。
+
+| 编号 | 严重度 | 处置 | 本稿位置 |
+|---|---|---|---|
+| 1 | MAJOR | 5E 的 ASI 面改按**引擎声明版（2024）**取值：ASI 是通用专长（可重复）、复得级**按职业**（多数 4、8、12、16；战士 4、6、8、12、14、16；游荡者 4、8、10、12、16）、第 19 级为 Epic Boon 而非 ASI；接口改为「职业数据为权威源 + 包内默认回退表」 | §1.1、§1.2、§决策八、§6 原语 4、U35–U39、U51 |
+| 2 | MAJOR | 批量写入改**两阶段**（先全量校验、后统一提交）；新增原子性与同属性重复分配两条用例；「唯一写入口」的粗表述改为「唯一写面是内部 `commitScore`，两个公开入口都经它」 | §决策九、§决策一、§6 原语 1／4、U42、U43 |
+| 3 | MINOR | 两个预算常量补**消费链**（选档 ⇒ 取常量 ⇒ 作为实参传入），用例改锚「常量驱动的判定」而非字面值 | §6 原语 3、§七、U23、U24 |
+| 4 | MINOR | `src/dnd/dnd3/monsters/goblin.js` 的注释行号由 `:11` 更正为 `:13` | §3.2 |
+| 5 | NIT | 引用形态增第三类「**设计判断**」，并把「升级时当前生命值随增」改标为此类，同时写出备选与选择理由 | §1.2、§决策八 |
+
+**两项 MAJOR 的独立复现（本席实跑，非转述）**
+
+- **MAJOR 2**：把上一版 §6 原语 4 的 `spendASI` 逐字转录（仅补最小桩）后以 `node` 实跑：起点 `{str:10, dex:20, pendingASI:2}`、分配 `[['str',1],['dex',1]]` ⇒ 第二项越域抛错，而 `str` 已为 11、`pendingASI` 仍为 2 ⇒ 再调一次即净得「2 点换 +3」。与检视席读数一致。根因是逐项校验与提交交错（决策七「越域抛错」的副产物）。
+- **MAJOR 1**：按引擎声明版核对 ASI 面，确认分歧仅在此面；本文其余 5E 数值经两版逐项比对为同值（§1.1 表）。上一版把版本口径登记为「本文不代决」，在「按声明版取值」之后不再成立，已一并改写。

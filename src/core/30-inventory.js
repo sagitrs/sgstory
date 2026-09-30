@@ -282,13 +282,22 @@ RPG.act = (actor, itemRef, target, action = 'use', from = actor) => {
 	}
 	if (action === 'use' && item.stats?.ammo) item.__ammoPaid = true;
 
+	/* ★ **动作可以「拒绝」**（`#1776` D 席缺陷 2）：`used()` **显式 `return false`** ⇒ 视为
+	 *   动作自己判定「这次做不到」（材料不足／没有产出表／没有背包／落地未注册……），
+	 *   此时 **不提交**（`charges`／`equipped` 都不写回）并返回 `rejected/action-refused`。
+	 *   契约：`undefined` = 成功（既有约定，绝大多数动作）；**只有 `=== false` 才算拒绝**
+	 *   （✗ 不用 falsy 判定 —— 否则返回 0／''／null 的动作会被误判为拒绝）。
+	 *   为何放在这里：调用方（故事侧／`scenes/*`）需要**从返回值**判成败；
+	 *     原先失败与成功同为 `applied` ⇒ 只能靠 `perform` 文本，无宿主时不可读（D 席实测）。 */
+	let refused = false;
 	try {
-		item.used(target, from, action);
+		refused = item.used(target, from, action) === false;
 	} finally {
 		/* ★ **真 `finally`**：标记作用域 = 单次动作。无此清除 ⇒ 永久残留（见 `RPG.ammoOwed` 注）。
 		 *   用 `finally`（✗ `catch`）⇒ **抛错路径也清除**（抛错与正常返回同属单次动作）。 */
 		delete item.__ammoPaid;
 	}
+	if (refused) return { status: 'rejected', reason: 'action-refused', item };
 
 	/* 提交回快照：`equipped` 与 `charges` 都须写回（★ 曾在只写 equipped 时导致「充能永不消耗」） */
 	item.equipped = item.equipped === true;

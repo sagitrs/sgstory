@@ -24,6 +24,6 @@ DND3.setScore = (character, ability, score) => {
 
 /** 本体系的属性生成法：4d6 弃最低，掷六次。
  *  出处说明：SRD 3.5 · `Basic Rules and Legal/basics-and-ability-scores.md:65`（「Ability Scores」节）
- *  只给属性含义与调整值表，**未载生成法** ⇒ 本仓借用 5E 同法（`character-creation.md:304`）并在此显式登记，
+ *  只给属性含义与调整值表，**未载生成法** ⇒ 本仓借用 5E 同法（`character-creation.md:306`）并在此显式登记，
  *  其取舍归 #1719 评估。 */
 DND3.rollAbilityScores = () => Array.from({ length: 6 }, () => RPG.rollKeepHighest('4d6', 3).total);

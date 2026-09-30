@@ -24,5 +24,5 @@ DND5E.setScore = (character, ability, score) => {
 };
 
 /** 本体系的属性生成法：4d6 弃最低，掷六次。
- *  引用：SRD 5.2.1 · `character-creation.md:304`（_Random Generation._ Roll four d6s and record the total of the highest three dice） */
+ *  引用：SRD 5.2.1 · `character-creation.md:306`（_Random Generation._ Roll four d6s and record the total of the highest three dice） */
 DND5E.rollAbilityScores = () => Array.from({ length: 6 }, () => RPG.rollKeepHighest('4d6', 3).total);

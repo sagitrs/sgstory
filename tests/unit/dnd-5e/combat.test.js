@@ -80,15 +80,23 @@
 		assert.ok(maxDmg <= 8, `不应超过 1d4 重击上限 8（实际 ${maxDmg}）`);
 	});
 
-	test('5e combat：炸弹是远程武器（用灵巧）', () => {
-		const attacker = { stats: { prof: 20, str: 1, dex: 16 } };
-		const dummy = { name: '靶', hp: 10, maxHp: 10, stats: { ac: -999 } };
-		let hit = false;
-		for (let i = 0; i < 10 && !hit; i++) {
-			const h = dummy.hp;
-			new (D().Bomb)().used(dummy, attacker);
-			hit = dummy.hp < h;
-		}
-		assert.ok(hit, '炸弹用灵巧投掷命中');
+	test('5e combat：炸弹是远程武器（用灵巧不用力量）——定骰＋AC 判别面', () => {
+		// 判别构造：固定 d20 = 11（0.5），靶 AC 12，prof = 0。
+		//   用灵巧（DEX 16 ⇒ +3）：11 + 3 = 14 ≥ 12 ⇒ 命中，伤害 1d6 + 3 = 7（5E 调整值入伤害）；
+		//   若误用力量（STR 1 ⇒ −5）：11 − 5 = 6 < 12 ⇒ 哑火；
+		//   若忽略能力调整值（+0）：11 < 12 ⇒ 哑火。
+		const run = (stats) => {
+			setup.RPG.rng.set(() => 0.5);
+			try {
+				const dummy = { name: '靶', hp: 30, maxHp: 30, stats: { ac: 12 } };
+				new (D().Bomb)().used(dummy, { stats });
+				return 30 - dummy.hp;
+			} finally {
+				setup.RPG.rng.reset();
+			}
+		};
+		assert.eq(run({ prof: 0, str: 1, dex: 16 }), 7, '用灵巧：11+3 = 14 ≥ AC 12 ⇒ 命中，伤害 1d6(4)+灵巧(+3) = 7');
+		assert.eq(run({ prof: 0, str: 20, dex: 1 }), 0, '仅力量：11+(−5) = 6 < AC 12 ⇒ 哑火');
+		assert.eq(run({ prof: 0, str: 10, dex: 10 }), 0, '无调整值：11+0 = 11 < AC 12 ⇒ 哑火');
 	});
 })();

@@ -9,7 +9,7 @@ DND3.GoblinBoss = RPG.defCharacter({
 	name: '哥布林首领',
 	hp: 12,
 	maxHp: 12,
-	// house rule（非 SRD 数值）：3E SRD 无「Goblin Boss」条目（源仓 `Monsters/Monsters.md` grep 零命中）；
+	// house rule（非 SRD 数值）：3E SRD 无「Goblin Boss」条目（源仓 `3.5 Compendium/Monsters/3.5 Monsters - G.md` 内 `## Goblin Boss` 零命中）；
 	// 本块为故事自有的首领加强版（参 5E 的 Goblin Boss 区分），P1 行为保全 ⇒ 按原调整值落原始分；
 	// 对齐评估见 #1719。
 	stats: DND3.stats({

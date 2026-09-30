@@ -162,7 +162,8 @@ RPG.useItem = (id, that, from, action = 'use') => {
 	/* 弹药检查在动作之前：不足 ⇒ 不发 item:used、不扣次数、不消耗回合 */
 	const ammo = action === 'use' ? item.stats?.ammo : null;
 	if (ammo && !RPG.take(ammo.id, ammo.perShot ?? 1)) {
-		const need = RPG.createItem(ammo.id).name;
+		// 未注册的 ammo id（数据拼写错）也要给出可读提示而非抛错——数据面由完整性测试抓
+		const need = RPG.items.has(ammo.id) ? RPG.createItem(ammo.id).name : ammo.id;
 		setup.RPG.perform(`没有可用的${need}了——「${item.name}」打不出去。`);
 		return false;
 	}

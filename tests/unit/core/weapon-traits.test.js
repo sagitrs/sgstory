@@ -156,4 +156,22 @@
 		}
 		assert.eq(R().createItem('bullets-firearm').name, '火器子弹');
 	});
+	test('inventory：ammo id 未注册（数据拼写错）⇒ 可读提示而非抛错', () => {
+		R().defItem({ id: 'unit-badgun', name: '坏枪', weapon: true, slot: 'weapon', charges: null, stackable: false,
+			stats: { dmg: '1d6', ranged: true, ammo: { id: 'unit-no-such-ammo' } },
+			used() { this.perform('砰'); } });
+		R().give('unit-badgun');
+		let threw = null;
+		let r = null;
+		try { r = R().useItem('unit-badgun'); } catch (e) { threw = e.message; }
+		assert.eq(threw, null, '不抛错（战斗中途不应因数据拼写错而崩）');
+		assert.eq(r, false, '按「无弹药」处理 ⇒ false');
+	});
+
+	test('inventory：无 ammo 声明的武器不受弹药面影响（零回归）', () => {
+		R().give('club');
+		const target = { name: '靶', hp: 20, maxHp: 20, stats: { ac: -999 }, noDodge: true };
+		assert.eq(R().useItem('club', target, { name: '打手', stats: { str: 12 } }), true, '无 ammo ⇒ 正常使用');
+		assert.ok(target.hp < 20, '伤害已施加');
+	});
 })();

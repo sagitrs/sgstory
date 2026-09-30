@@ -45,8 +45,9 @@ Copyright (c) 2013-2024, Thomas Michael Edwards <thomasmedwards@gmail.com>. All 
 随仓入库以供应离线校验（门 `tests/gates/refs-integrity.mjs` 据其复核 pin 表「行数 ＋ SHA-1 前 16」）。
 其著作权归原权利人，按下列各面授权分别使用；文件清单、体量与授权细分见同目录 `README.md`。
 
-本仓 `src/dnd/dnd-5e/**` 与 `src/dnd/dnd3/**` 的规则数值（武器伤害骰／护甲 AC／怪物数值块／
-判定数学）分别取材于下列两份 System Reference Document。**两面授权不同，须分别遵守**：
+本仓 `src/dnd/dnd-5e/**`、`src/dnd/dnd3/**` 与 `src/dnd/d20m/**` 的规则数值（武器伤害骰／护甲 AC／怪物数值块／
+判定数学）分别取材于下列三份 System Reference Document。**三面授权不同，须分别遵守**
+（★其中 3E 面与 d20m 面**同为 OGL 1.0a，但两面的 Section 15 COPYRIGHT NOTICE 各自不同**，✗ 互串）：
 
 1) 5E 面 —— System Reference Document 5.2.1（2024）· **CC BY 4.0**
 
@@ -67,3 +68,18 @@ Copyright (c) 2013-2024, Thomas Michael Edwards <thomasmedwards@gmail.com>. All 
    该内容依 OGL 1.0a 发布：**许可全文与 Section 15 版权声明见 `LICENSE-CONTENT.md`**。
    3E 面数值属 **Open Game Content（OGC）**；本仓对该 OGC **不新增版权主张**，
    亦未将其中任何内容声明为 Product Identity（PI）。本仓自有代码与文档表述不是 OGC。
+
+3) d20m 面 —— Modern System Reference Document（d20 Modern／d20 Future 等子集）· **Open Game License v1.0a**
+
+   来源：`qt911025/d20m-srd-zhcn` @ `1733391d14c7782d2ba24fb7d398725b7a32c9f6`（取其 `source/**` 的英文原文面）
+   （文件清单与 sha1 见 `README.md`「规则来源」表；复现命令见同表下「二、复现」）
+
+   该内容依 OGL 1.0a 发布：**Section 15 版权声明与 OGC/PI 声明见 `LICENSE-CONTENT.md` 第四节**
+   （本笔 pin 处的 §15 vintage 为「Open Game License v 1.0a」＋「Modern System Reference Document
+   Copyright 2002-2003」）；OGL 1.0a 全文与 3E 面共用同一次内嵌（✗ 二次副本）。
+   d20m 面数值属 **Open Game Content（OGC）**；本仓对该 OGC **不新增版权主张**，
+   亦未将其中任何内容声明为 Product Identity（PI）。本仓自有代码与文档表述不是 OGC。
+
+   ★本仓为 d20m 面的具体使用形式（如 `2d6` 伤害、`Hardness/Hit Points 3/5`、机架属性分）另加了
+   本仓自有的**判定代码与注释**（`src/dnd/d20m/**`），它们**不是 OGC**；其中与源文的偏离处已逐处
+   标 `house rule`（✗ 冒充源文条目）。

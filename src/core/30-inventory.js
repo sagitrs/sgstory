@@ -229,9 +229,13 @@ RPG.ammoOwed = (item) => item.__ammoPaid !== true;
 
 /**
  * 解析**弹药该记在谁头上**（`#1765` 兜底路径的归属判定）。
- * 顺序：① 显式 `from`（调用方给的施术者）→ ② **道具持有者**（谁的 `items` 里含此实例）
+ * 顺序：① 显式 `from`（调用方给的施术者）→ ② **注册表持有者**（实例恒等 → 按 id 从后往前）
  * → ③ `null`（无人持有 ⇒ 调用方须显式给 `from`，**✗ 不回落受击者**）。
  *
+ * ★ **为何不把受击者（`that`）当候选**：受击者常持**同型武器／同名弹药**，按 id 判会把归属
+ *   误判到受击者头上（`tester-4` 实测：受击者持同型枪 ⇒ 射手 10→10、靶 10→9 —— **原症状换形存活**）。
+ *   「受击者为何天然是持有者」无据 ⇒ 只认**实例恒等**与**注册表按 id**的持有关系；
+ *   判不出即**不扣**（保守正确：宁可不出手，不可让他人付费）。
  * ★ 为什么需要本函数：`DND5E.attack` 的兜底在 `used(foe)`（无 `from`）被直调时拿到
  *   `from === undefined`；若写成 `from ?? that` 就会**从受击者扣弹**（developer 缺陷 2 实测：
  *   射手 10→10、靶 10→9）—— 兜底的本意是保证**攻击者**付费。
@@ -244,9 +248,8 @@ RPG.ammoOwner = (item, from, that) => {
 	/* 快照路径（`reviveItem` 每次新建实例 ⇒ 实例恒等不命中）⇒ 按 **id** 兜底匹配。
 	 *   歧义（两个角色带同名 id）⇒ 按**从后往前**取最后登记者，与 `RPG.take` 同向。 */
 	const holdsId = (who) => Array.isArray(who?.items) && who.items.some((s) => s?.id === item.id);
-	if (holds(that) || (typeof item?.used === 'function' && holdsId(that))) return that; // ② 受击者恰是持有者
-	for (const who of list) if (holds(who)) return who; // ③ 注册表里持有该实例者
-	for (let i = list.length - 1; i >= 0; i--) if (holdsId(list[i])) return list[i]; // ③′ 按 id
+	for (const who of list) if (holds(who)) return who; // ② 注册表里持有该**实例**者
+	for (let i = list.length - 1; i >= 0; i--) if (holdsId(list[i])) return list[i]; // ③ 按 id（快照路径）
 	return null; // ④ 无人持有（纯数据／无法判定）⇒ 须调用方显式给 from，✗ 不回落受击者
 };
 

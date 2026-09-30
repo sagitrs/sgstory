@@ -356,4 +356,33 @@ test('ammo【跨面·回归】无人持有该武器 ⇒ 不扣弹、不开火（
 	assert.eq(R().has('unit-orphan-bullet'), false, '玩家也没被扣');
 });
 
+
+test('ammo【跨面·回归】受击者持**同型武器** ⇒ 扣射手、靶不动（tester-4 形态）', () => {
+	const D5 = setup.DND5E;
+	/* ★ 钉住 `tester-4` 的另一形态：归属解析若把**受击者**当候选并按其持有的道具 **id** 判归属，
+	 *   则「受击者恰好也持一把同型枪」时会被误判为持有者 ⇒ 仍从靶扣弹
+	 *   （实测射手 10→10、靶 10→9 —— **原症状换形存活**）。
+	 *   正确归属只看**实例恒等**与**注册表按 id**；受击者不是候选 ⇒ 命中注册表里的射手。 */
+	R().defItem({ id: 'unit-same-gun', name: '同型枪', weapon: true, slot: 'weapon', charges: null, stackable: false,
+		stats: { dmg: '1d6', type: 'piercing', ranged: true, ammo: { id: 'unit-same-bullet' } },
+		actions: { equip: R().slotEquip, unequip: R().slotUnequip },
+		used(that, from) { D5.attack(this, that, from); } });
+	R().defItem({ id: 'unit-same-bullet', name: '同型弹', charges: 10, stackable: true, used() {} });
+	R().rng.set(() => 0.99);
+	R().give('unit-same-gun'); R().give('unit-same-bullet'); R().equip('unit-same-gun');
+	/* 受击者**持同型武器**（同 id）＋自备弹药 —— 旧版正是按武器 id 误判到这里 */
+	const foe = new (R().Character)({ name: '靶', hp: 9999, maxHp: 9999,
+		items: [{ id: 'unit-same-gun', equipped: true }, { id: 'unit-same-bullet', charges: 10 }],
+		stats: D5.stats({ ac: -999 }) });
+	const gun = R().reviveItem(State.variables.inventory.find((s) => s.id === 'unit-same-gun'));
+	const shooterBefore = State.variables.inventory.find((s) => s.id === 'unit-same-bullet').charges;
+	const foeBefore = foe.items.find((s) => s.id === 'unit-same-bullet').charges;
+	gun.used(foe); // ★ 直调，无 from；受击者持同型武器
+	const shooterAfter = State.variables.inventory.find((s) => s.id === 'unit-same-bullet').charges;
+	assert.eq(foe.items.find((s) => s.id === 'unit-same-bullet').charges, foeBefore,
+		'✗ 不得因受击者持同型武器而误扣到靶（旧版此处 10 → 9）');
+	assert.eq(shooterBefore - shooterAfter, 1, '扣在持有者（射手）身上');
+	assert.ok(foe.hp < 9999, '攻击确实发生');
+});
+
 })();

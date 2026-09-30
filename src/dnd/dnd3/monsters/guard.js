@@ -1,5 +1,7 @@
 /* DND3 角色 —— 受伤的守卫（NPC 盟友：与玩家并肩作战，可被治疗）
  *
+ * house rule（非 SRD）：3.5 SRD 无「Guard」条目（`3.5 Compendium/Monsters/3.5 Monsters - G.md` 内 `## Guard` 零命中）⇒
+ *   本条目数值为设计值，不作 SRD 对齐声明（见 #1719）。
  * 数值块与其余角色完全对称。properties 不含 'player'——
  * 交互式战斗中它自动行动（AI 随机攻击敌方），但玩家可以治疗它。
  */

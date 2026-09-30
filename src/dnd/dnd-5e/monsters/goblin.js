@@ -11,6 +11,7 @@ DND5E.Goblin = RPG.defCharacter({
 	hp: 7, maxHp: 7, // SRD 5.2.1 · monsters-A-Z.md:7257 —— HP 7 (2d6)
 	stats: DND5E.stats({
 		str_mod: -1, dex_mod: 2, con_mod: 0, // 同上 :7279/7283/7287 —— STR 8(−1) DEX 15(+2) CON 10(+0)
+		wis_mod: -1, cha_mod: -1,            // 同上 :7297/7301 —— WIS 8(−1) CHA 8(−1)（INT 10 ⇒ +0 与默认一致）
 		ac: 12, prof: 2, cr: '1/4',          // 同上 :7256 —— AC 12
 	}),
 	items: [{ id: 'club', equipped: true }, { id: 'coin' }],

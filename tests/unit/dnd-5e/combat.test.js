@@ -28,28 +28,41 @@
 		assert.eq(D().acOf(c), 14);
 	});
 
-	test('5e combat：攻击含熟练度（prof +2 替代 BAB）', () => {
-		const attacker = { stats: { prof: 20, str: 10, dex: 10 } };
-		const dummy = { name: '靶', hp: 100, maxHp: 100, stats: { ac: -999 } };
-		let hit = false;
-		for (let i = 0; i < 10 && !hit; i++) {
-			const h = dummy.hp;
-			new (D().Club)().used(dummy, attacker);
-			hit = dummy.hp < h;
-		}
-		assert.ok(hit, '熟练度加值使攻击命中');
+	test('5e combat：攻击含熟练度与能力调整值（定骰＋AC 判别面）', () => {
+		// 判别构造：固定 d20 = 11（0.5），靶 AC 12（不再用 −999 必中靶）。
+		//   prof 2 + STR 10(+0) ⇒ 13 ≥ 12 命中；prof 0 ⇒ 11 < 12 哑火；prof 2 + STR 16(+3) ⇒ 16 命中。
+		//   若实现忽略能力调整值或熟练度，相应一档必红。
+		const run = (stats) => {
+			setup.RPG.rng.set(() => 0.5);
+			try {
+				const dummy = { name: '靶', hp: 100, maxHp: 100, stats: { ac: 12 } };
+				new (D().Club)().used(dummy, { stats });
+				return 100 - dummy.hp;
+			} finally {
+				setup.RPG.rng.reset();
+			}
+		};
+		assert.ok(run({ prof: 2, str: 10 }) > 0, 'prof 2 ⇒ 11+2 = 13 ≥ AC 12 命中');
+		assert.eq(run({ prof: 0, str: 10 }), 0, 'prof 0 ⇒ 11 < AC 12 哑火（熟练度确实入算）');
+		assert.ok(run({ prof: 0, str: 16 }) > 0, 'prof 0 + STR 16(+3) ⇒ 14 ≥ AC 12 命中（能力调整值入算）');
 	});
 
-	test('5e combat：Finesse 武器用 max(str, dex)', () => {
-		const attacker = { stats: { prof: 20, str: 1, dex: 16 } };
-		const dummy = { name: '靶', hp: 100, maxHp: 100, stats: { ac: -999 } };
-		let hit = false;
-		for (let i = 0; i < 10 && !hit; i++) {
-			const h = dummy.hp;
-			new (D().Dagger)().used(dummy, attacker);
-			hit = dummy.hp < h;
-		}
-		assert.ok(hit, 'Finesse 匕首用灵巧命中');
+	test('5e combat：Finesse 武器用 max(str, dex)（定骰＋AC 判别面）', () => {
+		// 固定 d20 = 11，靶 AC 12：匕首为 Finesse ⇒ 取 max(STR, DEX)。
+		//   STR 1(−5) / DEX 16(+3) ⇒ 11+3 = 14 ≥ 12 命中；若误用力量 ⇒ 11−5 = 6 < 12 哑火。
+		const run = (stats) => {
+			setup.RPG.rng.set(() => 0.5);
+			try {
+				const dummy = { name: '靶', hp: 100, maxHp: 100, stats: { ac: 12 } };
+				new (D().Dagger)().used(dummy, { stats });
+				return 100 - dummy.hp;
+			} finally {
+				setup.RPG.rng.reset();
+			}
+		};
+		assert.ok(run({ prof: 0, str: 1, dex: 16 }) > 0, '取灵巧：11+3 = 14 ≥ AC 12 命中');
+		assert.ok(run({ prof: 0, str: 16, dex: 1 }) > 0, '取力量：11+3 = 14 ≥ AC 12 命中（证明确为 max，而非只认灵巧）');
+		assert.eq(run({ prof: 0, str: 1, dex: 1 }), 0, '两者皆低：11−5 = 6 < AC 12 哑火');
 	});
 
 	test('5e combat：木棒伤害 1d4（5E 数值，非 3E 的 1d6）', () => {

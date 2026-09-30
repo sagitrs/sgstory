@@ -55,14 +55,25 @@
 		}
 	});
 
-	test('dnd3 combat：炸弹用灵巧不用力量，可击倒目标', () => {
-		const attacker = { stats: { bab: 20, dex: 20, str: 1 } };
-		const dummy = { name: '靶', hp: 6, maxHp: 6, stats: { ac: -999 } };
-		let thrown = 0;
-		while (dummy.hp > 0 && thrown < 10) {
-			R().createItem('bomb').used(dummy, attacker);
-			thrown++;
-		}
-		assert.ok(dummy.hp === 0, `炸弹击倒目标（投掷 ${thrown} 次）`);
+	test('dnd3 combat：炸弹用灵巧不用力量（定骰＋AC 判别面）', () => {
+		// 判别构造：固定 d20 = 11（0.5），靶 AC 12。
+		//   用灵巧（DEX 20 ⇒ +5）：11 + 20(bab) + 5 ≥ 12 ⇒ 命中，造成伤害；
+		//   若误用力量（STR 1 ⇒ −5）或忽略调整值（+0）：bab 20 仍使 11+20 ≥ 12 ⇒ 命中 ⇒ 仍能过 ✗
+		// ⇒ 故 bab 取 0：11 + 5 = 16 ≥ 12 命中；11 − 5 = 6 < 12 哑火；11 + 0 = 11 < 12 哑火。
+		const R = setup.RPG;
+		const run = (stats, label) => {
+			R.rng.set(() => 0.5);   // d20 = 11、1d6 = 4
+			try {
+				const dummy = { name: '靶', hp: 30, maxHp: 30, stats: { ac: 12 } };
+				R.createItem('bomb').used(dummy, { stats });
+				return 30 - dummy.hp;
+			} finally {
+				R.rng.reset();
+			}
+		};
+		const withDex = run({ bab: 0, dex: 20, str: 1 }, '灵巧');
+		assert.eq(withDex, 4, '用灵巧：11+5=16 ≥ AC 12 ⇒ 命中，伤害 1d6=4');
+		assert.eq(run({ bab: 0, dex: 1, str: 20 }, '力量'), 0, '仅力量：11+(−5)=6 < AC 12 ⇒ 哑火');
+		assert.eq(run({ bab: 0, dex: 10, str: 10 }, '无调整值'), 0, '无调整值：11+0=11 < AC 12 ⇒ 哑火');
 	});
 })();

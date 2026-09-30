@@ -93,5 +93,19 @@ RPG.rollDetail = (expr) => {
 /** 掷骰，只返回总数 */
 RPG.roll = (expr) => RPG.rollDetail(expr).total;
 
+/** 掷 `expr` 记法的骰子，取最高的 `keep` 枚（规则无关的组合子）。
+ *  返回 `{ rolls, kept, total }`（`rolls` 为降序全量，`kept` 为计入的前 `keep` 枚）。
+ *  用途：属性生成法（如 4d6 弃最低）的共有零件；**本体系取法住各自规则包**。
+ *  `keep` 非整数或超出骰数即抛错（不静默截断）。 */
+RPG.rollKeepHighest = (expr, keep) => {
+	const d = RPG.rollDetail(expr);
+	if (!Number.isInteger(keep) || keep < 1 || keep > d.rolls.length) {
+		throw new Error(`取高枚数越域：keep=${keep}，骰数=${d.rolls.length}`);
+	}
+	const rolls = [...d.rolls].sort((a, b) => b - a);
+	const kept = rolls.slice(0, keep);
+	return { rolls, kept, total: kept.reduce((s, v) => s + v, 0) };
+};
+
 /** 把数值调整成带符号文本：3 → '+3'，-2 → '-2' */
 RPG.formatMod = (n) => (n >= 0 ? `+${n}` : String(n));

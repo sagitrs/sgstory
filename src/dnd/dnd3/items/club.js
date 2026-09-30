@@ -1,4 +1,4 @@
-/* DND3 道具 —— 木棒（D&D 3.5 SRD：简单近战武器，1d6 钝击，×2 重击）
+/* DND3 道具 —— 木棒（SRD 3.5 · `Basic Rules and Legal/equipment.md:427-434`：简单近战武器 Club，中型 **1d6** 钝击，**×2** 重击，投掷 10 ft.）
  * 3E 判定数学在 dnd3/core/combat.js（近战武器共用，加新武器零重复）。
  */
 

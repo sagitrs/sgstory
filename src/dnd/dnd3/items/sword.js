@@ -1,4 +1,4 @@
-/* DND3 道具 —— 长剑（D&D 3.5 SRD：军用近战武器，1d8 挥砍，19-20/×2 重击）
+/* DND3 道具 —— 长剑（SRD 3.5 · `Basic Rules and Legal/equipment.md:765-774`：军用近战武器 Longsword，中型 **1d8** 挥砍，**19–20/×2** 重击）
  * 与木棒共用 dnd3/core/combat.js 的 3E 判定——本文件只有数据。
  */
 

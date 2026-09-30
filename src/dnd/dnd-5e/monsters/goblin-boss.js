@@ -1,12 +1,12 @@
-/* DND5E 怪物 —— 哥布林首领（数值来自 5E SRD） */
+/* DND5E 怪物 —— 哥布林首领（数值来自 SRD 5.2.1 · `monsters-A-Z.md:7404`「Goblin Boss」） */
 
 DND5E.GoblinBoss = RPG.defCharacter({
 	id: 'goblin-boss',
 	name: '哥布林首领',
-	hp: 21, maxHp: 21, // SRD：HP 21 (6d6)
+	hp: 21, maxHp: 21, // SRD 5.2.1 · monsters-A-Z.md:7409 —— HP 21 (6d6)
 	stats: DND5E.stats({
-		str_mod: 0, dex_mod: 2, con_mod: 0, // SRD：STR 10(+0) DEX 15(+2)
-		ac: 17, prof: 2, cr: '1',
+		str_mod: 0, dex_mod: 2, con_mod: 0, // 同上 :7431/7435/7439 —— STR 10(+0) DEX 15(+2) CON 10(+0)
+		ac: 17, prof: 2, cr: '1',           // 同上 :7408 —— AC 17
 	}),
 	items: [
 		{ id: 'club', equipped: true },

@@ -17,14 +17,16 @@
 		}
 	});
 
-	test('5e：哥布林数值对齐 SRD（AC 12, HP 7, STR -1, DEX +2）', () => {
+	/* 出处：SRD 5.2.1 · monsters-A-Z.md:7256-7287（「Goblin Minion」）；命名映射见 README「规则来源」§三.4 */
+	test('5e：哥布林数值对齐 SRD 5.2.1 · Goblin Minion（AC 12, HP 7, STR -1, DEX +2）', () => {
 		assert.eq(D().Goblin.stats.ac, 12);
 		assert.eq(D().Goblin.maxHp, 7);
 		assert.eq(D().Goblin.stats.str_mod, -1);
 		assert.eq(D().Goblin.stats.dex_mod, 2);
 	});
 
-	test('5e：哥布林首领数值对齐 SRD（AC 17, HP 21）', () => {
+	/* 出处：SRD 5.2.1 · monsters-A-Z.md:7408-7409（「Goblin Boss」） */
+	test('5e：哥布林首领数值对齐 SRD 5.2.1 · Goblin Boss（AC 17, HP 21）', () => {
 		assert.eq(D().GoblinBoss.stats.ac, 17);
 		assert.eq(D().GoblinBoss.maxHp, 21);
 	});

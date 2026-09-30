@@ -20,8 +20,7 @@
       "repo": "DND3.MonitorLizard",
       "name": "巨蜥",
       "source": { "file": "Monsters/Monsters - Animals.md", "entry": "Lizard, Monitor" },
-      "why": "源条目名为「Lizard, Monitor」（置后式），本仓注册名为 `monitor-lizard`（键名不宜含逗号）；数值面已由 A 组对源核（Str 17／Dex 15／Con 17／Int 1／Wis 12／Cha 2，HP 22）。★本条**暂不**参与 C 组校验：C 组硬编码 `### <entry>` 前缀，而本 3E 源文件的条目一律为 **h2**（`## Lizard, Monitor`）⇒ 入 C 组必假红。门侧缺口（C 组前缀应放宽为 `#{2,6}`）属测试域，见 #1748 PR 说明",
-      "claim": "src/dnd/dnd3/monsters/monitor-lizard.js:1",
-      "cCheck": false
+      "why": "源条目名为「Lizard, Monitor」（置后式），本仓注册名为 `monitor-lizard`（键名不宜含逗号）；数值面已由 A 组对源核（Str 17／Dex 15／Con 17／Int 1／Wis 12／Cha 2，HP 22）。C 组校验要求「所引源行确为该条目名」——本 3E 源文件的条目为 **h2**（`## Lizard, Monitor`），故门侧 C 组前缀须容纳 `#{2,6}`（本笔同 #1766 落，见 PR 说明）",
+      "claim": "src/dnd/dnd3/monsters/monitor-lizard.js:3"
     }  ]
 }

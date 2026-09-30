@@ -57,5 +57,7 @@ console.log(`单测：pass=${r.pass} fail=${r.fail} total=${r.total}`);
 /* total=0 时上面的 fail/pass 比较全部空转（零用例静默绿）——显式拦截 */
 if (!r.total || r.fail > 0 || r.pass !== r.total) {
 	console.error(r.total ? '单测未全绿' : '单测清单为空（manifest 生成异常？）——拒绝静默绿');
+	/* 红时指名失败用例（#1699）：否则 CI 日志只有一行「单测未全绿」，无从定位 */
+	for (const name of r.failures ?? []) console.error(`  ✗ ${name}`);
 	process.exit(1);
 }

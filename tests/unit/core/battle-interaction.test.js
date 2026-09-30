@@ -123,21 +123,42 @@
 
 	/* ---------- 通过 battle.execute() 驱动 #playerAction 的执行面断言 ---------- */
 	/* 方法：interactive=true + properties 含 'player' → 走交互通路；
-	 * 桩化 choice 返回预设序列；探针 RPG.useItem 记录调用。 */
+	 * 桩化 choice 返回预设序列；探针 RPG.useItem 记录调用。
+	 *
+	 * ⚠️ 桩化对象是 **类级单例** `setup.DND3.Player`（包内单例、跨用例长存）⇒
+	 * 一律经 withPlayerStubs() 挂桩并在 finally **还原/删除**，否则泄漏会静默改写
+	 * 后续用例（如 alliance/battle 的 interactive 用例）的前提（#1699）。 */
+	const withPlayerStubs = async (stubs, fn) => {
+		const P = setup.DND3.Player;
+		const saved = new Map();
+		const added = [];
+		for (const k of Object.keys(stubs)) {
+			if (Object.prototype.hasOwnProperty.call(P, k)) saved.set(k, P[k]);
+			else added.push(k);
+			P[k] = stubs[k];
+		}
+		try { return await fn(); } finally {
+			for (const [k, v] of saved) P[k] = v;
+			for (const k of added) delete P[k];   // 原本无自有属性 ⇒ 删回继承态
+		}
+	};
 
 	test('battle interaction：interactive 选「装备」→ 经 useItem 提交（M5b）', async () => {
 		const R2 = R(), D2 = setup.DND3;
 		R2.give('club');
 		const player = D2.Player;
-		player.items = State.variables.inventory;
 		const enemy = new (R2.Character)({ name: '靶', hp: 9999, maxHp: 9999 });
 		const battle = new (R2.Battle)(1, [player], [enemy], true);
 		const seq = ['0', 'equip']; // ① 选道具 0 ② 选动作 equip
-		player.choice = async () => (seq.length ? seq.shift() : 'skip');
 		battle.perform = () => {};
 		const orig = R2.useItem, calls = [];
 		R2.useItem = (id, a, b, act) => { calls.push([id, act]); return orig(id, a, b, act); };
-		try { await battle.execute(); } finally { R2.useItem = orig; }
+		try {
+			await withPlayerStubs(
+				{ items: State.variables.inventory, choice: async () => (seq.length ? seq.shift() : 'skip') },
+				() => battle.execute()
+			);
+		} finally { R2.useItem = orig; }
 		assert.ok(calls.length >= 1, '装备分支经 useItem 提交');
 		assert.ok(calls.some(c => c[1] === 'equip'), '提交动作为 equip');
 	});
@@ -146,23 +167,24 @@
 		const R2 = R(), D2 = setup.DND3;
 		R2.give('club');
 		const player = D2.Player;
-		player.items = State.variables.inventory;
 		const enemy = new (R2.Character)({ name: '靶', hp: 9999, maxHp: 9999 });
 		const battle = new (R2.Battle)(1, [player], [enemy], true);
-		player.choice = async () => 'skip'; // 直接选跳过
 		battle.perform = () => {};
 		const orig = R2.useItem;
 		let useItemCalled = false;
 		R2.useItem = (...args) => { useItemCalled = true; return orig(...args); };
-		let choiceAfterSkip = 0;
-		const origChoice = player.choice;
-		player.choice = async (...args) => {
-			// 如果 skip 后不应再进入目标选择，第二次 choice 不应被调用
-			// 但我们 stub 了 choice，所以直接检测：skip 后 choice 不应再被调
-			choiceAfterSkip++;
-			return 'skip';
-		};
-		try { await battle.execute(); } finally { R2.useItem = orig; }
+		let choiceCalls = 0;
+		try {
+			await withPlayerStubs(
+				{
+					items: State.variables.inventory,
+					choice: async () => { choiceCalls++; return 'skip'; },
+				},
+				() => battle.execute()
+			);
+		} finally { R2.useItem = orig; }
 		assert.ok(!useItemCalled, 'skip 不经 useItem');
+		/* 「skip 不进入目标选择」的**直接**断言（#1699：原先只靠抛错收口，且计数变量从未断言）*/
+		assert.eq(choiceCalls, 1, 'skip 后不再选目标（choice 全程只被调用 1 次）');
 	});
 })();

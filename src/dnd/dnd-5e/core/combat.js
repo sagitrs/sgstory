@@ -39,13 +39,99 @@ DND5E.grantDeathIfDown = (that) => {
 };
 
 /**
- * 5E 近战/远程攻击（木棒、长剑、炸弹等共用）：
+ * 5E 攻击结算的**四段管线**（#1713 契约③：接点由「分散的隐式位置」变为「显式有序阶段」）
+ *
+ *   ① `5e.atk`     命中修正：能力调整值（Finesse/远程）、熟练度、AC 读取
+ *   ② `5e.mode`    优势/劣势模式（`ctx.rollMode`）—— #1689 **P1** 的 `rollMode()` 接线点
+ *   ③ `5e.resolve` 掷骰 + 命中/失手 + 暴击规则（天然 20 ⇒ 全部伤害骰翻倍）—— P3 的 autoCrit 接线点
+ *   ④ `5e.damage`  伤害骰与施加（伤害修正链：`ctx.dmgMod`）—— #1690/#1693 的接线点
+ *
+ * 每段**独立可测**：喂同一 ctx 直接跑单段即可断言其产出（不必开整场战斗）。
+ * 序的唯一权威 = stages 数组序（core 的 runPipeline 不重排）；核心只保证同一 ctx 贯穿。
+ */
+RPG.defPipeline({
+	id: 'dnd-5e.attack',
+	stages: [
+		{
+			id: '5e.atk',
+			run(ctx) {
+				const f = ctx.from?.stats ?? {};
+				const isFinesse = ctx.item.stats.finesse === true;
+				// 5E：Finesse 取 max(str, dex)；普通近战用 str；投掷/远程用 dex
+				// ⚠ 能力值自 #1697 P1 起存**原始分**（stats.str 默认 10）⇒ 一律经 DND5E.modOf 现算调整值；
+				//    不得读 *_mod 字段（该字段已废除，读它是死键 ⇒ 恒 0 的静默错值）
+				ctx.abilMod = ctx.ranged
+					? DND5E.modOf(f, 'dex')
+					: isFinesse
+						? Math.max(DND5E.modOf(f, 'str'), DND5E.modOf(f, 'dex'))
+						: DND5E.modOf(f, 'str');
+				ctx.prof = f.prof ?? 0; // 熟练度：简单/军用武器默认熟练（简化：prof 直接加）
+				ctx.atkMod = ctx.prof + ctx.abilMod;
+				ctx.ac = ctx.that?.stats?.ac ?? 10; // 5E 直接读 stats.ac（acOf 算好后写入）
+			},
+		},
+		{
+			id: '5e.mode',
+			run(ctx) {
+				ctx.rollMode = 'normal'; // P1 起由 DND5E.rollMode(attacker, defender, { melee }) 覆写
+			},
+		},
+		{
+			id: '5e.resolve',
+			run(ctx) {
+				const { item, that, atkMod, ac } = ctx;
+				const die = ctx.roll(ctx.rollMode);
+				const noDodge = that?.noDodge === true;
+				if (!noDodge && die !== 20 && (die === 1 || die + atkMod < ac)) {
+					item.perform(`${item.name}挥空了，没有击中${that.name}` +
+						`（攻击掷骰 ${die}${atkMod ? RPG.formatMod(atkMod) : ''} vs AC ${ac}）`);
+					ctx.hit = false;
+					ctx.done = true; // 失手 ⇒ 不进入伤害段
+					return;
+				}
+				ctx.hit = true;
+				ctx.die = die;
+				// 5E 重击：仅天然 20，全部伤害骰翻倍（调整值不翻倍）
+				ctx.crit = !noDodge && die === 20;
+				ctx.diceCount = ctx.crit ? 2 : 1;
+			},
+		},
+		{
+			id: '5e.damage',
+			run(ctx) {
+				const { item, that, abilMod, crit } = ctx;
+				const parts = [];
+				let dmg = 0;
+				for (let i = 0; i < ctx.diceCount; i++) {
+					const r = RPG.rollDetail(item.stats.dmg);
+					dmg += r.total;
+					parts.push(r.rolls.join('+'));
+				}
+				dmg += abilMod;                        // 调整值只加一次（5E 规则）
+				dmg += ctx.dmgMod ?? 0;                // 伤害修正链（#1690/#1693 在此汇入）
+				if (dmg < 1) dmg = 1;
+				ctx.dmg = dmg;
+
+				that.hp = Math.max(0, (that.hp ?? 0) - dmg);
+				DND5E.grantDeathIfDown(that);
+
+				const dmgType = item.stats.type ?? 'bludgeoning';
+				item.perform(`${that.name}受到了${dmg}点${dmgType}伤害` +
+					`（${parts.join('，')}${abilMod ? RPG.formatMod(abilMod) : ''}${crit ? '，重击！' : ''}）`);
+			},
+		},
+	],
+});
+
+/**
+ * 5E 近战/远程攻击（木棒、长剑、炸弹等共用）——**薄壳**：
+ *   拔出检查 + 建 ctx + 跑管线 + 由各阶段自己 perform。
  *   攻击掷骰 = 1d20 + 熟练度(若熟练) + 力量或灵巧（Finesse 取高者）
  *   天然 20 = 重击 → **全部伤害骰翻倍**（调整值不翻倍）
  *   武器 stats.finesse: true 时用 max(力量, 灵巧)调整值 作为攻击与伤害调整值
  */
 DND5E.attack = (item, that, from) => {
-	// 近战武器拔出检查（复用 core 逻辑）
+	// 近战武器拔出检查（复用 core 逻辑；不属结算管线：是行动前置）
 	if (item.slot === 'weapon' && !item.equipped) {
 		const held = RPG.equippedWeapon();
 		if (held && held.id !== item.id) {
@@ -56,46 +142,20 @@ DND5E.attack = (item, that, from) => {
 		item.perform(`你握紧了「${item.name}」。`);
 	}
 
-	const f = from?.stats ?? {};
-	// 5E：Finesse 武器取 max(str, dex)；普通近战用 str；投掷/远程用 dex
-	const isFinesse = item.stats.finesse === true;
-	const isRanged = item.stats.ranged === true;
-	const abilMod = isRanged
-		? DND5E.modOf(f, 'dex')
-		: isFinesse
-			? Math.max(DND5E.modOf(f, 'str'), DND5E.modOf(f, 'dex'))
-			: DND5E.modOf(f, 'str');
-	// 熟练度：简单/军用武器默认熟练（简化：prof 直接加）
-	const prof = f.prof ?? 0;
-	const atkMod = prof + abilMod;
-
-	const ac = that?.stats?.ac ?? 10; // 5E 直接读 stats.ac（acOf 算好后写入）
-	const die = DND5E.d20();
-	const noDodge = that?.noDodge === true;
-
-	if (!noDodge && die !== 20 && (die === 1 || die + atkMod < ac)) {
-		item.perform(`${item.name}挥空了，没有击中${that.name}` +
-			`（攻击掷骰 ${die}${atkMod ? RPG.formatMod(atkMod) : ''} vs AC ${ac}）`);
-		return;
-	}
-
-	// 5E 重击：仅天然 20，全部伤害骰翻倍（调整值不翻倍）
-	const crit = !noDodge && die === 20;
-	const diceCount = crit ? 2 : 1;
-	const parts = [];
-	let dmg = 0;
-	for (let i = 0; i < diceCount; i++) {
-		const r = RPG.rollDetail(item.stats.dmg);
-		dmg += r.total;
-		parts.push(r.rolls.join('+'));
-	}
-	dmg += abilMod; // 调整值只加一次（5E 规则）
-	if (dmg < 1) dmg = 1;
-
-	that.hp = Math.max(0, (that.hp ?? 0) - dmg);
-	DND5E.grantDeathIfDown(that);
-
-	const dmgType = item.stats.type ?? 'bludgeoning';
-	item.perform(`${that.name}受到了${dmg}点${dmgType}伤害` +
-		`（${parts.join('，')}${abilMod ? RPG.formatMod(abilMod) : ''}${crit ? '，重击！' : ''}）`);
+	const ctx = {
+		// 输入（阶段只读）
+		item, that, from,
+		melee: item.stats.ranged !== true,
+		ranged: item.stats.ranged === true,
+		// 产出（按序写入；此处给初值便于单段测试与断言中间态）
+		abilMod: 0, prof: 0, atkMod: 0, ac: 10,
+		rollMode: 'normal', die: null, hit: null, crit: false, diceCount: 1,
+		dmgMod: 0, dmg: 0, done: false,
+		// 随机入口：唯一随机源 = RPG.rng（05-dice）；优势/劣势掷 2d20 取高/低
+		roll: (mode) =>
+			mode === 'advantage' ? DND5E.d20adv()
+				: mode === 'disadvantage' ? DND5E.d20dis()
+					: DND5E.d20(),
+	};
+	return RPG.runPipeline('dnd-5e.attack', ctx);
 };

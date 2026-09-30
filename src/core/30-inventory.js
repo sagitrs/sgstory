@@ -229,13 +229,14 @@ RPG.ammoOwed = (item) => item.__ammoPaid !== true;
 
 /**
  * 解析**弹药该记在谁头上**（`#1765` 兜底路径的归属判定）。
- * 顺序：① 显式 `from`（调用方给的施术者）→ ② **注册表持有者**（实例恒等 → 按 id 从后往前）
- * → ③ `null`（无人持有 ⇒ 调用方须显式给 `from`，**✗ 不回落受击者**）。
+ * 顺序：① 显式 `from` → ② 注册表**唯一**持有者（实例恒等优先，其次按 id）→ ③ `null`。
  *
- * ★ **为何不把受击者（`that`）当候选**：受击者常持**同型武器／同名弹药**，按 id 判会把归属
- *   误判到受击者头上（`tester-4` 实测：受击者持同型枪 ⇒ 射手 10→10、靶 10→9 —— **原症状换形存活**）。
- *   「受击者为何天然是持有者」无据 ⇒ 只认**实例恒等**与**注册表按 id**的持有关系；
- *   判不出即**不扣**（保守正确：宁可不出手，不可让他人付费）。
+ * ★ 原则：**只有「唯一可判」才付费；判不出、或判出多于一个 ⇒ 不扣、不开火。**
+ *   宁可不出手，不可让他人付费 —— 归属错误（尤其判到受击者头上）比不攻击更坏。
+ * ★ **为何不把受击者（`that`）当候选**：受击者常持同型武器／同名弹药，按其 id 判会把归属
+ *   误判到受击者头上（`tester-4` 第二形态：受击者持同型枪 ⇒ 射手 10→10、靶 10→9）。
+ * ★ **为何多持有者不取「最后一个」**：同 id 不同实例无法区分谁在开火，取任一都是臆断
+ *   （`developer` 第三轮：双持有者且受击者后注册 ⇒ 倒序恰命中受击者，射手 10→10、靶 10→9）。
  * ★ 为什么需要本函数：`DND5E.attack` 的兜底在 `used(foe)`（无 `from`）被直调时拿到
  *   `from === undefined`；若写成 `from ?? that` 就会**从受击者扣弹**（developer 缺陷 2 实测：
  *   射手 10→10、靶 10→9）—— 兜底的本意是保证**攻击者**付费。
@@ -246,11 +247,16 @@ RPG.ammoOwner = (item, from, that) => {
 	const list = chars == null ? [] : (typeof chars.values === 'function' ? [...chars.values()] : Object.values(chars));
 	const holds = (who) => Array.isArray(who?.items) && who.items.some((s) => s === item);
 	/* 快照路径（`reviveItem` 每次新建实例 ⇒ 实例恒等不命中）⇒ 按 **id** 兜底匹配。
-	 *   歧义（两个角色带同名 id）⇒ 按**从后往前**取最后登记者，与 `RPG.take` 同向。 */
+	 *   ★ **命中多于一个者即不可判**（developer 第三轮：双持有者——双方都注册且各持同型——时
+	 *   「取最后登记者」会把归属判给**受击者**（实测射手 10→10、靶 10→9）。"取最后一个"没有依据：
+	 *   同 id 不同实例本就无法区分谁在开火 ⇒ 返回 `null`（与「宁可不出手，不可让他人付费」自洽）。 */
 	const holdsId = (who) => Array.isArray(who?.items) && who.items.some((s) => s?.id === item.id);
-	for (const who of list) if (holds(who)) return who; // ② 注册表里持有该**实例**者
-	for (let i = list.length - 1; i >= 0; i--) if (holdsId(list[i])) return list[i]; // ③ 按 id（快照路径）
-	return null; // ④ 无人持有（纯数据／无法判定）⇒ 须调用方显式给 from，✗ 不回落受击者
+	const byInstance = list.filter(holds);
+	if (byInstance.length === 1) return byInstance[0]; // ② 实例恒等且唯一 ⇒ 无歧义
+	if (byInstance.length > 1) return null; // ②′ 多角色共持同一实例 ⇒ 不可判
+	const byId = list.filter(holdsId);
+	if (byId.length === 1) return byId[0]; // ③ 按 id 且唯一 ⇒ 可判（快照路径的常见形）
+	return null; // ④ 无人持有／多持有者（歧义）⇒ 不扣、不开火
 };
 
 RPG.act = (actor, itemRef, target, action = 'use', from = actor) => {

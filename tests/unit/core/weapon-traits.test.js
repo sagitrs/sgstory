@@ -385,4 +385,37 @@ test('ammo【跨面·回归】受击者持**同型武器** ⇒ 扣射手、靶�
 	assert.ok(foe.hp < 9999, '攻击确实发生');
 });
 
+
+test('ammo【跨面·回归】双持有者（各持同型、受击者后注册）⇒ 不可判 ⇒ 不扣不开火（D 第三轮）', () => {
+	const D5 = setup.DND5E;
+	/* ★ 钉住 `developer` 第三轮：③′「按 id 从后往前取最后登记者」在**双持有者**下会把归属判给
+	 *   **受击者**（双方都注册进注册表且各持同型枪 ⇒ 受击者后注册即被选中）⇒ 射手 10→10、靶 10→9。
+	 *   「取最后一个」没有依据：同 id 不同实例无法区分谁在开火 ⇒ **唯一才判，歧义即 null**。 */
+	R().defItem({ id: 'unit-dup-gun', name: '并存枪', weapon: true, slot: 'weapon', charges: null, stackable: false,
+		stats: { dmg: '1d6', type: 'piercing', ranged: true, ammo: { id: 'unit-dup-bullet' } },
+		actions: { equip: R().slotEquip, unequip: R().slotUnequip },
+		used(that, from) { D5.attack(this, that, from); } });
+	R().defItem({ id: 'unit-dup-bullet', name: '并存弹', charges: 10, stackable: true, used() {} });
+	R().rng.set(() => 0.99);
+	R().give('unit-dup-gun'); R().give('unit-dup-bullet'); R().equip('unit-dup-gun');
+	/* 受击者**也注册进注册表**且各持同型（后注册 ⇒ 倒序会先命中它） */
+	const foe = new (R().Character)({ name: '靶', hp: 9999, maxHp: 9999, properties: ['npc'],
+		items: [{ id: 'unit-dup-gun', equipped: true }, { id: 'unit-dup-bullet', charges: 10 }],
+		stats: D5.stats({ ac: -999 }) });
+	R().characters.set('unit-dup-foe', foe);
+	try {
+		const gun = R().reviveItem(State.variables.inventory.find((s) => s.id === 'unit-dup-gun'));
+		const shooterBefore = State.variables.inventory.find((s) => s.id === 'unit-dup-bullet').charges;
+		const foeBefore = foe.items.find((s) => s.id === 'unit-dup-bullet').charges;
+		const hp0 = foe.hp;
+		assert.eq(R().ammoOwner(gun, undefined, foe), null, '双持有者 ⇒ 归属不可判（返回 null）');
+		gun.used(foe); // 直调，无 from
+		assert.eq(foe.items.find((s) => s.id === 'unit-dup-bullet').charges, foeBefore,
+			'✗ 不得因歧义而判给受击者（旧版此处 10 → 9）');
+		assert.eq(State.variables.inventory.find((s) => s.id === 'unit-dup-bullet').charges, shooterBefore,
+			'射手也不扣（不可判 ⇒ 不出手）');
+		assert.eq(foe.hp, hp0, '不开火（宁可不出手，不可让他人付费）');
+	} finally { R().characters.delete('unit-dup-foe'); }
+});
+
 })();

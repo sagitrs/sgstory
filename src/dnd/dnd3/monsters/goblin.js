@@ -2,7 +2,7 @@
  *
  * 数值出处：SRD 3.5 · `3.5 Compendium/Monsters/3.5 Monsters - G.md:1283`（`## Goblin` → Abilities：
  *   Str 11／Dex 13／Con 12／Int 10／Wis 9／Cha 6 ⇒ 调整值 0／+1／+1／0／−1／−2）。
- * 设计值（非 SRD）：HP 5→6（maxHp 7）、BAB +1→−1、CR 1/3→1/4——沿用既有设计，
+ * house rule（非 SRD）：HP 5→6（maxHp 7）、BAB +1→−1、CR 1/3→1/4——沿用既有设计，
  *   本笔只对齐属性调整值（见 #1719）。
  * 存档说明：挂在规则包上的实例不进存档（引擎重新开始也不会自动重置），
  * 需要持久化的角色请在 State 里存纯数据快照；这里用 :enginerestart

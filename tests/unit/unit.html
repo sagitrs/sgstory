@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>SC RPG 插件 · 单元测试</title>
+<style>
+	body { font-family: Consolas, monospace; background: #14141c; color: #d8d4c8; padding: 1.5em; }
+	.pass { color: #7fc97f; }
+	.fail { color: #e07a6a; }
+	.case { margin: 2px 0; }
+	#summary { font-size: 1.2em; margin: 0.8em 0; }
+</style>
+</head>
+<body>
+<h3>SC RPG 增强插件 · 单元测试</h3>
+<div id="summary">运行中……</div>
+<div id="out"></div>
+
+<!-- 加载顺序：环境 shim → 被测物（插件构建）→ 测试框架 → 用例清单 → 用例 -->
+<script src="framework/shims.js"></script>   <!-- 手写：SugarCube 环境桩 -->
+<script src="dist/bundle.js"></script>       <!-- 生成：插件构建（与游戏同包装），勿手改 -->
+<script src="framework/harness.js"></script> <!-- 手写：迷你测试框架 -->
+<script src="dist/manifest.js"></script>     <!-- 生成：*.test.js 清单，勿手改 -->
+<script>
+/* 按清单顺序加载测试文件（一个单元一个 .test.js），全部就绪后运行。
+ * 新增用例 = 新建 xxx.test.js（IIFE 包裹）+ 重新 python build.py。 */
+(async () => {
+	try {
+		for (const f of window.__TEST_FILES || []) {
+			await new Promise((resolve, reject) => {
+				const s = document.createElement('script');
+				s.src = f;
+				s.onload = resolve;
+				s.onerror = () => reject(new Error('测试文件加载失败: ' + f));
+				document.head.appendChild(s);
+			});
+		}
+		await window.__runTests();
+	} catch (e) {
+		document.getElementById('summary').innerHTML = `<span class="fail">加载错误：${e.message}</span>`;
+		document.title = 'FAIL (load)';
+		window.__unitResult = { total: 0, pass: 0, fail: 1, error: e.message };
+	}
+})();
+</script>
+</body>
+</html>

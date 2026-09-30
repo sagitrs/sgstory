@@ -1,0 +1,8 @@
+*.pyc
+__pycache__/
+*.zip
+node_modules/
+tests/unit/dist/
+tests/e2e/*/game.html
+.DS_Store
+Thumbs.db

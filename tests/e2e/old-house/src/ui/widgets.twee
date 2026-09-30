@@ -1,0 +1,13 @@
+:: RPG widgets [widget]
+/* 桥接宏：
+ *   <<rpg_use "bandage">>            对玩家自己使用道具（目标=施用者=Player）
+ *   <<rpg_use "bandage" `目标` `施用者`>>   反引号里是表达式，可显式指定双方
+ *   <<rpg_equip "club">>             切换装备状态（装备↔卸下）
+ * 结果均由道具动作内部 perform 直接打印。 */
+<<widget "rpg_use">>
+	<<run setup.RPG.useItem($args[0], $args[1] ?? setup.DND3.Player, $args[2] ?? ($args[1] ?? setup.DND3.Player))>>
+<</widget>>
+
+<<widget "rpg_equip">>
+	<<run setup.RPG.toggleEquip($args[0])>>
+<</widget>>

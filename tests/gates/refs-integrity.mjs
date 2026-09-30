@@ -8,6 +8,8 @@
  *   B pin 完整性门 — pin 表每行「行数＋sha1 前 16」须与**仓内离线缓存**逐项相符；
  *                    缓存缺失 ⇒ **显式红**（不静默跳过）。
  *   C 值自洽子检查 — 注/用例名中已写出的值 ↔ 同行代码值（自洽，非对源）。
+ *                    用例名支的字段候选**同时含两代模型**（`str_mod` 与 `str`，见 #1734）：
+ *                    标题载调整值或原始分均可，**不因门而少写值**。
  *
  * 第②级（消费缓存，仍**不需要网络**；射程按 T 席裁决 #1714 comment 5910204101）：
  *   A 组 源值比对  — 4 处引用的源行可机械抽取 HP/AC ⇒ 与仓内值**对源**比对（`hp:`/`ac:` 或用例名+断言）。
@@ -185,6 +187,8 @@ let sourceLineClaims = 0, valueChecked = 0, valueCompared = 0, selfCheck = 0, se
 const uncovered = [];
 let cmp5e = 0, cmp3e = 0;   // A 组比对按源格式分计（验收 4）
 const noValueCites = [];    // 引用解析成功但抽不到可比值（静默 0 覆盖 ⇒ 须可见）
+const uncoveredCand = [];   // 未覆盖**候选**（按行收集，输出前按「文件+键」聚合，见下）
+const claimedKeysByFile = new Map();   // 文件 → 该文件**声称过**的键集（粒度＝块，遵 README §三.3）
 let cGroupChecked = 0;
 const mappingHit = new Set();
 
@@ -325,7 +329,16 @@ for (const f of files) {
     if (tm) {
       const body = lines.slice(i + 1, i + 12).join('\n');
       for (const [, key, val] of tm[1].matchAll(/(AC|HP|STR|DEX|CON|INT|WIS|CHA)\s+(-?\d+)/g)) {
-        const fields = { AC: ['ac'], HP: ['maxHp', 'hp'], STR: ['str_mod'], DEX: ['dex_mod'], CON: ['con_mod'], INT: ['int_mod'], WIS: ['wis_mod'], CHA: ['cha_mod'] }[key];
+        /* 字段映射**同时容纳两代模型**（#1734 甲案）：调整值（`str_mod`，`#1724` 前）与
+         * 原始分（`str`，`#1724` 起）。此前只认 `*_mod` ⇒ 标题若载**原始分**（`STR 8`）必红，
+         * 作者只能把值从标题删掉 ⇒ 该支校验面**静默缩小**（值自洽 9→8）——门推动信息减少。
+         * 两列同查的误配风险：需存在 `assert.eq(…str_mod, 8)` 这类**跨域断言**才会误绿，
+         * 而 `*_mod` 在 1..20 原始分域内不会取到 8 ⇒ 实际不可达（下方另有读数分列可查）。 */
+        const fields = {
+          AC: ['ac'], HP: ['maxHp', 'hp'],
+          STR: ['str_mod', 'str'], DEX: ['dex_mod', 'dex'], CON: ['con_mod', 'con'],
+          INT: ['int_mod', 'int'], WIS: ['wis_mod', 'wis'], CHA: ['cha_mod', 'cha'],
+        }[key];
         titlePairs[key] = Number(val);
         selfCheck++;
         if (fields.some((fl) => new RegExp(`assert\\.eq\\([^,]*\\.${fl}\\s*,\\s*${val}\\b`).test(body))) selfChecked++;
@@ -372,18 +385,34 @@ for (const f of files) {
          *  进入「未覆盖」记账并在读数行打印（甲）。 */
         const claimed = {};      // 调整值口径
         const claimedRaw = {};   // 原始分口径
-        for (const m of text.matchAll(/\b(STR|DEX|CON|INT|WIS|CHA)\b\s+(\d+)\s*[（(](-?\d+)[）)]/g)) {
-          claimedRaw[m[1]] = Number(m[2]); claimed[m[1]] = Number(m[3]);
+        /* 大小写不敏感（/i）：3E 源的 Abilities 惯用 Title case（`Str 11, Dex 13`），
+         * 而 5E HTML 表用大写（`STR`）—— 两者都是同一事实的写法。此前只认大写 ⇒
+         * **同一行写了值却不被当作声称**：既漏核，又给「未覆盖」添噪声（#1724 复核实测）。 */
+        for (const m of text.matchAll(/\b(STR|DEX|CON|INT|WIS|CHA)\b\s+(\d+)\s*[（(](-?\d+)[）)]/gi)) {
+          const k = m[1].toUpperCase();
+          claimedRaw[k] = Number(m[2]); claimed[k] = Number(m[3]);
         }
-        for (const m of text.matchAll(/\b(STR|DEX|CON|INT|WIS|CHA)\b\s+(\d+)(?![\d（(])/g)) {
-          if (claimedRaw[m[1]] === undefined) claimedRaw[m[1]] = Number(m[2]);
+        /* 纯原始分写法 `Str 11`：**只排除「紧接带数字的括号」**（那是调整值写法 `STR 8（−1）`，已由上一式处理）；
+         * 原先排除了**任何** `（`，于是 `CON 12（其余三项 +0）` 这类注释被漏认 ⇒ 该键既不核也比不出未覆盖（静默）。 */
+        for (const m of text.matchAll(/\b(STR|DEX|CON|INT|WIS|CHA)\b\s+(\d+)(?!\s*[（(]\s*-?\d)/gi)) {
+          const k = m[1].toUpperCase();
+          if (claimedRaw[k] === undefined) claimedRaw[k] = Number(m[2]);
         }
         for (const m of text.matchAll(/\b(HP|AC)\s+(\d+)/g)) claimed[m[1]] = Number(m[2]);
+        const fileClaims = claimedKeysByFile.get(rel) ?? new Set();
+        for (const k of [...Object.keys(claimed), ...Object.keys(claimedRaw), ...Object.keys(titlePairs)]) fileClaims.add(k);
+        claimedKeysByFile.set(rel, fileClaims);
         for (const k of ABIL_KEYS) if (titlePairs[k] !== undefined) claimed[k] = titlePairs[k];
         if (titlePairs.HP !== undefined) claimed.HP = titlePairs.HP;
         if (titlePairs.AC !== undefined) claimed.AC = titlePairs.AC;
-        /* 用例体内的直接断言也是「声称」 */
-        const body = lines.slice(i + 1, i + 13).join('\n');
+        /* 用例体内的直接断言也是「声称」；窗口**不得跨用例**（遇下一处 `test(` 即截断），
+         * 否则会吃进后续用例的断言 ⇒ 声称被高估、未覆盖被误判为已覆盖（#1724 复核实测）。 */
+        const bodyLines = [];
+        for (let j = i + 1; j < lines.length && bodyLines.length < 12; j++) {
+          if (/^\s*test\(\s*'/.test(lines[j])) break;
+          bodyLines.push(lines[j]);
+        }
+        const body = bodyLines.join('\n');
         for (const k of ABIL_KEYS) {
           const am = body.match(new RegExp(`assert\\.eq\\([^,]*\\.${ABIL_FIELD[k]}\\s*,\\s*(-?\\d+)`));
           if (am) claimed[k] = Number(am[1]);
@@ -412,21 +441,30 @@ for (const f of files) {
           for (const k of Object.keys(src)) {
             const isAbil = ABIL_KEYS.includes(k);
             let rv, sv, unit;
-            if (isAbil && src[k].score !== undefined) {
-              /* 原始分口径优先（两侧都有原始分时最直接；#1724 后仓内即原始分） */
-              const raw = repoRaw[k] !== undefined ? repoRaw[k] : claimedRaw[k];
-              if (raw !== undefined) { rv = raw; sv = src[k].score; unit = '原始分'; }
-            }
-            if (rv === undefined) {
-              const rm = repoMod[k] !== undefined ? repoMod[k] : claimed[k];
-              if (rm !== undefined) { rv = rm; sv = src[k].v; unit = '调整值'; }
+            /* 优先级（关键）：**仓内侧证据优先于声称侧**，且按各自形态对源比 ——
+             *   ① 仓内有原始分 ⇒ 与源的原始分比；② 否则仓内有调整值 ⇒ 与源的调整值比；
+             *   ③ 都没有（纯注释行）⇒ 才用声称值。
+             * 不能让「声称里的原始分」越过「仓内的调整值」：否则改 `dex_mod` 而注释仍写 `DEX 15`
+             * 时，会拿声称的 15 去比源的 15 ⇒ **漏检**（K10 实测：曾因此由红转绿）。 */
+            if (isAbil && src[k].score !== undefined && repoRaw[k] !== undefined) {
+              rv = repoRaw[k]; sv = src[k].score; unit = '原始分';
+            } else if (isAbil && repoMod[k] !== undefined) {
+              rv = repoMod[k]; sv = src[k].v; unit = '调整值';
+            } else if (isAbil && src[k].score !== undefined && claimedRaw[k] !== undefined) {
+              rv = claimedRaw[k]; sv = src[k].score; unit = '原始分（声称）';
+            } else if (isAbil && claimed[k] !== undefined) {
+              rv = claimed[k]; sv = src[k].v; unit = '调整值（声称）';
+            } else if (!isAbil) {
+              /* HP/AC：仓内字段（或用例名 titlePairs 已并入 claimed）优先，缺则用声称值 */
+              if (repoVals[k] !== undefined) { rv = repoVals[k]; sv = src[k].v; unit = ''; }
+              else if (claimed[k] !== undefined) { rv = claimed[k]; sv = src[k].v; unit = '（声称）'; }
             }
             if (rv === undefined) {
               /* 纯引用行（未声称任何值）不记账 —— 其值由**同块的相邻行**承载（如 `stats:` 行）；
                * 只有「本行声称了一部分、源还有其余」才是真缺口（作者枚举不全）。 */
               const hasClaims = Object.keys(claimed).length > 0 || Object.keys(claimedRaw).length > 0
                 || Object.keys(titlePairs).length > 0;
-              if (hasClaims) uncovered.push(`${at} ${k}（源=${src[k].v}@${path.basename(r.cachePath)}:${src[k].line}，本行/用例未声称）`);
+              if (hasClaims) uncoveredCand.push({ file: rel, key: k, at, src: src[k], cache: path.basename(r.cachePath) });
               continue;
             }
             valueCompared++;
@@ -462,6 +500,17 @@ console.log(`            按源格式：5E 调整列 ${cmp5e} 次 ＋ 3E 原始�
 if (noValueCites.length > 0) {
   console.log(`  第①级/A 组：**引用无可抽取值** ${noValueCites.length} 处（引用区间/块内未解析出 HP/AC/属性 ⇒ 静默 0 覆盖，记账可见）：`);
   for (const c of noValueCites) console.log(`    · ${c}`);
+}
+/* 聚合（README §三.3 的粒度＝块）：同一文件内**任一**行声称过该键 ⇒ 不算未覆盖；
+ * 并按「文件+键」去重。理由：本仓引用形是「一条引用覆盖其下同源一组值」，
+ * 若按行计，逐条断言的用例会机械放大（实测 3E 六维 × 6 条断言 = 30 项噪声）。 */
+const seenUc = new Set();
+for (const c of uncoveredCand) {
+  const tag = `${c.file}|${c.key}`;
+  if (seenUc.has(tag)) continue;
+  if (claimedKeysByFile.get(c.file)?.has(c.key)) continue;
+  seenUc.add(tag);
+  uncovered.push(`${c.file}｜${c.key}（源=${c.src.v}@${c.cache}:${c.src.line}，该文件未声称该键）`);
 }
 if (uncovered.length > 0) {
   console.log(`  tier-②：A 组**未覆盖** ${uncovered.length} 项（源有值、本行/用例未声称 ⇒ 记账不红，防分母静默缩小）：`);

@@ -153,6 +153,22 @@ const knives = [
       '	hp: 7, maxHp: 7, // SRD 5.2.1 · monsters-A-Z.md:7257 —— HP 7 (2d6)',
       '	maxHp: 7, // SRD 5.2.1 · monsters-A-Z.md:7257 —— HP 9 (2d6)'),
   },
+  {
+    id: 'K12', name: '标题载**原始分**（#1724 模型）⇒ 不红【#1734 验收刀】（基线绿即为证）', expect: 0, mark: '✓ 门绿',
+    apply: () => {},   // 基线形态本身即具判别力：修复前该形态红（见 K12b）
+  },
+  {
+    id: 'K12b', name: '标题载原始分 **且** 断言为原始分字段 ⇒ 绿（两代兼容的正面用例）', expect: 0, mark: '✓ 门绿',
+    apply: (d) => {
+      const p = path.join(d, 'tests/unit/dnd-5e/stats.test.js');
+      let s = fs.readFileSync(p, 'utf8');
+      // 把标题值改为原始分，并把紧随断言改为原始分字段（模拟 #1724 形态）
+      s = s.replace('（AC 12, HP 7, STR -1, DEX +2）', '（AC 12, HP 7, STR 8, DEX 15）');
+      s = s.replace('assert.eq(D().Goblin.stats.str_mod, -1);', 'assert.eq(D().Goblin.stats.str, 8);');
+      s = s.replace('assert.eq(D().Goblin.stats.dex_mod, 2);', 'assert.eq(D().Goblin.stats.dex, 15);');
+      fs.writeFileSync(p, s);
+    },
+  },
 ];
 
 let bad = 0;

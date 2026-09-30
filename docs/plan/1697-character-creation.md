@@ -593,7 +593,20 @@ DND5E.levelUp = (character, { hpMethod = 'roll' } = {}) => {
 
 **兼容要点（实现时逐字照做）**：消费点一律写 `<PACK>.abilityMod(x?.stats?.str ?? 10)`。**缺省 10 正是今日 `?? 0` 的中性语义** ⇒ 「完全不设能力字段」的 ad-hoc fixture 行为不变；只有**显式写了非 0 `*_mod`** 的 fixture 须迁（上表 13 处）。
 
-**防复发**：U9 的「键集精确相等且不含任何以 `_mod` 结尾的键」断言即为本类的守卫（关系式断言挡不住它，见 §十二 F3）。
+**第 14 处：e2e 场景源（本微笔补记）**
+
+| 文件 | 行 | 现值 | 迁成 |
+|---|---|---|---|
+| `tests/e2e/old-house/src/meta/init.twee` | 2 | `setup.DND3.stats({ ac: 12, str_mod: 1, dex_mod: 1 })` | `setup.DND3.stats({ ac: 12, str: 12, dex: 12 })` |
+
+它**同为 bypass 语义**（把 `*_mod` 键写进工厂输出，P1 后即成多余键 ⇒ 意图静默归零），但归属不同：**e2e 不在 CI 门内**（`.github/workflows/test.yml` 只跑 `tests/unit`）⇒ 该处若不同片改，漂移**不可见**。故本稿把它计入迁移面，要求与 13 处同片改。
+
+> 同目录的 `tests/e2e/old-house/game.html` 是 `build.py` 的**生成物**（内含上述数值的旧拷贝）⇒ 由 `python3 build.py` 重生，不手改；e2e 的走查验收（`tests/README.md`）在建后跑。
+
+**防复发（两层，不可互代）**：
+
+1. **工厂面**：U9 的「键集精确相等且不含任何以 `_mod` 结尾的键」断言——它守的是 `stats()` 的**输出**（挡住「把 `*_mod` 加回 `STAT_BLOCK`」类的手滑）；
+2. **ad-hoc 面（就地字面量）**：上述 13 处与 e2e 的 1 处**绕过工厂**，U9 **抓不到** ⇒ 改由**迁后静态复扫**守卫：`grep -rn "_mod:" src tests`（排除 `tests/unit/dist/**` 生成物）**零命中**（说明性注释中的引用不计）。此写法同 `#1710` 已示范的 `grep -rn "Math\.random" src` 零命中断言（§决策五 契约第 6 项）。
 
 ## 十、已知边界与不在本方案内的事项
 

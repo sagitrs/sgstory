@@ -90,11 +90,23 @@ RPG.Character = class Character extends Object {
 		if (spec.leveled && spec.level === null) {
 			const prefix = `${spec.base}:`;
 			this.effects = this.effects.filter((id) => !id.startsWith(prefix));
+			this.#pruneEffectTurns();          // 单点清理：不留孤儿回合数条目
 			return this;
 		}
 		const i = this.effects.indexOf(spec.id);
 		if (i !== -1) this.effects.splice(i, 1);
+		this.#pruneEffectTurns();
 		return this;
+	}
+
+	/** 私有：把 `effectTurns` 里已不在 `effects` 的条目清掉（#1741 MINOR-5）。
+	 *  **单点**职责 —— 任何移除路径（含未来新增）都经 `lose()` ⇒ 不会留孤儿键。 */
+	#pruneEffectTurns() {
+		const left = this.effectTurns;
+		if (left == null) return;
+		for (const id of Object.keys(left)) {
+			if (!this.effects.includes(id)) delete left[id];
+		}
 	}
 
 	/** 层级效果的当前级数（0 = 未持有；非层级效果 ⇒ 抛错 err.code='EFFECT_NO_LEVELS'） */

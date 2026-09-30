@@ -54,7 +54,8 @@ for (const f of files) load(f);
 await window.__runTests();
 const r = window.__unitResult;
 console.log(`单测：pass=${r.pass} fail=${r.fail} total=${r.total}`);
-if (r.fail > 0 || r.pass !== r.total) {
-	console.error('单测未全绿');
+/* total=0 时上面的 fail/pass 比较全部空转（零用例静默绿）——显式拦截 */
+if (!r.total || r.fail > 0 || r.pass !== r.total) {
+	console.error(r.total ? '单测未全绿' : '单测清单为空（manifest 生成异常？）——拒绝静默绿');
 	process.exit(1);
 }

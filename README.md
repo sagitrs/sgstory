@@ -52,7 +52,8 @@ sha1sum equipment-3e.md | cut -c1-16     # ⇒ 44b0c09a7783c8d9
 3. **落在最近的声明点**：数值表／判定函数／测试名上方一行（注释或测试名）写明；一处引用可覆盖其下紧邻的一组同源数值。
 4. **命名可能不同**：若本仓条目名与源条目名不一致，引用**以源条目名为准**并注明映射。
    映射是**数据**、不是约定：其**单一权威源**为 `tests/gates/name-map.json`（机器可读，门
-   `refs-integrity.mjs` 直接消费并校验「所引源行确为该条目」）；本节只立约定与指针，**不复述映射数据**。
-   读者可见的既有两例：`DND5E.Goblin` → `Goblin Minion`、`DND5E.GoblinBoss` → `Goblin Boss`（明细以该表为准）。
+   `refs-integrity.mjs` 直接消费并校验「所引源行确为该条目」），本节只立约定与指针，**不复述映射数据**。
+   下列两例仅为读者指引，**非权威**——明细与新例一律以该表为准：
+   `DND5E.Goblin` → `Goblin Minion`、`DND5E.GoblinBoss` → `Goblin Boss`。
 5. **不许无出处**：新增规则数值时，若源里查不到对应条目 ⇒ 当**本仓自定（house rule）**处理，
    并在注释里写明「house rule（非 SRD）」，不得写成「对齐 SRD」。

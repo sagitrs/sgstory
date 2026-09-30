@@ -321,6 +321,10 @@ Battle 循环（src/core/40-battle.js）
   └── 【P2 新增】回合末 DND5E.saveEnd(c, cond) —— ⚠️ 见下「承载点」
 ```
 
+> **回填（2026-09-30，`#1713` 落地后）**：本节与 §九.3 的两处「甲/乙二择」已被 `#1713` 的引擎扩展点消解——
+> `saveEnd` 挂 `battle:turnEnd`（两通路统一，甲乙都不必选）；exhaustion 层级用**参数化 id**（`'exhaustion:3'`，
+> `c.effects` 仍是纯字符串数组、原子升降级，甲乙都不必选）。详见 `src/README.md`「引擎扩展点」节。
+
 ### ⚠️ `saveEnd` 的承载点（回应 D 席 #7）
 
 现循环**唯一逐角色钩子**是 `RPG.events.emit('battle:turn', …)`，而它**只在 `BattleTurn.execute()` 内发射**（`core/40-battle.js:21`）；**玩家交互通路 `#playerAction`（`:99-101`）不发射该事件**。

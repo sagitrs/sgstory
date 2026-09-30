@@ -29,7 +29,7 @@
 
 	test('dnd3 combat：装备提升防御——着甲后同攻击者更难命中（统计）', () => {
 		const attacker = { stats: { bab: 0, str_mod: 0 } }; // 命中需 1d20 >= AC
-		const swings = 60;
+		const swings = 200;
 		const hitCount = (target) => {
 			let hits = 0;
 			for (let i = 0; i < swings; i++) {
@@ -43,9 +43,10 @@
 		};
 		const naked = { name: '裸靶', hp: 999, maxHp: 999, stats: { ac: 10 } };
 		const armored = { name: '甲靶', hp: 999, maxHp: 999, stats: { ac: 10 }, items: [{ id: 'mail', equipped: true }] };
-		const n1 = hitCount(naked);   // AC 10 → 期望 ~55%（天然1除外）
-		const n2 = hitCount(armored); // AC 13 → 期望 ~40%
-		assert.ok(n2 < n1, `着甲后被命中更少（${n2} < ${n1}）`);
+		const n1 = hitCount(naked);   // AC 10 → 期望 ~50%
+		const n2 = hitCount(armored); // AC 13 → 期望 ~35%
+		// 统计断言：200 掷时均值差 ~30、σ ~10，n2 < n1 的置信度 >99.9%
+		assert.ok(n2 < n1, `着甲后被命中更少（裸 ${n1} vs 甲 ${n2}，共 ${swings} 掷）`);
 	});
 
 	test('dnd3 combat：炸弹用灵巧不用力量，可击倒目标', () => {

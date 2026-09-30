@@ -20,9 +20,12 @@ master/main 自本提交起重启为空干线。
 | **5E** | `downfallx/dnd-5e-srd-markdown` | SRD **5.2.1**（2024） | `1b4b99dcb786cdd1a2fb26f8acec1551191f1ca4` | `rules-glossary.md` | 1537 | `d2e39b22330c2861` | CC BY 4.0 |
 | **5E** | 同上 | 同上 | 同上 | `monsters-A-Z.md` | 19563 | `6ef9e2499230a560` | CC BY 4.0 |
 | **5E** | 同上 | 同上 | 同上 | `equipment.md` | 2286 | `b027bc54551bf66b` | CC BY 4.0 |
+| **5E** | 同上 | 同上 | 同上 | `character-creation.md` | 1627 | `0327516c33fe44ca` | CC BY 4.0 |
+| **5E** | 同上 | 同上 | 同上 | `playing-the-game.md` | 1269 | `de890718617fb1af` | CC BY 4.0 |
 | **3E** | `Obsidian-TTRPG-Community/DnD-3.5-SRD-Markdown` | D&D **v3.5** SRD | `70a6b263e68604d8b2fb931937746161f2b65b58` | `Basic Rules and Legal/equipment.md` | 3590 | `44b0c09a7783c8d9` | OGL 1.0a |
 | **3E** | 同上 | 同上 | 同上 | `Basic Rules and Legal/legal-information.md` | 170 | `0571fa14cf815eb8` | OGL 1.0a |
 | **3E** | 同上 | 同上 | 同上 | `3.5 Compendium/Monsters/3.5 Monsters - G.md` | 1827 | `709b744a9f34bdbc` | OGL 1.0a |
+| **3E** | 同上 | 同上 | 同上 | `Basic Rules and Legal/basics-and-ability-scores.md` | 296 | `ddf4d4fec8a75621` | OGL 1.0a |
 
 **授权与标注**：5E 面依 **CC BY 4.0**（归属声明见 `LICENSE-CONTENT.md` 第二节），3E 面依 **Open Game License v1.0a**
 （含 Section 15 版权声明，见同文件第三节）；第三方软件与两面的来源声明汇总见 `NOTICE`。

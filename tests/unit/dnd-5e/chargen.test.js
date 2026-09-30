@@ -59,10 +59,10 @@
 	});
 
 	test('dnd-5e chargen：静态角色携带 SRD 原始分（U11）', () => {
-		assert.eq(D().Goblin.stats.str, 8, 'SRD 5.2.1 · Goblin Minion：STR 8');
-		assert.eq(D().Goblin.stats.dex, 15, 'SRD 5.2.1 · Goblin Minion：DEX 15');
-		assert.eq(D().GoblinBoss.stats.str, 10, 'SRD 5.2.1 · Goblin Boss：STR 10');
-		assert.eq(D().GoblinBoss.stats.dex, 15, 'SRD 5.2.1 · Goblin Boss：DEX 15');
+		assert.eq(D().Goblin.stats.str, 8, 'SRD 5.2.1 · monsters-A-Z.md:7279（Goblin Minion）STR 8');
+		assert.eq(D().Goblin.stats.dex, 15, 'SRD 5.2.1 · monsters-A-Z.md:7283（Goblin Minion）DEX 15');
+		assert.eq(D().GoblinBoss.stats.str, 10, 'SRD 5.2.1 · monsters-A-Z.md:7431（Goblin Boss）STR 10');
+		assert.eq(D().GoblinBoss.stats.dex, 15, 'SRD 5.2.1 · monsters-A-Z.md:7435（Goblin Boss）DEX 15');
 	});
 
 	test('dnd-5e chargen：弃最低的确定性（U12）', () => {

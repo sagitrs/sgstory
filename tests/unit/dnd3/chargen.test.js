@@ -57,11 +57,11 @@
 	});
 
 	test('dnd3 chargen：静态角色携带原始分（U11）', () => {
-		// 3E 哥布林：与源条目相符的四维（SRD 3.5 · Monsters.md:11840）；Str/Dex 为 house rule（#1719）
-		assert.eq(D().Goblin.stats.con, 12, 'SRD 3.5 · Goblin：CON 12');
-		assert.eq(D().Goblin.stats.int, 10, 'SRD 3.5 · Goblin：INT 10');
-		assert.eq(D().Goblin.stats.wis, 9, 'SRD 3.5 · Goblin：WIS 9');
-		assert.eq(D().Goblin.stats.cha, 6, 'SRD 3.5 · Goblin：CHA 6');
+		// 3E 哥布林：与源条目相符的四维（SRD 3.5 · Monsters/Monsters.md:11840）；Str/Dex 为 house rule（#1719）
+		assert.eq(D().Goblin.stats.con, 12, 'SRD 3.5 · Monsters/Monsters.md:11840（Goblin）CON 12');
+		assert.eq(D().Goblin.stats.int, 10, 'SRD 3.5 · Monsters/Monsters.md:11840（Goblin）INT 10');
+		assert.eq(D().Goblin.stats.wis, 9, 'SRD 3.5 · Monsters/Monsters.md:11840（Goblin）WIS 9');
+		assert.eq(D().Goblin.stats.cha, 6, 'SRD 3.5 · Monsters/Monsters.md:11840（Goblin）CHA 6');
 	});
 
 	test('dnd3 chargen：弃最低与生成法（U12/U14）', () => {

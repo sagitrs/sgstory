@@ -35,13 +35,14 @@ setup.DND5E.stats = (over = {}) => ({ ...setup.DND5E.STAT_BLOCK, ...over });
 
 /**
  * 定制写入路径（`setScore`）的原始分上限＝20。
- * 引用：SRD 5.2.1 · `playing-the-game.md:115`「Ability Modifiers」邻域的上限条款。
+ * 引用：SRD 5.2.1 · `playing-the-game.md:58`（「Each ability has a score from 1 to 20…」）。
  * 注：静态声明路径不受此限（怪物可由 `stats()` 直接声明更高值）。
  */
 setup.DND5E.ABILITY_MAX = 20;
 
-/** 原始分 → 调整值。引用：SRD 5.2.1 · `playing-the-game.md:101`「Ability Modifiers」
- *  （表值 10–11⇒+0、20–21⇒+5…；本实现为等价闭式：floor((分−10)/2)）。
+/** 原始分 → 调整值。引用：SRD 5.2.1 · `playing-the-game.md:101`「Ability Modifiers」节与
+ *  同文 `:115` 的 Ability Modifiers 表（表值 10–11⇒+0、20–21⇒+5…）；
+ *  本实现为等价闭式：floor((分−10)/2)。
  *  缺参（未设该维）按缺省原始分 10 计 ⇒ +0，即旧 `?? 0` 的中性语义。 */
 setup.DND5E.abilityMod = (score) => Math.floor(((score ?? 10) - 10) / 2);
 

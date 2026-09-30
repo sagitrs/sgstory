@@ -9,11 +9,11 @@
  *     （:85「Hit Die: d10.」；:86「Base Attack Bonus: 3/4 of total Hit Dice.」）
  *   另 :97（armature／biomorph／liquid-state 机架**不受重击**）—— 本笔未落该面，见下「不做的」。
  *
- * ★本笔的**设计取值**（✗ 源表直读，照 dnd-5e/monsters/guard.js 的「设计值」先例登记）：
- *   · hp/maxHp 8 ＝ :140 的 `1/2d10`（骰面固定化）＋ `Extra Hit Points 5` 的**设计取值**；
+ * ★本笔的 **house rule（非 SRD）** 面（✗ 源表直读；权威形见 `README.md` §三.5 第 5 条「不许无出处」）：
+ *   · hp/maxHp 8 ＝ :140 的 `1/2d10`（骰面固定化）＋ `Extra Hit Points 5` 的 **house rule（非 SRD）** 取值；
  *   · ac 12 ＝ 10 ＋ 灵巧调整值(+1) ＋ Small 尺寸加值(+1) —— 尺寸加值表不在本笔 pin 面内（house rule 面）；
  *   · bab 0 ＝ :86 公式（3/4 × 1/2 HD）＋ 同源向下取整总则的结果（`2msrdbasics基本.md:25`）；
- *   · cr 0 ＝ 设计取值（源机架表**无** CR 列）。
+ *   · cr 0 ＝ house rule（非 SRD）（源机架表**无** CR 列）。
  * ★**缺口登记（house rule 面，✗ 声称对齐）**：:90 明说机器人「have no Constitution score and usually
  *   no Intelligence score」——而本仓 STAT_BLOCK 是**六维对称块**（#1697 §决策二 的对称不变量）
  *   ⇒ **无「none」这一态的表示** ⇒ 本笔只能落缺省 10 并登记为缺口（其落地须先动 STAT_BLOCK 语义，

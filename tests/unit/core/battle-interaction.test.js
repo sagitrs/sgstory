@@ -143,7 +143,7 @@
 		}
 	};
 
-	test('battle interaction：interactive 选「装备」→ 经 useItem 提交（M5b）', async () => {
+	test('battle interaction：interactive 选「装备」→ 经统一入口 act 提交（M5b）', async () => {
 		const R2 = R(), D2 = setup.DND3;
 		R2.give('club');
 		const player = D2.Player;
@@ -151,15 +151,20 @@
 		const battle = new (R2.Battle)(1, [player], [enemy], true);
 		const seq = ['0', 'equip']; // ① 选道具 0 ② 选动作 equip
 		battle.perform = () => {};
-		const orig = R2.useItem, calls = [];
-		R2.useItem = (id, a, b, act) => { calls.push([id, act]); return orig(id, a, b, act); };
+		/* #1752：交互通路统一经 `RPG.act`（✗ 旧 `useItem`）⇒ 断言改锚统一入口。
+		 *   不变量未变：装备动作经「托管提交入口」执行、且 action 为 equip。 */
+		const orig = R2.act, calls = [];
+		R2.act = (actor, ref, target, act, from) => {
+			calls.push([typeof ref === 'string' ? ref : ref?.id, act]);
+			return orig(actor, ref, target, act, from);
+		};
 		try {
 			await withPlayerStubs(
 				{ items: State.variables.inventory, choice: async () => (seq.length ? seq.shift() : 'skip') },
 				() => battle.execute()
 			);
-		} finally { R2.useItem = orig; }
-		assert.ok(calls.length >= 1, '装备分支经 useItem 提交');
+		} finally { R2.act = orig; }
+		assert.ok(calls.length >= 1, '装备分支经统一入口 act 提交');
 		assert.ok(calls.some(c => c[1] === 'equip'), '提交动作为 equip');
 	});
 

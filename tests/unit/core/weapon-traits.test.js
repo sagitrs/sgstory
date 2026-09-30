@@ -210,4 +210,105 @@
 		assert.eq(R().useItem('club', target, { name: '打手', stats: { str: 12 } }), true, '无 ammo ⇒ 正常使用');
 		assert.ok(target.hp < 20, '伤害已施加');
 	});
+/* ===== #1765：弹药面必须**在真战斗里生效**（跨面验收，非仅 useItem 面） =====
+ * 发现经过：`#1736` 的 13 例全部经 `RPG.useItem` ⇒ 无一例覆盖战斗通路，而战斗中两条通路
+ *   （自动 `#attack` / 交互 `attacker.use`）**直调 `used`** ⇒ 弹药检查被绕过（实测零弹 5 回合 125 伤害）。
+ * 本组即把当时的**端到端探针**收进在册用例（tester-4 的 e2e④）。 */
+
+test('ammo【跨面】真 Battle：零弹药 ⇒ 目标 HP 不变（e2e④ 探针收入在册）', () => {
+	const D5 = setup.DND5E;
+	R().rng.set(() => 0.99); // 恒 20 ⇒ 若开火必中
+	R().give('musket'); R().equip('musket');
+	assert.eq(R().has('bullets-firearm'), false, '前置：刻意不给弹药');
+	const foe = new (R().Character)({ name: '靶', hp: 200, maxHp: 200, stats: D5.stats({ ac: 5 }) });
+	const b = new (R().Battle)(5, [D5.Player], [foe], false);
+	b.perform = () => {};
+	b.execute();
+	assert.eq(foe.hp, 200, '零弹药 ⇒ 5 回合均未开火（HP 不变）');
+});
+
+test('ammo【跨面】真 Battle：有弹药 ⇒ 每回合**恰扣 1 发**（防双扣）', () => {
+	const D5 = setup.DND5E;
+	for (const rounds of [1, 2, 3]) {
+		State.variables = {}; // 逐轮独立
+		R().rng.set(() => 0.99);
+		R().give('bullets-firearm'); R().give('musket'); R().equip('musket');
+		const foe = new (R().Character)({ name: '靶', hp: 9999, maxHp: 9999, stats: D5.stats({ ac: -999 }) });
+		const b = new (R().Battle)(rounds, [D5.Player], [foe], false);
+		b.perform = () => {};
+		b.execute();
+		const left = State.variables.inventory.find((s) => s.id === 'bullets-firearm')?.charges ?? 0;
+		assert.eq(10 - left, rounds, `${rounds} 回合 ⇒ 恰扣 ${rounds} 发（入口层与 attack 层不得双扣）`);
+		assert.ok(foe.hp < 9999, '确实开火了');
+	}
+});
+
+test('ammo【跨面】残余直调 used 的路径仍被 attack 层兜住（纵深防御）', () => {
+	const D5 = setup.DND5E;
+	/* 用**本用例私有 id**（跨用例 State 共享，复用 `musket`/`bullets-firearm` 会被前序用例的
+	 *   give/take 状态干扰 ⇒ 断言不稳；私有 id 隔离后测的才是本条不变量）。 */
+	R().defItem({ id: 'unit-dr-gun', name: '兜底枪', weapon: true, slot: 'weapon', charges: null, stackable: false,
+		stats: { dmg: '1d6', type: 'piercing', ranged: true, ammo: { id: 'unit-dr-bullet' } },
+		actions: { equip: R().slotEquip, unequip: R().slotUnequip },
+		used(that, from) { D5.attack(this, that, from); } });
+	R().defItem({ id: 'unit-dr-bullet', name: '兜底弹', charges: 3, stackable: true, used() {} });
+	R().rng.set(() => 0.99);
+	R().give('unit-dr-gun'); R().give('unit-dr-bullet'); R().equip('unit-dr-gun');
+	const shooter = D5.Player;
+	const foe = new (R().Character)({ name: '靶', hp: 9999, maxHp: 9999, stats: D5.stats({ ac: -999 }) });
+	const gun = R().reviveItem(State.variables.inventory.find((s) => s.id === 'unit-dr-gun'));
+	const before = State.variables.inventory.find((s) => s.id === 'unit-dr-bullet').charges;
+	gun.used(foe, shooter); // ★ 绕过 act：模拟未来的第三条通路
+	const after = State.variables.inventory.find((s) => s.id === 'unit-dr-bullet').charges;
+	assert.eq(before - after, 1, '经 attack 层兜底扣 1 发（纵深防御生效）');
+	assert.ok(foe.hp < 9999, '且攻击确实发生');
+});
+
+test('ammo【跨面·回归】act 之后直调 attack 仍逐发扣减（标记不得残留）', () => {
+	const D5 = setup.DND5E;
+	/* ★ 本条钉住一个**真实回归**（tester-4 的 P7/P9）：首版用「以道具 id 为键的全局标记」且
+	 *   `act` 无 `finally` ⇒ 标记**永久残留** ⇒ 同型武器此后任何直调 `attack` 都跳过扣弹，
+	 *   `#1765` 原症状换触发条件复活（act 开 1 枪后直调 5 次，子弹仍为 8、扣 0 发）。
+	 *   键改为**实例级瞬时字段** + **真 finally** 后隔离。(甲) 裁定：动作作用域传递。 */
+	R().defItem({ id: 'unit-leak-gun', name: '泄漏枪', weapon: true, slot: 'weapon', charges: null, stackable: false,
+		stats: { dmg: '1d6', type: 'piercing', ranged: true, ammo: { id: 'unit-leak-bullet' } },
+		actions: { equip: R().slotEquip, unequip: R().slotUnequip },
+		used(that, from) { D5.attack(this, that, from); } });
+	R().defItem({ id: 'unit-leak-bullet', name: '泄漏弹', charges: 10, stackable: true, used() {} });
+	R().rng.set(() => 0.99);
+	R().give('unit-leak-gun'); R().give('unit-leak-bullet'); R().equip('unit-leak-gun');
+	const foe = new (R().Character)({ name: '靶', hp: 9999, maxHp: 9999, stats: D5.stats({ ac: -999 }) });
+	const shooter = D5.Player;
+	R().useItem('unit-leak-gun', foe); // 经 act 开 1 枪（此处曾留下永久标记）
+	const t1 = State.variables.inventory.find((s) => s.id === 'unit-leak-bullet').charges;
+	for (let i = 0; i < 5; i++) {
+		R().reviveItem(State.variables.inventory.find((s) => s.id === 'unit-leak-gun')).used(foe, shooter);
+	}
+	const t2 = State.variables.inventory.find((s) => s.id === 'unit-leak-bullet').charges;
+	assert.eq(t1 - t2, 5, 'act 之后直调 5 次 ⇒ 仍扣 5 发（标记不得残留、纵深防御未被架空）');
+});
+
+test('ammo【跨面·回归】同实例复用（actor.items 持实例）⇒ finally 必须清标记', () => {
+	const D5 = setup.DND5E;
+	/* ★ 本条钉住 `finally` 本身。上一条用例走**快照**路径：`reviveItem` 每次新建实例，
+	 *   即使不清标记也不会溢出 ⇒ 撤掉 `finally` 仍绿（实测）。**真正需要 `finally` 的是
+	 *   「`actor.items` 里直接放实例」** —— `reviveItem` 见实例即原样返回 ⇒ 标记会跨动作持续，
+	 *   若不清除，`act` 之后的直调 `attack` 一律被跳过（实测撤掉 `finally` ⇒ 扣 0 发）。 */
+	R().defItem({ id: 'unit-fin-gun', name: '实例枪', weapon: true, slot: 'weapon', charges: null, stackable: false,
+		stats: { dmg: '1d6', type: 'piercing', ranged: true, ammo: { id: 'unit-fin-bullet' } },
+		actions: { equip: R().slotEquip, unequip: R().slotUnequip },
+		used(that, from) { D5.attack(this, that, from); } });
+	R().defItem({ id: 'unit-fin-bullet', name: '实例弹', charges: 10, stackable: true, used() {} });
+	R().rng.set(() => 0.99);
+	const bullets = R().createItem('unit-fin-bullet'); bullets.charges = 10;
+	const gun = R().createItem('unit-fin-gun'); gun.equipped = true;
+	const foe = new (R().Character)({ name: '靶', hp: 9999, maxHp: 9999, stats: D5.stats({ ac: -999 }) });
+	const actor = new (R().Character)({ name: '甲', hp: 60, maxHp: 60, items: [gun, bullets], stats: D5.stats({ str: 12, dex: 12, prof: 2 }) });
+	R().act(actor, gun, foe);
+	assert.eq(bullets.charges, 9, 'act 开 1 枪 ⇒ 扣 1 发');
+	assert.eq(gun.__ammoPaid, undefined, 'act 返回后标记须已清除（finally 生效）');
+	gun.used(foe, actor); // ★ 同一实例直调：只有 finally 生效才不会跳过扣弹
+	assert.eq(bullets.charges, 8, '同实例再直调 ⇒ 仍扣 1 发（标记未残留）');
+});
+
 })();

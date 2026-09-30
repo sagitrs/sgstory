@@ -22,7 +22,7 @@
 | 陈述 | 值 |
 |---|---|
 | `#1689` 正文 | 「以 **5.1** SRD groundtruth 实测计数」 |
-| **引擎自身声明** | `src/dnd/dnd-5e/00-init.js:1` =「D&D 5e (**2024 SRD**) 数值块约定与命名空间」 |
+| **引擎自身声明** | `src/dnd/dnd-5e/00-init.js:2` =「D&D 5e (**2024 SRD**) 数值块约定与命名空间」（`:1` 为 `/* raw */` 标记行） |
 | 参考源现行版本 | **5.2.1（2024）** |
 
 **两版 `Exhaustion` 规则完全不同** ⇒ 版本选错则数值整片错（正是 `#1686` 要防的面）：
@@ -173,7 +173,7 @@ DND5E.saveEnd = (c, condId, dc = 10) => {
 | # | 坑 | 实测读数 | 禁令 |
 |---|---|---|---|
 | 1 | **读路径不得用 `c.contains(裸 id)`** —— `contains` 的参数非 `RPG.Effect` 时落入 **props 分支**（`20-character.js:42-52`：在随身道具中检索满足属性的道具）⇒ 返回**首个道具实例**而非布尔 | 角色带 1 件道具时：`c.contains('frightened')` ⇒ `{"id":"coin","charges":null,"equipped":false}`（**对象 = 恒真值**） | **禁用** `if (c.contains('id'))`；读持有性一律用 **`c.effects.includes(id)`**（本稿 §三 原型已如此） |
-| 2 | **实例层绝不入 State** —— `RPG.Debuff` 实例是**包内常驻注册表**成员，存档只存 **id 字符串** | `c.effects` 存 id（`20-character.js:27-28`，`Character.snapshot()` 亦按 id 序列化） | 写存档/快照时**不得**把 `ConditionEffects[id]` 实例塞进 `State.variables`（与仓内 `src/README.md`「F1·角色血量不进存档」的道具快照范式同源） |
+| 2 | **实例层绝不入 State** —— `RPG.Debuff` 实例是**包内常驻注册表**成员，存档只存 **id 字符串** | `c.effects` 存 id（`20-character.js:27-28`）；快照**生产端** `toJSON()`（`20-character.js:126`）、**消费端** `Character.revive(snapshot)`（`:112`），二者均按 **id** 序列化/还原（`revive` 内 `c.effects = [...(snapshot.effects ?? [])]`，`:122`） | 写存档/快照时**不得**把 `ConditionEffects[id]` 实例塞进 `State.variables`（与仓内 `src/README.md`「F1·角色血量不进存档」的道具快照范式同源） |
 
 **可复现证据**（与引擎侧 `instanceof` 守卫同形）——以下为**核心片段**（含 `Character` 守卫桩与 5 条断言的**完整可跑脚本**见本 PR 票面 comment；本稿实跑 **不符数 = 0/5**）：
 
@@ -315,7 +315,7 @@ Battle 循环（src/core/40-battle.js）
   ├── 现有：isOut 判定 → 跳过
   ├── 【P1 新增】DND5E.canAct(attacker) → 跳过（失能/麻痹/石化/震慑/昏迷）
   ├── BattleTurn.execute() → core `#attack()`（`40-battle.js:28`，仅选武器）→ weapon.used() → **pack `DND5E.attack()`（`dnd-5e/core/combat.js:47`）** ← **规则判定面**
-  │     ├── 【P1 新增】DND5E.rollMode(attacker, defender, {melee}) → 选 d20/d20adv/d20dis（选择点：`combat.js:74`）
+  │     ├── 【P1 新增】DND5E.rollMode(attacker, defender, {melee}) → 选 d20/d20adv/d20dis（选择点：`combat.js:73` 的 `const die = DND5E.d20()`）
   │     ├── 【P2 新增】DND5E.d20TestMod(attacker) → 平值修正汇入 `atkMod`（`combat.js:70`）与 **`DND5E.save()` 的检定汇总处**（exhaustion −2×级；**非**优势/劣势，与 rollMode 分路；**含豁免**，据 SRD L573）
   │     └── 【P3 新增】autoCritMelee 判定
   └── 【P2 新增】回合末 DND5E.saveEnd(c, cond) —— ⚠️ 见下「承载点」
@@ -331,7 +331,7 @@ Battle 循环（src/core/40-battle.js）
 ⇒ **无论甲乙，均改核心**（与 §九.1 的边界陈述一致，不再自相矛盾）。
 
 ### `d20adv` / `d20dis` 归位
-两者**已存在于 5E 包**（`00-init.js:35-36`），P1 只在 **pack 的 `DND5E.attack()`**（`src/dnd/dnd-5e/core/combat.js:74` 的 `const die = DND5E.d20()` 处）**接线**（按 `rollMode` 结果选骰）——**不重造**。其"优势生效"的锁面见 §八.3。
+两者**已存在于 5E 包**（`00-init.js:35-36`），P1 只在 **pack 的 `DND5E.attack()`**（`src/dnd/dnd-5e/core/combat.js:73` 的 `const die = DND5E.d20()` 处）**接线**（按 `rollMode` 结果选骰）——**不重造**。其"优势生效"的锁面见 §八.3。
 
 > ⚠️ **勿混称两个 `attack`**（回应 D 席 P3-1/2）：**core 的 `#attack()`**（`src/core/40-battle.js:28`，私有）**只做「选武器 → `weapon.used()`」，不含规则数学**；**pack 的 `DND5E.attack()`**（`src/dnd/dnd-5e/core/combat.js:47`）才是规则该落之处（`atkMod` 在 `:70`、选骰在 `:74`）。本文凡写「判定面」均指后者。
 
@@ -385,6 +385,10 @@ Battle 循环（src/core/40-battle.js）
    **⚠️ 层级 id 与两层键集守卫的交互（D 席 P3-4；§三 守卫要求两层键集一致）**：5.2.1 的 exhaustion 有 **0–6 级**，故两层须**同步**承载层级——二择（P2 实现时选定并写明）：
    - **(甲) 每级一条目**：`exhaustion:1` … `exhaustion:6` 各在 `Conditions` 与 `ConditionEffects` 各一条（两层各 6 项，键集仍一致）；升降级 = `lose(旧级实例)` + `gain(新级实例)`。
    - **(乙) 单条目 + 级数分存**：`Conditions.exhaustion = { levels: true }`、`ConditionEffects.exhaustion` 单实例；实际级数另存（如 `character.stats.exhaustionLevel`），由 `d20TestMod` 读级数。
+   - **⚠️ 甲/乙的真正差异（本席实测后修正一则审查意见）**：**持久化面上两者等价** —— `stats` 与 `effects` **都**被 5E `Player` 桥接（`dnd-5e/player.js:34` 与 **`:40`**），且 `Character.toJSON()` **两者都含**（`20-character.js:129` 与 **`:130`**）⇒ 「乙的级数只随 Player 桥接、effects 另存」**不成立**（两者同路）。差别在**语义面**：
+     · **甲**：级数走 `effects`（id 字符串数组）⇒ 每次升/降级需 `gain`/`lose`（收 **Effect 实例**，`20-character.js:55-70` 守卫），故需每级一个实例或动态构造；好处是可复用 `contains`/幂等语义。
+     · **乙**：级数为**普通数值字段**，算术简单（`+1`/`-1`/归零即条件结束），但须自建读路径，且**不享** `gain`/`lose` 的幂等与守卫。
+     ⇒ 对 **NPC**：**两者均不自动进档**（包内单例不随存档走，按 `src/README.md`「F1」）——**这不是甲/乙的差异**，而是包内单例的普遍性质。
    ⇒ 无论甲乙，**键集守卫均须沿用**（甲靠同形、乙靠单形）；`levels` 字段的消费点见 §五。
 4. `grappled` 的「对非擒抱者劣势」⇒ **P1 按无条件劣势实现并标注简化**，例外分支归 **P4**（同 `speed0`）。
 5. `DND5E.save` 与 `DND3.save` **口径不同**（前者按 `save_<ability>`、后者按豁免类型索引）⇒ 本稿**不自作统一**，仅在 5E 包内交付；跨包统一若需要，另立票。

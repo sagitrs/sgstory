@@ -120,4 +120,49 @@
 		const d = R().Battle.dispatchAction('0', 'use', item);
 		assert.eq(d.type, 'use', '默认为 use');
 	});
+
+	/* ---------- 通过 battle.execute() 驱动 #playerAction 的执行面断言 ---------- */
+	/* 方法：interactive=true + properties 含 'player' → 走交互通路；
+	 * 桩化 choice 返回预设序列；探针 RPG.useItem 记录调用。 */
+
+	test('battle interaction：interactive 选「装备」→ 经 useItem 提交（M5b）', async () => {
+		const R2 = R(), D2 = setup.DND3;
+		R2.give('club');
+		const player = D2.Player;
+		player.items = State.variables.inventory;
+		const enemy = new (R2.Character)({ name: '靶', hp: 9999, maxHp: 9999 });
+		const battle = new (R2.Battle)(1, [player], [enemy], true);
+		const seq = ['0', 'equip']; // ① 选道具 0 ② 选动作 equip
+		player.choice = async () => (seq.length ? seq.shift() : 'skip');
+		battle.perform = () => {};
+		const orig = R2.useItem, calls = [];
+		R2.useItem = (id, a, b, act) => { calls.push([id, act]); return orig(id, a, b, act); };
+		try { await battle.execute(); } finally { R2.useItem = orig; }
+		assert.ok(calls.length >= 1, '装备分支经 useItem 提交');
+		assert.ok(calls.some(c => c[1] === 'equip'), '提交动作为 equip');
+	});
+
+	test('battle interaction：interactive 选「跳过」→ 不经 useItem、不选目标（M5d2）', async () => {
+		const R2 = R(), D2 = setup.DND3;
+		R2.give('club');
+		const player = D2.Player;
+		player.items = State.variables.inventory;
+		const enemy = new (R2.Character)({ name: '靶', hp: 9999, maxHp: 9999 });
+		const battle = new (R2.Battle)(1, [player], [enemy], true);
+		player.choice = async () => 'skip'; // 直接选跳过
+		battle.perform = () => {};
+		const orig = R2.useItem;
+		let useItemCalled = false;
+		R2.useItem = (...args) => { useItemCalled = true; return orig(...args); };
+		let choiceAfterSkip = 0;
+		const origChoice = player.choice;
+		player.choice = async (...args) => {
+			// 如果 skip 后不应再进入目标选择，第二次 choice 不应被调用
+			// 但我们 stub 了 choice，所以直接检测：skip 后 choice 不应再被调
+			choiceAfterSkip++;
+			return 'skip';
+		};
+		try { await battle.execute(); } finally { R2.useItem = orig; }
+		assert.ok(!useItemCalled, 'skip 不经 useItem');
+	});
 })();

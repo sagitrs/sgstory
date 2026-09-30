@@ -83,6 +83,92 @@ RPG.BattleTurn = class BattleTurn extends RPG.Event {
 };
 
 /**
+ * 重来（respawn）—— 战败角色的清算与复位（#1760 · 伞 #1728 死亡面七裁定）
+ *
+ * 设计稿：`docs/plan/1760-babel-respawn.md`（「裁定 → 落形 → 可判断据」三列；判据
+ *   1／2a／2b／3a／3b／4 与 M1–M7 即本合同，落码逐条兑现）。
+ *
+ * **core 规则无关**（两条注入，与 `onReviveStats` 同族 —— core 不认识任何包）：
+ *   · `RPG.respawnHooks.startLayer`    起点层解析（层权威在 `#1748` 的层元数据契约内，core 不另立）
+ *   · `RPG.respawnHooks.clearEffects`  清档实现（`#1741` 的 `clearEffectsOnDeath` 在 **dnd-5e 包**内；
+ *     core 不能直接调 ⇒ 由包侧注册。未注册时走 core 的无包语义兜底形）
+ *
+ * 顺序（三条理由见设计稿 §三，均已并入判据）：
+ *   ① 幂等早退 ⇒ ② 掉落 ⇒ ③ 清档 ⇒ ④ 清 death 标记 ⇒ ⑤ HP 复位 ⇒ ⑥ 搬位置
+ * ⚠ ③ 与 ④ 是**两步**：包侧清档**有意保留** death 标记（绷带复活依赖 `contains(death)`，
+ *   见 `src/dnd/dnd-5e/core/conditions.js:201`）⇒ respawn 必须显式补一次 `lose(RPG.death)`。
+ *   这是**实测事实**（design §五），非修辞。
+ * ⚠ ⑤ 必须先于 ⑥：`moveTo` 会触发新层的 `onEnter` 钩子；若钩子读 `hp`，顺序反了会读到死亡态。
+ */
+RPG.respawnHooks = { startLayer: null, clearEffects: null };
+
+/** 注册「起点层」解析器：`fn(character) -> 层 id`。各包/故事调用（层权威在各自的层元数据内）。 */
+RPG.onRespawnStartLayer = (fn) => {
+	if (typeof fn !== 'function') throw new Error('onRespawnStartLayer 需要函数');
+	RPG.respawnHooks.startLayer = fn;
+	return () => { if (RPG.respawnHooks.startLayer === fn) RPG.respawnHooks.startLayer = null; };
+};
+
+/** 注册「清档」实现：`fn(character) -> 清掉的条数`（包侧，通常转发 `clearEffectsOnDeath`）。 */
+RPG.onRespawnClearEffects = (fn) => {
+	if (typeof fn !== 'function') throw new Error('onRespawnClearEffects 需要函数');
+	RPG.respawnHooks.clearEffects = fn;
+	return () => { if (RPG.respawnHooks.clearEffects === fn) RPG.respawnHooks.clearEffects = null; };
+};
+
+/** core 的无包语义兜底清档：清掉除 death 外全部效果 id，并清空回合数表。返回清掉的条数。
+ *  仅在某包**未**注册 `onRespawnClearEffects` 时使用。 */
+RPG.respawnClearEffectsFallback = (c) => {
+	const kept = RPG.death.id;
+	const before = (c.effects ?? []).length;
+	c.effects = (c.effects ?? []).filter((id) => id === kept);
+	if ('effectTurns' in c) c.effectTurns = {};
+	return before - c.effects.length;
+};
+
+/**
+ * 把战败的角色送回起点层，并清算死亡后果。
+ *
+ * ⚠ **玩家路径的已知语义（判据 2b）**：玩家的 `items` ≡ `$inventory`（同引用，见两包 player.js）
+ *   ⇒ `RPG.loot` 的 `push` 推的正是原数组 ⇒ 掉落对玩家表现为**顺序变化**而非移除。
+ *   故本函数的返回值用 **`dropped` 计数**承载该事实；「掉落＝离开持有者」的语义级判定
+ *   在**敌人路径**上做（设计稿判据 2a）。
+ *
+ * @param c    角色（须为 Character；否则视作不适用 ⇒ 幂等早退）
+ * @param opts { to?: string, map?: WorldMap }
+ * @returns { moved, dropped, cleared, from, to } —— `moved:false` 表示**幂等早退**（未处于死亡态）
+ */
+RPG.respawn = (c, { to, map } = {}) => {
+	const idle = { moved: false, dropped: 0, cleared: 0, from: null, to: null };
+	// ① 幂等早退：非角色 / 未死亡 ⇒ 不碰任何状态（与 grantDeathIfDown 同形，裁定⑦）
+	if (!(c instanceof RPG.Character) || !c.contains(RPG.death)) return idle;
+
+	// ② 掉落（裁定③④）：走与敌人战败**同一函数** `RPG.loot`（只转移未装备物）
+	const before = (c.items ?? []).length;
+	RPG.loot(c);
+	const dropped = before - (c.items ?? []).length;
+
+	// ③ 清档（其余效果，含 persistent）—— 经注入；未注册时用 core 兜底形
+	const clear = RPG.respawnHooks.clearEffects;
+	const cleared = typeof clear === 'function'
+		? (clear(c) ?? 0)
+		: RPG.respawnClearEffectsFallback(c);
+
+	// ④ 清 death 标记（包侧清档**有意保留**它 —— ③④ 两步不可合并）
+	c.lose(RPG.death);
+
+	// ⑤ HP 复位（必须先于 ⑥：见文件头 ⚠；值取角色自身 maxHp，裁定④）
+	c.hp = c.maxHp;
+
+	// ⑥ 搬位置（纯 id；`to` 优先 —— M7 即打这条）
+	const fromId = map?.current ?? null;
+	const target = to ?? (typeof RPG.respawnHooks.startLayer === 'function' ? RPG.respawnHooks.startLayer(c) : null);
+	if (map && target != null) map.moveTo(target);
+
+	return { moved: target != null || map != null, dropped, cleared, from: fromId, to: target };
+};
+
+/**
  * Battle —— 一整场战斗（同样是 Event）。
  * @param turn    int               最多进行的回合数
  * @param players array<Character>  玩家方

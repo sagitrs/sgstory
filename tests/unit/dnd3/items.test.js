@@ -2,17 +2,19 @@
 (() => {
 	const R = () => setup.RPG;
 
-	test('dnd3：木棒的 3E 判定读 stats（力量加成）', () => {
-		// 用 bab+力量 必中的攻击者与必中的目标验证伤害含力量调整值（原始分 str）
-		const attacker = { stats: { bab: 20, str: 16 } };
-		const dummy = { name: '靶', hp: 50, maxHp: 50, stats: { ac: -999 } };
-		let delta = 0;
-		for (let i = 0; i < 8; i++) {
-			const h = dummy.hp;
-			R().createItem('club').used(dummy, attacker);
-			delta = Math.max(delta, h - dummy.hp); // 取单次最大（天然 1 会 miss）
+	test('dnd3：木棒的 3E 判定读 stats（注入定骰，验力量加成入伤害）', () => {
+		// 注入定骰：d20 = 11（0.5，必中且非重击）、1d6 = 4（0.5）
+		// ⇒ 单次伤害应为 4 + 力量调整值（STR 16 ⇒ +3）= 7，且**恰为 7**：
+		//   若实现忽略力量（如读已不存在的 str_mod ⇒ +0），伤害会是 4 ⇒ 本断言必红
+		const R = setup.RPG;
+		R.rng.set(() => 0.5);
+		try {
+			const attacker = { stats: { bab: 20, str: 16 } };
+			const dummy = { name: '靶', hp: 50, maxHp: 50, stats: { ac: -999 } };
+			R.createItem('club').used(dummy, attacker);
+			assert.eq(50 - dummy.hp, 7, '单次伤害 = 1d6(4) + 力量 +3 = 7');
+		} finally {
+			R.rng.reset();
 		}
-		// 1d6+3 的单次伤害范围是 4..9（重击 ×2 会更高，取最大值断言下限）
-		assert.ok(delta >= 4 && delta <= 18, `伤害含力量加成（单次最大 ${delta}）`);
 	});
 })();

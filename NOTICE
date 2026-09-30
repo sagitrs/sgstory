@@ -3,7 +3,7 @@
 
 本文件列本仓（`sagitrs/sgstory`）使用的**第三方软件**与**规则数值内容**的归属与授权。
 - 规则数值的**可复核锚**（来源 pin：commit ＋ 文件 sha1）与**引用形约定**：见 `README.md`「规则来源（groundtruth）」节。
-- 规则数值的**许可全文**（含 3E 面 OGL 1.0a 全文与 Section 15 版权声明）：见 `LICENSE-CONTENT.md`。
+- 规则数值的**许可全文**（含 3E 面与 d20m 面共用的 OGL 1.0a 全文（第五节）与两面的 Section 15 版权声明（第三节／第四节））：见 `LICENSE-CONTENT.md`。
 
 一、第三方软件（Third-Party Software）
 ------------------------------------
@@ -65,7 +65,7 @@ Copyright (c) 2013-2024, Thomas Michael Edwards <thomasmedwards@gmail.com>. All 
 
    来源：`Obsidian-TTRPG-Community/DnD-3.5-SRD-Markdown` @ `70a6b263e68604d8b2fb931937746161f2b65b58`
 
-   该内容依 OGL 1.0a 发布：**许可全文与 Section 15 版权声明见 `LICENSE-CONTENT.md`**。
+   该内容依 OGL 1.0a 发布：**Section 15 版权声明见 `LICENSE-CONTENT.md` 第三节；OGL 全文见第五节**（✗ 二次内嵌）。
    3E 面数值属 **Open Game Content（OGC）**；本仓对该 OGC **不新增版权主张**，
    亦未将其中任何内容声明为 Product Identity（PI）。本仓自有代码与文档表述不是 OGC。
 

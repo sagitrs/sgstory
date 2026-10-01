@@ -1,5 +1,5 @@
 {
-  "_note": "跨包同 id 的登记台账（#1804 件一）。每项须有 reason ＋ ticket；#1743 处置完一项即删一项（过期登记会被门判红）。",
+  "_note": "跨包同 id 的登记台账（#1804 件一）。每项须有 reason ＋ ticket；#1743 处置完一项即删一项（过期登记会被门判红）。★`_unresolvable` ＝ **静态盲区明账**：这些文件的 id 由变量给出（循环/表驱动形），本门**扫不到**——登记**不表示覆盖**，只为让盲区**可见**（#1807 T 席审出的 BLOCKING）。",
   "bandage": {
     "reason": "dnd3 与 dnd-5e 各有一件同名绷带（两版规则各自独立定义，语义不同）",
     "ticket": "#1743"
@@ -39,5 +39,49 @@
   "player": {
     "reason": "三包各自注册 id:'player'（#1743 正文点名的形态：playerActor() 因此命中「后加载」者）",
     "ticket": "#1743"
-  }
+  },
+  "_unresolvable": [
+    {
+      "file": "src/dnd/dnd-5e/core/conditions.js",
+      "n": 1,
+      "reason": "15 条 effect 全走 `for (const [id, c] of Object.entries(DND5E.Conditions)) RPG.defEffect({ id, ... })` ⇒ id 来自变量，静态不可解析",
+      "ticket": "#1807"
+    },
+    {
+      "file": "src/dnd/dnd3/core/traumas.js",
+      "n": 1,
+      "reason": "创伤面 effect 由表驱动注册（同循环形）",
+      "ticket": "#1807"
+    },
+    {
+      "file": "src/dnd/dnd3/items/iron-lineage.js",
+      "n": 2,
+      "reason": "铁器族由 builder/表驱动（#1788 的当事族 —— ★首版门正是漏了它）",
+      "ticket": "#1807"
+    },
+    {
+      "file": "src/dnd/dnd3/items/mounts.js",
+      "n": 1,
+      "reason": "坐骑表驱动注册",
+      "ticket": "#1807"
+    },
+    {
+      "file": "src/dnd/dnd3/items/resources.js",
+      "n": 2,
+      "reason": "资源族表驱动注册",
+      "ticket": "#1807"
+    },
+    {
+      "file": "src/dnd/dnd3/items/shields.js",
+      "n": 1,
+      "reason": "盾族表驱动注册",
+      "ticket": "#1807"
+    },
+    {
+      "file": "src/dnd/dnd3/items/slot-extension.js",
+      "n": 1,
+      "reason": "槽位扩展表驱动注册",
+      "ticket": "#1807"
+    }
+  ]
 }

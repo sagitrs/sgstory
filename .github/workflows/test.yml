@@ -38,5 +38,9 @@ jobs:
         run: node tests/gates/registration.mjs
       - name: 注册面门自身的可假刀自检
         run: node tests/gates/registration.mjs --selftest
+      - name: d20 消费点差集门（#1804：枚举 vs 实际集合 —— 新落点即点名）
+        run: node tests/gates/d20-consumers.mjs
+      - name: d20 门自身的可假刀自检
+        run: node tests/gates/d20-consumers.mjs --selftest
       - name: 无头单测（断言 fail === 0）
         run: node tests/unit/headless.mjs

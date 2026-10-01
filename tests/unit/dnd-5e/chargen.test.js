@@ -45,9 +45,30 @@
 
 	test('dnd-5e chargen：数值块键集精确相等且不含调整值字段（U9）', () => {
 		const keys = Object.keys(D().stats()).sort();
-		const wants = ['ac', 'cha', 'con', 'cr', 'dex', 'int', 'prof', 'str', 'wis'].sort();
+		/* ★本列是 **STAT_BLOCK 字段台账**：凡新增/删除字段，**同笔**在此登记（✗ 静默改块）。
+		 *  `firearmAmmo` 系本仓首个第 5 档「消耗依赖」存量字段（`#1777` D3／`#1731`），
+		 *  定义见 `docs/plan/1689-5e-conditions.md` §十.1/§十.2（house rule，非 SRD）。 */
+		const wants = ['ac', 'cha', 'con', 'cr', 'dex', 'firearmAmmo', 'int', 'prof', 'str', 'wis'].sort();
 		assert.eq(keys.join(','), wants.join(','), '键集与 §6.5 变更后逐项相等');
 		assert.ok(!keys.some((k) => k.endsWith('_mod')), '不含任何以 _mod 结尾的键');
+	});
+
+	test('dnd-5e chargen：第五档存量字段（#1759 §十）已声明且经 STAT_BLOCK 覆盖全部角色（U18）', () => {
+		/* ★本格补 `#1777` D1 的 B 裁定之**机械面**：存量字段须进 STAT_BLOCK ⇒ **统一覆盖 NPC**。
+		 *  字段集本身由 **U9** 作台账（✗ 此处再列一份：两份台账会各自漂移）；
+		 *  本格只核**覆盖面**：声明的每一条存量，须出现在 `stats()` **与每个静态 NPC** 的 stats 里。 */
+		const mine = [...setup.RPG.stocks.entries()].filter(([, d]) => d.pack === 'dnd-5e').map(([id]) => id);
+		assert.ok(mine.length > 0, '本包至少声明了一条存量（否则本格是空转）');
+		const keys = Object.keys(D().stats());
+		for (const id of mine) {
+			assert.ok(keys.includes(id), `STAT_BLOCK 声明了「${id}」`);
+			/* ★B 裁定：经 STAT_BLOCK ⇒ **统一覆盖** —— 静态声明的 NPC 也须带上该字段 */
+			for (const n of ['Player', 'Goblin', 'GoblinBoss', 'Guard']) {
+				const s = D()[n].stats;
+				assert.ok(s != null, `${n} 有 stats`);
+				assert.ok(id in s, `★${n} 也被覆盖（B 裁定：✗ 一处走一处不走）`);
+			}
+		}
 	});
 
 	test('dnd-5e chargen：默认值即中性值（U16）', () => {

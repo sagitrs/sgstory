@@ -19,6 +19,11 @@
  *   **引擎只提供「存量 ＋ 耗尽事件」**；**后果由内容订阅声明**（保引擎通用，与 `Conditions` 可 pin 纯度同哲学）。
  *   ⇒ 本文件**不实现**任何具体后果（不扣 HP／不加条件／不写日志／不判死）。
  *
+ * ## ★A 裁定的落点：`derivedFrom`（D3 补 —— ✗ 双写）
+ *   有道具背书者（弹药等）⇒ **道具为真值**、角色侧存量为**派生视图** ⇒ 视图的**唯一写点**是
+ *   `RPG.syncDerivedStocks`（按道具**重算**，✗ 各自递减 ⇒ 不会漂移）。
+ *   ⇒ 声明侧给 `derivedFrom:{ itemId }`；缺省（无道具背书，如生命维持/真空）⇒ **角色存量即真值**。
+ *
  * ## 真值方向（§十.7-A 裁定）
  *   「**谁产生谁真值、禁止双写**」——有道具背书（弹药/纳米药剂）⇒ **道具为真值**、角色侧为**派生视图**；
  *   无道具背书（生命维持/真空）⇒ **角色存量即真值**。
@@ -26,7 +31,8 @@
  *
  * ## 本档的范围（#1777）
  *   **D1（PR #1794 已合 `1ee92fb7`）**：注册表 ＋ 上述机械强制 ＋ 读/减原语 ＋ 耗尽事件（判据 2/3/4/7 ＋ E2/E3/E4/E11）。
- *   **D2（本笔）**：`scope` 的清理原语 `clearStocksScoped` ＋ 包侧 `battle:end` 接线（判据 5/6/8 ＋ E7/E8）。
+ *   **D2（PR #1795 已合 `118c689c`）**：`scope` 的清理原语 `clearStocksScoped` ＋ 包侧 `battle:end` 接线（判据 5/6/8 ＋ E7/E8）。
+ *   **D3**：三消费者各自消费（三段弹药 `#1731`／四段纳米 `#1732`／五段生命维持 `#1733`）。
  *   ⇒ `scope` 至此**有消费点**（否则即「声明了不消费」的死字段——本轮闭环）。
  */
 
@@ -78,6 +84,13 @@ RPG.defStock = (def) => {
 			`defStock「${def.id}」不在本包 STAT_BLOCK 的**普通可枚举字符串键**中 ⇒ 须先加为该包的 STAT_BLOCK 字段`
 			+ '（#1759 §十.7-B；且须是普通键，Symbol/非枚举会在存档往返后丢失）');
 	/* ★§十.4 / 判据 7：存量的命名空间**独立于** Conditions/effects（混入会稀释 pin 纯度＋破坏两层键集守卫） */
+	/* ★A 裁定：有道具背书者须**显式**声明 `derivedFrom`（否则会被误当「角色即真值」而双写） */
+	if (def.derivedFrom !== undefined) {
+		const it = def.derivedFrom?.itemId;
+		if (typeof it !== 'string' || it === '')
+			throw RPG.stockError('STOCK_BAD_DERIVED_FROM',
+				`defStock「${def.id}」的 derivedFrom 须为 { itemId: '非空串' }：${JSON.stringify(def.derivedFrom)}`);
+	}
 	if (RPG.effects.has(def.id))
 		throw RPG.stockError('STOCK_ID_COLLIDES_EFFECT',
 			`defStock「${def.id}」与既有 Effect（条件）同名 ⇒ 存量须用独立命名空间（#1759 §十.4 / 判据 7）`);
@@ -162,3 +175,47 @@ RPG.events.on('battle:end', ({ players = [], enemies = [] } = {}) => {
 		if (c instanceof RPG.Character) RPG.clearStocksScoped(c, null);
 	}
 });
+
+/** 本存量是否**有道具背书**（⇒ 角色侧是派生视图，真值在道具上）。 */
+RPG.isDerivedStock = (def) => typeof def?.derivedFrom?.itemId === 'string' && def.derivedFrom.itemId !== '';
+
+/** 取「角色持有的某道具**总存量**」——口径**逐字同** `RPG.take`（非堆叠每槽 1；堆叠按 `charges`），
+ *  ✗ 另立一套（两处口径若不同 ⇒ 按真值重算出来的视图与实际扣减**必然漂移**）。 */
+RPG.heldTotal = (character, itemId) => {
+	const list = Array.isArray(character?.items) ? character.items : null;
+	if (list == null) return null;                       // 无背包 ⇒ 取不出真值（✗ 猜 0）
+	return list.reduce((s, it) => s + (it.id === itemId ? (it.charges ?? 1) : 0), 0);
+};
+
+/**
+ * 按**道具侧真值**重算某角色的派生视图（A 裁定唯一写点 ⇒ ✗ 双写）。
+ *
+ * ★归属口径（本仓**无角色↔背包注册表**）：只能取 `character.items` —— 与 `RPG.take(id, n, actor)`
+ *   的 `actor.items` **同一口径**。由来不明的变动（事件不带 `actor`）⇒ **不猜归属、直接跳过**。
+ * ★幂等：同状态重算 ⇒ 同值（可反复调用）。
+ * 返回被改写的存量 id 列表（读数用）。
+ */
+RPG.syncDerivedStocks = (character, itemId) => {
+	const stats = character?.stats;
+	if (!stats || typeof stats !== 'object') return [];
+	const done = [];
+	for (const [id, def] of RPG.stocks) {
+		if (!RPG.isDerivedStock(def) || def.derivedFrom.itemId !== itemId) continue;
+		if (!Object.keys(stats).includes(id)) continue;   // 本角色无此存量（跨包角色）⇒ 不碰（✗ 凭空加字段）
+		const total = RPG.heldTotal(character, itemId);
+		if (total == null) continue;                      // 取不出真值 ⇒ 保留现值（✗ 归零）
+		stats[id] = total;
+		done.push(id);
+	}
+	return done;
+};
+
+/* 接线：`inventory:changed`（core 在 `RPG.take` **成功**时发）⇒ 重算派生视图。
+ * ★引擎**只发事件、✗ 不解释**「哪些 id 算弹药」——那属内容（§十.7-C 同哲学）。
+ *
+ * ⚠ **此处曾有一道 `if (actor == null) return;` 前置守卫，已删**（D3 实测更正）。
+ *   当初以为它是「归属不明 ⇒ 不猜」的承载点；但**它谁也不承载**：`syncDerivedStocks` 对 null 角色
+ *   由构造即安全（`character?.stats` 取不到 ⇒ `stats` 非对象 ⇒ 开头即 `return []`）。
+ *   本席的突变电池抓出它：删掉 ⇒ **全量单测逐字不变**（`fail=0`）⇒ 是**冗余层**（死代码）。
+ *   ⇒ 与 `#1793` 同族处理：**删**并在此留痕，✗ 静默删（否则后人会重新加回"防御性"的空守卫）。 */
+RPG.events.on('inventory:changed', ({ id, actor } = {}) => RPG.syncDerivedStocks(actor, id));

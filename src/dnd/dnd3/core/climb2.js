@@ -7,6 +7,10 @@
  * 层表注册：走 **core 的注册面** `RPG.registerLayerMeta('span2', …)`（#1760 折领队裁甲；
  *   `src/core/40-battle.js:117` 的注册面）——⚠ 二段的层表**不含 `start: true`**（起点层是本井唯一的最深处，
  *   属一段 `L1`）⇒ 注册**不会**影响 `RPG.startLayerId()` 的读取（它取**第一个**带 start 的表项）。
+ * ⚠ **遭遇表同样须注册**（`RPG.registerEncounterTable('span2', …)`，与层表**同 id 配对**）——
+ *   本笔首版**只定义未注册**（`dev-10` 于 #1788 报 MAJOR）：`layerOf('L11').group === 'span2'`
+ *   但 `encounterTables['span2']` 不存在 ⇒ `encounterTableOf` 回 `null` ⇒ `rollEncounter` **静默返回 `[]`**
+ *   （✗ 不抛错）——即「看似有遭遇表、永抽不出」的**假支持**。修：照 `climb.js:69` 原形补注册。
  *
  * 段内定标 = **house rule（非 SRD）**（#1729 裁定②／#1730 裁定⑤：本段 groundtruth 充足 ⇒
  *   **不得把 SRD 值混写成 house rule**，反之亦然；缩放系数本身必在源外 ⇒ 必须显式成文）。
@@ -61,7 +65,7 @@ RPG.registerLayerMeta('span2', setup.DND3.LAYER_META_SPAN2 = [
  * ⚠ **人形面**（layers.md:11 的「废隧道匪帮」／:12 的「骑士/佣兵团/审判所」）**本笔不入表** ——
  *   依 `#1778` 票面「先按非人形面产出，人形面标注候裁」⇒ 只列非人形项（矿坑虫类／猎场兽）。
  */
-setup.DND3.ENCOUNTER_SPAN2 = {
+RPG.registerEncounterTable('span2', setup.DND3.ENCOUNTER_SPAN2 = {
 	L11: { encounters: [{ ref: 'fire-beetle', weight: 3 }, { ref: 'fire-beetle', weight: 2, elite: true }], loot: [{ id: 'coin', weight: 1 }, { id: 'herb-poultice', weight: 1 }] },
 	L12: { encounters: [{ ref: 'fire-beetle', weight: 3 }, { ref: 'giant-bee', weight: 2 }], loot: [{ id: 'coin', weight: 2 }, { id: 'herb-poultice', weight: 1 }] },
 	L13: { encounters: [{ ref: 'giant-bee', weight: 3 }, { ref: 'fire-beetle', weight: 2, elite: true }], loot: [{ id: 'coin', weight: 2 }, { id: 'iron-ore', weight: 1 }, { id: 'herb-poultice', weight: 1 }] },
@@ -71,4 +75,4 @@ setup.DND3.ENCOUNTER_SPAN2 = {
 	L17: { encounters: [{ ref: 'giant-bee', weight: 3, elite: true }, { ref: 'bombardier-beetle', weight: 3 }], loot: [{ id: 'coin', weight: 3 }, { id: 'iron-ore', weight: 2 }, { id: 'iron-longsword', weight: 1 }] },
 	L18: { encounters: [{ ref: 'giant-stag-beetle', weight: 3 }, { ref: 'brown-bear', weight: 2 }], loot: [{ id: 'coin', weight: 4 }, { id: 'iron-ore', weight: 3 }, { id: 'iron-longsword', weight: 2 }] },
 	L19: { encounters: [{ ref: 'brown-bear', weight: 3, elite: true }, { ref: 'giant-stag-beetle', weight: 3, elite: true }], loot: [{ id: 'coin', weight: 4 }, { id: 'iron-message', weight: 1 }, { id: 'iron-longsword', weight: 2 }] },
-};
+});

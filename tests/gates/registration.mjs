@@ -196,6 +196,23 @@ const judge = (rows, ledger) => {
 
 /** 运行期交叉判定的**纯函数**（✗ 埋在 main 里）—— 便于自检刀直接喂入。
  *  ★这是 `#1807` 二轮 RC-A 的同一条要求：**判据若不可被刀直喂，就等于没有机械承载**。 */
+/** ★`#1818` 折 RC 乙：**运行期判据没跑成**时的处置 —— 抽**纯函数**使刀可直喂
+ *   （照 E2 子条「抽纯函数，✗ 埋 `main()`」；埋了就只能靠「真把 helper 打坏」的集成级验法）。
+ *   `skip==='no-bundle'` 与 `rt.error` **分开**：前者是**位次**问题（bundle 不在），
+ *   后者是 helper **真故障**（bundle 在、它自己崩）—— 混称会让人按错误的方向去查。
+ *   带旗（`--require-bundle`）时**两者皆红**：位次错 ⇒ 运行期判据全失效；helper 崩 ⇒ 权威判据**从未执行**。 */
+export const runtimeUnavailableProblems = (skip, required) => {
+	if (!skip) return [];
+	if (skip === 'no-bundle') {
+		return required
+			? ['缺 tests/unit/dist/bundle.js ⇒ 运行期交叉核对**无法执行**（本门须摆在 python3 build.py **之后**；CI 位次错则运行期判据全部失效）']
+			: [];
+	}
+	/* 真故障：带旗必红（✗ 只留 ⚠ = **假保险**）；不带旗⇒出声不红（与本门「减少⇒绿但出声」同一取向） */
+	return required
+		? [`运行期交叉核对**真故障**（helper 非零退出／输出不可解析）：${skip} ⇒ 权威判据**未执行**（✗ 位次问题：bundle 在，是 helper 自己崩）`]
+		: [];
+};
 export const judgeRuntime = (rt, rb, staticUnique) => {
 	const problems = [], notes = [];
 	if (rt == null || rt.noBundle) return { problems, notes, skip: 'no-bundle' };
@@ -325,6 +342,24 @@ if (has('--selftest')) {
 			];
 			for (const [name, ok] of rtChecks) { n += ok ? 1 : 0; console.log(`  ${ok ? '✓' : '✗'} ${name}`); }
 			knivesLen += rtChecks.length;
+			/* ★★K24–K27 —— `#1818` 折 RC 乙的刀（dev-9／tester-4 **同根**）。
+			 *   断**判决**（✗ 只断读数）：带旗时 helper 真故障 ⇒ **必产 problem**；
+			 *   不带旗 ⇒ **不产 problem**（出声即可）；且两类 skip 的措辞**须可分辨**（位次 vs 真故障）。 */
+			const rtUnavail = [
+				['K24 ★带旗：helper **真故障** ⇒ 产 problem（✗ 只留 ⚠ ＝ **假保险**）',
+					runtimeUnavailableProblems('Command failed: node …', true).length === 1
+						&& /真故障/.test(runtimeUnavailableProblems('Command failed: node …', true)[0])],
+				['K25 不带旗：同类故障 ⇒ **不产 problem**（出声不红）',
+					runtimeUnavailableProblems('Command failed: node …', false).length === 0],
+				['K26 ★两类 skip **措辞可分辨**：位次（bundle）／真故障 —— ✗ 混称',
+					runtimeUnavailableProblems('no-bundle', true).length === 1
+						&& /bundle\.js/.test(runtimeUnavailableProblems('no-bundle', true)[0])
+						&& !/真故障/.test(runtimeUnavailableProblems('no-bundle', true)[0])],
+				['K27 ★不带旗时**缺 bundle** 亦不判红（位次由 CI 保证，✗ 在本地逼人先 build）',
+					runtimeUnavailableProblems('no-bundle', false).length === 0],
+			];
+			for (const [name, ok] of rtUnavail) { n += ok ? 1 : 0; console.log(`  ${ok ? '✓' : '✗'} ${name}`); }
+			knivesLen += rtUnavail.length;
 			/* ★★**判决路径刀**（本席 E2 子条【判决路径】的机械形态，挂母条二下）：
 			 *   本席在本门**连踩三次**同一形态——判据块被排在 `if (problems.length) exit(1)` **之后**
 			 *   ⇒ 该块 push 的问题**永不参与判决**（读数可见、门却报绿）。第三次是 `REG_SURFACES` 自证块。
@@ -471,14 +506,22 @@ if (!jr.skip) {
 } else if (jr.skip === 'no-bundle') {
 	/* ★`#1816` NIT-6：`--require-bundle` 使「本门须在 build **之后**跑」这一点**可判**。
 	 *   ✗ 缺省只出声 —— 那会让「CI 里把人摆错位次」**静默退化为无运行期判据**（本席踩过）。 */
-	if (has('--require-bundle')) {
-		problems.push('缺 tests/unit/dist/bundle.js ⇒ 运行期交叉核对**无法执行** '
-			+ '（本门须摆在 python3 build.py **之后**；CI 位次错则运行期判据全部失效）');
-	} else {
+	problems.push(...runtimeUnavailableProblems('no-bundle', has('--require-bundle')));
+	if (!has('--require-bundle')) {
 		console.log('  ⚠ 运行期交叉核对**跳过**（缺 tests/unit/dist/bundle.js ⇒ 先 python3 build.py）—— ✗ 静默：本行即出声');
 	}
 } else {
-	console.log(`  ⚠ 运行期交叉核对**失败**：${jr.skip}（单测 bundle 与门解耦 ⇒ 非阻断，但出声）`);
+	/* ★★`#1818` 折 RC 乙（dev-9／tester-4 **同根**）：与本块上一分支（缺 bundle）**同一取向** ——
+	 *   带旗时「**运行期判据没跑成**」必须**判红**，✗ 只留一句 ⚠。
+	 *   病灶实证：helper 曾因加载序缺 `host.js` 而**崩**，门却 `rc=0`＋一行 ⚠
+	 *   = **假保险**（宣称运行期权威，实则**权威判据从未执行**）—— 与「判决死区」同族，且更险：
+	 *     死区是**判据存在却不参与判定**；此处是**判据根本没跑而门报平安**。
+	 *   ⚠ 与「缺 bundle」**分开报**（成因不同：那是**位次**问题、这是 helper **真故障**）——
+	 *     混称会让读者按位次去查，而真因在 helper 自身。 */
+	problems.push(...runtimeUnavailableProblems(jr.skip, has('--require-bundle')));
+	if (!has('--require-bundle')) {
+		console.log(`  ⚠ 运行期交叉核对**失败**：${jr.skip}（单测 bundle 与门解耦 ⇒ 非阻断，但出声）`);
+	}
 }
 problems.push(...jr.problems);
 for (const nt of jr.notes) console.log(`  ⚠ ${nt}`);

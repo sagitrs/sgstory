@@ -28,6 +28,13 @@ console.warn = (...a) => { warnings.push(a.map(String).join(' ')); };
 const stubEl = () => ({ insertAdjacentHTML() {}, innerHTML: '' });
 globalThis.document = { title: '', getElementById: () => stubEl() };
 globalThis.window = globalThis;
+/* ★★`#1818` 折 RC（dev-9／tester-4 **同根**）：本文件**镜像 headless.mjs 的加载序**是它自己的义务
+ *   （见文件头），但 `#1820` 把 `framework/host.js` 插进 headless 序时**这里没跟改**
+ *   ⇒ `shims.js` 的**自守**直接抛（「framework/host.js 未加载——它必须先于 shims.js」）
+ *   ⇒ helper **崩**，而门在 `--require-bundle` 下**只留一句 ⚠、仍 rc=0** = **假保险**
+ *   （宣称运行期判据权威，实则**权威判据根本没跑**）。
+ *   ⇒ 补此行；并把「helper 真故障」在带旗时**判红**（见 registration.mjs 乙）。 */
+load('framework/host.js');   // 宿主仿真：State / Engine / Save（★必须先于 shims.js —— headless.mjs:31）
 load('framework/shims.js');
 const chain = new Proxy(function () {}, {
 	get(_t, prop) {

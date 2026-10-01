@@ -65,7 +65,15 @@ const RE_SAME_AS_ABOVE = /同上\s*[:：]\s*\d/;
 const RE_DECLARATION = /SRD\s+(\d+(?:\.\d+)*)[^·]*·\s*`?([\w.-]+\/[\w.-]+)`?\s*@\s*`?([0-9a-f]{7,40})[….…]?/;
 const RE_LINE_ENTRY = /^(\d+)(?:[-–](\d+))?(?:\/(\d+))*$/;
 
-const SRC_VAL_RES = { HP: /\*\*HP\*\*\s+(\d+)/, AC: /\*\*AC\*\*\s+(\d+)/ };
+/* 源值抽取（多**形**并列，取首个命中）——`#1782` writer 报：原式只认 5E 形
+ *   ⇒ 3E 怪物的 **HP/AC 从不进 A 组**（只有单测守声明面，门不守）。
+ *   5E 形：`**HP** 11`／`**AC** 16`
+ *   3E 形：`Hit Dice: 1d8+2 (6 hp)`／`Armor Class:           15 (+1 size, ...), touch 14, flat-footed 12`
+ *   ★3E 的 AC 须**锚行首**且取**首个**数（✗ 捕 touch／flat-footed —— 那是 14／12，非 AC）。 */
+const SRC_VAL_RES = {
+  HP: [/\*\*HP\*\*\s+(\d+)/, /^[*\s]*Hit Dice:.*?\((\d+)\s*hp\)/m],
+  AC: [/\*\*AC\*\*\s+(\d+)/, /^[*\s]*Armor Class:\s+(\d+)/m],
+};
 
 /* ---- A 组扩展：属性调整值（#1725）----
  *  5E 源：三连单元格 `<td><strong>DEX</strong></td> <td>15</td> <td>+2</td>` ⇒ 取**调整列**
@@ -256,9 +264,12 @@ function sourceValues(cachePath, entry) {
     }
   }
   for (let i = lo; i <= hi; i++) {
-    for (const [k, re] of Object.entries(SRC_VAL_RES)) {
-      const m = re.exec(ls[i - 1]);
-      if (m && out[k] === undefined) out[k] = { v: Number(m[1]), line: i };
+    for (const [k, res] of Object.entries(SRC_VAL_RES)) {
+      if (out[k] !== undefined) continue;
+      for (const re of res) {                       // 多形并列：5E 形优先，其次 3E 形
+        const m = re.exec(ls[i - 1]);
+        if (m) { out[k] = { v: Number(m[1]), line: i }; break; }
+      }
     }
   }
   /* 5E：属性三连单元格（可跨行）—— 取调整列，并自检 floor((score−10)/2) */
@@ -724,6 +735,23 @@ if (!fs.existsSync(BASELINE_FILE)) {
     if (drops.length > 0) red(`覆盖面下降（低于基线 ⇒ 门推动信息减少）：${drops.join('；')} ⇒ 若为有意收缩，须人工 --update-baseline 并在 PR 里说明理由`);
     if (overs.length > 0) red(`记账面增长超上限（「源有值而仓内不声称」的面在扩大）：${overs.join('；')}`);
     console.log(`  覆盖面基线对账（seededAt=${base.seededAt ?? '?'}）：${baseOk ? '✓ 逐面无下降、无超限' : '✗ 见下'}`);
+    /* ★「绿但钝」巡检（#1782 writer 报的机制盲区；本席实测复现）：
+     *   下限是**棘轮**——真实值远高于基线时，门**照旧绿**，但**下探类判据已丧失去判别力**
+     *   （#1782 实证：titleChecked 基线 8、真实 28 ⇒ K16 删一值只降到 27（≥8）⇒ **门绿而自检红**）。
+     *   ⇒ 故此处**主动打出声**：凡真实值**显著高于**基线的面（>1.25× 且差额 ≥5）即列出，
+     *     提示「本笔新增了大量声称 ⇒ 请 `--update-baseline` 重播并复跑自检」。
+     *   ✗ 不 red（那是**自检**的职责：`refs-integrity.selftest.mjs` 的 K16 会红）；此处只让它**可见**，
+     *     因为「钝化」是**读数**而非错误——把它做成红会误伤「本笔确实是大幅新增」的正当情形。 */
+    const slack = [];
+    for (const [k, want] of Object.entries(base.faces ?? {})) {
+      const got = faces[k];
+      if (want > 0 && got > want * 1.25 && got - want >= 5) slack.push(`${k} 真实 ${got} / 基线 ${want}（+${got - want}，>1.25×）`);
+    }
+    if (slack.length > 0) {
+      console.log(`  ⚠ 「绿但钝」巡检：${slack.length} 个面**真实值远高于基线下限** ⇒ 下探类判据可能已丧失去判别力：`);
+      for (const s of slack) console.log(`    · ${s}`);
+      console.log('    ⇒ 请 `node tests/gates/refs-integrity.mjs --update-baseline` 重播基线，并**复跑自检**（`refs-integrity.selftest.mjs`）确认刀仍如期。');
+    }
     console.log(`    faces：${Object.entries(faces).map(([k, v]) => `${k} ${v}/${base.faces?.[k] ?? '-'}`).join('｜')}`);
     console.log(`    ceilings：${Object.entries(ceilings).map(([k, v]) => `${k} ${v}/${base.ceilings?.[k] ?? '-'}`).join('｜')}`);
   }

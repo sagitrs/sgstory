@@ -222,6 +222,8 @@ let selfCmpTotal = 0, selfCmpChecked = 0, titleTotal = 0, titleChecked = 0;
 const uncovered = [];
 let cmp5e = 0, cmp3e = 0, cmpD20M = 0;   // A 组比对按源格式分计（验收 4）；S3-⑤：d20m 单列，不并入 5E
 const noValueCites = [];    // 引用解析成功但抽不到可比值（静默 0 覆盖 ⇒ 须可见）
+/* ★`#1835` 乙1：**已声明 house rule 的值偏离**（出声，✗ 判红 —— 见比对支注释）。 */
+const houseRuleDeviations = [];
 const d20mResolved = [];    // S3-④：d20m 面解析成功的引用（tier-① 已核；值级显式降级 ⇒ 须打出声）
 const uncoveredCand = [];   // 未覆盖**候选**（按行收集，输出前按「文件+键」聚合，见下）
 /* ★`#1835` **源有值但本门未比对**（甲）：抽到了源值（`src` 非空）、**却一个键都没进比对**（`rv` 全 undefined）。
@@ -236,6 +238,32 @@ const noCompareCites = [];
  *   粒度为何取「块」而非「文件」：本仓引用形约定是「**一处引用覆盖其下紧邻的一组同源数值**」
  *   （`README.md`「规则来源」§三 第 3 条「落在最近的声明点」）——故同一块声称过的键，
  *   不应对**别的块**登记未覆盖；取文件级会跨块抑制（`#1735` D 席 NIT-2 指出）。 */
+/** 该「声称行」所属**块的文本**（`house rule` 声明惯写在块内，可能在其后一行 ⇒ 须取到块末）。
+ *   ★`#1835` 乙1：抽成**单一入口** —— 原先把这段只长在「未覆盖记账」支里，
+ *   于是**比对支不认 house rule 声明**（乙 的读数实证：`guard.js` 头注声明了 `HP 11→6／AC 16→14`
+ *   的有意偏离，而比对支照样会判「值不符」⇒ **罚正当设计**）。⇒ 两处**共用本函数**（✗ 复制一份）。 */
+function blockTextOf(lines, i) {
+  let bStart = blockKeyOf(lines, i) - 1;
+  while (/^\s*test\(\s*'/.test(lines[bStart] ?? '') && bStart > 0
+         && /^\s*(\*|\/\*|\*\/)/.test(lines[bStart - 1])) {
+    bStart--;
+  }
+  let bEnd = i;
+  if (/^\s*\/\*/.test(lines[bStart] ?? '')) {
+    for (let k = i; k < lines.length; k++) { bEnd = k; if (/\*\//.test(lines[k])) break; }
+  } else {
+    for (let k = i; k < lines.length; k++) {
+      bEnd = k;
+      if (/^\s*\}\);?\s*$/.test(lines[k])) break;
+      if (k > i && /^\s*test\(\s*'/.test(lines[k])) { bEnd = k - 1; break; }
+    }
+  }
+  return lines.slice(Math.max(0, bStart), bEnd + 1).join('\n');
+}
+
+/** 该行所属块是否**声明了 house rule**（只认权威短语，✗ 扩同义词 —— 领队裁 ③）。 */
+const declaresHouseRule = (lines, i) => /house\s*rule/i.test(blockTextOf(lines, i));
+
 function blockKeyOf(lines, idx) {
   for (let j = idx; j >= 0; j--) {
     if (/^\s*\/\*/.test(lines[j]) || /^\s*test\(\s*'/.test(lines[j])) return j + 1;
@@ -544,27 +572,9 @@ for (const f of files) {
               /* 该块若有**权威的 house rule 声明** ⇒ 属「已声明偏离」，不登记未覆盖
                *   （`README.md`「规则来源」§三 第 5 条：无源条目须当 house rule 并写明）。
                *   只认权威短语 `house rule`（`RE_CLAIM` 已含），**不扩同义词**——否则又造第二入口（领队裁 ③）。 */
-              let bStart = blockKeyOf(lines, i) - 1;
-              /* 若块以 `test(` 开头，**向上并入紧邻的注释块**：`house rule` 声明惯写在其上
-               *   （实测 `stats.test.js:37-38` 是注释、`:39` 才是 `test(`）⇒ 不并入会漏声明。 */
-              while (/^\s*test\(\s*'/.test(lines[bStart] ?? '') && bStart > 0
-                     && /^\s*(\*|\/\*|\*\/)/.test(lines[bStart - 1])) {
-                bStart--;
-              }
-              /* 块文本取到**块的末尾**而非「声称行」为止：多行注释块里，`house rule` 声明常写在
-               * 声称行**之后**的一行（实测 `stats.test.js:37` 声称、`:38` 声明）⇒ 只取到声称行会漏。 */
-              let bEnd = i;
-              if (/^\s*\/\*/.test(lines[bStart] ?? '')) {
-                for (let k = i; k < lines.length; k++) { bEnd = k; if (/\*\//.test(lines[k])) break; }
-              } else {
-                for (let k = i; k < lines.length; k++) {
-                  bEnd = k;
-                  if (/^\s*\}\);?\s*$/.test(lines[k])) break;
-                  if (k > i && /^\s*test\(\s*'/.test(lines[k])) { bEnd = k - 1; break; }
-                }
-              }
-              const blockText = lines.slice(Math.max(0, bStart), bEnd + 1).join('\n');
-              const declared = /house\s*rule/i.test(blockText);
+              /* ★`#1835` 乙1：块文本／house rule 判定**已抽成单一入口**（`blockTextOf`／`declaresHouseRule`），
+               *   与**比对支共用** —— ✗ 保留两份（两份必然先分叉一处）。 */
+              const declared = declaresHouseRule(lines, i);
               if (hasClaims && !declared) uncoveredCand.push({ file: rel, key: k, at, src: src[k], cache: path.basename(r.cachePath), block: `${rel}|${blockKeyOf(lines, i)}` });
               continue;
             }
@@ -572,7 +582,13 @@ for (const f of files) {
             /* S3-⑤：d20m 面单列（✗ 并入 5E —— 否则 d20m 的比对量会污染 5E 读数桶） */
             if (r.face === '3E') cmp3e++; else if (r.face === 'd20m') cmpD20M++; else cmp5e++;
             if (sv === rv) valueChecked++;
-            else red(`源值比对不符（A 组）：${at} ${k} ${unit} 仓内/声称=${rv} 源=${sv}（${path.basename(r.cachePath)}:${src[k].line}）`);
+            else if (declaresHouseRule(lines, i)) {
+              /* ★`#1835` 乙1：该块**已声明** house rule ⇒ 「已声明偏离」⇒ **出声不判红**。
+               *   必要性（乙 读数实证）：`guard.js` 头注写「house rule（非 SRD）：HP 11→6／12、AC 16→14
+               *   ——「受伤入场」的设计变体（见 #1719）」，而比对支原先**不认**该声明 ⇒ 会把**有意偏离**
+               *   判成「值不符」＝ **罚正当设计**（`README.md`「规则来源」§三 第 5 条要求写明的正是它）。 */
+              houseRuleDeviations.push(`${at} ${k}：仓内/声称=${rv} 源=${sv}（**已声明 house rule** ⇒ 出声不判红）`);
+            } else red(`源值比对不符（A 组）：${at} ${k} ${unit} 仓内/声称=${rv} 源=${sv}（${path.basename(r.cachePath)}:${src[k].line}）`);
           }
           /* ★`#1835` 甲：源侧**有值**却**一个键都没比** ⇒ 记入明账（该引用行的值**无人核**）。
            *   ⚠ 位置须在 `for (const r of effResolved)` **体内**（首版我插到它的**闭括号之后**
@@ -679,6 +695,7 @@ if (noCompareCites.length > 0) {
 } else {
   console.log('  ★tier-②：源有值但本门未比对 0 件（每一处源值都至少进过一次比对）');
 }
+for (const h of houseRuleDeviations) console.log(`  ⓘ 已声明 house rule 的值偏离（出声不判红）：${h}`);
 console.log(`          B 组列语义豁免 ${exemptValue}（${pctB.toFixed(1)}%，分母=${sourceLineClaims}，独立上限 ${B_VALUE_EXEMPTION_CAP_PCT}%）`);
 console.log(`  值自洽（注↔代码，第①级）：已核 ${selfChecked}/${selfCheck}`);
 if (LIST) {

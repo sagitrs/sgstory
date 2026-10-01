@@ -232,9 +232,17 @@ export const mirrorProblems = (headSeq, helperSeq) => {
 	if (upto < 0) return ['`headless.mjs` 的 `load` 序里找不到 `dist/bundle.js`（判据的锚点没了 ⇒ 须复核本判据）'];
 	const want = headSeq.slice(0, upto + 1);
 	if (helperSeq.length === 0) return ['`_runtime-registry.mjs` 里没解析出任何 `load(...)`（判据失锚）'];
+	/* ★`#1848` dev-10 尾 NIT：**插入形态**的判词须报**件数**（纯诊断 —— 让读者一眼看出
+	 *   「headless 插了几件而 helper 没跟」，✗ 只报「第 N 步不符」那种逐位描述）。 */
+	let missing = 0;
+	for (let i = 0; i < want.length; i++) if (helperSeq[i] === undefined) missing++;
+	if (missing > 0) {
+		out.push(`headless 的加载序**比 helper 多 ${missing} 件**（helper 须同跟 —— 这正是 #1820 那次的形态：`
+			+ `headless 插件而 helper 不跟）`);
+	}
 	for (let i = 0; i < want.length; i++) {
 		if (helperSeq[i] === undefined) {
-			out.push(`helper 的加载序**缺**第 ${i + 1} 步：应为 \`${want[i]}\`（＝headless 序的前缀；缺失即 #1820 那次的形态）`);
+			out.push(`helper 的加载序**缺**第 ${i + 1} 步：应为 \`${want[i]}\`（＝headless 序的前缀）`);
 		} else if (helperSeq[i] !== want[i]) {
 			out.push(`helper 第 ${i + 1} 步是 \`${helperSeq[i]}\`，而 headless 序该位是 \`${want[i]}\` ⇒ **次序不符**`);
 		}

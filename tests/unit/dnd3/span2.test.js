@@ -94,17 +94,6 @@
 
 	/* ---------- 道具：逐值对源 ＋ house rule ---------- */
 
-	/* 出处：SRD 3.5 · `Basic Rules and Legal/equipment.md:765`（`### Longsword`：15 gp／1d8／19–20 ×2／4 lb.／Slashing） */
-	test('dnd3：铁剑对齐 SRD 3.5 · Longsword（dmg 1d8、critMin 19、cost 15、weight 4）', () => {
-		const s = R().createItem('iron-sword').stats;
-		assert.eq(s.dmg, '1d8', '中型伤害 1d8');
-		assert.eq(s.crit, 2, '重击倍率 ×2');
-		assert.eq(s.critMin, 19, '重击威胁 19–20');
-		assert.eq(s.cost, 15, '价格 15 gp');
-		assert.eq(s.weight, 4, '重量 4 lb.');
-		assert.eq(s.type, 'slashing', 'Slashing');
-	});
-
 	/* 出处：SRD 3.5 · `Basic Rules and Legal/equipment.md:2108`（Table: Armor and Shields 的 Scale mail 行：50 gp／+4／30 lb.） */
 	test('dnd3：鳞甲对齐 SRD 3.5 · Scale mail（ac_bonus 4、cost 50、weight 30）', () => {
 		const s = R().createItem('scale-mail').stats;
@@ -122,8 +111,9 @@
 	});
 
 	/* house rule（非 SRD）：资源类两件 —— 断言「不可装备＋可叠加＋有价」的设计意图。 */
-	test('dnd3：铁锭与锻造图是 house rule 资源件（不可装备、可叠加、有价）', () => {
-		for (const [id, val] of [['iron-ingot', 1], ['iron-message', 5]]) {
+	test('dnd3：锻造图是 house rule 资源件（不可装备、可叠加、有价）', () => {
+		// ⚠ iron-ingot 已按领队裁（2026-10-01）撤，canonical 铁资源＝#1788 的 iron-ore（本表 loot 已改引）
+		for (const [id, val] of [['iron-message', 5]]) {
 			const it = R().createItem(id);
 			assert.eq(it.slot, null, `${id} 不可装备`);
 			assert.eq(it.stackable, true, `${id} 可叠加`);

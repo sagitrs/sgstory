@@ -8,7 +8,13 @@ jobs:
   unit:
     runs-on: ubuntu-latest
     steps:
+      # ★`#1832`：**整档翻转**判据须有 base 可比 ⇒ 检出**完整历史**（默认 `fetch-depth: 1` 下
+      #   `origin/main` 不存在 ⇒ 判据**取不到 base** ⇒ 只能静默退化为「只判混行」＝本票要消灭的形态）。
+      #   实测本仓 **165 提交／工作树 240 文件** ⇒ 全history 代价可受（✗ 用 `git fetch <sha>` ——
+      #   那依赖服务端允许按 sha 取，脆弱）。
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
       - uses: actions/setup-node@v4
         with:
           node-version: 22
@@ -20,8 +26,10 @@ jobs:
         run: node tests/gates/refs-integrity.mjs
       - name: 门自身的可假刀自检（刀数见输出；证明门会红也会绿）
         run: node tests/gates/refs-integrity.selftest.mjs
-      - name: 行尾门（#1774：同一文件内不得混行 CRLF/LF）
-        run: node tests/gates/line-endings.mjs
+      - name: 行尾门（#1774 混行 ＋ #1832 整档翻转）
+        #   ★`--require-base`：**取不到 base 即红**（✗ 静默退化成只判混行 ——
+        #     门原先**声称**闭 4 例而**实际只闭 1 例**，正是这种「声称覆盖而大半没跑」的形态）。
+        run: node tests/gates/line-endings.mjs --require-base
       - name: 行尾门自身的可假刀自检（#1775 D 席 5.1：判据改坏唯有自检能抓）
         run: node tests/gates/line-endings.mjs --selftest
       - name: core 宿主触点 lint（#1804 件二：棘轮 —— 新触点即红，摸清渗透面）

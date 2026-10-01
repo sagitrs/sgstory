@@ -52,7 +52,8 @@ DND3.meleeAttack = (item, that, from) => {
 	const f = from?.stats ?? {};
 	// 远程武器用灵巧，近战用力量
 	const abilMod = isRanged ? DND3.modOf(f, 'dex') : DND3.modOf(f, 'str');
-	const atkMod = (f.bab ?? 0) + abilMod;
+	// 创伤罚（#1780 §四 C1：`裂伤` 在本场首回合给攻击掷骰 −1；无创伤时恒 0 ⇒ 既有行为不变）
+	const atkMod = (f.bab ?? 0) + abilMod + (DND3.traumaAttackMod?.(from) ?? 0);
 	const ac = DND3.acOf(that);
 	const die = DND3.d20();
 	const critMin = item.stats.critMin ?? 20;
@@ -69,15 +70,27 @@ DND3.meleeAttack = (item, that, from) => {
 	const times = crit ? (item.stats.crit ?? 2) : 1;
 	const parts = [];
 	let dmg = 0;
+	// 创伤罚（#1780 §四 C2：`骨裂` 给**近战伤害** −1，✗ 不作用于攻击掷骰；无创伤时恒 0）
+	const dmgMod = abilMod + (DND3.traumaDamageMod?.(from) ?? 0);
 	for (let i = 0; i < times; i++) {
 		const r = RPG.rollDetail(item.stats.dmg);
-		dmg += r.total + abilMod; // 重击时调整值同样翻倍
-		parts.push(r.rolls.join('+') + (abilMod ? RPG.formatMod(abilMod) : ''));
+		dmg += r.total + dmgMod; // 重击时调整值同样翻倍
+		parts.push(r.rolls.join('+') + (dmgMod ? RPG.formatMod(dmgMod) : ''));
 	}
 	if (dmg < 1) dmg = 1; // 惩罚压到 0 以下时至少造成 1 点
 
 	that.hp = Math.max(0, (that.hp ?? 0) - dmg);
 	DND3.grantDeathIfDown(that);
+
+	// 施加面（#1780 §三 A1-A5）：**重击确认命中**后按固定优先级施加一条创伤。
+	// 位置在 `grantDeathIfDown` 之后 ⇒ 已倒地者不再施加（A5）；`applyTrauma` 内部再兜一次。
+	if (crit) {
+		DND3.applyTraumaOnCrit?.(that, {
+			damage: dmg,
+			maxHp: that.maxHp ?? 0,
+			crushing: item.stats.crushing === true,
+		});
+	}
 
 	item.perform(`${that.name}受到了${dmg}点${item.stats.type ?? '钝击'}伤害` +
 		`（${parts.join('，')}${crit ? '，重击！' : ''}）`);

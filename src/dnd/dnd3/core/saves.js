@@ -5,12 +5,14 @@
  * 由 `stats.save_<类型>` 字段提供调整值（默认 0；与六维调整值无关）。
  */
 
-/** 豁免检定：1d20 + save_mod vs DC，返回 { success, roll, total, dc, mod } */
+/** 豁免检定：1d20 + save_mod **+ 创伤罚** vs DC，返回 { success, roll, total, dc, mod, trauma }。
+ *  创伤罚（`脑震荡` −1）＝ #1780 §四 C3：**只进 total／success**，✗ 不改 `mod`（该字段保持「角色自身加值」语义）。 */
 DND3.save = (character, type, dc) => {
 	const mod = character?.stats?.[`save_${type}`] ?? 0;
+	const trauma = DND3.traumaSaveMod?.(character) ?? 0;
 	const roll = DND3.d20();
-	const total = roll + mod;
-	return { success: total >= dc, roll, total, dc, mod };
+	const total = roll + mod + trauma;
+	return { success: total >= dc, roll, total, dc, mod, trauma };
 };
 
 /** 便捷：执行豁免并 perform 结果 */

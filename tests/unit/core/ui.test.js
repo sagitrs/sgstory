@@ -116,6 +116,32 @@
 		assert.ok(links.includes('×3'), '多件后缀应保留');
 	});
 
+	/* `#1836`（`#1814` 过程发现的 UX 缺口）：原形 `charges > 1 ? ×N : name` 让「**还剩 1 次**」与「**无充能概念**」
+
+	 * 的件**文本全同** ⇒ 玩家看不出前者只剩一次。修：充能件**一律** `×N`（含 `×1`）。 */
+
+	test('#1836：充能 1 的件显式 `×1`（✗ 与无充能件同形），且两处仍逐字同形', () => {
+
+		freshInv(R().playerActor() ?? R().characters.get('player'));
+
+		R().give('unit-draught');   // charges: 1
+
+		R().give('unit-helmet');    // charges: null（无充能概念）
+
+		const label = R().inventoryLabel();
+
+		assert.ok(label.includes('单测药水×1'), `充能 1 须显式 ×1：${label}`);
+
+		assert.ok(!label.includes('单测盔×'), `无充能概念的件不带 ×N：${label}`);
+
+		/* ★两处同形（`#1836` 改了 `30-inventory.js` 与 `70-ui.js` 各一处）⇒ 不变式仍须成立 */
+
+		const stripped = R().inventoryLinks().replace(/<a [^>]*>/g, '').replace(/<\/a>/g, '');
+
+		assert.eq(stripped, label, `#1836 改动后仍须逐字同形：${stripped} vs ${label}`);
+
+	});
+
 	/* ---------- ④ DOM 绑定：无头只做不抛＋幂等 ---------- */
 	test('C1：绑定幂等（重复调用只绑一次；无头桩下不抛）', () => {
 		R().__itemLinksBound = false;          // 复位以便观测

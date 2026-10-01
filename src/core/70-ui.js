@@ -64,7 +64,10 @@ RPG.inventoryLinks = () => {
 	return list
 		.map((s) => {
 			const item = RPG.reviveItem(s);
-			const text = item.charges != null && item.charges > 1 ? `${item.name}×${item.charges}` : item.name;
+			/* `#1836`：与 `RPG.inventoryLabel()` **同步**改成一律 `×N`（含 `×1`）—— 两处**必须逐字同形**（本文件头注 ③
+			 * 的不变式，有单测把守）。0 充能**同样自解释**（渲染 `×0`）⇒ **不需要**「（已用尽）」分支，
+			 * 也**不依赖**「所有扣减路径都记得摘槽」（详见 `30-inventory.js` 同名处注释）。 */
+			const text = item.charges != null ? `${item.name}×${item.charges}` : item.name;
 			return RPG.itemLink(item.id, { label: text, suffix: item.equipped ? '（已装备）' : '' });
 		})
 		.join('、');

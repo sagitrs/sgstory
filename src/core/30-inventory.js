@@ -401,8 +401,14 @@ RPG.inventoryLabel = () => {
 	return list
 		.map((s) => {
 			const item = RPG.reviveItem(s);
+			/* `#1836`：充能件**一律**显式 `×N`（含 `×1`）—— 原形 `> 1` 让「还剩 1 次」与「无充能概念（`charges:null`）」的件
+			 * **文本全同**（玩家看不出前者只剩一次）。
+			 * ★**为何不做「（已用尽）」分支（取更强判据）**：新形对 `charges === 0` **亦自解释**（渲染 `×0`）
+			 * ⇒ 本设计**不依赖**「所有扣减路径都记得摘槽」这条未来不变式（dev-9 实测：0 充能槽可被造出、并渲染为 `×0`）。
+			 * 附带事实（**佐证，✗ 非依赖**）：正常用尽路径确实摘槽 —— ① `RPG.take`（本文件 `slot.charges <= 0 ⇒ splice`）
+			 * ② `RPG.act` 的 `'use'` 分支（同判据）③ `35-gather.js` 采空**自摘**（采集不走 `use` ⇒ 动作自行摘槽）。 */
 			const label =
-				item.charges != null && item.charges > 1
+				item.charges != null
 					? `${item.name}×${item.charges}`
 					: item.name;
 			return item.equipped ? `${label}（已装备）` : label;

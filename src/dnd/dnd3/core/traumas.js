@@ -93,6 +93,9 @@ DND3.tickBleeding = (actors) => {
 };
 
 /* 失血 tick 的接线：本场**首次** turnStart 时对该场全体结算（payload 无 battle 时退化为该回合角色）。 */
+/* ⚠ **隐式契约（MN-1）**：本订阅读 `battle.players` / `battle.enemies` —— 这是 `RPG.Battle` 的**实例字段名**
+ *   （core 未把它声明为契约）⇒ 若 `Battle` 改字段名或改用统一 `actors` 池，**失血 tick 会静默不触发**（无报错）。
+ *   改动 `Battle` 字段者须同笔核此处（或以 `opts` 显式传池，见 `treatTrauma` 的 opts 形）。 */
 RPG.events.on('battle:turnStart', ({ actor, battle } = {}) => {
 	if (!firstRound) return;
 	const pool = battle ? [...(battle.players ?? []), ...(battle.enemies ?? [])] : [actor];
@@ -104,8 +107,8 @@ RPG.events.on('battle:turnStart', ({ actor, battle } = {}) => {
 /** 由这一击的读数决定施加哪一条（**确定性**，便于用例复现；优先级见 §三 A2）。 */
 DND3.traumaForHit = ({ damage = 0, maxHp = 0, crushing = false } = {}) => {
 	if (maxHp > 0 && damage >= maxHp / 2) return 'concussion';
-	if (damage >= 3) return 'bleeding';
-	if (crushing) return 'fracture';
+	if (crushing) return 'fracture';          // ★D 席 MAJOR 后**提序**：钝击判据先于伤害阈值
+	if (damage >= 3) return 'bleeding';       //   （否则 `fracture` 只在「伤害恰为 2」的边界可达 ⇒ 事实死条目）
 	return 'laceration';
 };
 
@@ -141,7 +144,7 @@ DND3.treatTrauma = (c, id, { mod = 0 } = {}) => {
 };
 
 /** 源 A/B 的「魔法治疗」通路：任一 healing 效果可解 `bleeding`（§五 H2；本仓以效果 id 约定）。 */
-DND3.magicalCure = (c, effectId = 'bleeding') => {
+DND3.magicalCure = (c, effectId) => {           // MN-4：✗ 默认参（将来多条可解时语义含糊）
 	const tr = DND3.Traumas[effectId];
 	if (!tr?.magicalCure || !c.contains(effectId)) return false;
 	c.lose(effectId);

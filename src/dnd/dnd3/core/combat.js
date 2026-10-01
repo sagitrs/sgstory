@@ -88,7 +88,9 @@ DND3.meleeAttack = (item, that, from) => {
 		DND3.applyTraumaOnCrit?.(that, {
 			damage: dmg,
 			maxHp: that.maxHp ?? 0,
-			crushing: item.stats.crushing === true,
+			// 骨裂的施加条件（#1780 §三 A2；D 席 MAJOR 后订正）：**复用既有数据源**——
+		// 3E 钝击类武器已声明 `stats.type === 'bludgeoning'`（如 club.js:15），✗ 依赖无人声明的 crushing 字段。
+		crushing: item.stats.crushing === true || item.stats.type === 'bludgeoning',
 		});
 	}
 

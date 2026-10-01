@@ -21,7 +21,7 @@
 | 7 | **场景 id（sceneId）** | `State.variables.sceneId`（字符串） | ✅ | **已就绪**（写点单点） |
 | 8 | **建筑/农田（span1Farms / span1Harvests）** | `State.variables.span1*`（数值） | ✅ | **已就绪**但**裸键**（见 §三注 3） |
 | 9 | **旗标（flags）** | —— | —— | **不存在**（`flags\|setFlag\|getFlag` **0 命中**）⇒ 格式设计时**可预留键位**，勿“以为已有” |
-| 10 | **NPC/怪物（actors）** | **无现役落点**（仅 `README.md:114` 示例 `$actors`） | ✅（`toJSON` 具备） | **应然面**：现役无 NPC 进档 ⇒ 见 §二「堆上面」 |
+| 10 | **NPC/怪物（actors）** | **无现役落点**（仅 `src/README.md:114` 示例 `$actors`） | ✅（`toJSON` 具备） | **应然面**：现役无 NPC 进档 ⇒ 见 §二「堆上面」 |
 
 **总判**：**1–8 已有落点且皆纯数据** ⇒ **笔 1 的 payload 七域实测「已有六域半」**；
 **真缺口在「堆上面」（§二）**：`locations/exits`（图结构）、`hp`（属 Role 实例）等 —— 它们是**读档错位**的来源。
@@ -43,17 +43,17 @@
 ### 2. 玩家 `State.variables.player`
 | 项 | 读数 |
 |---|---|
-| 形态 | `DEFAULTS` 纯对象（`dnd3/player.js:20-27`：`name/hp/maxHp/stats`；5E/d20m 同构） |
-| 桥接 | `Object.defineProperties(…, {name,hp,maxHp,stats,items,effects})`（`dnd3/player.js:53-63`） |
+| 形态 | `DEFAULTS` 纯对象（`dnd3/player.js:15-22`：`name/hp/maxHp/stats`；5E/d20m 同构） |
+| 桥接 | `Object.defineProperties(…, {name,hp,maxHp,stats,items,effects})`（`dnd3/player.js:44-64`） |
 | 三包同形 | `dnd3/player.js`、`dnd-5e/player.js`、`d20m/player.js`（**同 id `player` ⇒ 跨包遮蔽 `#1743`**） |
 | ⚠ 陷阱 | **三包同名 `player`** ⇒ 后注册者覆盖；存档只存**一份** `$player` ⇒ 切换包时**语义可能变**（迁移链须记 `pack`） |
 
 ### 3. 地图位置 `mapCurrent`
 | 项 | 读数 |
 |---|---|
-| 键名规则 | `world`（或缺省）⇒ `mapCurrent`；具名地图 ⇒ `mapCurrent_<id>`（`60-map.js:66-68`） |
-| 写点 | **单点**：`moveTo` 内 `_syncToState()`（`60-map.js:88-92`） |
-| 读点 | 构造时 `_restoreFromState()`（`:78-86`，静默策略：无键则保持） |
+| 键名规则 | `world`（或缺省）⇒ `mapCurrent`；具名地图 ⇒ `mapCurrent_<id>`（`60-map.js:65-69`） |
+| 写点 | **单点**：`moveTo` 内 `_syncToState()`（定义 **`60-map.js:81-85`**；调用点 **`:129`**） |
+| 读点 | 构造时 `_restoreFromState()`（定义 **`:73-78`**（方法体；:79 空行）；构造调用 **`:62`**。静默策略：无键则保持） |
 | ⚠ **范围** | ★本键**只搬 `current` 一项** —— `locations`／`exits`／钩子仍**全在堆上**（`60-map.js:55-57`）⇒ 见 §二 |
 
 ### 4. 存量 `stocks`
@@ -77,7 +77,7 @@
 |---|---|
 | 形态 | `effects: string[]`（id 串，含层级 `exhaustion:3`）｜`effectTurns: {id→n}`（`20-character.js:27-31`） |
 | 桥接 | 玩家经 `bridge('effects')`（`dnd3/player.js:63`）；`effectTurns` **随 `toJSON` 存档**（`20-character.js:29`） |
-| ⚠ 陷阱 | ★`effects` 存的是 **id 字符串** ⇒ 加载时**依赖 `RPG.effects` 注册表**已就位（**加载序**敏感）；未注册 id 的行为见 `20-character.js:51-67`（**抛错 `EFFECT_UNKNOWN`**） |
+| ⚠ 陷阱 | ★`effects` 存的是 **id 字符串** ⇒ 加载时**依赖 `RPG.effects` 注册表**已就位（**加载序**敏感）；未注册 id 的行为见 `20-character.js:44-48`（**契约注释**：非数组/非字符串/非 Effect 实例 ⇒ `EFFECT_BAD_REF`；未注册 id ⇒ `EFFECT_UNKNOWN`）——**抛出点**在 `RPG.effectSpec`（`17-effect.js`） |
 
 ### 7. 场景 `sceneId`
 | 项 | 读数 |
@@ -95,13 +95,13 @@
 
 ## 二、★真缺口：**堆上面**（不进 State ⇒ 读档错位）
 
-`git grep -nE "this\.(current|locations|exits)\s*=" src/core/60-map.js` ⇒ `:55/:56/:57` **三行皆实例字段**。
+`git grep -nE "this\.(current|locations|exits)\s*=" src/core/60-map.js` ⇒ **5 行命中**：声明 `:55/:56/:57`（`locations`/`exits`/`current`，皆实例字段）＋ 另两处**赋值** `:76`（`_restoreFromState` 内）与 `:128`（`moveTo` 内）。
 
 | 面 | 现状 | 影响 | 归谁 |
 |---|---|---|---|
 | `WorldMap.locations` | `new Map()` 实例 | **图结构不进档** ⇒ 读档后**若图由代码重建**则无碍；**若运行时增删点**即错位 | `#1806` 笔 1（决策：图是**代码面**还是**状态面**） |
 | `WorldMap.exits` | `[]` 实例 | 同上 | 同上 |
-| `Character.hp`（NPC） | 实例字段 | ★已有**显式规避**：`goblin.js` 用 `:enginerestart` 事件重置；`README.md:114` 教人存 `$actors` 快照 | 内容侧惯例，✗ 契约面 |
+| `Character.hp`（NPC） | 实例字段 | ★已有**显式规避**：`goblin.js` 用 `:enginerestart` 事件重置；`src/README.md:114` 教人存 `$actors` 快照 | 内容侧惯例，✗ 契约面 |
 | `Location.onEnter/onExit` | 函数 | **不可序列化**（正确：属代码） | 设计上应**只序列化 id** |
 
 **⇒ 笔 1 的核心决策点**：**「什么算状态」的边界** —— 建议口径：
@@ -155,6 +155,27 @@
 `00-namespace.js` 的对象字面量键，两形合并去重）⇒ 得 10 项，与我的「11」不符。
 ⇒ **教训**：**列举即断言** —— 凡「N 个」的写法，须由**逐项清点**得出（✗ 手数）；这与本席在 `#1769`
 提的「标签/指称也是对仓状态的断言」（T 票把甲案写成乙案）**同族**，本件自身即第二例。
+
+## 四·补二、★引用精度自纠（dev-10 复核 5 处 ＋ 本席自查再加 2 处）
+
+本件首版**引用精度错 7 处**（dev-10 抽查 5 处，我按同法**系统复扫全文**又查出 2 处）：
+
+| # | 原引 | 实况 | 来源 |
+|---|---|---|---|
+| C1 | `60-map.js:88-92`（且标为「核心决策点」） | **`:81-85`**（调用点 `:129`）；`:88-92` 是 **`addLocation`** | dev-10 |
+| C2 | `:78-86` | **`:73-78`**（方法体；:79 空行）；构造调用 `:62` | dev-10 |
+| C3 | 「`:55/:56/:57` 三行」 | **grep 实返 5 行**：声明 `:55/:56/:57` ＋ 赋值 `:76`／`:128` | dev-10 |
+| C4 | `README.md:114` | **`src/README.md:114`**（缺前缀 ⇒ 读者翻空） | dev-10 |
+| C5 | `dnd3/player.js:20-27` | **`:15-22`** | dev-10 |
+| **#6** | `dnd3/player.js:53-63`（桥接） | **`:44-64`**（`Object.defineProperties` 在 `:44`） | ★本席自查 |
+| **#7** | `20-character.js:51-67`（称「抛错 `EFFECT_UNKNOWN`」） | **`:44-48`**（契约注释）；**抛出点**在 `RPG.effectSpec`（`17-effect.js`）——`:51-67` 是 `contains()` 方法体，与此无关 | ★本席自查 |
+
+**自查方法**（可复用）：把全文引用**抽成正则**（`` `文件`:[0-9]+(-[0-9]+)? ``）⇒ **逐条 `git show <ref>:<file> | sed -n '<line>p'` 回读**（✗ 目测）。
+⇒ 得 7 错，其中 **2 处是我自己扫出来的** —— 说明**抽查 5 处不足以覆盖**，**全量回读**才够。
+
+**教训（与本件 §四·补 同族，合为一条）**：**docs 的价值＝精度** —— 它不在门的扫描面（`docs/**` ✗ 在 `SCAN_DIRS`），
+**人工回读是唯一防线**。凡「文件:行」，须**落笔时即回读**（✗ 凭记忆/凭上下文里的印象）；这与
+本席在 `#1769` 提的「标签/数字也是断言」是**同一条纪律的两个面**（数字面 ＋ 引用面）。
 
 ## 五、本件的方法学自陈（可复核性）
 

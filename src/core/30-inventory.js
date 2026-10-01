@@ -54,6 +54,10 @@ RPG.take = (id, n = 1, actor = null) => {
 		left -= use;
 		if (slot.charges <= 0) list.splice(i, 1); // 用尽即移除槽，不留 charges=0 残槽
 	}
+	/* ★成功扣减 ⇒ 广播（#1731 D3：**道具侧真值变动**的可观测点）。
+	 *  引擎只发事件、✗ 不解释「哪些 id 算弹药」——那属内容（§十.7-C 同哲学）。
+	 *  ⇒ 有道具背书的存量（A 裁定：道具为真值）在此处**重算其派生视图**，✗ 各自递减（禁双写）。 */
+	RPG.events.emit('inventory:changed', { id, n, actor });
 	return true;
 };
 

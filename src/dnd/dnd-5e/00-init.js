@@ -30,6 +30,9 @@ setup.DND5E.STAT_BLOCK = {
 	ac: 10,       // 基础 AC（无甲时 10+灵巧；穿甲后由 acOf 计算）
 	prof: 2,      // 熟练度加值（1-4级 +2，5-8级 +3…替代 3E 的 BAB）
 	cr: 0,        // 挑战等级
+	/* 第五档「消耗依赖」存量（#1759 §十／#1731 三段弹药）。**有道具背书** ⇒ 本字段是**派生视图**，
+	 *  真值在 `bullets-firearm` 道具上，由 `RPG.syncDerivedStocks` 按真值重算（A 裁定：禁双写）。 */
+	firearmAmmo: 0,   // 持有的火器弹药（发）；house rule（非 SRD）——存量面
 };
 /** 包标识（Symbol 键）：显式标注数值块的**归属包**，供跨包判据使用（如 #1741 的闸门只接管本包角色）。
  *  ⚠ 用 Symbol 而非字符串键的理由（三条同时成立）：
@@ -65,6 +68,18 @@ setup.DND5E.defStock = (d) => {
 	setup.DND5E.Environment[d.id] = rec;
 	return rec;
 };
+
+/* 三段（`#1731`）首个**有道具背书**的存量（A 裁定：道具为真值、角色侧为派生视图）。
+ * 引用：SRD 5.2.1 · `equipment.md:68-70`（「you can … make a ranged attack **only if you have ammunition**…
+ *   Each attack expends one piece」）——只要求「有弹药才能射」；**角色级存量**是本仓设计 ⇒ 标 house rule。 */
+setup.DND5E.defStock({
+	id: 'firearmAmmo',
+	name: '火器弹药',
+	desc: 'house rule（非 SRD）：持有的火器弹药数（派生视图，真值在 bullets-firearm 道具上）',
+	unit: '发',
+	scope: 'persistent',
+	derivedFrom: { itemId: 'bullets-firearm' },
+});
 
 /* 接线（D2 #1777）：`battle:end` ⇒ 复位 `scope:'battle'` 的存量（core ✗ 不认识包/条件 ⇒ 由包侧订阅；
  * 与 `conditions.js` 的清条件订阅**同哲学**）。

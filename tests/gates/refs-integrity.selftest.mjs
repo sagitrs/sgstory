@@ -328,9 +328,11 @@ const fileKnives = [
         if (after.seededAt !== sb.baseSha) {
           return { ok: false, detail: `seededAt=${after.seededAt}（期望 merge-base ${sb.baseSha}；跑时 HEAD 为 ${sb.headSha}）` };
         }
-        if (sb.baseSha === sb.headSha) {
-          return { ok: false, detail: '沙箱两臂同值 ⇒ 本刀判别力为零（构造失效）' };
-        }
+        /* ★此处原有一道 `if (sb.baseSha === sb.headSha)` 的「两臂同值」检查 ——
+         *   它与**函数开头那道**（见上）**表达式完全相同**，而开头那道在**更早**位置 ⇒ 本处**永不可达** ⇒
+         *   去归一（#1793）后被 dev-9 核出为**死检查**（「看起来是第二道防线」）。**已删**。
+         *   ⇒ 教训（与「过期兜底」同族）：**同一断言写两遍时，后一遍是死的**——
+         *     它在阅读上给出「有双重保护」的错觉，而**实际只在第一处生效**。 */
         return { ok: true };
       } finally {
         fs.rmSync(sb.dir, { recursive: true, force: true });

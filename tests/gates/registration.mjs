@@ -79,15 +79,22 @@ const judge = (rows, ledger) => {
 	const crossPack = [];
 	for (const [id, rs] of [...byId].sort()) {
 		const packs = [...new Set(rs.map((r) => r.pack))];
-		if (packs.length === 1) {
-			const n = rs.length;
-			if (n > 1) {
-				samePack.push({ id, pack: packs[0], n, files: rs.map((r) => r.file) });
-				problems.push(`同包重定义：${packs[0]} 的「${id}」声明 ${n} 次（${rs.map((r) => r.file).join('、')}）`
-					+ ' ⇒ 同包内重复是**真错**（后声明者静默覆盖先声明者）');
-			}
-			continue;
+		/* ★① 同包重复：**对所有 id 都查**（`#1807` 交接缺口：原形把它放在「单包」分支里 ⇒
+		 *   **跨包 id 走不到** ⇒ 那种 id 的同包重复被**漏检**。本席复现：`club` 在 dnd3 声明 2 次
+		 *   且 dnd-5e 也有 ⇒ 原形 `problems` 为**空**（跨包分支只查台账）。tester-4 改派前核出。）
+		 *   ★原自检刀 K1 的输入恰是「**只有单包**的重复」⇒ 落在**有效**的那条分支上 ⇒ 缺口零覆盖
+		 *     （「输入若落在不受影响的路径上，用例就没有判别力」的同族）。补 K9 覆盖。 */
+		const perPack = new Map();
+		for (const r of rs) perPack.set(r.pack, (perPack.get(r.pack) ?? 0) + 1);
+		for (const [pk, n] of [...perPack].sort()) {
+			if (n <= 1) continue;
+			const files = rs.filter((r) => r.pack === pk).map((r) => r.file);
+			samePack.push({ id, pack: pk, n, files });
+			problems.push(`同包重定义：${pk} 的「${id}」声明 ${n} 次（${files.join('、')}）`
+				+ ' ⇒ 同包内重复是**真错**（后声明者静默覆盖先声明者）'
+				+ (packs.length > 1 ? '；★该 id **同时跨包**（跨包本身另按台账判）' : ''));
 		}
+		if (packs.length === 1) continue;
 		crossPack.push({ id, packs, files: rs.map((r) => r.file) });
 		/* 未登记 ⇒ 红；已登记但材料不全 ⇒ 红（承【过期兼容】） */
 		if (!Object.prototype.hasOwnProperty.call(ledger, id)) {
@@ -124,6 +131,11 @@ if (has('--selftest')) {
 		['K4 登记缺 reason ⇒ 红', mk([['club', 'dnd-5e'], ['club', 'dnd3']]), { club: { ticket: '#1743' } }, 1],
 		['K5 过期登记（实际无冲突）⇒ 红', mk([['sword', 'dnd-5e']]), L, 1],
 		['K6 引用形不计（items:[{id}]）⇒ 绿', mk([['sword', 'dnd-5e']]), {}, 0],
+		/* ★K9（#1807 交接缺口）：**跨包 id 同时同包重复** ⇒ 须红。
+		 *   原形因 `continue` 使跨包 id 免检同包重复 ⇒ 本刀在原形上**绿**（缺口复现）。 */
+		['K9 ★跨包 id ＋ 同包重复 ⇒ 红（原形漏检）',
+			[{ id: 'club', pack: 'dnd3', file: 'src/dnd/dnd3/a.js' }, { id: 'club', pack: 'dnd3', file: 'src/dnd/dnd3/b.js' },
+				{ id: 'club', pack: 'dnd-5e', file: 'src/dnd/dnd-5e/c.js' }], L, 1],
 	];
 	let n = 0;
 	for (const [name, rows, led, want] of knives) {

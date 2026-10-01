@@ -74,7 +74,9 @@ D20M.attack = (item, that, from) => {
 		const held = RPG.equippedWeapon();
 		if (held && held.id !== item.id) {
 			item.perform(`你得先腾出手——「${held.name}」还握在手里。`);
-			return;
+			/* ★`return **false**`（`#1813` 笔 2）：拒绝（打不出去）⇒ `rejected/action-refused`。
+			 *   ⚠ **✗ 与「没有击中」同改**（见下方失手支）—— 失手是「攻击**已发生**」⇒ 须留 `return;`。 */
+			return false;
 		}
 		item.equipped = true; // 拔出武器（useItem 会提交回背包快照）
 		item.perform(`你握紧了「${item.name}」。`);

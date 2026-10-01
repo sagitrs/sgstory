@@ -37,7 +37,10 @@ const resource = (def) => RPG.defItem({
 	id: def.id,
 	name: def.name,
 	desc: def.desc,
-	stats: { weight: def.weight, craftInput: true, tier: def.tier ?? 1 },
+	/* ★`noBattleUse: true`（`#1841`／`#1837` 远修）：**本件在战斗中没有动作** —— 战斗交互选单据此
+	 *   **不亮「使用」**（`40-battle.js` 的 `actionOptionsFor`），✗ 让玩家点进去才被拒。
+	 *   资源**本该不可战斗使用**（`used()` 按设计抛错）⇒ 这是把该事实**声明**出来，✗ 新语义。 */
+	stats: { weight: def.weight, craftInput: true, noBattleUse: true, tier: def.tier ?? 1 },
 	/* ★ `charges: 1` ＋ `stackable: true` ⇒ **引擎的堆叠槽即「计数库存」**：
 	 *   `RPG.give(id, n)` 会走合并分支把 `n` 件并进同一槽的 `charges`（`30-inventory.js:20`）；
 	 *   `RPG.take(id, n, actor)` 从槽里扣 `charges`、扣到 0 即移除槽（同文件 `RPG.take`）。

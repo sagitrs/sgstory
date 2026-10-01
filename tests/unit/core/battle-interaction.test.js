@@ -250,4 +250,85 @@
 		assert.eq(slot.charges ?? 1, 1, '件数未变');
 	});
 
+
+	/* ============ `#1841`（`#1837` 远修）：**筛** —— 无战斗动作的道具不进选单 ============
+	 * 资源类道具的 `used()` **按设计抛错** ⇒ 亮「使用」＝把玩家引到注定被拒的路
+	 * （`#1839` 的**网**会出声，但**筛掉更好**）。声明形＝`stats.noBattleUse`（见下为何 ✗ 用
+	 * `handlers.use` 之有无，也 ✗ 用 `stats.craftInput`）。 */
+
+	const mkBattle = () => new (R().Battle)(1, [D().Player], [new (R().Character)({ name: '靶', hp: 1 })], true);
+
+	test('★#1841 ①：纯资源**不进**选单；武器**仍在**且 `value` 保**原槽位下标**', () => {
+		R().give('rock');   // 槽 0
+		R().give('club');   // 槽 1
+		R().give('wood');   // 槽 2
+		const { itemOptions } = mkBattle().buildPlayerOptions(D().Player);
+		assert.ok(!itemOptions.some((o) => o.text.includes('石料')), '★石料不在选单（✗ 引玩家进死路）');
+		assert.ok(!itemOptions.some((o) => o.text.includes('木材')), '★木材不在选单');
+		const club = itemOptions.find((o) => o.text.includes('木棒'));
+		assert.ok(club, '武器仍在选单');
+		/* ★本节最易错处：过滤后若**重编号**，取件会取到错的道具 */
+		assert.eq(club.value, '1', '★`value` 保**原槽位下标**（木棒在槽 1，✗ 过滤后重编号为 0）');
+		const slot = State.variables.inventory[Number(club.value)];
+		assert.eq(slot.id ?? slot.name, 'club', '★按 `value` 取件取到的确是木棒（防重编号）');
+	});
+
+	test('★#1841 ②：零回归 —— 既有道具的选单与动作集**逐项不变**', () => {
+		R().give('club');
+		R().give('bandage');
+		const { itemOptions, actionOptionsFor } = mkBattle().buildPlayerOptions(D().Player);
+		assert.ok(itemOptions.some((o) => o.text.includes('木棒')), '木棒仍在');
+		assert.ok(itemOptions.some((o) => o.text.includes('绷带')), '绷带仍在（它无 `noBattleUse`）');
+		const bandage = R().reviveItem(State.variables.inventory[1]);
+		assert.eq(actionOptionsFor(bandage).length, 1, '绷带仍只有 1 个动作');
+		assert.eq(actionOptionsFor(bandage)[0].value, 'use', '且仍是 use');
+	});
+
+	test('★#1841 ③：资源的动作集为**空**（声明生效）', () => {
+		R().give('rock');
+		const { actionOptionsFor } = mkBattle().buildPlayerOptions(D().Player);
+		const rock = R().reviveItem(State.variables.inventory[0]);
+		assert.eq(actionOptionsFor(rock).length, 0, '★资源无任何战斗动作（`noBattleUse` 生效）');
+		assert.eq(rock.stats.noBattleUse, true, '资源带 `noBattleUse` 声明');
+	});
+
+	test('★#1841 ④：只带资源 ⇒ 选单只剩「跳过」＋ **出声说明**（✗ 让玩家对着空菜单猜）', async () => {
+		R().give('rock');
+		const battle = mkBattle();
+		const lines = [];
+		battle.perform = (t) => lines.push(String(t));
+		const P = setup.DND3.Player;
+		const saved = { items: P.items, choice: P.choice };
+		P.items = State.variables.inventory;
+		P.choice = async () => 'skip';
+		try { await battle.execute(); } finally { P.items = saved.items; P.choice = saved.choice; }
+		assert.ok(lines.some((l) => l.includes('在战斗中都用不上')), `★出了说明（✗ 静默空菜单）：${JSON.stringify(lines)}`);
+	});
+
+	test('★#1841 ⑤：**唯一**动作不是 use 时须**用它**（✗ 沿用默认 `use` —— 本笔前的隐含假定）', async () => {
+		/* 造一个「不可战斗用、但可装备」的道具 ⇒ 动作集恰为 `['equip']`（长度 1）
+		 *   ⇒ 走真通路时**不该再问动作**、且提交的 action 须是 `equip`。
+		 *   ★本笔前：`actions.length > 1` 不成立 ⇒ `action` 留在默认 `'use'` ⇒ **静默当成 use 提交**。 */
+		const id = 'zz-probe-equip-only';
+		R().defItem({
+			id, name: '试验包', stats: { noBattleUse: true },
+			used() { throw new Error('唯一动作不是 use ⇒ 不该走到 use'); },
+			actions: { equip: R().slotEquip },
+		});
+		const battle = mkBattle();
+		const lines = []; battle.perform = (t) => lines.push(String(t));
+		const P = setup.DND3.Player;
+		const saved = { items: P.items, choice: P.choice };
+		P.items = State.variables.inventory;
+		let actCalls = [];
+		const origAct = R().act;
+		try {
+			R().give(id);
+			P.choice = async () => '0';                 // 只有 1 个动作 ⇒ 不再问「做什么」
+			R().act = (actor, ref, target, act, from) => { actCalls.push(act); return origAct(actor, ref, target, act, from); };
+			await battle.execute();
+		} finally { R().act = origAct; P.items = saved.items; P.choice = saved.choice; R().items.delete(id); }
+		assert.ok(actCalls.length >= 1, '经统一入口提交');
+		assert.eq(actCalls[0], 'equip', `★提交的动作是**唯一**那个（equip），✗ 默认 use（实测 ${JSON.stringify(actCalls)}）`);
+	});
 })();

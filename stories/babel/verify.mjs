@@ -489,7 +489,12 @@ head('⑮ 面板刷新域（B1）的接线');
 		ok(host.includes(`data-panel="${id}"`), `★面板「${id}」宿主（${host}）与骨架属性不一致`);
 		for (const cls of host.match(/\.[A-Za-z][\w-]*/g) ?? []) {
 			const name = cls.slice(1);
-			ok(uiTwee.includes(`class="${name}`) || uiTwee.includes(`${name}"`),
+			/* ★词边界匹配（T 席 RC）：初版是 `includes('class="statusbar')` 这类**无锚前缀** ⇒
+			 *   `class="statusbarX"` 仍含该前缀 ⇒ **改名变体全绿**，而判据自述正是「容器改名 ⇒ 写到空处」
+			 *   ⇒ 声称与实现不符（且缺口真实：改名后四个面板选择器全不匹配、状态栏空白而门绿）。
+			 *   正解：锚到 **class 属性的值边界**（前界＝`^` 或空白，后界＝空白/引号/行尾）。 */
+			ok(new RegExp(`class="[^"]*(?:^|\\s)${name}(?=[\\s"]|$)`).test(uiTwee)
+				|| uiTwee.includes(`${name}"`),
 				`★面板「${id}」宿主的容器「${cls}」不在 twee 骨架里（容器改名 ⇒ 面板写到空处）`);
 		}
 		ok(hostsInMarkup.includes(id), `★骨架里没有面板「${id}」的宿主`);

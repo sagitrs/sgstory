@@ -227,4 +227,58 @@
 		assert.eq(S.judgeLoad(undefined).code, 'NO_ENVELOPE', '裁决面仍拒（处理器逻辑不变）');
 	});
 
+	/* ═══ `#1859`（P0）：存档须**并入当前段落的活跃变量**（✗ 只存 `_history` 的旧快照）═══
+	 *
+	 * 引擎行为（本席读 SC 2.37 源码 ＋ jsdom 实证）：`State.variables` ⟶ `_active.variables`；
+	 *   `marshalForSave()` ⟶ `clone(_history)` ⇒ **不含活跃变量** ⇒ 自环段落（按钮不导航，如巴别地图）
+	 *   期间的写入**从不进 `_history`** ⇒ 存档只捕获「进入该段落那一刻」的快照（操作者实测的 P0）。
+	 * ⇒ 契约的 `onSave` 用**活跃变量**覆盖存档里**当前时刻**的 `variables`。 */
+
+	test('★#1859：onSave 把**活跃变量**并入存档的**当前时刻**（✗ 只存旧快照）', () => {
+		const host = globalThis.SugarCube?.Save ?? globalThis.Save;
+		if (host?.onSave?.fire == null) { assert.ok(true, '无宿主 ⇒ 本条不适用'); return; }
+		/* 造**真 SugarCube 形**的存档对象（`{index, history:[{title, variables}]}`）。 */
+		const obj = { state: { index: 1, history: [
+			{ title: 'L1 苏醒', variables: { mapCurrent_babel: 'L1' } },
+			{ title: '探索', variables: { mapCurrent_babel: 'L1' } },   // ← 进入该段落时的**旧快照**
+		] } };
+		/* 「当前段落期间的写入」：只落活跃变量表，✗ 落 history（这就是缺陷的形态） */
+		State.variables.mapCurrent_babel = 'L4';
+		State.variables.marked = 'live';
+		try {
+			host.onSave.fire(obj);
+			/* ★判据：当前时刻拿到**活跃**变量 */
+			assert.eq(obj.state.history[1].variables.mapCurrent_babel, 'L4',
+				'★当前时刻须并入活跃变量（✗ 旧快照 L1 ⇒ 读档后位置回退）');
+			assert.eq(obj.state.history[1].variables.marked, 'live', '当前段落期间的**任何**新键同样并入');
+			/* ★反例：**其它**时刻不得被波及（只碰 `index` 指向的那一个） */
+			assert.eq(obj.state.history[0].variables.mapCurrent_babel, 'L1',
+				'其它时刻**保持原样**（✗ 把整条历史都刷成活跃变量）');
+			assert.eq(obj.state.history[0].variables.marked, undefined, '其它时刻不沾新键');
+		} finally {
+			delete State.variables.marked;
+			delete State.variables.mapCurrent_babel;
+		}
+	});
+
+	test('#1859：`save.state` 非 `{index, history}` 形（仿真／旧档）⇒ **静默 no-op**（✗ 抛错、✗ 抹掉）', () => {
+		const host = globalThis.SugarCube?.Save ?? globalThis.Save;
+		if (host?.onSave?.fire == null) { assert.ok(true, '无宿主 ⇒ 本条不适用'); return; }
+		/* ⚠ 仿真与旧档是**扁平** state（变量直挂 state）⇒ 不得在此路径上改动它 */
+		const flat = { state: { hp: 7 } };
+		const empty = { state: {} };
+		const noState = {};
+		State.variables.probe = 'x';
+		try {
+			host.onSave.fire(flat);
+			host.onSave.fire(empty);
+			host.onSave.fire(noState);
+			assert.eq(flat.state.hp, 7, '扁平 state **原样保留**（✗ 被覆盖或抹掉）');
+			assert.eq(Object.keys(empty.state).length, 0, '空 state 不被塞入变量');
+			assert.eq(noState.state, undefined, '无 state 的对象不被凭空加 state');
+			/* 三者的信封仍须照常挂上（本条只验**变量并入**的形不匹配路径 ⇒ 信封不受影响） */
+			assert.eq(flat[S.ENVELOPE_KEY]?.saveVersion, 1, '信封照常写（形不匹配 ✗ 阻断信封）');
+		} finally { delete State.variables.probe; }
+	});
+
 })();

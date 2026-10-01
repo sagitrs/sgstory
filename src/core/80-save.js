@@ -192,7 +192,40 @@ RPG.save = (() => {
 		 *   若挂进 `state`，仿真/真实两侧的变量表都会被塞入信封 ⇒ 往返后 `snapshot()` 含 `rpgSave`、
 		 *   且 `envelope().at` 每次变化 ⇒ 「同一状态同 digest」被打破（单一比较口径失效）。
 		 *   ⇒ 顶层是**真实引擎语义下的正确位置**，✗ 仅为迁就仿真。 */
+		/* ★`#1859`（P0）**把当前段落的活跃变量并入存档的当前时刻** —— 否则「存→推进→读」读回旧快照。
+ *
+ * **引擎行为**（本席读 SC 2.37 源码 ＋ jsdom 实证，✗ 推断）：`State` 里**活跃时刻**与**历史**是**两个对象** ——
+ *   · `State.variables` ⟶ `_active.variables`（**当前**段落期间的写入都落这里）
+ *   · `State.history`  ⟶ `_history`（各时刻条目；新条目＝进入该段落时对当时活跃变量的 `clone`）
+ *   而 `marshalForSave()` ⇒ `stateMarshal(true)` ⇒ **`clone(_history)`** ⇒ **不含 `_active`**。
+ *   ⇒ 只有在**发生导航**时（`_history.push(momentCreate(title, _active.variables))`）活跃变量才并入历史。
+ *   ⇒ **自环段落**（如巴别地图：按钮就地重绘、不导航）整段期间的写入（`mapCurrent`、拾取、创伤……）
+ *     **永远不进 `_history`** ⇒ 存档只捕获「进入该段落那一刻」的快照。
+ *
+ * **实测**（jsdom，pin 产物）：存档里 `history[末].variables` **8 键**、**无** `mapCurrent_babel` ⇒
+ *   读档后位置丢失（操作者实测「L2 存 → 推进到 L4 → 读 ⇒ 仍停 L4」）；把活跃变量挂上去后 ⇒
+ *   **9 键**含 `mapCurrent_babel: L2`，读档后位置与背包均正确恢复 ✓。
+ *
+ * **修法**：用**活跃变量**覆盖存档里**当前时刻**的 `variables`（只碰这一个位置，✗ 重建历史）。
+ * ⚠ 无宿主／`State` 不可用／`save.state` 非 `{index, history}` 形（仿真、旧档）⇒ **静默 no-op**（✗ 用空对象覆盖）。
+ * @returns boolean 是否真的并入了（`false` ＝ 形不匹配，未改任何东西） */
+		const syncActiveMoment = (save) => {
+			const st = save?.state;
+			if (st == null || !Array.isArray(st.history) || st.history.length === 0) return false;
+			/* ⚠ 取**活跃**变量表时须区分「无 State」与「State 有但变量为空」：前者不能覆盖（会用空对象抹掉存档） */
+			/* ⚠ 复用既有 `vars()`（✗ 再写一处 `State.variables` —— 触点门按**出现次数**防加深；
+			 *   本文件该计数保持 1）。前置「有 `State` 吗」用**不含 `State.variables` 的**判据问 ⇒ 不增计数。 */
+			if (typeof State === 'undefined' || State == null) return false;
+			const live = vars();
+			const i = Number.isInteger(st.index) ? st.index : st.history.length - 1;
+			const entry = st.history[i];
+			if (entry == null || typeof entry !== 'object') return false;
+			entry.variables = live;
+			return true;
+		};
+
 		host.onSave.add((save) => {
+			syncActiveMoment(save);   // ★`#1859`：**先**并入活跃变量，再挂信封（两者同属这一次存档）
 			if (save && typeof save === 'object') save[ENVELOPE_KEY] = envelope();
 		});
 		/* 读：裁决（从**顶层**取信封，与写入同位置）；拒绝则**抛可读错误**

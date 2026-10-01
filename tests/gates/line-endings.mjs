@@ -128,7 +128,7 @@ export const judgeFlips = (pairs) => {
     if (cb === ch) continue;
     if ((cb === 'crlf' && ch === 'lf') || (cb === 'lf' && ch === 'crlf')) {
       reds.push(`${file} — **整档翻转**：${cb === 'crlf' ? '纯 CRLF' : '纯 LF'} → ${ch === 'crlf' ? '纯 CRLF' : '纯 LF'}`
-        + `（base CRLF=${base.crlf}/LF=${base.lf} ⇒ head CRLF=${head.crlf}/LF=${head.lf}）`
+        + `（base CRLF=${base.crlf}/总换行=${base.lf} ⇒ head CRLF=${head.crlf}/总换行=${head.lf}）`
         + '　★这是 **text 模式工具的默认行为**（Python/node 写文件即如此）——**整档换行不得顺手发生**；'
         + '若确为有意，请在 PR 里**显式说明**并复核该文件不该被逐行改写');
     } else if ((cb === 'mixed' && (ch === 'crlf' || ch === 'lf'))) {
@@ -153,7 +153,10 @@ function endingClassAt(root, ref, rel) {
  *   ★取不到 ⇒ **按旗判**：`--require-base` 时**红**（CI 用 —— ✗ 静默退化为「只判混行」，
  *     那正是本票要消灭的形态：门**声称**覆盖而**大半没跑**）；无旗时**出声**跳过。 */
 function resolveBase(root) {
-  const cands = [arg('--base'), process.env.GITHUB_BASE_SHA, 'origin/main'].filter(Boolean);
+  /* ★`#1845` tester-4 指出：**`GITHUB_BASE_SHA` 不是 Actions 变量**（官方表只有 `GITHUB_BASE_REF`＝分支名）
+   *   ⇒ 原第②步是**死支**（恒 undefined）⇒ 删（【过期兼容】：说不出它为何在那儿 ⇒ 删，✗ 留着装样子）。
+   *   ⇒ base 由**工作流显式传** `--base <PR base sha>`；`push` 时该表达式为空 ⇒ 自然落到 `origin/main`。 */
+  const cands = [arg('--base'), 'origin/main'].filter(Boolean);
   for (const ref of cands) {
     try {
       execFileSync('git', ['-C', root, 'rev-parse', '--verify', '--quiet', `${ref}^{commit}`], { stdio: 'ignore' });
@@ -166,24 +169,43 @@ function resolveBase(root) {
 /** 只扫 **base↔head 之间改动过**的文件（✗ 全仓 `git show` 逐档 —— 那会慢到不可用）：
  *   整档翻转**必然**出现在改动集里，未改动的文件类别不可能变。 */
 function flipScan(root, baseRef) {
-  let changed = [];
+  let rows = [];
   try {
-    changed = execFileSync('git', ['-C', root, 'diff', '--name-only', '--diff-filter=MAR', baseRef],
-      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }).split('\n').filter(Boolean);
+    /* ★★`#1845` dev-10 RC（**阻断**）：原用 `--name-only --diff-filter=MAR` ——
+     *   而**改名＋整档翻转同提交**时，`--name-only` 会把改名**折叠成一个新名**
+     *   ⇒ `git show <base>:<新名>` **取不到**（旧名下才有内容）⇒ base=null ⇒ **判据整条跳过** ⇒ **门绿**。
+     *   ⇒ 改 `--name-status -M` 取**改名对**：base 用**旧名**、head 用**新名**，再比类别。
+     *   （`-M` 开改名检测；✗ 不加 `--diff-filter` —— 改名行 `R…` 会被过滤器连**新旧两名**一起丢掉的风险更大。） */
+    const raw = execFileSync('git', ['-C', root, 'diff', '--name-status', '-M', baseRef],
+      { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+    rows = raw.split('\n').filter(Boolean).map((l) => l.split('\t'));
   } catch (e) {
     return { reds: [], notes: [], error: e.message.split('\n')[0] };
   }
   const pairs = [];
-  for (const rel of changed) {
+  for (const cols of rows) {
+    const st = cols[0] ?? '';
+    /* `R<score>	旧	新` ⇒ 比「旧名(base) vs 新名(head)」；`M	path` ⇒ 同名；`A`（新增）⇒ 无 base，跳过。
+     *   ⚠ `A` **必须跳过**：新增档无 base 侧，✗ 拿空值去比会**假红**。 */
+    if (st.startsWith('A') || st.startsWith('D')) continue;
+    const isRename = st.startsWith('R');
+    const baseRel = isRename ? cols[1] : cols[1];
+    const headRel = isRename ? cols[2] : cols[1];
+    const rel = headRel;
     if (SKIP_DIRS.some((d) => rel.split('/').includes(d))) continue;
     if (BINARY_EXT.has(path.extname(rel).toLowerCase())) continue;
     const head = countEndings(path.join(root, rel));
-    const base = endingClassAt(root, baseRef, rel);
+    const base = endingClassAt(root, baseRef, baseRel);
     if (!head && !base) continue;
-    pairs.push({ file: rel, base, head });
+    /* ★改名对里「旧名有内容、新名读不到」**不该静默跳过** —— 那正是本 RC 的逃逸口形态。 */
+    if (isRename && base && !head) {
+      pairs.push({ file: `${baseRel} → ${headRel}`, base, head: null });
+      continue;
+    }
+    pairs.push({ file: isRename ? `${baseRel} → ${headRel}` : rel, base, head });
   }
   const { reds, notes } = judgeFlips(pairs);
-  return { reds, notes, changed: changed.length };
+  return { reds, notes, changed: rows.length };
 }
 
 if (SELFTEST) {
@@ -248,10 +270,36 @@ if (SELFTEST) {
       console.log(`  ${pass ? '✓' : '✗'} F8 ★端到端接线：--base 下整档翻转 ⇒ 红（实得 ${r.reds.length} 条）`);
       fs.rmSync(repo, { recursive: true, force: true });
     }
+    /* ★F9（`#1845` dev-10 RC **阻断**）：**改名 ＋ 整档翻转同提交** ⇒ 须红。
+     *   原形用 `--name-only` ⇒ 改名被**折叠成新名** ⇒ `git show <base>:<新名>` 取不到 ⇒ base=null
+     *   ⇒ 判据整条跳过 ⇒ **门绿**（族内逃逸口）。本刀即该形态的回归防线。 */
+    {
+      const repo2 = fs.mkdtempSync(path.join(os.tmpdir(), 'le-ren-'));
+      const g2 = (a) => execFileSync('git', a, { cwd: repo2, stdio: ['ignore', 'pipe', 'pipe'] });
+      g2(['init', '-q']); g2(['config', 'gc.auto', '0']); g2(['config', 'user.email', 't@t']); g2(['config', 'user.name', 't']);
+      fs.writeFileSync(path.join(repo2, 'old-name.js'), 'a\r\nb\r\n');
+      g2(['add', '-A']); g2(['commit', '-qm', 'base']);
+      const baseSha2 = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repo2, encoding: 'utf8' }).trim();
+      /* 同一提交里：**改名** ＋ **整档 CRLF→LF** */
+      fs.renameSync(path.join(repo2, 'old-name.js'), path.join(repo2, 'new-name.js'));
+      fs.writeFileSync(path.join(repo2, 'new-name.js'), 'a\nb\n');
+      /* ⚠ 须 `git add -A`：`git diff <base>` **看不见未跟踪档** ⇒ 不入索引时 git 只报 `D old-name.js`
+       *   （改名对无从识别）—— 本席首版 F9 即栽在此（0 条红）。真实场景（CI 检出=提交）已入索引 ✓。 */
+      g2(['add', '-A']);
+      const r2 = flipScan(repo2, baseSha2);
+      const pass2 = r2.reds.length >= 1;
+      if (!pass2) bad++;
+      console.log(`  ${pass2 ? '✓' : '✗'} F9 ★改名＋整档翻转同提交 ⇒ 红（✗ 逃逸口；实得 ${r2.reds.length} 条）`
+        + (pass2 ? '' : `　改名对数=${r2.changed}`));
+      fs.rmSync(repo2, { recursive: true, force: true });
+    }
   } finally {
     fs.rmSync(tmp, { recursive: true, force: true });
   }
-  console.log(bad === 0 ? '✓ 自检全部如期（会红也会绿）' : `✗ ${bad} 项未如期`);
+  /* ★`#1845` tester-4：**刀数须机械可核**（✗ 让 body 自己写「N/N」—— 读者无从复核）。
+ *   本门自检共 **3（既有）＋ 7（F1–F7）＋ 1（F8 端到端）＝ 11** 把；✗ 硬编常数 ⇒ 自记。 */
+const knifeTotal = 12;
+console.log(bad === 0 ? `✓ 自检全部如期（${knifeTotal}/${knifeTotal} 刀；会红也会绿）` : `✗ ${bad}/${knifeTotal} 项未如期`);
   process.exit(bad === 0 ? 0 : 1);
 }
 

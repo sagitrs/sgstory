@@ -55,6 +55,21 @@ setup.RPG.onReviveStats((stats) => {
 	if (!('bab' in stats)) return;
 	stats[setup.DND3.PACK] = 'dnd3';
 });
+/** 第五档「消耗依赖」的**存量命名空间**（#1759 §十.4）——与 `DND3.Conditions` **平行**：
+ *  存量是本仓**设计**（非 SRD）⇒ 独立注册表，✗ 混入 `Conditions`（否则稀释其可 pin 纯度、
+ *  并使 §三 的「两层键集一致」守卫失去意义）。
+ *  ⚠ 本包设计值须标权威形 `house rule（非 SRD）`（见 `tests/README` 与门的 `RE_CLAIM`）。 */
+setup.DND3.Environment = {};
+
+/** 本包声明一条存量（薄封装：绑上本包 `STAT_BLOCK` ⇒ **机械强制** B 裁定「第 5 档经 STAT_BLOCK 声明」）。
+ *  返**定义记录**并登记进 `setup.DND3.Environment`（✗ 直接写 `RPG.stocks` 而漏登记本包命名空间）。 */
+setup.DND3.defStock = (d) => {
+	const rec = setup.RPG.defStock({ ...d, statBlock: setup.DND3.STAT_BLOCK, pack: 'dnd3' });
+	setup.DND3.Environment[d.id] = rec;
+	return rec;
+};
+
+
 
 /** 3E 面**不设**通用属性上限（既有的定制写入路径不引入上限）——`null` 表示不校验。 */
 setup.DND3.ABILITY_MAX = null;

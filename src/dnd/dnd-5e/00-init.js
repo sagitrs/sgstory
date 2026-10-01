@@ -52,6 +52,20 @@ setup.RPG.onReviveStats((stats) => {
 	if (!('prof' in stats)) return;
 	stats[setup.DND5E.PACK] = 'dnd-5e';
 });
+/** 第五档「消耗依赖」的**存量命名空间**（#1759 §十.4）——与 `DND5E.Conditions` **平行**：
+ *  存量是本仓**设计**（非 SRD）⇒ 独立注册表，✗ 混入 `Conditions`（否则稀释其可 pin 纯度、
+ *  并使 §三 的「两层键集一致」守卫失去意义）。
+ *  ⚠ 本包设计值须标权威形 `house rule（非 SRD）`（见 `tests/README` 与门的 `RE_CLAIM`）。 */
+setup.DND5E.Environment = {};
+
+/** 本包声明一条存量（薄封装：绑上本包 `STAT_BLOCK` ⇒ **机械强制** B 裁定「第 5 档经 STAT_BLOCK 声明」）。
+ *  返**定义记录**并登记进 `setup.DND5E.Environment`（✗ 直接写 `RPG.stocks` 而漏登记本包命名空间）。 */
+setup.DND5E.defStock = (d) => {
+	const rec = setup.RPG.defStock({ ...d, statBlock: setup.DND5E.STAT_BLOCK, pack: 'dnd-5e' });
+	setup.DND5E.Environment[d.id] = rec;
+	return rec;
+};
+
 
 /**
  * 定制写入路径（`setScore`）的原始分上限＝20。

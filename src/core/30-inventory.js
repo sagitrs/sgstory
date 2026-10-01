@@ -67,6 +67,24 @@ RPG.take = (id, n = 1, actor = null) => {
 	return true;
 };
 
+/** **弹药是否不足**（只读**预判**，#1773）—— 供战斗侧在**选靶之前**判「这一手打不打得出去」。
+ *
+ *  为何需要它：`Battle` 的选靶 `pick(foes)` 会耗一个 `RPG.rng` 读数（`rng.index()` 每次读 `unit()`），
+ *  若「先选靶、后被 `RPG.act` 拒」，则 `#1773` 的「拒绝 ⇒ 不耗 rng」不成立。
+ *  ⇒ 本谓词把「够不够」**前置**成只读判定，与 `act` 闸门**同口径**：
+ *     量口径取 `RPG.heldTotal`（其 reduce 形与 `RPG.take` 逐字相同 —— 见两处注释）。
+ *  `item` 可为实例（快照）或 id 串；取不到 `stats.ammo` 定义 ⇒ 视为**不需弹药**（✗ 不误判为短）。 */
+RPG.ammoShort = (actor, item, action = 'use') => {
+	const id = typeof item === 'string' ? item : item?.id;
+	if (typeof id !== 'string' || id === '') return false;
+	const def = RPG.createItem(id);                       // 注册定义（含 stats）；快照实例可能缺 stats
+	const ammo = def?.stats?.ammo;
+	if (action !== 'use' || !ammo) return false;          // 非 use 或该件不需弹药 ⇒ 不短
+	const need = ammo.perShot ?? 1;
+	const have = RPG.heldTotal(actor, ammo.id);           // null（无背包/未声明）⇒ 判短
+	return have == null || have < need;
+};
+
 /** 是否持有某道具 */
 RPG.has = (id) => inv().some((s) => s.id === id);
 

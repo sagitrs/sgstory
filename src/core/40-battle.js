@@ -61,24 +61,44 @@ RPG.BattleTurn = class BattleTurn extends RPG.Event {
 		this.defender = defender;
 	}
 
-	/** 接口实现（继承自 Event；0 个参数）。结果通过 perform 打印，不返回值。 */
+	/** 接口实现（继承自 Event；0 个参数）。**返回本次攻击的推进结果**（#1773）。
+	 *
+	 *  `#1773` 裁定（操作者 2026-10-01，案 1「拒绝不耗回合」）：`act` 被拒 ⇒ 本回合**被消耗但不推进**——
+	 *  即：不攻击、不耗 `RPG.rng`、**不发 `battle:turn`**；而回合边界（`turnStart`/`turnEnd`）仍由调用方
+	 *  **成对**发（防条件衰减回退，与闸门 `cancel` 分支同形）。⇒ 故返回值即「推进标记」。 */
 	execute() {
-		this.#attack(this.attacker, this.defender);
-		RPG.events.emit('battle:turn', {
-			attacker: this.attacker,
-			defender: this.defender,
-		});
+		const r = this.#attack(this.attacker, this.defender);
+		if (r.status === 'applied') {
+			RPG.events.emit('battle:turn', {
+				attacker: this.attacker,
+				defender: this.defender,
+			});
+		}
+		return r;
 	}
 
-	/** 私有函数：执行一次攻击（#前缀，外部不可访问） */
-	#attack(attacker, defender) {
+	/** 私有函数：执行一次攻击（#前缀，外部不可访问）。
+	 *
+	 *  **返回推进结果**（#1773）：`{ status, reason? }`；`status === 'applied'` 才算本回合**有效推进**。
+	 *  · **无武器**（只能干瞪眼）⇒ `rejected/no-weapon` —— ★与弹药不足**同规**（#1773 前它亦无条件推进，
+	 *    属**零覆盖缺口**；操作者裁定「无武器分支同规」）；
+	 *  · `RPG.act` 的返回**原样透传**（`rejected/no-ammo`／`rejected/action-refused` 等 ⇒ 不推进）。 */
+	#attack(attacker, getDefender) {
 		this.perform(`现在是${attacker.name}的回合。`);
 		const weapon = attacker.contains(['weapon', 'equipped']);
 		if (weapon == null) {
 			this.perform(`${attacker.name}没有装备任何武器，只能干瞪眼。`);
-			return;
+			return { status: 'rejected', reason: 'no-weapon' };
 		}
-		setup.RPG.act(attacker, weapon.id, defender); // 统一入口（#1752）：弹药/充能副作用不再绕过
+		/* ★`#1773`：**选靶延迟到此处**（`getDefender` 是 thunk），且**先做弹药只读预判** ——
+		 *   因为选靶 `pick()` 会耗一个 `RPG.rng` 读数；若先选靶再被拒，「拒绝 ⇒ 不耗 rng」不成立。
+		 *   预判与 `act` 闸门同口径（`RPG.ammoShort` 走 `heldTotal`，其 reduce 形与 `take` 逐字相同）。 */
+		if (setup.RPG.ammoShort(attacker, weapon)) {
+			this.perform(`${attacker.name}的「${weapon.name ?? weapon.id}」没有弹药 —— 这一手打不出去。`);
+			return { status: 'rejected', reason: 'no-ammo', item: weapon };
+		}
+		const defender = typeof getDefender === 'function' ? getDefender() : getDefender;
+		return setup.RPG.act(attacker, weapon.id, defender); // 统一入口（#1752）：弹药/充能副作用不再绕过
 	}
 };
 
@@ -218,6 +238,25 @@ RPG.Battle = class Battle extends RPG.Event {
 		this.players = players;
 		this.enemies = enemies;
 		this.interactive = interactive === true;
+		/* ★`#1773` 死锁护栏：**连续**「本次无推进」的次数（不分行动者 —— 领队裁「全局」）。
+		 *   每场由 `execute()` 开头清零（✗ 跨场串味）。达 `REJECT_LIMIT` ⇒ 记日志并清零。 */
+		this.rejectStreak = 0;
+	}
+
+	/** 连续拒绝上限（`#1773` 护栏 N=3）：达此数 ⇒ 强制跳过并**记日志**（✗ 静默）。 */
+	static get REJECT_LIMIT() { return 3; }
+
+	/** `#1773` 护栏：登记一次「本次无推进」；成功推进 ⇒ 计数归零。
+	 *  ⚠ 在「拒绝已不推进」的新语义下，本护栏的**实际效果是可见性**（`perform` 日志）：
+	 *    外层的 `for (round …)` 照走 ⇒ 不会真死锁（全员拒绝 ⇒ 跑到 `this.rounds` 后以「僵持」收场）。
+	 *    它的价值在**让「有人一直在被拒」这件事可见**（✗ 静默地空转整场）。 */
+	#noteReject(attacker, r) {
+		if (r?.status === 'applied') { this.rejectStreak = 0; return; }
+		this.rejectStreak += 1;
+		if (this.rejectStreak >= RPG.Battle.REJECT_LIMIT) {
+			this.perform(`★连续 ${this.rejectStreak} 次无人能行动 ⇒ ${attacker.name} 本回合强制跳过（#1773 护栏）。`);
+			this.rejectStreak = 0;
+		}
 	}
 
 	/** 出局判定钩子：默认 HP 归零出局；wfrp 等规则包可覆写为昏迷/崩溃等 */
@@ -226,6 +265,7 @@ RPG.Battle = class Battle extends RPG.Event {
 	}
 
 	async execute() {
+		this.rejectStreak = 0; // ★`#1773`：护栏计数**每场清零**（✗ 跨场串味）
 		const alive = (group) => group.filter((c) => !this.isOut(c));
 		/** 等概率随机选取一个存活目标（随机取值一律经 `RPG.rng`，见 §决策五 契约） */
 		const pick = (group) => group[RPG.rng.index(group.length)];
@@ -268,7 +308,12 @@ RPG.Battle = class Battle extends RPG.Event {
 					// F2：自动通路的收尾同样包 try/finally（与交互通路的 finally **对称**）——
 					// 武器 used() 等结算抛错时仍发 turnEnd，回合边界不因异常而漏（抛错本身照常传播）
 					try {
-						new RPG.BattleTurn(attacker, pick(foes)).execute();
+						/* ★`#1773`（案 1「拒绝不耗回合」）：选靶传 **thunk** —— 只有真打得出去时才取靶
+						 *  （否则 `pick()` 的 rng 读数会白耗）。返回值 `status` 决定本回合是否**推进**：
+						 *   `applied` ⇒ 已发 `battle:turn`、已耗 rng；`rejected` ⇒ 三者皆无（不攻击/不耗 rng/
+						 *   不发 `battle:turn`），但**回合边界照走**（`start`/`end` 成对，防条件衰减回退）。 */
+						const r = new RPG.BattleTurn(attacker, () => pick(foes)).execute();
+						this.#noteReject(attacker, r);
 					} finally {
 						RPG.turnBoundary.end({ actor: attacker, battle: this });
 					}
@@ -394,7 +439,8 @@ RPG.Battle = class Battle extends RPG.Event {
 			return;
 		}
 		if (dispatch.type === 'equip' || dispatch.type === 'unequip') {
-			setup.RPG.act(attacker, dispatch.item.id, attacker, dispatch.type); // 统一入口（#1752）
+			const r = setup.RPG.act(attacker, dispatch.item.id, attacker, dispatch.type); // 统一入口（#1752）
+			this.#noteReject(attacker, r);
 			return;
 		}
 
@@ -404,6 +450,14 @@ RPG.Battle = class Battle extends RPG.Event {
 		const everyone = [...this.players, ...this.enemies].filter((c) => !this.isOut(c));
 		const target = everyone.find((c) => c.name === targetName);
 
-		setup.RPG.act(attacker, dispatch.item.id, target); // 统一入口（#1752）
+		/* ★`#1773` 判据 1（交互战）：`rejected` ⇒ 出**可读拒绝文案**（✗ 静默丢弃返回值 ——
+		 *   那正是 `#1768` 审查提的 MINOR 本体：三处调用点连读数都没有）。
+		 *   「本回合被消耗但不推进」的语义与自动通路一致：`battle:turn` 交互面本就不发，
+		 *   而回合边界（`start`/`end`）由 `#playerAction` 的 `finally` **成对照发**（防条件衰减回退）。 */
+		const r = setup.RPG.act(attacker, dispatch.item.id, target); // 统一入口（#1752）
+		if (r?.status === 'rejected') {
+			this.perform(`${attacker.name}这一手没能出手${r.reason === 'no-ammo' ? '（没有弹药）' : r.reason === 'no-such-item' ? '（道具不在身上）' : r.reason === 'action-refused' ? '（动作自己拒绝了）' : ''} —— 本回合就此过去。`);
+		}
+		this.#noteReject(attacker, r);
 	}
 };

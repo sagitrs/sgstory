@@ -75,6 +75,30 @@ export const flattenCategories = (cats = CONSUMER_CATEGORIES) => {
 
 const CONSUMERS = flattenCategories();
 
+/**
+ * ★**静态认不出的形**（`#1819` RC 裁：照姊妹门 `#1810` 的 `KNOWN_BLIND_SPOTS` **同判据一致适用**）——
+ *   本门**每次打印**，使边界**可见**（✗ 静默不覆盖）。
+ *   ★为何用「明账」而非「尽力正则」：这些形**需要类型/数据流分析**才能认出，
+ *     正则硬做只会造**假正**（把变量名当骰面）—— 与 `#1810` 同判据。
+ *   ★规范层 vs 描述层（本席自纠）：`DEFINITIONS`／各类白名单是**判据**（须准确、须被差集核）；
+ *     本表是**描述**（述「我们不覆盖什么」）⇒ 两者**不可混**：本席首版正是在同一文件里
+ *     对同一件事**两处陈述取了弱的**（注释写「消费 0」而表里已有更准的信息）。
+ */
+export const KNOWN_BLIND_SPOTS = [
+	{ shape: "裸 `RPG.roll('1d20')`（第四形）",
+		example: "setup.DND5E.d20 = () => setup.RPG.roll('1d20');",
+		why: "骰面是**字符串实参** ⇒ 认它须做**跨语句常量传播**（`const S = '1d20'; roll(S)` 同理）；"
+			+ "正则硬做会把变量名当骰面 ⇒ 假正。本仓现 **5 处**（各包 00-init 定义点自用），"
+			+ "但**它们都服务于家族 A/C**（`d20`／`d20adv`／`d20dis`）⇒ 其消费已由 A/C 覆盖。" },
+	{ shape: '间接骰面（变量/常量）', example: "const DIE = '1d20'; RPG.roll(DIE);",
+		why: '同上：须常量传播' },
+	{ shape: "别名包装", example: "const R = RPG.roll; R('1d20');",
+		why: '别名可任意重命名，静态不可追（同 #1810）' },
+];
+
+/** 家族 C 定义点白名单（2 处，同一文件：d20adv ＋ d20dis） */
+export const ADV_DEFS = { 'src/dnd/dnd-5e/00-init.js': 2 };
+
 /** 家族 B 白名单 —— 按语义类别（与家族 A 同规）。★新增 `checkRoll` 落点须在此登记。 */
 export const CHECKROLL_CATEGORIES = {
 	'豁免': {
@@ -88,6 +112,16 @@ export const CHECKROLL_CATEGORIES = {
 };
 const CHECKROLLS = flattenCategories(CHECKROLL_CATEGORIES);
 
+/** 家族 C 白名单（`#1819` RC 裁甲）—— **纳入两向差集**，✗ 仅打印。
+ *  ★理由（RC 原文）：C 是**新落点不会受阻**的那一支，且正是本门自述动因
+ *    （「优势/劣势统一」）的**工作面** ⇒ 只打印＝新落点无人拦（本席首版即栽：注释写 0、实际 2，无人抓）。 */
+export const ADV_CATEGORIES = {
+	'优势/劣势骰': {
+		'src/dnd/dnd-5e/core/combat.js': 2,      // :185 advantage ／ :186 disadvantage
+	},
+};
+const ADVS = flattenCategories(ADV_CATEGORIES);
+
 /* ★★**三个家族**（本门首版只覆盖 A ⇒ 又是一次「枚举 vs 实际集合」的自犯）：
  *   **A 包级 `X.d20()`** —— 各包 00-init 定义的基础骰；
  *   **B core 级 `RPG.checkRoll(...)`** —— `#1809`（E1a）新增的**判定式收敛入口**，其 `die` 缺省 `'1d20'`
@@ -95,8 +129,15 @@ const CHECKROLLS = flattenCategories(CHECKROLL_CATEGORIES);
  *     `#1809` 已把 A 的 **4 处**（conditions／saves／traumas／chest）**迁到 B** ——
  *     即**家族 A 的白名单当场减少**（本门的「向 B」方向恰好如实报了出来，见提交时的输出留痕）。
  *     ⇒ 若不补 B，本门将随收敛进程**逐渐失明**（越收敛越看不见）—— 这与病灶本身同型。
- *   **C 优劣骰 `d20adv`／`d20dis`** —— 5E 独有的两个 d20 掷骰入口（定义在 00-init）。
- *     本门**单列其定义数与消费数**（本仓消费 **0**），使「有这个家族」**可见**（✗ 静默不列）。 */
+ *   **C 优劣骰 `d20adv`／`d20dis`** —— 5E 独有的两个 d20 掷骰入口（定义在 `00-init`），
+ *     消费在 `dnd-5e/core/combat.js` 的 advantage／disadvantage 分支。
+ *     ★**本行不写数字**：门每次运行会**打印现值**（本席首版在此写死「消费 0」而实为 2 ⇒
+ *       从首提交即错、且因当时**只打印不判**而**无人能抓**）。⇒ 写死数字正是陈旧陈述的成因，
+ *       故此处**只述形态、不述额度**（`#1819` RC 裁：删数字非改数字）。
+ *   **D 第四形 `RPG.roll('1d20')`** —— 各包 `00-init` **定义点自用**（`d20` 各 1 处；5E 的
+ *     `d20adv`／`d20dis` 各 2 处）⇒ 这是**最底层**的掷骰形，绕过 `X.d20()` 与 `checkRoll()` 两条链。
+ *     ⚠ 本门**不判它**（理由见 `KNOWN_BLIND_SPOTS`）。
+ */
 const CALL_RE = /\b[Dd](?:ND5E|ND3|20M)\s*\.\s*d20\s*(?:\?\.)?\s*\(/g;
 /** 家族 B：core 级判定入口（`RPG.checkRoll(`／`setup.RPG.checkRoll(`） */
 const CHECKROLL_RE = /(?<![.\w$])(?:setup\s*\.\s*)?RPG\s*\.\s*checkRoll\s*\(/g;
@@ -135,7 +176,7 @@ export const scan = (srcDir) => {
 };
 
 /** 判定（纯函数，便于自检刀直接调用） */
-export const judge = (got, defs = DEFINITIONS, cons = CONSUMERS, exists = (f) => fs.existsSync(path.join(ROOT, f)), crs = CHECKROLLS) => {
+export const judge = (got, defs = DEFINITIONS, cons = CONSUMERS, exists = (f) => fs.existsSync(path.join(ROOT, f)), crs = CHECKROLLS, advs = ADVS, advDefsDef = ADV_DEFS) => {
 	const problems = [], notes = [];
 	/* ★**两向差集都报**（领队 2026-10-01 裁③，「枚举 vs 实际集合」的对称面）：
 	 *   向 A「实况有、清单无」= **新落点** ⇒ 红；
@@ -154,6 +195,8 @@ export const judge = (got, defs = DEFINITIONS, cons = CONSUMERS, exists = (f) =>
 	diff('定义点（家族 A）', defs, got.defs);
 	diff('消费点（家族 A：包级 X.d20()）', cons, got.calls);
 	diff('消费点（家族 B：core 级 RPG.checkRoll）', crs, got.checkrolls ?? {});
+	diff('消费点（家族 C：优劣骰 d20adv／d20dis）', advs, got.advCalls ?? {});
+	diff('定义点（家族 C）', advDefsDef, got.advDefs ?? {});
 	const totalA = Object.values(got.calls).reduce((a, b) => a + b, 0);
 	const totalB = Object.values(got.checkrolls ?? {}).reduce((a, b) => a + b, 0);
 	return {
@@ -228,6 +271,9 @@ if (problems.length) {
 	for (const p of problems) console.log(`    - ${p}`);
 	process.exit(1);
 }
+/* ★已知盲区**明账**（照姊妹门 #1810 同判据）：每次打印，使边界**可见**。 */
+console.log(`  ⚠ 静态**认不出**的形（已知边界，明账 ${KNOWN_BLIND_SPOTS.length} 项，✗ 表示覆盖）：`);
+for (const b of KNOWN_BLIND_SPOTS) console.log(`      · ${b.shape}：${b.example} —— ${b.why}`);
 console.log('  ✓ 门绿（d20 消费面与具名白名单一致）');
 }
 

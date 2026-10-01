@@ -233,34 +233,51 @@ const terminus = map.locations.get('L20-gate').availableActions.map((a) => Strin
 ok(terminus.some((x) => x.includes('看看这一局')), '★L20-gate 没有收尾读数入口（试玩终点没搬过来）');
 console.log(`  L10-gate ⇒ L11 ⇒ L12 通路 ✓｜终点已搬到 L20-gate（deepest=${State.variables.babelRun.deepest}）`);
 
-/* ---------- ⑧ 整备闭环（L10 营火 ⇒ DND3.treatTrauma）----------
- * ★本节的由来（`#1785` 的 D 席 RC，dev-9）：本笔是**装配票**，验收对象就是**接线本身** ⇒
- *   「整备点接了 treatTrauma」必须有断言 —— 否则把 `treatTrauma` 换成常量，本脚本**照样全绿**
- *   （而那个洞正是 `#1780` §八.2 记的「hub 解除闭环」）。故本节点的是**双向**：
- *   掷高 ⇒ 治好；掷低 ⇒ **治不好**（证明 DC 比对是活的，✗ 无条件移除）。 */
-head('⑧ 整备闭环（L10 营火 ⇒ treatTrauma）');
-map.moveTo('L10-camp');
-const camp = map.locations.get('L10-camp');
-const rest = camp?.availableActions.find((a) => String(a.text).includes('歇一歇'));
-ok(!!rest, 'L10-camp 没有「歇一歇（整备）」动作 —— 接线缺失');
-if (rest) {
-	D.Player.stats.heal_bonus = 20;          // 加值给足 ⇒ 掷 20 必过（DC 15）
-	D.Player.gain('bleeding');
-	ok(D.Player.contains('bleeding'), '前置：创伤已施加');
-	R.rng.set(() => 0.99);                   // d20 = 20 ⇒ total = 20 + 20 ≥ 15 ⇒ 必成
-	rest.action();
-	R.rng.reset();
-	ok(!D.Player.contains('bleeding'), '★整备**没治好**创伤 ⇒ 接线未生效（把 treatTrauma 换成常量也能过 = 本节点要堵的洞）');
+/* ---------- ⑧ 整备闭环（**不变式：遍历全部 hub 层**）----------
+ * ★本节的两次演化（两席各自的 RC，形态同族）：
+ *   ① `#1785`（dev-9）：本笔是装配票 ⇒ 「整备点接了 `treatTrauma`」必须有断言 —— 否则换成常量照样全绿
+ *      （那正是 `#1780` §八.2 记的 hub 解除闭环缺口）。当时只点了**一段**的 `L10-camp`。
+ *   ② `#1792`（dev-9 BLOCKING ＋ T 席独立复现）：本笔**新增**了二段整备点，而本节仍只断一段
+ *      ⇒ A′ 刀（把 `span2-hub.js` 的 `treatTrauma` 换常量）**exit=0**。
+ * ⇒ 故本节不再「手工补一支」，改成**根因形**（dev-10 建议）：**遍历层表里所有 `hub` 层**，
+ *   对每个 hub 的每个整备入口跑**同一段双向检查**（高掷治愈／低掷保留）—— 将来加 hub **自动被覆盖**。
+ *   （与「遍历层组写不变式」同思路：把「哪些 hub」交给**层表**回答，✗ 由人记着补。） */
+head('⑧ 整备闭环（不变式：遍历全部 hub 层）');
+{
+	/* hub 层的权威来源是**层表**（`#1784` 的 `layersOfType`）；该面缺席时退化为「本图里所有带歇脚动作的地点」。 */
+	const hubLayers = typeof R.layersOfType === 'function'
+		? R.layersOfType('hub').map((x) => x.id)
+		: [...new Set([...map.locations.values()].map((l) => R.layerOfLocation(l.id)?.id).filter(Boolean))];
+	const isRest = (a) => String(a.text).includes('歇一歇');
+	let checked = 0;
+	for (const layer of hubLayers) {
+		const locs = [...map.locations.values()].filter((l) => (R.layerOfLocation(l.id)?.id ?? l.id) === layer);
+		if (locs.length === 0) continue;
+		const rests = locs.flatMap((l) => l.availableActions.filter(isRest).map((a) => ({ loc: l, act: a })));
+		if (rests.length === 0) continue;          // 无整备入口的 hub（未来形态）不算错，跳过即可
+		for (const { loc, act } of rests) {
+			const id = 'bleeding';                  // 每次迭代自清理 ⇒ 各 hub 之间零干扰
+			D.Player.stats.heal_bonus = 20;
+			D.Player.gain(id);
+			ok(D.Player.contains(id), `前置：${loc.id} 的检查需要一条可治创伤`);
+			R.rng.set(() => 0.99);                  // d20 = 20 ⇒ 必成
+			act.action();
+			R.rng.reset();
+			ok(!D.Player.contains(id), `★${loc.id} 整备**没治好**创伤 ⇒ 该 hub 接线未生效（换成常量也能过 = 本节点要堵的洞）`);
 
-	D.Player.gain('bleeding');
-	D.Player.stats.heal_bonus = -100;        // 加值压到不可能过
-	R.rng.set(() => 0.01);                   // d20 = 1 ⇒ total < 0 < DC ⇒ 必败
-	rest.action();
-	R.rng.reset();
-	ok(D.Player.contains('bleeding'), '★低掷点却治好了 ⇒ DC 比对失效（判据恒真的恒等替换）');
-	D.Player.stats.heal_bonus = 0;
-	D.Player.lose('bleeding');
-	console.log(`  高掷 ⇒ 治愈 ✓｜低掷 ⇒ 保留 ✓（DC 比对是活的）`);
+			D.Player.gain(id);
+			D.Player.stats.heal_bonus = -100;
+			R.rng.set(() => 0.01);                  // d20 = 1 ⇒ 必败
+			act.action();
+			R.rng.reset();
+			ok(D.Player.contains(id), `★${loc.id} 低掷点却治好了 ⇒ DC 比对失效（判据恒真的恒等替换）`);
+			D.Player.stats.heal_bonus = 0;
+			D.Player.lose(id);
+			checked += 1;
+		}
+	}
+	ok(checked >= 2, `整备入口应至少覆盖 2 处（一段 L10 ＋ 二段 L20），实为 ${checked} ⇒ 不变式没生效`);
+	console.log(`  hub 层 ${hubLayers.join('、')}｜整备入口 ${checked} 处，逐处 高掷治愈／低掷保留 ✓`);
 }
 
 /* ---------- ⑨ 二段遭遇（`span2` 真表；`#1791` 票面验收第 1 项）----------
@@ -365,37 +382,6 @@ head('⑫ 军械堆（盾）／马厩（骑乘）');
 	if (takeMount) takeMount.action();
 	ok(R.has('mule'), '★马厩没有发出坐骑（骑乘面观察不到）');
 	console.log(`  小圆盾 ✓（AC 前缀 ${D.Player.stats.ac}）｜骡子 ✓`);
-}
-
-/* ---------- ⑬ 二段整备闭环（L20 炉边 ⇒ treatTrauma；dev-9 的 BLOCKING）----------
- * ★本节的由来（`#1792` 的 D 席 RC，dev-9）：本笔在 `span2-hub.js` **新增**了二段整备点，而 §⑧ 断的是
- *   **一段**的 `L10-camp` ⇒ 把 `span2-hub.js` 的 `treatTrauma` 换成常量（A′ 刀）时 `exit=0`（他实测）。
- *   ⇒ 与 §⑧ **同形**再点一处：走 **L20 炉边的真实整备动作**，双向（高掷治愈／低掷保留）。
- *   「接线有了、守卫没有」是本笔与 #1785 同族的形态 ⇒ 补对位置后**别把缺口原地留着**。 */
-head('⑬ 二段整备闭环（L20 炉边 ⇒ treatTrauma）');
-{
-	map.moveTo('L20-forge');
-	const rest2 = map.locations.get('L20-forge').availableActions.find((a) => String(a.text).includes('歇一歇'));
-	ok(!!rest2, 'L20-forge 没有「歇一歇（整备）」动作 —— 二段接线缺失');
-	if (rest2) {
-		D.Player.stats.heal_bonus = 20;
-		D.Player.gain('laceration');            // DC 15 的一条（与 §⑧ 用的 bleeding 错开，免相互干扰）
-		ok(D.Player.contains('laceration'), '前置：创伤已施加');
-		R.rng.set(() => 0.99);                  // d20 = 20 ⇒ 必成
-		rest2.action();
-		R.rng.reset();
-		ok(!D.Player.contains('laceration'), '★L20 整备**没治好**创伤 ⇒ 二段接线未生效（A′ 刀下必红）');
-
-		D.Player.gain('laceration');
-		D.Player.stats.heal_bonus = -100;
-		R.rng.set(() => 0.01);                  // d20 = 1 ⇒ 必败
-		rest2.action();
-		R.rng.reset();
-		ok(D.Player.contains('laceration'), '★L20 低掷点却治好了 ⇒ DC 比对失效（判据恒真的恒等替换）');
-		D.Player.stats.heal_bonus = 0;
-		D.Player.lose('laceration');
-		console.log('  L20 高掷 ⇒ 治愈 ✓｜低掷 ⇒ 保留 ✓（二段 DC 比对是活的）');
-	}
 }
 
 /* ---------- 汇总 ---------- */

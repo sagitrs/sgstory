@@ -1,0 +1,24 @@
+/* DND3 道具 —— 锻造图（二段 11–19 层的**投放资源**；**house rule（非 SRD）**）
+ *
+ * ⚠ 数值**无源**（**house rule（非 SRD）**）：同 `iron-ingot.js` —— 无「锻造图/建造图」条目。依 README §三.5
+ *   显式标注 **house rule（非 SRD）**，不得写成「对齐 SRD」。
+ * 形制依据：`layers.md:11` 的段内投放明列「**锻造图**」⇒ 它是本段的**资源类**投放物（同铁锭），
+ *   按 #1729 裁定①（资源即 Item 甲案）落为**不可装备、可叠加**的道具。
+ * ⚠ **与 craft 原语的关系**（`#1730` 裁定② 的甲案：craft ＝「带输入的 useItem」）：本件**只是那张图纸**，
+ *   不含配方实现 —— 配方形态（`recipe: { from: [...], to: ... }`）归 craft 实现票；本笔只落注册 id，
+ *   使第 20 层 hub 的建设入口有东西可消耗（消费端归 `#1747`）。⇒ **无消费点即不声明配方**（防死键，同 #1736 判据 1）。
+ */
+
+DND3.IronMessage = RPG.defItem({
+	id: 'iron-message',
+	name: '锻造图',
+	desc: '一张画满尺寸与火候的牛皮。看得懂的人，能让铁听话。',
+	stats: { value: 5 },   // house rule（非 SRD）：单价 5 gp（贵于铁锭，因它是「技术」而非「材料」）
+	charges: null,
+	stackable: true,
+	slot: null,            // 资源不可装备
+
+	used(that, from) {
+		this.perform('锻造图是给工坊看的——它自己是张纸。');
+	},
+});

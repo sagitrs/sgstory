@@ -4,23 +4,82 @@
     {
       "repo": "DND5E.Goblin",
       "name": "哥布林",
-      "source": { "file": "monsters-A-Z.md", "entry": "Goblin Minion" },
+      "source": {
+        "file": "monsters-A-Z.md",
+        "entry": "Goblin Minion"
+      },
       "why": "SRD 5.2.1 无单独的「Goblin」条目；取 Goblin Minion（AC 12／HP 7）。源里另有 Goblin Warrior（AC 15／HP 10）与 Goblin Boss（AC 17／HP 21），均非本条目",
       "claim": "src/dnd/dnd-5e/monsters/goblin.js:1"
     },
     {
       "repo": "DND5E.GoblinBoss",
       "name": "哥布林首领",
-      "source": { "file": "monsters-A-Z.md", "entry": "Goblin Boss" },
+      "source": {
+        "file": "monsters-A-Z.md",
+        "entry": "Goblin Boss"
+      },
       "why": "同名对应，列此以显式声明映射面完整（A/C 两组成员集合可枚举）",
       "claim": "src/dnd/dnd-5e/monsters/goblin-boss.js:1"
-    }
-,
+    },
     {
       "repo": "DND3.MonitorLizard",
       "name": "巨蜥",
-      "source": { "file": "Monsters/Monsters - Animals.md", "entry": "Lizard, Monitor" },
+      "source": {
+        "file": "Monsters/Monsters - Animals.md",
+        "entry": "Lizard, Monitor"
+      },
       "why": "源条目名为「Lizard, Monitor」（置后式），本仓注册名为 `monitor-lizard`（键名不宜含逗号）；数值面已由 A 组对源核（Str 17／Dex 15／Con 17／Int 1／Wis 12／Cha 2，HP 22）。C 组校验要求「所引源行确为该条目名」——本 3E 源文件的条目为 **h2**（`## Lizard, Monitor`），故门侧 C 组前缀须容纳 `#{2,6}`（本笔同 #1766 落，见 PR 说明）",
       "claim": "src/dnd/dnd3/monsters/monitor-lizard.js:3"
-    }  ]
+    },
+    {
+      "repo": "DND3.FireBeetle",
+      "name": "火甲虫",
+      "source": {
+        "file": "Monsters/Monsters - Vermin.md",
+        "entry": "Giant Fire Beetle"
+      },
+      "why": "源条目名为「Giant Fire Beetle」，本仓注册名 `fire-beetle`（略去 Giant 以贴段内基调）；数值面已由 A 组对源核（Str 10／Dex 11／Con 11／Wis 10／Cha 7，HP 4／AC 16）。引用页须容纳段落标题层级 `#{2,6}`（本 3E 源条目为 h2）",
+      "claim": "src/dnd/dnd3/monsters/fire-beetle.js:3"
+    },
+    {
+      "repo": "DND3.BombardierBeetle",
+      "name": "爆甲虫",
+      "source": {
+        "file": "Monsters/Monsters - Vermin.md",
+        "entry": "Giant Bombardier Beetle"
+      },
+      "why": "源条目名「Giant Bombardier Beetle」→ 本仓 `bombardier-beetle`；数值已由 A 组对源核（HP 13／AC 16／CR 2）",
+      "claim": "src/dnd/dnd3/monsters/bombardier-beetle.js:3"
+    },
+    {
+      "repo": "DND3.GiantBee",
+      "name": "巨蜂",
+      "source": {
+        "file": "Monsters/Monsters - Vermin.md",
+        "entry": "Giant Bee"
+      },
+      "why": "源条目名「Giant Bee」→ 本仓 `giant-bee`（保留 Giant，因「蜂」字面上无「巨」）；数值已由 A 组对源核（HP 13／AC 14／CR 1）",
+      "claim": "src/dnd/dnd3/monsters/giant-bee.js:3"
+    },
+    {
+      "repo": "DND3.GiantStagBeetle",
+      "name": "巨锹甲",
+      "source": {
+        "file": "Monsters/Monsters - Vermin.md",
+        "entry": "Giant Stag Beetle"
+      },
+      "why": "源条目名「Giant Stag Beetle」→ 本仓 `giant-stag-beetle`；数值已由 A 组对源核（HP 52／AC 19／CR 4）",
+      "claim": "src/dnd/dnd3/monsters/giant-stag-beetle.js:3"
+    },
+    {
+      "repo": "DND3.BrownBear",
+      "name": "棕熊",
+      "source": {
+        "file": "Monsters/Monsters - Animals.md",
+        "entry": "Bear, Brown"
+      },
+      "why": "源条目名「Bear, Brown」（置后式）→ 本仓 `brown-bear`；数值已由 A 组对源核（Str 27／Dex 13／Con 19／Int 2／Wis 12／Cha 6，HP 51／AC 15／CR 4）",
+      "claim": "src/dnd/dnd3/monsters/brown-bear.js:3"
+    }
+  ]
 }

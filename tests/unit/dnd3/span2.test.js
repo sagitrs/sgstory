@@ -141,6 +141,31 @@
 
 	/* ---------- 遭遇表（契约同 #1748；L20 无条目）---------- */
 
+	/* ★ 配对不变式（dev-10 于 #1788 报 MAJOR 后的守卫）：**每个已注册的层组，其遭遇表也须已注册**。
+	 *   本笔首版只 `setup.DND3.ENCOUNTER_SPAN2 = {…}`（**裸赋值、未注册**）⇒ `layerOf('L11').group==='span2'`
+	 *   但 `encounterTables['span2']` 不存在 ⇒ `encounterTableOf` 回 `null` ⇒ `rollEncounter` **静默返回 `[]`**
+	 *   （✗ 不抛错）——「看似有遭遇表、永抽不出」的**假支持**，比抛错更难察觉。
+	 *   ⇒ 此处**遍历 `RPG.layerMeta` 的每个组**（✗ 不硬编码 span1/span2），未来新增段若忘了注册即红。 */
+	test('dnd3：配对不变式——每个已注册的层组都有同 id 的遭遇表（防「只定义未注册」重演）', () => {
+		const groups = Object.keys(R().layerMeta ?? {});
+		assert.ok(groups.length > 0, '层组非空（否则本判据空转）');
+		for (const g of groups) {
+			assert.ok(R().encounterTables?.[g],
+				`层组「${g}」须有同 id 的遭遇表（registerEncounterTable('${g}', …)）—— ✗ 只定义不注册`);
+		}
+	});
+
+	test('dnd3：入梯度的层**真能抽出遭遇**（✗ 非静默空；L11–L19 逐层实证）', () => {
+		for (let n = 11; n <= 19; n++) {
+			const lid = `L${n}`;
+			const got = R().rollEncounter(lid);
+			assert.ok(got.length > 0, `${lid} 应能抽出遭遇（✗ 静默返回空数组）`);
+			assert.ok(got.every((e) => e.ref), `${lid} 抽出的条目带 ref`);
+		}
+		const hub = R().rollEncounter('L20');
+		assert.eq(hub.length, 0, 'L20 是 hub ⇒ 结构性不抽（这一条是**有意**的空，与上一条的「假空」不同）');
+	});
+
 	test('dnd3：二段遭遇表契约——引注册 id、带权重、无内嵌数值；L20 无条目', () => {
 		const table = D().ENCOUNTER_SPAN2;
 		for (let i = 11; i <= 19; i++) {

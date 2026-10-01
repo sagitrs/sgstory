@@ -56,13 +56,7 @@ export const CONSUMER_CATEGORIES = {
 		'src/dnd/dnd3/core/combat.js': 1,
 		'src/dnd/d20m/core/combat.js': 1,
 	},
-	'豁免': {
-		'src/dnd/dnd-5e/core/conditions.js': 1,     // 回合末豁免（saveEnd）
-		'src/dnd/dnd3/core/saves.js': 1,
-		'src/dnd/dnd3/core/traumas.js': 1,
-	},
 	'陷阱/开箱/投掷物': {
-		'src/dnd/dnd3/core/chest.js': 1,
 		'src/dnd/dnd3/items/trap-shock.js': 1,
 		'src/dnd/dnd3/items/trap-needle.js': 1,
 		'src/dnd/dnd3/items/trap-fire.js': 1,
@@ -81,7 +75,34 @@ export const flattenCategories = (cats = CONSUMER_CATEGORIES) => {
 
 const CONSUMERS = flattenCategories();
 
+/** 家族 B 白名单 —— 按语义类别（与家族 A 同规）。★新增 `checkRoll` 落点须在此登记。 */
+export const CHECKROLL_CATEGORIES = {
+	'豁免': {
+		'src/dnd/dnd-5e/core/conditions.js': 1,
+		'src/dnd/dnd3/core/saves.js': 1,
+		'src/dnd/dnd3/core/traumas.js': 1,
+	},
+	'陷阱/开箱/投掷物': {
+		'src/dnd/dnd3/core/chest.js': 1,
+	},
+};
+const CHECKROLLS = flattenCategories(CHECKROLL_CATEGORIES);
+
+/* ★★**三个家族**（本门首版只覆盖 A ⇒ 又是一次「枚举 vs 实际集合」的自犯）：
+ *   **A 包级 `X.d20()`** —— 各包 00-init 定义的基础骰；
+ *   **B core 级 `RPG.checkRoll(...)`** —— `#1809`（E1a）新增的**判定式收敛入口**，其 `die` 缺省 `'1d20'`
+ *     ⇒ **它就是 d20 掷骰**，却**不含 `d20` 字样** ⇒ 首版正则**看不见**。本席实测：
+ *     `#1809` 已把 A 的 **4 处**（conditions／saves／traumas／chest）**迁到 B** ——
+ *     即**家族 A 的白名单当场减少**（本门的「向 B」方向恰好如实报了出来，见提交时的输出留痕）。
+ *     ⇒ 若不补 B，本门将随收敛进程**逐渐失明**（越收敛越看不见）—— 这与病灶本身同型。
+ *   **C 优劣骰 `d20adv`／`d20dis`** —— 5E 独有的两个 d20 掷骰入口（定义在 00-init）。
+ *     本门**单列其定义数与消费数**（本仓消费 **0**），使「有这个家族」**可见**（✗ 静默不列）。 */
 const CALL_RE = /\b[Dd](?:ND5E|ND3|20M)\s*\.\s*d20\s*(?:\?\.)?\s*\(/g;
+/** 家族 B：core 级判定入口（`RPG.checkRoll(`／`setup.RPG.checkRoll(`） */
+const CHECKROLL_RE = /(?<![.\w$])(?:setup\s*\.\s*)?RPG\s*\.\s*checkRoll\s*\(/g;
+/** 家族 C：优劣骰（定义与消费分开数） */
+const ADV_DEF_RE = /\bsetup\s*\.\s*[A-Za-z0-9_$]+\s*\.\s*d20(?:adv|dis)\s*=/g;
+const ADV_CALL_RE = /\b[A-Za-z0-9_$]+\s*\.\s*d20(?:adv|dis)\s*(?:\?\.)?\s*\(/g;
 const DEF_RE = /\bsetup\s*\.\s*(?:DND5E|DND3|D20M)\s*\.\s*d20\s*=/g;
 
 const walk = (dir, out = []) => {
@@ -95,20 +116,26 @@ const walk = (dir, out = []) => {
 
 /** 扫描（代码面）⇒ { calls: file→n, defs: file→n } */
 export const scan = (srcDir) => {
-	const calls = {}, defs = {};
+	const calls = {}, defs = {}, checkrolls = {}, advDefs = {}, advCalls = {};
 	for (const f of walk(srcDir).sort()) {
 		const rel = path.relative(ROOT, f).split(path.sep).join('/');
 		const code = stripCommentsAndStrings(fs.readFileSync(f, 'utf8'));
 		const c = code.match(new RegExp(CALL_RE.source, 'g'));
 		const d = code.match(new RegExp(DEF_RE.source, 'g'));
+		const cr = code.match(new RegExp(CHECKROLL_RE.source, 'g'));
+		const ad = code.match(new RegExp(ADV_DEF_RE.source, 'g'));
+		const ac = code.match(new RegExp(ADV_CALL_RE.source, 'g'));
 		if (c) calls[rel] = c.length;
 		if (d) defs[rel] = d.length;
+		if (cr) checkrolls[rel] = cr.length;
+		if (ad) advDefs[rel] = ad.length;
+		if (ac) advCalls[rel] = ac.length;
 	}
-	return { calls, defs };
+	return { calls, defs, checkrolls, advDefs, advCalls };
 };
 
 /** 判定（纯函数，便于自检刀直接调用） */
-export const judge = (got, defs = DEFINITIONS, cons = CONSUMERS, exists = (f) => fs.existsSync(path.join(ROOT, f))) => {
+export const judge = (got, defs = DEFINITIONS, cons = CONSUMERS, exists = (f) => fs.existsSync(path.join(ROOT, f)), crs = CHECKROLLS) => {
 	const problems = [], notes = [];
 	/* ★**两向差集都报**（领队 2026-10-01 裁③，「枚举 vs 实际集合」的对称面）：
 	 *   向 A「实况有、清单无」= **新落点** ⇒ 红；
@@ -124,9 +151,18 @@ export const judge = (got, defs = DEFINITIONS, cons = CONSUMERS, exists = (f) =>
 			if (!exists(f)) problems.push(`【向 B：白名单过期】含本仓不存在的文件 ${f}（应移除）`);
 		}
 	};
-	diff('定义点', defs, got.defs);
-	diff('消费点', cons, got.calls);
-	return { problems, notes, total: Object.values(got.calls).reduce((a, b) => a + b, 0), files: Object.keys(got.calls).length };
+	diff('定义点（家族 A）', defs, got.defs);
+	diff('消费点（家族 A：包级 X.d20()）', cons, got.calls);
+	diff('消费点（家族 B：core 级 RPG.checkRoll）', crs, got.checkrolls ?? {});
+	const totalA = Object.values(got.calls).reduce((a, b) => a + b, 0);
+	const totalB = Object.values(got.checkrolls ?? {}).reduce((a, b) => a + b, 0);
+	return {
+		problems, notes,
+		total: totalA + totalB, totalA, totalB,
+		files: new Set([...Object.keys(got.calls), ...Object.keys(got.checkrolls ?? {})]).size,
+		advDefs: Object.values(got.advDefs ?? {}).reduce((a, b) => a + b, 0),
+		advCalls: Object.values(got.advCalls ?? {}).reduce((a, b) => a + b, 0),
+	};
 };
 
 if (isMain && has('--selftest')) {
@@ -163,20 +199,26 @@ if (isMain && has('--selftest')) {
 	const gotA = judge({ calls: { 'src/a.js': 1, 'src/new.js': 1 }, defs: { 'src/d.js': 1 } }, D, C, alwaysExists);
 	const okA = gotA.problems.length === 1 && /向 A/.test(gotA.problems[0]); n += okA ? 1 : 0;
 	console.log(`  ${okA ? '✓' : '✗'} K8 向 A（新落点）⇒ 红且**具名**「向 A」— 实得 ${gotA.problems.length} 问题`);
+	/* 家族 B 刀：新增 checkRoll 落点 ⇒ 红（首版正则看不见它 ⇒ 本刀在原形上绿） */
+	const gotCR = judge({ calls: {}, defs: { 'src/d.js': 1 }, checkrolls: { 'src/rc.js': 1 } }, D, C, alwaysExists, {});
+	const okCR = gotCR.problems.some((x) => /家族 B/.test(x)); n += 1 ? (okCR ? 1 : 0) : 0;
+	console.log(`  ${okCR ? '✓' : '✗'} K10 家族 B（checkRoll）未登记 ⇒ 红 — 实得 ${gotCR.problems.length} 问题`);
 	const gotB = judge({ calls: {}, defs: { 'src/d.js': 1 } }, D, C, alwaysExists);
 	const okB = gotB.problems.length === 0 && gotB.notes.some((x) => /向 B/.test(x)); n += okB ? 1 : 0;
 	console.log(`  ${okB ? '✓' : '✗'} K9 向 B（白名单多报）⇒ **出声不红**（减少是好事）— notes=${gotB.notes.length} problems=${gotB.problems.length}`);
-	const total = knives.length + 4;
+	const total = knives.length + 5;
 	console.log(n === total ? `  ✓ ${n}/${total} 刀全部如期` : `  ✗ ${n}/${total} 刀如期`);
 	process.exit(n === total ? 0 : 1);
 }
 
 function main() {
 const got = scan(path.join(ROOT, 'src'));
-const { problems, notes, total, files } = judge(got);
+const { problems, notes, total, files, totalA, totalB, advDefs, advCalls } = judge(got);
 console.log('  d20 消费点差集门（#1804；枚举 vs 实际集合）');
 console.log(`  扫描面 src/**（代码面；剥法共用 host-touchpoints.mjs）`);
-console.log(`  定义点 ${Object.keys(got.defs).length} 处 ／ 消费点 ${total} 处 ／ 涉及 ${files} 个文件`);
+console.log(`  定义点 ${Object.keys(got.defs).length} 处 ／ 消费点 **A ${totalA} ＋ B ${totalB} ＝ ${total}** 处 ／ 涉及 ${files} 个文件`);
+console.log(`  家族 C（优劣骰 d20adv／d20dis）：定义 ${advDefs} 处 ／ 消费 ${advCalls} 处`
+	+ '（本门**单列**，使「有这个家族」可见，✗ 静默不列）');
 console.log(`  白名单：${Object.keys(CONSUMER_CATEGORIES).length} 个语义类别 —— `
 	+ Object.entries(CONSUMER_CATEGORIES).map(([c, fs]) => `${c}(${Object.keys(fs).length} 文件)`).join(' ｜ '));
 if (has('--verbose')) for (const [f, n] of Object.entries(got.calls).sort()) console.log(`    · ${f}：${n}`);

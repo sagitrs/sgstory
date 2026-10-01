@@ -224,6 +224,13 @@ let cmp5e = 0, cmp3e = 0, cmpD20M = 0;   // A 组比对按源格式分计（验�
 const noValueCites = [];    // 引用解析成功但抽不到可比值（静默 0 覆盖 ⇒ 须可见）
 const d20mResolved = [];    // S3-④：d20m 面解析成功的引用（tier-① 已核；值级显式降级 ⇒ 须打出声）
 const uncoveredCand = [];   // 未覆盖**候选**（按行收集，输出前按「文件+键」聚合，见下）
+/* ★`#1835` **源有值但本门未比对**（甲）：抽到了源值（`src` 非空）、**却一个键都没进比对**（`rv` 全 undefined）。
+ *   实证病灶（`bombardier-beetle.js`）：源 `Monsters - Vermin.md:123` 有 `(13 hp)`／`Armor Class 16`，
+ *   而该件的两处引用行（`:4` 出处注释／`:22` 「出处同上」）**既无声称、`repoVals` 也取不到**
+ *   ⇒ 该值**在整个门里从未与源比对**；**而读数行仍印「A 组未覆盖 0 项（源有值者皆已被声称并比对）」**
+ *   —— **该句在此件上不成立**（`hp: 13 → 20` 实测 rc=0）。
+ *   ⇒ 甲（本笔）：**逐件记账可见**（✗ 判红 —— 先可见再判红，棘轮式；判红须先量同形件数，另票）。 */
+const noCompareCites = [];
 /* 声称方位集：键＝`${rel}|${blockKey}`，**blockKey = 最近的「声称载体」起始行**
  *   （JS：含 `/*` 的注释块起始行 或 `test(` 行；找不到则 0）。
  *   粒度为何取「块」而非「文件」：本仓引用形约定是「**一处引用覆盖其下紧邻的一组同源数值**」
@@ -507,6 +514,7 @@ for (const f of files) {
             const rm = text.match(new RegExp(`\\b${k.toLowerCase()}\\s*:\\s*(-?\\d+)`)); // 新形态 `str:`（#1724 原始分）
             if (rm) repoRaw[k] = Number(rm[1]);
           }
+          let cmpForCite = 0;                 // ★#1835：本引用行**进过比对的键数**（0 ⇒ 该值无人核）
           for (const k of Object.keys(src)) {
             const isAbil = ABIL_KEYS.includes(k);
             let rv, sv, unit;
@@ -560,11 +568,19 @@ for (const f of files) {
               if (hasClaims && !declared) uncoveredCand.push({ file: rel, key: k, at, src: src[k], cache: path.basename(r.cachePath), block: `${rel}|${blockKeyOf(lines, i)}` });
               continue;
             }
-            valueCompared++;
+            valueCompared++; cmpForCite++;
             /* S3-⑤：d20m 面单列（✗ 并入 5E —— 否则 d20m 的比对量会污染 5E 读数桶） */
             if (r.face === '3E') cmp3e++; else if (r.face === 'd20m') cmpD20M++; else cmp5e++;
             if (sv === rv) valueChecked++;
             else red(`源值比对不符（A 组）：${at} ${k} ${unit} 仓内/声称=${rv} 源=${sv}（${path.basename(r.cachePath)}:${src[k].line}）`);
+          }
+          /* ★`#1835` 甲：源侧**有值**却**一个键都没比** ⇒ 记入明账（该引用行的值**无人核**）。
+           *   ⚠ 位置须在 `for (const r of effResolved)` **体内**（首版我插到它的**闭括号之后**
+           *     ⇒ `ReferenceError: r is not defined` —— **缩进即作用域**，✗ 凭「看起来在附近」）。
+           *   排除 d20m（该面无值解析器 ⇒ 属**已声明降级**，另有出声行，✗ 重复计）。 */
+          if (r.face !== 'd20m' && Object.keys(src).length > 0 && cmpForCite === 0) {
+            noCompareCites.push(`${at} → ${path.basename(r.cachePath)}:${r.entry}`
+              + `（源有值 ${Object.keys(src).join('/')} —— **本门未与任何一处比对**）`);
           }
         }
       }
@@ -651,7 +667,17 @@ if (uncovered.length > 0) {
   console.log(`  tier-②：A 组**未覆盖** ${uncovered.length} 项（源有值、本行/用例未声称 ⇒ 记账不红，防分母静默缩小）：`);
   for (const u of uncovered) console.log(`    · ${u}`);
 } else {
-  console.log('  tier-②：A 组未覆盖 0 项（源有值者皆已被声称并比对）');
+  /* ★`#1835` 甲：原括号「源有值者皆已被声称并比对」**不成立**（有 11 件源值从未进比对）
+   *   ⇒ 收窄为**它实际能担保的那句**（本桶只管「声称了一部分、源还有其余」），另一面由下方独立行记账。 */
+  console.log('  tier-②：A 组未覆盖 0 项（**已声称的键**皆与源比过；另有「源有值但未比对」面见下）');
+}
+/* ★`#1835` 甲：独立记账行 —— ✗ 让上面那句「0 项」被读成「源有值者**皆已比对**」。 */
+if (noCompareCites.length > 0) {
+  console.log(`  ★tier-②：**源有值但本门未比对** ${noCompareCites.length} 件（引用行既无声称、仓内字段也不在其行上`
+    + ' ⇒ 该值**从未与源比对**；✗ 判红 —— 先可见）');
+  for (const c of noCompareCites) console.log(`    · ${c}`);
+} else {
+  console.log('  ★tier-②：源有值但本门未比对 0 件（每一处源值都至少进过一次比对）');
 }
 console.log(`          B 组列语义豁免 ${exemptValue}（${pctB.toFixed(1)}%，分母=${sourceLineClaims}，独立上限 ${B_VALUE_EXEMPTION_CAP_PCT}%）`);
 console.log(`  值自洽（注↔代码，第①级）：已核 ${selfChecked}/${selfCheck}`);
@@ -671,7 +697,7 @@ const faces = {
   titleChecked,          // 值自洽②用例名↔断言（#1734 的面）
   sourceFormats5e: cmp5e, sourceFormats3e: cmp3e,
 };
-const ceilings = { uncovered: uncovered.length, noValueCites: noValueCites.length };
+const ceilings = { uncovered: uncovered.length, noValueCites: noValueCites.length, noCompareCites: noCompareCites.length };
 
 if (UPDATE_BASELINE) {
   /* `seededAt` 的**口径**（#1789）：＝「本次校准所对的**主干** sha」，✗ 不是跑时 HEAD。

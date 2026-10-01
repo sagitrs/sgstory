@@ -237,6 +237,15 @@ if (isMain && has('--selftest')) {
 		 *     并造一份**覆盖全部 10 类目**的合成源，逐类断言其**出现次数**。
 		 *   ⇒ 删/改任何一类 ⇒ 本刀必红（含「从表里删掉」与「正则改坏」两形）。
 		 *   ★合成源须**覆盖全 10 类目**（✗ 只覆盖其一）——否则刀会因**别类缺失**而误红。 */
+		/* ★`#1822` ②刀：`_seededReason` 须**在基线里**（✗ 只写进 commit/PR 评论 —— 那些位置下次重播不带走）
+		 *   本刀读**基线文件**断言字段存在且非空；若有人删掉该写入 ⇒ 本刀红。 */
+		['K21 ★`_seededReason` 写进基线本身（✗ 只留在 commit message）',
+			(() => {
+				const bp = path.join(ROOT, 'tests/gates/host-touchpoints.json');
+				if (!fs.existsSync(bp)) return false;
+				const doc = JSON.parse(fs.readFileSync(bp, 'utf8'));
+				return typeof doc._seededReason === 'string' && doc._seededReason.trim() !== '';
+			})()],
 		['K14 ★10 类目**遍历**接线刀（独立具名白名单差集，✗ 从 CATEGORIES 派生）',
 			(() => {
 				const expect = {                       // ← 独立具名白名单（刀自带，✗ 不读 CATEGORIES）
@@ -305,9 +314,21 @@ if (has('--update-baseline')) {
 		_note: 'core 宿主触点基线（#1804 件二）。棘轮：只防加深（新触点⇒红）；减少⇒绿但出声（可 --update-baseline 刷新）。'
 			+ '口径：已剥注释与字符串、只算代码面；类目见 tests/gates/host-touchpoints.mjs 的 CATEGORIES。',
 		_seededAt: (process.env.SEEDED_AT ?? 'unknown'),
+		/* ★`#1822` ②：**理由**须进基线本身（✗ 只写进 PR 评论或 commit message ——
+		 *   那些位置下一次重播不会带走、也不会提醒；而「加深必须被看见」要求**接收方**能读到理由）。
+		 *   与 `SEEDED_AT` **同源**（环境变量）：缺它时记一句**自陈未提供**并在 stdout 出声，
+		 *   ✗ 静默留空 —— 空字段会被读者当成「无需理由」。 */
+		_seededReason: (process.env.SEEDED_REASON
+			?? '(未提供：本次重播未说明理由 —— 按「加深必须被看见」补齐)'),
 		touchpoints: now,
 	}, null, 2) + '\n');
 	console.log(`  ✓ 基线已刷新（${path.relative(ROOT, BASELINE_PATH)}）—— ★须人工复核并解释进 diff`);
+	if (!process.env.SEEDED_REASON) {
+		console.log('  ⚠ **未提供 `SEEDED_REASON`** ⇒ 基线里的理由字段是自陈占位（✗ 空着会被当成「无需理由」）'
+			+ '　例：SEEDED_REASON="<为何接受本次加深>" node tests/gates/host-touchpoints.mjs --update-baseline');
+	} else {
+		console.log(`  · 理由已记入基线：${process.env.SEEDED_REASON.slice(0, 120)}${process.env.SEEDED_REASON.length > 120 ? '…' : ''}`);
+	}
 	process.exit(0);
 }
 if (!fs.existsSync(BASELINE_PATH)) {

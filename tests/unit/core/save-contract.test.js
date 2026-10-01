@@ -136,7 +136,11 @@
 		const r = S.judgeLoad({ saveVersion: 0 });
 		assert.eq(r.ok, false, 'v0 不是可迁移档');
 		assert.eq(r.code, 'NO_ENVELOPE', '★v0 与「无版本标记」同义（而非 TOO_OLD）');
-		assert.eq(Object.keys(S.MIGRATIONS).length, 0, '★MIGRATIONS 现为空 —— v0 无路可走是**设计**，✗ 漏配');
+		/* ★`#1822` ③（D 席 MINOR，dev-9 指出）：原断 `Object.keys(MIGRATIONS).length === 0` ——
+		 *   **网撒得比主张大**：本格的主张只是「**v0 不留迁移位**」，而原式把**任何**迁移都禁掉了。
+		 *   一旦**合法地**加一级迁移（如 `1:` 即 v1→v2 —— 正是票面边界 3 要求的动作），它会**误红**。
+		 *   ⇒ 改为断**主张本身**：`!('0' in MIGRATIONS)`（v0 无路可走）。 */
+		assert.eq('0' in S.MIGRATIONS, false, '★v0 **无迁移位**（= 本格主张；✗ 不断「表为空」——那会禁掉合法的 v1→v2）');
 	});
 
 	test('#1806 笔1：★`pack` 是**已记未用**（本笔只记录，✗ 不做比对）—— 该事实**可见**', () => {

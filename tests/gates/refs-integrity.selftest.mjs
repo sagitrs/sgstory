@@ -254,14 +254,15 @@ function makeGitSandbox() {
   git(['config', 'user.name', 'selftest']);
   git(['add', '-A']);
   git(['commit', '-qm', 'base']);
-  const baseSha = git(['rev-parse', '--short', 'HEAD']).trim();
+  /* ★与门同口径：**`--short=8`**（✗ 裸 `--short` —— 小仓里它给 7 位，会被本刀读成「取错臂」而假红）。 */
+  const baseSha = git(['rev-parse', '--short=8', 'HEAD']).trim();
   /* 造一个「origin/main」引用指向 base（用 update-ref，✗ 需真 remote） */
   git(['update-ref', 'refs/remotes/origin/main', baseSha]);
   /* 再提交一笔 ⇒ HEAD 前进 ⇒ HEAD ≠ merge-base(origin/main, HEAD) */
   fs.writeFileSync(path.join(dir, '.selftest-advance'), 'x\n');
   git(['add', '-A']);
   git(['commit', '-qm', 'advance']);
-  const headSha = git(['rev-parse', '--short', 'HEAD']).trim();
+  const headSha = git(['rev-parse', '--short=8', 'HEAD']).trim();
   return { dir, baseSha, headSha };
 }
 

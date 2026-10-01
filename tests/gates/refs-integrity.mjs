@@ -682,13 +682,16 @@ if (UPDATE_BASELINE) {
   let sha = arg('--seeded-at');
   if (!sha) {
     try {
-      sha = execFileSync('git', ['rev-parse', '--short', execFileSync('git', ['merge-base', 'origin/main', 'HEAD'], { cwd: ROOT }).toString().trim()], { cwd: ROOT }).toString().trim();
+      sha = execFileSync('git', ['rev-parse', '--short=8', execFileSync('git', ['merge-base', 'origin/main', 'HEAD'], { cwd: ROOT }).toString().trim()], { cwd: ROOT }).toString().trim();
     } catch {
       sha = 'unknown';
       console.warn('  ⚠ 无法取主干 merge-base（非 git 仓或未取 origin/main）⇒ seededAt 落 `unknown`；请用 `--seeded-at <主干sha>` 显式指定');
     }
   }
-  /* 注：✗ 无条件截 8 —— 默认路径已用 `rev-parse --short`（与仓同口径）；`--seeded-at` 传入者**逐字生效**（K19）。 */
+  /* 注：默认路径用 **`--short=8`**（✗ 裸 `--short`）—— 后者位数由 git 按**仓库规模**动态决定
+   *   （小仓给 7 位），与仓内 `seededAt` 的历史值（**8 位**：`163c749c`／`4f1ea4c2`）**不同口径** ⇒
+   *   每次重播都会产生「`163c749c` → `163c749`」这种**无意义 diff**（#1790 tester-4 的 ②，本席采其倾向）。
+   *   `--seeded-at` 传入者仍**逐字生效**（K19 守）。 */
   /* ★保留既有的**人工说明**（#1789 dev-9 的 B 面）：写入构造原先只含 `$note/seededAt/faces/ceilings`
    *   ⇒ **抹掉 `seededReason` 且不报错、全绿**（门不读该键）。而 `$note` 自己写着「合入者须解释
    *   『为什么少了这一项』」——`seededReason` 正是承载该解释的字段 ⇒ 工具每次运行都吃掉机制要求的证据。

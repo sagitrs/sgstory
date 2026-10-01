@@ -305,9 +305,17 @@ if (has('--update-baseline')) {
 		_note: 'core 宿主触点基线（#1804 件二）。棘轮：只防加深（新触点⇒红）；减少⇒绿但出声（可 --update-baseline 刷新）。'
 			+ '口径：已剥注释与字符串、只算代码面；类目见 tests/gates/host-touchpoints.mjs 的 CATEGORIES。',
 		_seededAt: (process.env.SEEDED_AT ?? 'unknown'),
+		/* ★`_seededReason`：**为何这次重播被接受**（本次加深是什么、依据哪条）。
+		 *   与 `_seededAt` 同源（环境变量）而**非**手写 —— 手写会被下一次重播静默抹掉，
+		 *   而「加深必须被看见」（本文件判据③的对偶）恰恰要求这个理由**长期可查**。
+		 *   缺它 ⇒ 记为显式缺口（✗ 假装已解释）。 */
+		_seededReason: (process.env.SEEDED_REASON ?? '(未提供：本次重播未说明理由 —— 按「加深必须被看见」补齐)'),
 		touchpoints: now,
 	}, null, 2) + '\n');
 	console.log(`  ✓ 基线已刷新（${path.relative(ROOT, BASELINE_PATH)}）—— ★须人工复核并解释进 diff`);
+	if (!process.env.SEEDED_REASON) {
+		console.log('  ⚠ 未提供 SEEDED_REASON ⇒ 基线里记的是「未说明理由」——建议下次带上（`SEEDED_REASON="…"`）');
+	}
 	process.exit(0);
 }
 if (!fs.existsSync(BASELINE_PATH)) {

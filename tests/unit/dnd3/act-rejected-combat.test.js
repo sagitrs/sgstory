@@ -22,15 +22,29 @@
 	});
 
 	test('★★#1813 ②（对照·挥空）：攻击**已发生**只是没中 ⇒ 必须仍为 `applied`', () => {
-		/* ★本格是**判别格**：若实现者把攻击层 7 处裸 `return;` **全改** `return false`，
-		 *   本格会红 —— 而那是**新缺陷**：「连打三下没中」会触发 `#1773` 三连护栏强制跳过回合。
-		 *   ⇒ 失手是**正常结算的一支**（耗了回合、发了文案），✗ 不是拒绝。 */
-		R().give('club'); R().equip('club');
-		/* 造一个**必空**的攻击：目标 AC 极高 ⇒ 掷骰必失手（d20 + 命中 < AC）。 */
-		const tank = new (R().Character)({ name: '铁壁', hp: 99, maxHp: 99, stats: { ac: 99 } });
-		let r = null;
-		for (let i = 0; i < 20 && r?.status !== 'applied'; i++) r = R().act(D().Player, 'club', tank);
-		assert.eq(r?.status, 'applied', `★失手仍须是 applied（✗ 若判成 rejected ⇒ 三连护栏会误触发）：${JSON.stringify(r)}`);
+		/* ★本格是**对照格**：钉「失手 ✗ 拒绝」。若实现者把攻击层裸 `return;` **全改** `return false`，
+		 *   本格会红 —— 而那是**新缺陷**（「连打三下没中」会触发 `#1773` 三连护栏强制跳过回合）。
+		 *
+		 * ⚠⚠ **本格首版是**概率格**，已按 D 席（`dev-9`）RC 重写**：首版用「目标 AC 极高 ⇒ 必失手」＋
+		 *   `for` 循环最多 20 次 —— **两处都错**：
+		 *     ① 天然 20 **绕过**失手分支（`die < critMin` 不成立 ⇒ 命中）⇒ 「AC 极高必失手」**不成立**；
+		 *     ② `for` 循环恰在「1/20 命中那次」退出并断言绿 ⇒ 突变下 **3/8 次仍绿**（实测）—— **概率格**。
+		 *   ⇒ 改为**确定性**：注入 `rng` 序列（掷骰恒 1）＋ **单次** `act`，并加**前置断言**
+		 *     「靶确实没掉血」以证这次走的**正是**失手路径（范本：既有 `#1783 ⑨`，`tests/unit/core/slot-equip-refused.test.js:135`）。 */
+		R().give('coin');                                   // 先初始化背包（供 give/revive 路径）
+		const p = new (R().Character)({ name: '甲', hp: 20, maxHp: 20,
+			items: [{ id: 'sword', equipped: true, charges: null, effects: [] }], stats: { ac: 12 } });
+		p.effects = [];                                     // `traumaAttackMod` 会读它
+		const foe = new (R().Character)({ name: '靶', hp: 10, maxHp: 10,
+			items: [{ id: 'coin' }], stats: { ac: 25 } });
+		R().rng.setSequence([0.0, 0.0, 0.0, 0.0]);          // ★掷骰恒 1 ⇒ **确定**失手（`1 + mod < 25`）
+		try {
+			const r = R().act(p, 'sword', foe, 'use');
+			assert.eq(foe.hp, 10, '前置：确实**没命中**（靶未掉血）⇒ 本格测的正是「挥空」这条路径');
+			assert.eq(r?.status, 'applied', `★失手仍须是 applied（✗ 判成 rejected ⇒ 三连护栏会误触发）：${JSON.stringify(r)}`);
+		} finally {
+			R().rng.reset();                                // 测试卫生：rng 用完必复位
+		}
 	});
 
 	/* ★本席自陈：原拟第三条「端到端 `#noteReject` 计数走向」，写成后**只断言一个未变的值**

@@ -1,0 +1,43 @@
+{
+  "_note": "跨包同 id 的登记台账（#1804 件一）。每项须有 reason ＋ ticket；#1743 处置完一项即删一项（过期登记会被门判红）。",
+  "bandage": {
+    "reason": "dnd3 与 dnd-5e 各有一件同名绷带（两版规则各自独立定义，语义不同）",
+    "ticket": "#1743"
+  },
+  "bomb": {
+    "reason": "dnd3 与 dnd-5e 各有一件同名炸弹",
+    "ticket": "#1743"
+  },
+  "boots": {
+    "reason": "dnd3 与 dnd-5e 各有一件同名靴",
+    "ticket": "#1743"
+  },
+  "club": {
+    "reason": "三处同名：core 的基础武器定义 ＋ 两包各自的棍棒（跨 3 包 ⇒ 遮蔽面最大）",
+    "ticket": "#1743"
+  },
+  "coin": {
+    "reason": "dnd3 与 dnd-5e 各有一件同名钱币",
+    "ticket": "#1743"
+  },
+  "sword": {
+    "reason": "dnd3 与 dnd-5e 各有一件同名剑",
+    "ticket": "#1743"
+  },
+  "goblin": {
+    "reason": "两包各有一个哥布林怪物（数值按各版 SRD，✗ 同一物）",
+    "ticket": "#1743"
+  },
+  "goblin-boss": {
+    "reason": "两包各有一个哥布林首领",
+    "ticket": "#1743"
+  },
+  "guard": {
+    "reason": "两包各有一个守卫",
+    "ticket": "#1743"
+  },
+  "player": {
+    "reason": "三包各自注册 id:'player'（#1743 正文点名的形态：playerActor() 因此命中「后加载」者）",
+    "ticket": "#1743"
+  }
+}

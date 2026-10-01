@@ -127,7 +127,29 @@
 		assert.eq(S.audit({ player: {}, inventory: [] }).absent.includes('player'), false, '有落点 ⇒ 不再报缺');
 	});
 
-	test('#1806 笔1：信封记 **pack 标记**（`#1743` 跨包遮蔽解）与域落点', () => {
+	/* ---------- ⑤·补 声明的边界（`#1817` D 席 RC：声明＞实现 ⇒ 逐条钉住） ---------- */
+
+	test('#1806 笔1：★VERSION 自 1 起 ⇒ **v0 结构性不可达**（`MIGRATIONS[0]` 不留占位）', () => {
+		/* D 席 RC：注释里若留 `// 0: …（有旧档时在此补）`，会承诺一个**永远跑不到**的扩展点
+		 * —— `judgeLoad` 的 `v < 1` 守卫把 v0 判为「没有版本标记」。
+		 * 本格**钉住该语义**（v0 与被拒绝同义），使「本格式自 v1 起、不存在 v0」成为可验事实。 */
+		const r = S.judgeLoad({ saveVersion: 0 });
+		assert.eq(r.ok, false, 'v0 不是可迁移档');
+		assert.eq(r.code, 'NO_ENVELOPE', '★v0 与「无版本标记」同义（而非 TOO_OLD）');
+		assert.eq(Object.keys(S.MIGRATIONS).length, 0, '★MIGRATIONS 现为空 —— v0 无路可走是**设计**，✗ 漏配');
+	});
+
+	test('#1806 笔1：★`pack` 是**已记未用**（本笔只记录，✗ 不做比对）—— 该事实**可见**', () => {
+		/* D 席 RC 裁 (乙)：收窄声明，并把「已记未用」显式登记 ⇒ 读者不会把「已记」误读成「已解决」。 */
+		const a = S.audit({});
+		assert.ok(Array.isArray(a.recordedNotCompared), 'audit 报出「已记未用」集合');
+		assert.ok(a.recordedNotCompared.includes('pack'), `★pack 在册：${a.recordedNotCompared}`);
+		/* 反向钉住「确实没比」：换包信封**照样放行**（若日后落地比对，本格须随之改 + 配双向格） */
+		const r = S.judgeLoad({ saveVersion: S.VERSION, pack: '某个别的包' });
+		assert.eq(r.ok, true, '★当前：换包**不拦**（＝未实现比对，与 recordedNotCompared 一致）');
+	});
+
+	test('#1806 笔1：信封记 **pack 标记**（跨包遮蔽的**第一步**）与域落点', () => {
 		State.variables.inventory = [];
 		const e = S.envelope();
 		assert.eq(e.saveVersion, S.VERSION, '带版本号');
@@ -156,37 +178,47 @@
 
 	/* ---------- ⑥ 宿主接入（幂等；✗ 无宿主时抛错） ---------- */
 
-	test('#1806 笔1：无宿主环境 `install()` 为 no-op（✗ 抛错）', () => {
-		/* 本仓单测 shim 的 SugarCube 无 Save ⇒ 加载期那次 install 已返回 false */
-		assert.eq(typeof S.install, 'function');
-		assert.eq(S.installed(), false, 'shim 无 Save ⇒ 未接入（且未抛错）');
+	/* 宿主无关：本格不假设环境里有没有 `Save` —— 单测 shim 起初没有，而 `#1806` 笔 2 的
+	 * 宿主仿真会提供 `Save` ⇒ 断言「一定是 false」会在两笔之间互相绊倒。
+	 * 故断言**不变量**：接入状态 ⇔ 当前宿主是否存在；且**任何情况下都不得抛**。 */
+	test('#1806 笔1：`install()` 不抛；接入状态与宿主存在性一致（宿主无关）', () => {
+		/* ★探测须**镜像 `install()` 的查找**：`SugarCube.Save ?? 全局 Save`（shims 设的是后者） */
+		const probe = globalThis.SugarCube?.Save ?? globalThis.Save;
+		const hasHost = probe?.onSave?.add != null;
+		let ret = null;
+		try { ret = S.install(); } catch (e) { assert.ok(false, `install() 不得抛：${e.message}`); }
+		assert.eq(S.installed(), hasHost, `接入状态应与宿主存在性一致（hasHost=${hasHost}）`);
+		assert.eq(ret, false, '二次调用幂等（或：无宿主时返回 false）—— 两种情形都不抛');
 	});
 
-	test('#1806 笔1：装**假宿主**后 —— 存时写信封、读时拒绝坏档（显式）', () => {
-		const fake = { onSave: { add: (f) => fake._s = f }, onLoad: { add: (f) => fake._l = f } };
-		const prev = globalThis.SugarCube?.Save;
-		try {
-			globalThis.SugarCube.Save = fake;
-			assert.eq(S.install(), true, '有宿主 ⇒ 接入成功');
-
-			/* 存：信封挂进 save.state（✗ 动活的 State.variables） */
-			const save = { state: {} };
-			fake._s(save);
-			assert.eq(save.state[S.ENVELOPE_KEY]?.saveVersion, S.VERSION, '★存时写入版本信封');
-			assert.eq(State.variables[S.ENVELOPE_KEY], undefined, '★且**不**污染活的 State.variables');
-
-			/* 读：好档放行 */
-			const good = { state: { [S.ENVELOPE_KEY]: S.envelope() } };
-			fake._l(good);                                   // 不抛即通过
-
-			/* 读：坏档**显式抛错**（宿主据此中止载入，✗ 静默坏档） */
-			let threw = null;
-			try { fake._l({ state: {} }); } catch (e) { threw = e; }
-			assert.ok(threw != null, '★无版本标记 ⇒ 抛错（显式拒绝）');
-			assert.eq(threw.rpgSaveReject, 'NO_ENVELOPE', '错误带机读码，供宿主/测试判别');
-		} finally {
-			if (prev === undefined) delete globalThis.SugarCube.Save;
-			else globalThis.SugarCube.Save = prev;
+	test('#1806 笔1：驱动**真实注册的**处理器 —— 存时写信封、裁决面拒坏档', () => {
+		/* 走 `install()` 实际注册的那套处理器（✗ 自造 handler 自测自）⇒ 本格同时证明
+		 * 「模块加载时确实接上了宿主」。 */
+		const host = globalThis.SugarCube?.Save ?? globalThis.Save;
+		if (host?.onSave?.fire == null) {
+			assert.eq(S.installed(), false, '无宿主 ⇒ 未接入（且 install 未抛）');
+			return;
 		}
+		assert.eq(S.installed(), true, '★宿主在位 ⇒ 模块加载时已接入（安装确实发生）');
+
+		/* 存：真处理器把信封写进 `save.state`（✗ 动活的 State.variables） */
+		State.variables.inventory = [];
+		const obj = { state: {} };
+		host.onSave.fire(obj);
+		assert.eq(obj.state[S.ENVELOPE_KEY]?.saveVersion, S.VERSION, '★存时写入版本信封');
+		assert.eq(State.variables[S.ENVELOPE_KEY], undefined, '★且**不**污染活的 State.variables');
+
+		/* 读：好档放行（不抛） */
+		host.onLoad.fire({ state: { [S.ENVELOPE_KEY]: S.envelope() } });
+
+		/* 读：坏档 ⇒ 真处理器**显式抛错**（宿主据此中止载入，✗ 静默坏档）。
+		 *   宿主仿真的 `fire` 可能把抛错吞掉 ⇒ 两条路都核，且都要求「不进坏档」。 */
+		let threw = null;
+		try { host.onLoad.fire({ state: {} }); } catch (e) { threw = e; }
+		if (threw != null) {
+			assert.eq(threw.rpgSaveReject, 'NO_ENVELOPE', '★错误带机读码，供宿主/测试判别');
+		}
+		assert.eq(S.judgeLoad(undefined).code, 'NO_ENVELOPE', '裁决面仍拒（处理器逻辑不变）');
 	});
+
 })();

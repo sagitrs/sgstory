@@ -28,7 +28,10 @@ const head = (s) => console.log(`\n─ ${s}`);
 
 /** ★失败形必须是「**干净红 ＋ 汇总**」（D 席 M9 的形态：中途裸访问崩溃 ⇒ 吞掉此前已收集的失败）。
  *   故先把汇总抽成函数，并给「未捕获异常」挂兜底 —— 任何崩溃都先打印已收集的失败再退出。 */
+let summaryPrinted = false;
 const printSummary = (extra) => {
+	if (summaryPrinted) return;                 // 幂等：崩溃兜底与正常出口只打印一次
+	summaryPrinted = true;
 	if (extra) fails.push(extra);
 	console.log(`\n${fails.length === 0 ? '✓ 装配自检通过' : `✗ 装配自检失败 ${fails.length} 条`}`);
 	for (const f of fails) console.log(`  ✗ ${f}`);
@@ -36,6 +39,16 @@ const printSummary = (extra) => {
 };
 process.on('uncaughtException', (e) => printSummary(`★未捕获异常（脚本中途崩了）：${e?.message ?? e}`));
 process.on('unhandledRejection', (e) => printSummary(`★未处理的拒绝：${e?.message ?? e}`));
+/* ★**「恒绿门」自证**（本笔实测踩过：把汇总的**尾调用**搬去别处 ⇒ 脚本正常结束、`exit=0` ⇒
+ *   下面十几节断言**全部沦为装饰**）。⇒ 任何「正常结束却没打印过汇总」的路径都强制红。
+ *   这一条守的是**门自己**，✗ 被测物。 */
+process.on('exit', () => {
+	if (!summaryPrinted) {
+		console.log('\n✗ 装配自检失败 1 条');
+		console.log('  ✗ ★恒绿门：脚本正常结束但从未打印汇总（`printSummary()` 的调用被搬走/删掉）');
+		process.exitCode = 1;
+	}
+});
 
 
 /* ---------- 环境（镜像 tests/unit/headless.mjs）---------- */
@@ -513,4 +526,8 @@ head('⑮ 面板刷新域（B1）的接线');
 /* ---------- 汇总 ---------- */
 /* 汇总与崩溃兜底的**定义**在文件开头**（见「失败形」一节）—— 那两行 `process.on` 必须在
  * 任何可能抛错的语句之前注册，否则中途崩溃时兜底还没挂上（本笔 M9′ 刀实测踩过）。 */
+
+/* ★正常出口：**必须**在这里调用（`#1815` 的 BLOCKER：这一行被搬走 ⇒ 门恒绿）——
+ *   连同上面的 `process.on('exit')` 自证，两层守「断言不是装饰」。 */
+printSummary();
 

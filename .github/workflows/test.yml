@@ -24,6 +24,10 @@ jobs:
         run: node tests/gates/line-endings.mjs
       - name: 行尾门自身的可假刀自检（#1775 D 席 5.1：判据改坏唯有自检能抓）
         run: node tests/gates/line-endings.mjs --selftest
+      - name: 注册面 fail-loud 门（#1804 件一：跨包同 id 须登记、同包重定义必红）
+        run: node tests/gates/registration.mjs
+      - name: 注册面门自身的可假刀自检
+        run: node tests/gates/registration.mjs --selftest
       - name: 构建（生成单测 bundle 与清单）
         run: python3 build.py
       - name: 无头单测（断言 fail === 0）

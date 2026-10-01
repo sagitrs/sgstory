@@ -213,6 +213,7 @@ if (SELFTEST) {
   const os = await import('node:os');
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'le-'));
   let bad = 0;
+  let ran = 0;                 // ★刀数**自记**（✗ 硬编 —— 加刀忘改数会印出错的「N/N」）
   const check = (name, expectRc, expectMixed) => {
     const r = scan(tmp);
     const ok = (r.mixed.length > 0 ? 1 : 0) === expectRc && r.mixed.length === expectMixed;
@@ -222,12 +223,13 @@ if (SELFTEST) {
   try {
     fs.writeFileSync(path.join(tmp, 'pure-crlf.txt'), 'a\r\nb\r\n');   // 临时目录非 git ⇒ listFiles 走 walk 回退
     fs.writeFileSync(path.join(tmp, 'pure-lf.txt'), 'a\nb\n');
-    check('洁净（纯 CRLF ＋ 纯 LF）⇒ 绿', 0, 0);
+    check('洁净（纯 CRLF ＋ 纯 LF）⇒ 绿', 0, 0); ran++;
     fs.writeFileSync(path.join(tmp, 'mixed.txt'), 'a\r\nb\n');   // ★造混行
-    check('造混行 ⇒ 红且具名', 1, 1);
+    check('造混行 ⇒ 红且具名', 1, 1); ran++;
     const r = scan(tmp);
     const named = r.mixed[0]?.file === 'mixed.txt';
     if (!named) bad++;
+    ran++;
     console.log(`  ${named ? '✓' : '✗'} 混行文件被具名（实得 ${r.mixed[0]?.file}）`);
 
     /* ★`#1832` 整档翻转刀的刀（★断**判决**，✗ 只断读数 —— 照 E2 子条【判决路径】） */
@@ -254,6 +256,7 @@ if (SELFTEST) {
       if (!pass) { bad++; if (x) console.log(`      实得 reds=${JSON.stringify(x.reds)} notes=${JSON.stringify(x.notes)}`); }
       console.log(`  ${pass ? '✓' : '✗'} ${name}`);
     }
+    ran += fl.length;            // ★数组刀按**长度**计入（✗ 循环内 ++ 容易漏/重——本席刚栽过一次：只数到 5）
     /* ★接线刀（F8）：`--base` 给一个**真 git 仓**，整档翻转**端到端**须红 ——
      *   纯函数对了**不等于**接上了（E2 子条：判据存在、读数可见却永不参与判决 ⇒ 视为不存在）。 */
     {
@@ -267,6 +270,7 @@ if (SELFTEST) {
       const r = flipScan(repo, baseSha);
       const pass = r.reds.length === 1 && /整档翻转/.test(r.reds[0]);
       if (!pass) bad++;
+      ran++;
       console.log(`  ${pass ? '✓' : '✗'} F8 ★端到端接线：--base 下整档翻转 ⇒ 红（实得 ${r.reds.length} 条）`);
       fs.rmSync(repo, { recursive: true, force: true });
     }
@@ -289,6 +293,7 @@ if (SELFTEST) {
       const r2 = flipScan(repo2, baseSha2);
       const pass2 = r2.reds.length >= 1;
       if (!pass2) bad++;
+      ran++;
       console.log(`  ${pass2 ? '✓' : '✗'} F9 ★改名＋整档翻转同提交 ⇒ 红（✗ 逃逸口；实得 ${r2.reds.length} 条）`
         + (pass2 ? '' : `　改名对数=${r2.changed}`));
       fs.rmSync(repo2, { recursive: true, force: true });
@@ -298,7 +303,7 @@ if (SELFTEST) {
   }
   /* ★`#1845` tester-4：**刀数须机械可核**（✗ 让 body 自己写「N/N」—— 读者无从复核）。
  *   本门自检共 **3（既有）＋ 7（F1–F7）＋ 1（F8 端到端）＝ 11** 把；✗ 硬编常数 ⇒ 自记。 */
-const knifeTotal = 12;
+const knifeTotal = ran;      // ★自记（✗ 硬编 12）
 console.log(bad === 0 ? `✓ 自检全部如期（${knifeTotal}/${knifeTotal} 刀；会红也会绿）` : `✗ ${bad}/${knifeTotal} 项未如期`);
   process.exit(bad === 0 ? 0 : 1);
 }

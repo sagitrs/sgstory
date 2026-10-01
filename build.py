@@ -216,7 +216,14 @@ def build_story(story_dir: pathlib.Path, out_name: str = "game.html"):
            .replace("{{STORY_DATA}}", storydata))
 
     out.write_text(doc, encoding="utf-8")
-    print(f"构建完成：{out.relative_to(ROOT)}")
+    # ★故事目录可在**引擎仓之外**（拆分仓布局：故事在 books 仓、引擎在此检出）⇒ 相对路径打不出来时
+    #   退回绝对路径。原先直接 `relative_to(ROOT)` 会抛 `ValueError` ⇒ **产物已写成功但退出码非零**
+    #   ⇒ CI 误判「构建失败」（实测：books#76 相 A 的演练里踩到）。
+    try:
+        shown = out.relative_to(ROOT)
+    except ValueError:
+        shown = out
+    print(f"构建完成：{shown}")
     print(f"  段落数：{len(rows)}，插件 js：{len(collect_js_files())}，"
           f"故事 js：{len(js_paths) - len(collect_js_files())}，标题「{title}」")
 

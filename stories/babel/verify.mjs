@@ -18,7 +18,20 @@ import path from 'node:path';
 import process from 'node:process';
 
 const here = import.meta.dirname;
-const root = path.resolve(here, '..', '..');
+
+/* ---------- 引擎根（`books#76` 相 A：故事与引擎**可**分仓）----------
+ *   ① **同仓布局**（故事住在 `sgstory/stories/<名>` 里）⇒ 引擎根＝两个上级（缺省，本仓现状）；
+ *   ② **拆分布局**（故事在 books 仓、引擎在别处检出）⇒ `--engine <引擎检出目录>`。
+ * ⚠ 引擎根不对 ⇒ **显式报错**（✗ 静默按「文件不存在」崩 —— 那会把「路径配错」伪装成「装配坏了」）。 */
+const argOf = (name) => { const i = process.argv.indexOf(name); return i >= 0 ? process.argv[i + 1] : null; };
+const engineArg = argOf('--engine');
+const root = engineArg ? path.resolve(engineArg) : path.resolve(here, '..', '..');
+const shimsPath = path.join(root, 'tests/unit/framework/shims.js');
+if (!fs.existsSync(shimsPath)) {
+	console.error(`✗ 引擎根不对：${root}\n  在该处找不到 ${path.relative(root, shimsPath)}`
+		+ '\n  ⇒ 拆分仓布局请显式给：node stories/babel/verify.mjs --engine <sgstory 检出目录>');
+	process.exit(2);
+}
 const load = (f) => eval(fs.readFileSync(f, 'utf8'));
 
 /* ---------- 断言收集（✗ 用 assert 立刻抛：装配检查要一次看全部问题）---------- */
@@ -54,6 +67,13 @@ process.on('exit', () => {
 /* ---------- 环境（镜像 tests/unit/headless.mjs）---------- */
 globalThis.window = globalThis;
 globalThis.document = { title: '', getElementById: () => ({ insertAdjacentHTML() {}, innerHTML: '' }) };
+/* ★载入序须与引擎的 `tests/unit/headless.mjs` 一致：**host.js（宿主仿真）先于 shims.js**
+ *   —— 引擎演进后 `shims` 依赖 `host`（未加载即抛「framework/host.js 未加载」）；
+ *   本脚本是**故事侧消费者**，引擎换载入序时它**不会自动跟着变** ⇒ 曾在 main 上静默变红（本笔修的）。
+ *   ⚠ 故此处用「**存在即加载**」的形（✗ 写死）：引擎若回退到无 `host.js` 的旧形也照跑。 */
+if (fs.existsSync(path.join(root, 'tests/unit/framework/host.js'))) {
+	load(path.join(root, 'tests/unit/framework/host.js'));
+}
 load(path.join(root, 'tests/unit/framework/shims.js'));
 
 /** 记录「跳到哪个段落」——战斗死亡会跳「死亡回溯」，本脚本据此判定走了哪条路 */

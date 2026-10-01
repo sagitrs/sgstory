@@ -43,21 +43,43 @@ export const DEFINITIONS = {
 	'src/dnd/d20m/00-init.js': 1,
 };
 
-/** 消费点（具名白名单：文件 → 期望调用次数）。
- *  ★每新增一处**须同笔改此表并说明理由** —— 那正是本门要的「有人看见」。 */
-export const CONSUMERS = {
-	'src/dnd/dnd-5e/core/combat.js': 1,        // 攻击骰
-	'src/dnd/dnd-5e/core/conditions.js': 1,    // 回合末豁免（saveEnd）
-	'src/dnd/dnd3/core/combat.js': 2,          // 攻击骰 ＋ 重击确认
-	'src/dnd/dnd3/core/saves.js': 1,           // 豁免
-	'src/dnd/dnd3/core/traumas.js': 1,         // 创伤面
-	'src/dnd/dnd3/core/chest.js': 1,           // 宝箱（开锁）
-	'src/dnd/dnd3/items/trap-shock.js': 1,     // 陷阱 · 电击
-	'src/dnd/dnd3/items/trap-needle.js': 1,    // 陷阱 · 毒针
-	'src/dnd/dnd3/items/trap-fire.js': 1,      // 陷阱 · 火焰
-	'src/dnd/dnd3/items/bomb.js': 1,           // 炸弹
-	'src/dnd/d20m/core/combat.js': 2,          // 攻击骰 ＋ 重击确认
+/** 消费点白名单 —— ★**按语义类别分组**（领队 2026-10-01 裁：类别非文件路径
+ *  ⇒ 新增一个**同类**落点时只需在**该类别下加一行**，✗ 不必改两处结构）。
+ *  值是「文件 → 该类别的调用次数」；同一文件可出现在多个类别（如 combat.js 兼具攻击骰与重击确认）。 */
+export const CONSUMER_CATEGORIES = {
+	'攻击骰': {
+		'src/dnd/dnd-5e/core/combat.js': 1,
+		'src/dnd/dnd3/core/combat.js': 1,
+		'src/dnd/d20m/core/combat.js': 1,
+	},
+	'重击确认': {
+		'src/dnd/dnd3/core/combat.js': 1,
+		'src/dnd/d20m/core/combat.js': 1,
+	},
+	'豁免': {
+		'src/dnd/dnd-5e/core/conditions.js': 1,     // 回合末豁免（saveEnd）
+		'src/dnd/dnd3/core/saves.js': 1,
+		'src/dnd/dnd3/core/traumas.js': 1,
+	},
+	'陷阱/开箱/投掷物': {
+		'src/dnd/dnd3/core/chest.js': 1,
+		'src/dnd/dnd3/items/trap-shock.js': 1,
+		'src/dnd/dnd3/items/trap-needle.js': 1,
+		'src/dnd/dnd3/items/trap-fire.js': 1,
+		'src/dnd/dnd3/items/bomb.js': 1,
+	},
 };
+
+/** 由类别表摊平出「文件 → 期望总次数」（同一文件跨类别时**求和**） */
+export const flattenCategories = (cats = CONSUMER_CATEGORIES) => {
+	const out = {};
+	for (const files of Object.values(cats)) {
+		for (const [f, n] of Object.entries(files)) out[f] = (out[f] ?? 0) + n;
+	}
+	return out;
+};
+
+const CONSUMERS = flattenCategories();
 
 const CALL_RE = /\b[Dd](?:ND5E|ND3|20M)\s*\.\s*d20\s*(?:\?\.)?\s*\(/g;
 const DEF_RE = /\bsetup\s*\.\s*(?:DND5E|DND3|D20M)\s*\.\s*d20\s*=/g;
@@ -88,15 +110,18 @@ export const scan = (srcDir) => {
 /** 判定（纯函数，便于自检刀直接调用） */
 export const judge = (got, defs = DEFINITIONS, cons = CONSUMERS, exists = (f) => fs.existsSync(path.join(ROOT, f))) => {
 	const problems = [], notes = [];
+	/* ★**两向差集都报**（领队 2026-10-01 裁③，「枚举 vs 实际集合」的对称面）：
+	 *   向 A「实况有、清单无」= **新落点** ⇒ 红；
+	 *   向 B「清单有、实况无/少」= **白名单过期** ⇒ 出声（少）／红（文件已不存在）。 */
 	const diff = (label, want, actual) => {
-		for (const [f, n] of Object.entries(actual)) {
+		for (const [f, n] of Object.entries(actual)) {                 // 向 A
 			const w = want[f] ?? 0;
-			if (n > w) problems.push(`未登记的 d20 ${label}：${f} 期望 ${w} 处、实得 ${n} 处 ⇒ 须同笔登记进白名单并说明理由`);
+			if (n > w) problems.push(`【向 A：新落点】未登记的 d20 ${label}：${f} 期望 ${w} 处、实得 ${n} 处 ⇒ 须同笔登记进白名单并说明理由`);
 		}
-		for (const [f, w] of Object.entries(want)) {
+		for (const [f, w] of Object.entries(want)) {                   // 向 B
 			const n = actual[f] ?? 0;
-			if (n < w) notes.push(`d20 ${label}减少：${f} ${w} → ${n}（★好事 ⇒ 请刷新本门白名单，否则白名单松弛）`);
-			if (!exists(f)) problems.push(`过期登记：白名单含本仓不存在的文件 ${f}（应移除）`);
+			if (n < w) notes.push(`【向 B：白名单过期】d20 ${label}：${f} 期望 ${w} 处、实得 ${n} 处（★减少是好事 ⇒ 请刷新白名单，否则清单松弛）`);
+			if (!exists(f)) problems.push(`【向 B：白名单过期】含本仓不存在的文件 ${f}（应移除）`);
 		}
 	};
 	diff('定义点', defs, got.defs);
@@ -129,7 +154,19 @@ if (isMain && has('--selftest')) {
 	const cnt = (stripCommentsAndStrings(src).match(new RegExp(CALL_RE.source, 'g')) ?? []).length;
 	const ok = cnt === 1; n += ok ? 1 : 0;
 	console.log(`  ${ok ? '✓' : '✗'} K6 注释里的 d20 调用不计（只算代码面那 1 处）— 实得 ${cnt}`);
-	const total = knives.length + 1;
+	/* 类别摊平刀：同一文件出现在两个类别 ⇒ 期望值须**求和**（✗ 取其一）
+	 *   —— 真实例即 `combat.js`（攻击骰 1 ＋ 重击确认 1 ⇒ 期望 2）。 */
+	const flat = flattenCategories({ A: { 'f.js': 1 }, B: { 'f.js': 2, 'g.js': 1 } });
+	const okF = flat['f.js'] === 3 && flat['g.js'] === 1; n += okF ? 1 : 0;
+	console.log(`  ${okF ? '✓' : '✗'} K7 同一文件跨类别 ⇒ 期望值**求和**（f.js 应 3，实得 ${flat['f.js']}）`);
+	/* 两向差集刀：向 A（新落点）红；向 B（白名单多报）出声但**不红**（减少是好事） */
+	const gotA = judge({ calls: { 'src/a.js': 1, 'src/new.js': 1 }, defs: { 'src/d.js': 1 } }, D, C, alwaysExists);
+	const okA = gotA.problems.length === 1 && /向 A/.test(gotA.problems[0]); n += okA ? 1 : 0;
+	console.log(`  ${okA ? '✓' : '✗'} K8 向 A（新落点）⇒ 红且**具名**「向 A」— 实得 ${gotA.problems.length} 问题`);
+	const gotB = judge({ calls: {}, defs: { 'src/d.js': 1 } }, D, C, alwaysExists);
+	const okB = gotB.problems.length === 0 && gotB.notes.some((x) => /向 B/.test(x)); n += okB ? 1 : 0;
+	console.log(`  ${okB ? '✓' : '✗'} K9 向 B（白名单多报）⇒ **出声不红**（减少是好事）— notes=${gotB.notes.length} problems=${gotB.problems.length}`);
+	const total = knives.length + 4;
 	console.log(n === total ? `  ✓ ${n}/${total} 刀全部如期` : `  ✗ ${n}/${total} 刀如期`);
 	process.exit(n === total ? 0 : 1);
 }
@@ -140,6 +177,8 @@ const { problems, notes, total, files } = judge(got);
 console.log('  d20 消费点差集门（#1804；枚举 vs 实际集合）');
 console.log(`  扫描面 src/**（代码面；剥法共用 host-touchpoints.mjs）`);
 console.log(`  定义点 ${Object.keys(got.defs).length} 处 ／ 消费点 ${total} 处 ／ 涉及 ${files} 个文件`);
+console.log(`  白名单：${Object.keys(CONSUMER_CATEGORIES).length} 个语义类别 —— `
+	+ Object.entries(CONSUMER_CATEGORIES).map(([c, fs]) => `${c}(${Object.keys(fs).length} 文件)`).join(' ｜ '));
 if (has('--verbose')) for (const [f, n] of Object.entries(got.calls).sort()) console.log(`    · ${f}：${n}`);
 for (const nt of notes) console.log(`  ⚠ ${nt}`);
 if (problems.length) {

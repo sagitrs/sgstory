@@ -30,6 +30,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
+import { execFileSync } from 'node:child_process';
 
 const args = process.argv.slice(2);
 const has = (f) => args.includes(f);
@@ -37,9 +38,50 @@ const valOf = (f) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : 
 const ROOT = path.resolve(valOf('--root') ?? path.join(import.meta.dirname, '..', '..'));
 const VERBOSE = has('--verbose');
 
-/** 声明形：`defItem({…id:'x'})` / `defCharacter` / `defEffect` / `registerItem`
- *  ⚠ **只认声明**：形如 `items: [{ id: 'club' }]` 的**引用**不算（怪物携带道具即此形）。 */
+/* ---------------- 声明侦察（三种形） ----------------
+ *
+ * ★★`#1807` T 席（代行 `sagitrs-developer`）实测出一条 **BLOCKING**：本门**首版只认**「`id` 是紧跟
+ *   注册调用处的字符串字面量」⇒ **两条常见形一律不可见**：
+ *     ① **builder 形**：`DND3.IronLongsword = ironWeapon({ id: 'iron-longsword', … })`
+ *        （builder 定义体写的是 `RPG.defItem({ id: def.id, … })` ⇒ 两处都不含字面量 id）；
+ *     ② **循环形**：`for (const [id, cond] of Object.entries(DND5E.Conditions)) RPG.defEffect({ id, … })`
+ *        （`conditions.js` 的 **15** 条 effect 全走此形）。
+ *   ⇒ 运行期唯一 id **100**（items 65／characters 14／effects 21，T 席直读注册表），而首版只扫到 **59** 条声明
+ *     ⇒ **约四成不可见**，且**动机案例 `#1788`（iron-sword／iron-longsword）自己就不可见**。
+ *
+ * ## 本版的处置（三形分别对待，✗ 一律含糊过去）
+ *   ① **字面量形** ⇒ 精确收集（原形）；
+ *   ② **builder 形** ⇒ **两步**：先找出「builder 函数」（其函数体调用注册 API 者），再收其**调用点**的
+ *      字面量 id —— 覆盖 `iron-lineage.js` 那 7 件铁器（`#1788` 的当事族）；
+ *   ③ **循环形** ⇒ **静态不可解析**（`id` 来自 `Object.entries`）。★**不假装覆盖**：另计
+ *      `unresolvable` 数并**每次打印**，且**未登记即红**（见 `KNOWN_UNRESOLVABLE`）——
+ *      把「扫不到」从**静默**变成**明账**（这是本条相对首版最重要的改变）。
+ */
+
+/** ① 字面量形（紧贴注册调用） */
 const DECL_RE = /(?:defItem|defCharacter|defEffect|registerItem)\s*\(\s*\{?[^)]*?\bid:\s*'([^']+)'/gs;
+/** ③ 循环/简写形：`{ id, … }` 紧贴注册调用 ⇒ `id` 是变量，**静态不可解析** */
+const SHORTHAND_RE = /(?:defItem|defCharacter|defEffect|registerItem)\s*\(\s*\{[^}]*?\bid\s*,(?!\s*:)/gs;
+/** ①′ 引用形（**须排除**）：`items: [{ id: 'club' }]`、`inventory: […]` —— 那是**携带**而非**声明** */
+const REF_RE = /(?:items|inventory)\s*:\s*\[[^\]]*\]/gs;
+
+/** ② builder 函数名：函数体里调用注册 API 者（`const ironWeapon = (def) => RPG.defItem({ id: def.id, … })`） */
+const findBuilders = (src) => {
+	const names = new Set();
+	const DEF_RE = /(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*(?:async\s*)?(?:function\b[^(]*)?\([^)]*\)\s*=>\s*\{?/g;
+	for (const m of src.matchAll(DEF_RE)) {
+		// 取该定义之后的 400 字符窗口，看是否调用注册 API
+		const win = src.slice(m.index + m[0].length, m.index + m[0].length + 400);
+		const body = win.slice(0, win.indexOf('\n}') >= 0 ? win.indexOf('\n}') : 400);
+		if (/\b(?:RPG|setup\.RPG)\s*\.\s*(?:defItem|defCharacter|defEffect|registerItem)\b/.test(body)) names.add(m[1]);
+	}
+	/* 也收「回调式 builder 定义」：`function ironWeapon(def) { return RPG.defItem(…) }` */
+	for (const m of src.matchAll(/function\s+([A-Za-z_$][\w$]*)\s*\([^)]*\)\s*\{/g)) {
+		const win = src.slice(m.index, m.index + 500);
+		if (/\b(?:RPG|setup\.RPG)\s*\.\s*(?:defItem|defCharacter|defEffect|registerItem)\b/.test(win)) names.add(m[1]);
+	}
+	return [...names];
+};
 
 const walk = (dir, out = []) => {
 	for (const e of fs.readdirSync(dir, { withFileTypes: true })) {
@@ -53,12 +95,23 @@ const walk = (dir, out = []) => {
 /** 收集声明：id → [{ pack, file }] */
 const collect = (srcDir) => {
 	const rows = [];
+	const unresolvable = [];
 	for (const f of walk(srcDir).sort()) {
 		const rel = path.relative(ROOT, f).split(path.sep).join('/');
 		const pack = rel.startsWith('src/dnd/') ? rel.split('/')[2] : 'core';
-		for (const m of fs.readFileSync(f, 'utf8').matchAll(DECL_RE)) rows.push({ id: m[1], pack, file: rel });
+		const raw = fs.readFileSync(f, 'utf8');
+		const code = raw.replace(REF_RE, '');          // ★排除 `items: [{id}]` 引用形
+		for (const m of code.matchAll(DECL_RE)) rows.push({ id: m[1], pack, file: rel });
+		/* ② builder 调用点：`ironWeapon({ id: 'iron-longsword', … })` */
+		for (const b of findBuilders(raw)) {
+			const CALL_RE = new RegExp(`\\b${b}\\s*\\(\\s*\\{[^)]*?\\bid:\\s*'([^']+)'`, 'gs');
+			for (const m of code.matchAll(CALL_RE)) rows.push({ id: m[1], pack, file: rel, via: b });
+		}
+		/* ③ 循环/简写形 ⇒ 明账（✗ 静默） */
+		const sh = code.match(SHORTHAND_RE);
+		if (sh) unresolvable.push({ file: rel, n: sh.length });
 	}
-	return rows;
+	return { rows, unresolvable };
 };
 
 const loadLedger = () => {
@@ -148,23 +201,76 @@ if (has('--selftest')) {
 	process.exit(n === knives.length ? 0 : 1);
 }
 
+/* ---------------- ② 运行期交叉核对（★领队裁「必」：把「扫不到」变显式可见） ----------------
+ *
+ * 静态扫描**必然**漏（循环/表驱动形不可解析）⇒ 光靠正则永远说不清「覆盖了多少」。
+ * 但**运行期注册表是权威**（`headless.mjs` 已加载 `dist/bundle.js` ⇒ `RPG.items` 等 Map 就绪）。
+ * ⇒ 本段在**同一进程**里加载 bundle，读三张注册表的**实际条目数**，与静态扫描数比：
+ *     **实际 < 静态** ⇒ 红（静态声称的比实际还多 ⇒ 扫描把**引用**当声明了，是假阳）；
+ *     **实际 > 静态** ⇒ **非红**，但**必须打印差集规模**（把盲区**量化并可见**，✗ 静默）。
+ * 为何不把「实际 > 静态」判红：**本仓现状就是**如此（循环形固有），判红等于门永远红 ⇒ 门会被人忽略
+ *   （「恒红的门＝没有门」）。⇒ 采用与 `host-touchpoints` 同旨的取向：**量化 ＋ 出声**，✗ 假阻断。
+ */
+const loadRuntimeCounts = () => {
+	const helper = path.join(ROOT, 'tests/gates/_runtime-registry.mjs');
+	if (!fs.existsSync(helper)) return { error: '缺 _runtime-registry.mjs' };
+	try {
+		/* ★**子进程**读（✗ 在本进程里 eval bundle）：bundle 需要完整的宿主桩，
+		 *   而既有运行器 `headless.mjs` 已有一套权威加载序 ⇒ 复用**那个**，✗ 在门里复刻一套
+		 *   （本席首版在门内自建桩 ⇒ `Cannot read properties of undefined (reading 'on')`）。 */
+		const out = execFileSync(process.execPath, [helper], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
+		const line = out.trim().split('\n').pop();
+		return JSON.parse(line);
+	} catch (e) {
+		return { error: e.message.split('\n')[0] };
+	}
+};
+
 /* ---------------- 主判定 ---------------- */
 const { entries, path: ledgerPath } = loadLedger();
 if (entries == null) {
 	console.error(`  ✗ 门红：缺登台账 ${path.relative(ROOT, ledgerPath)}（跨包冲突须有台账，✗ 静默放过）`);
 	process.exit(1);
 }
-const rows = collect(path.join(ROOT, 'src'));
+const { rows, unresolvable } = collect(path.join(ROOT, 'src'));
 const { problems, samePack, crossPack, declared } = judge(rows, entries);
+/* ③ 循环形：**未登记即红**（把「扫不到」变成明账 —— 本条相对首版最重要的改变） */
+const KNOWN_UNRESOLVABLE = entries._unresolvable ?? [];
+for (const u of unresolvable) {
+	const known = KNOWN_UNRESOLVABLE.some((k) => k.file === u.file);
+	if (!known) problems.push(`循环/简写形声明（静态不可解析）：${u.file} 有 ${u.n} 处 `
+		+ '⇒ 该文件的 id 由变量给出（如 Object.entries 循环），**本门扫不到**。'
+		+ '须在 registration-ledger.json 的 `_unresolvable` 登记（附 reason ＋ ticket），使该盲区**可见**');
+}
 
 console.log('  注册面 fail-loud 门（#1804 件一）');
 console.log(`  扫描：src/** ⇒ 声明 ${declared} 条（✗ 不认 items:[{id}] 这类引用形）`);
 const ledgered = Object.keys(entries).filter((k) => !k.startsWith('_'));
 console.log(`  同包重定义 ${samePack.length} ｜ 跨包同 id ${crossPack.length}（已登记 ${ledgered.length}）`);
+console.log(`  ★静态盲区（循环/简写形）：${unresolvable.length} 个文件 / 共 ${unresolvable.reduce((a, b) => a + b.n, 0)} 处`
+	+ `（已登记 ${KNOWN_UNRESOLVABLE.length}）—— 这些 id **本门扫不到**，登记只为让它**可见**`);
 if (VERBOSE) for (const c of crossPack) console.log(`    · ${c.id}：${c.packs.join('／')}`);
 if (problems.length) {
 	console.log('  ✗ 门红：');
 	for (const p of problems) console.log(`    - ${p}`);
 	process.exit(1);
 }
+
+/* ② 运行期交叉核对：**报告**（✗ 不 red —— 见上方取向说明）。本席实测本仓现状：静态 93 条 vs 运行期 177 条
+ *   ⇒ 差 84 系循环/表驱动形**固有**，判红等于恒红。⇒ 量化 ＋ 出声，并把**静态多报**（假阳）判红。 */
+const rt = loadRuntimeCounts();
+if (rt && !rt.error) {
+	const rtTotal = (rt.items ?? 0) + (rt.characters ?? 0) + (rt.effects ?? 0);
+	console.log(`  ★运行期注册表（权威，读 dist/bundle.js）：items ${rt.items} ／ characters ${rt.characters}`
+		+ ` ／ effects ${rt.effects} ⇒ 合计 ${rtTotal}`);
+	console.log(`    · 静态扫描 ${declared} 条 ⇒ 差 ${rtTotal - declared} 条属**静态盲区**（循环/表驱动形，已在 _unresolvable 明账）`);
+	if (declared > rtTotal) {
+		problems.push(`静态扫描 ${declared} 条 > 运行期注册 ${rtTotal} 条 ⇒ 扫描**把引用当声明了**（假阳）`);
+	}
+} else if (rt == null) {
+	console.log('  ⚠ 运行期交叉核对**跳过**（缺 tests/unit/dist/bundle.js ⇒ 先 python3 build.py）—— ✗ 静默：本行即出声');
+} else {
+	console.log(`  ⚠ 运行期交叉核对**失败**：${rt.error}（单测 bundle 与门解耦 ⇒ 非阻断，但出声）`);
+}
+
 console.log('  ✓ 门绿（无未登记的跨包同 id、无同包重定义、无过期登记）');

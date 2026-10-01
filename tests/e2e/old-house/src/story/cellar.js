@@ -50,7 +50,10 @@ RPG.registerScene(new RPG.Scene({
 		},
 		{
 			text: '离开地窖',
-			action: () => SugarCube.Engine.play('厨房'), // 终点选项：回 twee 剧情
+			// 回探索地图（#1749 E-1）：'厨房' 是 map 里的**地点**（map.js 的 id:'kitchen'），
+			// 不是 twee 段落 —— 直接 Engine.play('厨房') 会跳到不存在的段落（死链）。
+			// 地窖是从探索地图的储物间进来的，出口即回该地图（'探索' 是已注册的 MapScene）。
+			action: () => SugarCube.Engine.play('探索'),
 		},
 	],
 }));

@@ -214,7 +214,21 @@ RPG.MapScene = class MapScene extends RPG.Scene {
 		await this.#renderLocation();
 	}
 
+	/* 本次重绘所属的段落（`#1749` D2 段落边界检测用）：进入 `#renderLocation` 时记下
+	 * 「这一屏画在哪个段落」；玩家选项的 action 返回后若段落已变，说明 action 内做了
+	 * 导航（`Engine.play` 到战斗／结局等独立段落）——此时旧地图这一屏已随段落退场，
+	 * 不得再把地图与选项画进新段落。判据取 `State.passage`（引擎真实接口：`enginePlay`
+	 * 内同步 `State.create` 更新）；取不到时以 `null` 表示「不判定」，退回旧行为。 */
+	#passageAtRender = null;
+
+	/* 段落是否已在本次选择期间被导航走（`#1749` D2）。任一读数缺失 ⇒ 不判定（`false`）。 */
+	#leftPassage() {
+		const now = State?.passage ?? null;
+		return this.#passageAtRender != null && now != null && now !== this.#passageAtRender;
+	}
+
 	async #renderLocation() {
+		this.#passageAtRender = State?.passage ?? null;
 		const { desc, exits } = this.map.render();
 		const loc = this.map.locations.get(this.map.current);
 
@@ -245,7 +259,9 @@ RPG.MapScene = class MapScene extends RPG.Scene {
 			// 位置交互：执行 action → 自循环重绘（状态变化后选项自动更新）
 			const act = actions[Number(picked.slice(1))];
 			if (act.action) act.action();
-			await this.#renderLocation();
+			// 段落边界检测（#1749 D2）：action 若导航去了别的段落，本屏所属段落已退场，
+			// 再重绘即为「跨段渲染」——把旧地图画进新段落。仅在同一段落内才自循环重绘。
+			if (!this.#leftPassage()) await this.#renderLocation();
 		} else {
 			// 出口导航：action → moveTo → 重绘新位置
 			const exit = exits[Number(picked.slice(1))];

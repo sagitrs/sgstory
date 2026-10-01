@@ -125,6 +125,34 @@
 		assert.eq(H().host.lastPassage(), null, '无残留段落');
 	});
 
+	/* ★`reset()` **不清** `save.onSave/onLoad` 的取舍 —— 需要**自己的格**（`#1820` T 席 `tester-4` 指其无格）：
+	 *   该取舍此前**只靠 `host.js` 注释约定**（撤掉它 ⇒ 全绿、无格会红 ⇒ 属「机制加固」而非被守护的行为）。
+	 *   为何不清：二者是**装载期订阅**（被测物加载时注册**一次**）—— 按用例清掉会让**此后所有用例**
+	 *   静默失去该行为（「第一个用例过了，后面全没信封」），是比残留更坏的**静默失效**。
+	 *   ★本格**自清**（`finally` 里撤订阅）：它自己注册了订阅 ⇒ 不清会**反向污染**后续用例
+	 *   （与本仓 `#1750`「harness 复位面」同族；`tester-4` 提示）。 */
+	test('★host：reset 不清装载期订阅（onSave/onLoad 跨用例存活）', () => {
+		const h = H();
+		/* ★**基线已 ≥ 1** —— 装载期订阅真实存在（`#1817` 笔 1 的 `RPG.save.install()` 即注册于此），
+		 *   这正是「按用例清掉会让此后所有用例静默失去信封」的**实证**：清掉的不是无名残留，是**被测物的接线**。 */
+		const base = [h.save.onSave.size, h.save.onLoad.size];
+		assert.ok(base[0] >= 1, '★基线已有装载期订阅（笔 1 的 install()）—— 清它即清被测物接线');
+		const noopSave = () => {};
+		const noopLoad = () => {};
+		h.save.onSave.add(noopSave);
+		h.save.onLoad.add(noopLoad);
+		try {
+			window.__resetState();   // per-case 复位（`harness.js` 逐格调用）
+			assert.eq(h.save.onSave.size, base[0] + 1, '★reset 后 onSave 订阅**仍存活**（✗ 被 per-case 复位清掉）');
+			assert.eq(h.save.onLoad.size, base[1] + 1, '★reset 后 onLoad 订阅**仍存活**');
+		} finally {
+			h.save.onSave.delete(noopSave);   // ★自清：✗ 留给后续用例（`tester-4` 提示；`#1750` 复位面同族）
+			h.save.onLoad.delete(noopLoad);
+		}
+		assert.eq(h.save.onSave.size, base[0], '本格自清：onSave 回到基线（✗ 反向污染后续用例）');
+		assert.eq(h.save.onLoad.size, base[1], '本格自清：onLoad 回到基线');
+	});
+
 	test('host：install 幂等（重复接线不叠加包装）', () => {
 		const before = Object.getOwnPropertyDescriptor(Object.prototype, 'perform').value;
 		H().install();

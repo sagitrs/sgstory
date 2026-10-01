@@ -212,6 +212,9 @@ if (isMain && has('--selftest')) {
 	const alwaysExists = () => true;
 	const base = { calls: { 'src/a.js': 1 }, defs: { 'src/d.js': 1 } };
 	const D = { 'src/d.js': 1 }, C = { 'src/a.js': 1 };
+	/* ★独立刀**自记总数**（✗ 硬编常量）：加刀忘改数 ⇒ 立刻显形（本席加 K11/K12 时即印出「13/11 刀如期」）。 */
+	let standalone = 0;
+	const tally = (ok) => { standalone += 1; if (ok) n += 1; };
 	const knives = [
 		['K0 空刀：与白名单同 ⇒ 绿', base, 0],
 		['K1 新消费点（新文件）⇒ 红', { calls: { ...base.calls, 'src/new.js': 1 }, defs: base.defs }, 1],
@@ -225,31 +228,45 @@ if (isMain && has('--selftest')) {
 		const exc = name.includes('过期') ? () => false : alwaysExists;
 		const r = judge(got, D, C, exc);
 		const v = r.problems.length === 0 ? 0 : 1;
-		const ok = v === want; n += ok ? 1 : 0;
+		const ok = v === want; n += ok ? 1 : 0;   /* 数组内刀：总数由 knives.length 计，✗ tally */
 		console.log(`  ${ok ? '✓' : '✗'} ${name} — 实得 ${v === 0 ? '绿' : '红'}（期望 ${want === 0 ? '绿' : '红'}）`);
 	}
 	/* 口径刀：注释里的 d20 调用**不得**计入（共用剥法） */
 	const src = "// DND5E.d20() 注释\nconst a = DND5E.d20(); /* DND3.d20() */";
 	const cnt = (stripCommentsAndStrings(src).match(new RegExp(CALL_RE.source, 'g')) ?? []).length;
-	const ok = cnt === 1; n += ok ? 1 : 0;
+	const ok = cnt === 1; tally(ok);
 	console.log(`  ${ok ? '✓' : '✗'} K6 注释里的 d20 调用不计（只算代码面那 1 处）— 实得 ${cnt}`);
 	/* 类别摊平刀：同一文件出现在两个类别 ⇒ 期望值须**求和**（✗ 取其一）
 	 *   —— 真实例即 `combat.js`（攻击骰 1 ＋ 重击确认 1 ⇒ 期望 2）。 */
 	const flat = flattenCategories({ A: { 'f.js': 1 }, B: { 'f.js': 2, 'g.js': 1 } });
-	const okF = flat['f.js'] === 3 && flat['g.js'] === 1; n += okF ? 1 : 0;
+	const okF = flat['f.js'] === 3 && flat['g.js'] === 1; tally(okF);
 	console.log(`  ${okF ? '✓' : '✗'} K7 同一文件跨类别 ⇒ 期望值**求和**（f.js 应 3，实得 ${flat['f.js']}）`);
 	/* 两向差集刀：向 A（新落点）红；向 B（白名单多报）出声但**不红**（减少是好事） */
 	const gotA = judge({ calls: { 'src/a.js': 1, 'src/new.js': 1 }, defs: { 'src/d.js': 1 } }, D, C, alwaysExists);
-	const okA = gotA.problems.length === 1 && /向 A/.test(gotA.problems[0]); n += okA ? 1 : 0;
+	const okA = gotA.problems.length === 1 && /向 A/.test(gotA.problems[0]); tally(okA);
 	console.log(`  ${okA ? '✓' : '✗'} K8 向 A（新落点）⇒ 红且**具名**「向 A」— 实得 ${gotA.problems.length} 问题`);
 	/* 家族 B 刀：新增 checkRoll 落点 ⇒ 红（首版正则看不见它 ⇒ 本刀在原形上绿） */
 	const gotCR = judge({ calls: {}, defs: { 'src/d.js': 1 }, checkrolls: { 'src/rc.js': 1 } }, D, C, alwaysExists, {});
-	const okCR = gotCR.problems.some((x) => /家族 B/.test(x)); n += 1 ? (okCR ? 1 : 0) : 0;
+	const okCR = gotCR.problems.some((x) => /家族 B/.test(x)); tally(okCR);
 	console.log(`  ${okCR ? '✓' : '✗'} K10 家族 B（checkRoll）未登记 ⇒ 红 — 实得 ${gotCR.problems.length} 问题`);
+	/* ★★K11／K12 —— **家族 C 的差集判据**须有刀守护（`#1819` RC 折毕自查时抓到**本席自己的洞**）：
+	 *   折 RC 时我**声称**「家族 C 已纳入两向差集」，但自检里**没有任何刀喂 `advs`／`advDefs`**
+	 *   ⇒ **实证**：把 judge() 里家族 C 的两条 `diff(...)` 整行删掉，自检**仍 11/11 全绿**
+	 *   ⇒ 即「C 已纳入」这一声称**无刀守护、可被静默删除**（正是本门立案的病灶本身，栽在我自己折的那一刀上）。
+	 *   ⇒ 本刀**断判决**（✗ 只断读数）：喂「C 新落点」期望**红**——若那两条 diff 被删，problems 为空 ⇒ 本刀**红**。
+	 *   与 K10 的分工：K10 守家族 B，K11／K12 守家族 C 的**消费面／定义面**，三家族各有刀。 */
+	const gotC = judge({ calls: base.calls, defs: base.defs, advCalls: { 'src/adv.js': 1 } }, D, C, alwaysExists, {}, { 'src/a.js': 1 });
+	const okC = gotC.problems.some((x) => /家族 C/.test(x)); tally(okC);
+	console.log(`  ${okC ? '✓' : '✗'} K11 家族 C（优劣骰消费）未登记 ⇒ 红 — 实得 ${gotC.problems.length} 问题`);
+	const gotC2 = judge({ calls: base.calls, defs: base.defs, advDefs: { 'src/adv2.js': 1 } }, D, C, alwaysExists, {}, { 'src/a.js': 1 }, {});
+	const okC2 = gotC2.problems.some((x) => /家族 C/.test(x)); tally(okC2);
+	console.log(`  ${okC2 ? '✓' : '✗'} K12 家族 C（优劣骰定义）未登记 ⇒ 红 — 实得 ${gotC2.problems.length} 问题`);
 	const gotB = judge({ calls: {}, defs: { 'src/d.js': 1 } }, D, C, alwaysExists);
-	const okB = gotB.problems.length === 0 && gotB.notes.some((x) => /向 B/.test(x)); n += okB ? 1 : 0;
+	const okB = gotB.problems.length === 0 && gotB.notes.some((x) => /向 B/.test(x)); tally(okB);
 	console.log(`  ${okB ? '✓' : '✗'} K9 向 B（白名单多报）⇒ **出声不红**（减少是好事）— notes=${gotB.notes.length} problems=${gotB.problems.length}`);
-	const total = knives.length + 5;
+	/* ★总数为**硬编常量**是陈旧陈述的温床（本席刚在此栽过：加 K11/K12 后印出「13/11 刀如期」）。
+	 *   ⇒ 改为**数实际断言次数**：每加一刀忘改总数 ⇒ 立刻显形（✗ 静默错报）。 */
+	const total = knives.length + standalone;
 	console.log(n === total ? `  ✓ ${n}/${total} 刀全部如期` : `  ✗ ${n}/${total} 刀如期`);
 	process.exit(n === total ? 0 : 1);
 }

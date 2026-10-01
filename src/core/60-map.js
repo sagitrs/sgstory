@@ -58,12 +58,14 @@ RPG.WorldMap = class WorldMap extends Object {
 		/* ★ #1760（设计稿 §四）：「current 在堆上 ⇒ 读档即错位」的最小修——
 		 *   实例字段落一份到 `State.variables.mapCurrent`（**纯字符串 id**，零改语义）。
 		 *   写点单点＝下面 `moveTo`（含构造后的首次进入）；读点＝`current` getter。
-		 *   本笔**只搬这一项**（不搬 locations/exits ⇒ 全量地图序列化另票）。 */
+		 *   本笔**只搬这一项**：`locations`／`exits`（图结构）**永不进档**——
+		 *   它们由包内构建函数（`buildSpan*Hub`）**确定性重建**，故属**代码面**（裁见 #1829）。 */
 		this._restoreFromState();
 	}
 
 	/** 存档键：世界地图（`id==='world'`，缺省）用 `mapCurrent`；具名地图用 `mapCurrent_<id>`。
-	 *  本笔落**单地图**键（设计稿 §四）；多地图并存时各占一键 ⇒ 互不覆盖（全量序列化另票）。 */
+	 *  本笔落**单地图**键（设计稿 §四）：多地图并存时各占一键 ⇒ 各图 `current` 互不覆盖。
+	 *  ★**图结构**（`locations`／`exits`）一律不进档（属代码面，同一条裁定，✗ 按地图分别裁；裁见 #1829）。 */
 	_stateKey() {
 		return !this.id || this.id === 'world' ? 'mapCurrent' : `mapCurrent_${this.id}`;
 	}

@@ -86,7 +86,7 @@
   ],
   "_runtimeBaseline": {
     "_why": "运行期交叉核对的**上下界**（#1807 二轮 RC-C）。下限（floor）防**静默失注册**；重复告警（dups）为**上界**：运行期出现的重复 id 必须在册 —— ★这是**唯一能看见盲区（循环/builder 形）内重复**的读数（静态扫不到那些 id）。",
-    "_seededAt": "a46c7f7d",
+    "_seededAt": "42512f69",
     "floor": {
       "items": 65,
       "characters": 14,
@@ -102,10 +102,10 @@
         "sword"
       ],
       "character": [
-        "goblin",
+        "player",
         "goblin-boss",
-        "guard",
-        "player"
+        "goblin",
+        "guard"
       ],
       "effect": []
     }

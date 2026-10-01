@@ -35,7 +35,7 @@ jobs:
       #   该核对恒走「缺 bundle ⇒ 跳过」分支 ⇒ **运行期判据（floor／盲区内重复）永不生效**。
       #   （原先摆在 build 前是照抄其它门的位次，理由已陈旧 —— 本行即更正留痕。）
       - name: 注册面 fail-loud 门（#1804 件一：跨包同 id 须登记、同包重定义必红）
-        run: node tests/gates/registration.mjs
+        run: node tests/gates/registration.mjs --require-bundle   # 位次须在 build 之后（NIT-6）
       - name: 注册面门自身的可假刀自检
         run: node tests/gates/registration.mjs --selftest
       - name: d20 消费点差集门（#1804：枚举 vs 实际集合 —— 新落点即点名）

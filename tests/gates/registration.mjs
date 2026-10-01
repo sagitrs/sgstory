@@ -38,6 +38,20 @@ const valOf = (f) => { const i = args.indexOf(f); return i >= 0 ? args[i + 1] : 
 const ROOT = path.resolve(valOf('--root') ?? path.join(import.meta.dirname, '..', '..'));
 const VERBOSE = has('--verbose');
 
+/** ★本门**未覆盖**的注册面（`#1816` MAJOR-1 明账）。
+ *  本门只扫 `defItem`／`defCharacter`／`defEffect`／`registerItem`（+ builder 调用点）；
+ *  其余注册入口**不在此门**——列出它们使「不覆盖什么」**可见**（✗ 让读者误以为全覆盖）。
+ *  `dupHandling` 如实标注：`warn+覆盖` 或 `纯静默`（后者连提示都没有，冲突时**完全无声**）。 */
+export const REG_SURFACES = [
+	/* defStock 已由 `#1816` 乙**并入本门覆盖**（见 DECL_RE），故不列于此。 */
+	{ fn: 'defPipeline',           file: 'src/core/45-pipeline.js:29',   dupHandling: 'warn+覆盖' },
+	{ fn: 'registerBuild',         file: 'src/core/36-build.js:129',     dupHandling: 'warn+覆盖' },
+	{ fn: 'defNotice',             file: 'src/core/71-notice.js:30',     dupHandling: 'warn+覆盖' },
+	{ fn: 'registerScene',         file: 'src/core/50-scene.js:68',      dupHandling: 'warn+覆盖' },   // #1816 本笔补
+	{ fn: 'registerEncounterTable', file: 'src/core/65-encounters.js:153', dupHandling: 'warn+覆盖' }, // #1816 本笔补
+	{ fn: 'registerLayerMeta',     file: 'src/core/40-battle.js:137',    dupHandling: 'warn+覆盖' },   // #1816 本笔补
+];
+
 /* ---------------- 声明侦察（三种形） ----------------
  *
  * ★★`#1807` T 席（代行 `sagitrs-developer`）实测出一条 **BLOCKING**：本门**首版只认**「`id` 是紧跟
@@ -59,9 +73,11 @@ const VERBOSE = has('--verbose');
  */
 
 /** ① 字面量形（紧贴注册调用） */
-const DECL_RE = /(?:defItem|defCharacter|defEffect|registerItem)\s*\(\s*\{?[^)]*?\bid:\s*'([^']+)'/gs;
+/* ★`#1816` 乙（顺）：把 `defStock` **并入覆盖**——它由本席 `#1777` D1 引入，**自带 `pack` 字段**
+ *   ⇒ 跨包判定天然可算（✗ 不像 item/character 那样只能靠目录推包）。 */
+const DECL_RE = /(?:defItem|defCharacter|defEffect|registerItem|defStock)\s*\(\s*\{?[^)]*?\bid:\s*'([^']+)'/gs;
 /** ③ 循环/简写形：`{ id, … }` 紧贴注册调用 ⇒ `id` 是变量，**静态不可解析** */
-const SHORTHAND_RE = /(?:defItem|defCharacter|defEffect|registerItem)\s*\(\s*\{[^}]*?\bid\s*,(?!\s*:)/gs;
+const SHORTHAND_RE = /(?:defItem|defCharacter|defEffect|registerItem|defStock)\s*\(\s*\{[^}]*?\bid\s*,(?!\s*:)/gs;
 /** ①′ 引用形（**须排除**）：`items: [{ id: 'club' }]`、`inventory: […]` —— 那是**携带**而非**声明** */
 const REF_RE = /(?:items|inventory)\s*:\s*\[[^\]]*\]/gs;
 
@@ -169,18 +185,25 @@ const judge = (rows, ledger) => {
 			problems.push(`登记项「${id}」已无实际跨包冲突 ⇒ 应删除（✗ 让过期登记长存，否则台账失去信息量）`);
 		}
 	}
-	return { problems, samePack, crossPack, declared: rows.length };
+	/* ★`#1816` MAJOR-2（D 席 dev-10 复核所报）：**两个口径混用**——
+	 *   `declared` 是**行数**（同一 id 可多次出现），而 `rtTotal` 是**唯一 id 数**
+	 *   ⇒ 两者相减**单位不同**，差数与假阳判据**天然带偏**（本席实测：行 93／唯一 id 81／运行期 100）。
+	 *   ⇒ 本函数**同时**返回两个口径，由调用方按用途取：
+	 *      · **差与假阳** ⇒ 用 `uniqueIds`（与运行期同口径）；
+	 *      · **人读的「扫到多少条声明」** ⇒ 用 `declared`（行数，另列，✗ 参与比较）。 */
+	return { problems, samePack, crossPack, declared: rows.length, uniqueIds: byId.size, files: new Set(rows.map((r) => r.file)).size };
 };
 
 /** 运行期交叉判定的**纯函数**（✗ 埋在 main 里）—— 便于自检刀直接喂入。
  *  ★这是 `#1807` 二轮 RC-A 的同一条要求：**判据若不可被刀直喂，就等于没有机械承载**。 */
-export const judgeRuntime = (rt, rb, declared) => {
+export const judgeRuntime = (rt, rb, staticUnique) => {
 	const problems = [], notes = [];
-	if (rt == null) return { problems, notes, skip: 'no-bundle' };
+	if (rt == null || rt.noBundle) return { problems, notes, skip: 'no-bundle' };
 	if (rt.error) return { problems, notes, skip: rt.error };
 	const rtTotal = (rt.items ?? 0) + (rt.characters ?? 0) + (rt.effects ?? 0);
-	if (declared > rtTotal) {
-		problems.push(`静态扫描 ${declared} 条 > 运行期注册 ${rtTotal} 条 ⇒ 扫描**把引用当声明了**（假阳）`);
+	/* ★同口径比较（#1816 MAJOR-2）：静态侧取**唯一 id**，✗ 行数 */
+	if (staticUnique > rtTotal) {
+		problems.push(`静态唯一 id ${staticUnique} > 运行期注册 ${rtTotal} ⇒ 扫描**把引用当声明了**（假阳）`);
 	}
 	if (rb == null) {
 		problems.push('缺 `_runtimeBaseline`（运行期上下界）⇒ ✗ 静默放过：无法判「注册量是否静默流失」或「盲区内是否新出重复」');
@@ -302,6 +325,32 @@ if (has('--selftest')) {
 			];
 			for (const [name, ok] of rtChecks) { n += ok ? 1 : 0; console.log(`  ${ok ? '✓' : '✗'} ${name}`); }
 			knivesLen += rtChecks.length;
+			/* ★★**判决路径刀**（本席 E2 子条【判决路径】的机械形态，挂母条二下）：
+			 *   本席在本门**连踩三次**同一形态——判据块被排在 `if (problems.length) exit(1)` **之后**
+			 *   ⇒ 该块 push 的问题**永不参与判决**（读数可见、门却报绿）。第三次是 `REG_SURFACES` 自证块。
+			 *   ⇒ 本刀**读本文件自身源码**，断言：**最后一条 `problems.push` 出现在判决点之前**。
+			 *     凡将来再往后追加判据块而忘了挪判决点 ⇒ **本刀即红**（✗ 靠人记得）。
+			 *   ★这是「判据的判决路径也须有刀」的可运行形态；本席已把它提炼为 E2 子条。 */
+			{
+				const self = fs.readFileSync(path.join(ROOT, 'tests/gates/registration.mjs'), 'utf8');
+				/* 判决点＝`if (problems.length)` 那一行（本门**唯一**的判决点；多出现即本刀红） */
+				const verdictRe = /if \(problems\.length\) \{/g;
+				const verdicts = [...self.matchAll(verdictRe)];
+				/* push 点＝`problems.push(`（✗ 匹配注释里的同名文本：只看**代码行**） */
+				const pushLines = self.split('\n')
+					.map((l, i) => [l, i])
+					.filter(([l]) => /^\s*problems\.push\(/.test(l) || /^\s*for \(const \w+ of \w+\) problems\.push\(/.test(l)
+						|| /^\s*problems\.push\(\.\.\./.test(l));
+				const verdictLine = verdicts.length ? self.slice(0, verdicts[0].index).split('\n').length : -1;
+				const latePush = pushLines.filter(([, i]) => verdictLine > 0 && i + 1 > verdictLine);
+				const ok1 = verdicts.length === 1;
+				const ok2 = latePush.length === 0;
+				const ok = ok1 && ok2;
+				n += ok ? 1 : 0;
+				console.log(`  ${ok ? '✓' : '✗'} K20 ★判决路径刀：判决点唯一(${verdicts.length}) 且**无 push 在其后**(${latePush.length} 处)`
+					+ (ok ? '' : ` —— 死区！后置 push 行：${latePush.map(([, i]) => i + 1).join(',')}`));
+				knivesLen += 1;
+			}
 		} finally {
 			fs.rmSync(tmp, { recursive: true, force: true });   // ★夹具必清（✗ 留残留污染真树扫描）
 		}
@@ -323,6 +372,9 @@ if (has('--selftest')) {
 const loadRuntimeCounts = () => {
 	const helper = path.join(ROOT, 'tests/gates/_runtime-registry.mjs');
 	if (!fs.existsSync(helper)) return { error: '缺 _runtime-registry.mjs' };
+	/* ★`#1816` NIT-6：**先分清**「缺 bundle」（位次问题 ⇒ 可判、可要求）与「helper 自身失败」（真故障）。
+	 *   ✗ 混为一谈时 `--require-bundle` 永远不触发 —— 本席实测踩到（有旗仍 rc=0）。 */
+	if (!fs.existsSync(path.join(ROOT, 'tests/unit/dist/bundle.js'))) return { noBundle: true };
 	try {
 		/* ★**子进程**读（✗ 在本进程里 eval bundle）：bundle 需要完整的宿主桩，
 		 *   而既有运行器 `headless.mjs` 已有一套权威加载序 ⇒ 复用**那个**，✗ 在门里复刻一套
@@ -342,7 +394,40 @@ if (entries == null) {
 	process.exit(1);
 }
 const { rows, unresolvable } = collect(path.join(ROOT, 'src'));
-const { problems, samePack, crossPack, declared } = judge(rows, entries);
+
+/* ★`#1816` MN-5：本门原先**没有** `--update-baseline`（`_runtimeBaseline` 与 `_unresolvable` 只能手改）
+ *   ⇒ 与 `host-touchpoints`／`refs-integrity` 的仪式不一致，且手改易错（本席自己就是手填的）。
+ *   ⇒ 归入同一开关：**一次**产出「读数 ＋ 台账」，✗ 两处各填一遍。 */
+if (has('--update-baseline')) {
+	const rt0 = loadRuntimeCounts();
+	const led = entries;
+	if (rt0 && !rt0.error) {
+		led._runtimeBaseline = {
+			...(led._runtimeBaseline ?? {}),
+			_seededAt: process.env.SEEDED_AT ?? 'unknown',
+			floor: { items: rt0.items ?? 0, characters: rt0.characters ?? 0, effects: rt0.effects ?? 0 },
+			dups: {
+				item: [...new Set(rt0.dups?.item ?? [])],
+				character: [...new Set(rt0.dups?.character ?? [])],
+				effect: [...new Set(rt0.dups?.effect ?? [])],
+			},
+		};
+		console.log('  ✓ `_runtimeBaseline` 已刷新（floor ＋ dups，dups 已去重）');
+	} else {
+		console.log('  ⚠ 运行期读数不可得 ⇒ `_runtimeBaseline` **未**刷新（✗ 静默略过：本行即出声）');
+	}
+	led._unresolvable = unresolvable.map((u) => {
+		const prev = (led._unresolvable ?? []).find((k) => k.file === u.file);
+		return { file: u.file, n: u.n,
+			reason: prev?.reason ?? '（待补：该文件为循环/表驱动形，静态不可解析）',
+			ticket: prev?.ticket ?? '#1807' };
+	});
+	fs.writeFileSync(ledgerPath, JSON.stringify(led, null, 2) + '\n');
+	console.log('  ✓ `_unresolvable` 已刷新（既有 reason／ticket **保留**，✗ 静默抹掉）');
+	console.log('  ✓ 基线刷新完毕 —— ★须人工复核并解释进 diff');
+	process.exit(0);
+}
+const { problems, samePack, crossPack, declared, uniqueIds, files: staticFiles } = judge(rows, entries);
 /* ③ 循环形：**未登记即红**（把「扫不到」变成明账 —— 本条相对首版最重要的改变） */
 const KNOWN_UNRESOLVABLE = entries._unresolvable ?? [];
 for (const u of unresolvable) {
@@ -353,9 +438,11 @@ for (const u of unresolvable) {
 }
 
 console.log('  注册面 fail-loud 门（#1804 件一）');
-console.log(`  扫描：src/** ⇒ 声明 ${declared} 条（✗ 不认 items:[{id}] 这类引用形）`);
+console.log(`  扫描：src/** ⇒ 行 ${declared} 条（唯一 id 见下；✗ 不认 items:[{id}] 这类引用形）`);
 const ledgered = Object.keys(entries).filter((k) => !k.startsWith('_'));
 console.log(`  同包重定义 ${samePack.length} ｜ 跨包同 id ${crossPack.length}（已登记 ${ledgered.length}）`);
+/* ★`#1816` MN-4：**处数 ↔ id 数并列** —— 静态数的是「**处**」（9 处循环形），
+ *   而盲区口径是「**id**」（运行期 − 静态唯一 id）。两者单位不同，单看任一都会误读规模。 */
 console.log(`  ★静态盲区（循环/简写形）：${unresolvable.length} 个文件 / 共 ${unresolvable.reduce((a, b) => a + b.n, 0)} 处`
 	+ `（已登记 ${KNOWN_UNRESOLVABLE.length}）—— 这些 id **本门扫不到**，登记只为让它**可见**`);
 if (VERBOSE) for (const c of crossPack) console.log(`    · ${c.id}：${c.packs.join('／')}`);
@@ -364,15 +451,32 @@ if (VERBOSE) for (const c of crossPack) console.log(`    · ${c.id}：${c.packs.
  *   取向：静态多报（假阳）⇒ 红；运行期多出的**重复告警** ⇒ 红（那是**唯一**能看见盲区内重复的读数）；
  *   注册量低于上限（floor）⇒ 红；静态条数少于运行期（循环形固有）⇒ **出声**，✗ 不 red。 */
 const rt = loadRuntimeCounts();
-const jr = judgeRuntime(rt, entries._runtimeBaseline ?? null, declared);
+const jr = judgeRuntime(rt, entries._runtimeBaseline ?? null, uniqueIds);   // ★传**唯一 id**（同口径）
 if (!jr.skip) {
 	console.log(`  ★运行期注册表（权威，读 dist/bundle.js）：items ${rt.items} ／ characters ${rt.characters}`
 		+ ` ／ effects ${rt.effects} ⇒ 合计 ${jr.rtTotal}`);
-	console.log(`    · 静态扫描 ${declared} 条 ⇒ 差 ${jr.rtTotal - declared} 条属**静态盲区**（循环/表驱动形，已在 _unresolvable 明账）`);
-	console.log(`    · 重复告警：item ${(rt.dups?.item ?? []).length} ／ character ${(rt.dups?.character ?? []).length}`
-		+ ` ／ effect ${(rt.dups?.effect ?? []).length} —— 已与在册台账比对（新 id ⇒ 红）`);
+	/* ★两个口径**分开列**（#1816 MAJOR-2）：行数只作人读，比较一律用唯一 id */
+	console.log(`    · 静态：**唯一 id ${uniqueIds}**（另：行 ${declared}／文件 ${staticFiles}）`);
+	const blindIds = jr.rtTotal - uniqueIds;
+	const blindSites = unresolvable.reduce((a, b) => a + b.n, 0);
+	console.log(`    · ⇒ 差 ${blindIds} **个 id** 属**静态盲区**（循环/表驱动形，已在 _unresolvable 明账）`
+		+ '　★口径＝**唯一 id**（✗ 行数——两者单位不同，混用会带偏差与假阳判据）');
+	console.log(`    · ★**处数 ↔ id 数并列**（#1816 MN-4）：静态 **${blindSites} 处**循环形 → 覆盖 **${blindIds} 个 id**`
+		+ '（处 ≠ id：一处循环可发射多个 id ⇒ 只看处数会**低估**盲区规模）');
+	/* ★`#1816` NIT-3：打印须用**唯一 id** 数（✗ 原始告警条数）——
+	 *   原先报 character **5** 而台账是 **4**（同一 id 告警两次）⇒ 两个数不一致会让读者以为有出入。 */
+	const dq = (k) => [...new Set(rt.dups?.[k] ?? [])].length;
+	console.log(`    · 重复告警（**唯一 id**）：item ${dq('item')} ／ character ${dq('character')}`
+		+ ` ／ effect ${dq('effect')} —— 已与在册台账比对（新 id ⇒ 红）`);
 } else if (jr.skip === 'no-bundle') {
-	console.log('  ⚠ 运行期交叉核对**跳过**（缺 tests/unit/dist/bundle.js ⇒ 先 python3 build.py）—— ✗ 静默：本行即出声');
+	/* ★`#1816` NIT-6：`--require-bundle` 使「本门须在 build **之后**跑」这一点**可判**。
+	 *   ✗ 缺省只出声 —— 那会让「CI 里把人摆错位次」**静默退化为无运行期判据**（本席踩过）。 */
+	if (has('--require-bundle')) {
+		problems.push('缺 tests/unit/dist/bundle.js ⇒ 运行期交叉核对**无法执行** '
+			+ '（本门须摆在 python3 build.py **之后**；CI 位次错则运行期判据全部失效）');
+	} else {
+		console.log('  ⚠ 运行期交叉核对**跳过**（缺 tests/unit/dist/bundle.js ⇒ 先 python3 build.py）—— ✗ 静默：本行即出声');
+	}
 } else {
 	console.log(`  ⚠ 运行期交叉核对**失败**：${jr.skip}（单测 bundle 与门解耦 ⇒ 非阻断，但出声）`);
 }
@@ -381,6 +485,39 @@ for (const nt of jr.notes) console.log(`  ⚠ ${nt}`);
 
 /* ★problems 判定在**全部**判据之后（含上方运行期面）—— 本席实测更正：原先它排在运行期块**之前**
  *   ⇒ 运行期 push 的问题**永不参与判定**（盲区内重复的告警打印了、门却报绿 ⇒ 一处死区）。 */
+/* ★`#1816` MAJOR-1：**未覆盖的注册面**常驻明账（✗ 让读者以为本门覆盖全部注册面）。
+ *   ★本表是「本门**不覆盖**什么」的权威清单 —— 改它须同笔说明。 */
+/* ★★`REG_SURFACES` 须**自证**（✗ 手写即真相）：逐项去**源码里**核「该入口的函数体是否真有 `console.warn`」，
+ *   与表里记的 `dupHandling` 比对 —— 不一致即红。
+ *   ★理由：本席本笔**刚踩过**——我给三面补了 warn，但**表还写着「纯静默」** ⇒
+ *     门会在**输出里说谎**（表说无提示、实码有提示）。⇒ 表与实码必须**机械交叉核对**（母条二对策）。 */
+const surfaceDiffs = [];
+for (const s of REG_SURFACES) {
+	const src = path.join(ROOT, s.file.split(':')[0]);
+	if (!fs.existsSync(src)) { surfaceDiffs.push(`${s.fn}：文件不存在 ${s.file}`); continue; }
+	const text = fs.readFileSync(src, 'utf8');
+	const idx = text.indexOf(`RPG.${s.fn} =`);
+	if (idx < 0) { surfaceDiffs.push(`${s.fn}：源码里找不到该入口定义`); continue; }
+	/* ★函数体边界＝**下一个顶层定义**（`\nRPG.` 或 `\nsetup.`）——
+	 *   ✗ 固定字符窗口：本席首版用 700 字符 ⇒ `defPipeline`（校验代码长）的 warn **落在窗口外**
+	 *   ⇒ 假报「表与实码不符」（实测）。⇒ 取**真边界**，✗ 猜长度。 */
+	const rest = text.slice(idx + 1);
+	const cuts = [rest.indexOf('\nRPG.'), rest.indexOf('\nsetup.'), rest.indexOf('\nconst ')]
+		.filter((n) => n > 0).sort((a, b) => a - b);
+	const body = cuts.length ? rest.slice(0, cuts[0]) : rest;
+	const hasWarn = /console\.warn/.test(body);
+	const claimed = s.dupHandling === 'warn+覆盖';
+	if (hasWarn !== claimed) {
+		surfaceDiffs.push(`${s.fn}（${s.file}）：表记「${s.dupHandling}」但源码窗口${hasWarn ? '**有**' : '**无**'} console.warn ⇒ 表与实码不符`);
+	}
+}
+console.log(`  ⚠ 本门**未覆盖**的注册面（${REG_SURFACES.length} 个，明账 —— 这些入口的冲突本门**看不见**）`
+	+ `　★表已与源码**交叉核对**${surfaceDiffs.length ? '（**不符 ' + surfaceDiffs.length + ' 项**）' : '（全部相符）'}：`);
+for (const d of surfaceDiffs) problems.push(`未覆盖注册面的表与实码不符：${d}`);
+for (const s of REG_SURFACES) {
+	const mark = s.dupHandling === 'warn+覆盖' ? '有 warn' : '★**纯静默**（无任何提示）';
+	console.log(`      · ${s.fn}（${s.file}）：${mark}`);
+}
 if (problems.length) {
 	console.log('  ✗ 门红：');
 	for (const p of problems) console.log(`    - ${p}`);

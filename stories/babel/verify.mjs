@@ -367,6 +367,37 @@ head('⑫ 军械堆（盾）／马厩（骑乘）');
 	console.log(`  小圆盾 ✓（AC 前缀 ${D.Player.stats.ac}）｜骡子 ✓`);
 }
 
+/* ---------- ⑬ 二段整备闭环（L20 炉边 ⇒ treatTrauma；dev-9 的 BLOCKING）----------
+ * ★本节的由来（`#1792` 的 D 席 RC，dev-9）：本笔在 `span2-hub.js` **新增**了二段整备点，而 §⑧ 断的是
+ *   **一段**的 `L10-camp` ⇒ 把 `span2-hub.js` 的 `treatTrauma` 换成常量（A′ 刀）时 `exit=0`（他实测）。
+ *   ⇒ 与 §⑧ **同形**再点一处：走 **L20 炉边的真实整备动作**，双向（高掷治愈／低掷保留）。
+ *   「接线有了、守卫没有」是本笔与 #1785 同族的形态 ⇒ 补对位置后**别把缺口原地留着**。 */
+head('⑬ 二段整备闭环（L20 炉边 ⇒ treatTrauma）');
+{
+	map.moveTo('L20-forge');
+	const rest2 = map.locations.get('L20-forge').availableActions.find((a) => String(a.text).includes('歇一歇'));
+	ok(!!rest2, 'L20-forge 没有「歇一歇（整备）」动作 —— 二段接线缺失');
+	if (rest2) {
+		D.Player.stats.heal_bonus = 20;
+		D.Player.gain('laceration');            // DC 15 的一条（与 §⑧ 用的 bleeding 错开，免相互干扰）
+		ok(D.Player.contains('laceration'), '前置：创伤已施加');
+		R.rng.set(() => 0.99);                  // d20 = 20 ⇒ 必成
+		rest2.action();
+		R.rng.reset();
+		ok(!D.Player.contains('laceration'), '★L20 整备**没治好**创伤 ⇒ 二段接线未生效（A′ 刀下必红）');
+
+		D.Player.gain('laceration');
+		D.Player.stats.heal_bonus = -100;
+		R.rng.set(() => 0.01);                  // d20 = 1 ⇒ 必败
+		rest2.action();
+		R.rng.reset();
+		ok(D.Player.contains('laceration'), '★L20 低掷点却治好了 ⇒ DC 比对失效（判据恒真的恒等替换）');
+		D.Player.stats.heal_bonus = 0;
+		D.Player.lose('laceration');
+		console.log('  L20 高掷 ⇒ 治愈 ✓｜低掷 ⇒ 保留 ✓（二段 DC 比对是活的）');
+	}
+}
+
 /* ---------- 汇总 ---------- */
 console.log(`\n${fails.length === 0 ? '✓ 装配自检通过' : `✗ 装配自检失败 ${fails.length} 条`}`);
 for (const f of fails) console.log(`  ✗ ${f}`);

@@ -59,7 +59,7 @@ setup.DND3.buildSpan2Hub = () => {
 			/* **锻造台**：拿手里的图纸打铁（`#1788` 的配方 ⇒ `#1776` 的 craft 共享动作）。
 			 *  一次动作打一件：逐张图纸试 ⇒ 材料不够的会在 `craftWith` 里被拒（输入**原子回退**）。 */
 			{
-				text: '在锻造台上打一件铁器（用图纸）',
+				text: '在锻造台上打铁（逐张图纸试，料够就打）',   // N-1（dev-9）：文案与行为对齐（行为是**逐张全试**，✗ 一次一件）
 				when: () => DND3.span2Blueprints().some((id) => RPG.has(id)),
 				action: () => {
 					const c = RPG.playerActor();

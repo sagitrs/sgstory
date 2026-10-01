@@ -83,8 +83,10 @@ map.addLocation(new R.Location({
 	name: '行会·军械堆',
 	desc: '盾牌靠着墙码成一排，木的、铁的、包边的。管事的看了你一眼，没说话，也没拦。',
 	actions: [
-		{ text: '拿一面小圆盾（AC +1）', when: () => !R.has('buckler'), action: () => { R.give('buckler'); R.equip('buckler'); } },
-		{ text: '换一面重木盾（AC +2，代价更沉）', when: () => !R.has('heavy-wooden-shield'), action: () => { R.give('heavy-wooden-shield'); R.equip('heavy-wooden-shield'); } },
+		/* N-2（dev-9）：换装要有 `perform` —— 盾占同一槽（`slot:'shield'`）⇒ 换装是**互斥切槽**，
+		 *   玩家若不被告知，会以为「新盾没拿到」。 */
+		{ text: '拿一面小圆盾（AC +1）', when: () => !R.has('buckler'), action: () => { R.give('buckler'); R.equip('buckler'); R.perform('你把小圆盾扣在左臂上。'); } },
+		{ text: '换一面重木盾（AC +2，代价更沉）', when: () => !R.has('heavy-wooden-shield'), action: () => { R.give('heavy-wooden-shield'); R.equip('heavy-wooden-shield'); R.perform('你换下旧的，扛起一面重木盾 —— 沉，但挡得住。'); } },
 	],
 }));
 map.addLocation(new R.Location({
@@ -92,8 +94,8 @@ map.addLocation(new R.Location({
 	name: '行会·马厩',
 	desc: '厩里味道很重。几匹驮兽低着头，其中一匹抬头看你 —— 它认得往上走的人。',
 	actions: [
-		{ text: '牵一匹骡子（便宜、耐走）', when: () => !R.has('mule'), action: () => R.give('mule') },
-		{ text: '牵一匹轻型马', when: () => !R.has('light-horse'), action: () => { R.give('light-horse'); R.equip('light-horse'); } },
+		{ text: '牵一匹骡子（便宜、耐走）', when: () => !R.has('mule'), action: () => { R.give('mule'); R.perform('你牵走一匹骡子。它不情愿，但跟着你走。'); } },
+		{ text: '牵一匹轻型马', when: () => !R.has('light-horse'), action: () => { R.give('light-horse'); R.equip('light-horse'); R.perform('你翻身上马 —— 缰绳一紧，它先走了一步。'); } },
 	],
 }));
 

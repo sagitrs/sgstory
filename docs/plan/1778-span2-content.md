@@ -88,7 +88,18 @@ const SRC_VAL_RES = { HP: /\*\*HP\*\*\s+(\d+)/, AC: /\*\*AC\*\*\s+(\d+)/ };
 `/\|\s*Armor Class:\s*(\d+)/`）——**注意**：3E 的 `Armor Class:` 行还带 `touch`/`flat-footed` 数值，
 正则须锚行首（本席实测源行形如 `  Armor Class:           16 (+1 size, +5 natural), touch 11, flat-footed 16`）。
 
-## 七、读数（本机，本头）
+## 七、★覆盖面基线同步（`#1720` 机制，**本笔必须做**）
+
+本笔把 `faces` 大幅抬高（`claims 99→235`、`aGroupChecked 69→243`、`titleChecked 8→28`、`sourceFormats3e 45→219`）
+⇒ **基线不更新则 `titleChecked` 仍以 8 为下限，K16 刀（标题删值）失去判别力**：
+它删一值后 `titleChecked` 只降到 27 ≥ 8 ⇒ **门绿** ⇒ 自检报 `✗ K16 未如期`（**CI 已实测红**，run `36800745126`）。
+⇒ 本笔按**唯一更新通道** `node tests/gates/refs-integrity.mjs --update-baseline` 重播基线（`seededAt 5aecb988 → 4f1ea4c2`），
+K16 恢复红（22 刀全如期）。
+> **这是 `#1720` 基线的设计意图在起作用**（而非缺陷）：基线是**下限棘轮**，抬高后须随笔收口，
+> 否则「地板被抬高」会让下探类判据静默失效。★**教训（可入巡检条）**：**凡大幅新增声称/用例的笔，
+> 必须 `--update-baseline` 并复跑自检**——只跑门会得到一个「绿但钝」的结果。
+
+## 八、读数（本机，本头）
 
 ```
 python3 build.py && node tests/unit/headless.mjs
@@ -97,12 +108,13 @@ node tests/gates/refs-integrity.mjs
   ⇒ 门绿；pin 校验 18/18（＋新 pin 行 `Monsters - Vermin.md` 650 行／15ac359e11f4ad78）
      口径 声称 235（源行 121 ＋ 其它 114）；源行 121 = A 110 + B 3 + C 8
      第①级 已核 234／不符 0；tier-② A 组 243/243（3E 原始分 219 次）
-     C 组 8/受检 8；B 组豁免 3（独立上限 40%）；覆盖面基线对账 ✓ 逐面无下降无超限
+     C 组 8/受检 8；B 组豁免 3（独立上限 40%）
+     覆盖面基线：**本笔已重播**（`seededAt 5aecb988 → 4f1ea4c2`）⇒ 各面 235/235、243/243、28/28、219/219；✓ 逐面无下降无超限
 node tests/gates/refs-integrity.selftest.mjs
   ⇒ 22 刀全部如期
 ```
 
-## 八、范围外登记（各附去处）
+## 九、范围外登记（各附去处）
 
 - **人形敌人面**（匪帮／骑士／佣兵团／审判所）→ 候留白裁定（票面口径）。
 - **craft 原语**（`#1730` 裁定② 甲案：带输入的 `useItem`）→ craft 实现票；本笔只落资源的注册 id。

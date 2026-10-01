@@ -159,6 +159,10 @@ RPG.registerEncounterTable = (tableId, table) => {
 		throw RPG.encounterError('ENCOUNTER_BAD_TABLE',
 			`遭遇表「${tableId}」结构不合法：\n  - ${problems.join('\n  - ')}`, { problems });
 	}
+	/* ★重复注册**告警**（不抛）—— `#1816` MAJOR-1：原为**纯静默**覆盖，与既有形对齐。 */
+	if (Object.prototype.hasOwnProperty.call(RPG.encounterTables, tableId)) {
+		console.warn(`[RPG] 遭遇表「${tableId}」重复注册：将被覆盖。`);
+	}
 	RPG.encounterTables[tableId] = table;
 	return table;
 };

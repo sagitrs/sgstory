@@ -1,0 +1,22 @@
+:: StoryInit
+/* 试玩版初始化（#1746）。
+ *
+ * ★ `$player` **必须在这里给全**（`dnd3/player.js` 的 DEFAULTS 只是兜底，且它的 `effects` 字段
+ *   由 `Player` 的**访问器**桥接到 `$player.effects` ⇒ 少这一项时 `contains()` 会在战斗深处抛
+ *   `Cannot read properties of undefined` —— 本笔的装配自检就是这样抓到的）。
+ *   `effects: []` 与 `inventory: []` 是两条硬要求：前者是效果/创伤的容器，后者是背包本体。
+ * ⚠ 读数一律放 `$babelRun`（纯数据 ⇒ 随存档往返），✗ 不放模块级变量（读档后错位）。 */
+<<set $player to {
+	name: "无名者",
+	hp: 18, maxHp: 20,
+	stats: setup.DND3.stats({ ac: 12, str: 12, dex: 12, heal_bonus: 0 }),
+	effects: []
+}>>
+<<set $inventory to []>>
+<<set $babelRun to { deaths: 0, kills: 0, gathered: 0, harvests: 0, traumasSeen: [], deepest: "L1" }>>
+<<set $babelGiven to {}>>
+<<set $babelSeen to {}>>
+
+/* 一段的资源/聚落计数（`#1776` 的 `farmCount()` 读这两个键；此处显式归零，避免 undefined 语义） */
+<<set $span1Farms to 0>>
+<<set $span1Harvests to 0>>

@@ -1,0 +1,36 @@
+:: PassageFooter
+<<run setup.BABEL && setup.BABEL.noteTraumas && setup.BABEL.noteTraumas()>>
+<hr>
+<div class="statusbar">
+	体力：$player.hp / $player.maxHp
+	｜　位置：<<if setup.BABEL && setup.BABEL.map.current>><<= setup.BABEL.map.locations.get(setup.BABEL.map.current).name>><<else>>（未进入）<</if>>
+	｜　创伤：<<if $player.effects && $player.effects.length>>
+		<<for _i to 0; _i < $player.effects.length; _i++>>
+			<<set _id to $player.effects[_i]>><<if setup.DND3.Traumas[_id]>><span class="trauma"><<= setup.DND3.Traumas[_id].name>></span> <</if>>>
+		<</for>>
+	<<else>>无<</if>>
+	｜　背包：<<= setup.RPG.inventoryLabel()>>
+</div>
+
+:: StoryStylesheet
+body {
+	background: #10131a;
+	color: #cfd3d8;
+	font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+}
+#passages {
+	max-width: 40em;
+	margin: 3em auto;
+	padding: 0 1em;
+	line-height: 1.75;
+}
+a { color: #d8b878; }
+a:hover { color: #fff0c0; }
+hr { border: 0; border-top: 1px solid #2d3440; }
+.statusbar {
+	color: #8fa8bd;
+	font-size: 0.88em;
+	line-height: 1.6;
+}
+.trauma { color: #e08a7a; }
+small { color: #7c8794; }

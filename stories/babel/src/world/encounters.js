@@ -104,6 +104,24 @@ setup.BABEL.fight = async ({ interactive = true } = {}) => {
 		/* `#1798` B4：阵亡是**结论行** ⇒ 走 `death` 通道（`key`），「仅关键」档下仍进正文。 */
 		R.perform(`你死在了第 ${layer.replace('L', '')} 层。清点损失：掉落 ${res.dropped} 件、清除 ${res.cleared} 项效果。`, { channel: 'death' });
 		SugarCube.Engine.play('死亡回溯');
+		return;
+	}
+
+	/* ── 出口：**必须落在页底**（`#1856` 复现）─────────────────────────────
+	 * ★症状（操作者实测）：僵持收场后「没有任何按钮」⇒ 以为软锁，只能刷新。
+	 * ★根因（本席 jsdom 实测，✗ 推断）：本仓的约定是「**输出落页底**」——
+	 *   `perform` 与 `choice` 都把内容插在 `.statusbar` **之前**（`01-perform.js:23`／`02-choice.js:36`），
+	 *   而段落里的静态链接渲染在**段落顶部**。战斗中玩家被**页底的按钮与日志**钉住
+	 *   （每回合都要点页底按钮，且每回合又往页底追加 4–6 行）⇒ 战斗一结束按钮消失，
+	 *   唯一的出口在**上方 30–58 个元素之外** ⇒ 玩家看不到。
+	 *   ★实测读数：僵持 ⇒ 出口在子元素 index 3/62（其后 58 个）；胜 ⇒ 3/34（其后 30 个）；
+	 *     SugarCube 仅在**段落显示时** `window.scroll(0,0)`，战斗中**再无**滚动 ⇒ 视点不回顶部。
+	 * ★修法：让出口走**与其它输出同一条**通道（`choice` 自动落页底）⇒ 出口出现在玩家正在看的地方。
+	 * ⚠ 仅**交互**通路给出口：无头自检（`verify.mjs` 的 `{ interactive: false }`）里没人可点，
+	 *   `await choice(...)` 会**永久挂起** ⇒ 必须门控（本席按此实现，✗ 无条件 await）。 */
+	if (interactive) {
+		const v = await DND3.Player.choice([{ text: '继续探索', value: '探索' }]);
+		SugarCube.Engine.play(v);
 	}
 };
 

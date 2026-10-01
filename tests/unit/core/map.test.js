@@ -126,4 +126,103 @@
 		const fromC = map.reachableFrom('c');
 		assert.ok(fromC.has('c') && !fromC.has('a'), 'C 不可达 A（单向）');
 	});
+
+	/* ---------- 段落边界检测（#1749 D2）----------
+
+	/* 缺陷：MapScene 的 action 里若做段落导航（如 Engine.play('攻击哥布林')），
+	 * 旧地图这一屏已随段落退场，却仍会 `await this.#renderLocation()` ⇒ 把地图与选项
+	 * 画进新段落（跨段渲染）。判据：action 返回后 `State.passage` 是否已变。
+	 *
+	 * 本仓 shims 的 State 是普通对象（无 passage），故用例直接赋值以表达「宿主段落」。
+	 * 这在真机成立：`enginePlay` 内 `State.create(passage.name)` 同步更新 `State.passage`。 */
+	const d2Scene = (actions, paths = []) => {
+		const map = new (R().WorldMap)({ id: 'd2' });
+		map.addLocation(new (R().Location)({ id: 'a', name: 'A', actions }));
+		for (const p2 of paths) {
+			map.addLocation(new (R().Location)({ id: p2.to, name: p2.to }));
+			map.addPath({ from: 'a', to: p2.to, text: `去${p2.to}` });
+		}
+		return new (R().MapScene)({ id: 'd2', map, start: 'a' });
+	};
+
+	test('map：D2 —— action 导航离开后**不再重绘**（旧地图不画进新段落）', async () => {
+		State.passage = '探索';
+		const scene = d2Scene([{ text: () => '挥棒攻击', action: () => { State.passage = '攻击哥布林'; } }]);
+		let renders = 0;
+		/* ★桩**必须有上界**（#1808 D 席 MAJOR）：本用例的判别力正在于「撤掉 D2 守卫 ⇒
+		 * 重绘不再停止」——若无上界，撤守卫时桩照旧返 'a0' ⇒ **无限重绘 ⇒ 堆耗尽 abort**，
+		 * 失败形变成 `Aborted (core dumped)`（读日志的人会当环境问题），且**掩盖同文件其它红**。
+		 * 加上界 ⇒ 撤守卫时给**一句可诊断的红**。 */
+		scene.choice = async () => {
+			renders++;
+			if (renders > 5) throw new Error(`未收敛：choice 被反复调用 ${renders} 次（D2 守卫失效？）`);
+			return 'a0';
+		};
+		await scene.execute();
+		assert.eq(renders, 1, `导航离开后不得重绘：choice 应只调用 1 次，实为 ${renders}`);
+	});
+
+	test('map：D2 对照 —— 未导航的位置交互**照旧自循环重绘**', async () => {
+		State.passage = '探索';
+		let acted = 0;
+		const scene = d2Scene([{ text: () => '翻找杂物', action: () => { acted++; } }], [{ to: 'b' }]);
+		let renders = 0;
+		/* 首次选位置交互（不导航）⇒ 应重绘；第二次选出口 ⇒ 结束 */
+		scene.choice = async () => {
+			renders++;
+			if (renders > 5) throw new Error(`未收敛：choice 被反复调用 ${renders} 次`);
+			return renders === 1 ? 'a0' : 'e0';
+		};
+		await scene.execute();
+		assert.eq(acted, 1, 'action 已执行');
+		assert.eq(renders, 2, `未导航应自循环重绘：choice 应调用 2 次，实为 ${renders}`);
+		assert.eq(scene.map.current, 'b', '出口导航仍生效（不受本判据影响）');
+	});
+
+	test('map：D2 边界 —— 宿主无 `State.passage` 读数时不判定（退回旧行为）', async () => {
+		State.passage = undefined; // 非 SugarCube 宿主（纯 core 场景）
+		const scene = d2Scene([{ text: () => '做点什么', action: () => {} }], [{ to: 'b' }]);
+		let renders = 0;
+		scene.choice = async () => {
+			renders++;
+			if (renders > 5) throw new Error(`未收敛：choice 被反复调用 ${renders} 次`);
+			return renders === 1 ? 'a0' : 'e0';
+		};
+		await scene.execute();
+		assert.eq(renders, 2, `读数缺失 ⇒ 不判定（照旧重绘）：实为 ${renders}`);
+	});
+
+	test('map：D2 边界 —— 渲染后宿主读数**消失**（动作后读不到）⇒ 不判定', async () => {
+		/* 覆盖 `#leftPassage()` 的 `now != null` 子句（#1808 D 席 MN-2）：
+		 * 渲染时读得到、action 途中宿主读数被拆掉 ⇒ 无从比对 ⇒ 退回旧行为（重绘）。
+		 * 这是防御性子句：宁可多绘一次，也不因读数缺失而误判「已离开段落」而漏绘。 */
+		State.passage = '探索';
+		const scene = d2Scene([{ text: () => '做点什么', action: () => { State.passage = undefined; } }],
+			[{ to: 'b' }]);
+		let renders = 0;
+		scene.choice = async () => {
+			renders++;
+			if (renders > 5) throw new Error(`未收敛：choice 被反复调用 ${renders} 次`);
+			return renders === 1 ? 'a0' : 'e0';
+		};
+		await scene.execute();
+		assert.eq(renders, 2, `动作后读数消失 ⇒ 不判定（照旧重绘）：实为 ${renders}`);
+	});
+
+	test('map：D2 边界 —— 渲染时**无读数**、动作后才出现 ⇒ 无基线可比 ⇒ 不判定', async () => {
+		/* 覆盖 `#passageAtRender != null` 子句（#1808 D 席 MN-2）：渲染时宿主尚未给出段落读数，
+		 * 中途才出现（如宿主在动作里完成初始化）——没有基线就无从比对 ⇒ 退回旧行为。 */
+		State.passage = undefined;
+		const scene = d2Scene([{ text: () => '做点什么', action: () => { State.passage = '攻击哥布林'; } }],
+			[{ to: 'b' }]);
+		let renders = 0;
+		scene.choice = async () => {
+			renders++;
+			if (renders > 5) throw new Error(`未收敛：choice 被反复调用 ${renders} 次`);
+			return renders === 1 ? 'a0' : 'e0';
+		};
+		await scene.execute();
+		assert.eq(renders, 2, `无渲染期基线 ⇒ 不判定（照旧重绘）：实为 ${renders}`);
+	});
+
 })();

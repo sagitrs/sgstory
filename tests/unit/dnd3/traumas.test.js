@@ -30,9 +30,11 @@
 	});
 
 	test('dnd3 trauma：施加优先级确定性——四输入各命中一条（A2）', () => {
-		assert.eq(D().traumaForHit({ damage: 12, maxHp: 20 }), 'concussion', '伤害 ≥ maxHp/2 ⇒ 脑震荡');
-		assert.eq(D().traumaForHit({ damage: 3, maxHp: 100 }), 'bleeding', '伤害 ≥ 3 ⇒ 失血');
-		assert.eq(D().traumaForHit({ damage: 2, crushing: true }), 'fracture', '钝击类 ⇒ 骨裂');
+		assert.eq(D().traumaForHit({ damage: 12, maxHp: 20, crushing: true }), 'concussion',
+			'脑震荡最优先（即便钝击）');
+		assert.eq(D().traumaForHit({ damage: 5, maxHp: 100, crushing: true }), 'fracture',
+			'★钝击**先于**伤害阈值 ⇒ 骨裂（D 席 MAJOR 后提序）');
+		assert.eq(D().traumaForHit({ damage: 3, maxHp: 100 }), 'bleeding', '非钝击且伤害 ≥ 3 ⇒ 失血');
 		assert.eq(D().traumaForHit({ damage: 2 }), 'laceration', '默认 ⇒ 裂伤');
 	});
 
@@ -46,14 +48,46 @@
 		assert.eq(D().applyTrauma(down, 'laceration'), null, '已倒地不施加（A5）');
 	});
 
-	test('dnd3 trauma：重击经 meleeAttack 施加（A1，集成）', () => {
+	// ★MN-3（D 席）：集成用例须断**具体条名** —— 只断「恰好一条」时，删掉任意 3 条仍会绿（假信心面）。
+	test('dnd3 trauma：重击经 meleeAttack 施加**指定条**——钝击 ⇒ 骨裂（A1＋A2，集成）', () => {
+		R().events.emit('battle:end', { players: [], enemies: [] });
 		R().rng.set(() => 0.99);   // d20 = 20 ⇒ 重击威胁；确认掷亦 20 ⇒ 确认命中
 		try {
-			const target = mk({ maxHp: 50 });
-			R().createItem('club').used(target, { stats: { bab: 20, str: 10 } });
+			const target = mk({ maxHp: 50 });            // 伤害 12 < 50/2 ⇒ 不触发脑震荡
+			R().createItem('club').used(target, { stats: { bab: 20, str: 10 } });   // club: type=bludgeoning
 			assert.ok(target.hp < 50, '确实命中了');
-			const held = Object.keys(D().Traumas).filter((id) => target.contains(id));
-			assert.eq(held.length, 1, `重击恰好施加一条（实得 ${held.join(',') || '无'}）`);
+			assert.ok(target.contains('fracture'), '★钝击重击 ⇒ **骨裂**（真实路径可达，✗ 死条目）');
+			assert.eq(Object.keys(D().Traumas).filter((id) => target.contains(id)).join(','), 'fracture',
+				'恰好这一条（✗ 其他三条）');
+		} finally {
+			R().rng.reset();
+		}
+	});
+
+	test('dnd3 trauma：非钝击重击 ⇒ 失血（同形对照，证明判据不是恒真）', () => {
+		R().events.emit('battle:end', { players: [], enemies: [] });
+		R().rng.set(() => 0.99);
+		try {
+			const target = mk({ maxHp: 50 });
+			R().createItem('sword').used(target, { stats: { bab: 20, str: 10 } });  // sword: type=slashing
+			assert.ok(target.contains('bleeding'), '挥砍 ⇒ 失血');
+			assert.eq(target.contains('fracture'), false, '✗ 骨裂（判据非恒真）');
+		} finally {
+			R().rng.reset();
+		}
+	});
+
+	test('dnd3 trauma：伤害达上限一半 ⇒ 脑震荡（且**遮蔽**钝击判据）', () => {
+		R().events.emit('battle:end', { players: [], enemies: [] });
+		// 序列 RNG：①重击威胁 20 ②确认 20 ③伤害骰 1d6=1 ⇒ 伤害 2×1=2；靶 maxHp=4 ⇒ 2 ≥ 4/2 ✓ 且**不致死**
+		const q = [0.99, 0.99, 0.01];
+		R().rng.set(() => (q.length ? q.shift() : 0.01));
+		try {
+			const target = mk({ hp: 4, maxHp: 4 });
+			R().createItem('club').used(target, { stats: { bab: 20, str: 10 } });
+			assert.eq(target.hp, 2, '未被一击打死（否则 A5 会遮蔽创伤施加）');
+			assert.ok(target.contains('concussion'), '伤害 2 ≥ maxHp/2 ⇒ 脑震荡');
+			assert.eq(target.contains('fracture'), false, '钝击判据被脑震荡**正确遮蔽**');
 		} finally {
 			R().rng.reset();
 		}

@@ -11,7 +11,7 @@
  *   ① 出现**不在具名白名单**里的 d20 消费/定义点 ⇒ **红**（并**点名**文件与次数）
  *   ② 白名单里的文件**次数变了**（多 ⇒ 红；少 ⇒ 绿但出声，同 `host-touchpoints` 的棘轮取向）
  *   ③ 白名单含**本仓已不存在的文件** ⇒ 红（过期登记，承【过期兼容】）
- *   ④ **本条界定判据①的覆盖范围**：识别形见 `CALL_RE`／`CHECKROLL_RE`／`ADV_*_RE`；
+ *   ④ **本条界定判据①的覆盖范围**：识别形见 `CALL_RE`／**`DEF_RE`（家族 A 的定义点）**／`CHECKROLL_RE`／`ADV_*_RE`；
  *      本门**不识别**的形见 `KNOWN_BLIND_SPOTS`（**每次运行打印**，✗ 静默不覆盖）。
  *      ⇒ 判据①只覆盖**已识别形** —— ✗ 读成「凡是掷 d20 的都被管住」。
  *      ★为何要写进**判据节**（而非只留在家族清单里）：判据节是**规范面**，
@@ -28,7 +28,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 import { stripCommentsAndStrings } from './host-touchpoints.mjs';
 
 /** ★本文件自己的「是否直接运行」（**✗ 复用宿主文件算出来的那个**：
@@ -267,6 +267,31 @@ if (isMain && has('--selftest')) {
 	const gotC2 = judge({ calls: base.calls, defs: base.defs, advDefs: { 'src/adv2.js': 1 } }, D, C, alwaysExists, {}, { 'src/a.js': 1 }, {});
 	const okC2 = gotC2.problems.some((x) => /家族 C/.test(x)); tally(okC2);
 	console.log(`  ${okC2 ? '✓' : '✗'} K12 家族 C（优劣骰定义）未登记 ⇒ 红 — 实得 ${gotC2.problems.length} 问题`);
+	/* ★★K24 **识别形集合对账刀**（`#1834` 评审判可取）：断「**判据 ④ 点名的识别形集**」==
+	 *   「**实现实际声明的识别形集**」。★它的来由：本笔首版 ④ 只点了 4 个，而实现有 5 个
+	 *   （漏 `DEF_RE` —— 家族 A 的**定义点**）⇒ **④ 自称界定判据①的覆盖范围，却漏掉一支**，
+	 *   而**判据①明写覆盖「消费／定义点」** ⇒ 读者据规范面会错判。**即 ④ 本身要修的那类病，栽在 ④ 上**。
+	 *   ⇒ 本刀把「枚举 vs 实际集合」（本门判据①对**消费点**做的事）**用到识别形自己头上**。
+	 *   ★为何不是「文字存在性刀」（K23 是后者，且被裁不做）：本刀断的是**两个集合相等**，
+	 *     可机械核（✗ 断言「注释里出现某词」那种假装机械化）。
+	 *   ⚠ 自含性：本刀**不内嵌任何识别形名**（名字从**源码**抽），故**不存在自我命中**（K23 首版的坑）。 */
+	{
+		const self2 = fs.readFileSync(fileURLToPath(import.meta.url), 'utf8');
+		/* 实现面：源码里声明为**正则字面量**的识别形（`const X_RE = /…/`） */
+		const declared = [...self2.matchAll(/^const ([A-Z][A-Z0-9_]*_RE) = \//gm)].map((m) => m[1]);   // ★名里可含 `_`（`ADV_DEF_RE` 等）—— 首版本席漏了它 ⇒ 只抽到 3 个（自证：读数 3/3 而非 5/5）
+		/* 规范面：判据 ④ 那一段里**反引号包起来的**识别形（含 `ADV_*_RE` 这类通配） */
+		const i4 = self2.indexOf('本条界定判据①的覆盖范围');
+		const block = i4 >= 0 ? self2.slice(i4, i4 + 400) : '';
+		const pats = [...block.matchAll(/`([A-Z][A-Z0-9_*]*_RE)`/g)].map((m) => m[1]);   // ★同上：含 `_`
+		const expand = (pat) => declared.filter((d) => new RegExp('^' + pat.replace(/\*/g, '[A-Z0-9]*') + '$').test(d));
+		const namedSet = new Set(pats.flatMap(expand));
+		const missing = declared.filter((d) => !namedSet.has(d));          // 实现有、④ 未点名
+		const dangling = pats.filter((pat) => expand(pat).length === 0);   // ④ 点名了、实现里不存在（写错/陈旧）
+		const okS = declared.length > 0 && missing.length === 0 && dangling.length === 0;
+		tally(okS);
+		console.log(`  ${okS ? '✓' : '✗'} K24 ★识别形集合对账：④ 点名 ${namedSet.size} ／ 实现声明 ${declared.length}`
+			+ (okS ? '' : ` —— ④ 漏 ${missing.join(',') || '（无）'}${dangling.length ? ` ／ ④ 悬空 ${dangling.join(',')}` : ''}`));
+	}
 	const gotB = judge({ calls: {}, defs: { 'src/d.js': 1 } }, D, C, alwaysExists);
 	const okB = gotB.problems.length === 0 && gotB.notes.some((x) => /向 B/.test(x)); tally(okB);
 	console.log(`  ${okB ? '✓' : '✗'} K9 向 B（白名单多报）⇒ **出声不红**（减少是好事）— notes=${gotB.notes.length} problems=${gotB.problems.length}`);

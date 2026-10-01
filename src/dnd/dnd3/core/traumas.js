@@ -136,11 +136,10 @@ DND3.treatTrauma = (c, id, { mod = 0 } = {}) => {
 	const tr = DND3.Traumas[id];
 	if (!tr) throw new Error(`未知创伤：${id}`);
 	if (!c.contains(id)) return { ok: false, roll: 0, total: 0, dc: tr.dc, removed: null, why: 'not-held' };
-	const roll = DND3.d20();
-	const total = roll + mod;
-	const ok = total >= tr.dc;
+	const r = RPG.checkRoll({ mod, dc: tr.dc });   // 判定式收敛（#1798 E1a）
+	const ok = r.success;
 	if (ok) c.lose(id);
-	return { ok, roll, total, dc: tr.dc, removed: ok ? id : null };
+	return { ok, roll: r.roll, total: r.total, dc: r.dc, removed: ok ? id : null };  // ★返回形逐键不变（S6，含 `ok` 键名）
 };
 
 /** 源 A/B 的「魔法治疗」通路：任一 healing 效果可解 `bleeding`（§五 H2；本仓以效果 id 约定）。 */

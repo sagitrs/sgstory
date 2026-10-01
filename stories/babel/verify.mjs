@@ -218,6 +218,36 @@ map.moveTo('L10-gate');   // 玩家在 L11 时**没有**回边的选项 ⇒ 这�
 ok(map.exitsFrom('L11').length === 0, 'L11 出现回边');
 console.log(`  当前位置：${map.current}｜deepest=${State.variables.babelRun.deepest}`);
 
+/* ---------- ⑧ 整备闭环（L10 营火 ⇒ DND3.treatTrauma）----------
+ * ★本节的由来（`#1785` 的 D 席 RC，dev-9）：本笔是**装配票**，验收对象就是**接线本身** ⇒
+ *   「整备点接了 treatTrauma」必须有断言 —— 否则把 `treatTrauma` 换成常量，本脚本**照样全绿**
+ *   （而那个洞正是 `#1780` §八.2 记的「hub 解除闭环」）。故本节点的是**双向**：
+ *   掷高 ⇒ 治好；掷低 ⇒ **治不好**（证明 DC 比对是活的，✗ 无条件移除）。 */
+head('⑧ 整备闭环（L10 营火 ⇒ treatTrauma）');
+map.moveTo('L10-camp');
+const camp = map.locations.get('L10-camp');
+const rest = camp?.availableActions.find((a) => String(a.text).includes('歇一歇'));
+ok(!!rest, 'L10-camp 没有「歇一歇（整备）」动作 —— 接线缺失');
+if (rest) {
+	D.Player.stats.heal_bonus = 20;          // 加值给足 ⇒ 掷 20 必过（DC 15）
+	D.Player.gain('bleeding');
+	ok(D.Player.contains('bleeding'), '前置：创伤已施加');
+	R.rng.set(() => 0.99);                   // d20 = 20 ⇒ total = 20 + 20 ≥ 15 ⇒ 必成
+	rest.action();
+	R.rng.reset();
+	ok(!D.Player.contains('bleeding'), '★整备**没治好**创伤 ⇒ 接线未生效（把 treatTrauma 换成常量也能过 = 本节点要堵的洞）');
+
+	D.Player.gain('bleeding');
+	D.Player.stats.heal_bonus = -100;        // 加值压到不可能过
+	R.rng.set(() => 0.01);                   // d20 = 1 ⇒ total < 0 < DC ⇒ 必败
+	rest.action();
+	R.rng.reset();
+	ok(D.Player.contains('bleeding'), '★低掷点却治好了 ⇒ DC 比对失效（判据恒真的恒等替换）');
+	D.Player.stats.heal_bonus = 0;
+	D.Player.lose('bleeding');
+	console.log(`  高掷 ⇒ 治愈 ✓｜低掷 ⇒ 保留 ✓（DC 比对是活的）`);
+}
+
 /* ---------- 汇总 ---------- */
 console.log(`\n${fails.length === 0 ? '✓ 装配自检通过' : `✗ 装配自检失败 ${fails.length} 条`}`);
 for (const f of fails) console.log(`  ✗ ${f}`);

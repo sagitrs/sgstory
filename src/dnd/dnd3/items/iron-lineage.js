@@ -104,7 +104,11 @@ DND3.IronSpear = ironWeapon({
 DND3.IronOre = RPG.defItem({
 	id: 'iron-ore', name: '铁矿', charges: 1, stackable: true,
 	desc: '沉甸甸的暗红矿石。锻炉烧到发白，它才肯交出里面的东西。',
-	stats: { weight: 12, craftInput: true, tier: 2 },
+	/* ★`noBattleUse: true`（`#1841` RC · `dev-9` 抓）：**铁矿是资源、战斗中没有动作** —— 但它**不走**
+	 *   `resources.js` 的共享建造器（它是二段新资源，单独声明）⇒ 本席首版只给建造器加声明**漏了它**
+	 *   ⇒ `climb2.js` 层层掉落真实拿得到 ⇒ **病没治**（战斗选单仍亮「使用」）。
+	 *   ★教训：我核了 `craftInput` 的**数**（6），却没核它的**出处**（6 件来自 2 个文件）。 */
+	stats: { weight: 12, craftInput: true, noBattleUse: true, tier: 2 },
 	used() {
 		throw new Error(`「${this.name}」是建设物资，不能直接使用（请用于锻造）`);
 	},

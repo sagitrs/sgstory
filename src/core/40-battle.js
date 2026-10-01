@@ -504,8 +504,11 @@ RPG.Battle = class Battle extends RPG.Event {
 		}
 		if (dispatch.type === 'equip' || dispatch.type === 'unequip') {
 			/* ★`#1837`：本支与 use 支**同类**（都直面 `RPG.act` 的抛出面）⇒ 一并收口
-			 * ⚠ `r?.`（`dev-10` D 席 · `#1841` 折）：`RPG.act` 在无玩家角色等形下可返回 `false`，
-			 *   原写 `r.reason` 会在该形下**抛** ⇒ 又一处「动作之外的崩溃」。 */
+			 * ⚠ `r?.`（`dev-10` D 席 · `#1841` 折）：**纯防御** —— 本席实测 `RPG.act` **不返 `false`**
+			 *   （坏 `actor`／`itemRef` 一律**抛**；其余返 `{status,…}` ⇒ 经 `#actCatching` 后**恒为对象**）。
+			 *   ★原文写「无玩家角色等形下可返回 `false`」是**错的**，已更正（`#1844` RC 自查 · `dev-9` 点）
+			 *   —— **留一条假理由比不写更坏**：后来者会按它去防一个不存在的形。
+			 *   ★另核 `#noteReject(attacker, r)` 收 falsy 亦**安全**（`r?.status` ⇒ 非 `applied` ⇒ 计数递增）。*/
 			const r = this.#actCatching(attacker, dispatch.item.id, attacker, dispatch.type); // 统一入口（#1752）
 			if (r?.reason === 'action-threw') this.perform(this.#throwText(attacker, r));
 			this.#noteReject(attacker, r);

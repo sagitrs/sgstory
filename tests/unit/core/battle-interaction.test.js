@@ -331,4 +331,33 @@
 		assert.ok(actCalls.length >= 1, '经统一入口提交');
 		assert.eq(actCalls[0], 'equip', `★提交的动作是**唯一**那个（equip），✗ 默认 use（实测 ${JSON.stringify(actCalls)}）`);
 	});
+
+	test('★#1841 ⑥【同族一致棘轮】：`craftInput` ⇒ `noBattleUse`（差集须**显式**，✗ 静默分叉）', () => {
+		/* ★由来（`#1844` RC · `dev-9` 抓）：首版只给 `resources.js` 的共享建造器加声明，
+		 *   **漏了 `iron-ore`**（它在 `iron-lineage.js` 单独声明）⇒ `craftInput` 6 件 vs
+		 *   `noBattleUse` 5 件 ⇒ `climb2.js` 掉落的铁矿在战斗选单**仍亮「使用」**（病没治）。
+		 *   ★根因：本席核了 `craftInput` 的**数**，却没核它的**出处**。
+		 *   ⇒ 本格把「两者**不得静默分叉**」机械化：凡 `craftInput` 必 `noBattleUse`；
+		 *     若将来确有「既是建造输入、又能战斗使用」的道具，**必须**加进下面的白名单
+		 *     （＝把「分叉」变成**显式决定**，✗ 靠人记得同步两处）。 */
+		const 显式例外 = [];   // ← 有正当理由者列此（空 ⇒ 两集必须重合）
+		const 分叉 = [];
+		for (const [id] of R().items) {
+			if (id.startsWith('zz-probe')) continue;
+			const st = R().createItem(id)?.stats ?? {};
+			if (st.craftInput && !st.noBattleUse && !显式例外.includes(id)) 分叉.push(id);
+		}
+		assert.eq(分叉.length, 0,
+			`★建造输入件必须同时声明「战斗无动作」（✗ 静默分叉 ⇒ 选单会亮出注定被拒的「使用」）：${JSON.stringify(分叉)}`);
+		/* 反向也钉：声明了 `noBattleUse` 却**不是**建造输入的件，是**正常**的（剧情道具等）
+		 *   ⇒ 不作断言，仅记录数量，供将来读者判规模。 */
+		let 仅无战斗 = 0;
+		for (const [id] of R().items) {
+			if (id.startsWith('zz-probe')) continue;
+			const st = R().createItem(id)?.stats ?? {};
+			if (st.noBattleUse && !st.craftInput) 仅无战斗++;
+		}
+		assert.ok(仅无战斗 >= 0, `（仅声明「无战斗动作」而非建造输入者：${仅无战斗} 件 —— 合法，仅记录）`);
+	});
+
 })();

@@ -79,7 +79,14 @@ RPG.Character = class Character extends Object {
 			const prefix = `${spec.base}:`;
 			this.effects = this.effects.filter((id) => !id.startsWith(prefix));
 		}
-		if (!this.effects.includes(spec.id)) this.effects.push(spec.id);
+		/* ★**用赋值，✗ 用 `push`**（`#1787`）：读面为纯净起见走 `effects ?? []`（✗ 读时写存档，见 player.js），
+		 *   而 `?? []` **每次返回新数组** ⇒ 此处若写 `this.effects.push(id)`，则 `includes` 与 `push` 会
+		 *   **各调一次 getter**，`push` 落在**弃数组**上 ⇒ **静默漏损**（实测：`gain('fear')` 后
+		 *   `contains('fear')` 仍 false、`$player.effects` 仍 undefined）。
+		 *   ★**这比原先的抛错更危险** —— 崩溃至少可见，静默丢失不可见。
+		 *   ⇒ 改**赋值**：走 setter ⇒ 经桥接真正写回 `$player.effects`（对怪物实例则同形落字段）。
+		 *   ⚠ 上面层级分支的 `filter` 赋值**本来就**走 setter（无此问题）；本条补的是**非层级路径**。 */
+		if (!this.effects.includes(spec.id)) this.effects = [...this.effects, spec.id];
 		return this;
 	}
 

@@ -40,6 +40,10 @@ jobs:
         run: node tests/gates/host-touchpoints.mjs
       - name: 宿主触点门自身的可假刀自检
         run: node tests/gates/host-touchpoints.mjs --selftest
+      - name: 玩家可见文本门（#1863：上屏通路内不得出现票号／英文动作名／源码路径／系统话术）
+        run: node tests/gates/player-text.mjs
+      - name: 玩家文本门自身的可假刀自检（每条刀断到「红在哪一支」）
+        run: node tests/gates/player-text.mjs --selftest
       - name: 构建（生成单测 bundle 与清单）
         run: python3 build.py
       # ★注册面门摆在**构建之后**（`#1807` 二轮 RC-B，本席实测更正）：它的**运行期交叉核对**

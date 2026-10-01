@@ -78,7 +78,11 @@ setup.BABEL.fight = async ({ interactive = true } = {}) => {
 	const layer = setup.BABEL.layerOf();
 	if (!layer) return R.perform('这里没有可遭遇的东西。');
 	if (typeof R.rollEncounter !== 'function' || typeof R.rollLoot !== 'function') {
-		return R.perform('【装配缺口】遭遇面未接线：需要 `#1784`（`src/core/65-encounters.js`）的 `RPG.rollEncounter`／`RPG.rollLoot`。');
+		/* ★`#1863` 两层拆：**开发者信号走 console**（票号＋源码路径＋API 名 —— 那是写给接线者的）。
+		 *   玩家层**仍出声**（✗ 静默 —— 静默会让「遭遇永不发生」被读成「这层本来就没怪」，见文件头 `#1784` 惯例）；
+		 *   白话保留「**本该有东西、可这里没有**」的异常感，✗ 删该信息。 */
+		console.warn('[BABEL] 装配缺口：遭遇面未接线 —— 需要 `#1784`（`src/core/65-encounters.js`）的 `RPG.rollEncounter`／`RPG.rollLoot`。');
+		return R.perform('这一层静得出奇——按理该有东西挡路的。');
 	}
 	const rolled = R.rollEncounter(layer, { count: 1 });
 	if (rolled.length === 0) return R.perform('这一层今天什么都没有挡路。');

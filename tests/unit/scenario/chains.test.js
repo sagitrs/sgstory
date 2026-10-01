@@ -147,8 +147,10 @@
 		const logs = [];
 		b1.perform = (m) => logs.push(m);
 		await b1.execute();
-		assert.ok(b1.rejectStreak > 0 || logs.some((l) => l.includes('护栏')),
-			`前置：本场确有拒绝（streak=${b1.rejectStreak}／护栏日志=${logs.some((l) => l.includes('护栏'))}）`);
+		/* ★`#1863`：玩家文案已去「护栏」一词（机制词下屏）⇒ 前置判据改挂**结构性事实**（有拒绝），
+		 *   ✗ 再耦合被清理掉的旧词。 */
+		assert.ok(b1.rejectStreak > 0 || logs.length > 0,
+			`前置：本场确有拒绝（streak=${b1.rejectStreak}／日志 ${logs.length} 条）`);
 
 		rt();                                        // ★增量：往返
 

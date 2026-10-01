@@ -269,6 +269,11 @@ RPG.Battle = class Battle extends RPG.Event {
 		try {
 			return setup.RPG.act(actor, itemRef, target, action);
 		} catch (e) {
+			/* ★**留痕**（`dev-10` D 席 MINOR，`#1841` 折）：本捕获是为「**按设计**抛错」的道具备的（资源
+			 *   「误当消耗品」），但 `used()` 里的**真 bug** 也走到这里 ⇒ 只上屏会把「**代码崩了**」
+			 *   显示成「按设计拒绝」，读者无从分辨 ⇒ **两面都留**：玩家看**文案**（上屏）、
+			 *   作者看**栈**（控制台），✗ 只留其一。 */
+			console.error('[RPG] 动作抛错（战斗侧已转为可读拒绝；此栈供排查是否为真 bug）:', e);
 			return { status: 'rejected', reason: 'action-threw', itemRef, message: e?.message ?? String(e) };
 		}
 	}
@@ -379,14 +384,21 @@ RPG.Battle = class Battle extends RPG.Event {
 	 */
 	buildPlayerOptions(attacker) {
 		const slots = attacker.items;
-		const itemOptions = slots.map((slot, i) => {
-			const item = setup.RPG.reviveItem(slot);
-			return { text: `${item.name}${item.equipped ? '（已装备）' : ''}`, value: String(i) };
-		});
-		itemOptions.push({ text: '（跳过本回合）', value: 'skip' });
 
+		/** 该道具在**战斗中**有哪些动作。
+		 *  ★`#1841`（`#1837` 远修）：**声明了 `stats.noBattleUse` 的道具不亮「使用」**。
+		 *    动因：资源类道具的 `used()` **按设计抛错**（「误当消耗品 use 时应当响」）⇒ 亮「使用」
+		 *    等于把玩家引到一条注定被拒的路（`#1839` 的网会出声，但**筛掉更好**）。
+		 *  ⚠ **判据为何不是 `handlers.use` 之有无**：本门**从不读** `handlers.use`（无条件 push），
+		 *    且 `RPG.defItem` 强制要求 `used`（`10-item.js:125`）⇒ 69 个已注册道具**无一例外**都有
+		 *    `handlers.use` ⇒ 那种判据**结构性空集**、照它实现 ＝ **零 diff**。
+		 *  ⚠ **判据为何不是 `stats.craftInput`**：其语义是「可作建造输入」，与「战斗中没有动作」只是
+		 *    **恰好相关**（当前 6 件重合）⇒ 将来「既是建造输入又能战斗使用」的道具会被**误隐藏**，
+		 *    「非建造输入但战斗无动作」（剧情道具）又**漏网** ⇒ 用**专用声明**把意图写明。
+		 *  ⚠ 默认取「**可用**」⇒ 其余 63 件行为**逐项不变**（零回归）。 */
 		const actionOptionsFor = (item) => {
-			const actions = [{ text: `使用${item.name}`, value: 'use' }];
+			const actions = [];
+			if (!item.stats?.noBattleUse) actions.push({ text: `使用${item.name}`, value: 'use' });
 			const handlers = item.constructor.handlers;
 			if (!item.equipped && typeof handlers?.equip === 'function') {
 				actions.push({ text: `装备「${item.name}」（消耗本回合）`, value: 'equip' });
@@ -396,6 +408,17 @@ RPG.Battle = class Battle extends RPG.Event {
 			}
 			return actions;
 		};
+
+		/* ★`#1841`：**零战斗动作**的道具**不列**进选单（✗ 列了就是**死路**：选中却无事可做）。
+		 *   ★`value` 必须保**原槽位下标**（✗ 过滤后重编号）—— 下游按 `slots[Number(chosen)]` 取件，
+		 *     重编号会**取错道具**（本笔最易写错的一处）。 */
+		const itemOptions = [];
+		slots.forEach((slot, i) => {
+			const item = setup.RPG.reviveItem(slot);
+			if (actionOptionsFor(item).length === 0) return;
+			itemOptions.push({ text: `${item.name}${item.equipped ? '（已装备）' : ''}`, value: String(i) });
+		});
+		itemOptions.push({ text: '（跳过本回合）', value: 'skip' });
 
 		const everyone = [...this.players, ...this.enemies].filter((c) => !this.isOut(c));
 		const targetOptions = everyone.map((c) => ({
@@ -448,6 +471,10 @@ RPG.Battle = class Battle extends RPG.Event {
 		const { itemOptions, actionOptionsFor, targetOptions } = this.buildPlayerOptions(attacker);
 
 		// ① 选道具
+		/* ★`#1841`：背包里**没有一件**在战斗中有动作（如只带资源）⇒ 出声说明，
+		 *   ✗ 让玩家对着只剩「（跳过本回合）」的菜单猜为何没有选项。
+		 *   （`itemOptions` 恒含「跳过」⇒ 长度 1 ＝ 无可用道具。） */
+		if (itemOptions.length === 1) this.perform(`${attacker.name}背包里的东西，在战斗中都用不上。`);
 		this.perform(`现在是${attacker.name}的回合，请选择道具：`);
 		const chosen = await attacker.choice(itemOptions);
 		const item = chosen === 'skip' ? null : setup.RPG.reviveItem(slots[Number(chosen)]);
@@ -459,7 +486,14 @@ RPG.Battle = class Battle extends RPG.Event {
 			if (actions.length > 1) {
 				this.perform(`对「${item.name}」做什么？`);
 				action = await attacker.choice(actions);
+			} else if (actions.length === 1) {
+				/* ★`#1841`：**唯一**那个动作就是它 —— ✗ 沿用上面的默认值（那隐含假定「≤1 个就是 use」：
+				 *   本笔之前的代码正是如此，**只删选单项会静默 no-op**）。 */
+				action = actions[0].value;
 			}
+			/* `actions.length === 0`（声明了 `noBattleUse` 却仍被选中 —— 只有桩/异常输入会走到）：
+			 *   **有意留 `'use'`**，让道具自己的 `used()` 裁决 ⇒ 由 `#1839` 的 `#actCatching` 兜成**可读拒绝**。
+			 *   ★两层是**筛**（本笔，玩家够不到）＋**网**（`#1839`，真抛错也出声且回合照走），✗ 择一。 */
 		}
 
 		// ③ 分派执行（决策在 dispatchAction，纯函数可测）
@@ -469,9 +503,11 @@ RPG.Battle = class Battle extends RPG.Event {
 			return;
 		}
 		if (dispatch.type === 'equip' || dispatch.type === 'unequip') {
-			/* ★`#1837`：本支与 use 支**同类**（都直面 `RPG.act` 的抛出面）⇒ 一并收口 */
+			/* ★`#1837`：本支与 use 支**同类**（都直面 `RPG.act` 的抛出面）⇒ 一并收口
+			 * ⚠ `r?.`（`dev-10` D 席 · `#1841` 折）：`RPG.act` 在无玩家角色等形下可返回 `false`，
+			 *   原写 `r.reason` 会在该形下**抛** ⇒ 又一处「动作之外的崩溃」。 */
 			const r = this.#actCatching(attacker, dispatch.item.id, attacker, dispatch.type); // 统一入口（#1752）
-			if (r.reason === 'action-threw') this.perform(this.#throwText(attacker, r));
+			if (r?.reason === 'action-threw') this.perform(this.#throwText(attacker, r));
 			this.#noteReject(attacker, r);
 			return;
 		}
@@ -490,7 +526,7 @@ RPG.Battle = class Battle extends RPG.Event {
 		if (r?.status === 'rejected') {
 			/* ★`#1837`：抛出**单独一句**（✗ 塞进下面那个括号位 —— 道具自带文案已含括号，再套会嵌套）；
 			 *   且**原样**用道具自己的话 ⇒ 玩家看到的是「为何不能用石料」的**因**，✗ 泛泛的「没能出手」。 */
-			if (r.reason === 'action-threw') this.perform(this.#throwText(attacker, r));
+			if (r?.reason === 'action-threw') this.perform(this.#throwText(attacker, r));
 			else this.perform(`${attacker.name}这一手没能出手${r.reason === 'no-ammo' ? '（没有弹药）' : r.reason === 'no-such-item' ? '（道具不在身上）' : r.reason === 'action-refused' ? '（动作自己拒绝了）' : ''} —— 本回合就此过去。`);
 		}
 		this.#noteReject(attacker, r);

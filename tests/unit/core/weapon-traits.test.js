@@ -470,15 +470,25 @@ test('battle：act 被拒（零弹药）⇒ **回合仍推进**（现状钉住�
 	R.defItem({ id: 'tw-bullet', name: '测试弹', charges: 1, stackable: true, used() {} });
 	const shooter = new R.Character({ name: '枪手', hp: 100, maxHp: 100, stats: D.stats({ ac: 12 }) });
 	shooter.items = [{ id: 'tw-gun', equipped: true }];        // ★刻意不给弹药
+	/* ★`#1773` 更正：foe **须配武器**（正对照）。原格 foe 是**裸的** ⇒ 它也会 `rejected/no-weapon`
+	 *   ⇒ `battle:turn` 恒 0，**分不出**「被拒不发」与「计数器根本没在工作」（空转假绿）。 */
 	const foe = new R.Character({ name: '靶', hp: 500, maxHp: 500, stats: D.stats({ ac: 10 }) });
+	foe.items = [{ id: 'club', equipped: true }];
 	R.rng.set(() => 0.99);                                      // 恒高（若真开火必命中）
-	let turnEnd = 0;
+	let turnEnd = 0, turn = 0;
 	const off = R.events.on('battle:turnEnd', () => { turnEnd += 1; });
+	const offTurn = R.events.on('battle:turn', () => { turn += 1; });
 	try {
 		assert.eq(R.has('tw-bullet'), false, '前置：零弹药');
 		const battle = new R.Battle(3, [shooter], [foe], false);
 		await battle.execute();
-	} finally { off(); }
+	} finally { off(); offTurn(); }
 	assert.eq(foe.hp, 500, '★零弹药 ⇒ 目标未受伤（`#1765` 判据①：攻击未执行）');
-	assert.eq(turnEnd, 6, '★现状：2 人 × 3 回合 ⇒ turnEnd ×6 —— 即**拒绝亦耗回合**（本格钉住现状，非 endorse）');
+	/* ★★`#1773` 裁定（案 1「拒绝不耗回合」，操作者 2026-10-01）后，本格的观测点**从 `turnEnd` 移到 `battle:turn`**：
+	 *   · `turnEnd` **仍是 ×6** —— 因裁定明确要求「`start`/`end` **成对照发**」（防条件衰减回退，
+	 *     与闸门 `cancel` 分支同形）⇒ 回合边界每次都走。
+	 *   · `battle:turn` **=== 3** —— 只有 foe 的 3 次真实开火；shooter 的 3 次被拒 ⇒ **不发**。
+	 *     （这正是「#1768 时的现状＝全发、裁定后变更」的落点：**原格钉的 `turnEnd` 不再是判据**。） */
+	assert.eq(turnEnd, 6, '`#1773` 后 `turnEnd` 仍 ×6（`start`/`end` 成对照发 —— 条件衰减不回退）');
+	assert.eq(turn, 3, '★`#1773`：`battle:turn` 恰 ×3（shooter 的 3 次被拒**不推进** ⇒ 只剩 foe 的 3 次）');
 });

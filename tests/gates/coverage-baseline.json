@@ -1,5 +1,5 @@
 {
-  "$note": "覆盖面基线（#1720）：faces＝**下限**（低于即红），ceilings＝**上限**（高于即红）。唯一更新通道 = `--update-baseline`（仅人工，CI 绝不调用）：基线变更会出现在 PR diff 里，合入者须解释「为什么少了这一项」。",
+  "$note": "覆盖面基线（#1720）：faces＝**下限**（低于即红），ceilings＝**上限**（高于即红）。**更新方式（#1789 口径校正）**：`--update-baseline`（仅人工，CI 绝不调用）重播计数面；`--seeded-at <主干sha>` 显式指定校准所对的主干（缺省取 `merge-base origin/main HEAD`）；`seededReason` **由人工撰写**（工具只**保留**、✗ 不生成也不清除）。基线变更会出现在 PR diff 里，合入者须解释「为什么少了这一项」。",
   "seededAt": "163c749c",
   "seededReason": "#1788 rebase 至主干 163c749c（原 base 1132484a，落后 3 笔）：吸并 #1747/#1761/#1782 抬升，并执行两条「单 id 收敛」裁（领队 2026-10-01）：①双 id：删 DND3.IronSword（与 iron-longsword 同源同行 :765 重复），climb2 4 处改引 iron-longsword；②铁资源 canonical=iron-ore（#1788 配方链）：撤 DND3.IronIngot，climb2 6 处改引 iron-ore；iron-message 留（剧情物）。⇒ claims/sourceLineClaims **有意的净减**（-10/-4）。方向：**收敛**（消重复件 + 统一资源口径）；faces 其余全抬；ceilings 不变、无放宽。★验收：门 rc=0 ＋ 自检 22/22 ＋ 绿但钝巡检不点名（#1786 新规）。",
   "faces": {

@@ -47,6 +47,16 @@ function runGate(dir) {
     return { code: e.status ?? 1, out: `${e.stdout ?? ''}${e.stderr ?? ''}` };
   }
 }
+
+/** 带额外 argv 跑门（#1789 K-3 用：须跑 `--update-baseline` 再断言文件未被破坏） */
+function runGateArgs(dir, args) {
+  try {
+    const out = execFileSync('node', [GATE, '--root', dir, ...args], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    return { code: 0, out };
+  } catch (e) {
+    return { code: e.status ?? 1, out: `${e.stdout ?? ''}${e.stderr ?? ''}` };
+  }
+}
 function dropLines(dir, rel, substr) {          // 按子串整行删除（避免全角/缩进逐字对齐）
   const p = path.join(dir, rel);
   const lines = fs.readFileSync(p, 'utf8').split('\n');
@@ -229,6 +239,104 @@ const knives = [
   },
 ];
 
+/* ---------- 真 git 沙箱（#1789 K20 用） ----------
+ * 为什么需要：默认 `makeCopy()` 是 `os.tmpdir()` 的**纯目录拷贝（非 git 仓）**
+ *   ⇒ `merge-base origin/main HEAD` 与 `rev-parse --short HEAD` **都失败、都落 unknown**
+ *   ⇒ 该沙箱**分不出「默认取 merge-base」与「取 HEAD」两臂**（判别力为零）。
+ *   ★这正是本席在 K-1 踩过的「两臂同值时判别力为零」换了地方（dev-9 复核指出）。
+ * ⇒ 故 K20 需要**真 git**：建一个仓、造 `origin/main` 与一条分叉的分支，
+ *   使 `merge-base ≠ HEAD`，从而能判「默认落前者还是后者」。 */
+function makeGitSandbox() {
+  const dir = makeCopy();
+  const git = (args) => execFileSync('git', args, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' });
+  git(['init', '-q']);
+  git(['config', 'user.email', 'selftest@local']);
+  git(['config', 'user.name', 'selftest']);
+  git(['add', '-A']);
+  git(['commit', '-qm', 'base']);
+  const baseSha = git(['rev-parse', '--short', 'HEAD']).trim();
+  /* 造一个「origin/main」引用指向 base（用 update-ref，✗ 需真 remote） */
+  git(['update-ref', 'refs/remotes/origin/main', baseSha]);
+  /* 再提交一笔 ⇒ HEAD 前进 ⇒ HEAD ≠ merge-base(origin/main, HEAD) */
+  fs.writeFileSync(path.join(dir, '.selftest-advance'), 'x\n');
+  git(['add', '-A']);
+  git(['commit', '-qm', 'advance']);
+  const headSha = git(['rev-parse', '--short', 'HEAD']).trim();
+  return { dir, baseSha, headSha };
+}
+
+/* ---------- 非「红/绿」形刀：直接驱动 `--update-baseline` 后**读文件**（#1789） ---------- */
+const fileKnives = [
+  {
+    /* ★K-3（dev-9 的 B 面守卫）：跑一次 `--update-baseline` 后 `seededReason` **须原样保留**。
+     *   为什么要它：工具原先**静默抹掉**该键（写入构造不含它、门也不读它 ⇒ 不报错全绿）
+     *   —— 即「机制要求的核心证据被工具吃掉」。没有这条刀，本修法下次会被「顺手简化」掉（此坑有先例）。 */
+    id: 'K17', name: '`--update-baseline` 后 `seededReason` 原样保留（✗ 静默抹掉）【#1789 B 面】',
+    run: (dir) => {
+      const p = path.join(dir, 'tests/gates/coverage-baseline.json');
+      const before = JSON.parse(fs.readFileSync(p, 'utf8'));
+      before.seededReason = 'K17 探针：' + '说明'.repeat(50);
+      fs.writeFileSync(p, JSON.stringify(before, null, 2) + '\n');
+      runGateArgs(dir, ['--update-baseline']);
+      const after = JSON.parse(fs.readFileSync(p, 'utf8'));
+      if (after.seededReason !== before.seededReason) {
+        return { ok: false, detail: `seededReason 被改动：前 ${String(before.seededReason).length} 字符 ⇒ 后 ${String(after.seededReason).length} 字符` };
+      }
+      return { ok: true };
+    },
+  },
+  {
+    /* K-1：分支上无参跑 ⇒ `seededAt` 须落**主干 merge-base**（✗ 跑时 HEAD）。
+     *   本沙箱的副本是 git 仓外（makeCopy 复制目录）⇒ 取 merge-base 会失败并落 `unknown`
+     *   且**出声警告** ⇒ 此处断言的是「✗ 不得写成沙箱里不存在的 HEAD 值」这一半。 */
+    id: 'K18', name: '`--update-baseline` 无参且非 git ⇒ `seededAt=unknown` ＋ 出声警告（✗ 静默写坏值）【#1789 A 面】',
+    run: (dir) => {
+      const r = runGateArgs(dir, ['--update-baseline']);
+      if (!/⚠ .*merge-base|seededAt 落 `unknown`|unknown/.test(r.out)) {
+        return { ok: false, detail: '未出声警告（非 git 时应提示用 --seeded-at）' };
+      }
+      const after = JSON.parse(fs.readFileSync(path.join(dir, 'tests/gates/coverage-baseline.json'), 'utf8'));
+      if (after.seededAt !== 'unknown') return { ok: false, detail: `seededAt=${after.seededAt}（期望 unknown）` };
+      return { ok: true };
+    },
+  },
+  {
+    id: 'K19', name: '`--seeded-at <sha>` 逐字生效【#1789 A 面】',
+    run: (dir) => {
+      runGateArgs(dir, ['--update-baseline', '--seeded-at', 'cafebabe']);
+      const after = JSON.parse(fs.readFileSync(path.join(dir, 'tests/gates/coverage-baseline.json'), 'utf8'));
+      return after.seededAt === 'cafebabe' ? { ok: true } : { ok: false, detail: `seededAt=${after.seededAt}（期望 cafebabe）` };
+    },
+  },
+  {
+    /* ★K20（dev-9 复核指出：K18 与「默认路径」是**同一刀的两臂**，拆开＝守一半）：
+     *   K18 只测「**非 git** ⇒ unknown ＋ 出声」；而**默认取 merge-base** 这一臂在 K18 的沙箱里
+     *   与「取 HEAD」**同落 unknown** ⇒ 分不出 ⇒ 退回 `rev-parse` 自检仍全绿（实证过）。
+     * ⇒ 本刀在**真 git 沙箱**里造出 `merge-base ≠ HEAD`，断言默认落 **merge-base**。 */
+    id: 'K20', name: '默认路径取 `merge-base origin/main HEAD`（✗ 跑时 HEAD）【#1789 A 面·另一臂】',
+    run: () => {
+      const sb = makeGitSandbox();
+      try {
+        if (sb.baseSha === sb.headSha) return { ok: false, detail: '沙箱构造失败：两臂同值（此刀判别力为零）' };
+        runGateArgs(sb.dir, ['--update-baseline']);
+        const after = JSON.parse(fs.readFileSync(path.join(sb.dir, 'tests/gates/coverage-baseline.json'), 'utf8'));
+        /* 归一：门把 sha 截到 8 位（`.slice(0,8)`），而 `rev-parse --short` 在小仓里可能给 7 位
+         *   ⇒ 比较前统一截到 8 位，✗ 因位数差造成假红。 */
+        const norm = (x) => String(x).slice(0, 8);
+        if (norm(after.seededAt) !== norm(sb.baseSha)) {
+          return { ok: false, detail: `seededAt=${after.seededAt}（期望 merge-base ${sb.baseSha}；跑时 HEAD 为 ${sb.headSha}）` };
+        }
+        if (norm(sb.baseSha) === norm(sb.headSha)) {
+          return { ok: false, detail: '沙箱两臂同值 ⇒ 本刀判别力为零（构造失效）' };
+        }
+        return { ok: true };
+      } finally {
+        fs.rmSync(sb.dir, { recursive: true, force: true });
+      }
+    },
+  },
+];
+
 function assert2(cond, msg) { if (!cond) throw new Error(msg); }
 
 let bad = 0;
@@ -248,5 +356,18 @@ for (const k of knives) {
     fs.rmSync(dir, { recursive: true, force: true });
   }
 }
-console.log(bad === 0 ? `✓ ${knives.length} 刀全部如期（门会红也会绿）` : `✗ ${bad}/${knives.length} 刀未如期`);
+for (const k of fileKnives) {
+  const dir = makeCopy();
+  try {
+    const r = k.run(dir);
+    if (!r.ok) bad++;
+    console.log(`  ${r.ok ? '✓' : '✗'} ${k.id} ${k.name}${r.ok ? '' : ` — ${r.detail}`}`);
+  } catch (e) {
+    bad++; console.log(`  ✗ ${k.id} ${k.name} — 自检自身出错：${e.message}`);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+const total = knives.length + fileKnives.length;
+console.log(bad === 0 ? `✓ ${total} 刀全部如期（门会红也会绿）` : `✗ ${bad}/${total} 刀未如期`);
 process.exit(bad === 0 ? 0 : 1);

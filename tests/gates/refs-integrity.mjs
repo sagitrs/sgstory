@@ -663,12 +663,39 @@ const faces = {
 const ceilings = { uncovered: uncovered.length, noValueCites: noValueCites.length };
 
 if (UPDATE_BASELINE) {
-  let sha = 'unknown';
-  try { sha = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: ROOT }).toString().trim(); } catch { /* 非 git */ }
-  fs.writeFileSync(BASELINE_FILE, JSON.stringify({
-    $note: '覆盖面基线（#1720）：faces＝**下限**（低于即红），ceilings＝**上限**（高于即红）。唯一更新通道 = `--update-baseline`（仅人工，CI 绝不调用）：基线变更会出现在 PR diff 里，合入者须解释「为什么少了这一项」。',
-    seededAt: sha, faces, ceilings,
-  }, null, 2) + '\n');
+  /* `seededAt` 的**口径**（#1789）：＝「本次校准所对的**主干** sha」，✗ 不是跑时 HEAD。
+   *   ① `--seeded-at <sha>` 显式指定（优先）；
+   *   ② 否则取 **`merge-base origin/main HEAD`**（在分支上跑也得到主干 sha —— 原实现取 HEAD
+   *      会把**分支头**写进去，靠人工回退对齐，属「口径靠人不靠工具」）；
+   *   ③ 取不到（非 git／无 origin/main）⇒ `unknown` 并**出声**警告（✗ 静默写坏值）。 */
+  let sha = arg('--seeded-at');
+  if (!sha) {
+    try {
+      sha = execFileSync('git', ['rev-parse', '--short', execFileSync('git', ['merge-base', 'origin/main', 'HEAD'], { cwd: ROOT }).toString().trim()], { cwd: ROOT }).toString().trim();
+    } catch {
+      sha = 'unknown';
+      console.warn('  ⚠ 无法取主干 merge-base（非 git 仓或未取 origin/main）⇒ seededAt 落 `unknown`；请用 `--seeded-at <主干sha>` 显式指定');
+    }
+  }
+  /* 注：✗ 无条件截 8 —— 默认路径已用 `rev-parse --short`（与仓同口径）；`--seeded-at` 传入者**逐字生效**（K19）。 */
+  /* ★保留既有的**人工说明**（#1789 dev-9 的 B 面）：写入构造原先只含 `$note/seededAt/faces/ceilings`
+   *   ⇒ **抹掉 `seededReason` 且不报错、全绿**（门不读该键）。而 `$note` 自己写着「合入者须解释
+   *   『为什么少了这一项』」——`seededReason` 正是承载该解释的字段 ⇒ 工具每次运行都吃掉机制要求的证据。
+   *   ⇒ ① 保留旧 `$note`（若有人改过文案，✗ 被硬编码覆盖）②**保留旧 `seededReason` 原样**
+   *     （工具**无法**判断「本笔是否该收缩」⇒ 只保留并**提示**人工复核，✗ 自行清空或改写）。 */
+  const prev = (() => { try { return JSON.parse(fs.readFileSync(BASELINE_FILE, 'utf8')); } catch { return {}; } })();
+  const DEFAULT_NOTE = '覆盖面基线（#1720）：faces＝**下限**（低于即红），ceilings＝**上限**（高于即红）。'
+    + '**更新方式（#1789 口径校正）**：`--update-baseline`（仅人工，CI 绝不调用）重播计数面；'
+    + '`--seeded-at <主干sha>` 显式指定校准所对的主干（缺省取 `merge-base origin/main HEAD`）；'
+    + '`seededReason` **由人工撰写**（工具只**保留**、✗ 不生成也不清除）。'
+    + '基线变更会出现在 PR diff 里，合入者须解释「为什么少了这一项」。';
+  const out = { $note: prev.$note ?? DEFAULT_NOTE, seededAt: sha };
+  if (prev.seededReason !== undefined) {
+    out.seededReason = prev.seededReason;
+    console.log(`  ⓘ 已保留既有 seededReason（${String(prev.seededReason).length} 字符）——请人工复核其是否仍准确（若本笔为**收缩**，须一并更新该说明）`);
+  }
+  out.faces = faces; out.ceilings = ceilings;
+  fs.writeFileSync(BASELINE_FILE, JSON.stringify(out, null, 2) + '\n');
   console.log(`已播种覆盖面基线：${path.relative(ROOT, BASELINE_FILE)}（seededAt=${sha}）`);
   for (const [k, v] of Object.entries(faces)) console.log(`  faces.${k} = ${v}`);
   for (const [k, v] of Object.entries(ceilings)) console.log(`  ceilings.${k} = ${v}`);

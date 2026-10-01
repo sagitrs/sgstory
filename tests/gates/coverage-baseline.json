@@ -1,16 +1,16 @@
 {
   "$note": "覆盖面基线（#1720）：faces＝**下限**（低于即红），ceilings＝**上限**（高于即红）。唯一更新通道 = `--update-baseline`（仅人工，CI 绝不调用）：基线变更会出现在 PR diff 里，合入者须解释「为什么少了这一项」。",
-  "seededAt": "5aecb988",
+  "seededAt": "4f1ea4c2",
   "faces": {
-    "claims": 99,
-    "sourceLineClaims": 52,
-    "aGroupCompared": 69,
-    "aGroupChecked": 69,
-    "cGroupChecked": 2,
+    "claims": 235,
+    "sourceLineClaims": 121,
+    "aGroupCompared": 243,
+    "aGroupChecked": 243,
+    "cGroupChecked": 8,
     "selfCmpChecked": 4,
-    "titleChecked": 8,
+    "titleChecked": 28,
     "sourceFormats5e": 24,
-    "sourceFormats3e": 45
+    "sourceFormats3e": 219
   },
   "ceilings": {
     "uncovered": 0,

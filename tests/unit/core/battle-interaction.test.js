@@ -192,4 +192,62 @@
 		/* 「skip 不进入目标选择」的**直接**断言（#1699：原先只靠抛错收口，且计数变量从未断言）*/
 		assert.eq(choiceCalls, 1, 'skip 后不再选目标（choice 全程只被调用 1 次）');
 	});
+
+	/* ============ `#1837`（试玩首单）：动作**抛错**不得打断整场战斗 ============
+	 * 缺陷：资源的 `used()` 按**设计抛错**（`resources.js:50`「误当消耗品 use 时应当响」），
+	 * 而 `RPG.act` 只有 `try/finally`（✗ catch）⇒ 异常上抛 ⇒ 打断 `execute()` 的 Promise
+	 * ⇒ **整场 UI 静默冻结**（操作者实测「丢石獾无反应」：已问「对谁使用石料？」、之后再无输出）。
+	 * ⇒ 修在战斗侧：`#actCatching` 把抛出转成 `rejected/action-threw`，走**既有拒绝文案通路**上屏。 */
+
+	/** 跑一场「玩家对敌用某道具」的交互战，返回 { lines, thrown, ended } */
+	const runUse = async (itemId, seq) => {
+		const R2 = R(), D2 = setup.DND3;
+		R2.give(itemId);
+		const player = D2.Player;
+		const enemy = new (R2.Character)({ name: '獾', hp: 9999, maxHp: 9999 });
+		const battle = new (R2.Battle)(1, [player], [enemy], true);
+		const lines = [];
+		battle.perform = (t) => lines.push(String(t));
+		let started = 0, ended = 0;
+		const origStart = R2.turnBoundary.start, origEnd = R2.turnBoundary.end;
+		/* ★成对不变量（E11 形）：`end` 次数须 == `start` 次数 —— 一场两名战斗者故各 ≥2，
+		 *   故断言**等式**（✗ 硬编码 1：那是把「几个人」当不变量）。 */
+		R2.turnBoundary.start = function (...a) { started++; return origStart.apply(this, a); };
+		R2.turnBoundary.end = function (...a) { ended++; return origEnd.apply(this, a); };
+		let thrown = null;
+		try {
+			await withPlayerStubs(
+				{ items: State.variables.inventory, choice: async () => (seq.length ? seq.shift() : 'skip') },
+				async () => { try { await battle.execute(); } catch (e) { thrown = e.message; } }
+			);
+		} finally { R2.turnBoundary.start = origStart; R2.turnBoundary.end = origEnd; }
+		return { lines, thrown, started, ended };
+	};
+
+	test('★#1837 ①：战斗中对**资源**「使用→选目标」⇒ 不抛 ＋ 出**可读**文案（原样引道具自己的话）', async () => {
+		const { lines, thrown, started, ended } = await runUse('rock', ['0', 'use', '獾']);
+		assert.eq(thrown, null, '★动作抛错**不再**打断战斗（修前此处抛「石料是建设物资…」）');
+		const hit = lines.find((l) => l.includes('没能出手'));
+		assert.ok(hit, `★出了拒绝文案（✗ 静默冻结）：${JSON.stringify(lines)}`);
+		assert.ok(hit.includes('建设物资') && hit.includes('请用于建造'),
+			'★文案**原样引道具自己的话**（玩家看到「因」，✗ 泛泛的「没能出手」）');
+		assert.ok(lines.some((l) => l.includes('战斗结束')), '★回合照走（战斗跑到收尾，✗ 冻在第 1 回合）');
+		assert.ok(started >= 2 && ended >= 2, `两方回合边界皆发（start=${started} end=${ended}）`);
+		assert.eq(ended, started, '★turnEnd **成对**（异常路径亦经 #playerAction 的 finally 收尾，✗ 漏发）');
+	});
+
+	test('★#1837 ②：同一通路**回归**——武器「使用」仍正常结算（✗ 被新捕获吞掉）', async () => {
+		const { lines, thrown } = await runUse('club', ['0', 'use', '獾']);
+		assert.eq(thrown, null, '武器路径不抛');
+		assert.ok(!lines.some((l) => l.includes('没能出手')), '★武器路径**不**落进拒绝文案（✗ 误捕）');
+		assert.ok(lines.some((l) => l.includes('战斗结束')), '战斗正常收尾');
+	});
+
+	test('#1837 ③：拒绝语义未变——资源仍在背包（抛出路径零副作用）', async () => {
+		await runUse('rock', ['0', 'use', '獾']);
+		const slot = State.variables.inventory.find((s) => (s.id ?? s.name) === 'rock');
+		assert.ok(slot, '★石料仍在背包（✗ 被误当消耗品扣掉）');
+		assert.eq(slot.charges ?? 1, 1, '件数未变');
+	});
+
 })();

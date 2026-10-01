@@ -254,6 +254,30 @@ RPG.Battle = class Battle extends RPG.Event {
 	 *  ⚠ 在「拒绝已不推进」的新语义下，本护栏的**实际效果是可见性**（`perform` 日志）：
 	 *    外层的 `for (round …)` 照走 ⇒ 不会真死锁（全员拒绝 ⇒ 跑到 `this.rounds` 后以「僵持」收场）。
 	 *    它的价值在**让「有人一直在被拒」这件事可见**（✗ 静默地空转整场）。 */
+	/** ★`#1837`（试玩首单）：`RPG.act` **可以抛** —— 道具的 `used()` 按设计抛错（资源的「误当消耗品」
+	 *   `src/dnd/dnd3/items/resources.js:50`「明确抛错（而非静默）—— 误当消耗品 use 时应当响」），
+	 *   而 `RPG.act` 自身只有 `try/finally`（`30-inventory.js:353`，**finally 清标记但不 catch**）
+	 *   ⇒ 抛出**上抛**；战斗循环是 `async` 的 `await` 链（`execute()`）⇒ **抛出即打断 Promise**
+	 *   ⇒ **整场战斗 UI 静默冻结**（实测：已问「对谁使用石料？」、之后再无输出；操作者侧即「无反应」）。
+	 *
+	 *   ⇒ 在**战斗侧**收口：把「动作抛出」转成 `rejected/action-threw` 结果，交**既有拒绝文案通路**上屏
+	 *     —— 设计要的「**响**」到此才真正到达玩家（原先只在控制台里响）。
+	 *   ⚠ **只包 `RPG.act` 这一调用**（✗ 包整个回合体）：其它异常仍须**上抛** ——
+	 *     那是真缺陷，吞掉它会把「崩了」伪装成「动作被拒」。
+	 *   ⚠ 属性 `message` 取自异常本身（道具作者写给自己玩家的文案）⇒ **原样**上屏，✗ 改写。 */
+	#actCatching(actor, itemRef, target, action) {
+		try {
+			return setup.RPG.act(actor, itemRef, target, action);
+		} catch (e) {
+			return { status: 'rejected', reason: 'action-threw', itemRef, message: e?.message ?? String(e) };
+		}
+	}
+
+	/** `#1837`：动作用抛错拒绝时的**可读**文案（原样引道具自己的话，见 `#actCatching`） */
+	#throwText(attacker, r) {
+		return `${attacker.name}这一手没能出手：${r.message} —— 本回合就此过去。`;
+	}
+
 	#noteReject(attacker, r) {
 		if (r?.status === 'applied') { this.rejectStreak = 0; return; }
 		this.rejectStreak += 1;
@@ -445,7 +469,9 @@ RPG.Battle = class Battle extends RPG.Event {
 			return;
 		}
 		if (dispatch.type === 'equip' || dispatch.type === 'unequip') {
-			const r = setup.RPG.act(attacker, dispatch.item.id, attacker, dispatch.type); // 统一入口（#1752）
+			/* ★`#1837`：本支与 use 支**同类**（都直面 `RPG.act` 的抛出面）⇒ 一并收口 */
+			const r = this.#actCatching(attacker, dispatch.item.id, attacker, dispatch.type); // 统一入口（#1752）
+			if (r.reason === 'action-threw') this.perform(this.#throwText(attacker, r));
 			this.#noteReject(attacker, r);
 			return;
 		}
@@ -460,9 +486,12 @@ RPG.Battle = class Battle extends RPG.Event {
 		 *   那正是 `#1768` 审查提的 MINOR 本体：三处调用点连读数都没有）。
 		 *   「本回合被消耗但不推进」的语义与自动通路一致：`battle:turn` 交互面本就不发，
 		 *   而回合边界（`start`/`end`）由 `#playerAction` 的 `finally` **成对照发**（防条件衰减回退）。 */
-		const r = setup.RPG.act(attacker, dispatch.item.id, target); // 统一入口（#1752）
+		const r = this.#actCatching(attacker, dispatch.item.id, target); // 统一入口（#1752）
 		if (r?.status === 'rejected') {
-			this.perform(`${attacker.name}这一手没能出手${r.reason === 'no-ammo' ? '（没有弹药）' : r.reason === 'no-such-item' ? '（道具不在身上）' : r.reason === 'action-refused' ? '（动作自己拒绝了）' : ''} —— 本回合就此过去。`);
+			/* ★`#1837`：抛出**单独一句**（✗ 塞进下面那个括号位 —— 道具自带文案已含括号，再套会嵌套）；
+			 *   且**原样**用道具自己的话 ⇒ 玩家看到的是「为何不能用石料」的**因**，✗ 泛泛的「没能出手」。 */
+			if (r.reason === 'action-threw') this.perform(this.#throwText(attacker, r));
+			else this.perform(`${attacker.name}这一手没能出手${r.reason === 'no-ammo' ? '（没有弹药）' : r.reason === 'no-such-item' ? '（道具不在身上）' : r.reason === 'action-refused' ? '（动作自己拒绝了）' : ''} —— 本回合就此过去。`);
 		}
 		this.#noteReject(attacker, r);
 	}

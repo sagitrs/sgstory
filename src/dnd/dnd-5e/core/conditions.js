@@ -145,8 +145,8 @@ DND5E.canAct = (c) => !Object.entries(DND5E.Conditions)
  *   `ability` 取六维名：`str|dex|con|int|wis|cha`。 */
 DND5E.save = (c, ability, dc) => {
 	const mod = DND5E.modOf(c?.stats, ability);
-	const roll = DND5E.d20();
-	return { success: roll + mod >= dc, roll, mod, dc };
+	const r = RPG.checkRoll({ mod, dc });          // 判定式收敛（#1798 E1a）
+	return { success: r.success, roll: r.roll, mod: r.mod, dc: r.dc };  // ★返回形**逐键不变**（S6）
 };
 
 /** 回合末豁免：非豁免型 ⇒ null；未持有 ⇒ 幂等 true（不掷骰）；成功 ⇒ 移除该条（层级条精确一层）。

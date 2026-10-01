@@ -21,7 +21,7 @@
 		id: 'unit-draught', name: '单测药水', charges: 1, stackable: true,
 		stats: { hp: 3 },
 		used(that) {
-			if (!that?.hp == null) return false;
+			if (that?.hp == null) return false;   // ★`#1805`：原写 `!that?.hp == null` —— 左侧是**布尔**，`== null` **恒 false** ⇒ 该支为**死代码**（`#1799` 随入）
 			that.hp = Math.min(that.maxHp ?? 999, (that.hp ?? 0) + this.stats.hp);
 			this.perform(`${that.name}喝下单测药水。`);
 		},
@@ -69,6 +69,23 @@
 		assert.eq(p.hp, 8, `效果应生效（5 → 8，实得 ${p.hp}）`);
 		assert.eq(S().inventory.some((s) => s.id === 'unit-draught'), false,
 			'charges:1 用尽后应离开背包（与 useItem 同语义）');
+	});
+
+	/* `#1805`（`#1799` 随入）：本档 `unit-draught` 的 `used()` 有一条**拒绝支**（「缺 hp ⇒ 拒绝」），
+	 *   而原夹具写成 `if (!that?.hp == null) return false;` —— 左侧是**布尔**，`== null` **恒 false**
+	 *   ⇒ 该支是**死代码**；上面那格用 `p.hp = 5` ⇒ **根本不进该支**
+	 *   ⇒ 拒绝路径从未被夹具**直证**（只被道具语义间接覆盖）。
+	 *   ⇒ 修正为 `that?.hp == null`，并补本格**直证**（✗ 靠间接覆盖）。 */
+	test('#1805：`unit-draught` 的「缺 hp ⇒ 拒绝」支**直证**（✗ 死支）', () => {
+		const p = freshInv(R().playerActor() ?? R().characters.get('player'));
+		p.hp = undefined;                                  // ★缺 hp ⇒ 应走拒绝支
+		p.maxHp = 20;
+		R().give('unit-draught');
+		const r = R().itemClick('unit-draught', { actor: p });
+		assert.eq(r.ok, false, '★缺 hp ⇒ 拒绝（`used()` 返回 false ⇒ `ok:false`）');
+		assert.eq(p.hp, undefined, '★拒绝 ⇒ **不得**改动 hp（✗ 兜底成 `0 + 3`）');
+		assert.ok(S().inventory.some((s) => s.id === 'unit-draught'),
+			'★拒绝 ⇒ **不得**消耗（`#1801`：「拒绝路径一律零副作用」⇒ charges ✗ 扣、槽 ✗ 摘）');
 	});
 
 	test('C1：条目**显式拒绝**时点击报 `ok:false`（✗ 假装成功）', () => {

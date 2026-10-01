@@ -43,7 +43,11 @@ DND3.meleeAttack = (item, that, from) => {
 		const held = RPG.equippedWeapon();
 		if (held && held.id !== item.id) {
 			item.perform(`你得先腾出手——「${held.name}」还握在手里。`);
-			return;
+			/* ★`return **false**`（`#1813`）：这是**拒绝**（打不出去）⇒ 交 `RPG.act` 判 `rejected/action-refused`。
+			 *   ⚠ **✗ 与下面的「挥空」同改** —— 挥空是「攻击**已发生**、只是没中」⇒ 必须留 `return;`
+			 *     （`undefined` ⇒ `applied`）：若也返 `false`，「连打三下没中」会触发
+			 *     `#1773` 的三连护栏**强制跳过**（那是新缺陷，✗ 本票要的）。 */
+			return false;
 		}
 		item.equipped = true; // 拔出武器（useItem 会提交回背包快照）
 		item.perform(`你握紧了「${item.name}」。`);

@@ -1,6 +1,6 @@
 {
   "_note": "core 宿主触点基线（#1804 件二）。棘轮：只防加深（新触点⇒红）；减少⇒绿但出声（可 --update-baseline 刷新）。口径：已剥注释与字符串、只算代码面；类目见 tests/gates/host-touchpoints.mjs 的 CATEGORIES。",
-  "_seededAt": "e3b69dce",
+  "_seededAt": "c8531cbf",
   "touchpoints": {
     "src/core/00-namespace.js": {
       "setup.": 1
@@ -34,11 +34,11 @@
     },
     "src/core/70-ui.js": {
       "State.variables": 1,
-      "jQuery": 3
+      "jQuery": 2
     },
     "src/core/71-notice.js": {
       "State.variables": 4,
-      "jQuery": 3
+      "jQuery": 2
     }
   }
 }

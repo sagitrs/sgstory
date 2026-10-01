@@ -128,7 +128,16 @@ RPG.slotEquip = function slotEquip() {
 	this.perform(`你装备了「${this.name}」。`);
 };
 
-/** 卸下动作：清除 equipped 标记（未装备时是静默空操作） */
+/** 卸下动作：清除 equipped 标记（未装备时是静默空操作）
+ *
+ * ★**「未装备就卸」是有意的幂等成功，✗ 不是漏改**（`#1783` 三席评审点名：本函数原先无任何注释，
+ *   读者无从判断「有意幂等」还是「忘了写 `return false`」）。契约依据：
+ *     ① 语义上**无事可做 ＝ 已达成目标**（与 `slotEquip` 的「同槽同件重装 ⇒ 幂等」**同一判据**）；
+ *     ② 可达性：`unequip` 挂 26 处真件，但战斗交互通路（`40-battle.js`）**只在 `item.equipped` 时
+ *        才出该选项**、`#1799` C1 的 `toggleEquip` 亦先判 `isEquipped` ⇒ **正常路径不会 dispatch 未装备的
+ *        unequip**（只在「接口可被如何用」的意义上存在）。
+ *   ⇒ **保持 `undefined`（成功）**，✗ 不得改成 `return false`（那会把幂等成功误报为失败）。
+ *   ⚠ 对照：`slotEquip`／`throwItem` 的失败分支**有拒绝文案** ⇒ 那是**真拒绝** ⇒ `return false`。 */
 RPG.slotUnequip = function slotUnequip() {
 	if (!this.equipped) return;
 	this.equipped = false;
@@ -150,9 +159,14 @@ RPG.slotUnequip = function slotUnequip() {
  * 用法：道具声明 `actions: { throw: RPG.throwItem }`。
  */
 RPG.throwItem = function throwItem(that, from) {
+	/* ★失败须**显式 `return false`**（`#1783` —— 与 `slotEquip` **同族、同层、同契约**）：
+	 *   本条有**明确的拒绝文案**（「没有 Thrown 特性，不能投掷」）⇒ 语义上就是**拒绝**，
+	 *   ✗ 不能是 `undefined`（那会被 `#1776` 契约算作 `applied` ⇒ 调用方判不出失败）。
+	 *   ⚠ 可达性：唯一挂 `throw:` 的真件是 `dagger`，而它有 `thrown: '20/60'` ⇒ 该分支**对真内容面
+	 *   不可达**；但**接口必须正确**（与 `slotEquip` 的「不是可装备物」分支**同一判据、同一适用**）。 */
 	if (this.stats?.thrown == null) {
 		this.perform(`「${this.name}」没有 Thrown 特性，不能投掷。`);
-		return;
+		return false;
 	}
 	this.used(that, from); // 先掷（走该武器的既有攻击路径），再离手
 	RPG.take(this.id, 1); // 掷出即离开背包（SRD：thrown 武器经投掷使用）

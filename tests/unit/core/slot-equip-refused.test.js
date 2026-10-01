@@ -101,6 +101,59 @@
 		assert.eq(R().reviveItem(State.variables.inventory[0]).equipped, false, '零副作用：未被装上');
 	});
 
+	/* ---------- ⑦ 同族：`RPG.throwItem` 的「无 Thrown 就投」 ⇒ rejected ---------- */
+
+	test('★#1783 ⑦：`throwItem` 挂 `throw` 但无 `stats.thrown` ⇒ `rejected`（**有拒绝文案 ⇒ 语义明确是拒绝**）', () => {
+		/* 与 ③ 同形（为「对真件不可达的接口分支」单列一格）：唯一挂 `throw:` 的真件是 `dagger`，
+		 * 而它有 `thrown:'20/60'` ⇒ 该分支对真内容面不可达；但**接口必须正确**
+		 * （同一判据同一适用 —— 本笔 §三 已为 `slotEquip` 的不可达分支立此判据）。
+		 * ★其拒绝文案（「没有 Thrown 特性，不能投掷」）自证语义 ⇒ ✗ 不属于「须裁定的幂等」。 */
+		const ID = 'unit-nothrow';
+		R().defItem({ id: ID, name: '无掷件', charges: 1, stackable: true, used() {},
+			actions: { throw: R().throwItem } });                 // ★挂 throw 但**不给 stats.thrown**
+		try {
+			const p = scenario({ id: ID, equipped: false, charges: 1 });
+			const r = R().act(p, ID, p, 'throw');
+			assert.eq(r.status, 'rejected', '★无 Thrown ⇒ 拒绝（修前 applied）');
+			assert.eq(r.reason, 'action-refused', '原因为 action-refused');
+		} finally {
+			R().items.delete(ID);                              // 测试卫生
+		}
+	});
+
+	/* ---------- ⑧ 现有真件回归：dagger 的 throw ⇒ 仍 `applied`（✗ 被⑦连坐） ---------- */
+
+	test('#1783 ⑧：真件 `dagger`（有 `thrown`）的 `throw` ⇒ 仍 `applied`（✗ 不得连坐成拒绝）', () => {
+		/* ⑦ 改了 `throwItem` 的失败分支 ⇒ 须钉住真件的**成功路径**不受影响（dagger 有 thrown ⇒ 走成功）。 */
+		const p = scenario({ id: 'dagger', equipped: false, charges: null });
+		const r = R().act(p, 'dagger', p, 'throw');
+		assert.eq(r.status, 'applied', 'dagger 有 Thrown ⇒ 投掷照常成功');
+	});
+
+	/* ---------- ⑨ ★「挥空了没击中」≠ 拒绝 —— 单列一格（✗ 让「一律改 false」蒙混） ---------- */
+
+	test('#1783 ⑨：**攻击已发生、只是没命中 ⇒ 不是拒绝** ⇒ 保持 `undefined` ＝ `applied`（✗ 一律改 false）', () => {
+		/* 战斗 `used()` 层的攻击结算（`dnd-5e/combat.js`「挥空了，没有击中」）是**成功**
+		 * —— 攻击**已发生**、消耗了动作，只是没命中 ⇒ 语义上是成功，**必须保持 `undefined`**。
+		 * 若日后有人把 `used()` 里的 `return;` **一律**改成 `return false`，本格会红。
+		 * 口径：注入 `RPG.rng` 序列让攻击必然 miss（掷骰恒 1 ⇒ 1+mod < AC ⇒ 挥空）。 */
+		/* 口径：本格**不用 `playerActor()`** —— 它由 harness 注入（`effects` 未初始化 ⇒ `traumaAttackMod` 会崩），
+		 *   而格 ⑨ 要的是「攻击结算真的跑完」。⇒ 自造攻守双方（`items` ＋ `effects` 齐备）。 */
+		R().give('coin');                                       // 先初始化背包（供 give/revive 路径）
+		const p = new (R().Character)({ name: '甲', hp: 20, maxHp: 20,
+			items: [{ id: 'sword', equipped: true, charges: null }], stats: { ac: 12 } });
+		const foe = new (R().Character)({ name: '靶', hp: 10, maxHp: 10,
+			items: [{ id: 'coin' }], stats: { ac: 25 } });
+		R().rng.setSequence([0.0, 0.0, 0.0, 0.0]);             // 掷骰恒 1 ⇒ 必 miss（`1+mod < 25`）
+		try {
+			const r = R().act(p, 'sword', foe, 'use');          // use ⇒ used ⇒ DND5E.attack ⇒ 挥空
+			assert.eq(r.status, 'applied', '★挥空 ＝ 攻击已发生 ＝ 成功（✗ 拒绝）');
+			assert.eq(foe.hp, 10, '前置：确实**没命中**（靶未掉血）⇒ 本格测的正是「挥空」这条路径');
+		} finally {
+			R().rng.reset();                                   // 测试卫生：rng 用完必复位
+		}
+	});
+
 	/* ---------- ⑥ 反向：`undefined` 仍算成功（契约的另一半，✗ 被本笔改动波及） ---------- */
 
 	test('#1783 ⑥ 契约另一半：**处理器返回 `undefined`** ⇒ 仍 `applied`（✗ 连成功也一起判失败）', () => {

@@ -25,9 +25,9 @@
  *   ⇒ 本文件只提供**读/减**原语（两侧都可用），**不预设方向**（方向属 D3 消费票）。
  *
  * ## 本档的范围（#1777）
- *   **D1（本笔）**：注册表 ＋ 上述机械强制 ＋ 读/减原语 ＋ 耗尽事件（判据 2/3/4/7 ＋ E2/E3/E4/E11）。
- *   **D2**：`scope` 的清理接线（`battle:end` 清 `'battle'` 档）＋ 战斗通路接入（判据 5/6/8 ＋ E7/E8）。
- *   故 `scope` 在 D1 **只声明与校验**（其消费点见 D2）—— ✗ 视作死字段（同一票内闭环）。
+ *   **D1（PR #1794 已合 `1ee92fb7`）**：注册表 ＋ 上述机械强制 ＋ 读/减原语 ＋ 耗尽事件（判据 2/3/4/7 ＋ E2/E3/E4/E11）。
+ *   **D2（本笔）**：`scope` 的清理原语 `clearStocksScoped` ＋ 包侧 `battle:end` 接线（判据 5/6/8 ＋ E7/E8）。
+ *   ⇒ `scope` 至此**有消费点**（否则即「声明了不消费」的死字段——本轮闭环）。
  */
 
 /** 存量注册表：id → 定义（各包共用一张表，同 `RPG.items` / `RPG.effects`） */
@@ -44,6 +44,7 @@ const STOCK_SCOPES = ['battle', 'persistent'];
  *
  * def = { id, name?, desc?, scope?, unit?, statBlock, pack? }
  *   id        必填：非空字符串，**不得含「:」**（层级是档 4 的事，见 17-effect 的同款校验）
+ *   initial   `scope:'battle'` **必需**：本场结束复位到此值（✗ 猜值）；其他档可选（仅作元数据）
  *   scope     `'battle' | 'persistent'`（缺省 `'persistent'` ＝**保既有行为**）；消费点见 D2
  *   unit      可读单位（如「发」「小时」）——仅供展示，引擎不用
  *   statBlock **必填**：本包的 `STAT_BLOCK`；`id` 须是它的**普通可枚举字符串键**（见文件头：B 裁定 ＋ E11）
@@ -55,6 +56,15 @@ RPG.defStock = (def) => {
 	if (def.id.includes(':'))
 		throw RPG.stockError('STOCK_BAD_ID', `defStock 的 id 不得含「:」（层级是档 4 的事）：${def.id}`);
 	const scope = def.scope ?? 'persistent';
+	/* ★`initial` 是 `scope:'battle'` 的**复位值**（`clearStocksScoped` 用）⇒ 该档**必需**：
+	 *  否则「本场清除」无从实现，只能猜一个值（0？未声明？）⇒ 语义含糊。
+	 *  非 battle 档给 `initial` 亦合法（仅作元数据），但给了就须为有限数。 */
+	if (scope === 'battle' && !Number.isFinite(def.initial))
+		throw RPG.stockError('STOCK_NO_INITIAL',
+			`defStock「${def.id}」的 scope 为 battle ⇒ 须给 initial（有限数）——复位值不可猜（#1759 §十.3）`);
+	if (def.initial !== undefined && !Number.isFinite(def.initial))
+		throw RPG.stockError('STOCK_BAD_INITIAL',
+			`defStock「${def.id}」的 initial 应为有限数：${String(def.initial)}`);
 	if (!STOCK_SCOPES.includes(scope))
 		throw RPG.stockError('STOCK_BAD_SCOPE',
 			`defStock「${def.id}」的 scope 应是 ${STOCK_SCOPES.join(' | ')}：${String(scope)}`);
@@ -110,3 +120,45 @@ RPG.consumeStock = (c, id, n = 1) => {
 	}
 	return took;
 };
+
+/**
+ * 战斗结束清理（`scope:'battle'` 的存量**复位为 `initial`**；`persistent` 不受影响）。
+ *
+ * ★与条件面的 `DND5E.clearBattleScoped`（`conditions.js:188`）**平行且同判据**：
+ *   `def.scope !== 'battle' ⇒ 保留`（缺省即 `persistent` ⇒ 自动走「保留」⇒ 不破既有行为）。
+ * ★core **不认识任何包/条件**：本函数只按 `RPG.stocks` 的定义办事；接线由**各自**的订阅方负责（§十.7-C 同哲学）。
+ *
+ * ★★`pack` 参数是**归属过滤**（D2 实测补入——本席的突变电池抓出的真洞）：
+ *   首版**无此参** ⇒ 首个触发的订阅方会**代清所有包**的存量 ⇒ 每个包的接线**都不是承载路径**
+ *   （实测：拔掉 5E 的 `battle:end` 接线，5E 存量**照样被 3E 的订阅清掉** ⇒ 那条接线是**死码**、用例恒绿）。
+ *   ⇒ 与 B 裁定同精神（「一处走一处不走」不可表达）：**各包只清自己声明的**。
+ *   形：`pack === undefined` ⇒ 清**全部**（手动/测试用，兼容无参调用）；
+ *       `pack === null` ⇒ 只清**无包归属**的（core 级，由 core 自身订阅）；
+ *       `pack === '<名>'` ⇒ 只清 `def.pack === '<名>'` 的。
+ * ★复位（✗ 删除字段）：存量字段由 `STAT_BLOCK` 声明 ⇒ 该键**必须继续存在**。若 `delete`：
+ *   ① 破坏 `#1697` U9「数值块键集精确相等」守卫；② 读原语从「已耗尽 `0`」退化为「本角色无此存量 `null`」
+ *   ——**两者语义不同**（§十.3 三态要求可分辨）。故置回初值。
+ *
+ * 返回**被复位的 id 列表**（读数用；✗ 只返布尔——「清了几条」正是判据 6 要的读数）。
+ */
+RPG.clearStocksScoped = (c, pack = undefined) => {
+	const reset = [];
+	const stats = c?.stats;
+	if (!stats || typeof stats !== 'object') return reset;   // 无 stats ⇒ 无事可做（✗ 抛错：容器/跨包角色参战是常态）
+	for (const [id, def] of RPG.stocks) {
+		if (def.scope !== 'battle') continue;                 // persistent（含缺省）⇒ 保留
+		if (pack !== undefined && def.pack !== pack) continue; // ★归属过滤：只清本包声明的
+		if (Object.keys(stats).includes(id)) stats[id] = def.initial;
+		else continue;                                        // 该角色没这个存量（跨包角色）⇒ 不碰（✗ 凭空加字段）
+		reset.push(id);
+	}
+	return reset;
+};
+
+/* 接线（core 只订阅**自己**那一档：无包归属的存量）。各包订阅自己那档（见各包 `00-init.js`）——
+ * 两条路径**各自承载**：拔掉任一条，只影响该档 ⇒ 突变可判（D2 实测：首版无此分档 ⇒ 拔掉包侧接线仍绿）。 */
+RPG.events.on('battle:end', ({ players = [], enemies = [] } = {}) => {
+	for (const c of [...players, ...enemies]) {
+		if (c instanceof RPG.Character) RPG.clearStocksScoped(c, null);
+	}
+});

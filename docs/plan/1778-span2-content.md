@@ -30,20 +30,27 @@
 
 | id | 名 | 面 | 数值 | 依据 |
 |---|---|---|---|---|
-| `iron-sword` | 铁剑 | 早期铁器 | 1d8／19–20 ×2／15 gp／4 lb.／Slashing | SRD 3.5 · `Basic Rules and Legal/equipment.md:765`（`### Longsword`） |
+| ~~`iron-sword`~~ | ~~铁剑~~ | —— | —— | **★ 已撤**（双 id 收敛裁，2026-10-01）：与 `#1779` 的 `iron-longsword` **同源同行**（`:765`）⇒ 遭遇表改引后者 |
 | `scale-mail` | 鳞甲 | 甲胄（body 槽 +4） | +4 AC／50 gp／30 lb. | 同上 `:2108`（Table: Armor and Shields 的 Scale mail 行） |
-| `iron-ingot` | 铁锭 | **投放资源** | 1 gp／可叠加／不可装备 | **house rule（非 SRD）** |
-| `iron-message` | 锻造图 | **投放资源** | 5 gp／可叠加／不可装备 | **house rule（非 SRD）** |
+| **`iron-ore`** | **铁矿** | **投放资源（canonical）** | 12 lb.／可叠加／不可装备 | ★ **口径统一裁**（2026-10-01）：canonical 铁资源＝`#1779` 的 `iron-ore`（喂其锻造配方链）；本笔原带的 `iron-ingot` **已撤** |
+| `iron-message` | 锻造图 | **投放资源**（剧情物） | 5 gp／可叠加／不可装备 | **house rule（非 SRD）** |
 
-- **资源两件为何 house rule**：SRD 3.5 的装备/财富面**没有**「铁锭」「锻造图」条目（本井的**资源**概念，
+- **资源件为何 house rule**：SRD 3.5 的装备/财富面**没有**「铁矿」「锻造图」条目（本井的**资源**概念，
   非 D&D 装备物）⇒ 依 README §三.5 显式标注；形制按 `#1729` 裁定①（**资源即 Item** 甲案，零新原语）。
+- **★ 两条「单 id 收敛」裁**（领队 2026-10-01，落码见本笔的收敛提交）：
+  ① **双 id**：删 `iron-sword`（与 `#1779` 的 `iron-longsword` 同源同行 `:765` 重复）⇒ `climb2` 遭遇表 **4 处**改引 `iron-longsword`；
+  ② **铁资源口径**：canonical ＝ **`iron-ore`**（`#1779` 的配方输入）⇒ 撤 `iron-ingot`、`climb2` **6 处**改引 `iron-ore`；`iron-message` 留（剧情物）。
+  ⇒ 两条都使 `claims`／`sourceLineClaims` **净减**（基线已按 `--update-baseline` 重播并写明理由）。
 - **★甲胄件的 id 取舍（一处实测教训）**：本段代表件首稿取 **Chain shirt**（源 `:2102`，100 gp／+4），
   但其 id `chain-shirt` **与 dnd-5e 包同名** ⇒ 跨包**静默遮蔽**（`src/README.md:13`／`#1743`），
   **实测打红了 dnd-5e 的一条用例**（`RPG.createItem('chain-shirt')` 取到本包件）。
   故改取**同表、同 +4、价更低**的 **Scale mail**（`:2108`，50 gp）—— 更贴「早期铁器」，且 id 两包零重叠。
   ⇒ 该改动的**回归判据**已入用例（「二段代表件 id 与 dnd-5e 面零重叠」）。
-- **`iron-sword` 与既有 `items/sword.js`**：两者**同源同行**（`Longsword :765`）、同值。本件不复制数值，
-  是「二段遭遇表要有一个可引的注册 id」的**同源再声明**（表只引 id）；既有件本笔不动（改其数值属另票）。
+- **★ 双 id 收敛的经过（一处值得记的教训）**：本笔首稿带 `iron-sword`，本席（writer）当时的理由是「二段遭遇表要有一个可引的注册 id」；
+  但 `#1779`（dev-9）的 `iron-longsword` **同源同行**（`Longsword :765`）、同值 ⇒ 本仓出现**两个同义 id**（资源面同形：
+  `iron-ingot` vs `iron-ore`）。领队裁「**收敛到单 id**」—— 依据是 `#1743` 族的「**同义 id 是静默遮蔽的温床**」：
+  两个 id 各自可被引用 ⇒ 引用面分裂、门的分母虚增、且日后改一处必漏另一处。
+  ⇒ 本段最终**只留 `iron-longsword`（武器）与 `iron-ore`（资源）**，两者皆属 `#1779`；本笔的遭遇表**引它们**。
 
 ## 三、段内定标（**house rule**，`SPAN2_SCALING`，形同一段）
 

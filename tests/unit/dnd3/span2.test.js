@@ -112,7 +112,6 @@
 
 	/* house rule（非 SRD）：资源类两件 —— 断言「不可装备＋可叠加＋有价」的设计意图。 */
 	test('dnd3：锻造图是 house rule 资源件（不可装备、可叠加、有价）', () => {
-		// ⚠ iron-ingot 已按领队裁（2026-10-01）撤，canonical 铁资源＝#1788 的 iron-ore（本表 loot 已改引）
 		for (const [id, val] of [['iron-message', 5]]) {
 			const it = R().createItem(id);
 			assert.eq(it.slot, null, `${id} 不可装备`);

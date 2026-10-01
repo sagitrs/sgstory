@@ -24,11 +24,24 @@ window.assert = {
 };
 
 /* 每个用例运行前重置故事变量与随机源，用例之间互不污染 */
+/* 输出捕获的接线点：本文件在被测物（dist/bundle.js）之后加载，此时
+ * `Object.prototype.perform` 已由引擎定义，宿主仿真可以接住它的输出。
+ * 接线失败即抛错——静默不接线会让「按段落归档的输出」永远为空，
+ * 用例看到的将是「没有输出」而不是「接线断了」。 */
+if (window.__host?.install) window.__host.install();
+
 window.__resetState = () => {
-	State.variables = {};
+	/* ★经**宿主仿真的 reset**（✗ `State.variables = {}` 直接赋值）：
+	 *   仿真把「故事变量」做成**闭包绑定**（`save.make()` 序列化的是闭包变量），
+	 *   直接给 `state.variables` 赋新对象只改属性、**不改闭包** ⇒ 在「赋值 → host.reset()」
+	 *   两行之间存在**两处真值窗口**（`#1820` D 席 NIT-4 实测）。此处一行等价且无窗口。 */
+	if (window.__host?.state?.reset) window.__host.state.reset();
+	else State.variables = {};   // 宿主未装载时的兜底（旧行为）
 	// 随机源一并复位（#1706）：注入的固定序列/函数不得跨用例残留。
 	// 本轮在 bundle 加载后调用（setup.RPG 已存在）；防御性取可选链，与加载序解耦。
 	if (window.setup?.RPG?.rng?.reset) window.setup.RPG.rng.reset();
+	// 宿主仿真一并复位：段落输出归档、导航记录、故事变量绑定。
+	if (window.__host?.reset) window.__host.reset();
 };
 
 window.__runTests = async () => {

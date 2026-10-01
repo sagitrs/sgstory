@@ -205,15 +205,17 @@
 		}
 		assert.eq(S.installed(), true, '★宿主在位 ⇒ 模块加载时已接入（安装确实发生）');
 
-		/* 存：真处理器把信封写进 `save.state`（✗ 动活的 State.variables） */
+		/* 存：真处理器把信封挂 **`save` 顶层**（✗ `save.state` ——
+		 *   那是引擎的 `{index, history, …}` 结构，混入会被变量表读到；`#1820` D 席 RC 裁甲） */
 		State.variables.inventory = [];
 		const obj = { state: {} };
 		host.onSave.fire(obj);
-		assert.eq(obj.state[S.ENVELOPE_KEY]?.saveVersion, S.VERSION, '★存时写入版本信封');
+		assert.eq(obj[S.ENVELOPE_KEY]?.saveVersion, S.VERSION, '★存时写入版本信封（顶层）');
+		assert.eq(obj.state[S.ENVELOPE_KEY], undefined, '★且**不**写进 state（✗ 污染变量表）');
 		assert.eq(State.variables[S.ENVELOPE_KEY], undefined, '★且**不**污染活的 State.variables');
 
-		/* 读：好档放行（不抛） */
-		host.onLoad.fire({ state: { [S.ENVELOPE_KEY]: S.envelope() } });
+		/* 读：好档放行（不抛）—— 信封从**顶层**取 */
+		host.onLoad.fire({ state: {}, [S.ENVELOPE_KEY]: S.envelope() });
 
 		/* 读：坏档 ⇒ 真处理器**显式抛错**（宿主据此中止载入，✗ 静默坏档）。
 		 *   宿主仿真的 `fire` 可能把抛错吞掉 ⇒ 两条路都核，且都要求「不进坏档」。 */

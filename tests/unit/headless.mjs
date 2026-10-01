@@ -1,7 +1,9 @@
 /* 无头单测运行器（CI 用）—— 完整镜像 tests/unit/unit.html 的加载序：
  *
- *   shims.js → dist/bundle.js（build.py 生成）→ framework/harness.js
- *   → dist/manifest.js 清单里的全部 *.test.js → __runTests() → __unitResult
+ *   framework/host.js（宿主仿真）→ shims.js → dist/bundle.js（build.py 生成）
+ *   → framework/harness.js
+ *   → framework/scenario.js（场景级断言框架）→ dist/manifest.js 清单里的全部 *.test.js
+ *   → __runTests() → __unitResult
  *
  * 与 unit.html 唯一的差别：DOM 是无操作桩（harness 的结果渲染不落地，
  * 断言只读 window.__unitResult）。因此本文件同时测到 harness 本身。
@@ -24,9 +26,10 @@ globalThis.document = {
 	getElementById: (id) => stubEl(),
 };
 
-/* ---- 浏览器全局（镜像 shims.js 的语义，真正加载的仍是仓库里的 shims.js）---- */
+/* ---- 浏览器全局（真正加载的仍是仓库里的 framework/ 手写件）---- */
 globalThis.window = globalThis;
-load('framework/shims.js'); // 定义 setup / State / SugarCube / jQuery 桩
+load('framework/host.js');  // 宿主仿真：State / Engine / Save（先于 shims）
+load('framework/shims.js'); // setup / 三个全局指向 host / jQuery 桩
 
 const chain = new Proxy(function () {}, {
 	get(_t, prop) {
@@ -46,6 +49,7 @@ globalThis.location = { href: '' };
 /* ---- 按 unit.html 的 <script> 序加载 ---- */
 load('dist/bundle.js');
 load('framework/harness.js');
+load('framework/scenario.js'); // 场景级断言框架（#1806 笔 2；须在被测物之后）
 const manifestSrc = fs.readFileSync(path.join(unitDir, 'dist/manifest.js'), 'utf8');
 const files = JSON.parse(manifestSrc.slice(manifestSrc.indexOf('['), manifestSrc.lastIndexOf(']') + 1));
 for (const f of files) load(f);

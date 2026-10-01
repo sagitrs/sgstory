@@ -35,7 +35,8 @@ RPG.save = (() => {
 	/** 当前存档格式版本。★改格式必须 +1 并补 `MIGRATIONS[n]`（n → n+1）。 */
 	const VERSION = 1;
 
-	/** 信封在 `save.state` 下的保留键（✗ 与游戏状态键混用）。 */
+	/** 信封的保留键 —— 挂在 **`save` 顶层**（✗ `save.state` 内；`state` 是引擎的
+	 *  `{index, history, …}` 结构，混入会被变量表读到 —— 见 `install()` 的说明）。 */
 	const ENVELOPE_KEY = 'rpgSave';
 
 	/**
@@ -170,15 +171,21 @@ RPG.save = (() => {
 		if (installed) return false;
 		const host = globalThis.SugarCube?.Save ?? globalThis.Save;
 		if (host == null || host.onSave?.add == null || host.onLoad?.add == null) return false;
-		/* 存：把信封挂进 `save.state`（宿主序列化的那一份，✗ 动活的 State.variables） */
+		/* 存：信封挂 **`save` 顶层**（✗ `save.state` 内）。
+		 *
+		 * ★为何是顶层（`#1820` D 席 RC 裁甲，实测结构差）：真实 SugarCube 的 `save.state` 是
+		 *   **`{index, history:[{title, variables}], …}` 结构**（变量在 `history[i].variables`），
+		 *   而 `unmarshalForSave` **只认那四个已知键** ⇒ 顶层额外键**天然被忽略**、不污染变量表。
+		 *   若挂进 `state`，仿真/真实两侧的变量表都会被塞入信封 ⇒ 往返后 `snapshot()` 含 `rpgSave`、
+		 *   且 `envelope().at` 每次变化 ⇒ 「同一状态同 digest」被打破（单一比较口径失效）。
+		 *   ⇒ 顶层是**真实引擎语义下的正确位置**，✗ 仅为迁就仿真。 */
 		host.onSave.add((save) => {
-			if (save?.state && typeof save.state === 'object') {
-				save.state[ENVELOPE_KEY] = envelope();
-			}
+			if (save && typeof save === 'object') save[ENVELOPE_KEY] = envelope();
 		});
-		/* 读：裁决；拒绝则**抛可读错误**（宿主据此中止载入 ⇒ 显式，✗ 静默坏档） */
+		/* 读：裁决（从**顶层**取信封，与写入同位置）；拒绝则**抛可读错误**
+		 *   （宿主据此中止载入 ⇒ 显式，✗ 静默坏档）。 */
 		host.onLoad.add((save) => {
-			const verdict = judgeLoad(save?.state?.[ENVELOPE_KEY]);
+			const verdict = judgeLoad(save?.[ENVELOPE_KEY]);
 			if (!verdict.ok) {
 				const err = new Error(`[RPG] 拒绝载入存档：${verdict.message}`);
 				err.rpgSaveReject = verdict.code;

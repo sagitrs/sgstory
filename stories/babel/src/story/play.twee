@@ -46,7 +46,8 @@
 
 :: 试玩终点
 <<set _r to $babelRun>>
-你在第 11 层的风里站住。这里比下面所有地方都冷。
+<<set _iron to ($inventory || []).filter(function (s) { return s.id && s.id.indexOf('iron-') === 0; }).length>>
+你在第 20 层的城墙下站住。头顶那道光对面，是别人的地界 —— 这门现在还不通。
 
 **这一局你爬了：**
 * 最深处：$_r.deepest（起点 L1）
@@ -55,7 +56,8 @@
 * 采集次数：$_r.gathered
 * 见过的创伤：<<if _r.traumasSeen.length>><<= _r.traumasSeen.map(function (id) { return setup.DND3.Traumas[id].name; }).join('、')>><<else>>（一次也没有 —— 说明你没挨过重击）<</if>>
 * 开垦过的田：<<= $span1Farms>><<if $span1Harvests>>（已收获 <<= $span1Harvests>> 次口粮）<</if>>
+* 身上的铁器：<<= _iron>> 件（铁矿是从二段的挡路者身上取的）
 
-<small>试玩版到此为止。上面还有路 —— 那是二段的事。</small>
+<small>试玩版到此为止（1–20 层）。21 层往上归三段 —— 那道门只画在墙上，还没接。</small>
 
 [[再爬一次（重开）|开始]]

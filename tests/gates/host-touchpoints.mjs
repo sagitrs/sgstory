@@ -49,18 +49,43 @@ const ROOT = path.resolve(path.join(import.meta.dirname, '..', '..'));
 const SRC = path.resolve(valOf('--src') ?? path.join(ROOT, 'src/core'));
 const BASELINE_PATH = path.join(ROOT, 'tests/gates/host-touchpoints.json');
 
-/** 触点类目（★新增类目须同笔更新基线，否则「新类目」会被当成未知而漏计） */
+/** 触点类目（★新增类目须同笔更新基线，否则「新类目」会被当成未知而漏计）。
+ *
+ * ★★`#1810` T 席代行 RC（BLOCKING）：**可选链 `?.` 是真实形，首版正则只认普通点号** ⇒
+ *   `State?.variables` 一律**静默漏计**。本仓实存 **4 处**（`70-ui.js:62`／`71-notice.js:80/112/120`）
+ *   ⇒ 工料单**少报 13%**（报 30、实 34）。⇒ 全部类目的点号一律写成 `\s*\??\s*\.\s*`（**允许 `?.`**）。
+ *   ★这是本席今日第 N 次同族病（**用「我想到的形」代替「实际存在的形」**）：我想到的是 `.`，
+ *     而仓里写的是 `?.`；且**我自己的 71-notice.js 就是当事者**（我在 #1810 里刚读过它）。
+ *
+ * ⚠ **已知盲区**（T 席指出的 MAJOR，本门**静态认不出**；按 `#1807` 的 `_unresolvable` 思路
+ *   **登记在案**（`KNOWN_BLIND_SPOTS`）⇒ 使盲区**可见**，✗ 假装覆盖）：
+ *     ① **解构**：`const { variables } = State;` ② **别名**：`const S = State; S.variables`
+ *     ③ **下标**：`window['document']` ④ **globalThis**：`globalThis.State?.variables`
+ *   ⇒ 这四形须要**数据流分析**才能认出，超出正则门的能力边界 ⇒ 明账登记 ＋ 建议将来用**运行期桩**
+ *     （在 shim 上装 Proxy 记录访问）替代，那才是「权威读数」。
+ */
 export const CATEGORIES = {
-	'State.variables': /(?<![.\w$])State\s*\.\s*variables\b/g,
-	'State.other':     /(?<![.\w$])State\s*\.(?!\s*variables\b)\w+/g,
+	'State.variables': /(?<![.\w$])State\s*\??\s*\.\s*variables\b/g,
+	'State.other':     /(?<![.\w$])State\s*\??\s*\.\s*(?!variables\b)\w+/g,
 	'SugarCube':       /(?<![.\w$])SugarCube\b/g,
 	'Wikifier':        /(?<![.\w$])Wikifier\b/g,
-	'setup.':          /(?<![.\w$])setup\s*\./g,
+	'setup.':          /(?<![.\w$])setup\s*\??\s*\./g,
 	'jQuery':          /(?<![.\w$])jQuery\s*\(/g,
 	'dollar':          /(?<![.\w$])\$\s*\(/g,
-	'window':          /(?<![.\w$])window\s*\./g,
-	'document':        /(?<![.\w$])document\s*\./g,
+	'window':          /(?<![.\w$])window\s*\??\s*\./g,
+	'document':        /(?<![.\w$])document\s*\??\s*\./g,
+	/* ★`globalThis` 面（T 席点出的 MAJOR 之一；**能认的形先认**，认不出的见 KNOWN_BLIND_SPOTS） */
+	'globalThis':      /(?<![.\w$])globalThis\s*\??\s*\./g,
 };
+
+/** 静态**认不出**的触点形（T 席 MAJOR 的四项）——**明账**（✗ 静默不覆盖）。
+ *  ★变更此清单须**同笔**说明（它是「本门的已知边界」，✗ 待办清单）。 */
+export const KNOWN_BLIND_SPOTS = [
+	{ shape: '解构',      example: 'const { variables } = State;', why: '名字经解构绑定，去向须数据流分析' },
+	{ shape: '别名',      example: 'const S = State; S.variables',  why: '别名可任意重命名，静态不可追' },
+	{ shape: '下标访问',  example: "window['document']",             why: '字符串下标，等价于点号但正则认不出' },
+	{ shape: 'globalThis 间接', example: 'globalThis["State"]?.variables', why: '同上（`globalThis.State` 已可认，下标形不可）' },
+];
 
 /** 剥注释与字符串字面量（★口径：只算**代码面**）。
  *
@@ -197,6 +222,29 @@ if (isMain && has('--selftest')) {
 		const ok = got === want; n += ok ? 1 : 0;
 		console.log(`  ${ok ? '✓' : '✗'} ${name} — 实得 ${got === 0 ? '绿' : '红'}（期望 ${want === 0 ? '绿' : '红'}）`);
 	}
+	const optCount = (s) => (stripCommentsAndStrings(s).match(CATEGORIES['State.variables']) ?? []).length;
+	/* ★可选链刀（#1810 T 席 RC）：`State?.variables` 是**真实形**，必须与 `State.variables` 同计。
+	 *   首版正则只认 `.` ⇒ 本仓实存 4 处被静默漏计（工料单少报 13%）。 */
+	const optChk = [
+		['K10 ★`State?.variables`（可选链）须计入', optCount('const a = State?.variables?.x;') === 1],
+		['K11 ★`State ?. variables`（带空格）须计入', optCount('const a = State ?. variables.x;') === 1],
+		['K12 ★链式 `?.` 只计一次（✗ 重复计）', optCount('State?.variables?.inventory ?? [];') === 1],
+		['K13 普通点号未回归', optCount('State.variables.x = 1;') === 1],
+		/* ★类目接线刀：**光有类目表不等于类目被用**（本席实测：删掉 `globalThis` 类目，自检仍 13/13 绿
+		 *   ⇒ 该类目**无刀**＝接线未被守）。⇒ 每个类目至少一刀，断言它**真出现在 `scan()` 的产出里**。 */
+		['K14 ★`globalThis.` 类目已接线（scan 产出须含该键）',
+			(() => {
+				const tmp = fs.mkdtempSync(path.join(ROOT, 'tests/gates', '.tmp-cls-'));
+				try {
+					fs.writeFileSync(path.join(tmp, 'g.js'), 'globalThis.State = 1;\nglobalThis?.document.x;\n');
+					const out = scan(tmp);
+					const h = out[Object.keys(out)[0]] ?? {};
+					return (h['globalThis'] ?? 0) === 2;
+				} finally { fs.rmSync(tmp, { recursive: true, force: true }); }
+			})()],
+	];
+	const knivesLen2 = knives.length + optChk.length;
+	for (const [name, ok] of optChk) { n += ok ? 1 : 0; console.log(`  ${ok ? '✓' : '✗'} ${name}`); }
 	/* 剥注释/字符串刀（★口径刀）：注释与字符串里的触点**不得**计入 */
 	const count = (code) => (code.match(/(?<![.\w$])State\s*\.\s*variables\b/g) ?? []).length;
 	const coats = [
@@ -214,7 +262,7 @@ if (isMain && has('--selftest')) {
 		const ok = got === want; n += ok ? 1 : 0;
 		console.log(`  ${ok ? '✓' : '✗'} ${name} — 实得 ${got}（期望 ${want}）`);
 	}
-	const totalKnives = knives.length + coats.length;
+	const totalKnives = knivesLen2 + coats.length;
 	console.log(n === totalKnives ? `  ✓ ${n}/${totalKnives} 刀全部如期` : `  ✗ ${n}/${totalKnives} 刀如期`);
 	process.exit(n === totalKnives ? 0 : 1);
 }
@@ -249,6 +297,10 @@ console.log(`  当前触点 ${total} 处 ／ 涉及 ${Object.keys(now).length} �
 if (has('--verbose')) {
 	for (const [f, h] of Object.entries(now).sort()) console.log(`    · ${f}：${JSON.stringify(h)}`);
 }
+/* ★已知盲区**明账**（#1810 T 席 MAJOR）：静态认不出的四形 —— 每次打印，使边界**可见**
+ *   （✗ 静默不覆盖；将来若要cover，正道是**运行期桩**（shim 上装 Proxy），那才是权威读数）。 */
+console.log(`  ⚠ 静态**认不出**的形（已知边界，明账 ${KNOWN_BLIND_SPOTS.length} 项，✗ 表示覆盖）：`);
+for (const b of KNOWN_BLIND_SPOTS) console.log(`      · ${b.shape}：\`${b.example}\` —— ${b.why}`);
 for (const nt of notes) console.log(`  ⚠ ${nt}`);
 if (problems.length) {
 	console.log('  ✗ 门红：');

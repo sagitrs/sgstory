@@ -157,9 +157,12 @@ RPG.bindNoticeUI = () => {
 		const mode = jQuery(this).attr('data-mode');
 		if (mode !== 'all' && mode !== 'key') return;
 		RPG.setNoticeFilter(mode);
-		const $host = jQuery('#passages .passage').last();
-		$host.find('.rpg-notice-toggle').replaceWith(RPG.noticeToggleHTML());
-		$host.find('.rpg-notice-list').html(RPG.noticesHTML());
+		/* ★重绘走 **B1 的面板注册表**（`#1798`）——✗ 在本绑定里自己找 DOM 写：
+		 *   ① 那样会绕开注册表 ⇒ 通知面板的重绘**计数恒 0**、「恰 N 次」判据对这一个面板失效；
+		 *   ② 同一段结构会有**两个产出者**（本文件的 `noticeToggleHTML()/noticesHTML()` 与面板渲染函数）
+		 *      ⇒ 「单一权威源」被切成两半（D 席 F4）。
+		 *   未注册该面板的故事（未接 B1）⇒ **什么都不做**：呈现归消费者，本模块只提供**能力**。 */
+		if (RPG.panels?.has?.('notice')) RPG.refreshPanels(['notice']);
 	});
 	RPG.__noticeUIBound = true;
 	return true;

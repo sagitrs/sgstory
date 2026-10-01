@@ -79,10 +79,12 @@ RPG.bindItemLinks = () => {
 		const id = jQuery(this).attr('data-item');
 		if (!id) return;
 		RPG.itemClick(id);
-		/* 用后重绘**当前**状态：状态栏里「（已装备）」与「×N」都会变 ⇒ 原地重绘它自己（B1 的局部刷新面
-		 *   在首期尚未落 ⇒ 此处只做最小可信的一步：把这一行按当前状态重写）。 */
-		const $bar = jQuery('#passages .passage').last().find('.inventory-links').first();
-		if ($bar.length) $bar.html(RPG.inventoryLinks());
+		/* 用后重绘：状态栏里「（已装备）」与「×N」都会变 ⇒ 走 **B1 的局部刷新域**只刷新「背包」那一格
+		 *   （`#1798` B1 落地后，本文件不再自己找 DOM 写入 ⇒ 谁该重绘由**面板注册表**回答）。
+		 *   面板未注册／当前段落没有该宿主（如未接线的故事）⇒ 退化为「什么都不做」（✗ 整段重绘）。 */
+		if (typeof RPG.refreshPanels === 'function' && RPG.panels?.has?.('inventory')) {
+			RPG.refreshPanels(['inventory']);
+		}
 	});
 	RPG.__itemLinksBound = true;
 	return true;

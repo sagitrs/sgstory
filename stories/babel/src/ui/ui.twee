@@ -1,21 +1,9 @@
 :: PassageFooter
-<<run setup.BABEL && setup.BABEL.noteTraumas && setup.BABEL.noteTraumas()>>
 <hr>
 <div class="statusbar">
-	体力：$player.hp / $player.maxHp
-	｜　位置：<<if setup.BABEL && setup.BABEL.map.current>><<= setup.BABEL.map.locations.get(setup.BABEL.map.current).name>><<else>>（未进入）<</if>>
-	｜　创伤：<<if $player.effects && $player.effects.length>>
-		<<for _i to 0; _i < $player.effects.length; _i++>>
-			<<set _id to $player.effects[_i]>><<if setup.DND3.Traumas[_id]>><span class="trauma"><<= setup.DND3.Traumas[_id].name>></span> <</if>>>
-		<</for>>
-	<<else>>无<</if>>
-	｜　背包：<span class="inventory-links"><<= setup.RPG.inventoryLinks()>></span>
+	<span class="panel" data-panel="hp"></span>｜<span class="panel" data-panel="location"></span>｜<span class="panel" data-panel="trauma"></span>｜<span class="panel inventory-links" data-panel="inventory"></span>
 </div>
-<div class="noticebar"><<= setup.RPG.noticeToggleHTML()>>
-	<details class="rpg-notice-box"><summary>最近的通知</summary>
-		<ul class="rpg-notice-list"><<= setup.RPG.noticesHTML()>></ul>
-	</details>
-</div>
+<div class="noticebar" data-panel="notice"></div>
 
 :: StoryStylesheet
 body {

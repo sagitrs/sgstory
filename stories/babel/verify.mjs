@@ -26,6 +26,18 @@ const fails = [];
 const ok = (cond, msg) => { if (!cond) fails.push(msg); };
 const head = (s) => console.log(`\n─ ${s}`);
 
+/** ★失败形必须是「**干净红 ＋ 汇总**」（D 席 M9 的形态：中途裸访问崩溃 ⇒ 吞掉此前已收集的失败）。
+ *   故先把汇总抽成函数，并给「未捕获异常」挂兜底 —— 任何崩溃都先打印已收集的失败再退出。 */
+const printSummary = (extra) => {
+	if (extra) fails.push(extra);
+	console.log(`\n${fails.length === 0 ? '✓ 装配自检通过' : `✗ 装配自检失败 ${fails.length} 条`}`);
+	for (const f of fails) console.log(`  ✗ ${f}`);
+	process.exit(fails.length === 0 ? 0 : 1);
+};
+process.on('uncaughtException', (e) => printSummary(`★未捕获异常（脚本中途崩了）：${e?.message ?? e}`));
+process.on('unhandledRejection', (e) => printSummary(`★未处理的拒绝：${e?.message ?? e}`));
+
+
 /* ---------- 环境（镜像 tests/unit/headless.mjs）---------- */
 globalThis.window = globalThis;
 globalThis.document = { title: '', getElementById: () => ({ insertAdjacentHTML() {}, innerHTML: '' }) };
@@ -418,17 +430,87 @@ head('⑭ 通知中心（B4）的故事侧接线');
 	/* ★**接线**判据（✗ 只判能力存在）：状态栏（twee）里必须真的调了这两个面 ——
 	 *   否则「能力有、没人用」= 玩家看不到（正是 dev-9 那条 RC 的形态）。 */
 	const uiTwee = fs.readFileSync(path.join(storySrc, 'ui', 'ui.twee'), 'utf8');
-	ok(uiTwee.includes('noticeToggleHTML()'), '★状态栏没调 `noticeToggleHTML` ⇒ 开关渲染不出来（能力有、接线没有）');
-	ok(uiTwee.includes('noticesHTML()'), '★状态栏没调 `noticesHTML` ⇒ 面板体空');
-	ok(uiTwee.includes('noticebar'), '状态栏缺 `.noticebar` 容器');
-	/* ★顺带补 C1（`#1798` C1，已合）的**接线**断言：C1 那笔只有**能力**用例（`tests/unit/core/ui.test.js`），
-	 *   状态栏有没有真的换用 `inventoryLinks()` 无人守 ⇒ 此处按同一形态补上（同 §⑭ 的理由）。 */
-	ok(uiTwee.includes('inventoryLinks()'), '★状态栏没换用 `inventoryLinks()` ⇒ 道具名点不动（C1 的可见面没接上）');
+	/* ★**接线**判据（✗ 只判能力存在）：开关与面板体必须**被故事侧真的调了** ——
+	 *   否则「能力有、没人用」= 玩家看不到（正是 dev-9 那条 RC 的形态）。
+	 *   ⚠ B1 之后这两处从 twee **移进了面板渲染函数**（`ui/panels.js`）⇒ 判据改为**两处都看**
+	 *   （✗ 写死「必须在 twee 里」—— 那会随版式演进假红）。 */
+	const uiPanelJs = fs.readFileSync(path.join(storySrc, 'ui', 'panels.js'), 'utf8');
+	const wired = (needle) => uiTwee.includes(needle) || uiPanelJs.includes(needle);
+	ok(wired('noticeToggleHTML'), '★故事侧没调 `noticeToggleHTML` ⇒ 开关渲染不出来（能力有、接线没有）');
+	ok(wired('noticesHTML'), '★故事侧没调 `noticesHTML` ⇒ 面板体空');
+	ok(wired('notice') && (uiTwee.includes('data-panel="notice"') || uiPanelJs.includes("registerPanel('notice'")),
+		'★通知面板既没宿主也没注册');
+	/* C1 的接线（状态栏有没有真的换用可点标签） */
+	ok(wired('inventoryLinks'), '★故事侧没换用 `inventoryLinks()` ⇒ 道具名点不动（C1 的可见面没接上）');
 	ok(uiTwee.includes('inventory-links'), '状态栏缺 `.inventory-links` 容器');
 	console.log(`  开关：${toggle.replace(/<[^>]*>/g, '')}｜缓冲 ${R.notices().length} 条（含被挡的两条）`);
 }
 
+/* ---------- ⑮ 面板刷新域（B1 · `#1798`）的故事侧接线 ----------
+ * ★判据形态（承 dev-9／dev-10 两轮 RC）：
+ *   ① 「注册的宿主 ↔ 骨架里的宿主」**双向**一致（任一侧改名／多余宿主都要红）
+ *   ② 接线判据要看**活行**（✗ 裸 `includes` —— 把绑定注释掉、字符串仍在 ⇒ 空刀）
+ *   ③ 渲染函数**真的读状态**（逐面板两向，✗ 只看某一条）
+ *   ④ **调用面**存在（本笔曾顺手删掉一条与版式无关的调用而无人抓 ⇒ 单列） */
+head('⑮ 面板刷新域（B1）的接线');
+{
+	/** 去掉注释行后仍含该串（✗ 裸 `includes`：注释里含该串会被当成接线） */
+	const liveLines = (src, needle) => src.split('\n')
+		.filter((l) => l.includes(needle) && !/^\s*(\/\/|\*|\/\*)/.test(l));
+	const uiTwee = fs.readFileSync(path.join(storySrc, 'ui', 'ui.twee'), 'utf8');
+	const panelsJs = fs.readFileSync(path.join(storySrc, 'ui', 'panels.js'), 'utf8');
+	const uiCore = fs.readFileSync(path.join(root, 'src', 'core', '70-ui.js'), 'utf8');
+	const noticeCore = fs.readFileSync(path.join(root, 'src', 'core', '71-notice.js'), 'utf8');
+
+	ok(typeof R.registerPanel === 'function' && typeof R.refreshPanels === 'function', '★B1 的面板面不存在');
+	/* ★`want` **动态取自注册表**（✗ 硬编码 4 个 —— 那样「通知」永远被跳过） */
+	const panels = [...R.panels.keys()];
+	ok(panels.length >= 5, `★面板数应 ≥ 5（体力/位置/创伤/背包/通知），实得 ${panels.length}：${panels.join('、')}`);
+	const hostsInMarkup = [...uiTwee.matchAll(/data-panel="([^"]+)"/g)].map((m) => m[1]);
+
+	/* ① 双向一致：逐面板（宿主选择器里的**容器 class** 也要在骨架里；`?.` ⇒ 缺注册时干净红✗崩溃） */
+	for (const id of panels) {
+		const host = R.panels.get(id)?.host;
+		ok(!!host, `★面板「${id}」没有宿主选择器`);
+		if (!host) continue;
+		ok(host.includes(`data-panel="${id}"`), `★面板「${id}」宿主（${host}）与骨架属性不一致`);
+		for (const cls of host.match(/\.[A-Za-z][\w-]*/g) ?? []) {
+			const name = cls.slice(1);
+			ok(uiTwee.includes(`class="${name}`) || uiTwee.includes(`${name}"`),
+				`★面板「${id}」宿主的容器「${cls}」不在 twee 骨架里（容器改名 ⇒ 面板写到空处）`);
+		}
+		ok(hostsInMarkup.includes(id), `★骨架里没有面板「${id}」的宿主`);
+	}
+	/* ①′ 反向：骨架里每个宿主都得有人注册（多一个 ghost 宿主 ⇒ 红） */
+	for (const id of hostsInMarkup) ok(R.panels.has(id), `★骨架里有**无人注册**的宿主 data-panel="${id}"`);
+
+	/* ② 接线须是**活行** */
+	ok(liveLines(panelsJs, ':passagedisplay').length > 0, '★填充点（`:passagedisplay` 绑定）不在了');
+	ok(liveLines(panelsJs, 'refreshPanels()').length > 0, '★填充点没调 `refreshPanels()`');
+	ok(liveLines(panelsJs, 'noteTraumas').length > 0,
+		'★`noteTraumas` 的**调用面**不见了（每段落兜底 ⇒ 删了则「见过的创伤」恒空，且无面能抓）');
+	ok(liveLines(uiCore, "refreshPanels(['inventory'])").length > 0, '★C1 的点击后重绘没走局部刷新域');
+	ok(liveLines(noticeCore, "refreshPanels(['notice'])").length > 0,
+		'★通知开关的重绘没走面板注册表（自己找 DOM 写 ⇒ 计数恒 0、同一结构两个产出者）');
+
+	/* ③ 渲染函数真的读状态（逐面板；先归一创伤态，免「本来就持有 ⇒ 加不上 ⇒ 假红」） */
+	for (const id of Object.keys(D.Traumas)) D.Player.lose(id);
+	const before = {};
+	for (const id of panels) before[id] = R.panelHTML(id);
+	D.Player.hp -= 1;
+	D.Player.gain('bleeding');
+	const changed = panels.filter((id) => R.panelHTML(id) !== before[id]);
+	D.Player.hp += 1;
+	D.Player.lose('bleeding');
+	ok(changed.includes('hp'), '★体力面板的渲染函数没读状态');
+	ok(changed.includes('trauma'), '★创伤面板的渲染函数没读状态（改状态而面板体不变）');
+	const invHTML = R.panelHTML('inventory');
+	ok(invHTML.includes('rpg-item-link') || invHTML.includes('（空）'),
+		`背包面板体应是可点标签（C1 的形），实得：${invHTML.slice(0, 60)}`);
+	console.log(`  面板 ${panels.length} 个（${panels.join('、')}）｜宿主双向一致 ✓｜活行判据 ✓｜状态两向（${changed.join('、')}）✓`);
+}
+
 /* ---------- 汇总 ---------- */
-console.log(`\n${fails.length === 0 ? '✓ 装配自检通过' : `✗ 装配自检失败 ${fails.length} 条`}`);
-for (const f of fails) console.log(`  ✗ ${f}`);
-process.exit(fails.length === 0 ? 0 : 1);
+/* 汇总与崩溃兜底的**定义**在文件开头**（见「失败形」一节）—— 那两行 `process.on` 必须在
+ * 任何可能抛错的语句之前注册，否则中途崩溃时兜底还没挂上（本笔 M9′ 刀实测踩过）。 */
+

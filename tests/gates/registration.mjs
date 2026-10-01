@@ -213,6 +213,38 @@ export const runtimeUnavailableProblems = (skip, required) => {
 		? [`运行期交叉核对**真故障**（helper 非零退出／输出不可解析）：${skip} ⇒ 权威判据**未执行**（✗ 位次问题：bundle 在，是 helper 自己崩）`]
 		: [];
 };
+/* ============================================================================
+ * ★`#1826` **镜像契约自检**：`_runtime-registry.mjs` 的加载序须与 `tests/unit/headless.mjs` **一致（前缀）**。
+ *
+ *   病灶（`#1818` RC 实证）：helper **自称镜像** headless 序（其**文件头自己写着**「若 headless 改了加载序，
+ *   此处须同改」），而 `#1820` 把 `framework/host.js` 插进 headless 序时**没跟改** ⇒ `shims.js` 的自守当场抛
+ *   ⇒ helper **崩**，门在 `--require-bundle` 下只留 ⚠、**仍 rc=0** ＝ **假保险**（权威判据**从未执行**）。
+ *   ⇒ 义务被声明了**两次**（文件头＋README）、**零机械保证** ⇒ **迟早不同步**（`#1826` 即为此而立）。
+ *
+ *   ★判据形＝**前缀**，✗ 全等：helper 只需到 `dist/bundle.js`（它**不跑用例** ⇒ 不需 harness／scenario）
+ *     ⇒ 写全等会**假红**（把 helper 逼着装无关件）。
+ */
+export const loadSequence = (src) => [...String(src).matchAll(/^load\('([^']+)'\)/gm)].map((m) => m[1]);
+
+export const mirrorProblems = (headSeq, helperSeq) => {
+	const out = [];
+	const upto = headSeq.indexOf('dist/bundle.js');
+	if (upto < 0) return ['`headless.mjs` 的 `load` 序里找不到 `dist/bundle.js`（判据的锚点没了 ⇒ 须复核本判据）'];
+	const want = headSeq.slice(0, upto + 1);
+	if (helperSeq.length === 0) return ['`_runtime-registry.mjs` 里没解析出任何 `load(...)`（判据失锚）'];
+	for (let i = 0; i < want.length; i++) {
+		if (helperSeq[i] === undefined) {
+			out.push(`helper 的加载序**缺**第 ${i + 1} 步：应为 \`${want[i]}\`（＝headless 序的前缀；缺失即 #1820 那次的形态）`);
+		} else if (helperSeq[i] !== want[i]) {
+			out.push(`helper 第 ${i + 1} 步是 \`${helperSeq[i]}\`，而 headless 序该位是 \`${want[i]}\` ⇒ **次序不符**`);
+		}
+	}
+	if (out.length === 0 && helperSeq.length !== want.length) {
+		out.push(`helper 的加载序**多出** ${helperSeq.length - want.length} 步（前缀之外：${helperSeq.slice(want.length).join('、')}）`);
+	}
+	return out;
+};
+
 export const judgeRuntime = (rt, rb, staticUnique) => {
 	const problems = [], notes = [];
 	if (rt == null || rt.noBundle) return { problems, notes, skip: 'no-bundle' };
@@ -345,6 +377,22 @@ if (has('--selftest')) {
 			/* ★★K24–K27 —— `#1818` 折 RC 乙的刀（dev-9／tester-4 **同根**）。
 			 *   断**判决**（✗ 只断读数）：带旗时 helper 真故障 ⇒ **必产 problem**；
 			 *   不带旗 ⇒ **不产 problem**（出声即可）；且两类 skip 的措辞**须可分辨**（位次 vs 真故障）。 */
+			/* ★K28–K32（`#1826`）：**镜像契约**的刀（★断判决）。喂**纯函数** ⇒ 无自证循环之虞
+			 *   （判据吃的是「两份源码解析出来的序」，✗ 不是被守护的表自身）。 */
+			const mirrorKnives = [
+				['K28 一致（helper 恰为 headless 到 bundle.js 的前缀）⇒ 绿',
+					mirrorProblems(['framework/host.js', 'framework/shims.js', 'dist/bundle.js', 'framework/harness.js'], ['framework/host.js', 'framework/shims.js', 'dist/bundle.js']).length === 0],
+				['K29 ★helper **缺 host.js**（＝`#1820` 那次的形态）⇒ 红',
+					mirrorProblems(['framework/host.js', 'framework/shims.js', 'dist/bundle.js'], ['framework/shims.js', 'dist/bundle.js']).some((x) => /缺/.test(x))],
+				['K30 ★helper **次序不符** ⇒ 红',
+					mirrorProblems(['framework/host.js', 'framework/shims.js', 'dist/bundle.js'], ['framework/shims.js', 'framework/host.js', 'dist/bundle.js']).some((x) => /次序不符/.test(x))],
+				['K31 ★headless **插入新件**而 helper 不跟 ⇒ 红（✗ 只守「缺」不守「插」）',
+					mirrorProblems(['framework/host.js', 'framework/NEW.js', 'framework/shims.js', 'dist/bundle.js'], ['framework/host.js', 'framework/shims.js', 'dist/bundle.js']).length > 0],
+				['K32 ★helper **多出前缀之外的步骤** ⇒ 红（✗ 只在「少」的方向判）',
+					mirrorProblems(['framework/host.js', 'dist/bundle.js'], ['framework/host.js', 'framework/extra.js', 'dist/bundle.js']).length > 0],
+			];
+			for (const [name, ok] of mirrorKnives) { n += ok ? 1 : 0; console.log(`  ${ok ? '✓' : '✗'} ${name}`); }
+			knivesLen += mirrorKnives.length;
 			const rtUnavail = [
 				['K24 ★带旗：helper **真故障** ⇒ 产 problem（✗ 只留 ⚠ ＝ **假保险**）',
 					runtimeUnavailableProblems('Command failed: node …', true).length === 1
@@ -523,6 +571,21 @@ if (!jr.skip) {
 		console.log(`  ⚠ 运行期交叉核对**失败**：${jr.skip}（单测 bundle 与门解耦 ⇒ 非阻断，但出声）`);
 	}
 }
+/* ★`#1826` 镜像契约（**真树**，✗ 只在自检里）：helper 崩的前因就是这条分叉 ⇒ 门须自己判它。
+ *   ⚠ 取不到某一侧 ⇒ **出声**（✗ 静默 —— 那正是本票要消灭的形态）。 */
+{
+	const headPath = path.join(ROOT, 'tests/unit/headless.mjs');
+	const helperPath = path.join(ROOT, 'tests/gates/_runtime-registry.mjs');
+	if (fs.existsSync(headPath) && fs.existsSync(helperPath)) {
+		const mp = mirrorProblems(loadSequence(fs.readFileSync(headPath, 'utf8')),
+			loadSequence(fs.readFileSync(helperPath, 'utf8')));
+		if (mp.length) problems.push(...mp.map((x) => `镜像契约（#1826）：${x}`));
+		else console.log(`  ✓ 镜像契约（#1826）：helper 加载序 ＝ headless 到 \`dist/bundle.js\` 的前缀（${loadSequence(fs.readFileSync(helperPath, 'utf8')).length} 步）`);
+	} else {
+		console.log('  ⚠ 镜像契约（#1826）**未判**：两文件之一不存在（✗ 静默 ⇒ 本行即出声）');
+	}
+}
+
 problems.push(...jr.problems);
 for (const nt of jr.notes) console.log(`  ⚠ ${nt}`);
 

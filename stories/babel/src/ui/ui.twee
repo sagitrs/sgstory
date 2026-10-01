@@ -11,6 +11,11 @@
 	<<else>>无<</if>>
 	｜　背包：<span class="inventory-links"><<= setup.RPG.inventoryLinks()>></span>
 </div>
+<div class="noticebar"><<= setup.RPG.noticeToggleHTML()>>
+	<details class="rpg-notice-box"><summary>最近的通知</summary>
+		<ul class="rpg-notice-list"><<= setup.RPG.noticesHTML()>></ul>
+	</details>
+</div>
 
 :: StoryStylesheet
 body {
@@ -37,4 +42,15 @@ hr { border: 0; border-top: 1px solid #2d3440; }
 .inventory-links a { color: #b8d0e8; text-decoration: none; border-bottom: 1px dashed #4a6070; cursor: pointer; }
 .inventory-links a:hover { color: #e8f4ff; border-bottom-color: #8fb8d8; }
 .inventory-links a.rpg-item-link-unknown { color: #77808a; border-bottom-style: dotted; }
+/* B4（#1798）：通知中心 —— 开关 ＋ 可折叠的回看列表 */
+.noticebar { color: #8fa8bd; font-size: 0.85em; margin-top: 0.3em; }
+.noticebar a.rpg-notice-toggle { color: #b8d0e8; text-decoration: none; border-bottom: 1px dashed #4a6070; }
+.noticebar a.rpg-notice-toggle:hover { color: #e8f4ff; }
+.rpg-notice-box { margin-top: 0.2em; }
+.rpg-notice-box summary { cursor: pointer; color: #7c94a8; }
+.rpg-notice-list { margin: 0.3em 0 0 1em; padding: 0; list-style: none; }
+.rpg-notice-list li { line-height: 1.5; }
+.rpg-notice-list li.rpg-notice-key { color: #d8d4c8; }
+.rpg-notice-list li.rpg-notice-log { color: #7c8794; }
+.rpg-notice-ch { color: #a8c0d8; }
 small { color: #7c8794; }

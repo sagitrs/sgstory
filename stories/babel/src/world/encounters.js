@@ -101,7 +101,8 @@ setup.BABEL.fight = async ({ interactive = true } = {}) => {
 		 * `respawn` 的起点层来自**层表注册面**（`LAYER_META_SPAN1` 里 `start: true` 的 L1）。 */
 		const res = R.respawn(DND3.Player, { map: setup.BABEL.map });
 		run().deaths += 1;
-		R.perform(`你死在了第 ${layer.replace('L', '')} 层。清点损失：掉落 ${res.dropped} 件、清除 ${res.cleared} 项效果。`);
+		/* `#1798` B4：阵亡是**结论行** ⇒ 走 `death` 通道（`key`），「仅关键」档下仍进正文。 */
+		R.perform(`你死在了第 ${layer.replace('L', '')} 层。清点损失：掉落 ${res.dropped} 件、清除 ${res.cleared} 项效果。`, { channel: 'death' });
 		SugarCube.Engine.play('死亡回溯');
 	}
 };

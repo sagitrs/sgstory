@@ -329,12 +329,14 @@ RPG.Battle = class Battle extends RPG.Event {
 
 		const playersAlive = alive(this.players).length > 0;
 		const enemiesAlive = alive(this.enemies).length > 0;
+		/* `#1798` B4：这是**结论行** ⇒ 走 `battle-end` 通道（`key`）——「仅关键」档下仍进正文。 */
 		this.perform(
 			!playersAlive
 				? '战斗结束：你方全部倒下了……'
 				: !enemiesAlive
 					? '战斗结束：敌方被击败！'
-					: `战斗结束：${this.rounds} 个回合后双方仍在僵持。`
+					: `战斗结束：${this.rounds} 个回合后双方仍在僵持。`,
+			{ channel: 'battle-end' }
 		);
 
 		RPG.events.emit('battle:end', {

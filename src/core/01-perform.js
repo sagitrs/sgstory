@@ -43,13 +43,25 @@ RPG.deferOutput = (build) => {
 Object.defineProperty(Object.prototype, 'perform', {
 	/**
 	 * 打印一段文字到当前段落（每个非空行渲染为一个段落 <p>）。
+	 *
+	 * ★`opts.channel`（`#1798` B4）：这一行**属于哪个输出通道** ⇒ 决定它在「仅关键」档下是否仍进正文
+	 *   （通道的默认级别由注册面 `RPG.defNotice` 回答，✗ 本函数猜文本）。
+	 *   **不传 `opts` ⇒ 通道 `'default'`、级别 `'log'`，且默认档是 `'all'` ⇒ 既有调用行为逐字不变**；
+	 *   被过滤掉的行**仍进通知缓冲**（`RPG.notices` 可回看）⇒ ✗ 丢证据。
 	 * @param text string 要打印的字符串
+	 * @param opts.channel string 输出通道 id（缺省 `'default'`）
 	 */
-	value: function perform(text) {
+	value: function perform(text, opts) {
 		if (typeof text !== 'string') {
 			throw new Error(`perform 的参数应是字符串，收到：${typeof text}`);
 		}
+		const channel = opts?.channel ?? 'default';
 		const lines = text.split('\n').filter((line) => line.trim() !== '');
+		/* 通知面可能尚未加载（本文件按序在 `71-notice.js` 之前）⇒ 能力探测，✗ 硬依赖 */
+		const notify = typeof RPG.pushNotice === 'function' ? RPG.pushNotice : null;
+		const admits = typeof RPG.noticeAdmits === 'function' ? RPG.noticeAdmits(channel) : true;
+		lines.forEach((line) => { if (notify) notify(line, { channel }); });
+		if (!admits) return this;     // 只进通知中心（可回看），✗ 进正文
 		RPG.deferOutput(() => lines.forEach(print));
 		return this;
 	},

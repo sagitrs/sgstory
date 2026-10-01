@@ -70,8 +70,8 @@ export const CATEGORIES = {
 	'SugarCube':       /(?<![.\w$])SugarCube\b/g,
 	'Wikifier':        /(?<![.\w$])Wikifier\b/g,
 	'setup.':          /(?<![.\w$])setup\s*\??\s*\./g,
-	'jQuery':          /(?<![.\w$])jQuery\s*\(/g,
-	'dollar':          /(?<![.\w$])\$\s*\(/g,
+	'jQuery':          /(?<![.\w$])jQuery\s*(?:\?\.)?\s*\(/g,   // ★含 `jQuery?.(` call-form（#1810 D 席 RC）
+	'dollar':          /(?<![.\w$])\$\s*(?:\?\.)?\s*\(/g,       // ★含 `$?.(` call-form
 	'window':          /(?<![.\w$])window\s*\??\s*\./g,
 	'document':        /(?<![.\w$])document\s*\??\s*\./g,
 	/* ★`globalThis` 面（T 席点出的 MAJOR 之一；**能认的形先认**，认不出的见 KNOWN_BLIND_SPOTS） */
@@ -230,16 +230,43 @@ if (isMain && has('--selftest')) {
 		['K11 ★`State ?. variables`（带空格）须计入', optCount('const a = State ?. variables.x;') === 1],
 		['K12 ★链式 `?.` 只计一次（✗ 重复计）', optCount('State?.variables?.inventory ?? [];') === 1],
 		['K13 普通点号未回归', optCount('State.variables.x = 1;') === 1],
-		/* ★类目接线刀：**光有类目表不等于类目被用**（本席实测：删掉 `globalThis` 类目，自检仍 13/13 绿
-		 *   ⇒ 该类目**无刀**＝接线未被守）。⇒ 每个类目至少一刀，断言它**真出现在 `scan()` 的产出里**。 */
-		['K14 ★`globalThis.` 类目已接线（scan 产出须含该键）',
+		/* ★★类目接线刀（`#1810` D 席 RC 升级版）：**遍历 ＋ 独立具名白名单差集**
+		 *   ⚠ 上一版只钉 `globalThis` 一类，且思路是「该键须出现在产出里」——
+		 *     其弱点正如 D 席点出：**若刀的期望值从 `CATEGORIES` 自身派生，则删掉类目后刀照样绿**
+		 *     （自证循环）。⇒ 本版把 **10 个类目名硬编码在刀里**（✗ 不经 `Object.keys(CATEGORIES)`），
+		 *     并造一份**覆盖全部 10 类目**的合成源，逐类断言其**出现次数**。
+		 *   ⇒ 删/改任何一类 ⇒ 本刀必红（含「从表里删掉」与「正则改坏」两形）。
+		 *   ★合成源须**覆盖全 10 类目**（✗ 只覆盖其一）——否则刀会因**别类缺失**而误红。 */
+		['K14 ★10 类目**遍历**接线刀（独立具名白名单差集，✗ 从 CATEGORIES 派生）',
 			(() => {
-				const tmp = fs.mkdtempSync(path.join(ROOT, 'tests/gates', '.tmp-cls-'));
+				const expect = {                       // ← 独立具名白名单（刀自带，✗ 不读 CATEGORIES）
+					'State.variables': 1, 'State.other': 1, 'SugarCube': 1, 'Wikifier': 1,
+					'setup.': 1, 'jQuery': 2, 'dollar': 2, 'window': 1, 'document': 1, 'globalThis': 1,
+				};
+				const src = [
+					'State.variables.a = 1;',            // State.variables
+					'State.passage = 2;',                // State.other
+					'const s = SugarCube.x;',            // SugarCube
+					'const w = new Wikifier(d, t);',     // Wikifier
+					'setup.RPG.x = 1;',                  // setup.
+					'jQuery(a); jQuery?.(b);',           // jQuery（含 call-form）
+					'$(a); $?.(b);',                     // dollar（含 call-form）
+					'window.x = 1;',                     // window
+					'document.title = "x";',             // document
+					'globalThis.State = 1;',             // globalThis
+				].join('\n');
+				const tmp = fs.mkdtempSync(path.join(ROOT, 'tests/gates', '.tmp-cls2-'));
 				try {
-					fs.writeFileSync(path.join(tmp, 'g.js'), 'globalThis.State = 1;\nglobalThis?.document.x;\n');
+					fs.writeFileSync(path.join(tmp, 'all.js'), src);
 					const out = scan(tmp);
 					const h = out[Object.keys(out)[0]] ?? {};
-					return (h['globalThis'] ?? 0) === 2;
+					const diffs = [];
+					for (const [k, want] of Object.entries(expect)) {
+						const got = h[k] ?? 0;
+						if (got !== want) diffs.push(`${k}: 期望 ${want} 实得 ${got}`);
+					}
+					if (diffs.length) console.log(`      ↳ 差集：${diffs.join('；')}`);
+					return diffs.length === 0;
 				} finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 			})()],
 	];

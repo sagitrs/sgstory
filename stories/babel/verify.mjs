@@ -51,6 +51,7 @@ jsFiles.sort();
 for (const f of jsFiles) eval(`(function (RPG, $) {\n${fs.readFileSync(f, 'utf8')}\n})(setup.RPG, jQuery);`);
 
 const R = setup.RPG;
+const RPG_create = (id) => R.createItem(id);
 const D = setup.DND3;
 const B = setup.BABEL;
 const map = B?.map;
@@ -76,14 +77,15 @@ ok(map instanceof R.WorldMap, '`setup.BABEL.map` 不是 WorldMap');
 if (map) {
 	ok(map.validate().length === 0, `地图结构不合法：${map.validate().join('；')}`);
 	ok(map.validateConnectivity('L1').length === 0, `L1 出发不可达：${map.validateConnectivity('L1').join('；')}`);
-	ok(map.locations.size === 13, `地点数应为 13（L1–L9 ＋ L10 三地点 ＋ L11），实为 ${map.locations.size}`);
+	ok(map.locations.size === 26, `地点数应为 26（一段 13 ＋ 二段 L11–19 九层 ＋ L20 三地点 ＋ 故事侧军械堆/马厩），实为 ${map.locations.size}`);
 }
 console.log(`  地点 ${map.locations.size} 个｜边 ${map.exits.length} 条`);
 
 /* ---------- ② 层与内容（1–9 层：采集点 ＋ 遭遇 ＋ 向上的路）---------- */
-head('② 1–9 层逐层');
-for (let i = 1; i <= 9; i++) {
-	const id = `L${i}`;
+head('② 全梯逐层（一段 1–9 ＋ 二段 11–19：采集点 ＋ 遭遇 ＋ 向上的路）');
+const CLIMB_LAYERS = [...Array(9).keys()].map((i) => `L${i + 1}`).concat([...Array(9).keys()].map((i) => `L${i + 11}`));
+for (const id of CLIMB_LAYERS) {
+	const i = Number(id.slice(1));
 	const loc = map.locations.get(id);
 	ok(!!loc, `缺层 ${id}`);
 	if (!loc) continue;
@@ -103,13 +105,23 @@ if (typeof R.layerOfLocation === 'function') {
 }
 
 /* ---------- ③ 单向门（段间封闭：10 → 11 有边、11 → 无回边）---------- */
-head('③ 单向门 10 → 11');
+head('③ 段间封闭（10→11 接通 ＋ 20→21 只定义不挂图）');
 const gate = map.exitsFrom('L10-gate');
-ok(gate.some((e) => e.to === 'L11'), '`L10-gate` 没有通往 L11 的边');
-ok(map.exitsFrom('L11').length === 0, `L11 有回边（不是单向门）：${map.exitsFrom('L11').map((e) => e.to).join('、')}`);
+ok(gate.some((e) => e.to === 'L11'), '`L10-gate` 没有通往 L11 的边（10→11 未接通）');
+ok(!map.exitsFrom('L11').some((e) => e.to === 'L10' || e.to.startsWith('L10-')),
+	`L11 有回 L10 的边（段间不是封闭的）：${map.exitsFrom('L11').map((e) => e.to).join('、')}`);
 const reach = map.reachableFrom('L1');                       // Set 或数组（两种都兼容）
-ok(reach.has ? reach.has('L11') : reach.includes('L11'), 'L11 从 L1 不可达');
-console.log(`  L10-gate 出口：${gate.map((e) => e.to).join('、')}｜L11 出口：${map.exitsFrom('L11').length} 条`);
+const has = (x) => (reach.has ? reach.has(x) : reach.includes(x));
+ok(has('L11'), 'L11 从 L1 不可达');
+ok(has('L20-gate'), 'L20-gate 从 L1 不可达（二段没接上？）');
+/* ★ 20→21：定义存在、**图里没有**（`L21` 属三段）—— 这是「只定义不挂图」的机械判据。 */
+ok(typeof D.span2GateExit === 'function', '`DND3.span2GateExit` 定义缺失');
+ok(D.span2GateExit().to === 'L21', '`span2GateExit` 的 to 不是 L21');
+ok(!map.locations.has('L21'), '★图里出现了 L21（`span2GateExit` 被挂上了 —— 应只定义不挂图）');
+ok(!map.exitsFrom('L20-gate').some((e) => e.to === 'L21'), '★`L20-gate` 挂了通往 L21 的边');
+ok(map.exitsFrom('L21').length === 0, 'L21 出现回边');
+console.log(`  L10-gate ⇒ ${gate.map((e) => e.to).join('、')}｜L11 回边 ${map.exitsFrom('L11').filter((e) => e.to.startsWith('L10')).length} 条`
+	+ `｜L20-gate 出口 ${map.exitsFrom('L20-gate').length} 条（L21 未挂 ✓）`);
 
 /* ---------- ④ 采集（#1776 的真 API）---------- */
 head('④ 采集闭环（L1 的碎石堆）');
@@ -209,14 +221,17 @@ console.log(`  开垦 ${res?.status}｜收获后 口粮=${State.variables.invent
 	+ `｜累计收获 ${State.variables.span1Harvests}`);
 
 /* ---------- ⑦ 穿越单向门 ---------- */
-head('⑦ 穿越单向门');
+head('⑦ 穿越单向门（10→11 接通 ⇒ 二段可走）');
 map.moveTo('L10-gate');
 map.moveTo('L11');
 ok(map.current === 'L11', '穿门后应到 L11');
 ok(State.variables.babelRun.deepest === 'L11', '`deepest` 读数没更新');
-map.moveTo('L10-gate');   // 玩家在 L11 时**没有**回边的选项 ⇒ 这条仅证明图上有路，不代表 UI 会给
-ok(map.exitsFrom('L11').length === 0, 'L11 出现回边');
-console.log(`  当前位置：${map.current}｜deepest=${State.variables.babelRun.deepest}`);
+ok(map.exitsFrom('L11').some((e) => e.to === 'L12'), '★L11 没有通往 L12 的路（10→11 接了但二段没接？）');
+map.moveTo('L20-gate');
+ok(State.variables.babelRun.deepest === 'L20', '走到 L20-gate 后 `deepest` 没更新（应记层 id L20）');
+const terminus = map.locations.get('L20-gate').availableActions.map((a) => String(a.text));
+ok(terminus.some((x) => x.includes('看看这一局')), '★L20-gate 没有收尾读数入口（试玩终点没搬过来）');
+console.log(`  L10-gate ⇒ L11 ⇒ L12 通路 ✓｜终点已搬到 L20-gate（deepest=${State.variables.babelRun.deepest}）`);
 
 /* ---------- ⑧ 整备闭环（L10 营火 ⇒ DND3.treatTrauma）----------
  * ★本节的由来（`#1785` 的 D 席 RC，dev-9）：本笔是**装配票**，验收对象就是**接线本身** ⇒
@@ -246,6 +261,110 @@ if (rest) {
 	D.Player.stats.heal_bonus = 0;
 	D.Player.lose('bleeding');
 	console.log(`  高掷 ⇒ 治愈 ✓｜低掷 ⇒ 保留 ✓（DC 比对是活的）`);
+}
+
+/* ---------- ⑨ 二段遭遇（`span2` 真表；`#1791` 票面验收第 1 项）----------
+ * **双向**：好的一侧抽得出二段敌人；坏的一侧 —— hub 层**结构性**抽不出、未注册层**抛错**。 */
+head('⑨ 二段遭遇（span2 真表）');
+{
+	const r1 = R.rollEncounter('L13', { count: 1 });
+	ok(r1.length === 1, `L13 抽不出遭遇（实得 ${r1.length} 条）`);
+	ok(['fire-beetle', 'giant-bee', 'bombardier-beetle'].includes(r1[0]?.ref),
+		`L13 抽出的不是二段敌人：${r1[0]?.ref}`);
+	ok(R.rollEncounter('L20').length === 0, '★L20 是 hub，不该抽得出遭遇（结构性排除失效）');
+	let thrown = null;
+	try { R.rollEncounter('L99'); } catch (e) { thrown = e; }
+	ok(thrown !== null, '★未注册的层应抛错（层 id 打错不该被当成「这层没遭遇」）');
+	ok(R.layerType('L11') === 'climb' && R.layerType('L20') === 'hub', '二段层型不对（L11 climb／L20 hub）');
+	console.log(`  L13 ⇒ ${r1.map((e) => e.ref).join('、')}｜L20 ⇒ ${R.rollEncounter('L20').length} 条｜L99 ⇒ ${thrown ? '抛错 ✓' : '未抛 ✗'}`);
+}
+
+/* ---------- ⑩ 创伤：真实暴露 ＋ 跨场存活（钝击 ⇒ 骨裂；`#1781`）----------
+ * **双向**：钝击重击 ⇒ 骨裂（且**不是**失血 ⇒ 证明判据/提序是活的）；跨 `battle:end` 仍在（persistent）。 */
+head('⑩ 创伤：真实暴露 ＋ 跨场存活（钝击 ⇒ 骨裂）');
+{
+	for (const id of Object.keys(D.Traumas)) if (D.Player.contains(id)) D.Player.lose(id);
+	/* ★伤害**必须 ≥ 失血阈值 3**（且 < maxHp/2 ⇒ 不触发脑震荡）：否则「crushing 提序」这条判据
+	 *   测不出来 —— 伤害 2 时两种次序都落到 `fracture`（本笔 K 刀实测：退回原序仍然全绿）。
+	 *   取 1d6=3 ⇒ 伤害 2×3 = 6（≥3、<10）⇒ 提序在位才得骨裂，退回原序会得失血。 */
+	const q = [0.99, 0.99, 0.4];    // 重击威胁 20／确认 20／伤害骰 1d6=3
+	R.rng.set(() => (q.length ? q.shift() : 0.01));
+	R.createItem('club').used(D.Player, { stats: { bab: 20, str: 10 } });   // club: type=bludgeoning
+	R.rng.reset();
+	ok(D.Player.contains('fracture'), '★钝击重击没有致骨裂（真实路径不通）');
+	ok(!D.Player.contains('bleeding'), '★骨裂被失血遮蔽（判据提序失效）');
+	const before = D.Player.hp;
+	R.events.emit('battle:end', { players: [D.Player], enemies: [] });     // 跨场：一场战斗结束
+	ok(D.Player.contains('fracture'), '★创伤没跨过 `battle:end`（persistent 语义失效）');
+	ok(D.Player.hp === before, '`battle:end` 不该改体力');
+	console.log(`  骨裂已施加 ✓｜跨场仍在 ✓｜失血未遮蔽 ✓｜体力 ${D.Player.hp}/${D.Player.maxHp}`);
+}
+
+/* ---------- ⑪ 锻造闭环（`#1788` 的 craft 面；票面验收第 3 项）----------
+ * ★两半，各点一件事（第二半的由来：本节点最初只直调 `RPG.act` ⇒ 把**锻造台动作**换成 no-op
+ *   仍然全绿 —— 与 dev-9 对 ⑧ 的那条 RC 同族，故必须**走动作**，不只走引擎）：
+ *   ① **接线**：走 L20-forge 的**锻造台动作**锻一件（给足料 ⇒ 到手；动作若被换成 no-op ⇒ 必红）；
+ *   ② **引擎原子性**：直调 `RPG.act` 料不够 ⇒ rejected 且**输入不被扣**（这条测的是 `#1788`/`#1776` 的引擎，
+ *      保留在此以便一眼看到「失败不留损」成立）。 */
+head('⑪ 锻造闭环（料场 ⇒ 图纸 ⇒ 铁器）');
+{
+	map.moveTo('L20-settlement');
+	const yard = map.locations.get('L20-settlement').availableActions.find((a) => String(a.text).includes('料场'));
+	ok(!!yard, 'L20-settlement 没有「料场」动作（接线缺失）');
+	if (yard) yard.action();
+	const bps = D.span2Blueprints();
+	ok(bps.length === 6, `图纸清单应为 6 张（从注册面派生），实为 ${bps.length}`);
+	ok(bps.every((id) => R.has(id)), `料场没把图纸发齐：缺 ${bps.filter((id) => !R.has(id)).join('、')}`);
+	/* ⚠ 判据要**从行首**匹配「采集」：料场那条动作的文本里也含「木料」（`…（图纸与木料）`），
+	 *   用 `includes('木料')` 会先命中它 ⇒ 二次调用料场（no-op）而**采不到木**（本笔实测踩过）。 */
+	const woodAction = map.locations.get('L20-settlement').availableActions.find((a) => String(a.text).startsWith('采集'));
+	ok(!!woodAction, 'L20-settlement 没有「采集（枯倒的木料）」动作');
+	if (woodAction) woodAction.action();
+	ok(R.has('wood'), '采集木料没有产出木材（锻造的输入之一）');
+
+	const countOf = (id) => (State.variables.inventory ?? []).filter((s) => s.id === id)
+		.reduce((n, s) => n + (s.charges ?? 1), 0);
+
+	/* ② 引擎原子性（料不够 ⇒ 拒绝且不扣料） */
+	const ore0 = countOf('iron-ore'), wood0 = countOf('wood');
+	const r1 = R.act(D.Player, 'forge-greatsword', D.Player, 'craft');   // 巨剑＝铁矿 3 ＋ 木材 2
+	ok(r1?.status === 'rejected', `★料不够时应被拒（实为 ${r1?.status}）`);
+	ok(countOf('iron-ore') === ore0 && countOf('wood') === wood0, '★被拒时输入被扣了（原子性破了）');
+
+	/* ① 接线（走**包里的锻造台动作**） */
+	map.moveTo('L20-forge');
+	const forge = map.locations.get('L20-forge').availableActions.find((a) => String(a.text).includes('锻造台'));
+	ok(!!forge, 'L20-forge 没有「锻造台」动作（#1791 的接线缺失）');
+	R.give('iron-ore', 3);
+	R.give('wood', 2);
+	const ore1 = countOf('iron-ore'), wood1 = countOf('wood');
+	const forgedBefore = D.span2Blueprints().filter((id) => RPG_create(id)?.stats?.recipe?.yields?.[0]?.id)
+		.map((id) => RPG_create(id).stats.recipe.yields[0].id).filter((id) => R.has(id)).length;
+	if (forge) forge.action();
+	const forgedAfter = D.span2Blueprints().filter((id) => RPG_create(id)?.stats?.recipe?.yields?.[0]?.id)
+		.map((id) => RPG_create(id).stats.recipe.yields[0].id).filter((id) => R.has(id)).length;
+	ok(forgedAfter > forgedBefore, '★锻造台动作没有产出任何铁器 ⇒ 接线未生效（换成 no-op 也能过的形）');
+	ok(countOf('iron-ore') < ore1 && countOf('wood') < wood1, '★锻造台产出了东西但输入没减少')
+	console.log(`  图纸 ${bps.length} 张 ✓｜料不够 ⇒ rejected 且不扣料 ✓｜锻造台 ⇒ 铁器 +${forgedAfter - forgedBefore} 件`
+		+ `（铁矿 ${ore1}→${countOf('iron-ore')}、木材 ${wood1}→${countOf('wood')}）`);
+}
+
+/* ---------- ⑫ 军械／马厩（票面第 5 条的「可观察」）---------- */
+head('⑫ 军械堆（盾）／马厩（骑乘）');
+{
+	map.moveTo('L20-armory');
+	const takeShield = map.locations.get('L20-armory').availableActions.find((a) => String(a.text).includes('小圆盾'));
+	ok(!!takeShield, '军械堆没有发盾的动作');
+	if (takeShield) takeShield.action();
+	ok(R.has('buckler'), '★军械堆没有发出盾（盾装备面观察不到）');
+	ok(!map.locations.get('L20-armory').availableActions.some((a) => String(a.text).includes('小圆盾')),
+		'★已持有的盾仍在可领列表里（`when` 前置失效）');
+	map.moveTo('L20-stable');
+	const takeMount = map.locations.get('L20-stable').availableActions.find((a) => String(a.text).includes('骡子'));
+	ok(!!takeMount, '马厩没有发坐骑的动作');
+	if (takeMount) takeMount.action();
+	ok(R.has('mule'), '★马厩没有发出坐骑（骑乘面观察不到）');
+	console.log(`  小圆盾 ✓（AC 前缀 ${D.Player.stats.ac}）｜骡子 ✓`);
 }
 
 /* ---------- 汇总 ---------- */

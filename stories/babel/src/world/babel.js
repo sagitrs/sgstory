@@ -64,69 +64,72 @@ const map = new R.WorldMap({ id: 'babel' });
 const GATHER_OF = {};
 for (const L of LAYERS) GATHER_OF[L.id] = L.gather;
 
-for (const L of LAYERS) {
-	const loc = new R.Location({
-		id: L.id,
-		name: L.name,
-		desc: () => L.desc,
-		/* 读数：本局到过的**最深**层（进层即记；✗ 用「当前层」代替，因为死亡会把人送回 L1）。 */
-		onEnter: () => {
-			const r = State.variables.babelRun;
-			if (r) r.deepest = L.id;
-		},
-		actions: [
-			/* 采集点**发放**（故事面的职责：`#1776` 明确「采集点须先在背包里」，投放归集成票）。 */
-			{
-				text: `在${L.gatherLabel}边翻找（找采集点）`,
-				when: () => !R.has(L.gather) && !State.variables.babelGiven[L.id],
-				action: () => {
-					R.give(L.gather);
-					State.variables.babelGiven[L.id] = true;
-					R.perform(`你在一堆${L.gatherLabel}里挑了个能下手的角落。`);
-				},
-			},
-			/* 采集本体：走 `#1776` 的 `RPG.gather`（缺省取玩家背包语义）。 */
-			{
-				text: `采集（${L.gatherLabel}）`,
-				when: () => R.has(L.gather),
-				action: () => setup.BABEL.gather(),
-			},
-			/* 遭遇：地图 action 跳转到独立段落（战斗要全屏渲染，同旧宅 e2e 的形）。
-			 * ⚠ 层读面（`RPG.inGradient`）来自 `#1784`（`src/core/65-encounters.js`）⇒ 在此**能力探测**：
-			 *   缺席时仍给出入口（点了会看到「装配缺口」的显式提示，✗ 静默消失）——
-			 *   这与「静默不触发」的失败形相反，见 encounters.js 的依赖声明。 */
-			{
-				text: '遭遇（往上走之前，先看有什么挡路）',
-				when: () => (typeof R.inGradient === 'function' ? R.inGradient(L.id) : true),
-				action: () => SugarCube.Engine.play('遭遇战'),
-			},
-		],
-	});
-	map.addLocation(loc);
-}
-
-/* ---------- 第 10 层：整备区（取包里的实例 —— 单一权威源）---------- */
-const hub = DND3.buildSpan1Hub();   // 包里已自带 `validate()`：不合法会抛
-for (const loc of hub.locations.values()) map.addLocation(loc);
-/* 连**边**也一并取过来 —— 只取地点会得到孤岛（实测：`validate()` 直接报「孤立点 L10-settlement」）。
- * 取的是同一批 `Exit` 实例 ⇒ 「L10 内部怎么走」也只有一个权威源。 */
-for (const exit of hub.exits) map.addExit(exit);
-
-/* ---------- 第 11 层：单向门的另一侧（二段的地界，本试玩版到此为止）---------- */
-map.addLocation(new R.Location({
-	id: 'L11',
-	name: '第 11 层 · 门后',
-	desc: '光散了。你站在一个更宽的地方，风从更上面吹下来 —— 上面还有路。'
-		+ '（试玩版到此为止。）',
-	/* 单向门的另一侧：进到这里即本局的最深处（`deepest` 供收尾读数）。 */
+/**
+ * 「层地点」的**唯一构造形**（一段与二段**共用** —— `babel2.js` 经 `setup.BABEL.makeLayerLocation` 复用）。
+ * 三件事：① 采集点**发放**（`#1776` 明确「采集点须先在背包里」，投放归本集成票）
+ *   ② 采集（`RPG.gather`）③ 遭遇（跳独立段落坐战）。
+ */
+const makeLayerLocation = (L) => new R.Location({
+	id: L.id,
+	name: L.name,
+	desc: () => L.desc,
+	/* 读数：本局到过的**最深**层（进层即记；✗ 用「当前层」代替，因为死亡会把人送回 L1）。 */
 	onEnter: () => {
 		const r = State.variables.babelRun;
-		if (r) r.deepest = 'L11';
+		if (r) r.deepest = L.id;
 	},
 	actions: [
-		{ text: '看看这一局爬了些什么', action: () => SugarCube.Engine.play('试玩终点') },
+		{
+			text: `在${L.gatherLabel}边翻找（找采集点）`,
+			when: () => !R.has(L.gather) && !State.variables.babelGiven[L.id],
+			action: () => {
+				R.give(L.gather);
+				State.variables.babelGiven[L.id] = true;
+				R.perform(`你在一堆${L.gatherLabel}里挑了个能下手的角落。`);
+			},
+		},
+		/* 采集本体：走 `#1776` 的 `RPG.gather`（缺省取玩家背包语义）。 */
+		{
+			text: `采集（${L.gatherLabel}）`,
+			when: () => R.has(L.gather),
+			action: () => setup.BABEL.gather(),
+		},
+		/* 遭遇：地图 action 跳转到独立段落（战斗要全屏渲染，同旧宅 e2e 的形）。
+		 * ⚠ 层读面（`RPG.inGradient`）来自 `#1784`（`src/core/65-encounters.js`）⇒ 在此**能力探测**：
+		 *   缺席时仍给出入口（点了会看到「装配缺口」的显式提示，✗ 静默消失）——
+		 *   这与「静默不触发」的失败形相反，见 encounters.js 的依赖声明。 */
+		{
+			text: '遭遇（往上走之前，先看有什么挡路）',
+			when: () => (typeof R.inGradient === 'function' ? R.inGradient(L.id) : true),
+			action: () => SugarCube.Engine.play('遭遇战'),
+		},
 	],
-}));
+});
+
+for (const L of LAYERS) map.addLocation(makeLayerLocation(L));
+
+/**
+ * **接管**一个整备区（把包里的 `WorldMap` 并进本图）：地点字段与 `actions` **按引用共享**
+ * （⇒ 包里对入口的接线在此一并生效，单一权威源），边**同一批实例**一并取入
+ * （只取地点会得孤岛 —— 实测 `validate()` 报「孤立点 L10-settlement」）。
+ * 唯一的故事侧补丁是 `onEnter` 读数钩子（记录 `deepest`）；**✗ 直接改包里的实例**
+ * （那会连带污染包自己那张图）。
+ */
+const adoptHub = (target, hub) => {
+	for (const loc of hub.locations.values()) {
+		target.addLocation(new R.Location({
+			id: loc.id, name: loc.name, desc: loc.desc, actions: loc.actions,
+			onEnter: () => {
+				const r = State.variables.babelRun;
+				if (r) r.deepest = R.layerOfLocation(loc.id)?.id ?? loc.id;
+			},
+		}));
+	}
+	for (const exit of hub.exits) target.addExit(exit);
+};
+
+/* ---------- 第 10 层：整备区（取包里的实例 —— 单一权威源）---------- */
+adoptHub(map, DND3.buildSpan1Hub());   // 包里已自带 `validate()`：不合法会抛
 
 /* ---------- 边 ----------
  * 段内自由（双向）＋ 段间封闭（10→11 单向、无回边）。 */
@@ -142,18 +145,21 @@ for (let i = LAYERS.length - 1; i > 0; i--) {
 	const b = LAYERS[i - 1].id;
 	map.addPath({ from: a, to: b, text: `向下，回第 ${i} 层（段内自由）` });
 }
-/* ★ 单向门本体：`L10-gate → L11`。`span1GateExit()` 由包提供（`#1748` 只给定义、不挂图，
- *   因为当时 L11 尚不存在 ⇒ 会造悬空边）。此处 L11 已建 ⇒ 可挂。**无反向边**即单向。 */
-map.addExit(DND3.span1GateExit());
+/* ★ **10→11 单向门本体与 L11 实体均由 `babel2.js` 接**（`#1791`）：
+ *   一段当年挂不上那条边（L11 尚不存在 ⇒ 悬空边、`validate()` 必红）；现在 L11 是二段的**爬层**
+ *   （不再是终点）⇒ 由二段文件统一挂。 */
 
-/* ---------- 构建时校验（build-and-check：不合法就别开故事）---------- */
-const problems = [...map.validate(), ...map.validateConnectivity('L1')];
-if (problems.length > 0) throw new Error(`[babel] 地图不合法：${problems.join('；')}`);
+/* ---------- 构建时校验（build-and-check：不合法就别开故事）----------
+ * 这里只校验**一段已建的部分**（连通性检查要等二段接上 ⇒ 在 `babel2.js` 末尾做全图检查）。 */
+const problems = map.validate();
+if (problems.length > 0) throw new Error(`[babel] 一段图不合法：${problems.join('；')}`);
 
 /* ---------- 注册为可玩的 MapScene ---------- */
 setup.BABEL = Object.assign(setup.BABEL ?? {}, {
 	map,
 	gatherPoints: GATHER_OF,       // 层 id → 该层采集点道具 id（遭遇/采集桥读它）
+	makeLayerLocation,             // 「层地点」构造形（一段/二段共用；二段文件复用）
+	adoptHub,                      // 整备区接管形（一段/二段共用）
 	layerOf: () => R.layerOfLocation(map.current)?.id ?? null,
 });
 R.registerScene(new R.MapScene({ id: 'babel-explore', title: '巴别之井', map, start: 'L1' }));

@@ -193,11 +193,18 @@ console.log(`  遭遇面：${encounterFaceReal ? '真 API（#1784 在场）' : '
 if (!encounterFaceReal) {
 	const said = [];
 	const origPerform = R.perform;
+	/* ★`#1863` 两层拆：装配缺口是**接线缺陷** ⇒ 信号迁**开发者通道**（`console.warn`），玩家层出白话。
+	 *   本格**两向都断**：①开发者拿到「装配缺口」（✗ 静默）②玩家层**不含**票号／源码路径（✗ 泄漏）。 */
+	const wants = [];
+	const origWarn = console.warn;
 	R.perform = (s) => { said.push(String(s)); return origPerform.call(R, s); };
+	console.warn = (s) => { wants.push(String(s)); return origWarn.call(console, s); };
 	await B.fight({ interactive: false });   // 必须走**自动通路**：交互通路要等 UI 选择（无头会挂起）
-	R.perform = origPerform;
-	ok(said.some((s) => s.includes('装配缺口')), '`#1784` 缺席时应显式报「装配缺口」，实测未报');
-	console.log(`  未接线时：${said.filter((s) => s.includes('装配缺口')).length} 条显式提示`);
+	R.perform = origPerform; console.warn = origWarn;
+	ok(wants.some((s) => s.includes('装配缺口')), '`#1784` 缺席时应向**开发者通道**（`console.warn`）显式报「装配缺口」，实测未报');
+	ok(said.length > 0 && !said.some((s) => /#[0-9]{3,}/.test(s) || /`[^`]*\.(js|md)`/.test(s)),
+		'玩家层文案不含票号／源码路径（`#1863`）');
+	console.log(`  未接线时：开发者通道 ${wants.filter((s) => s.includes('装配缺口')).length} 条显式提示｜玩家层 ${said.length} 条（无票号）`);
 	R.rollEncounter = (layer) => [{ ref: 'badger', elite: true, layer }];
 	R.rollLoot = (layer) => [{ id: 'coin', n: 1, layer }];
 }

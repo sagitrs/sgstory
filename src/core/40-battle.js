@@ -287,7 +287,9 @@ RPG.Battle = class Battle extends RPG.Event {
 		if (r?.status === 'applied') { this.rejectStreak = 0; return; }
 		this.rejectStreak += 1;
 		if (this.rejectStreak >= RPG.Battle.REJECT_LIMIT) {
-			this.perform(`★连续 ${this.rejectStreak} 次无人能行动 ⇒ ${attacker.name} 本回合强制跳过（#1773 护栏）。`);
+			/* ★`#1863`：玩家层**白话**（✗ 票号／机制词「护栏·强制跳过」）；`rejectStreak` 的计数是**诊断量**，
+			 *   留在实例字段里（`#1773` 护栏本体见上注），✗ 上屏。信息只**降级呈现**（「连着几回合没人动得了手」），✗ 删。 */
+			this.perform(`连着几回合都没人动得了手——${attacker.name}这一回合也就这么过去了。`);
 			this.rejectStreak = 0;
 		}
 	}

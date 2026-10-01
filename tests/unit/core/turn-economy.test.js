@@ -82,9 +82,11 @@
 		const logs = [];
 		const r = await run(3, [CH('甲', [])], [CH('乙', [])], logs);   // 双方无武器 ⇒ 每次皆拒
 		assert.eq(r.turn, 0, '全拒 ⇒ 无 battle:turn');
-		const hits = logs.filter((m) => /连续 \d+ 次无人能行动/.test(m));
+		/* ★本格**有意耦合玩家文案**（`#1863` 改词后同步）：被测性质正是「护栏**可见**」（✗ 静默空转），
+		 *   故断言必须落在玩家**真会看到**的那句上 ⇒ 改文案须同步改此处（✗ 换成不存在的机器标记）。 */
+		const hits = logs.filter((m) => /没人动得了手/.test(m));
 		assert.eq(hits.length, 2, `★★6 次拒绝 ÷ 上限 3 ⇒ 恰 **2** 次日志（实得 ${hits.length}）`);
-		assert.ok(/强制跳过/.test(hits[0] ?? ''), '日志说明「强制跳过」');
+		assert.ok(/这一回合/.test(hits[0] ?? ''), '日志说明「本回合过去了」（#1863 白话形）');
 	});
 
 	test('★护栏：**成功推进即清零**（「连续」而非「累计」的可分辨格）', () => {
@@ -133,7 +135,7 @@
 			const r = await run(3, [p2], [m], logs);
 			assert.eq(r.turn, 3, '玩家 3 次全成（正对照：有推进）');
 			assert.eq(r.byActor['怪物']?.t ?? 0, 0, '怪物 3 次全拒（无 battle:turn）');
-			assert.eq(logs.filter((x) => /连续 \d+ 次无人能行动/.test(x)).length, 0,
+			assert.eq(logs.filter((x) => /没人动得了手/.test(x)).length, 0,
 				'★拒绝被「成功」切断 ⇒ 无连续 3 次 ⇒ **无日志**（钉住「连续」；误写成「累计」⇒ 红）');
 		})();
 	});

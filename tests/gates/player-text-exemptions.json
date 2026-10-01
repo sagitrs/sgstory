@@ -1,0 +1,61 @@
+{
+  "说明": "上屏文本门的**待修豁免**（`#1863` 分两笔：PR1 修通路 A/C；本清单登记**通路 B** 五处，候 `#1857` 的转换点落地）。★豁免键＝**文件＋形＋内容子串**（✗ 行号 —— 行号会被无关插入打脆）。★过期豁免 ⇒ 红。",
+  "豁免": [
+    {
+      "file": "src/dnd/dnd3/items/resources.js",
+      "rule": "SYSTEM",
+      "contains": "是建设物资，不能直接使用（请用于建造）",
+      "ticket": "#1863",
+      "why": "候 #1857 的 `RPG.refuse(code, 开发者原文)` 转换点；现在改文案会**丢开发者信号**"
+    },
+    {
+      "file": "src/dnd/dnd3/items/resources.js",
+      "rule": "ENGLISH",
+      "contains": "请用采集动作（gather）",
+      "ticket": "#1863",
+      "why": "同上"
+    },
+    {
+      "file": "src/dnd/dnd3/items/resources.js",
+      "rule": "SYSTEM",
+      "contains": "请用采集动作（gather）",
+      "ticket": "#1863",
+      "why": "同上"
+    },
+    {
+      "file": "src/dnd/dnd3/items/resources.js",
+      "rule": "ENGLISH",
+      "contains": "请用建造动作（build）",
+      "ticket": "#1863",
+      "why": "同上"
+    },
+    {
+      "file": "src/dnd/dnd3/items/resources.js",
+      "rule": "SYSTEM",
+      "contains": "请用建造动作（build）",
+      "ticket": "#1863",
+      "why": "同上"
+    },
+    {
+      "file": "src/dnd/dnd3/items/iron-lineage.js",
+      "rule": "SYSTEM",
+      "contains": "不能直接使用（请用于锻造）",
+      "ticket": "#1863",
+      "why": "同上"
+    },
+    {
+      "file": "src/dnd/dnd3/items/iron-lineage.js",
+      "rule": "ENGLISH",
+      "contains": "请用合成动作（craft）",
+      "ticket": "#1863",
+      "why": "同上"
+    },
+    {
+      "file": "src/dnd/dnd3/items/iron-lineage.js",
+      "rule": "SYSTEM",
+      "contains": "请用合成动作（craft）",
+      "ticket": "#1863",
+      "why": "同上"
+    }
+  ]
+}

@@ -6,6 +6,13 @@
  *   ① **整备点**（歇脚/使用消耗品的入口，只做入口，不造系统）
  *   ② **聚落建设入口**（衔接资源聚落票 #1747；此处只留调用点与前置条件，不实现建设面）
  *   ③ **升层单向门 10→11**（`RPG.Exit` 有向边；单向由「无 11→10 回边」表达）
+ *
+ * ★ **#1746（试玩版集成）在此接上真 API**（原为占位 `perform`）：
+ *   ① 整备 ⇒ 创伤的**解除通路** `DND3.treatTrauma`（治疗检定 DC 15/18，加值取 `stats.heal_bonus`）
+ *      ＋「用掉一件恢复物」（`RPG.useItem`，有就用、没有就只是坐着 —— ✗ 不发明第二套休息规则）；
+ *      这条正是 `#1780` §八.2 记的「hub 解除闭环」缺口，此处补上**具名调用点**。
+ *   ② 建设 ⇒ `#1776` 的「图纸（道具）＋ 落地效果」形：发图纸 `farm-plot` ⇒ `RPG.act(…, 'build')` ⇒
+ *      收获 `RPG.harvest()`（读 `span1Farms`）。前置条件用**真凭据**（有没有图纸/有没有田），✗ 恒真占位。
  * **不含**（留白，显式排除）：居民／剧情／献祭兽／建筑树——`outline.md` 的「大空洞的居民来源」与
  *   `layers.md` 的「本表前提」两项留白未裁定前不预设。
  *
@@ -25,22 +32,56 @@ setup.DND3.buildSpan1Hub = () => {
 		name: '大空洞·营火',
 		desc: '大空洞的底部支着一排兽皮棚。有火，有石凳，也有人不说话地看着你。',
 		actions: [
-			{ text: '在火边歇一歇（整备点）', action: () => RPG.perform('（整备：后续接消耗品与恢复规则，见 #1747）') },
+			{
+				text: '在火边歇一歇（整备：处理伤口、用掉一件恢复物）',
+				action: () => {
+					const c = RPG.playerActor();
+					if (!c) return RPG.perform('你还没有身体可以歇。');
+					/* ① 创伤的解除通路（`#1780` §五 H1）：治疗检定 DC 15/18，加值取角色的治疗加值。
+					 *   `treatTrauma` 自己掷骰、自己比对 DC（判定数学在包里），此处只负责**发起**与播报。 */
+					const mod = c.stats?.heal_bonus ?? 0;
+					const held = Object.keys(DND3.Traumas).filter((id) => c.contains(id));
+					if (held.length === 0) RPG.perform(`${c.name}在火边坐下。身上的伤还不算碍事。`);
+					for (const id of held) {
+						const r = DND3.treatTrauma(c, id, { mod });
+						RPG.perform(r.ok
+							? `你把${DND3.Traumas[id].name}处理了（治疗检定 ${r.total} ≥ DC ${r.dc}）。`
+							: `${DND3.Traumas[id].name}没处理好（治疗检定 ${r.total} < DC ${r.dc}）——得再试。`);
+					}
+					/* ② 用掉一件恢复物：**有就用**（入口语义），✗ 不在此定义恢复规则本身。 */
+					const item = ['herb-poultice', 'bandage', 'ration'].find((id) => RPG.has(id));
+					if (item) RPG.useItem(item, c, c);
+					else if (held.length === 0) RPG.perform('火边没有能用的东西 —— 坐一会儿罢了。');
+				},
+			},
 		],
 	}));
 
-	/* ② 聚落建设入口：衔接 #1747 的「种子→农田→食物产出」最短闭环。
-	 *    `when` 只做**前置条件的表达示范**（本笔不定义资源 id，故条件恒真）——
-	 *    资源 id 与消耗端由 #1747 落地后替换此处的 `when`，避免本笔抢定资源语义。 */
+	/* ② 聚落建设入口：`#1776` 的「种子→田垄→口粮」最短闭环（图纸是道具、落地效果在 `registerBuild`）。
+	 *    `when` 用**真凭据**（有没有图纸／有没有田）—— `#1748` 当时的恒真占位已在本笔换掉。 */
 	map.addLocation(new RPG.Location({
 		id: 'L10-settlement',
 		name: '农耕聚落·围栏',
 		desc: '低矮的石圈围着几畦翻好的土。这里的秩序是别人替你决定的。',
 		actions: [
 			{
-				text: '查看开垦的地（聚落建设入口）',
-				when: () => true,
-				action: () => RPG.perform('（建设：此处后续接「收集→建设→升层」闭环，#1747）'),
+				/* 建设载体：图纸是**道具**（`#1776` 甲案：资源即 Item）⇒ 先领图纸（=前置条件**可判**）。 */
+				text: '领一块田垄的图纸',
+				when: () => !RPG.has('farm-plot'),
+				action: () => {
+					RPG.give('farm-plot');
+					RPG.perform('管事的丢给你一块木牌：『东边第三畦，归你了。』');
+				},
+			},
+			{
+				text: '开垦一畦田（需种子×2）',
+				when: () => RPG.has('farm-plot'),
+				action: () => RPG.act(RPG.playerActor(), 'farm-plot', RPG.playerActor(), 'build'),
+			},
+			{
+				text: '收获（田里有东西才有得收）',
+				when: () => DND3.farmCount() > 0,
+				action: () => RPG.harvest(),
 			},
 		],
 	}));

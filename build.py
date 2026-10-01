@@ -5,14 +5,14 @@ build.py —— SugarCube RPG 增强插件的构建器（零依赖，纯 Python 
 本仓库是一个 **SugarCube 增强插件**（src/core + src/dnd3），不是某个故事。
 用它做游戏的方式：一个「故事目录」引用插件源码，编译成单文件网页游戏：
 
-    python build.py [故事目录]        # 默认 tests/e2e/old-house（e2e 用例）
+    python build.py [故事目录] [--out 产物名]   # 默认 tests/e2e/old-house ＋ game.html
 
 同时总会生成 tests/unit/bundle.js（插件源码的测试构建，供单元测试页加载）。
 
 故事目录约定：
     <story>/src/**/*.twee    故事段落（剧情、widget、样式）
     <story>/src/**/*.js      故事侧脚本（在插件之后加载）
-    产物写到 <story>/game.html
+    产物写到 <story>/game.html（`--out 名字.html` 可改名，如 stories/babel 的 babel-trial.html）
     故事标题写在 StoryData 的 "title" 字段
 
 源码形态：
@@ -159,9 +159,9 @@ def build_unit_bundle():
     print(f"单元测试清单：{manifest.relative_to(ROOT)}（{len(test_files)} 个用例文件）")
 
 
-def build_story(story_dir: pathlib.Path):
+def build_story(story_dir: pathlib.Path, out_name: str = "game.html"):
     story_src = story_dir / "src"
-    out = story_dir / "game.html"
+    out = story_dir / out_name
 
     # 脚本：插件在前 + 故事在后（故事侧不注入包别名，需要时自行声明局部别名）
     js_paths = collect_js_files()
@@ -222,11 +222,20 @@ def build_story(story_dir: pathlib.Path):
 
 
 def main():
-    story_dir = pathlib.Path(sys.argv[1]) if len(sys.argv) > 1 else DEFAULT_STORY
+    args = list(sys.argv[1:])
+    # `--out 名字.html`：产物文件名（缺省 game.html ⇒ 旧行为逐字节不变）。
+    out_name = "game.html"
+    if "--out" in args:
+        i = args.index("--out")
+        if i + 1 >= len(args):
+            raise SystemExit("用法：python build.py [故事目录] [--out 产物名.html]")
+        out_name = args[i + 1]
+        del args[i:i + 2]
+    story_dir = pathlib.Path(args[0]) if args else DEFAULT_STORY
     if not story_dir.is_absolute():
         story_dir = ROOT / story_dir
     build_unit_bundle()
-    build_story(story_dir)
+    build_story(story_dir, out_name)
 
 
 if __name__ == "__main__":

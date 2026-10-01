@@ -10,6 +10,7 @@
  */
 (() => {
 	const R = () => setup.RPG, D = () => setup.DND5E;
+	const SB = () => D().STAT_BLOCK;                 // 临时加字段用（用完必清，见各格 finally）
 	const ID = 'firearmAmmo';
 	const BULLET = 'bullets-firearm', GUN = 'musket';
 
@@ -88,5 +89,86 @@
 		}
 		assert.eq(R().heldTotal(c, bullet), 0, '扣尽为 0');
 		assert.eq(R().take(bullet, 1, c), false, '再扣 ⇒ false（不足）');
+	});
+
+	/* ---------- D3 修正（#1796 RC）＋ 自陈缺口 ---------- */
+
+	/* ---------- D3 修正（#1796 RC）＋ 自陈缺口 ---------- */
+
+	/** 临时给本包 STAT_BLOCK 加字段并确保**成对**清理（存量注册表亦清）。
+	 *  ★一律用**临时 id**：`defStock(同名)` 会**覆盖真定义**——本席首版在此处用真 id 做「反向」检查，
+	 *    把 `firearmAmmo` 的 `derivedFrom` 冲掉了 ⇒ 另一格随之红（**自伤**，非被测物的问题）。 */
+	const withFields = (ids, fn) => {
+		for (const id of ids) SB()[id] = 0;
+		try { return fn(); } finally {
+			for (const id of ids) { delete SB()[id]; R().stocks.delete(id); delete D().Environment[id]; }
+		}
+	};
+	const tryDef = (d) => { try { D().defStock(d); return null; } catch (x) { return x; } };
+
+	test('★D3 RC：`derivedFrom` ＋ `scope:"battle"` ⇒ 声明期即被拒（视图与真值不得可漂移）', () => {
+		/* 复现（本席实测）：派生视图的真值在**道具**（不随场清），而 battle 档复位会把它按 `initial` 重写
+		 *  ⇒ `视图=4/真值=4 → 复位 → 视图=0/真值=4`，**无任何报错**。
+		 *  ⇒ 修法＝该组合**声明期即不可表达**（与 B 裁定同手法），✗ 「复位时顺带 sync」（那只是搬第二写点）。 */
+		withFields(['__t_rc_x', '__t_rc_a', '__t_rc_b'], () => {
+			const e = tryDef({ id: '__t_rc_x', scope: 'battle', initial: 0, derivedFrom: { itemId: 'x' } });
+			assert.eq(e?.code, 'STOCK_DERIVED_BATTLE', '★可表达性：声明期即拒（✗ 等运行期静默漂移）');
+			/* 反向：去掉任一侧即可声明 ⇒ 禁则**恰**锁那一种组合（✗ 一刀切） */
+			assert.eq(tryDef({ id: '__t_rc_a', scope: 'battle', initial: 0 }), null, '仅 battle ⇒ 合法（D2 既有用法）');
+			assert.eq(tryDef({ id: '__t_rc_b', derivedFrom: { itemId: 'x' } }), null, '仅 derivedFrom ⇒ 合法（D3 既有用法）');
+		});
+		/* ★并核对：真声明**未被本格波及**（本席首版正是栽在这——用真 id 做反向检查会把真定义冲掉） */
+		const real = R().stocks.get(ID);
+		assert.eq(real?.derivedFrom?.itemId, BULLET, '★真声明的 derivedFrom 仍在（本格非破坏性）');
+		assert.eq(real?.scope, 'persistent', '★真声明的 scope 仍是 persistent');
+	});
+
+	test('★自陈缺口：**非派生**存量不被 `syncDerivedStocks` 触碰（「角色存量即真值」方向的可分辨断言）', () => {
+		/* 本笔自陈的 D3 判据缺口：原只测了「无字段⇒返[]」「取不出⇒不改」，**没测**「有非派生存量时 sync 不碰它」。
+		 *  ⇒ 缺的正是**另一方向**（无道具背书 ⇒ 角色即真值）的**可分辨**断言：若 sync 误把非派生存量也重算，
+		 *     本格必红（✗ 两方向的存量在用例上无从分辨）。 */
+		withFields(['__t_self_owned'], () => {
+			R().defStock({ id: '__t_self_owned', name: '自有（无道具背书）', scope: 'persistent', initial: 5,
+				statBlock: SB(), pack: 'dnd-5e' });
+			assert.eq(R().isDerivedStock(R().stocks.get('__t_self_owned')), false, '非派生（无 derivedFrom）');
+			const c = CH(4);                                   // 带真子弹 ⇒ 触发 sync 的那个 id 认得
+			SB()['__t_self_owned'] = 5;                        // 经 stats() 才在角色身上（本格直接构造）
+			c.stats['__t_self_owned'] = 3;                     // 自有存量当前值
+			const before = c.stats['__t_self_owned'];
+			assert.eq(JSON.stringify(R().syncDerivedStocks(c, BULLET)), JSON.stringify([ID]), '本格前提：sync 认领派生那条');
+			assert.eq(c.stats['__t_self_owned'], before, '★非派生存量**原样**（sync 只碰它认领的那条）');
+			assert.eq(c.stats[ID], 4, '派生那条**确实**被重算了（否则本格是空转）');
+			/* 再经真实通路走一遍（✗ 只直调）—— 自有存量同样不受影响 */
+			R().act(c, GUN, FOE(), 'use', c);
+			assert.eq(c.stats['__t_self_owned'], before, '★经真实通路后仍原样（同口径）');
+			assert.eq(c.stats[ID], 3, '派生那条跟随真值到 3');
+		});
+	});
+
+	test('★通路 2（tester-4 RC）：`RPG.take` **省略 actor** ⇒ 按**身份**反解归属（✗ 猜、✗ 漂移）', () => {
+		/* 复现（本席实测）：`RPG.give('bullets-firearm', -2)` 走的是**省略 actor** 的旧路径
+		 *  ⇒ 扣的是 `inv()` ⇒ 视图一侧认不出归属 ⇒ **真值 38 vs 视图 40**（静默漂移）。
+		 *  修法＝**按身份**反解：谁的 `items` **就是**刚被扣的那个数组，谁就是归属
+		 *  （✗ 用 `playerActor()` 的属性猜 —— 那有 `#1743` 的跨包同名遮蔽）。 */
+		const P = R().playerActor();
+		assert.ok(P != null, '前提：有玩家角色可解析');
+		State.variables.inventory = [{ id: BULLET, charges: 40 }];
+		assert.eq(P.items === State.variables.inventory, true, '该角色确以 `inv()` 为背包（按身份可辨）');
+		P.items = State.variables.inventory;                 // 显式对齐（本格前提）
+		P.stats[ID] = 40;                                    // 视图先＝真值
+		R().give(BULLET, -2);                                // ★省略 actor 的消耗路径（旧行为签名不变）
+		assert.eq(R().heldTotal(P, BULLET), 38, '真值（背包）已减 2');
+		assert.eq(P.stats[ID], 38, '★视图**跟随**为 38（✗ 停在 40 ＝ 漂移）');
+
+		/* ★为何「按身份」总能解析到玩家：玩家的 `items` 是 **getter，桥接到 `inv()`**
+		 *  （`dnd-5e/player.js:44-48`：`get: invState`）⇒ 它与 `State.variables.inventory` **恒同一**
+		 *  ⇒ 身份反解必命中。⇒ 故「不可判」只在**无玩家角色**或**非全局数组**时发生；
+		 *  该分支已由上一格的 `actor:null`（直发事件）覆盖 ⇒ 此处只钉这条**桥接事实**（防后人以为靠名字猜）。 */
+		assert.eq(P.items === State.variables.inventory, true, '★玩家 items 恒桥接 inv()（故身份反解必中）');
+		/* ★诚实登记本格的**判别力上限**（本席突变电池实测）：把「按身份」换成 `RPG.playerActor()`
+		 *  **仍然全绿**（M32）—— 因为在当前引擎里**只有玩家**桥接全局背包 ⇒ 两者**恒指向同一人**
+		 *  ⇒「按身份」相对 `playerActor()` 的**唯一优势是将来性**（`#1743` 的跨包同名遮蔽一旦成真，
+		 *    按身份仍正确、按 `playerActor()` 会指错），**现阶段无法用用例分辨**。
+		 *  ⇒ 故此处**不声称**「按身份已被验证更优」；只声称：归属**可解析**且漂移已被消除（上一段已钉）。 */
 	});
 })();

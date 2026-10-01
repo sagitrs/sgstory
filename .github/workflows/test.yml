@@ -24,6 +24,10 @@ jobs:
         run: node tests/gates/line-endings.mjs
       - name: 行尾门自身的可假刀自检（#1775 D 席 5.1：判据改坏唯有自检能抓）
         run: node tests/gates/line-endings.mjs --selftest
+      - name: core 宿主触点 lint（#1804 件二：棘轮 —— 新触点即红，摸清渗透面）
+        run: node tests/gates/host-touchpoints.mjs
+      - name: 宿主触点门自身的可假刀自检
+        run: node tests/gates/host-touchpoints.mjs --selftest
       - name: 构建（生成单测 bundle 与清单）
         run: python3 build.py
       - name: 无头单测（断言 fail === 0）

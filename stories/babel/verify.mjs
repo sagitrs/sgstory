@@ -384,6 +384,50 @@ head('⑫ 军械堆（盾）／马厩（骑乘）');
 	console.log(`  小圆盾 ✓（AC 前缀 ${D.Player.stats.ac}）｜骡子 ✓`);
 }
 
+/* ---------- ⑭ 通知中心（B4 · `#1798`）的**故事侧接线** ----------
+ * ★承 ⑧ 的教训（den-9 的 RC：「接线有了、守卫没有」）⇒ 本笔的可见面（状态栏那一栏）也点一下：
+ *   面板体／开关要**能渲染**，且「仅关键」档要真的**把常态行挡在正文外**（✗ 只存在一个函数没人调）。 */
+head('⑭ 通知中心（B4）的故事侧接线');
+{
+	ok(typeof R.noticeToggleHTML === 'function' && typeof R.noticesHTML === 'function',
+		'★B4 的呈现面不存在 ⇒ 状态栏那一栏渲染不出来');
+	const before = R.noticeFilter;
+	R.clearNotices();
+	R.setNoticeFilter('all');
+	const printed = [];
+	const origDefer = R.deferOutput;
+	R.deferOutput = (b) => { printed.push(1); return b(); };
+	try {
+		R.perform('逐回合的常态行（应被挡）。');
+		R.perform('战斗结束：敌方被击败！', { channel: 'battle-end' });
+		ok(printed.length === 2, '默认档下两行都应进正文（=既有无变化）');
+		R.setNoticeFilter('key');
+		printed.length = 0;
+		R.perform('又一条常态行（应被挡）。');
+		ok(printed.length === 0, '★「仅关键」档下常态行**不进正文**（✗ 只是存在开关没人用）');
+		R.perform('你死在了第 3 层。', { channel: 'death' });
+		ok(printed.length === 1, '★关键通道（death）的行仍进正文');
+	} finally {
+		R.deferOutput = origDefer;
+		R.setNoticeFilter(before === 'key' ? 'all' : before);
+	}
+	ok(R.notices().length === 4, `★被挡下的行也要在通知缓冲里（✗ 丢证据），实得 ${R.notices().length}`);
+	const toggle = R.noticeToggleHTML();
+	ok(toggle.includes('data-mode='), '开关链应带 data-mode（点了才切得动）');
+	ok(R.noticesHTML().includes('rpg-notice'), '面板体应渲染出条目');
+	/* ★**接线**判据（✗ 只判能力存在）：状态栏（twee）里必须真的调了这两个面 ——
+	 *   否则「能力有、没人用」= 玩家看不到（正是 dev-9 那条 RC 的形态）。 */
+	const uiTwee = fs.readFileSync(path.join(storySrc, 'ui', 'ui.twee'), 'utf8');
+	ok(uiTwee.includes('noticeToggleHTML()'), '★状态栏没调 `noticeToggleHTML` ⇒ 开关渲染不出来（能力有、接线没有）');
+	ok(uiTwee.includes('noticesHTML()'), '★状态栏没调 `noticesHTML` ⇒ 面板体空');
+	ok(uiTwee.includes('noticebar'), '状态栏缺 `.noticebar` 容器');
+	/* ★顺带补 C1（`#1798` C1，已合）的**接线**断言：C1 那笔只有**能力**用例（`tests/unit/core/ui.test.js`），
+	 *   状态栏有没有真的换用 `inventoryLinks()` 无人守 ⇒ 此处按同一形态补上（同 §⑭ 的理由）。 */
+	ok(uiTwee.includes('inventoryLinks()'), '★状态栏没换用 `inventoryLinks()` ⇒ 道具名点不动（C1 的可见面没接上）');
+	ok(uiTwee.includes('inventory-links'), '状态栏缺 `.inventory-links` 容器');
+	console.log(`  开关：${toggle.replace(/<[^>]*>/g, '')}｜缓冲 ${R.notices().length} 条（含被挡的两条）`);
+}
+
 /* ---------- 汇总 ---------- */
 console.log(`\n${fails.length === 0 ? '✓ 装配自检通过' : `✗ 装配自检失败 ${fails.length} 条`}`);
 for (const f of fails) console.log(`  ✗ ${f}`);

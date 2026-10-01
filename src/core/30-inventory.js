@@ -169,7 +169,8 @@ RPG.loot = (victim) => {
 		inv().push(s); // 原样转移快照（保留剩余次数）
 		slots.splice(slots.indexOf(s), 1);
 	}
-	RPG.perform(`你获得了：${names.join('、')}。`);
+	/* `#1798` B4：产出是**结论行** ⇒ 走 `loot` 通道（`key`）。 */
+	RPG.perform(`你获得了：${names.join('、')}。`, { channel: 'loot' });
 };
 
 /**

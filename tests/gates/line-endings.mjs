@@ -21,6 +21,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
+import { execFileSync } from 'node:child_process';
 
 const DEFAULT_ROOT = path.resolve(import.meta.dirname, '..', '..');
 const argv = process.argv.slice(2);
@@ -37,11 +38,27 @@ const BINARY_EXT = new Set([
   '.zip', '.gz', '.tar', '.pdf', '.mp3', '.mp4', '.wasm',
 ]);
 
-function* walk(dir) {
+/* 扫描面（#1775 D 席 5.2）：优先 **`git ls-files`**（只扫**受跟踪**文件）——
+ *   理由：①读数**在任何工作树上一致**（✗ 随未跟踪的构建产物/临时文件而变，作者原读数即此因）
+ *        ②消除「本地构建产物混行 ⇒ 本地红而 CI 绿」的**假警报**面。
+ *   非 git 环境（或 git 不可用）**回退**到目录遍历（保守：宁可多扫，✗ 静默漏扫）。 */
+function listFiles(root) {
+  try {
+    const out = execFileSync('git', ['-C', root, 'ls-files', '-z'], { encoding: 'buffer', stdio: ['ignore', 'pipe', 'ignore'] });
+    const files = out.toString('utf8').split('\0').filter(Boolean)
+      .filter((f) => !SKIP_DIRS.some((d) => f.split('/').includes(d)));
+    if (files.length > 0) return { files: files.map((f) => path.join(root, f)), mode: 'git-ls-files' };
+  } catch { /* 非 git ⇒ 回退 */ }
+  const acc = [];
+  for (const f of walkDir(root)) acc.push(f);
+  return { files: acc, mode: 'walk（非 git 回退）' };
+}
+
+function* walkDir(dir) {
   for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
     if (ent.isDirectory()) {
       if (SKIP_DIRS.includes(ent.name)) continue;
-      yield* walk(path.join(dir, ent.name));
+      yield* walkDir(path.join(dir, ent.name));
     } else if (ent.isFile()) {
       yield path.join(dir, ent.name);
     }
@@ -65,7 +82,8 @@ function countEndings(file) {
 function scan(root) {
   const mixed = [];
   let scanned = 0, pureCrlf = 0, pureLf = 0;
-  for (const file of walk(root)) {
+  const { files, mode } = listFiles(root);
+  for (const file of files) {
     const c = countEndings(file);
     if (!c || c.lf === 0) continue;                       // 非文本 / 无换行
     scanned++;
@@ -74,7 +92,7 @@ function scan(root) {
     else mixed.push({ file: path.relative(root, file), crlf: c.crlf, lf: c.lf });
   }
   mixed.sort((a, b) => a.file.localeCompare(b.file));
-  return { mixed, scanned, pureCrlf, pureLf };
+  return { mixed, scanned, pureCrlf, pureLf, mode };
 }
 
 if (SELFTEST) {
@@ -89,7 +107,7 @@ if (SELFTEST) {
     console.log(`  ${ok ? '✓' : '✗'} ${name} — mixed=${r.mixed.length}（期望 ${expectMixed}）`);
   };
   try {
-    fs.writeFileSync(path.join(tmp, 'pure-crlf.txt'), 'a\r\nb\r\n');
+    fs.writeFileSync(path.join(tmp, 'pure-crlf.txt'), 'a\r\nb\r\n');   // 临时目录非 git ⇒ listFiles 走 walk 回退
     fs.writeFileSync(path.join(tmp, 'pure-lf.txt'), 'a\nb\n');
     check('洁净（纯 CRLF ＋ 纯 LF）⇒ 绿', 0, 0);
     fs.writeFileSync(path.join(tmp, 'mixed.txt'), 'a\r\nb\n');   // ★造混行
@@ -107,7 +125,7 @@ if (SELFTEST) {
 
 const r = scan(ROOT);
 console.log('行尾门（#1774）：同一文件内不得混行（CRLF 与 LF 并存）');
-console.log(`  扫描：${r.scanned} 个文本文件（排除 ${SKIP_DIRS.join('、')}）`);
+console.log(`  扫描：${r.scanned} 个文本文件（面＝${r.mode}；排除 ${SKIP_DIRS.join('、')}）`);
 console.log(`  分布：纯 CRLF ${r.pureCrlf} ｜ 纯 LF ${r.pureLf} ｜ **混行 ${r.mixed.length}**`);
 if (r.mixed.length > 0) {
   console.log('  ✗ 门红：以下文件同一文件内混用行尾（须统一为该文件原有的那种）：');

@@ -1,7 +1,7 @@
 {
   "$note": "覆盖面基线（#1720）：faces＝**下限**（低于即红），ceilings＝**上限**（高于即红）。**更新方式（#1789 口径校正）**：`--update-baseline`（仅人工，CI 绝不调用）重播计数面；`--seeded-at <主干sha>` 显式指定校准所对的主干（缺省取 `merge-base origin/main HEAD`）；`seededReason` **由人工撰写**（工具只**保留**、✗ 不生成也不清除）。基线变更会出现在 PR diff 里，合入者须解释「为什么少了这一项」。",
   "seededAt": "163c749c",
-  "seededReason": "#1788 rebase 至主干 163c749c（原 base 1132484a，落后 3 笔）：吸并 #1747/#1761/#1782 抬升，并执行两条「单 id 收敛」裁（领队 2026-10-01）：①双 id：删 DND3.IronSword（与 iron-longsword 同源同行 :765 重复），climb2 4 处改引 iron-longsword；②铁资源 canonical=iron-ore（#1788 配方链）：撤 DND3.IronIngot，climb2 6 处改引 iron-ore；iron-message 留（剧情物）。⇒ claims/sourceLineClaims **有意的净减**（-10/-4）。方向：**收敛**（消重复件 + 统一资源口径）；faces 其余全抬；ceilings 不变、无放宽。★验收：门 rc=0 ＋ 自检 22/22 ＋ 绿但钝巡检不点名（#1786 新规）。",
+  "seededReason": "#1788 rebase 至主干 163c749c（原 base 1132484a，落后 3 笔）：吸并 #1747/#1761/#1782 抬升，并执行两条「单 id 收敛」裁（领队 2026-10-01）：①双 id：删 DND3.IronSword（与 iron-longsword 同源同行 :765 重复），climb2 4 处改引 iron-longsword；②铁资源 canonical=iron-ore（#1788 配方链）：撤 DND3.IronIngot，climb2 6 处改引 iron-ore；iron-message 留（剧情物）。⇒ claims/sourceLineClaims **有意的净减**（-10/-4）。方向：**收敛**（消重复件 + 统一资源口径）；faces 其余全抬；ceilings 不变、无放宽。★验收：门 rc=0 ＋ 自检 22/22 ＋ 绿但钝巡检不点名（#1786 新规）。｜**`#1835` 甲（2026-10-01）**：新增 `ceilings.noCompareCites = 11`（「**源有值但本门未比对**」面）。实证：`bombardier-beetle.js:3` 引 `Monsters - Vermin-3e.md:119`（源有 `(13 hp)`／`Armor Class 16`），而该引用行既无声称、仓内字段也不在其行上 ⇒ **该值从未与源比对**；读数行却曾印「A 组未覆盖 0 项（源有值者**皆已被声称并比对**）」—— 该括注**不成立**，已收窄为它实际能担保的那句。本笔**只把该面记账可见**（棘轮上界 11），**✗ 判红**（判红须先量同形件数 ⇒ 乙，另票）。★**faces 未动**（`--update-baseline` 会顺手重写 faces 266→276，那是**未经说明的覆盖面变动** ⇒ 已回退，本笔只**加 ceilings 一键**）。",
   "faces": {
     "claims": 266,
     "sourceLineClaims": 117,
@@ -15,6 +15,7 @@
   },
   "ceilings": {
     "uncovered": 0,
-    "noValueCites": 5
+    "noValueCites": 5,
+    "noCompareCites": 11
   }
 }

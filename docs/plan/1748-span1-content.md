@@ -33,13 +33,13 @@
 
 | 仓内 id | 名 | 面 | 数值 | 依据 |
 |---|---|---|---|---|
-| `wood-spear` | 木柄长矛 | 木械 | 1d8／×3／20 ft.／6 lb.／2 gp／Piercing | SRD 3.5 · `Basic Rules and Legal/equipment.md:501`（`### Spear`） |
-| `bone-dagger` | 骨刺匕首 | 骨器 | 1d4／19–20 ×2／10 ft.／1 lb.／2 gp／Piercing | 同上 `:362`（`### Dagger`） |
+| `wood-spear` | 木柄长矛 | 木械 | 1d8／×3／20 ft.／6 lb.／2 gp／Piercing | SRD 3.5 · `Basic Rules and Legal/equipment.md:501-508`（数据行 `:501`／名 `:508` —— 3E 装备表按 ASCII 表格排版，**数据在上、名在下**，故须给**区间**） |
+| `bone-dagger` | 骨刺匕首 | 骨器 | 1d4／19–20 ×2／10 ft.／1 lb.／2 gp／Piercing | 同上 `:362-370`（数据行 `:362`／名 `:369-370`） |
 | `herb-poultice` | 草药糊 | 草药 | 治疗 **2**／**2 充能** | **house rule（非 SRD）** |
-| `club`（**已在仓**） | 木棒 | 石器 | 1d6／×2／10 ft.／3 lb.／0 gp | 同上 `:426`（`### Club`，本笔未改） |
+| `club`（**已在仓**） | 木棒 | 石器 | 1d6／×2／10 ft.／3 lb.／0 gp | 同上 `:427-434`（数据行 `:427`／名 `:434`；原写 `:426` **偏移一行** —— `:426` 是表格分隔线。仓内 `items/club.js:1` 已用正确区间形 `:427-434`） |
 
-- **草药为何是 house rule**：SRD 3.5 装备面**没有**「草药」条目（`equipment.md:3220` 的
-  `Healer's Kit` 是工具，非草药）⇒ 依 README §三.5「不许无出处」，其数值按本仓自定处理、
+- **草药为何是 house rule**：SRD 3.5 装备面**没有**「草药」条目（`Basic Rules and Legal/equipment.md:3220` 的
+  `### Healer's Kit` 是**工具**，非草药）⇒ 依 README §三.5「不许无出处」，其数值按本仓自定处理、
   注释显式标注，**不写「对齐 SRD」**。其强度刻意弱于既有 `items/bandage.js`（5／2），
   以匹配一段的「就地取材」相位（定标见 §二）。
 - **「石器/木械/骨器」的落法**：这三类是**材质基调**而非 SRD 武器类别 —— SRD 的武器表按

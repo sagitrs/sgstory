@@ -288,4 +288,20 @@
 		assert.eq(R().weaponMaterial(R().reviveItem(snap)), 'iron',
 			'还原后从定义重读 ⇒ `material` 可用（谱系谓词的真实消费路径）');
 	});
+
+	/* ---------- ⑦ 两条「单 id 收敛」裁的守卫（2026-10-01） ---------- */
+
+	test('收敛①：`iron-sword` 已撤（与 `iron-longsword` 同源同行 ⇒ 单 id）', () => {
+		assert.eq(R().items.has('iron-longsword'), true, 'canonical 武器 id ＝ `iron-longsword`（在册）');
+		assert.eq(R().items.has('iron-sword'), false, '★ `iron-sword` 已撤（双 id 收敛，✗ 不得复活）');
+		assert.eq(R().createItem('iron-longsword').stats.dmg, '1d8',
+			'值面由本件承载（原 `iron-sword` 的 `:765` 逐值已并入）');
+	});
+
+	test('收敛②：铁资源 canonical ＝ `iron-ore`（`iron-ingot` 已撤）', () => {
+		assert.eq(R().items.has('iron-ore'), true, 'canonical 资源 id ＝ `iron-ore`（在册）');
+		assert.eq(R().items.has('iron-ingot'), false, '★ `iron-ingot` 已撤（口径统一，✗ 不得复活）');
+		assert.eq(R().createItem('iron-ore').stats.craftInput, true,
+			'`iron-ore` 带 `craftInput` 标记 ⇒ 正是配方链的输入（canonical 的依据）');
+	});
 })();

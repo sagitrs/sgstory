@@ -107,7 +107,7 @@
 **⇒ 笔 1 的核心决策点**：**「什么算状态」的边界** —— 建议口径：
 1. **可序列化且会变** ⇒ 进 payload（1–8 域）；
 2. **不可序列化（函数/类实例）** ⇒ **只存 id**，加载时由**注册表重建**（`reviveItem` 已是此形）；
-3. **纯代码常量（def 面）** ⇒ **不进档**（`RPG.stocks`／`RPG.effects`／`RPG.items`／`RPG.layerMeta`／`RPG.encounterTables` 等 7 个注册表，`§〇` 末引）。
+3. **纯代码常量（def 面）** ⇒ **不进档**（**独立注册表共 10 个**，明细见 `§四` 末）。
 
 ---
 
@@ -140,9 +140,21 @@
   "runtime": { "pc": "…", "startedAt": "…" }                 // 仅诊断，✗ 参与判定
 }
 ```
-**不进 payload**（属代码面，`§二` 口径 3）：`RPG.{items,effects,stocks,characters,stocks,pipelines,noticeChannels,layerMeta,encounterTables,buildEffects,slotLabels}`。
+**不进 payload**（属代码面，`§二` 口径 3）—— **独立注册表共 10 个**（实测两形合并：`00-namespace.js` 的对象字面量键 ＋ `RPG.<x> = new Map()/Object.create()`）：
+`RPG.{items, effects, characters, scenes, stocks, pipelines, noticeChannels, layerMeta, encounterTables, buildEffects}`。
+（另：`RPG.slotLabels = {}` 是**显示名表**、非注册表；`RPG.events` 是事件总线 —— 两者亦不进档。）
 
 ---
+
+## 四·补、★本件自纠一例（留痕，实践本仓「标签/数字也是断言」条）
+
+本件首版 §四 写「不进 payload 的 **11 个**注册表」，并给出一串名字 —— **错两处**：
+① **计数错**：实为 **10 个**（首版把 `stocks` 列了两次 ⇒ 数成 11）；
+② **成员错**：把 `RPG.slotLabels`（**显示名表**，非注册表）算进来，又漏了 `RPG.scenes`。
+**发现方式**：把列举逐项 `git grep` 回去数（`^RPG\.[a-zA-Z]+ = (new Map|Object.create)` ＋
+`00-namespace.js` 的对象字面量键，两形合并去重）⇒ 得 10 项，与我的「11」不符。
+⇒ **教训**：**列举即断言** —— 凡「N 个」的写法，须由**逐项清点**得出（✗ 手数）；这与本席在 `#1769`
+提的「标签/指称也是对仓状态的断言」（T 票把甲案写成乙案）**同族**，本件自身即第二例。
 
 ## 五、本件的方法学自陈（可复核性）
 

@@ -10,9 +10,9 @@
 DND3.save = (character, type, dc) => {
 	const mod = character?.stats?.[`save_${type}`] ?? 0;
 	const trauma = DND3.traumaSaveMod?.(character) ?? 0;
-	const roll = DND3.d20();
-	const total = roll + mod + trauma;
-	return { success: total >= dc, roll, total, dc, mod, trauma };
+	/* 判定式收敛（#1798 E1a）：创伤罚走 `bonus`（✗ 并入 `mod` —— `mod` 的既有语义是「角色自身加值」）。 */
+	const r = RPG.checkRoll({ mod, dc, bonus: trauma });
+	return { success: r.success, roll: r.roll, total: r.total, dc: r.dc, mod: r.mod, trauma };  // ★返回形逐键不变（S6）
 };
 
 /** 便捷：执行豁免并 perform 结果 */

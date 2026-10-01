@@ -93,6 +93,30 @@ RPG.rollDetail = (expr) => {
 /** 掷骰，只返回总数 */
 RPG.roll = (expr) => RPG.rollDetail(expr).total;
 
+/** **检定原语**（`#1798` E1a）：**掷骰 ＋ 加值 ＋ 阈值** 的统一形。
+ *
+ * 判定：`total = roll + mod + bonus`；`success === (total >= dc)`。
+ *
+ * ★ **加值来源由包侧算好传入** —— core **不认识** `stats` 的字段语义
+ *   （3E 按**豁免类型**索引 `save_*`；5E 走 `modOf(stats, ability)`；两包口径本就不同）
+ *   ⇒ 与 `#1760` 层表注册面／`#1794` `defStock` 同哲学：**core 提供机制，语义由内容侧给**。
+ * ★ **骰面族**由调用方给（缺省 `1d20`）—— d20m 是百分骰 ⇒ 传 `'1d100'`（✗ core 硬编 d20）。
+ * ★ **无副作用**：只掷骰与比较，**不写任何状态**（✗ 不出手／✗ 不改 hp/effects/items）
+ *   ⇒ 与 `RPG.roll` 同级（纯判定）；写路径仍归调用方。
+ * ★ **不统一消费方的返回形**（设计稿 `docs/plan/1798-E1a-skillcheck.md` §二 S6）：本函数返回**自己的**形；
+ *   调用方若要保留既有键（`ok`／`trauma` 等），**自行构造**其返回对象
+ *   ⇒ 「**行为零变**」**含返回形不变**（薄壳只共用**判定式**，✗ 不强行统一对象形）。
+ *
+ * 缘由（`#1780` §八 未落面第 6 条）：本仓原先**没有**检定原语 ⇒ 各消费点**各处手写**
+ *   `d20 + 加值 >= dc`（撬锁／豁免／治疗检定），而 `fracture` 初版想挂「力量检定」时
+ *   **无消费点可挂**（被迫改绑近战伤害）。本原语补上那一层。
+ */
+RPG.checkRoll = ({ mod = 0, dc = 10, die = '1d20', bonus = 0 } = {}) => {
+	const roll = RPG.roll(die);
+	const total = roll + mod + bonus;
+	return { success: total >= dc, roll, mod, bonus, total, dc, die };
+};
+
 /** 掷 `expr` 记法的骰子，取最高的 `keep` 枚（规则无关的组合子）。
  *  返回 `{ rolls, kept, total }`（`rolls` 为降序全量，`kept` 为计入的前 `keep` 枚）。
  *  用途：属性生成法（如 4d6 弃最低）的共有零件；**本体系取法住各自规则包**。

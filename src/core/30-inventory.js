@@ -301,14 +301,25 @@ RPG.act = (actor, itemRef, target, action = 'use', from = actor) => {
 
 	const item = RPG.reviveItem(slot);
 
-	/* 弹药（`#1765`）：**入口层扣**（不足 ⇒ rejected，零变更，且**不跑动作**）；扣成功后打
-	 *   **单次扣减标记**（本次动作内有效），`DND5E.attack` 的兜底检查见标记即跳过 —— 两层检查
-	 *   都在（纵深防御：残余直调 `used` 的路径被 attack 层兜住），但**同一发只扣一次**。
-	 *   ★ 标记**必须**在 `finally` 里清除：否则永久残留 ⇒ 同型武器此后直调 `attack` 全跳过扣弹。 */
-	if (action === 'use' && item.stats?.ammo && !RPG.take(item.stats.ammo.id, item.stats.ammo.perShot ?? 1, actor)) {
+	/* 弹药（`#1765` 立、`#1801` 改）：**接受之后**才扣（✗ 先前是「先扣、后判接受」）。
+	 *
+	 * ★ `#1801` 修的缺陷：原形在**扣弹之后**才跑动作，而动作可以**显式拒绝**（`used()` 返回 `false`，
+	 *   如 `#1776` 建造的「材料不足」）⇒ **拒绝却已消耗弹药**（实测 9→8，静默无报错）。
+	 *   修法＝三步形，把「够不够」做成**只读预判**，「接受」与「真扣」之间**不留副作用窗口**：
+	 *     ① 只读预判（`RPG.ammoShort`，量取自 `RPG.heldTotal` ⇒ 与 `RPG.take` **同一口径**、✗ 第二套量）
+	 *     ② 置**单次扣减标记** → 跑动作（动作内 `DND5E.attack` 的兜底见标记即跳过）
+	 *     ③ 动作**接受**了才真扣
+	 *   ⇒ 拒绝路径（`no-ammo`／`action-refused`）**一律零副作用**。
+	 *
+	 * ★ 标记为何仍在「跑动作」之前置位：它是 `DND5E.attack` 兜底检查的依据（纵深防御：残余直调
+	 *   `used` 的路径被 attack 层兜住），**且必须**在 `finally` 里清除 —— 否则永久残留 ⇒ 同型武器
+	 *   此后直调 `attack` 全跳过扣弹。⚠ **不可**把 `RPG.take` 挪到动作之后而**不**同步这些性质：
+	 *   那会让动作执行期间标记未置 ⇒ 兜底**再扣一次**（一发两扣）。 */
+	const needsAmmo = action === 'use' && item.stats?.ammo;
+	if (needsAmmo && RPG.ammoShort(actor, item)) {
 		return { status: 'rejected', reason: 'no-ammo', item };
 	}
-	if (action === 'use' && item.stats?.ammo) item.__ammoPaid = true;
+	if (needsAmmo) item.__ammoPaid = true;
 
 	/* ★ **动作可以「拒绝」**（`#1776` D 席缺陷 2）：`used()` **显式 `return false`** ⇒ 视为
 	 *   动作自己判定「这次做不到」（材料不足／没有产出表／没有背包／落地未注册……），
@@ -326,6 +337,9 @@ RPG.act = (actor, itemRef, target, action = 'use', from = actor) => {
 		delete item.__ammoPaid;
 	}
 	if (refused) return { status: 'rejected', reason: 'action-refused', item };
+
+	/* ③ 动作**接受** ⇒ 此刻才真扣（`#1801`：拒绝路径至此已全部返回 ⇒ 弹药零损失） */
+	if (needsAmmo) RPG.take(item.stats.ammo.id, item.stats.ammo.perShot ?? 1, actor);
 
 	/* 提交回快照：`equipped` 与 `charges` 都须写回（★ 曾在只写 equipped 时导致「充能永不消耗」） */
 	item.equipped = item.equipped === true;

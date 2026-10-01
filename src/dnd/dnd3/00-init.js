@@ -69,6 +69,16 @@ setup.DND3.defStock = (d) => {
 	return rec;
 };
 
+/* 接线（D2 #1777）：`battle:end` ⇒ 复位 `scope:'battle'` 的存量（core ✗ 不认识包/条件 ⇒ 由包侧订阅；
+ * 与 `conditions.js` 的清条件订阅**同哲学**）。
+ * ★各包**只清自己声明的**（传 pack 名）：core 亦订阅 `pack=null` 那一档 ⇒ 每条接线都是**承载路径**
+ *  （D2 实测：首版各包**代清全部** ⇒ 拔掉本包接线仍绿，是死码）。 */
+setup.RPG.events.on('battle:end', ({ players = [], enemies = [] } = {}) => {
+	for (const c of [...players, ...enemies]) {
+		if (c instanceof setup.RPG.Character) setup.RPG.clearStocksScoped(c, 'dnd3');
+	}
+});
+
 
 
 /** 3E 面**不设**通用属性上限（既有的定制写入路径不引入上限）——`null` 表示不校验。 */

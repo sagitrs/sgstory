@@ -397,7 +397,43 @@ for (const k of knives) {
     cleanup(dir);
   }
 }
-for (const k of fileKnives) {
+/* ★★K23／K24（`#1849` tester-4 T 的非阻断建议 ⇒ 合前顺折）：**乙1 的分支本身**须有刀。
+ *   病灶：乙1（「块内已声明 house rule ⇒ 出声不判红」）在**今日真树上零触发** ⇒
+ *   **摘掉它没有任何刀会红** ⇒ 而乙2（让 citation 行贡献声称）一落地，该分支变成**唯一**拦住
+ *   「把已声明偏离判成值不符」的东西（`guard.js` 即实例）⇒ 那时它若已被静默摘掉 ⇒ **潜伏假红**。
+ *   ⇒ 故**现在**就打刀（形照本席先前的读取数：同行注入不符声称 ＋ 声明两向）。
+ *   ★刀形要点：**两向都测** —— 只测「有声明⇒绿」的话，**把整条比对支删掉**也会绿（那就不是刀了）。 */
+const houseRuleKnives = [
+  {
+    id: 'K23', name: '★比对支：块内**无** house rule 声明 ＋ 值不符 ⇒ **红**（对照臂；✗ 只测有声明那向）',
+    run: (dir) => {
+      const f = path.join(dir, 'src/dnd/dnd-5e/monsters/goblin-boss.js');
+      const src = fs.readFileSync(f, 'utf8');
+      const line0 = src.split('\n')[0];
+      /* 在引用行注入 canonical 声称 `HP 99`（该件源 HP=21 ⇒ 必然不符） */
+      fs.writeFileSync(f, src.replace(line0, line0.replace('*/', 'HP 99 */')), 'utf8');
+      const r = runGateArgs(dir, []);
+      if (r.code !== 1) return { ok: false, detail: `期望 red(1)，实得 ${r.code}（比对支没在核 ⇒ 本刀的对照臂失效）` };
+      if (!/源值比对不符/.test(r.out)) return { ok: false, detail: '红了但不是「源值比对不符」那条（归因不干净）' };
+      return { ok: true };
+    },
+  },
+  {
+    id: 'K24', name: '★比对支：同一不符 ＋ 块内**已声明 house rule** ⇒ **绿但出声**（#1835 乙1 的分支）',
+    run: (dir) => {
+      const f = path.join(dir, 'src/dnd/dnd-5e/monsters/goblin-boss.js');
+      const src = fs.readFileSync(f, 'utf8');
+      const line0 = src.split('\n')[0];
+      fs.writeFileSync(f, src.replace(line0, line0.replace('*/', 'HP 99（house rule 探针）*/')), 'utf8');
+      const r = runGateArgs(dir, []);
+      if (r.code !== 0) return { ok: false, detail: `期望 green(0)（已声明偏离 ⇒ 出声不判红），实得 ${r.code}；输出尾：${r.out.trim().split('\n').slice(-2).join(' / ').slice(0, 200)}` };
+      if (!/已声明 house rule 的值偏离/.test(r.out)) return { ok: false, detail: '绿了但**没有出声** ⇒ 静默吞掉已声明偏离（须可见）' };
+      return { ok: true };
+    },
+  },
+];
+
+for (const k of [...fileKnives, ...houseRuleKnives]) {
   const dir = makeCopy();
   try {
     const r = k.run(dir);
@@ -427,7 +463,7 @@ for (const k of fileKnives) {
 
 /* ★总数**自记**（✗ 硬编 —— 加刀忘改数会印出「26 刀全部如期」而实际 27 把：
  *   本席在 `#1819` 的 d20 门刚栽过同型「13/11 刀如期」）。 */
-const total = knives.length + fileKnives.length + 2;   // ＋2 ＝ K21（清理件自证）＋ K22（吞集）
+const total = knives.length + fileKnives.length + 2 + houseRuleKnives.length;   // ＋2 ＝ K21（清理件自证）＋ K22（吞集）
 /* ★K22（`#1843` dev-9 RC②）：**吞集**须有刀 —— 「只吞四错、真错照抛」这句断言原本**无刀守护**
  *   （dev-9 实证：**放宽吞集 ⇒ 自检仍全绿**）。本刀喂一个**必然 ENOTDIR** 的路径（真错类）⇒ 须**抛**；
  *   若被吞（返回 false 而不抛）⇒ 本刀红。 */

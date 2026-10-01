@@ -24,11 +24,15 @@ jobs:
         run: node tests/gates/line-endings.mjs
       - name: 行尾门自身的可假刀自检（#1775 D 席 5.1：判据改坏唯有自检能抓）
         run: node tests/gates/line-endings.mjs --selftest
+      - name: 构建（生成单测 bundle 与清单）
+        run: python3 build.py
+      # ★注册面门摆在**构建之后**（`#1807` 二轮 RC-B，本席实测更正）：它的**运行期交叉核对**
+      #   要读 `tests/unit/dist/bundle.js`（由上行 build 产出）⇒ 摆在 build **之前**时
+      #   该核对恒走「缺 bundle ⇒ 跳过」分支 ⇒ **运行期判据（floor／盲区内重复）永不生效**。
+      #   （原先摆在 build 前是照抄其它门的位次，理由已陈旧 —— 本行即更正留痕。）
       - name: 注册面 fail-loud 门（#1804 件一：跨包同 id 须登记、同包重定义必红）
         run: node tests/gates/registration.mjs
       - name: 注册面门自身的可假刀自检
         run: node tests/gates/registration.mjs --selftest
-      - name: 构建（生成单测 bundle 与清单）
-        run: python3 build.py
       - name: 无头单测（断言 fail === 0）
         run: node tests/unit/headless.mjs

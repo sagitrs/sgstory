@@ -18,6 +18,13 @@ const ROOT = path.resolve(path.join(import.meta.dirname, '..', '..'));
 const unitDir = path.join(ROOT, 'tests/unit');
 const load = (f) => eval(fs.readFileSync(path.join(unitDir, f), 'utf8'));
 
+/* ★捕获**重复注册告警**（`#1807` 二轮 RC 的 B 项）：注册面遇重复 id 是 `console.warn` 后**覆盖**
+ *   ⇒ **告警本身就是权威信号** —— 而盲区（循环/builder 形）里的重复**静态扫不到**，只有运行期看得见。
+ *   本段把告警按注册面分类计数，供门比对基线（✗ 只看静态扫描数 ⇒ 盲区内的重复会漏）。 */
+const warnings = [];
+const realWarn = console.warn;
+console.warn = (...a) => { warnings.push(a.map(String).join(' ')); };
+
 const stubEl = () => ({ insertAdjacentHTML() {}, innerHTML: '' });
 globalThis.document = { title: '', getElementById: () => stubEl() };
 globalThis.window = globalThis;
@@ -38,7 +45,13 @@ load('dist/bundle.js');
 
 const R = globalThis.setup?.RPG ?? {};
 const n = (m) => (m && typeof m.size === 'number' ? m.size : null);
+console.warn = realWarn;
+const dupOf = (kind) => warnings
+	.filter((w) => new RegExp(`^\\[RPG\\] ${kind} id「`).test(w))
+	.map((w) => (w.match(/id「([^」]+)」/) ?? [])[1])
+	.filter(Boolean);
 process.stdout.write(JSON.stringify({
 	items: n(R.items), characters: n(R.characters), effects: n(R.effects),
-	stocks: n(R.stocks), effectsDefs: n(R.effects),
+	stocks: n(R.stocks),
+	dups: { item: dupOf('道具'), character: dupOf('角色'), effect: dupOf('效果') },
 }) + '\n');

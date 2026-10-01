@@ -172,6 +172,40 @@ const judge = (rows, ledger) => {
 	return { problems, samePack, crossPack, declared: rows.length };
 };
 
+/** 运行期交叉判定的**纯函数**（✗ 埋在 main 里）—— 便于自检刀直接喂入。
+ *  ★这是 `#1807` 二轮 RC-A 的同一条要求：**判据若不可被刀直喂，就等于没有机械承载**。 */
+export const judgeRuntime = (rt, rb, declared) => {
+	const problems = [], notes = [];
+	if (rt == null) return { problems, notes, skip: 'no-bundle' };
+	if (rt.error) return { problems, notes, skip: rt.error };
+	const rtTotal = (rt.items ?? 0) + (rt.characters ?? 0) + (rt.effects ?? 0);
+	if (declared > rtTotal) {
+		problems.push(`静态扫描 ${declared} 条 > 运行期注册 ${rtTotal} 条 ⇒ 扫描**把引用当声明了**（假阳）`);
+	}
+	if (rb == null) {
+		problems.push('缺 `_runtimeBaseline`（运行期上下界）⇒ ✗ 静默放过：无法判「注册量是否静默流失」或「盲区内是否新出重复」');
+		return { problems, notes, rtTotal };
+	}
+	for (const k of ['items', 'characters', 'effects']) {
+		const floor = rb.floor?.[k] ?? 0;
+		if ((rt[k] ?? 0) < floor) {
+			problems.push(`运行期 ${k} ${rt[k]} < 下限 ${floor} ⇒ **注册量静默流失**（应 --update-baseline 并解释，✗ 悄悄少）`);
+		}
+	}
+	for (const kind of ['item', 'character', 'effect']) {
+		const known = new Set(rb.dups?.[kind] ?? []);
+		for (const id of [...new Set(rt.dups?.[kind] ?? [])]) {
+			if (!known.has(id)) {
+				problems.push(`★运行期**重复注册**告警出现未在册的 id：「${id}」（${kind}）`
+					+ ' ⇒ 该重复**静态扫不到**（循环/builder 形）⇒ 正是本判据要抓的形态');
+			}
+		}
+		const missed = [...known].filter((x) => !(rt.dups?.[kind] ?? []).includes(x));
+		if (missed.length) notes.push(`在册重复已消失：${kind} ${missed.join('、')}（★好事 ⇒ 请 --update-baseline）`);
+	}
+	return { problems, notes, rtTotal };
+};
+
 /* ---------------- 自检刀 ---------------- */
 if (has('--selftest')) {
 	const mk = (rows) => rows.map(([id, pack]) => ({ id, pack, file: `src/dnd/${pack}/x.js` }));
@@ -190,15 +224,90 @@ if (has('--selftest')) {
 			[{ id: 'club', pack: 'dnd3', file: 'src/dnd/dnd3/a.js' }, { id: 'club', pack: 'dnd3', file: 'src/dnd/dnd3/b.js' },
 				{ id: 'club', pack: 'dnd-5e', file: 'src/dnd/dnd-5e/c.js' }], L, 1],
 	];
-	let n = 0;
+	let n = 0, knivesLen = knives.length;   // 计数器与总数一起走（扫描形刀会追加）
 	for (const [name, rows, led, want] of knives) {
 		const got = judge(rows, led).problems.length === 0 ? 0 : 1;
 		const ok = got === want;
 		n += ok ? 1 : 0;
 		console.log(`  ${ok ? '✓' : '✗'} ${name} — 实得 ${got === 0 ? '绿' : '红'}（期望 ${want === 0 ? '绿' : '红'}）`);
 	}
-	console.log(n === knives.length ? `  ✓ ${n}/${knives.length} 刀全部如期` : `  ✗ ${n}/${knives.length} 刀如期`);
-	process.exit(n === knives.length ? 0 : 1);
+	/* ★★`#1807` 二轮 RC-A（必）：**直喂 `collect()`** 的扫描形刀 ——
+	 *   上面所有刀都打 `judge()`（判定面），而本笔的两项核心修复在 **`collect()`（扫描面）**：
+	 *   ① builder 形两跳 ② 循环/简写形计入 `unresolvable`。
+	 *   ⇒ 若没有刀打 `collect()`，**这两项修复可以静默回退而 `--selftest` 仍 8/8 绿、退出码 0**
+	 *     （＝「改坏 findBuilders 须红」这句话**没有机械承载**）⇒ 违「刀须接 CI」。
+	 *   ⚠ 夹具建在 `ROOT` 下的临时目录（`path.relative(ROOT,…)` 才成立）；pack 推导对本刀**无关**
+	 *     （断言的是 **id 提取**与**盲区计数**，✗ 归属）。 */
+	{
+		const tmp = fs.mkdtempSync(path.join(ROOT, 'tests/gates', '.tmp-scan-'));
+		try {
+			const d = path.join(tmp, 'src', 'dnd', 'dnd3', 'items');
+			fs.mkdirSync(d, { recursive: true });
+			/* ① 字面量形 ＋ ② builder 形（定义 ＋ 调用点）＋ ③ 循环/简写形 ＋ ④ 引用形（须排除） */
+			/* ★引用形的**承载位置**（本席实测更正）：`DECL_RE` 要求 id 落在 `defItem(...)` 之内，
+			 *   故「独立成句的 `items:[{id}]`」**本来就匹配不到** ⇒ 拿它做断言是**空刀**（实测 M-A4 全绿）。
+			 *   真正会误捕的是 **builder 调用点**那条（`\b builder \s*\(\s*\{ [^)]*? \bid: '…'`）：
+			 *   `[^)]*?` 会**跨进嵌套数组** ⇒ `ironThing({ name:'x', items:[{ id:'nested-ref' }] })`
+			 *   会把 `nested-ref` 当声明。⇒ 夹具必须用**这一形**，刀才有判别力。 */
+			fs.writeFileSync(path.join(d, 'lit.js'),
+				"RPG.defItem({ id: 'lit-ok', name: 'x' });\n"
+				+ "const gear = { items: [{ id: 'ref-not-decl' }] };   // 独立成句的引用形（本就匹配不到，仅留档）\n");
+			fs.writeFileSync(path.join(d, 'builder.js'),
+				"const ironThing = (def) => RPG.defItem({ id: def.id, name: def.n });\n"
+				+ "DND3.IronA = ironThing({ id: 'iron-a', n: 'a' });\n"
+				+ "DND3.IronB = ironThing({ id: 'iron-b', n: 'b' });\n"
+				/* ★嵌套引用形（承载位置）：`items:[{id}]` 在 builder 实参里 ⇒ 不得被当声明 */
+				+ "DND3.Bundle = ironThing({ n: 'x', items: [{ id: 'nested-ref' }] });\n");
+			fs.writeFileSync(path.join(d, 'loop.js'),
+				"for (const [id, c] of Object.entries(TBL)) RPG.defEffect({ id, ...c });\n");
+			const got = collect(tmp);
+			const ids = new Set(got.rows.map((r) => r.id));
+			const via = new Set(got.rows.filter((r) => r.via).map((r) => r.id));
+			const checks = [
+				['A1 字面量形被收', ids.has('lit-ok')],
+				['A2 ★引用形**不得**被当声明（★承载位置＝builder 实参里的嵌套 `items:[{id}]`）',
+					!ids.has('nested-ref') && !ids.has('ref-not-decl')],
+				['A3 ★builder 形：调用点字面量被收（iron-a／iron-b）', ids.has('iron-a') && ids.has('iron-b')],
+				['A4 ★builder 形：标了 `via`（可追溯经哪个 builder）', via.has('iron-a') && via.has('iron-b')],
+				['A5 ★循环/简写形 ⇒ 计入 `unresolvable`（✗ 静默）',
+					got.unresolvable.some((u) => u.file.endsWith('loop.js'))],
+				['A6 ★`unresolvable` 的计数**为 1**（该文件一处）',
+					(got.unresolvable.find((u) => u.file.endsWith('loop.js')) ?? {}).n === 1],
+			];
+			for (const [name, ok] of checks) { n += ok ? 1 : 0; console.log(`  ${ok ? '✓' : '✗'} ${name}`); }
+			knivesLen += checks.length;
+			/* ★★RC-C 的运行期判据刀（**必**：判据若不可被刀直喂＝没有机械承载） */
+			const RB = {
+				floor: { items: 65, characters: 14, effects: 21 },
+				dups: { item: ['club'], character: ['player'], effect: [] },
+			};
+			const mkRt = (over = {}) => ({
+				items: 65, characters: 14, effects: 21,
+				dups: { item: ['club'], character: ['player'], effect: [] }, ...over,
+			});
+			const rtChecks = [
+				['C1 与基线同 ⇒ 绿', judgeRuntime(mkRt(), RB, 93).problems.length === 0],
+				['C2 ★floor 下限：注册量**静默流失**（items 65→64）⇒ 红',
+					judgeRuntime(mkRt({ items: 64 }), RB, 93).problems.some((x) => /静默流失/.test(x))],
+				['C3 ★盲区内**新出重复**（未在册 id）⇒ 红',
+					judgeRuntime(mkRt({ dups: { item: ['club', 'ghost-dup'], character: ['player'], effect: [] } }), RB, 93)
+						.problems.some((x) => /未在册的 id/.test(x))],
+				['C4 ★缺 `_runtimeBaseline` ⇒ 红（✗ 静默放过）',
+					judgeRuntime(mkRt(), null, 93).problems.some((x) => /_runtimeBaseline/.test(x))],
+				['C5 静态多报（声明 > 运行期）⇒ 红（假阳）',
+					judgeRuntime(mkRt({ items: 10, characters: 1, effects: 1 }), RB, 99).problems.some((x) => /假阳/.test(x))],
+				['C6 在册重复**消失** ⇒ 绿但出声（✗ 红）',
+					judgeRuntime(mkRt({ dups: { item: [], character: ['player'], effect: [] } }), RB, 93)
+						.problems.length === 0],
+			];
+			for (const [name, ok] of rtChecks) { n += ok ? 1 : 0; console.log(`  ${ok ? '✓' : '✗'} ${name}`); }
+			knivesLen += rtChecks.length;
+		} finally {
+			fs.rmSync(tmp, { recursive: true, force: true });   // ★夹具必清（✗ 留残留污染真树扫描）
+		}
+	}
+	console.log(n === knivesLen ? `  ✓ ${n}/${knivesLen} 刀全部如期` : `  ✗ ${n}/${knivesLen} 刀如期`);
+	process.exit(n === knivesLen ? 0 : 1);
 }
 
 /* ---------------- ② 运行期交叉核对（★领队裁「必」：把「扫不到」变显式可见） ----------------
@@ -250,27 +359,31 @@ console.log(`  同包重定义 ${samePack.length} ｜ 跨包同 id ${crossPack.l
 console.log(`  ★静态盲区（循环/简写形）：${unresolvable.length} 个文件 / 共 ${unresolvable.reduce((a, b) => a + b.n, 0)} 处`
 	+ `（已登记 ${KNOWN_UNRESOLVABLE.length}）—— 这些 id **本门扫不到**，登记只为让它**可见**`);
 if (VERBOSE) for (const c of crossPack) console.log(`    · ${c.id}：${c.packs.join('／')}`);
+/* ② 运行期交叉核对：**在 problems 判定之【前】**（★本席实测更正：原先排在判定**之后**
+ *   ⇒ 它 push 的问题**永不参与判定** —— 盲区内重复的告警打印出来了、门却仍报绿，是本门最隐蔽的一处死区）。
+ *   取向：静态多报（假阳）⇒ 红；运行期多出的**重复告警** ⇒ 红（那是**唯一**能看见盲区内重复的读数）；
+ *   注册量低于上限（floor）⇒ 红；静态条数少于运行期（循环形固有）⇒ **出声**，✗ 不 red。 */
+const rt = loadRuntimeCounts();
+const jr = judgeRuntime(rt, entries._runtimeBaseline ?? null, declared);
+if (!jr.skip) {
+	console.log(`  ★运行期注册表（权威，读 dist/bundle.js）：items ${rt.items} ／ characters ${rt.characters}`
+		+ ` ／ effects ${rt.effects} ⇒ 合计 ${jr.rtTotal}`);
+	console.log(`    · 静态扫描 ${declared} 条 ⇒ 差 ${jr.rtTotal - declared} 条属**静态盲区**（循环/表驱动形，已在 _unresolvable 明账）`);
+	console.log(`    · 重复告警：item ${(rt.dups?.item ?? []).length} ／ character ${(rt.dups?.character ?? []).length}`
+		+ ` ／ effect ${(rt.dups?.effect ?? []).length} —— 已与在册台账比对（新 id ⇒ 红）`);
+} else if (jr.skip === 'no-bundle') {
+	console.log('  ⚠ 运行期交叉核对**跳过**（缺 tests/unit/dist/bundle.js ⇒ 先 python3 build.py）—— ✗ 静默：本行即出声');
+} else {
+	console.log(`  ⚠ 运行期交叉核对**失败**：${jr.skip}（单测 bundle 与门解耦 ⇒ 非阻断，但出声）`);
+}
+problems.push(...jr.problems);
+for (const nt of jr.notes) console.log(`  ⚠ ${nt}`);
+
+/* ★problems 判定在**全部**判据之后（含上方运行期面）—— 本席实测更正：原先它排在运行期块**之前**
+ *   ⇒ 运行期 push 的问题**永不参与判定**（盲区内重复的告警打印了、门却报绿 ⇒ 一处死区）。 */
 if (problems.length) {
 	console.log('  ✗ 门红：');
 	for (const p of problems) console.log(`    - ${p}`);
 	process.exit(1);
 }
-
-/* ② 运行期交叉核对：**报告**（✗ 不 red —— 见上方取向说明）。本席实测本仓现状：静态 93 条 vs 运行期 177 条
- *   ⇒ 差 84 系循环/表驱动形**固有**，判红等于恒红。⇒ 量化 ＋ 出声，并把**静态多报**（假阳）判红。 */
-const rt = loadRuntimeCounts();
-if (rt && !rt.error) {
-	const rtTotal = (rt.items ?? 0) + (rt.characters ?? 0) + (rt.effects ?? 0);
-	console.log(`  ★运行期注册表（权威，读 dist/bundle.js）：items ${rt.items} ／ characters ${rt.characters}`
-		+ ` ／ effects ${rt.effects} ⇒ 合计 ${rtTotal}`);
-	console.log(`    · 静态扫描 ${declared} 条 ⇒ 差 ${rtTotal - declared} 条属**静态盲区**（循环/表驱动形，已在 _unresolvable 明账）`);
-	if (declared > rtTotal) {
-		problems.push(`静态扫描 ${declared} 条 > 运行期注册 ${rtTotal} 条 ⇒ 扫描**把引用当声明了**（假阳）`);
-	}
-} else if (rt == null) {
-	console.log('  ⚠ 运行期交叉核对**跳过**（缺 tests/unit/dist/bundle.js ⇒ 先 python3 build.py）—— ✗ 静默：本行即出声');
-} else {
-	console.log(`  ⚠ 运行期交叉核对**失败**：${rt.error}（单测 bundle 与门解耦 ⇒ 非阻断，但出声）`);
-}
-
 console.log('  ✓ 门绿（无未登记的跨包同 id、无同包重定义、无过期登记）');

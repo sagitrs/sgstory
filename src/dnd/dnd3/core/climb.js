@@ -61,7 +61,12 @@ RPG.registerLayerMeta('span1', setup.DND3.LAYER_META_SPAN1 = [
  * 权重为**相对值**（同层内归一），`elite` 供 B2 表驱动实现取「精英标记」（本笔只标不消费）。
  * loot 的 `qty:[min,max]` 是件数区间；省略即 1 件（与 `RPG.loot` 的逐件语义一致）。
  */
-setup.DND3.ENCOUNTER_SPAN1 = {
+/* ★ 注册进 **core 的遭遇表注册面**（#1761 · B2）：表 id 与上面 `registerLayerMeta('span1', …)` **同 id**
+ *   —— 层表与遭遇表由同一个键配对，防「两套命名」。注册时的结构校验由 core 做（`validateEncounterTable`），
+ *   **引用是否已注册**留到抽取时判（本文件按数字前缀序先于 `monsters/**` 加载 ⇒ 此刻怪物尚未登记）。
+ *   第 10 层无条目 = 整备区不抽遭遇；`hub` 型层另在 `rollEncounter` 处结构性排除（双保险）。
+ */
+RPG.registerEncounterTable('span1', setup.DND3.ENCOUNTER_SPAN1 = {
 	L1: { encounters: [{ ref: 'badger', weight: 3 }, { ref: 'badger', weight: 2, elite: true }], loot: [{ id: 'coin', weight: 1 }] },
 	L2: { encounters: [{ ref: 'badger', weight: 3 }, { ref: 'badger', weight: 2, elite: true }], loot: [{ id: 'coin', weight: 1 }, { id: 'herb-poultice', weight: 1 }] },
 	L3: { encounters: [{ ref: 'badger', weight: 2 }, { ref: 'wolf', weight: 3 }], loot: [{ id: 'coin', weight: 1 }, { id: 'herb-poultice', weight: 1 }] },
@@ -71,4 +76,4 @@ setup.DND3.ENCOUNTER_SPAN1 = {
 	L7: { encounters: [{ ref: 'monitor-lizard', weight: 3 }, { ref: 'boar', weight: 2, elite: true }], loot: [{ id: 'coin', weight: 2 }, { id: 'herb-poultice', weight: 2 }] },
 	L8: { encounters: [{ ref: 'monitor-lizard', weight: 3 }, { ref: 'monitor-lizard', weight: 2, elite: true }], loot: [{ id: 'coin', weight: 3 }, { id: 'herb-poultice', weight: 2 }] },
 	L9: { encounters: [{ ref: 'boar', weight: 3, elite: true }, { ref: 'monitor-lizard', weight: 3, elite: true }], loot: [{ id: 'coin', weight: 3 }, { id: 'bone-dagger', weight: 1 }, { id: 'herb-poultice', weight: 3 }] },
-};
+});

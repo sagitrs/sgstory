@@ -321,13 +321,14 @@ const fileKnives = [
         if (sb.baseSha === sb.headSha) return { ok: false, detail: '沙箱构造失败：两臂同值（此刀判别力为零）' };
         runGateArgs(sb.dir, ['--update-baseline']);
         const after = JSON.parse(fs.readFileSync(path.join(sb.dir, 'tests/gates/coverage-baseline.json'), 'utf8'));
-        /* 归一：门把 sha 截到 8 位（`.slice(0,8)`），而 `rev-parse --short` 在小仓里可能给 7 位
-         *   ⇒ 比较前统一截到 8 位，✗ 因位数差造成假红。 */
-        const norm = (x) => String(x).slice(0, 8);
-        if (norm(after.seededAt) !== norm(sb.baseSha)) {
+        /* ★**直接比字符串**（✗ 归一）：门与沙箱**现同为 `--short=8`** ⇒ 不再有 7 位 ⇒
+         *   原先的 `norm = slice(0,8)` **理由已消失**。**留着反而危险**（dev-9 复核指出）：
+         *   `norm('84b2e7a5') === norm('84b2e7a5ffff')` ⇒ **掩盖「前 8 位相同但长度不同」**——
+         *   而「长度不同」正是本笔（#1789 ②）要消灭的那类差异 ⇒ 兜底会变成**掩盖源**。 */
+        if (after.seededAt !== sb.baseSha) {
           return { ok: false, detail: `seededAt=${after.seededAt}（期望 merge-base ${sb.baseSha}；跑时 HEAD 为 ${sb.headSha}）` };
         }
-        if (norm(sb.baseSha) === norm(sb.headSha)) {
+        if (sb.baseSha === sb.headSha) {
           return { ok: false, detail: '沙箱两臂同值 ⇒ 本刀判别力为零（构造失效）' };
         }
         return { ok: true };

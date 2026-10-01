@@ -33,11 +33,18 @@
  *   **D1（PR #1794 已合 `1ee92fb7`）**：注册表 ＋ 上述机械强制 ＋ 读/减原语 ＋ 耗尽事件（判据 2/3/4/7 ＋ E2/E3/E4/E11）。
  *   **D2（PR #1795 已合 `118c689c`）**：`scope` 的清理原语 `clearStocksScoped` ＋ 包侧 `battle:end` 接线（判据 5/6/8 ＋ E7/E8）。
  *   **D3**：三消费者各自消费（三段弹药 `#1731`／四段纳米 `#1732`／五段生命维持 `#1733`）。
+ *     ★D3 修正（`#1796` RC）：**「视图唯一写点」的声明曾是假的** —— `clearStocksScoped` 的复位
+ *     是**第二写点**，在「派生＋battle 档」组合下会使视图与真值**静默漂移**（已复现）。
+ *     ⇒ 修法＝该组合**声明期即不可表达**（见 `defStock` 的 `STOCK_DERIVED_BATTLE`）。
  *   ⇒ `scope` 至此**有消费点**（否则即「声明了不消费」的死字段——本轮闭环）。
  */
 
 /** 存量注册表：id → 定义（各包共用一张表，同 `RPG.items` / `RPG.effects`） */
 RPG.stocks = new Map();
+
+/** ★「本场档」的**单一判据**（D3 修正，dev-9 RC 的机械根）：`clearStocksScoped` 用、`defStock` 的
+ *  组合校验也用 ⇒ **同一问题只有一个判据**（✗ 两处各写一遍 `.scope === 'battle'` 会各自演化）。 */
+RPG.isBattleScoped = (def) => def?.scope === 'battle';
 
 /** 存量面错误（与 `RPG.effectError` 同形：带 `code`，便于调用方与用例断言） */
 RPG.stockError = (code, message, extra) => Object.assign(new Error(message), { code }, extra);
@@ -91,6 +98,15 @@ RPG.defStock = (def) => {
 			throw RPG.stockError('STOCK_BAD_DERIVED_FROM',
 				`defStock「${def.id}」的 derivedFrom 须为 { itemId: '非空串' }：${JSON.stringify(def.derivedFrom)}`);
 	}
+	/* ★★D3 修正（dev-9 RC）：`derivedFrom` ＋ `scope:'battle'` **禁止组合**。
+	 *  机理：视图的真值是**道具**（不随场清），而 battle 档会把它**复位为 `initial`**
+	 *  ⇒ 复位后视图与真值**静默漂移**（本席实测复现：`视图=4/真值=4 → 复位 → 视图=0/真值=4`，
+	 *    且**无任何报错**）。⇒ 修法＝**声明期即不可表达**（与 B 裁定「一处走一处不走」同手法），
+	 *    ✗ 靠「复位时顺带 sync 一下」——那只是把第二写点搬个地方，视图仍可被别的路径写。 */
+	if (def.derivedFrom !== undefined && RPG.isBattleScoped({ scope }))
+		throw RPG.stockError('STOCK_DERIVED_BATTLE',
+			`defStock「${def.id}」不得同时给 derivedFrom 与 scope:'battle' —— 派生视图的真值在道具（不随场清），`
+			+ '复位会使其与真值静默漂移（#1796 RC／#1759 §十.7-A：禁双写）');
 	if (RPG.effects.has(def.id))
 		throw RPG.stockError('STOCK_ID_COLLIDES_EFFECT',
 			`defStock「${def.id}」与既有 Effect（条件）同名 ⇒ 存量须用独立命名空间（#1759 §十.4 / 判据 7）`);
@@ -159,7 +175,7 @@ RPG.clearStocksScoped = (c, pack = undefined) => {
 	const stats = c?.stats;
 	if (!stats || typeof stats !== 'object') return reset;   // 无 stats ⇒ 无事可做（✗ 抛错：容器/跨包角色参战是常态）
 	for (const [id, def] of RPG.stocks) {
-		if (def.scope !== 'battle') continue;                 // persistent（含缺省）⇒ 保留
+		if (!RPG.isBattleScoped(def)) continue;               // persistent（含缺省）⇒ 保留（判据见 `isBattleScoped`）
 		if (pack !== undefined && def.pack !== pack) continue; // ★归属过滤：只清本包声明的
 		if (Object.keys(stats).includes(id)) stats[id] = def.initial;
 		else continue;                                        // 该角色没这个存量（跨包角色）⇒ 不碰（✗ 凭空加字段）
@@ -190,8 +206,10 @@ RPG.heldTotal = (character, itemId) => {
 /**
  * 按**道具侧真值**重算某角色的派生视图（A 裁定唯一写点 ⇒ ✗ 双写）。
  *
- * ★归属口径（本仓**无角色↔背包注册表**）：只能取 `character.items` —— 与 `RPG.take(id, n, actor)`
- *   的 `actor.items` **同一口径**。由来不明的变动（事件不带 `actor`）⇒ **不猜归属、直接跳过**。
+ * ★归属口径：取 `character.items` —— 与 `RPG.take(id, n, actor)` 的 `actor.items` **同一口径**；
+ *   且 `RPG.take` 在**省略 `actor`** 时按**身份**（谁的 `items` 就是被扣的那个数组）反解归属（D3 修正，
+ *   见其注），✗ 用 `playerActor()` 的属性去猜（`#1743` 跨包同名遮蔽）。
+ *   仍解析不出（无角色持有该数组）⇒ 事件 `actor=null` ⇒ 此处**不猜、直接跳过**。
  * ★幂等：同状态重算 ⇒ 同值（可反复调用）。
  * 返回被改写的存量 id 列表（读数用）。
  */

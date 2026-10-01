@@ -57,7 +57,13 @@ RPG.take = (id, n = 1, actor = null) => {
 	/* ★成功扣减 ⇒ 广播（#1731 D3：**道具侧真值变动**的可观测点）。
 	 *  引擎只发事件、✗ 不解释「哪些 id 算弹药」——那属内容（§十.7-C 同哲学）。
 	 *  ⇒ 有道具背书的存量（A 裁定：道具为真值）在此处**重算其派生视图**，✗ 各自递减（禁双写）。 */
-	RPG.events.emit('inventory:changed', { id, n, actor });
+	/* ★归属解析（D3 修正，tester-4 RC 的**通路 2**）：省略 `actor` 时扣的是 `inv()`（旧行为，签名不动）
+	 *   ⇒ 视图一侧认不出归属 ⇒ 真值/视图静默漂移（实测：`inv()` 真值 38 vs 视图 40）。
+	 *  **按身份解析**：谁的 `items` **就是**刚被扣的那个数组，谁就是归属（✗ 回到调用方要传参，
+	 *   也 ✗ 用 `playerActor()` 的名字/属性去猜 —— 后者有 `#1743` 的跨包同名遮蔽：两包都以 `id:'player'` 注册）。
+	 *   解析不出（无角色持有该数组）⇒ `actor=null` ⇒ 订阅方**不动视图**（与「归属不可判 ⇒ 不猜」同口径）。 */
+	const owner = actor ?? [...(RPG.characters?.values?.() ?? [])].find((c) => c?.items === list) ?? null;
+	RPG.events.emit('inventory:changed', { id, n, actor: owner });
 	return true;
 };
 

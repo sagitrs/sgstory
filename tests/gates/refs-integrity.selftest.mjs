@@ -48,22 +48,28 @@ function makeCopy() {
  *   ⚠ `fs.rmSync` **没有** `maxRetries`（那是 `fs.rm` 的选项）⇒ 自己写有界重试。
  *   ⚠ **最终失败只出声、✗ 判红** —— 判红会把「夹具竞态」重新变成随机红，正是本票要消的那件事；
  *     故取向＝**重试到几乎不可能失败＋真失败时大声**（与「减少⇒绿但出声」同一取向）。 */
-function cleanup(dir, tries = 6, delayMs = 40) {
-  for (let i = 1; i <= tries; i++) {
-    try {
-      fs.rmSync(dir, { recursive: true, force: true });   // ★此处**必须是 rmSync**
-      if (!fs.existsSync(dir)) return true;
-    } catch (e) {
-      if (!/^(ENOTEMPTY|EBUSY|ENOENT|EPERM)$/.test(e.code ?? '')) throw e;   // ✗ 吞掉真错（如权限/路径错）
-      if (i === tries) {
-        console.log(`  ⚠ 夹具清理未净（${e.code}；已重试 ${tries} 次）：${dir} —— **出声不判红**（判红＝把夹具竞态变回随机红，见 #1840）`);
-        return false;
-      }
-    }
-    /* 同步小睡（本脚本是同步流程，✗ 用 await）：给后台写手一点收尾时间 */
-    try { execFileSync('sleep', [String(delayMs / 1000)], { stdio: 'ignore' }); } catch { /* 无 sleep(1) 的环境：忽略 */ }
+function cleanup(dir) {
+  /* ★★`#1843` dev-9 RC① **事实更正**：本函数首版写「`fs.rmSync` **没有** `maxRetries`（那是 `fs.rm` 的选项）」
+   *   —— **该论断是假的，且我没验就写了**。实测（node v22.23.2）：
+   *       `fs.rmSync(p, { maxRetries: 'x' })` ⇒ **TypeError: must be of type number**
+   *       `fs.rmSync(p, { retryDelay: 'y' })` ⇒ **TypeError**
+   *       `fs.rmSync(p, { bogusKey: 123 })`   ⇒ **静默**（对照成立 ⇒ 前两条确系「**被认识**」）
+   *   ⇒ 原生 `maxRetries`／`retryDelay` **存在**，且其重试族**恰含** `ENOTEMPTY`／`EBUSY`／`EPERM`
+   *     （正是本席手写循环要吞的那几个）⇒ **自写循环的唯一论据失效**；且另挂的
+   *     `execFileSync('sleep', …)` 在无 `sleep(1)` 的环境**静默不延时**（外挂比不用更糟）。
+   *   ⇒ 改**原生**：删自写循环 ＋ 删 sleep 外挂。
+   *   ⚠ 仍**只吞**「重试后仍为文件系统竞态类」的错；**真错（`ENOTDIR`／`EACCES`…）照抛** —— K22 断此。 */
+  try {
+    fs.rmSync(dir, { recursive: true, force: true, maxRetries: 6, retryDelay: 40 });
+    return true;
+  } catch (e) {
+    if (!/^(ENOTEMPTY|EBUSY|ENOENT|EPERM)$/.test(e.code ?? '')) throw e;   // ✗ 吞真错（K22 断此）
+    /* 终败（**唯一**路径）：**出声**，✗ 静默。判红会把夹具竞态变回**随机红**（`#1840` 要消的正是它）
+     *   ⇒ 取向＝**出声不判红**（与「减少⇒绿但出声」同）。 */
+    console.log(`  ⚠ 夹具清理未净（${e.code ?? e.message}；原生已重试 6 次）：${dir}`
+      + ' —— **出声不判红**（判红＝把夹具竞态变回随机红，见 #1840）');
+    return false;
   }
-  return !fs.existsSync(dir);
 }
 
 function runGate(dir) {
@@ -277,7 +283,7 @@ function makeGitSandbox() {
   const dir = makeCopy();
   const git = (args) => execFileSync('git', args, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' });
   git(['init', '-q']);
-  /* ★`#1840` **断因**：关掉 git 的后台维护 —— 否则 `gc --auto`／maintenance 可能在本函数返回后
+  /* ★`#1840` **断因（佐证性，✗ 未单独实证）**：关掉 git 的后台维护 —— 否则 `gc --auto`／maintenance 可能在本函数返回后
    *   仍往 `.git` 写，令紧随的清理撞 `ENOTEMPTY`（清理侧另有兜底重试，二者**原因＋兜底**并行）。 */
   git(['config', 'gc.auto', '0']);
   git(['config', 'maintenance.auto', 'false']);
@@ -421,6 +427,21 @@ for (const k of fileKnives) {
 
 /* ★总数**自记**（✗ 硬编 —— 加刀忘改数会印出「26 刀全部如期」而实际 27 把：
  *   本席在 `#1819` 的 d20 门刚栽过同型「13/11 刀如期」）。 */
-const total = knives.length + fileKnives.length + 1;   // ＋1 ＝ K21（清理件自证）
+const total = knives.length + fileKnives.length + 2;   // ＋2 ＝ K21（清理件自证）＋ K22（吞集）
+/* ★K22（`#1843` dev-9 RC②）：**吞集**须有刀 —— 「只吞四错、真错照抛」这句断言原本**无刀守护**
+ *   （dev-9 实证：**放宽吞集 ⇒ 自检仍全绿**）。本刀喂一个**必然 ENOTDIR** 的路径（真错类）⇒ 须**抛**；
+ *   若被吞（返回 false 而不抛）⇒ 本刀红。 */
+{
+  /* ⚠ 构造须**真**产出「非吞集」的错：首版我用「不存在的目录 + `force:true`」⇒ 那是 **ENOENT**，
+   *   而 `force` **本就忽略 ENOENT** ⇒ 不抛（K22 首跑即红，抓的正是**我的构造错**）。
+   *   ⇒ 改用**自造的文件**当中间段 ⇒ 必然 **ENOTDIR**（✗ 依赖 `/etc/hostname` 那类环境路径）。 */
+  const notADir = path.join(os.tmpdir(), 'le-not-a-dir-xyz');
+  fs.writeFileSync(notADir, 'x');
+  let threw = false;
+  try { cleanup(path.join(notADir, 'child')); } catch { threw = true; }
+  fs.rmSync(notADir, { force: true });
+  if (!threw) bad++;
+  console.log(`  ${threw ? '✓' : '✗'} K22 吞集：**真错（ENOTDIR）须抛**（✗ 被吞 —— 「只吞四错」须有刀）`);
+}
 console.log(bad === 0 ? `✓ ${total} 刀全部如期（门会红也会绿）` : `✗ ${bad}/${total} 刀未如期`);
 process.exit(bad === 0 ? 0 : 1);

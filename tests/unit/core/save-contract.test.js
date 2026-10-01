@@ -136,7 +136,11 @@
 		const r = S.judgeLoad({ saveVersion: 0 });
 		assert.eq(r.ok, false, 'v0 不是可迁移档');
 		assert.eq(r.code, 'NO_ENVELOPE', '★v0 与「无版本标记」同义（而非 TOO_OLD）');
-		assert.eq(Object.keys(S.MIGRATIONS).length, 0, '★MIGRATIONS 现为空 —— v0 无路可走是**设计**，✗ 漏配');
+		/* ★断言「**v0** 无路」而**不是**「迁移链为空」：后者会在**合法地**加一级迁移时误红
+		 *   （加 `1:` 即票面边界 3 要求的那类动作）—— 断言的网撒得比主张大，就会挡住正确方向
+		 *   （`#1817` D 席 MINOR，dev-9 指出；其双向自证：现绿／加 `[0]` 红／加 `[1]` 绿）。 */
+		assert.ok(!('0' in S.MIGRATIONS), '★v0 不留迁移位（v0 无路可走是**设计**，✗ 漏配）');
+		assert.ok(!('0' in S.MIGRATIONS) || typeof S.MIGRATIONS[0] !== 'function', 'v0 即使有键也不得是可执行迁移');
 	});
 
 	test('#1806 笔1：★`pack` 是**已记未用**（本笔只记录，✗ 不做比对）—— 该事实**可见**', () => {

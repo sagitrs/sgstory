@@ -26,7 +26,7 @@
  */
 import fs from 'node:fs';
 import path from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { pathToFileURL, fileURLToPath } from 'node:url';
 
 const args = process.argv.slice(2);
 const has = (f) => args.includes(f);
@@ -179,6 +179,15 @@ export const scan = (dir) => {
 
 /** 判定（纯函数，便于自检刀直接调用）：base 与 now 皆为 file → {类目: 次数}
  *  `exists` 可注入 ⇒ 自检刀可用**虚构路径**而不触真文件系统（✗ 让「过期登记」判据误伤自检）。 */
+/* ★`#1822` ③：基线**理由**的读侧呈现 —— 抽成**纯函数**使其**可被刀直喂**
+ *   （✗ 埋在 `main()` 里：埋了就只剩「读源码」一种验法，且**接线断了刀也看不见**）。 */
+export const seededLines = (doc) => {
+	const why = doc._seededReason;
+	const out = [`  · 基线由 ${doc._seededAt ?? '(未记)'} 重播${why ? '，理由：' + why : ''}`];
+	if (!why) out.push('    ⚠ 基线**无** `_seededReason` ⇒ 无法回答「为何接受当前深度」——'
+		+ '若是本次重播所致，请带 `SEEDED_REASON=` 重播补齐（✗ 不要静默沿用）。');
+	return out;
+};
 export const judge = (base, now, exists = (f) => fs.existsSync(path.join(ROOT, f))) => {
 	const problems = [];
 	const notes = [];
@@ -239,6 +248,40 @@ if (isMain && has('--selftest')) {
 		 *   ★合成源须**覆盖全 10 类目**（✗ 只覆盖其一）——否则刀会因**别类缺失**而误红。 */
 		/* ★`#1822` ②刀：`_seededReason` 须**在基线里**（✗ 只写进 commit/PR 评论 —— 那些位置下次重播不带走）
 		 *   本刀读**基线文件**断言字段存在且非空；若有人删掉该写入 ⇒ 本刀红。 */
+		/* ★K22／K23 —— `#1822` ③（dev-9 MINOR-1）的**读侧可见**须有刀。
+		 *   ⚠ **诚实标注**：本对刀是**印面刀（print-side）**，✗ **判决刀** ——
+		 *   该特性**不改判决**（门红与否不变），故「使其不合格 ⇒ 退出码非 0」在此**不适用**；
+		 *   它守的是**可读性承诺**（「理由不会只对打开 JSON 的人成立」）。混称两者即是 E2 子条所禁。 */
+		['K22 ★`seededLines` 有理由 ⇒ 输出含之；无 ⇒ **显式说明缺**（✗ 静默）',
+			(() => {
+				const a = seededLines({ _seededAt: 'abc1234', _seededReason: '因 X 接受加深' }).join('\n');
+				const b = seededLines({ _seededAt: 'abc1234' }).join('\n');
+				return a.includes('因 X 接受加深') && b.includes('_seededReason') && b.includes('无法回答');
+			})()],
+		/* K23 守**接线**（E2 子条「判决点可指认且单一」的同族：纯函数对了但没接上＝仍不可见）：
+		 *   本文件自身源码里，`seededLines(doc)` 须**出现在门红分支内**，且**至少两处**（红 ＋ `--verbose`）。
+		 *   实证：删掉红分支那处调用 ⇒ 本刀红（✗ 「函数还在」并不等于「红时打得出来」）。 */
+		['K23 ★`seededLines(doc)` 已**接进**门红分支（✗ 只定义不接线）',
+			(() => {
+				/* ★★本刀**首个版本是自证循环的**（本席自查抓到，同 `#1810` K14 那次的病）：
+				 *   它读**整个文件**源码来找 `seededLines(doc)` —— 而**本刀自己的源码里就含这几个字符串**
+				 *   ⇒ `indexOf('if (problems.length) {')` 找到的是**本刀的字符串字面量**、
+				 *   `calls >= 2` 靠**本刀自己**凑够 ⇒ **恒真、删调用也不红**（实证：删红分支调用仍 17/17）。
+				 *   ⇒ 修法＝**只在「生产段」里搜**（截到自检块之前），✗ 全文搜。 */
+				const src = fs.readFileSync(fileURLToPath(import.meta.url), 'utf8');
+				/* ★自检块**在本文件的前段、主线在后段** ⇒ 取「自检块结束之后」为**生产段**
+				 *   （✗ 取「自检块之前」—— 那会把整条主线切掉，本席第一版即栽在此：`indexOf` 得 -1 ⇒ 刀自红）。 */
+				/* ⚠ 须用 **lastIndexOf**：本刀的**判据字符串自身**里也含这个标记（第一处命中是**它自己**），
+				 *   用 `indexOf` ⇒ 生产段起点落在**本刀之前** ⇒ 又把本刀的字符串算进来（自证循环第二次）。
+				 *   真实的 `process.exit(n === totalKnives` 是**最后一处**。 */
+				const stEnd = src.lastIndexOf('process.exit(n === totalKnives');
+				const prod = stEnd >= 0 ? src.slice(stEnd) : src;
+				const i = prod.indexOf('if (problems.length) {');
+				/* 红分支**窗口**（300 字符覆盖该 if 体；✗ 依赖精确大括号配对 —— 会因格式微调而假红） */
+				const inRed = i >= 0 && prod.slice(i, i + 300).includes('printSeeded()');
+				const calls = (prod.match(/printSeeded\(\)/g) ?? []).length;
+				return inRed && calls >= 2;
+			})()],
 		['K21 ★`_seededReason` 写进基线本身（✗ 只留在 commit message）',
 			(() => {
 				const bp = path.join(ROOT, 'tests/gates/host-touchpoints.json');
@@ -342,8 +385,15 @@ const { problems, notes, total } = judge(base, now);
 console.log('  core 宿主触点 lint（#1804 件二；测量面先行）');
 console.log(`  扫描面：${path.relative(ROOT, SRC) || SRC}/**（已剥注释与字符串 ⇒ 只算代码面）`);
 console.log(`  当前触点 ${total} 处 ／ 涉及 ${Object.keys(now).length} 个文件（基线 ${Object.keys(base).length} 个）`);
+/* ★`#1822` ③（dev-9 MINOR-1）：基线自带的**理由**须在**读侧可见**（门红／`--verbose`）——
+ *   否则「理由写进基线」只对**主动打开 JSON 的人**成立，而**看到门红的人**（最需要它的那位）
+ *   恰恰看不到 ⇒ 会重走「为什么基线在这个深度？」的追因，或直接 `--update-baseline` 抹掉它。
+ *   ⇒ 门**红时必打**（红＝「基线可能不对」的时刻，理由正是该时刻的上下文）＋ `--verbose` 附带。
+ *   ⚠ 缺字段（旧基线）**显式说明**，✗ 静默不打印 —— 静默会与「恰好没理由」不可分辨。 */
+const printSeeded = () => { for (const l of seededLines(doc)) console.log(l); };
 if (has('--verbose')) {
 	for (const [f, h] of Object.entries(now).sort()) console.log(`    · ${f}：${JSON.stringify(h)}`);
+	printSeeded();
 }
 /* ★已知盲区**明账**（#1810 T 席 MAJOR）：静态认不出的四形 —— 每次打印，使边界**可见**
  *   （✗ 静默不覆盖；将来若要cover，正道是**运行期桩**（shim 上装 Proxy），那才是权威读数）。 */
@@ -353,6 +403,7 @@ for (const nt of notes) console.log(`  ⚠ ${nt}`);
 if (problems.length) {
 	console.log('  ✗ 门红：');
 	for (const p of problems) console.log(`    - ${p}`);
+	printSeeded();          /* ★#1822 ③：红时必打（谁看红谁最需要它） */
 	process.exit(1);
 }
 console.log('  ✓ 门绿（无新触点）');

@@ -39,6 +39,33 @@ function makeCopy() {
   }
   return dir;
 }
+/** ★`#1840`：**幂等清理**（✗ 裸 `rmSync` 一次了事）。
+ *   病灶：`makeGitSandbox()` 里跑真 `git`（`init`／`commit`）—— git 可能留下**后台写手**
+ *   （`gc --auto`／maintenance）在命令**返回之后**仍往 `.git` 里写 ⇒ 紧随其后的 `rmSync` 撞上
+ *   `ENOTEMPTY: … rmdir '…/.git'` ⇒ **红在自检自身**（＝「红错支」的另一种形态：
+ *   门报的不是被测物的缺陷，是**夹具的竞态**；实测 `#1838` 首跑红、rerun 绿）。
+ *   ⇒ 两手：**①断因**（沙箱里关掉 git 的后台维护，见 `makeGitSandbox`）**②兜底重试**（本函数）。
+ *   ⚠ `fs.rmSync` **没有** `maxRetries`（那是 `fs.rm` 的选项）⇒ 自己写有界重试。
+ *   ⚠ **最终失败只出声、✗ 判红** —— 判红会把「夹具竞态」重新变成随机红，正是本票要消的那件事；
+ *     故取向＝**重试到几乎不可能失败＋真失败时大声**（与「减少⇒绿但出声」同一取向）。 */
+function cleanup(dir, tries = 6, delayMs = 40) {
+  for (let i = 1; i <= tries; i++) {
+    try {
+      fs.rmSync(dir, { recursive: true, force: true });   // ★此处**必须是 rmSync**
+      if (!fs.existsSync(dir)) return true;
+    } catch (e) {
+      if (!/^(ENOTEMPTY|EBUSY|ENOENT|EPERM)$/.test(e.code ?? '')) throw e;   // ✗ 吞掉真错（如权限/路径错）
+      if (i === tries) {
+        console.log(`  ⚠ 夹具清理未净（${e.code}；已重试 ${tries} 次）：${dir} —— **出声不判红**（判红＝把夹具竞态变回随机红，见 #1840）`);
+        return false;
+      }
+    }
+    /* 同步小睡（本脚本是同步流程，✗ 用 await）：给后台写手一点收尾时间 */
+    try { execFileSync('sleep', [String(delayMs / 1000)], { stdio: 'ignore' }); } catch { /* 无 sleep(1) 的环境：忽略 */ }
+  }
+  return !fs.existsSync(dir);
+}
+
 function runGate(dir) {
   try {
     const out = execFileSync('node', [GATE, '--root', dir], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
@@ -250,6 +277,10 @@ function makeGitSandbox() {
   const dir = makeCopy();
   const git = (args) => execFileSync('git', args, { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'], encoding: 'utf8' });
   git(['init', '-q']);
+  /* ★`#1840` **断因**：关掉 git 的后台维护 —— 否则 `gc --auto`／maintenance 可能在本函数返回后
+   *   仍往 `.git` 写，令紧随的清理撞 `ENOTEMPTY`（清理侧另有兜底重试，二者**原因＋兜底**并行）。 */
+  git(['config', 'gc.auto', '0']);
+  git(['config', 'maintenance.auto', 'false']);
   git(['config', 'user.email', 'selftest@local']);
   git(['config', 'user.name', 'selftest']);
   git(['add', '-A']);
@@ -335,7 +366,7 @@ const fileKnives = [
          *     它在阅读上给出「有双重保护」的错觉，而**实际只在第一处生效**。 */
         return { ok: true };
       } finally {
-        fs.rmSync(sb.dir, { recursive: true, force: true });
+        cleanup(sb.dir);
       }
     },
   },
@@ -357,7 +388,7 @@ for (const k of knives) {
   } catch (e) {
     bad++; console.log(`  ✗ ${k.id} ${k.name} — 自检自身出错：${e.message}`);
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    cleanup(dir);
   }
 }
 for (const k of fileKnives) {
@@ -369,9 +400,27 @@ for (const k of fileKnives) {
   } catch (e) {
     bad++; console.log(`  ✗ ${k.id} ${k.name} — 自检自身出错：${e.message}`);
   } finally {
-    fs.rmSync(dir, { recursive: true, force: true });
+    cleanup(dir);
   }
 }
-const total = knives.length + fileKnives.length;
+/* ★K21（`#1840`）：**清理 fixture 自证** —— 幂等 ＋ 深层树可清。
+ *   ★本刀的价值在**调用本身**：若 helper 被写坏（如**自己调自己** —— 本席落码时真犯过：
+ *     批量替换把自己的 `fs.rmSync` 也换成了 `cleanup(dir)` ⇒ **无限递归 ⇒ OOM 崩**），
+ *     本刀**当场崩**（✗ 静默绿）。⇒ 「清理件也要有刀」不是形式：它是**夹具自身的**回归防线。 */
+{
+  const d = fs.mkdtempSync(path.join(os.tmpdir(), 'refs-gate-selftest-knife-'));
+  fs.mkdirSync(path.join(d, '.git', 'objects', 'ab'), { recursive: true });
+  fs.writeFileSync(path.join(d, '.git', 'objects', 'ab', 'x'), 'x');
+  fs.writeFileSync(path.join(d, '.git', 'index.lock'), '');
+  const a = cleanup(d);
+  const b = cleanup(d);                       // ★幂等：对**已不存在**的目录再清一次不得抛
+  const ok = a === true && b === true && !fs.existsSync(d);
+  if (!ok) bad++;
+  console.log(`  ${ok ? '✓' : '✗'} K21 清理件：深层树（含 .git 形）可清 ＋ **幂等**（再清不抛）`);
+}
+
+/* ★总数**自记**（✗ 硬编 —— 加刀忘改数会印出「26 刀全部如期」而实际 27 把：
+ *   本席在 `#1819` 的 d20 门刚栽过同型「13/11 刀如期」）。 */
+const total = knives.length + fileKnives.length + 1;   // ＋1 ＝ K21（清理件自证）
 console.log(bad === 0 ? `✓ ${total} 刀全部如期（门会红也会绿）` : `✗ ${bad}/${total} 刀未如期`);
 process.exit(bad === 0 ? 0 : 1);

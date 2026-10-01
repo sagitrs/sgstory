@@ -4,5 +4,12 @@ __pycache__/
 node_modules/
 tests/unit/dist/
 tests/e2e/*/game.html
+# 故事构建产物（`build.py <故事目录> [--out 名字.html]` 的落点 —— **产物 ✗ 进 git**）：
+#   `stories/**` 的 `*.html` 一律为**现构现发**产物（见 `build.py` 头部约定）。
+#   由来（实证）：`#1783` 落码时跑 `build.py stories/babel --out babel-trial.html` 后
+#   `git add -A` **把 8040 行的产物收编进提交** —— 本文件原先只涵盖 `tests/e2e/*/game.html`
+#   与 `tests/unit/dist/`，✗ 不含 `stories/` 面 ⇒ 补上，防下一个人重犯（`#73` 的 N-2 同条）。
+stories/*/*.html
+
 .DS_Store
 Thumbs.db

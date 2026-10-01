@@ -40,6 +40,12 @@ RPG.Item = class Item extends Object {
 	 * （defItem 的 used / actions 处理器签名是 (that, from)）。
 	 * 未注册的 action 会 perform 一行提示而不是抛错——“这个道具不能这样用”。
 	 * 手写子类也可以整体覆写 used()，退回单一动作的老写法。
+	 *
+	 * ★**分发失败须打上 `return false`**（`#1783`，与 `slotEquip` 同族）：本函数是**动作分发器**，
+	 *   「没有这个用法」＝ **拒绝**，而原先 `return;`（undefined）按 `#1776` 的契约
+	 *   （`undefined` ＝ 成功、**只有 `=== false` 才算拒绝**）会被算作 `applied` ⇒ **不可判**。
+	 *   ⚠ 勿与「动作自己判定做不到」混淆：那是**处理器**返回 false（如 `slotEquip` 的槽被占），
+	 *     本处是**分发层面**就没有这个动作 —— 两者的对外语义相同（都是 `rejected/action-refused`）。
 	 */
 	used(that, from, action = 'use') {
 		const handler = this.constructor.handlers?.[action];
@@ -48,7 +54,7 @@ RPG.Item = class Item extends Object {
 				throw new Error(`${this.constructor.name} 没有实现默认动作 used`);
 			}
 			this.perform(`「${this.name}」没有「${action}」这个用法。`);
-			return;
+			return false;   // ★ #1783：分发失败 ＝ 拒绝（✗ undefined —— 那会被算作 applied）
 		}
 		return handler.call(this, that, from);
 	}

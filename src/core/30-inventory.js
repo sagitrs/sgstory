@@ -108,15 +108,22 @@ RPG.equippedWeapon = () => RPG.equippedIn('weapon');
  * 不同槽（武器/身体/脚……）互不影响，可以同时装备。
  */
 RPG.slotEquip = function slotEquip() {
+	/* ★ 失败须**显式 `return false`**（`#1783`）：`#1776` 的动作契约是——`undefined` ＝ 成功、
+	 *   **只有 `=== false` 才算拒绝**。本函数原先两处失败都写 `return;`（undefined）⇒ 被算作
+	 *   `applied` ⇒ **装备失败不可判**（`RPG.act` 的调用方拿到的 status 恒为 applied）。
+	 *   ⇒ 现改 `return false`，失败即走 `rejected/action-refused` 面（提示文案不变）。
+	 *   ⚠ 同一处纪律的反面：**幂等成功仍返回 `undefined`**（见下第四种情形的注）。 */
 	if (this.slot == null) {
 		this.perform(`「${this.name}」不是可装备的物品。`);
-		return;
+		return false;
 	}
 	const current = RPG.equippedIn(this.slot);
 	if (current && current.id !== this.id) {
 		this.perform(`「${current.name}」正占着${RPG.slotLabels[this.slot] ?? this.slot}槽——先卸下它。`);
-		return;
+		return false;
 	}
+	/* ★**同槽同件**（`current.id === this.id`）⇒ 落到此处 ⇒ 幂等：把已装备的再装一次**不是失败**
+	 *   （✗ 不返回 false —— 否则玩家点两次会看到「失败」提示）。故本函数有且仅有**两处** `return false`。 */
 	this.equipped = true;
 	this.perform(`你装备了「${this.name}」。`);
 };

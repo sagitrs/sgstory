@@ -19,7 +19,16 @@
 			isOut() { return false; } // 永不出局 → 走满回合后僵持
 		}
 		const e = new (R().Character)({ name: '木桩人', hp: 1 });
-		await new PacifistBattle(1, [D().Player], [e]).execute();
+		/* ★`#1892`（E1）改判据**前提**（✗ 放松断言）：本格原来靠「玩家无武器 ⇒ 自动路**干瞪眼** ⇒
+		 *   双方都不出手 ⇒ 无人出局」造「僵持」。而 `#1892` 起，**声明了 `unarmed`** 的角色在自动路
+		 *   也走空手打击 ⇒ `DND3.Player`（有 `unarmed`）会真出手、把 1 血木桩**打晕**（`isDown`）——
+		 *   那是**角色级**出局，✗ 不受 `Battle.isOut()` 钩子管辖 ⇒ 原前提不再成立。
+		 *   ⇒ 本格要测的是**钩子**，故把进攻方换成**未声明 `unarmed`** 的普通角色
+		 *     （＝回到「双方都打不出去」，与 `#1892` 的零回归面一致）；`#1892` 的新行为由
+		 *     `unarmed-strike.test.js` ⑩/⑪ 另守。
+		 *   ⚠ 若把 `PacifistBattle.isOut` 撤掉 ⇒ 木桩（hp 1）本就会被判出局 ⇒ 本格仍具判别力。 */
+		const pacifist = new (R().Character)({ name: '不打人的人', hp: 10, maxHp: 10, stats: {}, effects: [] });
+		await new PacifistBattle(1, [pacifist], [e]).execute();
 		assert.ok(!e.isDown, '钩子生效（无人出局）');
 	});
 

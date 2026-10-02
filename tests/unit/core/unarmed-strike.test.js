@@ -170,4 +170,56 @@
 		assert.ok(R().isKnockedOut(back), '★往返后仍**昏迷**（✗ 刷新即醒 —— 那等于瞬时态）');
 		assert.eq(back?.contains(R().death), false, '★往返后亦 ✗ `death`');
 	});
+
+	/* ─────────── `#1892`（E1 · `books#132` L1 前提）：**自动通路**也走空手 ───────────
+	 * 上面 ①–⑨ 走的都是**交互路**（`fight()` 用 `interactive:true`）。而判据席写「空手可胜」时
+	 * 用的是**自动路**（`interactive:false`，场景链的既有形）—— 两路是**不同的类**
+	 * （`RPG.Battle` 的交互回合 vs `RPG.BattleTurn` 的 `#attack`）⇒ 只测一路＝**一半的覆盖**。
+	 * ★实测（本席，pin `50944035` 真产物）：修前自动路**空手完全不出手** —— 玩家 hp 20→15，
+	 *   而**敌 hp 6/6 纹丝不动** ⇒ 「空手可胜」在自动路上是**假红**（僵局是**通路不对称**，✗ 战力不足）。 */
+
+	test('★#1892 ⑩【自动通路】空手（无武器）⇒ 也走**空手打击**（✗ 干瞪眼 ⇒ 8 回合僵局）', async () => {
+		/* ★须用**真玩家单例** `DND3.Player`：`unarmed.strike` 是**函数**，JSON 往返会丢掉它
+		 *   （本席实测：用 `Character.revive(JSON…)` 造的副本上 `unarmed` 残缺 ⇒ 回退**测不出来**）。 */
+		const foe = mkFoe({ hp: 3, maxHp: 3 });
+		R().rng.setSequence(Array.from({ length: 200 }, () => 0.99));
+		const P = D().Player;
+		if (!Array.isArray(State.variables.inventory)) State.variables.inventory = [];
+		const saved = { items: P.items, hp: P.hp, maxHp: P.maxHp, nonlethal: P.nonlethal };
+		P.items = State.variables.inventory;                 // ★空武器 ⇒ 走空手
+		P.hp = 20; P.maxHp = 20; P.nonlethal = 0;
+		const lines = [];
+		const b = new (R().Battle)(8, [P], [foe], false);    // ★`interactive:false` ＝ 自动路
+		/* ⚠ `b.perform` 只截**Battle 实例**的输出 —— `BattleTurn` 的输出**截不到**
+		 *   （`Object.prototype.perform` 的实例遮蔽只在本实例上生效）⇒ 本档**不用日志断言**
+		 *   （本席首版写了两条日志断言 ⇒ 因截不到而**恒真** ＝ 假格；改状态基）。 */
+		b.perform = (t) => lines.push(String(t));
+		try { await b.execute(); } finally {
+			R().rng.reset();
+			P.items = saved.items; P.hp = saved.hp; P.maxHp = saved.maxHp; P.nonlethal = saved.nonlethal;
+		}
+		assert.ok(R().isKnockedOut(foe) || foe.isDown,
+			`★自动路须能出手（✗ 干瞪眼 ⇒ 僵局）：敌 hp=${foe.hp} nonlethal=${foe.nonlethal} 出局=${foe.isDown}`);
+		assert.eq(foe.hp, 3, '★走的是**非致命**路（✗ 把 hp 打下来 ⇒ 那就不是空手了）');
+		assert.ok((foe.nonlethal ?? 0) > 0, `★空手打击须真的打出去（nonlethal 须 > 0，实得 ${foe.nonlethal}）`);
+		/* ★记账面（状态基，✗ 日志基）：`rejectStreak` 由**调用方**（`Battle.execute` 的自动环）记。
+		 *   本笔生效 ⇒ 本回合是 `applied` ⇒ ✗ 计数（若仍走 `rejected/no-weapon` ⇒ 必 > 0 ⇒ 本格红）。 */
+		assert.eq(b.rejectStreak, 0, '★自动路本笔须**有推进**（✗ 被记成一次拒绝）');
+	});
+
+	test('★#1892 ⑪【零回归 · 自动路】**无 `unarmed` 声明**者 ⇒ 仍走原路（✗ 被本笔放宽）', async () => {
+		/* 本笔的回退条件是「角色**声明了** `unarmed`」（各包在自家 `Player` 上声明，core ✗ 猜包名）。
+		 *   普通 `Character`（怪物／路人／未接线的包）⇒ 必须逐字保持「干瞪眼」原行为。 */
+		const plain = new (R().Character)({ name: '路人', hp: 30, maxHp: 30, stats: {}, effects: [] });
+		const foe = mkFoe({ hp: 30, maxHp: 30 });
+		if (!Array.isArray(State.variables.inventory)) State.variables.inventory = [];
+		plain.items = State.variables.inventory;
+		const lines = [];
+		const b = new (R().Battle)(2, [plain], [foe], false);
+		b.perform = (t) => lines.push(String(t));
+		await b.execute();
+		assert.eq(foe.nonlethal, undefined, '★无 `unarmed` ⇒ ✗ 走空手打击（零回归）');
+		assert.eq(foe.hp, 30, '★敌人须**毫发无伤**（原路＝打不出去）');
+		assert.ok(b.rejectStreak > 0, '★仍走「无武器 ⇒ 拒绝」原路（✗ 回退被放宽到所有角色）');
+	});
 })();

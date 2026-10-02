@@ -87,6 +87,20 @@ RPG.BattleTurn = class BattleTurn extends RPG.Event {
 		this.perform(`现在是${attacker.name}的回合。`);
 		const weapon = attacker.contains(['weapon', 'equipped']);
 		if (weapon == null) {
+			/* ★`#1892`（E1 · `books#132` L1 前提）：**自动通路**（`interactive:false`）也走**空手打击**。
+			 *   动因（本席在 pin `50944035` 的真产物上实测，✗ 推断）：交互菜单自 `#1854` 起有「空手打击」
+			 *   常驻项，而**自动路在此直接拒绝** ⇒ 同一角色「玩家驱动能打、自动驱动干瞪眼」——
+			 *   实测：空手玩家 hp 20→15，而**敌 hp 6/6 纹丝不动** ⇒ 判据席若用自动路写「空手可胜」，
+			 *   测到的是**假红**（8 回合僵局是**通路不对称**，✗ 战力不足）。
+			 *   ⚠ **仅当角色声明了 `unarmed`**（各包在自家 `Player` 上声明，core ✗ 猜包名）才回退；
+			 *     普通 `Character`／未接线的包 ⇒ 走下面原路 ⇒ **行为逐字不变（零回归）**。
+			 *   ⚠ 收口与交互路**共用模块级 `strikeCatching`**（✗ 各写一份）；`#noteReject` 由本方法的
+			 *     **调用方**（`Battle.execute` 的自动环）代做 ⇒ 此行**不**记账（否则双重计数）。 */
+			const unarmed = attacker.unarmed ?? attacker.constructor?.unarmed ?? null;
+			if (unarmed != null) {
+				const foe = typeof getDefender === 'function' ? getDefender() : getDefender;
+				return strikeCatching(attacker, foe, unarmed);
+			}
 			this.perform(`${attacker.name}没有装备任何武器，只能干瞪眼。`);
 			return { status: 'rejected', reason: 'no-weapon' };
 		}
@@ -229,6 +243,24 @@ RPG.respawn = (c, { to, map } = {}) => {
  * 一方全部出局则提前结束。结束时广播 battle:end 事件。
  * 战斗过程通过 perform 逐行打印；含玩家回合时是异步的（返回 Promise）。
  */
+/* ★`#1892`（E1）：空手打击的**统一收口** —— 提到**模块级**，供**两个类**共用。
+ *   为何必须模块级：空手有**两路**调用者 —— `RPG.Battle` 的交互回合（`#playerActionBody` 的
+ *   `'unarmed'` 支）与 `RPG.BattleTurn` 的**自动**回合（`#attack`）。两者是**不同的类**，
+ *   私有方法（`#xxx`）**跨类不可调** ⇒ 若各写一份，「收口／`action-refused` 判定」会静默分叉。
+ *   ⚠ 本函数**不**做拒绝记账：那是 `RPG.Battle#noteReject`（`#1773` 三连护栏）的事，
+ *     且**自动路的调用方已经代做**（`Battle.execute` 的自动环在 `BattleTurn.execute()` 之后调它）。 */
+const strikeCatching = (actor, target, un) => {
+	try {
+		return un.strike(actor, target) === false
+			? { status: 'rejected', reason: 'action-refused' }
+			: { status: 'applied' };
+	} catch (e) {
+		/* 与 `#actCatching` 同形：玩家看**文案**、作者看**栈** */
+		console.error('[RPG] 空手打击抛错（战斗侧已转为可读拒绝；此栈供排查是否为真 bug）:', e);
+		return { status: 'rejected', reason: 'action-threw', message: e?.message ?? String(e) };
+	}
+};
+
 RPG.Battle = class Battle extends RPG.Event {
 	constructor(turn, players, enemies, interactive = false) {
 		super();
@@ -287,17 +319,9 @@ RPG.Battle = class Battle extends RPG.Event {
 	}
 	/** ★`#1854`：空手打击的**收口**（与 `#actCatching` 同旨 —— 抛错 ⇒ 可读拒绝，✗ 打断整场战斗）。
 	 *  包侧 `strike(actor, target)` 契约与 `RPG.act` 同形：`undefined` ＝ 成功；`false` ＝ 拒绝。 */
-	#strikeCatching(actor, target, un) {
-		try {
-			return un.strike(actor, target) === false
-				? { status: 'rejected', reason: 'action-refused' }
-				: { status: 'applied' };
-		} catch (e) {
-			/* 与 `#actCatching` 同形：玩家看**文案**、作者看**栈** */
-			console.error('[RPG] 空手打击抛错（战斗侧已转为可读拒绝；此栈供排查是否为真 bug）:', e);
-			return { status: 'rejected', reason: 'action-threw', message: e?.message ?? String(e) };
-		}
-	}
+	/* ★`#1892`：实现已提到**模块级** `strikeCatching`（`RPG.BattleTurn` 也要用同一个 —— 见其注）。
+	 *   本方法只作**薄委托**，使交互路的调用点逐字不变。 */
+	#strikeCatching(actor, target, un) { return strikeCatching(actor, target, un); }
 
 	#noteReject(attacker, r) {
 		if (r?.status === 'applied') { this.rejectStreak = 0; return; }

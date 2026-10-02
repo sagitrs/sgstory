@@ -82,6 +82,12 @@
       "n": 1,
       "reason": "槽位扩展表驱动注册",
       "ticket": "#1807"
+    },
+    {
+      "file": "src/dnd/dnd3/items/natural-attacks.js",
+      "n": 1,
+      "reason": "9 只天然攻击件的 id 由生成器参数给出（`natAttack({id, …})`）⇒ 静态不可解析；该档的**跨包同 id** 面按面名 `*-claw`／`*-bite`／`*-gore`／`*-sting` 人工核过（皆新名，✗ 与既有件撞名）",
+      "ticket": "#1855"
     }
   ],
   "_runtimeBaseline": {

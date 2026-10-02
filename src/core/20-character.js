@@ -235,9 +235,10 @@ RPG.Character = class Character extends Object {
  *
  * ★规则出处：空手＝非致命见 pinned `27msrdcombat战斗-d20m.md:333-341`；
  *   **累积阈值不在 pin 里**（本席逐文件核过：19 个 pinned 文件中含 `nonlethal` 的 4 个均无「累积段」）
- *   ⇒ 按本仓纪律标 **house rule（非 SRD）**：`nonlethal >= hp` 踉跄／`nonlethal > hp` 昏迷。
+ *   ⇒ 按本仓纪律标 **house rule（非 SRD）**：**唯一**阈值 `nonlethal > hp` ⇒ **昏迷出局**。
+ *     ⚠ pin 的 `nonlethal >= hp`「**踉跄**」态**本引擎不实现** —— 全仓无 `staggered` 读数
+ *       ⇒ ✗ 不静默丢弃：显式记在此（与 `armed`／借机攻击 同一形：贴 pin 出处、写「不实现」）。
  */
-
 /** 是否因**非致命**伤害而昏迷（出局）。⚠ 与 `hp <= 0`（致命）**分开**：本函数只看非致命计数。 */
 RPG.isKnockedOut = (c) => (c?.nonlethal ?? 0) > (c?.hp ?? 0);
 

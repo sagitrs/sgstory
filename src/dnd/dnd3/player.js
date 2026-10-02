@@ -84,8 +84,11 @@ Object.defineProperties(DND3.Player, {
  *
  *   ★规则出处（pinned）：`27msrdcombat战斗-d20m.md:333-341` —— 拳/踢/头槌按近战武器处理；
  *     中型角色 **1d3＋力量修正、非致命**；空手打击算**轻近战武器**。
- *   ★**累积阈值不在 pin 里**（本席逐文件核过：含 `nonlethal` 的 4 个 pinned 文件均无「累积段」）
- *     ⇒ 按本仓纪律标 **house rule（非 SRD）**：`nonlethal >= hp` 踉跄／`nonlethal > hp` 昏迷（见 `RPG.applyDamage`）。
+ *   ★**累积阈值不在 pin 里**（本席逐文件核过：19 个 pinned 文件中含 `nonlethal` 的 4 个均无「累积段」）
+ *     ⇒ 按本仓纪律标 **house rule（非 SRD）**：**唯一**阈值 `nonlethal > hp` ⇒ **昏迷出局**
+ *       （`见 RPG.applyDamage`）。
+ *     ⚠ pin 的 `nonlethal >= hp`「**踉跄**」态**本引擎不实现** —— 全仓无 `staggered` 读数
+ *       ⇒ ✗ 不静默丢弃：显式记在此（与 `armed`／借机攻击 同一形：贴 pin 出处、写「不实现」）。
  *   ★**armed 与借机攻击**（pin `:339`）只作**注记**：其唯一机制后果是 AoO，而引擎**无 AoO 层**
  *     ⇒ **HR：本引擎不实现借机攻击**（✗ 静默丢弃 —— 显式记在此；与 `#1855` 的天然武器共引同一 pin 行）。
  *

@@ -175,6 +175,18 @@ def build_story(story_dir: pathlib.Path, out_name: str = "game.html", build_vers
     for f in sorted(story_src.rglob("*.twee")):
         passages += parse_twee(f.read_text(encoding="utf-8"))
 
+    # ★`#1879` D9：`--version X` ⇒ 在**段落体**里把缺省串替换为 `<<set $buildVersion to "X">>`。
+    #   ★为何在**段落体**（✗ 产物 HTML）：产物里 `<<`/`>>` 已**转义**为 `&lt;&lt;`/`&gt;&gt;` ⇒ 精确串在产物文本里**命中 0** ✗（本席实测踩过）。
+    #   只改**产物**（✗ 动源树 ⇒ 源树零污染）；**缺省不传 ⇒ 产物逐字节同旧**（刀）。
+    if build_version is not None:
+        default_set = '<<set $buildVersion to "—">>'
+        hits = 0
+        for i, (nm, tags, body) in enumerate(passages):
+            if default_set in body:
+                hits += body.count(default_set)
+                passages[i] = (nm, tags, body.replace(default_set, f'<<set $buildVersion to "{build_version}">>', 1))
+        if hits != 1:   # ★命中数断言（本仓硬习惯）：✗ 静默无操作、✗ 误伤多处
+            raise SystemExit(f"✗ --version 注入失败：缺省串在段落体里命中 {hits} 次（须恰 1）")
     meta = {"ifid": "", "format-version": "2.37.3", "start": "开始", "title": "未命名故事"}
     style_parts, twee_script_parts, rows, pid_map = [], [], [], {}
     pid = 1
@@ -215,14 +227,6 @@ def build_story(story_dir: pathlib.Path, out_name: str = "game.html", build_vers
            .replace("{{STORY_NAME}}", html.escape(title))
            .replace("{{STORY_DATA}}", storydata))
 
-    # ★`#1879` D9：`--version X` ⇒ 把故事里的**缺省串**替换为 `<<set $buildVersion to "X">>`。
-    #   只改**产物文本**（✗ 动源树 ⇒ 源树零污染）；**缺省不传 ⇒ 产物逐字节同旧**（刀）。
-    if build_version is not None:
-        default_set = '<<set $buildVersion to "—">>'
-        hit = doc.count(default_set)
-        if hit != 1:   # ★命中数断言（本仓硬习惯）：✗ 静默无操作、✗ 误伤多处
-            raise SystemExit(f"✗ --version 注入失败：缺省串命中 {hit} 次（须恰 1）")
-        doc = doc.replace(default_set, f'<<set $buildVersion to "{build_version}">>', 1)
     out.write_text(doc, encoding="utf-8")
     # ★故事目录可在**引擎仓之外**（拆分仓布局：故事在 books 仓、引擎在此检出）⇒ 相对路径打不出来时
     #   退回绝对路径。原先直接 `relative_to(ROOT)` 会抛 `ValueError` ⇒ **产物已写成功但退出码非零**

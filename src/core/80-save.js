@@ -40,6 +40,7 @@
  *   RPG.save.install();            // 挂 Save.onSave / Save.onLoad（无宿主环境为 no-op）
  *   RPG.save.envelope();           // 取当前应写入的信封（诊断/测试用）
  *   RPG.save.judgeLoad(raw);       // 纯函数裁决：{ok, payload} | {ok:false, code, message}
+ *   RPG.save.declareDomain(key, shape);  // 故事侧登记新域（`#1902`；内置键不可覆盖）
  */
 
 RPG.save = (() => {
@@ -72,6 +73,19 @@ RPG.save = (() => {
 		 *     故无独立 `State.variables` 键；`REGISTRIES` 里的 `stocks` 是**注册表**（`ready()` 用，
 		 *     判「加载时还原 id 的时序前提」），**不是**存档域键 —— 两者语义不同，✗ 混为一谈。 */
 	});
+
+	/** **故事侧的域登记口**（`#1902`）：内置表 `DOMAINS` 不动，故事侧追加落 `DECLARED`。
+	 *  用途：`books#132` 的 `$span1Arc` 这类故事侧键须能进 `envelope().domains` 与 `audit()`
+	 *  （否则逐域往返面与审计面看不到它——是**审计缺口**，✗ 丢档）。
+	 *  护栏：内置键**不得被覆盖**、同名重复返回 `false`（✗ 静默改语义）、非字符串／空串拒绝。 */
+	const DECLARED = new Map();
+	/** 合并视图（内置 ＋ 故事侧登记）——`envelope`／`audit`／导出的 `DOMAINS` 皆读它，✗ 各读一份。 */
+	const domainTable = () => Object.assign({}, DOMAINS, Object.fromEntries(DECLARED));
+	const declareDomain = (name, shape) => {
+		if (typeof name !== 'string' || name === '' || name in DOMAINS || DECLARED.has(name)) return false;
+		DECLARED.set(name, shape ?? null);
+		return true;
+	};
 
 	/**
 	 * 迁移链：`MIGRATIONS[n]` 把版本 n 的 payload 迁到 n+1。**逐级**执行，✗ 跳级。
@@ -120,7 +134,7 @@ RPG.save = (() => {
 		saveVersion: VERSION,
 		pack: currentPack(),
 		/* 域键快照：**只记「该域此刻有没有落点」**（✗ 记值 —— 值由宿主序列化，重复即两套真值） */
-		domains: Object.keys(DOMAINS).filter((k) => stateVars[k] !== undefined),
+		domains: Object.keys(domainTable()).filter((k) => stateVars[k] !== undefined),
 		at: Date.now(),
 	});
 
@@ -165,12 +179,13 @@ RPG.save = (() => {
 	 * 用途：让「格式说支持、实际没有」这件事**可见**（✗ 静默 —— 与 `#1807` 的 `_unresolvable` 同旨）。
 	 */
 	const audit = (stateVars = vars()) => {
-		const declared = Object.keys(DOMAINS).filter((k) => DOMAINS[k] != null);
+		const table = domainTable();
+		const declared = Object.keys(table).filter((k) => table[k] != null);
 		return {
 			/* 域已声明但该键还没被写过 ⇒ 可能是「尚未落地」或「拼写漂移」，皆须可见 */
 			absent: declared.filter((k) => stateVars[k] === undefined),
 			/* 预留下（`DOMAINS[k] === null`）的域：格式支持、实现未做 */
-			reserved: Object.keys(DOMAINS).filter((k) => DOMAINS[k] == null),
+			reserved: Object.keys(table).filter((k) => table[k] == null),
 			/* ★**已记未用**：信封里写了、但裁决路径**还没读**的字段 ⇒ 显式登记，
 			 *   防读者把「已记」误读成「已解决」（`#1743` 的比对属后续笔）。 */
 			recordedNotCompared: ['pack'],
@@ -332,8 +347,10 @@ RPG.save = (() => {
 	};
 
 	return {
-		VERSION, ENVELOPE_KEY, DOMAINS, MIGRATIONS,
-		ready, currentPack, envelope, judgeLoad, audit, install,
+		VERSION, ENVELOPE_KEY, MIGRATIONS,
+		/* ★getter（`#1902`）：故事侧登记后，`DOMAINS` 若仍是内置那份就成了「陈旧面」——读者据它判「有没有这一域」会答错 */
+		get DOMAINS() { return domainTable(); },
+		ready, currentPack, envelope, judgeLoad, audit, install, declareDomain,
 		snapshotForRestart, handleRestartClick, hookRestartConfirm,   // ★`#1877` P1-7（供单测直证）
 		installed: () => installed,
 	};

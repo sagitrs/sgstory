@@ -225,4 +225,91 @@
 		assert.eq(renders, 2, `无渲染期基线 ⇒ 不判定（照旧重绘）：实为 ${renders}`);
 	});
 
+	/* ---------- 场景头「只在进场时印一次」（`#1855` P2-3 甲案 · `#1879`）----------
+
+	 * 缺陷：`#renderLocation()` 原先**无条件**印 `【层名】`＋desc，而位置交互是**自环重绘**
+	 * （action 跑完再画一屏）⇒ 同层重复动作 ⇒ 场景头**整段堆叠**。
+	 * 修法：`#headerLoc` 记「上次印过头的地点」，同地点不再印；离场时清空 ⇒ 回来重印。
+	 *
+	 * ★三把刀的共同装置：**捕获 `perform` 上屏文本**（`perform` 定义在 `Object.prototype` 上，
+	 *   场景实例覆写即可接住 —— 与 `battle.perform = (t) => lines.push(...)` 同法）。
+	 *   ★判据**只数 `【…】` 形的场景头**（✗ 不数 desc／选项文案 —— 那些本就会重复）。
+	 *   ⚠ 末层 `z` 无动作无出口 ⇒ `#renderLocation` 命中「没有可以做的事」即**自然收敛**
+	 *     （✗ 用异常终止 —— 那会把「未收敛」与「判据失败」混成一个红）。 */
+	const headerScene = (actions = []) => {
+		const map = new (R().WorldMap)({ id: 'hdr' });
+		map.addLocation(new (R().Location)({ id: 'a', name: '甲层', desc: '甲层的描述', actions }));
+		map.addLocation(new (R().Location)({ id: 'b', name: '乙层', desc: '乙层的描述' }));
+		map.addLocation(new (R().Location)({ id: 'z', name: '末层', desc: '末层的描述' }));
+		map.addPath({ from: 'a', to: 'b', text: '去乙层' });
+		map.addPath({ from: 'b', to: 'a', text: '回甲层' });
+		map.addPath({ from: 'a', to: 'z', text: '去末层' });
+		const scene = new (R().MapScene)({ id: 'hdr', map, start: 'a' });
+		const lines = [];
+		scene.perform = (t) => lines.push(String(t));
+		/** 按**预定序列**喂选择；序列耗尽即抛（⇒ 未收敛会是一句可诊断的红）。 */
+		const drive = (seq) => {
+			let i = 0;
+			scene.choice = async () => {
+				if (i >= seq.length) throw new Error(`选择序列耗尽（第 ${i + 1} 次）⇒ 场景未如预期收敛：已上屏 ${JSON.stringify(lines.filter((l) => /^【/.test(l)))}`);
+				return seq[i++];
+			};
+			return () => i;
+		};
+		return {
+			scene, lines, drive,
+			/** 【层名】形的场景头条数（✗ 不数 desc：「甲层的描述」不含【】） */
+			headers: () => lines.filter((l) => /^【.+】$/.test(l.trim())),
+			countOf: (n) => lines.filter((l) => /^【.+】$/.test(l.trim()) && l.includes(n)).length,
+		};
+	};
+
+	test('map #1879 ①：**同层重复动作** ⇒ 【层名】恒 **1** 次（✗ 每绘一屏印一次 ⇒ 堆叠）', async () => {
+		State.passage = '探索';
+		const h = headerScene([{ text: () => '翻找', action: () => {} }]);
+		/* 同一位置交互连做两次（两次都自环重绘），第三次选**去末层**结束。 */
+		const used = h.drive(['a0', 'a0', 'e1']);
+		await h.scene.execute();
+		assert.eq(used(), 3, `应恰好 3 次选择（2 次动作 ＋ 1 次离层），实为 ${used()}`);
+		assert.eq(h.countOf('甲层'), 1, `★同层重复动作 ⇒ 【甲层】恒 1 次（✗ 堆叠）：实为 ${JSON.stringify(h.headers())}`);
+		assert.eq(h.countOf('末层'), 1, `末层头印 1 次：实为 ${JSON.stringify(h.headers())}`);
+	});
+
+	test('map #1879 ②：**离层再回** ⇒ 场景头**再印**（甲层共 2 次）', async () => {
+		State.passage = '探索';
+		const h = headerScene();
+		/* 甲→乙（e0）→ 乙→甲（e0）→ 甲→末层（e1）结束 ⇒ 甲层应印 2 次。 */
+		const used = h.drive(['e0', 'e0', 'e1']);
+		await h.scene.execute();
+		assert.eq(h.countOf('甲层'), 2, `★离层再回 ⇒ 【甲层】**再印**（共 2）：实为 ${JSON.stringify(h.headers())}`);
+		assert.eq(h.countOf('乙层'), 1, `乙层 1 次：实为 ${JSON.stringify(h.headers())}`);
+		assert.eq(h.countOf('末层'), 1, `末层 1 次：实为 ${JSON.stringify(h.headers())}`);
+	});
+
+	test('map #1879 ③ ★**同实例二次进场** ⇒ 首帧必有场景头（抓「战斗回来头消失」失效形）', async () => {
+		/* ★本把是**跨进场边界**的刀（dev-10 补）：①②都在**单次** `execute()` 内打转 ⇒ 抓不到
+		 *   「场景**单例** ＋ 回来时段落名与上次渲染相同 ⇒ `#leftPassage()` 判失灵」这一形。
+		 *
+		 *   失效形（`#1855` 甲案首版实测）：动作里导航去战斗 ⇒ 场景切走；
+		 *   战斗出口 `Engine.play('探索')` ⇒ **同实例**再 `execute()` ⇒ 而 `current === #headerLoc`
+		 *   （都是 'a'，且段落名也是 '探索'）⇒ **首帧不印场景头** ✗＝「战斗回来场景头消失」。
+		 *   ⇒ 修法是**离场时显式清 `#headerLoc`**（✗ 靠 `#leftPassage()`：它此时判不出来）。 */
+		State.passage = '探索';
+		const h = headerScene([{ text: () => '出击', action: () => { State.passage = '战斗'; } }]);
+		/* 第一次进场：选动作（导航走 ⇒ 场景切走）。 */
+		const used1 = h.drive(['a0']);
+		await h.scene.execute();
+		assert.eq(used1(), 1, `首次进场只选 1 次（动作即离场），实为 ${used1()}`);
+		assert.eq(h.countOf('甲层'), 1, `首帧印头 1 次：实为 ${JSON.stringify(h.headers())}`);
+		const afterFirst = h.headers().length;
+
+		/* 战斗结束 ⇒ **同一实例**二次进场（`Engine.play('探索')` 的真实形）。 */
+		State.passage = '探索';
+		const used2 = h.drive(['e1']);
+		await h.scene.execute();
+		assert.eq(used2(), 1, `二次进场选 1 次（离层结束），实为 ${used2()}`);
+		assert.eq(h.countOf('甲层'), 2,
+			`★**二次进场首帧必须重印场景头**（✗ 消失）：首轮共 ${afterFirst} 条头、现共 ${JSON.stringify(h.headers())}`);
+	});
+
 })();

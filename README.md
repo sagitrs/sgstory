@@ -8,7 +8,7 @@ master/main 自本提交起重启为空干线。
 ## 测试工具
 
 测试工具根：tests/
-
+<!-- test-tool-root: tests/ -->
 本目录收纳单元测试、端到端测试，以及门与 pin-cache 的台账；索引见 [`tests/README.md`](tests/README.md)。
 
 有一处根外的具名例外：[`stories/babel/verify.mjs`](stories/babel/verify.mjs)，它是故事侧的装配自检，随故事一起走。

@@ -319,6 +319,11 @@ RPG.MapScene = class MapScene extends RPG.Scene {
 			// 段落边界检测（#1749 D2）：action 若导航去了别的段落，本屏所属段落已退场，
 			// 再重绘即为「跨段渲染」——把旧地图画进新段落。仅在同一段落内才自循环重绘。
 			if (!this.#leftPassage()) await this.#renderLocation();
+			/* ★`#1855` 折单（`developer-10` RC）：**动作已导航离开**（战斗／结局等独立段落）⇒ 清场景头记录，
+			 *   使**下次进场**（战斗出口 `Engine.play('探索')`）重印场景头 —— ✗ 否则「**战斗回来场景头消失**」：
+			 *   场景单例 ＋ 回来时**段落名与上次渲染相同**（都是 `探索`）⇒ `#leftPassage()` 判定失灵 ✗ ⇒ 只能靠**这条显式清**。
+			 *   可达面：胜／僵持／早退三分支（死亡不中 —— respawn 走 `moveTo` ⇒ 地点变 ⇒ 本就会印 ✓）。 */
+			else this.#headerLoc = null;
 		} else {
 			// 出口导航：action → moveTo → 重绘新位置
 			const exit = exits[Number(picked.slice(1))];

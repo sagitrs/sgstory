@@ -32,7 +32,11 @@ RPG.Character = class Character extends Object {
 	}
 
 	get isDown() {
-		return this.hp <= 0;
+		/* ★`#1854`：**非致命昏迷**亦算出局（d20 语义：打晕 ≠ 打死，但都出局）。
+		 *   判据是 `RPG.isKnockedOut()`（单点）—— `hp <= 0` 是**致命**出局；非致命路**不改 hp**、
+		 *   只累积 `nonlethal` ⇒ 故须两条都看，否则「打晕的敌人」仍会继续行动。
+		 *   ⚠ 死亡**不**由此触发：三包的 `grantDeathIfDown` 各自显式判 `hp <= 0`（✗ `isDown`）。 */
+		return this.hp <= 0 || RPG.isKnockedOut(this);
 	}
 
 	/**
@@ -185,6 +189,8 @@ RPG.Character = class Character extends Object {
 		// 否则读档一次就丢数据（真实未知 vs 存量畸形无法区分，见 #1713 F3 / §1.3）。
 		// 包侧修补（Symbol 标识等在 JSON 往返中丢失的键）——core 不认识任何包名
 		for (const fn of RPG.reviveHooks ?? []) fn(c.stats);
+		/* ★`#1854`：非致命累积随档还原（`toJSON` 写了才在；与 `hp` 同等待遇）。 */
+		if (typeof snapshot.nonlethal === 'number') c.nonlethal = snapshot.nonlethal;
 		c.effects = [...(snapshot.effects ?? [])];
 		c.effectTurns = { ...(snapshot.effectTurns ?? {}) };
 		for (const id of c.effects) {
@@ -199,11 +205,16 @@ RPG.Character = class Character extends Object {
 	}
 
 	toJSON() {
-		return {
+		const o = {
 			name: this.name, hp: this.hp, maxHp: this.maxHp,
 			stats: this.stats, items: this.items,
 			effects: this.effects, effectTurns: this.effectTurns, properties: this.properties,
 		};
+		/* ★`#1854`：非致命累积**是伤势态**（guest-1 裁 ②：与 `hp` 同类，✗ 瞬时）⇒ 必须进档。
+		 *   ⚠ **仅在非零时写键**：`0`／`undefined` 一律不写 —— 保证「从未受过非致命伤」的角色
+		 *     `toJSON()` 输出与 `#1854` 之前**逐键相同**（零回归；本仓有逐字节快照类断言）。 */
+		if (this.nonlethal) o.nonlethal = this.nonlethal;
+		return o;
 	}
 };
 
@@ -217,6 +228,36 @@ RPG.Character = class Character extends Object {
  * core 不硬编码任何包名（零 pack 依赖）⇒ 由各包**自行注册**一个修补函数；
  *   它接收 `stats` 并**就地**重挂自己的标识（键集与 JSON 面**零变化**）。
  */
+/* ---------- `#1854`：**伤害施加的唯一入口**（致命／非致命两路）----------
+ *
+ * 为何要单点：非致命是 d20 的**独立计数**（`nonlethal`），与 `hp` 分开 —— `hp > 0` 但 `nonlethal > hp`
+ *   仍是**昏迷出局**。若三个包各自写 `that.hp = Math.max(0, …)`，非致命语义会**三份漂移**。
+ *
+ * ★规则出处：空手＝非致命见 pinned `27msrdcombat战斗-d20m.md:333-341`；
+ *   **累积阈值不在 pin 里**（本席逐文件核过：19 个 pinned 文件中含 `nonlethal` 的 4 个均无「累积段」）
+ *   ⇒ 按本仓纪律标 **house rule（非 SRD）**：`nonlethal >= hp` 踉跄／`nonlethal > hp` 昏迷。
+ */
+
+/** 是否因**非致命**伤害而昏迷（出局）。⚠ 与 `hp <= 0`（致命）**分开**：本函数只看非致命计数。 */
+RPG.isKnockedOut = (c) => (c?.nonlethal ?? 0) > (c?.hp ?? 0);
+
+/** 施加伤害（**唯一入口**）。
+ *  @param that 目标角色
+ *  @param dmg  伤害值（调用方已算好，含下限与修正）
+ *  @param opts.nonlethal `true` ＝ 非致命（默认 `false` ＝ 既有致命路，逐字不变）
+ *  @returns `{ lethal, nonlethal, hp?, total? }` —— 供调用方写文案用（✗ 调用方自行改 `hp`）。
+ *  ⚠ 本函数**不**施加 `RPG.death`：死亡判定仍由各包的 `grantDeathIfDown` 负责（`hp <= 0`）⇒
+ *    非致命路**永不**致死，也**不**掉战利品（见 `40-battle.js` 的 `RPG.loot` 调用点）。 */
+RPG.applyDamage = (that, dmg, { nonlethal = false } = {}) => {
+	if (nonlethal) {
+		/* 非致命**独立计数**，✗ 不碰 `hp`（打晕 ≠ 打死）。 */
+		that.nonlethal = (that.nonlethal ?? 0) + dmg;
+		return { lethal: false, nonlethal: true, total: that.nonlethal };
+	}
+	that.hp = Math.max(0, (that.hp ?? 0) - dmg);
+	return { lethal: true, nonlethal: false, hp: that.hp };
+};
+
 RPG.reviveHooks = [];
 
 /** 注册一个「还原时修补 stats」的钩子；返回注销函数（幂等注册由调用方负责） */

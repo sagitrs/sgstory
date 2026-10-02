@@ -282,6 +282,19 @@ RPG.Battle = class Battle extends RPG.Event {
 	#throwText(attacker, r) {
 		return `${attacker.name}这一手没能出手：${r.message} —— 本回合就此过去。`;
 	}
+	/** ★`#1854`：空手打击的**收口**（与 `#actCatching` 同旨 —— 抛错 ⇒ 可读拒绝，✗ 打断整场战斗）。
+	 *  包侧 `strike(actor, target)` 契约与 `RPG.act` 同形：`undefined` ＝ 成功；`false` ＝ 拒绝。 */
+	#strikeCatching(actor, target, un) {
+		try {
+			return un.strike(actor, target) === false
+				? { status: 'rejected', reason: 'action-refused' }
+				: { status: 'applied' };
+		} catch (e) {
+			/* 与 `#actCatching` 同形：玩家看**文案**、作者看**栈** */
+			console.error('[RPG] 空手打击抛错（战斗侧已转为可读拒绝；此栈供排查是否为真 bug）:', e);
+			return { status: 'rejected', reason: 'action-threw', message: e?.message ?? String(e) };
+		}
+	}
 
 	#noteReject(attacker, r) {
 		if (r?.status === 'applied') { this.rejectStreak = 0; return; }
@@ -359,7 +372,9 @@ RPG.Battle = class Battle extends RPG.Event {
 		// 战利品结算：战败的敌方（Character/Chest）身上未装备的道具归玩家；
 		// 装备与技能不会掉落（见 RPG.loot）
 		for (const enemy of this.enemies) {
-			if (this.isOut(enemy) && Array.isArray(enemy.items)) RPG.loot(enemy);
+			/* ★`#1854`：**打晕 ≠ 打死** ⇒ 非致命昏迷者**不掉落**（MSRD 语义；且未施加 `RPG.death`）。
+			 *   `RPG.isKnockedOut` 单点判定（`hp` 未变、`nonlethal > hp`）⇒ 与致命路分开。 */
+			if (this.isOut(enemy) && !RPG.isKnockedOut(enemy) && Array.isArray(enemy.items)) RPG.loot(enemy);
 		}
 
 		const playersAlive = alive(this.players).length > 0;
@@ -369,7 +384,11 @@ RPG.Battle = class Battle extends RPG.Event {
 			!playersAlive
 				? '战斗结束：你方全部倒下了……'
 				: !enemiesAlive
-					? '战斗结束：敌方被击败！'
+					/* ★`#1854`：**全被非致命打晕** ⇒ 文案说「打晕」而非「击败」（打晕 ≠ 打死，玩家可见文本须一致）。
+					 *   ⚠ 混编（有的死、有的晕）仍说「击败」—— 那是最保守的读法（✗ 逐敌列举）。 */
+					? (this.enemies.length > 0 && this.enemies.every((e) => RPG.isKnockedOut(e))
+						? '战斗结束：敌方被打晕了。'
+						: '战斗结束：敌方被击败！')
 					: `战斗结束：${this.rounds} 个回合后双方仍在僵持。`,
 			{ channel: 'battle-end' }
 		);
@@ -420,6 +439,16 @@ RPG.Battle = class Battle extends RPG.Event {
 			if (actionOptionsFor(item).length === 0) return;
 			itemOptions.push({ text: `${item.name}${item.equipped ? '（已装备）' : ''}`, value: String(i) });
 		});
+		/* ★`#1854`：**空手打击**常驻项（形同 `skip`：不占背包槽、与 items 枚举并存）。
+		 *   动因：纯资源背包（`noBattleUse` 全筛掉）时选单只剩「跳过」⇒ 操作者实测卡 8 回合僵局。
+		 *   ★能力来自**角色类**（`attacker.constructor.unarmed`）—— 各包在自己 `Player` 上声明（✗ core 猜包名）：
+		 *     三包攻击函数**签名同为 `(item, that, from)`** ⇒ 包侧只需给一个合成 item ＋ 转发。
+		 *   ⚠ 缺声明（普通 `Character`／未接线的包）⇒ **不出现**（零回归）。 */
+				/* ⚠ 读**实例自有**属性（✗ 只读 `constructor.unarmed`）—— 本席实测：`DND3.Player` 是 `defCharacter`
+		 *   产出的**实例**（`attacker.constructor.name === 'Character'`）⇒ 写在 `Player` 上的 `unarmed` 是
+		 *   **实例自有**属性、类上取不到。⇒ 两形都取（兼容将来改成子类的写法）。 */
+		const unarmedOpt = attacker.unarmed ?? attacker.constructor?.unarmed ?? null;
+		if (unarmedOpt) itemOptions.push({ text: unarmedOpt.text ?? '空手打击', value: 'unarmed' });
 		itemOptions.push({ text: '（跳过本回合）', value: 'skip' });
 
 		const everyone = [...this.players, ...this.enemies].filter((c) => !this.isOut(c));
@@ -443,10 +472,12 @@ RPG.Battle = class Battle extends RPG.Event {
 	 *   { type: 'skip' }           → 跳过回合，不消耗资源
 	 *   { type: 'equip', item }    → 装备，经 useItem 提交，消耗回合
 	 *   { type: 'unequip', item }  → 卸下，经 useItem 提交，消耗回合
-	 *   { type: 'use', item }      → 使用，进入目标选择
+	 *   { type: 'unarmed' }       → 空手打击（`#1854`：**无 item**），进入目标选择
+ *   { type: 'use', item }      → 使用，进入目标选择
 	 */
 	static dispatchAction(chosen, action, item) {
 		if (chosen === 'skip') return { type: 'skip' };
+		if (chosen === 'unarmed') return { type: 'unarmed' };   // ★`#1854`：空手（**无 item**）
 		if (action === 'equip') return { type: 'equip', item };
 		if (action === 'unequip') return { type: 'unequip', item };
 		return { type: 'use', item };
@@ -463,7 +494,9 @@ RPG.Battle = class Battle extends RPG.Event {
 
 	async #playerActionBody(attacker) {
 		const slots = attacker.items;
-		if (slots.length === 0) {
+		/* ★`#1854`：**空手可用时不得早退** —— 这条早退正是操作者卡死的那条路径
+		 *   （纯资源背包：`noBattleUse` 把它们全筛掉 ⇒ `itemOptions` 只剩「跳过」）。 */
+		if (slots.length === 0 && !(attacker.unarmed ?? attacker.constructor?.unarmed)) {
 			this.perform(
 				`现在是${attacker.name}的回合。${attacker.name}没有任何道具，只能干瞪眼。`
 			);
@@ -479,7 +512,8 @@ RPG.Battle = class Battle extends RPG.Event {
 		if (itemOptions.length === 1) this.perform(`${attacker.name}背包里的东西，在战斗中都用不上。`);
 		this.perform(`现在是${attacker.name}的回合，请选择道具：`);
 		const chosen = await attacker.choice(itemOptions);
-		const item = chosen === 'skip' ? null : setup.RPG.reviveItem(slots[Number(chosen)]);
+		const item = (chosen === 'skip' || chosen === 'unarmed')
+			? null : setup.RPG.reviveItem(slots[Number(chosen)]);
 
 		// ② 选动作
 		let action = 'use';
@@ -504,6 +538,24 @@ RPG.Battle = class Battle extends RPG.Event {
 			this.perform(`${attacker.name}按兵不动。`);
 			return;
 		}
+		if (dispatch.type === 'unarmed') {
+			/* ★`#1854`：**空手打击** —— 走与 `use` 支同一形的目标选择；执行经**收口**（抛错 ⇒ 可读拒绝，
+			 *   与 `#1839` 的 `#actCatching` 同旨）＋ `#noteReject`（拒绝计数照走 ⇒ `#1773` 护栏有效）。
+			 *   ⚠ 空手**无 item** ⇒ 不经 `RPG.act`（无 charges／无弹药／无提交面）⇒ 直接调包侧 `strike`。 */
+			const un = attacker.unarmed ?? attacker.constructor.unarmed;
+			this.perform(`${attacker.name}挥拳出击 —— 对谁？`);
+			const tn = await attacker.choice(targetOptions);
+			const all = [...this.players, ...this.enemies].filter((c) => !this.isOut(c));
+			const tgt = all.find((c) => c.name === tn);
+			const rUn = this.#strikeCatching(attacker, tgt, un);
+			if (rUn?.status === 'rejected') {
+				if (rUn.reason === 'action-threw') this.perform(this.#throwText(attacker, rUn));
+				else this.perform(`${attacker.name}这一手没能出手 —— 本回合就此过去。`);
+			}
+			this.#noteReject(attacker, rUn);
+			return;
+		}
+
 		if (dispatch.type === 'equip' || dispatch.type === 'unequip') {
 			/* ★`#1837`：本支与 use 支**同类**（都直面 `RPG.act` 的抛出面）⇒ 一并收口
 			 * ⚠ `r?.`（`dev-10` D 席 · `#1841` 折）：**纯防御** —— 本席实测 `RPG.act` **不返 `false`**

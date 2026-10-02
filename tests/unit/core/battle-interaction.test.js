@@ -292,16 +292,23 @@
 		assert.eq(rock.stats.noBattleUse, true, '资源带 `noBattleUse` 声明');
 	});
 
-	test('★#1841 ④：只带资源 ⇒ 选单只剩「跳过」＋ **出声说明**（✗ 让玩家对着空菜单猜）', async () => {
+	test('★#1841 ④：**无空手能力**者只带资源 ⇒ 选单只剩「跳过」＋ **出声说明**（✗ 静默空菜单）', async () => {
+		/* ★`#1854` 后本格**改了主体**：`DND3.Player` 现有「空手打击」⇒ 不再是「只剩跳过」。
+		 *   本格要守的是**那条退路**本身（「没有任何战斗手段 ⇒ 出声」）⇒ 改用**无空手能力**的普通角色
+		 *   （`new Character`：instance 无 `unarmed`）。⇒ 该支仍须存在（✗ 因空手落地就删掉它）。 */
 		R().give('rock');
-		const battle = mkBattle();
 		const lines = [];
+		/* ⚠ `properties: ['player']` 是**必要**的：交互通路由 `isPlayerControlled` 判（`40-battle.js`）——
+		 *   缺它则走**自动**通路（不接受选单、也不出本条说明）。 */
+		const plain = new (R().Character)({ name: '路人', hp: 10, maxHp: 10, stats: {}, effects: [],
+			properties: ['player'] });
+		plain.items = State.variables.inventory;
+		const foe = new (R().Character)({ name: '靶', hp: 1 });
+		const battle = new (R().Battle)(2, [plain], [foe], true);
 		battle.perform = (t) => lines.push(String(t));
-		const P = setup.DND3.Player;
-		const saved = { items: P.items, choice: P.choice };
-		P.items = State.variables.inventory;
-		P.choice = async () => 'skip';
-		try { await battle.execute(); } finally { P.items = saved.items; P.choice = saved.choice; }
+		const saved = plain.choice;
+		plain.choice = async () => 'skip';
+		try { await battle.execute(); } finally { plain.choice = saved; }
 		assert.ok(lines.some((l) => l.includes('在战斗中都用不上')), `★出了说明（✗ 静默空菜单）：${JSON.stringify(lines)}`);
 	});
 

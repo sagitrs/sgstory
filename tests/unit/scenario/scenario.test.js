@@ -128,6 +128,20 @@
 		assert.eq(SC().resolveFixture('没有这个名'), undefined, '★缺名 ⇒ undefined（✗ 抛：只读面不该中断）');
 	});
 
+	test('★#1878 折甲：**挂载点＝消费点**（同一对象）—— ✗ 只挂 `globalThis` 会让消费侧恒空', () => {
+		/* ★立档理由（`tester-4` T RC 的阻断）：本面原只挂 `globalThis.__scenario`，
+		 *   而消费侧（故事／runner）读 `setup.RPG.__scenario` ⇒ **不是同一个对象** ⇒ 恒空
+		 *   ⇒ `--dump-facts=engineFixtures count` 恒 0，与「没有夹具」**不可分辨**。
+		 *   ★那正是本仓反复那族：**`?? {}` 把「没有」与「空」合成一个值**。 */
+		assert.eq(setup.RPG.__scenario, globalThis.__scenario,
+			'★两处须是**同一个对象**（✗ 复制一份 ⇒ 注册进一个、读另一个）');
+		SC().registerFixture('f-两面一致', () => ({ hp: 5 }));
+		assert.ok(Object.keys(setup.RPG.__scenario.fixtures).includes('f-两面一致'),
+			'★经消费点的读法**也看得到**注册结果（这才是「面接通」的机械判据）');
+		SC().clearFixtures();
+		assert.eq(Object.keys(setup.RPG.__scenario.fixtures).length, 0, '清空对两处同时生效（同一份字典）');
+	});
+
 	/* ---------- ② 推一步 ---------- */
 
 	test('#1806 笔2：`dispatch` 返回 status ＋ 前后存档面 ＋ 可读 delta ＋ 输出行', () => {

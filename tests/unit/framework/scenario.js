@@ -219,6 +219,22 @@
 		return now;
 	};
 
+	/**
+	 * ★★`#1878`（`tester-4` RC 折·领队裁**甲**）：**挂载点须同时暴露到消费点**。
+	 *
+	 * ## 病灶（T 席机械证据）
+	 *   本面原先**只**挂 `root.__scenario`（`root` ＝ `globalThis`），而**消费侧**读的是
+	 *   `setup.RPG.__scenario`（books `tests/scenario/run.mjs:359` 的 `R.__scenario`）——
+	 *   **两者不是同一个对象** ⇒ 消费侧**恒读到 `undefined`**（`?? {}` 把它变成「空」）
+	 *   ⇒ `--dump-facts=engineFixtures count` 恒 **0**，与「没有夹具」**不可分辨**。
+	 *   ★这正是本仓反复那族：**挂载点 ≠ 消费点 ⇒ 静默读空**（`?? {}` 把「没有」与「空」合成一个值）。
+	 *
+	 * ## 折法（一行级）：**两处都挂**（同一对象，✗ 两份副本）
+	 *   · `root.__scenario` —— 引擎侧自测读这里（`tests/unit/scenario/chains.test.js:10`）
+	 *   · `root.setup.RPG.__scenario` —— 消费侧（故事／runner）读这里
+	 *   ⇒ 两处**指向同一对象** ⇒ 不存在「两边不同步」的可能（`fixtures` 是同一份字典）。
+	 *   ⚠ `setup.RPG` 可能不在（本文件头已断言它在，但那是加载期；此处再兜一次，✗ 硬抛）。
+	 */
 	root.__scenario = {
 		loadFixture, dispatch, assertSave,
 		snapshot, diff, digest, canonical,
@@ -244,7 +260,9 @@
 		 * ## 层级（`#1878` 裁定）
 		 *   **机制在本文件**（引擎侧），**注册发生在故事侧**（`stories/**` 随故事走）——
 		 *   ✗ 引擎反过来知道故事的状态（`$babelRun` 之类不是引擎语汇）。
-		 *   ⇒ 装载故事后 `Object.keys(R.__scenario.fixtures)` 应 **> 0**（该读数即可作刀：面接通了）。
+		 *   ⇒ 装载故事后 `Object.keys(setup.RPG.__scenario.fixtures)` 应 **> 0**（该读数即可作刀：面接通了）——
+		 *     ★本面**两处都挂**（`globalThis.__scenario` ＋ `setup.RPG.__scenario`，同一对象）⇒ 该断言**现在真成立**
+		 *     （此前只挂 `globalThis` 而消费侧读 `setup.RPG` ⇒ 恒 0，见文件尾的折甲注释）。
 		 *
 		 * @param name 夹具名（非空字符串；重名 ⇒ **覆盖**并返回名字，供链式）
 		 * @param fn   `() => 裸状态对象`（惰性、可多次调用、须每次给新对象）
@@ -272,4 +290,9 @@
 		/** 清空已注册 fixture（用例之间隔离） */
 		clearFixtures() { for (const k of Object.keys(fixtures)) delete fixtures[k]; },
 	};
+	/* ★`#1878` 折甲：**同一对象**再暴露到消费点（故事／runner 读 `setup.RPG.__scenario`）——
+	 *   ✗ 复制一份（那会造出两个字典 ⇒ 注册进一个、读另一个 ⇒ 静默读空）。
+	 *   挂不上（无 `setup.RPG`）⇒ **不抛**（本文件只在被测物之后加载，正常路径下它必在；
+	 *   这里兜的是「单独加载本文件做静态检查」那种场景）。 */
+	if (root.setup?.RPG) root.setup.RPG.__scenario = root.__scenario;
 })(typeof globalThis !== 'undefined' ? globalThis : window);

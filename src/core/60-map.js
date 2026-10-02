@@ -261,6 +261,8 @@ RPG.MapScene = class MapScene extends RPG.Scene {
 	 * 不得再把地图与选项画进新段落。判据取 `State.passage`（引擎真实接口：`enginePlay`
 	 * 内同步 `State.create` 更新）；取不到时以 `null` 表示「不判定」，退回旧行为。 */
 	#passageAtRender = null;
+	/* ★`#1855`（P2-3 探索视图·替换式 甲案）：场景头只在进场时印一次 ⇒ 本字段记录上次印过的地点。 */
+	#headerLoc = null;
 
 	/* 段落是否已在本次选择期间被导航走（`#1749` D2）。任一读数缺失 ⇒ 不判定（`false`）。 */
 	#leftPassage() {
@@ -280,8 +282,15 @@ RPG.MapScene = class MapScene extends RPG.Scene {
 		const { desc, exits } = this.map.render();
 		const loc = this.map.locations.get(this.map.current);
 
-		this.perform(`【${loc.name}】`);
-		if (desc) this.perform(desc);
+		/* ★`#1855`（P2-3 探索视图·替换式）：**场景头只在进场时印一次**。
+		 *   此前无条件印 ⇒ 而动作是**自环重绘**（见下方注释） ⇒ 同层重复动作 ⇒ 【层名】＋desc **整段堆叠**（复测 3 次实测）。
+		 *   判据：同层重复动作後【层名】出现次数 **恒 1**；离层再回 ⇒ 再印一次（各自正确）。
+		 *   ⚠ 乙案（固定不滚的场景头 DOM）属 **0.0.2+**（探索页结构） ⇒ 本笔 ✗ 做。 */
+		if (this.map.current !== this.#headerLoc) {
+			this.perform(`【${loc.name}】`);
+			if (desc) this.perform(desc);
+			this.#headerLoc = this.map.current;
+		}
 
 		// 交互选项（此位置可做的事，自循环重绘）
 		const actions = loc.availableActions;

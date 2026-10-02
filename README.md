@@ -5,6 +5,13 @@ master/main 自本提交起重启为空干线。
 
 ---
 
+## 测试工具
+
+**测试工具根**：[`tests/`](tests/)（单元 / e2e / 门与 pin-cache 台账；索引见 [`tests/README.md`](tests/README.md)）。
+工具退役或移动时须**同步本声明**（条款：gsvector-process#300 · tester.md「测试工具落盘与复用」）。
+
+---
+
 ## 规则来源（groundtruth）
 
 本仓 `src/dnd/**` 的**规则数值**（武器伤害骰、护甲 AC、怪物数值块、判定数学）**不是**凭空拟定，

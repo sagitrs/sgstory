@@ -52,17 +52,17 @@ RPG.deliverYields = (who, yields, label) => {
 		 *     ⇒ `dev-9` 判「改了 `give`、留旧分支、留假注释 ⇒ 不可合」，**成立**。
 		 *
 		 * ## 现在（判据单点，实现两形态**显式**分工）
-		 *   · **新件入包**（本函数与 `give` 同语义）⇒ **都**走 `RPG.giveInto(bag, id, n)`；
-		 *   · **快照转移**（`RPG.loot`，保留**剩余次数**）⇒ 走它自己的路（✗ `giveInto` —— 那会按 `def.charges`
+		 *   · **新件入包**（本函数与 `give` 同语义）⇒ **都**走 `RPG.deposit(bag, id, n)`；
+		 *   · **快照转移**（`RPG.loot`，保留**剩余次数**）⇒ 走它自己的路（✗ `deposit` 的新件形 —— 那会按 `def.charges`
 		 *     **回满**，有反例格钉住）；两者**共用 `RPG.canStack(def)` 判据**（✗ 各写一遍）。
 		 *   ⇒ 三层（`give`／本函数／`loot`）**形态一致**：可叠加 ⇒ 单槽；否则 ⇒ 逐件。 */
 		const count = () => bag.filter((s) => s.id === y.id).reduce((a, s) => a + (s.charges ?? 1), 0);
 		const before = count();
 		const def = RPG.createItem(y.id);
 		/* ⚠ 玩家背包走 `give` 是为了**N-2 的「＋n 名」提示**（本函数另有「采得」文案）；
-		 *   两条路**投递实现同一**（都进 `giveInto`），差别只在**是否出声**。 */
+		 *   两条路**投递实现同一**（都进 `deposit`），差别只在**是否出声**。 */
 		if (bag === State.variables?.inventory) RPG.give(y.id, n);
-		else RPG.giveInto(bag, y.id, n);
+		else RPG.deposit(bag, y.id, n);
 		const gained = count() - before;
 		if (gained > 0) got.push(`${def.name}×${gained}`);
 	}

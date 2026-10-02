@@ -55,7 +55,7 @@
 		/* ① 玩家路 */
 		R().give('rock', 2);
 		const 玩家 = JSON.stringify(inv());
-		/* ② 同伴路（`bag !== State.variables.inventory` ⇒ 走 `giveInto`） */
+		/* ② 同伴路（`bag !== State.variables.inventory` ⇒ 走 `deposit`） */
 		const companion = { name: '同伴', hp: 10, items: [] };
 		R().deliverYields(companion, [{ id: 'rock', n: 2 }], '测试');
 		const 同伴 = JSON.stringify(companion.items);

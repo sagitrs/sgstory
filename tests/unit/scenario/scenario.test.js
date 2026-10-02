@@ -74,6 +74,122 @@
 		assert.ok(msg.includes('基本局'), `★应列出已注册的（可诊断）：${msg}`);
 	});
 
+	/* ---------- ①b 具名夹具登记面（`#1878`）---------- */
+
+	test('#1878：`registerFixture` 收**函数**（惰性）—— ✗ 注册时求值、✗ 共享引用', () => {
+		/* ★立档理由：`setup.DND3.stats()` 的返回块含 Symbol 键（`[PACK]:'dnd3'`），
+		 *   而 inline JSON **表达不了 Symbol** ⇒ 用 inline 建的角色态丢 pack 标记 ⇒ 跨包同名遮蔽判不出（**假绿**）。
+		 *   函数形在**故事侧环境就绪后**求值 ⇒ 标记保住。 */
+		let calls = 0;
+		SC().registerFixture('f-计数', () => { calls++; return { hp: 7, inventory: [] }; });
+		assert.eq(calls, 0, '★注册**不**调用（惰性 —— 此刻求值会把 Symbol/故事态冻住）');
+		SC().loadFixture('f-计数');
+		assert.eq(calls, 1, 'loadFixture 才求值');
+		assert.eq(State.variables.hp, 7, '状态已落');
+		/* ★每次新建 ⇒ 用例之间天然隔离（对象形是共享引用 ⇒ 跨用例污染） */
+		SC().loadFixture('f-计数');
+		assert.eq(calls, 2, '★再 load 再求值（✗ 复用同一份）');
+	});
+
+	test('#1878：`resolveFixture` **不克隆** ⇒ 保住 Symbol 标记；inline JSON 形**必丢**（假绿的机械判据）', () => {
+		/* ★本席**改过一次本格**（如实记）：首版断言 `loadFixture('具名')` 能保住 Symbol —— **错**。
+		 *   实测：`loadFixture` 对裸状态走 `H.state.set(H.save.roundtrip(obj))`（**JSON 往返**）
+		 *   ⇒ Symbol 键在 `JSON.stringify` 里**根本不出现** ⇒ 具名形一样丢。
+		 *   ⇒ 真正保住标记的是**不克隆的那条路**：`resolveFixture(name)` 返回故事侧**刚求值出来的活对象**
+		 *     （消费方直接赋给 `State.variables` ⇒ 标记随引用留住）。
+		 *   ★这也定了消费侧的用法：runner 要标记就得走 `resolveFixture` ＋**直接赋值**，✗ 走 `loadFixture`。 */
+		const PACK = Symbol.for('unit.pack');
+		SC().registerFixture('f-带标记', () => {
+			const stats = { ac: 12 };
+			stats[PACK] = 'dnd3';                 // 模拟 `setup.DND3.stats()` 的 `[PACK]: 'dnd3'`
+			return { stats, inventory: [] };
+		});
+		assert.eq(SC().resolveFixture('f-带标记').stats[PACK], 'dnd3',
+			'★`resolveFixture`（不克隆）⇒ pack 标记**在**');
+		/* 对照臂 ①：同一份状态走 JSON 往返（`loadFixture` 的路）⇒ 标记消失 */
+		const viaJson = H().save.roundtrip(SC().resolveFixture('f-带标记'));
+		assert.eq(viaJson.stats[PACK], undefined,
+			'★JSON 往返 ⇒ pack 标记**没了**（Symbol 不进 JSON —— 这正是「用错形 ⇒ 假绿」的机械证据）');
+		/* 对照臂 ②：inline 对象直接写（也是 JSON 形的一员）：`scenarios.json` 的 inline 无法表达 Symbol */
+		assert.eq(JSON.parse(JSON.stringify({ stats: { ac: 12 }, [PACK]: 'dnd3' }))[PACK], undefined,
+			'★inline JSON 形**表达不了** Symbol（`[PACK]` 键在 stringify 时即被丢弃）');
+	});
+
+	test('#1878：`registerFixture` 的契约（名字非空、须给函数、`resolveFixture` 只读）', () => {
+		let msg = '';
+		try { SC().registerFixture('', () => ({})); } catch (e) { msg = e.message; }
+		assert.ok(msg.includes('非空字符串'), `空名须拒：${msg}`);
+		msg = '';
+		try { SC().registerFixture('f-坏', { hp: 1 }); } catch (e) { msg = e.message; }
+		assert.ok(msg.includes('须给函数') && msg.includes('fixture(name, state)'),
+			`★给对象须拒**并指向旧形**（可诊断）：${msg}`);
+		SC().registerFixture('f-读', () => ({ hp: 3 }));
+		assert.eq(SC().resolveFixture('f-读').hp, 3, 'resolveFixture 求值');
+		assert.eq(SC().resolveFixture('没有这个名'), undefined, '★缺名 ⇒ undefined（✗ 抛：只读面不该中断）');
+	});
+
+	test('★#1878 折单③：**跨形覆盖抛具名**（✗ 静默改掉隔离语义）', () => {
+		/* ★立档理由（`dev-10` 增量二）：同名已由**对象形**登记时，再用**函数形**登记 ⇒ 原先静默覆盖
+		 *   ⇒ 共享引用语义变成每次新建语义，而 `loadFixture` 只按「是不是函数」分野 ⇒ **隔离语义无声消失**。
+		 *   ⚠ 同形覆盖**仍允许**（有意替换、语义不变）—— 只拦跨形。 */
+		SC().fixture('f-同形', { hp: 1 });
+		SC().fixture('f-同形', { hp: 2 });                       // 同形替换 ⇒ 不抛
+		assert.eq(SC().loadFixture('f-同形').hp, 2, '同形覆盖照旧（语义不变）');
+		let msg = '';
+		try { SC().registerFixture('f-同形', () => ({ hp: 3 })); } catch (e) { msg = e.message; }
+		assert.ok(msg.includes('跨形覆盖') && msg.includes('隔离语义'),
+			`★对象形被函数形覆盖须抛具名：${msg}`);
+		assert.ok(msg.includes('共享引用') && msg.includes('每次新建'),
+			`★报文须指出**两种语义**（可诊断）：${msg}`);
+		/* 反向臂：函数形被对象形覆盖 */
+		msg = '';
+		SC().registerFixture('f-反', () => ({ hp: 1 }));
+		try { SC().fixture('f-反', { hp: 2 }); } catch (e) { msg = e.message; }
+		assert.ok(msg.includes('跨形覆盖') && msg.includes('函数'),
+			`★函数形被对象形覆盖亦须抛：${msg}`);
+	});
+
+	test('★#1878 折单④：**构造抛错带夹具名**（✗ 只有内部报文、不知是哪个夹具）', () => {
+		/* ★立档理由（`dev-10` 增量三）：`fn()` 直接冒泡 ⇒ 报文里可能只有
+		 *   `Cannot read properties of undefined` ⇒ **不知道是哪个夹具坏的**（`tester-4` 实测两处都冒泡）。 */
+		SC().registerFixture('f-炸', () => { throw new Error('内部原话：读不到 L1'); });
+		let e1 = null;
+		try { SC().resolveFixture('f-炸'); } catch (e) { e1 = e; }
+		assert.ok(e1 != null, 'resolveFixture 须冒泡（✗ 吞）');
+		assert.ok(e1.message.includes('f-炸'), `★报文须带**夹具名**：${e1?.message}`);
+		assert.ok(e1.message.includes('内部原话'), `★并留住**原文**：${e1?.message}`);
+		assert.eq(e1.fixtureName, 'f-炸', '机读面 fixtureName');
+		assert.ok(e1.cause != null && e1.cause.message.includes('内部原话'), '★cause 留住原异常对象（✗ 覆盖）');
+		/* 同一条路：`loadFixture` 也须带名（两处都走 `callFixture`） */
+		let e2 = null;
+		try { SC().loadFixture('f-炸'); } catch (e) { e2 = e; }
+		assert.ok(e2?.message.includes('f-炸'), `★loadFixture 亦须带名：${e2?.message}`);
+	});
+
+	test('★#1878 折单③/④：`null`（在册却铺不出）vs `undefined`（没注册）**可分辨**', () => {
+		/* `tester-4` 实测指出：两者返回值可分辨，但**无格钉住**，且语义差极细。
+		 *   ⇒ 本格把它钉死（下游 `--dump-facts` 若要区分「名字在册但坏了」与「名字根本不在」就靠它）。 */
+		SC().registerFixture('f-空', () => null);
+		assert.eq(SC().resolveFixture('f-空'), null, '★在册但构造出 null ⇒ 返回 null');
+		assert.eq(SC().resolveFixture('f-从没注册过'), undefined, '★没注册 ⇒ undefined');
+		assert.ok(SC().resolveFixture('f-空') !== SC().resolveFixture('f-从没注册过'),
+			'★两者须**可分辨**（null !== undefined）');
+	});
+
+	test('★#1878 折甲：**挂载点＝消费点**（同一对象）—— ✗ 只挂 `globalThis` 会让消费侧恒空', () => {
+		/* ★立档理由（`tester-4` T RC 的阻断）：本面原只挂 `globalThis.__scenario`，
+		 *   而消费侧（故事／runner）读 `setup.RPG.__scenario` ⇒ **不是同一个对象** ⇒ 恒空
+		 *   ⇒ `--dump-facts=engineFixtures count` 恒 0，与「没有夹具」**不可分辨**。
+		 *   ★那正是本仓反复那族：**`?? {}` 把「没有」与「空」合成一个值**。 */
+		assert.eq(setup.RPG.__scenario, globalThis.__scenario,
+			'★两处须是**同一个对象**（✗ 复制一份 ⇒ 注册进一个、读另一个）');
+		SC().registerFixture('f-两面一致', () => ({ hp: 5 }));
+		assert.ok(Object.keys(setup.RPG.__scenario.fixtures).includes('f-两面一致'),
+			'★经消费点的读法**也看得到**注册结果（这才是「面接通」的机械判据）');
+		SC().clearFixtures();
+		assert.eq(Object.keys(setup.RPG.__scenario.fixtures).length, 0, '清空对两处同时生效（同一份字典）');
+	});
+
 	/* ---------- ② 推一步 ---------- */
 
 	test('#1806 笔2：`dispatch` 返回 status ＋ 前后存档面 ＋ 可读 delta ＋ 输出行', () => {

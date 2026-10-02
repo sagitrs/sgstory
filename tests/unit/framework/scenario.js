@@ -115,12 +115,67 @@
 	 * @param fixture ① `{state:{…}}`（存档对象形）② 裸状态对象 ③ 已注册的 fixture 名
 	 * @returns 装入后的存档面投影
 	 */
+	/**
+	 * ★★`#1878` 折单③：**跨形覆盖的共享守卫**（`fixture()` 与 `registerFixture()` **都调它**）。
+	 *
+	 * 为何要拦：两种形**语义不同** —— 对象形是**共享引用**（同一份给所有用例）、
+	 *   函数形是**每次新建**（天然隔离）。同名**跨形**覆盖 ⇒ 语义被静默改掉，而
+	 *   `loadFixture` 只按「是不是函数」分野 ⇒ 调用方**看不出**自己拿到的是哪种 ⇒ 隔离性无声消失。
+	 *   ⚠ **同形覆盖照旧允许**（有意替换、语义不变）—— 只拦跨形。
+	 *   ★与 `:122`「未注册名 ⇒ 具名错」**对称**：两个方向都出声（✗ 只拦一头 —— 本席首版正是只拦一头，
+	 *     反向臂格当场红）。
+	 * @param want 'function' | 'object'（**将要**登记的形）
+	 */
+	const assertNotCrossForm = (name, want) => {
+		const prev = fixtures[name];
+		if (prev == null) return;
+		const prevIsFn = typeof prev === 'function';
+		const wantIsFn = want === 'function';
+		if (prevIsFn === wantIsFn) return;                 // 同形 ⇒ 放行
+		throw new Error(`夹具名「${name}」已由**${prevIsFn ? '函数' : '对象'}**形登记`
+			+ `，现在要用**${wantIsFn ? '函数' : '对象'}**形登记 ⇒ **跨形覆盖**会静默改掉隔离语义`
+			+ `（${prevIsFn ? '每次新建' : '共享引用'} ⇒ ${wantIsFn ? '每次新建' : '共享引用'}）。`
+			+ '同名替换请用**同一形**；要两种语义请用**两个名字**。');
+	};
+
+/**
+	 * ★★`#1878` 折单④（`dev-10` 增量三）：**夹具构造抛错时补上夹具名**。
+	 *
+	 * 病灶：`fn()` 直接冒泡 ⇒ 报文里只有构造体内部的话（可能只有 `Cannot read properties of undefined`）
+	 *   ⇒ **不知道是哪个夹具坏的**（`tester-4` 实测两处都直接冒泡）。而夹具名恰恰是定位所需的唯一线索。
+	 *   ★与 `:122` 的「未注册名 ⇒ 列出已注册」**对称**：**名字是诊断的入口**。
+	 *   ⚠ **不改写原文**（`e.message` 逐字附在 `cause` 后），只**补上下文** ⇒ 构造体的报错仍可读。
+	 *   ⚠ 只包**函数形**的求值，✗ 不包 `loadFixture` 的其余流程（那会吞掉真缺陷的归因）。
+	 */
+	const callFixture = (name, fn) => {
+		try {
+			return fn();
+		} catch (e) {
+			const err = new Error(`夹具「${name}」的构造**抛错**：${e?.message ?? e}`);
+			err.cause = e;                       // ★原文留住（✗ 覆盖）
+			err.fixtureName = name;              // 机读面（调用方/刀可断）
+			throw err;
+		}
+	};
+
 	const loadFixture = (fixture) => {
 		const obj = typeof fixture === 'string'
 			? (() => {
 				const f = fixtures[fixture];
 				if (f == null) throw new Error(`未注册的 fixture：「${fixture}」（已注册：${Object.keys(fixtures).join('、') || '（无）'}）`);
-				return f;
+				/* ★`#1878`：具名夹具可以是**对象**（旧形）或**函数**（新形）——函数**在此刻调用**（✗ 注册时），
+				 *   因为「故事侧环境是否就绪」只有走到这里才有保证；注册发生在脚本装载期。
+				 *   ⚠ 函数形**每次调用都新建**一份 ⇒ 用例之间天然隔离（这是取函数而非对象的关键收益）。
+				 *
+				 * ★★**别误会这条路的性质**（本席实测改正过一次，原文在此处写错过）：
+				 *   `loadFixture` 对裸状态走 `H.state.set(H.save.roundtrip(obj))` —— **JSON 往返**，
+				 *   而 `JSON.stringify` **不含 Symbol 键** ⇒ ⇒ **走本条路，Symbol 标记一定丢**
+				 *   （`[PACK]:'dnd3'` 这类）。所以「函数形 ⇒ Symbol 就保住了」是**错的**。
+				 *   ⇒ **要保住标记**（跨包同名遮蔽的判据）须走 **`resolveFixture(name)` ＋ 直接赋给
+				 *     `State.variables`**（那条路**不克隆**）—— 见本对象 `resolveFixture` 的注释与
+				 *     单测里的对照臂（「JSON 往返必丢 Symbol」）。
+				 *   ⇒ 本函数保持既有语义（**进档形**的状态铺设），✗ 不改它去迁就标记。 */
+				return typeof f === 'function' ? callFixture(fixture, f) : f;
 			})()
 			: fixture;
 		if (obj == null || typeof obj !== 'object') {
@@ -207,18 +262,98 @@
 		return now;
 	};
 
+	/**
+	 * ★★`#1878`（`tester-4` RC 折·领队裁**甲**）：**挂载点须同时暴露到消费点**。
+	 *
+	 * ## 病灶（T 席机械证据）
+	 *   本面原先**只**挂 `root.__scenario`（`root` ＝ `globalThis`），而**消费侧**读的是
+	 *   `setup.RPG.__scenario`（books `tests/scenario/run.mjs:359` 的 `R.__scenario`）——
+	 *   **两者不是同一个对象** ⇒ 消费侧**恒读到 `undefined`**（`?? {}` 把它变成「空」）
+	 *   ⇒ `--dump-facts=engineFixtures count` 恒 **0**，与「没有夹具」**不可分辨**。
+	 *   ★这正是本仓反复那族：**挂载点 ≠ 消费点 ⇒ 静默读空**（`?? {}` 把「没有」与「空」合成一个值）。
+	 *
+	 * ## 折法（一行级）：**两处都挂**（同一对象，✗ 两份副本）
+	 *   · `root.__scenario` —— 引擎侧自测读这里（`tests/unit/scenario/chains.test.js:10`）
+	 *   · `root.setup.RPG.__scenario` —— 消费侧（故事／runner）读这里
+	 *   ⇒ 两处**指向同一对象** ⇒ 不存在「两边不同步」的可能（`fixtures` 是同一份字典）。
+	 *   ⚠ `setup.RPG` 可能不在（本文件头已断言它在，但那是加载期；此处再兜一次，✗ 硬抛）。
+	 */
 	root.__scenario = {
 		loadFixture, dispatch, assertSave,
 		snapshot, diff, digest, canonical,
 		fixtures,
-		/** 注册 fixture（返回注册名，便于链式/内联用） */
+		/** 注册 fixture（返回注册名，便于链式/内联用）—— **对象**形：铺一份**固定**状态 */
 		fixture(name, state) {
 			if (typeof name !== 'string' || name === '') throw new Error('fixture 名须是非空字符串');
 			if (state == null || typeof state !== 'object') throw new Error(`fixture「${name}」的 state 须是对象`);
+			/* ★★`#1878` 折单③（反向臂）：**本形也要拦跨形覆盖** —— 只拦 `registerFixture` 一头，
+			 *   就等于「函数形登记被对象形静默降级」这条路**仍然开着**（本席首版正是只拦一头 ⇒
+			 *   反向臂格当场红：`fixture('f-反', …)` 没抛）。**两个方向都出声**才算拦全。 */
+			assertNotCrossForm(name, 'object');
 			fixtures[name] = state;
 			return name;
+		},
+
+		/**
+		 * ★`#1878` **夹具登记面**：注册**具名夹具**（`fn` 形）。
+		 *
+		 * ## 为什么需要函数形（✗ 对象形就够）
+		 *   1. **Symbol 键**：`setup.DND3.stats()` 的返回块含 `[PACK]:'dnd3'`（`dnd3/00-init.js`）——
+		 *      该标记随 `{ ...stats }` 展开保留 ⇒ 是「这件装备/这个角色属哪个规则包」的**唯一机器可读依据**
+		 *      （同名遮蔽的判据）。而 `scenarios.json` 的 inline JSON **表达不了 Symbol** ⇒ 用 inline 建的角色态
+		 *      **丢掉 pack 标记** ⇒ 跨包同名遮蔽判不出 ⇒ **假绿**。函数形在故事侧求值 ⇒ 标记保住。
+		 *   2. **每次新建**：函数形 ⇒ 每个用例各得一份**全新**状态（对象形是**共享引用** ⇒ 跨用例污染）。
+		 *
+		 * ## 层级（`#1878` 裁定）
+		 *   **机制在本文件**（引擎侧），**注册发生在故事侧**（`stories/**` 随故事走）——
+		 *   ✗ 引擎反过来知道故事的状态（`$babelRun` 之类不是引擎语汇）。
+		 * ## ★消费侧接通的**前提**（`tester-4` 与 `dev-10` 两席独立指出 ⇒ 此处**明账**，✗ 只写「应 > 0」）
+		 *   本面**两处都挂同一对象**（`globalThis.__scenario` ＋ `setup.RPG.__scenario`；见文件尾折甲注释）⇒
+		 *   「装载故事后 `Object.keys(setup.RPG.__scenario.fixtures)` > 0」**这个断言本身是成立的**。
+		 *   ⚠ **但它还差两件才真在 runner 上跑出来**（本笔**不做**，归 books 侧下一笔）：
+		 *     1. **runner 须额外装载本文件**（`tests/unit/framework/scenario.js`）——
+		 *        books 的装载序今日是 `host → shims → bundle`（✗ 不含本档）⇒ 面**不存在**，与「没有夹具」不可分辨；
+		 *     2. **书目侧的读法**：`books/tests/scenario/run.mjs:44` 的 `desc` 写 `RPG.__scenario.fixtures`
+		 *        —— 折甲后**读得到了**，但该处文案与装载是**下一笔**的事。
+		 *   ⇒ **未接通之前**，`--dump-facts=engineFixtures count` 恒 **0** 是**预期**（✗ 别当成「没有夹具」）。
+		 *   ★这正是本席今晚反复那族：**一个「应 > 0」的断言，在通路未接时与「本来就是空」不可分辨**。
+		 *     ⇒ 所以此处写**前提**（装载本档 ＋ 读法），而非只写期望值。
+		 *
+		 * @param name 夹具名（非空字符串；重名 ⇒ **覆盖**并返回名字，供链式）
+		 * @param fn   `() => 裸状态对象`（惰性、可多次调用、须每次给新对象）
+		 * @returns 注册名
+		 */
+		registerFixture(name, fn) {
+			if (typeof name !== 'string' || name === '') throw new Error('registerFixture 的名字须是非空字符串');
+			if (typeof fn !== 'function') {
+				throw new Error(`registerFixture「${name}」须给函数（惰性构造）—— 收到 ${show(fn)}。`
+					+ '要铺一份固定状态请用 fixture(name, state)。');
+			}
+			/* ★★`#1878` 折单③（`dev-10` 增量二）：**跨形覆盖须抛具名**（判据单点 `assertNotCrossForm`）。
+			 *   病灶：对象形（**共享引用**）被函数形（**每次新建**）静默覆盖 ⇒ **隔离语义无声消失**
+			 *   （调用方以为还是那一份，实际每次新造）。反之亦然。
+			 *   ⚠ **同形覆盖照旧允许**（有意替换、语义不变）；只拦**跨形**。
+			 *   ★两个方向都要拦（`fixture()` 与 `registerFixture()` 各调一次）—— 只拦一头等于留一半路。 */
+			assertNotCrossForm(name, 'function');
+			fixtures[name] = fn;
+			return name;
+		},
+
+		/**
+		 * 取一个具名夹具的**求值结果**（新建一份）—— 供 `--dump-facts` 之类**只读**消费面。
+		 * @returns 裸状态对象；无此名 ⇒ `undefined`（✗ 抛：只读面不该因缺名中断，是否红由调用方判）
+		 */
+		resolveFixture(name) {
+			const f = fixtures[name];
+			if (f == null) return undefined;
+			return typeof f === 'function' ? callFixture(name, f) : f;
 		},
 		/** 清空已注册 fixture（用例之间隔离） */
 		clearFixtures() { for (const k of Object.keys(fixtures)) delete fixtures[k]; },
 	};
+	/* ★`#1878` 折甲：**同一对象**再暴露到消费点（故事／runner 读 `setup.RPG.__scenario`）——
+	 *   ✗ 复制一份（那会造出两个字典 ⇒ 注册进一个、读另一个 ⇒ 静默读空）。
+	 *   挂不上（无 `setup.RPG`）⇒ **不抛**（本文件只在被测物之后加载，正常路径下它必在；
+	 *   这里兜的是「单独加载本文件做静态检查」那种场景）。 */
+	if (root.setup?.RPG) root.setup.RPG.__scenario = root.__scenario;
 })(typeof globalThis !== 'undefined' ? globalThis : window);

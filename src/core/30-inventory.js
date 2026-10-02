@@ -13,31 +13,50 @@ const inv = () => {
 /** 发放道具（同 id 可叠加时会合并剩余次数）；`n < 0` ⇒ 消耗，走 `RPG.take`。
  *  ★`#1877` N-2：增减**可读提示**（`＋n 名` 一行，走正常输出通道）——「凭空多出又莫名减少」不可理解。
  *  ⚠ 只在**数量净变化**时出声（首投建槽／纯合并都算；`n===0`／投递 0 件不出声）。 */
+/** ★`#1877` P1-5①（`dev-9` 阻断①折）：**「可叠加」判据的单点**。
+ *   三处投递（`give` 玩家路／`deliverYields` 同伴路／`loot` 快照转移）都问这一个谓词 ——
+ *   ✗ 各写一遍（那正是 `#1844` 的教训：同判据多处副本 ⇒ 改一处留三处）。
+ *   ⚠ 判据＝`stackable **且** charges != null`（两者缺一即「每件一个独立条目」，如 `iron-key`）。 */
+RPG.canStack = (def) => def?.stackable === true && def?.charges != null;
+
+/**
+ * **把 n 件「新件」投进指定背包**（`#1877` P1-5① 的唯一实现 —— ✗ 各调用方自造）。
+ *
+ * - `canStack(def)` ⇒ **单槽**（`charges = def.charges * n`）—— ✗ `n` 个槽（旧形，实测得「石料×1、石料×1」）
+ * - 否则 ⇒ **逐件建槽**（每件一个独立条目：`iron-key` 等非堆叠件）
+ * - **静默**（✗ 发提示）——提示属**调用方**语义（`give` 有 N-2 的「＋n 名」、`deliverYields` 有自己的「采得」文案），
+ *   放进来会**双份**。
+ *
+ * ★与 `RPG.loot` 的分工（`dev-9` 阻断①处置）：本函数是「**造新件**」语义；`loot` 转移的是**快照本身**
+ *   （保留**剩余次数**，如用过的绷带 `charges: 1`）⇒ 不能走本函数（那会按 `def.charges` **回满**，
+ *   有反例格钉住）。两者**共用 `canStack` 判据**，实现分开 —— 此为**显式**取舍（✗ 静默分叉）。
+ *
+ * @param bag 目标背包数组（可为玩家 `$inventory` 或同伴/怪物的 `items`）
+ * @param id  道具 id
+ * @param n   件数（正整数；调用方已校验）
+ * @returns number 实际入包件数
+ */
+RPG.giveInto = (bag, id, n) => {
+	const def = RPG.createItem(id);
+	if (RPG.canStack(def)) {
+		const slot = bag.find((s) => s.id === id);
+		if (slot) { slot.charges += def.charges * n; return def.charges * n; }
+		bag.push({ ...def.toJSON(), charges: def.charges * n });
+		return def.charges * n;
+	}
+	for (let i = 0; i < n; i++) bag.push(def.toJSON());
+	return n;
+};
+
 RPG.give = (id, n = 1) => {
 	const def = RPG.createItem(id); // 读默认定义（次数、可否叠加）
-	const list = inv();
 	if (!Number.isInteger(n)) throw new Error(`RPG.give 的 n 须为整数（收到 ${n}）——次数计数不允许小数`);
 	if (n < 0) return RPG.take(id, -n); // 负数即消耗，见 RPG.take
 	if (n === 0) return;
-	if (def.stackable && def.charges != null) {
-		/* ★`#1877` P1-5：**首投也并槽**（✗ 逐件 push）—— 修复「石料×1、石料×1」。
-		 *   原形：有同类槽 ⇒ `charges += def.charges * n`（一次并入）；**无**同类槽 ⇒ **push n 个槽**
-		 *   ⇒ 同一次 `give('rock',2)` 产出**两个 `charges:1` 槽**（本席实测读数），
-		 *   与合并分支**形态分叉**（`take` 却按「总量」扣 ⇒ 两边对不上）。
-		 *   ⚠ 战利品等**非堆叠**件（`stackable` 假）仍逐件建槽 —— 那是「每件一个独立条目」的既有语义。 */
-		const slot = list.find((s) => s.id === id);
-		if (slot) {
-			slot.charges += def.charges * n;
-			RPG.perform(`＋${def.charges * n} ${def.name}`);
-			return;
-		}
-		list.push({ ...def.toJSON(), charges: def.charges * n });
-		RPG.perform(`＋${def.charges * n} ${def.name}`);
-		return;
-	}
-	const before = list.filter((s) => s.id === id).length;
-	for (let i = 0; i < n; i++) list.push(def.toJSON());
-	const gained = list.filter((s) => s.id === id).length - before;
+	/* ★`#1877` P1-5①：投递收敛到 `RPG.giveInto`（**判据单点**）—— 本函数只管**归口 ＋ 提示**。
+	 *   ⚠ 提示**只在此处**（`giveInto` 保持静默）：`deliverYields` 有自己的「采得」文案 ⇒
+	 *     提示若放进 `giveInto`，采集时会**双份**（本席按此分工，✗ 让两处都出声）。 */
+	const gained = RPG.giveInto(inv(), id, n);
 	if (gained > 0) RPG.perform(`＋${gained} ${def.name}`);
 };
 
@@ -219,7 +238,7 @@ RPG.loot = (victim) => {
 		 *   ⇒ 裸快照**不合并**（本席实测：3 枚硬币仍 3 槽、显示「旧硬币×1、旧硬币×1、旧硬币×1」）。
 		 *   ⇒ 件数取 `s.charges ?? def.charges ?? 1`；落槽时**补写 `charges`**（否则显示层认不出 `×N`）。 */
 		const def = RPG.items.has(s.id) ? RPG.createItem(s.id) : null;
-		const canStack = def?.stackable === true && def.charges != null;
+		const canStack = RPG.canStack(def);   // ★判据单点（`#1877` P1-5① · `dev-9` 阻断①折）
 		const n = s.charges ?? def?.charges ?? 1;
 		const slot = canStack ? inv().find((x) => x.id === s.id) : null;
 		if (canStack && slot) slot.charges = (slot.charges ?? 0) + n;

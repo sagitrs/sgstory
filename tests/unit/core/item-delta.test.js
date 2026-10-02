@@ -42,6 +42,45 @@
 			'★非堆叠件＝每件一个独立条目（本笔**不动**该语义）');
 	});
 
+	/* ---------- P1-5① 判据单点（★`dev-9` 阻断①）---------- */
+
+	test('★#1877 P1-5①【三路一致】玩家 `give`／同伴 `deliverYields`／`loot` **形态须一致**', () => {
+		/* ★立档理由（`dev-9` 阻断①）：本笔把 `give` 的首投改成**单槽**后，
+		 *   `deliverYields` 的**同伴/怪物分支**仍是旧形（无同类槽 ⇒ `for(i<n) push` ⇒ n 个槽）
+		 *   ⇒ **同一 id、同一 n，因 `who` 不同而形态分叉**（玩家「石料×2」1 槽 / 同伴「石料×1、石料×1」2 槽），
+		 *   而下游 `take`／`count()` 按**总量**读 ⇒ 两边对不上。本格把「三路一致」钉住。
+		 *   ⚠ 三路**语义**不同（前两者造新件／`loot` 转移快照），但**形态**（槽数与 charges）须一致 ——
+		 *     判据由 `RPG.canStack(def)` 单点回答（✗ 三处各写一遍，那正是 `#1844` 的教训）。 */
+		fresh();
+		/* ① 玩家路 */
+		R().give('rock', 2);
+		const 玩家 = JSON.stringify(inv());
+		/* ② 同伴路（`bag !== State.variables.inventory` ⇒ 走 `giveInto`） */
+		const companion = { name: '同伴', hp: 10, items: [] };
+		R().deliverYields(companion, [{ id: 'rock', n: 2 }], '测试');
+		const 同伴 = JSON.stringify(companion.items);
+		/* ③ 战利品路（快照转移，件数口径 `charges ?? def.charges ?? 1`） */
+		fresh();
+		const foe = new (R().Character)({ name: '哥布林', hp: 0,
+			items: [{ id: 'rock' }, { id: 'rock' }] });
+		R().loot(foe);
+		const 战利品 = JSON.stringify(inv());
+		/* 三路的 id 不同（rock/rock/rock），比**形状**：都须是单槽且 charges 2 */
+		const 形状 = (json) => json.replace(/"id":"[^"]+"/, '"id":"X"');
+		assert.eq(形状(同伴), 形状(玩家),
+			`★同伴路形态须与玩家路一致（✗ 因 who 分叉）：${同伴} vs ${玩家}`);
+		assert.eq(inv().find((s) => s.id === 'rock').charges, 2, '★战利品路亦单槽 charges 2');
+		assert.eq(inv().filter((s) => s.id === 'rock').length, 1, '★战利品路单槽');
+	});
+
+	test('★#1877 P1-5①【判据单点】`RPG.canStack` —— 三路共用同一谓词（✗ 各写一遍）', () => {
+		/* 判据＝`stackable **且** charges != null`（两者缺一即「每件一个独立条目」）。 */
+		const D3 = () => setup.DND3;
+		assert.eq(R().canStack(R().createItem('rock')), true, '资源（stackable ＋ charges）⇒ 可叠加');
+		assert.eq(R().canStack(R().createItem('iron-key')), false, '钥匙（charges null）⇒ 不可叠加');
+		assert.eq(R().canStack(null), false, '无 def ⇒ 判否（✗ 抛错 —— 调用方在缺件时也要能问）');
+	});
+
 	/* ---------- N-2 增减可见 ---------- */
 
 	/* ---------- P1-5① 战利品路径（★本席 rebase 后发现：`loot` 绕过 `give`）---------- */

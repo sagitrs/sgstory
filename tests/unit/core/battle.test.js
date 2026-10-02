@@ -18,19 +18,19 @@
 		class PacifistBattle extends R().Battle {
 			isOut() { return false; } // 永不出局 → 走满回合后僵持
 		}
-		const e = new (R().Character)({ name: '木桩人', hp: 1 });
-		/* ★`#1892`（E1）改判据**前提**（✗ 放松断言）：本格原来靠「玩家无武器 ⇒ 自动路**干瞪眼** ⇒
-		 *   双方都不出手 ⇒ 无人出局」造「僵持」。而 `#1892` 起，**声明了 `unarmed`** 的角色在自动路
-		 *   也走空手打击 ⇒ `DND3.Player`（有 `unarmed`）会真出手、把 1 血木桩**打晕**（`isDown`）——
-		 *   那是**角色级**出局，✗ 不受 `Battle.isOut()` 钩子管辖 ⇒ 原前提不再成立。
-		 *   ⇒ 本格要测的是**钩子**，故把进攻方换成**未声明 `unarmed`** 的普通角色
-		 *     （＝回到「双方都打不出去」，与 `#1892` 的零回归面一致）；`#1892` 的新行为由
-		 *     `unarmed-strike.test.js` ⑩/⑪ 另守。
-		 *   ⚠ 若把 `PacifistBattle.isOut` 撤掉 ⇒ 木桩（hp 1）本就会被判出局 ⇒ 本格仍具判别力。 */
+		/* ★`#1892` NIT（`dev-9` D RC）：**本格须真有判别力**。
+		 *   原形 `hp: 1` ⇒ 木桩**永不倒**（`isDown = hp <= 0 || isKnockedOut` 两条都不成立）⇒
+		 *   「撤掉 `isOut` 覆盖」也**不会红** ⇒ 断言是**空的**（零判别力，属本仓「判决死区」族）。
+		 *   ⇒ 木桩改 `hp: 0`（**本应出局**的角色）＋ 断言改读 **`Battle→isOut`**（规则包的判定面）：
+		 *     · 覆盖在场 ⇒ `isOut` 恒假 ⇒ 1 回合打满、断言过 ✓
+		 *     · **撤掉覆盖** ⇒ `isOut(木桩)=真` ⇒ 断言**当场红** ✓（判别力实测见 PR 面）
+		 *   ⚠ ✗ 断 `!e.isDown`：`isDown` 是**角色自身状态**（hp≤0 即真），与本覆盖**无关** ⇒ 断它等于断常量。 */
+		const e = new (R().Character)({ name: '木桩人', hp: 0 });
 		const pacifist = new (R().Character)({ name: '不打人的人', hp: 10, maxHp: 10, stats: {}, effects: [] });
-		await new PacifistBattle(1, [pacifist], [e]).execute();
-		assert.ok(!e.isDown, '钩子生效（无人出局）');
-	});
+		const b = new PacifistBattle(1, [pacifist], [e]);
+		await b.execute();
+		assert.ok(!b.isOut(e), '钩子生效（规则包判定：无人出局）');
+		assert.ok(e.isDown, '对照面：该角色**自身**本应出局（hp≤0）⇒ 上面的「不出局」确由**覆盖**造成，✗ 因它本来就站着');	});
 
 	test('battle：AI 选目标经 RPG.rng（注入后确定）', async () => {
 		// 调用面探针：每次读源计一次并记值。读数恒 0.999 ⇒ 敌选靶 index(2)=1 选中「乙」；

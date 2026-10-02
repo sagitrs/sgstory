@@ -21,7 +21,19 @@ DND3.Coin = RPG.defItem({
 	stackable: true,     // ★同 id 合并 ⇒ 计数库存
 
 	used(that, from) {
-		this.perform(`旧硬币只是纪念品，对${that.name}没有任何效果`);
+		/* ★`books#130`（D6-3「甲形」小修）：本句只走**通知面**（✗ 再落正文）。
+		 *   `perform` 会**两个面都写**（正文 ＋ `State.variables.rpgNotices`）⇒ 玩家每点一次
+		 *   正文**多一行**；而本句的用途是「**为什么用不了**」的瞬时说明。
+		 *   实测（tester-3 真点击，走 DOM 事件即玩家那条路）：点击后
+		 *     正文 = ["＋1 旧硬币", "旧硬币只是纪念品，对无名者没有任何效果"] ｜ 同刻通知面板也有该句。
+		 *   ⚠ 通道保持**缺省**（与原先 `perform` 的缺省 `'default'` 逐字相同）⇒ **通知面条目不变**，
+		 *     只少掉正文那一行（✗ 改通道、✗ 改级别 —— 那会动过滤档下的可见性）。
+		 *   ⚠ **能力探测**：通知面未加载的环境（`01-perform.js` 按序在 `71-notice.js` 之前）回落到
+		 *     `perform`（与 `perform` 自身的既有探测同形，✗ 硬依赖）。
+		 *   ⚠ `return false` **保持**：那是「拒绝 ⇒ 不消耗」的契约（✗ 抛错会走扣件路径）。 */
+		const line = `旧硬币只是纪念品，对${that.name}没有任何效果`;
+		if (typeof RPG.pushNotice === 'function') RPG.pushNotice(line);
+		else this.perform(line);
 		return false;   // ★拒绝 ⇒ 不消耗（见上注；✗ 抛错会走扣件路径）
 	},
 });

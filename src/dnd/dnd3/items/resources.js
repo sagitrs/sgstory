@@ -50,8 +50,12 @@ const resource = (def) => RPG.defItem({
 	stackable: true,
 	used() {
 		/* 资源**没有**默认用法：要么被建造当输入消耗，要么在背包里躺着。
-		 * 明确抛错（而非静默）——误当消耗品 use 时应当**响**。 */
-		throw new Error(`「${this.name}」是建设物资，不能直接使用（请用于建造）`);
+		 * 明确抛错（而非静默）——误当消耗品 use 时应当**响**。
+		 * ★`#1877` P2-2：**玩家看白话、开发者看原文**（`RPG.refuse` 两栏，见 `10-item.js`）。
+		 *   `code` 承载开发者信号（机器可读），`needAction` 给出应改用的动作名（✗ 散文）。 */
+		throw RPG.refuse('MATERIAL_NOT_USABLE',
+			`「${this.name}」是备料，不能就这么使——得拿去盖东西。`,
+			{ needAction: 'build', itemId: this.id });
 	},
 });
 
@@ -97,8 +101,11 @@ const gatherPoint = (def) => RPG.defItem({
 	actions: { gather: RPG.gatherFrom }, // 采集动作（core 共享动作库）
 	used() {
 		/* 采集点**没有**默认用法：必须显式 `gather`（✗ 不能用 use 顺手采）。
-		 * 明确抛错 ⇒ 误用会响（与 resources.js 同款纪律）。 */
-		throw new Error(`「${this.name}」是采集点，请用采集动作（gather）`);
+		 * 明确抛错 ⇒ 误用会响（与 resources.js 同款纪律）。
+		 * ★`#1877` P2-2：玩家面✗ 出现英文动作名 `gather`（见 `RPG.refuse` 两栏）。 */
+		throw RPG.refuse('GATHER_POINT_NOT_USABLE',
+			`「${this.name}」是采料的地方——得用「采集」去采。`,
+			{ needAction: 'gather', itemId: this.id });
 	},
 });
 
@@ -164,7 +171,9 @@ DND3.FarmPlot = RPG.defItem({
 	stats: { tier: 1, buildPlan: true, plan: { id: 'farm', inputs: [{ id: 'seed', n: 2 }] } },
 	actions: { build: RPG.buildAt },
 	used() {
-		throw new Error(`「${this.name}」是工程图，请用建造动作（build）`);
+		throw RPG.refuse('BLUEPRINT_NOT_USABLE',
+			`「${this.name}」是图纸——得对着地方用「建造」。`,
+			{ needAction: 'build', itemId: this.id });
 	},
 });
 

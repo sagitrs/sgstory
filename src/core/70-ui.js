@@ -54,7 +54,9 @@ RPG.itemClick = (id, { actor } = {}) => {
 		used = RPG.useItem(id, who, who, 'use');
 	} catch (e) {
 		/* 与 `#1839` 同形：玩家看**文案**（上屏）、作者看**栈**（控制台）—— ✗ 只留其一 */
+		/* ★`#1877`：`RPG.refuse()` 自带 `code` ＋ `devText`（开发者原文）—— 原文只走 console，✗ 上屏。 */
 		console.error('[RPG] 道具动作抛错（故事页已转为可读拒绝；此栈供排查是否为真 bug）:', e);
+		if (e && e.code) console.warn(`[RPG] 拒绝码 code=${e.code}${e.extra ? ' extra=' + JSON.stringify(e.extra) : ''}`);
 		return { ok: false, action, reason: 'action-threw', message: e?.message ?? String(e) };
 	}
 	return { ok: used !== false, action };

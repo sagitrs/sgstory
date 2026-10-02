@@ -105,4 +105,31 @@
 		const m = msgs.find((x) => /挥空/.test(x)) ?? '';
 		assert.ok(/攻击掷骰 1\+5/.test(m), `★缺省须走 \`bab 3 + 力调 2 = +5\`（原式）：${m}`);
 	});
+
+	test('★#1855 ⑥【消费半的刀】`atkBonus` **真的被用上**（撤消费点 ⇒ 本格必红）', () => {
+		/* ★立档理由（`tester-3` 的 T 席阻断）：②③⑤ 三格分别只钉**数据形状**／靶 AC（不判别）／
+		 *   **club 缺省半** ⇒ 把 `combat.js` 的消费点**整条退回** `bab + abilMod` 时，
+		 *   9 只里 5 只的攻击加值会偏，而**单测仍全绿**（本席实测：576/0）—— 甲案只落了「声明半」。
+		 *   ⇒ 本格补**消费半**：同一次挥空文案里，照录值（+4）与推导值（−1）**可分辨**。
+		 *   ★取法与 ⑤ 同（`die=1` ⇒ 必挥空 ⇒ 文案带攻击加值），✗ 另造一条通路。 */
+		const a = new (R().Character)({ name: '獾', hp: 6, stats: D().stats({ str: 8, bab: 0 }) });
+		const t = new (R().Character)({ name: '靶', hp: 40, maxHp: 40, stats: D().stats({ ac: 99 }) });
+		const probe = (idOrItem) => {
+			const it = typeof idOrItem === 'string' ? new (R().items.get(idOrItem))() : idOrItem;
+			it.equipped = true;
+			const msgs = [];
+			it.perform = (m) => msgs.push(String(m));
+			R().rng.setSequence([0.0, 0.0]);            // die=1 ⇒ 必然挥空（文案带加值）
+			try { D().meleeAttack(it, t, a); } finally { R().rng.reset(); }
+			return (msgs.find((x) => /挥空/.test(x)) ?? '').match(/攻击掷骰 1([+-]\d+)/)?.[1] ?? null;
+		};
+		/* 照录臂：獾爪的 pinned 值 +4（而 `bab 0 + 力调 −1` 只能给 −1） */
+		const claw = probe('badger-claw');
+		assert.eq(claw, '+4',
+			`★ atkBonus 须真的**被用上**（照录 +4）；若得 −1 则是消费点被绕过、退回推导：${claw}`);
+		/* 对照臂：同一角色用 club（无 `atkBonus`）⇒ 必须**走原式** −1（✗ 别把推导也改成照录） */
+		const club = probe('club');
+		assert.eq(club, '-1',
+			`★缺省件须仍走推导（bab 0 + 力调 −1）：${club}`);
+	});
 })();

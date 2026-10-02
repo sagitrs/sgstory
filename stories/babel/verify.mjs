@@ -557,6 +557,55 @@ head('⑮ 面板刷新域（B1）的接线');
 	console.log(`  面板 ${panels.length} 个（${panels.join('、')}）｜宿主双向一致 ✓｜活行判据 ✓｜状态两向（${changed.join('、')}）✓`);
 }
 
+/* ---------- ⅖ #1877 P1-3 / P1-6（批次 B）----------
+ * ★两处都是**操作者实测的症状**，而旧判据全绿 ⇒ 本节守的正是那几个**没被守的接口**：
+ *   ① P1-3「通知计数在涨、可列表恒空」：旧判据只判「`noticesHTML()` 里有 `rpg-notice`」（能力有）
+ *      ⇒ 而真因是**面板重绘把 `<details>` 的 `open` 打回默认折叠** ⇒ 玩家看不到列表。
+ *   ② P1-6「打完，继续探索」战斗中即现**顶部**：旧判据完全没碰这条静态链。 */
+head('⅖ `#1877` P1-3 面板重绘保留交互态 ／ P1-6 战斗出口时机');
+{
+	const panelsJs = fs.readFileSync(path.join(storySrc, 'ui', 'panels.js'), 'utf8');
+	const corePanel = fs.readFileSync(path.join(root, 'src', 'core', '72-panel.js'), 'utf8');
+	const twee = fs.readFileSync(path.join(storySrc, 'story', 'play.twee'), 'utf8');
+
+	/* ① P1-3㐲：核提供**保留契约**（回到态须有处可存），且 refreshPanels 真的把它传给 writer */
+	ok(Array.isArray(R.preservePanelState) && R.preservePanelState.length > 0,
+		'★`#1877` P1-3：核没提供 `RPG.preservePanelState` ⇒ 重绘无处搬运交互态');
+	ok(R.preservePanelState.some((e) => e && /details/.test(String(e.sel))),
+		'★P1-3：保留表里没有通知块的选择器（`details.rpg-notice-box`）⇒ toggle 相当于没接');
+	ok(/put\(.*preserve: RPG\.preservePanelState/.test(corePanel),
+		'★P1-3：`refreshPanels` 没把 `preserve` 传给 writer ⇒ writer 拿不到「要保什么」');
+
+	/* ② P1-3 故事侧：writer 确实在写入**前后**搬运 `open`（✗ 只声明）*/
+	ok(/panelWriter\s*=/.test(panelsJs) && /\.open\s*=\s*true/.test(panelsJs),
+		'★P1-3：故事侧 writer 没有把 `open` 写回（面板重绘仍会把列表折回）');
+	ok(/\.find\(sel\)/.test(panelsJs) && /\.find\(sel\)/.test(corePanel) === false,
+		'★P1-3：搬运必须按**同一选择器**配对（✗ 按 index —— 列表顺序一变就错位）');
+
+	/* ③ 运行时面（展开⇒刷新⇒仍展开）**不在此判** —— 本件是无 DOM 环境（`document` 是桩、无 jQuery），
+	 *   在此判会**假红**。该面归 `books/tools/e2e-harness.mjs`（真 jsdom）：
+	 *   `probe-B.mjs` 实测「展开 open=true → refreshPanels → open=true → 切档 → open=true」。
+	 *   ⇒ 本件只守**静态接线**（①②）＋ P1-6（④⑤），运行时行为由 e2e 守 —— 两处各守其能守的。 */
+
+	/* ④ P1-6：`:: 遭遇战` 段里**不得**再有静态出口链接 */
+	const seg = (twee.split(':: 遭遇战')[1] ?? '').split('\n::')[0];
+	ok(seg.length > 0, '★找不到「遭遇战」段（段落改名 ⇒ 本判据失效）');
+	ok(!/\[\[[^\]]*探索[^\]]*\]\]/.test(seg),
+		'★`#1877` P1-6：遭遇战段里仍有静态出口链接 ⇒ 战斗**尚未开始**它就在页顶出现（操作者实测）');
+
+	/* ⑤ P1-6 早退出口：`fight()` 须在**早退时**自己落页底出口（✗ 两条出口） */
+	const enc = fs.readFileSync(path.join(storySrc, 'world', 'encounters.js'), 'utf8');
+	const fightBody = enc.split('setup.BABEL.fight = async')[1]?.split('setup.BABEL.noteTraumas')[0] ?? '';
+	ok(/const exit = \(\) =>/.test(fightBody), '★P1-6：fight() 里没有早退出口函数 `exit()`');
+	ok(/if \(!interactive\) return undefined;/.test(fightBody),
+		'★P1-6：早退出口没有 `interactive` 门控 ⇒ 无头（`verify`/自动通路）会 `await choice` **永久挂起**');
+	const bail = [...fightBody.matchAll(/bail\('/g)].length;
+	ok(bail >= 3, `★P1-6：早退分支应各自落出口（本仓早退 3 处：无该层／装配缺口／无遭遇），实测 ${bail} 处`);
+
+	console.log(`  P1-3：保留表 ${R.preservePanelState.length} 条｜核契约＋故事侧接线 ✓（运行时面归 e2e）`);
+	console.log(`  P1-6：遭遇战段无静态链 ✓｜早退出口 ${bail} 处且门控 ✓`);
+}
+
 /* ---------- 汇总 ---------- */
 /* 汇总与崩溃兜底的**定义**在文件开头**（见「失败形」一节）—— 那两行 `process.on` 必须在
  * 任何可能抛错的语句之前注册，否则中途崩溃时兜底还没挂上（本笔 M9′ 刀实测踩过）。 */

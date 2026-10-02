@@ -75,17 +75,27 @@ setup.BABEL.gather = () => {
  *   见 `stories/babel/verify.mjs` 的用法）；玩家路径一律用缺省值。
  */
 setup.BABEL.fight = async ({ interactive = true } = {}) => {
+	/* ★**早退出口**（`#1877` P1-6）：本段原靠一条静态链 `[[打完，继续探索|探索]]` 兜底，
+	 *   而静态链在**段落渲染时**即出现（战斗根本还没打）⇒ 玩家以为已打完了。
+	 *   现改为：**早退发生时**才把出口落页底（与主出口共用下面同一个 `choice` 通道 —— `#1856`）。
+	 *   ⚠ `RPG.perform` 返回 `this`（**非 thenable**）⇒ 不能用 `.then()` 链，得用 `bail()` 包一层。
+	 *   ⚠ 仍必须门控 `interactive`（无头自检里没人可点，`await choice` 会**永久挂起**）。 */
+	const exit = () => {
+		if (!interactive) return undefined;
+		return DND3.Player.choice([{ text: '继续探索', value: '探索' }]).then((v) => SugarCube.Engine.play(v));
+	};
+	const bail = (msg) => { R.perform(msg); return exit(); };
 	const layer = setup.BABEL.layerOf();
-	if (!layer) return R.perform('这里没有可遭遇的东西。');
+	if (!layer) return bail('这里没有可遭遇的东西。');
 	if (typeof R.rollEncounter !== 'function' || typeof R.rollLoot !== 'function') {
 		/* ★`#1863` 两层拆：**开发者信号走 console**（票号＋源码路径＋API 名 —— 那是写给接线者的）。
 		 *   玩家层**仍出声**（✗ 静默 —— 静默会让「遭遇永不发生」被读成「这层本来就没怪」，见文件头 `#1784` 惯例）；
 		 *   白话保留「**本该有东西、可这里没有**」的异常感，✗ 删该信息。 */
 		console.warn('[BABEL] 装配缺口：遭遇面未接线 —— 需要 `#1784`（`src/core/65-encounters.js`）的 `RPG.rollEncounter`／`RPG.rollLoot`。');
-		return R.perform('这一层静得出奇——按理该有东西挡路的。');
+		return bail('这一层静得出奇——按理该有东西挡路的。');
 	}
 	const rolled = R.rollEncounter(layer, { count: 1 });
-	if (rolled.length === 0) return R.perform('这一层今天什么都没有挡路。');
+	if (rolled.length === 0) return bail('这一层今天什么都没有挡路。');
 	const foes = rolled.map((e) => fresh(e.ref, e.elite));
 	R.perform(`挡在前面的是：${foes.map((f) => f.name).join('、')}。`);
 
@@ -111,7 +121,7 @@ setup.BABEL.fight = async ({ interactive = true } = {}) => {
 		return;
 	}
 
-	/* ── 出口：**必须落在页底**（`#1856` 复现）─────────────────────────────
+	/* ── 出口：**必须落在页底**（`#1856` 复现；`#1877` P1-6 把「静态兜底」也收归此处）──────────
 	 * ★症状（操作者实测）：僵持收场后「没有任何按钮」⇒ 以为软锁，只能刷新。
 	 * ★根因（本席 jsdom 实测，✗ 推断）：本仓的约定是「**输出落页底**」——
 	 *   `perform` 与 `choice` 都把内容插在 `.statusbar` **之前**（`01-perform.js:23`／`02-choice.js:36`），

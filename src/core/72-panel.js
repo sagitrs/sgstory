@@ -28,8 +28,31 @@
 RPG.panels = new Map();
 
 /** 写回器（**由故事侧注入**；核心不碰 DOM）。签名：`(hostSelector, html) => 是否命中并写入`。
- *  未注入 ⇒ `refreshPanels` 把全部目标记为 `skipped`（无呈现层 —— 与「页面上没有该宿主」同形）。 */
+ *  未注入 ⇒ `refreshPanels` 把全部目标记为 `skipped`（无呈现层 —— 与「页面上没有该宿主」同形）。
+ *  ★可选第三参 `opts.preserve`：**重绘时须保留的宿主内交互态**（见 `RPG.preservePanelState`）。
+ *   向后兼容：writer 只声明两个形参 ⇒ 第三参被忽略，行为与既有完全一致。 */
 RPG.panelWriter = null;
+
+/**
+ * **重绘须保留的宿主内交互态**（`#1877` P1-3 复现的根因）。
+ *
+ * ★症状（我在 jsdom 实测，✗ 推断）：面板重绘走 `$host.html(html)` ⇒ **整块替换**。于是宿主里
+ *   **任何只存在于 DOM 的交互态都被清掉** —— 当前唯一一处是通知面板的 `<details class="rpg-notice-box">`：
+ *   玩家展开「最近的通知」后，一次动作（`:passagedisplay` 每次都 `refreshPanels`）或点一次开关（切档重绘）
+ *   就把 `open` 打回默认**折叠** ⇒ 实测读数：展开 `open=true` → 刷新 `open=false`
+ *   ⇒ 玩家反复看到「计数在涨，可列表（在折叠里）看不到」＝ 操作者报的「恒空」。
+ *
+ * ★**为何不是「让 `render()` 自己保住 open」**：`render()` 契约是**纯函数**（`registerPanel` 明写
+ *   「必须是纯函数式的 —— 带副作用会让重绘变成再执行一次动作」）；而「玩家此刻展开了没有」**不在 game state 里**
+ *   （它是 DOM 的），`render()` 无从读到 ⇒ 只能由**唯一碰 DOM 的那层**（writer）在替换**前后**搬运。
+ *
+ * ★**搬运规则**：`sel`（`preserve[].sel`）在**旧宿主**内命中且 `open === true` ⇒ 记下；
+ *   写完新 HTML 后，若新宿主内**同 `sel`** 命中，则把记下的 `open` 写回。
+ *   ⇒ 判据：**「同一个 sel」＝ 同一个玩家可见的可展开块**（✗ 不按 index 配对 —— 那样列表顺序一变就错位）。
+ * ⚠ 只搬 `open` 一个属性：`<details>` 的其余性质（是否可展开）由新 HTML 决定，**不从旧 DOM 继承**，
+ *   免得把「上一次渲染的状态」当成「本次渲染的真相」。
+ */
+RPG.preservePanelState = [{ sel: 'details.rpg-notice-box' }];
 
 /**
  * 注册一个可独立重绘的面板。
@@ -86,7 +109,7 @@ RPG.refreshPanels = (ids = null, { into, write } = {}) => {
 	const skipped = [];
 	for (const id of targets) {
 		const p = RPG.panels.get(id);
-		const hit = put(into ?? p.host, p.render()) !== false;   // ✗ 命中 ⇒ false（writer 的契约）
+		const hit = put(into ?? p.host, p.render(), { preserve: RPG.preservePanelState }) !== false;   // ✗ 命中 ⇒ false（writer 的契约）
 		if (!hit) { skipped.push(id); continue; }                // 该面板不在当前段落
 		p.count += 1;
 		rendered.push(id);

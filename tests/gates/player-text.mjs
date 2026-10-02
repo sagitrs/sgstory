@@ -8,8 +8,17 @@
  *
  * ## 判据（三条通路，逐条给判据；✗ 全仓裸 grep）
  *   ① **`perform` 直通**：行含 `.perform(` ⇒ 该字符串**即**玩家可见 ⇒ 扫。
- *   ② **道具抛错面**：路径含 `dnd/…/items/` 且行含 `throw new Error(` ⇒ 该文案经拒绝通路（`#1839`／`#1857`）
- *      上屏 ⇒ 扫。★**只扫 items**：core 的 `throw` 多为**API 契约错**（开发者面，票号合法，实测 2 处）。
+ *   ② **道具拒绝面**（★`#1877` 修）：路径含 `dnd/…/items/` 且行含 **`throw RPG.refuse(`（函数调用）或 `throw new Error(`**
+ *      ⇒ 该文案经拒绝通路（`#1839`／`#1857`）上屏 ⇒ 扫。
+ *      ★**为何要认 `RPG.refuse(`**（`#1877` 实测的**假绿**）：原判据只认 `throw new Error(` ——
+ *        当 P2-2 把五处改写成 `RPG.refuse(...)` 后，**门的枚举面就把它们漏掉了**（门照样绿）。
+ *        负向刀当场暴露：把玩家文案改回旧形（含 `gather`／「请用…动作」），门**仍绿** ⇒ 假绿。
+ *      ★**这是「枚举面须 ≡ 声称面」的第 9 个实例**，且形态新：**不是门写错，而是被扫物换了写法**。
+ *      ⇒ 纪律：凡引入**新的上屏写法**（工厂／choke point），**必须同步把门接上**，✗ 只改被测物。
+ *      ★**约定**：`RPG.refuse(code, message, extra)` 的第 2 参是**玩家面**，第 3 参是**机器可读**的
+ *        `{ needAction, itemId }`（✗ 开发者散文 —— 散文仍须逐字引用旧话术，那是**脆弱且不可检**的）；
+ *        开发者原文改由 `code` 承载（机器可读，直指缺陷类别）。
+ *      ★**只扫 items**：core 的 `throw` 多为**API 契约错**（开发者面，票号合法，实测 2 处）。
  *   ③ **动作标签**：行含 `text:` ＋ 字符串字面量 ⇒ 地点/道具动作标签（玩家可见）⇒ 扫。
  *
  * ## 违规形（命中任一即红；逐条具名，✗ 只报总数）
@@ -44,15 +53,61 @@ export const RULES = [
 	{ id: 'ENGLISH', re: /（(gather|craft|build|use|act|equip|loot)）/i, what: '英文动作名' },
 	{ id: 'SRCPATH', re: /`[^`]*\.(js|mjs|md)`/, what: '源码/文档路径' },
 	{ id: 'SYSTEM', re: /请用.{0,8}动作|请用于(建造|锻造|合成)/, what: '系统话术' },
+	/* ★`#1877` 新增：**Markdown 字面**。动机（操作者复测 P2-1）＝玩家看到字面的 `**星号**`。
+	 *   本仓与 SugarCube 都**不渲染** `**`（粗体是 `''…''`）⇒ 上屏通路里出现 `**` 必然是泄漏。
+	 *   ★已知**不可判**的残留（**显式记账**，✗ 假装本形已全覆盖）：
+	 *     `traumas.js` 的 `desc` 属**字段**而非 `perform`／`refuse` 字面 ⇒ 本形抓不到
+	 *     （该档剩 1 处，其**可判版本**＝「渲染 `desc` 的那一面上屏时断言无 `**`」，当前故事侧不渲染）。 */
+	{ id: 'MARKDOWN', re: /\*\*/, what: 'Markdown 字面（本仓不渲染）' },
 ];
 
 /* 该行是否属**上屏通路**（①②③）；✗ 通路 ⇒ 不判（注释/契约错等） */
 export function isPlayerPath(rel, line) {
-	if (rel.includes('dnd/') && /\/items\//.test(rel) && /throw new Error\(/.test(line)) return 'throw-items';
+	if (rel.includes('dnd/') && /\/items\//.test(rel) && /throw (?:new )?(?:RPG\.refuse|Error)\(/.test(line)) return 'throw-items';
 	if (/\.perform\(/.test(line)) return 'perform';
 	if (/\bperform\(/.test(line)) return 'perform';
 	if (/\btext:\s*['"`]/.test(line)) return 'text';
 	return null;
+}
+
+/**
+ * 剥掉**行尾注释**（引号感知）—— 判据只该看**代码部分**。
+ * ★`#1877` 实测的**误报**：`span2-hub.js:62` 的 `text: '在锻造台上打铁…',   // …（行为是**逐张全试**…）`
+ *   —— 星号在**行尾注释**里（开发者面），而行级排除只认**行首** `*`／`//`／`/*` ⇒ 被判成玩家面泄漏。
+ * ⇒ 正解不是「白名单放过这一行」，而是**把注释从判据面里拿掉**（否则每个行尾注释都得单独豁免）。
+ * ⚠ 手写扫描（✗ 正则）：须跳过**字符串字面量**里的 `//`（如 URL），否则会把代码截断。
+ */
+export function codePart(line) {
+	let quote = null;
+	for (let i = 0; i < line.length; i++) {
+		const c = line[i];
+		if (quote) {
+			if (c === '\\') { i++; continue; }
+			if (c === quote) quote = null;
+			continue;
+		}
+		if (c === '"' || c === "'" || c === '`') { quote = c; continue; }
+		if (c === '/' && (line[i + 1] === '/' || line[i + 1] === '*')) return line.slice(0, i);
+	}
+	return line;
+}
+
+/** 括号净增量（引号感知）—— 用于判定**跨行调用**是否在本行闭合。 */
+export function parenDelta(line) {
+	let quote = null, d = 0;
+	for (let i = 0; i < line.length; i++) {
+		const c = line[i];
+		if (quote) {
+			if (c === '\\') { i++; continue; }
+			if (c === quote) quote = null;
+			continue;
+		}
+		if (c === '"' || c === "'" || c === '`') { quote = c; continue; }
+		if (c === '/' && (line[i + 1] === '/' || line[i + 1] === '*')) break;
+		if (c === '(') d++;
+		else if (c === ')') d--;
+	}
+	return d;
 }
 
 /* 排除面 */
@@ -68,11 +123,23 @@ export function isExcluded(rel, line) {
 /** 单文件判定 ⇒ [{rel, line, path, rule, text}] */
 export function checkSource(rel, src) {
 	const out = [];
+	/* ★`#1877`（第二次假绿）：**玩家文案常在续行** ——
+	 *   `throw RPG.refuse('CODE',` / `` `玩家文案…`, `` / `{...});` 三行式里，
+	 *   **只有第一行**含 `refuse(`／`perform(` ⇒ 原「行本地」判据把**玩家文案那一行漏掉**
+	 *   （本席负向刀实测：把旧话术塞回第 2 参，门**仍绿**）。
+	 * ⇒ 按**括号净增量**跨行跟踪：调用未闭合 ⇒ 续行**沿用**同一通路名。 */
+	let callName = null, depth = 0;
 	src.split('\n').forEach((line, i) => {
 		if (isExcluded(rel, line)) return;
-		const p = isPlayerPath(rel, line);
-		if (!p) return;
-		for (const r of RULES) if (r.re.test(line)) out.push({ rel, line: i + 1, path: p, rule: r.id, text: line.trim().slice(0, 140) });
+		const code = codePart(line);          // ★判据只看代码部分（行尾注释不属玩家面）
+		const start = isPlayerPath(rel, code);
+		const p = start ?? callName;          // ★续行沿用调用名
+		if (p) for (const r of RULES) if (r.re.test(code)) out.push({ rel, line: i + 1, path: p, rule: r.id, text: line.trim().slice(0, 140) });
+		if (start) callName = start;
+		if (callName) {
+			depth += parenDelta(code);
+			if (depth <= 0) { callName = null; depth = 0; }
+		}
 	});
 	return out;
 }
@@ -151,6 +218,23 @@ if (isMain && process.argv.includes('--selftest')) {
 	knife('N3 core 契约抛错含票号', 'src/core/18-stock.js', "\t\tthrow new Error(`…（#1759 §十.3）`);", null);
 	knife('N4 测试面含票号', 'tests/unit/core/turn-economy.test.js', "\tassert.ok(/强制跳过/); // #1773", null);
 	knife('N5 玩家白话（无内部用语）', CORE, '\tthis.perform(`连着几回合都没人动得了手——这一回合也就这么过去了。`);', null);
+	/* ★`#1877`：**新写法**（`RPG.refuse`）必须与旧写法同判 —— 否则改写法即绕过门（本席实测的假绿） */
+	knife('K6 英文动作名@refuse', ITEM, "\t\tthrow RPG.refuse('X', `请用采集动作（gather）`);", 'ENGLISH');
+	knife('K7 系统话术@refuse', ITEM, "\t\tthrow RPG.refuse('X', `不能直接使用（请用于建造）`);", 'SYSTEM');
+	knife('N7 玩家白话@refuse（正形）', ITEM, "\t\tthrow RPG.refuse('X', `「石料」是备料——得拿去盖东西。`);", null);
+	/* ★`#1877`：Markdown 形两刀（该红／不该红） */
+	knife('K8 Markdown 字面@perform', CORE, '\tthis.perform(`以及一些**没有再站起来**的人的骨头。`);', 'MARKDOWN');
+	knife('N8 正确粗体（`\'\'…\'\'`）不红', CORE, "\tthis.perform(`以及一些''没有再站起来''的人的骨头。`);", null);
+	/* ★`#1877` 误报的**回归刀**：星号在**行尾注释**里 ⇒ ✗ 玩家面（实测原形会误红） */
+	knife('N9 行尾注释里的 `**` 不红', 'src/dnd/dnd3/scenes/span2-hub.js',
+		"\t\t\ttext: '在锻造台上打铁（逐张图纸试，料够就打）',   // N-1：行为是**逐张全试**，✗ 一次一件", null);
+	/* 引号里的 `//` ✗ 被当注释截断（防我的扫描器把 URL 截掉） */
+	knife('N10 字符串里的 `//` ✗ 截断代码', CORE, "\tthis.perform('见 https://example.com/a**b —— 星号在串内仍须红');", 'MARKDOWN');
+	/* ★`#1877` 第二次假绿的**回归刀**：玩家文案在**续行**（三行式调用）⇒ 必须照样判红 */
+	knife('K9 续行里的英文动作名', ITEM,
+		"\t\tthrow RPG.refuse('X',\n\t\t\t`请用采集动作（gather）`,\n\t\t\t{ needAction: 'gather' });", 'ENGLISH');
+	knife('K10 续行里的 Markdown', CORE,
+		"\tthis.perform(\n\t\t`以及一些**没有再站起来**的人的骨头。`\n\t);", 'MARKDOWN');
 	knife('N6 玩家白话@items-throw', ITEM, "\tthrow new Error(`「${this.name}」是备料——不能就这么使，得拿去盖东西。`);", null);
 	/* ★豁免语义两刀（`#1865` CI 实测教训：豁免键须抗无关插入、且文案改动即过期） */
 	{

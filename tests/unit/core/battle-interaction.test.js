@@ -229,8 +229,12 @@
 		assert.eq(thrown, null, '★动作抛错**不再**打断战斗（修前此处抛「石料是建设物资…」）');
 		const hit = lines.find((l) => l.includes('没能出手'));
 		assert.ok(hit, `★出了拒绝文案（✗ 静默冻结）：${JSON.stringify(lines)}`);
-		assert.ok(hit.includes('建设物资') && hit.includes('请用于建造'),
-			'★文案**原样引道具自己的话**（玩家看到「因」，✗ 泛泛的「没能出手」）');
+		/* ★`#1877` P2-2：玩家面文案改**白话**（✗ 英文动作名／系统话术）——
+		 *   断**玩家面**有「因」（✗ 泛泛的「没能出手」）＋ **✗ 无内部术语**（英文动作名 `build`）。 */
+		assert.ok(hit.includes('备料') && hit.includes('盖东西'),
+			`★文案引道具自己的话（玩家看到「因」，✗ 泛泛的「没能出手」）：${hit}`);
+		assert.ok(!/build|craft|gather|\u8bf7\u7528/.test(hit),
+			`★玩家面✗ 出现内部术语（英文动作名／「请用…动作」）：${hit}`);
 		assert.ok(lines.some((l) => l.includes('战斗结束')), '★回合照走（战斗跑到收尾，✗ 冻在第 1 回合）');
 		assert.ok(started >= 2 && ended >= 2, `两方回合边界皆发（start=${started} end=${ended}）`);
 		assert.eq(ended, started, '★turnEnd **成对**（异常路径亦经 #playerAction 的 finally 收尾，✗ 漏发）');

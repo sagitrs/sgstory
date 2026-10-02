@@ -45,7 +45,9 @@
 		R().give('rock');
 		let threw = null;
 		try { R().useItem('rock'); } catch (e) { threw = e.message; }
-		assert.ok(/建设物资/.test(threw ?? ''), `误 use 须抛可读错误（实得：${threw}）`);
+		/* ★`#1877` P2-2：玩家面白话（✗ 系统话术「请用于建造」） */
+		assert.ok(/备料/.test(threw ?? ''), `误 use 须抛**玩家可读**错误（实得：${threw}）`);
+		assert.ok(!/建造|build/.test(threw ?? ''), `✗ 玩家面出现内部术语（实得：${threw}）`);
 	});
 
 	test('resources：计数库存的**总量**可读（槽数由 `give` 决定，见下注）', () => {

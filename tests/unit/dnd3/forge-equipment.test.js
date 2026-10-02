@@ -255,7 +255,9 @@
 		R().give('iron-ore');
 		let threw = null;
 		try { R().useItem('iron-ore'); } catch (e) { threw = e.message; }
-		assert.ok(/建设物资/.test(threw ?? ''), `误 use 须抛可读错误（实得：${threw}）`);
+		/* ★`#1877` P2-2：玩家面白话（✗ 「建设物资…（请用于锻造）」这类系统话术） */
+		assert.ok(/打铁的料/.test(threw ?? ''), `误 use 须抛**玩家可读**错误（实得：${threw}）`);
+		assert.ok(!/锻造|craft/.test(threw ?? ''), `✗ 玩家面出现内部术语（实得：${threw}）`);
 	});
 
 	/* ---------- ⑥ 闭环：采（一段）→ 锻（二段）→ 装 ---------- */

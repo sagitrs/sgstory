@@ -113,7 +113,10 @@ DND3.IronOre = RPG.defItem({
 	 *   ★教训：我核了 `craftInput` 的**数**（6），却没核它的**出处**（6 件来自 2 个文件）。 */
 	stats: { weight: 12, craftInput: true, noBattleUse: true, tier: 2 },
 	used() {
-		throw new Error(`「${this.name}」是建设物资，不能直接使用（请用于锻造）`);
+		/* ★`#1877` P2-2：两栏（玩家白话／开发者原文），见 `RPG.refuse`。 */
+		throw RPG.refuse('MATERIAL_NOT_USABLE',
+			`「${this.name}」是打铁的料——不能就这么使，得拿去锻。`,
+			{ needAction: 'craft', itemId: this.id });
 	},
 });
 
@@ -132,7 +135,9 @@ const forgeItem = (def) => RPG.defItem({
 	},
 	actions: { craft: RPG.craftWith },  // ★ 复用 #1776 的 craft 共享动作
 	used() {
-		throw new Error(`「${this.name}」是锻造图，请用合成动作（craft）`);
+		throw RPG.refuse('BLUEPRINT_NOT_USABLE',
+			`「${this.name}」是图纸——得在锻造台上对着用。`,
+			{ needAction: 'craft', itemId: this.id });
 	},
 });
 

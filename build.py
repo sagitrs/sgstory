@@ -159,7 +159,7 @@ def build_unit_bundle():
     print(f"单元测试清单：{manifest.relative_to(ROOT)}（{len(test_files)} 个用例文件）")
 
 
-def build_story(story_dir: pathlib.Path, out_name: str = "game.html"):
+def build_story(story_dir: pathlib.Path, out_name: str = "game.html", build_version: str | None = None):
     story_src = story_dir / "src"
     out = story_dir / out_name
 
@@ -215,6 +215,14 @@ def build_story(story_dir: pathlib.Path, out_name: str = "game.html"):
            .replace("{{STORY_NAME}}", html.escape(title))
            .replace("{{STORY_DATA}}", storydata))
 
+    # ★`#1879` D9：`--version X` ⇒ 把故事里的**缺省串**替换为 `<<set $buildVersion to "X">>`。
+    #   只改**产物文本**（✗ 动源树 ⇒ 源树零污染）；**缺省不传 ⇒ 产物逐字节同旧**（刀）。
+    if build_version is not None:
+        default_set = '<<set $buildVersion to "—">>'
+        hit = doc.count(default_set)
+        if hit != 1:   # ★命中数断言（本仓硬习惯）：✗ 静默无操作、✗ 误伤多处
+            raise SystemExit(f"✗ --version 注入失败：缺省串命中 {hit} 次（须恰 1）")
+        doc = doc.replace(default_set, f'<<set $buildVersion to "{build_version}">>', 1)
     out.write_text(doc, encoding="utf-8")
     # ★故事目录可在**引擎仓之外**（拆分仓布局：故事在 books 仓、引擎在此检出）⇒ 相对路径打不出来时
     #   退回绝对路径。原先直接 `relative_to(ROOT)` 会抛 `ValueError` ⇒ **产物已写成功但退出码非零**
@@ -238,11 +246,19 @@ def main():
             raise SystemExit("用法：python build.py [故事目录] [--out 产物名.html]")
         out_name = args[i + 1]
         del args[i:i + 2]
+    # ★`#1879` D9：`--version 版本串`（缺省不传 ⇒ 旧行为逐字节不变）。
+    build_version = None
+    if "--version" in args:
+        i = args.index("--version")
+        if i + 1 >= len(args):
+            raise SystemExit("用法：python build.py [故事目录] [--out 产物名.html] [--version 版本串]")
+        build_version = args[i + 1]
+        del args[i:i + 2]
     story_dir = pathlib.Path(args[0]) if args else DEFAULT_STORY
     if not story_dir.is_absolute():
         story_dir = ROOT / story_dir
     build_unit_bundle()
-    build_story(story_dir, out_name)
+    build_story(story_dir, out_name, build_version=build_version)
 
 
 if __name__ == "__main__":

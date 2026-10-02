@@ -159,7 +159,7 @@ def build_unit_bundle():
     print(f"单元测试清单：{manifest.relative_to(ROOT)}（{len(test_files)} 个用例文件）")
 
 
-def build_story(story_dir: pathlib.Path, out_name: str = "game.html"):
+def build_story(story_dir: pathlib.Path, out_name: str = "game.html", build_version: str | None = None):
     story_src = story_dir / "src"
     out = story_dir / out_name
 
@@ -175,6 +175,18 @@ def build_story(story_dir: pathlib.Path, out_name: str = "game.html"):
     for f in sorted(story_src.rglob("*.twee")):
         passages += parse_twee(f.read_text(encoding="utf-8"))
 
+    # ★`#1879` D9：`--version X` ⇒ 在**段落体**里把缺省串替换为 `<<set $buildVersion to "X">>`。
+    #   ★为何在**段落体**（✗ 产物 HTML）：产物里 `<<`/`>>` 已**转义**为 `&lt;&lt;`/`&gt;&gt;` ⇒ 精确串在产物文本里**命中 0** ✗（本席实测踩过）。
+    #   只改**产物**（✗ 动源树 ⇒ 源树零污染）；**缺省不传 ⇒ 产物逐字节同旧**（刀）。
+    if build_version is not None:
+        default_set = '<<set $buildVersion to "—">>'
+        hits = 0
+        for i, (nm, tags, body) in enumerate(passages):
+            if default_set in body:
+                hits += body.count(default_set)
+                passages[i] = (nm, tags, body.replace(default_set, f'<<set $buildVersion to "{build_version}">>', 1))
+        if hits != 1:   # ★命中数断言（本仓硬习惯）：✗ 静默无操作、✗ 误伤多处
+            raise SystemExit(f"✗ --version 注入失败：缺省串在段落体里命中 {hits} 次（须恰 1）")
     meta = {"ifid": "", "format-version": "2.37.3", "start": "开始", "title": "未命名故事"}
     style_parts, twee_script_parts, rows, pid_map = [], [], [], {}
     pid = 1
@@ -238,11 +250,19 @@ def main():
             raise SystemExit("用法：python build.py [故事目录] [--out 产物名.html]")
         out_name = args[i + 1]
         del args[i:i + 2]
+    # ★`#1879` D9：`--version 版本串`（缺省不传 ⇒ 旧行为逐字节不变）。
+    build_version = None
+    if "--version" in args:
+        i = args.index("--version")
+        if i + 1 >= len(args):
+            raise SystemExit("用法：python build.py [故事目录] [--out 产物名.html] [--version 版本串]")
+        build_version = args[i + 1]
+        del args[i:i + 2]
     story_dir = pathlib.Path(args[0]) if args else DEFAULT_STORY
     if not story_dir.is_absolute():
         story_dir = ROOT / story_dir
     build_unit_bundle()
-    build_story(story_dir, out_name)
+    build_story(story_dir, out_name, build_version=build_version)
 
 
 if __name__ == "__main__":

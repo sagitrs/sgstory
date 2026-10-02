@@ -261,6 +261,11 @@ RPG.MapScene = class MapScene extends RPG.Scene {
 	 * 不得再把地图与选项画进新段落。判据取 `State.passage`（引擎真实接口：`enginePlay`
 	 * 内同步 `State.create` 更新）；取不到时以 `null` 表示「不判定」，退回旧行为。 */
 	#passageAtRender = null;
+	/* ★`#1855`（P2-3 探索视图·替换式 甲案）：场景头只在进场时印一次 ⇒ 本字段记录上次印过的地点。 */
+	#headerLoc = null;
+	/* ⚠ 残余边界（`developer-10` RC-2 记账，**当前不可达**）：本字段的「清」只发生在**动作分支**且 `#leftPassage()` 为真时；
+	 *   若将来出现**非地图动作**的离场（段落级静态链接／宿主无 `State.passage`）⇒ 不清 ⇒ 回来可能仍不印头。
+	 *   现有离场路径仅两条：地图出口（走 else ⇒ `moveTo` 改地点 ⇒ 本就重印 ✓）与战斗／死亡（走动作分支 ✓）⇒ 故当前不可达 ✓ 记账备将来。 */
 
 	/* 段落是否已在本次选择期间被导航走（`#1749` D2）。任一读数缺失 ⇒ 不判定（`false`）。 */
 	#leftPassage() {
@@ -280,8 +285,15 @@ RPG.MapScene = class MapScene extends RPG.Scene {
 		const { desc, exits } = this.map.render();
 		const loc = this.map.locations.get(this.map.current);
 
-		this.perform(`【${loc.name}】`);
-		if (desc) this.perform(desc);
+		/* ★`#1855`（P2-3 探索视图·替换式）：**场景头只在进场时印一次**。
+		 *   此前无条件印 ⇒ 而动作是**自环重绘**（见下方注释） ⇒ 同层重复动作 ⇒ 【层名】＋desc **整段堆叠**（复测 3 次实测）。
+		 *   判据：同层重复动作後【层名】出现次数 **恒 1**；离层再回 ⇒ 再印一次（各自正确）。
+		 *   ⚠ 乙案（固定不滚的场景头 DOM）属 **0.0.2+**（探索页结构） ⇒ 本笔 ✗ 做。 */
+		if (this.map.current !== this.#headerLoc) {
+			this.perform(`【${loc.name}】`);
+			if (desc) this.perform(desc);
+			this.#headerLoc = this.map.current;
+		}
 
 		// 交互选项（此位置可做的事，自循环重绘）
 		const actions = loc.availableActions;
@@ -310,6 +322,11 @@ RPG.MapScene = class MapScene extends RPG.Scene {
 			// 段落边界检测（#1749 D2）：action 若导航去了别的段落，本屏所属段落已退场，
 			// 再重绘即为「跨段渲染」——把旧地图画进新段落。仅在同一段落内才自循环重绘。
 			if (!this.#leftPassage()) await this.#renderLocation();
+			/* ★`#1855` 折单（`developer-10` RC）：**动作已导航离开**（战斗／结局等独立段落）⇒ 清场景头记录，
+			 *   使**下次进场**（战斗出口 `Engine.play('探索')`）重印场景头 —— ✗ 否则「**战斗回来场景头消失**」：
+			 *   场景单例 ＋ 回来时**段落名与上次渲染相同**（都是 `探索`）⇒ `#leftPassage()` 判定失灵 ✗ ⇒ 只能靠**这条显式清**。
+			 *   可达面：胜／僵持／早退三分支（死亡不中 —— respawn 走 `moveTo` ⇒ 地点变 ⇒ 本就会印 ✓）。 */
+			else this.#headerLoc = null;
 		} else {
 			// 出口导航：action → moveTo → 重绘新位置
 			const exit = exits[Number(picked.slice(1))];

@@ -128,6 +128,54 @@
 		assert.eq(SC().resolveFixture('没有这个名'), undefined, '★缺名 ⇒ undefined（✗ 抛：只读面不该中断）');
 	});
 
+	test('★#1878 折单③：**跨形覆盖抛具名**（✗ 静默改掉隔离语义）', () => {
+		/* ★立档理由（`dev-10` 增量二）：同名已由**对象形**登记时，再用**函数形**登记 ⇒ 原先静默覆盖
+		 *   ⇒ 共享引用语义变成每次新建语义，而 `loadFixture` 只按「是不是函数」分野 ⇒ **隔离语义无声消失**。
+		 *   ⚠ 同形覆盖**仍允许**（有意替换、语义不变）—— 只拦跨形。 */
+		SC().fixture('f-同形', { hp: 1 });
+		SC().fixture('f-同形', { hp: 2 });                       // 同形替换 ⇒ 不抛
+		assert.eq(SC().loadFixture('f-同形').hp, 2, '同形覆盖照旧（语义不变）');
+		let msg = '';
+		try { SC().registerFixture('f-同形', () => ({ hp: 3 })); } catch (e) { msg = e.message; }
+		assert.ok(msg.includes('跨形覆盖') && msg.includes('隔离语义'),
+			`★对象形被函数形覆盖须抛具名：${msg}`);
+		assert.ok(msg.includes('共享引用') && msg.includes('每次新建'),
+			`★报文须指出**两种语义**（可诊断）：${msg}`);
+		/* 反向臂：函数形被对象形覆盖 */
+		msg = '';
+		SC().registerFixture('f-反', () => ({ hp: 1 }));
+		try { SC().fixture('f-反', { hp: 2 }); } catch (e) { msg = e.message; }
+		assert.ok(msg.includes('跨形覆盖') && msg.includes('函数'),
+			`★函数形被对象形覆盖亦须抛：${msg}`);
+	});
+
+	test('★#1878 折单④：**构造抛错带夹具名**（✗ 只有内部报文、不知是哪个夹具）', () => {
+		/* ★立档理由（`dev-10` 增量三）：`fn()` 直接冒泡 ⇒ 报文里可能只有
+		 *   `Cannot read properties of undefined` ⇒ **不知道是哪个夹具坏的**（`tester-4` 实测两处都冒泡）。 */
+		SC().registerFixture('f-炸', () => { throw new Error('内部原话：读不到 L1'); });
+		let e1 = null;
+		try { SC().resolveFixture('f-炸'); } catch (e) { e1 = e; }
+		assert.ok(e1 != null, 'resolveFixture 须冒泡（✗ 吞）');
+		assert.ok(e1.message.includes('f-炸'), `★报文须带**夹具名**：${e1?.message}`);
+		assert.ok(e1.message.includes('内部原话'), `★并留住**原文**：${e1?.message}`);
+		assert.eq(e1.fixtureName, 'f-炸', '机读面 fixtureName');
+		assert.ok(e1.cause != null && e1.cause.message.includes('内部原话'), '★cause 留住原异常对象（✗ 覆盖）');
+		/* 同一条路：`loadFixture` 也须带名（两处都走 `callFixture`） */
+		let e2 = null;
+		try { SC().loadFixture('f-炸'); } catch (e) { e2 = e; }
+		assert.ok(e2?.message.includes('f-炸'), `★loadFixture 亦须带名：${e2?.message}`);
+	});
+
+	test('★#1878 折单③/④：`null`（在册却铺不出）vs `undefined`（没注册）**可分辨**', () => {
+		/* `tester-4` 实测指出：两者返回值可分辨，但**无格钉住**，且语义差极细。
+		 *   ⇒ 本格把它钉死（下游 `--dump-facts` 若要区分「名字在册但坏了」与「名字根本不在」就靠它）。 */
+		SC().registerFixture('f-空', () => null);
+		assert.eq(SC().resolveFixture('f-空'), null, '★在册但构造出 null ⇒ 返回 null');
+		assert.eq(SC().resolveFixture('f-从没注册过'), undefined, '★没注册 ⇒ undefined');
+		assert.ok(SC().resolveFixture('f-空') !== SC().resolveFixture('f-从没注册过'),
+			'★两者须**可分辨**（null !== undefined）');
+	});
+
 	test('★#1878 折甲：**挂载点＝消费点**（同一对象）—— ✗ 只挂 `globalThis` 会让消费侧恒空', () => {
 		/* ★立档理由（`tester-4` T RC 的阻断）：本面原只挂 `globalThis.__scenario`，
 		 *   而消费侧（故事／runner）读 `setup.RPG.__scenario` ⇒ **不是同一个对象** ⇒ 恒空

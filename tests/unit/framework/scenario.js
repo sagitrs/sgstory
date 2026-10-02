@@ -115,6 +115,49 @@
 	 * @param fixture ① `{state:{…}}`（存档对象形）② 裸状态对象 ③ 已注册的 fixture 名
 	 * @returns 装入后的存档面投影
 	 */
+	/**
+	 * ★★`#1878` 折单③：**跨形覆盖的共享守卫**（`fixture()` 与 `registerFixture()` **都调它**）。
+	 *
+	 * 为何要拦：两种形**语义不同** —— 对象形是**共享引用**（同一份给所有用例）、
+	 *   函数形是**每次新建**（天然隔离）。同名**跨形**覆盖 ⇒ 语义被静默改掉，而
+	 *   `loadFixture` 只按「是不是函数」分野 ⇒ 调用方**看不出**自己拿到的是哪种 ⇒ 隔离性无声消失。
+	 *   ⚠ **同形覆盖照旧允许**（有意替换、语义不变）—— 只拦跨形。
+	 *   ★与 `:122`「未注册名 ⇒ 具名错」**对称**：两个方向都出声（✗ 只拦一头 —— 本席首版正是只拦一头，
+	 *     反向臂格当场红）。
+	 * @param want 'function' | 'object'（**将要**登记的形）
+	 */
+	const assertNotCrossForm = (name, want) => {
+		const prev = fixtures[name];
+		if (prev == null) return;
+		const prevIsFn = typeof prev === 'function';
+		const wantIsFn = want === 'function';
+		if (prevIsFn === wantIsFn) return;                 // 同形 ⇒ 放行
+		throw new Error(`夹具名「${name}」已由**${prevIsFn ? '函数' : '对象'}**形登记`
+			+ `，现在要用**${wantIsFn ? '函数' : '对象'}**形登记 ⇒ **跨形覆盖**会静默改掉隔离语义`
+			+ `（${prevIsFn ? '每次新建' : '共享引用'} ⇒ ${wantIsFn ? '每次新建' : '共享引用'}）。`
+			+ '同名替换请用**同一形**；要两种语义请用**两个名字**。');
+	};
+
+/**
+	 * ★★`#1878` 折单④（`dev-10` 增量三）：**夹具构造抛错时补上夹具名**。
+	 *
+	 * 病灶：`fn()` 直接冒泡 ⇒ 报文里只有构造体内部的话（可能只有 `Cannot read properties of undefined`）
+	 *   ⇒ **不知道是哪个夹具坏的**（`tester-4` 实测两处都直接冒泡）。而夹具名恰恰是定位所需的唯一线索。
+	 *   ★与 `:122` 的「未注册名 ⇒ 列出已注册」**对称**：**名字是诊断的入口**。
+	 *   ⚠ **不改写原文**（`e.message` 逐字附在 `cause` 后），只**补上下文** ⇒ 构造体的报错仍可读。
+	 *   ⚠ 只包**函数形**的求值，✗ 不包 `loadFixture` 的其余流程（那会吞掉真缺陷的归因）。
+	 */
+	const callFixture = (name, fn) => {
+		try {
+			return fn();
+		} catch (e) {
+			const err = new Error(`夹具「${name}」的构造**抛错**：${e?.message ?? e}`);
+			err.cause = e;                       // ★原文留住（✗ 覆盖）
+			err.fixtureName = name;              // 机读面（调用方/刀可断）
+			throw err;
+		}
+	};
+
 	const loadFixture = (fixture) => {
 		const obj = typeof fixture === 'string'
 			? (() => {
@@ -132,7 +175,7 @@
 				 *     `State.variables`**（那条路**不克隆**）—— 见本对象 `resolveFixture` 的注释与
 				 *     单测里的对照臂（「JSON 往返必丢 Symbol」）。
 				 *   ⇒ 本函数保持既有语义（**进档形**的状态铺设），✗ 不改它去迁就标记。 */
-				return typeof f === 'function' ? f() : f;
+				return typeof f === 'function' ? callFixture(fixture, f) : f;
 			})()
 			: fixture;
 		if (obj == null || typeof obj !== 'object') {
@@ -243,6 +286,10 @@
 		fixture(name, state) {
 			if (typeof name !== 'string' || name === '') throw new Error('fixture 名须是非空字符串');
 			if (state == null || typeof state !== 'object') throw new Error(`fixture「${name}」的 state 须是对象`);
+			/* ★★`#1878` 折单③（反向臂）：**本形也要拦跨形覆盖** —— 只拦 `registerFixture` 一头，
+			 *   就等于「函数形登记被对象形静默降级」这条路**仍然开着**（本席首版正是只拦一头 ⇒
+			 *   反向臂格当场红：`fixture('f-反', …)` 没抛）。**两个方向都出声**才算拦全。 */
+			assertNotCrossForm(name, 'object');
 			fixtures[name] = state;
 			return name;
 		},
@@ -260,9 +307,17 @@
 		 * ## 层级（`#1878` 裁定）
 		 *   **机制在本文件**（引擎侧），**注册发生在故事侧**（`stories/**` 随故事走）——
 		 *   ✗ 引擎反过来知道故事的状态（`$babelRun` 之类不是引擎语汇）。
-		 *   ⇒ 装载故事后 `Object.keys(setup.RPG.__scenario.fixtures)` 应 **> 0**（该读数即可作刀：面接通了）——
-		 *     ★本面**两处都挂**（`globalThis.__scenario` ＋ `setup.RPG.__scenario`，同一对象）⇒ 该断言**现在真成立**
-		 *     （此前只挂 `globalThis` 而消费侧读 `setup.RPG` ⇒ 恒 0，见文件尾的折甲注释）。
+		 * ## ★消费侧接通的**前提**（`tester-4` 与 `dev-10` 两席独立指出 ⇒ 此处**明账**，✗ 只写「应 > 0」）
+		 *   本面**两处都挂同一对象**（`globalThis.__scenario` ＋ `setup.RPG.__scenario`；见文件尾折甲注释）⇒
+		 *   「装载故事后 `Object.keys(setup.RPG.__scenario.fixtures)` > 0」**这个断言本身是成立的**。
+		 *   ⚠ **但它还差两件才真在 runner 上跑出来**（本笔**不做**，归 books 侧下一笔）：
+		 *     1. **runner 须额外装载本文件**（`tests/unit/framework/scenario.js`）——
+		 *        books 的装载序今日是 `host → shims → bundle`（✗ 不含本档）⇒ 面**不存在**，与「没有夹具」不可分辨；
+		 *     2. **书目侧的读法**：`books/tests/scenario/run.mjs:44` 的 `desc` 写 `RPG.__scenario.fixtures`
+		 *        —— 折甲后**读得到了**，但该处文案与装载是**下一笔**的事。
+		 *   ⇒ **未接通之前**，`--dump-facts=engineFixtures count` 恒 **0** 是**预期**（✗ 别当成「没有夹具」）。
+		 *   ★这正是本席今晚反复那族：**一个「应 > 0」的断言，在通路未接时与「本来就是空」不可分辨**。
+		 *     ⇒ 所以此处写**前提**（装载本档 ＋ 读法），而非只写期望值。
 		 *
 		 * @param name 夹具名（非空字符串；重名 ⇒ **覆盖**并返回名字，供链式）
 		 * @param fn   `() => 裸状态对象`（惰性、可多次调用、须每次给新对象）
@@ -274,6 +329,12 @@
 				throw new Error(`registerFixture「${name}」须给函数（惰性构造）—— 收到 ${show(fn)}。`
 					+ '要铺一份固定状态请用 fixture(name, state)。');
 			}
+			/* ★★`#1878` 折单③（`dev-10` 增量二）：**跨形覆盖须抛具名**（判据单点 `assertNotCrossForm`）。
+			 *   病灶：对象形（**共享引用**）被函数形（**每次新建**）静默覆盖 ⇒ **隔离语义无声消失**
+			 *   （调用方以为还是那一份，实际每次新造）。反之亦然。
+			 *   ⚠ **同形覆盖照旧允许**（有意替换、语义不变）；只拦**跨形**。
+			 *   ★两个方向都要拦（`fixture()` 与 `registerFixture()` 各调一次）—— 只拦一头等于留一半路。 */
+			assertNotCrossForm(name, 'function');
 			fixtures[name] = fn;
 			return name;
 		},
@@ -285,7 +346,7 @@
 		resolveFixture(name) {
 			const f = fixtures[name];
 			if (f == null) return undefined;
-			return typeof f === 'function' ? f() : f;
+			return typeof f === 'function' ? callFixture(name, f) : f;
 		},
 		/** 清空已注册 fixture（用例之间隔离） */
 		clearFixtures() { for (const k of Object.keys(fixtures)) delete fixtures[k]; },

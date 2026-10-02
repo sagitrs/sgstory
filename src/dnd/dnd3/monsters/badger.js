@@ -20,7 +20,11 @@ DND3.Badger = RPG.defCharacter({
 		ac: 15, bab: 0, cr: '1/2',
 	}),
 	items: [
-		{ id: 'coin' }, // 战利品：死亡掉落（与哥布林同规则）
+		{ id: 'coin' },          // 战利品：死亡掉落（与哥布林同规则）
+		/* ★`#1855`：天然攻击件 —— `equipped: true`（同 `goblin.js` 的 club：①自动通路可取到 ②死亡**不掉落**）。
+		 *   数值**逐值照录** pinned，攻击加值走 `stats.atkBonus`（✗ 引擎推导）；
+		 *   档头逐只反解与「不落项」清单见 `items/natural-attacks.js`。 */
+		{ id: 'badger-claw', equipped: true },   // 獾爪
 	],
 });
 

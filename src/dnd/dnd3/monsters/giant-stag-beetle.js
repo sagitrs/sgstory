@@ -22,7 +22,13 @@ DND3.GiantStagBeetle = RPG.defCharacter({
 		// 出处同上（同一 pin 文件同一行）—— Armor Class 19、Challenge Rating 4
 		ac: 19, bab: 5, cr: 4,
 	}),
-	items: [{ id: 'coin' }],
+	items: [
+		{ id: 'coin' },          // 战利品：死亡掉落（与哥布林同规则）
+		/* ★`#1855`：天然攻击件 —— `equipped: true`（同 `goblin.js` 的 club：①自动通路可取到 ②死亡**不掉落**）。
+		 *   数值**逐值照录** pinned，攻击加值走 `stats.atkBonus`（✗ 引擎推导）；
+		 *   档头逐只反解与「不落项」清单见 `items/natural-attacks.js`。 */
+		{ id: 'giant-stag-beetle-bite', equipped: true },   // 巨鹿甲虫咬
+	],
 });
 
 jQuery(document).on(':enginerestart', () => {

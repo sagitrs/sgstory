@@ -57,7 +57,14 @@ DND3.meleeAttack = (item, that, from) => {
 	// 远程武器用灵巧，近战用力量
 	const abilMod = isRanged ? DND3.modOf(f, 'dex') : DND3.modOf(f, 'str');
 	// 创伤罚（#1780 §四 C1：`裂伤` 在本场首回合给攻击掷骰 −1；无创伤时恒 0 ⇒ 既有行为不变）
-	const atkMod = (f.bab ?? 0) + abilMod + (DND3.traumaAttackMod?.(from) ?? 0);
+	/* ★`#1855`：**显式攻击加值** `item.stats.atkBonus` —— 有则**照录**（✗ 不走推导）。
+	 *   为何需要（本票裁定 甲，领队 guest-1 2026-10-02）：天然武器的 pinned 攻击行**含三件本仓没有的机制**
+	 *     —— 体型修正、武器娴熟、单一自然攻击的 ×1.5 力调（见 `items/natural-attacks.js` 档头逐只反解）
+	 *     ⇒ 若不照录，9 只里 5 只的攻击加值会与 pinned 不符（本席实测差 1~5）。
+	 *   ⚠ **脱钩代价（有意）**：照录值与 `bab`／力调**不联动** ⇒ 日后改属性**不会**改它。
+	 *   ⚠ 缺省（`undefined`）⇒ **逐字沿用**原式 ⇒ 既有武器／玩家面**零回归**。
+	 *   ⚠ 创伤罚**仍叠加**在照录值上（伤势是**场上状态**，✗ 属武器固有值）。 */
+	const atkMod = (item.stats.atkBonus ?? ((f.bab ?? 0) + abilMod)) + (DND3.traumaAttackMod?.(from) ?? 0);
 	const ac = DND3.acOf(that);
 	const die = DND3.d20();
 	const critMin = item.stats.critMin ?? 20;

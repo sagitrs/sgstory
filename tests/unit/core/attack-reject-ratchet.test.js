@@ -3,7 +3,7 @@
  * 为何要这道棘轮：本票的契约是**跨包的**——
  *   ① 攻击层在「**打不出去**」（腾不出手／没弹药）时须 `return false`；
  *   ② 攻击层在「**失手**」（攻击**已发生**、只是没中）时须**保持裸 `return;`**（`undefined` ⇒ `applied`）；
- *   ③ 13 件武器的 「used()」 须**转发**攻击层的返回值（✗ 转发 ⇒ 返回值被丢弃 ⇒ ①②在 「used()」 层失效）。
+ *   ③ 各武器件的 「used()」 须**转发**攻击层的返回值（✗ 转发 ⇒ 返回值被丢弃 ⇒ ①②在 「used()」 层失效）。
  *   ⇒ 任何**新包／新武器**若只做一半，**行为面没有红灯**（返回值被丢弃，静默回到 `applied`）——
  *     所以把「三处的**集合**」本身钉住：**凡改动即须显式登记**（✗ 靠人记得同步）。
  *
@@ -60,7 +60,9 @@
 	/* ★13 件转发（按包切；`dnd-5e` 与 `dnd3` 同名遮蔽：`sword`／`club`／`bomb` 在 `RPG.items` 里解析到 **dnd3**，
 	 *   故这些件**在行为上**由 `dnd3` 那侧覆盖 —— 但**文件面**两包都要改，否则本表与实际集合不符）。 */
 	const 转发件 = {
-		'dnd3': ['bone-dagger', 'club', 'iron-lineage', 'short-bow', 'sword', 'wood-spear'],
+		/* ★`#1855`：`natural-attacks.js` 是**生成器档**（一件档产出 9 只天然攻击件）——
+		 *   本棘轮按**档**核集合，故登记**档名**（✗ 9 个件 id）。它与其余件**同形转发** ⇒ 属同一契约面。 */
+		'dnd3': ['bone-dagger', 'club', 'iron-lineage', 'natural-attacks', 'short-bow', 'sword', 'wood-spear'],
 		'dnd-5e': ['bomb', 'club', 'dagger', 'musket', 'pistol', 'sword'],
 		'd20m': ['beretta-92f'],
 	};
@@ -114,7 +116,7 @@
 		}
 	});
 
-	test('★#1813 ⑩【跨包棘轮·转发件】13 件武器 「used()」 须**转发**攻击层返回值（两向差集）', () => {
+	test('★#1813 ⑩【跨包棘轮·转发件】各武器件 「used()」 须**转发**攻击层返回值（两向差集）', () => {
 		for (const [包, ids] of Object.entries(转发件)) {
 			const dir = `src/dnd/${包}/items`;
 			/* ① 具名清单逐个：该件的 「used()」 须 `return <pkg>.attack|meleeAttack(...)` */
@@ -136,9 +138,9 @@
 			assert.eq(JSON.stringify(实到), JSON.stringify([...ids].sort()),
 				`${dir}：实际转发件集合 ≠ 具名清单（新增/删除须显式登记）：${JSON.stringify(实到)}`);
 		}
-		/* 总量自记（✗ 硬编）：13 */
+		/* 总量自记（✗ 硬编）：14（`#1855` 起） */
 		const total = Object.values(转发件).reduce((n, a) => n + a.length, 0);
-		assert.eq(total, 13, `清单总量须为 13（工料单实测）：${total}`);
+		assert.eq(total, 14, `清单总量须为 **14**（原 13 ＋ #1855 新增的 natural-attacks 档）：${total}`);
 	});
 
 	test('★#1813 ⑪【可达性】`dnd-5e` 侧「腾不出手」须**可达**（须存在非 ranged 的 weapon 件）', () => {

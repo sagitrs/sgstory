@@ -263,6 +263,9 @@ RPG.MapScene = class MapScene extends RPG.Scene {
 	#passageAtRender = null;
 	/* ★`#1855`（P2-3 探索视图·替换式 甲案）：场景头只在进场时印一次 ⇒ 本字段记录上次印过的地点。 */
 	#headerLoc = null;
+	/* ⚠ 残余边界（`developer-10` RC-2 记账，**当前不可达**）：本字段的「清」只发生在**动作分支**且 `#leftPassage()` 为真时；
+	 *   若将来出现**非地图动作**的离场（段落级静态链接／宿主无 `State.passage`）⇒ 不清 ⇒ 回来可能仍不印头。
+	 *   现有离场路径仅两条：地图出口（走 else ⇒ `moveTo` 改地点 ⇒ 本就重印 ✓）与战斗／死亡（走动作分支 ✓）⇒ 故当前不可达 ✓ 记账备将来。 */
 
 	/* 段落是否已在本次选择期间被导航走（`#1749` D2）。任一读数缺失 ⇒ 不判定（`false`）。 */
 	#leftPassage() {

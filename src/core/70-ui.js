@@ -40,7 +40,38 @@ RPG.itemClick = (id, { actor } = {}) => {
 	if (action == null) return { ok: false, action: null };
 	const who = actor ?? RPG.playerActor();
 	if (action === 'equip') return { ok: RPG.toggleEquip(id) !== false, action };
-	return { ok: RPG.useItem(id, who, who, 'use') !== false, action };
+	/* ★`#1857`：**故事页**的 `act` 抛错收成可读拒绝（`#1839` 战斗侧 `#actCatching` 的同族补面）。
+	 *   道具的 `used()` 可以**按设计抛错**（资源「误当消耗品」`resources.js`：「应当响」），
+	 *   而本函数原先**无 catch** ⇒ 异常穿过 `bindItemLinks` 的点击处理 ⇒ **穿到 jQuery/DOM 层**
+	 *   ⇒ 玩家点一下**没有任何可读反馈**（实测：`itemClick('rock')` 抛「石料」是建设物资…）。
+	 *   ⇒ 收成 `{ ok:false, reason:'action-threw', message }`（`message` ＝ **道具自己的话**，✗ 改写）。
+	 *   ⚠ **只包这一处调用**（✗ 包整个函数）：其余异常是真缺陷，吞掉会把「崩了」伪装成「被拒绝」
+	 *     （与 `#1839` 的取舍 1 同旨）。
+	 *   ⚠ 与「`used()` 返回 `false`」的拒绝**可分辨**（后者 `reason === undefined`，即既有形）——
+	 *     两者都 `ok:false`，但**成因不同**，故 `reason` 分开（既有 `#1805` 直证格不受影响）。 */
+	let used;
+	try {
+		used = RPG.useItem(id, who, who, 'use');
+	} catch (e) {
+		/* 与 `#1839` 同形：玩家看**文案**（上屏）、作者看**栈**（控制台）—— ✗ 只留其一 */
+		console.error('[RPG] 道具动作抛错（故事页已转为可读拒绝；此栈供排查是否为真 bug）:', e);
+		return { ok: false, action, reason: 'action-threw', message: e?.message ?? String(e) };
+	}
+	return { ok: used !== false, action };
+};
+
+/** ★`#1857`：把 `itemClick` 的**抛错形拒绝**转成**可读文案**（纯函数，便于单测直证）。
+ *  ★原样引**道具自己的话**（`result.message`）—— 那是道具作者写给自己玩家的「因」，✗ 泛泛的「用不了」。
+ *  ⚠ 只对 `reason === 'action-threw'` 生效；其余形态（`used()` 返回 `false` 的拒绝）⇒ 返回 `null`
+ *    （**语义不同**：前者是「动作抛了」，后者是「动作自己判定做不到」—— 由各自的既有路径呈现）。
+ *  @returns string|null 文案；`null` ＝ 本形态不上屏 */
+RPG.itemRejectText = (result) => {
+	if (result?.reason !== 'action-threw') return null;
+	/* ★**原样**用道具自己的话（✗ 前置名字／加括号）—— 道具文案**通常已含名字与因**
+	 *   （实测：`「石料」是建设物资，不能直接使用（请用于建造）`），再套一层会得
+	 *   「「石料」用不了：「石料」是建设物资…」＝**重复**（与 `#1839` 的取舍 2 同族：✗ 塞进括号位）。
+	 *   ⇒ 道具作者写了什么，玩家就看到什么；若某道具的话不自明，那是**道具侧**该补的文案。 */
+	return result.message;
 };
 
 /**
@@ -81,7 +112,11 @@ RPG.bindItemLinks = () => {
 		ev.preventDefault();
 		const id = jQuery(this).attr('data-item');
 		if (!id) return;
-		RPG.itemClick(id);
+		const r = RPG.itemClick(id);
+		/* ★`#1857`：**把拒绝上屏**（✗ 静默 —— 玩家点了没反应＝「穿 DOM」的另一种形态）。
+		 *   `perform` 会把文案插在 `.statusbar` **之前**（＝页底，玩家正在看的地方，见 `01-perform.js:23`）。 */
+		const rejectText = RPG.itemRejectText(r);
+		if (rejectText != null) RPG.perform(rejectText);
 		/* 用后重绘：状态栏里「（已装备）」与「×N」都会变 ⇒ 走 **B1 的局部刷新域**只刷新「背包」那一格
 		 *   （`#1798` B1 落地后，本文件不再自己找 DOM 写入 ⇒ 谁该重绘由**面板注册表**回答）。
 		 *   面板未注册／当前段落没有该宿主（如未接线的故事）⇒ 退化为「什么都不做」（✗ 整段重绘）。 */

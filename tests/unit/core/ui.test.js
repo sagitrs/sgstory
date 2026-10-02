@@ -32,6 +32,13 @@
 		used() { this.perform('（这次做不到）'); return false; },
 	});
 
+	/* ★`#1857`：一件**按设计抛错**的条目 —— 道具的 `used()` 可以抛（资源的「误当消耗品应当响」），
+	 *   而故事页的点入口原先**无 catch** ⇒ 异常穿到 DOM 层、玩家无可读反馈（本笔修的形）。 */
+	R().defItem({
+		id: 'unit-thrower', name: '单测炸物', charges: null,
+		used() { throw new Error('「单测炸物」是建设物资，不能直接使用（请用于建造）'); },
+	});
+
 	const freshInv = (actor) => {
 		S().inventory = [];
 		actor.items = S().inventory;   // 与两包 player.js 同形：玩家 items ≡ $inventory
@@ -168,4 +175,59 @@
 		assert.eq(second, false, '★再次调用应早退（幂等）');
 		assert.eq(R().__itemLinksBound, true, '绑定标记应置位');
 	});
+
+	/* ═══ `#1857`：故事页点道具**抛错须收成可读拒绝**（✗ 穿 DOM）═══
+	 * 同族：`#1839` 收的是**战斗侧**（`#actCatching`）；本笔补**故事页**（`itemClick`）。
+	 * 「筛（选单不亮）＋ 网（catch）」两层已在 `#1844` 立 —— 本笔是**网**的另一半。 */
+
+	test('★#1857 ①：`used()` **抛错** ⇒ `itemClick` 收成可读拒绝（✗ 抛穿 DOM）', () => {
+		const p = freshInv(R().playerActor() ?? R().characters.get('player'));
+		R().give('unit-thrower');
+		let threw = null;
+		let r = null;
+		try { r = R().itemClick('unit-thrower', { actor: p }); } catch (e) { threw = e.message; }
+		assert.eq(threw, null, `★点击**不得**抛穿（玩家侧无可读反馈）：${threw}`);
+		assert.eq(r.ok, false, '拒绝：`ok:false`');
+		assert.eq(r.reason, 'action-threw', '★成因可分辨：`action-threw`');
+		assert.ok(/建设物资/.test(r.message ?? ''), '★`message` 含**道具自己的话**（✗ 泛泛「用不了」）');
+	});
+
+	test('★#1857 ②：抛错路径**零副作用**（背包仍在、charges ✗ 扣）', () => {
+		const p = freshInv(R().playerActor() ?? R().characters.get('player'));
+		R().give('unit-thrower');
+		R().itemClick('unit-thrower', { actor: p });
+		assert.ok(S().inventory.some((s) => s.id === 'unit-thrower'), '★道具仍在背包（✗ 被误消耗）');
+	});
+
+	test('★#1857 ③：可读文案＝**原样**引道具自己的话（✗ 前置名字／加括号 ⇒ 重复）', () => {
+		const p = freshInv(R().playerActor() ?? R().characters.get('player'));
+		R().give('unit-thrower');
+		const r = R().itemClick('unit-thrower', { actor: p });
+		const text = R().itemRejectText(r);
+		assert.eq(text, r.message, '★与 `message` **逐字同**（道具文案通常已含名字与因）');
+		assert.ok(!/^「单测炸物」用不了：/.test(text), '★✗ 再套一层名字（那会得「「X」用不了：「X」…」的重复）');
+	});
+
+	test('★#1857 ④【对照】两种 `ok:false` **可分辨**（抛错 vs `used()` 返回 false —— ✗ 混为一谈）', () => {
+		const p = freshInv(R().playerActor() ?? R().characters.get('player'));
+		R().give('unit-thrower'); R().give('unit-refuser');
+		const a = R().itemClick('unit-thrower', { actor: p });   // 抛错形
+		const b = R().itemClick('unit-refuser', { actor: p });   // `used()` 自己拒绝形
+		assert.eq(a.ok, false, '两者都 ok:false');
+		assert.eq(b.ok, false, '两者都 ok:false');
+		assert.eq(a.reason, 'action-threw', '★抛错形有 `reason`');
+		assert.eq(b.reason, undefined, '★`used()` 返回 false 形**无** `reason`（既有语义不变）');
+		assert.eq(R().itemRejectText(b), null, '★非抛错形**不上屏**（两条路径各走各的呈现）');
+	});
+
+	test('★#1857 ⑤：正常件**零回归**（`ok:true`，文案为 null）', () => {
+		const p = freshInv(R().playerActor() ?? R().characters.get('player'));
+		p.hp = 5; p.maxHp = 20;
+		R().give('unit-draught');
+		const r = R().itemClick('unit-draught', { actor: p });
+		assert.eq(r.ok, true, '正常件仍成功');
+		assert.eq(r.reason, undefined, '✗ 被新字段污染');
+		assert.eq(R().itemRejectText(r), null, '✗ 正常路径产出文案');
+	});
+
 })();

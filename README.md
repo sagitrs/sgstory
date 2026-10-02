@@ -7,7 +7,8 @@ master/main 自本提交起重启为空干线。
 
 ## 测试工具
 
-**测试工具根**：[`tests/`](tests/)（单元 / e2e / 门与 pin-cache 台账；索引见 [`tests/README.md`](tests/README.md)）。
+测试工具根：tests/
+（单元 / e2e / 门与 pin-cache 台账；索引见 [`tests/README.md`](tests/README.md)）。
 **根外具名例外**（✗ 假全称：反向搜索证实存在竞争根）：[`stories/babel/verify.mjs`](stories/babel/verify.mjs)（故事侧装配自检，随故事走）。
 ★声明口径＝**逐处具名**（✗ 「唯一根」全称）：根行 ＋ 例外行；新增根外工具时**同处具名**（`gsvector-process#300` 条款④）。
 工具退役或移动时须**同步本声明**（条款：gsvector-process#300 · tester.md「测试工具落盘与复用」）。

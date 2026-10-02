@@ -83,7 +83,11 @@ DND3.meleeAttack = (item, that, from) => {
 	}
 	if (dmg < 1) dmg = 1; // 惩罚压到 0 以下时至少造成 1 点
 
-	that.hp = Math.max(0, (that.hp ?? 0) - dmg);
+	/* ★`#1854`：伤害经**唯一入口** `RPG.applyDamage`（致命／非致命两路单点）。
+	 *   非致命（空手打击）⇒ **不改 `hp`**、只累积 `nonlethal` ⇒ 阈值达即**昏迷出局**（`RPG.isKnockedOut`），
+	 *   且**永不致死**（`grantDeathIfDown` 判的是 `hp <= 0`）⇒ 也就**不掉战利品**。
+	 *   ⚠ 既定致命路**逐字不变**（`applyDamage` 缺省即 `that.hp = Math.max(0, …)`）。 */
+	RPG.applyDamage(that, dmg, { nonlethal: item.stats.nonlethal === true });
 	DND3.grantDeathIfDown(that);
 
 	// 施加面（#1780 §三 A1-A5）：**重击确认命中**后按固定优先级施加一条创伤。

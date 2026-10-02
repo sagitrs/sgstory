@@ -63,3 +63,30 @@ Object.defineProperties(DND5E.Player, {
 		configurable: true,
 	},
 });
+/* ★`#1854`：**空手打击**（MSRD 通用规则 ⇒ 引擎级常驻项，✗ 故事机制）。
+ *   core 只定契约（`RPG.Battle` 的选单／分派／收口 ＋ `RPG.applyDamage` 的致命／非致命两路单点）；
+ *   包侧只需声明「用哪个攻击函数、伤害多少」—— 三包签名同为 `(item, that, from)`，故空手**复用**现有攻击函数，
+ *   只喂一个**合成 item**（✗ 新开一条攻击通路）。
+ *
+ *   ★规则出处（pinned）：`27msrdcombat战斗-d20m.md:333-341` —— 拳/踢/头槌按近战武器处理；
+ *     中型角色 **1d3＋力量修正、非致命**；空手打击算**轻近战武器**。
+ *   ★**累积阈值不在 pin 里**（本席逐文件核过：19 个 pinned 文件中含 `nonlethal` 的 4 个均无「累积段」）
+ *     ⇒ 按本仓纪律标 **house rule（非 SRD）**：**唯一**阈值 `nonlethal > hp` ⇒ **昏迷出局**
+ *       （`见 RPG.applyDamage`）。
+ *     ⚠ pin 的 `nonlethal >= hp`「**踉跄**」态**本引擎不实现** —— 全仓无 `staggered` 读数
+ *       ⇒ ✗ 不静默丢弃：显式记在此（与 `armed`／借机攻击 同一形：贴 pin 出处、写「不实现」）。
+ *   ★**armed 与借机攻击**（pin `:339`）只作**注记**：其唯一机制后果是 AoO，而引擎**无 AoO 层**
+ *     ⇒ **HR：本引擎不实现借机攻击**（✗ 静默丢弃 —— 显式记在此；与 `#1855` 的天然武器共引同一 pin 行）。
+ *
+ *   `equipped: true` 是**关键**：攻击函数的「未装备 ⇒ 先拔出／腾不出手」分支据此**跳过**
+ *     （空手无需拔出；也**不该**因为手里握着剑就打不出拳）。 */
+const unarmedItem = {
+	id: 'unarmed', name: '空手', equipped: true,
+	stats: { dmg: '1d3', crit: 2, type: '非致命', nonlethal: true },
+};
+
+DND5E.Player.unarmed = {
+	item: unarmedItem,   // ★测试可断言伤害骰／伤害类型（行为断言之外的数据面）
+	text: '空手打击',
+	strike: (actor, target) => DND5E.attack(unarmedItem, target, actor),
+};

@@ -1,7 +1,7 @@
 {
   "_note": "core 宿主触点基线（#1804 件二）。棘轮：只防加深（新触点⇒红）；减少⇒绿但出声（可 --update-baseline 刷新）。口径：已剥注释与字符串、只算代码面；类目见 tests/gates/host-touchpoints.mjs 的 CATEGORIES。",
-  "_seededAt": "63f6bdd8",
-  "_seededReason": "#1817 笔1 存档契约引入 80-save.js 的宿主安全访问器（vars() 读 State.variables ＋ Save 查找用 globalThis）——#1817 §七 已提前备案为「已知且接受的加深」，本笔按判据③的对偶（加深必须被看见）显式重播：把该 3 处纳入基线，使后续『再加深』仍可判。",
+  "_seededAt": "751bcbe1",
+  "_seededReason": "#1864 折 dev-9 MINOR①：_restoreFromState 改用 stateVars()（「收成单点」原只收了一半 ⇒ 触点计数下降是假的）。本次实测：src/core/40-battle.js setup. 6→5、src/core/60-map.js State.variables 2→1，全 core 36→35。承 #1817 §七 已备案的加深（80-save.js 3 处 = vars() 读 State.variables ＋ Save 查找用 globalThis；该理由随本次重播归零，其条目仍在 touchpoints 内）。基线归零到本笔实测，使后续「再加深」仍可判。",
   "touchpoints": {
     "src/core/00-namespace.js": {
       "setup.": 1
@@ -23,14 +23,14 @@
       "State.variables": 1
     },
     "src/core/40-battle.js": {
-      "setup.": 6
+      "setup.": 5
     },
     "src/core/50-scene.js": {
       "State.variables": 1,
       "SugarCube": 1
     },
     "src/core/60-map.js": {
-      "State.variables": 2,
+      "State.variables": 1,
       "State.other": 2
     },
     "src/core/70-ui.js": {

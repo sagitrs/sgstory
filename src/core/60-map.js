@@ -48,13 +48,24 @@ RPG.Exit = class Exit extends Object {
 
 /* ---------- WorldMap：有向图 ---------- */
 
+/** ★**单点**读取 `State.variables`（无 `State` 环境 ⇒ `null`）。
+ *  触点门（`#1804`）按**出现次数**防加深 ⇒ 三处各自直接读会被记为 3 处；此处收成 1 处（本笔顺手**降低**：原为 2）。
+ *  ⚠ 必须区分「无 `State`」与「`State` 有但变量为空」：前者**不得**当成空表用（覆盖会抹掉存档）。 */
+const stateVars = () => (typeof State === 'undefined' || State == null ? null : (State.variables ?? null));
+
 RPG.WorldMap = class WorldMap extends Object {
 	constructor({ id = 'world' } = {}) {
 		super();
 		this.id = id;
 		this.locations = new Map();      // id → Location
 		this.exits = [];                 // Exit[]（有向边）
-		this.current = null;             // 当前位置 id
+		this._current = null;            // 当前位置 id（**后备**：State 里有值时以 State 为准，见 `current`）
+		/* ★`#1859`（P0）：`current` 是**访问器**（State 为准）—— 实例在堆上，读档只替换 `State.variables`
+		 *   ⇒ 若读的是字段，读档后它**仍是旧位置**（操作者实测「存 L2 → 推进 L4 → 读 ⇒ 仍停 L4」）。
+		 *   `#1760` §四 的判据原文即「`State.variables.mapCurrent` 与 `map.current` **始终一致**」
+		 *   ＋「往返后**可从 State 恢复**（不依赖实例）」—— 原实现只在**构造时**恢复 ⇒ 该判据被违约。
+		 *   ⇒ 定形：**读**以 State 为准（无 State 环境回落后备字段）；**写**经 setter 同步（写点仍是单点）。
+		 *   设计稿原文（`:60`「读点＝`current` getter」）**本就如此要求**，本笔是把实现对齐到它。 */
 		/* ★ #1760（设计稿 §四）：「current 在堆上 ⇒ 读档即错位」的最小修——
 		 *   实例字段落一份到 `State.variables.mapCurrent`（**纯字符串 id**，零改语义）。
 		 *   写点单点＝下面 `moveTo`（含构造后的首次进入）；读点＝`current` getter。
@@ -62,6 +73,27 @@ RPG.WorldMap = class WorldMap extends Object {
 		 *   它们由构建路径（包内 `buildSpan*Hub` ＋ 故事侧 `world/babel*.js`）**确定性重放**，故属**代码面**。
 		 *   判据与**重议触发条件**见 `80-save.js`「进档判据」（裁见 #1829）。 */
 		this._restoreFromState();
+	}
+
+	/** 当前位置 id（**State 为准**；无 `State` 的环境回落后备字段）。
+	 *  ★为何是访问器：见构造器注释（`#1859` —— 读档替换的是 `State.variables`，实例字段会陈旧）。
+	 *  ⚠ `State` 里有值即以它为准（✗ 用 `??` 合并：空串等假值不应把位置判丢，故只认**字符串**）。 */
+	get current() {
+		const vars = stateVars();
+		const saved = vars == null ? undefined : vars[this._stateKey()];
+		return typeof saved === 'string' ? saved : this._current;
+	}
+
+	/** 写：只更新**后备字段**（✗ 不在此同步 `State`）。
+	 *  ★写点仍是**单点** `moveTo`（`#1760` §四：`moveTo` 内 `_syncToState()`）——
+	 *    直接赋值（构造期摆位、测试夹具）**不得**写档：那是「写点单点」这条设计不变式的边界
+	 *    （既有格 `mapCurrent：moveTo 单点同步` 明钉「构造不写」，本席首版在此同步 State ⇒ 该格当场红）。
+	 *
+	 *  ★`#1864` 折（dev-9 NIT）：**直接赋值不写档** —— `map.current = 'L3'` 只改后备字段，
+	 *    State **静默不动**（看似生效、实则读档即回旧值）。⇒ 唯一写点是 `moveTo`（调 `_syncToState()` —— 全档**仅此一处**）。
+	 *    ✗ 不要在此加同步：那会破「写点单点」不变式（上条格当场红）。 */
+	set current(locId) {
+		this._current = locId;
 	}
 
 	/** 存档键：世界地图（`id==='world'`，缺省）用 `mapCurrent`；具名地图用 `mapCurrent_<id>`。
@@ -75,17 +107,22 @@ RPG.WorldMap = class WorldMap extends Object {
 	/** 从存档恢复当前位置（实例字段在堆上 ⇒ 读档后回到初始值，故以 State 为准）。
 	 *  静默策略：State 里没有该键（首次运行／旧档／非存档环境）⇒ 保持原值，不抛错。 */
 	_restoreFromState() {
-		const vars = typeof State === 'undefined' || State == null ? null : State.variables;
+		/* ★`#1864` 折（dev-9 MINOR）：「收成**单点**」只收了一半 —— 本处仍直读 `State.variables`
+		 *   ⇒ 触点门按**出现次数**计，漏掉这一处 「计数下降」就是**假的**（读数 2 而非 1）。
+		 *   ⇒ 与 `get current`／`_syncToState` 同走 `stateVars()`（本档唯一的 `State` 直读点）。 */
+		const vars = stateVars();
 		const saved = vars == null ? undefined : vars[this._stateKey()];
-		if (typeof saved === 'string' && this.current == null) this.current = saved;
+		if (typeof saved === 'string') this._current = saved;   // ★只是**后备**缓存；权威仍是 State（见 `current` 访问器）
 		return this.current;
 	}
 
 	/** 把当前位置写回 State（**唯一写点**：`moveTo` 内调用 ⇒ 与 `current` 恒一致）。 */
 	_syncToState() {
-		const vars = typeof State === 'undefined' || State == null ? null : State.variables;
+		const vars = stateVars();
 		if (vars == null) return;
-		vars[this._stateKey()] = this.current;
+		/* ⚠ 写**后备字段**（✗ `this.current` —— 那是**访问器**，会读到 State 的旧值再写回 ⇒ 位置永不推进；
+		 *   本席首版即栽在此，单测 11 红当场抓到）。 */
+		vars[this._stateKey()] = this._current;
 	}
 
 	/** 添加节点（重复 id 抛错） */
@@ -233,6 +270,13 @@ RPG.MapScene = class MapScene extends RPG.Scene {
 
 	async #renderLocation() {
 		this.#passageAtRender = State?.passage ?? null;
+		/* ★`#1859`（台账 P1-1／P1-2「刷新族」）：**就地重绘后刷新状态栏面板**。
+		 *   面板的填充点是 `:passagedisplay`（故事侧 `ui/panels.js`）——而本场景**自环重绘不导航**
+		 *   ⇒ 地图整段期间面板**一次都不刷新** ⇒ 实测：位置面板恒显第 1 层，即便已走到 L2／L4；
+		 *   采集/装备后的「背包」面板同理（P1-1）。
+		 *   ⇒ 在**每次画完一屏**的地方统一补一次刷新（✗ 让每个 action 各自记得调）。
+		 *   ⚠ 能力探测（无呈现层／未加载面板域 ⇒ 静默跳过）：与 `refreshPanels` 的无宿主语义一致。 */
+		RPG.refreshPanels?.();
 		const { desc, exits } = this.map.render();
 		const loc = this.map.locations.get(this.map.current);
 

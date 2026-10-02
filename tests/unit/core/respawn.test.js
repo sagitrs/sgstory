@@ -317,6 +317,20 @@
 		assert.eq(State.variables.mapCurrent, 'L5', '每次移动都同步');
 	});
 
+	test('★#1864 ③刀：**State 权威** —— 实例字段与 State 冲突时取 State（撤 `current` 访问器 ⇒ 必红）', () => {
+		/* ★守卫对象（dev-9 实测可写的刀）：「顺手把 `current` 退回**纯字段**」是本笔最可能的回归形
+		 *   —— 那时 `_current` 与 State 分叉会**静默**取错值（三个读面：屏幕／位置面板／`#renderLocation`）。
+		 *   本格造**分叉**：实例字段是旧值 L3，State 是新值 L9 ⇒ 读 `current` 须取 **State**。
+		 *   ⚠ 用**外部改档**造分叉（✗ 不动内部字段 —— 那不经公开面）。 */
+		const map = mkMap('L1');
+		map.moveTo('L3');
+		assert.eq(State.variables.mapCurrent, 'L3');
+		State.variables.mapCurrent = 'L9';            // 外部改档（另一会话／存档写入）
+		assert.eq(map.current, 'L9', '★实例字段仍是 L3 ⇒ `current` 必须取 State 的 L9（纯字段实现会返回 L3）');
+		State.variables.mapCurrent = undefined;      // State 无值 ⇒ 回落后备字段
+		assert.eq(map.current, 'L3', 'State 缺值 ⇒ 回落后备字段（静默策略不变）');
+	});
+
 	test('mapCurrent：JSON 往返后可从 State 恢复（M1-① 的先行子集）', () => {
 		const map = mkMap('L1');
 		map.moveTo('L5');

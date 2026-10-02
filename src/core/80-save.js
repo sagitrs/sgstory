@@ -178,14 +178,101 @@ RPG.save = (() => {
 		};
 	};
 
+	/* ---------- ★`#1877` P1-7：Restart 前补写一次自动存档 ---------- */
+
+	/** 取宿主文档（无宿主环境 ⇒ `null`）。判据用 `typeof` 而非 `globalThis.document` ⇒ 不写点号形。 */
+	const hostDocument = () => (typeof document === 'undefined' ? null : document);
+
+	/**
+	 * **Restart 前把当前进度写进「自动存档」槽一次**（`#1877` P1-7）。
+	 *
+	 * ## 为何需要（本席实测的宿主时序，✗ 推断）
+	 *   · 宿主启动序：`State.restore()` **先看会话快照**（`session.get("state")`）—— 取得到就直接显示，
+	 *     取不到才回落到 `enginePlay(Config.passages.start)`。
+	 *   · 会话快照的**唯一写入点**在 `session.set("state", …)`，而它在 **history push 内**
+	 *     ⇒ **只在导航时写**（就地改动不入）。
+	 *   · `Engine.restart()` 体＝`window.scroll(0,0), State.reset(), triggerEvent(":enginerestart"), location.reload()`，
+	 *     而 `State.reset()` 的首句就是 **`session.delete("state")`** ⇒ **快照被删**；
+	 *     重载后 `State.restore()` 取不到 ⇒ 落回起始段。
+	 *   ⇒ 这就是操作者所见的「Restart → Continue 恢复到**旧位置**」（Continue 读的是**上一次**存档）。
+	 *
+	 * ## 为何是「临时开户」而不是直接写（★本席实测，✗ 猜测）
+	 *   本引擎 `Config.saves.maxAutoSaves` **默认为 0** ⇒ `Save.browser.auto.isEnabled()` 为假
+	 *   ⇒ `Save.browser.auto.save()` 是 **no-op**（其首行 `if(!autoIsEnabled()||…) return !1`）。
+	 *   而**永久**开户（`maxAutoSaves = 1`）会把 `:passageend` 的**连续**自动存档一并打开 ——
+	 *   那远超本笔范围（操作者要的是「**Restart 前写一次**」）。
+	 *   ⇒ 实现为：**临时开户 ⇒ 写一次 ⇒ 复原**（`finally` 保证复原，✗ 让异常把配置留在开户态）。
+	 *
+	 * ## 与 `#1859` 的关系（本函数**不**重复其修）
+	 *   `auto.save()` 走 `marshal()` ⇒ 触发 `Save.onSave` 处理器 ⇒ `install()` 里那条
+	 *   「把**活跃变量**并入当前时刻」照常生效 ⇒ 就地改动（`mapCurrent` 等）**随这次写入进档**
+	 *   （实测：直接改 `State.variables.mapCurrent` 后写 ⇒ `continue()` 读回该值）。
+	 *
+	 * @param deps 注入面（**仅供单测**：`{ save, config }`）；省略 ⇒ 从宿主解析
+	 * @returns boolean 是否真的写了一次（无宿主／无该 API ⇒ `false`，静默）
+	 */
+	const snapshotForRestart = (deps) => {
+		const SC = deps ? null : (globalThis.SugarCube ?? globalThis);
+		const save = deps?.save ?? SC?.Save;
+		const config = deps?.config ?? SC?.Config;
+		const auto = save?.browser?.auto;
+		const saves = config?.saves;
+		if (auto?.save == null || saves == null) return false;
+		const before = saves.maxAutoSaves;
+		try {
+			/* 未开户 ⇒ 临时开一次（✗ 无条件赋 1：那会把调用方**本来就有**的更大值改小）。 */
+			if (!(Number(before) > 0)) saves.maxAutoSaves = 1;
+			auto.save();
+		} finally {
+			saves.maxAutoSaves = before;      // ★复原（含异常路径）
+		}
+		return true;
+	};
+
+	/** 判「这一击是不是 **Restart 确认**」并落快照。
+	 *  抽成函数是为了**可直测**（✗ 只能靠 DOM 事件）—— 单测可直接传 `{ target: { id: 'restart-ok' } }`。
+	 *  ⚠ 用 `closest`（若可用）兼收「点在按钮内层元素」的形（✗ 只认 `target.id`）。 */
+	const handleRestartClick = (ev, deps) => {
+		const el = ev?.target;
+		const hit = el?.id === 'restart-ok' || el?.closest?.('#restart-ok') != null;
+		if (!hit) return false;
+		return snapshotForRestart(deps);
+	};
+
+	/** 把上面那个处理接到**捕获相位**的 `click` 上（幂等；无 `document` ⇒ 静默跳过）。
+	 *  ★**必须捕获相位**：宿主的确认按钮处理在**目标相位**（`ariaClick` ⇒ `Dialog.close()` ⇒
+	 *    `:dialogclosed` ⇒ `Engine.restart()`）；捕获先于它跑 ⇒ 落快照时 `State` **尚完整**
+	 *    （`restart()` 一旦跑过就 `State.reset()`，那时再写已无从取状态）。
+	 *  @param doc 注入面（**仅供单测**：假 `document`）；省略 ⇒ 取宿主文档
+	 */
+	const hookRestartConfirm = (doc = hostDocument()) => {
+		if (restartHooked) return false;
+		if (doc?.addEventListener == null) return false;
+		doc.addEventListener('click', (ev) => { handleRestartClick(ev); }, true);
+		restartHooked = true;
+		return true;
+	};
+
 	/* ---------- 宿主接入（幂等；无宿主 ⇒ 静默跳过，✗ 抛错） ---------- */
 
 	let installed = false;
+	/** Restart 确认的捕获监听是否已接（与 `installed` 分开：接的是**文档**、不是宿主 API） */
+	let restartHooked = false;
 
 	const install = () => {
 		if (installed) return false;
-		const host = globalThis.SugarCube?.Save ?? globalThis.Save;
+		/* ⚠ 保持**回退语义**（`SugarCube.Save` 无则回落全局 `Save`）。
+		 *   ★**明写**每个 `globalThis`（✗ 用 `const G = globalThis` 的别名绕触点门 —— 那正是本门
+		 *     `KNOWN_BLIND_SPOTS` 记的「别名」形，绕过去＝把真实耦合藏起来）。
+		 *   ⇒ 本笔 `globalThis` 出现 2 → 3（新增 `Config` 一路），已按门要求 `--update-baseline` 登记。
+		 *   ⚠ **如实记一处门的盲区**：本笔另增 1 处宿主耦合 —— `hostDocument()` 里的**裸 `document`**
+		 *     （传给 `addEventListener`）—— 但门的 `document` 类目正则是 `document\.`（**属性形**）
+		 *     ⇒ 裸 `document` **不被计入** ⇒ 实际加深比门报的**多 1 处**（✗ 借盲区少报）。 */
+		const SC = globalThis.SugarCube;
+		const host = SC?.Save ?? globalThis.Save;
 		if (host == null || host.onSave?.add == null || host.onLoad?.add == null) return false;
+		/* ★`#1877` P1-7：**Restart 前补写一次自动存档**（见 `snapshotForRestart` 的长注）。 */
+		hookRestartConfirm();
 		/* 存：信封挂 **`save` 顶层**（✗ `save.state` 内）。
 		 *
 		 * ★为何是顶层（`#1820` D 席 RC 裁甲，实测结构差）：真实 SugarCube 的 `save.state` 是
@@ -247,6 +334,7 @@ RPG.save = (() => {
 	return {
 		VERSION, ENVELOPE_KEY, DOMAINS, MIGRATIONS,
 		ready, currentPack, envelope, judgeLoad, audit, install,
+		snapshotForRestart, handleRestartClick, hookRestartConfirm,   // ★`#1877` P1-7（供单测直证）
 		installed: () => installed,
 	};
 })();

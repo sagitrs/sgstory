@@ -74,6 +74,60 @@
 		assert.ok(msg.includes('基本局'), `★应列出已注册的（可诊断）：${msg}`);
 	});
 
+	/* ---------- ①b 具名夹具登记面（`#1878`）---------- */
+
+	test('#1878：`registerFixture` 收**函数**（惰性）—— ✗ 注册时求值、✗ 共享引用', () => {
+		/* ★立档理由：`setup.DND3.stats()` 的返回块含 Symbol 键（`[PACK]:'dnd3'`），
+		 *   而 inline JSON **表达不了 Symbol** ⇒ 用 inline 建的角色态丢 pack 标记 ⇒ 跨包同名遮蔽判不出（**假绿**）。
+		 *   函数形在**故事侧环境就绪后**求值 ⇒ 标记保住。 */
+		let calls = 0;
+		SC().registerFixture('f-计数', () => { calls++; return { hp: 7, inventory: [] }; });
+		assert.eq(calls, 0, '★注册**不**调用（惰性 —— 此刻求值会把 Symbol/故事态冻住）');
+		SC().loadFixture('f-计数');
+		assert.eq(calls, 1, 'loadFixture 才求值');
+		assert.eq(State.variables.hp, 7, '状态已落');
+		/* ★每次新建 ⇒ 用例之间天然隔离（对象形是共享引用 ⇒ 跨用例污染） */
+		SC().loadFixture('f-计数');
+		assert.eq(calls, 2, '★再 load 再求值（✗ 复用同一份）');
+	});
+
+	test('#1878：`resolveFixture` **不克隆** ⇒ 保住 Symbol 标记；inline JSON 形**必丢**（假绿的机械判据）', () => {
+		/* ★本席**改过一次本格**（如实记）：首版断言 `loadFixture('具名')` 能保住 Symbol —— **错**。
+		 *   实测：`loadFixture` 对裸状态走 `H.state.set(H.save.roundtrip(obj))`（**JSON 往返**）
+		 *   ⇒ Symbol 键在 `JSON.stringify` 里**根本不出现** ⇒ 具名形一样丢。
+		 *   ⇒ 真正保住标记的是**不克隆的那条路**：`resolveFixture(name)` 返回故事侧**刚求值出来的活对象**
+		 *     （消费方直接赋给 `State.variables` ⇒ 标记随引用留住）。
+		 *   ★这也定了消费侧的用法：runner 要标记就得走 `resolveFixture` ＋**直接赋值**，✗ 走 `loadFixture`。 */
+		const PACK = Symbol.for('unit.pack');
+		SC().registerFixture('f-带标记', () => {
+			const stats = { ac: 12 };
+			stats[PACK] = 'dnd3';                 // 模拟 `setup.DND3.stats()` 的 `[PACK]: 'dnd3'`
+			return { stats, inventory: [] };
+		});
+		assert.eq(SC().resolveFixture('f-带标记').stats[PACK], 'dnd3',
+			'★`resolveFixture`（不克隆）⇒ pack 标记**在**');
+		/* 对照臂 ①：同一份状态走 JSON 往返（`loadFixture` 的路）⇒ 标记消失 */
+		const viaJson = H().save.roundtrip(SC().resolveFixture('f-带标记'));
+		assert.eq(viaJson.stats[PACK], undefined,
+			'★JSON 往返 ⇒ pack 标记**没了**（Symbol 不进 JSON —— 这正是「用错形 ⇒ 假绿」的机械证据）');
+		/* 对照臂 ②：inline 对象直接写（也是 JSON 形的一员）：`scenarios.json` 的 inline 无法表达 Symbol */
+		assert.eq(JSON.parse(JSON.stringify({ stats: { ac: 12 }, [PACK]: 'dnd3' }))[PACK], undefined,
+			'★inline JSON 形**表达不了** Symbol（`[PACK]` 键在 stringify 时即被丢弃）');
+	});
+
+	test('#1878：`registerFixture` 的契约（名字非空、须给函数、`resolveFixture` 只读）', () => {
+		let msg = '';
+		try { SC().registerFixture('', () => ({})); } catch (e) { msg = e.message; }
+		assert.ok(msg.includes('非空字符串'), `空名须拒：${msg}`);
+		msg = '';
+		try { SC().registerFixture('f-坏', { hp: 1 }); } catch (e) { msg = e.message; }
+		assert.ok(msg.includes('须给函数') && msg.includes('fixture(name, state)'),
+			`★给对象须拒**并指向旧形**（可诊断）：${msg}`);
+		SC().registerFixture('f-读', () => ({ hp: 3 }));
+		assert.eq(SC().resolveFixture('f-读').hp, 3, 'resolveFixture 求值');
+		assert.eq(SC().resolveFixture('没有这个名'), undefined, '★缺名 ⇒ undefined（✗ 抛：只读面不该中断）');
+	});
+
 	/* ---------- ② 推一步 ---------- */
 
 	test('#1806 笔2：`dispatch` 返回 status ＋ 前后存档面 ＋ 可读 delta ＋ 输出行', () => {

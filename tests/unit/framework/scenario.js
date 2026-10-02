@@ -120,7 +120,13 @@
 			? (() => {
 				const f = fixtures[fixture];
 				if (f == null) throw new Error(`未注册的 fixture：「${fixture}」（已注册：${Object.keys(fixtures).join('、') || '（无）'}）`);
-				return f;
+				/* ★`#1878`：具名夹具可以是**对象**（旧形）或**函数**（新形）——函数**须在此刻调用**，
+				 *   ✗ 注册时调用：`setup.DND3.stats()` 的返回块含 **Symbol 键**（`[PACK]:'dnd3'`），
+				 *   而 Symbol 随 `{...stats}` 展开保留 ⇒ 只有在**故事侧环境已就绪**时求值才保得住；
+				 *   注册时（脚本装载期）求值会把 Symbol 之外的一切冻结，且**共享同一份对象**
+				 *   ⇒ 用例 A 的改动会漏进用例 B（跨用例污染）。
+				 *   ⚠ 函数形**每次调用都新建**一份 ⇒ 用例之间天然隔离（这是取函数而非对象的关键收益）。 */
+				return typeof f === 'function' ? f() : f;
 			})()
 			: fixture;
 		if (obj == null || typeof obj !== 'object') {
@@ -211,12 +217,51 @@
 		loadFixture, dispatch, assertSave,
 		snapshot, diff, digest, canonical,
 		fixtures,
-		/** 注册 fixture（返回注册名，便于链式/内联用） */
+		/** 注册 fixture（返回注册名，便于链式/内联用）—— **对象**形：铺一份**固定**状态 */
 		fixture(name, state) {
 			if (typeof name !== 'string' || name === '') throw new Error('fixture 名须是非空字符串');
 			if (state == null || typeof state !== 'object') throw new Error(`fixture「${name}」的 state 须是对象`);
 			fixtures[name] = state;
 			return name;
+		},
+
+		/**
+		 * ★`#1878` **夹具登记面**：注册**具名夹具**（`fn` 形）。
+		 *
+		 * ## 为什么需要函数形（✗ 对象形就够）
+		 *   1. **Symbol 键**：`setup.DND3.stats()` 的返回块含 `[PACK]:'dnd3'`（`dnd3/00-init.js`）——
+		 *      该标记随 `{ ...stats }` 展开保留 ⇒ 是「这件装备/这个角色属哪个规则包」的**唯一机器可读依据**
+		 *      （同名遮蔽的判据）。而 `scenarios.json` 的 inline JSON **表达不了 Symbol** ⇒ 用 inline 建的角色态
+		 *      **丢掉 pack 标记** ⇒ 跨包同名遮蔽判不出 ⇒ **假绿**。函数形在故事侧求值 ⇒ 标记保住。
+		 *   2. **每次新建**：函数形 ⇒ 每个用例各得一份**全新**状态（对象形是**共享引用** ⇒ 跨用例污染）。
+		 *
+		 * ## 层级（`#1878` 裁定）
+		 *   **机制在本文件**（引擎侧），**注册发生在故事侧**（`stories/**` 随故事走）——
+		 *   ✗ 引擎反过来知道故事的状态（`$babelRun` 之类不是引擎语汇）。
+		 *   ⇒ 装载故事后 `Object.keys(R.__scenario.fixtures)` 应 **> 0**（该读数即可作刀：面接通了）。
+		 *
+		 * @param name 夹具名（非空字符串；重名 ⇒ **覆盖**并返回名字，供链式）
+		 * @param fn   `() => 裸状态对象`（惰性、可多次调用、须每次给新对象）
+		 * @returns 注册名
+		 */
+		registerFixture(name, fn) {
+			if (typeof name !== 'string' || name === '') throw new Error('registerFixture 的名字须是非空字符串');
+			if (typeof fn !== 'function') {
+				throw new Error(`registerFixture「${name}」须给函数（惰性构造）—— 收到 ${show(fn)}。`
+					+ '要铺一份固定状态请用 fixture(name, state)。');
+			}
+			fixtures[name] = fn;
+			return name;
+		},
+
+		/**
+		 * 取一个具名夹具的**求值结果**（新建一份）—— 供 `--dump-facts` 之类**只读**消费面。
+		 * @returns 裸状态对象；无此名 ⇒ `undefined`（✗ 抛：只读面不该因缺名中断，是否红由调用方判）
+		 */
+		resolveFixture(name) {
+			const f = fixtures[name];
+			if (f == null) return undefined;
+			return typeof f === 'function' ? f() : f;
 		},
 		/** 清空已注册 fixture（用例之间隔离） */
 		clearFixtures() { for (const k of Object.keys(fixtures)) delete fixtures[k]; },

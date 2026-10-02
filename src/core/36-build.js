@@ -40,24 +40,29 @@ RPG.deliverYields = (who, yields, label) => {
 			RPG.perform(`「${label}」的产出 id「${y.id}」未注册——跳过该项。`);
 			continue;
 		}
-		/* ★ **投递语义必须与 `RPG.give` 同形**（✗ 不自造第二套合并逻辑）：
-		 *   `give` 是「把 n 件放进背包」的既有唯一实现 —— **首次逐件建槽**、有同类槽才并入
-		 *   （`30-inventory.js RPG.give`）。本函数早先自写「一次投进一个槽」，与 `give` **不一致**
-		 *   ⇒ 退还输入时把 2 件并进已有的 `charges:1` 槽 ⇒ 该槽变 3（实测），
-		 *   而 `take` 是「逐槽扣」⇒ 两边对不上、件数静默漂移。
-		 *   现按 `give` 的形状写：玩家背包直接走 `RPG.give`（全局面），同伴/怪物写其自有数组。 */
+		/* ★`#1877` P1-5①（`dev-9` 阻断①折）：**收敛到判据单点** —— ✗ 本函数再自造一套。
+		 *
+		 * ## 折的是什么（原状的病灶）
+		 *   原先此处**按 `who` 分叉**：玩家走 `RPG.give`（**新形**：首投**单槽**）、
+		 *   同伴/怪物走本函数自写的分支（**旧形**：无同类槽时 `for(i<n) push` ⇒ **n 个槽**）
+		 *   ⇒ 同一 id、同一 n，**因 `who` 不同而形态分叉**（玩家「石料×2」1 槽 / 同伴「石料×1、石料×1」2 槽），
+		 *   而下游 `take`／上面的 `count()` 都按**总量**读 ⇒ 两边对不上（正是本笔要消的病）。
+		 *   ★且注释当时写着「**投递语义必须与 `RPG.give` 同形**」「同伴：同 `give` 的首次逐件」——
+		 *     本笔把 `give` 的「首次」改成单槽后，**那两句就在描述一个不存在的 `give`**（假注释）。
+		 *     ⇒ `dev-9` 判「改了 `give`、留旧分支、留假注释 ⇒ 不可合」，**成立**。
+		 *
+		 * ## 现在（判据单点，实现两形态**显式**分工）
+		 *   · **新件入包**（本函数与 `give` 同语义）⇒ **都**走 `RPG.deposit(bag, id, n)`；
+		 *   · **快照转移**（`RPG.loot`，保留**剩余次数**）⇒ 走它自己的路（✗ `deposit` 的新件形 —— 那会按 `def.charges`
+		 *     **回满**，有反例格钉住）；两者**共用 `RPG.canStack(def)` 判据**（✗ 各写一遍）。
+		 *   ⇒ 三层（`give`／本函数／`loot`）**形态一致**：可叠加 ⇒ 单槽；否则 ⇒ 逐件。 */
 		const count = () => bag.filter((s) => s.id === y.id).reduce((a, s) => a + (s.charges ?? 1), 0);
 		const before = count();
 		const def = RPG.createItem(y.id);
-		if (bag === State.variables?.inventory) {
-			RPG.give(y.id, n);                                        // 玩家：既有唯一实现
-		} else if (def.stackable && def.charges != null) {
-			const slot = bag.find((s) => s.id === y.id);
-			if (slot) slot.charges += def.charges * n;                 // 同伴：同 give 的合并分支
-			else for (let i = 0; i < n; i++) bag.push(def.toJSON());   // 同伴：同 give 的首次逐件
-		} else {
-			for (let i = 0; i < n; i++) bag.push(def.toJSON());
-		}
+		/* ⚠ 玩家背包走 `give` 是为了**N-2 的「＋n 名」提示**（本函数另有「采得」文案）；
+		 *   两条路**投递实现同一**（都进 `deposit`），差别只在**是否出声**。 */
+		if (bag === State.variables?.inventory) RPG.give(y.id, n);
+		else RPG.deposit(bag, y.id, n);
 		const gained = count() - before;
 		if (gained > 0) got.push(`${def.name}×${gained}`);
 	}

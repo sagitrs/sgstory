@@ -316,6 +316,32 @@
 		assert.ok(lines.some((l) => l.includes('在战斗中都用不上')), `★出了说明（✗ 静默空菜单）：${JSON.stringify(lines)}`);
 	});
 
+	test('★`#1877` P1-5②：**非战斗道具不进选单**（纪念品／采集点／图纸／弹药）＋ 对照臂', () => {
+		/* 动因（操作者复测）：「『旧硬币』作为战斗道具可选，使用后提示『只是纪念品…』，白白浪费一回合
+		 *   —— 无用的物品仍应从战斗道具列表中过滤」。
+		 *   ★判据（**声明的能力**，✗ 猜名字）：无装备路径，且 `used()` 只出声／抛「请用别的动作」
+		 *     ⇒ 声明 `noBattleUse`（`#1841`／`#1844` 的既有机质，✗ 另立「纪念品」第二套权威源）。
+		 *   ⚠ **对照臂是必须的**：只断言「被滤掉」无法区分「滤对了」与「选单整个坏了」。 */
+		const 应滤 = ['coin', 'iron-key', 'iron-message', 'stone-pile', 'farm-plot',
+			'forge-longsword', 'bullets-firearm'];
+		const 应留 = ['bandage', 'ration'];                    // 真能战斗用（治疗／进食）
+		const 应留但不在此列 = 'trap-fire';                     // ★陷阱**真造成伤害** ⇒ 须留（本席实测反例）
+		State.variables.inventory = [...应滤, ...应留, 应留但不在此列]
+			.map((id) => R().createItem(id).toJSON());
+		const battle = mkBattle();
+		const opts = battle.buildPlayerOptions(setup.DND3.Player).itemOptions;
+		const ids = opts.map((o) => o.value);
+		for (const id of 应滤) {
+			assert.ok(!ids.includes(String(State.variables.inventory.findIndex((s) => s.id === id))),
+				`★「${id}」不该进战斗选单（选了只是白耗一回合）：${JSON.stringify(opts.map((o) => o.text))}`);
+		}
+		for (const id of 应留) {
+			assert.ok(opts.some((o) => o.text.includes(R().createItem(id).name)),
+				`★对照臂：「${id}」能战斗用 ⇒ 须**在**选单里（否则本格测的是「选单坏了」）：${JSON.stringify(opts.map((o) => o.text))}`);
+		}
+		assert.ok(opts.some((o) => o.text.includes(R().createItem(应留但不在此列).name)),
+			`★反例臂：陷阱**有机制效果** ⇒ ✗ 被一并滤掉（本席实测其 used() 真造成伤害）：${JSON.stringify(opts.map((o) => o.text))}`);
+	});
 	test('★#1841 ⑤：**唯一**动作不是 use 时须**用它**（✗ 沿用默认 `use` —— 本笔前的隐含假定）', async () => {
 		/* 造一个「不可战斗用、但可装备」的道具 ⇒ 动作集恰为 `['equip']`（长度 1）
 		 *   ⇒ 走真通路时**不该再问动作**、且提交的 action 须是 `equip`。

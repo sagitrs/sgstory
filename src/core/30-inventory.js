@@ -10,21 +10,65 @@ const inv = () => {
 	return vars.inventory;
 };
 
-/** 发放道具（同 id 可叠加时会合并剩余次数）；`n < 0` ⇒ 消耗，走 `RPG.take` */
+/** 发放道具（同 id 可叠加时会合并剩余次数）；`n < 0` ⇒ 消耗，走 `RPG.take`。
+ *  ★`#1877` N-2：增减**可读提示**（`＋n 名` 一行，走正常输出通道）——「凭空多出又莫名减少」不可理解。
+ *  ⚠ 只在**数量净变化**时出声（首投建槽／纯合并都算；`n===0`／投递 0 件不出声）。 */
+/** ★`#1877` P1-5①（`dev-9` 阻断①折）：**「可叠加」判据的单点**。
+ *   三处投递（`give` 玩家路／`deliverYields` 同伴路／`loot` 快照转移）都问这一个谓词 ——
+ *   ✗ 各写一遍（那正是 `#1844` 的教训：同判据多处副本 ⇒ 改一处留三处）。
+ *   ⚠ 判据＝`stackable **且** charges != null`（两者缺一即「每件一个独立条目」，如 `iron-key`）。 */
+RPG.canStack = (def) => def?.stackable === true && def?.charges != null;
+
+/**
+ * **投递的唯一实现**（`#1877` P1-5① —— `dev-9` 两轮阻断后收敛到此）：把件放进**任意背包**。
+ *
+ * 三处调用者**都走这里**（✗ 各处自写 —— 前两轮正是「同判据多副本 ⇒ 改一处留两处」）：
+ *   · `RPG.give`（玩家发放）—— 造**新件**；N-2 的「＋n 名」提示**留**在调用方（此处静默）
+ *   · `RPG.deliverYields` 的同伴/怪物路 —— 造**新件**（其「采得」文案在调用方）
+ *   · `RPG.loot` 的战利品转移 —— **转移快照本身**（传 `snapshot`），保留**剩余次数**
+ *
+ * ★**两形态由参数显式表达**（✗ 靠调用方各自实现）：
+ *   · `snapshot == null` ⇒ **造新件**：可叠加 ⇒ 单槽 `charges = def.charges * n`；否则逐件 `def.toJSON()`
+ *   · `snapshot != null` ⇒ **转移快照**：可叠加 ⇒ 并进同类槽（件数取 `snapshot.charges ?? def.charges ?? 1`，
+ *     并**补写 `charges`** —— 敌方快照常是裸 `{ id }`，不补则显示层认不出 `×N`）；否则原样 `push(snapshot)`
+ *
+ * ⚠ **为何快照不按 `def.charges` 重造**：那会把「用过的绷带」（快照 `charges: 1`）**回满**成 2 ⇒ 件数造假。
+ *   有反例格钉住（`item-delta.test.js`）。
+ *
+ * @param bag      目标背包数组（玩家 `$inventory`／同伴/怪物的 `items`）
+ * @param id       道具 id
+ * @param n        件数（正整数；调用方已校验）—— `snapshot != null` 时按 1 调用（逐件转移）
+ * @param snapshot 快照（**转移**语义）；缺省 ⇒ **造新件**
+ * @returns number 实际入包件数
+ */
+RPG.deposit = (bag, id, n = 1, snapshot = null) => {
+	const def = RPG.createItem(id);
+	const each = snapshot == null ? null : (snapshot.charges ?? def.charges ?? 1);   // 快照件数口径（同 `take`）
+	if (RPG.canStack(def)) {
+		const slot = bag.find((s) => s.id === id);
+		if (snapshot != null) {
+			if (slot) { slot.charges = (slot.charges ?? 0) + each; return each; }
+			bag.push({ ...snapshot, charges: each });
+			return each;
+		}
+		if (slot) { slot.charges += def.charges * n; return def.charges * n; }
+		bag.push({ ...def.toJSON(), charges: def.charges * n });
+		return def.charges * n;
+	}
+	for (let i = 0; i < n; i++) bag.push(snapshot == null ? def.toJSON() : snapshot);
+	return n;
+};
+
 RPG.give = (id, n = 1) => {
 	const def = RPG.createItem(id); // 读默认定义（次数、可否叠加）
-	const list = inv();
 	if (!Number.isInteger(n)) throw new Error(`RPG.give 的 n 须为整数（收到 ${n}）——次数计数不允许小数`);
 	if (n < 0) return RPG.take(id, -n); // 负数即消耗，见 RPG.take
 	if (n === 0) return;
-	if (def.stackable && def.charges != null) {
-		const slot = list.find((s) => s.id === id);
-		if (slot) {
-			slot.charges += def.charges * n;
-			return;
-		}
-	}
-	for (let i = 0; i < n; i++) list.push(def.toJSON());
+	/* ★`#1877` P1-5①：投递收敛到 `RPG.deposit`（**唯一实现**）—— 本函数只管**归口 ＋ 提示**。
+	 *   ⚠ 提示**只在此处**（`deposit` 保持静默）：`deliverYields` 有自己的「采得」文案 ⇒
+	 *     提示若放进 `deposit`，采集时会**双份**（本席按此分工，✗ 让两处都出声）。 */
+	const gained = RPG.deposit(inv(), id, n);
+	if (gained > 0) RPG.perform(`＋${gained} ${def.name}`);
 };
 
 /**
@@ -64,6 +108,11 @@ RPG.take = (id, n = 1, actor = null) => {
 	 *   解析不出（无角色持有该数组）⇒ `actor=null` ⇒ 订阅方**不动视图**（与「归属不可判 ⇒ 不猜」同口径）。 */
 	const owner = actor ?? [...(RPG.characters?.values?.() ?? [])].find((c) => c?.items === list) ?? null;
 	RPG.events.emit('inventory:changed', { id, n, actor: owner });
+	/* ★`#1877` N-2：**减量可见**（与 `RPG.give` 的 `＋n 名` 同形、同频）。
+	 *   动因（操作者复测）：「采集后碎石堆又莫名 -1，增减规则对玩家不可见」。
+	 *   ⚠ 只在**成功**扣减后出声（✗ 不足返回 false 的那条路 —— 那没有任何变化）。 */
+	const named = RPG.items.has(id) ? RPG.createItem(id).name : id;
+	RPG.perform(`－${n} ${named}`);
 	return true;
 };
 
@@ -187,7 +236,11 @@ RPG.loot = (victim) => {
 	if (dropped.length === 0) return;
 	const names = dropped.map((s) => RPG.reviveItem(s).name);
 	for (const s of dropped) {
-		inv().push(s); // 原样转移快照（保留剩余次数）
+		/* ★`#1877` P1-5①：**掉落走同一投递**（✗ 原形无条件 `push` ⇒ `coin` 永不合并，
+		 *   而 `coin` 的**唯一**来源就是本函数 ⇒ `#1880` 的计数库存形落不了地）。 */
+		/* ★`#1877` P1-5①（`dev-9` 阻断① · 领队裁甲形）：**收敛到 `RPG.deposit` 的快照形** ——
+		 *   本函数不再自写合并逻辑（✗ 同判据多副本）。`snapshot` 形会保留**剩余次数**（✗ 回满）。 */
+		RPG.deposit(inv(), s.id, 1, s);
 		slots.splice(slots.indexOf(s), 1);
 	}
 	/* `#1798` B4：产出是**结论行** ⇒ 走 `loot` 通道（`key`）。 */

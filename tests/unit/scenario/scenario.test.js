@@ -88,6 +88,29 @@
 		cleanProbes();
 	});
 
+	test('★`#1877` N-2 修：`dispatch` 的 `lines` 切点按**行数**（✗ 块数）—— 动作前已有输出时不得吞掉本次行', () => {
+		/* ★本格钉的是**框架自身的潜在缺陷**（由 `#1877` N-2 暴露）：
+		 *   输出块**保持打开并累积**（`host.append` 只在块关闭时才新建块）⇒ 旧实现按 `outputs.length` 切片，
+		 *   动作若把行追加进**已打开的块**，`slice(块数)` 会把本次行**一起切掉** ⇒ `lines` **恒空**。
+		 *   触发条件＝「动作**之前**已有输出」——`#1877` N-2 给 `RPG.give` 加了一行「＋n 名」后，
+		 *   `scenarioWith` 里的 `give('coin')` 就会先建块 ⇒ 该档当场红（**假阴性**：把「有输出」读成「没输出」）。
+		 *   ⚠ 判别力：把切点改回 `outputs.length` ⇒ 本格必红。 */
+		probe({ id: 'unit-herb-lines', name: '单测药草甲', charges: 1, stackable: true, stats: { hp: 3 },
+			used(that) { that.hp = (that.hp ?? 0) + 3; this.perform(`用了${this.name}`); } });
+		const p = scenarioWith({ id: 'unit-herb-lines', charges: 1, equipped: false });
+		p.hp = 10;
+		/* ① 先制造「活动作之前的输出」（打开着的块）——正是旧实现吞行的条件 */
+		R().give('rock', 1);
+		assert.ok(H().host.lines().length > 0, '前置：动作**之前**已有输出（块已打开）');
+		/* ② 再推一步：本次行须**只**含本次动作的 */
+		const r = SC().dispatch({ item: 'unit-herb-lines' });
+		assert.eq(r.status, 'applied', '动作成功');
+		assert.ok(r.lines.some((l) => l.includes('单测药草甲')),
+			`★块已打开时仍须给出本次行（✗ 恒空 —— 旧实现按块数切）：${JSON.stringify(r.lines)}`);
+		assert.ok(!r.lines.some((l) => l.includes('＋1') && l.includes('石料')),
+			`★且**不**含动作之前的行：${JSON.stringify(r.lines)}`);
+		cleanProbes();
+	});
 	test('#1806 笔2：`dispatch` 走**真实入口** `RPG.act`（未注册 id ⇒ 引擎的拒绝）', () => {
 		scenarioWith();
 		const r = SC().dispatch({ item: '绝无此物' });

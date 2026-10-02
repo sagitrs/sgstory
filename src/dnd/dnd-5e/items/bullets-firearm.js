@@ -6,7 +6,8 @@
  */
 DND5E.BulletsFirearm = RPG.defItem({
 	id: 'bullets-firearm', name: '火器子弹', desc: '一袋 10 发火器子弹。',
-	stats: { weight: 2, cost: 3, ammoType: 'firearm' },
+	/* ★`#1877` P1-5②：弹药**不能直接使用**（须装填到武器上）⇒ 战斗选单不该亮「使用」。 */
+	stats: { weight: 2, cost: 3, ammoType: 'firearm', noBattleUse: true },
 	charges: 10, stackable: true, slot: null,
 	used() { this.perform('弹药不能直接使用——装填到带 Ammunition 特性的武器上。'); },
 });

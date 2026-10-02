@@ -60,3 +60,11 @@ jobs:
         run: node tests/gates/d20-consumers.mjs --selftest
       - name: 无头单测（断言 fail === 0）
         run: node tests/unit/headless.mjs
+      # ★`#1877` P1-3/P1-6 的静态判据住在 `stories/babel/verify.mjs`（该件是**故事装配自检**：
+      #   地图/层可达/单向门/跨包 API 接线/面板接线…）。**先前未接 CI** ⇒ 它在 CI 里**从不执行**，
+      #   只在 books 交付树侧跑过 ⇒ 引擎侧改动一旦漂移，这些断言**静默失效**（tester-3 在 books#112 指出）。
+      #   ⚠ 它只读 `tests/unit/dist/bundle.js`（上一步 build 产出）＋ 故事源档（**不依赖** `babel-trial.html`）
+      #     ⇒ 摆位须在 build 之后、并与单测同 job（本门 <1s，另开 job 要多付一次 checkout）。
+      #   ⚠ **不传** `--engine`：缺省即「引擎根＝两个上级」＝本仓现状（正是被测的那条路）。
+      - name: 巴别装配自检（故事侧静态判据；须在 build 之后）
+        run: node stories/babel/verify.mjs

@@ -81,6 +81,47 @@
 		assert.eq(R().canStack(null), false, '无 def ⇒ 判否（✗ 抛错 —— 调用方在缺件时也要能问）');
 	});
 
+	/* ---------- `#1862` ② 采集点行文可读 ---------- */
+
+	test('★#1862 ②：采集点的 `×N` ⇒「（还可采 N 次）」（✗ 让两种 `charges` 语义共用一行文本）', async () => {
+		/* ★立档理由（`#1862` 操作者原话）：「碎石堆×5 玩家不明其义」—— 采集点件落进背包时，
+		 *   它的 `charges` 是**可采次数**（`RPG.act` 采一次扣一次），而普通充能件的 `charges` 是
+		 *   「还剩几次用」⇒ 两者在 UI 上**同一个 `×N`** ⇒ 玩家读不出区别。 */
+		const h = fresh();
+		R().rng.set(() => 0.1);
+		R().give('stone-pile');
+		assert.eq(R().inventoryLabel(), '碎石堆（还可采 6 次）', '采集点行文带次数语义');
+		assert.ok(!R().inventoryLabel().includes('碎石堆×'), '★✗ 再出现裸 `×N`');
+		await R().gather('stone-pile');
+		assert.ok(R().inventoryLabel().includes('碎石堆（还可采 5 次）'),
+			`★采后次数随扣（采一次耗一分）：${R().inventoryLabel()}`);
+		/* ⚠ 与「充能件」的对照臂：普通件**仍**是 `×N`（✗ 被本改动波及） */
+		assert.ok(R().inventoryLabel().includes('石料×2'), `资源仍是 ×N：${R().inventoryLabel()}`);
+		/* ★两处（`inventoryLabel`／`inventoryLinks`）**逐字同形**的不变式仍须成立 */
+		const stripped = R().inventoryLinks().replace(/<a [^>]*>/g, '').replace(/<\/a>/g, '');
+		assert.eq(stripped, R().inventoryLabel(), `逐字同形：${stripped} vs ${R().inventoryLabel()}`);
+	});
+
+	test('★#1862 ②：判据取**动作表**（`handlers.gather`）—— ✗ 「有 `stats.yields`」', () => {
+		/* 两判据今天**同解**（本席实测：全部注册件里 `stats.yields` 非空且 `charges != null` 的恰好就是 5 个采集点），
+		 * 但**行为面**才是「能不能采集」的事实；`stats.yields` 是建造器的打包约定（产出表放 `stats`）。
+		 * 本格用一件**有 `yields` 但不能采集**的件把两判据**分开** ⇒ 钉住取哪一面。 */
+		R().defItem({ id: 'unit-fake-point', name: '假采集点', charges: 3, stackable: false,
+			stats: { yields: [{ id: 'rock', n: 1 }] },   // 数据面看起来像采集点（✗ 无 gather 动作）
+			used() { this.perform('（假采集点）'); } });
+		R().give('unit-fake-point');
+		assert.eq(R().inventoryLabel(), '假采集点×3',
+			'★无 `gather` 动作 ⇒ 走既有 `×N`（判据是动作表，✗ 不是 `stats.yields`）');
+		/* 反向臂：真有 gather 动作 ⇒ 走新形 */
+		R().defItem({ id: 'unit-real-point', name: '真采集点', charges: 3, stackable: false,
+			stats: { yields: [{ id: 'rock', n: 1 }] },
+			actions: { gather: R().gatherFrom },
+			used() { this.perform('（真采集点）'); } });
+		R().give('unit-real-point');
+		assert.ok(R().inventoryLabel().includes('真采集点（还可采 3 次）'),
+			`★有 gather 动作 ⇒ 新形：${R().inventoryLabel()}`);
+	});
+
 	/* ---------- N-2 增减可见 ---------- */
 
 	/* ---------- P1-5① 战利品路径（★本席 rebase 后发现：`loot` 绕过 `give`）---------- */

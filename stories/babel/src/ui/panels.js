@@ -10,11 +10,24 @@ const R = setup.RPG;
 const D = setup.DND3;
 
 /* ★**写回器**：面板的 DOM 写入**只在故事侧**（核心 `72-panel.js` 不碰 DOM —— `#1804` 件二的棘轮门）。
- *  契约：命中并写入 ⇒ 返回真值；选择器在当前段落找不到宿主 ⇒ 返回 `false`（那次刷新计为 skipped）。 */
-R.panelWriter = (host, html) => {
+ *  契约：命中并写入 ⇒ 返回真值；选择器在当前段落找不到宿主 ⇒ 返回 `false`（那次刷新计为 skipped）。
+ *
+ * ★**重绘搬运宿主内交互态**（`#1877` P1-3 根因；判据节见 core `RPG.preservePanelState`）：
+ *   `$host.html(html)` 是**整块替换** ⇒ 宿主里只存在于 DOM 的态（当前唯一一处：通知面板
+ *   `<details class="rpg-notice-box">` 的 `open`）会被清掉 ⇒ 玩家展开列表后，一次动作/一次切档
+ *   就把它打回折叠 ⇒ 表象正是操作者报的「计数在涨，可列表恒空」。
+ *   ⇒ 在**唯一碰 DOM 的这一层**，写入**前**记下 `open === true` 的块，写入**后**按**同一选择器**写回
+ *     （✗ 不按 index 配对 —— 列表顺序一变就错位）。
+ *   ⚠ 只搬 `open`：块本身是否可展开由**新 HTML** 决定，不从旧 DOM 继承。 */
+R.panelWriter = (host, html, opts = {}) => {
 	const $host = jQuery(host);
 	if ($host.length === 0) return false;
+	const keep = [];
+	for (const { sel } of opts.preserve ?? []) {
+		$host.find(sel).each(function () { if (this.open === true) keep.push(sel); });
+	}
 	$host.html(html);
+	for (const sel of keep) $host.find(sel).each(function () { this.open = true; });
 	return true;
 };
 

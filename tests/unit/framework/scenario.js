@@ -145,7 +145,13 @@
 		const actor = step.actor ?? RPG().playerActor();
 		if (actor == null) throw new Error('dispatch：解析不出 actor（先 loadFixture 或注册玩家角色）');
 		const before = snapshot();
-		const outStart = H.host.outputs.length;
+		/* ★`#1877` N-2 修：切点用**行数**，✗ **块数**（`outputs.length`）。
+		 *   病灶（本席实测暴露）：输出块**保持打开并累积**（`host.append` 只在块关闭时才新建块）
+		 *   ⇒ 动作若把行追加进**已打开的块**，`slice(块数)` 会把本次行**一起切掉** ⇒ `lines` **恒空**。
+		 *   触发条件＝「动作**之前**已有输出」——`#1877` N-2 给 `RPG.give` 加了一行「＋n 名」提示后
+		 *   `scenarioWith` 里的 `give('coin')` 就会先建块 ⇒ 该档当场红（**假阴性**）。
+		 *   ⚠ 这是**潜在**缺陷：此前凡「动作前有输出」的用例都会静默读到空 lines（✗ 是「没输出」）。 */
+		const outStart = H.host.outputs.reduce((n, b) => n + b.lines.length, 0);
 		let result;
 		try {
 			result = RPG().act(actor, step.item, step.target ?? actor, step.action ?? 'use');
@@ -165,7 +171,7 @@
 			 * ⚠ 语义：含动作**引发的一切**输出 —— 若动作里导航了（`Engine.play`），
 			 *   新段落的行**也在内**（它们同样是本次动作的结果）。要只看原段落，
 			 *   请改用 `H.host.lines(<段落名>)`。 */
-			lines: H.host.outputs.slice(outStart).flatMap((b) => b.lines),
+			lines: H.host.outputs.flatMap((b) => b.lines).slice(outStart),
 		};
 	};
 

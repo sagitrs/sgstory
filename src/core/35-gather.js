@@ -52,6 +52,9 @@ RPG.gatherFrom = function gatherFrom(that, from) {
 		 *   ⚠ `act` 的「`charges <= 0` ⇒ 移除槽」仅覆盖 `use` 动作 ⇒ 采空时**由本动作自行摘槽**
 		 *   （`who.items` 就是快照数组；摘掉后 `commit` 的 `find` 找不到槽即静默返回）。 */
 		this.charges -= 1;
+		/* ★`#1877` N-2：**采集点自扣也须可见**（本路**不经** `RPG.take` —— 见上「扣在实例上」的理由）
+		 *   ⇒ 提示在此显式补（✗ 指望 `take` 的提示：它不走那条路）。采空时文案带「（已采尽）」。 */
+		RPG.perform(`－1 ${this.name}` + (this.charges <= 0 ? '（已采尽）' : ''));
 		if (this.charges <= 0) {
 			/* 摘槽：`who.items` 就是快照数组（同引用）。**按 id 找索引**即可，
 			 *   ✗ 不必绕「先 find 实例、再 indexOf 恒等」（`#1776` D 席 N-2：可读性）。 */

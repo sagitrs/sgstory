@@ -132,6 +132,8 @@ const forgeItem = (def) => RPG.defItem({
 		recipe: def.recipe,
 		tier: 2,
 		forgeBlueprint: true,          // 图纸标记（供 UI/检索；与 #1776 的 buildPlan 同族）
+		/* ★`#1877` P1-5②：锻造图在战斗里无用（`used()` 抛「请用合成动作」）⇒ 声明战斗无动作。 */
+		noBattleUse: true,
 	},
 	actions: { craft: RPG.craftWith },  // ★ 复用 #1776 的 craft 共享动作
 	used() {

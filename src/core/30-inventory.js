@@ -10,7 +10,9 @@ const inv = () => {
 	return vars.inventory;
 };
 
-/** 发放道具（同 id 可叠加时会合并剩余次数）；`n < 0` ⇒ 消耗，走 `RPG.take` */
+/** 发放道具（同 id 可叠加时会合并剩余次数）；`n < 0` ⇒ 消耗，走 `RPG.take`。
+ *  ★`#1877` N-2：增减**可读提示**（`＋n 名` 一行，走正常输出通道）——「凭空多出又莫名减少」不可理解。
+ *  ⚠ 只在**数量净变化**时出声（首投建槽／纯合并都算；`n===0`／投递 0 件不出声）。 */
 RPG.give = (id, n = 1) => {
 	const def = RPG.createItem(id); // 读默认定义（次数、可否叠加）
 	const list = inv();
@@ -18,13 +20,25 @@ RPG.give = (id, n = 1) => {
 	if (n < 0) return RPG.take(id, -n); // 负数即消耗，见 RPG.take
 	if (n === 0) return;
 	if (def.stackable && def.charges != null) {
+		/* ★`#1877` P1-5：**首投也并槽**（✗ 逐件 push）—— 修复「石料×1、石料×1」。
+		 *   原形：有同类槽 ⇒ `charges += def.charges * n`（一次并入）；**无**同类槽 ⇒ **push n 个槽**
+		 *   ⇒ 同一次 `give('rock',2)` 产出**两个 `charges:1` 槽**（本席实测读数），
+		 *   与合并分支**形态分叉**（`take` 却按「总量」扣 ⇒ 两边对不上）。
+		 *   ⚠ 战利品等**非堆叠**件（`stackable` 假）仍逐件建槽 —— 那是「每件一个独立条目」的既有语义。 */
 		const slot = list.find((s) => s.id === id);
 		if (slot) {
 			slot.charges += def.charges * n;
+			RPG.perform(`＋${def.charges * n} ${def.name}`);
 			return;
 		}
+		list.push({ ...def.toJSON(), charges: def.charges * n });
+		RPG.perform(`＋${def.charges * n} ${def.name}`);
+		return;
 	}
+	const before = list.filter((s) => s.id === id).length;
 	for (let i = 0; i < n; i++) list.push(def.toJSON());
+	const gained = list.filter((s) => s.id === id).length - before;
+	if (gained > 0) RPG.perform(`＋${gained} ${def.name}`);
 };
 
 /**
@@ -64,6 +78,11 @@ RPG.take = (id, n = 1, actor = null) => {
 	 *   解析不出（无角色持有该数组）⇒ `actor=null` ⇒ 订阅方**不动视图**（与「归属不可判 ⇒ 不猜」同口径）。 */
 	const owner = actor ?? [...(RPG.characters?.values?.() ?? [])].find((c) => c?.items === list) ?? null;
 	RPG.events.emit('inventory:changed', { id, n, actor: owner });
+	/* ★`#1877` N-2：**减量可见**（与 `RPG.give` 的 `＋n 名` 同形、同频）。
+	 *   动因（操作者复测）：「采集后碎石堆又莫名 -1，增减规则对玩家不可见」。
+	 *   ⚠ 只在**成功**扣减后出声（✗ 不足返回 false 的那条路 —— 那没有任何变化）。 */
+	const named = RPG.items.has(id) ? RPG.createItem(id).name : id;
+	RPG.perform(`－${n} ${named}`);
 	return true;
 };
 

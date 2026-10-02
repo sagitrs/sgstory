@@ -53,13 +53,20 @@
 		assert.eq(R().take('dagger', -1), false, 'n<0 ⇒ false');
 	});
 
-	test('inventory：give 正数路径不受影响（回归锚：新增槽 ＋ 合并槽 两条路径）', () => {
-		R().give('bandage', 3); // 无既有槽 ⇒ 推送 3 个槽（每袋 charges=2）
-		assert.eq(inv().filter((s) => s.id === 'bandage').length, 3, '无槽时逐个推送');
-		R().give('bandage'); // 已有槽 ⇒ 合并进首个槽
-		assert.eq(inv().filter((s) => s.id === 'bandage').length, 3, '有槽时不新增');
+	test('★`#1877` P1-5：`give` 正数路径 —— **首投也并槽**（✗ 逐件建槽；同 id 恒单条）', () => {
+		/* ★**本格是契约变更的锚**（`#1877` P1-5）：旧形为「无同类槽 ⇒ **push n 个槽**」
+		 *   （本格原名即「回归锚：新增槽 ＋ 合并槽 **两条路径**」）⇒ 与合并分支**形态分叉**——
+		 *   同一次 `give('rock',2)` 产出**两个 `charges:1` 槽**，玩家看到「石料×1、石料×1」
+		 *   （操作者复测原文）；而 `take` 按**总量**扣 ⇒ 两边对不上。
+		 *   现：**两条路径合一**（首投建**一个** `charges = def.charges * n` 的槽）。
+		 *   ⚠ 战利品等**非堆叠**件（`stackable` 假）仍逐件建槽 —— 那是既有语义，✗ 本笔不动。 */
+		R().give('bandage', 3); // 无既有槽 ⇒ **单槽**（每件 charges=2 ⇒ 3 件 = 6）
+		assert.eq(inv().filter((s) => s.id === 'bandage').length, 1, '★无槽时**只建一个槽**（P1-5）');
+		assert.eq(inv().find((s) => s.id === 'bandage').charges, 6, '3 件 × 每件 2 = 6（存量守恒）');
+		R().give('bandage'); // 已有槽 ⇒ 合并进同槽（与首投**同形**）
+		assert.eq(inv().filter((s) => s.id === 'bandage').length, 1, '有槽时不新增');
 		const total = inv().filter((s) => s.id === 'bandage').reduce((a, s) => a + s.charges, 0);
-		assert.eq(total, 8, '3×2 + 2 = 8（叠加语义未被 take 影响）');
+		assert.eq(total, 8, '3×2 + 2 = 8（叠加语义未被 take 影响 —— 存量与旧形**逐值同**）');
 	});
 
 	/* ---------- B) stats.ammo ---------- */

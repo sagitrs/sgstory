@@ -95,7 +95,10 @@ const gatherPoint = (def) => RPG.defItem({
 	 *   （id/name/desc/stats/charges/stackable/weapon/slot/equipped，见 `10-item.js`），
 	 *   **自定义顶层字段会被静默丢弃**（实测：放在顶层的 `yields` 到实例上恒为 `undefined`）。
 	 *   `stats` 是规则包约定的自由块 ⇒ 产出表、配方、工程声明一律落这里。 */
-	stats: { tier: def.tier ?? 1, yields: def.yields },
+	/* ★`#1877` P1-5②：采集点**不是战斗道具**（`used()` 抛「请用采集动作 gather」）⇒ 声明战斗无动作。
+	 *   ⚠ **必须并入**下面这个 `stats`（✗ 再写一个 `stats:` —— 对象字面量**后者覆盖前者**，
+	 *     首版即栽此：`yields` 被抹掉 ⇒ 采集全废、6 格当场红）。 */
+	stats: { tier: def.tier ?? 1, yields: def.yields, noBattleUse: true },
 	charges: def.charges,                // house rule（非 SRD）：可采次数（2–6，见文件头定标）
 	stackable: false,
 	actions: { gather: RPG.gatherFrom }, // 采集动作（core 共享动作库）
@@ -168,7 +171,8 @@ DND3.FarmPlot = RPG.defItem({
 	desc: '一段翻好的土，等着下种。围栏外的人不关心谁种的，只关心收成。',
 	/* house rule（非 SRD）：段内层级 ＋ 工程标记 ＋ **工程声明**（`id` 指向 `registerBuild`
 	 *   的落地效果、`inputs` 是消耗的道具）。⚠ 同 `yields`：必须落 `stats`（见上）。 */
-	stats: { tier: 1, buildPlan: true, plan: { id: 'farm', inputs: [{ id: 'seed', n: 2 }] } },
+	/* ★`#1877` P1-5②：工程图在战斗里无用（`used()` 抛「请用建造动作 build」）⇒ 战斗无动作。 */
+	stats: { tier: 1, buildPlan: true, noBattleUse: true, plan: { id: 'farm', inputs: [{ id: 'seed', n: 2 }] } },
 	actions: { build: RPG.buildAt },
 	used() {
 		throw RPG.refuse('BLUEPRINT_NOT_USABLE',

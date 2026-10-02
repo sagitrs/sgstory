@@ -13,7 +13,8 @@ DND3.IronMessage = RPG.defItem({
 	id: 'iron-message',
 	name: '锻造图',
 	desc: '一张画满尺寸与火候的牛皮。看得懂的人，能让铁听话。',
-	stats: { value: 5 },   // house rule（非 SRD）：单价 5 gp（贵于铁锭，因它是「技术」而非「材料」）
+	/* ★`#1877` P1-5②：锻造图是**给工坊看的纸** ⇒ 战斗无动作。 */
+	stats: { value: 5, noBattleUse: true },   // house rule（非 SRD）：单价 5 gp（贵于铁锭，因它是「技术」而非「材料」）
 	charges: null,
 	stackable: true,
 	slot: null,            // 资源不可装备

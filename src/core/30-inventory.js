@@ -448,6 +448,27 @@ RPG.toggleEquip = (id) =>
 	RPG.isEquipped(id) ? RPG.unequip(id) : RPG.equip(id);
 
 /** 状态栏用：背包内容的可读名称（“绷带×2（已装备）”这种） */
+/**
+ * **件数后缀的单点**（`#1862` ②：背包行——采集点的 `×N` 读不出「还能采几次」）。
+ *
+ * 判据取**动作表**（`klass.handlers.gather` ⇒ 这是一处**采集点**），✗ 不取「有 `stats.yields`」：
+ *   后者是**数据面**的形状（建造器把产出表放 `stats` 是打包约定），而「能不能采集」是**行为面**的事实。
+ *   ★本席实测（本仓全部注册件扫一遍）：`stats.yields` 非空且 `charges != null` 的件**恰好就是 5 个采集点**
+ *     ⇒ 今天两个判据**同解**；取行为面是因为它**不依赖**那个打包约定（`yields` 若挪到别处，前者会静默失准）。
+ *
+ * ⚠ **语义覆写**：采集点的 `charges` 是**可采次数**（`RPG.act` 采一次扣一次），✗ 与「充能件还剩几次用」同义
+ *   ⇒ 一律写成「（还可采 N 次）」，让两种语义在**同一行**上可分辨（`#1862` 第 2 项的原话：「碎石堆×5 玩家不明其义」）。
+ *   `charges == null` ⇒ 无后缀（无限次／无计数概念的件与既有形**逐字不变**）。
+ *
+ * @param item 快照（有 `id`）或 `Item` 实例
+ * @returns string 后缀（可能为空串）—— ✗ 含前导空格（调用方拼）
+ */
+RPG.itemCountSuffix = (item) => {
+	if (item?.charges == null) return '';
+	const isGatherPoint = typeof RPG.items.get(item.id)?.handlers?.gather === 'function';
+	return isGatherPoint ? `（还可采 ${item.charges} 次）` : `×${item.charges}`;
+};
+
 RPG.inventoryLabel = () => {
 	const list = inv();
 	if (list.length === 0) return '（空）';
@@ -460,10 +481,10 @@ RPG.inventoryLabel = () => {
 			 * ⇒ 本设计**不依赖**「所有扣减路径都记得摘槽」这条未来不变式（dev-9 实测：0 充能槽可被造出、并渲染为 `×0`）。
 			 * 附带事实（**佐证，✗ 非依赖**）：正常用尽路径确实摘槽 —— ① `RPG.take`（本文件 `slot.charges <= 0 ⇒ splice`）
 			 * ② `RPG.act` 的 `'use'` 分支（同判据）③ `35-gather.js` 采空**自摘**（采集不走 `use` ⇒ 动作自行摘槽）。 */
-			const label =
-				item.charges != null
-					? `${item.name}×${item.charges}`
-					: item.name;
+			/* ★`#1862` ②：后缀由 `RPG.itemCountSuffix` **单点**给出（采集点 ⇒「（还可采 N 次）」、其余 ⇒ `×N`）。
+			 *   ✗ 在此自写 —— 本文件与 `70-ui.js` 的 `inventoryLinks()` 必须**逐字同形**（有单测把守），
+			 *   后缀若有第二处副本，两行文本会静默分叉。 */
+			const label = item.name + RPG.itemCountSuffix(item);
 			return item.equipped ? `${label}（已装备）` : label;
 		})
 		.join('、');

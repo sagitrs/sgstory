@@ -162,6 +162,22 @@
 		assert.ok(!e.domains.includes('flags'), '★未落地的域**不得**谎报为已存');
 	});
 
+	/* ---------- ⑤·补二 故事侧域登记口（`#1902`：`books#132` 的 `$span1Arc`） ---------- */
+
+	test('#1902：故事侧登记域 ⇒ 进 envelope().domains 与 audit()（✗ 谎报已存、✗ 覆盖内置）', () => {
+		assert.eq(S.declareDomain('span1Arc', 'byPack'), true, '新名 ⇒ 登记成功');
+		assert.eq(S.declareDomain('span1Arc', 'byPack'), false, '同名重复 ⇒ false（幂等，✗ 静默改语义）');
+		assert.eq(S.declareDomain('player', 'player'), false, '★内置域**不得**被故事侧覆盖');
+		assert.eq(S.declareDomain('', 'byPack'), false, '空串拒绝');
+		assert.eq(S.declareDomain(1, 'byPack'), false, '非字符串拒绝');
+		/* ★判别性：域快照**只记「有没有落点」**——登记 ≠ 谎报已存（与 `flags` 同一条约束） */
+		assert.ok(S.envelope({ span1Arc: { farms: 0 } }).domains.includes('span1Arc'), '已登记且**有落点**的键进 domains');
+		assert.ok(!S.envelope({}).domains.includes('span1Arc'), '★登记过但**没写过**的键**不得**报为已存');
+		assert.ok(S.audit({}).absent.includes('span1Arc'), 'audit：已声明但未写 ⇒ 见 absent（可见，✗ 静默）');
+		assert.eq(S.DOMAINS.span1Arc, 'byPack', '★导出的 DOMAINS 是**合并视图**（✗ 陈旧面：读者据它判「有无此域」会答错）');
+		assert.eq(S.DOMAINS.player, 'player', '★合并视图**不丢内置键**（登记口 ✗ 变成替换）');
+	});
+
 	/* ---------- ⑤·补 纯环境健壮性（✗ `State` 未声明即抛） ---------- */
 
 	test('#1806 笔1：**无 `State` 全局**时各入口不抛（`?.` 不防未声明标识符）', () => {

@@ -87,7 +87,11 @@ RPG.WorldMap = class WorldMap extends Object {
 	/** 写：只更新**后备字段**（✗ 不在此同步 `State`）。
 	 *  ★写点仍是**单点** `moveTo`（`#1760` §四：`moveTo` 内 `_syncToState()`）——
 	 *    直接赋值（构造期摆位、测试夹具）**不得**写档：那是「写点单点」这条设计不变式的边界
-	 *    （既有格 `mapCurrent：moveTo 单点同步` 明钉「构造不写」，本席首版在此同步 State ⇒ 该格当场红）。 */
+	 *    （既有格 `mapCurrent：moveTo 单点同步` 明钉「构造不写」，本席首版在此同步 State ⇒ 该格当场红）。
+	 *
+	 *  ★`#1864` 折（dev-9 NIT）：**直接赋值不写档** —— `map.current = 'L3'` 只改后备字段，
+	 *    State **静默不动**（看似生效、实则读档即回旧值）。⇒ 唯一写点是 `moveTo`（调 `_syncToState()` —— 全档**仅此一处**）。
+	 *    ✗ 不要在此加同步：那会破「写点单点」不变式（上条格当场红）。 */
 	set current(locId) {
 		this._current = locId;
 	}
@@ -103,7 +107,10 @@ RPG.WorldMap = class WorldMap extends Object {
 	/** 从存档恢复当前位置（实例字段在堆上 ⇒ 读档后回到初始值，故以 State 为准）。
 	 *  静默策略：State 里没有该键（首次运行／旧档／非存档环境）⇒ 保持原值，不抛错。 */
 	_restoreFromState() {
-		const vars = typeof State === 'undefined' || State == null ? null : State.variables;
+		/* ★`#1864` 折（dev-9 MINOR）：「收成**单点**」只收了一半 —— 本处仍直读 `State.variables`
+		 *   ⇒ 触点门按**出现次数**计，漏掉这一处 「计数下降」就是**假的**（读数 2 而非 1）。
+		 *   ⇒ 与 `get current`／`_syncToState` 同走 `stateVars()`（本档唯一的 `State` 直读点）。 */
+		const vars = stateVars();
 		const saved = vars == null ? undefined : vars[this._stateKey()];
 		if (typeof saved === 'string') this._current = saved;   // ★只是**后备**缓存；权威仍是 State（见 `current` 访问器）
 		return this.current;

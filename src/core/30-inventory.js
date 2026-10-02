@@ -206,7 +206,24 @@ RPG.loot = (victim) => {
 	if (dropped.length === 0) return;
 	const names = dropped.map((s) => RPG.reviveItem(s).name);
 	for (const s of dropped) {
-		inv().push(s); // 原样转移快照（保留剩余次数）
+		/* ★`#1877` P1-5①：**掉落也须并槽**（✗ 无条件 `push`）。
+		 *   本席实测的缺口：`#1880` 已把 `coin` 改成**计数库存形**（`stackable ＋ charges: 1`），
+		 *   而 `coin` 的**唯一**来源就是本函数 ⇒ 本处不并 ⇒ 玩家的硬币永远堆成「旧硬币、旧硬币、旧硬币」
+		 *   （`inventoryLabel` 只在 `charges != null` 时加 `×N`，所以那些槽各显示一次名字）
+		 *   ⇒ **N-3 的意图落空**（`#1880` 注释自陈「真机症状候 P1-5」—— 本笔即那半）。
+		 *   ⚠ **与原形同形**（✗ 不换成 `RPG.give`）：本函数转移的是**快照本身**（保留 **剩余次数**，
+		 *     如用过的绷带 `charges: 1`）；`give` 会按 `def.charges` 造**新**快照 ⇒ 会把用过的件「回满」。
+		 *   ⇒ 只在「可叠加且有同类槽」时把**剩余次数并进那个槽**（与 `give` 的合并支**同判据**）。 */
+		/* ⚠ **件数口径**同 `RPG.take`（`slot.charges ?? 1`）：敌方快照常是**裸 `{ id }`**
+		 *   （如 `monsters/*.js` 的 `items: [{ id: 'coin' }]`）—— 首版我只认 `s.charges != null`
+		 *   ⇒ 裸快照**不合并**（本席实测：3 枚硬币仍 3 槽、显示「旧硬币×1、旧硬币×1、旧硬币×1」）。
+		 *   ⇒ 件数取 `s.charges ?? def.charges ?? 1`；落槽时**补写 `charges`**（否则显示层认不出 `×N`）。 */
+		const def = RPG.items.has(s.id) ? RPG.createItem(s.id) : null;
+		const canStack = def?.stackable === true && def.charges != null;
+		const n = s.charges ?? def?.charges ?? 1;
+		const slot = canStack ? inv().find((x) => x.id === s.id) : null;
+		if (canStack && slot) slot.charges = (slot.charges ?? 0) + n;
+		else inv().push(canStack ? { ...s, charges: n } : s); // 其余**原样**转移（保留剩余次数）
 		slots.splice(slots.indexOf(s), 1);
 	}
 	/* `#1798` B4：产出是**结论行** ⇒ 走 `loot` 通道（`key`）。 */

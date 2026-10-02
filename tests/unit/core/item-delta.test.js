@@ -33,13 +33,61 @@
 	});
 
 	test('★#1877 P1-5①【对照】**非堆叠**件仍逐件建槽（既有语义 ✗ 被本笔改掉）', () => {
+		/* ⚠ 样本用 `iron-key`（`charges: null, stackable: false`）—— ★本席原先用 `coin`，
+		 *   rebase 到 main 后**当场红**：`#1880` 已把 coin 改成**计数库存形**（`#1877` N-3 前置件）
+		 *   ⇒ 它不再是「非堆叠件」的样本。⇒ 换样本（✗ 改断言去迁就）。 */
 		fresh();
-		R().give('coin', 3);                       // `stackable: false`
-		assert.eq(inv().filter((s) => s.id === 'coin').length, 3,
-			'★非堆叠件＝每件一个独立条目（战利品语义，本笔**不动**）');
+		R().give('iron-key', 3);
+		assert.eq(inv().filter((s) => s.id === 'iron-key').length, 3,
+			'★非堆叠件＝每件一个独立条目（本笔**不动**该语义）');
 	});
 
 	/* ---------- N-2 增减可见 ---------- */
+
+	/* ---------- P1-5① 战利品路径（★本席 rebase 后发现：`loot` 绕过 `give`）---------- */
+
+	test('★#1877 P1-5①【战利品】`loot` 也并槽 —— ★`coin` 的**唯一**来源就是它（N-3 的另一半）', () => {
+		/* ★立档理由：`#1880` 已把 `coin` 改成**计数库存形**（`stackable ＋ charges: 1`，N-3 前置件），
+		 *   并在注释里写「真机症状候 P1-5」。本席 rebase 后实测：**那条路仍不合并** ——
+		 *   `RPG.loot` 用 `inv().push(s)` **绕过** `RPG.give` ⇒ 硬币永远堆成「旧硬币、旧硬币、旧硬币」
+		 *   （`charges != null` 才加 `×N` 后缀，而敌方快照常是**裸 `{ id }`** ⇒ 连后缀都没有，
+		 *    实测显示「旧硬币×1、旧硬币×1、旧硬币×1」）。⇒ 本格即 `#1880` 等的那个 P1-5。 */
+		const h = fresh();
+		const foe = new (R().Character)({ name: '哥布林', hp: 0,
+			items: [{ id: 'coin' }, { id: 'coin' }, { id: 'coin' }] });
+		R().loot(foe);
+		assert.eq(inv().filter((s) => s.id === 'coin').length, 1,
+			`★战利品同类须并槽（✗ 绕过 give 就堆三条）：${JSON.stringify(inv())}`);
+		assert.eq(inv().find((s) => s.id === 'coin').charges, 3, '★3 枚 ⇒ charges 3（且**须写进快照**，否则显示层认不出）');
+		assert.ok((R().inventoryLabel?.() ?? '').includes('旧硬币×3'),
+			`★显示层须出 ×3（这正是 N-3 要的）：${R().inventoryLabel?.()}`);
+		assert.ok(h.lines().some((l) => l.includes('旧硬币')), '获得文案仍在（既有行为）');
+	});
+
+	test('★#1877 P1-5①【战利品·反例】用过的件**不得回满**（✗ 换用 `RPG.give` 会按 def 重造）', () => {
+		/* ⚠ 本格钉的是**修法的边界**：`loot` 转移的是**快照本身**（保留**剩余次数**），
+		 *   而 `RPG.give` 会按 `def.charges` 造**新**快照 ⇒ 换成它会把「用过的绷带」回满。
+		 *   （绷带 `charges: 2` ⇒ 快照 `charges: 1` ＝ 用过一袋。） */
+		fresh();
+		const foe = new (R().Character)({ name: '哥布林', hp: 0,
+			items: [{ id: 'bandage', charges: 1 }, { id: 'bandage', charges: 1 }] });
+		R().loot(foe);
+		const total = inv().filter((s) => s.id === 'bandage').reduce((n, s) => n + (s.charges ?? 1), 0);
+		assert.eq(total, 2, `★合计须为 2（✗ 回满成 4 ⇒ 那是件数造假）：${JSON.stringify(inv())}`);
+	});
+
+	test('★#1877 P1-5①【战利品·对照】非堆叠件原样转移；**装备件仍不掉落**', () => {
+		fresh();
+		const foe = new (R().Character)({ name: '哥布林', hp: 0, items: [
+			{ id: 'stone-pile', charges: 6 },      // 非堆叠 ⇒ 原样（含剩余 6 次）
+			{ id: 'coin' },                        // 堆叠 ⇒ 落槽
+			{ id: 'club', equipped: true },        // 装备 ⇒ ✗ 不掉落（既有规则）
+		] });
+		R().loot(foe);
+		const pile = inv().find((s) => s.id === 'stone-pile');
+		assert.eq(pile?.charges, 6, '★非堆叠件原样转移（剩余次数保留）');
+		assert.ok(!inv().some((s) => s.id === 'club'), '★装备件不掉落（既有语义，本笔不动）');
+	});
 
 	test('★#1877 N-2：`give` 出声「＋n 名」（✗ 凭空多出）', () => {
 		const h = fresh();

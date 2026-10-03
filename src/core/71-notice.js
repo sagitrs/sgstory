@@ -128,7 +128,10 @@ RPG.noticeAdmits = (channel) => RPG.noticeFilter === 'all' || RPG.noticeChannel(
 
 /** 最近 N 条的可读列表（面板体；新→旧）。`opts.limit` 默认 20。 */
 RPG.noticesHTML = ({ limit = 20 } = {}) => {
-	const list = tail(RPG.notices(), limit);          // ← 与 `notices()` 同一钳位（✗ 再写一遍 slice）
+	/* ★`books#170` P1-5：`notices()` **已**是「新的在前」且**已**按 `limit` 钳过 ⇒ 这里**不得再说 `tail`**
+	 *   —— 对「新→旧」的列表取尾＝取到**反尾**（面板会显示出**最旧**的那几条；实测同形）。
+	 *   钳位仍只在一处（`notices()` 的 `tail`）⇒ ✗ 在此再写一遍 slice（本行原注释的初衷保留）。 */
+	const list = RPG.notices({ limit });
 	if (list.length === 0) return '<span class="rpg-notice-empty">（没有通知）</span>';
 	const esc = (s) => String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 	return list.map((n) => {

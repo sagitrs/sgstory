@@ -198,10 +198,20 @@ DND3.Ration = RPG.defItem({
 	id: 'ration', name: '口粮', charges: 1, stackable: true,
 	desc: '一把炒过的谷粒，用布包着。谈不上好吃，但顶饿。',
 	stats: { tier: 1, hp: 2, food: true },    // house rule（非 SRD）：恢复 2 HP（整定标下最弱的一档）
-	used(that) {
-		const heal = this.stats.hp;
-		that.hp = Math.min(that.maxHp ?? Infinity, (that.hp ?? 0) + heal);
-		this.perform(`${that.name}吃下口粮，恢复了${heal}点HP。`);
+		used(that) {
+			/* ★`books#170` P2-11（试玩反馈）：**满血时也吃掉一份** —— 原形不看**实际**恢复量
+			 *   （`hp + heal` 被 `min` 夹回原值，却照样 `perform` ⇒ `act` 算作 `applied` ⇒ 扣一份）。
+			 *   现形＝算实际恢复；**为 0 ⇒ 出声并 `return false`** —— 即 `#1776` 的**拒绝契约**
+			 *   （`RPG.act` 在**扣件之前**返回 `rejected/action-refused` ⇒ 这一份留在包里）。
+			 *   ⚠ 文案的数值＝**实际**恢复量（✗ 名义 `stats.hp`）：满血 0 点却说「恢复了 2 点」是假读数。 */
+			const 前 = that.hp ?? 0;
+			that.hp = Math.min(that.maxHp ?? Infinity, 前 + this.stats.hp);
+			const 实际 = that.hp - 前;
+			if (!(实际 > 0)) {
+				this.perform(`${that.name}不饿 —— 这一份留着吧。`);
+				return false;                      // ★拒绝 ⇒ 不提交消耗（见上注）
+			}
+			this.perform(`${that.name}吃下口粮，恢复了${实际}点HP。`);
 	},
 });
 

@@ -82,5 +82,52 @@ globalThis.__sess = (() => {
 		}],
 	}));
 
-	return { 建会话, 挂木箱格, 挂探针格, 挂命令木箱格, 订, 推 };
+	/** ★`sgstory#1933`（A 轨·命令提交全面化）四类试点格 —— 每类一个场景，各判**自己那一面**：
+	 *   · `挂守卫格`：`when` 同为真才跑（真 ⇒ 写落；假 ⇒ `settled:null` 且**仍渲染**、输入**已消耗**）
+	 *   · `挂一次性格`：首拿写落；**重复 ⇒ 拒**（`RPG.refuse`，✗ 不是靠 `when` 静默不跑）
+	 *   · `挂随机格`：命令体内抽一次 `ctx.rng`（成功 ⇒ 抽取值随结算落；被拒 ⇒ **不得落**）
+	 *   · `挂自循环呈现格`：结算后**重渲**读新值（✗ 不印半截 —— 命令体内自己印的那一路见 C4）
+	 *   ★与 `挂命令木箱格`（`#1925`）的差别：那格判「三笔效果一次落」；本四格判**四类命令各自的边界**。 */
+	const 挂守卫格 = (A) => A.mount('cellar-guard', (ctx) => ({
+		id: 'cellar-guard',
+		enter: (c) => { c.commit({ 门: false, 走: 0 }); },
+		render: (c) => { c.ports.render.output(`守卫格：门=${c.facts().门} 走=${c.facts().走}`); },
+		actions: [{
+			id: 'open',
+			when: (c) => c.facts().门 === false,
+			run: (c) => { c.commit({ 门: true, 走: (c.facts().走 ?? 0) + 1 }); },
+		}],
+	}));
+
+	const 挂一次性格 = (A) => A.mount('cellar-oneshot', (ctx) => ({
+		id: 'cellar-oneshot',
+		enter: (c) => { c.commit({ 拿过: false, 件数: 0 }); },
+		render: (c) => { c.ports.render.output(`一次性：拿过=${c.facts().拿过} 件=${c.facts().件数}`); },
+		actions: [{
+			id: 'take',
+			run: (c) => {
+				if (c.facts().拿过 === true) throw R().refuse('already-taken', '这一份已经拿过了。');
+				c.commit({ 拿过: true, 件数: (c.facts().件数 ?? 0) + 1 });
+			},
+		}],
+	}));
+
+	const 挂随机格 = (A, 行为 = null) => A.mount('cellar-rng', (ctx) => ({
+		id: 'cellar-rng',
+		enter: (c) => { c.commit({ 抽: null, 次: 0 }); },
+		render: (c) => { c.ports.render.output(`随机：抽=${c.facts().抽} 次=${c.facts().次}`); },
+		actions: [{
+			id: 'roll',
+			run: 行为 ?? ((c) => { const v = c.rng.next(); c.commit({ 抽: v, 次: (c.facts().次 ?? 0) + 1 }); }),
+		}],
+	}));
+
+	const 挂自循环呈现格 = (A, 行为 = null) => A.mount('cellar-render', (ctx) => ({
+		id: 'cellar-render',
+		enter: (c) => { c.commit({ 值: '旧' }); },
+		render: (c) => { c.ports.render.output(`呈现：${c.facts().值}`); },
+		actions: [{ id: '翻新', run: 行为 ?? ((c) => { c.commit({ 值: '新' }); }) }],
+	}));
+
+	return { 建会话, 挂木箱格, 挂探针格, 挂命令木箱格, 挂守卫格, 挂一次性格, 挂随机格, 挂自循环呈现格, 订, 推 };
 })();

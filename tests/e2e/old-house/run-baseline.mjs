@@ -111,10 +111,12 @@ const KNIVES = [
 	{
 		id: 'commit-merge-on-reject',
 		file: 包档,
-		why: '拒绝时**照样把草稿并进**活事实块（＝`#1752` 记的那族：报 rejected 而变化保留）⇒ 只红原子格',
+		why: '拒绝时**照样把草稿并进**活事实块（＝`#1752` 记的那族：报 rejected 而变化保留）'
+			+ '⇒ 红三格：`[commit-atomic]` ＋ `[commit-rng]`／`[commit-render]` 的负臂'
+			+ '（`#1933` 明账：那两格的「拒后不得落」与原子格**共用同一条引擎语义**，✗ 是判据错，是语义耦合）',
 		patch: [["if (settled !== 'applied') return { settled, reason, rolledBack: true, changed: [] };",
 			"if (settled !== 'applied') { Object.assign(this._facts, 草稿); return { settled, reason, rolledBack: true, changed: [] }; }"]],
-		expect: ['commit-atomic'],
+		expect: ['commit-atomic', 'commit-rng', 'commit-render'],
 	},
 	{
 		id: 'commit-swallow-throw',
@@ -129,6 +131,29 @@ const KNIVES = [
 		why: '命令内的合并视图（`ctx.facts()`）**只看已提交**（✗ 不含草稿）⇒ 只红存档点格',
 		patch: [["facts: () => 快照({ ...this._facts, ...草稿 }),", "facts: () => 快照({ ...this._facts }),"]],
 		expect: ['commit-rt'],
+	},
+	/* ── ★`sgstory#1933` 四类格的三把刀（各**恰**红自己那格）── */
+	{
+		id: 'guard-skip-render',
+		file: 包档,
+		why: '不适用（`when` 假）那一支**跳过渲染** ⇒ 屏上停在上一态 ⇒ 只红守卫格',
+		patch: [['\t\t\t\tthis._scene.render?.(this.ctx);\n', '']],
+		expect: ['commit-guard'],
+	},
+	{
+		id: 'oneshot-drop-refuse',
+		file: SESSION_BRIDGE,
+		why: '一次性格**忘拒**（重复也能拿）⇒ 只红一次性格',
+		patch: [["\t\t\t\tif (c.facts().拿过 === true) throw R().refuse('already-taken', '这一份已经拿过了。');\n", '\t\t\t\t/* 刀：忘拒（重复也能拿） */\n']],
+		expect: ['commit-oneshot'],
+	},
+	{
+		id: 'rng-drop-draw',
+		file: SESSION_BRIDGE,
+		why: '随机格**忘了把抽取值并入**（只落次数）⇒ 只红随机格的正例臂'
+			+ '（★负例臂「拒后不得落」的刀在 `commit-merge-on-reject` 那把上 —— 两格共用「拒后丢草稿」那条语义，见其 why）',
+		patch: [['\t\t\trun: 行为 ?? ((c) => { const v = c.rng.next(); c.commit({ 抽: v, 次: (c.facts().次 ?? 0) + 1 }); }),\n', '\t\t\trun: 行为 ?? ((c) => { const v = c.rng.next(); c.commit({ 次: (c.facts().次 ?? 0) + 1 }); }),\n']],
+		expect: ['commit-rng'],
 	},
 ];
 
@@ -620,6 +645,165 @@ reset();
 			`★结算后：存档点应**追平**命令末的合并视图（存档点前 ${前} ⇒ 后 ${JSON.stringify(A.facts())}；命令末 ${中.命令末}）`
 			+ ' —— 这条是上面「中途看不到草稿」的**正控**（✗ 在「压根不写」的坏装置上，那条也会真）');
 	});
+}
+
+/* ---------- ★`sgstory#1933`（A 轨·命令提交全面化）：**四类命令各自的边界** ----------
+ * 装置＝`session-bridge.js` 的四个试点格（守卫／一次性／随机／自循环呈现）；每类**两向**。
+ * ★读数面：`step()` 的 `{settled, reason, rolledBack, changed}` ＋ `facts()` ＋ 呈现门面的 `setCollector`。
+ * ★三条**候选 D 接**的明账（C2／C3／C4）不在本块里判绿红，而是**跑出现读数**并计 `⏳ pending`（✗ 不用绿盖住）。 */
+{
+	const S = globalThis.__sess;
+	const 试面 = (sub, fn) => { try { fn(); } catch (e) { ok(sub, false, `★驱动抛错（本面没跑完）：${e && e.message}`); } };
+
+	/* ---- 守卫：真 ⇒ 写落；假 ⇒ 不结算（且**仍渲染**、输入**已消耗**） ---- */
+	cell('[commit-guard]');
+	试面('[commit-guard]', () => {
+		const A = S.建会话('守卫-A');
+		S.挂守卫格(A);
+		const 收 = [];
+		A.ports.render.setCollector((o) => 收.push(o));
+		A.enter('cellar-guard');
+		A.input.push({ id: 'open' });
+		const 一 = A.step();
+		ok('[commit-guard]', 一.settled === 'applied' && A.facts().门 === true && A.facts().走 === 1,
+			`★(真) when 真 ⇒ 写落（实得 ${JSON.stringify(一)}｜facts=${JSON.stringify(A.facts())}）`);
+		const 渲前 = 收.length;
+		A.input.push({ id: 'open' });           // 此时 when 已假
+		const 二 = A.step();
+		ok('[commit-guard]', 二.settled === null && 二.reason === 'when-false'
+			&& JSON.stringify(二.changed) === '[]' && 二.rolledBack === false,
+			`★(假) when 假 ⇒ settled=null／when-false／changed=[]／rolledBack=false（实得 ${JSON.stringify(二)}）`);
+		ok('[commit-guard]', A.facts().走 === 1 && A.input.pending() === 0,
+			`★(假) 事实块不动（走=${A.facts().走}）且**那次 input 已消耗**（pending=${A.input.pending()}）`);
+		ok('[commit-guard]', 收.length > 渲前,
+			`★(假) 不适用时**仍须渲染**一次（收集器 ${渲前}⇒${收.length}）—— 不适用 ≠ 不画；屏上不能停在上一态`);
+	});
+
+	/* ---- 一次性：首次落；重复 ⇒ **拒**（✗ 不是静默不跑）＋ 事实块逐项相同 ---- */
+	cell('[commit-oneshot]');
+	试面('[commit-oneshot]', () => {
+		const A = S.建会话('一次性-A');
+		S.挂一次性格(A);
+		A.enter('cellar-oneshot');
+		A.input.push({ id: 'take' });
+		const 一 = A.step();
+		ok('[commit-oneshot]', 一.settled === 'applied' && A.facts().拿过 === true && A.facts().件数 === 1,
+			`★首次 ⇒ 写落（实得 ${JSON.stringify(一)}｜facts=${JSON.stringify(A.facts())}）`);
+		const 前 = JSON.stringify(A.facts());
+		A.input.push({ id: 'take' });
+		const 二 = A.step();
+		ok('[commit-oneshot]', 二.settled === 'rejected' && 二.reason === 'already-taken'
+			&& 二.rolledBack === true && JSON.stringify(二.changed) === '[]',
+			`★重复 ⇒ **拒**且报得出理由（实得 ${JSON.stringify(二)}）—— ✗ 不许静默走 when-false（那样玩家点了没反馈）`);
+		ok('[commit-oneshot]', JSON.stringify(A.facts()) === 前,
+			`★重复 ⇒ 事实块**逐项相同**（前 ${前}｜后 ${JSON.stringify(A.facts())}）`);
+	});
+
+	/* ---- 随机：成功 ⇒ 抽取值随结算落；被拒 ⇒ 抽取值**不得落** ---- */
+	cell('[commit-rng]');
+	试面('[commit-rng]', () => {
+		const A = S.建会话('随机-A');
+		S.挂随机格(A);
+		A.enter('cellar-rng');
+		A.input.push({ id: 'roll' });
+		const 一 = A.step();
+		ok('[commit-rng]', 一.settled === 'applied' && typeof A.facts().抽 === 'string' && A.facts().次 === 1,
+			`★成功 ⇒ 抽取值随结算落（实得 ${JSON.stringify(一)}｜抽=${JSON.stringify(A.facts().抽)}）`);
+		const B = S.建会话('随机-B');
+		S.挂随机格(B, (c) => { const v = c.rng.next(); c.commit({ 抽: v, 次: 1 }); throw R().refuse('ROLL-JAMMED', '骰子卡住了。'); });
+		B.enter('cellar-rng');
+		const 前 = JSON.stringify(B.facts());
+		B.input.push({ id: 'roll' });
+		const 二 = B.step();
+		ok('[commit-rng]', 二.settled === 'rejected' && 二.reason === 'ROLL-JAMMED' && JSON.stringify(二.changed) === '[]',
+			`★被拒 ⇒ rejected／理由／changed=[]（实得 ${JSON.stringify(二)}）`);
+		ok('[commit-rng]', JSON.stringify(B.facts()) === 前,
+			`★被拒 ⇒ 抽取值**不得落**（前 ${前}｜后 ${JSON.stringify(B.facts())}）`);
+	});
+
+	/* ---- 呈现：结算后重渲读新值（正控）---- */
+	cell('[commit-render]');
+	试面('[commit-render]', () => {
+		const A = S.建会话('呈现-A');
+		S.挂自循环呈现格(A);
+		const 收 = [];
+		A.ports.render.setCollector((o) => 收.push(o));
+		A.enter('cellar-render');
+		A.input.push({ id: '翻新' });
+		const 读 = A.step();
+		const 文本 = 收.map((o) => String(o.text)).join('｜');
+		ok('[commit-render]', 读.settled === 'applied' && A.facts().值 === '新' && /呈现：新/.test(文本),
+			`★结算后重渲读到**新值**（实得 ${JSON.stringify(读)}｜facts 值=${A.facts().值}｜屏上=${文本}）`);
+		const B = S.建会话('呈现-B');
+		S.挂自循环呈现格(B, (c) => { c.commit({ 值: '新' }); throw R().refuse('RENDER-STOP', '停下。'); });
+		const 收B = [];
+		B.ports.render.setCollector((o) => 收B.push(o));
+		B.enter('cellar-render');
+		const 前B = 收B.length;
+		B.input.push({ id: '翻新' });
+		const 读B = B.step();
+		const 文本B = 收B.slice(前B).map((o) => String(o.text)).join('｜');
+		ok('[commit-render]', 读B.settled === 'rejected' && B.facts().值 === '旧' && /呈现：旧/.test(文本B),
+			`★被拒后重渲须读**回滚后**的值（✗ 不许把草稿印上屏）（实得 ${JSON.stringify(读B)}｜facts 值=${B.facts().值}｜屏上=${文本B}）`);
+	});
+}
+
+/* ---------- ★`sgstory#1933` 的三条 **候选 D 接** 明账（✗ 不用绿盖住；每条都附**现读数**）----------
+ * 依据＝票面「三条 pending 臂」（C2 引擎对象态／C3 随机流后态／C4 呈现半截）。 */
+{
+	const S = globalThis.__sess;
+	/* C2：草稿只覆盖**会话事实块** ⇒ 命令体里改**引擎对象**（HP 等）拒后**仍改着**。 */
+	{
+		const A = S.建会话('C2-A');
+		const P = setup.DND3.Player;
+		const 前血 = P.hp;
+		A.mount('c2', () => ({
+			id: 'c2', enter: (c) => { c.commit({ 试: 1 }); }, render: () => {},
+			actions: [{ id: '伤', run: (c) => { P.hp = 前血 - 3; c.commit({ 试: 2 }); throw R().refuse('C2', '拒绝'); } }],
+		}));
+		A.enter('c2');
+		A.input.push({ id: '伤' });
+		const 读 = A.step();
+		const 后血 = P.hp;
+		P.hp = 前血;                                  // ★还原：✗ 不污染别格
+		PENDING.push('[commit-c2] 引擎对象态：草稿只覆盖会话事实块 ⇒ 命令体里改 HP／充能／位置，**拒后仍改着**'
+			+ `（现读数：拒绝 ${读.settled}／${读.reason}｜HP ${前血} ⇒ **${后血}**（✗ 未还原）｜facts 已回滚 ✓`
+			+ '｜候批 D 落「对象态回滚」；出处：`#1933` 票面 C2 ＋ `src/core/55-session.js:173-197`）');
+		console.log(`  ⏳ C2 引擎对象态：拒后 HP ${前血}⇒${后血}（✗ 未还原）`);
+	}
+	/* C3：`RPG.rng` **读不出位置** ⇒ 「拒后随机流该退回哪」现在无从判。 */
+	{
+		const r = R().rng;
+		const 位置系 = ['位置', 'pos', 'index', 'state', 'snapshot', '快照'].filter((k) => typeof r?.[k] !== 'undefined');
+		/* ★**我第一版把这条写错了**（自陈）：我原写「读不出位置」——实测 `index` **存在**（可读）⇒ 改成下面这句准确的：
+		 *   可读 ≠ 可**回滚**：命令层拒后**没人去退**那个位置，★且「退到哪」这件事本身没有契约（`rngAfter` 只在 doc-3 §4）。 */
+		let 可写 = null;
+		try { const 原 = r.index; r.index = 原; 可写 = r.index === 原; } catch { 可写 = false; }
+		PENDING.push('[commit-c3] 随机流后态：**可读**（`rng.index` 在）但**拒后没人退、也没契约说该退到哪**'
+			+ `（现读数：位置系字段＝${JSON.stringify(位置系)}｜其中 \`index\` 可写＝${可写}；★拒后事实块已回滚、**随机流位置未退**（本臂 ✗ 判不出该退到哪 ⇒ 计 pending）`
+			+ '｜★出处＝**doc-3 §4 的 `ActionResolution` 表**（✗ 不是代码：`#1915` 实面为 `RPG.actionResult.{applied,rejected}`'
+			+ '＝{status, consumesAction, events[]}，`src/core/44-battle-resolve.js:31-55`，**无随机流字段**）'
+			+ '；候批 D 落 `rngAfter` 时接此臂）');
+		console.log(`  ⏳ C3 随机流后态：rng 位置系字段＝${JSON.stringify(位置系)}（读不出 ⇒ 判不了）`);
+	}
+	/* C4：命令体**自己印**的那一路（`c.ports.render.output`）在**判决点之前**就落 ⇒ 拒后屏上留半截。 */
+	{
+		const A = S.建会话('C4-A');
+		const 收4 = [];
+		A.ports.render.setCollector((o) => 收4.push(o));
+		A.mount('c4', () => ({
+			id: 'c4', enter: (c) => { c.commit({ 值: '旧' }); }, render: () => {},
+			actions: [{ id: '翻', run: (c) => { c.commit({ 值: '新' }); c.ports.render.output('翻新中：值=新（半截）'); throw R().refuse('C4', '拒绝'); } }],
+		}));
+		A.enter('c4');
+		A.input.push({ id: '翻' });
+		const 读 = A.step();
+		const 半截 = 收4.filter((o) => /翻新中/.test(String(o.text))).length;
+		PENDING.push('[commit-c4] 呈现半截：命令体内**自己印**的那一路在**判决点之前**就落 ⇒ 拒后屏上留半截'
+			+ `（现读数：拒绝 ${读.settled}／${读.reason}｜收集器收到「翻新中」**${半截}** 条（✗ 应为 0）`
+			+ `｜facts 已回滚＝${JSON.stringify(A.facts())}；候批 D 落「命令体内呈现先缓冲、结算后统一放」）`);
+		console.log(`  ⏳ C4 呈现半截：拒后收集器仍收到「翻新中」${半截} 条（应为 0）`);
+	}
 }
 
 /* ---------- ⑤ `sgstory#1924` 实体身份与旧档迁移（**tests-first**：基线锚现行为）----------

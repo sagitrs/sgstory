@@ -496,6 +496,9 @@ RPG.Battle = class Battle extends RPG.Event {
 		 *   ★`value` 必须保**原槽位下标**（✗ 过滤后重编号）—— 下游按 `slots[Number(chosen)]` 取件，
 		 *     重编号会**取错道具**（本笔最易写错的一处）。 */
 		const itemOptions = [];
+		/* ★`#1914`（步五）：有可重复的一手 ⇒ 列在**最前**（一键重复，✗ 让玩家再走三问）。 */
+		const 重复项 = RPG.重复.选项(this);
+		if (重复项) itemOptions.push(重复项);
 		slots.forEach((slot, i) => {
 			const item = setup.RPG.reviveItem(slot);
 			if (actionOptionsFor(item).length === 0) return;
@@ -566,6 +569,7 @@ RPG.Battle = class Battle extends RPG.Event {
 		for (;;) {
 			const 果 = await this.#playerActionAttempt(attacker);
 			this.上一结果 = 果;                          // ★留档（供重复行动／判据读，✗ 只活在局部）
+			(this.结果史 ?? (this.结果史 = [])).push(果);   // ★整场史（判据「两条 action」等要求看全场）
 			if (果?.consumesAction !== false) return;     // ★按**结构**判（✗ 比字串）
 			this.perform(`${attacker.name}再选一次。`);
 		}
@@ -592,6 +596,20 @@ RPG.Battle = class Battle extends RPG.Event {
 		if (itemOptions.length === 1) this.perform(`${attacker.name}背包里的东西，在战斗中都用不上。`);
 		this.perform(`现在是${attacker.name}的回合，请选择道具：`);
 		const chosen = await attacker.choice(itemOptions);
+		/* ★`#1914`（步五）：**一键重复** —— 件按**件号**、靶按**单位号**找回；任一件不在 ⇒
+		 *   出声、**不消耗**行动机会、回到选择（步二的回路接住）。 */
+		if (chosen === 'repeat') {
+			const 解 = RPG.重复.解析(this, attacker, (类) => this.#目标候选(attacker, 类));
+			if (!解.ok) {
+				this.perform(`重复不了 —— ${解.详情}。`);
+				return this.#拒(attacker, this.#noteReject(attacker, { status: 'rejected', reason: 解.理由 }), 解.理由, 解.详情);
+			}
+			this.perform(`重复上一次 —— 对${解.靶名}使用${解.件名}。`);
+			const rRep = this.#actCatching(attacker, 解.件.id, 解.靶);
+			if (rRep?.status === 'rejected') return this.#拒(attacker, this.#noteReject(attacker, rRep), rRep?.reason ?? 'rejected');
+			RPG.重复.记(this, { 件: 解.件, 靶: 解.靶, 动作类: 解.动作类 });
+			return RPG.行动结果.成功({ 行动者: attacker, 道具: 解.件, 靶: 解.靶, 动作类: 解.动作类 });
+		}
 		const item = (chosen === 'skip' || chosen === 'unarmed')
 			? null : setup.RPG.reviveItem(slots[Number(chosen)]);
 
@@ -635,6 +653,7 @@ RPG.Battle = class Battle extends RPG.Event {
 				else this.perform(`${attacker.name}这一手没能出手 —— 本回合就此过去。`);
 			}
 			if (rUn?.status === 'rejected') return this.#拒(attacker, this.#noteReject(attacker, rUn), rUn.reason ?? 'rejected');
+			RPG.重复.记(this, { 件: { slotId: 'unarmed', name: '空手打击' }, 靶: tgt, 动作类: 'damage' });
 			return RPG.行动结果.成功({ 行动者: attacker, 道具: 'unarmed', 靶: tgt, 动作类: 'damage' });
 			return;
 		}
@@ -676,6 +695,7 @@ RPG.Battle = class Battle extends RPG.Event {
 			else this.perform(`${attacker.name}这一手没能出手${r.reason === 'no-ammo' ? '（没有弹药）' : r.reason === 'no-such-item' ? '（道具不在身上）' : r.reason === 'action-refused' ? '（动作自己拒绝了）' : ''} —— 本回合就此过去。`);
 		}
 		if (r?.status === 'rejected') return this.#拒(attacker, this.#noteReject(attacker, r), r?.reason ?? 'rejected');       // 使用：被拒 ⇒ 回到选择
+		RPG.重复.记(this, { 件: dispatch.item, 靶: target, 动作类 });   // ★记下「刚刚那一手」（一键重复的源）
 		return RPG.行动结果.成功({ 行动者: attacker, 道具: dispatch.item, 靶: target, 动作类 });
 	}
 };

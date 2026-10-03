@@ -197,4 +197,28 @@
 				`★靶没了后**没有回到选择**（后续选单史=${JSON.stringify(记.slice(i + 1))}）`);
 		} finally { 复态(s); }
 	});
+	test('repeat ⑪：过期是**具名原因**（`item-gone`／`target-gone`），✗ 泛泛失败', async () => {
+		/* ★`dev-9` 合流裁定点名：「过期＝**具名原因**」，且 ⑤「目标不在场 ⇒ 退回选择」**只能靠它**
+		 *   ⇒ 故把原因名**钉进判据**（✗ 只断「被拒」—— 那样换成一个空原因也照样绿）。
+		 *   ⚠ `replayed`（同一请求被重复消费）在本设计里**不适用**：意图是模板，在选择那一刻重解析。 */
+		const s = 存态();
+		try {
+			const { battle } = await 跑重复(() => {
+				State.variables.inventory = State.variables.inventory.filter((x) => x.id !== 'club');
+			});
+			const 拒 = (battle.resultLog ?? []).flatMap((r) => r.events ?? []).filter((e) => e.kind === 'refused');
+			assert.ok(拒.length > 0, '★没有任何 refused 事件');
+			assert.eq(拒[0].reason, 'item-gone', `★件不在的原因名不是具名的 item-gone（实得 ${拒[0].reason}）`);
+		} finally { 复态(s); }
+	});
+
+	test('repeat ⑫：**行动者倒下** ⇒ 具名 `actor-gone`（✗ 泛泛失败）', async () => {
+		const s = 存态();
+		try {
+			const { battle } = await 跑重复(({ P }) => { P.hp = 0; });   // 行动者自己在选「重复」前倒下
+			const 拒 = (battle.resultLog ?? []).flatMap((r) => r.events ?? []).filter((e) => e.kind === 'refused');
+			assert.ok(拒.some((e) => e.reason === 'actor-gone'),
+				`★行动者倒下没给出具名的 actor-gone（实得 ${JSON.stringify(拒.map((e) => e.reason))}）`);
+		} finally { 复态(s); }
+	});
 })();

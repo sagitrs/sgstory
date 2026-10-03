@@ -45,12 +45,18 @@ RPG.refuse = (code, message, extra) =>
  *   （`40-battle.js` 的选项值就是下标 ⇒ 两把同耐久长剑只能选到第一把）。
  *   ⚠ 为什么不是「`id` ＋ `charges`」：两件同类同耐久**完全一样** ⇒ 那会把两件判成一件。
  *   发号是**全局单调**的；读档时把序列推到已见号**之上** ⇒ 新发号不与既有号碰撞（见 `reviveItem`）。 */
+/* ★高水位住在**模块级**（✗ 写 `State.variables`）：`dev-9` 的合流裁定点名「**槽位号不复用**」须活到
+ *   合流后 —— 本条由两件事共同保证：①发号**全局单调**（本处）②入包出口「**有号也顶高水位**」
+ *   （`30-inventory.js` 的 `保号`）⇒ 任何**经出口**进袋的号都会把序列顶上去。
+ *   ⚠ **为何不把高水位写进档**（本席实测后放弃）：`reviveItem` / `createItem` 也会发号，而它们出现在
+ *   **读路径**上（如构造选项）⇒ 写 `State` 会让「**被拒 ⇒ 存档面零变化**」这条既有判据（`#1806` 笔2
+ *   回填 `#1801`）变红。⇒ 取「模块级 ＋ 出口顶水位」，两边都满足。 */
 RPG.itemSlotSeq = 0;
 RPG.newSlotId = () => `it-${(RPG.itemSlotSeq += 1)}`;
 
 /** 让序列**越过**读到的号（读档/旧档都走；✗ 只读不推 ⇒ 之后发号必碰撞）。 */
 RPG.noteSlotId = (slotId) => {
-	const n = Number(String(slotId ?? "").replace(/^it-/, ""));
+	const n = Number(String(slotId ?? '').replace(/^it-/, ''));
 	if (Number.isFinite(n) && n > RPG.itemSlotSeq) RPG.itemSlotSeq = n;
 };
 

@@ -87,7 +87,11 @@
 			钉随机();
 			const 前 = [甲.hp, 乙.hp];
 			const { itemOptions, targetOptions } = battle.buildPlayerOptions(D().Player);
-			const 道具值 = itemOptions.find((o) => o.value !== 'skip' && o.value !== 'unarmed')?.value;
+			const 道具值 = itemOptions.find((o) => o.value !== 'skip' && o.value !== 'unarmed'
+				/* ★`#1918`：一键项（`quick:` 前缀）也**不是**槽位下标 ⇒ 不取它。
+				 *   本用例要的是「走完三问的那条路」（两个同名敌 ⇒ 不出一键项），但它不该靠
+				 *   「当时背包里恰好没有治疗件」（治疗件的候选恰一是常态）来成立。 */
+				&& !String(o.value).startsWith('quick:'))?.value;
 			assert.ok(道具值 != null, '没有可用道具选项');
 			/* 目标候选的次序由现码给出：末两条是两只同名敌。 */
 			const 第二个敌的选项 = targetOptions[targetOptions.length - 1];

@@ -492,15 +492,39 @@ RPG.Battle = class Battle extends RPG.Event {
 			return RPG.battleActions.list(item).map((a) => ({ text: 文案(a), value: a.id }));
 		};
 
+		/* ★`#1918`（`sagitrs/sgstory-books#188` 甲案）：**单靶一键直达** —— 一个**需要目标**的战斗动作，
+		 *   若其动作类的候选**恰有一人** ⇒ 直出一键项（件＋动作＋靶当场定下，玩家点一次即完成这一手）。
+		 *   ⚠ 候选**两个及以上**时**不出**此项（「多目标才展开」＝走原来的三步问答）；`support` 类
+		 *     的候选是空集（`targetPolicy` 的 `none`），亦不出项。
+		 *   ⚠ 值里**只有件与动作**（`quick:<槽位下标>:<动作 id>`），✗ 把单位号冻进值 —— 靶在执行时按
+		 *     **同一取源**（`#targetCandidates`）重算。号只在**本场**有意义（`42-battle-intent.js` 的
+		 *     WeakMap 口径），写进选单等于冻一个会过期的引用。
+		 *   ⚠ 与「重复上一次行动」并列：两者都省点击，同一回合可同时在场，互不覆盖。
+		 *   ⚠ 件表**只取一遍**（下面的选单复用同一份）：`core` 里的 `setup.` 触点是**棘轮**门
+		 *     （`#1804` 件二）—— 多写一遍 `reviveItem` 就会把本档顶到 6（本笔首版实测：门红）。 */
+		const 件表 = slots.map((slot) => setup.RPG.reviveItem(slot));
+		const quickOptions = [];
+		件表.forEach((item, i) => {
+			for (const a of RPG.battleActions.list(item)) {
+				if (!a.needsTarget) continue;
+				if (this.#targetCandidates(attacker, a.actionClass).length !== 1) continue;
+				quickOptions.push({
+					text: RPG.battleActions.quickText(item, a.actionClass),
+					value: `quick:${i}:${a.id}`,
+				});
+			}
+		});
+
+		const itemOptions = [];
+		/* ★`#1918`：一键项**列在最前**（本笔的主路径：唯一合法目标 ⇒ 一次点击即完成这一手）。 */
+		itemOptions.push(...quickOptions);
+		/* ★`#1914`（步五）：有可重复的一手 ⇒ 紧随其后（同族快捷项，✗ 让玩家再走三问）。 */
+		const repeatOption = RPG.repeat.option(this);
+		if (repeatOption) itemOptions.push(repeatOption);
 		/* ★`#1841`：**零战斗动作**的道具**不列**进选单（✗ 列了就是**死路**：选中却无事可做）。
 		 *   ★`value` 必须保**原槽位下标**（✗ 过滤后重编号）—— 下游按 `slots[Number(chosen)]` 取件，
 		 *     重编号会**取错道具**（本笔最易写错的一处）。 */
-		const itemOptions = [];
-		/* ★`#1914`（步五）：有可重复的一手 ⇒ 列在**最前**（一键重复，✗ 让玩家再走三问）。 */
-		const repeatOption = RPG.repeat.option(this);
-		if (repeatOption) itemOptions.push(repeatOption);
-		slots.forEach((slot, i) => {
-			const item = setup.RPG.reviveItem(slot);
+		件表.forEach((item, i) => {
 			if (actionOptionsFor(item).length === 0) return;
 			itemOptions.push({ text: `${item.name}${item.equipped ? '（已装备）' : ''}`, value: String(i) });
 		});
@@ -542,8 +566,25 @@ RPG.Battle = class Battle extends RPG.Event {
 	 *   { type: 'unequip', item }  → 卸下，经 useItem 提交，消耗回合
 	 *   { type: 'unarmed' }       → 空手打击（`#1854`：**无 item**），进入目标选择
  *   { type: 'use', item }      → 使用，进入目标选择
+	 *   { type: 'quick', index, actionId } → 一键项（`#1918`：件与动作都在值里，靶按**唯一候选**定）
 	 */
+	/** ★`#1918`：一键项值形 `quick:<槽位下标>:<动作 id>` 的**唯一解析处**（判据与执行同源）。
+	 *
+	 *   ⚠ 用**槽位下标**认件（同族：既有道具选单的 `value` 也是下标）—— 本值在**选择的那一刻**就被消费
+	 *     （同一回合内、`slots` 是同一份快照，中途无重编号）⇒ 不适用「跨回合识别」那条下标漂移的教训；
+	 *     靶则一律用**号**在执行时按同一取源重算（见 `buildPlayerOptions` 里的一键项块）。
+	 *   ⚠ 解析不出（非一键项、下标非整数、动作 id 为空）⇒ 返回 `null`，调用方**照旧**走原来的分支。 */
+	static parseQuick(v) {
+		if (typeof v !== 'string' || !v.startsWith('quick:')) return null;
+		const [, idx, actionId] = v.split(':');
+		const index = Number(idx);
+		if (!Number.isInteger(index) || index < 0 || !actionId) return null;
+		return { index, actionId };
+	}
+
 	static dispatchAction(chosen, action, item) {
+		const 快捷 = RPG.Battle.parseQuick(chosen);
+		if (快捷) return { type: 'quick', index: 快捷.index, actionId: 快捷.actionId };
 		if (chosen === 'skip') return { type: 'skip' };
 		if (chosen === 'unarmed') return { type: 'unarmed' };   // ★`#1854`：空手（**无 item**）
 		if (action === 'equip') return { type: 'equip', item };
@@ -610,12 +651,15 @@ RPG.Battle = class Battle extends RPG.Event {
 			RPG.repeat.remember(this, { 件: 解.item, target: 解.target, actionClass: 解.actionClass });
 			return RPG.actionResult.applied({ actor: attacker, item: 解.item, target: 解.target, actionClass: 解.actionClass });
 		}
+		/* ★`#1918`：一键项在**选题那一刻**已把件与动作定下（出项的条件就是候选恰一）。
+		 *   解析只此一处（`RPG.Battle.parseQuick`）—— 下面第 ② 步对一键项**不问**。 */
+		const 快捷 = RPG.Battle.parseQuick(chosen);
 		const item = (chosen === 'skip' || chosen === 'unarmed')
-			? null : setup.RPG.reviveItem(slots[Number(chosen)]);
+			? null : setup.RPG.reviveItem(slots[快捷 ? 快捷.index : Number(chosen)]);
 
-		// ② 选动作
-		let action = 'use';
-		if (item) {
+		// ② 选动作（★`#1918`：一键项已定动作 ⇒ 不问）
+		let action = 快捷 ? 快捷.actionId : 'use';
+		if (item && !快捷) {
 			const actions = actionOptionsFor(item);
 			if (actions.length > 1) {
 				this.perform(`对「${item.name}」做什么？`);
@@ -673,21 +717,27 @@ RPG.Battle = class Battle extends RPG.Event {
 			return;
 		}
 
-		// 使用：选目标
+		// 使用：选目标（★`#1918`：一键项的候选恰一是**出项条件** ⇒ 直接命中，不再问）
 		/* ★`#1914`（步四）：**动作类由道具声明**（`RPG.battleActions.classOf`）—— 原先由调用方猜：
 		 *   猜成伤害 ⇒ 治疗件的队友不在候选里；猜成治疗 ⇒ 伤害件候选含自己（自伤）。 */
-		const actionClass = RPG.battleActions.classOf(dispatch.item);
-		this.perform(`对谁使用${dispatch.item.name}？`);
-		const targetId = await attacker.choice(targetOptionsFor(actionClass));
-		/* ★`#1914`：按**号**找回（✗ 按名 `find`）；找不到**具名抛** ⇒ 由 `#actCatching` 兜成可读拒绝。 */
-		const target = this.#resolveTarget(attacker, targetId);
+		const actionClass = RPG.battleActions.classOf(item);
+		const 靶选项 = targetOptionsFor(actionClass);
+		let target;
+		if (dispatch.type === 'quick' && 靶选项.length === 1) {
+			target = this.#resolveTarget(attacker, 靶选项[0].value);
+		} else {
+			/* 普通路；一键项但候选已变（理论上本回合内不会）⇒ 退回展开，✗ 静默换靶。 */
+			this.perform(`对谁使用${item.name}？`);
+			const targetId = await attacker.choice(靶选项);
+			target = this.#resolveTarget(attacker, targetId);
+		}
 		if (target == null) return target === false ? 'guard' : 'rejected';
 
 		/* ★`#1773` 判据 1（交互战）：`rejected` ⇒ 出**可读拒绝文案**（✗ 静默丢弃返回值 ——
 		 *   那正是 `#1768` 审查提的 MINOR 本体：三处调用点连读数都没有）。
 		 *   「本回合被消耗但不推进」的语义与自动通路一致：`battle:turn` 交互面本就不发，
 		 *   而回合边界（`start`/`end`）由 `#playerAction` 的 `finally` **成对照发**（防条件衰减回退）。 */
-		const r = this.#actCatching(attacker, dispatch.item.id, target); // 统一入口（#1752）
+		const r = this.#actCatching(attacker, item.id, target, dispatch.type === 'quick' ? dispatch.actionId : 'use'); // 统一入口（#1752）
 		if (r?.status === 'rejected') {
 			/* ★`#1837`：抛出**单独一句**（✗ 塞进下面那个括号位 —— 道具自带文案已含括号，再套会嵌套）；
 			 *   且**原样**用道具自己的话 ⇒ 玩家看到的是「为何不能用石料」的**因**，✗ 泛泛的「没能出手」。 */
@@ -695,7 +745,7 @@ RPG.Battle = class Battle extends RPG.Event {
 			else this.perform(`${attacker.name}这一手没能出手${r.reason === 'no-ammo' ? '（没有弹药）' : r.reason === 'no-such-item' ? '（道具不在身上）' : r.reason === 'action-refused' ? '（动作自己拒绝了）' : ''} —— 本回合就此过去。`);
 		}
 		if (r?.status === 'rejected') return this.#refuse(attacker, this.#noteReject(attacker, r), r?.reason ?? 'rejected');       // 使用：被拒 ⇒ 回到选择
-		RPG.repeat.remember(this, { item: dispatch.item, target: target, actionClass });   // ★记下「刚刚那一手」（一键重复的源）
-		return RPG.actionResult.applied({ actor: attacker, item: dispatch.item, target: target, actionClass });
+		RPG.repeat.remember(this, { item, target, actionClass });   // ★记下「刚刚那一手」（一键重复的源）
+		return RPG.actionResult.applied({ actor: attacker, item, target, actionClass });
 	}
 };

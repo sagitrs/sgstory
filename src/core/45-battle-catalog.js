@@ -39,5 +39,17 @@
 		return out;
 	};
 
-	RPG.battleActions = Object.freeze({ classOf, list });
+	/** ★`#1918`（`sagitrs/sgstory-books#188` 甲案）：**一键项的文案** —— 已装备的武器写作
+	 *   「用已装备长剑攻击」，未装备的写作「用长剑攻击」；治疗类写作「用绷带治疗」。
+	 *
+	 *   ⚠ 本档只**取词**，判据面在调用方（`40-battle.js` 的 `buildPlayerOptions`：该动作类的候选
+	 *     **恰有一人**才出此项）。文案与 `list()` 同源，✗ 在引擎各处再散一份字面量。
+	 *   ⚠ 动作类未知一律按**伤害**取词（与 `classOf` 的窄默认同向）：宁可说「攻击」，
+	 *     也不把一件可能致伤的东西说成治疗。 */
+	const quickText = (item, actionClass) => {
+		const 词 = actionClass === 'heal' ? '治疗' : '攻击';
+		return `用${item?.equipped ? '已装备' : ''}${item?.name ?? ''}${词}`;
+	};
+
+	RPG.battleActions = Object.freeze({ classOf, list, quickText });
 })();

@@ -58,6 +58,18 @@ const KNIVES = [
 			`text: '木箱的盖子被长钉钉死，但对你手里的家伙而言算不了什么。长钉呻吟着松开——箱底藏着一枚旧硬币和一把铁钥匙。'`]],
 		expect: ['out-timing'],
 	},
+	{
+		id: 'marker-not-written',
+		why: '木箱动作**不写** `boxOpened` 标记（其余照旧）⇒ 存档面少了那份事实 ⇒ `[save-passage]` 应红',
+		patch: [[`State.variables.boxOpened = true;`, `/* 刀：不写标记 */`]],
+		expect: ['save-passage'],   // 实测：前置改看「奖励入包」后，**只有**存读档格红（干净隔离）
+	},
+	{
+		id: 'scene-double-push',
+		why: '场景推进**重复入栈**（同一屏压两条历史）⇒ 回退只能退回**同一屏**（原地踏步）⇒ `[back]` 应红',
+		patch: [[`SugarCube.Engine.play('场景舞台');`, `SugarCube.Engine.play('场景舞台'); SugarCube.Engine.play('场景舞台');`]],
+		expect: ['back'],
+	},
 ];
 
 /* ============================ 刀自检（子进程跑同一支，断红在哪一格）============================ */
@@ -77,6 +89,7 @@ if (process.argv.includes('--selftest')) {
 		const r = run({ SEAM_KNIFE: k.id });
 		const out = `${r.stdout}${r.stderr}`;
 		const got = redCells(out);
+		if (!k.expect) { console.log(`  · 刀 \`${k.id}\`（未声明）实得红集 ${JSON.stringify(got)}（rc=${r.status}）`); continue; }
 		const want = [...k.expect].sort();
 		const same = got.length === want.length && got.every((x, i) => x === want[i]);
 		const red = r.status === 1 && same;
@@ -213,8 +226,9 @@ const goto = async (text) => {
 	await E.backward();
 	await new Promise((r) => setTimeout(r, 0));
 	/* ★场景舞台是**一段多屏**（Scene 复用同一段落名）⇒ 回退的判据是「屏变了」，不是「段落名变了」 */
-	ok(id, newest() !== 文前 || SC.State.variables.sceneId !== 场前,
-		`\`Engine.backward()\` 后确换了屏（sceneId ${JSON.stringify(场前)} → ${JSON.stringify(SC.State.variables.sceneId)}，段落名=${JSON.stringify(cur())}）`);
+	ok(id, SC.State.variables.sceneId === 'cellar-entry',
+		`\`Engine.backward()\` 回到**上一场**（cellar-box → 期望 cellar-entry，实得 ${JSON.stringify(SC.State.variables.sceneId)}）`
+		+ ' —— ✗ 只断「换了屏」：场景推进若不走历史（改用 `Engine.show`），「换屏」仍为真而回退其实跳过了整段剧情');
 	ok(id, !newest().includes('木箱的盖子被长钉钉死'),
 		'回退后末屏不再是「木箱」那一屏（✗ 停在原地却报成功）');
 	ok(id, doc.querySelector('#passages') !== null, '回退后 DOM 重绘（段落容器仍在，✗ 白屏）');
@@ -262,7 +276,8 @@ const goto = async (text) => {
 	const 旧元素 = blocks().at(-1);
 	ok(id, !(旧元素?.textContent ?? '').includes(语), '动作前的那一屏**不含**该出句（防「提前出现」：静态文本冒充动作输出）');
 	await goto('用木棒撬开木箱');
-	ok(id, SC.State.variables.boxOpened === true, '撬开动作确已发生（前置）');
+	ok(id, (SC.State.variables.inventory ?? []).some((x) => x.id === 'coin'),
+		'撬开动作确已发生（前置：奖励入包 —— ✗ 借 marker：那是 `[save-passage]` 的正题）');
 	ok(id, SC.State.variables.sceneId === 'cellar-box', `动作后仍在木箱格（自循环重绘的语义；sceneId=${JSON.stringify(SC.State.variables.sceneId)}）`);
 	ok(id, (旧元素?.textContent ?? '').includes(语), `出句落在**动作那一刻的那一屏**（与动作同屏：旧元素含「${语}」）`);
 	const 新元素 = blocks().at(-1);

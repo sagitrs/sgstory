@@ -724,12 +724,12 @@ RPG.Battle = class Battle extends RPG.Event {
 		const 靶选项 = targetOptionsFor(actionClass);
 		let target;
 		if (dispatch.type === 'quick' && 靶选项.length === 1) {
-			target = this.#resolveTarget(attacker, 靶选项[0].value);
+			target = this.#resolveTarget(attacker, 靶选项[0].value, actionClass);
 		} else {
 			/* 普通路；一键项但候选已变（理论上本回合内不会）⇒ 退回展开，✗ 静默换靶。 */
 			this.perform(`对谁使用${item.name}？`);
 			const targetId = await attacker.choice(靶选项);
-			target = this.#resolveTarget(attacker, targetId);
+			target = this.#resolveTarget(attacker, targetId, actionClass);
 		}
 		if (target == null) return target === false ? 'guard' : 'rejected';
 

@@ -37,6 +37,7 @@ const REPO = path.resolve(HERE, '..', '..', '..');
 const UNIT = path.join(REPO, 'tests', 'unit');
 const CELLAR = path.join(HERE, 'src', 'story', 'cellar.js');
 const SESSION_BRIDGE = path.join(HERE, 'session-bridge.js');   // 会话侧薄桥（装置侧，④ 格用）
+const 包档 = path.join(REPO, 'tests', 'unit', 'dist', 'bundle.js');   // ★构建产物（会话层随包发布 ⇒ `#1925` 三刀的靶）
 
 /* 待判行（明账）：这一行**不是**「已过」，也不静默跳过 —— 打印 `⏳` 并计入 pending。
  * ★ 已清零：原 `[sessions] …待 GameSession` 一行在 `7e5dd41`（交付 1 步 3）落地后**摘除** ——
@@ -100,6 +101,34 @@ const KNIVES = [
 			+ '—— 正是正控要拦的那族（★没有正控时，本条会以「A 的常识」为真而漏过）',
 		patch: [[`单例.写 ?? 注册表[ctx.session.id]`, `(单例.写 ??= 注册表[ctx.session.id])`]],
 		expect: ['sess-state'],
+	},
+
+	/* ── ★`#1925` 命令提交（草稿 ⇒ 一次原子结算）：三把刀各**恰**红一格 ──
+	 *   ★靶＝**构建产物**（会话层 `src/core/55-session.js` 随包发布）。本档直接改跑起来的那一份，
+	 *     ✗ 不改 `src/**` 后**忘了重建** —— 那正是本席今日栽过的空刀（改源码不重建 ⇒ 刀没落在被测物上
+	 *     ⇒ 零红被误读成「判据没牙」）。装载处会再核一次命中（替换不中 ⇒ 具名退出）。
+	 *   ✗ 不改 `src/core/55-session.js` 的文件，故本档 ✗ 需要 `python3 build.py`（CI 的位次已在 build 之后）。 */
+	{
+		id: 'commit-merge-on-reject',
+		file: 包档,
+		why: '拒绝时**照样把草稿并进**活事实块（＝`#1752` 记的那族：报 rejected 而变化保留）⇒ 只红原子格',
+		patch: [["if (settled !== 'applied') return { settled, reason, rolledBack: true, changed: [] };",
+			"if (settled !== 'applied') { Object.assign(this._facts, 草稿); return { settled, reason, rolledBack: true, changed: [] }; }"]],
+		expect: ['commit-atomic'],
+	},
+	{
+		id: 'commit-swallow-throw',
+		file: 包档,
+		why: '普通异常**吞成 rejected**（＝把「崩了」伪装成「被拒绝」）⇒ 只红中断格',
+		patch: [["else { throw e; }", "else { settled = 'rejected'; reason = 'internal-error'; }"]],
+		expect: ['commit-interrupt'],
+	},
+	{
+		id: 'commit-ctx-facts-live',
+		file: 包档,
+		why: '命令内的合并视图（`ctx.facts()`）**只看已提交**（✗ 不含草稿）⇒ 只红存档点格',
+		patch: [["facts: () => 快照({ ...this._facts, ...草稿 }),", "facts: () => 快照({ ...this._facts }),"]],
+		expect: ['commit-rt'],
 	},
 ];
 
@@ -171,7 +200,24 @@ if (!fs.existsSync(bundle)) {
 }
 load(path.join(UNIT, 'framework', 'host.js'));
 load(path.join(UNIT, 'framework', 'shims.js'));
-load(bundle);
+/* ★刀靶＝**构建产物**时（`#1925` 三把）：先把刀打在产物**文本**上，再经同一条 `load` 装载 ——
+ *   ✗ 不走「改源码 ＋ 另写一个装载形」：装载形一变，被测的就不是 CI 跑的那一份（本档别处已为此设过自证）。 */
+if (knife?.file === 包档) {
+	let 包Src = fs.readFileSync(bundle, 'utf8');
+	for (const [from, to] of knife?.patch ?? []) {
+		if (!包Src.includes(from)) {
+			console.error(`✗ 刀 \`${knife.id}\` 的替换未命中（产物）：${from}\n  （产物已变 ⇒ 刀失效 ⇒ 须同步改刀）`);
+			process.exit(2);
+		}
+		包Src = 包Src.split(from).join(to);
+	}
+	const 临时 = path.join(process.env.TMPDIR ?? '/tmp', `rb1932-knife-${knife.id}.js`);
+	fs.writeFileSync(临时, 包Src);
+	console.log(`  · 刀 \`${knife.id}\` 已打在**产物**上（${path.relative(REPO, bundle)} ⇒ ${临时}）`);
+	load(临时);
+} else {
+	load(bundle);
+}
 globalThis.__host.install();          // 接住 perform 的输出（须在被测物之后）
 
 /* 故事面：读**真源码**；下刀时只做字符串替换（替换不中 ⇒ 具名报错，✗ 静默当「刀下了」） */
@@ -452,6 +498,127 @@ reset();
 		A.run({ maxSteps: 10 });
 		ok('[sess-input]', A.input.pending() === 0 && A.steps() === A步前 + 1,
 			`★正控：A 跑完后队列清空且步数只加 1（A.steps=${A.steps()}、pending=${A.input.pending()}）`);
+	});
+}
+
+/* ---------- ★`sgstory#1925`：**命令提交**（草稿 ⇒ 一次原子结算）----------
+ * 装置＝`session-bridge.js` 的 `挂命令木箱格(A, 行为)`：开箱＝**一条命令**（一个场景动作），
+ *   三笔效果（开箱／发奖／标记）**全写草稿**，由 `step()` **一次结算**；`行为` 注入口给三形负例。
+ * ★与 `[sess-*]` 四格判**不同的面**：那四格走 `提交(c,…)`（直调**会话**的 `commit`，判「两会话互不串」）；
+ *   本三格判**一条命令内部**的「写 ⇒ 结算 ⇒ 回滚」。
+ * ★每条面都配**正控**（「不变」类断言缺正控时，装置失明也一样真 —— 见 `[sess-state]` 那条的注）。
+ * 读数形（票面第三节）：`{ stepped, action, settled:'applied'|'rejected'|null, reason?, rolledBack, changed }`。 */
+{
+	const S = globalThis.__sess;
+	const R = () => setup.RPG;
+	const 试面 = (sub, fn) => { try { fn(); } catch (e) { ok(sub, false, `★驱动抛错（本面没跑完）：${e && e.message}`); } };
+	/** 造一个「就绪」的会话：挂命令木箱格 ⇒ 进入 ⇒ 推一条开箱输入。**每格各造自己的。** */
+	const 就绪 = (名, 行为 = null) => {
+		const A = S.建会话(名);
+		S.挂命令木箱格(A, 行为);
+		A.enter('cellar-commit');
+		A.input.push({ id: 'open-chest' });
+		return A;
+	};
+
+	/* ---- ① 结算原子性（两向）：全成 ⇒ 三键一次落齐；拒 ⇒ **零残留** ---- */
+	cell('[commit-atomic]');
+	试面('[commit-atomic]', () => {
+		const A = 就绪('原子-成');
+		const 成 = A.step();
+		console.log(`  · 读数：全成 ${JSON.stringify(成)}｜facts=${JSON.stringify(A.facts())}`);
+		ok('[commit-atomic]', 成.settled === 'applied' && 成.rolledBack === false
+			&& JSON.stringify(成.changed) === JSON.stringify(['chest', 'loot', 'marked']),
+			`★全成：settled=applied／rolledBack=false／changed 三键齐（实得 ${JSON.stringify(成)}）`);
+		ok('[commit-atomic]', A.facts().chest === 'open' && A.facts().marked === true
+			&& JSON.stringify(A.facts().loot) === JSON.stringify(['绷带', '硬币']),
+			`★全成：三值都落进事实块（实得 ${JSON.stringify(A.facts())}）`);
+		/* 两形负例**各造自己的会话**（✗ 共用：一条的正控会动到另一条的读数） */
+		for (const [名, 行, 期望理由] of [
+			['return-false', (c) => { c.commit({ chest: 'open' }); c.commit({ loot: ['绷带'] }); return false; }, 'action-refused'],
+			['structured', (c) => { c.commit({ chest: 'open' }); throw R().refuse('CHEST_JAMMED', '这把锁卡死了'); }, 'CHEST_JAMMED'],
+		]) {
+			const B = 就绪(`原子-拒-${名}`, 行);
+			const 前 = JSON.stringify(B.facts());
+			const 读 = B.step();
+			console.log(`  · 读数：拒（${名}）${JSON.stringify(读)}`);
+			ok('[commit-atomic]', 读.settled === 'rejected' && 读.reason === 期望理由
+				&& 读.rolledBack === true && JSON.stringify(读.changed) === '[]',
+				`★拒（${名}）：settled=rejected／reason=${期望理由}／rolledBack=true／changed=[]（实得 ${JSON.stringify(读)}）`);
+			ok('[commit-atomic]', JSON.stringify(B.facts()) === 前,
+				`★拒（${名}）**零残留**（前 ${前}｜后 ${JSON.stringify(B.facts())}）`
+				+ ' —— 半态（开了箱没发奖）正是本条的靶；上面那一格「全成」是它的**正控**（同一装置确实会写）');
+		}
+	});
+
+	/* ---- ② 中断恢复 ＋ 重放幂等 ---- */
+	cell('[commit-interrupt]');
+	试面('[commit-interrupt]', () => {
+		/* (a) **普通异常**：须**上抛**（✗ 吞成 rejected —— 那会把「崩了」伪装成「被拒绝」）＋ **零残留** ＋ 会话**仍可用**。 */
+		let 次 = 0;
+		const A = S.建会话('中断-A');
+		S.挂命令木箱格(A, (c) => {
+			次 += 1;
+			if (次 === 1) { c.commit({ chest: 'open' }); throw new Error('模拟中断：写到一半崩了'); }
+			c.commit({ chest: 'open' }); c.commit({ loot: ['绷带', '硬币'] }); c.commit({ marked: true });
+		});
+		A.enter('cellar-commit');
+		const 前 = JSON.stringify(A.facts());
+		A.input.push({ id: 'open-chest' });
+		let 抛 = null;
+		try { A.step(); } catch (e) { 抛 = e; }
+		ok('[commit-interrupt]', !!抛 && /模拟中断/.test(String(抛?.message ?? '')),
+			`★(a) 普通异常须**上抛**（实得 ${抛 ? `抛了：${抛.message}` : '**没抛**（被吞成 rejected）'}）`);
+		ok('[commit-interrupt]', JSON.stringify(A.facts()) === 前,
+			`★(a) 中断后**零残留**（前 ${前}｜后 ${JSON.stringify(A.facts())}）`);
+		/* 正控＋恢复：同会话再推一条 ⇒ 这次该成（✗ 上一条在「会话被写坏／不再吃输入」的坏装置上也会真） */
+		A.input.push({ id: 'open-chest' });
+		const 复 = A.step();
+		ok('[commit-interrupt]', 复.settled === 'applied' && A.facts().marked === true,
+			`★(a) 恢复：中断之后再走一条应成（实得 ${JSON.stringify(复)}｜facts=${JSON.stringify(A.facts())}）`);
+		/* (b) **重放幂等**：同一条输入推两次 ⇒ 第二次 `when` 已假 ⇒ 不结算、不改事实（✗ 奖励翻倍）。 */
+		const B = 就绪('中断-幂等');
+		const 一 = B.step();
+		B.input.push({ id: 'open-chest' });            // 重放**同一条**
+		const 二 = B.step();
+		console.log(`  · 读数：第一次 ${JSON.stringify(一)}｜重放 ${JSON.stringify(二)}｜facts=${JSON.stringify(B.facts())}`);
+		ok('[commit-interrupt]', 二.settled === null && 二.reason === 'when-false'
+			&& JSON.stringify(二.changed) === '[]' && 二.rolledBack === false,
+			`★(b) 重放：第二次应 settled=null／reason=when-false／changed=[]／rolledBack=false（实得 ${JSON.stringify(二)}）`);
+		ok('[commit-interrupt]', JSON.stringify(B.facts().loot) === JSON.stringify(['绷带', '硬币']) && B.facts().marked === true,
+			`★(b) 重放✗不得翻倍／✗不得回退（实得 ${JSON.stringify(B.facts())}）`);
+		ok('[commit-interrupt]', B.input.pending() === 0,
+			`★(b) 不适用**也消耗**那次 input（实得 pending=${B.input.pending()}）—— 否则循环驱动会在同一条上打转到上限`);
+	});
+
+	/* ---- ③ 存档点：命令**跑的中途**，草稿✗混进「别处取到的那份事实」；结算后才一致 ---- */
+	cell('[commit-rt]');
+	试面('[commit-rt]', () => {
+		/* ★本仓会话层**没有**存档 API（`55-session.js` 只给 `facts/commit/mount/enter/step/run`）⇒
+		 *   「存档点」只能取**活事实块**这一面：`A.facts()` ＝ 别处（存档／另一读者）此刻会拿到的那一份。
+		 *   本格判**草稿 ✗ 混进存档点** ⇒ 同一瞬间两读：会话侧看不到自己的写、命令内看得到。 */
+		const 中 = {};
+		const A = S.建会话('存档-A');
+		S.挂命令木箱格(A, (c) => {
+			c.commit({ chest: 'open' });
+			中.会话侧 = JSON.stringify(A.facts());
+			中.命令侧 = JSON.stringify(c.facts());
+			c.commit({ loot: ['绷带', '硬币'] });
+			c.commit({ marked: true });
+			中.命令末 = JSON.stringify(c.facts());
+		});
+		A.enter('cellar-commit');
+		const 前 = JSON.stringify(A.facts());
+		A.input.push({ id: 'open-chest' });
+		const 读 = A.step();
+		console.log(`  · 读数：中途 会话侧=${中.会话侧}｜命令侧=${中.命令侧}｜结算后 facts=${JSON.stringify(A.facts())}`);
+		ok('[commit-rt]', 中.会话侧 === 前,
+			`★中途：草稿**✗ 得**混进存档面那一份（中途读到 ${中.会话侧}；存档点 ${前}）`);
+		ok('[commit-rt]', /"chest":"open"/.test(String(中.命令侧)),
+			`★中途：命令内 ctx.facts() 应**看得到自己的写**（实得 ${中.命令侧}）`);
+		ok('[commit-rt]', 读.settled === 'applied' && JSON.stringify(A.facts()) === 中.命令末,
+			`★结算后：存档点应**追平**命令末的合并视图（存档点前 ${前} ⇒ 后 ${JSON.stringify(A.facts())}；命令末 ${中.命令末}）`
+			+ ' —— 这条是上面「中途看不到草稿」的**正控**（✗ 在「压根不写」的坏装置上，那条也会真）');
 	});
 }
 

@@ -120,15 +120,30 @@
 			'对照臂：结构化拒绝的白话应落正文（✗ 则本判据分不开「通知面」与「正文面」）');
 	});
 
-	test('★`#1906` C3：B／C 五件**显式拒绝** —— `act` 判 `rejected`（✗ 走成 `applied`）', () => {
+	test('★`#1906` C3：B／C 五件**显式拒绝** ＋ **各自**记一条玩家面说明（✗ 走成 `applied`／✗ 逐件丢失）', () => {
+		/* ★由来（`dev-10` D 席 RC）：本格原写成 `notices({limit:10}).some(n => n.text.length > 0)` ——
+		 *   那是**整批**判断，而通知档**跨用例累积** ⇒ 把 `mail` 的说明整段撤掉（刀-N）**照样全绿**
+		 *   （五件里四件丢了说明都不出声）。
+		 *   ⇒ 现形两处「逐件」：① 读**唯一存放处** `State.variables.rpgNotices` 的**增量**（按 `at` 递增，
+		 *     可切段；`notices()` 是只读新→旧，✗ 不便于对账）② 每件绑**它自己那一句**（✗ 只看「非空」）。 */
 		净();
 		const actor = R().playerActor();
-		for (const id of ['iron-key', 'iron-message', 'boots', 'mail', 'scale-mail']) {
+		const 说明 = {
+			'iron-key': /配得上它的锁/,
+			'iron-message': /给工坊看的/,
+			boots: /穿上/,
+			mail: /穿上/,
+			'scale-mail': /穿上/,
+		};
+		for (const [id, re] of Object.entries(说明)) {
 			R().give(id);
+			const 前 = State.variables.rpgNotices.length;
 			const r = R().act(actor, id, actor, 'use');
 			assert.eq(r.status, 'rejected', `「${id}」误用须判拒绝（✗ 走成 applied 会扣件／记使用）`);
 			assert.eq(r.reason, 'action-refused', `「${id}」拒绝原因`);
-			assert.ok(R().notices({ limit: 10 }).some((n) => n.text.length > 0), `「${id}」须有玩家面说明`);
+			const 新 = State.variables.rpgNotices.slice(前).map((n) => n.text);
+			assert.eq(新.length, 1, `★「${id}」应**恰**记一条瞬时说明（实得 ${JSON.stringify(新)}）`);
+			assert.ok(re.test(新[0] ?? ''), `★「${id}」记的不是它自己那句（实得 ${JSON.stringify(新)}）`);
 		}
 	});
 })();

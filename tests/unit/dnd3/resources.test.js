@@ -396,4 +396,26 @@
 		R().harvest();
 		assert.eq(State.variables.span1Harvests, 2, '累计收成 = 2（本次 2 块田）');
 	});
+
+	/* ---------- ★`books#170` P2-11（试玩反馈）：满血吃口粮须**拒绝**，不吃掉一份 ---------- */
+	test('口粮：满血 ⇒ 拒绝且件数不变；非满血 ⇒ 扣一份且文案数值＝**实际**恢复量', () => {
+		const P = setup.DND3.Player;
+		R().give('ration', 2);                       // charges=1 ＋ stackable ⇒ 两份
+		const 起始 = total('ration');
+		assert.eq(起始, 2, '前置：两份口粮在包里');
+		/* ① 满血：实际恢复 0 ⇒ `used` 返回 false ⇒ `act` 在**扣件之前**拒绝（`#1776` 契约） */
+		P.hp = P.maxHp;
+		const 满 = R().act(R().playerActor(), 'ration', R().playerActor(), 'use');
+		assert.eq(满?.status, 'rejected', `★满血点口粮应被拒绝（实得 ${满?.status}）—— 原形会静默吃掉一份`);
+		assert.eq(满?.reason, 'action-refused', '拒绝理由＝动作自己判定做不到（action-refused）');
+		assert.eq(total('ration'), 起始, `★满血拒绝后件数须不变（${起始} ⇒ ${total('ration')}）`);
+		/* ② 非满血：照常消耗；且文案数值＝实际恢复量（差 1 点血时是 1，✗ 名义 stats.hp=2） */
+		P.hp = P.maxHp - 1;
+		const 前 = P.hp;
+		const 缺 = R().act(R().playerActor(), 'ration', R().playerActor(), 'use');
+		assert.eq(缺?.status, 'applied', '非满血 ⇒ applied');
+		assert.eq(P.hp, 前 + 1, `★差 1 点血应只恢复 1（hp ${前} ⇒ ${P.hp}）—— 名义 2 被 maxHp 夹住的正是本条的因`);
+		assert.eq(total('ration'), 起始 - 1, '非满血 ⇒ 吃掉一份');
+	});
+
 })();

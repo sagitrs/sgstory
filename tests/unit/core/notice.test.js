@@ -148,4 +148,16 @@
 		assert.eq(R().bindNoticeUI(), true, '首次绑定 true');
 		assert.eq(R().bindNoticeUI(), false, '★再次调用应早退（幂等）');
 	});
+
+	/* ---------- ★`books#170` P1-5（试玩反馈）：面板须**新的在前** ---------- */
+	test('B4：`noticesHTML` 取**最新**若干条（对「新→旧」的列表再 tail ⇒ 会出最旧那几条）', () => {
+		reset();
+		for (let i = 1; i <= 5; i++) R().pushNotice(`第${i}条`, { channel: 'unit-p15' });
+		const 读序 = (h) => [...String(h).matchAll(/第(\d)条/g)].map((m) => m[1]).join(',');
+		assert.eq(读序(R().noticesHTML({ limit: 3 })), '5,4,3',
+			'★面板头三条应是 5,4,3（新的在前）；若得 1,2,3 即取到**反尾**＝显示最旧那几条（试玩反馈的形）');
+		assert.eq(R().notices({ channel: 'unit-p15', limit: 3 }).map((n) => n.text).join(','), '第5条,第4条,第3条',
+			'`notices()` 自身的顺序契约＝新的在前（面板据此取头，钳位仍只在这一处）');
+	});
+
 })();

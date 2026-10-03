@@ -355,6 +355,47 @@
 		assert.eq(State.variables.mapCurrent_babel, 'B', '具名地图用 mapCurrent_<id>');
 	});
 
+	/* ---------- 0.0.2 世代锚（`#1907`，源自 `books#130` ③）：`current` 的「换代」分流 G1–G4 ----------
+	 *   ★四格＝本项设计稿 §5 的 G1–G4（全稿：`books#130` 评论 `5955432952`）；
+	 *     每格都写明**撤回修即须红的刀**，四把刀逐条实跑过（读数见 PR 正文）。
+	 *   ⚠ 「换代」一律走 `State.reset()`（真 `Engine.restart()` 的 `State.reset()` 面）；
+	 *     ✗ 不用 `State.variables = {}` 造换代：宿主的变量是**闭包绑定**，直接给属性赋新对象
+	 *     只改属性、不改绑定（见 `framework/harness.js` 的 `__resetState` 头注）。 */
+
+	test('★世代锚 G1：换代（重开）后未摆位 —— current===undefined 且 currentSource==="unset"', () => {
+		const map = mkMap('L1');
+		map.moveTo('L5');
+		assert.eq(map.current, 'L5', '前置：同代有值');
+		State.reset();                                  // ★换代：等价 Engine.restart() 里的 State.reset()
+		assert.eq(map.current, undefined, '★换代 ⇒ 实例字段陈旧 ⇒ 未摆位（S4 那行改回 `return this._current` ⇒ 本格红）');
+		assert.eq(map.currentSource, 'unset', '★来源支＝unset（同一个 `undefined` 只有它能说明是换代来的）');
+	});
+
+	test('★世代锚 G2：换代后 MapScene.execute() 自愈到起点', async () => {
+		const map = mkMap('L1');
+		map.moveTo('L5');
+		const scene = new (R().MapScene)({ id: 'unit-map', map, start: 'L1' });
+		State.reset();                                  // ★换代
+		await scene.execute();
+		assert.eq(map.current, 'L1', '★入口自愈：未摆位 ⇒ moveTo(startId)（删 `execute` 里 `if (!this.map.current)` 那一行 ⇒ 本格红）');
+		assert.eq(map.currentSource, 'state', '自愈经 moveTo ⇒ 写点顺带记世代 ⇒ 来源＝state');
+	});
+
+	test('★世代锚 G3：S3 不被吞 —— 同代、显式非串 ⇒ 仍回后备（甲′/乙 判别刀）', () => {
+		const map = mkMap('L1');
+		map.moveTo('L3');
+		State.variables.mapCurrent = undefined;         // 同代、显式写入非串（既有格「State 权威」的静默策略）
+		assert.eq(map.current, 'L3', '★同代非串 ⇒ 静默回后备（把 S3 合成「非串即未摆位」＝乙 ⇒ 本格红）');
+		assert.eq(map.currentSource, 'instance', '来源支＝instance');
+	});
+
+	test('★世代锚 G4：A 支不被吞 —— 夹具直接赋值摆位（同代、键缺）仍回后备', () => {
+		const map = mkMap('L3');                        // ★直接赋值（✗ 不 moveTo）⇒ 从未写档
+		assert.eq(State.variables.mapCurrent, undefined, '前置：确未写档（A 支＝从未 moveTo）');
+		assert.eq(map.current, 'L3', '★A 支：同代键缺 ⇒ 用**有意摆的**后备（改成「键缺即未摆位」＝甲0 ⇒ 本格红）');
+		assert.eq(map.currentSource, 'instance', '来源支＝instance');
+	});
+
 	test('respawn 判据 1（M6 真刀面）：回起点时 mapCurrent 亦被同步', () => {
 		const off = withLayerMeta(META);
 		try {

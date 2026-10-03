@@ -73,15 +73,41 @@ RPG.WorldMap = class WorldMap extends Object {
 		 *   它们由构建路径（包内 `buildSpan*Hub` ＋ 故事侧 `world/babel*.js`）**确定性重放**，故属**代码面**。
 		 *   判据与**重议触发条件**见 `80-save.js`「进档判据」（裁见 #1829）。 */
 		this._restoreFromState();
+		this._lastVars = stateVars();   // ★世代锚：记住构造/恢复时那份 State.variables（0.0.2 · #1907，源自 books#130 ③）
 	}
 
 	/** 当前位置 id（**State 为准**；无 `State` 的环境回落后备字段）。
 	 *  ★为何是访问器：见构造器注释（`#1859` —— 读档替换的是 `State.variables`，实例字段会陈旧）。
-	 *  ⚠ `State` 里有值即以它为准（✗ 用 `??` 合并：空串等假值不应把位置判丢，故只认**字符串**）。 */
+	 *  ⚠ `State` 里有值即以它为准（✗ 用 `??` 合并：空串等假值不应把位置判丢，故只认**字符串**）。
+	 *
+	 *  ★`#1907`（0.0.2 · books#130 ③ 的引擎面）：**「键缺」不是一种情形，而是两种**——
+	 *    `State` 在但**没这个键**（重开／新档：实例字段是**陈旧物**）与 `State` 不存在（无宿主：
+	 *    才该用实例后备）要求**相反**的动作，旧形把两者都回落 `_current` ⇒ 重开后位置留在上一局。
+	 *    现按**世代锚**（`_lastVars` 记 `State.variables` 的对象身份）分四支：
+	 *    · S1 无宿主 ⇒ 实例后备 ｜ · S2 State 里是字符串 ⇒ 取 State（读档语义）
+	 *    · S3 **同代**而键缺／非串 ⇒ 实例后备（静默策略，既有格不动）
+	 *    · S4 **换代**（重开／新档）⇒ `undefined`（★未摆位；`MapScene.execute` 入口自愈到起点）
+	 *    ⚠ 「换代」的判据须走 `State.reset()`（真 `Engine.restart()` 的面），✗ 不用
+	 *      `State.variables = {}`——宿主的变量是闭包绑定，属性赋值不改绑定（见 `framework/harness.js`）。
+	 *    四格判据与四把刀见 `tests/unit/core/respawn.test.js` 的 G1–G4。 */
 	get current() {
 		const vars = stateVars();
-		const saved = vars == null ? undefined : vars[this._stateKey()];
-		return typeof saved === 'string' ? saved : this._current;
+		if (vars == null) return this._current;              // S1 无宿主 ⇒ 实例后备
+		const saved = vars[this._stateKey()];
+		if (typeof saved === 'string') return saved;         // S2 State 权威
+		if (vars !== this._lastVars) return undefined;       // S4 ★换代（重开/新档）⇒ 实例陈旧 ⇒ 未摆位
+		return this._current;                                // S3 同代而键缺/非串 ⇒ 静默策略
+	}
+
+	/** 本值**来自哪一支**（`'state'`／`'instance'`／`'unset'`）。
+	 *  ★`#1907`：同一个 `current` **值**可能来自三支 ⇒ 只断值则三支互为死区
+	 *    （撤掉任一支照样绿）。有它，判据才能钉「重开后**必须走 `unset` 支**」。
+	 *    三支现都有格：`state`＝G2／既有格，`instance`＝G3、G4／既有格，`unset`＝G1。 */
+	get currentSource() {
+		const vars = stateVars();
+		if (vars == null) return 'instance';
+		if (typeof vars[this._stateKey()] === 'string') return 'state';
+		return vars === this._lastVars ? 'instance' : 'unset';
 	}
 
 	/** 写：只更新**后备字段**（✗ 不在此同步 `State`）。
@@ -123,6 +149,7 @@ RPG.WorldMap = class WorldMap extends Object {
 		/* ⚠ 写**后备字段**（✗ `this.current` —— 那是**访问器**，会读到 State 的旧值再写回 ⇒ 位置永不推进；
 		 *   本席首版即栽在此，单测 11 红当场抓到）。 */
 		vars[this._stateKey()] = this._current;
+		this._lastVars = vars;   // ★写点顺手记世代（写点仍单点；#1907）
 	}
 
 	/** 添加节点（重复 id 抛错） */

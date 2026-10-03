@@ -358,9 +358,10 @@
 	/* ---------- 0.0.2 世代锚（`#1907`，源自 `books#130` ③）：`current` 的「换代」分流 G1–G4 ----------
 	 *   ★四格＝本项设计稿 §5 的 G1–G4（全稿：`books#130` 评论 `5955432952`）；
 	 *     每格都写明**撤回修即须红的刀**，四把刀逐条实跑过（读数见 PR 正文）。
-	 *   ⚠ 「换代」一律走 `State.reset()`（真 `Engine.restart()` 的 `State.reset()` 面）；
-	 *     ✗ 不用 `State.variables = {}` 造换代：宿主的变量是**闭包绑定**，直接给属性赋新对象
-	 *     只改属性、不改绑定（见 `framework/harness.js` 的 `__resetState` 头注）。 */
+	 *   ⚠ 「换代」一律走 `State.reset()`（与真 `Engine.restart()` 的 `State.reset()` 同面）——
+	 *     这是**写作约定**，不是判据：宿主仿真里 `State.variables` 是**属性**、故事变量本体是
+	 *     **闭包绑定**（`framework/harness.js:33` 头注），直接给属性赋新对象只改属性、不改闭包，
+	 *     破的是**宿主侧一致性**（两处真值窗口：那面由存档族看护，实测该形红 7 格，见设计稿 §四）。 */
 
 	test('★世代锚 G1：换代（重开）后未摆位 —— current===undefined 且 currentSource==="unset"', () => {
 		const map = mkMap('L1');

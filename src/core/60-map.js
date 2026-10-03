@@ -87,8 +87,10 @@ RPG.WorldMap = class WorldMap extends Object {
 	 *    · S1 无宿主 ⇒ 实例后备 ｜ · S2 State 里是字符串 ⇒ 取 State（读档语义）
 	 *    · S3 **同代**而键缺／非串 ⇒ 实例后备（静默策略，既有格不动）
 	 *    · S4 **换代**（重开／新档）⇒ `undefined`（★未摆位；`MapScene.execute` 入口自愈到起点）
-	 *    ⚠ 「换代」的判据须走 `State.reset()`（真 `Engine.restart()` 的面），✗ 不用
-	 *      `State.variables = {}`——宿主的变量是闭包绑定，属性赋值不改绑定（见 `framework/harness.js`）。
+	 *    ⚠ 「换代」的用例一律走 `State.reset()`（与真 `Engine.restart()` 同面）——这是**写作约定**：
+	 *      直接给 `State.variables` 赋新对象只改**属性**、不改**闭包绑定**（`framework/harness.js:33` 头注），
+	 *      破的是**宿主侧一致性**（两处真值窗口，那面由存档族看护），对本项的判据不产生可辨差异
+	 *      （两把探针的读数见设计稿 §四）。
 	 *    四格判据与四把刀见 `tests/unit/core/respawn.test.js` 的 G1–G4。 */
 	get current() {
 		const vars = stateVars();

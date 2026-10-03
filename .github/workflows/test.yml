@@ -60,6 +60,17 @@ jobs:
         run: node tests/gates/d20-consumers.mjs --selftest
       - name: 无头单测（断言 fail === 0）
         run: node tests/unit/headless.mjs
+      # ★引擎单测**刀架**（`sgstory#1962`）：把「手工下刀 → 看红格 → 复原」自动化。
+      #   它回答的是「这些判据**红得了**吗」——✗ 「判据过没过」（那是上一步的事）。
+      #   ⚠ 靶分两层：构建产物 `tests/unit/dist/bundle.js` ＋ 框架档 `tests/unit/framework/harness.js`
+      #     （后者**不在产物里** —— `#1958` 那次照产物层找锚，找不到）⇒ 摆位须在 build 之后。
+      #   ⚠ 本壳会**子进程重跑单测**（3 把刀 ⇒ 约 4 次全量单测）⇒ 是本工作流最耗时的一步之一，
+      #     故**不另开 job**（省一次 checkout）。刀表加刀前请先跑出实测红集（✗ 别凭想象填 expect）。
+      #   ⚠ 退出码：0 全过／1 有红／2 环境错（缺产物即 rc=2，✗ 不静默当绿）。
+      #   ★本步**不配守护 grep**：与 `books` 侧接线步不同 —— 那里守的是「输出形别静默退化」，
+      #     而刀架**自己**就断「红集恰好等于期望」（多红少红皆红）⇒ 退出码已是真信号，✗ 输出形不是承重件。
+      - name: 引擎单测刀架（`#1962`：三段式 刀 ⇒ 期望红格 ⇒ 复原自证）
+        run: node tests/unit/headless.mjs --selftest
       # ★`#1877` P1-3/P1-6 的静态判据住在 `stories/babel/verify.mjs`（该件是**故事装配自检**：
       #   地图/层可达/单向门/跨包 API 接线/面板接线…）。**先前未接 CI** ⇒ 它在 CI 里**从不执行**，
       #   只在 books 交付树侧跑过 ⇒ 引擎侧改动一旦漂移，这些断言**静默失效**（tester-3 在 books#112 指出）。

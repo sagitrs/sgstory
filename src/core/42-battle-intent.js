@@ -1,54 +1,50 @@
-/* core/42-battle-intent（`sgstory#1914` 增量 3/3）：**战斗内的稳定标识**。
+/* core/42-battle-intent.js（`sgstory#1914` 增量 3/3）：**单位号** —— 战斗里的稳定标识。
  *
  * ## 为什么需要
- * 现码用**名字**当目标的标识（`40-battle.js:484` 的 `value: c.name` ⇒ `:576`／`:601-603` 再按名找回），
- * 于是两只同名单位（两只「幼獾」、将来的召唤物）**只能选中第一只**。本件把标识换成**发出来的号**。
+ * 现码用**名字**标识战斗单位：目标选项 `value: c.name`，解析时再按名 `find` ⇒ 两只同名单位
+ * （如「幼獾」「幼獾」）**只能选中第一只**（本席实测：答第二只的名字，掉血的是第一只）。
  *
- * ## 形
- * - `标识(u)`：给一个单位发一个号（**首次取用时**发，之后恒同）。
- * - `取(id, 候选集)`：按号找回；**找不到 ⇒ 抛具名错**（✗ 回落第一个 —— 那正是现码的暗病）。
- * - `候选值(u)`：给选项用的值（就是号）。
+ * ## 形（公开面英文，与仓内既有引擎面 `RPG.deposit`／`canStack`／`noticeChannel` 一致）
+ * - `of(u)`：取（必要时**发**）单位号 ⇒ 形如 `'u7'`（**不透明**，调用方不得解析其内容）。
+ * - `resolve(id, list)`：按号找回；**找不到抛具名错**（调用方自行决定出声还是兜成拒绝）。
+ * - `issued()`：已发号数（诊断量）。
  *
- * ## 为何用 **WeakMap**（✗ 给实例加字段）
- * `DND3.Player` 是**类级单例**且**随存档往返**（`Character.toJSON` 会把它序列化）。若把号写成实例属性，
- * 它会**跟着档走**（玩家号被存下来，读档后与运行时计数器对不上）。WeakMap 只在**本次会话**里有意义，
- * 而战斗**不允许中途存档**（P0「禁战内存档」）⇒ 这个生命周期正好够用，且**不污染存档形**。
+ * ## 为何用 **WeakMap**（✗ 实例字段）
+ * `DND3.Player` 是**类级单例**且**随存档往返**（`Character.toJSON` 会序列化它）⇒ 写成实例字段会
+ * **跟着档走**（旧档里冒出 `u7`），而号只在**本场战斗**有意义。WeakMap 只认对象同一性 ⇒ 不入档、
+ * 不污染快照，对象回收即忘（无泄漏）。战斗**不允许中途存档**（P0）⇒ 这个生命周期足够。
  *
  * ## 装载序
- * 本件按路径排在 `40-battle.js` **之后**（`build.py:112` 的字典序）⇒ `40-battle.js` 对它的取用
- * 一律发生在**调用时**（方法体内），✗ 装载期。若装载序被破坏，调用处会抛具名错（✗ 静默退化）。
+ * 本件被 `40-battle.js` **之后**的代码使用（`build.py` 按字典序装载；`42` > `40`）⇒ 只在**运行时**
+ * 取用，装载期不碰 `40` 的产物。
  */
 (() => {
-	/** 单位 → 号（WeakMap：不进存档、不进枚举、不随 toJSON 走）。 */
-	const 号 = new WeakMap();
-	let 下一号 = 1;
+	const ids = new WeakMap();
+	let seq = 1;
 
-	/** 取得（必要时发放）某单位的稳定标识。 */
-	const 标识 = (u) => {
+	/** 取（必要时发）单位号。非对象入参 ⇒ 具名错（✗ 静默给个假号）。 */
+	const of = (u) => {
 		if (u == null || (typeof u !== 'object' && typeof u !== 'function')) {
-			throw new Error(`意图件：标识只能发给对象（收到 ${JSON.stringify(u)}）`);
+			throw new Error(`unitId.of：需要对象（收到 ${typeof u}）—— 号只发给战斗单位`);
 		}
-		let v = 号.get(u);
-		if (v == null) { v = `u${下一号++}`; 号.set(u, v); }
+		let v = ids.get(u);
+		if (v == null) { v = `u${seq++}`; ids.set(u, v); }
 		return v;
 	};
 
-	/** 选项用的值（即标识本身；留成函数是为了**语义清楚**：选项的值＝号，✗ 名字）。 */
-	const 候选值 = (u) => 标识(u);
-
-	/** 按号找回一个单位。**找不到 ⇒ 抛具名错**（✗ 回落候选集第一项）。 */
-	const 取 = (id, 候选集) => {
-		const 集 = 候选集 ?? [];
-		const hit = 集.find((u) => 号.get(u) === id);
+	/** 按号找回；`list` 缺省为空表 ⇒ 必找不到（照抛）。 */
+	const resolve = (id, list) => {
+		const 表 = list ?? [];
+		const hit = 表.find((u) => ids.get(u) === id);
 		if (hit == null) {
-			throw new Error(`意图件：候选中没有号 ${JSON.stringify(id)}`
-				+ `（候选 ＝ ${JSON.stringify(集.map((u) => [u?.name, 号.get(u) ?? null]))}）`);
+			throw new Error(`unitId.resolve：候选中没有号 ${JSON.stringify(id)}`
+				+ `（候选 ＝ ${JSON.stringify(表.map((u) => [u?.name, ids.get(u) ?? null]))}）`);
 		}
 		return hit;
 	};
 
-	/** 给判据／刀用的读数：本会话已发出的号数（✗ 用来做判据，只作诊断）。 */
-	const 已发号数 = () => 下一号 - 1;
+	/** 已发号数（诊断量；判据用它证「同名两只是两只」）。 */
+	const issued = () => seq - 1;
 
-	RPG.意图 = Object.freeze({ 标识, 候选值, 取, 已发号数 });
+	RPG.unitId = Object.freeze({ of, resolve, issued });
 })();

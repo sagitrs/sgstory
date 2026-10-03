@@ -77,8 +77,26 @@
 			+ ' —— 消费点没读**当前那份** `RPG.unitId.of`');
 		assert.ok(!opts.targetOptions.some((o) => o.text.includes(甲.name)),
 			'★伤害类候选里出现了己方（本笔靶策略要求只列敌方）');
-		/* ②-2 选单项须来自目录面（✗ 交互函数里现算） */
-		assert.ok(opts.itemOptions.length > 0, '★道具候选为空（正控）');
+		/* ②-2 选单**由声明位驱动**（`dev-10` 复核提的加强：原版只断「非空」⇒ 「来自目录面」这句没人看着）
+		 *   ⇒ 造两件临时件验**两向**：`stats.noBattleUse` ⇒ 不亮「使用」；`battleUse.class='heal'` ⇒ 亮。
+		 *   ★用**声明驱动**（✗ 换装探针——协议面 `Object.freeze` 换不掉，见档头）。 */
+		const 造件 = (id, extra) => {
+			if (!R().items.has(id)) R().defItem(Object.assign({ id, name: id, used() {} }, extra));
+			return R().createItem(id);
+		};
+		const 禁战件 = 造件('t3-loadorder-no-battle', { stats: { noBattleUse: true } });
+		const 治疗件 = 造件('t3-loadorder-heal', { battleUse: { class: 'heal' } });
+		甲.items = [禁战件, 治疗件];
+		const opts2 = battle.buildPlayerOptions(甲);
+		assert.ok(opts2.itemOptions.length > 0, '★道具候选为空（正控）');
+		assert.ok(!opts2.actionOptionsFor(禁战件).some((a2) => a2.text.includes('使用')),
+			'★`stats.noBattleUse` 的件仍亮「使用」⇒ 选单没走声明位（照 `RPG.battleActions.list` 就该没有）');
+		assert.ok(opts2.actionOptionsFor(治疗件).some((a2) => a2.text.includes('使用')),
+			'★声明了 `battleUse` 的件反而不亮「使用」⇒ 选单与声明位不一致');
+		assert.eq(R().battleActions.classOf(治疗件), 'heal',
+			'★目录面的 `classOf` 没按 `battleUse.class` 取值');
+		assert.eq(R().battleActions.classOf(禁战件), 'damage',
+			'★未声明战斗类的件应落**窄默认** `damage`');
 		/* ②-3 结果工厂与重复面在**运行期**可用 */
 		const r = R().actionResult.applied({ actor: 甲, actionClass: 'damage' });
 		assert.eq(r.status, 'applied', '★`actionResult.applied` 未给出结构化 status');

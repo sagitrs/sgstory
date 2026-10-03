@@ -36,11 +36,13 @@
  *   · **内核侧唯一依赖那条前提的地方 ＝ `src/core/80-save.js`**：`maxAutoSaves` 命中 **5 处**，其中
  *     `:236-242` 是**真代码**（`const before = saves.maxAutoSaves;` / `if (!(Number(before) > 0)) saves.maxAutoSaves = 1;` /
  *     `saves.maxAutoSaves = before;`）—— 「临时开户 ⇒ 写一次 ⇒ 复原」的实现本体，其注释 `:215-218` 正是那条被推翻的前提。
- *   · **本档**（`src/core/ports/index.js`）对 `maxAutoSaves` 的提及**全部**在注释与契约字符串里（无一处代码引用）。★**口径与命令一并写下**
- *     （`dev-10` 在 `#299` 落的规矩：凡写「无引用／N 处」，把产生它的命令与输出一并写下）：
- *       $ grep -n "maxAutoSaves|autoSave" src/core/ports/index.js          ⇒ **7 行**：:27 :29 :36 :37 :38 :39 :59
- *       $ grep -o "maxAutoSaves|autoSave" src/core/ports/index.js | wc -l  ⇒ **9 次**（:29 与 :37 各两次）
- *     ⚠ 本席在两版里先后把这一条写成「4 处」与「0 处」——**两次都不对**；现按上面两条命令的**实际输出**写，并留此自陈。
+ *   · **本档**（`src/core/ports/index.js`）对 `maxAutoSaves` 的提及**全部**在注释与契约字符串里（无一处代码引用）。
+ *     ★**这里故意不写死计数**（`dev-10` 2026-10-03 的更正）：本档每改一次，提及数就变一次
+ *       ⇒ 写死的数**必然**在下一版失真（本席连着两版写错：先「4 处」、再险些「0 处」；第三版写「7 行／9 次」，
+ *       而那两个数取自**上一头** ⇒ `dev-10` 在本头复数是 **9 行／13 次**）。规矩改成三件：**命令 ＋ 输出 ＋ 取自哪一头**；
+ *       要数就在**当前头**上重跑这条（✗ 引用旧输出）：
+ *       $ git show <头>:src/core/ports/index.js | grep -c "maxAutoSaves|autoSave"   # 行口径（次口径加 -o … | wc -l）
+ *       ⇒「数与输出一致」只保一半；**「输出取自交付的那一头」**是另一半 —— 缺它，数就是别的头的数。
  *   · **故事侧／装置侧**：只有 **`sagitrs/sgstory-books`** 仓的 `tools/e2e-drive.mjs` 用 `Save.slots.save/load`
  *     （⚠ 跨仓一律写**全名**：在引擎仓按同一形态 grep 只命中本档与构建产物 `tests/unit/dist/bundle.js`，
  *     那个装置**不在本仓**—— 裸号会让后来者照本仓找）；引擎/故事两侧**无**「战前保底／快存」形 ⇒

@@ -107,7 +107,15 @@
 		const r = { turn: 0, end: 0, used: 0 };
 		let seq = ['0', '敌'];                       // ① 选第 0 个道具（枪）② 选目标「敌」
 		P.items = [{ id: gun, equipped: true }];
-		P.choice = async () => (seq.length ? seq.shift() : 'skip');
+		P.choice = async (opts) => {
+			const a = seq.length ? seq.shift() : 'skip';
+			/* ★`#1914`（增量 3/3）：目标标识由**名字**改为**发出来的号** ⇒ 本桩把「按名字作答」
+			 *   翻成「取该选项**给出的值**」—— 保住这些用例的原意（它们要的是「选那个名叫 X 的靶」，
+			 *   ✗ 断言「名字就是标识」）。道具/动作两步的答案（`0`／`unarmed`／`use`／`skip`）不匹配任何
+			 *   选项的**文案**，故照原样返回，不受影响。 */
+			const hit = (opts ?? []).find((o) => typeof o?.text === 'string' && o.text.startsWith(String(a)));
+			return hit ? hit.value : a;
+		};
 		const o1 = R().events.on('battle:turn', () => { r.turn += 1; });
 		const o2 = R().events.on('battle:turnEnd', () => { r.end += 1; });
 		const o3 = R().events.on('item:used', () => { r.used += 1; });

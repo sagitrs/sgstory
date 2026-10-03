@@ -42,13 +42,17 @@
 	const resolve = (battle, attacker, candidates) => {
 		const 图 = last(battle);
 		if (!图) return { ok: false, reason: 'no-intent', detail: '还没有可以重复的行动' };
+		/* ★`dev-9` 合流裁定点名的「过期＝**具名原因**」：行动者自己没了（被打倒）也须是具名的一条，
+		 *   ✗ 泛泛的失败。⚠ `replayed`（同一请求被重复消费）在本设计里**不适用**：意图是**模板**，
+		 *   在**选择的那一刻**重新解析、当场执行，✗ 没有排队期。 */
+		if (battle?.isOut?.(attacker)) return { ok: false, reason: 'actor-gone', detail: `${attacker?.name ?? '行动者'}已经倒下了` };
 		const slots = Array.isArray(attacker?.items) ? attacker.items : [];
 		const slot = slots.find((s) => s?.slotId === 图.slotId);
-		if (!slot) return { ok: false, reason: 'no-such-item', detail: `「${图.itemName}」已经不在身上了` };
+		if (!slot) return { ok: false, reason: 'item-gone', detail: `「${图.itemName}」已经不在身上了` };
 		const item = RPG.reviveItem(slot);
 		const 名单 = typeof candidates === 'function' ? candidates(图.actionClass) : [];
 		const target = 名单.find((c) => RPG.unitId.of(c) === 图.targetId);
-		if (!target) return { ok: false, reason: 'no-such-target', detail: `「${图.targetName}」已经不在了` };
+		if (!target) return { ok: false, reason: 'target-gone', detail: `「${图.targetName}」已经不在了` };
 		return { ok: true, item, target, itemName: 图.itemName, targetName: 图.targetName, actionClass: 图.actionClass };
 	};
 

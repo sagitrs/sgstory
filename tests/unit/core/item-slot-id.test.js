@@ -47,6 +47,36 @@
 			`★两件同类被补成了同一个号（${a.slotId}）—— 那是按「id＋charges」回退的写法，旧档必错`);
 	});
 
+	/** 取最大号（**按数值**比 —— ✗ 字典序：`'it-10' < 'it-9'` 会骗人）。 */
+	const 最大号 = (袋) => (袋 ?? []).map((s) => s.slotId).filter(Boolean)
+		.map((id) => Number(String(id).replace(/^it-/, ''))).filter(Number.isFinite)
+		.reduce((m, n) => Math.max(m, n), 0);
+
+	test('slotId ⑤【配对不变式】删最高号件 ⇒ 新投递 !== 旧号；**存档往返后再走一遍**', () => {
+		/* ★本条的由来：`dev-9` 在 `#1915` 的合流裁定里点名「**槽位号不复用**」必须活到合流后，
+		 *   且要求**两条配对**（✗ 只断「互异」—— 那会被「计数器被移出存档」这类改法骗过）。 */
+		const 走一遍 = (标) => {
+			const 前 = State.variables.inventory.map((s) => s.slotId);
+			const 最高 = 最大号(State.variables.inventory);
+			State.variables.inventory = State.variables.inventory.filter((s) => s.slotId !== `it-${最高}`);
+			R().give('sword');
+			const 新 = State.variables.inventory.map((s) => s.slotId).find((id) => !前.includes(id));
+			assert.ok(新, `${标}：新投递没有拿到号（${JSON.stringify(State.variables.inventory)}）`);
+			/* ★断言取「**不在既有集合里**」，✗ 只断「≠ 被删的那个」：
+			 *   本席实测——只断「≠旧最高」时，把计数器**清零**（＝高水位不跨往返）照样绿
+			 *   （重发 it-1 恰不等于旧最高 it-3）⇒ 那正是 `dev-9` 警告的「只断互异会被骗过」。 */
+			const 既 = new Set(State.variables.inventory.map((s) => s.slotId).filter((x) => x !== 新));
+			assert.ok(!既.has(新), `${标}：**新号撞上了既有件**（新=${新}）—— 号被复用了`);
+			assert.ok(新 !== `it-${最高}`, `${标}：**号被复用了**（新=${新}／旧最高=it-${最高}）`);
+		};
+		State.variables.inventory = [];
+		R().give('sword'); R().give('sword'); R().give('rock');
+		走一遍('删最高号件后');
+		/* ★存档往返：整袋走一遍 `toJSON` → `reviveItem`，再走同一断言 */
+		State.variables.inventory = State.variables.inventory.map((s) => R().reviveItem(s).toJSON());
+		走一遍('存档往返后');
+	});
+
 	test('slotId ④：出口保证「有号」；已有号**原样保留**（✗ 重发）', () => {
 		/* 敌方背包里的裸快照（没有号 —— 敌人常由 `new Character({items:[…]})` 直接给出） */
 		const 敌 = new (R().Character)({ name: '敌', items: [旧件('sword', 1)] });

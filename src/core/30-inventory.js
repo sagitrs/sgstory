@@ -44,7 +44,10 @@ RPG.canStack = (def) => def?.stackable === true && def?.charges != null;
 /** ★`#1914`：入包**保号** —— 缺则补发、有则**原样保留**（✗ 重发：重发会让「同一件东西」换号）。
  *   ⚠ 本席**更正**交接简报里的一句旧话：曾写「`loot` 转移快照须**重发**」—— 错的。号源全局唯一，
  *   转移不产生碰撞；重发只会破坏同一性（判据④钉住「已有的号不许被换掉」）。 */
-const 保号 = (snap) => (snap && snap.slotId ? snap : { ...snap, slotId: RPG.newSlotId() });
+const 保号 = (snap) => {
+	if (snap && snap.slotId) { RPG.noteSlotId(snap.slotId); return snap; }   // ★有号**也**顶高水位
+	return { ...snap, slotId: RPG.newSlotId() };
+};
 
 RPG.deposit = (bag, id, n = 1, snapshot = null) => {
 	const def = RPG.createItem(id);

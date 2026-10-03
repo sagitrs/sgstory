@@ -18,14 +18,18 @@ DND3.HerbPoultice = RPG.defItem({
 	stackable: true,
 
 	/**
-	 * 治疗量 = 本件基础值 this.stats.hp + 施用者加成 from.stats.heal_bonus
-	 * （与 `items/bandage.js` 同式；from 可省略 ⇒ 加成视为 0）。
+	 * 接口实现：修改 that 的属性值，通过 this.perform 打印结果。
+	 * ★`books#200` P0：**文案与落值同读 `DND3.applyHeal`**（治疗量的**一处源**，见 `core/heal.js`）——
+	 *   原形印**名义量**（本件 `stats.hp` ＋ 施用者加成）而落值被 `maxHp` 夹过 ⇒ 满血印「受到2点治疗」
+	 *   而体力条不动（差 1 点满时印 2 而实回 1，同族）。现形同「口粮」（`books#170` P2-11 的口径）：
+	 *   **实回为 0 ⇒ 出声 ＋ 拒绝**（`#1776` 契约：`act` 在**扣件之前**返回 `rejected/action-refused`
+	 *   ⇒ 这一份留在包里）。
 	 */
 	used(that, from) {
-		const heal = this.stats.hp + (from?.stats?.heal_bonus ?? 0);
-		that.hp = Math.min(that.maxHp ?? Infinity, (that.hp ?? 0) + heal);
-		if (that instanceof RPG.Character && that.hp > 0 && that.contains(RPG.death)) {
-			that.lose(RPG.death);
+		const heal = DND3.applyHeal(this, from, that);
+		if (heal === false) {
+			this.perform(`${that.name}的伤已无碍 —— 这一份留着吧。`);
+			return false;
 		}
 		this.perform(`${that.name}受到了${heal}点治疗`);
 	},

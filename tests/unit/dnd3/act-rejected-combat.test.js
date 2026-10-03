@@ -37,7 +37,12 @@
 		p.effects = [];                                     // `traumaAttackMod` 会读它
 		const foe = new (R().Character)({ name: '靶', hp: 10, maxHp: 10,
 			items: [{ id: 'coin' }], stats: { ac: 25 } });
-		R().rng.setSequence([0.0, 0.0, 0.0, 0.0]);          // ★掷骰恒 1 ⇒ **确定**失手（`1 + mod < 25`）
+		/* ★掷骰恒 1 ⇒ **确定**失手（`1 + mod < 25`）。
+		 * ★长度理由（`sgstory#1953`）：「失手」**不等于这一回合不再抽随机数** —— 敌方仍要出手、
+		 *   命中判定后还有伤害骰 ⇒ 一个完整回合**至少**再来几次。旧形只给 4 个 ⇒ 抽到尽时报
+		 *   `RPG.rng：注入序列已耗尽`（被本档的 catch 接住 ⇒ 不红 ✗ 但成了**潜在陷阱**：
+		 *   接住面一收窄它就变崩）。⇒ 取**上限式**：够跑完一整回合且留余量；值仍是 0.0（语义不变 ✓）。 */
+		R().rng.setSequence(Array.from({ length: 64 }, () => 0.0));
 		try {
 			const r = R().act(p, 'sword', foe, 'use');
 			assert.eq(foe.hp, 10, '前置：确实**没命中**（靶未掉血）⇒ 本格测的正是「挥空」这条路径');

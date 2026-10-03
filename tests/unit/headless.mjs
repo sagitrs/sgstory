@@ -16,6 +16,14 @@ import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
 
+/* ── `--selftest`：走**刀架**（`framework/knives.mjs`）并就此退出 ──
+ *   形照 books 侧 `run-baseline.mjs --selftest` 的三段式：刀 ⇒ 期望红格 ⇒ 复原自证。
+ *   ★放在**最前**（✗ 不在跑完单测之后）：刀架自己会**子进程**重跑本档，若在下方挂会递归。 */
+if (process.argv.includes('--selftest')) {
+	const { 跑自检 } = await import('./framework/knives.mjs');
+	process.exit(跑自检(process.argv));
+}
+
 const unitDir = import.meta.dirname;
 const load = (f) => eval(fs.readFileSync(path.join(unitDir, f), 'utf8'));
 

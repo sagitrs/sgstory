@@ -9,8 +9,9 @@
  *
  * ## 覆盖面（本档判哪几行、明账哪些没判）
  *   判：①重新呈现不重复领取奖励（木箱格）②同上一行（酒架格）③存档后推进再读档，标记与背包恢复一致
- *   待判：④两个会话状态/随机源/事件/输入相互独立 —— 需 `GameSession` 落地（属 `src/**`，D 面），
- *        本档**打印 `⏳` 明账**，✗ 不以绿代过（见 `PENDING` 常量）。
+ *       ④两个会话状态/随机源/事件/输入相互独立 —— `GameSession` 落地后**已解锁**（交付 1 步 3）；
+ *         桥在**装置侧**（`session-bridge.js`，内核只出 `ctx`＋泵）。
+ *   待判：**无**。原 `⏳` 那行按 `母条二` **摘除**（✗ 转绿、✗ 静默跳过）：④ 的判据已在上。」
  *   （真 DOM 的 SugarCube 接缝行住 `run-seam.mjs`，以 jsdom 驱动构建产物。）
  *
  * ## 装置与边界（照 `母条二`：实际形优先）
@@ -35,9 +36,12 @@ const HERE = import.meta.dirname;                       // tests/e2e/old-house
 const REPO = path.resolve(HERE, '..', '..', '..');
 const UNIT = path.join(REPO, 'tests', 'unit');
 const CELLAR = path.join(HERE, 'src', 'story', 'cellar.js');
+const SESSION_BRIDGE = path.join(HERE, 'session-bridge.js');   // 会话侧薄桥（装置侧，④ 格用）
 
-/* 待判行（明账）：这一行**不是**「已过」，也不静默跳过 —— 打印 `⏳` 并计入 pending。 */
-const PENDING = ['[sessions] 两个会话状态/随机源/事件/输入相互独立 —— 待 GameSession（交付 2 的 src 侧）'];
+/* 待判行（明账）：这一行**不是**「已过」，也不静默跳过 —— 打印 `⏳` 并计入 pending。
+ * ★ 已清零：原 `[sessions] …待 GameSession` 一行在 `7e5dd41`（交付 1 步 3）落地后**摘除** ——
+ *   摘除的凭据＝本档 ④ 格（四条面各带正控 ＋ 四把刀各恰红一面），✗ 不是「有实现了就算过」。 */
+const PENDING = [];
 
 /* ---------- 刀：每条必须是**可复现的字符串替换**（✗ 凭记忆重构一句） ---------- */
 const KNIVES = [
@@ -63,6 +67,39 @@ const KNIVES = [
 			 *   ✗ 别照真 SugarCube 的 `state.history[i].variables` 写 —— 本档跑在宿主仿真上，不是真引擎。 */
 			`State.variables.boxOpened = true; Save.onSave.add((o) => { if (o && o.state) delete o.state.boxOpened; });`]],
 		expect: ['save-rt'],
+	},
+
+	/* ── 会话侧（`session-bridge.js`）：四把刀各把**一面**接错会话 ⇒ 各**恰**红一条面 ──
+	 *   形：把该面的 `单例.X ?? 本会话那份` 换成 `??=`（写回单例 ⇒ 两面共用）。
+	 *   这四把刀演的是**装置接错线**这一族的现实事故（✗ 引擎内部共享 —— 那是 D 席单测的面）。 */
+	{
+		id: 'sess-share-rng',
+		file: SESSION_BRIDGE,
+		why: '随机源钉成共享 ⇒ 两面同一实例：身份那条与流量那条皆红（同在 `[sess-rng]` 一格）',
+		patch: [[`单例.rng ?? 造计数流(id)`, `(单例.rng ??= 造计数流(id))`]],
+		expect: ['sess-rng'],
+	},
+	{
+		id: 'sess-cross-bus',
+		file: SESSION_BRIDGE,
+		why: '订户改订**第一个会话** ⇒ B 的订户会被 A 的 emit 叫到（串台）⇒ 只红事件那条面',
+		patch: [[`单例.订到 ?? s`, `(单例.订到 ??= s)`]],
+		expect: ['sess-bus'],
+	},
+	{
+		id: 'sess-cross-input',
+		file: SESSION_BRIDGE,
+		why: '输入推进**第一个会话**的队列 ⇒ B 的推送进了 A ⇒ 只红输入那条面',
+		patch: [[`单例.推到 ?? s`, `(单例.推到 ??= s)`]],
+		expect: ['sess-input'],
+	},
+	{
+		id: 'sess-cross-state',
+		file: SESSION_BRIDGE,
+		why: '写口钉到**第一个会话** ⇒ B 自己的动作写进 A ⇒ 红的是**正控**那条（「B 自己走一遍也开不出标记」）'
+			+ '—— 正是正控要拦的那族（★没有正控时，本条会以「A 的常识」为真而漏过）',
+		patch: [[`单例.写 ?? 注册表[ctx.session.id]`, `(单例.写 ??= 注册表[ctx.session.id])`]],
+		expect: ['sess-state'],
 	},
 ];
 
@@ -151,7 +188,8 @@ const WRAP = (src) => `(function (RPG, $) {\n${src}\n})(setup.RPG, jQuery);`;
 	}
 }
 let cellarSrc = fs.readFileSync(CELLAR, 'utf8');
-for (const [from, to] of knife?.patch ?? []) {
+const 刀文件 = knife?.file ?? CELLAR;
+for (const [from, to] of (刀文件 === CELLAR ? knife?.patch ?? [] : [])) {
 	if (!cellarSrc.includes(from)) {
 		console.error(`✗ 刀 \`${knife.id}\` 的替换未命中：${from}\n  （被测件已变 ⇒ 刀失效 ⇒ 须同步改刀，✗ 当作「刀下了」）`);
 		process.exit(2);
@@ -159,6 +197,18 @@ for (const [from, to] of knife?.patch ?? []) {
 	cellarSrc = cellarSrc.split(from).join(to);
 }
 eval(WRAP(cellarSrc));               // 与打包器同形装进同一环境
+
+/* 会话侧薄桥（装置侧）：下刀时同样字符串替换；未命中**具名报错**（✗ 静默当「刀下了」）。
+ * 它不裹别名（装置档，非故事面）⇒ 直接 `eval`；自己挂 `globalThis.__sess`。 */
+let 桥Src = fs.readFileSync(SESSION_BRIDGE, 'utf8');
+for (const [from, to] of (刀文件 === SESSION_BRIDGE ? knife?.patch ?? [] : [])) {
+	if (!桥Src.includes(from)) {
+		console.error(`✗ 刀 \`${knife.id}\` 的替换未命中（桥）：${from}\n  （桥已变 ⇒ 刀失效 ⇒ 须同步改刀）`);
+		process.exit(2);
+	}
+	桥Src = 桥Src.split(from).join(to);
+}
+eval(桥Src);
 
 const R = () => setup.RPG;
 const H = globalThis.__host;
@@ -284,6 +334,125 @@ reset();
 		`读档后木箱奖励总数仍为 2（实得 ${countOf('coin') + countOf('iron-key')}）`);
 	const 酒架回 = enter('cellar-wine');
 	ok(id, 酒架回.choices.includes('收起油纸包') === true, '读档后酒架收取项**回来**了（反向臂：标记确已回退）');
+}
+
+/* ============================ 判据 ④：两个会话 · 状态／随机源／事件／输入互不串 ============================
+ * ★四条面各用**自己的格名**（`[sess-*]`）：一个格名包四件事时，刀红在哪一条就分不出来了
+ *   （本档 `--selftest` 认的是失败行里的格名）。每条面都配**正控**（「不变」类断言缺正控时，
+ *   装置失明也一样真 —— 见前例 `act-refused-ammo.test.js` 头注）。
+ * ★装置：`session-bridge.js`（会话侧薄桥）。✗ 拿全局 fixture 直接进会话 —— 它写 `State.variables`，
+ *   会话 `facts()` 一动不动 ⇒ 这几条会在**空装置**上恒真）。 */
+{
+	const id = '[sessions]';
+	cell(id);
+	const S = globalThis.__sess;
+	/* ★四条面**各造自己的会话对**（照 D 席单测的「每个测试各造自己的」）：跨面共用一对时，
+	 *   一条面的正控会动到别面的读数（我第一版就栽在这：状态格的正控让 B 抽过一次 ⇒ rng 格
+	 *   的「B 尚未跑」前提不成立、冤红），而且一把刀会牵连到别格 ⇒ 分不出是哪一面坏了。 */
+	/** 逐面包一层「驱动抛错 ⇒ 该面具名红」：坏引擎下崩掉的格**看不出坏在哪一面**，
+	 *  而自检只认具名失败行（崩溃不算红）⇒ 先把异常转成该面的具名红。 */
+	const 试面 = (sub, fn) => { try { fn(); } catch (e) { ok(sub, false, `★驱动抛错（本面没跑完）：${e && e.message}`); } };
+
+	const 一对 = (名) => {
+		const a = S.建会话(`${名}-A`);
+		const b = S.建会话(`${名}-B`);
+		S.挂木箱格(a);
+		S.挂木箱格(b);
+		return { a, b };
+	};
+
+	/* ---- ① 状态：一面的写不进另一面的事实块 ---- */
+	试面('[sess-state]', () => {
+				const { a: A, b: B } = 一对('状态');
+		A.enter('cellar-box');
+		A.input.push({ id: 'open-box' });
+		const 读A = A.run({ maxSteps: 10 });
+		ok('[sess-state]', 读A.stopped === 'input-empty' && 读A.steps === 1,
+			`前置：A 跑完一条动作（实得 ${JSON.stringify(读A)}）`);
+		ok('[sess-state]', A.facts().开过 === true && A.facts().绷带 === 1,
+			`A 的提交落进了 A 的事实块（实得 ${JSON.stringify({ 开过: A.facts().开过, 绷带: A.facts().绷带 })}）`);
+		console.log(`  · 读数：A.facts()=${JSON.stringify(A.facts())}｜B.facts()=${JSON.stringify(B.facts())}`);
+		ok('[sess-state]', B.facts().开过 === undefined && B.facts().绷带 === undefined,
+			`★A 的提交**漏进了 B**（B.facts()=${JSON.stringify(B.facts())}）`);
+		/* 正控：B 自己走一遍也开得出（✗ 上一条在「谁都开不出」的坏装置上也会真） */
+		B.enter('cellar-box');
+		B.input.push({ id: 'open-box' });
+		B.run({ maxSteps: 10 });
+		ok('[sess-state]', B.facts().开过 === true && B.facts().绷带 === 1,
+			`★正控：B 自己走一遍应能开出标记（实得 ${JSON.stringify({ 开过: B.facts().开过, 绷带: B.facts().绷带 })}）`
+			+ ' —— 这条红时，上一条「A 没漏进 B」就是**空装置**上的假绿');
+	});
+
+	/* ---- ② 随机源：身份一份 ＋ 流量不串 ---- */
+	试面('[sess-rng]', () => {
+				const { a: A, b: B } = 一对('随机');
+		ok('[sess-rng]', A.rng !== B.rng && A.rng !== undefined && typeof A.rng.next === 'function',
+			`★两会话的随机源不是**各自一份**（A.rng===B.rng? ${A.rng === B.rng}；typeof A.rng.next=${typeof A.rng?.next}）`);
+		A.enter('cellar-box');
+		A.input.push({ id: 'open-box' });
+		A.run({ maxSteps: 10 });
+		console.log(`  · 读数：A 抽 1 次后 A.rng.次=${A.rng.次}｜B.rng.次=${B.rng.次}（B 尚未跑）`);
+		ok('[sess-rng]', A.rng.次 === 1 && B.rng.次 === 0,
+			`★A 抽了一次随机数，B 的流**也被动了**（A.rng.次=${A.rng.次}、B.rng.次=${B.rng.次}）`);
+		/* 正控：B 自己跑一遍确实会抽（✗ 上一条在「谁都不抽」的坏装置上也会真），且不动 A 的流 */
+		B.enter('cellar-box');
+		B.input.push({ id: 'open-box' });
+		B.run({ maxSteps: 10 });
+		ok('[sess-rng]', B.rng.次 === 1 && A.rng.次 === 1,
+			`★正控：B 自己抽一次应只加在 B 的流上（B.rng.次=${B.rng.次}、A.rng.次=${A.rng.次}（应仍 1））`);
+	});
+
+	/* ---- ③ 事件：订户只在**它订的那个会话**收到 ---- */
+	试面('[sess-bus]', () => {
+				const { a: A, b: B } = 一对('事件');
+		S.挂探针格(A);
+		S.挂探针格(B);
+		A.enter('probe');
+		B.enter('probe');
+		let A收 = 0, B收 = 0;
+		S.订(A, 'action', () => { A收 += 1; });
+		S.订(B, 'action', () => { B收 += 1; });
+		/* ⚠ 驱动走**直调引擎**（✗ 走桥的 `推`）：桥的助手各属一条面，串用会让「输入接错线」
+		 *   那把刀连带红到本面 ⇒ 一把刀红两格。 */
+		A.input.push({ id: 'ping' });
+		A.input.push({ id: 'ping' });
+		A.run({ maxSteps: 10 });
+		console.log(`  · 读数：A 跑两条后 A 侧订户收=${A收}｜B 侧订户收=${B收}`);
+		ok('[sess-bus]', A收 === 2, `前置：A 侧订户应收 2 次（实得 ${A收}）`);
+		ok('[sess-bus]', B收 === 0, `★B 的订户收到了 A 的事件（收 ${B收} 次）—— 事件总线串台`);
+		/* 正控：B 自己的动作能叫到 B 的订户 */
+		B.input.push({ id: 'ping' });
+		B.run({ maxSteps: 10 });
+		ok('[sess-bus]', B收 === 1, `★正控：B 侧订户应被 B 自己的动作叫到 1 次（实得 ${B收}）`);
+	});
+
+	/* ---- ④ 输入：一面的队列只推进一面 ---- */
+	试面('[sess-input]', () => {
+				const { a: A, b: B } = 一对('输入');
+		S.挂探针格(A);
+		S.挂探针格(B);
+		A.enter('probe');
+		B.enter('probe');
+		const A步前 = A.steps(), B步前 = B.steps();
+		/* ★先推 A（且两面的推送**都**走桥）：输入那把刀把「推到」钉在**第一个**用桥的会话上 ⇒
+		 *   若本面第一次用桥就是 B，刀的效果与正常路径重合、红不出来（我第一版即如此，`[]` 零红）。 */
+		S.推(A, { id: 'ping' });
+		ok('[sess-input]', A.input.pending() === 1 && B.input.pending() === 0,
+			`前置：A 推一条只落 A（A.pending=${A.input.pending()}、B.pending=${B.input.pending()}）`);
+		S.推(B, { id: 'ping' });
+		S.推(B, { id: 'ping' });
+		ok('[sess-input]', B.input.pending() === 2 && A.input.pending() === 1,
+			`★B 推了两条：B.pending=${B.input.pending()}（应 2）、A.pending=${A.input.pending()}（应仍是 1）`);
+		B.run({ maxSteps: 10 });
+		console.log(`  · 读数：B.run 后 B.pending=${B.input.pending()}｜A.pending=${A.input.pending()}`
+			+ `｜步数 A ${A步前}→${A.steps()}、B ${B步前}→${B.steps()}`);
+		ok('[sess-input]', B.steps() === B步前 + 2 && A.steps() === A步前,
+			`★B 的两条只推进了 B（B ${B步前}→${B.steps()}、A ${A步前}→${A.steps()}）`);
+		/* 正控：A 那条仍在 A 的队列里，A 跑得掉（✗ 上一条在「A 队列已坏／被搬空」时也会真） */
+		A.run({ maxSteps: 10 });
+		ok('[sess-input]', A.input.pending() === 0 && A.steps() === A步前 + 1,
+			`★正控：A 跑完后队列清空且步数只加 1（A.steps=${A.steps()}、pending=${A.input.pending()}）`);
+	});
 }
 
 /* ============================ 汇总 ============================ */

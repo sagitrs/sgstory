@@ -13,6 +13,7 @@ DND3.HerbPoultice = RPG.defItem({
 	name: '草药糊',
 	desc: '把几味有消炎之效的野草嚼烂敷在伤处。粗糙，但能顶一阵。',
 	stats: { hp: 2 },  // house rule（非 SRD）：单次治疗量
+	battleUse: { class: 'heal' },   // ★`#1918`：**战斗用途声明** —— 治疗件的靶候选须含己方（同 `bandage.js`）
 	charges: 2,        // house rule（非 SRD）：可用次数
 	stackable: true,
 

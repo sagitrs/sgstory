@@ -290,9 +290,11 @@
 		const { itemOptions } = mkBattle().buildPlayerOptions(D().Player);
 		assert.ok(!itemOptions.some((o) => o.text.includes('石料')), '★石料不在选单（✗ 引玩家进死路）');
 		assert.ok(!itemOptions.some((o) => o.text.includes('木材')), '★木材不在选单');
-		const club = itemOptions.find((o) => o.text.includes('木棒'));
+		const club = itemOptions.find((o) => o.text.includes('木棒') && !String(o.value).startsWith('quick:'));
 		assert.ok(club, '武器仍在选单');
-		/* ★本节最易错处：过滤后若**重编号**，取件会取到错的道具 */
+		/* ★本节最易错处：过滤后若**重编号**，取件会取到错的道具
+		 * ★`#1918`：取的是**普通条目**（✗ 一键项）—— 两者文案都含「木棒」（一键项写作「用木棒攻击」），
+		 *   而本节问的是**槽位下标**语义，一键项的值是 `quick:<下标>:<动作>`，不是纯下标。 */
 		assert.eq(club.value, '1', '★`value` 保**原槽位下标**（木棒在槽 1，✗ 过滤后重编号为 0）');
 		const slot = State.variables.inventory[Number(club.value)];
 		assert.eq(slot.id ?? slot.name, 'club', '★按 `value` 取件取到的确是木棒（防重编号）');
@@ -416,6 +418,78 @@
 			if (st.noBattleUse && !st.craftInput) 仅无战斗++;
 		}
 		assert.ok(仅无战斗 >= 0, `（仅声明「无战斗动作」而非建造输入者：${仅无战斗} 件 —— 合法，仅记录）`);
+	});
+
+	/* ============ `#1918`（`sagitrs/sgstory-books#188` 甲案）：**单靶一键直达** ============
+	 * 口径：某件的一个战斗动作**需要目标**、且该动作类的候选**恰有一人** ⇒ 选单直出一键项
+	 *   （件＋动作＋靶当场定下，点一次即完成这一手）；候选**两个及以上**时**不出**此项。
+	 * ⚠ 本笔的三条断言都先在**未改动的 main** 上跑过（读数见 PR）：三条均红 —— 即「一键项不存在」。 */
+	const 快捷们 = (itemOptions) => itemOptions.filter((o) => String(o.value).startsWith('quick:'));
+
+	test('★`#1918` ①：唯一合法目标 ⇒ 出一键项（文案「用已装备木棒攻击」）', () => {
+		const R2 = R(), D2 = setup.DND3;
+		R2.give('club'); R2.equip('club');
+		const 敌 = new (R2.Character)({ name: '幼獾', hp: 5, maxHp: 5 });
+		const battle = new (R2.Battle)(1, [D2.Player], [敌], true);
+		const { itemOptions } = battle.buildPlayerOptions(D2.Player);
+		const 快捷 = 快捷们(itemOptions);
+		assert.eq(快捷.length, 1, `★一键项不是恰一条（实得 ${JSON.stringify(快捷)}）`);
+		assert.eq(快捷[0].text, '用已装备木棒攻击', `★文案不是「已装备」形（实得 ${快捷[0].text}）`);
+		/* 分派面：值 → `{type:'quick', index, actionId}`（判据与执行同源，✗ 两处各解一遍串）。 */
+		const 分派 = R2.Battle.dispatchAction(快捷[0].value, 'use', null);
+		assert.eq(分派.type, 'quick', `★一键项分派不出 quick（实得 ${JSON.stringify(分派)}）`);
+		assert.ok(typeof 分派.actionId === 'string' && 分派.actionId !== '', '一键项的值里带动作 id');
+	});
+
+	test('★`#1918` ②：多目标 ⇒ **不出**一键项（「多目标才展开」）', () => {
+		const R2 = R(), D2 = setup.DND3;
+		R2.give('club'); R2.equip('club');
+		const 甲 = new (R2.Character)({ name: '幼獾', hp: 5, maxHp: 5 });
+		const 乙 = new (R2.Character)({ name: '幼獾', hp: 5, maxHp: 5 });
+		const battle = new (R2.Battle)(1, [D2.Player], [甲, 乙], true);
+		const { itemOptions } = battle.buildPlayerOptions(D2.Player);
+		assert.eq(快捷们(itemOptions).length, 0,
+			`★两个候选仍出了一键项（${JSON.stringify(快捷们(itemOptions))}）—— 会替玩家把靶定下`);
+		/* 对照臂：木棒的普通条目**仍在** ⇒ 上面那条不是「选单整个空了」造成的假绿。 */
+		assert.ok(itemOptions.some((o) => o.text.includes('木棒')), '对照臂：木棒仍在选单里');
+	});
+
+	test('★`#1918` ③：一键项**点一次**即完成这一手（只消费一次 choice，且命中唯一目标）', async () => {
+		const R2 = R(), D2 = setup.DND3;
+		R2.give('club'); R2.equip('club');
+		const P = D2.Player;
+		P.hp = P.maxHp;
+		P.nonlethal = 0;
+		R2.rng.setSequence(Array.from({ length: 400 }, () => 0.99));   // 钉随机：骰面确定 ⇒ 命中可判
+		const 敌 = new (R2.Character)({ name: '幼獾', hp: 99, maxHp: 99 });
+		const battle = new (R2.Battle)(1, [P], [敌], true);
+		battle.perform = () => {};
+		const 快捷值 = 快捷们(battle.buildPlayerOptions(P).itemOptions)[0]?.value;
+		assert.ok(快捷值 != null, '前提：本题须先出一键项');
+		const 前 = 敌.hp;
+		let 次 = 0;
+		try {
+			await withPlayerStubs(
+				{ items: State.variables.inventory, choice: async (opts) => {
+					次++;
+					/* 只在第一条选单上点一键项；后续（假如真追问了）一律跳过。 */
+					return 次 === 1 && (opts ?? []).some((o) => o.value === 快捷值) ? 快捷值 : 'skip';
+				} },
+				() => battle.execute()
+			);
+		} finally { R2.rng.reset(); }
+		assert.eq(次, 1, `★一键项之后仍追问（choice 共 ${次} 次 ⇒ ✗ 一键直达）`);
+		assert.ok(敌.hp < 前, `★唯一目标没掉血（${前} ⇒ ${敌.hp}）—— 一键项没真打出去`);
+	});
+
+	test('★`#1918` ④：治疗件的一键项（`battleUse` 声明为 heal ⇒ 候选是己方，文案「治疗」）', () => {
+		const R2 = R(), D2 = setup.DND3;
+		R2.give('herb-poultice');   // `#1918` 本笔补上声明的那一件
+		const 敌 = new (R2.Character)({ name: '幼獾', hp: 5, maxHp: 5 });
+		const battle = new (R2.Battle)(1, [D2.Player], [敌], true);
+		const 快捷 = 快捷们(battle.buildPlayerOptions(D2.Player).itemOptions);
+		assert.eq(快捷.length, 1, `★草药糊没出一键项（实得 ${JSON.stringify(快捷)}）—— 声明未生效？`);
+		assert.eq(快捷[0].text, '用草药糊治疗', `★文案不是治疗形（实得 ${快捷[0].text}）`);
 	});
 
 })();

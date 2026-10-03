@@ -40,7 +40,22 @@
 RPG.refuse = (code, message, extra) =>
 	Object.assign(new Error(message), { code, ...(extra ? { extra } : {}) });
 
+/** ★`#1914`（增量 3/3）：**件号**（`slotId`）—— 同一槽位上的那**一件**东西的稳定标识。
+ *   为什么不是下标：`.战报`/意图要把「所选的件」序列化下来，而下标会在「取件 ⇒ 插入/丢失 ⇒ 再取」时**漂移**
+ *   （`40-battle.js` 的选项值就是下标 ⇒ 两把同耐久长剑只能选到第一把）。
+ *   ⚠ 为什么不是「`id` ＋ `charges`」：两件同类同耐久**完全一样** ⇒ 那会把两件判成一件。
+ *   发号是**全局单调**的；读档时把序列推到已见号**之上** ⇒ 新发号不与既有号碰撞（见 `reviveItem`）。 */
+RPG.itemSlotSeq = 0;
+RPG.newSlotId = () => `it-${(RPG.itemSlotSeq += 1)}`;
+
+/** 让序列**越过**读到的号（读档/旧档都走；✗ 只读不推 ⇒ 之后发号必碰撞）。 */
+RPG.noteSlotId = (slotId) => {
+	const n = Number(String(slotId ?? "").replace(/^it-/, ""));
+	if (Number.isFinite(n) && n > RPG.itemSlotSeq) RPG.itemSlotSeq = n;
+};
+
 RPG.Item = class Item extends Object {
+	/* ★`#1914`：每个实例出生即带号（⇒ `toJSON` 恒有号，✗ 靠调用方各自补）。 */
 	constructor(def) {
 		super();
 		if (new.target === RPG.Item) {
@@ -54,6 +69,7 @@ RPG.Item = class Item extends Object {
 		this.stats = { ...def.stats };
 		/** 剩余使用次数；null 表示无限次 */
 		this.charges = def.charges ?? null;
+		this.slotId = def.slotId ?? RPG.newSlotId();
 		this.stackable = def.stackable !== false;
 		/** 是否武器（BattleTurn 用 contains(['weapon', 'equipped']) 检索） */
 		this.weapon = def.weapon === true;
@@ -95,7 +111,7 @@ RPG.Item = class Item extends Object {
 	 * 要用时再用 RPG.reviveItem() 还原成实例。
 	 */
 	toJSON() {
-		return { id: this.id, charges: this.charges, equipped: this.equipped };
+		return { id: this.id, charges: this.charges, equipped: this.equipped, slotId: this.slotId };
 	}
 };
 
@@ -129,6 +145,10 @@ RPG.reviveItem = (snapshot) => {
 	const item = RPG.createItem(snapshot.id);
 	if (snapshot.charges != null) item.charges = snapshot.charges;
 	item.equipped = snapshot.equipped === true;
+	/* ★`#1914`：**有号沿用**（存档往返不丢意图）＋ 把序列推到该号之上；**旧档无号则当场补发**
+	 *   —— 每件各发一个（✗ 按 `id`+`charges` 回退：旧档里两件同类会被判成同一件，判据③钉住）。 */
+	if (snapshot.slotId != null) { item.slotId = snapshot.slotId; RPG.noteSlotId(item.slotId); }
+	else item.slotId = RPG.newSlotId();
 	return item;
 };
 

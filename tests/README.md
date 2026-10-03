@@ -89,6 +89,9 @@ python build.py        # 同时产出 tests/unit/bundle.js 与 e2e 的 game.html
 - **e2e**：浏览器打开 `tests/e2e/old-house/game.html`，
   按下方“e2e 验证要点”人工走查（或用浏览器自动化驱动，历史会话即此做法）。
 
+- **老宅支线·行为基线**（`sgstory#1912` 交付 1 的「行为保持」面；CI 同套）：
+  `node tests/e2e/old-house/run-baseline.mjs` 跑判据，`--selftest` 跑三条刀的**判别力自证**。
+  读数在末行：`cell=`／`pass=`／`fail=`／`pending=`；**未判行以 `⏳` 明账**（不入绿、也不静默跳过）。
 ## 测试基建纪律（命令与探针）
 
 任何**可能阻塞**的命令——jsdom／网络请求／DOM 事件等待／子进程／交互式命令——都必须**自带超时**并**保留退出码**。以下八条为硬性要求：

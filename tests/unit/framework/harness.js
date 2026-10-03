@@ -48,6 +48,9 @@ window.__runTests = async () => {
 	const results = [];
 	let pass = 0, fail = 0;
 	for (const t of window.__tests) {
+		/* ★`sgstory#1953`：**归属打点**（环境开关式 ⇒ 默认输出一字不变 ✓）。
+		 *   用途：装载/运行期偶发讯息（如 rng 序列耗尽）发生时，一眼看出**是哪个格**在跑。 */
+		if (window.__TRACE) console.log(`▶ ${t.name}`);
 		window.__resetState();
 		try {
 			await t.fn();

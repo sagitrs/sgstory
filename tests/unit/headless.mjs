@@ -28,6 +28,8 @@ globalThis.document = {
 
 /* ---- 浏览器全局（真正加载的仍是仓库里的 framework/ 手写件）---- */
 globalThis.window = globalThis;
+/* ★`sgstory#1953`：`UNIT_TRACE=1` ⇒ 每格前打 `▶ 格名`（默认不开 ⇒ 输出不变）。 */
+globalThis.__TRACE = !!process.env.UNIT_TRACE;
 load('framework/host.js');  // 宿主仿真：State / Engine / Save（先于 shims）
 load('framework/shims.js'); // setup / 三个全局指向 host / jQuery 桩
 

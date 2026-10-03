@@ -100,7 +100,7 @@
 		const club = new (D().Club)();
 		club.equipped = true;
 		club.perform = (m) => msgs.push(String(m));
-		R().rng.setSequence([0.0, 0.0]);                // die=1 ⇒ 必挥空 ⇒ 文案带加值
+		R().rng.setSequence(Array.from({ length: 64 }, () => 0.0));   // die=1 ⇒ 必挥空 ⇒ 文案带加值（★长度理由：`sgstory#1953` 回合内不止抽一次随机 ⇒ 供数取上限式）
 		try { D().meleeAttack(club, t, a); } finally { R().rng.reset(); }
 		const m = msgs.find((x) => /挥空/.test(x)) ?? '';
 		assert.ok(/攻击掷骰 1\+5/.test(m), `★缺省须走 \`bab 3 + 力调 2 = +5\`（原式）：${m}`);
@@ -119,7 +119,7 @@
 			it.equipped = true;
 			const msgs = [];
 			it.perform = (m) => msgs.push(String(m));
-			R().rng.setSequence([0.0, 0.0]);            // die=1 ⇒ 必然挥空（文案带加值）
+			R().rng.setSequence(Array.from({ length: 64 }, () => 0.0));   // die=1 ⇒ 必然挥空（★长度理由同 `sgstory#1953`：供数取上限式）
 			try { D().meleeAttack(it, t, a); } finally { R().rng.reset(); }
 			return (msgs.find((x) => /挥空/.test(x)) ?? '').match(/攻击掷骰 1([+-]\d+)/)?.[1] ?? null;
 		};

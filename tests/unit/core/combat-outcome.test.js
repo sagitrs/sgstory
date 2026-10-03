@@ -202,3 +202,22 @@
 		assert.eq(默认[0].roundLimit, 8, `★都没有声明时取缺省 8（实得 ${默认[0].roundLimit}）`);
 	});
 })();
+
+/* ── ★`sgstory#1934`（doc-3 §14／§10.1）：**单位级动作面**（防御／撤退不是「件」的动作）── */
+(() => {
+	const R = () => setup.RPG;
+	test('单位动作面①【在位且形对】：`ofUnit` 给出防御与撤退，且**都不需要选靶**', () => {
+		const 面 = R().battleActions?.ofUnit;
+		assert.eq(typeof 面, 'function', '★`RPG.battleActions.ofUnit` 须在（防御／撤退是**单位级**动作）');
+		const 列 = 面(new (R().Character)({ name: '谁', hp: 5 }));
+		const id集 = 列.map((a) => a.id).sort();
+		assert.eq(JSON.stringify(id集), JSON.stringify(['defend', 'retreat']), `★动作集（实得 ${JSON.stringify(id集)}）`);
+		assert.eq(列.every((a) => a.needsTarget === false), true, '★防御/撤退都作用于自己 ⇒ ✗ 需要选靶');
+	});
+	test('单位动作面②【与道具动作同族】：`list(item)` 仍只列**件**的动作（✗ 把单位动作混进去）', () => {
+		const 件 = R().reviveItem({ id: 'bandage', charges: 1 });
+		const 列 = R().battleActions.list(件).map((a) => a.id);
+		assert.eq(列.includes('defend') || 列.includes('retreat'), false,
+			`★道具动作面不得混入单位动作（实得 ${JSON.stringify(列)}）`);
+	});
+})();

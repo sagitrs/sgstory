@@ -122,11 +122,12 @@ const KNIVES = [
 	{
 		id: 'commit-swallow-throw',
 		file: 包档,
-		why: '普通异常**吞成 rejected**（＝把「崩了」伪装成「被拒绝」）⇒ 只红中断格',
+		why: '普通异常**吞成 rejected**（＝把「崩了」伪装成「被拒绝」）'
+			+ '⇒ 红两格：`[commit-interrupt]` ＋ `[commit-c4]` 的**抛臂**（它断的正是「异常须原样上抛」）',
 		/* ⚠ `#1933` C4：该行现在带「丢半截呈现 ＋ 关计数槽」⇒ 锚随码同刷（刀义不变：把崩了伪装成被拒）。 */
 		patch: [["else { this.ports.render.丢弃(); this._计 = null; throw e; }",
 			"else { settled = 'rejected'; reason = 'internal-error'; }"]],
-		expect: ['commit-interrupt'],
+		expect: ['commit-interrupt', 'commit-c4'],
 	},
 	{
 		id: 'commit-ctx-facts-live',
@@ -175,6 +176,13 @@ const KNIVES = [
 		why: '抽取**不计数**（`计.n += 0`）⇒ `rngDraws` 恒 0 ⇒ 只红 C3 格',
 		patch: [["\t\t\t视图[k] = (...args) => { const 计 = 槽(); if (计) 计.n += 1; return Reflect.apply(v, rng, args); };", "\t\t\t视图[k] = (...args) => { const 计 = 槽(); if (计) 计.n += 0;   /* 刀：抽取不计数 */ return Reflect.apply(v, rng, args); };"]],
 		expect: ['commit-c3'],
+	},
+	{
+		id: 'c4-discard-off',
+		file: 包档,
+		why: '把两处「丢弃」都改成「放行」（被拒／普通异常时那半截照样出门）⇒ 打红本格 (a) 拒臂与 (c) 抛臂（**同一格** ⇒ 恰红一格）',
+		patch: [["this.ports.render.丢弃();", "this.ports.render.放行();"]],
+		expect: ['commit-c4'],
 	},
 ];
 
@@ -859,6 +867,25 @@ ok('[commit-c4]', 读.settled === 'rejected' && 半截 === 0,
 		const 放行 = 收B.filter((o) => /翻新中/.test(String(o.text))).length;
 		ok('[commit-c4]', 读B.settled === 'applied' && 放行 === 1 && B.facts().值 === '新',
 			`★正控：不拒时那一句须**放行**（实得 ${JSON.stringify(读B)}｜收集器 ${放行} 条（应 1）｜值=${B.facts().值}）`);
+		/* (c) **抛臂**（`dev-9` 反证出的 e2e 覆盖缺口）：命令体内先印一句、再抛**普通异常**
+		 *     ⇒ 那一句**不得出门**（收集器 0）＋ 异常须**原样上抛**（✗ 吞成 rejected）＋ 事实块回滚。
+		 *     ⚠ 这一臂与 (a) 拒臂走的是**两条不同的路**（`:246` 拒后 ／ `catch` 里普通异常）——
+		 *       所以那把「丢弃→放行」的刀会**同时**打红本格的 (a)(c) 两条断言（同一格 ⇒ 仍是恰红一格）。 */
+		const C4C = S.建会话('C4-C');
+		const 收C = [];
+		C4C.ports.render.setCollector((o) => 收C.push(o));
+		C4C.mount('c4c', () => ({
+			id: 'c4c', enter: (c) => { c.commit({ 值: '旧' }); }, render: () => {},
+			actions: [{ id: '翻', run: (c) => { c.commit({ 值: '新' }); c.ports.render.output('抛前印的半截'); throw new Error('模拟命令体内崩'); } }],
+		}));
+		C4C.enter('c4c');
+		C4C.input.push({ id: '翻' });
+		let 抛 = null;
+		try { C4C.step(); } catch (e) { 抛 = e; }
+		const 半截C = 收C.filter((o) => /抛前印的半截/.test(String(o.text))).length;
+		ok('[commit-c4]', !!抛 && /模拟命令体内崩/.test(String(抛?.message ?? '')) && 半截C === 0 && C4C.facts().值 === '旧',
+			`★抛臂：普通异常须**原样上抛**、抛前印的那句**不得出门**、事实块回滚`
+			+ `（实得 抛=${抛 ? 抛.message : '**没抛**'}｜收集器「抛前印的半截」**${半截C}** 条（应 0）｜值=${C4C.facts().值}）`);
 		console.log(`  · 读数：拒臂 半截=${半截}（应 0）｜正控 放行=${放行}（应 1）`);
 	}
 }

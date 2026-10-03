@@ -43,11 +43,15 @@
 		 *   ⚠ 须**先持有**：`useItem` 对不在背包里的道具走「背包里没有」分支（返回 false、不抛），
 		 *   那测不到本铁律（本席首版即漏给，实测得 `threw=null`）。 */
 		R().give('rock');
-		let threw = null;
-		try { R().useItem('rock'); } catch (e) { threw = e.message; }
+		/* ★`#1906` 笔一改形：拒绝走**返回值**（✗ 抛错）—— 契约面读 `RPG.act`，玩家面读通知面 */
+		const actor = R().playerActor();
+		const r = R().act(actor, 'rock', actor, 'use');
+		assert.eq(r.status, 'rejected', '误 use 须判拒绝');
+		assert.eq(r.code, 'MATERIAL_NOT_USABLE', '须带机器可读 code');
+		const 白话 = R().notices({ limit: 5 }).map((n) => n.text).join('｜');
 		/* ★`#1877` P2-2：玩家面白话（✗ 系统话术「请用于建造」） */
-		assert.ok(/备料/.test(threw ?? ''), `误 use 须抛**玩家可读**错误（实得：${threw}）`);
-		assert.ok(!/建造|build/.test(threw ?? ''), `✗ 玩家面出现内部术语（实得：${threw}）`);
+		assert.ok(/备料/.test(白话), `★玩家面须有可读白话（实得：${白话}）`);
+		assert.ok(!/建造|build/.test(白话), `✗ 玩家面出现内部术语（实得：${白话}）`);
 	});
 
 	test('resources：计数库存的**总量**可读（槽数由 `give` 决定，见下注）', () => {

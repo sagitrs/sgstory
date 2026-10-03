@@ -82,12 +82,20 @@
 		assert.eq(st.maxDex, 2, '表中 Maximum Dex Bonus 列亦留痕');
 	});
 
-	test('盾：不能当消耗品 `use`（防误用 ⇒ 抛错）', () => {
+	test('盾：不能当消耗品 `use`（防误用 ⇒ **拒绝面** ＋ 玩家面白话）——`#1906` 笔一改形', () => {
+		/* ★`#1906` 笔一：误 use **不再抛出去**，而是 `RPG.act` 的**返回结果**
+		 *   （`rejected/action-refused` ＋ `code`／`extra`）。契约面读**返回值**（须用 `RPG.act`：
+		 *   `useItem` 那条壳把拒绝吞成 `false`，读不到 code），玩家面读**通知面**。 */
 		clean();
 		R().give('buckler');
-		let threw = null;
-		try { R().useItem('buckler'); } catch (e) { threw = e.message; }
-		assert.ok(/防具/.test(threw ?? ''), `误 use 须抛可读错误（实得：${threw}）`);
+		const actor = R().playerActor();
+		const r = R().act(actor, 'buckler', actor, 'use');
+		assert.eq(r.status, 'rejected', '误 use 须判拒绝');
+		assert.eq(r.reason, 'action-refused', '拒绝原因须是 action-refused');
+		assert.eq(r.code, 'ARMOR_NOT_USABLE', '须带机器可读 code');
+		assert.eq(r.extra?.needAction, 'equip', '须给出应改用的动作名');
+		assert.ok(R().notices({ limit: 5 }).some((n) => /挡刀|穿上/.test(n.text)),
+			'★玩家面没有可读白话（✗ 只进 console）');
 	});
 
 	/* ---------- ② 槽位扩：零引擎改 ---------- */
@@ -250,14 +258,17 @@
 		assert.eq(total('iron-longsword'), 2, '第二次仍能合成（图纸可反复用）');
 	});
 
-	test('锻造：铁矿不能直接 `use`（同资源纪律）', () => {
+	test('锻造：铁矿不能直接 `use`（同资源纪律）——`#1906` 笔一改形', () => {
 		clean();
 		R().give('iron-ore');
-		let threw = null;
-		try { R().useItem('iron-ore'); } catch (e) { threw = e.message; }
+		const actor = R().playerActor();
+		const r = R().act(actor, 'iron-ore', actor, 'use');
+		assert.eq(r.status, 'rejected', '误 use 须判拒绝');
+		assert.eq(r.code, 'MATERIAL_NOT_USABLE', '须带机器可读 code');
 		/* ★`#1877` P2-2：玩家面白话（✗ 「建设物资…（请用于锻造）」这类系统话术） */
-		assert.ok(/打铁的料/.test(threw ?? ''), `误 use 须抛**玩家可读**错误（实得：${threw}）`);
-		assert.ok(!/锻造|craft/.test(threw ?? ''), `✗ 玩家面出现内部术语（实得：${threw}）`);
+		const 白话 = R().notices({ limit: 5 }).map((n) => n.text).join('｜');
+		assert.ok(/打铁的料/.test(白话), `★玩家面须有可读白话（实得：${白话}）`);
+		assert.ok(!/锻造|craft/.test(白话), `✗ 玩家面出现内部术语（实得：${白话}）`);
 	});
 
 	/* ---------- ⑥ 闭环：采（一段）→ 锻（二段）→ 装 ---------- */

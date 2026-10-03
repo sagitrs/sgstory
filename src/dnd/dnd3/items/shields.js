@@ -64,8 +64,13 @@ const shield = (def) => RPG.defItem({
 	},
 	used() {
 		/* 盾**没有**默认用法（3E 里「用盾」＝持盾取 AC，已由装备态表达；盾击另属武器面，见下注）。
-		 * 明确抛错 ⇒ 误 use 会响（与 resources.js 同一纪律）。 */
-		throw new Error(`「${this.name}」是防具，装备后即生效；「用」它不产生额外效果`);
+		 * 明确抛错 ⇒ 误 use 会响（与 resources.js 同一纪律）。
+		 * ★`#1906` 笔一：裸 `throw new Error` ⇒ **结构化拒绝**（`RPG.refuse`）—— 由 `RPG.act` 收成
+		 *   `rejected/action-refused`（带 `code`／`extra`），✗ 让调用方只能 try/catch。
+		 *   ⚠ 文案改成**玩家白话**（✗ 「不产生额外效果」这类系统话术）。 */
+		throw RPG.refuse('ARMOR_NOT_USABLE',
+			`「${this.name}」得穿在身上挡刀——用「装备」把它带上。`,
+			{ needAction: 'equip', itemId: this.id });
 	},
 });
 
@@ -122,6 +127,9 @@ DND3.TowerShield = RPG.defItem({
 	},
 	actions: { equip: RPG.slotEquip, unequip: RPG.slotUnequip },
 	used() {
-		throw new Error(`「${this.name}」是防具，装备后即生效；「用」它不产生额外效果`);
+		/* ★`#1906` 笔一：同族第一处的**结构化拒绝**形（裸 `throw new Error` ⇒ `RPG.refuse`）。 */
+		throw RPG.refuse('ARMOR_NOT_USABLE',
+			`「${this.name}」得穿在身上挡刀——用「装备」把它带上。`,
+			{ needAction: 'equip', itemId: this.id });
 	},
 });

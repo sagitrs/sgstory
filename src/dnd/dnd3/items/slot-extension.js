@@ -40,7 +40,10 @@ const armorIn = (def) => RPG.defItem({
 	},
 	actions: { equip: RPG.slotEquip, unequip: RPG.slotUnequip },
 	used() {
-		throw new Error(`「${this.name}」是防具，装备后即生效；「用」它不产生额外效果`);
+		/* ★`#1906` 笔一：裸 `throw new Error` ⇒ **结构化拒绝**（`RPG.refuse`），同盾族；白话为玩家面。 */
+		throw RPG.refuse('ARMOR_NOT_USABLE',
+			`「${this.name}」得穿在身上挡刀——用「装备」把它带上。`,
+			{ needAction: 'equip', itemId: this.id });
 	},
 });
 

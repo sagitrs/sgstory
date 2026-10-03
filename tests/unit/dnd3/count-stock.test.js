@@ -120,17 +120,20 @@
 		const actor = R().playerActor();
 		for (const { id, code, need } of 件) {
 			R().give(id);   // ★必须先在身上 —— ✗ 则 `act` 返回 `no-such-item`（**不抛**，本席首版即踩）
-			let e = null;
-			try { R().act(actor, id, { name: '我', hp: 5, maxHp: 5 }, 'use'); } catch (err) { e = err; }
-			assert.ok(e, `「${id}」误 use 须**响**（✗ 静默）`);
-			assert.eq(e.code, code, `「${id}」错误码`);
-			/* 玩家面：✗ 英文动作名、✗ 「请用…动作」系统话术、✗ 票号 */
-			assert.ok(!/(gather|craft|build)|请用|#[0-9]{3,}/.test(e.message),
-				`★「${id}」玩家面✗ 内部术语（实得：${e.message}）`);
-			assert.ok(e.message.length > 0, `「${id}」玩家面非空`);
+			/* ★`#1906` 笔一改形：结构化拒绝由 `RPG.act` 收成**结果面**（✗ 再抛出去）——
+			 *   契约面读**返回值**，玩家面读**通知面**（`RPG.notices`），两处各取各的。 */
+			const r = R().act(actor, id, { name: '我', hp: 5, maxHp: 5 }, 'use');
+			assert.eq(r.status, 'rejected', `「${id}」误 use 须判**拒绝**（✗ 静默）`);
+			assert.eq(r.reason, 'action-refused', `「${id}」拒绝原因须是 action-refused`);
+			assert.eq(r.code, code, `「${id}」错误码`);
 			/* 开发者面：机器可读的 `code` ＋ 应改用的动作名（★✗ 逐字保存旧话术 —— 旧话术一改即失同步） */
-			assert.ok(e.code, `「${id}」须带机器可读 code`);
-			assert.eq(e.extra.needAction, need, `「${id}」须给出应改用的动作名`);
+			assert.eq(r.extra?.needAction, need, `「${id}」须给出应改用的动作名`);
+			/* 玩家面：✗ 英文动作名、✗ 「请用…动作」系统话术、✗ 票号 */
+			const 名 = R().createItem(id).name;
+			const 白话 = R().notices({ limit: 20 }).map((n) => n.text).filter((t) => t.includes(名));
+			assert.ok(白话.length > 0 && 白话.every((t) => t.length > 0), `「${id}」玩家面须有非空白话`);
+			assert.ok(!白话.some((t) => /(gather|craft|build)|请用|#[0-9]{3,}/.test(t)),
+				`★「${id}」玩家面✗ 内部术语（实得：${白话.join('｜')}）`);
 		}
 	});
 
@@ -139,10 +142,10 @@
 		const 期望 = { rock: 'build', 'stone-pile': 'gather', 'farm-plot': 'build', 'iron-ore': 'craft', 'forge-longsword': 'craft' };
 		const actor = R().playerActor();
 		for (const [id, need] of Object.entries(期望)) {
-			R().give(id);   // ★同上：不在背包 ⇒ 走 `no-such-item` 而**不抛**
-			let e = null;
-			try { R().act(actor, id, { name: '我', hp: 5, maxHp: 5 }, 'use'); } catch (err) { e = err; }
-			assert.eq(e?.extra?.needAction, need, `「${id}」应提示改用「${need}」`);
+			R().give(id);   // ★同上：不在背包 ⇒ 走 `no-such-item`（✗ 无 code）
+			/* ★`#1906` 笔一：`needAction` 现在**随结果返回**（✗ 只活在异常里）—— 这正是「一键改用正确动作」的取数口。 */
+			const r = R().act(actor, id, { name: '我', hp: 5, maxHp: 5 }, 'use');
+			assert.eq(r?.extra?.needAction, need, `「${id}」应提示改用「${need}」`);
 		}
 	});
 

@@ -545,6 +545,102 @@ cell('[identity]');
 	}
 }
 
+/* ============ `[identity-slots]` 装备槽域（`#1935` 轨 B·`#1924` 身份推广）============
+ * ★与 `[identity]` 同形（tests-first）：**特性在位就断、缺席就记 pending ＋ 印现读数**。
+ * 本域的要害：`equippedIn(slotName)` 用 `inv().find(...)` ⇒ 命中**第一件**；
+ * 两件同类都在位时，「哪一件在装备」这个问句**没有身份可答**。 */
+cell('[identity-slots]');
+{
+	const 有身份 = (x) => x != null && (typeof x.entityId === 'string' || typeof x.definitionId === 'string');
+	const 两件同类 = (id) => {
+		State.variables.inventory = [];
+		R().give(id); R().give(id);
+		return State.variables.inventory.filter((x) => x.id === id);
+	};
+	const 两 = 两件同类('mail');
+	const 现形态 = JSON.stringify(两.map((x) => ({ slotId: x.slotId ?? null, entityId: x.entityId ?? null })));
+	if (!(两.length >= 2 && 有身份(两[0]))) {
+		PENDING.push('[identity-slots] ① 装备槽双实例互不串扰：装备槽的身份面**未在位**'
+			+ `（两件 mail 的 ${现形态}）—— 候 D 码（sgstory#1935）；`
+			+ '★现行为锚：`equippedIn(slotName)` 走 `find` ⇒ 两件同类时**回报第一件**'
+			+ '（`30-inventory.js:189-190`）');
+		console.log(`  ⏳ 槽①：槽身份未在位｜两件 mail 的 ${现形态}｜equippedIn 用 find ⇒ 恒首个`);
+	} else {
+		/* ★本域实测：`equippedIn` 过滤 `x.equipped` ⇒ 同槽两件同类时**回报在装备的那一件**
+		 *   ⇒ 这条性质**现在就成立**（不是待判）—— 它守的是「将来改成按槽名回报首个」这类退化。 */
+		两[0].equipped = true;
+		const 甲 = R().equippedIn('body');
+		const 记 = 甲?.entityId ?? null;
+		两[0].equipped = false; 两[1].equipped = true;
+		const 乙 = R().equippedIn('body');
+		const 记2 = 乙?.entityId ?? null;
+		if (记 == null) {
+			PENDING.push('[identity-slots] ① 装备槽双实例互不串扰：`equippedIn` 未回报实体（装置面拿不到）');
+			console.log('  ⏳ 槽①：equippedIn 未回报实体');
+		} else {
+			console.log(`  ✓ 槽①：装第一件 ⇒ 回报 ${记}；改装第二件 ⇒ 回报 ${记2}（须不同）`);
+			ok('[identity-slots]', 记2 !== 记,
+				`★换一件装备后 equippedIn 须回报**换的那一件**（实得 ${JSON.stringify([记, 记2])}）`);
+		}
+	}
+}
+
+/* ============ `[identity-enemies]` 敌人实例域（`#1935`）============
+ * ★本域的**烟枪在源码注释里就有**（`40-battle.js:546`）：
+ *   「② 值取稳定标识（✗ 名字）：现码 `value: c.name` ⇒ 两只同名单位**只能选中第一只**」。
+ * ⇒ 锚形＝「传第一只」与「传第二只」**得到同一个值**（同名 ⇒ 不可分辨）。 */
+cell('[identity-enemies]');
+{
+	const 复制 = (ref) => {
+		const p = R().characters.get(ref);
+		const c = R().Character.revive(JSON.parse(JSON.stringify(p.toJSON())));
+		c.hp = c.maxHp; c.nonlethal = 0;
+		return c;
+	};
+	let 两 = [];
+	try { 两 = [复制('badger'), 复制('badger')]; } catch { 两 = []; }
+	const 有身份 = (x) => x != null && typeof x.entityId === 'string';
+	if (两.length < 2) {
+		PENDING.push('[identity-enemies] ① 敌人实例互不串扰：引擎侧拿不到两只同源敌人（装置面）');
+		console.log('  ⏳ 敌①：装置面拿不到两只同源敌人');
+	} else if (!有身份(两[0])) {
+		两[0].entityId = undefined; 两[1].entityId = undefined;
+		const 值同 = 两[0].name === 两[1].name;
+		PENDING.push('[identity-enemies] ① 敌人实例互不串扰：敌人身份面**未在位**'
+			+ `（两只 badger 的 entityId＝${JSON.stringify(两.map((x) => x.entityId ?? null))}，name 皆「${两[0].name}」）`
+			+ '—— 候 D 码（sgstory#1935）；★现行为锚：目标选项的 `value` 取 `c.name`'
+			+ '（`40-battle.js:546`）⇒ 两只同名单位**只能选中第一只**；'
+			+ `本探实测「两只名字相同」＝${值同} ⇒ 传第一只与传第二只在选项里**值逐字同**`);
+		console.log(`  ⏳ 敌①：身份未在位｜两只 badger 名皆「${两[0].name}」｜`
+			+ `entityId＝${JSON.stringify(两.map((x) => x.entityId ?? null))}｜名字相同=${值同} ⇒ 选项值不可分辨`);
+	} else {
+		const 一 = 两[0].entityId, 二 = 两[1].entityId;
+		ok('[identity-enemies]', 一 !== 二,
+			`★两只同源敌人须各自身份不同（实得 ${JSON.stringify([一, 二])}）`);
+	}
+}
+
+/* ============ `[identity-scenes]` 场景容器域（`#1935`）============
+ * ★容器类的身份歧义＝「两个同定义容器共用一个状态键」⇒ 开了一个看起来两个都开了。 */
+cell('[identity-scenes]');
+{
+	const 容器面 = ['scenes', 'Chest', 'registerScene', 'Scene'].filter((k) => R()?.[k] != null);
+	if (容器面.length === 0) {
+		PENDING.push('[identity-scenes] ① 场景容器互不串扰：引擎侧**无**场景/容器面（装置面）');
+		console.log('  ⏳ 场①：引擎无场景/容器面');
+	} else {
+		const 键形 = (() => {
+			try { const c = new (R().Chest ?? Object)(); return c && typeof c === 'object' ? Object.keys(c) : null; }
+			catch { return null; }
+		})();
+		PENDING.push('[identity-scenes] ① 场景容器互不串扰：容器身份面**未在位**'
+			+ `（引擎侧有 ${JSON.stringify(容器面)}；容器对象键＝${JSON.stringify(键形)}）`
+			+ '—— 候 D 码（sgstory#1935）；★现行为锚：同定义容器的状态**按定义（而非实例）**存'
+			+ '⇒ 开其一则其二同态 ⇒ 「哪一只被开过」这个问句无身份可答');
+		console.log(`  ⏳ 场①：容器身份未在位｜引擎侧有 ${JSON.stringify(容器面)}｜容器键＝${JSON.stringify(键形)}`);
+	}
+}
+
 /* ============================ 汇总 ============================ */
 console.log('');
 for (const p of PENDING) console.log(`  ⏳ ${p}`);

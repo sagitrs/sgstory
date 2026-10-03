@@ -492,4 +492,43 @@
 		assert.eq(快捷[0].text, '用草药糊治疗', `★文案不是治疗形（实得 ${快捷[0].text}）`);
 	});
 
+	test('★`#1918` ⑤：候选在选题与执行之间变了 ⇒ 退回展开**问靶**（✗ 静默取首候选）', async () => {
+		/* ★由来（`dev-10` D 席 RC，row 16）：本笔声明过「靶在执行时按同一取源重算，候选若变则退回展开」——
+		 *   而已有 ①②③④ 都建在**候选集不变**的场上 ⇒ 把退回展开那支**删掉**照样 `649/0`（他实测：749/0），
+		 *   即这条保证**今天失效了也没人知道**。本格专门为它而设。
+		 * ★断言的是**控制流**（choice 被叫到 = 问了靶），✗ 不是「打中了某个人」—— 后者可因偶然相似而假绿。
+		 * ★候选「变」的手法：就在选题与执行之间往 `battle.enemies` 追加一只（引擎在第③步重算候选）。 */
+		const R2 = R(), D2 = setup.DND3;
+		R2.give('club'); R2.equip('club');
+		const P = D2.Player;
+		P.hp = P.maxHp;
+		P.nonlethal = 0;
+		R2.rng.setSequence(Array.from({ length: 400 }, () => 0.99));
+		const 甲 = new (R2.Character)({ name: '幼獾', hp: 99, maxHp: 99 });
+		const battle = new (R2.Battle)(1, [P], [甲], true);
+		battle.perform = () => {};
+		const 快捷值 = 快捷们(battle.buildPlayerOptions(P).itemOptions)[0]?.value;
+		assert.ok(快捷值 != null, '前提：单个候选时须出一键项');
+		const 乙 = new (R2.Character)({ name: '草獾', hp: 99, maxHp: 99 });
+		let 次 = 0;
+		try {
+			await withPlayerStubs(
+				{ items: State.variables.inventory, choice: async (opts) => {
+					次++;
+					if (次 === 1) {
+						battle.enemies.push(乙);   // 候选 1 ⇒ 2（就在执行之前）
+						return 快捷值;
+					}
+					/* 第二次调用**只应是**「问靶」；答第二只（草獾）。若引擎✗问靶、静默取首候选，这一趟到不了。 */
+					return (opts ?? []).find((o) => String(o.text).startsWith('草獾'))?.value ?? 'skip';
+				} },
+				() => battle.execute()
+			);
+		} finally { R2.rng.reset(); }
+		assert.eq(次, 2, `★候选变了却没问靶（choice 共 ${次} 次 ⇒ 静默换靶）`);
+		/* 次级读数（诊断用）：答了「草獾」就该它掉血、另一只不动。 */
+		assert.ok(乙.hp < 99 && 甲.hp === 99,
+			`★退回展开后没按所答执行（甲 ${甲.hp}｜乙 ${乙.hp}）`);
+	});
+
 })();

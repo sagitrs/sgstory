@@ -100,6 +100,27 @@
 		try {
 			const 用量 = await 数一次用量();
 			assert.ok(用量 > 0, `★连一次成功攻击都没能量出所需枚数（找遍 1..16 枚皆不成）—— 尺子不成立，先查它`);
+			/* ★`sgstory#1953` 的「格内声明」：本格的尺子**靠「序列耗尽即抛」这条既有性质**量出最小枚数
+			 *   （`数一次用量()` 从 k=1 试起 ⇒ 前几次枚数不足时**必抽尽**）。本格**当场证一次**，
+			 *   ✗ 不把这件事只写在注释里（＝承重件无守 —— 本仓今天的教训）。
+			 *   ★观察面＝**结果面**（✗ 不是「抛没抛到调用方」）：抽尽在战斗侧被 `#actCatching` 收成
+			 *     `{status:'rejected', reason:'action-threw', code:'RNG_EXHAUSTED'}` ⇒ 它**不逃**到调用方。
+			 *     （我第一版就在这栽过：等 `catch` 接错，实得 null ⇒ 判据假红。是**读出声面**才发现的。） */
+			{
+				const 果 = await (async () => {
+					钉随机(1);                        // ★一次成功攻击至少要 >1 枚 ⇒ 必抽尽
+					const { battle } = 摆一场(1);
+					D().Player.choice = 桩(['1', 'use', '獾']);
+					try {
+						const r = await withPlayerStubs({ items: State.variables.inventory }, () => battle.execute());
+						const 日志 = battle.resultLog ?? [];
+						return r?.code ?? 日志.find((x) => x?.code)?.code ?? null;
+					} catch (e) { return `抛：${e?.code ?? e?.message ?? e}`; }
+				})();
+				assert.eq(果, 'RNG_EXHAUSTED',
+					`★校准尺子依赖「抽尽即抛 · 且可分辨」：枚数不足时结果面须带 code=RNG_EXHAUSTED（实得 ${JSON.stringify(果)}）`
+					+ ' —— 若为 null，「抽尽」就又变成不可分辨（`#1957` 之前的状态）；若抛了出来，说明收成路没接住');
+			}
 
 			钉随机(用量);
 			const { battle, 敌 } = 摆一场(1);

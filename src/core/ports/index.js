@@ -23,6 +23,19 @@
  *   （判据按此断言「实现齐了哪些方法」，✗ 在判据里另写一份方法名清单）。
  */
 
+/* ── slot 语义（sgstory#1912；`dev-10` 2026-10-03 的静态读数 ＋ 本席自查的记入处）────────────────
+ * ⚠ **不得假设「自动存档是 no-op」**：引擎 `src/core/80-save.js:215-218` 的注释写「`Config.saves.maxAutoSaves`
+ *   默认 0 ⇒ `Save.browser.auto.save()` 是 no-op」，而**产物内** `Config.saves.isAllowed` 的访问器结尾是
+ *   `0===maxAutoSaves&&(maxAutoSaves=1)` ⇒ **读一下就把自动存档抬活**（0 ⇒ 1）⇒ 该前提在产物中**不成立**
+ *   （`dev-10` 未做行为实验，票面已注）。推论两条，实现与消费方都照此：
+ *     ① 「临时开户 ⇒ 写一次 ⇒ 复原」的**复原半**可能只是把值放回 0，而**下一次读取又会抬活**
+ *        ⇒ 想在产物里得到「auto 关着」的稳态，**须显式 pin 住**（✗ 靠默认值与复原）；
+ *     ② 因此**槽语义必须显式**：本端口只承认「**显式 slot 的读写**」，**auto 槽**是否参与**由实现声明**
+ *        （见 `methods.slotSemantics`），内核**不**依赖 auto 的存在或缺失。
+ * ⚠ 本席 2026-10-03 自查（grep 读数）：**内核侧**无 `maxAutoSaves`／`autoSave` 引用，也**无**「战前保底／快存」形；
+ *   故事侧只有 e2e 装置用 `Save.slots.save/load`（`tools/e2e-drive.mjs`）⇒ 实现落成时按 `slotSemantics` 写明即可。
+ */
+
 /** 端口的**机器可读契约**：id（人读）＋ methods（每项＝名＋签名＋为何在此）。 */
 const CONTRACTS = {
 	persist: {
@@ -35,6 +48,9 @@ const CONTRACTS = {
 			has: '(slot) => boolean —— 该 slot 是否有档（Continue／autosave 面读它）',
 			schemaVersion: '() => number —— 本契约定的事实块版本（迁移链的锚）',
 			migrate: '(facts, fromVer) => facts —— 逐版迁移到当前版本；链在实现侧演进（✗ 内核持迁移表）',
+			slotSemantics: '() => ({auto: boolean, explicitSlots: string[]}) —— 实现**显式声明**槽语义'
+				+ '（auto 槽参不参与、显式槽有哪些）；内核**只**依赖这份声明，✗ 依赖宿主默认值'
+				+ '（产物里 maxAutoSaves 会被读活 ⇒「默认 no-op」不可假设，见本档头注）',
 		},
 	},
 	render: {

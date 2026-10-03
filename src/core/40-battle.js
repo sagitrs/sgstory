@@ -439,16 +439,16 @@ RPG.Battle = class Battle extends RPG.Event {
 	 *   **未捕获异常并逃出战斗**（本席实测：`#1837 ①` 那条用例正是这样红的）。
 	 *   ⇒ 与其它拒绝同形：出声（可读）＋ `#noteReject`（护栏计数照走）＋ 调用方直接 return。 */
 	/** ★`#1914`（步四）：被拒的**结构化**出口。`触顶` ⇒ 护栏已出声、本回合就此过去（✗ 再选）。 */
-	#拒(attacker, 触顶, 理由, 详情 = '') {
-		if (触顶) {
-			return RPG.行动结果.成功({ 事件: [{ kind: 'guard', actorId: RPG.意图.候选值(attacker) }] });
+	#refuse(attacker, tripped, reason, detail = '') {
+		if (tripped) {
+			return RPG.actionResult.applied({ events: [{ kind: 'guard', actorId: RPG.unitId.of(attacker) }] });
 		}
-		return RPG.行动结果.被拒({ 行动者: attacker, 理由, 详情 });
+		return RPG.actionResult.rejected({ actor: attacker, reason, detail });
 	}
 
-	#取靶(attacker, id, 动作类 = 'damage') {
+	#resolveTarget(attacker, id, actionClass = 'damage') {
 		try {
-			return RPG.意图.取(id, this.#目标候选(attacker, 动作类));
+			return RPG.unitId.resolve(id, this.#targetCandidates(attacker, actionClass));
 		} catch (e) {
 			this.perform(`${attacker.name}这一手没能出手 —— 目标是哪个对不上（${String(e?.message ?? e)}）。`);
 			this.#noteReject(attacker, { status: 'rejected', reason: 'no-such-target' });
@@ -459,10 +459,10 @@ RPG.Battle = class Battle extends RPG.Event {
 	/** ★`#1914`（增量 3/3）：目标候选的**唯一取源** —— 选项构造与解析都过此处（⇒ 不会「两处各判一份」）。
 	 *   按**阵营**给：伤害类只列敌方；治疗类才列己方（含自己）。见 `43-battle-target-policy.js`。
 	 *   ⚠ 动作类未知一律按 `'damage'`（**窄**候选）：宁可少列，也不列到自伤那一侧。 */
-	#目标候选(attacker, 动作类 = 'damage') {
+	#targetCandidates(attacker, actionClass = 'damage') {
 		const 我方 = this.players.filter((c) => !this.isOut(c));
 		const 敌方 = this.enemies.filter((c) => !this.isOut(c));
-		return RPG.靶策略.候选集({ 攻击者: attacker, 动作类, 己方: 我方, 敌方 });
+		return RPG.targetPolicy.candidates({ attacker, actionClass, allies: 我方, foes: 敌方 });
 	}
 
 	/**
@@ -483,13 +483,13 @@ RPG.Battle = class Battle extends RPG.Event {
 		 *    **恰好相关**（当前 6 件重合）⇒ 将来「既是建造输入又能战斗使用」的道具会被**误隐藏**，
 		 *    「非建造输入但战斗无动作」（剧情道具）又**漏网** ⇒ 用**专用声明**把意图写明。
 		 *  ⚠ 默认取「**可用**」⇒ 其余 63 件行为**逐项不变**（零回归）。 */
-		/* ★`#1914`（步四）：**选单也走目录**（`RPG.战用动作.列`）—— 与靶策略同一取源（✗ 两处各判一份）。
+		/* ★`#1914`（步四）：**选单也走目录**（`RPG.battleActions.list`）—— 与靶策略同一取源（✗ 两处各判一份）。
 		 *   ⚠ 三条文案**逐字不变**（⇒ 其余件的选单零回归）。 */
 		const actionOptionsFor = (item) => {
 			const 文案 = (a) => a.id === 'use' ? `使用${item.name}`
 				: a.id === 'equip' ? `装备「${item.name}」（消耗本回合）`
 				: `卸下「${item.name}」（消耗本回合）`;
-			return RPG.战用动作.列(item).map((a) => ({ text: 文案(a), value: a.id }));
+			return RPG.battleActions.list(item).map((a) => ({ text: 文案(a), value: a.id }));
 		};
 
 		/* ★`#1841`：**零战斗动作**的道具**不列**进选单（✗ 列了就是**死路**：选中却无事可做）。
@@ -497,8 +497,8 @@ RPG.Battle = class Battle extends RPG.Event {
 		 *     重编号会**取错道具**（本笔最易写错的一处）。 */
 		const itemOptions = [];
 		/* ★`#1914`（步五）：有可重复的一手 ⇒ 列在**最前**（一键重复，✗ 让玩家再走三问）。 */
-		const 重复项 = RPG.重复.选项(this);
-		if (重复项) itemOptions.push(重复项);
+		const repeatOption = RPG.repeat.option(this);
+		if (repeatOption) itemOptions.push(repeatOption);
 		slots.forEach((slot, i) => {
 			const item = setup.RPG.reviveItem(slot);
 			if (actionOptionsFor(item).length === 0) return;
@@ -520,9 +520,9 @@ RPG.Battle = class Battle extends RPG.Event {
 		 *   ① **按阵营给**（伤害类只列敌方）：现码恒为「所有未出局者」⇒ 候选首项就是自己，
 		 *      本席调试实测「选第一项＝打自己」（玩家 hp 直接归 0）。窄候选比宽候选安全。
 		 *   ② **值取稳定标识**（✗ 名字）：现码 `value: c.name` ⇒ 两只同名单位**只能选中第一只**。
-		 *   ⚠ 两处取源都走下面的 `#目标候选`（一处定义 ⇒ 选项与解析不会各判一份）。 */
-		const targetOptionsFor = (动作类) => this.#目标候选(attacker, 动作类)
-			.map((c) => ({ text: `${c.name}（${this.players.includes(c) ? '己方' : '敌方'}）`, value: RPG.意图.候选值(c) }));
+		 *   ⚠ 两处取源都走下面的 `#targetCandidates`（一处定义 ⇒ 选项与解析不会各判一份）。 */
+		const targetOptionsFor = (actionClass) => this.#targetCandidates(attacker, actionClass)
+			.map((c) => ({ text: `${c.name}（${this.players.includes(c) ? '己方' : '敌方'}）`, value: RPG.unitId.of(c) }));
 		const targetOptions = targetOptionsFor('damage');
 
 		return { itemOptions, actionOptionsFor, targetOptions, targetOptionsFor };
@@ -568,8 +568,8 @@ RPG.Battle = class Battle extends RPG.Event {
 	async #playerActionBody(attacker) {
 		for (;;) {
 			const 果 = await this.#playerActionAttempt(attacker);
-			this.上一结果 = 果;                          // ★留档（供重复行动／判据读，✗ 只活在局部）
-			(this.结果史 ?? (this.结果史 = [])).push(果);   // ★整场史（判据「两条 action」等要求看全场）
+			this.lastResult = 果;                          // ★留档（供重复行动／判据读，✗ 只活在局部）
+			(this.resultLog ?? (this.resultLog = [])).push(果);   // ★整场史（判据「两条 action」等要求看全场）
 			if (果?.consumesAction !== false) return;     // ★按**结构**判（✗ 比字串）
 			this.perform(`${attacker.name}再选一次。`);
 		}
@@ -599,16 +599,16 @@ RPG.Battle = class Battle extends RPG.Event {
 		/* ★`#1914`（步五）：**一键重复** —— 件按**件号**、靶按**单位号**找回；任一件不在 ⇒
 		 *   出声、**不消耗**行动机会、回到选择（步二的回路接住）。 */
 		if (chosen === 'repeat') {
-			const 解 = RPG.重复.解析(this, attacker, (类) => this.#目标候选(attacker, 类));
+			const 解 = RPG.repeat.resolve(this, attacker, (kind) => this.#targetCandidates(attacker, kind));
 			if (!解.ok) {
-				this.perform(`重复不了 —— ${解.详情}。`);
-				return this.#拒(attacker, this.#noteReject(attacker, { status: 'rejected', reason: 解.理由 }), 解.理由, 解.详情);
+				this.perform(`重复不了 —— ${解.detail}。`);
+				return this.#refuse(attacker, this.#noteReject(attacker, { status: 'rejected', reason: 解.reason }), 解.reason, 解.detail);
 			}
-			this.perform(`重复上一次 —— 对${解.靶名}使用${解.件名}。`);
-			const rRep = this.#actCatching(attacker, 解.件.id, 解.靶);
-			if (rRep?.status === 'rejected') return this.#拒(attacker, this.#noteReject(attacker, rRep), rRep?.reason ?? 'rejected');
-			RPG.重复.记(this, { 件: 解.件, 靶: 解.靶, 动作类: 解.动作类 });
-			return RPG.行动结果.成功({ 行动者: attacker, 道具: 解.件, 靶: 解.靶, 动作类: 解.动作类 });
+			this.perform(`重复上一次 —— 对${解.targetName}使用${解.itemName}。`);
+			const rRep = this.#actCatching(attacker, 解.item.id, 解.target);
+			if (rRep?.status === 'rejected') return this.#refuse(attacker, this.#noteReject(attacker, rRep), rRep?.reason ?? 'rejected');
+			RPG.repeat.remember(this, { 件: 解.item, target: 解.target, actionClass: 解.actionClass });
+			return RPG.actionResult.applied({ actor: attacker, item: 解.item, target: 解.target, actionClass: 解.actionClass });
 		}
 		const item = (chosen === 'skip' || chosen === 'unarmed')
 			? null : setup.RPG.reviveItem(slots[Number(chosen)]);
@@ -634,7 +634,7 @@ RPG.Battle = class Battle extends RPG.Event {
 		const dispatch = RPG.Battle.dispatchAction(chosen, action, item);
 		if (dispatch.type === 'skip') {
 			this.perform(`${attacker.name}按兵不动。`);
-			return RPG.行动结果.成功({ 事件: [{ kind: 'skip', actorId: RPG.意图.候选值(attacker) }] });
+			return RPG.actionResult.applied({ events: [{ kind: 'skip', actorId: RPG.unitId.of(attacker) }] });
 			return;
 		}
 		if (dispatch.type === 'unarmed') {
@@ -645,16 +645,16 @@ RPG.Battle = class Battle extends RPG.Event {
 			this.perform(`${attacker.name}挥拳出击 —— 对谁？`);
 			const tn = await attacker.choice(targetOptions);
 			/* ★`#1914`：按**号**找回（✗ 按名 `find` —— 同名必取第一个）；找不到**具名抛**。 */
-			const tgt = this.#取靶(attacker, tn);
+			const tgt = this.#resolveTarget(attacker, tn);
 			if (tgt == null) return tgt === false ? 'guard' : 'rejected';
 			const rUn = this.#strikeCatching(attacker, tgt, un);
 			if (rUn?.status === 'rejected') {
 				if (rUn.reason === 'action-threw') this.perform(this.#throwText(attacker, rUn));
 				else this.perform(`${attacker.name}这一手没能出手 —— 本回合就此过去。`);
 			}
-			if (rUn?.status === 'rejected') return this.#拒(attacker, this.#noteReject(attacker, rUn), rUn.reason ?? 'rejected');
-			RPG.重复.记(this, { 件: { slotId: 'unarmed', name: '空手打击' }, 靶: tgt, 动作类: 'damage' });
-			return RPG.行动结果.成功({ 行动者: attacker, 道具: 'unarmed', 靶: tgt, 动作类: 'damage' });
+			if (rUn?.status === 'rejected') return this.#refuse(attacker, this.#noteReject(attacker, rUn), rUn.reason ?? 'rejected');
+			RPG.repeat.remember(this, { item: { slotId: 'unarmed', name: '空手打击' }, target: tgt, actionClass: 'damage' });
+			return RPG.actionResult.applied({ actor: attacker, item: 'unarmed', target: tgt, actionClass: 'damage' });
 			return;
 		}
 
@@ -667,20 +667,20 @@ RPG.Battle = class Battle extends RPG.Event {
 			 *   ★另核 `#noteReject(attacker, r)` 收 falsy 亦**安全**（`r?.status` ⇒ 非 `applied` ⇒ 计数递增）。*/
 			const r = this.#actCatching(attacker, dispatch.item.id, attacker, dispatch.type); // 统一入口（#1752）
 			if (r?.reason === 'action-threw') this.perform(this.#throwText(attacker, r));
-			if (r?.status === 'rejected') return this.#拒(attacker, this.#noteReject(attacker, r), r?.reason ?? 'rejected');   // 装备/卸下：被拒 ⇒ 回到选择
-			return RPG.行动结果.成功({ 行动者: attacker, 道具: dispatch.item, 靶: attacker,
-				事件: [{ kind: dispatch.type, actorId: RPG.意图.候选值(attacker), itemId: dispatch.item?.slotId ?? null }] });
+			if (r?.status === 'rejected') return this.#refuse(attacker, this.#noteReject(attacker, r), r?.reason ?? 'rejected');   // 装备/卸下：被拒 ⇒ 回到选择
+			return RPG.actionResult.applied({ actor: attacker, item: dispatch.item, target: attacker,
+				events: [{ kind: dispatch.type, actorId: RPG.unitId.of(attacker), itemId: dispatch.item?.slotId ?? null }] });
 			return;
 		}
 
 		// 使用：选目标
-		/* ★`#1914`（步四）：**动作类由道具声明**（`RPG.战用动作.类`）—— 原先由调用方猜：
+		/* ★`#1914`（步四）：**动作类由道具声明**（`RPG.battleActions.classOf`）—— 原先由调用方猜：
 		 *   猜成伤害 ⇒ 治疗件的队友不在候选里；猜成治疗 ⇒ 伤害件候选含自己（自伤）。 */
-		const 动作类 = RPG.战用动作.类(dispatch.item);
+		const actionClass = RPG.battleActions.classOf(dispatch.item);
 		this.perform(`对谁使用${dispatch.item.name}？`);
-		const targetId = await attacker.choice(targetOptionsFor(动作类));
+		const targetId = await attacker.choice(targetOptionsFor(actionClass));
 		/* ★`#1914`：按**号**找回（✗ 按名 `find`）；找不到**具名抛** ⇒ 由 `#actCatching` 兜成可读拒绝。 */
-		const target = this.#取靶(attacker, targetId);
+		const target = this.#resolveTarget(attacker, targetId);
 		if (target == null) return target === false ? 'guard' : 'rejected';
 
 		/* ★`#1773` 判据 1（交互战）：`rejected` ⇒ 出**可读拒绝文案**（✗ 静默丢弃返回值 ——
@@ -694,8 +694,8 @@ RPG.Battle = class Battle extends RPG.Event {
 			if (r?.reason === 'action-threw') this.perform(this.#throwText(attacker, r));
 			else this.perform(`${attacker.name}这一手没能出手${r.reason === 'no-ammo' ? '（没有弹药）' : r.reason === 'no-such-item' ? '（道具不在身上）' : r.reason === 'action-refused' ? '（动作自己拒绝了）' : ''} —— 本回合就此过去。`);
 		}
-		if (r?.status === 'rejected') return this.#拒(attacker, this.#noteReject(attacker, r), r?.reason ?? 'rejected');       // 使用：被拒 ⇒ 回到选择
-		RPG.重复.记(this, { 件: dispatch.item, 靶: target, 动作类 });   // ★记下「刚刚那一手」（一键重复的源）
-		return RPG.行动结果.成功({ 行动者: attacker, 道具: dispatch.item, 靶: target, 动作类 });
+		if (r?.status === 'rejected') return this.#refuse(attacker, this.#noteReject(attacker, r), r?.reason ?? 'rejected');       // 使用：被拒 ⇒ 回到选择
+		RPG.repeat.remember(this, { item: dispatch.item, target: target, actionClass });   // ★记下「刚刚那一手」（一键重复的源）
+		return RPG.actionResult.applied({ actor: attacker, item: dispatch.item, target: target, actionClass });
 	}
 };

@@ -97,11 +97,17 @@
 			const 记 = [];
 			P.choice = 桩(['木棒', 'use', '獾', '重复'], 记);
 			await withPlayerStubs({ items: State.variables.inventory }, () => battle.execute());
-			const i = 记.findIndex((r) => r.答 === '重复');
-			assert.ok(i >= 0, `★没有任何一步把「重复」当选项给出（选单史=${JSON.stringify(记.map((r) => r.选单))}）`);
+			/* ★本条的锚必须落在**引擎给的选单**上（`r.选单`），✗ 落在脚本自己排的答案上（`r.答`）：
+			 *   本席第一版写 `findIndex((r) => r.答 === '重复')` —— 那**恒真**（脚本自己把「重复」排进了序列）
+			 *   ⇒ 它绿与被测特性无关（`tester-3` 复核时用「搬到 main 上跑」实证：17 例里 16 红，唯它绿）。
+			 *   ⇒ 改为查**引擎是否把这一项列出来** ＋ 补「这一手真打出去了」（✗ 只断「看见了选项」）。 */
+			const i = 记.findIndex((r) => r.选单.some((t) => t.startsWith('重复')));
+			assert.ok(i >= 0, `★引擎给的选单里从来没有「重复上一次」（选单史=${JSON.stringify(记.map((r) => r.选单))}）`);
 			const 之后 = 记.slice(i + 1);
 			assert.ok(!之后.some((r) => r.选单.some((t) => t.includes('（敌方）'))),
 				`★选了「重复」之后又问了靶（选单史=${JSON.stringify(之后.map((r) => r.选单))}）—— 那就不是一键重复`);
+			const 动作条 = (battle.resultLog ?? []).flatMap((r) => r.events ?? []).filter((e) => e.kind === 'action' && e.itemId);
+			assert.ok(动作条.length >= 2, `★「重复」那一手没真打出去（action 条数=${动作条.length}）—— 只断「看见了选项」不够`);
 		} finally { 复态(s); }
 	});
 
@@ -135,7 +141,7 @@
 				return 'skip';
 			};
 			await withPlayerStubs({ items: State.variables.inventory }, () => battle.execute());
-			const 动作条 = (battle.结果史 ?? []).flatMap((r) => r.events ?? []).filter((e) => e.kind === 'action' && e.itemId);
+			const 动作条 = (battle.resultLog ?? []).flatMap((r) => r.events ?? []).filter((e) => e.kind === 'action' && e.itemId);
 			assert.ok(动作条.length >= 2,
 				`★整场只有 ${动作条.length} 条 action ⇒「重复」没真的出过手（选单史=${JSON.stringify(记)}）`);
 			const 第二 = 动作条[1];
@@ -151,12 +157,12 @@
 			const { battle, 甲, P } = 摆一场(1);
 			P.choice = 桩(['木棒', 'use', '獾']);
 			await withPlayerStubs({ items: State.variables.inventory }, () => battle.execute());
-			const 图 = battle.上次意图;
+			const 图 = battle.lastIntent;
 			assert.ok(图 && typeof 图 === 'object', `★没有留下意图（实得 ${JSON.stringify(图)}）—— 下一回合无从「重复」`);
-			assert.ok(String(图.件).startsWith('it-'), `★意图里的件不是**件号**（实得 ${图.件}）—— 下标会漂移`);
-			assert.eq(图.靶, R().意图.候选值(甲), '★意图里的靶不是**单位号**（用名字 ⇒ 改名即失真）');
+			assert.ok(String(图.slotId).startsWith('it-'), `★意图里的件不是**件号**（实得 ${图.slotId}）—— 下标会漂移`);
+			assert.eq(图.targetId, R().unitId.of(甲), '★意图里的靶不是**单位号**（用名字 ⇒ 改名即失真）');
 			const 另 = new (R().Battle)(1, [P], [甲], true);
-			assert.eq(另.上次意图 ?? null, null, '★新战斗里残留了上一场的意图（意图挂了模块级/类级？）');
+			assert.eq(另.lastIntent ?? null, null, '★新战斗里残留了上一场的意图（意图挂了模块级/类级？）');
 		} finally { 复态(s); }
 	});
 
@@ -168,8 +174,8 @@
 			});
 			/* ★查**结果史**（✗ 只查「上一结果」）：被拒后回路会**再选**一次，若那次选了跳过，
 			 *   `上一结果` 就是 skip —— 本席上一版这么写，于是判据红得**指向错的地方**。 */
-			const 有拒 = (battle.结果史 ?? []).some((r) => r.status === 'rejected');
-			assert.ok(有拒, `★⑩-① 没有出现过「被拒」（结果史=${JSON.stringify(battle.结果史)}）`);
+			const 有拒 = (battle.resultLog ?? []).some((r) => r.status === 'rejected');
+			assert.ok(有拒, `★⑩-① 没有出现过「被拒」（结果史=${JSON.stringify(battle.resultLog)}）`);
 			assert.ok(报.some((t) => t.includes('重复不了')), `★没有出声（报单=${JSON.stringify(报.slice(0, 8))}）`);
 			const i = 记.findIndex((t) => t.some((x) => x.startsWith('重复')));
 			assert.ok(记.slice(i + 1).some((t) => t.some((x) => x.startsWith('（跳过'))),
@@ -183,8 +189,8 @@
 			const { battle, 报, 记 } = await 跑重复(({ 甲 }) => { 甲.hp = 0; });   // 靶出局
 			/* ★查**结果史**（✗ 只查「上一结果」）：被拒后回路会**再选**一次，若那次选了跳过，
 			 *   `上一结果` 就是 skip —— 本席上一版这么写，于是判据红得**指向错的地方**。 */
-			const 有拒 = (battle.结果史 ?? []).some((r) => r.status === 'rejected');
-			assert.ok(有拒, `★⑩-② 没有出现过「被拒」（结果史=${JSON.stringify(battle.结果史)}）`);
+			const 有拒 = (battle.resultLog ?? []).some((r) => r.status === 'rejected');
+			assert.ok(有拒, `★⑩-② 没有出现过「被拒」（结果史=${JSON.stringify(battle.resultLog)}）`);
 			assert.ok(报.some((t) => t.includes('重复不了')), `★没有出声（报单=${JSON.stringify(报.slice(0, 8))}）`);
 			const i = 记.findIndex((t) => t.some((x) => x.startsWith('重复')));
 			assert.ok(记.slice(i + 1).some((t) => t.some((x) => x.startsWith('（跳过'))),

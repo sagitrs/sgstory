@@ -39,6 +39,23 @@
 		return out;
 	};
 
+	/** ★`sgstory#1934`（doc-3 §14／§10.1）：**单位级动作面**（✗ 道具动作 —— 现 `list(item)` 只按**件**列，
+	 *   装不下「防御」「撤退」这类**角色自己做**的动作）。
+	 *
+	 *   形：`ofUnit(actor)` → `[{ id, needsTarget, actionClass }]`，与 `list(item)` 同族（同一个目录对象，
+	 *   ✗ 另立第二个「动作目录」）。
+	 *   · **防御**（§10.1）：消耗一次行动；`needsTarget:false`（只作用于自己）；状态经 `RPG.guard.arm`
+	 *     落 `actorRuntime(actor).guard`，判活/到期归战斗循环（本档只**列动作**，✗ 不替循环算序号）。
+	 *   · **撤退**（§14）：有退路时必成 ⇒ 也不选靶；「有没有退路」是**场景／故事侧**的知识
+	 *     ⇒ 本面只声明动作存在，✗ 不在这里判路（`when` 由调用方给）。
+	 *
+	 *   ⚠ `actor` 目前**不被消费**（防御/撤退对谁都可用）；保留形参是为了将来「某些单位不能做某动作」
+	 *     这类声明有地方落（✗ 别为了「看起来有用」提前加判据）。 */
+	const ofUnit = () => [
+		{ id: 'defend', needsTarget: false, actionClass: 'support' },
+		{ id: 'retreat', needsTarget: false, actionClass: 'support' },
+	];
+
 	/** ★`#1918`（`sagitrs/sgstory-books#188` 甲案）：**一键项的文案** —— 已装备的武器写作
 	 *   「用已装备长剑攻击」，未装备的写作「用长剑攻击」；治疗类写作「用绷带治疗」。
 	 *
@@ -51,5 +68,5 @@
 		return `用${item?.equipped ? '已装备' : ''}${item?.name ?? ''}${词}`;
 	};
 
-	RPG.battleActions = Object.freeze({ classOf, list, quickText });
+	RPG.battleActions = Object.freeze({ classOf, list, ofUnit, quickText });
 })();

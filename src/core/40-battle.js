@@ -438,6 +438,14 @@ RPG.Battle = class Battle extends RPG.Event {
 	 *   理由：抛出点在本档既有的收口（`#actCatching`）**之外** ⇒ 一个不存在的号会变成
 	 *   **未捕获异常并逃出战斗**（本席实测：`#1837 ①` 那条用例正是这样红的）。
 	 *   ⇒ 与其它拒绝同形：出声（可读）＋ `#noteReject`（护栏计数照走）＋ 调用方直接 return。 */
+	/** ★`#1914`（步四）：被拒的**结构化**出口。`触顶` ⇒ 护栏已出声、本回合就此过去（✗ 再选）。 */
+	#拒(attacker, 触顶, 理由, 详情 = '') {
+		if (触顶) {
+			return RPG.行动结果.成功({ 事件: [{ kind: 'guard', actorId: RPG.意图.候选值(attacker) }] });
+		}
+		return RPG.行动结果.被拒({ 行动者: attacker, 理由, 详情 });
+	}
+
 	#取靶(attacker, id, 动作类 = 'damage') {
 		try {
 			return RPG.意图.取(id, this.#目标候选(attacker, 动作类));
@@ -475,17 +483,13 @@ RPG.Battle = class Battle extends RPG.Event {
 		 *    **恰好相关**（当前 6 件重合）⇒ 将来「既是建造输入又能战斗使用」的道具会被**误隐藏**，
 		 *    「非建造输入但战斗无动作」（剧情道具）又**漏网** ⇒ 用**专用声明**把意图写明。
 		 *  ⚠ 默认取「**可用**」⇒ 其余 63 件行为**逐项不变**（零回归）。 */
+		/* ★`#1914`（步四）：**选单也走目录**（`RPG.战用动作.列`）—— 与靶策略同一取源（✗ 两处各判一份）。
+		 *   ⚠ 三条文案**逐字不变**（⇒ 其余件的选单零回归）。 */
 		const actionOptionsFor = (item) => {
-			const actions = [];
-			if (!item.stats?.noBattleUse) actions.push({ text: `使用${item.name}`, value: 'use' });
-			const handlers = item.constructor.handlers;
-			if (!item.equipped && typeof handlers?.equip === 'function') {
-				actions.push({ text: `装备「${item.name}」（消耗本回合）`, value: 'equip' });
-			}
-			if (item.equipped && typeof handlers?.unequip === 'function') {
-				actions.push({ text: `卸下「${item.name}」（消耗本回合）`, value: 'unequip' });
-			}
-			return actions;
+			const 文案 = (a) => a.id === 'use' ? `使用${item.name}`
+				: a.id === 'equip' ? `装备「${item.name}」（消耗本回合）`
+				: `卸下「${item.name}」（消耗本回合）`;
+			return RPG.战用动作.列(item).map((a) => ({ text: 文案(a), value: a.id }));
 		};
 
 		/* ★`#1841`：**零战斗动作**的道具**不列**进选单（✗ 列了就是**死路**：选中却无事可做）。
@@ -561,7 +565,8 @@ RPG.Battle = class Battle extends RPG.Event {
 	async #playerActionBody(attacker) {
 		for (;;) {
 			const 果 = await this.#playerActionAttempt(attacker);
-			if (果 !== 'rejected') return;
+			this.上一结果 = 果;                          // ★留档（供重复行动／判据读，✗ 只活在局部）
+			if (果?.consumesAction !== false) return;     // ★按**结构**判（✗ 比字串）
 			this.perform(`${attacker.name}再选一次。`);
 		}
 	}
@@ -578,7 +583,7 @@ RPG.Battle = class Battle extends RPG.Event {
 			return;
 		}
 
-		const { itemOptions, actionOptionsFor, targetOptions } = this.buildPlayerOptions(attacker);
+		const { itemOptions, actionOptionsFor, targetOptions, targetOptionsFor } = this.buildPlayerOptions(attacker);
 
 		// ① 选道具
 		/* ★`#1841`：背包里**没有一件**在战斗中有动作（如只带资源）⇒ 出声说明，
@@ -611,6 +616,7 @@ RPG.Battle = class Battle extends RPG.Event {
 		const dispatch = RPG.Battle.dispatchAction(chosen, action, item);
 		if (dispatch.type === 'skip') {
 			this.perform(`${attacker.name}按兵不动。`);
+			return RPG.行动结果.成功({ 事件: [{ kind: 'skip', actorId: RPG.意图.候选值(attacker) }] });
 			return;
 		}
 		if (dispatch.type === 'unarmed') {
@@ -628,7 +634,8 @@ RPG.Battle = class Battle extends RPG.Event {
 				if (rUn.reason === 'action-threw') this.perform(this.#throwText(attacker, rUn));
 				else this.perform(`${attacker.name}这一手没能出手 —— 本回合就此过去。`);
 			}
-			return rUn?.status === 'rejected' ? (this.#noteReject(attacker, rUn) ? 'guard' : 'rejected') : undefined;
+			if (rUn?.status === 'rejected') return this.#拒(attacker, this.#noteReject(attacker, rUn), rUn.reason ?? 'rejected');
+			return RPG.行动结果.成功({ 行动者: attacker, 道具: 'unarmed', 靶: tgt, 动作类: 'damage' });
 			return;
 		}
 
@@ -641,13 +648,18 @@ RPG.Battle = class Battle extends RPG.Event {
 			 *   ★另核 `#noteReject(attacker, r)` 收 falsy 亦**安全**（`r?.status` ⇒ 非 `applied` ⇒ 计数递增）。*/
 			const r = this.#actCatching(attacker, dispatch.item.id, attacker, dispatch.type); // 统一入口（#1752）
 			if (r?.reason === 'action-threw') this.perform(this.#throwText(attacker, r));
-			return r?.status === 'rejected' ? (this.#noteReject(attacker, r) ? 'guard' : 'rejected') : undefined;
+			if (r?.status === 'rejected') return this.#拒(attacker, this.#noteReject(attacker, r), r?.reason ?? 'rejected');   // 装备/卸下：被拒 ⇒ 回到选择
+			return RPG.行动结果.成功({ 行动者: attacker, 道具: dispatch.item, 靶: attacker,
+				事件: [{ kind: dispatch.type, actorId: RPG.意图.候选值(attacker), itemId: dispatch.item?.slotId ?? null }] });
 			return;
 		}
 
 		// 使用：选目标
+		/* ★`#1914`（步四）：**动作类由道具声明**（`RPG.战用动作.类`）—— 原先由调用方猜：
+		 *   猜成伤害 ⇒ 治疗件的队友不在候选里；猜成治疗 ⇒ 伤害件候选含自己（自伤）。 */
+		const 动作类 = RPG.战用动作.类(dispatch.item);
 		this.perform(`对谁使用${dispatch.item.name}？`);
-		const targetId = await attacker.choice(targetOptions);
+		const targetId = await attacker.choice(targetOptionsFor(动作类));
 		/* ★`#1914`：按**号**找回（✗ 按名 `find`）；找不到**具名抛** ⇒ 由 `#actCatching` 兜成可读拒绝。 */
 		const target = this.#取靶(attacker, targetId);
 		if (target == null) return target === false ? 'guard' : 'rejected';
@@ -663,6 +675,7 @@ RPG.Battle = class Battle extends RPG.Event {
 			if (r?.reason === 'action-threw') this.perform(this.#throwText(attacker, r));
 			else this.perform(`${attacker.name}这一手没能出手${r.reason === 'no-ammo' ? '（没有弹药）' : r.reason === 'no-such-item' ? '（道具不在身上）' : r.reason === 'action-refused' ? '（动作自己拒绝了）' : ''} —— 本回合就此过去。`);
 		}
-			return r?.status === 'rejected' ? (this.#noteReject(attacker, r) ? 'guard' : 'rejected') : undefined;
+		if (r?.status === 'rejected') return this.#拒(attacker, this.#noteReject(attacker, r), r?.reason ?? 'rejected');       // 使用：被拒 ⇒ 回到选择
+		return RPG.行动结果.成功({ 行动者: attacker, 道具: dispatch.item, 靶: target, 动作类 });
 	}
 };

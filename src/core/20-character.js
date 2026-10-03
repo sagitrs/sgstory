@@ -13,6 +13,7 @@ RPG.Character = class Character extends Object {
 		stats = {},
 		items = [],
 		properties = [],
+		protagonist = false,
 	} = {}) {
 		super();
 		this.name = name;
@@ -24,12 +25,22 @@ RPG.Character = class Character extends Object {
 		this.items = items;
 		/** 角色性质标签。含 'player' 的角色在 Battle 的交互通路中由玩家亲自操作 */
 		this.properties = properties;
+		/** ★`sgstory#1934`（doc-3 §6.3）：**主角标记** —— 战果解析器据它判「主角死 ⇒ death」。
+		 *   与 `properties` 的 `'player'` **不是一回事**：后者是「交互通路由玩家操作」，
+		 *   本标记是「这一方的主控角色」（将来主角带同伴时二者会分家）。 */
+		this.isProtagonist = protagonist === true;
 		/** 持有的效果/减益，存 Effect 的 id 字符串（Player 桥接到 $player.effects） */
 		this.effects = [];
 		/** 按回合计时的效果剩余回合数（id → n；纯数据 ⇒ 随 toJSON 存档）。
 		 *  与 effects 同生共死：效果被移除时其条目一并删除（见 #1741 的 tickTurnDurations／clearBattleScoped） */
 		this.effectTurns = {};
 	}
+
+	/** ★`sgstory#1934`（doc-3 §10.1）：**角色运行态**（战斗期状态的家）。
+	 *   出处逐字：「状态存入 `actorRuntime.guard`，包含生效行动序号和到期边界」⇒ 本落形＝
+	 *   `RPG.actorRuntime(actor)` 返回**每角色一份**的纯数据盒子，`guard` 就在里面。
+	 *   ⚠ 纯数据（判据／存档只看数据）＋与实例**同生共死**（随 `toJSON`／`revive` 往返）。
+	 *   ⚠ 惰性建：**没有运行态的角色的 `toJSON()` 输出逐键不变**（本仓有逐字节快照类断言）。 */
 
 	get isDown() {
 		/* ★`#1854`：**非致命昏迷**亦算出局（d20 语义：打晕 ≠ 打死，但都出局）。
@@ -191,6 +202,9 @@ RPG.Character = class Character extends Object {
 		for (const fn of RPG.reviveHooks ?? []) fn(c.stats);
 		/* ★`#1854`：非致命累积随档还原（`toJSON` 写了才在；与 `hp` 同等待遇）。 */
 		if (typeof snapshot.nonlethal === 'number') c.nonlethal = snapshot.nonlethal;
+		/* ★`#1934`：主角标记与运行态（`toJSON` 写了才在 —— 与 `nonlethal` 同形，✗ 猜默认值）。 */
+		if (snapshot.isProtagonist === true) c.isProtagonist = true;
+		if (snapshot.runtime && typeof snapshot.runtime === 'object') c.runtime = { ...snapshot.runtime };
 		c.effects = [...(snapshot.effects ?? [])];
 		c.effectTurns = { ...(snapshot.effectTurns ?? {}) };
 		for (const id of c.effects) {
@@ -214,6 +228,9 @@ RPG.Character = class Character extends Object {
 		 *   ⚠ **仅在非零时写键**：`0`／`undefined` 一律不写 —— 保证「从未受过非致命伤」的角色
 		 *     `toJSON()` 输出与 `#1854` 之前**逐键相同**（零回归；本仓有逐字节快照类断言）。 */
 		if (this.nonlethal) o.nonlethal = this.nonlethal;
+		/* ★`#1934`：主角标记与运行态**仅在非空时写键**（同 `nonlethal` 的理由：零回归）。 */
+		if (this.isProtagonist) o.isProtagonist = true;
+		if (this.runtime && Object.keys(this.runtime).length > 0) o.runtime = this.runtime;
 		return o;
 	}
 };
@@ -242,6 +259,45 @@ RPG.Character = class Character extends Object {
 /** 是否因**非致命**伤害而昏迷（出局）。⚠ 与 `hp <= 0`（致命）**分开**：本函数只看非致命计数。 */
 RPG.isKnockedOut = (c) => (c?.nonlethal ?? 0) > (c?.hp ?? 0);
 
+/** ★`#1934`：**每角色一份的运行态**（惰性建；纯数据 ⇒ 随档往返）。 */
+RPG.actorRuntime = (actor) => {
+	if (actor == null || typeof actor !== 'object') throw new Error('RPG.actorRuntime 需要一个角色对象');
+	if (!actor.runtime || typeof actor.runtime !== 'object') actor.runtime = {};
+	return actor.runtime;
+};
+
+/** ★`#1934`（doc-3 §10.1）：**防御状态**（`actorRuntime.guard`）。
+ *   原文口径：消耗一次行动；提交后生效，到**该角色下一次行动机会开始前**失效；**不叠加**；战斗结束清除；
+ *   窗口内每次**直接攻击**最终伤害减半（多段分别结算）。⇒ 本面只管**状态与判活**，
+ *   「序号怎么算」（谁是下一次行动机会）归**战斗循环**（`40-battle.js`）——那里才有回合/行动计数。
+ *   ⚠ 判活用**单调行动序号**：`生效序号 <= 当前 < 到期边界`。 */
+RPG.guard = {
+	/** 起防御（✗ 叠加：直接覆盖）。@param 边界 `{ 生效序号, 到期边界 }`（都是整数） */
+	arm(actor, { 生效序号, 到期边界 } = {}) {
+		if (!Number.isInteger(生效序号) || !Number.isInteger(到期边界)) {
+			throw new Error('RPG.guard.arm 需要整数「生效序号」与「到期边界」');
+		}
+		RPG.actorRuntime(actor).guard = { 生效序号, 到期边界 };
+		return RPG.actorRuntime(actor).guard;
+	},
+	/** 是否在防御窗口内。
+	 *   · 给了 `当前序号` ⇒ 判**窗口**（`生效序号 <= 当前 < 到期边界`）；
+	 *   · 没给 ⇒ 只判「已起且未被清」（`arm` 之后、`clear` 之前）—— 战斗循环是唯一知道序号的地方，
+	 *     它不在场时**不得**替它判死（本席第一版用 `-Infinity` 当缺省 ⇒ 窗口恒假 ⇒ 防御永远不减伤 ✗，
+	 *     正是本档 `防御④` 那格把它抓出来的）。 */
+	isActive(actor, 当前序号 = null) {
+		const g = actor?.runtime?.guard;
+		if (!g) return false;
+		if (当前序号 == null) return true;
+		return 当前序号 >= g.生效序号 && 当前序号 < g.到期边界;
+	},
+	/** 清防御（战斗结束、或该角色下一次行动机会开始前由循环调用）。 */
+	clear(actor) {
+		if (actor?.runtime && 'guard' in actor.runtime) delete actor.runtime.guard;
+	},
+	/** 读原始状态（判据／文案用；✗ 别拿它当判活——判活走 `isActive`）。 */
+	of: (actor) => actor?.runtime?.guard ?? null,
+};
 /** 施加伤害（**唯一入口**）。
  *  @param that 目标角色
  *  @param dmg  伤害值（调用方已算好，含下限与修正）
@@ -249,7 +305,14 @@ RPG.isKnockedOut = (c) => (c?.nonlethal ?? 0) > (c?.hp ?? 0);
  *  @returns `{ lethal, nonlethal, hp?, total? }` —— 供调用方写文案用（✗ 调用方自行改 `hp`）。
  *  ⚠ 本函数**不**施加 `RPG.death`：死亡判定仍由各包的 `grantDeathIfDown` 负责（`hp <= 0`）⇒
  *    非致命路**永不**致死，也**不**掉战利品（见 `40-battle.js` 的 `RPG.loot` 调用点）。 */
-RPG.applyDamage = (that, dmg, { nonlethal = false } = {}) => {
+RPG.applyDamage = (that, dmg, { nonlethal = false, direct = false, ignoresGuard = false } = {}) => {
+	/* ★`#1934`（doc-3 §10.1）：**防御减伤** —— 位置就在「重击倍率与固定伤害修正**之后**、
+	 *   实际扣 HP／非致命伤**之前**」（调用方给的是**已算好的最终伤害**）⇒ 落点是本函数。
+	 *   · 只减**直接攻击**（`direct:true`）：环境伤害与持续伤害**默认不减免**（照原文）；
+	 *   · 特殊攻击可声明 `ignoresGuard:true` 忽略防御（照原文）；
+	 *   · **半伤·向下取整·允许 0**（照原文：3→1、1→0）⇒ `Math.floor(dmg / 2)`；
+	 *   · 创伤阈值读**减伤后**的伤害 ⇒ 因为下游拿到的就是本函数用的这个 `dmg`（✗ 原伤害）。 */
+	if (direct && !ignoresGuard && RPG.guard.isActive(that)) dmg = Math.floor(Number(dmg ?? 0) / 2);
 	if (nonlethal) {
 		/* 非致命**独立计数**，✗ 不碰 `hp`（打晕 ≠ 打死）。 */
 		that.nonlethal = (that.nonlethal ?? 0) + dmg;

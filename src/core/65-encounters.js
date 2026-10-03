@@ -257,7 +257,12 @@ RPG.rollEncounter = (layerId, { count = 1, tableId } = {}) => {
 			throw RPG.encounterError('ENCOUNTER_UNKNOWN_REF',
 				`层「${layerId}」的敌人「${hit.ref}」未注册（表内须引注册 id）`);
 		}
-		out.push({ ref: hit.ref, elite: hit.elite === true, layer: layerId });
+		/* ★`sgstory#1934`（doc-3 §2.8）：**回合上限**随条目带出 —— 声明位＝**层表行**
+		 *   `row.roundLimit`（与 `encounters`／`loot` 同一行），**条目可覆写** `hit.roundLimit`；
+		 *   都没有 ⇒ 缺省 **8**（§2.8 原文：「当前 `fight()` 固定创建 8 回合战斗」）。
+		 *   ⚠ 值必须是正整数（`Battle(turn,…)` 的既有校验同一口径）。 */
+		const 限 = hit.roundLimit ?? row.roundLimit ?? 8;
+		out.push({ ref: hit.ref, elite: hit.elite === true, layer: layerId, roundLimit: 限 });
 	}
 	return out;
 };

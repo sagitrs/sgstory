@@ -65,10 +65,19 @@
 			items: [{ id: 'rock' }, { id: 'rock' }] });
 		R().loot(foe);
 		const 战利品 = JSON.stringify(inv());
-		/* 三路的 id 不同（rock/rock/rock），比**形状**：都须是单槽且 charges 2 */
-		const 形状 = (json) => json.replace(/"id":"[^"]+"/, '"id":"X"');
+		/* 三路的 id 不同（rock/rock/rock），比**形状**：都须是单槽且 charges 2
+		 * ★`#1914`（增量 3/3）**判据前提随形更新**：本笔给件加了 **件号 `slotId`**（每件唯一，
+		 *   正是「两把同耐久长剑要分得开」所需）⇒ 三路各自造/转自己的件，`slotId` **必然不同**
+		 *   —— 那是**有意的身份位**，不是「因 who 分叉」的形态差。故比形时把它归一化；
+		 *   ⚠ 原意（「三路形态不得分歧」）**未丢**：下面另断「每路都**带**号」（✗ 不是把它排到判据之外）。 */
+		const 形状 = (json) => json
+			.replace(/"id":"[^"]+"/, '"id":"X"')
+			.replace(/"slotId":"[^"]+"/g, '"slotId":"X"');
 		assert.eq(形状(同伴), 形状(玩家),
 			`★同伴路形态须与玩家路一致（✗ 因 who 分叉）：${同伴} vs ${玩家}`);
+		for (const [路, json] of [['玩家', 玩家], ['同伴', 同伴]]) {
+			assert.ok(json.includes('"slotId":"it-'), `★${路}路的件没带号（` + json + '）—— 三路都须带');
+		}
 		assert.eq(inv().find((s) => s.id === 'rock').charges, 2, '★战利品路亦单槽 charges 2');
 		assert.eq(inv().filter((s) => s.id === 'rock').length, 1, '★战利品路单槽');
 	});

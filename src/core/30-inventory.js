@@ -41,6 +41,11 @@ RPG.canStack = (def) => def?.stackable === true && def?.charges != null;
  * @param snapshot 快照（**转移**语义）；缺省 ⇒ **造新件**
  * @returns number 实际入包件数
  */
+/** ★`#1914`：入包**保号** —— 缺则补发、有则**原样保留**（✗ 重发：重发会让「同一件东西」换号）。
+ *   ⚠ 本席**更正**交接简报里的一句旧话：曾写「`loot` 转移快照须**重发**」—— 错的。号源全局唯一，
+ *   转移不产生碰撞；重发只会破坏同一性（判据④钉住「已有的号不许被换掉」）。 */
+const 保号 = (snap) => (snap && snap.slotId ? snap : { ...snap, slotId: RPG.newSlotId() });
+
 RPG.deposit = (bag, id, n = 1, snapshot = null) => {
 	const def = RPG.createItem(id);
 	const each = snapshot == null ? null : (snapshot.charges ?? def.charges ?? 1);   // 快照件数口径（同 `take`）
@@ -48,14 +53,14 @@ RPG.deposit = (bag, id, n = 1, snapshot = null) => {
 		const slot = bag.find((s) => s.id === id);
 		if (snapshot != null) {
 			if (slot) { slot.charges = (slot.charges ?? 0) + each; return each; }
-			bag.push({ ...snapshot, charges: each });
+			bag.push(保号({ ...snapshot, charges: each }));
 			return each;
 		}
 		if (slot) { slot.charges += def.charges * n; return def.charges * n; }
-		bag.push({ ...def.toJSON(), charges: def.charges * n });
+		bag.push(保号({ ...def.toJSON(), charges: def.charges * n }));
 		return def.charges * n;
 	}
-	for (let i = 0; i < n; i++) bag.push(snapshot == null ? def.toJSON() : snapshot);
+	for (let i = 0; i < n; i++) bag.push(保号(snapshot == null ? def.toJSON() : snapshot));
 	return n;
 };
 

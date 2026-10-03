@@ -149,6 +149,18 @@ if (argOf('selftest')) {
 	console.log(`  ${cleanOK ? '✓' : '✗'} 未下刀 ⇒ 基线应全绿：rc=${clean.status}`);
 	if (!cleanOK) { console.error(cleanOut); bad++; }
 
+	/* ★本档**自查**（✗ 不是刀族）：`RB_BUNDLE_STALE=1` ⇒ 产物新鲜度检查须**具名红**（✗ 静默继续）——
+	 *   这条断的是「本档自己那一道闸红不红得了」，靶是本档自身 ⇒ 用环境开关，见那一段头注。 */
+	{
+		const r = spawnSync(process.execPath, [import.meta.filename], {
+			encoding: 'utf8', env: { ...process.env, RB_BUNDLE_STALE: '1' },
+		});
+		const out = `${r.stdout}${r.stderr}`;
+		const 红 = /被测产物\*\*过期/.test(out);
+		console.log(`  ${红 ? '✓' : '✗'} 自证 \`RB_BUNDLE_STALE=1\` ⇒ 本档须具名红「被测产物过期」（rc=${r.status}${红 ? '、报错在' : '、**未见该报错**'}）`);
+		if (!红) { console.error(out.slice(-800)); bad++; }
+	}
+
 	/* ★判据须**直接**（`dev-10` 的阻断二）：只认**失败行**（形如 `✗ [格名] …`）里出现的格名，
 	 *   ✗ 不认「格名在输出里出现过」—— 格头、刀义说明、附注都会让后者恒真 ⇒ 认不出「红错格」。
 	 *   且每条刀声明**完整预期红集**：多红一格与少红一格**都算未达标**。
@@ -197,6 +209,33 @@ const bundle = path.join(UNIT, 'dist', 'bundle.js');
 if (!fs.existsSync(bundle)) {
 	console.error(`✗ 缺被测物 ${path.relative(REPO, bundle)} —— 先 \`python3 build.py\`（CI 的位次已在 build 之后）`);
 	process.exit(2);
+}
+/* ★产物**新鲜度**（`books#209` 那批的路演里提的那条，作者赞成）：本档判的是**构建产物**
+ *   ⇒ 若 `src/**` 里最新的档比产物**还新**，本档跑的就不是当前源码（＝「刀落在**过期**的被测物上」那一族：
+ *   读数看着对、其实量的是上一版；本席今日栽过的「改源码不重建」正是它的近亲）。
+ *   ⚠ 同一次检出/克隆里各档 mtime 可能**全相等** ⇒ 取**严格大于**才红（相等 ⇒ 放行），✗ 不用 `>=`。
+ *   ⚠ 自证：`RB_BUNDLE_STALE=1` ⇒ 本检查按「已过期」走一次（`--selftest` 用它证本检查**红得了**）。
+ *     本档的刀族是「可复现的字符串替换」，而这条的靶是**本档自身**（✗ 不是被装载的源码）⇒ 故用环境开关自证。 */
+{
+	const 源根 = path.join(REPO, 'src');
+	let 最新 = 0, 谁的 = null;
+	if (fs.existsSync(源根)) {
+		for (const f of fs.readdirSync(源根, { recursive: true })) {
+			const q = path.join(源根, String(f));
+			if (!q.endsWith('.js') || !fs.statSync(q).isFile()) continue;
+			const m = fs.statSync(q).mtimeMs;
+			if (m > 最新) { 最新 = m; 谁的 = q; }
+		}
+	}
+	const 产物 = fs.statSync(bundle).mtimeMs;
+	if (process.env.RB_BUNDLE_STALE === '1' || 最新 > 产物) {
+		console.error(`✗ 被测产物**过期**：${path.relative(REPO, bundle)} 旧于 ${path.relative(REPO, String(谁的))}`
+			+ `（产物 ${new Date(产物).toISOString()}｜源码 ${new Date(最新).toISOString()}`
+			+ `${process.env.RB_BUNDLE_STALE === '1' ? '；★本红来自 RB_BUNDLE_STALE=1 自证' : ''}）`
+			+ '\n  ⇒ 先 `python3 build.py` —— 否则判据跑的是**上一版源码**（与「刀没落在被测物上」同族：'
+			+ '读数看着对，量的却是旧的那一份）');
+		process.exit(2);
+	}
 }
 load(path.join(UNIT, 'framework', 'host.js'));
 load(path.join(UNIT, 'framework', 'shims.js'));

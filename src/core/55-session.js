@@ -32,6 +32,27 @@
 		return out;
 	};
 
+	/** ★`#1933` C3：**命令期的随机消耗计数**。
+	 *   把 `ctx.rng` 的方法包一层计数（每次调用 +1），**`this` 仍绑原对象**
+	 *   （✗ 换成代理再调 —— `this.次` 这类自计数会错位）。
+	 *   配置动词不计（`set`／`setSequence`／`reset`／`_impl`）：它们是设源与复位，✗ 不是抽取。
+	 *   ★**契约**（票面 C3 那条）：拒绝**不回退**随机流（通用回退不存在）—— 本计数就是给调用方的**依据**
+	 *     （「拒后流已推进 N 次」可判）；批 D 落设计文档 doc-3 §4 的 `rngAfter`（后态）时**换**本字段。
+	 *   ★**归属按「发生时刻」**（`槽()` 取**当下**那条命令的计数）：命令期拿到的视图若被存下来、
+	 *     在**后续**命令里才抽 ⇒ 记在**后来**那条上（✗ 记回给早已结束的那条 —— 那会报出一个死人头上的量）。 */
+	const 计消耗视图 = (rng, 槽) => {
+		const 配置动词 = new Set(['set', 'setSequence', 'reset', '_impl']);
+		const 视图 = Object.create(Object.getPrototypeOf(rng) ?? Object.prototype);
+		for (const k of Reflect.ownKeys(rng)) {
+			const v = rng[k];
+			if (typeof v !== 'function') { 视图[k] = v; continue; }
+			/* 配置动词：**仍绑原对象**（`set`／`setSequence` 是改原对象的 `_impl`；绑到视图上就等于设了个空）——只是不计次。 */
+			if (配置动词.has(k)) { 视图[k] = (...args) => Reflect.apply(v, rng, args); continue; }
+			视图[k] = (...args) => { const 计 = 槽(); if (计) 计.n += 1; return Reflect.apply(v, rng, args); };
+		}
+		return 视图;
+	};
+
 	/** 会话级输入队列（FIFO；`pending` 是**读数**：测试据此断「B 的走完没消费 A 的」）。 */
 	const 新建队列 = () => {
 		const q = [];
@@ -65,19 +86,37 @@
 	/** 会话级 render 门面：**自有收集器**（✗ 动全局那份 ⇒ 两会话输出不串）。 */
 	const 新建呈现 = (全局) => {
 		let 收 = null;
+		/* ★`#1933` C4：**命令期的呈现缓冲**（栈式 —— 命令体里若又 `step()` 一次，两层各管各的）。
+		 *   口径：栈非空 ⇒ 呈现**入缓冲**（✗ 出门）；放行＝按序出门；丢弃＝原样丢掉。
+		 *   `起缓冲`／`放行`／`丢弃` 是**会话内部面**（✗ 公开契约；外部只用 `output`／`render`／`setCollector`）。 */
+		const 缓栈 = [];
+		const 出门 = (件) => {
+			if (收) { 收(件); return; }
+			if (件.kind === 'output') 全局.output(件.text, 件);
+			else 全局.render(件.node);
+		};
 		return {
 			output(text, opts) {
-				if (收) { 收({ kind: 'output', text: String(text), ...(opts ?? {}) }); return; }
-				全局.output(text, opts);
+				const 件 = { kind: 'output', text: String(text), ...(opts ?? {}) };
+				if (缓栈.length) { 缓栈[缓栈.length - 1].push(件); return; }
+				出门(件);
 			},
 			render(node) {
-				if (收) { 收({ kind: 'render', node }); return; }
-				全局.render(node);
+				const 件 = { kind: 'render', node };
+				if (缓栈.length) { 缓栈[缓栈.length - 1].push(件); return; }
+				出门(件);
 			},
 			setCollector(fn) {
 				if (fn != null && typeof fn !== 'function') throw new Error('RenderPort.setCollector 需要函数或 null');
 				收 = fn ?? null;
 			},
+			起缓冲() { 缓栈.push([]); return 缓栈.length; },
+			放行() {
+				const 件 = 缓栈.pop() ?? [];
+				for (const x of 件) 出门(x);
+				return 件.length;
+			},
+			丢弃() { return (缓栈.pop() ?? []).length; },
 		};
 	};
 
@@ -167,12 +206,20 @@
 		 *   ④ 抛**普通异常** ⇒ **先丢草稿、再把异常上抛**（✗ 留半态；✗ 吞真 bug —— 吞掉会把「崩了」
 		 *      伪装成「被拒绝」）。
 		 *
-		 *  @returns `{ settled: 'applied'|'rejected', reason?, rolledBack, changed }`
-		 *   `changed` ＝ **真正并入**事实块的**顶层键**（rejected ⇒ `[]`）；`reason` ＝ 拒绝码（供判据分辨成因）。
+		 * ⑤ ★`#1933`（A 轨·全面化）加的两面（出处＝`sgstory#1933` 票面两条 pending 臂 ＋ 领队 2026-10-03 裁）：
+		 *   · **C4 呈现时序**：命令体经 `ctx.ports.render` 印的东西**入缓冲**，结算成形才按序出门；
+		 *     被拒／普通异常 ⇒ **丢弃**（屏上不得留半截）—— `step()` 里场景重渲仍走**已提交事实**（✗ 草稿）。
+		 *   · **C3 随机消耗**：命令期经 `ctx.rng` 的抽取**计数**进读数 `rngDraws`。
+		 *     ★**契约**＝拒绝**不回退**随机流（通用回退不存在）；本读数是调用方判「重放是否等价」的依据
+		 *     （批 D 落 doc-3 §4 的 `rngAfter`（后态）时**换**该字段，✗ 并存）。
+		 *  @returns `{ settled: 'applied'|'rejected', reason?, rolledBack, changed, rngDraws }`
+		 *   `changed` ＝ **真正并入**事实块的**顶层键**（rejected ⇒ `[]`）；`reason` ＝ 拒绝码（供判据分辨成因）；
+		 *   `rngDraws` ＝ 本次命令消耗的随机抽取次数（`when` 不适用那条路读数为 `0`）。
 		 */
 		#执行命令(act) {
 			const 草稿 = {};
 			const 键 = [];
+			const 计 = { n: 0 };                        // ★C3：本次命令的随机消耗
 			const 写 = (patch) => {
 				if (patch == null || typeof patch !== 'object') throw new Error('ctx.commit 需要对象补丁');
 				const 份 = 快照(patch);
@@ -184,17 +231,26 @@
 				...this.ctx,
 				facts: () => 快照({ ...this._facts, ...草稿 }),
 				commit: 写,
+				rng: 计消耗视图(this.rng, () => this._计),   // ★C3：命令期只看得到**计数视图**（同一流、同一 this；归属按发生时刻）
 			});
+			this._计 = 计;                                // ★C3：开槽（命令期任何经视图的抽取都记到本条上）
+			this.ports.render.起缓冲();                   // ★C4：命令体的呈现先入缓冲（✗ 出门）
 			let settled = 'applied', reason = null;
 			try {
 				if (act.run(命令ctx) === false) { settled = 'rejected'; reason = 'action-refused'; }
 			} catch (e) {
 				if (typeof e?.code === 'string' && e.code !== '') { settled = 'rejected'; reason = e.code; }
-				else { throw e; }                       // ★普通异常：草稿随本栈消失（未并入）⇒ 零残留后上抛
+				else { this.ports.render.丢弃(); this._计 = null; throw e; }   // ★普通异常：丢草稿 ＋ **丢弃半截呈现**，再上抛
 			}
-			if (settled !== 'applied') return { settled, reason, rolledBack: true, changed: [] };
-			Object.assign(this._facts, 草稿);            // ★一次结算（✗ 逐项写）
-			return { settled, rolledBack: false, changed: 键 };
+			if (settled !== 'applied') {
+				this.ports.render.丢弃();                  // ★C4：被拒 ⇒ 命令体印过的**一个字都不出门**
+				this._计 = null;
+				return { settled, reason, rolledBack: true, changed: [], rngDraws: 计.n };
+			}
+			Object.assign(this._facts, 草稿);              // ★一次结算（✗ 逐项写）
+			this.ports.render.放行();                      // ★C4：结算成形 ⇒ 缓冲按序出门（在场景重渲之前）
+			this._计 = null;
+			return { settled, rolledBack: false, changed: 键, rngDraws: 计.n };
 		}
 
 		/** 单步：消费**一条**输入 ⇒ 跑其动作（**命令**：草稿 ⇒ 原子结算，见 `#执行命令`）⇒ 呈现一次。
@@ -210,7 +266,7 @@
 				 * 「命令不适用」与「命令被拒」（`settled:'rejected'`）分开（✗ 两者同形）。 */
 				this._scene.render?.(this.ctx);
 				this._steps += 1;
-				return { stepped: true, action: null, settled: null, reason: 'when-false', rolledBack: false, changed: [] };
+				return { stepped: true, action: null, settled: null, reason: 'when-false', rolledBack: false, changed: [], rngDraws: 0 };
 			}
 			const 解 = this.#执行命令(act);
 			this._events.emit('action', { id, session: this.id, settled: 解.settled, ...(解.reason ? { reason: 解.reason } : {}) });

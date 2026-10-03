@@ -114,15 +114,18 @@ const KNIVES = [
 		why: '拒绝时**照样把草稿并进**活事实块（＝`#1752` 记的那族：报 rejected 而变化保留）'
 			+ '⇒ 红三格：`[commit-atomic]` ＋ `[commit-rng]`／`[commit-render]` 的负臂'
 			+ '（`#1933` 明账：那两格的「拒后不得落」与原子格**共用同一条引擎语义**，✗ 是判据错，是语义耦合）',
-		patch: [["if (settled !== 'applied') return { settled, reason, rolledBack: true, changed: [] };",
-			"if (settled !== 'applied') { Object.assign(this._facts, 草稿); return { settled, reason, rolledBack: true, changed: [] }; }"]],
+		/* ⚠ `#1933` C4/C3 后**锚随码同刷**（刀义不变：拒时仍并草稿）：被替换的那行现在带 `rngDraws`。 */
+		patch: [["return { settled, reason, rolledBack: true, changed: [], rngDraws: 计.n };",
+			"Object.assign(this._facts, 草稿);   /* 刀：拒绝也并草稿 */ return { settled, reason, rolledBack: true, changed: [], rngDraws: 计.n };"]],
 		expect: ['commit-atomic', 'commit-rng', 'commit-render'],
 	},
 	{
 		id: 'commit-swallow-throw',
 		file: 包档,
 		why: '普通异常**吞成 rejected**（＝把「崩了」伪装成「被拒绝」）⇒ 只红中断格',
-		patch: [["else { throw e; }", "else { settled = 'rejected'; reason = 'internal-error'; }"]],
+		/* ⚠ `#1933` C4：该行现在带「丢半截呈现 ＋ 关计数槽」⇒ 锚随码同刷（刀义不变：把崩了伪装成被拒）。 */
+		patch: [["else { this.ports.render.丢弃(); this._计 = null; throw e; }",
+			"else { settled = 'rejected'; reason = 'internal-error'; }"]],
 		expect: ['commit-interrupt'],
 	},
 	{

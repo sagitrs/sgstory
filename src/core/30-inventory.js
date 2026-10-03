@@ -45,8 +45,45 @@ RPG.canStack = (def) => def?.stackable === true && def?.charges != null;
  *   ⚠ 本席**更正**交接简报里的一句旧话：曾写「`loot` 转移快照须**重发**」—— 错的。号源全局唯一，
  *   转移不产生碰撞；重发只会破坏同一性（判据④钉住「已有的号不许被换掉」）。 */
 const 保号 = (snap) => {
-	if (snap && snap.slotId) { RPG.noteSlotId(snap.slotId); return snap; }   // ★有号**也**顶高水位
-	return { ...snap, slotId: RPG.newSlotId() };
+	/* ★`#1924`：入包出口补**实体身份** `entityId`。⚠ 有号⇒**原样保留**（✗ 重发：那会让同一件换号）；
+	 *   无号⇒补发。旧名 `slotId` **只在读取处认**（旧档/旧调用形），✗ 不写回落成数据。 */
+	const src = snap ?? {};
+	const 身份 = src.entityId ?? src.slotId ?? RPG.newEntityId();
+	if (src.entityId != null || src.slotId != null) RPG.noteEntityId(身份);   // ★有号**也**顶高水位
+	const 出 = { ...src, entityId: 身份 };
+	delete 出.slotId;                                 // ★一个量一个名（旧名到此为止）
+	return 出;
+};
+
+/**
+ * ★`#1924`：**旧档实体身份补发**（幂等）—— 把「无身份」的件快照**就地**补齐
+ *   （`entityId` ＋ `definitionId` ＋ `slotId` 别名，三者同源）。
+ *
+ * 动因：旧档（本笔之前存的）里只有 `{id, charges, equipped}`。若只在 `reviveItem` 里**临时**补号，
+ *   **盘上那份**仍无身份 ⇒ 审计面（`envelope().audit()`）与逐件对账看不出「是两件里的哪一件」。
+ *
+ * ⚠ **幂等**：已在位者原样跳过（重跑零变化）—— 故**反复调用安全**（读档钩子、判据都可调）。
+ * ⚠ **不改格式版本**：`entityId`／`definitionId` 是**派生可缺**的字段（旧读者忽略、新读者补发）
+ *   ⇒ 不构成存档格式变更，`VERSION` 不动（判据：跑两遍本函数，第二次返回 0）。
+ * ⚠ 只扫**件的两个落点**（当前背包 ＋ 已登记角色的 `items`）—— ✗ 扫全世界（那会把非件的对象也改）。
+ * @returns number 本次实际补发的件数（0 ⇒ 无变化）
+ */
+RPG.backfillItemIdentity = () => {
+	let 补 = 0;
+	const 扫 = (bag) => {
+		if (!Array.isArray(bag)) return;
+		for (let i = 0; i < bag.length; i += 1) {
+			const s = bag[i];
+			if (s == null || typeof s !== 'object' || Array.isArray(s)) continue;
+			if (typeof s.id !== 'string') continue;                     // ✗ 不是件（别把别的对象当件改）
+			if (s.entityId != null && s.slotId === undefined) continue;   // 已在位（新名在、旧名已清）
+			bag[i] = 保号(s);
+			补 += 1;
+		}
+	};
+	扫(inv());                                   // ★走本档既有取袋口（✗ 再写一处 `State.variables`：触点棘轮）
+	for (const c of RPG.characters?.values?.() ?? []) 扫(c?.items);
+	return 补;
 };
 
 RPG.deposit = (bag, id, n = 1, snapshot = null) => {
@@ -379,8 +416,22 @@ RPG.act = (actor, itemRef, target, action = 'use', from = actor) => {
 	const list = actor.items;
 	const id = typeof itemRef === 'string' ? itemRef : itemRef?.id;
 	if (typeof id !== 'string' || id === '') throw new Error('RPG.act 的 itemRef 须是 id 串或含 id 的实例');
-	const slot = list.find((s) => s.id === id);
-	if (!slot) return { status: 'rejected', reason: 'no-such-item' };
+	/* ★`#1924`（`#1905` 点名的「身份歧义」）：传进来的是**带实体身份的对象**（实例或 State 快照）
+	 *   ⇒ 按身份取**那一件**；✗ 只按 `id` 取第一件 —— 那会让「两件同类（剩余次数 [2,9]）选第二件
+	 *   却扣第一件」。`entityId` 与旧名 `slotId` 同值 ⇒ 两形都认。
+	 *   ⚠ **对象没有身份**时（如临时 `new DND3.Club()`／只带 `id` 的桩）仍按 `id` 取 —— 兼容既有调用形；
+	 *     身份**在场但在本角色包里找不到**时同样回落 `id`（既有调用方可能传的是别处的快照）。 */
+	const 身份 = (itemRef != null && typeof itemRef === 'object')
+		? (itemRef.entityId ?? itemRef.slotId ?? null) : null;         // 旧名只作**读回落**
+	const slot = 身份 != null
+		? list.find((s) => (s?.entityId ?? s?.slotId) === 身份)
+		: list.find((s) => s.id === id);                               // 无身份 ⇒ 按 id（既有调用形）
+	/* ★`#1924`：**身份在场却找不到** ⇒ **具名拒绝**（`item-gone`），✗ **不许**静默退回「取第一件」
+	 *   —— 那正是 `#1927` 冒烟锚测到的「传第一件与传第二件返回逐字相同」。理由名与
+	 *   `46-battle-repeat.js` 的同族一致（那里早就用 `item-gone` 表达「这件已经不在身上了」）。 */
+	if (!slot) {
+		return { status: 'rejected', reason: 身份 != null ? 'item-gone' : 'no-such-item' };
+	}
 
 	const item = RPG.reviveItem(slot);
 
@@ -462,7 +513,13 @@ RPG.act = (actor, itemRef, target, action = 'use', from = actor) => {
  */
 RPG.commit = (actor, item) => {
 	const list = actor?.items;
-	const slot = list.find((s) => s.id === item.id);
+	if (!Array.isArray(list)) return;
+	/* ★`#1924`：写回须**同名回同一件** —— 身份优先（✗ 只按 `id` 取第一件：那会把「第二件的数」写到
+	 *   第一件上，实测 `[2,9]` 选第二件 ⇒ `[8,9]`）。无身份者（临时实例/桩）仍按 `id`。 */
+	const 身份 = item?.entityId ?? item?.slotId ?? null;
+	const slot = (身份 != null
+		? list.find((s) => (s?.entityId ?? s?.slotId) === 身份)
+		: undefined) ?? list.find((s) => s.id === item?.id);
 	if (!slot) return;
 	slot.equipped = item.equipped === true;
 	/* ★ `charges` 亦须提交：只写 `equipped` 会让动作里 `item.charges -= 1` 只改到还原出的

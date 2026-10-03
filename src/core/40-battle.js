@@ -713,7 +713,7 @@ RPG.Battle = class Battle extends RPG.Event {
 			if (r?.reason === 'action-threw') this.perform(this.#throwText(attacker, r));
 			if (r?.status === 'rejected') return this.#refuse(attacker, this.#noteReject(attacker, r), r?.reason ?? 'rejected');   // 装备/卸下：被拒 ⇒ 回到选择
 			return RPG.actionResult.applied({ actor: attacker, item: dispatch.item, target: attacker,
-				events: [{ kind: dispatch.type, actorId: RPG.unitId.of(attacker), itemId: dispatch.item?.slotId ?? null }] });
+				events: [{ kind: dispatch.type, actorId: RPG.unitId.of(attacker), itemId: dispatch.item?.entityId ?? dispatch.item?.slotId ?? null }] });
 			return;
 		}
 

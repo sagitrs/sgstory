@@ -23,11 +23,11 @@
 		if (typeof x === 'object' && typeof RPG.unitId?.of === 'function') {
 			try { return RPG.unitId.of(x); } catch { /* 非单位对象 ⇒ 落回原样 */ }
 		}
-		return typeof x === 'object' ? (x.slotId ?? x.id ?? null) : String(x);
+		return typeof x === 'object' ? (x.entityId ?? x.slotId ?? x.id ?? null) : String(x);   // ★`#1924`：新名优先（旧名读回落）
 	};
 
 	/** 件号：给实例取 `slotId`；给字串（道具 id）原样（判据与桩常用字串）。 */
-	const itemRef = (x) => (x && typeof x === 'object' ? (x.slotId ?? x.id ?? null) : (x ?? null));
+	const itemRef = (x) => (x && typeof x === 'object' ? (x.entityId ?? x.slotId ?? x.id ?? null) : (x ?? null));
 
 	RPG.actionResult = {
 		/** 行动落地（或被正常消耗：跳过／装备／卸下）。`kind` 区分：`'action'|'equip'|'skip'`。 */

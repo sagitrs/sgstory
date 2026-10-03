@@ -31,14 +31,18 @@ DND3.healDelta = (item, from, target) => {
 
 /** 施治：把**实回**落到目标身上。**实回为 0 ⇒ 返回 false**（＝拒绝，`#1776` 契约下 `RPG.act`
  *  在**扣件之前**返回 `rejected/action-refused` ⇒ 这一份留在包里），✗ 不印「受到0点治疗」。
+ *  @param opts.clearDeath 恢复到 0 以上时**是否**解除 `death` 减益，缺省 `true`（＝两件治疗件的
+ *    「战地医疗」原形）。★**口粮显式传 `false`**：它原形**没有**这三行 ⇒ P0 只改「报哪个数」，
+ *    ✗ **不夹带**语义变更（`dev-10` 的两树对照实验：本笔初版经本函数落值 ⇒ 口粮**顺带**获得了
+ *    解除 `death` 的语义 ⇒ 由 `books#200` 的镜像票 `#1929` 裁：「老行为保留」）。
  *  @returns 实回点数（>0）｜false（无伤可治）
  *  ⚠ 文案由调用方给（各件的语气不同）—— 本函数只说**发生了多少**，✗ 不替道具说话。 */
-DND3.applyHeal = (item, from, target) => {
+DND3.applyHeal = (item, from, target, { clearDeath = true } = {}) => {
 	const 实回 = DND3.healDelta(item, from, target);
 	if (!(实回 > 0)) return false;
 	target.hp = Number(target.hp ?? 0) + 实回;
-	/* 战地医疗：恢复到 0 以上时解除 death 减益（原形，三件同款） */
-	if (target instanceof RPG.Character && target.hp > 0 && target.contains(RPG.death)) {
+	/* 战地医疗：恢复到 0 以上时解除 death 减益（治疗件原形；口粮按原样**不**做这一步） */
+	if (clearDeath && target instanceof RPG.Character && target.hp > 0 && target.contains(RPG.death)) {
 		target.lose(RPG.death);
 	}
 	return 实回;

@@ -207,8 +207,11 @@ DND3.Ration = RPG.defItem({
 			/* ★`books#200`：算式改走 `DND3.applyHeal`（治疗量的**一处源**，见 `core/heal.js`）——
 			 *   本件在 `books#170` P2-11 已立「算实回／为 0 则拒绝」的口径，本笔只是**不再自写一份**。
 			 *   ⚠ 口粮**不吃** `heal_bonus` 加成（与两件治疗件不同）：原形如此，✗ 本笔不改
-			 *     —— 故此处**不传** `from`。 */
-			const 实际 = DND3.applyHeal(this, undefined, that);
+			 *     —— 故此处**不传** `from`。
+			 *   ⚠ **`clearDeath: false`**：口粮原形**没有**「恢复到 0 以上 ⇒ 解除 `death`」那三行
+			 *     （治疗件有）⇒ 显式关掉，**老行为逐字保留**。P0 只改「报哪个数」，✗ **不夹带**语义变更
+			 *     （`dev-10` 的两树对照实验抓出初版夹带；`#1929` 裁「老行为保留」，判据钉在 `dnd3/heal.test.js`）。 */
+			const 实际 = DND3.applyHeal(this, undefined, that, { clearDeath: false });
 			if (实际 === false) {
 				this.perform(`${that.name}不饿 —— 这一份留着吧。`);
 				return false;                      // ★拒绝 ⇒ 不提交消耗（见上注）

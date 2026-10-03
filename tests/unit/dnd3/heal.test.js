@@ -85,7 +85,29 @@
 		});
 	}
 
-	/* ---------- ③ 战地医疗：实回 > 0 ⇒ 解除 death 减益（原形，✗ 本笔不改） ---------- */
+	/* ---------- ③ 战地医疗：治疗件解除 `death`，**口粮不解除**（两向钉住原形语义） ---------- */
+
+	test('heal：★口粮**不**解除 `death`（原形语义，`clearDeath: false`）／治疗件**要**解除', () => {
+		/* 刀来自 `dev-10` 的两树对照实验：`hp = -1 ＋ death` ⇒ 用口粮回 2 ⇒ `hp=1` 而 `death` **仍在**
+		 *   （治疗件在同前题下**解除**）。两向写在同一个用例里 ⇒ 谁把哪一侧改单边，本条就红。 */
+		clean();
+		const P = D3().Player;
+		R().give('ration');
+		P.hp = -1; P.gain(R().death);
+		const r = R().act(R().playerActor(), 'ration', R().playerActor(), 'use');
+		assert.eq(r?.status, 'applied', '口粮照常可用（非满血）');
+		assert.eq(P.hp, 1, '回到 1（名义 2，未触顶）');
+		assert.ok(P.contains(R().death),
+			'★口粮 ✗ 不得解除 `death` —— 它原形没有那三行；本笔只改「报哪个数」，✗ 不夹带语义');
+		/* 对照臂：治疗件在同前题下**解除**（战地医疗原形，✗ 未受本笔影响） */
+		clean();
+		const P2 = D3().Player;
+		R().give('bandage');
+		P2.hp = -1; P2.gain(R().death);
+		R().act(R().playerActor(), 'bandage', R().playerActor(), 'use');
+		assert.ok(P2.hp > 0, `对照：绷带治疗后 hp > 0（实得 ${P2.hp}）`);
+		assert.ok(!P2.contains(R().death), '对照：治疗件在同样前题下**解除** `death`（战地医疗语义不变）');
+	});
 
 	test(`heal：治疗到 0 以上 ⇒ 解除 death 减益（负血治疗仍不足以复活者不解除）`, () => {
 		clean();

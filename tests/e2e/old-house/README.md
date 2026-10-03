@@ -54,3 +54,24 @@ src/
 - [ ] 状态栏随导航正确刷新（体力/背包/装备标记）
 - [ ] Engine.restart() 后世界正确重置
 - [ ] 地图 validate() 无孤立点/悬空边/不可达
+
+## 行为基线判据（`sgstory#1912` 交付 1）
+
+`run-baseline.mjs` 是这条支线的**「行为保持」机械面**：把「接入 `GameSession` ＋ L0 宿主端口」**前后**的
+行为钉住。基线锚在 main 的现有行为上，重构支 rebase 于其上 —— 行为一漂移，本档即红。
+
+| 格 | 判什么 | 面 |
+|---|---|---|
+| `idem-box` | 木箱格：条件选项按**木棒前置**开合；撬开恰得各 1 件；**重进不重复显示、不重复发放** | 无头 |
+| `idem-wine` | 酒架格：同上（一次性收取 ＋ 标记翻面后的文案） | 无头 |
+| `save-rt` | 存档后推进再读档：标记与背包一致；★**往返后守卫仍咬得住**（值相等 ≠ 语义存活） | 无头 |
+| `sessions` | 两个会话状态/随机源/事件/输入相互独立 | ⏳ 待 `GameSession` |
+
+```bash
+node tests/e2e/old-house/run-baseline.mjs             # 判据（CI 位次：build 之后）
+node tests/e2e/old-house/run-baseline.mjs --selftest  # 三条刀各须红在**指定那一格**
+```
+
+**刀**（`--selftest` 逐条跑，未下刀须全绿）：撤木箱格 `when` 守卫 ⇒ `[idem-box]` 红；
+撤酒架格守卫 ⇒ `[idem-wine]` 红；把 `boxOpened` 标记挪出**存档面** ⇒ 幂等格保持绿而 `[save-rt]` 红
+（两条断的不是同一件事，这一刀正为此而设）。

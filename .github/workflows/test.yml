@@ -68,3 +68,14 @@ jobs:
       #   ⚠ **不传** `--engine`：缺省即「引擎根＝两个上级」＝本仓现状（正是被测的那条路）。
       - name: 巴别装配自检（故事侧静态判据；须在 build 之后）
         run: node stories/babel/verify.mjs
+      # ★`#1912` 交付 1（线 A·阶段 1 试点）：「行为保持」的**机械面**。
+      #   基线锚在 main 的**现有行为**上（老宅木箱/酒架两格的进入副作用幂等 ＋ 存档往返后标记与背包一致），
+      #   重构支（GameSession ＋ L0 宿主端口）rebase 于其上 ⇒ 行为一漂移本门即红。
+      #   ⚠ 位次：它读 `tests/unit/dist/bundle.js`（上一步 build 产出）＋ 故事真源码 ⇒ 须在 build 之后。
+      #   ⚠ 未判行**不静默跳过**：末行打印 `⏳` 与 pending 计数（「两会话独立」待 GameSession 落地）。
+      - name: 老宅支线·行为基线（`#1912` 交付 1）
+        run: node tests/e2e/old-house/run-baseline.mjs
+      # ★门自身的可假刀自检：三条刀（撤 when 守卫／撤另一格守卫／把标记挪出存档面）
+      #   各须红在**指定那一格**，且未下刀时须全绿 —— 否则「判据红不了」＝没有判据。
+      - name: 老宅基线门自身的可假刀自检
+        run: node tests/e2e/old-house/run-baseline.mjs --selftest

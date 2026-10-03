@@ -49,14 +49,14 @@ const KNIVES = [
 		id: 'nav-path-rewired',
 		why: '把门厅「上二楼」的路径改指书房（`addPath hall→corridor` 的 `to` 改成 study）⇒ `[nav]` 应红',
 		patch: [[`map.addPath({ from: 'hall', to: 'corridor', text: '上二楼' });`, `map.addPath({ from: 'hall', to: 'study', text: '上二楼' });`]],
-		expect: '[nav]',
+		expect: ['nav'],
 	},
 	{
 		id: 'reward-early',
 		why: '把奖赏文案**塞进木箱格的静态文本**（即动作之前就出现）⇒ `[out-timing]` 应红',
 		patch: [[`text: '木箱的盖子被长钉钉死，但对你手里的家伙而言算不了什么。'`,
 			`text: '木箱的盖子被长钉钉死，但对你手里的家伙而言算不了什么。长钉呻吟着松开——箱底藏着一枚旧硬币和一把铁钥匙。'`]],
-		expect: '[out-timing]',
+		expect: ['out-timing'],
 	},
 ];
 
@@ -69,11 +69,18 @@ if (process.argv.includes('--selftest')) {
 	const cleanOK = clean.status === 0 && /接缝判据全绿/.test(cleanOut);
 	console.log(`  ${cleanOK ? '✓' : '✗'} 未下刀 ⇒ 四格应全绿：rc=${clean.status}`);
 	if (!cleanOK) { console.error(cleanOut.slice(-2000)); bad++; }
+	/* ★判据须**直接**（`dev-10` 的阻断二，同 `run-baseline.mjs`）：只认**失败行**（`✗ [格名] …`）里
+	 *   的格名，✗ 不认「格名在输出里出现过」；且每条刀声明**完整预期红集**（多红少红皆未达标）。
+	 *   ⚠ 崩溃不算红：本档的格在取不到可点项时会 `throw` ⇒ 那正说明该刀把路走死了，✗ 不当作判出。 */
+	const redCells = (out) => [...new Set([...out.matchAll(/✗ \[([^\]]+)\]/g)].map((m) => m[1]))].sort();
 	for (const k of KNIVES) {
 		const r = run({ SEAM_KNIFE: k.id });
 		const out = `${r.stdout}${r.stderr}`;
-		const red = r.status === 1 && out.includes(k.expect);
-		console.log(`  ${red ? '✓' : '✗'} 刀 \`${k.id}\` ⇒ 须红在 ${k.expect}：rc=${r.status}`);
+		const got = redCells(out);
+		const want = [...k.expect].sort();
+		const same = got.length === want.length && got.every((x, i) => x === want[i]);
+		const red = r.status === 1 && same;
+		console.log(`  ${red ? '✓' : '✗'} 刀 \`${k.id}\` ⇒ 须**恰好**红在 ${JSON.stringify(want)}；实得 ${JSON.stringify(got)}（rc=${r.status}）`);
 		if (!red) { console.error(`    （刀义：${k.why}）\n${out.slice(-1500)}`); bad++; }
 	}
 	if (bad) { console.error(`\n刀的判别力自证失败 ${bad} 条 —— 判据红不了，等于没有判据`); process.exit(1); }
@@ -114,9 +121,10 @@ for (const [from, to] of knife?.patch ?? []) {
 let failures = 0, passes = 0;
 const CELLS = new Set();
 const cell = (id) => { CELLS.add(id); console.log(`\n─ ${id}`); };
+const reds = new Set();
 const ok = (id, cond, msg) => {
 	if (cond) { passes++; console.log(`  ✓ ${msg}`); }
-	else { failures++; console.error(`  ✗ ${id.slice(1, -1)} ${msg}`); }
+	else { failures++; reds.add(id.slice(1, -1)); console.error(`  ✗ [${id.slice(1, -1)}] ${msg}`); }
 };
 
 /* ---------- 装载与 boot ---------- */
@@ -269,7 +277,8 @@ const goto = async (text) => {
 /* ============================ 汇总 ============================ */
 console.log('');
 if (noise.length) console.log(`  （jsdom 噪声 ${noise.length} 条，未判红；首条：${noise[0].slice(0, 90)}）`);
-console.log(`老宅接缝判据：cell=${CELLS.size} pass=${passes} fail=${failures}`);
+console.log(`老宅接缝判据：cell=${CELLS.size} pass=${passes} fail=${failures}`
+	+ (failures ? ` 红格＝${JSON.stringify([...reds].sort())}` : ''));
 if (failures) { console.error('SugarCube 接缝未保持 —— 见上逐条具名红'); process.exit(1); }
 console.log('✓ 接缝判据全绿');
 /* ★**必须显式退进程**：jsdom（`pretendToBeVisual`）在事件循环里留着句柄 ⇒ 跑完不退 ⇒

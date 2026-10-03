@@ -43,25 +43,26 @@ const PENDING = ['[sessions] 两个会话状态/随机源/事件/输入相互独
 const KNIVES = [
 	{
 		id: 'box-no-guard',
-		why: '撤掉木箱格 `when` 里的 `!boxOpened` 守卫 ⇒ 「重进不再显示开箱项」这条应红',
+		why: '撤掉木箱格 `when` 里的 `!boxOpened` 守卫 ⇒ 木箱格的两条幂等断言红，且**往返后守卫也不再活**（故两格皆红）',
 		patch: [[`RPG.has('club') && !State.variables.boxOpened`, `RPG.has('club')`]],
-		expect: '[idem-box]',
+		expect: ['idem-box', 'save-rt'],
 	},
 	{
 		id: 'wine-no-guard',
-		why: '撤掉酒架格 `when` 里的 `!wineTaken` 守卫 ⇒ 酒架那条应红',
+		why: '撤掉酒架格 `when` 里的 `!wineTaken` 守卫 ⇒ 只有酒架格红',
 		patch: [[`when: () => !State.variables.wineTaken,`, `when: () => true,`]],
-		expect: '[idem-wine]',
+		expect: ['idem-wine'],
 	},
 	{
-		id: 'marker-off-save-face',
-		why: '把 `boxOpened` 标记挪出存档面（挂 `setup`）⇒ 进程内重进仍不显示（幂等行保持绿），'
-			+ '而**存档往返后标记丢** ⇒ 存读档行应红（两条断的不是同一件事）',
-		patch: [
-			[`!State.variables.boxOpened`, `!setup.__baselineLocalBoxOpened`],
-			[`State.variables.boxOpened = true;`, `setup.__baselineLocalBoxOpened = true;`],
-		],
-		expect: '[save-rt]',
+		id: 'marker-lost-on-load',
+		why: '**只**让读档丢掉标记（挂一个 `Save.onLoad` 把它从存档面抹掉）—— 进程内一切照旧、'
+			+ '**只有**往返后那格红 ⇒ 这是「幂等」与「存读档」两条断的不是同一件事的**干净隔离证明**',
+		patch: [[`State.variables.boxOpened = true;`,
+			/* ⚠ 形按**本宿主**的契约：`framework/host.js` 的 `save.make()` 即 `{ state: <变量表深克隆> }`
+			 *   （它自己的文件头写明「处理器可就地增补 `save`」）⇒ 抹的是 `o.state.boxOpened`。
+			 *   ✗ 别照真 SugarCube 的 `state.history[i].variables` 写 —— 本档跑在宿主仿真上，不是真引擎。 */
+			`State.variables.boxOpened = true; Save.onSave.add((o) => { if (o && o.state) delete o.state.boxOpened; });`]],
+		expect: ['save-rt'],
 	},
 ];
 
@@ -82,12 +83,21 @@ if (argOf('selftest')) {
 	console.log(`  ${cleanOK ? '✓' : '✗'} 未下刀 ⇒ 基线应全绿：rc=${clean.status}`);
 	if (!cleanOK) { console.error(cleanOut); bad++; }
 
+	/* ★判据须**直接**（`dev-10` 的阻断二）：只认**失败行**（形如 `✗ [格名] …`）里出现的格名，
+	 *   ✗ 不认「格名在输出里出现过」—— 格头、刀义说明、附注都会让后者恒真 ⇒ 认不出「红错格」。
+	 *   且每条刀声明**完整预期红集**：多红一格与少红一格**都算未达标**。
+	 *   ⚠ 崩溃（`throw`）**不算红**：崩只说明「这条路走不通」，说明不了「某条断言判出了这件事」。
+	 *     ⇒ 声明了某格而实得是崩（该格无具名失败行）时，此处同样判未达标。 */
+	const redCells = (out) => [...new Set([...out.matchAll(/✗ \[([^\]]+)\]/g)].map((m) => m[1]))].sort();
 	for (const k of KNIVES) {
 		const r = run([`--knife=${k.id}`]);
 		const out = `${r.stdout}${r.stderr}`;
-		const red = r.status === 1 && out.includes(k.expect) && out.includes('✗');
-		console.log(`  ${red ? '✓' : '✗'} 刀 \`${k.id}\` ⇒ 须红在 ${k.expect}：rc=${r.status}`);
-		if (!red) { console.error(`    （刀义：${k.why}）\n${out}`); bad++; }
+		const got = redCells(out);
+		const want = [...k.expect].sort();
+		const same = got.length === want.length && got.every((x, i) => x === want[i]);
+		const red = r.status === 1 && same;
+		console.log(`  ${red ? '✓' : '✗'} 刀 \`${k.id}\` ⇒ 须**恰好**红在 ${JSON.stringify(want)}；实得 ${JSON.stringify(got)}（rc=${r.status}）`);
+		if (!red) { console.error(`    （刀义：${k.why}）\n${out.slice(-1500)}`); bad++; }
 	}
 
 	if (bad) { console.error(`\n刀的判别力自证失败 ${bad} 条 —— 判据红不了，等于没有判据`); process.exit(1); }
@@ -158,9 +168,10 @@ const V = () => State.variables;
 let failures = 0, passes = 0;
 const CELLS = new Set();
 const cell = (id) => { CELLS.add(id); console.log(`\n─ ${id}`); };
+const reds = new Set();
 const ok = (id, cond, msg) => {
 	if (cond) { passes++; console.log(`  ✓ ${msg}`); }
-	else { failures++; console.error(`  ✗ [${id.slice(1, -1)}] ${msg}`); }
+	else { failures++; reds.add(id.slice(1, -1)); console.error(`  ✗ [${id.slice(1, -1)}] ${msg}`); }
 };
 
 /* ---------- 驱动面（无头：不落 DOM，只走场景的**判定与副作用**） ---------- */
@@ -278,7 +289,8 @@ reset();
 /* ============================ 汇总 ============================ */
 console.log('');
 for (const p of PENDING) console.log(`  ⏳ ${p}`);
-console.log(`老宅基线判据：cell=${CELLS.size} pass=${passes} fail=${failures} pending=${PENDING.length}`);
+console.log(`老宅基线判据：cell=${CELLS.size} pass=${passes} fail=${failures} pending=${PENDING.length}`
+	+ (failures ? ` 红格＝${JSON.stringify([...reds].sort())}` : ''));
 if (failures) {
 	console.error('行为基线未保持 —— 重构支须先折平这些红，✗ 以「故事还能跑」代替读数');
 	process.exit(1);

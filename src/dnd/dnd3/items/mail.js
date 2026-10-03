@@ -6,7 +6,7 @@ DND3.Mail = RPG.defItem({
 	id: 'mail',
 	name: '铁环甲',
 	desc: '缝满铁环的旧背心，沉甸甸地压在肩上。',
-	stats: { ac_bonus: 3, weight: 20, cost: 100, slotName: '身体' },
+	stats: { ac_bonus: 3, weight: 20, cost: 100, slotName: '身体', noBattleUse: true },   // ★`#1906` C4：战斗里无「使用」动作
 	charges: null,
 	stackable: false,
 	slot: 'body',

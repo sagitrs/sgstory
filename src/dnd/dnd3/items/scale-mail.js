@@ -23,6 +23,7 @@ DND3.ScaleMail = RPG.defItem({
 		weight: 30,            // 同上 —— 30 lb.
 		cost: 50,              // 同上 —— 50 gp
 		slotName: '身体',
+		noBattleUse: true,      // ★`#1906` C4：战斗中无「使用」动作（`used()` 只出声拒绝）
 	},
 	charges: null,
 	stackable: false,

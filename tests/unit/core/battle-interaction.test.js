@@ -300,6 +300,21 @@
 		assert.eq(slot.id ?? slot.name, 'club', '★按 `value` 取件取到的确是木棒（防重编号）');
 	});
 
+	test('★`#1906` C4：三件防具**战斗中不亮「使用」**（`noBattleUse`）＋ **装备路仍在**（对照臂）', () => {
+		/* 由来（`#1906` 盘点 §四·C4）：`boots`／`mail`／`scale-mail` 的 `used()` 只出声拒绝
+		 *   ⇒ 战斗选单里亮「使用」等于把玩家引向一条注定被拒的路（`#1841` 的同族）。
+		 *   两向：① `use` 不在动作集里 ② **装备/卸下路仍在**（✗ 一并砍掉就过头了 —— `noBattleUse`
+		 *   只压「使用」，见 `45-battle-catalog.js` 的 `list()`）。 */
+		R().give('boots'); R().give('mail'); R().give('scale-mail');
+		const { actionOptionsFor } = mkBattle().buildPlayerOptions(D().Player);
+		for (const id of ['boots', 'mail', 'scale-mail']) {
+			const 件 = R().reviveItem(State.variables.inventory.find((s) => s.id === id));
+			const 动作 = actionOptionsFor(件).map((a) => a.value);
+			assert.ok(!动作.includes('use'), `★「${id}」战斗中仍亮「使用」（注定被拒 ⇒ 引玩家进死路）：${JSON.stringify(动作)}`);
+			assert.ok(动作.includes('equip'), `对照臂：「${id}」的**装备**路须仍在（✗ 一并砍掉）：${JSON.stringify(动作)}`);
+		}
+	});
+
 	test('★#1841 ②：零回归 —— 既有道具的选单与动作集**逐项不变**', () => {
 		R().give('club');
 		R().give('bandage');

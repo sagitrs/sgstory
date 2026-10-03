@@ -33,7 +33,10 @@ RPG.rng = {
 		const rest = [...values];
 		return this.set(() => {
 			if (rest.length === 0) {
-				throw new Error('RPG.rng：注入序列已耗尽（不静默回退真随机）');
+				/* ★`sgstory#1957`（`#1953` 的 ③ 裁定·叠加案）：抛错**照旧**（反静默回退那条**不得反转** ✓），
+				 *   只给这个 Error 挂**码值** ⇒ 上层可把「**预期**抽尽」（如 `battle-protocol` 那格拿
+				 *   「恰好够一次成功的枚数」当尺子）与「**意外**抽尽」分辨开，而**不动任何一格的尺子** ✓。 */
+				throw Object.assign(new Error('RPG.rng：注入序列已耗尽（不静默回退真随机）'), { code: 'RNG_EXHAUSTED' });
 			}
 			return rest.shift();
 		});

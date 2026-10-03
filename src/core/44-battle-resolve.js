@@ -46,10 +46,12 @@
 		},
 
 		/** 被拒 —— **不消耗**行动机会，上层可回到选择。 */
-		rejected({ actor = null, reason = 'unknown', detail = '' } = {}) {
+		rejected({ actor = null, reason = 'unknown', detail = '', code = null } = {}) {
 			return {
 				status: 'rejected',
 				consumesAction: false,
+				/* ★`sgstory#1957`：**有码才加键**（✗ 无码时结果面逐字不变 —— 守既有断言与快照）。 */
+				...(typeof code === 'string' && code !== '' ? { code } : {}),
 				events: [{ kind: 'refused', actorId: unitIdOf(actor), reason: String(reason), detail: String(detail) }],
 			};
 		},

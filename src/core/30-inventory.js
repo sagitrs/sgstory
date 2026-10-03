@@ -474,7 +474,11 @@ RPG.act = (actor, itemRef, target, action = 'use', from = actor) => {
 		 *   （`rejected/action-refused`），只多带 `code`／`extra` 两个**机器可读**字段。
 		 *   ⚠ **普通异常照旧抛**（✗ 吞真 bug）：只有 `code` 是非空**字符串**才算结构化拒绝。
 		 *   ⚠ 玩家面白话＝`e.message`，经 `perform` 送出（正文 ＋ 通知面两落，与 `#1877` 同一条通路）。 */
-		if (typeof e?.code === 'string' && e.code !== '') {
+		/* ★`sgstory#1957`（`#1953` 的 ③ 裁定）：`RNG_EXHAUSTED` **除外** —— 抽尽是**测试仪器条件**
+		 *   （注入序列用尽），✗ 不是玩家的「误用」；本支会把 `e.message` 经 `perform` 送**玩家屏**
+		 *   ⇒ 那会把开发者话术印给玩家 ✗。⇒ 让它在 `RPG.act` 处照旧抛，交给战斗侧的 `#actCatching`
+		 *   收成 `action-threw` ＋ 码值（✗ 玩家面不出声）✓。 */
+		if (typeof e?.code === 'string' && e.code !== '' && e.code !== 'RNG_EXHAUSTED') {
 			refused = true;
 			拒绝码 = e.code;
 			拒绝附加 = e.extra ?? null;

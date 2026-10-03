@@ -313,7 +313,10 @@ RPG.Battle = class Battle extends RPG.Event {
 			 *   ✗ 另写一份取法（两处各一份取法正是本仓反复踩到的漂移源）。 */
 			console.error(`[RPG] 动作抛错（战斗侧已转为可读拒绝；此栈供排查是否为真 bug）｜actor=${RPG.unitId.of(actor)}｜item=${itemRef}｜target=${RPG.unitId.of(target)}｜action=${action}:`, e);
 			if (e && e.code) console.warn(`[RPG] 拒绝码 code=${e.code}｜actor=${RPG.unitId.of(actor)}｜item=${itemRef}｜target=${RPG.unitId.of(target)}｜action=${action}${e.extra ? ' extra=' + JSON.stringify(e.extra) : ''}`);
-			return { status: 'rejected', reason: 'action-threw', itemRef, message: e?.message ?? String(e) };
+			/* ★`sgstory#1957`：把抛错自带的码值（如 `RNG_EXHAUSTED`）**带上结果面** ⇒ 「预期／意外」可分辨。
+			 *   ⚠ 只在**有码**时加这个键（✗ 无码的抛错结果面逐字不变 —— 守既有断言）。 */
+			return { status: 'rejected', reason: 'action-threw', itemRef, message: e?.message ?? String(e),
+				...(typeof e?.code === 'string' && e.code !== '' ? { code: e.code } : {}) };
 		}
 	}
 
@@ -443,11 +446,11 @@ RPG.Battle = class Battle extends RPG.Event {
 	 *   **未捕获异常并逃出战斗**（本席实测：`#1837 ①` 那条用例正是这样红的）。
 	 *   ⇒ 与其它拒绝同形：出声（可读）＋ `#noteReject`（护栏计数照走）＋ 调用方直接 return。 */
 	/** ★`#1914`（步四）：被拒的**结构化**出口。`触顶` ⇒ 护栏已出声、本回合就此过去（✗ 再选）。 */
-	#refuse(attacker, tripped, reason, detail = '') {
+	#refuse(attacker, tripped, reason, detail = '', code = null) {
 		if (tripped) {
 			return RPG.actionResult.applied({ events: [{ kind: 'guard', actorId: RPG.unitId.of(attacker) }] });
 		}
-		return RPG.actionResult.rejected({ actor: attacker, reason, detail });
+		return RPG.actionResult.rejected({ actor: attacker, reason, detail, code });
 	}
 
 	#resolveTarget(attacker, id, actionClass = 'damage') {
@@ -748,7 +751,7 @@ RPG.Battle = class Battle extends RPG.Event {
 			if (r?.reason === 'action-threw') this.perform(this.#throwText(attacker, r));
 			else this.perform(`${attacker.name}这一手没能出手${r.reason === 'no-ammo' ? '（没有弹药）' : r.reason === 'no-such-item' ? '（道具不在身上）' : r.reason === 'action-refused' ? '（动作自己拒绝了）' : ''} —— 本回合就此过去。`);
 		}
-		if (r?.status === 'rejected') return this.#refuse(attacker, this.#noteReject(attacker, r), r?.reason ?? 'rejected');       // 使用：被拒 ⇒ 回到选择
+		if (r?.status === 'rejected') return this.#refuse(attacker, this.#noteReject(attacker, r), r?.reason ?? 'rejected', '', r?.code ?? null);       // 使用：被拒 ⇒ 回到选择（★`#1957`：带上码值）
 		RPG.repeat.remember(this, { item, target, actionClass });   // ★记下「刚刚那一手」（一键重复的源）
 		return RPG.actionResult.applied({ actor: attacker, item, target, actionClass });
 	}

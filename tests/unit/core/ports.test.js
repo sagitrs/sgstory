@@ -73,4 +73,32 @@
 		assert.ok(语义 && Array.isArray(语义.explicitSlots) && typeof 语义.auto === 'boolean',
 			`★ slotSemantics 形状不对：${JSON.stringify(语义)}`);
 	});
+	
+		test('端口①补：`slotSemantics` 的**语义**（声明须随**显式配置**翻面；★`maxAutoSaves` 不得被推断）', () => {
+			/* 由来（`sagitrs-tester-4` 在 `#1917` 的 T 复核里**下刀验出**）：
+			 *   原格只钉**形状**（`auto` 是 boolean、`explicitSlots` 是数组）⇒ 把实现**常量化**
+			 *   （`return { auto: false, explicitSlots: [] }`）**照样全绿**；而契约面明写
+			 *   「内核**只**依赖这份声明」⇒ 声明的**真假**此前没有格子守。
+			 * ★最要紧的是最后那条**反向**钉：`maxAutoSaves` **不得**被拿来推断 `auto` ——
+			 *   `src/core/80-save.js` 的 `snapshotForRestart` 会**临时**把它置 1 再复原
+			 *   （引擎自己运行时就在改这个配置）⇒ 据它推断会把「引擎临时开户」误读成「宿主声明参与」。 */
+			const P = R().portOf('persist');
+			const 原Config = globalThis.Config;
+			const 读 = (saves) => { globalThis.Config = { saves }; return P.slotSemantics(); };
+			try {
+				/* ① `autosave` 显式为真 ⇒ auto 真；撤掉 ⇒ 假（**翻面**） */
+				assert.eq(读({ autosave: true }).auto, true, '★显式 `autosave:true` 时 auto 竟为假');
+				assert.eq(读({}).auto, false, '★撤掉 `autosave` 后 auto 竟为真');
+				/* ② 显式槽 ⇒ **逐字**等；撤掉 ⇒ 空（**翻面**）；数字槽按 `String` 化 */
+				/* ⚠ 装具的 `assert.eq` **不做深比**（数组比引用 ⇒ `['a','b'] !== ['a','b']`）⇒ 逐字比用 `JSON.stringify`。 */
+				assert.eq(JSON.stringify(读({ slots: ['a', 'b'] }).explicitSlots), JSON.stringify(['a', 'b']), '★显式槽未逐字报出');
+				assert.eq(JSON.stringify(读({ slots: ['a', 3] }).explicitSlots), JSON.stringify(['a', '3']), '★槽未按 `String` 化');
+				assert.eq(JSON.stringify(读({}).explicitSlots), JSON.stringify([]), '★撤掉 `slots` 后仍报出槽');
+				/* ③ ★**反向**：`maxAutoSaves`（引擎自己会临时改写）**不得**被推断成 auto */
+				assert.eq(读({ maxAutoSaves: 5 }).auto, false,
+					'★据 `maxAutoSaves` 推了 auto —— 该配置引擎运行时自己会临时置 1（`80-save.js` 的 snapshotForRestart），据此会把「引擎临时开户」误读成「宿主声明参与」');
+				console.log(`  语义读数：空⇒${JSON.stringify(读({}))}｜autosave⇒${JSON.stringify(读({ autosave: true }))}`
+					+ `｜slots⇒${JSON.stringify(读({ slots: ['a', 'b'] }))}｜maxAutoSaves:5⇒auto=${读({ maxAutoSaves: 5 }).auto}`);
+			} finally { globalThis.Config = 原Config; }
+		});
 })();

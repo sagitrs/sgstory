@@ -455,6 +455,96 @@ reset();
 	});
 }
 
+/* ---------- ⑤ `sgstory#1924` 实体身份与旧档迁移（**tests-first**：基线锚现行为）----------
+ * 照 `#1913` 形：**基线锚现行为**，D 码落即咬合。
+ *   三条各写「**特性在位就断、缺席就记 pending ＋ 印现读数**」——
+ *   ✗ 不用 `⏳` 盖住「还没实现」，也 ✗ 不拿绿假装「已经过」。
+ *
+ * 现行为（本席实测，源头 `src/core/30-inventory.js:375-383`）：
+ *     const id = typeof itemRef === 'string' ? itemRef : itemRef?.id;
+ *     const slot = list.find((s) => s.id === id);          // ★**传实例也按 id 取第一件**
+ * 这正是 `#1905` 点名的「两件同类物品剩余次数 [2,9]，选第二件消耗的是第一件」，
+ * 也是它写的「`act()` 按类型 ID 取第一件 ⇒ 两把不同耐久的镐会扣错」。
+ *
+ * ★①的现行为锚**不靠「扣谁」**（那要真消耗），而靠**同一性**：
+ *   传第一件 与 传第二件 的返回**逐字相同** ⇒ 就证明解析只看 id（歧义）。
+ *   这样锚得住，且 ✗ 依赖具体道具的消耗语义。
+ * ⚠ 近战件要目标（传 `target=null` 会炸 `Cannot read properties of null (reading 'hp')`）
+ *   ⇒ 本格一律给一个**桩靶**，并把这条写在这里免得后来人当成缺陷。
+ */
+cell('[identity]');
+{
+	const 有身份 = (x) => x != null && (typeof x.entityId === 'string' || typeof x.definitionId === 'string');
+	const 桩靶 = () => ({ id: 'stub-target', name: '桩靶', hp: 9999, maxHp: 9999, isDown: false, items: [] });
+	const 两件同类 = (id) => {
+		State.variables.inventory = [];
+		R().give(id); R().give(id);
+		return State.variables.inventory.filter((x) => x.id === id);
+	};
+
+	/* ① 双实例互不串扰（＝`#1905` 的身份歧义） */
+	{
+		const 两 = 两件同类('club');
+		if (两.length < 2) {
+			PENDING.push('[identity] ① 双实例互不串扰：装置面拿不到两件同类实例（该件或可堆叠）');
+			console.log('  ⏳ ① 双实例互不串扰：拿不到两个实例');
+		} else if (!有身份(两[0])) {
+			/* 现行为锚：传第一件 与 传第二件 ⇒ 结果逐字相同（＝解析只看 id） */
+			const 看成 = (r) => JSON.stringify(r ?? null);
+			const 甲 = 看成(R().act(setup.DND3.Player, 两[0], 桩靶(), 'use'));
+			const 乙 = 看成(R().act(setup.DND3.Player, 两[1], 桩靶(), 'use'));
+			PENDING.push('[identity] ① 双实例互不串扰：实体身份面**未在位**'
+				+ `（两件的 ${JSON.stringify(两.map((x) => ({ slotId: x.slotId ?? null, entityId: x.entityId ?? null })))}）`
+				+ `—— 候 D 码（sgstory#1924）；★现行为锚：传第一件与传第二件的返回**逐字相同**=${甲 === 乙}`
+				+ `（${甲}）⇒ 解析只看 id`);
+			console.log(`  ⏳ ① 双实例互不串扰：身份未在位｜两件 slotId=${JSON.stringify(两.map((x) => x.slotId ?? null))}`
+				+ `｜传第一件与传第二件返回相同=${甲 === 乙}`);
+		} else {
+			State.variables.inventory[0].charges = 2;
+			State.variables.inventory[1].charges = 9;
+			R().act(setup.DND3.Player, 两[1], 桩靶(), 'use');
+			const 后 = State.variables.inventory.filter((x) => x.id === 'club').map((x) => x.charges);
+			ok('[identity]', 后[0] === 2 && 后[1] === 8,
+				`★对**第二件**调用后，被扣的必须是第二件（实得 charges=${JSON.stringify(后)}，应 [2,8]）`);
+		}
+	}
+
+	/* ② 读档后身份稳定 */
+	{
+		const 两 = 两件同类('club');
+		const 在位 = 两.length >= 2 && 有身份(两[0]);
+		if (!在位) {
+			const 存 = (() => { try { return JSON.stringify(globalThis.Save?.slots?.get?.(1) ?? null).slice(0, 40); } catch { return '(取不出)'; } })();
+			PENDING.push('[identity] ② 读档后身份稳定：实体身份面未在位 ⇒ 存档里也无从表达「哪一件」'
+				+ `（现槽 1 快照形＝${存}）—— 候 D 码（sgstory#1924）`);
+			console.log('  ⏳ ② 读档后身份稳定：身份未在位（存档里无从表达「哪一件」）');
+		} else {
+			const 前 = 两.map((x) => x.entityId ?? x.slotId);
+			const 存 = R().ports?.persist ?? null;   // 端口在位则走端口，否则直接宿主存档
+			存?.save?.({ 标识: 前 }, { slot: 'ident-test' });
+			const 回 = 存?.load?.('ident-test');
+			ok('[identity]', JSON.stringify(回?.标识 ?? null) === JSON.stringify(前),
+				`★读档后身份须**逐字稳定**（写 ${JSON.stringify(前)} ⇒ 读 ${JSON.stringify(回?.标识 ?? null)}）`);
+		}
+	}
+
+	/* ③ 旧档升级往返 */
+	{
+		const 两 = 两件同类('club');
+		if (!(两.length >= 2 && 有身份(两[0]))) {
+			const 迁移链 = (() => { try { return Object.keys(R().MIGRATIONS ?? {}); } catch { return null; } })();
+			PENDING.push('[identity] ③ 旧档升级往返：旧档（无身份字段）载入后**无补发**'
+				+ `（现迁移链＝${JSON.stringify(迁移链)}）—— 候 D 码（sgstory#1924）；`
+				+ '★D 码落后应断：载入即补发（幂等）＋ 再存再读**逐字稳定**');
+			console.log('  ⏳ ③ 旧档升级往返：旧档无补发（迁移链里没有身份版本）');
+		} else {
+			const 一 = 两[0].entityId ?? null, 二 = 两[1].entityId ?? null;
+			ok('[identity]', typeof 一 === 'string' && typeof 二 === 'string' && 一 !== 二,
+				`★两件同类须各自身份不同（实得 ${JSON.stringify([一, 二])}）`);
+		}
+	}
+}
+
 /* ============================ 汇总 ============================ */
 console.log('');
 for (const p of PENDING) console.log(`  ⏳ ${p}`);

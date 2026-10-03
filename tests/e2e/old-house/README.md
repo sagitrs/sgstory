@@ -75,3 +75,32 @@ node tests/e2e/old-house/run-baseline.mjs --selftest  # 三条刀各须红在**�
 **刀**（`--selftest` 逐条跑，未下刀须全绿）：撤木箱格 `when` 守卫 ⇒ `[idem-box]` 红；
 撤酒架格守卫 ⇒ `[idem-wine]` 红；把 `boxOpened` 标记挪出**存档面** ⇒ 幂等格保持绿而 `[save-rt]` 红
 （两条断的不是同一件事，这一刀正为此而设）。
+
+## 真 DOM 接缝判据（`sgstory#1912` 交付 1 的 `§7` 那行）
+
+`run-seam.mjs` 把**构建产物** `game.html` 装进 jsdom，按玩家的路点进去点，判 `§7` 那行逐字的四件事：
+
+| 格 | 判什么 | 读数（实测形） |
+|---|---|---|
+| `[nav]` | 导航：`开始 →探索`（段落换）／`上二楼`·`进储物间`（**地图内移动不换段落**，故断地图位置 `mapCurrent_old-house`）／`查看地窖` ⇒ 场景舞台 ⇒ 木箱格 | 地图位置读 `State.variables['mapCurrent_old-house']` |
+| `[back]` | 回退：`Engine.backward()` 换屏（场景舞台是**一段多屏** ⇒ 断 `sceneId` 与末屏文本，✗ 只断段落名） | `cellar-box → cellar-entry` |
+| `[save-passage]` | 当前段落存档：存档面带得住当前段落（`marshalForSave()` 的 `history[index].title`）＋ 推进再读回后段落与标记一起回来 | `{index, history:[{title, variables}]}` |
+| `[out-timing]` | 输出时机：出句落在**动作那一刻的那一屏**、新屏不重复、动作的**可见结果**（背包）在重绘后仍可读 | 见下「一处明账」 |
+
+```bash
+python3 build.py                       # 产物：game.html（＋ tests/unit/dist/bundle.js）
+npm i jsdom --no-save --no-package-lock # 窗口式跑时装（✗ 进本仓依赖）
+node tests/e2e/old-house/run-seam.mjs
+node tests/e2e/old-house/run-seam.mjs --selftest
+```
+
+**刀**（`--selftest`）：把门厅「上二楼」的路径改指书房 ⇒ `[nav]` 红；把奖赏文案塞进木箱格的**静态文本**
+（动作之前就出现）⇒ `[out-timing]` 红。
+
+**一处明账（实测，✗ 不当绿）**：场景**自循环重绘**（`scene: 'cellar-box'`）会换掉动作那一屏的 DOM 元素
+⇒ 动作产生的出句落在**被移除的旧屏**上，重绘后的新屏**不含**它，玩家可见的结果走**面板**（背包含旧硬币、铁钥匙）。
+当前行为如此；交付 1 判的是**保持**它（✗ 顺手改掉）—— 记录在此，供交付 2／3 的 `RenderPort` 设计参考。
+
+**装置**（每条都是实测踩出来的）：boot ＝ `runUserInit()` ＋ `start()` ＋ `play(start)`，且 `play` 后须
+**让出一个宏任务**再点击（同 tick 的导航会被 boot 的导航静默盖回）；点击须用 `el.click()`；
+判据跑完**必须显式退进程**（jsdom 在事件循环里留句柄 ⇒ 不退 ⇒ CI 挂死）。

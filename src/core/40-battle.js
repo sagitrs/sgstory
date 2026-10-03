@@ -324,13 +324,21 @@ RPG.Battle = class Battle extends RPG.Event {
 	#strikeCatching(actor, target, un) { return strikeCatching(actor, target, un); }
 
 	#noteReject(attacker, r) {
-		if (r?.status === 'applied') { this.rejectStreak = 0; return; }
+		if (r?.status === 'applied') { this.rejectStreak = 0; return false; }
 		this.rejectStreak += 1;
 		if (this.rejectStreak >= RPG.Battle.REJECT_LIMIT) {
 			/* ★`#1863`：玩家层**白话**（✗ 票号／机制词「护栏·强制跳过」）；`rejectStreak` 的计数是**诊断量**，
 			 *   留在实例字段里（`#1773` 护栏本体见上注），✗ 上屏。信息只**降级呈现**（「连着几回合没人动得了手」），✗ 删。 */
-			this.perform(`连着几回合都没人动得了手——${attacker.name}这一回合也就这么过去了。`);
+			/* ★`#1914`（增量 3/3）：除上屏外**结构化**记一条到 `'battle-refuse'` 通道（`level:'key'`）
+			 *   —— 过滤到「只看关键」时也看得见（✗ 只进 `'default'` 常态流就会被筛掉）。
+			 *   ⚠ 明账：同一句会同时落在 `'default'`（`perform` 上屏）与 `'battle-refuse'`（机读）⇒ 面板
+			 *   「全部」视图看到两行；这是**有意**的（玩家可见面与机读面各取一份），✗ 不当成重复上报。 */
+			const 句 = `连着几回合都没人动得了手——${attacker.name}这一回合也就这么过去了。`;
+			this.perform(句);
+			RPG.pushNotice(句, { channel: 'battle-refuse' });
 			this.rejectStreak = 0;
+			return true;
+		return false;
 		}
 	}
 
@@ -545,7 +553,21 @@ RPG.Battle = class Battle extends RPG.Event {
 		}
 	}
 
+	/* ★`#1914`（增量 3/3 · 步二）：**被拒 ⇒ 回到选择**（✗ 让本回合就这么过去）。
+	 *   `#playerActionAttempt` 是**一次**尝试（选道具→选动作→选靶→执行），返回：
+	 *     `'rejected'` ＝ 被拒、**未**消耗行动机会 ⇒ 重来；`'guard'` ＝ 被拒且**护栏触发**（已出声）⇒ 收尾；
+	 *     `undefined`／其余 ＝ 本回合照常消耗（跳过、装备、卸下、执行成功）⇒ 收尾。
+	 *   ⚠ 护栏计数仍是**唯一**一份（`#noteReject`）—— 回路**不**自数（两处各判一份正是本增量要治的病）。 */
 	async #playerActionBody(attacker) {
+		for (;;) {
+			const 果 = await this.#playerActionAttempt(attacker);
+			if (果 !== 'rejected') return;
+			this.perform(`${attacker.name}再选一次。`);
+		}
+	}
+
+	/** 一次尝试：选道具 → 选动作 → 选靶 → 执行（返回值见上）。 */
+	async #playerActionAttempt(attacker) {
 		const slots = attacker.items;
 		/* ★`#1854`：**空手可用时不得早退** —— 这条早退正是操作者卡死的那条路径
 		 *   （纯资源背包：`noBattleUse` 把它们全筛掉 ⇒ `itemOptions` 只剩「跳过」）。 */
@@ -600,13 +622,13 @@ RPG.Battle = class Battle extends RPG.Event {
 			const tn = await attacker.choice(targetOptions);
 			/* ★`#1914`：按**号**找回（✗ 按名 `find` —— 同名必取第一个）；找不到**具名抛**。 */
 			const tgt = this.#取靶(attacker, tn);
-			if (tgt == null) return;                 // 已出声＋计拒绝（同其它拒绝路）
+			if (tgt == null) return tgt === false ? 'guard' : 'rejected';
 			const rUn = this.#strikeCatching(attacker, tgt, un);
 			if (rUn?.status === 'rejected') {
 				if (rUn.reason === 'action-threw') this.perform(this.#throwText(attacker, rUn));
 				else this.perform(`${attacker.name}这一手没能出手 —— 本回合就此过去。`);
 			}
-			this.#noteReject(attacker, rUn);
+			return rUn?.status === 'rejected' ? (this.#noteReject(attacker, rUn) ? 'guard' : 'rejected') : undefined;
 			return;
 		}
 
@@ -619,7 +641,7 @@ RPG.Battle = class Battle extends RPG.Event {
 			 *   ★另核 `#noteReject(attacker, r)` 收 falsy 亦**安全**（`r?.status` ⇒ 非 `applied` ⇒ 计数递增）。*/
 			const r = this.#actCatching(attacker, dispatch.item.id, attacker, dispatch.type); // 统一入口（#1752）
 			if (r?.reason === 'action-threw') this.perform(this.#throwText(attacker, r));
-			this.#noteReject(attacker, r);
+			return r?.status === 'rejected' ? (this.#noteReject(attacker, r) ? 'guard' : 'rejected') : undefined;
 			return;
 		}
 
@@ -628,7 +650,7 @@ RPG.Battle = class Battle extends RPG.Event {
 		const targetId = await attacker.choice(targetOptions);
 		/* ★`#1914`：按**号**找回（✗ 按名 `find`）；找不到**具名抛** ⇒ 由 `#actCatching` 兜成可读拒绝。 */
 		const target = this.#取靶(attacker, targetId);
-		if (target == null) return;                  // 已出声＋计拒绝
+		if (target == null) return target === false ? 'guard' : 'rejected';
 
 		/* ★`#1773` 判据 1（交互战）：`rejected` ⇒ 出**可读拒绝文案**（✗ 静默丢弃返回值 ——
 		 *   那正是 `#1768` 审查提的 MINOR 本体：三处调用点连读数都没有）。
@@ -641,6 +663,6 @@ RPG.Battle = class Battle extends RPG.Event {
 			if (r?.reason === 'action-threw') this.perform(this.#throwText(attacker, r));
 			else this.perform(`${attacker.name}这一手没能出手${r.reason === 'no-ammo' ? '（没有弹药）' : r.reason === 'no-such-item' ? '（道具不在身上）' : r.reason === 'action-refused' ? '（动作自己拒绝了）' : ''} —— 本回合就此过去。`);
 		}
-		this.#noteReject(attacker, r);
+			return r?.status === 'rejected' ? (this.#noteReject(attacker, r) ? 'guard' : 'rejected') : undefined;
 	}
 };

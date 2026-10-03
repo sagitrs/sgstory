@@ -412,14 +412,34 @@ RPG.act = (actor, itemRef, target, action = 'use', from = actor) => {
 	 *   为何放在这里：调用方（故事侧／`scenes/*`）需要**从返回值**判成败；
 	 *     原先失败与成功同为 `applied` ⇒ 只能靠 `perform` 文本，无宿主时不可读（D 席实测）。 */
 	let refused = false;
+	let 拒绝码 = null, 拒绝附加 = null;
 	try {
 		refused = item.used(target, from, action) === false;
+	} catch (e) {
+		/* ★`#1906` 笔一：**结构化拒绝**（`RPG.refuse` ⇒ `e.code` 是非空串）在这里收成**结果面**。
+		 *   为什么收在此：契约面要求调用方**从返回值**判成败（`#1776`）；而「误用」是 `refuse`（用法
+		 *   从根本上不成立，须响）—— 照旧抛出去，战外的调用方只能 try/catch（`RPG.useItem` 那条壳就把它
+		 *   吞成 `false`），玩家面也只剩一个异常。⇒ 与 `used() return false` 走**同一条拒绝路**
+		 *   （`rejected/action-refused`），只多带 `code`／`extra` 两个**机器可读**字段。
+		 *   ⚠ **普通异常照旧抛**（✗ 吞真 bug）：只有 `code` 是非空**字符串**才算结构化拒绝。
+		 *   ⚠ 玩家面白话＝`e.message`，经 `perform` 送出（正文 ＋ 通知面两落，与 `#1877` 同一条通路）。 */
+		if (typeof e?.code === 'string' && e.code !== '') {
+			refused = true;
+			拒绝码 = e.code;
+			拒绝附加 = e.extra ?? null;
+			if (typeof e.message === 'string' && e.message !== '') RPG.perform(e.message);
+		} else {
+			throw e;
+		}
 	} finally {
 		/* ★ **真 `finally`**：标记作用域 = 单次动作。无此清除 ⇒ 永久残留（见 `RPG.ammoOwed` 注）。
 		 *   用 `finally`（✗ `catch`）⇒ **抛错路径也清除**（抛错与正常返回同属单次动作）。 */
 		delete item.__ammoPaid;
 	}
-	if (refused) return { status: 'rejected', reason: 'action-refused', item };
+	if (refused) {
+		return { status: 'rejected', reason: 'action-refused', item,
+			...(拒绝码 ? { code: 拒绝码 } : {}), ...(拒绝附加 ? { extra: 拒绝附加 } : {}) };
+	}
 
 	/* ③ 动作**接受** ⇒ 此刻才真扣（`#1801`：拒绝路径至此已全部返回 ⇒ 弹药零损失） */
 	if (needsAmmo) RPG.take(item.stats.ammo.id, item.stats.ammo.perShot ?? 1, actor);

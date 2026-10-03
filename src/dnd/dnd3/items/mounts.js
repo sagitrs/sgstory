@@ -52,7 +52,10 @@ const mount = (def) => RPG.defItem({
 	},
 	actions: { equip: RPG.slotEquip, unequip: RPG.slotUnequip },
 	used() {
-		throw new Error(`「${this.name}」是坐骑，装备（＝骑乘）后即生效；「用」它不产生额外效果`);
+		/* ★`#1906` 笔一：裸 `throw new Error` ⇒ **结构化拒绝**（`RPG.refuse`），同盾/甲那一族。 */
+		throw RPG.refuse('MOUNT_NOT_USABLE',
+			`「${this.name}」是坐骑——骑上去才算数，用「装备」把它带上路。`,
+			{ needAction: 'equip', itemId: this.id });
 	},
 });
 

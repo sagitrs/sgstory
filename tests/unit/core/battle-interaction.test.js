@@ -250,12 +250,18 @@
 		assert.eq(thrown, null, '★动作抛错**不再**打断战斗（修前此处抛「石料是建设物资…」）');
 		const hit = lines.find((l) => l.includes('没能出手'));
 		assert.ok(hit, `★出了拒绝文案（✗ 静默冻结）：${JSON.stringify(lines)}`);
-		/* ★`#1877` P2-2：玩家面文案改**白话**（✗ 英文动作名／系统话术）——
-		 *   断**玩家面**有「因」（✗ 泛泛的「没能出手」）＋ **✗ 无内部术语**（英文动作名 `build`）。 */
-		assert.ok(hit.includes('备料') && hit.includes('盖东西'),
-			`★文案引道具自己的话（玩家看到「因」，✗ 泛泛的「没能出手」）：${hit}`);
-		assert.ok(!/build|craft|gather|\u8bf7\u7528/.test(hit),
-			`★玩家面✗ 出现内部术语（英文动作名／「请用…动作」）：${hit}`);
+		/* ★`#1906` 笔一改形：资源误用是**结构化拒绝** ⇒ `RPG.act` 把道具自己的白话经 `perform` 送出
+		 *   （**单独一行**），战斗侧的拒绝句只说「这一手没能出手…」⇒ 断言改为**两处都在**：
+		 *   ① 玩家的「因」（白话，由 act 送出）② 回合照走的拒绝句。
+		 *   ★`#1877` P2-2 的口径不变：玩家面是白话（✗ 英文动作名／系统话术）。 */
+		/* ⚠ 本件把**战斗的** `perform` 桩掉了（`battle.perform = (t) => lines.push(t)`）⇒ 道具的白话
+		 *   不在 `lines` 里，而在**全局通知面**（act 经 `setup.RPG.perform` 送出）。
+		 *   ⇒ 「玩家看到因」这一条读 `RPG.notices`（与其余用例同一取数口，✗ 从桩里找）。 */
+		const 白话 = R().notices({ limit: 5 }).map((n) => n.text).join('｜');
+		assert.ok(/备料/.test(白话) && /盖东西/.test(白话),
+			`★道具自己的话没上屏（玩家看不到「因」）：${白话}`);
+		assert.ok(!/build|craft|gather|请用/.test(白话),
+			`★玩家面✗ 出现内部术语（英文动作名／「请用…动作」）：${白话}`);
 		assert.ok(lines.some((l) => l.includes('战斗结束')), '★回合照走（战斗跑到收尾，✗ 冻在第 1 回合）');
 		assert.ok(started >= 2 && ended >= 2, `两方回合边界皆发（start=${started} end=${ended}）`);
 		assert.eq(ended, started, '★turnEnd **成对**（异常路径亦经 #playerAction 的 finally 收尾，✗ 漏发）');

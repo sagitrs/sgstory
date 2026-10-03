@@ -1,0 +1,65 @@
+name: e2e-seam
+
+# 老宅支线 · **真 DOM 接缝**判据的**窗口式**运行面（`sgstory#1912` 交付 1 的 `§7` 那行）
+#
+# ★为何是**窗口式**（nightly ＋ 手动），而不是逐 PR：
+#   本档需要一个**真 DOM**（jsdom）来判「导航／回退／当前段落存档／输出时机」。而本仓 CI
+#   （`.github/workflows/test.yml`）是**零依赖**的 —— 逐 PR 装 jsdom 会动舰队零依赖基线
+#   （books 侧的同类取舍见其 `e2e-window.yml` 的头注：`books#81` 丙案搁置的正是它）。
+#   ⇒ 折中：**窗口式**（`schedule` ＋ `workflow_dispatch`），且用 **ephemeral 安装**
+#     （`npm i jsdom --no-save --no-package-lock`）—— **仓零改动**（✗ 提交 `package.json`／lockfile）。
+#   ⚠ 本门的失败**不阻塞**任何 PR：它的发现延迟＝到下一次 nightly（与 books 同口径）。
+#
+# ★为何**必须**同时跑 `--selftest`：
+#   本档的判据面是「四格 ＋ 两条刀」。只跑判据会漏掉「判据红不了」这一形 ——
+#   自检逐条把刀下去、并断「红在**指定那一格**」，且未下刀时必须全绿。
+on:
+  schedule:
+    # 每日 03:47 UTC（避开整点高峰；cron 无时区，GitHub 用 UTC）
+    - cron: '47 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: e2e-seam-${{ github.ref }}
+  cancel-in-progress: false            # 窗口式 job：不取消（跑一次是一次读数）
+
+jobs:
+  seam:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.x'
+
+      # ── ★ephemeral 安装：**不落仓**（`--no-save --no-package-lock`）──
+      - name: 瞬时安装 jsdom（仓零改动）
+        run: |
+          set -euo pipefail
+          books_before=$(git status --porcelain | sort)
+          npm install jsdom --no-save --no-package-lock --no-audit --no-fund 2>&1 | tail -3
+          node -e "console.log('jsdom', require('jsdom/package.json').version)"
+          books_after=$(git status --porcelain | sort)
+          if [ "$books_before" != "$books_after" ]; then
+            echo "::error title=e2e-seam::本 step 声称只在构建期装依赖，却动了工作树"
+            diff <(printf '%s\n' "$books_before") <(printf '%s\n' "$books_after") || true
+            exit 1
+          fi
+          echo "工作树零改动 ✓（装前=装后）"
+
+      - name: 构建产物（tests/unit/dist/bundle.js ＋ tests/e2e/old-house/game.html）
+        run: python3 build.py
+
+      - name: 老宅支线·真 DOM 接缝（`#1912` 交付 1 的 §7 那行）
+        run: node tests/e2e/old-house/run-seam.mjs
+
+      # ★门自身的可假刀自检（见头注）：未下刀须全绿；每条刀须红在**指定那一格**
+      - name: 接缝门自身的可假刀自检
+        run: node tests/e2e/old-house/run-seam.mjs --selftest

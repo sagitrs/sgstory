@@ -92,6 +92,10 @@ python build.py        # 同时产出 tests/unit/bundle.js 与 e2e 的 game.html
 - **老宅支线·行为基线**（`sgstory#1912` 交付 1 的「行为保持」面；CI 同套）：
   `node tests/e2e/old-house/run-baseline.mjs` 跑判据，`--selftest` 跑三条刀的**判别力自证**。
   读数在末行：`cell=`／`pass=`／`fail=`／`pending=`；**未判行以 `⏳` 明账**（不入绿、也不静默跳过）。
+- **老宅支线·真 DOM 接缝**（`sgstory#1912` 交付 1 的 `§7` 那行：导航／回退／当前段落存档／输出时机）：
+  `node tests/e2e/old-house/run-seam.mjs`（需 jsdom；`--selftest` 跑两条刀的判别力自证）。
+  ⚠ 它**不在逐 PR 的 CI 里** —— 要真 DOM 就装 jsdom，而那会动舰队**零依赖基线**；
+  故走**窗口式**：`.github/workflows/e2e-seam.yml`（nightly ＋ 手动 dispatch，ephemeral 装 jsdom）。
 ## 测试基建纪律（命令与探针）
 
 任何**可能阻塞**的命令——jsdom／网络请求／DOM 事件等待／子进程／交互式命令——都必须**自带超时**并**保留退出码**。以下八条为硬性要求：

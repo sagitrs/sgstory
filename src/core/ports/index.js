@@ -32,8 +32,14 @@
  *        ⇒ 想在产物里得到「auto 关着」的稳态，**须显式 pin 住**（✗ 靠默认值与复原）；
  *     ② 因此**槽语义必须显式**：本端口只承认「**显式 slot 的读写**」，**auto 槽**是否参与**由实现声明**
  *        （见 `methods.slotSemantics`），内核**不**依赖 auto 的存在或缺失。
- * ⚠ 本席 2026-10-03 自查（grep 读数）：**内核侧**无 `maxAutoSaves`／`autoSave` 引用，也**无**「战前保底／快存」形；
- *   故事侧只有 e2e 装置用 `Save.slots.save/load`（`tools/e2e-drive.mjs`）⇒ 实现落成时按 `slotSemantics` 写明即可。
+ * ⚠ 本席 2026-10-03 自查（grep 读数，**已按 `dev-10` 的更正改准** —— 我首版把「内核侧无引用」写错了）：
+ *   · **内核侧唯一依赖那条前提的地方 ＝ `src/core/80-save.js`**：`maxAutoSaves` 命中 **5 处**，其中
+ *     `:236-242` 是**真代码**（`const before = saves.maxAutoSaves;` / `if (!(Number(before) > 0)) saves.maxAutoSaves = 1;` /
+ *     `saves.maxAutoSaves = before;`）—— 「临时开户 ⇒ 写一次 ⇒ 复原」的实现本体，其注释 `:215-218` 正是那条被推翻的前提。
+ *   · **本档**（`src/core/ports/index.js`）对 `maxAutoSaves` 的提及**全部**在注释与契约字符串里（剥注释后为 0 处代码）。
+ *   · **故事侧／装置侧**只有 `tools/e2e-drive.mjs` 用 `Save.slots.save/load`；**无**「战前保底／快存」形 ⇒
+ *     我这一侧**不存在依赖 auto-no-op 的槽用法**（这一条经 `dev-10` 独立核过 ✓）。
+ *   ⇒ 实现落成时按 `slotSemantics` 写明即可；`80-save.js` 那条前提本身的复核在 `#183`／`#1877 P1-7` 的线上（同源）。
  */
 
 /** 端口的**机器可读契约**：id（人读）＋ methods（每项＝名＋签名＋为何在此）。 */

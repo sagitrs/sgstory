@@ -155,17 +155,68 @@
 			return { entered: true, scene: key };
 		}
 
-		/** 单步：消费**一条**输入 ⇒ 跑其动作 ⇒ 呈现一次。队列空 ⇒ 不推进（读数里说明）。 */
+		/**
+		 * ★`#1925`：**命令的原子结算** —— 把一条命令（＝一个场景动作）跑在**草稿**上，一次落定。
+		 *
+		 *   ① 动作体里 `ctx.commit(patch)` 写的是**本次命令的草稿**（✗ 不直接落活事实块）；
+		 *      同期 `ctx.facts()` 读「**已提交事实 ＋ 草稿**」的合并视图（⇒ 动作里「写完再读」看得到
+		 *      自己的写；✗ 看得到别处的半成品）。
+		 *   ② 正常返回 ⇒ 草稿**一次性**并入事实块（浅合并一层，与交付 1 的 `commit` 同形）。
+		 *   ③ `return false`（`#1776`：动作自己判定做不到）／抛**结构化拒绝**（`RPG.refuse` ⇒ `e.code`
+		 *      是非空串，`#1921`）⇒ **丢弃草稿** ⇒ 活事实块**逐项不变**（零残留）。
+		 *   ④ 抛**普通异常** ⇒ **先丢草稿、再把异常上抛**（✗ 留半态；✗ 吞真 bug —— 吞掉会把「崩了」
+		 *      伪装成「被拒绝」）。
+		 *
+		 *  @returns `{ settled: 'applied'|'rejected', reason?, rolledBack, changed }`
+		 *   `changed` ＝ **真正并入**事实块的**顶层键**（rejected ⇒ `[]`）；`reason` ＝ 拒绝码（供判据分辨成因）。
+		 */
+		#执行命令(act) {
+			const 草稿 = {};
+			const 键 = [];
+			const 写 = (patch) => {
+				if (patch == null || typeof patch !== 'object') throw new Error('ctx.commit 需要对象补丁');
+				const 份 = 快照(patch);
+				Object.assign(草稿, 份);
+				for (const k of Object.keys(份)) if (!键.includes(k)) 键.push(k);
+				return 快照({ ...this._facts, ...草稿 });
+			};
+			const 命令ctx = Object.freeze({
+				...this.ctx,
+				facts: () => 快照({ ...this._facts, ...草稿 }),
+				commit: 写,
+			});
+			let settled = 'applied', reason = null;
+			try {
+				if (act.run(命令ctx) === false) { settled = 'rejected'; reason = 'action-refused'; }
+			} catch (e) {
+				if (typeof e?.code === 'string' && e.code !== '') { settled = 'rejected'; reason = e.code; }
+				else { throw e; }                       // ★普通异常：草稿随本栈消失（未并入）⇒ 零残留后上抛
+			}
+			if (settled !== 'applied') return { settled, reason, rolledBack: true, changed: [] };
+			Object.assign(this._facts, 草稿);            // ★一次结算（✗ 逐项写）
+			return { settled, rolledBack: false, changed: 键 };
+		}
+
+		/** 单步：消费**一条**输入 ⇒ 跑其动作（**命令**：草稿 ⇒ 原子结算，见 `#执行命令`）⇒ 呈现一次。
+		 *  队列空 ⇒ 不推进（读数里说明）。★读数：交付 1 的 `{stepped, action}` 是**子集** ⇒ 既有判据不破。 */
 		step() {
 			if (!this._scene) return { stepped: false, reason: 'no-scene' };
 			const 条 = this._input.next();
 			if (条 == null) return { stepped: false, reason: 'input-empty' };
 			const id = String(条.id ?? 条);
 			const act = (this._scene.actions ?? []).find((a) => a.id === id && (a.when ? a.when(this.ctx) : true));
-			if (act) { act.run(this.ctx); this._events.emit('action', { id, session: this.id }); }
+			if (!act) {
+				/* 动作**不适用**（`when` 为假／没这条）⇒ **不结算**（`settled: null`）—— 判据据此把
+				 * 「命令不适用」与「命令被拒」（`settled:'rejected'`）分开（✗ 两者同形）。 */
+				this._scene.render?.(this.ctx);
+				this._steps += 1;
+				return { stepped: true, action: null, settled: null, reason: 'when-false', rolledBack: false, changed: [] };
+			}
+			const 解 = this.#执行命令(act);
+			this._events.emit('action', { id, session: this.id, settled: 解.settled, ...(解.reason ? { reason: 解.reason } : {}) });
 			this._scene.render?.(this.ctx);
 			this._steps += 1;
-			return { stepped: true, action: act ? id : null };
+			return { stepped: true, action: id, ...解 };
 		}
 
 		/** 循环 step 到「输入队列空」或撞上限 ⇒ **读数里带停下原因**（✗ 死循环与跑完同形）。 */

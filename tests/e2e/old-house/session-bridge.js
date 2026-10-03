@@ -57,5 +57,30 @@ globalThis.__sess = (() => {
 		actions: [{ id: 'ping', run: (c) => { 提交(c, { 次数: (c.facts().次数 ?? 0) + 1 }); } }],
 	}));
 
-	return { 建会话, 挂木箱格, 挂探针格, 订, 推 };
+	/**
+	 * ★`sgstory#1925`（交付 3/3）**命令提交的试点格**：木箱开箱走**一条命令**（＝一个场景动作），
+	 *   三笔效果（开箱／发奖／标记）**全写草稿**、由 `step()` **一次结算**；任一步拒绝/中断 ⇒ **零残留**。
+	 *
+	 * ⚠ 与 `挂木箱格` 的关键差别（✗ 不是重复装置）：
+	 *   · 本格**走 `ctx.commit`**（＝命令体的**草稿**写口）—— 那正是本票要判的那条路；
+	 *     `挂木箱格` 走 `提交(c, …)`（交付 1 的「每会话一份」薄桥，它直调**会话**的 `commit`，
+	 *     用刀把某一面钉成共享 ⇒ 判「两会话互不串」）。两者判**不同的面**，✗ 不互相取代。
+	 *   · `行为` 缺省＝三笔都写（正例）；给 `行为` ⇒ 由调用方注入拒绝/中断（判据的负例臂用）。
+	 */
+	const 挂命令木箱格 = (A, 行为 = null) => A.mount('cellar-commit', (ctx) => ({
+		id: 'cellar-commit',
+		enter: (c) => { c.commit({ chest: 'closed', loot: [], marked: false }); },
+		render: (c) => { c.ports.render.output(`命令木箱：${c.facts().chest === 'open' ? '已开' : '未开'}`); },
+		actions: [{
+			id: 'open-chest',
+			when: (c) => c.facts().chest === 'closed',
+			run: 行为 ?? ((c) => {
+				c.commit({ chest: 'open' });            // ① 开箱
+				c.commit({ loot: ['绷带', '硬币'] });    // ② 发奖
+				c.commit({ marked: true });             // ③ 标记
+			}),
+		}],
+	}));
+
+	return { 建会话, 挂木箱格, 挂探针格, 挂命令木箱格, 订, 推 };
 })();

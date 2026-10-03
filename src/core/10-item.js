@@ -70,6 +70,9 @@ RPG.Item = class Item extends Object {
 		/** 剩余使用次数；null 表示无限次 */
 		this.charges = def.charges ?? null;
 		this.slotId = def.slotId ?? RPG.newSlotId();
+		/* ★`#1914`（步四）：**战斗用途声明位** —— 由道具自己写（`45-battle-catalog.js` 读它）。
+		 *   缺省 `null` ⇒ 目录按**窄**默认 `damage` 处理（⇒ 其余 63 件行为不变）。 */
+		this.battleUse = def.battleUse ?? null;
 		this.stackable = def.stackable !== false;
 		/** 是否武器（BattleTurn 用 contains(['weapon', 'equipped']) 检索） */
 		this.weapon = def.weapon === true;

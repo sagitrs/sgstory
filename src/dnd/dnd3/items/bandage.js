@@ -5,6 +5,7 @@ DND3.Bandage = RPG.defItem({
 	name: '绷带',
 	desc: '亚麻绷带和一小罐药膏，能让伤口好受一些。',
 	stats: { hp: 5 }, // 单次治疗量（3E 数值块）
+	battleUse: { class: 'heal' },   // ★`#1914` 步四：**战斗用途声明** —— 靶候选须含己方
 	charges: 2,
 
 	/**

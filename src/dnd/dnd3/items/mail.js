@@ -15,7 +15,7 @@ DND3.Mail = RPG.defItem({
 		unequip: RPG.slotUnequip,
 	},
 
-used() {
+	used() {
 		/* ★`#1906` 笔一：瞬时说明走**通知面**（✗ 再落正文）＋ **显式拒绝**（`return false` ⇒ 不消耗）。
 		 *   形同 `coin`（`books#130` D6-3 的读数形）：`perform` 两个面都写 ⇒ 玩家每点一次正文多一行。
 		 *   ⚠ 能力探测（通知面未加载的环境回落 `perform`，同 `coin`）。 */

@@ -14,7 +14,7 @@
 (() => {
 	/** 记下「刚刚成功的那一手」——件取**件号**、靶取**单位号**（✗ 下标／名字）。 */
 	const remember = (battle, { item, target, actionClass = 'damage' } = {}) => {
-		const slotId = item?.slotId ?? null;
+		const slotId = item?.entityId ?? item?.slotId ?? null;   // ★`#1924`：实体身份（旧名 `slotId` 作读回落）
 		const targetId = (target && typeof RPG.unitId?.of === 'function') ? RPG.unitId.of(target) : null;
 		if (!slotId || !targetId) return null;           // 认不出身份就不记（✗ 记一个假的可重复项）
 		battle.lastIntent = {
@@ -47,7 +47,7 @@
 		 *   在**选择的那一刻**重新解析、当场执行，✗ 没有排队期。 */
 		if (battle?.isOut?.(attacker)) return { ok: false, reason: 'actor-gone', detail: `${attacker?.name ?? '行动者'}已经倒下了` };
 		const slots = Array.isArray(attacker?.items) ? attacker.items : [];
-		const slot = slots.find((s) => s?.slotId === 图.slotId);
+		const slot = slots.find((s) => (s?.entityId ?? s?.slotId) === 图.slotId);
 		if (!slot) return { ok: false, reason: 'item-gone', detail: `「${图.itemName}」已经不在身上了` };
 		const item = RPG.reviveItem(slot);
 		const 名单 = typeof candidates === 'function' ? candidates(图.actionClass) : [];

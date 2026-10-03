@@ -341,6 +341,10 @@ RPG.save = (() => {
 				err.rpgSaveReject = verdict.code;
 				throw err;
 			}
+			/* ★`#1924`：**旧档实体身份补发**（幂等）—— 旧档的件快照没有 `entityId`／`definitionId`，
+			 *   读档时**就地**补齐（见 `30-inventory.js` 的同名函数：幂等、且**不改格式版本** ——
+			 *   两字段是派生可缺的，旧读者忽略、新读者补发）。 */
+			RPG.backfillItemIdentity?.();
 		});
 		installed = true;
 		return true;

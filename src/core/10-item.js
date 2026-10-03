@@ -51,13 +51,13 @@ RPG.refuse = (code, message, extra) =>
  *   ⚠ **为何不把高水位写进档**（本席实测后放弃）：`reviveItem` / `createItem` 也会发号，而它们出现在
  *   **读路径**上（如构造选项）⇒ 写 `State` 会让「**被拒 ⇒ 存档面零变化**」这条既有判据（`#1806` 笔2
  *   回填 `#1801`）变红。⇒ 取「模块级 ＋ 出口顶水位」，两边都满足。 */
-RPG.itemSlotSeq = 0;
-RPG.newSlotId = () => `it-${(RPG.itemSlotSeq += 1)}`;
+RPG.itemEntitySeq = 0;
+RPG.newEntityId = () => `it-${(RPG.itemEntitySeq += 1)}`;
 
 /** 让序列**越过**读到的号（读档/旧档都走；✗ 只读不推 ⇒ 之后发号必碰撞）。 */
-RPG.noteSlotId = (slotId) => {
-	const n = Number(String(slotId ?? '').replace(/^it-/, ''));
-	if (Number.isFinite(n) && n > RPG.itemSlotSeq) RPG.itemSlotSeq = n;
+RPG.noteEntityId = (entityId) => {
+	const n = Number(String(entityId ?? '').replace(/^it-/, ''));
+	if (Number.isFinite(n) && n > RPG.itemEntitySeq) RPG.itemEntitySeq = n;
 };
 
 RPG.Item = class Item extends Object {
@@ -75,7 +75,14 @@ RPG.Item = class Item extends Object {
 		this.stats = { ...def.stats };
 		/** 剩余使用次数；null 表示无限次 */
 		this.charges = def.charges ?? null;
-		this.slotId = def.slotId ?? RPG.newSlotId();
+		/* ★`#1924`（`#1905` 阶段 2「实例／身份」）：实例的稳定身份叫 **`entityId`** ——「一个量一个名」。
+		 *   ⚠ 本字段就是 `#1914` 的 `slotId`（值域、发号器、高水位**全同**），只是**改名**：
+		 *     让名字与语域相配（实体在背包/手/装备/掉落都是同一件事，✗ 只在「槽位里」才贴切）。
+		 *   ⚠ **旧名 `slotId` 只活在三处**：①本行与 `reviveItem` 的**读取回落**（旧档/旧调用形）
+		 *     ②`30-inventory` 的 `保号`／`backfillItemIdentity` 的读取回落 ③几条判据的历史注。
+		 *     落成新数据一律**只写 `entityId`** ⇒ 将来收口＝删那几处回落（✗ 不是全仓找引用）。
+		 *   ⚠ `id` 已是**类型身份**（`defItem` 的注册 id）⇒ ✗ 不再造同义的 `definitionId`。 */
+		this.entityId = def.entityId ?? def.slotId ?? RPG.newEntityId();
 		/* ★`#1914`（步四）：**战斗用途声明位** —— 由道具自己写（`45-battle-catalog.js` 读它）。
 		 *   缺省 `null` ⇒ 目录按**窄**默认 `damage` 处理（⇒ 其余 63 件行为不变）。 */
 		this.battleUse = def.battleUse ?? null;
@@ -120,7 +127,12 @@ RPG.Item = class Item extends Object {
 	 * 要用时再用 RPG.reviveItem() 还原成实例。
 	 */
 	toJSON() {
-		return { id: this.id, charges: this.charges, equipped: this.equipped, slotId: this.slotId };
+		/* ★`#1924`：快照带**实体身份** `entityId`（✗ 不写旧名 `slotId` —— 落成新数据只留一个名）。
+		 *   ⚠ 键序保持「`id` 在前、状态在后」的既有形状，身份插在 `id` 之后。 */
+		return {
+			id: this.id, entityId: this.entityId,
+			charges: this.charges, equipped: this.equipped,
+		};
 	}
 };
 
@@ -155,9 +167,14 @@ RPG.reviveItem = (snapshot) => {
 	if (snapshot.charges != null) item.charges = snapshot.charges;
 	item.equipped = snapshot.equipped === true;
 	/* ★`#1914`：**有号沿用**（存档往返不丢意图）＋ 把序列推到该号之上；**旧档无号则当场补发**
-	 *   —— 每件各发一个（✗ 按 `id`+`charges` 回退：旧档里两件同类会被判成同一件，判据③钉住）。 */
-	if (snapshot.slotId != null) { item.slotId = snapshot.slotId; RPG.noteSlotId(item.slotId); }
-	else item.slotId = RPG.newSlotId();
+	 *   —— 每件各发一个（✗ 按 `id`+`charges` 回退：旧档里两件同类会被判成同一件，判据③钉住）。
+	 *   ★`#1924`：同一处把**实体身份**（`entityId`）与**定义**（`definitionId`）补齐 —— 三者同源：
+	 *   `entityId` ＝ 旧名 `slotId` 的那个号（`snapshot.slotId` 亦接受）。 */
+	/* ★`#1924`：本处是**旧名的读取边界之一** —— 旧档快照只带 `slotId` ⇒ 认（一处回落），
+	 *   回到活对象上只叫 `entityId`（✗ 不写回旧名）。 */
+	const 身份 = snapshot.entityId ?? snapshot.slotId ?? null;
+	if (身份 != null) { item.entityId = 身份; RPG.noteEntityId(身份); }
+	else item.entityId = RPG.newEntityId();
 	return item;
 };
 

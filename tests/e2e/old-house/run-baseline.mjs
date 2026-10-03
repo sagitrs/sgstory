@@ -132,7 +132,10 @@ const KNIVES = [
 		patch: [["facts: () => 快照({ ...this._facts, ...草稿 }),", "facts: () => 快照({ ...this._facts }),"]],
 		expect: ['commit-rt'],
 	},
-	/* ── ★`sgstory#1933` 四类格的三把刀（各**恰**红自己那格）── */
+	/* ── ★`sgstory#1933` 四类格的刀 ──
+	 * 四把：`guard-skip-render`／`oneshot-drop-refuse`／`rng-drop-draw`／`render-before-judge`，**各恰红自己那格**。
+	 * ⚠ 另有既有刀 `commit-merge-on-reject`（拒后仍并草稿）按实情**红三格**（`[commit-atomic]` ＋ `[commit-rng]`／`[commit-render]` 的负臂）：
+	 *   那两格的「拒后不得落」与原子格**共用同一条引擎语义** ⇒ ✗ 是判据错，是语义耦合（见那把刀的 `why`）。 */
 	{
 		id: 'guard-skip-render',
 		file: 包档,
@@ -154,6 +157,14 @@ const KNIVES = [
 			+ '（★负例臂「拒后不得落」的刀在 `commit-merge-on-reject` 那把上 —— 两格共用「拒后丢草稿」那条语义，见其 why）',
 		patch: [['\t\t\trun: 行为 ?? ((c) => { const v = c.rng.next(); c.commit({ 抽: v, 次: (c.facts().次 ?? 0) + 1 }); }),\n', '\t\t\trun: 行为 ?? ((c) => { const v = c.rng.next(); c.commit({ 次: (c.facts().次 ?? 0) + 1 }); }),\n']],
 		expect: ['commit-rng'],
+	},
+	{
+		id: 'render-before-judge',
+		file: 包档,
+		why: '把重渲挪到**判决点之前**（屏上按命令跑**之前**的事实画 ⇒ 结算后的新值反而看不到）⇒ 只红呈现格'
+			+ '（★呈现格的负臂「被拒后不得印草稿」的牙来自共用刀 `commit-merge-on-reject`，见其 why）',
+		patch: [['\t\t\tconst 解 = this.#执行命令(act);\n', '\t\t\tthis._scene.render?.(this.ctx);   /* 刀：重渲挪到判决点**之前** */\n\t\t\tconst 解 = this.#执行命令(act);\n'], ["\t\t\tthis._events.emit('action', { id, session: this.id, settled: 解.settled, ...(解.reason ? { reason: 解.reason } : {}) });\n\t\t\tthis._scene.render?.(this.ctx);\n", "\t\t\tthis._events.emit('action', { id, session: this.id, settled: 解.settled, ...(解.reason ? { reason: 解.reason } : {}) });\n"]],
+		expect: ['commit-render'],
 	},
 ];
 
@@ -771,7 +782,7 @@ reset();
 			+ '｜候批 D 落「对象态回滚」；出处：`#1933` 票面 C2 ＋ `src/core/55-session.js:173-197`）');
 		console.log(`  ⏳ C2 引擎对象态：拒后 HP ${前血}⇒${后血}（✗ 未还原）`);
 	}
-	/* C3：`RPG.rng` **读不出位置** ⇒ 「拒后随机流该退回哪」现在无从判。 */
+	/* C3：随机流**后态** —— `RPG.rng` 的 `index` **可读**且可写（★我第一版曾写「读不出位置」，见下行自陈）；本臂判不了的不是「读不出」，而是「拒后该退到哪」**没有契约**。 */
 	{
 		const r = R().rng;
 		const 位置系 = ['位置', 'pos', 'index', 'state', 'snapshot', '快照'].filter((k) => typeof r?.[k] !== 'undefined');
@@ -779,12 +790,12 @@ reset();
 		 *   可读 ≠ 可**回滚**：命令层拒后**没人去退**那个位置，★且「退到哪」这件事本身没有契约（`rngAfter` 只在 doc-3 §4）。 */
 		let 可写 = null;
 		try { const 原 = r.index; r.index = 原; 可写 = r.index === 原; } catch { 可写 = false; }
-		PENDING.push('[commit-c3] 随机流后态：**可读**（`rng.index` 在）但**拒后没人退、也没契约说该退到哪**'
+		PENDING.push('[commit-c3] 随机流后态：**可读**（`rng.index` 在、且可写）但**拒后没人退、也没契约说该退到哪**'
 			+ `（现读数：位置系字段＝${JSON.stringify(位置系)}｜其中 \`index\` 可写＝${可写}；★拒后事实块已回滚、**随机流位置未退**（本臂 ✗ 判不出该退到哪 ⇒ 计 pending）`
 			+ '｜★出处＝**doc-3 §4 的 `ActionResolution` 表**（✗ 不是代码：`#1915` 实面为 `RPG.actionResult.{applied,rejected}`'
 			+ '＝{status, consumesAction, events[]}，`src/core/44-battle-resolve.js:31-55`，**无随机流字段**）'
 			+ '；候批 D 落 `rngAfter` 时接此臂）');
-		console.log(`  ⏳ C3 随机流后态：rng 位置系字段＝${JSON.stringify(位置系)}（读不出 ⇒ 判不了）`);
+		console.log(`  ⏳ C3 随机流后态：rng 位置系字段＝${JSON.stringify(位置系)}（**可读**；其中 index 可写＝${可写}）⇒ 判不了的不是「读不出」，是「拒后该退到哪」无契约`);
 	}
 	/* C4：命令体**自己印**的那一路（`c.ports.render.output`）在**判决点之前**就落 ⇒ 拒后屏上留半截。 */
 	{

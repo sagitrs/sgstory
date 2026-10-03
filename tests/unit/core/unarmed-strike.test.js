@@ -29,7 +29,15 @@
 		if (!Array.isArray(State.variables.inventory)) State.variables.inventory = [];   // 前置：背包恒存在
 		const saved = { items: P.items, choice: P.choice };
 		P.items = State.variables.inventory;
-		P.choice = async () => (seq.length ? seq.shift() : 'skip');
+		P.choice = async (opts) => {
+			const a = seq.length ? seq.shift() : 'skip';
+			/* ★`#1914`（增量 3/3）：目标标识由**名字**改为**发出来的号** ⇒ 本桩把「按名字作答」
+			 *   翻成「取该选项**给出的值**」—— 保住这些用例的原意（它们要的是「选那个名叫 X 的靶」，
+			 *   ✗ 断言「名字就是标识」）。道具/动作两步的答案（`0`／`unarmed`／`use`／`skip`）不匹配任何
+			 *   选项的**文案**，故照原样返回，不受影响。 */
+			const hit = (opts ?? []).find((o) => typeof o?.text === 'string' && o.text.startsWith(String(a)));
+			return hit ? hit.value : a;
+		};
 		try { await b.execute(); } finally { P.items = saved.items; P.choice = saved.choice; }
 		return { lines, battle: b };
 	};
@@ -124,7 +132,15 @@
 			const saved = { items: P.items, choice: P.choice };
 			P.items = State.variables.inventory;
 			const seq = Array.from({ length: 8 }).flatMap(() => ['unarmed', '獾']);
-			P.choice = async () => (seq.length ? seq.shift() : 'skip');
+			P.choice = async (opts) => {
+			const a = seq.length ? seq.shift() : 'skip';
+			/* ★`#1914`（增量 3/3）：目标标识由**名字**改为**发出来的号** ⇒ 本桩把「按名字作答」
+			 *   翻成「取该选项**给出的值**」—— 保住这些用例的原意（它们要的是「选那个名叫 X 的靶」，
+			 *   ✗ 断言「名字就是标识」）。道具/动作两步的答案（`0`／`unarmed`／`use`／`skip`）不匹配任何
+			 *   选项的**文案**，故照原样返回，不受影响。 */
+			const hit = (opts ?? []).find((o) => typeof o?.text === 'string' && o.text.startsWith(String(a)));
+			return hit ? hit.value : a;
+		};
 			R().rng.setSequence(Array.from({ length: 200 }, () => 0.99));
 			try { await b.execute(); } finally { P.items = saved.items; P.choice = saved.choice; R().rng.reset(); }
 			assert.ok(R().isKnockedOut(foe), `★${name} 空手须真能打晕（hp=${foe.hp} nonlethal=${foe.nonlethal}）`);
@@ -149,7 +165,15 @@
 		if (!Array.isArray(State.variables.inventory)) State.variables.inventory = [];
 		P.items = State.variables.inventory;
 		const seq = Array.from({ length: 8 }).flatMap(() => ['unarmed', '獾']);
-		P.choice = async () => (seq.length ? seq.shift() : 'skip');
+		P.choice = async (opts) => {
+			const a = seq.length ? seq.shift() : 'skip';
+			/* ★`#1914`（增量 3/3）：目标标识由**名字**改为**发出来的号** ⇒ 本桩把「按名字作答」
+			 *   翻成「取该选项**给出的值**」—— 保住这些用例的原意（它们要的是「选那个名叫 X 的靶」，
+			 *   ✗ 断言「名字就是标识」）。道具/动作两步的答案（`0`／`unarmed`／`use`／`skip`）不匹配任何
+			 *   选项的**文案**，故照原样返回，不受影响。 */
+			const hit = (opts ?? []).find((o) => typeof o?.text === 'string' && o.text.startsWith(String(a)));
+			return hit ? hit.value : a;
+		};
 		R().rng.setSequence(Array.from({ length: 200 }, () => 0.99));
 		let before;
 		try {

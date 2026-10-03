@@ -426,6 +426,29 @@ RPG.Battle = class Battle extends RPG.Event {
 		});
 	}
 
+	/** ★`#1914`：按号取靶 —— **取不到 ⇒ 可读拒绝**（✗ 把异常抛出去）。
+	 *   理由：抛出点在本档既有的收口（`#actCatching`）**之外** ⇒ 一个不存在的号会变成
+	 *   **未捕获异常并逃出战斗**（本席实测：`#1837 ①` 那条用例正是这样红的）。
+	 *   ⇒ 与其它拒绝同形：出声（可读）＋ `#noteReject`（护栏计数照走）＋ 调用方直接 return。 */
+	#取靶(attacker, id, 动作类 = 'damage') {
+		try {
+			return setup.RPG.意图.取(id, this.#目标候选(attacker, 动作类));
+		} catch (e) {
+			this.perform(`${attacker.name}这一手没能出手 —— 目标是哪个对不上（${String(e?.message ?? e)}）。`);
+			this.#noteReject(attacker, { status: 'rejected', reason: 'no-such-target' });
+			return null;
+		}
+	}
+
+	/** ★`#1914`（增量 3/3）：目标候选的**唯一取源** —— 选项构造与解析都过此处（⇒ 不会「两处各判一份」）。
+	 *   按**阵营**给：伤害类只列敌方；治疗类才列己方（含自己）。见 `43-battle-target-policy.js`。
+	 *   ⚠ 动作类未知一律按 `'damage'`（**窄**候选）：宁可少列，也不列到自伤那一侧。 */
+	#目标候选(attacker, 动作类 = 'damage') {
+		const 我方 = this.players.filter((c) => !this.isOut(c));
+		const 敌方 = this.enemies.filter((c) => !this.isOut(c));
+		return setup.RPG.靶策略.候选集({ 攻击者: attacker, 动作类, 己方: 我方, 敌方 });
+	}
+
 	/**
 	 * 构造交互回合的选项集合（纯函数，可单元测试）。
 	 * 返回 { itemOptions, actionOptionsFor(item), targetOptions }。
@@ -478,13 +501,16 @@ RPG.Battle = class Battle extends RPG.Event {
 		if (unarmedOpt) itemOptions.push({ text: unarmedOpt.text ?? '空手打击', value: 'unarmed' });
 		itemOptions.push({ text: '（跳过本回合）', value: 'skip' });
 
-		const everyone = [...this.players, ...this.enemies].filter((c) => !this.isOut(c));
-		const targetOptions = everyone.map((c) => ({
-			text: `${c.name}（${this.players.includes(c) ? '己方' : '敌方'}）`,
-			value: c.name,
-		}));
+		/* ★`#1914`（增量 3/3）：目标候选两处改动 ——
+		 *   ① **按阵营给**（伤害类只列敌方）：现码恒为「所有未出局者」⇒ 候选首项就是自己，
+		 *      本席调试实测「选第一项＝打自己」（玩家 hp 直接归 0）。窄候选比宽候选安全。
+		 *   ② **值取稳定标识**（✗ 名字）：现码 `value: c.name` ⇒ 两只同名单位**只能选中第一只**。
+		 *   ⚠ 两处取源都走下面的 `#目标候选`（一处定义 ⇒ 选项与解析不会各判一份）。 */
+		const targetOptionsFor = (动作类) => this.#目标候选(attacker, 动作类)
+			.map((c) => ({ text: `${c.name}（${this.players.includes(c) ? '己方' : '敌方'}）`, value: setup.RPG.意图.候选值(c) }));
+		const targetOptions = targetOptionsFor('damage');
 
-		return { itemOptions, actionOptionsFor, targetOptions };
+		return { itemOptions, actionOptionsFor, targetOptions, targetOptionsFor };
 	}
 
 	/**
@@ -572,8 +598,9 @@ RPG.Battle = class Battle extends RPG.Event {
 			const un = attacker.unarmed ?? attacker.constructor.unarmed;
 			this.perform(`${attacker.name}挥拳出击 —— 对谁？`);
 			const tn = await attacker.choice(targetOptions);
-			const all = [...this.players, ...this.enemies].filter((c) => !this.isOut(c));
-			const tgt = all.find((c) => c.name === tn);
+			/* ★`#1914`：按**号**找回（✗ 按名 `find` —— 同名必取第一个）；找不到**具名抛**。 */
+			const tgt = this.#取靶(attacker, tn);
+			if (tgt == null) return;                 // 已出声＋计拒绝（同其它拒绝路）
 			const rUn = this.#strikeCatching(attacker, tgt, un);
 			if (rUn?.status === 'rejected') {
 				if (rUn.reason === 'action-threw') this.perform(this.#throwText(attacker, rUn));
@@ -598,9 +625,10 @@ RPG.Battle = class Battle extends RPG.Event {
 
 		// 使用：选目标
 		this.perform(`对谁使用${dispatch.item.name}？`);
-		const targetName = await attacker.choice(targetOptions);
-		const everyone = [...this.players, ...this.enemies].filter((c) => !this.isOut(c));
-		const target = everyone.find((c) => c.name === targetName);
+		const targetId = await attacker.choice(targetOptions);
+		/* ★`#1914`：按**号**找回（✗ 按名 `find`）；找不到**具名抛** ⇒ 由 `#actCatching` 兜成可读拒绝。 */
+		const target = this.#取靶(attacker, targetId);
+		if (target == null) return;                  // 已出声＋计拒绝
 
 		/* ★`#1773` 判据 1（交互战）：`rejected` ⇒ 出**可读拒绝文案**（✗ 静默丢弃返回值 ——
 		 *   那正是 `#1768` 审查提的 MINOR 本体：三处调用点连读数都没有）。

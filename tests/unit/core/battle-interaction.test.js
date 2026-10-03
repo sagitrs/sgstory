@@ -64,15 +64,20 @@
 		assert.ok(!State.variables.inventory[0].equipped, 'useItem unequip 后恢复 false');
 	});
 
-	test('battle interaction：目标选项标注己方与敌方', () => {
+	test('battle interaction：目标选项**按阵营给**（伤害类只列敌方；己方在治疗类里）', () => {
+		/* ★`#1914`（增量 3/3）改形：此前本用例断的是「候选里同时有己方与敌方、各带标注」——
+		 *   而那正是**缺陷**：伤害类动作的候选里第一个就是自己（本席调试实测：选第一项＝打自己）。
+		 *   ⇒ 现在断**两面**：伤害类**只列敌方**；己方只出现在**治疗类**候选里。 */
 		const enemy = new (R().Character)({ name: '敌人' });
 		const ally = new (R().Character)({ name: '盟友' });
 		const battle = new (R().Battle)(1, [D().Player, ally], [enemy], true);
-		const { targetOptions } = battle.buildPlayerOptions(D().Player);
-		const enemyOpt = targetOptions.find(o => o.value === '敌人');
-		const allyOpt = targetOptions.find(o => o.value === '盟友');
-		assert.ok(enemyOpt && enemyOpt.text.includes('敌方'), '敌人标注敌方');
-		assert.ok(allyOpt && allyOpt.text.includes('己方'), '盟友标注己方');
+		const { targetOptions, targetOptionsFor } = battle.buildPlayerOptions(D().Player);
+		const 敌 = targetOptions.find(o => o.text.includes('敌人'));
+		assert.ok(敌 && 敌.text.includes('敌方'), '敌人标注敌方');
+		assert.ok(!targetOptions.some(o => o.text.includes('盟友')), `★伤害类候选里不该有己方（实得 ${JSON.stringify(targetOptions.map(o => o.text))}）`);
+		assert.ok(!targetOptions.some(o => o.text.includes(D().Player.name)), '★伤害类候选里不该有玩家自己');
+		const 治 = targetOptionsFor('heal');
+		assert.ok(治.some(o => o.text.includes('盟友')), `★治疗类候选里该有己方（实得 ${JSON.stringify(治.map(o => o.text))}）`);
 	});
 
 	/* ---------- dispatchAction 分派决策（M5b/M5d 突变检测） ---------- */
@@ -160,7 +165,13 @@
 		};
 		try {
 			await withPlayerStubs(
-				{ items: State.variables.inventory, choice: async () => (seq.length ? seq.shift() : 'skip') },
+				{ items: State.variables.inventory, choice: async (opts) => {
+						const a = seq.length ? seq.shift() : 'skip';
+						/* ★`#1914`（增量 3/3）：目标标识改为**号**（✗ 名字）⇒ 本桩把「按名字作答」翻成
+						 *   「取该选项给出的值」，保住本用例原意（要的是「选那个名叫 X 的靶」）。 */
+						const hit = (opts ?? []).find((o) => typeof o?.text === 'string' && o.text.startsWith(String(a)));
+						return hit ? hit.value : a;
+					} },
 				() => battle.execute()
 			);
 		} finally { R2.act = orig; }
@@ -217,7 +228,13 @@
 		let thrown = null;
 		try {
 			await withPlayerStubs(
-				{ items: State.variables.inventory, choice: async () => (seq.length ? seq.shift() : 'skip') },
+				{ items: State.variables.inventory, choice: async (opts) => {
+						const a = seq.length ? seq.shift() : 'skip';
+						/* ★`#1914`（增量 3/3）：目标标识改为**号**（✗ 名字）⇒ 本桩把「按名字作答」翻成
+						 *   「取该选项给出的值」，保住本用例原意（要的是「选那个名叫 X 的靶」）。 */
+						const hit = (opts ?? []).find((o) => typeof o?.text === 'string' && o.text.startsWith(String(a)));
+						return hit ? hit.value : a;
+					} },
 				async () => { try { await battle.execute(); } catch (e) { thrown = e.message; } }
 			);
 		} finally { R2.turnBoundary.start = origStart; R2.turnBoundary.end = origEnd; }
@@ -225,7 +242,11 @@
 	};
 
 	test('★#1837 ①：战斗中对**资源**「使用→选目标」⇒ 不抛 ＋ 出**可读**文案（原样引道具自己的话）', async () => {
-		const { lines, thrown, started, ended } = await runUse('rock', ['0', 'use', '獾']);
+		/* ★`#1914`（增量 3/3）修正序列：石料**没有战斗动作**（`noBattleUse`）⇒ 动作步**不消耗**选择
+		 *   （`40-battle.js` 的 `actions.length === 0` 支有意留默认 `use`）⇒ 原序列里的 `'use'` 其实
+		 *   被当成了**靶**的答案。旧形按名查不到 ⇒ `target` 为 undefined ⇒ 而石料自己的 `used()` 先抛
+		 *   ⇒ 本用例**偶然通过**（靶根本没被用到）。⇒ 现按实际流程写：道具 →（无动作步）→ 靶。 */
+		const { lines, thrown, started, ended } = await runUse('rock', ['0', '獾']);
 		assert.eq(thrown, null, '★动作抛错**不再**打断战斗（修前此处抛「石料是建设物资…」）');
 		const hit = lines.find((l) => l.includes('没能出手'));
 		assert.ok(hit, `★出了拒绝文案（✗ 静默冻结）：${JSON.stringify(lines)}`);

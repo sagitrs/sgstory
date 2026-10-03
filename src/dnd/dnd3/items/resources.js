@@ -204,10 +204,12 @@ DND3.Ration = RPG.defItem({
 			 *   现形＝算实际恢复；**为 0 ⇒ 出声并 `return false`** —— 即 `#1776` 的**拒绝契约**
 			 *   （`RPG.act` 在**扣件之前**返回 `rejected/action-refused` ⇒ 这一份留在包里）。
 			 *   ⚠ 文案的数值＝**实际**恢复量（✗ 名义 `stats.hp`）：满血 0 点却说「恢复了 2 点」是假读数。 */
-			const 前 = that.hp ?? 0;
-			that.hp = Math.min(that.maxHp ?? Infinity, 前 + this.stats.hp);
-			const 实际 = that.hp - 前;
-			if (!(实际 > 0)) {
+			/* ★`books#200`：算式改走 `DND3.applyHeal`（治疗量的**一处源**，见 `core/heal.js`）——
+			 *   本件在 `books#170` P2-11 已立「算实回／为 0 则拒绝」的口径，本笔只是**不再自写一份**。
+			 *   ⚠ 口粮**不吃** `heal_bonus` 加成（与两件治疗件不同）：原形如此，✗ 本笔不改
+			 *     —— 故此处**不传** `from`。 */
+			const 实际 = DND3.applyHeal(this, undefined, that);
+			if (实际 === false) {
 				this.perform(`${that.name}不饿 —— 这一份留着吧。`);
 				return false;                      // ★拒绝 ⇒ 不提交消耗（见上注）
 			}

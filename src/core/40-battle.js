@@ -432,7 +432,7 @@ RPG.Battle = class Battle extends RPG.Event {
 	 *   ⇒ 与其它拒绝同形：出声（可读）＋ `#noteReject`（护栏计数照走）＋ 调用方直接 return。 */
 	#取靶(attacker, id, 动作类 = 'damage') {
 		try {
-			return setup.RPG.意图.取(id, this.#目标候选(attacker, 动作类));
+			return RPG.意图.取(id, this.#目标候选(attacker, 动作类));
 		} catch (e) {
 			this.perform(`${attacker.name}这一手没能出手 —— 目标是哪个对不上（${String(e?.message ?? e)}）。`);
 			this.#noteReject(attacker, { status: 'rejected', reason: 'no-such-target' });
@@ -446,7 +446,7 @@ RPG.Battle = class Battle extends RPG.Event {
 	#目标候选(attacker, 动作类 = 'damage') {
 		const 我方 = this.players.filter((c) => !this.isOut(c));
 		const 敌方 = this.enemies.filter((c) => !this.isOut(c));
-		return setup.RPG.靶策略.候选集({ 攻击者: attacker, 动作类, 己方: 我方, 敌方 });
+		return RPG.靶策略.候选集({ 攻击者: attacker, 动作类, 己方: 我方, 敌方 });
 	}
 
 	/**
@@ -507,7 +507,7 @@ RPG.Battle = class Battle extends RPG.Event {
 		 *   ② **值取稳定标识**（✗ 名字）：现码 `value: c.name` ⇒ 两只同名单位**只能选中第一只**。
 		 *   ⚠ 两处取源都走下面的 `#目标候选`（一处定义 ⇒ 选项与解析不会各判一份）。 */
 		const targetOptionsFor = (动作类) => this.#目标候选(attacker, 动作类)
-			.map((c) => ({ text: `${c.name}（${this.players.includes(c) ? '己方' : '敌方'}）`, value: setup.RPG.意图.候选值(c) }));
+			.map((c) => ({ text: `${c.name}（${this.players.includes(c) ? '己方' : '敌方'}）`, value: RPG.意图.候选值(c) }));
 		const targetOptions = targetOptionsFor('damage');
 
 		return { itemOptions, actionOptionsFor, targetOptions, targetOptionsFor };

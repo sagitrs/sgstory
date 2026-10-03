@@ -256,7 +256,7 @@ const strikeCatching = (actor, target, un) => {
 			: { status: 'applied' };
 	} catch (e) {
 		/* 与 `#actCatching` 同形：玩家看**文案**、作者看**栈** */
-		console.error('[RPG] 空手打击抛错（战斗侧已转为可读拒绝；此栈供排查是否为真 bug）:', e);
+		console.error(`[RPG] 空手打击抛错（战斗侧已转为可读拒绝；此栈供排查是否为真 bug）｜actor=${RPG.unitId.of(actor)}｜target=${RPG.unitId.of(target)}｜action=unarmed:`, e);
 		return { status: 'rejected', reason: 'action-threw', message: e?.message ?? String(e) };
 	}
 };
@@ -307,8 +307,12 @@ RPG.Battle = class Battle extends RPG.Event {
 			 *   作者看**栈**（控制台），✗ 只留其一。 */
 			/* ★`#1877`：若异常由 `RPG.refuse()` 造出，它自带 `code` ＋ `devText`（开发者原文）——
 			 *   原文**只在此处**（开发者通道）出现，✗ 上屏（玩家面用 `e.message`）。 */
-			console.error('[RPG] 动作抛错（战斗侧已转为可读拒绝；此栈供排查是否为真 bug）:', e);
-			if (e && e.code) console.warn(`[RPG] 拒绝码 code=${e.code}${e.extra ? ' extra=' + JSON.stringify(e.extra) : ''}`);
+			/* ★`sgstory#1953`（`tester-3` T 席实测）：本留痕原先**只有栈**，而栈帧在单测里全是
+			 *   `dist/bundle.js` 的**匿名帧** ⇒ 认不出「是哪一格、哪个件、打谁」⇒ 排查只能靠临时诊断刀。
+			 *   ⇒ 补**归属四元组**（谁／哪件／打谁／哪个动作）——★值与结果面同一取源（`unitId.of`），
+			 *   ✗ 另写一份取法（两处各一份取法正是本仓反复踩到的漂移源）。 */
+			console.error(`[RPG] 动作抛错（战斗侧已转为可读拒绝；此栈供排查是否为真 bug）｜actor=${RPG.unitId.of(actor)}｜item=${itemRef}｜target=${RPG.unitId.of(target)}｜action=${action}:`, e);
+			if (e && e.code) console.warn(`[RPG] 拒绝码 code=${e.code}｜actor=${RPG.unitId.of(actor)}｜item=${itemRef}｜target=${RPG.unitId.of(target)}｜action=${action}${e.extra ? ' extra=' + JSON.stringify(e.extra) : ''}`);
 			return { status: 'rejected', reason: 'action-threw', itemRef, message: e?.message ?? String(e) };
 		}
 	}

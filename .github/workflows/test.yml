@@ -23,12 +23,11 @@ jobs:
       #   ②本仓 CI 只有一个 job，为 <1s 的静态门另开 job 要多付一次排队/checkout；
       #   ③独立 step 使红面归因清晰（step 级红/绿），且可与单测分步重跑。
       - name: 引用形与 pin 完整性门（#1714 第①级；离线，缓存缺失即红）
+        run: node tests/gates/refs-integrity.mjs
       - name: ★直构棘轮（`#1750` ② · 新用例不得再绕注册面）
         run: node tests/gates/shim-ratchet.mjs
       - name: ★直构棘轮 · 自证（会红也会绿）
         run: node tests/gates/shim-ratchet.mjs --selftest
-
-        run: node tests/gates/refs-integrity.mjs
       - name: 门自身的可假刀自检（刀数见输出；证明门会红也会绿）
         run: node tests/gates/refs-integrity.selftest.mjs
       - name: 行尾门（#1774 混行 ＋ #1832 整档翻转）

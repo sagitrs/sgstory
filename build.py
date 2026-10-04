@@ -5,7 +5,7 @@ build.py —— SugarCube RPG 增强插件的构建器（零依赖，纯 Python 
 本仓库是一个 **SugarCube 增强插件**（src/core + src/dnd3），不是某个故事。
 用它做游戏的方式：一个「故事目录」引用插件源码，编译成单文件网页游戏：
 
-    python build.py [故事目录] [--out 产物名]   # 默认 tests/e2e/old-house ＋ game.html
+    python build.py [故事目录] [--out 产物名] [--version 版本串] [--host <id|a,b|all>]   # 默认 tests/e2e/old-house ＋ game.html
 
 同时总会生成 tests/unit/bundle.js（插件源码的测试构建，供单元测试页加载）。
 
@@ -23,6 +23,15 @@ build.py —— SugarCube RPG 增强插件的构建器（零依赖，纯 Python 
        其他               →  (function (RPG, $) {...})(setup.RPG, jQuery)
      首行 /* raw */ 的文件跳过包装（用于创建命名空间本身）。
   2. twee 段落；兼容旧写法 :: 名称 [script]。
+
+宿主选择（`sgstory#1998` 阶段 6 切片 B）：
+  `--host <id>` ⇒ 产物**只装**该宿主包（`src/host/<id>/**`）＋ **注入** `setup.RPG.useHost('<id>')`；
+  `--host a,b` ⇒ 装多个（**✗ 注入**：多宿主产物的选择归调用方）；`--host all` ⇒ 全装；
+  **缺省** ⇒ 装 `DEFAULT_HOSTS`（本文件里一处常量，现＝ sugarcube）—— ✗ 是「全装」：
+  实测量得，全装 ＋ 未选择时 `RPG.portOf` 会在**运行期**抛（单测 774 格中 31 格红、端口取用全线抛）
+  ⇒ 缺省产物必须能跑；另一个宿主（`src/host/headless/`）按需 `--host headless` 装。
+  未知 id ⇒ **构建期具名抛**（✗ 静默回落默认宿主）。判据：`tests/gates/host-packaging.mjs`。
+  ★头注笔：「**空袋＝读的语义 · 用的语义必须是吵的**」——`RPG.ports` 可安静为空，`RPG.portOf` 缺则必抛。
 """
 import html
 import json
@@ -36,6 +45,16 @@ UNIT_DIR = ROOT / "tests" / "unit"
 UNIT_DIST = UNIT_DIR / "dist"  # 测试构建产物（bundle/manifest，勿手改）
 VENDOR = ROOT / "vendor"
 DEFAULT_STORY = ROOT / "tests" / "e2e" / "old-house"
+
+# ── 宿主打包选择（`sgstory#1998` 阶段 6 切片 B）────────────────────────────────
+HOST_DIR = PLUGIN_SRC / "host"
+# ★**一处定义**：缺省构建装哪些宿主。新宿主**不**自动进默认产物 ⇒ 用 `--host <id>` 按需装
+#   （`--host all` ⇒ 全装：供「多宿主未选 ⇒ 取用必吵」那一形）。
+#   ⚠ 为何缺省是「默认表」而**不是**「全装」（实测）：全装 ＋ ✗ 未选择时 `RPG.portOf` 会在
+#     **玩家运行时**抛 —— 实测量得单测 774 格中 31 格红、端口取用全线抛（见 `#1998` 的落点锚），
+#     装置与产物会一起坏。★头注笔（领队 13:12）：「**空袋＝读的语义 · 用的语义必须是吵的**」——
+#     缺省装默认宿主**不等于**「静默选第一个」：它由这一行显式声明，且每次构建都**打印**装了谁。
+DEFAULT_HOSTS = ("sugarcube",)
 
 HEADER_RE = re.compile(
     r"^::\s*(?P<name>[^\[\{]*?)\s*(?:\[(?P<tags>[^\]]*)\])?\s*(?:\{.*\})?\s*$"
@@ -104,13 +123,60 @@ def find_pack_root(file_path: pathlib.Path) -> pathlib.Path | None:
     return None
 
 
-def collect_js_files():
+def host_dirs() -> list[str]:
+    """宿主 id 的**唯一取值来源**：`src/host/<id>/00-init.js` 存在的目录名。"""
+    if not HOST_DIR.is_dir():
+        return []
+    return sorted(p.name for p in HOST_DIR.iterdir() if p.is_dir() and (p / "00-init.js").exists())
+
+
+def resolve_hosts(spec: str | None) -> tuple[list[str], bool]:
+    """`--host` 取值 ⇒ (要装的宿主 id 列表, 是否显式指定)。
+    `None` ⇒ 默认表；`all` ⇒ 全部；`a,b` ⇒ 逐项。
+    **未知 id ⇒ 构建期具名抛**（✗ 静默回落默认宿主 —— 那叫「安静地给了别的宿主」）。"""
+    available = host_dirs()
+    if spec is None:
+        return list(DEFAULT_HOSTS), False
+    s = spec.strip()
+    parts = list(available) if s == "all" else [x.strip() for x in s.split(",") if x.strip()]
+    if not parts:
+        raise SystemExit("✗ `--host` 需要一个非空的宿主 id（或 `all`）。现有：" + ("／".join(available) or "（无）"))
+    unknown = [x for x in parts if x not in available]
+    if unknown:
+        raise SystemExit("✗ 未知宿主：" + "、".join(unknown)
+                         + "（现有：" + ("／".join(available) or "（无）") + "）"
+                         + " —— 宿主 id ＝ `src/host/<id>/` 的目录名，✗ 静默回落默认宿主")
+    seen, ids = set(), []
+    for x in parts:
+        if x not in seen:
+            seen.add(x)
+            ids.append(x)
+    return ids, True
+
+
+def host_selection_js(hosts: list[str], explicit: bool) -> str | None:
+    """`--host` 显式指定**单个**宿主 ⇒ 产物里**注入**一行选择（让产物**自证**选了谁）。
+    多宿主／缺省 ⇒ ✗ 注入：多宿主产物的选择归调用方（那正是「取用必吵」那一形，✗ 由构建猜）。"""
+    if not (explicit and len(hosts) == 1):
+        return None
+    return ("/* ===== 由 build.py --host 注入：宿主选择 ===== */\n"
+            + f"(function () {{ 'use strict'; setup.RPG.useHost('{hosts[0]}'); }})();")
+
+
+def collect_js_files(hosts=None):
     """[(展示路径, 文件, 命名空间别名)]：插件源码在前，各自按路径排序。
     别名 = 包根目录名大写（dnd3→DND3, dnd/dnd-5e→DND-5E→DND5E）。
+    `hosts` ＝ 要装进产物的宿主包 id（`None` ⇒ `DEFAULT_HOSTS`）。
+    ★`src/host/<id>/**` 里**未选中**的宿主包一律**不入**产物（归属按目录名）；`src/host/*.js` 是公共件，恒入。
     """
+    选 = set(DEFAULT_HOSTS if hosts is None else hosts)
     result = []
     for f in sorted(PLUGIN_SRC.rglob("*.js")):
         rel = f"src/{f.relative_to(PLUGIN_SRC).as_posix()}"
+        seg = rel.split("/")
+        归属 = seg[2] if len(seg) > 3 and seg[0] == "src" and seg[1] == "host" else None
+        if 归属 and 归属 not in 选:
+            continue
         pack_root = find_pack_root(f)
         if pack_root:
             alias = pack_root.name.upper().replace("-", "")
@@ -139,12 +205,16 @@ def load_template():
     return raw
 
 
-def build_unit_bundle():
+def build_unit_bundle(hosts=None, explicit=False):
     """插件源码 → tests/unit/dist/bundle.js（shims 由 framework/ 提供）；
     并扫描 tests/unit/*.test.js 生成 dist/manifest.js（新用例文件自动被发现）。"""
     bundle = UNIT_DIST / "bundle.js"
     UNIT_DIST.mkdir(parents=True, exist_ok=True)
-    bundle.write_text("\n\n".join(js_parts_of(collect_js_files())), encoding="utf-8")
+    parts = js_parts_of(collect_js_files(hosts))
+    sel = host_selection_js(list(DEFAULT_HOSTS) if hosts is None else hosts, explicit)
+    if sel:
+        parts.append(sel)                       # ★`#1998`：产物自证选了谁（✗ 靠命令行留痕）
+    bundle.write_text("\n\n".join(parts), encoding="utf-8")
     print(f"单元测试 bundle：{bundle.relative_to(ROOT)}")
 
     test_files = sorted(
@@ -159,16 +229,21 @@ def build_unit_bundle():
     print(f"单元测试清单：{manifest.relative_to(ROOT)}（{len(test_files)} 个用例文件）")
 
 
-def build_story(story_dir: pathlib.Path, out_name: str = "game.html", build_version: str | None = None):
+def build_story(story_dir: pathlib.Path, out_name: str = "game.html", build_version: str | None = None,
+                hosts=None, explicit=False):
     story_src = story_dir / "src"
     out = story_dir / out_name
 
     # 脚本：插件在前 + 故事在后（故事侧不注入包别名，需要时自行声明局部别名）
-    js_paths = collect_js_files()
-    js_paths += [
+    plugin_paths = collect_js_files(hosts)
+    story_paths = [
         (f"story/{f.relative_to(story_src).as_posix()}", f, None) for f in sorted(story_src.rglob("*.js"))
     ]
-    script_parts = js_parts_of(js_paths)
+    script_parts = js_parts_of(plugin_paths)
+    sel = host_selection_js(list(DEFAULT_HOSTS) if hosts is None else hosts, explicit)
+    if sel:
+        script_parts.append(sel)      # ★`#1998`：插在**插件与故事之间**（宿主包已装载、故事尚未跑）
+    script_parts += js_parts_of(story_paths)
 
     # twee 段落
     passages = []
@@ -236,8 +311,8 @@ def build_story(story_dir: pathlib.Path, out_name: str = "game.html", build_vers
     except ValueError:
         shown = out
     print(f"构建完成：{shown}")
-    print(f"  段落数：{len(rows)}，插件 js：{len(collect_js_files())}，"
-          f"故事 js：{len(js_paths) - len(collect_js_files())}，标题「{title}」")
+    print(f"  段落数：{len(rows)}，插件 js：{len(plugin_paths)}，"
+          f"故事 js：{len(story_paths)}，标题「{title}」")
 
 
 def main():
@@ -258,11 +333,22 @@ def main():
             raise SystemExit("用法：python build.py [故事目录] [--out 产物名.html] [--version 版本串]")
         build_version = args[i + 1]
         del args[i:i + 2]
+    # ★`sgstory#1998`：`--host <id|a,b|all>`（缺省 ⇒ 默认表；每次构建都打印装了谁 —— 见文件头）。
+    host_spec = None
+    if "--host" in args:
+        i = args.index("--host")
+        if i + 1 >= len(args):
+            raise SystemExit("用法：python build.py [故事目录] [--out 产物名.html] [--version 版本串] [--host <id|a,b|all>]")
+        host_spec = args[i + 1]
+        del args[i:i + 2]
     story_dir = pathlib.Path(args[0]) if args else DEFAULT_STORY
     if not story_dir.is_absolute():
         story_dir = ROOT / story_dir
-    build_unit_bundle()
-    build_story(story_dir, out_name, build_version=build_version)
+    hosts, explicit = resolve_hosts(host_spec)
+    print(f"  宿主：{'--host 指定' if explicit else '未指定 --host ⇒ 按**默认宿主**装'} ⇒ "
+          + ("、".join(hosts) or "（无）") + f"（现有：{'／'.join(host_dirs()) or '（无）'}）")
+    build_unit_bundle(hosts, explicit)
+    build_story(story_dir, out_name, build_version=build_version, hosts=hosts, explicit=explicit)
 
 
 if __name__ == "__main__":

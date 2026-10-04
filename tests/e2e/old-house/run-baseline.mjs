@@ -125,9 +125,21 @@ const KNIVES = [
 		why: '普通异常**吞成 rejected**（＝把「崩了」伪装成「被拒绝」）'
 			+ '⇒ 红两格：`[commit-interrupt]` ＋ `[commit-c4]` 的**抛臂**（它断的正是「异常须原样上抛」）',
 		/* ⚠ `#1933` C4：该行现在带「丢半截呈现 ＋ 关计数槽」⇒ 锚随码同刷（刀义不变：把崩了伪装成被拒）。 */
-		patch: [["else { this.ports.render.丢弃(); this._计 = null; throw e; }",
-			"else { settled = 'rejected'; reason = 'internal-error'; }"]],
+		/* ⚠ `sgstory#1967`：该行现在**先回滚对象态** ⇒ 锚随码同刷（刀义不变：把崩了伪装成被拒）。 */
+		patch: [["else { 回滚对象(); this.ports.render.丢弃(); this._计 = null; throw e; }",
+			"else { 回滚对象(); settled = 'rejected'; reason = 'internal-error'; }"]],
 		expect: ['commit-interrupt', 'commit-c4'],
+	},
+	/* ── ★`sgstory#1967`（C2 对象态回滚）：**撤回滚** ⇒ **恰**红 `[commit-c2]` 一格 ──
+	 *   ★靶＝**回滚函数本身**（✗ 只掏拒绝路那一次调用 —— 那样异常路还留着，刀就不"恰好只红一格"了）。
+	 *   刀义：把回滚变成**空操作** ⇒ 命令体改过的对象态留着 ⇒ 只有断对象态的那一格会红 ✓。 */
+	{
+		id: 'commit-objects-no-rollback',
+		file: 包档,
+		why: '拒后**不回滚引擎对象态**（命令体改过的 HP／充能／位置留着）'
+			+ '⇒ 恰红一格 `[commit-c2]`（它断的正是「拒后对象须逐字回到前像」）',
+		patch: [["const 回滚对象 = () => {", "const 回滚对象 = () => { return;   /* 刀：撤回滚（对象态不回前像） */"]],
+		expect: ['commit-c2'],
 	},
 	{
 		id: 'commit-ctx-facts-live',
@@ -824,7 +836,11 @@ reset();
 	{
 		const A = S.建会话('C2-A');
 		const P = setup.DND3.Player;
-		const 前血 = P.hp;
+		/* ★本格的**牙**＝「前像 ≠ 后像」⇒ 先钉一个**确定的前像**：✗ 依赖引擎里恰好有 `hp`
+		 *   —— 实测该域读数是 `undefined`（`undefined === undefined` ⇒ 回滚与否都"绿" ⇒ **空牙**）。
+		 *   ★这正是自检抓出的：那把 C2 刀下下去 `实得 []`（零红）⇒ 回头查断的才是这里。 */
+		const 原血 = P.hp;
+		const 前血 = 18; P.hp = 前血;
 		A.mount('c2', () => ({
 			id: 'c2', enter: (c) => { c.commit({ 试: 1 }); }, render: () => {},
 			actions: [{ id: '伤', run: (c) => { P.hp = 前血 - 3; c.commit({ 试: 2 }); throw R().refuse('C2', '拒绝'); } }],
@@ -833,11 +849,15 @@ reset();
 		A.input.push({ id: '伤' });
 		const 读 = A.step();
 		const 后血 = P.hp;
-		P.hp = 前血;                                  // ★还原：✗ 不污染别格
-		PENDING.push('[commit-c2] 引擎对象态：草稿只覆盖会话事实块 ⇒ 命令体里改 HP／充能／位置，**拒后仍改着**'
-			+ `（现读数：拒绝 ${读.settled}／${读.reason}｜HP ${前血} ⇒ **${后血}**（✗ 未还原）｜facts 已回滚 ✓`
-			+ '｜候批 D 落「对象态回滚」；出处：`#1933` 票面 C2 ＋ `src/core/55-session.js:173-197`）');
-		console.log(`  ⏳ C2 引擎对象态：拒后 HP ${前血}⇒${后血}（✗ 未还原）`);
+		P.hp = 原血;                                  // ★还原成**进本格前**的值：✗ 不污染别格
+		/* ★`sgstory#1967`（C2）**转正**：对象态回滚落地后，本臂由「候批」变成**具名断言** ✓ ——
+		 *   拒后 `P.hp` 须**逐字回到前像**（✗ 只断「facts 回滚」——那半边本来就对）。 */
+		/* ⚠★我第一版把这里写成**两参** `ok(条件, 文案)` —— 而签名是 `ok(id, 条件, 文案)`（三条 ✓）：
+		 *   于是 `id` 收到布尔、`条件` 收到**非空字符串（恒真）** ⇒ 本格**假绿**（✗ 报错也没报）。
+		 *   ⇒ 抓到它的是**下刀**（C2 刀下下去「实得 []」⇒ 回头查才发现格本身没牙）。★判据转正**必下刀自证** ✓。 */
+		ok('[commit-c2]', 读.settled === 'rejected' && 后血 === 前血,
+			`★拒后**对象态未回滚**：HP ${前血} ⇒ ${后血}（须逐字回到 ${前血}）｜读数=${JSON.stringify(读)}`);
+		console.log(`  ✓ C2 引擎对象态：拒后 HP ${前血}⇒${后血}（已回滚 ✓）｜reason=${读.reason}`);
 	}
 	/* C3：随机流**后态** —— `RPG.rng` 的 `index` **可读**且可写（★我第一版曾写「读不出位置」，见下行自陈）；本臂判不了的不是「读不出」，而是「拒后该退到哪」**没有契约**。 */
 	{

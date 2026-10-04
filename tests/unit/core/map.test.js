@@ -312,4 +312,59 @@
 			`★**二次进场首帧必须重印场景头**（✗ 消失）：首轮共 ${afterFirst} 条头、现共 ${JSON.stringify(h.headers())}`);
 	});
 
+
+	/* ---------- ★`sgstory#1990`：`Exit` 的「先问再移」（可抑制移动） ----------
+	 *
+	 *   债源：`Exit.action` 是**副作用**，而引擎在出口导航分支**无条件** `moveTo`
+	 *   ⇒ 故事侧只能「action 里起模态、移动在模态后」绕（`books#261` 实证）。
+	 *   本票给能力：`action` 返 `false` ⇒ **抑制移动**；其余（含 `undefined`）照旧移动。
+	 *
+	 *   ★本格是**失败判据先行**：修未落地时，正例格须**具名红**、对照臂须**绿**。 */
+
+	/* ★夹具：出口**只在第一次可选**（`when`）—— 因为「移动被抑制」时位置不变 ⇒ 出口仍在 ⇒
+	 *   若它一直可选，玩家的选择循环就**不会收敛**（✗ 那不是缺陷，是「还能再选」✓）。
+	 *   故让 `when` 在试过一次后为假 ⇒ 重绘后无可选项 ⇒ 循环自然结束 ✓（★判据只关心第一次）。 */
+	const s1990Scene = (exitAction) => {
+		let 试过 = 0;
+		const map = new (R().WorldMap)({ id: 's1990' });
+		map.addLocation(new (R().Location)({ id: 'a', name: 'A' }));
+		map.addLocation(new (R().Location)({ id: 'b', name: 'B' }));
+		map.addPath({
+			from: 'a', to: 'b', text: '去B', when: () => 试过 === 0,
+			action: () => { 试过 += 1; return exitAction(); },
+		});
+		return new (R().MapScene)({ id: 's1990', map, start: 'a' });
+	};
+
+	test('★`#1990` 可抑制移动：出口 action 返 false ⇒ **位置不变**', async () => {
+		let 问过 = 0;
+		const scene = s1990Scene(() => { 问过 += 1; return false; });
+		let renders = 0;
+		/* ★桩**必须有上界**（同 D2 格的口径）：若抑制形失效 ⇒ 反复移动 / 无限重绘 ⇒
+		 *   给**一句可诊断的红**，✗ 不让它变成堆耗尽 abort。 */
+		scene.choice = async () => {
+			renders += 1;
+			if (renders > 5) throw new Error(`未收敛：choice 被反复调用 ${renders} 次（抑制形失效？）`);
+			return 'e0';
+		};
+		await scene.execute();
+		assert.eq(问过, 1, '★出口 action 须被**问过**一次（✗ 未被问 = 面没接上）');
+		assert.eq(scene.map.current, 'a',
+			`★action 返 false ⇒ **位置须不变**（实得 ${JSON.stringify(scene.map.current)}）`);
+	});
+
+	test('★`#1990` 对照臂（零回归）：出口 action 返 undefined ⇒ **照旧移动**', async () => {
+		let 问过 = 0;
+		const scene = s1990Scene(() => { 问过 += 1; });
+		let renders = 0;
+		scene.choice = async () => {
+			renders += 1;
+			if (renders > 5) throw new Error(`未收敛：choice 被反复调用 ${renders} 次`);
+			return 'e0';
+		};
+		await scene.execute();
+		assert.eq(问过, 1, '既有出口 action 仍须被调用一次');
+		assert.eq(scene.map.current, 'b',
+			`★无返回值 ⇒ 照旧 moveTo（实得 ${JSON.stringify(scene.map.current)}）`);
+	});
 })();

@@ -74,6 +74,14 @@ jobs:
         run: node tests/gates/host-packaging.mjs
       - name: 宿主打包门自身的可假刀自检（K1–K9 纯函数刀 ＋ R1/R2/R3 真刀）
         run: node tests/gates/host-packaging.mjs --selftest
+      # ── 规则包选择门（`sgstory#295` 甲 · 0.0.3）：故事清单 `story.json` 的 `packs` 口 ⇒ build.py 按包过滤 ──
+      #   判：无清单 ⇒ 全装（且 ≡ 显式全列，逐字节同）｜单包 ⇒ 只装它（core 恒入）｜未知／坏清单 ⇒ 构建期具名抛｜
+      #      **与 `--host` 正交**（宿主按 --host 走、规则包按 packs 走）。
+      #   ⚠ 同 host-packaging：本步**真调 build.py 数次**（在**临时故事副本**上），收尾重建缺省。
+      - name: 规则包选择门（`#295`：故事清单 packs ＋ 按包过滤）
+        run: node tests/gates/pack-selection.mjs
+      - name: 规则包选择门自身的可假刀自检（R1 拆过滤／R2 未知静默 ＋ 复原逐字节同）
+        run: node tests/gates/pack-selection.mjs --selftest
       - name: 无头单测（断言 fail === 0）
         run: node tests/unit/headless.mjs
       # ★引擎单测**刀架**（`sgstory#1962`）：把「手工下刀 → 看红格 → 复原」自动化。

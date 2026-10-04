@@ -32,6 +32,14 @@ build.py —— SugarCube RPG 增强插件的构建器（零依赖，纯 Python 
   ⇒ 缺省产物必须能跑；另一个宿主（`src/host/headless/`）按需 `--host headless` 装。
   未知 id ⇒ **构建期具名抛**（✗ 静默回落默认宿主）。判据：`tests/gates/host-packaging.mjs`。
   ★头注笔：「**空袋＝读的语义 · 用的语义必须是吵的**」——`RPG.ports` 可安静为空，`RPG.portOf` 缺则必抛。
+
+规则包选择（`sgstory#295` 甲 · 0.0.3）：
+  故事清单 `<story>/story.json` 可声明 `{"packs": ["dnd3"]}` ⇒ 产物**只装**这些**规则包**
+  （`src/dnd/<id>/**`；`src/core/**` **恒入**）。**缺清单／缺该键** ⇒ **全装**（＝本口引入前的行为，
+  逐字节同旧）。★**宿主包不受它管**（`src/host/**` 由 `--host` 管，两个维度正交）。
+  未知包 id ⇒ **构建期具名抛**（✗ 静默回落全装）。判据：`tests/gates/pack-selection.mjs`。
+  ⚠ 为何要有这个口：一个故事同时装 `src/dnd/dnd3/**` 与 `src/dnd/dnd-5e/**` 时，两包**共用一张 id 表**
+    ⇒ 后装者**如实**打「重复注册：将被覆盖」warn（`#288` 勘察：13 条），而单包故事本不该撞这条。
 """
 import html
 import json
@@ -163,13 +171,52 @@ def host_selection_js(hosts: list[str], explicit: bool) -> str | None:
             + f"(function () {{ 'use strict'; setup.RPG.useHost('{hosts[0]}'); }})();")
 
 
-def collect_js_files(hosts=None):
+def 可用规则包() -> dict:
+    """`src/**` 里**非 core、非 host** 的包根（含 `00-init.js` 的目录）⇒ {id: 目录}。
+    ★id＝**目录名**（`dnd3`／`dnd-5e`／`d20m`），与命名空间别名同源（`dnd-5e` ⇒ `DND5E`）。"""
+    out = {}
+    for init in sorted(PLUGIN_SRC.rglob("00-init.js")):
+        d = init.parent
+        rel = d.relative_to(PLUGIN_SRC).as_posix()
+        if rel.split("/")[0] in ("core", "host"):
+            continue
+        out[d.name] = d
+    return out
+
+
+def 故事清单规则包(story_dir: pathlib.Path):
+    """读 `<story>/story.json` 的 `packs`（`sgstory#295` 甲）。
+    · 无清单／无该键 ⇒ `None` ＝ **全装**（＝本口引入前的行为 ⇒ 缺省逐字节同旧）；
+    · 给了 ⇒ **列表**（非空字符串数组）；★**未知 id 由调用方核**（它才知道「可用」有哪些）；
+    · 清单坏／`packs` 形不对 ⇒ **具名抛**（✗ 静默回落全装 —— 那会让「我声明了单包」变成假绿）。"""
+    mf = story_dir / "story.json"
+    if not mf.exists():
+        return None
+    try:
+        data = json.loads(mf.read_text(encoding="utf-8"))
+    except Exception as e:                                   # noqa: BLE001 —— 坏清单要具名，✗ 吞
+        raise SystemExit(f"✗ 故事清单读不出／不是合法 JSON：{mf} —— {e}")
+    if not isinstance(data, dict):
+        raise SystemExit(f"✗ 故事清单须是 JSON 对象：{mf}")
+    v = data.get("packs")
+    if v is None:
+        return None
+    if not isinstance(v, list) or not v or not all(isinstance(x, str) and x for x in v):
+        raise SystemExit(f"✗ 故事清单 `packs` 须是**非空字符串**的数组：{mf}（实得 {v!r}）")
+    return v
+
+
+def collect_js_files(hosts=None, packs=None):
     """[(展示路径, 文件, 命名空间别名)]：插件源码在前，各自按路径排序。
     别名 = 包根目录名大写（dnd3→DND3, dnd/dnd-5e→DND-5E→DND5E）。
     `hosts` ＝ 要装进产物的宿主包 id（`None` ⇒ `DEFAULT_HOSTS`）。
+    `packs` ＝ 要装进产物的**规则包** id（`None` ⇒ **全装**；`#295` 甲）。
     ★`src/host/<id>/**` 里**未选中**的宿主包一律**不入**产物（归属按目录名）；`src/host/*.js` 是公共件，恒入。
+    ★**两个维度正交**：宿主包只看 `hosts`、规则包只看 `packs`（✗ 互相当作对方的判据）：
+      `packs` 少列一个宿主 id，**不会**把那个宿主踢掉（反之亦然）。
     """
     选 = set(DEFAULT_HOSTS if hosts is None else hosts)
+    包选 = None if packs is None else set(packs)
     result = []
     for f in sorted(PLUGIN_SRC.rglob("*.js")):
         rel = f"src/{f.relative_to(PLUGIN_SRC).as_posix()}"
@@ -178,6 +225,8 @@ def collect_js_files(hosts=None):
         if 归属 and 归属 not in 选:
             continue
         pack_root = find_pack_root(f)
+        if 包选 is not None and 归属 is None and pack_root and pack_root.name not in 包选:
+            continue                       # ★规则包未选中 ⇒ 不入（host 子树在上面已判过，✗ 不重复判）
         if pack_root:
             alias = pack_root.name.upper().replace("-", "")
         else:
@@ -230,12 +279,23 @@ def build_unit_bundle(hosts=None, explicit=False):
 
 
 def build_story(story_dir: pathlib.Path, out_name: str = "game.html", build_version: str | None = None,
-                hosts=None, explicit=False):
+                hosts=None, explicit=False, packs=None):
     story_src = story_dir / "src"
     out = story_dir / out_name
 
+    # ★`#295` 甲：规则包选择（清单声明；`None` ⇒ 全装）。未知 id ⇒ **构建期具名抛**（✗ 静默回落全装）。
+    if packs is not None:
+        可用 = 可用规则包()
+        未知 = [x for x in packs if x not in 可用]
+        if 未知:
+            raise SystemExit(f"✗ 故事清单声明了未知规则包 {'／'.join(未知)}（可用：{'／'.join(sorted(可用)) or '（无）'}）"
+                             f" —— 清单在 {story_dir / 'story.json'}")
+        print("  规则包：清单声明 ⇒ " + "、".join(packs) + f"（现有：{'／'.join(sorted(可用)) or '（无）'}）")
+    else:
+        print("  规则包：清单未声明 `packs` ⇒ **全装**（＝本口引入前的行为）")
+
     # 脚本：插件在前 + 故事在后（故事侧不注入包别名，需要时自行声明局部别名）
-    plugin_paths = collect_js_files(hosts)
+    plugin_paths = collect_js_files(hosts, packs)
     story_paths = [
         (f"story/{f.relative_to(story_src).as_posix()}", f, None) for f in sorted(story_src.rglob("*.js"))
     ]
@@ -348,7 +408,8 @@ def main():
     print(f"  宿主：{'--host 指定' if explicit else '未指定 --host ⇒ 按**默认宿主**装'} ⇒ "
           + ("、".join(hosts) or "（无）") + f"（现有：{'／'.join(host_dirs()) or '（无）'}）")
     build_unit_bundle(hosts, explicit)
-    build_story(story_dir, out_name, build_version=build_version, hosts=hosts, explicit=explicit)
+    build_story(story_dir, out_name, build_version=build_version, hosts=hosts, explicit=explicit,
+                packs=故事清单规则包(story_dir))
 
 
 if __name__ == "__main__":

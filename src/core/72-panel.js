@@ -63,7 +63,7 @@ RPG.preservePanelState = [{ sel: 'details.rpg-notice-box' }];
  * @param def.host    宿主选择器（jQuery 选择器串；缺省 `[data-panel="<id>"]`）
  * @returns 面板登记项；重复注册**告警不抛**（与 `defEffect`／`registerBuild`／`defNotice` 同形）
  */
-RPG.registerPanel = (id, { name = id, render, host, refresh = null } = {}) => {
+RPG.registerPanel = (id, { name = id, render, host, refresh = null, cssVar = null, tint = null, tintOf = null, thresholds = null } = {}) => {
 	if (typeof id !== 'string' || id === '') throw new Error('registerPanel 需要非空 id');
 	if (typeof render !== 'function') throw new Error(`registerPanel「${id}」需要 render 函数`);
 	if (RPG.panels.has(id)) console.warn(`[RPG] 面板「${id}」重复注册：将被覆盖。`);
@@ -72,7 +72,23 @@ RPG.registerPanel = (id, { name = id, render, host, refresh = null } = {}) => {
 	 *   就天然**不动他域**，而「改了就整段重绘」被结构上排除。空/非法值 ⇒ 视为 `null`（具名告警，✗ 静默吞）。 */
 	const 域 = (typeof refresh === 'string' && refresh !== '') ? refresh : null;
 	if (refresh != null && 域 === null) console.warn(`[RPG] 面板「${id}」的 refresh 不是非空字符串：已按「不属任何域」处理`);
-	const entry = { id, name, render, host: host ?? `[data-panel="${id}"]`, refresh: 域, count: 0 };
+	/* ★`sgstory#1983`（B2·机制强度＝呈现强度）：面板可**声明**它驱动哪个 CSS 变量（`cssVar`）、
+	 *   状态名→色的色板（`tint`）、当前生效的键（`tintOf: () => 状态名`）与**阈值人话表**（`thresholds`）。
+	 *   引擎**只承载声明**（✗ 不碰 DOM、✗ 不写色）：写回仍走注入的 `panelWriter`，本档只把
+	 *   `css = { [cssVar]: 色 }` 作为 `opts.css` 交给它 ⇒ 「变量名与色值」由 writer 落。
+	 *   ⚠ `tintOf` 是**本席补的一处**（`#1983` 票面只写了 `tint`）：判据②要「**色值**逐字进 writer」，
+	 *     而 `tint` 是**表** ⇒ 引擎必须知道当前哪个键生效 ⇒ 用 `tintOf()` 取键、查表得色（✗ 猜第一个键）。
+	 *   ⚠ 非法值一律**具名告警＋退缺省**（同本档 `refresh` 那列的形，✗ 静默吞、✗ 抛）。 */
+	const 色板 = (tint != null && typeof tint === 'object' && !Array.isArray(tint)) ? tint : null;
+	const CSS变量 = (typeof cssVar === 'string' && cssVar !== '') ? cssVar : null;
+	const 阈值表 = Array.isArray(thresholds) ? thresholds : null;
+	if (cssVar != null && CSS变量 === null) console.warn(`[RPG] 面板「${id}」的 cssVar 不是非空字符串：已按「不驱动变量」处理`);
+	if (tint != null && 色板 === null) console.warn(`[RPG] 面板「${id}」的 tint 不是对象：已按「无色板」处理`);
+	if (thresholds != null && 阈值表 === null) console.warn(`[RPG] 面板「${id}」的 thresholds 不是数组：已按「无表」处理`);
+	if (tintOf != null && typeof tintOf !== 'function') console.warn(`[RPG] 面板「${id}」的 tintOf 不是函数：已按「无当前键」处理`);
+	const 取键 = (tintOf != null && typeof tintOf === 'function') ? tintOf : null;
+	const entry = { id, name, render, host: host ?? `[data-panel="${id}"]`, refresh: 域, count: 0,
+		cssVar: CSS变量, tint: 色板, tintOf: 取键, thresholds: 阈值表 };
 	RPG.panels.set(id, entry);
 	return entry;
 };
@@ -114,7 +130,7 @@ RPG.refreshPanels = (ids = null, { into, write } = {}) => {
 	const skipped = [];
 	for (const id of targets) {
 		const p = RPG.panels.get(id);
-		const hit = put(into ?? p.host, p.render(), { preserve: RPG.preservePanelState }) !== false;   // ✗ 命中 ⇒ false（writer 的契约）
+		const hit = put(into ?? p.host, p.render(), { preserve: RPG.preservePanelState, css: RPG.panelCSS(id) }) !== false;   // ✗ 命中 ⇒ false（writer 的契约）
 		if (!hit) { skipped.push(id); continue; }                // 该面板不在当前段落
 		p.count += 1;
 		rendered.push(id);
@@ -131,6 +147,44 @@ RPG.panelsInDomain = (域 = null) => [...RPG.panels.values()].filter((p) => p.re
 
 /** 已声明过的域（注册序去重）—— 宿主壳的「面板显隐」设置与诊断面用它。 */
 RPG.panelDomains = () => [...new Set([...RPG.panels.values()].map((p) => p.refresh).filter((d) => d != null))];
+
+/**
+ * ★`sgstory#1983`（B2）**读口**：面板的色板声明（`{cssVar, tint, 当前键, 当前色}`）——
+ *   判据①「声明随注册被记住」就取它（✗ 各自去翻注册表内部字段）。
+ *   `当前色` 由 `tintOf()` 取键查表得（`tintOf` 缺席／键不在表里 ⇒ `null`，✗ 猜一个）。
+ */
+RPG.panelTint = (id) => {
+	const p = RPG.panels.get(id);
+	if (!p) throw new Error(`panelTint：未注册的面板「${id}」`);
+	const 键 = p.tintOf ? p.tintOf() : null;
+	return { cssVar: p.cssVar, tint: p.tint, 当前键: 键 ?? null, 当前色: (键 != null && p.tint) ? (p.tint[键] ?? null) : null };
+};
+
+/** ★`sgstory#1983`：**交给 writer 的 CSS 对**（`{变量名: 色值}`）。缺声明 ⇒ `null`（✗ 给空对象 ——
+ *   「没声明」与「声明了空」必须不同形，同本档其它读口的旨）。
+ */
+RPG.panelCSS = (id) => {
+	const t = RPG.panelTint(id);
+	if (!t.cssVar || t.当前色 == null) return null;
+	return { [t.cssVar]: t.当前色 };
+};
+
+/**
+ * ★`sgstory#1983`（B2）**阈值人话表** —— **纯函数**：`(值, thresholds) => 一句人话`。
+ *   语义**显式声明**（✗ 让读者从实现里猜）：按 `上界` **升序**取**第一个** `值 <= 上界` 的那条 ⇒ 取其 `文案`；
+ *   ⇒ **`值 === 上界` 落在该档**（≤ 是闭的）；表外（值大于所有上界／空表／非法表）⇒ `''`。
+ *   ⚠ **表在数据**（本条要的就是它）：函数体里**没有**任何档位常量 ⇒ 摘「表」即失效（刀据此落）。
+ */
+RPG.meterText = (值, thresholds) => {
+	const 表 = Array.isArray(thresholds) ? thresholds : [];
+	const 有效 = 表.filter((t) => t && typeof t === 'object' && Number.isFinite(Number(t.上界)) && typeof t.文案 === 'string');
+	if (有效.length === 0) return '';
+	const v = Number(值);
+	if (!Number.isFinite(v)) return '';
+	const 序 = [...有效].sort((a, b) => Number(a.上界) - Number(b.上界));
+	for (const t of 序) if (v <= Number(t.上界)) return t.文案;
+	return '';
+};
 
 /**
  * ★`sgstory#1763`（本票第 3 件）：**按域重绘** —— 只重绘声明了该域的面板，✗ 不碰其他域、✗ 不整段重绘。

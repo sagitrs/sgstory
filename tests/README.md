@@ -40,6 +40,7 @@ tests/
 | core/effect.test.js | src/core/17-effect（Effect/Debuff/death） |
 | core/character.test.js | src/core/20-character |
 | core/inventory.test.js | src/core/30-inventory（give/装备竞争/充能/战利品） |
+| core/exchange.test.js | src/core/32-exchange（原子交换、数量、身份、拒绝／异常零提交） |
 | core/weapon-traits.test.js | src/core/30-inventory 的武器特性消费点（#1736） |
 | core/battle.test.js | src/core/40-battle |
 | core/turn-boundary.test.js | src/core/40-battle 的回合生命周期钩子（`RPG.turnBoundary`；#1713） |

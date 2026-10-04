@@ -33,7 +33,7 @@ build.py —— SugarCube RPG 增强插件的构建器（零依赖，纯 Python 
   未知 id ⇒ **构建期具名抛**（✗ 静默回落默认宿主）。判据：`tests/gates/host-packaging.mjs`。
   ★头注笔：「**空袋＝读的语义 · 用的语义必须是吵的**」——`RPG.ports` 可安静为空，`RPG.portOf` 缺则必抛。
 
-规则包选择（`sgstory#295` 甲 · 0.0.3）：
+规则包选择（`sgstory#295` 甲 · 后续版本）：
   故事清单 `<story>/story.json` 可声明 `{"packs": ["dnd3"]}` ⇒ 产物**只装**这些**规则包**
   （`src/dnd/<id>/**`；`src/core/**` **恒入**）。**缺清单／缺该键** ⇒ **全装**（＝本口引入前的行为，
   逐字节同旧）。★**宿主包不受它管**（`src/host/**` 由 `--host` 管，两个维度正交）。

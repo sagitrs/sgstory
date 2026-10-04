@@ -30,6 +30,10 @@ jobs:
         run: node tests/gates/shim-ratchet.mjs --selftest
       - name: 门自身的可假刀自检（刀数见输出；证明门会红也会绿）
         run: node tests/gates/refs-integrity.selftest.mjs
+      - name: ★步骤键形门（每步须有 run/uses；块内 run 不重复 · `#1994` 教训机械化）
+        run: node tests/gates/workflow-steps.mjs
+      - name: 步骤键形门自身的可假刀自检（K0/K4 绿、K1/K2/K3 红、K5 装置错）
+        run: node tests/gates/workflow-steps.selftest.mjs
       - name: 行尾门（#1774 混行 ＋ #1832 整档翻转）
         #   ★`--require-base`：**取不到 base 即红**（✗ 静默退化成只判混行 ——
         #     门原先**声称**闭 4 例而**实际只闭 1 例**，正是这种「声称覆盖而大半没跑」的形态）。

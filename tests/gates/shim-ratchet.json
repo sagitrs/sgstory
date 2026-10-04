@@ -1,0 +1,17 @@
+{
+  "_note": "`#1750` ② 直构棘轮台账（tests/gates/shim-ratchet.mjs 消费）。accepted＝已知且被接受的直构位置。★双向棘轮：新出现的 ⇒ 红；册上有而码里没了的 ⇒ 红（过期登记）；项缺 reason/ticket ⇒ 红。",
+  "accepted": [
+    "tests/unit/dnd-5e/combat.test.js:3",
+    "tests/unit/dnd-5e/items.test.js:4"
+  ],
+  "entries": {
+    "tests/unit/dnd-5e/combat.test.js:3": {
+      "reason": "★`#1750` ② 点名的那一族（5E 用例直构 ⇒ 绕注册面 ⇒ 注册面缺陷在单测层表达不出）。本处为**既有**用例，本门只钉住现状、✗ 不要求本笔改；改走注册面时请把本项**删除**（过期登记会红）。",
+      "ticket": "#1750"
+    },
+    "tests/unit/dnd-5e/items.test.js:4": {
+      "reason": "★`#1750` ② 点名的那一族（5E 用例直构 ⇒ 绕注册面 ⇒ 注册面缺陷在单测层表达不出）。本处为**既有**用例，本门只钉住现状、✗ 不要求本笔改；改走注册面时请把本项**删除**（过期登记会红）。",
+      "ticket": "#1750"
+    }
+  }
+}

@@ -132,4 +132,20 @@
 		assert.eq(club, '-1',
 			`★缺省件须仍走推导（bab 0 + 力调 −1）：${club}`);
 	});
+	test('★#1965 补：`damageTypeLabel` 的**未知回落**（✗ 漏英文到玩家面）', () => {
+		/* ★`sgstory#1965` 的 [非阻塞]：`DND3.damageTypeLabel` 是 `{slashing/piercing/bludgeoning}[type] ?? '物理'`
+		 *   ⇒ 「未知一律物理」这条**回落**原先**没有判据**（有判据的是「已知三种映射对」与「伤害行带类型」）。
+		 *   ★失效实验：把 `?? '物理'` 改成 `?? type` ⇒ 本格必红（英文会漏到玩家面）。 */
+		const 标 = setup.DND3?.damageTypeLabel;
+		if (typeof 标 !== 'function') { assert.ok(true, '（`damageTypeLabel` 未在位 ⇒ 本格待判）'); return; }
+		assert.eq(标('slashing'), '挥砍', '★`slashing` ⇒ 挥砍');
+		assert.eq(标('piercing'), '穿刺', '★`piercing` ⇒ 穿刺');
+		assert.eq(标('bludgeoning'), '钝击', '★`bludgeoning` ⇒ 钝击');
+		for (const 未知 of ['force', 'acid', 'fire', '', null, undefined, '未知类型']) {
+			const 得 = 标(未知);
+			assert.eq(得, '物理', `★未知类型 ${JSON.stringify(未知)} 须回落「物理」（实得 ${JSON.stringify(得)}）`
+				+ ' —— 若实得原文，说明英文漏到了玩家面（本项目 3E 只有三类物理 ⇒ 未知一律物理）');
+			assert.ok(!/[a-z]/i.test(String(得)), `★回落串**不得含拉丁字母**（实得 ${JSON.stringify(得)}）`);
+		}
+	});
 })();

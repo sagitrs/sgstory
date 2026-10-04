@@ -140,6 +140,22 @@ RPG.defPort('render', { output(text) {…}, render(node) {…}, setCollector(fn)
 `skip`／`use`／`equip`／`unequip`）。测试范式见 `tests/unit/core/battle-interaction.test.js`
 （驱动 `battle.execute()` ＋ 桩化 `choice` 时**必须**用 `finally` 还原包内单例，见 #1699）。
 
+### 外部提交本回合行动（`battle.submit` · `sgstory#2003`）
+
+故事侧（如「打开背包」视图）可以**替玩家提交这一手**，而**不是**绕过回合：
+
+```js
+battle.submit({ item: 'bandage', action: 'use', target: '（单位名，缺省自己）' })   // 战斗实例
+RPG.submitBattleAction({ item: 'bandage' })      // 不必自己攥实例：交给**当前这场**（战外 ⇒ 具名 no-battle）
+```
+
+- **不是旁路**：三个决定点（选道具／选动作／选靶）都先看这条提交 ⇒ 它是**回答循环正在问的那一问**；
+  执行仍走 `dispatchAction` → `RPG.act`，回合边界仍是 `#playerAction` 的 `finally`
+  ⇒ `turnBoundary.end` 照发 ⇒ **回合真耗**（与战斗选单同一条账）。
+- **一次性**：本回合用完即废；被拒重来（`#1914` 回路）时**也清**（✗ 重放同一手）。
+- 取不到（身上没有／没有这个动作）⇒ **具名出声**并回到手动选择；战外 ⇒ `no-battle`（✗ 静默）。
+- 循环正等着这个玩家时提交 ⇒ **当场兑现**（屏幕上那盘按钮由 `02-choice.js` 收掉 —— 谁造谁收）。
+
 ## 已知边界（开发者必读）
 
 ### F1 · 角色血量不进存档

@@ -84,7 +84,7 @@ RPG.defEffect = (def) => {
 	const { kind, ...fields } = def;
 	const inst = kind === 'debuff' ? new RPG.Debuff(fields) : new RPG.Effect(fields);
 	if (RPG.effects.has(def.id)) {
-		console.warn(`[RPG] 效果 id「${def.id}」重复注册：${RPG.effects.get(def.id).name} 被覆盖。`);
+		RPG.regWarn.报('效果', `${def.id}`, `${RPG.effects.get(def.id).name} 被覆盖`);
 	}
 	RPG.effects.set(def.id, inst);
 	return inst;

@@ -82,6 +82,12 @@ jobs:
         run: node tests/gates/pack-selection.mjs
       - name: 规则包选择门自身的可假刀自检（R1 拆过滤／R2 未知静默 ＋ 复原逐字节同）
         run: node tests/gates/pack-selection.mjs --selftest
+      # ── 注册面汇总门（`sgstory#295` 乙）：12 处散装「重复注册」warn ⇒ 加载期汇总**一条**（含计数与逐条具名）──
+      #   读数是**真 bundle** 里捕获的 `console.warn`（探针子进程）；ⓑ 能力门：引擎有 `packs` 口时再断「单包 ⇒ 零冲突」。
+      - name: 注册面汇总门（散装 warn ⇒ 汇总一条 · 计数同源）
+        run: node tests/gates/regwarn-summary.mjs
+      - name: 注册面汇总门自身的可假刀自检（R1 散装／R2 静默 ＋ 复原逐字节同）
+        run: node tests/gates/regwarn-summary.mjs --selftest
       - name: 无头单测（断言 fail === 0）
         run: node tests/unit/headless.mjs
       # ★引擎单测**刀架**（`sgstory#1962`）：把「手工下刀 → 看红格 → 复原」自动化。

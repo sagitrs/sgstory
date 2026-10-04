@@ -161,7 +161,7 @@ RPG.registerEncounterTable = (tableId, table) => {
 	}
 	/* ★重复注册**告警**（不抛）—— `#1816` MAJOR-1：原为**纯静默**覆盖，与既有形对齐。 */
 	if (Object.prototype.hasOwnProperty.call(RPG.encounterTables, tableId)) {
-		console.warn(`[RPG] 遭遇表「${tableId}」重复注册：将被覆盖。`);
+		RPG.regWarn.报('遭遇表', `${tableId}`, `将被覆盖`);
 	}
 	RPG.encounterTables[tableId] = table;
 	return table;

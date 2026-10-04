@@ -41,15 +41,18 @@ const VERBOSE = has('--verbose');
 /** ★本门**未覆盖**的注册面（`#1816` MAJOR-1 明账）。
  *  本门只扫 `defItem`／`defCharacter`／`defEffect`／`registerItem`（+ builder 调用点）；
  *  其余注册入口**不在此门**——列出它们使「不覆盖什么」**可见**（✗ 让读者误以为全覆盖）。
- *  `dupHandling` 如实标注：`warn+覆盖` 或 `纯静默`（后者连提示都没有，冲突时**完全无声**）。 */
+ *  `dupHandling` 如实标注：`上报+覆盖`（`sgstory#295` 乙 后的形：注册点调 `RPG.regWarn.报`，
+ *    加载期由 `RPG.regWarn.汇总()` **印一条**汇总 —— 仍是**如实出声**，✗ 不是静默）
+ *    ／ `warn+覆盖`（本笔**之前**的旧形：注册点当场 `console.warn`；本门仍认这个标签，✗ 不逼人改）
+ *    ／ `纯静默`（连提示都没有，冲突时**完全无声**）。 */
 export const REG_SURFACES = [
 	/* defStock 已由 `#1816` 乙**并入本门覆盖**（见 DECL_RE），故不列于此。 */
-	{ fn: 'defPipeline',           file: 'src/core/45-pipeline.js:29',   dupHandling: 'warn+覆盖' },
-	{ fn: 'registerBuild',         file: 'src/core/36-build.js:129',     dupHandling: 'warn+覆盖' },
-	{ fn: 'defNotice',             file: 'src/core/71-notice.js:30',     dupHandling: 'warn+覆盖' },
-	{ fn: 'registerScene',         file: 'src/core/50-scene.js:68',      dupHandling: 'warn+覆盖' },   // #1816 本笔补
-	{ fn: 'registerEncounterTable', file: 'src/core/65-encounters.js:153', dupHandling: 'warn+覆盖' }, // #1816 本笔补
-	{ fn: 'registerLayerMeta',     file: 'src/core/40-battle.js:137',    dupHandling: 'warn+覆盖' },   // #1816 本笔补
+	{ fn: 'defPipeline',           file: 'src/core/45-pipeline.js:29',   dupHandling: '上报+覆盖' },
+	{ fn: 'registerBuild',         file: 'src/core/36-build.js:129',     dupHandling: '上报+覆盖' },
+	{ fn: 'defNotice',             file: 'src/core/71-notice.js:30',     dupHandling: '上报+覆盖' },
+	{ fn: 'registerScene',         file: 'src/core/50-scene.js:68',      dupHandling: '上报+覆盖' },   // #1816 本笔补
+	{ fn: 'registerEncounterTable', file: 'src/core/65-encounters.js:153', dupHandling: '上报+覆盖' }, // #1816 本笔补
+	{ fn: 'registerLayerMeta',     file: 'src/core/40-battle.js:137',    dupHandling: '上报+覆盖' },   // #1816 本笔补
 ];
 
 /* ---------------- 声明侦察（三种形） ----------------
@@ -620,16 +623,22 @@ for (const s of REG_SURFACES) {
 		.filter((n) => n > 0).sort((a, b) => a - b);
 	const body = cuts.length ? rest.slice(0, cuts[0]) : rest;
 	const hasWarn = /console\.warn/.test(body);
-	const claimed = s.dupHandling === 'warn+覆盖';
-	if (hasWarn !== claimed) {
-		surfaceDiffs.push(`${s.fn}（${s.file}）：表记「${s.dupHandling}」但源码窗口${hasWarn ? '**有**' : '**无**'} console.warn ⇒ 表与实码不符`);
+	const hasRegWarn = /RPG\.regWarn\.报\(/.test(body);
+	/* ★`#295` 乙：出声有**两形**（旧的当场 warn／新的**上报**给 `regWarn`）⇒ 表记哪一形就核哪一形，
+	 *   并**明确报出实得的是哪一形**（✗ 只报「不符」—— 那会让人不知道往哪边改）。 */
+	const 期望 = s.dupHandling === 'warn+覆盖' ? 'warn' : (s.dupHandling === '上报+覆盖' ? 'regWarn' : '静默');
+	const 实得 = hasWarn ? 'warn' : (hasRegWarn ? 'regWarn' : '静默');
+	if (实得 !== 期望) {
+		surfaceDiffs.push(`${s.fn}（${s.file}）：表记「${s.dupHandling}」但源码窗口实得「${实得}」`
+			+ `（warn=${hasWarn}／regWarn=${hasRegWarn}）⇒ 表与实码不符`);
 	}
 }
 console.log(`  ⚠ 本门**未覆盖**的注册面（${REG_SURFACES.length} 个，明账 —— 这些入口的冲突本门**看不见**）`
 	+ `　★表已与源码**交叉核对**${surfaceDiffs.length ? '（**不符 ' + surfaceDiffs.length + ' 项**）' : '（全部相符）'}：`);
 for (const d of surfaceDiffs) problems.push(`未覆盖注册面的表与实码不符：${d}`);
 for (const s of REG_SURFACES) {
-	const mark = s.dupHandling === 'warn+覆盖' ? '有 warn' : '★**纯静默**（无任何提示）';
+	const mark = s.dupHandling === '上报+覆盖' ? '上报（`regWarn` 汇总时印一条）'
+		: (s.dupHandling === 'warn+覆盖' ? '有 warn' : '★**纯静默**（无任何提示）');
 	console.log(`      · ${s.fn}（${s.file}）：${mark}`);
 }
 if (problems.length) {

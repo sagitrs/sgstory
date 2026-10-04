@@ -63,11 +63,16 @@ RPG.preservePanelState = [{ sel: 'details.rpg-notice-box' }];
  * @param def.host    宿主选择器（jQuery 选择器串；缺省 `[data-panel="<id>"]`）
  * @returns 面板登记项；重复注册**告警不抛**（与 `defEffect`／`registerBuild`／`defNotice` 同形）
  */
-RPG.registerPanel = (id, { name = id, render, host } = {}) => {
+RPG.registerPanel = (id, { name = id, render, host, refresh = null } = {}) => {
 	if (typeof id !== 'string' || id === '') throw new Error('registerPanel 需要非空 id');
 	if (typeof render !== 'function') throw new Error(`registerPanel「${id}」需要 render 函数`);
 	if (RPG.panels.has(id)) console.warn(`[RPG] 面板「${id}」重复注册：将被覆盖。`);
-	const entry = { id, name, render, host: host ?? `[data-panel="${id}"]`, count: 0 };
+	/* ★`sgstory#1763`（B1+1.1/1.2）：`refresh` = 该面板所属的**刷新域**（缺省 `null` = 不属任何域）。
+	 *   域是**自由串**（✗ 不预先登记）：`refreshDomain(域)` 只重绘**声明了该域**的面板 —— 这样「改一域」
+	 *   就天然**不动他域**，而「改了就整段重绘」被结构上排除。空/非法值 ⇒ 视为 `null`（具名告警，✗ 静默吞）。 */
+	const 域 = (typeof refresh === 'string' && refresh !== '') ? refresh : null;
+	if (refresh != null && 域 === null) console.warn(`[RPG] 面板「${id}」的 refresh 不是非空字符串：已按「不属任何域」处理`);
+	const entry = { id, name, render, host: host ?? `[data-panel="${id}"]`, refresh: 域, count: 0 };
 	RPG.panels.set(id, entry);
 	return entry;
 };
@@ -115,6 +120,32 @@ RPG.refreshPanels = (ids = null, { into, write } = {}) => {
 		rendered.push(id);
 	}
 	return { rendered, skipped };
+};
+
+/**
+ * ★`sgstory#1763`：**某个刷新域里的面板 id 列表**（只读；判据与宿主壳都取它，✗ 各自再筛一遍）。
+ * @param 域  域串；`null`/省略 ⇒ 列出**不属任何域**的面板（`refresh === null`）
+ * @returns `string[]`（注册序）
+ */
+RPG.panelsInDomain = (域 = null) => [...RPG.panels.values()].filter((p) => p.refresh === (域 ?? null)).map((p) => p.id);
+
+/** 已声明过的域（注册序去重）—— 宿主壳的「面板显隐」设置与诊断面用它。 */
+RPG.panelDomains = () => [...new Set([...RPG.panels.values()].map((p) => p.refresh).filter((d) => d != null))];
+
+/**
+ * ★`sgstory#1763`（本票第 3 件）：**按域重绘** —— 只重绘声明了该域的面板，✗ 不碰其他域、✗ 不整段重绘。
+ *   `refreshPanels(ids?)` 是「按下标/全量」，本面是「**按域**」：语义分开，✗ 不做成同一入口的两种参数
+ *   （两个同义入口会漂移 —— 同本档 NIT-5 删别名的理由）。
+ * @param 域  域串（自由串，✗ 不预先登记）
+ * @param opts 与 `refreshPanels` 同（`into`／`write`）
+ * @returns `{ 域, rendered, skipped, 无面板 }` —— `无面板: true` 表示**该域当前没有任何面板**
+ *   （✗ 静默返回空对象：域名打错与「域里没面板」必须不同形，同本档「未注册 id 先抛」之旨）。
+ */
+RPG.refreshDomain = (域, opts = {}) => {
+	if (typeof 域 !== 'string' || 域 === '') throw new Error('refreshDomain 需要非空域串');
+	const ids = RPG.panelsInDomain(域);
+	const r = RPG.refreshPanels(ids, opts);
+	return { 域, rendered: r.rendered, skipped: r.skipped, 无面板: ids.length === 0 };
 };
 
 /* 注（D 席 NIT-5）：曾有一个等价别名 `refreshAllPanels = () => refreshPanels(null)` ⇒ **已删** ——

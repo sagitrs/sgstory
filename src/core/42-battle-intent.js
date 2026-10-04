@@ -22,20 +22,42 @@
 	const ids = new WeakMap();
 	let seq = 1;
 
+	/* ★`sgstory#1935`（`[identity-enemies-save]`·领队 2026-10-04 03:08 点名本项为 `#1935` 最后一件）：
+	 *   **持久单位号** —— 与上面「为何用 WeakMap（✗ 实例字段）」那段是一次**有意反转** ✓：
+	 *   旧理由（号只在本场战斗有意义 ＋ 战斗不许中途存档）在**跨档稳定**这条新要求下**不再成立** ✓
+	 *   （该要求在 `run-baseline` 的 `[identity-enemies-save]` 格上写着：存档往返后「哪一只」仍须答得出 ✓）。
+	 *
+	 *   ★但**只在发过号时写键**（照本仓 `nonlethal`／`isProtagonist` 的**零回归**形 ✓）⇒
+	 *     从未参战的角色，其 `toJSON()` 输出**逐键不变** ✓（本仓有逐字节快照类断言 ✓）。
+	 *   ★非 `Character` 的对象仍走 WeakMap（✗ 不给任意对象添字段 —— 那会把诊断路径也写脏 ✓）。
+	 *   ★水位住在模块级（同 `10-item.js` 的裁定 ✓）：`revive` 见到号就把它**顶上去** ⇒
+	 *     读档后新发号 ✗ 不与档里已有的撞 ✓（＝「跨档稳定」的可判形式 ✓）。 */
+	const 顶水位 = (id) => {
+		const n = Number(String(id ?? '').replace(/^u/, ''));
+		if (Number.isFinite(n) && n >= seq) seq = n + 1;
+	};
+
 	/** 取（必要时发）单位号。非对象入参 ⇒ 具名错（✗ 静默给个假号）。 */
 	const of = (u) => {
 		if (u == null || (typeof u !== 'object' && typeof u !== 'function')) {
 			throw new Error(`unitId.of：需要对象（收到 ${typeof u}）—— 号只发给战斗单位`);
 		}
+		/* ★持久号优先（随档 ⇒ 存读往返后**逐字同** ✓） */
+		if (typeof u.entityId === 'string' && u.entityId !== '') { 顶水位(u.entityId); return u.entityId; }
 		let v = ids.get(u);
-		if (v == null) { v = `u${seq++}`; ids.set(u, v); }
+		if (v == null) {
+			v = `u${seq++}`;
+			if (u instanceof RPG.Character) u.entityId = v;   // ★写进实例 ⇒ 随 `toJSON` 进档 ✓
+			顶水位(v);
+			ids.set(u, v);
+		}
 		return v;
 	};
 
 	/** 按号找回；`list` 缺省为空表 ⇒ 必找不到（照抛）。 */
 	const resolve = (id, list) => {
 		const 表 = list ?? [];
-		const hit = 表.find((u) => ids.get(u) === id);
+		const hit = 表.find((u) => u?.entityId === id || ids.get(u) === id);   // ★两形都认（持久号 ＋ 会话号）
 		if (hit == null) {
 			throw new Error(`unitId.resolve：候选中没有号 ${JSON.stringify(id)}`
 				+ `（候选 ＝ ${JSON.stringify(表.map((u) => [u?.name, ids.get(u) ?? null]))}）`);
@@ -43,8 +65,11 @@
 		return hit;
 	};
 
+	/** 读档/`revive` 见到号时**顶水位**（与 `10-item.js` 的 `noteEntityId` 同形 ✓）。 */
+	const note = (id) => 顶水位(id);
+
 	/** 已发号数（诊断量；判据用它证「同名两只是两只」）。 */
 	const issued = () => seq - 1;
 
-	RPG.unitId = Object.freeze({ of, resolve, issued });
+	RPG.unitId = Object.freeze({ of, resolve, issued, note });
 })();

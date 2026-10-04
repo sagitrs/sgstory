@@ -189,6 +189,7 @@
 		assert.eq(甲2.opened, true, '★甲的「开过」须随档往返');
 		assert.eq(乙2.opened, false, '★乙**不得**跟着变成「开过」（同定义两只各归各 ✓）');
 		assert.eq(甲2.entityId, 甲.entityId, '★身份随档往返不变');
+	});
 
 	test('★`#1935` 单位域持久号：存档往返后「哪一只」逐字答得出；新发号 ✗ 不撞档里已有的号', () => {
 		/* `[identity-enemies-save]` 的核心：`unitId` 原为**会话内** `WeakMap` 号 ⇒ 读档后新对象＝新号 ✗。

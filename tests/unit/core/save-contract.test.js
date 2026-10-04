@@ -297,4 +297,35 @@
 		} finally { delete State.variables.probe; }
 	});
 
+	/* ---------- ★`sgstory#1936`（轨B·显式进度）：进度账**读口**三面（第三面＝三消费方归 books/dev-10） ----------
+	 * 本读口是**纯函数**（入参 `stateVars`，缺省取 `vars()`）⇒ 判据直接喂**字面量**，✗ 不污染 `State`。
+	 * ⚠ 本档基线是 **CRLF** ⇒ 改本档**必须**按字节级写（我第一版用 text 模式写 ⇒ 整档被翻成 LF ⇒ 行尾门当场红 ✓）。 */
+	test('★`#1936` 进度账读口①【往返】：新键在位 ⇒ 读它（形状固定／集合去重／**给的是快照**）', () => {
+		const 账 = (v) => S.progress(v);
+		assert.eq(JSON.stringify(账({ rpgProgress: { run: { cleared: ['L9', 'boss:不眠者'] } } })),
+			JSON.stringify({ run: { cleared: ['L9', 'boss:不眠者'] } }), '新键在位 ⇒ 逐字读出（形状固定 `{run:{cleared:[]}}`）');
+		assert.eq(JSON.stringify(账({ rpgProgress: { run: { cleared: ['a', 'a', 'b'] } } })),
+			JSON.stringify({ run: { cleared: ['a', 'b'] } }), '「已过＝集合」⇒ 同 id 重复只算一次');
+		/* ★快照：读口**不得**递内部引用（否则调用方一改，账就跟着变 —— 与 `55-session` 的 `facts()` 同旨） */
+		const 读 = 账({ rpgProgress: { run: { cleared: ['a'] } } });
+		读.run.cleared.push('偷偷加的');
+		assert.eq(JSON.stringify(账({ rpgProgress: { run: { cleared: ['a'] } } })),
+			JSON.stringify({ run: { cleared: ['a'] } }), '★读口须给**快照**（改返回值 ✗ 不得回头影响账）');
+	});
+
+	test('★`#1936` 进度账读口②a【旧名回落】：旧档**不迁移也读得出**（旧形 ⇒ 合成同一形状）', () => {
+		const 账 = (v) => S.progress(v);
+		/* 旧形＝`babelRun.bosses`（`books#180` 的进度账），只有 `'victory'` 算「已过」 */
+		assert.eq(JSON.stringify(账({ babelRun: { bosses: { L9: 'victory', L5: 'defeat' } } })),
+			JSON.stringify({ run: { cleared: ['L9'] } }), '★旧形 ⇒ **合成同一形状**（只认 `victory`）');
+		assert.eq(JSON.stringify(账({})), JSON.stringify({ run: { cleared: [] } }), '两者皆无 ⇒ **空账**（✗ 抛）');
+		assert.eq(JSON.stringify(账({ babelRun: { bosses: null } })), JSON.stringify({ run: { cleared: [] } }), '旧形坏值 ⇒ 空账（✗ 崩）');
+	});
+
+	test('★`#1936` 进度账读口②b【新旧同时在 ⇒ **新键优先**】：✗ 合并（两套真值是最坏的结局）', () => {
+		const 账 = (v) => S.progress(v);
+		assert.eq(JSON.stringify(账({ rpgProgress: { run: { cleared: ['新'] } }, babelRun: { bosses: { 旧: 'victory' } } })),
+			JSON.stringify({ run: { cleared: ['新'] } }), '★新键在位 ⇒ 只读新键（✗ 把旧键并进来）');
+	});
+
 })();

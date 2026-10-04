@@ -1,16 +1,42 @@
 # src/ —— 插件本体开发指南
 
-这里是 SugarCube 增强插件的源码。两层结构（`core/` 一层 ＋ **规则包一层（可多个）**）：
+这里是 SugarCube 增强插件的源码。三层结构（`core/` 一层 ＋ **宿主一层** ＋ **规则包一层（可多个）**）：
 
 | 目录 | 命名空间 | 职责 | 铁律 |
 |---|---|---|---|
 | `core/` | `setup.RPG` | 规则无关引擎：基类、背包、战斗循环、场景、输入输出 | **零规则字段**——core 回答“能不能、怎么做”，不回答“掷什么骰、DC 多少” |
+| `host/<宿主>/` | `setup.<宿主大写>` | **宿主适配层（L0）**：把某个界面/运行时（首例 SugarCube）的状态、渲染、页面生命周期收口为三个端口 | **全仓唯一**允许出现宿主符号（`State.variables`／`$()`／`Dialog`／`:passageinit`）的一层；内核只经 `RPG.portOf()` 取 |
 | `dnd3/` | `setup.DND3` | D&D 3.5 规则包：数值块约定、判定数学、内容 | 判定数学只进 `dnd3/core/`，不碰 `src/core` |
 | `dnd-5e/` | `setup.DND5E` | D&D 5e（2024 SRD）规则包：同上 | 判定数学只进 `dnd-5e/core/`，不碰 `src/core` |
 | `d20m/` | `setup.D20M` | d20 Modern（MSRD）规则包：同上（3e 系判定数学、火器、义体/机器人自证件） | 判定数学只进 `d20m/core/`，不碰 `src/core` |
 
 ★**本表须列全所有规则包**——新增包时**同笔补行**（否则下一个人照着半张表建包）；复现命令：`ls -d src/dnd/*/`。
 ★**规则包之间互不可见**——共享的东西应下沉 `core/`；★**跨包同名 id 会彼此静默遮蔽**（见 §F2；系统性政策见 #1743）。
+
+## 宿主与三端口（L0／L1 的边界）
+
+引擎与界面之间只经**三个端口**（`#1912`／`#1917`）：`PersistContract`（存档/读档/迁移）、
+`RenderPort`（输出与渲染）、`LifecyclePort`（段落切换/会话纪元/异步取消）。
+
+- **契约由内核定义**：`src/core/ports/index.js`（L1）——它声明每个端口该有什么方法，并提供**登记面**；
+- **实现由宿主提供**：`src/host/<宿主>/**`（L0）——全仓**唯一**允许出现宿主符号的地方；
+- **依赖方向是 L0 → L1**：内核永远不知宿主 ⇒ `src/core/**` 里**不得出现任何宿主 id 字面量**
+  （连注释里举例也用 `<宿主 id>` 占位），由门 `tests/gates/host-touchpoints.mjs` 的「宿主标识」判据机械盯着。
+
+写一个新宿主（形见 `src/host/sugarcube/`，最小可跑的例子见 `tests/unit/core/hosts.test.js` 的用例内宿主）：
+
+```js
+/* ① 登记宿主（包根 00-init.js，首行 /* raw */）*/
+setup.MYHOST = { id: 'myhost', desc: '…' };
+setup.RPG.defHost(setup.MYHOST.id, { desc: setup.MYHOST.desc });
+
+/* ② 把三端口**填进这个宿主**（其余文件；host 必填 —— ✗ 缺省落影子表）*/
+RPG.defPort('render', { output(text) {…}, render(node) {…}, setCollector(fn) {…} }, { host: MYHOST.id });
+```
+
+**选择与解析**（`sgstory#1989`）：`RPG.useHost(id)` 显式选择，`RPG.hostOf()` 读已定宿主，`RPG.hostsReady()` 盘存各宿主缺哪些端口。
+解析规则是**单一**的：已定宿主＝显式选择 ?? 恰好一个登记（自动）?? 无；0 个登记抛「无宿主登记」、
+≥2 且未选抛「宿主未选择 ＋ 候选清单」——**两种不同形**，✗ 静默取第一个（那会让「哪个宿主在跑」取决于加载序）。
 
 ## 如何添加你自己的插件（规则包）
 

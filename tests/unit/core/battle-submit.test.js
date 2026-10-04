@@ -115,6 +115,23 @@
 		assert.ok(r4.ok === false && r4.reason === 'no-battle', `战外应 no-battle，实得 ${JSON.stringify(r4)}`);
 	});
 
+	test('battle submit：**战斗先结束 ⇒ 未消费的提交具名出声**（✗ 静默丢）', async () => {
+		/* 装置：**自动战**（`interactive:false`）从来到不了「问玩家」那一问 ⇒ 队列里的提交没人取。 */
+		State.variables.inventory = [];
+		R().give('bandage');
+		const 场 = new (R().Battle)(1, [D().Player], [new (R().Character)({ name: '靶', hp: 1, maxHp: 1 })], false);
+		const r = 场.submit({ item: 'bandage' });
+		assert.ok(r.ok === true, `提交本身应被接受，实得 ${JSON.stringify(r)}`);
+		R().rng.set(() => 0.99);
+		await 场.execute();
+		R().rng.reset();
+		const 丢 = 场.droppedSubmissions ?? [];
+		assert.eq(丢.length, 1, `应有 1 条「未发生」记账，实得 ${JSON.stringify(丢)}`);
+		assert.eq(丢[0]?.item, 'bandage', '记账应带上道具 id');
+		assert.ok(/没有机会出手/.test(String(丢[0]?.text)) && /从未发生/.test(String(丢[0]?.text)),
+			`记账文案要说清「没轮到、从未发生」，实得：${丢[0]?.text}`);
+	});
+
 	test('battle submit：**被拒重来 ⇒ 提交已清**（✗ 同一手被重放）', async () => {
 		/* 真拒绝装置：**满血时治疗被引擎按设计拒**（`action-refused` —— 无事可做的治疗不白占一手）。
 		 *   ⚠ 本席首版拿 `slingshot` 造「弹尽」⇒ 该件在 dnd3 包里**没注册** ⇒ 装置自己先炸（本档的教训：

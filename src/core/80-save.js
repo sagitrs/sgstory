@@ -67,6 +67,8 @@ RPG.save = (() => {
 		actors: 'actors',            // 域 4 的载体之一（`$actors = { goblin: … }`）
 		span1Farms: 'byPack',        // §一.8 裸键 ⇒ 收拢进 `byPack`
 		span1Harvests: 'byPack',
+		/* ★`sgstory#1936`（轨B·显式进度）：本局进度账 —— 与上面两键**同域**（本包·本局的故事状态）。 */
+		rpgProgress: 'byPack',
 		flags: null,                 // 域 9：★现不存在（工料单 §〇.9）⇒ 格式层预留位
 		/* ★未列独立条目者（避免「格式说支持、audit 报不出来」的两套口径）：
 		 *   · **域 4 存量（stocks）** —— 落在 `player.stats.<stockId>`（工料单 §〇.4）⇒ **随 `player` 进档**，
@@ -127,6 +129,35 @@ RPG.save = (() => {
 	const currentPack = () => {
 		const v = vars();
 		return (typeof v.rpgPack === 'string' && v.rpgPack) || (RPG.packId ?? 'core');
+	};
+
+	/**
+	 * ★`sgstory#1936`（轨B·显式进度）**读口**：本局进度账 —— 形状固定 `{ run: { cleared: [ …ids ] } }`。
+	 *
+	 * ## 为什么是这个形（两裁的落点，✗ 本席自选；领队 2026-10-04 01:38 裁）
+	 *   · **按局**（Q1）：doc-3 的硬门语义「**每局**都得打」＋「死亡＝失败」的单局哲学 ⇒ 账落**本局**；
+	 *     将来的**跨局**量（如「历史最好」）须**另立名**，✗ 挤进这一键（一个量一个名）。
+	 *   · **已过＝集合**（Q2）：层 id／头目 id **同放一集** —— 三家消费方（BossGatePolicy／传送门／分段门）
+	 *     各取所需即可，✗ 先造一张大表。
+	 *
+	 * ## 读口带**旧名回落**（`#1924` 形：旧名只留**读档回落**）
+	 *   新键 `vars.rpgProgress` 在位 ⇒ 读它；缺位 ⇒ 由**旧形**合成**同一形状**
+	 *   （`vars.babelRun.bosses` 里值为 `'victory'` 的键，即 `books#180` 的进度账）⇒ **旧档不迁移也读得出** ✓。
+	 *   ★为何不补迁移级：本档的链只拿到**信封**（`envelope()` 不含变量值，见其上注释「域键快照只记有没有落点」）
+	 *     ⇒ 链**搬不动值**；补一级只写版本号而不搬值 ＝「写了版本号没做事」✗。
+	 *   ★新旧**同时在位** ⇒ **新键优先、✗ 不合并**（两套真值是最坏的结局）。
+	 * @returns `{ run: { cleared: string[] } }`（**快照**：✗ 递内部引用 —— 与 `55-session.js` 的 `facts()` 同旨）
+	 */
+	const progress = (stateVars = vars()) => {
+		const 新 = stateVars?.rpgProgress;
+		if (新 != null && typeof 新 === 'object') {
+			const 集 = Array.isArray(新?.run?.cleared) ? 新.run.cleared.map(String) : [];
+			return { run: { cleared: [...new Set(集)] } };
+		}
+		const 旧账 = (stateVars?.babelRun?.bosses != null && typeof stateVars.babelRun.bosses === 'object')
+			? stateVars.babelRun.bosses : {};
+		const 旧集 = Object.keys(旧账).filter((k) => 旧账[k] === 'victory').map(String);
+		return { run: { cleared: [...new Set(旧集)] } };
 	};
 
 	/** 本版应写入的信封（纯数据，随 `save.state` 一起进档）。 */
@@ -355,6 +386,7 @@ RPG.save = (() => {
 		/* ★getter（`#1902`）：故事侧登记后，`DOMAINS` 若仍是内置那份就成了「陈旧面」——读者据它判「有没有这一域」会答错 */
 		get DOMAINS() { return domainTable(); },
 		ready, currentPack, envelope, judgeLoad, audit, install, declareDomain,
+		progress,                                                     // ★`#1936` 进度账读口（带旧名回落）
 		snapshotForRestart, handleRestartClick, hookRestartConfirm,   // ★`#1877` P1-7（供单测直证）
 		installed: () => installed,
 	};

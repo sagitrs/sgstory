@@ -308,5 +308,15 @@
 		return root.__host;
 	};
 
-	root.__host = { host, state, engine, save, install, reset, get installed() { return installed; } };
+	/* `sgstory#1977` B8：宿主仿真补一个 **`Macro` 记录器**。引擎此前没有宏注册面（全 `src/` `Macro.add` 0 命中），
+	 *   而 `src/host/sugarcube/40-pace.js` 在**装载期**就注册四个宏 ⇒ 仿真里没有 `Macro` 时会**静默跳过**
+	 *   （那条路就永远测不到、判据①会变成假绿）。★位置必须在**本档顶层**：`install()` 的形是「被测物装载**后**接输出面」，
+	 *   而宏注册发生在被测物**装载时** ⇒ 记录器必须早于它。 */
+	root.Macro = root.Macro ?? {
+		注册表: [],
+		add(名, spec) { this.注册表.push({ 名, spec }); },
+		_清() { this.注册表.length = 0; },
+	};
+	root.__host = { host, state, engine, save, install, reset,
+		macro: () => root.Macro.注册表, get installed() { return installed; } };
 })(typeof globalThis !== 'undefined' ? globalThis : window);

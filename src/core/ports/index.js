@@ -182,7 +182,7 @@ RPG.defPort = (key, impl, { host } = {}) => {
 	if (missing.length > 0) {
 		throw new Error(`端口 ${id} 的实现缺方法：${missing.join('、')}（契约见 src/core/ports/index.js）`);
 	}
-	if (宿主.ports[key]) console.warn(`[RPG] 宿主「${host}」的端口「${key}」重复注册：将被覆盖。`);
+	if (宿主.ports[key]) RPG.regWarn.报('宿主端口', `${host}:${key}`, `将被覆盖`);
 	宿主.ports[key] = impl;
 	同步端口袋();
 	return impl;

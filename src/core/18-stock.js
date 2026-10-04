@@ -111,7 +111,7 @@ RPG.defStock = (def) => {
 		throw RPG.stockError('STOCK_ID_COLLIDES_EFFECT',
 			`defStock「${def.id}」与既有 Effect（条件）同名 ⇒ 存量须用独立命名空间（#1759 §十.4 / 判据 7）`);
 	if (RPG.stocks.has(def.id))
-		console.warn(`[RPG] 存量「${def.id}」重复注册：${RPG.stocks.get(def.id).name ?? def.id} 被覆盖。`);
+		RPG.regWarn.报('存量', `${def.id}`, `${RPG.stocks.get(def.id).name ?? def.id} 被覆盖`);
 	/* 定义是**元数据**（真值在角色的 `stats` 字段里）⇒ 冻结的普通对象即可，✗ 需实例类 */
 	const rec = Object.freeze({ ...def, scope, pack: def.pack ?? null });
 	RPG.stocks.set(def.id, rec);

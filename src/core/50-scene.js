@@ -72,7 +72,7 @@ RPG.registerScene = (scene) => {
 	/* ★重复注册**告警**（不抛）—— `#1816` MAJOR-1：本入口原为**纯静默**覆盖（连提示都没有），
 	 *   与 `registerItem`／`defCharacter`／`defPipeline` 的既有处理**同形**补上。 */
 	if (RPG.scenes.has(scene.id)) {
-		console.warn(`[RPG] 场景「${scene.id}」重复注册：将被覆盖。`);
+		RPG.regWarn.报('场景', `${scene.id}`, `将被覆盖`);
 	}
 	RPG.scenes.set(scene.id, scene);
 	return scene;

@@ -153,7 +153,7 @@ RPG.registerLayerMeta = (id, meta) => {
 	if (!Array.isArray(meta)) throw new Error('registerLayerMeta 的 meta 须是数组');
 	/* ★重复注册**告警**（不抛）—— `#1816` MAJOR-1：原为**纯静默**覆盖，与既有形对齐。 */
 	if (Object.prototype.hasOwnProperty.call(RPG.layerMeta, id)) {
-		console.warn(`[RPG] 层表「${id}」重复注册：将被覆盖。`);
+		RPG.regWarn.报('层表', `${id}`, `将被覆盖`);
 	}
 	RPG.layerMeta[id] = meta;
 	return meta;

@@ -49,7 +49,7 @@ RPG.defPipeline = (def) => {
 		seen.add(st.id);
 	}
 	if (RPG.pipelines.has(def.id)) {
-		console.warn(`[RPG] 管线 id「${def.id}」重复注册：将被覆盖。`);
+		RPG.regWarn.报('管线', `${def.id}`, `将被覆盖`);
 	}
 	const entry = { id: def.id, stages: [...stages] };
 	RPG.pipelines.set(def.id, entry);

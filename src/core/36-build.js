@@ -138,7 +138,7 @@ RPG.registerBuild = (id, fn) => {
 	 *   —— 后注册者覆盖先注册者，但**不静默**（`#1776` D 席 N-4：与 `#1743` 的跨包 id
 	 *   静默遮蔽同族；热重载／多包场景下最需要这条线索）。 */
 	if (RPG.buildEffects[id] && RPG.buildEffects[id] !== fn) {
-		console.warn(`[RPG] 建造项「${id}」重复注册：将被覆盖。`);
+		RPG.regWarn.报('建造项', `${id}`, `将被覆盖`);
 	}
 	RPG.buildEffects[id] = fn;
 	return fn;

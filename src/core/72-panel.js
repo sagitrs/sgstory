@@ -66,7 +66,7 @@ RPG.preservePanelState = [{ sel: 'details.rpg-notice-box' }];
 RPG.registerPanel = (id, { name = id, render, host, refresh = null, cssVar = null, tint = null, tintOf = null, thresholds = null } = {}) => {
 	if (typeof id !== 'string' || id === '') throw new Error('registerPanel 需要非空 id');
 	if (typeof render !== 'function') throw new Error(`registerPanel「${id}」需要 render 函数`);
-	if (RPG.panels.has(id)) console.warn(`[RPG] 面板「${id}」重复注册：将被覆盖。`);
+	if (RPG.panels.has(id)) RPG.regWarn.报('面板', `${id}`, `将被覆盖`);
 	/* ★`sgstory#1763`（B1+1.1/1.2）：`refresh` = 该面板所属的**刷新域**（缺省 `null` = 不属任何域）。
 	 *   域是**自由串**（✗ 不预先登记）：`refreshDomain(域)` 只重绘**声明了该域**的面板 —— 这样「改一域」
 	 *   就天然**不动他域**，而「改了就整段重绘」被结构上排除。空/非法值 ⇒ 视为 `null`（具名告警，✗ 静默吞）。 */

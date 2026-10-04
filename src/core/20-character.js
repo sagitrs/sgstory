@@ -244,7 +244,7 @@ RPG.Character = class Character extends Object {
 };
 
 /** 声明式定义角色（推荐）—— new Character(def) 并按 id 登记到 characters 注册表。
- *  同 id 重复注册会 console.warn（与 registerItem 同理）。 */
+ *  同 id 重复注册会**如实上报**（`RPG.regWarn.报` ⇒ 加载期汇总一条 warn；与 registerItem 同理）。 */
 /**
  * 还原钩子登记表（`#1758` 甲/丙形）：`revive()` 对 `stats` 的**包侧修补**点。
  *
@@ -346,7 +346,7 @@ RPG.defCharacter = (def) => {
 	const c = new RPG.Character(def);
 	if (def && def.id) {
 		if (RPG.characters.has(def.id)) {
-			console.warn(`[RPG] 角色 id「${def.id}」重复注册：已存在，将被覆盖。`);
+			RPG.regWarn.报('角色', `${def.id}`, `已存在，将被覆盖`);
 		}
 		RPG.characters.set(def.id, c);
 	}

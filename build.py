@@ -254,12 +254,14 @@ def load_template():
     return raw
 
 
-def build_unit_bundle(hosts=None, explicit=False):
+def build_unit_bundle(hosts=None, explicit=False, packs=None):
     """插件源码 → tests/unit/dist/bundle.js（shims 由 framework/ 提供）；
-    并扫描 tests/unit/*.test.js 生成 dist/manifest.js（新用例文件自动被发现）。"""
+    并扫描 tests/unit/*.test.js 生成 dist/manifest.js（新用例文件自动被发现）。
+    `packs` ＝ **规则包**选择（`#295` 甲；`None` ⇒ 全装）—— 判据要能按包建**两份** bundle 对读
+    （`#295` 乙 的「单包 ⇒ 零 id 冲突」那一臂就靠它）。"""
     bundle = UNIT_DIST / "bundle.js"
     UNIT_DIST.mkdir(parents=True, exist_ok=True)
-    parts = js_parts_of(collect_js_files(hosts))
+    parts = js_parts_of(collect_js_files(hosts, packs))
     sel = host_selection_js(list(DEFAULT_HOSTS) if hosts is None else hosts, explicit)
     if sel:
         parts.append(sel)                       # ★`#1998`：产物自证选了谁（✗ 靠命令行留痕）

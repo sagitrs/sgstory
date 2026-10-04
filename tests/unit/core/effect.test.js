@@ -64,11 +64,19 @@
 		assert.eq(minimal.desc, '', "desc 缺省 = ''");
 	});
 
-	test('effect：defEffect 重复 id ⇒ console.warn + 覆盖（console 探针判）', () => {
+	test('effect：defEffect 重复 id ⇒ 如实上报 ＋ 覆盖（`#295` 乙 后的契约 · console 探针判）', () => {
+		/* ★`sgstory#295` 乙 改形：注册点**只收集**（`RPG.regWarn.报`），加载期结束**汇总印一次**
+		 *   ⇒ 旧形「当场恰好 warn 一次」**不再是契约** ⇒ 本测改为断**新契约**：先计入收集器一条，
+		 *     再显式调 `汇总()`（与自动落点**同一条路径** ⇒ 判据不依赖计时器）印出**恰一条**含具名。 */
+		R().regWarn.清();                                     // ★先复位（✗ 依赖别处是否已印过／已挂计时器）
 		const first = fresh('u-dup', { name: '前' });
-		const calls = probeConsole('warn', () => fresh('u-dup', { name: '后' }));
-		assert.eq(calls.length, 1, '重复注册恰好 warn 一次');
-		assert.ok(String(calls[0][0]).includes('u-dup'), '警告含 id');
+		fresh('u-dup', { name: '后' });
+		assert.eq(R().regWarn.条数(), 1, '重复注册应计入收集器恰一条');
+		const calls = probeConsole('warn', () => R().regWarn.汇总());
+		assert.eq(calls.length, 1, '汇总恰好 warn 一次（✗ 散装）');
+		assert.ok(String(calls[0][0]).includes('u-dup'), '汇总含 id（具名）');
+		assert.ok(String(calls[0][0]).includes('效果'), '汇总含类名（读得出谁遮蔽谁）');
+		assert.ok(String(calls[0][0]).includes('共 1 处'), '汇总含**计数**');
 		assert.eq(R().effectOf('u-dup').name, '后', '后者覆盖前者');
 		assert.ok(first !== R().effectOf('u-dup'), '不是同一实例（确为覆盖）');
 	});

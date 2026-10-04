@@ -31,7 +31,7 @@ RPG.defNotice = (id, { name = id, level = 'log' } = {}) => {
 	if (typeof id !== 'string' || id === '') throw new Error('defNotice 需要非空 id');
 	if (level !== 'log' && level !== 'key') throw new Error(`defNotice 的 level 须是 'log'｜'key'（收到 ${level}）`);
 	if (RPG.noticeChannels.has(id) && RPG.noticeChannels.get(id).declared !== false) {
-		console.warn(`[RPG] 通知通道「${id}」重复注册：将被覆盖。`);
+		RPG.regWarn.报('通知通道', `${id}`, `将被覆盖`);
 	}
 	const def = { id, name, level, declared: true };
 	RPG.noticeChannels.set(id, def);

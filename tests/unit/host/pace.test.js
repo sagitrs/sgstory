@@ -16,13 +16,19 @@
 
 	test('节奏宏①：装载期**真的**把四个宏注册上（判据取自宿主仿真的记录器）', () => {
 		const 见 = window.__host.macro();
-		assert.eq(见.map((x) => x.名).join(','), 'pace,wait,type,fade',
-			`★装载期没注册上四个宏（实得 ${JSON.stringify(见.map((x) => x.名))}）`
+		/* ★`#1982` 折 `#1981` 非阻塞：**✗ 不断"注册表逐字等于这四串"** —— 后续宏笔（如 `45-fx.js`）一加宏，
+		 *   本行就红 ⇒ 会被误读成"B8 坏了" ✗。改断**这四宏在册**（成员断 ✓）＋ 各自**都注册过**这一事实。 */
+		const 名们0 = 见.map((x) => x.名);
+		assert.eq(['pace', 'wait', 'type', 'fade'].every((n) => 名们0.includes(n)), true,
+			`★装载期没把 B8 四宏注册上（实得 ${JSON.stringify(名们0)}）`
 			+ ' —— 摘掉 `40-pace.js` 里那次 `装();` 调用，本条即红');
 		const pace宏 = 见.find((x) => x.名 === 'pace').spec;
 		assert.throws(() => pace宏.handler.call({ args: ['sprint'] }), 'pace',
 			'★非法档没有被具名拒绝（静默吞掉？）');
-		assert.eq(见.length, 4, '★记录器里宏数与期望不符');
+		/* ★`#1982` 折 `#1981` 非阻塞：**✗ 不断"总数＝4"** —— 那种断言会被**下一个宏笔**误伤
+		 *   （`45-fx.js` 一加三宏，本行就红 ⇒ 又得回来改别笔的判据 ✗）。改断**成员**：B8 四宏在册即可 ✓。 */
+		assert.eq(['pace', 'wait', 'type', 'fade'].every((n) => 见.map((x) => x.名).includes(n)), true,
+			'★B8 四宏须在册（按成员断；✗ 按总数 —— 后续宏笔不应让本行变红）');
 	});
 
 	test('节奏宏②：三档各发一次 pace:set，系数随档变；战斗首回合自动 combat', () => {

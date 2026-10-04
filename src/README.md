@@ -38,6 +38,12 @@ RPG.defPort('render', { output(text) {…}, render(node) {…}, setCollector(fn)
 解析规则是**单一**的：已定宿主＝显式选择 ?? 恰好一个登记（自动）?? 无；0 个登记抛「无宿主登记」、
 ≥2 且未选抛「宿主未选择 ＋ 候选清单」——**两种不同形**，✗ 静默取第一个（那会让「哪个宿主在跑」取决于加载序）。
 
+**产物级选择**（`sgstory#1998`）：一份产物只装它选中的宿主 —— `python3 build.py … --host <id>`；
+`--host a,b` ⇒ 多装（✗ 注入选择）；`--host all` ⇒ 全装；**缺省** ⇒ 装 `DEFAULT_HOSTS`（`build.py` 一处常量，现＝ sugarcube）。
+★为何缺省不是「全装」：全装 ＋ 未选择时 `RPG.portOf` 会在**运行期**抛（实测量得：单测 774 格中 31 格红，
+端口取用全线抛）⇒ 缺省产物必须能跑。未知 id ⇒ **构建期**具名抛。
+判据：`tests/gates/host-packaging.mjs`（产物面，含 3 把真刀）。
+
 ## 如何添加你自己的插件（规则包）
 
 以 wfrp 为例，四步：

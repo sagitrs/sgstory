@@ -66,6 +66,14 @@ jobs:
         run: node tests/gates/d20-consumers.mjs
       - name: d20 门自身的可假刀自检
         run: node tests/gates/d20-consumers.mjs --selftest
+      # ★宿主**打包**门（`#1998` 阶段 6 切片 B）：查的是**产物面** —— 缺省装默认宿主、`--host <id>` 只装所选
+      #   并注入 `useHost`、`--host all` ⇒ 取用必吵（读面空袋）、未知 id 构建期具名抛。
+      #   ⚠ 本步会**真调 `python3 build.py` 数次**（读真产物），收尾会重建缺省 ⇒ 是产物面的慢步之一。
+      #   ⚠ 位次：本步**自带构建**（✗ 依赖上行 build 的产物），但它收尾会把 bundle 恢复成缺省态 ⇒ 摆在这里安全。
+      - name: 宿主打包门（`#1998`：产物级宿主选择 ＋ 随仓第二宿主）
+        run: node tests/gates/host-packaging.mjs
+      - name: 宿主打包门自身的可假刀自检（K1–K9 纯函数刀 ＋ R1/R2/R3 真刀）
+        run: node tests/gates/host-packaging.mjs --selftest
       - name: 无头单测（断言 fail === 0）
         run: node tests/unit/headless.mjs
       # ★引擎单测**刀架**（`sgstory#1962`）：把「手工下刀 → 看红格 → 复原」自动化。

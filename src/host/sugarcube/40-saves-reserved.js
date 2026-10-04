@@ -19,7 +19,16 @@
  * ⚠ 返回值是**快照**（新数组、去重排序）⇒ 调用方改动它 ✗ 不影响任何内部状态 ✓。
  */
 (() => {
-	if (typeof RPG === 'undefined') return;                        // 与同层其余档同形：无宿主则静默不装
+	/* ★构建器把每档包在 `(function (RPG, SUGARCUBE, $) { … })(setup.RPG, …)` 里 ⇒
+	 *   **插件块执行时 `setup.RPG` 可能尚未就位**（实测：`window.RPG.reservedSlots` 为 undefined ✗）
+	 *   ⇒ 本档**自解析**宿主对象（`window.RPG` ⇄ `setup.RPG`）并把结果**回写两处** ✓，
+	 *   ✗ 不再「参数没了就静默不装」（那会让本面整条链落空 ✗）。 */
+	var 宿主 = (typeof RPG !== 'undefined' && RPG) || (typeof window !== 'undefined' && window.RPG)
+		|| (typeof setup !== 'undefined' && setup && setup.RPG) || {};
+	RPG = 宿主;
+	if (typeof window !== 'undefined') window.RPG = 宿主;
+	if (typeof setup !== 'undefined' && setup) setup.RPG = 宿主;
+
 	if (typeof RPG.reservedSlots === 'function') return;           // 幂等：重复装配不覆盖
 
 	/** 故事侧「玩家自己用」的槽位名（**唯一**排除项；其余数值槽号皆视为系统保留）。 */

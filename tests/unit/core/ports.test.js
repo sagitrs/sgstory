@@ -101,4 +101,22 @@
 					+ `｜slots⇒${JSON.stringify(读({ slots: ['a', 'b'] }))}｜maxAutoSaves:5⇒auto=${读({ maxAutoSaves: 5 }).auto}`);
 			} finally { globalThis.Config = 原Config; }
 		});
+	test('★`#1979` 存档文件级导出：**往返可再导入** ＋ **与槽内容逐字节对账**（纯读 ✗ 改结构）', () => {
+		const P = setup.RPG.portOf('persist');
+		const 事实 = { 会话: 'X', hp: 7, items: ['axe', 'coin'] };
+		P.save(事实, { slot: 'g5a' });
+		const 文 = P.导出('g5a');
+		assert.ok(typeof 文 === 'string' && 文.length > 0, `★导出须给出一段 JSON 文本（实得 ${typeof 文}）`);
+		const 解 = JSON.parse(文);
+		/* ① 对账：导出物里的事实块与**槽内容**逐字节同 ✓ */
+		assert.eq(JSON.stringify(解.__portsFacts), JSON.stringify(事实), '★导出物的事实块须与槽内容**逐字节同**');
+		/* ② 往返：把导出物**导入**另一个槽 ⇒ 读出来逐字节同 ✓ */
+		const 回 = P.导入(文, { slot: 'g5b' });
+		assert.eq(回.ok, true, `★导入须成功（实得 ${JSON.stringify(回)}）`);
+		assert.eq(JSON.stringify(P.load('g5b')), JSON.stringify(事实), '★往返后读出的须与原件逐字节同');
+		/* ③ 坏输入：✗ 不许静默吞 ✓ */
+		let 抛 = null; try { P.导入('{不是 JSON', { slot: 'g5c' }); } catch (e) { 抛 = e?.message ?? ''; }
+		assert.ok(/JSON/.test(String(抛)), `★坏 JSON 须具名抛（实得 ${JSON.stringify(抛)}）`);
+	});
+
 })();

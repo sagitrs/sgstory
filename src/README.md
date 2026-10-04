@@ -1,5 +1,7 @@
 # src/ —— 插件本体开发指南
 
+通用库存交易见[原子库存交换](../docs/arch/inventory-exchange.md)：`RPG.exchange` 一次提交，复用 `withdraw`／`deposit`，不含故事价格或资格。
+
 这里是 SugarCube 增强插件的源码。三层结构（`core/` 一层 ＋ **宿主一层** ＋ **规则包一层（可多个）**）：
 
 | 目录 | 命名空间 | 职责 | 铁律 |

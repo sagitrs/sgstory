@@ -143,7 +143,11 @@ RPG.deposit = (bag, id, n = 1, snapshot = null) => {
 		bag.push(保号({ ...def.toJSON(), charges: def.charges * n }));
 		return def.charges * n;
 	}
-	for (let i = 0; i < n; i++) bag.push(保号(snapshot == null ? def.toJSON() : snapshot));
+	// 新品逐件出生，不能把同一个 def.entityId 复制到多件非堆叠物上（sgstory#2008）。
+	for (let i = 0; i < n; i++) {
+		const fresh = snapshot == null ? (i === 0 ? def : RPG.createItem(id)).toJSON() : snapshot;
+		bag.push(保号(fresh));
+	}
 	return n;
 };
 
@@ -167,12 +171,9 @@ RPG.give = (id, n = 1) => {
  *   - 非堆叠道具（`charges == null`）每个槽计 1 件。
  * @returns {boolean} 是否成功扣减（不足 / n ≤ 0 ⇒ false 且状态不变）
  */
-RPG.take = (id, n = 1, actor = null) => {
-	if (!Number.isInteger(n)) throw new Error(`RPG.take 的 n 须为整数（收到 ${n}）`);
-	if (!(n > 0)) return false;
-	/* `actor` 省略 ⇒ 玩家背包（旧行为，逐字节不变）；给出 ⇒ 按其 `items` 扣（#1752 统一入口用） */
-	const list = actor ? (Array.isArray(actor.items) ? actor.items : null) : inv();
-	if (list == null) return false;
+RPG.withdraw = (list, id, n = 1) => {
+	if (!Number.isInteger(n)) throw new Error(`RPG.withdraw 的 n 须为整数（收到 ${n}）`);
+	if (!(n > 0) || !Array.isArray(list)) return false;
 	/* 先算总量（非堆叠每槽 1；堆叠按 charges）——不足则不动状态 */
 	const total = list.reduce((s, slot) => s + (slot.id === id ? (slot.charges ?? 1) : 0), 0);
 	if (total < n) return false;
@@ -186,6 +187,14 @@ RPG.take = (id, n = 1, actor = null) => {
 		left -= use;
 		if (slot.charges <= 0) list.splice(i, 1); // 用尽即移除槽，不留 charges=0 残槽
 	}
+	return true;
+};
+
+/** 对真实角色背包扣减并通知；withdraw 是 exchange 暂存背包复用的静默原语。 */
+RPG.take = (id, n = 1, actor = null) => {
+	if (!Number.isInteger(n)) throw new Error(`RPG.take 的 n 须为整数（收到 ${n}）`);
+	const list = actor ? (Array.isArray(actor.items) ? actor.items : null) : inv();
+	if (!RPG.withdraw(list, id, n)) return false;
 	/* ★成功扣减 ⇒ 广播（#1731 D3：**道具侧真值变动**的可观测点）。
 	 *  引擎只发事件、✗ 不解释「哪些 id 算弹药」——那属内容（§十.7-C 同哲学）。
 	 *  ⇒ 有道具背书的存量（A 裁定：道具为真值）在此处**重算其派生视图**，✗ 各自递减（禁双写）。 */

@@ -166,6 +166,8 @@ RPG.reviveItem = (snapshot) => {
 	const item = RPG.createItem(snapshot.id);
 	if (snapshot.charges != null) item.charges = snapshot.charges;
 	item.equipped = snapshot.equipped === true;
+	/* ★`sgstory#1935` ②：容器实例态还原（**只在对象真有这三项时** ⇒ ✗ 不把普通件写脏）✓ */
+	for (const k of ['opened', 'disarmed', 'locked']) if (snapshot[k] !== undefined && k in item) item[k] = snapshot[k];
 	/* ★`#1914`：**有号沿用**（存档往返不丢意图）＋ 把序列推到该号之上；**旧档无号则当场补发**
 	 *   —— 每件各发一个（✗ 按 `id`+`charges` 回退：旧档里两件同类会被判成同一件，判据③钉住）。
 	 *   ★`#1924`：同一处把**实体身份**（`entityId`）与**定义**（`definitionId`）补齐 —— 三者同源：

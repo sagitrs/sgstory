@@ -34,6 +34,14 @@ RPG.Chest = class Chest extends RPG.Item {
 		this.opened = false; // 被正确打开
 	}
 
+	/** ★`sgstory#1935` ②（领队 2026-10-04 02:59 裁：账在**引擎实例位**）：容器**实例态进快照** ——
+	 *   `opened`／`disarmed`／`locked` 与 `entityId` 同路 ✓（`Item.toJSON` 只管
+	 *   `{id, charges, equipped, entityId, definitionId}` ✗ ⇒ 旧笔之下"开没开过"**不进档** ❌
+	 *   ⇒ 同定义两只容器读档后**状态糊在一起**，即本域记录的症状 ✓）。 */
+	toJSON() {
+		return { ...super.toJSON(), opened: this.opened, disarmed: this.disarmed, locked: this.locked };
+	}
+
 	get isBroken() {
 		return this.hp <= 0;
 	}

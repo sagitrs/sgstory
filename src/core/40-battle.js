@@ -261,6 +261,8 @@ const strikeCatching = (actor, target, un) => {
 	}
 };
 
+/** ★`#2003`：**当前正在进行的战斗**（`execute()` 期间登记，收尾清空）。
+ *  故事侧不攥战斗实例也能提交行动：见下 `RPG.submitBattleAction`。 */
 RPG.Battle = class Battle extends RPG.Event {
 	constructor(turn, players, enemies, interactive = false) {
 		super();
@@ -277,7 +279,18 @@ RPG.Battle = class Battle extends RPG.Event {
 		/* ★`#1773` 死锁护栏：**连续**「本次无推进」的次数（不分行动者 —— 领队裁「全局」）。
 		 *   每场由 `execute()` 开头清零（✗ 跨场串味）。达 `REJECT_LIMIT` ⇒ 记日志并清零。 */
 		this.rejectStreak = 0;
+		/* ★`sagitrs/sgstory#2003`（`sgstory-books#280` ⑧ 的引擎侧）：**外部提交的战斗行动**。
+		 *   `#提交` ＝ 已排入、尚未被本轮回合取的提交（玩家名 ⇒ `{item, action?, target?}`）；
+		 *   `#本轮` ＝ 本次尝试**正在用**的那一条（回合末清；被拒重来时也清 ⇒ ✗ 不无限重放）；
+		 *   `#等`   ＝ 战斗循环**当前正等着**的那个选择（外部提交到达时用它当场兑现 —— ✗ 让玩家再点一次）。 */
+		this.#提交 = new Map();
+		this.#本轮 = new Map();
+		this.#等 = null;
 	}
+
+	#提交;
+	#本轮;
+	#等;
 
 	/** 连续拒绝上限（`#1773` 护栏 N=3）：达此数 ⇒ 强制跳过并**记日志**（✗ 静默）。 */
 	static get REJECT_LIMIT() { return 3; }
@@ -356,6 +369,10 @@ RPG.Battle = class Battle extends RPG.Event {
 
 	async execute() {
 		this.rejectStreak = 0; // ★`#1773`：护栏计数**每场清零**（✗ 跨场串味）
+		/* ★`#2003`：把「当前这场」登记下来 —— 故事侧（背包视图）要能**按 id 提交行动**而不必
+		 *   自己攥着战斗实例；`RPG.submitBattleAction` 就是这条面。收尾处**清掉**（✗ 留下过期引用）。 */
+		RPG.Battle.current = this;
+		try {
 		const alive = (group) => group.filter((c) => !this.isOut(c));
 		/** 等概率随机选取一个存活目标（随机取值一律经 `RPG.rng`，见 §决策五 契约） */
 		const pick = (group) => group[RPG.rng.index(group.length)];
@@ -439,6 +456,11 @@ RPG.Battle = class Battle extends RPG.Event {
 			players: this.players,
 			enemies: this.enemies,
 		});
+		} finally {
+			if (RPG.Battle.current === this) RPG.Battle.current = null;
+			this.#提交.clear();
+			this.#本轮.clear();
+		}
 	}
 
 	/** ★`#1914`：按号取靶 —— **取不到 ⇒ 可读拒绝**（✗ 把异常抛出去）。
@@ -601,12 +623,119 @@ RPG.Battle = class Battle extends RPG.Event {
 		return { type: 'use', item };
 	}
 
+	/* ── ★`sgstory#2003`：外部提交的战斗行动（`books#280` ⑧「背包视图里点用道具」这条路）─────────
+	 *
+	 * 契约：`battle.submit({ item, action?, target? }, actor?)` ⇒ 把「使用道具 X」排入 `actor`
+	 *   （缺省＝第一个玩家）**本回合**的行动。战斗循环在三个决定点（选道具／选动作／选靶）都先看它：
+	 *   不是另开一条执行路，而是**回答循环正在问的那个问题** ⇒ 执行仍走 `dispatchAction` → `RPG.act`，
+	 *   回合边界仍是 `#playerAction` 的 `finally` ⇒ `turnBoundary.end`（★**回合真耗**：与战斗选单同一条账）。
+	 *   ✗ 这条面**不**绕过回合（页脚那种「点一下用掉一件药却不占回合」的第二条路正是本件要治的）。
+	 *
+	 * 取值：`action` 缺省 `'use'`；`target` 缺省**提交者自己**（给药/自 buff 的常态），
+	 *   要打别人 ⇒ 显式给 `target: '<单位名>'`。找不到对应候选 ⇒ **具名拒**并回到手动选择（✗ 静默丢弃）。
+	 * 一次性：本回合用完即废（`#本轮` 在回合末清）；被拒重来（`#1914` 回路）时**也清** ⇒ 不会重放。
+	 */
+	/** 把一条提交映射成**选单项的值**（找得到 ⇒ 值；找不到 ⇒ `null`）。★纯函数（判据直接测它）。 */
+	static matchSubmitItem(cmd, itemOptions, slots) {
+		if (!cmd || typeof cmd.item !== 'string') return null;
+		/* ① 一键项（`quick:<槽位下标>:<动作 id>`：件与动作当场定下）—— 优先，因为玩家少点两下。 */
+		for (const o of itemOptions) {
+			const q = RPG.Battle.parseQuick(o.value);
+			if (q && slots[q.index]?.id === cmd.item && q.actionId === (cmd.action ?? 'use')) return o.value;
+		}
+		/* ② 普通项（`value` ＝原槽位下标）。 */
+		for (const o of itemOptions) {
+			if (/^\d+$/.test(o.value) && slots[Number(o.value)]?.id === cmd.item) return o.value;
+		}
+		return null;
+	}
+
+	/** 动作步（仅当该道具的动作多于一个时才会被问到）：取提交里的动作，缺省 `use`。★纯函数。 */
+	static matchSubmitAction(cmd, options) {
+		const 要 = cmd?.action ?? 'use';
+		return options.some((o) => o.value === 要) ? 要 : null;
+	}
+
+	/** 靶步：把提交里的 `target`（单位名）翻成**单位号**（`RPG.unitId`，与选单同源）；缺省自己。 */
+	#matchSubmitTarget(cmd, options, actor) {
+		const 名 = cmd?.target ?? actor.name;
+		const c = [...this.players, ...this.enemies].find((x) => x.name === 名);
+		if (!c) return null;
+		const 号 = RPG.unitId.of(c);
+		return options.some((o) => o.value === 号) ? 号 : null;
+	}
+
+	/** `#choice` 的**提交优先**版：三个决定点都先看 `#本轮`／`#提交`，取不到才问玩家。 */
+	#choose(attacker, options, kind) {
+		const 本 = this.#本轮.get(attacker.name) ?? this.#提交.get(attacker.name) ?? null;
+		if (本) {
+			let v = null;
+			if (kind === 'item') {
+				v = RPG.Battle.matchSubmitItem(本, options, attacker.items ?? []);
+				if (v == null) {
+					/* ★取不到 ⇒ **具名出声**（✗ 静默丢弃了玩家的那一下）＋ 废掉这条提交 ⇒ 走手动选择。 */
+					this.#提交.delete(attacker.name);
+					const 件名 = RPG.items.has(本.item) ? RPG.createItem(本.item).name : 本.item;
+					this.perform(`（排入的那一手用不成：${attacker.name}身上用不了「${件名}」或它没有这个动作 —— 改为手动选择。）`);
+				}
+			} else if (kind === 'action') {
+				v = RPG.Battle.matchSubmitAction(本, options);
+			} else {
+				v = this.#matchSubmitTarget(本, options, attacker);
+			}
+			if (v != null) {
+				if (kind === 'item') { this.#提交.delete(attacker.name); this.#本轮.set(attacker.name, 本); }
+				return Promise.resolve(v);
+			}
+		}
+		return new Promise((resolve) => {
+			this.#等 = { actor: attacker, kind, options, resolve };
+			attacker.choice(options).then((v) => {
+				if (this.#等?.resolve === resolve) this.#等 = null;
+				resolve(v);
+			});
+		});
+	}
+
+	/** 外部提交本回合行动（契约见上）。返回 `{ok}` 或具名拒 `{ok:false, reason, text}`。 */
+	submit(cmd, actor = this.players[0]) {
+		if (cmd == null || typeof cmd.item !== 'string' || cmd.item === '') {
+			return { ok: false, reason: 'bad-command', text: '提交的战斗行动需要 `item`（道具 id）。' };
+		}
+		if (!this.players.includes(actor)) {
+			/* ⚠ 上屏文案走**玩家可读白话**（`#1863` 的玩家可见文本门：✗ 内部用语如「单位」）——
+			 *   本支只有开发者会撞到，但上屏文本的门不管谁看见。 */
+			return { ok: false, reason: 'not-a-player', text: '这条行动不是出自你操作的角色 —— 已忽略。' };
+		}
+		const 有 = (actor.items ?? []).some((s) => s?.id === cmd.item);
+		if (!有) {
+			const 名 = RPG.items.has(cmd.item) ? RPG.createItem(cmd.item).name : cmd.item;
+			return { ok: false, reason: 'no-such-item', text: `${actor.name}身上没有「${名}」。` };
+		}
+		this.#提交.set(actor.name, cmd);
+		RPG.events.emit('battle:submit', { battle: this, actor, command: cmd });
+		/* ★循环正等着这个玩家 ⇒ **当场兑现**（✗ 让玩家再点一次菜单；那也正是「点了没反应」的形状）。 */
+		const 等 = this.#等;
+		if (等 && 等.actor === actor) {
+			const v = 等.kind === 'item' ? RPG.Battle.matchSubmitItem(cmd, 等.options, actor.items ?? [])
+				: 等.kind === 'action' ? RPG.Battle.matchSubmitAction(cmd, 等.options)
+					: this.#matchSubmitTarget(cmd, 等.options, actor);
+			if (v != null) {
+				等.resolve(v);
+				this.#等 = null;
+				if (等.kind === 'item') { this.#提交.delete(actor.name); this.#本轮.set(actor.name, cmd); }
+			}
+		}
+		return { ok: true, action: cmd.action ?? 'use' };
+	}
+
 	async #playerAction(attacker) {
 		// 回合末钩子在**所有出口**统一收尾（3 个 return ＋ 未来可能的抛错；turnStart 由调用方循环发）
 		try {
 			await this.#playerActionBody(attacker);
 		} finally {
 			RPG.turnBoundary.end({ actor: attacker, battle: this });
+			this.#本轮.delete(attacker.name);      // ★一次性：本回合用完即废（✗ 跨回合残留）
 		}
 	}
 
@@ -621,6 +750,9 @@ RPG.Battle = class Battle extends RPG.Event {
 			this.lastResult = 果;                          // ★留档（供重复行动／判据读，✗ 只活在局部）
 			(this.resultLog ?? (this.resultLog = [])).push(果);   // ★整场史（判据「两条 action」等要求看全场）
 			if (果?.consumesAction !== false) return;     // ★按**结构**判（✗ 比字串）
+			/* ★`#2003`：**被拒 ⇒ 回到选择**时也清掉外部提交 —— 否则那条提交会被**重放**，
+			 *   同一手连着被拒（护栏才拦得住）而不是让玩家重新决定。 */
+			this.#本轮.delete(attacker.name);
 			this.perform(`${attacker.name}再选一次。`);
 		}
 	}
@@ -645,7 +777,7 @@ RPG.Battle = class Battle extends RPG.Event {
 		 *   （`itemOptions` 恒含「跳过」⇒ 长度 1 ＝ 无可用道具。） */
 		if (itemOptions.length === 1) this.perform(`${attacker.name}背包里的东西，在战斗中都用不上。`);
 		this.perform(`现在是${attacker.name}的回合，请选择道具：`);
-		const chosen = await attacker.choice(itemOptions);
+		const chosen = await this.#choose(attacker, itemOptions, 'item');
 		/* ★`#1914`（步五）：**一键重复** —— 件按**件号**、靶按**单位号**找回；任一件不在 ⇒
 		 *   出声、**不消耗**行动机会、回到选择（步二的回路接住）。 */
 		if (chosen === 'repeat') {
@@ -672,7 +804,7 @@ RPG.Battle = class Battle extends RPG.Event {
 			const actions = actionOptionsFor(item);
 			if (actions.length > 1) {
 				this.perform(`对「${item.name}」做什么？`);
-				action = await attacker.choice(actions);
+				action = await this.#choose(attacker, actions, 'action');
 			} else if (actions.length === 1) {
 				/* ★`#1841`：**唯一**那个动作就是它 —— ✗ 沿用上面的默认值（那隐含假定「≤1 个就是 use」：
 				 *   本笔之前的代码正是如此，**只删选单项会静默 no-op**）。 */
@@ -696,7 +828,7 @@ RPG.Battle = class Battle extends RPG.Event {
 			 *   ⚠ 空手**无 item** ⇒ 不经 `RPG.act`（无 charges／无弹药／无提交面）⇒ 直接调包侧 `strike`。 */
 			const un = attacker.unarmed ?? attacker.constructor.unarmed;
 			this.perform(`${attacker.name}挥拳出击 —— 对谁？`);
-			const tn = await attacker.choice(targetOptions);
+			const tn = await this.#choose(attacker, targetOptions, 'target');
 			/* ★`#1914`：按**号**找回（✗ 按名 `find` —— 同名必取第一个）；找不到**具名抛**。 */
 			const tgt = this.#resolveTarget(attacker, tn);
 			if (tgt == null) return tgt === false ? 'guard' : 'rejected';
@@ -737,7 +869,7 @@ RPG.Battle = class Battle extends RPG.Event {
 		} else {
 			/* 普通路；一键项但候选已变（理论上本回合内不会）⇒ 退回展开，✗ 静默换靶。 */
 			this.perform(`对谁使用${item.name}？`);
-			const targetId = await attacker.choice(靶选项);
+			const targetId = await this.#choose(attacker, 靶选项, 'target');
 			target = this.#resolveTarget(attacker, targetId, actionClass);
 		}
 		if (target == null) return target === false ? 'guard' : 'rejected';
@@ -757,4 +889,20 @@ RPG.Battle = class Battle extends RPG.Event {
 		RPG.repeat.remember(this, { item, target, actionClass });   // ★记下「刚刚那一手」（一键重复的源）
 		return RPG.actionResult.applied({ actor: attacker, item, target, actionClass });
 	}
+};
+
+/** ★`#2003`（`sgstory-books#280` ⑧ 的引擎侧）：**把「使用道具 X」交给当前这场战斗**。
+ *
+ *  一步到位的对外口：故事侧（如背包视图的点击）只需给 `{item: '<id>', action?, target?}`：
+ *    · 在战斗中 ⇒ 排入**本回合**（走战斗循环自己的执行路 ⇒ **回合真耗**）；
+ *    · 不在战斗中 ⇒ 具名拒 `{ok:false, reason:'no-battle'}`（战外直接用道具本来就不占回合，
+ *      那条路仍归 `RPG.itemClick` —— 本口**不**越界替它做事）。
+ *  ⚠ 返回值逐字用 `text` 上屏即可（✗ 静默丢弃 —— 玩家点了没反应＝另一种假读数）。
+ */
+RPG.submitBattleAction = (cmd, actor = null) => {
+	const b = RPG.Battle.current;
+	if (!b) {
+		return { ok: false, reason: 'no-battle', text: '现在不在战斗中 —— 战外直接点道具名即可（不占回合）。' };
+	}
+	return b.submit(cmd, actor ?? b.players[0]);
 };

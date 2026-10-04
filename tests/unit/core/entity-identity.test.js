@@ -149,4 +149,26 @@
 		}
 	});
 
+	test('★`#1935` ③（甲）读档归一：同槽**恰一件** `equipped` —— 留**最后一件**、异槽不动、幂等', () => {
+		/* 裁 (甲)（领队 2026-10-04 02:59）：**写口不动**（`slotEquip` 仍拒绝占槽者 ⇒ 玩家可见行为不变 ✓），
+		 *   只把**旧档/手改档**里"同槽多件都 equipped"这种态**归一**掉 ⇒ 「谁在装备」有确定答案 ✓。 */
+		const R = () => setup.RPG;
+		const 存袋 = State.variables.inventory;
+		try {
+			State.variables.inventory = [
+				{ id: 'sword', equipped: true, entityId: 'it-11' },                 // weapon 槽（**前**一件）
+				{ id: 'heavy-wooden-shield', equipped: true, entityId: 'it-12' },   // shield 槽 ⇒ **异槽**，不许动
+				{ id: 'club', equipped: true, entityId: 'it-13' },                  // weapon 槽（**后**一件）⇒ 该留它
+			];
+			const 卸 = R().normalizeEquipped();
+			assert.eq(卸, 1, `★同槽两件在装 ⇒ 须卸掉 1 件（实得 ${卸}）`);
+			const 装 = State.variables.inventory.filter((s) => s.equipped === true).map((s) => s.entityId);
+			assert.eq(JSON.stringify(装), JSON.stringify(['it-12', 'it-13']),
+				`★须留**最后一件**（weapon 槽留 club＝it-13）且**异槽不动**（实得 ${JSON.stringify(装)}）`);
+			assert.eq(R().normalizeEquipped(), 0, '★幂等：第二遍零变化');
+		} finally {
+			State.variables.inventory = 存袋;
+		}
+	});
+
 })();

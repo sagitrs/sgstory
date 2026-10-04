@@ -92,6 +92,43 @@ RPG.backfillItemIdentity = () => {
 	return 补;
 };
 
+/**
+ * ★`sgstory#1935` ③·**(甲)**（领队 2026-10-04 02:59 裁）：**读档归一** —— 同槽**恰一件** `equipped`。
+ *
+ *   · **写口不动**：`RPG.slotEquip` 遇占槽者仍**显式拒绝**（`return false` ＋「先卸下它」）⇒
+ *     玩家可见行为**不变** ✓、故事 `L20-armory` 的「收进背包（槽被占）」分支仍可达 ✓（＝裁 (甲) 的理由 ✓）。
+ *   · 本函数只处理**能进来的那一种**：旧档／手改档里**同槽多件都 `equipped: true`** ✗ ⇒ 归一为
+ *     **只留「最后一件」**（按袋内**数组序** ✓），其余卸下 ⇒ 「谁在装备」＝**最后一件** ✓（✗ 按数组首个）。
+ *   · **幂等**：再跑一遍 ⇒ 0 变化 ✓（判据要能断这个 ✓）。
+ *   · ⚠ 读槽要构造一次定义（`createItem` 会发号）—— 那是**读路径发号**，本仓既有事实
+ *     （`10-item.js:48-54` 明说不把水位写进 `State`，正因如此）⇒ 不影响「被拒 ⇒ 存档面零变化」✓。
+ * @returns number 本次**卸下**的件数
+ */
+RPG.normalizeEquipped = () => {
+	let 卸 = 0;
+	const 槽名 = (s) => { try { return RPG.createItem(s.id)?.slot ?? null; } catch { return null; } };
+	const 扫 = (bag) => {
+		if (!Array.isArray(bag)) return;
+		const 末 = new Map();                                  // 槽 ⇒ **最后一件**的下标
+		for (let i = 0; i < bag.length; i += 1) {
+			const s = bag[i];
+			if (s == null || typeof s !== 'object' || s.equipped !== true) continue;
+			const 槽 = 槽名(s);
+			if (槽 != null) 末.set(槽, i);
+		}
+		for (let i = 0; i < bag.length; i += 1) {
+			const s = bag[i];
+			if (s == null || typeof s !== 'object' || s.equipped !== true) continue;
+			const 槽 = 槽名(s);
+			if (槽 == null) continue;                           // ✗ 不是可装备的 ⇒ 不碰
+			if (末.get(槽) !== i) { s.equipped = false; 卸 += 1; }
+		}
+	};
+	扫(inv());                                   // ★同补发：走本档既有取袋口（✗ 再写一处 State 触点）
+	for (const c of RPG.characters?.values?.() ?? []) 扫(c?.items);
+	return 卸;
+};
+
 RPG.deposit = (bag, id, n = 1, snapshot = null) => {
 	const def = RPG.createItem(id);
 	const each = snapshot == null ? null : (snapshot.charges ?? def.charges ?? 1);   // 快照件数口径（同 `take`）

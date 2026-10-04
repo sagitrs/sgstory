@@ -189,6 +189,21 @@
 		assert.eq(甲2.opened, true, '★甲的「开过」须随档往返');
 		assert.eq(乙2.opened, false, '★乙**不得**跟着变成「开过」（同定义两只各归各 ✓）');
 		assert.eq(甲2.entityId, 甲.entityId, '★身份随档往返不变');
+
+	test('★`#1935` 单位域持久号：存档往返后「哪一只」逐字答得出；新发号 ✗ 不撞档里已有的号', () => {
+		/* `[identity-enemies-save]` 的核心：`unitId` 原为**会话内** `WeakMap` 号 ⇒ 读档后新对象＝新号 ✗。
+		 *   本笔把号**写进实例**（随 `toJSON` 进档 ✓）＋ 读档时**顶水位** ✓（同 `10-item.js` 的形 ✓）。 */
+		const R = () => setup.RPG;
+		const 造 = (名) => new (R().Character)({ name: 名, hp: 8, maxHp: 8 });
+		const 甲 = 造('獾'), 乙 = 造('獾');
+		const 甲号 = R().unitId.of(甲), 乙号 = R().unitId.of(乙);
+		assert.ok(甲号 !== 乙号, `★两只同源单位须各有号（实得 ${甲号}／${乙号}）`);
+		assert.eq(甲.toJSON().entityId, 甲号, '★号须**写进实例**（⇒ 随 `toJSON` 进档）');
+		const 甲2 = R().Character.revive(JSON.parse(JSON.stringify(甲.toJSON())));
+		assert.eq(R().unitId.of(甲2), 甲号, `★存读往返后号须**逐字同**（实得 ${R().unitId.of(甲2)}）`);
+		const 丙号 = R().unitId.of(造('獾'));
+		assert.ok(![甲号, 乙号].includes(丙号), `★读档后新发号 ${丙号} **撞上了档里已有的号**`);
+		assert.ok(!('entityId' in 造('獾').toJSON()), '★未参战角色的快照**逐键不变**（✗ 凭空冒 `entityId` 键）');
 	});
 
 })();

@@ -14,8 +14,12 @@ RPG.Character = class Character extends Object {
 		items = [],
 		properties = [],
 		protagonist = false,
+		/* ★`sgstory#1935`（`[identity-enemies-save]`）：**持久单位号** —— 缺省 `null` ⇒ **不写键** ✓
+		 *   （同 `nonlethal` 的零回归形：没参战过的角色快照逐键不变 ✓）；有号时把它**顶上水位** ✓。 */
+		entityId = null,
 	} = {}) {
 		super();
+		if (entityId != null && entityId !== '') { this.entityId = entityId; RPG.unitId?.note?.(entityId); }
 		this.name = name;
 		this.maxHp = maxHp;
 		this.hp = Math.min(hp, maxHp);
@@ -188,6 +192,7 @@ RPG.Character = class Character extends Object {
 	static revive(snapshot) {
 		if (snapshot == null) throw new Error('Character.revive: 快照为空');
 		const c = new RPG.Character({
+			entityId: snapshot.entityId,
 			name: snapshot.name,
 			hp: snapshot.hp,
 			maxHp: snapshot.maxHp,
@@ -231,6 +236,9 @@ RPG.Character = class Character extends Object {
 		/* ★`#1934`：主角标记与运行态**仅在非空时写键**（同 `nonlethal` 的理由：零回归）。 */
 		if (this.isProtagonist) o.isProtagonist = true;
 		if (this.runtime && Object.keys(this.runtime).length > 0) o.runtime = this.runtime;
+		/* ★`sgstory#1935`：**持久单位号**仅在**发过号时**写键（同 `nonlethal` 的零回归形 ⇒
+		 *   未参战角色快照逐键不变 ✓）；`revive` 见到它就把水位顶上 ⇒ 新发号不撞档里的号 ✓。 */
+		if (typeof this.entityId === 'string' && this.entityId !== '') o.entityId = this.entityId;
 		return o;
 	}
 };

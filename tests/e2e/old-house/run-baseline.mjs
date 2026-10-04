@@ -144,6 +144,17 @@ const KNIVES = [
 		patch: [["if (v == null) { v = `u${seq++}`; ids.set(u, v); }", "if (v == null) { v = 'u1'; ids.set(u, v); }"]],
 		expect: ['identity-enemies'],
 	},
+	/* ── ★`sgstory#1973`（`#1935` 场景容器实例态）：**丢快照里的实例态** ⇒ **恰**红 `[identity-scenes]` 一格 ──
+	 *   ⚠ 靶＝**构建产物**（`41-chest.js` 的 `toJSON` 覆写随包发布）⇒ 改跑起来那一份 ✓
+	 *   ★红集是**实测**得来的（先跑再填 `expect` ✗ 不凭想象 —— 我 `#1962` 首次就是这么栽的 ✓）。 */
+	{
+		id: 'scenes-instance-state-drop',
+		file: 包档,
+		why: '容器实例态**不进快照**（`opened/disarmed/locked` 丢）⇒ 两只同定义容器读档后**状态糊在一起** ⇒ 红本格。',
+		patch: [["return { ...super.toJSON(), opened: this.opened, disarmed: this.disarmed, locked: this.locked };",
+			"return { ...super.toJSON() };"]],
+		expect: ['identity-scenes'],
+	},
 	{
 		id: 'enemies-resolve-first',
 		file: 包档,
@@ -1151,28 +1162,36 @@ cell('[identity-enemies]');
  *   本格候 D 码的**持久**身份面（`entityId`）；在位后断「写读后同一只仍是同一号」。 */
 cell('[identity-enemies-save]');
 {
-	const 两 = (() => {
-		try {
-			const 复制 = (ref) => {
-				const p = R().characters.get(ref);
-				return R().Character.revive(JSON.parse(JSON.stringify(p.toJSON())));
-			};
-			return [复制('badger'), 复制('badger')];
-		} catch { return []; }
-	})();
-	const 持久 = 两.length >= 2 && typeof 两[0].entityId === 'string' && typeof 两[1].entityId === 'string';
-	if (!持久) {
-		PENDING.push('[identity-enemies-save] ② 跨档稳定：敌人**持久**身份面未在位'
-			+ `（现 id＝${JSON.stringify(两.map((x) => x?.entityId ?? null))}；会话内发号＝`
-			+ `${JSON.stringify(两.map((x) => { try { return R().unitId.of(x); } catch { return null; } }))}`
-			+ '，✗ 不随档走）—— 候 D 码（`sgstory#1935`）');
-		console.log(`  ⏳ 敌②：持久身份未在位（会话内号＝${JSON.stringify(两.map((x) => { try { return R().unitId.of(x); } catch { return null; } }))}）`);
+	/* ★本格断**行为面**（`#1974`）：①造两只**同源**敌人 ②**给其一发号** ③**写读往返**（真往返）
+	 *   ④断言：同一只仍是同一号 ＋ 另一只仍是未发号态（✗ 不串）。
+	 * ★旧形两处错（我自己栽的，入册）：(a) 在**发号之前**就问「持久面在不在」⇒ **必然 false** ⇒ 本格曾**永远 ⏳**；
+	 *   (b) `else` 支把同一批对象读两遍（✗ 无写读往返）⇒ `前 === 后` **恒真** ⇒ 断言**空过**。
+	 * ⚠ 探针的 `catch` **必须出声**（✗ 不得返回 `[]` 这类合法形状 —— 会让人读成「量到了，结果是空」）。 */
+	let 两 = null, 造错 = null;
+	try {
+		const 复制 = (ref) => R().Character.revive(JSON.parse(JSON.stringify(R().characters.get(ref).toJSON())));
+		两 = [复制('badger'), 复制('badger')];
+	} catch (e) { 造错 = e; }
+	if (两 === null) {
+		PENDING.push('[identity-enemies-save] ② 跨档稳定：**造不出敌人实例**（探针自身出错 ⇒ ✗ 不当读数看）'
+			+ `（异常：${造错 && 造错.message}）`);
+		console.log(`  ⏳ 敌②：探针造敌失败（✗ 不当读数看）｜${造错 && 造错.message}`);
 	} else {
-		const 前 = 两.map((x) => x.entityId);
-		/* 写读一轮后，同一只（按位置）仍须是同一号 */
-		const 后 = 两.map((x) => x.entityId);
-		ok('[identity-enemies-save]', JSON.stringify(前) === JSON.stringify(后),
-			`★跨档身份须稳定（前 ${JSON.stringify(前)} ⇒ 后 ${JSON.stringify(后)}）`);
+		const [甲, 乙] = 两;
+		const 往返 = (x) => R().Character.revive(JSON.parse(JSON.stringify(x.toJSON())));
+		const 号 = R().unitId.of(甲);                        // ★先发号（✗ 不在发号前就问「面在不在」）
+		const 甲2 = 往返(甲), 乙2 = 往返(乙);
+		const 甲持久 = typeof 甲2.entityId === 'string' && 甲2.entityId !== '';
+		if (!甲持久) {
+			PENDING.push('[identity-enemies-save] ② 跨档稳定：**发号后不随档走**'
+				+ `（发号＝${JSON.stringify(号)}；往返后 entityId＝${JSON.stringify(甲2.entityId ?? null)}）`
+				+ '—— 候 D 码（sgstory#1974）');
+			console.log(`  ⏳ 敌②：发号 ${JSON.stringify(号)} 后往返 ⇒ entityId＝${JSON.stringify(甲2.entityId ?? null)}（✗ 不随档走）`);
+		} else {
+			ok('[identity-enemies-save]', 甲2.entityId === 号 && (乙2.entityId ?? null) === null,
+				`★跨档身份须稳定且**不串**（甲 发号 ${JSON.stringify(号)} ⇒ 往返后 ${JSON.stringify(甲2.entityId)}；`
+				+ `乙 未发号 ⇒ 往返后 ${JSON.stringify(乙2.entityId ?? null)}）`);
+		}
 	}
 }
 
@@ -1180,20 +1199,39 @@ cell('[identity-enemies-save]');
  * ★容器类的身份歧义＝「两个同定义容器共用一个状态键」⇒ 开了一个看起来两个都开了。 */
 cell('[identity-scenes]');
 {
+	/* ★本格断**行为面**（`#1973` 后）：两只**同定义**容器，**开其一 ⇒ 断言其二仍未开**（互不串扰）
+	 *   ＋ 快照里**各带各的** `opened/disarmed/locked`（持久载体）。
+	 * ★旧形两处错（我自己栽的，入册）：(a) 量的是「容器类对象上有哪些键」（✗ 与「互不串扰」无关）；
+	 *   (b) **不带参**构造 `new Chest()` ⇒ 构造器解构 `undefined` ⇒ 抛 ⇒ 被 `catch` 吞成 `null`
+	 *      ⇒ 打印「容器键＝null」**看着像读数、其实是异常路径** ⇒ 本格曾**永远翻不了真**。
+	 * ⚠ 探针的 `catch` **必须出声**（✗ 不得返回 null／[] 这类合法形状）。 */
 	const 容器面 = ['scenes', 'Chest', 'registerScene', 'Scene'].filter((k) => R()?.[k] != null);
+	const 造 = () => new (R().Chest)({ id: 'scene-probe', name: '探针箱', hp: 0 });
+	let 甲 = null, 造错 = null;
+	try { 甲 = 造(); } catch (e) { 造错 = e; }
 	if (容器面.length === 0) {
 		PENDING.push('[identity-scenes] ① 场景容器互不串扰：引擎侧**无**场景/容器面（装置面）');
 		console.log('  ⏳ 场①：引擎无场景/容器面');
+	} else if (甲 === null) {
+		PENDING.push('[identity-scenes] ① 场景容器互不串扰：**造不出容器实例**（探针自身出错 ⇒ ✗ 不当读数看）'
+			+ `（引擎侧有 ${JSON.stringify(容器面)}；异常：${造错 && 造错.message}）`);
+		console.log(`  ⏳ 场①：探针造容器失败（✗ 不当读数看）｜${造错 && 造错.message}`);
 	} else {
-		const 键形 = (() => {
-			try { const c = new (R().Chest ?? Object)(); return c && typeof c === 'object' ? Object.keys(c) : null; }
-			catch { return null; }
-		})();
-		PENDING.push('[identity-scenes] ① 场景容器互不串扰：容器身份面**未在位**'
-			+ `（引擎侧有 ${JSON.stringify(容器面)}；容器对象键＝${JSON.stringify(键形)}）`
-			+ '—— 候 D 码（sgstory#1935）；★现行为锚：同定义容器的状态**按定义（而非实例）**存'
-			+ '⇒ 开其一则其二同态 ⇒ 「哪一只被开过」这个问句无身份可答');
-		console.log(`  ⏳ 场①：容器身份未在位｜引擎侧有 ${JSON.stringify(容器面)}｜容器键＝${JSON.stringify(键形)}`);
+		const 乙 = 造();
+		const 带键 = ['opened', 'disarmed', 'locked'].every((k) => k in 甲.toJSON());
+		if (!带键) {
+			/* ★`#1973` **已合**（D 码在位）⇒ 面若丢失 = **回归** ⇒ 这里**判红**（✗ 不再记 ⏳）。
+			 *   （原先是 ⏳：「候 D 码」；D 码到了之后仍留 ⏳，等于把回归当待办吞掉 ✓） */
+			ok('[identity-scenes]', false,
+				`★容器实例态须进快照（缺 ${JSON.stringify(['opened','disarmed','locked'].filter((k) => !(k in 甲.toJSON())))}；`
+				+ `实有键＝${JSON.stringify(Object.keys(甲.toJSON()))}）—— \`#1973\` 已合 ⇒ 面丢失即回归`);
+		} else {
+			甲.opened = true; 甲.disarmed = true; 甲.locked = true;
+			const 甲2 = 甲.toJSON(), 乙2 = 乙.toJSON();
+			ok('[identity-scenes]', 甲2.opened === true && !乙2.opened && !乙2.disarmed && !乙2.locked,
+				`★两只同定义容器须各归各（开其一后：甲 opened=${JSON.stringify(甲2.opened)}；`
+				+ `乙 opened=${JSON.stringify(乙2.opened)}／disarmed=${JSON.stringify(乙2.disarmed)}／locked=${JSON.stringify(乙2.locked)}）`);
+		}
 	}
 }
 

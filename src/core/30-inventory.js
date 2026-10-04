@@ -554,8 +554,14 @@ RPG.toggleEquip = (id) =>
  */
 RPG.itemCountSuffix = (item) => {
 	if (item?.charges == null) return '';
-	const isGatherPoint = typeof RPG.items.get(item.id)?.handlers?.gather === 'function';
-	return isGatherPoint ? `（还可采 ${item.charges} 次）` : `×${item.charges}`;
+	const 定义 = RPG.items.get(item.id);
+	const isGatherPoint = typeof 定义?.handlers?.gather === 'function';
+	if (isGatherPoint) return `（还可采 ${item.charges} 次）`;
+	/* ★`books#212` 第 3 项（操作者试玩：「铁铲×6」实为**剩余次数** ⇒ 与数量区分）：件可**声明**
+	 *   `stats.durability === true` ⇒ 印「（耐久 N）」✓ —— 与「×N」（堆叠数量）在同一行上可分辨 ✓。
+	 *   ⚠ 声明制（✗ 按 `charges` 一概而论）：绷带／草药糊等的 `charges` 是**件数**，改成"耐久"会造新误读 ✗。 */
+	if (定义?.stats?.durability === true) return `（耐久 ${item.charges}）`;
+	return `×${item.charges}`;
 };
 
 RPG.inventoryLabel = () => {

@@ -43,6 +43,19 @@
 			if (b.setAttribute) b.setAttribute('aria-disabled', 'true');
 			if (b.classList) b.classList.add('rpg-reserved');
 		});
+		/* ★**克隆掉 handler**（仅 UI 面 ✓）：`disabled` 对**程序化 `click()`** 并非处处可靠
+		 *   （实测抖动：同一构建下 arm C 有时仍真落档 ✗）⇒ 把该行写控件**替换成同 id 的克隆**
+		 *   ⇒ 原有监听器不再挂在页面上 ✓，✗ 不碰 `Save.slots.save()`（故事自身写入不受影响 ✓）。 */
+		行控件(行).forEach(function (b) {
+			try {
+				if (b.parentNode && typeof b.cloneNode === 'function') {
+					var 壳 = b.cloneNode(true);
+					壳.disabled = true;
+					if (壳.setAttribute) 壳.setAttribute('aria-disabled', 'true');
+					b.parentNode.replaceChild(壳, b);
+				}
+			} catch (e) { /* ✗ 吞：替换失败则退化为仅 disabled（上面已置） */ }
+		});
 		if (行.classList) 行.classList.add('rpg-reserved-row');
 		return true;
 	};
@@ -140,5 +153,6 @@
 		标记文案: 标记文案,
 	});
 
-	/* 临时调试 */
+	/* 加载即接线（✗ 不等待别的事件 —— 对话框可能在任意时刻开 ✓） */
+	接线();
 })();

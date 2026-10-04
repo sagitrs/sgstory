@@ -402,6 +402,9 @@ RPG.save = (() => {
 			 *   读档时**就地**补齐（见 `30-inventory.js` 的同名函数：幂等、且**不改格式版本** ——
 			 *   两字段是派生可缺的，旧读者忽略、新读者补发）。 */
 			RPG.backfillItemIdentity?.();
+			/* ★`sgstory#1935` ③（甲·领队 2026-10-04 02:59 裁）：同槽多件 `equipped` 的旧档 ⇒ **读档归一**
+			 *   （只留**最后一件**）⇒ 「谁在装备」有确定答案 ✓；写口（`slotEquip`）的**拒绝**语义不动 ✓。 */
+			RPG.normalizeEquipped?.();
 		});
 		installed = true;
 		return true;

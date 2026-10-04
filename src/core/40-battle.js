@@ -550,7 +550,9 @@ RPG.Battle = class Battle extends RPG.Event {
 		/* ★`#1914`（增量 3/3）：目标候选两处改动 ——
 		 *   ① **按阵营给**（伤害类只列敌方）：现码恒为「所有未出局者」⇒ 候选首项就是自己，
 		 *      本席调试实测「选第一项＝打自己」（玩家 hp 直接归 0）。窄候选比宽候选安全。
-		 *   ② **值取稳定标识**（✗ 名字）：现码 `value: c.name` ⇒ 两只同名单位**只能选中第一只**。
+		 *   ② **值取稳定标识**（✗ 名字）：**旧码** `value: c.name` ⇒ 两只同名单位**只能选中第一只**
+		 *      （`#1914` 增量 3/3 已修 ⇒ 现码见下行 `value: RPG.unitId.of(c)`）✓
+		 *      ★`sgstory#1935`：本句原写「**现码** `c.name`」⇒ 已过期（`dev-10` 差点照它判断）⇒ 同批改正。
 		 *   ⚠ 两处取源都走下面的 `#targetCandidates`（一处定义 ⇒ 选项与解析不会各判一份）。 */
 		const targetOptionsFor = (actionClass) => this.#targetCandidates(attacker, actionClass)
 			.map((c) => ({ text: `${c.name}（${this.players.includes(c) ? '己方' : '敌方'}）`, value: RPG.unitId.of(c) }));

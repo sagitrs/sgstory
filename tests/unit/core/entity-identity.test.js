@@ -122,4 +122,31 @@
 		assert.eq(JSON.stringify(inv().map((s) => ({ ...s }))), 一次, '★重跑后快照**逐字不变**');
 		assert.eq(件数('club'), 2, '补发 ✗ 增减件数');
 	});
+	test('★`#1935` ① 跨档稳定：读档后**水位已顶** —— 新发号 ✗ 撞上档里已有的号', () => {
+		/* ★缺口真身：`backfillItemIdentity` 对**已在位**（无需补）的行原先**直接 `continue`** ⇒ 不调
+		 *   `noteEntityId` ⇒ 读档后、件被取用前水位仍是 0 ⇒ 新拾取发号 `it-1` ⇒ 撞上档里已有的 `it-1` ✗。
+		 *   ★故本格刻意放**两件都已带新名**（⇒ 该函数"无事可补" ＝ 最常发生的读档形）——
+		 *     只要它顺手顶了水位，新发号就**不会**落回已用过的号 ✓（这正是"跨档稳定"的可判形式 ✓）。
+		 *   ⚠ 水位仍住**模块级**（`10-item.js:48-54` 那条"被拒 ⇒ 存档面零变化"不动）⇒ 本格只断"顶没顶" ✓。 */
+		const R = () => setup.RPG;
+		const 存袋 = State.variables.inventory;
+		const 存序 = R().itemEntitySeq;
+		try {
+			State.variables.inventory = [
+				{ id: 'sword', charges: null, equipped: false, entityId: 'it-1' },
+				{ id: 'sword', charges: null, equipped: false, entityId: 'it-9' },
+			];
+			R().itemEntitySeq = 0;                                    // 清到 0 ⇒ "没顶上去"当场可见 ✓
+			assert.eq(R().backfillItemIdentity(), 0, '本格前置：两件都已在位 ⇒ 无需补（0）');
+			const 号 = R().newEntityId();
+			const 档里号 = State.variables.inventory.map((s) => s?.entityId).filter(Boolean);
+			assert.ok(!档里号.includes(号), `★新发号 ${号} **撞上了档里已有的号**（档里=${JSON.stringify(档里号)}）`);
+			assert.ok(Number(String(号).replace(/^it-/, '')) > 9, `★新发号须越过档里最大号 9（实得 ${号}）`);
+			assert.eq(R().backfillItemIdentity(), 0, '★幂等：第二遍仍零变化');
+		} finally {
+			State.variables.inventory = 存袋;
+			R().itemEntitySeq = 存序;
+		}
+	});
+
 })();

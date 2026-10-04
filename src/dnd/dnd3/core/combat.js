@@ -36,6 +36,10 @@ DND3.grantDeathIfDown = (that) => {
  *   （天然 1 必失手；≥ stats.critMin（默认 20）为重击威胁并自动命中，
  *     确认掷骰命中则伤害骰与力量调整值都 ×stats.crit——长剑 19-20/×2）。
  */
+/** ★`books#212` 第 2 项：伤害类型的**玩家面**名字（单点 —— ✗ 各处再写一份映射）。
+ *   3E 的三类贯穿全仓（`slashing`／`piercing`／`bludgeoning`）；未见别的物理类型 ⇒ 未知一律「物理」。 */
+DND3.damageTypeLabel = (type) => ({ slashing: '挥砍', piercing: '穿刺', bludgeoning: '钝击' }[type] ?? '物理');
+
 DND3.meleeAttack = (item, that, from) => {
 	// 远程武器不需拔出，用灵巧
 	const isRanged = item.stats.ranged === true;
@@ -73,7 +77,7 @@ DND3.meleeAttack = (item, that, from) => {
 
 	if (!noDodge && die < critMin && (die === 1 || die + atkMod < ac)) {
 		item.perform(`${item.name}挥空了，没有击中${that.name}` +
-			`（攻击掷骰 ${die}${atkMod ? RPG.formatMod(atkMod) : ''} vs AC ${ac}）`);
+			`（攻击掷骰 ${die}${atkMod ? RPG.formatMod(atkMod) : ''} 对 AC ${ac}）`);
 		return;
 	}
 
@@ -88,7 +92,12 @@ DND3.meleeAttack = (item, that, from) => {
 		dmg += r.total + dmgMod; // 重击时调整值同样翻倍
 		parts.push(r.rolls.join('+') + (dmgMod ? RPG.formatMod(dmgMod) : ''));
 	}
-	if (dmg < 1) dmg = 1; // 惩罚压到 0 以下时至少造成 1 点
+	/* ★`books#212` 第 2／3 项（操作者试玩）：**类型名与最低伤害都要给玩家看得懂的话** ——
+	 *   原先直接印 `item.stats.type`（`slashing`／`piercing`／`bludgeoning` ✗ 英文），
+	 *   而「压到 1」那条规则**无声地**发生（票面：「最低伤害规则一句释义」）。
+	 *   ⚠ 只做**呈现**：`dmg` 的算法一字未动 ✓。未知类型印「物理」（✗ 把英文漏到玩家面）。*/
+	const 最低伤害 = dmg < 1;
+	if (最低伤害) dmg = 1; // 惩罚压到 0 以下时至少造成 1 点
 
 	/* ★`#1854`：伤害经**唯一入口** `RPG.applyDamage`（致命／非致命两路单点）。
 	 *   非致命（空手打击）⇒ **不改 `hp`**、只累积 `nonlethal` ⇒ 阈值达即**昏迷出局**（`RPG.isKnockedOut`），
@@ -109,6 +118,6 @@ DND3.meleeAttack = (item, that, from) => {
 		});
 	}
 
-	item.perform(`${that.name}受到了${dmg}点${item.stats.type ?? '钝击'}伤害` +
-		`（${parts.join('，')}${crit ? '，重击！' : ''}）`);
+	item.perform(`${that.name}受到了${dmg}点${DND3.damageTypeLabel(item.stats.type)}伤害` +
+		`（${parts.join('，')}${最低伤害 ? '，最低伤害 1 点' : ''}${crit ? '，重击！' : ''}）`);
 };

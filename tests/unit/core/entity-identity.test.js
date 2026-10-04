@@ -171,4 +171,24 @@
 		}
 	});
 
+	test('★`#1935` ② 容器实例态：同定义两只**各归各**且**随档往返**（开其一 ✗ 不开其二）', () => {
+		/* 裁：账在**引擎实例位**（`Chest` 的 `opened` 在实例上 ＋ `entityId` 随档 ⇒ 不另立账 ✓）。
+		 *   ★旧笔之下 `Item.toJSON` 只管 `{id, charges, equipped, entityId, definitionId}` ⇒
+		 *     Chest 的 `opened`／`disarmed`／`locked` **不进档** ✗ ⇒ 同定义两只读档后状态糊在一起 ✗。 */
+		const R = () => setup.RPG;
+		/* ⚠ 走**注册表**建（`reviveItem` 内部 `createItem(id)` 要求 id 已注册 ✗ 我第一版直接 new 未注册 id ⇒
+		 *   抛「未注册的道具 id」⇒ 本格当场红 ✓）。 */
+		class 测试箱 extends R().Chest { constructor(o = {}) { super({ id: 'unit-crate', name: '木箱', ...o }); } }
+		R().registerItem(测试箱);
+		const 造 = () => R().createItem('unit-crate');
+		const 甲 = 造(), 乙 = 造();
+		assert.ok(甲.entityId !== 乙.entityId, `★同定义两只容器须各有身份（实得 ${甲.entityId}／${乙.entityId}）`);
+		甲.opened = true;
+		const 往返 = (x) => R().reviveItem(JSON.parse(JSON.stringify(x.toJSON())));
+		const 甲2 = 往返(甲), 乙2 = 往返(乙);
+		assert.eq(甲2.opened, true, '★甲的「开过」须随档往返');
+		assert.eq(乙2.opened, false, '★乙**不得**跟着变成「开过」（同定义两只各归各 ✓）');
+		assert.eq(甲2.entityId, 甲.entityId, '★身份随档往返不变');
+	});
+
 })();

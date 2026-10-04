@@ -141,14 +141,18 @@ const KNIVES = [
 		file: 包档,
 		why: '**发号恒同**（不同对象给同一个号）⇒ 两只同名**值逐字同** ⇒ 红本格臂1（值可分辨）；'
 			+ '且候选中取不到号 ⇒ 臂2 也红 ⇒ 预期红集仍是同**一格**（耦合按实情声明 ✗ 不假装各恰红一格）',
-		patch: [["if (v == null) { v = `u${seq++}`; ids.set(u, v); }", "if (v == null) { v = 'u1'; ids.set(u, v); }"]],
+		/* ⚠ `sgstory#1935`（单位域持久号）：`of` 的放号那一行**被拆开**（持久号优先 ＋ 写进实例 ＋ 顶水位）
+		 *   ⇒ 靶**随码同刷**（刀义不变：**发号恒同** ⇒ 两只同名**值逐字同**）。 */
+		patch: [["v = `u${seq++}`;", "v = 'u1';"]],
 		expect: ['identity-enemies'],
 	},
 	{
 		id: 'enemies-resolve-first',
 		file: 包档,
 		why: '解析退回**候选首个**（＝「只能选中第一只」那族）⇒ 红本格臂2（点第二只却落在第一只）',
-		patch: [["const hit = 表.find((u) => ids.get(u) === id);", "const hit = 表[0];"]],
+		/* ⚠ `sgstory#1935`：`resolve` 改成**两形都认**（`u?.entityId === id || ids.get(u) === id`）
+		 *   ⇒ 靶**随码同刷**（刀义不变：解析退回**候选首个**）。 */
+		patch: [["const hit = 表.find((u) => u?.entityId === id || ids.get(u) === id);", "const hit = 表[0];"]],
 		expect: ['identity-enemies'],
 	},
 	/* ── ★`sgstory#1967`（C2 对象态回滚）：**撤回滚** ⇒ **恰**红 `[commit-c2]` 一格 ──

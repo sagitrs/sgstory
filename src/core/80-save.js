@@ -160,6 +160,32 @@ RPG.save = (() => {
 		return { run: { cleared: [...new Set(旧集)] } };
 	};
 
+	/**
+	 * ★`sgstory#1936` **写口**（与上面读口**对称**：领队 2026-10-04 01:43 排的「对称一小步」）——
+	 *   记一场「已过」：把 `id` 并入**新键** `vars.rpgProgress.run.cleared`（集合语义 ⇒ 重复调用**幂等**）。
+	 *
+	 *   ★闭环＝「**写新键、读新键**；旧名**只在读档时回落**」（`#1924` 形）⇒ 写过一次之后新键就在位，
+	 *     读口自然旁路旧形 ⇒ **两套真值不可能同时成立** ✓（✗ 写旧键 —— 那会造出第二个真值源）。
+	 *   ★**归并一次**：若进来时旧形在位、新键缺位，则先由读口把旧形合成出来，再把这一笔并进去
+	 *     ⇒ 旧档的既有进度**不会**因为这一笔而丢（✗ 归并则老档的「已过」凭空消失 ✗）。
+	 *   ★**非宿主环境**（无 `State` ⇒ `vars()` 给 `{}`）：写的是那个临时对象 ⇒ 对真状态**无副作用**；
+	 *     既不传 `stateVars` 又没有 `State` ⇒ **不写、返回空账**（✗ 抛 —— 免得把「没地方写」变成玩家可见的崩）。
+	 * @returns 写后的账（形状与读口**逐字同**）
+	 */
+	const recordCleared = (id, stateVars = vars()) => {
+		const 名 = String(id);
+		const 账 = progress(stateVars);                       // ★先按读口的规则取（含**旧形归并**）
+		if (!账.run.cleared.includes(名)) 账.run.cleared.push(名);
+		if (stateVars != null && typeof stateVars === 'object') {
+			if (stateVars.rpgProgress == null || typeof stateVars.rpgProgress !== 'object') stateVars.rpgProgress = {};
+			const 摊 = stateVars.rpgProgress;
+			if (摊.run == null || typeof 摊.run !== 'object') 摊.run = {};
+			if (!Array.isArray(摊.run.cleared)) 摊.run.cleared = [];
+			摊.run.cleared = [...账.run.cleared];              // ★写**新键**（并集、去重、顺序稳定）
+		}
+		return progress(stateVars);
+	};
+
 	/** 本版应写入的信封（纯数据，随 `save.state` 一起进档）。 */
 	const envelope = (stateVars = vars()) => ({
 		saveVersion: VERSION,
@@ -386,7 +412,7 @@ RPG.save = (() => {
 		/* ★getter（`#1902`）：故事侧登记后，`DOMAINS` 若仍是内置那份就成了「陈旧面」——读者据它判「有没有这一域」会答错 */
 		get DOMAINS() { return domainTable(); },
 		ready, currentPack, envelope, judgeLoad, audit, install, declareDomain,
-		progress,                                                     // ★`#1936` 进度账读口（带旧名回落）
+		progress, recordCleared,                                      // ★`#1936` 进度账：读口（带旧名回落）／写口（对称）
 		snapshotForRestart, handleRestartClick, hookRestartConfirm,   // ★`#1877` P1-7（供单测直证）
 		installed: () => installed,
 	};

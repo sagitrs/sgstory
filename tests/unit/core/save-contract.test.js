@@ -328,4 +328,38 @@
 			JSON.stringify({ run: { cleared: ['新'] } }), '★新键在位 ⇒ 只读新键（✗ 把旧键并进来）');
 	});
 
+	/* ---------- ★`#1936` **写口**（与读口对称）：写新键、读新键；旧名只在读档回落 ---------- */
+	test('★`#1936` 进度账写口③【往返 ＋ **幂等**】：写后读得到；重复写同 id ⇒ 账**逐字不变**', () => {
+		const 箱 = {};
+		assert.eq(JSON.stringify(S.recordCleared('L9', 箱)), JSON.stringify({ run: { cleared: ['L9'] } }), '写后**立刻**读得到');
+		assert.eq(JSON.stringify(S.progress(箱)), JSON.stringify({ run: { cleared: ['L9'] } }), '往返：写口与读口**形状逐字同**');
+		S.recordCleared('L9', 箱); S.recordCleared('L9', 箱);
+		assert.eq(JSON.stringify(S.progress(箱)), JSON.stringify({ run: { cleared: ['L9'] } }), '★重复写同 id ⇒ **幂等**（集合语义）');
+		/* ★★这条是**有牙**的那条：只断**读口**不够 —— 读口本来就 `new Set()` 去重 ⇒ 写口不守幂等**也**读不出来
+		 *   （★我第一版只断读口 ⇒ 那把「幂等守卫摘掉」刀下下去**零红** ✗ ⇒ 格没牙）。
+		 *   ⇒ 断**档里存的东西**：集合语义须**按字面**存（✗ 靠读口"顺手去重" ✗ —— 存进去的重复会随档带走）。 */
+		assert.eq(JSON.stringify(箱.rpgProgress.run.cleared), JSON.stringify(['L9']),
+			'★档里**不得**存重复（写口须自己守幂等，✗ 只靠读口去重）');
+		S.recordCleared('L5', 箱);
+		assert.eq(JSON.stringify(S.progress(箱)), JSON.stringify({ run: { cleared: ['L9', 'L5'] } }), '★后写的 id 续在后面（顺序稳定）');
+	});
+
+	test('★`#1936` 进度账写口④【旧形**归并一次**，此后只读新键】：老档进度✗ 不许因一笔而丢', () => {
+		const 档 = { babelRun: { bosses: { L9: 'victory', L3: 'defeat' } } };
+		assert.eq(JSON.stringify(S.recordCleared('L7', 档)), JSON.stringify({ run: { cleared: ['L9', 'L7'] } }),
+			'★旧形在位时写一笔 ⇒ **归并**（旧形里只有 `victory` 的算过），✗ 丢掉老档的已过');
+		assert.ok(档.rpgProgress != null, '★写的是**新键**（✗ 写旧键 ⇒ 造出第二个真值源）');
+		/* ★闭环证据：此后**只**读新键 —— 我往旧形里再塞一个"已过"，读数**不得**跟着变 */
+		档.babelRun.bosses.暗改 = 'victory';
+		assert.eq(JSON.stringify(S.progress(档)), JSON.stringify({ run: { cleared: ['L9', 'L7'] } }),
+			'★新键在位之后 ⇒ 旧形的后续改动**不可见**（两套真值不可能同时成立）');
+	});
+
+	test('★`#1936` 进度账写口⑤【坏宿主不崩】：传入一个空对象 ⇒ 照写它并返回账（✗ 抛）', () => {
+		const 空 = {};
+		const 得 = S.recordCleared('X', 空);
+		assert.eq(JSON.stringify(得), JSON.stringify({ run: { cleared: ['X'] } }), '空对象照样能当账写（判据/单测即这么用）');
+		assert.eq(JSON.stringify(空.rpgProgress), JSON.stringify({ run: { cleared: ['X'] } }), '确实落在**新键**上');
+	});
+
 })();

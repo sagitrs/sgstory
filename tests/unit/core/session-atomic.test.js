@@ -132,6 +132,54 @@
 		assert.eq(JSON.stringify(A.facts()), 前, '不适用 ⇒ 事实块不变');
 	});
 
+	test('★原子⑦【对象态回滚 · `#1967`】：拒后声明的**引擎对象**逐字回前像（含数组长度）；被接受则保留', () => {
+		/* ★为什么单独立格：`facts` 面的回滚早就有了 ⇒ 本格断的是**另一件事** ——
+		 *   命令体直接改的**引擎对象**（`P.hp`／件 `charges`／背包数组）在拒后也要回前像 ✓。 */
+		/* (a) 结构化拒绝 ⇒ 对象字段回前像 */
+		{
+			const P = { hp: 18 };
+			const A = new (R().GameSession)({ id: 'obj-a', rng: { v: 0, next() { this.v += 1; return this.v; } }, objects: () => [P] });
+			A.mount('obj-a', () => ({
+				id: 'obj-a', render: () => {},
+				actions: [{ id: '伤', run: () => { P.hp = 15; throw R().refuse('C2', '拒绝'); } }],
+			}));
+			A.enter('obj-a');
+			A.input.push({ id: '伤' });
+			const 读 = A.step();
+			assert.eq(读.settled, 'rejected', `本格前置：须走拒绝路（实得 ${JSON.stringify(读)}）`);
+			assert.eq(P.hp, 18, `★拒后对象态未回前像（hp 期望 18，实得 ${P.hp}）`);
+		}
+		/* (b) 数组：命令期 push ＋ 改元素 ⇒ 拒后**连长度**一起回（✗ 只回前几项 ⇒ 留空槽/多余项） */
+		{
+			const 包 = [{ id: 'axe', charges: 3 }];
+			const A = new (R().GameSession)({ id: 'obj-b', rng: { v: 0, next() { this.v += 1; return this.v; } }, objects: () => [包] });
+			A.mount('obj-b', () => ({
+				id: 'obj-b', render: () => {},
+				actions: [{ id: '拿', run: () => { 包.push({ id: 'coin', charges: 1 }); 包[0].charges = 2; throw R().refuse('C2', '拒绝'); } }],
+			}));
+			A.enter('obj-b');
+			A.input.push({ id: '拿' });
+			const 读 = A.step();
+			assert.eq(读.settled, 'rejected', `本格前置：须走拒绝路（实得 ${JSON.stringify(读)}）`);
+			assert.eq(包.length, 1, `★拒后数组长度未回前像（期望 1，实得 ${包.length}）`);
+			assert.eq(包[0].charges, 3, `★拒后数组内元素的字段也未回前像（期望 3，实得 ${包[0].charges}）`);
+		}
+		/* (c) **正控**：命令被接受 ⇒ 对象态改动保留（✗ 别把"回滚"做成"对象一概不写"） */
+		{
+			const P = { hp: 18 };
+			const A = new (R().GameSession)({ id: 'obj-c', rng: { v: 0, next() { this.v += 1; return this.v; } }, objects: () => [P] });
+			A.mount('obj-c', () => ({
+				id: 'obj-c', render: () => {},
+				actions: [{ id: '治', run: (c) => { P.hp = 20; c.commit({ 治: true }); } }],
+			}));
+			A.enter('obj-c');
+			A.input.push({ id: '治' });
+			const 读 = A.step();
+			assert.eq(读.settled, 'applied', `本格前置：须走落定路（实得 ${JSON.stringify(读)}）`);
+			assert.eq(P.hp, 20, '★正控：被接受的命令，其对象态改动须**保留**');
+		}
+	});
+
 	test('原子⑥【重放幂等】：同一命令重放 ⇒ ✗ 不得重复发奖', () => {
 		const A = 造会话('A');
 		let 跑了 = 0;

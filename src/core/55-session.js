@@ -247,6 +247,8 @@
 			const 回滚对象 = () => {
 				for (const [o, 前] of 对象前像) {
 					if (!o || typeof o !== 'object') continue;
+					/* ★数组要**先回长度**：删键只清得掉元素，`length` 还留着 ⇒ 会剩一个空槽（✗ 半态）。 */
+					if (Array.isArray(o) && Array.isArray(前) && o.length !== 前.length) o.length = 前.length;
 					for (const k of Object.keys(o)) if (!(k in 前)) delete o[k];
 					Object.assign(o, 快照(前));
 				}

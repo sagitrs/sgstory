@@ -126,10 +126,16 @@
 		 * @param ports 三端口的**这一份**（缺省取全局注册的那些）
 		 * @param rng   **该会话的随机源实例**（必给：✗ 回落全局 `RPG.rng`，那会让两会话共享随机流）
 		 */
-		constructor({ id = 'session', ports = null, rng = null, facts = {} } = {}) {
+		constructor({ id = 'session', ports = null, rng = null, facts = {}, objects = null } = {}) {
 			if (!rng) throw new Error('GameSession 需要**自己的** rng 实例（✗ 回落全局 RPG.rng）');
 			this.id = String(id);
 			this._facts = 快照(facts);
+			/* ★`sgstory#1967`（C2·对象态回滚）：`facts` 只覆盖**会话事实块**，而命令体常直接改**引擎对象**
+			 *   （`P.hp`／件 `charges`／地图当前位置…）⇒ 拒后那些改动**仍留着** ✗（基线格 `[commit-c2]` 的现读数）。
+			 *   ⇒ 会话收一个**声明面**：`objects`（函数或数组 ⇒ 返回**本次会被改的对象**）——
+			 *   ★为什么是声明而不是自动扫：`core` **不许**知道 `DND3`／`BABEL`（分层禁令）⇒ 由**装载方**
+			 *     点名它自己那套对象 ✓（✗ 让内核去猜玩家的位置）。 */
+			this._objects = typeof objects === 'function' ? objects : (() => objects ?? []);
 			this._input = 新建队列();
 			this._events = 新建事件();
 			this._scenes = new Map();
@@ -235,14 +241,25 @@
 			});
 			this._计 = 计;                                // ★C3：开槽（命令期任何经视图的抽取都记到本条上）
 			this.ports.render.起缓冲();                   // ★C4：命令体的呈现先入缓冲（✗ 出门）
+			/* ★`#1967`：**对象态前像**（深拷贝；✗ 递引用 —— 那会让"前像"变成后门）。 */
+			const 对象前像 = this._objects().map((o) => [o, 快照(o)]);
+			/* 回滚：把每个对象**整块恢复**到前像（含**删掉**命令期新加的键 —— 「零残留」按字面做 ✓）。 */
+			const 回滚对象 = () => {
+				for (const [o, 前] of 对象前像) {
+					if (!o || typeof o !== 'object') continue;
+					for (const k of Object.keys(o)) if (!(k in 前)) delete o[k];
+					Object.assign(o, 快照(前));
+				}
+			};
 			let settled = 'applied', reason = null;
 			try {
 				if (act.run(命令ctx) === false) { settled = 'rejected'; reason = 'action-refused'; }
 			} catch (e) {
 				if (typeof e?.code === 'string' && e.code !== '') { settled = 'rejected'; reason = e.code; }
-				else { this.ports.render.丢弃(); this._计 = null; throw e; }   // ★普通异常：丢草稿 ＋ **丢弃半截呈现**，再上抛
+				else { 回滚对象(); this.ports.render.丢弃(); this._计 = null; throw e; }   // ★普通异常：**回滚对象态** ＋ 丢草稿 ＋ **丢弃半截呈现**，再上抛
 			}
 			if (settled !== 'applied') {
+				回滚对象();                                 // ★`#1967`：被拒 ⇒ 命令体改过的对象态**回到前像**（零残留）
 				this.ports.render.丢弃();                  // ★C4：被拒 ⇒ 命令体印过的**一个字都不出门**
 				this._计 = null;
 				return { settled, reason, rolledBack: true, changed: [], rngDraws: 计.n };

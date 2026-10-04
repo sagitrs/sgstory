@@ -26,7 +26,10 @@ globalThis.__sess = (() => {
 	/** 建一个会话：随机源、登记各一份。端口取引擎注册的那一份（引擎会为每会话新建呈现门面）。 */
 	const 建会话 = (id) => {
 		const rng = 单例.rng ?? 造计数流(id);
-		const A = new (R().GameSession)({ id, rng, facts: { 会话: id } });
+		const A = new (R().GameSession)({ id, rng, facts: { 会话: id },
+			/* ★`sgstory#1967`（C2）：本装置里"命令体会改的引擎对象"＝**玩家**（HP）⇒ 点名声明 ✓
+			 *   （内核不许知道 `DND3` ⇒ 由装载方给 ✓）。 */
+			objects: () => [setup.DND3.Player] });
 		注册表[id] = A;
 		return A;
 	};

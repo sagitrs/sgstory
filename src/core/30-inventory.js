@@ -76,6 +76,12 @@ RPG.backfillItemIdentity = () => {
 			const s = bag[i];
 			if (s == null || typeof s !== 'object' || Array.isArray(s)) continue;
 			if (typeof s.id !== 'string') continue;                     // ✗ 不是件（别把别的对象当件改）
+			/* ★`sgstory#1935` ①（跨档稳定）：**先顶水位，再判要不要补** ——
+			 *   原先"已在位"的行**直接 `continue`** ⇒ 不调 `noteEntityId` ⇒ 读档之后、件被取用之前
+			 *   水位仍是 0 ⇒ 这时新拾取发号 = `it-1`，与**档里已有的 `it-1`** 撞号 ✗（即"跨档不稳定"的真身）。
+			 *   ⚠ 水位仍住**模块级**（✗ 不写 `State`）—— `10-item.js:48-54` 的「被拒 ⇒ 存档面零变化」那条判据不动 ✓。 */
+			const 见号 = s.entityId ?? s.slotId ?? null;
+			if (见号 != null) RPG.noteEntityId(见号);                    // ★有号**也**顶（补与不补都顶）
 			if (s.entityId != null && s.slotId === undefined) continue;   // 已在位（新名在、旧名已清）
 			bag[i] = 保号(s);
 			补 += 1;

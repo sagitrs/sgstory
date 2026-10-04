@@ -42,7 +42,7 @@ RPG.Exit = class Exit extends Object {
 		this.to = to;
 		this.text = text;               // 链接显示（字符串或 () => string）
 		this.when = when;               // 条件 () => bool（false 隐藏）
-		this.action = action;           // 移动副作用 () => void
+		this.action = action;           // 移动副作用 () => void|false（★false ⇒ 抑制移动，`sgstory#1990`）
 	}
 };
 
@@ -357,10 +357,17 @@ RPG.MapScene = class MapScene extends RPG.Scene {
 			 *   可达面：胜／僵持／早退三分支（死亡不中 —— respawn 走 `moveTo` ⇒ 地点变 ⇒ 本就会印 ✓）。 */
 			else this.#headerLoc = null;
 		} else {
-			// 出口导航：action → moveTo → 重绘新位置
+			// 出口导航：action → **（先问再移）** → 重绘新位置
 			const exit = exits[Number(picked.slice(1))];
-			if (exit.action) exit.action();
-			this.map.moveTo(exit.to);
+			/* ★`sgstory#1990`（债源 `books#261`）：**先问再移** —— `Exit.action` 返 `false`
+			 *   ⇒ **抑制移动**（引擎只给能力；「何时抑制」是故事侧业务 ✓）。
+			 *   ★**零回归**：既有 action 皆无返回值 ⇒ `undefined !== false` ⇒ 照旧 `moveTo` ✓。
+			 *   ★抑制时**照位置交互分支**（本文件上面的 `#leftPassage()` 守卫）做**段落边界检测**：
+			 *     action 里若已导航去别的段落，本屏所属段落已退场 ⇒ **不再重绘**
+			 *     （✗ 否则把旧地图画进新段落 —— `#1749` D2 的老毛病）。 */
+			const 放行 = exit.action ? exit.action() !== false : true;
+			if (放行) this.map.moveTo(exit.to);
+			if (!放行 && this.#leftPassage()) return;
 			await this.#renderLocation();
 		}
 	}

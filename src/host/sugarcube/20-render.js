@@ -46,5 +46,5 @@
 			if (fn != null && typeof fn !== 'function') throw new Error('RenderPort.setCollector 需要函数或 null');
 			收集器 = fn ?? null;
 		},
-	});
+	}, { host: SUGARCUBE.id });
 })();

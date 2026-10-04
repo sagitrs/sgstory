@@ -61,6 +61,16 @@ const KNIVES = [
 		patch: [['Math.floor(Number(dmg ?? 0) / 2)', 'Math.max(0, Number(dmg ?? 0) - 2)']],
 		expect: ['combat-guard-window', '防御④', '防御⑦'],
 	},
+	{
+		id: 'silent-first-host',
+		why: '把「多候选未选 ⇒ **具名抛**」改成「取登记表第一个」（`已定宿主` 的自动规则从「恰好一个」放宽成「至少一个」）⇒ '
+			+'`宿主②` 那一格应当红：它钉的正是「内核不替调用方猜」（✗ 静默取第一个 —— 那会让「哪个宿主在跑」取决于加载序）。'
+			+'★恰好只红这一格：单宿主下的自动定（宿主①）、零宿主那一种抛法（宿主③）、显式选择（宿主④）都不受影响'
+			+'——这正是三种形互不混淆的机械证据。',
+		target: BUNDLE,
+		patch: [['return ids.length === 1 ? RPG.hosts[ids[0]] : null;', 'return ids.length ? RPG.hosts[ids[0]] : null;']],
+		expect: ['宿主②'],
+	},
 ];
 
 const md5 = (f) => crypto.createHash('md5').update(fs.readFileSync(f)).digest('hex');

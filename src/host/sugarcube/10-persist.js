@@ -114,5 +114,5 @@
 			const auto = typeof Config !== 'undefined' && Config?.saves?.autosave === true;   // ★显式 pin 才算参与
 			return { auto, explicitSlots: 显式 };
 		},
-	});
+	}, { host: SUGARCUBE.id });
 })();

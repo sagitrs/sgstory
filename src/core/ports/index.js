@@ -21,6 +21,20 @@
  * ## 契约数据（机器可读）
  *   `methods` 里的每一项都写清「收什么／回什么／为什么在这个端口」——它是**判据的读数源**
  *   （判据按此断言「实现齐了哪些方法」，✗ 在判据里另写一份方法名清单）。
+ *
+ * ## 宿主：三端口之上的一层（`sgstory#1989` 阶段 6）
+ *   三端口是**能力契约**，宿主是**提供者**。`#1989` 之前提供者没有身份：`RPG.ports` 是一张平表，
+ *   谁后 `defPort` 谁覆盖（重复只 warn）⇒ 两个宿主同载时，「哪个宿主在跑」取决于**加载序**。
+ *   本层给宿主一个可登记、可选择、可读数的身份，并把「未选择」做成**具名抛错**：
+ *
+ *   · 登记：`RPG.defHost(id, {desc})` 开一个宿主；`RPG.defPort(key, impl, {host})` 把端口**填进指定的宿主**
+ *     （`host` 必填 —— ✗ 缺省落影子表，那会让宿主身份重新变成装饰件）。
+ *   · 解析：**已定宿主** ＝ 显式选择（`RPG.useHost(id)`）?? 恰好一个登记（自动）?? 无。
+ *     0 个登记 ⇒ 抛「无宿主登记」；≥2 且未选 ⇒ 抛「宿主未选择 ＋ 候选清单」——**两种不同形**，
+ *     ✗ 静默取第一个（那正是本层要消灭的形）。单宿主时自动定 ⇒ 既有宿主的行为**逐字不变**。
+ *   · `RPG.ports` ＝**已定宿主**的端口袋（同一对象）；未定 ⇒ 空袋（✗ 留影子表）。
+ *   · ⚠ 本档**不得出现任何宿主 id 字面量**（连注释里的例子也用占位符）——
+ *     `tests/gates/host-touchpoints.mjs` 的「宿主标识」判据按 `src/host/**` 的实际登记**动态**盯着这条。
  */
 
 /* ── slot 语义（sgstory#1912；`dev-10` 2026-10-03 的静态读数 ＋ 本席自查的记入处）────────────────
@@ -90,8 +104,120 @@ const CONTRACTS = {
 	},
 };
 
-/** 已注册的实现：`{persist: impl, render: impl, lifecycle: impl}`（L0 在装载期填）。 */
+/** 已定宿主的端口袋：`{persist: impl, render: impl, lifecycle: impl}`。
+ *  ⚠ 定义权在**宿主登记面**（下）——宿主变更时由 `同步端口袋()` 重指；`portOf`／`portsReady` 都读它。 */
 RPG.ports = Object.create(null);
+
+/* ── 宿主登记与选择（`sgstory#1989` 阶段 6）──────────────────────────────────
+ * 判据：`tests/unit/core/hosts.test.js`（登记四路具名抛／多候选未选抛／自造宿主跑会话）。
+ */
+
+/** 已登记的宿主：id → `{id, desc, ports}`（`ports` ＝ 该宿主的端口袋，键＝`CONTRACTS` 的键）。 */
+RPG.hosts = Object.create(null);
+
+/** 显式选择的宿主 id（`useHost()` 设定）；`null` ＝ 未显式选择 ⇒ 走自动规则。 */
+let 显式选择 = null;
+
+/** **已定宿主**（「解析规则」的唯一实现点，✗ 不许第二处各写一份）。
+ *  显式选择 ⇒ 它；否则**恰好一个**登记 ⇒ 它（自动 ⇒ 单宿主零改动）；否则 `null`。 */
+const 已定宿主 = () => {
+	if (显式选择 != null) return RPG.hosts[显式选择] ?? null;
+	const ids = Object.keys(RPG.hosts);
+	return ids.length === 1 ? RPG.hosts[ids[0]] : null;
+};
+
+/** 把 `RPG.ports` 重指为**已定宿主的端口袋**（未定 ⇒ 空袋）。
+ *  ★唯一写点：宿主面任何变更（登记／填入／选择／清除）都经此 ⇒ 「未选择」不会残留上一个宿主的袋。 */
+const 同步端口袋 = () => {
+	const h = 已定宿主();
+	RPG.ports = h ? h.ports : Object.create(null);
+	return RPG.ports;
+};
+
+/** 候选清单（抛错消息里用；✗ 截断、✗ 排序成「看不出登记序」）。 */
+const 候选清单 = () => {
+	const ids = Object.keys(RPG.hosts);
+	return ids.length ? ids.join('／') : '（无）';
+};
+
+/**
+ * 登记一个宿主（**L0 调**）。
+ * @param id   宿主 id（非空串；同一 id 只许登记一次）
+ * @param desc 人读说明（可选）
+ * @returns 该宿主的登记体（`{id, desc, ports}` —— ⚠ 其中的 `ports` 是**内部袋**：填端口一律走
+ *          `defPort`（那里有缺方法校验）；拿它**只许读**（读数／判据），✗ 直接手塞
+ */
+RPG.defHost = (id, { desc } = {}) => {
+	if (typeof id !== 'string' || id.trim() === '') {
+		throw new Error(`defHost 需要非空的宿主 id，收到：${JSON.stringify(id)}`);
+	}
+	if (RPG.hosts[id]) {
+		throw new Error(`宿主「${id}」重复登记（✗ 静默覆盖）—— 同一宿主只登记一次`);
+	}
+	RPG.hosts[id] = { id, desc: desc ?? '', ports: Object.create(null) };
+	同步端口袋();
+	return RPG.hosts[id];
+};
+
+/**
+ * 把一个端口的**实现**填进某个宿主（**L0 调**）。缺方法 ⇒ **具名抛错**（✗ 静默接受半成品 ——
+ * 那会让「内核以为有端口」与「实际没有」同形，正是本次重构要消灭的那类形）。
+ * @param key    `'persist'|'render'|'lifecycle'`
+ * @param impl   实现对象（须齐 `methods` 列出的方法）
+ * @param host   **必填**：填进哪一个宿主（✗ 缺省 ⇒ 影子表）
+ * @returns impl
+ */
+RPG.defPort = (key, impl, { host } = {}) => {
+	const c = CONTRACTS[key];
+	if (!c) throw new Error(`未定义的端口「${key}」（可用：${Object.keys(CONTRACTS).join('／')}）`);
+	if (host == null) {
+		throw new Error(`defPort 需要 {host}：端口要填进**哪一个**宿主`
+			+ `（✗ 缺省落影子表 ⇒ 宿主身份会重新变成装饰件）—— 例：RPG.defPort('persist', impl, { host: '<宿主 id>' })`);
+	}
+	const 宿主 = RPG.hosts[host];
+	if (!宿主) {
+		throw new Error(`defPort 的宿主「${host}」未登记（已登记：${候选清单()}）—— 先 RPG.defHost('<宿主 id>', {desc})`);
+	}
+	const { id, missing } = RPG.portMissing(key, impl);
+	if (missing.length > 0) {
+		throw new Error(`端口 ${id} 的实现缺方法：${missing.join('、')}（契约见 src/core/ports/index.js）`);
+	}
+	if (宿主.ports[key]) console.warn(`[RPG] 宿主「${host}」的端口「${key}」重复注册：将被覆盖。`);
+	宿主.ports[key] = impl;
+	同步端口袋();
+	return impl;
+};
+
+/**
+ * 选择宿主（**装载方／故事调**）。
+ * @param id 宿主 id；`null` ⇒ 清除显式选择，回到自动规则（**不是**「选默认宿主」）
+ * @returns 选择后的**已定宿主** id（读数）
+ */
+RPG.useHost = (id = null) => {
+	if (id === null) {
+		显式选择 = null;
+		同步端口袋();
+		return RPG.hostOf();
+	}
+	if (typeof id !== 'string' || !RPG.hosts[id]) {
+		throw new Error(`未知宿主「${String(id)}」（已登记：${候选清单()}）`);
+	}
+	显式选择 = id;
+	同步端口袋();
+	return RPG.hostOf();
+};
+
+/** **已定宿主**的 id（读数）；未定 ⇒ `null`。 */
+RPG.hostOf = () => 已定宿主()?.id ?? null;
+
+/** 各宿主缺哪些端口（读数，**✗ 不抛**）——`{id: [缺的端口键, …]}`。
+ *  与 `portOf` 的分工：这里是「盘存」，`portOf` 是「取用」；取用失败才抛。 */
+RPG.hostsReady = () => Object.fromEntries(
+	Object.values(RPG.hosts).map((h) => [h.id, Object.keys(CONTRACTS).filter((k) => RPG.portMissing(k, h.ports[k]).missing.length > 0)]),
+);
+
+/** 已登记的宿主 id（读数；门与判据据此取「宿主 id 集合」，✗ 各自抄一份清单）。 */
+RPG.hostIds = () => Object.keys(RPG.hosts);
 
 /** 契约读面（判据/实现按它取读数，✗ 各自记一份方法名清单）。 */
 RPG.portContracts = CONTRACTS;
@@ -105,33 +231,30 @@ RPG.portMissing = (key, impl) => {
 };
 
 /**
- * 注册一个端口实现（**L0 调**）。缺方法 ⇒ **具名抛错**（✗ 静默接受半成品 ——
- * 那会让「内核以为有端口」与「实际没有」同形，正是本次重构要消灭的那类形）。
- * @param key  'persist'|'render'|'lifecycle'
- * @param impl 实现对象（须齐 `methods` 列出的方法）
- * @returns impl
- */
-RPG.defPort = (key, impl) => {
-	const { id, missing } = RPG.portMissing(key, impl);
-	if (missing.length > 0) {
-		throw new Error(`端口 ${id} 的实现缺方法：${missing.join('、')}（契约见 src/core/ports/index.js）`);
-	}
-	if (RPG.ports[key]) console.warn(`[RPG] 端口「${key}」重复注册：将被覆盖。`);
-	RPG.ports[key] = impl;
-	return impl;
-};
-
-/**
- * 取端口（**L1 调**）。未注册 ⇒ **具名抛错**（✗ 回落一个空实现：
- * 「端口不在」与「端口正常工作」必须不同形，否则无头面会把缺口读成绿）。
+ * 取端口（**L1 调**）。解析自**已定宿主**；未定 ⇒ **具名抛错**（两种形：无宿主登记／宿主未选择），
+ * 已定但该宿主没提供此端口 ⇒ 也**具名抛错**（✗ 回落空实现：「端口不在」与「端口正常工作」
+ * 必须不同形，否则无头面会把缺口读成绿）。
  */
 RPG.portOf = (key) => {
 	const c = CONTRACTS[key];
 	if (!c) throw new Error(`未定义的端口「${key}」（可用：${Object.keys(CONTRACTS).join('／')}）`);
-	const impl = RPG.ports[key];
-	if (!impl) throw new Error(`端口 ${c.id} 未注册（宿主适配器未装载？见 src/host/sugarcube/）`);
+	const 宿主 = 已定宿主();
+	if (!宿主) {
+		const ids = Object.keys(RPG.hosts);
+		if (ids.length === 0) {
+			throw new Error(`端口 ${c.id} 无处可解析：无宿主登记（宿主适配器未装载？见 src/host/）`);
+		}
+		throw new Error(`端口 ${c.id} 无处可解析：宿主未选择（已登记 ${ids.length} 个：${候选清单()}）`
+			+ `—— 内核不替调用方猜，请 RPG.useHost('<宿主 id>')`);
+	}
+	const impl = 宿主.ports[key];
+	if (!impl) {
+		throw new Error(`端口 ${c.id} 未注册（宿主「${宿主.id}」未提供它；契约见 src/core/ports/index.js）`);
+	}
 	return impl;
 };
 
-/** 三端口是否都已在位（读数用：交付 1 的判据面据此报「几个端口在位」）。 */
-RPG.portsReady = () => Object.keys(CONTRACTS).filter((k) => !!RPG.ports[k]);
+/** 三端口是否都已在位（读数用：交付 1 的判据面据此报「几个端口在位」）。
+ *  ⚠ 口径：这里问的是**已定宿主**在位几个 —— 未定宿主（零登记／多候选未选）⇒ 空数组，
+ *  与「端口不在」同读但**取用**（`portOf`）时两形可分。 */
+RPG.portsReady = () => { 同步端口袋(); return Object.keys(CONTRACTS).filter((k) => !!RPG.ports[k]); };

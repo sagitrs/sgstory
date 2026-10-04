@@ -213,6 +213,70 @@ export const judge = (base, now, exists = (f) => fs.existsSync(path.join(ROOT, f
 	return { problems, notes, total: sumOf(Object.values(now).reduce((a, o) => { for (const [k, v] of Object.entries(o)) a[k] = (a[k] ?? 0) + v; return a; }, {})) };
 };
 
+/* ---------------- 宿主标识判据（`sgstory#1989` 阶段 6） ----------------
+ * 与上面的「触点棘轮」分工不同：棘轮量的是**符号**（`State.variables`．`$()` …），只管**增减**；
+ * 本判据管的是**宿主身份**——架构档 L0 节写「依赖倒置 ⇒ 内核**永远不知**宿主」，
+ * 在此之前那只是**纪律**（靠人记得）。本判据把它变**机制**：`src/core/**` 里**提及**任何一个
+ * **已登记**的宿主 id 字面量 ⇒ 红。
+ *
+ * ★口径两处与棘轮相反（都是**刻意**的）：
+ *   ① "算**原文**，✗ 不剥注释与字符串"——棘轮要剥（注释里的 `State.variables` 是**说明**不是触点），
+ *      而这里要抓的**恰恰是字面量**（`useHost('xxx')`）：剥了就把它剥掉了。需举例处用 `<宿主 id>` 占位。
+ *   ② "不设基线、不棘轮"——「内核不得知宿主」是**绝对条**（不是「别比从前多」）⇒ 一命中即红。
+ */
+
+/** 宿主 id 集合：从 `src/host/**` **动态**提取（✗ 硬编码清单 —— 那会在新宿主落地时静默过期）。
+ *  接受两种形（取**并集**）：① `defHost('<id>'` 字面量调用点；② 包根 `00-init.js` 的 `id: '<id>'`
+ *  行级声明。★并集是刻意：任一种写法都能被门看到，✗ 强制某一种写死。 */
+export const declaredHostIds = (dir = path.join(ROOT, 'src', 'host')) => {
+	const ids = new Set();
+	const walk = (d) => {
+		let 项;
+		try { 项 = fs.readdirSync(d, { withFileTypes: true }); } catch { return; }
+		for (const e of 项) {
+			const p = path.join(d, e.name);
+			if (e.isDirectory()) { walk(p); continue; }
+			if (!e.name.endsWith('.js')) continue;
+			const 文 = fs.readFileSync(p, 'utf8');
+			for (const m of 文.matchAll(/defHost\(\s*['"]([^'"]+)['"]/g)) ids.add(m[1]);
+			for (const m of 文.matchAll(/^[ \t]*id\s*:\s*['"]([^'"]+)['"]\s*,?\s*$/gm)) ids.add(m[1]);
+		}
+	};
+	walk(dir);
+	return [...ids];
+};
+
+/** `src/core/**` 的**原文**（按仓相对路径；宿主标识判据要字面量，故不剥注释/字符串）。 */
+export const readCoreTexts = (dir = SRC) => {
+	const out = {};
+	const walk = (d) => {
+		for (const e of fs.readdirSync(d, { withFileTypes: true })) {
+			const p = path.join(d, e.name);
+			if (e.isDirectory()) { walk(p); continue; }
+			if (!e.name.endsWith('.js')) continue;
+			out[path.relative(ROOT, p).split(path.sep).join('/')] = fs.readFileSync(p, 'utf8');
+		}
+	};
+	walk(dir);
+	return out;
+};
+
+/** 内核是否**提及**了某个已登记的宿主 id（纯函数 ⇒ 自检刀可直喂合成内容，✗ 触真文件系统）。 */
+export const hostIdProblems = (ids, texts) => {
+	const 问题 = [];
+	for (const [rel, text] of Object.entries(texts)) {
+		for (const id of ids) {
+			const esc = id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+			const 命中 = [...text.matchAll(new RegExp(`['"]${esc}['"]`, 'g'))].length;
+			if (命中 > 0) {
+				问题.push(`内核提及宿主 id：${rel} 的 '${id}' ${命中} 处`
+					+ '（内核永远不知宿主；需举例处用 `<宿主 id>` 占位符）');
+			}
+		}
+	}
+	return 问题;
+};
+
 /* ---------------- 自检刀（仅当直接运行） ---------------- */
 if (isMain && has('--selftest')) {
 	const b = { 'src/core/a.js': { 'State.variables': 2, setup: 1 }, 'src/core/b.js': { jQuery: 1 } };
@@ -321,6 +385,18 @@ if (isMain && has('--selftest')) {
 					return diffs.length === 0;
 				} finally { fs.rmSync(tmp, { recursive: true, force: true }); }
 			})()],
+		['K24 ★宿主标识判据：内核**提及**已登记宿主 id ⇒ 红；占位符／别的 id／变量形 ⇒ 绿；双引号也认',
+			(() => {
+				const ids = ['aaa'];
+				/* 接受形：字面量（两种引号）⇒ 红 */
+				const 红1 = hostIdProblems(ids, { 'src/core/x.js': "RPG.useHost('aaa');" }).length;
+				const 红2 = hostIdProblems(ids, { 'src/core/x.js': 'RPG.useHost("aaa");' }).length;
+				/* 不接受：占位符／别的 id／变量／不带引号的裸词 */
+				const 绿1 = hostIdProblems(ids, { 'src/core/x.js': "RPG.useHost('<宿主 id>');" }).length;
+				const 绿2 = hostIdProblems(ids, { 'src/core/x.js': "RPG.useHost('bbb');" }).length;
+				const 绿3 = hostIdProblems(ids, { 'src/core/x.js': 'RPG.useHost(宿主id);' }).length;
+				return 红1 === 1 && 红2 === 1 && 绿1 === 0 && 绿2 === 0 && 绿3 === 0;
+			})()],
 	];
 	const knivesLen2 = knives.length + optChk.length;
 	for (const [name, ok] of optChk) { n += ok ? 1 : 0; console.log(`  ${ok ? '✓' : '✗'} ${name}`); }
@@ -382,9 +458,22 @@ const doc = JSON.parse(fs.readFileSync(BASELINE_PATH, 'utf8'));
 const base = doc.touchpoints ?? {};
 const { problems, notes, total } = judge(base, now);
 
+/* ★宿主标识判据（`#1989`）：见 `declaredHostIds` 头注 —— 集合空 ⇒ **红**（✗ 让判据静默空转）。 */
+const hostIds = declaredHostIds();
+const hostProblems = hostIds.length === 0
+	? ['宿主标识判据**空转**：未从 src/host/** 提取到任何宿主 id（`defHost(\'…\'` 字面量或 `id: \'…\'` 声明）'
+		+ ' ⇒ 本判据恒真（✗ 静默放过）']
+	: hostIdProblems(hostIds, readCoreTexts());
+/* ★把宿主标识那一支**并入同一条红路**（✗ 另开一条 `if`）：本门的「红时必打理由」（`printSeeded()`
+ *   与 K23 接线刀）都挂在 `if (problems.length)` 那条路上 ⇒ 新判据必须**走同一条门路**，
+ *   否则就会出现「红得出来」而「理由打不出来」的形态（K23 当场会红）。 */
+problems.push(...hostProblems);
+
 console.log('  core 宿主触点 lint（#1804 件二；测量面先行）');
 console.log(`  扫描面：${path.relative(ROOT, SRC) || SRC}/**（已剥注释与字符串 ⇒ 只算代码面）`);
 console.log(`  当前触点 ${total} 处 ／ 涉及 ${Object.keys(now).length} 个文件（基线 ${Object.keys(base).length} 个）`);
+console.log(`  宿主标识：已登记宿主 id＝${JSON.stringify(hostIds)}（取自 src/host/**；`
+	+ '口径：**含注释与字符串的原文**，✗ 不剥 —— 要抓的正是字面量）');
 /* ★`#1822` ③（dev-9 MINOR-1）：基线自带的**理由**须在**读侧可见**（门红／`--verbose`）——
  *   否则「理由写进基线」只对**主动打开 JSON 的人**成立，而**看到门红的人**（最需要它的那位）
  *   恰恰看不到 ⇒ 会重走「为什么基线在这个深度？」的追因，或直接 `--update-baseline` 抹掉它。
@@ -406,5 +495,5 @@ if (problems.length) {
 	printSeeded();          /* ★#1822 ③：红时必打（谁看红谁最需要它） */
 	process.exit(1);
 }
-console.log('  ✓ 门绿（无新触点）');
+console.log('  ✓ 门绿（无新触点；内核提及宿主 id 0 处）');
 }

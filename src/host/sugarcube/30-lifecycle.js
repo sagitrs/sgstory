@@ -52,5 +52,5 @@
 		/** 内部用：登记一枚在飞 token（`cancelPending` 据此标死）。 */
 		_track(token) { 在飞.add(token); return token; },
 		_token: 发token,
-	});
+	}, { host: SUGARCUBE.id });
 })();

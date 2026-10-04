@@ -292,6 +292,15 @@ RPG.Battle = class Battle extends RPG.Event {
 	#本轮;
 	#等;
 
+	/** ★`sgstory-books#280` ⑩（操作者亲测 · 0.0.2 阻塞）：**道具清单是否收敛到页脚背包**。
+	 *
+	 *   `false`（**缺省**）＝战斗菜单照旧**逐件列道具**（一键项／重复项／逐件项）—— 逐字节同今天，零回归；
+	 *   `true` ＝战斗菜单**只留战斗行动**（空手打击／跳过本回合），道具一律走**页脚背包视图**
+	 *   （`submitBattleAction` ⇒ 同一条回合账，见 `#2003`）。
+	 *   ⚠ 由**故事侧显式声明**（`setup.BABEL` 处一行）—— ✗ 让引擎猜故事名（那种开关的作用域看不见）。
+	 *   ⚠ 一键项与「重复上一次行动」都**属于道具面** ⇒ 一并收敛（留着它们就是「一半道具在菜单里」。） */
+	static itemsInBag = false;
+
 	/** 连续拒绝上限（`#1773` 护栏 N=3）：达此数 ⇒ 强制跳过并**记日志**（✗ 静默）。 */
 	static get REJECT_LIMIT() { return 3; }
 
@@ -545,31 +554,37 @@ RPG.Battle = class Battle extends RPG.Event {
 		 *   ⚠ 件表**只取一遍**（下面的选单复用同一份）：`core` 里的 `setup.` 触点是**棘轮**门
 		 *     （`#1804` 件二）—— 多写一遍 `reviveItem` 就会把本档顶到 6（本笔首版实测：门红）。 */
 		const 件表 = slots.map((slot) => setup.RPG.reviveItem(slot));
+		/* ★`books#280` ⑩：**道具收敛到页脚背包**时，战斗菜单不再列任何道具面（一键项／重复项／逐件项）。 */
+		const 道具在包里 = RPG.Battle.itemsInBag === true;
 		const quickOptions = [];
-		件表.forEach((item, i) => {
-			for (const a of RPG.battleActions.list(item)) {
-				if (!a.needsTarget) continue;
-				if (this.#targetCandidates(attacker, a.actionClass).length !== 1) continue;
-				quickOptions.push({
-					text: RPG.battleActions.quickText(item, a.actionClass),
-					value: `quick:${i}:${a.id}`,
-				});
-			}
-		});
+		if (!道具在包里) {
+			件表.forEach((item, i) => {
+				for (const a of RPG.battleActions.list(item)) {
+					if (!a.needsTarget) continue;
+					if (this.#targetCandidates(attacker, a.actionClass).length !== 1) continue;
+					quickOptions.push({
+						text: RPG.battleActions.quickText(item, a.actionClass),
+						value: `quick:${i}:${a.id}`,
+					});
+				}
+			});
+		}
 
 		const itemOptions = [];
 		/* ★`#1918`：一键项**列在最前**（本笔的主路径：唯一合法目标 ⇒ 一次点击即完成这一手）。 */
 		itemOptions.push(...quickOptions);
 		/* ★`#1914`（步五）：有可重复的一手 ⇒ 紧随其后（同族快捷项，✗ 让玩家再走三问）。 */
-		const repeatOption = RPG.repeat.option(this);
+		const repeatOption = 道具在包里 ? null : RPG.repeat.option(this);
 		if (repeatOption) itemOptions.push(repeatOption);
 		/* ★`#1841`：**零战斗动作**的道具**不列**进选单（✗ 列了就是**死路**：选中却无事可做）。
 		 *   ★`value` 必须保**原槽位下标**（✗ 过滤后重编号）—— 下游按 `slots[Number(chosen)]` 取件，
 		 *     重编号会**取错道具**（本笔最易写错的一处）。 */
-		件表.forEach((item, i) => {
-			if (actionOptionsFor(item).length === 0) return;
-			itemOptions.push({ text: `${item.name}${item.equipped ? '（已装备）' : ''}`, value: String(i) });
-		});
+		if (!道具在包里) {
+			件表.forEach((item, i) => {
+				if (actionOptionsFor(item).length === 0) return;
+				itemOptions.push({ text: `${item.name}${item.equipped ? '（已装备）' : ''}`, value: String(i) });
+			});
+		}
 		/* ★`#1854`：**空手打击**常驻项（形同 `skip`：不占背包槽、与 items 枚举并存）。
 		 *   动因：纯资源背包（`noBattleUse` 全筛掉）时选单只剩「跳过」⇒ 操作者实测卡 8 回合僵局。
 		 *   ★能力来自**角色类**（`attacker.constructor.unarmed`）—— 各包在自己 `Player` 上声明（✗ core 猜包名）：
@@ -650,19 +665,23 @@ RPG.Battle = class Battle extends RPG.Event {
 	 * ★**战斗先结束 ⇒ 未消费的提交具名出声**（✗ 静默丢）：那一手**从未发生**，见 `Battle.droppedSubmissions`
 	 *   与收尾处那条 `perform`（`#2003` D 面残余）。
 	 */
-	/** 把一条提交映射成**选单项的值**（找得到 ⇒ 值；找不到 ⇒ `null`）。★纯函数（判据直接测它）。 */
+	/** 把一条提交映射成**跑那一手需要的值**（⇒ 选单项的值；给不出 ⇒ `null`）。★纯函数（判据直接测它）。
+	 *
+	 *   ★两条形（本席在 `books#280` ⑩ 的单测里当场发现旧形有一处**耦合**）：
+	 *     ① 菜单里**有**该件 ⇒ 取它的**普通项**值（原槽位下标）—— ✗ **不取一键项**：一键项是给**人**省点击的
+	 *        （它的成立条件是「目标恰好一个」），而**提交本来就没有人点**；走显式三步反而让「动作」「目标」
+	 *        都按提交里的值走 ⇒ 语义更准。
+	 *     ② 菜单里**没有**该件（`itemsInBag`：道具收敛到页脚背包 ⇒ 菜单一件道具都不列）⇒ **按件自行合成下标**。
+	 *        ⚠ 旧形只认 ①（在 `itemOptions` 里找件）⇒ 开关一开，页脚背包那条提交路**整条失效**
+	 *          （实测：血 10 ⇒ 10、菜单照旧弹）。这就是「两条面互相耦合」的形态：道具面收起来，
+	 *          另一个面（提交）却依赖它还在 ⇒ 本档把依赖拆掉。 */
 	static matchSubmitItem(cmd, itemOptions, slots) {
 		if (!cmd || typeof cmd.item !== 'string') return null;
-		/* ① 一键项（`quick:<槽位下标>:<动作 id>`：件与动作当场定下）—— 优先，因为玩家少点两下。 */
-		for (const o of itemOptions) {
-			const q = RPG.Battle.parseQuick(o.value);
-			if (q && slots[q.index]?.id === cmd.item && q.actionId === (cmd.action ?? 'use')) return o.value;
-		}
-		/* ② 普通项（`value` ＝原槽位下标）。 */
 		for (const o of itemOptions) {
 			if (/^\d+$/.test(o.value) && slots[Number(o.value)]?.id === cmd.item) return o.value;
 		}
-		return null;
+		const 位 = (slots ?? []).findIndex((x) => x?.id === cmd.item);
+		return 位 >= 0 ? String(位) : null;
 	}
 
 	/** 动作步（仅当该道具的动作多于一个时才会被问到）：取提交里的动作，缺省 `use`。★纯函数。 */
@@ -785,13 +804,16 @@ RPG.Battle = class Battle extends RPG.Event {
 		}
 
 		const { itemOptions, actionOptionsFor, targetOptions, targetOptionsFor } = this.buildPlayerOptions(attacker);
+		/* ★`books#280` ⑩：本方法的提示语要按开关换口径（**局部重取** —— `buildPlayerOptions` 里那个是它的局部量）。 */
+		const 道具在包里 = RPG.Battle.itemsInBag === true;
 
 		// ① 选道具
 		/* ★`#1841`：背包里**没有一件**在战斗中有动作（如只带资源）⇒ 出声说明，
 		 *   ✗ 让玩家对着只剩「（跳过本回合）」的菜单猜为何没有选项。
 		 *   （`itemOptions` 恒含「跳过」⇒ 长度 1 ＝ 无可用道具。） */
-		if (itemOptions.length === 1) this.perform(`${attacker.name}背包里的东西，在战斗中都用不上。`);
-		this.perform(`现在是${attacker.name}的回合，请选择道具：`);
+		if (!道具在包里 && itemOptions.length === 1) this.perform(`${attacker.name}背包里的东西，在战斗中都用不上。`);
+		/* ★`books#280` ⑩：道具在页脚背包里时，这一问是**战斗行动**的问（✗ 让玩家对着菜单找道具）。 */
+		this.perform(`现在是${attacker.name}的回合，请选择${道具在包里 ? '战斗行动（要用道具：点页脚的背包）' : '道具'}：`);
 		const chosen = await this.#choose(attacker, itemOptions, 'item');
 		/* ★`#1914`（步五）：**一键重复** —— 件按**件号**、靶按**单位号**找回；任一件不在 ⇒
 		 *   出声、**不消耗**行动机会、回到选择（步二的回路接住）。 */

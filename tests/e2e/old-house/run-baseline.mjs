@@ -130,6 +130,27 @@ const KNIVES = [
 			"else { 回滚对象(); settled = 'rejected'; reason = 'internal-error'; }"]],
 		expect: ['commit-interrupt', 'commit-c4'],
 	},
+	/* ── ★`sgstory#1935` 敌域「会话内可分辨」：两把刀各只拔一处 ⇒ 各**恰**红 `[identity-enemies]` 一格 ──
+	 *   ⚠ 该格三臂（装置对照／值可分辨／落到第二只）**共用同一格 id** ⇒ 两把刀的**预期红集相同**
+	 *     （耦合按实情声明 ✗ 不假装各恰红一格）；刀义仍可分别证：「值退回名字」红的是**臂1**、
+	 *     「解析退回候选首个」红的是**臂2**，报文的 ✗ 行里带 id／选项值／文案三量可辨 ✓。
+	 *   靶＝**构建产物**（引擎 `42-battle-intent.js` 随包发布）⇒ 同 `#1925` 三刀：改跑起来那一份，
+	 *     ✗ 不改 `src/**`、本档亦**不需要**重建 ✓。 */
+	{
+		id: 'enemies-issuance-constant',
+		file: 包档,
+		why: '**发号恒同**（不同对象给同一个号）⇒ 两只同名**值逐字同** ⇒ 红本格臂1（值可分辨）；'
+			+ '且候选中取不到号 ⇒ 臂2 也红 ⇒ 预期红集仍是同**一格**（耦合按实情声明 ✗ 不假装各恰红一格）',
+		patch: [["if (v == null) { v = `u${seq++}`; ids.set(u, v); }", "if (v == null) { v = 'u1'; ids.set(u, v); }"]],
+		expect: ['identity-enemies'],
+	},
+	{
+		id: 'enemies-resolve-first',
+		file: 包档,
+		why: '解析退回**候选首个**（＝「只能选中第一只」那族）⇒ 红本格臂2（点第二只却落在第一只）',
+		patch: [["const hit = 表.find((u) => ids.get(u) === id);", "const hit = 表[0];"]],
+		expect: ['identity-enemies'],
+	},
 	/* ── ★`sgstory#1967`（C2 对象态回滚）：**撤回滚** ⇒ **恰**红 `[commit-c2]` 一格 ──
 	 *   ★靶＝**回滚函数本身**（✗ 只掏拒绝路那一次调用 —— 那样异常路还留着，刀就不"恰好只红一格"了）。
 	 *   刀义：把回滚变成**空操作** ⇒ 命令体改过的对象态留着 ⇒ 只有断对象态的那一格会红 ✓。 */
@@ -1080,9 +1101,22 @@ cell('[identity-slots]');
 }
 
 /* ============ `[identity-enemies]` 敌人实例域（`#1935`）============
- * ★本域的**烟枪在源码注释里就有**（`40-battle.js:546`）：
- *   「② 值取稳定标识（✗ 名字）：现码 `value: c.name` ⇒ 两只同名单位**只能选中第一只**」。
- * ⇒ 锚形＝「传第一只」与「传第二只」**得到同一个值**（同名 ⇒ 不可分辨）。 */
+ * ★本域**拆两条判据、各记一格**（领队 2026-10-04 01:51 裁定 ＋ T 席同刻探针实证）：
+ *   ① **会话内可分辨**（`[identity-enemies]`）：同名两只能不能分别选中 ⇒ ★**已可达**：
+ *      引擎现码选项值取 `40-battle.js:556` 的 `RPG.unitId.of(c)`、解析走 `:458` 的 `RPG.unitId.resolve`
+ *      （**同一取源** ⇒ 选项与解析不会各判一份）。探针实测（两只同名 badger、`entityId` 皆 null）：
+ *      `of` ⇒ `u1/u2`（**且 ✗ 不写回对象**）、`resolve(of(1), 两)` ⇒ **第 2 只** ✓
+ *      ⇒ 「选项值取 `c.name` ⇒ 只能选中第一只」这条**症状复现不出** ✓。
+ *      ⇒ 本条**与字段形无关**：✗ 不以 `entityId` 在位为闸门（那是②的判据）。
+ *   ② **跨档稳定**（`[identity-enemies-save]`）：存档往返后「哪一只」仍答得出 ⇒ ★**真缺口**：
+ *      `unitId` 是**会话内**身份（`WeakMap` ＋ 计数发号、对象上不留字段 ⇒ 读档后新对象＝新号），
+ *      候 D 码的 `entityId` **持久**面（`#1935` 轨 B）。
+ *   ⚠ 拆分用意：✗ 别把②缺位当①缺位 —— 那会让 D 席为**已经可以做**的①再造一套 ✗。
+ *   ★**覆面明账**：本格调用的是引擎**同一对函数**（`of`／`resolve`），但**不驱动战斗** ⇒
+ *     ①**函数面**（两函数能满足「可分辨 ＋ 落第二只」）＝本格所断 ✓；
+ *     ②**接线面**（选项表真调 `of`／交互解析真走 `resolve`）＝本格 **✗ 不证**：它由 `40-battle.js:556`
+ *       与 `:458` 的**同一取源**保证（一处定义）⇒ 试拔 `:556` 那行**零红** ✗ ⇒ 故**不**拿它当本格的刀；
+ *       要真断接线须驱动一场真战斗（截获 `attacker.choice(targetOptions)` 的选项表）—— 另一步 ✓。 */
 cell('[identity-enemies]');
 {
 	const 复制 = (ref) => {
@@ -1093,24 +1127,52 @@ cell('[identity-enemies]');
 	};
 	let 两 = [];
 	try { 两 = [复制('badger'), 复制('badger')]; } catch { 两 = []; }
-	const 有身份 = (x) => x != null && typeof x.entityId === 'string';
 	if (两.length < 2) {
-		PENDING.push('[identity-enemies] ① 敌人实例互不串扰：引擎侧拿不到两只同源敌人（装置面）');
+		PENDING.push('[identity-enemies] ① 会话内可分辨：引擎侧拿不到两只同源敌人（装置面）');
 		console.log('  ⏳ 敌①：装置面拿不到两只同源敌人');
-	} else if (!有身份(两[0])) {
-		两[0].entityId = undefined; 两[1].entityId = undefined;
-		const 值同 = 两[0].name === 两[1].name;
-		PENDING.push('[identity-enemies] ① 敌人实例互不串扰：敌人身份面**未在位**'
-			+ `（两只 badger 的 entityId＝${JSON.stringify(两.map((x) => x.entityId ?? null))}，name 皆「${两[0].name}」）`
-			+ '—— 候 D 码（sgstory#1935）；★现行为锚：目标选项的 `value` 取 `c.name`'
-			+ '（`40-battle.js:546`）⇒ 两只同名单位**只能选中第一只**；'
-			+ `本探实测「两只名字相同」＝${值同} ⇒ 传第一只与传第二只在选项里**值逐字同**`);
-		console.log(`  ⏳ 敌①：身份未在位｜两只 badger 名皆「${两[0].name}」｜`
-			+ `entityId＝${JSON.stringify(两.map((x) => x.entityId ?? null))}｜名字相同=${值同} ⇒ 选项值不可分辨`);
 	} else {
-		const 一 = 两[0].entityId, 二 = 两[1].entityId;
-		ok('[identity-enemies]', 一 !== 二,
-			`★两只同源敌人须各自身份不同（实得 ${JSON.stringify([一, 二])}）`);
+		/* 臂 0＝★**装置对照**：两只须是两个不同对象 —— 否则下面红了分不清「引擎没做」还是「装置退化」 */
+		const 同对象 = 两[0] === 两[1];
+		/* 臂 1：**选项值**可分辨（与引擎同一调用：`40-battle.js:556` 的 `RPG.unitId.of(c)`） */
+		const 值 = 两.map((c) => R().unitId.of(c));
+		/* 臂 2：**解析**落到第二只（与引擎同一调用：`40-battle.js:458` 的 `RPG.unitId.resolve`） */
+		const 落 = (() => { try { return R().unitId.resolve(值[1], 两); } catch { return null; } })();
+		const 文 = 两.map((c) => `${c.name}（敌方）`);   // `:556` 的 text 同形（该处按阵营给：两只皆敌方）
+		ok('[identity-enemies]', !同对象 && 值[0] !== 值[1] && 落 === 两[1],
+			'★同名两只要**各选得中**：装置非同一对象 ＋ 选项值可分辨 ＋ 点第二只落在第二只'
+			+ `｜id=${JSON.stringify(两.map((x) => x.entityId ?? null))}`
+			+ `｜选项值=${JSON.stringify(值)}｜选项文案=${JSON.stringify(文)}`
+			+ `｜装置同一对象=${同对象}｜点第二只落在＝${落 === 两[0] ? '第1只 ✗' : (落 === 两[1] ? '第2只 ✓' : '取不到 ✗')}`);
+	}
+}
+
+/* ============ `[identity-enemies-save]` 敌人身份·**跨档稳定**（`#1935` ②；真缺口）============
+ *   会话内可分辨 ≠ 跨档可辨：`unitId` 按对象发号、对象上不留字段 ⇒ 写读一轮后新对象＝新号。
+ *   本格候 D 码的**持久**身份面（`entityId`）；在位后断「写读后同一只仍是同一号」。 */
+cell('[identity-enemies-save]');
+{
+	const 两 = (() => {
+		try {
+			const 复制 = (ref) => {
+				const p = R().characters.get(ref);
+				return R().Character.revive(JSON.parse(JSON.stringify(p.toJSON())));
+			};
+			return [复制('badger'), 复制('badger')];
+		} catch { return []; }
+	})();
+	const 持久 = 两.length >= 2 && typeof 两[0].entityId === 'string' && typeof 两[1].entityId === 'string';
+	if (!持久) {
+		PENDING.push('[identity-enemies-save] ② 跨档稳定：敌人**持久**身份面未在位'
+			+ `（现 id＝${JSON.stringify(两.map((x) => x?.entityId ?? null))}；会话内发号＝`
+			+ `${JSON.stringify(两.map((x) => { try { return R().unitId.of(x); } catch { return null; } }))}`
+			+ '，✗ 不随档走）—— 候 D 码（`sgstory#1935`）');
+		console.log(`  ⏳ 敌②：持久身份未在位（会话内号＝${JSON.stringify(两.map((x) => { try { return R().unitId.of(x); } catch { return null; } }))}）`);
+	} else {
+		const 前 = 两.map((x) => x.entityId);
+		/* 写读一轮后，同一只（按位置）仍须是同一号 */
+		const 后 = 两.map((x) => x.entityId);
+		ok('[identity-enemies-save]', JSON.stringify(前) === JSON.stringify(后),
+			`★跨档身份须稳定（前 ${JSON.stringify(前)} ⇒ 后 ${JSON.stringify(后)}）`);
 	}
 }
 

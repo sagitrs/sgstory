@@ -458,6 +458,19 @@ RPG.Battle = class Battle extends RPG.Event {
 		});
 		} finally {
 			if (RPG.Battle.current === this) RPG.Battle.current = null;
+			/* ★`#2003`（D 面残余 · 领队 18:1x 转）：**战终仍没被消费的提交要出声**（✗ 静默丢）。
+			 *   战斗可能在**轮到提交者之前**就结束（对方团灭／提交者出局／这场从头到尾不问玩家）⇒
+			 *   那一手**从未发生**，得让提交方读得到：上屏一条具名文案 ＋ 留一份结构化账
+			 *   （`Battle.droppedSubmissions` —— 判据读它，✗ 靠读屏）。 */
+			this.droppedSubmissions = [];
+			for (const [名, 令] of this.#提交) {
+				const 件名 = RPG.items.has(令.item) ? RPG.createItem(令.item).name : 令.item;
+				const 文案 = `${名}排入的「${件名}」没有机会出手 —— 这一手从未发生（战斗先结束了）。`;
+				this.droppedSubmissions.push({
+					actor: 名, item: 令.item, action: 令.action ?? 'use', target: 令.target ?? null, text: 文案,
+				});
+				this.perform(`（${文案}）`);
+			}
 			this.#提交.clear();
 			this.#本轮.clear();
 		}
@@ -634,6 +647,8 @@ RPG.Battle = class Battle extends RPG.Event {
 	 * 取值：`action` 缺省 `'use'`；`target` 缺省**提交者自己**（给药/自 buff 的常态），
 	 *   要打别人 ⇒ 显式给 `target: '<单位名>'`。找不到对应候选 ⇒ **具名拒**并回到手动选择（✗ 静默丢弃）。
 	 * 一次性：本回合用完即废（`#本轮` 在回合末清）；被拒重来（`#1914` 回路）时**也清** ⇒ 不会重放。
+	 * ★**战斗先结束 ⇒ 未消费的提交具名出声**（✗ 静默丢）：那一手**从未发生**，见 `Battle.droppedSubmissions`
+	 *   与收尾处那条 `perform`（`#2003` D 面残余）。
 	 */
 	/** 把一条提交映射成**选单项的值**（找得到 ⇒ 值；找不到 ⇒ `null`）。★纯函数（判据直接测它）。 */
 	static matchSubmitItem(cmd, itemOptions, slots) {

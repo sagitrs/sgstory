@@ -146,6 +146,13 @@ class StoryAssetsTest(unittest.TestCase):
                 (self.story / "assets" / "sample.svg").write_bytes(value)
                 self.rejected({"sample": "assets/sample.svg"})
 
+    def test_css_escaped_url_attributes_are_rejected(self):
+        for value in [r'u\72l(https://example.invalid/a.svg)', r'\75rl(https://example.invalid/a.svg)', '&#92;75rl(https://example.invalid/a.svg)']:
+            with self.subTest(value=value):
+                fragment = f'<path fill="{value}"/>'
+                (self.story / "assets" / "sample.svg").write_bytes(SVG.replace(b"</svg>", fragment.encode() + b"</svg>"))
+                self.rejected({"sample": "assets/sample.svg"}, "CSS 转义")
+
     def test_entities_and_processing_instructions_are_rejected(self):
         for prefix in [b'<!DOCTYPE svg [<!ENTITY x "test">]>', b'<?xml-stylesheet href="https://example.invalid/style"?>']:
             with self.subTest(prefix=prefix):

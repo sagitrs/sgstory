@@ -27,16 +27,43 @@ const bridge = (key) => ({
 	set: (v) => { state()[key] = v; },
 	configurable: true,
 });
+/* ★`sgstory#1853`（形裁定 2026-10-05）：`name`／`hp`／`maxHp` 取 **fail-loud** ——
+ *   缺键时**具名抛错**，✗ 静默造值。理由：这三个键**静默造值会改变玩法**
+ *   （`hp` 兜 0 ⇒ 开局即死；兜 18 ⇒ 凭空回血；`name` 兜字串 ⇒ 文案撒谎），而**缺失是配置错误**。
+ *   ★须区分两态（本助手只管后者）：
+ *     · `$player` **整体缺失** ⇒ `state()` 走 DEFAULTS ⇒ **正常，不抛** ✓；
+ *     · `$player` **给了但漏键** ⇒ 配置错误 ⇒ **抛** ✓（DEFAULTS 根本不参与 —— 见 `state()` 的 `== null` 判）。
+ *   报文含**键名**与**修法指向**（✗ 不让人猜「哪个键、去哪儿补」）。 */
+const 必给 = (key) => ({
+	get: () => {
+		const v = state()[key];
+		if (v === undefined) {
+			throw new Error(`$player.${key} 缺失：$player 已由故事侧给出，但**没给全**（本包 DEFAULTS 只在 $player 整体缺失时生效）`
+				+ ` ⇒ 请在故事侧 StoryInit 的 $player 里补齐 \`${key}\`，或整体不写 $player 让本包用 DEFAULTS`);
+		}
+		return v;
+	},
+	set: (v) => { state()[key] = v; },
+	configurable: true,
+});
+
 Object.defineProperties(DND5E.Player, {
-	name: bridge('name'),
-	hp: bridge('hp'),
-	maxHp: bridge('maxHp'),
+	name: 必给('name'),
+	hp: 必给('hp'),
+	maxHp: 必给('maxHp'),
 	stats: {
-		// 桥接面同样需要重挂包标识（Symbol 不进 JSON/State ⇒ 读档后的 Player.stats 会丢标识）
+		/* ★`sgstory#1853`：**write-back**（✗ 只兜底 `?? {}`）。
+		 *   为何不能只兜底：本仓「**就地写 stats**」是**成文惯用法**（`tests/README.md:198`｜
+		 *   `stories/babel/verify.mjs` 的 `D.Player.stats.heal_bonus = ±20`｜`tests/unit/dnd3/chest.test.js` …
+		 *   ｜`tests/e2e/old-house` 的 `DND3.Player.stats.heal_bonus = 2`）—— 而 `?? {}` 每次读都造**新对象**
+		 *   ⇒ 那些就地写**静默丢失**（读回 `undefined` ✗，正是 `#1787` 修 `effects` 时的同族坑）。
+		 *   ⇒ 读时缺失**就地建一次**并**返回同一个引用** ⇒ 写入生效、引用稳定 ✓（形照 `invState()` 的 `inventory` 先例）。
+		 *   ⚠ 代价：读面会**就地改存档**（与 `#1817` 的 golden 纯净性有张力）；此处按形裁定取 write-back ✓。 */
 		get: () => {
-			const st = state().stats ?? {};
-			for (const fn of RPG.reviveHooks ?? []) fn(st);
-			return st;
+			const s = state();
+			if (s.stats == null) s.stats = {};
+			for (const fn of RPG.reviveHooks ?? []) fn(s.stats);
+			return s.stats;
 		},
 		set: (v) => { state().stats = v; },
 		configurable: true,

@@ -83,16 +83,29 @@
 	 *   ⇒ 该支是**死代码**；上面那格用 `p.hp = 5` ⇒ **根本不进该支**
 	 *   ⇒ 拒绝路径从未被夹具**直证**（只被道具语义间接覆盖）。
 	 *   ⇒ 修正为 `that?.hp == null`，并补本格**直证**（✗ 靠间接覆盖）。 */
-	test('#1805：`unit-draught` 的「缺 hp ⇒ 拒绝」支**直证**（✗ 死支）', () => {
+	test('★`#1805`／`#1853`：缺 `hp` 的两条路 —— 玩家面**具名抛错**｜非桥接面**照旧拒绝**', () => {
+		/* ★`#1853`（形裁定 2026-10-05）把 `name`／`hp`／`maxHp` 定为 **fail-loud** ⇒
+		 *   玩家（**桥接面**）缺 `hp` 时，**读即具名抛错** ⇒ 本档原先那条「静默拒绝」的路
+		 *   在**玩家面**已被取代（`used()` 的守卫 `that?.hp == null` **读不到**就抛了）。
+		 *   ⇒ 本格改成**两面都证**：①玩家面＝具名抛错（且经 `itemClick` 仍收成**可读拒绝**、零副作用）；
+		 *     ②**非桥接面**（普通对象）＝`used()` 那条守卫**仍活**（★这才是 `#1805` 原意：✗ 死支）。 */
 		const p = freshInv(R().playerActor() ?? R().characters.get('player'));
-		p.hp = undefined;                                  // ★缺 hp ⇒ 应走拒绝支
+		p.hp = undefined;                                  // ★玩家面缺 hp
 		p.maxHp = 20;
 		R().give('unit-draught');
+		let 抛 = null;
+		try { void p.hp; } catch (e) { 抛 = e; }
+		assert.ok(抛 && /hp/.test(String(抛.message)),
+			`★玩家面缺 hp ⇒ 须**具名抛错**（#1853 fail-loud；实得「${抛 && 抛.message}」）`);
 		const r = R().itemClick('unit-draught', { actor: p });
-		assert.eq(r.ok, false, '★缺 hp ⇒ 拒绝（`used()` 返回 false ⇒ `ok:false`）');
-		assert.eq(p.hp, undefined, '★拒绝 ⇒ **不得**改动 hp（✗ 兜底成 `0 + 3`）');
+		assert.eq(r.ok, false, '★经 `itemClick` ⇒ 仍收成**可读拒绝**（`#1857`：✗ 不抛穿 DOM）');
 		assert.ok(S().inventory.some((s) => s.id === 'unit-draught'),
 			'★拒绝 ⇒ **不得**消耗（`#1801`：「拒绝路径一律零副作用」⇒ charges ✗ 扣、槽 ✗ 摘）');
+		/* ② 非桥接面：普通对象（无 fail-loud 访问器）⇒ `#1805` 的守卫照旧生效 */
+		const 木桩 = { name: '木桩', hp: undefined, maxHp: 20, items: [] };
+		const r2 = R().itemClick('unit-draught', { actor: 木桩 });
+		assert.eq(r2.ok, false, '★非桥接面缺 hp ⇒ 走 `used()` 的拒绝支（✗ 死支 —— #1805 原意）');
+		assert.eq(木桩.hp, undefined, '★拒绝 ⇒ **不得**改动 hp（✗ 兜底成 `0 + 3`）');
 	});
 
 	test('C1：条目**显式拒绝**时点击报 `ok:false`（✗ 假装成功）', () => {

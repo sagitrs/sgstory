@@ -152,7 +152,16 @@
 						/* ★闸的界＝**存档对话框**（`.saves` 箱）—— ✗ 不是「必须落在 `#saves-list` 节点里面」：
 						 *   `UI.saves()` **整段重建**时，变更的 target 常是**箱子那一层**／已摘下的旧节点 ⇒ 旧闸会把
 						 *   **唯一要紧的那一次**挡在门外（实测：臂①「重渲染后标记/禁用双失」＋臂③「程序化 click 真删」）。 */
-						if (!nd) return false;
+						/* ★两腿形（领队 2026-10-05 06:03 裁）：**同步腿**在入口尽力标、**异步腿**在这里保证"真落地必再标"。
+						 *   ⇒ 闸**放宽成「文档里有 `#saves-list` 就处理」**：`处理存档对话框()` 自身**幂等且找不到就 return 0**
+						 *   ⇒ 所以"多跑几次"没有代价 ✓；而收紧的闸（"target 必须落在 `#saves-list` 里"✗）会把
+						 *   "整段重建时 target 是箱子那一层／已摘下的旧节点"这一**最要紧的一次**挡在门外（实测：臂① 红）。 */
+						try {
+							if (document.getElementById && document.getElementById('saves-list')) return true;
+							if (document.querySelector && document.querySelector('.saves-list')) return true;
+						} catch (e) { return true; }
+						return !!nd;   /* 连表都还没有（不是存档面）⇒ ✗ 不空跑 */
+
 						try {
 							if (nd.id === 'saves-list' || nd.id === 'probe12') return true;
 							if (nd.classList && (nd.classList.contains('saves') || nd.classList.contains('saves-list'))) return true;

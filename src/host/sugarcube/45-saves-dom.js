@@ -141,11 +141,35 @@
 	 * @returns {number} 本次锁住的行数（0 ＝ 无 DOM／无对话框／无保留槽 ⇒ 都不抛 ✓）
 	 */
 	var 处理存档对话框 = function () {
+		/* ★`books#280` ⑫ 的**中间态机读面**（`tester-3` 提 · 领队 2026-10-05 08:05 准「A（两笔）」）：
+		 *   把「本趟后处理跑到哪一步」记在 `setup.RPG.reservedSlots.lastRun` 上，供臂/人直接读。
+		 *   ★为何要它：`#2015` 作者自陈「**凭推断改了六轮**，唯一直击真因的是**把中间态打出来**」—— 本面把那句**固化**下来。
+		 *   ✗ 不拿 `console` 文本当接口（脆 ✗）。★四字段：`观察者醒`／`取到行`／`锁上`／★`末次结论`
+		 *   —— ★第四字段必要：「保留表空（重试中）」那类趟会落成「醒>0 且 取到行=0」，只看三数会被误读成「没锁上」✗。 */
+		var 记趟 = function (结论, 取到行, 锁上) {
+			try {
+				var R0 = (typeof RPG !== 'undefined' && RPG) ? RPG : ((typeof setup !== 'undefined' && setup) ? setup.RPG : null);
+				if (!R0) return;
+				if (!R0.reservedSlots) R0.reservedSlots = function () { return []; };
+				var 前 = R0.reservedSlots.lastRun;
+				R0.reservedSlots.lastRun = {
+					观察者醒: ((前 && Number.isFinite(前.观察者醒)) ? 前.观察者醒 : 0) + 1,
+					取到行: Number(取到行) || 0,
+					锁上: Number(锁上) || 0,
+					末次结论: String(结论 || '')
+				};
+			} catch (e) { /* ✗ 吞：记面失败 ✗ 不得影响本体 */ }
+		};
+		/* ★末趟快照（✗ 非累计）：起点先清上趟的计数 —— 否则臂读到的三数会跨趟累加，读不出「这趟怎么了」。 */
+		try {
+			var R1 = (typeof RPG !== 'undefined' && RPG) ? RPG : ((typeof setup !== 'undefined' && setup) ? setup.RPG : null);
+			if (R1 && R1.reservedSlots) R1.reservedSlots.lastRun = { 观察者醒: 0, 取到行: 0, 锁上: 0, 末次结论: '本趟开始' };
+		} catch (e) { /* ✗ 吞 */ }
 		
 		if (typeof document === 'undefined') { return 0; }
 		var 箱 = document.getElementById('ui-dialog-body');
-		if (!箱) return 0;
-		if (箱.classList && !箱.classList.contains('saves') && !箱.querySelector('#saves-list')) return 0;
+		if (!箱) { 记趟('无对话框（✗ 不是本趟的账）', 0, 0); return 0; }
+		if (箱.classList && !箱.classList.contains('saves') && !箱.querySelector('#saves-list')) { 记趟('对话框不是存档面', 0, 0); return 0; }
 		var 列 = document.getElementById('saves-list') || 箱.querySelector('.saves-list');
 		/* ★jsdom 健壮性（领队 2026-10-05 05:04 裁①）：引擎 headless 宿主对 DOM 有**桩/代理** ⇒ 
 		 *   `document.getElementById(...) || 箱.querySelector(...)` 可能**不是元素** ⇒ 旧形在下一行 
@@ -155,9 +179,10 @@
 		 *   （实测：真浏览器宿主也桩形 ⇒ 原形在这里**抛**、被包一层的 try 吞掉 ⇒ 从未标上）。 */
 		if (列 && typeof 列.querySelectorAll !== 'function' && !(window.jQuery && typeof window.jQuery === 'function' && 列 && 列.jquery !== undefined)) {
 			try { if (window.console && console.warn) console.warn('[reserved] 存档列表形状不认识（既无 querySelectorAll 也非 jQuery 形）⇒ 本趟放弃'); } catch (e) { /* ✗ 吞 */ }
+			记趟('列表形状不认识', 0, 0);
 			return 0;
 		}
-		if (!列) return 0;
+		if (!列) { 记趟('无 saves-list', 0, 0); return 0; }
 		var 保留 = (typeof RPG.reservedSlots === 'function') ? RPG.reservedSlots() : [];
 		/* ★第 2 步口径：读不到 ⇒ 那档已出声 ＋ 空集 ⇒ 本档**不猜**（✗ 不默认锁 3／4）✓ */
 		/* ★「保留为空」＝**还没到时候**（✗ 不是"这一趟做完了"）：
@@ -178,15 +203,19 @@
 					try { if (window.console && console.warn) console.warn('[reserved] 保留槽表始终读不到（重试 40 次 ≈ 10s）⇒ 本档**未做**任何标记（✗ 不是做过）'); } catch (e) { /* ✗ 吞 */ }
 				}
 			}
+			记趟('保留表空（重试中）', 0, 0);
 			return 0;
 		}
 		/* ★拿到保留码 ⇒ 重试计数清零（下次换档/重建从头算） */
 		try { if (typeof window !== 'undefined') window.__rpgReserved试 = 0; } catch (e) { /* ✗ 吞 */ }
-		var n = 0;
+		var n = 0, 得行 = 0;
 		保留.forEach(function (码) {
 			if (!Number.isInteger(码)) return;
-			if (锁一行(行of(码))) n += 1;
+			var 行 = 行of(码);
+			if (行) 得行 += 1;
+			if (锁一行(行)) n += 1;
 		});
+		记趟('已处理', 得行, n);
 		return n;
 	};
 

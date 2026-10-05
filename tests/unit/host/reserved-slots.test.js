@@ -66,3 +66,23 @@
 		assert.eq(出声.length > 0, true, `★读不到故事侧槽位须**出声**（✗ 静默取默认 —— 「静默」与「明账」必须不同形）：${JSON.stringify(果)}`);
 	});
 })();
+
+/* ★`books#280` ⑫ 的**中间态机读面**（`tester-3` 提 · 领队 2026-10-05 08:05 准）：契约核。
+ *   ★本组只核**契约与形状**（✗ 不假装跑真对话框 —— 那要宿主 DOM，属臂①/② 的真浏览器面 ✓）：
+ *     `setup.RPG.reservedSlots.lastRun` 若在 ⇒ 必是 `{观察者醒, 取到行, 锁上, 末次结论}` 四字段且前三为整数、末为非空串 ✓；
+ *     不在（宿主未跑到后处理）⇒ ★**本组不判红**（缺席闸形 ✓）⇒ 明印「⏳ 待判」。
+ *   ★为何要这一栏：`#2015` 作者自陈「凭推断改了六轮，唯一直击真因的是把中间态打出来」⇒ 把它**变成接口** ✓。 */
+{
+	const 面 = (typeof RPG !== 'undefined' && RPG && RPG.reservedSlots && RPG.reservedSlots.lastRun) || null;
+	if (!面) {
+		console.log('  ⏳ 待判（reservedSlots.lastRun）：未跑到后处理（缺席闸 ⇒ ✗ 不判红）');
+	} else {
+		assert.eq(Object.prototype.hasOwnProperty.call(面, '观察者醒'), true, '★缺 观察者醒');
+		assert.eq(Object.prototype.hasOwnProperty.call(面, '取到行'), true, '★缺 取到行');
+		assert.eq(Object.prototype.hasOwnProperty.call(面, '锁上'), true, '★缺 锁上');
+		assert.eq(Object.prototype.hasOwnProperty.call(面, '末次结论'), true, '★缺 末次结论（★它必要：单看三数会把「保留表空（重试中）」误读成「没锁上」）');
+		assert.eq(Number.isFinite(面.观察者醒) && Number.isFinite(面.取到行) && Number.isFinite(面.锁上), true,
+			`★前三字段须为有限数（实得 ${JSON.stringify(面)}）`);
+		assert.eq(typeof 面.末次结论 === 'string' && 面.末次结论.length > 0, true, `★末次结论须为非空串（实得 ${JSON.stringify(面.末次结论)}）`);
+	}
+}

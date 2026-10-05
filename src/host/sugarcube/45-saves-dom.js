@@ -118,7 +118,28 @@
 		if (!列) return 0;
 		var 保留 = (typeof RPG.reservedSlots === 'function') ? RPG.reservedSlots() : [];
 		/* ★第 2 步口径：读不到 ⇒ 那档已出声 ＋ 空集 ⇒ 本档**不猜**（✗ 不默认锁 3／4）✓ */
-		if (!保留 || !保留.length) return 0;
+		/* ★「保留为空」＝**还没到时候**（✗ 不是"这一趟做完了"）：
+		 *   ① 宿主 `40-saves-reserved.js` 读不到 `setup.BABEL.槽位` 时**按设计**返回空集（它已 warn 过一句 ✗ 但没人看）；
+		 *   ② 故事侧 `world/encounters.js` 才把 `槽位` 挂上（世界模块执行时）；
+		 *   ③ 本档在对话框后处理里比它**先跑** ⇒ 那一刻读到空 ⇒ 旧形**直接 return** ⇒ 保留行**永远不被标**（实测：tester-3 的臂① 一直红）。
+		 *   ⇒ 所以这里**有界重试**（✗ 不当作做完）＋ 到顶**记明账**（✗ 不静默）。 */
+		if (!保留 || !保留.length) {
+			var w0 = (typeof window !== 'undefined') ? window : null;
+			if (w0) {
+				w0.__rpgReserved试 = (w0.__rpgReserved试 || 0) + 1;
+				if (w0.__rpgReserved试 <= 40) {
+					if (typeof setTimeout === 'function') {
+						setTimeout(function () { try { 处理存档对话框(); } catch (e) { /* ✗ 吞 */ } }, 250);
+					}
+				} else if (!w0.__rpgReserved账) {
+					w0.__rpgReserved账 = true;
+					try { if (window.console && console.warn) console.warn('[reserved] 保留槽表始终读不到（重试 40 次 ≈ 10s）⇒ 本档**未做**任何标记（✗ 不是做过）'); } catch (e) { /* ✗ 吞 */ }
+				}
+			}
+			return 0;
+		}
+		/* ★拿到保留码 ⇒ 重试计数清零（下次换档/重建从头算） */
+		try { if (typeof window !== 'undefined') window.__rpgReserved试 = 0; } catch (e) { /* ✗ 吞 */ }
 		var n = 0;
 		保留.forEach(function (码) {
 			if (!Number.isInteger(码)) return;

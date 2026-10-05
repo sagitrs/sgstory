@@ -152,6 +152,121 @@ RPG.registerItem = (klass) => {
 };
 
 /** 按注册表创建新实例（overrides 可覆盖默认定义） */
+/** ★`sgstory#1743` A 支（**包限定读**的底座）：读一件**包标记**。
+ *
+ *   背景：两包共用一张 id 表 ⇒ 同 id 后者遮蔽前者（`#1743` 台账 10 例）⇒ 故事侧「按包取用」只能靠
+ *   那包自己的 Symbol 键（`setup.DND3.PACK ＝ Symbol.for('rpg.pack.dnd3')` 这类）现读。
+ *   本帮手把「怎么读」收成一处（★**一个量只留一个名字**）：
+ *     ① 对象的 `stats` 里找**任何** `Symbol.for('rpg.pack.*')` 键 ⇒ 取它的**值**当包名（如 `'dnd3'`）；
+ *     ② **没有**包标记 ⇒ 记 `'core'`（core 侧**不设**包 Symbol ✓ —— 这是**约定**，B 支候 0.0.3 设计窗收口）；
+ *     ③ 传实例或类都行（传类则**探一个实例**，并按类**缓存** ⇒ 不反复消耗 `entityId`）。
+ *   ⚠ 边界：判据是「`Symbol.keyFor(sym)` 以 `rpg.pack.` 开头」⇒ 只看**全局注册**的 Symbol（`Symbol.for` 才进注册表 ✓）。
+ */
+const 包缓存 = new WeakMap();
+RPG.包标记 = (物) => {
+	if (!物) return null;
+	if (包缓存.has(物)) return 包缓存.get(物);
+	let 目标 = 物;
+	if (typeof 物 === 'function') {              // 传**类** ⇒ 探一个实例（✗ 改调用方语义）
+		try { 目标 = new 物(); } catch { return null; }
+	}
+	const 块 = 目标?.stats ?? 目标?.definition?.stats ?? null;
+	let 包 = null;
+	if (块 && typeof 块 === 'object') {
+		for (const sym of Object.getOwnPropertySymbols(块)) {
+			const k = Symbol.keyFor(sym);
+			if (k && k.startsWith('rpg.pack.')) { 包 = 块[sym] ?? k.slice('rpg.pack.'.length); break; }
+		}
+	}
+	包 = 包 ?? 'core';                            // ★无标记 ⇒ core（约定；见上 ②）
+	if (typeof 物 === 'function') 包缓存.set(物, 包);
+	return 包;
+};
+
+/** ★`sgstory#1743` A 支：**包限定读** —— 同 id 跨包时取**那一包**自己的件（✗ 不靠装载序）。
+ *   · `包` 取包名（`'dnd3'`／`'dnd-5e'`／`'core'`…）；无包标记者按 `'core'` 计（见 `RPG.包标记`）；
+ *   · 取不到 ⇒ **`undefined`** —— ✗ **不**回落到「另一包那件」：那正是本票要治的**静默遮蔽** ✓。
+ *   ★零回归：纯新增，✗ 不改 `get`／`set`／注册路径的任何行为（判据同批钉住）。
+ */
+/** ★`sgstory#1743` A₁：**包命名空间发现** —— 在 `setup` 上找「`stats()` 会盖 `<包>` 标」的那个命名空间。
+ *   为什么需要：**道具的 `stats` 目前一件都不带包标**（`#1743` 实测：74 件带标 **0**；角色 13 件全带 ✓），
+ *   故道具面判不出归属 ⇒ 退到「在那包的**导出名**里按 id 反查」这条非破坏的路 ✓（✗ 不动注册路径）。
+ *   ★只读探测（`stats({})` 是纯的）；探测失败一律跳过（✗ 不静默当命中）；结果按包缓存。
+ */
+const 包空间表 = new Map();
+RPG.包空间 = (包) => {
+	if (包空间表.has(包)) return 包空间表.get(包);
+	let 命中 = null;
+	try {
+		for (const k of Object.keys(globalThis.setup ?? {})) {
+			const ns = globalThis.setup[k];
+			if (!ns || typeof ns.stats !== 'function') continue;
+			let 块 = null;
+			try { 块 = ns.stats({}); } catch { continue; }
+			for (const sym of Object.getOwnPropertySymbols(块 ?? {})) {
+				const key = Symbol.keyFor(sym);
+				if (key && key.startsWith('rpg.pack.') && (块[sym] ?? key.slice('rpg.pack.'.length)) === 包) { 命中 = ns; break; }
+			}
+			if (命中) break;
+		}
+	} catch { 命中 = null; }
+	包空间表.set(包, 命中);
+	return 命中;
+};
+
+/** 导出名 ↔ id 的**归一键**：`HerbPoultice` ↔ `herb-poultice`（✗ 大小写／连字符／下划线之别）。 */
+const 归一键 = (x) => String(x).replace(/[-_\s]/g, '').toLowerCase();
+
+/** ★**未命中台账**（`#1743`：✗ 不静默）—— 按包反查失败时记一笔，供判据／人读。
+ *   形：`[{ 包, id, 何以 }]`；★只增不清（读得到「本局有没有不循例的件」✓）。 */
+const 未命中 = [];
+RPG.items.未命中 = () => 未命中.map((x) => ({ ...x }));
+RPG.items.清未命中 = () => { 未命中.length = 0; };   // 判据用（复位台账；★设计上台账只增不清）
+
+/** ★`sgstory#1743` A₁：**包限定读** —— 同 id 跨包时取**那一包**自己的件（✗ 不靠装载序）。
+ *   ① 该件若**带包标**（角色面那套机制）⇒ 直接按标记判（O(1)）；
+ *   ② 否则（道具面现状）⇒ 在**该包的命名空间**里按「导出名 ↔ id」约例反查（✗ 不实例化 ⇒ 不消耗 `entityId`）；
+ *   ③ 判不出 ⇒ 返回 `undefined` **并记入未命中台账**（✗ **不**回落给「另一包那件」—— 那正是本票要治的静默遮蔽）。
+ *   ★零回归：纯新增，✗ 不改 `get`／`set`／注册路径的任何行为。
+ */
+/** ★`sgstory#1743` A₁ 的**通用形**：在**包的命名空间**里按「导出名 ↔ id」约例取那一支。
+ *   ★为何通用：**两张注册表都只留赢家**（`items` 与 `characters` 各一张单表）⇒ 「包标」只答得了「赢家属于谁」，
+ *     答不了「输家是谁」⇒ 角色面与道具面**都**得走这条路（本席实测：`characters.get('goblin')` 恒是 dnd3 那件 ✓）。
+ *   ★`基类` 用来排除同名的非目标导出（道具传 `RPG.Item`、角色传 `RPG.Character`）。✗ 不实例化 ⇒ 不消耗 `entityId`。
+ */
+RPG.按包从空间 = (包, id, 基类) => {
+	const ns = RPG.包空间(包);
+	if (!ns || typeof 基类 !== 'function') return undefined;
+	const 目标 = 归一键(id);
+	for (const k of Object.keys(ns)) {
+		const v = ns[k];
+		/* ① **类形**（道具面：导出的是类）⇒ 按「导出名 ↔ id」约例匹配 ✓（类上无 `.id`，只能靠名字 ✓） */
+		if (typeof v === 'function' && v.prototype instanceof 基类 && 归一键(k) === 目标) return v;
+		/* ② **实例形**（角色面：`defCharacter` 返回实例）⇒ 先试 `.id`（本席实测**常为 undefined** ✗），
+		 *   再退到**同一个命名约例** —— 实例面上唯一可靠的可判物就是它的**导出名** ✓。 */
+		if (v && typeof v === 'object' && v instanceof 基类) {
+			if (v.id === id || 归一键(k) === 目标) return v;
+		}
+	}
+	return undefined;
+};
+
+/** ★`sgstory#1743` A₁：**包限定读**（道具面）—— 同 id 跨包时取**那一包**自己的件（✗ 不靠装载序）。
+ *   ① 赢家若**带包标**且正是所求包 ⇒ 直接给（O(1)）；
+ *   ② 否则在**该包命名空间**里按「导出名 ↔ id」约例反查（道具面现状走这条 ✓）；
+ *   ③ 判不出 ⇒ `undefined` **并记入未命中台账**（✗ 不静默、✗ 不回落给别包那件）。
+ *   ★零回归：纯新增，✗ 不改 `get`／`set`／注册路径的任何行为。
+ */
+RPG.items.按包 = (包, id) => {
+	const klass = RPG.items.get(id);
+	if (!klass) return undefined;
+	if (RPG.包标记(klass) === 包) return klass;
+	const 得 = RPG.按包从空间(包, id, RPG.Item);
+	if (得) return 得;
+	未命中.push({ 包, id, 何以: RPG.包空间(包) ? '该包命名空间里没有「导出名 ↔ id」约例可判的类' : '找不到该包的命名空间（包未加载？）' });
+	return undefined;
+};
+
 RPG.createItem = (id, overrides) => {
 	const klass = RPG.items.get(id);
 	if (!klass) throw new Error(`未注册的道具 id: ${id}`);

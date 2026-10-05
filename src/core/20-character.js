@@ -342,6 +342,14 @@ RPG.onReviveStats = (fn) => {
 	};
 };
 
+/** ★`sgstory#1743` A 支：角色的**包限定读**（形与 `RPG.items.按包` 同 —— 帮手共用 `RPG.包标记` ✓）。 */
+RPG.characters.按包 = (包, id) => {
+	const c = RPG.characters.get(id);
+	if (!c) return undefined;
+	if ((RPG.包标记?.(c) ?? null) === 包) return c;                 // 赢家正好是所求包 ⇒ 直给
+	return RPG.按包从空间?.(包, id, RPG.Character);                 // 否则去那包的命名空间反查
+};
+
 RPG.defCharacter = (def) => {
 	const c = new RPG.Character(def);
 	if (def && def.id) {

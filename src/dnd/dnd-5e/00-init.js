@@ -116,3 +116,4 @@ setup.DND5E.d20adv = () => Math.max(setup.RPG.roll('1d20'), setup.RPG.roll('1d20
 setup.DND5E.d20dis = () => Math.min(setup.RPG.roll('1d20'), setup.RPG.roll('1d20'));
 // 注意：槽位中文名（RPG.slotLabels）在 core/combat.js 的包装内设置，
 // 避免在 raw 文件里引用可能未初始化的 RPG 属性。
+setup.RPG.登记包空间?.('dnd-5e', setup.DND5E);   // ★`sgstory#1743` A₁：把本包命名空间交给 core 的登记表（✗ 让 core 去摸 setup）

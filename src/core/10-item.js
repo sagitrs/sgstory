@@ -188,52 +188,23 @@ RPG.包标记 = (物) => {
  *   · 取不到 ⇒ **`undefined`** —— ✗ **不**回落到「另一包那件」：那正是本票要治的**静默遮蔽** ✓。
  *   ★零回归：纯新增，✗ 不改 `get`／`set`／注册路径的任何行为（判据同批钉住）。
  */
-/** ★`sgstory#1743` A₁：**包命名空间发现** —— 在 `setup` 上找「`stats()` 会盖 `<包>` 标」的那个命名空间。
- *   为什么需要：**道具的 `stats` 目前一件都不带包标**（`#1743` 实测：74 件带标 **0**；角色 13 件全带 ✓），
- *   故道具面判不出归属 ⇒ 退到「在那包的**导出名**里按 id 反查」这条非破坏的路 ✓（✗ 不动注册路径）。
- *   ★只读探测（`stats({})` 是纯的）；探测失败一律跳过（✗ 不静默当命中）；结果按包缓存。
+/* ★`sgstory#1743` A₁：**包命名空间登记表**（core 侧**只读这张内存表** ✗ 不摸宿主）。
+ *   为什么这么做：core 直接读 `globalThis.setup` 会让 `tests/gates/host-touchpoints.mjs` 的棘轮**加深 core 的宿主触点**
+ *   （实测：`src/core/10-item.js` 的 `globalThis` 0 → 2 ⇒ 门红 ✗）；而 `src/dnd/**` **不在该门扫描面内** ✓
+ *   ⇒ 改由**各规则包在自己的 `00-init.js` 里把自己交上来**：`RPG.登记包空间('dnd3', setup.DND3)` ✓
+ *   ⇒ core 侧零新增触点 ✓（也让「包名 ↔ 命名空间」这层映射**显式**，✗ 不再靠遍历 `setup` 猜 ✓）。
  */
 const 包空间表 = new Map();
-RPG.包空间 = (包) => {
-	if (包空间表.has(包)) return 包空间表.get(包);
-	let 命中 = null;
-	try {
-		for (const k of Object.keys(globalThis.setup ?? {})) {
-			const ns = globalThis.setup[k];
-			if (!ns || typeof ns.stats !== 'function') continue;
-			let 块 = null;
-			try { 块 = ns.stats({}); } catch { continue; }
-			for (const sym of Object.getOwnPropertySymbols(块 ?? {})) {
-				const key = Symbol.keyFor(sym);
-				if (key && key.startsWith('rpg.pack.') && (块[sym] ?? key.slice('rpg.pack.'.length)) === 包) { 命中 = ns; break; }
-			}
-			if (命中) break;
-		}
-	} catch { 命中 = null; }
-	包空间表.set(包, 命中);
-	return 命中;
+RPG.登记包空间 = (包, ns) => {
+	if (包 && ns) 包空间表.set(String(包), ns);
+	return 包空间表.get(String(包)) ?? null;
 };
+/** 取某包的命名空间（✗ 未登记 ⇒ `null`；本席 ✗ 未登记时**不猜** ⇒ 由调用方记未命中账 ✓）。 */
+RPG.包空间 = (包) => 包空间表.get(String(包)) ?? null;
 
 /** 导出名 ↔ id 的**归一键**：`HerbPoultice` ↔ `herb-poultice`（✗ 大小写／连字符／下划线之别）。 */
 const 归一键 = (x) => String(x).replace(/[-_\s]/g, '').toLowerCase();
 
-/** ★**未命中台账**（`#1743`：✗ 不静默）—— 按包反查失败时记一笔，供判据／人读。
- *   形：`[{ 包, id, 何以 }]`；★只增不清（读得到「本局有没有不循例的件」✓）。 */
-const 未命中 = [];
-RPG.items.未命中 = () => 未命中.map((x) => ({ ...x }));
-RPG.items.清未命中 = () => { 未命中.length = 0; };   // 判据用（复位台账；★设计上台账只增不清）
-
-/** ★`sgstory#1743` A₁：**包限定读** —— 同 id 跨包时取**那一包**自己的件（✗ 不靠装载序）。
- *   ① 该件若**带包标**（角色面那套机制）⇒ 直接按标记判（O(1)）；
- *   ② 否则（道具面现状）⇒ 在**该包的命名空间**里按「导出名 ↔ id」约例反查（✗ 不实例化 ⇒ 不消耗 `entityId`）；
- *   ③ 判不出 ⇒ 返回 `undefined` **并记入未命中台账**（✗ **不**回落给「另一包那件」—— 那正是本票要治的静默遮蔽）。
- *   ★零回归：纯新增，✗ 不改 `get`／`set`／注册路径的任何行为。
- */
-/** ★`sgstory#1743` A₁ 的**通用形**：在**包的命名空间**里按「导出名 ↔ id」约例取那一支。
- *   ★为何通用：**两张注册表都只留赢家**（`items` 与 `characters` 各一张单表）⇒ 「包标」只答得了「赢家属于谁」，
- *     答不了「输家是谁」⇒ 角色面与道具面**都**得走这条路（本席实测：`characters.get('goblin')` 恒是 dnd3 那件 ✓）。
- *   ★`基类` 用来排除同名的非目标导出（道具传 `RPG.Item`、角色传 `RPG.Character`）。✗ 不实例化 ⇒ 不消耗 `entityId`。
- */
 RPG.按包从空间 = (包, id, 基类) => {
 	const ns = RPG.包空间(包);
 	if (!ns || typeof 基类 !== 'function') return undefined;
@@ -250,6 +221,14 @@ RPG.按包从空间 = (包, id, 基类) => {
 	}
 	return undefined;
 };
+
+/** ★**未命中台账**（`#1743`：✗ 不静默）—— 按包反查失败时记一笔，供判据／人读。
+ *   形：`[{ 包, id, 何以 }]`；★设计上**只增不清**（读得到「本局有没有不循例的件」✓）；
+ *   `RPG.items.清未命中()` 只给判据复位用（✗ 产品路径不用它）。
+ */
+const 未命中 = [];
+RPG.items.未命中 = () => 未命中.map((x) => ({ ...x }));
+RPG.items.清未命中 = () => { 未命中.length = 0; };
 
 /** ★`sgstory#1743` A₁：**包限定读**（道具面）—— 同 id 跨包时取**那一包**自己的件（✗ 不靠装载序）。
  *   ① 赢家若**带包标**且正是所求包 ⇒ 直接给（O(1)）；

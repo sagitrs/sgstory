@@ -97,6 +97,20 @@ python build.py        # 同时产出 tests/unit/bundle.js 与 e2e 的 game.html
   `node tests/e2e/old-house/run-seam.mjs`（需 jsdom；`--selftest` 跑两条刀的判别力自证）。
   ⚠ 它**不在逐 PR 的 CI 里** —— 要真 DOM 就装 jsdom，而那会动舰队**零依赖基线**；
   故走**窗口式**：`.github/workflows/e2e-seam.yml`（nightly ＋ 手动 dispatch，ephemeral 装 jsdom）。
+## 构建素材测试（`sgstory#2009`）
+
+`tests/build/story_assets_test.py` 直接调用生产 `build.py` 的 SVG 验证／内嵌函数，
+使用临时故事；正反臂包括路径逃逸／软链环、限长读取、源字节／尺寸／摘要、主动内容拒绝、
+注入先于消费脚本、确定性与无声明不增字节。只读表用 Node 22 的标准 `vm` 核验。
+真构建臂只替换 SugarCube 外壳模板，
+不替换生产脚本收集或注入函数；不写共享 `build/dist`。
+
+固定入口：`timeout 25 python3 tests/build/story_assets_test.py`。
+期望：末行 `OK`、非零测试数、rc 0；失败 rc 1。现有 CI 的
+`node tests/gates/pack-selection.mjs` 同步执行此臂，无新增 workflow。
+它不判真实字体、布局／触控、图像解码或故事动作的完整行为。
+契约见 [离线 SVG 素材](../docs/engine/story-assets.md)。
+
 ## 测试基建纪律（命令与探针）
 
 任何**可能阻塞**的命令——jsdom／网络请求／DOM 事件等待／子进程／交互式命令——都必须**自带超时**并**保留退出码**。以下八条为硬性要求：

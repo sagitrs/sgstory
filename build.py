@@ -41,11 +41,14 @@ build.py —— SugarCube RPG 增强插件的构建器（零依赖，纯 Python 
   ⚠ 为何要有这个口：一个故事同时装 `src/dnd/dnd3/**` 与 `src/dnd/dnd-5e/**` 时，两包**共用一张 id 表**
     ⇒ 后装者**如实**打「重复注册：将被覆盖」warn（`#288` 勘察：13 条），而单包故事本不该撞这条。
 """
+import base64
+import hashlib
 import html
 import json
 import pathlib
 import re
 import sys
+import xml.etree.ElementTree as ET
 
 ROOT = pathlib.Path(__file__).resolve().parent
 PLUGIN_SRC = ROOT / "src"
@@ -184,26 +187,125 @@ def 可用规则包() -> dict:
     return out
 
 
+def read_story_manifest(story_dir: pathlib.Path):
+    """Shared reader for optional story.json fields; invalid declarations never disappear."""
+    mf = story_dir / "story.json"
+    if not mf.exists():
+        return None
+    try:
+        data = json.loads(mf.read_text(encoding="utf-8"))
+    except (OSError, ValueError) as e:
+        raise SystemExit(f"✗ 故事清单读不出／不是合法 JSON：{mf} —— {e}")
+    if not isinstance(data, dict):
+        raise SystemExit(f"✗ 故事清单须是 JSON 对象：{mf}")
+    return data
+
+
 def 故事清单规则包(story_dir: pathlib.Path):
     """读 `<story>/story.json` 的 `packs`（`sgstory#295` 甲）。
     · 无清单／无该键 ⇒ `None` ＝ **全装**（＝本口引入前的行为 ⇒ 缺省逐字节同旧）；
     · 给了 ⇒ **列表**（非空字符串数组）；★**未知 id 由调用方核**（它才知道「可用」有哪些）；
     · 清单坏／`packs` 形不对 ⇒ **具名抛**（✗ 静默回落全装 —— 那会让「我声明了单包」变成假绿）。"""
     mf = story_dir / "story.json"
-    if not mf.exists():
+    data = read_story_manifest(story_dir)
+    if data is None:
         return None
-    try:
-        data = json.loads(mf.read_text(encoding="utf-8"))
-    except Exception as e:                                   # noqa: BLE001 —— 坏清单要具名，✗ 吞
-        raise SystemExit(f"✗ 故事清单读不出／不是合法 JSON：{mf} —— {e}")
-    if not isinstance(data, dict):
-        raise SystemExit(f"✗ 故事清单须是 JSON 对象：{mf}")
     v = data.get("packs")
     if v is None:
         return None
     if not isinstance(v, list) or not v or not all(isinstance(x, str) and x for x in v):
         raise SystemExit(f"✗ 故事清单 `packs` 须是**非空字符串**的数组：{mf}（实得 {v!r}）")
     return v
+
+
+# Static SVG profile for the opt-in, single-file asset seam (sgstory#2009).
+# This is a parser input limit, not an artwork/HTML performance budget.
+SVG_INPUT_LIMIT = 1024 * 1024
+SVG_NS = "{http://www.w3.org/2000/svg}"
+SVG_TAGS = frozenset(("svg", "g", "path", "rect", "circle", "ellipse", "line",
+                      "polyline", "polygon", "defs", "linearGradient", "radialGradient",
+                      "stop", "title", "desc"))
+SVG_ATTRS = frozenset(("width", "height", "viewBox", "preserveAspectRatio", "id",
+                       "fill", "fill-opacity", "stroke", "stroke-width", "stroke-opacity",
+                       "stroke-linecap", "stroke-linejoin", "opacity", "d", "points",
+                       "x", "y", "x1", "y1", "x2", "y2", "cx", "cy", "r", "rx", "ry",
+                       "fx", "fy", "transform", "offset", "stop-color", "stop-opacity",
+                       "gradientUnits", "gradientTransform"))
+
+
+def load_story_assets(story_dir: pathlib.Path) -> dict:
+    """Validate local static SVGs and return deterministic, domain-free descriptors."""
+    manifest = read_story_manifest(story_dir)
+    if manifest is None or "assets" not in manifest:
+        return {}
+    declarations = manifest["assets"]
+    if not isinstance(declarations, dict):
+        raise SystemExit(f"✗ 故事清单 assets 须是 ID→路径对象：{story_dir / 'story.json'}")
+    result = {}
+    boundary = story_dir.resolve() / "assets"
+    for asset_id, source in sorted(declarations.items()):
+        label = f"✗ assets[{asset_id!r}]"
+        if not re.fullmatch(r"[a-z][a-z0-9-]*", asset_id):
+            raise SystemExit(f"{label}：ID 须为小写字母开头的字母／数字／连字符")
+        if not isinstance(source, str) or "\\" in source:
+            raise SystemExit(f"{label}：源须为 assets/ 内的 POSIX 相对路径")
+        relative = pathlib.PurePosixPath(source)
+        if relative.is_absolute() or not relative.parts or relative.parts[0] != "assets" or ".." in relative.parts:
+            raise SystemExit(f"{label}：源路径不得远程、绝对或离开 assets/：{source}")
+        if relative.suffix != ".svg":
+            raise SystemExit(f"{label}：本片只支持静态 .svg：{source}")
+        try:
+            src = (story_dir / relative).resolve(strict=True)
+            src.relative_to(boundary)
+            if not src.is_file():
+                raise ValueError("不是普通文件")
+            if src.stat().st_size > SVG_INPUT_LIMIT:
+                raise ValueError("超过 SVG 解析输入上限 1 MiB")
+            with src.open("rb") as stream:
+                raw = stream.read(SVG_INPUT_LIMIT + 1)
+            if len(raw) > SVG_INPUT_LIMIT:
+                raise ValueError("超过 SVG 解析输入上限 1 MiB")
+            text = raw.decode("utf-8")
+            if re.search(r"<!DOCTYPE|<!ENTITY|<\?(?!xml\s)", text, re.IGNORECASE):
+                raise ValueError("不支持 DTD、实体或处理指令")
+            root = ET.fromstring(text)
+            if root.tag != SVG_NS + "svg":
+                raise ValueError("根须为 SVG 命名空间的 svg")
+            dimensions = {}
+            for key in ("width", "height"):
+                value = root.get(key, "")
+                if not re.fullmatch(r"[1-9][0-9]*", value):
+                    raise ValueError(f"固有 {key} 须为正整数像素")
+                dimensions[key] = int(value)
+            for element in root.iter():
+                if element.tag not in {SVG_NS + tag for tag in SVG_TAGS}:
+                    raise ValueError(f"不支持 SVG 元素 {element.tag}")
+                for key, value in element.attrib.items():
+                    if key not in SVG_ATTRS:
+                        raise ValueError(f"不支持 SVG 属性 {key}")
+                    if re.search(r"url\s*\(", value, re.IGNORECASE) and not re.fullmatch(r"url\(#[a-zA-Z][\w-]*\)", value):
+                        raise ValueError("SVG 引用只支持局部 url(#id)")
+        except (OSError, ValueError, RuntimeError, ET.ParseError) as e:
+            raise SystemExit(f"{label}：{source} —— {e}")
+        result[asset_id] = {
+            "src": "data:image/svg+xml;base64," + base64.b64encode(raw).decode("ascii"),
+            "mime": "image/svg+xml", "sha256": hashlib.sha256(raw).hexdigest(), **dimensions,
+        }
+    return result
+
+
+def story_assets_js(story_dir: pathlib.Path) -> str | None:
+    """No declaration means no extra bytes; opt-in assets precede story scripts."""
+    descriptors = load_story_assets(story_dir)
+    if not descriptors:
+        return None
+    data = json.dumps(descriptors, ensure_ascii=True, sort_keys=True, separators=(",", ":"))
+    return ("/* ===== story assets: offline static SVG ===== */\n"
+            "(function () { 'use strict';\n"
+            "const assets = Object.create(null);\n"
+            f"for (const [id, value] of Object.entries({data})) assets[id] = Object.freeze(value);\n"
+            "Object.defineProperty(setup, 'storyAssets', {value: Object.freeze(assets), configurable: true});\n"
+            "})();")
 
 
 def collect_js_files(hosts=None, packs=None):
@@ -305,6 +407,9 @@ def build_story(story_dir: pathlib.Path, out_name: str = "game.html", build_vers
     sel = host_selection_js(list(DEFAULT_HOSTS) if hosts is None else hosts, explicit)
     if sel:
         script_parts.append(sel)      # ★`#1998`：插在**插件与故事之间**（宿主包已装载、故事尚未跑）
+    assets = story_assets_js(story_dir)
+    if assets:
+        script_parts.append(assets)
     script_parts += js_parts_of(story_paths)
 
     # twee 段落

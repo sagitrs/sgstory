@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* 规则包**选择**门（`sgstory#295` 甲 —— 故事清单 `packs` 口 ＋ `build.py` 按包过滤）
  *
- * ## 本条要判的六件事（都是**产物面**，✗ 源码面）
+ * ## 本条要判的七件事（都是**产物面**，✗ 源码面）
  *   ① 无清单（或清单无 `packs` 键）⇒ **全装**：三个规则包标记（`src/dnd/{d20m,dnd3,dnd-5e}/`）齐 ＋ `src/core/` 仍在；
  *   ② 缺省 ≡ **显式全列**（`"packs": ["d20m","dnd3","dnd-5e"]`）⇒ 两产物**逐字节相同**
  *      （＝「新口引入 ✗ 改缺省行为」这条的**机械形**；与**旧脚本**的逐字节对照见引入该口的 PR 正文——旧脚本此时已不存在）；
@@ -10,6 +10,8 @@
  *   ⑤ **与 `--host` 正交**：`"packs": ["dnd3"]` ＋ `--host headless` ⇒ 含 `src/host/headless/`、**不含** `src/host/sugarcube/`
  *      ⇒ 证明两个维度各管各的（✗ 互相当作对方的判据）；
  *   ⑥ 清单**坏**（非 JSON／`packs` 非空字符串数组）⇒ rc≠0 且具名（✗ 静默当「无声明」）。
+ *   ⑦ 同一故事清单的可选 assets 口：运行 tests/build/story_assets_test.py 的正反臂。
+ *      该臂使用临时故事并直接调用生产构建器，不写共享 build/dist；包含真 build_story 的注入与确定性核。
  *
  * ## 口径（★读数须注明，否则不可复核）
  *   · 读数是**产物文本**里的包**标记行**（`/* ===== src/dnd/<id>/… ===== *​/`，`build.py` 的 `js_parts_of` 写出）
@@ -75,6 +77,13 @@ function main() {
 	const 可用 = fs.readdirSync(path.join(ROOT, 'src', 'dnd')).filter((d) => fs.existsSync(path.join(ROOT, 'src', 'dnd', d, '00-init.js'))).sort();
 	if (详) console.log(`  可用规则包（装置面）：${可用.join('／')}`);
 
+	/* ⑦ assets 与 packs 共用清单读口。接入已在 CI 的入口，不另改 workflow。 */
+	const assetTests = spawnSync('python3', [path.join(ROOT, 'tests', 'build', 'story_assets_test.py')],
+		{ encoding: 'utf8', timeout: 25000, env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } });
+	ok(assetTests.status === 0, '⑦ 离线素材构建正反测试',
+		`rc=${assetTests.status}｜${assetTests.error?.message ?? ''}｜${assetTests.stderr?.slice(-1200) ?? ''}`);
+	if (详) console.log(assetTests.stderr?.trim() ?? '');
+
 	/* ① 无清单 ⇒ 全装 */
 	const A = 构建(造故事(undefined));
 	ok(A.rc === 0, '① 无清单构建应成功', `rc=${A.rc}｜${A.dup.slice(-160)}`);
@@ -120,9 +129,9 @@ function main() {
 	ok(收.status === 0, '★收尾重建缺省应成功', `rc=${收.status}`);
 	fs.rmSync(临时根, { recursive: true, force: true });
 
-	console.log(`\n扫描：可用规则包 ${可用.length} 个（${可用.join('／')}）／臂 ${9} 条`);
+	console.log(`\n扫描：可用规则包 ${可用.length} 个（${可用.join('／')}）／包选择臂 ${9} 条＋离线素材测试`);
 	if (红.length) { console.log(`✗ 门红：`); 红.forEach((x) => console.log(`  · ${x}`)); process.exit(1); }
-	console.log('✓ 门绿（缺省＝全装且逐字节同显式全列 · 单包只装它 · 未知/坏清单构建期具名抛 · 与 --host 正交）');
+	console.log('✓ 门绿（缺省＝全装且逐字节同显式全列 · 单包只装它 · 未知/坏清单构建期具名抛 · 与 --host 正交 · 离线素材正反臂）');
 }
 
 /* ── 自检刀（仅当直接运行）────────────────────────────────────────────────── */

@@ -102,6 +102,19 @@
 			return null;
 		};
 		var 行 = null, 钮 = document.getElementById('saves-save-' + 码);
+		/* ★**一刀**（领队 2026-10-05 07:48 准）：**钮的名字随"占位与否"而变** —— 空槽是 `saves-save-<码>`、
+		 *   占位后变成 `saves-load-<码>`（实测：写槽 3 再重渲染 ⇒ 页上再无 `saves-save-3` ✗ ⇒ `行of` 给 null ⇒
+		 *   `锁一行(null)` **静默** ⇒ 那一行不被标 ⇒ 臂①「写前合格=true／写后 有标记=false」由此而来）。
+		 *   ⇒ **认三种前缀（save|load|delete）**，✗ 不写死 `saves-save-` ⇒ **与装置 `行形` 同一口径** ✓。 */
+		if (!钮) {
+			try {
+				var 候 = document.querySelectorAll('#saves-list [id]');
+				for (var i = 0; i < 候.length; i += 1) {
+					var m = /saves-(?:save|load|delete)-(\d+)$/.exec(候[i].id || '');
+					if (m && m[1] === String(码)) { 钮 = 候[i]; break; }
+				}
+			} catch (e) { /* ✗ 吞 */ }
+		}
 		if (!钮) 钮 = document.querySelector('#saves-' + 码 + ', [data-slot="' + 码 + '"], [data-save="' + 码 + '"]');
 		行 = 提(钮);
 		if (!行 && window.jQuery && typeof window.jQuery === 'function') {

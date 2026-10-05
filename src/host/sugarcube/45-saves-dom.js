@@ -139,8 +139,22 @@
 		var 已挂 = 挂事件() && 包一层();   /* ★两者缺一都不算接好 ⇒ 都要重试 ✓ */
 		try {
 			if (typeof MutationObserver === 'function' && document.documentElement) {
-				new MutationObserver(function () { 包一层(); 处理存档对话框(); })   /* ★⑫③：观察面已**收窄到 `#saves-list` 子树**（见下 observe 参数 ✓）*/
-					.observe(document.getElementById('saves-list') || document.querySelector('.saves-list') || document.documentElement, { childList: true, subtree: true });
+				new MutationObserver(function (muts) { 包一层();
+				try {
+					var 关 = muts.some(function (m) {
+						var nd = m.target;
+						if (nd && nd.nodeType !== 1) nd = nd.parentNode;
+						return !!(nd && (nd.id === 'saves-list' || (nd.closest && nd.closest('#saves-list'))));
+					});
+				} catch (e) { var 关 = true; }
+				if (关) 处理存档对话框();
+				/* ★这就是"观察面收窄" —— 落在**判据**里（✗ 不落在挂点上） */ })   /* ★⑫③：观察面已**收窄到 `#saves-list` 子树**（见下 observe 参数 ✓）*/
+					.observe(document.documentElement, { childList: true, subtree: true }
+			/* ★⑫③ 的**正解**（本席实测撞出来）：观察面**不能钉在 `#saves-list` 这个节点上** ——
+			 *   `UI.saves()` 重建时**把该节点整个换掉** ⇒ 观察者盯的是**已摘下的旧节点** ⇒ 之后再不会回调
+			 *   （实测：臂①「重渲染后仍受保护」与臂③「程序化 click 不得真删」**双双红**）。
+			 *   ⇒ 观察面钉**稳定祖先**（`documentElement`），把"收窄"落进**回调的判据**里（下一步）：
+			 *   既不漏"重建后的那一次"，也不被无关 DOM 抖动牵着跑。 */);
 			}
 		} catch (e) { /* ✗ 吞：不支持观察者也不影响事件路 */ }
 		if (!已挂) {

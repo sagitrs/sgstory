@@ -23,24 +23,36 @@
 		assert.ok(itemOptions.some((o) => o.value === 'skip'), '缺省应有「跳过本回合」');
 	});
 
-	test('battle itemsInBag：置位 true ⇒ 只留战斗行动，道具面一件不列', () => {
+	test('battle itemsInBag：置位 true ⇒ 只留**手上的武器**＋战斗行动（`#280` ⑭ 的口径）', () => {
 		State.variables.inventory = [];
-		R().give('club'); R().give('bandage'); R().equip('club');
+		R().give('club'); R().give('bandage'); R().equip('club');   // 木棒**已装备** ⇒ 它是「战斗行动」那一手
 		R().Battle.itemsInBag = true;
 		try {
 			const 场 = new (R().Battle)(1, [D().Player], [new (R().Character)({ name: '靶', hp: 1 })], true);
 			const { itemOptions } = 场.buildPlayerOptions(D().Player);
 			const 文 = itemOptions.map((o) => String(o.text));
-			assert.ok(!文.some((t) => t.includes('木棒') || t.includes('绷带')),
-				`★开关置位后仍列道具（实得 ${JSON.stringify(文)}）—— 「收敛到页脚背包一处」没做到`);
-			assert.ok(!itemOptions.some((o) => String(o.value).startsWith('quick:')),
-				`★一键项也属道具面 ⇒ 不该列（实得 ${JSON.stringify(itemOptions.map((o) => o.value))}）`);
-			assert.ok(itemOptions.some((o) => o.value === 'skip'), '「跳过本回合」是**战斗行动** ⇒ 必须留');
-			/* 空手：`Player` 声明了 `unarmed` ⇒ 也得留（否则纯资源背包时玩家只剩「跳过」＝僵局） */
-			assert.ok(!itemOptions.some((o) => typeof o.value === 'string' && /^\d+$/.test(o.value)),
-				'普通道具项（原槽位下标）不该列');
-		} finally { R().Battle.itemsInBag = false; }   // ★还原（静态开关 ⇒ ✗ 留着会串味）
+			/* ★⑭（操作者令 · 领队预批「甲」）：**手上那件武器的攻击必须留** —— 它属「战斗行动」面。
+			 *   病灶：⑩ 把它一起扫走后，玩家（含脚本臂）顺手点第一项只剩「空手打击」＝非致命 ⇒ kills 恒 0
+			 *   ⇒ 首战门永闭 ⇒ 主线不可通关（tester-4 已把因钉在**菜单**上）。 */
+			assert.ok(文.some((t) => t.includes('木棒')), `★⑭：开关置位后**手上的武器攻击项没了**（实得 ${JSON.stringify(文)}）—— 顺手点第一项只剩空手＝非致命 ⇒ kills 恒 0`);
+			assert.ok(itemOptions.some((o) => String(o.value).startsWith('quick:')), '⑭：手上的武器应以一键项形给出（件＋动作当场定）');
+			/* 其余道具仍**一件不列**（⑩ 的本意不变） */
+			assert.ok(!文.some((t) => t.includes('绷带')), `★⑩：非武器道具不该在菜单里（实得 ${JSON.stringify(文)}）`);
+			assert.ok(!itemOptions.some((o) => /^\d+$/.test(String(o.value))), '⑩：普通逐件项（原槽位下标）不该列');
+			assert.ok(itemOptions.some((o) => o.value === 'skip'), '「跳过本回合」是战斗行动 ⇒ 必须留');
+		} finally { R().Battle.itemsInBag = false; }
 		assert.eq(R().Battle.itemsInBag, false, '还原失败');
+	});
+
+	test('battle itemsInBag：**未装备**的武器不出项（仍走页脚背包）', () => {
+		State.variables.inventory = [];
+		R().give('club');                                            // ✗ 不 equip
+		R().Battle.itemsInBag = true;
+		try {
+			const 场 = new (R().Battle)(1, [D().Player], [new (R().Character)({ name: '靶', hp: 1 })], true);
+			const 文 = 场.buildPlayerOptions(D().Player).itemOptions.map((o) => String(o.text));
+			assert.ok(!文.some((t) => t.includes('木棒')), `★⑩：未装备的武器属道具面 ⇒ 该走背包（实得 ${JSON.stringify(文)}）`);
+		} finally { R().Battle.itemsInBag = false; }
 	});
 
 	test('battle itemsInBag：道具面收起来了，但**道具照样能用**（走提交面 ⇒ 同一条回合账）', async () => {

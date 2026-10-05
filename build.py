@@ -283,6 +283,8 @@ def load_story_assets(story_dir: pathlib.Path) -> dict:
                 for key, value in element.attrib.items():
                     if key not in SVG_ATTRS:
                         raise ValueError(f"不支持 SVG 属性 {key}")
+                    if "\\" in value:
+                        raise ValueError("不支持 SVG 属性值中的 CSS 转义")
                     if re.search(r"url\s*\(", value, re.IGNORECASE) and not re.fullmatch(r"url\(#[a-zA-Z][\w-]*\)", value):
                         raise ValueError("SVG 引用只支持局部 url(#id)")
         except (OSError, ValueError, RuntimeError, ET.ParseError) as e:

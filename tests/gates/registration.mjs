@@ -119,10 +119,19 @@ const collect = (srcDir) => {
 		const rel = path.relative(ROOT, f).split(path.sep).join('/');
 		const pack = rel.startsWith('src/dnd/') ? rel.split('/')[2] : 'core';
 		const raw = fs.readFileSync(f, 'utf8');
-		const code = raw.replace(REF_RE, '');          // ★排除 `items: [{id}]` 引用形
+		/* ★`#1743`（本席实测的误归因）：**扫描前先剥注释** —— 否则**档头注释/示例**里的
+		 *   `RPG.defItem({ id: 'club', … })` 会被当成**真声明** ✗ ⇒ 实测把 `club`／`bandage`
+		 *   多算出一个 `core` 包（`10-item.js:187-188` 与 `45-battle-catalog.js:20` 都是**注释**里举例）。
+		 *   ★剥法**长度守恒**（注释字符换等量空格、保留换行）⇒ 下面「定义后取 400 字窗口」的偏移与行号**都不变** ✓。
+		 *   ★`//` 只在其前一字符**不是** `:` 时才算注释（留 `http://` 这类）✓。 */
+		const 剥注释 = (x) => x
+			.replace(/\/\*[\s\S]*?\*\//g, (m) => m.replace(/[^\n]/g, ' '))
+			.replace(/(^|[^:])\/\/[^\n]*/g, (m, p1) => p1 + ' '.repeat(m.length - p1.length));
+		const 净 = 剥注释(raw);
+		const code = 净.replace(REF_RE, '');           // ★排除 `items: [{id}]` 引用形
 		for (const m of code.matchAll(DECL_RE)) rows.push({ id: m[1], pack, file: rel });
 		/* ② builder 调用点：`ironWeapon({ id: 'iron-longsword', … })` */
-		for (const b of findBuilders(raw)) {
+		for (const b of findBuilders(净)) {   // ★同上：builder 定义若在注释里 ⇒ 也是幻影
 			const CALL_RE = new RegExp(`\\b${b}\\s*\\(\\s*\\{[^)]*?\\bid:\\s*'([^']+)'`, 'gs');
 			for (const m of code.matchAll(CALL_RE)) rows.push({ id: m[1], pack, file: rel, via: b });
 		}
@@ -357,6 +366,18 @@ if (has('--selftest')) {
 				['A6 ★`unresolvable` 的计数**为 1**（该文件一处）',
 					(got.unresolvable.find((u) => u.file.endsWith('loop.js')) ?? {}).n === 1],
 			];
+			/* ★`#1743` 注释幻影刀：**注释里举例写的声明**不得被计入（实测 `club`／`bandage` 曾因此被多归一个 `core` 包 ✗） */
+			fs.writeFileSync(path.join(d, 'comment.js'),
+				"/* 例：RPG.defItem({ id: 'in-block-comment' }); */\n"
+				+ "// RPG.defItem({ id: 'in-line-comment' });\n"
+				+ "RPG.defItem({ id: 'real-after-comment', name: 'x' });\n");
+			const got2 = collect(tmp);
+			const ids2 = new Set(got2.rows.map((r) => r.id));
+			checks.push(
+				['A7 ★注释里的声明**不得**被计入（块注释）', !ids2.has('in-block-comment')],
+				['A8 ★注释里的声明**不得**被计入（行注释）', !ids2.has('in-line-comment')],
+				['A9 ★对照：剥注释**之后**的真声明照旧被收（✗ 别把尺子剥秃）', ids2.has('real-after-comment')],
+			);
 			for (const [name, ok] of checks) { n += ok ? 1 : 0; console.log(`  ${ok ? '✓' : '✗'} ${name}`); }
 			knivesLen += checks.length;
 			/* ★★RC-C 的运行期判据刀（**必**：判据若不可被刀直喂＝没有机械承载） */

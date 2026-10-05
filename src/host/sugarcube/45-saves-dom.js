@@ -28,11 +28,29 @@
 
 	/** 该行的写控件＝行里的按钮（`save`／`delete` 都禁 ⇒ 该槽对玩家只读 ✓）。 */
 	var 行控件 = function (行) {
-		return Array.prototype.slice.call(行.querySelectorAll('button, a.button, a.link, input'));
+		/* ★两形状都认（领队 2026-10-05 06:09 准）：宿主的 `行` 可能是**桩/jQuery 形**（实测：真浏览器宿主
+		 *   也走这条路）⇒ ✗ 不能只 `行.querySelectorAll(...)` ⇒ 先试 jQuery 形，再试原生形。 */
+		var 选 = function (根, 选择子) {
+			if (!根) return [];
+			try {
+				if (typeof 根.querySelectorAll === 'function') return Array.prototype.slice.call(根.querySelectorAll(选择子));
+				if (window.jQuery && typeof window.jQuery === 'function') {
+					var j = window.jQuery(根);
+					return (j && typeof j.find === 'function') ? Array.prototype.slice.call(j.find(选择子).toArray ? j.find(选择子).toArray() : j.find(选择子)) : [];
+				}
+			} catch (e) { /* ✗ 吞：下面记明账 */ }
+			return [];
+		};
+		var 得 = 选(行, 'button, a.button, a.link, input');
+		if (得.length === 0 && (行.textContent || '').length > 0) {
+			/* ★明账（✗ 不静默）：这一行有字却取不到控件 ⇒ 极可能是"形状不认识" */
+			try { if (window.console && console.warn) console.warn('[reserved] 取控件为空：行形状=' + (行 && 行.tagName ? 行.tagName : typeof 行)); } catch (e) { /* ✗ 吞 */ }
+		}
+		return 得;
 	};
 
 	/** 给一行加标记 ＋ 禁用其写控件。幂等：已标过即返回 false ✓ */
-	var 锁一行 = function (行) {
+		var 锁一行 = function (行) {
 		if (!行 || 已有标记(行)) return false;
 		var 标 = document.createElement('span');
 		标.className = 'rpg-reserved-mark';
@@ -81,6 +99,7 @@
 	 * @returns {number} 本次锁住的行数（0 ＝ 无 DOM／无对话框／无保留槽 ⇒ 都不抛 ✓）
 	 */
 	var 处理存档对话框 = function () {
+		
 		if (typeof document === 'undefined') { return 0; }
 		var 箱 = document.getElementById('ui-dialog-body');
 		if (!箱) return 0;
@@ -90,7 +109,12 @@
 		 *   `document.getElementById(...) || 箱.querySelector(...)` 可能**不是元素** ⇒ 旧形在下一行 
 		 *   `列.querySelectorAll(...)` 上**直接抛** ⇒ 整趟"标记＋禁用"没跑成，且**静默**（实测：单测路由它踩红）。
 		 *   ⇒ 不是元素就**具名放弃这一趟**（✗ 不抛、✗ 不假装做过）。 */
-		if (!列 || typeof 列.querySelectorAll !== 'function') return 0;
+		/* ★两形状都认（同 ②）：宿主可能给 jQuery/桩形 —— 只认 `querySelectorAll` 会把**整趟**静默丢掉
+		 *   （实测：真浏览器宿主也桩形 ⇒ 原形在这里**抛**、被包一层的 try 吞掉 ⇒ 从未标上）。 */
+		if (列 && typeof 列.querySelectorAll !== 'function' && !(window.jQuery && typeof window.jQuery === 'function' && 列 && 列.jquery !== undefined)) {
+			try { if (window.console && console.warn) console.warn('[reserved] 存档列表形状不认识（既无 querySelectorAll 也非 jQuery 形）⇒ 本趟放弃'); } catch (e) { /* ✗ 吞 */ }
+			return 0;
+		}
 		if (!列) return 0;
 		var 保留 = (typeof RPG.reservedSlots === 'function') ? RPG.reservedSlots() : [];
 		/* ★第 2 步口径：读不到 ⇒ 那档已出声 ＋ 空集 ⇒ 本档**不猜**（✗ 不默认锁 3／4）✓ */
@@ -124,7 +148,7 @@
 	 *   观察者是**异步**回调、`setInterval` 重试在无事件循环的宿主（jsdom 直调）里也不推进 ✗
 	 *   ⇒ 只有**同步钩**能保证"面一出现即已处理" ✓（幂等：重复处理无副作用 ✓）。
 	 */
-	var 包一层 = function () {
+		var 包一层 = function () {
 		var SC = window.SugarCube || window.SC;
 		if (!SC || !SC.UI || typeof SC.UI.saves !== 'function') return false;
 		if (SC.UI.saves.__rpgReservedWrapped) return true;

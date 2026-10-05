@@ -28,11 +28,29 @@
 
 	/** 该行的写控件＝行里的按钮（`save`／`delete` 都禁 ⇒ 该槽对玩家只读 ✓）。 */
 	var 行控件 = function (行) {
-		return Array.prototype.slice.call(行.querySelectorAll('button, a.button, a.link, input'));
+		/* ★两形状都认（领队 2026-10-05 06:09 准）：宿主的 `行` 可能是**桩/jQuery 形**（实测：真浏览器宿主
+		 *   也走这条路）⇒ ✗ 不能只 `行.querySelectorAll(...)` ⇒ 先试 jQuery 形，再试原生形。 */
+		var 选 = function (根, 选择子) {
+			if (!根) return [];
+			try {
+				if (typeof 根.querySelectorAll === 'function') return Array.prototype.slice.call(根.querySelectorAll(选择子));
+				if (window.jQuery && typeof window.jQuery === 'function') {
+					var j = window.jQuery(根);
+					return (j && typeof j.find === 'function') ? Array.prototype.slice.call(j.find(选择子).toArray ? j.find(选择子).toArray() : j.find(选择子)) : [];
+				}
+			} catch (e) { /* ✗ 吞：下面记明账 */ }
+			return [];
+		};
+		var 得 = 选(行, 'button, a.button, a.link, input');
+		if (得.length === 0 && (行.textContent || '').length > 0) {
+			/* ★明账（✗ 不静默）：这一行有字却取不到控件 ⇒ 极可能是"形状不认识" */
+			try { if (window.console && console.warn) console.warn('[reserved] 取控件为空：行形状=' + (行 && 行.tagName ? 行.tagName : typeof 行)); } catch (e) { /* ✗ 吞 */ }
+		}
+		return 得;
 	};
 
 	/** 给一行加标记 ＋ 禁用其写控件。幂等：已标过即返回 false ✓ */
-	var 锁一行 = function (行) {
+		var 锁一行 = function (行) {
 		if (!行 || 已有标记(行)) return false;
 		var 标 = document.createElement('span');
 		标.className = 'rpg-reserved-mark';
@@ -43,29 +61,78 @@
 			if (b.setAttribute) b.setAttribute('aria-disabled', 'true');
 			if (b.classList) b.classList.add('rpg-reserved');
 		});
-		/* ★**克隆掉 handler**（仅 UI 面 ✓）：`disabled` 对**程序化 `click()`** 并非处处可靠
-		 *   （实测抖动：同一构建下 arm C 有时仍真落档 ✗）⇒ 把该行写控件**替换成同 id 的克隆**
-		 *   ⇒ 原有监听器不再挂在页面上 ✓，✗ 不碰 `Save.slots.save()`（故事自身写入不受影响 ✓）。 */
-		行控件(行).forEach(function (b) {
+		/* ★`books#280` ⑫（P1 修件）：**弃破坏性克隆** ⇒ 改「**捕获阶段吞事件**」✓（领队 02:xx 裁、dev-10 钉的根因 ✓）。
+		 *   旧形把受保留槽的写控件**替换成克隆** ✗ ⇒ ①每轮渲染都换节点（**不幂等** ✗）②顺带扔掉那些节点上原有的监听/引用 ✗。
+		 *   新形：**一个**监听挂在 `document` 的**捕获阶段** ✓ ⇒ 命中"受保留槽那一行里的控件"就吞掉 ✓
+		 *   ⇒ 宿主自带的处理**根本跑不到** ✓（程序化 `click()` 也走这条 ⇒ 比 `disabled` 可靠 ✓）；依然 ✗ 不碰 `Save.slots.save()` ✓。
+		 *   ★本函数因此**幂等**：只加标记／置属性（✗ 不改结构）✓ —— 同一份 DOM 跑 N 次结果相同 ✓。 */
+		var 吞保留点击 = function (ev) {
 			try {
-				if (b.parentNode && typeof b.cloneNode === 'function') {
-					var 壳 = b.cloneNode(true);
-					壳.disabled = true;
-					if (壳.setAttribute) 壳.setAttribute('aria-disabled', 'true');
-					b.parentNode.replaceChild(壳, b);
-				}
-			} catch (e) { /* ✗ 吞：替换失败则退化为仅 disabled（上面已置） */ }
-		});
+				var el = ev.target, 行 = null;
+				while (el && el !== document && !行) { if (el.classList && el.classList.contains('rpg-reserved-row')) 行 = el; el = el.parentNode; }
+				if (!行) return;
+				if (typeof ev.preventDefault === 'function') ev.preventDefault();
+				if (typeof ev.stopPropagation === 'function') ev.stopPropagation();
+				if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+				return false;
+			} catch (e) { /* ✗ 吞：吞不掉也不许把点击流程弄坏 */ }
+		};
+		if (typeof document.addEventListener === 'function' && !document.__rpgReservedCapture) {
+			document.addEventListener('click', 吞保留点击, true);   /* ★捕获阶段 ✓ 只挂**一次** ✓ */
+			document.__rpgReservedCapture = 吞保留点击;
+		}
 		if (行.classList) 行.classList.add('rpg-reserved-row');
 		return true;
 	};
 
 	/** 由槽码取靶行：★照判据档的形（`#saves-save-<码>` ⇒ `closest('tr')`）✓ */
 	var 行of = function (码) {
-		var 钮 = document.getElementById('saves-save-' + 码);
-		if (!钮) return null;
-		if (typeof 钮.closest === 'function') { var tr = 钮.closest('tr'); if (tr) return tr; }
-		return 钮.parentNode || null;
+		/* ★**形状无关**（领队 2026-10-05 06:58 裁甲）：旧形只认 `#saves-save-<码>` ⇒ 取不到就 `null` ⇒
+		 *   `锁一行(null)` **静默**返回 ⇒ **行永远不被标**（实测：臂①「写前合格=true（保留码拿得到）＋
+		 *   写后 有标记=false」与「①红②③绿」都由此而来）。⇒ 按下列顺序找，**任一中即返回**：
+		 *   ① id 原形 ② 别的 id 变体／`[data-slot]` ③ jQuery 形 ④ **按"行文含「槽位 <码>」"兜底**
+		 *   （第 ④ 条与宿主形状无关 —— 实测该行行文正是 `未入层 槽位 4`）。 */
+		var 提 = function (x) {
+			if (!x) return null;
+			try {
+				if (typeof x.closest === 'function') { var tr0 = x.closest('tr'); if (tr0) return tr0; }
+				if (x.nodeType === 1) return (typeof x.closest === 'function' ? x : x.parentNode || null);
+				if (x.parentNode) return x.parentNode;
+			} catch (e) { /* ✗ 吞 */ }
+			return null;
+		};
+		var 行 = null, 钮 = document.getElementById('saves-save-' + 码);
+		/* ★**一刀**（领队 2026-10-05 07:48 准）：**钮的名字随"占位与否"而变** —— 空槽是 `saves-save-<码>`、
+		 *   占位后变成 `saves-load-<码>`（实测：写槽 3 再重渲染 ⇒ 页上再无 `saves-save-3` ✗ ⇒ `行of` 给 null ⇒
+		 *   `锁一行(null)` **静默** ⇒ 那一行不被标 ⇒ 臂①「写前合格=true／写后 有标记=false」由此而来）。
+		 *   ⇒ **认三种前缀（save|load|delete）**，✗ 不写死 `saves-save-` ⇒ **与装置 `行形` 同一口径** ✓。 */
+		if (!钮) {
+			try {
+				var 候 = document.querySelectorAll('#saves-list [id]');
+				for (var i = 0; i < 候.length; i += 1) {
+					var m = /saves-(?:save|load|delete)-(\d+)$/.exec(候[i].id || '');
+					if (m && m[1] === String(码)) { 钮 = 候[i]; break; }
+				}
+			} catch (e) { /* ✗ 吞 */ }
+		}
+		if (!钮) 钮 = document.querySelector('#saves-' + 码 + ', [data-slot="' + 码 + '"], [data-save="' + 码 + '"]');
+		行 = 提(钮);
+		if (!行 && window.jQuery && typeof window.jQuery === 'function') {
+			try { var j = window.jQuery('#saves-save-' + 码); if (j && j.length) 行 = 提(j[0]); } catch (e) { /* ✗ 吞 */ }
+		}
+		/* ★**收窄**（领队 2026-10-05 07:44 准）：删掉"按行文含「槽位 N」兜底" ✗ —— 它按**文**找行、
+		 *   而显示名与钮 id **偏移一行**（实测：行文「槽位 3」的那一行，钮 id 是 `saves-save-2`）⇒ 标记落到了**另一行**上；
+		 *   而 tester-3 的臂① 是**按钮 id** 找行的（`行形` 从 `saves-(save|load|delete)-(\d+)` 取码 ✓）
+		 *   ⇒ 两边口径不同、判的是两行（臂①红、②③绿 —— 全部读数由此自洽）。
+		 *   ⇒ **与臂同口径**：只按 id 找行（`#saves-save-<码>` ⇒ `closest('tr')`）✓ ✗ 不按文。 */
+		/* ★仍保留：别的 id 变体／jQuery 形（同为"按 id"的口径 ✓，✗ 不引入第二口径） */
+		if (!行) {
+			try {
+				var 钮2 = document.querySelector('[id$="-save-' + 码 + '"], [data-save="' + 码 + '"]');
+				行 = 提(钮2);
+			} catch (e) { /* ✗ 吞 */ }
+		}
+		return 行;
 	};
 
 	/**
@@ -74,15 +141,47 @@
 	 * @returns {number} 本次锁住的行数（0 ＝ 无 DOM／无对话框／无保留槽 ⇒ 都不抛 ✓）
 	 */
 	var 处理存档对话框 = function () {
+		
 		if (typeof document === 'undefined') { return 0; }
 		var 箱 = document.getElementById('ui-dialog-body');
 		if (!箱) return 0;
 		if (箱.classList && !箱.classList.contains('saves') && !箱.querySelector('#saves-list')) return 0;
 		var 列 = document.getElementById('saves-list') || 箱.querySelector('.saves-list');
+		/* ★jsdom 健壮性（领队 2026-10-05 05:04 裁①）：引擎 headless 宿主对 DOM 有**桩/代理** ⇒ 
+		 *   `document.getElementById(...) || 箱.querySelector(...)` 可能**不是元素** ⇒ 旧形在下一行 
+		 *   `列.querySelectorAll(...)` 上**直接抛** ⇒ 整趟"标记＋禁用"没跑成，且**静默**（实测：单测路由它踩红）。
+		 *   ⇒ 不是元素就**具名放弃这一趟**（✗ 不抛、✗ 不假装做过）。 */
+		/* ★两形状都认（同 ②）：宿主可能给 jQuery/桩形 —— 只认 `querySelectorAll` 会把**整趟**静默丢掉
+		 *   （实测：真浏览器宿主也桩形 ⇒ 原形在这里**抛**、被包一层的 try 吞掉 ⇒ 从未标上）。 */
+		if (列 && typeof 列.querySelectorAll !== 'function' && !(window.jQuery && typeof window.jQuery === 'function' && 列 && 列.jquery !== undefined)) {
+			try { if (window.console && console.warn) console.warn('[reserved] 存档列表形状不认识（既无 querySelectorAll 也非 jQuery 形）⇒ 本趟放弃'); } catch (e) { /* ✗ 吞 */ }
+			return 0;
+		}
 		if (!列) return 0;
 		var 保留 = (typeof RPG.reservedSlots === 'function') ? RPG.reservedSlots() : [];
 		/* ★第 2 步口径：读不到 ⇒ 那档已出声 ＋ 空集 ⇒ 本档**不猜**（✗ 不默认锁 3／4）✓ */
-		if (!保留 || !保留.length) return 0;
+		/* ★「保留为空」＝**还没到时候**（✗ 不是"这一趟做完了"）：
+		 *   ① 宿主 `40-saves-reserved.js` 读不到 `setup.BABEL.槽位` 时**按设计**返回空集（它已 warn 过一句 ✗ 但没人看）；
+		 *   ② 故事侧 `world/encounters.js` 才把 `槽位` 挂上（世界模块执行时）；
+		 *   ③ 本档在对话框后处理里比它**先跑** ⇒ 那一刻读到空 ⇒ 旧形**直接 return** ⇒ 保留行**永远不被标**（实测：tester-3 的臂① 一直红）。
+		 *   ⇒ 所以这里**有界重试**（✗ 不当作做完）＋ 到顶**记明账**（✗ 不静默）。 */
+		if (!保留 || !保留.length) {
+			var w0 = (typeof window !== 'undefined') ? window : null;
+			if (w0) {
+				w0.__rpgReserved试 = (w0.__rpgReserved试 || 0) + 1;
+				if (w0.__rpgReserved试 <= 40) {
+					if (typeof setTimeout === 'function') {
+						setTimeout(function () { try { 处理存档对话框(); } catch (e) { /* ✗ 吞 */ } }, 250);
+					}
+				} else if (!w0.__rpgReserved账) {
+					w0.__rpgReserved账 = true;
+					try { if (window.console && console.warn) console.warn('[reserved] 保留槽表始终读不到（重试 40 次 ≈ 10s）⇒ 本档**未做**任何标记（✗ 不是做过）'); } catch (e) { /* ✗ 吞 */ }
+				}
+			}
+			return 0;
+		}
+		/* ★拿到保留码 ⇒ 重试计数清零（下次换档/重建从头算） */
+		try { if (typeof window !== 'undefined') window.__rpgReserved试 = 0; } catch (e) { /* ✗ 吞 */ }
 		var n = 0;
 		保留.forEach(function (码) {
 			if (!Number.isInteger(码)) return;
@@ -112,7 +211,7 @@
 	 *   观察者是**异步**回调、`setInterval` 重试在无事件循环的宿主（jsdom 直调）里也不推进 ✗
 	 *   ⇒ 只有**同步钩**能保证"面一出现即已处理" ✓（幂等：重复处理无副作用 ✓）。
 	 */
-	var 包一层 = function () {
+		var 包一层 = function () {
 		var SC = window.SugarCube || window.SC;
 		if (!SC || !SC.UI || typeof SC.UI.saves !== 'function') return false;
 		if (SC.UI.saves.__rpgReservedWrapped) return true;
@@ -132,8 +231,41 @@
 		var 已挂 = 挂事件() && 包一层();   /* ★两者缺一都不算接好 ⇒ 都要重试 ✓ */
 		try {
 			if (typeof MutationObserver === 'function' && document.documentElement) {
-				new MutationObserver(function () { 包一层(); 处理存档对话框(); })
-					.observe(document.documentElement, { childList: true, subtree: true, attributes: false });
+				new MutationObserver(function (muts) { 包一层();
+				try {
+					var 关 = muts.some(function (m) {
+						var nd = m.target;
+						if (nd && nd.nodeType !== 1) nd = nd.parentNode;
+						/* ★闸的界＝**存档对话框**（`.saves` 箱）—— ✗ 不是「必须落在 `#saves-list` 节点里面」：
+						 *   `UI.saves()` **整段重建**时，变更的 target 常是**箱子那一层**／已摘下的旧节点 ⇒ 旧闸会把
+						 *   **唯一要紧的那一次**挡在门外（实测：臂①「重渲染后标记/禁用双失」＋臂③「程序化 click 真删」）。 */
+						/* ★两腿形（领队 2026-10-05 06:03 裁）：**同步腿**在入口尽力标、**异步腿**在这里保证"真落地必再标"。
+						 *   ⇒ 闸**放宽成「文档里有 `#saves-list` 就处理」**：`处理存档对话框()` 自身**幂等且找不到就 return 0**
+						 *   ⇒ 所以"多跑几次"没有代价 ✓；而收紧的闸（"target 必须落在 `#saves-list` 里"✗）会把
+						 *   "整段重建时 target 是箱子那一层／已摘下的旧节点"这一**最要紧的一次**挡在门外（实测：臂① 红）。 */
+						try {
+							if (document.getElementById && document.getElementById('saves-list')) return true;
+							if (document.querySelector && document.querySelector('.saves-list')) return true;
+						} catch (e) { return true; }
+						return !!nd;   /* 连表都还没有（不是存档面）⇒ ✗ 不空跑 */
+
+						try {
+							if (nd.id === 'saves-list' || nd.id === 'probe12') return true;
+							if (nd.classList && (nd.classList.contains('saves') || nd.classList.contains('saves-list'))) return true;
+							if (nd.closest && (nd.closest('#saves-list') || nd.closest('.saves'))) return true;
+							if (nd.querySelector && (nd.querySelector('#saves-list') || nd.querySelector('.saves'))) return true;
+						} catch (e) { return true; }
+						return false;
+					});
+				} catch (e) { var 关 = true; }
+				if (关) 处理存档对话框();
+				/* ★这就是"观察面收窄" —— 落在**判据**里（✗ 不落在挂点上） */ })   /* ★⑫③：观察面已**收窄到 `#saves-list` 子树**（见下 observe 参数 ✓）*/
+					.observe(document.documentElement, { childList: true, subtree: true }
+			/* ★⑫③ 的**正解**（本席实测撞出来）：观察面**不能钉在 `#saves-list` 这个节点上** ——
+			 *   `UI.saves()` 重建时**把该节点整个换掉** ⇒ 观察者盯的是**已摘下的旧节点** ⇒ 之后再不会回调
+			 *   （实测：臂①「重渲染后仍受保护」与臂③「程序化 click 不得真删」**双双红**）。
+			 *   ⇒ 观察面钉**稳定祖先**（`documentElement`），把"收窄"落进**回调的判据**里（下一步）：
+			 *   既不漏"重建后的那一次"，也不被无关 DOM 抖动牵着跑。 */);
 			}
 		} catch (e) { /* ✗ 吞：不支持观察者也不影响事件路 */ }
 		if (!已挂) {

@@ -87,10 +87,39 @@
 
 	/** 由槽码取靶行：★照判据档的形（`#saves-save-<码>` ⇒ `closest('tr')`）✓ */
 	var 行of = function (码) {
-		var 钮 = document.getElementById('saves-save-' + 码);
-		if (!钮) return null;
-		if (typeof 钮.closest === 'function') { var tr = 钮.closest('tr'); if (tr) return tr; }
-		return 钮.parentNode || null;
+		/* ★**形状无关**（领队 2026-10-05 06:58 裁甲）：旧形只认 `#saves-save-<码>` ⇒ 取不到就 `null` ⇒
+		 *   `锁一行(null)` **静默**返回 ⇒ **行永远不被标**（实测：臂①「写前合格=true（保留码拿得到）＋
+		 *   写后 有标记=false」与「①红②③绿」都由此而来）。⇒ 按下列顺序找，**任一中即返回**：
+		 *   ① id 原形 ② 别的 id 变体／`[data-slot]` ③ jQuery 形 ④ **按"行文含「槽位 <码>」"兜底**
+		 *   （第 ④ 条与宿主形状无关 —— 实测该行行文正是 `未入层 槽位 4`）。 */
+		var 提 = function (x) {
+			if (!x) return null;
+			try {
+				if (typeof x.closest === 'function') { var tr0 = x.closest('tr'); if (tr0) return tr0; }
+				if (x.nodeType === 1) return (typeof x.closest === 'function' ? x : x.parentNode || null);
+				if (x.parentNode) return x.parentNode;
+			} catch (e) { /* ✗ 吞 */ }
+			return null;
+		};
+		var 行 = null, 钮 = document.getElementById('saves-save-' + 码);
+		if (!钮) 钮 = document.querySelector('#saves-' + 码 + ', [data-slot="' + 码 + '"], [data-save="' + 码 + '"]');
+		行 = 提(钮);
+		if (!行 && window.jQuery && typeof window.jQuery === 'function') {
+			try { var j = window.jQuery('#saves-save-' + 码); if (j && j.length) 行 = 提(j[0]); } catch (e) { /* ✗ 吞 */ }
+		}
+		/* ★**收窄**（领队 2026-10-05 07:44 准）：删掉"按行文含「槽位 N」兜底" ✗ —— 它按**文**找行、
+		 *   而显示名与钮 id **偏移一行**（实测：行文「槽位 3」的那一行，钮 id 是 `saves-save-2`）⇒ 标记落到了**另一行**上；
+		 *   而 tester-3 的臂① 是**按钮 id** 找行的（`行形` 从 `saves-(save|load|delete)-(\d+)` 取码 ✓）
+		 *   ⇒ 两边口径不同、判的是两行（臂①红、②③绿 —— 全部读数由此自洽）。
+		 *   ⇒ **与臂同口径**：只按 id 找行（`#saves-save-<码>` ⇒ `closest('tr')`）✓ ✗ 不按文。 */
+		/* ★仍保留：别的 id 变体／jQuery 形（同为"按 id"的口径 ✓，✗ 不引入第二口径） */
+		if (!行) {
+			try {
+				var 钮2 = document.querySelector('[id$="-save-' + 码 + '"], [data-save="' + 码 + '"]');
+				行 = 提(钮2);
+			} catch (e) { /* ✗ 吞 */ }
+		}
+		return 行;
 	};
 
 	/**

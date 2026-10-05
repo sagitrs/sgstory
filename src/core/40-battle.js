@@ -556,19 +556,28 @@ RPG.Battle = class Battle extends RPG.Event {
 		const 件表 = slots.map((slot) => setup.RPG.reviveItem(slot));
 		/* ★`books#280` ⑩：**道具收敛到页脚背包**时，战斗菜单不再列任何道具面（一键项／重复项／逐件项）。 */
 		const 道具在包里 = RPG.Battle.itemsInBag === true;
+		/* ★`sgstory-books#280` ⑭（操作者令 · 领队预批「甲」）：**手上那件武器的攻击项必须留**。
+		 *   病灶（实测形）：开关一开，菜单只剩「空手打击／（跳过本回合）」⇒ 玩家（含脚本臂）**顺手点第一项**
+		 *   就打了非致命一拳 ⇒ `kills` 恒 0 ⇒ 首战门永闭 ⇒ 主线不可通关（tester-4 的探针把它钉在
+		 *   **菜单**上：还原 `matchSubmitItem` 仍红 ⇒ ✗ 与提交面无关）。
+		 *   ⇒ 口径：**「手上那件武器的攻击」属战斗行动面**（✗ 道具面）—— 它就是要留的那一手；
+		 *     其余道具（含未装备的武器、药、工具）仍一律走**页脚背包**（⑩ 的本意不变）。 */
+		const 是手上的武器攻击 = (item) => item?.equipped === true
+			&& RPG.battleActions.list(item).some((a) => a.needsTarget && a.actionClass === 'damage');
+		/* ⚠ **外层不再按开关整段跳过**（本席首版就栽在这：⑩ 把整段包进 `if (!道具在包里)` ⇒ ⑭ 的逐件判据成了**死码**，
+		 *   单测照旧全绿 ✗ —— 「改在死码上」是本舰队反复记过的那类空转）。逐件筛在**循环内**做（下面那行 `continue`）。 */
 		const quickOptions = [];
-		if (!道具在包里) {
-			件表.forEach((item, i) => {
-				for (const a of RPG.battleActions.list(item)) {
-					if (!a.needsTarget) continue;
-					if (this.#targetCandidates(attacker, a.actionClass).length !== 1) continue;
-					quickOptions.push({
-						text: RPG.battleActions.quickText(item, a.actionClass),
-						value: `quick:${i}:${a.id}`,
-					});
-				}
-			});
-		}
+		件表.forEach((item, i) => {
+			for (const a of RPG.battleActions.list(item)) {
+				if (!a.needsTarget) continue;
+				if (道具在包里 && !是手上的武器攻击(item)) continue;   // ★⑭：开关置位时只留**手上的武器**
+				if (this.#targetCandidates(attacker, a.actionClass).length !== 1) continue;
+				quickOptions.push({
+					text: RPG.battleActions.quickText(item, a.actionClass),
+					value: `quick:${i}:${a.id}`,
+				});
+			}
+		});
 
 		const itemOptions = [];
 		/* ★`#1918`：一键项**列在最前**（本笔的主路径：唯一合法目标 ⇒ 一次点击即完成这一手）。 */

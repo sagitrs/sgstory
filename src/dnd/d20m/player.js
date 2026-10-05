@@ -28,11 +28,39 @@ const bridge = (key) => ({
 	set: (v) => { state()[key] = v; },
 	configurable: true,
 });
+/* ★`sgstory#1853`（形裁定 2026-10-05）：`name`／`hp`／`maxHp` 取 **fail-loud** ——
+ *   缺键时**具名抛错**，✗ 静默造值。理由：这三个键**静默造值会改变玩法**
+ *   （`hp` 兜 0 ⇒ 开局即死；兜 18 ⇒ 凭空回血；`name` 兜字串 ⇒ 文案撒谎），而**缺失是配置错误**。
+ *   ★须区分两态（本助手只管后者）：
+ *     · `$player` **整体缺失** ⇒ `state()` 走 DEFAULTS ⇒ **正常，不抛** ✓；
+ *     · `$player` **给了但漏键** ⇒ 配置错误 ⇒ **抛** ✓（DEFAULTS 根本不参与 —— 见 `state()` 的 `== null` 判）。
+ *   报文含**键名**与**修法指向**（✗ 不让人猜「哪个键、去哪儿补」）。 */
+const 必给 = (key) => ({
+	get: () => {
+		const v = state()[key];
+		if (v === undefined) {
+			throw new Error(`$player.${key} 缺失：$player 已由故事侧给出，但**没给全**（本包 DEFAULTS 只在 $player 整体缺失时生效）`
+				+ ` ⇒ 请在故事侧 StoryInit 的 $player 里补齐 \`${key}\`，或整体不写 $player 让本包用 DEFAULTS`);
+		}
+		return v;
+	},
+	set: (v) => { state()[key] = v; },
+	configurable: true,
+});
+
 Object.defineProperties(D20M.Player, {
-	name: bridge('name'),
-	hp: bridge('hp'),
-	maxHp: bridge('maxHp'),
-	stats: bridge('stats'),
+	name: 必给('name'),
+	hp: 必给('hp'),
+	maxHp: 必给('maxHp'),
+	stats: {
+		/* ★`sgstory#1853`：**write-back**（与 dnd3／dnd-5e **同解**）——
+		 *   ✗ 不再裸 bridge（`P.stats.dex = 99` 会抛 `Cannot set properties of undefined`）；
+		 *   ✗ 也不对齐成 `?? {}`（那会把「就地写静默丢失」固化 ✗ —— 见另两包同处长注）。
+		 *   读时缺失就地建一次并返回同一引用 ⇒ 写入生效、引用稳定 ✓。 */
+		get: () => { const s = state(); if (s.stats == null) s.stats = {}; return s.stats; },
+		set: (v) => { state().stats = v; },
+		configurable: true,
+	},
 	items: {
 		get: invState,
 		set: (v) => { State.variables.inventory = v; },

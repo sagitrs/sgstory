@@ -105,6 +105,58 @@
 
 	/* ---------- MapScene ---------- */
 
+	/* ══ ★`sgstory#1904`：**进场必印场景头**（同地点读档不再丢头）＋ **每次进场恰一份** ═════════════
+	 *   病灶：`#headerLoc` 随**实例**存活，而 `map.current` **随存档** ⇒ 同地点读档后两者相等
+	 *   ⇒ 头不重印（屏幕上只剩选项 ✗）。修＝`execute()` 进场处清一次（自环重绘不走 `execute()` ✓）。
+	 *   三条臂（★读**真输出** `State.variables.rpgNotices`，✗ 不读源码文本）：
+	 *     ① **进场即印**：一次 `execute()` ⇒ 「【A】」恰 1 次；
+	 *     ② **再现即印**（＝本票治的那一面）：**同一实例、同一地点**再 `execute()` ⇒ **再印一次** ✓
+	 *        （★读档路径正是「宿主再进场」⇒ 这一臂就是那个果 ✓）；
+	 *     ③ **回归护**：每次 `execute()` 的份数**恰 1**（✗ 2 —— 若有人在 `#renderLocation` 里又放开无条件印，
+	 *        这条会红 ✓ ⇒ 保住「同层重复动作只印一次」的既有面 ✓）。
+	 */
+	test('map：#1904 进场必印场景头（同地点再进场须重印 · 每次恰一份）', async () => {
+		const map = makeMap();
+		const scene = new (R().MapScene)({ id: 'h1904', map, start: 'a' });
+		/* ★★驱动法（房内实测）：`#renderLocation` **先印头**、再 `await this.choice(options)`，
+		 *   且循环**必然再问**（动作 ⇒ 重绘；出口 ⇒ moveTo＋重绘 ⇒ 又印＋又问）⇒ 若让桩**正常返回**，
+		 *   `execute()` 永不结算（本席实测：整轮单测挂住、rc=13 ✗）。
+		 *   ⇒ 桩成**抛具名标记**：头在 await **之前**已印 ✓ ⇒ 印完即逃出循环 ✓ —— 断言仍读**真报文** ✓。 */
+		const 逃 = Symbol('逃出循环');
+		scene.choice = async () => { throw 逃; };
+		const 跑一次 = async () => {
+			State.variables.rpgNotices = [];
+			try { await scene.execute(); } catch (e) { if (e !== 逃) throw e; }   // ★只吞本席的标记，别吞真错
+		};
+		const 头数 = () => (State.variables.rpgNotices ?? []).filter((n) => String(n.text).includes('【A】')).length;
+
+		await 跑一次();
+		assert.eq(头数(), 1, `★① 进场须印一次【A】（实得 ${头数()}）：${JSON.stringify((State.variables.rpgNotices ?? []).map((n) => n.text))}`);
+
+		await 跑一次();          // ★同一实例 · 同一地点（＝读档后宿主再进场那一形）
+		assert.eq(头数(), 1, `★② 同地点**再进场须重印**（本票所治：读档后场景头丢失）—— 实得 ${头数()}`);
+
+		/* ★③ **回归护（既有面「同层重复动作只印一次」）**：让 choice **返回一个动作**（`a0`）
+		 *   ⇒ 自环重绘（**不经** `execute()`）⇒ 那一趟**不得**再印头 ✓。
+		 *   ⚠ 若有人把 `#renderLocation` 的判据改成**无条件印**，这条会红（第二趟变 2）✓。 */
+		/* ★要「同地点重绘」就得有**动作**（`makeMap` 的地点没有 ⇒ 得自建一张带动作的图 ✓）——
+		 *   动作 ⇒ 自环重绘（**同地点** ⇒ 走 `#renderLocation` 的判据面 ✓，✗ 不经 `execute()` ✓）。 */
+		const map2 = new (R().WorldMap)({ id: 'h1904b' });
+		map2.addLocation(new (R().Location)({
+			id: 'a', name: 'A', desc: '房间A',
+			actions: [{ text: '原地看看', action: () => {} }],     // ★空转动作 ⇒ 只为触发自环重绘
+		}));
+		const s2 = new (R().MapScene)({ id: 'h1904b', map: map2, start: 'a' });
+		const 头数2 = () => (State.variables.rpgNotices ?? []).filter((n) => String(n.text).includes('【A】')).length;
+		let 第几次 = 0;
+		s2.choice = async () => { if (++第几次 === 1) return 'a0'; throw 逃; };   // ★首问给动作 ⇒ 自环重绘；再问逃出
+		State.variables.rpgNotices = [];
+		try { await s2.execute(); } catch (e) { if (e !== 逃) throw e; }
+		assert.eq(头数2(), 1, `★③ 自环重绘**不得**再印头（同层重复动作只印一次）—— 实得 ${头数2()}`);
+		console.log('  #1904：进场必印 ✓｜同地点再进场重印 ✓｜每次恰一份 ✓｜自环重绘不重印（既有面）✓');
+	});
+
+
 	test('map：MapScene 构造校验（起点必须在图上）', () => {
 		const map = makeMap();
 		assert.throws(() => new (R().MapScene)({ id: 'x', map, start: 'ghost' }));

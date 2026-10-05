@@ -281,6 +281,15 @@ RPG.MapScene = class MapScene extends RPG.Scene {
 
 	async execute() {
 		if (!this.map.current) this.map.moveTo(this.startId);
+		/* ★★`sgstory#1904`（债源 `books#136` F4 · 同地点读档场景头丢失）：**进场即重印场景头** ——
+		 *   `#headerLoc` 是**实例**私有字段（随实例存活），而 `map.current` 的权威在
+		 *   `State.variables.mapCurrent_<地图 id>`（**随存档**存活）⇒ 读档把地点还原回**同一个**时，
+		 *   两者相等 ⇒ `#renderLocation` 的判据不成立 ⇒ **场景头不重印**（屏幕上只剩选项 ✗）。
+		 *   ⇒ 在**进场处**清一次：`execute()` 只在**场景进场**时走（同层自环重绘走 `#renderLocation`，
+		 *     **不经此处**）⇒ ★「同层重复动作只印一次」的既有面**不受影响** ✓（判据同批钉住 ✓）。
+		 *   ⚠ 与下方「动作导航离开 ⇒ 清」（`:358 else this.#headerLoc = null`）**互补**：
+		 *     那条治「**战斗回来**看同一段落」，这条治「**读档**看同一地点」✓。 */
+		this.#headerLoc = null;
 		await this.#renderLocation();
 	}
 

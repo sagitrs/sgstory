@@ -144,7 +144,7 @@
 		/* ★`books#280` ⑫ 的**中间态机读面**（`tester-3` 提 · 领队 2026-10-05 08:05 准「A（两笔）」）：
 		 *   把「本趟后处理跑到哪一步」记在 `setup.RPG.reservedSlots.lastRun` 上，供臂/人直接读。
 		 *   ★为何要它：`#2015` 作者自陈「**凭推断改了六轮**，唯一直击真因的是**把中间态打出来**」—— 本面把那句**固化**下来。
-		 *   ✗ 不拿 `console` 文本当接口（脆 ✗）。★四字段：`观察者醒`／`取到行`／`锁上`／★`末次结论`
+		 *   ✗ 不拿 `console` 文本当接口（脆 ✗）。★四字段：`观察者醒`（★**本趟被唤醒的次数** —— 名字读着像「醒没醒（0/1）」✗，实为计数 ✓）／`取到行`／`锁上`／★`末次结论`
 		 *   ★★`锁上` 的准确语义（**被首份真读数校正过** `2026-10-05`）：它是**本趟「新锁」的行数** ——
 		 *     `锁一行` 遇 `已有标记(行)` 即 `return false`（幂等 ✓）⇒ **`锁上=0` ✗ 不等于「没锁上」**
 		 *     （重渲染那趟的行**早被上趟标好** ⇒ 本趟自然新锁 0 ⇒ 实测 `醒=1／取到行=2／锁上=0` 而**行为完全正常** ✓）。
@@ -154,7 +154,8 @@
 			try {
 				var R0 = (typeof RPG !== 'undefined' && RPG) ? RPG : ((typeof setup !== 'undefined' && setup) ? setup.RPG : null);
 				if (!R0) return;
-				if (!R0.reservedSlots) R0.reservedSlots = function () { return []; };
+				/* ★**只写 `lastRun`**（dev-10 第③条）：✗ 不去「补」`reservedSlots` 本体 —— 那是决策层的东西，本面 ✗ 越界造它 ✓ */
+				if (!R0.reservedSlots) return;
 				var 前 = R0.reservedSlots.lastRun;
 				R0.reservedSlots.lastRun = {
 					观察者醒: ((前 && Number.isFinite(前.观察者醒)) ? 前.观察者醒 : 0) + 1,
@@ -164,6 +165,8 @@
 				};
 			} catch (e) { /* ✗ 吞：记面失败 ✗ 不得影响本体 */ }
 		};
+		/* ★★**不随档**（dev-10 第①条）：本面挂在 `RPG.reservedSlots`（**模块对象**）上 ✗ 不在 `State` 里 ⇒
+		 *   读档／重开后**归零**、**须重跑本档才有值** ⇒ ★✗ **不得当「存档态」读**（这是诊断面，不是存档数据 ✓）。 */
 		/* ★末趟快照（✗ 非累计）：起点先清上趟的计数 —— 否则臂读到的三数会跨趟累加，读不出「这趟怎么了」。 */
 		try {
 			var R1 = (typeof RPG !== 'undefined' && RPG) ? RPG : ((typeof setup !== 'undefined' && setup) ? setup.RPG : null);

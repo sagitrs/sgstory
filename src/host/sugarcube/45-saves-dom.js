@@ -86,6 +86,11 @@
 		if (!箱) return 0;
 		if (箱.classList && !箱.classList.contains('saves') && !箱.querySelector('#saves-list')) return 0;
 		var 列 = document.getElementById('saves-list') || 箱.querySelector('.saves-list');
+		/* ★jsdom 健壮性（领队 2026-10-05 05:04 裁①）：引擎 headless 宿主对 DOM 有**桩/代理** ⇒ 
+		 *   `document.getElementById(...) || 箱.querySelector(...)` 可能**不是元素** ⇒ 旧形在下一行 
+		 *   `列.querySelectorAll(...)` 上**直接抛** ⇒ 整趟"标记＋禁用"没跑成，且**静默**（实测：单测路由它踩红）。
+		 *   ⇒ 不是元素就**具名放弃这一趟**（✗ 不抛、✗ 不假装做过）。 */
+		if (!列 || typeof 列.querySelectorAll !== 'function') return 0;
 		if (!列) return 0;
 		var 保留 = (typeof RPG.reservedSlots === 'function') ? RPG.reservedSlots() : [];
 		/* ★第 2 步口径：读不到 ⇒ 那档已出声 ＋ 空集 ⇒ 本档**不猜**（✗ 不默认锁 3／4）✓ */
@@ -144,7 +149,17 @@
 					var 关 = muts.some(function (m) {
 						var nd = m.target;
 						if (nd && nd.nodeType !== 1) nd = nd.parentNode;
-						return !!(nd && (nd.id === 'saves-list' || (nd.closest && nd.closest('#saves-list'))));
+						/* ★闸的界＝**存档对话框**（`.saves` 箱）—— ✗ 不是「必须落在 `#saves-list` 节点里面」：
+						 *   `UI.saves()` **整段重建**时，变更的 target 常是**箱子那一层**／已摘下的旧节点 ⇒ 旧闸会把
+						 *   **唯一要紧的那一次**挡在门外（实测：臂①「重渲染后标记/禁用双失」＋臂③「程序化 click 真删」）。 */
+						if (!nd) return false;
+						try {
+							if (nd.id === 'saves-list' || nd.id === 'probe12') return true;
+							if (nd.classList && (nd.classList.contains('saves') || nd.classList.contains('saves-list'))) return true;
+							if (nd.closest && (nd.closest('#saves-list') || nd.closest('.saves'))) return true;
+							if (nd.querySelector && (nd.querySelector('#saves-list') || nd.querySelector('.saves'))) return true;
+						} catch (e) { return true; }
+						return false;
 					});
 				} catch (e) { var 关 = true; }
 				if (关) 处理存档对话框();

@@ -90,7 +90,7 @@ RPG.defPipeline({
 				const noDodge = that?.noDodge === true;
 				if (!noDodge && die !== 20 && (die === 1 || die + atkMod < ac)) {
 					item.perform(`${item.name}挥空了，没有击中${that.name}` +
-						`（攻击掷骰 ${die}${atkMod ? RPG.formatMod(atkMod) : ''} vs AC ${ac}）`);
+						`（攻击掷骰 ${die}${atkMod ? RPG.formatMod(atkMod) : ''} 对 AC ${ac}）`);
 					ctx.hit = false;
 					ctx.done = true; // 失手 ⇒ 不进入伤害段
 					return;

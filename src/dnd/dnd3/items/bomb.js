@@ -19,7 +19,7 @@ DND3.Bomb = RPG.defItem({
 
 		if (!noDodge && die !== 20 && (die === 1 || die + atkMod < ac)) {
 			this.perform(`炸弹落在${that.name}脚边滚了两圈——哑火了` +
-				`（攻击掷骰 ${die}${atkMod ? RPG.formatMod(atkMod) : ''} vs AC ${ac}）`);
+				`（攻击掷骰 ${die}${atkMod ? RPG.formatMod(atkMod) : ''} 对 AC ${ac}）`);
 			return;
 		}
 		const r = RPG.rollDetail(this.stats.dmg);

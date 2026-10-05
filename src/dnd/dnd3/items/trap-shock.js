@@ -6,7 +6,7 @@ const trapShockUsed = function (that, from) {
 	const die = DND3.d20();
 	if (die !== 20 && (die === 1 || die + atkMod < ac)) {
 		this.perform(`${this.name}擦着${that.name}飞了过去` +
-			`（攻击掷骰 ${die}${RPG.formatMod(atkMod)} vs AC ${ac}）`);
+			`（攻击掷骰 ${die}${RPG.formatMod(atkMod)} 对 AC ${ac}）`);
 		return;
 	}
 	const r = RPG.rollDetail(this.stats.dmg);

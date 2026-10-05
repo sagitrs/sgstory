@@ -93,3 +93,4 @@ setup.DND3.modOf = (stats, ability) => setup.DND3.abilityMod(stats?.[ability]);
 
 /** 1d20 —— 3E 检定的基础（core 只提供通用掷骰 RPG.roll） */
 setup.DND3.d20 = () => setup.RPG.roll('1d20');
+setup.RPG.登记包空间?.('dnd3', setup.DND3);   // ★`sgstory#1743` A₁：把本包命名空间交给 core 的登记表（✗ 让 core 去摸 setup）

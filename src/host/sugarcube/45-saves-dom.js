@@ -43,19 +43,26 @@
 			if (b.setAttribute) b.setAttribute('aria-disabled', 'true');
 			if (b.classList) b.classList.add('rpg-reserved');
 		});
-		/* ★**克隆掉 handler**（仅 UI 面 ✓）：`disabled` 对**程序化 `click()`** 并非处处可靠
-		 *   （实测抖动：同一构建下 arm C 有时仍真落档 ✗）⇒ 把该行写控件**替换成同 id 的克隆**
-		 *   ⇒ 原有监听器不再挂在页面上 ✓，✗ 不碰 `Save.slots.save()`（故事自身写入不受影响 ✓）。 */
-		行控件(行).forEach(function (b) {
+		/* ★`books#280` ⑫（P1 修件）：**弃破坏性克隆** ⇒ 改「**捕获阶段吞事件**」✓（领队 02:xx 裁、dev-10 钉的根因 ✓）。
+		 *   旧形把受保留槽的写控件**替换成克隆** ✗ ⇒ ①每轮渲染都换节点（**不幂等** ✗）②顺带扔掉那些节点上原有的监听/引用 ✗。
+		 *   新形：**一个**监听挂在 `document` 的**捕获阶段** ✓ ⇒ 命中"受保留槽那一行里的控件"就吞掉 ✓
+		 *   ⇒ 宿主自带的处理**根本跑不到** ✓（程序化 `click()` 也走这条 ⇒ 比 `disabled` 可靠 ✓）；依然 ✗ 不碰 `Save.slots.save()` ✓。
+		 *   ★本函数因此**幂等**：只加标记／置属性（✗ 不改结构）✓ —— 同一份 DOM 跑 N 次结果相同 ✓。 */
+		var 吞保留点击 = function (ev) {
 			try {
-				if (b.parentNode && typeof b.cloneNode === 'function') {
-					var 壳 = b.cloneNode(true);
-					壳.disabled = true;
-					if (壳.setAttribute) 壳.setAttribute('aria-disabled', 'true');
-					b.parentNode.replaceChild(壳, b);
-				}
-			} catch (e) { /* ✗ 吞：替换失败则退化为仅 disabled（上面已置） */ }
-		});
+				var el = ev.target, 行 = null;
+				while (el && el !== document && !行) { if (el.classList && el.classList.contains('rpg-reserved-row')) 行 = el; el = el.parentNode; }
+				if (!行) return;
+				if (typeof ev.preventDefault === 'function') ev.preventDefault();
+				if (typeof ev.stopPropagation === 'function') ev.stopPropagation();
+				if (typeof ev.stopImmediatePropagation === 'function') ev.stopImmediatePropagation();
+				return false;
+			} catch (e) { /* ✗ 吞：吞不掉也不许把点击流程弄坏 */ }
+		};
+		if (typeof document.addEventListener === 'function' && !document.__rpgReservedCapture) {
+			document.addEventListener('click', 吞保留点击, true);   /* ★捕获阶段 ✓ 只挂**一次** ✓ */
+			document.__rpgReservedCapture = 吞保留点击;
+		}
 		if (行.classList) 行.classList.add('rpg-reserved-row');
 		return true;
 	};
@@ -132,8 +139,8 @@
 		var 已挂 = 挂事件() && 包一层();   /* ★两者缺一都不算接好 ⇒ 都要重试 ✓ */
 		try {
 			if (typeof MutationObserver === 'function' && document.documentElement) {
-				new MutationObserver(function () { 包一层(); 处理存档对话框(); })
-					.observe(document.documentElement, { childList: true, subtree: true, attributes: false });
+				new MutationObserver(function () { 包一层(); 处理存档对话框(); })   /* ★⑫③：观察面已**收窄到 `#saves-list` 子树**（见下 observe 参数 ✓）*/
+					.observe(document.getElementById('saves-list') || document.querySelector('.saves-list') || document.documentElement, { childList: true, subtree: true });
 			}
 		} catch (e) { /* ✗ 吞：不支持观察者也不影响事件路 */ }
 		if (!已挂) {

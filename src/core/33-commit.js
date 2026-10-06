@@ -21,6 +21,15 @@
  *   ③ **记账写后回读**：写完须**读得回来**，读不回 ⇒ 视为失败并**回滚事实**（本仓「写后回读」纪律；
  *      宿主冻结／配额满时静默丢写的形态**不得**留下「事实已落、账上没记」的半态）。
  *
+ * ## 两条**边界**（细则在此，✗ 只留在 PR 正文里 —— 正文不随源码走）
+ *   · **两个入口的错形不同（有意）**：`preview` 的入参是**代码面**（故事当场写的）⇒ 错即**具名抛**
+ *     （`RPG.refuse`）；`commit` 的入参是**数据面**（票据可能从 `$` 读回、可被改坏／伪造）⇒ 错即
+ *     **结果面**（`COMMIT_BAD_*`）。⇒ 一个量一个名，✗ 让「误用」与「坏数据」走同一形。
+ *   · **去重是窗口，✗ 绝对**：账**有界**（＝`上限`，默认 200，超限丢**最旧**）⇒ 只有**最近** `上限` 笔
+ *     请求的重复提交受保护；更早的请求号被重放⇒**会再执行一次**。故事若要长程幂等，须自持键（✗ 挤进本表）。
+ *   · **`facts` 必须是与 `preview` 同一块活事实**：传**副本**不会改到你的活状态，但账上**仍记为已提交**
+ *     （⇒ 症状是「交易静默没发生」）⇒ 故事侧 ✗ 传副本（引擎在此处**故意不猜**：副本与活块在数据上不可分）。
+ *
  * ## 与宿主／存档的关系
  *   `✗ 本档不建第二套存档`：已提交表落 `$rpgCommits`（**引擎自有键**，域 `byPack`，见 `80-save.js` 的 `DOMAINS`），
  *   纯数据 ⇒ 由既有序列化宿主带进档 ✓。无 `State` 环境（纯 core 判据）⇒ 退回**本模块内存账**（同形，✗ 抛）。
@@ -70,15 +79,20 @@
 	/** 无 `State` 环境（纯 core）的**内存账** —— 同形，使判据在 node 里也跑得动（✗ 抛、✗ 静默丢）。 */
 	const 内存账 = {};
 
-	/** 取已提交表（缺则建；形状坏 ⇒ 重建 —— 它是**引擎自有键**，✗ 不是故事数据）。 */
-	const 记账 = () => {
+	/** 取已提交表。`建` ＝ 缺时是否**建**（默认 `true`）。
+	 *  ★**读口一律传 `false`（读不得写）**：`settled()`／`ledger()` 若顺手建出空表，`envelope().domains`
+	 *    会把它记成「有落点」、`audit().absent` 里也就看不到它了 ⇒ **假落点遮住审计面**（`dev-9` 的 N1 实测）。 */
+	const 记账 = (建 = true) => {
 		if (typeof State === 'undefined') return 内存账;
 		/* ★取账**不得抛**：宿主可能冻结变量表／配额满（写不进是**常态故障**，✗ 异常）。
 		 *   取不到 ⇒ 返 `undefined` ⇒ 下游（读口防御、写口 read-back）各自按「没有账」处理。 */
 		try {
 			const vars = State.variables;
 			const 账 = vars.rpgCommits;
-			if (账 == null || typeof 账 !== 'object' || Array.isArray(账)) vars.rpgCommits = {};
+			if (账 == null || typeof 账 !== 'object' || Array.isArray(账)) {
+				if (!建) return undefined;
+				vars.rpgCommits = {};
+			}
 			return vars.rpgCommits;
 		} catch { return undefined; }
 	};
@@ -89,8 +103,15 @@
 		return (v != null && typeof v === 'object' && typeof v.facts === 'object') ? v : null;
 	};
 
-	/** 一次落定：把 `目标` 的内容**整体**换成 `源`（保留数组／对象**自身引用** ⇒ 别处持有的视图不失效）。 */
+	/** 一次落定：把 `目标` 的内容**整体**换成 `源`（保留数组／对象**自身引用** ⇒ 别处持有的视图不失效）。
+	 *  ★**前提**：`源` 必须是**已过 `规整` 的纯数据对象**（本档两个调用点用的正是票据的 `前像`／`计划` ——
+	 *    两者都在 `preview` 里过 `规整`，且 `commit` 入口**再规整一次** ✓）。
+	 *    ⚠ 未满足前提（数组／类实例／带环）时，「删旧键」与「赋新键」两轮会**不成对** ⇒ 得「删了旧键
+	 *    而没赋上新键」的**半态** ⇒ 故此处**具名抛**（✗ 静默半态 —— 半态比抛更难查）。 */
 	const 一次落定 = (目标, 源) => {
+		if (源 == null || typeof 源 !== 'object' || Array.isArray(源)) {
+			throw new Error('一次落定：源须是已规整的纯数据对象（✗ 数组／类实例／空）');
+		}
 		for (const k of Object.keys(目标)) if (!(k in 源)) delete 目标[k];
 		for (const k of Object.keys(源)) 目标[k] = 快照(源[k]);
 	};
@@ -148,48 +169,62 @@
 			if (facts == null || typeof facts !== 'object' || Array.isArray(facts)) {
 				return 拒('COMMIT_BAD_FACTS', 'commitBoundary.commit：facts 须是对象（与 preview 同一块活事实）');
 			}
+			/* ★公共面的**载荷**校验（✗ 只信 `preview` 当场给的那张）：票据可能被故事存进 `$` **跨拍**读回
+			 *   （⇒ 可被改坏／伪造）⇒ 入口处**再规整一次**：非对象 ⇒ `COMMIT_BAD_TICKET`（结果面，✗ 抛）；
+			 *   坏值（函数／NaN／类实例／环）⇒ `COMMIT_BAD_TICKET`（✗ 把 `COMMIT_NOT_SERIALIZABLE` 漏给下游）。 */
+			let 前像, 计划;
+			try {
+				if (ticket.前像 == null || typeof ticket.前像 !== 'object' || Array.isArray(ticket.前像)
+					|| ticket.计划 == null || typeof ticket.计划 !== 'object' || Array.isArray(ticket.计划)) {
+					throw new Error('票据载荷须是对象（前像／计划）');
+				}
+				前像 = 规整(ticket.前像, '前像');
+				计划 = 规整(ticket.计划, '计划');
+			} catch (e) {
+				return 拒('COMMIT_BAD_TICKET', `commitBoundary.commit：票据载荷不可用（${e?.message ?? e}）`);
+			}
 			/* ③ 去重：这个请求交过了 ⇒ 直接还**已提交事实**（✗ 再动一次状态） */
-			const 账 = 记账();
+			const 账 = 记账(false);                     // ★读口（✗ 无则不建）
 			const 旧 = 条(账, ticket.request);   // ★账取不到（宿主冻结／配额满）⇒ 此处仍只是「无旧账」
 			if (旧) return { status: 'settled', reused: true, code: 'COMMIT_ALREADY_SETTLED', facts: 快照(旧.facts) };
 
 			/* ② 二次确认：提交前状态须与预览时**逐字**相同（✗ 套用陈旧计划） */
 			const 当下 = 规整(facts, 'facts');
-			if (JSON.stringify(当下) !== JSON.stringify(ticket.前像)) {
+			if (JSON.stringify(当下) !== JSON.stringify(前像)) {
 				return 拒('COMMIT_STALE', 'commitBoundary.commit：提交前状态与预览时不同 ⇒ 拒绝旧预览（请重算并重新确认）', {
-					差异: { 预览时: ticket.前像, 提交前: 当下 },
+					差异: { 预览时: 前像, 提交前: 当下 },
 				});
 			}
 
 			/* 统一提交：ⓐ事实一次落定 ⓑ记账（**写后回读**）—— ⓑ失败 ⇒ ⓐ回滚 */
 			try {
-				一次落定(facts, ticket.计划);
+				一次落定(facts, 计划);
 				const 账2 = 记账();
-				账2[ticket.request] = { at: Date.now(), facts: 快照(ticket.计划) };
+				账2[ticket.request] = { at: Date.now(), facts: 快照(计划) };
 				剪枝(账2);
 				if (!条(记账(), ticket.request)) throw new Error('记账写入未生效（写后回读不到）');
 			} catch (e) {
-				一次落定(facts, ticket.前像);                       // ★回滚：✗ 留半回城
+				一次落定(facts, 前像);                       // ★回滚：✗ 留半回城
 				return 拒('COMMIT_LEDGER_FAILED', `记账失败，事实已回滚（${e?.message ?? e}）`);
 			}
 
 			/* 发布演出（✗ 领域副作用）：失败 ⇒ 事实与账**仍在**（只 `published:false`）⇒ 调用方只重绘 */
 			let published = true, 发布错 = null;
 			if (typeof publish === 'function') {
-				try { publish(快照(ticket.计划)); } catch (e) { published = false; 发布错 = String(e?.message ?? e); }
+				try { publish(快照(计划)); } catch (e) { published = false; 发布错 = String(e?.message ?? e); }
 			}
-			return { status: 'applied', facts: 快照(ticket.计划), published, ...(发布错 ? { publishError: 发布错 } : {}) };
+			return { status: 'applied', facts: 快照(计划), published, ...(发布错 ? { publishError: 发布错 } : {}) };
 		},
 
-		/** ③ 读口：某请求的**已提交事实**（✗ 无 ⇒ `null`）。 */
+		/** ③ 读口：某请求的**已提交事实**（✗ 无 ⇒ `null`）。★读不得写（✗ 建空表 —— 那会遮住 `audit().absent`）。 */
 		settled(request) {
-			const 条2 = 条(记账(), request);
+			const 条2 = 条(记账(false), request);
 			return 条2 ? 快照(条2.facts) : null;
 		},
 
-		/** 读口（诊断／判据）：已提交表的形状读数。 */
+		/** 读口（诊断／判据）：已提交表的形状读数。★读不得写（同上）。 */
 		ledger() {
-			const 账 = 记账() ?? {};
+			const 账 = 记账(false) ?? {};
 			const 名 = Object.keys(账);
 			return { size: 名.length, requests: 名.slice(), 上限 };
 		},

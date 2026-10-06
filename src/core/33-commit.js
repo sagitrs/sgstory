@@ -21,7 +21,7 @@
  *   ③ **记账写后回读**：写完须**读得回来**，读不回 ⇒ 视为失败并**回滚事实**（本仓「写后回读」纪律；
  *      宿主冻结／配额满时静默丢写的形态**不得**留下「事实已落、账上没记」的半态）。
  *
- * ## 两条**边界**（细则在此，✗ 只留在 PR 正文里 —— 正文不随源码走）
+ * ## 三条**边界**（细则在此，✗ 只留在 PR 正文里 —— 正文不随源码走）
  *   · **两个入口的错形不同（有意）**：`preview` 的入参是**代码面**（故事当场写的）⇒ 错即**具名抛**
  *     （`RPG.refuse`）；`commit` 的入参是**数据面**（票据可能从 `$` 读回、可被改坏／伪造）⇒ 错即
  *     **结果面**（`COMMIT_BAD_*`）。⇒ 一个量一个名，✗ 让「误用」与「坏数据」走同一形。
@@ -169,6 +169,15 @@
 			if (facts == null || typeof facts !== 'object' || Array.isArray(facts)) {
 				return 拒('COMMIT_BAD_FACTS', 'commitBoundary.commit：facts 须是对象（与 preview 同一块活事实）');
 			}
+			/* ③ 去重：这个请求交过了 ⇒ 直接还**已提交事实**（✗ 再动一次状态）。
+			 *   ★`N-1`（`dev-9`）**次序**：去重读排在**载荷校验之前** —— 「交过了没」**不依赖**票据载荷，
+			 *   而已提交的事实按设计 §4 就该**返回**（「同一已提交请求重复调用…返回已提交事实」）；
+			 *   若排在之后，则「已提交的请求 ＋ 被改坏的票」会错报 `COMMIT_BAD_TICKET`（旧头实测）。
+			 *   ★零副作用：本读口**不建键**（`记账(false)`），且命中即返回、✗ 往下走。 */
+			const 账 = 记账(false);                     // ★读口（✗ 无则不建）
+			const 旧 = 条(账, ticket.request);   // ★账取不到（宿主冻结／配额满）⇒ 此处仍只是「无旧账」
+			if (旧) return { status: 'settled', reused: true, code: 'COMMIT_ALREADY_SETTLED', facts: 快照(旧.facts) };
+
 			/* ★公共面的**载荷**校验（✗ 只信 `preview` 当场给的那张）：票据可能被故事存进 `$` **跨拍**读回
 			 *   （⇒ 可被改坏／伪造）⇒ 入口处**再规整一次**：非对象 ⇒ `COMMIT_BAD_TICKET`（结果面，✗ 抛）；
 			 *   坏值（函数／NaN／类实例／环）⇒ `COMMIT_BAD_TICKET`（✗ 把 `COMMIT_NOT_SERIALIZABLE` 漏给下游）。 */
@@ -183,10 +192,6 @@
 			} catch (e) {
 				return 拒('COMMIT_BAD_TICKET', `commitBoundary.commit：票据载荷不可用（${e?.message ?? e}）`);
 			}
-			/* ③ 去重：这个请求交过了 ⇒ 直接还**已提交事实**（✗ 再动一次状态） */
-			const 账 = 记账(false);                     // ★读口（✗ 无则不建）
-			const 旧 = 条(账, ticket.request);   // ★账取不到（宿主冻结／配额满）⇒ 此处仍只是「无旧账」
-			if (旧) return { status: 'settled', reused: true, code: 'COMMIT_ALREADY_SETTLED', facts: 快照(旧.facts) };
 
 			/* ② 二次确认：提交前状态须与预览时**逐字**相同（✗ 套用陈旧计划） */
 			const 当下 = 规整(facts, 'facts');

@@ -88,6 +88,14 @@
 		assert.eq(J(二.facts), 一次后, '★须**返回已提交事实**');
 		assert.eq(J(f), 一次后, `✗ 重复提交双扣：${一次后} ⇒ ${J(f)}`);
 		assert.eq(C().ledger().size, 1, '同一请求只占一条账');
+		/* ★`N-1`（`dev-9`）**次序**：**去重读在载荷校验之前** ⇒「已提交的请求 ＋ 被改坏的票」
+		 *   仍须**返回已提交事实**（✗ 错报 `COMMIT_BAD_TICKET`）—— 设计 §4 原文「返回已提交事实」。 */
+		const 坏票 = { request: 'e2-3', 前像: 事实(), 计划: [1, 2] };
+		const 三 = C().commit(坏票, { facts: f });
+		assert.eq(三.status, 'settled', '★已提交的请求 ⇒ 仍须走「已提交」支（✗ 因载荷坏而错报）');
+		assert.eq(三.reused, true, '须标记 reused');
+		assert.eq(J(三.facts), 一次后, '★须返回已提交事实（逐字）');
+		assert.eq(J(f), 一次后, '活事实仍逐字不变');
 	});
 
 	test('★#2025 E2-4：故障注入 ⇒ **不留半回城**；`publish` 失败 ⇒ 只重绘（✗ 重跑领域副作用）', () => {

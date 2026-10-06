@@ -12,13 +12,19 @@ RPG.slotLabels.feet = '脚';
 /**
  * 有效防御等级 = 基础 stats.ac + 全部已装备道具的 stats.ac_bonus。
  * （盔甲、包铁靴都在这里生效——衣服和鞋真正参与战斗。）
+ *
+ * ★`sgstory#2027`：第二参 `against` ＝**本次攻击者**（可缺省）。被钉住者对其**钉住者以外**的对手
+ *   AC −4（SRD 3.5 · `Basic Rules and Legal/combat-ii-movement-modifiers-and-special-actions.md:894`）。
+ *   ⚠ 缺省（`against == null` 或调用方不传）⇒ 视为「不是钉住者」⇒ **照样减** —— 这比不减安全：
+ *     不知对手时按原文只差一个例外分支，✗ 不会把惩罚静默变成无。
  */
-DND3.acOf = (c) => {
+DND3.acOf = (c, against = null) => {
 	let ac = c?.stats?.ac ?? 10;
 	for (const slot of c?.items ?? []) {
 		if (!slot.equipped) continue;
 		ac += RPG.reviveItem(slot).stats?.ac_bonus ?? 0;
 	}
+	if (DND3.isPinned?.(c) === true && DND3.grapplePartner?.(c) !== against) ac -= 4;
 	return ac;
 };
 
@@ -58,8 +64,20 @@ DND3.meleeAttack = (item, that, from) => {
 	}
 
 	const f = from?.stats ?? {};
+	/* ★`sgstory#2027`：擒抱的目标限制（pin `:786`：擒抱中**只能打你擒抱的那名对手**）
+	 *   ⇒ 其余目标**拒绝**（`return false`，与上面的「腾不出手」同规 ⇒ `RPG.act` 判 `action-refused`）。
+	 *   ⚠ 无擒抱关系时恒 `null` ⇒ 既有行为**零回归**。 */
+	if (DND3.grappleBlocksTarget?.(from, that) === true) {
+		item.perform(`${from.name}正与${DND3.grapplePartner?.(from)?.name ?? '抓住你的对手'}扭在一起——这一手只能打他。`);
+		return false;
+	}
 	// 远程武器用灵巧，近战用力量
 	const abilMod = isRanged ? DND3.modOf(f, 'dex') : DND3.modOf(f, 'str');
+	/* ★`sgstory#2027`：两件**场上**修正（都不属武器固有值，故不并入 `atkBonus`）：
+	 *   · **御水**（pin `3.5 Monsters - E.md:370`：双方皆触水 +1；有一方只挨非水地面 −4）——**攻击与伤害都加**；
+	 *   · **擒抱**（pin `:786`：与对手扭在一起时打对手 −4）。 */
+	const 御水 = DND3.waterMasteryMod?.(from, that) ?? 0;
+	const 擒抱 = DND3.grappleAttackMod?.(from, that) ?? 0;
 	// 创伤罚（#1780 §四 C1：`裂伤` 在本场首回合给攻击掷骰 −1；无创伤时恒 0 ⇒ 既有行为不变）
 	/* ★`#1855`：**显式攻击加值** `item.stats.atkBonus` —— 有则**照录**（✗ 不走推导）。
 	 *   为何需要（本票裁定 甲，领队 guest-1 2026-10-02）：天然武器的 pinned 攻击行**含三件本仓没有的机制**
@@ -68,8 +86,8 @@ DND3.meleeAttack = (item, that, from) => {
 	 *   ⚠ **脱钩代价（有意）**：照录值与 `bab`／力调**不联动** ⇒ 日后改属性**不会**改它。
 	 *   ⚠ 缺省（`undefined`）⇒ **逐字沿用**原式 ⇒ 既有武器／玩家面**零回归**。
 	 *   ⚠ 创伤罚**仍叠加**在照录值上（伤势是**场上状态**，✗ 属武器固有值）。 */
-	const atkMod = (item.stats.atkBonus ?? ((f.bab ?? 0) + abilMod)) + (DND3.traumaAttackMod?.(from) ?? 0);
-	const ac = DND3.acOf(that);
+	const atkMod = (item.stats.atkBonus ?? ((f.bab ?? 0) + abilMod)) + (DND3.traumaAttackMod?.(from) ?? 0) + 御水 + 擒抱;
+	const ac = DND3.acOf(that, from);
 	const die = DND3.d20();
 	const critMin = item.stats.critMin ?? 20;
 	// 目标 noDodge（宝箱等容器的对象性质，非规则量纲）：不会闪避，攻击总是命中
@@ -86,7 +104,11 @@ DND3.meleeAttack = (item, that, from) => {
 	const parts = [];
 	let dmg = 0;
 	// 创伤罚（#1780 §四 C2：`骨裂` 给**近战伤害** −1，✗ 不作用于攻击掷骰；无创伤时恒 0）
-	const dmgMod = abilMod + (DND3.traumaDamageMod?.(from) ?? 0);
+	/* ★`sgstory#2027`：**显式伤害加值** `item.stats.dmgBonus` —— 与 `atkBonus` **同形同哲学**（照录 pinned，✗ 引擎推导）。
+	 *   为何需要（`#2027` 终裁：SRD 保真）：pinned 的伤害行对**单一自然攻击**已含 ×1.5 力调（鳄鱼咬 1d8+6＝力调 +4 ×1.5；
+	 *   水元素 Slam 1d6+3＝力调 +2 ×1.5），而引擎的伤害加值**恒 ×1**（见 `items/natural-attacks.js` 档头 ③）。
+	 *   ⇒ 要照录就只能显式声明；缺省（`undefined`）⇒ **逐字沿用** `abilMod` ⇒ 既有武器与九只动物**零回归**。 */
+	const dmgMod = (item.stats.dmgBonus ?? abilMod) + (DND3.traumaDamageMod?.(from) ?? 0) + 御水;
 	for (let i = 0; i < times; i++) {
 		const r = RPG.rollDetail(item.stats.dmg);
 		dmg += r.total + dmgMod; // 重击时调整值同样翻倍
@@ -120,4 +142,12 @@ DND3.meleeAttack = (item, that, from) => {
 
 	item.perform(`${that.name}受到了${dmg}点${DND3.damageTypeLabel(item.stats.type)}伤害` +
 		`（${parts.join('，')}${最低伤害 ? '，最低伤害 1 点' : ''}${crit ? '，重击！' : ''}）`);
+
+	/* ★`sgstory#2027`——“命中后追加”原语（契约与不落项见 `core/grapple.js` 档头与 `defOnHit` 注）。
+	 *   位置在**伤害与创伤与文案之后** ⇒ 「命中 ⇒ 抓住」在屏上按发生顺序可读；
+	 *   目标已出局者由 `DND3.runOnHit` 自行跳过（同 `#1780` A5 的惯例）。
+	 *   ⚠ 件未声明 `stats.onHit` ⇒ 下面**一行不跑** ⇒ 既有武器零回归（本仓已注册的道具无一声明）。 */
+	if (item.stats.onHit) {
+		DND3.runOnHit?.(item.stats.onHit, { attacker: from, target: that, item, damage: dmg, crit });
+	}
 };

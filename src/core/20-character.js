@@ -13,6 +13,11 @@ RPG.Character = class Character extends Object {
 		stats = {},
 		items = [],
 		properties = [],
+		/* ★`sgstory#2027`：**初始效果**（声明式）—— 供「先天能力」落位（例：水元素的 `water-mastery`，
+		 *   见 `monsters/water-elemental.js`）。之前只能靠模块末尾逐只 `gain()`，而 `:enginerestart` 后的
+		 *   复位会把它漏掉（那种「声明层与复位层两处各写一份」正是本仓反复踩的漂移源）。
+		 *   ⚠ 缺省 `[]` ⇒ 玩家与既有怪物的 `effects` 面**逐字不变**（零回归）。 */
+		effects = [],
 		protagonist = false,
 		/* ★`sgstory#1935`（`[identity-enemies-save]`）：**持久单位号** —— 缺省 `null` ⇒ **不写键** ✓
 		 *   （同 `nonlethal` 的零回归形：没参战过的角色快照逐键不变 ✓）；有号时把它**顶上水位** ✓。 */
@@ -33,8 +38,10 @@ RPG.Character = class Character extends Object {
 		 *   与 `properties` 的 `'player'` **不是一回事**：后者是「交互通路由玩家操作」，
 		 *   本标记是「这一方的主控角色」（将来主角带同伴时二者会分家）。 */
 		this.isProtagonist = protagonist === true;
-		/** 持有的效果/减益，存 Effect 的 id 字符串（Player 桥接到 $player.effects） */
-		this.effects = [];
+		/** 持有的效果/减益，存 Effect 的 id 字符串（Player 桥接到 $player.effects）
+		 *  ★`#2027`：初始表经 `RPG.resolveEffect` **注册即验**（未注册／形态非法 ⇒ **加载期即抛**，
+		 *    同 `core/passives.js` 的「注册即验」形）—— ✗ 不等到战斗深处再以 `EFFECT_UNKNOWN` 暴露。 */
+		this.effects = effects.map((e) => RPG.resolveEffect(e));
 		/** 按回合计时的效果剩余回合数（id → n；纯数据 ⇒ 随 toJSON 存档）。
 		 *  与 effects 同生共死：效果被移除时其条目一并删除（见 #1741 的 tickTurnDurations／clearBattleScoped） */
 		this.effectTurns = {};

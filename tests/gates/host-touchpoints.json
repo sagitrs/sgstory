@@ -1,7 +1,7 @@
 {
   "_note": "core 宿主触点基线（#1804 件二）。棘轮：只防加深（新触点⇒红）；减少⇒绿但出声（可 --update-baseline 刷新）。口径：已剥注释与字符串、只算代码面；类目见 tests/gates/host-touchpoints.mjs 的 CATEGORIES。",
-  "_seededAt": "411a80a1",
-  "_seededReason": "#1877 P1-7（Restart 前补写一次自动存档）：install() 新增一路 globalThis.Config 解析（2→3），另加 1 处裸 document（捕获监听 —— 门只认 document. 属性形、不计入，已在本笔注释里如实记该盲区）。基线归零到本笔实测，使后续再加深仍可判。",
+  "_seededAt": "7ad6a265b53865e7cb55eb33c06d54c56546fc71",
+  "_seededReason": "#2025 E2：新增 src/core/33-commit.js —— 返程一致提交边界的**已提交事实表**（去重账 rpgCommits，纯数据、域 byPack）须落 $ ⇒ 1 处 State.variables。按件二口径人工接受本次加深（棘轮需据此后可判）。",
   "touchpoints": {
     "src/core/00-namespace.js": {
       "setup.": 1
@@ -18,6 +18,9 @@
     "src/core/30-inventory.js": {
       "State.variables": 1,
       "setup.": 2
+    },
+    "src/core/33-commit.js": {
+      "State.variables": 1
     },
     "src/core/36-build.js": {
       "State.variables": 1

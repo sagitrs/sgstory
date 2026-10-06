@@ -69,6 +69,9 @@ RPG.save = (() => {
 		span1Harvests: 'byPack',
 		/* ★`sgstory#1936`（轨B·显式进度）：本局进度账 —— 与上面两键**同域**（本包·本局的故事状态）。 */
 		rpgProgress: 'byPack',
+		/* ★`sgstory#2025`（E2 · 设计 §4）：**返程一致提交边界**的**已提交事实表**（去重账）——
+		 *   引擎自有键（`33-commit.js` 读写，纯数据）⇒ 与上面两键**同域**（本包·本局）✓。 */
+		rpgCommits: 'byPack',
 		flags: null,                 // 域 9：★现不存在（工料单 §〇.9）⇒ 格式层预留位
 		/* ★未列独立条目者（避免「格式说支持、audit 报不出来」的两套口径）：
 		 *   · **域 4 存量（stocks）** —— 落在 `player.stats.<stockId>`（工料单 §〇.4）⇒ **随 `player` 进档**，

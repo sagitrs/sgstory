@@ -48,10 +48,11 @@ const KNIVES = [
 	},
 	{
 		id: 'rng-code-off',
-		why: '摘掉抽尽错误的**码值**（`RNG_EXHAUSTED`）⇒ 断这枚码的格红（`#1957` 那枚码的承重判据）。',
+		why: '摘掉抽尽错误的**码值**（`RNG_EXHAUSTED`）⇒ 断这枚码的格红（`#1957` 那枚码的承重判据）。'
+			+ '★`sgstory#2031` 的 ⑥ 也钉这枚码（「受控路径 ✗ 吃旧序列」那一格的下半句）⇒ 已入 expect。',
 		target: BUNDLE,
 		patch: [[", { code: 'RNG_EXHAUSTED' }", '']],
-		expect: ['抽尽码①', '抽尽码②', 'reject ②'],
+		expect: ['抽尽码①', '抽尽码②', 'reject ②', '抽尽须仍抛具名码'],
 	},
 	{
 		id: 'guard-round-off',

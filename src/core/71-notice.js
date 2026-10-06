@@ -100,6 +100,15 @@ RPG.pushNotice = (text, { channel = 'default' } = {}) => {
 	const entry = { text: String(text), channel: def.id, level: def.level, at: list.length + 1 };
 	list.push(entry);
 	while (list.length > RPG.noticeLimit) list.shift();
+	/* ★`sgstory-books#435`：**推完即刷通知面板** —— 与上面开关链的刷新（本档 `:171`）同形、
+	 *   同为**能力探测**（未注册该面板的故事 ⇒ 什么都不做）。
+	 *   病根（books 的 L2 全文重绘红账）：交互式战斗在三处提示上 `perform` 却不刷面板 ——
+	 *   `core/40-battle.js:404` 回合横幅、`:836` 行动提示、`:887` 空手选靶 ⇒ 面板停在上一次刷新的
+	 *   那一刻（实测：列表已 42 条，屏上仍印 39），而重绘一旦发生就变成新值 ⇒
+	 *   「重绘前后文本相同」那条不变量红。本行让面板**推完即与列表对齐**（✗ 靠调用方记得刷）。
+	 *   ⚠ 放在**唯一漏斗**（本函数＝`perform` 与直接调用方共用）⇒ 覆盖 `40-battle.js:378` 与
+	 *     各道具的直调（它们不经 `perform`）。 */
+	if (RPG.panels?.has?.('notice')) RPG.refreshPanels(['notice']);
 	return entry;
 };
 

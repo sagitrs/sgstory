@@ -19,6 +19,13 @@ const inv = () => {
  *   ⚠ 判据＝`stackable **且** charges != null`（两者缺一即「每件一个独立条目」，如 `iron-key`）。 */
 RPG.canStack = (def) => def?.stackable === true && def?.charges != null;
 
+/** ★`sgstory#2023`（E1 · 设计 §3.2）：**堆叠兼容不只比较 id** —— 还要比较**所有影响结算的状态**
+ *  （本笔这一层＝状态载荷 `state`）。⇒ 取「状态键」用于比较：无状态用 `∅`。
+ *  ⚠ 键形用 `JSON.stringify`（键序由写入方与规整器固定 ⇒ 同构载荷同键）；✗ 不做深比较器（不必要）。 */
+RPG.itemStateKey = (件) => (件?.state == null ? '∅' : JSON.stringify(件.state));
+/** 两件的状态是否**兼容**（可同槽）；★状态不同 ⇒ 不得合并（各自独立条目、各自保号）✓ */
+RPG.stateCompatible = (a, b) => RPG.itemStateKey(a) === RPG.itemStateKey(b);
+
 /**
  * **投递的唯一实现**（`#1877` P1-5① —— `dev-9` 两轮阻断后收敛到此）：把件放进**任意背包**。
  *
@@ -52,6 +59,12 @@ const 保号 = (snap) => {
 	if (src.entityId != null || src.slotId != null) RPG.noteEntityId(身份);   // ★有号**也**顶高水位
 	const 出 = { ...src, entityId: 身份 };
 	delete 出.slotId;                                 // ★一个量一个名（旧名到此为止）
+	/* ★`sgstory#2023` 首轮 RC（**真伤**，领队实测指出）：**状态载荷须深拷**。
+	 *   浅拷（`{ ...src }`）会让「切出的那一件」与原槽**共用同一个 `state` 对象** ⇒ 改一件另一件跟着变
+	 *   ⇒「同 id 不同状态 ⇒ 不合并」的判据**从此不红**（两槽状态恒等 ⇒ 恒兼容）＝判据失效。
+	 *   ⚠ 修在**本处（唯一的入袋口）**：`deposit` 的三处 push ＋ `splitStack` ＋ `backfillItemIdentity`
+	 *     全经此函数 ⇒ ✗ 只修 `splitStack` 一处（那会留下同形的另几处 —— `#1844` 的教训）。 */
+	if (出.state !== undefined) 出.state = RPG.normalizeItemState(出.state);
 	return 出;
 };
 
@@ -133,7 +146,10 @@ RPG.deposit = (bag, id, n = 1, snapshot = null) => {
 	const def = RPG.createItem(id);
 	const each = snapshot == null ? null : (snapshot.charges ?? def.charges ?? 1);   // 快照件数口径（同 `take`）
 	if (RPG.canStack(def)) {
-		const slot = bag.find((s) => s.id === id);
+		/* ★`sgstory#2023`（设计 §3.2）：**同 id 但状态不同 ⇒ 不并槽**（各起一条、各自保号）。
+		 *   来态＝快照给的 `state`（转移路）或定义的 `state`（造新件路）✓ —— ✗ 只按 id 找槽。 */
+		const 来态 = { state: snapshot != null ? (snapshot.state ?? null) : (def.state ?? null) };
+		const slot = bag.find((s) => s.id === id && RPG.stateCompatible(s, 来态));
 		if (snapshot != null) {
 			if (slot) { slot.charges = (slot.charges ?? 0) + each; return each; }
 			bag.push(保号({ ...snapshot, charges: each }));
@@ -149,6 +165,35 @@ RPG.deposit = (bag, id, n = 1, snapshot = null) => {
 		bag.push(保号(fresh));
 	}
 	return n;
+};
+
+/** ★`sgstory#2023`（E1 · 设计 §3.3）：**批次按身份切分** —— 把某件（按 `entityId` 定位）切出 `n` 份，
+ *  成**独立一件**。身份规则（本笔裁定，须与 §3.3「✗ 不把一个实体号复制给多件独立装备」一致）：
+ *  ★**切出的新件发新号**，**留在原槽的那份沿用原号**。
+ *  ⚠ 只对**可叠加件**成立（`charges != null`）：非叠加件「切分」＝另造一件同定义的新件 ⇒
+ *    那会把「两件同类」写成「一件裂成两半」⇒ 具名拒 `STACK_SPLIT_NOT_STACKABLE`。
+ *  ⚠ 非法入参一律**零变化**（先用 `findIndex` 与前置校验判完，再动 `charges`）✓。
+ *  ⚠ 状态载荷随件走（拷贝）⇒ 切出那件与原槽状态**相同**（这正是「同状态才并槽」的另一面）✓。
+ * @returns {object} 切出的那件**快照**（已入袋）；失败即抛 `RPG.refuse('STACK_SPLIT_*', …)`
+ */
+RPG.splitStack = (bag, entityId, n) => {
+	if (!Array.isArray(bag)) throw RPG.refuse('STACK_SPLIT_BAG', 'splitStack：第一参须是背包数组');
+	if (!Number.isInteger(n) || n < 1) {
+		throw RPG.refuse('STACK_SPLIT_COUNT', `splitStack：切出件数须为正整数（收到 ${String(n)}）`, { n });
+	}
+	const i = bag.findIndex((s) => s?.entityId === entityId);
+	if (i < 0) throw RPG.refuse('STACK_SPLIT_NOT_FOUND', `splitStack：袋里没有实体号 ${String(entityId)} 的件`, { entityId });
+	const slot = bag[i];
+	if (slot.charges == null) {
+		throw RPG.refuse('STACK_SPLIT_NOT_STACKABLE', `splitStack：实体号 ${String(entityId)} 不是可叠加件（charges 为 null）⇒ 切分不适用`, { entityId });
+	}
+	if (n >= slot.charges) {
+		throw RPG.refuse('STACK_SPLIT_WHOLE', `splitStack：切出 ${n} 份 ≥ 该槽 ${slot.charges} 份 ⇒ ✗ 不动（整件转移走别的口，切分只切小于余量）`, { n, 余: slot.charges });
+	}
+	slot.charges -= n;                                                        // 余量留在原槽（沿用原号）
+	const 新件 = 保号({ ...slot, charges: n, entityId: RPG.newEntityId() });  // ★新号（✗ 复制原号）
+	bag.push(新件);
+	return 新件;
 };
 
 RPG.give = (id, n = 1) => {

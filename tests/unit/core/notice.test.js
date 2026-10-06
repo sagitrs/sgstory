@@ -150,6 +150,33 @@
 	});
 
 	/* ---------- ★`books#170` P1-5（试玩反馈）：面板须**新的在前** ---------- */
+	test('B4：★`sgstory-books#435`：推一条 ⇒ **通知面板立即重绘**（✗ 等下一次段落刷新）', () => {
+		/* 病根（books 的 L2 红账）：交互式战斗的三处提示 `perform` 后无人刷面板 ⇒ 面板滞后
+		 *   （实测列表 42 条 / 屏上 39）⇒ 「重绘前后文本相同」那条不变量红。本用例钉住「推完即刷」。 */
+		const 真写 = R().panelWriter, 真计数 = R().panelRenderCount('notice');
+		try {
+			R().registerPanel('notice', { name: '通知', host: '[data-panel="notice"]', render: () => 'N' });
+			const writes = [];
+			R().panelWriter = (host, html) => { writes.push([String(host), String(html)]); return true; };
+			R().resetPanelCounts();
+			R().pushNotice('甲');
+			assert.eq(writes.length, 1, `★推一条应**恰**触发一次通知面板重绘（实得 ${writes.length}）`);
+			assert.eq(writes[0][0], '[data-panel="notice"]', '★写的是通知面板自己的宿主');
+			assert.eq(R().panelRenderCount('notice'), 1, '通知面板重绘计数应 +1');
+			R().pushNotice('乙');
+			assert.eq(R().panelRenderCount('notice'), 2, '再推一条 ⇒ 再刷一次');
+		} finally {
+			R().panelWriter = 真写; R().panels.delete('notice'); R().resetPanelCounts();
+		}
+	});
+
+	test('B4：★同上去能力臂：**未注册**通知面板 ⇒ 推送照旧、✗ 不抛（引擎自带用例零行为变化）', () => {
+		assert.ok(!R().panels.has('notice'), '前置：本用例前不应有 notice 面板');
+		let threw = null;
+		try { R().pushNotice('丙'); } catch (e) { threw = e; }
+		assert.eq(threw, null, '★没有该面板时推送不得抛（能力探测）');
+	});
+
 	test('B4：`noticesHTML` 取**最新**若干条（对「新→旧」的列表再 tail ⇒ 会出最旧那几条）', () => {
 		reset();
 		for (let i = 1; i <= 5; i++) R().pushNotice(`第${i}条`, { channel: 'unit-p15' });

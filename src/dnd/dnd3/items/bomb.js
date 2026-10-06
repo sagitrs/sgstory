@@ -14,7 +14,7 @@ DND3.Bomb = RPG.defItem({
 		const f = from?.stats ?? {};
 		const atkMod = (f.bab ?? 0) + DND3.modOf(f, 'dex'); // 投掷武器用灵巧
 		const ac = DND3.acOf(that);
-		const die = DND3.d20();
+		const die = DND3.d20({ purpose: 'trap.hit', actor: this.name });   // ★`#2031`
 		const noDodge = that?.noDodge === true;
 
 		if (!noDodge && die !== 20 && (die === 1 || die + atkMod < ac)) {
@@ -22,7 +22,7 @@ DND3.Bomb = RPG.defItem({
 				`（攻击掷骰 ${die}${atkMod ? RPG.formatMod(atkMod) : ''} 对 AC ${ac}）`);
 			return;
 		}
-		const r = RPG.rollDetail(this.stats.dmg);
+		const r = RPG.rollDetail(this.stats.dmg, { purpose: 'damage', actor: this.name });   // ★`#2031`
 		that.hp = Math.max(0, (that.hp ?? 0) - r.total);
 		DND3.grantDeathIfDown(that);
 		this.perform(`轰！${that.name}受到了${r.total}点${this.stats.type}伤害（${r.rolls.join('+')}）`);

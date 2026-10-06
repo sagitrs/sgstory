@@ -62,7 +62,7 @@ DND3.grappleMod = (c) => {
 /** 一次擒抱掷骰：`{ roll, mod, total }`（对抗检定 —— 不比 DC，故不用 `RPG.checkRoll`） */
 DND3.grappleRoll = (c) => {
 	const mod = DND3.grappleMod(c);
-	const roll = RPG.roll('1d20');
+	const roll = RPG.roll('1d20', { purpose: 'check.grapple', actor: c?.name ?? null });   // ★`#2031`
 	return { roll, mod, total: roll + mod };
 };
 
@@ -191,7 +191,7 @@ DND3.hold = (attacker, target, { fromHit = false } = {}) => {
 /** 以对抗检定造成伤害（pin `:800`）：中型 1d3／小型 1d2 ＋ 力量调整值，默认**非致命**。 */
 DND3.grappleDamageRoll = (attacker, target) => {
 	const 面 = DND3.sizeOf(attacker) === 'small' ? '1d2' : '1d3';
-	const 伤 = RPG.roll(面) + DND3.modOf(attacker?.stats ?? {}, 'str');
+	const 伤 = RPG.roll(面, { purpose: 'damage', actor: attacker?.name ?? null }) + DND3.modOf(attacker?.stats ?? {}, 'str');   // ★`#2031`
 	RPG.applyDamage(target, 伤, { nonlethal: true });
 	DND3.grantDeathIfDown(target);
 	RPG.perform(`${attacker.name}在擒抱中撞了${target.name}一下（非致命 ${伤} 点）。`);

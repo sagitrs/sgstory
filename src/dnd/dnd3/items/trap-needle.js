@@ -5,13 +5,13 @@
 const trapNeedleUsed = function (that, from) {
 	const atkMod = this.stats.bab ?? 0;
 	const ac = that?.stats?.ac ?? 10;
-	const die = DND3.d20();
+	const die = DND3.d20({ purpose: 'trap.hit', actor: this.name });   // ★`#2031`
 	if (die !== 20 && (die === 1 || die + atkMod < ac)) {
 		this.perform(`${this.name}擦着${that.name}飞了过去` +
 			`（攻击掷骰 ${die}${RPG.formatMod(atkMod)} 对 AC ${ac}）`);
 		return;
 	}
-	const r = RPG.rollDetail(this.stats.dmg);
+	const r = RPG.rollDetail(this.stats.dmg, { purpose: 'damage', actor: this.name });   // ★`#2031`
 	that.hp = Math.max(0, (that.hp ?? 0) - r.total);
 	this.perform(`${that.name}受到了${r.total}点${this.stats.type}伤害` +
 		`（${r.rolls.join('+')}${r.mod ? RPG.formatMod(r.mod) : ''}）！`);

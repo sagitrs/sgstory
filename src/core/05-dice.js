@@ -45,8 +45,11 @@ RPG.rng = {
 	/** 复位：回到默认源（用例前置挂点调用，防注入跨用例残留） */
 	reset() { this._impl = null; return this; },
 
-	/** 取一个原始单元值 `[0,1)`。**本方法是全仓唯一读随机源之处**，其余消费点一律走 `pick`／`index`。 */
+	/** 取一个原始单元值 `[0,1)`。**本方法是全仓唯一读随机源之处**，其余消费点一律走 `pick`／`index`。
+	 *  ★`sgstory#2031`：这里给**底层随机调用计数**＋1（与「用途化骰面控制」的**额度账／骰序账**分记 ——
+	 *    A1 明文「✗ 能由计数推出哪个消费者吃了哪颗骰」⇒ 三本账各读各的）。 */
 	unit() {
+		if (RPG.diceControl) RPG.diceControl._记底层();          // ★三账之一：底层调用计数
 		return this._impl ? this._impl() : Math.random();   // ★默认源动态读取
 	},
 
@@ -66,8 +69,10 @@ RPG.rng = {
 	},
 };
 
-/** 掷骰，返回明细 { expr, count, sides, mod, rolls, total } */
-RPG.rollDetail = (expr) => {
+/** 掷骰，返回明细 { expr, count, sides, mod, rolls, total }
+ *  ★`sgstory#2031`：可选第二参 `ctx` ＝**用途定位**（`{ purpose, actor?, instance? }`；`sides` 与 `slot` 由本函数补）。
+ *  `ctx` 缺省且**无在用控制** ⇒ 与本笔之前**逐字相同**（✗ 碰任何控制面）。 */
+RPG.rollDetail = (expr, ctx) => {
 	const s = String(expr).replace(/\s+/g, '');
 	let m = /^(\d*)d(\d+)([+-]\d+)?$/i.exec(s);
 	if (!m) {
@@ -80,8 +85,11 @@ RPG.rollDetail = (expr) => {
 	const sides = parseInt(m[2], 10);
 	const mod = m[3] ? parseInt(m[3], 10) : 0;
 	const rolls = [];
+	/* ★`sgstory#2031`：**先验后掷**（原子性）—— 有 `ctx` 或有在用控制时，先按**整表达式**检一遍
+	 *   （面数／面域不合法 ⇒ **整次具名拒且零部分消费**），再逐颗落骰。 */
+	const 要记 = RPG.diceControl ? RPG.diceControl._预检(ctx, sides, count) : false;
 	for (let i = 0; i < count; i++) {
-		rolls.push(RPG.rng.pick(sides));   // 唯一随机入口（#1706）
+		rolls.push(要记 ? RPG.diceControl._落(ctx, sides, i, 要记) : RPG.rng.pick(sides));   // 唯一随机入口（#1706）
 	}
 	return {
 		expr,
@@ -93,8 +101,8 @@ RPG.rollDetail = (expr) => {
 	};
 };
 
-/** 掷骰，只返回总数 */
-RPG.roll = (expr) => RPG.rollDetail(expr).total;
+/** 掷骰，只返回总数（`ctx` 见 `RPG.rollDetail`） */
+RPG.roll = (expr, ctx) => RPG.rollDetail(expr, ctx).total;
 
 /** **检定原语**（`#1798` E1a）：**掷骰 ＋ 加值 ＋ 阈值** 的统一形。
  *
@@ -114,8 +122,8 @@ RPG.roll = (expr) => RPG.rollDetail(expr).total;
  *   `d20 + 加值 >= dc`（撬锁／豁免／治疗检定），而 `fracture` 初版想挂「力量检定」时
  *   **无消费点可挂**（被迫改绑近战伤害）。本原语补上那一层。
  */
-RPG.checkRoll = ({ mod = 0, dc = 10, die = '1d20', bonus = 0 } = {}) => {
-	const roll = RPG.roll(die);
+RPG.checkRoll = ({ mod = 0, dc = 10, die = '1d20', bonus = 0, ctx } = {}) => {
+	const roll = RPG.roll(die, ctx);          // ★`#2031`：`ctx` 一路透传（用途定位）
 	const total = roll + mod + bonus;
 	return { success: total >= dc, roll, mod, bonus, total, dc, die };
 };

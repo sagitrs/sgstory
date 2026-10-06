@@ -225,6 +225,19 @@
 		C().clearAll(); C().清账(); R().rng.reset();
 	});
 
+	test('★#2031 ⑨c【B1·未知会话】`clearAll(未知 id)` ⇒ 返 **0** 且**当前会话分毫不动**（✗ 回落当前）', () => {
+		C().会话('b1-当前'); C().clearAll('b1-当前'); C().清账();
+		C().arm({ purpose: 'damage', actor: '甲', 组: 0, faces: [3, 4] });
+		const 前 = C().报告().额度账.length;
+		assert.eq(前, 1, '前置：当前会话有一条臂');
+		assert.eq(C().clearAll('b1-并不存在'), 0, '★未知会话 id ⇒ 须返 **0**（✗ 回落当前会话、✗ 报「清掉了 N 条」）');
+		assert.eq(C().报告().额度账.length, 前, '★当前会话的臂**分毫不动**（✗ 被未知 id 清掉 ⇒ 无控制下假绿）');
+		定序(0.0);
+		assert.eq(R().roll('1d6', { purpose: 'damage', actor: '甲', 组: 0 }), 3, '★臂仍生效（真要证据：吃到的仍是指定面 3）');
+		assert.eq(C().clearAll('b1-当前'), 1, '（对照：**存在**的会话 id ⇒ 正常清并返回条数）');
+		C().会话(); C().clearAll(); C().清账(); R().rng.reset();
+	});
+
 	/* ───────── ⑤ 重击确认分得开 ───────── */
 
 	test('★#2031 ⑤【重击确认】`attack.hit` 与 `attack.crit` **分得开**（同一次攻击里各吃各的）', () => {

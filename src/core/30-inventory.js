@@ -59,6 +59,12 @@ const 保号 = (snap) => {
 	if (src.entityId != null || src.slotId != null) RPG.noteEntityId(身份);   // ★有号**也**顶高水位
 	const 出 = { ...src, entityId: 身份 };
 	delete 出.slotId;                                 // ★一个量一个名（旧名到此为止）
+	/* ★`sgstory#2023` 首轮 RC（**真伤**，领队实测指出）：**状态载荷须深拷**。
+	 *   浅拷（`{ ...src }`）会让「切出的那一件」与原槽**共用同一个 `state` 对象** ⇒ 改一件另一件跟着变
+	 *   ⇒「同 id 不同状态 ⇒ 不合并」的判据**从此不红**（两槽状态恒等 ⇒ 恒兼容）＝判据失效。
+	 *   ⚠ 修在**本处（唯一的入袋口）**：`deposit` 的三处 push ＋ `splitStack` ＋ `backfillItemIdentity`
+	 *     全经此函数 ⇒ ✗ 只修 `splitStack` 一处（那会留下同形的另几处 —— `#1844` 的教训）。 */
+	if (出.state !== undefined) 出.state = RPG.normalizeItemState(出.state);
 	return 出;
 };
 

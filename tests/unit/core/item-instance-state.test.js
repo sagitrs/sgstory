@@ -150,6 +150,33 @@
 			'非叠加件 ⇒ 具名拒');
 	});
 
+	test('★#2023 E1③【独立性·首轮 RC】切出者与原槽的 `state` **各自独立**（✗ 共用同一对象）', () => {
+		/* 病灶（领队 2026-10-06 实测指出）：浅拷 ⇒ 两槽共用同一个 `state` 对象 ⇒ 改一件另一件跟着变
+		 *   ⇒「同 id 不同状态 ⇒ 不合并」的判据**从此不红**（恒兼容）＝**判据失效**（✗ 只是美观问题）。 */
+		fresh();
+		R().defItem({ id: '__t2023-alias', name: '试件', stackable: true, charges: 9, used() {} });
+		R().deposit(inv(), '__t2023-alias', 1, { id: '__t2023-alias', charges: 6, state: { 脆: false } });
+		const 原槽 = inv().find((s) => s.id === '__t2023-alias');
+		const 切出 = R().splitStack(inv(), 原槽.entityId, 2);
+		assert.ok(切出.state !== 原槽.state, '★切出者的 state ✗ 与原槽**共用同一个对象**（须深拷）');
+		assert.eq(R().stateCompatible(原槽, 切出), true, '切完当下两者状态仍相同（本笔语义）');
+		切出.state.脆 = true;                                   // ★改切出者那一件
+		assert.eq(原槽.state.脆, false, '★改切出者的状态 ✗ 改到原槽（共享对象就会串改）');
+		assert.eq(R().stateCompatible(原槽, 切出), false, '★改后两槽**不再兼容** ⇒ 判据仍红得了（✗ 恒兼容）');
+		/* 反向：改原槽 ✗ 改切出者（双向都不串） */
+		原槽.state.脆 = true;
+		assert.eq(切出.state.脆, true, '（反向也独立）');
+		原槽.state.脆 = false;
+		assert.eq(切出.state.脆, true, '★改原槽 ✗ 改到切出者');
+		/* 入袋口是**唯一**的：`deposit` 转移路亦须深拷（同一处修 ⇒ 两面都成立） */
+		const 外来 = { id: '__t2023-alias', charges: 1, state: { 脆: true } };
+		R().deposit(inv(), '__t2023-alias', 1, 外来);
+		const 入袋 = inv().filter((s) => s.id === '__t2023-alias').find((s) => s.state?.脆 === true);
+		assert.ok(入袋.state !== 外来.state, '★`deposit` 转移路亦深拷（✗ 与调用方的快照共用对象）');
+		外来.state.脆 = false;
+		assert.eq(入袋.state.脆, true, '★调用方改自己的快照 ✗ 改到袋里那件');
+	});
+
 	/* ---------- ④ 与 E4 的交界：进得了盘、裁决面具名拒且零副作用 ---------- */
 
 	test('★#2024 E4：载荷进得了**盘**（宿主序列化面）；未知／坏版本**具名拒**且**零副作用**', () => {

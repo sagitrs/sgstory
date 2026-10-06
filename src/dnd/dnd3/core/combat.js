@@ -88,7 +88,7 @@ DND3.meleeAttack = (item, that, from) => {
 	 *   ⚠ 创伤罚**仍叠加**在照录值上（伤势是**场上状态**，✗ 属武器固有值）。 */
 	const atkMod = (item.stats.atkBonus ?? ((f.bab ?? 0) + abilMod)) + (DND3.traumaAttackMod?.(from) ?? 0) + 御水 + 擒抱;
 	const ac = DND3.acOf(that, from);
-	const die = DND3.d20();
+	const die = DND3.d20({ purpose: 'attack.hit', actor: from?.name ?? null, 物: item?.entityId ?? null });   // ★`#2031` 用途定位（`物`＝件实例，六裁 3）
 	const critMin = item.stats.critMin ?? 20;
 	// 目标 noDodge（宝箱等容器的对象性质，非规则量纲）：不会闪避，攻击总是命中
 	const noDodge = that?.noDodge === true;
@@ -99,7 +99,7 @@ DND3.meleeAttack = (item, that, from) => {
 		return;
 	}
 
-	const crit = !noDodge && die >= critMin && DND3.d20() + atkMod >= ac;
+	const crit = !noDodge && die >= critMin && DND3.d20({ purpose: 'attack.crit', actor: from?.name ?? null, 物: item?.entityId ?? null }) + atkMod >= ac;
 	const times = crit ? (item.stats.crit ?? 2) : 1;
 	const parts = [];
 	let dmg = 0;
@@ -110,7 +110,7 @@ DND3.meleeAttack = (item, that, from) => {
 	 *   ⇒ 要照录就只能显式声明；缺省（`undefined`）⇒ **逐字沿用** `abilMod` ⇒ 既有武器与九只动物**零回归**。 */
 	const dmgMod = (item.stats.dmgBonus ?? abilMod) + (DND3.traumaDamageMod?.(from) ?? 0) + 御水;
 	for (let i = 0; i < times; i++) {
-		const r = RPG.rollDetail(item.stats.dmg);
+		const r = RPG.rollDetail(item.stats.dmg, { purpose: 'damage', actor: from?.name ?? null, 物: item?.entityId ?? null, 组: i });   // ★`#2031`（`组`＝伤害分组：重击两次 ✗ 互撞，六裁 6）
 		dmg += r.total + dmgMod; // 重击时调整值同样翻倍
 		parts.push(r.rolls.join('+') + (dmgMod ? RPG.formatMod(dmgMod) : ''));
 	}

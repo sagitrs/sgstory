@@ -105,5 +105,13 @@ setup.DND3.abilityMod = (score) => Math.floor(((score ?? 10) - 10) / 2);
 setup.DND3.modOf = (stats, ability) => setup.DND3.abilityMod(stats?.[ability]);
 
 /** 1d20 —— 3E 检定的基础（core 只提供通用掷骰 RPG.roll） */
-setup.DND3.d20 = () => setup.RPG.roll('1d20');
+/** 1d20 —— 3E 检定的基础（core 只提供通用掷骰 RPG.roll）
+ *  ★`sgstory#2031`：可选 `ctx` ＝用途定位（由各正式落点给，`{ purpose, actor }`）。 */
+setup.DND3.d20 = (ctx) => setup.RPG.roll('1d20', ctx);
+/* ★`sgstory#2031`：本包**已接入**用途化骰面控制的正式落点 —— **在此一次声明**（✗ 散在各自档里，免得漏）。
+ *   故事侧可读 `RPG.diceControl.接入表()` 核对；`arm()` 对**未声明**的用途当场报「未覆盖」✓。
+ *   ⚠ `check.skill`／先攻等**尚未接入**（理由见 `#2031` 规格交付 §六）⇒ ✗ 在此冒名登记。 */
+for (const 用途 of ['attack.hit', 'attack.crit', 'damage', 'check.save', 'check.trauma', 'check.ability', 'check.grapple', 'trap.hit']) {
+	setup.RPG.diceControl?.接入?.(用途);
+}
 setup.RPG.登记包空间?.('dnd3', setup.DND3);   // ★`sgstory#1743` A₁：把本包命名空间交给 core 的登记表（✗ 让 core 去摸 setup）

@@ -34,7 +34,8 @@ DND3.save = (character, type, dc) => {
 	/* 判定式收敛（#1798 E1a）：创伤罚走 `bonus`（✗ 并入 `mod`）。
 	 * ★返回形**逐键不变**（S6）：`tests/unit/core/check-roll.test.js` 钉着这六个键，本笔 ✗ 加键
 	 *   —— 若要暴露「基础／属性」两段，另开键名即破 S6 ⇒ 本笔只把两段并进 `mod`。 */
-	const r = RPG.checkRoll({ mod, dc, bonus: trauma });
+	const r = RPG.checkRoll({ mod, dc, bonus: trauma,
+		ctx: { purpose: 'check.save', actor: character?.name ?? null } });   // ★`#2031` 用途定位
 	return { success: r.success, roll: r.roll, total: r.total, dc: r.dc, mod: r.mod, trauma };  // ★返回形逐键不变（S6）
 };
 

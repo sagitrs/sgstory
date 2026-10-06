@@ -14,7 +14,8 @@ DND3.Chest.handlers = {
 	lockpick(that) {
 		/* 判定式收敛（#1798 E1a：本处原为**内联手写**，是设计稿 §三 的**首要收敛点**）。
 		 *   播报的数值仍是「骰 ＋ 加值」的和（原为局部变量 `roll`，现为 `r.total`）⇒ **文案逐字不变**。 */
-		const r = RPG.checkRoll({ mod: DND3.modOf(that?.stats, 'dex'), dc: this.lockDC });
+		const r = RPG.checkRoll({ mod: DND3.modOf(that?.stats, 'dex'), dc: this.lockDC,
+			ctx: { purpose: 'check.ability', actor: that?.name ?? null } });   // ★`#2031` 用途定位
 		RPG.perform(`（撬锁判定：${r.total} / DC ${r.dc}）`);
 		if (r.success) this.openBy();
 		else this.lockNow();

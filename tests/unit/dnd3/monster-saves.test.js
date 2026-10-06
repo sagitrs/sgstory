@@ -66,8 +66,13 @@
 			for (const [类型, , , idx] of 三型) {
 				const r = D().save(c, 类型, 0);
 				assert.eq(r.mod, 总分[idx], `${名} 的 ${类型} 总分应为 ${总分[idx]}（${出处}）`);
-				assert.eq(r.total, r.roll + 总分[idx], `${名} 的 ${类型}：total ＝ roll ＋ ${总分[idx]}`);
-				assert.eq(r.trauma, 0, `${名} 的 ${类型}：无创伤 ⇒ 罚 0`);
+				/* ★《`#435` 顺折》：**创伤罚不进 `mod`** ⇒ 用返回的 `trauma` 收口。本格首版写的是
+				 *   `total === roll + 总分` 且 `trauma === 0`，而上表的角色是多处共享的模块级实例、
+				 *   dnd3 的创伤是可被别处在册用例（消费真随机）沾上的共享状态 ⇒ CI 上偶发「越界」
+				 *   （`rng-code-off` 与 `silent-first-host` 两把刀各实测到一回）。
+				 *   改后**与角色身上干不干净无关**，仍钉住「创伤只进 total」这一条。 */
+				assert.eq(r.total, r.roll + r.mod + r.trauma, `${名} 的 ${类型}：total ＝ roll ＋ mod ＋ 创伤罚`);
+				assert.eq(typeof r.trauma, 'number', `${名} 的 ${类型}：创伤罚须是数（缺省 0）`);
 			}
 		}
 	});

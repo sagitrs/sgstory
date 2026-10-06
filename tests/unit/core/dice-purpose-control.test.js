@@ -53,7 +53,7 @@
 		assert.eq(t.hp, 10, '✗ 控制时 AC25 对 d20=1 必不中（既有语义未动）');
 		const 骰 = C().log().filter((x) => x.purpose === 'attack.hit');
 		assert.eq(骰.length, 1, '★正式落点**恒带用途** ⇒ 未受控时也须记一条（来源「正常」，✗ 静默）');
-		assert.eq(骰[0].source, '正常', '★须记「正常」而非「受控」');
+		assert.eq(骰[0].source, '未受新控制', '★须记「正常」而非「受控」');
 		C().clearAll(); C().清账();
 	});
 
@@ -68,7 +68,7 @@
 		assert.eq(账.额度账[0].剩余, 1, '剩余须仍为 1');
 		assert.eq(账.未消费.length, 1, '★须**明报未消费**（✗ 显示「指定已生效」）');
 		assert.eq(账.未消费[0].purpose, 'check.save', '未消费条目须具名用途');
-		assert.eq(C().log().filter((x) => x.purpose === 'damage')[0].source, '正常', '别的用途走**正常**随机并记账');
+		assert.eq(C().log().filter((x) => x.purpose === 'damage')[0].source, '未受新控制', '别的用途走**正常**随机并记账');
 		C().clearAll();
 	});
 
@@ -153,6 +153,61 @@
 		const r = R().rollDetail('2d6', { purpose: 'damage', actor: '甲' });
 		assert.eq(J(r.rolls), J([3, 5]), `★合法多骰须按**顺序**落地：${J(r.rolls)}`);
 		C().clearAll();
+	});
+
+	/* ───────── ④c 物实例可辨（六裁 3 末句）／④d 伤害分组（六裁 6）／⑨b 会话作用域（冲突 1）───────── */
+
+	test('★#2031 ④c【物实例】同种件两枚 ⇒ 臂按 `物` 只对**指的那一件**生效（✗ 靠件注册 ID 消歧）', () => {
+		清();
+		const a = new (R().Character)({ name: '甲', hp: 10, stats: D().stats({ str: 14, bab: 3 }) });
+		const t = new (R().Character)({ name: '靶', hp: 40, maxHp: 40, stats: D().stats({ ac: 25 }) });
+		const 件1 = 件('club'), 件2 = 件('club');
+		assert.ok(件1.entityId !== 件2.entityId, '两件同种件须各有自号（E1 身份）');
+		C().arm({ purpose: 'attack.hit', actor: '甲', 物: 件2.entityId, faces: [20] });
+		定序(0.0);
+		try { D().meleeAttack(件1, t, a); } finally { R().rng.reset(); }
+		assert.eq(C().log().filter((x) => x.purpose === 'attack.hit' && x.source === '受控').length, 0,
+			'★拿**另一件**同种件打 ⇒ ✗ 得吃该臂（物实例可辨）');
+		定序(0.0);
+		try { D().meleeAttack(件2, t, a); } finally { R().rng.reset(); }
+		assert.eq(C().log().filter((x) => x.purpose === 'attack.hit' && x.source === '受控').length, 1,
+			'★拿**臂指的那一件**打 ⇒ 吃面 ✓');
+		C().clearAll(); C().清账();
+	});
+
+	test('★#2031 ④d【伤害分组】重击 ×2 的两次伤害表达式靠 `组` 各吃各的面（✗ 两组 slot0 互撞）', () => {
+		清();
+		C().arm({ purpose: 'attack.hit', actor: '甲', faces: [20] });
+		C().arm({ purpose: 'attack.crit', actor: '甲', faces: [20] });
+		C().arm({ purpose: 'damage', actor: '甲', 组: 0, faces: [6] });
+		C().arm({ purpose: 'damage', actor: '甲', 组: 1, faces: [1] });
+		const { a, t } = 对打({ ac: 25 });            // 20+5 ≥ 25 命中；确认 20+5 ≥ 25 重击 ⇒ 伤害两次
+		const club = 件('club');
+		try { D().meleeAttack(club, t, a); } finally { R().rng.reset(); }
+		const 骰 = C().log().filter((x) => x.purpose === 'damage');
+		assert.eq(骰.length, 2, `重击 ×2 ⇒ 两次伤害表达式（实得 ${骰.length}）`);
+		assert.eq(J(骰.map((x) => x.组)), J([0, 1]), '★两组须各带自己的 `组`（✗ 两组同键 ⇒ 后一组抢前一组的面）');
+		assert.eq(J(骰.map((x) => x.face)), J([6, 1]), `★各吃自己那组的面：${J(骰.map((x) => x.face))}`);
+		C().clearAll(); C().清账();
+	});
+
+	test('★#2031 ⑨b【会话作用域】臂只在**本会话**生效；`clearAll(会话)` 只清该会话（✗ 清别人）', () => {
+		C().会话('t1'); C().clearAll('t1'); C().清账(); C().会话();   // 前置：两个会话都清干净
+		C().会话('t1');
+		C().arm({ purpose: 'damage', actor: '甲', 组: 0, faces: [3, 4] });   // 留一面 ⇒ 便于后验「只清该会话」
+		C().会话('t2');
+		assert.eq(C().报告().额度账.length, 0, '★新建会话 ✗ 继承别会话的臂（会话独立）');
+		定序(0.0);
+		assert.eq(R().roll('1d6', { purpose: 'damage', actor: '甲' }), 1, '★在 t2 里 ⇒ ✗ 吃 t1 的臂（未受新控制）');
+		C().会话('t1');
+		assert.eq(C().报告().额度账.length, 1, '回 t1 ⇒ 臂还在（且未被别会话消费）');
+		定序(0.0);
+		assert.eq(R().roll('1d6', { purpose: 'damage', actor: '甲' }), 3, '★t1 的臂只对 t1 的掷骰生效');
+		assert.eq(C().clearAll('t1'), 1, '`clearAll(会话)` 须只清该会话并返回撤掉条数');
+		assert.eq(C().报告().额度账.length, 0, 't1 清空 ✓');
+		C().会话('t2');
+		assert.eq(C().报告().额度账.length, 0, '★t2 不受影响（清一个会话 ✗ 清别人）');
+		C().会话(); C().clearAll(); C().清账(); R().rng.reset();
 	});
 
 	/* ───────── ⑤ 重击确认分得开 ───────── */
@@ -248,7 +303,7 @@
 		C().场次('t2');
 		定序(0.0);                                       // 之后走正常随机 ⇒ d20 出 1
 		assert.eq(R().roll('1d20', { purpose: 'attack.hit', actor: '甲' }), 1, '换场次 ⇒ ✗ 匹配（走正常随机）');
-		assert.eq(C().log().filter((x) => x.source === '正常' && x.purpose === 'attack.hit').length >= 1, true,
+		assert.eq(C().log().filter((x) => x.source === '未受新控制' && x.purpose === 'attack.hit').length >= 1, true,
 			'未匹配那次须记「正常」（✗ 静默）');
 		C().clearAll();
 	});

@@ -2,7 +2,7 @@
 
 状态：**待评审设计，不是已实现接口或存档格式。** 本次只提交文档。需求：[sgstory #2021](https://github.com/sagitrs/sgstory/issues/2021)；故事需求：[sgstory-books #393](https://github.com/sagitrs/sgstory-books/issues/393)。
 
-故事的完整事件、返程政策和界面设计见[七名河教程](https://github.com/sagitrs/sgstory-books/blob/docs/393-seven-names-tutorial/docs/plans/babel/optional/tutorial-seven-names/README.md)。该链接指向配对设计分支，评审后若改名或删除分支，须改为合入提交链接。本篇只承载可复用能力，不把七名河的世界编号、敌人、DC、脆弱范围或城镇政策写成引擎默认值。
+故事的完整事件、返程政策和界面设计见[七名河教程](https://github.com/sagitrs/sgstory-books/blob/0a2a0701/docs/plans/babel/optional/tutorial-seven-names/README.md)。该链接指向配对设计的合入提交 0a2a0701。本篇只承载可复用能力，不把七名河的世界编号、敌人、DC、脆弱范围或城镇政策写成引擎默认值。
 
 ## 1. 目标与非目标
 

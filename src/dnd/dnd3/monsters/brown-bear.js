@@ -15,6 +15,11 @@ DND3.BrownBear = RPG.defCharacter({
 	stats: DND3.stats({
 		// SRD 3.5 · `Monsters/Monsters - Animals.md:230`（`## Bear, Brown` → Abilities）——Str 27／Dex 13／Con 19／Int 2／Wis 12／Cha 6
 		str: 27, dex: 13, con: 19, int: 2, wis: 12, cha: 6,
+		// SRD 3.5 · `Monsters/Monsters - Animals.md:244`（`## Bear, Brown` → Saves：Fort +9, Ref +6, Will +3）——
+		//   3.5 的 Saves 行印的是**总分** ⇒ 本行三数是**基础加值**（＝总分 − 属性调整值）：
+		//   体质 19（+4）／敏捷 13（+1）／感知 12（+1）；总分由 `core/saves.js` 现加回来
+		//   （逐只反算回模板值见 `tests/unit/dnd3/monster-saves.test.js`）。
+		save_fortitude: 5, save_reflex: 5, save_will: 2, // 基础加值
 		// 出处同上（同一 pin 文件同一行）—— Armor Class 15、Challenge Rating 4
 		ac: 15, bab: 4, cr: 4,
 	}),

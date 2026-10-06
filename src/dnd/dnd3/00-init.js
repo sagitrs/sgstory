@@ -33,6 +33,13 @@ setup.DND3.STAT_BLOCK = {
 	bab: 0, // 基础攻击加成
 	heal_bonus: 0, // 治疗加成
 	cr: 0, // 挑战等级
+	/* ★`sgstory#2030` ＋ `#1762` B-6：**3.5 三豁免的基础加值**（强韧／反射／意志）。
+	 *   总分 = 该数 ＋ 对应属性（体质／敏捷／感知）的调整值，由 `core/saves.js` 现加（✗ 不在此预算）。
+	 *   出处：SRD 3.5 · `Basic Rules and Legal/basics-and-ability-scores.md:217`／`:200`／`:262`。
+	 *   ⚠ 为何进默认块（✗ 只给个别角色）：本仓约定「**玩家有的字段哥布林也有**，反之亦然」
+	 *     —— 该约定有机械守卫（`tests/unit/dnd3/characters.test.js` 的键集对称断言）⇒ 单给一侧会当场红。
+	 *   ⚠ 缺省 0 ⇒ 总分恰为属性调整值那一份 ⇒ 旧档（缺这三键）**不炸、且拿到属性面**（读侧另有 `?? 0`）。 */
+	save_fortitude: 0, save_reflex: 0, save_will: 0, // 三豁免的基础加值（总分见 core/saves.js）
 	/* ★`sgstory#2027`：**体型**（擒抱的体型特殊修正读它；短名与 pin 表同形，见 `core/grapple.js`）。
 	 *   为何进默认块（✗ 只给个别怪物）：本仓约定「**玩家有的字段哥布林也有**，反之亦然」
 	 *   —— 该约定有机械守卫（`tests/unit/dnd3/characters.test.js` 的键集对称断言）⇒ 单给一侧会当场红。

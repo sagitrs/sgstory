@@ -15,6 +15,11 @@ DND3.Boar = RPG.defCharacter({
 	stats: DND3.stats({
 		// SRD 3.5 · `Monsters/Monsters - Animals.md:356`（`## Boar` → Abilities）——Str 15／Dex 10／Con 17／Int 2／Wis 13／Cha 4
 		str: 15, dex: 10, con: 17, int: 2, wis: 13, cha: 4,
+		// SRD 3.5 · `Monsters/Monsters - Animals.md:370`（`## Boar` → Saves：Fort +6, Ref +3, Will +2）——
+		//   3.5 的 Saves 行印的是**总分** ⇒ 本行三数是**基础加值**（＝总分 − 属性调整值）：
+		//   体质 17（+3）／敏捷 10（+0）／感知 13（+1）；总分由 `core/saves.js` 现加回来
+		//   （逐只反算回模板值见 `tests/unit/dnd3/monster-saves.test.js`）。
+		save_fortitude: 3, save_reflex: 3, save_will: 1, // 基础加值
 		// 出处同上（同一 pin 文件同一行）—— Armor Class 16、Base Attack/Grapple +2、Challenge Rating 2
 		ac: 16, bab: 2, cr: 2,
 	}),

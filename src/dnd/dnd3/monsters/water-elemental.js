@@ -22,8 +22,9 @@
  *   · `Speed 20 ft., swim 90 ft.`、`Space/Reach`、`Organization`、`Advancement`、
  *     `Alignment: Usually neutral`、`Level Adjustment`、以及「不能离开被召唤水体 180 尺」——
  *     本仓无移动量纲与这些字段。
- * ⚠ `Saves` 行的三个值本笔**未声明**（同 `monsters/crocodile.js` 的说明）：它们与豁免面的命名
- *   一起由 `#2030`（＋`#1762` B-6）同一笔落地。
+ * `Saves` 行的三个值**已随 `#2030`（＋`#1762` B-6）声明**（同 `monsters/crocodile.js` 的口径）：
+ *   字段存**基础加值**，总分＝基础＋属性调整值 —— Small `Fort +4` − 体质 +1 ＝ 3 等；
+ *   Medium `Fort +7` − +3 ＝ 4 等。
  */
 
 /** 两型水元素共用的声明（差异只在数值 ⇒ 一处写形、两处给值，同 `items/natural-attacks.js` 的生成器形） */
@@ -44,6 +45,11 @@ DND3.SmallWaterElemental = 水元素({
 	hp: 11,
 	stats: {
 		str: 14, dex: 10, con: 13, int: 4, wis: 11, cha: 11,
+		// SRD 3.5 · `3.5 Compendium/Monsters/3.5 Monsters - E.md:326`（`### Water Elemental, Small` → Saves：Fort +4, Ref +0, Will +0）——
+		//   3.5 的 Saves 行印的是**总分** ⇒ 本行三数是**基础加值**（＝总分 − 属性调整值）：
+		//   体质 13（+1）／敏捷 10（+0）／感知 11（+0）；总分由 `core/saves.js` 现加回来
+		//   （逐只反算回模板值见 `tests/unit/dnd3/monster-saves.test.js`）。
+		save_fortitude: 3, save_reflex: 0, save_will: 0, // 基础加值
 		// 出处同上（同一 pin 文件的 AC 行与 Base Attack/Grapple 行、Challenge Rating 行）—— AC 17、BAB +1、CR 1
 		ac: 17, bab: 1, cr: 1, size: 'small',
 	},
@@ -57,6 +63,11 @@ DND3.MediumWaterElemental = 水元素({
 	hp: 30,
 	stats: {
 		str: 16, dex: 12, con: 17, int: 4, wis: 11, cha: 11,
+		// SRD 3.5 · `3.5 Compendium/Monsters/3.5 Monsters - E.md:326`（`### Water Elemental, Medium` → Saves：Fort +7, Ref +2, Will +1）——
+		//   3.5 的 Saves 行印的是**总分** ⇒ 本行三数是**基础加值**（＝总分 − 属性调整值）：
+		//   体质 17（+3）／敏捷 12（+1）／感知 11（+0）；总分由 `core/saves.js` 现加回来
+		//   （逐只反算回模板值见 `tests/unit/dnd3/monster-saves.test.js`）。
+		save_fortitude: 4, save_reflex: 1, save_will: 1, // 基础加值
 		// 出处同上（同一 pin 文件的 AC 行与 Base Attack/Grapple 行、Challenge Rating 行）—— AC 19、BAB +3、CR 3
 		ac: 19, bab: 3, cr: 3, size: 'medium',
 	},

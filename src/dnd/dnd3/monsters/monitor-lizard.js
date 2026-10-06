@@ -18,6 +18,11 @@ DND3.MonitorLizard = RPG.defCharacter({
 	stats: DND3.stats({
 		// SRD 3.5 · `Monsters/Monsters - Animals.md:1165`（`## Lizard, Monitor` → Abilities）——Str 17／Dex 15／Con 17／Int 1／Wis 12／Cha 2
 		str: 17, dex: 15, con: 17, int: 1, wis: 12, cha: 2,
+		// SRD 3.5 · `Monsters/Monsters - Animals.md:1179`（`## Lizard, Monitor` → Saves：Fort +8, Ref +5, Will +2）——
+		//   3.5 的 Saves 行印的是**总分** ⇒ 本行三数是**基础加值**（＝总分 − 属性调整值）：
+		//   体质 17（+3）／敏捷 15（+2）／感知 12（+1）；总分由 `core/saves.js` 现加回来
+		//   （逐只反算回模板值见 `tests/unit/dnd3/monster-saves.test.js`）。
+		save_fortitude: 5, save_reflex: 3, save_will: 1, // 基础加值
 		// 出处同上（同一 pin 文件同一行）—— Armor Class 15、Base Attack/Grapple +2、Challenge Rating 2
 		ac: 15, bab: 2, cr: 2,
 	}),

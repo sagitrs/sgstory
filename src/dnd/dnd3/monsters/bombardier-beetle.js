@@ -19,6 +19,11 @@ DND3.BombardierBeetle = RPG.defCharacter({
 	stats: DND3.stats({
 		// SRD 3.5 · `Monsters/Monsters - Vermin.md:119`（`## Giant Bombardier Beetle` → Abilities）——Str 13／Dex 10／Con 14／Wis 10／Cha 9（Int 源为「—」⇒ 见文件头缺口说明）
 		str: 13, dex: 10, con: 14, int: 10, wis: 10, cha: 9,
+		// SRD 3.5 · `Monsters/Monsters - Vermin.md:133`（`## Giant Bombardier Beetle` → Saves：Fort +5, Ref +0, Will +0）——
+		//   3.5 的 Saves 行印的是**总分** ⇒ 本行三数是**基础加值**（＝总分 − 属性调整值）：
+		//   体质 14（+2）／敏捷 10（+0）／感知 10（+0）；总分由 `core/saves.js` 现加回来
+		//   （逐只反算回模板值见 `tests/unit/dnd3/monster-saves.test.js`）。
+		save_fortitude: 3, save_reflex: 0, save_will: 0, // 基础加值
 		// 出处同上（同一 pin 文件同一行）—— Armor Class 16、Challenge Rating 2
 		ac: 16, bab: 1, cr: 2,
 	}),

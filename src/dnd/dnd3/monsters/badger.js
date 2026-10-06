@@ -16,6 +16,11 @@ DND3.Badger = RPG.defCharacter({
 	stats: DND3.stats({
 		// SRD 3.5 · `Monsters/Monsters - Animals.md:113`（`## Badger` → Abilities）——Str 8／Dex 17／Con 15／Int 2／Wis 12／Cha 6
 		str: 8, dex: 17, con: 15, int: 2, wis: 12, cha: 6,
+		// SRD 3.5 · `Monsters/Monsters - Animals.md:127`（`## Badger` → Saves：Fort +4, Ref +5, Will +1）——
+		//   3.5 的 Saves 行印的是**总分** ⇒ 本行三数是**基础加值**（＝总分 − 属性调整值）：
+		//   体质 15（+2）／敏捷 17（+3）／感知 12（+1）；总分由 `core/saves.js` 现加回来
+		//   （逐只反算回模板值见 `tests/unit/dnd3/monster-saves.test.js`）。
+		save_fortitude: 2, save_reflex: 2, save_will: 0, // 基础加值
 		// 出处同上（同一 pin 文件同一行）—— Armor Class 15、Base Attack/Grapple +0、Challenge Rating 1/2
 		ac: 15, bab: 0, cr: '1/2',
 	}),

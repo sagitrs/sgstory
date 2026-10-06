@@ -27,12 +27,23 @@
  *   ⚠ **脱钩代价（有意）**：`atkBonus` 与 `bab`／力调**不联动** —— 日后改属性**不会**改它。
  *     这是有意的（值来自 pinned，✗ 来自推导）；三机制跟进票落地后**应回头复查本档**。
  *
+ * ## ★伤害加值：`stats.dmgBonus`（`#2027` 新开，与 `atkBonus` 同形）
+ *   上面 ③ 的「×1.5 力调」原先**无处落** ⇒ 自 `#2027` 起有了照录位：件声明 `dmgBonus` ⇒ 引擎**照录**（✗ 不再乘力调）；
+ *   未声明 ⇒ 逐字沿用旧的 `abilMod`。
+ *   ⚠ **本档既有九件有意不动**（仍走引擎的 `×1` 力调）：它们的 pinned 伤害行里确有 `×1.5` 的几件
+ *     （Boar／Lizard／Bombardier／Stag），改它们＝**改既有内容战力**，不属 `#2027` 的范围（该票只接三只新怪物）
+ *     ⇒ 具名留账：另票可逐只补 `dmgBonus`。
+ *   ⚠ 新增三件（鳄鱼咬／两型水元素 Slam）**逐值照录** pinned 的伤害加值（见下方各件）。
+ *
  * ## 不落项（house rule，非 SRD —— ✗ 不静默丢弃，逐条记名）
  *   · **多肢／Full Attack**：只落 **Attack 行**（单攻击）。3e 自然武器有「主/次攻击」与「全回合」层，
  *     引擎**无该层**（同 `#1784` 惯例 ⇒ 注记）。Badger `2 claws … and bite`／Bear `2 claws … and bite +6`
  *     皆**只取首个**。★与 `#1854`（空手）共用同一条注记形，✗ 两套写法。
  *   · **特技**：Rage（Badger）／Ferocity（Boar）／Trip（Wolf）／Poison（Bee）／
  *     Acid spray（Bombardier）／Trample（Stag）／Improved grab（Bear）**一律不落**。
+ *     ★但 **Improved grab 的原语已建**（`#2027`：`DND3.defOnHit` ＋ `core/grapple.js`）——
+ *     本档的鳄鱼咬就是它的首个消费者；其余特技仍不落（各自需要专属机制），
+ *     熊的 Improved Grab 接线属 L18–19 面（另票），此处只更正「原语不存在」这句已过期的话。
  *   · **伤害类型**：pinned **未给** ⇒ 按自然攻击惯例声明（爪 slashing／咬 piercing／
  *     蛰 piercing／冲撞 bludgeoning）并标 `house rule（非 SRD）`。
  *   · **重击倍率**：pinned 未给 ⇒ 取 SRD 默认 ×2（`crit: 2`），同属 `house rule` 注记。
@@ -54,14 +65,18 @@
 
 /* 生成器：9 只同形（✗ 逐档抄 9 遍 ⇒ 改一处即可全改）。
  *  ⚠ 刻意**不**逐只写成独立 `RPG.defItem` 变量（件形一致 ⇒ 参数化更少漂移面）；
- *    但仍走 `RPG.defItem` 以拿 `Item` 子类（`equipped`／`perform`／`toJSON` 等契约面）。 */
-const natAttack = ({ id, name, dmg, type, atkBonus, desc }) => RPG.defItem({
+ *    但仍走 `RPG.defItem` 以拿 `Item` 子类（`equipped`／`perform`／`toJSON` 等契约面）。
+ *  ★`#2027`：加两个**可选**项 —— `dmgBonus`（照录伤害加值）与 `onHit`（命中后追加的 id）。
+ */
+const natAttack = ({ id, name, dmg, type, atkBonus, dmgBonus, onHit, desc }) => RPG.defItem({
 	id, name, desc,
 	stats: {
 		dmg,
 		type,
 		crit: 2,          // pinned 未给 ⇒ SRD 默认 ×2（house rule，见档头注记）
 		atkBonus,         // ★显式照录 pinned Attack 行，✗ 引擎推导（见档头）
+		...(dmgBonus === undefined ? {} : { dmgBonus }),   // ★照录伤害加值（缺省 ⇒ 不写键 ⇒ 既有九件快照零变）
+		...(onHit === undefined ? {} : { onHit }),         // ★命中后追加（见 `core/grapple.js`）
 		natural: true,    // 标记：供将来「自然武器」面识别（✗ 现无消费者）
 	},
 	charges: null,
@@ -121,4 +136,28 @@ DND3.FireBeetleBite = natAttack({
 DND3.StagBeetleBite = natAttack({
 	id: 'giant-stag-beetle-bite', name: '巨鹿甲虫咬', dmg: '4d6', type: 'piercing', atkBonus: 10,
 	desc: '巨颚一合，连骨头都能夹碎。',
+});
+
+/* ── `#2027`（七名河 E6）：鳄鱼与两型水元素的天然攻击件（三件，逐值照录 pinned）── */
+
+/* Crocodile：`Bite +6 melee (1d8+6)`（`Monsters/Monsters - Animals.md:526`）
+ * ★`onHit: 'improved-grab'`：咬中之后**自由动作**起擒抱（同块的 `### Improved Grab (Ex)` 段，`:548`）。
+ * ⚠ 尾击（`tail slap +6 melee (1d12+6)`，原文为「Bite … **or** tail slap」二择）**不落** ——
+ *   本仓攻击件单件制（同档头「多肢／Full Attack」条），取咬击不违原文（原文本就是二者择一）。 */
+DND3.CrocodileBite = natAttack({
+	id: 'crocodile-bite', name: '鳄鱼咬', dmg: '1d8', type: 'piercing', atkBonus: 6, dmgBonus: 6,
+	onHit: 'improved-grab',
+	desc: '布满利齿的长颚，咬住便往深水里拖。',
+});
+/* Small Water Elemental：`Slam +4 melee (1d6+3)`（`3.5 Compendium/Monsters/3.5 Monsters - E.md:320` 的 Attack 行） */
+DND3.SmallWaterElementalSlam = natAttack({
+	id: 'small-water-elemental-slam', name: '水元素重击', dmg: '1d6', type: 'bludgeoning',
+	atkBonus: 4, dmgBonus: 3,
+	desc: '整条水凝成一击掼过来，像一记沉重的浪。',
+});
+/* Medium Water Elemental：`Slam +6 melee (1d8+4)`（同上同一行） */
+DND3.MediumWaterElementalSlam = natAttack({
+	id: 'medium-water-elemental-slam', name: '水元素重击', dmg: '1d8', type: 'bludgeoning',
+	atkBonus: 6, dmgBonus: 4,
+	desc: '成吨的水压成一件钝器，砸下来如城门落闸。',
 });

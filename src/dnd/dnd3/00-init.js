@@ -33,6 +33,12 @@ setup.DND3.STAT_BLOCK = {
 	bab: 0, // 基础攻击加成
 	heal_bonus: 0, // 治疗加成
 	cr: 0, // 挑战等级
+	/* ★`sgstory#2027`：**体型**（擒抱的体型特殊修正读它；短名与 pin 表同形，见 `core/grapple.js`）。
+	 *   为何进默认块（✗ 只给个别怪物）：本仓约定「**玩家有的字段哥布林也有**，反之亦然」
+	 *   —— 该约定有机械守卫（`tests/unit/dnd3/characters.test.js` 的键集对称断言）⇒ 单给一侧会当场红。
+	 *   ⚠ 缺省 `medium` ⇒ 体型修正 **0**，与旧档／未声明体型的角色**逐值同旧**（零回归）；
+	 *     读侧另有 `DND3.sizeOf` 的缺省兑底（旧档缺该键时也走 medium）。 */
+	size: 'medium', // 体型（fine/diminutive/tiny/small/medium/large/huge/gargantuan/colossal）
 };
 /** 包标识（Symbol 键）：显式标注数值块的**归属包**，供跨包判据使用（如 #1741 的闸门只接管本包角色）。
  *  ⚠ 用 Symbol 而非字符串键的理由（三条同时成立）：

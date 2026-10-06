@@ -32,6 +32,13 @@
       "scope": "value",
       "why": "B 组·列语义：5E `equipment.md` 的表格行（`:132` 为 `<td>Club</td>`，伤害在相邻列/后续行）——同属「值在表里、需列位才取得出」。重访触发：①5E 换 pin ②新增第 4 个 5E 表格引用点",
       "basis": "同上（T 席裁决 1）"
+    },
+    {
+      "file": "src/dnd/dnd3/monsters/water-elemental.js",
+      "match": "3.5 Compendium/Monsters/3.5 Monsters - E.md:312",
+      "scope": "value",
+      "why": "多列总表（`Water Elemental, Small／Medium／Large` 三列同行）：取单列的值须建模列位，与 3E 碎片表同形；本仓对这两型只落 Small／Medium，逐列取值属未受 pin 约束的隐性判据。重访触发：①3E 换 pin ②新增第 4 个 3E 列语义引用点 ③有人要求逐列精度",
+      "basis": "T 席裁决 #1714 comment 5910204101 裁决 1（同一理由：对第三方表结构作假设属隐性判据）"
     }
   ]
 }

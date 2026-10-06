@@ -43,7 +43,10 @@
 
 	test('dnd3 chargen：数值块键集精确相等且不含调整值字段（U9）', () => {
 		const keys = Object.keys(D().stats()).sort();
-		const wants = ['ac', 'bab', 'cha', 'con', 'cr', 'dex', 'heal_bonus', 'int', 'str', 'wis'].sort();
+		/* ★`sgstory#2027`：加入 `size`（体型）—— 擒抱的体型特殊修正读它（`core/grapple.js`）；
+		 *   因本仓约定「玩家有的字段哥布林也有」而**必须**进默认块（单给一侧会被键集对称断言抓到，
+		 *   见 `tests/unit/dnd3/characters.test.js`）。本行的增删仍是**显式**的（U9 的用意即此）。 */
+		const wants = ['ac', 'bab', 'cha', 'con', 'cr', 'dex', 'heal_bonus', 'int', 'size', 'str', 'wis'].sort();
 		assert.eq(keys.join(','), wants.join(','), '键集与 §6.5 变更后逐项相等');
 		assert.ok(!keys.some((k) => k.endsWith('_mod')), '不含任何以 _mod 结尾的键');
 	});

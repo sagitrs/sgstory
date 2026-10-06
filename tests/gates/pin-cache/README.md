@@ -20,9 +20,11 @@
 | `equipment-3e.md` | `Obsidian-TTRPG-Community/DnD-3.5-SRD-Markdown` | D&D v3.5 SRD | `70a6b263e68604d8b2fb931937746161f2b65b58` | OGL 1.0a |
 | `legal-information-3e.md` | 同上 | 同上 | 同上 | OGL 1.0a |
 | `3.5 Monsters - G-3e.md` | 同上 | 同上 | 同上 | OGL 1.0a |
+| `3.5 Monsters - E-3e.md` | 同上 | 同上 | 同上 | OGL 1.0a |
 | `Monsters - Animals-3e.md` | 同上 | 同上 | 同上 | OGL 1.0a |
 | `Monsters - Vermin-3e.md` | 同上 | 同上 | 同上 | OGL 1.0a |
 | `basics-and-ability-scores-3e.md` | 同上 | 同上 | 同上 | OGL 1.0a |
+| `combat-ii-movement-modifiers-and-special-actions-3e.md` | 同上 | 同上 | 同上 | OGL 1.0a |
 | `2msrdbasics基本-d20m.md` | `qt911025/d20m-srd-zhcn` | MSRD（`d20M`） | `1733391d14c7782d2ba24fb7d398725b7a32c9f6` | OGL 1.0a |
 | `3msrdabilityscores属性值-d20m.md` | 同上 | 同上 | 同上 | OGL 1.0a |
 | `25msrdequipmentweaponsandarmor武器与盔甲-d20m.md` | 同上 | 同上 | 同上 | OGL 1.0a |

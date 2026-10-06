@@ -85,6 +85,17 @@ RPG.BattleTurn = class BattleTurn extends RPG.Event {
 	 *  · `RPG.act` 的返回**原样透传**（`rejected/no-ammo`／`rejected/action-refused` 等 ⇒ 不推进）。 */
 	#attack(attacker, getDefender) {
 		this.perform(`现在是${attacker.name}的回合。`);
+		/* ★`sgstory#2027`：**包侧声明的回合动作**（擒抱一族：被抓住 ⇒ 挣脱；正抓着人 ⇒ 钉住／撞一下）。
+		 *   契约：`RPG.battleTurnAction(actor)` 返回 `null` ⇒ 本路**不接管**（走下面的原有武器路）；
+		 *   返回 `{ status, reason? }` ⇒ 本回合就此用完（与武器路同形：`status === 'applied'` 才算推进）。
+		 *   为何是**包级挂点**（✗ 不写进 core）：擒抱是 3E 的规则，core 不认识任何包 ——
+		 *   与 `RPG.respawnHooks.clearEffects`（本档 `:220` 的读法）同一哲学：机制在 core，语义由包给。
+		 *   ⚠ 读法是**裸 `RPG.`**（✗ `setup.RPG.`）：`RPG` 是本引擎自己的命名空间，包侧就往它上面登记
+		 *     （同 `RPG.onReviveStats`）；走 `setup.RPG.` 会被 `#1804` 件二的**宿主触点棘轮**计成
+		 *     core 与**宿主**的新耦合，而这里读的是**引擎自己的**名字（那门量的是宿主面）。
+		 *   ⚠ 未注册（未装该包）⇒ `?.` 短路 ⇒ 行为**零变**。 */
+		const 包动作 = RPG.battleTurnAction?.(attacker);
+		if (包动作 != null) return 包动作;
 		const weapon = attacker.contains(['weapon', 'equipped']);
 		if (weapon == null) {
 			/* ★`#1892`（E1 · `books#132` L1 前提）：**自动通路**（`interactive:false`）也走**空手打击**。

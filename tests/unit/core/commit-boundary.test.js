@@ -41,6 +41,15 @@
 			}
 			assert.eq(C().ledger().size, 0, `${情形}：✗ 不得留下「已提交事实」`);
 		}
+		/* ★公共面的**载荷**（✗ 只信 `preview` 当场给的那张）：票据可被故事存进 `$` **跨拍**读回 ⇒ 可被改坏／伪造 */
+		净();
+		const f2 = 事实(); const 前2 = J(f2);
+		const 坏票 = { request: 'e2-1-坏载荷', 前像: 事实(), 计划: [1, 2] };      // ★计划是数组（✗ 纯数据对象）
+		const r2 = C().commit(坏票, { facts: f2 });
+		assert.eq(r2.status, 'rejected', '坏载荷票据 ⇒ 须拒（✗ 半态：删了旧键而没赋新键）');
+		assert.eq(r2.code, 'COMMIT_BAD_TICKET', '拒绝码须具名');
+		assert.eq(J(f2), 前2, '★坏载荷 ⇒ 活事实逐字不变');
+		assert.eq(C().ledger().size, 0, '坏载荷 ⇒ ✗ 不得留下已提交事实');
 	});
 
 	test('★#2025 E2-2：**旧预览**拒绝（持物／位置已变 ⇒ ✗ 按旧预览落地；重算后可提交）', () => {
@@ -79,6 +88,14 @@
 		assert.eq(J(二.facts), 一次后, '★须**返回已提交事实**');
 		assert.eq(J(f), 一次后, `✗ 重复提交双扣：${一次后} ⇒ ${J(f)}`);
 		assert.eq(C().ledger().size, 1, '同一请求只占一条账');
+		/* ★`N-1`（`dev-9`）**次序**：**去重读在载荷校验之前** ⇒「已提交的请求 ＋ 被改坏的票」
+		 *   仍须**返回已提交事实**（✗ 错报 `COMMIT_BAD_TICKET`）—— 设计 §4 原文「返回已提交事实」。 */
+		const 坏票 = { request: 'e2-3', 前像: 事实(), 计划: [1, 2] };
+		const 三 = C().commit(坏票, { facts: f });
+		assert.eq(三.status, 'settled', '★已提交的请求 ⇒ 仍须走「已提交」支（✗ 因载荷坏而错报）');
+		assert.eq(三.reused, true, '须标记 reused');
+		assert.eq(J(三.facts), 一次后, '★须返回已提交事实（逐字）');
+		assert.eq(J(f), 一次后, '活事实仍逐字不变');
 	});
 
 	test('★#2025 E2-4：故障注入 ⇒ **不留半回城**；`publish` 失败 ⇒ 只重绘（✗ 重跑领域副作用）', () => {
@@ -124,10 +141,17 @@
 			assert.eq(typeof C()?.[m], 'function', `★接入点缺 ${m} ⇒ 六格住在不存在的面上`);
 		}
 		assert.ok(Number.isInteger(C().上限) && C().上限 > 0, '上限须是正整数（有界账）');
+		/* ★`N1`（`dev-9`）：**读不得写** —— 读口若顺手建出空表，`envelope().domains` 会把它记成「有落点」、
+		 *   `audit().absent` 里也就看不到它了（★假落点遮住审计面）。 */
+		assert.eq('rpgCommits' in State.variables, false, '前置：本格尚未写过账');
+		C().settled('从没交过的请求'); C().ledger();
+		assert.eq('rpgCommits' in State.variables, false, '★读口 ✗ 得建键（那会遮住 audit().absent）');
 		/* 正面走一遍：这条保证上面五格的红**不是因为面不存在** */
 		const f = 事实();
 		const p = C().preview({ request: 'e2-P1', facts: f, apply: 计划推进 });
 		assert.eq(C().commit(p.ticket, { facts: f }).status, 'applied', '正控：合法提交能成功');
+		/* 反向：真写过之后键才该在（✗ 把「读不得写」写成「永不写」） */
+		assert.eq('rpgCommits' in State.variables, true, '真提交之后键须在（本判据 ✗ 是「永不写」）');
 	});
 
 	test('★#2025 E2-P2【幂等对照】:同请求第二次零副作用，且**账进得了盘**（还原后仍读得到）', () => {

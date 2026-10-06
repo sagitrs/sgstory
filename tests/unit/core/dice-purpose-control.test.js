@@ -10,6 +10,7 @@
 	const R = () => setup.RPG;
 	const D = () => setup.DND3;
 	const C = () => R().diceControl;
+	const J = (x) => JSON.stringify(x);
 	const 清 = () => { C().clearAll(); C().清账(); R().rng.reset(); };
 	/** 造一对攻/靶（照 `natural-attacks.test.js` 的既有形） */
 	const 对打 = ({ ac = 99 } = {}) => ({
@@ -79,7 +80,8 @@
 		const 报 = C().报告();
 		assert.eq(报.未覆盖.length, 1, '报告须列出未覆盖');
 		assert.eq(报.未覆盖[0].purpose, '先攻', '未覆盖条目须具名');
-		assert.ok(/没有任何落点接入/.test(报.未覆盖[0].原因), `原因须说清：${报.未覆盖[0].原因}`);
+		assert.ok(/不在接入表内/.test(报.未覆盖[0].原因), `原因须说清（★F3：分清「引擎无此骰点」与「未接入」）：${报.未覆盖[0].原因}`);
+		assert.eq(JSON.stringify(报.接入表), JSON.stringify(C().接入表()), '★`F3`：报告须带**已接入表**（判据可据此分辨两类）');
 		assert.ok(C().接入表().includes('attack.hit') && !C().接入表().includes('先攻'),
 			`接入表须只列**真接线**的用途：${JSON.stringify(C().接入表())}`);
 		C().clearAll();
@@ -131,6 +133,25 @@
 		const 账 = C().报告();
 		assert.eq(账.额度账.find((x) => x.slot === 0).已消费, 0, '★合法的 slot0 **也**✗ 得被吃（先验后掷 ⇒ 零部分消费）');
 		assert.eq(C().log().length, 账前, '★骰序账 ✗ 留半条');
+		C().clearAll();
+	});
+
+	test('★#2031 ④【F1·多骰越界】臂 ✗ 给 `slot`、面表里**后一颗**越界 ⇒ **整次具名拒且零消费**（✗ 第 2 颗漏检）', () => {
+		清();
+		/* ★病灶（`developer` 首轮 RC · 真伤）：预检原版**一律验 `faces[0]`** ⇒ 一条臂喂多颗时，
+		 *   第 2 颗及其后**从未被校验** ⇒ `2d6` 可掷出 d6 域外的面并**真进结算**。 */
+		C().arm({ purpose: 'damage', actor: '甲', faces: [3, 99] });   // ✗ 给 sides ⇒ 规格 §四.1：留到消费时按**实际骰型**验
+		const 账前 = C().log().length;
+		const e = 捉(() => R().rollDetail('2d6', { purpose: 'damage', actor: '甲' }));
+		assert.eq(e?.code, 'DICE_FACE_OUT_OF_RANGE', `★后一颗越界也须整次拒（实得 ${e && e.code}）`);
+		assert.eq(e.extra?.第几面, 2, `★拒须点名「第几面」（实得 ${JSON.stringify(e?.extra)}）`);
+		assert.eq(C().log().length, 账前, '★骰序账 ✗ 留半条（先验后掷）');
+		assert.eq(C().报告().额度账.find((x) => x.purpose === 'damage').已消费, 0, '★零消费（第一颗也✗ 能吃）');
+		C().clearAll();
+		/* 合法臂（同形：✗ 给 `slot`、两颗面都在域内）⇒ 按**顺序**逐颗落地 ✓（证「按消费序预检」✗ 误伤合法臂） */
+		C().arm({ purpose: 'damage', actor: '甲', faces: [3, 5] });
+		const r = R().rollDetail('2d6', { purpose: 'damage', actor: '甲' });
+		assert.eq(J(r.rolls), J([3, 5]), `★合法多骰须按**顺序**落地：${J(r.rolls)}`);
 		C().clearAll();
 	});
 

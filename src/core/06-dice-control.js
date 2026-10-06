@@ -38,7 +38,7 @@
 	let 当前场次 = null;
 	let 编号 = 0;
 	/** 底层计数：`unit()` 总调用数 —— 与上面两本**分记**（✗ 由它反推骰面）。 */
-	const 底层 = { 调用: 0 };
+	const 底层 = { 调用: 0, 受控: 0, 正常: 0 };
 
 	const 记 = (行) => {
 		账.push(行);
@@ -136,7 +136,7 @@
 
 		/** **清三账读数**（✗ 动控制面 —— 那是 `clearAll`；本口只把**读数**归零：骰序账／丢账／底层计数）。
 		 *  用途：故事侧开**新场次**时另起一本账；判据取「本格增量」时先归零。 */
-		清账() { 账.length = 0; 丢账 = 0; 底层.调用 = 0; return true; },
+		清账() { 账.length = 0; 丢账 = 0; 底层.调用 = 0; 底层.受控 = 0; 底层.正常 = 0; return true; },
 
 		/** **三账读数** ＋ 未消费／未覆盖清单（判据与「明报」用）。 */
 		报告() {
@@ -147,10 +147,17 @@
 					armId: a.armId, purpose: a.purpose, actor: a.actor ?? null, instance: a.instance ?? null,
 					slot: a.slot ?? null, sides: a.sides ?? null, 配置面: a.面数, 已消费: a.已吃, 剩余: a.faces.length,
 				})),
-				骰序账: 账.length, 骰序丢账: 丢账,
-				底层计数: { unit调用: 底层.调用 },
+				骰序账: 账.map((x) => ({ ...x })),      // ★`F2`：规格 §五 要的是**账**（条数另有 `骰序条数`）
+				骰序条数: 账.length, 骰序丢账: 丢账,
+				/* ★`F2`：底层 `unit()` 调用与「受控颗数」**不是同一划分**（受控 ✗ 读 `unit()`）⇒ 两者并列，✗ 混成一棵。 */
+				底层计数: { unit调用: 底层.调用, 受控颗数: 底层.受控, 正常颗数: 底层.正常 },
 				未消费,
-				未覆盖: [...未覆盖].map((p) => ({ purpose: p, 原因: '该用途没有任何落点接入（引擎未支持）⇒ 配了也不会生效' })),
+				/* ★`F3`：把**已接入表**带进报告 ⇒「引擎**无此骰点**」与「**有此点但本包未接入**」可分辨（✗ 混成一句）。 */
+				接入表: [...已接入].sort(),
+				未覆盖: [...未覆盖].map((p) => ({
+					purpose: p,
+					原因: '该用途**不在接入表内** —— 或引擎无此骰点（如先攻），或本包未接入 ⇒ 配了也不会生效（见 `接入表`）',
+				})),
 			};
 		},
 
@@ -167,18 +174,26 @@
 		_预检(ctx, sides, count) {
 			const 要记 = (ctx && ctx.purpose) || 条目.length > 0;
 			if (!要记) return false;
+			/* ★`F1`（`developer` 首轮 RC，**真伤**）：须校验「**这一颗将要吃的**」那一面 ——
+			 *   一条臂可被**同一次表达式的多颗**命中（臂 ✗ 给 `slot` 时）⇒ 它按 `faces` **顺序**逐颗喂
+			 *   （`_落` 用 `shift()`）。**原版一律取 `faces[0]`** ⇒ 第 2 颗及其后**从未被校验**：
+			 *   `arm({purpose:'damage', actor:'甲', faces:[3, 99]})` ＋ `2d6` ⇒ 掷出 `[3, 99]`（d6 出 99 ⇒ 真进结算 ✗）。
+			 *   ⇒ 用**局部游标**模拟本表达式的消费序（✗ 改臂自身 ⇒ 预检**零副作用**：抛出即整次拒且零消费）。 */
+			const 游标 = new Map();                       // armId ⇒ 本表达式内**已预占**的颗数
 			for (let i = 0; i < count; i++) {
 				const c = { ...(ctx ?? {}), instance: ctx?.instance ?? 当前场次 ?? undefined, sides, slot: i };
 				const a = ctx?.purpose ? 找(c) : null;
 				if (!a) continue;
-				const face = a.faces[0];
+				const 已占 = 游标.get(a.armId) ?? 0;
+				const face = a.faces[已占];
+				游标.set(a.armId, 已占 + 1);
 				if (face === undefined) {
 					throw RPG.refuse('DICE_ARM_EXHAUSTED', `用途化骰：控制 ${a.armId} 的面已吃空（✗ 半掷）`, { armId: a.armId });
 				}
 				if (face > sides) {
 					throw RPG.refuse('DICE_FACE_OUT_OF_RANGE',
-						`用途化骰：控制 ${a.armId} 指定的面 ${face} 超出本次骰型 d${sides} ⇒ 整次拒（✗ 部分消费）`,
-						{ armId: a.armId, face, sides });
+						`用途化骰：控制 ${a.armId} 的第 ${已占 + 1} 面 ${face} 超出本次骰型 d${sides} ⇒ 整次拒（✗ 部分消费）`,
+						{ armId: a.armId, face, sides, 第几面: 已占 + 1 });
 				}
 			}
 			return true;
@@ -192,6 +207,7 @@
 			const a = c ? 找(c) : null;
 			if (a) {
 				const face = a.faces.shift();
+				底层.受控 += 1;
 				a.已吃 += 1;
 				if (a.faces.length === 0) {
 					const i = 条目.indexOf(a);
@@ -201,6 +217,7 @@
 				return face;
 			}
 			const face = RPG.rng.pick(sides);
+			底层.正常 += 1;
 			if (要记) {
 				记({ at: Date.now(), ...(c ?? {}), face, source: c ? '正常' : '未接入' });
 			}

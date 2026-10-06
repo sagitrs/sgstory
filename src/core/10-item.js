@@ -60,6 +60,36 @@ RPG.noteEntityId = (entityId) => {
 	if (Number.isFinite(n) && n > RPG.itemEntitySeq) RPG.itemEntitySeq = n;
 };
 
+/** ★`sgstory#2023`（E1 · 设计 §3）：**实例状态载荷**只收**可序列化纯数据**。
+ *   为何要校验：脏载荷（函数／`undefined`／`NaN`／循环引用）**写到盘上**才在下次读档爆 ——
+ *   那时症状离病因极远。⇒ 写入与还原两侧都过这一道，坏值**具名拒**（`ITEM_STATE_*`）。
+ *   ⚠ 深拷返回（✗ 递引用）：实例与快照共享一份对象会让「改活对象」静默改到档上那份。 */
+const 规整载荷 = (v, 路径 = 'state', 见 = new WeakSet()) => {
+	if (v === null) return null;
+	const t = typeof v;
+	if (t === 'string' || t === 'boolean') return v;
+	if (t === 'number') {
+		if (!Number.isFinite(v)) throw RPG.refuse('ITEM_STATE_NOT_SERIALIZABLE', `状态载荷在 ${路径} 处不是有限数（${String(v)}）`, { 路径 });
+		return v;
+	}
+	if (Array.isArray(v)) {
+		if (见.has(v)) throw RPG.refuse('ITEM_STATE_CYCLIC', `状态载荷在 ${路径} 处有循环引用`, { 路径 });
+		见.add(v);
+		return v.map((x, i) => 规整载荷(x, `${路径}[${i}]`, 见));
+	}
+	if (t === 'object') {
+		if (Object.getPrototypeOf(v) !== Object.prototype && Object.getPrototypeOf(v) !== null) {
+			throw RPG.refuse('ITEM_STATE_NOT_SERIALIZABLE', `状态载荷在 ${路径} 处是类实例（${v?.constructor?.name ?? '?'}）⇒ ✗ 不可序列化`, { 路径 });
+		}
+		if (见.has(v)) throw RPG.refuse('ITEM_STATE_CYCLIC', `状态载荷在 ${路径} 处有循环引用`, { 路径 });
+		见.add(v);
+		const 出 = {};
+		for (const k of Object.keys(v)) 出[k] = 规整载荷(v[k], `${路径}.${k}`, 见);
+		return 出;
+	}
+	throw RPG.refuse('ITEM_STATE_NOT_SERIALIZABLE', `状态载荷在 ${路径} 处含不可序列化的值（${t}）`, { 路径, 类型: t });
+};
+
 RPG.Item = class Item extends Object {
 	/* ★`#1914`：每个实例出生即带号（⇒ `toJSON` 恒有号，✗ 靠调用方各自补）。 */
 	constructor(def) {
@@ -83,6 +113,11 @@ RPG.Item = class Item extends Object {
 		 *     落成新数据一律**只写 `entityId`** ⇒ 将来收口＝删那几处回落（✗ 不是全仓找引用）。
 		 *   ⚠ `id` 已是**类型身份**（`defItem` 的注册 id）⇒ ✗ 不再造同义的 `definitionId`。 */
 		this.entityId = def.entityId ?? def.slotId ?? RPG.newEntityId();
+		/* ★`sgstory#2023`（E1 · 设计 §3）：**状态载荷** —— 可序列化的实例状态（「尚未脆弱／已脆弱／
+		 *   故事规则认可的稳定来源」这类**故事政策**给的状态），与「定义 id／实体身份／消耗次数」**四者分开**。
+		 *   ⚠ 缺省 `null` ＝「**尚无状态**」—— ★**不是**「已稳定」（设计 §3 原文：旧档缺字段**不等于**已稳定）。
+		 *   ⚠ `toJSON` **只在非空时**写该键 ⇒ 既有各件的快照**逐字节不变**（零回归）。 */
+		this.state = def.state === undefined ? null : 规整载荷(def.state);
 		/* ★`#1914`（步四）：**战斗用途声明位** —— 由道具自己写（`45-battle-catalog.js` 读它）。
 		 *   缺省 `null` ⇒ 目录按**窄**默认 `damage` 处理（⇒ 其余 63 件行为不变）。 */
 		this.battleUse = def.battleUse ?? null;
@@ -129,10 +164,14 @@ RPG.Item = class Item extends Object {
 	toJSON() {
 		/* ★`#1924`：快照带**实体身份** `entityId`（✗ 不写旧名 `slotId` —— 落成新数据只留一个名）。
 		 *   ⚠ 键序保持「`id` 在前、状态在后」的既有形状，身份插在 `id` 之后。 */
-		return {
+		const 出 = {
 			id: this.id, entityId: this.entityId,
 			charges: this.charges, equipped: this.equipped,
 		};
+		/* ★`sgstory#2023`：状态载荷**只在非空时**写 ⇒ 既有件的快照逐字节不变（零回归）；
+		 *   写侧也过规整器 ⇒ ✗ 不让不可序列化的载荷**落到档上**。 */
+		if (this.state != null) 出.state = 规整载荷(this.state);
+		return 出;
 	}
 };
 
@@ -246,6 +285,9 @@ RPG.items.按包 = (包, id) => {
 	return undefined;
 };
 
+/** ★`sgstory#2023`：把一份状态载荷**规整**成可序列化纯数据（故事侧造载荷时用；坏值即具名拒）。 */
+RPG.normalizeItemState = (v) => (v === undefined ? null : 规整载荷(v));
+
 RPG.createItem = (id, overrides) => {
 	const klass = RPG.items.get(id);
 	if (!klass) throw new Error(`未注册的道具 id: ${id}`);
@@ -270,6 +312,10 @@ RPG.reviveItem = (snapshot) => {
 	const 身份 = snapshot.entityId ?? snapshot.slotId ?? null;
 	if (身份 != null) { item.entityId = 身份; RPG.noteEntityId(身份); }
 	else item.entityId = RPG.newEntityId();
+	/* ★`sgstory#2023`（E1 · 设计 §3.1）：状态载荷还原 ——
+	 *   ⚠ **缺字段** ⇒ `null`＝「尚无状态」（★✗ 不当「已稳定」—— 旧档缺字段不等于稳定，设计 §3 原文）；
+	 *   ⚠ **坏载荷** ⇒ 具名拒（`ITEM_STATE_*`）⇒ ✗ 悄悄转换成更有利状态。 */
+	item.state = snapshot.state === undefined ? null : 规整载荷(snapshot.state);
 	return item;
 };
 

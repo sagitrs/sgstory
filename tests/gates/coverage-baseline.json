@@ -1,17 +1,17 @@
 {
   "$note": "覆盖面基线（#1720）：faces＝**下限**（低于即红），ceilings＝**上限**（高于即红）。**更新方式（#1789 口径校正）**：`--update-baseline`（仅人工，CI 绝不调用）重播计数面；`--seeded-at <主干sha>` 显式指定校准所对的主干（缺省取 `merge-base origin/main HEAD`）；`seededReason` **由人工撰写**（工具只**保留**、✗ 不生成也不清除）。基线变更会出现在 PR diff 里，合入者须解释「为什么少了这一项」。",
-  "seededAt": "163c749c",
-  "seededReason": "#1788 rebase 至主干 163c749c（原 base 1132484a，落后 3 笔）：吸并 #1747/#1761/#1782 抬升，并执行两条「单 id 收敛」裁（领队 2026-10-01）：①双 id：删 DND3.IronSword（与 iron-longsword 同源同行 :765 重复），climb2 4 处改引 iron-longsword；②铁资源 canonical=iron-ore（#1788 配方链）：撤 DND3.IronIngot，climb2 6 处改引 iron-ore；iron-message 留（剧情物）。⇒ claims/sourceLineClaims **有意的净减**（-10/-4）。方向：**收敛**（消重复件 + 统一资源口径）；faces 其余全抬；ceilings 不变、无放宽。★验收：门 rc=0 ＋ 自检 22/22 ＋ 绿但钝巡检不点名（#1786 新规）。｜**`#1835` 甲（2026-10-01）**：新增 `ceilings.noCompareCites = 11`（「**源有值但本门未比对**」面）。实证：`bombardier-beetle.js:3` 引 `Monsters - Vermin-3e.md:119`（源有 `(13 hp)`／`Armor Class 16`），而该引用行既无声称、仓内字段也不在其行上 ⇒ **该值从未与源比对**；读数行却曾印「A 组未覆盖 0 项（源有值者**皆已被声称并比对**）」—— 该括注**不成立**，已收窄为它实际能担保的那句。本笔**只把该面记账可见**（棘轮上界 11），**✗ 判红**（判红须先量同形件数 ⇒ 乙，另票）。★**faces 未动**（`--update-baseline` 会顺手重写 faces 266→276，那是**未经说明的覆盖面变动** ⇒ 已回退，本笔只**加 ceilings 一键**）。",
+  "seededAt": "fbeeb2b3",
+  "seededReason": "#1788 rebase 至主干 163c749c（原 base 1132484a，落后 3 笔）：吸并 #1747/#1761/#1782 抬升，并执行两条「单 id 收敛」裁（领队 2026-10-01）：①双 id：删 DND3.IronSword（与 iron-longsword 同源同行 :765 重复），climb2 4 处改引 iron-longsword；②铁资源 canonical=iron-ore（#1788 配方链）：撤 DND3.IronIngot，climb2 6 处改引 iron-ore；iron-message 留（剧情物）。⇒ claims/sourceLineClaims **有意的净减**（-10/-4）。方向：**收敛**（消重复件 + 统一资源口径）；faces 其余全抬；ceilings 不变、无放宽。★验收：门 rc=0 ＋ 自检 22/22 ＋ 绿但钝巡检不点名（#1786 新规）。｜**`#1835` 甲（2026-10-01）**：新增 `ceilings.noCompareCites = 11`（「**源有值但本门未比对**」面）。实证：`bombardier-beetle.js:3` 引 `Monsters - Vermin-3e.md:119`（源有 `(13 hp)`／`Armor Class 16`），而该引用行既无声称、仓内字段也不在其行上 ⇒ **该值从未与源比对**；读数行却曾印「A 组未覆盖 0 项（源有值者**皆已被声称并比对**）」—— 该括注**不成立**，已收窄为它实际能担保的那句。本笔**只把该面记账可见**（棘轮上界 11），**✗ 判红**（判红须先量同形件数 ⇒ 乙，另票）。★**faces 未动**（`--update-baseline` 会顺手重写 faces 266→276，那是**未经说明的覆盖面变动** ⇒ 已回退，本笔只**加 ceilings 一键**）。｜**`#2034`（2026-10-06，developer-9）：faces 重播至 `fbeeb2b3` 实测（逐面给理由，✗ 顺手抬）。**面读数：claims 266→333、sourceLineClaims 117→159、aGroupCompared／aGroupChecked 243→293、sourceFormats3e 219→269；**未动者**：cGroupChecked 8、selfCmpChecked 4、titleChecked 28、sourceFormats5e 24；**ceilings 三面 ✗ 未抬**（uncovered 0／noValueCites 5／noCompareCites 11）。三档归因（同一门在三个树上的实测，可复算：`git worktree add <sha>` 后 `node tests/gates/refs-integrity.mjs`）：①`163c749c`→`2cd506fb`（198 笔既有区间）：claims +21、sourceLineClaims +1、aGroup／sourceFormats3e +36 —— 主体是 `e3b69dce` **建立 pin-cache 面**（新增 19 档缓存 ⇒ 源行面 +36），其余为若干逐值照录笔；②`2cd506fb`→`d1945dfa`（`#2032` 擒抱与御水笔）：claims +18、sourceLineClaims +13、aGroup／sourceFormats3e +14（新增两份 3E 缓存：E 档与 combat-ii ⇒ 源行 +14；三只怪物与御水的照录件 ⇒ 声称面）；③`d1945dfa`→`fbeeb2b3`（`#2033` 豁免接线笔）：claims +28、sourceLineClaims +28（13 只怪物各一段 Saves 行说明 ＋ 新测试档的带引用声称），源行面 +0（✗ 未新增 pin 件）。**为何必须重播**：基线远低于实测 ⇒ 下探类判据变钝（真实的覆盖面收缩在 25% 以内不出声）；重播后该面恢复灵敏度。**同笔配套**：门自检的夹具改为**自带基线**（副本基线 faces × 0.95）—— 否则重播到实测值后，刀自身对树的微小扰动（`K12` 改一行用例标题 ⇒ `claims` −3）会踩「覆盖面下降」棘轮，使四把**期望绿**的刀变红（K0／K12／K12b／K24 实测）；棘轮本身另由**自带两侧**的 K13／K16 断（先按读数播种、再删声称 ⇒ 与线上基线数值无关，重播不再失灵）。",
   "faces": {
-    "claims": 266,
-    "sourceLineClaims": 117,
-    "aGroupCompared": 243,
-    "aGroupChecked": 243,
+    "claims": 333,
+    "sourceLineClaims": 159,
+    "aGroupCompared": 293,
+    "aGroupChecked": 293,
     "cGroupChecked": 8,
     "selfCmpChecked": 4,
     "titleChecked": 28,
     "sourceFormats5e": 24,
-    "sourceFormats3e": 219
+    "sourceFormats3e": 269
   },
   "ceilings": {
     "uncovered": 0,

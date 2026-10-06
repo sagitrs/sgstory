@@ -37,7 +37,31 @@ function makeCopy() {
     const src = path.join(ROOT, item);
     if (fs.existsSync(src)) fs.cpSync(src, path.join(dir, item), { recursive: true });
   }
+  seedFixtureBaseline(dir);
   return dir;
+}
+/** ★`#2034`（基线重播带出）：**夹具自带基线** —— ✗ 照抄**线上**基线。
+ *  病灶（实测，四把**期望绿**的刀一起红：K0／K12／K12b／K24）：夹具是整棵仓的副本，连
+ *  `tests/gates/coverage-baseline.json` 一起拷；基线一旦重播到**实测值**（`claims 333`），
+ *  刀对树的**微小扰动**（如 `K12` 改一行用例标题 ⇒ `claims` −3）就踩到「覆盖面下降」棘轮
+ *  ⇒ 期望绿的刀变红。此前基线远低于实测（`266` vs `333`）⇒ 这层耦合被「绿但钝」盖住了
+ *  （⇒ 本函数是那次重播的**必要配套**，✗ 可选项）。
+ *  ⇒ 夹具基线 ＝ **副本自身读数 × 0.95**（留 5% 余量）：夹具是**环境**，不是被测物 ——
+ *    刀无意造成的几个声称增减不该改判；而棘轮本身另由**自带两侧**的刀断（见 `slack: 1` 的两把）：
+ *    先按读数播种、再删声称 ⇒ 与线上基线的数值**无关**，重播多少都不会失灵。
+ *  ⚠ `--update-baseline` 在非 git 目录里会出声警告 `seededAt=unknown`（K18 的属性）⇒ 这里显式
+ *    传 `--seeded-at fixture`，让夹具档不掺无意义的 sha。 */
+function seedFixtureBaseline(dir, { slack = 0.95 } = {}) {
+  const p = path.join(dir, 'tests', 'gates', 'coverage-baseline.json');
+  if (slack >= 1) {                                        // 精确播种（＝逐字取**副本当前读数**）
+    runGateArgs(dir, ['--update-baseline', '--seeded-at', 'fixture']);
+    return;
+  }
+  /* 只缩不改读：✗ 不额外跑一次门（只给「夹具是环境」那一档用）—— 副本与线上同树 ⇒
+   *   `faces` 同源，乘余量即得夹具基线。 */
+  const doc = JSON.parse(fs.readFileSync(p, 'utf8'));
+  for (const k of Object.keys(doc.faces)) doc.faces[k] = Math.floor(doc.faces[k] * slack);
+  fs.writeFileSync(p, JSON.stringify(doc, null, 2) + '\n');
 }
 /** ★`#1840`：**幂等清理**（✗ 裸 `rmSync` 一次了事）。
  *   病灶：`makeGitSandbox()` 里跑真 `git`（`init`／`commit`）—— git 可能留下**后台写手**
@@ -224,7 +248,12 @@ const knives = [
   },
   {
     id: 'K13', name: '覆盖面下降（删整行声称 ⇒ claims 51→50）⇒ 红【#1720 判据 1】', expect: 1, mark: '覆盖面下降',
-    apply: (d) => dropLines(d, 'src/dnd/dnd-5e/monsters/goblin.js', 'maxHp: 7, // SRD 5.2.1 · monsters-A-Z.md:7257'),
+    /* ★`#2034`：本刀测的是**棘轮**⇒ 两侧（基线／读数）由本刀自带：先按**当前读数**播种（`slack: 1`
+     *   即不含余量），再删一行声称 ⇒ 读数跌到基线之下 ⇒ 红。这样本刀的判据与线上基线的数值无关。 */
+    apply: (d) => {
+      seedFixtureBaseline(d, { slack: 1 });
+      dropLines(d, 'src/dnd/dnd-5e/monsters/goblin.js', 'maxHp: 7, // SRD 5.2.1 · monsters-A-Z.md:7257');
+    },
   },
   {
     id: 'K14', name: '基线缺失 ⇒ 红（不静默跳过）【#1720 判据 4】', expect: 1, mark: '覆盖面基线缺失',
@@ -243,7 +272,11 @@ const knives = [
   },
   {
     id: 'K16', name: '标题删值（用例名↔断言，`#1734` 面）⇒ 红【#1720 判据 2】', expect: 1, mark: '覆盖面下降',
-    apply: (d) => edit(d, 'tests/unit/dnd-5e/stats.test.js', '（AC 12, HP 7，六维原始分见下）', '（六维原始分见下）'),
+    /* ★`#2034`：同 K13 —— 棘轮的两侧由本刀自带（先按读数播种，再删值）。 */
+    apply: (d) => {
+      seedFixtureBaseline(d, { slack: 1 });
+      edit(d, 'tests/unit/dnd-5e/stats.test.js', '（AC 12, HP 7，六维原始分见下）', '（六维原始分见下）');
+    },
   },
 
 

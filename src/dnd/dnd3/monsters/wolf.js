@@ -15,6 +15,11 @@ DND3.Wolf = RPG.defCharacter({
 	stats: DND3.stats({
 		// SRD 3.5 · `Monsters/Monsters - Animals.md:2302`（`## Wolf` → Abilities）——Str 13／Dex 15／Con 15／Int 2／Wis 12／Cha 6
 		str: 13, dex: 15, con: 15, int: 2, wis: 12, cha: 6,
+		// SRD 3.5 · `Monsters/Monsters - Animals.md:2316`（`## Wolf` → Saves：Fort +5, Ref +5, Will +1）——
+		//   3.5 的 Saves 行印的是**总分** ⇒ 本行三数是**基础加值**（＝总分 − 属性调整值）：
+		//   体质 15（+2）／敏捷 15（+2）／感知 12（+1）；总分由 `core/saves.js` 现加回来
+		//   （逐只反算回模板值见 `tests/unit/dnd3/monster-saves.test.js`）。
+		save_fortitude: 3, save_reflex: 3, save_will: 0, // 基础加值
 		// 出处同上（同一 pin 文件同一行）—— Armor Class 14、Base Attack/Grapple +1、Challenge Rating 1
 		ac: 14, bab: 1, cr: 1,
 	}),

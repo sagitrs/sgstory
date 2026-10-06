@@ -11,8 +11,9 @@
  *   · `Skills`（`:559`：Hide +7*／Listen +4／Spot +4／Swim +12，含水中加值与掩蔽）与
  *     `Feats`（Alertness／Skill Focus (Hide)）—— 本仓无技能与专长面（同 `monsters/monitor-lizard.js:10` 的记名形）；
  *   · 组织／环境／进阶／等级调整（`:533` 起）—— 无对应量纲。
- * ⚠ `Saves` 行的三个值本笔**未声明**：豁免面的命名与声明由 `#2030`（与 `#1762` 的 B-6）**同一笔**落地
- *   —— 两笔分开会让「名字对了、数还是零」（见 `#2030` 正文的半接线风险一节）。
+ * `Saves` 行的三个值**已随 `#2030`（＋`#1762` B-6）声明**（本档 `save_fortitude`／`save_reflex`／`save_will`）：
+ *   口径是「字段存**基础加值**、总分＝基础＋属性调整值」⇒ 声明值 ＝ 模板总分 − 模板属性调整值
+ *   （Fort +6 − 体质 +3 ＝ 3 等），总分由 `core/saves.js` 现加回来。
  */
 
 DND3.Crocodile = RPG.defCharacter({
@@ -23,6 +24,11 @@ DND3.Crocodile = RPG.defCharacter({
 	stats: DND3.stats({
 		// SRD 3.5 · `Monsters/Monsters - Animals.md:532`（`## Crocodile` → Abilities）——Str 19／Dex 12／Con 17／Int 1／Wis 12／Cha 2
 		str: 19, dex: 12, con: 17, int: 1, wis: 12, cha: 2,
+		// SRD 3.5 · `Monsters/Monsters - Animals.md:531`（`## Crocodile` → Saves：Fort +6, Ref +4, Will +2）——
+		//   3.5 的 Saves 行印的是**总分** ⇒ 本行三数是**基础加值**（＝总分 − 属性调整值）：
+		//   体质 17（+3）／敏捷 12（+1）／感知 12（+1）；总分由 `core/saves.js` 现加回来
+		//   （逐只反算回模板值见 `tests/unit/dnd3/monster-saves.test.js`）。
+		save_fortitude: 3, save_reflex: 3, save_will: 1, // 基础加值
 		// 出处同上（同一 pin 文件同一块）—— Armor Class 15、Base Attack/Grapple +2/+6、Challenge Rating 2、体型 Medium
 		ac: 15, bab: 2, cr: 2, size: 'medium',
 	}),

@@ -19,6 +19,11 @@ DND3.GiantBee = RPG.defCharacter({
 	stats: DND3.stats({
 		// SRD 3.5 · `Monsters/Monsters - Vermin.md:79`（`## Giant Bee` → Abilities）——Str 11／Dex 14／Con 11／Wis 12／Cha 9（Int 源为「—」⇒ 见文件头缺口说明）
 		str: 11, dex: 14, con: 11, int: 10, wis: 12, cha: 9,
+		// SRD 3.5 · `Monsters/Monsters - Vermin.md:93`（`## Giant Bee` → Saves：Fort +3, Ref +3, Will +2）——
+		//   3.5 的 Saves 行印的是**总分** ⇒ 本行三数是**基础加值**（＝总分 − 属性调整值）：
+		//   体质 11（+0）／敏捷 14（+2）／感知 12（+1）；总分由 `core/saves.js` 现加回来
+		//   （逐只反算回模板值见 `tests/unit/dnd3/monster-saves.test.js`）。
+		save_fortitude: 3, save_reflex: 1, save_will: 1, // 基础加值
 		// 出处同上（同一 pin 文件同一行）—— Armor Class 14、Challenge Rating 1
 		ac: 14, bab: 2, cr: 1,
 	}),

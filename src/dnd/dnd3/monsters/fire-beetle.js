@@ -19,6 +19,11 @@ DND3.FireBeetle = RPG.defCharacter({
 	stats: DND3.stats({
 		// SRD 3.5 · `Monsters/Monsters - Vermin.md:155`（`## Giant Fire Beetle` → Abilities）——Str 10／Dex 11／Con 11／Wis 10／Cha 7（Int 源为「—」⇒ 见文件头缺口说明）
 		str: 10, dex: 11, con: 11, int: 10, wis: 10, cha: 7,
+		// SRD 3.5 · `Monsters/Monsters - Vermin.md:169`（`## Giant Fire Beetle` → Saves：Fort +2, Ref +0, Will +0）——
+		//   3.5 的 Saves 行印的是**总分** ⇒ 本行三数是**基础加值**（＝总分 − 属性调整值）：
+		//   体质 11（+0）／敏捷 11（+0）／感知 10（+0）；总分由 `core/saves.js` 现加回来
+		//   （逐只反算回模板值见 `tests/unit/dnd3/monster-saves.test.js`）。
+		save_fortitude: 2, save_reflex: 0, save_will: 0, // 基础加值
 		// 出处同上（同一 pin 文件同一行）—— Armor Class 16、Challenge Rating '1/3'
 		ac: 16, bab: 0, cr: '1/3',
 	}),

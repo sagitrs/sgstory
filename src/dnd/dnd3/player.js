@@ -18,7 +18,14 @@ const DEFAULTS = {
 	maxHp: 20,
 	// 数值块与哥布林完全对称（走 DND3.stats 填满默认值）
 	// 玩家预生成数值：非 SRD 怪物条目，按 house rule 标注（#1697 P1；对齐评估见 #1719）
-	stats: DND3.stats({ ac: 12, str: 12, dex: 12, heal_bonus: 0 }),
+	stats: DND3.stats({
+		ac: 12, str: 12, dex: 12, heal_bonus: 0,
+		/* ★`sgstory#2030`：三豁免的**基础加值**显式写 0 —— ✗ 不是漏写，是**具名的缺面**：
+		 *   3.5 里这一份来自**职业与等级**，而本引擎无职业与等级面 ⇒ 玩家的总分＝体质／敏捷／感知的
+		 *   调整值之和（缺面：职业基础豁免加值）。
+		 *   ⚠ 故事侧手写 `$player` 时漏给这三键**不炸**：读侧 `stats['save_'+类型] ?? 0` 兜底。 */
+		save_fortitude: 0, save_reflex: 0, save_will: 0,
+	}),
 };
 
 const state = () => {

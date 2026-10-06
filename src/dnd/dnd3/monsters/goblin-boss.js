@@ -15,6 +15,10 @@ DND3.GoblinBoss = RPG.defCharacter({
 	stats: DND3.stats({
 		str: 12, dex: 14, con: 12, int: 10, wis: 10, cha: 10,
 		ac: 16, bab: 1, heal_bonus: 4, cr: '1/3',
+		/* ★`sgstory#2030`：三豁免的**基础加值**显式写 0 —— 本档**无 SRD 模板**（源仓内
+		 *   `## Goblin Boss` 零命中，见档头）⇒ 无 Saves 行可照录，✗ 不编造基础加值；
+		 *   总分＝属性调整值那一份（体质 +1／敏捷 +2／感知 +0）。 */
+		save_fortitude: 0, save_reflex: 0, save_will: 0,
 	}),
 	items: [
 		{ id: 'club', equipped: true }, // 装备：死亡不掉落

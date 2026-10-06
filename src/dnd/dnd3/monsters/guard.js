@@ -16,6 +16,9 @@ DND3.Guard = RPG.defCharacter({
 	stats: DND3.stats({
 		str: 12, dex: 10, con: 12,
 		ac: 14, bab: 0, heal_bonus: 0, cr: '1/2',
+		/* ★`sgstory#2030`：三豁免的**基础加值**显式写 0 —— 本档无 SRD 模板（见档头）⇒
+		 *   无 Saves 行可照录；总分＝属性调整值那一份（体质 +1／敏捷 +0／感知缺省 10 ⇒ +0）。 */
+		save_fortitude: 0, save_reflex: 0, save_will: 0,
 	}),
 	items: [
 		{ id: 'club', equipped: true }, // 有武器，可以反击

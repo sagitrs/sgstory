@@ -153,9 +153,9 @@
 		const run = (trauma) => {
 			R().rng.set(() => 0.5);   // 1d20 = 11
 			try {
-				const c = mk({ trauma, stats: { ac: 10, save_spells: 3 } });
+				const c = mk({ trauma, stats: { ac: 10, save_will: 3 } });   // 3E 三豁免之一（#2030：旧名 save_spells 已废）
 				if (trauma) c.gain(trauma);
-				return D().save(c, 'spells', 99);
+				return D().save(c, 'will', 99);
 			} finally {
 				R().rng.reset();
 			}
@@ -248,7 +248,7 @@
 		try {
 			const holder = mk({ stats: { ac: 10 } });
 			holder.gain('concussion');                 // 须**真持有**（✗ 只传属性字段）
-			const s = D().save(holder, 'spells', 99);
+			const s = D().save(holder, 'will', 99);   // 3E 三豁免之一（#2030）
 			assert.eq(s.total, 10, '11+0−1（罚仍生效）');
 		} finally {
 			R().rng.reset();

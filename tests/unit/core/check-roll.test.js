@@ -94,7 +94,8 @@
 		/* ② `DND3.save` ⇒ { success, roll, total, dc, mod, trauma }（★`trauma` 键须在） */
 		const s3 = (() => {
 			const c = new (R().Character)({ name: '乙', hp: 10, maxHp: 10, stats: D3().stats({}) });
-			return D3().save(c, 'spells', 15);
+			/* 类型名随 `#2030`／B-6 换成 3.5 三豁免之一；本刀判的是**键集**，✗ 与类型同名无关。 */
+			return D3().save(c, 'will', 15);
 		})();
 		assert.eq(Object.keys(s3).sort().join(','), 'dc,mod,roll,success,total,trauma',
 			'★3E save 形含 `trauma`（`traumas.test.js` 读它 ⇒ 掉了就红）');

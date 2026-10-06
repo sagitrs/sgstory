@@ -19,6 +19,11 @@ DND3.GiantStagBeetle = RPG.defCharacter({
 	stats: DND3.stats({
 		// SRD 3.5 · `Monsters/Monsters - Vermin.md:186`（`## Giant Stag Beetle` → Abilities）——Str 23／Dex 10／Con 17／Wis 10／Cha 9（Int 源为「—」⇒ 见文件头缺口说明）
 		str: 23, dex: 10, con: 17, int: 10, wis: 10, cha: 9,
+		// SRD 3.5 · `Monsters/Monsters - Vermin.md:200`（`## Giant Stag Beetle` → Saves：Fort +8, Ref +2, Will +2）——
+		//   3.5 的 Saves 行印的是**总分** ⇒ 本行三数是**基础加值**（＝总分 − 属性调整值）：
+		//   体质 17（+3）／敏捷 10（+0）／感知 10（+0）；总分由 `core/saves.js` 现加回来
+		//   （逐只反算回模板值见 `tests/unit/dnd3/monster-saves.test.js`）。
+		save_fortitude: 5, save_reflex: 2, save_will: 2, // 基础加值
 		// 出处同上（同一 pin 文件同一行）—— Armor Class 19、Challenge Rating 4
 		ac: 19, bab: 5, cr: 4,
 	}),

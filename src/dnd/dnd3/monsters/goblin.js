@@ -18,6 +18,11 @@ DND3.Goblin = RPG.defCharacter({
 	stats: DND3.stats({
 		// SRD 3.5 · `3.5 Compendium/Monsters/3.5 Monsters - G.md:1283`（`## Goblin` → Abilities）——Str 11／Dex 13／Con 12／Int 10／Wis 9／Cha 6
 		str: 11, dex: 13, con: 12, int: 10, wis: 9, cha: 6,
+		// SRD 3.5 · `3.5 Compendium/Monsters/3.5 Monsters - G.md:1282`（`## Goblin` → Saves：Fort +3, Ref +1, Will −1）——
+		//   3.5 的 Saves 行印的是**总分** ⇒ 本行三数是**基础加值**（＝总分 − 属性调整值）：
+		//   体质 12（+1）／敏捷 13（+1）／感知 9（−1）；总分由 `core/saves.js` 现加回来
+		//   （逐只反算回模板值见 `tests/unit/dnd3/monster-saves.test.js`）。
+		save_fortitude: 2, save_reflex: 0, save_will: 0, // 基础加值
 		ac: 15, bab: -1, heal_bonus: 3, cr: '1/4',
 	}),
 	items: [

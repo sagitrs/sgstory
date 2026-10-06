@@ -7,6 +7,7 @@ import io
 import json
 import os
 from pathlib import Path
+import re
 import subprocess
 import tempfile
 import unittest
@@ -174,14 +175,64 @@ class StoryAssetsTest(unittest.TestCase):
     def test_true_build_injects_before_consumer_and_is_repeatable(self):
         self.manifest({"sample": "assets/sample.svg"})
         (self.story / "src" / "consumer.js").write_text("setup.sample = setup.storyAssets.sample;", encoding="utf-8")
+        # 块序（`sgstory#2028` E5 契约面之一）：**多脚本臂** —— 单脚本只能证「在它之前」，
+        # 中段注入（例如藏在两个故事脚本之间）看不出来 ⇒ 再加一份按路径排序在后的脚本。
+        (self.story / "src" / "zzz-later.js").write_text("setup.later = setup.storyAssets?.sample;", encoding="utf-8")
         with patch.object(build, "load_template", return_value="{{STORY_DATA}}"), contextlib.redirect_stdout(io.StringIO()):
             build.build_story(self.story, "a.html")
             build.build_story(self.story, "b.html")
         first = (self.story / "a.html").read_bytes()
         self.assertEqual(first, (self.story / "b.html").read_bytes())
         text = first.decode()
-        self.assertLess(text.index("Object.defineProperty(setup, 'storyAssets'"), text.index("setup.sample = setup.storyAssets.sample"))
+        at_assets = text.index("Object.defineProperty(setup, 'storyAssets'")
+        for marker in ["setup.sample = setup.storyAssets.sample", "setup.later = setup.storyAssets?.sample"]:
+            self.assertLess(at_assets, text.index(marker), f"资产段须在该故事脚本之前：{marker}")
         self.assertIn("data:image/svg+xml;base64,", text)
+
+    def _product(self, out="a.html"):
+        """真 `build_story` 的产物文本（模板用替身 ⇒ 只留脚本与段落，✗ 不碰共享 build/dist）。"""
+        with patch.object(build, "load_template", return_value="{{STORY_DATA}}"), contextlib.redirect_stdout(io.StringIO()):
+            build.build_story(self.story, out)
+        return (self.story / out).read_text(encoding="utf-8")
+
+    def _asset_block(self, text):
+        """产物里的**资产注入段**（自段头到该 IIFE 的结尾）。"""
+        start = text.index("story assets: offline static SVG")
+        return text[start:text.index("})();", start)]
+
+    def test_product_asset_block_carries_no_remote_reference(self):
+        """产物级（`sgstory#2028` E5 契约面之二）：资产段只准做内嵌，**✗ 不得出现任何远程引用**。
+
+        与函数级的拒绝臂（`test_active_and_external_svg_features_are_rejected` 等）**不同面**：
+        那些断言「源被拒」，这条断言「**产物里没有**」—— 注入环节若引入网络面，只有产物级看得出来。
+        ⚠ 判据为何不会误报：`:` 与 `/` 都**不在** base64 字母表内 ⇒ 内嵌的大段字节里
+        **不可能**拼出 `http://` 或 `https://`（连 `http:` 也拼不出）。"""
+        self.manifest({"sample": "assets/sample.svg"})
+        block = self._asset_block(self._product())
+        self.assertEqual(re.findall(r"https?://", block), [], "资产段内不得出现远程引用")
+        descriptors = json.loads(re.search(r"Object\.entries\((\{.*?\})\)", block, re.S).group(1))
+        for asset_id, descriptor in descriptors.items():
+            self.assertTrue(descriptor["src"].startswith("data:image/svg+xml;base64,"),
+                            f"{asset_id}：src 只允许内嵌 data URL")
+            self.assertEqual(descriptor["mime"], "image/svg+xml")
+
+    def test_product_inlined_bytes_match_source_and_hash(self):
+        """产物级（`sgstory#2028` E5 契约面之三）：从**产物**解出的字节须与源文件**逐字节相同**，
+        且描述子里的 `sha256` 须是这些字节的哈希。
+
+        这条与 `test_descriptor_contains_exact_bytes_dimensions_and_hash` 的差别是**从哪读**：
+        那条读的是 `load_story_assets()` 的返回值（函数出口），这条读的是**成品 HTML** 里的内嵌字节
+        —— 注入／拼接环节若重编码或改写字节，只有这一条看得出来。"""
+        self.manifest({"sample": "assets/sample.svg"})
+        block = self._asset_block(self._product())
+        descriptors = json.loads(re.search(r"Object\.entries\((\{.*?\})\)", block, re.S).group(1))
+        raw = (self.story / "assets" / "sample.svg").read_bytes()
+        self.assertTrue(descriptors, "夹具应至少声明一份素材")
+        for asset_id, descriptor in descriptors.items():
+            inlined = base64.b64decode(descriptor["src"].split(",", 1)[1])
+            self.assertEqual(inlined, raw, f"{asset_id}：产物内嵌字节须与源文件逐字节相同")
+            self.assertEqual(descriptor["sha256"], hashlib.sha256(inlined).hexdigest(),
+                             f"{asset_id}：描述子里的 sha256 须是内嵌字节的哈希")
 
     def test_no_assets_build_equals_empty_table_build(self):
         with patch.object(build, "load_template", return_value="{{STORY_DATA}}"), contextlib.redirect_stdout(io.StringIO()):

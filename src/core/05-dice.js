@@ -12,9 +12,10 @@
  * 默认源**动态读取** `Math.random`（不在定义时冻结）——冻结会让既有「替换
  * `Math.random`」的用例注入**静默失效**（测试仍绿而实为真随机）。
  */
-RPG.rng = {
-	_impl: null,
-
+/** 纯算法表（★`sgstory#2043` 甲案：**共享纯算法 ✗ 共享可变状态**）——
+ *  全局源与每个 `RPG.makeRng(...)` 实例都**各自持有**自己的 `_impl`／计数，方法体**只有这一份** ✓
+ *  （✗ 复制两份字面量 ⇒ 同一个量两套算法是本仓已记的坑 ✓）。`this` 一律指**该实例**。 */
+const 纯算法 = {
 	/** 唯一注入形态：`fn` 与 `Math.random` 同形（无参，返回 `[0,1)`） */
 	set(fn) {
 		if (typeof fn !== 'function') {
@@ -33,9 +34,6 @@ RPG.rng = {
 		const rest = [...values];
 		return this.set(() => {
 			if (rest.length === 0) {
-				/* ★`sgstory#1957`（`#1953` 的 ③ 裁定·叠加案）：抛错**照旧**（反静默回退那条**不得反转** ✓），
-				 *   只给这个 Error 挂**码值** ⇒ 上层可把「**预期**抽尽」（如 `battle-protocol` 那格拿
-				 *   「恰好够一次成功的枚数」当尺子）与「**意外**抽尽」分辨开，而**不动任何一格的尺子** ✓。 */
 				throw Object.assign(new Error('RPG.rng：注入序列已耗尽（不静默回退真随机）'), { code: 'RNG_EXHAUSTED' });
 			}
 			return rest.shift();
@@ -46,10 +44,12 @@ RPG.rng = {
 	reset() { this._impl = null; return this; },
 
 	/** 取一个原始单元值 `[0,1)`。**本方法是全仓唯一读随机源之处**，其余消费点一律走 `pick`／`index`。
-	 *  ★`sgstory#2031`：这里给**底层随机调用计数**＋1（与「用途化骰面控制」的**额度账／骰序账**分记 ——
-	 *    A1 明文「✗ 能由计数推出哪个消费者吃了哪颗骰」⇒ 三本账各读各的）。 */
+	 *  ★`sgstory#2031`：这里给**底层随机调用计数**（与「用途化骰面控制」的**额度账／骰序账**分记）。
+	 *  ★`sgstory#2043`：计数**按源归属** —— 全局源仍记进「当前会话」的底层账（旧行为逐字不变 ✓）；
+	 *    `RPG.makeRng` 造出的实例另记**自己那份**（`计数`）并在带 `会话` 时记进**该会话**的底层账 ✓。 */
 	unit() {
-		if (RPG.diceControl) RPG.diceControl._记底层();          // ★三账之一：底层调用计数
+		if (this !== RPG.rng) this.计数 = (this.计数 ?? 0) + 1;          // ★实例自有计数（✗ 混进全局那份）
+		if (RPG.diceControl) RPG.diceControl._记底层(this);              // ★三账之一：底层调用计数（按源归属）
 		return this._impl ? this._impl() : Math.random();   // ★默认源动态读取
 	},
 
@@ -58,9 +58,7 @@ RPG.rng = {
 		return 1 + Math.floor(this.unit() * sides);
 	},
 
-	/** 非骰面的等概率取值：返回 `[0, n)` 的下标。
-	 *  用途：战斗 AI 选目标、宝箱陷阱取一——这些本来也直调 `Math.random()`，
-	 *  收到本入口后「随机取值一律经 `RPG.rng`」才在仓内成立（#1706）。 */
+	/** 非骰面的等概率取值：返回 `[0, n)` 的下标。 */
 	index(n) {
 		if (!Number.isInteger(n) || n <= 0) {
 			throw new Error(`RPG.rng.index 需要正整数，收到：${n}`);
@@ -69,10 +67,25 @@ RPG.rng = {
 	},
 };
 
+RPG.rng = Object.assign({ _impl: null, 名: '全局' }, 纯算法);
+
+/** ★`sgstory#2043`（A2 前置 · 甲案「可独立创建随机源」）：造一个**独立**随机源实例。
+ *
+ *   · **独立**的是**可变状态**（`_impl`／序列游标／自有计数）✓；**纯算法**与全局那份**同源**（`纯算法` ✓）。
+ *   · `会话` 可选：给了 ⇒ 该源在用途化骰控制的**底层计数**里记进**该会话**（✗ 记进当前会话 ⇒ 甲案 §二.4
+ *     「选择器底层调用、受控颗数和额度／日志有准确归属」✓）。
+ *   · ✗ 本函数**不抽**全局源来播种／造身份（甲案 §二.1 ✓）；要确定性就 `set`／`setSequence` 显式给 ✓。
+ *   · ✗ 本函数不改 `RPG.rng`（✗ 全局换装 —— 甲案明文拒「乙」案 ✓）。
+ */
+RPG.makeRng = ({ impl = null, 名 = 'rng', 会话 = null } = {}) =>
+	Object.assign({ _impl: impl, 名: String(名), 会话: 会话 == null ? null : String(会话), 计数: 0 }, 纯算法);
+
 /** 掷骰，返回明细 { expr, count, sides, mod, rolls, total }
  *  ★`sgstory#2031`：可选第二参 `ctx` ＝**用途定位**（`{ purpose, actor?, instance? }`；`sides` 与 `slot` 由本函数补）。
+ *  ★`sgstory#2043`：可选**第三参** `源` ＝**该次消费的随机源**（`RPG.makeRng(...)` 造的实例）—— ✗ 与 `ctx` 混为一谈
+ *    （甲案 §二.2 明文）；**缺省＝全局 `RPG.rng`** ⇒ 旧调用行为**逐字不变** ✓。
  *  `ctx` 缺省且**无在用控制** ⇒ 与本笔之前**逐字相同**（✗ 碰任何控制面）。 */
-RPG.rollDetail = (expr, ctx) => {
+RPG.rollDetail = (expr, ctx, 源) => {
 	const s = String(expr).replace(/\s+/g, '');
 	let m = /^(\d*)d(\d+)([+-]\d+)?$/i.exec(s);
 	if (!m) {
@@ -89,7 +102,7 @@ RPG.rollDetail = (expr, ctx) => {
 	 *   （面数／面域不合法 ⇒ **整次具名拒且零部分消费**），再逐颗落骰。 */
 	const 要记 = RPG.diceControl ? RPG.diceControl._预检(ctx, sides, count) : false;
 	for (let i = 0; i < count; i++) {
-		rolls.push(要记 ? RPG.diceControl._落(ctx, sides, i, 要记) : RPG.rng.pick(sides));   // 唯一随机入口（#1706）
+		rolls.push(要记 ? RPG.diceControl._落(ctx, sides, i, 要记, 源) : (源 ?? RPG.rng).pick(sides));   // 唯一随机入口（#1706）
 	}
 	return {
 		expr,
@@ -101,8 +114,8 @@ RPG.rollDetail = (expr, ctx) => {
 	};
 };
 
-/** 掷骰，只返回总数（`ctx` 见 `RPG.rollDetail`） */
-RPG.roll = (expr, ctx) => RPG.rollDetail(expr, ctx).total;
+/** 掷骰，只返回总数（`ctx`／`源` 见 `RPG.rollDetail`） */
+RPG.roll = (expr, ctx, 源) => RPG.rollDetail(expr, ctx, 源).total;
 
 /** **检定原语**（`#1798` E1a）：**掷骰 ＋ 加值 ＋ 阈值** 的统一形。
  *
@@ -122,8 +135,8 @@ RPG.roll = (expr, ctx) => RPG.rollDetail(expr, ctx).total;
  *   `d20 + 加值 >= dc`（撬锁／豁免／治疗检定），而 `fracture` 初版想挂「力量检定」时
  *   **无消费点可挂**（被迫改绑近战伤害）。本原语补上那一层。
  */
-RPG.checkRoll = ({ mod = 0, dc = 10, die = '1d20', bonus = 0, ctx } = {}) => {
-	const roll = RPG.roll(die, ctx);          // ★`#2031`：`ctx` 一路透传（用途定位）
+RPG.checkRoll = ({ mod = 0, dc = 10, die = '1d20', bonus = 0, ctx } = {}, 源) => {
+	const roll = RPG.roll(die, ctx, 源);      // ★`#2031`：`ctx` 透传（用途定位）；★`#2043`：`源` 独立透传
 	const total = roll + mod + bonus;
 	return { success: total >= dc, roll, mod, bonus, total, dc, die };
 };

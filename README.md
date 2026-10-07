@@ -5,6 +5,13 @@ master/main 自本提交起重启为空干线。
 
 ---
 
+## 设计与演进
+
+- [可读性与解耦渐进重构方案](docs/plans/readability-decoupling-refactor.md)：现状、真实业务接入、身份/会话所有权及分阶段验收；关联[文档交付 #2045](https://github.com/sagitrs/sgstory/issues/2045)。方案合入不表示运行能力已实现。
+- [设计计划索引](docs/plans/README.md)。
+
+---
+
 ## 测试工具
 
 测试工具根：tests/

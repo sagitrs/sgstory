@@ -328,8 +328,11 @@ RPG.MapScene = class MapScene extends RPG.Scene {
 		 *   判据：同层重复动作後【层名】出现次数 **恒 1**；离层再回 ⇒ 再印一次（各自正确）。
 		 *   ⚠ 乙案（固定不滚的场景头 DOM）属 **0.0.2+**（探索页结构） ⇒ 本笔 ✗ 做。 */
 		if (this.map.current !== this.#headerLoc) {
-			this.perform(`【${loc.name}】`);
-			if (desc) this.perform(desc);
+			/* ★`P1-2`：**层名与地点正文**走 `map-scene`（`level: 'key'`）—— ✗ 裸 `perform`：
+			 *   那两行落在 `default`（常态）⇒ 过滤到「**仅关键**」时被筛掉 ⇒ 玩家读到一片与地点无关的正文 ✓。
+			 *   先例：本仓 `40-battle.js:482` 的 `battle-end`（结论行 ⇒ key 通道 ✓）。 */
+			this.perform(`【${loc.name}】`, { channel: 'map-scene' });
+			if (desc) this.perform(desc, { channel: 'map-scene' });
 			this.#headerLoc = this.map.current;
 		}
 

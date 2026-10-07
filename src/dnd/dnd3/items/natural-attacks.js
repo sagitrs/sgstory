@@ -53,7 +53,7 @@
  *   拾尸捡爪子的怪象不会出现）②自动通路 `contains(['weapon','equipped'])` 即可取到（无需拔出）。
  *
  * ## 委托形
- *   `used(that, from) { return DND3.meleeAttack(this, that, from); }` —— 与 `#1813` 的**转发形**同：
+ *   `used(that, from, 源 = null) { return DND3.meleeAttack(this, that, from, 源); }` —— 与 `#1813` 的**转发形**同：
  *   ✗ 不转发则「打不出去」被算作 `applied`，`#1773` 的三连拒绝护栏在这一面失效。
  *   ★**判别刀（棘轮 ⑩）**：撤**真代码**（本档生成器里那行的 `return`，`used()` 内）⇒ **红并具名**
  *     —— `tests/unit/core/attack-reject-ratchet.test.js` ① 段对具名清单**逐个**断「形在 ＋ `return` 在」。
@@ -85,9 +85,9 @@ const natAttack = ({ id, name, dmg, type, atkBonus, dmgBonus, onHit, desc }) => 
 	slot: 'weapon',
 	actions: { equip: RPG.slotEquip, unequip: RPG.slotUnequip },
 
-	used(that, from) {
+	used(that, from, 源 = null) {
 		/* ★转发形（`#1813`）：见档头「委托形」。 */
-		return DND3.meleeAttack(this, that, from);
+		return DND3.meleeAttack(this, that, from, 源);
 	},
 });
 

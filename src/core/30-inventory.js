@@ -506,7 +506,7 @@ RPG.ammoOwner = (item, from, that) => {
 	return null; // ④ 无人持有／歧义（≥2）⇒ 不扣、不开火
 };
 
-RPG.act = (actor, itemRef, target, action = 'use', from = actor) => {
+RPG.act = (actor, itemRef, target, action = 'use', from = actor, 源 = null) => {
 	if (actor == null || !Array.isArray(actor.items)) {
 		throw new Error('RPG.act 的 actor 须是带 items 数组的角色');
 	}
@@ -562,7 +562,7 @@ RPG.act = (actor, itemRef, target, action = 'use', from = actor) => {
 	let refused = false;
 	let 拒绝码 = null, 拒绝附加 = null;
 	try {
-		refused = item.used(target, from, action) === false;
+		refused = item.used(target, from, action, 源) === false;
 	} catch (e) {
 		/* ★`#1906` 笔一：**结构化拒绝**（`RPG.refuse` ⇒ `e.code` 是非空串）在这里收成**结果面**。
 		 *   为什么收在此：契约面要求调用方**从返回值**判成败（`#1776`）；而「误用」是 `refuse`（用法

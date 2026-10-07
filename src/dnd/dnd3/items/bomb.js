@@ -10,12 +10,12 @@ DND3.Bomb = RPG.defItem({
 	charges: 1,
 	stackable: false,
 
-	used(that, from) {
+	used(that, from, 源 = null) {
 		const f = from?.stats ?? {};
 		const atkMod = (f.bab ?? 0) + DND3.modOf(f, 'dex'); // 投掷武器用灵巧
 		const ac = DND3.acOf(that);
 		/* ★`#2031` 六裁 3（**纠正**）：炸弹是**角色投掷武器**（用 `from` 的 BAB/DEX）⇒ 命中归 `attack.hit`，✗ 因独立文件便叫陷阱。 */
-		const die = DND3.d20({ purpose: 'attack.hit', actor: from?.name ?? null, 物: this.entityId ?? null });
+		const die = DND3.d20({ purpose: 'attack.hit', actor: from?.name ?? null, 物: this.entityId ?? null }, 源);
 		const noDodge = that?.noDodge === true;
 
 		if (!noDodge && die !== 20 && (die === 1 || die + atkMod < ac)) {
@@ -23,7 +23,7 @@ DND3.Bomb = RPG.defItem({
 				`（攻击掷骰 ${die}${atkMod ? RPG.formatMod(atkMod) : ''} 对 AC ${ac}）`);
 			return;
 		}
-		const r = RPG.rollDetail(this.stats.dmg, { purpose: 'damage', actor: from?.name ?? null, 物: this.entityId ?? null, 组: 0 });   // ★`#2031`
+		const r = RPG.rollDetail(this.stats.dmg, { purpose: 'damage', actor: from?.name ?? null, 物: this.entityId ?? null, 组: 0 }, 源);   // ★`#2031`
 		that.hp = Math.max(0, (that.hp ?? 0) - r.total);
 		DND3.grantDeathIfDown(that);
 		this.perform(`轰！${that.name}受到了${r.total}点${this.stats.type}伤害（${r.rolls.join('+')}）`);

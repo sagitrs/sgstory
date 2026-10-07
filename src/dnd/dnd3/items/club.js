@@ -24,10 +24,10 @@ DND3.Club = RPG.defItem({
 		unequip: RPG.slotUnequip,
 	},
 
-	used(that, from) {
+	used(that, from, 源 = null) {
 		/* ★**转发返回值**（`#1813`）：攻击层现在会在「打不出去」（腾不出手／没弹药）时
  *   `return false`；块体若不转发，`RPG.act` 拿到的仍是 `undefined` ⇒ 被算作 `applied`
  *   ⇒ `#1773` 的三连拒绝护栏在这一面失效。⇒ 与 `dnd-5e` 侧同笔（笔 1／笔 2）。 */
-		return DND3.meleeAttack(this, that, from);
+		return DND3.meleeAttack(this, that, from, 源);
 	},
 });

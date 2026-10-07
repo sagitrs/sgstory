@@ -107,7 +107,7 @@ setup.DND3.modOf = (stats, ability) => setup.DND3.abilityMod(stats?.[ability]);
 /** 1d20 —— 3E 检定的基础（core 只提供通用掷骰 RPG.roll） */
 /** 1d20 —— 3E 检定的基础（core 只提供通用掷骰 RPG.roll）
  *  ★`sgstory#2031`：可选 `ctx` ＝用途定位（由各正式落点给，`{ purpose, actor }`）。 */
-setup.DND3.d20 = (ctx) => setup.RPG.roll('1d20', ctx);
+setup.DND3.d20 = (ctx, 源 = null) => setup.RPG.roll('1d20', ctx, 源);
 /* ★`sgstory#2031`：本包**已接入**用途化骰面控制的正式落点 —— **在此一次声明**（✗ 散在各自档里，免得漏）。
  *   故事侧可读 `RPG.diceControl.接入表()` 核对；`arm()` 对**未声明**的用途当场报「未覆盖」✓。
  *   ⚠ `check.skill`／先攻等**尚未接入**（理由见 `#2031` 规格交付 §六）⇒ ✗ 在此冒名登记。 */

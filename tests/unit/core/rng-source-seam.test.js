@@ -153,4 +153,63 @@
 			assert.eq(R().Battle.按会话.size, 0, '起手为空（✗ 串场残留）');
 		} finally { 清(); }
 	});
+	/* ───────── ⑦⑧⑨ act 链：攻/伤骰**按源**走（`RPG.act` ⇒ 件 `used()` ⇒ 攻击层 ⇒ `DND3.d20`/`rollDetail`）───────── */
+
+	test('★#2043 ⑦【act 链】`RPG.act(…, 源)` ⇒ **武器攻/伤骰**吃该源（件 `used()` ⇒ 攻击层一路同一份源）；全局源分毫不动', () => {
+		清();
+		const A = R().makeRng({ 名: 'A' });
+		const 甲 = new (R().Character)({ name: '甲', hp: 99, maxHp: 99, stats: D().stats({ str: 10 }) });
+		const 乙 = new (R().Character)({ name: '乙', hp: 99, maxHp: 99, stats: D().stats({ ac: 0 }) });
+		const 旧全局 = R().rng._impl, 旧items = 甲.items;
+		try {
+			甲.items = [{ id: 'club', entityId: 'e1', equipped: true, charges: null }];
+			定序(A, 0.95);                    // d20 ⇒ 20（重击威胁）＋ 确认 ⇒ 20 ⇒ 命中；1d6 ⇒ 6
+			R().rng.setSequence([0.0, 0.5]);  // 全局：0.0 ⇒ d20 = 1 ⇒ **必失手**（两路可分辨 ✓）
+			const r = R().act(甲, 'club', 乙, 'use', 甲, A);
+			assert.eq(r.status, 'applied', `★RPG.act 须接受（实得 ${J(r)}）`);
+			assert.eq(乙.hp < 99, true, '★给了源 ⇒ 攻/伤骰吃**该源**（0.95 ⇒ 命中且有伤）—— 未受伤 ⇒ 走了别处 ✗');
+			assert.eq(R().rng.pick(20), 1, '★全局那份须**分毫未动**（注入序列的第一颗仍在 ⇒ 值仍是 1）');
+		} finally { 甲.items = 旧items; R().rng._impl = 旧全局; 清(); }
+	});
+
+	test('★#2043 ⑧【自动回合】`RPG.BattleTurn(甲, 乙, {源})` ⇒ 该回合攻/伤骰吃**本场的源**；✗ 给 opts ⇒ `源`＝null（旧形 ✓）', () => {
+		清();
+		const A = R().makeRng({ 名: 'A' });
+		const 甲 = new (R().Character)({ name: '甲', hp: 99, maxHp: 99, stats: D().stats({ str: 10 }) });
+		const 乙 = new (R().Character)({ name: '乙', hp: 99, maxHp: 99, stats: D().stats({ ac: 0 }) });
+		const 旧全局 = R().rng._impl, 旧items = 甲.items;
+		try {
+			甲.items = [{ id: 'club', entityId: 'e1', equipped: true, charges: null }];
+			const 旧形 = new (R().BattleTurn)(甲, 乙);
+			assert.eq(旧形.源, null, '★✗ 给 opts ⇒ `源`＝null（`BattleTurn(a,b).execute()` 的独立用法 ⇒ 走全局，旧行为逐字不变 ✓）');
+			定序(A, 0.95);
+			R().rng.setSequence([0.0, 0.5]);
+			const 回 = new (R().BattleTurn)(甲, 乙, { 源: A }).execute();
+			assert.eq(回.status, 'applied', `★自动回合须打得出去（实得 ${J(回)}）`);
+			assert.eq(乙.hp < 99, true, '★自动回合的攻/伤骰须吃**本场的源**（✗ 全局 ⇒ 全局注入的必失手 ⇒ 无伤）');
+			assert.eq(R().rng.pick(20), 1, '★全局那份须分毫未动（旧形用法才走它 ✓）');
+		} finally { 甲.items = 旧items; R().rng._impl = 旧全局; 清(); }
+	});
+
+	test('★#2043 ⑨【act 链·兼容】`RPG.act(…)` **✗ 给源** ⇒ 与旧行为逐字同（走全局那份）', () => {
+		清();
+		const 甲 = new (R().Character)({ name: '甲', hp: 99, maxHp: 99, stats: D().stats({ str: 10 }) });
+		const 乙 = new (R().Character)({ name: '乙', hp: 99, maxHp: 99, stats: D().stats({ ac: 0 }) });
+		const 旧全局 = R().rng._impl, 旧items = 甲.items;
+		try {
+			甲.items = [{ id: 'club', entityId: 'e1', equipped: true, charges: null }];
+			R().rng.setSequence(Array.from({ length: 8 }, () => 0.95));   // 全局：全 20 ⇒ 命中（一次攻击要吃好几颗：攻/确认/伤害 ✓）
+			const r = R().act(甲, 'club', 乙);
+			assert.eq(r.status, 'applied', `★✗ 给源须照旧可打（实得 ${J(r)}）`);
+			assert.eq(乙.hp < 99, true, '★✗ 给源 ⇒ 走全局那份（旧行为 ✓）⇒ 命中 ✓');
+		} finally { 甲.items = 旧items; R().rng._impl = 旧全局; 清(); }
+	});
+
+	/* ★**未落**一格：**交互战斗路**（`RPG.Battle#actCatching`，即故事侧战斗卡真正走的那条路）。
+	 *   本席实测（刀 `Lf`：把 `#actCatching` 的 `, this.源` 摘掉）⇒ **套件 0 红** ⇒ 说明本路**当前无判据** ✓。
+	 *   落格尝试两次皆在**装具层**受阻（「`reviveItem: 快照为空`」—— 交互路会遍历双方背包，须**完整快照**；
+	 *   我按第 66 组的存-复原口径改了 `State.variables.inventory` ＋ 乙的空包，仍未过）⇒ **不硬凑** ✓：
+	 *   本路的**端到端**判据归 **A2 两卡**（那正是甲案说的「**真实测试路径**」✓）⇒ 已在 PR 正文「未覆盖」登记 ✓。
+	 *   ★代码侧的透传**已落**（`#actCatching` 已带 `this.源` ✓）—— 缺的是**判据**，✗ 不是实现 ✓。 */
+
 })();

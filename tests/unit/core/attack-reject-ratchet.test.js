@@ -129,7 +129,10 @@
 				const src = stripComments(fs.readFileSync(f, 'utf8'));
 				const fn = 攻击函数[包];
 				/* `sword`／`club`／`bomb` 那几件在 `dnd-5e` 里调的是 `DND5E.attack`（文件面按包写） */
-				const m = src.match(new RegExp(`used\\(that, from\\)\\s*\\{\\s*(return\\s+)?${fn}\\(this, that, from\\);`));
+				/* ★`sgstory#2043`：`dnd3` 的攻击层改了签名（**显式源**第三/第四参 —— 甲案「正式测试路径显式消费所属会话的源」），
+				 *   故本正则**两形都收**：旧形（`dnd-5e`／`d20m` 两包**未改** ⇒ 缺省＝全局源，行为逐字不变 ✓）与新形（`dnd3`）。
+				 *   ★「须转发 `return`」那一条**不动**（本格的原意）✓。 */
+				const m = src.match(new RegExp(`used\\(that, from(?:, 源 = null)?\\)\\s*\\{\\s*(return\\s+)?${fn}\\(this, that, from(?:, 源)?\\);`));
 				assert.ok(m, `${f}：「used()」未按形转发 \`${fn}\``);
 				assert.ok(m[1], `★${f}：「used()」**未转发**返回值（\`${fn}(…)\` 前缺 \`return\`）`
 					+ ' ⇒ 攻击层的 `false` 被丢弃 ⇒ 本票在 「used()」 层失效');

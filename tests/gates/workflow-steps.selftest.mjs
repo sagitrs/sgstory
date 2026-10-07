@@ -65,6 +65,16 @@ const 刀们 = [
 		L.splice(i, 0, '      - name: 自检加的合法步', '        run: node --version');
 		return L.join('\n');
 	} }) },
+	{ 名: 'K6 标量值带「: 」未加引号（★本仓实测：整文件不解析）', 期望: 1, 根: () => 造根('k6', { 文件: 靶, 换: (文) => {
+		const L = 文.split('\n'); const i = L.findIndex((l) => /^\s{6}-\s+name:/.test(l));
+		if (i < 0) return 文;
+		L[i] = '      - name: 门（含 : 冒号）'; return L.join('\n');
+	} }) },
+	{ 名: 'K7 同值但**加引号** ⇒ 绿（证明本检不滥红）', 期望: 0, 根: () => 造根('k7', { 文件: 靶, 换: (文) => {
+		const L = 文.split('\n'); const i = L.findIndex((l) => /^\s{6}-\s+name:/.test(l));
+		if (i < 0) return 文;
+		L[i] = '      - name: "门（含 : 冒号）"'; return L.join('\n');
+	} }) },
 	{ 名: 'K5 没有 workflows 目录（装置错）', 期望: 2, 根: () => { const d = path.join(临时根, 'k5'); fs.mkdirSync(d, { recursive: true }); return d; } },
 ];
 
@@ -81,5 +91,5 @@ for (const k of 刀们) {
 }
 try { fs.rmSync(临时根, { recursive: true, force: true }); } catch { /* 清不掉不掩盖结论 */ }
 if (不中 > 0) { console.error(`\n✗ 自检未过：${不中} 刀未如期`); process.exit(1); }
-console.log('\n✓ 自检全过（K0/K4 绿、K1/K2/K3 红、K5 装置错 rc=2）');
+console.log('\n✓ 自检全过（K0/K4/K7 绿、K1/K2/K3/K6 红、K5 装置错 rc=2）');
 process.exit(0);

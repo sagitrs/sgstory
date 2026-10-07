@@ -111,6 +111,23 @@ for (const f of 文件们) {
 		if (run数.length === 0 && !有uses) {
 			问题.push(`${f}:${起.i + 1}: 步骤「${名}」**既无 run 也无 uses** ⇒ workflow 无效（PR 一个 run 都不起、全仓全红）`);
 		}
+		/* D（`P1-3` 实测 · 「可解析验」的**本仓那一类**）：**标量值里带「`: `」须加引号** ——
+		 *   YAML 里 `key: 值里还有: 空格` ⇒ **解析失败** ⇒ ★**整个 workflow 不加载**：CI 只报 `failure`、
+		 *   **不报步**（× 本门当时全绿 ⇒ 假绿，是 developer-9 `#2050` 踩到的形 ✓）。
+		 *   ⚠ 只判本类 ✓：✗ 完整 YAML 解析（本门是**行扫**、不引解析器依赖 ✓）；引号内的冒号**合法** ✓；
+		 *     `a:b`（冒号后**无空格**）合法 ✓（命令行里常见 ✓）。 */
+		{
+			const re = /^(\s*)(?:-\s+)?([A-Za-z_][\w.-]*):\s+(.+)$/;   // ★允许 `- name: …`（列表项形 —— 我第一版漏了它 ⇒ K6 假绿 ✓）
+			for (let i = 0; i < 行.length; i++) {
+				const m = re.exec(行[i]);
+				if (!m) continue;
+				const 值 = m[3].trim();
+				if (值.startsWith('"') || 值.startsWith("'") || 值.startsWith('|') || 值.startsWith('>') || 值.startsWith('#')) continue;
+				if (/:\s/.test(值) || 值.endsWith(':')) {
+					问题.push(`${f}:${i + 1}: 标量值里带「\`: \`」而**未加引号** ⇒ YAML **解析失败** ⇒ 整个 workflow 不加载（症状：CI 只报 failure、不报步）⇒ 请给该值加引号 ✓`);
+				}
+			}
+		}
 		/* B：一块里 run 不得重复 */
 		if (run数.length > 1) {
 			问题.push(`${f}:${run数.map((x) => x.行号).join(',')}: 步骤「${名}」有 **${run数.length} 个 \`run:\`** ⇒ YAML last-wins 会**顶掉**前者 ⇒ 步名与实跑不符（假绿）`);

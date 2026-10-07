@@ -149,7 +149,7 @@ RPG.Item = class Item extends Object {
 			if (action === 'use') {
 				throw new Error(`${this.constructor.name} 没有实现默认动作 used`);
 			}
-			this.perform(`「${this.name}」没有「${action}」这个用法。`);
+			this.perform(`「${this.name}」没有「${action}」这个用法。`, { channel: 'item-refuse' });   // ★P1-3：用法拒绝 ✓
 			return false;   // ★ #1783：分发失败 ＝ 拒绝（✗ undefined —— 那会被算作 applied）
 		}
 		return handler.call(this, that, from, 源);

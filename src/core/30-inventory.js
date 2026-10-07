@@ -305,18 +305,18 @@ RPG.slotEquip = function slotEquip() {
 	 *   ⇒ 现改 `return false`，失败即走 `rejected/action-refused` 面（提示文案不变）。
 	 *   ⚠ 同一处纪律的反面：**幂等成功仍返回 `undefined`**（见下第四种情形的注）。 */
 	if (this.slot == null) {
-		this.perform(`「${this.name}」不是可装备的物品。`);
+		this.perform(`「${this.name}」不是可装备的物品。`, { channel: 'equip' });   // ★P1-3：装备类 ✓
 		return false;
 	}
 	const current = RPG.equippedIn(this.slot);
 	if (current && current.id !== this.id) {
-		this.perform(`「${current.name}」正占着${RPG.slotLabels[this.slot] ?? this.slot}槽——先卸下它。`);
+		this.perform(`「${current.name}」正占着${RPG.slotLabels[this.slot] ?? this.slot}槽——先卸下它。`, { channel: 'equip' });
 		return false;
 	}
 	/* ★**同槽同件**（`current.id === this.id`）⇒ 落到此处 ⇒ 幂等：把已装备的再装一次**不是失败**
 	 *   （✗ 不返回 false —— 否则玩家点两次会看到「失败」提示）。故本函数有且仅有**两处** `return false`。 */
 	this.equipped = true;
-	this.perform(`你装备了「${this.name}」。`);
+	this.perform(`你装备了「${this.name}」。`, { channel: 'equip' });
 };
 
 /** 卸下动作：清除 equipped 标记（未装备时是静默空操作）
@@ -332,7 +332,7 @@ RPG.slotEquip = function slotEquip() {
 RPG.slotUnequip = function slotUnequip() {
 	if (!this.equipped) return;
 	this.equipped = false;
-	this.perform(`你卸下了「${this.name}」。`);
+	this.perform(`你卸下了「${this.name}」。`, { channel: 'equip' });
 };
 
 /**
@@ -356,7 +356,7 @@ RPG.throwItem = function throwItem(that, from) {
 	 *   ⚠ 可达性：唯一挂 `throw:` 的真件是 `dagger`，而它有 `thrown: '20/60'` ⇒ 该分支**对真内容面
 	 *   不可达**；但**接口必须正确**（与 `slotEquip` 的「不是可装备物」分支**同一判据、同一适用**）。 */
 	if (this.stats?.thrown == null) {
-		this.perform(`「${this.name}」没有 Thrown 特性，不能投掷。`);
+		this.perform(`「${this.name}」没有 Thrown 特性，不能投掷。`, { channel: 'item-refuse' });   // ★P1-3：用法拒绝 ✓
 		return false;
 	}
 	this.used(that, from); // 先掷（走该武器的既有攻击路径），再离手
@@ -413,11 +413,11 @@ RPG.useItem = (id, that, from, action = 'use') => {
 	const r = RPG.act(actor, id, that, action, from);
 	if (r.status === 'rejected') {
 		if (r.reason === 'no-such-item') {
-			setup.RPG.perform(`背包里没有「${RPG.createItem(id).name}」。`);
+			setup.RPG.perform(`背包里没有「${RPG.createItem(id).name}」。`, { channel: 'item-refuse' });
 		} else if (r.reason === 'no-ammo') {
 			const ammoId = r.item?.stats?.ammo?.id;
 			const need = ammoId && RPG.items.has(ammoId) ? RPG.createItem(ammoId).name : ammoId;
-			setup.RPG.perform(`没有可用的${need}了——「${r.item?.name}」打不出去。`);
+			setup.RPG.perform(`没有可用的${need}了——「${r.item?.name}」打不出去。`, { channel: 'item-refuse' });
 		}
 		return false;
 	}
@@ -579,7 +579,7 @@ RPG.act = (actor, itemRef, target, action = 'use', from = actor, 源 = null) => 
 			refused = true;
 			拒绝码 = e.code;
 			拒绝附加 = e.extra ?? null;
-			if (typeof e.message === 'string' && e.message !== '') RPG.perform(e.message);
+			if (typeof e.message === 'string' && e.message !== '') RPG.perform(e.message, { channel: 'item-refuse' });   // ★P1-3：结构化拒绝（用法不成立）✓
 		} else {
 			throw e;
 		}

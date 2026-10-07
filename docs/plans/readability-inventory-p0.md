@@ -17,13 +17,13 @@
 ```
 入口（故事侧）  teleport.js：出边 action ⇒ BS.返程结算.返程事务({实例, 完成, 演出})
     ↓
-域面（引擎面）  RPG.commitBoundary.preview({request, facts, apply})        core/33-commit.js:11（档头契约）/140
+域面（引擎面）  RPG.commitBoundary.preview({request, facts, apply})        src/core/33-commit.js:11（档头契约）/140
     │            · facts ＝ State.variables['sevenNames']（**活块**，✗ 副本）
     │            · 产出票据 {request, 前像, 计划}（纯数据 ✓）
     ↓
-                RPG.commitBoundary.commit(ticket, {facts, publish})        core/33-commit.js:12
+                RPG.commitBoundary.commit(ticket, {facts, publish})        src/core/33-commit.js:12
     │            ① 二次确认：当下 ≡ 前像（否则 COMMIT_STALE，零写 ✓）
-    │            ② 一次落定 ＋ 记账（$rpgCommits，**窗口 200** ⇒ 去重只保最近）  core/33-commit.js:39
+    │            ② 一次落定 ＋ 记账（$rpgCommits，**窗口 200** ⇒ 去重只保最近）  src/core/33-commit.js:39
     │            ③ 写后回读（读不到 ⇒ COMMIT_LEDGER_FAILED 并**回滚** ✓）
     ↓
 物品面（**边界之外**）  先做 ＋ **自带补偿**（背件 ⇒ reviveItem）⇒ 失败即复原并拒 ✓
@@ -36,19 +36,19 @@
 ### 链 B · 一次「武器攻击」（`sgstory#2043`／`#2044` 的按会话随机源）
 
 ```
-入口          RPG.submitBattleAction(cmd, actor, 会话)          core/40-battle.js:981
-    ↓         RPG.Battle.currentOf(会话)（✗ 给会话 ⇒ 全局 current）   core/40-battle.js:288
+入口          RPG.submitBattleAction(cmd, actor, 会话)          src/core/40-battle.js:981
+    ↓         RPG.Battle.currentOf(会话)（✗ 给会话 ⇒ 全局 current）   src/core/40-battle.js:288
 战斗           Battle#execute ⇒ 交互路 actCatching ⇒ 本场 this.源
     ↓
-统一动作       RPG.act(actor, itemRef, target, action, from, 源)    core/30-inventory.js:509
+统一动作       RPG.act(actor, itemRef, target, action, from, 源)    src/core/30-inventory.js:509
     ↓         （原子提交：先跑动作 ⇒ 再提交 equipped／charges 回**快照**；拒 ⇒ 零变更 ✓）
-件处理器       Item.used(that, from, action, 源)                    core/10-item.js:146
-    ↓         件 used(that, from, 源 = null) ⇒ 转发 return（如 sword）  dnd/dnd3/items/sword.js:28
-规则包         DND3.meleeAttack(…, 源) ⇒ DND3.d20(ctx, 源)          dnd/dnd3/00-init.js:110
+件处理器       Item.used(that, from, action, 源)                    src/core/10-item.js:146
+    ↓         件 used(that, from, 源 = null) ⇒ 转发 return（如 sword）  src/dnd/dnd3/items/sword.js:28
+规则包         DND3.meleeAttack(…, 源) ⇒ DND3.d20(ctx, 源)          src/dnd/dnd3/00-init.js:110
     ↓
-骰原语         RPG.rollDetail(expr, ctx, 源) ⇒ (源 ?? RPG.rng).pick(sides)   core/05-dice.js:88
+骰原语         RPG.rollDetail(expr, ctx, 源) ⇒ (源 ?? RPG.rng).pick(sides)   src/core/05-dice.js:88
     ↓
-唯一读随机   unit()：按源归属记底层账（实例带 `会话` ⇒ 记进**该会话**）   core/05-dice.js（unit）+06-dice-control.js:235
+唯一读随机   unit()：按源归属记底层账（实例带 `会话` ⇒ 记进**该会话**）   src/core/05-dice.js（unit）+src/core/06-dice-control.js:235
     ↓
 收尾         伤害/事件；战终清 `Battle.current`／`Battle.按会话` 登记 ✓
 ```
@@ -66,7 +66,7 @@
 | 装备标记 | `slotEquip` / `slotUnequip`（动作面） | 件快照 `equipped` | `src/core/30-inventory.js:301` |
 | 存档域（内置） | `80-save.js` 的 `DOMAINS` | `State.variables.<键>` | `src/core/80-save.js:88`（`domainTable`） |
 | 存档域（故事登记） | `RPG.save.declareDomain` | 同上（`envelope().domains` 可见） | `80-save.js:43/89/197` |
-| 提交账 | `commitBoundary`（`记账` + 剪枝） | `$rpgCommits`（**窗口 200**） | `src/core/33-commit.js:39` |
+| 提交账 | `commitBoundary`（`记账` + 剪枝） | `$rpgCommits`（**窗口 200**） | `src/src/core/33-commit.js:39` |
 | 随机源·全局 | `RPG.rng.set/reset/setSequence` | `RPG.rng._impl`（**自有**可变状态） | `src/core/05-dice.js:70` |
 | 随机源·会话实例 | `RPG.makeRng({会话})` | 实例 `_impl`／序列游标／`计数` | `src/core/05-dice.js:80` |
 | 底层调用计数 | `diceControl._记底层(源)`（**按源归属**） | 会话账 `底层.调用` | `src/core/06-dice-control.js:235` |

@@ -13,7 +13,10 @@
 	const D = () => setup.DND3;
 	const C = () => R().diceControl;
 	const J = (x) => JSON.stringify(x);
-	const 清 = () => { C().clearAll(); C().清账(); R().rng.reset(); };
+	/* ★本档**不**在每格尾部复位全局源 —— 每格之间**由装具**复位（`harness.js`）✓；
+	 *   若本档自己顺手复位，会让刀 `rng-reset-off`（摘装具复位那一步）**少咬一格** ✗
+	 *   （实测：本席首版就把它从 5 红压成 4 红 ⇒ 改成「只在**本格注入过全局序列**的两处显式复位」✓）。 */
+	const 清 = () => { C().clearAll(); C().清账(); };
 	const 捉 = (f) => { try { f(); return null; } catch (e) { return e; } };
 	const 定序 = (源, v, n = 64) => 源.setSequence(Array.from({ length: n }, () => v));
 
@@ -32,7 +35,13 @@
 			assert.eq(抛A?.code, 'RNG_EXHAUSTED', '★A 抽尽须**具名抛**（✗ 静默回退真随机）');
 			定序(B, 0.95, 2);
 			assert.eq(B.pick(20), 20, '★B 用的是**自己**的序列（0.95 ⇒ 20）—— A 抽尽 ✗ 影响 B ✓');
-			assert.eq(R().rng._impl, null, '★全局那份**未被**任何实例的 `setSequence` 动过（✗ 共享可变状态）');
+			/* ★全局那份的判据用**行为**形（✗ 断言 `_impl === null` —— 那会让本格对「装具复位」的注入泄漏敏感，
+			 *   实测它会成为刀 `rng-reset-off`／`rng-code-off` 的**越界红** ⇒ 改形 ✓。 */
+			const 旧全局 = R().rng._impl;
+			try {
+				R().rng.setSequence([0.95, 0.95]);
+				assert.eq(R().rng.pick(20), 20, '★全局那份走的是**它自己的**序列（✗ 被实例的设定顶掉 ✓ 共享可变状态 ✗）');
+			} finally { R().rng._impl = 旧全局; }
 			assert.eq(A.计数 >= 2, true, `实例须记**自有**计数（实得 ${A.计数}）`);
 		} finally { 清(); }
 	});
@@ -41,6 +50,7 @@
 
 	test('★#2043 ②【显式源】`rollDetail(expr, ctx, 源)` 吃该源；**✗ 给源** ⇒ 与旧行为逐字同（走全局）', () => {
 		清();
+		const 旧implB = R().rng._impl;
 		try {
 			const A = R().makeRng({ 名: 'A' });
 			定序(A, 0.0, 4);
@@ -54,13 +64,14 @@
 			const B = R().makeRng({ 名: 'B' });
 			定序(B, 0.5, 2);
 			assert.eq(R().checkRoll({ mod: 0, dc: 999 }, B).roll, 11, '★给了源 ⇒ 检定骰吃**该源**（0.5 ⇒ 11），✗ 全局序列 ✓');
-		} finally { 清(); }
+		} finally { R().rng._impl = 旧implB; 清(); }
 	});
 
 	/* ───────── ③ 用途化骰控制：受控颗吃臂面；未受新控制**回退走本次源** ───────── */
 
 	test('★#2043 ③【按源归属·控制面】装了臂的颗吃臂面（与源无关）；**未受新控制**的回退走**本次源**（✗ 全局）', () => {
 		清();
+		const 旧implC = R().rng._impl;
 		try {
 			const A = R().makeRng({ 名: 'A' });
 			定序(A, 0.95, 4);
@@ -70,7 +81,7 @@
 			/* ★反证：全局那份另给一个可分辨的序列 ⇒ 若回退误读全局，上面那颗会变成 1 ✓ */
 			R().rng.setSequence([0.0]);
 			assert.eq(R().rollDetail('1d6', { purpose: 'damage', actor: '甲', 组: 0 }, A).rolls[0], 6, '★回退仍走**本次源**（✗ 被全局序列顶成 1 ✓）');
-		} finally { 清(); }
+		} finally { R().rng._impl = 旧implC; 清(); }
 	});
 
 	/* ───────── ④ 底层计数按源归属（给了会话 ⇒ 记进**那个**会话）───────── */

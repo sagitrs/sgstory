@@ -52,7 +52,7 @@ jobs:
         run: node tests/gates/player-text.mjs
       - name: 玩家文本门自身的可假刀自检（每条刀断到「红在哪一支」）
         run: node tests/gates/player-text.mjs --selftest
-      - name: 通道类别门（P1-3：两个 API 面内 `perform` 须带通道 ＋ 类别通道须 `level: key`）
+      - name: "通道类别门（P1-3：两个 API 面内 `perform` 须带通道 ＋ 类别通道须 `level: key`）"   # ★引号：name 里含 `: `（✗ 不加引号 ⇒ YAML 解析失败 ⇒ 工作流整体不加载 ✗）
         run: node tests/gates/key-channels.mjs
       - name: 通道类别门自身的可假刀自检
         run: node tests/gates/key-channels.mjs --selftest

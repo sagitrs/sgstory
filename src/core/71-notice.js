@@ -50,6 +50,10 @@ RPG.defNotice('battle-refuse', { name: '战斗·无法出手', level: 'key' });
 RPG.defNotice('battle-end', { name: '战斗结算', level: 'key' });
 RPG.defNotice('death', { name: '阵亡', level: 'key' });
 RPG.defNotice('loot', { name: '产出', level: 'key' });
+/* ★`P1-2`（探索视图）：**场景头与地点正文**也是「玩家必须看到」的一类 —— 过滤到「只看关键」时
+ *   若被筛掉，玩家会**读到一片与地点无关的正文**（✗ 不知道自己在哪、这地方是什么）⇒ 亦挂 `key` ✓。
+ *   先例：`40-battle.js` 的 `battle-end`（战斗结算）与 books 侧 `encounters.js:155` 的 `death` 通道 ✓。 */
+RPG.defNotice('map-scene', { name: '场景', level: 'key' });
 
 /** 取通道定义（未注册 ⇒ 回落到 `default`，并**保留**请求的 id 以便面板显示来源） */
 RPG.noticeChannel = (id) => {

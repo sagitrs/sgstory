@@ -419,4 +419,36 @@
 		assert.eq(scene.map.current, 'b',
 			`★无返回值 ⇒ 照旧 moveTo（实得 ${JSON.stringify(scene.map.current)}）`);
 	});
+	/* ---------- ★P1-2（探索视图）：「仅关键」档下**地点正文仍在正文面** ---------- */
+
+	test('★P1-2 map：场景头与地点 desc 走 `map-scene`（`level: key`）⇒ 「仅关键」档下仍进正文；对照：`default` 被筛', async () => {
+		State.passage = '探索';
+		const 旧档 = State.variables.rpgNoticeFilter;
+		const 旧通知 = State.variables.rpgNotices;
+		try {
+			/* ① 通道级别（注册面回答，✗ 猜文本） */
+			State.variables.rpgNoticeFilter = 'key';
+			assert.eq(R().noticeAdmits('map-scene'), true,
+				'★「仅关键」档下 `map-scene` 须**进正文**（✗ 场景头/地点正文被吞 ⇒ 玩家读到与地点无关的正文 ✓）');
+			assert.eq(R().noticeAdmits('default'), false, '★对照：`default`（常态）在「仅关键」档下**不进正文** ✓');
+			/* ② 真输出：跑一次场景 ⇒ 层名与 desc 落在 `map-scene` 通道上（★读**真通知缓冲**，✗ 读源码文本） */
+			State.variables.rpgNotices = [];
+			const map = new (R().WorldMap)({ id: 'p12' });
+			map.addLocation(new (R().Location)({ id: 'hall', name: '门厅', desc: '石阶上覆着一层薄苔。' }));
+			const scene = new (R().MapScene)({ id: 'p12', map, start: 'hall' });
+			scene.choice = async () => null;                              // 一次问询即收 ⇒ 本格只判**进场那一次**输出 ✓
+			await scene.execute();
+			通道: {
+				const ns = State.variables.rpgNotices ?? [];
+				const 本通道 = ns.filter((n) => n.channel === 'map-scene').map((n) => n.text);
+				assert.eq(本通道.some((t) => t.includes('门厅')), true,
+					`★层名须走 \`map-scene\`（实得 ${JSON.stringify(本通道).slice(0, 120)}）`);
+				assert.eq(本通道.some((t) => t.includes('薄苔')), true,
+					`★**地点正文**须走 \`map-scene\`（实得 ${JSON.stringify(本通道).slice(0, 160)}）`);
+			}
+		} finally {
+			if (旧档 === undefined) delete State.variables.rpgNoticeFilter; else State.variables.rpgNoticeFilter = 旧档;
+			if (旧通知 === undefined) delete State.variables.rpgNotices; else State.variables.rpgNotices = 旧通知;
+		}
+	});
 })();

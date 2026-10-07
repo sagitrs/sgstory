@@ -275,8 +275,20 @@ const strikeCatching = (actor, target, un) => {
 /** ★`#2003`：**当前正在进行的战斗**（`execute()` 期间登记，收尾清空）。
  *  故事侧不攥战斗实例也能提交行动：见下 `RPG.submitBattleAction`。 */
 RPG.Battle = class Battle extends RPG.Event {
-	constructor(turn, players, enemies, interactive = false) {
+
+	/** ★`sgstory#2043`：**按会话的当前战斗**（✗ 改全局语义 ⇒ `RPG.Battle.current` 仍只对官方战斗生效 ✓）。 */
+	static 按会话 = new Map();
+
+	/** 取某会话的当前战斗（`会话` 缺省 ⇒ 全局那份，兼容旧调用 ✓）。 */
+	static currentOf(会话) {
+		return 会话 == null ? RPG.Battle.current : (RPG.Battle.按会话.get(String(会话)) ?? null);
+	}
+	constructor(turn, players, enemies, interactive = false, opts = {}) {
 		super();
+		/* ★`sgstory#2043`：本场可携**自己的随机源**与**会话号**（测试局用；缺省 null ⇒ 全走全局，旧行为不变 ✓）。
+		 *   ⚠ 必须在 `super()` **之后**赋值（`extends RPG.Event` ⇒ 派生类 ✗ 在 super 前碰 `this`）。 */
+		this.源 = opts.源 ?? null;
+		this.会话 = opts.会话 == null ? null : String(opts.会话);
 		if (!Number.isInteger(turn) || turn < 1) {
 			throw new Error(`Battle 的第 1 个参数应是正整数回合数，收到：${turn}`);
 		}
@@ -391,11 +403,15 @@ RPG.Battle = class Battle extends RPG.Event {
 		this.rejectStreak = 0; // ★`#1773`：护栏计数**每场清零**（✗ 跨场串味）
 		/* ★`#2003`：把「当前这场」登记下来 —— 故事侧（背包视图）要能**按 id 提交行动**而不必
 		 *   自己攥着战斗实例；`RPG.submitBattleAction` 就是这条面。收尾处**清掉**（✗ 留下过期引用）。 */
-		RPG.Battle.current = this;
+		/* ★`sgstory#2043`（甲案 §三）：**当前战斗按会话归属** —— 给了会话的（测试）战斗**只**登记进该会话，
+		 *   ✗ 碰全局 `current`（否则正式面会被测试局顶掉 ✗）；**官方**战斗（✗ 给会话）仍走全局那份 ⇒ 旧行为逐字不变 ✓。 */
+		if (this.会话 != null) RPG.Battle.按会话.set(this.会话, this);
+		else RPG.Battle.current = this;
 		try {
 		const alive = (group) => group.filter((c) => !this.isOut(c));
 		/** 等概率随机选取一个存活目标（随机取值一律经 `RPG.rng`，见 §决策五 契约） */
-		const pick = (group) => group[RPG.rng.index(group.length)];
+		const 取 = this.源 ?? RPG.rng;      // ★`sgstory#2043`：选择器（AI 选靶）走**本场自己的源**（缺省＝全局 ✓）
+		const pick = (group) => group[取.index(group.length)];
 
 		for (let round = 1; round <= this.rounds; round++) {
 			if (alive(this.players).length === 0 || alive(this.enemies).length === 0) {
@@ -477,7 +493,8 @@ RPG.Battle = class Battle extends RPG.Event {
 			enemies: this.enemies,
 		});
 		} finally {
-			if (RPG.Battle.current === this) RPG.Battle.current = null;
+			if (this.会话 == null) { if (RPG.Battle.current === this) RPG.Battle.current = null; }
+			else if (RPG.Battle.按会话.get(this.会话) === this) RPG.Battle.按会话.delete(this.会话);
 			/* ★`#2003`（D 面残余 · 领队 18:1x 转）：**战终仍没被消费的提交要出声**（✗ 静默丢）。
 			 *   战斗可能在**轮到提交者之前**就结束（对方团灭／提交者出局／这场从头到尾不问玩家）⇒
 			 *   那一手**从未发生**，得让提交方读得到：上屏一条具名文案 ＋ 留一份结构化账
@@ -956,8 +973,9 @@ RPG.Battle = class Battle extends RPG.Event {
  *      那条路仍归 `RPG.itemClick` —— 本口**不**越界替它做事）。
  *  ⚠ 返回值逐字用 `text` 上屏即可（✗ 静默丢弃 —— 玩家点了没反应＝另一种假读数）。
  */
-RPG.submitBattleAction = (cmd, actor = null) => {
-	const b = RPG.Battle.current;
+RPG.submitBattleAction = (cmd, actor = null, 会话 = null) => {
+	/* ★`sgstory#2043`：给会话 ⇒ 取**该会话**的当前战斗（✗ 取全局 —— 那会把测试局的提交塞进正式战斗 ✓）。 */
+	const b = RPG.Battle.currentOf(会话);
 	if (!b) {
 		return { ok: false, reason: 'no-battle', text: '现在不在战斗中 —— 战外直接点道具名即可（不占回合）。' };
 	}

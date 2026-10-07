@@ -187,4 +187,32 @@
 			'`notices()` 自身的顺序契约＝新的在前（面板据此取头，钳位仍只在这一处）');
 	});
 
+	/* ---------- ★P1-3：「玩家会读的场景面」按**类别**挂 key（✗ 逐位置） ---------- */
+
+	test('★P1-3 notice：装备类与物品用法拒绝类**整类**挂 key ⇒ 「仅关键」档下仍进正文（对照：default 被筛）', async () => {
+		const 旧档 = State.variables.rpgNoticeFilter, 旧通知 = State.variables.rpgNotices, 旧背 = State.variables.inventory;
+		try {
+			State.variables.rpgNoticeFilter = 'key';
+			/* ① 类别级（注册面回答 ⇒ 「同一类的调用点一律挂它」的**兜底**在这里 ✓） */
+			assert.eq(R().noticeAdmits('equip'), true, '★「仅关键」档下 `equip`（装备类）须**进正文**（✗ 点了装备没回执 ✓）');
+			assert.eq(R().noticeAdmits('item-refuse'), true, '★「仅关键」档下 `item-refuse`（用法拒绝类）须**进正文**（✗ 用完没子弹也不出声 ✓）');
+			assert.eq(R().noticeAdmits('default'), false, '★对照：`default`（常态）同档下**不进正文** ✓');
+			/* ② 真输出：装备一次 ＋ 一次用法拒绝 ⇒ 各自落在**该类通道**上（读真通知缓冲 ✓） */
+			State.variables.rpgNotices = [];
+			State.variables.inventory = [];
+			R().deposit(State.variables.inventory, 'club', 1);
+			R().equip('club');
+			R().useItem('bandage');                       // 包里没有 ⇒ 「背包里没有…」那条拒绝 ✓
+			const ns = State.variables.rpgNotices ?? [];
+			const 取 = (ch) => ns.filter((n) => n.channel === ch).map((n) => n.text);
+			assert.eq(取('equip').some((t) => t.includes('你装备了')), true,
+				`★装备提示须走 \`equip\`（实得 ${JSON.stringify(取('equip')).slice(0, 120)}）`);
+			assert.eq(取('item-refuse').some((t) => t.includes('背包里没有')), true,
+				`★用法拒绝须走 \`item-refuse\`（实得 ${JSON.stringify(取('item-refuse')).slice(0, 160)}）`);
+		} finally {
+			if (旧档 === undefined) delete State.variables.rpgNoticeFilter; else State.variables.rpgNoticeFilter = 旧档;
+			if (旧通知 === undefined) delete State.variables.rpgNotices; else State.variables.rpgNotices = 旧通知;
+			if (旧背 === undefined) delete State.variables.inventory; else State.variables.inventory = 旧背;
+		}
+	});
 })();

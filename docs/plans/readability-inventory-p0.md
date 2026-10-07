@@ -5,6 +5,7 @@
 
 **✗ 本档不作为完成证明的三样**（照 P0 节原文）：**端口存在** ✗、**模型测试** ✗、**棘轮读数** ✗ —— 它们都不是「可读」的证明 ✓；本档能拿出的只是：**调用链、所有权、迁移登记、文件头自检** ＋ 逐条可定位的 **file:line** ✓。
 
+**引注形**：一律 **`src/<路径>:行`**（相对仓根 ✓）；
 **引注口径**：所有 `档:行` 均指 **`dev` 支**（本档写作时 `24df8b06` ✓）；行号会随后续提交漂移 ⇒ **引用时连同 sha** ✓（本仓已记过「引用漂了须人工判语义」的教训 ✓）。
 
 ---
@@ -52,25 +53,25 @@
 收尾         伤害/事件；战终清 `Battle.current`／`Battle.按会话` 登记 ✓
 ```
 - **状态来源**：`actor.items`（**快照数组** ✓）＋ **随机源**（`源`；缺省＝全局 `RPG.rng` ✓）；**提交点**：`RPG.act` 的动作后提交 ✓（另一处在战斗收尾的登记清理 ✓）。
-- **✗ 易读错的点**：`slot` 是**自由字符串**（规则包可扩展 ✓ `10-item.js:127-129`）⇒ ✗ 把「已用槽名」当封闭枚举 ✓；`equipped` 的写入面是**背包条目**（快照 ✓）⇒ ✗ 对 `reviveItem` 出来的实例改而不写回 ✓。
+- **✗ 易读错的点**：`slot` 是**自由字符串**（规则包可扩展 ✓ `src/core/10-item.js:127-129`）⇒ ✗ 把「已用槽名」当封闭枚举 ✓；`equipped` 的写入面是**背包条目**（快照 ✓）⇒ ✗ 对 `reviveItem` 出来的实例改而不写回 ✓。
 
 ## 2. 所有权表（一个量一个写家）
 
 | 状态 | 唯一写家（引擎面） | 存储 | 证据（`dev`） |
 |---|---|---|---|
 | 件身份号 | `RPG.newEntityId` / `noteEntityId`（高水位） | 件快照 `entityId` | `10-item.js:54/55/58` |
-| 件状态载荷 | `normalizeItemState`（写侧过规整） | 件快照 `state`（**非空才写**） | `10-item.js:289`／`toJSON` `:165` |
-| 背包内容 | `RPG.deposit`（**唯一实现**）／`give`／`take` | `$inventory`（玩家）／`actor.items` | `30-inventory.js:199`（`give` 归口） |
-| 堆叠兼容 | `itemStateKey` / `stateCompatible` | 派生（✗ 不存） | `30-inventory.js:26/28` |
-| 装备标记 | `slotEquip` / `slotUnequip`（动作面） | 件快照 `equipped` | `30-inventory.js:301` |
-| 存档域（内置） | `80-save.js` 的 `DOMAINS` | `State.variables.<键>` | `80-save.js:88`（`domainTable`） |
+| 件状态载荷 | `normalizeItemState`（写侧过规整） | 件快照 `state`（**非空才写**） | `src/core/10-item.js:289`／`toJSON` `:165` |
+| 背包内容 | `RPG.deposit`（**唯一实现**）／`give`／`take` | `$inventory`（玩家）／`actor.items` | `src/core/30-inventory.js:199`（`give` 归口） |
+| 堆叠兼容 | `itemStateKey` / `stateCompatible` | 派生（✗ 不存） | `src/core/30-inventory.js:25/27` |
+| 装备标记 | `slotEquip` / `slotUnequip`（动作面） | 件快照 `equipped` | `src/core/30-inventory.js:301` |
+| 存档域（内置） | `80-save.js` 的 `DOMAINS` | `State.variables.<键>` | `src/core/80-save.js:88`（`domainTable`） |
 | 存档域（故事登记） | `RPG.save.declareDomain` | 同上（`envelope().domains` 可见） | `80-save.js:43/89/197` |
-| 提交账 | `commitBoundary`（`记账` + 剪枝） | `$rpgCommits`（**窗口 200**） | `33-commit.js:39` |
-| 随机源·全局 | `RPG.rng.set/reset/setSequence` | `RPG.rng._impl`（**自有**可变状态） | `05-dice.js:70` |
-| 随机源·会话实例 | `RPG.makeRng({会话})` | 实例 `_impl`／序列游标／`计数` | `05-dice.js:80` |
-| 底层调用计数 | `diceControl._记底层(源)`（**按源归属**） | 会话账 `底层.调用` | `06-dice-control.js:235` |
-| 用途化骰账 | `RPG.diceControl`（会话作用域） | 会话表（额度／骰序／底层三账分记） | `06-dice-control.js:97` |
-| 当前战斗（官方） | `Battle#execute` 期间登记／收尾清 | `RPG.Battle.current` | `40-battle.js:404/495` |
+| 提交账 | `commitBoundary`（`记账` + 剪枝） | `$rpgCommits`（**窗口 200**） | `src/core/33-commit.js:39` |
+| 随机源·全局 | `RPG.rng.set/reset/setSequence` | `RPG.rng._impl`（**自有**可变状态） | `src/core/05-dice.js:70` |
+| 随机源·会话实例 | `RPG.makeRng({会话})` | 实例 `_impl`／序列游标／`计数` | `src/core/05-dice.js:80` |
+| 底层调用计数 | `diceControl._记底层(源)`（**按源归属**） | 会话账 `底层.调用` | `src/core/06-dice-control.js:235` |
+| 用途化骰账 | `RPG.diceControl`（会话作用域） | 会话表（额度／骰序／底层三账分记） | `src/core/06-dice-control.js:97` |
+| 当前战斗（官方） | `Battle#execute` 期间登记／收尾清 | `RPG.Battle.current` | `src/core/40-battle.js:414/501` |
 | 当前战斗（按会话） | 同上（**有会话 ⇒ ✗ 碰全局**） | `RPG.Battle.按会话`（Map） | `40-battle.js:285/288` |
 | 时间账 | **故事侧**（books `B.时钟`；引擎只提供托管面） | `babelRun.时间` | 跨仓，另见 books |
 
@@ -78,13 +79,13 @@
 
 | 项 | 现状 | 位置（`dev`） |
 |---|---|---|
-| 旧名 `slotId` ⇒ `entityId` | **只活在读取边界**：`reviveItem` 与构造回落各认一次；活对象上**只写新名** | `10-item.js:109-115`／`:310` |
-| 旧档无实体号 | `reviveItem` **当场补发**（逐件各发，✗ 按 `id`+`charges` 回退） | `10-item.js:302+` |
-| 装备槽枚举 | **自由字符串**（规则包可扩展）＋ 显示名 `slotLabels[x] ?? x` 回落 | `10-item.js:127-129`／`30-inventory.js:368` |
-| `slotEquip` 失败契约 | **有且仅有**两处 `return false`（不可装／异件占槽）；同件重装＝幂等成功 | `30-inventory.js:301-320` |
+| 旧名 `slotId` ⇒ `entityId` | **只活在读取边界**：`reviveItem` 与构造回落各认一次；活对象上**只写新名** | `src/core/10-item.js:109-115`／`:310` |
+| 旧档无实体号 | `reviveItem` **当场补发**（逐件各发，✗ 按 `id`+`charges` 回退） | `src/core/10-item.js:302+` |
+| 装备槽枚举 | **自由字符串**（规则包可扩展）＋ 显示名 `slotLabels[x] ?? x` 回落 | `src/core/10-item.js:127-129`／`src/core/30-inventory.js:368` |
+| `slotEquip` 失败契约 | **有且仅有**两处 `return false`（不可装／异件占槽）；同件重装＝幂等成功 | `src/core/30-inventory.js:301-320` |
 | `RNG_EXHAUSTED` | 注入序列耗尽**具名抛**（✗ 静默回退真随机）；现为**三载体**（全局／受控路径／`makeRng` 实例） | `05-dice.js` 的 `setSequence` |
 | `dnd-5e`／`d20m` 两包 | **未**随 rng 接缝改签名 ⇒ 缺省＝全局源；覆盖账见 `#2044` | `#2044` 正文第五节 |
-| 域登记 | 故事侧 `declareDomain`；内置键**不可覆盖** | `80-save.js:43` |
+| 域登记 | 故事侧 `declareDomain`；内置键**不可覆盖** | `src/core/80-save.js:43` |
 | 提交边界 | 二次确认 ＋ 近窗去重（**窗口** ✗ 绝对）＋ 写后回读 | `33-commit.js:11-12/39` |
 
 ## 4. 文件头自检（**首轮·关键词命中**，✗ 非结论）

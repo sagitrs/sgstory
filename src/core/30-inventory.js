@@ -205,7 +205,7 @@ RPG.give = (id, n = 1) => {
 	 *   ⚠ 提示**只在此处**（`deposit` 保持静默）：`deliverYields` 有自己的「采得」文案 ⇒
 	 *     提示若放进 `deposit`，采集时会**双份**（本席按此分工，✗ 让两处都出声）。 */
 	const gained = RPG.deposit(inv(), id, n);
-	if (gained > 0) RPG.perform(`＋${gained} ${def.name}`);
+	if (gained > 0) RPG.perform(`＋${gained} ${def.name}`);   // p13: 非本两面（得/失流水 ⇒ 高频，✗ 「必须看到」的结论行 ✓）
 };
 
 /**
@@ -254,7 +254,7 @@ RPG.take = (id, n = 1, actor = null) => {
 	 *   动因（操作者复测）：「采集后碎石堆又莫名 -1，增减规则对玩家不可见」。
 	 *   ⚠ 只在**成功**扣减后出声（✗ 不足返回 false 的那条路 —— 那没有任何变化）。 */
 	const named = RPG.items.has(id) ? RPG.createItem(id).name : id;
-	RPG.perform(`－${n} ${named}`);
+	RPG.perform(`－${n} ${named}`);   // p13: 非本两面（得/失流水 ✓，同上）
 	return true;
 };
 

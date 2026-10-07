@@ -59,20 +59,20 @@
 
 | 状态 | 唯一写家（引擎面） | 存储 | 证据（`dev`） |
 |---|---|---|---|
-| 件身份号 | `RPG.newEntityId` / `noteEntityId`（高水位） | 件快照 `entityId` | `10-item.js:54/55/58` |
+| 件身份号 | `RPG.newEntityId` / `noteEntityId`（高水位） | 件快照 `entityId` | `src/core/10-item.js:54/55/58` |
 | 件状态载荷 | `normalizeItemState`（写侧过规整） | 件快照 `state`（**非空才写**） | `src/core/10-item.js:289`／`toJSON` `:165` |
 | 背包内容 | `RPG.deposit`（**唯一实现**）／`give`／`take` | `$inventory`（玩家）／`actor.items` | `src/core/30-inventory.js:199`（`give` 归口） |
 | 堆叠兼容 | `itemStateKey` / `stateCompatible` | 派生（✗ 不存） | `src/core/30-inventory.js:25/27` |
 | 装备标记 | `slotEquip` / `slotUnequip`（动作面） | 件快照 `equipped` | `src/core/30-inventory.js:301` |
 | 存档域（内置） | `80-save.js` 的 `DOMAINS` | `State.variables.<键>` | `src/core/80-save.js:88`（`domainTable`） |
-| 存档域（故事登记） | `RPG.save.declareDomain` | 同上（`envelope().domains` 可见） | `80-save.js:43/89/197` |
+| 存档域（故事登记） | `RPG.save.declareDomain` | 同上（`envelope().domains` 可见） | `src/core/80-save.js:43/89/197` |
 | 提交账 | `commitBoundary`（`记账` + 剪枝） | `$rpgCommits`（**窗口 200**） | `src/src/core/33-commit.js:39` |
 | 随机源·全局 | `RPG.rng.set/reset/setSequence` | `RPG.rng._impl`（**自有**可变状态） | `src/core/05-dice.js:70` |
 | 随机源·会话实例 | `RPG.makeRng({会话})` | 实例 `_impl`／序列游标／`计数` | `src/core/05-dice.js:80` |
 | 底层调用计数 | `diceControl._记底层(源)`（**按源归属**） | 会话账 `底层.调用` | `src/core/06-dice-control.js:235` |
 | 用途化骰账 | `RPG.diceControl`（会话作用域） | 会话表（额度／骰序／底层三账分记） | `src/core/06-dice-control.js:97` |
 | 当前战斗（官方） | `Battle#execute` 期间登记／收尾清 | `RPG.Battle.current` | `src/core/40-battle.js:414/501` |
-| 当前战斗（按会话） | 同上（**有会话 ⇒ ✗ 碰全局**） | `RPG.Battle.按会话`（Map） | `40-battle.js:285/288` |
+| 当前战斗（按会话） | 同上（**有会话 ⇒ ✗ 碰全局**） | `RPG.Battle.按会话`（Map） | `src/core/40-battle.js:285/288` |
 | 时间账 | **故事侧**（books `B.时钟`；引擎只提供托管面） | `babelRun.时间` | 跨仓，另见 books |
 
 ## 3. 迁移登记表（遗留适配与替代关系）
@@ -86,7 +86,7 @@
 | `RNG_EXHAUSTED` | 注入序列耗尽**具名抛**（✗ 静默回退真随机）；现为**三载体**（全局／受控路径／`makeRng` 实例） | `05-dice.js` 的 `setSequence` |
 | `dnd-5e`／`d20m` 两包 | **未**随 rng 接缝改签名 ⇒ 缺省＝全局源；覆盖账见 `#2044` | `#2044` 正文第五节 |
 | 域登记 | 故事侧 `declareDomain`；内置键**不可覆盖** | `src/core/80-save.js:43` |
-| 提交边界 | 二次确认 ＋ 近窗去重（**窗口** ✗ 绝对）＋ 写后回读 | `33-commit.js:11-12/39` |
+| 提交边界 | 二次确认 ＋ 近窗去重（**窗口** ✗ 绝对）＋ 写后回读 | `src/core/33-commit.js:11-12/39` |
 
 ## 4. 文件头自检（**首轮·关键词命中**，✗ 非结论）
 

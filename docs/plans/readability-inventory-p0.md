@@ -6,6 +6,9 @@
 **✗ 本档不作为完成证明的三样**（照 P0 节原文）：**端口存在** ✗、**模型测试** ✗、**棘轮读数** ✗ —— 它们都不是「可读」的证明 ✓；本档能拿出的只是：**调用链、所有权、迁移登记、文件头自检** ＋ 逐条可定位的 **file:line** ✓。
 
 **引注形**：一律 **`src/<路径>:行`**（相对仓根 ✓）；
+**本档范围**：**`src/core/**`（含子目录** ✓，如 `ports/`）的**现行结构**（职责·输入输出·不变量·副作用·失败·遗留 ＋ 调用链／所有权／迁移登记 ✓）。
+**未纳入**（下一批 ✓）：`src/host/**`（SugarCube 宿主面）、`src/dnd/**`（规则包 dnd3 等）、`stories/**` 与跨仓接缝 ✓；
+⇒ ★**附录 A／B 的计数与行号只在本范围内有效** ✓（引用时连范围一起引 ✓）。
 **引注口径**：所有 `档:行` 均指 **`dev` 支**（本档写作时 `24df8b06` ✓）；行号会随后续提交漂移 ⇒ **引用时连同 sha** ✓（本仓已记过「引用漂了须人工判语义」的教训 ✓）。
 
 ---
@@ -140,11 +143,12 @@
 
 ---
 
-## 附录 A · 公开 API 面（脚本生成：`RPG.<名>` ⇒ 档:行）
+## 附录 A · 公开 API 面（脚本生成：`RPG.<名>` ⇒ 档内行号）
 
-共 **171** 条（按档归组）：
+**范围**：`src/core/**`（**含子目录** ✓，如 `ports/`）；**未纳入**：`src/host/**`（宿主面）、`src/dnd/**`（规则包）、`stories/**` ✗。
+**计数**：共 **184** 条；★**口径**：按档归组 ⇒ 同一名出现在多档**各计一次**；★本表**行号只在该行所指档内**有效 ✓。
 
-| 档 | 条数 | 导出（名:行） |
+| 档（相对 `src/core/`） | 条数 | 导出（名:行） |
 |---|---|---|
 | `01-perform.js` | 1 | `deferOutput`:38 |
 | `05-dice.js` | 7 | `rng`:70、`makeRng`:80、`rollDetail`:88、`roll`:118、`checkRoll`:138、`rollKeepHighest`:148、`formatMod`:159 |
@@ -177,8 +181,11 @@
 | `71-notice.js` | 13 | `noticeChannels`:21、`defNotice`:30、`noticeChannel`:55、`noticeLimit`:65、`notices`:90、`pushNotice`:97、`clearNotices`:116、`setNoticeFilter`:130、`noticeAdmits`:137、`noticesHTML`:142、`noticeToggleHTML`:157、`bindNoticeUI`:167、`__noticeUIBound`:182 |
 | `72-panel.js` | 15 | `panels`:28、`panelWriter`:34、`preservePanelState`:55、`registerPanel`:66、`panelHTML`:97、`panelRenderCount`:104、`panelRenderCounts`:107、`resetPanelCounts`:110、`refreshPanels`:124、`panelsInDomain`:146、`panelDomains`:149、`panelTint`:156、`panelCSS`:166、`meterText`:178、`refreshDomain`:198 |
 | `80-save.js` | 1 | `save`:46 |
+| `ports/index.js` | 13 | `ports`:109、`hosts`:116、`ports`:133、`defHost`:150、`defPort`:170、`useHost`:196、`hostOf`:211、`hostsReady`:215、`hostIds`:220、`portContracts`:223、`portMissing`:226、`portOf`:238、`portsReady`:260 |
 
 ## 附录 B · 核心档清单（行数／头注行数）
+
+**范围**同附录 A（`src/core/**` 含子目录 ✓）。
 
 | 档 | 行数 | 头注（到首个非注释行为止） |
 |---|---|---|
@@ -215,3 +222,4 @@
 | `71-notice.js` | 186 | 20 |
 | `72-panel.js` | 206 | 27 |
 | `80-save.js` | 428 | 45 |
+| `ports/index.js` | 260 | 69 |

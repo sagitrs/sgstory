@@ -55,10 +55,15 @@ RPG.turnBoundary = {
 };
 
 RPG.BattleTurn = class BattleTurn extends RPG.Event {
-	constructor(attacker, defender) {
+	constructor(attacker, defender, opts = {}) {
 		super();
 		this.attacker = attacker;
 		this.defender = defender;
+		/* ★`sgstory#2043`：**自动回合**也要认「本场自己的源」—— 空手/武器两条路都会经 `RPG.act` ⇒
+		 *   不认 ⇒ 测试局里攻/伤骰走全局源 ✗（甲案 §二.2「真实测试路径显式消费所属会话的源」）。
+		 *   缺省 `null` ⇒ 走全局（`new RPG.BattleTurn(a,b).execute()` 的独立用法**逐字不变** ✓）。 */
+		this.源 = opts.源 ?? null;
+		this.会话 = opts.会话 == null ? null : String(opts.会话);
 	}
 
 	/** 接口实现（继承自 Event；0 个参数）。**返回本次攻击的推进结果**（#1773）。
@@ -110,7 +115,7 @@ RPG.BattleTurn = class BattleTurn extends RPG.Event {
 			const unarmed = attacker.unarmed ?? attacker.constructor?.unarmed ?? null;
 			if (unarmed != null) {
 				const foe = typeof getDefender === 'function' ? getDefender() : getDefender;
-				return strikeCatching(attacker, foe, unarmed);
+				return strikeCatching(attacker, foe, unarmed, this.源);
 			}
 			this.perform(`${attacker.name}没有装备任何武器，只能干瞪眼。`);
 			return { status: 'rejected', reason: 'no-weapon' };
@@ -123,7 +128,7 @@ RPG.BattleTurn = class BattleTurn extends RPG.Event {
 			return { status: 'rejected', reason: 'no-ammo', item: weapon };
 		}
 		const defender = typeof getDefender === 'function' ? getDefender() : getDefender;
-		return setup.RPG.act(attacker, weapon.id, defender); // 统一入口（#1752）：弹药/充能副作用不再绕过
+		return setup.RPG.act(attacker, weapon.id, defender, 'use', attacker, this.源); // 统一入口（#1752）：弹药/充能副作用不再绕过（★`#2043`：源随回合走）
 	}
 };
 
@@ -260,9 +265,9 @@ RPG.respawn = (c, { to, map } = {}) => {
  *   私有方法（`#xxx`）**跨类不可调** ⇒ 若各写一份，「收口／`action-refused` 判定」会静默分叉。
  *   ⚠ 本函数**不**做拒绝记账：那是 `RPG.Battle#noteReject`（`#1773` 三连护栏）的事，
  *     且**自动路的调用方已经代做**（`Battle.execute` 的自动环在 `BattleTurn.execute()` 之后调它）。 */
-const strikeCatching = (actor, target, un) => {
+const strikeCatching = (actor, target, un, 源 = null) => {
 	try {
-		return un.strike(actor, target) === false
+		return un.strike(actor, target, 源) === false
 			? { status: 'rejected', reason: 'action-refused' }
 			: { status: 'applied' };
 	} catch (e) {
@@ -344,7 +349,7 @@ RPG.Battle = class Battle extends RPG.Event {
 	 *   ⚠ 属性 `message` 取自异常本身（道具作者写给自己玩家的文案）⇒ **原样**上屏，✗ 改写。 */
 	#actCatching(actor, itemRef, target, action) {
 		try {
-			return setup.RPG.act(actor, itemRef, target, action);
+			return setup.RPG.act(actor, itemRef, target, action, actor, this.源);
 		} catch (e) {
 			/* ★**留痕**（`dev-10` D 席 MINOR，`#1841` 折）：本捕获是为「**按设计**抛错」的道具备的（资源
 			 *   「误当消耗品」），但 `used()` 里的**真 bug** 也走到这里 ⇒ 只上屏会把「**代码崩了**」
@@ -373,7 +378,7 @@ RPG.Battle = class Battle extends RPG.Event {
 	 *  包侧 `strike(actor, target)` 契约与 `RPG.act` 同形：`undefined` ＝ 成功；`false` ＝ 拒绝。 */
 	/* ★`#1892`：实现已提到**模块级** `strikeCatching`（`RPG.BattleTurn` 也要用同一个 —— 见其注）。
 	 *   本方法只作**薄委托**，使交互路的调用点逐字不变。 */
-	#strikeCatching(actor, target, un) { return strikeCatching(actor, target, un); }
+	#strikeCatching(actor, target, un) { return strikeCatching(actor, target, un, this.源); }
 
 	#noteReject(attacker, r) {
 		if (r?.status === 'applied') { this.rejectStreak = 0; return false; }
@@ -455,7 +460,7 @@ RPG.Battle = class Battle extends RPG.Event {
 						 *  （否则 `pick()` 的 rng 读数会白耗）。返回值 `status` 决定本回合是否**推进**：
 						 *   `applied` ⇒ 已发 `battle:turn`、已耗 rng；`rejected` ⇒ 三者皆无（不攻击/不耗 rng/
 						 *   不发 `battle:turn`），但**回合边界照走**（`start`/`end` 成对，防条件衰减回退）。 */
-						const r = new RPG.BattleTurn(attacker, () => pick(foes)).execute();
+						const r = new RPG.BattleTurn(attacker, () => pick(foes), { 源: this.源, 会话: this.会话 }).execute();
 						this.#noteReject(attacker, r);
 					} finally {
 						RPG.turnBoundary.end({ actor: attacker, battle: this });

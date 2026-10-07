@@ -143,7 +143,7 @@ RPG.Item = class Item extends Object {
 	 *   ⚠ 勿与「动作自己判定做不到」混淆：那是**处理器**返回 false（如 `slotEquip` 的槽被占），
 	 *     本处是**分发层面**就没有这个动作 —— 两者的对外语义相同（都是 `rejected/action-refused`）。
 	 */
-	used(that, from, action = 'use') {
+	used(that, from, action = 'use', 源 = null) {
 		const handler = this.constructor.handlers?.[action];
 		if (typeof handler !== 'function') {
 			if (action === 'use') {
@@ -152,7 +152,7 @@ RPG.Item = class Item extends Object {
 			this.perform(`「${this.name}」没有「${action}」这个用法。`);
 			return false;   // ★ #1783：分发失败 ＝ 拒绝（✗ undefined —— 那会被算作 applied）
 		}
-		return handler.call(this, that, from);
+		return handler.call(this, that, from, 源);
 	}
 
 	/**

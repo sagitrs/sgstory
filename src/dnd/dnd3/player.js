@@ -136,5 +136,5 @@ const unarmedItem = {
 DND3.Player.unarmed = {
 	item: unarmedItem,   // ★测试可断言伤害骰／伤害类型（行为断言之外的数据面）
 	text: '空手打击',
-	strike: (actor, target) => DND3.meleeAttack(unarmedItem, target, actor),
+	strike: (actor, target, 源 = null) => DND3.meleeAttack(unarmedItem, target, actor, 源),
 };

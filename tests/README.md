@@ -43,6 +43,7 @@ tests/
 | core/exchange.test.js | src/core/32-exchange（原子交换、数量、身份、拒绝／异常零提交） |
 | core/weapon-traits.test.js | src/core/30-inventory 的武器特性消费点（#1736） |
 | core/battle.test.js | src/core/40-battle |
+| core/battle-choice-retract.test.js | src/core/02-choice ＋ 40-battle（回收口归问话方 `#2054`：只收自己那一盘 · 被拒不收 · `opts.收` 契约） |
 | core/turn-boundary.test.js | src/core/40-battle 的回合生命周期钩子（`RPG.turnBoundary`；#1713） |
 | core/battle-interaction.test.js | src/core/40-battle 的交互回合（选项构造纯函数等） |
 | core/chest.test.js | src/core/41-chest（机制，无判定） |

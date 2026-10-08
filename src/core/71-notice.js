@@ -59,6 +59,11 @@ RPG.defNotice('map-scene', { name: '场景', level: 'key' });
  *   （点装备没反应、用完没子弹也不出声）✗。⇒ 定两个**类别通道**，同类的调用点**一律挂**它 ✓。 */
 RPG.defNotice('equip', { name: '装备', level: 'key' });
 RPG.defNotice('item-refuse', { name: '物品·不可用', level: 'key' });
+/* ★`books#483/#484` **通道甲案**（writer-2 代裁 6064297345 · 甲案 = 新增本通道）：
+ *   **行程/探索的拒因**（非战遭遇选行动拒、E9 返程事务拒、提前返程事务拒）各自成一类 ——
+ *   ✗ 不并入 `item-refuse`（物品不可用）✗ 不并入 `map-scene`（场景/演出）✓。
+ *   级别 `key`：过滤到「只看关键」时，玩家仍须读到**为什么走不成** ✓。 */
+RPG.defNotice('travel-refuse', { name: '行程·拒绝', level: 'key' });
 
 /** 取通道定义（未注册 ⇒ 回落到 `default`，并**保留**请求的 id 以便面板显示来源） */
 RPG.noticeChannel = (id) => {

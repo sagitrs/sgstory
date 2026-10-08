@@ -34,8 +34,14 @@ const SCAN = [
 	'src/core/30-inventory.js',   // 装备（slotEquip／slotUnequip）＋ 用法（RPG.act／RPG.useItem）
 	'src/core/10-item.js',        // Item.used（动作分发失败 ⇒ 用法拒绝）
 ];
-/** 类别通道（`P1-3`）：两档内凡属于这两类的上屏，须走它们 ✓。 */
-const 类别通道 = ['equip', 'item-refuse'];
+/** 类别通道（`P1-3`）：凡属于这几类的上屏，须走对应通道 ✓。
+ *  ★`books#483/#484` 甲案（writer-2 代裁 `6064297345`）：加 **`travel-refuse`**（行程·拒绝）——
+ *    行程/探索的拒因各自成一类（✗ 不并入 `item-refuse`（物品）✗ 不并入 `map-scene`（场景/演出））✓。 */
+const 类别通道 = ['equip', 'item-refuse', 'travel-refuse'];
+/** ★**注册源**：这几类的 `defNotice(...)` **住在这一档** ✓。
+ *   ⚠ 旧形的类别循环只在上面 `SCAN`（两个 API 面）内跑 ⇒ 那两档里**没有** `defNotice` 调用 ⇒
+ *     **0 命中＝假绿** ✗（甲案裁文点名之处：「静态门须真的咬注册，不只是加数组」✓）。 */
+const 注册源 = 'src/core/71-notice.js';
 /** 豁免标记：写在被豁免的那一行上（具名 ✓）。 */
 const 豁免标记 = 'p13: 非本两面';
 
@@ -70,12 +76,20 @@ const 扫档 = (rel, 源码) => {
 		if (去空白.startsWith('*') || 去空白.startsWith('//') || 去空白.startsWith('/*')) continue;
 		命中.push({ 行, 文本: 本行.trim().slice(0, 96), 因: 'NO-CHANNEL' });
 	}
+	/* ★类别面已挪到 `扫注册`（上面）—— 它必须咬**注册源**，✗ 在这里扫这两个 API 面（那两档没有 defNotice ⇒ 0 命中＝假绿 ✗）。 */
+	return 命中;
+};
+
+/** ★扫**注册源** ⇒ 类别通道的注册面命中（**未注册**／注册非 `key` 各具名 ✓）。
+ *   `源码` 缺省＝读真档；自检用合成源（✗ 不碰真档 ✓）。 */
+const 扫注册 = (源码) => {
+	const src = 源码 ?? fs.readFileSync(path.join(ROOT, 注册源), 'utf8');
+	const 命中 = [];
+	const 行号 = (idx) => src.slice(0, idx).split('\n').length;
 	for (const ch of 类别通道) {
-		const r = new RegExp(`defNotice\\(\\s*'${ch}'\\s*,\\s*\\{[^}]*\\}`, 'g');
-		let m2;
-		while ((m2 = r.exec(src)) !== null) {
-			if (!/level\s*:\s*'key'/.test(m2[0])) 命中.push({ 行: 行号(m2.index), 文本: m2[0].slice(0, 96), 因: `LEVEL-NOT-KEY:${ch}` });
-		}
+		const m = new RegExp(`defNotice\\(\\s*'${ch}'\\s*,\\s*\\{([^}]*)\\}`, 'g').exec(src);
+		if (!m) { 命中.push({ 行: 0, 文本: `（注册源 ${注册源} 里找不到 defNotice('${ch}', …)）`, 因: `NOT-REGISTERED:${ch}` }); continue; }
+		if (!/level\s*:\s*'key'/.test(m[1])) 命中.push({ 行: 行号(m.index), 文本: m[0].slice(0, 96), 因: `LEVEL-NOT-KEY:${ch}` });
 	}
 	return 命中;
 };
@@ -93,12 +107,21 @@ if (process.argv.includes('--selftest')) {
 	knives.push({ id: 'N2 具名豁免 ⇒ 绿', ok: mk(A, `\tthis.perform(\`＋1 绷带\`);   // ${豁免标记}`, 'NO-CHANNEL').length === 0 });
 	knives.push({ id: 'K2 跨行裸 perform ⇒ 红（✗ 只看首行）', ok: mk(A, "\tthis.perform(\n\t\t`你装备了「剑」。`\n\t);", 'NO-CHANNEL').length === 1 });
 	knives.push({
-		id: 'K3 类别通道被降级 ⇒ 红',
-		ok: mk(A, "RPG.defNotice('equip', { name: '装备', level: 'log' });", 'LEVEL-NOT-KEY:equip').length === 1,
+		id: 'K3 类别通道被降级（**注册源**）⇒ 红',
+		ok: 扫注册("RPG.defNotice('equip', { name: '装备', level: 'log' });").filter((h) => h.因 === 'LEVEL-NOT-KEY:equip').length === 1,
 	});
 	knives.push({
-		id: 'N3 类别通道是 key ⇒ 绿',
-		ok: mk(A, "RPG.defNotice('equip', { name: '装备', level: 'key' });", 'LEVEL-NOT-KEY:equip').length === 0,
+		id: 'N3 类别通道是 key（**注册源**）⇒ 绿',
+		ok: 扫注册("RPG.defNotice('equip', { name: '装备', level: 'key' });\nRPG.defNotice('item-refuse', { name: '物品·不可用', level: 'key' });\nRPG.defNotice('travel-refuse', { name: '行程·拒绝', level: 'key' });").length === 0,
+	});
+	/* ★甲案新增的两把刀：**未注册**与**新通道被降级** —— 都是旧形抓不到的（旧形扫错源 ⇒ 恒 0 命中）✓ */
+	knives.push({
+		id: 'K4 ★类别**未注册** ⇒ 红（旧形抓不到）',
+		ok: 扫注册("RPG.defNotice('equip', { name: '装备', level: 'key' });").filter((h) => h.因 === 'NOT-REGISTERED:item-refuse').length === 1,
+	});
+	knives.push({
+		id: 'K5 ★`travel-refuse` 被降级 ⇒ 红（甲案新通道）',
+		ok: 扫注册("RPG.defNotice('equip', { name: '装备', level: 'key' });\nRPG.defNotice('item-refuse', { name: '物品·不可用', level: 'key' });\nRPG.defNotice('travel-refuse', { name: '行程·拒绝', level: 'log' });").filter((h) => h.因 === 'LEVEL-NOT-KEY:travel-refuse').length === 1,
 	});
 	let bad = 0;
 	for (const k of knives) { console.log(`  ${k.ok ? '✓' : '✗'} ${k.id}`); if (!k.ok) bad++; }
@@ -108,7 +131,17 @@ if (process.argv.includes('--selftest')) {
 
 const verbose = process.argv.includes('--verbose');
 let 总 = 0;
-console.log('─ 通道类别门（P1-3）：两个 API 面内 `perform` 一律带通道；类别通道须 `level: key`');
+console.log('─ 通道类别门（P1-3）：两个 API 面内 `perform` 一律带通道；**类别通道须在注册源里注册且 `level: key`**');
+/* ★`books#483/#484` 甲案：**类别面**的检查咬**注册源**（`71-notice.js`）—— 旧形扫两个 API 面 ⇒ 恒 0 命中＝假绿 ✗。 */
+{
+	if (!fs.existsSync(path.join(ROOT, 注册源))) { console.log(`  ✗ 缺注册源：${注册源}`); 总 += 1; }
+	else {
+		const 命中 = 扫注册();
+		总 += 命中.length;
+		for (const h of 命中) console.log(`  ✗ [${h.因}] ${注册源}:${h.行} —— ${h.文本}`);
+		if (!命中.length) console.log(`  ✓ 注册源 ${注册源}：类别通道 ${类别通道.length} 类（${类别通道.join('、')}）皆**已注册**且 level=key ✓`);
+	}
+}
 for (const rel of SCAN) {
 	if (!fs.existsSync(path.join(ROOT, rel))) { console.log(`  ✗ 缺档：${rel}`); 总 += 1; continue; }
 	const 命中 = 扫档(rel);

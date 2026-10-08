@@ -36,6 +36,18 @@ const HARNESS = path.join(unitDir, 'framework/harness.js');   // ★测试框架
  */
 const KNIVES = [
 	{
+		id: 'choice-retract-blanket',
+		why: '把「只收**自己那一盘**」（`sgstory#2054` 的修）在**新代码上还原成旧语义**：一有战斗提交就收掉'
+			+ '**所有**开着的盘 ⇒ `#2054 回收口：战中提交只收**自己那一盘**` 必红（无关那盘被一并收掉）。'
+			+ '★为何要在新代码上还原而不是patch 旧形：旧形的回收动作落在 DOM 上（`$box.parent().length > 0`），'
+			+ '而本仓无头宿主的 jQuery 是 no-op 桩（`parent().length` 恒 `0`）⇒ **旧代码在单测环境里根本不触发**'
+			+ '⇒ 照旧形 patch 会得到「零红」的假象。旧形真病（把**无关的盘**结掉且 `resolve(null)`）另有'
+			+ 'books 侧真 DOM 探针与 writer-2 的自然复现（抛出点 `src/core/60-map.js:359`）为证 ✓。',
+		target: BUNDLE,
+		patch: [['等.收盘?.();', 'RPG.choiceBoxes.forEach((f) => f()); RPG.choiceBoxes.clear();']],
+		expect: ['#2054 回收口：战中提交只收'],
+	},
+	{
 		id: 'rng-reset-off',
 		why: '摘掉「每格复位随机源」那一步（`harness.js` 的 `rng.reset()`）⇒ '
 			+ '★实测红集**比单格宽**：`rng 复位守②` ＋ 另外 4 格（`dice rng：前置挂点清除注入（U3）`、'

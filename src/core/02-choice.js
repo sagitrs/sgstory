@@ -8,7 +8,7 @@
  * 典型用法（配合 await）：
  *   const v = await this.choice([{ text: '攻击', value: 'atk' }, ...]);
  *
- * ★★`opts.收`（可选 · `sgstory#2054`）：**把「收掉这一盘」的能力交给问话方**。
+ * ★★`opts.收`（可选 · `sgstory#2055`）：**把「收掉这一盘」的能力交给问话方**。
  *   出处：`books#402` writer-2 实测（新局自然复现 · 抛出点 `src/core/60-map.js:359`）——
  *   旧形里本档**自己**订阅 `battle:submit`，一有提交就把**任何**待答的盘收掉并 `resolve(null)`；
  *   而 `choice` 的契约是「返回**对应选项的 value**」⇒ 消费方 `picked.startsWith('a')` 当场 `TypeError`
@@ -38,7 +38,7 @@ Object.defineProperty(Object.prototype, 'choice', {
 			RPG.deferOutput(() => {
 				const $host = jQuery('#passages .passage').last();
 				const $box = jQuery('<div>').addClass('choice-box');
-				/* ★★**回收口归问话方**（`sgstory#2054` · 病灶与形见本档头注）——
+				/* ★★**回收口归问话方**（`sgstory#2055` · 病灶与形见本档头注）——
 				 *   本档是 `.choice-box` 的**唯一**制造者 ⇒ DOM 仍归本档收；但「**何时**收」只有
 				 *   问话的那一处知道（答成什么值也由它定）⇒ 本档把 `收自己` 交给它（`opts.收`）。
 				 *   ⚠ 旧形（本档自己订阅 `battle:submit` ⇒ 任何盘都收掉并 `resolve(null)`）已删：

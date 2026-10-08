@@ -1,4 +1,4 @@
-/* core/02-choice ＋ core/40-battle —— **回收口归问话方**（`sgstory#2054`）
+/* core/02-choice ＋ core/40-battle —— **回收口归问话方**（`sgstory#2055`）
  *
  * 病（`books#402` writer-2 实测 · 新局自然复现 · 抛出点 `src/core/60-map.js:359`）：
  *   旧形里 `choice` **自己**订阅 `battle:submit`，一有提交就把**任何**开着的盘收掉并 `resolve(null)`；
@@ -32,7 +32,7 @@
 		State.variables.inventory = [];
 	};
 
-	test('#2054 回收口：战中提交只收**自己那一盘**（无关的盘不被动 ⇒ 永不收到 null）', async () => {
+	test('#2055 回收口：战中提交只收**自己那一盘**（无关的盘不被动 ⇒ 永不收到 null）', async () => {
 		State.variables.inventory = [];
 		R().give('bandage');
 		const 场 = new (R().Battle)(2, [D().Player], [一敌()], true);
@@ -61,7 +61,7 @@
 		清();
 	});
 
-	test('#2054 回收口：提交被拒（件不在身上）⇒ 盘不收、问题仍可答', async () => {
+	test('#2055 回收口：提交被拒（件不在身上）⇒ 盘不收、问题仍可答', async () => {
 		State.variables.inventory = [];
 		R().give('bandage');
 		const 场 = new (R().Battle)(2, [D().Player], [一敌()], true);
@@ -76,7 +76,7 @@
 		清();
 	});
 
-	test('#2054 回收口：`opts.收` 交出回收能力（缺省不给 ⇒ 盘照旧能答）', async () => {
+	test('#2055 回收口：`opts.收` 交出回收能力（缺省不给 ⇒ 盘照旧能答）', async () => {
 		let 拿到 = null;
 		const p = R().choice([{ text: '甲', value: 'a0' }], { 收: (f) => { 拿到 = f; } });
 		await 让(1);

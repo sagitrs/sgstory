@@ -530,12 +530,32 @@ RPG.Battle = class Battle extends RPG.Event {
 		return RPG.actionResult.rejected({ actor: attacker, reason, detail, code });
 	}
 
-	#resolveTarget(attacker, id, actionClass = 'damage') {
+	#resolveTarget(attacker, id, actionClass = 'damage', { requireUnique = false } = {}) {
+		/* ★`books#402` L18 守卫（2026-10-08）：**靶解析是本路唯一出口** —— 解析不出「恰好一个」
+		 *   靶时须**具名拒**（✗ 让 `undefined` 漏进动作层：`dnd/dnd3/core/combat.js` 会把它交给
+		 *   `RPG.applyDamage(that)`，那里读 `that.hp` ⇒ 未捕获异常逃出战斗 ✓）。
+		 *   ★**不加宽** try/catch —— 真异常照旧由下面那条既有拒绝收（✗ 吞真态 ✓）。
+		 *   `requireUnique` 只由**需要唯一靶**的调用点（一键项直取那条）传 `true`：普通路允许
+		 *   玩家在多候选里挑，故缺省不要求唯一 ✓。 */
+		const 候选 = this.#targetCandidates(attacker, actionClass);
+		const 数 = Array.isArray(候选) ? 候选.length : 0;
+		if (数 === 0 || (requireUnique && 数 !== 1)) {
+			const 详 = 数 === 0 ? '本回合的靶已不在场' : `本回合的靶不唯一（候选 ${数} 个，需恰一）`;
+			this.perform(`${attacker.name}这一手没能出手 —— ${详}。`);
+			this.#noteReject(attacker, { status: 'rejected', reason: 'no-such-target', code: 'BATTLE_TARGET_UNAVAILABLE' });
+			return null;
+		}
 		try {
-			return RPG.unitId.resolve(id, this.#targetCandidates(attacker, actionClass));
+			const 靶 = RPG.unitId.resolve(id, 候选);
+			if (靶 == null) {
+				this.perform(`${attacker.name}这一手没能出手 —— 本回合的靶已不在场。`);
+				this.#noteReject(attacker, { status: 'rejected', reason: 'no-such-target', code: 'BATTLE_TARGET_UNAVAILABLE' });
+				return null;
+			}
+			return 靶;
 		} catch (e) {
 			this.perform(`${attacker.name}这一手没能出手 —— 目标是哪个对不上（${String(e?.message ?? e)}）。`);
-			this.#noteReject(attacker, { status: 'rejected', reason: 'no-such-target' });
+			this.#noteReject(attacker, { status: 'rejected', reason: 'no-such-target', code: 'BATTLE_TARGET_UNAVAILABLE' });
 			return null;
 		}
 	}
@@ -944,7 +964,7 @@ RPG.Battle = class Battle extends RPG.Event {
 		const 靶选项 = targetOptionsFor(actionClass);
 		let target;
 		if (dispatch.type === 'quick' && 靶选项.length === 1) {
-			target = this.#resolveTarget(attacker, 靶选项[0].value, actionClass);
+			target = this.#resolveTarget(attacker, 靶选项[0].value, actionClass, { requireUnique: true });
 		} else {
 			/* 普通路；一键项但候选已变（理论上本回合内不会）⇒ 退回展开，✗ 静默换靶。 */
 			this.perform(`对谁使用${item.name}？`);

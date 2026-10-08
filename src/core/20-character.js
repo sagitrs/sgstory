@@ -321,6 +321,11 @@ RPG.guard = {
  *  ⚠ 本函数**不**施加 `RPG.death`：死亡判定仍由各包的 `grantDeathIfDown` 负责（`hp <= 0`）⇒
  *    非致命路**永不**致死，也**不**掉战利品（见 `40-battle.js` 的 `RPG.loot` 调用点）。 */
 RPG.applyDamage = (that, dmg, { nonlethal = false, direct = false, ignoresGuard = false } = {}) => {
+	/* ★`books#402` L18 守卫（2026-10-08）：**唯一伤害入口**先守住「靶存在」——
+	 *   旧码直接读 `that.hp` ⇒ 靶为 `undefined` 时抛 **TypeError** 并逃出战斗（未捕获异常 ✓）。
+	 *   这里改为**具名拒**（`DAMAGE_NO_TARGET`）⇒ 战斗侧按既有 `action-threw` 路收成**带码的拒绝** ✓。
+	 *   ★✗ 静默吞、✗ 宽 catch：只把「没有靶」这一态指名 ✓。 */
+	if (that == null) throw RPG.refuse('DAMAGE_NO_TARGET', '打不到 —— 目标已不在场（本次伤害未施加）')
 	/* ★`#1934`（doc-3 §10.1）：**防御减伤** —— 位置就在「重击倍率与固定伤害修正**之后**、
 	 *   实际扣 HP／非致命伤**之前**」（调用方给的是**已算好的最终伤害**）⇒ 落点是本函数。
 	 *   · 只减**直接攻击**（`direct:true`）：环境伤害与持续伤害**默认不减免**（照原文）；

@@ -349,6 +349,15 @@ RPG.defItem = (def) => {
 	};
 	// 动作表挂在类上（静态）：实例经 JSON 克隆也不会丢处理器
 	klass.handlers = { use: used, ...actions };
+	/* ★`sgstory#2057`：**声明面也要在类上可读**（与上一行 `handlers` 同法）——
+	 *   出处（`books#402` 协查 · 斧头耐久）：`RPG.itemCountSuffix`（`30-inventory.js`）读的是
+	 *   `RPG.items.get(item.id)?.stats?.durability`，而 `items.get(id)` 回的**就是本类**；声明原先只活在
+	 *   上面的 `defaults` 闭包里 ⇒ **类上读不到** ⇒ 斧头／铁铲／矿镐恒印「×6」（应「（耐久 N）」）。
+	 *   ★为何✗ 让读取处改读实例：**快照没有 `stats`**（背包条目＝`{id, entityId, charges, equipped}`），
+	 *     且 `reviveItem` 对旧档无号条目会**发新号** ⇒ 在**显示**函数里造副作用 ✗（同族：`#212` ③）。
+	 *   ⚠ **浅拷贝**（与实例侧 `this.stats = { ...def.stats }` 同形）⇒ ✗ 与调用方共享同一对象。
+	 *   ⚠ 只挂**声明**面：实例态（`charges`／`equipped`／`state`…）仍只活在实例上 ✓。 */
+	klass.stats = { ...(defaults.stats ?? {}) };
 	Object.defineProperty(klass, 'name', { value: `Item:${def.id}` });
 	return RPG.registerItem(klass);
 };

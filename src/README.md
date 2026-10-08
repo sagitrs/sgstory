@@ -79,6 +79,9 @@ RPG.defPort('render', { output(text) {…}, render(node) {…}, setCollector(fn)
 
    ```js
    DND3 风格：RPG.defItem({ id, name, stats, used(that, from) { … }, actions: { … } })
+   ★`sgstory#2057`：声明面（`stats`）与动作面（`used`／`actions` ⇒ `handlers`）**都挂在造出来的类上**
+     （`RPG.items.get(id).stats`／`.handlers` ⇒ 以「**只有定义 id**」的快照（如背包条目）为入参的读取处
+     —— 例：`RPG.itemCountSuffix` 判「（耐久 N）」—— 才取得到；实例出生时另持**各自**一份拷贝 ✓）。
    ```
 
 4. **构建注入是自动的**——build.py 对 `src/<包>/**` 自动注入 `(RPG, <别名>, $)`，文件里直接用。

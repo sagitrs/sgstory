@@ -36,6 +36,16 @@ const HARNESS = path.join(unitDir, 'framework/harness.js');   // ★测试框架
  */
 const KNIVES = [
 	{
+		id: 'item-decl-stats-off',
+		why: '摘掉 `defItem` 里「声明面挂到类上」那一行（`klass.stats = …`）⇒ '
+			+ '①【声明面：类上可读】与 ②【显示面：**快照**应印（耐久 N）】两格必红 —— '
+			+ '★②正是 `books#402` 协查报的那条病（斧头印「×6」）；★本刀同时证明「判据必须用**快照**」：'
+			+ '快照**没有** `stats`，只有类那条路能救它（用实例判会绕过本缺陷）。',
+		target: BUNDLE,
+		patch: [['klass.stats = { ...(defaults.stats ?? {}) };', '/* ★刀：摘掉声明面 */;']],
+		expect: ['#2057 声明面：`stats` 在**类**上可读', '#2057 显示面：`itemCountSuffix(**快照**)` 须印'],
+	},
+	{
 		id: 'choice-retract-blanket',
 		why: '把「只收**自己那一盘**」（`sgstory#2055` 的修）在**新代码上还原成旧语义**：一有战斗提交就收掉'
 			+ '**所有**开着的盘 ⇒ `#2055 回收口：战中提交只收**自己那一盘**` 必红（无关那盘被一并收掉）。'

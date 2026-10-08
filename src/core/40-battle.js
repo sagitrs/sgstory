@@ -285,6 +285,18 @@ RPG.Battle = class Battle extends RPG.Event {
 	static 按会话 = new Map();
 
 	/** 取某会话的当前战斗（`会话` 缺省 ⇒ 全局那份，兼容旧调用 ✓）。 */
+		/** ★`books#402` **弃局口**：取消当前战斗 —— 清登记（`current`／`按会话` 两面）并记一份「**弃局**」态（`弃局`）。
+	 *   ★**幂等** ✓；**无战斗时无害** ✓。✗ 抛（调用方是「离开战斗」的收尾路径 ✓）。
+	 *   ★登记清除与《`execute()` 的 `finally`》同形（同一判据 ✓）。 */
+	static cancel(reason = 'cancelled') {
+		const 局 = RPG.Battle.current;
+		if (局 != null) RPG.Battle.current = null;
+		const 会话 = 局?.会话 ?? null;
+		if (会话 != null && RPG.Battle.按会话.get(会话) === 局) RPG.Battle.按会话.delete(会话);
+		RPG.Battle.弃局 = Object.freeze({ reason: String(reason ?? 'cancelled'), 有局: 局 != null });
+		return 局 ?? null;
+	}
+
 	static currentOf(会话) {
 		return 会话 == null ? RPG.Battle.current : (RPG.Battle.按会话.get(String(会话)) ?? null);
 	}
@@ -410,7 +422,8 @@ RPG.Battle = class Battle extends RPG.Event {
 		 *   自己攥着战斗实例；`RPG.submitBattleAction` 就是这条面。收尾处**清掉**（✗ 留下过期引用）。 */
 		/* ★`sgstory#2043`（甲案 §三）：**当前战斗按会话归属** —— 给了会话的（测试）战斗**只**登记进该会话，
 		 *   ✗ 碰全局 `current`（否则正式面会被测试局顶掉 ✗）；**官方**战斗（✗ 给会话）仍走全局那份 ⇒ 旧行为逐字不变 ✓。 */
-		if (this.会话 != null) RPG.Battle.按会话.set(this.会话, this);
+		RPG.Battle.弃局 = null;   // ★新场开始 ⇒ 清「弃局」态（再战可开 ✓）
+if (this.会话 != null) RPG.Battle.按会话.set(this.会话, this);
 		else RPG.Battle.current = this;
 		try {
 		const alive = (group) => group.filter((c) => !this.isOut(c));

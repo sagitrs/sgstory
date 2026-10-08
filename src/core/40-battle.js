@@ -800,7 +800,7 @@ if (this.会话 != null) RPG.Battle.按会话.set(this.会话, this);
 		return new Promise((resolve) => {
 			let 收盘 = null;
 			this.#等 = { actor: attacker, kind, options, resolve, 收盘: () => 收盘?.() };
-			/* ★`sgstory#2054`：把「收掉这一盘」的能力交给本盘（`02-choice.js` 的 `opts.收`）——
+			/* ★`sgstory#2055`：把「收掉这一盘」的能力交给本盘（`02-choice.js` 的 `opts.收`）——
 			 *   只有本处知道「这一问是战斗在问、且提交已经替玩家答了它」⇒ 也由本处决定何时收。
 			 *   ★旧形（`02-choice.js` 订阅 `battle:submit` ⇒ 收掉**任何**盘且 `resolve(null)`）已删，
 			 *     病灶与理由见 `02-choice.js` 头注（`books#402` writer-2 实测）。 */
@@ -837,7 +837,7 @@ if (this.会话 != null) RPG.Battle.按会话.set(this.会话, this);
 			if (v != null) {
 				等.resolve(v);
 				this.#等 = null;
-				/* ★`sgstory#2054`：答掉的是**本盘** ⇒ 由本处收掉它（旧形的全局广播已删，见 `02-choice.js` 头注）。
+				/* ★`sgstory#2055`：答掉的是**本盘** ⇒ 由本处收掉它（旧形的全局广播已删，见 `02-choice.js` 头注）。
 				 *   ⚠ `v == null`（匹配不上）⇒ **不收**：盘留着、玩家照旧可以自己点（✗ 不再弄成死局）。 */
 				等.收盘?.();
 				if (等.kind === 'item') { this.#提交.delete(actor.name); this.#本轮.set(actor.name, cmd); }

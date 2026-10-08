@@ -60,26 +60,26 @@ DND3.grappleMod = (c) => {
 };
 
 /** 一次擒抱掷骰：`{ roll, mod, total }`（对抗检定 —— 不比 DC，故不用 `RPG.checkRoll`） */
-DND3.grappleRoll = (c) => {
+DND3.grappleRoll = (c, 源 = null) => {
 	const mod = DND3.grappleMod(c);
-	const roll = RPG.roll('1d20', { purpose: 'check.grapple', actor: c?.name ?? null });   // ★`#2031`
+	const roll = RPG.roll('1d20', { purpose: 'check.grapple', actor: c?.name ?? null }, 源);   // ★`#2031`
 	return { roll, mod, total: roll + mod };
 };
 
 /** 对抗擒抱检定（pin `:703`）：同值时**调整值高者胜**；仍同 ⇒ **重掷**（pin `:740`；重掷有上限，见下）。
  *  上限值由 `DND3.REROLL_LIMIT` 单点给出（判据可读它，✗ 不散在两处）。
  *  返回 `{ a, b, winner: 'a'|'b', rerolled }`。 */
-DND3.opposedGrapple = (a, b) => {
+DND3.opposedGrapple = (a, b, 源 = null) => {
 	const 上限 = DND3.REROLL_LIMIT;
-	let ra = DND3.grappleRoll(a);
-	let rb = DND3.grappleRoll(b);
+	let ra = DND3.grappleRoll(a, 源);
+	let rb = DND3.grappleRoll(b, 源);
 	let rerolled = false;
 	for (let i = 0; i <= 上限; i++) {
 		/* 先看**这次**：不平 ⇒ 立刻定胜负（✗ 不得先看平局条件 —— 本席首版写成
 		 * 「平局才进循环体」，结果两颗骰子不同时直接掉进下面的兜底、判成尝试者失败。判据当场抓住。） */
 		if (ra.total !== rb.total) return { a: ra, b: rb, winner: ra.total > rb.total ? 'a' : 'b', rerolled };
 		if (ra.mod !== rb.mod) return { a: ra, b: rb, winner: ra.mod > rb.mod ? 'a' : 'b', rerolled };
-		ra = DND3.grappleRoll(a); rb = DND3.grappleRoll(b); rerolled = true;
+		ra = DND3.grappleRoll(a, 源); rb = DND3.grappleRoll(b, 源); rerolled = true;
 	}
 	/* ★**重掷上限**（house rule，非 SRD —— 与 `#1773` 的「连续拒绝上限」同一族）：原文只说「掷到破平为止」，
 	 *   那在**退化随机源**（单测的固定 `rng.set(() => 0.5)`、或余额耗尽的源）下**永不收敛** ⇒ 会挂死整场战斗。
@@ -161,7 +161,7 @@ DND3.releaseGrapple = (c, { silent = false } = {}) => {
 };
 
 /** 建立擒抱（hold）。`fromHit` ＝ 该次尝试由**命中**触发（改良抓握的形）。 */
-DND3.hold = (attacker, target, { fromHit = false } = {}) => {
+DND3.hold = (attacker, target, { fromHit = false } = {}, 源 = null) => {
 	if (attacker == null || target == null || attacker === target) return false;
 	if (DND3.isGrappling(attacker) || DND3.isGrappling(target)) {
 		RPG.perform(`${target.name}已经在擒抱里了——这一次抓不住。`);
@@ -172,7 +172,7 @@ DND3.hold = (attacker, target, { fromHit = false } = {}) => {
 		RPG.perform(`${attacker.name}抓不住${target.name}——对手体型大出太多。`);
 		return false;
 	}
-	const 对抗 = DND3.opposedGrapple(attacker, target);
+	const 对抗 = DND3.opposedGrapple(attacker, target, 源);
 	if (对抗.winner !== 'a') {
 		RPG.perform(`${attacker.name}抓住了${target.name}，却没能按住（擒抱检定 ${对抗.a.total} 对 ${对抗.b.total}）。`);
 		return false;
@@ -184,14 +184,14 @@ DND3.hold = (attacker, target, { fromHit = false } = {}) => {
 		`${fromHit ? '' : '，并顺势撞了一下'}。`);
 	/* pin `:731`（Step 3）：起手成功者**额外造成一次徒手伤害**。
 	 *   ⚠ 改良抓握**不走这一支**：它的原文（Animals:173）只说「establish a hold」，✗ 不含伤害。 */
-	if (!fromHit) DND3.grappleDamageRoll(attacker, target);
+	if (!fromHit) DND3.grappleDamageRoll(attacker, target, 源);
 	return true;
 };
 
 /** 以对抗检定造成伤害（pin `:800`）：中型 1d3／小型 1d2 ＋ 力量调整值，默认**非致命**。 */
-DND3.grappleDamageRoll = (attacker, target) => {
+DND3.grappleDamageRoll = (attacker, target, 源 = null) => {
 	const 面 = DND3.sizeOf(attacker) === 'small' ? '1d2' : '1d3';
-	const 伤 = RPG.roll(面, { purpose: 'damage', actor: attacker?.name ?? null }) + DND3.modOf(attacker?.stats ?? {}, 'str');   // ★`#2031`
+	const 伤 = RPG.roll(面, { purpose: 'damage', actor: attacker?.name ?? null }, 源) + DND3.modOf(attacker?.stats ?? {}, 'str');   // ★`#2031`
 	RPG.applyDamage(target, 伤, { nonlethal: true });
 	DND3.grantDeathIfDown(target);
 	RPG.perform(`${attacker.name}在擒抱中撞了${target.name}一下（非致命 ${伤} 点）。`);
@@ -199,14 +199,14 @@ DND3.grappleDamageRoll = (attacker, target) => {
 };
 
 /** 钉住（pin `:850`）：以一次攻击换取对抗检定；成功 ⇒ 目标**被钉住**。 */
-DND3.pinOpponent = (c) => {
+DND3.pinOpponent = (c, 源 = null) => {
 	const opp = DND3.grapplePartner(c);
 	if (opp == null || 关系(c).holds == null) {
 		RPG.perform(`${c.name}没有抓着手里的对手，钉不住人。`);
 		return false;
 	}
 	if (DND3.isPinned(opp)) return false;   // 已钉住 ⇒ 无需重钉（本回合空过，由调用方记账）
-	const 对抗 = DND3.opposedGrapple(c, opp);
+	const 对抗 = DND3.opposedGrapple(c, opp, 源);
 	if (对抗.winner !== 'a') {
 		RPG.perform(`${c.name}想把${opp.name}按住，却被挣开了（擒抱检定 ${对抗.a.total} 对 ${对抗.b.total}）。`);
 		return false;
@@ -219,10 +219,10 @@ DND3.pinOpponent = (c) => {
 
 /** 挣脱（pin `:826`／`:897`）：以一次攻击换取对抗检定。
  *  · 被**钉住** ⇒ 只解钉（原文：挣脱后**仍是擒抱**）；· 被**抓住** ⇒ 整个擒抱结束。 */
-DND3.escapeGrapple = (c) => {
+DND3.escapeGrapple = (c, 源 = null) => {
 	const opp = DND3.grapplePartner(c);
 	if (opp == null) return false;
-	const 对抗 = DND3.opposedGrapple(c, opp);
+	const 对抗 = DND3.opposedGrapple(c, opp, 源);
 	if (对抗.winner !== 'a') {
 		RPG.perform(`${c.name}没能挣脱${opp.name}（擒抱检定 ${对抗.a.total} 对 ${对抗.b.total}）。`);
 		return false;
@@ -282,24 +282,24 @@ DND3.runOnHit = (id, ctx) => {
 
 /* 改良抓握（Improved Grab）——《Monsters - Animals.md:173》鳄鱼条：咬中之后**自由动作**起擒抱、不引发借机攻击。
  *   ⚠ 本仓无借机面 ⇒ 那一半无处落（见档头不落项），本处理函数只管「咬中 ⇒ 起擒抱」。 */
-DND3.defOnHit({ id: 'improved-grab', run: ({ attacker, target }) => DND3.hold(attacker, target, { fromHit: true }) });
+DND3.defOnHit({ id: 'improved-grab', run: ({ attacker, target, 源 }) => DND3.hold(attacker, target, { fromHit: true }, 源) });
 
 /* ---------- 自动通路的回合动作（core 的挂点，见 `40-battle.js` 的 `RPG.battleTurnAction`）----------
  *  斗中之人的合法选择由本函数给出；返回 `null` ⇒ 本路不接管（走原有武器路）。
  *   · **被抓住** ⇒ 挣脱（pin `:826`：以一次攻击换取对抗检定）；
  *   · **正抓着人** ⇒ 未钉住则钉住（pin `:850`），已钉住则撞一下（pin `:800`）。
  *  ⚠ 玩家侧（交互通路）的菜单接线归故事侧 S5；引擎侧这条面服务**自动通路**（含怪物）。 */
-DND3.turnAction = (attacker) => {
+DND3.turnAction = (attacker, 源 = null) => {
 	if (!(attacker instanceof RPG.Character)) return null;
 	/* 挣脱：**本次行动已发生**（掷了对抗检定、也上了屏）⇒ `applied`，与「挥空」同规（✗ 不是 rejected）。 */
 	if (DND3.isHeld(attacker)) {
-		DND3.escapeGrapple(attacker);
+		DND3.escapeGrapple(attacker, 源);
 		return { status: 'applied', reason: 'grapple-escape' };
 	}
 	if (DND3.isHolding(attacker)) {
 		const opp = DND3.grapplePartner(attacker);
-		if (opp != null && !DND3.isPinned(opp)) { DND3.pinOpponent(attacker); return { status: 'applied', reason: 'grapple-pin' }; }
-		if (opp != null) { DND3.grappleDamageRoll(attacker, opp); return { status: 'applied', reason: 'grapple-damage' }; }
+		if (opp != null && !DND3.isPinned(opp)) { DND3.pinOpponent(attacker, 源); return { status: 'applied', reason: 'grapple-pin' }; }
+		if (opp != null) { DND3.grappleDamageRoll(attacker, opp, 源); return { status: 'applied', reason: 'grapple-damage' }; }
 	}
 	return null;
 };

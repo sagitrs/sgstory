@@ -148,6 +148,6 @@ DND3.meleeAttack = (item, that, from, 源 = null) => {
 	 *   目标已出局者由 `DND3.runOnHit` 自行跳过（同 `#1780` A5 的惯例）。
 	 *   ⚠ 件未声明 `stats.onHit` ⇒ 下面**一行不跑** ⇒ 既有武器零回归（本仓已注册的道具无一声明）。 */
 	if (item.stats.onHit) {
-		DND3.runOnHit?.(item.stats.onHit, { attacker: from, target: that, item, damage: dmg, crit });
+		DND3.runOnHit?.(item.stats.onHit, { attacker: from, target: that, item, damage: dmg, crit, 源 });
 	}
 };

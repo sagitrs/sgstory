@@ -219,4 +219,61 @@
 	 *   本路的**端到端**判据归 **A2 两卡**（那正是甲案说的「**真实测试路径**」✓）⇒ 已在 PR 正文「未覆盖」登记 ✓。
 	 *   ★代码侧的透传**已落**（`#actCatching` 已带 `this.源` ✓）—— 缺的是**判据**，✗ 不是实现 ✓。 */
 
+/* ───────── ⑩⑪ 擒抱族 ／ 撬锁：本档 `:160` 自陈的**未覆盖两条**，由 T 席补落（先红候实现）─────────
+	 *
+	 * ★**这两格是「先红」格**（★本席按领队丙裁落：★判据先以**具名红**进，`developer` 把 `源` 透进去后转绿 ✓）。
+	 *   现状（`main` `6bcad3e7`）：`DND3.grappleRoll(c)`／`DND3.grappleDamageRoll(a,t)`／
+	 *   `DND3.Chest.handlers.lockpick(that)` **皆不收源** ⇒ JS 会**静默忽略**多给的第二参 ⇒
+	 *   底层抽取仍走**全局** ⇒ 本两格**须红且具名**（✗ 崩不漏、✗ 空转）✓。
+	 * ★**契约（我判的那条）**：给了源 ⇒ 该路径的**全部底层抽取**走该源；**✗ 给源** ⇒ 与旧行为逐字同（走全局）✓。
+	 *   —— 与同档 ②⑦⑨ 的口径**同一把尺**（✗ 另立一套）✓。
+	 * ★**为什么这两条在链上**：① 擒抱一族 —— `meleeAttack` 的 `onHit:'improved-grab'` 命中后起擒抱，
+	 *   就在**两卡的攻/伤链**上（`dev-9` 在 `#2043` 已如此登记 ✓）；② 撬锁 —— **票面 §四**「真实消费链」
+	 *   自己列的 8 个 dnd3 接入点之一（`chest.js`（`check.ability`））✓。
+	 */
+
+	test('★#2043 ⑩【擒抱族·对抗骰】`DND3.grappleRoll(c, 源)` 的骰吃该源；**✗ 给源** ⇒ 走全局（旧形 ✓）', () => {
+		清();
+		const 旧全局 = R().rng._impl;
+		try {
+			const A = R().makeRng({ 名: 'A' });
+			定序(A, 0.95, 8);                       // 0.95 ⇒ d20 = 20
+			R().rng.setSequence(Array.from({ length: 8 }, () => 0.0));   // 全局：0.0 ⇒ d20 = 1（两路可分辨 ✓）
+			const 甲 = new (R().Character)({ name: '甲', hp: 99, maxHp: 99, stats: D().stats({ str: 10 }) });
+			const 乙 = new (R().Character)({ name: '乙', hp: 99, maxHp: 99, stats: D().stats({ str: 10 }) });
+			const 给 = D().grappleRoll(甲, A);
+			assert.eq(给.roll, 20, `★给了源 ⇒ 对抗骰须吃**该源**（0.95 ⇒ 20）；实得 ${给.roll}（= 全局序列的 1 ⇒ 源未透传 ✗）`);
+			const 无 = D().grappleRoll(甲);
+			assert.eq(无.roll, 1, `★✗ 给源 ⇒ 仍走全局（1）—— 旧调用语义 ✗ 变 ✓（实得 ${无.roll}）`);
+		} finally { R().rng._impl = 旧全局; 清(); }
+	});
+
+	test('★#2043 ⑪【擒抱族·伤害骰／撬锁】`grappleDamageRoll(a,t,源)` 与 `Chest#lockpick(that,源)` 的骰吃该源', () => {
+		清();
+		const 旧全局 = R().rng._impl;
+		try {
+			const A = R().makeRng({ 名: 'A' });
+			定序(A, 0.95, 8);
+			R().rng.setSequence(Array.from({ length: 8 }, () => 0.0));
+			const 甲 = new (R().Character)({ name: '甲', hp: 99, maxHp: 99, stats: D().stats({ str: 10 }) });
+			const 乙 = new (R().Character)({ name: '乙', hp: 999, maxHp: 999, stats: D().stats({ str: 10 }) });
+			/* 擒抱伤害：中型 ⇒ 1d3；给了源 ⇒ 0.95 ⇒ 3 ＋ 力量调整值 0 ⇒ 3（全局 0.0 ⇒ 1） */
+			const 伤 = D().grappleDamageRoll(甲, 乙, A);
+			assert.eq(伤, 3, `★给了源 ⇒ 伤害骰须吃**该源**（1d3 取 3）；实得 ${伤}（= 全局的 1 ⇒ 源未透传 ✗）`);
+			/* 撬锁：`checkRoll` 的骰；给了源 ⇒ 0.95 ⇒ 20 ＋ 灵巧调整值 */
+			const 箱 = new (D().Chest)({ id: 'sep-box', name: '匣' });
+			const 施 = new (R().Character)({ name: '施', hp: 9, maxHp: 9, stats: D().stats({ dex: 10 }) });
+			let 见 = null;
+			const 旧perform = R().perform;
+			R().perform = (s) => { if (typeof s === 'string' && s.includes('撬锁判定')) 见 = s; };   // 抓播报里的数（文案原样 ✓）
+			try { D().Chest.handlers.lockpick.call(箱, 施, A); } finally { R().perform = 旧perform; }
+			assert.ok(见 != null, '撬锁须有播报（否则本格空转 ✗）');
+			assert.eq(/撬锁判定：20 \//.test(见), true, `★给了源 ⇒ 检定骰须吃**该源**（20）；实得「${见}」（= 全局的 1 ⇒ 源未透传 ✗）`);
+			/* ✗ 给源 ⇒ 仍走全局（旧形 ✓） */
+			const 无 = D().grappleRoll(甲);
+			assert.eq(无.roll, 1, `★✗ 给源 ⇒ 仍走全局（1）（实得 ${无.roll}）`);
+		} finally { R().rng._impl = 旧全局; 清(); }
+	});
 })();
+
+	

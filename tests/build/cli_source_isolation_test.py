@@ -264,11 +264,13 @@ def selftest():
         shutil.copytree(ROOT / "tests" / "e2e" / "old-house", root / "tests" / "e2e" / "old-house")
         controls = []
         try:
-            for name in ["missing_cli_test", "zero_execution"]:
+            for name in ["missing_cli_test", "zero_execution", "cannot_start"]:
                 if name == "missing_cli_test":
                     script.unlink()
-                else:
+                elif name == "zero_execution":
                     script.write_text("print('no tests were run')\n", encoding="utf-8")
+                else:
+                    script.write_text("def invalid(:\n", encoding="utf-8")
                 result = subprocess.run(["node", str(gate)], cwd=root, capture_output=True, text=True,
                                         timeout=20, env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"})
                 legacy_red = re.search(r"^\s+· [①②③④⑤⑥⑦]", result.stdout, re.MULTILINE)

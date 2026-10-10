@@ -94,7 +94,7 @@ function main() {
 		{ encoding: 'utf8', timeout: 25000, env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } });
 	const cliOutput = `${cliTests.stdout ?? ''}${cliTests.stderr ?? ''}`;
 	const cliCount = Number(cliOutput.match(/Ran ([1-9]\d*) tests?\b/)?.[1] ?? 0);
-	cliApparatusError = Boolean(cliTests.error || cliTests.signal || cliTests.status === 2 || (cliTests.status === 0 && !cliCount));
+	cliApparatusError = Boolean(cliTests.error || cliTests.signal || cliTests.status === 2 || !cliCount);
 	ok(cliTests.status === 0 && cliCount > 0, '⑧ CLI排除与旧脚本保留（两向具名、真产物对照）',
 		`${cliApparatusError ? '⑧装置错（缺失/不能启动/超时/空跑）：' : ''}rc=${cliTests.status}; methods=${cliCount}; ${cliTests.error?.message ?? ''}; ${cliOutput.trim()}`);
 	if (详 || cliTests.status === 0) console.log(cliOutput.trim());

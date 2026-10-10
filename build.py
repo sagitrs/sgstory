@@ -2,6 +2,9 @@
 """
 build.py —— SugarCube RPG 增强插件的构建器（零依赖，纯 Python 标准库）
 
+本脚本只构建旧网页及其单测；独立 src/cli/ 不参与脚本收集或规则包发现。
+独立命令行入口由 #2066 交付，不以 --host headless 代替。
+
 本仓库是一个 **SugarCube 增强插件**（src/core + src/dnd3），不是某个故事。
 用它做游戏的方式：一个「故事目录」引用插件源码，编译成单文件网页游戏：
 
@@ -174,11 +177,18 @@ def host_selection_js(hosts: list[str], explicit: bool) -> str | None:
             + f"(function () {{ 'use strict'; setup.RPG.useHost('{hosts[0]}'); }})();")
 
 
+def is_cli_source(file_path: pathlib.Path) -> bool:
+    """独立 CLI 源码不属于网页插件；按目录边界判，不按扩展名或 basename 判。"""
+    return file_path.is_relative_to(PLUGIN_SRC / "cli")
+
+
 def 可用规则包() -> dict:
-    """`src/**` 里**非 core、非 host** 的包根（含 `00-init.js` 的目录）⇒ {id: 目录}。
+    """发现 `src/**` 下含 `00-init.js` 的网页包根，排除 core、host 与 cli；返回 {id: 目录}。
     ★id＝**目录名**（`dnd3`／`dnd-5e`／`d20m`），与命名空间别名同源（`dnd-5e` ⇒ `DND5E`）。"""
     out = {}
     for init in sorted(PLUGIN_SRC.rglob("00-init.js")):
+        if is_cli_source(init):
+            continue
         d = init.parent
         rel = d.relative_to(PLUGIN_SRC).as_posix()
         if rel.split("/")[0] in ("core", "host"):
@@ -323,6 +333,8 @@ def collect_js_files(hosts=None, packs=None):
     包选 = None if packs is None else set(packs)
     result = []
     for f in sorted(PLUGIN_SRC.rglob("*.js")):
+        if is_cli_source(f):
+            continue
         rel = f"src/{f.relative_to(PLUGIN_SRC).as_posix()}"
         seg = rel.split("/")
         归属 = seg[2] if len(seg) > 3 and seg[0] == "src" and seg[1] == "host" else None

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 /* 规则包**选择**门（`sgstory#295` 甲 —— 故事清单 `packs` 口 ＋ `build.py` 按包过滤）
  *
- * ## 本条要判的七件事（都是**产物面**，✗ 源码面）
+ * ## 本条原有七件事及 CLI 隔离臂
  *   ① 无清单（或清单无 `packs` 键）⇒ **全装**：三个规则包标记（`src/dnd/{d20m,dnd3,dnd-5e}/`）齐 ＋ `src/core/` 仍在；
  *   ② 缺省 ≡ **显式全列**（`"packs": ["d20m","dnd3","dnd-5e"]`）⇒ 两产物**逐字节相同**
  *      （＝「新口引入 ✗ 改缺省行为」这条的**机械形**；与**旧脚本**的逐字节对照见引入该口的 PR 正文——旧脚本此时已不存在）；
@@ -12,6 +12,10 @@
  *   ⑥ 清单**坏**（非 JSON／`packs` 非空字符串数组）⇒ rc≠0 且具名（✗ 静默当「无声明」）。
  *   ⑦ 同一故事清单的可选 assets 口：运行 tests/build/story_assets_test.py 的正反臂。
  *      该臂使用临时故事并直接调用生产构建器，不写共享 build/dist；包含真 build_story 的注入与确定性核。
+ *   ⑧ #2064 CLI 目录隔离：运行 tests/build/cli_source_isolation_test.py。
+ *      两向分别具名：CLI/嵌套脚本排除、旧脚本/同名非CLI保留；含四宿主真产物字节对照与未知宿主拒绝。
+ *      源码集合断言直接调用生产函数，不复写收集算法；产物断言读临时副本的 HTML/bundle/manifest。
+ *      装置缺失/启动不了/超时返回2；selftest 的 R3 真刀验证本调用确实参与判决。
  *
  * ## 口径（★读数须注明，否则不可复核）
  *   · 读数是**产物文本**里的包**标记行**（`/* ===== src/dnd/<id>/… ===== *​/`，`build.py` 的 `js_parts_of` 写出）
@@ -73,6 +77,7 @@ function main() {
 	if (!fs.existsSync(path.join(源故事, 'src'))) { console.error(`✗ 装置错：找不到 ${源故事}/src ⇒ **证不出**`); process.exit(2); }
 
 	const 红 = [];
+	let cliApparatusError = false;
 	const ok = (条件, 名, 细节 = '') => { if (!条件) 红.push(`${名}${细节 ? ` —— ${细节}` : ''}`); if (详) console.log(`  ${条件 ? '✓' : '✗'} ${名}`); };
 	const 可用 = fs.readdirSync(path.join(ROOT, 'src', 'dnd')).filter((d) => fs.existsSync(path.join(ROOT, 'src', 'dnd', d, '00-init.js'))).sort();
 	if (详) console.log(`  可用规则包（装置面）：${可用.join('／')}`);
@@ -83,6 +88,16 @@ function main() {
 	ok(assetTests.status === 0, '⑦ 离线素材构建正反测试',
 		`rc=${assetTests.status}｜${assetTests.error?.message ?? ''}｜${assetTests.stderr?.slice(-1200) ?? ''}`);
 	if (详) console.log(assetTests.stderr?.trim() ?? '');
+
+	/* ⑧ T 席具名准许：#2065/6094569888；扩此入口，不改 workflow。 */
+	const cliTests = spawnSync('python3', [path.join(ROOT, 'tests', 'build', 'cli_source_isolation_test.py')],
+		{ encoding: 'utf8', timeout: 25000, env: { ...process.env, PYTHONDONTWRITEBYTECODE: '1' } });
+	const cliOutput = `${cliTests.stdout ?? ''}${cliTests.stderr ?? ''}`;
+	const cliCount = Number(cliOutput.match(/Ran ([1-9]\d*) tests?\b/)?.[1] ?? 0);
+	cliApparatusError = Boolean(cliTests.error || cliTests.signal || cliTests.status === 2 || (cliTests.status === 0 && !cliCount));
+	ok(cliTests.status === 0 && cliCount > 0, '⑧ CLI排除与旧脚本保留（两向具名、真产物对照）',
+		`${cliApparatusError ? '⑧装置错（缺失/不能启动/超时/空跑）：' : ''}rc=${cliTests.status}; methods=${cliCount}; ${cliTests.error?.message ?? ''}; ${cliOutput.trim()}`);
+	if (详 || cliTests.status === 0) console.log(cliOutput.trim());
 
 	/* ① 无清单 ⇒ 全装 */
 	const A = 构建(造故事(undefined));
@@ -129,9 +144,9 @@ function main() {
 	ok(收.status === 0, '★收尾重建缺省应成功', `rc=${收.status}`);
 	fs.rmSync(临时根, { recursive: true, force: true });
 
-	console.log(`\n扫描：可用规则包 ${可用.length} 个（${可用.join('／')}）／包选择臂 ${9} 条＋离线素材测试`);
-	if (红.length) { console.log(`✗ 门红：`); 红.forEach((x) => console.log(`  · ${x}`)); process.exit(1); }
-	console.log('✓ 门绿（缺省＝全装且逐字节同显式全列 · 单包只装它 · 未知/坏清单构建期具名抛 · 与 --host 正交 · 离线素材正反臂）');
+	console.log(`\n扫描：可用规则包 ${可用.length} 个（${可用.join('／')}）／包选择臂 ${9} 条＋离线素材测试＋CLI隔离 ${cliCount} 个方法`);
+	if (红.length) { console.log(`✗ 门红：`); 红.forEach((x) => console.log(`  · ${x}`)); process.exit(cliApparatusError ? 2 : 1); }
+	console.log('✓ 门绿（缺省＝全装且逐字节同显式全列 · 单包只装它 · 未知/坏清单构建期具名抛 · 与 --host 正交 · 离线素材正反臂 · CLI隔离两向及真产物对照）');
 }
 
 /* ── 自检刀（仅当直接运行）────────────────────────────────────────────────── */
@@ -144,29 +159,52 @@ if (isMain && process.argv.includes('--selftest')) {
 		['R1 拆掉包过滤（缺省也当全装）', [['if 包选 is not None and 归属 is None and pack_root and pack_root.name not in 包选:',
 			'if False:   # ★刀：包过滤已摘']], '③'],
 		['R2 未知包 id 静默（✗ 构建期具名抛）', [['        if 未知:', '        if False:   # ★刀：未知 id 不抛']], '④'],
+		['R3 摘掉CLI排除边界', [['return file_path.is_relative_to(PLUGIN_SRC / "cli")', 'return False']], '⑧'],
 	];
-	let n = 0, 总 = 真刀.length;
+	let n = 0, 总 = 真刀.length + 2, apparatusError = false;
 	console.log('=== 规则包选择门 · 自检刀 ===');
-	for (const [名, 补丁, 期望红] of 真刀) {
-		fs.writeFileSync(BUILD, 备份);
-		let 文 = 备份.toString('utf8');
-		for (const [a, b] of 补丁) {
-			if (!文.includes(a)) { console.log(`  ✗ ${名}：找不到待改的锚（${a.slice(0, 40)}…）`); continue; }
-			文 = 文.replace(a, b);
+	try {
+		const baseline = 跑();
+		const baselineGreen = baseline.status === 0;
+		apparatusError = Boolean(baseline.error || baseline.signal || baseline.status === 2);
+		console.log(`  ${baselineGreen ? '✓' : '✗'} 未下刀基线 ⇒ rc=${baseline.status}（期望 0）`);
+		if (baselineGreen) n++;
+		else console.log(`${baseline.stdout ?? ''}\n${baseline.stderr ?? ''}`);
+		for (const [名, 补丁, 期望红] of 真刀) {
+			if (!baselineGreen) break;
+			fs.writeFileSync(BUILD, 备份);
+			let 文 = 备份.toString('utf8');
+			for (const [a, b] of 补丁) {
+				if (!文.includes(a)) { console.log(`  ✗ 装置错 ${名}：找不到待改的锚（${a.slice(0, 40)}…）`); apparatusError = true; break; }
+				文 = 文.replace(a, b);
+			}
+			if (apparatusError) break;
+			fs.writeFileSync(BUILD, 文, 'utf8');  // 保留原CRLF；只改刀的锚，不再生成CRCRLF。
+			const r = 跑();
+			if (r.error || r.signal || r.status === 2) {
+				apparatusError = true;
+				console.log(`  ✗ 装置错 ${名}：rc=${r.status}; ${r.error?.message ?? ''}; ${r.stdout ?? ''}; ${r.stderr ?? ''}`);
+				break;
+			}
+			const 命中 = r.status === 1 && r.stdout.includes(期望红);
+			console.log(`  ${命中 ? '✓' : '✗'} 真刀 ${名} ⇒ rc=${r.status}（期望 1 且红在「${期望红}」）`);
+			if (命中) n++;
 		}
-		fs.writeFileSync(BUILD, 文.replace(/\n/g, '\r\n'));      // ★本仓 build.py 是 CRLF（行尾门盯着）
-		const r = 跑();
-		const 命中 = r.status === 1 && r.stdout.includes(期望红);
-		console.log(`  ${命中 ? '✓' : '✗'} 真刀 ${名} ⇒ rc=${r.status}（期望 1 且红在「${期望红}」）`);
-		if (命中) n++;
+	} finally {
+		fs.writeFileSync(BUILD, 备份);
 	}
-	fs.writeFileSync(BUILD, 备份);
+	const restored = 跑();
+	const restoredGreen = restored.status === 0;
+	apparatusError ||= Boolean(restored.error || restored.signal || restored.status === 2);
+	console.log(`  ${restoredGreen ? '✓' : '✗'} 复原后重跑 ⇒ rc=${restored.status}（期望 0）`);
+	if (restoredGreen) n++;
+	else console.log(`${restored.stdout ?? ''}\n${restored.stderr ?? ''}`);
 	const md5b = execFileSync('md5sum', [BUILD], { encoding: 'utf8' }).split(' ')[0];
 	console.log(md5 === md5b ? `  ✓ 复原逐字节同（md5 ${md5b}）` : `  ✗ 复原 ✗ 逐字节同（${md5} ⇒ ${md5b}）`);
 	if (md5 === md5b) n++;
 	总++;
-	console.log(n === 总 ? `  ✓ ${n}/${总} 刀全部如期` : `  ✗ ${n}/${总} 刀如期`);
-	process.exit(n === 总 ? 0 : 1);
+	console.log(n === 总 ? `  ✓ ${n}/${总} 自检项全部如期（三把真刀＋基线绿＋复原绿＋字节同）` : `  ✗ ${n}/${总} 自检项如期`);
+	process.exit(apparatusError ? 2 : (n === 总 ? 0 : 1));
 }
 
 if (isMain && !process.argv.includes('--selftest')) main();

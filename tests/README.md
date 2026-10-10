@@ -7,7 +7,7 @@
 
 | 工具 | 命令与判据 |
 |---|---|
-| `cli/check-ci.mjs` | `node tests/cli/check-ci.mjs`：触发6路径/5步骤/登记/实际非空名称对账，5个内存反控；缺文件装置rc2，契约不符rc1 |
+| `cli/check-ci.mjs` | `node tests/cli/check-ci.mjs`：触发6路径/5步骤/登记/实际非空名称对账，6个内存反控；缺文件装置rc2，契约不符rc1 |
 | `cli/run-unit.mjs` | `node tests/cli/run-unit.mjs`：Node22/Linux真实TAP，40例；分母以registry.json及实际执行双核；原子/随机/存读/故障注入 |
 | 同上，U1 | `node tests/cli/run-unit.mjs --selftest`：临时源码副本摘提交RNG，指定提交用例断言红rc1；复原绿/字节同；4项自证，不计恢复为第二刀 |
 | `cli/run-e2e.mjs` | `node tests/cli/run-e2e.mjs`：5个正常玩家用例，仅stdout/stderr和stdin/正常EOF/SIGINT；保存退出重启读取，中文重定向 |

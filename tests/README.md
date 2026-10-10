@@ -1,7 +1,22 @@
 # tests/ —— 测试指南
 
-两层测试：**unit**（无 SugarCube 环境的单元测试）与 **e2e**
-（消费插件全部能力的完整故事）。
+本指南的旧网页测试分 **unit**（无 SugarCube 环境的单元测试）与 **e2e**
+（消费插件全部能力的完整故事）；独立 CLI 玩家测试由 #2066 另行交付。
+
+## CLI 构建隔离工具登记（#2064）
+
+| 工具 | 入口与判据 |
+|---|---|
+| `build/cli_source_isolation_test.py` | `python3 tests/build/cli_source_isolation_test.py`：11个构建组件方法；CLI脚本/规则包排除、旧路径保留、4宿主产物字节对照 |
+| 同上，具名刀 | `python3 tests/build/cli_source_isolation_test.py --selftest`：临时副本摘掉唯一排除判据，定向收集/包发现红，恢复后绿且字节不变；另含缺CLI工具/零执行/缺临时产物三项装置反控，须rc2具名；前两项既有臂不红，后一项仅在组件中注入IO错误 |
+| 同上，固定旧源码对照 | `python3 tests/build/cli_source_isolation_test.py --compare-base <完整SHA>`：归档副本中的四宿主真实HTML/bundle/manifest逐字节对照；不检出、不接受浮动版本、不写共享产物；手动模式，不冒CI已自动执行 |
+
+工具只调用生产构建器并写逐用例临时副本，不写共享 build/dist、不改生产源码。
+已按 [Tester具名接线准许](https://github.com/sagitrs/sgstory/issues/2065#issuecomment-6094569888)
+接入 `gates/pack-selection.mjs` 的正常臂与R3自证；CI仍走既有两条调用，不修改workflow。
+本登记不冒实际CI绿或Tester已投本PR的票。完整范围见 [CLI 边界说明](../docs/plans/cli/README.md)。
+
+## 旧网页测试布局
 
 ```
 tests/

@@ -1,0 +1,44 @@
+# CLI process 10s; unit family 30s; e2e family 75s; job maximum 3min.
+# Read-only; no deploy, Pages, model calls or repository writes. No new npm packages.
+# Permission: #2065 comments 6094388869 + 6094401040; expires at prototype PR merge.
+name: cli-tests
+on:
+  pull_request:
+    paths:
+      - '.github/workflows/cli-tests.yml'
+      - 'src/cli/**'
+      - 'tests/cli/**'
+      - 'docs/plans/cli/**'
+      - 'README.md'
+      - 'tests/README.md'
+  schedule:
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  cli:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    env:
+      TMPDIR: ${{ runner.temp }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: CLI registry and trigger contract
+        run: node tests/cli/check-ci.mjs
+      - name: CLI nonempty families and knives
+        run: |
+          node tests/cli/run-unit.mjs
+          node tests/cli/run-e2e.mjs
+          node tests/cli/run-unit.mjs --selftest
+          node tests/cli/run-e2e.mjs --selftest
+      - name: CLI readonly
+        if: always()
+        run: git status --porcelain=v1 --untracked-files=all > "$RUNNER_TEMP/cli-status"; test ! -s "$RUNNER_TEMP/cli-status"

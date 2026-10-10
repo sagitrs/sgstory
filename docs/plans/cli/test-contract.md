@@ -33,8 +33,6 @@ jobs:
   cli:
     runs-on: ubuntu-latest
     timeout-minutes: 3
-    env:
-      TMPDIR: ${{ runner.temp }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -47,6 +45,8 @@ jobs:
       - name: CLI registry and trigger contract
         run: node tests/cli/check-ci.mjs
       - name: CLI nonempty families and knives
+        env:
+          TMPDIR: ${{ runner.temp }}
         run: |
           node tests/cli/run-unit.mjs
           node tests/cli/run-e2e.mjs
@@ -57,7 +57,7 @@ jobs:
         run: git status --porcelain=v1 --untracked-files=all > "$RUNNER_TEMP/cli-status"; test ! -s "$RUNNER_TEMP/cli-status"
 ```
 
-实施前收敛为5个step，符合规则gates.md §C每job不超过五步；四条具名族/刀命令合在一个fail-fast步骤，不减少调用或用例。checkout不保留凭据，临时目录用runner.temp，Local用TMPDIR或HOME/tmp，不写共享/tmp。
+实施前收敛为5个step，符合规则gates.md §C每job不超过五步；四条具名族/刀命令合在一个fail-fast步骤，不减少调用或用例。checkout不保留凭据，测试step的TMPDIR用runner.temp，Local用TMPDIR或HOME/tmp，不写共享/tmp。runner上下文不适用于job级env，必须放在step级env；[平台拒绝读数及修补记录](https://github.com/sagitrs/sgstory/pull/2077#issuecomment-6096757662)不被本地名单对账绿掩盖。
 
 头注须写：无部署/Pages/外部模型/写仓动作；单个CLI进程10秒、unit族30秒、e2e族75秒、整job3分钟。Node22及标准库，无新npm包。新workflow之外的旧workflow逐字不动。每日/手动补PR路径过滤；无push-main。
 

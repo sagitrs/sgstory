@@ -20,8 +20,6 @@ jobs:
   cli:
     runs-on: ubuntu-latest
     timeout-minutes: 3
-    env:
-      TMPDIR: ${{ runner.temp }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -34,6 +32,8 @@ jobs:
       - name: CLI registry and trigger contract
         run: node tests/cli/check-ci.mjs
       - name: CLI nonempty families and knives
+        env:
+          TMPDIR: ${{ runner.temp }}
         run: |
           node tests/cli/run-unit.mjs
           node tests/cli/run-e2e.mjs

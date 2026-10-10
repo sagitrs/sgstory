@@ -12,6 +12,8 @@ function check(inputs) {
   const paths = [...yaml.matchAll(/^      - '([^']+)'$/gm)].map(x => x[1]);
   if (JSON.stringify(paths) !== JSON.stringify(['.github/workflows/cli-tests.yml', 'src/cli/**', 'tests/cli/**', 'docs/plans/cli/**', 'README.md', 'tests/README.md'])) throw new Error('CLI_CI_PATHS dependency surfaces differ');
   if (!yaml.includes('permissions:\n  contents: read') || (yaml.match(/^      - name:/gm) || []).length !== 5 || !yaml.includes('timeout-minutes: 3') || !yaml.includes('node-version: \'22\'') || !yaml.includes('persist-credentials: false') || !yaml.includes('if: always()')) throw new Error('CLI_CI_BOUNDS Node22/job5/timeout/readonly requirement missing');
+  // runner is available at step env, not at job env (Actions context table).
+  if (/^    env:$/m.test(yaml) || !yaml.includes('      - name: CLI nonempty families and knives\n        env:\n          TMPDIR: ${{ runner.temp }}\n        run: |')) throw new Error('CLI_CI_CONTEXT runner.temp must be scoped to test step env');
   const permissions = yaml.match(/^permissions:\n((?:  .*\n)*)/m);
   if (!permissions || permissions[1].trim() !== 'contents: read') throw new Error('CLI_CI_PERMISSION contents read only');
   const lines = yaml.split('\n'); const commands = [];
@@ -49,6 +51,7 @@ try {
     ['empty-e2e-registry', x => { x.registry.e2e.cases = []; }],
     ['omit-README-tool', x => { x.readme = x.readme.replaceAll('run-e2e.mjs', 'removed'); }],
     ['unknown-command', x => { const old = '          node tests/cli/run-unit.mjs\n'; const next = '          echo unregistered\n' + old; x.workflow = x.workflow.replace(old, next); x.contract = x.contract.replace(old, next); }],
+    ['runner-context-at-job-env', x => { const old = '    steps:\n'; const next = '    env:\n      TMPDIR: ${{ runner.temp }}\n' + old; x.workflow = x.workflow.replace(old, next); x.contract = x.contract.replace(old, next); }],
   ];
   for (const [name, mutate] of controls) {
     const copy = structuredClone(inputs); mutate(copy); let rejected = false;
@@ -57,5 +60,5 @@ try {
     console.log(`CLI CI control ${name}: rejected=true`);
   }
   check(inputs);
-  console.log(`CLI CI registry: paths=6 steps=5 unit=${registry.unit.cases.length} e2e=${registry.e2e.cases.length}; controls=5/5; baseline/restored=true`);
+  console.log(`CLI CI registry: paths=6 steps=5 unit=${registry.unit.cases.length} e2e=${registry.e2e.cases.length}; controls=6/6; baseline/restored=true`);
 } catch (error) { console.error(`${error.code || 'CLI_CI'}: ${error.message}`); process.exitCode = /APPARATUS/.test(error.message) || ['ENOENT', 'EACCES'].includes(error.code) ? 2 : 1; }

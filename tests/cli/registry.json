@@ -1,0 +1,75 @@
+{
+  "unit": {
+    "files": [
+      "tests/cli/unit/engine.test.mjs"
+    ],
+    "cases": [
+      "RNG deterministic same seed",
+      "RNG resumes exact consumption",
+      "RNG seed zero is nondegenerate",
+      "RNG rejects bad seed",
+      "RNG invalid arguments do not consume",
+      "RNG rejects incompatible state",
+      "JSON boundary rejects cycles and exotic values",
+      "JSON boundary rejects sparse arrays with disguised extra properties",
+      "JSON boundary rejects reserved keys and excessive depth",
+      "definition validates before session starts",
+      "definition identifiers require strings",
+      "query and frame preserve state RNG log",
+      "disabled condition refuses without consumption",
+      "unknown choice preserves session",
+      "stale action cannot repeat reward",
+      "restore same revision invalidates previous waiting boundary",
+      "accepted action commits state RNG and purpose together",
+      "throw after state and RNG mutation rolls back",
+      "late refusal rolls back draft and RNG",
+      "invalid post-action state rolls back",
+      "non-JSON post-action state rolls back",
+      "invalid action result rolls back",
+      "invalid post-action view rolls back",
+      "retained draft cannot mutate committed session",
+      "snapshot and views cannot mutate live state",
+      "query exception preserves session",
+      "terminal event cannot reward twice",
+      "restore resumes exact state and next random draw",
+      "restore rejects wrong envelope versions atomically",
+      "restore rejects other game and content version",
+      "restore rejects corrupt RNG without replacing session",
+      "restore rejects corrupt log and state atomically",
+      "bounded action log survives truncation and restore",
+      "store saves and loads actual files without changing source session",
+      "partial write failure preserves previous file and session",
+      "rename failure removes temp and preserves previous save",
+      "read failure preserves current session",
+      "invalid JSON and UTF8 preserve current session",
+      "oversized save read is refused before replacement",
+      "slot names cannot escape directory"
+    ],
+    "knife": {
+      "name": "U1",
+      "path": "src/cli/session.mjs",
+      "anchor": "rng: random.snapshot(), // U1: state and random commit together.",
+      "replacement": "rng: this.#record.rng, // U1: state and random commit together.",
+      "target": "accepted action commits state RNG and purpose together"
+    }
+  },
+  "e2e": {
+    "files": [
+      "tests/cli/e2e/player.test.mjs"
+    ],
+    "cases": [
+      "player choices queries refusal and full ending",
+      "player saves exits restarts loads and continues",
+      "player EOF exits without automatic save",
+      "player SIGINT at waiting boundary exits without save",
+      "player redirected Chinese commands remain line based"
+    ],
+    "knife": {
+      "name": "E1",
+      "path": "src/cli/storage.mjs",
+      "anchor": "session.restore(envelope); // E1: loading must replace the validated session.",
+      "replacement": "// E1 mutant: deliberately omit validated session replacement.",
+      "target": "player saves exits restarts loads and continues"
+    }
+  }
+}

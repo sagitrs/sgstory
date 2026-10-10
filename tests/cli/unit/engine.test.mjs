@@ -1,0 +1,65 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import * as fs from 'node:fs/promises';
+import os from 'node:os';
+import path from 'node:path';
+import { Session } from '../../../src/cli/session.mjs';
+import { Random } from '../../../src/cli/rng.mjs';
+import { Store } from '../../../src/cli/storage.mjs';
+import { jsonClone } from '../../../src/cli/json.mjs';
+import road from '../fixtures/road.mjs';
+const fresh = (overrides = {}) => new Session({ ...road, ...overrides }, 42);
+async function temp(fn) {
+  const base = process.env.CLI_TEST_ROOT || process.env.TMPDIR || path.join(os.homedir(), 'tmp');
+  await fs.mkdir(base, { recursive: true });
+  const dir = await fs.mkdtemp(path.join(base, 'unit-'));
+  try { await fn(dir); } finally { await fs.rm(dir, { recursive: true, force: true }); }
+}
+const accepted = (s, id = 'forest') => assert.equal(s.choose(id).kind, 'accepted');
+
+test('RNG deterministic same seed', () => { const a = new Random(42), b = new Random(42); for (let i = 0; i < 20; i++) assert.equal(a.integer(1, 6, 'dice'), b.integer(1, 6, 'dice')); });
+test('RNG resumes exact consumption', () => { const a = new Random(42); a.integer(1, 6, 'first'); const b = Random.from(a.snapshot()); assert.equal(a.integer(-3, 9, 'second'), b.integer(-3, 9, 'second')); assert.deepEqual(a.snapshot(), b.snapshot()); });
+test('RNG seed zero is nondegenerate', () => { const a = new Random(0); assert.notEqual(a.snapshot().value, 0); a.integer(0, 0, 'fixed'); assert.equal(a.snapshot().draws, 1); });
+test('RNG rejects bad seed', () => { for (const x of [-1, NaN, Infinity, 0x100000000, '42']) assert.throws(() => new Random(x)); });
+test('RNG invalid arguments do not consume', () => { const a = new Random(1); const before = a.snapshot(); for (const args of [[2, 1, 'bad'], [0.5, 2, 'bad'], [0, 2, ''], [0, 2, '\u001b'], [-0x80000000, 0xffffffff, 'wide']]) assert.throws(() => a.integer(...args)); assert.deepEqual(a.snapshot(), before); });
+test('RNG rejects incompatible state', () => { const a = new Random(1).snapshot(); for (const patch of [{ value: 0 }, { value: -1 }, { draws: 0.5 }, { algorithm: 'other' }, { extra: 1 }]) assert.throws(() => Random.from({ ...a, ...patch })); });
+test('JSON boundary rejects cycles and exotic values', () => { const cycle = {}; cycle.self = cycle; for (const x of [cycle, NaN, undefined, new Map(), new Date(), { a: undefined }, [1, , 3], Object.defineProperty({}, 'x', { get() { throw new Error('getter'); }, enumerable: true })]) assert.throws(() => jsonClone(x)); });
+test('JSON boundary rejects sparse arrays with disguised extra properties', () => {
+  const sparse = [1];
+  sparse.length = 2;
+  sparse['4294967295'] = 'not an array index';
+  assert.throws(() => jsonClone(sparse), { code: 'JSON_TYPE' });
+  assert.deepEqual(jsonClone([1, null]), [1, null]);
+});
+test('JSON boundary rejects reserved keys and excessive depth', () => { assert.throws(() => jsonClone(JSON.parse('{"__proto__":{}}'))); let x = {}; for (let i = 0; i < 40; i++) x = { x }; assert.throws(() => jsonClone(x)); });
+test('definition validates before session starts', () => { assert.throws(() => fresh({ version: 0 })); assert.throws(() => fresh({ validate: () => false })); assert.throws(() => fresh({ view: () => ({}) })); });
+test('definition identifiers require strings', () => { assert.throws(() => fresh({ id: null })); assert.throws(() => fresh({ view(state) { const v = road.view(state); v.choices[0].id = null; return v; } })); });
+test('query and frame preserve state RNG log', () => { const s = fresh(); const before = s.snapshot(); for (let i = 0; i < 4; i++) { s.frame(); for (const key of ['status', 'bag', 'map']) s.query(key); } assert.deepEqual(s.snapshot(), before); });
+test('disabled condition refuses without consumption', () => { const s = fresh(); const before = s.snapshot(); assert.deepEqual(s.choose('bridge'), { kind: 'refused', code: 'CONDITION', reason: '需要九枚金币' }); assert.deepEqual(s.snapshot(), before); });
+test('unknown choice preserves session', () => { const s = fresh(); const before = s.snapshot(); assert.equal(s.choose('missing').kind, 'refused'); assert.deepEqual(s.snapshot(), before); });
+test('stale action cannot repeat reward', () => { const s = fresh(); accepted(s); const before = s.snapshot(); assert.equal(s.choose('gather', 0).code, 'STALE_ACTION'); assert.deepEqual(s.snapshot(), before); });
+test('restore same revision invalidates previous waiting boundary', () => { const s = fresh(); const old = s.frame().boundary; const before = s.snapshot(); s.restore(before); assert.equal(s.choose('forest', old).code, 'STALE_ACTION'); assert.deepEqual(s.snapshot(), before); accepted(s); });
+test('accepted action commits state RNG and purpose together', () => { const s = fresh(); accepted(s); const r = s.snapshot(); assert.equal(r.state.run.scene, 'forest'); assert.equal(r.state.run.food, 1); assert.equal(r.rng.draws, 1); assert.equal(r.revision, 1); assert.equal(r.log[0].random[0].purpose, 'route.find-coins'); assert.equal(r.log[0].random[0].index, 1); assert.equal(r.log[0].random[0].value, r.state.run.coins - 2); });
+test('throw after state and RNG mutation rolls back', () => { const s = fresh({ apply(state, id, rng) { state.run.coins = 500; rng.integer(1, 6, 'before-throw'); throw new Error('fault'); } }); const before = s.snapshot(); assert.equal(s.choose('forest').kind, 'failed'); assert.deepEqual(s.snapshot(), before); });
+test('late refusal rolls back draft and RNG', () => { const s = fresh({ apply(state, id, rng) { state.run.coins++; rng.integer(1, 6, 'refused'); return { kind: 'refused', reason: '暂不受理' }; } }); const before = s.snapshot(); assert.equal(s.choose('forest').kind, 'refused'); assert.deepEqual(s.snapshot(), before); });
+test('invalid post-action state rolls back', () => { const s = fresh({ apply(state, id, rng) { state.run.food = -1; rng.integer(1, 6, 'invalid'); return { kind: 'accepted', outcome: 'bad' }; } }); const before = s.snapshot(); assert.equal(s.choose('forest').kind, 'failed'); assert.deepEqual(s.snapshot(), before); });
+test('non-JSON post-action state rolls back', () => { const s = fresh({ apply(state) { state.run.coins = Infinity; return { kind: 'accepted', outcome: 'bad' }; } }); const before = s.snapshot(); assert.equal(s.choose('forest').kind, 'failed'); assert.deepEqual(s.snapshot(), before); });
+test('invalid action result rolls back', () => { const s = fresh({ apply(state, id, rng) { state.run.coins++; rng.integer(1, 6, 'invalid-result'); return {}; } }); const before = s.snapshot(); assert.equal(s.choose('forest').kind, 'failed'); assert.deepEqual(s.snapshot(), before); });
+test('invalid post-action view rolls back', () => { const s = fresh({ view(state) { if (state.run.scene === 'forest') return {}; return road.view(state); } }); const before = s.snapshot(); assert.equal(s.choose('forest').kind, 'failed'); assert.deepEqual(s.snapshot(), before); });
+test('retained draft cannot mutate committed session', () => { let leaked; const s = fresh({ apply(state, id, rng) { leaked = state; return road.apply(state, id, rng); } }); accepted(s); const before = s.snapshot(); leaked.run.coins = 999; assert.deepEqual(s.snapshot(), before); });
+test('snapshot and views cannot mutate live state', () => { const s = fresh(); const before = s.snapshot(); s.snapshot().state.run.coins = 999; assert.throws(() => { s.frame().view.choices[0].label = 'changed'; }); assert.deepEqual(s.snapshot(), before); });
+test('query exception preserves session', () => { let fail = false; const s = fresh({ view(state) { if (fail) throw new Error('view fault'); return road.view(state); } }); const before = s.snapshot(); fail = true; assert.throws(() => s.query('status')); assert.deepEqual(s.snapshot(), before); });
+test('terminal event cannot reward twice', () => { const s = fresh(); accepted(s); accepted(s, 'gather'); const before = s.snapshot(); assert.equal(before.state.progress.completed, 1); assert.equal(s.choose('gather').kind, 'refused'); assert.deepEqual(s.snapshot(), before); });
+test('restore resumes exact state and next random draw', () => { const a = fresh(); accepted(a); const b = fresh(); b.restore(a.snapshot()); assert.deepEqual(b.snapshot(), a.snapshot()); accepted(a, 'gather'); accepted(b, 'gather'); assert.deepEqual(b.snapshot(), a.snapshot()); });
+test('restore rejects wrong envelope versions atomically', () => { const s = fresh(); accepted(s); const before = s.snapshot(); for (const patch of [{ kind: 'other' }, { version: 2 }, { interfaceVersion: 2 }, { revision: -1 }, { extra: true }]) { assert.throws(() => s.restore({ ...before, ...patch })); assert.deepEqual(s.snapshot(), before); } });
+test('restore rejects other game and content version', () => { const s = fresh(); accepted(s); const before = s.snapshot(); for (const game of [{ id: 'other', version: 1 }, { id: road.id, version: 2 }]) { assert.throws(() => s.restore({ ...before, game })); assert.deepEqual(s.snapshot(), before); } });
+test('restore rejects corrupt RNG without replacing session', () => { const s = fresh(); accepted(s); const before = s.snapshot(); assert.throws(() => s.restore({ ...before, rng: { ...before.rng, value: 0 } })); assert.deepEqual(s.snapshot(), before); });
+test('restore rejects corrupt log and state atomically', () => { const s = fresh(); accepted(s); const before = s.snapshot(); for (const change of [x => { x.log[0].revision = 2; }, x => { x.log[0].random[0].index = 5; }, x => { x.log[0].random = []; }, x => { x.log[0].choice = 'bad id'; }, x => { x.log[0].random[0].purpose = 'bad\npurpose'; }, x => { x.state.run.food = -1; }]) { const x = jsonClone(before); change(x); assert.throws(() => s.restore(x)); assert.deepEqual(s.snapshot(), before); } });
+test('bounded action log survives truncation and restore', () => { const s = fresh({ apply(state, id, rng) { state.run.coins += rng.integer(1, 3, 'loop'); return { kind: 'accepted', outcome: '继续' }; } }); for (let i = 0; i < 70; i++) accepted(s); assert.equal(s.snapshot().log.length, 64); const other = fresh(); other.restore(s.snapshot()); assert.deepEqual(other.snapshot(), s.snapshot()); });
+test('store saves and loads actual files without changing source session', () => temp(async dir => { const a = fresh(); accepted(a); const before = a.snapshot(); const store = new Store(dir); await store.save(a, 'camp'); assert.deepEqual(a.snapshot(), before); const b = fresh(); await store.load(b, 'camp'); assert.deepEqual(b.snapshot(), before); assert.deepEqual(await fs.readdir(dir), ['camp.json']); }));
+test('partial write failure preserves previous file and session', () => temp(async dir => { const s = fresh(); const good = new Store(dir); await good.save(s, 'camp'); const bytes = await fs.readFile(path.join(dir, 'camp.json')); accepted(s); const before = s.snapshot(); const bad = new Store(dir, { ...fs, async writeFile(file, ...args) { await fs.writeFile(file, 'partial'); throw new Error('injected write fault'); } }); await assert.rejects(bad.save(s, 'camp')); assert.deepEqual(await fs.readFile(path.join(dir, 'camp.json')), bytes); assert.deepEqual(s.snapshot(), before); assert.deepEqual(await fs.readdir(dir), ['camp.json']); }));
+test('rename failure removes temp and preserves previous save', () => temp(async dir => { const s = fresh(); await new Store(dir).save(s, 'camp'); const bytes = await fs.readFile(path.join(dir, 'camp.json')); accepted(s); const before = s.snapshot(); const bad = new Store(dir, { ...fs, async rename() { throw new Error('injected rename fault'); } }); await assert.rejects(bad.save(s, 'camp')); assert.deepEqual(await fs.readFile(path.join(dir, 'camp.json')), bytes); assert.deepEqual(s.snapshot(), before); assert.deepEqual(await fs.readdir(dir), ['camp.json']); }));
+test('read failure preserves current session', () => temp(async dir => { const s = fresh(); accepted(s); const before = s.snapshot(); await assert.rejects(new Store(dir).load(s, 'missing')); assert.deepEqual(s.snapshot(), before); }));
+test('invalid JSON and UTF8 preserve current session', () => temp(async dir => { const s = fresh(); accepted(s); const before = s.snapshot(); for (const bytes of [Buffer.from('{bad'), Buffer.from([0xff])]) { await fs.writeFile(path.join(dir, 'bad.json'), bytes); await assert.rejects(new Store(dir).load(s, 'bad')); assert.deepEqual(s.snapshot(), before); } }));
+test('oversized save read is refused before replacement', () => temp(async dir => { const s = fresh(); const before = s.snapshot(); await fs.writeFile(path.join(dir, 'large.json'), Buffer.alloc(1024 * 1024 + 1)); await assert.rejects(new Store(dir).load(s, 'large')); assert.deepEqual(s.snapshot(), before); }));
+test('slot names cannot escape directory', () => temp(async dir => { for (const slot of ['../outside', '/tmp/other', '', 'Upper', 'a.b']) await assert.rejects(new Store(dir).save(fresh(), slot)); assert.deepEqual(await fs.readdir(dir), []); }));

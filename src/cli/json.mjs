@@ -41,3 +41,14 @@ export function words(value, max = 4000) {
 export function exactKeys(value, names) {
   return value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).sort().join(',') === [...names].sort().join(',');
 }
+export const DIAGNOSTIC_BYTES = 64 * 1024;
+// Diagnostic dumps are bounded at print time. The payload itself is bounded only by jsonClone
+// (1 MiB), so a large page is accepted and the printed dump is cut at the named limit.
+export function boundedDiagnostic(value, limit = DIAGNOSTIC_BYTES) {
+  const text = JSON.stringify(value);
+  const bytes = Buffer.byteLength(text);
+  if (bytes <= limit) return { text, bytes, truncated: false };
+  const cut = new TextDecoder('utf-8').decode(Buffer.from(text).subarray(0, limit));
+  // Drop an incomplete trailing character so the printed dump never exceeds the limit.
+  return { text: cut.endsWith('\ufffd') ? cut.slice(0, -1) : cut, bytes, truncated: true };
+}

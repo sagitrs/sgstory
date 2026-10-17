@@ -6,7 +6,8 @@ import path from 'node:path';
 import { Session } from '../../../src/cli/session.mjs';
 import { Random } from '../../../src/cli/rng.mjs';
 import { Store } from '../../../src/cli/storage.mjs';
-import { jsonClone } from '../../../src/cli/json.mjs';
+import { jsonClone, boundedDiagnostic, DIAGNOSTIC_BYTES } from '../../../src/cli/json.mjs';
+import { failureText, truncationNotice } from '../../../src/cli/report.mjs';
 import road from '../fixtures/road.mjs';
 const fresh = (overrides = {}) => new Session({ ...road, ...overrides }, 42);
 async function temp(fn) {
@@ -51,7 +52,7 @@ test('snapshot and views cannot mutate live state', () => { const s = fresh(); c
 test('query exception preserves session', () => { let fail = false; const s = fresh({ view(state) { if (fail) throw new Error('view fault'); return road.view(state); } }); const before = s.snapshot(); fail = true; assert.throws(() => s.query('status')); assert.deepEqual(s.snapshot(), before); });
 test('terminal event cannot reward twice', () => { const s = fresh(); accepted(s); accepted(s, 'gather'); const before = s.snapshot(); assert.equal(before.state.progress.completed, 1); assert.equal(s.choose('gather').kind, 'refused'); assert.deepEqual(s.snapshot(), before); });
 test('restore resumes exact state and next random draw', () => { const a = fresh(); accepted(a); const b = fresh(); b.restore(a.snapshot()); assert.deepEqual(b.snapshot(), a.snapshot()); accepted(a, 'gather'); accepted(b, 'gather'); assert.deepEqual(b.snapshot(), a.snapshot()); });
-test('restore rejects wrong envelope versions atomically', () => { const s = fresh(); accepted(s); const before = s.snapshot(); for (const patch of [{ kind: 'other' }, { version: 2 }, { interfaceVersion: 2 }, { revision: -1 }, { extra: true }]) { assert.throws(() => s.restore({ ...before, ...patch })); assert.deepEqual(s.snapshot(), before); } });
+test('restore rejects wrong envelope versions atomically', () => { const s = fresh(); accepted(s); const before = s.snapshot(); for (const patch of [{ kind: 'other' }, { version: 2 }, { interfaceVersion: 3 }, { revision: -1 }, { extra: true }]) { assert.throws(() => s.restore({ ...before, ...patch })); assert.deepEqual(s.snapshot(), before); } });
 test('restore rejects other game and content version', () => { const s = fresh(); accepted(s); const before = s.snapshot(); for (const game of [{ id: 'other', version: 1 }, { id: road.id, version: 2 }]) { assert.throws(() => s.restore({ ...before, game })); assert.deepEqual(s.snapshot(), before); } });
 test('restore rejects corrupt RNG without replacing session', () => { const s = fresh(); accepted(s); const before = s.snapshot(); assert.throws(() => s.restore({ ...before, rng: { ...before.rng, value: 0 } })); assert.deepEqual(s.snapshot(), before); });
 test('restore rejects corrupt log and state atomically', () => { const s = fresh(); accepted(s); const before = s.snapshot(); for (const change of [x => { x.log[0].revision = 2; }, x => { x.log[0].random[0].index = 5; }, x => { x.log[0].random = []; }, x => { x.log[0].choice = 'bad id'; }, x => { x.log[0].random[0].purpose = 'bad\npurpose'; }, x => { x.state.run.food = -1; }]) { const x = jsonClone(before); change(x); assert.throws(() => s.restore(x)); assert.deepEqual(s.snapshot(), before); } });
@@ -63,3 +64,114 @@ test('read failure preserves current session', () => temp(async dir => { const s
 test('invalid JSON and UTF8 preserve current session', () => temp(async dir => { const s = fresh(); accepted(s); const before = s.snapshot(); for (const bytes of [Buffer.from('{bad'), Buffer.from([0xff])]) { await fs.writeFile(path.join(dir, 'bad.json'), bytes); await assert.rejects(new Store(dir).load(s, 'bad')); assert.deepEqual(s.snapshot(), before); } }));
 test('oversized save read is refused before replacement', () => temp(async dir => { const s = fresh(); const before = s.snapshot(); await fs.writeFile(path.join(dir, 'large.json'), Buffer.alloc(1024 * 1024 + 1)); await assert.rejects(new Store(dir).load(s, 'large')); assert.deepEqual(s.snapshot(), before); }));
 test('slot names cannot escape directory', () => temp(async dir => { for (const slot of ['../outside', '/tmp/other', '', 'Upper', 'a.b']) await assert.rejects(new Store(dir).save(fresh(), slot)); assert.deepEqual(await fs.readdir(dir), []); }));
+test('view choices require normal or guarded intent', () => {
+  const patch = change => ({ view(state) { const v = road.view(state); change(v.choices[0]); return v; } });
+  assert.throws(() => fresh(patch(c => { delete c.intent; })), { code: 'VIEW_CHOICE' });
+  assert.throws(() => fresh(patch(c => { c.intent = 'dangerous'; })), { code: 'VIEW_CHOICE' });
+  assert.throws(() => fresh(patch(c => { c.intent = 1; })), { code: 'VIEW_CHOICE' });
+  assert.deepEqual(fresh().frame().view.choices.map(c => c.intent), ['normal', 'normal', 'guarded']);
+});
+test('inspect reports a page without touching state RNG revision or log', () => {
+  const s = fresh(); accepted(s);
+  const before = s.snapshot(); const boundary = s.frame().boundary;
+  const root = s.inspect(null);
+  assert.equal(root.kind, 'inspected'); assert.equal(root.target, null); assert.equal(root.boundary, boundary);
+  assert.deepEqual(root.page.entries.map(e => e.id), ['bag', 'run', 'rules']);
+  const bag = s.inspect('bag');
+  assert.deepEqual(bag.page.data, { coins: before.state.run.coins, food: before.state.run.food });
+  for (const target of [null, 'bag', 'run', 'rules']) assert.equal(s.inspect(target).kind, 'inspected');
+  assert.deepEqual(s.snapshot(), before);
+  assert.throws(() => { s.inspect('bag').page.entries[0].label = 'changed'; });
+  assert.deepEqual(s.snapshot(), before);
+});
+test('inspect refuses unavailable stale and missing targets without mixing codes', () => {
+  const s = fresh();
+  assert.deepEqual(s.inspect('bag', 99), { kind: 'refused', code: 'STALE_INSPECT', reason: '等待边界已改变，请重新打开诊断页' });
+  assert.equal(fresh({ inspect: undefined }).inspect(null).code, 'INSPECT_UNAVAILABLE');
+  const missing = fresh({ inspect: () => null });
+  assert.deepEqual(missing.inspect('bag'), { kind: 'refused', code: 'INSPECT_NO_TARGET', reason: '目标不存在或已失效' });
+  assert.equal(missing.inspect(null).code, 'INSPECT_NO_TARGET');
+  assert.deepEqual(s.snapshot(), fresh().snapshot());
+});
+test('inspect rejects malformed pages as apparatus faults', () => {
+  const bad = page => fresh({ inspect: () => page });
+  for (const page of [
+    { title: 't', text: 'x' },
+    { title: 't', text: 'x', entries: {} },
+    { title: '', text: 'x', entries: [] },
+    { title: 't', text: 'x', entries: [{ id: 'Bag', label: 'l', kind: 'item' }] },
+    { title: 't', text: 'x', entries: [{ id: 'a', label: 'l', kind: 'other' }] },
+    { title: 't', text: 'x', entries: [{ id: 'a', label: 'l', kind: 'item', count: -1 }] },
+    { title: 't', text: 'x', entries: [{ id: 'a', label: 'l', kind: 'item', extra: 1 }] },
+    { title: 't', text: 'x', entries: [{ id: 'a', label: 'l', kind: 'item' }, { id: 'a', label: 'm', kind: 'item' }] },
+  ]) assert.throws(() => bad(page).inspect(null), { code: 'INSPECT_FORMAT' });
+  // The JSON boundary codes must not leak to the player: they are wrapped with their code in reason.
+  const cyclic = { title: 't', text: 'x', entries: [] }; cyclic.data = { self: cyclic };
+  let deep = {}; for (let i = 0; i < 40; i++) deep = { deep };
+  const boundary = [
+    [cyclic, 'JSON_TYPE'],
+    [{ title: 't', text: 'x', entries: [], data: { when: new Date() } }, 'JSON_TYPE'],
+    [{ title: 't', text: 'x', entries: [], data: { big: 'x'.repeat(1024 * 1024 + 10) } }, 'JSON_LIMIT'],
+    [{ title: 't', text: 'x', entries: [], data: deep }, 'JSON_LIMIT'],
+  ];
+  for (const [page, code] of boundary) assert.throws(() => bad(page).inspect(null), error => error.code === 'INSPECT_FORMAT' && error.message.includes(code));
+  assert.throws(() => fresh().inspect(7), { code: 'INSPECT_FORMAT' });
+  assert.equal(bad({ title: 't', text: 'x', entries: [], data: { a: 1 } }).inspect(null).kind, 'inspected');
+});
+test('inspect requires a plain object page', () => {
+  for (const value of [[], ['x'], 'page', 0, '', false, true, 42]) assert.throws(() => fresh({ inspect: () => value }).inspect(null), { code: 'INSPECT_FORMAT' });
+  assert.equal(fresh({ inspect: () => ({ title: 't', text: 'x', entries: [] }) }).inspect(null).kind, 'inspected');
+  assert.equal(fresh({ inspect: () => ({ title: 't', text: '暂无', entries: [] }) }).inspect('bag').page.entries.length, 0);
+});
+test('inspect accepts data beyond the diagnostic print bound', () => {
+  const s = fresh({ inspect: () => ({ title: 't', text: 'x', entries: [], data: { note: 'x'.repeat(70000) } }) });
+  const result = s.inspect(null);
+  assert.equal(result.kind, 'inspected');
+  assert.equal(boundedDiagnostic(result.page.data).truncated, true);
+  assert.deepEqual(s.snapshot(), fresh().snapshot());
+});
+test('inspect returns a failed result when the game handler throws', () => {
+  const s = fresh({ inspect() { throw new Error('boom'); } });
+  const before = s.snapshot();
+  assert.deepEqual(s.inspect(null), { kind: 'failed', code: 'INSPECT_EXCEPTION', reason: '诊断处理器异常：boom；会话状态与随机均未改变' });
+  assert.deepEqual(s.snapshot(), before);
+  assert.equal(fresh({ inspect() { throw { code: 'X' }; } }).inspect(null).kind, 'failed');
+});
+test('diagnostic dumps are cut at the named bound', () => {
+  assert.deepEqual(boundedDiagnostic({ note: 'ok' }), { text: '{"note":"ok"}', bytes: 13, truncated: false });
+  const large = boundedDiagnostic({ note: 'x'.repeat(DIAGNOSTIC_BYTES) });
+  assert.equal(large.truncated, true);
+  assert.ok(large.bytes > DIAGNOSTIC_BYTES);
+  assert.ok(Buffer.byteLength(large.text) <= DIAGNOSTIC_BYTES);
+  assert.equal(truncationNotice(large.bytes, DIAGNOSTIC_BYTES), `[DEBUG_TRUNCATED] 诊断数据 ${large.bytes} 字节超过 ${DIAGNOSTIC_BYTES} 字节，已截断输出；会话未改变。`);
+  const multibyte = boundedDiagnostic({ note: '粮'.repeat(DIAGNOSTIC_BYTES) });
+  assert.equal(multibyte.truncated, true);
+  assert.ok(Buffer.byteLength(multibyte.text) <= DIAGNOSTIC_BYTES);
+  assert.doesNotMatch(multibyte.text, /\ufffd$/);
+});
+test('obsolete saves name both sides and keep session and file', () => temp(async dir => {
+  const s = fresh(); accepted(s); const before = s.snapshot(); const store = new Store(dir);
+  const envelope = { kind: 'sgstory-cli', version: 1, interfaceVersion: 1, game: { id: road.id, version: road.version }, state: before.state, rng: before.rng, revision: before.revision, log: before.log };
+  const cases = [
+    ['interface', {}, 'SAVE_VERSION', '档为接口 v1，本版为接口 v2'],
+    ['game', { interfaceVersion: 2, game: { id: road.id, version: 2 } }, 'SAVE_GAME', `档为 ${road.id} v2，本版为 ${road.id} v1`],
+    ['unreadable', { interfaceVersion: 2, log: undefined }, 'SAVE_VERSION', '档内声明版本不可读'],
+  ];
+  for (const [slot, patch, code, message] of cases) {
+    const bytes = Buffer.from(JSON.stringify({ ...envelope, ...patch }) + '\n');
+    const file = path.join(dir, `${slot}.json`);
+    await fs.writeFile(file, bytes);
+    await assert.rejects(store.load(s, slot), error => error.code === code && error.message === message);
+    assert.deepEqual(s.snapshot(), before);
+    assert.deepEqual(await fs.readFile(file), bytes);
+  }
+}));
+test('load failure text names obsolete and corrupt saves', () => {
+  const fault = (code, message) => Object.assign(new Error(message), { code });
+  assert.equal(failureText(false, fault('SAVE_VERSION', '档为接口 v1，本版为接口 v2'), false), '旧存档不可用（本版不支持迁移）：档为接口 v1，本版为接口 v2；当前会话未改变。');
+  assert.equal(failureText(false, fault('SAVE_GAME', `档为 ${road.id} v2，本版为 ${road.id} v1`), false), `存档不可用（游戏版本不符）：档为 ${road.id} v2，本版为 ${road.id} v1；当前会话未改变。`);
+  assert.equal(failureText(false, fault('SAVE_VERSION', '档内声明版本不可读'), false), '旧存档不可用（本版不支持迁移）：档内声明版本不可读；当前会话未改变。');
+  assert.match(failureText(false, fault('SAVE_JSON', '存档不是有效JSON'), false), /^存档不可读或已损坏：/);
+  assert.match(failureText(false, fault('SAVE_SLOT', '档名须为1至32位'), false), /^档名非法：/);
+  assert.match(failureText(true, fault('SAVE_SIZE', '存档超过1MiB'), false), /^保存失败 \[SAVE_SIZE\]/);
+});

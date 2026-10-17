@@ -43,7 +43,13 @@
       "read failure preserves current session",
       "invalid JSON and UTF8 preserve current session",
       "oversized save read is refused before replacement",
-      "slot names cannot escape directory"
+      "slot names cannot escape directory",
+      "view choices require normal or guarded intent",
+      "inspect reports a page without touching state RNG revision or log",
+      "inspect refuses unavailable stale and missing targets without mixing codes",
+      "inspect rejects malformed pages as apparatus faults",
+      "obsolete saves name both sides and keep session and file",
+      "load failure text names obsolete and corrupt saves"
     ],
     "knife": {
       "name": "U1",
@@ -62,7 +68,11 @@
       "player saves exits restarts loads and continues",
       "player EOF exits without automatic save",
       "player SIGINT at waiting boundary exits without save",
-      "player redirected Chinese commands remain line based"
+      "player redirected Chinese commands remain line based",
+      "player zero returns and negative selects a guarded action",
+      "player inspect browses entries and refuses debug without the flag",
+      "player debug prints entry data on stderr only",
+      "player rejects non canonical numbers as unknown input"
     ],
     "knife": {
       "name": "E1",

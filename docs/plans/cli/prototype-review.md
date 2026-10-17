@@ -40,6 +40,21 @@ References [#2066](https://github.com/sagitrs/sgstory/issues/2066)。本页描�
 | EOF、中断、中文和重定向 | `main.mjs` 的 readline/SIGINT；无 ANSI 输出 | `player EOF exits without automatic save`；`player SIGINT at waiting boundary exits without save`；`player redirected Chinese commands remain line based` |
 | 旧网页构建/单测/宿主包装保护 | #2064 生产隔离及既有 `test.yml` 的原调用面 | 旧工作流命令逐条复跑；`pack-selection.mjs` 包含 CLI 收集隔离与真刀；既有两份 workflow 字节对照 |
 
+## 接口 v2（#2078）：输入编号语义与诊断入口
+
+协议正文见 [`interface-v2.md`](interface-v2.md)，玩家入口说明见 [`src/cli/README.md`](../../../src/cli/README.md)。下表把 #2078 的验收项逐条映到实现位置与具名判据；判据名在 `tests/cli/registry.json` 登记。
+
+| #2078 的验收面 | 实现位置 | 具名判据 |
+|---|---|---|
+| `0`、负数、正数三类输入各有具名结果，且码不混 | `main.mjs` 的输入路由（`line === '0'`、`^-[1-9]\d*$`、`^[1-9]\d*$` 三条分支）；`session.mjs` 的 `inspect` | `player zero returns and negative selects a guarded action`；`player rejects non canonical numbers as unknown input`；`player inspect browses entries and refuses debug without the flag` |
+| `choice.intent` 必填且为闭集，缺或非法即具名拒 | `session.mjs` 的 `checkedView` | `view choices require normal or guarded intent` |
+| `inspect` 前后 state、rng、revision、log 逐项不变 | `session.mjs` 的 `Session.inspect`（只给冻结副本，不动记录） | `inspect reports a page without touching state RNG revision or log` |
+| `page` 形状不符、目标形状不符 ⇒ `INSPECT_FORMAT`；无此目标 ⇒ `INSPECT_NO_TARGET`；未实现钩子 ⇒ `INSPECT_UNAVAILABLE`；边界陈旧 ⇒ `STALE_INSPECT` | `session.mjs` 的 `checkedPage` 与 `inspect` 的分支顺序 | `inspect rejects malformed pages as apparatus faults`；`inspect refuses unavailable stale and missing targets without mixing codes` |
+| 诊断走 stderr、默认关闭、有界 | `main.mjs` 的 `inspectDebug`（`console.error`）；`session.mjs` 的 64 KiB 上限 | `player debug prints entry data on stderr only`；`player inspect browses entries and refuses debug without the flag`；`inspect rejects malformed pages as apparatus faults` |
+| 旧档两条路径都提示「旧存档不可用」，且会话、RNG、档文件不变 | `session.mjs` 的 `envelopeMismatch` 与 `describedGame`；`report.mjs` 的 `failureText` | `obsolete saves name both sides and keep session and file`；`load failure text names obsolete and corrupt saves` |
+| `CLI_INTERFACE_VERSION` 与文档一致 | `session.mjs` 的常量；`src/cli/README.md`；`interface-v2.md` | `obsolete saves name both sides and keep session and file`（期望文案内嵌「本版为接口 v2」，常量变了而样本未升格即红） |
+| 既有 `choose`、存读、日志语义回归 | 未改 `choose`、`Store` 的提交与校验语义 | 原有 40 个单元用例与 5 个玩家用例逐条保留并通过（分母未减，只增不改） |
+
 ## 判据为何会参与
 
 新 `.github/workflows/cli-tests.yml` 的第三步调用 `check-ci.mjs`；第四步依次调用单元、玩家与两组自证；第五步在 `always()` 下核工作树为空。契约门、族 runner 和自证的非零退出码会使该 job 失败，不只是打印读数。

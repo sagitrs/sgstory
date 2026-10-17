@@ -13,7 +13,7 @@ export async function playCase(fn) {
   try { await fs.mkdir(base, { recursive: true }); dir = await fs.mkdtemp(path.join(base, 'player-')); }
   catch (error) { throw new Error(`APPARATUS player directory ${error.code}`); }
   const players = [];
-  try { await fn(() => { const p = new Player(dir); players.push(p); return p; }, dir); }
+  try { await fn(args => { const p = new Player(dir, args); players.push(p); return p; }, dir); }
   finally {
     await Promise.all(players.map(p => p.dispose()));
     await fs.rm(dir, { recursive: true, force: true });
@@ -23,8 +23,8 @@ export async function playCase(fn) {
 class Player {
   #child; #offset = 0; #wake = new Set(); #closed = false; #close; #timer; #timedOut = false; #spawnError;
   stdout = ''; stderr = '';
-  constructor(dir) {
-    this.#child = spawn(process.execPath, [path.join(ROOT, 'src/cli/main.mjs'), '--game', path.join(ROOT, 'tests/cli/fixtures/road.mjs'), '--seed', '42', '--save-dir', path.join(dir, 'slots')], { cwd: dir, stdio: ['pipe', 'pipe', 'pipe'] });
+  constructor(dir, args = []) {
+    this.#child = spawn(process.execPath, [path.join(ROOT, 'src/cli/main.mjs'), '--game', path.join(ROOT, 'tests/cli/fixtures/road.mjs'), '--seed', '42', '--save-dir', path.join(dir, 'slots'), ...args], { cwd: dir, stdio: ['pipe', 'pipe', 'pipe'] });
     this.#child.stdout.setEncoding('utf8'); this.#child.stderr.setEncoding('utf8');
     this.#child.stdout.on('data', data => { this.stdout += data; this.#notify(); });
     this.#child.stderr.on('data', data => { this.stderr += data; this.#notify(); });

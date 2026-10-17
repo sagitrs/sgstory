@@ -79,7 +79,8 @@
       "player rejects non canonical numbers as unknown input",
       "player debug truncates a page larger than the diagnostic bound",
       "player inspect works after the run ends",
-      "player reentering inspect resets the browsing stack"
+      "player reentering inspect resets the browsing stack",
+      "player debug argument shapes are accepted or refused by name"
     ],
     "knife": {
       "name": "E1",

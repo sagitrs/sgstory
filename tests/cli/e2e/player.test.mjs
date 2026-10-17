@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as fs from 'node:fs/promises';
-import { playCase } from '../support/player.mjs';
+import { playCase, boot } from '../support/player.mjs';
 // stderr and stdout travel on separate pipes: give the child a bounded moment to flush.
 const settle = async (read, want) => { for (let i = 0; i < 100 && !want.test(read()); i++) await new Promise(resolve => setTimeout(resolve, 5)); return read(); };
 
@@ -120,3 +120,14 @@ test('player reentering inspect resets the browsing stack', () => playCase(async
   assert.match(await p.command('0'), /拒绝 \[NAV_NO_PARENT\]/);
   p.send('quit'); assert.equal((await p.exit()).code, 0);
 }));
+test('player debug argument shapes are accepted or refused by name', async () => {
+  const last = await boot(['--debug']);
+  assert.equal(last.code, 0); assert.match(last.stdout, /输入结束/); assert.equal(last.stderr, '');
+  const middle = await boot(['--debug', '--seed', '42']);
+  assert.equal(middle.code, 0); assert.match(middle.stdout, /启动seed=42/);
+  for (const args of [['--debug', '--debug'], ['--debug', '1'], ['--debug=1']]) {
+    const refused = await boot(args);
+    assert.equal(refused.code, 2);
+    assert.match(refused.stderr, /启动失败 \[CONFIG\]: 参数缺失、重复或未知/);
+  }
+});

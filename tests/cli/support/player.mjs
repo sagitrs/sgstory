@@ -7,6 +7,26 @@ import { fileURLToPath } from 'node:url';
 const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const PROMPT = '等待输入>\n';
 export const CLI_PROCESS_MS = 10000;
+// Boot-level probe: argument shapes are checked before any player input exists.
+// stdin is closed, so an accepted shape exits 0 after EOF; a refused shape exits 2 first.
+export async function boot(args) {
+  const base = process.env.CLI_TEST_ROOT || process.env.TMPDIR || path.join(os.homedir(), 'tmp');
+  await fs.mkdir(base, { recursive: true });
+  const dir = await fs.mkdtemp(path.join(base, 'boot-'));
+  try {
+    const child = spawn(process.execPath, [path.join(ROOT, 'src/cli/main.mjs'), '--game', path.join(ROOT, 'tests/cli/fixtures/road.mjs'), '--save-dir', path.join(dir, 'slots'), ...args], { cwd: dir, stdio: ['ignore', 'pipe', 'pipe'] });
+    let stdout = ''; let stderr = '';
+    child.stdout.setEncoding('utf8'); child.stderr.setEncoding('utf8');
+    child.stdout.on('data', data => { stdout += data; });
+    child.stderr.on('data', data => { stderr += data; });
+    const code = await new Promise((resolve, reject) => {
+      const timer = setTimeout(() => { child.kill('SIGKILL'); reject(new Error(`TIMEOUT boot ${CLI_PROCESS_MS}ms`)); }, CLI_PROCESS_MS);
+      child.once('error', error => { clearTimeout(timer); reject(new Error(`APPARATUS boot spawn ${error.code}`)); });
+      child.once('close', exitCode => { clearTimeout(timer); resolve(exitCode); });
+    });
+    return { code, stdout, stderr };
+  } finally { await fs.rm(dir, { recursive: true, force: true }); }
+}
 export async function playCase(fn) {
   const base = process.env.CLI_TEST_ROOT || process.env.TMPDIR || path.join(os.homedir(), 'tmp');
   let dir;

@@ -97,6 +97,8 @@ shell 持有目标栈与页面模式（`actions` 或 `inspect`），**只存内�
 
 `--debug` 只控制 `data` 的打印；它不改变输入语义，也不改变任何提交行为。
 
+**参数形。** 解析器**先摘布尔旗标 `--debug`**（可出现在任意位置），其余参数仍按成对解析；`--help` 单参数分支保持。`--debug` 作末位、或夹在成对参数中间都不影响其它参数。重复 `--debug`、`--debug 1`、`--debug=1` 都是具名拒绝（`启动失败 [CONFIG]: 参数缺失、重复或未知`，退出码 2）。这一形与 books 侧 `play.mjs` 的透传解析同形（[books#610](https://github.com/sagitrs/sgstory-books/issues/610)），两仓对同一开关给同一行为。
+
 ## 七、错误码总表
 
 以下错误码彼此不混码。`INSPECT_FORMAT` 属装置错（游戏返回值不符契约）；`INSPECT_EXCEPTION` 是游戏处理器抛出的运行期异常，与它分列。

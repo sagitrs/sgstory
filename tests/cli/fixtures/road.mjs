@@ -23,7 +23,9 @@ export default {
     if (target === null) return { title: '诊断页', text: '选择一个分类查看当前条目。', entries: [{ id: 'bag', label: '背包', kind: 'category', count: 2 }, { id: 'run', label: '本局', kind: 'status' }, { id: 'rules', label: '规则', kind: 'intel' }] };
     if (target === 'bag') return { title: '背包', text: `金币 ${r.coins}，粮食 ${r.food}。`, entries: [{ id: 'coins', label: '金币', kind: 'item', count: r.coins }, { id: 'food', label: '粮食', kind: 'item', count: r.food }], data: { coins: r.coins, food: r.food } };
     if (target === 'run') return { title: '本局', text: `地点 ${r.scene}，已走 ${r.visits} 步。`, entries: [{ id: 'scene', label: '地点', kind: 'status' }] };
-    if (target === 'rules') return { title: '规则', text: '林道消耗一份粮食，采集补给增加粮食。', entries: [{ id: 'food', label: '粮食规则', kind: 'intel' }], data: { note: '林道消耗一份粮食' } };
+    // The rules page carries a payload larger than the diagnostic print bound on purpose:
+    // it is the only reachable way for a player test to exercise DEBUG_TRUNCATED.
+    if (target === 'rules') return { title: '规则', text: '林道消耗一份粮食，采集补给增加粮食。', entries: [{ id: 'food', label: '粮食规则', kind: 'intel' }], data: { note: '粮食规则'.repeat(12000) } };
     return null;
   },
   apply(s, id, random) {

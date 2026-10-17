@@ -8,9 +8,9 @@
 | 工具 | 命令与判据 |
 |---|---|
 | `cli/check-ci.mjs` | `node tests/cli/check-ci.mjs`：触发6路径/5步骤/登记/实际非空名称对账，6个内存反控；缺文件装置rc2，契约不符rc1 |
-| `cli/run-unit.mjs` | `node tests/cli/run-unit.mjs`：Node22/Linux真实TAP，46例；分母以registry.json及实际执行双核；原子/随机/存读/故障注入/接口2选项与诊断页 |
+| `cli/run-unit.mjs` | `node tests/cli/run-unit.mjs`：Node22/Linux真实TAP，50例；分母以registry.json及实际执行双核；原子/随机/存读/故障注入/接口2选项与诊断页 |
 | 同上，U1 | `node tests/cli/run-unit.mjs --selftest`：临时源码副本摘提交RNG，指定提交用例断言红rc1；复原绿/字节同；4项自证，不计恢复为第二刀 |
-| `cli/run-e2e.mjs` | `node tests/cli/run-e2e.mjs`：9个正常玩家用例，仅stdout/stderr和stdin/正常EOF/SIGINT；保存退出重启读取，中文重定向，0与负数编号，诊断浏览 |
+| `cli/run-e2e.mjs` | `node tests/cli/run-e2e.mjs`：12个正常玩家用例，仅stdout/stderr和stdin/正常EOF/SIGINT；保存退出重启读取，中文重定向，0与负数编号，诊断浏览与截断 |
 | 同上，E1 | `node tests/cli/run-e2e.mjs --selftest`：临时源码副本摘load替换，指定正常存读用例断言红rc1；复原绿/字节同；4项自证 |
 
 源码/套件/计数/刀名单唯一登记在 `cli/registry.json`；共享支持件为 `cli/support/runner.mjs` 与 `cli/support/player.mjs`，非独立竞争工具根。标准库，无npm安装。TMPDIR未配置时用HOME/tmp；CI用runner.temp。单CLI10秒，族unit30秒/e2e75秒；只清自身tmpdir/子进程组，残留判红。开发树前后git状态与CLI hash一致不等于净树，正式CI另要求git状态空。超时具名TIMEOUT/rc2，装置错APPARATUS/rc2，断言产品红rc1。实际通过/产品失败/环境作废/未覆盖与两个总数由runner输出，不将命令、用例和刀项混加。

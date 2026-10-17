@@ -29,7 +29,7 @@ EOF是退出码0；等待时SIGINT是130。两者、quit均不自动保存。同
 | `validate(state)` | 只读；成功明确返回true，负责游戏的字段/范围/场景关系校验 |
 | `view(state)` | 只读；返回title/text/phase/choices/status/bag/map；phase为playing或ended，choices含唯一id/label/enabled/reason与必填intent（闭集normal或guarded）；禁用选项须有拒因 |
 | `apply(draft, id, random)` | 同步改临时draft；只用 `random.integer(min,max,purpose)`；返回accepted+outcome或refused+reason；抛错/无效返回/坏状态/坏视图不提交 |
-| `inspect(target, state)` | **可选**；只读纯函数。`target`为null（根页）或稳定条目id，返回title/text/entries（可加可选data），返回null/undefined表示无此目标。不得读RNG、不得改状态；不符合形状即装置错 |
+| `inspect(target, state)` | **可选**；只读纯函数。`target`为null（根页）或稳定条目id，返回title/text/entries（可加可选data），返回null/undefined表示无此目标；抛异常由引擎报`INSPECT_EXCEPTION`。不得读RNG、不得改状态；返回值不是普通对象或形状不符即装置错 |
 
 小游戏完整范例在 `tests/cli/fixtures/road.mjs`。它是原创正常游戏定义，不含测试专用命令。样例 `state.run`属于本局，`state.progress`属于长期记录；游戏负责归属、胜败、下一局与解锁，引擎不复制规则。未来游戏也可选择自己的纯JSON结构，不能要求旧网页存档与之通用。
 
@@ -39,9 +39,9 @@ EOF是退出码0；等待时SIGINT是130。两者、quit均不自动保存。同
 
 `Session`将状态、RNG、revision及动作日志一次赋值提交。拒绝/失败不换会话；`frame()`给出运行时boundary；`choose(id, expectedBoundary)`拒绝旧等待面上的迟到动作。成功load即换boundary，即使存档revision相同也拒绝旧面；该运行时换代数不入档。重复事件仍须由游戏的当前选项/状态与处理器检查，不提供全局请求ID去重。
 
-xorshift32-v1用于重现，不是密码学随机；整数缩放有有限位精度，不作统计/平衡保证。用途、范围、值与消费序号随动作保存。日志只保留最近64个已受理动作，每动作最多128次消费，不是完整审计/回放。输入长度256、视图选项30、JSON深度32/节点100000/字节1MiB限制属于首期边界；诊断页另限50个条目、`data`序列化后64KiB。
+xorshift32-v1用于重现，不是密码学随机；整数缩放有有限位精度，不作统计/平衡保证。用途、范围、值与消费序号随动作保存。日志只保留最近64个已受理动作，每动作最多128次消费，不是完整审计/回放。输入长度256、视图选项30、JSON深度32/节点100000/字节1MiB限制属于首期边界；诊断页另限50个条目，诊断打印不超过64KiB（超出即截断并在stderr打一行具名提示`DEBUG_TRUNCATED`）。
 
-`CLI_INTERFACE_VERSION`为2、`SAVE_VERSION`为1。旧存档**不迁移**：`load`遇版本不符时具名提示「旧存档不可用（本版不支持迁移）」并附档内声明版本与本版版本的对照，且当前会话、档文件、显示内容都不变。
+`CLI_INTERFACE_VERSION`为2、`SAVE_VERSION`为1。旧存档**不迁移**，两条路径措辞不同：`SAVE_VERSION`（接口版本不符，含信封键不完整）⇒「旧存档不可用（本版不支持迁移）」；`SAVE_GAME`（游戏内容版本不符）⇒「存档不可用（游戏版本不符）」。两条都附档内声明版本与本版版本的对照，且当前会话、档文件、显示内容都不变。
 
 `Store`先完整验证信封、接口/存档版本、内容ID/版本、revision、RNG、有限日志及游戏状态/视图，再替换会话。JSON/UTF8/读取/版本失败保留当前会话。文件读取双重限1MiB。保存用同目录唯一临时文件、写完rename，失败清临时；不含fsync，不冒断电耐久或防篡改。路径和模块可信，不把它叫symlink/恶意代码隔离。
 

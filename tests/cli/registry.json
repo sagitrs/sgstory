@@ -48,6 +48,10 @@
       "inspect reports a page without touching state RNG revision or log",
       "inspect refuses unavailable stale and missing targets without mixing codes",
       "inspect rejects malformed pages as apparatus faults",
+      "inspect requires a plain object page",
+      "inspect accepts data beyond the diagnostic print bound",
+      "inspect returns a failed result when the game handler throws",
+      "diagnostic dumps are cut at the named bound",
       "obsolete saves name both sides and keep session and file",
       "load failure text names obsolete and corrupt saves"
     ],
@@ -72,7 +76,10 @@
       "player zero returns and negative selects a guarded action",
       "player inspect browses entries and refuses debug without the flag",
       "player debug prints entry data on stderr only",
-      "player rejects non canonical numbers as unknown input"
+      "player rejects non canonical numbers as unknown input",
+      "player debug truncates a page larger than the diagnostic bound",
+      "player inspect works after the run ends",
+      "player reentering inspect resets the browsing stack"
     ],
     "knife": {
       "name": "E1",

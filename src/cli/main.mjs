@@ -5,7 +5,8 @@ import { randomBytes } from 'node:crypto';
 import readline from 'node:readline';
 import { Session } from './session.mjs';
 import { Store } from './storage.mjs';
-import { failureText } from './report.mjs';
+import { boundedDiagnostic, DIAGNOSTIC_BYTES } from './json.mjs';
+import { failureText, truncationNotice } from './report.mjs';
 const HELP = '数字：选择当前选项；0：返回上一级；负数：选择防呆选项\ninspect：打开诊断浏览页（正数进入条目，0返回上一级，负数在--debug下把条目JSON打印到stderr）\nhelp：命令说明；status：状态；bag：背包；map：地图\nsave 档名：保存；load 档名：读取；quit：退出\n查询、诊断与拒绝不消耗随机；退出/EOF/中断不自动保存。';
 function config(args) {
   if (args.length === 1 && args[0] === '--help') return null;
@@ -69,7 +70,8 @@ async function main() {
     const frame = session.frame();
     const result = session.inspect(null, frame.boundary);
     if (result.kind !== 'inspected') { refusal(result); return; }
-    stack.push({ target: result.target, page: result.page }); renderPage();
+    // Re-entering inspect always restarts at the root page.
+    stack = [{ target: result.target, page: result.page }]; renderPage();
   }
   function inspectEntry(index) {
     const entry = stack[stack.length - 1].page.entries[index - 1];
@@ -82,7 +84,9 @@ async function main() {
     const { page } = stack[stack.length - 1];
     if (!options.debug) { console.log('拒绝 [DEBUG_DISABLED]：诊断输出未开启，请用--debug启动；会话未改变。'); return; }
     if (!Object.hasOwn(page, 'data')) { console.log('拒绝 [DEBUG_NO_DATA]：当前条目没有诊断数据；会话未改变。'); return; }
-    console.error(JSON.stringify(page.data));
+    const dump = boundedDiagnostic(page.data);
+    if (dump.truncated) console.error(truncationNotice(dump.bytes, DIAGNOSTIC_BYTES));
+    console.error(dump.text);
   }
   try {
     console.log(`纯文本冒险；启动seed=${options.seed}。输入help查看命令。`); render(); prompt();

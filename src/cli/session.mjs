@@ -2,19 +2,20 @@ import { Fault, jsonClone, freeze, whole, words, exactKeys } from './json.mjs';
 import { Random } from './rng.mjs';
 export const CLI_INTERFACE_VERSION = 2;
 export const SAVE_VERSION = 1;
-export const DIAGNOSTIC_BYTES = 64 * 1024;
 const LOG_LIMIT = 64;
 const CHOICE_ID = /^[a-z][a-z0-9_-]{0,63}$/;
 const CHOICE_INTENTS = ['normal', 'guarded'];
 const PAGE_KINDS = ['category', 'item', 'status', 'intel'];
 // The save envelope carries its own declared versions so the shell can name both sides.
+// A broken key set leaves no readable declaration at all; that case is named, not guessed.
 const declared = value => `v${whole(value) ? value : '未知'}`;
 function envelopeMismatch(candidate) {
-  if (candidate?.kind !== 'sgstory-cli') return '存档信封无法识别';
   const sides = [];
-  if (candidate.version !== SAVE_VERSION) sides.push(`档为存档格式 ${declared(candidate.version)}，本版为 v${SAVE_VERSION}`);
-  if (candidate.interfaceVersion !== CLI_INTERFACE_VERSION) sides.push(`档为接口 ${declared(candidate.interfaceVersion)}，本版为接口 v${CLI_INTERFACE_VERSION}`);
-  return sides.length ? sides.join('；') : '存档信封或引擎版本不符';
+  if (candidate?.kind === 'sgstory-cli') {
+    if (candidate.version !== SAVE_VERSION) sides.push(`档为存档格式 ${declared(candidate.version)}，本版为 v${SAVE_VERSION}`);
+    if (candidate.interfaceVersion !== CLI_INTERFACE_VERSION) sides.push(`档为接口 ${declared(candidate.interfaceVersion)}，本版为接口 v${CLI_INTERFACE_VERSION}`);
+  }
+  return sides.length ? sides.join('；') : '档内声明版本不可读';
 }
 const describedGame = game => `${typeof game?.id === 'string' ? game.id : '未知游戏'} ${declared(game?.version)}`;
 function checkedView(game, state) {
@@ -28,7 +29,9 @@ function checkedView(game, state) {
   return freeze(view);
 }
 function checkedPage(value) {
-  const page = jsonClone(value);
+  let page;
+  try { page = jsonClone(value); }
+  catch (error) { throw new Fault('INSPECT_FORMAT', `诊断页数据不符JSON边界 [${error.code || 'JSON'}]：${error.message}`); }
   if (!exactKeys(page, ['title', 'text', 'entries']) && !exactKeys(page, ['title', 'text', 'entries', 'data'])) throw new Fault('INSPECT_FORMAT', '诊断页需title/text/entries，可选data');
   if (!words(page.title) || !words(page.text) || !Array.isArray(page.entries) || page.entries.length > 50) throw new Fault('INSPECT_FORMAT', '诊断页标题、正文或条目数量不符');
   const ids = new Set();
@@ -36,7 +39,6 @@ function checkedPage(value) {
     if ((!exactKeys(entry, ['id', 'label', 'kind']) && !exactKeys(entry, ['id', 'label', 'kind', 'count'])) || typeof entry.id !== 'string' || !CHOICE_ID.test(entry.id) || ids.has(entry.id) || !words(entry.label, 200) || !PAGE_KINDS.includes(entry.kind) || (Object.hasOwn(entry, 'count') && !whole(entry.count))) throw new Fault('INSPECT_FORMAT', '诊断条目需唯一标识、可读标签与已知类别');
     ids.add(entry.id);
   }
-  if (Object.hasOwn(page, 'data') && Buffer.byteLength(JSON.stringify(page.data)) > DIAGNOSTIC_BYTES) throw new Fault('INSPECT_FORMAT', `诊断数据超过${DIAGNOSTIC_BYTES}字节`);
   return freeze(page);
 }
 function checkedState(game, state) {
@@ -81,8 +83,9 @@ export class Session {
     if (!this.#diagnostic) return refuse('INSPECT_UNAVAILABLE', '本游戏不支持诊断查看');
     if (target !== null && (typeof target !== 'string' || !CHOICE_ID.test(target))) throw new Fault('INSPECT_FORMAT', '诊断目标须为null或稳定条目标识');
     let raw;
+    // A game handler exception is a runtime result, not an apparatus fault: return it.
     try { raw = this.#game.inspect(target, freeze(jsonClone(this.#record.state))); }
-    catch (error) { if (error instanceof Fault) throw error; throw new Fault('INSPECT_EXCEPTION', '诊断处理器异常；会话状态与随机均未改变'); }
+    catch (error) { return { kind: 'failed', code: 'INSPECT_EXCEPTION', reason: `诊断处理器异常：${error?.message || '无消息'}；会话状态与随机均未改变` }; }
     if (raw === null || raw === undefined) return refuse('INSPECT_NO_TARGET', '目标不存在或已失效');
     return { kind: 'inspected', boundary: this.#boundary, target, page: checkedPage(raw) };
   }

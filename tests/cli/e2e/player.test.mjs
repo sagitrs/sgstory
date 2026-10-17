@@ -90,3 +90,33 @@ test('player rejects non canonical numbers as unknown input', () => playCase(asy
   for (const line of ['-0', '01', '+1', '-']) assert.match(await p.command(line), /拒绝：未知命令或格式/);
   p.send('quit'); assert.equal((await p.exit()).code, 0);
 }));
+test('player debug truncates a page larger than the diagnostic bound', () => playCase(async create => {
+  const p = create(['--debug']); await p.frame();
+  assert.match(await p.command('inspect'), /诊断页/);
+  assert.match(await p.command('3'), /规则/);
+  await p.command('-1');
+  const notice = await settle(() => p.stderr, /DEBUG_TRUNCATED/);
+  assert.match(notice, /^\[DEBUG_TRUNCATED\] 诊断数据 \d+ 字节超过 65536 字节，已截断输出；会话未改变。\n/);
+  assert.ok(Buffer.byteLength(p.stderr) <= 64 * 1024 + 200);
+  assert.doesNotMatch(p.stdout, /"note"/);
+  p.send('quit'); assert.equal((await p.exit()).code, 0);
+}));
+test('player inspect works after the run ends', () => playCase(async create => {
+  const p = create(); await p.frame();
+  assert.match(await p.command('1'), /林中岔路/);
+  assert.match(await p.command('1'), /挑战结束/);
+  assert.match(await p.command('inspect'), /诊断页/);
+  assert.match(await p.command('2'), /本局/);
+  assert.match(await p.command('0'), /诊断页/);
+  assert.match(await p.command('0'), /挑战结束/);
+  p.send('quit'); assert.equal((await p.exit()).code, 0);
+}));
+test('player reentering inspect resets the browsing stack', () => playCase(async create => {
+  const p = create(); await p.frame();
+  assert.match(await p.command('inspect'), /诊断页/);
+  assert.match(await p.command('1'), /背包/);
+  assert.match(await p.command('inspect'), /诊断页/);
+  assert.match(await p.command('0'), /路口/);
+  assert.match(await p.command('0'), /拒绝 \[NAV_NO_PARENT\]/);
+  p.send('quit'); assert.equal((await p.exit()).code, 0);
+}));

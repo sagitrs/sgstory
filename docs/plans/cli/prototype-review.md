@@ -49,9 +49,14 @@ References [#2066](https://github.com/sagitrs/sgstory/issues/2066)。本页描�
 | `0`、负数、正数三类输入各有具名结果，且码不混 | `main.mjs` 的输入路由（`line === '0'`、`^-[1-9]\d*$`、`^[1-9]\d*$` 三条分支）；`session.mjs` 的 `inspect` | `player zero returns and negative selects a guarded action`；`player rejects non canonical numbers as unknown input`；`player inspect browses entries and refuses debug without the flag` |
 | `choice.intent` 必填且为闭集，缺或非法即具名拒 | `session.mjs` 的 `checkedView` | `view choices require normal or guarded intent` |
 | `inspect` 前后 state、rng、revision、log 逐项不变 | `session.mjs` 的 `Session.inspect`（只给冻结副本，不动记录） | `inspect reports a page without touching state RNG revision or log` |
+| 返回值边界：仅普通对象走校验；数组、字符串、数字、布尔、`0`/`''`/`false` ⇒ `INSPECT_FORMAT` | `session.mjs` 的 `checkedPage` 与其调用点 | `inspect requires a plain object page` |
+| 终局后 `inspect` 仍可用 | `session.mjs` 的 `inspect` 不查 `phase` | `player inspect works after the run ends` |
+| 重复 `inspect` 清栈重入（回根页） | `main.mjs` 的 `enterInspect` | `player reentering inspect resets the browsing stack` |
+| `data` 走 JSON 边界失败 ⇒ `INSPECT_FORMAT`，底层码写进 `reason` | `session.mjs` 的 `checkedPage` 包装层 | `inspect rejects malformed pages as apparatus faults` |
+| 游戏处理器抛异常 ⇒ 返回 `{kind:'failed', code:'INSPECT_EXCEPTION'}` | `session.mjs` 的 `inspect` | `inspect returns a failed result when the game handler throws` |
 | `page` 形状不符、目标形状不符 ⇒ `INSPECT_FORMAT`；无此目标 ⇒ `INSPECT_NO_TARGET`；未实现钩子 ⇒ `INSPECT_UNAVAILABLE`；边界陈旧 ⇒ `STALE_INSPECT` | `session.mjs` 的 `checkedPage` 与 `inspect` 的分支顺序 | `inspect rejects malformed pages as apparatus faults`；`inspect refuses unavailable stale and missing targets without mixing codes` |
-| 诊断走 stderr、默认关闭、有界 | `main.mjs` 的 `inspectDebug`（`console.error`）；`session.mjs` 的 64 KiB 上限 | `player debug prints entry data on stderr only`；`player inspect browses entries and refuses debug without the flag`；`inspect rejects malformed pages as apparatus faults` |
-| 旧档两条路径都提示「旧存档不可用」，且会话、RNG、档文件不变 | `session.mjs` 的 `envelopeMismatch` 与 `describedGame`；`report.mjs` 的 `failureText` | `obsolete saves name both sides and keep session and file`；`load failure text names obsolete and corrupt saves` |
+| 诊断走 stderr、默认关闭、有界 | `main.mjs` 的 `inspectDebug`（`console.error`）；`json.mjs` 的 `boundedDiagnostic` | `player debug prints entry data on stderr only`；`player debug truncates a page larger than the diagnostic bound`；`diagnostic dumps are cut at the named bound` |
+| 旧档两条路径都提示不可用，且会话、RNG、档文件不变 | `session.mjs` 的 `envelopeMismatch` 与 `describedGame`；`report.mjs` 的 `failureText` | `obsolete saves name both sides and keep session and file`；`load failure text names obsolete and corrupt saves` |
 | `CLI_INTERFACE_VERSION` 与文档一致 | `session.mjs` 的常量；`src/cli/README.md`；`interface-v2.md` | `obsolete saves name both sides and keep session and file`（期望文案内嵌「本版为接口 v2」，常量变了而样本未升格即红） |
 | 既有 `choose`、存读、日志语义回归 | 未改 `choose`、`Store` 的提交与校验语义 | 原有 40 个单元用例与 5 个玩家用例逐条保留并通过（分母未减，只增不改） |
 
